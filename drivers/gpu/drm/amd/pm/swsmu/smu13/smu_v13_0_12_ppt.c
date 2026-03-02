@@ -49,6 +49,13 @@
 #undef pr_info
 #undef pr_debug
 
+#define hbm_stack_mask_valid(umc_mask) \
+	(((umc_mask) & 0x3) == 0x3)
+
+#define for_each_hbm_stack(stack_idx, umc_mask) \
+	for ((stack_idx) = 0; (umc_mask); \
+	     (umc_mask) >>= 2, (stack_idx)++) \
+
 #define SMU_13_0_12_FEA_MAP(smu_feature, smu_13_0_12_feature)                    \
 	[smu_feature] = { 1, (smu_13_0_12_feature) }
 
@@ -834,7 +841,7 @@ void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
 				  struct smu_v13_0_6_gpu_metrics *gpu_metrics)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0, xcc_id, inst, i, j;
+	int ret = 0, xcc_id, inst, i, j, idx;
 	u8 num_jpeg_rings_gpu_metrics;
 	MetricsTable_t *metrics;
 
@@ -848,6 +855,31 @@ void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
 	/* Reports max temperature of all voltage rails */
 	gpu_metrics->temperature_vrsoc =
 		SMUQ10_ROUND(metrics->MaxVrTemperature);
+
+	if (smu_v13_0_6_cap_supported(smu,
+				      SMU_CAP(TEMP_AID_XCD_HBM))) {
+		if (adev->umc.active_mask) {
+			u64 mask = adev->umc.active_mask;
+			int out_idx = 0;
+			int stack_idx;
+
+			if (unlikely(hweight64(mask) / 2 > SMU_13_0_6_MAX_HBM_STACKS)) {
+				dev_warn(adev->dev, "Invalid umc mask %lld\n", mask);
+			} else  {
+				for_each_hbm_stack(stack_idx, mask) {
+					if (!hbm_stack_mask_valid(mask))
+						continue;
+					gpu_metrics->temperature_hbm[out_idx++] =
+						metrics->HbmTemperature[stack_idx];
+				}
+			}
+		}
+		idx = 0;
+		for_each_inst(i, adev->aid_mask) {
+			gpu_metrics->temperature_aid[idx] = metrics->AidTemperature[i];
+			idx++;
+		}
+	}
 
 	gpu_metrics->average_gfx_activity =
 		SMUQ10_ROUND(metrics->SocketGfxBusy);
@@ -964,6 +996,9 @@ void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
 				[i] = SMUQ10_ROUND(
 				metrics->GfxclkBelowHostLimitTotalAcc[inst]);
 		}
+		if (smu_v13_0_6_cap_supported(smu,
+					      SMU_CAP(TEMP_AID_XCD_HBM)))
+			gpu_metrics->temperature_xcd[i] = metrics->XcdTemperature[inst];
 	}
 
 	gpu_metrics->xgmi_link_width = metrics->XgmiWidth;
