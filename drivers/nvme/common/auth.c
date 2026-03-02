@@ -12,6 +12,7 @@
 #include <crypto/hash.h>
 #include <crypto/dh.h>
 #include <crypto/hkdf.h>
+#include <crypto/sha2.h>
 #include <linux/nvme.h>
 #include <linux/nvme-auth.h>
 
@@ -233,6 +234,71 @@ void nvme_auth_free_key(struct nvme_dhchap_key *key)
 	kfree_sensitive(key);
 }
 EXPORT_SYMBOL_GPL(nvme_auth_free_key);
+
+/*
+ * Start computing an HMAC value, given the algorithm ID and raw key.
+ *
+ * The context should be zeroized at the end of its lifetime.  The caller can do
+ * that implicitly by calling nvme_auth_hmac_final(), or explicitly (needed when
+ * a context is abandoned without finalizing it) by calling memzero_explicit().
+ */
+int nvme_auth_hmac_init(struct nvme_auth_hmac_ctx *hmac, u8 hmac_id,
+			const u8 *key, size_t key_len)
+{
+	hmac->hmac_id = hmac_id;
+	switch (hmac_id) {
+	case NVME_AUTH_HASH_SHA256:
+		hmac_sha256_init_usingrawkey(&hmac->sha256, key, key_len);
+		return 0;
+	case NVME_AUTH_HASH_SHA384:
+		hmac_sha384_init_usingrawkey(&hmac->sha384, key, key_len);
+		return 0;
+	case NVME_AUTH_HASH_SHA512:
+		hmac_sha512_init_usingrawkey(&hmac->sha512, key, key_len);
+		return 0;
+	}
+	pr_warn("%s: invalid hash algorithm %d\n", __func__, hmac_id);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(nvme_auth_hmac_init);
+
+void nvme_auth_hmac_update(struct nvme_auth_hmac_ctx *hmac, const u8 *data,
+			   size_t data_len)
+{
+	switch (hmac->hmac_id) {
+	case NVME_AUTH_HASH_SHA256:
+		hmac_sha256_update(&hmac->sha256, data, data_len);
+		return;
+	case NVME_AUTH_HASH_SHA384:
+		hmac_sha384_update(&hmac->sha384, data, data_len);
+		return;
+	case NVME_AUTH_HASH_SHA512:
+		hmac_sha512_update(&hmac->sha512, data, data_len);
+		return;
+	}
+	/* Unreachable because nvme_auth_hmac_init() validated hmac_id */
+	WARN_ON_ONCE(1);
+}
+EXPORT_SYMBOL_GPL(nvme_auth_hmac_update);
+
+/* Finish computing an HMAC value.  Note that this zeroizes the HMAC context. */
+void nvme_auth_hmac_final(struct nvme_auth_hmac_ctx *hmac, u8 *out)
+{
+	switch (hmac->hmac_id) {
+	case NVME_AUTH_HASH_SHA256:
+		hmac_sha256_final(&hmac->sha256, out);
+		return;
+	case NVME_AUTH_HASH_SHA384:
+		hmac_sha384_final(&hmac->sha384, out);
+		return;
+	case NVME_AUTH_HASH_SHA512:
+		hmac_sha512_final(&hmac->sha512, out);
+		return;
+	}
+	/* Unreachable because nvme_auth_hmac_init() validated hmac_id */
+	WARN_ON_ONCE(1);
+}
+EXPORT_SYMBOL_GPL(nvme_auth_hmac_final);
 
 struct nvme_dhchap_key *nvme_auth_transform_key(
 		const struct nvme_dhchap_key *key, const char *nqn)

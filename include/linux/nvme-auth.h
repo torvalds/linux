@@ -7,6 +7,7 @@
 #define _NVME_AUTH_H
 
 #include <crypto/kpp.h>
+#include <crypto/sha2.h>
 
 struct nvme_dhchap_key {
 	size_t len;
@@ -23,6 +24,19 @@ const char *nvme_auth_hmac_name(u8 hmac_id);
 const char *nvme_auth_digest_name(u8 hmac_id);
 size_t nvme_auth_hmac_hash_len(u8 hmac_id);
 u8 nvme_auth_hmac_id(const char *hmac_name);
+struct nvme_auth_hmac_ctx {
+	u8 hmac_id;
+	union {
+		struct hmac_sha256_ctx sha256;
+		struct hmac_sha384_ctx sha384;
+		struct hmac_sha512_ctx sha512;
+	};
+};
+int nvme_auth_hmac_init(struct nvme_auth_hmac_ctx *hmac, u8 hmac_id,
+			const u8 *key, size_t key_len);
+void nvme_auth_hmac_update(struct nvme_auth_hmac_ctx *hmac, const u8 *data,
+			   size_t data_len);
+void nvme_auth_hmac_final(struct nvme_auth_hmac_ctx *hmac, u8 *out);
 
 u32 nvme_auth_key_struct_size(u32 key_len);
 struct nvme_dhchap_key *nvme_auth_extract_key(const char *secret, u8 key_hash);
