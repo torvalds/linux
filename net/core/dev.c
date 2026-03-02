@@ -5075,9 +5075,9 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		       struct rps_dev_flow **rflowp)
 {
-	const struct rps_sock_flow_table *sock_flow_table;
 	struct netdev_rx_queue *rxqueue = dev->_rx;
 	struct rps_dev_flow_table *flow_table;
+	rps_tag_ptr global_tag_ptr;
 	struct rps_map *map;
 	int cpu = -1;
 	u32 tcpu;
@@ -5108,8 +5108,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (!hash)
 		goto done;
 
-	sock_flow_table = rcu_dereference(net_hotdata.rps_sock_flow_table);
-	if (flow_table && sock_flow_table) {
+	global_tag_ptr = READ_ONCE(net_hotdata.rps_sock_flow_table);
+	if (flow_table && global_tag_ptr) {
+		struct rps_sock_flow_table *sock_flow_table;
 		struct rps_dev_flow *rflow;
 		u32 next_cpu;
 		u32 flow_id;
@@ -5118,8 +5119,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		/* First check into global flow table if there is a match.
 		 * This READ_ONCE() pairs with WRITE_ONCE() from rps_record_sock_flow().
 		 */
-		flow_id = hash & rps_sock_flow_table_mask(sock_flow_table);
-		ident = READ_ONCE(sock_flow_table->ents[flow_id]);
+		flow_id = hash & rps_tag_to_mask(global_tag_ptr);
+		sock_flow_table = rps_tag_to_table(global_tag_ptr);
+		ident = READ_ONCE(sock_flow_table[flow_id].ent);
 		if ((ident ^ hash) & ~net_hotdata.rps_cpu_mask)
 			goto try_rps;
 
