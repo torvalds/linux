@@ -447,7 +447,7 @@ static bool io_submit_need_new_bio(struct ext4_io_submit *io,
 	if (bh->b_blocknr != io->io_next_block)
 		return true;
 	if (!fscrypt_mergeable_bio(io->io_bio, inode,
-			(folio_pos(folio) + bh_offset(bh)) >> inode->i_blkbits))
+			folio_pos(folio) + bh_offset(bh)))
 		return true;
 	return false;
 }
