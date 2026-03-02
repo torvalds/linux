@@ -3,7 +3,7 @@
 struct io_timeout_data {
 	struct io_kiocb			*req;
 	struct hrtimer			timer;
-	struct timespec64		ts;
+	ktime_t				time;
 	enum hrtimer_mode		mode;
 	u32				flags;
 };

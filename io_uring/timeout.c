@@ -30,12 +30,12 @@ struct io_timeout_rem {
 	u64				addr;
 
 	/* timeout update */
-	struct timespec64		ts;
+	ktime_t				time;
 	u32				flags;
 	bool				ltimeout;
 };
 
-static int io_parse_user_time(struct timespec64 *ts_out, u64 arg)
+static int io_parse_user_time(ktime_t *time, u64 arg)
 {
 	struct timespec64 ts;
 
@@ -43,7 +43,7 @@ static int io_parse_user_time(struct timespec64 *ts_out, u64 arg)
 		return -EFAULT;
 	if (ts.tv_sec < 0 || ts.tv_nsec < 0)
 		return -EINVAL;
-	*ts_out = ts;
+	*time = timespec64_to_ktime(ts);
 	return 0;
 }
 
@@ -92,7 +92,7 @@ static void io_timeout_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 			/* re-arm timer */
 			raw_spin_lock_irq(&ctx->timeout_lock);
 			list_add(&timeout->list, ctx->timeout_list.prev);
-			hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), data->mode);
+			hrtimer_start(&data->timer, data->time, data->mode);
 			raw_spin_unlock_irq(&ctx->timeout_lock);
 			return;
 		}
@@ -407,7 +407,7 @@ static clockid_t io_timeout_get_clock(struct io_timeout_data *data)
 }
 
 static int io_linked_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
-				    struct timespec64 *ts, enum hrtimer_mode mode)
+				    ktime_t ts, enum hrtimer_mode mode)
 	__must_hold(&ctx->timeout_lock)
 {
 	struct io_timeout_data *io;
@@ -429,12 +429,12 @@ static int io_linked_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 	if (hrtimer_try_to_cancel(&io->timer) == -1)
 		return -EALREADY;
 	hrtimer_setup(&io->timer, io_link_timeout_fn, io_timeout_get_clock(io), mode);
-	hrtimer_start(&io->timer, timespec64_to_ktime(*ts), mode);
+	hrtimer_start(&io->timer, ts, mode);
 	return 0;
 }
 
 static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
-			     struct timespec64 *ts, enum hrtimer_mode mode)
+			     ktime_t time, enum hrtimer_mode mode)
 	__must_hold(&ctx->timeout_lock)
 {
 	struct io_cancel_data cd = { .ctx = ctx, .data = user_data, };
@@ -447,11 +447,11 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 
 	timeout->off = 0; /* noseq */
 	data = req->async_data;
-	data->ts = *ts;
+	data->time = time;
 
 	list_add_tail(&timeout->list, &ctx->timeout_list);
 	hrtimer_setup(&data->timer, io_timeout_fn, io_timeout_get_clock(data), mode);
-	hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), mode);
+	hrtimer_start(&data->timer, data->time, mode);
 	return 0;
 }
 
@@ -477,7 +477,7 @@ int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			tr->ltimeout = true;
 		if (tr->flags & ~(IORING_TIMEOUT_UPDATE_MASK|IORING_TIMEOUT_ABS))
 			return -EINVAL;
-		ret = io_parse_user_time(&tr->ts, READ_ONCE(sqe->addr2));
+		ret = io_parse_user_time(&tr->time, READ_ONCE(sqe->addr2));
 		if (ret)
 			return ret;
 	} else if (tr->flags) {
@@ -514,9 +514,9 @@ int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 
 		raw_spin_lock_irq(&ctx->timeout_lock);
 		if (tr->ltimeout)
-			ret = io_linked_timeout_update(ctx, tr->addr, &tr->ts, mode);
+			ret = io_linked_timeout_update(ctx, tr->addr, tr->time, mode);
 		else
-			ret = io_timeout_update(ctx, tr->addr, &tr->ts, mode);
+			ret = io_timeout_update(ctx, tr->addr, tr->time, mode);
 		raw_spin_unlock_irq(&ctx->timeout_lock);
 	}
 
@@ -574,7 +574,7 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	data->req = req;
 	data->flags = flags;
 
-	ret = io_parse_user_time(&data->ts, READ_ONCE(sqe->addr));
+	ret = io_parse_user_time(&data->time, READ_ONCE(sqe->addr));
 	if (ret)
 		return ret;
 
@@ -652,7 +652,7 @@ int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 	}
 add:
 	list_add(&timeout->list, entry);
-	hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), data->mode);
+	hrtimer_start(&data->timer, data->time, data->mode);
 	raw_spin_unlock_irq(&ctx->timeout_lock);
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
@@ -670,8 +670,7 @@ void io_queue_linked_timeout(struct io_kiocb *req)
 	if (timeout->head) {
 		struct io_timeout_data *data = req->async_data;
 
-		hrtimer_start(&data->timer, timespec64_to_ktime(data->ts),
-				data->mode);
+		hrtimer_start(&data->timer, data->time, data->mode);
 		list_add_tail(&timeout->list, &ctx->ltimeout_list);
 	}
 	raw_spin_unlock_irq(&ctx->timeout_lock);
