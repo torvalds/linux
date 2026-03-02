@@ -97,19 +97,60 @@ static inline unsigned long get_trans_granule(void)
 
 #define TLBI_TTL_UNKNOWN	INT_MAX
 
-#define __tlbi_level(op, addr, level) do {				\
-	u64 arg = addr;							\
-									\
-	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) &&	\
-	    level >= 0 && level <= 3) {					\
-		u64 ttl = level & 3;					\
-		ttl |= get_trans_granule() << 2;			\
-		arg &= ~TLBI_TTL_MASK;					\
-		arg |= FIELD_PREP(TLBI_TTL_MASK, ttl);			\
-	}								\
-									\
-	__tlbi(op, arg);						\
-} while(0)
+typedef void (*tlbi_op)(u64 arg);
+
+static __always_inline void vae1is(u64 arg)
+{
+	__tlbi(vae1is, arg);
+}
+
+static __always_inline void vae2is(u64 arg)
+{
+	__tlbi(vae2is, arg);
+}
+
+static __always_inline void vale1(u64 arg)
+{
+	__tlbi(vale1, arg);
+}
+
+static __always_inline void vale1is(u64 arg)
+{
+	__tlbi(vale1is, arg);
+}
+
+static __always_inline void vale2is(u64 arg)
+{
+	__tlbi(vale2is, arg);
+}
+
+static __always_inline void vaale1is(u64 arg)
+{
+	__tlbi(vaale1is, arg);
+}
+
+static __always_inline void ipas2e1(u64 arg)
+{
+	__tlbi(ipas2e1, arg);
+}
+
+static __always_inline void ipas2e1is(u64 arg)
+{
+	__tlbi(ipas2e1is, arg);
+}
+
+static __always_inline void __tlbi_level(tlbi_op op, u64 addr, u32 level)
+{
+	u64 arg = addr;
+
+	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) && level <= 3) {
+		u64 ttl = level | (get_trans_granule() << 2);
+
+		FIELD_MODIFY(TLBI_TTL_MASK, &arg, ttl);
+	}
+
+	op(arg);
+}
 
 #define __tlbi_user_level(op, arg, level) do {				\
 	if (arm64_kernel_unmapped_at_el0())				\
