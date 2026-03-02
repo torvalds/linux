@@ -108,7 +108,7 @@ struct aa_ext {
  * fs entries and drops the associated @count ref.
  */
 struct aa_loaddata {
-	struct kref count;
+	struct aa_common_ref count;
 	struct kref pcount;
 	struct list_head list;
 	struct work_struct work;
@@ -143,7 +143,7 @@ aa_get_i_loaddata(struct aa_loaddata *data)
 {
 
 	if (data)
-		kref_get(&(data->count));
+		kref_get(&(data->count.count));
 	return data;
 }
 
@@ -171,7 +171,7 @@ struct aa_loaddata *aa_loaddata_alloc(size_t size);
 static inline void aa_put_i_loaddata(struct aa_loaddata *data)
 {
 	if (data)
-		kref_put(&data->count, aa_loaddata_kref);
+		kref_put(&data->count.count, aa_loaddata_kref);
 }
 
 static inline void aa_put_profile_loaddata(struct aa_loaddata *data)

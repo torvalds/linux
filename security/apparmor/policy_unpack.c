@@ -119,7 +119,8 @@ static void do_loaddata_free(struct aa_loaddata *d)
 
 void aa_loaddata_kref(struct kref *kref)
 {
-	struct aa_loaddata *d = container_of(kref, struct aa_loaddata, count);
+	struct aa_loaddata *d = container_of(kref, struct aa_loaddata,
+					     count.count);
 
 	do_loaddata_free(d);
 }
@@ -166,7 +167,8 @@ struct aa_loaddata *aa_loaddata_alloc(size_t size)
 		kfree(d);
 		return ERR_PTR(-ENOMEM);
 	}
-	kref_init(&d->count);
+	kref_init(&d->count.count);
+	d->count.reftype = REF_RAWDATA;
 	kref_init(&d->pcount);
 	INIT_LIST_HEAD(&d->list);
 
