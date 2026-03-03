@@ -2061,15 +2061,6 @@ typedef struct {
 	__le32 EASize;
 } __packed FILE_INFO_STANDARD;  /* level 1 SetPath/FileInfo */
 
-typedef struct {
-	__le64 CreationTime;
-	__le64 LastAccessTime;
-	__le64 LastWriteTime;
-	__le64 ChangeTime;
-	__le32 Attributes;
-	__u32 Pad;
-} __packed FILE_BASIC_INFO;	/* size info, level 0x101 */
-
 struct file_allocation_info {
 	__le64 AllocationSize; /* Note old Samba srvr rounds this up too much */
 } __packed; /* size used on disk, for level 0x103 for set, 0x105 for query */

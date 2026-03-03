@@ -216,6 +216,16 @@ struct smb2_file_all_info { /* data block encoding of response to level 18 */
 	};
 } __packed; /* level 18 Query */
 
+/* See MS-FSCC 2.4.7 */
+typedef struct file_basic_info { /* data block encoding of response to level 18 */
+	__le64 CreationTime;
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le32 Attributes;
+	__u32  Pad;
+} __packed FILE_BASIC_INFO;	/* size info, level 0x101 */
+
 /* See MS-FSCC 2.4.8 */
 typedef struct {
 	__le32 NextEntryOffset;
