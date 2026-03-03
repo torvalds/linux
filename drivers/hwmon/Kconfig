@@ -964,6 +964,23 @@ config SENSORS_LAN966X
 	  This driver can also be built as a module. If so, the module
 	  will be called lan966x-hwmon.
 
+config SENSORS_LATTEPANDA_SIGMA_EC
+	tristate "LattePanda Sigma EC hardware monitoring"
+	depends on X86
+	depends on DMI
+	depends on HAS_IOPORT
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  features of the Embedded Controller on LattePanda Sigma
+	  single-board computers, including CPU fan speed (RPM) and
+	  board and CPU temperatures.
+
+	  The driver reads the EC directly via ACPI EC I/O ports and
+	  uses DMI matching to ensure it only loads on supported hardware.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called lattepanda-sigma-ec.
+
 config SENSORS_LENOVO_EC
         tristate "Sensor reader for Lenovo ThinkStations"
         depends on X86

@@ -14421,6 +14421,13 @@ F:	drivers/net/wan/framer/
 F:	drivers/pinctrl/pinctrl-pef2256.c
 F:	include/linux/framer/
 
+LATTEPANDA SIGMA EC HARDWARE MONITOR DRIVER
+M:	Mariano Abad <weimaraner@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/lattepanda-sigma-ec.rst
+F:	drivers/hwmon/lattepanda-sigma-ec.c
+
 LASI 53c700 driver for PARISC
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 L:	linux-scsi@vger.kernel.org
