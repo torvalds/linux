@@ -2724,6 +2724,9 @@ static unsigned long get_ind_bit(__u64 addr, unsigned long bit_nr, bool swap)
 
 	bit = bit_nr + (addr % PAGE_SIZE) * 8;
 
+	/* kvm_set_routing_entry() should never allow this to happen */
+	WARN_ON_ONCE(bit > (PAGE_SIZE * BITS_PER_BYTE - 1));
+
 	return swap ? (bit ^ (BITS_PER_LONG - 1)) : bit;
 }
 
@@ -2852,6 +2855,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 			  struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
+	const struct kvm_irq_routing_s390_adapter *adapter;
 	u64 uaddr_s, uaddr_i;
 	int idx;
 
@@ -2861,6 +2865,14 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		if (kvm_is_ucontrol(kvm))
 			return -EINVAL;
 		e->set = set_adapter_int;
+
+		adapter = &ue->u.adapter;
+		if (adapter->summary_addr + (adapter->summary_offset / 8) >=
+		    (adapter->summary_addr & PAGE_MASK) + PAGE_SIZE)
+			return -EINVAL;
+		if (adapter->ind_addr + (adapter->ind_offset / 8) >=
+		    (adapter->ind_addr & PAGE_MASK) + PAGE_SIZE)
+			return -EINVAL;
 
 		idx = srcu_read_lock(&kvm->srcu);
 		uaddr_s = gpa_to_hva(kvm, ue->u.adapter.summary_addr);
