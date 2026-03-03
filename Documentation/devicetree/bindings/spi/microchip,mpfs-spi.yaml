@@ -41,6 +41,9 @@ properties:
   clocks:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   microchip,apb-datawidth:
     description: APB bus data width in bits.
     $ref: /schemas/types.yaml#/definitions/uint32
