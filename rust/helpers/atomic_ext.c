@@ -36,6 +36,7 @@ __rust_helper void rust_helper_atomic_##tname##_set_release(type *ptr, type val)
 
 GEN_READ_SET_HELPERS(i8, s8)
 GEN_READ_SET_HELPERS(i16, s16)
+GEN_READ_SET_HELPERS(ptr, const void *)
 
 /*
  * xchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
@@ -59,6 +60,7 @@ rust_helper_atomic_##tname##_xchg##suffix(type *ptr, type new)			\
 
 GEN_XCHG_HELPERS(i8, s8)
 GEN_XCHG_HELPERS(i16, s16)
+GEN_XCHG_HELPERS(ptr, const void *)
 
 /*
  * try_cmpxchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
@@ -82,3 +84,4 @@ rust_helper_atomic_##tname##_try_cmpxchg##suffix(type *ptr, type *old, type new)
 
 GEN_TRY_CMPXCHG_HELPERS(i8, s8)
 GEN_TRY_CMPXCHG_HELPERS(i16, s16)
+GEN_TRY_CMPXCHG_HELPERS(ptr, const void *)
