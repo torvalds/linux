@@ -279,6 +279,9 @@ struct netns_ipv4 {
 	struct list_head	mr_tables;
 	struct fib_rules_ops	*mr_rules_ops;
 #endif
+	struct fib_notifier_ops	*ipmr_notifier_ops;
+	atomic_t		ipmr_seq;
+	struct mutex		mfc_mutex;
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	struct sysctl_fib_multipath_hash_seed sysctl_fib_multipath_hash_seed;
@@ -289,9 +292,6 @@ struct netns_ipv4 {
 
 	struct fib_notifier_ops	*notifier_ops;
 	unsigned int	fib_seq;	/* writes protected by rtnl_mutex */
-
-	struct fib_notifier_ops	*ipmr_notifier_ops;
-	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;
 	siphash_key_t	ip_id_key;
