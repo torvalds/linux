@@ -2739,7 +2739,7 @@ static bool check_rq_for_timeouts(struct rq *rq)
 		unsigned long last_runnable = p->scx.runnable_at;
 
 		if (unlikely(time_after(jiffies,
-					last_runnable + scx_watchdog_timeout))) {
+					last_runnable + READ_ONCE(scx_watchdog_timeout)))) {
 			u32 dur_ms = jiffies_to_msecs(jiffies - last_runnable);
 
 			scx_exit(sch, SCX_EXIT_ERROR_STALL, 0,
@@ -2767,7 +2767,7 @@ static void scx_watchdog_workfn(struct work_struct *work)
 		cond_resched();
 	}
 	queue_delayed_work(system_unbound_wq, to_delayed_work(work),
-			   scx_watchdog_timeout / 2);
+			   READ_ONCE(scx_watchdog_timeout) / 2);
 }
 
 void scx_tick(struct rq *rq)
@@ -5081,7 +5081,7 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	WRITE_ONCE(scx_watchdog_timeout, timeout);
 	WRITE_ONCE(scx_watchdog_timestamp, jiffies);
 	queue_delayed_work(system_unbound_wq, &scx_watchdog_work,
-			   scx_watchdog_timeout / 2);
+			   READ_ONCE(scx_watchdog_timeout) / 2);
 
 	/*
 	 * Once __scx_enabled is set, %current can be switched to SCX anytime.
