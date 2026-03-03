@@ -36,6 +36,9 @@ struct xe_sriov_metadata {
  * @XE_SRIOV_MODE_PF mode.
  */
 struct xe_device_pf {
+	/** @admin_only: PF functionality focused on VFs management only. */
+	bool admin_only;
+
 	/** @device_total_vfs: Maximum number of VFs supported by the device. */
 	u16 device_total_vfs;
 

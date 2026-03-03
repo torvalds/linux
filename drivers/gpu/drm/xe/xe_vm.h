@@ -220,6 +220,13 @@ static inline bool xe_vm_in_preempt_fence_mode(struct xe_vm *vm)
 	return xe_vm_in_lr_mode(vm) && !xe_vm_in_fault_mode(vm);
 }
 
+static inline bool xe_vm_allow_vm_eviction(struct xe_vm *vm)
+{
+	return !xe_vm_in_lr_mode(vm) ||
+		(xe_vm_in_fault_mode(vm) &&
+		 !(vm->flags & XE_VM_FLAG_NO_VM_OVERCOMMIT));
+}
+
 int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 
@@ -286,6 +293,9 @@ static inline struct dma_resv *xe_vm_resv(struct xe_vm *vm)
 }
 
 void xe_vm_kill(struct xe_vm *vm, bool unlocked);
+
+void xe_vm_add_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
+void xe_vm_remove_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
 
 /**
  * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.

@@ -408,7 +408,8 @@ xe_hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 		},
 	};
 
-	xe_rtp_process_to_sr(&ctx, lrc_setup, ARRAY_SIZE(lrc_setup), &hwe->reg_lrc);
+	xe_rtp_process_to_sr(&ctx, lrc_setup, ARRAY_SIZE(lrc_setup),
+			     &hwe->reg_lrc, true);
 }
 
 static void
@@ -472,7 +473,8 @@ hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 		},
 	};
 
-	xe_rtp_process_to_sr(&ctx, engine_entries, ARRAY_SIZE(engine_entries), &hwe->reg_sr);
+	xe_rtp_process_to_sr(&ctx, engine_entries, ARRAY_SIZE(engine_entries),
+			     &hwe->reg_sr, false);
 }
 
 static const struct engine_info *find_engine_info(enum xe_engine_class class, int instance)

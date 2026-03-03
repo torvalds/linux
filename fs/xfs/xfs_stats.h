@@ -100,14 +100,14 @@ struct __xfsstats {
 	uint32_t		xs_iflush_count;
 	uint32_t		xs_icluster_flushcnt;
 	uint32_t		xs_icluster_flushinode;
-	uint32_t		vn_active;	/* # vnodes not on free lists */
-	uint32_t		vn_alloc;	/* # times vn_alloc called */
-	uint32_t		vn_get;		/* # times vn_get called */
-	uint32_t		vn_hold;	/* # times vn_hold called */
-	uint32_t		vn_rele;	/* # times vn_rele called */
-	uint32_t		vn_reclaim;	/* # times vn_reclaim called */
-	uint32_t		vn_remove;	/* # times vn_remove called */
-	uint32_t		vn_free;	/* # times vn_free called */
+	uint32_t		xs_inodes_active;
+	uint32_t		__unused_vn_alloc;
+	uint32_t		__unused_vn_get;
+	uint32_t		__unused_vn_hold;
+	uint32_t		xs_inode_destroy;
+	uint32_t		xs_inode_destroy2; /* same as xs_inode_destroy */
+	uint32_t		xs_inode_mark_reclaimable;
+	uint32_t		__unused_vn_free;
 	uint32_t		xb_get;
 	uint32_t		xb_create;
 	uint32_t		xb_get_locked;
@@ -142,7 +142,8 @@ struct __xfsstats {
 	uint32_t		xs_gc_read_calls;
 	uint32_t		xs_gc_write_calls;
 	uint32_t		xs_gc_zone_reset_calls;
-	uint32_t		__pad1;
+/* Metafile counters */
+	uint32_t		xs_inodes_meta;
 /* Extra precision counters */
 	uint64_t		xs_xstrat_bytes;
 	uint64_t		xs_write_bytes;

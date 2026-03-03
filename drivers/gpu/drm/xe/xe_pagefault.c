@@ -136,7 +136,7 @@ unlock_dma_resv:
 static bool
 xe_pagefault_access_is_atomic(enum xe_pagefault_access_type access_type)
 {
-	return access_type == XE_PAGEFAULT_ACCESS_TYPE_ATOMIC;
+	return (access_type & XE_PAGEFAULT_ACCESS_TYPE_MASK) == XE_PAGEFAULT_ACCESS_TYPE_ATOMIC;
 }
 
 static struct xe_vm *xe_pagefault_asid_to_vm(struct xe_device *xe, u32 asid)
@@ -164,7 +164,7 @@ static int xe_pagefault_service(struct xe_pagefault *pf)
 	bool atomic;
 
 	/* Producer flagged this fault to be nacked */
-	if (pf->consumer.fault_level == XE_PAGEFAULT_LEVEL_NACK)
+	if (pf->consumer.fault_type_level == XE_PAGEFAULT_TYPE_LEVEL_NACK)
 		return -EFAULT;
 
 	vm = xe_pagefault_asid_to_vm(xe, pf->consumer.asid);
@@ -225,17 +225,20 @@ static void xe_pagefault_print(struct xe_pagefault *pf)
 {
 	xe_gt_info(pf->gt, "\n\tASID: %d\n"
 		   "\tFaulted Address: 0x%08x%08x\n"
-		   "\tFaultType: %d\n"
-		   "\tAccessType: %d\n"
-		   "\tFaultLevel: %d\n"
+		   "\tFaultType: %lu\n"
+		   "\tAccessType: %lu\n"
+		   "\tFaultLevel: %lu\n"
 		   "\tEngineClass: %d %s\n"
 		   "\tEngineInstance: %d\n",
 		   pf->consumer.asid,
 		   upper_32_bits(pf->consumer.page_addr),
 		   lower_32_bits(pf->consumer.page_addr),
-		   pf->consumer.fault_type,
-		   pf->consumer.access_type,
-		   pf->consumer.fault_level,
+		   FIELD_GET(XE_PAGEFAULT_TYPE_MASK,
+			     pf->consumer.fault_type_level),
+		   FIELD_GET(XE_PAGEFAULT_ACCESS_TYPE_MASK,
+			     pf->consumer.access_type),
+		   FIELD_GET(XE_PAGEFAULT_LEVEL_MASK,
+			     pf->consumer.fault_type_level),
 		   pf->consumer.engine_class,
 		   xe_hw_engine_class_to_str(pf->consumer.engine_class),
 		   pf->consumer.engine_instance);
@@ -259,9 +262,15 @@ static void xe_pagefault_queue_work(struct work_struct *w)
 
 		err = xe_pagefault_service(&pf);
 		if (err) {
-			xe_pagefault_print(&pf);
-			xe_gt_info(pf.gt, "Fault response: Unsuccessful %pe\n",
-				   ERR_PTR(err));
+			if (!(pf.consumer.access_type & XE_PAGEFAULT_ACCESS_PREFETCH)) {
+				xe_pagefault_print(&pf);
+				xe_gt_info(pf.gt, "Fault response: Unsuccessful %pe\n",
+					   ERR_PTR(err));
+			} else {
+				xe_gt_stats_incr(pf.gt, XE_GT_STATS_ID_INVALID_PREFETCH_PAGEFAULT_COUNT, 1);
+				xe_gt_dbg(pf.gt, "Prefetch Fault response: Unsuccessful %pe\n",
+					  ERR_PTR(err));
+			}
 		}
 
 		pf.producer.ops->ack_fault(&pf, err);

@@ -63,7 +63,7 @@
 #define NPU6_SRAM_BAR_BASE	MMNPU_APERTURE1_BASE
 
 static const struct amdxdna_dev_priv npu6_dev_priv = {
-	.fw_path        = "amdnpu/17f0_10/npu.sbin",
+	.fw_path        = "amdnpu/17f0_10/",
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
 	.fw_feature_tbl = npu4_fw_feature_table,

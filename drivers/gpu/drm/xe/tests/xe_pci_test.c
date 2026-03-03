@@ -19,6 +19,8 @@ static void check_graphics_ip(struct kunit *test)
 	const struct xe_ip *param = test->param_value;
 	const struct xe_graphics_desc *graphics = param->desc;
 	u64 mask = graphics->hw_engine_mask;
+	u8 fuse_regs = graphics->num_geometry_xecore_fuse_regs +
+		graphics->num_compute_xecore_fuse_regs;
 
 	/* RCS, CCS, and BCS engines are allowed on the graphics IP */
 	mask &= ~(XE_HW_ENGINE_RCS_MASK |
@@ -27,6 +29,12 @@ static void check_graphics_ip(struct kunit *test)
 
 	/* Any remaining engines are an error */
 	KUNIT_ASSERT_EQ(test, mask, 0);
+
+	/*
+	 * All graphics IP should have at least one geometry and/or compute
+	 * XeCore fuse register.
+	 */
+	KUNIT_ASSERT_GE(test, fuse_regs, 1);
 }
 
 static void check_media_ip(struct kunit *test)

@@ -148,12 +148,6 @@ static int domain_sleep_wait(struct xe_gt *gt,
 	return __domain_wait(gt, domain, false);
 }
 
-#define for_each_fw_domain_masked(domain__, mask__, fw__, tmp__) \
-	for (tmp__ = (mask__); tmp__; tmp__ &= ~BIT(ffs(tmp__) - 1)) \
-		for_each_if((domain__ = ((fw__)->domains + \
-					 (ffs(tmp__) - 1))) && \
-					 domain__->reg_ctl.addr)
-
 /**
  * xe_force_wake_get() : Increase the domain refcount
  * @fw: struct xe_force_wake
@@ -265,4 +259,44 @@ void xe_force_wake_put(struct xe_force_wake *fw, unsigned int fw_ref)
 
 	xe_gt_WARN(gt, ack_fail, "Forcewake domain%s %#x failed to acknowledge sleep request\n",
 		   str_plural(hweight_long(ack_fail)), ack_fail);
+}
+
+const char *xe_force_wake_domain_to_str(enum xe_force_wake_domain_id id)
+{
+	switch (id) {
+	case XE_FW_DOMAIN_ID_GT:
+		return "GT";
+	case XE_FW_DOMAIN_ID_RENDER:
+		return "Render";
+	case XE_FW_DOMAIN_ID_MEDIA:
+		return "Media";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX0:
+		return "VDBox0";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX1:
+		return "VDBox1";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX2:
+		return "VDBox2";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX3:
+		return "VDBox3";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX4:
+		return "VDBox4";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX5:
+		return "VDBox5";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX6:
+		return "VDBox6";
+	case XE_FW_DOMAIN_ID_MEDIA_VDBOX7:
+		return "VDBox7";
+	case XE_FW_DOMAIN_ID_MEDIA_VEBOX0:
+		return "VEBox0";
+	case XE_FW_DOMAIN_ID_MEDIA_VEBOX1:
+		return "VEBox1";
+	case XE_FW_DOMAIN_ID_MEDIA_VEBOX2:
+		return "VEBox2";
+	case XE_FW_DOMAIN_ID_MEDIA_VEBOX3:
+		return "VEBox3";
+	case XE_FW_DOMAIN_ID_GSC:
+		return "GSC";
+	default:
+		return "Unknown";
+	}
 }

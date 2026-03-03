@@ -72,7 +72,7 @@ static const struct aie2_fw_feature_tbl npu1_fw_feature_table[] = {
 };
 
 static const struct amdxdna_dev_priv npu1_dev_priv = {
-	.fw_path        = "amdnpu/1502_00/npu.sbin",
+	.fw_path        = "amdnpu/1502_00/",
 	.rt_config	= npu1_default_rt_cfg,
 	.dpm_clk_tbl	= npu1_dpm_clk_table,
 	.fw_feature_tbl = npu1_fw_feature_table,
