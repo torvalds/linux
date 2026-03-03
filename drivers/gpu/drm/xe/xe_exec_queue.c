@@ -399,6 +399,20 @@ err_lrc:
 	return err;
 }
 
+/**
+ * xe_exec_queue_create() - Create an exec queue
+ * @xe: Xe device
+ * @vm: VM for the exec queue
+ * @logical_mask: Logical mask of HW engines
+ * @width: Width of the exec queue (number of LRCs)
+ * @hwe: Hardware engine
+ * @flags: Exec queue creation flags
+ * @extensions: Extensions for exec queue creation
+ *
+ * Create an exec queue (allocate and initialize) with the specified parameters
+ *
+ * Return: Pointer to the created exec queue on success, ERR_PTR on failure
+ */
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
 					   u32 logical_mask, u16 width,
 					   struct xe_hw_engine *hwe, u32 flags,
@@ -442,6 +456,19 @@ err_post_alloc:
 }
 ALLOW_ERROR_INJECTION(xe_exec_queue_create, ERRNO);
 
+/**
+ * xe_exec_queue_create_class() - Create an exec queue for a specific engine class
+ * @xe: Xe device
+ * @gt: GT for the exec queue
+ * @vm: VM for the exec queue
+ * @class: Engine class
+ * @flags: Exec queue creation flags
+ * @extensions: Extensions for exec queue creation
+ *
+ * Create an exec queue for the specified engine class.
+ *
+ * Return: Pointer to the created exec queue on success, ERR_PTR on failure
+ */
 struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe_gt *gt,
 						 struct xe_vm *vm,
 						 enum xe_engine_class class,
@@ -533,6 +560,14 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 }
 ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
 
+/**
+ * xe_exec_queue_destroy() - Destroy an exec queue
+ * @ref: Reference count of the exec queue
+ *
+ * Called when the last reference to the exec queue is dropped.
+ * Cleans up all resources associated with the exec queue.
+ * This function should not be called directly; use xe_exec_queue_put() instead.
+ */
 void xe_exec_queue_destroy(struct kref *ref)
 {
 	struct xe_exec_queue *q = container_of(ref, struct xe_exec_queue, refcount);
@@ -565,6 +600,14 @@ void xe_exec_queue_destroy(struct kref *ref)
 	q->ops->destroy(q);
 }
 
+/**
+ * xe_exec_queue_fini() - Finalize an exec queue
+ * @q: The exec queue
+ *
+ * Finalizes the exec queue by updating run ticks, releasing LRC references,
+ * and freeing the queue structure. This is called after the queue has been
+ * destroyed and all references have been dropped.
+ */
 void xe_exec_queue_fini(struct xe_exec_queue *q)
 {
 	/*
@@ -579,6 +622,14 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 	__xe_exec_queue_free(q);
 }
 
+/**
+ * xe_exec_queue_assign_name() - Assign a name to an exec queue
+ * @q: The exec queue
+ * @instance: Instance number for the engine
+ *
+ * Assigns a human-readable name to the exec queue based on its engine class
+ * and instance number (e.g., "rcs0", "vcs1", "bcs2").
+ */
 void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
 {
 	switch (q->class) {
@@ -605,6 +656,15 @@ void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
 	}
 }
 
+/**
+ * xe_exec_queue_lookup() - Look up an exec queue by ID
+ * @xef: Xe file private data
+ * @id: Exec queue ID
+ *
+ * Looks up an exec queue by its ID and increments its reference count.
+ *
+ * Return: Pointer to the exec queue if found, NULL otherwise
+ */
 struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id)
 {
 	struct xe_exec_queue *q;
@@ -618,6 +678,14 @@ struct xe_exec_queue *xe_exec_queue_lookup(struct xe_file *xef, u32 id)
 	return q;
 }
 
+/**
+ * xe_exec_queue_device_get_max_priority() - Get maximum priority for an exec queues
+ * @xe: Xe device
+ *
+ * Returns the maximum priority level that can be assigned to an exec queues.
+ *
+ * Return: Maximum priority level (HIGH if CAP_SYS_NICE, NORMAL otherwise)
+ */
 enum xe_exec_queue_priority
 xe_exec_queue_device_get_max_priority(struct xe_device *xe)
 {
@@ -924,6 +992,17 @@ static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 							exec_queue_set_multi_queue_priority,
 };
 
+/**
+ * xe_exec_queue_set_property_ioctl() - Set a property on an exec queue
+ * @dev: DRM device
+ * @data: IOCTL data
+ * @file: DRM file
+ *
+ * Allows setting properties on an existing exec queue. Currently only
+ * supports setting multi-queue priority.
+ *
+ * Return: 0 on success, negative error code on failure
+ */
 int xe_exec_queue_set_property_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file)
 {
@@ -1148,6 +1227,18 @@ static bool has_sched_groups(struct xe_gt *gt)
 	return false;
 }
 
+/**
+ * xe_exec_queue_create_ioctl() - Create an exec queue via IOCTL
+ * @dev: DRM device
+ * @data: IOCTL data
+ * @file: DRM file
+ *
+ * Creates a new exec queue based on user-provided parameters. Supports
+ * creating VM bind queues, regular exec queues, multi-lrc exec queues
+ * and multi-queue groups.
+ *
+ * Return: 0 on success with exec_queue_id filled in, negative error code on failure
+ */
 int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file)
 {
@@ -1324,6 +1415,17 @@ put_exec_queue:
 	return err;
 }
 
+/**
+ * xe_exec_queue_get_property_ioctl() - Get a property from an exec queue
+ * @dev: DRM device
+ * @data: IOCTL data
+ * @file: DRM file
+ *
+ * Retrieves property values from an existing exec queue. Currently supports
+ * getting the ban/reset status.
+ *
+ * Return: 0 on success with value filled in, negative error code on failure
+ */
 int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file)
 {
@@ -1461,6 +1563,16 @@ void xe_exec_queue_kill(struct xe_exec_queue *q)
 	xe_vm_remove_compute_exec_queue(q->vm, q);
 }
 
+/**
+ * xe_exec_queue_destroy_ioctl() - Destroy an exec queue via IOCTL
+ * @dev: DRM device
+ * @data: IOCTL data
+ * @file: DRM file
+ *
+ * Destroys an existing exec queue and releases its reference.
+ *
+ * Return: 0 on success, negative error code on failure
+ */
 int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file)
 {
