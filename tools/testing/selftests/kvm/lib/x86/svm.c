@@ -126,7 +126,7 @@ void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_r
 	guest_regs.rdi = (u64)svm;
 
 	if (svm->ncr3_gpa) {
-		ctrl->nested_ctl |= SVM_NESTED_CTL_NP_ENABLE;
+		ctrl->misc_ctl |= SVM_MISC_ENABLE_NP;
 		ctrl->nested_cr3 = svm->ncr3_gpa;
 	}
 }
