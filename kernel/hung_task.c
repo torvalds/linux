@@ -302,15 +302,10 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	int max_count = sysctl_hung_task_check_count;
 	unsigned long last_break = jiffies;
 	struct task_struct *g, *t;
-	unsigned long total_count, this_round_count;
+	unsigned long this_round_count;
 	int need_warning = sysctl_hung_task_warnings;
 	unsigned long si_mask = hung_task_si_mask;
 
-	/*
-	 * The counter might get reset. Remember the initial value.
-	 * Acquire prevents reordering task checks before this point.
-	 */
-	total_count = atomic_long_read_acquire(&sysctl_hung_task_detect_count);
 	/*
 	 * If the system crashed already then all bets are off,
 	 * do not report extra hung tasks:
@@ -330,6 +325,13 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 		}
 
 		if (task_is_hung(t, timeout)) {
+			/*
+			 * Increment the global counter so that userspace could
+			 * start migrating tasks ASAP. But count the current
+			 * round separately because userspace could reset
+			 * the global counter at any time.
+			 */
+			atomic_long_inc(&sysctl_hung_task_detect_count);
 			this_round_count++;
 			hung_task_info(t, timeout, this_round_count);
 		}
@@ -339,15 +341,6 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 
 	if (!this_round_count)
 		return;
-
-	/*
-	 * Do not count this round when the global counter has been reset
-	 * during this check. Release ensures we see all hang details
-	 * recorded during the scan.
-	 */
-	atomic_long_cmpxchg_release(&sysctl_hung_task_detect_count,
-				    total_count, total_count +
-				    this_round_count);
 
 	if (need_warning || hung_task_call_panic) {
 		si_mask |= SYS_INFO_LOCKS;
