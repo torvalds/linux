@@ -82,18 +82,6 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 	current_thread_info()->status &= ~(TS_COMPAT | TS_I386_REGS_POKED);
 #endif
 
-	/*
-	 * This value will get limited by KSTACK_OFFSET_MAX(), which is 10
-	 * bits. The actual entropy will be further reduced by the compiler
-	 * when applying stack alignment constraints (see cc_stack_align4/8 in
-	 * arch/x86/Makefile), which will remove the 3 (x86_64) or 2 (ia32)
-	 * low bits from any entropy chosen here.
-	 *
-	 * Therefore, final stack offset entropy will be 7 (x86_64) or
-	 * 8 (ia32) bits.
-	 */
-	choose_random_kstack_offset(rdtsc());
-
 	/* Avoid unnecessary reads of 'x86_ibpb_exit_to_user' */
 	if (cpu_feature_enabled(X86_FEATURE_IBPB_EXIT_TO_USER) &&
 	    this_cpu_read(x86_ibpb_exit_to_user)) {
