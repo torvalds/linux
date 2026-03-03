@@ -249,7 +249,7 @@ get_new:
 		 */
 		if (err == -EIO) {
 			cpos += 1 << (sb->s_blocksize_bits);
-			cpos &= ~(sb->s_blocksize - 1);
+			cpos &= ~(loff_t)(sb->s_blocksize - 1);
 		}
 
 		err = -EIO;
