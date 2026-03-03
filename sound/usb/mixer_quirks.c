@@ -4634,6 +4634,25 @@ triggered:
 	usb_audio_dbg(chip, "something wrong in kctl name %s\n", id->name);
 }
 
+static void snd_usb_mixer_fu_quirk_linear_scale(struct usb_mixer_interface *mixer,
+						struct usb_mixer_elem_info *cval,
+						struct snd_kcontrol *kctl)
+{
+	static const DECLARE_TLV_DB_LINEAR(scale, TLV_DB_GAIN_MUTE, 0);
+
+	if (cval->min_mute) {
+		/*
+		 * We are clearing SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
+		 * resulting in min_mute being a no-op.
+		 */
+		usb_audio_warn(mixer->chip, "LINEAR_VOL overrides MIN_MUTE\n");
+	}
+
+	kctl->tlv.p = scale;
+	kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+	kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+}
+
 void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
 				  struct usb_mixer_elem_info *cval, int unitid,
 				  struct snd_kcontrol *kctl)
@@ -4660,6 +4679,21 @@ void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
 				       "applying capture min mute quirk\n");
 			cval->min_mute = 1;
 		}
+
+	if (mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_PLAYBACK_LINEAR_VOL)
+		if (cval->control == UAC_FU_VOLUME && strstr(kctl->id.name, "Playback")) {
+			usb_audio_info(mixer->chip,
+				       "applying playback linear volume quirk\n");
+			snd_usb_mixer_fu_quirk_linear_scale(mixer, cval, kctl);
+		}
+
+	if (mixer->chip->quirk_flags & QUIRK_FLAG_MIXER_CAPTURE_LINEAR_VOL)
+		if (cval->control == UAC_FU_VOLUME && strstr(kctl->id.name, "Capture")) {
+			usb_audio_info(mixer->chip,
+				       "applying capture linear volume quirk\n");
+			snd_usb_mixer_fu_quirk_linear_scale(mixer, cval, kctl);
+		}
+
 	/* ALSA-ify some Plantronics headset control names */
 	if (USB_ID_VENDOR(mixer->chip->usb_id) == 0x047f &&
 	    (cval->control == UAC_FU_MUTE || cval->control == UAC_FU_VOLUME))
