@@ -7703,6 +7703,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	switch (id->idVendor) {
 	case USB_VENDOR_ID_REALTEK:
 		switch(id->idProduct) {
+		case 0x0179:
 		case 0x1724:
 		case 0x8176:
 		case 0x8178:
