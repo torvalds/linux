@@ -703,14 +703,6 @@ static int ls2k0500_mmc_set_external_dma(struct loongson2_mmc_host *host,
 	return 0;
 }
 
-static struct loongson2_mmc_pdata ls2k0500_mmc_pdata = {
-	.regmap_config		= &ls2k0500_mmc_regmap_config,
-	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
-	.setting_dma		= ls2k0500_mmc_set_external_dma,
-	.prepare_dma		= loongson2_mmc_prepare_external_dma,
-	.release_dma		= loongson2_mmc_release_external_dma,
-};
-
 static int ls2k1000_mmc_set_external_dma(struct loongson2_mmc_host *host,
 					 struct platform_device *pdev)
 {
@@ -734,14 +726,6 @@ static int ls2k1000_mmc_set_external_dma(struct loongson2_mmc_host *host,
 
 	return 0;
 }
-
-static struct loongson2_mmc_pdata ls2k1000_mmc_pdata = {
-	.regmap_config		= &ls2k0500_mmc_regmap_config,
-	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
-	.setting_dma		= ls2k1000_mmc_set_external_dma,
-	.prepare_dma		= loongson2_mmc_prepare_external_dma,
-	.release_dma		= loongson2_mmc_release_external_dma,
-};
 
 static const struct regmap_config ls2k2000_mmc_regmap_config = {
 	.reg_bits = 32,
@@ -854,6 +838,22 @@ static void loongson2_mmc_release_internal_dma(struct loongson2_mmc_host *host,
 {
 	dma_free_coherent(dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 }
+
+static struct loongson2_mmc_pdata ls2k0500_mmc_pdata = {
+	.regmap_config		= &ls2k0500_mmc_regmap_config,
+	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
+	.setting_dma		= ls2k0500_mmc_set_external_dma,
+	.prepare_dma		= loongson2_mmc_prepare_external_dma,
+	.release_dma		= loongson2_mmc_release_external_dma,
+};
+
+static struct loongson2_mmc_pdata ls2k1000_mmc_pdata = {
+	.regmap_config		= &ls2k0500_mmc_regmap_config,
+	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
+	.setting_dma		= ls2k1000_mmc_set_external_dma,
+	.prepare_dma		= loongson2_mmc_prepare_external_dma,
+	.release_dma		= loongson2_mmc_release_external_dma,
+};
 
 static struct loongson2_mmc_pdata ls2k2000_mmc_pdata = {
 	.regmap_config		= &ls2k2000_mmc_regmap_config,
