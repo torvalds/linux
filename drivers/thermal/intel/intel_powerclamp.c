@@ -200,8 +200,7 @@ static int cpumask_get(char *buf, const struct kernel_param *kp)
 	if (!cpumask_available(idle_injection_cpu_mask))
 		return -ENODEV;
 
-	return bitmap_print_to_pagebuf(false, buf, cpumask_bits(idle_injection_cpu_mask),
-				       nr_cpumask_bits);
+	return cpumap_print_to_pagebuf(false, buf, idle_injection_cpu_mask);
 }
 
 static const struct kernel_param_ops cpumask_ops = {
