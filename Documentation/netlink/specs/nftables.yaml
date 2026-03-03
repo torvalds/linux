@@ -1481,14 +1481,23 @@ sub-messages:
         value: immediate
         attribute-set: expr-immediate-attrs
       -
+        value: log
+        attribute-set: log-attrs
+      -
         value: lookup
         attribute-set: expr-lookup-attrs
+      -
+        value: match
+        attribute-set: compat-match-attrs
       -
         value: meta
         attribute-set: expr-meta-attrs
       -
         value: nat
         attribute-set: expr-nat-attrs
+      -
+        value: numgen
+        attribute-set: numgen-attrs
       -
         value: objref
         attribute-set: expr-objref-attrs
@@ -1499,6 +1508,9 @@ sub-messages:
         value: quota
         attribute-set: quota-attrs
       -
+        value: range
+        attribute-set: range-attrs
+      -
         value: reject
         attribute-set: expr-reject-attrs
       -
@@ -1507,6 +1519,9 @@ sub-messages:
       -
         value: tproxy
         attribute-set: expr-tproxy-attrs
+        # There're more sub-messages to go:
+        #   grep -A10 nft_expr_type
+        # and look for .name\s*=\s*"..."
   -
     name: obj-data
     formats:
