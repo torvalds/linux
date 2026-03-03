@@ -47,6 +47,10 @@ or::
   # Variable set in a file
   NETIF=eth0
 
+Please note that the config parser is very simple, if there are
+any non-alphanumeric characters in the value it needs to be in
+double quotes.
+
 Local test (which don't require endpoint for sending / receiving traffic)
 need only the ``NETIF`` variable. Remaining variables define the endpoint
 and communication method.
@@ -107,7 +111,7 @@ On the target machine, running the tests will use netdevsim by default::
   1..1
   # timeout set to 45
   # selftests: drivers/net: ping.py
-  # TAP version 13
+  # KTAP version 1
   # 1..3
   # ok 1 ping.test_v4
   # ok 2 ping.test_v6
@@ -128,9 +132,91 @@ Create a config with remote info::
 Run the test::
 
   [/root] # ./ksft-net-drv/drivers/net/ping.py
-  TAP version 13
+  KTAP version 1
   1..3
   ok 1 ping.test_v4
   ok 2 ping.test_v6 # SKIP Test requires IPv6 connectivity
   ok 3 ping.test_tcp
   # Totals: pass:2 fail:0 xfail:0 xpass:0 skip:1 error:0
+
+Dependencies
+~~~~~~~~~~~~
+
+The tests have a handful of dependencies. For Fedora / CentOS::
+
+  dnf -y install netsniff-ng python-yaml socat iperf3
+
+Guidance for test authors
+=========================
+
+This section mostly applies to Python tests but some of the guidance
+may be more broadly applicable.
+
+Kernel config
+~~~~~~~~~~~~~
+
+Each test directory has a ``config`` file listing which kernel
+configuration options the tests depend on. This file must be kept
+up to date, the CIs build minimal kernels for each test group.
+
+Adding checks inside the tests to validate that the necessary kernel
+configs are enabled is discouraged. The test author may include such
+checks, but standalone patches to make tests compatible e.g. with
+distro kernel configs are unlikely to be accepted.
+
+Avoid libraries and frameworks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test files should be relatively self contained. The libraries should
+only include very core or non-trivial code.
+It may be tempting to "factor out" the common code, but fight that urge.
+Library code increases the barrier of entry, and complexity in general.
+
+Avoid mixing test code and boilerplate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In Python, try to avoid adding code in the ``main()`` function which
+instantiates ``NetDrvEnv()`` and calls ``ksft_run()``. It's okay to
+set up global resources (e.g. open an RtNetlink socket used by multiple
+tests), but any complex logic, test-specific environment configuration
+and validation should be done in the tests (even if it means it has to
+be repeated).
+
+Local host is the DUT
+~~~~~~~~~~~~~~~~~~~~~
+
+Dual-host tests (tests with an endpoint) should be written from the DUT
+perspective. IOW the local machine should be the one tested, remote is
+just for traffic generation.
+
+Avoid modifying remote
+~~~~~~~~~~~~~~~~~~~~~~
+
+Avoid making configuration changes to the remote system as much as possible.
+Remote system may be used concurrently by multiple DUTs.
+
+defer()
+~~~~~~~
+
+The env must be clean after test exits. Register a ``defer()`` for any
+action that needs an "undo" as soon as possible. If you need to run
+the cancel action as part of the test - ``defer()`` returns an object
+you can ``.exec()``-ute.
+
+ksft_pr()
+~~~~~~~~~
+
+Use ``ksft_pr()`` instead of ``print()`` to avoid breaking TAP format.
+
+ksft_disruptive
+~~~~~~~~~~~~~~~
+
+By default the tests are expected to be able to run on
+single-interface systems. All tests which may disconnect ``NETIF``
+must be annotated with ``@ksft_disruptive``.
+
+Running tests CI-style
+======================
+
+See https://github.com/linux-netdev/nipa/wiki for instructions on how
+to easily run the tests using ``virtme-ng``.
