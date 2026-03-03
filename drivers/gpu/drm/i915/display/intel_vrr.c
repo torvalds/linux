@@ -600,6 +600,18 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 		return;
 
 	/*
+	 * Bspec says:
+	 * "(note: VRR needs to be programmed after
+	 *  TRANS_DDI_FUNC_CTL and before TRANS_CONF)."
+	 *
+	 * In practice it turns out that ICL can hang if
+	 * TRANS_VRR_VMAX/FLIPLINE are written before
+	 * enabling TRANS_DDI_FUNC_CTL.
+	 */
+	drm_WARN_ON(display->drm,
+		    !(intel_de_read(display, TRANS_DDI_FUNC_CTL(display, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE));
+
+	/*
 	 * This bit seems to have two meanings depending on the platform:
 	 * TGL: generate VRR "safe window" for DSB vblank waits
 	 * ADL/DG2: make TRANS_SET_CONTEXT_LATENCY effective with VRR
@@ -960,6 +972,8 @@ void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
+
+	intel_vrr_set_transcoder_timings(crtc_state);
 
 	if (!intel_vrr_possible(crtc_state))
 		return;
