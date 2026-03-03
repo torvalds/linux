@@ -394,6 +394,8 @@ enum kern_feature_id {
 	FEAT_BTF_QMARK_DATASEC,
 	/* Kernel supports LDIMM64 imm offsets past 512 MiB. */
 	FEAT_LDIMM64_FULL_RANGE_OFF,
+	/* Kernel supports uprobe syscall */
+	FEAT_UPROBE_SYSCALL,
 	__FEAT_CNT,
 };
 

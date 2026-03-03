@@ -407,6 +407,23 @@ static void *uprobe_producer_nop5(void *input)
 		uprobe_target_nop5();
 	return NULL;
 }
+
+void usdt_1(void);
+void usdt_2(void);
+
+static void *uprobe_producer_usdt_nop(void *input)
+{
+	while (true)
+		usdt_1();
+	return NULL;
+}
+
+static void *uprobe_producer_usdt_nop5(void *input)
+{
+	while (true)
+		usdt_2();
+	return NULL;
+}
 #endif
 
 static void usetup(bool use_retprobe, bool use_multi, void *target_addr)
@@ -544,6 +561,47 @@ static void uretprobe_multi_nop5_setup(void)
 {
 	usetup(true, true /* use_multi */, &uprobe_target_nop5);
 }
+
+static void usdt_setup(const char *name)
+{
+	struct bpf_link *link;
+	int err;
+
+	setup_libbpf();
+
+	ctx.skel = trigger_bench__open();
+	if (!ctx.skel) {
+		fprintf(stderr, "failed to open skeleton\n");
+		exit(1);
+	}
+
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_usdt, true);
+
+	err = trigger_bench__load(ctx.skel);
+	if (err) {
+		fprintf(stderr, "failed to load skeleton\n");
+		exit(1);
+	}
+
+	link = bpf_program__attach_usdt(ctx.skel->progs.bench_trigger_usdt,
+					0 /*self*/, "/proc/self/exe",
+					"optimized_attach", name, NULL);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "failed to attach optimized_attach:%s usdt probe\n", name);
+		exit(1);
+	}
+	ctx.skel->links.bench_trigger_usdt = link;
+}
+
+static void usdt_nop_setup(void)
+{
+	usdt_setup("usdt_1");
+}
+
+static void usdt_nop5_setup(void)
+{
+	usdt_setup("usdt_2");
+}
 #endif
 
 const struct bench bench_trig_syscall_count = {
@@ -611,4 +669,6 @@ BENCH_TRIG_USERMODE(uprobe_nop5, nop5, "uprobe-nop5");
 BENCH_TRIG_USERMODE(uretprobe_nop5, nop5, "uretprobe-nop5");
 BENCH_TRIG_USERMODE(uprobe_multi_nop5, nop5, "uprobe-multi-nop5");
 BENCH_TRIG_USERMODE(uretprobe_multi_nop5, nop5, "uretprobe-multi-nop5");
+BENCH_TRIG_USERMODE(usdt_nop, usdt_nop, "usdt-nop");
+BENCH_TRIG_USERMODE(usdt_nop5, usdt_nop5, "usdt-nop5");
 #endif
