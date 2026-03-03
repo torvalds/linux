@@ -786,43 +786,72 @@ struct ip_vs_conn_param {
 	__u8				pe_data_len;
 };
 
+/* Hash node in conn_tab */
+struct ip_vs_conn_hnode {
+	struct hlist_bl_node	node;		/* node in conn_tab */
+	u32			hash_key;	/* Key for the hash table */
+	u8			dir;		/* 0=out->in, 1=in->out */
+} __packed;
+
 /* IP_VS structure allocated for each dynamically scheduled connection */
 struct ip_vs_conn {
-	struct hlist_bl_node	c_list;         /* node in conn_tab */
-	__u32			hash_key;	/* Key for the hash table */
-	/* Protocol, addresses and port numbers */
+	/* Cacheline for hash table nodes - rarely modified */
+
+	struct ip_vs_conn_hnode	hn0;		/* Original direction */
+	u8			af;		/* address family */
 	__be16                  cport;
+	struct ip_vs_conn_hnode	hn1;		/* Reply direction */
+	u8			daf;		/* Address family of the dest */
 	__be16                  dport;
-	__be16                  vport;
-	u16			af;		/* address family */
-	__u16                   protocol;       /* Which protocol (TCP/UDP) */
-	__u16			daf;		/* Address family of the dest */
-	union nf_inet_addr      caddr;          /* client address */
-	union nf_inet_addr      vaddr;          /* virtual address */
-	union nf_inet_addr      daddr;          /* destination address */
+	struct ip_vs_dest       *dest;          /* real server */
+	atomic_t                n_control;      /* Number of controlled ones */
 	volatile __u32          flags;          /* status flags */
-	struct netns_ipvs	*ipvs;
+	/* 44/64 */
 
-	/* counter and timer */
-	refcount_t		refcnt;		/* reference count */
-	struct timer_list	timer;		/* Expiration timer */
-	volatile unsigned long	timeout;	/* timeout */
-
-	/* Flags and state transition */
-	spinlock_t              lock;           /* lock for state transition */
+	struct ip_vs_conn       *control;       /* Master control connection */
+	const struct ip_vs_pe	*pe;
+	char			*pe_data;
+	__u8			pe_data_len;
 	volatile __u16          state;          /* state info */
 	volatile __u16          old_state;      /* old state, to be used for
 						 * state transition triggered
 						 * synchronization
 						 */
-	__u32			fwmark;		/* Fire wall mark from skb */
-	unsigned long		sync_endtime;	/* jiffies + sent_retries */
+	/* 2-byte hole */
+	/* 64/96 */
 
-	/* Control members */
-	struct ip_vs_conn       *control;       /* Master control connection */
-	atomic_t                n_control;      /* Number of controlled ones */
-	struct ip_vs_dest       *dest;          /* real server */
+	union nf_inet_addr      caddr;          /* client address */
+	union nf_inet_addr      vaddr;          /* virtual address */
+	/* 96/128 */
+
+	union nf_inet_addr      daddr;          /* destination address */
+	__u32			fwmark;		/* Fire wall mark from skb */
+	__be16                  vport;
+	__u16                   protocol;       /* Which protocol (TCP/UDP) */
+
+	/* Note: we can group the following members into a structure,
+	 * in order to save more space, and the following members are
+	 * only used in VS/NAT anyway
+	 */
+	struct ip_vs_app        *app;           /* bound ip_vs_app object */
+	void                    *app_data;      /* Application private data */
+	/* 128/168 */
+	struct_group(sync_conn_opt,
+		struct ip_vs_seq  in_seq;       /* incoming seq. struct */
+		struct ip_vs_seq  out_seq;      /* outgoing seq. struct */
+	);
+	/* 152/192 */
+
+	struct timer_list	timer;		/* Expiration timer */
+	volatile unsigned long	timeout;	/* timeout */
+	spinlock_t              lock;           /* lock for state transition */
+	refcount_t		refcnt;		/* reference count */
 	atomic_t                in_pkts;        /* incoming packet counter */
+	/* 64-bit: 4-byte gap */
+
+	/* 188/256 */
+	unsigned long		sync_endtime;	/* jiffies + sent_retries */
+	struct netns_ipvs	*ipvs;
 
 	/* Packet transmitter for different forwarding methods.  If it
 	 * mangles the packet, it must return NF_DROP or better NF_STOLEN,
@@ -831,21 +860,6 @@ struct ip_vs_conn {
 	 */
 	int (*packet_xmit)(struct sk_buff *skb, struct ip_vs_conn *cp,
 			   struct ip_vs_protocol *pp, struct ip_vs_iphdr *iph);
-
-	/* Note: we can group the following members into a structure,
-	 * in order to save more space, and the following members are
-	 * only used in VS/NAT anyway
-	 */
-	struct ip_vs_app        *app;           /* bound ip_vs_app object */
-	void                    *app_data;      /* Application private data */
-	struct_group(sync_conn_opt,
-		struct ip_vs_seq  in_seq;       /* incoming seq. struct */
-		struct ip_vs_seq  out_seq;      /* outgoing seq. struct */
-	);
-
-	const struct ip_vs_pe	*pe;
-	char			*pe_data;
-	__u8			pe_data_len;
 
 	struct rcu_head		rcu_head;
 };
@@ -1628,6 +1642,19 @@ int ip_vs_conn_desired_size(struct netns_ipvs *ipvs, struct ip_vs_rht *t,
 struct ip_vs_rht *ip_vs_conn_tab_alloc(struct netns_ipvs *ipvs, int buckets,
 				       int lfactor);
 
+static inline struct ip_vs_conn *
+ip_vs_hn0_to_conn(struct ip_vs_conn_hnode *hn)
+{
+	return container_of(hn, struct ip_vs_conn, hn0);
+}
+
+static inline struct ip_vs_conn *
+ip_vs_hn_to_conn(struct ip_vs_conn_hnode *hn)
+{
+	return hn->dir ? container_of(hn, struct ip_vs_conn, hn1) :
+			 container_of(hn, struct ip_vs_conn, hn0);
+}
+
 struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 				  const union nf_inet_addr *daddr,
 				  __be16 dport, unsigned int flags,
@@ -1978,6 +2005,13 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 		fwd = '?'; break;
 	}
 	return fwd;
+}
+
+/* Check if connection uses double hashing */
+static inline bool ip_vs_conn_use_hash2(struct ip_vs_conn *cp)
+{
+	return IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ &&
+	       !(cp->flags & IP_VS_CONN_F_TEMPLATE);
 }
 
 void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,

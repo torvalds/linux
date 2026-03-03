@@ -76,11 +76,19 @@ static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
 /* Lock conn_tab bucket for conn hash/unhash, not for rehash */
 static __always_inline void
 conn_tab_lock(struct ip_vs_rht *t, struct ip_vs_conn *cp, u32 hash_key,
-	      bool new_hash, struct hlist_bl_head **head_ret)
+	      u32 hash_key2, bool use2, bool new_hash,
+	      struct hlist_bl_head **head_ret, struct hlist_bl_head **head2_ret)
 {
-	struct hlist_bl_head *head;
-	u32 hash_key_new;
+	struct hlist_bl_head *head, *head2;
+	u32 hash_key_new, hash_key_new2;
+	struct ip_vs_rht *t2 = t;
+	u32 idx, idx2;
 
+	idx = hash_key & t->mask;
+	if (use2)
+		idx2 = hash_key2 & t->mask;
+	else
+		idx2 = idx;
 	if (!new_hash) {
 		/* We need to lock the bucket in the right table */
 
@@ -88,31 +96,64 @@ retry:
 		if (!ip_vs_rht_same_table(t, hash_key)) {
 			/* It is already moved to new table */
 			t = rcu_dereference(t->new_tbl);
+			/* Rehashing works in two steps and we may detect
+			 * both nodes in different tables, use idx/idx2
+			 * for proper lock ordering for heads.
+			 */
+			idx = hash_key & t->mask;
+			idx |= IP_VS_RHT_TABLE_ID_MASK;
+		}
+		if (use2) {
+			if (!ip_vs_rht_same_table(t2, hash_key2)) {
+				/* It is already moved to new table */
+				t2 = rcu_dereference(t2->new_tbl);
+				idx2 = hash_key2 & t2->mask;
+				idx2 |= IP_VS_RHT_TABLE_ID_MASK;
+			}
+		} else {
+			idx2 = idx;
 		}
 	}
 
 	head = t->buckets + (hash_key & t->mask);
+	head2 = use2 ? t2->buckets + (hash_key2 & t2->mask) : head;
 
 	local_bh_disable();
 	/* Do not touch seqcount, this is a safe operation */
 
-	hlist_bl_lock(head);
+	if (idx <= idx2) {
+		hlist_bl_lock(head);
+		if (head != head2)
+			hlist_bl_lock(head2);
+	} else {
+		hlist_bl_lock(head2);
+		hlist_bl_lock(head);
+	}
 	if (!new_hash) {
 		/* Ensure hash_key is read under lock */
-		hash_key_new = READ_ONCE(cp->hash_key);
+		hash_key_new = READ_ONCE(cp->hn0.hash_key);
+		hash_key_new2 = READ_ONCE(cp->hn1.hash_key);
 		/* Hash changed ? */
-		if (hash_key != hash_key_new) {
+		if (hash_key != hash_key_new ||
+		    (hash_key2 != hash_key_new2 && use2)) {
+			if (head != head2)
+				hlist_bl_unlock(head2);
 			hlist_bl_unlock(head);
 			local_bh_enable();
 			hash_key = hash_key_new;
+			hash_key2 = hash_key_new2;
 			goto retry;
 		}
 	}
 	*head_ret = head;
+	*head2_ret = head2;
 }
 
-static inline void conn_tab_unlock(struct hlist_bl_head *head)
+static inline void conn_tab_unlock(struct hlist_bl_head *head,
+				   struct hlist_bl_head *head2)
 {
+	if (head != head2)
+		hlist_bl_unlock(head2);
 	hlist_bl_unlock(head);
 	local_bh_enable();
 }
@@ -123,26 +164,34 @@ static void ip_vs_conn_expire(struct timer_list *t);
  *	Returns hash value for IPVS connection entry
  */
 static u32 ip_vs_conn_hashkey(struct ip_vs_rht *t, int af, unsigned int proto,
-			      const union nf_inet_addr *addr, __be16 port)
+			      const union nf_inet_addr *addr, __be16 port,
+			      const union nf_inet_addr *laddr, __be16 lport)
 {
 	u64 a = (u32)proto << 16 | (__force u32)port;
+	u64 d;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
 		u64 b = (u64)addr->all[0] << 32 | addr->all[1];
 		u64 c = (u64)addr->all[2] << 32 | addr->all[3];
 
-		return (u32)siphash_3u64(a, b, c, &t->hash_key);
+		a |= (u64)laddr->all[2] << 32 ^ (__force u32)lport;
+		c ^= laddr->all[1];
+		d = (u64)laddr->all[0] << 32 | laddr->all[3];
+		return (u32)siphash_4u64(a, b, c, d, &t->hash_key);
 	}
 #endif
 	a |= (u64)addr->all[0] << 32;
-	return (u32)siphash_1u64(a, &t->hash_key);
+	d = (u64)laddr->all[0] << 32 | (__force u32)lport;
+	return (u32)siphash_2u64(a, d, &t->hash_key);
 }
 
 static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
 					     struct ip_vs_rht *t, bool inverse)
 {
+	const union nf_inet_addr *laddr;
 	const union nf_inet_addr *addr;
+	__be16 lport;
 	__be16 port;
 
 	if (p->pe_data && p->pe->hashkey_raw)
@@ -151,21 +200,33 @@ static unsigned int ip_vs_conn_hashkey_param(const struct ip_vs_conn_param *p,
 	if (likely(!inverse)) {
 		addr = p->caddr;
 		port = p->cport;
+		laddr = p->vaddr;
+		lport = p->vport;
 	} else {
 		addr = p->vaddr;
 		port = p->vport;
+		laddr = p->caddr;
+		lport = p->cport;
 	}
 
-	return ip_vs_conn_hashkey(t, p->af, p->protocol, addr, port);
+	return ip_vs_conn_hashkey(t, p->af, p->protocol, addr, port, laddr,
+				  lport);
 }
 
 static unsigned int ip_vs_conn_hashkey_conn(struct ip_vs_rht *t,
-					    const struct ip_vs_conn *cp)
+					    const struct ip_vs_conn *cp,
+					    bool out)
 {
 	struct ip_vs_conn_param p;
 
-	ip_vs_conn_fill_param(cp->ipvs, cp->af, cp->protocol,
-			      &cp->caddr, cp->cport, NULL, 0, &p);
+	if (!out)
+		ip_vs_conn_fill_param(cp->ipvs, cp->af, cp->protocol,
+				      &cp->caddr, cp->cport, &cp->vaddr,
+				      cp->vport, &p);
+	else
+		ip_vs_conn_fill_param(cp->ipvs, cp->af, cp->protocol,
+				      &cp->daddr, cp->dport, &cp->caddr,
+				      cp->cport, &p);
 
 	if (cp->pe) {
 		p.pe = cp->pe;
@@ -173,7 +234,7 @@ static unsigned int ip_vs_conn_hashkey_conn(struct ip_vs_rht *t,
 		p.pe_data_len = cp->pe_data_len;
 	}
 
-	return ip_vs_conn_hashkey_param(&p, t, false);
+	return ip_vs_conn_hashkey_param(&p, t, out);
 }
 
 /*	Hashes ip_vs_conn in conn_tab
@@ -182,9 +243,11 @@ static unsigned int ip_vs_conn_hashkey_conn(struct ip_vs_rht *t,
 static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 {
 	struct netns_ipvs *ipvs = cp->ipvs;
-	struct hlist_bl_head *head;
+	struct hlist_bl_head *head, *head2;
+	u32 hash_key, hash_key2;
 	struct ip_vs_rht *t;
-	u32 hash_key;
+	u32 hash, hash2;
+	bool use2;
 	int ret;
 
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
@@ -194,15 +257,28 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	t = rcu_dereference(ipvs->conn_tab);
 	t = rcu_dereference(t->new_tbl);
 
-	hash_key = ip_vs_rht_build_hash_key(t, ip_vs_conn_hashkey_conn(t, cp));
-	conn_tab_lock(t, cp, hash_key, true /* new_hash */, &head);
+	hash = ip_vs_conn_hashkey_conn(t, cp, false);
+	hash_key = ip_vs_rht_build_hash_key(t, hash);
+	if (ip_vs_conn_use_hash2(cp)) {
+		hash2 = ip_vs_conn_hashkey_conn(t, cp, true);
+		hash_key2 = ip_vs_rht_build_hash_key(t, hash2);
+		use2 = true;
+	} else {
+		hash_key2 = hash_key;
+		use2 = false;
+	}
+	conn_tab_lock(t, cp, hash_key, hash_key2, use2, true /* new_hash */,
+		      &head, &head2);
 	spin_lock(&cp->lock);
 
 	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
 		cp->flags |= IP_VS_CONN_F_HASHED;
-		WRITE_ONCE(cp->hash_key, hash_key);
+		WRITE_ONCE(cp->hn0.hash_key, hash_key);
+		WRITE_ONCE(cp->hn1.hash_key, hash_key2);
 		refcount_inc(&cp->refcnt);
-		hlist_bl_add_head_rcu(&cp->c_list, head);
+		hlist_bl_add_head_rcu(&cp->hn0.node, head);
+		if (use2)
+			hlist_bl_add_head_rcu(&cp->hn1.node, head2);
 		ret = 1;
 	} else {
 		pr_err("%s(): request for already hashed, called from %pS\n",
@@ -211,7 +287,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 	}
 
 	spin_unlock(&cp->lock);
-	conn_tab_unlock(head);
+	conn_tab_unlock(head, head2);
 
 	/* Schedule resizing if load increases */
 	if (atomic_read(&ipvs->conn_count) > t->u_thresh &&
@@ -227,10 +303,11 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 {
 	struct netns_ipvs *ipvs = cp->ipvs;
-	struct hlist_bl_head *head;
+	struct hlist_bl_head *head, *head2;
+	u32 hash_key, hash_key2;
 	struct ip_vs_rht *t;
 	bool ret = false;
-	u32 hash_key;
+	bool use2;
 
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		return refcount_dec_if_one(&cp->refcnt);
@@ -238,22 +315,27 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 	rcu_read_lock();
 
 	t = rcu_dereference(ipvs->conn_tab);
-	hash_key = READ_ONCE(cp->hash_key);
+	hash_key = READ_ONCE(cp->hn0.hash_key);
+	hash_key2 = READ_ONCE(cp->hn1.hash_key);
+	use2 = ip_vs_conn_use_hash2(cp);
 
-	conn_tab_lock(t, cp, hash_key, false /* new_hash */, &head);
+	conn_tab_lock(t, cp, hash_key, hash_key2, use2, false /* new_hash */,
+		      &head, &head2);
 	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		/* Decrease refcnt and unlink conn only if we are last user */
 		if (refcount_dec_if_one(&cp->refcnt)) {
-			hlist_bl_del_rcu(&cp->c_list);
+			hlist_bl_del_rcu(&cp->hn0.node);
+			if (use2)
+				hlist_bl_del_rcu(&cp->hn1.node);
 			cp->flags &= ~IP_VS_CONN_F_HASHED;
 			ret = true;
 		}
 	}
 
 	spin_unlock(&cp->lock);
-	conn_tab_unlock(head);
+	conn_tab_unlock(head, head2);
 
 	rcu_read_unlock();
 
@@ -272,6 +354,7 @@ __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 {
 	DECLARE_IP_VS_RHT_WALK_BUCKET_RCU();
 	struct netns_ipvs *ipvs = p->ipvs;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_head *head;
 	struct ip_vs_rht *t, *pt;
 	struct hlist_bl_node *e;
@@ -284,9 +367,12 @@ __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 		hash = ip_vs_conn_hashkey_param(p, t, false);
 		hash_key = ip_vs_rht_build_hash_key(t, hash);
 		ip_vs_rht_walk_bucket_rcu(t, hash_key, head) {
-			hlist_bl_for_each_entry_rcu(cp, e, head, c_list) {
-				if (READ_ONCE(cp->hash_key) == hash_key &&
-				    p->cport == cp->cport &&
+			hlist_bl_for_each_entry_rcu(hn, e, head, node) {
+				if (READ_ONCE(hn->hash_key) != hash_key ||
+				    hn->dir != 0)
+					continue;
+				cp = ip_vs_hn0_to_conn(hn);
+				if (p->cport == cp->cport &&
 				    p->vport == cp->vport && cp->af == p->af &&
 				    ip_vs_addr_equal(p->af, p->caddr,
 						     &cp->caddr) &&
@@ -376,6 +462,7 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 {
 	DECLARE_IP_VS_RHT_WALK_BUCKET_RCU();
 	struct netns_ipvs *ipvs = p->ipvs;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_head *head;
 	struct ip_vs_rht *t, *pt;
 	struct hlist_bl_node *e;
@@ -388,9 +475,11 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 		hash = ip_vs_conn_hashkey_param(p, t, false);
 		hash_key = ip_vs_rht_build_hash_key(t, hash);
 		ip_vs_rht_walk_bucket_rcu(t, hash_key, head) {
-			hlist_bl_for_each_entry_rcu(cp, e, head, c_list) {
-				if (READ_ONCE(cp->hash_key) != hash_key)
+			hlist_bl_for_each_entry_rcu(hn, e, head, node) {
+				if (READ_ONCE(hn->hash_key) != hash_key ||
+				    hn->dir != 0)
 					continue;
+				cp = ip_vs_hn0_to_conn(hn);
 				if (unlikely(p->pe_data && p->pe->ct_match)) {
 					if (p->pe == cp->pe &&
 					    p->pe->ct_match(p, cp) &&
@@ -442,6 +531,7 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 	DECLARE_IP_VS_RHT_WALK_BUCKET_RCU();
 	struct netns_ipvs *ipvs = p->ipvs;
 	const union nf_inet_addr *saddr;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_head *head;
 	struct ip_vs_rht *t, *pt;
 	struct hlist_bl_node *e;
@@ -455,9 +545,12 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 		hash = ip_vs_conn_hashkey_param(p, t, true);
 		hash_key = ip_vs_rht_build_hash_key(t, hash);
 		ip_vs_rht_walk_bucket_rcu(t, hash_key, head) {
-			hlist_bl_for_each_entry_rcu(cp, e, head, c_list) {
-				if (READ_ONCE(cp->hash_key) != hash_key ||
-				    p->vport != cp->cport)
+			hlist_bl_for_each_entry_rcu(hn, e, head, node) {
+				/* dir can be 0 for DR/TUN */
+				if (READ_ONCE(hn->hash_key) != hash_key)
+					continue;
+				cp = ip_vs_hn_to_conn(hn);
+				if (p->vport != cp->cport)
 					continue;
 
 				if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ) {
@@ -536,21 +629,33 @@ void ip_vs_conn_put(struct ip_vs_conn *cp)
 void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 {
 	struct hlist_bl_head *head, *head2, *head_new;
+	bool use2 = ip_vs_conn_use_hash2(cp);
 	struct netns_ipvs *ipvs = cp->ipvs;
 	int af_id = ip_vs_af_index(cp->af);
 	u32 hash_r = 0, hash_key_r = 0;
 	struct ip_vs_rht *t, *tp, *t2;
+	struct ip_vs_conn_hnode *hn;
 	u32 hash_key, hash_key_new;
 	struct ip_vs_conn_param p;
 	int ntbl;
+	int dir;
 
-	ip_vs_conn_fill_param(ipvs, cp->af, cp->protocol, &cp->caddr,
-			      cport, &cp->vaddr, cp->vport, &p);
+	/* No packets from inside, so we can do it in 2 steps. */
+	dir = use2 ? 1 : 0;
+
+next_dir:
+	if (dir)
+		ip_vs_conn_fill_param(ipvs, cp->af, cp->protocol, &cp->daddr,
+				      cp->dport, &cp->caddr, cport, &p);
+	else
+		ip_vs_conn_fill_param(ipvs, cp->af, cp->protocol, &cp->caddr,
+				      cport, &cp->vaddr, cp->vport, &p);
+	hn = dir ? &cp->hn1 : &cp->hn0;
 	ntbl = 0;
 
 	/* Attempt to rehash cp safely, by informing seqcount readers */
 	t = rcu_dereference(ipvs->conn_tab);
-	hash_key = READ_ONCE(cp->hash_key);
+	hash_key = READ_ONCE(hn->hash_key);
 	tp = NULL;
 
 retry:
@@ -567,7 +672,7 @@ retry:
 	t2 = rcu_dereference(t->new_tbl);
 	/* Calc new hash once per table */
 	if (tp != t2) {
-		hash_r = ip_vs_conn_hashkey_param(&p, t2, false);
+		hash_r = ip_vs_conn_hashkey_param(&p, t2, dir);
 		hash_key_r = ip_vs_rht_build_hash_key(t2, hash_r);
 		tp = t2;
 	}
@@ -591,7 +696,7 @@ retry:
 		hlist_bl_lock(head2);
 
 	/* Ensure hash_key is read under lock */
-	hash_key_new = READ_ONCE(cp->hash_key);
+	hash_key_new = READ_ONCE(hn->hash_key);
 	/* Racing with another rehashing ? */
 	if (unlikely(hash_key != hash_key_new)) {
 		if (head != head2)
@@ -611,14 +716,21 @@ retry:
 		 * parameters in cp do not change, i.e. cport is
 		 * the only possible change.
 		 */
-		WRITE_ONCE(cp->hash_key, hash_key_r);
+		WRITE_ONCE(hn->hash_key, hash_key_r);
+		if (!use2)
+			WRITE_ONCE(cp->hn1.hash_key, hash_key_r);
+		/* For dir=1 we do not check in flags if hn is already
+		 * rehashed but this check will do it.
+		 */
 		if (head != head2) {
-			hlist_bl_del_rcu(&cp->c_list);
-			hlist_bl_add_head_rcu(&cp->c_list, head_new);
+			hlist_bl_del_rcu(&hn->node);
+			hlist_bl_add_head_rcu(&hn->node, head_new);
 		}
-		atomic_dec(&ipvs->no_cport_conns[af_id]);
-		cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
-		cp->cport = cport;
+		if (!dir) {
+			atomic_dec(&ipvs->no_cport_conns[af_id]);
+			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
+			cp->cport = cport;
+		}
 	}
 	spin_unlock(&cp->lock);
 
@@ -628,6 +740,8 @@ retry:
 	write_seqcount_end(&t->seqc[hash_key & t->seqc_mask]);
 	preempt_enable_nested();
 	spin_unlock_bh(&t->lock[hash_key & t->lock_mask].l);
+	if (dir--)
+		goto next_dir;
 }
 
 /* Get default load factor to map conn_count/u_thresh to t->size */
@@ -639,6 +753,8 @@ static int ip_vs_conn_default_load_factor(struct netns_ipvs *ipvs)
 		factor = -3;
 	else
 		factor = -1;
+	/* Double hashing adds twice more nodes for NAT */
+	factor--;
 	return factor;
 }
 
@@ -679,6 +795,7 @@ static void conn_resize_work_handler(struct work_struct *work)
 	unsigned int resched_score = 0;
 	struct hlist_bl_node *cn, *nn;
 	struct ip_vs_rht *t, *t_new;
+	struct ip_vs_conn_hnode *hn;
 	struct netns_ipvs *ipvs;
 	struct ip_vs_conn *cp;
 	bool more_work = false;
@@ -747,8 +864,9 @@ same_bucket:
 		write_seqcount_begin(&t->seqc[bucket & t->seqc_mask]);
 		hlist_bl_lock(head);
 
-		hlist_bl_for_each_entry_safe(cp, cn, nn, head, c_list) {
-			hash = ip_vs_conn_hashkey_conn(t_new, cp);
+		hlist_bl_for_each_entry_safe(hn, cn, nn, head, node) {
+			cp = ip_vs_hn_to_conn(hn);
+			hash = ip_vs_conn_hashkey_conn(t_new, cp, hn->dir);
 			hash_key = ip_vs_rht_build_hash_key(t_new, hash);
 
 			head2 = t_new->buckets + (hash & t_new->mask);
@@ -756,9 +874,12 @@ same_bucket:
 			/* t_new->seqc are not used at this stage, we race
 			 * only with add/del, so only lock the bucket.
 			 */
-			hlist_bl_del_rcu(&cp->c_list);
-			WRITE_ONCE(cp->hash_key, hash_key);
-			hlist_bl_add_head_rcu(&cp->c_list, head2);
+			hlist_bl_del_rcu(&hn->node);
+			WRITE_ONCE(hn->hash_key, hash_key);
+			/* Keep both hash keys in sync if no double hashing */
+			if (!ip_vs_conn_use_hash2(cp))
+				WRITE_ONCE(cp->hn1.hash_key, hash_key);
+			hlist_bl_add_head_rcu(&hn->node, head2);
 			hlist_bl_unlock(head2);
 			/* Too long chain? Do it in steps */
 			if (++limit >= 64)
@@ -1236,10 +1357,13 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 		return NULL;
 	}
 
-	INIT_HLIST_BL_NODE(&cp->c_list);
+	INIT_HLIST_BL_NODE(&cp->hn0.node);
+	INIT_HLIST_BL_NODE(&cp->hn1.node);
 	timer_setup(&cp->timer, ip_vs_conn_expire, 0);
 	cp->ipvs	   = ipvs;
+	cp->hn0.dir	   = 0;
 	cp->af		   = p->af;
+	cp->hn1.dir	   = 1;
 	cp->daf		   = dest_af;
 	cp->protocol	   = p->protocol;
 	ip_vs_addr_set(p->af, &cp->caddr, p->caddr);
@@ -1344,8 +1468,8 @@ static void *ip_vs_conn_array(struct seq_file *seq)
 	struct net *net = seq_file_net(seq);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_rht *t = iter->t;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_node *e;
-	struct ip_vs_conn *cp;
 	int idx;
 
 	if (!t)
@@ -1353,15 +1477,17 @@ static void *ip_vs_conn_array(struct seq_file *seq)
 	for (idx = iter->bucket; idx < t->size; idx++) {
 		unsigned int skip = 0;
 
-		hlist_bl_for_each_entry_rcu(cp, e, &t->buckets[idx], c_list) {
+		hlist_bl_for_each_entry_rcu(hn, e, &t->buckets[idx], node) {
 			/* __ip_vs_conn_get() is not needed by
 			 * ip_vs_conn_seq_show and ip_vs_conn_sync_seq_show
 			 */
-			if (!ip_vs_rht_same_table(t, READ_ONCE(cp->hash_key)))
+			if (!ip_vs_rht_same_table(t, READ_ONCE(hn->hash_key)))
 				break;
+			if (hn->dir != 0)
+				continue;
 			if (skip >= iter->skip_elems) {
 				iter->bucket = idx;
-				return cp;
+				return hn;
 			}
 
 			++skip;
@@ -1403,7 +1529,7 @@ static void *ip_vs_conn_seq_start(struct seq_file *seq, loff_t *pos)
 static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct ip_vs_iter_state *iter = seq->private;
-	struct ip_vs_conn *cp = v;
+	struct ip_vs_conn_hnode *hn = v;
 	struct hlist_bl_node *e;
 	struct ip_vs_rht *t;
 
@@ -1416,12 +1542,14 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		return NULL;
 
 	/* more on same hash chain? */
-	hlist_bl_for_each_entry_continue_rcu(cp, e, c_list) {
+	hlist_bl_for_each_entry_continue_rcu(hn, e, node) {
 		/* Our cursor was moved to new table ? */
-		if (!ip_vs_rht_same_table(t, READ_ONCE(cp->hash_key)))
+		if (!ip_vs_rht_same_table(t, READ_ONCE(hn->hash_key)))
 			break;
+		if (hn->dir != 0)
+			continue;
 		iter->skip_elems++;
-		return cp;
+		return hn;
 	}
 
 	iter->skip_elems = 0;
@@ -1443,7 +1571,8 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
    "Pro FromIP   FPrt ToIP     TPrt DestIP   DPrt State       Expires PEName PEData\n");
 	else {
-		const struct ip_vs_conn *cp = v;
+		struct ip_vs_conn_hnode *hn = v;
+		const struct ip_vs_conn *cp = ip_vs_hn0_to_conn(hn);
 		char pe_data[IP_VS_PENAME_MAXLEN + IP_VS_PEDATA_MAXLEN + 3];
 		size_t len = 0;
 		char dbuf[IP_VS_ADDRSTRLEN];
@@ -1610,6 +1739,7 @@ static inline bool ip_vs_conn_ops_mode(struct ip_vs_conn *cp)
 
 void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 {
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_node *e;
 	struct ip_vs_conn *cp;
 	struct ip_vs_rht *t;
@@ -1630,7 +1760,10 @@ void ip_vs_random_dropentry(struct netns_ipvs *ipvs)
 		/* Don't care if due to moved entry we jump to another bucket
 		 * and even to new table
 		 */
-		hlist_bl_for_each_entry_rcu(cp, e, &t->buckets[hash], c_list) {
+		hlist_bl_for_each_entry_rcu(hn, e, &t->buckets[hash], node) {
+			if (hn->dir != 0)
+				continue;
+			cp = ip_vs_hn0_to_conn(hn);
 			if (atomic_read(&cp->n_control))
 				continue;
 			if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
@@ -1695,6 +1828,7 @@ static void ip_vs_conn_flush(struct netns_ipvs *ipvs)
 {
 	DECLARE_IP_VS_RHT_WALK_BUCKETS_SAFE_RCU();
 	struct ip_vs_conn *cp, *cp_c;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_head *head;
 	struct ip_vs_rht *t, *p;
 	struct hlist_bl_node *e;
@@ -1709,7 +1843,10 @@ flush_again:
 	/* Rely on RCU grace period while accessing cp after ip_vs_conn_del */
 	rcu_read_lock();
 	ip_vs_rht_walk_buckets_safe_rcu(ipvs->conn_tab, head) {
-		hlist_bl_for_each_entry_rcu(cp, e, head, c_list) {
+		hlist_bl_for_each_entry_rcu(hn, e, head, node) {
+			if (hn->dir != 0)
+				continue;
+			cp = ip_vs_hn0_to_conn(hn);
 			if (atomic_read(&cp->n_control))
 				continue;
 			cp_c = cp->control;
@@ -1756,6 +1893,7 @@ void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs)
 	DECLARE_IP_VS_RHT_WALK_BUCKETS_RCU();
 	unsigned int resched_score = 0;
 	struct ip_vs_conn *cp, *cp_c;
+	struct ip_vs_conn_hnode *hn;
 	struct hlist_bl_head *head;
 	struct ip_vs_dest *dest;
 	struct hlist_bl_node *e;
@@ -1769,7 +1907,10 @@ void ip_vs_expire_nodest_conn_flush(struct netns_ipvs *ipvs)
 repeat:
 	smp_rmb(); /* ipvs->conn_tab and conn_tab_changes */
 	ip_vs_rht_walk_buckets_rcu(ipvs->conn_tab, head) {
-		hlist_bl_for_each_entry_rcu(cp, e, head, c_list) {
+		hlist_bl_for_each_entry_rcu(hn, e, head, node) {
+			if (hn->dir != 0)
+				continue;
+			cp = ip_vs_hn0_to_conn(hn);
 			resched_score++;
 			dest = cp->dest;
 			if (!dest || (dest->flags & IP_VS_DEST_F_AVAILABLE))
