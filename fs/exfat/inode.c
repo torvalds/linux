@@ -213,7 +213,6 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 					return -EIO;
 		}
 
-		num_clusters += num_to_be_allocated;
 		*clu = new_clu.dir;
 
 		inode->i_blocks += EXFAT_CLU_TO_B(num_to_be_allocated, sbi) >> 9;
