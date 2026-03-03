@@ -62,8 +62,8 @@ static ssize_t ads7828_in_show(struct device *dev,
 	if (err < 0)
 		return err;
 
-	return sprintf(buf, "%d\n",
-		       DIV_ROUND_CLOSEST(regval * data->lsb_resol, 1000));
+	return sysfs_emit(buf, "%d\n",
+			  DIV_ROUND_CLOSEST(regval * data->lsb_resol, 1000));
 }
 
 static SENSOR_DEVICE_ATTR_RO(in0_input, ads7828_in, 0);
