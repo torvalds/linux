@@ -455,7 +455,7 @@ static int entity_parse_su_device(struct device *dev,
 	if (!range)
 		return -EINVAL;
 
-	(*widget)->id = snd_soc_dapm_mux;
+	(*widget)->id = snd_soc_dapm_mux_named_ctl;
 	(*widget)->kcontrol_news = entity->group->ge.kctl;
 	(*widget)->num_kcontrols = 1;
 	(*widget)++;
