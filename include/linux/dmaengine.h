@@ -996,7 +996,8 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_slave_single(
  * @vecs: The array of DMA vectors that should be transferred
  * @nents: The number of DMA vectors in the array
  * @dir: Specifies the direction of the data transfer
- * @flags: DMA engine flags
+ * @flags: DMA engine flags - DMA_PREP_REPEAT can be used to mark a cyclic
+ *         DMA transfer
  */
 static inline struct dma_async_tx_descriptor *dmaengine_prep_peripheral_dma_vec(
 	struct dma_chan *chan, const struct dma_vec *vecs, size_t nents,
