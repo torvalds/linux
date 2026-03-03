@@ -430,7 +430,7 @@ int stmmac_pcs_setup(struct net_device *ndev)
 	struct dw_xpcs *xpcs = NULL;
 	int addr, ret;
 
-	devnode = priv->plat->port_node;
+	devnode = dev_fwnode(priv->device);
 
 	if (priv->plat->pcs_init) {
 		ret = priv->plat->pcs_init(priv);
@@ -649,10 +649,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		stmmac_xgmac2_mdio_read_c45(new_bus, 0, 0, 0);
 
 	/* If fixed-link is set, skip PHY scanning */
-	fwnode = priv->plat->port_node;
-	if (!fwnode)
-		fwnode = dev_fwnode(priv->device);
-
+	fwnode = dev_fwnode(priv->device);
 	if (fwnode) {
 		fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
 		if (fixed_node) {

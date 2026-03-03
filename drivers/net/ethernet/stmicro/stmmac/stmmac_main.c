@@ -968,7 +968,8 @@ static int stmmac_mac_finish(struct phylink_config *config, unsigned int mode,
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	if (priv->plat->mac_finish)
-		priv->plat->mac_finish(ndev, priv->plat->bsp_priv, mode, interface);
+		priv->plat->mac_finish(ndev, priv->plat->bsp_priv, mode,
+				       interface);
 
 	return 0;
 }
@@ -1251,10 +1252,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	    xpcs_get_an_mode(priv->hw->xpcs, mode) == DW_AN_C73)
 		return 0;
 
-	fwnode = priv->plat->port_node;
-	if (!fwnode)
-		fwnode = dev_fwnode(priv->device);
-
+	fwnode = dev_fwnode(priv->device);
 	if (fwnode)
 		phy_fwnode = fwnode_get_phy_node(fwnode);
 	else
@@ -1312,7 +1310,6 @@ static int stmmac_phylink_setup(struct stmmac_priv *priv)
 {
 	struct stmmac_mdio_bus_data *mdio_bus_data;
 	struct phylink_config *config;
-	struct fwnode_handle *fwnode;
 	struct phylink_pcs *pcs;
 	struct phylink *phylink;
 
@@ -1399,11 +1396,8 @@ static int stmmac_phylink_setup(struct stmmac_priv *priv)
 			config->wol_mac_support |= WAKE_MAGIC;
 	}
 
-	fwnode = priv->plat->port_node;
-	if (!fwnode)
-		fwnode = dev_fwnode(priv->device);
-
-	phylink = phylink_create(config, fwnode, priv->plat->phy_interface,
+	phylink = phylink_create(config, dev_fwnode(priv->device),
+				 priv->plat->phy_interface,
 				 &stmmac_phylink_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
@@ -3249,14 +3243,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	struct stmmac_tx_queue *tx_q;
 	u32 chan = 0;
 	int ret = 0;
-
-	if (!priv->plat->dma_cfg || !priv->plat->dma_cfg->pbl) {
-		netdev_err(priv->dev, "Invalid DMA configuration\n");
-		return -EINVAL;
-	}
-
-	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
-		priv->plat->dma_cfg->atds = 1;
 
 	ret = stmmac_prereset_configure(priv);
 	if (ret)
@@ -7345,7 +7331,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* dwmac-sun8i only work in chain mode */
 	if (priv->plat->flags & STMMAC_FLAG_HAS_SUN8I)
 		chain_mode = 1;
-	priv->chain_mode = chain_mode;
+	priv->chain_mode = !!chain_mode;
 
 	/* Initialize HW Interface */
 	ret = stmmac_hwif_init(priv);
@@ -7449,6 +7435,14 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		if (ret)
 			return ret;
 	}
+
+	/* Set alternate descriptor size (which tells the hardware that
+	 * descriptors are 8 32-bit words) when using extended descriptors
+	 * with ring mode. Only applicable for pre-v4.0 cores. Platform glue
+	 * is not expected to change this.
+	 */
+	priv->plat->dma_cfg->atds = priv->extend_desc &&
+				    priv->mode == STMMAC_RING_MODE;
 
 	/* Rx Watchdog is available in the COREs newer than the 3.40.
 	 * In some case, for example on bugged HW this feature
@@ -7728,6 +7722,11 @@ static int __stmmac_dvr_probe(struct device *device,
 	struct stmmac_priv *priv;
 	u32 rxq;
 	int i, ret = 0;
+
+	if (!plat_dat->dma_cfg || !plat_dat->dma_cfg->pbl) {
+		dev_err(device, "invalid DMA configuration\n");
+		return -EINVAL;
+	}
 
 	ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
 				       MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES);

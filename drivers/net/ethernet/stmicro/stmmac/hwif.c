@@ -76,7 +76,7 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 		/* GMAC older than 3.50 has no extended descriptors */
 		if (priv->synopsys_id >= DWMAC_CORE_3_50) {
 			dev_info(priv->device, "Enabled extended descriptors\n");
-			priv->extend_desc = 1;
+			priv->extend_desc = true;
 		} else {
 			dev_warn(priv->device, "Extended descriptors not supported\n");
 		}
@@ -94,12 +94,6 @@ static int stmmac_dwmac1_quirks(struct stmmac_priv *priv)
 static int stmmac_dwmac4_quirks(struct stmmac_priv *priv)
 {
 	stmmac_dwmac_mode_quirk(priv);
-	return 0;
-}
-
-static int stmmac_dwxlgmac_quirks(struct stmmac_priv *priv)
-{
-	priv->hw->xlgmac = true;
 	return 0;
 }
 
@@ -293,7 +287,6 @@ static const struct stmmac_hwif_entry {
 		.mmc = &dwxgmac_mmc_ops,
 		.est = &dwmac510_est_ops,
 		.setup = dwxlgmac2_setup,
-		.quirks = stmmac_dwxlgmac_quirks,
 	},
 };
 

@@ -302,9 +302,14 @@ struct stmmac_priv {
 	bool eee_active;
 	bool eee_sw_timer_en;
 	bool legacy_serdes_is_powered;
+	/* descriptor format:
+	 *  when clear: struct dma_desc or for tx TBS struct dma_edesc
+	 *  when set, struct dma_extended_desc
+	 */
+	bool extend_desc;
+	/* chain_mode: requested descriptor mode */
+	bool chain_mode;
 	unsigned int mode;
-	unsigned int chain_mode;
-	int extend_desc;
 	struct kernel_hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
