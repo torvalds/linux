@@ -25,7 +25,7 @@ static int exfat_mirror_bh(struct super_block *sb, struct buffer_head *bh)
 		if (!c_bh)
 			return -ENOMEM;
 		memcpy(c_bh->b_data, bh->b_data, sb->s_blocksize);
-		exfat_update_bh(c_bh, sb->s_flags & SB_SYNCHRONOUS);
+		err = exfat_update_bh(c_bh, sb->s_flags & SB_SYNCHRONOUS);
 		brelse(c_bh);
 	}
 
@@ -36,10 +36,10 @@ static int exfat_end_bh(struct super_block *sb, struct buffer_head *bh)
 {
 	int err;
 
-	exfat_update_bh(bh, sb->s_flags & SB_SYNCHRONOUS);
-	err = exfat_mirror_bh(sb, bh);
+	err = exfat_update_bh(bh, sb->s_flags & SB_SYNCHRONOUS);
+	if (!err)
+		err = exfat_mirror_bh(sb, bh);
 	brelse(bh);
-
 	return err;
 }
 

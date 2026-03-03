@@ -365,7 +365,8 @@ int exfat_find_empty_entry(struct inode *inode,
 			/* no-fat-chain bit is disabled,
 			 * so fat-chain should be synced with alloc-bitmap
 			 */
-			exfat_chain_cont_cluster(sb, p_dir->dir, p_dir->size);
+			if (exfat_chain_cont_cluster(sb, p_dir->dir, p_dir->size))
+				return -EIO;
 			p_dir->flags = ALLOC_FAT_CHAIN;
 			hint_femp.cur.flags = ALLOC_FAT_CHAIN;
 		}

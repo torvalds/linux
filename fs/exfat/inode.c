@@ -204,8 +204,9 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 				 * so fat-chain should be synced with
 				 * alloc-bitmap
 				 */
-				exfat_chain_cont_cluster(sb, ei->start_clu,
-					num_clusters);
+				if (exfat_chain_cont_cluster(sb, ei->start_clu,
+						num_clusters))
+					return -EIO;
 				ei->flags = ALLOC_FAT_CHAIN;
 			}
 			if (new_clu.flags == ALLOC_FAT_CHAIN)
