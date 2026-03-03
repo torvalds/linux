@@ -30,12 +30,34 @@ struct zl3073x_dpll;
 #define ZL3073X_NUM_PINS	(ZL3073X_NUM_INPUT_PINS + \
 				 ZL3073X_NUM_OUTPUT_PINS)
 
+enum zl3073x_flags {
+	ZL3073X_FLAG_REF_PHASE_COMP_32_BIT,
+	ZL3073X_FLAG_DIE_TEMP_BIT,
+	ZL3073X_FLAGS_NBITS /* must be last */
+};
+
+#define __ZL3073X_FLAG(name)	BIT(ZL3073X_FLAG_ ## name ## _BIT)
+#define ZL3073X_FLAG_REF_PHASE_COMP_32	__ZL3073X_FLAG(REF_PHASE_COMP_32)
+#define ZL3073X_FLAG_DIE_TEMP		__ZL3073X_FLAG(DIE_TEMP)
+
+/**
+ * struct zl3073x_chip_info - chip variant identification
+ * @id: chip ID
+ * @num_channels: number of DPLL channels supported by this variant
+ * @flags: chip variant flags
+ */
+struct zl3073x_chip_info {
+	u16		id;
+	u8		num_channels;
+	unsigned long	flags;
+};
+
 /**
  * struct zl3073x_dev - zl3073x device
  * @dev: pointer to device
  * @regmap: regmap to access device registers
+ * @info: detected chip info
  * @multiop_lock: to serialize multiple register operations
- * @chip_id: chip ID read from hardware
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
@@ -46,10 +68,10 @@ struct zl3073x_dpll;
  * @phase_avg_factor: phase offset measurement averaging factor
  */
 struct zl3073x_dev {
-	struct device		*dev;
-	struct regmap		*regmap;
-	struct mutex		multiop_lock;
-	u16			chip_id;
+	struct device			*dev;
+	struct regmap			*regmap;
+	const struct zl3073x_chip_info	*info;
+	struct mutex			multiop_lock;
 
 	/* Invariants */
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
@@ -68,22 +90,10 @@ struct zl3073x_dev {
 	u8			phase_avg_factor;
 };
 
-struct zl3073x_chip_info {
-	const u16	*ids;
-	size_t		num_ids;
-	int		num_channels;
-};
-
-extern const struct zl3073x_chip_info zl30731_chip_info;
-extern const struct zl3073x_chip_info zl30732_chip_info;
-extern const struct zl3073x_chip_info zl30733_chip_info;
-extern const struct zl3073x_chip_info zl30734_chip_info;
-extern const struct zl3073x_chip_info zl30735_chip_info;
 extern const struct regmap_config zl3073x_regmap_config;
 
 struct zl3073x_dev *zl3073x_devm_alloc(struct device *dev);
-int zl3073x_dev_probe(struct zl3073x_dev *zldev,
-		      const struct zl3073x_chip_info *chip_info);
+int zl3073x_dev_probe(struct zl3073x_dev *zldev);
 
 int zl3073x_dev_start(struct zl3073x_dev *zldev, bool full);
 void zl3073x_dev_stop(struct zl3073x_dev *zldev);
@@ -158,18 +168,7 @@ int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel);
 static inline bool
 zl3073x_dev_is_ref_phase_comp_32bit(struct zl3073x_dev *zldev)
 {
-	switch (zldev->chip_id) {
-	case 0x0E30:
-	case 0x0E93:
-	case 0x0E94:
-	case 0x0E95:
-	case 0x0E96:
-	case 0x0E97:
-	case 0x1F60:
-		return true;
-	default:
-		return false;
-	}
+	return zldev->info->flags & ZL3073X_FLAG_REF_PHASE_COMP_32;
 }
 
 static inline bool
