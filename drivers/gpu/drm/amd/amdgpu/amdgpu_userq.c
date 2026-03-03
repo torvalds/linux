@@ -758,7 +758,6 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	const struct amdgpu_userq_funcs *uq_funcs;
 	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_db_info db_info;
-	char *queue_name;
 	bool skip_map_queue;
 	u32 qid;
 	uint64_t index;
@@ -848,32 +847,6 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 
-	/* drop this refcount during queue destroy */
-	kref_init(&queue->refcount);
-
-	/* Wait for mode-1 reset to complete */
-	down_read(&adev->reset_domain->sem);
-	r = xa_err(xa_store_irq(&adev->userq_doorbell_xa, index, queue, GFP_KERNEL));
-	if (r) {
-		kfree(queue);
-		up_read(&adev->reset_domain->sem);
-		goto unlock;
-	}
-
-	r = xa_alloc(&uq_mgr->userq_xa, &qid, queue,
-		     XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT), GFP_KERNEL);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to allocate a queue id\n");
-		amdgpu_userq_fence_driver_free(queue);
-		xa_erase_irq(&adev->userq_doorbell_xa, index);
-		uq_funcs->mqd_destroy(queue);
-		kfree(queue);
-		r = -ENOMEM;
-		up_read(&adev->reset_domain->sem);
-		goto unlock;
-	}
-	up_read(&adev->reset_domain->sem);
-
 	/* don't map the queue if scheduling is halted */
 	if (adev->userq_halt_for_enforce_isolation &&
 	    ((queue->queue_type == AMDGPU_HW_IP_GFX) ||
@@ -885,28 +858,55 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		r = amdgpu_userq_map_helper(queue);
 		if (r) {
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
-			xa_erase_irq(&adev->userq_doorbell_xa, index);
-			xa_erase(&uq_mgr->userq_xa, qid);
-			amdgpu_userq_fence_driver_free(queue);
 			uq_funcs->mqd_destroy(queue);
+			amdgpu_userq_fence_driver_free(queue);
 			kfree(queue);
 			goto unlock;
 		}
 	}
 
-	queue_name = kasprintf(GFP_KERNEL, "queue-%d", qid);
-	if (!queue_name) {
+	/* drop this refcount during queue destroy */
+	kref_init(&queue->refcount);
+
+	/* Wait for mode-1 reset to complete */
+	down_read(&adev->reset_domain->sem);
+	r = xa_alloc(&uq_mgr->userq_xa, &qid, queue,
+		     XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT), GFP_KERNEL);
+	if (r) {
+		if (!skip_map_queue)
+			amdgpu_userq_unmap_helper(queue);
+
+		uq_funcs->mqd_destroy(queue);
+		amdgpu_userq_fence_driver_free(queue);
+		kfree(queue);
 		r = -ENOMEM;
+		up_read(&adev->reset_domain->sem);
 		goto unlock;
 	}
 
+	r = xa_err(xa_store_irq(&adev->userq_doorbell_xa, index, queue, GFP_KERNEL));
+	if (r) {
+		xa_erase(&uq_mgr->userq_xa, qid);
+		if (!skip_map_queue)
+			amdgpu_userq_unmap_helper(queue);
+
+		uq_funcs->mqd_destroy(queue);
+		amdgpu_userq_fence_driver_free(queue);
+		kfree(queue);
+		up_read(&adev->reset_domain->sem);
+		goto unlock;
+	}
+	up_read(&adev->reset_domain->sem);
+
 #if defined(CONFIG_DEBUG_FS)
+	char queue_name[32];
+
+	scnprintf(queue_name, sizeof(queue_name), "queue_%d", qid);
 	/* Queue dentry per client to hold MQD information   */
 	queue->debugfs_queue = debugfs_create_dir(queue_name, filp->debugfs_client);
 	debugfs_create_file("mqd_info", 0444, queue->debugfs_queue, queue, &amdgpu_mqd_info_fops);
 #endif
 	amdgpu_userq_init_hang_detect_work(queue);
-	kfree(queue_name);
 
 	args->out.queue_id = qid;
 	atomic_inc(&uq_mgr->userq_count[queue->queue_type]);
