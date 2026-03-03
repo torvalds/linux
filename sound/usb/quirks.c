@@ -2443,6 +2443,9 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_ALIGN_TRANSFER),
 
 	/* Vendor and string descriptor matches */
+	VENDOR_STRING_FLG(0x1235, /* Conflict with Focusrite Novation */
+			  "MV-SILICON",
+			  0), /* Stop matching */
 
 	/* Vendor matches */
 	VENDOR_FLG(0x045e, /* MS Lifecam */
