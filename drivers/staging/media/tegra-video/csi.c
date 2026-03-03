@@ -710,6 +710,8 @@ static int __maybe_unused csi_runtime_suspend(struct device *dev)
 
 	clk_bulk_disable_unprepare(csi->soc->num_clks, csi->clks);
 
+	regulator_disable(csi->vdd);
+
 	return 0;
 }
 
@@ -718,13 +720,23 @@ static int __maybe_unused csi_runtime_resume(struct device *dev)
 	struct tegra_csi *csi = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_bulk_prepare_enable(csi->soc->num_clks, csi->clks);
-	if (ret < 0) {
-		dev_err(csi->dev, "failed to enable clocks: %d\n", ret);
+	ret = regulator_enable(csi->vdd);
+	if (ret) {
+		dev_err(dev, "failed to enable VDD supply: %d\n", ret);
 		return ret;
 	}
 
+	ret = clk_bulk_prepare_enable(csi->soc->num_clks, csi->clks);
+	if (ret < 0) {
+		dev_err(csi->dev, "failed to enable clocks: %d\n", ret);
+		goto disable_vdd;
+	}
+
 	return 0;
+
+disable_vdd:
+	regulator_disable(csi->vdd);
+	return ret;
 }
 
 static int tegra_csi_init(struct host1x_client *client)
@@ -801,6 +813,11 @@ static int tegra_csi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get the clocks: %d\n", ret);
 		return ret;
 	}
+
+	csi->vdd = devm_regulator_get(&pdev->dev, "avdd-dsi-csi");
+	if (IS_ERR(csi->vdd))
+		return dev_err_probe(&pdev->dev, PTR_ERR(csi->vdd),
+				     "failed to get VDD supply");
 
 	if (!pdev->dev.pm_domain) {
 		ret = -ENOENT;
