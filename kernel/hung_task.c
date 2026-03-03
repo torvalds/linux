@@ -306,7 +306,11 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	int need_warning = sysctl_hung_task_warnings;
 	unsigned long si_mask = hung_task_si_mask;
 
-	total_count = atomic_long_read(&sysctl_hung_task_detect_count);
+	/*
+	 * The counter might get reset. Remember the initial value.
+	 * Acquire prevents reordering task checks before this point.
+	 */
+	total_count = atomic_long_read_acquire(&sysctl_hung_task_detect_count);
 	/*
 	 * If the system crashed already then all bets are off,
 	 * do not report extra hung tasks:
@@ -337,10 +341,11 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 		return;
 
 	/*
-	 * This counter tracks the total number of tasks detected as hung
-	 * since boot.
+	 * Do not count this round when the global counter has been reset
+	 * during this check. Release ensures we see all hang details
+	 * recorded during the scan.
 	 */
-	atomic_long_cmpxchg_relaxed(&sysctl_hung_task_detect_count,
+	atomic_long_cmpxchg_release(&sysctl_hung_task_detect_count,
 				    total_count, total_count +
 				    this_round_count);
 
@@ -366,6 +371,46 @@ static long hung_timeout_jiffies(unsigned long last_checked,
 }
 
 #ifdef CONFIG_SYSCTL
+
+/**
+ * proc_dohung_task_detect_count - proc handler for hung_task_detect_count
+ * @table: Pointer to the struct ctl_table definition for this proc entry
+ * @dir: Flag indicating the operation
+ * @buffer: User space buffer for data transfer
+ * @lenp: Pointer to the length of the data being transferred
+ * @ppos: Pointer to the current file offset
+ *
+ * This handler is used for reading the current hung task detection count
+ * and for resetting it to zero when a write operation is performed using a
+ * zero value only.
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int proc_dohung_task_detect_count(const struct ctl_table *table, int dir,
+					 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned long detect_count;
+	struct ctl_table proxy_table;
+	int err;
+
+	proxy_table = *table;
+	proxy_table.data = &detect_count;
+
+	if (SYSCTL_KERN_TO_USER(dir))
+		detect_count = atomic_long_read(&sysctl_hung_task_detect_count);
+
+	err = proc_doulongvec_minmax(&proxy_table, dir, buffer, lenp, ppos);
+	if (err < 0)
+		return err;
+
+	if (SYSCTL_USER_TO_KERN(dir)) {
+		if (detect_count)
+			return -EINVAL;
+		atomic_long_set(&sysctl_hung_task_detect_count, 0);
+	}
+
+	return 0;
+}
+
 /*
  * Process updating of timeout sysctl
  */
@@ -446,10 +491,9 @@ static const struct ctl_table hung_task_sysctls[] = {
 	},
 	{
 		.procname	= "hung_task_detect_count",
-		.data		= &sysctl_hung_task_detect_count,
 		.maxlen		= sizeof(unsigned long),
-		.mode		= 0444,
-		.proc_handler	= proc_doulongvec_minmax,
+		.mode		= 0644,
+		.proc_handler	= proc_dohung_task_detect_count,
 	},
 	{
 		.procname	= "hung_task_sys_info",
