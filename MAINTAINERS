@@ -19803,7 +19803,6 @@ F:	arch/*/boot/dts/
 F:	include/dt-bindings/
 
 OPENCOMPUTE PTP CLOCK DRIVER
-M:	Jonathan Lemon <jonathan.lemon@gmail.com>
 M:	Vadim Fedorenko <vadim.fedorenko@linux.dev>
 L:	netdev@vger.kernel.org
 S:	Maintained

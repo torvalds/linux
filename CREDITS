@@ -2415,6 +2415,10 @@ S: Am Muehlenweg 38
 S: D53424 Remagen
 S: Germany
 
+N: Jonathan Lemon
+E: jonathan.lemon@gmail.com
+D: OpenCompute PTP clock driver (ptp_ocp)
+
 N: Colin Leroy
 E: colin@colino.net
 W: http://www.geekounet.org/
