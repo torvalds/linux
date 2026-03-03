@@ -827,6 +827,17 @@ static int tegra_csi_probe(struct platform_device *pdev)
 
 	csi->dev = &pdev->dev;
 	csi->ops = csi->soc->ops;
+
+	if (csi->soc->mipi_ops) {
+		ret = devm_tegra_mipi_add_provider(&pdev->dev, pdev->dev.of_node,
+						   csi->soc->mipi_ops);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "failed to add MIPI calibration operations\n");
+	}
+
+	mutex_init(&csi->mipi_lock);
+
 	platform_set_drvdata(pdev, csi);
 	pm_runtime_enable(&pdev->dev);
 
@@ -859,6 +870,12 @@ static void tegra_csi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_csi_of_id_table[] = {
+#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
+	{ .compatible = "nvidia,tegra20-csi", .data = &tegra20_csi_soc },
+#endif
+#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+	{ .compatible = "nvidia,tegra30-csi", .data = &tegra30_csi_soc },
+#endif
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
 	{ .compatible = "nvidia,tegra210-csi", .data = &tegra210_csi_soc },
 #endif
