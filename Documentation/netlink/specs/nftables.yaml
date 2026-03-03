@@ -66,9 +66,21 @@ definitions:
     name: bitwise-ops
     type: enum
     entries:
-      - bool
-      - lshift
-      - rshift
+      -
+        name: mask-xor  # aka bool (old name)
+        doc: >-
+          mask-and-xor operation used to implement NOT, AND, OR and XOR boolean
+          operations
+      -
+        name: lshift
+      -
+        name: rshift
+      -
+        name: and
+      -
+        name: or
+      -
+        name: xor
   -
     name: cmp-ops
     type: enum
@@ -132,6 +144,12 @@ definitions:
       - object
       - concat
       - expr
+  -
+    name: set-elem-flags
+    type: flags
+    entries:
+      - interval-end
+      - catchall
   -
     name: lookup-flags
     type: flags
@@ -225,6 +243,147 @@ definitions:
       - icmp-unreach
       - tcp-rst
       - icmpx-unreach
+  -
+    name: reject-inet-code
+    doc: These codes are mapped to real ICMP and ICMPv6 codes.
+    type: enum
+    entries:
+      - icmpx-no-route
+      - icmpx-port-unreach
+      - icmpx-host-unreach
+      - icmpx-admin-prohibited
+  -
+    name: payload-base
+    type: enum
+    entries:
+      - link-layer-header
+      - network-header
+      - transport-header
+      - inner-header
+      - tun-header
+  -
+    name: range-ops
+    doc: Range operator
+    type: enum
+    entries:
+      - eq
+      - neq
+  -
+    name: registers
+    doc: |
+      nf_tables registers.
+      nf_tables used to have five registers: a verdict register and four data
+      registers of size 16. The data registers have been changed to 16 registers
+      of size 4. For compatibility reasons, the NFT_REG_[1-4] registers still
+      map to areas of size 16, the 4 byte registers are addressed using
+      NFT_REG32_00 - NFT_REG32_15.
+    type: enum
+    entries:
+      -
+        name: reg-verdict
+      -
+        name: reg-1
+      -
+        name: reg-2
+      -
+        name: reg-3
+      -
+        name: reg-4
+      -
+        name: reg32-00
+        value: 8
+      -
+        name: reg32-01
+      -
+        name: reg32-02
+      -
+        name: reg32-03
+      -
+        name: reg32-04
+      -
+        name: reg32-05
+      -
+        name: reg32-06
+      -
+        name: reg32-07
+      -
+        name: reg32-08
+      -
+        name: reg32-09
+      -
+        name: reg32-10
+      -
+        name: reg32-11
+      -
+        name: reg32-12
+      -
+        name: reg32-13
+      -
+        name: reg32-14
+      -
+        name: reg32-15
+  -
+    name: numgen-types
+    type: enum
+    entries:
+      - incremental
+      - random
+  -
+    name: log-level
+    doc: nf_tables log levels
+    type: enum
+    entries:
+      -
+        name: emerg
+        doc: system is unusable
+      -
+        name: alert
+        doc: action must be taken immediately
+      -
+        name: crit
+        doc: critical conditions
+      -
+        name: err
+        doc: error conditions
+      -
+        name: warning
+        doc: warning conditions
+      -
+        name: notice
+        doc: normal but significant condition
+      -
+        name: info
+        doc: informational
+      -
+        name: debug
+        doc: debug-level messages
+      -
+        name: audit
+        doc: enabling audit logging
+  -
+    name: log-flags
+    doc: nf_tables log flags
+    header: linux/netfilter/nf_log.h
+    type: flags
+    entries:
+      -
+        name: tcpseq
+        doc: Log TCP sequence numbers
+      -
+        name: tcpopt
+        doc: Log TCP options
+      -
+        name: ipopt
+        doc: Log IP options
+      -
+        name: uid
+        doc: Log UID owning local socket
+      -
+        name: nflog
+        doc: Unsupported, don't reuse
+      -
+        name: macdecode
+        doc: Decode MAC header
 
 attribute-sets:
   -
@@ -767,6 +926,22 @@ attribute-sets:
         nested-attributes: hook-dev-attrs
   -
     name: expr-bitwise-attrs
+    doc: |
+      The bitwise expression supports boolean and shift operations. It
+      implements the boolean operations by performing the following
+      operation::
+
+          dreg = (sreg & mask) ^ xor
+
+          with these mask and xor values:
+
+          op      mask    xor
+          ----    ----    ---
+          NOT:     1       1
+          OR:     ~x       x
+          XOR:     1       x
+          AND:     x       0
+
     attributes:
       -
         name: sreg
