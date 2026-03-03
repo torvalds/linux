@@ -37,16 +37,23 @@ pub trait AtomicImpl: Sized + Send + Copy + private::Sealed {
     type Delta;
 }
 
-// The current helpers of load/store uses `{WRITE,READ}_ONCE()` hence the atomicity is only
-// guaranteed against read-modify-write operations if the architecture supports native atomic RmW.
-#[cfg(CONFIG_ARCH_SUPPORTS_ATOMIC_RMW)]
+// The current helpers of load/store of atomic `i8` and `i16` use `{WRITE,READ}_ONCE()` hence the
+// atomicity is only guaranteed against read-modify-write operations if the architecture supports
+// native atomic RmW.
+//
+// In the future when a CONFIG_ARCH_SUPPORTS_ATOMIC_RMW=n architecture plans to support Rust, the
+// load/store helpers that guarantee atomicity against RmW operations (usually via a lock) need to
+// be added.
+crate::static_assert!(
+    cfg!(CONFIG_ARCH_SUPPORTS_ATOMIC_RMW),
+    "The current implementation of atomic i8/i16/ptr relies on the architecure being \
+    ARCH_SUPPORTS_ATOMIC_RMW"
+);
+
 impl AtomicImpl for i8 {
     type Delta = Self;
 }
 
-// The current helpers of load/store uses `{WRITE,READ}_ONCE()` hence the atomicity is only
-// guaranteed against read-modify-write operations if the architecture supports native atomic RmW.
-#[cfg(CONFIG_ARCH_SUPPORTS_ATOMIC_RMW)]
 impl AtomicImpl for i16 {
     type Delta = Self;
 }
