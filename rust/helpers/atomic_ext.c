@@ -67,42 +67,18 @@ GEN_XCHG_HELPERS(i16, s16)
  * The architectures that currently support Rust (x86_64, armv7,
  * arm64, riscv, and loongarch) satisfy these requirements.
  */
-__rust_helper bool rust_helper_atomic_i8_try_cmpxchg(s8 *ptr, s8 *old, s8 new)
-{
-	return try_cmpxchg(ptr, old, new);
+#define GEN_TRY_CMPXCHG_HELPER(tname, type, suffix)				\
+__rust_helper bool								\
+rust_helper_atomic_##tname##_try_cmpxchg##suffix(type *ptr, type *old, type new)\
+{										\
+	return try_cmpxchg##suffix(ptr, old, new);				\
 }
 
-__rust_helper bool rust_helper_atomic_i16_try_cmpxchg(s16 *ptr, s16 *old, s16 new)
-{
-	return try_cmpxchg(ptr, old, new);
-}
+#define GEN_TRY_CMPXCHG_HELPERS(tname, type)					\
+	GEN_TRY_CMPXCHG_HELPER(tname, type, )					\
+	GEN_TRY_CMPXCHG_HELPER(tname, type, _acquire)				\
+	GEN_TRY_CMPXCHG_HELPER(tname, type, _release)				\
+	GEN_TRY_CMPXCHG_HELPER(tname, type, _relaxed)				\
 
-__rust_helper bool rust_helper_atomic_i8_try_cmpxchg_acquire(s8 *ptr, s8 *old, s8 new)
-{
-	return try_cmpxchg_acquire(ptr, old, new);
-}
-
-__rust_helper bool rust_helper_atomic_i16_try_cmpxchg_acquire(s16 *ptr, s16 *old, s16 new)
-{
-	return try_cmpxchg_acquire(ptr, old, new);
-}
-
-__rust_helper bool rust_helper_atomic_i8_try_cmpxchg_release(s8 *ptr, s8 *old, s8 new)
-{
-	return try_cmpxchg_release(ptr, old, new);
-}
-
-__rust_helper bool rust_helper_atomic_i16_try_cmpxchg_release(s16 *ptr, s16 *old, s16 new)
-{
-	return try_cmpxchg_release(ptr, old, new);
-}
-
-__rust_helper bool rust_helper_atomic_i8_try_cmpxchg_relaxed(s8 *ptr, s8 *old, s8 new)
-{
-	return try_cmpxchg_relaxed(ptr, old, new);
-}
-
-__rust_helper bool rust_helper_atomic_i16_try_cmpxchg_relaxed(s16 *ptr, s16 *old, s16 new)
-{
-	return try_cmpxchg_relaxed(ptr, old, new);
-}
+GEN_TRY_CMPXCHG_HELPERS(i8, s8)
+GEN_TRY_CMPXCHG_HELPERS(i16, s16)
