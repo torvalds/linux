@@ -541,18 +541,28 @@ static void cs35l56_test_gpio_param_desc(const struct cs35l56_test_param *param,
 }
 
 static const struct cs35l56_test_param cs35l56_test_onchip_spkid_cases[] = {
+	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { -1, -1 }, },
+	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { -1, -1 }, },
 	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { 1, -1 }, },
 	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { 2, -1 }, },
 
+	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { -1, -1 }, },
+	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { -1, -1 }, },
 	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { 1, -1 }, },
 	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { 2, -1 }, },
 
+	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { -1, -1, -1 }, },
+	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { -1, -1, -1 }, },
 	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { 1, 1, -1 }, },
 	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { 2, 2, -1 }, },
 
+	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { -1, -1, -1 }, },
+	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { -1, -1, -1 }, },
 	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { 1, 1, -1 }, },
 	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { 2, 2, -1 }, },
 
+	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { -1, -1, -1, -1 }, },
+	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { -1, -1, -1, -1 }, },
 	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { 1, 1, 1, -1 }, },
 	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { 2, 2, 2, -1 }, },
 };
