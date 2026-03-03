@@ -29,13 +29,11 @@ void _ips_enter(struct adapter *padapter)
 		pwrpriv->rf_pwrstate = rf_off;
 	}
 	pwrpriv->bips_processing = false;
-
 }
 
 void ips_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-
 
 	hal_btcoex_IpsNotify(padapter, pwrpriv->ips_mode_req);
 
@@ -131,7 +129,6 @@ exit:
 	return ret;
 }
 
-
 /*
  * ATTENTION:
  *rtw_ps_processor() doesn't handle LPS.
@@ -183,8 +180,6 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 	static u32 xmit_cnt;
 	u8 bLeaveLPS = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-
 
 	if (tx) { /* from tx */
 		xmit_cnt += tx_packets;
@@ -240,12 +235,10 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 		if (pwrpriv->rpwm == pslv ||
 		    (pwrpriv->rpwm >= PS_STATE_S2 && pslv >= PS_STATE_S2))
 			return;
-
 	}
 
 	if ((padapter->bSurpriseRemoved) || !(padapter->hw_init_completed)) {
 		pwrpriv->cpwm = PS_STATE_S4;
-
 		return;
 	}
 
@@ -342,7 +335,6 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 		if (ps_mode == PS_MODE_ACTIVE)
 			return;
 
-
 	mutex_lock(&pwrpriv->lock);
 
 	/* if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) */
@@ -403,7 +395,6 @@ s32 LPS_RF_ON_check(struct adapter *padapter, u32 delay_ms)
 	unsigned long start_time;
 	u8 bAwake = false;
 	s32 err = 0;
-
 
 	start_time = jiffies;
 	while (1) {
@@ -606,7 +597,6 @@ void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportp
 
 exit:
 	mutex_unlock(&pwrpriv->lock);
-
 }
 
 static void cpwm_event_callback(struct work_struct *work)
@@ -625,7 +615,6 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	struct adapter *padapter;
 	struct dvobj_priv *dvobj;
 	struct pwrctrl_priv *pwrpriv;
-
 
 	pwrpriv = container_of(work, struct pwrctrl_priv, rpwmtimeoutwi);
 	dvobj = pwrctl_to_dvobj(pwrpriv);
@@ -682,7 +671,6 @@ static inline void unregister_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
 {
 	pwrctrl->alives &= ~tag;
 }
-
 
 /*
  * Description:
@@ -1020,7 +1008,6 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 	if (time_before(pwrpriv->ips_deny_time, deny_time))
 		pwrpriv->ips_deny_time = deny_time;
 
-
 	if (pwrpriv->ps_processing)
 		while (pwrpriv->ps_processing && jiffies_to_msecs(jiffies - start) <= 3000)
 			mdelay(10);
@@ -1068,7 +1055,6 @@ exit:
 	if (time_before(pwrpriv->ips_deny_time, deny_time))
 		pwrpriv->ips_deny_time = deny_time;
 	return ret;
-
 }
 
 int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
