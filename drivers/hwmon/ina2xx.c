@@ -1,22 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Texas Instruments INA219, INA226 power monitor chips
- *
- * INA219:
- * Zero Drift Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina219
- *
- * INA220:
- * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina220
- *
- * INA226:
- * Bi-Directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina226
- *
- * INA230:
- * Bi-directional Current/Power Monitor with I2C Interface
- * Datasheet: https://www.ti.com/product/ina230
+ * Driver for Texas Instruments INA219, INA226 and register-layout compatible
+ * current/power monitor chips with I2C Interface
  *
  * Copyright (C) 2012 Lothar Felten <lothar.felten@gmail.com>
  * Thanks to Jan Volkering
@@ -49,7 +34,6 @@
 /* INA226 register definitions */
 #define INA226_MASK_ENABLE		0x06
 #define INA226_ALERT_LIMIT		0x07
-#define INA226_DIE_ID			0xFF
 
 /* SY24655 register definitions */
 #define SY24655_EIN				0x0A
