@@ -36,7 +36,7 @@ static int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
 /*
  * Total number of tasks detected as hung since boot:
  */
-static unsigned long __read_mostly sysctl_hung_task_detect_count;
+static atomic_long_t sysctl_hung_task_detect_count = ATOMIC_LONG_INIT(0);
 
 /*
  * Limit number of tasks checked in a batch.
@@ -223,31 +223,29 @@ static inline void debug_show_blocker(struct task_struct *task, unsigned long ti
 }
 #endif
 
-static void check_hung_task(struct task_struct *t, unsigned long timeout,
-		unsigned long prev_detect_count)
+/**
+ * hung_task_info - Print diagnostic details for a hung task
+ * @t: Pointer to the detected hung task.
+ * @timeout: Timeout threshold for detecting hung tasks
+ * @this_round_count: Count of hung tasks detected in the current iteration
+ *
+ * Print structured information about the specified hung task, if warnings
+ * are enabled or if the panic batch threshold is exceeded.
+ */
+static void hung_task_info(struct task_struct *t, unsigned long timeout,
+			   unsigned long this_round_count)
 {
-	unsigned long total_hung_task;
-
-	if (!task_is_hung(t, timeout))
-		return;
-
-	/*
-	 * This counter tracks the total number of tasks detected as hung
-	 * since boot.
-	 */
-	sysctl_hung_task_detect_count++;
-
-	total_hung_task = sysctl_hung_task_detect_count - prev_detect_count;
 	trace_sched_process_hang(t);
 
-	if (sysctl_hung_task_panic && total_hung_task >= sysctl_hung_task_panic) {
+	if (sysctl_hung_task_panic && this_round_count >= sysctl_hung_task_panic) {
 		console_verbose();
 		hung_task_call_panic = true;
 	}
 
 	/*
-	 * Ok, the task did not get scheduled for more than 2 minutes,
-	 * complain:
+	 * The given task did not get scheduled for more than
+	 * CONFIG_DEFAULT_HUNG_TASK_TIMEOUT. Therefore, complain
+	 * accordingly
 	 */
 	if (sysctl_hung_task_warnings || hung_task_call_panic) {
 		if (sysctl_hung_task_warnings > 0)
@@ -297,18 +295,18 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 
 /*
  * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
- * a really long time (120 seconds). If that happens, print out
- * a warning.
+ * a really long time. If that happens, print out a warning.
  */
 static void check_hung_uninterruptible_tasks(unsigned long timeout)
 {
 	int max_count = sysctl_hung_task_check_count;
 	unsigned long last_break = jiffies;
 	struct task_struct *g, *t;
-	unsigned long prev_detect_count = sysctl_hung_task_detect_count;
+	unsigned long total_count, this_round_count;
 	int need_warning = sysctl_hung_task_warnings;
 	unsigned long si_mask = hung_task_si_mask;
 
+	total_count = atomic_long_read(&sysctl_hung_task_detect_count);
 	/*
 	 * If the system crashed already then all bets are off,
 	 * do not report extra hung tasks:
@@ -316,10 +314,9 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	if (test_taint(TAINT_DIE) || did_panic)
 		return;
 
-
+	this_round_count = 0;
 	rcu_read_lock();
 	for_each_process_thread(g, t) {
-
 		if (!max_count--)
 			goto unlock;
 		if (time_after(jiffies, last_break + HUNG_TASK_LOCK_BREAK)) {
@@ -328,13 +325,24 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 			last_break = jiffies;
 		}
 
-		check_hung_task(t, timeout, prev_detect_count);
+		if (task_is_hung(t, timeout)) {
+			this_round_count++;
+			hung_task_info(t, timeout, this_round_count);
+		}
 	}
  unlock:
 	rcu_read_unlock();
 
-	if (!(sysctl_hung_task_detect_count - prev_detect_count))
+	if (!this_round_count)
 		return;
+
+	/*
+	 * This counter tracks the total number of tasks detected as hung
+	 * since boot.
+	 */
+	atomic_long_cmpxchg_relaxed(&sysctl_hung_task_detect_count,
+				    total_count, total_count +
+				    this_round_count);
 
 	if (need_warning || hung_task_call_panic) {
 		si_mask |= SYS_INFO_LOCKS;
