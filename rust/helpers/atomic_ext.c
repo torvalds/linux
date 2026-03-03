@@ -4,45 +4,38 @@
 #include <asm/rwonce.h>
 #include <linux/atomic.h>
 
-__rust_helper s8 rust_helper_atomic_i8_read(s8 *ptr)
-{
-	return READ_ONCE(*ptr);
+#define GEN_READ_HELPER(tname, type)						\
+__rust_helper type rust_helper_atomic_##tname##_read(type *ptr)			\
+{										\
+	return READ_ONCE(*ptr);							\
 }
 
-__rust_helper s8 rust_helper_atomic_i8_read_acquire(s8 *ptr)
-{
-	return smp_load_acquire(ptr);
+#define GEN_SET_HELPER(tname, type)						\
+__rust_helper void rust_helper_atomic_##tname##_set(type *ptr, type val)	\
+{										\
+	WRITE_ONCE(*ptr, val);							\
 }
 
-__rust_helper s16 rust_helper_atomic_i16_read(s16 *ptr)
-{
-	return READ_ONCE(*ptr);
+#define GEN_READ_ACQUIRE_HELPER(tname, type)					\
+__rust_helper type rust_helper_atomic_##tname##_read_acquire(type *ptr)		\
+{										\
+	return smp_load_acquire(ptr);						\
 }
 
-__rust_helper s16 rust_helper_atomic_i16_read_acquire(s16 *ptr)
-{
-	return smp_load_acquire(ptr);
+#define GEN_SET_RELEASE_HELPER(tname, type)					\
+__rust_helper void rust_helper_atomic_##tname##_set_release(type *ptr, type val)\
+{										\
+	smp_store_release(ptr, val);						\
 }
 
-__rust_helper void rust_helper_atomic_i8_set(s8 *ptr, s8 val)
-{
-	WRITE_ONCE(*ptr, val);
-}
+#define GEN_READ_SET_HELPERS(tname, type)					\
+	GEN_READ_HELPER(tname, type)						\
+	GEN_SET_HELPER(tname, type)						\
+	GEN_READ_ACQUIRE_HELPER(tname, type)					\
+	GEN_SET_RELEASE_HELPER(tname, type)					\
 
-__rust_helper void rust_helper_atomic_i8_set_release(s8 *ptr, s8 val)
-{
-	smp_store_release(ptr, val);
-}
-
-__rust_helper void rust_helper_atomic_i16_set(s16 *ptr, s16 val)
-{
-	WRITE_ONCE(*ptr, val);
-}
-
-__rust_helper void rust_helper_atomic_i16_set_release(s16 *ptr, s16 val)
-{
-	smp_store_release(ptr, val);
-}
+GEN_READ_SET_HELPERS(i8, s8)
+GEN_READ_SET_HELPERS(i16, s16)
 
 /*
  * xchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
