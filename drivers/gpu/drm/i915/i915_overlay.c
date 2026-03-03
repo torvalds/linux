@@ -482,9 +482,8 @@ static void __iomem *i915_overlay_setup(struct drm_device *drm,
 static void i915_overlay_cleanup(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
-	struct i915_overlay *overlay;
+	struct i915_overlay *overlay = i915->overlay;
 
-	overlay = fetch_and_zero(&i915->overlay);
 	if (!overlay)
 		return;
 
@@ -499,6 +498,7 @@ static void i915_overlay_cleanup(struct drm_device *drm)
 	i915_active_fini(&overlay->last_flip);
 
 	kfree(overlay);
+	i915->overlay = NULL;
 }
 
 const struct intel_display_overlay_interface i915_display_overlay_interface = {
