@@ -623,44 +623,11 @@ static int exfat_find_location(struct super_block *sb, struct exfat_chain *p_dir
 	return 0;
 }
 
-#define EXFAT_MAX_RA_SIZE     (128*1024)
-static int exfat_dir_readahead(struct super_block *sb, sector_t sec)
-{
-	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct buffer_head *bh;
-	unsigned int max_ra_count = EXFAT_MAX_RA_SIZE >> sb->s_blocksize_bits;
-	unsigned int page_ra_count = PAGE_SIZE >> sb->s_blocksize_bits;
-	unsigned int adj_ra_count = max(sbi->sect_per_clus, page_ra_count);
-	unsigned int ra_count = min(adj_ra_count, max_ra_count);
-
-	/* Read-ahead is not required */
-	if (sbi->sect_per_clus == 1)
-		return 0;
-
-	if (sec < sbi->data_start_sector) {
-		exfat_err(sb, "requested sector is invalid(sect:%llu, root:%llu)",
-			  (unsigned long long)sec, sbi->data_start_sector);
-		return -EIO;
-	}
-
-	/* Not sector aligned with ra_count, resize ra_count to page size */
-	if ((sec - sbi->data_start_sector) & (ra_count - 1))
-		ra_count = page_ra_count;
-
-	bh = sb_find_get_block(sb, sec);
-	if (!bh || !buffer_uptodate(bh)) {
-		unsigned int i;
-
-		for (i = 0; i < ra_count; i++)
-			sb_breadahead(sb, (sector_t)(sec + i));
-	}
-	brelse(bh);
-	return 0;
-}
-
 struct exfat_dentry *exfat_get_dentry(struct super_block *sb,
 		struct exfat_chain *p_dir, int entry, struct buffer_head **bh)
 {
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	unsigned int sect_per_clus = sbi->sect_per_clus;
 	unsigned int dentries_per_page = EXFAT_B_TO_DEN(PAGE_SIZE);
 	int off;
 	sector_t sec;
@@ -673,9 +640,18 @@ struct exfat_dentry *exfat_get_dentry(struct super_block *sb,
 	if (exfat_find_location(sb, p_dir, entry, &sec, &off))
 		return NULL;
 
-	if (p_dir->dir != EXFAT_FREE_CLUSTER &&
-			!(entry & (dentries_per_page - 1)))
-		exfat_dir_readahead(sb, sec);
+	if (sect_per_clus > 1 &&
+	    (entry & (dentries_per_page - 1)) == 0) {
+		sector_t ra = sec;
+		blkcnt_t cnt = 0;
+		unsigned int ra_count = sect_per_clus;
+
+		/* Not sector aligned with ra_count, resize ra_count to page size */
+		if ((sec - sbi->data_start_sector) & (ra_count - 1))
+			ra_count = PAGE_SIZE >> sb->s_blocksize_bits;
+
+		exfat_blk_readahead(sb, sec, &ra, &cnt, sec + ra_count - 1);
+	}
 
 	*bh = sb_bread(sb, sec);
 	if (!*bh)
