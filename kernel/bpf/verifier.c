@@ -7752,6 +7752,11 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (!err && value_regno >= 0 && (t == BPF_READ || rdonly_mem))
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_CTX) {
+		/*
+		 * Program types that don't rewrite ctx accesses can safely
+		 * dereference ctx pointers with fixed offsets.
+		 */
+		bool fixed_off_ok = !env->ops->convert_ctx_access;
 		struct bpf_retval_range range;
 		struct bpf_insn_access_aux info = {
 			.reg_type = SCALAR_VALUE,
@@ -7765,10 +7770,16 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			return -EACCES;
 		}
 
-		err = check_ptr_off_reg(env, reg, regno);
+		err = __check_ptr_off_reg(env, reg, regno, fixed_off_ok);
 		if (err < 0)
 			return err;
 
+		/*
+		 * Fold the register's constant offset into the insn offset so
+		 * that is_valid_access() sees the true effective offset.
+		 */
+		if (fixed_off_ok)
+			off += reg->var_off.value;
 		err = check_ctx_access(env, insn_idx, off, size, t, &info);
 		if (err)
 			verbose_linfo(env, insn_idx, "; ");

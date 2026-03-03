@@ -292,4 +292,80 @@ padding_access("cgroup/post_bind4", bpf_sock, dst_port, 2);
 __failure __msg("invalid bpf_context access")
 padding_access("sk_reuseport", sk_reuseport_md, hash, 4);
 
+SEC("syscall")
+__description("syscall: write to ctx with fixed offset")
+__success
+__naked void syscall_ctx_fixed_off_write(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	*(u32*)(r1 + 0) = r0;				\
+	r1 += 4;					\
+	*(u32*)(r1 + 0) = r0;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+/*
+ * Test that program types without convert_ctx_access can dereference
+ * their ctx pointer after adding a fixed offset. Variable and negative
+ * offsets should still be rejected.
+ */
+#define no_rewrite_ctx_access(type, name, off, ld_op)			\
+	SEC(type)							\
+	__description(type ": read ctx at fixed offset")		\
+	__success							\
+	__naked void no_rewrite_##name##_fixed(void)			\
+	{								\
+		asm volatile ("						\
+		r1 += %[__off];						\
+		r0 = *(" #ld_op " *)(r1 + 0);				\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(__off, off)				\
+		: __clobber_all);					\
+	}								\
+	SEC(type)							\
+	__description(type ": reject variable offset ctx access")	\
+	__failure __msg("variable ctx access var_off=")			\
+	__naked void no_rewrite_##name##_var(void)			\
+	{								\
+		asm volatile ("						\
+		r6 = r1;						\
+		call %[bpf_get_prandom_u32];				\
+		r1 = r6;						\
+		r0 &= 4;						\
+		r1 += r0;						\
+		r0 = *(" #ld_op " *)(r1 + 0);				\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm(bpf_get_prandom_u32)				\
+		: __clobber_all);					\
+	}								\
+	SEC(type)							\
+	__description(type ": reject negative offset ctx access")	\
+	__failure __msg("negative offset ctx ptr")			\
+	__naked void no_rewrite_##name##_neg(void)			\
+	{								\
+		asm volatile ("						\
+		r1 += %[__neg_off];					\
+		r0 = *(" #ld_op " *)(r1 + 0);				\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(__neg_off, -(off))			\
+		: __clobber_all);					\
+	}
+
+no_rewrite_ctx_access("syscall", syscall, 4, u32);
+no_rewrite_ctx_access("kprobe", kprobe, 8, u64);
+no_rewrite_ctx_access("tracepoint", tp, 8, u64);
+no_rewrite_ctx_access("raw_tp", raw_tp, 8, u64);
+no_rewrite_ctx_access("raw_tracepoint.w", raw_tp_w, 8, u64);
+no_rewrite_ctx_access("fentry/bpf_modify_return_test", fentry, 8, u64);
+no_rewrite_ctx_access("cgroup/dev", cgroup_dev, 4, u32);
+no_rewrite_ctx_access("netfilter", netfilter, offsetof(struct bpf_nf_ctx, skb), u64);
+
 char _license[] SEC("license") = "GPL";
