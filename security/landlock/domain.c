@@ -94,8 +94,7 @@ static struct landlock_details *get_current_details(void)
 	 * allocate with GFP_KERNEL_ACCOUNT because it is independent from the
 	 * caller.
 	 */
-	details =
-		kzalloc_flex(*details, exe_path, path_size);
+	details = kzalloc_flex(*details, exe_path, path_size);
 	if (!details)
 		return ERR_PTR(-ENOMEM);
 
