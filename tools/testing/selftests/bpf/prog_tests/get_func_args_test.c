@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include "get_func_args_test.skel.h"
+#include "get_func_args_fsession_test.skel.h"
 
 void test_get_func_args_test(void)
 {
@@ -41,8 +42,30 @@ void test_get_func_args_test(void)
 	ASSERT_EQ(skel->bss->test4_result, 1, "test4_result");
 	ASSERT_EQ(skel->bss->test5_result, 1, "test5_result");
 	ASSERT_EQ(skel->bss->test6_result, 1, "test6_result");
-	ASSERT_EQ(skel->bss->test7_result, 1, "test7_result");
 
 cleanup:
 	get_func_args_test__destroy(skel);
+}
+
+void test_get_func_args_fsession_test(void)
+{
+	struct get_func_args_fsession_test *skel = NULL;
+	int err;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+
+	skel = get_func_args_fsession_test__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "get_func_args_fsession_test__open_and_load"))
+		return;
+
+	err = get_func_args_fsession_test__attach(skel);
+	if (!ASSERT_OK(err, "get_func_args_fsession_test__attach"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test1), &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(skel->bss->test1_result, 1, "test1_result");
+cleanup:
+	get_func_args_fsession_test__destroy(skel);
 }
