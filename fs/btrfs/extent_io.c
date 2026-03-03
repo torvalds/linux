@@ -521,7 +521,6 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 	struct bio *bio = &bbio->bio;
 	int error = blk_status_to_errno(bio->bi_status);
 	struct folio_iter fi;
-	const u32 sectorsize = fs_info->sectorsize;
 	u32 bio_size = 0;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
@@ -531,16 +530,6 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 		u32 len = fi.length;
 
 		bio_size += len;
-		/* Our read/write should always be sector aligned. */
-		if (!IS_ALIGNED(fi.offset, sectorsize))
-			btrfs_err(fs_info,
-		"partial page write in btrfs with offset %zu and length %zu",
-				  fi.offset, fi.length);
-		else if (!IS_ALIGNED(fi.length, sectorsize))
-			btrfs_info(fs_info,
-		"incomplete page write with offset %zu and length %zu",
-				   fi.offset, fi.length);
-
 		if (error)
 			mapping_set_error(folio->mapping, error);
 
