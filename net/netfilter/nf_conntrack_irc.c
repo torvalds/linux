@@ -30,13 +30,7 @@ static unsigned int dcc_timeout __read_mostly = 300;
 static char *irc_buffer;
 static DEFINE_SPINLOCK(irc_buffer_lock);
 
-unsigned int (__rcu *nf_nat_irc_hook)(struct sk_buff *skb,
-				      enum ip_conntrack_info ctinfo,
-				      unsigned int protoff,
-				      unsigned int matchoff,
-				      unsigned int matchlen,
-				      struct nf_conntrack_expect *exp)
-				      __read_mostly;
+nf_nat_irc_hook_fn __rcu *nf_nat_irc_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_irc_hook);
 
 #define HELPER_NAME "irc"
@@ -122,7 +116,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	__be16 port;
 	int i, ret = NF_ACCEPT;
 	char *addr_beg_p, *addr_end_p;
-	typeof(nf_nat_irc_hook) nf_nat_irc;
+	nf_nat_irc_hook_fn *nf_nat_irc;
 	unsigned int datalen;
 
 	/* If packet is coming from IRC server */
