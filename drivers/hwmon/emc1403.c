@@ -40,7 +40,7 @@ static ssize_t power_state_show(struct device *dev, struct device_attribute *att
 	retval = regmap_read(data->regmap, 0x03, &val);
 	if (retval < 0)
 		return retval;
-	return sprintf(buf, "%d\n", !!(val & BIT(6)));
+	return sysfs_emit(buf, "%d\n", !!(val & BIT(6)));
 }
 
 static ssize_t power_state_store(struct device *dev, struct device_attribute *attr,
