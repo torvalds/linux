@@ -6721,7 +6721,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	sdata_info(sdata,
 		   "RX %sssocResp from %pM (capab=0x%x status=%d aid=%d)\n",
 		   reassoc ? "Rea" : "A", assoc_data->ap_addr,
-		   capab_info, status_code, (u16)(aid & ~(BIT(15) | BIT(14))));
+		   capab_info, status_code, aid);
 
 	ifmgd->broken_ap = false;
 
