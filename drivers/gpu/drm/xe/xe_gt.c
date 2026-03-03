@@ -171,7 +171,7 @@ static void xe_gt_enable_comp_1wcoh(struct xe_gt *gt)
 static void gt_reset_worker(struct work_struct *w);
 
 static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
-			 long timeout_jiffies)
+			 long timeout_jiffies, bool force_reset)
 {
 	struct xe_sched_job *job;
 	struct dma_fence *fence;
@@ -180,6 +180,8 @@ static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
 	job = xe_bb_create_job(q, bb);
 	if (IS_ERR(job))
 		return PTR_ERR(job);
+
+	job->ring_ops_force_reset = force_reset;
 
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
@@ -204,7 +206,7 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
-	ret = emit_job_sync(q, bb, HZ);
+	ret = emit_job_sync(q, bb, HZ, false);
 	xe_bb_free(bb, NULL);
 
 	return ret;
@@ -369,7 +371,8 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 	bb->len = cs - bb->cs;
 
-	ret = emit_job_sync(q, bb, HZ);
+	/* only VFs need to trigger reset to get a clean NULL context */
+	ret = emit_job_sync(q, bb, HZ, IS_SRIOV_VF(gt_to_xe(gt)));
 
 	xe_bb_free(bb, NULL);
 

@@ -256,6 +256,32 @@ static int emit_copy_timestamp(struct xe_device *xe, struct xe_lrc *lrc,
 	return i;
 }
 
+static int emit_fake_watchdog(struct xe_lrc *lrc, u32 *dw, int i)
+{
+	/*
+	 * Setup a watchdog with impossible condition to always trigger an
+	 * hardware interrupt that would force the GuC to reset the engine.
+	 */
+
+	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) | MI_LRI_LRM_CS_MMIO;
+	dw[i++] = PR_CTR_THRSH(0).addr;
+	dw[i++] = 2; /* small threshold */
+	dw[i++] = PR_CTR_CTRL(0).addr;
+	dw[i++] = CTR_LOGIC_OP(START);
+
+	dw[i++] = MI_SEMAPHORE_WAIT | MI_SEMW_GGTT | MI_SEMW_POLL | MI_SEMW_COMPARE(SAD_EQ_SDD);
+	dw[i++] = 0xdead; /* this should never be seen */
+	dw[i++] = lower_32_bits(xe_lrc_ggtt_addr(lrc));
+	dw[i++] = upper_32_bits(xe_lrc_ggtt_addr(lrc));
+	dw[i++] = 0; /* unused token */
+
+	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) | MI_LRI_LRM_CS_MMIO;
+	dw[i++] = PR_CTR_CTRL(0).addr;
+	dw[i++] = CTR_LOGIC_OP(STOP);
+
+	return i;
+}
+
 /* for engines that don't require any special HW handling (no EUs, no aux inval, etc) */
 static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc,
 				    u64 batch_addr, u32 *head, u32 seqno)
@@ -265,6 +291,9 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 	struct xe_gt *gt = job->q->gt;
 
 	*head = lrc->ring.tail;
+
+	if (job->ring_ops_force_reset)
+		i = emit_fake_watchdog(lrc, dw, i);
 
 	i = emit_copy_timestamp(gt_to_xe(gt), lrc, dw, i);
 
@@ -324,6 +353,9 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	*head = lrc->ring.tail;
 
+	if (job->ring_ops_force_reset)
+		i = emit_fake_watchdog(lrc, dw, i);
+
 	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	dw[i++] = preparser_disable(true);
@@ -381,6 +413,9 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	*head = lrc->ring.tail;
 
+	if (job->ring_ops_force_reset)
+		i = emit_fake_watchdog(lrc, dw, i);
+
 	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	dw[i++] = preparser_disable(true);
@@ -432,6 +467,8 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 
 	*head = lrc->ring.tail;
+
+	xe_gt_assert(gt, !job->ring_ops_force_reset);
 
 	i = emit_copy_timestamp(xe, lrc, dw, i);
 
