@@ -93,10 +93,10 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 	if (time_before(jiffies, adapter_to_pwrctl(adapter)->ips_deny_time))
 		goto exit;
 
-	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
-		|| check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
-		|| check_fwstate(pmlmepriv, WIFI_AP_STATE)
-		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
+	if (check_fwstate(pmlmepriv, WIFI_ASOC_STATE | WIFI_SITE_MONITOR) ||
+	    check_fwstate(pmlmepriv, WIFI_UNDER_LINKING | WIFI_UNDER_WPS) ||
+	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
 	)
 		goto exit;
 
@@ -104,10 +104,10 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 	if (buddy) {
 		struct mlme_priv *b_pmlmepriv = &(buddy->mlmepriv);
 
-		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE|WIFI_SITE_MONITOR)
-			|| check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
-			|| check_fwstate(b_pmlmepriv, WIFI_AP_STATE)
-			|| check_fwstate(b_pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
+		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE | WIFI_SITE_MONITOR) ||
+		    check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING | WIFI_UNDER_WPS) ||
+		    check_fwstate(b_pmlmepriv, WIFI_AP_STATE) ||
+		    check_fwstate(b_pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
 		)
 			goto exit;
 	}
@@ -155,7 +155,7 @@ void rtw_ps_processor(struct adapter *padapter)
 	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
-	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts%4) == 0)) {
+	if ((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts % 4) == 0)) {
 		pwrpriv->change_rfpwrstate = rf_off;
 		{
 			ips_enter(padapter);
@@ -189,9 +189,9 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 
 		if (jiffies_to_msecs(jiffies - start_time) > 2000) { /*  2 sec == watch dog timer */
 			if (xmit_cnt > 8) {
-				if (adapter_to_pwrctl(padapter)->bLeisurePs
-				    && (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE)
-				    && !(hal_btcoex_IsBtControlLps(padapter))) {
+				if (adapter_to_pwrctl(padapter)->bLeisurePs &&
+				    (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE) &&
+				    !(hal_btcoex_IsBtControlLps(padapter))) {
 					bLeaveLPS = true;
 				}
 			}
@@ -202,16 +202,16 @@ void traffic_check_for_leave_lps(struct adapter *padapter, u8 tx, u32 tx_packets
 
 	} else { /*  from rx path */
 		if (pmlmepriv->link_detect_info.num_rx_unicast_ok_in_period > 4) {
-			if (adapter_to_pwrctl(padapter)->bLeisurePs
-			    && (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE)
-			    && !(hal_btcoex_IsBtControlLps(padapter)))
+			if (adapter_to_pwrctl(padapter)->bLeisurePs &&
+			    (adapter_to_pwrctl(padapter)->pwr_mode != PS_MODE_ACTIVE) &&
+			    !(hal_btcoex_IsBtControlLps(padapter)))
 				bLeaveLPS = true;
 		}
 	}
 
 	if (bLeaveLPS)
 		/* rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, 1); */
-		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, tx?0:1);
+		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, tx ? 0 : 1);
 }
 
 /*
@@ -306,11 +306,11 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 	if (delta_time < LPS_DELAY_TIME)
 		return false;
 
-	if (check_fwstate(pmlmepriv, WIFI_SITE_MONITOR)
-		|| check_fwstate(pmlmepriv, WIFI_UNDER_LINKING|WIFI_UNDER_WPS)
-		|| check_fwstate(pmlmepriv, WIFI_AP_STATE)
-		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE|WIFI_ADHOC_STATE)
-		|| rtw_is_scan_deny(padapter)
+	if (check_fwstate(pmlmepriv, WIFI_SITE_MONITOR) ||
+	    check_fwstate(pmlmepriv, WIFI_UNDER_LINKING | WIFI_UNDER_WPS) ||
+	    check_fwstate(pmlmepriv, WIFI_AP_STATE) ||
+	    check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE) ||
+	    rtw_is_scan_deny(padapter)
 	)
 		return false;
 
@@ -339,9 +339,9 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 
 	/* if (pwrpriv->pwr_mode == PS_MODE_ACTIVE) */
 	if (ps_mode == PS_MODE_ACTIVE) {
-		if (!(hal_btcoex_IsBtControlLps(padapter))
-				|| (hal_btcoex_IsBtControlLps(padapter)
-					&& !(hal_btcoex_IsLpsOn(padapter)))) {
+		if (!(hal_btcoex_IsBtControlLps(padapter)) ||
+		    (hal_btcoex_IsBtControlLps(padapter) &&
+		    !(hal_btcoex_IsLpsOn(padapter)))) {
 			pwrpriv->pwr_mode = ps_mode;
 			rtw_set_rpwm(padapter, PS_STATE_S4);
 
