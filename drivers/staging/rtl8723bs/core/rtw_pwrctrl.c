@@ -286,8 +286,9 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 				break;
 			}
 		} while (1);
-	} else
+	} else {
 		pwrpriv->cpwm = pslv;
+	}
 }
 
 static u8 PS_RDY_CHECK(struct adapter *padapter)
@@ -445,8 +446,9 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 				pwrpriv->bpower_saving = true;
 				rtw_set_ps_mode(padapter, pwrpriv->power_mgnt, padapter->registrypriv.smart_ps, 0, buf);
 			}
-		} else
+		} else {
 			pwrpriv->LpsIdleCount++;
+		}
 	}
 }
 
@@ -750,10 +752,10 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 	unregister_task_alive(pwrctrl, task);
 
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE) && pwrctrl->fw_current_in_ps_mode) {
-		if (pwrctrl->cpwm > pslv)
+		if (pwrctrl->cpwm > pslv) {
 			if ((pslv >= PS_STATE_S2) || (pwrctrl->alives == 0))
 				rtw_set_rpwm(padapter, pslv);
-
+		}
 	}
 
 	mutex_unlock(&pwrctrl->lock);
@@ -1073,8 +1075,9 @@ int rtw_pm_set_lps(struct adapter *padapter, u8 mode)
 			pwrctrlpriv->bLeisurePs =
 				pwrctrlpriv->power_mgnt != PS_MODE_ACTIVE;
 		}
-	} else
+	} else {
 		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -1090,8 +1093,9 @@ int rtw_pm_set_ips(struct adapter *padapter, u8 mode)
 		rtw_ips_mode_req(pwrctrlpriv, mode);
 		if ((padapter->bSurpriseRemoved == 0) && (rtw_pwr_wakeup(padapter) == _FAIL))
 			return -EFAULT;
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	return 0;
 }
