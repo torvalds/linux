@@ -404,6 +404,13 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 		 */
 		clocks_calc_mult_shift(&tk->cs_ns_to_cyc_mult, &tk->cs_ns_to_cyc_shift,
 				       NSEC_PER_MSEC, clock->freq_khz, 3600 * 1000);
+		/*
+		 * Initialize the conversion limit as the previous clocksource
+		 * might have the same shift/mult pair so the quick check in
+		 * tk_update_ns_to_cyc() fails to update it after a clocksource
+		 * change leaving it effectivly zero.
+		 */
+		tk->cs_ns_to_cyc_maxns = div_u64(clock->mask, tk->cs_ns_to_cyc_mult);
 	}
 }
 
