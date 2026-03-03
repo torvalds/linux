@@ -265,6 +265,10 @@ static struct mbox_info *zynqmp_r5_setup_mbox(struct device *cdev)
 	struct mbox_client *mbox_cl;
 	struct mbox_info *ipi;
 
+	if (!of_property_present(dev_of_node(cdev), "mboxes") ||
+	    !of_property_present(dev_of_node(cdev), "mbox-names"))
+		return NULL;
+
 	ipi = kzalloc_obj(*ipi);
 	if (!ipi)
 		return NULL;
