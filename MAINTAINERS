@@ -21451,9 +21451,8 @@ S:	Supported
 F:	drivers/scsi/qedi/
 
 QLOGIC QL4xxx ETHERNET DRIVER
-M:	Manish Chopra <manishc@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/qlogic/qed/
 F:	drivers/net/ethernet/qlogic/qede/
 F:	include/linux/qed/
