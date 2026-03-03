@@ -30,7 +30,6 @@ int cgroup_memcg_query(struct bpf_iter__cgroup *ctx)
 	memcg_query.nr_shmem = bpf_mem_cgroup_page_state(memcg, NR_SHMEM);
 	memcg_query.nr_file_pages = bpf_mem_cgroup_page_state(memcg, NR_FILE_PAGES);
 	memcg_query.nr_file_mapped = bpf_mem_cgroup_page_state(memcg, NR_FILE_MAPPED);
-	memcg_query.memcg_kmem = bpf_mem_cgroup_page_state(memcg, MEMCG_KMEM);
 	memcg_query.pgfault = bpf_mem_cgroup_vm_events(memcg, PGFAULT);
 
 	bpf_put_mem_cgroup(memcg);
