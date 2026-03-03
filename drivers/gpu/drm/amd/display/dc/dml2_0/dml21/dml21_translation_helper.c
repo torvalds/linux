@@ -45,6 +45,9 @@ static enum dml2_project_id dml21_dcn_revision_to_dml2_project_id(enum dce_versi
 	case DCN_VERSION_4_01:
 		project_id = dml2_project_dcn4x_stage2_auto_drr_svp;
 		break;
+	case DCN_VERSION_4_2:
+		project_id = dml2_project_dcn42;
+		break;
 	default:
 		project_id = dml2_project_invalid;
 		DC_ERR("unsupported dcn version for DML21!");
@@ -615,6 +618,13 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 		case DC_CM2_GPU_MEM_SIZE_171717:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
 			break;
+		case DC_CM2_GPU_MEM_SIZE_333333:
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
+			break;
+		// handling when use case and HW support available
+		case DC_CM2_GPU_MEM_SIZE_454545:
+		case DC_CM2_GPU_MEM_SIZE_656565:
+			break;
 		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
 		default:
 			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
@@ -824,6 +834,9 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.subvp_prefetch_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz;
 	context->bw_ctx.bw.dcn.clk.stutter_efficiency.base_efficiency = in_ctx->v21.mode_programming.programming->stutter.base_percent_efficiency;
 	context->bw_ctx.bw.dcn.clk.stutter_efficiency.low_power_efficiency = in_ctx->v21.mode_programming.programming->stutter.low_power_percent_efficiency;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_efficiency = in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_efficiency;
+	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_period = in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_period;
+	context->bw_ctx.bw.dcn.clk.zstate_support = in_ctx->v21.mode_programming.programming->z8_stutter.supported_in_blank; /*ignore meets_eco since it is not used*/
 }
 
 static struct dml2_dchub_watermark_regs *wm_set_index_to_dc_wm_set(union dcn_watermark_set *watermarks, const enum dml2_dchub_watermark_reg_set_index wm_index)

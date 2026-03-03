@@ -30,6 +30,14 @@ bool dml2_core_create(enum dml2_project_id project_id, struct dml2_core_instance
 		out->calculate_mcache_allocation = &core_dcn4_calculate_mcache_allocation;
 		result = true;
 		break;
+	case dml2_project_dcn42:
+		out->initialize = &core_dcn42_initialize;
+		out->mode_support = &core_dcn4_mode_support;
+		out->mode_programming = &core_dcn4_mode_programming;
+		out->populate_informative = &core_dcn4_populate_informative;
+		out->calculate_mcache_allocation = &core_dcn4_calculate_mcache_allocation;
+		result = true;
+		break;
 	case dml2_project_invalid:
 	default:
 		break;

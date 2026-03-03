@@ -41,6 +41,11 @@ bool dml2_dpmm_create(enum dml2_project_id project_id, struct dml2_dpmm_instance
 		out->map_watermarks = &dpmm_dcn4_map_watermarks;
 		result = true;
 		break;
+	case dml2_project_dcn42:
+		out->map_mode_to_soc_dpm = &dpmm_dcn4_map_mode_to_soc_dpm;
+		out->map_watermarks = &dpmm_dcn42_map_watermarks;
+		result = true;
+		break;
 	case dml2_project_invalid:
 	default:
 		break;
