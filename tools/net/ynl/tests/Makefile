@@ -6,6 +6,8 @@ TEST_PROGS := \
 	test_ynl_ethtool.sh \
 # end of TEST_PROGS
 
+INSTALL_PATH ?= $(DESTDIR)/usr/share/kselftest
+
 all: $(TEST_PROGS)
 
 run_tests:
@@ -14,15 +16,15 @@ run_tests:
 	done
 
 install: $(TEST_PROGS)
-	@mkdir -p $(DESTDIR)/usr/share/kselftest/ynl
-	@cp ../../../testing/selftests/kselftest/ktap_helpers.sh $(DESTDIR)/usr/share/kselftest/
+	@mkdir -p $(INSTALL_PATH)/ynl
+	@cp ../../../testing/selftests/kselftest/ktap_helpers.sh $(INSTALL_PATH)/
 	@for test in $(TEST_PROGS); do \
 		name=$$(basename $$test); \
 		sed -e 's|^ynl=.*|ynl="ynl"|' \
 		    -e 's|^ynl_ethtool=.*|ynl_ethtool="ynl-ethtool"|' \
-		    -e 's|KSELFTEST_KTAP_HELPERS=.*|KSELFTEST_KTAP_HELPERS="/usr/share/kselftest/ktap_helpers.sh"|' \
-		    $$test > $(DESTDIR)/usr/share/kselftest/ynl/$$name; \
-		chmod +x $(DESTDIR)/usr/share/kselftest/ynl/$$name; \
+		    -e 's|KSELFTEST_KTAP_HELPERS=.*|KSELFTEST_KTAP_HELPERS="$(INSTALL_PATH)/ktap_helpers.sh"|' \
+		    $$test > $(INSTALL_PATH)/ynl/$$name; \
+		chmod +x $(INSTALL_PATH)/ynl/$$name; \
 	done
 
 clean distclean:
