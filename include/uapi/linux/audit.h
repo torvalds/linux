@@ -508,7 +508,7 @@ struct audit_tty_status {
 	__u32		log_passwd;	/* 1 = enabled, 0 = disabled */
 };
 
-#define AUDIT_UID_UNSET (unsigned int)-1
+#define AUDIT_UID_UNSET ((unsigned int)-1)
 #define AUDIT_SID_UNSET ((unsigned int)-1)
 
 /* audit_rule_data supports filter rules with both integer and string

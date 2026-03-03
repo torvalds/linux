@@ -303,8 +303,7 @@ exit_err:
 	return ERR_PTR(err);
 }
 
-static u32 audit_ops[] =
-{
+static u32 audit_ops[] = {
 	[Audit_equal] = AUDIT_EQUAL,
 	[Audit_not_equal] = AUDIT_NOT_EQUAL,
 	[Audit_bitmask] = AUDIT_BIT_MASK,
