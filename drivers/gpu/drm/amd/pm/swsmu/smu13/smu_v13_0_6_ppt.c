@@ -373,6 +373,9 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 	} else {
 		smu_v13_0_12_tables_fini(smu);
 	}
+
+	if (fw_ver >= 0x04561000)
+		smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_AID_XCD_HBM));
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
