@@ -44,45 +44,21 @@ GEN_READ_SET_HELPERS(i16, s16)
  * The architectures that currently support Rust (x86_64, armv7,
  * arm64, riscv, and loongarch) satisfy these requirements.
  */
-__rust_helper s8 rust_helper_atomic_i8_xchg(s8 *ptr, s8 new)
-{
-	return xchg(ptr, new);
+#define GEN_XCHG_HELPER(tname, type, suffix)					\
+__rust_helper type								\
+rust_helper_atomic_##tname##_xchg##suffix(type *ptr, type new)			\
+{										\
+	return xchg##suffix(ptr, new);					\
 }
 
-__rust_helper s16 rust_helper_atomic_i16_xchg(s16 *ptr, s16 new)
-{
-	return xchg(ptr, new);
-}
+#define GEN_XCHG_HELPERS(tname, type)						\
+	GEN_XCHG_HELPER(tname, type, )						\
+	GEN_XCHG_HELPER(tname, type, _acquire)					\
+	GEN_XCHG_HELPER(tname, type, _release)					\
+	GEN_XCHG_HELPER(tname, type, _relaxed)					\
 
-__rust_helper s8 rust_helper_atomic_i8_xchg_acquire(s8 *ptr, s8 new)
-{
-	return xchg_acquire(ptr, new);
-}
-
-__rust_helper s16 rust_helper_atomic_i16_xchg_acquire(s16 *ptr, s16 new)
-{
-	return xchg_acquire(ptr, new);
-}
-
-__rust_helper s8 rust_helper_atomic_i8_xchg_release(s8 *ptr, s8 new)
-{
-	return xchg_release(ptr, new);
-}
-
-__rust_helper s16 rust_helper_atomic_i16_xchg_release(s16 *ptr, s16 new)
-{
-	return xchg_release(ptr, new);
-}
-
-__rust_helper s8 rust_helper_atomic_i8_xchg_relaxed(s8 *ptr, s8 new)
-{
-	return xchg_relaxed(ptr, new);
-}
-
-__rust_helper s16 rust_helper_atomic_i16_xchg_relaxed(s16 *ptr, s16 new)
-{
-	return xchg_relaxed(ptr, new);
-}
+GEN_XCHG_HELPERS(i8, s8)
+GEN_XCHG_HELPERS(i16, s16)
 
 /*
  * try_cmpxchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
