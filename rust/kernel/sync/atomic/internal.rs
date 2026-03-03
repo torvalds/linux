@@ -337,7 +337,7 @@ declare_and_impl_atomic_methods!(
         /// Atomically updates `*a` to `(*a).wrapping_add(v)`, and returns the value of `*a`
         /// before the update.
         fn fetch_add[acquire, release, relaxed](a: &AtomicRepr<Self>, v: Self::Delta) -> Self {
-            // SAFETY: `a.as_ptr()` is valid and properly aligned.
+            // SAFETY: `a.as_ptr()` guarantees the returned pointer is valid and properly aligned.
             unsafe { bindings::#call(v, a.as_ptr().cast()) }
         }
 
