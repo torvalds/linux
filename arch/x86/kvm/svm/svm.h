@@ -140,13 +140,32 @@ struct kvm_vmcb_info {
 };
 
 struct vmcb_save_area_cached {
+	struct vmcb_seg es;
 	struct vmcb_seg cs;
+	struct vmcb_seg ss;
+	struct vmcb_seg ds;
+	struct vmcb_seg gdtr;
+	struct vmcb_seg idtr;
+	u8 cpl;
 	u64 efer;
 	u64 cr4;
 	u64 cr3;
 	u64 cr0;
 	u64 dr7;
 	u64 dr6;
+	u64 rflags;
+	u64 rip;
+	u64 rsp;
+	u64 s_cet;
+	u64 ssp;
+	u64 isst_addr;
+	u64 rax;
+	u64 cr2;
+	u64 dbgctl;
+	u64 br_from;
+	u64 br_to;
+	u64 last_excp_from;
+	u64 last_excp_to;
 };
 
 struct vmcb_ctrl_area_cached {
@@ -417,6 +436,11 @@ static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
 static inline bool vmcb_is_dirty(struct vmcb *vmcb, int bit)
 {
         return !test_bit(bit, (unsigned long *)&vmcb->control.clean);
+}
+
+static inline bool vmcb12_is_dirty(struct vmcb_ctrl_area_cached *control, int bit)
+{
+	return !test_bit(bit, (unsigned long *)&control->clean);
 }
 
 static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
@@ -799,8 +823,7 @@ static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
 
 int __init nested_svm_init_msrpm_merge_offsets(void);
 
-int enter_svm_guest_mode(struct kvm_vcpu *vcpu,
-			 u64 vmcb_gpa, struct vmcb *vmcb12, bool from_vmrun);
+int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb_gpa, bool from_vmrun);
 void svm_leave_nested(struct kvm_vcpu *vcpu);
 void svm_free_nested(struct vcpu_svm *svm);
 int svm_allocate_nested(struct vcpu_svm *svm);
