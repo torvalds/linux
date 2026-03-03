@@ -167,14 +167,11 @@ static int dai_list_show(struct seq_file *m, void *v)
 {
 	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
-
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
 
 	for_each_component(component)
 		for_each_component_dais(component, dai)
 			seq_printf(m, "%s\n", dai->name);
-
-	mutex_unlock(&client_mutex);
 
 	return 0;
 }
@@ -183,13 +180,10 @@ DEFINE_SHOW_ATTRIBUTE(dai_list);
 static int component_list_show(struct seq_file *m, void *v)
 {
 	struct snd_soc_component *component;
-
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
 
 	for_each_component(component)
 		seq_printf(m, "%s\n", component->name);
-
-	mutex_unlock(&client_mutex);
 
 	return 0;
 }
@@ -394,13 +388,9 @@ EXPORT_SYMBOL_GPL(snd_soc_lookup_component_nolocked);
 struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 						   const char *driver_name)
 {
-	struct snd_soc_component *component;
+	guard(mutex)(&client_mutex);
 
-	mutex_lock(&client_mutex);
-	component = snd_soc_lookup_component_nolocked(dev, driver_name);
-	mutex_unlock(&client_mutex);
-
-	return component;
+	return snd_soc_lookup_component_nolocked(dev, driver_name);
 }
 EXPORT_SYMBOL_GPL(snd_soc_lookup_component);
 
@@ -950,13 +940,9 @@ EXPORT_SYMBOL_GPL(snd_soc_find_dai);
 struct snd_soc_dai *snd_soc_find_dai_with_mutex(
 	const struct snd_soc_dai_link_component *dlc)
 {
-	struct snd_soc_dai *dai;
+	guard(mutex)(&client_mutex);
 
-	mutex_lock(&client_mutex);
-	dai = snd_soc_find_dai(dlc);
-	mutex_unlock(&client_mutex);
-
-	return dai;
+	return snd_soc_find_dai(dlc);
 }
 EXPORT_SYMBOL_GPL(snd_soc_find_dai_with_mutex);
 
@@ -2590,7 +2576,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	mutex_init(&card->dapm_mutex);
 	mutex_init(&card->pcm_mutex);
 
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
 
 	if (card->devres_dev) {
 		ret = devm_snd_soc_bind_card(card->devres_dev, card);
@@ -2601,8 +2587,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	} else {
 		ret = snd_soc_bind_card(card);
 	}
-
-	mutex_unlock(&client_mutex);
 
 	return ret;
 }
@@ -2616,10 +2600,11 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
  */
 void snd_soc_unregister_card(struct snd_soc_card *card)
 {
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
+
 	snd_soc_unbind_card(card);
 	list_del(&card->list);
-	mutex_unlock(&client_mutex);
+
 	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_card);
@@ -2896,8 +2881,7 @@ int snd_soc_add_component(struct snd_soc_component *component,
 	struct snd_soc_card *card, *c;
 	int ret;
 	int i;
-
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
 
 	if (component->driver->endianness) {
 		for (i = 0; i < num_dai; i++) {
@@ -2931,7 +2915,6 @@ err_cleanup:
 	if (ret < 0)
 		snd_soc_del_component_unlocked(component);
 
-	mutex_unlock(&client_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_component);
@@ -2971,7 +2954,8 @@ void snd_soc_unregister_component_by_driver(struct device *dev,
 	if (component_driver)
 		driver_name = component_driver->name;
 
-	mutex_lock(&client_mutex);
+	guard(mutex)(&client_mutex);
+
 	while (1) {
 		struct snd_soc_component *component = snd_soc_lookup_component_nolocked(dev, driver_name);
 
@@ -2980,7 +2964,6 @@ void snd_soc_unregister_component_by_driver(struct device *dev,
 
 		snd_soc_del_component_unlocked(component);
 	}
-	mutex_unlock(&client_mutex);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component_by_driver);
 
@@ -3516,7 +3499,6 @@ EXPORT_SYMBOL_GPL(snd_soc_get_stream_cpu);
 
 int snd_soc_get_dai_id(struct device_node *ep)
 {
-	struct snd_soc_component *component;
 	struct snd_soc_dai_link_component dlc = {
 		.of_node = of_graph_get_port_parent(ep),
 	};
@@ -3530,11 +3512,13 @@ int snd_soc_get_dai_id(struct device_node *ep)
 	 * Then, it should have .of_xlate_dai_id
 	 */
 	ret = -ENOTSUPP;
-	mutex_lock(&client_mutex);
-	component = soc_find_component(&dlc);
-	if (component)
-		ret = snd_soc_component_of_xlate_dai_id(component, ep);
-	mutex_unlock(&client_mutex);
+
+	scoped_guard(mutex, &client_mutex) {
+		struct snd_soc_component *component = soc_find_component(&dlc);
+
+		if (component)
+			ret = snd_soc_component_of_xlate_dai_id(component, ep);
+	}
 
 	of_node_put(dlc.of_node);
 
@@ -3546,8 +3530,8 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 {
 	struct snd_soc_component *pos;
 	int ret = -EPROBE_DEFER;
+	guard(mutex)(&client_mutex);
 
-	mutex_lock(&client_mutex);
 	for_each_component(pos) {
 		struct device_node *component_of_node = soc_component_to_node(pos);
 
@@ -3602,7 +3586,6 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 	if (ret == 0)
 		dlc->of_node = args->np;
 
-	mutex_unlock(&client_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dlc);
@@ -3657,17 +3640,14 @@ struct snd_soc_dai *snd_soc_get_dai_via_args(const struct of_phandle_args *dai_a
 {
 	struct snd_soc_dai *dai;
 	struct snd_soc_component *component;
+	guard(mutex)(&client_mutex);
 
-	mutex_lock(&client_mutex);
 	for_each_component(component) {
 		for_each_component_dais(component, dai)
 			if (snd_soc_is_match_dai_args(dai->driver->dai_args, dai_args))
-				goto found;
+				return dai;
 	}
-	dai = NULL;
-found:
-	mutex_unlock(&client_mutex);
-	return dai;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_via_args);
 
