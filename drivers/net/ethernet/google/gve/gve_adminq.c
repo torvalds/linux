@@ -1118,8 +1118,10 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	gve_set_default_rss_sizes(priv);
 
 	/* DQO supports HW-GRO. */
-	if (!gve_is_gqi(priv))
+	if (gve_is_dqo(priv)) {
 		priv->dev->hw_features |= NETIF_F_GRO_HW;
+		priv->dev->features |= NETIF_F_GRO_HW;
+	}
 
 	priv->max_registered_pages =
 				be64_to_cpu(descriptor->max_registered_pages);
