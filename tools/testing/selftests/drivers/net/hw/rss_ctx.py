@@ -357,7 +357,7 @@ def test_hitless_key_update(cfg):
         tgen.wait_pkts_and_stop(5000)
 
     ksft_lt((t1 - t0).total_seconds(), 0.15)
-    ksft_eq(errors1 - errors1, 0)
+    ksft_eq(errors1 - errors0, 0)
     ksft_eq(carrier1 - carrier0, 0)
 
 
