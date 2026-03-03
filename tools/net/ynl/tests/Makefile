@@ -1,23 +1,23 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for YNL tests
 
-TESTS := \
+TEST_PROGS := \
 	test_ynl_cli.sh \
 	test_ynl_ethtool.sh \
-# end of TESTS
+# end of TEST_PROGS
 
-all: $(TESTS)
+all: $(TEST_PROGS)
 
 run_tests:
-	@for test in $(TESTS); do \
+	@for test in $(TEST_PROGS); do \
 		./$$test; \
 	done
 
-install: $(TESTS)
+install: $(TEST_PROGS)
 	@mkdir -p $(DESTDIR)/usr/bin
 	@mkdir -p $(DESTDIR)/usr/share/kselftest
 	@cp ../../../testing/selftests/kselftest/ktap_helpers.sh $(DESTDIR)/usr/share/kselftest/
-	@for test in $(TESTS); do \
+	@for test in $(TEST_PROGS); do \
 		name=$$(basename $$test .sh); \
 		sed -e 's|^ynl=.*|ynl="ynl"|' \
 		    -e 's|^ynl_ethtool=.*|ynl_ethtool="ynl-ethtool"|' \
