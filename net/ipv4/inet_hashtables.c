@@ -30,12 +30,16 @@
 #include <net/sock_reuseport.h>
 #include <net/tcp.h>
 
+static void inet_init_ehash_secret(void)
+{
+	net_get_random_sleepable_once(&inet_ehash_secret,
+				      sizeof(inet_ehash_secret));
+}
+
 u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 		 const __u16 lport, const __be32 faddr,
 		 const __be16 fport)
 {
-	net_get_random_once(&inet_ehash_secret, sizeof(inet_ehash_secret));
-
 	return lport + __inet_ehashfn(laddr, 0, faddr, fport,
 				      inet_ehash_secret + net_hash_mix(net));
 }
@@ -793,6 +797,13 @@ int inet_hash(struct sock *sk)
 		local_bh_enable();
 		return 0;
 	}
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		inet6_init_ehash_secret();
+#endif
+	inet_init_ehash_secret();
+
 	WARN_ON(!sk_unhashed(sk));
 	ilb2 = inet_lhash2_bucket_sk(hashinfo, sk);
 
@@ -1238,6 +1249,8 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet_sk_port_offset(sk);
+
+	inet_init_ehash_secret();
 
 	hash_port0 = inet_ehashfn(net, inet->inet_rcv_saddr, 0,
 				  inet->inet_daddr, inet->inet_dport);
