@@ -578,3 +578,128 @@ where
         unsafe { from_repr(ret) }
     }
 }
+
+#[cfg(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Flag {
+    bool_field: bool,
+}
+
+/// # Invariants
+///
+/// `padding` must be all zeroes.
+#[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+struct Flag {
+    #[cfg(target_endian = "big")]
+    padding: [u8; 3],
+    bool_field: bool,
+    #[cfg(target_endian = "little")]
+    padding: [u8; 3],
+}
+
+impl Flag {
+    #[inline(always)]
+    const fn new(b: bool) -> Self {
+        // INVARIANT: `padding` is all zeroes.
+        Self {
+            bool_field: b,
+            #[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+            padding: [0; 3],
+        }
+    }
+}
+
+// SAFETY: `Flag` and `Repr` have the same size and alignment, and `Flag` is round-trip
+// transmutable to the selected representation (`i8` or `i32`).
+unsafe impl AtomicType for Flag {
+    #[cfg(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64))]
+    type Repr = i8;
+    #[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+    type Repr = i32;
+}
+
+/// An atomic flag type intended to be backed by performance-optimal integer type.
+///
+/// The backing integer type is an implementation detail; it may vary by architecture and change
+/// in the future.
+///
+/// [`AtomicFlag`] is generally preferable to [`Atomic<bool>`] when you need read-modify-write
+/// (RMW) operations (e.g. [`Atomic::xchg()`]/[`Atomic::cmpxchg()`]) or when [`Atomic<bool>`] does
+/// not save memory due to padding. On some architectures that do not support byte-sized atomic
+/// RMW operations, RMW operations on [`Atomic<bool>`] are slower.
+///
+/// If you only use [`Atomic::load()`]/[`Atomic::store()`], [`Atomic<bool>`] is fine.
+///
+/// # Examples
+///
+/// ```
+/// use kernel::sync::atomic::{AtomicFlag, Relaxed};
+///
+/// let flag = AtomicFlag::new(false);
+/// assert_eq!(false, flag.load(Relaxed));
+/// flag.store(true, Relaxed);
+/// assert_eq!(true, flag.load(Relaxed));
+/// ```
+pub struct AtomicFlag(Atomic<Flag>);
+
+impl AtomicFlag {
+    /// Creates a new atomic flag.
+    #[inline(always)]
+    pub const fn new(b: bool) -> Self {
+        Self(Atomic::new(Flag::new(b)))
+    }
+
+    /// Returns a mutable reference to the underlying flag as a [`bool`].
+    ///
+    /// This is safe because the mutable reference of the atomic flag guarantees exclusive access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::atomic::{AtomicFlag, Relaxed};
+    ///
+    /// let mut atomic_flag = AtomicFlag::new(false);
+    /// assert_eq!(false, atomic_flag.load(Relaxed));
+    /// *atomic_flag.get_mut() = true;
+    /// assert_eq!(true, atomic_flag.load(Relaxed));
+    /// ```
+    #[inline(always)]
+    pub fn get_mut(&mut self) -> &mut bool {
+        &mut self.0.get_mut().bool_field
+    }
+
+    /// Loads the value from the atomic flag.
+    #[inline(always)]
+    pub fn load<Ordering: ordering::AcquireOrRelaxed>(&self, o: Ordering) -> bool {
+        self.0.load(o).bool_field
+    }
+
+    /// Stores a value to the atomic flag.
+    #[inline(always)]
+    pub fn store<Ordering: ordering::ReleaseOrRelaxed>(&self, v: bool, o: Ordering) {
+        self.0.store(Flag::new(v), o);
+    }
+
+    /// Stores a value to the atomic flag and returns the previous value.
+    #[inline(always)]
+    pub fn xchg<Ordering: ordering::Ordering>(&self, new: bool, o: Ordering) -> bool {
+        self.0.xchg(Flag::new(new), o).bool_field
+    }
+
+    /// Store a value to the atomic flag if the current value is equal to `old`.
+    #[inline(always)]
+    pub fn cmpxchg<Ordering: ordering::Ordering>(
+        &self,
+        old: bool,
+        new: bool,
+        o: Ordering,
+    ) -> Result<bool, bool> {
+        match self.0.cmpxchg(Flag::new(old), Flag::new(new), o) {
+            Ok(_) => Ok(old),
+            Err(f) => Err(f.bool_field),
+        }
+    }
+}
