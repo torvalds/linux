@@ -911,8 +911,14 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 			break;
 		}
 
-		if (klen)
-			crypto_ahash_setkey(tfm, tvmem[0], klen);
+		if (klen) {
+			ret = crypto_ahash_setkey(tfm, tvmem[0], klen);
+			if (ret) {
+				pr_err("setkey() failed flags=%x: %d\n",
+				       crypto_ahash_get_flags(tfm), ret);
+				break;
+			}
+		}
 
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
