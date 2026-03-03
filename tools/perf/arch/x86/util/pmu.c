@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <linux/stddef.h>
+#include <linux/string.h>
 #include <linux/perf_event.h>
 #include <linux/zalloc.h>
 #include <api/fs/fs.h>
@@ -71,11 +72,6 @@ static int snc_nodes_per_l3_cache(void)
 	return snc_nodes;
 }
 
-static bool starts_with(const char *str, const char *prefix)
-{
-	return !strncmp(prefix, str, strlen(prefix));
-}
-
 static int num_chas(void)
 {
 	static bool checked_chas;
@@ -93,7 +89,7 @@ static int num_chas(void)
 
 		while ((dent = io_dir__readdir(&dir)) != NULL) {
 			/* Note, dent->d_type will be DT_LNK and so isn't a useful filter. */
-			if (starts_with(dent->d_name, "uncore_cha_"))
+			if (strstarts(dent->d_name, "uncore_cha_"))
 				num_chas++;
 		}
 		close(fd);
@@ -305,9 +301,9 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 			else
 				pmu->mem_events = perf_mem_events_intel;
 		} else if (x86__is_intel_graniterapids()) {
-			if (starts_with(pmu->name, "uncore_cha_"))
+			if (strstarts(pmu->name, "uncore_cha_"))
 				gnr_uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/true);
-			else if (starts_with(pmu->name, "uncore_imc_"))
+			else if (strstarts(pmu->name, "uncore_imc_"))
 				gnr_uncore_cha_imc_adjust_cpumask_for_snc(pmu, /*cha=*/false);
 		}
 	}
