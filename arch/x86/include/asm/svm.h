@@ -182,6 +182,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define TLB_CONTROL_FLUSH_ASID 3
 #define TLB_CONTROL_FLUSH_ASID_LOCAL 7
 
+#define TLB_CONTROL_MASK GENMASK(2, 0)
+
 #define ERAP_CONTROL_ALLOW_LARGER_RAP BIT(0)
 #define ERAP_CONTROL_CLEAR_RAP BIT(1)
 
