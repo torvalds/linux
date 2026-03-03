@@ -1,4 +1,0 @@
-Unstaging requirements:
-- Add userspace support which demonstrates the ability to receive statistics and
-  adapt hardware modules configuration accordingly;
-- Add documentation for description of the statistics data structures;
