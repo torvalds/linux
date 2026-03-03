@@ -337,7 +337,9 @@ static inline void hwsim_net_set_wmediumd(struct net *net, u32 portid)
 	hwsim_net->wmediumd = portid;
 }
 
-static struct class *hwsim_class;
+static const struct class hwsim_class = {
+	.name	= "mac80211_hwsim"
+};
 
 static struct net_device *hwsim_mon; /* global monitor netdev */
 
@@ -5524,7 +5526,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	data = hw->priv;
 	data->hw = hw;
 
-	data->dev = device_create(hwsim_class, NULL, 0, hw, "hwsim%d", idx);
+	data->dev = device_create(&hwsim_class, NULL, 0, hw, "hwsim%d", idx);
 	if (IS_ERR(data->dev)) {
 		printk(KERN_DEBUG
 		       "mac80211_hwsim: device_create failed (%ld)\n",
@@ -6097,7 +6099,7 @@ static void mac80211_hwsim_free(void)
 		spin_lock_bh(&hwsim_radio_lock);
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
-	class_destroy(hwsim_class);
+	class_unregister(&hwsim_class);
 }
 
 static const struct net_device_ops hwsim_netdev_ops = {
@@ -7205,11 +7207,9 @@ static int __init init_mac80211_hwsim(void)
 	if (err)
 		goto out_exit_netlink;
 
-	hwsim_class = class_create("mac80211_hwsim");
-	if (IS_ERR(hwsim_class)) {
-		err = PTR_ERR(hwsim_class);
+	err = class_register(&hwsim_class);
+	if (err)
 		goto out_exit_virtio;
-	}
 
 	hwsim_init_s1g_channels(hwsim_channels_s1g);
 
