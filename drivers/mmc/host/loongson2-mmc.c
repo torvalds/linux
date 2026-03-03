@@ -189,6 +189,12 @@
 #define LOONGSON2_MMC_DLLVAL_TIMEOUT_US		4000
 #define LOONGSON2_MMC_TXFULL_TIMEOUT_US		500
 
+/*
+ * Due to a hardware design flaw, the Loongson-2K0300 may fail to recognize the
+ * CMD48 (SD_READ_EXTR_SINGLE) interrupt.
+ */
+#define LOONGSON2_MMC_CMD48_QUIRK	BIT(0)
+
 /* Loongson-2K1000 SDIO2 DMA routing register */
 #define LS2K1000_SDIO_DMA_MASK		GENMASK(17, 15)
 #define LS2K1000_DMA0_CONF		0x0
@@ -245,6 +251,7 @@ struct loongson2_mmc_host {
 };
 
 struct loongson2_mmc_pdata {
+	u32 flags;
 	const struct regmap_config *regmap_config;
 	void (*reorder_cmd_data)(struct loongson2_mmc_host *host, struct mmc_command *cmd);
 	void (*fix_data_timeout)(struct loongson2_mmc_host *host, struct mmc_command *cmd);
@@ -568,6 +575,12 @@ static void loongson2_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct loongson2_mmc_host *host = mmc_priv(mmc);
 
+	if ((host->pdata->flags & LOONGSON2_MMC_CMD48_QUIRK) &&
+	    mrq->cmd->opcode == SD_READ_EXTR_SINGLE) {
+		mmc_request_done(mmc, mrq);
+		return;
+	}
+
 	host->cmd_is_stop = 0;
 	host->mrq = mrq;
 	loongson2_mmc_send_request(mmc);
@@ -839,7 +852,18 @@ static void loongson2_mmc_release_internal_dma(struct loongson2_mmc_host *host,
 	dma_free_coherent(dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 }
 
+static struct loongson2_mmc_pdata ls2k0300_mmc_pdata = {
+	.flags			= LOONGSON2_MMC_CMD48_QUIRK,
+	.regmap_config		= &ls2k2000_mmc_regmap_config,
+	.reorder_cmd_data	= ls2k2000_mmc_reorder_cmd_data,
+	.fix_data_timeout	= ls2k2000_mmc_fix_data_timeout,
+	.setting_dma		= ls2k2000_mmc_set_internal_dma,
+	.prepare_dma		= loongson2_mmc_prepare_internal_dma,
+	.release_dma		= loongson2_mmc_release_internal_dma,
+};
+
 static struct loongson2_mmc_pdata ls2k0500_mmc_pdata = {
+	.flags			= 0,
 	.regmap_config		= &ls2k0500_mmc_regmap_config,
 	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
 	.setting_dma		= ls2k0500_mmc_set_external_dma,
@@ -848,6 +872,7 @@ static struct loongson2_mmc_pdata ls2k0500_mmc_pdata = {
 };
 
 static struct loongson2_mmc_pdata ls2k1000_mmc_pdata = {
+	.flags			= 0,
 	.regmap_config		= &ls2k0500_mmc_regmap_config,
 	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
 	.setting_dma		= ls2k1000_mmc_set_external_dma,
@@ -856,6 +881,7 @@ static struct loongson2_mmc_pdata ls2k1000_mmc_pdata = {
 };
 
 static struct loongson2_mmc_pdata ls2k2000_mmc_pdata = {
+	.flags			= 0,
 	.regmap_config		= &ls2k2000_mmc_regmap_config,
 	.reorder_cmd_data	= ls2k2000_mmc_reorder_cmd_data,
 	.fix_data_timeout	= ls2k2000_mmc_fix_data_timeout,
@@ -984,6 +1010,7 @@ static void loongson2_mmc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id loongson2_mmc_of_ids[] = {
+	{ .compatible = "loongson,ls2k0300-mmc", .data = &ls2k0300_mmc_pdata },
 	{ .compatible = "loongson,ls2k0500-mmc", .data = &ls2k0500_mmc_pdata },
 	{ .compatible = "loongson,ls2k1000-mmc", .data = &ls2k1000_mmc_pdata },
 	{ .compatible = "loongson,ls2k2000-mmc", .data = &ls2k2000_mmc_pdata },
