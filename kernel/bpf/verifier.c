@@ -444,6 +444,29 @@ static bool subprog_is_global(const struct bpf_verifier_env *env, int subprog)
 	return aux && aux[subprog].linkage == BTF_FUNC_GLOBAL;
 }
 
+static bool subprog_returns_void(struct bpf_verifier_env *env, int subprog)
+{
+	const struct btf_type *type, *func, *func_proto;
+	const struct btf *btf = env->prog->aux->btf;
+	u32 btf_id;
+
+	btf_id = env->prog->aux->func_info[subprog].type_id;
+
+	func = btf_type_by_id(btf, btf_id);
+	if (verifier_bug_if(!func, env, "btf_id %u not found", btf_id))
+		return false;
+
+	func_proto = btf_type_by_id(btf, func->type);
+	if (!func_proto)
+		return false;
+
+	type = btf_type_skip_modifiers(btf, func_proto->type, NULL);
+	if (!type)
+		return false;
+
+	return btf_type_is_void(type);
+}
+
 static const char *subprog_name(const struct bpf_verifier_env *env, int subprog)
 {
 	struct bpf_func_info *info;
@@ -2953,7 +2976,11 @@ static void init_reg_state(struct bpf_verifier_env *env,
 
 static struct bpf_retval_range retval_range(s32 minval, s32 maxval)
 {
-	return (struct bpf_retval_range){ minval, maxval };
+	/*
+	 * return_32bit is set to false by default and set explicitly
+	 * by the caller when necessary.
+	 */
+	return (struct bpf_retval_range){ minval, maxval, false };
 }
 
 #define BPF_MAIN_FUNC (-1)
@@ -10885,9 +10912,11 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		subprog_aux(env, subprog)->called = true;
 		clear_caller_saved_regs(env, caller->regs);
 
-		/* All global functions return a 64-bit SCALAR_VALUE */
-		mark_reg_unknown(env, caller->regs, BPF_REG_0);
-		caller->regs[BPF_REG_0].subreg_def = DEF_NOT_SUBREG;
+		/* All non-void global functions return a 64-bit SCALAR_VALUE. */
+		if (!subprog_returns_void(env, subprog)) {
+			mark_reg_unknown(env, caller->regs, BPF_REG_0);
+			caller->regs[BPF_REG_0].subreg_def = DEF_NOT_SUBREG;
+		}
 
 		/* continue with next insn after call */
 		return 0;
@@ -11175,10 +11204,9 @@ static bool in_rbtree_lock_required_cb(struct bpf_verifier_env *env)
 	return is_rbtree_lock_required_kfunc(kfunc_btf_id);
 }
 
-static bool retval_range_within(struct bpf_retval_range range, const struct bpf_reg_state *reg,
-				bool return_32bit)
+static bool retval_range_within(struct bpf_retval_range range, const struct bpf_reg_state *reg)
 {
-	if (return_32bit)
+	if (range.return_32bit)
 		return range.minval <= reg->s32_min_value && reg->s32_max_value <= range.maxval;
 	else
 		return range.minval <= reg->smin_value && reg->smax_value <= range.maxval;
@@ -11222,7 +11250,7 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 			return err;
 
 		/* enforce R0 return value range, and bpf_callback_t returns 64bit */
-		if (!retval_range_within(callee->callback_ret_range, r0, false)) {
+		if (!retval_range_within(callee->callback_ret_range, r0)) {
 			verbose_invalid_scalar(env, r0, callee->callback_ret_range,
 					       "At callback return", "R0");
 			return -EINVAL;
@@ -17841,6 +17869,147 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	return 0;
 }
 
+
+static bool return_retval_range(struct bpf_verifier_env *env, struct bpf_retval_range *range)
+{
+	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
+
+	/* Default return value range. */
+	*range = retval_range(0, 1);
+
+	switch (prog_type) {
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+		switch (env->prog->expected_attach_type) {
+		case BPF_CGROUP_UDP4_RECVMSG:
+		case BPF_CGROUP_UDP6_RECVMSG:
+		case BPF_CGROUP_UNIX_RECVMSG:
+		case BPF_CGROUP_INET4_GETPEERNAME:
+		case BPF_CGROUP_INET6_GETPEERNAME:
+		case BPF_CGROUP_UNIX_GETPEERNAME:
+		case BPF_CGROUP_INET4_GETSOCKNAME:
+		case BPF_CGROUP_INET6_GETSOCKNAME:
+		case BPF_CGROUP_UNIX_GETSOCKNAME:
+			*range = retval_range(1, 1);
+			break;
+		case BPF_CGROUP_INET4_BIND:
+		case BPF_CGROUP_INET6_BIND:
+			*range = retval_range(0, 3);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BPF_PROG_TYPE_CGROUP_SKB:
+		if (env->prog->expected_attach_type == BPF_CGROUP_INET_EGRESS)
+			*range = retval_range(0, 3);
+		break;
+	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_SOCK_OPS:
+	case BPF_PROG_TYPE_CGROUP_DEVICE:
+	case BPF_PROG_TYPE_CGROUP_SYSCTL:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+		break;
+	case BPF_PROG_TYPE_RAW_TRACEPOINT:
+		if (!env->prog->aux->attach_btf_id)
+			return false;
+		*range = retval_range(0, 0);
+		break;
+	case BPF_PROG_TYPE_TRACING:
+		switch (env->prog->expected_attach_type) {
+		case BPF_TRACE_FENTRY:
+		case BPF_TRACE_FEXIT:
+		case BPF_TRACE_FSESSION:
+			*range = retval_range(0, 0);
+			break;
+		case BPF_TRACE_RAW_TP:
+		case BPF_MODIFY_RETURN:
+			return false;
+		case BPF_TRACE_ITER:
+		default:
+			break;
+		}
+		break;
+	case BPF_PROG_TYPE_KPROBE:
+		switch (env->prog->expected_attach_type) {
+		case BPF_TRACE_KPROBE_SESSION:
+		case BPF_TRACE_UPROBE_SESSION:
+			break;
+		default:
+			return false;
+		}
+		break;
+	case BPF_PROG_TYPE_SK_LOOKUP:
+		*range = retval_range(SK_DROP, SK_PASS);
+		break;
+
+	case BPF_PROG_TYPE_LSM:
+		if (env->prog->expected_attach_type != BPF_LSM_CGROUP) {
+			/* no range found, any return value is allowed */
+			if (!get_func_retval_range(env->prog, range))
+				return false;
+			/* no restricted range, any return value is allowed */
+			if (range->minval == S32_MIN && range->maxval == S32_MAX)
+				return false;
+			range->return_32bit = true;
+		} else if (!env->prog->aux->attach_func_proto->type) {
+			/* Make sure programs that attach to void
+			 * hooks don't try to modify return value.
+			 */
+			*range = retval_range(1, 1);
+		}
+		break;
+
+	case BPF_PROG_TYPE_NETFILTER:
+		*range = retval_range(NF_DROP, NF_ACCEPT);
+		break;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		*range = retval_range(0, 0);
+		break;
+	case BPF_PROG_TYPE_EXT:
+		/* freplace program can return anything as its return value
+		 * depends on the to-be-replaced kernel func or bpf program.
+		 */
+	default:
+		return false;
+	}
+
+	/* Continue calculating. */
+
+	return true;
+}
+
+static bool program_returns_void(struct bpf_verifier_env *env)
+{
+	const struct bpf_prog *prog = env->prog;
+	enum bpf_prog_type prog_type = prog->type;
+
+	switch (prog_type) {
+	case BPF_PROG_TYPE_LSM:
+		/* See return_retval_range, for BPF_LSM_CGROUP can be 0 or 0-1 depending on hook. */
+		if (prog->expected_attach_type != BPF_LSM_CGROUP &&
+		    !prog->aux->attach_func_proto->type)
+			return true;
+		break;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		if (!prog->aux->attach_func_proto->type)
+			return true;
+		break;
+	case BPF_PROG_TYPE_EXT:
+		/*
+		 * If the actual program is an extension, let it
+		 * return void - attaching will succeed only if the
+		 * program being replaced also returns void, and since
+		 * it has passed verification its actual type doesn't matter.
+		 */
+		if (subprog_returns_void(env, 0))
+			return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
 static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name)
 {
 	const char *exit_ctx = "At program exit";
@@ -17849,43 +18018,25 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 	struct bpf_reg_state *reg = reg_state(env, regno);
 	struct bpf_retval_range range = retval_range(0, 1);
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
-	int err;
 	struct bpf_func_state *frame = env->cur_state->frame[0];
-	const bool is_subprog = frame->subprogno;
-	bool return_32bit = false;
 	const struct btf_type *reg_type, *ret_type = NULL;
+	int err;
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
-	if (!is_subprog || frame->in_exception_callback_fn) {
-		switch (prog_type) {
-		case BPF_PROG_TYPE_LSM:
-			if (prog->expected_attach_type == BPF_LSM_CGROUP)
-				/* See below, can be 0 or 0-1 depending on hook. */
-				break;
-			if (!prog->aux->attach_func_proto->type)
-				return 0;
-			break;
-		case BPF_PROG_TYPE_STRUCT_OPS:
-			if (!prog->aux->attach_func_proto->type)
-				return 0;
+	if (!frame->in_async_callback_fn && program_returns_void(env))
+		return 0;
 
-			if (frame->in_exception_callback_fn)
-				break;
-
-			/* Allow a struct_ops program to return a referenced kptr if it
-			 * matches the operator's return type and is in its unmodified
-			 * form. A scalar zero (i.e., a null pointer) is also allowed.
-			 */
-			reg_type = reg->btf ? btf_type_by_id(reg->btf, reg->btf_id) : NULL;
-			ret_type = btf_type_resolve_ptr(prog->aux->attach_btf,
-							prog->aux->attach_func_proto->type,
-							NULL);
-			if (ret_type && ret_type == reg_type && reg->ref_obj_id)
-				return __check_ptr_off_reg(env, reg, regno, false);
-			break;
-		default:
-			break;
-		}
+	if (prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
+		/* Allow a struct_ops program to return a referenced kptr if it
+		 * matches the operator's return type and is in its unmodified
+		 * form. A scalar zero (i.e., a null pointer) is also allowed.
+		 */
+		reg_type = reg->btf ? btf_type_by_id(reg->btf, reg->btf_id) : NULL;
+		ret_type = btf_type_resolve_ptr(prog->aux->attach_btf,
+						prog->aux->attach_func_proto->type,
+						NULL);
+		if (ret_type && ret_type == reg_type && reg->ref_obj_id)
+			return __check_ptr_off_reg(env, reg, regno, false);
 	}
 
 	/* eBPF calling convention is such that R0 is used
@@ -17909,110 +18060,14 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 		goto enforce_retval;
 	}
 
-	if (is_subprog && !frame->in_exception_callback_fn) {
-		if (reg->type != SCALAR_VALUE) {
-			verbose(env, "At subprogram exit the register R%d is not a scalar value (%s)\n",
-				regno, reg_type_str(env, reg->type));
-			return -EINVAL;
-		}
+	if (prog_type == BPF_PROG_TYPE_STRUCT_OPS && !ret_type)
 		return 0;
-	}
 
-	switch (prog_type) {
-	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
-		if (env->prog->expected_attach_type == BPF_CGROUP_UDP4_RECVMSG ||
-		    env->prog->expected_attach_type == BPF_CGROUP_UDP6_RECVMSG ||
-		    env->prog->expected_attach_type == BPF_CGROUP_UNIX_RECVMSG ||
-		    env->prog->expected_attach_type == BPF_CGROUP_INET4_GETPEERNAME ||
-		    env->prog->expected_attach_type == BPF_CGROUP_INET6_GETPEERNAME ||
-		    env->prog->expected_attach_type == BPF_CGROUP_UNIX_GETPEERNAME ||
-		    env->prog->expected_attach_type == BPF_CGROUP_INET4_GETSOCKNAME ||
-		    env->prog->expected_attach_type == BPF_CGROUP_INET6_GETSOCKNAME ||
-		    env->prog->expected_attach_type == BPF_CGROUP_UNIX_GETSOCKNAME)
-			range = retval_range(1, 1);
-		if (env->prog->expected_attach_type == BPF_CGROUP_INET4_BIND ||
-		    env->prog->expected_attach_type == BPF_CGROUP_INET6_BIND)
-			range = retval_range(0, 3);
-		break;
-	case BPF_PROG_TYPE_CGROUP_SKB:
-		if (env->prog->expected_attach_type == BPF_CGROUP_INET_EGRESS) {
-			range = retval_range(0, 3);
-			enforce_attach_type_range = tnum_range(2, 3);
-		}
-		break;
-	case BPF_PROG_TYPE_CGROUP_SOCK:
-	case BPF_PROG_TYPE_SOCK_OPS:
-	case BPF_PROG_TYPE_CGROUP_DEVICE:
-	case BPF_PROG_TYPE_CGROUP_SYSCTL:
-	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
-		break;
-	case BPF_PROG_TYPE_RAW_TRACEPOINT:
-		if (!env->prog->aux->attach_btf_id)
-			return 0;
-		range = retval_range(0, 0);
-		break;
-	case BPF_PROG_TYPE_TRACING:
-		switch (env->prog->expected_attach_type) {
-		case BPF_TRACE_FENTRY:
-		case BPF_TRACE_FEXIT:
-		case BPF_TRACE_FSESSION:
-			range = retval_range(0, 0);
-			break;
-		case BPF_TRACE_RAW_TP:
-		case BPF_MODIFY_RETURN:
-			return 0;
-		case BPF_TRACE_ITER:
-			break;
-		default:
-			return -ENOTSUPP;
-		}
-		break;
-	case BPF_PROG_TYPE_KPROBE:
-		switch (env->prog->expected_attach_type) {
-		case BPF_TRACE_KPROBE_SESSION:
-		case BPF_TRACE_UPROBE_SESSION:
-			range = retval_range(0, 1);
-			break;
-		default:
-			return 0;
-		}
-		break;
-	case BPF_PROG_TYPE_SK_LOOKUP:
-		range = retval_range(SK_DROP, SK_PASS);
-		break;
+	if (prog_type == BPF_PROG_TYPE_CGROUP_SKB && (env->prog->expected_attach_type == BPF_CGROUP_INET_EGRESS))
+		enforce_attach_type_range = tnum_range(2, 3);
 
-	case BPF_PROG_TYPE_LSM:
-		if (env->prog->expected_attach_type != BPF_LSM_CGROUP) {
-			/* no range found, any return value is allowed */
-			if (!get_func_retval_range(env->prog, &range))
-				return 0;
-			/* no restricted range, any return value is allowed */
-			if (range.minval == S32_MIN && range.maxval == S32_MAX)
-				return 0;
-			return_32bit = true;
-		} else if (!env->prog->aux->attach_func_proto->type) {
-			/* Make sure programs that attach to void
-			 * hooks don't try to modify return value.
-			 */
-			range = retval_range(1, 1);
-		}
-		break;
-
-	case BPF_PROG_TYPE_NETFILTER:
-		range = retval_range(NF_DROP, NF_ACCEPT);
-		break;
-	case BPF_PROG_TYPE_STRUCT_OPS:
-		if (!ret_type)
-			return 0;
-		range = retval_range(0, 0);
-		break;
-	case BPF_PROG_TYPE_EXT:
-		/* freplace program can return anything as its return value
-		 * depends on the to-be-replaced kernel func or bpf program.
-		 */
-	default:
+	if (!return_retval_range(env, &range))
 		return 0;
-	}
 
 enforce_retval:
 	if (reg->type != SCALAR_VALUE) {
@@ -18025,10 +18080,9 @@ enforce_retval:
 	if (err)
 		return err;
 
-	if (!retval_range_within(range, reg, return_32bit)) {
+	if (!retval_range_within(range, reg)) {
 		verbose_invalid_scalar(env, reg, range, exit_ctx, reg_name);
-		if (!is_subprog &&
-		    prog->expected_attach_type == BPF_LSM_CGROUP &&
+		if (prog->expected_attach_type == BPF_LSM_CGROUP &&
 		    prog_type == BPF_PROG_TYPE_LSM &&
 		    !prog->aux->attach_func_proto->type)
 			verbose(env, "Note, BPF_LSM_CGROUP that attach to void LSM hooks can't modify return value!\n");
@@ -18038,6 +18092,33 @@ enforce_retval:
 	if (!tnum_is_unknown(enforce_attach_type_range) &&
 	    tnum_in(enforce_attach_type_range, reg->var_off))
 		env->prog->enforce_expected_attach_type = 1;
+	return 0;
+}
+
+static int check_global_subprog_return_code(struct bpf_verifier_env *env)
+{
+	struct bpf_reg_state *reg = reg_state(env, BPF_REG_0);
+	struct bpf_func_state *cur_frame = cur_func(env);
+	int err;
+
+	if (subprog_returns_void(env, cur_frame->subprogno))
+		return 0;
+
+	err = check_reg_arg(env, BPF_REG_0, SRC_OP);
+	if (err)
+		return err;
+
+	if (is_pointer_value(env, BPF_REG_0)) {
+		verbose(env, "R%d leaks addr as return value\n", BPF_REG_0);
+		return -EACCES;
+	}
+
+	if (reg->type != SCALAR_VALUE) {
+		verbose(env, "At subprogram exit the register R0 is not a scalar value (%s)\n",
+			reg_type_str(env, reg->type));
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -20834,6 +20915,8 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 				 bool *do_print_state,
 				 bool exception_exit)
 {
+	struct bpf_func_state *cur_frame = cur_func(env);
+
 	/* We must do check_reference_leak here before
 	 * prepare_func_exit to handle the case when
 	 * state->curframe > 0, it may be a callback function,
@@ -20867,7 +20950,21 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 		return 0;
 	}
 
-	err = check_return_code(env, BPF_REG_0, "R0");
+	/*
+	 * Return from a regular global subprogram differs from return
+	 * from the main program or async/exception callback.
+	 * Main program exit implies return code restrictions
+	 * that depend on program type.
+	 * Exit from exception callback is equivalent to main program exit.
+	 * Exit from async callback implies return code restrictions
+	 * that depend on async scheduling mechanism.
+	 */
+	if (cur_frame->subprogno &&
+	    !cur_frame->in_async_callback_fn &&
+	    !cur_frame->in_exception_callback_fn)
+		err = check_global_subprog_return_code(env);
+	else
+		err = check_return_code(env, BPF_REG_0, "R0");
 	if (err)
 		return err;
 	return PROCESS_BPF_EXIT;
@@ -24506,10 +24603,18 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 
 		if (subprog_is_exc_cb(env, subprog)) {
 			state->frame[0]->in_exception_callback_fn = true;
-			/* We have already ensured that the callback returns an integer, just
-			 * like all global subprogs. We need to determine it only has a single
-			 * scalar argument.
+
+			/*
+			 * Global functions are scalar or void, make sure
+			 * we return a scalar.
 			 */
+			if (subprog_returns_void(env, subprog)) {
+				verbose(env, "exception cb cannot return void\n");
+				ret = -EINVAL;
+				goto out;
+			}
+
+			/* Also ensure the callback only has a single scalar argument. */
 			if (sub->arg_cnt != 1 || sub->args[0].arg_type != ARG_ANYTHING) {
 				verbose(env, "exception cb only supports single integer argument\n");
 				ret = -EINVAL;
