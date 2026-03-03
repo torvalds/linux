@@ -232,6 +232,17 @@ impl<T: AtomicType> Atomic<T> {
     /// Returns a mutable reference to the underlying atomic `T`.
     ///
     /// This is safe because the mutable reference of the atomic `T` guarantees exclusive access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::atomic::{Atomic, Relaxed};
+    ///
+    /// let mut atomic_val = Atomic::new(0u32);
+    /// let val_mut = atomic_val.get_mut();
+    /// *val_mut = 101;
+    /// assert_eq!(101, atomic_val.load(Relaxed));
+    /// ```
     pub fn get_mut(&mut self) -> &mut T {
         // CAST: `T` and `T::Repr` has the same size and alignment per the safety requirement of
         // `AtomicType`, and per the type invariants `self.0` is a valid `T`, therefore the casting
