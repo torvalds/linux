@@ -195,7 +195,15 @@ static void atcspi_set_trans_ctl(struct atcspi_dev *spi,
 	if (op->addr.buswidth > 1)
 		tc |= TRANS_ADDR_FMT;
 	if (op->data.nbytes) {
-		tc |= TRANS_DUAL_QUAD(ffs(op->data.buswidth) - 1);
+		unsigned int width_code;
+
+		width_code = ffs(op->data.buswidth) - 1;
+		if (unlikely(width_code > 3)) {
+			WARN_ON_ONCE(1);
+			width_code = 0;
+		}
+		tc |= TRANS_DUAL_QUAD(width_code);
+
 		if (op->data.dir == SPI_MEM_DATA_IN) {
 			if (op->dummy.nbytes)
 				tc |= TRANS_MODE_DMY_READ |
