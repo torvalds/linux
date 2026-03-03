@@ -33,6 +33,9 @@ properties:
   clocks:
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   "#gpio-cells":
     const: 2
 
