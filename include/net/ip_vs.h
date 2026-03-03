@@ -35,12 +35,10 @@
 
 #define IP_VS_HDR_INVERSE	1
 #define IP_VS_HDR_ICMP		2
-/*
- *	Hash table: for virtual service lookups
- */
-#define IP_VS_SVC_TAB_BITS 8
-#define IP_VS_SVC_TAB_SIZE BIT(IP_VS_SVC_TAB_BITS)
-#define IP_VS_SVC_TAB_MASK (IP_VS_SVC_TAB_SIZE - 1)
+
+/* svc_table limits */
+#define IP_VS_SVC_TAB_MIN_BITS	4
+#define IP_VS_SVC_TAB_MAX_BITS	20
 
 /* Generic access of ipvs struct */
 static inline struct netns_ipvs *net_ipvs(struct net* net)
@@ -50,8 +48,6 @@ static inline struct netns_ipvs *net_ipvs(struct net* net)
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
-
-extern struct mutex __ip_vs_mutex;
 
 struct ip_vs_iphdr {
 	int hdr_flags;	/* ipvs flags */
@@ -288,6 +284,12 @@ static inline int ip_vs_af_index(int af)
 {
 	return af == AF_INET6 ? IP_VS_AF_INET6 : IP_VS_AF_INET;
 }
+
+/* work_flags */
+enum {
+	IP_VS_WORK_SVC_RESIZE,		/* Schedule svc_resize_work */
+	IP_VS_WORK_SVC_NORESIZE,	/* Stopping svc_resize_work */
+};
 
 /* The port number of FTP service (in network order). */
 #define FTPPORT  cpu_to_be16(21)
@@ -889,14 +891,15 @@ struct ip_vs_dest_user_kern {
  * forwarding entries.
  */
 struct ip_vs_service {
-	struct hlist_node	s_list;   /* node in service table */
-	atomic_t		refcnt;   /* reference counter */
-
+	struct hlist_bl_node	s_list;   /* node in service table */
+	u32			hash_key; /* Key for the hash table */
 	u16			af;       /* address family */
 	__u16			protocol; /* which protocol (TCP/UDP) */
+
 	union nf_inet_addr	addr;	  /* IP address for virtual service */
-	__be16			port;	  /* port number for the service */
 	__u32                   fwmark;   /* firewall mark of the service */
+	atomic_t		refcnt;   /* reference counter */
+	__be16			port;	  /* port number for the service */
 	unsigned int		flags;	  /* service status flags */
 	unsigned int		timeout;  /* persistent timeout in ticks */
 	__be32			netmask;  /* grouping granularity, mask/plen */
@@ -1155,6 +1158,10 @@ struct netns_ipvs {
 	struct list_head	dest_trash;
 	spinlock_t		dest_trash_lock;
 	struct timer_list	dest_trash_timer; /* expiration timer */
+	struct mutex		service_mutex;    /* service reconfig */
+	struct rw_semaphore	svc_resize_sem;   /* svc_table resizing */
+	struct delayed_work	svc_resize_work;  /* resize svc_table */
+	atomic_t		svc_table_changes;/* ++ on new table */
 	/* Service counters */
 	atomic_t		num_services[IP_VS_AF_MAX];   /* Services */
 	atomic_t		fwm_services[IP_VS_AF_MAX];   /* Services */
@@ -1219,6 +1226,7 @@ struct netns_ipvs {
 	int			sysctl_est_nice;	/* kthread nice */
 	int			est_stopped;		/* stop tasks */
 #endif
+	int			sysctl_svc_lfactor;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1228,6 +1236,7 @@ struct netns_ipvs {
 	int			sysctl_lblcr_expiration;
 	struct ctl_table_header	*lblcr_ctl_header;
 	struct ctl_table	*lblcr_ctl_table;
+	unsigned long		work_flags;	/* IP_VS_WORK_* flags */
 	/* ip_vs_est */
 	struct delayed_work	est_reload_work;/* Reload kthread tasks */
 	struct mutex		est_mutex;	/* protect kthread tasks */
@@ -1259,9 +1268,7 @@ struct netns_ipvs {
 	unsigned int		mixed_address_family_dests;
 	unsigned int		hooks_afmask;	/* &1=AF_INET, &2=AF_INET6 */
 
-	/* the service mutex that protect svc_table and svc_fwm_table */
-	struct mutex service_mutex;
-	struct hlist_head svc_table[IP_VS_SVC_TAB_SIZE];	/* Services */
+	struct ip_vs_rht __rcu	*svc_table;	/* Services */
 };
 
 #define DEFAULT_SYNC_THRESHOLD	3
@@ -1510,6 +1517,18 @@ static inline int sysctl_est_nice(struct netns_ipvs *ipvs)
 }
 
 #endif
+
+/* Get load factor to map num_services/u_thresh to t->size
+ * Smaller value decreases u_thresh to reduce collisions but increases
+ * the table size
+ * Returns factor where:
+ * - <0: u_thresh = size >> -factor, eg. lfactor -2 = 25% load
+ * - >=0: u_thresh = size << factor, eg. lfactor 1 = 200% load
+ */
+static inline int sysctl_svc_lfactor(struct netns_ipvs *ipvs)
+{
+	return READ_ONCE(ipvs->sysctl_svc_lfactor);
+}
 
 /* IPVS core functions
  * (from ip_vs_core.c)
