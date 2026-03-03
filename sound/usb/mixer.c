@@ -1664,17 +1664,59 @@ static bool check_insane_volume_range(struct usb_mixer_interface *mixer,
 				      struct snd_kcontrol *kctl,
 				      struct usb_mixer_elem_info *cval)
 {
-	int range = (cval->max - cval->min) / cval->res;
+	int range, steps, threshold;
 
 	/*
-	 * Are there devices with volume range more than 255? I use a bit more
-	 * to be sure. 384 is a resolution magic number found on Logitech
-	 * devices. It will definitively catch all buggy Logitech devices.
+	 * If a device quirk has overrode our TLV callback, no warning should
+	 * be generated since our checks are only meaningful for dB volume.
 	 */
-	if (range > 384) {
+	if (!(kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) ||
+	    kctl->tlv.c != snd_usb_mixer_vol_tlv)
+		return false;
+
+	/*
+	 * Meaningless volume control capability (<1dB). This should cover
+	 * devices mapping their volume to val = 0/100/1, which are very likely
+	 * to be quirky.
+	 */
+	range = cval->max - cval->min;
+	if (range < 256) {
 		usb_audio_warn(mixer->chip,
-			       "Warning! Unlikely big volume range (=%u), cval->res is probably wrong.",
+			       "Warning! Unlikely small volume range (=%u), linear volume or custom curve?",
 			       range);
+		return true;
+	}
+
+	steps = range / cval->res;
+
+	/*
+	 * There are definitely devices with ~20,000 ranges (e.g., HyperX Cloud
+	 * III with val = -18944/0/1), so we use some heuristics here:
+	 *
+	 * min < 0 < max: Attenuator + amplifier? Likely to be sane
+	 *
+	 * min < 0 = max: DSP? Voltage attenuator with FW conversion to dB?
+	 * Likely to be sane
+	 *
+	 * min < max < 0: Measured values? Neutral
+	 *
+	 * min = 0 < max: Oversimplified FW conversion? Linear volume? Likely to
+	 * be quirky (e.g., MV-SILICON)
+	 *
+	 * 0 < min < max: Amplifier with fixed gains? Likely to be quirky
+	 * (e.g., Logitech webcam)
+	 */
+	if (cval->min < 0 && 0 <= cval->max)
+		threshold = 24576; /* 65535 * (3 / 8) */
+	else if (cval->min < cval->max && cval->max < 0)
+		threshold = 1024;
+	else
+		threshold = 384;
+
+	if (steps > threshold) {
+		usb_audio_warn(mixer->chip,
+			       "Warning! Unlikely big volume step count (=%u), linear volume or wrong cval->res?",
+			       steps);
 		return true;
 	}
 
