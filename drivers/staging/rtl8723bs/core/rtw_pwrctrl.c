@@ -82,7 +82,7 @@ int ips_leave(struct adapter *padapter)
 static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 {
 	struct adapter *buddy = adapter->pbuddy_adapter;
-	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct xmit_priv *pxmit_priv = &adapter->xmitpriv;
 
 	bool ret = false;
@@ -102,7 +102,7 @@ static bool rtw_pwr_unassociated_idle(struct adapter *adapter)
 
 	/* consider buddy, if exist */
 	if (buddy) {
-		struct mlme_priv *b_pmlmepriv = &(buddy->mlmepriv);
+		struct mlme_priv *b_pmlmepriv = &buddy->mlmepriv;
 
 		if (check_fwstate(b_pmlmepriv, WIFI_ASOC_STATE | WIFI_SITE_MONITOR) ||
 		    check_fwstate(b_pmlmepriv, WIFI_UNDER_LINKING | WIFI_UNDER_WPS) ||
@@ -295,7 +295,7 @@ static u8 PS_RDY_CHECK(struct adapter *padapter)
 {
 	unsigned long curr_time, delta_time;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (pwrpriv->bInSuspend)
 		return false;
@@ -432,7 +432,7 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 		return;
 
 	/* Skip lps enter request if number of associated adapters is not 1 */
-	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
+	if (check_fwstate(&dvobj->padapters->mlmepriv, WIFI_ASOC_STATE))
 		n_assoc_iface++;
 	if (n_assoc_iface != 1)
 		return;
@@ -483,7 +483,7 @@ void LPS_Leave(struct adapter *padapter, const char *msg)
 void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 {
 	struct adapter *pri_padapter = GET_PRIMARY_ADAPTER(Adapter);
-	struct mlme_priv *pmlmepriv = &(Adapter->mlmepriv);
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
 
 	if (Adapter->bSurpriseRemoved)
@@ -523,7 +523,7 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	if (Adapter->bSurpriseRemoved)
 		return;
 
-	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
+	if (check_fwstate(&dvobj->padapters->mlmepriv, WIFI_ASOC_STATE))
 		n_assoc_iface++;
 
 	if (n_assoc_iface) { /* connect */
