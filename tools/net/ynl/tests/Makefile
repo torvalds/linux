@@ -26,6 +26,9 @@ install: $(TEST_PROGS)
 		    $$test > $(INSTALL_PATH)/ynl/$$name; \
 		chmod +x $(INSTALL_PATH)/ynl/$$name; \
 	done
+	@for test in $(TEST_PROGS); do \
+		echo "ynl:$$test"; \
+	done > $(INSTALL_PATH)/kselftest-list.txt
 
 clean distclean:
 	@# Nothing to clean
