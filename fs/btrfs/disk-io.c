@@ -1994,7 +1994,7 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	int level = btrfs_super_log_root_level(disk_super);
 
 	if (unlikely(fs_devices->rw_devices == 0)) {
-		btrfs_warn(fs_info, "log replay required on RO media");
+		btrfs_err(fs_info, "log replay required on RO media");
 		return -EIO;
 	}
 
@@ -2008,9 +2008,9 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	check.owner_root = BTRFS_TREE_LOG_OBJECTID;
 	log_tree_root->node = read_tree_block(fs_info, bytenr, &check);
 	if (IS_ERR(log_tree_root->node)) {
-		btrfs_warn(fs_info, "failed to read log tree");
 		ret = PTR_ERR(log_tree_root->node);
 		log_tree_root->node = NULL;
+		btrfs_err(fs_info, "failed to read log tree with error: %d", ret);
 		btrfs_put_root(log_tree_root);
 		return ret;
 	}
@@ -2023,9 +2023,9 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 	/* returns with log_tree_root freed on success */
 	ret = btrfs_recover_log_trees(log_tree_root);
 	btrfs_put_root(log_tree_root);
-	if (ret) {
-		btrfs_handle_fs_error(fs_info, ret,
-				      "Failed to recover log tree");
+	if (unlikely(ret)) {
+		ASSERT(BTRFS_FS_ERROR(fs_info) != 0);
+		btrfs_err(fs_info, "failed to recover log trees with error: %d", ret);
 		return ret;
 	}
 
@@ -2972,7 +2972,6 @@ static int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info)
 	task = kthread_run(btrfs_uuid_rescan_kthread, fs_info, "btrfs-uuid");
 	if (IS_ERR(task)) {
 		/* fs_info->update_uuid_tree_gen remains 0 in all error case */
-		btrfs_warn(fs_info, "failed to start uuid_rescan task");
 		up(&fs_info->uuid_tree_rescan_sem);
 		return PTR_ERR(task);
 	}
@@ -3188,7 +3187,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	if (incompat & ~BTRFS_FEATURE_INCOMPAT_SUPP) {
 		btrfs_err(fs_info,
 		"cannot mount because of unknown incompat features (0x%llx)",
-		    incompat);
+		    incompat & ~BTRFS_FEATURE_INCOMPAT_SUPP);
 		return -EINVAL;
 	}
 
@@ -3220,7 +3219,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	if (compat_ro_unsupp && is_rw_mount) {
 		btrfs_err(fs_info,
 	"cannot mount read-write because of unknown compat_ro features (0x%llx)",
-		       compat_ro);
+		       compat_ro_unsupp);
 		return -EINVAL;
 	}
 
@@ -3233,7 +3232,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	    !btrfs_test_opt(fs_info, NOLOGREPLAY)) {
 		btrfs_err(fs_info,
 "cannot replay dirty log with unsupported compat_ro features (0x%llx), try rescue=nologreplay",
-			  compat_ro);
+			  compat_ro_unsupp);
 		return -EINVAL;
 	}
 
@@ -3642,7 +3641,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->fs_root = btrfs_get_fs_root(fs_info, BTRFS_FS_TREE_OBJECTID, true);
 	if (IS_ERR(fs_info->fs_root)) {
 		ret = PTR_ERR(fs_info->fs_root);
-		btrfs_warn(fs_info, "failed to read fs tree: %d", ret);
+		btrfs_err(fs_info, "failed to read fs tree: %d", ret);
 		fs_info->fs_root = NULL;
 		goto fail_qgroup;
 	}
@@ -3663,8 +3662,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		btrfs_info(fs_info, "checking UUID tree");
 		ret = btrfs_check_uuid_tree(fs_info);
 		if (ret) {
-			btrfs_warn(fs_info,
-				"failed to check the UUID tree: %d", ret);
+			btrfs_err(fs_info, "failed to check the UUID tree: %d", ret);
 			close_ctree(fs_info);
 			return ret;
 		}
@@ -4399,9 +4397,17 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 		 */
 		btrfs_flush_workqueue(fs_info->delayed_workers);
 
-		ret = btrfs_commit_super(fs_info);
-		if (ret)
-			btrfs_err(fs_info, "commit super ret %d", ret);
+		/*
+		 * If the filesystem is shutdown, then an attempt to commit the
+		 * super block (or any write) will just fail. Since we freeze
+		 * the filesystem before shutting it down, the filesystem is in
+		 * a consistent state and we don't need to commit super blocks.
+		 */
+		if (!btrfs_is_shutdown(fs_info)) {
+			ret = btrfs_commit_super(fs_info);
+			if (ret)
+				btrfs_err(fs_info, "commit super block returned %d", ret);
+		}
 	}
 
 	kthread_stop(fs_info->transaction_kthread);
