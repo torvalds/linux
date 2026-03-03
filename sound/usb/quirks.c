@@ -2,8 +2,11 @@
 /*
  */
 
+#include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>
@@ -2135,16 +2138,39 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 /*
  * driver behavior quirk flags
  */
+struct usb_string_match {
+	const char *manufacturer;
+	const char *product;
+};
+
 struct usb_audio_quirk_flags_table {
 	u32 id;
 	u32 flags;
+	const struct usb_string_match *usb_string_match;
 };
 
 #define DEVICE_FLG(vid, pid, _flags) \
 	{ .id = USB_ID(vid, pid), .flags = (_flags) }
 #define VENDOR_FLG(vid, _flags) DEVICE_FLG(vid, 0, _flags)
 
+/* Use as a last resort if using DEVICE_FLG() is prone to VID/PID conflicts. */
+#define DEVICE_STRING_FLG(vid, pid, _manufacturer, _product, _flags)	\
+{									\
+	.id = USB_ID(vid, pid),						\
+	.usb_string_match = &(const struct usb_string_match) {		\
+		.manufacturer = _manufacturer,				\
+		.product = _product,					\
+	},								\
+	.flags = (_flags),						\
+}
+
+/* Use as a last resort if using VENDOR_FLG() is prone to VID conflicts. */
+#define VENDOR_STRING_FLG(vid, _manufacturer, _flags)			\
+	DEVICE_STRING_FLG(vid, 0, _manufacturer, NULL, _flags)
+
 static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
+	/* Device and string descriptor matches */
+
 	/* Device matches */
 	DEVICE_FLG(0x001f, 0x0b21, /* AB13X USB Audio */
 		   QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
@@ -2416,6 +2442,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	DEVICE_FLG(0x534d, 0x2109, /* MacroSilicon MS2109 */
 		   QUIRK_FLAG_ALIGN_TRANSFER),
 
+	/* Vendor and string descriptor matches */
+
 	/* Vendor matches */
 	VENDOR_FLG(0x045e, /* MS Lifecam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
@@ -2560,14 +2588,64 @@ void snd_usb_apply_flag_dbg(const char *reason,
 	}
 }
 
+#define USB_STRING_SIZE 128
+
+static char *snd_usb_get_string(struct snd_usb_audio *chip, int id)
+{
+	char *buf;
+	int ret;
+
+	/*
+	 * Devices without the corresponding string descriptor.
+	 * This is non-fatal as *_STRING_FLG have nothing to do in this case.
+	 */
+	if (id == 0)
+		return ERR_PTR(-ENODATA);
+
+	buf = kmalloc(USB_STRING_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	ret = usb_string(chip->dev, id, buf, USB_STRING_SIZE);
+	if (ret < 0) {
+		usb_audio_warn(chip, "failed to get string for id%d: %d\n", id, ret);
+		kfree(buf);
+		return ERR_PTR(ret);
+	}
+
+	return buf;
+}
+
 void snd_usb_init_quirk_flags_table(struct snd_usb_audio *chip)
 {
 	const struct usb_audio_quirk_flags_table *p;
+	char *manufacturer __free(kfree) = NULL;
+	char *product __free(kfree) = NULL;
 
 	for (p = quirk_flags_table; p->id; p++) {
 		if (chip->usb_id == p->id ||
 		    (!USB_ID_PRODUCT(p->id) &&
 		     USB_ID_VENDOR(chip->usb_id) == USB_ID_VENDOR(p->id))) {
+			/* Handle DEVICE_STRING_FLG/VENDOR_STRING_FLG. */
+			if (p->usb_string_match && p->usb_string_match->manufacturer) {
+				if (!manufacturer) {
+					manufacturer = snd_usb_get_string(chip,
+						chip->dev->descriptor.iManufacturer);
+				}
+				if (IS_ERR_OR_NULL(manufacturer) ||
+				    strcmp(p->usb_string_match->manufacturer, manufacturer))
+					continue;
+			}
+			if (p->usb_string_match && p->usb_string_match->product) {
+				if (!product) {
+					product = snd_usb_get_string(chip,
+						chip->dev->descriptor.iProduct);
+				}
+				if (IS_ERR_OR_NULL(product) ||
+				    strcmp(p->usb_string_match->product, product))
+					continue;
+			}
+
 			snd_usb_apply_flag_dbg("builtin table", chip, p->flags);
 			chip->quirk_flags |= p->flags;
 			return;
