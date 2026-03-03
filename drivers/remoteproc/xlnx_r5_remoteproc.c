@@ -1490,6 +1490,8 @@ static void zynqmp_r5_remoteproc_shutdown(struct platform_device *pdev)
 			dev_err(cluster->dev, "failed to %s rproc %d\n",
 				rproc_state_str, rproc->index);
 		}
+
+		zynqmp_r5_free_mbox(r5_core->ipi);
 	}
 }
 
