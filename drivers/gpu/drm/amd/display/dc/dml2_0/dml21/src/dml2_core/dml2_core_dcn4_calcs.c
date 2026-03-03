@@ -12262,11 +12262,15 @@ static void rq_dlg_get_rq_reg(struct dml2_display_rq_regs *rq_regs,
 
 	unsigned int pixel_chunk_bytes = 0;
 	unsigned int min_pixel_chunk_bytes = 0;
+	unsigned int meta_chunk_bytes = 0;
+	unsigned int min_meta_chunk_bytes = 0;
 	unsigned int dpte_group_bytes = 0;
 	unsigned int mpte_group_bytes = 0;
 
 	unsigned int p1_pixel_chunk_bytes = 0;
 	unsigned int p1_min_pixel_chunk_bytes = 0;
+	unsigned int p1_meta_chunk_bytes = 0;
+	unsigned int p1_min_meta_chunk_bytes = 0;
 	unsigned int p1_dpte_group_bytes = 0;
 	unsigned int p1_mpte_group_bytes = 0;
 
@@ -12287,8 +12291,13 @@ static void rq_dlg_get_rq_reg(struct dml2_display_rq_regs *rq_regs,
 	dpte_group_bytes = (unsigned int)(dml_get_dpte_group_size_in_bytes(mode_lib, pipe_idx));
 	mpte_group_bytes = (unsigned int)(dml_get_vm_group_size_in_bytes(mode_lib, pipe_idx));
 
+	meta_chunk_bytes =  (unsigned int)(mode_lib->ip.meta_chunk_size_kbytes * 1024);
+	min_meta_chunk_bytes = (unsigned int)(mode_lib->ip.min_meta_chunk_size_bytes);
+
 	p1_pixel_chunk_bytes = pixel_chunk_bytes;
 	p1_min_pixel_chunk_bytes = min_pixel_chunk_bytes;
+	p1_meta_chunk_bytes =  meta_chunk_bytes;
+	p1_min_meta_chunk_bytes =  min_meta_chunk_bytes;
 	p1_dpte_group_bytes = dpte_group_bytes;
 	p1_mpte_group_bytes = mpte_group_bytes;
 
@@ -12308,6 +12317,19 @@ static void rq_dlg_get_rq_reg(struct dml2_display_rq_regs *rq_regs,
 		rq_regs->rq_regs_c.min_chunk_size = 0;
 	else
 		rq_regs->rq_regs_c.min_chunk_size = log_and_substract_if_non_zero(p1_min_pixel_chunk_bytes, 8 - 1);
+
+	rq_regs->rq_regs_l.meta_chunk_size = log_and_substract_if_non_zero(meta_chunk_bytes, 10);
+	rq_regs->rq_regs_c.meta_chunk_size = log_and_substract_if_non_zero(p1_meta_chunk_bytes, 10);
+
+	if (min_meta_chunk_bytes == 0)
+		rq_regs->rq_regs_l.min_meta_chunk_size = 0;
+	else
+		rq_regs->rq_regs_l.min_meta_chunk_size = log_and_substract_if_non_zero(min_meta_chunk_bytes, 6 - 1);
+
+	if (min_meta_chunk_bytes == 0)
+		rq_regs->rq_regs_c.min_meta_chunk_size = 0;
+	else
+		rq_regs->rq_regs_c.min_meta_chunk_size = log_and_substract_if_non_zero(p1_min_meta_chunk_bytes, 6 - 1);
 
 	rq_regs->rq_regs_l.dpte_group_size = log_and_substract_if_non_zero(dpte_group_bytes, 6);
 	rq_regs->rq_regs_l.mpte_group_size = log_and_substract_if_non_zero(mpte_group_bytes, 6);
