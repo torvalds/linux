@@ -1643,6 +1643,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		  struct ip_vs_service **svc_p)
 {
 	struct ip_vs_scheduler *sched = NULL;
+	struct ip_vs_rht *tc_new = NULL;
 	struct ip_vs_rht *t, *t_new = NULL;
 	int af_id = ip_vs_af_index(u->af);
 	struct ip_vs_service *svc = NULL;
@@ -1702,6 +1703,17 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		}
 	}
 
+	if (!rcu_dereference_protected(ipvs->conn_tab, 1)) {
+		int lfactor = sysctl_conn_lfactor(ipvs);
+		int new_size = ip_vs_conn_desired_size(ipvs, NULL, lfactor);
+
+		tc_new = ip_vs_conn_tab_alloc(ipvs, new_size, lfactor);
+		if (!tc_new) {
+			ret = -ENOMEM;
+			goto out_err;
+		}
+	}
+
 	if (!atomic_read(&ipvs->num_services[af_id])) {
 		ret = ip_vs_register_hooks(ipvs, u->af);
 		if (ret < 0)
@@ -1752,6 +1764,10 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		rcu_assign_pointer(ipvs->svc_table, t_new);
 		t_new = NULL;
 	}
+	if (tc_new) {
+		rcu_assign_pointer(ipvs->conn_tab, tc_new);
+		tc_new = NULL;
+	}
 
 	/* Update the virtual service counters */
 	if (svc->port == FTPPORT)
@@ -1794,6 +1810,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 
  out_err:
+	if (tc_new)
+		ip_vs_rht_free(tc_new);
 	if (t_new)
 		ip_vs_rht_free(t_new);
 	if (ret_hooks >= 0)
