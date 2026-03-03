@@ -865,6 +865,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to allocate a queue id\n");
 		amdgpu_userq_fence_driver_free(queue);
+		xa_erase_irq(&adev->userq_doorbell_xa, index);
 		uq_funcs->mqd_destroy(queue);
 		kfree(queue);
 		r = -ENOMEM;
