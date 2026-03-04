@@ -245,6 +245,8 @@ int svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 			if (svm_gp_erratum_intercept && !sev_guest(vcpu->kvm))
 				set_exception_intercept(svm, GP_VECTOR);
 		}
+
+		kvm_make_request(KVM_REQ_RECALC_INTERCEPTS, vcpu);
 	}
 
 	svm->vmcb->save.efer = efer | EFER_SVME;
@@ -1032,27 +1034,31 @@ static void svm_recalc_instruction_intercepts(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * No need to toggle VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK here, it is
-	 * always set if vls is enabled. If the intercepts are set, the bit is
-	 * meaningless anyway.
+	 * Intercept instructions that #UD if EFER.SVME=0, as SVME must be set
+	 * even when running the guest, i.e. hardware will only ever see
+	 * EFER.SVME=1.
+	 *
+	 * No need to toggle any of the vgif/vls/etc. enable bits here, as they
+	 * are set when the VMCB is initialized and never cleared (if the
+	 * relevant intercepts are set, the enablements are meaningless anyway).
 	 */
-	if (guest_cpuid_is_intel_compatible(vcpu)) {
+	if (!(vcpu->arch.efer & EFER_SVME)) {
 		svm_set_intercept(svm, INTERCEPT_VMLOAD);
 		svm_set_intercept(svm, INTERCEPT_VMSAVE);
+		svm_set_intercept(svm, INTERCEPT_CLGI);
+		svm_set_intercept(svm, INTERCEPT_STGI);
 	} else {
 		/*
 		 * If hardware supports Virtual VMLOAD VMSAVE then enable it
 		 * in VMCB and clear intercepts to avoid #VMEXIT.
 		 */
-		if (vls) {
+		if (guest_cpuid_is_intel_compatible(vcpu)) {
+			svm_set_intercept(svm, INTERCEPT_VMLOAD);
+			svm_set_intercept(svm, INTERCEPT_VMSAVE);
+		} else if (vls) {
 			svm_clr_intercept(svm, INTERCEPT_VMLOAD);
 			svm_clr_intercept(svm, INTERCEPT_VMSAVE);
 		}
-	}
-
-	if (vgif) {
-		svm_clr_intercept(svm, INTERCEPT_STGI);
-		svm_clr_intercept(svm, INTERCEPT_CLGI);
 
 		/*
 		 * Process pending events when clearing STGI/CLGI intercepts if
@@ -1060,8 +1066,13 @@ static void svm_recalc_instruction_intercepts(struct kvm_vcpu *vcpu)
 		 * that KVM re-evaluates if the intercept needs to be set again
 		 * to track when GIF is re-enabled (e.g. for NMI injection).
 		 */
-		if (svm_has_pending_gif_event(svm))
-			kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+		if (vgif) {
+			svm_clr_intercept(svm, INTERCEPT_CLGI);
+			svm_clr_intercept(svm, INTERCEPT_STGI);
+
+			if (svm_has_pending_gif_event(svm))
+				kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+		}
 	}
 
 	if (kvm_need_rdpmc_intercept(vcpu))
