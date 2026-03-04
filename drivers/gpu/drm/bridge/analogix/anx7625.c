@@ -1483,7 +1483,6 @@ static void anx7625_start_dp_work(struct anx7625_data *ctx)
 	DRM_DEV_DEBUG_DRIVER(dev, "Secure OCM version=%02x\n", ret);
 }
 
-#if IS_REACHABLE(CONFIG_TYPEC)
 static u8 anx7625_checksum(u8 *buf, u8 len)
 {
 	u8 ret = 0;
@@ -1635,22 +1634,6 @@ static void anx7625_typec_unregister(struct anx7625_data *ctx)
 	usb_role_switch_put(ctx->role_sw);
 	typec_unregister_port(ctx->typec_port);
 }
-#else
-static void anx7625_typec_set_status(struct anx7625_data *ctx,
-				     unsigned int intr_status,
-				     unsigned int intr_vector)
-{
-}
-
-static int anx7625_typec_register(struct anx7625_data *ctx)
-{
-	return 0;
-}
-
-static void anx7625_typec_unregister(struct anx7625_data *ctx)
-{
-}
-#endif
 
 static int anx7625_read_hpd_status_p0(struct anx7625_data *ctx)
 {
