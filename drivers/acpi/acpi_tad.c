@@ -96,6 +96,10 @@ static int acpi_tad_set_real_time(struct device *dev, struct acpi_tad_rt *rt)
 	if (acpi_tad_rt_is_invalid(rt))
 		return -EINVAL;
 
+	rt->valid = 0;
+	rt->msec = 0;
+	memset(rt->padding, 0, 3);
+
 	args[0].buffer.pointer = (u8 *)rt;
 	args[0].buffer.length = sizeof(*rt);
 
@@ -232,10 +236,6 @@ static ssize_t time_store(struct device *dev, struct device_attribute *attr,
 		return -ENODATA;
 
 	rt.daylight = val;
-
-	rt.valid = 0;
-	rt.msec = 0;
-	memset(rt.padding, 0, 3);
 
 	ret = acpi_tad_set_real_time(dev, &rt);
 	if (ret)
