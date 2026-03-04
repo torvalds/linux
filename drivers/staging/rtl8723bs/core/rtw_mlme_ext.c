@@ -184,12 +184,12 @@ int rtw_ch_set_search_ch(struct rt_channel_info *ch_set, const u32 ch)
 
 /* Following are the initialization functions for WiFi MLME */
 
-int init_hw_mlme_ext(struct adapter *padapter)
+void init_hw_mlme_ext(struct adapter *padapter)
 {
-	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
-	return _SUCCESS;
+	set_channel_bwmode(padapter, pmlmeext->cur_channel,
+			   pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 }
 
 void init_mlme_default_rate_set(struct adapter *padapter)
