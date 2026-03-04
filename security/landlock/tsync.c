@@ -183,10 +183,8 @@ struct tsync_works {
  * capacity.  This can legitimately happen if new threads get started after we
  * grew the capacity.
  *
- * Returns:
- *   A pointer to the preallocated context struct, with task filled in.
- *
- *   NULL, if we ran out of preallocated context structs.
+ * Return: A pointer to the preallocated context struct with task filled in, or
+ * NULL if preallocated context structs ran out.
  */
 static struct tsync_work *tsync_works_provide(struct tsync_works *s,
 					      struct task_struct *task)
@@ -243,11 +241,8 @@ static void tsync_works_trim(struct tsync_works *s)
  * On a successful return, the subsequent n calls to tsync_works_provide() are
  * guaranteed to succeed.  (size + n <= capacity)
  *
- * Returns:
- *   -ENOMEM if the (re)allocation fails
-
- *   0       if the allocation succeeds, partially succeeds, or no reallocation
- *           was needed
+ * Return: 0 if sufficient space for n more elements could be provided, -ENOMEM
+ * on allocation errors, -EOVERFLOW in case of integer overflow.
  */
 static int tsync_works_grow_by(struct tsync_works *s, size_t n, gfp_t flags)
 {
@@ -363,8 +358,8 @@ static size_t count_additional_threads(const struct tsync_works *works)
  * For each added task_work, atomically increments shared_ctx->num_preparing and
  * shared_ctx->num_unfinished.
  *
- * Returns:
- *     true, if at least one eligible sibling thread was found
+ * Return: True if at least one eligible sibling thread was found, false
+ * otherwise.
  */
 static bool schedule_task_work(struct tsync_works *works,
 			       struct tsync_shared_context *shared_ctx)

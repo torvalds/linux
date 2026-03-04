@@ -258,7 +258,7 @@ static void test_range2_rand16(struct kunit *const test)
  *
  * @number_of_ids: Number of IDs to hold.  Must be greater than one.
  *
- * Returns: The first ID in the range.
+ * Return: The first ID in the range.
  */
 u64 landlock_get_id_range(size_t number_of_ids)
 {

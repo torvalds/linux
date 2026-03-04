@@ -119,8 +119,8 @@ static const struct landlock_object_underops landlock_fs_underops = {
  * Any new IOCTL commands that are implemented in fs/ioctl.c's do_vfs_ioctl()
  * should be considered for inclusion here.
  *
- * Returns: true if the IOCTL @cmd can not be restricted with Landlock for
- * device files.
+ * Return: True if the IOCTL @cmd can not be restricted with Landlock for
+ * device files, false otherwise.
  */
 static __attribute_const__ bool is_masked_device_ioctl(const unsigned int cmd)
 {
@@ -428,10 +428,10 @@ static bool may_refer(const struct layer_access_masks *const src_parent,
  * Check that a destination file hierarchy has more restrictions than a source
  * file hierarchy.  This is only used for link and rename actions.
  *
- * Returns: true if child1 may be moved from parent1 to parent2 without
- * increasing its access rights.  If child2 is set, an additional condition is
+ * Return: True if child1 may be moved from parent1 to parent2 without
+ * increasing its access rights (if child2 is set, an additional condition is
  * that child2 may be used from parent2 to parent1 without increasing its access
- * rights.
+ * rights), false otherwise.
  */
 static bool no_more_access(const struct layer_access_masks *const parent1,
 			   const struct layer_access_masks *const child1,
@@ -734,9 +734,7 @@ static void test_is_eacces_with_write(struct kunit *const test)
  * checks that the collected accesses and the remaining ones are enough to
  * allow the request.
  *
- * Returns:
- * - true if the access request is granted;
- * - false otherwise.
+ * Return: True if the access request is granted, false otherwise.
  */
 static bool
 is_access_to_paths_allowed(const struct landlock_ruleset *const domain,
@@ -1022,9 +1020,8 @@ static access_mask_t maybe_remove(const struct dentry *const dentry)
  * only handles walking on the same mount point and only checks one set of
  * accesses.
  *
- * Returns:
- * - true if all the domain access rights are allowed for @dir;
- * - false if the walk reached @mnt_root.
+ * Return: True if all the domain access rights are allowed for @dir, false if
+ * the walk reached @mnt_root.
  */
 static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
 				    const struct dentry *const mnt_root,
@@ -1120,10 +1117,9 @@ static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
  * ephemeral matrices take some space on the stack, which limits the number of
  * layers to a deemed reasonable number: 16.
  *
- * Returns:
- * - 0 if access is allowed;
- * - -EXDEV if @old_dentry would inherit new access rights from @new_dir;
- * - -EACCES if file removal or creation is denied.
+ * Return: 0 if access is allowed, -EXDEV if @old_dentry would inherit new
+ * access rights from @new_dir, or -EACCES if file removal or creation is
+ * denied.
  */
 static int current_check_refer_path(struct dentry *const old_dentry,
 				    const struct path *const new_dir,

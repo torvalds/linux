@@ -34,7 +34,7 @@
  * @exe_size: Returned size of @exe_str (including the trailing null
  *            character), if any.
  *
- * Returns: A pointer to an allocated buffer where @exe_str point to, %NULL if
+ * Return: A pointer to an allocated buffer where @exe_str point to, %NULL if
  * there is no executable path, or an error otherwise.
  */
 static const void *get_current_exe(const char **const exe_str,
@@ -73,7 +73,7 @@ static const void *get_current_exe(const char **const exe_str,
 }
 
 /*
- * Returns: A newly allocated object describing a domain, or an error
+ * Return: A newly allocated object describing a domain, or an error
  * otherwise.
  */
 static struct landlock_details *get_current_details(void)

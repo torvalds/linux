@@ -174,8 +174,8 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
  * @server: IPC receiver domain.
  * @scope: The scope restriction criteria.
  *
- * Returns: True if @server is in a different domain from @client, and @client
- * is scoped to access @server (i.e. access should be denied).
+ * Return: True if @server is in a different domain from @client and @client
+ * is scoped to access @server (i.e. access should be denied), false otherwise.
  */
 static bool domain_is_scoped(const struct landlock_ruleset *const client,
 			     const struct landlock_ruleset *const server,
