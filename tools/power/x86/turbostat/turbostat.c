@@ -9702,13 +9702,12 @@ void allocate_counters(struct counters *counters)
 {
 	int i;
 	int num_cores = topo.cores_per_node * topo.nodes_per_pkg * topo.num_packages;
-	int num_threads = topo.threads_per_core * num_cores;
 
-	counters->threads = calloc(num_threads, sizeof(struct thread_data));
+	counters->threads = calloc(topo.max_cpu_num + 1, sizeof(struct thread_data));
 	if (counters->threads == NULL)
 		goto error;
 
-	for (i = 0; i < num_threads; i++)
+	for (i = 0; i < topo.max_cpu_num + 1; i++)
 		(counters->threads)[i].cpu_id = -1;
 
 	counters->cores = calloc(num_cores, sizeof(struct core_data));
