@@ -169,28 +169,43 @@ static inline struct rzv2h_icu_priv *irq_data_to_priv(struct irq_data *data)
 	return data->domain->host_data;
 }
 
-static void rzv2h_icu_eoi(struct irq_data *d)
+static void rzv2h_icu_tint_eoi(struct irq_data *d)
 {
 	struct rzv2h_icu_priv *priv = irq_data_to_priv(d);
 	unsigned int hw_irq = irqd_to_hwirq(d);
 	unsigned int tintirq_nr;
 	u32 bit;
 
-	scoped_guard(raw_spinlock, &priv->lock) {
-		if (hw_irq >= ICU_TINT_START) {
-			tintirq_nr = hw_irq - ICU_TINT_START;
-			bit = BIT(tintirq_nr);
-			if (!irqd_is_level_type(d))
-				writel_relaxed(bit, priv->base + priv->info->t_offs + ICU_TSCLR);
-		} else if (hw_irq >= ICU_IRQ_START) {
-			tintirq_nr = hw_irq - ICU_IRQ_START;
-			bit = BIT(tintirq_nr);
-			if (!irqd_is_level_type(d))
-				writel_relaxed(bit, priv->base + ICU_ISCLR);
-		} else {
-			writel_relaxed(ICU_NSCLR_NCLR, priv->base + ICU_NSCLR);
-		}
+	if (!irqd_is_level_type(d)) {
+		tintirq_nr = hw_irq - ICU_TINT_START;
+		bit = BIT(tintirq_nr);
+		writel_relaxed(bit, priv->base + priv->info->t_offs + ICU_TSCLR);
 	}
+
+	irq_chip_eoi_parent(d);
+}
+
+static void rzv2h_icu_irq_eoi(struct irq_data *d)
+{
+	struct rzv2h_icu_priv *priv = irq_data_to_priv(d);
+	unsigned int hw_irq = irqd_to_hwirq(d);
+	unsigned int tintirq_nr;
+	u32 bit;
+
+	if (!irqd_is_level_type(d)) {
+		tintirq_nr = hw_irq - ICU_IRQ_START;
+		bit = BIT(tintirq_nr);
+		writel_relaxed(bit, priv->base + ICU_ISCLR);
+	}
+
+	irq_chip_eoi_parent(d);
+}
+
+static void rzv2h_icu_nmi_eoi(struct irq_data *d)
+{
+	struct rzv2h_icu_priv *priv = irq_data_to_priv(d);
+
+	writel_relaxed(ICU_NSCLR_NCLR, priv->base + ICU_NSCLR);
 
 	irq_chip_eoi_parent(d);
 }
@@ -201,9 +216,6 @@ static void rzv2h_tint_irq_endisable(struct irq_data *d, bool enable)
 	unsigned int hw_irq = irqd_to_hwirq(d);
 	u32 tint_nr, tssel_n, k, tssr;
 	u8 nr_tint;
-
-	if (hw_irq < ICU_TINT_START)
-		return;
 
 	tint_nr = hw_irq - ICU_TINT_START;
 	nr_tint = 32 / priv->info->field_width;
@@ -227,13 +239,13 @@ static void rzv2h_tint_irq_endisable(struct irq_data *d, bool enable)
 	writel_relaxed(BIT(tint_nr), priv->base + priv->info->t_offs + ICU_TSCLR);
 }
 
-static void rzv2h_icu_irq_disable(struct irq_data *d)
+static void rzv2h_icu_tint_disable(struct irq_data *d)
 {
 	irq_chip_disable_parent(d);
 	rzv2h_tint_irq_endisable(d, false);
 }
 
-static void rzv2h_icu_irq_enable(struct irq_data *d)
+static void rzv2h_icu_tint_enable(struct irq_data *d)
 {
 	rzv2h_tint_irq_endisable(d, true);
 	irq_chip_enable_parent(d);
@@ -259,7 +271,7 @@ static int rzv2h_nmi_set_type(struct irq_data *d, unsigned int type)
 
 	writel_relaxed(sense, priv->base + ICU_NITSR);
 
-	return 0;
+	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
 static void rzv2h_clear_irq_int(struct rzv2h_icu_priv *priv, unsigned int hwirq)
@@ -309,14 +321,15 @@ static int rzv2h_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	guard(raw_spinlock)(&priv->lock);
-	iitsr = readl_relaxed(priv->base + ICU_IITSR);
-	iitsr &= ~ICU_IITSR_IITSEL_MASK(irq_nr);
-	iitsr |= ICU_IITSR_IITSEL_PREP(sense, irq_nr);
-	rzv2h_clear_irq_int(priv, hwirq);
-	writel_relaxed(iitsr, priv->base + ICU_IITSR);
+	scoped_guard(raw_spinlock, &priv->lock) {
+		iitsr = readl_relaxed(priv->base + ICU_IITSR);
+		iitsr &= ~ICU_IITSR_IITSEL_MASK(irq_nr);
+		iitsr |= ICU_IITSR_IITSEL_PREP(sense, irq_nr);
+		rzv2h_clear_irq_int(priv, hwirq);
+		writel_relaxed(iitsr, priv->base + ICU_IITSR);
+	}
 
-	return 0;
+	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
 static void rzv2h_clear_tint_int(struct rzv2h_icu_priv *priv, unsigned int hwirq)
@@ -391,48 +404,30 @@ static int rzv2h_tint_set_type(struct irq_data *d, unsigned int type)
 	titsr_k = ICU_TITSR_K(tint_nr);
 	titsel_n = ICU_TITSR_TITSEL_N(tint_nr);
 
-	guard(raw_spinlock)(&priv->lock);
+	scoped_guard(raw_spinlock, &priv->lock) {
+		tssr = readl_relaxed(priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
+		titsr = readl_relaxed(priv->base + priv->info->t_offs + ICU_TITSR(titsr_k));
 
-	tssr = readl_relaxed(priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
-	titsr = readl_relaxed(priv->base + priv->info->t_offs + ICU_TITSR(titsr_k));
+		tssr_cur = field_get(ICU_TSSR_TSSEL_MASK(tssel_n, priv->info->field_width), tssr);
+		titsr_cur = field_get(ICU_TITSR_TITSEL_MASK(titsel_n), titsr);
+		if (tssr_cur == tint && titsr_cur == sense)
+			goto set_parent_type;
 
-	tssr_cur = field_get(ICU_TSSR_TSSEL_MASK(tssel_n, priv->info->field_width), tssr);
-	titsr_cur = field_get(ICU_TITSR_TITSEL_MASK(titsel_n), titsr);
-	if (tssr_cur == tint && titsr_cur == sense)
-		return 0;
+		tssr &= ~(ICU_TSSR_TSSEL_MASK(tssel_n, priv->info->field_width) | tien);
+		tssr |= ICU_TSSR_TSSEL_PREP(tint, tssel_n, priv->info->field_width);
 
-	tssr &= ~(ICU_TSSR_TSSEL_MASK(tssel_n, priv->info->field_width) | tien);
-	tssr |= ICU_TSSR_TSSEL_PREP(tint, tssel_n, priv->info->field_width);
+		writel_relaxed(tssr, priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
 
-	writel_relaxed(tssr, priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
+		titsr &= ~ICU_TITSR_TITSEL_MASK(titsel_n);
+		titsr |= ICU_TITSR_TITSEL_PREP(sense, titsel_n);
 
-	titsr &= ~ICU_TITSR_TITSEL_MASK(titsel_n);
-	titsr |= ICU_TITSR_TITSEL_PREP(sense, titsel_n);
+		writel_relaxed(titsr, priv->base + priv->info->t_offs + ICU_TITSR(titsr_k));
 
-	writel_relaxed(titsr, priv->base + priv->info->t_offs + ICU_TITSR(titsr_k));
+		rzv2h_clear_tint_int(priv, hwirq);
 
-	rzv2h_clear_tint_int(priv, hwirq);
-
-	writel_relaxed(tssr | tien, priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
-
-	return 0;
-}
-
-static int rzv2h_icu_set_type(struct irq_data *d, unsigned int type)
-{
-	unsigned int hw_irq = irqd_to_hwirq(d);
-	int ret;
-
-	if (hw_irq >= ICU_TINT_START)
-		ret = rzv2h_tint_set_type(d, type);
-	else if (hw_irq >= ICU_IRQ_START)
-		ret = rzv2h_irq_set_type(d, type);
-	else
-		ret = rzv2h_nmi_set_type(d, type);
-
-	if (ret)
-		return ret;
-
+		writel_relaxed(tssr | tien, priv->base + priv->info->t_offs + ICU_TSSR(tssr_k));
+	}
+set_parent_type:
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
@@ -474,17 +469,51 @@ static struct syscore rzv2h_irqc_syscore = {
 	.ops = &rzv2h_irqc_syscore_ops,
 };
 
-static const struct irq_chip rzv2h_icu_chip = {
+static const struct irq_chip rzv2h_icu_tint_chip = {
 	.name			= "rzv2h-icu",
-	.irq_eoi		= rzv2h_icu_eoi,
+	.irq_eoi		= rzv2h_icu_tint_eoi,
 	.irq_mask		= irq_chip_mask_parent,
 	.irq_unmask		= irq_chip_unmask_parent,
-	.irq_disable		= rzv2h_icu_irq_disable,
-	.irq_enable		= rzv2h_icu_irq_enable,
+	.irq_disable		= rzv2h_icu_tint_disable,
+	.irq_enable		= rzv2h_icu_tint_enable,
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= rzv2h_icu_set_type,
+	.irq_set_type		= rzv2h_tint_set_type,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
+};
+
+static const struct irq_chip rzv2h_icu_irq_chip = {
+	.name			= "rzv2h-icu",
+	.irq_eoi		= rzv2h_icu_irq_eoi,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= rzv2h_irq_set_type,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
+};
+
+static const struct irq_chip rzv2h_icu_nmi_chip = {
+	.name			= "rzv2h-icu",
+	.irq_eoi		= rzv2h_icu_nmi_eoi,
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_disable		= irq_chip_disable_parent,
+	.irq_enable		= irq_chip_enable_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_type		= rzv2h_nmi_set_type,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND |
 				  IRQCHIP_SET_TYPE_MASKED |
@@ -497,6 +526,7 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 			   void *arg)
 {
 	struct rzv2h_icu_priv *priv = domain->host_data;
+	const struct irq_chip *chip;
 	unsigned long tint = 0;
 	irq_hw_number_t hwirq;
 	unsigned int type;
@@ -518,13 +548,17 @@ static int rzv2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigne
 
 		if (!hwirq_within(hwirq, ICU_TINT))
 			return -EINVAL;
+		chip = &rzv2h_icu_tint_chip;
+	} else if (hwirq_within(hwirq, ICU_IRQ)) {
+		chip = &rzv2h_icu_irq_chip;
+	} else {
+		chip = &rzv2h_icu_nmi_chip;
 	}
 
 	if (hwirq > (ICU_NUM_IRQ - 1))
 		return -EINVAL;
 
-	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &rzv2h_icu_chip,
-					    (void *)(uintptr_t)tint);
+	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, (void *)(uintptr_t)tint);
 	if (ret)
 		return ret;
 
