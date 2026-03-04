@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/rtc.h>
 #include <linux/suspend.h>
 
 MODULE_DESCRIPTION("ACPI Time and Alarm (TAD) Device Driver");
@@ -51,6 +52,7 @@ MODULE_AUTHOR("Rafael J. Wysocki");
 
 /* ACPI TAD RTC */
 #define ACPI_TAD_TZ_UNSPEC	2047
+#define ACPI_TAD_TIME_ISDST	3
 
 struct acpi_tad_driver_data {
 	u32 capabilities;
@@ -163,6 +165,8 @@ static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 
 	return 0;
 }
+
+/* sysfs interface */
 
 static char *acpi_tad_rt_next_field(char *s, int *val)
 {
@@ -579,6 +583,71 @@ static const struct attribute_group acpi_tad_attr_group = {
 	.is_visible = acpi_tad_attr_is_visible,
 };
 
+#ifdef CONFIG_RTC_CLASS
+/* RTC class device interface */
+
+static int acpi_tad_rtc_set_time(struct device *dev, struct rtc_time *tm)
+{
+	struct acpi_tad_rt rt;
+
+	rt.year = tm->tm_year + 1900;
+	rt.month = tm->tm_mon + 1;
+	rt.day = tm->tm_mday;
+	rt.hour = tm->tm_hour;
+	rt.minute = tm->tm_min;
+	rt.second = tm->tm_sec;
+	rt.tz = ACPI_TAD_TZ_UNSPEC;
+	rt.daylight = ACPI_TAD_TIME_ISDST * !!tm->tm_isdst;
+
+	return acpi_tad_set_real_time(dev, &rt);
+}
+
+static int acpi_tad_rtc_read_time(struct device *dev, struct rtc_time *tm)
+{
+	struct acpi_tad_rt rt;
+	int ret;
+
+	ret = acpi_tad_get_real_time(dev, &rt);
+	if (ret)
+		return ret;
+
+	tm->tm_year = rt.year - 1900;
+	tm->tm_mon = rt.month - 1;
+	tm->tm_mday = rt.day;
+	tm->tm_hour = rt.hour;
+	tm->tm_min = rt.minute;
+	tm->tm_sec = rt.second;
+	tm->tm_isdst = rt.daylight == ACPI_TAD_TIME_ISDST;
+
+	return 0;
+}
+
+static const struct rtc_class_ops acpi_tad_rtc_ops = {
+	.read_time = acpi_tad_rtc_read_time,
+	.set_time = acpi_tad_rtc_set_time,
+};
+
+static void acpi_tad_register_rtc(struct device *dev)
+{
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_allocate_device(dev);
+	if (IS_ERR(rtc))
+		return;
+
+	rtc->range_min = mktime64(1900,  1,  1,  0,  0,  0);
+	rtc->range_max = mktime64(9999, 12, 31, 23, 59, 59);
+
+	rtc->ops = &acpi_tad_rtc_ops;
+
+	devm_rtc_register_device(rtc);
+}
+#else /* !CONFIG_RTC_CLASS */
+static inline void acpi_tad_register_rtc(struct device *dev) {}
+#endif /* !CONFIG_RTC_CLASS */
+
+/* Platform driver interface */
+
 static int acpi_tad_disable_timer(struct device *dev, u32 timer_id)
 {
 	return acpi_tad_wake_set(dev, "_STV", timer_id, ACPI_TAD_WAKE_DISABLED);
@@ -660,10 +729,15 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	pm_runtime_suspend(dev);
 
 	ret = sysfs_create_group(&dev->kobj, &acpi_tad_attr_group);
-	if (ret)
+	if (ret) {
 		acpi_tad_remove(pdev);
+		return ret;
+	}
 
-	return ret;
+	if (caps & ACPI_TAD_RT)
+		acpi_tad_register_rtc(dev);
+
+	return 0;
 }
 
 static const struct acpi_device_id acpi_tad_ids[] = {
