@@ -167,57 +167,57 @@ static ssize_t time_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct acpi_tad_rt rt;
-	char *str, *s;
-	int val, ret = -ENODATA;
+	int val, ret;
+	char *s;
 
-	str = kmemdup_nul(buf, count, GFP_KERNEL);
+	char *str __free(kfree) = kmemdup_nul(buf, count, GFP_KERNEL);
 	if (!str)
 		return -ENOMEM;
 
 	s = acpi_tad_rt_next_field(str, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.year = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.month = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.day = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.hour = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.minute = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.second = val;
 
 	s = acpi_tad_rt_next_field(s, &val);
 	if (!s)
-		goto out_free;
+		return -ENODATA;
 
 	rt.tz = val;
 
 	if (kstrtoint(s, 10, &val))
-		goto out_free;
+		return -ENODATA;
 
 	rt.daylight = val;
 
@@ -226,10 +226,10 @@ static ssize_t time_store(struct device *dev, struct device_attribute *attr,
 	memset(rt.padding, 0, 3);
 
 	ret = acpi_tad_set_real_time(dev, &rt);
+	if (ret)
+		return ret;
 
-out_free:
-	kfree(str);
-	return ret ? ret : count;
+	return count;
 }
 
 static ssize_t time_show(struct device *dev, struct device_attribute *attr,
