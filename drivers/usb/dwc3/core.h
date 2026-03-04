@@ -1152,7 +1152,7 @@ struct dwc3_glue_ops {
  *			VBUS with an external supply.
  * @parkmode_disable_ss_quirk: set if we need to disable all SuperSpeed
  *			instances in park mode.
- * @parkmode_disable_hs_quirk: set if we need to disable all HishSpeed
+ * @parkmode_disable_hs_quirk: set if we need to disable all HighSpeed
  *			instances in park mode.
  * @gfladj_refclk_lpm_sel: set if we need to enable SOF/ITP counter
  *                          running based on ref_clk
