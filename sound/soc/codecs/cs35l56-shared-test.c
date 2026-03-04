@@ -37,6 +37,10 @@ KUNIT_DEFINE_ACTION_WRAPPER(faux_device_destroy_wrapper, faux_device_destroy,
 
 KUNIT_DEFINE_ACTION_WRAPPER(regmap_exit_wrapper, regmap_exit, struct regmap *)
 
+KUNIT_DEFINE_ACTION_WRAPPER(device_remove_software_node_wrapper,
+			    device_remove_software_node,
+			    struct device *)
+
 static const struct regmap_config cs35l56_shared_test_mock_registers_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -410,6 +414,41 @@ static void cs35l56_shared_test_onchip_speaker_id_not_defined(struct kunit *test
 	KUNIT_EXPECT_EQ(test, cs35l56_read_onchip_spkid(cs35l56_base), -ENOENT);
 }
 
+/* simulate cs_amp_get_vendor_spkid() reading a vendor-specific ID of 1 */
+static int cs35l56_shared_test_get_vendor_spkid_1(struct device *dev)
+{
+	return 1;
+}
+
+static void cs35l56_shared_test_get_speaker_id_vendor(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+
+	/* Hook cs_amp_get_vendor_spkid() to return an ID of 1 */
+	kunit_activate_static_stub(test, cs_amp_get_vendor_spkid,
+				   cs35l56_shared_test_get_vendor_spkid_1);
+
+	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), 1);
+}
+
+static void cs35l56_shared_test_get_speaker_id_property(struct kunit *test)
+{
+	struct cs35l56_shared_test_priv *priv = test->priv;
+	const struct property_entry dev_props[] = {
+		PROPERTY_ENTRY_U32("cirrus,speaker-id", 2),
+		{ }
+	};
+	const struct software_node dev_node = SOFTWARE_NODE("SPK1", dev_props, NULL);
+
+	KUNIT_ASSERT_EQ(test, device_add_software_node(priv->cs35l56_base->dev, &dev_node), 0);
+	KUNIT_ASSERT_EQ(test, 0,
+			kunit_add_action_or_reset(test,
+						  device_remove_software_node_wrapper,
+						  priv->cs35l56_base->dev));
+
+	KUNIT_EXPECT_EQ(test, cs35l56_get_speaker_id(priv->cs35l56_base), 2);
+}
+
 static int cs35l56_shared_test_case_regmap_init(struct kunit *test,
 						const struct regmap_config *regmap_config)
 {
@@ -616,6 +655,10 @@ static struct kunit_case cs35l56_shared_test_cases[] = {
 			 cs35l56_shared_test_onchip_spkid_pull_gen_params),
 	KUNIT_CASE(cs35l56_shared_test_stash_onchip_spkid_pins_reject_invalid),
 	KUNIT_CASE(cs35l56_shared_test_onchip_speaker_id_not_defined),
+
+	KUNIT_CASE(cs35l56_shared_test_get_speaker_id_vendor),
+	KUNIT_CASE(cs35l56_shared_test_get_speaker_id_property),
+
 	{ }
 };
 
