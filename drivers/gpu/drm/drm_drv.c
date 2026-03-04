@@ -53,6 +53,7 @@
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 #include <drm/drm_privacy_screen_machine.h>
+#include <drm/drm_ras_genl_family.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -1223,6 +1224,7 @@ static const struct file_operations drm_stub_fops = {
 
 static void drm_core_exit(void)
 {
+	drm_ras_genl_family_unregister();
 	drm_privacy_screen_lookup_exit();
 	drm_panic_exit();
 	accel_core_exit();
@@ -1260,6 +1262,10 @@ static int __init drm_core_init(void)
 	drm_panic_init();
 
 	drm_privacy_screen_lookup_init();
+
+	ret = drm_ras_genl_family_register();
+	if (ret < 0)
+		goto error;
 
 	drm_core_init_complete = true;
 

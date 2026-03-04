@@ -130,6 +130,16 @@ config DRM_PANIC_SCREEN_QR_VERSION
 	  Smaller QR code are easier to read, but will contain less debugging
 	  data. Default is 40.
 
+config DRM_RAS
+	bool "DRM RAS support"
+	depends on DRM
+	depends on NET
+	help
+	  Enables the DRM RAS (Reliability, Availability and Serviceability)
+	  support for DRM drivers. This provides a Generic Netlink interface
+	  for error reporting and queries.
+	  If in doubt, say "N".
+
 config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
         bool "Enable refcount backtrace history in the DP MST helpers"
 	depends on STACKTRACE_SUPPORT

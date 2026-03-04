@@ -9,6 +9,7 @@ GPU Driver Developer's Guide
    drm-mm
    drm-kms
    drm-kms-helpers
+   drm-ras
    drm-uapi
    drm-usage-stats
    driver-uapi
