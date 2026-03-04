@@ -999,6 +999,20 @@ int btrfs_check_chunk_valid(const struct btrfs_fs_info *fs_info,
 		}
 	}
 
+	if (unlikely((type & BTRFS_BLOCK_GROUP_METADATA_REMAP) &&
+		     !(features & BTRFS_FEATURE_INCOMPAT_REMAP_TREE))) {
+		chunk_err(fs_info, leaf, chunk, logical,
+		"METADATA_REMAP chunk type without REMAP_TREE incompat bit");
+		return -EUCLEAN;
+	}
+
+	if (unlikely(remapped &&
+		     !(features & BTRFS_FEATURE_INCOMPAT_REMAP_TREE))) {
+		chunk_err(fs_info, leaf, chunk, logical,
+		"REMAPPED chunk flag without REMAP_TREE incompat bit");
+		return -EUCLEAN;
+	}
+
 	if (!remapped &&
 	    !valid_stripe_count(type & BTRFS_BLOCK_GROUP_PROFILE_MASK,
 				num_stripes, sub_stripes)) {
