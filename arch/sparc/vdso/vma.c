@@ -16,17 +16,16 @@
 #include <linux/linkage.h>
 #include <linux/random.h>
 #include <linux/elf.h>
+#include <linux/vdso_datastore.h>
 #include <asm/cacheflush.h>
 #include <asm/spitfire.h>
 #include <asm/vdso.h>
-#include <asm/vvar.h>
 #include <asm/page.h>
 
-unsigned int __read_mostly vdso_enabled = 1;
+#include <vdso/datapage.h>
+#include <asm/vdso/vsyscall.h>
 
-static struct vm_special_mapping vvar_mapping = {
-	.name = "[vvar]"
-};
+unsigned int __read_mostly vdso_enabled = 1;
 
 #ifdef	CONFIG_SPARC64
 static struct vm_special_mapping vdso_mapping64 = {
@@ -40,10 +39,8 @@ static struct vm_special_mapping vdso_mapping32 = {
 };
 #endif
 
-struct vvar_data *vvar_data;
-
 /*
- * Allocate pages for the vdso and vvar, and copy in the vdso text from the
+ * Allocate pages for the vdso and copy in the vdso text from the
  * kernel image.
  */
 static int __init init_vdso_image(const struct vdso_image *image,
@@ -51,9 +48,8 @@ static int __init init_vdso_image(const struct vdso_image *image,
 				  bool elf64)
 {
 	int cnpages = (image->size) / PAGE_SIZE;
-	struct page *dp, **dpp = NULL;
 	struct page *cp, **cpp = NULL;
-	int i, dnpages = 0;
+	int i;
 
 	/*
 	 * First, the vdso text.  This is initialied data, an integral number of
@@ -76,31 +72,6 @@ static int __init init_vdso_image(const struct vdso_image *image,
 		copy_page(page_address(cp), image->data + i * PAGE_SIZE);
 	}
 
-	/*
-	 * Now the vvar page.  This is uninitialized data.
-	 */
-
-	if (vvar_data == NULL) {
-		dnpages = (sizeof(struct vvar_data) / PAGE_SIZE) + 1;
-		if (WARN_ON(dnpages != 1))
-			goto oom;
-		dpp = kzalloc_objs(struct page *, dnpages);
-		vvar_mapping.pages = dpp;
-
-		if (!dpp)
-			goto oom;
-
-		dp = alloc_page(GFP_KERNEL);
-		if (!dp)
-			goto oom;
-
-		dpp[0] = dp;
-		vvar_data = page_address(dp);
-		memset(vvar_data, 0, PAGE_SIZE);
-
-		vvar_data->seq = 0;
-	}
-
 	return 0;
  oom:
 	if (cpp != NULL) {
@@ -110,15 +81,6 @@ static int __init init_vdso_image(const struct vdso_image *image,
 		}
 		kfree(cpp);
 		vdso_mapping->pages = NULL;
-	}
-
-	if (dpp != NULL) {
-		for (i = 0; i < dnpages; i++) {
-			if (dpp[i] != NULL)
-				__free_page(dpp[i]);
-		}
-		kfree(dpp);
-		vvar_mapping.pages = NULL;
 	}
 
 	pr_warn("Cannot allocate vdso\n");
@@ -155,9 +117,12 @@ static unsigned long vdso_addr(unsigned long start, unsigned int len)
 	return start + (offset << PAGE_SHIFT);
 }
 
+static_assert(VDSO_NR_PAGES == __VDSO_PAGES);
+
 static int map_vdso(const struct vdso_image *image,
 		struct vm_special_mapping *vdso_mapping)
 {
+	const size_t area_size = image->size + VDSO_NR_PAGES * PAGE_SIZE;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long text_start, addr = 0;
@@ -170,23 +135,20 @@ static int map_vdso(const struct vdso_image *image,
 	 * region is free.
 	 */
 	if (current->flags & PF_RANDOMIZE) {
-		addr = get_unmapped_area(NULL, 0,
-					 image->size - image->sym_vvar_start,
-					 0, 0);
+		addr = get_unmapped_area(NULL, 0, area_size, 0, 0);
 		if (IS_ERR_VALUE(addr)) {
 			ret = addr;
 			goto up_fail;
 		}
-		addr = vdso_addr(addr, image->size - image->sym_vvar_start);
+		addr = vdso_addr(addr, area_size);
 	}
-	addr = get_unmapped_area(NULL, addr,
-				 image->size - image->sym_vvar_start, 0, 0);
+	addr = get_unmapped_area(NULL, addr, area_size, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
 	}
 
-	text_start = addr - image->sym_vvar_start;
+	text_start = addr + VDSO_NR_PAGES * PAGE_SIZE;
 	current->mm->context.vdso = (void __user *)text_start;
 
 	/*
@@ -204,11 +166,7 @@ static int map_vdso(const struct vdso_image *image,
 		goto up_fail;
 	}
 
-	vma = _install_special_mapping(mm,
-				       addr,
-				       -image->sym_vvar_start,
-				       VM_READ|VM_MAYREAD,
-				       &vvar_mapping);
+	vma = vdso_install_vvar_mapping(mm, addr);
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);

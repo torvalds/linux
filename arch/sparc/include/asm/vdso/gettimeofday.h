@@ -9,15 +9,14 @@
 #include <uapi/linux/time.h>
 #include <uapi/linux/unistd.h>
 
+#include <vdso/align.h>
+#include <vdso/clocksource.h>
+#include <vdso/datapage.h>
+#include <vdso/page.h>
+
 #include <linux/types.h>
-#include <asm/vvar.h>
 
 #ifdef	CONFIG_SPARC64
-static __always_inline u64 vdso_shift_ns(u64 val, u32 amt)
-{
-	return val >> amt;
-}
-
 static __always_inline u64 vread_tick(void)
 {
 	u64	ret;
@@ -48,6 +47,7 @@ static __always_inline u64 vdso_shift_ns(u64 val, u32 amt)
 			     : "g1");
 	return ret;
 }
+#define vdso_shift_ns vdso_shift_ns
 
 static __always_inline u64 vread_tick(void)
 {
@@ -70,9 +70,9 @@ static __always_inline u64 vread_tick_stick(void)
 }
 #endif
 
-static __always_inline u64 __arch_get_hw_counter(struct vvar_data *vvar)
+static __always_inline u64 __arch_get_hw_counter(s32 clock_mode, const struct vdso_time_data *vd)
 {
-	if (likely(vvar->vclock_mode == VCLOCK_STICK))
+	if (likely(clock_mode == VDSO_CLOCKMODE_STICK))
 		return vread_tick_stick();
 	else
 		return vread_tick();
@@ -102,7 +102,7 @@ static __always_inline u64 __arch_get_hw_counter(struct vvar_data *vvar)
 	"cc", "memory"
 
 static __always_inline
-long clock_gettime_fallback(clockid_t clock, struct __kernel_old_timespec *ts)
+long clock_gettime_fallback(clockid_t clock, struct __kernel_timespec *ts)
 {
 	register long num __asm__("g1") = __NR_clock_gettime;
 	register long o0 __asm__("o0") = clock;
@@ -112,6 +112,20 @@ long clock_gettime_fallback(clockid_t clock, struct __kernel_old_timespec *ts)
 			     "0" (o0), "r" (o1) : SYSCALL_CLOBBERS);
 	return o0;
 }
+
+#ifndef CONFIG_SPARC64
+static __always_inline
+long clock_gettime32_fallback(clockid_t clock, struct old_timespec32 *ts)
+{
+	register long num __asm__("g1") = __NR_clock_gettime;
+	register long o0 __asm__("o0") = clock;
+	register long o1 __asm__("o1") = (long) ts;
+
+	__asm__ __volatile__(SYSCALL_STRING : "=r" (o0) : "r" (num),
+			     "0" (o0), "r" (o1) : SYSCALL_CLOBBERS);
+	return o0;
+}
+#endif
 
 static __always_inline
 long gettimeofday_fallback(struct __kernel_old_timeval *tv, struct timezone *tz)
@@ -124,5 +138,31 @@ long gettimeofday_fallback(struct __kernel_old_timeval *tv, struct timezone *tz)
 			     "0" (o0), "r" (o1) : SYSCALL_CLOBBERS);
 	return o0;
 }
+
+static __always_inline const struct vdso_time_data *__arch_get_vdso_u_time_data(void)
+{
+	unsigned long ret;
+
+	/*
+	 * SPARC does not support native PC-relative code relocations.
+	 * Calculate the address manually, works for 32 and 64 bit code.
+	 */
+	__asm__ __volatile__(
+		"1:\n"
+		"call 3f\n"                     // Jump over the embedded data and set up %o7
+		"nop\n"                         // Delay slot
+		"2:\n"
+		".word vdso_u_time_data - .\n"  // Embedded offset to external symbol
+		"3:\n"
+		"add %%o7, 2b - 1b, %%o7\n"     // Point %o7 to the embedded offset
+		"ldsw [%%o7], %0\n"             // Load the offset
+		"add %0, %%o7, %0\n"            // Calculate the absolute address
+		: "=r" (ret)
+		:
+		: "o7");
+
+	return (const struct vdso_time_data *)ret;
+}
+#define __arch_get_vdso_u_time_data __arch_get_vdso_u_time_data
 
 #endif /* _ASM_SPARC_VDSO_GETTIMEOFDAY_H */

@@ -4,6 +4,10 @@
  * This script controls its layout.
  */
 
+#include <vdso/datapage.h>
+#include <vdso/page.h>
+#include <asm/vdso/vsyscall.h>
+
 SECTIONS
 {
 	/*
@@ -13,8 +17,7 @@ SECTIONS
 	 * segment. Page size is 8192 for both 64-bit and 32-bit vdso binaries
 	 */
 
-	vvar_start = . -8192;
-	vvar_data = vvar_start;
+	VDSO_VVAR_SYMS
 
 	. = SIZEOF_HEADERS;
 

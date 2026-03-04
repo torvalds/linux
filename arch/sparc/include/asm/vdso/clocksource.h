@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __ASM_VDSO_CLOCKSOURCE_H
+#define __ASM_VDSO_CLOCKSOURCE_H
+
+/* VDSO clocksources */
+#define VDSO_ARCH_CLOCKMODES	\
+	VDSO_CLOCKMODE_TICK,	\
+	VDSO_CLOCKMODE_STICK
+
+#endif /* __ASM_VDSO_CLOCKSOURCE_H */
