@@ -5292,13 +5292,21 @@ static bool pci_bus_resettable(struct pci_bus *bus)
 	return true;
 }
 
-/* Lock devices from the top of the tree down */
-static void pci_bus_lock(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
+static void pci_bus_lock(struct pci_bus *bus);
+static void pci_bus_unlock(struct pci_bus *bus);
+static int pci_bus_trylock(struct pci_bus *bus);
 
-	pci_dev_lock(bus->self);
+/* Lock devices from the top of the tree down */
+static void __pci_bus_lock(struct pci_bus *bus, struct pci_slot *slot)
+{
+	struct pci_dev *dev, *bridge = bus->self;
+
+	if (bridge)
+		pci_dev_lock(bridge);
+
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (slot && (!dev->slot || dev->slot != slot))
+			continue;
 		if (dev->subordinate)
 			pci_bus_lock(dev->subordinate);
 		else
@@ -5307,28 +5315,34 @@ static void pci_bus_lock(struct pci_bus *bus)
 }
 
 /* Unlock devices from the bottom of the tree up */
-static void pci_bus_unlock(struct pci_bus *bus)
+static void __pci_bus_unlock(struct pci_bus *bus, struct pci_slot *slot)
 {
-	struct pci_dev *dev;
+	struct pci_dev *dev, *bridge = bus->self;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (slot && (!dev->slot || dev->slot != slot))
+			continue;
 		if (dev->subordinate)
 			pci_bus_unlock(dev->subordinate);
 		else
 			pci_dev_unlock(dev);
 	}
-	pci_dev_unlock(bus->self);
+
+	if (bridge)
+		pci_dev_unlock(bridge);
 }
 
 /* Return 1 on successful lock, 0 on contention */
-static int pci_bus_trylock(struct pci_bus *bus)
+static int __pci_bus_trylock(struct pci_bus *bus, struct pci_slot *slot)
 {
-	struct pci_dev *dev;
+	struct pci_dev *dev, *bridge = bus->self;
 
-	if (!pci_dev_trylock(bus->self))
+	if (bridge && !pci_dev_trylock(bridge))
 		return 0;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (slot && (!dev->slot || dev->slot != slot))
+			continue;
 		if (dev->subordinate) {
 			if (!pci_bus_trylock(dev->subordinate))
 				goto unlock;
@@ -5339,13 +5353,35 @@ static int pci_bus_trylock(struct pci_bus *bus)
 
 unlock:
 	list_for_each_entry_continue_reverse(dev, &bus->devices, bus_list) {
+		if (slot && (!dev->slot || dev->slot != slot))
+			continue;
 		if (dev->subordinate)
 			pci_bus_unlock(dev->subordinate);
 		else
 			pci_dev_unlock(dev);
 	}
-	pci_dev_unlock(bus->self);
+
+	if (bridge)
+		pci_dev_unlock(bridge);
 	return 0;
+}
+
+/* Lock devices from the top of the tree down */
+static void pci_bus_lock(struct pci_bus *bus)
+{
+	__pci_bus_lock(bus, NULL);
+}
+
+/* Unlock devices from the bottom of the tree up */
+static void pci_bus_unlock(struct pci_bus *bus)
+{
+	__pci_bus_unlock(bus, NULL);
+}
+
+/* Return 1 on successful lock, 0 on contention */
+static int pci_bus_trylock(struct pci_bus *bus)
+{
+	return __pci_bus_trylock(bus, NULL);
 }
 
 /* Do any devices on or below this slot prevent a bus reset? */
@@ -5370,72 +5406,19 @@ static bool pci_slot_resettable(struct pci_slot *slot)
 /* Lock devices from the top of the tree down */
 static void pci_slot_lock(struct pci_slot *slot)
 {
-	struct pci_dev *dev, *bridge = slot->bus->self;
-
-	if (bridge)
-		pci_dev_lock(bridge);
-
-	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
-		if (!dev->slot || dev->slot != slot)
-			continue;
-		if (dev->subordinate)
-			pci_bus_lock(dev->subordinate);
-		else
-			pci_dev_lock(dev);
-	}
+	__pci_bus_lock(slot->bus, slot);
 }
 
 /* Unlock devices from the bottom of the tree up */
 static void pci_slot_unlock(struct pci_slot *slot)
 {
-	struct pci_dev *dev, *bridge = slot->bus->self;
-
-	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
-		if (!dev->slot || dev->slot != slot)
-			continue;
-		if (dev->subordinate)
-			pci_bus_unlock(dev->subordinate);
-		else
-			pci_dev_unlock(dev);
-	}
-
-	if (bridge)
-		pci_dev_unlock(bridge);
+	__pci_bus_unlock(slot->bus, slot);
 }
 
 /* Return 1 on successful lock, 0 on contention */
 static int pci_slot_trylock(struct pci_slot *slot)
 {
-	struct pci_dev *dev, *bridge = slot->bus->self;
-
-	if (bridge && !pci_dev_trylock(bridge))
-		return 0;
-
-	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
-		if (!dev->slot || dev->slot != slot)
-			continue;
-		if (dev->subordinate) {
-			if (!pci_bus_trylock(dev->subordinate))
-				goto unlock;
-		} else if (!pci_dev_trylock(dev))
-			goto unlock;
-	}
-	return 1;
-
-unlock:
-	list_for_each_entry_continue_reverse(dev,
-					     &slot->bus->devices, bus_list) {
-		if (!dev->slot || dev->slot != slot)
-			continue;
-		if (dev->subordinate)
-			pci_bus_unlock(dev->subordinate);
-		else
-			pci_dev_unlock(dev);
-	}
-
-	if (bridge)
-		pci_dev_unlock(bridge);
-	return 0;
+	return __pci_bus_trylock(slot->bus, slot);
 }
 
 /*
