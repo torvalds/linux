@@ -2704,9 +2704,11 @@ static int ntfs_write_mft_block(struct folio *folio, struct writeback_control *w
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct ntfs_volume *vol = ni->vol;
 	u8 *kaddr;
-	struct ntfs_inode *locked_nis[PAGE_SIZE / NTFS_BLOCK_SIZE];
+	struct ntfs_inode **locked_nis __free(kfree) = kmalloc_array(PAGE_SIZE / NTFS_BLOCK_SIZE,
+							sizeof(struct ntfs_inode *), GFP_NOFS);
 	int nr_locked_nis = 0, err = 0, mft_ofs, prev_mft_ofs;
-	struct inode *ref_inos[PAGE_SIZE / NTFS_BLOCK_SIZE];
+	struct inode **ref_inos __free(kfree) = kmalloc_array(PAGE_SIZE / NTFS_BLOCK_SIZE,
+							      sizeof(struct inode *), GFP_NOFS);
 	int nr_ref_inos = 0;
 	struct bio *bio = NULL;
 	unsigned long mft_no;
@@ -2720,6 +2722,9 @@ static int ntfs_write_mft_block(struct folio *folio, struct writeback_control *w
 
 	ntfs_debug("Entering for inode 0x%lx, attribute type 0x%x, folio index 0x%lx.",
 			vi->i_ino, ni->type, folio->index);
+
+	if (!locked_nis || !ref_inos)
+		return -ENOMEM;
 
 	/* We have to zero every time due to mmap-at-end-of-file. */
 	if (folio->index >= (i_size >> folio_shift(folio)))
