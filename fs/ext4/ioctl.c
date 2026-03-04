@@ -477,7 +477,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	if (err < 0) {
 		/* No need to update quota information. */
 		ext4_warning(inode->i_sb,
-			"couldn't mark inode #%lu dirty (err %d)",
+			"couldn't mark inode #%llu dirty (err %d)",
 			inode->i_ino, err);
 		/* Revert all changes: */
 		swap_inode_data(inode, inode_bl);
@@ -493,7 +493,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	if (err < 0) {
 		/* No need to update quota information. */
 		ext4_warning(inode_bl->i_sb,
-			"couldn't mark inode #%lu dirty (err %d)",
+			"couldn't mark inode #%llu dirty (err %d)",
 			inode_bl->i_ino, err);
 		goto revert;
 	}

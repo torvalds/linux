@@ -90,7 +90,7 @@ static int read_block(struct inode *inode, struct folio *folio, size_t offset,
 	return 0;
 
 dump:
-	ubifs_err(c, "bad data node (block %u, inode %lu)",
+	ubifs_err(c, "bad data node (block %u, inode %llu)",
 		  block, inode->i_ino);
 	ubifs_dump_node(c, dn, UBIFS_MAX_DATA_NODE_SZ);
 	return -EINVAL;
@@ -106,7 +106,7 @@ static int do_readpage(struct folio *folio)
 	loff_t i_size = i_size_read(inode);
 	size_t offset = 0;
 
-	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
+	dbg_gen("ino %llu, pg %lu, i_size %lld, flags %#lx",
 		inode->i_ino, folio->index, i_size, folio->flags.f);
 	ubifs_assert(c, !folio_test_checked(folio));
 	ubifs_assert(c, !folio->private);
@@ -162,7 +162,7 @@ static int do_readpage(struct folio *folio)
 			dbg_gen("hole");
 			err = 0;
 		} else {
-			ubifs_err(c, "cannot read page %lu of inode %lu, error %d",
+			ubifs_err(c, "cannot read page %lu of inode %llu, error %d",
 				  folio->index, inode->i_ino, err);
 		}
 	}
@@ -212,7 +212,7 @@ static int write_begin_slow(struct address_space *mapping,
 	int err, appending = !!(pos + len > inode->i_size);
 	struct folio *folio;
 
-	dbg_gen("ino %lu, pos %llu, len %u, i_size %lld",
+	dbg_gen("ino %llu, pos %llu, len %u, i_size %lld",
 		inode->i_ino, pos, len, inode->i_size);
 
 	/*
@@ -526,7 +526,7 @@ static int ubifs_write_end(const struct kiocb *iocb,
 	loff_t end_pos = pos + len;
 	int appending = !!(end_pos > inode->i_size);
 
-	dbg_gen("ino %lu, pos %llu, pg %lu, len %u, copied %d, i_size %lld",
+	dbg_gen("ino %llu, pos %llu, pg %lu, len %u, copied %d, i_size %lld",
 		inode->i_ino, pos, folio->index, len, copied, inode->i_size);
 
 	if (unlikely(copied < len && !folio_test_uptodate(folio))) {
@@ -599,7 +599,7 @@ static int populate_page(struct ubifs_info *c, struct folio *folio,
 	size_t offset = 0;
 	pgoff_t end_index;
 
-	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
+	dbg_gen("ino %llu, pg %lu, i_size %lld, flags %#lx",
 		inode->i_ino, folio->index, i_size, folio->flags.f);
 
 	end_index = (i_size - 1) >> PAGE_SHIFT;
@@ -680,7 +680,7 @@ out_hole:
 	return 0;
 
 out_err:
-	ubifs_err(c, "bad data node (block %u, inode %lu)",
+	ubifs_err(c, "bad data node (block %u, inode %llu)",
 		  page_block, inode->i_ino);
 	return -EINVAL;
 }
@@ -913,7 +913,7 @@ static int do_writepage(struct folio *folio, size_t len)
 	}
 	if (err) {
 		mapping_set_error(folio->mapping, err);
-		ubifs_err(c, "cannot write folio %lu of inode %lu, error %d",
+		ubifs_err(c, "cannot write folio %lu of inode %llu, error %d",
 			  folio->index, inode->i_ino, err);
 		ubifs_ro_mode(c, err);
 	}
@@ -987,7 +987,7 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc)
 	loff_t i_size =  i_size_read(inode), synced_i_size;
 	int err, len = folio_size(folio);
 
-	dbg_gen("ino %lu, pg %lu, pg flags %#lx",
+	dbg_gen("ino %llu, pg %lu, pg flags %#lx",
 		inode->i_ino, folio->index, folio->flags.f);
 	ubifs_assert(c, folio->private != NULL);
 
@@ -1106,7 +1106,7 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 	int offset = new_size & (UBIFS_BLOCK_SIZE - 1), budgeted = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	dbg_gen("ino %lu, size %lld -> %lld", inode->i_ino, old_size, new_size);
+	dbg_gen("ino %llu, size %lld -> %lld", inode->i_ino, old_size, new_size);
 	memset(&req, 0, sizeof(struct ubifs_budget_req));
 
 	/*
@@ -1258,7 +1258,7 @@ int ubifs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	struct inode *inode = d_inode(dentry);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
+	dbg_gen("ino %llu, mode %#x, ia_valid %#x",
 		inode->i_ino, inode->i_mode, attr->ia_valid);
 	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err)
@@ -1308,7 +1308,7 @@ int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	int err;
 
-	dbg_gen("syncing inode %lu", inode->i_ino);
+	dbg_gen("syncing inode %llu", inode->i_ino);
 
 	if (c->ro_mount)
 		/*
@@ -1495,7 +1495,7 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	struct ubifs_budget_req req = { .new_page = 1 };
 	int err, update_time;
 
-	dbg_gen("ino %lu, pg %lu, i_size %lld",	inode->i_ino, folio->index,
+	dbg_gen("ino %llu, pg %lu, i_size %lld",	inode->i_ino, folio->index,
 		i_size_read(inode));
 	ubifs_assert(c, !c->ro_media && !c->ro_mount);
 
@@ -1531,7 +1531,7 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 	err = ubifs_budget_space(c, &req);
 	if (unlikely(err)) {
 		if (err == -ENOSPC)
-			ubifs_warn(c, "out of space for mmapped file (inode number %lu)",
+			ubifs_warn(c, "out of space for mmapped file (inode number %llu)",
 				   inode->i_ino);
 		return VM_FAULT_SIGBUS;
 	}

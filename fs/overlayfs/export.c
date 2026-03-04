@@ -262,7 +262,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("failed to encode file handle (ino=%lu, err=%i)\n",
+	pr_warn_ratelimited("failed to encode file handle (ino=%llu, err=%i)\n",
 			    inode->i_ino, err);
 	goto out;
 }

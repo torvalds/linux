@@ -33,7 +33,7 @@ static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
 
 	if (err == -EINVAL) {
 		__nilfs_error(inode->i_sb, fname,
-			      "broken bmap (inode number=%lu)", inode->i_ino);
+			      "broken bmap (inode number=%llu)", inode->i_ino);
 		err = -EIO;
 	}
 	return err;

@@ -982,7 +982,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 	int kill_xattrs = ui->xattr_cnt && last_reference;
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
+	dbg_jnl("ino %llu, nlink %u", inode->i_ino, inode->i_nlink);
 
 	if (kill_xattrs && ui->xattr_cnt > ubifs_xattr_max_cnt(c)) {
 		ubifs_err(c, "Cannot delete inode, it has too many xattrs!");
@@ -1743,7 +1743,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 			int dn_len = le32_to_cpu(dn->size);
 
 			if (dn_len <= 0 || dn_len > UBIFS_BLOCK_SIZE) {
-				ubifs_err(c, "bad data node (block %u, inode %lu)",
+				ubifs_err(c, "bad data node (block %u, inode %llu)",
 					  blk, inode->i_ino);
 				ubifs_dump_node(c, dn, dn_size);
 				err = -EUCLEAN;
@@ -1987,7 +1987,7 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	u8 hash_host[UBIFS_HASH_ARR_SZ];
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
-	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
+	dbg_jnl("ino %llu, ino %llu", host->i_ino, inode->i_ino);
 	ubifs_assert(c, inode->i_nlink > 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 

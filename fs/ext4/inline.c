@@ -119,7 +119,7 @@ int ext4_get_max_inline_size(struct inode *inode)
 	error = ext4_get_inode_loc(inode, &iloc);
 	if (error) {
 		ext4_error_inode_err(inode, __func__, __LINE__, 0, -error,
-				     "can't get inode location %lu",
+				     "can't get inode location %llu",
 				     inode->i_ino);
 		return 0;
 	}
@@ -512,7 +512,7 @@ static int ext4_read_inline_folio(struct inode *inode, struct folio *folio)
 	BUG_ON(folio->index);
 
 	if (!EXT4_I(inode)->i_inline_off) {
-		ext4_warning(inode->i_sb, "inode %lu doesn't have inline data.",
+		ext4_warning(inode->i_sb, "inode %llu doesn't have inline data.",
 			     inode->i_ino);
 		goto out;
 	}
@@ -934,7 +934,7 @@ void ext4_show_inline_dir(struct inode *dir, struct buffer_head *bh,
 	struct ext4_dir_entry_2 *de = inline_start;
 	void *dlimit = inline_start + inline_size;
 
-	trace_printk("inode %lu\n", dir->i_ino);
+	trace_printk("inode %llu\n", dir->i_ino);
 	offset = 0;
 	while ((void *)de < dlimit) {
 		de_len = ext4_rec_len_from_disk(de->rec_len, inline_size);
@@ -1071,7 +1071,7 @@ static void ext4_restore_inline_data(handle_t *handle, struct inode *inode,
 	ret = ext4_create_inline_data(handle, inode, inline_size);
 	if (ret) {
 		ext4_msg(inode->i_sb, KERN_EMERG,
-			"error restoring inline_data for inode -- potential data loss! (inode %lu, error %d)",
+			"error restoring inline_data for inode -- potential data loss! (inode %llu, error %d)",
 			inode->i_ino, ret);
 		return;
 	}
@@ -1740,7 +1740,7 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 	err = ext4_get_inode_loc(dir, &iloc);
 	if (err) {
 		EXT4_ERROR_INODE_ERR(dir, -err,
-				     "error %d getting inode %lu block",
+				     "error %d getting inode %llu block",
 				     err, dir->i_ino);
 		return false;
 	}
@@ -1755,7 +1755,7 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 	de = (struct ext4_dir_entry_2 *)ext4_raw_inode(&iloc)->i_block;
 	if (!le32_to_cpu(de->inode)) {
 		ext4_warning(dir->i_sb,
-			     "bad inline directory (dir #%lu) - no `..'",
+			     "bad inline directory (dir #%llu) - no `..'",
 			     dir->i_ino);
 		goto out;
 	}
@@ -1769,7 +1769,7 @@ bool empty_inline_dir(struct inode *dir, int *has_inline_data)
 					 iloc.bh, inline_pos,
 					 inline_size, offset)) {
 			ext4_warning(dir->i_sb,
-				     "bad inline directory (dir #%lu) - "
+				     "bad inline directory (dir #%llu) - "
 				     "inode %u, rec_len %u, name_len %d"
 				     "inline size %d",
 				     dir->i_ino, le32_to_cpu(de->inode),
