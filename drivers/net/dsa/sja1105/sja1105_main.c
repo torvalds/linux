@@ -2341,10 +2341,11 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 
 	rc = sja1105_reload_cbs(priv);
 
+out:
 	dsa_switch_for_each_available_port(dp, ds)
 		if (dp->pl)
 			phylink_replay_link_end(dp->pl);
-out:
+
 	mutex_unlock(&priv->mgmt_lock);
 	mutex_unlock(&priv->fdb_lock);
 
