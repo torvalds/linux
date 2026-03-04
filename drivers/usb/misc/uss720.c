@@ -677,35 +677,32 @@ static int uss720_probe(struct usb_interface *intf,
 	struct parport_uss720_private *priv;
 	struct parport *pp;
 	unsigned char reg;
-	int ret;
+	int ret = -ENODEV;
 
 	dev_dbg(&intf->dev, "probe: vendor id 0x%x, device id 0x%x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct));
 
 	/* our known interfaces have 3 alternate settings */
-	if (intf->num_altsetting != 3) {
-		usb_put_dev(usbdev);
-		return -ENODEV;
-	}
+	if (intf->num_altsetting != 3)
+		goto bail_out_early;
+
 	ret = usb_set_interface(usbdev, intf->altsetting->desc.bInterfaceNumber, 2);
 	dev_dbg(&intf->dev, "set interface result %d\n", ret);
 
 	interface = intf->cur_altsetting;
 
-	if (interface->desc.bNumEndpoints < 2) {
-		usb_put_dev(usbdev);
-		return -ENODEV;
-	}
+	if (interface->desc.bNumEndpoints < 2)
+		goto bail_out_early;
 
 	/*
 	 * Allocate parport interface 
 	 */
+	ret = -ENOMEM;
 	priv = kzalloc_obj(struct parport_uss720_private);
-	if (!priv) {
-		usb_put_dev(usbdev);
-		return -ENOMEM;
-	}
+	if (!priv)
+		goto bail_out_early;
+
 	priv->pp = NULL;
 	priv->usbdev = usbdev;
 	kref_init(&priv->ref_count);
@@ -752,6 +749,10 @@ probe_abort:
 	kill_all_async_requests_priv(priv);
 	kref_put(&priv->ref_count, destroy_priv);
 	return -ENODEV;
+
+bail_out_early:
+	usb_put_dev(usbdev);
+	return ret;
 }
 
 static void uss720_disconnect(struct usb_interface *intf)
