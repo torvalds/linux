@@ -569,7 +569,6 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct clk_mgr_dcn42 *clk_mgr = TO_CLK_MGR_DCN42(clk_mgr_int);
-	struct dcn42_smu_dpm_clks smu_dpm_clks = { 0 };
 
 	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
 	(void)dc_logger;
@@ -591,127 +590,6 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 		/*dtbclk enabled based on*/
 		clk_mgr_base->clks.dtbclk_en = true;
 	}
-
-	if (clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels != 0) {
-		/*skip to get clock table and notify pmfw watermark range again*/
-		DC_LOG_SMU("skip to get dpm_clks from pmfw from resume and acr\n");
-		return;
-	}
-
-	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn42 *)dm_helpers_allocate_gpu_mem(
-				clk_mgr_base->ctx,
-				DC_MEM_ALLOC_TYPE_GART,
-				sizeof(DpmClocks_t_dcn42),
-				&smu_dpm_clks.mc_address.quad_part);
-
-	ASSERT(smu_dpm_clks.dpm_clks);
-	if (clk_mgr_base->ctx->dc->debug.pstate_enabled && clk_mgr_int->smu_present && smu_dpm_clks.mc_address.quad_part != 0) {
-		int i;
-		DpmClocks_t_dcn42 *dpm_clks = smu_dpm_clks.dpm_clks;
-
-		dcn42_get_dpm_table_from_smu(clk_mgr_int, &smu_dpm_clks);
-		DC_LOG_SMU("NumDcfClkLevelsEnabled: %d\n"
-				   "NumDispClkLevelsEnabled: %d\n"
-				   "NumSocClkLevelsEnabled: %d\n"
-				   "VcnClkLevelsEnabled: %d\n"
-				   "FClkLevelsEnabled: %d\n"
-				   "NumMemPstatesEnabled: %d\n"
-				   "MinGfxClk: %d\n"
-				   "MaxGfxClk: %d\n",
-				   dpm_clks->NumDcfClkLevelsEnabled,
-				   dpm_clks->NumDispClkLevelsEnabled,
-				   dpm_clks->NumSocClkLevelsEnabled,
-				   dpm_clks->VcnClkLevelsEnabled,
-				   dpm_clks->NumFclkLevelsEnabled,
-				   dpm_clks->NumMemPstatesEnabled,
-				   dpm_clks->MinGfxClk,
-				   dpm_clks->MaxGfxClk);
-
-		for (i = 0; i < NUM_DCFCLK_DPM_LEVELS; i++) {
-			DC_LOG_SMU("dpm_clks->DcfClocks[%d] = %d\n",
-					   i,
-					   dpm_clks->DcfClocks[i]);
-		}
-		for (i = 0; i < NUM_DISPCLK_DPM_LEVELS; i++) {
-			DC_LOG_SMU("dpm_clks->DispClocks[%d] = %d\n",
-					   i, dpm_clks->DispClocks[i]);
-		}
-		for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++) {
-			DC_LOG_SMU("dpm_clks->SocClocks[%d] = %d\n",
-					   i, dpm_clks->SocClocks[i]);
-		}
-		for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++) {
-			DC_LOG_SMU("dpm_clks->FclkClocks_Freq[%d] = %d\n",
-					   i, dpm_clks->FclkClocks_Freq[i]);
-			DC_LOG_SMU("dpm_clks->FclkClocks_Voltage[%d] = %d\n",
-					   i, dpm_clks->FclkClocks_Voltage[i]);
-		}
-		for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++)
-			DC_LOG_SMU("dpm_clks->SocVoltage[%d] = %d\n",
-					   i, dpm_clks->SocVoltage[i]);
-
-		for (i = 0; i < NUM_MEM_PSTATE_LEVELS; i++) {
-			DC_LOG_SMU("dpm_clks.MemPstateTable[%d].UClk = %d\n"
-					   "dpm_clks->MemPstateTable[%d].MemClk= %d\n"
-					   "dpm_clks->MemPstateTable[%d].Voltage = %d\n",
-					   i, dpm_clks->MemPstateTable[i].UClk,
-					   i, dpm_clks->MemPstateTable[i].MemClk,
-					   i, dpm_clks->MemPstateTable[i].Voltage);
-		}
-
-		if (clk_mgr_base->ctx->dc_bios->integrated_info && clk_mgr_base->ctx->dc->config.use_default_clock_table == false) {
-			/* DCFCLK */
-			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
-					dpm_clks->DcfClocks,
-					dpm_clks->NumDcfClkLevelsEnabled);
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels = dpm_clks->NumDcfClkLevelsEnabled;
-
-			/* SOCCLK */
-			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].socclk_mhz,
-					dpm_clks->SocClocks,
-					dpm_clks->NumSocClkLevelsEnabled);
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_socclk_levels = dpm_clks->NumSocClkLevelsEnabled;
-
-			/* DISPCLK */
-			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
-					dpm_clks->DispClocks,
-					dpm_clks->NumDispClkLevelsEnabled);
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels = dpm_clks->NumDispClkLevelsEnabled;
-
-			/* DPPCLK */
-			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dppclk_mhz,
-					dpm_clks->DppClocks,
-					dpm_clks->NumDispClkLevelsEnabled);
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dppclk_levels = dpm_clks->NumDispClkLevelsEnabled;
-
-			/* FCLK */
-			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].fclk_mhz,
-					dpm_clks->FclkClocks_Freq,
-					NUM_FCLK_DPM_LEVELS);
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels = dpm_clks->NumFclkLevelsEnabled;
-			clk_mgr_base->bw_params->clk_table.num_entries = dpm_clks->NumFclkLevelsEnabled;
-
-			/* Memory Pstate table is in reverse order*/
-			ASSERT(dpm_clks->NumMemPstatesEnabled <= NUM_MEM_PSTATE_LEVELS);
-			if (dpm_clks->NumMemPstatesEnabled > NUM_MEM_PSTATE_LEVELS)
-				dpm_clks->NumMemPstatesEnabled = NUM_MEM_PSTATE_LEVELS;
-			for (i = 0; i < dpm_clks->NumMemPstatesEnabled; i++) {
-				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].memclk_mhz = dpm_clks->MemPstateTable[i].UClk;
-				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].wck_ratio = dcn42_convert_wck_ratio(dpm_clks->MemPstateTable[i].WckRatio)	;
-			}
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels = dpm_clks->NumMemPstatesEnabled;
-
-			/* DTBCLK*/
-			clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz = clk_mgr_base->clks.ref_dtbclk_khz / 1000;
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels = 1;
-			/* Refresh bounding box */
-			clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
-				clk_mgr_base->ctx->dc, clk_mgr_base->bw_params);
-		}
-	}
-	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
-		dm_helpers_free_gpu_mem(clk_mgr_base->ctx, DC_MEM_ALLOC_TYPE_GART,
-				smu_dpm_clks.dpm_clks);
 }
 
 static struct clk_bw_params dcn42_bw_params = {
@@ -1071,6 +949,127 @@ bool dcn42_is_smu_present(struct clk_mgr *clk_mgr_base)
 	return clk_mgr->smu_present;
 }
 
+static void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
+{
+	struct clk_mgr *clk_mgr_base = &clk_mgr_int->base;
+	struct dcn42_smu_dpm_clks smu_dpm_clks = { 0 };
+
+	DC_LOGGER_INIT(clk_mgr_base->ctx->logger);
+	(void)dc_logger;
+
+	smu_dpm_clks.dpm_clks = (DpmClocks_t_dcn42 *)dm_helpers_allocate_gpu_mem(
+				clk_mgr_base->ctx,
+				DC_MEM_ALLOC_TYPE_GART,
+				sizeof(DpmClocks_t_dcn42),
+				&smu_dpm_clks.mc_address.quad_part);
+
+	ASSERT(smu_dpm_clks.dpm_clks);
+	if (clk_mgr_base->ctx->dc->debug.pstate_enabled && smu_dpm_clks.mc_address.quad_part != 0) {
+		int i;
+		DpmClocks_t_dcn42 *dpm_clks = smu_dpm_clks.dpm_clks;
+
+		dcn42_get_dpm_table_from_smu(clk_mgr_int, &smu_dpm_clks);
+		DC_LOG_SMU("NumDcfClkLevelsEnabled: %d\n"
+				   "NumDispClkLevelsEnabled: %d\n"
+				   "NumSocClkLevelsEnabled: %d\n"
+				   "VcnClkLevelsEnabled: %d\n"
+				   "FClkLevelsEnabled: %d\n"
+				   "NumMemPstatesEnabled: %d\n"
+				   "MinGfxClk: %d\n"
+				   "MaxGfxClk: %d\n",
+				   dpm_clks->NumDcfClkLevelsEnabled,
+				   dpm_clks->NumDispClkLevelsEnabled,
+				   dpm_clks->NumSocClkLevelsEnabled,
+				   dpm_clks->VcnClkLevelsEnabled,
+				   dpm_clks->NumFclkLevelsEnabled,
+				   dpm_clks->NumMemPstatesEnabled,
+				   dpm_clks->MinGfxClk,
+				   dpm_clks->MaxGfxClk);
+
+		for (i = 0; i < NUM_DCFCLK_DPM_LEVELS; i++) {
+			DC_LOG_SMU("dpm_clks->DcfClocks[%d] = %d\n",
+					   i,
+					   dpm_clks->DcfClocks[i]);
+		}
+		for (i = 0; i < NUM_DISPCLK_DPM_LEVELS; i++) {
+			DC_LOG_SMU("dpm_clks->DispClocks[%d] = %d\n",
+					   i, dpm_clks->DispClocks[i]);
+		}
+		for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++) {
+			DC_LOG_SMU("dpm_clks->SocClocks[%d] = %d\n",
+					   i, dpm_clks->SocClocks[i]);
+		}
+		for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++) {
+			DC_LOG_SMU("dpm_clks->FclkClocks_Freq[%d] = %d\n",
+					   i, dpm_clks->FclkClocks_Freq[i]);
+			DC_LOG_SMU("dpm_clks->FclkClocks_Voltage[%d] = %d\n",
+					   i, dpm_clks->FclkClocks_Voltage[i]);
+		}
+		for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++)
+			DC_LOG_SMU("dpm_clks->SocVoltage[%d] = %d\n",
+					   i, dpm_clks->SocVoltage[i]);
+
+		for (i = 0; i < NUM_MEM_PSTATE_LEVELS; i++) {
+			DC_LOG_SMU("dpm_clks.MemPstateTable[%d].UClk = %d\n"
+					   "dpm_clks->MemPstateTable[%d].MemClk= %d\n"
+					   "dpm_clks->MemPstateTable[%d].Voltage = %d\n",
+					   i, dpm_clks->MemPstateTable[i].UClk,
+					   i, dpm_clks->MemPstateTable[i].MemClk,
+					   i, dpm_clks->MemPstateTable[i].Voltage);
+		}
+
+		if (clk_mgr_base->ctx->dc_bios->integrated_info && clk_mgr_base->ctx->dc->config.use_default_clock_table == false) {
+			/* DCFCLK */
+			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
+					dpm_clks->DcfClocks,
+					dpm_clks->NumDcfClkLevelsEnabled);
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels = dpm_clks->NumDcfClkLevelsEnabled;
+
+			/* SOCCLK */
+			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].socclk_mhz,
+					dpm_clks->SocClocks,
+					dpm_clks->NumSocClkLevelsEnabled);
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_socclk_levels = dpm_clks->NumSocClkLevelsEnabled;
+
+			/* DISPCLK */
+			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
+					dpm_clks->DispClocks,
+					dpm_clks->NumDispClkLevelsEnabled);
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels = dpm_clks->NumDispClkLevelsEnabled;
+
+			/* DPPCLK */
+			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].dppclk_mhz,
+					dpm_clks->DppClocks,
+					dpm_clks->NumDispClkLevelsEnabled);
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dppclk_levels = dpm_clks->NumDispClkLevelsEnabled;
+
+			/* FCLK */
+			dcn42_init_single_clock(&clk_mgr_base->bw_params->clk_table.entries[0].fclk_mhz,
+					dpm_clks->FclkClocks_Freq,
+					NUM_FCLK_DPM_LEVELS);
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels = dpm_clks->NumFclkLevelsEnabled;
+			clk_mgr_base->bw_params->clk_table.num_entries = dpm_clks->NumFclkLevelsEnabled;
+
+			/* Memory Pstate table is in reverse order*/
+			ASSERT(dpm_clks->NumMemPstatesEnabled <= NUM_MEM_PSTATE_LEVELS);
+			if (dpm_clks->NumMemPstatesEnabled > NUM_MEM_PSTATE_LEVELS)
+				dpm_clks->NumMemPstatesEnabled = NUM_MEM_PSTATE_LEVELS;
+			for (i = 0; i < dpm_clks->NumMemPstatesEnabled; i++) {
+				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].memclk_mhz = dpm_clks->MemPstateTable[i].UClk;
+				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].wck_ratio = dcn42_convert_wck_ratio(dpm_clks->MemPstateTable[i].WckRatio)	;
+			}
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels = dpm_clks->NumMemPstatesEnabled;
+
+			/* DTBCLK*/
+			clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz = clk_mgr_base->clks.ref_dtbclk_khz / 1000;
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels = 1;
+		}
+	}
+	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
+		dm_helpers_free_gpu_mem(clk_mgr_base->ctx, DC_MEM_ALLOC_TYPE_GART,
+				smu_dpm_clks.dpm_clks);
+}
+
 static struct clk_mgr_funcs dcn42_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
@@ -1139,6 +1138,11 @@ void dcn42_clk_mgr_construct(
 			dcn42_bw_params.num_channels = ctx->dc_bios->integrated_info->ma_channel_number ? ctx->dc_bios->integrated_info->ma_channel_number : 1;
 			clk_mgr->base.base.dprefclk_khz = dcn42_smu_get_dprefclk(&clk_mgr->base);
 			clk_mgr->base.base.clks.ref_dtbclk_khz = dcn42_smu_get_dtbclk(&clk_mgr->base);
+
+			clk_mgr->base.base.bw_params = &dcn42_bw_params;
+
+			if (clk_mgr->base.smu_present)
+				dcn42_get_smu_clocks(&clk_mgr->base);
 		}
 		/* in case we don't get a value from the BIOS, use default */
 		if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
@@ -1151,8 +1155,6 @@ void dcn42_clk_mgr_construct(
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
 	dcn42_read_ss_info_from_lut(&clk_mgr->base);
-
-	clk_mgr->base.base.bw_params = &dcn42_bw_params;
 }
 
 void dcn42_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int)
