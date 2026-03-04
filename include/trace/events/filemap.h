@@ -20,8 +20,8 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 	TP_ARGS(folio),
 
 	TP_STRUCT__entry(
+		__field(u64, i_ino)
 		__field(unsigned long, pfn)
-		__field(unsigned long, i_ino)
 		__field(unsigned long, index)
 		__field(dev_t, s_dev)
 		__field(unsigned char, order)
@@ -38,7 +38,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 		__entry->order = folio_order(folio);
 	),
 
-	TP_printk("dev %d:%d ino %lx pfn=0x%lx ofs=%lu order=%u",
+	TP_printk("dev %d:%d ino %llx pfn=0x%lx ofs=%lu order=%u",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		__entry->i_ino,
 		__entry->pfn,
@@ -67,7 +67,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache_range,
 	TP_ARGS(mapping, index, last_index),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
 		__field(dev_t, s_dev)
 		__field(unsigned long, index)
 		__field(unsigned long, last_index)
@@ -85,7 +85,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache_range,
 	),
 
 	TP_printk(
-		"dev=%d:%d ino=%lx ofs=%lld-%lld",
+		"dev=%d:%d ino=%llx ofs=%lld-%lld",
 		MAJOR(__entry->s_dev),
 		MINOR(__entry->s_dev), __entry->i_ino,
 		((loff_t)__entry->index) << PAGE_SHIFT,
@@ -117,7 +117,7 @@ TRACE_EVENT(mm_filemap_fault,
 	TP_ARGS(mapping, index),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
 		__field(dev_t, s_dev)
 		__field(unsigned long, index)
 	),
@@ -133,7 +133,7 @@ TRACE_EVENT(mm_filemap_fault,
 	),
 
 	TP_printk(
-		"dev=%d:%d ino=%lx ofs=%lld",
+		"dev=%d:%d ino=%llx ofs=%lld",
 		MAJOR(__entry->s_dev),
 		MINOR(__entry->s_dev), __entry->i_ino,
 		((loff_t)__entry->index) << PAGE_SHIFT
@@ -146,7 +146,7 @@ TRACE_EVENT(filemap_set_wb_err,
 		TP_ARGS(mapping, eseq),
 
 		TP_STRUCT__entry(
-			__field(unsigned long, i_ino)
+			__field(u64, i_ino)
 			__field(dev_t, s_dev)
 			__field(errseq_t, errseq)
 		),
@@ -160,7 +160,7 @@ TRACE_EVENT(filemap_set_wb_err,
 				__entry->s_dev = mapping->host->i_rdev;
 		),
 
-		TP_printk("dev=%d:%d ino=0x%lx errseq=0x%x",
+		TP_printk("dev=%d:%d ino=0x%llx errseq=0x%x",
 			MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 			__entry->i_ino, __entry->errseq)
 );
@@ -171,8 +171,8 @@ TRACE_EVENT(file_check_and_advance_wb_err,
 		TP_ARGS(file, old),
 
 		TP_STRUCT__entry(
+			__field(u64, i_ino)
 			__field(struct file *, file)
-			__field(unsigned long, i_ino)
 			__field(dev_t, s_dev)
 			__field(errseq_t, old)
 			__field(errseq_t, new)
@@ -191,7 +191,7 @@ TRACE_EVENT(file_check_and_advance_wb_err,
 			__entry->new = file->f_wb_err;
 		),
 
-		TP_printk("file=%p dev=%d:%d ino=0x%lx old=0x%x new=0x%x",
+		TP_printk("file=%p dev=%d:%d ino=0x%llx old=0x%x new=0x%x",
 			__entry->file, MAJOR(__entry->s_dev),
 			MINOR(__entry->s_dev), __entry->i_ino, __entry->old,
 			__entry->new)

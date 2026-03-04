@@ -257,7 +257,7 @@ TRACE_EVENT(iomap_dio_rw_begin,
 	TP_ARGS(iocb, iter, dio_flags, done_before),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(u64,	ino)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(size_t,	count)
@@ -277,7 +277,7 @@ TRACE_EVENT(iomap_dio_rw_begin,
 		__entry->dio_flags = dio_flags;
 		__entry->aio = !is_sync_kiocb(iocb);
 	),
-	TP_printk("dev %d:%d ino 0x%lx size 0x%llx offset 0x%llx length 0x%zx done_before 0x%zx flags %s dio_flags %s aio %d",
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx length 0x%zx done_before 0x%zx flags %s dio_flags %s aio %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->isize,
@@ -294,7 +294,7 @@ TRACE_EVENT(iomap_dio_complete,
 	TP_ARGS(iocb, error, ret),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(u64,	ino)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(int,	ki_flags)
@@ -312,7 +312,7 @@ TRACE_EVENT(iomap_dio_complete,
 		__entry->error = error;
 		__entry->ret = ret;
 	),
-	TP_printk("dev %d:%d ino 0x%lx size 0x%llx offset 0x%llx flags %s aio %d error %d ret %zd",
+	TP_printk("dev %d:%d ino 0x%llx size 0x%llx offset 0x%llx flags %s aio %d error %d ret %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->isize,

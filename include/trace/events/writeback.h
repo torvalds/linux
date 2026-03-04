@@ -67,7 +67,7 @@ DECLARE_EVENT_CLASS(writeback_folio_template,
 
 	TP_STRUCT__entry (
 		__array(char, name, 32)
-		__field(ino_t, ino)
+		__field(u64, ino)
 		__field(pgoff_t, index)
 	),
 
@@ -79,9 +79,9 @@ DECLARE_EVENT_CLASS(writeback_folio_template,
 		__entry->index = folio->index;
 	),
 
-	TP_printk("bdi %s: ino=%lu index=%lu",
+	TP_printk("bdi %s: ino=%llu index=%lu",
 		__entry->name,
-		(unsigned long)__entry->ino,
+		__entry->ino,
 		__entry->index
 	)
 );
@@ -108,7 +108,7 @@ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
 
 	TP_STRUCT__entry (
 		__array(char, name, 32)
-		__field(ino_t, ino)
+		__field(u64, ino)
 		__field(unsigned long, state)
 		__field(unsigned long, flags)
 	),
@@ -123,9 +123,9 @@ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
 		__entry->flags		= flags;
 	),
 
-	TP_printk("bdi %s: ino=%lu state=%s flags=%s",
+	TP_printk("bdi %s: ino=%llu state=%s flags=%s",
 		__entry->name,
-		(unsigned long)__entry->ino,
+		__entry->ino,
 		show_inode_state(__entry->state),
 		show_inode_state(__entry->flags)
 	)
@@ -155,12 +155,12 @@ DEFINE_EVENT(writeback_dirty_inode_template, writeback_dirty_inode,
 #ifdef CREATE_TRACE_POINTS
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-static inline ino_t __trace_wb_assign_cgroup(struct bdi_writeback *wb)
+static inline u64 __trace_wb_assign_cgroup(struct bdi_writeback *wb)
 {
 	return cgroup_ino(wb->memcg_css->cgroup);
 }
 
-static inline ino_t __trace_wbc_assign_cgroup(struct writeback_control *wbc)
+static inline u64 __trace_wbc_assign_cgroup(struct writeback_control *wbc)
 {
 	if (wbc->wb)
 		return __trace_wb_assign_cgroup(wbc->wb);
@@ -169,12 +169,12 @@ static inline ino_t __trace_wbc_assign_cgroup(struct writeback_control *wbc)
 }
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline ino_t __trace_wb_assign_cgroup(struct bdi_writeback *wb)
+static inline u64 __trace_wb_assign_cgroup(struct bdi_writeback *wb)
 {
 	return 1;
 }
 
-static inline ino_t __trace_wbc_assign_cgroup(struct writeback_control *wbc)
+static inline u64 __trace_wbc_assign_cgroup(struct writeback_control *wbc)
 {
 	return 1;
 }
@@ -192,8 +192,8 @@ TRACE_EVENT(inode_foreign_history,
 
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
-		__field(ino_t,		ino)
-		__field(ino_t,		cgroup_ino)
+		__field(u64,		ino)
+		__field(u64,		cgroup_ino)
 		__field(unsigned int,	history)
 	),
 
@@ -204,10 +204,10 @@ TRACE_EVENT(inode_foreign_history,
 		__entry->history	= history;
 	),
 
-	TP_printk("bdi %s: ino=%lu cgroup_ino=%lu history=0x%x",
+	TP_printk("bdi %s: ino=%llu cgroup_ino=%llu history=0x%x",
 		__entry->name,
-		(unsigned long)__entry->ino,
-		(unsigned long)__entry->cgroup_ino,
+		__entry->ino,
+		__entry->cgroup_ino,
 		__entry->history
 	)
 );
@@ -221,8 +221,8 @@ TRACE_EVENT(inode_switch_wbs_queue,
 
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
-		__field(ino_t,		old_cgroup_ino)
-		__field(ino_t,		new_cgroup_ino)
+		__field(u64,		old_cgroup_ino)
+		__field(u64,		new_cgroup_ino)
 		__field(unsigned int,	count)
 	),
 
@@ -233,10 +233,10 @@ TRACE_EVENT(inode_switch_wbs_queue,
 		__entry->count		= count;
 	),
 
-	TP_printk("bdi %s: old_cgroup_ino=%lu new_cgroup_ino=%lu count=%u",
+	TP_printk("bdi %s: old_cgroup_ino=%llu new_cgroup_ino=%llu count=%u",
 		__entry->name,
-		(unsigned long)__entry->old_cgroup_ino,
-		(unsigned long)__entry->new_cgroup_ino,
+		__entry->old_cgroup_ino,
+		__entry->new_cgroup_ino,
 		__entry->count
 	)
 );
@@ -250,9 +250,9 @@ TRACE_EVENT(inode_switch_wbs,
 
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
-		__field(ino_t,		ino)
-		__field(ino_t,		old_cgroup_ino)
-		__field(ino_t,		new_cgroup_ino)
+		__field(u64,		ino)
+		__field(u64,		old_cgroup_ino)
+		__field(u64,		new_cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -262,11 +262,11 @@ TRACE_EVENT(inode_switch_wbs,
 		__entry->new_cgroup_ino	= __trace_wb_assign_cgroup(new_wb);
 	),
 
-	TP_printk("bdi %s: ino=%lu old_cgroup_ino=%lu new_cgroup_ino=%lu",
+	TP_printk("bdi %s: ino=%llu old_cgroup_ino=%llu new_cgroup_ino=%llu",
 		__entry->name,
-		(unsigned long)__entry->ino,
-		(unsigned long)__entry->old_cgroup_ino,
-		(unsigned long)__entry->new_cgroup_ino
+		__entry->ino,
+		__entry->old_cgroup_ino,
+		__entry->new_cgroup_ino
 	)
 );
 
@@ -279,10 +279,10 @@ TRACE_EVENT(track_foreign_dirty,
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
 		__field(u64,		bdi_id)
-		__field(ino_t,		ino)
+		__field(u64,		ino)
+		__field(u64,		cgroup_ino)
+		__field(u64,		page_cgroup_ino)
 		__field(unsigned int,	memcg_id)
-		__field(ino_t,		cgroup_ino)
-		__field(ino_t,		page_cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -297,13 +297,13 @@ TRACE_EVENT(track_foreign_dirty,
 		__entry->page_cgroup_ino = cgroup_ino(folio_memcg(folio)->css.cgroup);
 	),
 
-	TP_printk("bdi %s[%llu]: ino=%lu memcg_id=%u cgroup_ino=%lu page_cgroup_ino=%lu",
+	TP_printk("bdi %s[%llu]: ino=%llu memcg_id=%u cgroup_ino=%llu page_cgroup_ino=%llu",
 		__entry->name,
 		__entry->bdi_id,
-		(unsigned long)__entry->ino,
+		__entry->ino,
 		__entry->memcg_id,
-		(unsigned long)__entry->cgroup_ino,
-		(unsigned long)__entry->page_cgroup_ino
+		__entry->cgroup_ino,
+		__entry->page_cgroup_ino
 	)
 );
 
@@ -316,7 +316,7 @@ TRACE_EVENT(flush_foreign,
 
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
-		__field(ino_t,		cgroup_ino)
+		__field(u64,		cgroup_ino)
 		__field(unsigned int,	frn_bdi_id)
 		__field(unsigned int,	frn_memcg_id)
 	),
@@ -328,9 +328,9 @@ TRACE_EVENT(flush_foreign,
 		__entry->frn_memcg_id	= frn_memcg_id;
 	),
 
-	TP_printk("bdi %s: cgroup_ino=%lu frn_bdi_id=%u frn_memcg_id=%u",
+	TP_printk("bdi %s: cgroup_ino=%llu frn_bdi_id=%u frn_memcg_id=%u",
 		__entry->name,
-		(unsigned long)__entry->cgroup_ino,
+		__entry->cgroup_ino,
 		__entry->frn_bdi_id,
 		__entry->frn_memcg_id
 	)
@@ -345,9 +345,9 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 
 	TP_STRUCT__entry (
 		__array(char, name, 32)
-		__field(ino_t, ino)
+		__field(u64, ino)
+		__field(u64, cgroup_ino)
 		__field(int, sync_mode)
-		__field(ino_t, cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -358,11 +358,11 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 		__entry->cgroup_ino	= __trace_wbc_assign_cgroup(wbc);
 	),
 
-	TP_printk("bdi %s: ino=%lu sync_mode=%d cgroup_ino=%lu",
+	TP_printk("bdi %s: ino=%llu sync_mode=%d cgroup_ino=%llu",
 		__entry->name,
-		(unsigned long)__entry->ino,
+		__entry->ino,
 		__entry->sync_mode,
-		(unsigned long)__entry->cgroup_ino
+		__entry->cgroup_ino
 	)
 );
 
@@ -385,6 +385,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 	TP_ARGS(wb, work),
 	TP_STRUCT__entry(
 		__array(char, name, 32)
+		__field(u64, cgroup_ino)
 		__field(long, nr_pages)
 		__field(dev_t, sb_dev)
 		__field(int, sync_mode)
@@ -392,7 +393,6 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__field(int, range_cyclic)
 		__field(int, for_background)
 		__field(int, reason)
-		__field(ino_t, cgroup_ino)
 	),
 	TP_fast_assign(
 		strscpy_pad(__entry->name, bdi_dev_name(wb->bdi), 32);
@@ -406,7 +406,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__entry->cgroup_ino = __trace_wb_assign_cgroup(wb);
 	),
 	TP_printk("bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d "
-		  "kupdate=%d range_cyclic=%d background=%d reason=%s cgroup_ino=%lu",
+		  "kupdate=%d range_cyclic=%d background=%d reason=%s cgroup_ino=%llu",
 		  __entry->name,
 		  MAJOR(__entry->sb_dev), MINOR(__entry->sb_dev),
 		  __entry->nr_pages,
@@ -415,7 +415,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		  __entry->range_cyclic,
 		  __entry->for_background,
 		  __print_symbolic(__entry->reason, WB_WORK_REASON),
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	)
 );
 #define DEFINE_WRITEBACK_WORK_EVENT(name) \
@@ -445,15 +445,15 @@ DECLARE_EVENT_CLASS(writeback_class,
 	TP_ARGS(wb),
 	TP_STRUCT__entry(
 		__array(char, name, 32)
-		__field(ino_t, cgroup_ino)
+		__field(u64, cgroup_ino)
 	),
 	TP_fast_assign(
 		strscpy_pad(__entry->name, bdi_dev_name(wb->bdi), 32);
 		__entry->cgroup_ino = __trace_wb_assign_cgroup(wb);
 	),
-	TP_printk("bdi %s: cgroup_ino=%lu",
+	TP_printk("bdi %s: cgroup_ino=%llu",
 		  __entry->name,
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	)
 );
 #define DEFINE_WRITEBACK_EVENT(name) \
@@ -482,15 +482,15 @@ DECLARE_EVENT_CLASS(wbc_class,
 	TP_ARGS(wbc, bdi),
 	TP_STRUCT__entry(
 		__array(char, name, 32)
+		__field(u64, cgroup_ino)
 		__field(long, nr_to_write)
 		__field(long, pages_skipped)
+		__field(long, range_start)
+		__field(long, range_end)
 		__field(int, sync_mode)
 		__field(int, for_kupdate)
 		__field(int, for_background)
 		__field(int, range_cyclic)
-		__field(long, range_start)
-		__field(long, range_end)
-		__field(ino_t, cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -507,7 +507,7 @@ DECLARE_EVENT_CLASS(wbc_class,
 	),
 
 	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d bgrd=%d "
-		"cyclic=%d start=0x%lx end=0x%lx cgroup_ino=%lu",
+		"cyclic=%d start=0x%lx end=0x%lx cgroup_ino=%llu",
 		__entry->name,
 		__entry->nr_to_write,
 		__entry->pages_skipped,
@@ -517,7 +517,7 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->range_cyclic,
 		__entry->range_start,
 		__entry->range_end,
-		(unsigned long)__entry->cgroup_ino
+		__entry->cgroup_ino
 	)
 )
 
@@ -535,11 +535,11 @@ TRACE_EVENT(writeback_queue_io,
 	TP_ARGS(wb, work, dirtied_before, moved),
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
+		__field(u64,		cgroup_ino)
 		__field(unsigned long,	older)
 		__field(long,		age)
 		__field(int,		moved)
 		__field(int,		reason)
-		__field(ino_t,		cgroup_ino)
 	),
 	TP_fast_assign(
 		strscpy_pad(__entry->name, bdi_dev_name(wb->bdi), 32);
@@ -549,13 +549,13 @@ TRACE_EVENT(writeback_queue_io,
 		__entry->reason	= work->reason;
 		__entry->cgroup_ino	= __trace_wb_assign_cgroup(wb);
 	),
-	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s cgroup_ino=%lu",
+	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s cgroup_ino=%llu",
 		__entry->name,
 		__entry->older,	/* dirtied_before in jiffies */
 		__entry->age,	/* dirtied_before in relative milliseconds */
 		__entry->moved,
 		__print_symbolic(__entry->reason, WB_WORK_REASON),
-		(unsigned long)__entry->cgroup_ino
+		__entry->cgroup_ino
 	)
 );
 
@@ -614,13 +614,13 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 
 	TP_STRUCT__entry(
 		__array(char,		bdi, 32)
+		__field(u64,		cgroup_ino)
 		__field(unsigned long,	write_bw)
 		__field(unsigned long,	avg_write_bw)
 		__field(unsigned long,	dirty_rate)
 		__field(unsigned long,	dirty_ratelimit)
 		__field(unsigned long,	task_ratelimit)
 		__field(unsigned long,	balanced_dirty_ratelimit)
-		__field(ino_t,		cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -638,7 +638,7 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 	TP_printk("bdi %s: "
 		  "write_bw=%lu awrite_bw=%lu dirty_rate=%lu "
 		  "dirty_ratelimit=%lu task_ratelimit=%lu "
-		  "balanced_dirty_ratelimit=%lu cgroup_ino=%lu",
+		  "balanced_dirty_ratelimit=%lu cgroup_ino=%llu",
 		  __entry->bdi,
 		  __entry->write_bw,		/* write bandwidth */
 		  __entry->avg_write_bw,	/* avg write bandwidth */
@@ -646,7 +646,7 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 		  __entry->dirty_ratelimit,	/* base ratelimit */
 		  __entry->task_ratelimit, /* ratelimit with position control */
 		  __entry->balanced_dirty_ratelimit, /* the balanced ratelimit */
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	)
 );
 
@@ -667,6 +667,7 @@ TRACE_EVENT(balance_dirty_pages,
 
 	TP_STRUCT__entry(
 		__array(	 char,	bdi, 32)
+		__field(u64,		cgroup_ino)
 		__field(unsigned long,	limit)
 		__field(unsigned long,	setpoint)
 		__field(unsigned long,	dirty)
@@ -674,13 +675,12 @@ TRACE_EVENT(balance_dirty_pages,
 		__field(unsigned long,	wb_dirty)
 		__field(unsigned long,	dirty_ratelimit)
 		__field(unsigned long,	task_ratelimit)
-		__field(unsigned int,	dirtied)
-		__field(unsigned int,	dirtied_pause)
 		__field(unsigned long,	paused)
 		__field(	 long,	pause)
 		__field(unsigned long,	period)
 		__field(	 long,	think)
-		__field(ino_t,		cgroup_ino)
+		__field(unsigned int,	dirtied)
+		__field(unsigned int,	dirtied_pause)
 	),
 
 	TP_fast_assign(
@@ -711,7 +711,7 @@ TRACE_EVENT(balance_dirty_pages,
 		  "wb_setpoint=%lu wb_dirty=%lu "
 		  "dirty_ratelimit=%lu task_ratelimit=%lu "
 		  "dirtied=%u dirtied_pause=%u "
-		  "paused=%lu pause=%ld period=%lu think=%ld cgroup_ino=%lu",
+		  "paused=%lu pause=%ld period=%lu think=%ld cgroup_ino=%llu",
 		  __entry->bdi,
 		  __entry->limit,
 		  __entry->setpoint,
@@ -726,7 +726,7 @@ TRACE_EVENT(balance_dirty_pages,
 		  __entry->pause,	/* ms */
 		  __entry->period,	/* ms */
 		  __entry->think,	/* ms */
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	  )
 );
 
@@ -737,10 +737,10 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
 
 	TP_STRUCT__entry(
 		__array(char, name, 32)
-		__field(ino_t, ino)
+		__field(u64, ino)
+		__field(u64, cgroup_ino)
 		__field(unsigned long, state)
 		__field(unsigned long, dirtied_when)
-		__field(ino_t, cgroup_ino)
 	),
 
 	TP_fast_assign(
@@ -752,13 +752,13 @@ TRACE_EVENT(writeback_sb_inodes_requeue,
 		__entry->cgroup_ino	= __trace_wb_assign_cgroup(inode_to_wb(inode));
 	),
 
-	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu cgroup_ino=%lu",
+	TP_printk("bdi %s: ino=%llu state=%s dirtied_when=%lu age=%lu cgroup_ino=%llu",
 		  __entry->name,
-		  (unsigned long)__entry->ino,
+		  __entry->ino,
 		  show_inode_state(__entry->state),
 		  __entry->dirtied_when,
 		  (jiffies - __entry->dirtied_when) / HZ,
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	)
 );
 
@@ -773,13 +773,13 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 
 	TP_STRUCT__entry(
 		__array(char, name, 32)
-		__field(ino_t, ino)
+		__field(u64, ino)
+		__field(u64, cgroup_ino)
 		__field(unsigned long, state)
 		__field(unsigned long, dirtied_when)
 		__field(unsigned long, writeback_index)
-		__field(long, nr_to_write)
 		__field(unsigned long, wrote)
-		__field(ino_t, cgroup_ino)
+		__field(long, nr_to_write)
 	),
 
 	TP_fast_assign(
@@ -794,17 +794,17 @@ DECLARE_EVENT_CLASS(writeback_single_inode_template,
 		__entry->cgroup_ino	= __trace_wbc_assign_cgroup(wbc);
 	),
 
-	TP_printk("bdi %s: ino=%lu state=%s dirtied_when=%lu age=%lu "
-		  "index=%lu to_write=%ld wrote=%lu cgroup_ino=%lu",
+	TP_printk("bdi %s: ino=%llu state=%s dirtied_when=%lu age=%lu "
+		  "index=%lu to_write=%ld wrote=%lu cgroup_ino=%llu",
 		  __entry->name,
-		  (unsigned long)__entry->ino,
+		  __entry->ino,
 		  show_inode_state(__entry->state),
 		  __entry->dirtied_when,
 		  (jiffies - __entry->dirtied_when) / HZ,
 		  __entry->writeback_index,
 		  __entry->nr_to_write,
 		  __entry->wrote,
-		  (unsigned long)__entry->cgroup_ino
+		  __entry->cgroup_ino
 	)
 );
 
@@ -828,11 +828,11 @@ DECLARE_EVENT_CLASS(writeback_inode_template,
 	TP_ARGS(inode),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
+		__field(	u64,	ino			)
 		__field(unsigned long,	state			)
-		__field(	__u16, mode			)
 		__field(unsigned long, dirtied_when		)
+		__field(	dev_t,	dev			)
+		__field(	__u16, mode			)
 	),
 
 	TP_fast_assign(
@@ -843,9 +843,9 @@ DECLARE_EVENT_CLASS(writeback_inode_template,
 		__entry->dirtied_when = inode->dirtied_when;
 	),
 
-	TP_printk("dev %d,%d ino %lu dirtied %lu state %s mode 0%o",
+	TP_printk("dev %d,%d ino %llu dirtied %lu state %s mode 0%o",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  (unsigned long)__entry->ino, __entry->dirtied_when,
+		  __entry->ino, __entry->dirtied_when,
 		  show_inode_state(__entry->state), __entry->mode)
 );
 
