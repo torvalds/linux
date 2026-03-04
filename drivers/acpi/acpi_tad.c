@@ -546,8 +546,9 @@ static umode_t acpi_tad_attr_is_visible(struct kobject *kobj,
 	if (a == &dev_attr_caps.attr)
 		return a->mode;
 
-	if (a == &dev_attr_ac_alarm.attr || a == &dev_attr_ac_policy.attr ||
-	    a == &dev_attr_ac_status.attr)
+	if ((dd->capabilities & ACPI_TAD_AC_WAKE) &&
+	    (a == &dev_attr_ac_alarm.attr || a == &dev_attr_ac_policy.attr ||
+	     a == &dev_attr_ac_status.attr))
 		return a->mode;
 
 	if ((dd->capabilities & ACPI_TAD_DC_WAKE) &&
@@ -581,8 +582,10 @@ static void acpi_tad_remove(struct platform_device *pdev)
 	sysfs_remove_group(&dev->kobj, &acpi_tad_attr_group);
 
 	scoped_guard(pm_runtime_noresume, dev) {
-		acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
-		acpi_tad_clear_status(dev, ACPI_TAD_AC_TIMER);
+		if (dd->capabilities & ACPI_TAD_AC_WAKE) {
+			acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
+			acpi_tad_clear_status(dev, ACPI_TAD_AC_TIMER);
+		}
 		if (dd->capabilities & ACPI_TAD_DC_WAKE) {
 			acpi_tad_disable_timer(dev, ACPI_TAD_DC_TIMER);
 			acpi_tad_clear_status(dev, ACPI_TAD_DC_TIMER);
@@ -612,14 +615,9 @@ static int acpi_tad_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!(caps & ACPI_TAD_AC_WAKE)) {
-		dev_info(dev, "Unsupported capabilities\n");
-		return -ENODEV;
-	}
-
 	if (!acpi_has_method(handle, "_PRW")) {
 		dev_info(dev, "Missing _PRW\n");
-		return -ENODEV;
+		caps &= ~(ACPI_TAD_AC_WAKE | ACPI_TAD_DC_WAKE);
 	}
 
 	dd = devm_kzalloc(dev, sizeof(*dd), GFP_KERNEL);
@@ -635,9 +633,11 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	 * runtime suspend.  Everything else should be taken care of by the ACPI
 	 * PM domain callbacks.
 	 */
-	device_init_wakeup(dev, true);
-	dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND |
-				     DPM_FLAG_MAY_SKIP_RESUME);
+	if (ACPI_TAD_AC_WAKE | ACPI_TAD_DC_WAKE) {
+		device_init_wakeup(dev, true);
+		dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND |
+					     DPM_FLAG_MAY_SKIP_RESUME);
+	}
 
 	/*
 	 * The platform bus type layer tells the ACPI PM domain powers up the
