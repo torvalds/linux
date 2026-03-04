@@ -11,6 +11,14 @@
 
 struct drm_ras_node;
 
+/* Error categories reported by hardware */
+enum hardware_error {
+	HARDWARE_ERROR_CORRECTABLE = 0,
+	HARDWARE_ERROR_NONFATAL,
+	HARDWARE_ERROR_FATAL,
+	HARDWARE_ERROR_MAX
+};
+
 /**
  * struct xe_drm_ras_counter - XE RAS counter
  *
