@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (c) 2026 Yixun Lan <dlan@kernel.org>
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+#define K3_PADCONF(pin, func) (((pin) << 16) | (func))
+
+/* Map GPIO pin to each bank's <index, offset> */
+#define K3_GPIO(x)	(x / 32) (x % 32)
+
+&pinctrl {
+	/omit-if-no-ref/
+	uart0_0_cfg: uart0-0-cfg {
+		uart0-0-pins {
+			pinmux = <K3_PADCONF(149, 2)>,	/* uart0 tx */
+				 <K3_PADCONF(150, 2)>;	/* uart0 rx */
+
+			bias-pull-up = <0>;
+			drive-strength = <25>;
+		};
+	};
+};
