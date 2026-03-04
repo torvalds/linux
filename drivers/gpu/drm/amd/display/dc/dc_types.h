@@ -1144,10 +1144,12 @@ union replay_low_refresh_rate_enable_options {
 
 union replay_optimization {
 	struct {
-		//BIT[0-3]: Replay Teams Optimization
+		//BIT[0-1]: Replay Teams Optimization
 		unsigned int TEAMS_OPTIMIZATION_VER_1           :1;
 		unsigned int TEAMS_OPTIMIZATION_VER_2           :1;
-		unsigned int RESERVED_2_3                       :2;
+		//BIT[2]: Replay Live Capture with CVT
+		unsigned int LIVE_CAPTURE_WITH_CVT              :1;
+		unsigned int RESERVED_3                         :1;
 	} bits;
 
 	unsigned int raw;
@@ -1196,6 +1198,8 @@ struct replay_config {
 	bool frame_skip_supported;
 	/* Replay Received Frame Skipping Error HPD. */
 	bool received_frame_skipping_error_hpd;
+	/* Live capture with CVT is activated */
+	bool live_capture_with_cvt_activated;
 };
 
 /* Replay feature flags*/
