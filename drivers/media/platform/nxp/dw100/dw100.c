@@ -1440,49 +1440,10 @@ static irqreturn_t dw100_irq_thread_fn(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void dw100_start(struct dw100_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
-			struct vb2_v4l2_buffer *out_vb)
-{
-	struct dw100_device *dw_dev = ctx->dw_dev;
-
-	out_vb->sequence =
-		dw100_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)->sequence++;
-	in_vb->sequence =
-		dw100_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)->sequence++;
-
-	dev_dbg(&ctx->dw_dev->pdev->dev,
-		"Starting queues %p->%p, sequence %u->%u\n",
-		v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
-				V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE),
-		v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
-				V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE),
-		in_vb->sequence, out_vb->sequence);
-
-	v4l2_m2m_buf_copy_metadata(in_vb, out_vb);
-
-	/* Now, let's deal with hardware ... */
-	dw100_hw_master_bus_disable(dw_dev);
-	dw100_hw_init_ctrl(dw_dev);
-	dw100_hw_set_pixel_boundary(dw_dev);
-	dw100_hw_set_src_crop(dw_dev, &ctx->q_data[DW100_QUEUE_SRC],
-			      &ctx->q_data[DW100_QUEUE_DST]);
-	dw100_hw_set_source(dw_dev, &ctx->q_data[DW100_QUEUE_SRC],
-			    &in_vb->vb2_buf);
-	dw100_hw_set_destination(dw_dev, &ctx->q_data[DW100_QUEUE_DST],
-				 ctx->q_data[DW100_QUEUE_SRC].fmt,
-				 &out_vb->vb2_buf);
-	dw100_hw_set_mapping(dw_dev, ctx->map_dma,
-			     ctx->map_width, ctx->map_height);
-	dw100_hw_enable_irq(dw_dev);
-	dw100_hw_dewarp_start(dw_dev);
-
-	/* Enable Bus */
-	dw100_hw_master_bus_enable(dw_dev);
-}
-
 static void dw100_device_run(void *priv)
 {
 	struct dw100_ctx *ctx = priv;
+	struct dw100_device *dw_dev = ctx->dw_dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
@@ -1494,7 +1455,7 @@ static void dw100_device_run(void *priv)
 	if (src_buf->vb2_buf.req_obj.req)
 		dw100_update_mapping(ctx);
 	else if (ctx->user_map_is_dirty)
-		dev_warn_once(&ctx->dw_dev->pdev->dev,
+		dev_warn_once(&dw_dev->pdev->dev,
 			      "V4L2 requests are required to update the vertex map dynamically\n");
 
 	/*
@@ -1504,7 +1465,39 @@ static void dw100_device_run(void *priv)
 	v4l2_ctrl_request_complete(src_buf->vb2_buf.req_obj.req,
 				   &ctx->hdl);
 
-	dw100_start(ctx, src_buf, dst_buf);
+	src_buf->sequence =
+		dw100_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)->sequence++;
+	dst_buf->sequence =
+		dw100_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)->sequence++;
+
+	dev_dbg(&dw_dev->pdev->dev,
+		"Starting queues %p->%p, sequence %u->%u\n",
+		v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+				V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE),
+		v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+				V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE),
+		src_buf->sequence, dst_buf->sequence);
+
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
+
+	/* Now, let's deal with hardware ... */
+	dw100_hw_master_bus_disable(dw_dev);
+	dw100_hw_init_ctrl(dw_dev);
+	dw100_hw_set_pixel_boundary(dw_dev);
+	dw100_hw_set_src_crop(dw_dev, &ctx->q_data[DW100_QUEUE_SRC],
+			      &ctx->q_data[DW100_QUEUE_DST]);
+	dw100_hw_set_source(dw_dev, &ctx->q_data[DW100_QUEUE_SRC],
+			    &src_buf->vb2_buf);
+	dw100_hw_set_destination(dw_dev, &ctx->q_data[DW100_QUEUE_DST],
+				 ctx->q_data[DW100_QUEUE_SRC].fmt,
+				 &dst_buf->vb2_buf);
+	dw100_hw_set_mapping(dw_dev, ctx->map_dma,
+			     ctx->map_width, ctx->map_height);
+	dw100_hw_enable_irq(dw_dev);
+	dw100_hw_dewarp_start(dw_dev);
+
+	/* Enable Bus */
+	dw100_hw_master_bus_enable(dw_dev);
 }
 
 static const struct v4l2_m2m_ops dw100_m2m_ops = {
