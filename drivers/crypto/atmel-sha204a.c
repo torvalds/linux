@@ -181,10 +181,6 @@ static int atmel_sha204a_probe(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "failed to register RNG (%d)\n", ret);
 
-	/* otp read out */
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
 	ret = sysfs_create_group(&client->dev.kobj, &atmel_sha204a_groups);
 	if (ret) {
 		dev_err(&client->dev, "failed to register sysfs entry\n");
