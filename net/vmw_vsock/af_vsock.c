@@ -545,9 +545,13 @@ static void vsock_deassign_transport(struct vsock_sock *vsk)
  * The vsk->remote_addr is used to decide which transport to use:
  *  - remote CID == VMADDR_CID_LOCAL or g2h->local_cid or VMADDR_CID_HOST if
  *    g2h is not loaded, will use local transport;
- *  - remote CID <= VMADDR_CID_HOST or h2g is not loaded or remote flags field
- *    includes VMADDR_FLAG_TO_HOST flag value, will use guest->host transport;
- *  - remote CID > VMADDR_CID_HOST will use host->guest transport;
+ *  - remote CID <= VMADDR_CID_HOST or remote flags field includes
+ *    VMADDR_FLAG_TO_HOST, will use guest->host transport;
+ *  - remote CID > VMADDR_CID_HOST and h2g is loaded and h2g claims that CID,
+ *    will use host->guest transport;
+ *  - h2g not loaded or h2g does not claim that CID and g2h claims the CID via
+ *    has_remote_cid, will use guest->host transport (when g2h_fallback=1)
+ *  - anything else goes to h2g or returns -ENODEV if no h2g is available
  */
 int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 {
@@ -581,11 +585,21 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	case SOCK_SEQPACKET:
 		if (vsock_use_local_transport(remote_cid))
 			new_transport = transport_local;
-		else if (remote_cid <= VMADDR_CID_HOST || !transport_h2g ||
+		else if (remote_cid <= VMADDR_CID_HOST ||
 			 (remote_flags & VMADDR_FLAG_TO_HOST))
 			new_transport = transport_g2h;
-		else
+		else if (transport_h2g &&
+			 (!transport_h2g->has_remote_cid ||
+			  transport_h2g->has_remote_cid(vsk, remote_cid)))
 			new_transport = transport_h2g;
+		else if (sock_net(sk)->vsock.g2h_fallback &&
+			 transport_g2h && transport_g2h->has_remote_cid &&
+			 transport_g2h->has_remote_cid(vsk, remote_cid)) {
+			vsk->remote_addr.svm_flags |= VMADDR_FLAG_TO_HOST;
+			new_transport = transport_g2h;
+		} else {
+			new_transport = transport_h2g;
+		}
 		break;
 	default:
 		ret = -ESOCKTNOSUPPORT;
@@ -2879,6 +2893,15 @@ static struct ctl_table vsock_table[] = {
 		.mode		= 0644,
 		.proc_handler	= vsock_net_child_mode_string
 	},
+	{
+		.procname	= "g2h_fallback",
+		.data		= &init_net.vsock.g2h_fallback,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
 };
 
 static int __net_init vsock_sysctl_register(struct net *net)
@@ -2894,6 +2917,7 @@ static int __net_init vsock_sysctl_register(struct net *net)
 
 		table[0].data = &net->vsock.mode;
 		table[1].data = &net->vsock.child_ns_mode;
+		table[2].data = &net->vsock.g2h_fallback;
 	}
 
 	net->vsock.sysctl_hdr = register_net_sysctl_sz(net, "net/vsock", table,
@@ -2928,6 +2952,7 @@ static void vsock_net_init(struct net *net)
 		net->vsock.mode = vsock_net_child_mode(current->nsproxy->net_ns);
 
 	net->vsock.child_ns_mode = net->vsock.mode;
+	net->vsock.g2h_fallback = 1;
 }
 
 static __net_init int vsock_sysctl_init_net(struct net *net)

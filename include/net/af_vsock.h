@@ -179,6 +179,15 @@ struct vsock_transport {
 	/* Addressing. */
 	u32 (*get_local_cid)(void);
 
+	/* Check if this transport serves a specific remote CID.
+	 * For H2G transports: return true if the CID belongs to a registered
+	 * guest. If not implemented, all CIDs > VMADDR_CID_HOST go to H2G.
+	 * For G2H transports: return true if the transport can reach arbitrary
+	 * CIDs via the hypervisor (i.e. supports the fallback overlay). VMCI
+	 * does not implement this as it only serves CIDs 0 and 2.
+	 */
+	bool (*has_remote_cid)(struct vsock_sock *vsk, u32 remote_cid);
+
 	/* Read a single skb */
 	int (*read_skb)(struct vsock_sock *, skb_read_actor_t);
 
