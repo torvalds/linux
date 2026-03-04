@@ -113,6 +113,7 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 		goto err_rm_genpds;
 
 	dev_set_drvdata(dev, scmi_pd_data);
+	dev_info(dev, "Initialized %d power domains", num_domains);
 
 	return 0;
 err_rm_genpds:
