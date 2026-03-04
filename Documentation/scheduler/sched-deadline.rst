@@ -628,10 +628,21 @@ Deadline Task Scheduling
   * the new scheduling related syscalls that manipulate it, i.e.,
     sched_setattr() and sched_getattr() are implemented.
 
- For debugging purposes, the leftover runtime and absolute deadline of a
- SCHED_DEADLINE task can be retrieved through /proc/<pid>/sched (entries
- dl.runtime and dl.deadline, both values in ns). A programmatic way to
- retrieve these values from production code is under discussion.
+ The leftover runtime and absolute deadline of a SCHED_DEADLINE task can be
+ read using the sched_getattr() syscall, setting the last syscall parameter
+ flags to the SCHED_GETATTR_FLAG_DL_DYNAMIC=1 value. This updates the
+ runtime left, converts the absolute deadline in CLOCK_MONOTONIC reference,
+ then returns these parameters to user-space. The absolute deadline is
+ returned as the number of nanoseconds since the CLOCK_MONOTONIC time
+ reference (boot instant), as a u64 in the sched_deadline field of sched_attr,
+ which can represent nearly 585 years since boot time (calling sched_getattr()
+ with flags=0 causes retrieval of the static parameters instead).
+
+ For debugging purposes, these parameters can also be retrieved through
+ /proc/<pid>/sched (entries dl.runtime and dl.deadline, both values in ns),
+ but: this is highly inefficient; the returned runtime left is not updated as
+ done by sched_getattr(); the deadline is provided in kernel rq_clock time
+ reference, that is not directly usable from user-space.
 
 
 4.3 Default behavior
