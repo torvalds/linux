@@ -31,6 +31,10 @@ properties:
               - qcom,sm8750-dsi-phy-3nm
       - items:
           - enum:
+              - qcom,eliza-dsi-phy-4nm
+          - const: qcom,sm8650-dsi-phy-4nm
+      - items:
+          - enum:
               - qcom,qcs8300-dsi-phy-5nm
           - const: qcom,sa8775p-dsi-phy-5nm
 
