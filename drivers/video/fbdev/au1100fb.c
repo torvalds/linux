@@ -380,8 +380,12 @@ static struct au1100fb_panel known_lcd_panels[] =
 #define panel_is_color(panel) (panel->control_base & LCD_CONTROL_PC)
 #define panel_swap_rgb(panel) (panel->control_base & LCD_CONTROL_CCO)
 
-#if defined(CONFIG_COMPILE_TEST) && !defined(CONFIG_MIPS)
-/* This is only defined to be able to compile this driver on non-mips platforms */
+#if defined(CONFIG_COMPILE_TEST) && (!defined(CONFIG_MIPS) || defined(CONFIG_64BIT))
+/*
+ * KSEG1ADDR() is defined in arch/mips/include/asm/addrspace.h
+ * for 32 bit configurations. Provide a stub for compile testing
+ * on other platforms.
+ */
 #define KSEG1ADDR(x) (x)
 #endif
 
