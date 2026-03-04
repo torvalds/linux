@@ -185,8 +185,13 @@ struct ipa_resource_data {
 struct ipa_mem_data {
 	u32 local_count;
 	const struct ipa_mem *local;
-	u32 imem_addr;
-	u32 imem_size;
+
+	/* These values are now passed via DT, but to support
+	 * older systems we must allow this to be specified here.
+	 */
+	u32 imem_addr; /* DEPRECATED */
+	u32 imem_size; /* DEPRECATED */
+
 	u32 smem_size;
 };
 
