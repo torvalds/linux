@@ -443,7 +443,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		count = ORANGEFS_MAX_DEBUG_STRING_LEN;
 	}
 
-	buf = memdup_user_nul(ubuf, count - 1);
+	buf = memdup_user_nul(ubuf, count);
 	if (IS_ERR(buf)) {
 		gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 			     "%s: memdup_user_nul failed!\n",
@@ -452,6 +452,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 		buf = NULL;
 		goto out;
 	}
+	strim(buf);
 
 	/*
 	 * Map the keyword string from userspace into a valid debug mask.
@@ -873,9 +874,10 @@ out:
  */
 static void debug_string_to_mask(char *debug_string, void *mask, int type)
 {
-	char *unchecked_keyword;
 	int i;
 	char *strsep_fodder = kstrdup(debug_string, GFP_KERNEL);
+	char *trimmed;
+	char *token;
 	char *original_pointer;
 	int element_count = 0;
 	struct client_debug_mask *c_mask = NULL;
@@ -893,18 +895,17 @@ static void debug_string_to_mask(char *debug_string, void *mask, int type)
 	}
 
 	original_pointer = strsep_fodder;
-	while ((unchecked_keyword = strsep(&strsep_fodder, ",")))
-		if (strlen(unchecked_keyword)) {
+	while ((token = strsep(&strsep_fodder, ",")) != NULL) {
+		trimmed = strim(token);
+		if (*trimmed) {
 			for (i = 0; i < element_count; i++)
 				if (type)
-					do_c_mask(i,
-						  unchecked_keyword,
-						  &c_mask);
+					do_c_mask(i, trimmed, &c_mask);
 				else
-					do_k_mask(i,
-						  unchecked_keyword,
-						  &k_mask);
+					do_k_mask(i, trimmed, &k_mask);
+
 		}
+	}
 
 	kfree(original_pointer);
 }
