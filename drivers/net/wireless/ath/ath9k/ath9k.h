@@ -443,7 +443,7 @@ ath_node_to_tid(struct ath_node *an, u8 tidno)
 
 #define case_rtn_string(val) case val: return #val
 
-#define ath_for_each_chanctx(_sc, _ctx)                             \
+#define ath_for_each_chanctx(sc, ctx)                               \
 	for (ctx = &sc->chanctx[0];                                 \
 	     ctx <= &sc->chanctx[ARRAY_SIZE(sc->chanctx) - 1];      \
 	     ctx++)

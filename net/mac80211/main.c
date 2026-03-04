@@ -915,6 +915,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_TXQS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_RRM);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_IEEE8021X_AUTH);
 
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
@@ -1596,6 +1597,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		local->hw.wiphy->bands[band] = sband;
 		local->sband_allocated |= BIT(band);
 	}
+
+	/*
+	 * mac80211 supports EPPKE, if the driver supports (Re)Association
+	 * frame encryption
+	 */
+	if (wiphy_ext_feature_isset(local->hw.wiphy,
+				    NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION))
+		wiphy_ext_feature_set(local->hw.wiphy,
+				      NL80211_EXT_FEATURE_EPPKE);
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)

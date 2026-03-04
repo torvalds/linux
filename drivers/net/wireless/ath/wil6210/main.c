@@ -245,7 +245,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
 	uint i;
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct net_device *ndev = vif_to_ndev(vif);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	struct wil_sta_info *sta = &wil->sta[cid];
 	int min_ring_id = wil_get_min_tx_ring_id(wil);
@@ -265,7 +264,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
 			/* AP-like interface */
-			cfg80211_del_sta(ndev, sta->addr, GFP_KERNEL);
+			cfg80211_del_sta(wdev, sta->addr, GFP_KERNEL);
 			break;
 		default:
 			break;

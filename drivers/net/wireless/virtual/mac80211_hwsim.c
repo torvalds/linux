@@ -337,7 +337,9 @@ static inline void hwsim_net_set_wmediumd(struct net *net, u32 portid)
 	hwsim_net->wmediumd = portid;
 }
 
-static struct class *hwsim_class;
+static const struct class hwsim_class = {
+	.name	= "mac80211_hwsim"
+};
 
 static struct net_device *hwsim_mon; /* global monitor netdev */
 
@@ -715,6 +717,7 @@ struct mac80211_hwsim_data {
 	} ps;
 	bool ps_poll_pending;
 	struct dentry *debugfs;
+	struct cfg80211_chan_def radar_background_chandef;
 
 	atomic_t pending_cookie;
 	struct sk_buff_head pending;	/* packets pending */
@@ -936,6 +939,7 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_PMSR_RESULT] = NLA_POLICY_NESTED(hwsim_pmsr_peers_result_policy),
 	[HWSIM_ATTR_MULTI_RADIO] = { .type = NLA_FLAG },
 	[HWSIM_ATTR_SUPPORT_NAN_DEVICE] = { .type = NLA_FLAG },
+	[HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR] = { .type = NLA_FLAG },
 };
 
 #if IS_REACHABLE(CONFIG_VIRTIO)
@@ -1163,6 +1167,41 @@ static int hwsim_write_simulate_radar(void *dat, u64 val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(hwsim_simulate_radar, NULL,
 			 hwsim_write_simulate_radar, "%llu\n");
+
+static ssize_t hwsim_background_cac_write(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct mac80211_hwsim_data *data = file->private_data;
+	char buf[8] = {};
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	/* Check if background radar channel is configured */
+	if (!data->radar_background_chandef.chan)
+		return -ENOENT;
+
+	if (sysfs_streq(buf, "radar"))
+		cfg80211_background_radar_event(data->hw->wiphy,
+						&data->radar_background_chandef,
+						GFP_KERNEL);
+	else if (sysfs_streq(buf, "cancel"))
+		cfg80211_background_cac_abort(data->hw->wiphy);
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static const struct file_operations hwsim_background_cac_ops = {
+	.write = hwsim_background_cac_write,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
 
 static int hwsim_fops_group_read(void *dat, u64 *val)
 {
@@ -1955,6 +1994,25 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 	return NULL;
 }
 
+static int mac80211_hwsim_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  struct ieee80211_key_conf *key)
+{
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		break;
+	default:
+		return 1;
+	}
+
+	key->flags |= IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
+	return 0;
+}
+
 static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_control *control,
 			      struct sk_buff *skb)
@@ -1965,7 +2023,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *channel;
 	struct ieee80211_vif *vif = txi->control.vif;
-	bool ack;
+	bool ack, unicast_data;
 	enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
 	u32 _portid, i;
 
@@ -1974,6 +2032,16 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		ieee80211_free_txskb(hw, skb);
 		return;
 	}
+
+	unicast_data = is_unicast_ether_addr(hdr->addr1) &&
+		       ieee80211_is_data(hdr->frame_control);
+
+	if (unicast_data && ieee80211_encrypt_tx_skb(skb) < 0) {
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+	/* re-assign hdr since skb data may have shifted after encryption */
+	hdr = (void *)skb->data;
 
 	if (vif && vif->type == NL80211_IFTYPE_NAN && !data->tmp_chan) {
 		/* For NAN Device simulation purposes, assume that NAN is always
@@ -2059,6 +2127,13 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			channel = NULL;
 		}
 	}
+
+	if (!unicast_data && ieee80211_encrypt_tx_skb(skb) < 0) {
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+	/* re-assign hdr since skb data may have shifted after encryption */
+	hdr = (void *)skb->data;
 
 	if (WARN(!channel, "TX w/o channel - queue = %d\n", txi->hw_queue)) {
 		ieee80211_free_txskb(hw, skb);
@@ -4078,7 +4153,7 @@ static int mac80211_hwsim_start_nan(struct ieee80211_hw *hw,
 		      ns_to_ktime(until_dw * NSEC_PER_USEC),
 		      HRTIMER_MODE_REL_SOFT);
 
-	if (conf->cluster_id && !is_zero_ether_addr(conf->cluster_id) &&
+	if (!is_zero_ether_addr(conf->cluster_id) &&
 	    is_zero_ether_addr(hwsim_nan_cluster_id)) {
 		memcpy(hwsim_nan_cluster_id, conf->cluster_id, ETH_ALEN);
 	} else if (is_zero_ether_addr(hwsim_nan_cluster_id)) {
@@ -4154,6 +4229,24 @@ static int mac80211_hwsim_change_nan_config(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int mac80211_hwsim_set_radar_background(struct ieee80211_hw *hw,
+					       struct cfg80211_chan_def *chan)
+{
+	struct mac80211_hwsim_data *data = hw->priv;
+
+	if (!wiphy_ext_feature_isset(hw->wiphy,
+				     NL80211_EXT_FEATURE_RADAR_BACKGROUND))
+		return -EOPNOTSUPP;
+
+	if (chan)
+		data->radar_background_chandef = *chan;
+	else
+		memset(&data->radar_background_chandef, 0,
+		       sizeof(data->radar_background_chandef));
+
+	return 0;
+}
+
 #ifdef CONFIG_MAC80211_DEBUGFS
 #define HWSIM_DEBUGFS_OPS					\
 	.link_add_debugfs = mac80211_hwsim_link_add_debugfs,
@@ -4189,6 +4282,8 @@ static int mac80211_hwsim_change_nan_config(struct ieee80211_hw *hw,
 	.start_nan = mac80211_hwsim_start_nan,                  \
 	.stop_nan = mac80211_hwsim_stop_nan,                    \
 	.nan_change_conf = mac80211_hwsim_change_nan_config,    \
+	.set_radar_background = mac80211_hwsim_set_radar_background, \
+	.set_key = mac80211_hwsim_set_key,			\
 	HWSIM_DEBUGFS_OPS
 
 #define HWSIM_NON_MLO_OPS					\
@@ -4255,6 +4350,7 @@ struct hwsim_new_radio_params {
 	bool mlo;
 	const struct cfg80211_pmsr_capabilities *pmsr_capa;
 	bool nan_device;
+	bool background_radar;
 };
 
 static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
@@ -4337,6 +4433,12 @@ static int append_radio_msg(struct sk_buff *skb, int id,
 
 	if (param->nan_device) {
 		ret = nla_put_flag(skb, HWSIM_ATTR_SUPPORT_NAN_DEVICE);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (param->background_radar) {
+		ret = nla_put_flag(skb, HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR);
 		if (ret < 0)
 			return ret;
 	}
@@ -5424,7 +5526,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	data = hw->priv;
 	data->hw = hw;
 
-	data->dev = device_create(hwsim_class, NULL, 0, hw, "hwsim%d", idx);
+	data->dev = device_create(&hwsim_class, NULL, 0, hw, "hwsim%d", idx);
 	if (IS_ERR(data->dev)) {
 		printk(KERN_DEBUG
 		       "mac80211_hwsim: device_create failed (%ld)\n",
@@ -5621,6 +5723,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 			    WIPHY_FLAG_AP_UAPSD |
 			    WIPHY_FLAG_SUPPORTS_5_10_MHZ |
 			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
 			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
 			       NL80211_FEATURE_STATIC_SMPS |
@@ -5639,6 +5742,14 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 			      NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT);
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_BSS_COLOR);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_EXT_KEY_ID);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION);
 
 	hw->wiphy->interface_modes = param->iftypes;
 
@@ -5794,6 +5905,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_DFS_CONCURRENT);
+	if (param->background_radar)
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_RADAR_BACKGROUND);
 
 	if (param->no_vif)
 		ieee80211_hw_set(hw, NO_AUTO_VIF);
@@ -5832,6 +5946,10 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		debugfs_create_file("dfs_simulate_radar", 0222,
 				    data->debugfs,
 				    data, &hwsim_simulate_radar);
+	if (param->background_radar)
+		debugfs_create_file("dfs_background_cac", 0200,
+				    data->debugfs,
+				    data, &hwsim_background_cac_ops);
 
 	if (param->pmsr_capa) {
 		data->pmsr_capa = *param->pmsr_capa;
@@ -5950,6 +6068,9 @@ static int mac80211_hwsim_get_radio(struct sk_buff *skb,
 	param.channels = data->channels;
 	param.hwname = wiphy_name(data->hw->wiphy);
 	param.pmsr_capa = &data->pmsr_capa;
+	param.background_radar =
+		wiphy_ext_feature_isset(data->hw->wiphy,
+					NL80211_EXT_FEATURE_RADAR_BACKGROUND);
 
 	res = append_radio_msg(skb, data->idx, &param);
 	if (res < 0)
@@ -5978,7 +6099,7 @@ static void mac80211_hwsim_free(void)
 		spin_lock_bh(&hwsim_radio_lock);
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
-	class_destroy(hwsim_class);
+	class_unregister(&hwsim_class);
 }
 
 static const struct net_device_ops hwsim_netdev_ops = {
@@ -6386,6 +6507,9 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 
 	if (info->attrs[HWSIM_ATTR_MULTI_RADIO])
 		param.multi_radio = true;
+
+	if (info->attrs[HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR])
+		param.background_radar = true;
 
 	if (info->attrs[HWSIM_ATTR_REG_HINT_ALPHA2])
 		param.reg_alpha2 =
@@ -7083,11 +7207,9 @@ static int __init init_mac80211_hwsim(void)
 	if (err)
 		goto out_exit_netlink;
 
-	hwsim_class = class_create("mac80211_hwsim");
-	if (IS_ERR(hwsim_class)) {
-		err = PTR_ERR(hwsim_class);
+	err = class_register(&hwsim_class);
+	if (err)
 		goto out_exit_virtio;
-	}
 
 	hwsim_init_s1g_channels(hwsim_channels_s1g);
 
@@ -7165,6 +7287,7 @@ static int __init init_mac80211_hwsim(void)
 		param.p2p_device = support_p2p_device;
 		param.mlo = mlo;
 		param.multi_radio = multi_radio;
+		param.background_radar = true;
 		param.use_chanctx = channels > 1 || mlo || multi_radio;
 		param.iftypes = HWSIM_IFTYPE_SUPPORT_MASK;
 		if (param.p2p_device)

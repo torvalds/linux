@@ -1095,7 +1095,7 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	for (i = 0; i < 4; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
-		if (rdev_add_key(rdev, dev, -1, i, false, NULL,
+		if (rdev_add_key(rdev, wdev, -1, i, false, NULL,
 				 &wdev->connect_keys->params[i])) {
 			netdev_err(dev, "failed to set key %d\n", i);
 			continue;
@@ -2669,7 +2669,7 @@ int cfg80211_get_station(struct net_device *dev, const u8 *mac_addr,
 
 	guard(wiphy)(&rdev->wiphy);
 
-	return rdev_get_station(rdev, dev, mac_addr, sinfo);
+	return rdev_get_station(rdev, wdev, mac_addr, sinfo);
 }
 EXPORT_SYMBOL(cfg80211_get_station);
 
