@@ -1107,8 +1107,7 @@ struct ttm_bo_swapout_walk {
 static s64
 ttm_bo_swapout_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *bo)
 {
-	struct ttm_resource *res = bo->resource;
-	struct ttm_place place = { .mem_type = res->mem_type };
+	struct ttm_place place = { .mem_type = bo->resource->mem_type };
 	struct ttm_bo_swapout_walk *swapout_walk =
 		container_of(walk, typeof(*swapout_walk), walk);
 	struct ttm_operation_ctx *ctx = walk->arg.ctx;
@@ -1148,7 +1147,7 @@ ttm_bo_swapout_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *bo)
 	/*
 	 * Move to system cached
 	 */
-	if (res->mem_type != TTM_PL_SYSTEM) {
+	if (bo->resource->mem_type != TTM_PL_SYSTEM) {
 		struct ttm_resource *evict_mem;
 		struct ttm_place hop;
 
@@ -1180,15 +1179,15 @@ ttm_bo_swapout_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *bo)
 
 	if (ttm_tt_is_populated(tt)) {
 		spin_lock(&bdev->lru_lock);
-		ttm_resource_del_bulk_move(res, bo);
+		ttm_resource_del_bulk_move(bo->resource, bo);
 		spin_unlock(&bdev->lru_lock);
 
 		ret = ttm_tt_swapout(bdev, tt, swapout_walk->gfp_flags);
 
 		spin_lock(&bdev->lru_lock);
 		if (ret)
-			ttm_resource_add_bulk_move(res, bo);
-		ttm_resource_move_to_lru_tail(res);
+			ttm_resource_add_bulk_move(bo->resource, bo);
+		ttm_resource_move_to_lru_tail(bo->resource);
 		spin_unlock(&bdev->lru_lock);
 	}
 
