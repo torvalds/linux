@@ -229,6 +229,17 @@ config BATTERY_SAMSUNG_SDI
 	  Say Y to enable support for Samsung SDI battery data.
 	  These batteries are used in Samsung mobile phones.
 
+config BATTERY_S2MU005
+	tristate "Samsung S2MU005 PMIC fuel gauge driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Samsung S2MU005 PMIC integrated
+	  fuel gauge, which works indepenently of the PMIC battery charger
+	  counterpart, and reports battery metrics.
+
+	  This driver, if built as a module, will be called s2mu005-fuel-gauge.
+
 config BATTERY_COLLIE
 	tristate "Sharp SL-5500 (collie) battery"
 	depends on SA1100_COLLIE && MCP_UCB1200
