@@ -19,6 +19,7 @@
 #define GT_HW_ERROR_MAX_ERR_BITS		16
 #define HEC_UNCORR_FW_ERR_BITS			4
 #define XE_RAS_REG_SIZE				32
+#define XE_SOC_NUM_IEH				2
 
 #define PVC_ERROR_MASK_SET(hw_err, err_bit)	((hw_err == HARDWARE_ERROR_CORRECTABLE) ? \
 						 (PVC_COR_ERR_MASK & REG_BIT(err_bit)) : \
@@ -37,6 +38,7 @@ static const char * const hec_uncorrected_fw_errors[] = {
 
 static const unsigned long xe_hw_error_map[] = {
 	[XE_GT_ERROR]	= DRM_XE_RAS_ERR_COMP_CORE_COMPUTE,
+	[XE_SOC_ERROR]	= DRM_XE_RAS_ERR_COMP_SOC_INTERNAL,
 };
 
 enum gt_vector_regs {
@@ -62,6 +64,101 @@ static enum drm_xe_ras_error_severity hw_err_to_severity(const enum hardware_err
 	/* Uncorrectable errors comprise of both fatal and non-fatal errors */
 	return DRM_XE_RAS_ERR_SEV_UNCORRECTABLE;
 }
+
+static const char * const pvc_master_global_err_reg[] = {
+	[0 ... 1]	= "Undefined",
+	[2]		= "HBM SS0: Channel0",
+	[3]		= "HBM SS0: Channel1",
+	[4]		= "HBM SS0: Channel2",
+	[5]		= "HBM SS0: Channel3",
+	[6]		= "HBM SS0: Channel4",
+	[7]		= "HBM SS0: Channel5",
+	[8]		= "HBM SS0: Channel6",
+	[9]		= "HBM SS0: Channel7",
+	[10]		= "HBM SS1: Channel0",
+	[11]		= "HBM SS1: Channel1",
+	[12]		= "HBM SS1: Channel2",
+	[13]		= "HBM SS1: Channel3",
+	[14]		= "HBM SS1: Channel4",
+	[15]		= "HBM SS1: Channel5",
+	[16]		= "HBM SS1: Channel6",
+	[17]		= "HBM SS1: Channel7",
+	[18 ... 31]	= "Undefined",
+};
+static_assert(ARRAY_SIZE(pvc_master_global_err_reg) == XE_RAS_REG_SIZE);
+
+static const char * const pvc_slave_global_err_reg[] = {
+	[0]		= "Undefined",
+	[1]		= "HBM SS2: Channel0",
+	[2]		= "HBM SS2: Channel1",
+	[3]		= "HBM SS2: Channel2",
+	[4]		= "HBM SS2: Channel3",
+	[5]		= "HBM SS2: Channel4",
+	[6]		= "HBM SS2: Channel5",
+	[7]		= "HBM SS2: Channel6",
+	[8]		= "HBM SS2: Channel7",
+	[9]		= "HBM SS3: Channel0",
+	[10]		= "HBM SS3: Channel1",
+	[11]		= "HBM SS3: Channel2",
+	[12]		= "HBM SS3: Channel3",
+	[13]		= "HBM SS3: Channel4",
+	[14]		= "HBM SS3: Channel5",
+	[15]		= "HBM SS3: Channel6",
+	[16]		= "HBM SS3: Channel7",
+	[17]		= "Undefined",
+	[18]		= "ANR MDFI",
+	[19 ... 31]	= "Undefined",
+};
+static_assert(ARRAY_SIZE(pvc_slave_global_err_reg) == XE_RAS_REG_SIZE);
+
+static const char * const pvc_slave_local_fatal_err_reg[] = {
+	[0]		= "Local IEH: Malformed PCIe AER",
+	[1]		= "Local IEH: Malformed PCIe ERR",
+	[2]		= "Local IEH: UR conditions in IEH",
+	[3]		= "Local IEH: From SERR Sources",
+	[4 ... 19]	= "Undefined",
+	[20]		= "Malformed MCA error packet (HBM/Punit)",
+	[21 ... 31]	= "Undefined",
+};
+static_assert(ARRAY_SIZE(pvc_slave_local_fatal_err_reg) == XE_RAS_REG_SIZE);
+
+static const char * const pvc_master_local_fatal_err_reg[] = {
+	[0]		= "Local IEH: Malformed IOSF PCIe AER",
+	[1]		= "Local IEH: Malformed IOSF PCIe ERR",
+	[2]		= "Local IEH: UR RESPONSE",
+	[3]		= "Local IEH: From SERR SPI controller",
+	[4]		= "Base Die MDFI T2T",
+	[5]		= "Undefined",
+	[6]		= "Base Die MDFI T2C",
+	[7]		= "Undefined",
+	[8]		= "Invalid CSC PSF Command Parity",
+	[9]		= "Invalid CSC PSF Unexpected Completion",
+	[10]		= "Invalid CSC PSF Unsupported Request",
+	[11]		= "Invalid PCIe PSF Command Parity",
+	[12]		= "PCIe PSF Unexpected Completion",
+	[13]		= "PCIe PSF Unsupported Request",
+	[14 ... 19]	= "Undefined",
+	[20]		= "Malformed MCA error packet (HBM/Punit)",
+	[21 ... 31]	= "Undefined",
+};
+static_assert(ARRAY_SIZE(pvc_master_local_fatal_err_reg) == XE_RAS_REG_SIZE);
+
+static const char * const pvc_master_local_nonfatal_err_reg[] = {
+	[0 ... 3]	= "Undefined",
+	[4]		= "Base Die MDFI T2T",
+	[5]		= "Undefined",
+	[6]		= "Base Die MDFI T2C",
+	[7]		= "Undefined",
+	[8]		= "Invalid CSC PSF Command Parity",
+	[9]		= "Invalid CSC PSF Unexpected Completion",
+	[10]		= "Invalid PCIe PSF Command Parity",
+	[11 ... 31]	= "Undefined",
+};
+static_assert(ARRAY_SIZE(pvc_master_local_nonfatal_err_reg) == XE_RAS_REG_SIZE);
+
+#define PVC_MASTER_LOCAL_REG_INFO(hw_err)	((hw_err == HARDWARE_ERROR_FATAL) ? \
+						 pvc_master_local_fatal_err_reg : \
+						 pvc_master_local_nonfatal_err_reg)
 
 static bool fault_inject_csc_hw_error(void)
 {
@@ -141,6 +238,26 @@ static void log_gt_err(struct xe_tile *tile, const char *name, int i, u32 err,
 				    name, severity_str, i, err);
 }
 
+static void log_soc_error(struct xe_tile *tile, const char * const *reg_info,
+			  const enum drm_xe_ras_error_severity severity, u32 err_bit, u32 index)
+{
+	const char *severity_str = error_severity[severity];
+	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_drm_ras *ras = &xe->ras;
+	struct xe_drm_ras_counter *info = ras->info[severity];
+	const char *name;
+
+	name = reg_info[err_bit];
+
+	if (strcmp(name, "Undefined")) {
+		if (severity == DRM_XE_RAS_ERR_SEV_CORRECTABLE)
+			drm_warn(&xe->drm, "%s SOC %s detected", name, severity_str);
+		else
+			drm_err_ratelimited(&xe->drm, "%s SOC %s detected", name, severity_str);
+		atomic_inc(&info[index].counter);
+	}
+}
+
 static void gt_hw_error_handler(struct xe_tile *tile, const enum hardware_error hw_err,
 				u32 error_id)
 {
@@ -217,6 +334,92 @@ static void gt_hw_error_handler(struct xe_tile *tile, const enum hardware_error 
 	}
 }
 
+static void soc_slave_ieh_handler(struct xe_tile *tile, const enum hardware_error hw_err, u32 error_id)
+{
+	const enum drm_xe_ras_error_severity severity = hw_err_to_severity(hw_err);
+	unsigned long slave_global_errstat, slave_local_errstat;
+	struct xe_mmio *mmio = &tile->mmio;
+	u32 regbit, slave;
+
+	slave = SOC_PVC_SLAVE_BASE;
+	slave_global_errstat = xe_mmio_read32(mmio, SOC_GLOBAL_ERR_STAT_REG(slave, hw_err));
+
+	if (slave_global_errstat & SOC_IEH1_LOCAL_ERR_STATUS) {
+		slave_local_errstat = xe_mmio_read32(mmio, SOC_LOCAL_ERR_STAT_REG(slave, hw_err));
+
+		if (hw_err == HARDWARE_ERROR_FATAL) {
+			for_each_set_bit(regbit, &slave_local_errstat, XE_RAS_REG_SIZE)
+				log_soc_error(tile, pvc_slave_local_fatal_err_reg, severity,
+					      regbit, error_id);
+		}
+
+		xe_mmio_write32(mmio, SOC_LOCAL_ERR_STAT_REG(slave, hw_err),
+				slave_local_errstat);
+	}
+
+	for_each_set_bit(regbit, &slave_global_errstat, XE_RAS_REG_SIZE)
+		log_soc_error(tile, pvc_slave_global_err_reg, severity, regbit, error_id);
+
+	xe_mmio_write32(mmio, SOC_GLOBAL_ERR_STAT_REG(slave, hw_err), slave_global_errstat);
+}
+
+static void soc_hw_error_handler(struct xe_tile *tile, const enum hardware_error hw_err,
+				 u32 error_id)
+{
+	const enum drm_xe_ras_error_severity severity = hw_err_to_severity(hw_err);
+	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_mmio *mmio = &tile->mmio;
+	unsigned long master_global_errstat, master_local_errstat;
+	u32 master, slave, regbit;
+	int i;
+
+	if (xe->info.platform != XE_PVC)
+		return;
+
+	master = SOC_PVC_MASTER_BASE;
+	slave = SOC_PVC_SLAVE_BASE;
+
+	/* Mask error type in GSYSEVTCTL so that no new errors of the type will be reported */
+	for (i = 0; i < XE_SOC_NUM_IEH; i++)
+		xe_mmio_write32(mmio, SOC_GSYSEVTCTL_REG(master, slave, i), ~REG_BIT(hw_err));
+
+	if (hw_err == HARDWARE_ERROR_CORRECTABLE) {
+		xe_mmio_write32(mmio, SOC_GLOBAL_ERR_STAT_REG(master, hw_err), REG_GENMASK(31, 0));
+		xe_mmio_write32(mmio, SOC_LOCAL_ERR_STAT_REG(master, hw_err), REG_GENMASK(31, 0));
+		xe_mmio_write32(mmio, SOC_GLOBAL_ERR_STAT_REG(slave, hw_err), REG_GENMASK(31, 0));
+		xe_mmio_write32(mmio, SOC_LOCAL_ERR_STAT_REG(slave, hw_err), REG_GENMASK(31, 0));
+		goto unmask_gsysevtctl;
+	}
+
+	/*
+	 * Read the master global IEH error register, if BIT(1) is set then process
+	 * the slave IEH first. If BIT(0) in global error register is set then process
+	 * the corresponding local error registers.
+	 */
+	master_global_errstat = xe_mmio_read32(mmio, SOC_GLOBAL_ERR_STAT_REG(master, hw_err));
+	if (master_global_errstat & SOC_SLAVE_IEH)
+		soc_slave_ieh_handler(tile, hw_err, error_id);
+
+	if (master_global_errstat & SOC_IEH0_LOCAL_ERR_STATUS) {
+		master_local_errstat = xe_mmio_read32(mmio, SOC_LOCAL_ERR_STAT_REG(master, hw_err));
+
+		for_each_set_bit(regbit, &master_local_errstat, XE_RAS_REG_SIZE)
+			log_soc_error(tile, PVC_MASTER_LOCAL_REG_INFO(hw_err), severity, regbit, error_id);
+
+		xe_mmio_write32(mmio, SOC_LOCAL_ERR_STAT_REG(master, hw_err), master_local_errstat);
+	}
+
+	for_each_set_bit(regbit, &master_global_errstat, XE_RAS_REG_SIZE)
+		log_soc_error(tile, pvc_master_global_err_reg, severity, regbit, error_id);
+
+	xe_mmio_write32(mmio, SOC_GLOBAL_ERR_STAT_REG(master, hw_err), master_global_errstat);
+
+unmask_gsysevtctl:
+	for (i = 0; i < XE_SOC_NUM_IEH; i++)
+		xe_mmio_write32(mmio, SOC_GSYSEVTCTL_REG(master, slave, i),
+				(HARDWARE_ERROR_MAX << 1) + 1);
+}
+
 static void hw_error_source_handler(struct xe_tile *tile, const enum hardware_error hw_err)
 {
 	const enum drm_xe_ras_error_severity severity = hw_err_to_severity(hw_err);
@@ -279,8 +482,11 @@ static void hw_error_source_handler(struct xe_tile *tile, const enum hardware_er
 					    "TILE%d reported %s %s, bit[%d] is set\n",
 					    tile->id, name, severity_str, err_bit);
 		}
+
 		if (err_bit == XE_GT_ERROR)
 			gt_hw_error_handler(tile, hw_err, error_id);
+		if (err_bit == XE_SOC_ERROR)
+			soc_hw_error_handler(tile, hw_err, error_id);
 	}
 
 clear_reg:
