@@ -492,7 +492,7 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 {
 	rtw_stop_cmd_thread(padapter);
 
-	/*  Below is to termindate tx_thread... */
+	/*  Below is to terminate tx_thread... */
 	complete(&padapter->xmitpriv.xmit_comp);
 	wait_for_completion(&padapter->xmitpriv.terminate_xmitthread_comp);
 
