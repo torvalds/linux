@@ -44,6 +44,46 @@
 #include <net/xfrm.h>
 #include <net/inet_ecn.h>
 #include <net/dst_metadata.h>
+#include <net/inet6_hashtables.h>
+
+static void tcp_v6_early_demux(struct sk_buff *skb)
+{
+	struct net *net = dev_net_rcu(skb->dev);
+	const struct ipv6hdr *hdr;
+	const struct tcphdr *th;
+	struct sock *sk;
+
+	if (skb->pkt_type != PACKET_HOST)
+		return;
+
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) +
+				sizeof(struct tcphdr)))
+		return;
+
+	hdr = ipv6_hdr(skb);
+	th = tcp_hdr(skb);
+
+	if (th->doff < sizeof(struct tcphdr) / 4)
+		return;
+
+	/* Note : We use inet6_iif() here, not tcp_v6_iif() */
+	sk = __inet6_lookup_established(net, &hdr->saddr, th->source,
+					&hdr->daddr, ntohs(th->dest),
+					inet6_iif(skb), inet6_sdif(skb));
+	if (sk) {
+		skb->sk = sk;
+		skb->destructor = sock_edemux;
+		if (sk_fullsock(sk)) {
+			struct dst_entry *dst = rcu_dereference(sk->sk_rx_dst);
+
+			if (dst)
+				dst = dst_check(dst, sk->sk_rx_dst_cookie);
+			if (dst &&
+			    sk->sk_rx_dst_ifindex == skb->skb_iif)
+				skb_dst_set_noref(skb, dst);
+		}
+	}
+}
 
 static void ip6_rcv_finish_core(struct net *net, struct sock *sk,
 				struct sk_buff *skb)
