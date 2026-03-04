@@ -114,6 +114,8 @@ static struct landlock_details *get_current_details(void)
  * restriction.  The subjective credentials must not be in an overridden state.
  *
  * @hierarchy->parent and @hierarchy->usage should already be set.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 int landlock_init_hierarchy_log(struct landlock_hierarchy *const hierarchy)
 {

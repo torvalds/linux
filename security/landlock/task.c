@@ -37,6 +37,9 @@
  *
  * Checks if the @parent domain is less or equal to (i.e. an ancestor, which
  * means a subset of) the @child domain.
+ *
+ * Return: True if @parent is an ancestor of or equal to @child, false
+ * otherwise.
  */
 static bool domain_scope_le(const struct landlock_ruleset *const parent,
 			    const struct landlock_ruleset *const child)
@@ -79,8 +82,7 @@ static int domain_ptrace(const struct landlock_ruleset *const parent,
  * If the current task has Landlock rules, then the child must have at least
  * the same rules.  Else denied.
  *
- * Determines whether a process may access another, returning 0 if permission
- * granted, -errno if denied.
+ * Return: 0 if permission is granted, -errno if denied.
  */
 static int hook_ptrace_access_check(struct task_struct *const child,
 				    const unsigned int mode)
@@ -129,8 +131,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
  * If the parent has Landlock rules, then the current task must have the same
  * or more rules.  Else denied.
  *
- * Determines whether the nominated task is permitted to trace the current
- * process, returning 0 if permission is granted, -errno if denied.
+ * Return: 0 if permission is granted, -errno if denied.
  */
 static int hook_ptrace_traceme(struct task_struct *const parent)
 {

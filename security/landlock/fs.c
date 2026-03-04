@@ -1568,7 +1568,7 @@ static int hook_path_truncate(const struct path *const path)
  *
  * @file: File being opened.
  *
- * Returns the access rights that are required for opening the given file,
+ * Return: The access rights that are required for opening the given file,
  * depending on the file type and open mode.
  */
 static access_mask_t

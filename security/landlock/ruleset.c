@@ -201,6 +201,8 @@ static void build_check_ruleset(void)
  * When merging a ruleset in a domain, or copying a domain, @layers will be
  * added to @ruleset as new constraints, similarly to a boolean AND between
  * access rights.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 static int insert_rule(struct landlock_ruleset *const ruleset,
 		       const struct landlock_id id,
@@ -530,8 +532,8 @@ void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset)
  * The current task is requesting to be restricted.  The subjective credentials
  * must not be in an overridden state. cf. landlock_init_hierarchy_log().
  *
- * Returns the intersection of @parent and @ruleset, or returns @parent if
- * @ruleset is empty, or returns a duplicate of @ruleset if @parent is empty.
+ * Return: A new domain merging @parent and @ruleset on success, or ERR_PTR()
+ * on failure.  If @parent is NULL, the new domain duplicates @ruleset.
  */
 struct landlock_ruleset *
 landlock_merge_ruleset(struct landlock_ruleset *const parent,
@@ -622,7 +624,7 @@ landlock_find_rule(const struct landlock_ruleset *const ruleset,
  * @rule: A rule that grants a set of access rights for each layer
  * @masks: A matrix of unfulfilled access rights for each layer
  *
- * Returns true if the request is allowed (i.e. the access rights granted all
+ * Return: True if the request is allowed (i.e. the access rights granted all
  * remaining unfulfilled access rights and masks has no leftover set bits).
  */
 bool landlock_unmask_layers(const struct landlock_rule *const rule,
