@@ -2391,8 +2391,8 @@ static void nix_smq_flush_enadis_xoff(struct rvu *rvu, int blkaddr,
 			continue;
 		/* skip if PF_FUNC doesn't match */
 		if ((TXSCH_MAP_FUNC(txsch->pfvf_map[tl2]) & ~RVU_PFVF_FUNC_MASK) !=
-		    (TXSCH_MAP_FUNC(txsch->pfvf_map[tl2_schq] &
-				    ~RVU_PFVF_FUNC_MASK)))
+		    (TXSCH_MAP_FUNC(txsch->pfvf_map[tl2_schq]) &
+				    ~RVU_PFVF_FUNC_MASK))
 			continue;
 		/* enable/disable XOFF */
 		regoff = NIX_AF_TL2X_SW_XOFF(tl2);
