@@ -471,7 +471,10 @@ static int aia_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		mutex_unlock(&dev->kvm->lock);
 		break;
 	case KVM_DEV_RISCV_AIA_GRP_IMSIC:
-		return kvm_riscv_aia_imsic_has_attr(dev->kvm, attr->attr);
+		mutex_lock(&dev->kvm->lock);
+		r = kvm_riscv_aia_imsic_has_attr(dev->kvm, attr->attr);
+		mutex_unlock(&dev->kvm->lock);
+		break;
 	}
 
 	return r;
