@@ -261,6 +261,7 @@ void cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode);
 
 void cifs_close_all_deferred_files(struct cifs_tcon *tcon);
 
+void cifs_close_all_deferred_files_sb(struct cifs_sb_info *cifs_sb);
 void cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon,
 					   struct dentry *dentry);
 
