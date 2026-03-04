@@ -1837,10 +1837,8 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (exec_fault && s2_force_noncacheable)
 		ret = -ENOEXEC;
 
-	if (ret) {
-		kvm_release_page_unused(page);
-		return ret;
-	}
+	if (ret)
+		goto out_put_page;
 
 	/*
 	 * Guest performs atomic/exclusive operations on memory with unsupported
@@ -1850,7 +1848,8 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 */
 	if (esr_fsc_is_excl_atomic_fault(kvm_vcpu_get_esr(vcpu))) {
 		kvm_inject_dabt_excl_atomic(vcpu, kvm_vcpu_get_hfar(vcpu));
-		return 1;
+		ret = 1;
+		goto out_put_page;
 	}
 
 	if (nested)
@@ -1936,6 +1935,10 @@ out_unlock:
 		mark_page_dirty_in_slot(kvm, memslot, gfn);
 
 	return ret != -EAGAIN ? ret : 0;
+
+out_put_page:
+	kvm_release_page_unused(page);
+	return ret;
 }
 
 /* Resolve the access fault by making the page young again. */
