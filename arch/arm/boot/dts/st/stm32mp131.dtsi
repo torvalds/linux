@@ -1248,7 +1248,7 @@
 				resets = <&rcc USART1_R>;
 				wakeup-source;
 				dmas = <&dmamux1 41 0x400 0x5>,
-				<&dmamux1 42 0x400 0x1>;
+				       <&dmamux1 42 0x400 0x1>;
 				dma-names = "rx", "tx";
 				access-controllers = <&etzpc 16>;
 				status = "disabled";
@@ -1262,7 +1262,7 @@
 				resets = <&rcc USART2_R>;
 				wakeup-source;
 				dmas = <&dmamux1 43 0x400 0x5>,
-				<&dmamux1 44 0x400 0x1>;
+				       <&dmamux1 44 0x400 0x1>;
 				dma-names = "rx", "tx";
 				access-controllers = <&etzpc 17>;
 				status = "disabled";
@@ -1274,7 +1274,7 @@
 				#sound-dai-cells = <0>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 				dmas = <&dmamux1 83 0x400 0x01>,
-				<&dmamux1 84 0x400 0x01>;
+				       <&dmamux1 84 0x400 0x01>;
 				dma-names = "rx", "tx";
 				access-controllers = <&etzpc 13>;
 				status = "disabled";
@@ -1470,9 +1470,9 @@
 				clocks = <&rcc TIM15_K>;
 				clock-names = "int";
 				dmas = <&dmamux1 105 0x400 0x1>,
-				<&dmamux1 106 0x400 0x1>,
-				<&dmamux1 107 0x400 0x1>,
-				<&dmamux1 108 0x400 0x1>;
+				       <&dmamux1 106 0x400 0x1>,
+				       <&dmamux1 107 0x400 0x1>,
+				       <&dmamux1 108 0x400 0x1>;
 				dma-names = "ch1", "up", "trig", "com";
 				access-controllers = <&etzpc 26>;
 				status = "disabled";
@@ -1505,7 +1505,7 @@
 				clocks = <&rcc TIM16_K>;
 				clock-names = "int";
 				dmas = <&dmamux1 109 0x400 0x1>,
-				<&dmamux1 110 0x400 0x1>;
+				       <&dmamux1 110 0x400 0x1>;
 				dma-names = "ch1", "up";
 				access-controllers = <&etzpc 27>;
 				status = "disabled";
