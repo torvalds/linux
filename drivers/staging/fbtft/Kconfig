@@ -86,7 +86,11 @@ config FB_TFT_PCD8544
 config FB_TFT_RA8875
 	tristate "FB driver for the RA8875 LCD Controller"
 	help
-	  Generic Framebuffer support for RA8875
+	  This enables generic framebuffer support for the RAiO RA8875
+	  display controller. The controller is intended for medium size text/graphic
+	  mixed displays with a resolution of up to 800x480 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
 
 config FB_TFT_S6D02A1
 	tristate "FB driver for the S6D02A1 LCD Controller"
