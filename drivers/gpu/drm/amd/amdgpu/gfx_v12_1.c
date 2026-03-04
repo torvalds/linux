@@ -3630,12 +3630,6 @@ static int gfx_v12_1_eop_irq(struct amdgpu_device *adev,
 			return -EINVAL;
 
 		switch (me_id) {
-		case 0:
-			if (pipe_id == 0)
-				amdgpu_fence_process(&adev->gfx.gfx_ring[0]);
-			else
-				amdgpu_fence_process(&adev->gfx.gfx_ring[1]);
-			break;
 		case 1:
 		case 2:
 			for (i = 0; i < adev->gfx.num_compute_rings; i++) {
@@ -3651,6 +3645,9 @@ static int gfx_v12_1_eop_irq(struct amdgpu_device *adev,
 				    (ring->queue == queue_id))
 					amdgpu_fence_process(ring);
 			}
+			break;
+		default:
+			dev_dbg(adev->dev, "Unexpected me %d in eop_irq\n", me_id);
 			break;
 		}
 	}
@@ -3720,14 +3717,6 @@ static void gfx_v12_1_handle_priv_fault(struct amdgpu_device *adev,
 		return;
 
 	switch (me_id) {
-	case 0:
-		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
-			ring = &adev->gfx.gfx_ring[i];
-			/* we only enabled 1 gfx queue per pipe for now */
-			if (ring->me == me_id && ring->pipe == pipe_id)
-				drm_sched_fault(&ring->sched);
-		}
-		break;
 	case 1:
 	case 2:
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
@@ -3740,7 +3729,7 @@ static void gfx_v12_1_handle_priv_fault(struct amdgpu_device *adev,
 		}
 		break;
 	default:
-		BUG();
+		dev_dbg(adev->dev, "Unexpected me %d in priv_fault\n", me_id);
 		break;
 	}
 }
