@@ -1727,7 +1727,7 @@ static int airhoha_set_gdm2_loopback(struct airoha_gdm_port *port)
 	airoha_fe_rmw(eth,
 		      REG_SP_DFT_CPORT(src_port >> fls(SP_CPORT_DFT_MASK)),
 		      SP_CPORT_MASK(val),
-		      FE_PSE_PORT_CDM2 << __ffs(SP_CPORT_MASK(val)));
+		      __field_prep(SP_CPORT_MASK(val), FE_PSE_PORT_CDM2));
 
 	if (port->id != AIROHA_GDM3_IDX && airoha_is_7581(eth))
 		airoha_fe_rmw(eth, REG_SRC_PORT_FC_MAP6,
@@ -1781,7 +1781,7 @@ static int airoha_dev_init(struct net_device *dev)
 	ppe_id = pse_port == FE_PSE_PORT_PPE2 ? 1 : 0;
 	airoha_fe_rmw(eth, REG_PPE_DFT_CPORT0(ppe_id),
 		      DFT_CPORT_MASK(port->id),
-		      fe_cpu_port << __ffs(DFT_CPORT_MASK(port->id)));
+		      __field_prep(DFT_CPORT_MASK(port->id), fe_cpu_port));
 
 	return 0;
 }
@@ -2138,7 +2138,7 @@ static int airoha_qdma_set_chan_tx_sched(struct airoha_gdm_port *port,
 
 	airoha_qdma_rmw(port->qdma, REG_CHAN_QOS_MODE(channel >> 3),
 			CHAN_QOS_MODE_MASK(channel),
-			mode << __ffs(CHAN_QOS_MODE_MASK(channel)));
+			__field_prep(CHAN_QOS_MODE_MASK(channel), mode));
 
 	return 0;
 }
