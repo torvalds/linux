@@ -1504,7 +1504,7 @@ static int port100_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	mutex_init(&dev->out_urb_lock);
-	dev->udev = usb_get_dev(interface_to_usbdev(interface));
+	dev->udev = interface_to_usbdev(interface);
 	dev->interface = interface;
 	usb_set_intfdata(interface, dev);
 
@@ -1616,7 +1616,6 @@ error:
 	usb_free_urb(dev->in_urb);
 	usb_kill_urb(dev->out_urb);
 	usb_free_urb(dev->out_urb);
-	usb_put_dev(dev->udev);
 
 	return rc;
 }
@@ -1636,7 +1635,6 @@ static void port100_disconnect(struct usb_interface *interface)
 
 	usb_free_urb(dev->in_urb);
 	usb_free_urb(dev->out_urb);
-	usb_put_dev(dev->udev);
 
 	kfree(dev->cmd);
 
