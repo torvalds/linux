@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *		INETPEER - A storage for permanent information about peers
- *
- *  This source is covered by the GNU GPL, the same as all kernel sources.
  *
  *  Authors:	Andrey V. Savochkin <saw@msu.ru>
  */

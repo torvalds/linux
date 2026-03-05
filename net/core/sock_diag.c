@@ -1,5 +1,4 @@
-/* License: GPL */
-
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/filter.h>
 #include <linux/mutex.h>
 #include <linux/socket.h>

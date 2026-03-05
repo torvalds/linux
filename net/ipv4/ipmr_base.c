@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Linux multicast routing support
  * Common logic shared by IPv4 [ipmr] and IPv6 [ip6mr] implementation
  */

@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPv4 specific functions of netfilter core
  *
- * Rusty Russell (C) 2000 -- This code is GPL.
+ * Rusty Russell (C) 2000
  * Patrick McHardy (C) 2006-2012
  */
 #include <linux/kernel.h>

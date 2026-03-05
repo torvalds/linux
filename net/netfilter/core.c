@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /* netfilter.c: look after the filters for various protocols.
  * Heavily influenced by the old firewall.c by David Bonn and Alan Cox.
  *
  * Thanks to Rob `CmdrTaco' Malda for not influencing this code in any
  * way.
- *
- * This code is GPL.
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
