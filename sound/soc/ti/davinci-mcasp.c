@@ -274,6 +274,14 @@ static inline unsigned int mcasp_get_auxclk_fs_ratio(struct davinci_mcasp *mcasp
 	       mcasp->auxclk_fs_ratio_tx : mcasp->auxclk_fs_ratio_rx;
 }
 
+static inline bool mcasp_is_auxclk_enabled(struct davinci_mcasp *mcasp, int stream)
+{
+	if (mcasp->async_mode && stream == SNDRV_PCM_STREAM_CAPTURE)
+		return mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKRCTL_REG) & AHCLKRE;
+
+	return mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG) & AHCLKXE;
+}
+
 static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 {
 	if (mcasp->rxnumevt) {	/* enable FIFO */
@@ -1337,16 +1345,15 @@ static int davinci_mcasp_calc_clk_div(struct davinci_mcasp *mcasp,
 	int bclk_div_id, auxclk_div_id;
 	bool auxclk_enabled;
 
+	auxclk_enabled = mcasp_is_auxclk_enabled(mcasp, stream);
+
 	if (mcasp->async_mode && stream == SNDRV_PCM_STREAM_CAPTURE) {
-		auxclk_enabled = mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKRCTL_REG) & AHCLKRE;
 		bclk_div_id = MCASP_CLKDIV_BCLK_RXONLY;
 		auxclk_div_id = MCASP_CLKDIV_AUXCLK_RXONLY;
 	} else if (mcasp->async_mode && stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		auxclk_enabled = mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG) & AHCLKXE;
 		bclk_div_id = MCASP_CLKDIV_BCLK_TXONLY;
 		auxclk_div_id = MCASP_CLKDIV_AUXCLK_TXONLY;
 	} else {
-		auxclk_enabled = mcasp_get_reg(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG) & AHCLKXE;
 		bclk_div_id = MCASP_CLKDIV_BCLK;
 		auxclk_div_id = MCASP_CLKDIV_AUXCLK;
 	}
