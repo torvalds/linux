@@ -2460,7 +2460,7 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	/* see kick_cpus_irq_workfn() */
 	smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
 
-	rq->next_class = &ext_sched_class;
+	rq_modified_begin(rq, &ext_sched_class);
 
 	rq_unpin_lock(rq, rf);
 	balance_one(rq, prev);
@@ -2475,7 +2475,7 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	 * If @force_scx is true, always try to pick a SCHED_EXT task,
 	 * regardless of any higher-priority sched classes activity.
 	 */
-	if (!force_scx && sched_class_above(rq->next_class, &ext_sched_class))
+	if (!force_scx && rq_modified_above(rq, &ext_sched_class))
 		return RETRY_TASK;
 
 	keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;

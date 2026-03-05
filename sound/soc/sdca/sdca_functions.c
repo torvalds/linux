@@ -1156,9 +1156,12 @@ static int find_sdca_entity_iot(struct device *dev,
 	if (!terminal->is_dataport) {
 		const char *type_name = sdca_find_terminal_name(terminal->type);
 
-		if (type_name)
+		if (type_name) {
 			entity->label = devm_kasprintf(dev, GFP_KERNEL, "%s %s",
 						       entity->label, type_name);
+			if (!entity->label)
+				return -ENOMEM;
+		}
 	}
 
 	ret = fwnode_property_read_u32(entity_node,

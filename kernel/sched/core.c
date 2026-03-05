@@ -6830,6 +6830,7 @@ static void __sched notrace __schedule(int sched_mode)
 		/* SCX must consult the BPF scheduler to tell if rq is empty */
 		if (!rq->nr_running && !scx_enabled()) {
 			next = prev;
+			rq->next_class = &idle_sched_class;
 			goto picked;
 		}
 	} else if (!preempt && prev_state) {

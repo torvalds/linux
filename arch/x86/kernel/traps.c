@@ -397,7 +397,7 @@ static inline void handle_invalid_op(struct pt_regs *regs)
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
 
-static noinstr bool handle_bug(struct pt_regs *regs)
+noinstr bool handle_bug(struct pt_regs *regs)
 {
 	unsigned long addr = regs->ip;
 	bool handled = false;

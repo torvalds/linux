@@ -125,32 +125,45 @@ static const struct irq_domain_ops extirq_domain_ops = {
 static int
 ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 {
-	struct of_imap_parser imap_parser;
-	struct of_imap_item imap_item;
+	const __be32 *map;
+	u32 mapsize;
 	int ret;
 
-	ret = of_imap_parser_init(&imap_parser, node, &imap_item);
-	if (ret)
-		return ret;
+	map = of_get_property(node, "interrupt-map", &mapsize);
+	if (!map)
+		return -ENOENT;
+	if (mapsize % sizeof(*map))
+		return -EINVAL;
+	mapsize /= sizeof(*map);
 
-	for_each_of_imap_item(&imap_parser, &imap_item) {
+	while (mapsize) {
 		struct device_node *ipar;
-		u32 hwirq;
-		int i;
+		u32 hwirq, intsize, j;
 
-		hwirq = imap_item.child_imap[0];
-		if (hwirq >= MAXIRQ) {
-			of_node_put(imap_item.parent_args.np);
+		if (mapsize < 3)
 			return -EINVAL;
-		}
+		hwirq = be32_to_cpup(map);
+		if (hwirq >= MAXIRQ)
+			return -EINVAL;
 		priv->nirq = max(priv->nirq, hwirq + 1);
 
-		ipar = of_node_get(imap_item.parent_args.np);
-		priv->map[hwirq].fwnode = of_fwnode_handle(ipar);
+		ipar = of_find_node_by_phandle(be32_to_cpup(map + 2));
+		map += 3;
+		mapsize -= 3;
+		if (!ipar)
+			return -EINVAL;
+		priv->map[hwirq].fwnode = &ipar->fwnode;
+		ret = of_property_read_u32(ipar, "#interrupt-cells", &intsize);
+		if (ret)
+			return ret;
 
-		priv->map[hwirq].param_count = imap_item.parent_args.args_count;
-		for (i = 0; i < priv->map[hwirq].param_count; i++)
-			priv->map[hwirq].param[i] = imap_item.parent_args.args[i];
+		if (intsize > mapsize)
+			return -EINVAL;
+
+		priv->map[hwirq].param_count = intsize;
+		for (j = 0; j < intsize; ++j)
+			priv->map[hwirq].param[j] = be32_to_cpup(map++);
+		mapsize -= intsize;
 	}
 	return 0;
 }
@@ -177,8 +190,10 @@ static int ls_extirq_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate memory\n");
 
 	priv->intpcr = devm_of_iomap(dev, node, 0, NULL);
-	if (!priv->intpcr)
-		return dev_err_probe(dev, -ENOMEM, "Cannot ioremap OF node %pOF\n", node);
+	if (IS_ERR(priv->intpcr)) {
+		return dev_err_probe(dev, PTR_ERR(priv->intpcr),
+				     "Cannot ioremap OF node %pOF\n", node);
+	}
 
 	ret = ls_extirq_parse_map(priv, node);
 	if (ret)
