@@ -293,12 +293,19 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 	}
 
 	intr_reg = i2x.mb_head_ptr_reg + 4;
-	hwctx->priv->mbox_chann = xdna_mailbox_create_channel(ndev->mbox, &x2i, &i2x,
-							      intr_reg, ret);
+	hwctx->priv->mbox_chann = xdna_mailbox_alloc_channel(ndev->mbox);
 	if (!hwctx->priv->mbox_chann) {
 		XDNA_ERR(xdna, "Not able to create channel");
 		ret = -EINVAL;
 		goto del_ctx_req;
+	}
+
+	ret = xdna_mailbox_start_channel(hwctx->priv->mbox_chann, &x2i, &i2x,
+					 intr_reg, ret);
+	if (ret) {
+		XDNA_ERR(xdna, "Not able to create channel");
+		ret = -EINVAL;
+		goto free_channel;
 	}
 	ndev->hwctx_num++;
 
@@ -307,6 +314,8 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 
 	return 0;
 
+free_channel:
+	xdna_mailbox_free_channel(hwctx->priv->mbox_chann);
 del_ctx_req:
 	aie2_destroy_context_req(ndev, hwctx->fw_ctx_id);
 	return ret;
@@ -322,7 +331,7 @@ int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwc
 
 	xdna_mailbox_stop_channel(hwctx->priv->mbox_chann);
 	ret = aie2_destroy_context_req(ndev, hwctx->fw_ctx_id);
-	xdna_mailbox_destroy_channel(hwctx->priv->mbox_chann);
+	xdna_mailbox_free_channel(hwctx->priv->mbox_chann);
 	XDNA_DBG(xdna, "Destroyed fw ctx %d", hwctx->fw_ctx_id);
 	hwctx->priv->mbox_chann = NULL;
 	hwctx->fw_ctx_id = -1;
@@ -921,7 +930,7 @@ void aie2_destroy_mgmt_chann(struct amdxdna_dev_hdl *ndev)
 		return;
 
 	xdna_mailbox_stop_channel(ndev->mgmt_chann);
-	xdna_mailbox_destroy_channel(ndev->mgmt_chann);
+	xdna_mailbox_free_channel(ndev->mgmt_chann);
 	ndev->mgmt_chann = NULL;
 }
 
