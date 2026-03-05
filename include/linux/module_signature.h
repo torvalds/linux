@@ -15,9 +15,7 @@
 #define MODULE_SIG_STRING "~Module signature appended~\n"
 
 enum pkey_id_type {
-	PKEY_ID_PGP,		/* OpenPGP generated key ID */
-	PKEY_ID_X509,		/* X.509 arbitrary subjectKeyIdentifier */
-	PKEY_ID_PKCS7,		/* Signature in PKCS#7 message */
+	PKEY_ID_PKCS7 = 2,	/* Signature in PKCS#7 message */
 };
 
 /*
