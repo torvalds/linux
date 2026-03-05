@@ -56,16 +56,11 @@ static int regcache_count_cacheable_registers(struct regmap *map)
 	return count;
 }
 
-static int regcache_hw_init(struct regmap *map, int count)
+static int regcache_hw_init(struct regmap *map)
 {
 	int ret;
 	unsigned int reg, val;
 	void *tmp_buf;
-
-	map->num_reg_defaults = count;
-	map->reg_defaults = kmalloc_objs(struct reg_default, count);
-	if (!map->reg_defaults)
-		return -ENOMEM;
 
 	if (!map->reg_defaults_raw) {
 		bool cache_bypass = map->cache_bypass;
@@ -74,10 +69,8 @@ static int regcache_hw_init(struct regmap *map, int count)
 		/* Bypass the cache access till data read from HW */
 		map->cache_bypass = true;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
-		if (!tmp_buf) {
-			ret = -ENOMEM;
-			goto err_free;
-		}
+		if (!tmp_buf)
+			return -ENOMEM;
 		ret = regmap_raw_read(map, 0, tmp_buf,
 				      map->cache_size_raw);
 		map->cache_bypass = cache_bypass;
@@ -110,7 +103,7 @@ static int regcache_hw_init(struct regmap *map, int count)
 			if (ret != 0) {
 				dev_err(map->dev, "Failed to read %x: %d\n",
 					reg, ret);
-				goto err_free;
+				return ret;
 			}
 		}
 
@@ -120,16 +113,10 @@ static int regcache_hw_init(struct regmap *map, int count)
 	}
 
 	return 0;
-
-err_free:
-	kfree(map->reg_defaults);
-
-	return ret;
 }
 
 static void regcache_hw_exit(struct regmap *map)
 {
-	kfree(map->reg_defaults);
 	if (map->cache_free)
 		kfree(map->reg_defaults_raw);
 }
@@ -209,13 +196,18 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		if (map->cache_bypass)
 			return 0;
 
+		map->num_reg_defaults = count;
+		map->reg_defaults = kmalloc_objs(struct reg_default, count);
+		if (!map->reg_defaults)
+			return -ENOMEM;
+
 		/* Some devices such as PMICs don't have cache defaults,
 		 * we cope with this by reading back the HW registers and
 		 * crafting the cache defaults by hand.
 		 */
-		ret = regcache_hw_init(map, count);
+		ret = regcache_hw_init(map);
 		if (ret < 0)
-			return ret;
+			goto err_free_reg_defaults;
 	}
 
 	if (!map->max_register_is_set && map->num_reg_defaults_raw) {
@@ -253,6 +245,8 @@ err_exit:
 	}
 err_free:
 	regcache_hw_exit(map);
+err_free_reg_defaults:
+	kfree(map->reg_defaults);
 
 	return ret;
 }
@@ -273,6 +267,8 @@ void regcache_exit(struct regmap *map)
 		map->cache_ops->exit(map);
 		map->unlock(map->lock_arg);
 	}
+
+	kfree(map->reg_defaults);
 }
 
 /**
