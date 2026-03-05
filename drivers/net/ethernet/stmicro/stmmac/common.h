@@ -608,11 +608,8 @@ struct mac_link {
 struct mii_regs {
 	unsigned int addr;	/* MII Address */
 	unsigned int data;	/* MII Data */
-	unsigned int addr_shift;	/* MII address shift */
-	unsigned int reg_shift;		/* MII reg shift */
 	unsigned int addr_mask;		/* MII address mask */
 	unsigned int reg_mask;		/* MII reg mask */
-	unsigned int clk_csr_shift;
 	unsigned int clk_csr_mask;
 };
 

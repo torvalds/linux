@@ -234,8 +234,8 @@ static u32 stmmac_mdio_format_addr(struct stmmac_priv *priv,
 {
 	const struct mii_regs *mii_regs = &priv->hw->mii;
 
-	return ((pa << mii_regs->addr_shift) & mii_regs->addr_mask) |
-	       ((gr << mii_regs->reg_shift) & mii_regs->reg_mask) |
+	return field_prep(mii_regs->addr_mask, pa) |
+	       field_prep(mii_regs->reg_mask, gr) |
 	       priv->gmii_address_bus_config |
 	       MII_ADDR_GBUSY;
 }
@@ -577,7 +577,7 @@ static void stmmac_mdio_bus_config(struct stmmac_priv *priv)
 	else
 		value = stmmac_clk_csr_set(priv);
 
-	value <<= priv->hw->mii.clk_csr_shift;
+	value <<= __ffs(priv->hw->mii.clk_csr_mask);
 
 	if (value & ~priv->hw->mii.clk_csr_mask)
 		dev_warn(priv->device,
