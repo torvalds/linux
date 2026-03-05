@@ -3,7 +3,7 @@
 
 #include "us144mkii.h"
 
-/**
+/*
  * tascam_playback_open() - Opens the PCM playback substream.
  * @substream: The ALSA PCM substream to open.
  *
@@ -23,7 +23,7 @@ static int tascam_playback_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_playback_close() - Closes the PCM playback substream.
  * @substream: The ALSA PCM substream to close.
  *
@@ -41,7 +41,7 @@ static int tascam_playback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_playback_prepare() - Prepares the PCM playback substream for use.
  * @substream: The ALSA PCM substream to prepare.
  *
@@ -108,7 +108,7 @@ static int tascam_playback_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_playback_pointer() - Returns the current playback pointer position.
  * @substream: The ALSA PCM substream.
  *
@@ -137,7 +137,7 @@ tascam_playback_pointer(struct snd_pcm_substream *substream)
 	return do_div(pos, runtime->buffer_size);
 }
 
-/**
+/*
  * tascam_playback_ops - ALSA PCM operations for playback.
  *
  * This structure defines the callback functions for playback stream operations,

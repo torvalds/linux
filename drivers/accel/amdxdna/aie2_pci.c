@@ -32,6 +32,11 @@ static int aie2_max_col = XRS_MAX_COL;
 module_param(aie2_max_col, uint, 0600);
 MODULE_PARM_DESC(aie2_max_col, "Maximum column could be used");
 
+static char *npu_fw[] = {
+	"npu_7.sbin",
+	"npu.sbin"
+};
+
 /*
  * The management mailbox channel is allocated by firmware.
  * The related register and ring buffer information is on SRAM BAR.
@@ -323,6 +328,7 @@ static void aie2_hw_stop(struct amdxdna_dev *xdna)
 		return;
 	}
 
+	aie2_runtime_cfg(ndev, AIE2_RT_CFG_CLK_GATING, NULL);
 	aie2_mgmt_fw_fini(ndev);
 	xdna_mailbox_stop_channel(ndev->mgmt_chann);
 	xdna_mailbox_destroy_channel(ndev->mgmt_chann);
@@ -406,15 +412,15 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		goto stop_psp;
 	}
 
-	ret = aie2_pm_init(ndev);
-	if (ret) {
-		XDNA_ERR(xdna, "failed to init pm, ret %d", ret);
-		goto destroy_mgmt_chann;
-	}
-
 	ret = aie2_mgmt_fw_init(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "initial mgmt firmware failed, ret %d", ret);
+		goto destroy_mgmt_chann;
+	}
+
+	ret = aie2_pm_init(ndev);
+	if (ret) {
+		XDNA_ERR(xdna, "failed to init pm, ret %d", ret);
 		goto destroy_mgmt_chann;
 	}
 
@@ -451,7 +457,6 @@ static int aie2_hw_suspend(struct amdxdna_dev *xdna)
 {
 	struct amdxdna_client *client;
 
-	guard(mutex)(&xdna->dev_lock);
 	list_for_each_entry(client, &xdna->client_list, node)
 		aie2_hwctx_suspend(client);
 
@@ -489,6 +494,7 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	struct psp_config psp_conf;
 	const struct firmware *fw;
 	unsigned long bars = 0;
+	char *fw_full_path;
 	int i, nvec, ret;
 
 	if (!hypervisor_is_type(X86_HYPER_NATIVE)) {
@@ -503,7 +509,19 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	ndev->priv = xdna->dev_info->dev_priv;
 	ndev->xdna = xdna;
 
-	ret = request_firmware(&fw, ndev->priv->fw_path, &pdev->dev);
+	for (i = 0; i < ARRAY_SIZE(npu_fw); i++) {
+		fw_full_path = kasprintf(GFP_KERNEL, "%s%s", ndev->priv->fw_path, npu_fw[i]);
+		if (!fw_full_path)
+			return -ENOMEM;
+
+		ret = firmware_request_nowarn(&fw, fw_full_path, &pdev->dev);
+		kfree(fw_full_path);
+		if (!ret) {
+			XDNA_INFO(xdna, "Load firmware %s%s", ndev->priv->fw_path, npu_fw[i]);
+			break;
+		}
+	}
+
 	if (ret) {
 		XDNA_ERR(xdna, "failed to request_firmware %s, ret %d",
 			 ndev->priv->fw_path, ret);
@@ -951,7 +969,7 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 	if (!drm_dev_enter(&xdna->ddev, &idx))
 		return -ENODEV;
 
-	ret = amdxdna_pm_resume_get(xdna);
+	ret = amdxdna_pm_resume_get_locked(xdna);
 	if (ret)
 		goto dev_exit;
 
@@ -1044,7 +1062,7 @@ static int aie2_get_array(struct amdxdna_client *client,
 	if (!drm_dev_enter(&xdna->ddev, &idx))
 		return -ENODEV;
 
-	ret = amdxdna_pm_resume_get(xdna);
+	ret = amdxdna_pm_resume_get_locked(xdna);
 	if (ret)
 		goto dev_exit;
 
@@ -1134,7 +1152,7 @@ static int aie2_set_state(struct amdxdna_client *client,
 	if (!drm_dev_enter(&xdna->ddev, &idx))
 		return -ENODEV;
 
-	ret = amdxdna_pm_resume_get(xdna);
+	ret = amdxdna_pm_resume_get_locked(xdna);
 	if (ret)
 		goto dev_exit;
 

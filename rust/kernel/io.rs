@@ -139,9 +139,9 @@ pub struct Mmio<const SIZE: usize = 0>(MmioRaw<SIZE>);
 
 /// Internal helper macros used to invoke C MMIO read functions.
 ///
-/// This macro is intended to be used by higher-level MMIO access macros (define_read) and provides
-/// a unified expansion for infallible vs. fallible read semantics. It emits a direct call into the
-/// corresponding C helper and performs the required cast to the Rust return type.
+/// This macro is intended to be used by higher-level MMIO access macros (io_define_read) and
+/// provides a unified expansion for infallible vs. fallible read semantics. It emits a direct call
+/// into the corresponding C helper and performs the required cast to the Rust return type.
 ///
 /// # Parameters
 ///
@@ -166,9 +166,9 @@ macro_rules! call_mmio_read {
 
 /// Internal helper macros used to invoke C MMIO write functions.
 ///
-/// This macro is intended to be used by higher-level MMIO access macros (define_write) and provides
-/// a unified expansion for infallible vs. fallible write semantics. It emits a direct call into the
-/// corresponding C helper and performs the required cast to the Rust return type.
+/// This macro is intended to be used by higher-level MMIO access macros (io_define_write) and
+/// provides a unified expansion for infallible vs. fallible write semantics. It emits a direct call
+/// into the corresponding C helper and performs the required cast to the Rust return type.
 ///
 /// # Parameters
 ///
@@ -193,7 +193,30 @@ macro_rules! call_mmio_write {
     }};
 }
 
-macro_rules! define_read {
+/// Generates an accessor method for reading from an I/O backend.
+///
+/// This macro reduces boilerplate by automatically generating either compile-time bounds-checked
+/// (infallible) or runtime bounds-checked (fallible) read methods. It abstracts the address
+/// calculation and bounds checking, and delegates the actual I/O read operation to a specified
+/// helper macro, making it generic over different I/O backends.
+///
+/// # Parameters
+///
+/// * `infallible` / `fallible` - Determines the bounds-checking strategy. `infallible` relies on
+///   `IoKnownSize` for compile-time checks and returns the value directly. `fallible` performs
+///   runtime checks against `maxsize()` and returns a `Result<T>`.
+/// * `$(#[$attr:meta])*` - Optional attributes to apply to the generated method (e.g.,
+///   `#[cfg(CONFIG_64BIT)]` or inline directives).
+/// * `$vis:vis` - The visibility of the generated method (e.g., `pub`).
+/// * `$name:ident` / `$try_name:ident` - The name of the generated method (e.g., `read32`,
+///   `try_read8`).
+/// * `$call_macro:ident` - The backend-specific helper macro used to emit the actual I/O call
+///   (e.g., `call_mmio_read`).
+/// * `$c_fn:ident` - The backend-specific C function or identifier to be passed into the
+///   `$call_macro`.
+/// * `$type_name:ty` - The Rust type of the value being read (e.g., `u8`, `u32`).
+#[macro_export]
+macro_rules! io_define_read {
     (infallible, $(#[$attr:meta])* $vis:vis $name:ident, $call_macro:ident($c_fn:ident) ->
      $type_name:ty) => {
         /// Read IO data from a given offset known at compile time.
@@ -226,9 +249,33 @@ macro_rules! define_read {
         }
     };
 }
-pub(crate) use define_read;
+pub use io_define_read;
 
-macro_rules! define_write {
+/// Generates an accessor method for writing to an I/O backend.
+///
+/// This macro reduces boilerplate by automatically generating either compile-time bounds-checked
+/// (infallible) or runtime bounds-checked (fallible) write methods. It abstracts the address
+/// calculation and bounds checking, and delegates the actual I/O write operation to a specified
+/// helper macro, making it generic over different I/O backends.
+///
+/// # Parameters
+///
+/// * `infallible` / `fallible` - Determines the bounds-checking strategy. `infallible` relies on
+///   `IoKnownSize` for compile-time checks and returns `()`. `fallible` performs runtime checks
+///   against `maxsize()` and returns a `Result`.
+/// * `$(#[$attr:meta])*` - Optional attributes to apply to the generated method (e.g.,
+///   `#[cfg(CONFIG_64BIT)]` or inline directives).
+/// * `$vis:vis` - The visibility of the generated method (e.g., `pub`).
+/// * `$name:ident` / `$try_name:ident` - The name of the generated method (e.g., `write32`,
+///   `try_write8`).
+/// * `$call_macro:ident` - The backend-specific helper macro used to emit the actual I/O call
+///   (e.g., `call_mmio_write`).
+/// * `$c_fn:ident` - The backend-specific C function or identifier to be passed into the
+///   `$call_macro`.
+/// * `$type_name:ty` - The Rust type of the value being written (e.g., `u8`, `u32`). Note the use
+///   of `<-` before the type to denote a write operation.
+#[macro_export]
+macro_rules! io_define_write {
     (infallible, $(#[$attr:meta])* $vis:vis $name:ident, $call_macro:ident($c_fn:ident) <-
      $type_name:ty) => {
         /// Write IO data from a given offset known at compile time.
@@ -259,7 +306,7 @@ macro_rules! define_write {
         }
     };
 }
-pub(crate) use define_write;
+pub use io_define_write;
 
 /// Checks whether an access of type `U` at the given `offset`
 /// is valid within this region.
@@ -509,40 +556,40 @@ impl<const SIZE: usize> Io for Mmio<SIZE> {
         self.0.maxsize()
     }
 
-    define_read!(fallible, try_read8, call_mmio_read(readb) -> u8);
-    define_read!(fallible, try_read16, call_mmio_read(readw) -> u16);
-    define_read!(fallible, try_read32, call_mmio_read(readl) -> u32);
-    define_read!(
+    io_define_read!(fallible, try_read8, call_mmio_read(readb) -> u8);
+    io_define_read!(fallible, try_read16, call_mmio_read(readw) -> u16);
+    io_define_read!(fallible, try_read32, call_mmio_read(readl) -> u32);
+    io_define_read!(
         fallible,
         #[cfg(CONFIG_64BIT)]
         try_read64,
         call_mmio_read(readq) -> u64
     );
 
-    define_write!(fallible, try_write8, call_mmio_write(writeb) <- u8);
-    define_write!(fallible, try_write16, call_mmio_write(writew) <- u16);
-    define_write!(fallible, try_write32, call_mmio_write(writel) <- u32);
-    define_write!(
+    io_define_write!(fallible, try_write8, call_mmio_write(writeb) <- u8);
+    io_define_write!(fallible, try_write16, call_mmio_write(writew) <- u16);
+    io_define_write!(fallible, try_write32, call_mmio_write(writel) <- u32);
+    io_define_write!(
         fallible,
         #[cfg(CONFIG_64BIT)]
         try_write64,
         call_mmio_write(writeq) <- u64
     );
 
-    define_read!(infallible, read8, call_mmio_read(readb) -> u8);
-    define_read!(infallible, read16, call_mmio_read(readw) -> u16);
-    define_read!(infallible, read32, call_mmio_read(readl) -> u32);
-    define_read!(
+    io_define_read!(infallible, read8, call_mmio_read(readb) -> u8);
+    io_define_read!(infallible, read16, call_mmio_read(readw) -> u16);
+    io_define_read!(infallible, read32, call_mmio_read(readl) -> u32);
+    io_define_read!(
         infallible,
         #[cfg(CONFIG_64BIT)]
         read64,
         call_mmio_read(readq) -> u64
     );
 
-    define_write!(infallible, write8, call_mmio_write(writeb) <- u8);
-    define_write!(infallible, write16, call_mmio_write(writew) <- u16);
-    define_write!(infallible, write32, call_mmio_write(writel) <- u32);
-    define_write!(
+    io_define_write!(infallible, write8, call_mmio_write(writeb) <- u8);
+    io_define_write!(infallible, write16, call_mmio_write(writew) <- u16);
+    io_define_write!(infallible, write32, call_mmio_write(writel) <- u32);
+    io_define_write!(
         infallible,
         #[cfg(CONFIG_64BIT)]
         write64,
@@ -566,40 +613,40 @@ impl<const SIZE: usize> Mmio<SIZE> {
         unsafe { &*core::ptr::from_ref(raw).cast() }
     }
 
-    define_read!(infallible, pub read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
-    define_read!(infallible, pub read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
-    define_read!(infallible, pub read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
-    define_read!(
+    io_define_read!(infallible, pub read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
+    io_define_read!(infallible, pub read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
+    io_define_read!(infallible, pub read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
+    io_define_read!(
         infallible,
         #[cfg(CONFIG_64BIT)]
         pub read64_relaxed,
         call_mmio_read(readq_relaxed) -> u64
     );
 
-    define_read!(fallible, pub try_read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
-    define_read!(fallible, pub try_read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
-    define_read!(fallible, pub try_read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
-    define_read!(
+    io_define_read!(fallible, pub try_read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
+    io_define_read!(fallible, pub try_read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
+    io_define_read!(fallible, pub try_read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
+    io_define_read!(
         fallible,
         #[cfg(CONFIG_64BIT)]
         pub try_read64_relaxed,
         call_mmio_read(readq_relaxed) -> u64
     );
 
-    define_write!(infallible, pub write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
-    define_write!(infallible, pub write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
-    define_write!(infallible, pub write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
-    define_write!(
+    io_define_write!(infallible, pub write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
+    io_define_write!(infallible, pub write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
+    io_define_write!(infallible, pub write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
+    io_define_write!(
         infallible,
         #[cfg(CONFIG_64BIT)]
         pub write64_relaxed,
         call_mmio_write(writeq_relaxed) <- u64
     );
 
-    define_write!(fallible, pub try_write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
-    define_write!(fallible, pub try_write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
-    define_write!(fallible, pub try_write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
-    define_write!(
+    io_define_write!(fallible, pub try_write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
+    io_define_write!(fallible, pub try_write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
+    io_define_write!(fallible, pub try_write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
+    io_define_write!(
         fallible,
         #[cfg(CONFIG_64BIT)]
         pub try_write64_relaxed,
