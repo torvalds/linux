@@ -212,6 +212,8 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
 
 #define BTRFS_UNALLOC_BLOCK_GROUP_TARGET			(10ULL)
 
+#define BTRFS_ZONED_SYNC_RECLAIM_BATCH				(5)
+
 /*
  * Calculate chunk size depending on volume type (regular or zoned).
  */
@@ -918,8 +920,8 @@ static void flush_space(struct btrfs_space_info *space_info, u64 num_bytes,
 		if (btrfs_is_zoned(fs_info)) {
 			btrfs_reclaim_sweep(fs_info);
 			btrfs_delete_unused_bgs(fs_info);
-			btrfs_reclaim_bgs(fs_info);
-			flush_work(&fs_info->reclaim_bgs_work);
+			btrfs_reclaim_block_groups(fs_info,
+						   BTRFS_ZONED_SYNC_RECLAIM_BATCH);
 			ASSERT(current->journal_info == NULL);
 			ret = btrfs_commit_current_transaction(root);
 		} else {

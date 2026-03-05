@@ -1909,7 +1909,7 @@ static bool should_reclaim_block_group(const struct btrfs_block_group *bg, u64 b
 	return true;
 }
 
-static int btrfs_reclaim_block_group(struct btrfs_block_group *bg)
+static int btrfs_reclaim_block_group(struct btrfs_block_group *bg, int *reclaimed)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 	struct btrfs_space_info *space_info = bg->space_info;
@@ -2036,15 +2036,18 @@ static int btrfs_reclaim_block_group(struct btrfs_block_group *bg)
 	if (space_info->total_bytes < old_total)
 		btrfs_set_periodic_reclaim_ready(space_info, true);
 	spin_unlock(&space_info->lock);
+	if (!ret)
+		(*reclaimed)++;
 
 	return ret;
 }
 
-static void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info)
+void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info, unsigned int limit)
 {
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
 	LIST_HEAD(retry_list);
+	int reclaimed = 0;
 
 	if (!btrfs_should_reclaim(fs_info))
 		return;
@@ -2080,7 +2083,7 @@ static void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info)
 
 		space_info = bg->space_info;
 		spin_unlock(&fs_info->unused_bgs_lock);
-		ret = btrfs_reclaim_block_group(bg);
+		ret = btrfs_reclaim_block_group(bg, &reclaimed);
 
 		if (ret && !READ_ONCE(space_info->periodic_reclaim))
 			btrfs_link_bg_list(bg, &retry_list);
@@ -2099,6 +2102,8 @@ static void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info)
 		if (!mutex_trylock(&fs_info->reclaim_bgs_lock))
 			goto end;
 		spin_lock(&fs_info->unused_bgs_lock);
+		if (reclaimed >= limit)
+			break;
 	}
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
@@ -2114,7 +2119,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	struct btrfs_fs_info *fs_info =
 		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 
-	btrfs_reclaim_block_groups(fs_info);
+	btrfs_reclaim_block_groups(fs_info, -1);
 }
 
 void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
