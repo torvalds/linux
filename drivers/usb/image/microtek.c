@@ -175,8 +175,6 @@ static struct usb_driver mts_usb_driver = {
 	printk( KERN_ERR MTS_NAME x )
 #define MTS_INT_ERROR(x...) \
 	MTS_ERROR(x)
-#define MTS_MESSAGE(x...) \
-	printk( KERN_INFO MTS_NAME x )
 
 #if defined MTS_DO_DEBUG
 
