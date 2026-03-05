@@ -92,7 +92,7 @@ static int tv_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	dev->udev = usb_get_dev(udev);
+	dev->udev = udev;
 	usb_set_intfdata(interface, dev);
 
 	return 0;
@@ -108,7 +108,6 @@ static void tv_disconnect(struct usb_interface *interface)
 
 	dev = usb_get_intfdata (interface);
 	usb_set_intfdata(interface, NULL);
-	usb_put_dev(dev->udev);
 	kfree(dev);
 }
 
