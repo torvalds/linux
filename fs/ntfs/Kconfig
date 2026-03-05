@@ -2,6 +2,7 @@
 config NTFS_FS
 	tristate "NTFS file system support"
 	select NLS
+	select FS_IOMAP
 	help
 	  NTFS is the file system of Microsoft Windows NT, 2000, XP and 2003.
 	  This allows you to mount devices formatted with the ntfs file system.
