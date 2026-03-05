@@ -688,28 +688,20 @@ static int mts_usb_probe(struct usb_interface *intf,
 	}
 
 	for( i = 0; i < altsetting->desc.bNumEndpoints; i++ ) {
-		if ((altsetting->endpoint[i].desc.bmAttributes &
-		     USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_BULK) {
-
-			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
-			     (int)altsetting->endpoint[i].desc.bEndpointAddress );
-		} else {
-			if (altsetting->endpoint[i].desc.bEndpointAddress &
-			    USB_DIR_IN)
-				*ep_in_current++
-					= altsetting->endpoint[i].desc.bEndpointAddress &
-					USB_ENDPOINT_NUMBER_MASK;
-			else {
-				if ( ep_out != -1 ) {
-					MTS_WARNING( "can only deal with one output endpoints. Bailing out." );
-					return -ENODEV;
-				}
-
-				ep_out = altsetting->endpoint[i].desc.bEndpointAddress &
-					USB_ENDPOINT_NUMBER_MASK;
+		if (usb_endpoint_is_bulk_in(&altsetting->endpoint[i].desc)) {
+			*ep_in_current++ = usb_endpoint_num(&altsetting->endpoint[i].desc);
+		} else if (usb_endpoint_is_bulk_out(&altsetting->endpoint[i].desc)) {
+			if (ep_out == -1) {
+				ep_out = usb_endpoint_num(&altsetting->endpoint[i].desc);
+			} else {
+				MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+						usb_endpoint_num(&altsetting->endpoint[i].desc));
+				return -ENODEV;
 			}
+		} else {
+			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+					(int)altsetting->endpoint[i].desc.bEndpointAddress );
 		}
-
 	}
 
 	if (ep_in_current != &ep_in_set[2]) {
