@@ -2718,6 +2718,8 @@
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
 
+			sram = <&ipa_modem_tables>;
+
 			status = "disabled";
 		};
 
@@ -5162,6 +5164,20 @@
 					bias-pull-up;
 					drive-strength = <10>;
 				};
+			};
+		};
+
+		sram@14680000 {
+			compatible = "qcom,sm8550-imem", "syscon", "simple-mfd";
+			reg = <0 0x14680000 0 0x2c000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ranges = <0 0 0x14680000 0x2c000>;
+
+			ipa_modem_tables: modem-tables@8000 {
+				reg = <0x8000 0x2000>;
 			};
 		};
 
