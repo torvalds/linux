@@ -31,8 +31,8 @@ static LIST_HEAD(concat_node_list);
 struct mtd_virt_concat_node {
 	struct list_head head;
 	unsigned int count;
-	struct device_node **nodes;
 	struct mtd_concat *concat;
+	struct device_node *nodes[] __counted_by(count);
 };
 
 /**
@@ -133,7 +133,6 @@ int mtd_virt_concat_destroy(struct mtd_info *mtd)
 		for (idx = 0; idx < item->count; idx++)
 			of_node_put(item->nodes[idx]);
 
-		kfree(item->nodes);
 		kfree(item);
 	}
 	return 0;
@@ -167,16 +166,11 @@ static int mtd_virt_concat_create_item(struct device_node *parts,
 			return 0;
 	}
 
-	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	item = kzalloc_flex(*item, nodes, count, GFP_KERNEL);
 	if (!item)
 		return -ENOMEM;
 
 	item->count = count;
-	item->nodes = kcalloc(count, sizeof(*item->nodes), GFP_KERNEL);
-	if (!item->nodes) {
-		kfree(item);
-		return -ENOMEM;
-	}
 
 	/*
 	 * The partition in which "part-concat-next" property
@@ -216,7 +210,6 @@ void mtd_virt_concat_destroy_items(void)
 		for (i = 0; i < item->count; i++)
 			of_node_put(item->nodes[i]);
 
-		kfree(item->nodes);
 		kfree(item);
 	}
 }
