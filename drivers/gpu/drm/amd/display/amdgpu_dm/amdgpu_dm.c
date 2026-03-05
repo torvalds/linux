@@ -9886,7 +9886,7 @@ static void amdgpu_dm_enable_self_refresh(struct amdgpu_crtc *acrtc_attach,
 	}
 
 	/* Decrement skip count when SR is enabled and we're doing fast updates. */
-	if (acrtc_state->update_type == UPDATE_TYPE_FAST &&
+	if (acrtc_state->update_type <= UPDATE_TYPE_FAST &&
 	    (psr->psr_feature_enabled || pr->config.replay_supported)) {
 		if (aconn->sr_skip_count > 0)
 			aconn->sr_skip_count--;
@@ -10094,7 +10094,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		 * fast updates.
 		 */
 		if (crtc->state->async_flip &&
-		    (acrtc_state->update_type != UPDATE_TYPE_FAST ||
+		    (acrtc_state->update_type > UPDATE_TYPE_FAST ||
 		     get_mem_type(old_plane_state->fb) != get_mem_type(fb)))
 			drm_warn_once(state->dev,
 				      "[PLANE:%d:%s] async flip with non-fast update\n",
@@ -10102,7 +10102,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		bundle->flip_addrs[planes_count].flip_immediate =
 			crtc->state->async_flip &&
-			acrtc_state->update_type == UPDATE_TYPE_FAST &&
+			acrtc_state->update_type <= UPDATE_TYPE_FAST &&
 			get_mem_type(old_plane_state->fb) == get_mem_type(fb);
 
 		timestamp_ns = ktime_get_ns();
