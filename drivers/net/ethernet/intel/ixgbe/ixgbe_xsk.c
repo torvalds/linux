@@ -524,7 +524,7 @@ int ixgbe_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 
 	ring = adapter->xdp_ring[qid];
 
-	if (test_bit(__IXGBE_TX_DISABLED, &ring->state))
+	if (test_bit(__IXGBE_TX_DISABLED, ring->state))
 		return -ENETDOWN;
 
 	if (!ring->xsk_pool)
