@@ -47,7 +47,7 @@ static void __mutex_init_generic(struct mutex *lock)
 {
 	atomic_long_set(&lock->owner, 0);
 	raw_spin_lock_init(&lock->wait_lock);
-	INIT_LIST_HEAD(&lock->wait_list);
+	lock->first_waiter = NULL;
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
 	osq_lock_init(&lock->osq);
 #endif
@@ -194,33 +194,42 @@ static inline void __mutex_clear_flag(struct mutex *lock, unsigned long flag)
 	atomic_long_andnot(flag, &lock->owner);
 }
 
-static inline bool __mutex_waiter_is_first(struct mutex *lock, struct mutex_waiter *waiter)
-{
-	return list_first_entry(&lock->wait_list, struct mutex_waiter, list) == waiter;
-}
-
 /*
  * Add @waiter to a given location in the lock wait_list and set the
  * FLAG_WAITERS flag if it's the first waiter.
  */
 static void
 __mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
-		   struct list_head *list)
+		   struct mutex_waiter *first)
 {
 	hung_task_set_blocker(lock, BLOCKER_TYPE_MUTEX);
 	debug_mutex_add_waiter(lock, waiter, current);
 
-	list_add_tail(&waiter->list, list);
-	if (__mutex_waiter_is_first(lock, waiter))
+	if (!first)
+		first = lock->first_waiter;
+
+	if (first) {
+		list_add_tail(&waiter->list, &first->list);
+	} else {
+		INIT_LIST_HEAD(&waiter->list);
+		lock->first_waiter = waiter;
 		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
+	}
 }
 
 static void
 __mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter)
 {
-	list_del(&waiter->list);
-	if (likely(list_empty(&lock->wait_list)))
+	if (list_empty(&waiter->list)) {
 		__mutex_clear_flag(lock, MUTEX_FLAGS);
+		lock->first_waiter = NULL;
+	} else {
+		if (lock->first_waiter == waiter) {
+			lock->first_waiter = list_first_entry(&waiter->list,
+							      struct mutex_waiter, list);
+		}
+		list_del(&waiter->list);
+	}
 
 	debug_mutex_remove_waiter(lock, waiter, current);
 	hung_task_clear_blocker();
@@ -340,7 +349,7 @@ bool ww_mutex_spin_on_owner(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 	 * Similarly, stop spinning if we are no longer the
 	 * first waiter.
 	 */
-	if (waiter && !__mutex_waiter_is_first(lock, waiter))
+	if (waiter && lock->first_waiter != waiter)
 		return false;
 
 	return true;
@@ -645,7 +654,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 
 	if (!use_ww_ctx) {
 		/* add waiting tasks to the end of the waitqueue (FIFO): */
-		__mutex_add_waiter(lock, &waiter, &lock->wait_list);
+		__mutex_add_waiter(lock, &waiter, NULL);
 	} else {
 		/*
 		 * Add in stamp order, waking up waiters that must kill
@@ -691,7 +700,7 @@ __mutex_lock_common(struct mutex *lock, unsigned int state, unsigned int subclas
 
 		schedule_preempt_disabled();
 
-		first = __mutex_waiter_is_first(lock, &waiter);
+		first = lock->first_waiter == &waiter;
 
 		/*
 		 * As we likely have been woken up by task
@@ -734,8 +743,7 @@ acquired:
 		 * Wound-Wait; we stole the lock (!first_waiter), check the
 		 * waiters as anyone might want to wound us.
 		 */
-		if (!ww_ctx->is_wait_die &&
-		    !__mutex_waiter_is_first(lock, &waiter))
+		if (!ww_ctx->is_wait_die && lock->first_waiter != &waiter)
 			__ww_mutex_check_waiters(lock, ww_ctx, &wake_q);
 	}
 
@@ -931,6 +939,7 @@ EXPORT_SYMBOL_GPL(ww_mutex_lock_interruptible);
 static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigned long ip)
 {
 	struct task_struct *next = NULL;
+	struct mutex_waiter *waiter;
 	DEFINE_WAKE_Q(wake_q);
 	unsigned long owner;
 	unsigned long flags;
@@ -962,12 +971,8 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 
 	raw_spin_lock_irqsave(&lock->wait_lock, flags);
 	debug_mutex_unlock(lock);
-	if (!list_empty(&lock->wait_list)) {
-		/* get the first entry from the wait-list: */
-		struct mutex_waiter *waiter =
-			list_first_entry(&lock->wait_list,
-					 struct mutex_waiter, list);
-
+	waiter = lock->first_waiter;
+	if (waiter) {
 		next = waiter->task;
 
 		debug_mutex_wake_waiter(lock, waiter);

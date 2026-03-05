@@ -8,20 +8,14 @@
 static inline struct mutex_waiter *
 __ww_waiter_first(struct mutex *lock)
 {
-	struct mutex_waiter *w;
-
-	w = list_first_entry(&lock->wait_list, struct mutex_waiter, list);
-	if (list_entry_is_head(w, &lock->wait_list, list))
-		return NULL;
-
-	return w;
+	return lock->first_waiter;
 }
 
 static inline struct mutex_waiter *
 __ww_waiter_next(struct mutex *lock, struct mutex_waiter *w)
 {
 	w = list_next_entry(w, list);
-	if (list_entry_is_head(w, &lock->wait_list, list))
+	if (lock->first_waiter == w)
 		return NULL;
 
 	return w;
@@ -31,7 +25,7 @@ static inline struct mutex_waiter *
 __ww_waiter_prev(struct mutex *lock, struct mutex_waiter *w)
 {
 	w = list_prev_entry(w, list);
-	if (list_entry_is_head(w, &lock->wait_list, list))
+	if (lock->first_waiter == w)
 		return NULL;
 
 	return w;
@@ -40,22 +34,17 @@ __ww_waiter_prev(struct mutex *lock, struct mutex_waiter *w)
 static inline struct mutex_waiter *
 __ww_waiter_last(struct mutex *lock)
 {
-	struct mutex_waiter *w;
+	struct mutex_waiter *w = lock->first_waiter;
 
-	w = list_last_entry(&lock->wait_list, struct mutex_waiter, list);
-	if (list_entry_is_head(w, &lock->wait_list, list))
-		return NULL;
-
+	if (w)
+		w = list_prev_entry(w, list);
 	return w;
 }
 
 static inline void
 __ww_waiter_add(struct mutex *lock, struct mutex_waiter *waiter, struct mutex_waiter *pos)
 {
-	struct list_head *p = &lock->wait_list;
-	if (pos)
-		p = &pos->list;
-	__mutex_add_waiter(lock, waiter, p);
+	__mutex_add_waiter(lock, waiter, pos);
 }
 
 static inline struct task_struct *
