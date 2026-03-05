@@ -77,6 +77,7 @@
 #include <linux/percpu.h>
 #include <linux/sched/isolation.h>
 
+#include <asm/arm_pmuv3.h>
 #include <asm/cpu.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
@@ -1927,19 +1928,10 @@ static bool has_pmuv3(const struct arm64_cpu_capabilities *entry, int scope)
 	u64 dfr0 = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
 	unsigned int pmuver;
 
-	/*
-	 * PMUVer follows the standard ID scheme for an unsigned field with the
-	 * exception of 0xF (IMP_DEF) which is treated specially and implies
-	 * FEAT_PMUv3 is not implemented.
-	 *
-	 * See DDI0487L.a D24.1.3.2 for more details.
-	 */
 	pmuver = cpuid_feature_extract_unsigned_field(dfr0,
 						      ID_AA64DFR0_EL1_PMUVer_SHIFT);
-	if (pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
-		return false;
 
-	return pmuver >= ID_AA64DFR0_EL1_PMUVer_IMP;
+	return pmuv3_implemented(pmuver);
 }
 #endif
 
