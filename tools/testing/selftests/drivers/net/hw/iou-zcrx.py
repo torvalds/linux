@@ -151,6 +151,7 @@ def test_zcrx_large_chunks(cfg) -> None:
     if probe.ret == SKIP_CODE:
         raise KsftSkipEx(probe.stdout.strip())
 
+    mp_clear_wait(cfg)
     with bkg(rx_cmd, exit_wait=True):
         wait_port_listen(cfg.port, proto="tcp")
         cmd(tx_cmd, host=cfg.remote)
