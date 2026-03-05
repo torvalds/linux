@@ -32,30 +32,30 @@ SECTIONS {
 	__jump_table		0 : ALIGN(8) { KEEP(*(__jump_table)) }
 	__ex_table		0 : ALIGN(4) { KEEP(*(__ex_table)) }
 
-	__patchable_function_entries : { *(__patchable_function_entries) }
+	__patchable_function_entries 0 : { *(__patchable_function_entries) }
 
 	.init.klp_funcs		0 : ALIGN(8) { KEEP(*(.init.klp_funcs)) }
 	.init.klp_objects	0 : ALIGN(8) { KEEP(*(.init.klp_objects)) }
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
-	__kcfi_traps		: { KEEP(*(.kcfi_traps)) }
+	__kcfi_traps		0 : { KEEP(*(.kcfi_traps)) }
 #endif
 
-	.text : {
+	.text			0 : {
 		*(.text .text.[0-9a-zA-Z_]*)
 	}
 
-	.bss : {
+	.bss			0 : {
 		*(.bss .bss.[0-9a-zA-Z_]*)
 		*(.bss..L*)
 	}
 
-	.data : {
+	.data			0 : {
 		*(.data .data.[0-9a-zA-Z_]*)
 		*(.data..L*)
 	}
 
-	.rodata : {
+	.rodata			0 : {
 		*(.rodata .rodata.[0-9a-zA-Z_]*)
 		*(.rodata..L*)
 	}

@@ -18,7 +18,7 @@
 	IF_MEM_ALLOC_PROFILING(SECTION_WITH_BOUNDARIES(alloc_tags))
 
 #define MOD_SEPARATE_CODETAG_SECTION(_name)	\
-	.codetag.##_name : {			\
+	.codetag.##_name 0 : {			\
 		SECTION_WITH_BOUNDARIES(_name)	\
 	}
 
