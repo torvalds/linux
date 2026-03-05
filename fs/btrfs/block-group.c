@@ -2040,10 +2040,8 @@ static int btrfs_reclaim_block_group(struct btrfs_block_group *bg)
 	return ret;
 }
 
-void btrfs_reclaim_bgs_work(struct work_struct *work)
+static void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info =
-		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
 	LIST_HEAD(retry_list);
@@ -2109,6 +2107,14 @@ end:
 	list_splice_tail(&retry_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	btrfs_exclop_finish(fs_info);
+}
+
+void btrfs_reclaim_bgs_work(struct work_struct *work)
+{
+	struct btrfs_fs_info *fs_info =
+		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
+
+	btrfs_reclaim_block_groups(fs_info);
 }
 
 void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
