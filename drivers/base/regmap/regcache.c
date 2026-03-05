@@ -200,14 +200,6 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		map->reg_defaults = kmalloc_objs(struct reg_default, count);
 		if (!map->reg_defaults)
 			return -ENOMEM;
-
-		/* Some devices such as PMICs don't have cache defaults,
-		 * we cope with this by reading back the HW registers and
-		 * crafting the cache defaults by hand.
-		 */
-		ret = regcache_hw_init(map);
-		if (ret < 0)
-			goto err_free_reg_defaults;
 	}
 
 	if (!map->max_register_is_set && map->num_reg_defaults_raw) {
@@ -222,7 +214,18 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		ret = map->cache_ops->init(map);
 		map->unlock(map->lock_arg);
 		if (ret)
-			goto err_free;
+			goto err_free_reg_defaults;
+	}
+
+	/*
+	 * Some devices such as PMICs don't have cache defaults,
+	 * we cope with this by reading back the HW registers and
+	 * crafting the cache defaults by hand.
+	 */
+	if (count) {
+		ret = regcache_hw_init(map);
+		if (ret)
+			goto err_exit;
 	}
 
 	if (map->cache_ops->populate &&
@@ -232,10 +235,12 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		ret = map->cache_ops->populate(map);
 		map->unlock(map->lock_arg);
 		if (ret)
-			goto err_exit;
+			goto err_free;
 	}
 	return 0;
 
+err_free:
+	regcache_hw_exit(map);
 err_exit:
 	if (map->cache_ops->exit) {
 		dev_dbg(map->dev, "Destroying %s cache\n", map->cache_ops->name);
@@ -243,8 +248,6 @@ err_exit:
 		ret = map->cache_ops->exit(map);
 		map->unlock(map->lock_arg);
 	}
-err_free:
-	regcache_hw_exit(map);
 err_free_reg_defaults:
 	kfree(map->reg_defaults);
 
