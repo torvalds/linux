@@ -961,8 +961,12 @@ _bpftool()
                         *)
                             # emit extra options
                             case ${words[3]} in
-                                id|file)
+                                id)
                                     COMPREPLY=( $( compgen -W "root_id" -- "$cur" ) )
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                file)
+                                    COMPREPLY=( $( compgen -W "root_id file" -- "$cur" ) )
                                     _bpftool_once_attr 'format'
                                     ;;
                                 map|prog)
