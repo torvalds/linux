@@ -12989,7 +12989,6 @@ F:	drivers/crypto/intel/ixp4xx/ixp4xx_crypto.c
 
 INTEL KEEM BAY DRM DRIVER
 M:	Anitha Chrisanthus <anitha.chrisanthus@intel.com>
-M:	Edmund Dea <edmund.j.dea@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/display/intel,keembay-display.yaml
 F:	drivers/gpu/drm/kmb/
