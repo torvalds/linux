@@ -11,6 +11,7 @@
 #include "xe_page_reclaim.h"
 
 #include "xe_gt_stats.h"
+#include "xe_guc_tlb_inval.h"
 #include "xe_macros.h"
 #include "xe_pat.h"
 #include "xe_sa.h"
@@ -129,4 +130,23 @@ int xe_page_reclaim_list_alloc_entries(struct xe_page_reclaim_list *prl)
 	}
 
 	return page ? 0 : -ENOMEM;
+}
+
+/**
+ * xe_guc_page_reclaim_done_handler() - Page reclaim done handler
+ * @guc: guc
+ * @msg: message indicating page reclamation done
+ * @len: length of message
+ *
+ * Page reclamation is an extension of TLB invalidation. Both
+ * operations share the same seqno and fence. When either
+ * action completes, we need to signal the corresponding
+ * fence. Since the handling logic is currently identical, this
+ * function delegates to the TLB invalidation handler.
+ *
+ * Return: 0 on success, -EPROTO for malformed messages.
+ */
+int xe_guc_page_reclaim_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
+{
+	return xe_guc_tlb_inval_done_handler(guc, msg, len);
 }
