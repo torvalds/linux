@@ -45,8 +45,10 @@ static __maybe_unused int chromeos_tbmc_resume(struct device *dev)
 	return chromeos_tbmc_query_switch(adev, adev->driver_data);
 }
 
-static void chromeos_tbmc_notify(struct acpi_device *adev, u32 event)
+static void chromeos_tbmc_notify(acpi_handle handle, u32 event, void *data)
 {
+	struct acpi_device *adev = data;
+
 	acpi_pm_wakeup_event(&adev->dev);
 	switch (event) {
 	case 0x80:
@@ -92,11 +94,22 @@ static int chromeos_tbmc_add(struct acpi_device *adev)
 		return ret;
 	}
 	device_init_wakeup(dev, true);
+
+	ret = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
+					      chromeos_tbmc_notify, adev);
+	if (ret) {
+		dev_err(dev, "cannot install ACPI notify handler\n");
+		device_init_wakeup(dev, false);
+		return ret;
+	}
+
 	return 0;
 }
 
 static void chromeos_tbmc_remove(struct acpi_device *adev)
 {
+	acpi_dev_remove_notify_handler(adev, ACPI_DEVICE_NOTIFY,
+				       chromeos_tbmc_notify);
 	device_init_wakeup(&adev->dev, false);
 }
 
@@ -116,7 +129,6 @@ static struct acpi_driver chromeos_tbmc_driver = {
 	.ops = {
 		.add = chromeos_tbmc_add,
 		.remove = chromeos_tbmc_remove,
-		.notify = chromeos_tbmc_notify,
 	},
 	.drv.pm = &chromeos_tbmc_pm_ops,
 };
