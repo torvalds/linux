@@ -10,9 +10,12 @@
 #include <linux/delay.h>
 #include <linux/time64.h>
 #include <linux/ulpi/regs.h>
+#include <linux/ulpi/driver.h>
 
 #include "core.h"
 #include "io.h"
+
+#define USB_VENDOR_MICROCHIP 0x0424
 
 #define DWC3_ULPI_ADDR(a) \
 		((a >= ULPI_EXT_VENDOR_SPECIFIC) ? \
@@ -83,6 +86,26 @@ static const struct ulpi_ops dwc3_ulpi_ops = {
 	.write = dwc3_ulpi_write,
 };
 
+static void dwc3_ulpi_detect_config(struct dwc3 *dwc)
+{
+	struct ulpi *ulpi = dwc->ulpi;
+
+	switch (ulpi->id.vendor) {
+	case USB_VENDOR_MICROCHIP:
+		switch (ulpi->id.product) {
+		case 0x0009:
+			/* Microchip USB3340 ULPI PHY */
+			dwc->enable_usb2_transceiver_delay = true;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 int dwc3_ulpi_init(struct dwc3 *dwc)
 {
 	/* Register the interface */
@@ -91,6 +114,8 @@ int dwc3_ulpi_init(struct dwc3 *dwc)
 		dev_err(dwc->dev, "failed to register ULPI interface");
 		return PTR_ERR(dwc->ulpi);
 	}
+
+	dwc3_ulpi_detect_config(dwc);
 
 	return 0;
 }
