@@ -438,12 +438,6 @@ static int imx95_enetc_mdio_phyaddr_config(struct platform_device *pdev)
 				return -EINVAL;
 			}
 
-			/* The default value of LaBCR[MDIO_PHYAD_PRTAD ] is
-			 * 0, so no need to set the register.
-			 */
-			if (!addr)
-				continue;
-
 			switch (bus_devfn) {
 			case IMX95_ENETC0_BUS_DEVFN:
 				netc_reg_write(priv->ierb, IERB_LBCR(0),
@@ -589,12 +583,6 @@ static int imx94_enetc_mdio_phyaddr_config(struct netc_blk_ctrl *priv,
 		dev_err(dev, "Failed to get PHY address\n");
 		return addr;
 	}
-
-	/* The default value of LaBCR[MDIO_PHYAD_PRTAD] is 0,
-	 * so no need to set the register.
-	 */
-	if (!addr)
-		return 0;
 
 	if (phy_mask & BIT(addr)) {
 		dev_err(dev,
