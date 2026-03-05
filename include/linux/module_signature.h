@@ -14,8 +14,8 @@
 /* In stripped ARM and x86-64 modules, ~ is surprisingly rare. */
 #define MODULE_SIG_STRING "~Module signature appended~\n"
 
-enum pkey_id_type {
-	PKEY_ID_PKCS7 = 2,	/* Signature in PKCS#7 message */
+enum module_signature_type {
+	MODULE_SIGNATURE_TYPE_PKCS7 = 2,	/* Signature in PKCS#7 message */
 };
 
 /*
@@ -31,7 +31,7 @@ enum pkey_id_type {
 struct module_signature {
 	u8	algo;		/* Public-key crypto algorithm [0] */
 	u8	hash;		/* Digest algorithm [0] */
-	u8	id_type;	/* Key identifier type [PKEY_ID_PKCS7] */
+	u8	id_type;	/* Key identifier type [enum module_signature_type] */
 	u8	signer_len;	/* Length of signer's name [0] */
 	u8	key_id_len;	/* Length of key identifier [0] */
 	u8	__pad[3];

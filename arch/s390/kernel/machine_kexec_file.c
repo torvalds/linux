@@ -53,7 +53,7 @@ int s390_verify_sig(const char *kernel, unsigned long kernel_len)
 		return -EKEYREJECTED;
 	kernel_len -= sig_len;
 
-	if (ms->id_type != PKEY_ID_PKCS7)
+	if (ms->id_type != MODULE_SIGNATURE_TYPE_PKCS7)
 		return -EKEYREJECTED;
 
 	if (ms->algo != 0 ||
