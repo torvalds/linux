@@ -4552,8 +4552,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	phylink_disconnect_phy(dev->phylink);
 	rtnl_unlock();
 
-	netif_napi_del(&dev->napi);
-
 	unregister_netdev(net);
 
 	timer_shutdown_sync(&dev->stat_monitor);
