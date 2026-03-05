@@ -103,8 +103,6 @@
 };
 
 &hsi2c_23 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	status = "okay";
 
 	touchscreen@48 {
