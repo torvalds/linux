@@ -94,13 +94,63 @@ struct ntb_netdev {
 #define	NTB_TX_TIMEOUT_MS	1000
 #define	NTB_RXQ_SIZE		100
 
+static void ntb_netdev_update_carrier(struct ntb_netdev *dev)
+{
+	struct net_device *ndev;
+	bool any_up = false;
+	unsigned int i;
+
+	ndev = dev->ndev;
+
+	for (i = 0; i < dev->num_queues; i++) {
+		if (ntb_transport_link_query(dev->queues[i].qp)) {
+			any_up = true;
+			break;
+		}
+	}
+
+	if (any_up)
+		netif_carrier_on(ndev);
+	else
+		netif_carrier_off(ndev);
+}
+
+static void ntb_netdev_queue_rx_drain(struct ntb_netdev_queue *queue)
+{
+	struct sk_buff *skb;
+	int len;
+
+	while ((skb = ntb_transport_rx_remove(queue->qp, &len)))
+		dev_kfree_skb(skb);
+}
+
+static int ntb_netdev_queue_rx_fill(struct net_device *ndev,
+				    struct ntb_netdev_queue *queue)
+{
+	struct sk_buff *skb;
+	int rc, i;
+
+	for (i = 0; i < NTB_RXQ_SIZE; i++) {
+		skb = netdev_alloc_skb(ndev, ndev->mtu + ETH_HLEN);
+		if (!skb)
+			return -ENOMEM;
+
+		rc = ntb_transport_rx_enqueue(queue->qp, skb, skb->data,
+					      ndev->mtu + ETH_HLEN);
+		if (rc) {
+			dev_kfree_skb(skb);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void ntb_netdev_event_handler(void *data, int link_is_up)
 {
 	struct ntb_netdev_queue *q = data;
 	struct ntb_netdev *dev = q->ntdev;
 	struct net_device *ndev;
-	bool any_up = false;
-	unsigned int i;
 
 	ndev = dev->ndev;
 
@@ -114,17 +164,7 @@ static void ntb_netdev_event_handler(void *data, int link_is_up)
 			netif_stop_subqueue(ndev, q->qid);
 	}
 
-	for (i = 0; i < dev->num_queues; i++) {
-		if (ntb_transport_link_query(dev->queues[i].qp)) {
-			any_up = true;
-			break;
-		}
-	}
-
-	if (any_up)
-		netif_carrier_on(ndev);
-	else
-		netif_carrier_off(ndev);
+	ntb_netdev_update_carrier(dev);
 }
 
 static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
@@ -298,28 +338,16 @@ static int ntb_netdev_open(struct net_device *ndev)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
 	struct ntb_netdev_queue *queue;
-	struct sk_buff *skb;
-	int rc = 0, i, len;
 	unsigned int q;
+	int rc = 0;
 
 	/* Add some empty rx bufs for each queue */
 	for (q = 0; q < dev->num_queues; q++) {
 		queue = &dev->queues[q];
 
-		for (i = 0; i < NTB_RXQ_SIZE; i++) {
-			skb = netdev_alloc_skb(ndev, ndev->mtu + ETH_HLEN);
-			if (!skb) {
-				rc = -ENOMEM;
-				goto err;
-			}
-
-			rc = ntb_transport_rx_enqueue(queue->qp, skb, skb->data,
-						      ndev->mtu + ETH_HLEN);
-			if (rc) {
-				dev_kfree_skb(skb);
-				goto err;
-			}
-		}
+		rc = ntb_netdev_queue_rx_fill(ndev, queue);
+		if (rc)
+			goto err;
 
 		timer_setup(&queue->tx_timer, ntb_netdev_tx_timer, 0);
 	}
@@ -335,9 +363,7 @@ static int ntb_netdev_open(struct net_device *ndev)
 err:
 	for (q = 0; q < dev->num_queues; q++) {
 		queue = &dev->queues[q];
-
-		while ((skb = ntb_transport_rx_remove(queue->qp, &len)))
-			dev_kfree_skb(skb);
+		ntb_netdev_queue_rx_drain(queue);
 	}
 	return rc;
 }
@@ -346,9 +372,7 @@ static int ntb_netdev_close(struct net_device *ndev)
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
 	struct ntb_netdev_queue *queue;
-	struct sk_buff *skb;
 	unsigned int q;
-	int len;
 
 	netif_tx_stop_all_queues(ndev);
 	netif_carrier_off(ndev);
@@ -357,12 +381,10 @@ static int ntb_netdev_close(struct net_device *ndev)
 		queue = &dev->queues[q];
 
 		ntb_transport_link_down(queue->qp);
-
-		while ((skb = ntb_transport_rx_remove(queue->qp, &len)))
-			dev_kfree_skb(skb);
-
+		ntb_netdev_queue_rx_drain(queue);
 		timer_delete_sync(&queue->tx_timer);
 	}
+
 	return 0;
 }
 
@@ -428,8 +450,7 @@ err:
 
 		ntb_transport_link_down(queue->qp);
 
-		while ((skb = ntb_transport_rx_remove(queue->qp, &len)))
-			dev_kfree_skb(skb);
+		ntb_netdev_queue_rx_drain(queue);
 	}
 
 	netdev_err(ndev, "Error changing MTU, device inoperable\n");
