@@ -21,7 +21,7 @@
  * too.
  *
  * The ->count variable represents how many more tasks can acquire this
- * semaphore.  If it's zero, there may be tasks waiting on the wait_list.
+ * semaphore.  If it's zero, there may be waiters.
  */
 
 #include <linux/compiler.h>
@@ -226,7 +226,7 @@ void __sched up(struct semaphore *sem)
 
 	hung_task_sem_clear_if_holder(sem);
 
-	if (likely(list_empty(&sem->wait_list)))
+	if (likely(!sem->first_waiter))
 		sem->count++;
 	else
 		__up(sem, &wake_q);
@@ -244,6 +244,21 @@ struct semaphore_waiter {
 	bool up;
 };
 
+static inline
+void sem_del_waiter(struct semaphore *sem, struct semaphore_waiter *waiter)
+{
+	if (list_empty(&waiter->list)) {
+		sem->first_waiter = NULL;
+		return;
+	}
+
+	if (sem->first_waiter == waiter) {
+		sem->first_waiter = list_first_entry(&waiter->list,
+						     struct semaphore_waiter, list);
+	}
+	list_del(&waiter->list);
+}
+
 /*
  * Because this function is inlined, the 'state' parameter will be
  * constant, and thus optimised away by the compiler.  Likewise the
@@ -252,9 +267,15 @@ struct semaphore_waiter {
 static inline int __sched ___down_common(struct semaphore *sem, long state,
 								long timeout)
 {
-	struct semaphore_waiter waiter;
+	struct semaphore_waiter waiter, *first;
 
-	list_add_tail(&waiter.list, &sem->wait_list);
+	first = sem->first_waiter;
+	if (first) {
+		list_add_tail(&waiter.list, &first->list);
+	} else {
+		INIT_LIST_HEAD(&waiter.list);
+		sem->first_waiter = &waiter;
+	}
 	waiter.task = current;
 	waiter.up = false;
 
@@ -274,11 +295,11 @@ static inline int __sched ___down_common(struct semaphore *sem, long state,
 	}
 
  timed_out:
-	list_del(&waiter.list);
+	sem_del_waiter(sem, &waiter);
 	return -ETIME;
 
  interrupted:
-	list_del(&waiter.list);
+	sem_del_waiter(sem, &waiter);
 	return -EINTR;
 }
 
@@ -321,9 +342,9 @@ static noinline int __sched __down_timeout(struct semaphore *sem, long timeout)
 static noinline void __sched __up(struct semaphore *sem,
 				  struct wake_q_head *wake_q)
 {
-	struct semaphore_waiter *waiter = list_first_entry(&sem->wait_list,
-						struct semaphore_waiter, list);
-	list_del(&waiter->list);
+	struct semaphore_waiter *waiter = sem->first_waiter;
+
+	sem_del_waiter(sem, waiter);
 	waiter->up = true;
 	wake_q_add(wake_q, waiter->task);
 }

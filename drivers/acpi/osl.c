@@ -1257,7 +1257,7 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Deleting semaphore[%p].\n", handle));
 
-	BUG_ON(!list_empty(&sem->wait_list));
+	BUG_ON(sem->first_waiter);
 	kfree(sem);
 	sem = NULL;
 
