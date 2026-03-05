@@ -631,9 +631,9 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 	}
 
 	/* retrieve the device string as shortname */
-	if (!dev->descriptor.iProduct ||
-	    usb_string(dev, dev->descriptor.iProduct,
-		       card->shortname, sizeof(card->shortname)) <= 0) {
+	if (dev->product && *dev->product) {
+		strscpy(card->shortname, dev->product);
+	} else {
 		/* no name available from anywhere, so use ID */
 		scnprintf(card->shortname, sizeof(card->shortname),
 			  "USB Device %#04x:%#04x",
@@ -668,15 +668,11 @@ static void usb_audio_make_longname(struct usb_device *dev,
 	else if (quirk && quirk->vendor_name)
 		s = quirk->vendor_name;
 	*card->longname = 0;
-	if (s && *s) {
-		strscpy(card->longname, s, sizeof(card->longname));
-	} else {
-		/* retrieve the vendor and device strings as longname */
-		if (dev->descriptor.iManufacturer)
-			usb_string(dev, dev->descriptor.iManufacturer,
-				   card->longname, sizeof(card->longname));
-		/* we don't really care if there isn't any vendor string */
-	}
+	if (s && *s)
+		strscpy(card->longname, s);
+	else if (dev->manufacturer && *dev->manufacturer)
+		strscpy(card->longname, dev->manufacturer);
+
 	if (*card->longname) {
 		strim(card->longname);
 		if (*card->longname)
