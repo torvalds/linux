@@ -922,13 +922,9 @@ static int ov9282_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-/**
- * ov9282_start_streaming() - Start sensor stream
- * @ov9282: pointer to ov9282 device
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int ov9282_start_streaming(struct ov9282 *ov9282)
+static int ov9282_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
 	const struct cci_reg_sequence bitdepth_regs[2][2] = {
 		{
@@ -939,16 +935,21 @@ static int ov9282_start_streaming(struct ov9282 *ov9282)
 			{OV9282_REG_ANA_CORE_2, OV9282_ANA_CORE2_RAW8},
 		}
 	};
+	struct ov9282 *ov9282 = to_ov9282(sd);
 	const struct ov9282_reg_list *reg_list;
 	int bitdepth_index;
 	int ret;
+
+	ret = pm_runtime_resume_and_get(ov9282->dev);
+	if (ret)
+		return ret;
 
 	/* Write common registers */
 	ret = cci_multi_reg_write(ov9282->regmap, common_regs,
 				  ARRAY_SIZE(common_regs), NULL);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to write common registers");
-		return ret;
+		goto err_pm_put;
 	}
 
 	bitdepth_index = ov9282->code == MEDIA_BUS_FMT_Y10_1X10 ? 0 : 1;
@@ -956,7 +957,7 @@ static int ov9282_start_streaming(struct ov9282 *ov9282)
 				  bitdepth_regs[bitdepth_index], 2, NULL);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to write bitdepth regs");
-		return ret;
+		goto err_pm_put;
 	}
 
 	/* Write sensor mode registers */
@@ -965,14 +966,14 @@ static int ov9282_start_streaming(struct ov9282 *ov9282)
 				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to write initial registers");
-		return ret;
+		goto err_pm_put;
 	}
 
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(ov9282->sd.ctrl_handler);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to setup handler");
-		return ret;
+		goto err_pm_put;
 	}
 
 	/* Start streaming */
@@ -980,60 +981,28 @@ static int ov9282_start_streaming(struct ov9282 *ov9282)
 			OV9282_MODE_STREAMING, NULL);
 	if (ret) {
 		dev_err(ov9282->dev, "fail to start streaming");
-		return ret;
+		goto err_pm_put;
 	}
 
 	return 0;
+
+err_pm_put:
+	pm_runtime_put(ov9282->dev);
+
+	return ret;
 }
 
-/**
- * ov9282_stop_streaming() - Stop sensor stream
- * @ov9282: pointer to ov9282 device
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int ov9282_stop_streaming(struct ov9282 *ov9282)
-{
-	return cci_write(ov9282->regmap, OV9282_REG_MODE_SELECT,
-			 OV9282_MODE_STANDBY, NULL);
-}
-
-/**
- * ov9282_set_stream() - Enable sensor streaming
- * @sd: pointer to ov9282 subdevice
- * @enable: set to enable sensor streaming
- *
- * Return: 0 if successful, error code otherwise.
- */
-static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
+static int ov9282_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
 	struct ov9282 *ov9282 = to_ov9282(sd);
-	struct v4l2_subdev_state *state;
 	int ret;
 
-	state = v4l2_subdev_lock_and_get_active_state(sd);
+	ret = cci_write(ov9282->regmap, OV9282_REG_MODE_SELECT,
+			OV9282_MODE_STANDBY, NULL);
 
-	if (enable) {
-		ret = pm_runtime_resume_and_get(ov9282->dev);
-		if (ret)
-			goto error_unlock;
-
-		ret = ov9282_start_streaming(ov9282);
-		if (ret)
-			goto error_power_off;
-	} else {
-		ov9282_stop_streaming(ov9282);
-		pm_runtime_put(ov9282->dev);
-	}
-
-	v4l2_subdev_unlock_state(state);
-
-	return 0;
-
-error_power_off:
 	pm_runtime_put(ov9282->dev);
-error_unlock:
-	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -1165,7 +1134,7 @@ static const struct v4l2_subdev_core_ops ov9282_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov9282_video_ops = {
-	.s_stream = ov9282_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops ov9282_pad_ops = {
@@ -1174,6 +1143,8 @@ static const struct v4l2_subdev_pad_ops ov9282_pad_ops = {
 	.get_fmt = ov9282_get_pad_format,
 	.set_fmt = ov9282_set_pad_format,
 	.get_selection = ov9282_get_selection,
+	.enable_streams = ov9282_enable_streams,
+	.disable_streams = ov9282_disable_streams,
 };
 
 static const struct v4l2_subdev_ops ov9282_subdev_ops = {
