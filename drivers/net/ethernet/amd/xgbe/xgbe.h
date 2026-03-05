@@ -262,10 +262,30 @@
 #define XGBE_RV_PCI_DEVICE_ID	0x15d0
 #define XGBE_YC_PCI_DEVICE_ID	0x14b5
 #define XGBE_RN_PCI_DEVICE_ID	0x1630
+#define XGBE_P100a_PCI_DEVICE_ID	0x1122
 
  /* Generic low and high masks */
 #define XGBE_GEN_HI_MASK	GENMASK(31, 16)
 #define XGBE_GEN_LO_MASK	GENMASK(15, 0)
+
+/* MAC hardware version numbers (SNPSVER field in MAC_VR register) */
+#define XGBE_MAC_VER_30		0x30	/* Baseline Rx adaptation support */
+#define XGBE_MAC_VER_33		0x33	/* P100a platform */
+
+/* MAC Speed Select (SS) values for MAC_TCR register
+ * These values are written to the SS field to configure link speed.
+ * Note: P100a uses XGMII mode (0x06) for 2.5G instead of GMII (0x02)
+ */
+/* Note: 100M and 2.5G GMII share the same value (0x02) but are
+ * differentiated by the mode/interface type at the PHY level
+ */
+
+#define XGBE_MAC_SS_10G		0x00	/* 10Gbps - XGMII mode */
+#define XGBE_MAC_SS_2_5G_GMII	0x02	/* 2.5Gbps - GMII mode (YC) */
+#define XGBE_MAC_SS_2_5G_XGMII	0x06	/* 2.5Gbps - XGMII mode (P100a) */
+#define XGBE_MAC_SS_1G		0x03	/* 1Gbps */
+#define XGBE_MAC_SS_100M	0x02	/* 100Mbps */
+#define XGBE_MAC_SS_10M		0x07	/* 10Mbps */
 
 struct xgbe_prv_data;
 
@@ -558,7 +578,10 @@ enum xgbe_mb_subcmd {
 	XGBE_MB_SUBCMD_10MBITS = 0,
 	XGBE_MB_SUBCMD_100MBITS,
 	XGBE_MB_SUBCMD_1G_SGMII,
-	XGBE_MB_SUBCMD_1G_KX
+	XGBE_MB_SUBCMD_1G_KX,
+
+	/* 2.5GbE Mode subcommands */
+	XGBE_MB_SUBCMD_2_5G_KX = 1
 };
 
 struct xgbe_phy {

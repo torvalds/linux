@@ -718,20 +718,25 @@ static void xgbe_disable_ecc_sec(struct xgbe_prv_data *pdata,
 
 static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 {
-	unsigned int ss;
+	unsigned int ss, ver;
 
 	switch (speed) {
 	case SPEED_10:
-		ss = 0x07;
+		ss = XGBE_MAC_SS_10M;
 		break;
 	case SPEED_1000:
-		ss = 0x03;
+		ss = XGBE_MAC_SS_1G;
 		break;
 	case SPEED_2500:
-		ss = 0x02;
+		/* P100a uses XGMII mode for 2.5G, older platforms use GMII */
+		ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
+		if (ver == XGBE_MAC_VER_33)
+			ss = XGBE_MAC_SS_2_5G_XGMII;
+		else
+			ss = XGBE_MAC_SS_2_5G_GMII;
 		break;
 	case SPEED_10000:
-		ss = 0x00;
+		ss = XGBE_MAC_SS_10G;
 		break;
 	default:
 		return -EINVAL;
@@ -1070,6 +1075,8 @@ static void xgbe_get_pcs_index_and_offset(struct xgbe_prv_data *pdata,
 					  unsigned int *index,
 					  unsigned int *offset)
 {
+	unsigned int ver;
+
 	/* The PCS registers are accessed using mmio. The underlying
 	 * management interface uses indirect addressing to access the MMD
 	 * register sets. This requires accessing of the PCS register in two
@@ -1081,7 +1088,27 @@ static void xgbe_get_pcs_index_and_offset(struct xgbe_prv_data *pdata,
 	 */
 	mmd_address <<= 1;
 	*index = mmd_address & ~pdata->xpcs_window_mask;
-	*offset = pdata->xpcs_window + (mmd_address & pdata->xpcs_window_mask);
+
+	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
+
+	/* The P100a platform uses a different memory mapping scheme for XPCS
+	 * register access. The offset calculation differs between platforms:
+	 *
+	 * For P100a platforms: The offset is calculated by adding the
+	 * mmd_address to the xpcs_window and then applying the xpcs_window_mask
+	 * For older platforms: The offset is calculated by applying the
+	 * xpcs_window_mask to the mmd_address and then adding it to the
+	 * xpcs_window.
+	 *
+	 * This is critical because using the wrong calculation causes register
+	 * accesses to target the wrong registers, leading to incorrect behavior
+	 */
+	if (ver == XGBE_MAC_VER_33)
+		*offset = (pdata->xpcs_window + mmd_address) &
+			  pdata->xpcs_window_mask;
+	else
+		*offset = pdata->xpcs_window +
+			  (mmd_address & pdata->xpcs_window_mask);
 }
 
 static int xgbe_read_mmd_regs_v3(struct xgbe_prv_data *pdata, int prtad,
