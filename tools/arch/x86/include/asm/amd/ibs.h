@@ -110,7 +110,7 @@ union ibs_op_data3 {
 		__u64	ld_op:1,			/* 0: load op */
 			st_op:1,			/* 1: store op */
 			dc_l1tlb_miss:1,		/* 2: data cache L1TLB miss */
-			dc_l2tlb_miss:1,		/* 3: data cache L2TLB hit in 2M page */
+			dc_l2tlb_miss:1,		/* 3: data cache L2TLB miss in 2M page */
 			dc_l1tlb_hit_2m:1,		/* 4: data cache L1TLB hit in 2M page */
 			dc_l1tlb_hit_1g:1,		/* 5: data cache L1TLB hit in 1G page */
 			dc_l2tlb_hit_2m:1,		/* 6: data cache L2TLB hit in 2M page */
