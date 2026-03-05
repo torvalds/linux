@@ -942,10 +942,17 @@ static int gve_rx_complete_rsc(struct sk_buff *skb,
 			       struct gve_ptype ptype)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	int rsc_segments, rsc_seg_len, hdr_len;
+	skb_frag_t *frag;
+	void *va;
 
-	/* Only TCP is supported right now. */
+	/* HW-GRO only coalesces TCP. */
 	if (ptype.l4_type != GVE_L4_TYPE_TCP)
 		return -EINVAL;
+
+	rsc_seg_len = le16_to_cpu(desc->rsc_seg_len);
+	if (!rsc_seg_len)
+		return 0;
 
 	switch (ptype.l3_type) {
 	case GVE_L3_TYPE_IPV4:
@@ -958,7 +965,31 @@ static int gve_rx_complete_rsc(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	shinfo->gso_size = le16_to_cpu(desc->rsc_seg_len);
+	if (skb_headlen(skb)) {
+		/* With header-split, payload is in the non-linear part */
+		rsc_segments = DIV_ROUND_UP(skb->data_len, rsc_seg_len);
+	} else {
+		/* HW-GRO packets are guaranteed to have complete TCP/IP
+		 * headers in frag[0] when header-split is not enabled.
+		 */
+		frag = &skb_shinfo(skb)->frags[0];
+		va = skb_frag_address(frag);
+		hdr_len =
+			eth_get_headlen(skb->dev, va, skb_frag_size(frag));
+		rsc_segments = DIV_ROUND_UP(skb->len - hdr_len, rsc_seg_len);
+		skb_copy_to_linear_data(skb, va, hdr_len);
+		skb_frag_size_sub(frag, hdr_len);
+		/* Verify we didn't empty the fragment completely as that could
+		 * otherwise lead to page leaks.
+		 */
+		DEBUG_NET_WARN_ON_ONCE(!skb_frag_size(frag));
+		skb_frag_off_add(frag, hdr_len);
+		skb->data_len -= hdr_len;
+		skb->tail += hdr_len;
+	}
+	shinfo->gso_size = rsc_seg_len;
+	shinfo->gso_segs = rsc_segments;
+
 	return 0;
 }
 
@@ -991,7 +1022,7 @@ static int gve_rx_complete_skb(struct gve_rx_ring *rx, struct napi_struct *napi,
 			return err;
 	}
 
-	if (skb_headlen(rx->ctx.skb_head) == 0)
+	if (rx->ctx.skb_head == napi->skb)
 		napi_gro_frags(napi);
 	else
 		napi_gro_receive(napi, rx->ctx.skb_head);
