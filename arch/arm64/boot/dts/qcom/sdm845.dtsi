@@ -2780,6 +2780,8 @@
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
 
+			sram = <&ipa_modem_tables>;
+
 			status = "disabled";
 		};
 
@@ -5189,6 +5191,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x40000>;
+
+			ipa_modem_tables: modem-tables@3d000 {
+				reg = <0x3d000 0x2000>;
+			};
 
 			pil-reloc@3f94c {
 				compatible = "qcom,pil-reloc-info";
