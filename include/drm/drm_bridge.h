@@ -1188,8 +1188,9 @@ struct drm_bridge {
 	const char *product;
 
 	/**
-	 * @supported_formats: Bitmask of @hdmi_colorspace listing supported
-	 * output formats. This is only relevant if @DRM_BRIDGE_OP_HDMI is set.
+	 * @supported_formats: Bitmask of @drm_output_color_format listing
+	 * supported output formats. This is only relevant if
+	 * @DRM_BRIDGE_OP_HDMI is set.
 	 */
 	unsigned int supported_formats;
 

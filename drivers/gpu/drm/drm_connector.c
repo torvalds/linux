@@ -552,7 +552,7 @@ EXPORT_SYMBOL(drmm_connector_init);
  * @hdmi_funcs: HDMI-related callbacks for this connector
  * @connector_type: user visible type of the connector
  * @ddc: optional pointer to the associated ddc adapter
- * @supported_formats: Bitmask of @hdmi_colorspace listing supported output formats
+ * @supported_formats: Bitmask of @drm_output_color_format listing supported output formats
  * @max_bpc: Maximum bits per char the HDMI connector supports
  *
  * Initialises a preallocated HDMI connector. Connectors can be
@@ -591,10 +591,10 @@ int drmm_connector_hdmi_init(struct drm_device *dev,
 	      connector_type == DRM_MODE_CONNECTOR_HDMIB))
 		return -EINVAL;
 
-	if (!supported_formats || !(supported_formats & BIT(HDMI_COLORSPACE_RGB)))
+	if (!supported_formats || !(supported_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444)))
 		return -EINVAL;
 
-	if (connector->ycbcr_420_allowed != !!(supported_formats & BIT(HDMI_COLORSPACE_YUV420)))
+	if (connector->ycbcr_420_allowed != !!(supported_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420)))
 		return -EINVAL;
 
 	if (!(max_bpc == 8 || max_bpc == 10 || max_bpc == 12))
@@ -1431,10 +1431,10 @@ drm_hdmi_connector_get_broadcast_rgb_name(enum drm_hdmi_broadcast_rgb broadcast_
 EXPORT_SYMBOL(drm_hdmi_connector_get_broadcast_rgb_name);
 
 static const char * const output_format_str[] = {
-	[HDMI_COLORSPACE_RGB]		= "RGB",
-	[HDMI_COLORSPACE_YUV420]	= "YUV 4:2:0",
-	[HDMI_COLORSPACE_YUV422]	= "YUV 4:2:2",
-	[HDMI_COLORSPACE_YUV444]	= "YUV 4:4:4",
+	[DRM_OUTPUT_COLOR_FORMAT_RGB444]	= "RGB",
+	[DRM_OUTPUT_COLOR_FORMAT_YCBCR420]	= "YUV 4:2:0",
+	[DRM_OUTPUT_COLOR_FORMAT_YCBCR422]	= "YUV 4:2:2",
+	[DRM_OUTPUT_COLOR_FORMAT_YCBCR444]	= "YUV 4:4:4",
 };
 
 /*
@@ -1445,7 +1445,7 @@ static const char * const output_format_str[] = {
  * valid.
  */
 const char *
-drm_hdmi_connector_get_output_format_name(enum hdmi_colorspace fmt)
+drm_hdmi_connector_get_output_format_name(enum drm_output_color_format fmt)
 {
 	if (fmt >= ARRAY_SIZE(output_format_str))
 		return NULL;

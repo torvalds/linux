@@ -402,8 +402,6 @@ enum drm_hdmi_broadcast_rgb {
 
 const char *
 drm_hdmi_connector_get_broadcast_rgb_name(enum drm_hdmi_broadcast_rgb broadcast_rgb);
-const char *
-drm_hdmi_connector_get_output_format_name(enum hdmi_colorspace fmt);
 
 /**
  * struct drm_monitor_range_info - Panel's Monitor range in EDID for
@@ -580,6 +578,9 @@ enum drm_output_color_format {
 	DRM_OUTPUT_COLOR_FORMAT_YCBCR422,
 	DRM_OUTPUT_COLOR_FORMAT_YCBCR420,
 };
+
+const char *
+drm_hdmi_connector_get_output_format_name(enum drm_output_color_format fmt);
 
 /**
  * enum drm_bus_flags - bus_flags info for &drm_display_info
@@ -1012,7 +1013,7 @@ struct drm_connector_hdmi_state {
 	/**
 	 * @output_format: Pixel format to output in.
 	 */
-	enum hdmi_colorspace output_format;
+	enum drm_output_color_format output_format;
 
 	/**
 	 * @tmds_char_rate: TMDS Character Rate, in Hz.
@@ -1900,7 +1901,7 @@ struct drm_connector_hdmi {
 	unsigned char product[DRM_CONNECTOR_HDMI_PRODUCT_LEN] __nonstring;
 
 	/**
-	 * @supported_formats: Bitmask of @hdmi_colorspace
+	 * @supported_formats: Bitmask of @drm_output_color_format
 	 * supported by the controller.
 	 */
 	unsigned long supported_formats;

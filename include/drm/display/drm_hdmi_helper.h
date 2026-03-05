@@ -8,6 +8,7 @@
 struct drm_connector;
 struct drm_connector_state;
 struct drm_display_mode;
+enum drm_output_color_format;
 
 void
 drm_hdmi_avi_infoframe_colorimetry(struct hdmi_avi_infoframe *frame,
@@ -26,7 +27,7 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 
 unsigned long long
 drm_hdmi_compute_mode_clock(const struct drm_display_mode *mode,
-			    unsigned int bpc, enum hdmi_colorspace fmt);
+			    unsigned int bpc, enum drm_output_color_format fmt);
 
 void
 drm_hdmi_acr_get_n_cts(unsigned long long tmds_char_rate,

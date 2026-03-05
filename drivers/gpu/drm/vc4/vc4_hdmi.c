@@ -133,7 +133,7 @@ static bool vc4_hdmi_supports_scrambling(struct vc4_hdmi *vc4_hdmi)
 
 static bool vc4_hdmi_mode_needs_scrambling(const struct drm_display_mode *mode,
 					   unsigned int bpc,
-					   enum hdmi_colorspace fmt)
+					   enum drm_output_color_format fmt)
 {
 	unsigned long long clock = drm_hdmi_compute_mode_clock(mode, bpc, fmt);
 
@@ -444,7 +444,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 		const struct drm_display_mode *mode;
 
 		list_for_each_entry(mode, &connector->probed_modes, head) {
-			if (vc4_hdmi_mode_needs_scrambling(mode, 8, HDMI_COLORSPACE_RGB)) {
+			if (vc4_hdmi_mode_needs_scrambling(mode, 8, DRM_OUTPUT_COLOR_FORMAT_RGB444)) {
 				drm_warn_once(drm, "The core clock cannot reach frequencies high enough to support 4k @ 60Hz.");
 				drm_warn_once(drm, "Please change your config.txt file to add hdmi_enable_4kp60.");
 			}
@@ -547,9 +547,9 @@ static int vc4_hdmi_connector_init(struct drm_device *dev,
 				       &vc4_hdmi_hdmi_connector_funcs,
 				       DRM_MODE_CONNECTOR_HDMIA,
 				       vc4_hdmi->ddc,
-				       BIT(HDMI_COLORSPACE_RGB) |
-				       BIT(HDMI_COLORSPACE_YUV422) |
-				       BIT(HDMI_COLORSPACE_YUV444),
+				       BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444) |
+				       BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422) |
+				       BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444),
 				       max_bpc);
 	if (ret)
 		return ret;
@@ -1214,13 +1214,13 @@ static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi,
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
 	switch (state->hdmi.output_format) {
-	case HDMI_COLORSPACE_YUV444:
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR444:
 		csc = vc5_hdmi_find_yuv_csc_coeffs(vc4_hdmi, state->colorspace, !!lim_range);
 
 		vc5_hdmi_set_csc_coeffs_swap(vc4_hdmi, csc);
 		break;
 
-	case HDMI_COLORSPACE_YUV422:
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR422:
 		csc = vc5_hdmi_find_yuv_csc_coeffs(vc4_hdmi, state->colorspace, !!lim_range);
 
 		csc_ctl |= VC4_SET_FIELD(VC5_MT_CP_CSC_CTL_FILTER_MODE_444_TO_422_STANDARD,
@@ -1237,7 +1237,7 @@ static void vc5_hdmi_csc_setup(struct vc4_hdmi *vc4_hdmi,
 		vc5_hdmi_set_csc_coeffs(vc4_hdmi, csc);
 		break;
 
-	case HDMI_COLORSPACE_RGB:
+	case DRM_OUTPUT_COLOR_FORMAT_RGB444:
 		if_xbar = 0x354021;
 
 		vc5_hdmi_set_csc_coeffs(vc4_hdmi, vc5_hdmi_csc_full_rgb_to_rgb[lim_range]);
@@ -1394,7 +1394,7 @@ static void vc5_hdmi_set_timings(struct vc4_hdmi *vc4_hdmi,
 	 * YCC422 is always 36-bit and not considered deep colour so
 	 * doesn't signal in GCP.
 	 */
-	if (state->hdmi.output_format == HDMI_COLORSPACE_YUV422) {
+	if (state->hdmi.output_format == DRM_OUTPUT_COLOR_FORMAT_YCBCR422) {
 		gcp = 0;
 	}
 
