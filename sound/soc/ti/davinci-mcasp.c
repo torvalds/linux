@@ -1358,19 +1358,29 @@ static int davinci_mcasp_calc_clk_div(struct davinci_mcasp *mcasp,
 		auxclk_div_id = MCASP_CLKDIV_AUXCLK;
 	}
 
-	if (div > (ACLKXDIV_MASK + 1)) {
-		if (auxclk_enabled) {
-			aux_div = div / (ACLKXDIV_MASK + 1);
-			if (div % (ACLKXDIV_MASK + 1))
-				aux_div++;
+	if (div > (ACLKXDIV_MASK + 1) && auxclk_enabled) {
+		if (div <= (AHCLKXDIV_MASK + 1)) {
+			/* aux_div absorbs entire division; bclk_div = 1 */
+			aux_div = div;
+			if ((div + 1) <= (AHCLKXDIV_MASK + 1)) {
+				unsigned int err_lo = sysclk_freq / div -
+						      bclk_freq;
+				unsigned int err_hi = bclk_freq -
+						      sysclk_freq / (div + 1);
 
-			sysclk_freq /= aux_div;
-			div = sysclk_freq / bclk_freq;
-			rem = sysclk_freq % bclk_freq;
-		} else if (set) {
-			dev_warn(mcasp->dev, "Too fast reference clock (%u)\n",
-				 sysclk_freq);
+				if (err_hi < err_lo)
+					aux_div = div + 1;
+			}
+		} else {
+			aux_div = DIV_ROUND_UP(div, ACLKXDIV_MASK + 1);
 		}
+
+		sysclk_freq /= aux_div;
+		div = sysclk_freq / bclk_freq;
+		rem = sysclk_freq % bclk_freq;
+	} else if (div > (ACLKXDIV_MASK + 1) && set) {
+		dev_warn(mcasp->dev, "Too fast reference clock (%u)\n",
+			 sysclk_freq);
 	}
 
 	if (rem != 0) {
