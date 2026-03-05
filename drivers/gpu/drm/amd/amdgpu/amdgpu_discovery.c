@@ -513,15 +513,95 @@ static int amdgpu_discovery_get_table_info(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
+					uint8_t *discovery_bin,
+					uint16_t table_id)
+{
+	int r, act_val, exp_val, table_size;
+	uint16_t offset, checksum;
+	struct table_info *info;
+	bool check_table = true;
+	char *table_name;
+
+	r = amdgpu_discovery_get_table_info(adev, &info, table_id);
+	if (r)
+		return r;
+	offset = le16_to_cpu(info->offset);
+	checksum = le16_to_cpu(info->checksum);
+
+	switch (table_id) {
+	case IP_DISCOVERY:
+		struct ip_discovery_header *ihdr =
+			(struct ip_discovery_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(ihdr->signature);
+		exp_val = DISCOVERY_TABLE_SIGNATURE;
+		table_size = le16_to_cpu(ihdr->size);
+		table_name = "data table";
+		break;
+	case GC:
+		struct gpu_info_header *ghdr =
+			(struct gpu_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(ghdr->table_id);
+		exp_val = GC_TABLE_ID;
+		table_size = le16_to_cpu(ghdr->size);
+		table_name = "gc table";
+		break;
+	case HARVEST_INFO:
+		struct harvest_info_header *hhdr =
+			(struct harvest_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(hhdr->signature);
+		exp_val = HARVEST_TABLE_SIGNATURE;
+		table_size = sizeof(struct harvest_table);
+		table_name = "harvest table";
+		break;
+	case VCN_INFO:
+		struct vcn_info_header *vhdr =
+			(struct vcn_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(vhdr->table_id);
+		exp_val = VCN_INFO_TABLE_ID;
+		table_size = le32_to_cpu(vhdr->size_bytes);
+		table_name = "vcn table";
+		break;
+	case MALL_INFO:
+		struct mall_info_header *mhdr =
+			(struct mall_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(mhdr->table_id);
+		exp_val = MALL_INFO_TABLE_ID;
+		table_size = le32_to_cpu(mhdr->size_bytes);
+		table_name = "mall table";
+		check_table = false;
+		break;
+	default:
+		dev_err(adev->dev, "invalid ip discovery table id %d specified\n", table_id);
+		check_table = false;
+		break;
+	}
+
+	if (check_table && offset) {
+		if (act_val != exp_val) {
+			dev_err(adev->dev, "invalid ip discovery %s signature\n", table_name);
+			return -EINVAL;
+		}
+
+		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
+						      table_size, checksum)) {
+			dev_err(adev->dev, "invalid ip discovery %s checksum\n", table_name);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
-	struct table_info *info;
 	struct binary_header *bhdr;
 	uint8_t *discovery_bin;
 	const char *fw_name;
 	uint16_t offset;
 	uint16_t size;
 	uint16_t checksum;
+	uint16_t table_id;
 	int r;
 
 	adev->discovery.bin = kzalloc(DISCOVERY_TMR_SIZE, GFP_KERNEL);
@@ -569,128 +649,10 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 		goto out;
 	}
 
-	r = amdgpu_discovery_get_table_info(adev, &info, IP_DISCOVERY);
-	if (r)
-		goto out;
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct ip_discovery_header *ihdr =
-			(struct ip_discovery_header *)(discovery_bin + offset);
-		if (le32_to_cpu(ihdr->signature) != DISCOVERY_TABLE_SIGNATURE) {
-			dev_err(adev->dev, "invalid ip discovery data table signature\n");
-			r = -EINVAL;
+	for (table_id = 0; table_id <= MALL_INFO; table_id++) {
+		r = amdgpu_discovery_table_check(adev, discovery_bin, table_id);
+		if (r)
 			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
-						      le16_to_cpu(ihdr->size),
-						      checksum)) {
-			dev_err(adev->dev, "invalid ip discovery data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	r = amdgpu_discovery_get_table_info(adev, &info, GC);
-	if (r)
-		goto out;
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct gpu_info_header *ghdr =
-			(struct gpu_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(ghdr->table_id) != GC_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery gc table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
-						      le32_to_cpu(ghdr->size),
-						      checksum)) {
-			dev_err(adev->dev, "invalid gc data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	r = amdgpu_discovery_get_table_info(adev, &info, HARVEST_INFO);
-	if (r)
-		goto out;
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct harvest_info_header *hhdr =
-			(struct harvest_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(hhdr->signature) != HARVEST_TABLE_SIGNATURE) {
-			dev_err(adev->dev, "invalid ip discovery harvest table signature\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    sizeof(struct harvest_table), checksum)) {
-			dev_err(adev->dev, "invalid harvest data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	r = amdgpu_discovery_get_table_info(adev, &info, VCN_INFO);
-	if (r)
-		goto out;
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct vcn_info_header *vhdr =
-			(struct vcn_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(vhdr->table_id) != VCN_INFO_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery vcn table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    le32_to_cpu(vhdr->size_bytes), checksum)) {
-			dev_err(adev->dev, "invalid vcn data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	r = amdgpu_discovery_get_table_info(adev, &info, MALL_INFO);
-	if (r)
-		goto out;
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (0 && offset) {
-		struct mall_info_header *mhdr =
-			(struct mall_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(mhdr->table_id) != MALL_INFO_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery mall table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    le32_to_cpu(mhdr->size_bytes), checksum)) {
-			dev_err(adev->dev, "invalid mall data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
 	}
 
 	return 0;
