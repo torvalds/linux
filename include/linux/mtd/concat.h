@@ -18,7 +18,7 @@
 struct mtd_concat {
 	struct mtd_info mtd;
 	int num_subdev;
-	struct mtd_info **subdev;
+	struct mtd_info *subdev[];
 };
 
 struct mtd_info *mtd_concat_create(

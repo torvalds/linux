@@ -182,18 +182,12 @@ static int mtd_virt_concat_create_item(struct device_node *parts,
 	for (i = 1; i < count; i++)
 		item->nodes[i] = of_parse_phandle(parts, CONCAT_PROP, (i - 1));
 
-	concat = kzalloc(sizeof(*concat), GFP_KERNEL);
+	concat = kzalloc_flex(*concat, subdev, count, GFP_KERNEL);
 	if (!concat) {
 		kfree(item);
 		return -ENOMEM;
 	}
 
-	concat->subdev = kcalloc(count, sizeof(*concat->subdev), GFP_KERNEL);
-	if (!concat->subdev) {
-		kfree(item);
-		kfree(concat);
-		return -ENOMEM;
-	}
 	item->concat = concat;
 
 	list_add_tail(&item->head, &concat_node_list);
