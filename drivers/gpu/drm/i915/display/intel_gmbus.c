@@ -250,7 +250,7 @@ static u32 get_reserved(struct intel_gmbus *bus)
 	preserve_bits |= GPIO_DATA_PULLUP_DISABLE | GPIO_CLOCK_PULLUP_DISABLE;
 
 	/* Wa_16025573575: the masks bits need to be preserved through out */
-	if (intel_display_wa(display, 16025573575))
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_16025573575))
 		preserve_bits |= GPIO_CLOCK_DIR_MASK | GPIO_CLOCK_VAL_MASK |
 				 GPIO_DATA_DIR_MASK | GPIO_DATA_VAL_MASK;
 
@@ -342,7 +342,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 	if (display->platform.pineview)
 		pnv_gmbus_clock_gating(display, false);
 
-	if (intel_display_wa(display, 16025573575))
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_16025573575))
 		ptl_handle_mask_bits(bus, true);
 
 	set_data(bus, 1);
@@ -363,7 +363,7 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 	if (display->platform.pineview)
 		pnv_gmbus_clock_gating(display, true);
 
-	if (intel_display_wa(display, 16025573575))
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_16025573575))
 		ptl_handle_mask_bits(bus, false);
 }
 

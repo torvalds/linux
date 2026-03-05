@@ -40,6 +40,6 @@ enum intel_display_wa {
 bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa, const char *name);
 
 #define intel_display_wa(__display, __wa) \
-	__intel_display_wa((__display), INTEL_DISPLAY_WA_##__wa, __stringify(__wa))
+	__intel_display_wa((__display), __wa, __stringify(__wa))
 
 #endif

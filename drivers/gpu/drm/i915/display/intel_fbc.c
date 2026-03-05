@@ -957,7 +957,7 @@ static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
 	 * Fixes: Screen flicker with FBC and Package C state enabled
 	 * Workaround: Forced SLB invalidation before start of new frame.
 	 */
-	if (intel_display_wa(display, 22014263786))
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_22014263786))
 		intel_de_rmw(display, ILK_DPFC_CHICKEN(fbc->id),
 			     0, DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
 
@@ -979,7 +979,7 @@ static void fbc_sys_cache_update_config(struct intel_display *display, u32 reg,
 	 * Fixes: SoC hardware issue in read caching
 	 * Workaround: disable cache read setting which is enabled by default.
 	 */
-	if (!intel_display_wa(display, 14025769978))
+	if (!intel_display_wa(display, INTEL_DISPLAY_WA_14025769978))
 		/* Cache read enable is set by default */
 		reg |= FBC_SYS_CACHE_READ_ENABLE;
 
@@ -1612,7 +1612,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
-	if (intel_display_wa(display, 16023588340)) {
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_16023588340)) {
 		plane_state->no_fbc_reason = "Wa_16023588340";
 		return 0;
 	}
@@ -1622,7 +1622,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	 * Fixes: Underrun during media decode
 	 * Workaround: Do not enable FBC
 	 */
-	if (intel_display_wa(display, 15018326506)) {
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_15018326506)) {
 		plane_state->no_fbc_reason = "Wa_15018326506";
 		return 0;
 	}

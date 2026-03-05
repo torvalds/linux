@@ -249,7 +249,7 @@ static void hsw_power_well_post_enable(struct intel_display *display,
 	if (irq_pipe_mask) {
 		gen8_irq_power_well_post_enable(display, irq_pipe_mask);
 
-		if (intel_display_wa(display, 22021048059))
+		if (intel_display_wa(display, INTEL_DISPLAY_WA_22021048059))
 			dss_pipe_gating_enable_disable(display, irq_pipe_mask, false);
 	}
 }
@@ -258,7 +258,7 @@ static void hsw_power_well_pre_disable(struct intel_display *display,
 				       u8 irq_pipe_mask)
 {
 	if (irq_pipe_mask) {
-		if (intel_display_wa(display, 22021048059))
+		if (intel_display_wa(display, INTEL_DISPLAY_WA_22021048059))
 			dss_pipe_gating_enable_disable(display, irq_pipe_mask, true);
 
 		gen8_irq_power_well_pre_disable(display, irq_pipe_mask);

@@ -87,7 +87,7 @@ bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa,
 	case INTEL_DISPLAY_WA_22021048059:
 		return IS_DISPLAY_VER(display, 14, 35);
 	default:
-		drm_WARN(display->drm, 1, "Missing Wa number: %s\n", name);
+		drm_WARN(display->drm, 1, "Missing Wa: %s\n", name);
 		break;
 	}
 

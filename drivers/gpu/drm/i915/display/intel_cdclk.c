@@ -1870,7 +1870,7 @@ static void icl_cdclk_pll_disable(struct intel_display *display)
 	 *      after the PLL is enabled (which is already done as part of the
 	 *      normal flow of _bxt_set_cdclk()).
 	 */
-	if (intel_display_wa(display, 13012396614))
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_13012396614))
 		intel_de_rmw(display, CDCLK_CTL, MDCLK_SOURCE_SEL_MASK, MDCLK_SOURCE_SEL_CD2XCLK);
 
 	intel_de_rmw(display, BXT_DE_PLL_ENABLE,
@@ -2186,7 +2186,8 @@ static u32 bxt_cdclk_ctl(struct intel_display *display,
 		 * icl_cdclk_pll_disable().  Here we are just making sure
 		 * we keep the expected value.
 		 */
-		if (intel_display_wa(display, 13012396614) && vco == 0)
+		if (intel_display_wa(display, INTEL_DISPLAY_WA_13012396614) &&
+		    vco == 0)
 			val |= MDCLK_SOURCE_SEL_CD2XCLK;
 		else
 			val |= xe2lpd_mdclk_source_sel(display);

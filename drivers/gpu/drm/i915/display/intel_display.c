@@ -1070,7 +1070,7 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (audio_enabling(old_crtc_state, new_crtc_state))
 		intel_encoders_audio_enable(state, crtc);
 
-	if (intel_display_wa(display, 14011503117)) {
+	if (intel_display_wa(display, INTEL_DISPLAY_WA_14011503117)) {
 		if (old_crtc_state->pch_pfit.enabled != new_crtc_state->pch_pfit.enabled)
 			adl_scaler_ecc_unmask(new_crtc_state);
 	}
