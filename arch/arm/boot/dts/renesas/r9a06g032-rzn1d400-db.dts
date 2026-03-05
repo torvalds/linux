@@ -300,6 +300,84 @@
 		pinmux = <RZN1_PINMUX(152, RZN1_FUNC_MDIO1_SWITCH)>,
 			 <RZN1_PINMUX(153, RZN1_FUNC_MDIO1_SWITCH)>;
 	};
+
+	pins_qspi0: pins-qspi0 {
+		pinmux = <RZN1_PINMUX(74, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(75, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(76, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(77, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(78, RZN1_FUNC_QSPI)>,
+			 <RZN1_PINMUX(79, RZN1_FUNC_QSPI)>;
+		bias-disable;
+	};
+};
+
+&qspi0 {
+	pinctrl-0 = <&pins_qspi0>;
+	pinctrl-names = "default";
+	status = "okay";
+	bootph-all;
+
+	flash@0 {
+		reg = <0>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <62500000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		cdns,read-delay = <1>;
+		cdns,tshsl-ns = <200>;
+		cdns,tsd2d-ns = <255>;
+		cdns,tchsh-ns = <20>;
+		cdns,tslch-ns = <20>;
+		bootph-all;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				/* 64KiB */
+				label = "spl";
+				reg = <0x0000000 0x00010000>;
+			};
+			partition@10000 {
+				/* 64KiB */
+				label = "pkgt";
+				reg = <0x0010000 0x00010000>;
+			};
+			partition@20000 {
+				/* 512KiB */
+				label = "u-boot";
+				reg = <0x0020000 0x00080000>;
+			};
+			partition@a0000 {
+				/* 64KiB */
+				label = "env";
+				reg = <0x00a0000 0x00010000>;
+			};
+			partition@b0000 {
+				/* 128KiB */
+				label = "dtb";
+				reg = <0x00b0000 0x00020000>;
+			};
+			partition@d0000 {
+				/* 1MiB */
+				label = "cm3";
+				reg = <0x00d0000 0x00100000>;
+			};
+			partition@1d0000 {
+				/* 6MiB */
+				label = "kernel";
+				reg = <0x01d0000 0x00600000>;
+			};
+			partition@7d0000 {
+				/* Remaining */
+				label = "data";
+				reg = <0x07d0000 0x1830000>;
+			};
+		};
+	};
 };
 
 &rtc0 {
