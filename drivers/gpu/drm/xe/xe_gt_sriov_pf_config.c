@@ -1579,10 +1579,7 @@ static int pf_update_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 			goto fail;
 
 		offset = 0;
-		for_each_gt(gt, xe, gtid) {
-			if (xe_gt_is_media_type(gt))
-				continue;
-
+		for_each_gt_with_type(gt, xe, gtid, BIT(XE_GT_TYPE_MAIN)) {
 			config = pf_pick_vf_config(gt, vfid);
 			bo = config->lmem_obj;
 			if (!bo)

@@ -1074,10 +1074,7 @@ static void tdf_request_sync(struct xe_device *xe)
 	struct xe_gt *gt;
 	u8 id;
 
-	for_each_gt(gt, xe, id) {
-		if (xe_gt_is_media_type(gt))
-			continue;
-
+	for_each_gt_with_type(gt, xe, id, BIT(XE_GT_TYPE_MAIN)) {
 		CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
 		if (!fw_ref.domains)
 			return;
