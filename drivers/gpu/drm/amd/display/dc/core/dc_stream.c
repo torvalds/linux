@@ -33,6 +33,7 @@
 #include "dc_dmub_srv.h"
 #include "dc_state_priv.h"
 #include "dc_stream_priv.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER dc->ctx->logger
 #ifndef MIN
@@ -171,10 +172,12 @@ struct dc_stream_state *dc_create_stream_for_sink(
 		goto fail;
 
 	stream = kzalloc_obj(struct dc_stream_state, GFP_ATOMIC);
+
 	if (stream == NULL)
 		goto fail;
 
 	stream->update_scratch = kzalloc((int32_t) dc_update_scratch_space_size(), GFP_ATOMIC);
+
 	if (stream->update_scratch == NULL)
 		goto fail;
 
@@ -245,7 +248,6 @@ const struct dc_stream_status *dc_stream_get_status_const(
 	const struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
-
 	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
@@ -257,6 +259,7 @@ void program_cursor_attributes(
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
+	bool unlock_dmub = false;
 
 	if (!stream)
 		return;
@@ -275,6 +278,12 @@ void program_cursor_attributes(
 			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update) {
 				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
 			} else {
+				if (dc->hwss.dmub_hw_control_lock && pipe_ctx->stream &&
+				    should_use_dmub_inbox0_lock_for_link(dc, pipe_ctx->stream->link)) {
+					dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+					unlock_dmub = true;
+				}
+
 				dc->hwss.cursor_lock(dc, pipe_to_program, true);
 				if (pipe_to_program->next_odm_pipe)
 					dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
@@ -297,6 +306,9 @@ void program_cursor_attributes(
 			dc->hwss.cursor_lock(dc, pipe_to_program, false);
 			if (pipe_to_program->next_odm_pipe)
 				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+
+			if (unlock_dmub)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
 		}
 	}
 }
@@ -404,6 +416,7 @@ void program_cursor_position(
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
 	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
+	bool unlock_dmub = false;
 
 	if (!stream)
 		return;
@@ -423,10 +436,16 @@ void program_cursor_position(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 
-			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update)
+			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update) {
 				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
-			else
+			} else {
+				if (dc->hwss.dmub_hw_control_lock && pipe_ctx->stream &&
+				    should_use_dmub_inbox0_lock_for_link(dc, pipe_ctx->stream->link)) {
+					dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+					unlock_dmub = true;
+				}
 				dc->hwss.cursor_lock(dc, pipe_to_program, true);
+			}
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
@@ -438,10 +457,14 @@ void program_cursor_position(
 	}
 
 	if (pipe_to_program) {
-		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update)
+		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update) {
 			dc->hwss.commit_cursor_offload_update(dc, pipe_to_program);
-		else
+		} else {
 			dc->hwss.cursor_lock(dc, pipe_to_program, false);
+
+			if (unlock_dmub)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
+		}
 	}
 }
 
@@ -523,8 +546,10 @@ bool dc_stream_program_cursor_position(
 				struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 				/* trigger event on first pipe with current stream */
-				if (stream == pipe_ctx->stream) {
-					pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
+				if (stream == pipe_ctx->stream &&
+				pipe_ctx->stream_res.tg->funcs->program_manual_trigger) {
+					pipe_ctx->stream_res.tg->funcs->program_manual_trigger(
+					pipe_ctx->stream_res.tg);
 					break;
 				}
 			}
@@ -984,7 +1009,6 @@ void dc_stream_release_3dlut_for_stream(
 	if (rmcm_3dlut) {
 		rmcm_3dlut->isInUse = false;
 		rmcm_3dlut->stream  = NULL;
-		rmcm_3dlut->protection_bits = 0;
 	}
 }
 
@@ -996,7 +1020,6 @@ void dc_stream_init_rmcm_3dlut(struct dc *dc)
 	for (int i = 0; i < num_rmcm; i++) {
 		dc->res_pool->rmcm_3dlut[i].isInUse = false;
 		dc->res_pool->rmcm_3dlut[i].stream = NULL;
-		dc->res_pool->rmcm_3dlut[i].protection_bits = 0;
 	}
 }
 

@@ -802,7 +802,6 @@ bool dpmm_dcn4_map_watermarks(struct dml2_dpmm_map_watermarks_params_in_out *in_
 
 	return true;
 }
-
 bool dpmm_dcn42_map_watermarks(struct dml2_dpmm_map_watermarks_params_in_out *in_out)
 {
 	const struct dml2_display_cfg *display_cfg = &in_out->display_cfg->display_config;

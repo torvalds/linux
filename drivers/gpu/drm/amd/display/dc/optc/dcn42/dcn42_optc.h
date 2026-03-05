@@ -119,6 +119,10 @@
 	SF(ODM0_OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_OCCURRED_STATUS, mask_sh),\
 	SF(ODM0_OPTC_INPUT_GLOBAL_CONTROL, OPTC_DOUBLE_BUFFER_PENDING, mask_sh),\
 	SF(ODM0_OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, mask_sh),\
+	SF(ODM0_OPTC_RSMU_UNDERFLOW, OPTC_RSMU_UNDERFLOW_OCCURRED_STATUS, mask_sh),\
+	SF(ODM0_OPTC_RSMU_UNDERFLOW, OPTC_RSMU_UNDERFLOW_CLEAR, mask_sh),\
+	SF(ODM0_OPTC_RSMU_UNDERFLOW, OPTC_RSMU_UNDERFLOW_INT_EN, mask_sh),\
+	SF(ODM0_OPTC_RSMU_UNDERFLOW, OPTC_RSMU_UNDERFLOW_INT_STATUS, mask_sh),\
 	SF(VTG0_CONTROL, VTG0_ENABLE, mask_sh),\
 	SF(VTG0_CONTROL, VTG0_FP2, mask_sh),\
 	SF(VTG0_CONTROL, VTG0_VCOUNT_INIT, mask_sh),\
@@ -202,10 +206,15 @@
 	SF(OTG0_OTG_PWA_FRAME_SYNC_CONTROL, OTG_PWA_FRAME_SYNC_EN, mask_sh),\
 	SF(OTG0_OTG_PWA_FRAME_SYNC_CONTROL, OTG_PWA_FRAME_SYNC_VCOUNT_MODE, mask_sh),\
 	SF(OTG0_OTG_PWA_FRAME_SYNC_CONTROL, OTG_PWA_FRAME_SYNC_LINE, mask_sh),\
-	SF(OTG0_INTERRUPT_DEST, OTG0_IHC_OTG_VERTICAL_INTERRUPT2_DEST, mask_sh)
+	SF(OTG0_INTERRUPT_DEST, OTG0_IHC_OTG_VERTICAL_INTERRUPT2_DEST, mask_sh),\
+	SF(OPTC_CLOCK_CONTROL, OPTC_FGCG_REP_DIS, mask_sh)
 
 void dcn42_timing_generator_init(struct optc *optc1);
 void optc42_enable_pwa(struct timing_generator *optc, struct otc_pwa_frame_sync *pwa_sync_param);
 void optc42_disable_pwa(struct timing_generator *optc);
-
+void optc42_tg_init(struct timing_generator *optc);
+void optc42_clear_optc_underflow(struct timing_generator *optc);
+bool optc42_is_optc_underflow_occurred(struct timing_generator *optc);
+bool optc42_disable_crtc(struct timing_generator *optc);
+void optc42_lock_doublebuffer_enable(struct timing_generator *optc);
 #endif /* __DC_OPTC_DCN42_H__ */

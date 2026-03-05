@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright 2026 Advanced Micro Devices, Inc. */
+//
+// Copyright 2024 Advanced Micro Devices, Inc.
 
 #ifndef __DML_DML_DCN42_SOC_BB__
 #define __DML_DML_DCN42_SOC_BB__
@@ -9,39 +10,39 @@
 static const struct dml2_soc_qos_parameters dml_dcn42_variant_a_soc_qos_params = {
 	.derate_table = {
 		.system_active_urgent = {
-			.dram_derate_percent_pixel = 22,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 76,
-			.dcfclk_derate_percent = 100,
+			.dram_derate_percent_pixel = 65,
+			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_pixel_and_vm = 60,
+			.fclk_derate_percent = 80,
+			.dcfclk_derate_percent = 80,
 		},
 		.system_active_average = {
-			.dram_derate_percent_pixel = 17,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 57,
-			.dcfclk_derate_percent = 75,
+			.dram_derate_percent_pixel = 30,
+			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_pixel_and_vm = 30,
+			.fclk_derate_percent = 60,
+			.dcfclk_derate_percent = 60,
 		},
 		.dcn_mall_prefetch_urgent = {
-			.dram_derate_percent_pixel = 40,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 83,
-			.dcfclk_derate_percent = 100,
+			.dram_derate_percent_pixel = 65,
+			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_pixel_and_vm = 60,
+			.fclk_derate_percent = 80,
+			.dcfclk_derate_percent = 80,
 		},
 		.dcn_mall_prefetch_average = {
-			.dram_derate_percent_pixel = 33,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 62,
-			.dcfclk_derate_percent = 83,
+			.dram_derate_percent_pixel = 30,
+			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_pixel_and_vm = 30,
+			.fclk_derate_percent = 60,
+			.dcfclk_derate_percent = 60,
 		},
 		.system_idle_average = {
-			.dram_derate_percent_pixel = 70,
-			.dram_derate_percent_vm = 0,
-			.dram_derate_percent_pixel_and_vm = 0,
-			.fclk_derate_percent = 83,
-			.dcfclk_derate_percent = 100,
+			.dram_derate_percent_pixel = 30,
+			.dram_derate_percent_vm = 30,
+			.dram_derate_percent_pixel_and_vm = 30,
+			.fclk_derate_percent = 60,
+			.dcfclk_derate_percent = 60,
 		},
 	},
 	.writeback = {
@@ -50,80 +51,71 @@ static const struct dml2_soc_qos_parameters dml_dcn42_variant_a_soc_qos_params =
 		.scaling_factor_mhz = 0,
 	},
 	.qos_params = {
-		.dcn4x = {
-			.df_qos_response_time_fclk_cycles = 300,
-			.max_round_trip_to_furthest_cs_fclk_cycles = 350,
-			.mall_overhead_fclk_cycles = 50,
-			.meta_trip_adder_fclk_cycles = 36,
-			.average_transport_distance_fclk_cycles = 257,
-			.umc_urgent_ramp_latency_margin = 50,
-			.umc_max_latency_margin = 30,
-			.umc_average_latency_margin = 20,
-			.fabric_max_transport_latency_margin = 20,
-			.fabric_average_transport_latency_margin = 10,
-
-			.per_uclk_dpm_params = {
-				{
-					.minimum_uclk_khz = 97 * 1000,
-					.urgent_ramp_uclk_cycles = 472,
-					.trip_to_memory_uclk_cycles = 827,
-					.meta_trip_to_memory_uclk_cycles = 827,
-					.maximum_latency_when_urgent_uclk_cycles = 72,
-					.average_latency_when_urgent_uclk_cycles = 61,
-					.maximum_latency_when_non_urgent_uclk_cycles = 827,
-					.average_latency_when_non_urgent_uclk_cycles = 118,
-				},
+		.dcn32x = {
+			.loaded_round_trip_latency_fclk_cycles = 106,
+			.urgent_latency_us = {
+				.base_latency_us = 4,
+				.base_latency_pixel_vm_us = 4,
+				.base_latency_vm_us = 4,
+				.scaling_factor_fclk_us = 0,
+				.scaling_factor_mhz = 0,
 			},
+			.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
+			.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
+			.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
 		},
 	},
-	.qos_type = dml2_qos_param_type_dcn4x,
+	.qos_type = dml2_qos_param_type_dcn3,
 };
 
 static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 	.clk_table = {
+		.wck_ratio = {
+				.clk_values_khz = {2},
+		},
 		.uclk = {
-				.clk_values_khz = {97000},
+				.clk_values_khz = {400000},
 				.num_clk_values = 1,
 		},
 		.fclk = {
-				.clk_values_khz = {300000, 2500000},
-				.num_clk_values = 2,
+				.clk_values_khz = {400000},
+				.num_clk_values = 1,
 		},
 		.dcfclk = {
-				.clk_values_khz = {200000, 1564000},
-				.num_clk_values = 2,
+				.clk_values_khz = {200000},
+				.num_clk_values = 1,
 		},
 		.dispclk = {
-				.clk_values_khz = {100000, 1500000},
-				.num_clk_values = 2,
+				.clk_values_khz = {1500000},
+				.num_clk_values = 1,
 		},
 		.dppclk = {
-				.clk_values_khz = {100000, 1500000},
-				.num_clk_values = 2,
+				.clk_values_khz = {1500000},
+				.num_clk_values = 1,
 		},
 		.dtbclk = {
-				.clk_values_khz = {600000, 600000},
-				.num_clk_values = 2,
+				.clk_values_khz = {600000},
+				.num_clk_values = 1,
 		},
 		.phyclk = {
-				.clk_values_khz = {810000, 810000},
-				.num_clk_values = 2,
+				.clk_values_khz = {810000},
+				.num_clk_values = 1,
 		},
 		.socclk = {
-				.clk_values_khz = {300000, 1200000},
-				.num_clk_values = 2,
+				.clk_values_khz = {600000},
+				.num_clk_values = 1,
 		},
 		.dscclk = {
-				.clk_values_khz = {500000, 500000},
-				.num_clk_values = 2,
+				.clk_values_khz = {500000},
+				.num_clk_values = 1,
 		},
 		.phyclk_d18 = {
-				.clk_values_khz = {667000, 667000},
-				.num_clk_values = 2,
+				.clk_values_khz = {667000},
+				.num_clk_values = 1,
 		},
 		.phyclk_d32 = {
-				.clk_values_khz = {625000, 625000},
-				.num_clk_values = 2,
+				.clk_values_khz = {625000},
+				.num_clk_values = 1,
 		},
 		.dram_config = {
 			.channel_width_bytes = 4,
@@ -135,39 +127,39 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 	.qos_parameters = {
 		.derate_table = {
 			.system_active_urgent = {
-				.dram_derate_percent_pixel = 22,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 76,
-				.dcfclk_derate_percent = 100,
+				.dram_derate_percent_pixel = 65,
+				.dram_derate_percent_vm = 30,
+				.dram_derate_percent_pixel_and_vm = 60,
+				.fclk_derate_percent = 80,
+				.dcfclk_derate_percent = 80,
 			},
 			.system_active_average = {
-				.dram_derate_percent_pixel = 15,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 57,
-				.dcfclk_derate_percent = 75,
+				.dram_derate_percent_pixel = 30,
+				.dram_derate_percent_vm = 30,
+				.dram_derate_percent_pixel_and_vm = 30,
+				.fclk_derate_percent = 60,
+				.dcfclk_derate_percent = 60,
 			},
 			.dcn_mall_prefetch_urgent = {
-				.dram_derate_percent_pixel = 40,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 83,
-				.dcfclk_derate_percent = 100,
+				.dram_derate_percent_pixel = 65,
+				.dram_derate_percent_vm = 30,
+				.dram_derate_percent_pixel_and_vm = 60,
+				.fclk_derate_percent = 80,
+				.dcfclk_derate_percent = 80,
 			},
 			.dcn_mall_prefetch_average = {
 				.dram_derate_percent_pixel = 30,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 62,
-				.dcfclk_derate_percent = 83,
+				.dram_derate_percent_vm = 30,
+				.dram_derate_percent_pixel_and_vm = 30,
+				.fclk_derate_percent = 60,
+				.dcfclk_derate_percent = 60,
 			},
 			.system_idle_average = {
-				.dram_derate_percent_pixel = 70,
-				.dram_derate_percent_vm = 0,
-				.dram_derate_percent_pixel_and_vm = 0,
-				.fclk_derate_percent = 83,
-				.dcfclk_derate_percent = 100,
+				.dram_derate_percent_pixel = 30,
+				.dram_derate_percent_vm = 30,
+				.dram_derate_percent_pixel_and_vm = 30,
+				.fclk_derate_percent = 60,
+				.dcfclk_derate_percent = 60,
 			},
 		},
 		.writeback = {
@@ -176,115 +168,25 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 			.scaling_factor_mhz = 0,
 		},
 		.qos_params = {
-			.dcn4x = {
-				.df_qos_response_time_fclk_cycles = 300,
-				.max_round_trip_to_furthest_cs_fclk_cycles = 350,
-				.mall_overhead_fclk_cycles = 50,
-				.meta_trip_adder_fclk_cycles = 36,
-				.average_transport_distance_fclk_cycles = 260,
-				.umc_urgent_ramp_latency_margin = 50,
-				.umc_max_latency_margin = 30,
-				.umc_average_latency_margin = 20,
-				.fabric_max_transport_latency_margin = 20,
-				.fabric_average_transport_latency_margin = 10,
-
-				.per_uclk_dpm_params = {
-					{
-						// State 1
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 472,
-						.trip_to_memory_uclk_cycles = 827,
-						.meta_trip_to_memory_uclk_cycles = 827,
-						.maximum_latency_when_urgent_uclk_cycles = 72,
-						.average_latency_when_urgent_uclk_cycles = 72,
-						.maximum_latency_when_non_urgent_uclk_cycles = 827,
-						.average_latency_when_non_urgent_uclk_cycles = 117,
-					},
-					{
-						// State 2
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 546,
-						.trip_to_memory_uclk_cycles = 848,
-						.meta_trip_to_memory_uclk_cycles = 848,
-						.maximum_latency_when_urgent_uclk_cycles = 146,
-						.average_latency_when_urgent_uclk_cycles = 146,
-						.maximum_latency_when_non_urgent_uclk_cycles = 848,
-						.average_latency_when_non_urgent_uclk_cycles = 133,
-					},
-					{
-						// State 3
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 564,
-						.trip_to_memory_uclk_cycles = 853,
-						.meta_trip_to_memory_uclk_cycles = 853,
-						.maximum_latency_when_urgent_uclk_cycles = 164,
-						.average_latency_when_urgent_uclk_cycles = 164,
-						.maximum_latency_when_non_urgent_uclk_cycles = 853,
-						.average_latency_when_non_urgent_uclk_cycles = 136,
-					},
-					{
-						// State 4
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 613,
-						.trip_to_memory_uclk_cycles = 869,
-						.meta_trip_to_memory_uclk_cycles = 869,
-						.maximum_latency_when_urgent_uclk_cycles = 213,
-						.average_latency_when_urgent_uclk_cycles = 213,
-						.maximum_latency_when_non_urgent_uclk_cycles = 869,
-						.average_latency_when_non_urgent_uclk_cycles = 149,
-					},
-					{
-						// State 5
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 632,
-						.trip_to_memory_uclk_cycles = 874,
-						.meta_trip_to_memory_uclk_cycles = 874,
-						.maximum_latency_when_urgent_uclk_cycles = 232,
-						.average_latency_when_urgent_uclk_cycles = 232,
-						.maximum_latency_when_non_urgent_uclk_cycles = 874,
-						.average_latency_when_non_urgent_uclk_cycles = 153,
-					},
-					{
-						// State 6
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 665,
-						.trip_to_memory_uclk_cycles = 885,
-						.meta_trip_to_memory_uclk_cycles = 885,
-						.maximum_latency_when_urgent_uclk_cycles = 265,
-						.average_latency_when_urgent_uclk_cycles = 265,
-						.maximum_latency_when_non_urgent_uclk_cycles = 885,
-						.average_latency_when_non_urgent_uclk_cycles = 161,
-					},
-					{
-						// State 7
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 689,
-						.trip_to_memory_uclk_cycles = 895,
-						.meta_trip_to_memory_uclk_cycles = 895,
-						.maximum_latency_when_urgent_uclk_cycles = 289,
-						.average_latency_when_urgent_uclk_cycles = 289,
-						.maximum_latency_when_non_urgent_uclk_cycles = 895,
-						.average_latency_when_non_urgent_uclk_cycles = 167,
-					},
-					{
-						// State 8
-						.minimum_uclk_khz = 0,
-						.urgent_ramp_uclk_cycles = 716,
-						.trip_to_memory_uclk_cycles = 902,
-						.meta_trip_to_memory_uclk_cycles = 902,
-						.maximum_latency_when_urgent_uclk_cycles = 316,
-						.average_latency_when_urgent_uclk_cycles = 316,
-						.maximum_latency_when_non_urgent_uclk_cycles = 902,
-						.average_latency_when_non_urgent_uclk_cycles = 174,
-					},
+			.dcn32x = {
+				.loaded_round_trip_latency_fclk_cycles = 106,
+				.urgent_latency_us = {
+					.base_latency_us = 4,
+					.base_latency_pixel_vm_us = 4,
+					.base_latency_vm_us = 4,
+					.scaling_factor_fclk_us = 0,
+					.scaling_factor_mhz = 0,
 				},
+				.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
+				.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
+				.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
 			},
 		},
-		.qos_type = dml2_qos_param_type_dcn4x,
+		.qos_type = dml2_qos_param_type_dcn3,
 	},
 
 	.power_management_parameters = {
-		.dram_clk_change_blackout_us = 11.72,
+		.dram_clk_change_blackout_us = 29,
 		.fclk_change_blackout_us = 0,
 		.g7_ppt_blackout_us = 0,
 		.stutter_enter_plus_exit_latency_us = 11,
@@ -293,9 +195,9 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 		.z8_stutter_exit_latency_us = 200,
 	},
 
-	 .vmin_limit = {
-		.dispclk_khz = 600 * 1000,
-	 },
+	.vmin_limit = {
+		.dispclk_khz = 632 * 1000,
+	},
 
 	.dprefclk_mhz = 600,
 	.xtalclk_mhz = 24,
@@ -307,6 +209,8 @@ static const struct dml2_soc_bb dml2_socbb_dcn42 = {
 	.return_bus_width_bytes = 64,
 	.hostvm_min_page_size_kbytes = 4,
 	.gpuvm_min_page_size_kbytes = 256,
+	.gpuvm_max_page_table_levels = 1,
+	.hostvm_max_non_cached_page_table_levels = 2,
 	.phy_downspread_percent = 0.38,
 	.dcn_downspread_percent = 0.38,
 	.dispclk_dppclk_vco_speed_mhz = 3000,

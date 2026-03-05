@@ -53,7 +53,7 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "clk_mgr.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dml/display_mode_vba.h"
 #include "dcn42/dcn42_dccg.h"
 #include "dcn10/dcn10_resource.h"
@@ -666,6 +666,7 @@ static const struct resource_caps res_cap_dcn42 = {
 	.num_vmid = 16,
 	.num_mpc_3dlut = 2,
 	.num_dsc = 4,
+	.num_rmcm = 2,
 };
 
 static const struct dc_plane_cap plane_cap = {
@@ -755,6 +756,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dcc_meta_propagation_delay_us = 10,
 	.disable_timeout = true,
 	.min_disp_clk_khz = 50000,
+	.static_screen_wait_frames = 2,
 	.disable_z10 = false,
 	.ignore_pg = true,
 	.disable_stutter_for_wm_program = true,
@@ -2302,13 +2304,11 @@ static bool dcn42_resource_construct(
 
 	dc->dml2_options.max_segments_per_hubp = 24;
 	dc->dml2_options.det_segment_size = DCN42_CRB_SEGMENT_SIZE_KB;
+	dc->dml2_options.gpuvm_enable = true;
+	dc->dml2_options.hostvm_enable = true;
 
 	/* SPL */
 	dc->caps.scl_caps.sharpener_support = true;
-
-	/* init DC limited DML2 options */
-	memcpy(&dc->dml2_dc_power_options, &dc->dml2_options, sizeof(struct dml2_configuration_options));
-	dc->dml2_dc_power_options.use_clock_dc_limits = true;
 
 	return true;
 

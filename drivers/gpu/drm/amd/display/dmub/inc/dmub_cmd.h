@@ -909,7 +909,8 @@ union dmub_fw_meta_feature_bits {
 	struct {
 		uint32_t shared_state_link_detection : 1; /**< 1 supports link detection via shared state */
 		uint32_t cursor_offload_v1_support: 1; /**< 1 supports cursor offload */
-		uint32_t reserved : 30;
+		uint32_t inbox0_lock_support: 1; /**< 1 supports inbox0 lock mechanism */
+		uint32_t reserved : 29;
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -1535,14 +1536,12 @@ enum dmub_gpint_command {
 	 *       1 - Enable ips measurement
 	 */
 	DMUB_GPINT__IPS_RESIDENCY = 121,
-
 	/**
 	 * DESC: Enable measurements for various task duration
 	 * ARGS: 0 - Disable measurement
 	 *       1 - Enable measurement
 	 */
 	DMUB_GPINT__TRACE_DMUB_WAKE_ACTIVITY = 123,
-
 	/**
 	 * DESC: Gets IPS residency in microseconds
 	 * ARGS: 0 - Return IPS1 residency
@@ -1552,21 +1551,18 @@ enum dmub_gpint_command {
 	 * RETURN: Total residency in microseconds - lower 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_LO = 124,
-
 	/**
 	 * DESC: Gets IPS1 histogram counts
 	 * ARGS: Bucket index
 	 * RETURN: Total count for the bucket
 	 */
 	DMUB_GPINT__GET_IPS1_HISTOGRAM_COUNTER = 125,
-
 	/**
 	 * DESC: Gets IPS2 histogram counts
 	 * ARGS: Bucket index
 	 * RETURN: Total count for the bucket
 	 */
 	DMUB_GPINT__GET_IPS2_HISTOGRAM_COUNTER = 126,
-
 	/**
 	 * DESC: Gets IPS residency
 	 * ARGS: 0 - Return IPS1 residency
@@ -1576,21 +1572,18 @@ enum dmub_gpint_command {
 	 * RETURN: Total residency in milli-percent.
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT = 127,
-
 	/**
 	 * DESC: Gets IPS1_RCG histogram counts
 	 * ARGS: Bucket index
 	 * RETURN: Total count for the bucket
 	 */
 	DMUB_GPINT__GET_IPS1_RCG_HISTOGRAM_COUNTER = 128,
-
 	/**
 	 * DESC: Gets IPS1_ONO2_ON histogram counts
 	 * ARGS: Bucket index
 	 * RETURN: Total count for the bucket
 	 */
 	DMUB_GPINT__GET_IPS1_ONO2_ON_HISTOGRAM_COUNTER = 129,
-
 	/**
 	 * DESC: Gets IPS entry counter during residency measurement
 	 * ARGS: 0 - Return IPS1 entry counts
@@ -1600,7 +1593,6 @@ enum dmub_gpint_command {
 	 * RETURN: Entry counter for selected IPS mode
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER = 130,
-
 	/**
 	 * DESC: Gets IPS inactive residency in microseconds
 	 * ARGS: 0 - Return IPS1_MAX residency
@@ -1610,7 +1602,6 @@ enum dmub_gpint_command {
 	 * RETURN: Total inactive residency in microseconds - lower 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_LO = 131,
-
 	/**
 	 * DESC: Gets IPS inactive residency in microseconds
 	 * ARGS: 0 - Return IPS1_MAX residency
@@ -1620,7 +1611,6 @@ enum dmub_gpint_command {
 	 * RETURN: Total inactive residency in microseconds - upper 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_HI = 132,
-
 	/**
 	 * DESC: Gets IPS residency in microseconds
 	 * ARGS: 0 - Return IPS1 residency
@@ -1679,7 +1669,7 @@ union dmub_inbox0_cmd_lock_hw {
 
 		uint32_t lock: 1;			/**< Lock */
 		uint32_t should_release: 1;		/**< Release */
-		uint32_t reserved: 7;			/**< Reserved for extending more clients, HW, etc. */
+		uint32_t reserved: 7; 			/**< Reserved for extending more clients, HW, etc. */
 	} bits;
 	uint32_t all;
 };
@@ -2614,9 +2604,9 @@ struct dmub_fams2_stream_static_state {
 	uint8_t allow_to_target_delay_otg_vlines; // time from allow vline to target vline
 	union {
 		struct {
-			uint8_t is_drr: 1; // stream is DRR enabled
-			uint8_t clamp_vtotal_min: 1; // clamp vtotal to min instead of nominal
-			uint8_t min_ttu_vblank_usable: 1; // if min ttu vblank is above wm, no force pstate is needed in blank
+			uint8_t is_drr : 1; // stream is DRR enabled
+			uint8_t clamp_vtotal_min : 1; // clamp vtotal to min instead of nominal
+			uint8_t min_ttu_vblank_usable : 1; // if min ttu vblank is above wm, no force pstate is needed in blank
 		} bits;
 		uint8_t all;
 	} config;
@@ -4660,6 +4650,18 @@ struct dmub_rb_cmd_replay_enable_data {
 	 * This does not support HDMI/DP2 for now.
 	 */
 	uint8_t phy_rate;
+	/**
+	 * @hpo_stream_enc_inst: HPO stream encoder instance
+	 */
+	uint8_t hpo_stream_enc_inst;
+	/**
+	 * @hpo_link_enc_inst: HPO link encoder instance
+	 */
+	uint8_t hpo_link_enc_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -5273,8 +5275,8 @@ enum dmub_cmd_lsdma_type {
 	 */
 	DMUB_CMD__LSDMA_LINEAR_COPY = 1,
 	/**
-	 * LSDMA copies data from source to destination linearly in sub window
-	 */
+	* LSDMA copies data from source to destination linearly in sub window
+	*/
 	DMUB_CMD__LSDMA_LINEAR_SUB_WINDOW_COPY = 2,
 	/**
 	 * Send the tiled-to-tiled copy command

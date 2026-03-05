@@ -707,7 +707,7 @@ struct dcn_optc_shift {
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_6(uint8_t)
 	TG_REG_FIELD_LIST_DCN401(uint8_t)
-	TG_REG_FIELD_LIST_DCN42(uint8_t)
+		TG_REG_FIELD_LIST_DCN42(uint8_t)
 };
 
 struct dcn_optc_mask {

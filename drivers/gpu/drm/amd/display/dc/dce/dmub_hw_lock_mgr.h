@@ -67,4 +67,17 @@ bool dmub_hw_lock_mgr_does_link_require_lock(const struct dc *dc, const struct d
  */
 bool dmub_hw_lock_mgr_does_context_require_lock(const struct dc *dc, const struct dc_state *context);
 
+/**
+ * should_use_dmub_inbox0_lock_for_link() - Checks if the inbox0 interlock with DMU should be used.
+ *
+ * Is not functionally equivalent to inbox1 as DMUB will not own programming of the relevant locking
+ * registers.
+ *
+ * @dc: pointer to DC object
+ * @link: optional pointer to the link object to check for enabled link features
+ *
+ * Return: true if the inbox0 lock should be used, false otherwise
+ */
+bool should_use_dmub_inbox0_lock_for_link(const struct dc *dc, const struct dc_link *link);
+
 #endif /*_DMUB_HW_LOCK_MGR_H_ */

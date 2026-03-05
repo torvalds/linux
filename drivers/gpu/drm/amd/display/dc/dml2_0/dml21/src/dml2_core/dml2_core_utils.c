@@ -428,6 +428,9 @@ bool dml2_core_utils_is_phantom_pipe(const struct dml2_plane_parameters *plane_c
 
 unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
 {
+	if (dml2_core_utils_get_gfx_version(sw_mode) == 10 || dml2_core_utils_get_gfx_version(sw_mode) == 7) {
+		return dml2_core_utils_get_tile_block_size_bytes_backcompat(sw_mode, byte_per_pixel);
+	}
 
 	if (sw_mode == dml2_sw_linear)
 		return 256;
@@ -459,14 +462,56 @@ unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw
 	};
 }
 
+unsigned int dml2_core_utils_get_tile_block_size_bytes_backcompat(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
+{
+	if (sw_mode == dml2_sw_linear_256b)
+		return 256;
+	else if (sw_mode == dml2_gfx10_sw_64kb_r_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx102_sw_64kb_s)
+		return 65536;
+	else if (sw_mode == dml2_gfx102_sw_64kb_s_t)
+		return 65536;
+	else if (sw_mode == dml2_gfx102_sw_64kb_s_x)
+		return 65536;
+	else if (sw_mode == dml2_gfx102_sw_64kb_r_x)
+		return 65536;
+	else if (sw_mode == dml2_linear_64elements)
+		return 256;
+	else if (sw_mode == dml2_gfx7_1d_thin)
+		return 256;
+	else if (sw_mode == dml2_gfx7_2d_thin_gen_zero)
+		return (128 * 64 * byte_per_pixel);
+	else if (sw_mode == dml2_gfx7_2d_thin_gen_one)
+		return (128 * 128 * byte_per_pixel);
+	else if (sw_mode == dml2_gfx7_2d_thin_arlene)
+		return (64 * 32 * byte_per_pixel);
+	else if (sw_mode == dml2_gfx7_2d_thin_anubis)
+		return (128 * 128 * byte_per_pixel);
+	else {
+		DML_ASSERT(0);
+		return 256;
+	};
+}
+
 bool dml2_core_utils_get_segment_horizontal_contiguous(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
 {
-	return (byte_per_pixel != 2);
+	if (dml2_core_utils_get_gfx_version(sw_mode) == 10 || dml2_core_utils_get_gfx_version(sw_mode) == 7) {
+		return dml2_core_utils_get_segment_horizontal_contiguous_backcompat(sw_mode, byte_per_pixel);
+	} else {
+		return (byte_per_pixel != 2);
+	}
+}
+
+bool dml2_core_utils_get_segment_horizontal_contiguous_backcompat(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel)
+{
+	return !((byte_per_pixel == 4) &&
+		((sw_mode == dml2_gfx10_sw_64kb_r_x) || (sw_mode == dml2_gfx102_sw_64kb_s) || (sw_mode == dml2_gfx102_sw_64kb_s_t) || (sw_mode == dml2_gfx102_sw_64kb_s_x)));
 }
 
 bool dml2_core_utils_is_linear(enum dml2_swizzle_mode sw_mode)
 {
-	return sw_mode == dml2_sw_linear;
+	return (sw_mode == dml2_sw_linear || sw_mode == dml2_sw_linear_256b || sw_mode == dml2_linear_64elements);
 };
 
 
@@ -499,6 +544,20 @@ int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode)
 		sw_mode == dml2_gfx11_sw_256kb_d_x ||
 		sw_mode == dml2_gfx11_sw_256kb_r_x)
 		version = 11;
+	else if (sw_mode == dml2_sw_linear_256b ||
+		sw_mode == dml2_gfx10_sw_64kb_r_x ||
+		sw_mode == dml2_gfx102_sw_64kb_s ||
+		sw_mode == dml2_gfx102_sw_64kb_s_t ||
+		sw_mode == dml2_gfx102_sw_64kb_s_x ||
+		sw_mode == dml2_gfx102_sw_64kb_r_x)
+		version = 10;
+	else if (sw_mode == dml2_linear_64elements ||
+		sw_mode == dml2_gfx7_1d_thin ||
+		sw_mode == dml2_gfx7_2d_thin_gen_zero ||
+		sw_mode == dml2_gfx7_2d_thin_gen_one ||
+		sw_mode == dml2_gfx7_2d_thin_arlene ||
+		sw_mode == dml2_gfx7_2d_thin_anubis)
+		version = 7;
 	else {
 		DML_LOG_VERBOSE("ERROR: Invalid sw_mode setting! val=%u\n", sw_mode);
 		DML_ASSERT(0);

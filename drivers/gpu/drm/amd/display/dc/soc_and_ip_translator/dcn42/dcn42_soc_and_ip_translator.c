@@ -3,7 +3,7 @@
 // Copyright 2025 Advanced Micro Devices, Inc.
 
 #include "dcn42_soc_and_ip_translator.h"
-#include "soc_and_ip_translator/dcn401/dcn401_soc_and_ip_translator.h"
+#include "../dcn401/dcn401_soc_and_ip_translator.h"
 #include "bounding_boxes/dcn42_soc_bb.h"
 
 /* soc_and_ip_translator component used to get up-to-date values for bounding box.
@@ -11,10 +11,12 @@
  * This component provides an interface to get DCN-specific bounding box values.
  */
 
-static void get_default_soc_bb(struct dml2_soc_bb *soc_bb)
+static void get_default_soc_bb(struct dml2_soc_bb *soc_bb, const struct dc *dc)
 {
-	memcpy(soc_bb, &dml2_socbb_dcn42, sizeof(struct dml2_soc_bb));
-	memcpy(&soc_bb->qos_parameters, &dml_dcn42_variant_a_soc_qos_params, sizeof(struct dml2_soc_qos_parameters));
+	{
+		memcpy(soc_bb, &dml2_socbb_dcn42, sizeof(struct dml2_soc_bb));
+		memcpy(&soc_bb->qos_parameters, &dml_dcn42_variant_a_soc_qos_params, sizeof(struct dml2_soc_qos_parameters));
+	}
 }
 
 /*
@@ -162,7 +164,7 @@ static void apply_soc_bb_updates(struct dml2_soc_bb *soc_bb, const struct dc *dc
 void dcn42_get_soc_bb(struct dml2_soc_bb *soc_bb, const struct dc *dc, const struct dml2_configuration_options *config)
 {
 	//get default soc_bb with static values
-	get_default_soc_bb(soc_bb);
+	get_default_soc_bb(soc_bb, dc);
 	//update soc_bb values with more accurate values
 	apply_soc_bb_updates(soc_bb, dc, config);
 }

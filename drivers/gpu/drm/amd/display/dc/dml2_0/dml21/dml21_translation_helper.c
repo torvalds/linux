@@ -601,36 +601,31 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 
 	plane->composition.viewport.stationary = false;
 
-	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
+	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
 		plane->tdlut.setup_for_tdlut = true;
 
-		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.layout) {
-		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB:
-		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR:
+		switch (plane_state->cm.lut3d_dma.swizzle) {
+		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
+		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_sw_linear;
 			break;
-		case DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR:
+		case CM_LUT_1D_PACKED_LINEAR:
+		default:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_simple_linear;
 			break;
 		}
 
-		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.size) {
-		case DC_CM2_GPU_MEM_SIZE_171717:
-			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
-			break;
-		case DC_CM2_GPU_MEM_SIZE_333333:
+		switch (plane_state->cm.lut3d_dma.size) {
+		case CM_LUT_SIZE_333333:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
 			break;
-		// handling when use case and HW support available
-		case DC_CM2_GPU_MEM_SIZE_454545:
-		case DC_CM2_GPU_MEM_SIZE_656565:
-			break;
-		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
+		case CM_LUT_SIZE_171717:
 		default:
-			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
 			break;
 		}
 	}
+
 	plane->tdlut.setup_for_tdlut |= dml_ctx->config.force_tdlut_enable;
 
 	plane->dynamic_meta_data.enable = false;
@@ -967,5 +962,8 @@ void dml21_init_min_clocks_for_dc_state(struct dml2_context *in_ctx, struct dc_s
 	min_clocks->phyclk_khz = in_ctx->v21.dml_init.soc_bb.clk_table.phyclk.clk_values_khz[lowest_dpm_state_index];
 	min_clocks->stutter_efficiency.base_efficiency = 1;
 	min_clocks->stutter_efficiency.low_power_efficiency = 1;
+	min_clocks->stutter_efficiency.z8_stutter_efficiency = 1;
+	min_clocks->stutter_efficiency.z8_stutter_period = 100000;
+	min_clocks->zstate_support = DCN_ZSTATE_SUPPORT_ALLOW;
 }
 

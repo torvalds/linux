@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright 2026 Advanced Micro Devices, Inc. */
+//
+// Copyright 2026 Advanced Micro Devices, Inc.
 
 #ifndef __DML2_MCG_DCN42_H__
 #define __DML2_MCG_DCN42_H__

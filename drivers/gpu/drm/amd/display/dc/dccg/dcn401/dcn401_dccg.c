@@ -827,6 +827,16 @@ void dccg401_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint3
 		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se)
 			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKD_FE_ROOT_GATE_DISABLE, 1);
 		break;
+	case 4:
+		if (dccg_dcn->dccg_mask->SYMCLKE_FE_ROOT_GATE_DISABLE) {
+			REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+					SYMCLKE_FE_EN, 1,
+					SYMCLKE_FE_SRC_SEL, link_enc_inst);
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKE_FE_ROOT_GATE_DISABLE, 1);
+		}
+		break;
+	default:
+		return;
 	}
 }
 
@@ -855,6 +865,16 @@ void dccg401_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint
 				SYMCLKD_FE_EN, 0,
 				SYMCLKD_FE_SRC_SEL, 0);
 		break;
+	case 4:
+		if (dccg_dcn->dccg_mask->SYMCLKE_FE_ROOT_GATE_DISABLE) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, SYMCLKE_FE_ROOT_GATE_DISABLE, 0);
+			REG_UPDATE_2(SYMCLKE_CLOCK_ENABLE,
+					SYMCLKE_FE_EN, 0,
+					SYMCLKE_FE_SRC_SEL, 0);
+		}
+		break;
+	default:
+		return;
 	}
 }
 
