@@ -4178,7 +4178,7 @@ static struct skb_data *lan78xx_tx_buf_fill(struct lan78xx_net *dev,
 		}
 
 		tx_data += len;
-		entry->length += len;
+		entry->length += max_t(unsigned int, len, ETH_ZLEN);
 		entry->num_of_packet += skb_shinfo(skb)->gso_segs ?: 1;
 
 		dev_kfree_skb_any(skb);
