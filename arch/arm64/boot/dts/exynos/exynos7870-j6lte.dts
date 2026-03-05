@@ -383,9 +383,6 @@
 };
 
 &i2c5 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <400000>;
 
@@ -409,9 +406,6 @@
 };
 
 &i2c6 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <400000>;
 
