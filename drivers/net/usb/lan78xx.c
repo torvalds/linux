@@ -3119,6 +3119,10 @@ static int lan78xx_init_ltm(struct lan78xx_net *dev)
 	int ret;
 	u32 buf;
 
+	/* LAN7850 is USB 2.0 and does not support LTM */
+	if (dev->chipid == ID_REV_CHIP_ID_7850_)
+		return 0;
+
 	ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
 	if (ret < 0)
 		goto init_ltm_failed;
