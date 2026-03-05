@@ -99,18 +99,32 @@ static void ntb_netdev_event_handler(void *data, int link_is_up)
 	struct ntb_netdev_queue *q = data;
 	struct ntb_netdev *dev = q->ntdev;
 	struct net_device *ndev;
+	bool any_up = false;
+	unsigned int i;
 
 	ndev = dev->ndev;
 
 	netdev_dbg(ndev, "Event %x, Link %x, qp %u\n", link_is_up,
 		   ntb_transport_link_query(q->qp), q->qid);
 
-	if (link_is_up) {
-		if (ntb_transport_link_query(q->qp))
-			netif_carrier_on(ndev);
-	} else {
-		netif_carrier_off(ndev);
+	if (netif_running(ndev)) {
+		if (link_is_up)
+			netif_wake_subqueue(ndev, q->qid);
+		else
+			netif_stop_subqueue(ndev, q->qid);
 	}
+
+	for (i = 0; i < dev->num_queues; i++) {
+		if (ntb_transport_link_query(dev->queues[i].qp)) {
+			any_up = true;
+			break;
+		}
+	}
+
+	if (any_up)
+		netif_carrier_on(ndev);
+	else
+		netif_carrier_off(ndev);
 }
 
 static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
@@ -179,7 +193,10 @@ static int __ntb_netdev_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 	}
 
-	netif_start_subqueue(netdev, q->qid);
+	/* The subqueue must be kept stopped if the link is down */
+	if (ntb_transport_link_query(q->qp))
+		netif_start_subqueue(netdev, q->qid);
+
 	return 0;
 }
 
@@ -221,7 +238,8 @@ static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 		 * value of ntb_transport_tx_free_entry()
 		 */
 		smp_mb();
-		if (__netif_subqueue_stopped(ndev, q->qid))
+		if (__netif_subqueue_stopped(ndev, q->qid) &&
+		    ntb_transport_link_query(q->qp))
 			netif_wake_subqueue(ndev, q->qid);
 	}
 }
@@ -268,7 +286,10 @@ static void ntb_netdev_tx_timer(struct timer_list *t)
 		 * value of ntb_transport_tx_free_entry()
 		 */
 		smp_mb();
-		if (__netif_subqueue_stopped(ndev, q->qid))
+
+		/* The subqueue must be kept stopped if the link is down */
+		if (__netif_subqueue_stopped(ndev, q->qid) &&
+		    ntb_transport_link_query(q->qp))
 			netif_wake_subqueue(ndev, q->qid);
 	}
 }
@@ -304,11 +325,10 @@ static int ntb_netdev_open(struct net_device *ndev)
 	}
 
 	netif_carrier_off(ndev);
+	netif_tx_stop_all_queues(ndev);
 
 	for (q = 0; q < dev->num_queues; q++)
 		ntb_transport_link_up(dev->queues[q].qp);
-
-	netif_start_queue(ndev);
 
 	return 0;
 
@@ -330,6 +350,8 @@ static int ntb_netdev_close(struct net_device *ndev)
 	unsigned int q;
 	int len;
 
+	netif_tx_stop_all_queues(ndev);
+	netif_carrier_off(ndev);
 
 	for (q = 0; q < dev->num_queues; q++) {
 		queue = &dev->queues[q];
