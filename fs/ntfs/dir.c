@@ -102,7 +102,7 @@ u64 ntfs_lookup_inode_by_name(struct ntfs_inode *dir_ni, const __le16 *uname,
 	if (unlikely(err)) {
 		if (err == -ENOENT) {
 			ntfs_error(sb,
-				"Index root attribute missing in directory inode 0x%lx.",
+				"Index root attribute missing in directory inode 0x%llx.",
 				dir_ni->mft_no);
 			err = -EIO;
 		}
@@ -338,29 +338,29 @@ fast_descend_into_child_node:
 	/* Bounds checks. */
 	if ((u8 *)ia < kaddr || (u8 *)ia > kaddr + PAGE_SIZE) {
 		ntfs_error(sb,
-			"Out of bounds check failed. Corrupt directory inode 0x%lx or driver bug.",
+			"Out of bounds check failed. Corrupt directory inode 0x%llx or driver bug.",
 			dir_ni->mft_no);
 		goto unm_err_out;
 	}
 	/* Catch multi sector transfer fixup errors. */
 	if (unlikely(!ntfs_is_indx_record(ia->magic))) {
 		ntfs_error(sb,
-			"Directory index record with vcn 0x%llx is corrupt.  Corrupt inode 0x%lx.  Run chkdsk.",
-			(unsigned long long)vcn, dir_ni->mft_no);
+			"Directory index record with vcn 0x%llx is corrupt.  Corrupt inode 0x%llx.  Run chkdsk.",
+			vcn, dir_ni->mft_no);
 		goto unm_err_out;
 	}
 	if (le64_to_cpu(ia->index_block_vcn) != vcn) {
 		ntfs_error(sb,
-			"Actual VCN (0x%llx) of index buffer is different from expected VCN (0x%llx). Directory inode 0x%lx is corrupt or driver bug.",
-			(unsigned long long)le64_to_cpu(ia->index_block_vcn),
-			(unsigned long long)vcn, dir_ni->mft_no);
+			"Actual VCN (0x%llx) of index buffer is different from expected VCN (0x%llx). Directory inode 0x%llx is corrupt or driver bug.",
+			le64_to_cpu(ia->index_block_vcn),
+			vcn, dir_ni->mft_no);
 		goto unm_err_out;
 	}
 	if (le32_to_cpu(ia->index.allocated_size) + 0x18 !=
 			dir_ni->itype.index.block_size) {
 		ntfs_error(sb,
-			"Index buffer (VCN 0x%llx) of directory inode 0x%lx has a size (%u) differing from the directory specified size (%u). Directory inode is corrupt or driver bug.",
-			(unsigned long long)vcn, dir_ni->mft_no,
+			"Index buffer (VCN 0x%llx) of directory inode 0x%llx has a size (%u) differing from the directory specified size (%u). Directory inode is corrupt or driver bug.",
+			vcn, dir_ni->mft_no,
 			le32_to_cpu(ia->index.allocated_size) + 0x18,
 			dir_ni->itype.index.block_size);
 		goto unm_err_out;
@@ -368,15 +368,15 @@ fast_descend_into_child_node:
 	index_end = (u8 *)ia + dir_ni->itype.index.block_size;
 	if (index_end > kaddr + PAGE_SIZE) {
 		ntfs_error(sb,
-			"Index buffer (VCN 0x%llx) of directory inode 0x%lx crosses page boundary. Impossible! Cannot access! This is probably a bug in the driver.",
-			(unsigned long long)vcn, dir_ni->mft_no);
+			"Index buffer (VCN 0x%llx) of directory inode 0x%llx crosses page boundary. Impossible! Cannot access! This is probably a bug in the driver.",
+			vcn, dir_ni->mft_no);
 		goto unm_err_out;
 	}
 	index_end = (u8 *)&ia->index + le32_to_cpu(ia->index.index_length);
 	if (index_end > (u8 *)ia + dir_ni->itype.index.block_size) {
 		ntfs_error(sb,
-			"Size of index buffer (VCN 0x%llx) of directory inode 0x%lx exceeds maximum size.",
-			(unsigned long long)vcn, dir_ni->mft_no);
+			"Size of index buffer (VCN 0x%llx) of directory inode 0x%llx exceeds maximum size.",
+			vcn, dir_ni->mft_no);
 		goto unm_err_out;
 	}
 	/* The first index entry. */
@@ -393,7 +393,7 @@ fast_descend_into_child_node:
 		    (u8 *)ie + sizeof(struct index_entry_header) > index_end ||
 		    (u8 *)ie + sizeof(struct index_entry_header) + le16_to_cpu(ie->key_length) >
 				index_end || (u8 *)ie + le16_to_cpu(ie->length) > index_end) {
-			ntfs_error(sb, "Index entry out of bounds in directory inode 0x%lx.",
+			ntfs_error(sb, "Index entry out of bounds in directory inode 0x%llx.",
 					dir_ni->mft_no);
 			goto unm_err_out;
 		}
@@ -546,7 +546,7 @@ found_it2:
 	if (ie->flags & INDEX_ENTRY_NODE) {
 		if ((ia->index.flags & NODE_MASK) == LEAF_NODE) {
 			ntfs_error(sb,
-				"Index entry with child node found in a leaf node in directory inode 0x%lx.",
+				"Index entry with child node found in a leaf node in directory inode 0x%llx.",
 				dir_ni->mft_no);
 			goto unm_err_out;
 		}
@@ -566,7 +566,7 @@ found_it2:
 			kaddr = NULL;
 			goto descend_into_child_node;
 		}
-		ntfs_error(sb, "Negative child node vcn in directory inode 0x%lx.",
+		ntfs_error(sb, "Negative child node vcn in directory inode 0x%llx.",
 				dir_ni->mft_no);
 		goto unm_err_out;
 	}
@@ -863,7 +863,7 @@ static int ntfs_readdir(struct file *file, struct dir_context *actor)
 	/* Find the index root attribute in the mft record. */
 	if (ntfs_attr_lookup(AT_INDEX_ROOT, I30, 4, CASE_SENSITIVE, 0, NULL, 0,
 				ctx)) {
-		ntfs_error(sb, "Index root attribute missing in directory inode %ld",
+		ntfs_error(sb, "Index root attribute missing in directory inode %llu",
 				ndir->mft_no);
 		ntfs_attr_put_search_ctx(ctx);
 		err = -ENOMEM;
@@ -1062,8 +1062,8 @@ int ntfs_check_empty_dir(struct ntfs_inode *ni, struct mft_record *ni_mrec)
 	ret = ntfs_attr_lookup(AT_INDEX_ROOT, I30, 4, CASE_SENSITIVE, 0, NULL,
 				0, ctx);
 	if (ret) {
-		ntfs_error(ni->vol->sb, "Index root attribute missing in directory inode %lld",
-				(unsigned long long)ni->mft_no);
+		ntfs_error(ni->vol->sb, "Index root attribute missing in directory inode %llu",
+				ni->mft_no);
 		ntfs_attr_put_search_ctx(ctx);
 		return ret;
 	}

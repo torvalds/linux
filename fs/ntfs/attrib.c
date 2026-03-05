@@ -370,7 +370,7 @@ s64 ntfs_attr_vcn_to_lcn_nolock(struct ntfs_inode *ni, const s64 vcn,
 	unsigned long flags;
 	bool is_retry = false;
 
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, %s_locked.",
+	ntfs_debug("Entering for i_ino 0x%llx, vcn 0x%llx, %s_locked.",
 			ni->mft_no, (unsigned long long)vcn,
 			write_locked ? "write" : "read");
 	if (!ni->runlist.rl) {
@@ -521,7 +521,7 @@ struct runlist_element *ntfs_attr_find_vcn_nolock(struct ntfs_inode *ni, const s
 	int err = 0;
 	bool is_retry = false;
 
-	ntfs_debug("Entering for i_ino 0x%lx, vcn 0x%llx, with%s ctx.",
+	ntfs_debug("Entering for i_ino 0x%llx, vcn 0x%llx, with%s ctx.",
 			ni->mft_no, (unsigned long long)vcn, ctx ? "" : "out");
 	if (!ni->runlist.rl) {
 		read_lock_irqsave(&ni->size_lock, flags);
@@ -679,8 +679,8 @@ static int ntfs_attr_find(const __le32 type, const __le16 *name,
 			if (a->name_length && ((le16_to_cpu(a->name_offset) +
 					       a->name_length * sizeof(__le16)) >
 						le32_to_cpu(a->length))) {
-				ntfs_error(vol->sb, "Corrupt attribute name in MFT record %lld\n",
-					   (long long)ctx->ntfs_ino->mft_no);
+				ntfs_error(vol->sb, "Corrupt attribute name in MFT record %llu\n",
+					   ctx->ntfs_ino->mft_no);
 				break;
 			}
 
@@ -790,7 +790,7 @@ int load_attribute_list(struct ntfs_inode *base_ni, u8 *al_start, const s64 size
 	attr_vi = ntfs_attr_iget(VFS_I(base_ni), AT_ATTRIBUTE_LIST, AT_UNNAMED, 0);
 	if (IS_ERR(attr_vi)) {
 		ntfs_error(base_ni->vol->sb,
-			   "Failed to open an inode for Attribute list, mft = %ld",
+			   "Failed to open an inode for Attribute list, mft = %llu",
 			   base_ni->mft_no);
 		return PTR_ERR(attr_vi);
 	}
@@ -798,7 +798,7 @@ int load_attribute_list(struct ntfs_inode *base_ni, u8 *al_start, const s64 size
 	if (ntfs_inode_attr_pread(attr_vi, 0, size, al_start) != size) {
 		iput(attr_vi);
 		ntfs_error(base_ni->vol->sb,
-			   "Failed to read attribute list, mft = %ld",
+			   "Failed to read attribute list, mft = %llu",
 			   base_ni->mft_no);
 		return -EIO;
 	}
@@ -817,7 +817,7 @@ int load_attribute_list(struct ntfs_inode *base_ni, u8 *al_start, const s64 size
 			break;
 	}
 	if (al != al_start + size) {
-		ntfs_error(base_ni->vol->sb, "Corrupt attribute list, mft = %ld",
+		ntfs_error(base_ni->vol->sb, "Corrupt attribute list, mft = %llu",
 			   base_ni->mft_no);
 		return -EIO;
 	}
@@ -890,7 +890,7 @@ static int ntfs_external_attr_find(const __le32 type,
 	int err = 0;
 	static const char *es = " Unmount and run chkdsk.";
 
-	ntfs_debug("Entering for inode 0x%lx, type 0x%x.", ni->mft_no, type);
+	ntfs_debug("Entering for inode 0x%llx, type 0x%x.", ni->mft_no, type);
 	if (!base_ni) {
 		/* First call happens with the base mft record. */
 		base_ni = ctx->base_ntfs_ino = ctx->ntfs_ino;
@@ -1090,7 +1090,7 @@ is_enumeration:
 		if (MREF_LE(al_entry->mft_reference) == ni->mft_no) {
 			if (MSEQNO_LE(al_entry->mft_reference) != ni->seq_no) {
 				ntfs_error(vol->sb,
-					"Found stale mft reference in attribute list of base inode 0x%lx.%s",
+					"Found stale mft reference in attribute list of base inode 0x%llx.%s",
 					base_ni->mft_no, es);
 				err = -EIO;
 				break;
@@ -1112,7 +1112,7 @@ is_enumeration:
 						al_entry->mft_reference), &ni);
 				if (IS_ERR(ctx->mrec)) {
 					ntfs_error(vol->sb,
-							"Failed to map extent mft record 0x%lx of base inode 0x%lx.%s",
+							"Failed to map extent mft record 0x%lx of base inode 0x%llx.%s",
 							MREF_LE(al_entry->mft_reference),
 							base_ni->mft_no, es);
 					err = PTR_ERR(ctx->mrec);
@@ -1201,7 +1201,7 @@ corrupt:
 
 	if (!err) {
 		ntfs_error(vol->sb,
-			"Base inode 0x%lx contains corrupt attribute list attribute.%s",
+			"Base inode 0x%llx contains corrupt attribute list attribute.%s",
 			base_ni->mft_no, es);
 		err = -EIO;
 	}
@@ -3497,7 +3497,7 @@ retry:
 		 * delete extent) and continue search.
 		 */
 		if (finished_build) {
-			ntfs_debug("Mark attr 0x%x for delete in inode 0x%lx.\n",
+			ntfs_debug("Mark attr 0x%x for delete in inode 0x%llx.\n",
 				(unsigned int)le32_to_cpu(a->type), ctx->ntfs_ino->mft_no);
 			a->data.non_resident.highest_vcn = cpu_to_le64(NTFS_VCN_DELETE_MARK);
 			mark_mft_record_dirty(ctx->ntfs_ino);
@@ -4728,7 +4728,7 @@ int ntfs_attr_map_cluster(struct ntfs_inode *ni, s64 vcn_start, s64 *lcn_start,
 			CASE_SENSITIVE, vcn, NULL, 0, ctx);
 	if (err) {
 		ntfs_error(vol->sb,
-			   "ntfs_attr_lookup failed, ntfs inode(mft_no : %ld) type : 0x%x, err : %d",
+			   "ntfs_attr_lookup failed, ntfs inode(mft_no : %llu) type : 0x%x, err : %d",
 			   ni->mft_no, ni->type, err);
 		goto out;
 	}

@@ -797,7 +797,7 @@ lock_retry_remap:
 		 */
 		if (err) {
 			ntfs_error(vol->sb,
-				"ntfs_decompress() failed in inode 0x%lx with error code %i. Skipping this compression block.",
+				"ntfs_decompress() failed in inode 0x%llx with error code %i. Skipping this compression block.",
 				ni->mft_no, -err);
 			/* Release the unfinished pages. */
 			for (; prev_cur_page < cur_page; prev_cur_page++) {
@@ -823,7 +823,7 @@ lock_retry_remap:
 		page = pages[cur_page];
 		if (page) {
 			ntfs_error(vol->sb,
-				"Still have pages left! Terminating them with extreme prejudice.  Inode 0x%lx, page index 0x%lx.",
+				"Still have pages left! Terminating them with extreme prejudice.  Inode 0x%llx, page index 0x%lx.",
 				ni->mft_no, page->__folio_index);
 			flush_dcache_page(page);
 			kunmap_local(page_address(page));

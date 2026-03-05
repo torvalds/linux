@@ -508,7 +508,7 @@ static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *d
 	spin_unlock(&vi->i_lock);
 
 	/* Add the inode to the inode hash for the superblock. */
-	vi->i_ino = ni->mft_no;
+	vi->i_ino = (unsigned long)ni->mft_no;
 	inode_set_iversion(vi, 1);
 	insert_inode_hash(vi);
 
@@ -521,7 +521,7 @@ static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *d
 
 	dni_mrec = map_mft_record(dir_ni);
 	if (IS_ERR(dni_mrec)) {
-		ntfs_error(dir_ni->vol->sb, "failed to map mft record for file %ld.\n",
+		ntfs_error(dir_ni->vol->sb, "failed to map mft record for file 0x%llx.\n",
 			   dir_ni->mft_no);
 		err = -EIO;
 		goto err_out;
@@ -810,7 +810,7 @@ no_hardlink:
 static int ntfs_test_inode_attr(struct inode *vi, void *data)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
-	unsigned long mft_no = (unsigned long)data;
+	u64 mft_no = (u64)data;
 
 	if (ni->mft_no != mft_no)
 		return 0;
@@ -904,7 +904,7 @@ search:
 
 		/* Ignore hard links from other directories */
 		if (dir_ni->mft_no != MREF_LE(fn->parent_directory)) {
-			ntfs_debug("MFT record numbers don't match (%lu != %lu)\n",
+			ntfs_debug("MFT record numbers don't match (%llu != %lu)\n",
 					dir_ni->mft_no,
 					MREF_LE(fn->parent_directory));
 			continue;
@@ -1363,7 +1363,7 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (err) {
 		int err2;
 
-		ntfs_error(sb, "Failed to delete old ntfs inode(%ld) in old dir, err : %d\n",
+		ntfs_error(sb, "Failed to delete old ntfs inode(%llu) in old dir, err : %d\n",
 				old_ni->mft_no, err);
 		err2 = ntfs_delete(old_ni, new_dir_ni, uname_new, new_name_len, false);
 		if (err2)

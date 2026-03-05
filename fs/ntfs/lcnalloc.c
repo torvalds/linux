@@ -842,7 +842,7 @@ s64 __ntfs_cluster_free(struct ntfs_inode *ni, const s64 start_vcn, s64 count,
 	int err;
 	unsigned int memalloc_flags;
 
-	ntfs_debug("Entering for i_ino 0x%lx, start_vcn 0x%llx, count 0x%llx.%s",
+	ntfs_debug("Entering for i_ino 0x%llx, start_vcn 0x%llx, count 0x%llx.%s",
 			ni->mft_no, start_vcn, count,
 			is_rollback ? " (rollback)" : "");
 	vol = ni->vol;

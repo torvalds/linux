@@ -100,7 +100,7 @@ struct ntfs_inode {
 	rwlock_t size_lock;
 	unsigned long state;
 	__le32 flags;
-	unsigned long mft_no;
+	u64 mft_no;
 	u16 seq_no;
 	atomic_t count;
 	struct ntfs_volume *vol;
@@ -292,7 +292,7 @@ static inline struct inode *VFS_I(struct ntfs_inode *ni)
  * possible on all architectures.
  */
 struct ntfs_attr {
-	unsigned long mft_no;
+	u64 mft_no;
 	__le16 *name;
 	u32 name_len;
 	__le32 type;
@@ -300,7 +300,7 @@ struct ntfs_attr {
 };
 
 int ntfs_test_inode(struct inode *vi, void *data);
-struct inode *ntfs_iget(struct super_block *sb, unsigned long mft_no);
+struct inode *ntfs_iget(struct super_block *sb, u64 mft_no);
 struct inode *ntfs_attr_iget(struct inode *base_vi, __le32 type,
 		__le16 *name, u32 name_len);
 struct inode *ntfs_index_iget(struct inode *base_vi, __le16 *name,
@@ -320,8 +320,7 @@ static inline void ntfs_init_big_inode(struct inode *vi)
 	ni->mft_no = vi->i_ino;
 }
 
-struct ntfs_inode *ntfs_new_extent_inode(struct super_block *sb,
-		unsigned long mft_no);
+struct ntfs_inode *ntfs_new_extent_inode(struct super_block *sb, u64 mft_no);
 void ntfs_clear_extent_inode(struct ntfs_inode *ni);
 int ntfs_read_inode_mount(struct inode *vi);
 int ntfs_show_options(struct seq_file *sf, struct dentry *root);

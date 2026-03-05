@@ -42,7 +42,7 @@ static inline void mark_mft_record_dirty(struct ntfs_inode *ni)
 		__mark_mft_record_dirty(ni);
 }
 
-int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const unsigned long mft_no,
+int ntfs_sync_mft_mirror(struct ntfs_volume *vol, const u64 mft_no,
 		struct mft_record *m);
 int write_mft_record_nolock(struct ntfs_inode *ni, struct mft_record *m, int sync);
 
@@ -76,9 +76,6 @@ static inline int write_mft_record(struct ntfs_inode *ni, struct mft_record *m, 
 	return err;
 }
 
-bool ntfs_may_write_mft_record(struct ntfs_volume *vol,
-		const unsigned long mft_no, const struct mft_record *m,
-		struct ntfs_inode **locked_ni, struct inode **ref_vi);
 int ntfs_mft_record_alloc(struct ntfs_volume *vol, const int mode,
 		struct ntfs_inode **ni, struct ntfs_inode *base_ni,
 		struct mft_record **ni_mrec);
@@ -86,7 +83,7 @@ int ntfs_mft_record_free(struct ntfs_volume *vol, struct ntfs_inode *ni);
 int ntfs_mft_records_write(const struct ntfs_volume *vol, const u64 mref,
 		const s64 count, struct mft_record *b);
 int ntfs_mft_record_check(const struct ntfs_volume *vol, struct mft_record *m,
-			  unsigned long mft_no);
+			  u64 mft_no);
 int ntfs_mft_writepages(struct address_space *mapping,
 		struct writeback_control *wbc);
 void ntfs_mft_mark_dirty(struct folio *folio);

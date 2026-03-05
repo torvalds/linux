@@ -96,7 +96,7 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 	unsigned int delta;
 	unsigned char blocksize_bits;
 
-	ntfs_debug("Entering for mft_no 0x%lx, logical block 0x%llx.",
+	ntfs_debug("Entering for mft_no 0x%llx, logical block 0x%llx.",
 			ni->mft_no, (unsigned long long)block);
 	if (ni->type != AT_DATA || !NInoNonResident(ni) || NInoEncrypted(ni) ||
 	    NInoMstProtected(ni)) {
@@ -144,12 +144,12 @@ static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 			goto hole;
 		case LCN_ENOMEM:
 			ntfs_error(vol->sb,
-				"Not enough memory to complete mapping for inode 0x%lx. Returning 0.",
+				"Not enough memory to complete mapping for inode 0x%llx. Returning 0.",
 				ni->mft_no);
 			break;
 		default:
 			ntfs_error(vol->sb,
-				"Failed to complete mapping for inode 0x%lx.  Run chkdsk. Returning 0.",
+				"Failed to complete mapping for inode 0x%llx.  Run chkdsk. Returning 0.",
 				ni->mft_no);
 			break;
 		}
