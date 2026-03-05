@@ -876,8 +876,6 @@ config CRYPTO_BLAKE2B
 	  - blake2b-384
 	  - blake2b-512
 
-	  Used by the btrfs filesystem.
-
 	  See https://blake2.net for further information.
 
 config CRYPTO_CMAC
@@ -965,7 +963,6 @@ config CRYPTO_SHA256
 	  10118-3), including HMAC support.
 
 	  This is required for IPsec AH (XFRM_AH) and IPsec ESP (XFRM_ESP).
-	  Used by the btrfs filesystem, Ceph, NFS, and SMB.
 
 config CRYPTO_SHA512
 	tristate "SHA-384 and SHA-512"
@@ -1039,8 +1036,6 @@ config CRYPTO_XXHASH
 
 	  Extremely fast, working at speeds close to RAM limits.
 
-	  Used by the btrfs filesystem.
-
 endmenu
 
 menu "CRCs (cyclic redundancy checks)"
@@ -1058,16 +1053,12 @@ config CRYPTO_CRC32C
 	  on Communications, Vol. 41, No. 6, June 1993, selected for use with
 	  iSCSI.
 
-	  Used by btrfs, ext4, jbd2, NVMeoF/TCP, and iSCSI.
-
 config CRYPTO_CRC32
 	tristate "CRC32"
 	select CRYPTO_HASH
 	select CRC32
 	help
 	  CRC32 CRC algorithm (IEEE 802.3)
-
-	  Used by RoCEv2 and f2fs.
 
 endmenu
 
