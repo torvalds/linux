@@ -379,7 +379,7 @@ void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 				       sta->ampdu_mlme.tid_rx_manage_offl))
 			__ieee80211_start_rx_ba_session(sta, 0, 0, 0, 1, tid,
 							IEEE80211_MAX_AMPDU_BUF_HT,
-							false, true, 0);
+							false, true, false, 0);
 
 		if (test_and_clear_bit(tid + IEEE80211_NUM_TIDS,
 				       sta->ampdu_mlme.tid_rx_manage_offl))
@@ -455,7 +455,8 @@ void ieee80211_ba_session_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
-			  u16 initiator, u16 reason_code)
+			  u16 initiator, u16 reason_code,
+			  bool use_ndp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -473,7 +474,8 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	skb_put(skb, 2 + sizeof(mgmt->u.action.delba));
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.action_code = WLAN_ACTION_DELBA;
+	mgmt->u.action.action_code = use_ndp ?
+		WLAN_ACTION_NDP_DELBA : WLAN_ACTION_DELBA;
 	params = (u16)(initiator << 11); 	/* bit 11 initiator */
 	params |= (u16)(tid << 12); 		/* bit 15:12 TID number */
 

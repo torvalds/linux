@@ -1475,7 +1475,9 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 		    !test_and_set_bit(tid, rx->sta->ampdu_mlme.unexpected_agg))
 			ieee80211_send_delba(rx->sdata, rx->sta->sta.addr, tid,
 					     WLAN_BACK_RECIPIENT,
-					     WLAN_REASON_QSTA_REQUIRE_SETUP);
+					     WLAN_REASON_QSTA_REQUIRE_SETUP,
+					     ieee80211_s1g_use_ndp_ba(rx->sdata,
+								      rx->sta));
 		goto dont_reorder;
 	}
 
@@ -3372,7 +3374,9 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx, struct sk_buff_head *frames)
 		    !test_and_set_bit(tid, rx->sta->ampdu_mlme.unexpected_agg))
 			ieee80211_send_delba(rx->sdata, rx->sta->sta.addr, tid,
 					     WLAN_BACK_RECIPIENT,
-					     WLAN_REASON_QSTA_REQUIRE_SETUP);
+					     WLAN_REASON_QSTA_REQUIRE_SETUP,
+					     ieee80211_s1g_use_ndp_ba(rx->sdata,
+								      rx->sta));
 
 		tid_agg_rx = rcu_dereference(rx->sta->ampdu_mlme.tid_rx[tid]);
 		if (!tid_agg_rx)
@@ -3753,14 +3757,17 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		switch (mgmt->u.action.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
+		case WLAN_ACTION_NDP_ADDBA_REQ:
 			if (len < IEEE80211_MIN_ACTION_SIZE(addba_req))
 				goto invalid;
 			break;
 		case WLAN_ACTION_ADDBA_RESP:
+		case WLAN_ACTION_NDP_ADDBA_RESP:
 			if (len < IEEE80211_MIN_ACTION_SIZE(addba_resp))
 				goto invalid;
 			break;
 		case WLAN_ACTION_DELBA:
+		case WLAN_ACTION_NDP_DELBA:
 			if (len < IEEE80211_MIN_ACTION_SIZE(delba))
 				goto invalid;
 			break;

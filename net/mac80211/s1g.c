@@ -220,3 +220,11 @@ void ieee80211_s1g_cap_to_sta_s1g_cap(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_sta_recalc_aggregates(&link_sta->sta->sta);
 }
+
+bool ieee80211_s1g_use_ndp_ba(const struct ieee80211_sub_if_data *sdata,
+			      const struct sta_info *sta)
+{
+	return sdata->vif.cfg.s1g &&
+		ieee80211_hw_check(&sdata->local->hw, SUPPORTS_NDP_BLOCKACK) &&
+		(sta && sta->sta.deflink.s1g_cap.s1g);
+}

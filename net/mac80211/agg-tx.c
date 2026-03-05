@@ -60,7 +60,7 @@
 
 static void ieee80211_send_addba_request(struct sta_info *sta, u16 tid,
 					 u8 dialog_token, u16 start_seq_num,
-					 u16 agg_size, u16 timeout)
+					 u16 agg_size, u16 timeout, bool ndp)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
@@ -80,7 +80,8 @@ static void ieee80211_send_addba_request(struct sta_info *sta, u16 tid,
 	skb_put(skb, 2 + sizeof(mgmt->u.action.addba_req));
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.action_code = WLAN_ACTION_ADDBA_REQ;
+	mgmt->u.action.action_code = ndp ?
+		WLAN_ACTION_NDP_ADDBA_REQ : WLAN_ACTION_ADDBA_REQ;
 
 	mgmt->u.action.addba_req.dialog_token = dialog_token;
 	capab = IEEE80211_ADDBA_PARAM_AMSDU_MASK;
@@ -484,7 +485,8 @@ static void ieee80211_send_addba_with_timeout(struct sta_info *sta,
 
 	/* send AddBA request */
 	ieee80211_send_addba_request(sta, tid, tid_tx->dialog_token,
-				     tid_tx->ssn, buf_size, tid_tx->timeout);
+				     tid_tx->ssn, buf_size, tid_tx->timeout,
+				     tid_tx->ndp);
 
 	WARN_ON(test_and_set_bit(HT_AGG_STATE_SENT_ADDBA, &tid_tx->state));
 }
@@ -521,6 +523,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	 */
 	synchronize_net();
 
+	tid_tx->ndp = ieee80211_s1g_use_ndp_ba(sdata, sta);
 	params.ssn = sta->tid_seq[tid] >> 4;
 	ret = drv_ampdu_action(local, sdata, &params);
 	tid_tx->ssn = params.ssn;
@@ -940,7 +943,9 @@ void ieee80211_stop_tx_ba_cb(struct sta_info *sta, int tid,
 
 	if (send_delba)
 		ieee80211_send_delba(sdata, sta->sta.addr, tid,
-			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+				     WLAN_BACK_INITIATOR,
+				     WLAN_REASON_QSTA_NOT_USE,
+				     tid_tx->ndp);
 }
 
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
