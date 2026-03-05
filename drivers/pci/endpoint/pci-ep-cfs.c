@@ -565,7 +565,8 @@ static void pci_ep_cfs_add_type_group(struct pci_epf_group *epf_group)
 
 	if (IS_ERR(group)) {
 		dev_err(&epf_group->epf->dev,
-			"failed to create epf type specific attributes\n");
+			"failed to create epf type specific attributes: %pe\n",
+			group);
 		return;
 	}
 
@@ -578,13 +579,17 @@ static void pci_epf_cfs_add_sub_groups(struct pci_epf_group *epf_group)
 
 	group = pci_ep_cfs_add_primary_group(epf_group);
 	if (IS_ERR(group)) {
-		pr_err("failed to create 'primary' EPC interface\n");
+		dev_err(&epf_group->epf->dev,
+			"failed to create 'primary' EPC interface: %pe\n",
+			group);
 		return;
 	}
 
 	group = pci_ep_cfs_add_secondary_group(epf_group);
 	if (IS_ERR(group)) {
-		pr_err("failed to create 'secondary' EPC interface\n");
+		dev_err(&epf_group->epf->dev,
+			"failed to create 'secondary' EPC interface: %pe\n",
+			group);
 		return;
 	}
 
@@ -675,8 +680,8 @@ struct config_group *pci_ep_cfs_add_epf_group(const char *name)
 	group = configfs_register_default_group(functions_group, name,
 						&pci_epf_group_type);
 	if (IS_ERR(group))
-		pr_err("failed to register configfs group for %s function\n",
-		       name);
+		pr_err("failed to register configfs group for %s function: %pe\n",
+		       name, group);
 
 	return group;
 }
