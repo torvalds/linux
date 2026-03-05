@@ -27,11 +27,17 @@
  * flushes.
  * - pat_index is transient display (1)
  *
+ * For cases of NULL VMA, there should be no corresponding PRL entry
+ * so skip over.
+ *
  * Return: true when page reclamation is unnecessary, false otherwise.
  */
 bool xe_page_reclaim_skip(struct xe_tile *tile, struct xe_vma *vma)
 {
 	u8 l3_policy;
+
+	if (xe_vma_is_null(vma))
+		return true;
 
 	l3_policy = xe_pat_index_get_l3_policy(tile->xe, vma->attr.pat_index);
 
