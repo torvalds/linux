@@ -169,13 +169,6 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_VERSION	"0.4.3"
 #define MTS_NAME	"microtek usb (rev " MTS_VERSION "): "
 
-#define MTS_WARNING(x...) \
-	printk( KERN_WARNING MTS_NAME x )
-#define MTS_ERROR(x...) \
-	printk( KERN_ERR MTS_NAME x )
-#define MTS_INT_ERROR(x...) \
-	MTS_ERROR(x)
-
 #if defined MTS_DO_DEBUG
 
 #define MTS_DEBUG(x...) \
@@ -375,7 +368,8 @@ void mts_int_submit_urb (struct urb* transfer,
 
 	res = usb_submit_urb( transfer, GFP_ATOMIC );
 	if ( unlikely(res) ) {
-		MTS_INT_ERROR( "could not submit URB! Error was %d\n",(int)res );
+		dev_err(&context->instance->usb_dev->dev,
+			"could not submit URB! Error was %d\n",(int)res );
 		set_host_byte(context->srb, DID_ERROR);
 		mts_transfer_cleanup(transfer);
 	}
@@ -584,7 +578,7 @@ static enum scsi_qc_status mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 	res=usb_submit_urb(desc->urb, GFP_ATOMIC);
 
 	if(unlikely(res)){
-		MTS_ERROR("error %d submitting URB\n",(int)res);
+		dev_err(&desc->usb_dev->dev, "error %d submitting URB\n",(int)res);
 		set_host_byte(srb, DID_ERROR);
 
 		if(likely(callback != NULL))
@@ -661,7 +655,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 	/* Check if the config is sane */
 
 	if ( altsetting->desc.bNumEndpoints != MTS_EP_TOTAL ) {
-		MTS_WARNING( "expecting %d got %d endpoints! Bailing out.\n",
+		dev_warn(&dev->dev, "expecting %d got %d endpoints! Bailing out.\n",
 			     (int)MTS_EP_TOTAL, (int)altsetting->desc.bNumEndpoints );
 		return -ENODEV;
 	}
@@ -673,23 +667,23 @@ static int mts_usb_probe(struct usb_interface *intf,
 			if (ep_out == -1) {
 				ep_out = usb_endpoint_num(&altsetting->endpoint[i].desc);
 			} else {
-				MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+				dev_warn(&dev->dev, "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
 						usb_endpoint_num(&altsetting->endpoint[i].desc));
 				return -ENODEV;
 			}
 		} else {
-			MTS_WARNING( "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
-					(int)altsetting->endpoint[i].desc.bEndpointAddress );
+			dev_warn(&dev->dev, "can only deal with bulk endpoints; endpoint %d is not bulk.\n",
+					usb_endpoint_num(&altsetting->endpoint[i].desc));
 		}
 	}
 
 	if (ep_in_current != &ep_in_set[2]) {
-		MTS_WARNING("couldn't find two input bulk endpoints. Bailing out.\n");
+		dev_warn(&dev->dev, "couldn't find two input bulk endpoints. Bailing out.\n");
 		return -ENODEV;
 	}
 
 	if ( ep_out == -1 ) {
-		MTS_WARNING( "couldn't find an output bulk endpoint. Bailing out.\n" );
+		dev_warn(&dev->dev, "couldn't find an output bulk endpoint. Bailing out.\n" );
 		return -ENODEV;
 	}
 
@@ -715,15 +709,15 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->ep_image = ep_in_set[1];
 
 	if ( new_desc->ep_out != MTS_EP_OUT )
-		MTS_WARNING( "will this work? Command EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Command EP is not usually %d\n",
 			     (int)new_desc->ep_out );
 
 	if ( new_desc->ep_response != MTS_EP_RESPONSE )
-		MTS_WARNING( "will this work? Response EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Response EP is not usually %d\n",
 			     (int)new_desc->ep_response );
 
 	if ( new_desc->ep_image != MTS_EP_IMAGE )
-		MTS_WARNING( "will this work? Image data EP is not usually %d\n",
+		dev_warn(&dev->dev, "will this work? Image data EP is not usually %d\n",
 			     (int)new_desc->ep_image );
 
 	new_desc->host = scsi_host_alloc(&mts_scsi_host_template,
