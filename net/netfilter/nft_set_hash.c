@@ -374,6 +374,7 @@ static void nft_rhash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 {
 	switch (iter->type) {
 	case NFT_ITER_UPDATE:
+	case NFT_ITER_UPDATE_CLONE:
 		/* only relevant for netlink dumps which use READ type */
 		WARN_ON_ONCE(iter->skip != 0);
 
