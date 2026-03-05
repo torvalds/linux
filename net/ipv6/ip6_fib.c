@@ -342,6 +342,9 @@ int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 	return fib6_table_lookup(net, net->ipv6.fib6_main_tbl, oif, fl6,
 				 res, flags);
 }
+#if IS_MODULE(CONFIG_NFT_FIB_IPV6)
+EXPORT_SYMBOL_GPL(fib6_lookup);
+#endif
 
 static void __net_init fib6_tables_init(struct net *net)
 {

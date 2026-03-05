@@ -52,7 +52,13 @@ static int nft_fib6_flowi_init(struct flowi6 *fl6, const struct nft_fib *priv,
 	fl6->flowlabel = (*(__be32 *)iph) & IPV6_FLOWINFO_MASK;
 	fl6->flowi6_l3mdev = nft_fib_l3mdev_master_ifindex_rcu(pkt, dev);
 
-	return lookup_flags;
+	return lookup_flags | RT6_LOOKUP_F_DST_NOREF;
+}
+
+static int nft_fib6_lookup(struct net *net, struct flowi6 *fl6,
+			   struct fib6_result *res, int flags)
+{
+	return fib6_lookup(net, fl6->flowi6_oif, fl6, res, flags);
 }
 
 static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
@@ -60,13 +66,14 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 				struct ipv6hdr *iph)
 {
 	const struct net_device *dev = NULL;
+	struct fib6_result res = {};
 	int route_err, addrtype;
-	struct rt6_info *rt;
 	struct flowi6 fl6 = {
 		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowi6_proto = pkt->tprot,
 		.flowi6_uid = sock_net_uid(nft_net(pkt), NULL),
 	};
+	int lookup_flags;
 	u32 ret = 0;
 
 	if (priv->flags & NFTA_FIB_F_IIF)
@@ -74,28 +81,22 @@ static u32 __nft_fib6_eval_type(const struct nft_fib *priv,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		dev = nft_out(pkt);
 
-	nft_fib6_flowi_init(&fl6, priv, pkt, dev, iph);
+	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, dev, iph);
 
 	if (dev && nf_ipv6_chk_addr(nft_net(pkt), &fl6.daddr, dev, true))
 		ret = RTN_LOCAL;
 
-	route_err = nf_ip6_route(nft_net(pkt), (struct dst_entry **)&rt,
-				 flowi6_to_flowi(&fl6), false);
+	route_err = nft_fib6_lookup(nft_net(pkt), &fl6, &res, lookup_flags);
 	if (route_err)
 		goto err;
 
-	if (rt->rt6i_flags & RTF_REJECT) {
-		route_err = rt->dst.error;
-		dst_release(&rt->dst);
-		goto err;
-	}
+	if (res.fib6_flags & RTF_REJECT)
+		return res.fib6_type;
 
-	if (ipv6_anycast_destination((struct dst_entry *)rt, &fl6.daddr))
+	if (__ipv6_anycast_destination(&res.f6i->fib6_dst, res.fib6_flags, &fl6.daddr))
 		ret = RTN_ANYCAST;
-	else if (!dev && rt->rt6i_flags & RTF_LOCAL)
+	else if (!dev && res.fib6_flags & RTF_LOCAL)
 		ret = RTN_LOCAL;
-
-	dst_release(&rt->dst);
 
 	if (ret)
 		return ret;
@@ -152,6 +153,33 @@ static bool nft_fib_v6_skip_icmpv6(const struct sk_buff *skb, u8 next, const str
 	return ipv6_addr_type(&iph->daddr) & IPV6_ADDR_LINKLOCAL;
 }
 
+static bool nft_fib6_info_nh_dev_match(const struct net_device *nh_dev,
+				       const struct net_device *dev)
+{
+	return nh_dev == dev ||
+	       l3mdev_master_ifindex_rcu(nh_dev) == dev->ifindex;
+}
+
+static bool nft_fib6_info_nh_uses_dev(struct fib6_info *rt,
+				      const struct net_device *dev)
+{
+	const struct net_device *nh_dev;
+	struct fib6_info *iter;
+
+	nh_dev = fib6_info_nh_dev(rt);
+	if (nft_fib6_info_nh_dev_match(nh_dev, dev))
+		return true;
+
+	list_for_each_entry(iter, &rt->fib6_siblings, fib6_siblings) {
+		nh_dev = fib6_info_nh_dev(iter);
+
+		if (nft_fib6_info_nh_dev_match(nh_dev, dev))
+			return true;
+	}
+
+	return false;
+}
+
 void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
@@ -160,14 +188,14 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	const struct net_device *found = NULL;
 	const struct net_device *oif = NULL;
 	u32 *dest = &regs->data[priv->dreg];
+	struct fib6_result res = {};
 	struct ipv6hdr *iph, _iph;
 	struct flowi6 fl6 = {
 		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowi6_proto = pkt->tprot,
 		.flowi6_uid = sock_net_uid(nft_net(pkt), NULL),
 	};
-	struct rt6_info *rt;
-	int lookup_flags;
+	int lookup_flags, ret;
 
 	if (nft_fib_can_skip(pkt)) {
 		nft_fib_store_result(dest, priv, nft_in(pkt));
@@ -193,26 +221,17 @@ void nft_fib6_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	lookup_flags = nft_fib6_flowi_init(&fl6, priv, pkt, oif, iph);
 
 	*dest = 0;
-	rt = (void *)ip6_route_lookup(nft_net(pkt), &fl6, pkt->skb,
-				      lookup_flags);
-	if (rt->dst.error)
-		goto put_rt_err;
-
-	/* Should not see RTF_LOCAL here */
-	if (rt->rt6i_flags & (RTF_REJECT | RTF_ANYCAST | RTF_LOCAL))
-		goto put_rt_err;
+	ret = nft_fib6_lookup(nft_net(pkt), &fl6, &res, lookup_flags);
+	if (ret || res.fib6_flags & (RTF_REJECT | RTF_ANYCAST | RTF_LOCAL))
+		return;
 
 	if (!oif) {
-		found = rt->rt6i_idev->dev;
+		found = fib6_info_nh_dev(res.f6i);
 	} else {
-		if (oif == rt->rt6i_idev->dev ||
-		    l3mdev_master_ifindex_rcu(rt->rt6i_idev->dev) == oif->ifindex)
+		if (nft_fib6_info_nh_uses_dev(res.f6i, oif))
 			found = oif;
 	}
-
 	nft_fib_store_result(dest, priv, found);
- put_rt_err:
-	ip6_rt_put(rt);
 }
 EXPORT_SYMBOL_GPL(nft_fib6_eval);
 
