@@ -1908,8 +1908,8 @@ undo_err_out:
 			err2 = attr_size;
 			attr_size = arec_size - mp_ofs;
 			ntfs_error(vol->sb,
-				"Failed to undo partial resident to non-resident attribute conversion.  Truncating inode 0x%lx, attribute type 0x%x from %i bytes to %i bytes to maintain metadata consistency.  THIS MEANS YOU ARE LOSING %i BYTES DATA FROM THIS %s.",
-					vi->i_ino,
+				"Failed to undo partial resident to non-resident attribute conversion.  Truncating inode 0x%llx, attribute type 0x%x from %i bytes to %i bytes to maintain metadata consistency.  THIS MEANS YOU ARE LOSING %i BYTES DATA FROM THIS %s.",
+					ni->mft_no,
 					(unsigned int)le32_to_cpu(ni->type),
 					err2, attr_size, err2 - attr_size,
 					((ni->type == AT_DATA) &&

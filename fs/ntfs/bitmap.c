@@ -130,8 +130,8 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	struct ntfs_inode *ni = NTFS_I(vi);
 	struct ntfs_volume *vol = ni->vol;
 
-	ntfs_debug("Entering for i_ino 0x%lx, start_bit 0x%llx, count 0x%llx, value %u.%s",
-			vi->i_ino, (unsigned long long)start_bit,
+	ntfs_debug("Entering for i_ino 0x%llx, start_bit 0x%llx, count 0x%llx, value %u.%s",
+			ni->mft_no, (unsigned long long)start_bit,
 			(unsigned long long)cnt, (unsigned int)value,
 			is_rollback ? " (rollback)" : "");
 

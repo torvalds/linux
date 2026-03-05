@@ -178,8 +178,8 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	unsigned long dent_ino;
 	int uname_len;
 
-	ntfs_debug("Looking up %pd in directory inode 0x%lx.",
-			dent, dir_ino->i_ino);
+	ntfs_debug("Looking up %pd in directory inode 0x%llx.",
+			dent, NTFS_I(dir_ino)->mft_no);
 	/* Convert the name of the dentry to Unicode. */
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
 				  &uname, NTFS_MAX_NAME_LEN);
@@ -1611,7 +1611,7 @@ static struct dentry *ntfs_get_parent(struct dentry *child_dent)
 	unsigned long parent_ino;
 	int err;
 
-	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
+	ntfs_debug("Entering for inode 0x%llx.", ni->mft_no);
 	/* Get the mft record of the inode belonging to the child dentry. */
 	mrec = map_mft_record(ni);
 	if (IS_ERR(mrec))
@@ -1630,8 +1630,8 @@ try_next:
 		unmap_mft_record(ni);
 		if (err == -ENOENT)
 			ntfs_error(vi->i_sb,
-				   "Inode 0x%lx does not have a file name attribute.  Run chkdsk.",
-				   vi->i_ino);
+				   "Inode 0x%llx does not have a file name attribute.  Run chkdsk.",
+				   ni->mft_no);
 		return ERR_PTR(err);
 	}
 	attr = ctx->attr;

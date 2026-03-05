@@ -767,8 +767,8 @@ static int ntfs_readdir(struct file *file, struct dir_context *actor)
 	struct rb_root ra_root = RB_ROOT;
 	struct file_ra_state *ra;
 
-	ntfs_debug("Entering for inode 0x%lx, fpos 0x%llx.",
-			vdir->i_ino, actor->pos);
+	ntfs_debug("Entering for inode 0x%llx, fpos 0x%llx.",
+			ndir->mft_no, actor->pos);
 
 	if (file->private_data) {
 		private = file->private_data;
@@ -1148,7 +1148,7 @@ static int ntfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 	int err, ret;
 	struct ntfs_attr na;
 
-	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
+	ntfs_debug("Entering for inode 0x%llx.", ni->mft_no);
 
 	if (NVolShutdown(vol))
 		return -EIO;
@@ -1215,8 +1215,8 @@ static int ntfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 		ntfs_debug("Done.");
 	else
 		ntfs_warning(vi->i_sb,
-			"Failed to f%ssync inode 0x%lx.  Error %u.",
-			datasync ? "data" : "", vi->i_ino, -ret);
+			"Failed to f%ssync inode 0x%llx.  Error %u.",
+			datasync ? "data" : "", ni->mft_no, -ret);
 	inode_unlock(vi);
 	return ret;
 }

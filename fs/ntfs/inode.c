@@ -670,7 +670,7 @@ void ntfs_set_vfs_operations(struct inode *inode, mode_t mode, dev_t dev)
 static int ntfs_read_locked_inode(struct inode *vi)
 {
 	struct ntfs_volume *vol = NTFS_SB(vi->i_sb);
-	struct ntfs_inode *ni;
+	struct ntfs_inode *ni = NTFS_I(vi);
 	struct mft_record *m;
 	struct attr_record *a;
 	struct standard_information *si;
@@ -682,7 +682,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	dev_t dev = 0;
 	bool vol_err = true;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_debug("Entering for i_ino 0x%llx.", ni->mft_no);
 
 	if (uid_valid(vol->uid)) {
 		vi->i_uid = vol->uid;
@@ -704,7 +704,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	 */
 	if (vi->i_ino != FILE_MFT)
 		ntfs_init_big_inode(vi);
-	ni = NTFS_I(vi);
 
 	m = map_mft_record(ni);
 	if (IS_ERR(m)) {
@@ -804,7 +803,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	} else {
 		if (vi->i_ino == FILE_MFT)
 			goto skip_attr_list_load;
-		ntfs_debug("Attribute list found in inode 0x%lx.", vi->i_ino);
+		ntfs_debug("Attribute list found in inode 0x%llx.", ni->mft_no);
 		NInoSetAttrList(ni);
 		a = ctx->attr;
 		if (a->flags & ATTR_COMPRESSION_MASK) {
@@ -820,8 +819,8 @@ static int ntfs_read_locked_inode(struct inode *vi)
 				goto unm_err_out;
 			}
 			ntfs_warning(vi->i_sb,
-				"Resident attribute list attribute in inode 0x%lx is marked encrypted/sparse which is not true.  However, Windows allows this and chkdsk does not detect or correct it so we will just ignore the invalid flags and pretend they are not set.",
-				vi->i_ino);
+				"Resident attribute list attribute in inode 0x%llx is marked encrypted/sparse which is not true.  However, Windows allows this and chkdsk does not detect or correct it so we will just ignore the invalid flags and pretend they are not set.",
+				ni->mft_no);
 		}
 		/* Now allocate memory for the attribute list. */
 		ni->attr_list_size = (u32)ntfs_attr_size(a);
@@ -1225,8 +1224,8 @@ unm_err_out:
 err_out:
 	if (err != -EOPNOTSUPP && err != -ENOMEM && vol_err == true) {
 		ntfs_error(vol->sb,
-			"Failed with error code %i.  Marking corrupt inode 0x%lx as bad.  Run chkdsk.",
-			err, vi->i_ino);
+			"Failed with error code %i.  Marking corrupt inode 0x%llx as bad.  Run chkdsk.",
+			err, ni->mft_no);
 		NVolSetErrors(vol);
 	}
 	return err;
@@ -1262,7 +1261,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	struct ntfs_attr_search_ctx *ctx;
 	int err = 0;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_debug("Entering for i_ino 0x%llx.", ni->mft_no);
 
 	ntfs_init_big_inode(vi);
 
@@ -1504,7 +1503,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	u8 *ir_end, *index_end;
 	int err = 0;
 
-	ntfs_debug("Entering for i_ino 0x%lx.", vi->i_ino);
+	ntfs_debug("Entering for i_ino 0x%llx.", ni->mft_no);
 	lockdep_assert_held(&base_ni->mrec_lock);
 
 	ntfs_init_big_inode(vi);
@@ -2312,8 +2311,8 @@ void ntfs_evict_big_inode(struct inode *vi)
 		ntfs_commit_inode(vi);
 
 		if (NInoDirty(ni)) {
-			ntfs_debug("Failed to commit dirty inode 0x%lx.  Losing data!",
-				   vi->i_ino);
+			ntfs_debug("Failed to commit dirty inode 0x%llx.  Losing data!",
+				   ni->mft_no);
 			NInoClearAttrListDirty(ni);
 			NInoClearDirty(ni);
 		}
@@ -2500,8 +2499,8 @@ static int ntfs_inode_sync_standard_information(struct inode *vi, struct mft_rec
 	/* Update the creation times if they have changed. */
 	nt = utc2ntfs(ni->i_crtime);
 	if (si->creation_time != nt) {
-		ntfs_debug("Updating creation time for inode 0x%lx: old = 0x%llx, new = 0x%llx",
-				vi->i_ino, le64_to_cpu(si->creation_time),
+		ntfs_debug("Updating creation time for inode 0x%llx: old = 0x%llx, new = 0x%llx",
+				ni->mft_no, le64_to_cpu(si->creation_time),
 				le64_to_cpu(nt));
 		si->creation_time = nt;
 		modified = true;
@@ -2510,8 +2509,8 @@ static int ntfs_inode_sync_standard_information(struct inode *vi, struct mft_rec
 	/* Update the access times if they have changed. */
 	nt = utc2ntfs(inode_get_mtime(vi));
 	if (si->last_data_change_time != nt) {
-		ntfs_debug("Updating mtime for inode 0x%lx: old = 0x%llx, new = 0x%llx",
-				vi->i_ino, le64_to_cpu(si->last_data_change_time),
+		ntfs_debug("Updating mtime for inode 0x%llx: old = 0x%llx, new = 0x%llx",
+				ni->mft_no, le64_to_cpu(si->last_data_change_time),
 				le64_to_cpu(nt));
 		si->last_data_change_time = nt;
 		modified = true;
@@ -2519,16 +2518,16 @@ static int ntfs_inode_sync_standard_information(struct inode *vi, struct mft_rec
 
 	nt = utc2ntfs(inode_get_ctime(vi));
 	if (si->last_mft_change_time != nt) {
-		ntfs_debug("Updating ctime for inode 0x%lx: old = 0x%llx, new = 0x%llx",
-				vi->i_ino, le64_to_cpu(si->last_mft_change_time),
+		ntfs_debug("Updating ctime for inode 0x%llx: old = 0x%llx, new = 0x%llx",
+				ni->mft_no, le64_to_cpu(si->last_mft_change_time),
 				le64_to_cpu(nt));
 		si->last_mft_change_time = nt;
 		modified = true;
 	}
 	nt = utc2ntfs(inode_get_atime(vi));
 	if (si->last_access_time != nt) {
-		ntfs_debug("Updating atime for inode 0x%lx: old = 0x%llx, new = 0x%llx",
-				vi->i_ino,
+		ntfs_debug("Updating atime for inode 0x%llx: old = 0x%llx, new = 0x%llx",
+				ni->mft_no,
 				le64_to_cpu(si->last_access_time),
 				le64_to_cpu(nt));
 		si->last_access_time = nt;
@@ -2743,8 +2742,8 @@ int __ntfs_write_inode(struct inode *vi, int sync)
 	int err = 0;
 	bool need_iput = false;
 
-	ntfs_debug("Entering for %sinode 0x%lx.", NInoAttr(ni) ? "attr " : "",
-			vi->i_ino);
+	ntfs_debug("Entering for %sinode 0x%llx.", NInoAttr(ni) ? "attr " : "",
+			ni->mft_no);
 
 	if (NVolShutdown(ni->vol))
 		return -EIO;
