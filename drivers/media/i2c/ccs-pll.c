@@ -824,9 +824,8 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 				   op_lim_fr->min_pll_ip_clk_freq_hz));
 	min_op_pre_pll_clk_div =
 		max_t(u16, op_lim_fr->min_pre_pll_clk_div,
-		      clk_div_even_up(
-			      DIV_ROUND_UP(pll->ext_clk_freq_hz,
-					   op_lim_fr->max_pll_ip_clk_freq_hz)));
+		      DIV_ROUND_UP(pll->ext_clk_freq_hz,
+				   op_lim_fr->max_pll_ip_clk_freq_hz));
 	dev_dbg(dev, "pre-pll check: min / max op_pre_pll_clk_div: %u / %u\n",
 		min_op_pre_pll_clk_div, max_op_pre_pll_clk_div);
 
