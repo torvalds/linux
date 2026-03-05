@@ -332,6 +332,7 @@ struct mem_cgroup {
 #define MEMCG_CHARGE_BATCH 64U
 
 extern struct mem_cgroup *root_mem_cgroup;
+extern struct obj_cgroup *root_obj_cgroup;
 
 enum page_memcg_data_flags {
 	/* page->memcg_data is a pointer to an slabobj_ext vector */
@@ -546,6 +547,11 @@ static inline bool PageMemcgKmem(struct page *page)
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 {
 	return (memcg == root_mem_cgroup);
+}
+
+static inline bool obj_cgroup_is_root(const struct obj_cgroup *objcg)
+{
+	return objcg == root_obj_cgroup;
 }
 
 static inline bool mem_cgroup_disabled(void)
@@ -774,23 +780,26 @@ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
 
 static inline bool obj_cgroup_tryget(struct obj_cgroup *objcg)
 {
+	if (obj_cgroup_is_root(objcg))
+		return true;
 	return percpu_ref_tryget(&objcg->refcnt);
-}
-
-static inline void obj_cgroup_get(struct obj_cgroup *objcg)
-{
-	percpu_ref_get(&objcg->refcnt);
 }
 
 static inline void obj_cgroup_get_many(struct obj_cgroup *objcg,
 				       unsigned long nr)
 {
-	percpu_ref_get_many(&objcg->refcnt, nr);
+	if (!obj_cgroup_is_root(objcg))
+		percpu_ref_get_many(&objcg->refcnt, nr);
+}
+
+static inline void obj_cgroup_get(struct obj_cgroup *objcg)
+{
+	obj_cgroup_get_many(objcg, 1);
 }
 
 static inline void obj_cgroup_put(struct obj_cgroup *objcg)
 {
-	if (objcg)
+	if (objcg && !obj_cgroup_is_root(objcg))
 		percpu_ref_put(&objcg->refcnt);
 }
 
@@ -1083,6 +1092,11 @@ static inline bool PageMemcgKmem(struct page *page)
 }
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+{
+	return true;
+}
+
+static inline bool obj_cgroup_is_root(const struct obj_cgroup *objcg)
 {
 	return true;
 }
