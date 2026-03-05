@@ -53,10 +53,6 @@ static int regcache_count_cacheable_registers(struct regmap *map)
 		    !regmap_volatile(map, i * map->reg_stride))
 			count++;
 
-	/* all registers are unreadable or volatile, so just bypass */
-	if (!count)
-		map->cache_bypass = true;
-
 	return count;
 }
 
@@ -206,6 +202,10 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		map->reg_defaults = tmp_buf;
 	} else if (map->num_reg_defaults_raw) {
 		count = regcache_count_cacheable_registers(map);
+		if (!count)
+			map->cache_bypass = true;
+
+		/* All registers are unreadable or volatile, so just bypass */
 		if (map->cache_bypass)
 			return 0;
 
