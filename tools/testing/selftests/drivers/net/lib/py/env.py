@@ -1,13 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import ipaddress
 import os
 import time
+import json
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
 from lib.py import ksft_setup, wait_file
 from lib.py import cmd, ethtool, ip, CmdExitFailure
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
+from . import bpftool, RtnlFamily, Netlink
 
 
 class NetDrvEnvBase:
@@ -289,3 +292,207 @@ class NetDrvEpEnv(NetDrvEnvBase):
                 data.get('stats-block-usecs', 0) / 1000 / 1000
 
         time.sleep(self._stats_settle_time)
+
+
+class NetDrvContEnv(NetDrvEpEnv):
+    """
+    Class for an environment with a netkit pair setup for forwarding traffic
+    between the physical interface and a network namespace.
+      NETIF           = "eth0"
+      LOCAL_V6        = "2001:db8:1::1"
+      REMOTE_V6       = "2001:db8:1::2"
+      LOCAL_PREFIX_V6 = "2001:db8:2::0/64"
+
+              +-----------------------------+        +------------------------------+
+      dst     | INIT NS                     |        | TEST NS                      |
+      2001:   | +---------------+           |        |                              |
+      db8:2::2| | NETIF         |           |  bpf   |                              |
+          +---|>| 2001:db8:1::1 |           |redirect| +-------------------------+  |
+          |   | |               |-----------|--------|>| Netkit                  |  |
+          |   | +---------------+           | _peer  | | nk_guest                |  |
+          |   | +-------------+ Netkit pair |        | | fe80::2/64              |  |
+          |   | | Netkit      |.............|........|>| 2001:db8:2::2/64        |  |
+          |   | | nk_host     |             |        | +-------------------------+  |
+          |   | | fe80::1/64  |             |        |                              |
+          |   | +-------------+             |        | route:                       |
+          |   |                             |        |   default                    |
+          |   | route:                      |        |     via fe80::1 dev nk_guest |
+          |   |   2001:db8:2::2/128         |        +------------------------------+
+          |   |     via fe80::2 dev nk_host |
+          |   +-----------------------------+
+          |
+          |   +---------------+
+          |   | REMOTE        |
+          +---| 2001:db8:1::2 |
+              +---------------+
+    """
+
+    def __init__(self, src_path, rxqueues=1, **kwargs):
+        self.netns = None
+        self._nk_host_ifname = None
+        self._nk_guest_ifname = None
+        self._tc_clsact_added = False
+        self._tc_attached = False
+        self._bpf_prog_pref = None
+        self._bpf_prog_id = None
+        self._init_ns_attached = False
+        self._old_fwd = None
+        self._old_accept_ra = None
+
+        super().__init__(src_path, **kwargs)
+
+        self.require_ipver("6")
+        local_prefix = self.env.get("LOCAL_PREFIX_V6")
+        if not local_prefix:
+            raise KsftSkipEx("LOCAL_PREFIX_V6 required")
+
+        net = ipaddress.IPv6Network(local_prefix, strict=False)
+        self.ipv6_prefix = str(net.network_address)
+        self.nk_host_ipv6 = f"{self.ipv6_prefix}2:1"
+        self.nk_guest_ipv6 = f"{self.ipv6_prefix}2:2"
+
+        local_v6 = ipaddress.IPv6Address(self.addr_v["6"])
+        if local_v6 in net:
+            raise KsftSkipEx("LOCAL_V6 must not fall within LOCAL_PREFIX_V6")
+
+        rtnl = RtnlFamily()
+        rtnl.newlink(
+            {
+                "linkinfo": {
+                    "kind": "netkit",
+                    "data": {
+                        "mode": "l2",
+                        "policy": "forward",
+                        "peer-policy": "forward",
+                    },
+                },
+                "num-rx-queues": rxqueues,
+            },
+            flags=[Netlink.NLM_F_CREATE, Netlink.NLM_F_EXCL],
+        )
+
+        all_links = ip("-d link show", json=True)
+        netkit_links = [link for link in all_links
+                        if link.get('linkinfo', {}).get('info_kind') == 'netkit'
+                        and 'UP' not in link.get('flags', [])]
+
+        if len(netkit_links) != 2:
+            raise KsftSkipEx("Failed to create netkit pair")
+
+        netkit_links.sort(key=lambda x: x['ifindex'])
+        self._nk_host_ifname = netkit_links[1]['ifname']
+        self._nk_guest_ifname = netkit_links[0]['ifname']
+        self.nk_host_ifindex = netkit_links[1]['ifindex']
+        self.nk_guest_ifindex = netkit_links[0]['ifindex']
+
+        self._setup_ns()
+        self._attach_bpf()
+
+    def __del__(self):
+        if self._tc_attached:
+            cmd(f"tc filter del dev {self.ifname} ingress pref {self._bpf_prog_pref}")
+            self._tc_attached = False
+
+        if self._tc_clsact_added:
+            cmd(f"tc qdisc del dev {self.ifname} clsact")
+            self._tc_clsact_added = False
+
+        if self._nk_host_ifname:
+            cmd(f"ip link del dev {self._nk_host_ifname}")
+            self._nk_host_ifname = None
+            self._nk_guest_ifname = None
+
+        if self._init_ns_attached:
+            cmd("ip netns del init", fail=False)
+            self._init_ns_attached = False
+
+        if self.netns:
+            del self.netns
+            self.netns = None
+
+        if self._old_fwd is not None:
+            with open("/proc/sys/net/ipv6/conf/all/forwarding", "w",
+                      encoding="utf-8") as f:
+                f.write(self._old_fwd)
+            self._old_fwd = None
+        if self._old_accept_ra is not None:
+            with open("/proc/sys/net/ipv6/conf/all/accept_ra", "w",
+                      encoding="utf-8") as f:
+                f.write(self._old_accept_ra)
+            self._old_accept_ra = None
+
+        super().__del__()
+
+    def _setup_ns(self):
+        fwd_path = "/proc/sys/net/ipv6/conf/all/forwarding"
+        ra_path = "/proc/sys/net/ipv6/conf/all/accept_ra"
+        with open(fwd_path, encoding="utf-8") as f:
+            self._old_fwd = f.read().strip()
+        with open(ra_path, encoding="utf-8") as f:
+            self._old_accept_ra = f.read().strip()
+        with open(fwd_path, "w", encoding="utf-8") as f:
+            f.write("1")
+        with open(ra_path, "w", encoding="utf-8") as f:
+            f.write("2")
+
+        self.netns = NetNS()
+        cmd("ip netns attach init 1")
+        self._init_ns_attached = True
+        ip("netns set init 0", ns=self.netns)
+        ip(f"link set dev {self._nk_guest_ifname} netns {self.netns.name}")
+        ip(f"link set dev {self._nk_host_ifname} up")
+        ip(f"-6 addr add fe80::1/64 dev {self._nk_host_ifname} nodad")
+        ip(f"-6 route add {self.nk_guest_ipv6}/128 via fe80::2 dev {self._nk_host_ifname}")
+
+        ip("link set lo up", ns=self.netns)
+        ip(f"link set dev {self._nk_guest_ifname} up", ns=self.netns)
+        ip(f"-6 addr add fe80::2/64 dev {self._nk_guest_ifname}", ns=self.netns)
+        ip(f"-6 addr add {self.nk_guest_ipv6}/64 dev {self._nk_guest_ifname} nodad", ns=self.netns)
+        ip(f"-6 route add default via fe80::1 dev {self._nk_guest_ifname}", ns=self.netns)
+
+    def _tc_ensure_clsact(self):
+        qdisc = json.loads(cmd(f"tc -j qdisc show dev {self.ifname}").stdout)
+        for q in qdisc:
+            if q['kind'] == 'clsact':
+                return
+        cmd(f"tc qdisc add dev {self.ifname} clsact")
+        self._tc_clsact_added = True
+
+    def _get_bpf_prog_ids(self):
+        filters = json.loads(cmd(f"tc -j filter show dev {self.ifname} ingress").stdout)
+        for bpf in filters:
+            if 'options' not in bpf:
+                continue
+            if bpf['options']['bpf_name'].startswith('nk_forward.bpf'):
+                return (bpf['pref'], bpf['options']['prog']['id'])
+        raise Exception("Failed to get BPF prog ID")
+
+    def _attach_bpf(self):
+        bpf_obj = self.test_dir / "nk_forward.bpf.o"
+        if not bpf_obj.exists():
+            raise KsftSkipEx("BPF prog not found")
+
+        self._tc_ensure_clsact()
+        cmd(f"tc filter add dev {self.ifname} ingress bpf obj {bpf_obj}"
+            " sec tc/ingress direct-action")
+        self._tc_attached = True
+
+        (self._bpf_prog_pref, self._bpf_prog_id) = self._get_bpf_prog_ids()
+        prog_info = bpftool(f"prog show id {self._bpf_prog_id}", json=True)
+        map_ids = prog_info.get("map_ids", [])
+
+        bss_map_id = None
+        for map_id in map_ids:
+            map_info = bpftool(f"map show id {map_id}", json=True)
+            if map_info.get("name").endswith("bss"):
+                bss_map_id = map_id
+
+        if bss_map_id is None:
+            raise Exception("Failed to find .bss map")
+
+        ipv6_addr = ipaddress.IPv6Address(self.ipv6_prefix)
+        ipv6_bytes = ipv6_addr.packed
+        ifindex_bytes = self.nk_host_ifindex.to_bytes(4, byteorder='little')
+        value = ipv6_bytes + ifindex_bytes
+        value_hex = ' '.join(f'{b:02x}' for b in value)
+        bpftool(f"map update id {bss_map_id} key hex 00 00 00 00 value hex {value_hex}")

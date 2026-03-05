@@ -66,6 +66,44 @@ LOCAL_V4, LOCAL_V6, REMOTE_V4, REMOTE_V6
 
 Local and remote endpoint IP addresses.
 
+LOCAL_PREFIX_V6
+~~~~~~~~~~~~~~~
+
+Local IP prefix/subnet which can be used to allocate extra IP addresses (for
+network name spaces behind macvlan, veth, netkit devices). DUT must be
+reachable using these addresses from the endpoint.
+
+LOCAL_PREFIX_V6 must NOT match LOCAL_V6.
+
+Example:
+  NETIF           = "eth0"
+  LOCAL_V6        = "2001:db8:1::1"
+  REMOTE_V6       = "2001:db8:1::2"
+  LOCAL_PREFIX_V6 = "2001:db8:2::0/64"
+
+          +-----------------------------+        +------------------------------+
+  dst     | INIT NS                     |        | TEST NS                      |
+  2001:   | +---------------+           |        |                              |
+  db8:2::2| | NETIF         |           |  bpf   |                              |
+      +---|>| 2001:db8:1::1 |           |redirect| +-------------------------+  |
+      |   | |               |-----------|--------|>| Netkit                  |  |
+      |   | +---------------+           | _peer  | | nk_guest                |  |
+      |   | +-------------+ Netkit pair |        | | fe80::2/64              |  |
+      |   | | Netkit      |.............|........|>| 2001:db8:2::2/64        |  |
+      |   | | nk_host     |             |        | +-------------------------+  |
+      |   | | fe80::1/64  |             |        |                              |
+      |   | +-------------+             |        | route:                       |
+      |   |                             |        |   default                    |
+      |   | route:                      |        |     via fe80::1 dev nk_guest |
+      |   |   2001:db8:2::2/128         |        +------------------------------+
+      |   |     via fe80::2 dev nk_host |
+      |   +-----------------------------+
+      |
+      |   +---------------+
+      |   | REMOTE        |
+      +---| 2001:db8:1::2 |
+          +---------------+
+
 REMOTE_TYPE
 ~~~~~~~~~~~
 
