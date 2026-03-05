@@ -76,3 +76,13 @@ int test_kprobe(struct pt_regs *ctx)
 {
 	return session_check(ctx);
 }
+
+/*
+ * Exact function name (no wildcards) - exercises the fast syms[] path
+ * in bpf_program__attach_kprobe_multi_opts() which bypasses kallsyms parsing.
+ */
+SEC("kprobe.session/bpf_fentry_test1")
+int test_kprobe_syms(struct pt_regs *ctx)
+{
+	return session_check(ctx);
+}
