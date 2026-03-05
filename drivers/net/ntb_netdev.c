@@ -284,6 +284,12 @@ static void ntb_netdev_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	}
 }
 
+static const struct ntb_queue_handlers ntb_netdev_handlers = {
+	.tx_handler = ntb_netdev_tx_handler,
+	.rx_handler = ntb_netdev_rx_handler,
+	.event_handler = ntb_netdev_event_handler,
+};
+
 static netdev_tx_t ntb_netdev_start_xmit(struct sk_buff *skb,
 					 struct net_device *ndev)
 {
@@ -492,16 +498,155 @@ static int ntb_get_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
+static void ntb_get_channels(struct net_device *ndev,
+			     struct ethtool_channels *channels)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+
+	channels->combined_count = dev->num_queues;
+	channels->max_combined = ndev->num_tx_queues;
+}
+
+static int ntb_inc_channels(struct net_device *ndev,
+			    unsigned int old, unsigned int new)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	bool running = netif_running(ndev);
+	struct ntb_netdev_queue *queue;
+	unsigned int q, created;
+	int rc;
+
+	created = old;
+	for (q = old; q < new; q++) {
+		queue = &dev->queues[q];
+
+		queue->ntdev = dev;
+		queue->qid = q;
+		queue->qp = ntb_transport_create_queue(queue, dev->client_dev,
+						       &ntb_netdev_handlers);
+		if (!queue->qp) {
+			rc = -ENOSPC;
+			goto err_new;
+		}
+		created++;
+
+		if (!running)
+			continue;
+
+		timer_setup(&queue->tx_timer, ntb_netdev_tx_timer, 0);
+
+		rc = ntb_netdev_queue_rx_fill(ndev, queue);
+		if (rc)
+			goto err_new;
+
+		/*
+		 * Carrier may already be on due to other QPs. Keep the new
+		 * subqueue stopped until we get a Link Up event for this QP.
+		 */
+		netif_stop_subqueue(ndev, q);
+	}
+
+	rc = netif_set_real_num_queues(ndev, new, new);
+	if (rc)
+		goto err_new;
+
+	dev->num_queues = new;
+
+	if (running)
+		for (q = old; q < new; q++)
+			ntb_transport_link_up(dev->queues[q].qp);
+
+	return 0;
+
+err_new:
+	if (running) {
+		unsigned int rollback = created;
+
+		while (rollback-- > old) {
+			queue = &dev->queues[rollback];
+			ntb_transport_link_down(queue->qp);
+			ntb_netdev_queue_rx_drain(queue);
+			timer_delete_sync(&queue->tx_timer);
+		}
+	}
+	while (created-- > old) {
+		queue = &dev->queues[created];
+		ntb_transport_free_queue(queue->qp);
+		queue->qp = NULL;
+	}
+	return rc;
+}
+
+static int ntb_dec_channels(struct net_device *ndev,
+			    unsigned int old, unsigned int new)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	bool running = netif_running(ndev);
+	struct ntb_netdev_queue *queue;
+	unsigned int q;
+	int rc;
+
+	if (running)
+		for (q = new; q < old; q++)
+			netif_stop_subqueue(ndev, q);
+
+	rc = netif_set_real_num_queues(ndev, new, new);
+	if (rc)
+		goto err;
+
+	/* Publish new queue count before invalidating QP pointers */
+	dev->num_queues = new;
+
+	for (q = new; q < old; q++) {
+		queue = &dev->queues[q];
+
+		if (running) {
+			ntb_transport_link_down(queue->qp);
+			ntb_netdev_queue_rx_drain(queue);
+			timer_delete_sync(&queue->tx_timer);
+		}
+
+		ntb_transport_free_queue(queue->qp);
+		queue->qp = NULL;
+	}
+
+	/*
+	 * It might be the case that the removed queues are the only queues that
+	 * were up, so see if the global carrier needs to change.
+	 */
+	ntb_netdev_update_carrier(dev);
+	return 0;
+
+err:
+	if (running) {
+		for (q = new; q < old; q++)
+			netif_wake_subqueue(ndev, q);
+	}
+	return rc;
+}
+
+static int ntb_set_channels(struct net_device *ndev,
+			    struct ethtool_channels *channels)
+{
+	struct ntb_netdev *dev = netdev_priv(ndev);
+	unsigned int new = channels->combined_count;
+	unsigned int old = dev->num_queues;
+
+	if (new == old)
+		return 0;
+
+	if (new < old)
+		return ntb_dec_channels(ndev, old, new);
+	else
+		return ntb_inc_channels(ndev, old, new);
+}
+
 static const struct ethtool_ops ntb_ethtool_ops = {
 	.get_drvinfo = ntb_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_link_ksettings = ntb_get_link_ksettings,
-};
-
-static const struct ntb_queue_handlers ntb_netdev_handlers = {
-	.tx_handler = ntb_netdev_tx_handler,
-	.rx_handler = ntb_netdev_rx_handler,
-	.event_handler = ntb_netdev_event_handler,
+	.get_channels = ntb_get_channels,
+	.set_channels = ntb_set_channels,
 };
 
 static int ntb_netdev_probe(struct device *client_dev)
