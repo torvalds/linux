@@ -497,31 +497,17 @@ static int atcspi_init_resources(struct platform_device *pdev,
 
 static int atcspi_configure_dma(struct atcspi_dev *spi)
 {
-	struct dma_chan *dma_chan;
-	int ret = 0;
+	spi->host->dma_rx = devm_dma_request_chan(spi->dev, "rx");
+	if (IS_ERR(spi->host->dma_rx))
+		return PTR_ERR(spi->host->dma_rx);
 
-	dma_chan = devm_dma_request_chan(spi->dev, "rx");
-	if (IS_ERR(dma_chan)) {
-		ret = PTR_ERR(dma_chan);
-		goto err_exit;
-	}
-	spi->host->dma_rx = dma_chan;
+	spi->host->dma_tx = devm_dma_request_chan(spi->dev, "tx");
+	if (IS_ERR(spi->host->dma_tx))
+		return PTR_ERR(spi->host->dma_tx);
 
-	dma_chan = devm_dma_request_chan(spi->dev, "tx");
-	if (IS_ERR(dma_chan)) {
-		ret = PTR_ERR(dma_chan);
-		goto free_rx;
-	}
-	spi->host->dma_tx = dma_chan;
 	init_completion(&spi->dma_completion);
 
-	return ret;
-
-free_rx:
-	dma_release_channel(spi->host->dma_rx);
-	spi->host->dma_rx = NULL;
-err_exit:
-	return ret;
+	return 0;
 }
 
 static int atcspi_enable_clk(struct atcspi_dev *spi)
