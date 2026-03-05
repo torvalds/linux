@@ -190,7 +190,7 @@ struct worker_pool {
 	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* L: flags */
 
-	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
+	unsigned long		last_progress_ts;	/* L: last forward progress timestamp */
 	bool			cpu_stall;	/* WD: stalled cpu bound pool */
 
 	/*
@@ -1697,7 +1697,7 @@ static void __pwq_activate_work(struct pool_workqueue *pwq,
 	WARN_ON_ONCE(!(*wdb & WORK_STRUCT_INACTIVE));
 	trace_workqueue_activate_work(work);
 	if (list_empty(&pwq->pool->worklist))
-		pwq->pool->watchdog_ts = jiffies;
+		pwq->pool->last_progress_ts = jiffies;
 	move_linked_works(work, &pwq->pool->worklist, NULL);
 	__clear_bit(WORK_STRUCT_INACTIVE_BIT, wdb);
 }
@@ -2348,7 +2348,7 @@ retry:
 	 */
 	if (list_empty(&pwq->inactive_works) && pwq_tryinc_nr_active(pwq, false)) {
 		if (list_empty(&pool->worklist))
-			pool->watchdog_ts = jiffies;
+			pool->last_progress_ts = jiffies;
 
 		trace_workqueue_activate_work(work);
 		insert_work(pwq, work, &pool->worklist, work_flags);
@@ -3352,7 +3352,7 @@ static void process_scheduled_works(struct worker *worker)
 	while ((work = list_first_entry_or_null(&worker->scheduled,
 						struct work_struct, entry))) {
 		if (first) {
-			worker->pool->watchdog_ts = jiffies;
+			worker->pool->last_progress_ts = jiffies;
 			first = false;
 		}
 		process_one_work(worker, work);
@@ -4850,7 +4850,7 @@ static int init_worker_pool(struct worker_pool *pool)
 	pool->cpu = -1;
 	pool->node = NUMA_NO_NODE;
 	pool->flags |= POOL_DISASSOCIATED;
-	pool->watchdog_ts = jiffies;
+	pool->last_progress_ts = jiffies;
 	INIT_LIST_HEAD(&pool->worklist);
 	INIT_LIST_HEAD(&pool->idle_list);
 	hash_init(pool->busy_hash);
@@ -6462,7 +6462,7 @@ static void show_one_worker_pool(struct worker_pool *pool)
 
 	/* How long the first pending work is waiting for a worker. */
 	if (!list_empty(&pool->worklist))
-		hung = jiffies_to_msecs(jiffies - pool->watchdog_ts) / 1000;
+		hung = jiffies_to_msecs(jiffies - pool->last_progress_ts) / 1000;
 
 	/*
 	 * Defer printing to avoid deadlocks in console drivers that
@@ -7691,7 +7691,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 			touched = READ_ONCE(per_cpu(wq_watchdog_touched_cpu, pool->cpu));
 		else
 			touched = READ_ONCE(wq_watchdog_touched);
-		pool_ts = READ_ONCE(pool->watchdog_ts);
+		pool_ts = READ_ONCE(pool->last_progress_ts);
 
 		if (time_after(pool_ts, touched))
 			ts = pool_ts;
