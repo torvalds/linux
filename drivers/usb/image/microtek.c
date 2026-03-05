@@ -184,11 +184,8 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_DEBUG(x...) \
 	printk( KERN_DEBUG MTS_NAME x )
 
-#define MTS_DEBUG_GOT_HERE() \
-	MTS_DEBUG("got to %s:%d (%s)\n", __FILE__, (int)__LINE__, __func__ )
 #define MTS_DEBUG_INT() \
-	do { MTS_DEBUG_GOT_HERE(); \
-	     MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
+	do { MTS_DEBUG("transfer = 0x%x context = 0x%x\n",(int)transfer,(int)context ); \
 	     MTS_DEBUG("status = 0x%x data-length = 0x%x sent = 0x%x\n",transfer->status,(int)context->data_length, (int)transfer->actual_length ); \
              mts_debug_dump(context->instance);\
 	   } while(0)
@@ -197,7 +194,6 @@ static struct usb_driver mts_usb_driver = {
 #define MTS_NUL_STATEMENT do { } while(0)
 
 #define MTS_DEBUG(x...)	MTS_NUL_STATEMENT
-#define MTS_DEBUG_GOT_HERE() MTS_NUL_STATEMENT
 #define MTS_DEBUG_INT() MTS_NUL_STATEMENT
 
 #endif
@@ -316,7 +312,6 @@ static inline void mts_debug_dump(struct mts_desc* dummy)
 #endif
 
 static inline void mts_urb_abort(struct mts_desc* desc) {
-	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
 	usb_kill_urb( desc->urb );
@@ -332,8 +327,6 @@ static int mts_scsi_abort(struct scsi_cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 
-	MTS_DEBUG_GOT_HERE();
-
 	mts_urb_abort(desc);
 
 	return FAILED;
@@ -344,7 +337,6 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int result;
 
-	MTS_DEBUG_GOT_HERE();
 	mts_debug_dump(desc);
 
 	result = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
@@ -452,12 +444,9 @@ static void mts_command_done( struct urb *transfer )
 	if ( unlikely(status) ) {
 	        if (status == -ENOENT) {
 		        /* We are being killed */
-			MTS_DEBUG_GOT_HERE();
 			set_host_byte(context->srb, DID_ABORT);
                 } else {
 		        /* A genuine error has occurred */
-			MTS_DEBUG_GOT_HERE();
-
 		        set_host_byte(context->srb, DID_ERROR);
                 }
 		mts_transfer_cleanup(transfer);
@@ -523,8 +512,6 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 {
 	int pipe;
 
-	MTS_DEBUG_GOT_HERE();
-
 	desc->context.instance = desc;
 	desc->context.srb = srb;
 
@@ -565,7 +552,6 @@ static enum scsi_qc_status mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int res;
 
-	MTS_DEBUG_GOT_HERE();
 	mts_show_command(srb);
 	mts_debug_dump(desc);
 
@@ -666,18 +652,14 @@ static int mts_usb_probe(struct usb_interface *intf,
 	/* the current altsetting on the interface we're probing */
 	struct usb_host_interface *altsetting;
 
-	MTS_DEBUG_GOT_HERE();
 	MTS_DEBUG( "usb-device descriptor at %x\n", (int)dev );
 
 	MTS_DEBUG( "product id = 0x%x, vendor id = 0x%x\n",
 		   le16_to_cpu(dev->descriptor.idProduct),
 		   le16_to_cpu(dev->descriptor.idVendor) );
 
-	MTS_DEBUG_GOT_HERE();
-
 	/* the current altsetting on the interface we're probing */
 	altsetting = intf->cur_altsetting;
-
 
 	/* Check if the config is sane */
 
