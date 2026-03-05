@@ -369,7 +369,7 @@ static int loongson_dwmac_setup(void *apriv, struct mac_device_info *mac)
 	mac->mii.data = GMAC_MII_DATA;
 	mac->mii.addr_mask = 0x0000F800;
 	mac->mii.reg_mask = 0x000007C0;
-	mac->mii.clk_csr_mask = GENMASK(5, 2);
+	mac->mii.clk_csr_mask = GENMASK_U32(5, 2);
 
 	return 0;
 }
