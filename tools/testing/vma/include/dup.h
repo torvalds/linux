@@ -843,7 +843,7 @@ static inline vma_flags_t __mk_vma_flags(size_t count, const vma_flag_t *bits);
 #define mk_vma_flags(...) __mk_vma_flags(COUNT_ARGS(__VA_ARGS__), \
 					 (const vma_flag_t []){__VA_ARGS__})
 
-static __always_inline bool vma_flags_test_mask(const vma_flags_t *flags,
+static __always_inline bool vma_flags_test_any_mask(const vma_flags_t *flags,
 		vma_flags_t to_test)
 {
 	const unsigned long *bitmap = flags->__vma_flags;
@@ -852,8 +852,8 @@ static __always_inline bool vma_flags_test_mask(const vma_flags_t *flags,
 	return bitmap_intersects(bitmap_to_test, bitmap, NUM_VMA_FLAG_BITS);
 }
 
-#define vma_flags_test(flags, ...) \
-	vma_flags_test_mask(flags, mk_vma_flags(__VA_ARGS__))
+#define vma_flags_test_any(flags, ...) \
+	vma_flags_test_any_mask(flags, mk_vma_flags(__VA_ARGS__))
 
 static __always_inline bool vma_flags_test_all_mask(const vma_flags_t *flags,
 		vma_flags_t to_test)
@@ -889,14 +889,14 @@ static __always_inline void vma_flags_clear_mask(vma_flags_t *flags, vma_flags_t
 #define vma_flags_clear(flags, ...) \
 	vma_flags_clear_mask(flags, mk_vma_flags(__VA_ARGS__))
 
-static inline bool vma_test_all_flags_mask(const struct vm_area_struct *vma,
+static inline bool vma_test_all_mask(const struct vm_area_struct *vma,
 					   vma_flags_t flags)
 {
 	return vma_flags_test_all_mask(&vma->flags, flags);
 }
 
-#define vma_test_all_flags(vma, ...) \
-	vma_test_all_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
+#define vma_test_all(vma, ...) \
+	vma_test_all_mask(vma, mk_vma_flags(__VA_ARGS__))
 
 static inline bool is_shared_maywrite_vm_flags(vm_flags_t vm_flags)
 {
@@ -913,14 +913,14 @@ static inline void vma_set_flags_mask(struct vm_area_struct *vma,
 #define vma_set_flags(vma, ...) \
 	vma_set_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
 
-static inline bool vma_desc_test_flags_mask(const struct vm_area_desc *desc,
+static inline bool vma_desc_test_any_mask(const struct vm_area_desc *desc,
 					    vma_flags_t flags)
 {
-	return vma_flags_test_mask(&desc->vma_flags, flags);
+	return vma_flags_test_any_mask(&desc->vma_flags, flags);
 }
 
-#define vma_desc_test_flags(desc, ...) \
-	vma_desc_test_flags_mask(desc, mk_vma_flags(__VA_ARGS__))
+#define vma_desc_test_any(desc, ...) \
+	vma_desc_test_any_mask(desc, mk_vma_flags(__VA_ARGS__))
 
 static inline void vma_desc_set_flags_mask(struct vm_area_desc *desc,
 					   vma_flags_t flags)

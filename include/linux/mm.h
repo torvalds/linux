@@ -1062,7 +1062,7 @@ static inline vma_flags_t __mk_vma_flags(size_t count, const vma_flag_t *bits)
 					 (const vma_flag_t []){__VA_ARGS__})
 
 /*  Test each of to_test flags in flags, non-atomically. */
-static __always_inline bool vma_flags_test_mask(const vma_flags_t *flags,
+static __always_inline bool vma_flags_test_any_mask(const vma_flags_t *flags,
 		vma_flags_t to_test)
 {
 	const unsigned long *bitmap = flags->__vma_flags;
@@ -1074,10 +1074,10 @@ static __always_inline bool vma_flags_test_mask(const vma_flags_t *flags,
 /*
  * Test whether any specified VMA flag is set, e.g.:
  *
- * if (vma_flags_test(flags, VMA_READ_BIT, VMA_MAYREAD_BIT)) { ... }
+ * if (vma_flags_test_any(flags, VMA_READ_BIT, VMA_MAYREAD_BIT)) { ... }
  */
-#define vma_flags_test(flags, ...) \
-	vma_flags_test_mask(flags, mk_vma_flags(__VA_ARGS__))
+#define vma_flags_test_any(flags, ...) \
+	vma_flags_test_any_mask(flags, mk_vma_flags(__VA_ARGS__))
 
 /* Test that ALL of the to_test flags are set, non-atomically. */
 static __always_inline bool vma_flags_test_all_mask(const vma_flags_t *flags,
@@ -1098,7 +1098,8 @@ static __always_inline bool vma_flags_test_all_mask(const vma_flags_t *flags,
 	vma_flags_test_all_mask(flags, mk_vma_flags(__VA_ARGS__))
 
 /* Set each of the to_set flags in flags, non-atomically. */
-static __always_inline void vma_flags_set_mask(vma_flags_t *flags, vma_flags_t to_set)
+static __always_inline void vma_flags_set_mask(vma_flags_t *flags,
+		vma_flags_t to_set)
 {
 	unsigned long *bitmap = flags->__vma_flags;
 	const unsigned long *bitmap_to_set = to_set.__vma_flags;
@@ -1115,7 +1116,8 @@ static __always_inline void vma_flags_set_mask(vma_flags_t *flags, vma_flags_t t
 	vma_flags_set_mask(flags, mk_vma_flags(__VA_ARGS__))
 
 /* Clear all of the to-clear flags in flags, non-atomically. */
-static __always_inline void vma_flags_clear_mask(vma_flags_t *flags, vma_flags_t to_clear)
+static __always_inline void vma_flags_clear_mask(vma_flags_t *flags,
+		vma_flags_t to_clear)
 {
 	unsigned long *bitmap = flags->__vma_flags;
 	const unsigned long *bitmap_to_clear = to_clear.__vma_flags;
@@ -1137,8 +1139,8 @@ static __always_inline void vma_flags_clear_mask(vma_flags_t *flags, vma_flags_t
  * Note: appropriate locks must be held, this function does not acquire them for
  * you.
  */
-static inline bool vma_test_all_flags_mask(const struct vm_area_struct *vma,
-					   vma_flags_t flags)
+static inline bool vma_test_all_mask(const struct vm_area_struct *vma,
+		vma_flags_t flags)
 {
 	return vma_flags_test_all_mask(&vma->flags, flags);
 }
@@ -1146,10 +1148,10 @@ static inline bool vma_test_all_flags_mask(const struct vm_area_struct *vma,
 /*
  * Helper macro for checking that ALL specified flags are set in a VMA, e.g.:
  *
- * if (vma_test_all_flags(vma, VMA_READ_BIT, VMA_MAYREAD_BIT) { ... }
+ * if (vma_test_all(vma, VMA_READ_BIT, VMA_MAYREAD_BIT) { ... }
  */
-#define vma_test_all_flags(vma, ...) \
-	vma_test_all_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
+#define vma_test_all(vma, ...) \
+	vma_test_all_mask(vma, mk_vma_flags(__VA_ARGS__))
 
 /*
  * Helper to set all VMA flags in a VMA.
@@ -1158,7 +1160,7 @@ static inline bool vma_test_all_flags_mask(const struct vm_area_struct *vma,
  * you.
  */
 static inline void vma_set_flags_mask(struct vm_area_struct *vma,
-				      vma_flags_t flags)
+		vma_flags_t flags)
 {
 	vma_flags_set_mask(&vma->flags, flags);
 }
@@ -1176,25 +1178,25 @@ static inline void vma_set_flags_mask(struct vm_area_struct *vma,
 	vma_set_flags_mask(vma, mk_vma_flags(__VA_ARGS__))
 
 /* Helper to test all VMA flags in a VMA descriptor. */
-static inline bool vma_desc_test_flags_mask(const struct vm_area_desc *desc,
-					    vma_flags_t flags)
+static inline bool vma_desc_test_any_mask(const struct vm_area_desc *desc,
+		vma_flags_t flags)
 {
-	return vma_flags_test_mask(&desc->vma_flags, flags);
+	return vma_flags_test_any_mask(&desc->vma_flags, flags);
 }
 
 /*
  * Helper macro for testing VMA flags for an input pointer to a struct
  * vm_area_desc object describing a proposed VMA, e.g.:
  *
- * if (vma_desc_test_flags(desc, VMA_IO_BIT, VMA_PFNMAP_BIT,
+ * if (vma_desc_test_any(desc, VMA_IO_BIT, VMA_PFNMAP_BIT,
  *		VMA_DONTEXPAND_BIT, VMA_DONTDUMP_BIT)) { ... }
  */
-#define vma_desc_test_flags(desc, ...) \
-	vma_desc_test_flags_mask(desc, mk_vma_flags(__VA_ARGS__))
+#define vma_desc_test_any(desc, ...) \
+	vma_desc_test_any_mask(desc, mk_vma_flags(__VA_ARGS__))
 
 /* Helper to set all VMA flags in a VMA descriptor. */
 static inline void vma_desc_set_flags_mask(struct vm_area_desc *desc,
-					   vma_flags_t flags)
+		vma_flags_t flags)
 {
 	vma_flags_set_mask(&desc->vma_flags, flags);
 }
@@ -1211,7 +1213,7 @@ static inline void vma_desc_set_flags_mask(struct vm_area_desc *desc,
 
 /* Helper to clear all VMA flags in a VMA descriptor. */
 static inline void vma_desc_clear_flags_mask(struct vm_area_desc *desc,
-					     vma_flags_t flags)
+		vma_flags_t flags)
 {
 	vma_flags_clear_mask(&desc->vma_flags, flags);
 }
@@ -1936,8 +1938,8 @@ static inline bool vma_desc_is_cow_mapping(struct vm_area_desc *desc)
 {
 	const vma_flags_t *flags = &desc->vma_flags;
 
-	return vma_flags_test(flags, VMA_MAYWRITE_BIT) &&
-		!vma_flags_test(flags, VMA_SHARED_BIT);
+	return vma_flags_test_any(flags, VMA_MAYWRITE_BIT) &&
+		!vma_flags_test_any(flags, VMA_SHARED_BIT);
 }
 
 #ifndef CONFIG_MMU
@@ -1956,7 +1958,7 @@ static inline bool is_nommu_shared_mapping(vm_flags_t flags)
 
 static inline bool is_nommu_shared_vma_flags(const vma_flags_t *flags)
 {
-	return vma_flags_test(flags, VMA_MAYSHARE_BIT, VMA_MAYOVERLAY_BIT);
+	return vma_flags_test_any(flags, VMA_MAYSHARE_BIT, VMA_MAYOVERLAY_BIT);
 }
 #endif
 

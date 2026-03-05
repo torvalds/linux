@@ -159,8 +159,8 @@ static bool test_vma_flags_word(void)
 	return true;
 }
 
-/* Ensure that vma_flags_test() and friends works correctly. */
-static bool test_vma_flags_test(void)
+/* Ensure that vma_flags_test_any() and friends works correctly. */
+static bool test_vma_flags_test_any(void)
 {
 	const vma_flags_t flags = mk_vma_flags(VMA_READ_BIT, VMA_WRITE_BIT,
 					       VMA_EXEC_BIT, 64, 65);
@@ -171,16 +171,16 @@ static bool test_vma_flags_test(void)
 	desc.vma_flags = flags;
 
 #define do_test(...)						\
-	ASSERT_TRUE(vma_flags_test(&flags, __VA_ARGS__));	\
-	ASSERT_TRUE(vma_desc_test_flags(&desc, __VA_ARGS__))
+	ASSERT_TRUE(vma_flags_test_any(&flags, __VA_ARGS__));	\
+	ASSERT_TRUE(vma_desc_test_any(&desc, __VA_ARGS__))
 
 #define do_test_all_true(...)					\
 	ASSERT_TRUE(vma_flags_test_all(&flags, __VA_ARGS__));	\
-	ASSERT_TRUE(vma_test_all_flags(&vma, __VA_ARGS__))
+	ASSERT_TRUE(vma_test_all(&vma, __VA_ARGS__))
 
 #define do_test_all_false(...)					\
 	ASSERT_FALSE(vma_flags_test_all(&flags, __VA_ARGS__));	\
-	ASSERT_FALSE(vma_test_all_flags(&vma, __VA_ARGS__))
+	ASSERT_FALSE(vma_test_all(&vma, __VA_ARGS__))
 
 	/*
 	 * Testing for some flags that are present, some that are not - should
@@ -200,7 +200,7 @@ static bool test_vma_flags_test(void)
 	 * Check _mask variant. We don't need to test extensively as macro
 	 * helper is the equivalent.
 	 */
-	ASSERT_TRUE(vma_flags_test_mask(&flags, flags));
+	ASSERT_TRUE(vma_flags_test_any_mask(&flags, flags));
 	ASSERT_TRUE(vma_flags_test_all_mask(&flags, flags));
 
 	/* Single bits. */
@@ -268,9 +268,9 @@ static bool test_vma_flags_clear(void)
 	vma_flags_clear_mask(&flags, mask);
 	vma_flags_clear_mask(&vma.flags, mask);
 	vma_desc_clear_flags_mask(&desc, mask);
-	ASSERT_FALSE(vma_flags_test(&flags, VMA_EXEC_BIT, 64));
-	ASSERT_FALSE(vma_flags_test(&vma.flags, VMA_EXEC_BIT, 64));
-	ASSERT_FALSE(vma_desc_test_flags(&desc, VMA_EXEC_BIT, 64));
+	ASSERT_FALSE(vma_flags_test_any(&flags, VMA_EXEC_BIT, 64));
+	ASSERT_FALSE(vma_flags_test_any(&vma.flags, VMA_EXEC_BIT, 64));
+	ASSERT_FALSE(vma_desc_test_any(&desc, VMA_EXEC_BIT, 64));
 	/* Reset. */
 	vma_flags_set(&flags, VMA_EXEC_BIT, 64);
 	vma_set_flags(&vma, VMA_EXEC_BIT, 64);
@@ -284,9 +284,9 @@ static bool test_vma_flags_clear(void)
 	vma_flags_clear(&flags, __VA_ARGS__);			\
 	vma_flags_clear(&vma.flags, __VA_ARGS__);		\
 	vma_desc_clear_flags(&desc, __VA_ARGS__);		\
-	ASSERT_FALSE(vma_flags_test(&flags, __VA_ARGS__));	\
-	ASSERT_FALSE(vma_flags_test(&vma.flags, __VA_ARGS__));	\
-	ASSERT_FALSE(vma_desc_test_flags(&desc, __VA_ARGS__));	\
+	ASSERT_FALSE(vma_flags_test_any(&flags, __VA_ARGS__));	\
+	ASSERT_FALSE(vma_flags_test_any(&vma.flags, __VA_ARGS__));	\
+	ASSERT_FALSE(vma_desc_test_any(&desc, __VA_ARGS__));	\
 	vma_flags_set(&flags, __VA_ARGS__);			\
 	vma_set_flags(&vma, __VA_ARGS__);			\
 	vma_desc_set_flags(&desc, __VA_ARGS__)
@@ -334,6 +334,6 @@ static void run_vma_tests(int *num_tests, int *num_fail)
 	TEST(vma_flags_unchanged);
 	TEST(vma_flags_cleared);
 	TEST(vma_flags_word);
-	TEST(vma_flags_test);
+	TEST(vma_flags_test_any);
 	TEST(vma_flags_clear);
 }
