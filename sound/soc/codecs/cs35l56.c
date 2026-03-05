@@ -1661,7 +1661,7 @@ VISIBLE_IF_KUNIT int cs35l56_process_xu_properties(struct cs35l56_private *cs35l
 }
 EXPORT_SYMBOL_IF_KUNIT(cs35l56_process_xu_properties);
 
-static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
+VISIBLE_IF_KUNIT int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 {
 	struct device *dev = cs35l56->base.dev;
 	const char *prop;
@@ -1686,6 +1686,7 @@ static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_get_firmware_uid);
 
 /*
  * Some SoundWire laptops have a spk-id-gpios property but it points to

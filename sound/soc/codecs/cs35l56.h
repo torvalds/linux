@@ -78,6 +78,7 @@ void cs35l56_remove(struct cs35l56_private *cs35l56);
 int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56);
 int cs35l56_set_fw_name(struct snd_soc_component *component);
 int cs35l56_process_xu_properties(struct cs35l56_private *cs35l56);
+int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56);
 #endif
 
 #endif /* ifndef CS35L56_H */
