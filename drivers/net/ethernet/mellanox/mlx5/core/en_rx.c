@@ -1957,13 +1957,12 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 
 	if (prog) {
 		u8 nr_frags_free, old_nr_frags = sinfo->nr_frags;
+		u8 new_nr_frags;
 		u32 len;
 
 		if (mlx5e_xdp_handle(rq, prog, mxbuf)) {
 			if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
 				struct mlx5e_frag_page *pfp;
-
-				frag_page -= old_nr_frags - sinfo->nr_frags;
 
 				for (pfp = head_page; pfp < frag_page; pfp++)
 					pfp->frags++;
@@ -1975,13 +1974,12 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 			return NULL; /* page/packet was consumed by XDP */
 		}
 
-		nr_frags_free = old_nr_frags - sinfo->nr_frags;
-		if (unlikely(nr_frags_free)) {
-			frag_page -= nr_frags_free;
+		new_nr_frags = sinfo->nr_frags;
+		nr_frags_free = old_nr_frags - new_nr_frags;
+		if (unlikely(nr_frags_free))
 			truesize -= (nr_frags_free - 1) * PAGE_SIZE +
 				ALIGN(pg_consumed_bytes,
 				      BIT(rq->mpwqe.log_stride_sz));
-		}
 
 		len = mxbuf->xdp.data_end - mxbuf->xdp.data;
 
@@ -2003,7 +2001,7 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 			struct mlx5e_frag_page *pagep;
 
 			/* sinfo->nr_frags is reset by build_skb, calculate again. */
-			xdp_update_skb_frags_info(skb, frag_page - head_page,
+			xdp_update_skb_frags_info(skb, new_nr_frags,
 						  sinfo->xdp_frags_size,
 						  truesize,
 						  xdp_buff_get_skb_flags(&mxbuf->xdp));
