@@ -212,7 +212,7 @@ static int tcp_twsk_diag_fill(struct sock *sk,
 	r->idiag_retrans      = 0;
 
 	r->idiag_state	      = READ_ONCE(tw->tw_substate);
-	r->idiag_timer	      = 3;
+	r->idiag_timer	      = IDIAG_TIMER_TIMEWAIT;
 	tmo = tw->tw_timer.expires - jiffies;
 	r->idiag_expires      = jiffies_delta_to_msecs(tmo);
 	r->idiag_rqueue	      = 0;
@@ -247,7 +247,7 @@ static int tcp_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	r = nlmsg_data(nlh);
 	inet_diag_msg_common_fill(r, sk);
 	r->idiag_state = TCP_SYN_RECV;
-	r->idiag_timer = 1;
+	r->idiag_timer = IDIAG_TIMER_ON;
 	r->idiag_retrans = READ_ONCE(reqsk->num_retrans);
 
 	BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=

@@ -129,6 +129,15 @@ struct inet_diag_msg {
 	__u32	idiag_inode;
 };
 
+enum {
+	IDIAG_TIMER_OFF,
+	IDIAG_TIMER_ON,
+	IDIAG_TIMER_KEEPALIVE,
+	IDIAG_TIMER_TIMEWAIT,
+	IDIAG_TIMER_PROBE0,
+	IDIAG_TIMER_DELACK,
+};
+
 /* Extensions */
 
 enum {
