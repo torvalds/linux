@@ -33,21 +33,11 @@ MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI AC Adapter Driver");
 MODULE_LICENSE("GPL");
 
-static int acpi_ac_probe(struct platform_device *pdev);
-static void acpi_ac_remove(struct platform_device *pdev);
-
-static void acpi_ac_notify(acpi_handle handle, u32 event, void *data);
-
 static const struct acpi_device_id ac_device_ids[] = {
 	{"ACPI0003", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, ac_device_ids);
-
-#ifdef CONFIG_PM_SLEEP
-static int acpi_ac_resume(struct device *dev);
-#endif
-static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static int ac_sleep_before_get_state_ms;
 static int ac_only;
@@ -272,9 +262,9 @@ static int acpi_ac_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define acpi_ac_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static void acpi_ac_remove(struct platform_device *pdev)
 {
