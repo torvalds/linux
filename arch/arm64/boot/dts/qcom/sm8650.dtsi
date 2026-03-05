@@ -4393,6 +4393,8 @@
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
 
+			sram = <&ipa_modem_tables>;
+
 			status = "disabled";
 		};
 
@@ -7073,6 +7075,20 @@
 						remote-endpoint = <&funnel_in1_in_funnel_apss>;
 					};
 				};
+			};
+		};
+
+		sram@14680000 {
+			compatible = "qcom,sm8650-imem", "syscon", "simple-mfd";
+			reg = <0 0x14680000 0 0x2c000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ranges = <0 0 0x14680000 0x2c000>;
+
+			ipa_modem_tables: modem-tables@8000 {
+				reg = <0x8000 0x2000>;
 			};
 		};
 
