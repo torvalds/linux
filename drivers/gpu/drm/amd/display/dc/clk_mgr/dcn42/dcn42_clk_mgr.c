@@ -1138,11 +1138,6 @@ void dcn42_clk_mgr_construct(
 			dcn42_bw_params.num_channels = ctx->dc_bios->integrated_info->ma_channel_number ? ctx->dc_bios->integrated_info->ma_channel_number : 1;
 			clk_mgr->base.base.dprefclk_khz = dcn42_smu_get_dprefclk(&clk_mgr->base);
 			clk_mgr->base.base.clks.ref_dtbclk_khz = dcn42_smu_get_dtbclk(&clk_mgr->base);
-
-			clk_mgr->base.base.bw_params = &dcn42_bw_params;
-
-			if (clk_mgr->base.smu_present)
-				dcn42_get_smu_clocks(&clk_mgr->base);
 		}
 		/* in case we don't get a value from the BIOS, use default */
 		if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
@@ -1155,6 +1150,10 @@ void dcn42_clk_mgr_construct(
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
 	dcn42_read_ss_info_from_lut(&clk_mgr->base);
+
+	clk_mgr->base.base.bw_params = &dcn42_bw_params;
+	if (clk_mgr->base.smu_present)
+		dcn42_get_smu_clocks(&clk_mgr->base);
 }
 
 void dcn42_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int)
