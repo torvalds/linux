@@ -407,8 +407,7 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 	mutex_unlock(&isolated_cpus_lock);
 }
 
-static void acpi_pad_notify(acpi_handle handle, u32 event,
-	void *data)
+static void acpi_pad_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *adev = data;
 
@@ -427,30 +426,22 @@ static void acpi_pad_notify(acpi_handle handle, u32 event,
 static int acpi_pad_probe(struct platform_device *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
-	acpi_status status;
 
 	strscpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
 	strscpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
-	status = acpi_install_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify, adev);
-
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	return 0;
+	return acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
+					       acpi_pad_notify, adev);
 }
 
 static void acpi_pad_remove(struct platform_device *pdev)
 {
-	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
-
 	mutex_lock(&isolated_cpus_lock);
 	acpi_pad_idle_cpus(0);
 	mutex_unlock(&isolated_cpus_lock);
 
-	acpi_remove_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
+	acpi_dev_remove_notify_handler(ACPI_COMPANION(&pdev->dev),
+				       ACPI_DEVICE_NOTIFY, acpi_pad_notify);
 }
 
 static const struct acpi_device_id pad_device_ids[] = {
