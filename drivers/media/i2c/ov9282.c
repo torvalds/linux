@@ -221,7 +221,6 @@ struct ov9282 {
 	bool noncontinuous_clock;
 	const struct ov9282_mode *cur_mode;
 	u32 code;
-	struct mutex mutex;
 };
 
 static const s64 link_freq[] = {
@@ -795,8 +794,6 @@ static int ov9282_get_pad_format(struct v4l2_subdev *sd,
 {
 	struct ov9282 *ov9282 = to_ov9282(sd);
 
-	mutex_lock(&ov9282->mutex);
-
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
@@ -806,8 +803,6 @@ static int ov9282_get_pad_format(struct v4l2_subdev *sd,
 		ov9282_fill_pad_format(ov9282, ov9282->cur_mode, ov9282->code,
 				       fmt);
 	}
-
-	mutex_unlock(&ov9282->mutex);
 
 	return 0;
 }
@@ -828,8 +823,6 @@ static int ov9282_set_pad_format(struct v4l2_subdev *sd,
 	const struct ov9282_mode *mode;
 	u32 code;
 	int ret = 0;
-
-	mutex_lock(&ov9282->mutex);
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
@@ -855,8 +848,6 @@ static int ov9282_set_pad_format(struct v4l2_subdev *sd,
 			ov9282->code = code;
 		}
 	}
-
-	mutex_unlock(&ov9282->mutex);
 
 	return ret;
 }
@@ -904,10 +895,8 @@ static int ov9282_get_selection(struct v4l2_subdev *sd,
 	case V4L2_SEL_TGT_CROP: {
 		struct ov9282 *ov9282 = to_ov9282(sd);
 
-		mutex_lock(&ov9282->mutex);
 		sel->r = *__ov9282_get_pad_crop(ov9282, sd_state, sel->pad,
 						sel->which);
-		mutex_unlock(&ov9282->mutex);
 
 		return 0;
 	}
@@ -1019,9 +1008,10 @@ static int ov9282_stop_streaming(struct ov9282 *ov9282)
 static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov9282 *ov9282 = to_ov9282(sd);
+	struct v4l2_subdev_state *state;
 	int ret;
 
-	mutex_lock(&ov9282->mutex);
+	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(ov9282->dev);
@@ -1036,14 +1026,14 @@ static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(ov9282->dev);
 	}
 
-	mutex_unlock(&ov9282->mutex);
+	v4l2_subdev_unlock_state(state);
 
 	return 0;
 
 error_power_off:
 	pm_runtime_put(ov9282->dev);
 error_unlock:
-	mutex_unlock(&ov9282->mutex);
+	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -1285,9 +1275,6 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 	if (ret)
 		return ret;
 
-	/* Serialize controls with sensor device */
-	ctrl_hdlr->lock = &ov9282->mutex;
-
 	/* Initialize exposure and gain */
 	lpfr = mode->vblank + mode->height;
 	ov9282->exp_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
@@ -1409,13 +1396,10 @@ static int ov9282_probe(struct i2c_client *client)
 		return dev_err_probe(ov9282->dev, PTR_ERR(ov9282->regmap),
 				     "Failed to init CCI\n");
 
-	mutex_init(&ov9282->mutex);
-
 	ret = ov9282_power_on(ov9282->dev);
-	if (ret) {
-		dev_err(ov9282->dev, "failed to power-on the sensor");
-		goto error_mutex_destroy;
-	}
+	if (ret)
+		return dev_err_probe(ov9282->dev, ret,
+				     "failed to power-on the sensor");
 
 	/* Check module identity */
 	ret = ov9282_detect(ov9282);
@@ -1448,27 +1432,34 @@ static int ov9282_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&ov9282->sd);
+	ov9282->sd.state_lock = ov9282->ctrl_handler.lock;
+	ret = v4l2_subdev_init_finalize(&ov9282->sd);
 	if (ret < 0) {
-		dev_err(ov9282->dev,
-			"failed to register async subdev: %d", ret);
+		dev_err_probe(ov9282->dev, ret, "failed to init subdev\n");
 		goto error_media_entity;
 	}
 
 	pm_runtime_set_active(ov9282->dev);
 	pm_runtime_enable(ov9282->dev);
+
+	ret = v4l2_async_register_subdev_sensor(&ov9282->sd);
+	if (ret < 0)
+		goto v4l2_subdev_cleanup;
+
 	pm_runtime_idle(ov9282->dev);
 
 	return 0;
 
+v4l2_subdev_cleanup:
+	v4l2_subdev_cleanup(&ov9282->sd);
+	pm_runtime_disable(ov9282->dev);
+	pm_runtime_set_suspended(ov9282->dev);
 error_media_entity:
 	media_entity_cleanup(&ov9282->sd.entity);
 error_handler_free:
 	v4l2_ctrl_handler_free(ov9282->sd.ctrl_handler);
 error_power_off:
 	ov9282_power_off(ov9282->dev);
-error_mutex_destroy:
-	mutex_destroy(&ov9282->mutex);
 
 	return ret;
 }
@@ -1482,9 +1473,9 @@ error_mutex_destroy:
 static void ov9282_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov9282 *ov9282 = to_ov9282(sd);
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
@@ -1492,8 +1483,6 @@ static void ov9282_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		ov9282_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	mutex_destroy(&ov9282->mutex);
 }
 
 static const struct dev_pm_ops ov9282_pm_ops = {
