@@ -10484,7 +10484,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
 F:	Documentation/trace/ftrace*
 F:	arch/*/*/*/*ftrace*
 F:	arch/*/*/*ftrace*
-F:	include/*/ftrace.h
+F:	include/*/*ftrace*
 F:	kernel/trace/fgraph.c
 F:	kernel/trace/ftrace*
 F:	samples/ftrace
