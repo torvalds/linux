@@ -419,6 +419,7 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	struct xe_vmas_in_madvise_range madvise_range = {.addr = args->start,
 							 .range =  args->range, };
 	struct xe_madvise_details details;
+	u16 pat_index, coh_mode;
 	struct xe_vm *vm;
 	struct drm_exec exec;
 	int err, attr_type;
@@ -455,6 +456,17 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	if (err || !madvise_range.num_vmas)
 		goto madv_fini;
 
+	if (args->type == DRM_XE_MEM_RANGE_ATTR_PAT) {
+		pat_index = array_index_nospec(args->pat_index.val, xe->pat.n_entries);
+		coh_mode = xe_pat_index_get_coh_mode(xe, pat_index);
+		if (XE_IOCTL_DBG(xe, madvise_range.has_svm_userptr_vmas &&
+				 xe_device_is_l2_flush_optimized(xe) &&
+				 (pat_index != 19 && coh_mode != XE_COH_2WAY))) {
+			err = -EINVAL;
+			goto madv_fini;
+		}
+	}
+
 	if (madvise_range.has_bo_vmas) {
 		if (args->type == DRM_XE_MEM_RANGE_ATTR_ATOMIC) {
 			if (!check_bo_args_are_sane(vm, madvise_range.vmas,
@@ -472,6 +484,17 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 
 				if (!bo)
 					continue;
+
+				if (args->type == DRM_XE_MEM_RANGE_ATTR_PAT) {
+					if (XE_IOCTL_DBG(xe, bo->ttm.base.import_attach &&
+							 xe_device_is_l2_flush_optimized(xe) &&
+							 (pat_index != 19 &&
+							  coh_mode != XE_COH_2WAY))) {
+						err = -EINVAL;
+						goto err_fini;
+					}
+				}
+
 				err = drm_exec_lock_obj(&exec, &bo->ttm.base);
 				drm_exec_retry_on_contention(&exec);
 				if (err)
