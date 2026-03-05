@@ -55,7 +55,6 @@
  * Status:
  *
  *	Untested with multiple scanners.
- *	Untested on SMP.
  *	Untested on a bigendian machine.
  *
  * History:
