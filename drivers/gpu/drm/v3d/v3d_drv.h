@@ -38,6 +38,8 @@ static inline char *v3d_queue_to_string(enum v3d_queue queue)
 }
 
 struct v3d_stats {
+	struct kref refcount;
+
 	u64 start_ns;
 	u64 enabled_ns;
 	u64 jobs_completed;
@@ -62,7 +64,7 @@ struct v3d_queue_state {
 	u64 emit_seqno;
 
 	/* Stores the GPU stats for this queue in the global context. */
-	struct v3d_stats stats;
+	struct v3d_stats *stats;
 
 	/* Currently active job for this queue */
 	struct v3d_job *active_job;
@@ -230,7 +232,7 @@ struct v3d_file_priv {
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 
 	/* Stores the GPU stats for a specific queue for this fd. */
-	struct v3d_stats stats[V3D_MAX_QUEUES];
+	struct v3d_stats *stats[V3D_MAX_QUEUES];
 
 	/* Per-fd reset counter, must be incremented when a job submitted
 	 * by this fd causes a GPU reset. It must be protected by
@@ -603,9 +605,22 @@ void v3d_timestamp_query_info_free(struct v3d_timestamp_query_info *query_info,
 				   unsigned int count);
 void v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
 				     unsigned int count);
+struct v3d_stats *v3d_stats_alloc(void);
+void v3d_stats_release(struct kref *refcount);
 void v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q);
 int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);
+
+static inline struct v3d_stats *v3d_stats_get(struct v3d_stats *stats)
+{
+	kref_get(&stats->refcount);
+	return stats;
+}
+
+static inline void v3d_stats_put(struct v3d_stats *stats)
+{
+	kref_put(&stats->refcount, v3d_stats_release);
+}
 
 /* v3d_perfmon.c */
 void v3d_perfmon_init(struct v3d_dev *v3d);

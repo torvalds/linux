@@ -140,15 +140,18 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
+		v3d_priv->stats[i] = v3d_stats_alloc();
+		if (!v3d_priv->stats[i]) {
+			ret = -ENOMEM;
+			goto err_stats;
+		}
+
 		sched = &v3d->queue[i].sched;
 		ret = drm_sched_entity_init(&v3d_priv->sched_entity[i],
 					    DRM_SCHED_PRIORITY_NORMAL, &sched,
 					    1, NULL);
 		if (ret)
 			goto err_sched;
-
-		memset(&v3d_priv->stats[i], 0, sizeof(v3d_priv->stats[i]));
-		seqcount_init(&v3d_priv->stats[i].lock);
 	}
 
 	v3d_perfmon_open_file(v3d_priv);
@@ -157,8 +160,12 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 
 err_sched:
-	for (i--; i >= 0; i--)
+	v3d_stats_put(v3d_priv->stats[i]);
+err_stats:
+	for (i--; i >= 0; i--) {
 		drm_sched_entity_destroy(&v3d_priv->sched_entity[i]);
+		v3d_stats_put(v3d_priv->stats[i]);
+	}
 	kfree(v3d_priv);
 	return ret;
 }
@@ -182,6 +189,8 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 			job->file_priv = NULL;
 			spin_unlock_irqrestore(&queue->queue_lock, irqflags);
 		}
+
+		v3d_stats_put(v3d_priv->stats[q]);
 	}
 
 	v3d_perfmon_close_file(v3d_priv);
@@ -209,7 +218,7 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 	enum v3d_queue queue;
 
 	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
-		struct v3d_stats *stats = &file_priv->stats[queue];
+		struct v3d_stats *stats = file_priv->stats[queue];
 		u64 active_runtime, jobs_completed;
 
 		v3d_get_stats(stats, timestamp, &active_runtime, &jobs_completed);

@@ -66,6 +66,27 @@ to_cpu_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct v3d_cpu_job, base.base);
 }
 
+void v3d_stats_release(struct kref *refcount)
+{
+	struct v3d_stats *stats = container_of(refcount, typeof(*stats), refcount);
+
+	kfree(stats);
+}
+
+struct v3d_stats *v3d_stats_alloc(void)
+{
+	struct v3d_stats *stats;
+
+	stats = kzalloc_obj(*stats);
+	if (!stats)
+		return NULL;
+
+	kref_init(&stats->refcount);
+	seqcount_init(&stats->lock);
+
+	return stats;
+}
+
 static void
 v3d_sched_job_free(struct drm_sched_job *sched_job)
 {
@@ -141,8 +162,8 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 {
 	struct v3d_dev *v3d = job->v3d;
 	struct v3d_file_priv *file = job->file_priv;
-	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
-	struct v3d_stats *local_stats = &file->stats[queue];
+	struct v3d_stats *global_stats = v3d->queue[queue].stats;
+	struct v3d_stats *local_stats = file->stats[queue];
 	u64 now = local_clock();
 
 	preempt_disable();
@@ -173,7 +194,7 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
 {
 	struct v3d_dev *v3d = job->v3d;
 	struct v3d_queue_state *queue = &v3d->queue[q];
-	struct v3d_stats *global_stats = &queue->stats;
+	struct v3d_stats *global_stats = queue->stats;
 	u64 now = local_clock();
 
 	preempt_disable();
@@ -181,7 +202,7 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
 	/* Don't update the local stats if the file context has already closed */
 	spin_lock(&queue->queue_lock);
 	if (job->file_priv)
-		v3d_stats_update(&job->file_priv->stats[q], now);
+		v3d_stats_update(job->file_priv->stats[q], now);
 	spin_unlock(&queue->queue_lock);
 
 	v3d_stats_update(global_stats, now);
