@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/fwnode.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
@@ -20,6 +21,7 @@
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
@@ -1430,21 +1432,35 @@ EXPORT_SYMBOL_GPL(__device_reset);
  */
 
 /**
- * of_reset_control_get_count - Count number of resets available with a device
+ * fwnode_reset_control_get_count - Count number of resets available with a device
  *
- * @node: device node that contains 'resets'.
+ * @fwnode: firmware node that contains 'resets'.
  *
  * Returns positive reset count on success, or error number on failure and
  * on count being zero.
  */
-static int of_reset_control_get_count(struct device_node *node)
+static int fwnode_reset_control_get_count(struct fwnode_handle *fwnode)
 {
-	int count;
+	struct fwnode_reference_args args;
+	int count = 0, ret;
 
-	if (!node)
+	if (!fwnode)
 		return -EINVAL;
 
-	count = of_count_phandle_with_args(node, "resets", "#reset-cells");
+	for (;;) {
+		ret = fwnode_property_get_reference_args(fwnode, "resets", "#reset-cells",
+							 0, count, &args);
+		if (ret) {
+			if (ret == -ENOENT)
+				break;
+
+			return ret;
+		}
+
+		fwnode_handle_put(args.fwnode);
+		count++;
+	}
+
 	if (count == 0)
 		count = -ENOENT;
 
@@ -1468,7 +1484,7 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	struct reset_control *rstc;
 	int num, i;
 
-	num = of_reset_control_get_count(np);
+	num = fwnode_reset_control_get_count(of_fwnode_handle(np));
 	if (num < 0)
 		return optional ? NULL : ERR_PTR(num);
 
@@ -1542,8 +1558,10 @@ EXPORT_SYMBOL_GPL(devm_reset_control_array_get);
  */
 int reset_control_get_count(struct device *dev)
 {
-	if (dev->of_node)
-		return of_reset_control_get_count(dev->of_node);
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+
+	if (fwnode)
+		return fwnode_reset_control_get_count(fwnode);
 
 	return -ENOENT;
 }
