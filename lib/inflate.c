@@ -811,6 +811,8 @@ DEBG("<fix");
 
   /* decompress until an end-of-block code */
   if (inflate_codes(tl, td, bl, bd)) {
+    huft_free(tl);
+    huft_free(td);
     free(l);
     return 1;
   }
