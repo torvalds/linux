@@ -185,7 +185,7 @@ MODULE_PARM_DESC(bypass_lb_intv_us, "bypass load balance interval in microsecond
 
 static void process_ddsp_deferred_locals(struct rq *rq);
 static bool task_dead_and_done(struct task_struct *p);
-static u32 reenq_local(struct rq *rq);
+static u32 reenq_local(struct scx_sched *sch, struct rq *rq);
 static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags);
 static void scx_disable(struct scx_sched *sch, enum scx_exit_kind kind);
 static bool scx_vexit(struct scx_sched *sch, enum scx_exit_kind kind,
@@ -991,9 +991,16 @@ static void run_deferred(struct rq *rq)
 {
 	process_ddsp_deferred_locals(rq);
 
-	if (local_read(&rq->scx.reenq_local_deferred)) {
-		local_set(&rq->scx.reenq_local_deferred, 0);
-		reenq_local(rq);
+	if (!llist_empty(&rq->scx.deferred_reenq_locals)) {
+		struct llist_node *llist =
+			llist_del_all(&rq->scx.deferred_reenq_locals);
+		struct scx_sched_pcpu *pos, *next;
+
+		llist_for_each_entry_safe(pos, next, llist,
+					  deferred_reenq_locals_node) {
+			init_llist_node(&pos->deferred_reenq_locals_node);
+			reenq_local(pos->sch, rq);
+		}
 	}
 }
 
@@ -4082,7 +4089,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_sched *sch = container_of(rcu_work, struct scx_sched, rcu_work);
 	struct rhashtable_iter rht_iter;
 	struct scx_dispatch_q *dsq;
-	int node;
+	int cpu, node;
 
 	irq_work_sync(&sch->error_irq_work);
 	kthread_destroy_worker(sch->helper);
@@ -4093,6 +4100,17 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	if (sch_cgroup(sch))
 		cgroup_put(sch_cgroup(sch));
 #endif	/* CONFIG_EXT_SUB_SCHED */
+
+	/*
+	 * $sch would have entered bypass mode before the RCU grace period. As
+	 * that blocks new deferrals, all deferred_reenq_locals_node's must be
+	 * off-list by now.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
+
+		WARN_ON_ONCE(llist_on_list(&pcpu->deferred_reenq_locals_node));
+	}
 
 	free_percpu(sch->pcpu);
 
@@ -5655,8 +5673,12 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 	for_each_possible_cpu(cpu)
 		init_dsq(bypass_dsq(sch, cpu), SCX_DSQ_BYPASS, sch);
 
-	for_each_possible_cpu(cpu)
-		per_cpu_ptr(sch->pcpu, cpu)->sch = sch;
+	for_each_possible_cpu(cpu) {
+		struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
+
+		pcpu->sch = sch;
+		init_llist_node(&pcpu->deferred_reenq_locals_node);
+	}
 
 	sch->helper = kthread_run_worker(0, "sched_ext_helper");
 	if (IS_ERR(sch->helper)) {
@@ -6957,6 +6979,7 @@ void __init init_sched_ext_class(void)
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_kick_if_idle, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_preempt, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_wait, GFP_KERNEL, n));
+		init_llist_head(&rq->scx.deferred_reenq_locals);
 		rq->scx.deferred_irq_work = IRQ_WORK_INIT_HARD(deferred_irq_workfn);
 		rq->scx.kick_cpus_irq_work = IRQ_WORK_INIT_HARD(kick_cpus_irq_workfn);
 
@@ -7528,7 +7551,7 @@ static const struct btf_kfunc_id_set scx_kfunc_set_dispatch = {
 	.set			= &scx_kfunc_ids_dispatch,
 };
 
-static u32 reenq_local(struct rq *rq)
+static u32 reenq_local(struct scx_sched *sch, struct rq *rq)
 {
 	LIST_HEAD(tasks);
 	u32 nr_enqueued = 0;
@@ -7543,6 +7566,8 @@ static u32 reenq_local(struct rq *rq)
 	 */
 	list_for_each_entry_safe(p, n, &rq->scx.local_dsq.list,
 				 scx.dsq_list.node) {
+		struct scx_sched *task_sch = scx_task_sched(p);
+
 		/*
 		 * If @p is being migrated, @p's current CPU may not agree with
 		 * its allowed CPUs and the migration_cpu_stop is about to
@@ -7555,6 +7580,9 @@ static u32 reenq_local(struct rq *rq)
 		 * visible to the BPF scheduler.
 		 */
 		if (p->migration_pending)
+			continue;
+
+		if (!scx_is_descendant(task_sch, sch))
 			continue;
 
 		dispatch_dequeue(rq, p);
@@ -7599,7 +7627,7 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(const struct bpf_prog_aux *aux)
 	rq = cpu_rq(smp_processor_id());
 	lockdep_assert_rq_held(rq);
 
-	return reenq_local(rq);
+	return reenq_local(sch, rq);
 }
 
 __bpf_kfunc_end_defs();
@@ -8170,20 +8198,39 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
 
 /**
  * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Iterate over all of the tasks currently enqueued on the local DSQ of the
  * caller's CPU, and re-enqueue them in the BPF scheduler. Can be called from
  * anywhere.
  */
-__bpf_kfunc void scx_bpf_reenqueue_local___v2(void)
+__bpf_kfunc void scx_bpf_reenqueue_local___v2(const struct bpf_prog_aux *aux)
 {
+	unsigned long flags;
+	struct scx_sched *sch;
 	struct rq *rq;
+	struct llist_node *lnode;
 
-	guard(preempt)();
+	raw_local_irq_save(flags);
+
+	sch = scx_prog_sched(aux);
+	if (unlikely(!sch))
+		goto out_irq_restore;
+
+	/*
+	 * Allowing reenqueue-locals doesn't make sense while bypassing. This
+	 * also blocks from new reenqueues to be scheduled on dead scheds.
+	 */
+	if (unlikely(sch->bypass_depth))
+		goto out_irq_restore;
 
 	rq = this_rq();
-	local_set(&rq->scx.reenq_local_deferred, 1);
+	lnode = &this_cpu_ptr(sch->pcpu)->deferred_reenq_locals_node;
+	if (!llist_on_list(lnode))
+		llist_add(lnode, &rq->scx.deferred_reenq_locals);
 	schedule_deferred(rq);
+out_irq_restore:
+	raw_local_irq_restore(flags);
 }
 
 /**
@@ -8608,7 +8655,7 @@ BTF_ID_FLAGS(func, bpf_iter_scx_dsq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, scx_bpf_exit_bstr, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_error_bstr, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dump_bstr, KF_IMPLICIT_ARGS)
-BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2)
+BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_set, KF_IMPLICIT_ARGS)
