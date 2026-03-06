@@ -456,8 +456,8 @@ static int rtd_pconf_parse_conf(struct rtd_pinctrl *data,
 		break;
 
 	default:
-		dev_err(data->dev, "unsupported pinconf: %d\n", (u32)param);
-		return -EINVAL;
+		dev_dbg(data->dev, "unsupported pinconf: %d\n", (u32)param);
+		return -ENOTSUPP;
 	}
 
 	ret = regmap_update_bits(data->regmap_pinctrl, reg_off, mask, val);
