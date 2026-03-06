@@ -56,11 +56,7 @@ static int reset_gpio_probe(struct auxiliary_device *adev,
 			    const struct auxiliary_device_id *id)
 {
 	struct device *dev = &adev->dev;
-	struct of_phandle_args *platdata = dev_get_platdata(dev);
 	struct reset_gpio_priv *priv;
-
-	if (!platdata)
-		return -EINVAL;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -76,7 +72,6 @@ static int reset_gpio_probe(struct auxiliary_device *adev,
 	priv->rc.ops = &reset_gpio_ops;
 	priv->rc.owner = THIS_MODULE;
 	priv->rc.dev = dev;
-	priv->rc.of_args = platdata;
 
 	/* Cells to match GPIO specifier, but it's not really used */
 	priv->rc.of_reset_n_cells = 2;

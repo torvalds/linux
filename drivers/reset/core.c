@@ -94,9 +94,6 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
 	if (rcdev->of_node)
 		return rcdev->of_node->full_name;
 
-	if (rcdev->of_args)
-		return rcdev->of_args->np->full_name;
-
 	return NULL;
 }
 
@@ -125,9 +122,6 @@ static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
  */
 int reset_controller_register(struct reset_controller_dev *rcdev)
 {
-	if (rcdev->of_node && rcdev->of_args)
-		return -EINVAL;
-
 	if (!rcdev->of_xlate) {
 		rcdev->of_reset_n_cells = 1;
 		rcdev->of_xlate = of_reset_simple_xlate;
@@ -1006,13 +1000,16 @@ static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_a
 						       bool gpio_fallback)
 {
 	struct reset_controller_dev *rcdev;
+	struct of_phandle_args *rc_args;
 
 	lockdep_assert_held(&reset_list_mutex);
 
 	list_for_each_entry(rcdev, &reset_controller_list, list) {
-		if (gpio_fallback) {
-			if (rcdev->of_args && of_phandle_args_equal(args,
-								    rcdev->of_args))
+		if (gpio_fallback && rcdev->dev &&
+		    device_is_compatible(rcdev->dev, "reset-gpio")) {
+			rc_args = dev_get_platdata(rcdev->dev);
+
+			if (of_phandle_args_equal(args, rc_args))
 				return rcdev;
 		} else {
 			if (args->np == rcdev->of_node)
