@@ -755,15 +755,23 @@ class ManFormat(OutputFormat):
         if isinstance(contents, list):
             contents = "\n".join(contents)
 
-        for line in contents.strip("\n").split("\n"):
-            line = KernRe(r"^\s*").sub("", line)
-            if not line:
-                continue
+        lines = contents.strip("\n").split("\n")
+        i = 0
 
-            if line[0] == ".":
-                self.data += "\\&" + line + "\n"
-            else:
-                self.data += line + "\n"
+        while i < len(lines):
+            org_line = lines[i]
+
+            line = KernRe(r"^\s*").sub("", org_line)
+
+            if line:
+                if line[0] == ".":
+                    self.data += "\\&" + line + "\n"
+                    i += 1
+                    continue
+
+            i += 1
+
+            self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
         if not self.check_doc(name, args):
