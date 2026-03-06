@@ -1005,7 +1005,7 @@ mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			mlink = &msta->deflink;
 			msta->deflink_id = link_id;
 		} else {
-			mlink = devm_kzalloc(dev->mt76.dev, sizeof(*mlink), GFP_KERNEL);
+			mlink = kzalloc(sizeof(*mlink), GFP_KERNEL);
 			if (!mlink) {
 				err = -ENOMEM;
 				break;
@@ -1197,6 +1197,7 @@ mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, unsigned long old_links)
 {
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+	struct mt76_dev *mdev = &dev->mt76;
 	unsigned int link_id;
 
 	/* clean up bss before starec */
@@ -1235,16 +1236,19 @@ mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		if (!link_sta)
 			continue;
 
-		mlink = mt792x_sta_to_link(msta, link_id);
+		mlink = rcu_replace_pointer(msta->link[link_id], NULL,
+					    lockdep_is_held(&mdev->mutex));
 		if (!mlink)
 			continue;
 
-		rcu_assign_pointer(msta->link[link_id], NULL);
 		msta->valid_links &= ~BIT(link_id);
 		mlink->sta = NULL;
 		mlink->pri_link = NULL;
 
 		mt7925_mac_link_sta_remove(&dev->mt76, vif, link_sta, mlink);
+
+		if (mlink != &msta->deflink)
+			kfree_rcu(mlink, rcu_head);
 
 		if (msta->deflink_id == link_id)
 			msta->deflink_id = IEEE80211_LINK_UNSPECIFIED;

@@ -97,6 +97,7 @@ DECLARE_EWMA(avg_signal, 10, 8)
 
 struct mt792x_link_sta {
 	struct mt76_wcid wcid; /* must be first */
+	struct rcu_head rcu_head;
 
 	u32 airtime_ac[8];
 
