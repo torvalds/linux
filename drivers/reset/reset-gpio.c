@@ -52,18 +52,12 @@ static int reset_gpio_of_xlate(struct reset_controller_dev *rcdev,
 	return reset_spec->args[0];
 }
 
-static void reset_gpio_of_node_put(void *data)
-{
-	of_node_put(data);
-}
-
 static int reset_gpio_probe(struct auxiliary_device *adev,
 			    const struct auxiliary_device_id *id)
 {
 	struct device *dev = &adev->dev;
 	struct of_phandle_args *platdata = dev_get_platdata(dev);
 	struct reset_gpio_priv *priv;
-	int ret;
 
 	if (!platdata)
 		return -EINVAL;
@@ -83,10 +77,6 @@ static int reset_gpio_probe(struct auxiliary_device *adev,
 	priv->rc.owner = THIS_MODULE;
 	priv->rc.dev = dev;
 	priv->rc.of_args = platdata;
-	ret = devm_add_action_or_reset(dev, reset_gpio_of_node_put,
-				       priv->rc.of_node);
-	if (ret)
-		return ret;
 
 	/* Cells to match GPIO specifier, but it's not really used */
 	priv->rc.of_reset_n_cells = 2;
