@@ -145,7 +145,8 @@ static int reboot_mode_create_device(struct reboot_mode_driver *reboot)
 	}
 
 	priv->reboot_mode_device = device_create(&reboot_mode_class, NULL, 0,
-						 (void *)priv, reboot->dev->driver->name);
+						 (void *)priv, "%s",
+						 reboot->dev->driver->name);
 	if (IS_ERR(priv->reboot_mode_device)) {
 		ret = PTR_ERR(priv->reboot_mode_device);
 		goto error;
