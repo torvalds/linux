@@ -607,20 +607,17 @@ class ManFormat(OutputFormat):
         "%m %d %Y",
     ]
 
-    def emit_th(self, name, modulename = None, manual=None):
+    def emit_th(self, name, modulename = None):
         """Emit a title header line."""
         name = name.strip()
-
-        if not manual:
-            manual = self.manual
 
         if not modulename:
             modulename = self.modulename
 
         self.data += f'.TH "{modulename}" {self.section} "{name}" '
-        self.data += f'"{self.date}" "{manual}"\n'
+        self.data += f'"{self.date}" "{self.manual}"\n'
 
-    def __init__(self, modulename, section="9", manual="API Manual"):
+    def __init__(self, modulename, section="9", manual="Kernel API Manual"):
         """
         Creates class variables.
 
@@ -751,8 +748,7 @@ class ManFormat(OutputFormat):
 
         out_name = self.arg_name(args, name)
 
-        self.emit_th(out_name, modulename = name,
-                     manual="Kernel Hacker\'s Manual")
+        self.emit_th(out_name, modulename = name)
 
         self.data += ".SH NAME\n"
         self.data += f"{name} \\- {args['purpose']}\n"
