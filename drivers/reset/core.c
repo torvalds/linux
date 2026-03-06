@@ -129,9 +129,9 @@ int reset_controller_register(struct reset_controller_dev *rcdev)
 
 	INIT_LIST_HEAD(&rcdev->reset_control_head);
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	list_add(&rcdev->list, &reset_controller_list);
-	mutex_unlock(&reset_list_mutex);
 
 	return 0;
 }
@@ -143,9 +143,9 @@ EXPORT_SYMBOL_GPL(reset_controller_register);
  */
 void reset_controller_unregister(struct reset_controller_dev *rcdev)
 {
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	list_del(&rcdev->list);
-	mutex_unlock(&reset_list_mutex);
 }
 EXPORT_SYMBOL_GPL(reset_controller_unregister);
 
@@ -646,25 +646,20 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_acquire(rstc_to_array(rstc));
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
 
-	if (rstc->acquired) {
-		mutex_unlock(&reset_list_mutex);
+	if (rstc->acquired)
 		return 0;
-	}
 
 	list_for_each_entry(rc, &rstc->rcdev->reset_control_head, list) {
 		if (rstc != rc && rstc->id == rc->id) {
-			if (rc->acquired) {
-				mutex_unlock(&reset_list_mutex);
+			if (rc->acquired)
 				return -EBUSY;
-			}
 		}
 	}
 
 	rstc->acquired = true;
 
-	mutex_unlock(&reset_list_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(reset_control_acquire);
@@ -1064,27 +1059,28 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 
 		ret = __reset_add_reset_gpio_device(node, &args);
 		if (ret) {
-			rstc = ERR_PTR(ret);
-			goto out_put;
+			of_node_put(args.np);
+			return ERR_PTR(ret);
 		}
 	}
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	rcdev = __reset_find_rcdev(&args, gpio_fallback);
 	if (!rcdev) {
 		rstc = ERR_PTR(-EPROBE_DEFER);
-		goto out_unlock;
+		goto out_put;
 	}
 
 	if (WARN_ON(args.args_count != rcdev->of_reset_n_cells)) {
 		rstc = ERR_PTR(-EINVAL);
-		goto out_unlock;
+		goto out_put;
 	}
 
 	rstc_id = rcdev->of_xlate(rcdev, &args);
 	if (rstc_id < 0) {
 		rstc = ERR_PTR(rstc_id);
-		goto out_unlock;
+		goto out_put;
 	}
 
 	flags &= ~RESET_CONTROL_FLAGS_BIT_OPTIONAL;
@@ -1092,8 +1088,6 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 	/* reset_list_mutex also protects the rcdev's reset_control list */
 	rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
 
-out_unlock:
-	mutex_unlock(&reset_list_mutex);
 out_put:
 	of_node_put(args.np);
 
@@ -1135,10 +1129,11 @@ int __reset_control_bulk_get(struct device *dev, int num_rstcs,
 	return 0;
 
 err:
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	while (i--)
 		__reset_control_put_internal(rstcs[i].rstc);
-	mutex_unlock(&reset_list_mutex);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__reset_control_bulk_get);
@@ -1147,10 +1142,10 @@ static void reset_control_array_put(struct reset_control_array *resets)
 {
 	int i;
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	for (i = 0; i < resets->num_rstcs; i++)
 		__reset_control_put_internal(resets->rstc[i]);
-	mutex_unlock(&reset_list_mutex);
 	kfree(resets);
 }
 
@@ -1168,9 +1163,9 @@ void reset_control_put(struct reset_control *rstc)
 		return;
 	}
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	__reset_control_put_internal(rstc);
-	mutex_unlock(&reset_list_mutex);
 }
 EXPORT_SYMBOL_GPL(reset_control_put);
 
@@ -1181,10 +1176,10 @@ EXPORT_SYMBOL_GPL(reset_control_put);
  */
 void reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs)
 {
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	while (num_rstcs--)
 		__reset_control_put_internal(rstcs[num_rstcs].rstc);
-	mutex_unlock(&reset_list_mutex);
 }
 EXPORT_SYMBOL_GPL(reset_control_bulk_put);
 
@@ -1403,10 +1398,10 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	return &resets->base;
 
 err_rst:
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	while (--i >= 0)
 		__reset_control_put_internal(resets->rstc[i]);
-	mutex_unlock(&reset_list_mutex);
 
 	kfree(resets);
 
