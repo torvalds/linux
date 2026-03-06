@@ -22,10 +22,10 @@ properties:
   enable-gpios: true
   port: true
 
-additionalProperties: false
-
 required:
   - compatible
   - power-supply
+
+additionalProperties: false
 
 ...

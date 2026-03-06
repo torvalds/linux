@@ -49,8 +49,6 @@ properties:
   vddi-led-supply:
     description: Voltage supply for the LED driver (1.65 .. 3.3 V)
 
-unevaluatedProperties: false
-
 required:
   - compatible
   - reg
@@ -65,6 +63,8 @@ if:
 then:
   required:
     - port
+
+unevaluatedProperties: false
 
 examples:
   - |+

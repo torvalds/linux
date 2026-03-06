@@ -31,8 +31,6 @@ properties:
 
   power-supply: true
 
-additionalProperties: false
-
 required:
   - compatible
   - enable-gpios
@@ -41,6 +39,8 @@ required:
   - reset-gpios
   - port
   - power-supply
+
+additionalProperties: false
 
 examples:
   - |
