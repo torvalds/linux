@@ -5,7 +5,6 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
@@ -4535,8 +4534,7 @@ static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
 struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 {
 	const struct llcc_slice_config *cfg;
-	struct llcc_slice_desc *desc;
-	u32 sz, count;
+	u32 sz, i;
 
 	if (IS_ERR(drv_data))
 		return ERR_CAST(drv_data);
@@ -4544,21 +4542,14 @@ struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 	cfg = drv_data->cfg;
 	sz = drv_data->cfg_size;
 
-	for (count = 0; cfg && count < sz; count++, cfg++)
+	for (i = 0; cfg && i < sz; i++, cfg++)
 		if (cfg->usecase_id == uid)
 			break;
 
-	if (count == sz || !cfg)
+	if (i == sz)
 		return ERR_PTR(-ENODEV);
 
-	desc = kzalloc_obj(*desc);
-	if (!desc)
-		return ERR_PTR(-ENOMEM);
-
-	desc->slice_id = cfg->slice_id;
-	desc->slice_size = cfg->max_cap;
-
-	return desc;
+	return &drv_data->desc[i];
 }
 EXPORT_SYMBOL_GPL(llcc_slice_getd);
 
@@ -4569,7 +4560,7 @@ EXPORT_SYMBOL_GPL(llcc_slice_getd);
 void llcc_slice_putd(struct llcc_slice_desc *desc)
 {
 	if (!IS_ERR_OR_NULL(desc))
-		kfree(desc);
+		return;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_putd);
 
@@ -4645,7 +4636,8 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 		return -EINVAL;
 
 	mutex_lock(&drv_data->lock);
-	if (test_bit(desc->slice_id, drv_data->bitmap)) {
+	/* Already active; try to take another reference. */
+	if (refcount_inc_not_zero(&desc->refcount)) {
 		mutex_unlock(&drv_data->lock);
 		return 0;
 	}
@@ -4659,7 +4651,8 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 		return ret;
 	}
 
-	__set_bit(desc->slice_id, drv_data->bitmap);
+	/* Set first reference */
+	refcount_set(&desc->refcount, 1);
 	mutex_unlock(&drv_data->lock);
 
 	return ret;
@@ -4685,10 +4678,12 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 		return -EINVAL;
 
 	mutex_lock(&drv_data->lock);
-	if (!test_bit(desc->slice_id, drv_data->bitmap)) {
+	/* refcount > 1, drop one ref and we’re done. */
+	if (refcount_dec_not_one(&desc->refcount)) {
 		mutex_unlock(&drv_data->lock);
 		return 0;
 	}
+
 	act_ctrl_val = ACT_CTRL_OPCODE_DEACTIVATE << ACT_CTRL_OPCODE_SHIFT;
 
 	ret = llcc_update_act_ctrl(desc->slice_id, act_ctrl_val,
@@ -4698,7 +4693,8 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 		return ret;
 	}
 
-	__clear_bit(desc->slice_id, drv_data->bitmap);
+	/* Finalize: atomically transition 1 -> 0 */
+	WARN_ON_ONCE(!refcount_dec_if_one(&desc->refcount));
 	mutex_unlock(&drv_data->lock);
 
 	return ret;
@@ -4742,7 +4738,7 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	u32 attr1_val;
 	u32 attr0_val;
 	u32 max_cap_cacheline;
-	struct llcc_slice_desc desc;
+	struct llcc_slice_desc *desc;
 
 	attr1_val = config->cache_mode;
 	attr1_val |= config->probe_target_ways << ATTR1_PROBE_TARGET_WAYS_SHIFT;
@@ -4891,8 +4887,11 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	}
 
 	if (config->activate_on_init) {
-		desc.slice_id = config->slice_id;
-		ret = llcc_slice_activate(&desc);
+		desc = llcc_slice_getd(config->usecase_id);
+		if (IS_ERR(desc))
+			return PTR_ERR(desc);
+
+		ret = llcc_slice_activate(desc);
 	}
 
 	return ret;
@@ -5205,16 +5204,16 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	llcc_cfg = cfg->sct_data;
 	sz = cfg->size;
-
-	for (i = 0; i < sz; i++)
-		if (llcc_cfg[i].slice_id > drv_data->max_slices)
-			drv_data->max_slices = llcc_cfg[i].slice_id;
-
-	drv_data->bitmap = devm_bitmap_zalloc(dev, drv_data->max_slices,
-					      GFP_KERNEL);
-	if (!drv_data->bitmap) {
+	drv_data->desc = devm_kcalloc(dev, sz, sizeof(struct llcc_slice_desc), GFP_KERNEL);
+	if (!drv_data->desc) {
 		ret = -ENOMEM;
 		goto err;
+	}
+
+	for (i = 0; i < sz; i++) {
+		drv_data->desc[i].slice_id = llcc_cfg[i].slice_id;
+		drv_data->desc[i].slice_size = llcc_cfg[i].max_cap;
+		refcount_set(&drv_data->desc[i].refcount, 0);
 	}
 
 	drv_data->cfg = llcc_cfg;
