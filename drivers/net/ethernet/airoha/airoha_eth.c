@@ -1611,6 +1611,7 @@ static int airoha_dev_open(struct net_device *dev)
 	int err, len = ETH_HLEN + dev->mtu + ETH_FCS_LEN;
 	struct airoha_gdm_port *port = netdev_priv(dev);
 	struct airoha_qdma *qdma = port->qdma;
+	u32 pse_port = FE_PSE_PORT_PPE1;
 
 	netif_tx_start_all_queues(dev);
 	err = airoha_set_vip_for_gdm_port(port, true);
@@ -1634,6 +1635,14 @@ static int airoha_dev_open(struct net_device *dev)
 			GLOBAL_CFG_RX_DMA_EN_MASK);
 	atomic_inc(&qdma->users);
 
+	if (port->id == AIROHA_GDM2_IDX &&
+	    airoha_ppe_is_enabled(qdma->eth, 1)) {
+		/* For PPE2 always use secondary cpu port. */
+		pse_port = FE_PSE_PORT_PPE2;
+	}
+	airoha_set_gdm_port_fwd_cfg(qdma->eth, REG_GDM_FWD_CFG(port->id),
+				    pse_port);
+
 	return 0;
 }
 
@@ -1650,6 +1659,9 @@ static int airoha_dev_stop(struct net_device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(qdma->q_tx); i++)
 		netdev_tx_reset_subqueue(dev, i);
+
+	airoha_set_gdm_port_fwd_cfg(qdma->eth, REG_GDM_FWD_CFG(port->id),
+				    FE_PSE_PORT_DROP);
 
 	if (atomic_dec_and_test(&qdma->users)) {
 		airoha_qdma_clear(qdma, REG_QDMA_GLOBAL_CFG,
@@ -1744,7 +1756,7 @@ static int airoha_dev_init(struct net_device *dev)
 	struct airoha_gdm_port *port = netdev_priv(dev);
 	struct airoha_qdma *qdma = port->qdma;
 	struct airoha_eth *eth = qdma->eth;
-	u32 pse_port, fe_cpu_port;
+	u32 fe_cpu_port;
 	u8 ppe_id;
 
 	airoha_set_macaddr(port, dev->dev_addr);
@@ -1765,7 +1777,7 @@ static int airoha_dev_init(struct net_device *dev)
 		if (airoha_ppe_is_enabled(eth, 1)) {
 			/* For PPE2 always use secondary cpu port. */
 			fe_cpu_port = FE_PSE_PORT_CDM2;
-			pse_port = FE_PSE_PORT_PPE2;
+			ppe_id = 1;
 			break;
 		}
 		fallthrough;
@@ -1774,13 +1786,11 @@ static int airoha_dev_init(struct net_device *dev)
 
 		/* For PPE1 select cpu port according to the running QDMA. */
 		fe_cpu_port = qdma_id ? FE_PSE_PORT_CDM2 : FE_PSE_PORT_CDM1;
-		pse_port = FE_PSE_PORT_PPE1;
+		ppe_id = 0;
 		break;
 	}
 	}
 
-	airoha_set_gdm_port_fwd_cfg(eth, REG_GDM_FWD_CFG(port->id), pse_port);
-	ppe_id = pse_port == FE_PSE_PORT_PPE2 ? 1 : 0;
 	airoha_fe_rmw(eth, REG_PPE_DFT_CPORT0(ppe_id),
 		      DFT_CPORT_MASK(port->id),
 		      __field_prep(DFT_CPORT_MASK(port->id), fe_cpu_port));
