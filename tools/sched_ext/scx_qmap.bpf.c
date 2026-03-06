@@ -48,6 +48,9 @@ const volatile bool suppress_dump;
 u64 nr_highpri_queued;
 u32 test_error_cnt;
 
+#define MAX_SUB_SCHEDS		8
+u64 sub_sched_cgroup_ids[MAX_SUB_SCHEDS];
+
 UEI_DEFINE(uei);
 
 struct qmap {
@@ -449,6 +452,12 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		cpuc->dsp_cnt = 0;
+	}
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (sub_sched_cgroup_ids[i] &&
+		    scx_bpf_sub_dispatch(sub_sched_cgroup_ids[i]))
+			return;
 	}
 
 	/*
@@ -895,7 +904,32 @@ void BPF_STRUCT_OPS(qmap_exit, struct scx_exit_info *ei)
 
 s32 BPF_STRUCT_OPS(qmap_sub_attach, struct scx_sub_attach_args *args)
 {
-	return 0;
+	s32 i;
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (!sub_sched_cgroup_ids[i]) {
+			sub_sched_cgroup_ids[i] = args->ops->sub_cgroup_id;
+			bpf_printk("attaching sub-sched[%d] on %s",
+				   i, args->cgroup_path);
+			return 0;
+		}
+	}
+
+	return -ENOSPC;
+}
+
+void BPF_STRUCT_OPS(qmap_sub_detach, struct scx_sub_detach_args *args)
+{
+	s32 i;
+
+	for (i = 0; i < MAX_SUB_SCHEDS; i++) {
+		if (sub_sched_cgroup_ids[i] == args->ops->sub_cgroup_id) {
+			sub_sched_cgroup_ids[i] = 0;
+			bpf_printk("detaching sub-sched[%d] on %s",
+				   i, args->cgroup_path);
+			break;
+		}
+	}
 }
 
 SCX_OPS_DEFINE(qmap_ops,
@@ -914,6 +948,7 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .cgroup_set_weight	= (void *)qmap_cgroup_set_weight,
 	       .cgroup_set_bandwidth	= (void *)qmap_cgroup_set_bandwidth,
 	       .sub_attach		= (void *)qmap_sub_attach,
+	       .sub_detach		= (void *)qmap_sub_detach,
 	       .cpu_online		= (void *)qmap_cpu_online,
 	       .cpu_offline		= (void *)qmap_cpu_offline,
 	       .init			= (void *)qmap_init,

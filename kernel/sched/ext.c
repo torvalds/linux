@@ -2444,8 +2444,14 @@ static inline void maybe_queue_balance_callback(struct rq *rq)
 	rq->scx.flags &= ~SCX_RQ_BAL_CB_PENDING;
 }
 
-static bool scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
-			       struct task_struct *prev)
+/*
+ * One user of this function is scx_bpf_dispatch() which can be called
+ * recursively as sub-sched dispatches nest. Always inline to reduce stack usage
+ * from the call frame.
+ */
+static __always_inline bool
+scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
+		   struct task_struct *prev, bool nested)
 {
 	struct scx_dsp_ctx *dspc = &this_cpu_ptr(sch->pcpu)->dsp_ctx;
 	int nr_loops = SCX_DSP_MAX_LOOPS;
@@ -2499,8 +2505,23 @@ static bool scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
 	do {
 		dspc->nr_tasks = 0;
 
-		SCX_CALL_OP(sch, SCX_KF_DISPATCH, dispatch, rq, cpu,
-			    prev_on_sch ? prev : NULL);
+		if (nested) {
+			/*
+			 * If nested, don't update kf_mask as the originating
+			 * invocation would already have set it up.
+			 */
+			SCX_CALL_OP(sch, 0, dispatch, rq, cpu,
+				    prev_on_sch ? prev : NULL);
+		} else {
+			/*
+			 * If not nested, stash @prev so that nested invocations
+			 * can access it.
+			 */
+			rq->scx.sub_dispatch_prev = prev;
+			SCX_CALL_OP(sch, SCX_KF_DISPATCH, dispatch, rq, cpu,
+				    prev_on_sch ? prev : NULL);
+			rq->scx.sub_dispatch_prev = NULL;
+		}
 
 		flush_dispatch_buf(sch, rq);
 
@@ -2541,7 +2562,7 @@ static bool scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
 
 static int balance_one(struct rq *rq, struct task_struct *prev)
 {
-	struct scx_sched *sch = scx_root, *pos;
+	struct scx_sched *sch = scx_root;
 	s32 cpu = cpu_of(rq);
 
 	lockdep_assert_rq_held(rq);
@@ -2585,13 +2606,8 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 	if (rq->scx.local_dsq.nr)
 		goto has_tasks;
 
-	/*
-	 * TEMPORARY - Dispatch all scheds. This will be replaced by BPF-driven
-	 * hierarchical operation.
-	 */
-	list_for_each_entry_rcu(pos, &scx_sched_all, all)
-		if (scx_dispatch_sched(pos, rq, prev))
-			goto has_tasks;
+	if (scx_dispatch_sched(sch, rq, prev, false))
+		goto has_tasks;
 
 	/*
 	 * Didn't find another task to run. Keep running @prev unless
@@ -4942,9 +4958,8 @@ static void scx_sub_disable(struct scx_sched *sch)
 
 	/*
 	 * Guarantee forward progress and wait for descendants to be disabled.
-	 * To limit
-	 * disruptions, $parent is not bypassed. Tasks are fully prepped and
-	 * then inserted back into $parent.
+	 * To limit disruptions, $parent is not bypassed. Tasks are fully
+	 * prepped and then inserted back into $parent.
 	 */
 	scx_bypass(sch, true);
 	drain_descendants(sch);
@@ -6580,6 +6595,20 @@ static int bpf_scx_init_member(const struct btf_type *t,
 	return 0;
 }
 
+#ifdef CONFIG_EXT_SUB_SCHED
+static void scx_pstack_recursion_on_dispatch(struct bpf_prog *prog)
+{
+	struct scx_sched *sch;
+
+	guard(rcu)();
+	sch = scx_prog_sched(prog->aux);
+	if (unlikely(!sch))
+		return;
+
+	scx_error(sch, "dispatch recursion detected");
+}
+#endif	/* CONFIG_EXT_SUB_SCHED */
+
 static int bpf_scx_check_member(const struct btf_type *t,
 				const struct btf_member *member,
 				const struct bpf_prog *prog)
@@ -6604,6 +6633,22 @@ static int bpf_scx_check_member(const struct btf_type *t,
 		if (prog->sleepable)
 			return -EINVAL;
 	}
+
+#ifdef CONFIG_EXT_SUB_SCHED
+	/*
+	 * Enable private stack for operations that can nest along the
+	 * hierarchy.
+	 *
+	 * XXX - Ideally, we should only do this for scheds that allow
+	 * sub-scheds and sub-scheds themselves but I don't know how to access
+	 * struct_ops from here.
+	 */
+	switch (moff) {
+	case offsetof(struct sched_ext_ops, dispatch):
+		prog->aux->priv_stack_requested = true;
+		prog->aux->recursion_detected = scx_pstack_recursion_on_dispatch;
+	}
+#endif	/* CONFIG_EXT_SUB_SCHED */
 
 	return 0;
 }
@@ -7583,6 +7628,48 @@ __bpf_kfunc bool scx_bpf_dsq_move_vtime(struct bpf_iter_scx_dsq *it__iter,
 			    p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
 }
 
+#ifdef CONFIG_EXT_SUB_SCHED
+/**
+ * scx_bpf_sub_dispatch - Trigger dispatching on a child scheduler
+ * @cgroup_id: cgroup ID of the child scheduler to dispatch
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
+ *
+ * Allows a parent scheduler to trigger dispatching on one of its direct
+ * child schedulers. The child scheduler runs its dispatch operation to
+ * move tasks from dispatch queues to the local runqueue.
+ *
+ * Returns: true on success, false if cgroup_id is invalid, not a direct
+ * child, or caller lacks dispatch permission.
+ */
+__bpf_kfunc bool scx_bpf_sub_dispatch(u64 cgroup_id, const struct bpf_prog_aux *aux)
+{
+	struct rq *this_rq = this_rq();
+	struct scx_sched *parent, *child;
+
+	guard(rcu)();
+	parent = scx_prog_sched(aux);
+	if (unlikely(!parent))
+		return false;
+
+	if (!scx_kf_allowed(parent, SCX_KF_DISPATCH))
+		return false;
+
+	child = scx_find_sub_sched(cgroup_id);
+
+	if (unlikely(!child))
+		return false;
+
+	if (unlikely(scx_parent(child) != parent)) {
+		scx_error(parent, "trying to dispatch a distant sub-sched on cgroup %llu",
+			  cgroup_id);
+		return false;
+	}
+
+	return scx_dispatch_sched(child, this_rq, this_rq->scx.sub_dispatch_prev,
+				  true);
+}
+#endif	/* CONFIG_EXT_SUB_SCHED */
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
@@ -7593,6 +7680,9 @@ BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
+#ifdef CONFIG_EXT_SUB_SCHED
+BTF_ID_FLAGS(func, scx_bpf_sub_dispatch, KF_IMPLICIT_ARGS)
+#endif
 BTF_KFUNCS_END(scx_kfunc_ids_dispatch)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_dispatch = {

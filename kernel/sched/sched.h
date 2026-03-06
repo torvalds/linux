@@ -805,6 +805,9 @@ struct scx_rq {
 	cpumask_var_t		cpus_to_preempt;
 	cpumask_var_t		cpus_to_wait;
 	unsigned long		kick_sync;
+
+	struct task_struct	*sub_dispatch_prev;
+
 	struct llist_head	deferred_reenq_locals;
 	struct balance_callback	deferred_bal_cb;
 	struct irq_work		deferred_irq_work;
