@@ -343,11 +343,17 @@ struct gpio_irq_chip {
  * @direction_output: configures signal "offset" as output, returns 0 on
  *	success or a negative error number. This can be omitted on input-only
  *	or output-only gpio chips.
- * @get: returns value for signal "offset", 0=low, 1=high, or negative error
+ * @get: returns value for signal "offset", 0=low, 1=high, or negative error.
+ *	the low and high values are defined as physical low on the line
+ *	in/out to the connector such as a physical pad, pin or rail. The GPIO
+ *	library has internal logic to handle lines that are active low, such
+ *	as indicated by overstrike or #name in a schematic, and the driver
+ *	should not try to second-guess the logic value of a line.
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
  * @set: assigns output value for signal "offset", returns 0 on success or
- *       negative error value
+ *	negative error value. The output value follows the same semantic
+ *	rules as for @get.
  * @set_multiple: assigns output values for multiple signals defined by
  *                "mask", returns 0 on success or negative error value
  * @set_config: optional hook for all kinds of settings. Uses the same
