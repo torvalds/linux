@@ -151,7 +151,7 @@ static void test_module_attach_detach(const char *prog_name)
 	if (!ASSERT_OK_PTR(link, "module_attach attach"))
 		goto cleanup;
 
-	ASSERT_ERR(unload_bpf_testmod(false), "unload_bpf_testmod");
+	ASSERT_ERR(try_unload_module("bpf_testmod", 1, false), "try_unload_module");
 	bpf_link__destroy(link);
 cleanup:
 	test_module_attach__destroy(skel);
