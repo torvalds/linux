@@ -820,7 +820,7 @@ static void __reset_control_put_internal(struct reset_control *rstc)
 
 static void reset_gpio_aux_device_release(struct device *dev)
 {
-
+	WARN(1, "reset-gpio device %s should never have been removed", dev_name(dev));
 }
 
 static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
