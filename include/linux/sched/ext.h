@@ -165,6 +165,13 @@ struct scx_sched;
  * for a task to be scheduled by SCX.
  */
 struct sched_ext_entity {
+#ifdef CONFIG_CGROUPS
+	/*
+	 * Associated scx_sched. Updated either during fork or while holding
+	 * both p->pi_lock and rq lock.
+	 */
+	struct scx_sched __rcu	*sched;
+#endif
 	struct scx_dispatch_q	*dsq;
 	atomic_long_t		ops_state;
 	u64			ddsp_dsq_id;
