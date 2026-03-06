@@ -131,6 +131,7 @@ int reset_controller_register(struct reset_controller_dev *rcdev)
 	}
 
 	INIT_LIST_HEAD(&rcdev->reset_control_head);
+	mutex_init(&rcdev->lock);
 
 	guard(mutex)(&reset_list_mutex);
 
@@ -143,6 +144,8 @@ EXPORT_SYMBOL_GPL(reset_controller_register);
 static void reset_controller_remove(struct reset_controller_dev *rcdev,
 				    struct reset_control *rstc)
 {
+	lockdep_assert_held(&rcdev->lock);
+
 	list_del(&rstc->list);
 	module_put(rcdev->owner);
 	put_device(rcdev->dev);
@@ -156,19 +159,22 @@ void reset_controller_unregister(struct reset_controller_dev *rcdev)
 {
 	struct reset_control *rstc, *pos;
 
-	guard(mutex)(&reset_list_mutex);
+	scoped_guard(mutex, &reset_list_mutex)
+		list_del(&rcdev->list);
 
-	list_del(&rcdev->list);
-
-	/*
-	 * Numb but don't free the remaining reset control handles that are
-	 * still held by consumers.
-	 */
-	list_for_each_entry_safe(rstc, pos, &rcdev->reset_control_head, list) {
-		rcu_assign_pointer(rstc->rcdev, NULL);
-		synchronize_srcu(&rstc->srcu);
-		reset_controller_remove(rcdev, rstc);
+	scoped_guard(mutex, &rcdev->lock) {
+		/*
+		 * Numb but don't free the remaining reset control handles that are
+		 * still held by consumers.
+		 */
+		list_for_each_entry_safe(rstc, pos, &rcdev->reset_control_head, list) {
+			rcu_assign_pointer(rstc->rcdev, NULL);
+			synchronize_srcu(&rstc->srcu);
+			reset_controller_remove(rcdev, rstc);
+		}
 	}
+
+	mutex_destroy(&rcdev->lock);
 }
 EXPORT_SYMBOL_GPL(reset_controller_unregister);
 
@@ -712,10 +718,12 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (!rcdev)
 		return -ENODEV;
 
-	list_for_each_entry(rc, &rcdev->reset_control_head, list) {
-		if (rstc != rc && rstc->id == rc->id) {
-			if (rc->acquired)
-				return -EBUSY;
+	scoped_guard(mutex, &rcdev->lock) {
+		list_for_each_entry(rc, &rcdev->reset_control_head, list) {
+			if (rstc != rc && rstc->id == rc->id) {
+				if (rc->acquired)
+					return -EBUSY;
+			}
 		}
 	}
 
@@ -806,7 +814,7 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	struct reset_control *rstc;
 	int ret;
 
-	lockdep_assert_held(&reset_list_mutex);
+	lockdep_assert_held(&rcdev->lock);
 
 	/* Expect callers to filter out OPTIONAL and DEASSERTED bits */
 	if (WARN_ON(flags & ~(RESET_CONTROL_FLAGS_BIT_SHARED |
@@ -868,8 +876,10 @@ static void __reset_control_release(struct kref *kref)
 
 	scoped_guard(srcu, &rstc->srcu) {
 		rcdev = rcu_replace_pointer(rstc->rcdev, NULL, true);
-		if (rcdev)
+		if (rcdev) {
+			guard(mutex)(&rcdev->lock);
 			reset_controller_remove(rcdev, rstc);
+		}
 	}
 
 	synchronize_srcu(&rstc->srcu);

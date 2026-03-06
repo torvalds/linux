@@ -3,6 +3,7 @@
 #define _LINUX_RESET_CONTROLLER_H_
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 
 struct reset_controller_dev;
 
@@ -40,6 +41,7 @@ struct of_phandle_args;
  *            device tree to id as given to the reset control ops, defaults
  *            to :c:func:`of_reset_simple_xlate`.
  * @nr_resets: number of reset controls in this reset controller device
+ * @lock: protects the reset control list from concurrent access
  */
 struct reset_controller_dev {
 	const struct reset_control_ops *ops;
@@ -52,6 +54,7 @@ struct reset_controller_dev {
 	int (*of_xlate)(struct reset_controller_dev *rcdev,
 			const struct of_phandle_args *reset_spec);
 	unsigned int nr_resets;
+	struct mutex lock;
 };
 
 #if IS_ENABLED(CONFIG_RESET_CONTROLLER)
