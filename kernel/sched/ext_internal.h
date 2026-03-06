@@ -1019,6 +1019,13 @@ struct scx_sched {
 	bool			sub_attached;
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
+	/*
+	 * The maximum amount of time in jiffies that a task may be runnable
+	 * without being scheduled on a CPU. If this timeout is exceeded, it
+	 * will trigger scx_error().
+	 */
+	unsigned long		watchdog_timeout;
+
 	atomic_t		exit_kind;
 	struct scx_exit_info	*exit_info;
 
