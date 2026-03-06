@@ -963,6 +963,14 @@ class ManFormat(OutputFormat):
                     i += 1
                     continue
 
+                #
+                # Handle lists
+                #
+                line = KernRe(r'^[-*]\s+').sub(r'.IP \[bu]\n', line)
+                line = KernRe(r'^(\d+|a-z)[\.\)]\s+').sub(r'.IP \1\n', line)
+            else:
+                line = ".PP\n"
+
             i += 1
 
             self.data += line + "\n"
