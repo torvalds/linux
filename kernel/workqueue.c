@@ -7587,7 +7587,7 @@ MODULE_PARM_DESC(panic_on_stall_time, "Panic if stall exceeds this many seconds 
  * wait_event_idle() with PF_WQ_WORKER cleared) can stall the pool just as
  * effectively as a CPU-bound one, so dump every in-flight worker.
  */
-static void show_cpu_pool_hog(struct worker_pool *pool)
+static void show_cpu_pool_busy_workers(struct worker_pool *pool)
 {
 	struct worker *worker;
 	unsigned long irq_flags;
@@ -7612,18 +7612,18 @@ static void show_cpu_pool_hog(struct worker_pool *pool)
 	raw_spin_unlock_irqrestore(&pool->lock, irq_flags);
 }
 
-static void show_cpu_pools_hogs(void)
+static void show_cpu_pools_busy_workers(void)
 {
 	struct worker_pool *pool;
 	int pi;
 
-	pr_info("Showing backtraces of busy workers in stalled CPU-bound worker pools:\n");
+	pr_info("Showing backtraces of busy workers in stalled worker pools:\n");
 
 	rcu_read_lock();
 
 	for_each_pool(pool, pi) {
 		if (pool->cpu_stall)
-			show_cpu_pool_hog(pool);
+			show_cpu_pool_busy_workers(pool);
 
 	}
 
@@ -7720,7 +7720,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		show_all_workqueues();
 
 	if (cpu_pool_stall)
-		show_cpu_pools_hogs();
+		show_cpu_pools_busy_workers();
 
 	if (lockup_detected)
 		panic_on_wq_watchdog(max_stall_time);
