@@ -367,6 +367,127 @@ pub(crate) trait FalconDmaLoadable {
 
     /// Returns the load parameters for `DMEM`.
     fn dmem_load_params(&self) -> FalconDmaLoadTarget;
+
+    /// Returns an adapter that provides the required parameter to load this firmware using PIO.
+    ///
+    /// This can only fail if some `u32` fields cannot be converted to `u16`, or if the indices in
+    /// the headers are invalid.
+    fn try_as_pio_loadable(&self) -> Result<FalconDmaFirmwarePioAdapter<'_, Self>> {
+        let new_pio_imem = |params: FalconDmaLoadTarget, secure| {
+            let start = usize::from_safe_cast(params.src_start);
+            let end = start + usize::from_safe_cast(params.len);
+            let data = self.as_slice().get(start..end).ok_or(EINVAL)?;
+
+            let dst_start = u16::try_from(params.dst_start).map_err(|_| EINVAL)?;
+
+            Ok::<_, Error>(FalconPioImemLoadTarget {
+                data,
+                dst_start,
+                secure,
+                start_tag: dst_start >> 8,
+            })
+        };
+
+        let imem_sec = new_pio_imem(self.imem_sec_load_params(), true)?;
+
+        let imem_ns = if let Some(params) = self.imem_ns_load_params() {
+            Some(new_pio_imem(params, false)?)
+        } else {
+            None
+        };
+
+        let dmem = {
+            let params = self.dmem_load_params();
+            let start = usize::from_safe_cast(params.src_start);
+            let end = start + usize::from_safe_cast(params.len);
+            let data = self.as_slice().get(start..end).ok_or(EINVAL)?;
+
+            let dst_start = u16::try_from(params.dst_start).map_err(|_| EINVAL)?;
+
+            FalconPioDmemLoadTarget { data, dst_start }
+        };
+
+        Ok(FalconDmaFirmwarePioAdapter {
+            fw: self,
+            imem_sec,
+            imem_ns,
+            dmem,
+        })
+    }
+}
+
+/// Represents a portion of the firmware to be loaded into IMEM using PIO.
+#[derive(Clone)]
+pub(crate) struct FalconPioImemLoadTarget<'a> {
+    pub(crate) data: &'a [u8],
+    pub(crate) dst_start: u16,
+    pub(crate) secure: bool,
+    pub(crate) start_tag: u16,
+}
+
+/// Represents a portion of the firmware to be loaded into DMEM using PIO.
+#[derive(Clone)]
+pub(crate) struct FalconPioDmemLoadTarget<'a> {
+    pub(crate) data: &'a [u8],
+    pub(crate) dst_start: u16,
+}
+
+/// Trait for providing PIO load parameters of falcon firmwares.
+pub(crate) trait FalconPioLoadable {
+    /// Returns the load parameters for Secure `IMEM`, if any.
+    fn imem_sec_load_params(&self) -> Option<FalconPioImemLoadTarget<'_>>;
+
+    /// Returns the load parameters for Non-Secure `IMEM`, if any.
+    fn imem_ns_load_params(&self) -> Option<FalconPioImemLoadTarget<'_>>;
+
+    /// Returns the load parameters for `DMEM`.
+    fn dmem_load_params(&self) -> FalconPioDmemLoadTarget<'_>;
+}
+
+/// Adapter type that makes any DMA-loadable firmware also loadable via PIO.
+///
+/// Created using [`FalconDmaLoadable::try_as_pio_loadable`].
+pub(crate) struct FalconDmaFirmwarePioAdapter<'a, T: FalconDmaLoadable + ?Sized> {
+    /// Reference to the DMA firmware.
+    fw: &'a T,
+    /// Validated secure IMEM parameters.
+    imem_sec: FalconPioImemLoadTarget<'a>,
+    /// Validated non-secure IMEM parameters.
+    imem_ns: Option<FalconPioImemLoadTarget<'a>>,
+    /// Validated DMEM parameters.
+    dmem: FalconPioDmemLoadTarget<'a>,
+}
+
+impl<'a, T> FalconPioLoadable for FalconDmaFirmwarePioAdapter<'a, T>
+where
+    T: FalconDmaLoadable + ?Sized,
+{
+    fn imem_sec_load_params(&self) -> Option<FalconPioImemLoadTarget<'_>> {
+        Some(self.imem_sec.clone())
+    }
+
+    fn imem_ns_load_params(&self) -> Option<FalconPioImemLoadTarget<'_>> {
+        self.imem_ns.clone()
+    }
+
+    fn dmem_load_params(&self) -> FalconPioDmemLoadTarget<'_> {
+        self.dmem.clone()
+    }
+}
+
+impl<'a, T> FalconFirmware for FalconDmaFirmwarePioAdapter<'a, T>
+where
+    T: FalconDmaLoadable + FalconFirmware + ?Sized,
+{
+    type Target = <T as FalconFirmware>::Target;
+
+    fn brom_params(&self) -> FalconBromParams {
+        self.fw.brom_params()
+    }
+
+    fn boot_addr(&self) -> u32 {
+        self.fw.boot_addr()
+    }
 }
 
 /// Trait for a falcon firmware.
@@ -412,6 +533,98 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
         regs::NV_PFALCON_FALCON_RM::default()
             .set_value(regs::NV_PMC_BOOT_0::read(bar).into())
+            .write(bar, &E::ID);
+
+        Ok(())
+    }
+
+    /// Falcons supports up to four ports, but we only ever use one, so just hard-code it.
+    const PIO_PORT: usize = 0;
+
+    /// Write a slice to Falcon IMEM memory using programmed I/O (PIO).
+    ///
+    /// Returns `EINVAL` if `img.len()` is not a multiple of 4.
+    fn pio_wr_imem_slice(&self, bar: &Bar0, load_offsets: FalconPioImemLoadTarget<'_>) -> Result {
+        // Rejecting misaligned images here allows us to avoid checking
+        // inside the loops.
+        if load_offsets.data.len() % 4 != 0 {
+            return Err(EINVAL);
+        }
+
+        regs::NV_PFALCON_FALCON_IMEMC::default()
+            .set_secure(load_offsets.secure)
+            .set_aincw(true)
+            .set_offs(load_offsets.dst_start)
+            .write(bar, &E::ID, Self::PIO_PORT);
+
+        for (n, block) in load_offsets.data.chunks(MEM_BLOCK_ALIGNMENT).enumerate() {
+            let n = u16::try_from(n)?;
+            let tag: u16 = load_offsets.start_tag.checked_add(n).ok_or(ERANGE)?;
+            regs::NV_PFALCON_FALCON_IMEMT::default().set_tag(tag).write(
+                bar,
+                &E::ID,
+                Self::PIO_PORT,
+            );
+            for word in block.chunks_exact(4) {
+                let w = [word[0], word[1], word[2], word[3]];
+                regs::NV_PFALCON_FALCON_IMEMD::default()
+                    .set_data(u32::from_le_bytes(w))
+                    .write(bar, &E::ID, Self::PIO_PORT);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Write a slice to Falcon DMEM memory using programmed I/O (PIO).
+    ///
+    /// Returns `EINVAL` if `img.len()` is not a multiple of 4.
+    fn pio_wr_dmem_slice(&self, bar: &Bar0, load_offsets: FalconPioDmemLoadTarget<'_>) -> Result {
+        // Rejecting misaligned images here allows us to avoid checking
+        // inside the loops.
+        if load_offsets.data.len() % 4 != 0 {
+            return Err(EINVAL);
+        }
+
+        regs::NV_PFALCON_FALCON_DMEMC::default()
+            .set_aincw(true)
+            .set_offs(load_offsets.dst_start)
+            .write(bar, &E::ID, Self::PIO_PORT);
+
+        for word in load_offsets.data.chunks_exact(4) {
+            let w = [word[0], word[1], word[2], word[3]];
+            regs::NV_PFALCON_FALCON_DMEMD::default()
+                .set_data(u32::from_le_bytes(w))
+                .write(bar, &E::ID, Self::PIO_PORT);
+        }
+
+        Ok(())
+    }
+
+    /// Perform a PIO copy into `IMEM` and `DMEM` of `fw`, and prepare the falcon to run it.
+    pub(crate) fn pio_load<F: FalconFirmware<Target = E> + FalconPioLoadable>(
+        &self,
+        bar: &Bar0,
+        fw: &F,
+    ) -> Result {
+        regs::NV_PFALCON_FBIF_CTL::read(bar, &E::ID)
+            .set_allow_phys_no_ctx(true)
+            .write(bar, &E::ID);
+
+        regs::NV_PFALCON_FALCON_DMACTL::default().write(bar, &E::ID);
+
+        if let Some(imem_ns) = fw.imem_ns_load_params() {
+            self.pio_wr_imem_slice(bar, imem_ns)?;
+        }
+        if let Some(imem_sec) = fw.imem_sec_load_params() {
+            self.pio_wr_imem_slice(bar, imem_sec)?;
+        }
+        self.pio_wr_dmem_slice(bar, fw.dmem_load_params())?;
+
+        self.hal.program_brom(self, bar, &fw.brom_params())?;
+
+        regs::NV_PFALCON_FALCON_BOOTVEC::default()
+            .set_value(fw.boot_addr())
             .write(bar, &E::ID);
 
         Ok(())
@@ -659,7 +872,8 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         self.hal.is_riscv_active(bar)
     }
 
-    // Load a firmware image into Falcon memory
+    /// Load a firmware image into Falcon memory, using the preferred method for the current
+    /// chipset.
     pub(crate) fn load<F: FalconFirmware<Target = E> + FalconDmaLoadable>(
         &self,
         dev: &Device<device::Bound>,
@@ -668,7 +882,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     ) -> Result {
         match self.hal.load_method() {
             LoadMethod::Dma => self.dma_load(dev, bar, fw),
-            LoadMethod::Pio => Err(ENOTSUPP),
+            LoadMethod::Pio => self.pio_load(bar, &fw.try_as_pio_loadable()?),
         }
     }
 
