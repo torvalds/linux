@@ -594,7 +594,8 @@ static int mt7925_cancel_remain_on_channel(struct ieee80211_hw *hw,
 
 static int mt7925_set_link_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-			       struct ieee80211_key_conf *key, int link_id)
+			       struct ieee80211_key_conf *key, int link_id,
+			       struct mt792x_link_sta *mlink)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
@@ -603,7 +604,6 @@ static int mt7925_set_link_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ieee80211_bss_conf *link_conf;
 	struct ieee80211_link_sta *link_sta;
 	int idx = key->keyidx, err = 0;
-	struct mt792x_link_sta *mlink;
 	struct mt792x_bss_conf *mconf;
 	struct mt76_wcid *wcid;
 	u8 *wcid_keyidx;
@@ -611,7 +611,6 @@ static int mt7925_set_link_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	link_conf = mt792x_vif_to_bss_conf(vif, link_id);
 	link_sta = sta ? mt792x_sta_to_link_sta(vif, sta, link_id) : NULL;
 	mconf = mt792x_vif_to_link(mvif, link_id);
-	mlink = mt792x_sta_to_link(msta, link_id);
 	wcid = &mlink->wcid;
 	wcid_keyidx = &wcid->hw_key_idx;
 
@@ -679,6 +678,7 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_sta *msta = sta ? (struct mt792x_sta *)sta->drv_priv :
 				  &mvif->sta;
+	struct mt792x_link_sta *mlink;
 	int err;
 
 	/* The hardware does not support per-STA RX GTK, fallback
@@ -700,12 +700,16 @@ static int mt7925_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		add = key->link_id != -1 ? BIT(key->link_id) : msta->valid_links;
 
 		for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
-			err = mt7925_set_link_key(hw, cmd, vif, sta, key, link_id);
+			mlink = mt792x_sta_to_link(msta, link_id);
+			err = mt7925_set_link_key(hw, cmd, vif, sta, key, link_id,
+						  mlink);
 			if (err < 0)
 				break;
 		}
 	} else {
-		err = mt7925_set_link_key(hw, cmd, vif, sta, key, vif->bss_conf.link_id);
+		mlink = mt792x_sta_to_link(msta, vif->bss_conf.link_id);
+		err = mt7925_set_link_key(hw, cmd, vif, sta, key,
+					  vif->bss_conf.link_id, mlink);
 	}
 
 	mt792x_mutex_release(dev);
