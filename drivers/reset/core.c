@@ -77,11 +77,13 @@ struct reset_control_array {
  * @of_args: phandle to the reset controller with all the args like GPIO number
  * @swnode: Software node containing the reference to the GPIO provider
  * @list: list entry for the reset_gpio_lookup_list
+ * @adev: Auxiliary device representing the reset controller
  */
 struct reset_gpio_lookup {
 	struct of_phandle_args of_args;
 	struct fwnode_handle *swnode;
 	struct list_head list;
+	struct auxiliary_device adev;
 };
 
 static const char *rcdev_name(struct reset_controller_dev *rcdev)
@@ -824,49 +826,72 @@ static void __reset_control_put_internal(struct reset_control *rstc)
 
 static void reset_gpio_aux_device_release(struct device *dev)
 {
-	struct auxiliary_device *adev = to_auxiliary_dev(dev);
 
-	kfree(adev);
 }
 
-static int reset_add_gpio_aux_device(struct device *parent,
-				     struct fwnode_handle *swnode,
-				     int id, void *pdata)
+static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
+					struct device *parent, int id)
 {
-	struct auxiliary_device *adev;
+	struct auxiliary_device *adev = &rgpio_dev->adev;
 	int ret;
-
-	adev = kzalloc_obj(*adev);
-	if (!adev)
-		return -ENOMEM;
 
 	adev->id = id;
 	adev->name = "gpio";
 	adev->dev.parent = parent;
-	adev->dev.platform_data = pdata;
+	adev->dev.platform_data = &rgpio_dev->of_args;
 	adev->dev.release = reset_gpio_aux_device_release;
-	device_set_node(&adev->dev, swnode);
+	device_set_node(&adev->dev, rgpio_dev->swnode);
 
 	ret = auxiliary_device_init(adev);
-	if (ret) {
-		kfree(adev);
+	if (ret)
 		return ret;
-	}
 
 	ret = __auxiliary_device_add(adev, "reset");
 	if (ret) {
 		auxiliary_device_uninit(adev);
-		kfree(adev);
 		return ret;
 	}
 
-	return ret;
+	return 0;
+}
+
+static void reset_gpio_add_devlink(struct device_node *np,
+				   struct reset_gpio_lookup *rgpio_dev)
+{
+	struct device *consumer;
+
+	/*
+	 * We must use get_dev_from_fwnode() and not of_find_device_by_node()
+	 * because the latter only considers the platform bus while we want to
+	 * get consumers of any kind that can be associated with firmware
+	 * nodes: auxiliary, soundwire, etc.
+	 */
+	consumer = get_dev_from_fwnode(of_fwnode_handle(np));
+	if (consumer) {
+		if (!device_link_add(consumer, &rgpio_dev->adev.dev,
+				     DL_FLAG_AUTOREMOVE_CONSUMER))
+			pr_warn("Failed to create a device link between reset-gpio and its consumer");
+
+		put_device(consumer);
+	}
+	/*
+	 * else { }
+	 *
+	 * TODO: If ever there's a case where we need to support shared
+	 * reset-gpios retrieved from a device node for which there's no
+	 * device present yet, this is where we'd set up a notifier waiting
+	 * for the device to appear in the system. This would be a lot of code
+	 * that would go unused for now so let's cross that bridge when and if
+	 * we get there.
+	 */
 }
 
 /*
- * @args:	phandle to the GPIO provider with all the args like GPIO number
+ * @np: OF-node associated with the consumer
+ * @args: phandle to the GPIO provider with all the args like GPIO number
  */
-static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
+static int __reset_add_reset_gpio_device(struct device_node *np,
+					 const struct of_phandle_args *args)
 {
 	struct property_entry properties[3] = { };
 	unsigned int offset, of_flags, lflags;
@@ -916,8 +941,14 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 
 	list_for_each_entry(rgpio_dev, &reset_gpio_lookup_list, list) {
 		if (args->np == rgpio_dev->of_args.np) {
-			if (of_phandle_args_equal(args, &rgpio_dev->of_args))
-				return 0; /* Already on the list, done */
+			if (of_phandle_args_equal(args, &rgpio_dev->of_args)) {
+				/*
+				 * Already on the list, create the device link
+				 * and stop here.
+				 */
+				reset_gpio_add_devlink(np, rgpio_dev);
+				return 0;
+			}
 		}
 	}
 
@@ -951,11 +982,11 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 		goto err_put_of_node;
 	}
 
-	ret = reset_add_gpio_aux_device(parent, rgpio_dev->swnode, id,
-					&rgpio_dev->of_args);
+	ret = reset_create_gpio_aux_device(rgpio_dev, parent, id);
 	if (ret)
 		goto err_del_swnode;
 
+	reset_gpio_add_devlink(np, rgpio_dev);
 	list_add(&rgpio_dev->list, &reset_gpio_lookup_list);
 
 	return 0;
@@ -1035,7 +1066,7 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 
 		gpio_fallback = true;
 
-		ret = __reset_add_reset_gpio_device(&args);
+		ret = __reset_add_reset_gpio_device(node, &args);
 		if (ret) {
 			rstc = ERR_PTR(ret);
 			goto out_put;
