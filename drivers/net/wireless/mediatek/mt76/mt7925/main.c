@@ -862,8 +862,10 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 	struct ieee80211_bss_conf *link_conf;
 	struct mt792x_bss_conf *mconf;
 	u8 link_id = link_sta->link_id;
+	bool wcid_published = false;
 	struct mt792x_sta *msta;
 	struct mt76_wcid *wcid;
+	bool pm_woken = false;
 	int ret, idx;
 
 	msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
@@ -888,6 +890,7 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 	wcid = &mlink->wcid;
 	ewma_signal_init(&wcid->rssi);
 	rcu_assign_pointer(dev->mt76.wcid[wcid->idx], wcid);
+	wcid_published = true;
 	mt76_wcid_init(wcid, 0);
 	ewma_avg_signal_init(&mlink->avg_ack_signal);
 	memset(mlink->airtime_ac, 0,
@@ -895,7 +898,8 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 
 	ret = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 	if (ret)
-		return ret;
+		goto out_wcid;
+	pm_woken = true;
 
 	mt7925_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -909,15 +913,19 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 		mlink_bc = mt792x_sta_to_link(&mvif->sta, mconf->link_id);
 
 		if (ieee80211_vif_is_mld(vif)) {
-			mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
-						    link_conf, link_sta,
-						    mlink_bc->wcid.idx, mlink->wcid.idx,
-						    link_sta != mlink->pri_link);
+			ret = mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
+							  link_conf, link_sta,
+							  mlink_bc->wcid.idx, mlink->wcid.idx,
+							  link_sta != mlink->pri_link);
+			if (ret)
+				goto out_pm;
 		} else {
-			mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
-						    link_conf, link_sta,
-						    mlink_bc->wcid.idx, mlink->wcid.idx,
-						    false);
+			ret = mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
+							  link_conf, link_sta,
+							  mlink_bc->wcid.idx, mlink->wcid.idx,
+							  false);
+			if (ret)
+				goto out_pm;
 		}
 	}
 
@@ -927,7 +935,7 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 					    mlink, true,
 					    MT76_STA_INFO_STATE_NONE);
 		if (ret)
-			return ret;
+			goto out_pm;
 	} else if (ieee80211_vif_is_mld(vif) &&
 		   link_sta != mlink->pri_link) {
 		struct mt792x_link_sta *pri_mlink;
@@ -940,31 +948,46 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 			    container_of(pri_wcid, struct mt792x_link_sta, wcid) :
 			    NULL;
 
-		if (WARN_ON_ONCE(!pri_mlink))
-			return -EINVAL;
+		if (WARN_ON_ONCE(!pri_mlink)) {
+			ret = -EINVAL;
+			goto out_pm;
+		}
 
 		ret = mt7925_mcu_sta_update(dev, mlink->pri_link, vif,
 					    pri_mlink, true,
 					    MT76_STA_INFO_STATE_ASSOC);
 		if (ret)
-			return ret;
+			goto out_pm;
 
 		ret = mt7925_mcu_sta_update(dev, link_sta, vif,
 					    mlink, true,
 					    MT76_STA_INFO_STATE_ASSOC);
 		if (ret)
-			return ret;
+			goto out_pm;
 	} else {
 		ret = mt7925_mcu_sta_update(dev, link_sta, vif,
 					    mlink, true,
 					    MT76_STA_INFO_STATE_NONE);
 		if (ret)
-			return ret;
+			goto out_pm;
 	}
 
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 
 	return 0;
+
+out_pm:
+	if (pm_woken)
+		mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
+out_wcid:
+	if (wcid_published) {
+		u16 idx = wcid->idx;
+
+		rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
+		mt76_wcid_cleanup(mdev, wcid);
+		mt76_wcid_mask_clear(mdev->wcid_mask, wcid->idx);
+	}
+	return ret;
 }
 
 static int
