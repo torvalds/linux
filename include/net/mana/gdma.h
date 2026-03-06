@@ -421,10 +421,12 @@ struct gdma_context {
 
 	phys_addr_t		bar0_pa;
 	void __iomem		*bar0_va;
+	resource_size_t		bar0_size;
 	void __iomem		*shm_base;
 	void __iomem		*db_page_base;
 	phys_addr_t		phys_db_page_base;
-	u32 db_page_size;
+	u64 db_page_off;
+	u64 db_page_size;
 	int                     numa_node;
 
 	/* Shared memory chanenl (used to bootstrap HWC) */
