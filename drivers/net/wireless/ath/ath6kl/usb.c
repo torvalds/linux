@@ -1175,7 +1175,7 @@ err_usb_destroy:
 	return ret;
 }
 
-static void ath6kl_usb_remove(struct usb_interface *interface)
+static void ath6kl_usb_disconnect(struct usb_interface *interface)
 {
 	ath6kl_usb_device_detached(interface);
 }
@@ -1227,7 +1227,7 @@ static struct usb_driver ath6kl_usb_driver = {
 	.probe = ath6kl_usb_probe,
 	.suspend = ath6kl_usb_pm_suspend,
 	.resume = ath6kl_usb_pm_resume,
-	.disconnect = ath6kl_usb_remove,
+	.disconnect = ath6kl_usb_disconnect,
 	.id_table = ath6kl_usb_ids,
 	.supports_autosuspend = true,
 	.disable_hub_initiated_lpm = 1,
