@@ -9,7 +9,7 @@
  * based on gzip-1.0.3 
  *
  * Nicolas Pitre <nico@fluxnic.net>, 1999/04/14 :
- *   Little mods for all variable to reside either into rodata or bss segments
+ *   Little mods for all variables to reside either into rodata or bss segments
  *   by marking constant variables with 'const' and initializing all the others
  *   at run-time only.  This allows for the kernel uncompressor to run
  *   directly from Flash or ROM memory on embedded systems.
