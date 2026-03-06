@@ -605,9 +605,9 @@ struct altmode_vdm_event {
 	struct kthread_work work;
 	struct tcpm_port *port;
 	u32 header;
-	u32 *data;
 	int cnt;
 	enum tcpm_transmit_type tx_sop_type;
+	u32 data[] __counted_by(cnt);
 };
 
 static const char * const pd_rev[] = {
@@ -1653,7 +1653,6 @@ static void tcpm_queue_vdm_work(struct kthread_work *work)
 	tcpm_queue_vdm(port, event->header, event->data, event->cnt, event->tx_sop_type);
 
 port_unlock:
-	kfree(event->data);
 	kfree(event);
 	mutex_unlock(&port->lock);
 }
@@ -1662,35 +1661,27 @@ static int tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 				   const u32 *data, int cnt, enum tcpm_transmit_type tx_sop_type)
 {
 	struct altmode_vdm_event *event;
-	u32 *data_cpy;
 	int ret = -ENOMEM;
 
-	event = kzalloc_obj(*event);
+	event = kzalloc_flex(*event, data, cnt);
 	if (!event)
 		goto err_event;
 
-	data_cpy = kcalloc(cnt, sizeof(u32), GFP_KERNEL);
-	if (!data_cpy)
-		goto err_data;
-
 	kthread_init_work(&event->work, tcpm_queue_vdm_work);
+	event->cnt = cnt;
 	event->port = port;
 	event->header = header;
-	memcpy(data_cpy, data, sizeof(u32) * cnt);
-	event->data = data_cpy;
-	event->cnt = cnt;
+	memcpy(event->data, data, sizeof(u32) * cnt);
 	event->tx_sop_type = tx_sop_type;
 
 	ret = kthread_queue_work(port->wq, &event->work);
 	if (!ret) {
 		ret = -EBUSY;
-		goto err_queue;
+		goto err_data;
 	}
 
 	return 0;
 
-err_queue:
-	kfree(data_cpy);
 err_data:
 	kfree(event);
 err_event:
