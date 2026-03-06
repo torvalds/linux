@@ -1914,36 +1914,53 @@ mt7925_mcu_sta_eht_mld_tlv(struct sk_buff *skb,
 
 static void
 mt7925_mcu_sta_mld_tlv(struct sk_buff *skb,
-		       struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta,
+		       struct mt792x_bss_conf *mconf,
+		       struct mt792x_link_sta *mlink)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
-	unsigned long valid = mvif->valid_links;
-	struct mt792x_bss_conf *mconf;
-	struct mt792x_link_sta *mlink;
+	struct mt792x_dev *dev = mvif->phy->dev;
+	struct mt792x_bss_conf *mconf_pri;
 	struct sta_rec_mld *mld;
 	struct tlv *tlv;
-	int i, cnt = 0;
+	u8 cnt = 0;
+
+	/* Primary link always uses driver's deflink WCID. */
+	mconf_pri = (msta->deflink_id != IEEE80211_LINK_UNSPECIFIED) ?
+		    mt792x_vif_to_link(mvif, msta->deflink_id) : NULL;
+
+	/* If caller is operating on deflink, reuse its mconf as primary. */
+	if (!mconf_pri && mlink == &msta->deflink)
+		mconf_pri = mconf;
+
+	if (!mconf_pri) {
+		dev_warn_ratelimited(dev->mt76.dev,
+				     "mt7925: MLD_TLV_LINK skip (no primary mconf) sta=%pM\n",
+			sta->addr);
+		return;
+	}
 
 	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_MLD, sizeof(*mld));
 	mld = (struct sta_rec_mld *)tlv;
 	memcpy(mld->mac_addr, sta->addr, ETH_ALEN);
+
 	mld->primary_id = cpu_to_le16(msta->deflink.wcid.idx);
 	mld->wlan_id = cpu_to_le16(msta->deflink.wcid.idx);
-	mld->link_num = min_t(u8, hweight16(mvif->valid_links), 2);
 
-	for_each_set_bit(i, &valid, IEEE80211_MLD_MAX_NUM_LINKS) {
-		if (cnt == mld->link_num)
-			break;
+	/* Always encode primary link first. */
+	mld->link[cnt].wlan_id = cpu_to_le16(msta->deflink.wcid.idx);
+	mld->link[cnt++].bss_idx = mconf_pri->mt76.idx;
 
-		mconf = mt792x_vif_to_link(mvif, i);
-		mlink = mt792x_sta_to_link(msta, i);
+	/* Optionally encode the currently-updated secondary link. */
+	if (mlink && mlink != &msta->deflink && mconf) {
+		mld->secondary_id = cpu_to_le16(mlink->wcid.idx);
 		mld->link[cnt].wlan_id = cpu_to_le16(mlink->wcid.idx);
 		mld->link[cnt++].bss_idx = mconf->mt76.idx;
-
-		if (mlink != &msta->deflink)
-			mld->secondary_id = cpu_to_le16(mlink->wcid.idx);
 	}
+
+	mld->link_num = cnt;
 }
 
 static void
@@ -1969,6 +1986,7 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 	int conn_state;
 
 	mconf = mt792x_vif_to_link(mvif, info->wcid->link_id);
+	mlink = container_of(info->wcid, struct mt792x_link_sta, wcid);
 
 	skb = __mt76_connac_mcu_alloc_sta_req(dev, &mconf->mt76, info->wcid,
 					      MT7925_STA_UPDATE_MAX_SIZE);
@@ -1979,8 +1997,6 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 				    CONN_STATE_DISCONNECT;
 
 	if (info->enable && info->link_sta) {
-		mlink = container_of(info->wcid, struct mt792x_link_sta, wcid);
-
 		mt76_connac_mcu_sta_basic_tlv(dev, skb, info->link_conf,
 					      info->link_sta,
 					      conn_state, info->newly);
@@ -1999,7 +2015,10 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 					    info->state);
 
 		if (info->state != MT76_STA_INFO_STATE_NONE) {
-			mt7925_mcu_sta_mld_tlv(skb, info->vif, info->link_sta->sta);
+			mt7925_mcu_sta_mld_tlv(skb, info->vif,
+					       info->link_sta->sta,
+					       mconf, mlink);
+
 			mt7925_mcu_sta_eht_mld_tlv(skb, info->vif, info->link_sta->sta);
 		}
 	}
