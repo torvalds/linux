@@ -1057,7 +1057,7 @@ err:
 	return ret;
 }
 
-static void ath10k_usb_remove(struct usb_interface *interface)
+static void ath10k_usb_disconnect(struct usb_interface *interface)
 {
 	struct ath10k_usb *ar_usb;
 
@@ -1113,7 +1113,7 @@ static struct usb_driver ath10k_usb_driver = {
 	.probe = ath10k_usb_probe,
 	.suspend = ath10k_usb_pm_suspend,
 	.resume = ath10k_usb_pm_resume,
-	.disconnect = ath10k_usb_remove,
+	.disconnect = ath10k_usb_disconnect,
 	.id_table = ath10k_usb_ids,
 	.supports_autosuspend = true,
 	.disable_hub_initiated_lpm = 1,
