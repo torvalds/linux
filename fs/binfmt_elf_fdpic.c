@@ -911,7 +911,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	return 0;
 
 dynamic_error:
-	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
+	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%llu)\n",
 	       what, file_inode(file)->i_ino);
 	return -ELIBBAD;
 }

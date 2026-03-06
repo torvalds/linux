@@ -1389,7 +1389,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 #ifdef DEBUG
 	if((de->flags[-high_sierra] & ~2)!= 0){
 		printk(KERN_DEBUG "ISOFS: Unusual flag settings for ISO file "
-				"(%ld %x).\n",
+				"(%llu %x).\n",
 			inode->i_ino, de->flags[-high_sierra]);
 	}
 #endif
