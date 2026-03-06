@@ -474,6 +474,9 @@ static void dcn42_dump_clk_registers(struct clk_state_registers_and_bypass *regs
 		DC_LOG_SMU("CLK1_CLK1_CURRENT_CNT,%d,dppclk\n",
 					internal.CLK8_CLK1_CURRENT_CNT);
 
+		DC_LOG_SMU("CLK1_CLK4_CURRENT_CNT,%d,dtbclk\n",
+					internal.CLK8_CLK4_CURRENT_CNT);
+
 		DC_LOG_SMU("CLK1_CLK3_BYPASS_CNTL,%d,dcfclk_bypass\n",
 					internal.CLK8_CLK3_BYPASS_CNTL);
 
