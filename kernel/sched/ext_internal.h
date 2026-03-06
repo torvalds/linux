@@ -1014,6 +1014,8 @@ struct scx_sched {
 	struct list_head	all;
 
 #ifdef CONFIG_EXT_SUB_SCHED
+	struct rhash_head	hash_node;
+
 	struct list_head	children;
 	struct list_head	sibling;
 	struct cgroup		*cgrp;
