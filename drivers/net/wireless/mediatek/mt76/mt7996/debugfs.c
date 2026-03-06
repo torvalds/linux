@@ -626,13 +626,18 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct mt7996_vif *mvif = msta->vif;
-	struct mt7996_dev *dev = mvif->deflink.phy->dev;
+	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
 	struct ieee80211_link_sta *link_sta;
 	struct seq_file *s = data;
 	struct ieee80211_vif *vif;
+	struct mt7996_dev *dev;
 	unsigned int link_id;
 
+	if (!phy)
+		return;
+
 	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+	dev = phy->dev;
 
 	rcu_read_lock();
 
@@ -979,12 +984,16 @@ static ssize_t mt7996_link_sta_fixed_rate_set(struct file *file,
 #define LONG_PREAMBLE 1
 	struct ieee80211_link_sta *link_sta = file->private_data;
 	struct mt7996_sta *msta = (struct mt7996_sta *)link_sta->sta->drv_priv;
-	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
+	struct mt7996_phy *link_phy = mt7996_vif_link_phy(&msta->vif->deflink);
 	struct mt7996_sta_link *msta_link;
 	struct ra_rate phy = {};
+	struct mt7996_dev *dev;
 	char buf[100];
 	int ret;
 	u16 gi, ltf;
+
+	if (!link_phy)
+		return -EINVAL;
 
 	if (count >= sizeof(buf))
 		return -EINVAL;
@@ -1008,6 +1017,7 @@ static ssize_t mt7996_link_sta_fixed_rate_set(struct file *file,
 	 * spe - off: 0, on: 1
 	 * ltf - 1xltf: 0, 2xltf: 1, 4xltf: 2
 	 */
+	dev = link_phy->dev;
 	if (sscanf(buf, "%hhu %hhu %hhu %hhu %hu %hhu %hhu %hhu %hhu %hu",
 		   &phy.mode, &phy.bw, &phy.mcs, &phy.nss, &gi,
 		   &phy.preamble, &phy.stbc, &phy.ldpc, &phy.spe, &ltf) != 10) {

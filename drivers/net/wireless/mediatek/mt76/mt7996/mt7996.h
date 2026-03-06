@@ -276,8 +276,6 @@ struct mt7996_vif_link {
 	struct mt76_vif_link mt76; /* must be first */
 
 	struct mt7996_sta_link msta_link;
-	struct mt7996_phy *phy;
-
 	struct cfg80211_bitrate_mask bitrate_mask;
 
 	u8 mld_idx;

@@ -2167,9 +2167,14 @@ mt7996_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 
 	for_each_vif_active_link(vif, link_conf, link_id) {
 		struct mt7996_vif_link *link;
+		struct mt7996_phy *link_phy;
 
 		link = mt7996_vif_link(dev, vif, link_id);
-		if (!link || link->phy != phy)
+		if (!link)
+			continue;
+
+		link_phy = mt7996_vif_link_phy(link);
+		if (link_phy != phy)
 			continue;
 
 		mt7996_mcu_add_beacon(dev->mt76.hw, vif, link_conf,
