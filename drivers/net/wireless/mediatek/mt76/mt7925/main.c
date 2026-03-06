@@ -1598,7 +1598,7 @@ static void mt7925_sta_set_decap_offload(struct ieee80211_hw *hw,
 		if (!mlink->wcid.sta)
 			continue;
 
-		mt7925_mcu_wtbl_update_hdr_trans(dev, vif, sta, i);
+		mt7925_mcu_wtbl_update_hdr_trans(dev, vif, sta, mlink, i);
 	}
 
 	mt792x_mutex_release(dev);

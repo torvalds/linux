@@ -1097,18 +1097,14 @@ mt7925_mcu_sta_hdr_trans_tlv(struct sk_buff *skb,
 int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_sta *sta,
+				     struct mt792x_link_sta *mlink,
 				     int link_id)
 {
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct ieee80211_link_sta *link_sta = sta ? &sta->deflink : NULL;
-	struct mt792x_link_sta *mlink;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_bss_conf *mconf;
-	struct mt792x_sta *msta;
 	struct sk_buff *skb;
 
-	msta = sta ? (struct mt792x_sta *)sta->drv_priv : &mvif->sta;
-
-	mlink = mt792x_sta_to_link(msta, link_id);
 	link_sta = mt792x_sta_to_link_sta(vif, sta, link_id);
 	mconf = mt792x_vif_to_link(mvif, link_id);
 

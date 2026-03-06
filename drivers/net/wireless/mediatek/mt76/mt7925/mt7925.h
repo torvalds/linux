@@ -371,6 +371,7 @@ int mt7925_mcu_set_rts_thresh(struct mt792x_phy *phy, u32 val);
 int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_sta *sta,
+				     struct mt792x_link_sta *mlink,
 				     int link_id);
 int mt7925_mcu_wf_rf_pin_ctrl(struct mt792x_phy *phy);
 
