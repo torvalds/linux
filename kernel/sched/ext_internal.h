@@ -933,6 +933,8 @@ struct scx_event_stats {
 	s64		SCX_EV_SUB_BYPASS_DISPATCH;
 };
 
+struct scx_sched;
+
 enum scx_sched_pcpu_flags {
 	SCX_SCHED_PCPU_BYPASSING	= 1LLU << 0,
 };
@@ -953,6 +955,7 @@ struct scx_dsp_ctx {
 };
 
 struct scx_sched_pcpu {
+	struct scx_sched	*sch;
 	u64			flags;	/* protected by rq lock */
 
 	/*
