@@ -543,13 +543,12 @@ static const struct regmap_config rtd_pinctrl_regmap_config = {
 int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_desc *desc)
 {
 	struct rtd_pinctrl *data;
-	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->base = of_iomap(pdev->dev.of_node, 0);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (!data->base)
 		return -ENOMEM;
 
@@ -570,25 +569,18 @@ int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_des
 	if (IS_ERR(data->regmap_pinctrl)) {
 		dev_err(data->dev, "failed to init regmap: %ld\n",
 			PTR_ERR(data->regmap_pinctrl));
-		ret = PTR_ERR(data->regmap_pinctrl);
-		goto unmap;
+		return PTR_ERR(data->regmap_pinctrl);
 	}
 
-	data->pcdev = pinctrl_register(&data->desc, &pdev->dev, data);
-	if (IS_ERR(data->pcdev)) {
-		ret = PTR_ERR(data->pcdev);
-		goto unmap;
-	}
+	data->pcdev = devm_pinctrl_register(&pdev->dev, &data->desc, data);
+	if (IS_ERR(data->pcdev))
+		return PTR_ERR(data->pcdev);
 
 	platform_set_drvdata(pdev, data);
 
 	dev_dbg(&pdev->dev, "probed\n");
 
 	return 0;
-
-unmap:
-	iounmap(data->base);
-	return ret;
 }
 EXPORT_SYMBOL(rtd_pinctrl_probe);
 
