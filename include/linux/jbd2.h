@@ -445,6 +445,20 @@ struct jbd2_inode {
 	loff_t i_dirty_end;
 };
 
+static inline bool jbd2_jinode_get_dirty_range(const struct jbd2_inode *jinode,
+					       loff_t *start, loff_t *end)
+{
+	loff_t start_byte = jinode->i_dirty_start;
+	loff_t end_byte = jinode->i_dirty_end;
+
+	if (!end_byte)
+		return false;
+
+	*start = start_byte;
+	*end = end_byte;
+	return true;
+}
+
 struct jbd2_revoke_table_s;
 
 /**
