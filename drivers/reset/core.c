@@ -23,6 +23,7 @@
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 
 static DEFINE_MUTEX(reset_list_mutex);
 static LIST_HEAD(reset_controller_list);
@@ -36,6 +37,7 @@ static DEFINE_IDA(reset_gpio_ida);
  * struct reset_control - a reset control
  * @rcdev: a pointer to the reset controller device
  *         this reset control belongs to
+ * @srcu: protects the rcdev pointer from removal during consumer access
  * @list: list entry for the rcdev's reset controller list
  * @id: ID of the reset controller in the reset
  *      controller device
@@ -49,7 +51,8 @@ static DEFINE_IDA(reset_gpio_ida);
  *                   will be either 0 or 1.
  */
 struct reset_control {
-	struct reset_controller_dev *rcdev;
+	struct reset_controller_dev __rcu *rcdev;
+	struct srcu_struct srcu;
 	struct list_head list;
 	unsigned int id;
 	struct kref refcnt;
@@ -137,15 +140,35 @@ int reset_controller_register(struct reset_controller_dev *rcdev)
 }
 EXPORT_SYMBOL_GPL(reset_controller_register);
 
+static void reset_controller_remove(struct reset_controller_dev *rcdev,
+				    struct reset_control *rstc)
+{
+	list_del(&rstc->list);
+	module_put(rcdev->owner);
+	put_device(rcdev->dev);
+}
+
 /**
  * reset_controller_unregister - unregister a reset controller device
  * @rcdev: a pointer to the reset controller device
  */
 void reset_controller_unregister(struct reset_controller_dev *rcdev)
 {
+	struct reset_control *rstc, *pos;
+
 	guard(mutex)(&reset_list_mutex);
 
 	list_del(&rcdev->list);
+
+	/*
+	 * Numb but don't free the remaining reset control handles that are
+	 * still held by consumers.
+	 */
+	list_for_each_entry_safe(rstc, pos, &rcdev->reset_control_head, list) {
+		rcu_assign_pointer(rstc->rcdev, NULL);
+		synchronize_srcu(&rstc->srcu);
+		reset_controller_remove(rcdev, rstc);
+	}
 }
 EXPORT_SYMBOL_GPL(reset_controller_unregister);
 
@@ -322,6 +345,7 @@ static inline bool reset_control_is_array(struct reset_control *rstc)
  */
 int reset_control_reset(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
 	int ret;
 
 	if (!rstc)
@@ -333,7 +357,13 @@ int reset_control_reset(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_reset(rstc_to_array(rstc));
 
-	if (!rstc->rcdev->ops->reset)
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	if (!rcdev->ops->reset)
 		return -ENOTSUPP;
 
 	if (rstc->shared) {
@@ -347,7 +377,7 @@ int reset_control_reset(struct reset_control *rstc)
 			return -EPERM;
 	}
 
-	ret = rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
+	ret = rcdev->ops->reset(rcdev, rstc->id);
 	if (rstc->shared && ret)
 		atomic_dec(&rstc->triggered_count);
 
@@ -437,6 +467,8 @@ EXPORT_SYMBOL_GPL(reset_control_rearm);
  */
 int reset_control_assert(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
@@ -445,6 +477,12 @@ int reset_control_assert(struct reset_control *rstc)
 
 	if (reset_control_is_array(rstc))
 		return reset_control_array_assert(rstc_to_array(rstc));
+
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
 
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
@@ -460,7 +498,7 @@ int reset_control_assert(struct reset_control *rstc)
 		 * Shared reset controls allow the reset line to be in any state
 		 * after this call, so doing nothing is a valid option.
 		 */
-		if (!rstc->rcdev->ops->assert)
+		if (!rcdev->ops->assert)
 			return 0;
 	} else {
 		/*
@@ -468,17 +506,17 @@ int reset_control_assert(struct reset_control *rstc)
 		 * is no way to guarantee that the reset line is asserted after
 		 * this call.
 		 */
-		if (!rstc->rcdev->ops->assert)
+		if (!rcdev->ops->assert)
 			return -ENOTSUPP;
 
 		if (!rstc->acquired) {
 			WARN(1, "reset %s (ID: %u) is not acquired\n",
-			     rcdev_name(rstc->rcdev), rstc->id);
+			     rcdev_name(rcdev), rstc->id);
 			return -EPERM;
 		}
 	}
 
-	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
+	return rcdev->ops->assert(rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_assert);
 
@@ -525,6 +563,8 @@ EXPORT_SYMBOL_GPL(reset_control_bulk_assert);
  */
 int reset_control_deassert(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
@@ -533,6 +573,12 @@ int reset_control_deassert(struct reset_control *rstc)
 
 	if (reset_control_is_array(rstc))
 		return reset_control_array_deassert(rstc_to_array(rstc));
+
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
 
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
@@ -543,7 +589,7 @@ int reset_control_deassert(struct reset_control *rstc)
 	} else {
 		if (!rstc->acquired) {
 			WARN(1, "reset %s (ID: %u) is not acquired\n",
-			     rcdev_name(rstc->rcdev), rstc->id);
+			     rcdev_name(rcdev), rstc->id);
 			return -EPERM;
 		}
 	}
@@ -555,10 +601,10 @@ int reset_control_deassert(struct reset_control *rstc)
 	 * case, the reset controller driver should implement .deassert() and
 	 * return -ENOTSUPP.
 	 */
-	if (!rstc->rcdev->ops->deassert)
+	if (!rcdev->ops->deassert)
 		return 0;
 
-	return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
+	return rcdev->ops->deassert(rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
@@ -600,14 +646,22 @@ EXPORT_SYMBOL_GPL(reset_control_bulk_deassert);
  */
 int reset_control_status(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
 	if (WARN_ON(IS_ERR(rstc)) || reset_control_is_array(rstc))
 		return -EINVAL;
 
-	if (rstc->rcdev->ops->status)
-		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	if (rcdev->ops->status)
+		return rcdev->ops->status(rcdev, rstc->id);
 
 	return -ENOTSUPP;
 }
@@ -635,6 +689,7 @@ EXPORT_SYMBOL_GPL(reset_control_status);
  */
 int reset_control_acquire(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
 	struct reset_control *rc;
 
 	if (!rstc)
@@ -651,7 +706,13 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (rstc->acquired)
 		return 0;
 
-	list_for_each_entry(rc, &rstc->rcdev->reset_control_head, list) {
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	list_for_each_entry(rc, &rcdev->reset_control_head, list) {
 		if (rstc != rc && rstc->id == rc->id) {
 			if (rc->acquired)
 				return -EBUSY;
@@ -743,6 +804,7 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	bool shared = flags & RESET_CONTROL_FLAGS_BIT_SHARED;
 	bool acquired = flags & RESET_CONTROL_FLAGS_BIT_ACQUIRED;
 	struct reset_control *rstc;
+	int ret;
 
 	lockdep_assert_held(&reset_list_mutex);
 
@@ -773,12 +835,19 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	if (!rstc)
 		return ERR_PTR(-ENOMEM);
 
+	ret = init_srcu_struct(&rstc->srcu);
+	if (ret) {
+		kfree(rstc);
+		return ERR_PTR(ret);
+	}
+
 	if (!try_module_get(rcdev->owner)) {
+		cleanup_srcu_struct(&rstc->srcu);
 		kfree(rstc);
 		return ERR_PTR(-ENODEV);
 	}
 
-	rstc->rcdev = rcdev;
+	rcu_assign_pointer(rstc->rcdev, rcdev);
 	list_add(&rstc->list, &rcdev->reset_control_head);
 	rstc->id = index;
 	kref_init(&rstc->refcnt);
@@ -793,13 +862,18 @@ static void __reset_control_release(struct kref *kref)
 {
 	struct reset_control *rstc = container_of(kref, struct reset_control,
 						  refcnt);
+	struct reset_controller_dev *rcdev;
 
 	lockdep_assert_held(&reset_list_mutex);
 
-	module_put(rstc->rcdev->owner);
+	scoped_guard(srcu, &rstc->srcu) {
+		rcdev = rcu_replace_pointer(rstc->rcdev, NULL, true);
+		if (rcdev)
+			reset_controller_remove(rcdev, rstc);
+	}
 
-	list_del(&rstc->list);
-	put_device(rstc->rcdev->dev);
+	synchronize_srcu(&rstc->srcu);
+	cleanup_srcu_struct(&rstc->srcu);
 	kfree(rstc);
 }
 
