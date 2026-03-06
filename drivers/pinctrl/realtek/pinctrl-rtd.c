@@ -566,15 +566,14 @@ int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_des
 	data->regmap_pinctrl = devm_regmap_init_mmio(data->dev, data->base,
 						     &rtd_pinctrl_regmap_config);
 
-	if (IS_ERR(data->regmap_pinctrl)) {
-		dev_err(data->dev, "failed to init regmap: %ld\n",
-			PTR_ERR(data->regmap_pinctrl));
-		return PTR_ERR(data->regmap_pinctrl);
-	}
+	if (IS_ERR(data->regmap_pinctrl))
+		return dev_err_probe(data->dev, PTR_ERR(data->regmap_pinctrl),
+				     "Failed to init regmap\n");
 
 	data->pcdev = devm_pinctrl_register(&pdev->dev, &data->desc, data);
 	if (IS_ERR(data->pcdev))
-		return PTR_ERR(data->pcdev);
+		return dev_err_probe(data->dev, PTR_ERR(data->pcdev),
+				     "Failed to register pinctrl\n");
 
 	platform_set_drvdata(pdev, data);
 
