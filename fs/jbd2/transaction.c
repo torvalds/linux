@@ -2694,6 +2694,7 @@ static int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode,
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal;
+	pgoff_t start_page, end_page;
 	int err = 0;
 	int abort_transaction = 0;
 
@@ -2704,15 +2705,21 @@ static int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode,
 	jbd2_debug(4, "Adding inode %lu, tid:%d\n", jinode->i_vfs_inode->i_ino,
 			transaction->t_tid);
 
-	spin_lock(&journal->j_list_lock);
-	jinode->i_flags |= flags;
+	start_page = (pgoff_t)(start_byte >> PAGE_SHIFT);
+	end_page = (pgoff_t)(end_byte >> PAGE_SHIFT) + 1;
 
-	if (jinode->i_dirty_end) {
-		jinode->i_dirty_start = min(jinode->i_dirty_start, start_byte);
-		jinode->i_dirty_end = max(jinode->i_dirty_end, end_byte);
+	spin_lock(&journal->j_list_lock);
+	WRITE_ONCE(jinode->i_flags, jinode->i_flags | flags);
+
+	if (jinode->i_dirty_start_page != jinode->i_dirty_end_page) {
+		WRITE_ONCE(jinode->i_dirty_start_page,
+			   min(jinode->i_dirty_start_page, start_page));
+		WRITE_ONCE(jinode->i_dirty_end_page,
+			   max(jinode->i_dirty_end_page, end_page));
 	} else {
-		jinode->i_dirty_start = start_byte;
-		jinode->i_dirty_end = end_byte;
+		/* Publish a new non-empty range by making end visible first. */
+		WRITE_ONCE(jinode->i_dirty_end_page, end_page);
+		WRITE_ONCE(jinode->i_dirty_start_page, start_page);
 	}
 
 	/* Is inode already attached where we need it? */
@@ -2802,7 +2809,7 @@ int jbd2_journal_begin_ordered_truncate(journal_t *journal,
 	int ret = 0;
 
 	/* This is a quick check to avoid locking if not necessary */
-	if (!jinode->i_transaction)
+	if (!READ_ONCE(jinode->i_transaction))
 		goto out;
 	/* Locks are here just to force reading of recent values, it is
 	 * enough that the transaction was not committing before we started

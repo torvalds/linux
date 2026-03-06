@@ -3018,8 +3018,8 @@ void jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode)
 	jinode->i_next_transaction = NULL;
 	jinode->i_vfs_inode = inode;
 	jinode->i_flags = 0;
-	jinode->i_dirty_start = 0;
-	jinode->i_dirty_end = 0;
+	jinode->i_dirty_start_page = 0;
+	jinode->i_dirty_end_page = 0;
 	INIT_LIST_HEAD(&jinode->i_list);
 }
 
@@ -3176,4 +3176,3 @@ MODULE_DESCRIPTION("Generic filesystem journal-writing module");
 MODULE_LICENSE("GPL");
 module_init(journal_init);
 module_exit(journal_exit);
-
