@@ -1392,10 +1392,25 @@ static int cow_one_range(struct btrfs_inode *inode, struct folio *locked_folio,
 	return ret;
 
 free_reserved:
+	/*
+	 * If we have reserved an extent for the current range and failed to
+	 * create the respective extent map or ordered extent, it means that
+	 * when we reserved the extent we decremented the extent's size from
+	 * the data space_info's bytes_may_use counter and
+	 * incremented the space_info's bytes_reserved counter by the same
+	 * amount.
+	 *
+	 * We must make sure extent_clear_unlock_delalloc() does not try
+	 * to decrement again the data space_info's bytes_may_use counter, which
+	 * will be handled by btrfs_free_reserved_extent().
+	 *
+	 * Therefore we do not pass it the flag EXTENT_CLEAR_DATA_RESV, but only
+	 * EXTENT_CLEAR_META_RESV.
+	 */
 	extent_clear_unlock_delalloc(inode, file_offset, cur_end, locked_folio, cached,
 				     EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_DELALLOC_NEW |
-				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
+				     EXTENT_DEFRAG | EXTENT_CLEAR_META_RESV,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
 	btrfs_qgroup_free_data(inode, NULL, file_offset, cur_len, NULL);
@@ -4764,7 +4779,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 		spin_unlock(&dest->root_item_lock);
 		btrfs_warn(fs_info,
 			   "attempt to delete subvolume %llu with active swapfile",
-			   btrfs_root_id(root));
+			   btrfs_root_id(dest));
 		ret = -EPERM;
 		goto out_up_write;
 	}

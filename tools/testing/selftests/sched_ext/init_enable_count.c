@@ -57,7 +57,8 @@ static enum scx_test_status run_test(bool global)
 			char buf;
 
 			close(pipe_fds[1]);
-			read(pipe_fds[0], &buf, 1);
+			if (read(pipe_fds[0], &buf, 1) < 0)
+				exit(1);
 			close(pipe_fds[0]);
 			exit(0);
 		}

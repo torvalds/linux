@@ -212,7 +212,7 @@ void test_setget_sockopt(void)
 	if (!ASSERT_OK_PTR(skel, "open skel"))
 		goto done;
 
-	strcpy(skel->rodata->veth, "binddevtest1");
+	strscpy(skel->rodata->veth, "binddevtest1");
 	skel->rodata->veth_ifindex = if_nametoindex("binddevtest1");
 	if (!ASSERT_GT(skel->rodata->veth_ifindex, 0, "if_nametoindex"))
 		goto done;

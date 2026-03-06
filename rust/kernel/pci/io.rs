@@ -8,8 +8,8 @@ use crate::{
     device,
     devres::Devres,
     io::{
-        define_read,
-        define_write,
+        io_define_read,
+        io_define_write,
         Io,
         IoCapable,
         IoKnownSize,
@@ -88,7 +88,7 @@ pub struct ConfigSpace<'a, S: ConfigSpaceKind = Extended> {
 /// Internal helper macros used to invoke C PCI configuration space read functions.
 ///
 /// This macro is intended to be used by higher-level PCI configuration space access macros
-/// (define_read) and provides a unified expansion for infallible vs. fallible read semantics. It
+/// (io_define_read) and provides a unified expansion for infallible vs. fallible read semantics. It
 /// emits a direct call into the corresponding C helper and performs the required cast to the Rust
 /// return type.
 ///
@@ -117,9 +117,9 @@ macro_rules! call_config_read {
 /// Internal helper macros used to invoke C PCI configuration space write functions.
 ///
 /// This macro is intended to be used by higher-level PCI configuration space access macros
-/// (define_write) and provides a unified expansion for infallible vs. fallible read semantics. It
-/// emits a direct call into the corresponding C helper and performs the required cast to the Rust
-/// return type.
+/// (io_define_write) and provides a unified expansion for infallible vs. fallible read semantics.
+/// It emits a direct call into the corresponding C helper and performs the required cast to the
+/// Rust return type.
 ///
 /// # Parameters
 ///
@@ -163,13 +163,13 @@ impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
     // PCI configuration space does not support fallible operations.
     // The default implementations from the Io trait are not used.
 
-    define_read!(infallible, read8, call_config_read(pci_read_config_byte) -> u8);
-    define_read!(infallible, read16, call_config_read(pci_read_config_word) -> u16);
-    define_read!(infallible, read32, call_config_read(pci_read_config_dword) -> u32);
+    io_define_read!(infallible, read8, call_config_read(pci_read_config_byte) -> u8);
+    io_define_read!(infallible, read16, call_config_read(pci_read_config_word) -> u16);
+    io_define_read!(infallible, read32, call_config_read(pci_read_config_dword) -> u32);
 
-    define_write!(infallible, write8, call_config_write(pci_write_config_byte) <- u8);
-    define_write!(infallible, write16, call_config_write(pci_write_config_word) <- u16);
-    define_write!(infallible, write32, call_config_write(pci_write_config_dword) <- u32);
+    io_define_write!(infallible, write8, call_config_write(pci_write_config_byte) <- u8);
+    io_define_write!(infallible, write16, call_config_write(pci_write_config_word) <- u16);
+    io_define_write!(infallible, write32, call_config_write(pci_write_config_dword) <- u32);
 }
 
 impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {

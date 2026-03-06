@@ -2540,9 +2540,9 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 		goto put;
 
 	req = (struct smbdirect_negotiate_req *)recvmsg->packet;
-	sp->max_recv_size = min_t(int, sp->max_recv_size,
+	sp->max_recv_size = min_t(u32, sp->max_recv_size,
 				  le32_to_cpu(req->preferred_send_size));
-	sp->max_send_size = min_t(int, sp->max_send_size,
+	sp->max_send_size = min_t(u32, sp->max_send_size,
 				  le32_to_cpu(req->max_receive_size));
 	sp->max_fragmented_send_size =
 		le32_to_cpu(req->max_fragmented_size);
