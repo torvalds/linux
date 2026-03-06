@@ -767,7 +767,8 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 	 * either enqueue() sees the idle bit or update_idle() sees the task
 	 * that enqueue() queued.
 	 */
-	if (SCX_HAS_OP(sch, update_idle) && do_notify && !scx_rq_bypassing(rq))
+	if (SCX_HAS_OP(sch, update_idle) && do_notify &&
+	    !scx_bypassing(sch, cpu_of(rq)))
 		SCX_CALL_OP(sch, SCX_KF_REST, update_idle, rq, cpu_of(rq), idle);
 }
 
