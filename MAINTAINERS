@@ -20108,9 +20108,8 @@ F:	Documentation/devicetree/bindings/pci/marvell,armada-3700-pcie.yaml
 F:	drivers/pci/controller/pci-aardvark.c
 
 PCI DRIVER FOR ALTERA PCIE IP
-M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/devicetree/bindings/pci/altr,pcie-root-port.yaml
 F:	drivers/pci/controller/pcie-altera.c
 
@@ -20355,9 +20354,8 @@ S:	Supported
 F:	Documentation/PCI/pci-error-recovery.rst
 
 PCI MSI DRIVER FOR ALTERA MSI IP
-M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/devicetree/bindings/interrupt-controller/altr,msi-controller.yaml
 F:	drivers/pci/controller/pcie-altera-msi.c
 
