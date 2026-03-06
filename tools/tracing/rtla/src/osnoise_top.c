@@ -31,7 +31,6 @@ struct osnoise_top_cpu {
 
 struct osnoise_top_data {
 	struct osnoise_top_cpu	*cpu_data;
-	int			nr_cpus;
 };
 
 /*
@@ -58,8 +57,6 @@ static struct osnoise_top_data *osnoise_alloc_top(void)
 	data = calloc(1, sizeof(*data));
 	if (!data)
 		return NULL;
-
-	data->nr_cpus = nr_cpus;
 
 	/* one set of histograms per CPU */
 	data->cpu_data = calloc(1, sizeof(*data->cpu_data) * nr_cpus);
