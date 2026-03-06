@@ -94,6 +94,12 @@ pub(crate) trait CommandToGsp {
     ) -> Result {
         Ok(())
     }
+
+    /// Total size of the command (including its variable-length payload) without the
+    /// [`GspMsgElement`] header.
+    fn size(&self) -> usize {
+        size_of::<Self::Command>() + self.variable_payload_len()
+    }
 }
 
 /// Trait representing messages received from the GSP.
@@ -529,10 +535,10 @@ impl Cmdq {
         // This allows all error types, including `Infallible`, to be used for `M::InitError`.
         Error: From<M::InitError>,
     {
-        let command_size = size_of::<M::Command>() + command.variable_payload_len();
+        let size_in_bytes = command.size();
         let dst = self
             .gsp_mem
-            .allocate_command(command_size, Self::ALLOCATE_TIMEOUT)?;
+            .allocate_command(size_in_bytes, Self::ALLOCATE_TIMEOUT)?;
 
         // Extract area for the command itself. The GSP message header and the command header
         // together are guaranteed to fit entirely into a single page, so it's ok to only look
@@ -540,7 +546,7 @@ impl Cmdq {
         let (cmd, payload_1) = M::Command::from_bytes_mut_prefix(dst.contents.0).ok_or(EIO)?;
 
         // Fill the header and command in-place.
-        let msg_element = GspMsgElement::init(self.seq, command_size, M::FUNCTION);
+        let msg_element = GspMsgElement::init(self.seq, size_in_bytes, M::FUNCTION);
         // SAFETY: `msg_header` and `cmd` are valid references, and not touched if the initializer
         // fails.
         unsafe {
