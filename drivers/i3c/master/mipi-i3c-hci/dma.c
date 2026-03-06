@@ -129,7 +129,7 @@ struct hci_rh_data {
 	dma_addr_t xfer_dma, resp_dma, ibi_status_dma, ibi_data_dma;
 	unsigned int xfer_entries, ibi_status_entries, ibi_chunks_total;
 	unsigned int xfer_struct_sz, resp_struct_sz, ibi_status_sz, ibi_chunk_sz;
-	unsigned int done_ptr, ibi_chunk_ptr;
+	unsigned int done_ptr, ibi_chunk_ptr, xfer_space;
 	struct hci_xfer **src_xfers;
 	struct completion op_done;
 };
@@ -260,6 +260,7 @@ ring_ready:
 
 	rh->done_ptr = 0;
 	rh->ibi_chunk_ptr = 0;
+	rh->xfer_space = rh->xfer_entries;
 }
 
 static void hci_dma_init_rings(struct i3c_hci *hci)
@@ -470,7 +471,7 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 	struct hci_rings_data *rings = hci->io_data;
 	struct hci_rh_data *rh;
 	unsigned int i, ring, enqueue_ptr;
-	u32 op1_val, op2_val;
+	u32 op1_val;
 	int ret;
 
 	ret = hci_dma_map_xfer_list(hci, rings->sysdev, xfer_list, n);
@@ -480,6 +481,14 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 	/* For now we only use ring 0 */
 	ring = 0;
 	rh = &rings->headers[ring];
+
+	spin_lock_irq(&hci->lock);
+
+	if (n > rh->xfer_space) {
+		spin_unlock_irq(&hci->lock);
+		hci_dma_unmap_xfer(hci, xfer_list, n);
+		return -EBUSY;
+	}
 
 	op1_val = rh_reg_read(RING_OPERATION1);
 	enqueue_ptr = FIELD_GET(RING_OP1_CR_ENQ_PTR, op1_val);
@@ -518,22 +527,10 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 		xfer->ring_entry = enqueue_ptr;
 
 		enqueue_ptr = (enqueue_ptr + 1) % rh->xfer_entries;
-
-		/*
-		 * We may update the hardware view of the enqueue pointer
-		 * only if we didn't reach its dequeue pointer.
-		 */
-		op2_val = rh_reg_read(RING_OPERATION2);
-		if (enqueue_ptr == FIELD_GET(RING_OP2_CR_DEQ_PTR, op2_val)) {
-			/* the ring is full */
-			hci_dma_unmap_xfer(hci, xfer_list, n);
-			return -EBUSY;
-		}
 	}
 
-	/* take care to update the hardware enqueue pointer atomically */
-	spin_lock_irq(&hci->lock);
-	op1_val = rh_reg_read(RING_OPERATION1);
+	rh->xfer_space -= n;
+
 	op1_val &= ~RING_OP1_CR_ENQ_PTR;
 	op1_val |= FIELD_PREP(RING_OP1_CR_ENQ_PTR, enqueue_ptr);
 	rh_reg_write(RING_OPERATION1, op1_val);
@@ -601,6 +598,7 @@ static void hci_dma_xfer_done(struct i3c_hci *hci, struct hci_rh_data *rh)
 {
 	u32 op1_val, op2_val, resp, *ring_resp;
 	unsigned int tid, done_ptr = rh->done_ptr;
+	unsigned int done_cnt = 0;
 	struct hci_xfer *xfer;
 
 	for (;;) {
@@ -632,10 +630,12 @@ static void hci_dma_xfer_done(struct i3c_hci *hci, struct hci_rh_data *rh)
 
 		done_ptr = (done_ptr + 1) % rh->xfer_entries;
 		rh->done_ptr = done_ptr;
+		done_cnt += 1;
 	}
 
 	/* take care to update the software dequeue pointer atomically */
 	spin_lock(&hci->lock);
+	rh->xfer_space += done_cnt;
 	op1_val = rh_reg_read(RING_OPERATION1);
 	op1_val &= ~RING_OP1_CR_SW_DEQ_PTR;
 	op1_val |= FIELD_PREP(RING_OP1_CR_SW_DEQ_PTR, done_ptr);
