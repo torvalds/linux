@@ -593,4 +593,4 @@ unmap:
 EXPORT_SYMBOL(rtd_pinctrl_probe);
 
 MODULE_DESCRIPTION("Realtek DHC SoC pinctrl driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
