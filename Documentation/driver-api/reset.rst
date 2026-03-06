@@ -198,7 +198,6 @@ query the reset line status using reset_control_status().
                reset_control_rearm
                reset_control_put
                of_reset_control_get_count
-               of_reset_control_array_get
                devm_reset_control_array_get
                reset_control_get_count
 

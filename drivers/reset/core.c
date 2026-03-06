@@ -1061,7 +1061,7 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	rgpio_dev->of_args = *args;
 	/*
 	 * We keep the device_node reference, but of_args.np is put at the end
-	 * of __of_reset_control_get(), so get it one more time.
+	 * of __fwnode_reset_control_get(), so get it one more time.
 	 * Hold reference as long as rgpio_dev memory is valid.
 	 */
 	of_node_get(rgpio_dev->of_args.np);
@@ -1115,18 +1115,19 @@ static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_a
 }
 
 struct reset_control *
-__of_reset_control_get(struct device_node *node, const char *id, int index,
-		       enum reset_control_flags flags)
+__fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int index,
+			   enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	bool gpio_fallback = false;
+	struct device_node *node = to_of_node(fwnode);
 	struct reset_control *rstc = ERR_PTR(-EINVAL);
 	struct reset_controller_dev *rcdev;
 	struct of_phandle_args args;
 	int rstc_id;
 	int ret;
 
-	if (!node)
+	if (!fwnode)
 		return ERR_PTR(-EINVAL);
 
 	if (id) {
@@ -1193,7 +1194,7 @@ out_put:
 
 	return rstc;
 }
-EXPORT_SYMBOL_GPL(__of_reset_control_get);
+EXPORT_SYMBOL_GPL(__fwnode_reset_control_get);
 
 struct reset_control *__reset_control_get(struct device *dev, const char *id,
 					  int index, enum reset_control_flags flags)
@@ -1201,12 +1202,13 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
 	bool shared = flags & RESET_CONTROL_FLAGS_BIT_SHARED;
 	bool acquired = flags & RESET_CONTROL_FLAGS_BIT_ACQUIRED;
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
 	if (WARN_ON(shared && acquired))
 		return ERR_PTR(-EINVAL);
 
-	if (dev->of_node)
-		return __of_reset_control_get(dev->of_node, id, index, flags);
+	if (fwnode)
+		return __fwnode_reset_control_get(fwnode, id, index, flags);
 
 	return optional ? NULL : ERR_PTR(-ENOENT);
 }
@@ -1468,23 +1470,24 @@ static int fwnode_reset_control_get_count(struct fwnode_handle *fwnode)
 }
 
 /**
- * of_reset_control_array_get - Get a list of reset controls using
- *				device node.
+ * fwnode_reset_control_array_get - Get a list of reset controls using
+ *                                  a firmware node.
  *
- * @np: device node for the device that requests the reset controls array
+ * @fwnode: firmware node for the device that requests the reset controls array
  * @flags: whether reset controls are shared, optional, acquired
  *
  * Returns pointer to allocated reset_control on success or error on failure
  */
 struct reset_control *
-of_reset_control_array_get(struct device_node *np, enum reset_control_flags flags)
+fwnode_reset_control_array_get(struct fwnode_handle *fwnode,
+			       enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	struct reset_control_array *resets;
 	struct reset_control *rstc;
 	int num, i;
 
-	num = fwnode_reset_control_get_count(of_fwnode_handle(np));
+	num = fwnode_reset_control_get_count(fwnode);
 	if (num < 0)
 		return optional ? NULL : ERR_PTR(num);
 
@@ -1494,7 +1497,7 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	resets->num_rstcs = num;
 
 	for (i = 0; i < num; i++) {
-		rstc = __of_reset_control_get(np, NULL, i, flags);
+		rstc = __fwnode_reset_control_get(fwnode, NULL, i, flags);
 		if (IS_ERR(rstc))
 			goto err_rst;
 		resets->rstc[i] = rstc;
@@ -1511,7 +1514,7 @@ err_rst:
 
 	return rstc;
 }
-EXPORT_SYMBOL_GPL(of_reset_control_array_get);
+EXPORT_SYMBOL_GPL(fwnode_reset_control_array_get);
 
 /**
  * devm_reset_control_array_get - Resource managed reset control array get
@@ -1535,7 +1538,7 @@ devm_reset_control_array_get(struct device *dev, enum reset_control_flags flags)
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = of_reset_control_array_get(dev->of_node, flags);
+	rstc = fwnode_reset_control_array_get(dev_fwnode(dev), flags);
 	if (IS_ERR_OR_NULL(rstc)) {
 		devres_free(ptr);
 		return rstc;

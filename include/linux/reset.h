@@ -5,10 +5,12 @@
 #include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/of.h>
 #include <linux/types.h>
 
 struct device;
 struct device_node;
+struct fwnode_handle;
 struct reset_control;
 
 /**
@@ -84,7 +86,7 @@ int reset_control_bulk_deassert(int num_rstcs, struct reset_control_bulk_data *r
 int reset_control_bulk_acquire(int num_rstcs, struct reset_control_bulk_data *rstcs);
 void reset_control_bulk_release(int num_rstcs, struct reset_control_bulk_data *rstcs);
 
-struct reset_control *__of_reset_control_get(struct device_node *node,
+struct reset_control *__fwnode_reset_control_get(struct fwnode_handle *fwnode,
 				     const char *id, int index, enum reset_control_flags flags);
 struct reset_control *__reset_control_get(struct device *dev, const char *id,
 					  int index, enum reset_control_flags flags);
@@ -103,7 +105,8 @@ int __devm_reset_control_bulk_get(struct device *dev, int num_rstcs,
 
 struct reset_control *devm_reset_control_array_get(struct device *dev,
 						   enum reset_control_flags flags);
-struct reset_control *of_reset_control_array_get(struct device_node *np, enum reset_control_flags);
+struct reset_control *fwnode_reset_control_array_get(struct fwnode_handle *fwnode,
+						     enum reset_control_flags);
 
 int reset_control_get_count(struct device *dev);
 
@@ -152,8 +155,8 @@ static inline int __device_reset(struct device *dev, bool optional)
 	return optional ? 0 : -ENOTSUPP;
 }
 
-static inline struct reset_control *__of_reset_control_get(
-					struct device_node *node,
+static inline struct reset_control *__fwnode_reset_control_get(
+					struct fwnode_handle *fwnode,
 					const char *id, int index, enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
@@ -242,7 +245,7 @@ devm_reset_control_array_get(struct device *dev, enum reset_control_flags flags)
 }
 
 static inline struct reset_control *
-of_reset_control_array_get(struct device_node *np, enum reset_control_flags flags)
+fwnode_reset_control_array_get(struct fwnode_handle *fwnode, enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 
@@ -500,7 +503,8 @@ reset_control_bulk_get_optional_shared(struct device *dev, int num_rstcs,
 static inline struct reset_control *of_reset_control_get_exclusive(
 				struct device_node *node, const char *id)
 {
-	return __of_reset_control_get(node, id, 0, RESET_CONTROL_EXCLUSIVE);
+	return __fwnode_reset_control_get(of_fwnode_handle(node), id, 0,
+					  RESET_CONTROL_EXCLUSIVE);
 }
 
 /**
@@ -520,7 +524,8 @@ static inline struct reset_control *of_reset_control_get_exclusive(
 static inline struct reset_control *of_reset_control_get_optional_exclusive(
 				struct device_node *node, const char *id)
 {
-	return __of_reset_control_get(node, id, 0, RESET_CONTROL_OPTIONAL_EXCLUSIVE);
+	return __fwnode_reset_control_get(of_fwnode_handle(node), id, 0,
+					  RESET_CONTROL_OPTIONAL_EXCLUSIVE);
 }
 
 /**
@@ -545,7 +550,8 @@ static inline struct reset_control *of_reset_control_get_optional_exclusive(
 static inline struct reset_control *of_reset_control_get_shared(
 				struct device_node *node, const char *id)
 {
-	return __of_reset_control_get(node, id, 0, RESET_CONTROL_SHARED);
+	return __fwnode_reset_control_get(of_fwnode_handle(node), id, 0,
+					  RESET_CONTROL_SHARED);
 }
 
 /**
@@ -562,7 +568,8 @@ static inline struct reset_control *of_reset_control_get_shared(
 static inline struct reset_control *of_reset_control_get_exclusive_by_index(
 					struct device_node *node, int index)
 {
-	return __of_reset_control_get(node, NULL, index, RESET_CONTROL_EXCLUSIVE);
+	return __fwnode_reset_control_get(of_fwnode_handle(node), NULL, index,
+					  RESET_CONTROL_EXCLUSIVE);
 }
 
 /**
@@ -590,7 +597,8 @@ static inline struct reset_control *of_reset_control_get_exclusive_by_index(
 static inline struct reset_control *of_reset_control_get_shared_by_index(
 					struct device_node *node, int index)
 {
-	return __of_reset_control_get(node, NULL, index, RESET_CONTROL_SHARED);
+	return __fwnode_reset_control_get(of_fwnode_handle(node), NULL, index,
+					  RESET_CONTROL_SHARED);
 }
 
 /**
@@ -1032,30 +1040,35 @@ devm_reset_control_array_get_optional_shared(struct device *dev)
 static inline struct reset_control *
 of_reset_control_array_get_exclusive(struct device_node *node)
 {
-	return of_reset_control_array_get(node, RESET_CONTROL_EXCLUSIVE);
+	return fwnode_reset_control_array_get(of_fwnode_handle(node),
+					      RESET_CONTROL_EXCLUSIVE);
 }
 
 static inline struct reset_control *
 of_reset_control_array_get_exclusive_released(struct device_node *node)
 {
-	return of_reset_control_array_get(node, RESET_CONTROL_EXCLUSIVE_RELEASED);
+	return fwnode_reset_control_array_get(of_fwnode_handle(node),
+					      RESET_CONTROL_EXCLUSIVE_RELEASED);
 }
 
 static inline struct reset_control *
 of_reset_control_array_get_shared(struct device_node *node)
 {
-	return of_reset_control_array_get(node, RESET_CONTROL_SHARED);
+	return fwnode_reset_control_array_get(of_fwnode_handle(node),
+					      RESET_CONTROL_SHARED);
 }
 
 static inline struct reset_control *
 of_reset_control_array_get_optional_exclusive(struct device_node *node)
 {
-	return of_reset_control_array_get(node, RESET_CONTROL_OPTIONAL_EXCLUSIVE);
+	return fwnode_reset_control_array_get(of_fwnode_handle(node),
+					      RESET_CONTROL_OPTIONAL_EXCLUSIVE);
 }
 
 static inline struct reset_control *
 of_reset_control_array_get_optional_shared(struct device_node *node)
 {
-	return of_reset_control_array_get(node, RESET_CONTROL_OPTIONAL_SHARED);
+	return fwnode_reset_control_array_get(of_fwnode_handle(node),
+					      RESET_CONTROL_OPTIONAL_SHARED);
 }
 #endif
