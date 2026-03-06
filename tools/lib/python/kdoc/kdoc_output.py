@@ -607,14 +607,11 @@ class ManFormat(OutputFormat):
         "%m %d %Y",
     ]
 
-    def emit_th(self, name, modulename = None):
+    def emit_th(self, name):
         """Emit a title header line."""
         name = name.strip()
 
-        if not modulename:
-            modulename = self.modulename
-
-        self.data += f'.TH "{modulename}" {self.section} "{name}" '
+        self.data += f'.TH "{self.modulename}" {self.section} "{name}" '
         self.data += f'"{self.date}" "{self.manual}"\n'
 
     def __init__(self, modulename, section="9", manual="Kernel API Manual"):
@@ -748,7 +745,7 @@ class ManFormat(OutputFormat):
 
         out_name = self.arg_name(args, name)
 
-        self.emit_th(out_name, modulename = name)
+        self.emit_th(out_name)
 
         self.data += ".SH NAME\n"
         self.data += f"{name} \\- {args['purpose']}\n"
