@@ -850,20 +850,22 @@ mt7925_get_rates_table(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 				   struct ieee80211_vif *vif,
-				   struct ieee80211_link_sta *link_sta)
+				   struct ieee80211_link_sta *link_sta,
+				   struct mt792x_link_sta *mlink)
 {
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct ieee80211_bss_conf *link_conf;
 	struct mt792x_bss_conf *mconf;
 	u8 link_id = link_sta->link_id;
-	struct mt792x_link_sta *mlink;
 	struct mt792x_sta *msta;
 	struct mt76_wcid *wcid;
 	int ret, idx;
 
 	msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
-	mlink = mt792x_sta_to_link(msta, link_id);
+
+	if (WARN_ON_ONCE(!mlink))
+		return -EINVAL;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT792x_WTBL_STA - 1);
 	if (idx < 0)
@@ -898,12 +900,21 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 
 	/* should update bss info before STA add */
 	if (vif->type == NL80211_IFTYPE_STATION && !link_sta->sta->tdls) {
-		if (ieee80211_vif_is_mld(vif))
-			mt7925_mcu_add_bss_info(&dev->phy, mconf->mt76.ctx,
-						link_conf, link_sta, link_sta != mlink->pri_link);
-		else
-			mt7925_mcu_add_bss_info(&dev->phy, mconf->mt76.ctx,
-						link_conf, link_sta, false);
+		struct mt792x_link_sta *mlink_bc;
+
+		mlink_bc = mt792x_sta_to_link(&mvif->sta, mconf->link_id);
+
+		if (ieee80211_vif_is_mld(vif)) {
+			mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
+						    link_conf, link_sta,
+						    mlink_bc->wcid.idx, mlink->wcid.idx,
+						    link_sta != mlink->pri_link);
+		} else {
+			mt7925_mcu_add_bss_info_sta(&dev->phy, mconf->mt76.ctx,
+						    link_conf, link_sta,
+						    mlink_bc->wcid.idx, mlink->wcid.idx,
+						    false);
+		}
 	}
 
 	if (ieee80211_vif_is_mld(vif) &&
@@ -965,7 +976,7 @@ mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		mlink->wcid.def_wcid = &msta->deflink.wcid;
 
 		link_sta = mt792x_sta_to_link_sta(vif, sta, link_id);
-		mt7925_mac_link_sta_add(&dev->mt76, vif, link_sta);
+		mt7925_mac_link_sta_add(&dev->mt76, vif, link_sta, mlink);
 	}
 
 	return err;
@@ -989,7 +1000,8 @@ int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 		err = mt7925_mac_sta_add_links(dev, vif, sta, sta->valid_links);
 	} else {
-		err = mt7925_mac_link_sta_add(mdev, vif, &sta->deflink);
+		err = mt7925_mac_link_sta_add(mdev, vif, &sta->deflink,
+					      &msta->deflink);
 	}
 
 	return err;
