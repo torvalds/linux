@@ -49,6 +49,7 @@ static DEFINE_IDA(reset_gpio_ida);
  * @triggered_count: Number of times this reset line has been reset. Currently
  *                   only used for shared resets, which means that the value
  *                   will be either 0 or 1.
+ * @lock: serializes the internals of reset_control_acquire()
  */
 struct reset_control {
 	struct reset_controller_dev __rcu *rcdev;
@@ -61,6 +62,7 @@ struct reset_control {
 	bool array;
 	atomic_t deassert_count;
 	atomic_t triggered_count;
+	struct mutex lock;
 };
 
 /**
@@ -707,7 +709,7 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_acquire(rstc_to_array(rstc));
 
-	guard(mutex)(&reset_list_mutex);
+	guard(mutex)(&rstc->lock);
 
 	if (rstc->acquired)
 		return 0;
@@ -859,6 +861,7 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	list_add(&rstc->list, &rcdev->reset_control_head);
 	rstc->id = index;
 	kref_init(&rstc->refcnt);
+	mutex_init(&rstc->lock);
 	rstc->acquired = acquired;
 	rstc->shared = shared;
 	get_device(rcdev->dev);
@@ -872,29 +875,40 @@ static void __reset_control_release(struct kref *kref)
 						  refcnt);
 	struct reset_controller_dev *rcdev;
 
-	lockdep_assert_held(&reset_list_mutex);
+	lockdep_assert_held(&rstc->srcu);
 
-	scoped_guard(srcu, &rstc->srcu) {
-		rcdev = rcu_replace_pointer(rstc->rcdev, NULL, true);
-		if (rcdev) {
-			guard(mutex)(&rcdev->lock);
-			reset_controller_remove(rcdev, rstc);
-		}
+	rcdev = rcu_replace_pointer(rstc->rcdev, NULL, true);
+	if (rcdev) {
+		lockdep_assert_held(&rcdev->lock);
+		reset_controller_remove(rcdev, rstc);
 	}
 
-	synchronize_srcu(&rstc->srcu);
-	cleanup_srcu_struct(&rstc->srcu);
-	kfree(rstc);
+	mutex_destroy(&rstc->lock);
 }
 
-static void __reset_control_put_internal(struct reset_control *rstc)
+static void reset_control_put_internal(struct reset_control *rstc)
 {
-	lockdep_assert_held(&reset_list_mutex);
+	struct reset_controller_dev *rcdev;
+	int ret = 0;
 
 	if (IS_ERR_OR_NULL(rstc))
 		return;
 
-	kref_put(&rstc->refcnt, __reset_control_release);
+	scoped_guard(srcu, &rstc->srcu) {
+		rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+		if (!rcdev)
+			/* Already released. */
+			return;
+
+		guard(mutex)(&rcdev->lock);
+		ret = kref_put(&rstc->refcnt, __reset_control_release);
+	}
+
+	if (ret) {
+		synchronize_srcu(&rstc->srcu);
+		cleanup_srcu_struct(&rstc->srcu);
+		kfree(rstc);
+	}
 }
 
 static void reset_gpio_aux_device_release(struct device *dev)
@@ -1104,7 +1118,7 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	bool gpio_fallback = false;
-	struct reset_control *rstc;
+	struct reset_control *rstc = ERR_PTR(-EINVAL);
 	struct reset_controller_dev *rcdev;
 	struct of_phandle_args args;
 	int rstc_id;
@@ -1169,8 +1183,8 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 
 	flags &= ~RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 
-	/* reset_list_mutex also protects the rcdev's reset_control list */
-	rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
+	scoped_guard(mutex, &rcdev->lock)
+		rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
 
 out_put:
 	of_node_put(args.np);
@@ -1213,10 +1227,8 @@ int __reset_control_bulk_get(struct device *dev, int num_rstcs,
 	return 0;
 
 err:
-	guard(mutex)(&reset_list_mutex);
-
 	while (i--)
-		__reset_control_put_internal(rstcs[i].rstc);
+		reset_control_put_internal(rstcs[i].rstc);
 
 	return ret;
 }
@@ -1226,10 +1238,8 @@ static void reset_control_array_put(struct reset_control_array *resets)
 {
 	int i;
 
-	guard(mutex)(&reset_list_mutex);
-
 	for (i = 0; i < resets->num_rstcs; i++)
-		__reset_control_put_internal(resets->rstc[i]);
+		reset_control_put_internal(resets->rstc[i]);
 	kfree(resets);
 }
 
@@ -1247,9 +1257,7 @@ void reset_control_put(struct reset_control *rstc)
 		return;
 	}
 
-	guard(mutex)(&reset_list_mutex);
-
-	__reset_control_put_internal(rstc);
+	reset_control_put_internal(rstc);
 }
 EXPORT_SYMBOL_GPL(reset_control_put);
 
@@ -1260,10 +1268,8 @@ EXPORT_SYMBOL_GPL(reset_control_put);
  */
 void reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs)
 {
-	guard(mutex)(&reset_list_mutex);
-
 	while (num_rstcs--)
-		__reset_control_put_internal(rstcs[num_rstcs].rstc);
+		reset_control_put_internal(rstcs[num_rstcs].rstc);
 }
 EXPORT_SYMBOL_GPL(reset_control_bulk_put);
 
@@ -1482,10 +1488,8 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	return &resets->base;
 
 err_rst:
-	guard(mutex)(&reset_list_mutex);
-
 	while (--i >= 0)
-		__reset_control_put_internal(resets->rstc[i]);
+		reset_control_put_internal(resets->rstc[i]);
 
 	kfree(resets);
 
