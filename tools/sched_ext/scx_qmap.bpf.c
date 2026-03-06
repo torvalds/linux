@@ -41,6 +41,7 @@ const volatile u32 dsp_batch;
 const volatile bool highpri_boosting;
 const volatile bool print_dsqs_and_events;
 const volatile bool print_msgs;
+const volatile u64 sub_cgroup_id;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
 
@@ -862,7 +863,7 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 	struct bpf_timer *timer;
 	s32 ret;
 
-	if (print_msgs)
+	if (print_msgs && !sub_cgroup_id)
 		print_cpus();
 
 	ret = scx_bpf_create_dsq(SHARED_DSQ, -1);
@@ -892,6 +893,11 @@ void BPF_STRUCT_OPS(qmap_exit, struct scx_exit_info *ei)
 	UEI_RECORD(uei, ei);
 }
 
+s32 BPF_STRUCT_OPS(qmap_sub_attach, struct scx_sub_attach_args *args)
+{
+	return 0;
+}
+
 SCX_OPS_DEFINE(qmap_ops,
 	       .select_cpu		= (void *)qmap_select_cpu,
 	       .enqueue			= (void *)qmap_enqueue,
@@ -907,6 +913,7 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .cgroup_init		= (void *)qmap_cgroup_init,
 	       .cgroup_set_weight	= (void *)qmap_cgroup_set_weight,
 	       .cgroup_set_bandwidth	= (void *)qmap_cgroup_set_bandwidth,
+	       .sub_attach		= (void *)qmap_sub_attach,
 	       .cpu_online		= (void *)qmap_cpu_online,
 	       .cpu_offline		= (void *)qmap_cpu_offline,
 	       .init			= (void *)qmap_init,

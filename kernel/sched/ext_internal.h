@@ -28,6 +28,8 @@ enum scx_consts {
 	SCX_BYPASS_LB_DONOR_PCT		= 125,
 	SCX_BYPASS_LB_MIN_DELTA_DIV	= 4,
 	SCX_BYPASS_LB_BATCH		= 256,
+
+	SCX_SUB_MAX_DEPTH		= 4,
 };
 
 enum scx_exit_kind {
@@ -38,6 +40,7 @@ enum scx_exit_kind {
 	SCX_EXIT_UNREG_BPF,	/* BPF-initiated unregistration */
 	SCX_EXIT_UNREG_KERN,	/* kernel-initiated unregistration */
 	SCX_EXIT_SYSRQ,		/* requested by 'S' sysrq */
+	SCX_EXIT_PARENT,	/* parent exiting */
 
 	SCX_EXIT_ERROR = 1024,	/* runtime error, error msg contains details */
 	SCX_EXIT_ERROR_BPF,	/* ERROR but triggered through scx_bpf_error() */
@@ -62,6 +65,7 @@ enum scx_exit_kind {
 enum scx_exit_code {
 	/* Reasons */
 	SCX_ECODE_RSN_HOTPLUG	= 1LLU << 32,
+	SCX_ECODE_RSN_CGROUP_OFFLINE = 2LLU << 32,
 
 	/* Actions */
 	SCX_ECODE_ACT_RESTART	= 1LLU << 48,
@@ -213,7 +217,7 @@ struct scx_exit_task_args {
 	bool cancelled;
 };
 
-/* argument container for ops->cgroup_init() */
+/* argument container for ops.cgroup_init() */
 struct scx_cgroup_init_args {
 	/* the weight of the cgroup [1..10000] */
 	u32			weight;
@@ -236,12 +240,12 @@ enum scx_cpu_preempt_reason {
 };
 
 /*
- * Argument container for ops->cpu_acquire(). Currently empty, but may be
+ * Argument container for ops.cpu_acquire(). Currently empty, but may be
  * expanded in the future.
  */
 struct scx_cpu_acquire_args {};
 
-/* argument container for ops->cpu_release() */
+/* argument container for ops.cpu_release() */
 struct scx_cpu_release_args {
 	/* the reason the CPU was preempted */
 	enum scx_cpu_preempt_reason reason;
@@ -250,15 +254,25 @@ struct scx_cpu_release_args {
 	struct task_struct	*task;
 };
 
-/*
- * Informational context provided to dump operations.
- */
+/* informational context provided to dump operations */
 struct scx_dump_ctx {
 	enum scx_exit_kind	kind;
 	s64			exit_code;
 	const char		*reason;
 	u64			at_ns;
 	u64			at_jiffies;
+};
+
+/* argument container for ops.sub_attach() */
+struct scx_sub_attach_args {
+	struct sched_ext_ops	*ops;
+	char			*cgroup_path;
+};
+
+/* argument container for ops.sub_detach() */
+struct scx_sub_detach_args {
+	struct sched_ext_ops	*ops;
+	char			*cgroup_path;
 };
 
 /**
@@ -721,6 +735,20 @@ struct sched_ext_ops {
 
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 
+	/**
+	 * @sub_attach: Attach a sub-scheduler
+	 * @args: argument container, see the struct definition
+	 *
+	 * Return 0 to accept the sub-scheduler. -errno to reject.
+	 */
+	s32 (*sub_attach)(struct scx_sub_attach_args *args);
+
+	/**
+	 * @sub_detach: Detach a sub-scheduler
+	 * @args: argument container, see the struct definition
+	 */
+	void (*sub_detach)(struct scx_sub_detach_args *args);
+
 	/*
 	 * All online ops must come before ops.cpu_online().
 	 */
@@ -762,6 +790,10 @@ struct sched_ext_ops {
 	 */
 	void (*exit)(struct scx_exit_info *info);
 
+	/*
+	 * Data fields must comes after all ops fields.
+	 */
+
 	/**
 	 * @dispatch_max_batch: Max nr of tasks that dispatch() can dispatch
 	 */
@@ -795,6 +827,12 @@ struct sched_ext_ops {
 	 * enable path.
 	 */
 	u64 hotplug_seq;
+
+	/**
+	 * @cgroup_id: When >1, attach the scheduler as a sub-scheduler on the
+	 * specified cgroup.
+	 */
+	u64 sub_cgroup_id;
 
 	/**
 	 * @name: BPF scheduler's name
@@ -900,12 +938,26 @@ struct scx_sched {
 	struct scx_dispatch_q	**global_dsqs;
 	struct scx_sched_pcpu __percpu *pcpu;
 
+	s32			level;
+
 	/*
 	 * Updates to the following warned bitfields can race causing RMW issues
 	 * but it doesn't really matter.
 	 */
 	bool			warned_zero_slice:1;
 	bool			warned_deprecated_rq:1;
+
+	struct list_head	all;
+
+#ifdef CONFIG_EXT_SUB_SCHED
+	struct list_head	children;
+	struct list_head	sibling;
+	struct cgroup		*cgrp;
+	char			*cgrp_path;
+	struct kset		*sub_kset;
+
+	bool			sub_attached;
+#endif	/* CONFIG_EXT_SUB_SCHED */
 
 	atomic_t		exit_kind;
 	struct scx_exit_info	*exit_info;
@@ -916,6 +968,9 @@ struct scx_sched {
 	struct irq_work		error_irq_work;
 	struct kthread_work	disable_work;
 	struct rcu_work		rcu_work;
+
+	/* all ancestors including self */
+	struct scx_sched	*ancestors[];
 };
 
 enum scx_wake_flags {

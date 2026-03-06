@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <libgen.h>
+#include <sys/stat.h>
 #include <bpf/bpf.h>
 #include <scx/common.h>
 #include "scx_qmap.bpf.skel.h"
@@ -67,7 +68,7 @@ int main(int argc, char **argv)
 
 	skel->rodata->slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
-	while ((opt = getopt(argc, argv, "s:e:t:T:l:b:PMHd:D:Spvh")) != -1) {
+	while ((opt = getopt(argc, argv, "s:e:t:T:l:b:PMHc:d:D:Spvh")) != -1) {
 		switch (opt) {
 		case 's':
 			skel->rodata->slice_ns = strtoull(optarg, NULL, 0) * 1000;
@@ -96,6 +97,16 @@ int main(int argc, char **argv)
 		case 'H':
 			skel->rodata->highpri_boosting = true;
 			break;
+		case 'c': {
+			struct stat st;
+			if (stat(optarg, &st) < 0) {
+				perror("stat");
+				return 1;
+			}
+			skel->struct_ops.qmap_ops->sub_cgroup_id = st.st_ino;
+			skel->rodata->sub_cgroup_id = st.st_ino;
+			break;
+		}
 		case 'd':
 			skel->rodata->disallow_tgid = strtol(optarg, NULL, 0);
 			if (skel->rodata->disallow_tgid < 0)
