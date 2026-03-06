@@ -62,8 +62,6 @@ static int reset_gpio_probe(struct auxiliary_device *adev,
 	if (!priv)
 		return -ENOMEM;
 
-	auxiliary_set_drvdata(adev, &priv->rc);
-
 	priv->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset))
 		return dev_err_probe(dev, PTR_ERR(priv->reset),
