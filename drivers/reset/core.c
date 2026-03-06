@@ -824,10 +824,14 @@ static void reset_gpio_aux_device_release(struct device *dev)
 }
 
 static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
-					struct device *parent, int id)
+					struct device *parent)
 {
 	struct auxiliary_device *adev = &rgpio_dev->adev;
-	int ret;
+	int ret, id;
+
+	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
+	if (id < 0)
+		return -ENOMEM;
 
 	adev->id = id;
 	adev->name = "gpio";
@@ -837,12 +841,15 @@ static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
 	device_set_node(&adev->dev, rgpio_dev->swnode);
 
 	ret = auxiliary_device_init(adev);
-	if (ret)
+	if (ret) {
+		ida_free(&reset_gpio_ida, id);
 		return ret;
+	}
 
 	ret = __auxiliary_device_add(adev, "reset");
 	if (ret) {
 		auxiliary_device_uninit(adev);
+		ida_free(&reset_gpio_ida, id);
 		return ret;
 	}
 
@@ -891,7 +898,7 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	unsigned int offset, of_flags, lflags;
 	struct reset_gpio_lookup *rgpio_dev;
 	struct device *parent;
-	int id, ret, prop = 0;
+	int ret, prop = 0;
 
 	/*
 	 * Currently only #gpio-cells=2 is supported with the meaning of:
@@ -951,16 +958,10 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	properties[prop++] = PROPERTY_ENTRY_STRING("compatible", "reset-gpio");
 	properties[prop++] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
 
-	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
-	if (id < 0)
-		return id;
-
 	/* Not freed on success, because it is persisent subsystem data. */
 	rgpio_dev = kzalloc_obj(*rgpio_dev);
-	if (!rgpio_dev) {
-		ret = -ENOMEM;
-		goto err_ida_free;
-	}
+	if (!rgpio_dev)
+		return -ENOMEM;
 
 	rgpio_dev->of_args = *args;
 	/*
@@ -976,7 +977,7 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 		goto err_put_of_node;
 	}
 
-	ret = reset_create_gpio_aux_device(rgpio_dev, parent, id);
+	ret = reset_create_gpio_aux_device(rgpio_dev, parent);
 	if (ret)
 		goto err_del_swnode;
 
@@ -990,8 +991,6 @@ err_del_swnode:
 err_put_of_node:
 	of_node_put(rgpio_dev->of_args.np);
 	kfree(rgpio_dev);
-err_ida_free:
-	ida_free(&reset_gpio_ida, id);
 
 	return ret;
 }
