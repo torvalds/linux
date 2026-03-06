@@ -4233,8 +4233,8 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 		struct user_namespace *user_ns, struct fs_struct *new_fs)
 {
 	struct mnt_namespace *new_ns;
-	struct vfsmount *rootmnt __free(mntput) = NULL;
-	struct vfsmount *pwdmnt __free(mntput) = NULL;
+	struct path old_root __free(path_put) = {};
+	struct path old_pwd __free(path_put) = {};
 	struct mount *p, *q;
 	struct mount *old;
 	struct mount *new;
@@ -4254,11 +4254,18 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 		return new_ns;
 
 	guard(namespace_excl)();
-	/* First pass: copy the tree topology */
-	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
+
+	if (flags & CLONE_EMPTY_MNTNS)
+		copy_flags = 0;
+	else
+		copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
 	if (user_ns != ns->user_ns)
 		copy_flags |= CL_SLAVE;
-	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
+
+	if (flags & CLONE_EMPTY_MNTNS)
+		new = clone_mnt(old, old->mnt.mnt_root, copy_flags);
+	else
+		new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
 		emptied_ns = new_ns;
 		return ERR_CAST(new);
@@ -4269,33 +4276,53 @@ struct mnt_namespace *copy_mnt_ns(u64 flags, struct mnt_namespace *ns,
 	}
 	new_ns->root = new;
 
-	/*
-	 * Second pass: switch the tsk->fs->* elements and mark new vfsmounts
-	 * as belonging to new namespace.  We have already acquired a private
-	 * fs_struct, so tsk->fs->lock is not needed.
-	 */
-	p = old;
-	q = new;
-	while (p) {
-		mnt_add_to_ns(new_ns, q);
-		new_ns->nr_mounts++;
+	if (flags & CLONE_EMPTY_MNTNS) {
+		/*
+		 * Empty mount namespace: only the root mount exists.
+		 * Reset root and pwd to the cloned mount's root dentry.
+		 */
 		if (new_fs) {
-			if (&p->mnt == new_fs->root.mnt) {
-				new_fs->root.mnt = mntget(&q->mnt);
-				rootmnt = &p->mnt;
-			}
-			if (&p->mnt == new_fs->pwd.mnt) {
-				new_fs->pwd.mnt = mntget(&q->mnt);
-				pwdmnt = &p->mnt;
-			}
+			old_root = new_fs->root;
+			old_pwd = new_fs->pwd;
+
+			new_fs->root.mnt = mntget(&new->mnt);
+			new_fs->root.dentry = dget(new->mnt.mnt_root);
+
+			new_fs->pwd.mnt = mntget(&new->mnt);
+			new_fs->pwd.dentry = dget(new->mnt.mnt_root);
 		}
-		p = next_mnt(p, old);
-		q = next_mnt(q, new);
-		if (!q)
-			break;
-		// an mntns binding we'd skipped?
-		while (p->mnt.mnt_root != q->mnt.mnt_root)
-			p = next_mnt(skip_mnt_tree(p), old);
+		mnt_add_to_ns(new_ns, new);
+		new_ns->nr_mounts++;
+	} else {
+		/*
+		 * Full copy: walk old and new trees in parallel, switching
+		 * the tsk->fs->* elements and marking new vfsmounts as
+		 * belonging to new namespace.  We have already acquired a
+		 * private fs_struct, so tsk->fs->lock is not needed.
+		 */
+		p = old;
+		q = new;
+		while (p) {
+			mnt_add_to_ns(new_ns, q);
+			new_ns->nr_mounts++;
+			if (new_fs) {
+				if (&p->mnt == new_fs->root.mnt) {
+					old_root.mnt = new_fs->root.mnt;
+					new_fs->root.mnt = mntget(&q->mnt);
+				}
+				if (&p->mnt == new_fs->pwd.mnt) {
+					old_pwd.mnt = new_fs->pwd.mnt;
+					new_fs->pwd.mnt = mntget(&q->mnt);
+				}
+			}
+			p = next_mnt(p, old);
+			q = next_mnt(q, new);
+			if (!q)
+				break;
+			// an mntns binding we'd skipped?
+			while (p->mnt.mnt_root != q->mnt.mnt_root)
+				p = next_mnt(skip_mnt_tree(p), old);
+		}
 	}
 	ns_tree_add_raw(new_ns);
 	return new_ns;
