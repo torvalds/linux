@@ -1382,8 +1382,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 		goto err_alloc;
 	}
 
-	usb_get_dev(udev);
-
 	hif_dev->udev = udev;
 	hif_dev->interface = interface;
 	hif_dev->usb_device_id = id;
@@ -1403,7 +1401,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 err_fw_req:
 	usb_set_intfdata(interface, NULL);
 	kfree(hif_dev);
-	usb_put_dev(udev);
 err_alloc:
 	return ret;
 }
@@ -1451,7 +1448,6 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 
 	kfree(hif_dev);
 	dev_info(&udev->dev, "ath9k_htc: USB layer deinitialized\n");
-	usb_put_dev(udev);
 }
 
 #ifdef CONFIG_PM
