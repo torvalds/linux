@@ -744,6 +744,126 @@ class ManFormat(OutputFormat):
 
         return self.data
 
+    def emit_table(self, colspec_row, rows):
+
+        if not rows:
+            return ""
+
+        out = ""
+        colspec = "\t".join(["l"] * len(rows[0]))
+
+        out += "\n.TS\n"
+        out += "box;\n"
+        out += f"{colspec}.\n"
+
+        if colspec_row:
+            out_row = []
+
+            for text in colspec_row:
+                out_row.append(f"\\fB{text}\\fP")
+
+            out += "\t".join(out_row) + "\n_\n"
+
+        for r in rows:
+            out += "\t".join(r) + "\n"
+
+        out += ".TE\n"
+
+        return out
+
+    def grid_table(self, lines, start):
+        """
+        Ancillary function to help handling a grid table inside the text.
+        """
+
+        i = start + 1
+        rows = []
+        colspec_row = None
+
+        while i < len(lines):
+            line = lines[i]
+
+            if KernRe(r"^\s*\|.*\|\s*$").match(line):
+                parts = []
+
+                for p in line.strip('|').split('|'):
+                    parts.append(p.strip())
+
+                rows.append(parts)
+
+            elif KernRe(r'^\+\=[\+\=]+\+\s*$').match(line):
+                if rows and rows[0]:
+                    if not colspec_row:
+                        colspec_row = [""] * len(rows[0])
+
+                    for j in range(0, len(rows[0])):
+                        content = []
+                        for row in rows:
+                            content.append(row[j])
+
+                        colspec_row[j] = " ".join(content)
+
+                    rows = []
+
+            elif KernRe(r"^\s*\+[-+]+\+.*$").match(line):
+                pass
+
+            else:
+                break
+
+            i += 1
+
+        return i, self.emit_table(colspec_row, rows)
+
+    def simple_table(self, lines, start):
+        """
+        Ancillary function to help handling a simple table inside the text.
+        """
+
+        i = start
+        rows = []
+        colspec_row = None
+
+        pos = []
+        for m in KernRe(r'\-+').finditer(lines[i]):
+            pos.append((m.start(), m.end() - 1))
+
+        i += 1
+        while i < len(lines):
+            line = lines[i]
+
+            if KernRe(r"^\s*[\-]+[ \t\-]+$").match(line):
+                i += 1
+                break
+
+            elif KernRe(r'^[\s=]+$').match(line):
+                if rows and rows[0]:
+                    if not colspec_row:
+                        colspec_row = [""] * len(rows[0])
+
+                    for j in range(0, len(rows[0])):
+                        content = []
+                        for row in rows:
+                            content.append(row[j])
+
+                        colspec_row[j] = " ".join(content)
+
+                    rows = []
+
+            else:
+                row = [""] * len(pos)
+
+                for j in range(0, len(pos)):
+                    start, end = pos[j]
+
+                    row[j] = line[start:end].strip()
+
+                rows.append(row)
+
+            i += 1
+
+        return i, self.emit_table(colspec_row, rows)
+
     def output_highlight(self, block):
         """
         Outputs a C symbol that may require being highlighted with
@@ -764,6 +884,16 @@ class ManFormat(OutputFormat):
             line = KernRe(r"^\s*").sub("", org_line)
 
             if line:
+                if KernRe(r"^\+\-[-+]+\+.*$").match(line):
+                    i, text = self.grid_table(lines, i)
+                    self.data += text
+                    continue
+
+                if KernRe(r"^\-+[ \t]\-[ \t\-]+$").match(line):
+                    i, text = self.simple_table(lines, i)
+                    self.data += text
+                    continue
+
                 if line[0] == ".":
                     self.data += "\\&" + line + "\n"
                     i += 1
