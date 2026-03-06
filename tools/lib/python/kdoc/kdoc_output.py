@@ -864,6 +864,65 @@ class ManFormat(OutputFormat):
 
         return i, self.emit_table(colspec_row, rows)
 
+    def code_block(self, lines, start):
+        """
+        Ensure that code blocks won't be messed up at the output.
+
+        By default, troff join lines at the same paragraph. Disable it,
+        on code blocks.
+        """
+
+        line = lines[start]
+
+        if "code-block" in line:
+            out = "\n.nf\n"
+        elif line.startswith("..") and line.endswith("::"):
+            #
+            # Handle note, warning, error, ... markups
+            #
+            line = line[2:-1].strip().upper()
+            out = f"\n.nf\n\\fB{line}\\fP\n"
+        elif line.endswith("::"):
+            out = line[:-1]
+            out += "\n.nf\n"
+        else:
+            # Just in case. Should never happen in practice
+            out = "\n.nf\n"
+
+        i = start + 1
+        ident = None
+
+        while i < len(lines):
+            line = lines[i]
+
+            m = KernRe(r"\S").match(line)
+            if not m:
+                out += line + "\n"
+                i += 1
+                continue
+
+            pos = m.start()
+            if not ident:
+                if pos > 0:
+                    ident = pos
+                else:
+                    out += "\n.fi\n"
+                    if i > start + 1:
+                        return i - 1, out
+                    else:
+                        # Just in case. Should never happen in practice
+                        return i, out
+
+            if pos >= ident:
+                out += line + "\n"
+                i += 1
+                continue
+
+            break
+
+        out += "\n.fi\n"
+        return i, out
+
     def output_highlight(self, block):
         """
         Outputs a C symbol that may require being highlighted with
@@ -891,6 +950,11 @@ class ManFormat(OutputFormat):
 
                 if KernRe(r"^\-+[ \t]\-[ \t\-]+$").match(line):
                     i, text = self.simple_table(lines, i)
+                    self.data += text
+                    continue
+
+                if line.endswith("::") or KernRe(r"\.\.\s+code-block.*::").match(line):
+                    i, text = self.code_block(lines, i)
                     self.data += text
                     continue
 
