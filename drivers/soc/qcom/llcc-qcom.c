@@ -4635,27 +4635,21 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
-	mutex_lock(&drv_data->lock);
+	guard(mutex)(&drv_data->lock);
 	/* Already active; try to take another reference. */
-	if (refcount_inc_not_zero(&desc->refcount)) {
-		mutex_unlock(&drv_data->lock);
+	if (refcount_inc_not_zero(&desc->refcount))
 		return 0;
-	}
 
 	act_ctrl_val = ACT_CTRL_OPCODE_ACTIVATE << ACT_CTRL_OPCODE_SHIFT;
-
 	ret = llcc_update_act_ctrl(desc->slice_id, act_ctrl_val,
 				  DEACTIVATE);
-	if (ret) {
-		mutex_unlock(&drv_data->lock);
+	if (ret)
 		return ret;
-	}
 
 	/* Set first reference */
 	refcount_set(&desc->refcount, 1);
-	mutex_unlock(&drv_data->lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_activate);
 
@@ -4677,27 +4671,21 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 	if (IS_ERR_OR_NULL(desc))
 		return -EINVAL;
 
-	mutex_lock(&drv_data->lock);
+	guard(mutex)(&drv_data->lock);
 	/* refcount > 1, drop one ref and we’re done. */
-	if (refcount_dec_not_one(&desc->refcount)) {
-		mutex_unlock(&drv_data->lock);
+	if (refcount_dec_not_one(&desc->refcount))
 		return 0;
-	}
 
 	act_ctrl_val = ACT_CTRL_OPCODE_DEACTIVATE << ACT_CTRL_OPCODE_SHIFT;
-
 	ret = llcc_update_act_ctrl(desc->slice_id, act_ctrl_val,
 				  ACTIVATE);
-	if (ret) {
-		mutex_unlock(&drv_data->lock);
+	if (ret)
 		return ret;
-	}
 
 	/* Finalize: atomically transition 1 -> 0 */
 	WARN_ON_ONCE(!refcount_dec_if_one(&desc->refcount));
-	mutex_unlock(&drv_data->lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(llcc_slice_deactivate);
 
