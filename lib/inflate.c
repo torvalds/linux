@@ -286,7 +286,7 @@ static void free(void *where)
    the longer codes.  The time it costs to decode the longer codes is
    then traded against the time it takes to make longer tables.
 
-   This results of this trade are in the variables lbits and dbits
+   The results of this trade are in the variables lbits and dbits
    below.  lbits is the number of bits the first level table for literal/
    length codes can decode in one step, and dbits is the same thing for
    the distance codes.  Subsequent tables are also less than or equal to
