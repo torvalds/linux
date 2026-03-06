@@ -950,6 +950,7 @@ struct scx_sched {
 	struct scx_dispatch_q	**global_dsqs;
 	struct scx_sched_pcpu __percpu *pcpu;
 
+	u64			slice_dfl;
 	s32			level;
 
 	/*
