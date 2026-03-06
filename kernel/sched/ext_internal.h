@@ -24,6 +24,8 @@ enum scx_consts {
 	 */
 	SCX_TASK_ITER_BATCH		= 32,
 
+	SCX_BYPASS_HOST_NTH		= 2,
+
 	SCX_BYPASS_LB_DFL_INTV_US	= 500 * USEC_PER_MSEC,
 	SCX_BYPASS_LB_DONOR_PCT		= 125,
 	SCX_BYPASS_LB_MIN_DELTA_DIV	= 4,
@@ -923,6 +925,12 @@ struct scx_event_stats {
 	 * scheduler.
 	 */
 	s64		SCX_EV_INSERT_NOT_OWNED;
+
+	/*
+	 * The number of times tasks from bypassing descendants are scheduled
+	 * from sub_bypass_dsq's.
+	 */
+	s64		SCX_EV_SUB_BYPASS_DISPATCH;
 };
 
 enum scx_sched_pcpu_flags {
@@ -940,6 +948,9 @@ struct scx_sched_pcpu {
 	struct scx_event_stats	event_stats;
 
 	struct scx_dispatch_q	bypass_dsq;
+#ifdef CONFIG_EXT_SUB_SCHED
+	u32			bypass_host_seq;
+#endif
 };
 
 struct scx_sched {
