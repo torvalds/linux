@@ -585,7 +585,7 @@ static void kfd_procfs_add_sysfs_stats(struct kfd_process *p)
 		ret = kobject_init_and_add(pdd->kobj_stats,
 					   &procfs_stats_type,
 					   p->kobj,
-					   stats_dir_filename);
+					   "%s", stats_dir_filename);
 
 		if (ret) {
 			pr_warn("Creating KFD proc/stats_%s folder failed",
@@ -632,7 +632,7 @@ static void kfd_procfs_add_sysfs_counters(struct kfd_process *p)
 			return;
 
 		ret = kobject_init_and_add(kobj_counters, &sysfs_counters_type,
-					   p->kobj, counters_dir_filename);
+					   p->kobj, "%s", counters_dir_filename);
 		if (ret) {
 			pr_warn("Creating KFD proc/%s folder failed",
 				counters_dir_filename);
