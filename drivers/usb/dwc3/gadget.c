@@ -1688,7 +1688,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 	 * transfer, there's no need to update the transfer.
 	 */
 	if (!ret && !starting)
-		return ret;
+		return 0;
 
 	req = next_request(&dep->started_list);
 	if (!req) {
