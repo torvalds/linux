@@ -1082,10 +1082,10 @@ mt7925_mcu_sta_hdr_trans_tlv(struct sk_buff *skb,
 	else
 		hdr_trans->from_ds = true;
 
-	wcid = &mlink->wcid;
-
-	if (!wcid)
+	if (WARN_ON_ONCE(!mlink))
 		return;
+
+	wcid = &mlink->wcid;
 
 	hdr_trans->dis_rx_hdr_tran = !test_bit(MT_WCID_FLAG_HDR_TRANS, &wcid->flags);
 	if (test_bit(MT_WCID_FLAG_4ADDR, &wcid->flags)) {
