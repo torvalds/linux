@@ -1004,8 +1004,9 @@ static int rzg3s_pcie_set_max_link_speed(struct rzg3s_pcie_host *host)
 {
 	u32 remote_supported_link_speeds, max_supported_link_speeds;
 	u32 cs2, tmp, pcie_cap = RZG3S_PCI_CFG_PCIEC;
-	u32 cur_link_speed, link_speed;
+	u32 cur_link_speed, link_speed, hw_max_speed;
 	u8 ltssm_state_l0 = 0xc;
+	u32 lnkcap;
 	int ret;
 	u16 ls;
 
@@ -1025,7 +1026,22 @@ static int rzg3s_pcie_set_max_link_speed(struct rzg3s_pcie_host *host)
 	ls = readw_relaxed(host->pcie + pcie_cap + PCI_EXP_LNKSTA);
 	cs2 = readl_relaxed(host->axi + RZG3S_PCI_PCSTAT2);
 
-	switch (pcie_link_speed[host->max_link_speed]) {
+	/* Read hardware supported link speed from Link Capabilities Register */
+	lnkcap = readl_relaxed(host->pcie + pcie_cap + PCI_EXP_LNKCAP);
+	hw_max_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, lnkcap);
+
+	/*
+	 * Use DT max-link-speed only as a limit. If specified and lower
+	 * than hardware capability, cap to that value.
+	 */
+	if (host->max_link_speed > 0 && host->max_link_speed < hw_max_speed)
+		hw_max_speed = host->max_link_speed;
+
+	switch (pcie_link_speed[hw_max_speed]) {
+	case PCIE_SPEED_8_0GT:
+		max_supported_link_speeds = GENMASK(PCI_EXP_LNKSTA_CLS_8_0GB - 1, 0);
+		link_speed = PCI_EXP_LNKCTL2_TLS_8_0GT;
+		break;
 	case PCIE_SPEED_5_0GT:
 		max_supported_link_speeds = GENMASK(PCI_EXP_LNKSTA_CLS_5_0GB - 1, 0);
 		link_speed = PCI_EXP_LNKCTL2_TLS_5_0GT;
@@ -1041,10 +1057,10 @@ static int rzg3s_pcie_set_max_link_speed(struct rzg3s_pcie_host *host)
 	remote_supported_link_speeds &= max_supported_link_speeds;
 
 	/*
-	 * Return if max link speed is already set or the connected device
+	 * Return if target link speed is already set or the connected device
 	 * doesn't support it.
 	 */
-	if (cur_link_speed == host->max_link_speed ||
+	if (cur_link_speed == hw_max_speed ||
 	    remote_supported_link_speeds != max_supported_link_speeds)
 		return 0;
 
@@ -1632,8 +1648,6 @@ static int rzg3s_pcie_probe(struct platform_device *pdev)
 	host->pcie = host->axi + RZG3S_PCI_CFG_BASE;
 
 	host->max_link_speed = of_pci_get_max_link_speed(np);
-	if (host->max_link_speed < 0)
-		host->max_link_speed = 2;
 
 	ret = rzg3s_pcie_host_parse_port(host);
 	if (ret)
