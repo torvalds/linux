@@ -1590,8 +1590,10 @@ static void mt7925_sta_set_decap_offload(struct ieee80211_hw *hw,
 	valid = ieee80211_vif_is_mld(vif) ? mvif->valid_links : BIT(0);
 
 	for_each_set_bit(i, &valid, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct mt792x_bss_conf *mconf;
 		struct mt792x_link_sta *mlink;
 
+		mconf = mt792x_vif_to_link(mvif, i);
 		mlink = mt792x_sta_to_link(msta, i);
 
 		if (enabled)
@@ -1602,7 +1604,7 @@ static void mt7925_sta_set_decap_offload(struct ieee80211_hw *hw,
 		if (!mlink->wcid.sta)
 			continue;
 
-		mt7925_mcu_wtbl_update_hdr_trans(dev, vif, sta, mlink, i);
+		mt7925_mcu_wtbl_update_hdr_trans(dev, vif, mconf, mlink);
 	}
 
 	mt792x_mutex_release(dev);
