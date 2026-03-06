@@ -937,6 +937,21 @@ enum scx_sched_pcpu_flags {
 	SCX_SCHED_PCPU_BYPASSING	= 1LLU << 0,
 };
 
+/* dispatch buf */
+struct scx_dsp_buf_ent {
+	struct task_struct	*task;
+	unsigned long		qseq;
+	u64			dsq_id;
+	u64			enq_flags;
+};
+
+struct scx_dsp_ctx {
+	struct rq		*rq;
+	u32			cursor;
+	u32			nr_tasks;
+	struct scx_dsp_buf_ent	buf[];
+};
+
 struct scx_sched_pcpu {
 	u64			flags;	/* protected by rq lock */
 
@@ -951,6 +966,9 @@ struct scx_sched_pcpu {
 #ifdef CONFIG_EXT_SUB_SCHED
 	u32			bypass_host_seq;
 #endif
+
+	/* must be the last entry - contains flex array */
+	struct scx_dsp_ctx	dsp_ctx;
 };
 
 struct scx_sched {
@@ -978,6 +996,7 @@ struct scx_sched {
 	atomic_t		bypass_dsp_enable_depth;
 
 	bool			aborting;
+	u32			dsp_max_batch;
 	s32			level;
 
 	/*
