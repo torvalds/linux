@@ -740,13 +740,6 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         bar: &Bar0,
         fw: &F,
     ) -> Result {
-        // The Non-Secure section only exists on firmware used by Turing and GA100, and
-        // those platforms do not use DMA.
-        if fw.imem_ns_load_params().is_some() {
-            debug_assert!(false);
-            return Err(EINVAL);
-        }
-
         // Create DMA object with firmware content as the source of the DMA engine.
         let dma_obj = DmaObject::from_data(dev, fw.as_slice())?;
 
