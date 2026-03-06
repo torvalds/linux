@@ -361,10 +361,29 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 	}
 	pci_set_master(pdev);
 
+	mbox_res.ringbuf_base = ndev->sram_base;
+	mbox_res.ringbuf_size = pci_resource_len(pdev, xdna->dev_info->sram_bar);
+	mbox_res.mbox_base = ndev->mbox_base;
+	mbox_res.mbox_size = MBOX_SIZE(ndev);
+	mbox_res.name = "xdna_mailbox";
+	ndev->mbox = xdnam_mailbox_create(&xdna->ddev, &mbox_res);
+	if (!ndev->mbox) {
+		XDNA_ERR(xdna, "failed to create mailbox device");
+		ret = -ENODEV;
+		goto disable_dev;
+	}
+
+	ndev->mgmt_chann = xdna_mailbox_alloc_channel(ndev->mbox);
+	if (!ndev->mgmt_chann) {
+		XDNA_ERR(xdna, "failed to alloc channel");
+		ret = -ENODEV;
+		goto disable_dev;
+	}
+
 	ret = aie2_smu_init(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "failed to init smu, ret %d", ret);
-		goto disable_dev;
+		goto free_channel;
 	}
 
 	ret = aie2_psp_start(ndev->psp_hdl);
@@ -379,18 +398,6 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		goto stop_psp;
 	}
 
-	mbox_res.ringbuf_base = ndev->sram_base;
-	mbox_res.ringbuf_size = pci_resource_len(pdev, xdna->dev_info->sram_bar);
-	mbox_res.mbox_base = ndev->mbox_base;
-	mbox_res.mbox_size = MBOX_SIZE(ndev);
-	mbox_res.name = "xdna_mailbox";
-	ndev->mbox = xdnam_mailbox_create(&xdna->ddev, &mbox_res);
-	if (!ndev->mbox) {
-		XDNA_ERR(xdna, "failed to create mailbox device");
-		ret = -ENODEV;
-		goto stop_psp;
-	}
-
 	mgmt_mb_irq = pci_irq_vector(pdev, ndev->mgmt_chan_idx);
 	if (mgmt_mb_irq < 0) {
 		ret = mgmt_mb_irq;
@@ -399,13 +406,13 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 	}
 
 	xdna_mailbox_intr_reg = ndev->mgmt_i2x.mb_head_ptr_reg + 4;
-	ndev->mgmt_chann = xdna_mailbox_create_channel(ndev->mbox,
-						       &ndev->mgmt_x2i,
-						       &ndev->mgmt_i2x,
-						       xdna_mailbox_intr_reg,
-						       mgmt_mb_irq);
-	if (!ndev->mgmt_chann) {
-		XDNA_ERR(xdna, "failed to create management mailbox channel");
+	ret = xdna_mailbox_start_channel(ndev->mgmt_chann,
+					 &ndev->mgmt_x2i,
+					 &ndev->mgmt_i2x,
+					 xdna_mailbox_intr_reg,
+					 mgmt_mb_irq);
+	if (ret) {
+		XDNA_ERR(xdna, "failed to start management mailbox channel");
 		ret = -EINVAL;
 		goto stop_psp;
 	}
@@ -413,37 +420,41 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 	ret = aie2_mgmt_fw_init(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "initial mgmt firmware failed, ret %d", ret);
-		goto destroy_mgmt_chann;
+		goto stop_fw;
 	}
 
 	ret = aie2_pm_init(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "failed to init pm, ret %d", ret);
-		goto destroy_mgmt_chann;
+		goto stop_fw;
 	}
 
 	ret = aie2_mgmt_fw_query(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "failed to query fw, ret %d", ret);
-		goto destroy_mgmt_chann;
+		goto stop_fw;
 	}
 
 	ret = aie2_error_async_events_alloc(ndev);
 	if (ret) {
 		XDNA_ERR(xdna, "Allocate async events failed, ret %d", ret);
-		goto destroy_mgmt_chann;
+		goto stop_fw;
 	}
 
 	ndev->dev_status = AIE2_DEV_START;
 
 	return 0;
 
-destroy_mgmt_chann:
-	aie2_destroy_mgmt_chann(ndev);
+stop_fw:
+	aie2_suspend_fw(ndev);
+	xdna_mailbox_stop_channel(ndev->mgmt_chann);
 stop_psp:
 	aie2_psp_stop(ndev->psp_hdl);
 fini_smu:
 	aie2_smu_fini(ndev);
+free_channel:
+	xdna_mailbox_free_channel(ndev->mgmt_chann);
+	ndev->mgmt_chann = NULL;
 disable_dev:
 	pci_disable_device(pdev);
 
