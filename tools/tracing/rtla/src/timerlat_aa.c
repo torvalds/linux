@@ -1043,7 +1043,6 @@ out_ctx:
  */
 int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks, enum stack_format stack_format)
 {
-	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	struct timerlat_aa_context *taa_ctx;
 	int retval;
 

@@ -7,8 +7,10 @@
 #include <sched.h>
 #include <limits.h>
 #include <unistd.h>
+#include <sys/sysinfo.h>
 
 #include "../../src/utils.h"
+int nr_cpus;
 
 START_TEST(test_strtoi)
 {
@@ -34,35 +36,29 @@ END_TEST
 START_TEST(test_parse_cpu_set)
 {
 	cpu_set_t set;
-	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
+	nr_cpus = 8;
 	ck_assert_int_eq(parse_cpu_set("0", &set), 0);
 	ck_assert(CPU_ISSET(0, &set));
 	ck_assert(!CPU_ISSET(1, &set));
 
-	if (nr_cpus > 2) {
-		ck_assert_int_eq(parse_cpu_set("0,2", &set), 0);
-		ck_assert(CPU_ISSET(0, &set));
-		ck_assert(CPU_ISSET(2, &set));
-	}
+	ck_assert_int_eq(parse_cpu_set("0,2", &set), 0);
+	ck_assert(CPU_ISSET(0, &set));
+	ck_assert(CPU_ISSET(2, &set));
 
-	if (nr_cpus > 3) {
-		ck_assert_int_eq(parse_cpu_set("0-3", &set), 0);
-		ck_assert(CPU_ISSET(0, &set));
-		ck_assert(CPU_ISSET(1, &set));
-		ck_assert(CPU_ISSET(2, &set));
-		ck_assert(CPU_ISSET(3, &set));
-	}
+	ck_assert_int_eq(parse_cpu_set("0-3", &set), 0);
+	ck_assert(CPU_ISSET(0, &set));
+	ck_assert(CPU_ISSET(1, &set));
+	ck_assert(CPU_ISSET(2, &set));
+	ck_assert(CPU_ISSET(3, &set));
 
-	if (nr_cpus > 5) {
-		ck_assert_int_eq(parse_cpu_set("1-3,5", &set), 0);
-		ck_assert(!CPU_ISSET(0, &set));
-		ck_assert(CPU_ISSET(1, &set));
-		ck_assert(CPU_ISSET(2, &set));
-		ck_assert(CPU_ISSET(3, &set));
-		ck_assert(!CPU_ISSET(4, &set));
-		ck_assert(CPU_ISSET(5, &set));
-	}
+	ck_assert_int_eq(parse_cpu_set("1-3,5", &set), 0);
+	ck_assert(!CPU_ISSET(0, &set));
+	ck_assert(CPU_ISSET(1, &set));
+	ck_assert(CPU_ISSET(2, &set));
+	ck_assert(CPU_ISSET(3, &set));
+	ck_assert(!CPU_ISSET(4, &set));
+	ck_assert(CPU_ISSET(5, &set));
 
 	ck_assert_int_eq(parse_cpu_set("-1", &set), 1);
 	ck_assert_int_eq(parse_cpu_set("abc", &set), 1);
