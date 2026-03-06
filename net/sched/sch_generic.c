@@ -850,7 +850,7 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 			continue;
 
 		while ((skb = __skb_array_consume(q)) != NULL)
-			kfree_skb(skb);
+			rtnl_kfree_skbs(skb, skb);
 	}
 
 	if (qdisc_is_percpu_stats(qdisc)) {
