@@ -322,6 +322,14 @@ static void test_mpam_enable_merge_features(struct kunit *test)
 	mutex_unlock(&mpam_list_lock);
 }
 
+static void __test_mpam_reset_msc_bitmap(struct mpam_msc *msc, u16 reg, u16 wd)
+{
+	/* Avoid warnings when running with CONFIG_DEBUG_PREEMPT */
+	guard(preempt)();
+
+	mpam_reset_msc_bitmap(msc, reg, wd);
+}
+
 static void test_mpam_reset_msc_bitmap(struct kunit *test)
 {
 	char __iomem *buf = kunit_kzalloc(test, SZ_16K, GFP_KERNEL);
@@ -341,31 +349,31 @@ static void test_mpam_reset_msc_bitmap(struct kunit *test)
 
 	test_result = (u32 *)(buf + MPAMCFG_CPBM);
 
-	mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 0);
+	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 0);
 	KUNIT_EXPECT_EQ(test, test_result[0], 0);
 	KUNIT_EXPECT_EQ(test, test_result[1], 0);
 	test_result[0] = 0;
 	test_result[1] = 0;
 
-	mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 1);
+	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 1);
 	KUNIT_EXPECT_EQ(test, test_result[0], 1);
 	KUNIT_EXPECT_EQ(test, test_result[1], 0);
 	test_result[0] = 0;
 	test_result[1] = 0;
 
-	mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 16);
+	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 16);
 	KUNIT_EXPECT_EQ(test, test_result[0], 0xffff);
 	KUNIT_EXPECT_EQ(test, test_result[1], 0);
 	test_result[0] = 0;
 	test_result[1] = 0;
 
-	mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 32);
+	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 32);
 	KUNIT_EXPECT_EQ(test, test_result[0], 0xffffffff);
 	KUNIT_EXPECT_EQ(test, test_result[1], 0);
 	test_result[0] = 0;
 	test_result[1] = 0;
 
-	mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 33);
+	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 33);
 	KUNIT_EXPECT_EQ(test, test_result[0], 0xffffffff);
 	KUNIT_EXPECT_EQ(test, test_result[1], 1);
 	test_result[0] = 0;
