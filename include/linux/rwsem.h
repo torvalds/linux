@@ -57,7 +57,7 @@ context_lock_struct(rw_semaphore) {
 	struct optimistic_spin_queue osq; /* spinner MCS lock */
 #endif
 	raw_spinlock_t wait_lock;
-	struct rwsem_waiter *first_waiter;
+	struct rwsem_waiter *first_waiter __guarded_by(&wait_lock);
 #ifdef CONFIG_DEBUG_RWSEMS
 	void *magic;
 #endif
@@ -131,7 +131,7 @@ do {								\
  */
 static inline bool rwsem_is_contended(struct rw_semaphore *sem)
 {
-	return sem->first_waiter != NULL;
+	return data_race(sem->first_waiter != NULL);
 }
 
 #if defined(CONFIG_DEBUG_RWSEMS) || defined(CONFIG_DETECT_HUNG_TASK_BLOCKER)

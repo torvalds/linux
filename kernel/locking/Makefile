@@ -6,6 +6,7 @@ KCOV_INSTRUMENT		:= n
 CONTEXT_ANALYSIS_mutex.o := y
 CONTEXT_ANALYSIS_rtmutex_api.o := y
 CONTEXT_ANALYSIS_ww_rt_mutex.o := y
+CONTEXT_ANALYSIS_rwsem.o := y
 
 obj-y += mutex.o semaphore.o rwsem.o percpu-rwsem.o
 
