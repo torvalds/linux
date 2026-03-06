@@ -81,13 +81,13 @@ struct reset_control_array {
 
 /**
  * struct reset_gpio_lookup - lookup key for ad-hoc created reset-gpio devices
- * @of_args: phandle to the reset controller with all the args like GPIO number
+ * @ref_args: Reference to the reset controller with all the args like GPIO number
  * @swnode: Software node containing the reference to the GPIO provider
  * @list: list entry for the reset_gpio_lookup_list
  * @adev: Auxiliary device representing the reset controller
  */
 struct reset_gpio_lookup {
-	struct of_phandle_args of_args;
+	struct fwnode_reference_args ref_args;
 	struct fwnode_handle *swnode;
 	struct list_head list;
 	struct auxiliary_device adev;
@@ -98,24 +98,24 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
 	if (rcdev->dev)
 		return dev_name(rcdev->dev);
 
-	if (rcdev->of_node)
-		return rcdev->of_node->full_name;
+	if (rcdev->fwnode)
+		return fwnode_get_name(rcdev->fwnode);
 
 	return NULL;
 }
 
 /**
- * of_reset_simple_xlate - translate reset_spec to the reset line number
+ * fwnode_reset_simple_xlate - translate reset_spec to the reset line number
  * @rcdev: a pointer to the reset controller device
- * @reset_spec: reset line specifier as found in the device tree
+ * @reset_spec: reset line specifier as found in firmware
  *
- * This static translation function is used by default if of_xlate in
- * :c:type:`reset_controller_dev` is not set. It is useful for all reset
- * controllers with 1:1 mapping, where reset lines can be indexed by number
- * without gaps.
+ * This static translation function is used by default if neither fwnode_xlate
+ * not of_xlate in :c:type:`reset_controller_dev` is not set. It is useful for
+ * all reset controllers with 1:1 mapping, where reset lines can be indexed by
+ * number without gaps.
  */
-static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
-				 const struct of_phandle_args *reset_spec)
+static int fwnode_reset_simple_xlate(struct reset_controller_dev *rcdev,
+				     const struct fwnode_reference_args *reset_spec)
 {
 	if (reset_spec->args[0] >= rcdev->nr_resets)
 		return -EINVAL;
@@ -129,9 +129,23 @@ static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
  */
 int reset_controller_register(struct reset_controller_dev *rcdev)
 {
-	if (!rcdev->of_xlate) {
-		rcdev->of_reset_n_cells = 1;
-		rcdev->of_xlate = of_reset_simple_xlate;
+	if ((rcdev->of_node && rcdev->fwnode) || (rcdev->of_xlate && rcdev->fwnode_xlate))
+		return -EINVAL;
+
+	if (!rcdev->of_node && !rcdev->fwnode) {
+		rcdev->fwnode = dev_fwnode(rcdev->dev);
+		if (!rcdev->fwnode)
+			return -EINVAL;
+	}
+
+	if (rcdev->of_node) {
+		rcdev->fwnode = of_fwnode_handle(rcdev->of_node);
+		rcdev->fwnode_reset_n_cells = rcdev->of_reset_n_cells;
+	}
+
+	if (rcdev->fwnode && !rcdev->fwnode_xlate) {
+		rcdev->fwnode_reset_n_cells = 1;
+		rcdev->fwnode_xlate = fwnode_reset_simple_xlate;
 	}
 
 	INIT_LIST_HEAD(&rcdev->reset_control_head);
@@ -931,7 +945,7 @@ static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
 	adev->id = id;
 	adev->name = "gpio";
 	adev->dev.parent = parent;
-	adev->dev.platform_data = &rgpio_dev->of_args;
+	adev->dev.platform_data = &rgpio_dev->ref_args;
 	adev->dev.release = reset_gpio_aux_device_release;
 	device_set_node(&adev->dev, rgpio_dev->swnode);
 
@@ -951,18 +965,18 @@ static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
 	return 0;
 }
 
-static void reset_gpio_add_devlink(struct device_node *np,
+static void reset_gpio_add_devlink(struct fwnode_handle *fwnode,
 				   struct reset_gpio_lookup *rgpio_dev)
 {
 	struct device *consumer;
 
 	/*
-	 * We must use get_dev_from_fwnode() and not of_find_device_by_node()
+	 * We must use get_dev_from_fwnode() and not ref_find_device_by_node()
 	 * because the latter only considers the platform bus while we want to
 	 * get consumers of any kind that can be associated with firmware
 	 * nodes: auxiliary, soundwire, etc.
 	 */
-	consumer = get_dev_from_fwnode(of_fwnode_handle(np));
+	consumer = get_dev_from_fwnode(fwnode);
 	if (consumer) {
 		if (!device_link_add(consumer, &rgpio_dev->adev.dev,
 				     DL_FLAG_AUTOREMOVE_CONSUMER))
@@ -982,15 +996,23 @@ static void reset_gpio_add_devlink(struct device_node *np,
 	 */
 }
 
+/* TODO: move it out into drivers/base/ */
+static bool fwnode_reference_args_equal(const struct fwnode_reference_args *left,
+					const struct fwnode_reference_args *right)
+{
+	return left->fwnode == right->fwnode && left->nargs == right->nargs &&
+	       !memcmp(left->args, right->args, sizeof(left->args[0]) * left->nargs);
+}
+
 /*
  * @np: OF-node associated with the consumer
- * @args: phandle to the GPIO provider with all the args like GPIO number
+ * @args: Reference to the GPIO provider with all the args like GPIO number
  */
-static int __reset_add_reset_gpio_device(struct device_node *np,
-					 const struct of_phandle_args *args)
+static int __reset_add_reset_gpio_device(struct fwnode_handle *fwnode,
+					 const struct fwnode_reference_args *args)
 {
 	struct property_entry properties[3] = { };
-	unsigned int offset, of_flags, lflags;
+	unsigned int offset, flags, lflags;
 	struct reset_gpio_lookup *rgpio_dev;
 	struct device *parent;
 	int ret, prop = 0;
@@ -1001,7 +1023,7 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	 * args[1]: GPIO flags
 	 * TODO: Handle other cases.
 	 */
-	if (args->args_count != 2)
+	if (args->nargs != 2)
 		return -ENOENT;
 
 	/*
@@ -1012,7 +1034,7 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	lockdep_assert_not_held(&reset_list_mutex);
 
 	offset = args->args[0];
-	of_flags = args->args[1];
+	flags = args->args[1];
 
 	/*
 	 * Later we map GPIO flags between OF and Linux, however not all
@@ -1022,33 +1044,31 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	 * FIXME: Find a better way of translating OF flags to GPIO lookup
 	 * flags.
 	 */
-	if (of_flags > GPIO_ACTIVE_LOW) {
+	if (flags > GPIO_ACTIVE_LOW) {
 		pr_err("reset-gpio code does not support GPIO flags %u for GPIO %u\n",
-		       of_flags, offset);
+		       flags, offset);
 		return -EINVAL;
 	}
 
 	struct gpio_device *gdev __free(gpio_device_put) =
-		gpio_device_find_by_fwnode(of_fwnode_handle(args->np));
+			gpio_device_find_by_fwnode(args->fwnode);
 	if (!gdev)
 		return -EPROBE_DEFER;
 
 	guard(mutex)(&reset_gpio_lookup_mutex);
 
 	list_for_each_entry(rgpio_dev, &reset_gpio_lookup_list, list) {
-		if (args->np == rgpio_dev->of_args.np) {
-			if (of_phandle_args_equal(args, &rgpio_dev->of_args)) {
-				/*
-				 * Already on the list, create the device link
-				 * and stop here.
-				 */
-				reset_gpio_add_devlink(np, rgpio_dev);
-				return 0;
-			}
+		if (fwnode_reference_args_equal(args, &rgpio_dev->ref_args)) {
+			/*
+			 * Already on the list, create the device link
+			 * and stop here.
+			 */
+			reset_gpio_add_devlink(fwnode, rgpio_dev);
+			return 0;
 		}
 	}
 
-	lflags = GPIO_PERSISTENT | (of_flags & GPIO_ACTIVE_LOW);
+	lflags = GPIO_PERSISTENT | (flags & GPIO_ACTIVE_LOW);
 	parent = gpio_device_to_device(gdev);
 	properties[prop++] = PROPERTY_ENTRY_STRING("compatible", "reset-gpio");
 	properties[prop++] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
@@ -1058,43 +1078,43 @@ static int __reset_add_reset_gpio_device(struct device_node *np,
 	if (!rgpio_dev)
 		return -ENOMEM;
 
-	rgpio_dev->of_args = *args;
+	rgpio_dev->ref_args = *args;
 	/*
-	 * We keep the device_node reference, but of_args.np is put at the end
-	 * of __fwnode_reset_control_get(), so get it one more time.
+	 * We keep the fwnode_handle reference, but ref_args.fwnode is put at
+	 * the end of __fwnode_reset_control_get(), so get it one more time.
 	 * Hold reference as long as rgpio_dev memory is valid.
 	 */
-	of_node_get(rgpio_dev->of_args.np);
+	fwnode_handle_get(rgpio_dev->ref_args.fwnode);
 
 	rgpio_dev->swnode = fwnode_create_software_node(properties, NULL);
 	if (IS_ERR(rgpio_dev->swnode)) {
 		ret = PTR_ERR(rgpio_dev->swnode);
-		goto err_put_of_node;
+		goto err_put_fwnode;
 	}
 
 	ret = reset_create_gpio_aux_device(rgpio_dev, parent);
 	if (ret)
 		goto err_del_swnode;
 
-	reset_gpio_add_devlink(np, rgpio_dev);
+	reset_gpio_add_devlink(fwnode, rgpio_dev);
 	list_add(&rgpio_dev->list, &reset_gpio_lookup_list);
 
 	return 0;
 
 err_del_swnode:
 	fwnode_remove_software_node(rgpio_dev->swnode);
-err_put_of_node:
-	of_node_put(rgpio_dev->of_args.np);
+err_put_fwnode:
+	fwnode_handle_put(rgpio_dev->ref_args.fwnode);
 	kfree(rgpio_dev);
 
 	return ret;
 }
 
-static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_args *args,
-						       bool gpio_fallback)
+static struct reset_controller_dev *
+__reset_find_rcdev(const struct fwnode_reference_args *args, bool gpio_fallback)
 {
+	struct fwnode_reference_args *rc_args;
 	struct reset_controller_dev *rcdev;
-	struct of_phandle_args *rc_args;
 
 	lockdep_assert_held(&reset_list_mutex);
 
@@ -1103,10 +1123,10 @@ static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_a
 		    device_is_compatible(rcdev->dev, "reset-gpio")) {
 			rc_args = dev_get_platdata(rcdev->dev);
 
-			if (of_phandle_args_equal(args, rc_args))
+			if (fwnode_reference_args_equal(args, rc_args))
 				return rcdev;
 		} else {
-			if (args->np == rcdev->of_node)
+			if (args->fwnode == rcdev->fwnode)
 				return rcdev;
 		}
 	}
@@ -1120,27 +1140,26 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	bool gpio_fallback = false;
-	struct device_node *node = to_of_node(fwnode);
 	struct reset_control *rstc = ERR_PTR(-EINVAL);
 	struct reset_controller_dev *rcdev;
-	struct of_phandle_args args;
-	int rstc_id;
+	struct fwnode_reference_args args;
+	struct of_phandle_args of_args;
+	int rstc_id = -EINVAL;
 	int ret;
 
 	if (!fwnode)
 		return ERR_PTR(-EINVAL);
 
 	if (id) {
-		index = of_property_match_string(node,
-						 "reset-names", id);
+		index = fwnode_property_match_string(fwnode, "reset-names", id);
 		if (index == -EILSEQ)
 			return ERR_PTR(index);
 		if (index < 0)
 			return optional ? NULL : ERR_PTR(-ENOENT);
 	}
 
-	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
-					 index, &args);
+	ret = fwnode_property_get_reference_args(fwnode, "resets", "#reset-cells",
+						 0, index, &args);
 	if (ret == -EINVAL)
 		return ERR_PTR(ret);
 	if (ret) {
@@ -1151,16 +1170,16 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 		 * There can be only one reset-gpio for regular devices, so
 		 * don't bother with the "reset-gpios" phandle index.
 		 */
-		ret = of_parse_phandle_with_args(node, "reset-gpios", "#gpio-cells",
-						 0, &args);
+		ret = fwnode_property_get_reference_args(fwnode, "reset-gpios",
+							 "#gpio-cells", 0, 0, &args);
 		if (ret)
 			return optional ? NULL : ERR_PTR(ret);
 
 		gpio_fallback = true;
 
-		ret = __reset_add_reset_gpio_device(node, &args);
+		ret = __reset_add_reset_gpio_device(fwnode, &args);
 		if (ret) {
-			of_node_put(args.np);
+			fwnode_handle_put(args.fwnode);
 			return ERR_PTR(ret);
 		}
 	}
@@ -1173,15 +1192,30 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 		goto out_put;
 	}
 
-	if (WARN_ON(args.args_count != rcdev->of_reset_n_cells)) {
+	if (WARN_ON(args.nargs != rcdev->fwnode_reset_n_cells)) {
 		rstc = ERR_PTR(-EINVAL);
 		goto out_put;
 	}
 
-	rstc_id = rcdev->of_xlate(rcdev, &args);
+	if (rcdev->of_xlate && is_of_node(fwnode)) {
+		ret = of_parse_phandle_with_args(to_of_node(fwnode),
+					 gpio_fallback ? "reset-gpios" : "resets",
+					 gpio_fallback ? "#gpio-cells" : "#reset-cells",
+					 gpio_fallback ? 0 : index,
+					 &of_args);
+		if (ret) {
+			rstc = ERR_PTR(ret);
+			goto out_put;
+		}
+
+		rstc_id = rcdev->of_xlate(rcdev, &of_args);
+		of_node_put(of_args.np);
+	} else if (rcdev->fwnode_xlate) {
+		rstc_id = rcdev->fwnode_xlate(rcdev, &args);
+	}
 	if (rstc_id < 0) {
 		rstc = ERR_PTR(rstc_id);
-		goto out_put;
+			goto out_put;
 	}
 
 	flags &= ~RESET_CONTROL_FLAGS_BIT_OPTIONAL;
@@ -1190,7 +1224,7 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 		rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
 
 out_put:
-	of_node_put(args.np);
+	fwnode_handle_put(args.fwnode);
 
 	return rstc;
 }
