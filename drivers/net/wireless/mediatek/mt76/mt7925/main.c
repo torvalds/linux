@@ -927,8 +927,17 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 	} else if (ieee80211_vif_is_mld(vif) &&
 		   link_sta != mlink->pri_link) {
 		struct mt792x_link_sta *pri_mlink;
+		struct mt76_wcid *pri_wcid;
 
-		pri_mlink = mt792x_sta_to_link(msta, mlink->pri_link->link_id);
+		/* alternative lookup via def_wcid */
+		pri_wcid = mlink->wcid.def_wcid;
+
+		pri_mlink = pri_wcid ?
+			    container_of(pri_wcid, struct mt792x_link_sta, wcid) :
+			    NULL;
+
+		if (WARN_ON_ONCE(!pri_mlink))
+			return -EINVAL;
 
 		ret = mt7925_mcu_sta_update(dev, mlink->pri_link, vif,
 					    pri_mlink, true,
