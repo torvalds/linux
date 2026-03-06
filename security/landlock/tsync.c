@@ -575,24 +575,30 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 					   -ERESTARTNOINTR);
 
 				/*
-				 * Cancel task works for tasks that did not start running yet,
-				 * and decrement all_prepared and num_unfinished accordingly.
+				 * Opportunistic improvement: try to cancel task
+				 * works for tasks that did not start running
+				 * yet. We do not have a guarantee that it
+				 * cancels any of the enqueued task works
+				 * because task_work_run() might already have
+				 * dequeued them.
 				 */
 				cancel_tsync_works(&works, &shared_ctx);
 
 				/*
-				 * The remaining task works have started running, so waiting for
-				 * their completion will finish.
+				 * Break the loop with error. The cleanup code
+				 * after the loop unblocks the remaining
+				 * task_works.
 				 */
-				wait_for_completion(&shared_ctx.all_prepared);
+				break;
 			}
 		}
 	} while (found_more_threads &&
 		 !atomic_read(&shared_ctx.preparation_error));
 
 	/*
-	 * We now have all sibling threads blocking and in "prepared" state in the
-	 * task work. Ask all threads to commit.
+	 * We now have either (a) all sibling threads blocking and in "prepared"
+	 * state in the task work, or (b) the preparation error is set. Ask all
+	 * threads to commit (or abort).
 	 */
 	complete_all(&shared_ctx.ready_to_commit);
 
