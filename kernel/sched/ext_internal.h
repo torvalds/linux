@@ -932,6 +932,8 @@ struct scx_sched_pcpu {
 	 * constructed when requested by scx_bpf_events().
 	 */
 	struct scx_event_stats	event_stats;
+
+	struct scx_dispatch_q	bypass_dsq;
 };
 
 struct scx_sched {
