@@ -24,10 +24,6 @@ properties:
   reg:
     maxItems: 1
 
-  label: true
-  port: true
-  reset-gpios: true
-
   spi-max-frequency:
     maximum: 10000000
 
