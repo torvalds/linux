@@ -260,6 +260,7 @@ impl FalconUCodeDescriptor for FalconUCodeDescV3 {
 
     fn imem_sec_load_params(&self) -> FalconDmaLoadTarget {
         FalconDmaLoadTarget {
+            // IMEM segment always starts at offset 0.
             src_start: 0,
             dst_start: self.imem_phys_base,
             len: self.imem_load_size,
@@ -273,6 +274,7 @@ impl FalconUCodeDescriptor for FalconUCodeDescV3 {
 
     fn dmem_load_params(&self) -> FalconDmaLoadTarget {
         FalconDmaLoadTarget {
+            // DMEM segment starts right after the IMEM one.
             src_start: self.imem_load_size,
             dst_start: self.dmem_phys_base,
             len: self.dmem_load_size,
