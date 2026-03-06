@@ -567,6 +567,8 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 	irqreturn_t result = IRQ_NONE;
 	u32 val;
 
+	guard(spinlock)(&hci->lock);
+
 	/*
 	 * The IRQ can be shared, so the handler may be called when the IRQ is
 	 * due to a different device. That could happen when runtime suspended,
