@@ -1179,7 +1179,6 @@ skip_sie:
 	kvm_vcpu_srcu_read_lock(vcpu);
 
 	if (rc == -EINTR) {
-		VCPU_EVENT(vcpu, 3, "%s", "machine check");
 		kvm_s390_reinject_machine_check(vcpu, &vsie_page->mcck_info);
 		return 0;
 	}

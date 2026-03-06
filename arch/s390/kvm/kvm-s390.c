@@ -4634,7 +4634,6 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	vcpu->run->s.regs.gprs[15] = vcpu->arch.sie_block->gg15;
 
 	if (exit_reason == -EINTR) {
-		VCPU_EVENT(vcpu, 3, "%s", "machine check");
 		sie_page = container_of(vcpu->arch.sie_block,
 					struct sie_page, sie_block);
 		mcck_info = &sie_page->mcck_info;

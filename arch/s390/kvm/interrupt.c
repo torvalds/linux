@@ -2827,6 +2827,12 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 	int rc;
 
 	mci.val = mcck_info->mcic;
+
+	/* log machine checks being reinjected on all debugs */
+	VCPU_EVENT(vcpu, 2, "guest machine check %lx", mci.val);
+	KVM_EVENT(2, "guest machine check %lx", mci.val);
+	pr_info("guest machine check pid %d: %lx", current->pid, mci.val);
+
 	if (mci.sr)
 		cr14 |= CR14_RECOVERY_SUBMASK;
 	if (mci.dg)
