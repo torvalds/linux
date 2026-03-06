@@ -44,7 +44,7 @@
 		data-role = "dual";
 		power-role = "dual";
 
-		vbus-supply = <&vbus_supply_regulator_0>;
+		vbus-supply = <&usb0_vbus>;
 
 		ports {
 			#address-cells = <1>;
@@ -132,9 +132,9 @@
 		};
 	};
 
-	vbus_supply_regulator_0: regulator-vbus-supply-0 {
+	usb0_vbus: regulator-usb0-vbus {
 		compatible = "regulator-fixed";
-		regulator-name = "vbus_supply_0";
+		regulator-name = "usb0_vbus";
 		gpio = <&expander1 2 GPIO_ACTIVE_HIGH>;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
