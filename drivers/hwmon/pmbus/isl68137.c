@@ -90,8 +90,6 @@ struct isl68137_data {
 
 #define to_isl68137_data(x)	container_of(x, struct isl68137_data, info)
 
-static const struct i2c_device_id raa_dmpvr_id[];
-
 static ssize_t isl68137_avs_enable_show_page(struct i2c_client *client,
 					     int page,
 					     char *buf)
@@ -393,7 +391,7 @@ static int isl68137_probe(struct i2c_client *client)
 	memcpy(&data->info, &raa_dmpvr_info, sizeof(data->info));
 	info = &data->info;
 
-	switch (i2c_match_id(raa_dmpvr_id, client)->driver_data) {
+	switch ((uintptr_t)i2c_get_match_data(client)) {
 	case raa_dmpvr1_2rail:
 		info->pages = 2;
 		info->R[PSC_VOLTAGE_IN] = 3;
