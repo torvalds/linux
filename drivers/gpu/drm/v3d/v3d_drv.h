@@ -326,6 +326,10 @@ struct v3d_job {
 	 */
 	struct v3d_file_priv *file_priv;
 
+	/* Pointers to this job's per-fd and global queue stats. */
+	struct v3d_stats *client_stats;
+	struct v3d_stats *global_stats;
+
 	/* Callback for the freeing of the job on refcount going to 0. */
 	void (*free)(struct kref *ref);
 };
@@ -607,7 +611,7 @@ void v3d_performance_query_info_free(struct v3d_performance_query_info *query_in
 				     unsigned int count);
 struct v3d_stats *v3d_stats_alloc(void);
 void v3d_stats_release(struct kref *refcount);
-void v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q);
+void v3d_job_update_stats(struct v3d_job *job);
 int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);
 

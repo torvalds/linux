@@ -158,24 +158,21 @@ v3d_switch_perfmon(struct v3d_dev *v3d, struct v3d_job *job)
 }
 
 static void
-v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
+v3d_stats_start(struct v3d_stats *stats, u64 now)
 {
-	struct v3d_dev *v3d = job->v3d;
-	struct v3d_file_priv *file = job->file_priv;
-	struct v3d_stats *global_stats = v3d->queue[queue].stats;
-	struct v3d_stats *local_stats = file->stats[queue];
+	raw_write_seqcount_begin(&stats->lock);
+	stats->start_ns = now;
+	raw_write_seqcount_end(&stats->lock);
+}
+
+static void
+v3d_job_start_stats(struct v3d_job *job)
+{
 	u64 now = local_clock();
 
 	preempt_disable();
-
-	raw_write_seqcount_begin(&local_stats->lock);
-	local_stats->start_ns = now;
-	raw_write_seqcount_end(&local_stats->lock);
-
-	raw_write_seqcount_begin(&global_stats->lock);
-	global_stats->start_ns = now;
-	raw_write_seqcount_end(&global_stats->lock);
-
+	v3d_stats_start(job->client_stats, now);
+	v3d_stats_start(job->global_stats, now);
 	preempt_enable();
 }
 
@@ -190,23 +187,13 @@ v3d_stats_update(struct v3d_stats *stats, u64 now)
 }
 
 void
-v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
+v3d_job_update_stats(struct v3d_job *job)
 {
-	struct v3d_dev *v3d = job->v3d;
-	struct v3d_queue_state *queue = &v3d->queue[q];
-	struct v3d_stats *global_stats = queue->stats;
 	u64 now = local_clock();
 
 	preempt_disable();
-
-	/* Don't update the local stats if the file context has already closed */
-	spin_lock(&queue->queue_lock);
-	if (job->file_priv)
-		v3d_stats_update(job->file_priv->stats[q], now);
-	spin_unlock(&queue->queue_lock);
-
-	v3d_stats_update(global_stats, now);
-
+	v3d_stats_update(job->client_stats, now);
+	v3d_stats_update(job->global_stats, now);
 	preempt_enable();
 }
 
@@ -250,7 +237,7 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
 
-	v3d_job_start_stats(&job->base, V3D_BIN);
+	v3d_job_start_stats(&job->base);
 	v3d_switch_perfmon(v3d, &job->base);
 
 	/* Set the current and end address of the control list.
@@ -304,7 +291,7 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqno,
 			    job->start, job->end);
 
-	v3d_job_start_stats(&job->base, V3D_RENDER);
+	v3d_job_start_stats(&job->base);
 	v3d_switch_perfmon(v3d, &job->base);
 
 	/* XXX: Set the QCFG */
@@ -343,7 +330,7 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 
 	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
 
-	v3d_job_start_stats(&job->base, V3D_TFU);
+	v3d_job_start_stats(&job->base);
 
 	V3D_WRITE(V3D_TFU_IIA(v3d->ver), job->args.iia);
 	V3D_WRITE(V3D_TFU_IIS(v3d->ver), job->args.iis);
@@ -393,7 +380,7 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 
 	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
 
-	v3d_job_start_stats(&job->base, V3D_CSD);
+	v3d_job_start_stats(&job->base);
 	v3d_switch_perfmon(v3d, &job->base);
 
 	csd_cfg0_reg = V3D_CSD_QUEUED_CFG0(v3d->ver);
@@ -681,13 +668,13 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 		return NULL;
 	}
 
-	v3d_job_start_stats(&job->base, V3D_CPU);
+	v3d_job_start_stats(&job->base);
 	trace_v3d_cpu_job_begin(&v3d->drm, job->job_type);
 
 	cpu_job_function[job->job_type](job);
 
 	trace_v3d_cpu_job_end(&v3d->drm, job->job_type);
-	v3d_job_update_stats(&job->base, V3D_CPU);
+	v3d_job_update_stats(&job->base);
 
 	/* Synchronous operation, so no fence to wait on. */
 	return NULL;
@@ -699,11 +686,11 @@ v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 	struct v3d_job *job = to_v3d_job(sched_job);
 	struct v3d_dev *v3d = job->v3d;
 
-	v3d_job_start_stats(job, V3D_CACHE_CLEAN);
+	v3d_job_start_stats(job);
 
 	v3d_clean_caches(v3d);
 
-	v3d_job_update_stats(job, V3D_CACHE_CLEAN);
+	v3d_job_update_stats(job);
 
 	/* Synchronous operation, so no fence to wait on. */
 	return NULL;
