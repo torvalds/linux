@@ -194,7 +194,7 @@ void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
 	unsigned int seq;
 
 	do {
-		seq = read_seqcount_begin(&stats->lock);
+		seq = raw_read_seqcount_begin(&stats->lock);
 		*active_runtime = stats->enabled_ns;
 		if (stats->start_ns)
 			*active_runtime += timestamp - stats->start_ns;

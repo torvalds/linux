@@ -46,6 +46,11 @@ struct v3d_stats {
 	 * This seqcount is used to protect the access to the GPU stats
 	 * variables. It must be used as, while we are reading the stats,
 	 * IRQs can happen and the stats can be updated.
+	 *
+	 * However, we use the raw seqcount helpers to interact with this lock
+	 * to avoid false positives from lockdep, which is unable to detect that
+	 * our readers are never from irq or softirq context, and that, for CPU
+	 * job queues, even the write side never is.
 	 */
 	seqcount_t lock;
 };

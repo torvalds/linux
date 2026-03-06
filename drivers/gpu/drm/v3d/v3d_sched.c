@@ -144,54 +144,28 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
-	unsigned long flags;
 
-	/*
-	 * We only need to disable local interrupts to appease lockdep who
-	 * otherwise would think v3d_job_start_stats vs v3d_stats_update has an
-	 * unsafe in-irq vs no-irq-off usage problem. This is a false positive
-	 * because all the locks are per queue and stats type, and all jobs are
-	 * completely one at a time serialised. More specifically:
-	 *
-	 * 1. Locks for GPU queues are updated from interrupt handlers under a
-	 *    spin lock and started here with preemption disabled.
-	 *
-	 * 2. Locks for CPU queues are updated from the worker with preemption
-	 *    disabled and equally started here with preemption disabled.
-	 *
-	 * Therefore both are consistent.
-	 *
-	 * 3. Because next job can only be queued after the previous one has
-	 *    been signaled, and locks are per queue, there is also no scope for
-	 *    the start part to race with the update part.
-	 */
-	if (IS_ENABLED(CONFIG_LOCKDEP))
-		local_irq_save(flags);
-	else
-		preempt_disable();
+	preempt_disable();
 
-	write_seqcount_begin(&local_stats->lock);
+	raw_write_seqcount_begin(&local_stats->lock);
 	local_stats->start_ns = now;
-	write_seqcount_end(&local_stats->lock);
+	raw_write_seqcount_end(&local_stats->lock);
 
-	write_seqcount_begin(&global_stats->lock);
+	raw_write_seqcount_begin(&global_stats->lock);
 	global_stats->start_ns = now;
-	write_seqcount_end(&global_stats->lock);
+	raw_write_seqcount_end(&global_stats->lock);
 
-	if (IS_ENABLED(CONFIG_LOCKDEP))
-		local_irq_restore(flags);
-	else
-		preempt_enable();
+	preempt_enable();
 }
 
 static void
 v3d_stats_update(struct v3d_stats *stats, u64 now)
 {
-	write_seqcount_begin(&stats->lock);
+	raw_write_seqcount_begin(&stats->lock);
 	stats->enabled_ns += now - stats->start_ns;
 	stats->jobs_completed++;
 	stats->start_ns = 0;
-	write_seqcount_end(&stats->lock);
+	raw_write_seqcount_end(&stats->lock);
 }
 
 void
@@ -201,13 +175,8 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
 	struct v3d_queue_state *queue = &v3d->queue[q];
 	struct v3d_stats *global_stats = &queue->stats;
 	u64 now = local_clock();
-	unsigned long flags;
 
-	/* See comment in v3d_job_start_stats() */
-	if (IS_ENABLED(CONFIG_LOCKDEP))
-		local_irq_save(flags);
-	else
-		preempt_disable();
+	preempt_disable();
 
 	/* Don't update the local stats if the file context has already closed */
 	spin_lock(&queue->queue_lock);
@@ -217,10 +186,7 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue q)
 
 	v3d_stats_update(global_stats, now);
 
-	if (IS_ENABLED(CONFIG_LOCKDEP))
-		local_irq_restore(flags);
-	else
-		preempt_enable();
+	preempt_enable();
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
