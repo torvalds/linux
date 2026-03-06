@@ -183,8 +183,18 @@ static inline long scx_hotplug_seq(void)
 })
 
 #define SCX_OPS_LOAD(__skel, __ops_name, __scx_name, __uei_name) ({		\
+	struct bpf_program *__prog;						\
 	UEI_SET_SIZE(__skel, __ops_name, __uei_name);				\
 	SCX_BUG_ON(__scx_name##__load((__skel)), "Failed to load skel");	\
+	bpf_object__for_each_program(__prog, (__skel)->obj) {			\
+		if (bpf_program__type(__prog) == BPF_PROG_TYPE_STRUCT_OPS)	\
+			continue;						\
+		s32 err = bpf_program__assoc_struct_ops(__prog,			\
+					(__skel)->maps.__ops_name, NULL);	\
+		if (err)							\
+			fprintf(stderr, "ERROR: Failed to associate %s with %s: %d\n", \
+				bpf_program__name(__prog), #__ops_name, err);	\
+	}									\
 })
 
 /*

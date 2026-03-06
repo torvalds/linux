@@ -5290,7 +5290,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 	init_irq_work(&sch->error_irq_work, scx_error_irq_workfn);
 	kthread_init_work(&sch->disable_work, scx_disable_workfn);
 	sch->ops = *ops;
-	ops->priv = sch;
+	rcu_assign_pointer(ops->priv, sch);
 
 	sch->kobj.kset = scx_kset;
 
@@ -6044,10 +6044,11 @@ static int bpf_scx_reg(void *kdata, struct bpf_link *link)
 static void bpf_scx_unreg(void *kdata, struct bpf_link *link)
 {
 	struct sched_ext_ops *ops = kdata;
-	struct scx_sched *sch = ops->priv;
+	struct scx_sched *sch = rcu_dereference_protected(ops->priv, true);
 
 	scx_disable(sch, SCX_EXIT_UNREG);
 	kthread_flush_work(&sch->disable_work);
+	RCU_INIT_POINTER(ops->priv, NULL);
 	kobject_put(&sch->kobj);
 }
 
@@ -6511,6 +6512,7 @@ __bpf_kfunc_start_defs();
  * @dsq_id: DSQ to insert into
  * @slice: duration @p can run for in nsecs, 0 to keep the current value
  * @enq_flags: SCX_ENQ_*
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Insert @p into the FIFO queue of the DSQ identified by @dsq_id. It is safe to
  * call this function spuriously. Can be called from ops.enqueue(),
@@ -6545,12 +6547,13 @@ __bpf_kfunc_start_defs();
  * to check the return value.
  */
 __bpf_kfunc bool scx_bpf_dsq_insert___v2(struct task_struct *p, u64 dsq_id,
-					 u64 slice, u64 enq_flags)
+					 u64 slice, u64 enq_flags,
+					 const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return false;
 
@@ -6571,9 +6574,10 @@ __bpf_kfunc bool scx_bpf_dsq_insert___v2(struct task_struct *p, u64 dsq_id,
  * COMPAT: Will be removed in v6.23 along with the ___v2 suffix.
  */
 __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id,
-					     u64 slice, u64 enq_flags)
+				    u64 slice, u64 enq_flags,
+				    const struct bpf_prog_aux *aux)
 {
-	scx_bpf_dsq_insert___v2(p, dsq_id, slice, enq_flags);
+	scx_bpf_dsq_insert___v2(p, dsq_id, slice, enq_flags, aux);
 }
 
 static bool scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
@@ -6610,6 +6614,7 @@ struct scx_bpf_dsq_insert_vtime_args {
  *       @args->slice: duration @p can run for in nsecs, 0 to keep the current value
  *       @args->vtime: @p's ordering inside the vtime-sorted queue of the target DSQ
  *       @args->enq_flags: SCX_ENQ_*
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Wrapper kfunc that takes arguments via struct to work around BPF's 5 argument
  * limit. BPF programs should use scx_bpf_dsq_insert_vtime() which is provided
@@ -6634,13 +6639,14 @@ struct scx_bpf_dsq_insert_vtime_args {
  */
 __bpf_kfunc bool
 __scx_bpf_dsq_insert_vtime(struct task_struct *p,
-			   struct scx_bpf_dsq_insert_vtime_args *args)
+			   struct scx_bpf_dsq_insert_vtime_args *args,
+			   const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return false;
 
@@ -6668,9 +6674,9 @@ __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_enqueue_dispatch)
-BTF_ID_FLAGS(func, scx_bpf_dsq_insert, KF_RCU)
-BTF_ID_FLAGS(func, scx_bpf_dsq_insert___v2, KF_RCU)
-BTF_ID_FLAGS(func, __scx_bpf_dsq_insert_vtime, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_insert, KF_IMPLICIT_ARGS | KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_insert___v2, KF_IMPLICIT_ARGS | KF_RCU)
+BTF_ID_FLAGS(func, __scx_bpf_dsq_insert_vtime, KF_IMPLICIT_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
 
@@ -6770,16 +6776,17 @@ __bpf_kfunc_start_defs();
 
 /**
  * scx_bpf_dispatch_nr_slots - Return the number of remaining dispatch slots
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Can only be called from ops.dispatch().
  */
-__bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
+__bpf_kfunc u32 scx_bpf_dispatch_nr_slots(const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return 0;
 
@@ -6791,18 +6798,19 @@ __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
 
 /**
  * scx_bpf_dispatch_cancel - Cancel the latest dispatch
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Cancel the latest dispatch. Can be called multiple times to cancel further
  * dispatches. Can only be called from ops.dispatch().
  */
-__bpf_kfunc void scx_bpf_dispatch_cancel(void)
+__bpf_kfunc void scx_bpf_dispatch_cancel(const struct bpf_prog_aux *aux)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return;
 
@@ -6818,6 +6826,7 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
 /**
  * scx_bpf_dsq_move_to_local - move a task from a DSQ to the current CPU's local DSQ
  * @dsq_id: DSQ to move task from
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Move a task from the non-local DSQ identified by @dsq_id to the current CPU's
  * local DSQ for execution. Can only be called from ops.dispatch().
@@ -6829,7 +6838,7 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
  * Returns %true if a task has been moved, %false if there isn't any task to
  * move.
  */
-__bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
+__bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id, const struct bpf_prog_aux *aux)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	struct scx_dispatch_q *dsq;
@@ -6837,7 +6846,7 @@ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return false;
 
@@ -6964,9 +6973,9 @@ __bpf_kfunc bool scx_bpf_dsq_move_vtime(struct bpf_iter_scx_dsq *it__iter,
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
-BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots)
-BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
-BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
+BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
@@ -7024,6 +7033,7 @@ __bpf_kfunc_start_defs();
 
 /**
  * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Iterate over all of the tasks currently enqueued on the local DSQ of the
  * caller's CPU, and re-enqueue them in the BPF scheduler. Returns the number of
@@ -7032,13 +7042,13 @@ __bpf_kfunc_start_defs();
  * COMPAT: Will be removed in v6.23 along with the ___v2 suffix on the void
  * returning variant that can be called from anywhere.
  */
-__bpf_kfunc u32 scx_bpf_reenqueue_local(void)
+__bpf_kfunc u32 scx_bpf_reenqueue_local(const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	struct rq *rq;
 
 	guard(rcu)();
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return 0;
 
@@ -7054,7 +7064,7 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_cpu_release)
-BTF_ID_FLAGS(func, scx_bpf_reenqueue_local)
+BTF_ID_FLAGS(func, scx_bpf_reenqueue_local, KF_IMPLICIT_ARGS)
 BTF_KFUNCS_END(scx_kfunc_ids_cpu_release)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_cpu_release = {
@@ -7068,11 +7078,12 @@ __bpf_kfunc_start_defs();
  * scx_bpf_create_dsq - Create a custom DSQ
  * @dsq_id: DSQ to create
  * @node: NUMA node to allocate from
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Create a custom DSQ identified by @dsq_id. Can be called from any sleepable
  * scx callback, and any BPF_PROG_TYPE_SYSCALL prog.
  */
-__bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
+__bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node, const struct bpf_prog_aux *aux)
 {
 	struct scx_dispatch_q *dsq;
 	struct scx_sched *sch;
@@ -7091,7 +7102,7 @@ __bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
 
 	rcu_read_lock();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (sch) {
 		init_dsq(dsq, dsq_id, sch);
 		ret = rhashtable_lookup_insert_fast(&sch->dsq_hash, &dsq->hash_node,
@@ -7109,7 +7120,7 @@ __bpf_kfunc s32 scx_bpf_create_dsq(u64 dsq_id, s32 node)
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_unlocked)
-BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_IMPLICIT_ARGS | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
@@ -7208,18 +7219,19 @@ out:
  * scx_bpf_kick_cpu - Trigger reschedule on a CPU
  * @cpu: cpu to kick
  * @flags: %SCX_KICK_* flags
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Kick @cpu into rescheduling. This can be used to wake up an idle CPU or
  * trigger rescheduling on a busy CPU. This can be called from any online
  * scx_ops operation and the actual kicking is performed asynchronously through
  * an irq work.
  */
-__bpf_kfunc void scx_bpf_kick_cpu(s32 cpu, u64 flags)
+__bpf_kfunc void scx_bpf_kick_cpu(s32 cpu, u64 flags, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (likely(sch))
 		scx_kick_cpu(sch, cpu, flags);
 }
@@ -7293,13 +7305,14 @@ __bpf_kfunc void scx_bpf_destroy_dsq(u64 dsq_id)
  * @it: iterator to initialize
  * @dsq_id: DSQ to iterate
  * @flags: %SCX_DSQ_ITER_*
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Initialize BPF iterator @it which can be used with bpf_for_each() to walk
  * tasks in the DSQ specified by @dsq_id. Iteration using @it only includes
  * tasks which are already queued when this function is invoked.
  */
 __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
-				     u64 flags)
+				     u64 flags, const struct bpf_prog_aux *aux)
 {
 	struct bpf_iter_scx_dsq_kern *kit = (void *)it;
 	struct scx_sched *sch;
@@ -7317,7 +7330,7 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 	 */
 	kit->dsq = NULL;
 
-	sch = rcu_dereference_check(scx_root, rcu_read_lock_bh_held());
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return -ENODEV;
 
@@ -7406,6 +7419,7 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
 /**
  * scx_bpf_dsq_peek - Lockless peek at the first element.
  * @dsq_id: DSQ to examine.
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Read the first element in the DSQ. This is semantically equivalent to using
  * the DSQ iterator, but is lockfree. Of course, like any lockless operation,
@@ -7414,12 +7428,13 @@ __bpf_kfunc void bpf_iter_scx_dsq_destroy(struct bpf_iter_scx_dsq *it)
  *
  * Returns the pointer, or NULL indicates an empty queue OR internal error.
  */
-__bpf_kfunc struct task_struct *scx_bpf_dsq_peek(u64 dsq_id)
+__bpf_kfunc struct task_struct *scx_bpf_dsq_peek(u64 dsq_id,
+						 const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	struct scx_dispatch_q *dsq;
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return NULL;
 
@@ -7491,18 +7506,20 @@ __bpf_kfunc_start_defs();
  * @fmt: error message format string
  * @data: format string parameters packaged using ___bpf_fill() macro
  * @data__sz: @data len, must end in '__sz' for the verifier
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Indicate that the BPF scheduler wants to exit gracefully, and initiate ops
  * disabling.
  */
 __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
-				   unsigned long long *data, u32 data__sz)
+				   unsigned long long *data, u32 data__sz,
+				   const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
-	sch = rcu_dereference_bh(scx_root);
+	sch = scx_prog_sched(aux);
 	if (likely(sch) &&
 	    bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
 		scx_exit(sch, SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
@@ -7514,18 +7531,19 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
  * @fmt: error message format string
  * @data: format string parameters packaged using ___bpf_fill() macro
  * @data__sz: @data len, must end in '__sz' for the verifier
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Indicate that the BPF scheduler encountered a fatal error and initiate ops
  * disabling.
  */
 __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
-				    u32 data__sz)
+				    u32 data__sz, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
-	sch = rcu_dereference_bh(scx_root);
+	sch = scx_prog_sched(aux);
 	if (likely(sch) &&
 	    bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
 		scx_exit(sch, SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
@@ -7537,6 +7555,7 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
  * @fmt: format string
  * @data: format string parameters packaged using ___bpf_fill() macro
  * @data__sz: @data len, must end in '__sz' for the verifier
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * To be called through scx_bpf_dump() helper from ops.dump(), dump_cpu() and
  * dump_task() to generate extra debug dump specific to the BPF scheduler.
@@ -7545,7 +7564,7 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
  * multiple calls. The last line is automatically terminated.
  */
 __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
-				   u32 data__sz)
+				   u32 data__sz, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	struct scx_dump_data *dd = &scx_dump_data;
@@ -7554,7 +7573,7 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return;
 
@@ -7611,18 +7630,19 @@ __bpf_kfunc void scx_bpf_reenqueue_local___v2(void)
 /**
  * scx_bpf_cpuperf_cap - Query the maximum relative capacity of a CPU
  * @cpu: CPU of interest
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Return the maximum relative capacity of @cpu in relation to the most
  * performant CPU in the system. The return value is in the range [1,
  * %SCX_CPUPERF_ONE]. See scx_bpf_cpuperf_cur().
  */
-__bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
+__bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (likely(sch) && ops_cpu_valid(sch, cpu, NULL))
 		return arch_scale_cpu_capacity(cpu);
 	else
@@ -7632,6 +7652,7 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
 /**
  * scx_bpf_cpuperf_cur - Query the current relative performance of a CPU
  * @cpu: CPU of interest
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Return the current relative performance of @cpu in relation to its maximum.
  * The return value is in the range [1, %SCX_CPUPERF_ONE].
@@ -7643,13 +7664,13 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
  *
  * The result is in the range [1, %SCX_CPUPERF_ONE].
  */
-__bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
+__bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (likely(sch) && ops_cpu_valid(sch, cpu, NULL))
 		return arch_scale_freq_capacity(cpu);
 	else
@@ -7660,6 +7681,7 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
  * scx_bpf_cpuperf_set - Set the relative performance target of a CPU
  * @cpu: CPU of interest
  * @perf: target performance level [0, %SCX_CPUPERF_ONE]
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Set the target performance level of @cpu to @perf. @perf is in linear
  * relative scale between 0 and %SCX_CPUPERF_ONE. This determines how the
@@ -7670,13 +7692,13 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
  * use. Consult hardware and cpufreq documentation for more information. The
  * current performance level can be monitored using scx_bpf_cpuperf_cur().
  */
-__bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
+__bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return;
 
@@ -7786,14 +7808,15 @@ __bpf_kfunc s32 scx_bpf_task_cpu(const struct task_struct *p)
 /**
  * scx_bpf_cpu_rq - Fetch the rq of a CPU
  * @cpu: CPU of the rq
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  */
-__bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
+__bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return NULL;
 
@@ -7812,18 +7835,19 @@ __bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
 
 /**
  * scx_bpf_locked_rq - Return the rq currently locked by SCX
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Returns the rq if a rq lock is currently held by SCX.
  * Otherwise emits an error and returns NULL.
  */
-__bpf_kfunc struct rq *scx_bpf_locked_rq(void)
+__bpf_kfunc struct rq *scx_bpf_locked_rq(const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	struct rq *rq;
 
 	guard(preempt)();
 
-	sch = rcu_dereference_sched(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return NULL;
 
@@ -7839,16 +7863,17 @@ __bpf_kfunc struct rq *scx_bpf_locked_rq(void)
 /**
  * scx_bpf_cpu_curr - Return remote CPU's curr task
  * @cpu: CPU of interest
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Callers must hold RCU read lock (KF_RCU).
  */
-__bpf_kfunc struct task_struct *scx_bpf_cpu_curr(s32 cpu)
+__bpf_kfunc struct task_struct *scx_bpf_cpu_curr(s32 cpu, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		return NULL;
 
@@ -7861,6 +7886,7 @@ __bpf_kfunc struct task_struct *scx_bpf_cpu_curr(s32 cpu)
 /**
  * scx_bpf_task_cgroup - Return the sched cgroup of a task
  * @p: task of interest
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * @p->sched_task_group->css.cgroup represents the cgroup @p is associated with
  * from the scheduler's POV. SCX operations should use this function to
@@ -7870,7 +7896,8 @@ __bpf_kfunc struct task_struct *scx_bpf_cpu_curr(s32 cpu)
  * operations. The restriction guarantees that @p's rq is locked by the caller.
  */
 #ifdef CONFIG_CGROUP_SCHED
-__bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
+__bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p,
+					       const struct bpf_prog_aux *aux)
 {
 	struct task_group *tg = p->sched_task_group;
 	struct cgroup *cgrp = &cgrp_dfl_root.cgrp;
@@ -7878,7 +7905,7 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
 
 	guard(rcu)();
 
-	sch = rcu_dereference(scx_root);
+	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
 		goto out;
 
@@ -8011,20 +8038,20 @@ __bpf_kfunc_end_defs();
 BTF_KFUNCS_START(scx_kfunc_ids_any)
 BTF_ID_FLAGS(func, scx_bpf_task_set_slice, KF_RCU);
 BTF_ID_FLAGS(func, scx_bpf_task_set_dsq_vtime, KF_RCU);
-BTF_ID_FLAGS(func, scx_bpf_kick_cpu)
+BTF_ID_FLAGS(func, scx_bpf_kick_cpu, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
 BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)
-BTF_ID_FLAGS(func, scx_bpf_dsq_peek, KF_RCU_PROTECTED | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_iter_scx_dsq_new, KF_ITER_NEW | KF_RCU_PROTECTED)
+BTF_ID_FLAGS(func, scx_bpf_dsq_peek, KF_IMPLICIT_ARGS | KF_RCU_PROTECTED | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_iter_scx_dsq_new, KF_IMPLICIT_ARGS | KF_ITER_NEW | KF_RCU_PROTECTED)
 BTF_ID_FLAGS(func, bpf_iter_scx_dsq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_scx_dsq_destroy, KF_ITER_DESTROY)
-BTF_ID_FLAGS(func, scx_bpf_exit_bstr)
-BTF_ID_FLAGS(func, scx_bpf_error_bstr)
-BTF_ID_FLAGS(func, scx_bpf_dump_bstr)
+BTF_ID_FLAGS(func, scx_bpf_exit_bstr, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_error_bstr, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_dump_bstr, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2)
-BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap)
-BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur)
-BTF_ID_FLAGS(func, scx_bpf_cpuperf_set)
+BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_cpuperf_set, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_nr_node_ids)
 BTF_ID_FLAGS(func, scx_bpf_nr_cpu_ids)
 BTF_ID_FLAGS(func, scx_bpf_get_possible_cpumask, KF_ACQUIRE)
@@ -8032,11 +8059,11 @@ BTF_ID_FLAGS(func, scx_bpf_get_online_cpumask, KF_ACQUIRE)
 BTF_ID_FLAGS(func, scx_bpf_put_cpumask, KF_RELEASE)
 BTF_ID_FLAGS(func, scx_bpf_task_running, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_task_cpu, KF_RCU)
-BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
-BTF_ID_FLAGS(func, scx_bpf_locked_rq, KF_RET_NULL)
-BTF_ID_FLAGS(func, scx_bpf_cpu_curr, KF_RET_NULL | KF_RCU_PROTECTED)
+BTF_ID_FLAGS(func, scx_bpf_cpu_rq, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_locked_rq, KF_IMPLICIT_ARGS | KF_RET_NULL)
+BTF_ID_FLAGS(func, scx_bpf_cpu_curr, KF_IMPLICIT_ARGS | KF_RET_NULL | KF_RCU_PROTECTED)
 #ifdef CONFIG_CGROUP_SCHED
-BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
+BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_IMPLICIT_ARGS | KF_RCU | KF_ACQUIRE)
 #endif
 BTF_ID_FLAGS(func, scx_bpf_now)
 BTF_ID_FLAGS(func, scx_bpf_events)

@@ -844,7 +844,7 @@ struct sched_ext_ops {
 	char name[SCX_OPS_NAME_LEN];
 
 	/* internal use only, must be NULL */
-	void *priv;
+	void __rcu *priv;
 };
 
 enum scx_opi {
@@ -946,6 +946,7 @@ struct scx_sched {
 	 */
 	bool			warned_zero_slice:1;
 	bool			warned_deprecated_rq:1;
+	bool			warned_unassoc_progs:1;
 
 	struct list_head	all;
 
@@ -1283,6 +1284,42 @@ static inline bool scx_task_on_sched(struct scx_sched *sch,
 {
 	return rcu_access_pointer(p->scx.sched) == sch;
 }
+
+/**
+ * scx_prog_sched - Find scx_sched associated with a BPF prog
+ * @aux: aux passed in from BPF to a kfunc
+ *
+ * To be called from kfuncs. Return the scheduler instance associated with the
+ * BPF program given the implicit kfunc argument aux. The returned scx_sched is
+ * RCU protected.
+ */
+static inline struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
+{
+	struct sched_ext_ops *ops;
+	struct scx_sched *root;
+
+	ops = bpf_prog_get_assoc_struct_ops(aux);
+	if (likely(ops))
+		return rcu_dereference_all(ops->priv);
+
+	root = rcu_dereference_all(scx_root);
+	if (root) {
+		/*
+		 * COMPAT-v6.19: Schedulers built before sub-sched support was
+		 * introduced may have unassociated non-struct_ops programs.
+		 */
+		if (!root->ops.sub_attach)
+			return root;
+
+		if (!root->warned_unassoc_progs) {
+			printk_deferred(KERN_WARNING "sched_ext: Unassociated program %s (id %d)\n",
+					aux->name, aux->id);
+			root->warned_unassoc_progs = true;
+		}
+	}
+
+	return NULL;
+}
 #else	/* CONFIG_EXT_SUB_SCHED */
 static inline struct scx_sched *scx_task_sched(const struct task_struct *p)
 {
@@ -1300,5 +1337,10 @@ static inline bool scx_task_on_sched(struct scx_sched *sch,
 				     const struct task_struct *p)
 {
 	return true;
+}
+
+static struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
+{
+	return rcu_dereference_all(scx_root);
 }
 #endif	/* CONFIG_EXT_SUB_SCHED */
