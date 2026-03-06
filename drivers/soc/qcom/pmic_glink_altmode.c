@@ -350,15 +350,17 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 
 	typec_switch_set(alt_port->typec_switch, alt_port->orientation);
 
-	if (alt_port->mux_ctrl == MUX_CTRL_STATE_NO_CONN) {
-		pmic_glink_altmode_safe(altmode, alt_port);
-	} else if (alt_port->svid == USB_TYPEC_TBT_SID) {
+	if (alt_port->svid == USB_TYPEC_TBT_SID) {
 		pmic_glink_altmode_enable_tbt(altmode, alt_port);
 	} else if (alt_port->svid == USB_TYPEC_DP_SID) {
-		pmic_glink_altmode_enable_dp(altmode, alt_port,
-					     alt_port->mode,
-					     alt_port->hpd_state,
-					     alt_port->hpd_irq);
+		if (alt_port->mux_ctrl == MUX_CTRL_STATE_NO_CONN) {
+			pmic_glink_altmode_safe(altmode, alt_port);
+		} else {
+			pmic_glink_altmode_enable_dp(altmode, alt_port,
+						     alt_port->mode,
+						     alt_port->hpd_state,
+						     alt_port->hpd_irq);
+		}
 
 		if (alt_port->hpd_state)
 			conn_status = connector_status_connected;
@@ -368,6 +370,8 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 		drm_aux_hpd_bridge_notify(&alt_port->bridge->dev, conn_status);
 	} else if (alt_port->mux_ctrl == MUX_CTRL_STATE_TUNNELING) {
 		pmic_glink_altmode_enable_usb4(altmode, alt_port);
+	} else if (alt_port->mux_ctrl == MUX_CTRL_STATE_NO_CONN) {
+		pmic_glink_altmode_safe(altmode, alt_port);
 	} else {
 		pmic_glink_altmode_enable_usb(altmode, alt_port);
 	}
