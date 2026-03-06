@@ -3561,8 +3561,8 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 
 out_dump:
 	block = key_block(c, key);
-	ubifs_err(c, "inode %lu has size %lld, but there are data at offset %lld",
-		  (unsigned long)inode->i_ino, size,
+	ubifs_err(c, "inode %llu has size %lld, but there are data at offset %lld",
+		  inode->i_ino, size,
 		  ((loff_t)block) << UBIFS_BLOCK_SHIFT);
 	mutex_unlock(&c->tnc_mutex);
 	ubifs_dump_inode(c, inode);
