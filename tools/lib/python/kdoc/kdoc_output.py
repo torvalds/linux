@@ -618,7 +618,7 @@ class ManFormat(OutputFormat):
             modulename = self.modulename
 
         self.data += f'.TH "{modulename}" {self.section} "{name}" '
-        self.data += f'"{self.date}" "{manual}" LINUX\n'
+        self.data += f'"{self.date}" "{manual}"\n'
 
     def __init__(self, modulename, section="9", manual="API Manual"):
         """
