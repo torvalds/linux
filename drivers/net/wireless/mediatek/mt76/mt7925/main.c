@@ -919,23 +919,31 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 
 	if (ieee80211_vif_is_mld(vif) &&
 	    link_sta == mlink->pri_link) {
-		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif,
+					    mlink, true,
 					    MT76_STA_INFO_STATE_NONE);
 		if (ret)
 			return ret;
 	} else if (ieee80211_vif_is_mld(vif) &&
 		   link_sta != mlink->pri_link) {
+		struct mt792x_link_sta *pri_mlink;
+
+		pri_mlink = mt792x_sta_to_link(msta, mlink->pri_link->link_id);
+
 		ret = mt7925_mcu_sta_update(dev, mlink->pri_link, vif,
-					    true, MT76_STA_INFO_STATE_ASSOC);
+					    pri_mlink, true,
+					    MT76_STA_INFO_STATE_ASSOC);
 		if (ret)
 			return ret;
 
-		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif,
+					    mlink, true,
 					    MT76_STA_INFO_STATE_ASSOC);
 		if (ret)
 			return ret;
 	} else {
-		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif,
+					    mlink, true,
 					    MT76_STA_INFO_STATE_NONE);
 		if (ret)
 			return ret;
@@ -1075,7 +1083,8 @@ static void mt7925_mac_link_sta_assoc(struct mt76_dev *mdev,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 	memset(mlink->airtime_ac, 0, sizeof(mlink->airtime_ac));
 
-	mt7925_mcu_sta_update(dev, link_sta, vif, true, MT76_STA_INFO_STATE_ASSOC);
+	mt7925_mcu_sta_update(dev, link_sta, vif, mlink, true,
+			      MT76_STA_INFO_STATE_ASSOC);
 
 	mt792x_mutex_release(dev);
 }
@@ -1119,7 +1128,7 @@ static void mt7925_mac_link_sta_remove(struct mt76_dev *mdev,
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &mlink->wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 
-	mt7925_mcu_sta_update(dev, link_sta, vif, false,
+	mt7925_mcu_sta_update(dev, link_sta, vif, mlink, false,
 			      MT76_STA_INFO_STATE_NONE);
 	mt7925_mac_wtbl_update(dev, mlink->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -1744,7 +1753,8 @@ mt7925_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (err)
 		goto out;
 
-	err = mt7925_mcu_sta_update(dev, NULL, vif, true,
+	err = mt7925_mcu_sta_update(dev, NULL, vif,
+				    &mvif->sta.deflink, true,
 				    MT76_STA_INFO_STATE_NONE);
 out:
 	mt792x_mutex_release(dev);
@@ -1887,7 +1897,8 @@ static void mt7925_vif_cfg_changed(struct ieee80211_hw *hw,
 	mt792x_mutex_acquire(dev);
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		mt7925_mcu_sta_update(dev, NULL, vif, true,
+		mt7925_mcu_sta_update(dev, NULL, vif,
+				      &mvif->sta.deflink, true,
 				      MT76_STA_INFO_STATE_ASSOC);
 		mt7925_mcu_set_beacon_filter(dev, vif, vif->cfg.assoc);
 
