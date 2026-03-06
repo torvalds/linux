@@ -15,7 +15,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     falcon::{
         FalconFirmware,
         FalconLoadTarget, //
@@ -292,7 +291,7 @@ impl SignedState for Unsigned {}
 struct Signed;
 impl SignedState for Signed {}
 
-/// A [`DmaObject`] containing a specific microcode ready to be loaded into a falcon.
+/// Microcode to be loaded into a specific falcon.
 ///
 /// This is module-local and meant for sub-modules to use internally.
 ///
@@ -300,34 +299,35 @@ impl SignedState for Signed {}
 /// before it can be loaded (with an exception for development hardware). The
 /// [`Self::patch_signature`] and [`Self::no_patch_signature`] methods are used to transition the
 /// firmware to its [`Signed`] state.
-struct FirmwareDmaObject<F: FalconFirmware, S: SignedState>(DmaObject, PhantomData<(F, S)>);
+// TODO: Consider replacing this with a coherent memory object once `CoherentAllocation` supports
+// temporary CPU-exclusive access to the object without unsafe methods.
+struct FirmwareObject<F: FalconFirmware, S: SignedState>(KVVec<u8>, PhantomData<(F, S)>);
 
 /// Trait for signatures to be patched directly into a given firmware.
 ///
 /// This is module-local and meant for sub-modules to use internally.
 trait FirmwareSignature<F: FalconFirmware>: AsRef<[u8]> {}
 
-impl<F: FalconFirmware> FirmwareDmaObject<F, Unsigned> {
-    /// Patches the firmware at offset `sig_base_img` with `signature`.
+impl<F: FalconFirmware> FirmwareObject<F, Unsigned> {
+    /// Patches the firmware at offset `signature_start` with `signature`.
     fn patch_signature<S: FirmwareSignature<F>>(
         mut self,
         signature: &S,
-        sig_base_img: usize,
-    ) -> Result<FirmwareDmaObject<F, Signed>> {
+        signature_start: usize,
+    ) -> Result<FirmwareObject<F, Signed>> {
         let signature_bytes = signature.as_ref();
-        if sig_base_img + signature_bytes.len() > self.0.size() {
-            return Err(EINVAL);
-        }
+        let signature_end = signature_start
+            .checked_add(signature_bytes.len())
+            .ok_or(EOVERFLOW)?;
+        let dst = self
+            .0
+            .get_mut(signature_start..signature_end)
+            .ok_or(EINVAL)?;
 
-        // SAFETY: We are the only user of this object, so there cannot be any race.
-        let dst = unsafe { self.0.start_ptr_mut().add(sig_base_img) };
+        // PANIC: `dst` and `signature_bytes` have the same length.
+        dst.copy_from_slice(signature_bytes);
 
-        // SAFETY: `signature` and `dst` are valid, properly aligned, and do not overlap.
-        unsafe {
-            core::ptr::copy_nonoverlapping(signature_bytes.as_ptr(), dst, signature_bytes.len())
-        };
-
-        Ok(FirmwareDmaObject(self.0, PhantomData))
+        Ok(FirmwareObject(self.0, PhantomData))
     }
 
     /// Mark the firmware as signed without patching it.
@@ -335,8 +335,8 @@ impl<F: FalconFirmware> FirmwareDmaObject<F, Unsigned> {
     /// This method is used to explicitly confirm that we do not need to sign the firmware, while
     /// allowing us to continue as if it was. This is typically only needed for development
     /// hardware.
-    fn no_patch_signature(self) -> FirmwareDmaObject<F, Signed> {
-        FirmwareDmaObject(self.0, PhantomData)
+    fn no_patch_signature(self) -> FirmwareObject<F, Signed> {
+        FirmwareObject(self.0, PhantomData)
     }
 }
 

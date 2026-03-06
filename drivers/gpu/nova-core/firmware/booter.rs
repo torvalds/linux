@@ -4,10 +4,7 @@
 //! running on [`Sec2`], that is used on Turing/Ampere to load the GSP firmware into the GSP falcon
 //! (and optionally unload it through a separate firmware image).
 
-use core::{
-    marker::PhantomData,
-    ops::Deref, //
-};
+use core::marker::PhantomData;
 
 use kernel::{
     device,
@@ -16,7 +13,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     driver::Bar0,
     falcon::{
         sec2::Sec2,
@@ -28,7 +24,7 @@ use crate::{
     },
     firmware::{
         BinFirmware,
-        FirmwareDmaObject,
+        FirmwareObject,
         FirmwareSignature,
         Signed,
         Unsigned, //
@@ -269,12 +265,15 @@ pub(crate) struct BooterFirmware {
     // BROM falcon parameters.
     brom_params: FalconBromParams,
     // Device-mapped firmware image.
-    ucode: FirmwareDmaObject<Self, Signed>,
+    ucode: FirmwareObject<Self, Signed>,
 }
 
-impl FirmwareDmaObject<BooterFirmware, Unsigned> {
-    fn new_booter(dev: &device::Device<device::Bound>, data: &[u8]) -> Result<Self> {
-        DmaObject::from_data(dev, data).map(|ucode| Self(ucode, PhantomData))
+impl FirmwareObject<BooterFirmware, Unsigned> {
+    fn new_booter(data: &[u8]) -> Result<Self> {
+        let mut ucode = KVVec::new();
+        ucode.extend_from_slice(data, GFP_KERNEL)?;
+
+        Ok(Self(ucode, PhantomData))
     }
 }
 
@@ -328,7 +327,7 @@ impl BooterFirmware {
         let ucode = bin_fw
             .data()
             .ok_or(EINVAL)
-            .and_then(|data| FirmwareDmaObject::<Self, _>::new_booter(dev, data))?;
+            .and_then(FirmwareObject::<Self, _>::new_booter)?;
 
         let ucode_signed = {
             let mut signatures = hs_fw.signatures_iter()?.peekable();
@@ -400,6 +399,10 @@ impl BooterFirmware {
 }
 
 impl FalconLoadParams for BooterFirmware {
+    fn as_slice(&self) -> &[u8] {
+        self.ucode.0.as_slice()
+    }
+
     fn imem_sec_load_params(&self) -> FalconLoadTarget {
         self.imem_sec_load_target.clone()
     }
@@ -422,14 +425,6 @@ impl FalconLoadParams for BooterFirmware {
         } else {
             self.imem_sec_load_target.src_start
         }
-    }
-}
-
-impl Deref for BooterFirmware {
-    type Target = DmaObject;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ucode.0
     }
 }
 

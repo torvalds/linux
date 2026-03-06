@@ -10,10 +10,7 @@
 //! - The command to be run, as this firmware can perform several tasks ;
 //! - The ucode signature, so the GSP falcon can run FWSEC in HS mode.
 
-use core::{
-    marker::PhantomData,
-    ops::Deref, //
-};
+use core::marker::PhantomData;
 
 use kernel::{
     device::{
@@ -28,7 +25,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     driver::Bar0,
     falcon::{
         gsp::Gsp,
@@ -40,7 +36,7 @@ use crate::{
     },
     firmware::{
         FalconUCodeDesc,
-        FirmwareDmaObject,
+        FirmwareObject,
         FirmwareSignature,
         Signed,
         Unsigned, //
@@ -174,52 +170,21 @@ impl AsRef<[u8]> for Bcrt30Rsa3kSignature {
 
 impl FirmwareSignature<FwsecFirmware> for Bcrt30Rsa3kSignature {}
 
-/// Reinterpret the area starting from `offset` in `fw` as an instance of `T` (which must implement
-/// [`FromBytes`]) and return a reference to it.
-///
-/// # Safety
-///
-/// * Callers must ensure that the device does not read/write to/from memory while the returned
-///   reference is live.
-/// * Callers must ensure that this call does not race with a write to the same region while
-///   the returned reference is live.
-unsafe fn transmute<T: Sized + FromBytes>(fw: &DmaObject, offset: usize) -> Result<&T> {
-    // SAFETY: The safety requirements of the function guarantee the device won't read
-    // or write to memory while the reference is alive and that this call won't race
-    // with writes to the same memory region.
-    T::from_bytes(unsafe { fw.as_slice(offset, size_of::<T>())? }).ok_or(EINVAL)
-}
-
-/// Reinterpret the area starting from `offset` in `fw` as a mutable instance of `T` (which must
-/// implement [`FromBytes`]) and return a reference to it.
-///
-/// # Safety
-///
-/// * Callers must ensure that the device does not read/write to/from memory while the returned
-///   slice is live.
-/// * Callers must ensure that this call does not race with a read or write to the same region
-///   while the returned slice is live.
-unsafe fn transmute_mut<T: Sized + FromBytes + AsBytes>(
-    fw: &mut DmaObject,
-    offset: usize,
-) -> Result<&mut T> {
-    // SAFETY: The safety requirements of the function guarantee the device won't read
-    // or write to memory while the reference is alive and that this call won't race
-    // with writes or reads to the same memory region.
-    T::from_bytes_mut(unsafe { fw.as_slice_mut(offset, size_of::<T>())? }).ok_or(EINVAL)
-}
-
 /// The FWSEC microcode, extracted from the BIOS and to be run on the GSP falcon.
 ///
 /// It is responsible for e.g. carving out the WPR2 region as the first step of the GSP bootflow.
 pub(crate) struct FwsecFirmware {
     /// Descriptor of the firmware.
     desc: FalconUCodeDesc,
-    /// GPU-accessible DMA object containing the firmware.
-    ucode: FirmwareDmaObject<Self, Signed>,
+    /// Object containing the firmware binary.
+    ucode: FirmwareObject<Self, Signed>,
 }
 
 impl FalconLoadParams for FwsecFirmware {
+    fn as_slice(&self) -> &[u8] {
+        self.ucode.0.as_slice()
+    }
+
     fn imem_sec_load_params(&self) -> FalconLoadTarget {
         self.desc.imem_sec_load_params()
     }
@@ -245,23 +210,15 @@ impl FalconLoadParams for FwsecFirmware {
     }
 }
 
-impl Deref for FwsecFirmware {
-    type Target = DmaObject;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ucode.0
-    }
-}
-
 impl FalconFirmware for FwsecFirmware {
     type Target = Gsp;
 }
 
-impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
-    fn new_fwsec(dev: &Device<device::Bound>, bios: &Vbios, cmd: FwsecCommand) -> Result<Self> {
+impl FirmwareObject<FwsecFirmware, Unsigned> {
+    fn new_fwsec(bios: &Vbios, cmd: FwsecCommand) -> Result<Self> {
         let desc = bios.fwsec_image().header()?;
-        let ucode = bios.fwsec_image().ucode(&desc)?;
-        let mut dma_object = DmaObject::from_data(dev, ucode)?;
+        let mut ucode = KVVec::new();
+        ucode.extend_from_slice(bios.fwsec_image().ucode(&desc)?, GFP_KERNEL)?;
 
         let hdr_offset = desc
             .imem_load_size()
@@ -269,8 +226,11 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
             .map(usize::from_safe_cast)
             .ok_or(EINVAL)?;
 
-        // SAFETY: we have exclusive access to `dma_object`.
-        let hdr: &FalconAppifHdrV1 = unsafe { transmute(&dma_object, hdr_offset) }?;
+        let hdr = ucode
+            .get(hdr_offset..)
+            .and_then(FalconAppifHdrV1::from_bytes_prefix)
+            .ok_or(EINVAL)?
+            .0;
 
         if hdr.version != 1 {
             return Err(EINVAL);
@@ -284,8 +244,11 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
                 .and_then(|o| o.checked_add(i.checked_mul(usize::from(hdr.entry_size))?))
                 .ok_or(EINVAL)?;
 
-            // SAFETY: we have exclusive access to `dma_object`.
-            let app: &FalconAppifV1 = unsafe { transmute(&dma_object, entry_offset) }?;
+            let app = ucode
+                .get(entry_offset..)
+                .and_then(FalconAppifV1::from_bytes_prefix)
+                .ok_or(EINVAL)?
+                .0;
 
             if app.id != NVFW_FALCON_APPIF_ID_DMEMMAPPER {
                 continue;
@@ -298,9 +261,11 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
                 .map(usize::from_safe_cast)
                 .ok_or(EINVAL)?;
 
-            let dmem_mapper: &mut FalconAppifDmemmapperV3 =
-                // SAFETY: we have exclusive access to `dma_object`.
-                unsafe { transmute_mut(&mut dma_object, dmem_mapper_offset) }?;
+            let dmem_mapper = ucode
+                .get_mut(dmem_mapper_offset..)
+                .and_then(FalconAppifDmemmapperV3::from_bytes_mut_prefix)
+                .ok_or(EINVAL)?
+                .0;
 
             dmem_mapper.init_cmd = match cmd {
                 FwsecCommand::Frts { .. } => NVFW_FALCON_APPIF_DMEMMAPPER_CMD_FRTS,
@@ -314,9 +279,11 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
                 .map(usize::from_safe_cast)
                 .ok_or(EINVAL)?;
 
-            let frts_cmd: &mut FrtsCmd =
-                // SAFETY: we have exclusive access to `dma_object`.
-                unsafe { transmute_mut(&mut dma_object, frts_cmd_offset) }?;
+            let frts_cmd = ucode
+                .get_mut(frts_cmd_offset..)
+                .and_then(FrtsCmd::from_bytes_mut_prefix)
+                .ok_or(EINVAL)?
+                .0;
 
             frts_cmd.read_vbios = ReadVbios {
                 ver: 1,
@@ -340,7 +307,7 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
             }
 
             // Return early as we found and patched the DMEMMAPPER region.
-            return Ok(Self(dma_object, PhantomData));
+            return Ok(Self(ucode, PhantomData));
         }
 
         Err(ENOTSUPP)
@@ -357,7 +324,7 @@ impl FwsecFirmware {
         bios: &Vbios,
         cmd: FwsecCommand,
     ) -> Result<Self> {
-        let ucode_dma = FirmwareDmaObject::<Self, _>::new_fwsec(dev, bios, cmd)?;
+        let ucode_dma = FirmwareObject::<Self, _>::new_fwsec(bios, cmd)?;
 
         // Patch signature if needed.
         let desc = bios.fwsec_image().header()?;
@@ -429,7 +396,7 @@ impl FwsecFirmware {
             .reset(bar)
             .inspect_err(|e| dev_err!(dev, "Failed to reset GSP falcon: {:?}\n", e))?;
         falcon
-            .load(bar, self)
+            .load(dev, bar, self)
             .inspect_err(|e| dev_err!(dev, "Failed to load FWSEC firmware: {:?}\n", e))?;
         let (mbox0, _) = falcon
             .boot(bar, Some(0), None)
