@@ -357,6 +357,26 @@ static struct scx_dispatch_q *bypass_dsq(struct scx_sched *sch, s32 cpu)
 	return &per_cpu_ptr(sch->pcpu, cpu)->bypass_dsq;
 }
 
+/**
+ * bypass_dsp_enabled - Check if bypass dispatch path is enabled
+ * @sch: scheduler to check
+ *
+ * When a descendant scheduler enters bypass mode, bypassed tasks are scheduled
+ * by the nearest non-bypassing ancestor, or the root scheduler if all ancestors
+ * are bypassing. In the former case, the ancestor is not itself bypassing but
+ * its bypass DSQs will be populated with bypassed tasks from descendants. Thus,
+ * the ancestor's bypass dispatch path must be active even though its own
+ * bypass_depth remains zero.
+ *
+ * This function checks bypass_dsp_enable_depth which is managed separately from
+ * bypass_depth to enable this decoupling. See enable_bypass_dsp() and
+ * disable_bypass_dsp().
+ */
+static bool bypass_dsp_enabled(struct scx_sched *sch)
+{
+	return unlikely(atomic_read(&sch->bypass_dsp_enable_depth));
+}
+
 /*
  * scx_kf_mask enforcement. Some kfuncs can only be called from specific SCX
  * ops. When invoking SCX ops, SCX_CALL_OP[_RET]() should be used to indicate
@@ -2400,7 +2420,7 @@ static bool scx_dispatch_sched(struct scx_sched *sch, struct rq *rq,
 	if (consume_global_dsq(sch, rq))
 		return true;
 
-	if (scx_bypassing(sch, cpu))
+	if (bypass_dsp_enabled(sch) && scx_bypassing(sch, cpu))
 		return consume_dispatch_q(sch, rq, bypass_dsq(sch, cpu));
 
 	if (unlikely(!SCX_HAS_OP(sch, dispatch)) || !scx_rq_online(rq))
@@ -4397,7 +4417,7 @@ static void scx_bypass_lb_timerfn(struct timer_list *timer)
 	int node;
 	u32 intv_us;
 
-	if (!READ_ONCE(sch->bypass_depth))
+	if (!bypass_dsp_enabled(sch))
 		return;
 
 	for_each_node_with_cpus(node)
@@ -4436,6 +4456,42 @@ static bool dec_bypass_depth(struct scx_sched *sch)
 	scx_add_event(sch, SCX_EV_BYPASS_DURATION,
 		      ktime_get_ns() - sch->bypass_timestamp);
 	return true;
+}
+
+static void enable_bypass_dsp(struct scx_sched *sch)
+{
+	u32 intv_us = READ_ONCE(scx_bypass_lb_intv_us);
+	s32 ret;
+
+	/*
+	 * @sch->bypass_depth transitioning from 0 to 1 triggers enabling.
+	 * Shouldn't stagger.
+	 */
+	if (WARN_ON_ONCE(test_and_set_bit(0, &sch->bypass_dsp_claim)))
+		return;
+
+	/*
+	 * The LB timer will stop running if bypass_arm_depth is 0. Increment
+	 * before starting the LB timer.
+	 */
+	ret = atomic_inc_return(&sch->bypass_dsp_enable_depth);
+	WARN_ON_ONCE(ret <= 0);
+
+	if (intv_us && !timer_pending(&sch->bypass_lb_timer))
+		mod_timer(&sch->bypass_lb_timer,
+			  jiffies + usecs_to_jiffies(intv_us));
+}
+
+/* may be called without holding scx_bypass_lock */
+static void disable_bypass_dsp(struct scx_sched *sch)
+{
+	s32 ret;
+
+	if (!test_and_clear_bit(0, &sch->bypass_dsp_claim))
+		return;
+
+	ret = atomic_dec_return(&sch->bypass_dsp_enable_depth);
+	WARN_ON_ONCE(ret < 0);
 }
 
 /**
@@ -4479,17 +4535,10 @@ static void scx_bypass(struct scx_sched *sch, bool bypass)
 	raw_spin_lock_irqsave(&scx_bypass_lock, flags);
 
 	if (bypass) {
-		u32 intv_us;
-
 		if (!inc_bypass_depth(sch))
 			goto unlock;
 
-		intv_us = READ_ONCE(scx_bypass_lb_intv_us);
-		if (intv_us && !timer_pending(&sch->bypass_lb_timer)) {
-			sch->bypass_lb_timer.expires =
-				jiffies + usecs_to_jiffies(intv_us);
-			add_timer_global(&sch->bypass_lb_timer);
-		}
+		enable_bypass_dsp(sch);
 	} else {
 		if (!dec_bypass_depth(sch))
 			goto unlock;
@@ -4571,6 +4620,9 @@ static void scx_bypass(struct scx_sched *sch, bool bypass)
 		raw_spin_rq_unlock(rq);
 	}
 
+	/* disarming must come after moving all tasks out of the bypass DSQs */
+	if (!bypass)
+		disable_bypass_dsp(sch);
 unlock:
 	raw_spin_unlock_irqrestore(&scx_bypass_lock, flags);
 }
@@ -4671,6 +4723,8 @@ static void scx_sub_disable(struct scx_sched *sch)
 
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
+
+	disable_bypass_dsp(sch);
 
 	raw_spin_lock_irq(&scx_sched_lock);
 	list_del_init(&sch->sibling);

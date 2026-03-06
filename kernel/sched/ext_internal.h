@@ -961,6 +961,11 @@ struct scx_sched {
 	u64			slice_dfl;
 	u64			bypass_timestamp;
 	s32			bypass_depth;
+
+	/* bypass dispatch path enable state, see bypass_dsp_enabled() */
+	unsigned long		bypass_dsp_claim;
+	atomic_t		bypass_dsp_enable_depth;
+
 	bool			aborting;
 	s32			level;
 
