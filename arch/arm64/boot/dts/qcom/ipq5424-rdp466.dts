@@ -124,13 +124,6 @@
 	status = "okay";
 };
 
-&sdhc {
-	pinctrl-0 = <&sdc_default_state>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
 &sleep_clk {
 	clock-frequency = <32000>;
 };
@@ -201,26 +194,26 @@
 		};
 	};
 
-	sdc_default_state: sdc-default-state {
-		clk-pins {
+	qpic_snand_default_state: qpic-snand-default-state {
+		clock-pins {
 			pins = "gpio5";
-			function = "sdc_clk";
+			function = "qspi_clk";
 			drive-strength = <8>;
-			bias-disable;
+			bias-pull-down;
 		};
 
-		cmd-pins {
+		cs-pins {
 			pins = "gpio4";
-			function = "sdc_cmd";
+			function = "qspi_cs";
 			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		data-pins {
 			pins = "gpio0", "gpio1", "gpio2", "gpio3";
-			function = "sdc_data";
+			function = "qspi_data";
 			drive-strength = <8>;
-			bias-pull-up;
+			bias-pull-down;
 		};
 	};
 
@@ -243,6 +236,27 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
+	};
+};
+
+&qpic_bam {
+	status = "okay";
+};
+
+&qpic_nand {
+	pinctrl-0 = <&qpic_snand_default_state>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-ecc-engine = <&qpic_nand>;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
 	};
 };
 
