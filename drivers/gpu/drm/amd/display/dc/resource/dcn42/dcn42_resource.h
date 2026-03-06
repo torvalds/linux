@@ -586,5 +586,6 @@ enum dc_status dcn42_validate_bandwidth(struct dc *dc,
 							  enum dc_validate_mode validate_mode);
 
 void dcn42_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
+int dcn42_get_power_profile(const struct dc_state *context);
 
 #endif /* _DCN42_RESOURCE_H_ */

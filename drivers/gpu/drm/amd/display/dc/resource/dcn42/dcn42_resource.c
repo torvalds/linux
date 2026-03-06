@@ -1791,6 +1791,7 @@ static struct resource_funcs dcn42_res_pool_funcs = {
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.prepare_mcache_programming = dcn42_prepare_mcache_programming,
 	.build_pipe_pix_clk_params = dcn42_build_pipe_pix_clk_params,
+	.get_power_profile = dcn401_get_power_profile,
 	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe,
 	.get_max_hw_cursor_size = dcn42_get_max_hw_cursor_size,
 	.get_default_tiling_info = dcn10_get_default_tiling_info
