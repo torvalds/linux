@@ -701,8 +701,6 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job,
 			  enum v3d_queue q)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
-	struct v3d_file_priv *v3d_priv = job->file_priv;
-	unsigned long irqflags;
 	enum v3d_queue i;
 
 	mutex_lock(&v3d->reset_lock);
@@ -717,11 +715,8 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job,
 	/* get the GPU back into the init state */
 	v3d_reset(v3d);
 
-	v3d->reset_counter++;
-	spin_lock_irqsave(&v3d->queue[q].queue_lock, irqflags);
-	if (v3d_priv)
-		v3d_priv->reset_counter++;
-	spin_unlock_irqrestore(&v3d->queue[q].queue_lock, irqflags);
+	atomic_inc(&v3d->reset_counter);
+	atomic_inc(&job->client_stats->reset_counter);
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++)
 		drm_sched_resubmit_jobs(&v3d->queue[i].sched);
