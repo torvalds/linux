@@ -158,7 +158,7 @@ static int get_userns_fd_cb(void *data)
 	_exit(0);
 }
 
-static int wait_for_pid(pid_t pid)
+int wait_for_pid(pid_t pid)
 {
 	int status, ret;
 
@@ -450,7 +450,7 @@ out_close:
 	return fret;
 }
 
-static int write_file(const char *path, const char *val)
+int write_file(const char *path, const char *val)
 {
 	int fd = open(path, O_WRONLY);
 	size_t len = strlen(val);
