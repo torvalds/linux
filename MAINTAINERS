@@ -6829,12 +6829,6 @@ L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	tools/crypto/tcrypt/tcrypt_speed_compare.py
 
-CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
-M:	Neil Horman <nhorman@tuxdriver.com>
-L:	linux-crypto@vger.kernel.org
-S:	Maintained
-F:	crypto/rng.c
-
 CS3308 MEDIA DRIVER
 M:	Hans Verkuil <hverkuil@kernel.org>
 L:	linux-media@vger.kernel.org
