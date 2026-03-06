@@ -1009,10 +1009,10 @@ DEBG("dyn5d ");
 DEBG("dyn6 ");
 
   /* decompress until an end-of-block code */
-  if (inflate_codes(tl, td, bl, bd)) {
+  if (inflate_codes(tl, td, bl, bd))
     ret = 1;
-    goto out;
-  }
+  else
+    ret = 0;
 
 DEBG("dyn7 ");
 
@@ -1021,7 +1021,6 @@ DEBG("dyn7 ");
   huft_free(td);
 
   DEBG(">");
-  ret = 0;
 out:
   free(ll);
   return ret;
