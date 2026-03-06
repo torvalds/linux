@@ -84,12 +84,12 @@ struct stmmac_priv;
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
-	unsigned int phy_mask;
-	unsigned int pcs_mask;
-	unsigned int default_an_inband;
+	u32 phy_mask;
+	u32 pcs_mask;
 	int *irqs;
 	int probed_phy_irq;
 	bool needs_reset;
+	bool default_an_inband;
 };
 
 struct stmmac_dma_cfg {
