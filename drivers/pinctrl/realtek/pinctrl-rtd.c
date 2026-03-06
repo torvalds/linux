@@ -30,6 +30,7 @@ struct rtd_pinctrl {
 	struct pinctrl_desc desc;
 	const struct rtd_pinctrl_desc *info;
 	struct regmap *regmap_pinctrl;
+	u32 **saved_regs;
 };
 
 /* custom pinconf parameters */
@@ -540,6 +541,30 @@ static const struct regmap_config rtd_pinctrl_regmap_config = {
 	.use_relaxed_mmio = true,
 };
 
+static int rtd_pinctrl_init_pm(struct rtd_pinctrl *data)
+{
+	const struct rtd_pin_range *pin_range = data->info->pin_range;
+	struct device *dev = data->pcdev->dev;
+	const struct rtd_reg_range *range;
+	size_t num_entries;
+	int i;
+
+	data->saved_regs = devm_kcalloc(dev, pin_range->num_ranges, sizeof(u32 *), GFP_KERNEL);
+	if (!data->saved_regs)
+		return -ENOMEM;
+
+	for (i = 0; i < pin_range->num_ranges; i++) {
+		range = &pin_range->ranges[i];
+		num_entries = range->len / 4;
+
+		data->saved_regs[i] = devm_kzalloc(dev, num_entries * sizeof(u32), GFP_KERNEL);
+		if (!data->saved_regs[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_desc *desc)
 {
 	struct rtd_pinctrl *data;
@@ -579,9 +604,82 @@ int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_des
 
 	dev_dbg(&pdev->dev, "probed\n");
 
+	if (data->info->pin_range) {
+		if (rtd_pinctrl_init_pm(data))
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(rtd_pinctrl_probe);
+
+static int realtek_pinctrl_suspend(struct device *dev)
+{
+	struct rtd_pinctrl *data = dev_get_drvdata(dev);
+	const struct rtd_pin_range *pin_range = data->info->pin_range;
+	const struct rtd_reg_range *range;
+	u32 *range_regs;
+	int count;
+	int i, j;
+	int ret;
+
+	if (!data->saved_regs)
+		return 0;
+
+	for (i = 0; i < pin_range->num_ranges; i++) {
+		range = &pin_range->ranges[i];
+		range_regs = data->saved_regs[i];
+		count = range->len / 4;
+
+		for (j = 0; j < count; j++) {
+			ret = regmap_read(data->regmap_pinctrl, range->offset + (j * 4),
+					  &range_regs[j]);
+			if (ret) {
+				dev_err(dev, "failed to store register 0x%x: %d\n",
+					range->offset + (j * 4), ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int realtek_pinctrl_resume(struct device *dev)
+{
+	struct rtd_pinctrl *data = dev_get_drvdata(dev);
+	const struct rtd_pin_range *pin_range = data->info->pin_range;
+	const struct rtd_reg_range *range;
+	u32 *range_regs;
+	int count;
+	int i, j;
+	int ret;
+
+	if (!data->saved_regs)
+		return 0;
+
+	for (i = 0; i < pin_range->num_ranges; i++) {
+		range = &pin_range->ranges[i];
+		range_regs = data->saved_regs[i];
+		count = range->len / 4;
+
+		for (j = 0; j < count; j++) {
+			ret = regmap_write(data->regmap_pinctrl, range->offset + (j * 4),
+					   range_regs[j]);
+			if (ret) {
+				dev_err(dev, "failed to restore register 0x%x: %d\n",
+					range->offset + (j * 4), ret);
+				return ret;
+			}
+		}
+	}
+	return 0;
+}
+
+const struct dev_pm_ops realtek_pinctrl_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(realtek_pinctrl_suspend, realtek_pinctrl_resume)
+};
+EXPORT_SYMBOL_GPL(realtek_pinctrl_pm_ops);
 
 MODULE_DESCRIPTION("Realtek DHC SoC pinctrl driver");
 MODULE_LICENSE("GPL");

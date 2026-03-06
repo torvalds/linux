@@ -47,6 +47,16 @@ struct rtd_pin_sconfig_desc {
 	unsigned int pdrive_maskbits;
 };
 
+struct rtd_reg_range {
+	unsigned int offset;
+	size_t len;
+};
+
+struct rtd_pin_range {
+	const struct rtd_reg_range *ranges;
+	const int num_ranges;
+};
+
 struct rtd_pin_desc {
 	const char *name;
 	unsigned int mux_offset;
@@ -119,6 +129,9 @@ struct rtd_pinctrl_desc {
 	unsigned int num_sconfigs;
 	struct rtd_pin_reg_list *lists;
 	unsigned int num_regs;
+	const struct rtd_pin_range *pin_range;
 };
 
 int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_desc *desc);
+
+extern const struct dev_pm_ops realtek_pinctrl_pm_ops;
