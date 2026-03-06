@@ -196,6 +196,10 @@ impl FalconDmaLoadable for FwsecFirmware {
     fn dmem_load_params(&self) -> FalconDmaLoadTarget {
         self.desc.dmem_load_params()
     }
+}
+
+impl FalconFirmware for FwsecFirmware {
+    type Target = Gsp;
 
     fn brom_params(&self) -> FalconBromParams {
         FalconBromParams {
@@ -208,10 +212,6 @@ impl FalconDmaLoadable for FwsecFirmware {
     fn boot_addr(&self) -> u32 {
         0
     }
-}
-
-impl FalconFirmware for FwsecFirmware {
-    type Target = Gsp;
 }
 
 impl FirmwareObject<FwsecFirmware, Unsigned> {

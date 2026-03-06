@@ -414,6 +414,10 @@ impl FalconDmaLoadable for BooterFirmware {
     fn dmem_load_params(&self) -> FalconDmaLoadTarget {
         self.dmem_load_target.clone()
     }
+}
+
+impl FalconFirmware for BooterFirmware {
+    type Target = Sec2;
 
     fn brom_params(&self) -> FalconBromParams {
         self.brom_params.clone()
@@ -426,8 +430,4 @@ impl FalconDmaLoadable for BooterFirmware {
             self.imem_sec_load_target.src_start
         }
     }
-}
-
-impl FalconFirmware for BooterFirmware {
-    type Target = Sec2;
 }
