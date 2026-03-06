@@ -17,6 +17,8 @@
 #include <linux/thermal.h>
 #include <linux/units.h>
 
+#include "thermal_hwmon.h"
+
 #define REG_SET					0x4
 #define REG_CLR					0x8
 #define REG_TOG					0xc
@@ -317,6 +319,8 @@ static int imx91_tmu_probe(struct platform_device *pdev)
 	if (IS_ERR(tmu->tzd))
 		return dev_err_probe(dev, PTR_ERR(tmu->tzd),
 				     "failed to register thermal zone sensor\n");
+
+	devm_thermal_add_hwmon_sysfs(dev, tmu->tzd);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
