@@ -117,7 +117,7 @@ void test_lwt_seg6local(void)
 	const char *ns1 = NETNS_BASE "1";
 	const char *ns6 = NETNS_BASE "6";
 	struct nstoken *nstoken = NULL;
-	const char *foobar = "foobar";
+	const char foobar[] = "foobar";
 	ssize_t bytes;
 	int sfd, cfd;
 	char buf[7];

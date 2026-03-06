@@ -62,6 +62,75 @@ static const char * const perr_strings[] = {
 };
 
 /*
+ * CPUSET Locking Convention
+ * -------------------------
+ *
+ * Below are the four global/local locks guarding cpuset structures in lock
+ * acquisition order:
+ *  - cpuset_top_mutex
+ *  - cpu_hotplug_lock (cpus_read_lock/cpus_write_lock)
+ *  - cpuset_mutex
+ *  - callback_lock (raw spinlock)
+ *
+ * As cpuset will now indirectly flush a number of different workqueues in
+ * housekeeping_update() to update housekeeping cpumasks when the set of
+ * isolated CPUs is going to be changed, it may be vulnerable to deadlock
+ * if we hold cpus_read_lock while calling into housekeeping_update().
+ *
+ * The first cpuset_top_mutex will be held except when calling into
+ * cpuset_handle_hotplug() from the CPU hotplug code where cpus_write_lock
+ * and cpuset_mutex will be held instead. The main purpose of this mutex
+ * is to prevent regular cpuset control file write actions from interfering
+ * with the call to housekeeping_update(), though CPU hotplug operation can
+ * still happen in parallel. This mutex also provides protection for some
+ * internal variables.
+ *
+ * A task must hold all the remaining three locks to modify externally visible
+ * or used fields of cpusets, though some of the internally used cpuset fields
+ * and internal variables can be modified without holding callback_lock. If only
+ * reliable read access of the externally used fields are needed, a task can
+ * hold either cpuset_mutex or callback_lock which are exposed to other
+ * external subsystems.
+ *
+ * If a task holds cpu_hotplug_lock and cpuset_mutex, it blocks others,
+ * ensuring that it is the only task able to also acquire callback_lock and
+ * be able to modify cpusets.  It can perform various checks on the cpuset
+ * structure first, knowing nothing will change. It can also allocate memory
+ * without holding callback_lock. While it is performing these checks, various
+ * callback routines can briefly acquire callback_lock to query cpusets.  Once
+ * it is ready to make the changes, it takes callback_lock, blocking everyone
+ * else.
+ *
+ * Calls to the kernel memory allocator cannot be made while holding
+ * callback_lock which is a spinlock, as the memory allocator may sleep or
+ * call back into cpuset code and acquire callback_lock.
+ *
+ * Now, the task_struct fields mems_allowed and mempolicy may be changed
+ * by other task, we use alloc_lock in the task_struct fields to protect
+ * them.
+ *
+ * The cpuset_common_seq_show() handlers only hold callback_lock across
+ * small pieces of code, such as when reading out possibly multi-word
+ * cpumasks and nodemasks.
+ */
+
+static DEFINE_MUTEX(cpuset_top_mutex);
+static DEFINE_MUTEX(cpuset_mutex);
+
+/*
+ * File level internal variables below follow one of the following exclusion
+ * rules.
+ *
+ * RWCS: Read/write-able by holding either cpus_write_lock (and optionally
+ *	 cpuset_mutex) or both cpus_read_lock and cpuset_mutex.
+ *
+ * CSCB: Readable by holding either cpuset_mutex or callback_lock. Writable
+ *	 by holding both cpuset_mutex and callback_lock.
+ *
+ * T:	 Read/write-able by holding the cpuset_top_mutex.
+ */
+
+/*
  * For local partitions, update to subpartitions_cpus & isolated_cpus is done
  * in update_parent_effective_cpumask(). For remote partitions, it is done in
  * the remote_partition_*() and remote_cpus_update() helpers.
@@ -70,19 +139,22 @@ static const char * const perr_strings[] = {
  * Exclusive CPUs distributed out to local or remote sub-partitions of
  * top_cpuset
  */
-static cpumask_var_t	subpartitions_cpus;
+static cpumask_var_t	subpartitions_cpus;	/* RWCS */
 
 /*
- * Exclusive CPUs in isolated partitions
+ * Exclusive CPUs in isolated partitions (shown in cpuset.cpus.isolated)
  */
-static cpumask_var_t	isolated_cpus;
+static cpumask_var_t	isolated_cpus;		/* CSCB */
 
 /*
- * isolated_cpus updating flag (protected by cpuset_mutex)
- * Set if isolated_cpus is going to be updated in the current
- * cpuset_mutex crtical section.
+ * Set if housekeeping cpumasks are to be updated.
  */
-static bool isolated_cpus_updating;
+static bool		update_housekeeping;	/* RWCS */
+
+/*
+ * Copy of isolated_cpus to be passed to housekeeping_update()
+ */
+static cpumask_var_t	isolated_hk_cpus;	/* T */
 
 /*
  * A flag to force sched domain rebuild at the end of an operation.
@@ -98,7 +170,7 @@ static bool isolated_cpus_updating;
  * Note that update_relax_domain_level() in cpuset-v1.c can still call
  * rebuild_sched_domains_locked() directly without using this flag.
  */
-static bool force_sd_rebuild;
+static bool force_sd_rebuild;			/* RWCS */
 
 /*
  * Partition root states:
@@ -218,42 +290,6 @@ struct cpuset top_cpuset = {
 	.partition_root_state = PRS_ROOT,
 };
 
-/*
- * There are two global locks guarding cpuset structures - cpuset_mutex and
- * callback_lock. The cpuset code uses only cpuset_mutex. Other kernel
- * subsystems can use cpuset_lock()/cpuset_unlock() to prevent change to cpuset
- * structures. Note that cpuset_mutex needs to be a mutex as it is used in
- * paths that rely on priority inheritance (e.g. scheduler - on RT) for
- * correctness.
- *
- * A task must hold both locks to modify cpusets.  If a task holds
- * cpuset_mutex, it blocks others, ensuring that it is the only task able to
- * also acquire callback_lock and be able to modify cpusets.  It can perform
- * various checks on the cpuset structure first, knowing nothing will change.
- * It can also allocate memory while just holding cpuset_mutex.  While it is
- * performing these checks, various callback routines can briefly acquire
- * callback_lock to query cpusets.  Once it is ready to make the changes, it
- * takes callback_lock, blocking everyone else.
- *
- * Calls to the kernel memory allocator can not be made while holding
- * callback_lock, as that would risk double tripping on callback_lock
- * from one of the callbacks into the cpuset code from within
- * __alloc_pages().
- *
- * If a task is only holding callback_lock, then it has read-only
- * access to cpusets.
- *
- * Now, the task_struct fields mems_allowed and mempolicy may be changed
- * by other task, we use alloc_lock in the task_struct fields to protect
- * them.
- *
- * The cpuset_common_seq_show() handlers only hold callback_lock across
- * small pieces of code, such as when reading out possibly multi-word
- * cpumasks and nodemasks.
- */
-
-static DEFINE_MUTEX(cpuset_mutex);
-
 /**
  * cpuset_lock - Acquire the global cpuset mutex
  *
@@ -283,6 +319,7 @@ void lockdep_assert_cpuset_lock_held(void)
  */
 void cpuset_full_lock(void)
 {
+	mutex_lock(&cpuset_top_mutex);
 	cpus_read_lock();
 	mutex_lock(&cpuset_mutex);
 }
@@ -291,12 +328,14 @@ void cpuset_full_unlock(void)
 {
 	mutex_unlock(&cpuset_mutex);
 	cpus_read_unlock();
+	mutex_unlock(&cpuset_top_mutex);
 }
 
 #ifdef CONFIG_LOCKDEP
 bool lockdep_is_cpuset_held(void)
 {
-	return lockdep_is_held(&cpuset_mutex);
+	return lockdep_is_held(&cpuset_mutex) ||
+	       lockdep_is_held(&cpuset_top_mutex);
 }
 #endif
 
@@ -961,7 +1000,7 @@ void rebuild_sched_domains_locked(void)
 	* offline CPUs, a warning is emitted and we return directly to
 	* prevent the panic.
 	*/
-	for (i = 0; i < ndoms; ++i) {
+	for (i = 0; doms && i < ndoms; i++) {
 		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask)))
 			return;
 	}
@@ -1161,12 +1200,18 @@ static void reset_partition_data(struct cpuset *cs)
 static void isolated_cpus_update(int old_prs, int new_prs, struct cpumask *xcpus)
 {
 	WARN_ON_ONCE(old_prs == new_prs);
-	if (new_prs == PRS_ISOLATED)
+	lockdep_assert_held(&callback_lock);
+	lockdep_assert_held(&cpuset_mutex);
+	if (new_prs == PRS_ISOLATED) {
+		if (cpumask_subset(xcpus, isolated_cpus))
+			return;
 		cpumask_or(isolated_cpus, isolated_cpus, xcpus);
-	else
+	} else {
+		if (!cpumask_intersects(xcpus, isolated_cpus))
+			return;
 		cpumask_andnot(isolated_cpus, isolated_cpus, xcpus);
-
-	isolated_cpus_updating = true;
+	}
+	update_housekeeping = true;
 }
 
 /*
@@ -1219,8 +1264,8 @@ static void partition_xcpus_del(int old_prs, struct cpuset *parent,
 		isolated_cpus_update(old_prs, parent->partition_root_state,
 				     xcpus);
 
-	cpumask_and(xcpus, xcpus, cpu_active_mask);
 	cpumask_or(parent->effective_cpus, parent->effective_cpus, xcpus);
+	cpumask_and(parent->effective_cpus, parent->effective_cpus, cpu_active_mask);
 }
 
 /*
@@ -1284,22 +1329,43 @@ static bool prstate_housekeeping_conflict(int prstate, struct cpumask *new_cpus)
 }
 
 /*
- * update_isolation_cpumasks - Update external isolation related CPU masks
+ * update_hk_sched_domains - Update HK cpumasks & rebuild sched domains
  *
- * The following external CPU masks will be updated if necessary:
- * - workqueue unbound cpumask
+ * Update housekeeping cpumasks and rebuild sched domains if necessary.
+ * This should be called at the end of cpuset or hotplug actions.
  */
-static void update_isolation_cpumasks(void)
+static void update_hk_sched_domains(void)
 {
-	int ret;
+	if (update_housekeeping) {
+		/* Updating HK cpumasks implies rebuild sched domains */
+		update_housekeeping = false;
+		force_sd_rebuild = true;
+		cpumask_copy(isolated_hk_cpus, isolated_cpus);
 
-	if (!isolated_cpus_updating)
-		return;
+		/*
+		 * housekeeping_update() is now called without holding
+		 * cpus_read_lock and cpuset_mutex. Only cpuset_top_mutex
+		 * is still being held for mutual exclusion.
+		 */
+		mutex_unlock(&cpuset_mutex);
+		cpus_read_unlock();
+		WARN_ON_ONCE(housekeeping_update(isolated_hk_cpus));
+		cpus_read_lock();
+		mutex_lock(&cpuset_mutex);
+	}
+	/* force_sd_rebuild will be cleared in rebuild_sched_domains_locked() */
+	if (force_sd_rebuild)
+		rebuild_sched_domains_locked();
+}
 
-	ret = housekeeping_update(isolated_cpus);
-	WARN_ON_ONCE(ret < 0);
-
-	isolated_cpus_updating = false;
+/*
+ * Work function to invoke update_hk_sched_domains()
+ */
+static void hk_sd_workfn(struct work_struct *work)
+{
+	cpuset_full_lock();
+	update_hk_sched_domains();
+	cpuset_full_unlock();
 }
 
 /**
@@ -1450,7 +1516,6 @@ static int remote_partition_enable(struct cpuset *cs, int new_prs,
 	cs->remote_partition = true;
 	cpumask_copy(cs->effective_xcpus, tmp->new_cpus);
 	spin_unlock_irq(&callback_lock);
-	update_isolation_cpumasks();
 	cpuset_force_rebuild();
 	cs->prs_err = 0;
 
@@ -1495,7 +1560,6 @@ static void remote_partition_disable(struct cpuset *cs, struct tmpmasks *tmp)
 	compute_excpus(cs, cs->effective_xcpus);
 	reset_partition_data(cs);
 	spin_unlock_irq(&callback_lock);
-	update_isolation_cpumasks();
 	cpuset_force_rebuild();
 
 	/*
@@ -1566,7 +1630,6 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	if (xcpus)
 		cpumask_copy(cs->exclusive_cpus, xcpus);
 	spin_unlock_irq(&callback_lock);
-	update_isolation_cpumasks();
 	if (adding || deleting)
 		cpuset_force_rebuild();
 
@@ -1910,7 +1973,6 @@ write_error:
 		partition_xcpus_add(new_prs, parent, tmp->delmask);
 
 	spin_unlock_irq(&callback_lock);
-	update_isolation_cpumasks();
 
 	if ((old_prs != new_prs) && (cmd == partcmd_update))
 		update_partition_exclusive_flag(cs, new_prs);
@@ -2155,7 +2217,7 @@ get_css:
 		WARN_ON(!is_in_v2_mode() &&
 			!cpumask_equal(cp->cpus_allowed, cp->effective_cpus));
 
-		cpuset_update_tasks_cpumask(cp, cp->effective_cpus);
+		cpuset_update_tasks_cpumask(cp, tmp->new_cpus);
 
 		/*
 		 * On default hierarchy, inherit the CS_SCHED_LOAD_BALANCE
@@ -2878,7 +2940,6 @@ out:
 	else if (isolcpus_updated)
 		isolated_cpus_update(old_prs, new_prs, cs->effective_xcpus);
 	spin_unlock_irq(&callback_lock);
-	update_isolation_cpumasks();
 
 	/* Force update if switching back to member & update effective_xcpus */
 	update_cpumasks_hier(cs, &tmpmask, !new_prs);
@@ -3168,9 +3229,8 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 	}
 
 	free_cpuset(trialcs);
-	if (force_sd_rebuild)
-		rebuild_sched_domains_locked();
 out_unlock:
+	update_hk_sched_domains();
 	cpuset_full_unlock();
 	if (of_cft(of)->private == FILE_MEMLIST)
 		schedule_flush_migrate_mm();
@@ -3278,6 +3338,7 @@ static ssize_t cpuset_partition_write(struct kernfs_open_file *of, char *buf,
 	cpuset_full_lock();
 	if (is_cpuset_online(cs))
 		retval = update_prstate(cs, val);
+	update_hk_sched_domains();
 	cpuset_full_unlock();
 	return retval ?: nbytes;
 }
@@ -3452,6 +3513,7 @@ static void cpuset_css_killed(struct cgroup_subsys_state *css)
 	/* Reset valid partition back to member */
 	if (is_partition_valid(cs))
 		update_prstate(cs, PRS_MEMBER);
+	update_hk_sched_domains();
 	cpuset_full_unlock();
 }
 
@@ -3607,6 +3669,7 @@ int __init cpuset_init(void)
 	BUG_ON(!alloc_cpumask_var(&top_cpuset.exclusive_cpus, GFP_KERNEL));
 	BUG_ON(!zalloc_cpumask_var(&subpartitions_cpus, GFP_KERNEL));
 	BUG_ON(!zalloc_cpumask_var(&isolated_cpus, GFP_KERNEL));
+	BUG_ON(!zalloc_cpumask_var(&isolated_hk_cpus, GFP_KERNEL));
 
 	cpumask_setall(top_cpuset.cpus_allowed);
 	nodes_setall(top_cpuset.mems_allowed);
@@ -3778,6 +3841,7 @@ unlock:
  */
 static void cpuset_handle_hotplug(void)
 {
+	static DECLARE_WORK(hk_sd_work, hk_sd_workfn);
 	static cpumask_t new_cpus;
 	static nodemask_t new_mems;
 	bool cpus_updated, mems_updated;
@@ -3859,9 +3923,21 @@ static void cpuset_handle_hotplug(void)
 		rcu_read_unlock();
 	}
 
-	/* rebuild sched domains if necessary */
-	if (force_sd_rebuild)
-		rebuild_sched_domains_cpuslocked();
+
+	/*
+	 * Queue a work to call housekeeping_update() & rebuild_sched_domains()
+	 * There will be a slight delay before the HK_TYPE_DOMAIN housekeeping
+	 * cpumask can correctly reflect what is in isolated_cpus.
+	 *
+	 * We rely on WORK_STRUCT_PENDING_BIT to not requeue a work item that
+	 * is still pending. Before the pending bit is cleared, the work data
+	 * is copied out and work item dequeued. So it is possible to queue
+	 * the work again before the hk_sd_workfn() is invoked to process the
+	 * previously queued work. Since hk_sd_workfn() doesn't use the work
+	 * item at all, this is not a problem.
+	 */
+	if (update_housekeeping || force_sd_rebuild)
+		queue_work(system_unbound_wq, &hk_sd_work);
 
 	free_tmpmasks(ptmp);
 }
