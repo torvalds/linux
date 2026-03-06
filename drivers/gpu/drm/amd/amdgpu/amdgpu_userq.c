@@ -709,46 +709,6 @@ static int amdgpu_userq_priority_permit(struct drm_file *filp,
 	return -EACCES;
 }
 
-#if defined(CONFIG_DEBUG_FS)
-static int amdgpu_mqd_info_read(struct seq_file *m, void *unused)
-{
-	struct amdgpu_usermode_queue *queue = m->private;
-	struct amdgpu_bo *bo;
-	int r;
-
-	if (!queue || !queue->mqd.obj)
-		return -EINVAL;
-
-	bo = amdgpu_bo_ref(queue->mqd.obj);
-	r = amdgpu_bo_reserve(bo, true);
-	if (r) {
-		amdgpu_bo_unref(&bo);
-		return -EINVAL;
-	}
-
-	seq_printf(m, "queue_type: %d\n", queue->queue_type);
-	seq_printf(m, "mqd_gpu_address: 0x%llx\n", amdgpu_bo_gpu_offset(queue->mqd.obj));
-
-	amdgpu_bo_unreserve(bo);
-	amdgpu_bo_unref(&bo);
-
-	return 0;
-}
-
-static int amdgpu_mqd_info_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, amdgpu_mqd_info_read, inode->i_private);
-}
-
-static const struct file_operations amdgpu_mqd_info_fops = {
-	.owner = THIS_MODULE,
-	.open = amdgpu_mqd_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
-
 static int
 amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 {
@@ -885,14 +845,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	}
 	up_read(&adev->reset_domain->sem);
 
-#if defined(CONFIG_DEBUG_FS)
-	char queue_name[32];
-
-	scnprintf(queue_name, sizeof(queue_name), "queue_%d", qid);
-	/* Queue dentry per client to hold MQD information   */
-	queue->debugfs_queue = debugfs_create_dir(queue_name, filp->debugfs_client);
-	debugfs_create_file("mqd_info", 0444, queue->debugfs_queue, queue, &amdgpu_mqd_info_fops);
-#endif
+	amdgpu_debugfs_userq_init(filp, queue, qid);
 	amdgpu_userq_init_hang_detect_work(queue);
 
 	args->out.queue_id = qid;

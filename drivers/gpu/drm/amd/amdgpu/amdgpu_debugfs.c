@@ -39,6 +39,7 @@
 
 #include "amdgpu_reset.h"
 #include "amdgpu_psp_ta.h"
+#include "amdgpu_userq.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -2156,6 +2157,53 @@ static const struct file_operations amdgpu_pt_info_fops = {
 	.release = single_release,
 };
 
+static int amdgpu_mqd_info_read(struct seq_file *m, void *unused)
+{
+	struct amdgpu_usermode_queue *queue = m->private;
+	struct amdgpu_bo *bo;
+	int r;
+
+	if (!queue || !queue->mqd.obj)
+		return -EINVAL;
+
+	bo = amdgpu_bo_ref(queue->mqd.obj);
+	r = amdgpu_bo_reserve(bo, true);
+	if (r) {
+		amdgpu_bo_unref(&bo);
+		return -EINVAL;
+	}
+
+	seq_printf(m, "queue_type: %d\n", queue->queue_type);
+	seq_printf(m, "mqd_gpu_address: 0x%llx\n", amdgpu_bo_gpu_offset(queue->mqd.obj));
+
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
+
+	return 0;
+}
+
+static int amdgpu_mqd_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, amdgpu_mqd_info_read, inode->i_private);
+}
+
+static const struct file_operations amdgpu_mqd_info_fops = {
+	.owner = THIS_MODULE,
+	.open = amdgpu_mqd_info_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void amdgpu_debugfs_userq_init(struct drm_file *file, struct amdgpu_usermode_queue *queue, int qid)
+{
+	char queue_name[32];
+
+	scnprintf(queue_name, sizeof(queue_name), "queue_%d", qid);
+	queue->debugfs_queue = debugfs_create_dir(queue_name, file->debugfs_client);
+	debugfs_create_file("mqd_info", 0444, queue->debugfs_queue, queue, &amdgpu_mqd_info_fops);
+}
+
 void amdgpu_debugfs_vm_init(struct drm_file *file)
 {
 	debugfs_create_file("vm_pagetable_info", 0444, file->debugfs_client, file,
@@ -2172,6 +2220,11 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 	return 0;
 }
 void amdgpu_debugfs_vm_init(struct drm_file *file)
+{
+}
+void amdgpu_debugfs_userq_init(struct drm_file *file,
+			       struct amdgpu_usermode_queue *queue,
+			       int qid)
 {
 }
 #endif
