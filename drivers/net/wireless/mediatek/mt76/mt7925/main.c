@@ -1121,16 +1121,12 @@ EXPORT_SYMBOL_GPL(mt7925_mac_sta_event);
 
 static void mt7925_mac_link_sta_remove(struct mt76_dev *mdev,
 				       struct ieee80211_vif *vif,
-				       struct ieee80211_link_sta *link_sta)
+				       struct ieee80211_link_sta *link_sta,
+				       struct mt792x_link_sta *mlink)
 {
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct ieee80211_bss_conf *link_conf;
 	u8 link_id = link_sta->link_id;
-	struct mt792x_link_sta *mlink;
-	struct mt792x_sta *msta;
-
-	msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
-	mlink = mt792x_sta_to_link(msta, link_id);
 
 	mt7925_roc_abort_sync(dev);
 
@@ -1213,7 +1209,7 @@ mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 		if (!mlink)
 			continue;
 
-		mt7925_mac_link_sta_remove(&dev->mt76, vif, link_sta);
+		mt7925_mac_link_sta_remove(&dev->mt76, vif, link_sta, mlink);
 
 		wcid = &mlink->wcid;
 		rcu_assign_pointer(msta->link[link_id], NULL);
