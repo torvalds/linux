@@ -55,7 +55,7 @@ extern void ppp_input(struct ppp_channel *, struct sk_buff *);
 
 /* Called by the channel when an input error occurs, indicating
    that we may have missed a packet. */
-extern void ppp_input_error(struct ppp_channel *, int code);
+extern void ppp_input_error(struct ppp_channel *);
 
 /* Attach a channel to a given PPP unit in specified net. */
 extern int ppp_register_net_channel(struct net *, struct ppp_channel *);

@@ -2383,12 +2383,10 @@ done:
 	rcu_read_unlock_bh();
 }
 
-/* Put a 0-length skb in the receive queue as an error indication */
 void
-ppp_input_error(struct ppp_channel *chan, int code)
+ppp_input_error(struct ppp_channel *chan)
 {
 	struct channel *pch = chan->ppp;
-	struct sk_buff *skb;
 	struct ppp *ppp;
 
 	if (!pch)
@@ -2397,12 +2395,9 @@ ppp_input_error(struct ppp_channel *chan, int code)
 	rcu_read_lock_bh();
 	ppp = rcu_dereference_bh(pch->ppp);
 	if (ppp) {
-		skb = alloc_skb(0, GFP_ATOMIC);
-		if (skb) {
-			skb->len = 0;		/* probably unnecessary */
-			skb->cb[0] = code;
-			ppp_do_recv(ppp, skb, pch);
-		}
+		ppp_recv_lock(ppp);
+		ppp_receive_error(ppp);
+		ppp_recv_unlock(ppp);
 	}
 	rcu_read_unlock_bh();
 }
@@ -2414,20 +2409,14 @@ ppp_input_error(struct ppp_channel *chan, int code)
 static void
 ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
-	/* note: a 0-length skb is used as an error indication */
-	if (skb->len > 0) {
-		skb_checksum_complete_unset(skb);
+	skb_checksum_complete_unset(skb);
 #ifdef CONFIG_PPP_MULTILINK
-		/* XXX do channel-level decompression here */
-		if (PPP_PROTO(skb) == PPP_MP)
-			ppp_receive_mp_frame(ppp, skb, pch);
-		else
+	/* XXX do channel-level decompression here */
+	if (PPP_PROTO(skb) == PPP_MP)
+		ppp_receive_mp_frame(ppp, skb, pch);
+	else
 #endif /* CONFIG_PPP_MULTILINK */
-			ppp_receive_nonmp_frame(ppp, skb);
-	} else {
-		kfree_skb(skb);
-		ppp_receive_error(ppp);
-	}
+		ppp_receive_nonmp_frame(ppp, skb);
 }
 
 static void

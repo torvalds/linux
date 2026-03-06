@@ -483,7 +483,7 @@ static void ppp_sync_process(struct tasklet_struct *t)
 	while ((skb = skb_dequeue(&ap->rqueue)) != NULL) {
 		if (skb->len == 0) {
 			/* zero length buffers indicate error */
-			ppp_input_error(&ap->chan, 0);
+			ppp_input_error(&ap->chan);
 			kfree_skb(skb);
 		}
 		else
