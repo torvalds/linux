@@ -332,7 +332,7 @@ static void __test_mpam_reset_msc_bitmap(struct mpam_msc *msc, u16 reg, u16 wd)
 
 static void test_mpam_reset_msc_bitmap(struct kunit *test)
 {
-	char __iomem *buf = kunit_kzalloc(test, SZ_16K, GFP_KERNEL);
+	char __iomem *buf = (__force char __iomem *)kunit_kzalloc(test, SZ_16K, GFP_KERNEL);
 	struct mpam_msc fake_msc = {};
 	u32 *test_result;
 
@@ -347,7 +347,7 @@ static void test_mpam_reset_msc_bitmap(struct kunit *test)
 	mutex_init(&fake_msc.part_sel_lock);
 	mutex_lock(&fake_msc.part_sel_lock);
 
-	test_result = (u32 *)(buf + MPAMCFG_CPBM);
+	test_result = (__force u32 *)(buf + MPAMCFG_CPBM);
 
 	__test_mpam_reset_msc_bitmap(&fake_msc, MPAMCFG_CPBM, 0);
 	KUNIT_EXPECT_EQ(test, test_result[0], 0);
