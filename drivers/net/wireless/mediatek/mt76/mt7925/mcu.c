@@ -1066,9 +1066,9 @@ EXPORT_SYMBOL_GPL(mt7925_run_firmware);
 static void
 mt7925_mcu_sta_hdr_trans_tlv(struct sk_buff *skb,
 			     struct ieee80211_vif *vif,
-			     struct ieee80211_link_sta *link_sta)
+			     struct ieee80211_link_sta *link_sta,
+			     struct mt792x_link_sta *mlink)
 {
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct sta_rec_hdr_trans *hdr_trans;
 	struct mt76_wcid *wcid;
 	struct tlv *tlv;
@@ -1082,15 +1082,7 @@ mt7925_mcu_sta_hdr_trans_tlv(struct sk_buff *skb,
 	else
 		hdr_trans->from_ds = true;
 
-	if (link_sta) {
-		struct mt792x_sta *msta = (struct mt792x_sta *)link_sta->sta->drv_priv;
-		struct mt792x_link_sta *mlink;
-
-		mlink = mt792x_sta_to_link(msta, link_sta->link_id);
-		wcid = &mlink->wcid;
-	} else {
-		wcid = &mvif->sta.deflink.wcid;
-	}
+	wcid = &mlink->wcid;
 
 	if (!wcid)
 		return;
@@ -1127,7 +1119,10 @@ int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 		return PTR_ERR(skb);
 
 	/* starec hdr trans */
-	mt7925_mcu_sta_hdr_trans_tlv(skb, vif, link_sta);
+	if (!link_sta)
+		mlink = &mvif->sta.deflink;
+
+	mt7925_mcu_sta_hdr_trans_tlv(skb, vif, link_sta, mlink);
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 }
@@ -2028,7 +2023,10 @@ mt7925_mcu_sta_cmd(struct mt76_phy *phy,
 		mt76_connac_mcu_add_tlv(skb, STA_REC_MLD_OFF,
 					sizeof(struct tlv));
 	} else {
-		mt7925_mcu_sta_hdr_trans_tlv(skb, info->vif, info->link_sta);
+		if (!info->link_sta)
+			mlink = &mvif->sta.deflink;
+
+		mt7925_mcu_sta_hdr_trans_tlv(skb, info->vif, info->link_sta, mlink);
 	}
 
 	return mt76_mcu_skb_send_msg(dev, skb, info->cmd, true);
