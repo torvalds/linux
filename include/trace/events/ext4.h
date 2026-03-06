@@ -1781,7 +1781,7 @@ TRACE_EVENT(ext4_load_inode,
 		__entry->ino		= ino;
 	),
 
-	TP_printk("dev %d,%d ino %lld",
+	TP_printk("dev %d,%d ino %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino)
 );
