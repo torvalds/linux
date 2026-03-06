@@ -153,6 +153,7 @@ allOf:
               - renesas,r9a07g044-dmac
               - renesas,r9a07g054-dmac
               - renesas,r9a08g045-dmac
+              - renesas,r9a08g046-dmac
     then:
       properties:
         reg:
