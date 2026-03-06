@@ -989,11 +989,51 @@ out_wcid:
 	return ret;
 }
 
+/*
+ * Host-only unwind for sta_add_links() failures.
+ *
+ * If add_links fail due to MCU/firmware timeouts; calling the full remove
+ * path would send more firmware commands and may hang again. So only rollback
+ * host-published state here (msta->link/valid_links, dev->mt76.wcid[idx]) and
+ * free mlink objects (RCU-safe). Firmware state is left for reset/recovery.
+ */
+static void
+mt7925_mac_sta_unwind_links_host(struct mt792x_dev *dev,
+				 struct ieee80211_sta *sta,
+				 unsigned long links)
+{
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+	unsigned int link_id;
+
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct mt792x_link_sta *mlink;
+		u16 idx;
+
+		mlink = rcu_replace_pointer(msta->link[link_id], NULL,
+					    lockdep_is_held(&dev->mt76.mutex));
+		if (!mlink)
+			continue;
+
+		msta->valid_links &= ~BIT(link_id);
+		if (msta->deflink_id == link_id)
+			msta->deflink_id = IEEE80211_LINK_UNSPECIFIED;
+
+		idx = mlink->wcid.idx;
+		rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
+		mt76_wcid_cleanup(&dev->mt76, &mlink->wcid);
+		mt76_wcid_mask_clear(dev->mt76.wcid_mask, idx);
+
+		if (mlink != &msta->deflink)
+			kfree_rcu(mlink, rcu_head);
+	}
+}
+
 static int
 mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta, unsigned long new_links)
 {
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+	unsigned long added_links = 0;
 	unsigned int link_id;
 	int err = 0;
 
@@ -1030,7 +1070,12 @@ mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 
 		rcu_assign_pointer(msta->link[link_id], mlink);
 		msta->valid_links |= BIT(link_id);
+
+		added_links |= BIT(link_id);
 	}
+
+	if (err && added_links)
+		mt7925_mac_sta_unwind_links_host(dev, sta, added_links);
 
 	return err;
 }
