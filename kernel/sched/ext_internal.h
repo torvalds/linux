@@ -975,6 +975,10 @@ struct scx_sched_pcpu {
 	struct scx_dsp_ctx	dsp_ctx;
 };
 
+struct scx_sched_pnode {
+	struct scx_dispatch_q	global_dsq;
+};
+
 struct scx_sched {
 	struct sched_ext_ops	ops;
 	DECLARE_BITMAP(has_op, SCX_OPI_END);
@@ -988,7 +992,7 @@ struct scx_sched {
 	 * per-node split isn't sufficient, it can be further split.
 	 */
 	struct rhashtable	dsq_hash;
-	struct scx_dispatch_q	**global_dsqs;
+	struct scx_sched_pnode	**pnode;
 	struct scx_sched_pcpu __percpu *pcpu;
 
 	u64			slice_dfl;
