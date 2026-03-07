@@ -101,6 +101,7 @@ my $build_type;
 my $build_options;
 my $final_post_ktest;
 my $pre_ktest;
+my $pre_ktest_die;
 my $post_ktest;
 my $pre_test;
 my $pre_test_die;
@@ -283,6 +284,7 @@ my %option_map = (
     "BUILD_DIR"			=> \$builddir,
     "TEST_TYPE"			=> \$test_type,
     "PRE_KTEST"			=> \$pre_ktest,
+    "PRE_KTEST_DIE"		=> \$pre_ktest_die,
     "POST_KTEST"		=> \$post_ktest,
     "PRE_TEST"			=> \$pre_test,
     "PRE_TEST_DIE"		=> \$pre_test_die,
@@ -4506,7 +4508,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     if ($i == 1) {
 	if (defined($pre_ktest)) {
 	    doprint "\n";
-	    run_command $pre_ktest;
+	    my $ret = run_command $pre_ktest;
+	    if (!$ret && defined($pre_ktest_die) &&
+		$pre_ktest_die) {
+		dodie "failed to pre_ktest\n";
+	    }
 	}
 	if ($email_when_started) {
 	    my $name = get_test_name;
