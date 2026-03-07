@@ -954,6 +954,10 @@ struct scx_dsp_ctx {
 	struct scx_dsp_buf_ent	buf[];
 };
 
+struct scx_deferred_reenq_local {
+	struct list_head	node;
+};
+
 struct scx_sched_pcpu {
 	struct scx_sched	*sch;
 	u64			flags;	/* protected by rq lock */
@@ -965,7 +969,7 @@ struct scx_sched_pcpu {
 	 */
 	struct scx_event_stats	event_stats;
 
-	struct list_head	deferred_reenq_local_node;
+	struct scx_deferred_reenq_local deferred_reenq_local;
 	struct scx_dispatch_q	bypass_dsq;
 #ifdef CONFIG_EXT_SUB_SCHED
 	u32			bypass_host_seq;

@@ -3647,15 +3647,19 @@ static void process_deferred_reenq_locals(struct rq *rq)
 		struct scx_sched *sch;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
-			struct scx_sched_pcpu *sch_pcpu =
+			struct scx_deferred_reenq_local *drl =
 				list_first_entry_or_null(&rq->scx.deferred_reenq_locals,
-							 struct scx_sched_pcpu,
-							 deferred_reenq_local_node);
-			if (!sch_pcpu)
+							 struct scx_deferred_reenq_local,
+							 node);
+			struct scx_sched_pcpu *sch_pcpu;
+
+			if (!drl)
 				return;
 
+			sch_pcpu = container_of(drl, struct scx_sched_pcpu,
+						deferred_reenq_local);
 			sch = sch_pcpu->sch;
-			list_del_init(&sch_pcpu->deferred_reenq_local_node);
+			list_del_init(&drl->node);
 		}
 
 		reenq_local(sch, rq);
@@ -4199,7 +4203,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	for_each_possible_cpu(cpu) {
 		struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
 
-		WARN_ON_ONCE(!list_empty(&pcpu->deferred_reenq_local_node));
+		WARN_ON_ONCE(!list_empty(&pcpu->deferred_reenq_local.node));
 	}
 
 	free_percpu(sch->pcpu);
@@ -5812,7 +5816,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 		struct scx_sched_pcpu *pcpu = per_cpu_ptr(sch->pcpu, cpu);
 
 		pcpu->sch = sch;
-		INIT_LIST_HEAD(&pcpu->deferred_reenq_local_node);
+		INIT_LIST_HEAD(&pcpu->deferred_reenq_local.node);
 	}
 
 	sch->helper = kthread_run_worker(0, "sched_ext_helper");
@@ -8390,8 +8394,8 @@ __bpf_kfunc void scx_bpf_reenqueue_local___v2(const struct bpf_prog_aux *aux)
 	scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 		struct scx_sched_pcpu *pcpu = this_cpu_ptr(sch->pcpu);
 
-		if (list_empty(&pcpu->deferred_reenq_local_node))
-			list_move_tail(&pcpu->deferred_reenq_local_node,
+		if (list_empty(&pcpu->deferred_reenq_local.node))
+			list_move_tail(&pcpu->deferred_reenq_local.node,
 				       &rq->scx.deferred_reenq_locals);
 	}
 
