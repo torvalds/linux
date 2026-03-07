@@ -62,6 +62,10 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };
 
+struct scx_dsq_pcpu {
+	struct scx_dispatch_q	*dsq;
+};
+
 /*
  * A dispatch queue (DSQ) can be either a FIFO or p->scx.dsq_vtime ordered
  * queue. A built-in DSQ is always a FIFO. The built-in local DSQs are used to
@@ -79,6 +83,7 @@ struct scx_dispatch_q {
 	struct rhash_head	hash_node;
 	struct llist_node	free_node;
 	struct scx_sched	*sched;
+	struct scx_dsq_pcpu __percpu *pcpu;
 	struct rcu_head		rcu;
 };
 
