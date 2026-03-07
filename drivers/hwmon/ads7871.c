@@ -125,9 +125,9 @@ static ssize_t voltage_show(struct device *dev, struct device_attribute *da,
 		/*result in volts*10000 = (val/8192)*2.5*10000*/
 		val = ((val >> 2) * 25000) / 8192;
 		return sysfs_emit(buf, "%d\n", val);
-	} else {
-		return -1;
 	}
+
+	return -ETIMEDOUT;
 }
 
 static SENSOR_DEVICE_ATTR_RO(in0_input, voltage, 0);
