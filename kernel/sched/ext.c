@@ -1174,10 +1174,20 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 		struct scx_sched_pcpu *sch_pcpu = per_cpu_ptr(sch->pcpu, cpu_of(rq));
 		struct scx_deferred_reenq_local *drl = &sch_pcpu->deferred_reenq_local;
 
-		scoped_guard (raw_spinlock_irqsave, &rq->scx.deferred_reenq_lock) {
+		/*
+		 * Pairs with smp_mb() in process_deferred_reenq_locals() and
+		 * guarantees that there is a reenq_local() afterwards.
+		 */
+		smp_mb();
+
+		if (list_empty(&drl->node) ||
+		    (READ_ONCE(drl->flags) & reenq_flags) != reenq_flags) {
+
+			guard(raw_spinlock_irqsave)(&rq->scx.deferred_reenq_lock);
+
 			if (list_empty(&drl->node))
 				list_move_tail(&drl->node, &rq->scx.deferred_reenq_locals);
-			drl->flags |= reenq_flags;
+			WRITE_ONCE(drl->flags, drl->flags | reenq_flags);
 		}
 
 		schedule_deferred(rq);
@@ -1186,10 +1196,20 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 		struct scx_dsq_pcpu *dsq_pcpu = per_cpu_ptr(dsq->pcpu, cpu_of(rq));
 		struct scx_deferred_reenq_user *dru = &dsq_pcpu->deferred_reenq_user;
 
-		scoped_guard (raw_spinlock_irqsave, &rq->scx.deferred_reenq_lock) {
+		/*
+		 * Pairs with smp_mb() in process_deferred_reenq_users() and
+		 * guarantees that there is a reenq_user() afterwards.
+		 */
+		smp_mb();
+
+		if (list_empty(&dru->node) ||
+		    (READ_ONCE(dru->flags) & reenq_flags) != reenq_flags) {
+
+			guard(raw_spinlock_irqsave)(&rq->scx.deferred_reenq_lock);
+
 			if (list_empty(&dru->node))
 				list_move_tail(&dru->node, &rq->scx.deferred_reenq_users);
-			dru->flags |= reenq_flags;
+			WRITE_ONCE(dru->flags, dru->flags | reenq_flags);
 		}
 
 		schedule_deferred(rq);
@@ -3773,7 +3793,7 @@ static void process_deferred_reenq_locals(struct rq *rq)
 
 	while (true) {
 		struct scx_sched *sch;
-		u64 reenq_flags = 0;
+		u64 reenq_flags;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 			struct scx_deferred_reenq_local *drl =
@@ -3788,9 +3808,13 @@ static void process_deferred_reenq_locals(struct rq *rq)
 			sch_pcpu = container_of(drl, struct scx_sched_pcpu,
 						deferred_reenq_local);
 			sch = sch_pcpu->sch;
-			swap(drl->flags, reenq_flags);
+			reenq_flags = drl->flags;
+			WRITE_ONCE(drl->flags, 0);
 			list_del_init(&drl->node);
 		}
+
+		/* see schedule_dsq_reenq() */
+		smp_mb();
 
 		reenq_local(sch, rq, reenq_flags);
 	}
@@ -3865,7 +3889,7 @@ static void process_deferred_reenq_users(struct rq *rq)
 
 	while (true) {
 		struct scx_dispatch_q *dsq;
-		u64 reenq_flags = 0;
+		u64 reenq_flags;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 			struct scx_deferred_reenq_user *dru =
@@ -3880,9 +3904,13 @@ static void process_deferred_reenq_users(struct rq *rq)
 			dsq_pcpu = container_of(dru, struct scx_dsq_pcpu,
 						deferred_reenq_user);
 			dsq = dsq_pcpu->dsq;
-			swap(dru->flags, reenq_flags);
+			reenq_flags = dru->flags;
+			WRITE_ONCE(dru->flags, 0);
 			list_del_init(&dru->node);
 		}
+
+		/* see schedule_dsq_reenq() */
+		smp_mb();
 
 		BUG_ON(dsq->id & SCX_DSQ_FLAG_BUILTIN);
 		reenq_user(rq, dsq, reenq_flags);
