@@ -118,6 +118,21 @@ enum scx_ent_flags {
 	SCX_TASK_READY		= 2 << SCX_TASK_STATE_SHIFT,
 	SCX_TASK_ENABLED	= 3 << SCX_TASK_STATE_SHIFT,
 
+	/*
+	 * Bits 12 and 13 are used to carry reenqueue reason. In addition to
+	 * %SCX_ENQ_REENQ flag, ops.enqueue() can also test for
+	 * %SCX_TASK_REENQ_REASON_NONE to distinguish reenqueues.
+	 *
+	 * NONE		not being reenqueued
+	 * KFUNC	reenqueued by scx_bpf_dsq_reenq() and friends
+	 */
+	SCX_TASK_REENQ_REASON_SHIFT = 12,
+	SCX_TASK_REENQ_REASON_BITS = 2,
+	SCX_TASK_REENQ_REASON_MASK = ((1 << SCX_TASK_REENQ_REASON_BITS) - 1) << SCX_TASK_REENQ_REASON_SHIFT,
+
+	SCX_TASK_REENQ_NONE	= 0 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_KFUNC	= 1 << SCX_TASK_REENQ_REASON_SHIFT,
+
 	/* iteration cursor, not a task */
 	SCX_TASK_CURSOR		= 1 << 31,
 };

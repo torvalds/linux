@@ -3728,8 +3728,10 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 	}
 }
 
-static bool task_should_reenq(struct task_struct *p, u64 reenq_flags)
+static bool task_should_reenq(struct task_struct *p, u64 reenq_flags, u32 *reason)
 {
+	*reason = SCX_TASK_REENQ_KFUNC;
+
 	if (reenq_flags & SCX_REENQ_ANY)
 		return true;
 	return false;
@@ -3751,6 +3753,7 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 	list_for_each_entry_safe(p, n, &rq->scx.local_dsq.list,
 				 scx.dsq_list.node) {
 		struct scx_sched *task_sch = scx_task_sched(p);
+		u32 reason;
 
 		/*
 		 * If @p is being migrated, @p's current CPU may not agree with
@@ -3769,16 +3772,24 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 		if (!scx_is_descendant(task_sch, sch))
 			continue;
 
-		if (!task_should_reenq(p, reenq_flags))
+		if (!task_should_reenq(p, reenq_flags, &reason))
 			continue;
 
 		dispatch_dequeue(rq, p);
+
+		if (WARN_ON_ONCE(p->scx.flags & SCX_TASK_REENQ_REASON_MASK))
+			p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
+		p->scx.flags |= reason;
+
 		list_add_tail(&p->scx.dsq_list.node, &tasks);
 	}
 
 	list_for_each_entry_safe(p, n, &tasks, scx.dsq_list.node) {
 		list_del_init(&p->scx.dsq_list.node);
+
 		do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
+
+		p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
 		nr_enqueued++;
 	}
 
@@ -3832,12 +3843,13 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 
 	while (likely(!READ_ONCE(sch->bypass_depth))) {
 		struct rq *task_rq;
+		u32 reason;
 
 		p = nldsq_cursor_next_task(&cursor, dsq);
 		if (!p)
 			break;
 
-		if (!task_should_reenq(p, reenq_flags))
+		if (!task_should_reenq(p, reenq_flags, &reason))
 			continue;
 
 		task_rq = task_rq(p);
@@ -3860,7 +3872,14 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 		/* @p is on @dsq, its rq and @dsq are locked */
 		dispatch_dequeue_locked(p, dsq);
 		raw_spin_unlock(&dsq->lock);
+
+		if (WARN_ON_ONCE(p->scx.flags & SCX_TASK_REENQ_REASON_MASK))
+			p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
+		p->scx.flags |= reason;
+
 		do_enqueue_task(task_rq, p, SCX_ENQ_REENQ, -1);
+
+		p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
 
 		if (!(++nr_enqueued % SCX_TASK_ITER_BATCH)) {
 			raw_spin_rq_unlock(locked_rq);

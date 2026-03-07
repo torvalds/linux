@@ -1080,13 +1080,9 @@ enum scx_enq_flags {
 	SCX_ENQ_PREEMPT		= 1LLU << 32,
 
 	/*
-	 * The task being enqueued was previously enqueued on the current CPU's
-	 * %SCX_DSQ_LOCAL, but was removed from it in a call to the
-	 * scx_bpf_reenqueue_local() kfunc. If scx_bpf_reenqueue_local() was
-	 * invoked in a ->cpu_release() callback, and the task is again
-	 * dispatched back to %SCX_LOCAL_DSQ by this current ->enqueue(), the
-	 * task will not be scheduled on the CPU until at least the next invocation
-	 * of the ->cpu_acquire() callback.
+	 * The task being enqueued was previously enqueued on a DSQ, but was
+	 * removed and is being re-enqueued. See SCX_TASK_REENQ_* flags to find
+	 * out why a given task is being reenqueued.
 	 */
 	SCX_ENQ_REENQ		= 1LLU << 40,
 
