@@ -1080,7 +1080,8 @@ static void schedule_deferred_locked(struct rq *rq)
 	schedule_deferred(rq);
 }
 
-static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq)
+static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
+			       u64 reenq_flags)
 {
 	/*
 	 * Allowing reenqueues doesn't make sense while bypassing. This also
@@ -1097,6 +1098,7 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 		scoped_guard (raw_spinlock_irqsave, &rq->scx.deferred_reenq_lock) {
 			if (list_empty(&drl->node))
 				list_move_tail(&drl->node, &rq->scx.deferred_reenq_locals);
+			drl->flags |= reenq_flags;
 		}
 
 		schedule_deferred(rq);
@@ -3617,7 +3619,14 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 	}
 }
 
-static u32 reenq_local(struct scx_sched *sch, struct rq *rq)
+static bool task_should_reenq(struct task_struct *p, u64 reenq_flags)
+{
+	if (reenq_flags & SCX_REENQ_ANY)
+		return true;
+	return false;
+}
+
+static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 {
 	LIST_HEAD(tasks);
 	u32 nr_enqueued = 0;
@@ -3651,6 +3660,9 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq)
 		if (!scx_is_descendant(task_sch, sch))
 			continue;
 
+		if (!task_should_reenq(p, reenq_flags))
+			continue;
+
 		dispatch_dequeue(rq, p);
 		list_add_tail(&p->scx.dsq_list.node, &tasks);
 	}
@@ -3670,6 +3682,7 @@ static void process_deferred_reenq_locals(struct rq *rq)
 
 	while (true) {
 		struct scx_sched *sch;
+		u64 reenq_flags = 0;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 			struct scx_deferred_reenq_local *drl =
@@ -3684,10 +3697,11 @@ static void process_deferred_reenq_locals(struct rq *rq)
 			sch_pcpu = container_of(drl, struct scx_sched_pcpu,
 						deferred_reenq_local);
 			sch = sch_pcpu->sch;
+			swap(drl->flags, reenq_flags);
 			list_del_init(&drl->node);
 		}
 
-		reenq_local(sch, rq);
+		reenq_local(sch, rq, reenq_flags);
 	}
 }
 
@@ -7816,7 +7830,7 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(const struct bpf_prog_aux *aux)
 	rq = cpu_rq(smp_processor_id());
 	lockdep_assert_rq_held(rq);
 
-	return reenq_local(sch, rq);
+	return reenq_local(sch, rq, 0);
 }
 
 __bpf_kfunc_end_defs();
@@ -8254,8 +8268,17 @@ __bpf_kfunc void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags,
 	if (unlikely(!sch))
 		return;
 
+	if (unlikely(reenq_flags & ~__SCX_REENQ_USER_MASK)) {
+		scx_error(sch, "invalid SCX_REENQ flags 0x%llx", reenq_flags);
+		return;
+	}
+
+	/* not specifying any filter bits is the same as %SCX_REENQ_ANY */
+	if (!(reenq_flags & __SCX_REENQ_FILTER_MASK))
+		reenq_flags |= SCX_REENQ_ANY;
+
 	dsq = find_dsq_for_dispatch(sch, this_rq(), dsq_id, smp_processor_id());
-	schedule_dsq_reenq(sch, dsq);
+	schedule_dsq_reenq(sch, dsq, reenq_flags);
 }
 
 /**

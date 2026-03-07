@@ -956,6 +956,7 @@ struct scx_dsp_ctx {
 
 struct scx_deferred_reenq_local {
 	struct list_head	node;
+	u64			flags;
 };
 
 struct scx_sched_pcpu {
@@ -1126,6 +1127,15 @@ enum scx_deq_flags {
 	 * etc.).
 	 */
 	SCX_DEQ_SCHED_CHANGE	= 1LLU << 33,
+};
+
+enum scx_reenq_flags {
+	/* low 16bits determine which tasks should be reenqueued */
+	SCX_REENQ_ANY		= 1LLU << 0,	/* all tasks */
+
+	__SCX_REENQ_FILTER_MASK	= 0xffffLLU,
+
+	__SCX_REENQ_USER_MASK	= SCX_REENQ_ANY,
 };
 
 enum scx_pick_idle_cpu_flags {
