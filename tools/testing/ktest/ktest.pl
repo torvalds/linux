@@ -1499,12 +1499,13 @@ sub reboot {
     }
 
     if ($powercycle) {
-	run_command "$power_cycle";
-
 	start_monitor;
-	# flush out current monitor
-	# May contain the reboot success line
-	wait_for_monitor 1;
+	if (defined($time)) {
+		# Flush stale console output from the old kernel before power-cycling.
+		wait_for_monitor 1;
+	}
+
+	run_command "$power_cycle";
 
     } else {
 	# Make sure everything has been written to disk
