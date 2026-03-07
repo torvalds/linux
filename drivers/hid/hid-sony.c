@@ -76,7 +76,8 @@
 				NAVIGATION_CONTROLLER_BT)
 #define SONY_LED_SUPPORT (SIXAXIS_CONTROLLER | BUZZ_CONTROLLER |\
 				MOTION_CONTROLLER | NAVIGATION_CONTROLLER)
-#define SONY_BATTERY_SUPPORT (SIXAXIS_CONTROLLER | MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER)
+#define SONY_BATTERY_SUPPORT (SIXAXIS_CONTROLLER | MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER |\
+				RB4_GUITAR_PS5)
 #define SONY_FF_SUPPORT (SIXAXIS_CONTROLLER | MOTION_CONTROLLER)
 #define SONY_BT_DEVICE (SIXAXIS_CONTROLLER_BT | MOTION_CONTROLLER_BT | NAVIGATION_CONTROLLER_BT)
 #define NSG_MRXU_REMOTE (NSG_MR5U_REMOTE_BT | NSG_MR7U_REMOTE_BT)
@@ -1087,6 +1088,12 @@ static void rb4_ps4_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
 
 static void rb4_ps5_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
 {
+	u8 charging_status;
+	u8 battery_data;
+	u8 battery_capacity;
+	u8 battery_status;
+	unsigned long flags;
+
 	/*
 	 * Rock Band 4 PS5 guitars have whammy and
 	 * tilt functionality, they're located at
@@ -1098,6 +1105,37 @@ static void rb4_ps5_guitar_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	 */
 	input_report_abs(sc->input_dev, ABS_Z, rd[41]);
 	input_report_abs(sc->input_dev, ABS_RZ, rd[42]);
+
+	/*
+	 * Rock Band 4 PS5 guitars also report the
+	 * battery status and level at byte 30.
+	 */
+	charging_status = (rd[30] >> 4) & 0x0F;
+	battery_data = rd[30] & 0x0F;
+
+	switch (charging_status) {
+	case 0x0:
+		battery_capacity = min(battery_data * 10 + 5, 100);
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case 0x1:
+		battery_capacity = min(battery_data * 10 + 5, 100);
+		battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		break;
+	case 0x2:
+		battery_capacity = 100;
+		battery_status = POWER_SUPPLY_STATUS_FULL;
+		break;
+	default:
+		battery_capacity = 0;
+		battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		break;
+	}
+
+	spin_lock_irqsave(&sc->lock, flags);
+	sc->battery_capacity = battery_capacity;
+	sc->battery_status = battery_status;
+	spin_unlock_irqrestore(&sc->lock, flags);
 
 	input_sync(sc->input_dev);
 }
