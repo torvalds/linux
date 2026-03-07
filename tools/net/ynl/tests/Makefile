@@ -17,6 +17,7 @@ TEST_PROGS := \
 	devlink.sh \
 	ethtool.sh \
 	rt-addr.sh \
+	rt-route.sh \
 	test_ynl_cli.sh \
 	test_ynl_ethtool.sh \
 # end of TEST_PROGS
@@ -32,11 +33,8 @@ TEST_GEN_FILES := \
 	devlink \
 	ethtool \
 	rt-addr \
-# end of TEST_GEN_FILES
-
-BINS := \
 	rt-route \
-# end of BINS
+# end of TEST_GEN_FILES
 
 TEST_FILES := ynl_nsim_lib.sh
 
@@ -47,7 +45,7 @@ include $(wildcard *.d)
 
 INSTALL_PATH ?= $(DESTDIR)/usr/share/kselftest
 
-all: $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS)
+all: $(TEST_GEN_PROGS) $(TEST_GEN_FILES)
 
 ../lib/ynl.a:
 	@$(MAKE) -C ../lib
@@ -55,7 +53,7 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS)
  ../generated/protos.a:
 	@$(MAKE) -C ../generated
 
-$(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS): %: %.c ../lib/ynl.a ../generated/protos.a
+$(TEST_GEN_PROGS) $(TEST_GEN_FILES): %: %.c ../lib/ynl.a ../generated/protos.a
 	@echo -e '\tCC test $@'
 	@$(COMPILE.c) $(CFLAGS_$@) $@.c -o $@.o
 	@$(LINK.c) $@.o -o $@  $(LDLIBS)
@@ -65,7 +63,7 @@ run_tests:
 		./$$test; \
 	done
 
-install: $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS)
+install: $(TEST_GEN_PROGS) $(TEST_GEN_FILES)
 	@mkdir -p $(INSTALL_PATH)/ynl
 	@cp ../../../testing/selftests/kselftest/ktap_helpers.sh $(INSTALL_PATH)/
 	@for test in $(TEST_PROGS); do \
@@ -79,7 +77,7 @@ install: $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS)
 	@for file in $(TEST_FILES); do \
 		cp $$file $(INSTALL_PATH)/ynl/$$file; \
 	done
-	@for bin in $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS); do \
+	@for bin in $(TEST_GEN_PROGS) $(TEST_GEN_FILES); do \
 		cp $$bin $(INSTALL_PATH)/ynl/$$bin; \
 	done
 	@for test in $(TEST_PROGS) $(TEST_GEN_PROGS); do \
@@ -90,7 +88,7 @@ clean:
 	rm -f *.o *.d *~
 
 distclean: clean
-	rm -f $(TEST_GEN_PROGS) $(TEST_GEN_FILES) $(BINS)
+	rm -f $(TEST_GEN_PROGS) $(TEST_GEN_FILES)
 
 .PHONY: all install clean distclean run_tests
 .DEFAULT_GOAL=all
