@@ -1782,14 +1782,6 @@ static void ops_dequeue(struct rq *rq, struct task_struct *p, u64 deq_flags)
 {
 	struct scx_sched *sch = scx_task_sched(p);
 	unsigned long opss;
-	u64 op_deq_flags = deq_flags;
-
-	/*
-	 * Set %SCX_DEQ_SCHED_CHANGE when the dequeue is due to a property
-	 * change (not sleep or core-sched pick).
-	 */
-	if (!(op_deq_flags & (DEQUEUE_SLEEP | SCX_DEQ_CORE_SCHED_EXEC)))
-		op_deq_flags |= SCX_DEQ_SCHED_CHANGE;
 
 	/* dequeue is always temporary, don't reset runnable_at */
 	clr_task_runnable(p, false);
@@ -1846,12 +1838,20 @@ static void ops_dequeue(struct rq *rq, struct task_struct *p, u64 deq_flags)
 	 * NONE but the task may still have %SCX_TASK_IN_CUSTODY set until
 	 * it is enqueued on the destination.
 	 */
-	call_task_dequeue(sch, rq, p, op_deq_flags);
+	call_task_dequeue(sch, rq, p, deq_flags);
 }
 
-static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags)
+static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int core_deq_flags)
 {
 	struct scx_sched *sch = scx_task_sched(p);
+	u64 deq_flags = core_deq_flags;
+
+	/*
+	 * Set %SCX_DEQ_SCHED_CHANGE when the dequeue is due to a property
+	 * change (not sleep or core-sched pick).
+	 */
+	if (!(deq_flags & (DEQUEUE_SLEEP | SCX_DEQ_CORE_SCHED_EXEC)))
+		deq_flags |= SCX_DEQ_SCHED_CHANGE;
 
 	if (!(p->scx.flags & SCX_TASK_QUEUED)) {
 		WARN_ON_ONCE(task_runnable(p));
