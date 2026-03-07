@@ -352,7 +352,10 @@ extern void apei_mce_report_mem_error(int corrected,
 enum smca_bank_types {
 	SMCA_CS,	/* Coherent Station */
 	SMCA_CS_V2,
+	SMCA_DACC_BE,	/* Data Acceleration Back-end */
+	SMCA_DACC_FE,	/* Data Acceleration Front-end */
 	SMCA_DE,	/* Decoder Unit */
+	SMCA_EDDR5CMN,	/* eDDR5 CMN */
 	SMCA_EX,	/* Execution Unit */
 	SMCA_FP,	/* Floating Point */
 	SMCA_GMI_PCS,	/* GMI PCS Unit */
@@ -364,12 +367,19 @@ enum smca_bank_types {
 	SMCA_LS_V2,
 	SMCA_MA_LLC,	/* Memory Attached Last Level Cache */
 	SMCA_MP5,	/* Microprocessor 5 Unit */
+	SMCA_MPART,	/* AMD Root of Trust Microprocessor */
+	SMCA_MPASP,	/* AMD Secure Processor */
+	SMCA_MPASP_V2,
+	SMCA_MPDACC,	/* MP for Data Acceleration */
 	SMCA_MPDMA,	/* MPDMA Unit */
+	SMCA_MPM,	/* Microprocessor Manageability Core */
+	SMCA_MPRAS,	/* MP for RAS */
 	SMCA_NBIF,	/* NBIF Unit */
 	SMCA_NBIO,	/* Northbridge IO Unit */
 	SMCA_PB,	/* Parameter Block */
 	SMCA_PCIE,	/* PCI Express Unit */
 	SMCA_PCIE_V2,
+	SMCA_PCIE_PL,	/* PCIe Link */
 	SMCA_PIE,	/* Power, Interrupts, etc. */
 	SMCA_PSP,	/* Platform Security Processor */
 	SMCA_PSP_V2,
@@ -378,6 +388,7 @@ enum smca_bank_types {
 	SMCA_SHUB,	/* System HUB Unit */
 	SMCA_SMU,	/* System Management Unit */
 	SMCA_SMU_V2,
+	SMCA_SSBDCI,	/* Die to Die Interconnect */
 	SMCA_UMC,	/* Unified Memory Controller */
 	SMCA_UMC_V2,
 	SMCA_USB,	/* USB Unit */
