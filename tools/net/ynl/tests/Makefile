@@ -32,6 +32,8 @@ BINS := \
 	rt-route \
 # end of BINS
 
+TEST_FILES := ynl_nsim_lib.sh
+
 CFLAGS_netdev:=$(CFLAGS_netdev) $(CFLAGS_rt-link)
 CFLAGS_ovs:=$(CFLAGS_ovs_datapath)
 
@@ -67,6 +69,9 @@ install: $(TEST_GEN_PROGS) $(BINS)
 		    -e 's|KSELFTEST_KTAP_HELPERS=.*|KSELFTEST_KTAP_HELPERS="$(INSTALL_PATH)/ktap_helpers.sh"|' \
 		    $$test > $(INSTALL_PATH)/ynl/$$name; \
 		chmod +x $(INSTALL_PATH)/ynl/$$name; \
+	done
+	@for file in $(TEST_FILES); do \
+		cp $$file $(INSTALL_PATH)/ynl/$$file; \
 	done
 	@for bin in $(TEST_GEN_PROGS) $(BINS); do \
 		cp $$bin $(INSTALL_PATH)/ynl/$$bin; \
