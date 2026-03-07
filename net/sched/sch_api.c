@@ -2479,7 +2479,8 @@ static struct pernet_operations psched_net_ops = {
 };
 
 #if IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)
-DEFINE_STATIC_KEY_FALSE(tc_skip_wrapper);
+DEFINE_STATIC_KEY_FALSE(tc_skip_wrapper_act);
+DEFINE_STATIC_KEY_FALSE(tc_skip_wrapper_cls);
 #endif
 
 static const struct rtnl_msg_handler psched_rtnl_msg_handlers[] __initconst = {

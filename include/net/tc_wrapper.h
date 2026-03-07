@@ -12,7 +12,8 @@
 
 #define TC_INDIRECT_SCOPE
 
-extern struct static_key_false tc_skip_wrapper;
+extern struct static_key_false tc_skip_wrapper_act;
+extern struct static_key_false tc_skip_wrapper_cls;
 
 /* TC Actions */
 #ifdef CONFIG_NET_CLS_ACT
@@ -46,7 +47,7 @@ TC_INDIRECT_ACTION_DECLARE(tunnel_key_act);
 static inline int tc_act(struct sk_buff *skb, const struct tc_action *a,
 			   struct tcf_result *res)
 {
-	if (static_branch_likely(&tc_skip_wrapper))
+	if (static_branch_likely(&tc_skip_wrapper_act))
 		goto skip;
 
 #if IS_BUILTIN(CONFIG_NET_ACT_GACT)
@@ -153,7 +154,7 @@ TC_INDIRECT_FILTER_DECLARE(u32_classify);
 static inline int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 				struct tcf_result *res)
 {
-	if (static_branch_likely(&tc_skip_wrapper))
+	if (static_branch_likely(&tc_skip_wrapper_cls))
 		goto skip;
 
 #if IS_BUILTIN(CONFIG_NET_CLS_BPF)
@@ -202,8 +203,44 @@ skip:
 static inline void tc_wrapper_init(void)
 {
 #ifdef CONFIG_X86
-	if (!cpu_feature_enabled(X86_FEATURE_RETPOLINE))
-		static_branch_enable(&tc_skip_wrapper);
+	int cnt_cls = IS_BUILTIN(CONFIG_NET_CLS_BPF) +
+		IS_BUILTIN(CONFIG_NET_CLS_U32)  +
+		IS_BUILTIN(CONFIG_NET_CLS_FLOWER) +
+		IS_BUILTIN(CONFIG_NET_CLS_FW) +
+		IS_BUILTIN(CONFIG_NET_CLS_MATCHALL) +
+		IS_BUILTIN(CONFIG_NET_CLS_BASIC) +
+		IS_BUILTIN(CONFIG_NET_CLS_CGROUP) +
+		IS_BUILTIN(CONFIG_NET_CLS_FLOW) +
+		IS_BUILTIN(CONFIG_NET_CLS_ROUTE4);
+
+	int cnt_act = IS_BUILTIN(CONFIG_NET_ACT_GACT) +
+		IS_BUILTIN(CONFIG_NET_ACT_MIRRED) +
+		IS_BUILTIN(CONFIG_NET_ACT_PEDIT) +
+		IS_BUILTIN(CONFIG_NET_ACT_SKBEDIT) +
+		IS_BUILTIN(CONFIG_NET_ACT_SKBMOD) +
+		IS_BUILTIN(CONFIG_NET_ACT_POLICE) +
+		IS_BUILTIN(CONFIG_NET_ACT_BPF) +
+		IS_BUILTIN(CONFIG_NET_ACT_CONNMARK) +
+		IS_BUILTIN(CONFIG_NET_ACT_CSUM) +
+		IS_BUILTIN(CONFIG_NET_ACT_CT) +
+		IS_BUILTIN(CONFIG_NET_ACT_CTINFO) +
+		IS_BUILTIN(CONFIG_NET_ACT_GATE) +
+		IS_BUILTIN(CONFIG_NET_ACT_MPLS) +
+		IS_BUILTIN(CONFIG_NET_ACT_NAT) +
+		IS_BUILTIN(CONFIG_NET_ACT_TUNNEL_KEY) +
+		IS_BUILTIN(CONFIG_NET_ACT_VLAN) +
+		IS_BUILTIN(CONFIG_NET_ACT_IFE) +
+		IS_BUILTIN(CONFIG_NET_ACT_SIMP) +
+		IS_BUILTIN(CONFIG_NET_ACT_SAMPLE);
+
+	if (cpu_feature_enabled(X86_FEATURE_RETPOLINE))
+		return;
+
+	if (cnt_cls > 1)
+		static_branch_enable(&tc_skip_wrapper_cls);
+
+	if (cnt_act > 1)
+		static_branch_enable(&tc_skip_wrapper_act);
 #endif
 }
 
