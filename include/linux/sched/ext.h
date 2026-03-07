@@ -157,11 +157,11 @@ struct scx_dsq_list_node {
 	u32			priv;		/* can be used by iter cursor */
 };
 
-#define INIT_DSQ_LIST_CURSOR(__node, __flags, __priv)				\
+#define INIT_DSQ_LIST_CURSOR(__cursor, __dsq, __flags)				\
 	(struct scx_dsq_list_node) {						\
-		.node = LIST_HEAD_INIT((__node).node),				\
+		.node = LIST_HEAD_INIT((__cursor).node),			\
 		.flags = SCX_DSQ_LNODE_ITER_CURSOR | (__flags),			\
-		.priv = (__priv),						\
+		.priv = READ_ONCE((__dsq)->seq),				\
 	}
 
 struct scx_sched;
