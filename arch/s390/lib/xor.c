@@ -28,8 +28,8 @@ static void xor_xc_2(unsigned long bytes, unsigned long * __restrict p1,
 		"	j	3f\n"
 		"2:	xc	0(1,%1),0(%2)\n"
 		"3:"
-		: : "d" (bytes), "a" (p1), "a" (p2)
-		: "0", "cc", "memory");
+		: "+a" (bytes), "+a" (p1), "+a" (p2)
+		: : "0", "cc", "memory");
 }
 
 static void xor_xc_3(unsigned long bytes, unsigned long * __restrict p1,
@@ -54,7 +54,7 @@ static void xor_xc_3(unsigned long bytes, unsigned long * __restrict p1,
 		"2:	xc	0(1,%1),0(%2)\n"
 		"3:	xc	0(1,%1),0(%3)\n"
 		"4:"
-		: "+d" (bytes), "+a" (p1), "+a" (p2), "+a" (p3)
+		: "+a" (bytes), "+a" (p1), "+a" (p2), "+a" (p3)
 		: : "0", "cc", "memory");
 }
 
@@ -85,7 +85,7 @@ static void xor_xc_4(unsigned long bytes, unsigned long * __restrict p1,
 		"3:	xc	0(1,%1),0(%3)\n"
 		"4:	xc	0(1,%1),0(%4)\n"
 		"5:"
-		: "+d" (bytes), "+a" (p1), "+a" (p2), "+a" (p3), "+a" (p4)
+		: "+a" (bytes), "+a" (p1), "+a" (p2), "+a" (p3), "+a" (p4)
 		: : "0", "cc", "memory");
 }
 
@@ -96,7 +96,6 @@ static void xor_xc_5(unsigned long bytes, unsigned long * __restrict p1,
 		     const unsigned long * __restrict p5)
 {
 	asm volatile(
-		"	larl	1,2f\n"
 		"	aghi	%0,-1\n"
 		"	jm	6f\n"
 		"	srlg	0,%0,8\n"
@@ -122,7 +121,7 @@ static void xor_xc_5(unsigned long bytes, unsigned long * __restrict p1,
 		"4:	xc	0(1,%1),0(%4)\n"
 		"5:	xc	0(1,%1),0(%5)\n"
 		"6:"
-		: "+d" (bytes), "+a" (p1), "+a" (p2), "+a" (p3), "+a" (p4),
+		: "+a" (bytes), "+a" (p1), "+a" (p2), "+a" (p3), "+a" (p4),
 		  "+a" (p5)
 		: : "0", "cc", "memory");
 }
