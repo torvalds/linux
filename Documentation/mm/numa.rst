@@ -140,7 +140,7 @@ this.
 
 If the architecture supports--does not hide--memoryless nodes, then CPUs
 attached to memoryless nodes would always incur the fallback path overhead
-or some subsystems would fail to initialize if they attempted to allocated
+or some subsystems would fail to initialize if they attempted to allocate
 memory exclusively from a node without memory.  To support such
 architectures transparently, kernel subsystems can use the numa_mem_id()
 or cpu_to_mem() function to locate the "local memory node" for the calling or
