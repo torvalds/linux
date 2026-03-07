@@ -607,6 +607,36 @@ static const struct module_attribute modinfo_##field = {              \
 MODINFO_ATTR(version);
 MODINFO_ATTR(srcversion);
 
+static void setup_modinfo_import_ns(struct module *mod, const char *s)
+{
+	mod->imported_namespaces = NULL;
+}
+
+static ssize_t show_modinfo_import_ns(const struct module_attribute *mattr,
+				      struct module_kobject *mk, char *buffer)
+{
+	return sysfs_emit(buffer, "%s\n", mk->mod->imported_namespaces);
+}
+
+static int modinfo_import_ns_exists(struct module *mod)
+{
+	return mod->imported_namespaces != NULL;
+}
+
+static void free_modinfo_import_ns(struct module *mod)
+{
+	kfree(mod->imported_namespaces);
+	mod->imported_namespaces = NULL;
+}
+
+static const struct module_attribute modinfo_import_ns = {
+	.attr = { .name = "import_ns", .mode = 0444 },
+	.show = show_modinfo_import_ns,
+	.setup = setup_modinfo_import_ns,
+	.test = modinfo_import_ns_exists,
+	.free = free_modinfo_import_ns,
+};
+
 static struct {
 	char name[MODULE_NAME_LEN];
 	char taints[MODULE_FLAGS_BUF_SIZE];
@@ -1058,6 +1088,7 @@ const struct module_attribute *const modinfo_attrs[] = {
 	&module_uevent,
 	&modinfo_version,
 	&modinfo_srcversion,
+	&modinfo_import_ns,
 	&modinfo_initstate,
 	&modinfo_coresize,
 #ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
@@ -1760,11 +1791,43 @@ static void module_license_taint_check(struct module *mod, const char *license)
 	}
 }
 
+static int copy_modinfo_import_ns(struct module *mod, struct load_info *info)
+{
+	char *ns;
+	size_t len, total_len = 0;
+	char *buf, *p;
+
+	for_each_modinfo_entry(ns, info, "import_ns")
+		total_len += strlen(ns) + 1;
+
+	if (!total_len) {
+		mod->imported_namespaces = NULL;
+		return 0;
+	}
+
+	buf = kmalloc(total_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	p = buf;
+	for_each_modinfo_entry(ns, info, "import_ns") {
+		len = strlen(ns);
+		memcpy(p, ns, len);
+		p += len;
+		*p++ = '\n';
+	}
+	/* Replace trailing newline with null terminator. */
+	*(p - 1) = '\0';
+
+	mod->imported_namespaces = buf;
+	return 0;
+}
+
 static int setup_modinfo(struct module *mod, struct load_info *info)
 {
 	const struct module_attribute *attr;
 	char *imported_namespace;
-	int i;
+	int i, err;
 
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
 		if (attr->setup)
@@ -1782,6 +1845,10 @@ static int setup_modinfo(struct module *mod, struct load_info *info)
 			return -EPERM;
 		}
 	}
+
+	err = copy_modinfo_import_ns(mod, info);
+	if (err)
+		return err;
 
 	return 0;
 }
