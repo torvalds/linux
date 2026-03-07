@@ -22,6 +22,7 @@ TEST_GEN_PROGS := \
 	netdev \
 	ovs \
 	rt-link \
+	tc \
 # end of TEST_GEN_PROGS
 
 BINS := \
@@ -29,13 +30,10 @@ BINS := \
 	ethtool \
 	rt-addr \
 	rt-route \
-	tc \
-	tc-filter-add \
 # end of BINS
 
 CFLAGS_netdev:=$(CFLAGS_netdev) $(CFLAGS_rt-link)
 CFLAGS_ovs:=$(CFLAGS_ovs_datapath)
-CFLAGS_tc-filter-add:=$(CFLAGS_tc)
 
 include $(wildcard *.d)
 
