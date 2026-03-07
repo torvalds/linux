@@ -341,10 +341,9 @@ static bool scx_is_descendant(struct scx_sched *sch, struct scx_sched *ancestor)
 	for ((pos) = scx_next_descendant_pre(NULL, (root)); (pos);		\
 	     (pos) = scx_next_descendant_pre((pos), (root)))
 
-static struct scx_dispatch_q *find_global_dsq(struct scx_sched *sch,
-					      struct task_struct *p)
+static struct scx_dispatch_q *find_global_dsq(struct scx_sched *sch, s32 cpu)
 {
-	return &sch->pnode[cpu_to_node(task_cpu(p))]->global_dsq;
+	return &sch->pnode[cpu_to_node(cpu)]->global_dsq;
 }
 
 static struct scx_dispatch_q *find_user_dsq(struct scx_sched *sch, u64 dsq_id)
@@ -1266,7 +1265,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct rq *rq,
 			scx_error(sch, "attempting to dispatch to a destroyed dsq");
 			/* fall back to the global dsq */
 			raw_spin_unlock(&dsq->lock);
-			dsq = find_global_dsq(sch, p);
+			dsq = find_global_dsq(sch, task_cpu(p));
 			raw_spin_lock(&dsq->lock);
 		}
 	}
@@ -1474,7 +1473,7 @@ static void dispatch_dequeue_locked(struct task_struct *p,
 
 static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
 						    struct rq *rq, u64 dsq_id,
-						    struct task_struct *p)
+						    s32 tcpu)
 {
 	struct scx_dispatch_q *dsq;
 
@@ -1485,20 +1484,19 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
 		s32 cpu = dsq_id & SCX_DSQ_LOCAL_CPU_MASK;
 
 		if (!ops_cpu_valid(sch, cpu, "in SCX_DSQ_LOCAL_ON dispatch verdict"))
-			return find_global_dsq(sch, p);
+			return find_global_dsq(sch, tcpu);
 
 		return &cpu_rq(cpu)->scx.local_dsq;
 	}
 
 	if (dsq_id == SCX_DSQ_GLOBAL)
-		dsq = find_global_dsq(sch, p);
+		dsq = find_global_dsq(sch, tcpu);
 	else
 		dsq = find_user_dsq(sch, dsq_id);
 
 	if (unlikely(!dsq)) {
-		scx_error(sch, "non-existent DSQ 0x%llx for %s[%d]",
-			  dsq_id, p->comm, p->pid);
-		return find_global_dsq(sch, p);
+		scx_error(sch, "non-existent DSQ 0x%llx", dsq_id);
+		return find_global_dsq(sch, tcpu);
 	}
 
 	return dsq;
@@ -1540,7 +1538,7 @@ static void direct_dispatch(struct scx_sched *sch, struct task_struct *p,
 {
 	struct rq *rq = task_rq(p);
 	struct scx_dispatch_q *dsq =
-		find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, p);
+		find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, task_cpu(p));
 
 	touch_core_sched_dispatch(rq, p);
 
@@ -1683,7 +1681,7 @@ local:
 	dsq = &rq->scx.local_dsq;
 	goto enqueue;
 global:
-	dsq = find_global_dsq(sch, p);
+	dsq = find_global_dsq(sch, task_cpu(p));
 	goto enqueue;
 bypass:
 	dsq = bypass_enq_target_dsq(sch, task_cpu(p));
@@ -2139,7 +2137,7 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
 		dst_rq = container_of(dst_dsq, struct rq, scx.local_dsq);
 		if (src_rq != dst_rq &&
 		    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
-			dst_dsq = find_global_dsq(sch, p);
+			dst_dsq = find_global_dsq(sch, task_cpu(p));
 			dst_rq = src_rq;
 		}
 	} else {
@@ -2268,7 +2266,7 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
 
 	if (src_rq != dst_rq &&
 	    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
-		dispatch_enqueue(sch, rq, find_global_dsq(sch, p), p,
+		dispatch_enqueue(sch, rq, find_global_dsq(sch, task_cpu(p)), p,
 				 enq_flags | SCX_ENQ_CLEAR_OPSS);
 		return;
 	}
@@ -2406,7 +2404,7 @@ retry:
 
 	BUG_ON(!(p->scx.flags & SCX_TASK_QUEUED));
 
-	dsq = find_dsq_for_dispatch(sch, this_rq(), dsq_id, p);
+	dsq = find_dsq_for_dispatch(sch, this_rq(), dsq_id, task_cpu(p));
 
 	if (dsq->id == SCX_DSQ_LOCAL)
 		dispatch_to_local_dsq(sch, rq, dsq, p, enq_flags);
@@ -2646,7 +2644,7 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 
 		list_del_init(&p->scx.dsq_list.node);
 
-		dsq = find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, p);
+		dsq = find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, task_cpu(p));
 		if (!WARN_ON_ONCE(dsq->id != SCX_DSQ_LOCAL))
 			dispatch_to_local_dsq(sch, rq, dsq, p,
 					      p->scx.ddsp_enq_flags);
@@ -7409,7 +7407,7 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	}
 
 	/* @p is still on $src_dsq and stable, determine the destination */
-	dst_dsq = find_dsq_for_dispatch(sch, this_rq, dsq_id, p);
+	dst_dsq = find_dsq_for_dispatch(sch, this_rq, dsq_id, task_cpu(p));
 
 	/*
 	 * Apply vtime and slice updates before moving so that the new time is
