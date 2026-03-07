@@ -128,10 +128,12 @@ static const struct fbnic_stat fbnic_gstrings_xdp_stats[] = {
 
 enum fbnic_self_test_results {
 	TEST_REG = 0,
+	TEST_MSIX,
 };
 
 static const char fbnic_gstrings_self_test[][ETH_GSTRING_LEN] = {
 	[TEST_REG]	= "Register test (offline)",
+	[TEST_MSIX]	= "MSI-X Interrupt test (offline)",
 };
 
 #define FBNIC_TEST_LEN ARRAY_SIZE(fbnic_gstrings_self_test)
@@ -1504,6 +1506,28 @@ static int fbnic_ethtool_regs_test(struct net_device *netdev, u64 *data)
 	return !!*data;
 }
 
+/**
+ * fbnic_ethtool_msix_test - Verify behavior of NIC interrupts
+ * @netdev: netdev device to test
+ * @data: Pointer to results storage
+ *
+ * This function is meant to test the global interrupt registers and the
+ * PCIe IP MSI-X functionality. It essentially goes through and tests
+ * test various combinations of the set, clear, and mask bits in order to
+ * verify the behavior is as we expect it to be from the driver.
+ *
+ * Return: non-zero on failure.
+ **/
+static int fbnic_ethtool_msix_test(struct net_device *netdev, u64 *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	*data = fbnic_msix_test(fbd);
+
+	return !!*data;
+}
+
 static void fbnic_self_test(struct net_device *netdev,
 			    struct ethtool_test *eth_test, u64 *data)
 {
@@ -1511,6 +1535,7 @@ static void fbnic_self_test(struct net_device *netdev,
 
 	if (!(eth_test->flags & ETH_TEST_FL_OFFLINE)) {
 		data[TEST_REG] = 0;
+		data[TEST_MSIX] = 0;
 		return;
 	}
 
@@ -1518,6 +1543,9 @@ static void fbnic_self_test(struct net_device *netdev,
 		netif_close(netdev);
 
 	if (fbnic_ethtool_regs_test(netdev, &data[TEST_REG]))
+		eth_test->flags |= ETH_TEST_FL_FAILED;
+
+	if (fbnic_ethtool_msix_test(netdev, &data[TEST_MSIX]))
 		eth_test->flags |= ETH_TEST_FL_FAILED;
 
 	if (if_running && netif_open(netdev, NULL)) {
