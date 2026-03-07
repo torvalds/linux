@@ -227,7 +227,7 @@ if 'node_to_cpumask_map' in prog:
         print(f'NODE[{node:02}]={cpumask_str(node_to_cpumask_map[node])}')
     print('')
 
-    print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ min max', end='')
+    print(f'[{"workqueue":^{WQ_NAME_LEN-1}} min max', end='')
     first = True
     for node in for_each_node():
         if first:
