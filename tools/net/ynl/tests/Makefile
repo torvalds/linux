@@ -21,13 +21,13 @@ TEST_PROGS := \
 TEST_GEN_PROGS := \
 	netdev \
 	ovs \
+	rt-link \
 # end of TEST_GEN_PROGS
 
 BINS := \
 	devlink \
 	ethtool \
 	rt-addr \
-	rt-link \
 	rt-route \
 	tc \
 	tc-filter-add \
