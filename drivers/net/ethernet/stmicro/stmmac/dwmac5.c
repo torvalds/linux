@@ -525,8 +525,6 @@ int dwmac5_flex_pps_config(void __iomem *ioaddr, int index,
 	u32 val = readl(ioaddr + MAC_PPS_CONTROL);
 	u64 period;
 
-	if (!cfg->available)
-		return -EINVAL;
 	if (tnsec & TRGTBUSY0)
 		return -EBUSY;
 	if (!sub_second_inc || !systime_flags)

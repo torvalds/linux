@@ -336,7 +336,6 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 {
 	unsigned int pps_out_num = priv->dma_cap.pps_out_num;
 	unsigned int n_ext_ts;
-	int i;
 
 	if (pps_out_num > STMMAC_PPS_MAX) {
 		dev_warn(priv->device,
@@ -344,9 +343,6 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 			 pps_out_num, STMMAC_PPS_MAX);
 		pps_out_num = STMMAC_PPS_MAX;
 	}
-
-	for (i = 0; i < pps_out_num; i++)
-		priv->pps[i].available = true;
 
 	/* Calculate the clock domain crossing (CDC) error if necessary */
 	priv->plat->cdc_error_adj = 0;
