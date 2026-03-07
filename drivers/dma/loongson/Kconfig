@@ -27,4 +27,15 @@ config LOONGSON2_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo.
 	  It does not support memory to memory data transfer.
 
+config LOONGSON2_APB_CMC_DMA
+	tristate "Loongson2 Chain Multi-Channel DMA support"
+	depends on MACH_LOONGSON64 || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support for the Loongson Chain Multi-Channel DMA controller driver.
+	  It is discovered on the Loongson-2K chip (Loongson-2K0300/Loongson-2K3000),
+	  which has 4/8 channels internally, enabling bidirectional data transfer
+	  between devices and memory.
+
 endif
