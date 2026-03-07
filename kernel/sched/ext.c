@@ -8121,7 +8121,7 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(const struct bpf_prog_aux *aux)
 	rq = cpu_rq(smp_processor_id());
 	lockdep_assert_rq_held(rq);
 
-	return reenq_local(sch, rq, 0);
+	return reenq_local(sch, rq, SCX_REENQ_ANY);
 }
 
 __bpf_kfunc_end_defs();
