@@ -1921,7 +1921,10 @@ sub run_command {
     doprint("$command ... ");
     $start_time = time;
 
-    $pid = open(CMD, "$command 2>&1 |") or
+    $pid = open(CMD, "-|",
+		"sh", "-c",
+		'command=$1; shift; exec 2>&1; eval "$command"',
+		"sh", $command) or
 	(fail "unable to exec $command" and return 0);
 
     if (defined($opt{"LOG_FILE"})) {
