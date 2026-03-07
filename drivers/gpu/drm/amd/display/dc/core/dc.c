@@ -4617,7 +4617,7 @@ static void commit_planes_for_stream(struct dc *dc,
 						srf_updates[i].cm->flags.bits.lut3d_enable &&
 						srf_updates[i].cm->flags.bits.lut3d_dma_enable &&
 						dc->hwss.trigger_3dlut_dma_load)
-					dc->hwss.trigger_3dlut_dma_load(dc, pipe_ctx);
+					dc->hwss.trigger_3dlut_dma_load(pipe_ctx);
 
 				/*program triple buffer after lock based on flip type*/
 				if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
