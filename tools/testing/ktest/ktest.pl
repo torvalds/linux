@@ -4391,7 +4391,7 @@ EOF
 read_config $ktest_config;
 
 if (defined($opt{"LOG_FILE"})) {
-    $opt{"LOG_FILE"} = eval_option("LOG_FILE", $opt{"LOG_FILE"}, -1);
+    $opt{"LOG_FILE"} = set_test_option("LOG_FILE", 1);
 }
 
 # Append any configs entered in manually to the config file.
