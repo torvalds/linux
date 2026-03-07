@@ -181,7 +181,7 @@ static void linkwatch_do_dev(struct net_device *dev)
 		if (netif_carrier_ok(dev))
 			dev_activate(dev);
 		else
-			dev_deactivate(dev);
+			dev_deactivate(dev, true);
 
 		netif_state_change(dev);
 	}
