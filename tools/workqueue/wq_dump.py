@@ -228,13 +228,8 @@ if 'node_to_cpumask_map' in prog:
     print('')
 
     print(f'[{"workqueue":^{WQ_NAME_LEN-1}} {"min":>4} {"max":>4}', end='')
-    first = True
     for node in for_each_node():
-        if first:
-            print(f'  {"NODE " + str(node):>8}', end='')
-            first = False
-        else:
-            print(f' {node:>9}', end='')
+        print(f' {"NODE " + str(node):>9}', end='')
     print(f' {"dfl":>9} ]')
     print('')
 
