@@ -78,7 +78,7 @@ class YnlEncoder(json.JSONEncoder):
         if isinstance(o, bytes):
             return bytes.hex(o)
         if isinstance(o, set):
-            return list(o)
+            return sorted(o)
         return json.JSONEncoder.default(self, o)
 
 
