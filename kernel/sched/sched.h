@@ -808,7 +808,8 @@ struct scx_rq {
 
 	struct task_struct	*sub_dispatch_prev;
 
-	struct llist_head	deferred_reenq_locals;
+	raw_spinlock_t		deferred_reenq_lock;
+	struct list_head	deferred_reenq_locals;	/* scheds requesting reenq of local DSQ */
 	struct balance_callback	deferred_bal_cb;
 	struct irq_work		deferred_irq_work;
 	struct irq_work		kick_cpus_irq_work;

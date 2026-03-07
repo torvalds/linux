@@ -965,7 +965,7 @@ struct scx_sched_pcpu {
 	 */
 	struct scx_event_stats	event_stats;
 
-	struct llist_node	deferred_reenq_locals_node;
+	struct list_head	deferred_reenq_local_node;
 	struct scx_dispatch_q	bypass_dsq;
 #ifdef CONFIG_EXT_SUB_SCHED
 	u32			bypass_host_seq;
