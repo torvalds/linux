@@ -4113,6 +4113,7 @@ static const struct attribute_group scx_global_attr_group = {
 	.attrs = scx_global_attrs,
 };
 
+static void free_pnode(struct scx_sched_pnode *pnode);
 static void free_exit_info(struct scx_exit_info *ei);
 
 static void scx_sched_free_rcu_work(struct work_struct *work)
@@ -4147,7 +4148,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	free_percpu(sch->pcpu);
 
 	for_each_node_state(node, N_POSSIBLE)
-		kfree(sch->pnode[node]);
+		free_pnode(sch->pnode[node]);
 	kfree(sch->pnode);
 
 	rhashtable_walk_enter(&sch->dsq_hash, &rht_iter);
@@ -5684,6 +5685,24 @@ static int alloc_kick_syncs(void)
 	return 0;
 }
 
+static void free_pnode(struct scx_sched_pnode *pnode)
+{
+	kfree(pnode);
+}
+
+static struct scx_sched_pnode *alloc_pnode(struct scx_sched *sch, int node)
+{
+	struct scx_sched_pnode *pnode;
+
+	pnode = kzalloc_node(sizeof(*pnode), GFP_KERNEL, node);
+	if (!pnode)
+		return NULL;
+
+	init_dsq(&pnode->global_dsq, SCX_DSQ_GLOBAL, sch);
+
+	return pnode;
+}
+
 static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 						 struct cgroup *cgrp,
 						 struct scx_sched *parent)
@@ -5713,16 +5732,11 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 	}
 
 	for_each_node_state(node, N_POSSIBLE) {
-		struct scx_sched_pnode *pnode;
-
-		pnode = kzalloc_node(sizeof(*pnode), GFP_KERNEL, node);
-		if (!pnode) {
+		sch->pnode[node] = alloc_pnode(sch, node);
+		if (!sch->pnode[node]) {
 			ret = -ENOMEM;
 			goto err_free_pnode;
 		}
-
-		init_dsq(&pnode->global_dsq, SCX_DSQ_GLOBAL, sch);
-		sch->pnode[node] = pnode;
 	}
 
 	sch->dsp_max_batch = ops->dispatch_max_batch ?: SCX_DSP_DFL_MAX_BATCH;
@@ -5820,7 +5834,7 @@ err_free_pcpu:
 	free_percpu(sch->pcpu);
 err_free_pnode:
 	for_each_node_state(node, N_POSSIBLE)
-		kfree(sch->pnode[node]);
+		free_pnode(sch->pnode[node]);
 	kfree(sch->pnode);
 err_free_hash:
 	rhashtable_free_and_destroy(&sch->dsq_hash, NULL, NULL);
