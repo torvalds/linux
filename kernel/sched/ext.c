@@ -3284,17 +3284,15 @@ static struct cgroup *tg_cgrp(struct task_group *tg)
 
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 
-static enum scx_task_state scx_get_task_state(const struct task_struct *p)
+static u32 scx_get_task_state(const struct task_struct *p)
 {
-	return (p->scx.flags & SCX_TASK_STATE_MASK) >> SCX_TASK_STATE_SHIFT;
+	return p->scx.flags & SCX_TASK_STATE_MASK;
 }
 
-static void scx_set_task_state(struct task_struct *p, enum scx_task_state state)
+static void scx_set_task_state(struct task_struct *p, u32 state)
 {
-	enum scx_task_state prev_state = scx_get_task_state(p);
+	u32 prev_state = scx_get_task_state(p);
 	bool warn = false;
-
-	BUILD_BUG_ON(SCX_TASK_NR_STATES > (1 << SCX_TASK_STATE_BITS));
 
 	switch (state) {
 	case SCX_TASK_NONE:
@@ -3313,11 +3311,11 @@ static void scx_set_task_state(struct task_struct *p, enum scx_task_state state)
 		return;
 	}
 
-	WARN_ONCE(warn, "sched_ext: Invalid task state transition %d -> %d for %s[%d]",
+	WARN_ONCE(warn, "sched_ext: Invalid task state transition 0x%x -> 0x%x for %s[%d]",
 		  prev_state, state, p->comm, p->pid);
 
 	p->scx.flags &= ~SCX_TASK_STATE_MASK;
-	p->scx.flags |= state << SCX_TASK_STATE_SHIFT;
+	p->scx.flags |= state;
 }
 
 static int __scx_init_task(struct scx_sched *sch, struct task_struct *p, bool fork)
@@ -5794,7 +5792,8 @@ static void scx_dump_task(struct scx_sched *sch,
 		  own_marker, sch_id_buf,
 		  jiffies_delta_msecs(p->scx.runnable_at, dctx->at_jiffies));
 	dump_line(s, "      scx_state/flags=%u/0x%x dsq_flags=0x%x ops_state/qseq=%lu/%lu",
-		  scx_get_task_state(p), p->scx.flags & ~SCX_TASK_STATE_MASK,
+		  scx_get_task_state(p) >> SCX_TASK_STATE_SHIFT,
+		  p->scx.flags & ~SCX_TASK_STATE_MASK,
 		  p->scx.dsq_flags, ops_state & SCX_OPSS_STATE_MASK,
 		  ops_state >> SCX_OPSS_QSEQ_SHIFT);
 	dump_line(s, "      sticky/holding_cpu=%d/%d dsq_id=%s",
@@ -6558,7 +6557,7 @@ static struct scx_sched *find_parent_sched(struct cgroup *cgrp)
 
 static bool assert_task_ready_or_enabled(struct task_struct *p)
 {
-	enum scx_task_state state = scx_get_task_state(p);
+	u32 state = scx_get_task_state(p);
 
 	switch (state) {
 	case SCX_TASK_READY:

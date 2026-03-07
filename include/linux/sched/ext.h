@@ -93,7 +93,7 @@ struct scx_dispatch_q {
 	struct rcu_head		rcu;
 };
 
-/* scx_entity.flags */
+/* sched_ext_entity.flags */
 enum scx_ent_flags {
 	SCX_TASK_QUEUED		= 1 << 0, /* on ext runqueue */
 	SCX_TASK_IN_CUSTODY	= 1 << 1, /* in custody, needs ops.dequeue() when leaving */
@@ -101,21 +101,25 @@ enum scx_ent_flags {
 	SCX_TASK_DEQD_FOR_SLEEP	= 1 << 3, /* last dequeue was for SLEEP */
 	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
 
-	SCX_TASK_STATE_SHIFT	= 8,	  /* bit 8 and 9 are used to carry scx_task_state */
+	/*
+	 * Bits 8 and 9 are used to carry task state:
+	 *
+	 * NONE		ops.init_task() not called yet
+	 * INIT		ops.init_task() succeeded, but task can be cancelled
+	 * READY	fully initialized, but not in sched_ext
+	 * ENABLED	fully initialized and in sched_ext
+	 */
+	SCX_TASK_STATE_SHIFT	= 8,	  /* bits 8 and 9 are used to carry task state */
 	SCX_TASK_STATE_BITS	= 2,
 	SCX_TASK_STATE_MASK	= ((1 << SCX_TASK_STATE_BITS) - 1) << SCX_TASK_STATE_SHIFT,
 
-	SCX_TASK_CURSOR		= 1 << 31, /* iteration cursor, not a task */
-};
+	SCX_TASK_NONE		= 0 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_INIT		= 1 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_READY		= 2 << SCX_TASK_STATE_SHIFT,
+	SCX_TASK_ENABLED	= 3 << SCX_TASK_STATE_SHIFT,
 
-/* scx_entity.flags & SCX_TASK_STATE_MASK */
-enum scx_task_state {
-	SCX_TASK_NONE,		/* ops.init_task() not called yet */
-	SCX_TASK_INIT,		/* ops.init_task() succeeded, but task can be cancelled */
-	SCX_TASK_READY,		/* fully initialized, but not in sched_ext */
-	SCX_TASK_ENABLED,	/* fully initialized and in sched_ext */
-
-	SCX_TASK_NR_STATES,
+	/* iteration cursor, not a task */
+	SCX_TASK_CURSOR		= 1 << 31,
 };
 
 /* scx_entity.dsq_flags */
