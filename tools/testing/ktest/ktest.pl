@@ -910,6 +910,14 @@ sub set_variable {
     if (defined($command_tmp_vars{$lvalue})) {
 	return;
     }
+
+    # If a variable is undefined, treat an unescaped self-reference as empty.
+    if (!defined($variable{$lvalue})) {
+	$rvalue =~ s/(?<!\\)\$\{\Q$lvalue\E\}//g;
+	$rvalue =~ s/^\s+//;
+	$rvalue =~ s/\s+$//;
+    }
+
     if ($rvalue =~ /^\s*$/) {
 	delete $variable{$lvalue};
     } else {
