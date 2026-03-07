@@ -114,6 +114,7 @@ static unsigned int calc_duration_in_us_from_v_total(
 		const struct mod_vrr_params *in_vrr,
 		unsigned int v_total)
 {
+	(void)in_vrr;
 	unsigned int duration_in_us =
 			(unsigned int)(div64_u64(((unsigned long long)(v_total)
 				* 10000) * stream->timing.h_total,
@@ -218,6 +219,7 @@ static void update_v_total_for_static_ramp(
 		const struct dc_stream_state *stream,
 		struct mod_vrr_params *in_out_vrr)
 {
+	(void)core_freesync;
 	unsigned int v_total = 0;
 	unsigned int current_duration_in_us =
 			calc_duration_in_us_from_v_total(
@@ -292,6 +294,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		unsigned int last_render_time_in_us,
 		struct mod_vrr_params *in_out_vrr)
 {
+	(void)core_freesync;
 	unsigned int inserted_frame_duration_in_us = 0;
 	unsigned int mid_point_frames_ceil = 0;
 	unsigned int mid_point_frames_floor = 0;
@@ -447,6 +450,7 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 		unsigned int last_render_time_in_us,
 		struct mod_vrr_params *in_out_vrr)
 {
+	(void)core_freesync;
 	bool update = false;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
 
@@ -545,6 +549,7 @@ static bool vrr_settings_require_update(struct core_freesync *core_freesync,
 		unsigned int max_refresh_in_uhz,
 		struct mod_vrr_params *in_vrr)
 {
+	(void)core_freesync;
 	if (in_vrr->state != in_config->state) {
 		return true;
 	} else if (in_vrr->state == VRR_STATE_ACTIVE_FIXED &&
@@ -946,6 +951,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		struct dc_info_packet *infopacket,
 		bool pack_sdp_v1_3)
 {
+	(void)mod_freesync;
 	/* SPD info packet for FreeSync
 	 * VTEM info packet for HdmiVRR
 	 * Check if Freesync is supported. Return if false. If true,
