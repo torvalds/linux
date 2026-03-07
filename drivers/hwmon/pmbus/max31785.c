@@ -55,7 +55,7 @@ static inline void max31785_wait(const struct max31785_data *data)
 
 static int max31785_i2c_write_byte_data(struct i2c_client *client,
 					struct max31785_data *driver_data,
-					int command, u16 data)
+					int command, u8 data)
 {
 	int rc;
 
