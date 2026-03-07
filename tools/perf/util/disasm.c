@@ -908,13 +908,14 @@ static void annotation_line__init(struct annotation_line *al,
 	al->offset = args->offset;
 	al->line = strdup(args->line);
 	al->line_nr = args->line_nr;
-	al->fileloc = args->fileloc;
+	al->fileloc = args->fileloc ? strdup(args->fileloc) : NULL;
 	al->data_nr = nr;
 }
 
 static void annotation_line__exit(struct annotation_line *al)
 {
 	zfree_srcline(&al->path);
+	zfree(&al->fileloc);
 	zfree(&al->line);
 	zfree(&al->cycles);
 	zfree(&al->br_cntr);
@@ -950,7 +951,7 @@ struct disasm_line *disasm_line__new(struct annotate_args *args)
 
 	annotation_line__init(&dl->al, args, nr);
 	if (dl->al.line == NULL)
-		goto out_delete;
+		goto out_free_line;
 
 	if (args->offset != -1) {
 		if (arch__is_powerpc(args->arch)) {
@@ -965,8 +966,7 @@ struct disasm_line *disasm_line__new(struct annotate_args *args)
 	return dl;
 
 out_free_line:
-	zfree(&dl->al.line);
-out_delete:
+	annotation_line__exit(&dl->al);
 	free(dl);
 	return NULL;
 }
