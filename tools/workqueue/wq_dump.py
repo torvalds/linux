@@ -227,15 +227,15 @@ if 'node_to_cpumask_map' in prog:
         print(f'NODE[{node:02}]={cpumask_str(node_to_cpumask_map[node])}')
     print('')
 
-    print(f'[{"workqueue":^{WQ_NAME_LEN-1}} min max', end='')
+    print(f'[{"workqueue":^{WQ_NAME_LEN-1}} {"min":>4} {"max":>4}', end='')
     first = True
     for node in for_each_node():
         if first:
-            print(f'  NODE {node}', end='')
+            print(f'  {"NODE " + str(node):>8}', end='')
             first = False
         else:
-            print(f' {node:7}', end='')
-    print(f' {"dfl":>7} ]')
+            print(f' {node:>9}', end='')
+    print(f' {"dfl":>9} ]')
     print('')
 
     for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
@@ -243,11 +243,11 @@ if 'node_to_cpumask_map' in prog:
             continue
 
         print(f'{wq.name.string_().decode():{WQ_NAME_LEN}} ', end='')
-        print(f'{wq.min_active.value_():3} {wq.max_active.value_():3}', end='')
+        print(f'{wq.min_active.value_():4} {wq.max_active.value_():4}', end='')
         for node in for_each_node():
             nna = wq.node_nr_active[node]
-            print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}', end='')
+            print(f' {f"{nna.nr.counter.value_()}/{nna.max.value_()}":>9}', end='')
         nna = wq.node_nr_active[nr_node_ids]
-        print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}')
+        print(f' {f"{nna.nr.counter.value_()}/{nna.max.value_()}":>9}')
 else:
     printf(f'node_to_cpumask_map not present, is NUMA enabled?')
