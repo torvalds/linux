@@ -124,7 +124,7 @@ static ssize_t voltage_show(struct device *dev, struct device_attribute *da,
 		val = ads7871_read_reg16(spi, REG_LS_BYTE);
 		/*result in volts*10000 = (val/8192)*2.5*10000*/
 		val = ((val >> 2) * 25000) / 8192;
-		return sprintf(buf, "%d\n", val);
+		return sysfs_emit(buf, "%d\n", val);
 	} else {
 		return -1;
 	}
