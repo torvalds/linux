@@ -1643,7 +1643,7 @@ static short kvm_s2_resolve_vma_size(struct vm_area_struct *vma,
 				     unsigned long hva,
 				     struct kvm_memory_slot *memslot,
 				     struct kvm_s2_trans *nested,
-				     bool *force_pte, phys_addr_t *ipa)
+				     bool *force_pte)
 {
 	short vma_shift;
 
@@ -1680,8 +1680,6 @@ static short kvm_s2_resolve_vma_size(struct vm_area_struct *vma,
 		unsigned long max_map_size;
 
 		max_map_size = *force_pte ? PAGE_SIZE : PUD_SIZE;
-
-		*ipa = kvm_s2_trans_output(nested);
 
 		/*
 		 * If we're about to create a shadow stage 2 entry, then we
@@ -1722,7 +1720,6 @@ struct kvm_s2_fault {
 	bool is_vma_cacheable;
 	bool s2_force_noncacheable;
 	unsigned long mmu_seq;
-	phys_addr_t ipa;
 	gfn_t gfn;
 	kvm_pfn_t pfn;
 	bool logging_active;
@@ -1738,6 +1735,7 @@ static int kvm_s2_fault_get_vma_info(struct kvm_s2_fault *fault)
 {
 	struct vm_area_struct *vma;
 	struct kvm *kvm = fault->vcpu->kvm;
+	phys_addr_t ipa;
 
 	mmap_read_lock(current->mm);
 	vma = vma_lookup(current->mm, fault->hva);
@@ -1748,8 +1746,7 @@ static int kvm_s2_fault_get_vma_info(struct kvm_s2_fault *fault)
 	}
 
 	fault->vma_pagesize = 1UL << kvm_s2_resolve_vma_size(vma, fault->hva, fault->memslot,
-							     fault->nested, &fault->force_pte,
-							     &fault->ipa);
+							     fault->nested, &fault->force_pte);
 
 	/*
 	 * Both the canonical IPA and fault IPA must be aligned to the
@@ -1757,9 +1754,9 @@ static int kvm_s2_fault_get_vma_info(struct kvm_s2_fault *fault)
 	 * mapping in the right place.
 	 */
 	fault->fault_ipa = ALIGN_DOWN(fault->fault_ipa, fault->vma_pagesize);
-	fault->ipa = ALIGN_DOWN(fault->ipa, fault->vma_pagesize);
+	ipa = fault->nested ? kvm_s2_trans_output(fault->nested) : fault->fault_ipa;
+	fault->gfn = ALIGN_DOWN(ipa, fault->vma_pagesize) >> PAGE_SHIFT;
 
-	fault->gfn = fault->ipa >> PAGE_SHIFT;
 	fault->mte_allowed = kvm_vma_mte_allowed(vma);
 
 	fault->vm_flags = vma->vm_flags;
@@ -1970,7 +1967,6 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		.memslot = memslot,
 		.hva = hva,
 		.fault_is_perm = fault_is_perm,
-		.ipa = fault_ipa,
 		.logging_active = logging_active,
 		.force_pte = logging_active,
 		.prot = KVM_PGTABLE_PROT_R,
