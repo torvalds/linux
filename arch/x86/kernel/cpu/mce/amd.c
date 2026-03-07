@@ -95,7 +95,7 @@ static DEFINE_PER_CPU_READ_MOSTLY(struct smca_bank[MAX_NR_BANKS], smca_banks);
 static DEFINE_PER_CPU_READ_MOSTLY(u8[N_SMCA_BANK_TYPES], smca_bank_counts);
 
 static const char * const smca_names[] = {
-	[SMCA_CS ... SMCA_CS_V2]	= "coherent_slave",
+	[SMCA_CS ... SMCA_CS_V2]	= "coherent_station",
 	[SMCA_DE]			= "decode_unit",
 	[SMCA_EX]			= "execution_unit",
 	[SMCA_FP]			= "floating_point",

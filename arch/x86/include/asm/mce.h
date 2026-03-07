@@ -350,7 +350,7 @@ extern void apei_mce_report_mem_error(int corrected,
  * Exception: Keep "V2, etc." with their originals.
  */
 enum smca_bank_types {
-	SMCA_CS,	/* Coherent Slave */
+	SMCA_CS,	/* Coherent Station */
 	SMCA_CS_V2,
 	SMCA_DE,	/* Decoder Unit */
 	SMCA_EX,	/* Execution Unit */

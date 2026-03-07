@@ -689,7 +689,7 @@ static void decode_mc6_mce(struct mce *m)
 }
 
 static const char * const smca_long_names[] = {
-	[SMCA_CS ... SMCA_CS_V2]	= "Coherent Slave",
+	[SMCA_CS ... SMCA_CS_V2]	= "Coherent Station",
 	[SMCA_DE]			= "Decode Unit",
 	[SMCA_EX]			= "Execution Unit",
 	[SMCA_FP]			= "Floating Point Unit",
