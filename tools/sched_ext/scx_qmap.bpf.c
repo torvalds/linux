@@ -26,8 +26,11 @@
 
 enum consts {
 	ONE_SEC_IN_NS		= 1000000000,
+	ONE_MSEC_IN_NS		= 1000000,
+	LOWPRI_INTV_NS		= 10 * ONE_MSEC_IN_NS,
 	SHARED_DSQ		= 0,
 	HIGHPRI_DSQ		= 1,
+	LOWPRI_DSQ		= 2,
 	HIGHPRI_WEIGHT		= 8668,		/* this is what -20 maps to */
 };
 
@@ -172,6 +175,9 @@ s32 BPF_STRUCT_OPS(qmap_select_cpu, struct task_struct *p,
 	if (!(tctx = lookup_task_ctx(p)))
 		return -ESRCH;
 
+	if (p->scx.weight < 2 && !(p->flags & PF_KTHREAD))
+		return prev_cpu;
+
 	cpu = pick_direct_dispatch_cpu(p, prev_cpu);
 
 	if (cpu >= 0) {
@@ -239,6 +245,13 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (tctx->force_local) {
 		tctx->force_local = false;
 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
+		return;
+	}
+
+	/* see lowpri_timerfn() */
+	if (__COMPAT_has_generic_reenq() &&
+	    p->scx.weight < 2 && !(p->flags & PF_KTHREAD) && !(enq_flags & SCX_ENQ_REENQ)) {
+		scx_bpf_dsq_insert(p, LOWPRI_DSQ, slice_ns, enq_flags);
 		return;
 	}
 
@@ -873,6 +886,28 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 	return 0;
 }
 
+struct lowpri_timer {
+	struct bpf_timer timer;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, u32);
+	__type(value, struct lowpri_timer);
+} lowpri_timer SEC(".maps");
+
+/*
+ * Nice 19 tasks are put into the lowpri DSQ. Every 10ms, reenq is triggered and
+ * the tasks are transferred to SHARED_DSQ.
+ */
+static int lowpri_timerfn(void *map, int *key, struct bpf_timer *timer)
+{
+	scx_bpf_dsq_reenq(LOWPRI_DSQ, 0);
+	bpf_timer_start(timer, LOWPRI_INTV_NS, 0);
+	return 0;
+}
+
 s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 {
 	u32 key = 0;
@@ -894,14 +929,32 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 		return ret;
 	}
 
+	ret = scx_bpf_create_dsq(LOWPRI_DSQ, -1);
+	if (ret)
+		return ret;
+
 	timer = bpf_map_lookup_elem(&monitor_timer, &key);
 	if (!timer)
 		return -ESRCH;
-
 	bpf_timer_init(timer, &monitor_timer, CLOCK_MONOTONIC);
 	bpf_timer_set_callback(timer, monitor_timerfn);
+	ret = bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
+	if (ret)
+		return ret;
 
-	return bpf_timer_start(timer, ONE_SEC_IN_NS, 0);
+	if (__COMPAT_has_generic_reenq()) {
+		/* see lowpri_timerfn() */
+		timer = bpf_map_lookup_elem(&lowpri_timer, &key);
+		if (!timer)
+			return -ESRCH;
+		bpf_timer_init(timer, &lowpri_timer, CLOCK_MONOTONIC);
+		bpf_timer_set_callback(timer, lowpri_timerfn);
+		ret = bpf_timer_start(timer, LOWPRI_INTV_NS, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void BPF_STRUCT_OPS(qmap_exit, struct scx_exit_info *ei)

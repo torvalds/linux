@@ -810,6 +810,7 @@ struct scx_rq {
 
 	raw_spinlock_t		deferred_reenq_lock;
 	struct list_head	deferred_reenq_locals;	/* scheds requesting reenq of local DSQ */
+	struct list_head	deferred_reenq_users;	/* user DSQs requesting reenq */
 	struct balance_callback	deferred_bal_cb;
 	struct irq_work		deferred_irq_work;
 	struct irq_work		kick_cpus_irq_work;

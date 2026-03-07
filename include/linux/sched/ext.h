@@ -62,8 +62,14 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };
 
+struct scx_deferred_reenq_user {
+	struct list_head	node;
+	u64			flags;
+};
+
 struct scx_dsq_pcpu {
 	struct scx_dispatch_q	*dsq;
+	struct scx_deferred_reenq_user deferred_reenq_user;
 };
 
 /*
