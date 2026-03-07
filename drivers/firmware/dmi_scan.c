@@ -47,7 +47,7 @@ static struct dmi_memdev_info {
 static int dmi_memdev_nr;
 static int dmi_memdev_populated_nr __initdata;
 
-static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
+const char *dmi_string_nosave(const struct dmi_header *dm, u8 s)
 {
 	const u8 *bp = ((u8 *) dm) + dm->length;
 	const u8 *nsp;
@@ -66,6 +66,7 @@ static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 
 	return dmi_empty_string;
 }
+EXPORT_SYMBOL_GPL(dmi_string_nosave);
 
 static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
 {

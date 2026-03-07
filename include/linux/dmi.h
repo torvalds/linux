@@ -91,6 +91,21 @@ struct dmi_device {
 	void *device_data;	/* Type specific data */
 };
 
+#define DMI_A_INFO_ENT_MIN_SIZE 0x6
+struct dmi_a_info_entry {
+	u8 length;
+	u16 handle;
+	u8 offset;
+	u8 str_num;
+	u8 value[];
+} __packed;
+
+#define DMI_A_INFO_MIN_SIZE	0xB
+struct dmi_a_info {
+	struct dmi_header header;
+	u8 count;
+} __packed;
+
 #ifdef CONFIG_DMI
 
 struct dmi_dev_onboard {
@@ -120,6 +135,7 @@ extern void dmi_memdev_name(u16 handle, const char **bank, const char **device);
 extern u64 dmi_memdev_size(u16 handle);
 extern u8 dmi_memdev_type(u16 handle);
 extern u16 dmi_memdev_handle(int slot);
+const char *dmi_string_nosave(const struct dmi_header *dm, u8 s);
 
 #else
 
@@ -153,6 +169,8 @@ static inline u8 dmi_memdev_type(u16 handle) { return 0x0; }
 static inline u16 dmi_memdev_handle(int slot) { return 0xffff; }
 static inline const struct dmi_system_id *
 	dmi_first_match(const struct dmi_system_id *list) { return NULL; }
+static inline const char *
+	dmi_string_nosave(const struct dmi_header *dm, u8 s) { return ""; }
 
 #endif
 
