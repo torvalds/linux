@@ -616,17 +616,13 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->regs),
 				     "devm_platform_ioremap_resource failed.\n");
 
-	priv->dma_clk = devm_clk_get(&pdev->dev, NULL);
+	priv->dma_clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->dma_clk))
-		return dev_err_probe(dev, PTR_ERR(priv->dma_clk), "devm_clk_get failed.\n");
-
-	ret = clk_prepare_enable(priv->dma_clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "clk_prepare_enable failed.\n");
+		return dev_err_probe(dev, PTR_ERR(priv->dma_clk), "Couldn't start the clock.\n");
 
 	ret = ls2x_dma_chan_init(pdev, priv);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	ddev = &priv->ddev;
 	ddev->dev = dev;
@@ -652,21 +648,16 @@ static int ls2x_dma_probe(struct platform_device *pdev)
 
 	ret = dmaenginem_async_device_register(&priv->ddev);
 	if (ret < 0)
-		goto disable_clk;
+		return dev_err_probe(dev, ret, "Failed to register DMA engine device.\n");
 
 	ret = of_dma_controller_register(dev->of_node, of_dma_xlate_by_chan_id, priv);
 	if (ret < 0)
-		goto disable_clk;
+		return dev_err_probe(dev, ret, "Failed to register dma controller.\n");
 
 	platform_set_drvdata(pdev, priv);
 
 	dev_info(dev, "Loongson LS2X APB DMA driver registered successfully.\n");
 	return 0;
-
-disable_clk:
-	clk_disable_unprepare(priv->dma_clk);
-
-	return ret;
 }
 
 /*
@@ -675,10 +666,7 @@ disable_clk:
  */
 static void ls2x_dma_remove(struct platform_device *pdev)
 {
-	struct ls2x_dma_priv *priv = platform_get_drvdata(pdev);
-
 	of_dma_controller_free(pdev->dev.of_node);
-	clk_disable_unprepare(priv->dma_clk);
 }
 
 static const struct of_device_id ls2x_dma_of_match_table[] = {
