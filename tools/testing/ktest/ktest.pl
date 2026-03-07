@@ -85,6 +85,7 @@ my %default = (
 );
 
 my $test_log_start = 0;
+my $dry_run = 0;
 
 my $ktest_config = "ktest.conf";
 my $version;
@@ -587,7 +588,7 @@ sub end_monitor;
 sub wait_for_monitor;
 
 sub _logit {
-    if (defined($opt{"LOG_FILE"})) {
+    if (defined($opt{"LOG_FILE"}) && defined(fileno(LOG))) {
 	print LOG @_;
     }
 }
@@ -1365,6 +1366,9 @@ sub read_config {
 	    print "$option\n";
 	}
 	print "Set IGNORE_UNUSED = 1 to have ktest ignore unused variables\n";
+	if ($dry_run) {
+	    return;
+	}
 	if (!read_yn "Do you want to continue?") {
 	    exit -1;
 	}
@@ -4249,6 +4253,53 @@ sub set_test_option {
     return eval_option($name, $option, $i);
 }
 
+sub print_test_preamble {
+    my ($resolved) = @_;
+
+    doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
+
+    for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
+
+	if (!$i) {
+	    doprint "DEFAULT OPTIONS:\n";
+	} else {
+	    doprint "\nTEST $i OPTIONS";
+	    if (defined($repeat_tests{$i})) {
+		$repeat = $repeat_tests{$i};
+		doprint " ITERATE $repeat";
+	    }
+	    doprint "\n";
+	}
+
+	foreach my $option (sort keys %opt) {
+	    my $value;
+
+	    if ($option =~ /\[(\d+)\]$/) {
+		next if ($i != $1);
+
+		if ($resolved) {
+		    my $name = $option;
+		    $name =~ s/\[\d+\]$//;
+		    $value = set_test_option($name, $i);
+		} else {
+		    $value = $opt{$option};
+		}
+	    } else {
+		next if ($i);
+
+		if ($resolved) {
+		    $value = set_test_option($option, 0);
+		} else {
+		    $value = $opt{$option};
+		}
+	    }
+
+	    $value = "" if (!defined($value));
+	    doprint "$option = $value\n";
+	}
+    }
+}
+
 sub find_mailer {
     my ($mailer) = @_;
 
@@ -4348,6 +4399,8 @@ ktest.pl version: $VERSION
                     Sets global BUILD_NOCLEAN to 1
                 -D TEST_TYPE[2]=build
                     Sets TEST_TYPE of test 2 to "build"
+       --dry-run
+                Print resolved test options and exit without running tests.
 
 	        It can also override all temp variables.
                  -D USE_TEMP_DIR:=1
@@ -4379,6 +4432,9 @@ while ( $#ARGV >= 0 ) {
 	} else {
 	    $command_vars[$#command_vars + 1] = $val;
 	}
+    } elsif ( $ARGV[0] eq "--dry-run" ) {
+	$dry_run = 1;
+	shift;
     } elsif ( $ARGV[0] eq "-h" ) {
 	die_usage;
     } else {
@@ -4427,6 +4483,11 @@ EOF
 }
 read_config $ktest_config;
 
+if ($dry_run) {
+    print_test_preamble 1;
+    exit 0;
+}
+
 if (defined($opt{"LOG_FILE"})) {
     $opt{"LOG_FILE"} = set_test_option("LOG_FILE", 1);
 }
@@ -4458,31 +4519,7 @@ if (defined($opt{"LOG_FILE"})) {
     LOG->autoflush(1);
 }
 
-doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
-
-for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
-
-    if (!$i) {
-	doprint "DEFAULT OPTIONS:\n";
-    } else {
-	doprint "\nTEST $i OPTIONS";
-	if (defined($repeat_tests{$i})) {
-	    $repeat = $repeat_tests{$i};
-	    doprint " ITERATE $repeat";
-	}
-	doprint "\n";
-    }
-
-    foreach my $option (sort keys %opt) {
-	if ($option =~ /\[(\d+)\]$/) {
-	    next if ($i != $1);
-	} else {
-	    next if ($i);
-	}
-
-	doprint "$option = $opt{$option}\n";
-    }
-}
+print_test_preamble 0;
 
 $SIG{INT} = qw(cancel_test);
 
