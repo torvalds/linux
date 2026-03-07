@@ -1080,6 +1080,31 @@ static void schedule_deferred_locked(struct rq *rq)
 	schedule_deferred(rq);
 }
 
+static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq)
+{
+	/*
+	 * Allowing reenqueues doesn't make sense while bypassing. This also
+	 * blocks from new reenqueues to be scheduled on dead scheds.
+	 */
+	if (unlikely(READ_ONCE(sch->bypass_depth)))
+		return;
+
+	if (dsq->id == SCX_DSQ_LOCAL) {
+		struct rq *rq = container_of(dsq, struct rq, scx.local_dsq);
+		struct scx_sched_pcpu *sch_pcpu = per_cpu_ptr(sch->pcpu, cpu_of(rq));
+		struct scx_deferred_reenq_local *drl = &sch_pcpu->deferred_reenq_local;
+
+		scoped_guard (raw_spinlock_irqsave, &rq->scx.deferred_reenq_lock) {
+			if (list_empty(&drl->node))
+				list_move_tail(&drl->node, &rq->scx.deferred_reenq_locals);
+		}
+
+		schedule_deferred(rq);
+	} else {
+		scx_error(sch, "DSQ 0x%llx not allowed for reenq", dsq->id);
+	}
+}
+
 /**
  * touch_core_sched - Update timestamp used for core-sched task ordering
  * @rq: rq to read clock from, must be locked
@@ -7774,9 +7799,6 @@ __bpf_kfunc_start_defs();
  * Iterate over all of the tasks currently enqueued on the local DSQ of the
  * caller's CPU, and re-enqueue them in the BPF scheduler. Returns the number of
  * processed tasks. Can only be called from ops.cpu_release().
- *
- * COMPAT: Will be removed in v6.23 along with the ___v2 suffix on the void
- * returning variant that can be called from anywhere.
  */
 __bpf_kfunc u32 scx_bpf_reenqueue_local(const struct bpf_prog_aux *aux)
 {
@@ -8206,6 +8228,52 @@ __bpf_kfunc struct task_struct *scx_bpf_dsq_peek(u64 dsq_id,
 	return rcu_dereference(dsq->first_task);
 }
 
+/**
+ * scx_bpf_dsq_reenq - Re-enqueue tasks on a DSQ
+ * @dsq_id: DSQ to re-enqueue
+ * @reenq_flags: %SCX_RENQ_*
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
+ *
+ * Iterate over all of the tasks currently enqueued on the DSQ identified by
+ * @dsq_id, and re-enqueue them in the BPF scheduler. The following DSQs are
+ * supported:
+ *
+ * - Local DSQs (%SCX_DSQ_LOCAL or %SCX_DSQ_LOCAL_ON | $cpu)
+ *
+ * Re-enqueues are performed asynchronously. Can be called from anywhere.
+ */
+__bpf_kfunc void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags,
+				   const struct bpf_prog_aux *aux)
+{
+	struct scx_sched *sch;
+	struct scx_dispatch_q *dsq;
+
+	guard(preempt)();
+
+	sch = scx_prog_sched(aux);
+	if (unlikely(!sch))
+		return;
+
+	dsq = find_dsq_for_dispatch(sch, this_rq(), dsq_id, smp_processor_id());
+	schedule_dsq_reenq(sch, dsq);
+}
+
+/**
+ * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
+ *
+ * Iterate over all of the tasks currently enqueued on the local DSQ of the
+ * caller's CPU, and re-enqueue them in the BPF scheduler. Can be called from
+ * anywhere.
+ *
+ * This is now a special case of scx_bpf_dsq_reenq() and may be removed in the
+ * future.
+ */
+__bpf_kfunc void scx_bpf_reenqueue_local___v2(const struct bpf_prog_aux *aux)
+{
+	scx_bpf_dsq_reenq(SCX_DSQ_LOCAL, 0, aux);
+}
+
 __bpf_kfunc_end_defs();
 
 static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
@@ -8361,47 +8429,6 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
 	 */
 	if (dd->cursor >= sizeof(buf->line) || buf->line[dd->cursor - 1] == '\n')
 		ops_dump_flush();
-}
-
-/**
- * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
- * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
- *
- * Iterate over all of the tasks currently enqueued on the local DSQ of the
- * caller's CPU, and re-enqueue them in the BPF scheduler. Can be called from
- * anywhere.
- */
-__bpf_kfunc void scx_bpf_reenqueue_local___v2(const struct bpf_prog_aux *aux)
-{
-	unsigned long flags;
-	struct scx_sched *sch;
-	struct rq *rq;
-
-	raw_local_irq_save(flags);
-
-	sch = scx_prog_sched(aux);
-	if (unlikely(!sch))
-		goto out_irq_restore;
-
-	/*
-	 * Allowing reenqueue-locals doesn't make sense while bypassing. This
-	 * also blocks from new reenqueues to be scheduled on dead scheds.
-	 */
-	if (unlikely(sch->bypass_depth))
-		goto out_irq_restore;
-
-	rq = this_rq();
-	scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
-		struct scx_sched_pcpu *pcpu = this_cpu_ptr(sch->pcpu);
-
-		if (list_empty(&pcpu->deferred_reenq_local.node))
-			list_move_tail(&pcpu->deferred_reenq_local.node,
-				       &rq->scx.deferred_reenq_locals);
-	}
-
-	schedule_deferred(rq);
-out_irq_restore:
-	raw_local_irq_restore(flags);
 }
 
 /**
@@ -8820,13 +8847,14 @@ BTF_ID_FLAGS(func, scx_bpf_kick_cpu, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
 BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)
 BTF_ID_FLAGS(func, scx_bpf_dsq_peek, KF_IMPLICIT_ARGS | KF_RCU_PROTECTED | KF_RET_NULL)
+BTF_ID_FLAGS(func, scx_bpf_dsq_reenq, KF_IMPLICIT_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_iter_scx_dsq_new, KF_IMPLICIT_ARGS | KF_ITER_NEW | KF_RCU_PROTECTED)
 BTF_ID_FLAGS(func, bpf_iter_scx_dsq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_scx_dsq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, scx_bpf_exit_bstr, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_error_bstr, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dump_bstr, KF_IMPLICIT_ARGS)
-BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_set, KF_IMPLICIT_ARGS)

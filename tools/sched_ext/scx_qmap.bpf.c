@@ -131,7 +131,7 @@ struct {
 } cpu_ctx_stor SEC(".maps");
 
 /* Statistics */
-u64 nr_enqueued, nr_dispatched, nr_reenqueued, nr_dequeued, nr_ddsp_from_enq;
+u64 nr_enqueued, nr_dispatched, nr_reenqueued, nr_reenqueued_cpu0, nr_dequeued, nr_ddsp_from_enq;
 u64 nr_core_sched_execed;
 u64 nr_expedited_local, nr_expedited_remote, nr_expedited_lost, nr_expedited_from_timer;
 u32 cpuperf_min, cpuperf_avg, cpuperf_max;
@@ -206,8 +206,11 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	void *ring;
 	s32 cpu;
 
-	if (enq_flags & SCX_ENQ_REENQ)
+	if (enq_flags & SCX_ENQ_REENQ) {
 		__sync_fetch_and_add(&nr_reenqueued, 1);
+		if (scx_bpf_task_cpu(p) == 0)
+			__sync_fetch_and_add(&nr_reenqueued_cpu0, 1);
+	}
 
 	if (p->flags & PF_KTHREAD) {
 		if (stall_kernel_nth && !(++kernel_cnt % stall_kernel_nth))
@@ -561,6 +564,10 @@ int BPF_PROG(qmap_sched_switch, bool preempt, struct task_struct *prev,
 	case 2: /* SCHED_RR */
 	case 6: /* SCHED_DEADLINE */
 		scx_bpf_reenqueue_local();
+
+		/* trigger re-enqueue on CPU0 just to exercise LOCAL_ON */
+		if (__COMPAT_has_generic_reenq())
+			scx_bpf_dsq_reenq(SCX_DSQ_LOCAL_ON | 0, 0);
 	}
 
 	return 0;

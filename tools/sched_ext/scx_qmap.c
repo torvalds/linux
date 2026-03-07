@@ -137,9 +137,10 @@ int main(int argc, char **argv)
 		long nr_enqueued = skel->bss->nr_enqueued;
 		long nr_dispatched = skel->bss->nr_dispatched;
 
-		printf("stats  : enq=%lu dsp=%lu delta=%ld reenq=%"PRIu64" deq=%"PRIu64" core=%"PRIu64" enq_ddsp=%"PRIu64"\n",
+		printf("stats  : enq=%lu dsp=%lu delta=%ld reenq/cpu0=%"PRIu64"/%"PRIu64" deq=%"PRIu64" core=%"PRIu64" enq_ddsp=%"PRIu64"\n",
 		       nr_enqueued, nr_dispatched, nr_enqueued - nr_dispatched,
-		       skel->bss->nr_reenqueued, skel->bss->nr_dequeued,
+		       skel->bss->nr_reenqueued, skel->bss->nr_reenqueued_cpu0,
+		       skel->bss->nr_dequeued,
 		       skel->bss->nr_core_sched_execed,
 		       skel->bss->nr_ddsp_from_enq);
 		printf("         exp_local=%"PRIu64" exp_remote=%"PRIu64" exp_timer=%"PRIu64" exp_lost=%"PRIu64"\n",

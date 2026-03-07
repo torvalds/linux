@@ -376,6 +376,27 @@ static inline void scx_bpf_reenqueue_local(void)
 }
 
 /*
+ * v6.20: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
+ * will eventually deprecate scx_bpf_reenqueue_local().
+ */
+void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags, const struct bpf_prog_aux *aux__prog) __ksym __weak;
+
+static inline bool __COMPAT_has_generic_reenq(void)
+{
+	return bpf_ksym_exists(scx_bpf_dsq_reenq___compat);
+}
+
+static inline void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags)
+{
+	if (bpf_ksym_exists(scx_bpf_dsq_reenq___compat))
+		scx_bpf_dsq_reenq___compat(dsq_id, reenq_flags, NULL);
+	else if (dsq_id == SCX_DSQ_LOCAL && reenq_flags == 0)
+		scx_bpf_reenqueue_local();
+	else
+		scx_bpf_error("kernel too old to reenqueue foreign local or user DSQs");
+}
+
+/*
  * Define sched_ext_ops. This may be expanded to define multiple variants for
  * backward compatibility. See compat.h::SCX_OPS_LOAD/ATTACH().
  */
