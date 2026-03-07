@@ -16,6 +16,7 @@ LDLIBS=../lib/ynl.a ../generated/protos.a
 TEST_PROGS := \
 	devlink.sh \
 	ethtool.sh \
+	rt-addr.sh \
 	test_ynl_cli.sh \
 	test_ynl_ethtool.sh \
 # end of TEST_PROGS
@@ -30,10 +31,10 @@ TEST_GEN_PROGS := \
 TEST_GEN_FILES := \
 	devlink \
 	ethtool \
+	rt-addr \
 # end of TEST_GEN_FILES
 
 BINS := \
-	rt-addr \
 	rt-route \
 # end of BINS
 
