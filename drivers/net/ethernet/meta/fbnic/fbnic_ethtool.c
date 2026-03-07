@@ -129,11 +129,13 @@ static const struct fbnic_stat fbnic_gstrings_xdp_stats[] = {
 enum fbnic_self_test_results {
 	TEST_REG = 0,
 	TEST_MSIX,
+	TEST_MBX,
 };
 
 static const char fbnic_gstrings_self_test[][ETH_GSTRING_LEN] = {
 	[TEST_REG]	= "Register test (offline)",
 	[TEST_MSIX]	= "MSI-X Interrupt test (offline)",
+	[TEST_MBX]      = "FW mailbox test (on/offline)",
 };
 
 #define FBNIC_TEST_LEN ARRAY_SIZE(fbnic_gstrings_self_test)
@@ -1528,10 +1530,23 @@ static int fbnic_ethtool_msix_test(struct net_device *netdev, u64 *data)
 	return !!*data;
 }
 
+static int fbnic_ethtool_mbx_self_test(struct net_device *netdev, u64 *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	*data = fbnic_fw_mbx_self_test(fbd);
+
+	return !!*data;
+}
+
 static void fbnic_self_test(struct net_device *netdev,
 			    struct ethtool_test *eth_test, u64 *data)
 {
 	bool if_running = netif_running(netdev);
+
+	if (fbnic_ethtool_mbx_self_test(netdev, &data[TEST_MBX]))
+		eth_test->flags |= ETH_TEST_FL_FAILED;
 
 	if (!(eth_test->flags & ETH_TEST_FL_OFFLINE)) {
 		data[TEST_REG] = 0;
