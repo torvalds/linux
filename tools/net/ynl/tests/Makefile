@@ -1,21 +1,51 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for YNL tests
 
+include ../Makefile.deps
+
+CC=gcc
+CFLAGS += -std=gnu11 -O2 -W -Wall -Wextra -Wno-unused-parameter -Wshadow \
+	-I../lib/ -I../generated/ -I../../../testing/selftests/ \
+	-idirafter $(UAPI_PATH)
+ifneq ("$(NDEBUG)","1")
+  CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
+endif
+
+LDLIBS=../lib/ynl.a ../generated/protos.a
+
 TEST_PROGS := \
 	test_ynl_cli.sh \
 	test_ynl_ethtool.sh \
 # end of TEST_PROGS
 
+SRCS=$(wildcard *.c)
+BINS=$(patsubst %.c,%,${SRCS})
+
+CFLAGS_tc-filter-add:=$(CFLAGS_tc)
+
+include $(wildcard *.d)
+
 INSTALL_PATH ?= $(DESTDIR)/usr/share/kselftest
 
-all: $(TEST_PROGS)
+all: $(BINS) $(TEST_PROGS)
+
+../lib/ynl.a:
+	@$(MAKE) -C ../lib
+
+ ../generated/protos.a:
+	@$(MAKE) -C ../generated
+
+$(BINS): ../lib/ynl.a ../generated/protos.a
+	@echo -e '\tCC test $@'
+	@$(COMPILE.c) $(CFLAGS_$@) $@.c -o $@.o
+	@$(LINK.c) $@.o -o $@  $(LDLIBS)
 
 run_tests:
 	@for test in $(TEST_PROGS); do \
 		./$$test; \
 	done
 
-install: $(TEST_PROGS)
+install: $(TEST_PROGS) $(BINS)
 	@mkdir -p $(INSTALL_PATH)/ynl
 	@cp ../../../testing/selftests/kselftest/ktap_helpers.sh $(INSTALL_PATH)/
 	@for test in $(TEST_PROGS); do \
@@ -26,11 +56,18 @@ install: $(TEST_PROGS)
 		    $$test > $(INSTALL_PATH)/ynl/$$name; \
 		chmod +x $(INSTALL_PATH)/ynl/$$name; \
 	done
+	@for bin in $(BINS); do \
+		cp $$bin $(INSTALL_PATH)/ynl/$$bin; \
+	done
 	@for test in $(TEST_PROGS); do \
 		echo "ynl:$$test"; \
 	done > $(INSTALL_PATH)/kselftest-list.txt
 
-clean distclean:
-	@# Nothing to clean
+clean:
+	rm -f *.o *.d *~
 
-.PHONY: all install clean run_tests
+distclean: clean
+	rm -f $(BINS)
+
+.PHONY: all install clean distclean run_tests
+.DEFAULT_GOAL=all

@@ -14,12 +14,12 @@ includedir ?= $(prefix)/include
 
 SPECDIR=../../../Documentation/netlink/specs
 
-SUBDIRS = lib generated samples ynltool tests
+SUBDIRS = lib generated ynltool tests
 
 all: $(SUBDIRS) libynl.a
 
+tests: | lib generated libynl.a
 ynltool: | lib generated libynl.a
-samples: | lib generated
 libynl.a: | lib generated
 	@echo -e "\tAR $@"
 	@ar rcs $@ lib/ynl.o generated/*-user.o
