@@ -222,6 +222,7 @@ void dmub_dcn35_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw6,
 			      const struct dmub_window *region6)
 {
+	(void)cw2;
 	union dmub_addr offset;
 
 	offset = cw3->offset;

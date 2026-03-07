@@ -194,6 +194,7 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw6,
 			      const struct dmub_window *region6)
 {
+	(void)region6;
 	union dmub_addr offset;
 	uint64_t fb_base, fb_offset;
 
@@ -396,6 +397,7 @@ union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub)
 
 void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
+	(void)params;
 	union dmub_fw_boot_options boot_options = {0};
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
