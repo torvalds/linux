@@ -373,8 +373,8 @@ static void dwmac4_get_umac_addr(struct mac_device_info *hw,
 {
 	void __iomem *ioaddr = hw->pcsr;
 
-	stmmac_dwmac4_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				   GMAC_ADDR_LOW(reg_n));
+	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
+			    GMAC_ADDR_LOW(reg_n));
 }
 
 static int dwmac4_set_lpi_mode(struct mac_device_info *hw,
