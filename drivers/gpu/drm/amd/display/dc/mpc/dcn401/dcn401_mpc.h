@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Advanced Micro Devices, Inc.
+ * Copyright 2023-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -184,6 +184,7 @@ struct dcn401_mpc_mask {
 
 struct dcn401_mpc_registers {
 	MPC_REG_VARIABLE_LIST_DCN4_01
+	uint32_t MPCC_CONTROL2[MAX_MPCC];
 };
 
 struct dcn401_mpc {
@@ -248,6 +249,13 @@ void mpc_read_gamut_remap(struct mpc *mpc,
 	uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
 	uint32_t *mode_select);
+
+void mpc401_get_3dlut_fast_load_status(
+	struct mpc *mpc,
+	int mpcc_id,
+	uint32_t *done,
+	uint32_t *soft_underflow,
+	uint32_t *hard_underflow);
 
 void mpc401_update_3dlut_fast_load_select(
 	struct mpc *mpc,

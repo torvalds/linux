@@ -100,11 +100,7 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 {
-	/* We need to explicitly check that connector
-	 * is not DP. Some Travis_VGA get reported
-	 * by video bios as DP.
-	 */
-	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
+	if (link->ext_enc_id.id) {
 
 		switch (link->dpcd_caps.branch_dev_id) {
 		case DP_BRANCH_DEVICE_ID_0022B9:
@@ -124,7 +120,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 			}
 			break;
 		case DP_BRANCH_DEVICE_ID_00001A:
-			/* alternate scrambler reset is required for Travis
+			/* alternate scrambler reset is required for NUTMEG
 			 * for the case when external chip does not provide
 			 * sink device id, alternate scrambler scheme will
 			 * be overriden later by querying Encoder feature

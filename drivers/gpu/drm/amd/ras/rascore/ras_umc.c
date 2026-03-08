@@ -448,17 +448,27 @@ int ras_umc_load_bad_pages(struct ras_core_context *ras_core)
 	uint32_t ras_num_recs;
 	int ret;
 
-	ras_num_recs = ras_eeprom_get_record_count(ras_core);
-	/* no bad page record, skip eeprom access */
-	if (!ras_num_recs ||
-	    ras_core->ras_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
-		return 0;
+	if (ras_fw_eeprom_supported(ras_core)) {
+		ras_num_recs = ras_fw_eeprom_get_record_count(ras_core);
+		/* no bad page record, skip eeprom access */
+		if (!ras_num_recs ||
+		    ras_core->ras_fw_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
+			return 0;
+	} else {
+		ras_num_recs = ras_eeprom_get_record_count(ras_core);
+		if (!ras_num_recs ||
+		    ras_core->ras_eeprom.record_threshold_config == DISABLE_RETIRE_PAGE)
+			return 0;
+	}
 
 	bps = kzalloc_objs(*bps, ras_num_recs);
 	if (!bps)
 		return -ENOMEM;
 
-	ret = ras_eeprom_read(ras_core, bps, ras_num_recs);
+	if (ras_fw_eeprom_supported(ras_core))
+		ret = ras_fw_eeprom_read_idx(ras_core, bps, 0, 0, ras_num_recs);
+	else
+		ret = ras_eeprom_read(ras_core, bps, ras_num_recs);
 	if (ret) {
 		RAS_DEV_ERR(ras_core->dev, "Failed to load EEPROM table records!");
 	} else {
@@ -486,14 +496,21 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 	if (!data->bps)
 		return 0;
 
-	eeprom_record_num = ras_eeprom_get_record_count(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		eeprom_record_num = ras_fw_eeprom_get_record_count(ras_core);
+	else
+		eeprom_record_num = ras_eeprom_get_record_count(ras_core);
 	mutex_lock(&ras_umc->umc_lock);
 	save_count = data->count - eeprom_record_num;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (ras_eeprom_append(ras_core,
-					   &data->bps[eeprom_record_num],
-					   save_count)) {
+		if (ras_fw_eeprom_supported(ras_core))
+			ret = ras_fw_eeprom_append(ras_core, &data->bps[eeprom_record_num],
+					save_count);
+		else
+			ret = ras_eeprom_append(ras_core, &data->bps[eeprom_record_num],
+					save_count);
+		if (ret) {
 			RAS_DEV_ERR(ras_core->dev, "Failed to save EEPROM table data!");
 			ret = -EIO;
 			goto exit;

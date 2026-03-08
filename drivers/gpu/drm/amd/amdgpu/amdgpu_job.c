@@ -92,7 +92,6 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	struct drm_wedge_task_info *info = NULL;
 	struct amdgpu_task_info *ti = NULL;
 	struct amdgpu_device *adev = ring->adev;
-	enum drm_gpu_sched_stat status = DRM_GPU_SCHED_STAT_RESET;
 	int idx, r;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx)) {
@@ -147,8 +146,6 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 				ring->sched.name);
 			drm_dev_wedged_event(adev_to_drm(adev),
 					     DRM_WEDGE_RECOVERY_NONE, info);
-			/* This is needed to add the job back to the pending list */
-			status = DRM_GPU_SCHED_STAT_NO_HANG;
 			goto exit;
 		}
 		dev_err(adev->dev, "Ring %s reset failed\n", ring->sched.name);
@@ -184,7 +181,8 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 exit:
 	amdgpu_vm_put_task_info(ti);
 	drm_dev_exit(idx);
-	return status;
+	/* This is needed to add the job back to the pending list */
+	return DRM_GPU_SCHED_STAT_NO_HANG;
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,

@@ -373,6 +373,9 @@ static int umc_v12_0_bank_to_eeprom_record(struct ras_core_context *ras_core,
 		ACA_ADDR_2_ERR_ADDR(bank->addr), ACA_IPID_2_UMC_INST(bank->ipid),
 		&nps_addr, bank->nps, record);
 
+	if (ras_fw_eeprom_supported(ras_core) && bank->ts)
+		record->ts = bank->ts;
+
 	lookup_bad_pages_in_a_row(ras_core, record,
 		bank->nps, NULL, 0, bank->seq_no, true);
 
@@ -413,7 +416,7 @@ static int umc_v12_0_eeprom_record_to_nps_record(struct ras_core_context *ras_co
 	uint64_t pa = 0;
 	int ret = 0;
 
-	if (nps == EEPROM_RECORD_UMC_NPS_MODE(record)) {
+	if (nps == EEPROM_RECORD_UMC_NPS_MODE(record) && !ras_fw_eeprom_supported(ras_core)) {
 		record->cur_nps_retired_row_pfn = EEPROM_RECORD_UMC_ADDR_PFN(record);
 	} else {
 		ret = convert_eeprom_record_to_nps_addr(ras_core,
@@ -501,11 +504,25 @@ static int umc_12_0_bank_to_soc_pa(struct ras_core_context *ras_core,
 	return 0;
 }
 
+static void umc_v12_0_mca_ipid_parse(struct ras_core_context *ras_core, uint64_t ipid,
+		uint32_t *did, uint32_t *ch, uint32_t *umc_inst, uint32_t *sid)
+{
+	if (did)
+		*did = ACA_IPID_2_DIE_ID(ipid);
+	if (ch)
+		*ch = ACA_IPID_2_UMC_CH(ipid);
+	if (umc_inst)
+		*umc_inst = ACA_IPID_2_UMC_INST(ipid);
+	if (sid)
+		*sid = ACA_IPID_2_SOCKET_ID(ipid);
+}
+
 const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.bank_to_eeprom_record = umc_v12_0_bank_to_eeprom_record,
 	.eeprom_record_to_nps_record = umc_v12_0_eeprom_record_to_nps_record,
 	.eeprom_record_to_nps_pages = umc_v12_0_eeprom_record_to_nps_pages,
 	.bank_to_soc_pa = umc_12_0_bank_to_soc_pa,
 	.soc_pa_to_bank = umc_12_0_soc_pa_to_bank,
+	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,
 };
 

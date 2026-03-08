@@ -74,12 +74,15 @@ struct amdgpu_usermode_queue {
 	struct dentry		*debugfs_queue;
 	struct delayed_work hang_detect_work;
 	struct dma_fence *hang_detect_fence;
+	struct kref		refcount;
 
 	struct list_head	userq_va_list;
 };
 
 struct amdgpu_userq_funcs {
 	int (*mqd_create)(struct amdgpu_usermode_queue *queue,
+			  struct drm_amdgpu_userq_in *args);
+	int (*mqd_update)(struct amdgpu_usermode_queue *queue,
 			  struct drm_amdgpu_userq_in *args);
 	void (*mqd_destroy)(struct amdgpu_usermode_queue *uq);
 	int (*unmap)(struct amdgpu_usermode_queue *queue);
@@ -111,6 +114,9 @@ struct amdgpu_db_info {
 	uint32_t doorbell_offset;
 	struct amdgpu_userq_obj	*db_obj;
 };
+
+struct amdgpu_usermode_queue *amdgpu_userq_get(struct amdgpu_userq_mgr *uq_mgr, u32 qid);
+void amdgpu_userq_put(struct amdgpu_usermode_queue *queue);
 
 int amdgpu_userq_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 

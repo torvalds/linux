@@ -84,13 +84,6 @@ static int amdgpu_cs_job_idx(struct amdgpu_cs_parser *p,
 	if (r)
 		return r;
 
-	/*
-	 * Abort if there is no run queue associated with this entity.
-	 * Possibly because of disabled HW IP.
-	 */
-	if (entity->rq == NULL)
-		return -EINVAL;
-
 	/* Check if we can add this IB to some existing job */
 	for (i = 0; i < p->gang_size; ++i)
 		if (p->entities[i] == entity)

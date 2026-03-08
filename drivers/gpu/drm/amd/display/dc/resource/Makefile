@@ -222,4 +222,22 @@ AMD_DAL_RESOURCE_DCN401 = $(addprefix $(AMDDALPATH)/dc/resource/dcn401/,$(RESOUR
 
 AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN401)
 
+###############################################################################
+# DCN42
+###############################################################################
+RESOURCE_DCN42 = dcn42_resource.o dcn42_resource_fpu.o
+
+AMD_DAL_RESOURCE_DCN42 = $(addprefix $(AMDDALPATH)/dc/resource/dcn42/,$(RESOURCE_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_RESOURCE_DCN42)
+
+# FPU Compile Flags for FPU files
+resource_ccflags := $(CC_FLAGS_FPU)
+resource_rcflags := $(CC_FLAGS_NO_FPU)
+
+CFLAGS_$(AMDDALPATH)/dc/resource/dcn42/dcn42_resource_fpu.o := $(resource_ccflags)
+CFLAGS_REMOVE_$(AMDDALPATH)/dc/resource/dcn42/dcn42_resource_fpu.o := $(resource_rcflags)
+
+###############################################################################
 endif
+

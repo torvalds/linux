@@ -1897,6 +1897,10 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__PR = 94,
 
+	/**
+	 * Command type used for all IHC commands.
+	 */
+	DMUB_CMD__IHC = 95,
 
 	/**
 	 * Command type use for VBIOS shared commands.
@@ -4960,6 +4964,52 @@ union dmub_replay_cmd_set {
 };
 
 /**
+ * IHC command sub-types.
+ */
+enum dmub_cmd_ihc_type {
+	/**
+	 * Set DIG HDCP interrupt destination.
+	 */
+	DMUB_CMD__IHC_SET_DIG_HDCP_INTERRUPT_DEST = 0,
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__IHC command.
+ */
+struct dmub_cmd_ihc_data {
+	/**
+	 * DIG engine ID (0-3).
+	 */
+	uint8_t dig_id;
+	/**
+	 * 1 = route to DMU, 0 = route to CPU.
+	 */
+	uint8_t to_dmu : 1;
+	/**
+	 * Reserved bits.
+	 */
+	uint8_t reserved : 7;
+	/**
+	 * Padding.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__IHC command.
+ */
+struct dmub_rb_cmd_ihc {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * IHC command data.
+	 */
+	struct dmub_cmd_ihc_data data;
+};
+
+/**
  * SMART POWER OLED command sub-types.
  */
 enum dmub_cmd_smart_power_oled_type {
@@ -7142,6 +7192,10 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_pr_update_state pr_update_state;
 
 	struct dmub_rb_cmd_pr_general_cmd pr_general_cmd;
+	/**
+	 * Definition of a DMUB_CMD__IHC command.
+	 */
+	struct dmub_rb_cmd_ihc ihc;
 };
 
 /**
