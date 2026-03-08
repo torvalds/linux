@@ -15,7 +15,9 @@
 #endif
 
 #if defined(__BPF_FEATURE_ADDR_SPACE_CAST) && !defined(BPF_ARENA_FORCE_ASM)
+#ifndef __arena
 #define __arena __attribute__((address_space(1)))
+#endif
 #define __arena_global __attribute__((address_space(1)))
 #define cast_kern(ptr) /* nop for bpf prog. emitted by LLVM */
 #define cast_user(ptr) /* nop for bpf prog. emitted by LLVM */
@@ -81,12 +83,13 @@
 void __arena* bpf_arena_alloc_pages(void *map, void __arena *addr, __u32 page_cnt,
 				    int node_id, __u64 flags) __ksym __weak;
 void bpf_arena_free_pages(void *map, void __arena *ptr, __u32 page_cnt) __ksym __weak;
+int bpf_arena_reserve_pages(void *map, void __arena *ptr, __u32 page_cnt) __ksym __weak;
 
 /*
  * Note that cond_break can only be portably used in the body of a breakable
  * construct, whereas can_loop can be used anywhere.
  */
-#ifdef TEST
+#ifdef SCX_BPF_UNITTEST
 #define can_loop true
 #define __cond_break(expr) expr
 #else
@@ -165,7 +168,7 @@ void bpf_arena_free_pages(void *map, void __arena *ptr, __u32 page_cnt) __ksym _
 	})
 #endif /* __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ */
 #endif /* __BPF_FEATURE_MAY_GOTO */
-#endif /* TEST */
+#endif /* SCX_BPF_UNITTEST */
 
 #define cond_break __cond_break(break)
 #define cond_break_label(label) __cond_break(goto label)
@@ -173,3 +176,4 @@ void bpf_arena_free_pages(void *map, void __arena *ptr, __u32 page_cnt) __ksym _
 
 void bpf_preempt_disable(void) __weak __ksym;
 void bpf_preempt_enable(void) __weak __ksym;
+ssize_t bpf_arena_mapping_nr_pages(void *p__map) __weak __ksym;
