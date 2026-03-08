@@ -734,7 +734,7 @@ int strerror_r(int errnum, char *buf, size_t buflen)
 }
 
 static __attribute__((unused))
-const char *strerror(int errno)
+const char *strerror(int errnum)
 {
 	static char buf[18];
 	char *b = buf;
@@ -743,7 +743,7 @@ const char *strerror(int errno)
 	_NOLIBC_OPTIMIZER_HIDE_VAR(b);
 
 	/* Use strerror_r() to avoid having the only .data in small programs. */
-	strerror_r(errno, b, sizeof(buf));
+	strerror_r(errnum, b, sizeof(buf));
 
 	return b;
 }
