@@ -266,6 +266,14 @@ scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	}
 }
 
+/*
+ * scx_bpf_select_cpu_and() is now an inline wrapper. Use this instead of
+ * bpf_ksym_exists(scx_bpf_select_cpu_and) to test availability.
+ */
+#define __COMPAT_HAS_scx_bpf_select_cpu_and				\
+	(bpf_core_type_exists(struct scx_bpf_select_cpu_and_args) ||	\
+	 bpf_ksym_exists(scx_bpf_select_cpu_and___compat))
+
 /**
  * scx_bpf_dsq_insert_vtime - Insert a task into the vtime priority queue of a DSQ
  * @p: task_struct to insert
