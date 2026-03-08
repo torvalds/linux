@@ -68,9 +68,12 @@
  * Global Structures
  */
 
+static const struct class mtty_class = {
+	.name	= MTTY_CLASS_NAME
+};
+
 static struct mtty_dev {
 	dev_t		vd_devt;
-	struct class	*vd_class;
 	struct cdev	vd_cdev;
 	struct idr	vd_idr;
 	struct device	dev;
@@ -1980,15 +1983,14 @@ static int __init mtty_dev_init(void)
 	if (ret)
 		goto err_cdev;
 
-	mtty_dev.vd_class = class_create(MTTY_CLASS_NAME);
+	ret = class_register(&mtty_class);
 
-	if (IS_ERR(mtty_dev.vd_class)) {
+	if (ret) {
 		pr_err("Error: failed to register mtty_dev class\n");
-		ret = PTR_ERR(mtty_dev.vd_class);
 		goto err_driver;
 	}
 
-	mtty_dev.dev.class = mtty_dev.vd_class;
+	mtty_dev.dev.class = &mtty_class;
 	mtty_dev.dev.release = mtty_device_release;
 	dev_set_name(&mtty_dev.dev, "%s", MTTY_NAME);
 
@@ -2007,7 +2009,7 @@ err_device:
 	device_del(&mtty_dev.dev);
 err_put:
 	put_device(&mtty_dev.dev);
-	class_destroy(mtty_dev.vd_class);
+	class_unregister(&mtty_class);
 err_driver:
 	mdev_unregister_driver(&mtty_driver);
 err_cdev:
@@ -2026,8 +2028,7 @@ static void __exit mtty_dev_exit(void)
 	mdev_unregister_driver(&mtty_driver);
 	cdev_del(&mtty_dev.vd_cdev);
 	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
-	class_destroy(mtty_dev.vd_class);
-	mtty_dev.vd_class = NULL;
+	class_unregister(&mtty_class);
 	pr_info("mtty_dev: Unloaded!\n");
 }
 
