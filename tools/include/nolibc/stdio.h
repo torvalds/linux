@@ -412,13 +412,13 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 		 */
 		ch_flag = _NOLIBC_PF_FLAG(ch);
 		if (((ch >= 'a' && ch <= 'z') || ch == 'X') &&
-		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'i', 'u', 'x', 'p')) {
-			/* 'long' is needed for pointer conversions and ltz lengths.
+		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'i', 'u', 'x', 'p', 's')) {
+			/* 'long' is needed for pointer/string conversions and ltz lengths.
 			 * A single test can be used provided 'p' (the same bit as '0')
 			 * is masked from flags.
 			 */
 			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag | (flags & ~_NOLIBC_PF_FLAG('p')),
-						     'p', 'l', 't', 'z')) {
+						     'p', 's', 'l', 't', 'z')) {
 				v = va_arg(args, unsigned long);
 				signed_v = (long)v;
 			} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, 'j', 'q')) {
@@ -435,6 +435,14 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				len = 1;
 				outstr = outbuf;
 				goto do_output;
+			}
+
+			if (ch == 's') {
+				/* "%s" - character string. */
+				outstr = (const char  *)(uintptr_t)v;
+				if (!outstr)
+					outstr = "(null)";
+				goto do_strlen_output;
 			}
 
 			out = outbuf;
@@ -462,13 +470,6 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			}
 
 			outstr = outbuf;
-			goto do_strlen_output;
-		}
-
-		if (ch == 's') {
-			outstr = va_arg(args, char *);
-			if (!outstr)
-				outstr = "(null)";
 			goto do_strlen_output;
 		}
 
