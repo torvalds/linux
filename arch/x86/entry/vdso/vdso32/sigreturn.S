@@ -35,9 +35,38 @@
 #endif
 .endm
 
+/*
+ * WARNING:
+ *
+ * A bug in the libgcc unwinder as of at least gcc 15.2 (2026) means that
+ * the unwinder fails to recognize the signal frame flag.
+ *
+ * There is a hacky legacy fallback path in libgcc which ends up
+ * getting invoked instead. It happens to work as long as BOTH of the
+ * following conditions are true:
+ *
+ * 1. There is at least one byte before the each of the sigreturn
+ *    functions which falls outside any function. This is enforced by
+ *    an explicit nop instruction before the ALIGN.
+ * 2. The code sequences between the entry point up to and including
+ *    the int $0x80 below need to match EXACTLY. Do not change them
+ *    in any way. The exact byte sequences are:
+ *
+ *    __kernel_sigreturn:
+ *        0:   58                      pop    %eax
+ *        1:   b8 77 00 00 00          mov    $0x77,%eax
+ *        6:   cd 80                   int    $0x80
+ *
+ *    __kernel_rt_sigreturn:
+ *        0:   b8 ad 00 00 00          mov    $0xad,%eax
+ *        5:   cd 80                   int    $0x80
+ *
+ * For details, see: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=124050
+ */
 	.text
 	.globl __kernel_sigreturn
 	.type __kernel_sigreturn,@function
+	nop			/* libgcc hack: see comment above */
 	ALIGN
 __kernel_sigreturn:
 	STARTPROC_SIGNAL_FRAME IA32_SIGFRAME_sigcontext
@@ -52,6 +81,7 @@ SYM_INNER_LABEL(vdso32_sigreturn_landing_pad, SYM_L_GLOBAL)
 
 	.globl __kernel_rt_sigreturn
 	.type __kernel_rt_sigreturn,@function
+	nop			/* libgcc hack: see comment above */
 	ALIGN
 __kernel_rt_sigreturn:
 	STARTPROC_SIGNAL_FRAME IA32_RT_SIGFRAME_sigcontext
