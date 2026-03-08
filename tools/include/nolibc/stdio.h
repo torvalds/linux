@@ -296,7 +296,7 @@ int fseek(FILE *stream, long offset, int whence)
  *  - %% generates a single %
  *  - %m outputs strerror(errno).
  *  - %X outputs a..f the same as %x.
- *  - The modifiers [#-+ 0] are currently ignored.
+ *  - The modifiers [#-0] are currently ignored.
  *  - No support for precision or variable widths.
  *  - No support for floating point or wide characters.
  *  - Invalid formats are copied to the output buffer.
@@ -457,6 +457,10 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 					sign_prefix = '-';
 					v = -(signed_v + 1);
 					v++;
+				} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '+')) {
+					sign_prefix = '+';
+				} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, ' ')) {
+					sign_prefix = ' ';
 				}
 			}
 
