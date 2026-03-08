@@ -1677,7 +1677,7 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 	char buf[VFPRINTF_LEN + 80];
 	unsigned int cmp_len;
 	va_list args;
-	ssize_t w, expected_len;
+	ssize_t written, expected_len;
 
 	/* Fill and terminate buf[] to check for overlong/absent writes */
 	memset(buf, 0xa5, sizeof(buf) - 1);
@@ -1685,7 +1685,7 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 
 	va_start(args, fmt);
 	/* Limit buffer length to test truncation */
-	w = vsnprintf(buf, VFPRINTF_LEN + 1, fmt, args);
+	written = vsnprintf(buf, VFPRINTF_LEN + 1, fmt, args);
 	va_end(args);
 
 	llen += printf(" \"%s\"", buf);
@@ -1708,8 +1708,8 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 		return 1;
 	}
 
-	if (w != expected_len) {
-		llen += printf(" written(%d) != %d", (int)w, (int)expected_len);
+	if (written != expected_len) {
+		llen += printf(" written(%d) != %d", (int)written, (int)expected_len);
 		result(llen, FAIL);
 		return 1;
 	}
