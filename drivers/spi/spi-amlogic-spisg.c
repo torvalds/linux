@@ -647,13 +647,13 @@ static int aml_spisg_clk_init(struct spisg_device *spisg, void __iomem *base)
 	int ret, i;
 
 	spisg->core = devm_clk_get_enabled(dev, "core");
-	if (IS_ERR_OR_NULL(spisg->core)) {
+	if (IS_ERR(spisg->core)) {
 		dev_err(dev, "core clock request failed\n");
 		return PTR_ERR(spisg->core);
 	}
 
 	spisg->pclk = devm_clk_get_enabled(dev, "pclk");
-	if (IS_ERR_OR_NULL(spisg->pclk)) {
+	if (IS_ERR(spisg->pclk)) {
 		dev_err(dev, "pclk clock request failed\n");
 		return PTR_ERR(spisg->pclk);
 	}
@@ -703,7 +703,7 @@ static int aml_spisg_clk_init(struct spisg_device *spisg, void __iomem *base)
 	}
 
 	spisg->sclk = devm_clk_hw_get_clk(dev, &div->hw, NULL);
-	if (IS_ERR_OR_NULL(spisg->sclk)) {
+	if (IS_ERR(spisg->sclk)) {
 		dev_err(dev, "get clock failed\n");
 		return PTR_ERR(spisg->sclk);
 	}
