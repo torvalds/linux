@@ -1116,69 +1116,62 @@ static int xgbe_phy_reset(struct xgbe_prv_data *pdata)
 	return pdata->phy_if.phy_reset(pdata);
 }
 
-int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
+int xgbe_powerdown(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 
-	DBGPR("-->xgbe_powerdown\n");
-
-	if (!netif_running(netdev) ||
-	    (caller == XGMAC_IOCTL_CONTEXT && pdata->power_down)) {
-		netdev_alert(netdev, "Device is already powered down\n");
-		DBGPR("<--xgbe_powerdown\n");
+	if (!netif_running(netdev)) {
+		netdev_dbg(netdev, "Device is not running, skipping powerdown\n");
 		return -EINVAL;
 	}
 
-	if (caller == XGMAC_DRIVER_CONTEXT)
-		netif_device_detach(netdev);
+	if (pdata->power_down) {
+		netdev_dbg(netdev, "Device is already powered down\n");
+		return -EINVAL;
+	}
 
+	netif_device_detach(netdev);
 	netif_tx_stop_all_queues(netdev);
 
 	xgbe_stop_timers(pdata);
 	flush_workqueue(pdata->dev_workqueue);
 
+	xgbe_napi_disable(pdata, 0);
+
 	hw_if->powerdown_tx(pdata);
 	hw_if->powerdown_rx(pdata);
 
-	xgbe_napi_disable(pdata, 0);
-
 	pdata->power_down = 1;
-
-	DBGPR("<--xgbe_powerdown\n");
 
 	return 0;
 }
 
-int xgbe_powerup(struct net_device *netdev, unsigned int caller)
+int xgbe_powerup(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 
-	DBGPR("-->xgbe_powerup\n");
-
-	if (!netif_running(netdev) ||
-	    (caller == XGMAC_IOCTL_CONTEXT && !pdata->power_down)) {
-		netdev_alert(netdev, "Device is already powered up\n");
-		DBGPR("<--xgbe_powerup\n");
+	if (!netif_running(netdev)) {
+		netdev_dbg(netdev, "Device is not running, skipping powerup\n");
 		return -EINVAL;
 	}
 
-	pdata->power_down = 0;
-
-	xgbe_napi_enable(pdata, 0);
+	if (!pdata->power_down) {
+		netdev_dbg(netdev, "Device is already powered up\n");
+		return -EINVAL;
+	}
 
 	hw_if->powerup_tx(pdata);
 	hw_if->powerup_rx(pdata);
 
-	if (caller == XGMAC_DRIVER_CONTEXT)
-		netif_device_attach(netdev);
+	xgbe_napi_enable(pdata, 0);
 
 	netif_tx_start_all_queues(netdev);
-
 	xgbe_start_timers(pdata);
+	netif_device_attach(netdev);
 
-	DBGPR("<--xgbe_powerup\n");
+	pdata->power_down = 0;
 
 	return 0;
 }
