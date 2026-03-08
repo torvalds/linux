@@ -1794,23 +1794,6 @@ static int test_scanf(void)
 	return 0;
 }
 
-int test_strerror(void)
-{
-	char buf[100];
-	ssize_t ret;
-
-	memset(buf, 'A', sizeof(buf));
-
-	errno = EINVAL;
-	ret = snprintf(buf, sizeof(buf), "%m");
-	if (is_nolibc) {
-		if (ret < 6 || memcmp(buf, "errno=", 6))
-			return 1;
-	}
-
-	return 0;
-}
-
 static int test_printf_error(void)
 {
 	int fd, ret, saved_errno;
@@ -1860,8 +1843,9 @@ static int run_printf(int min, int max)
 		CASE_TEST(string_width); EXPECT_VFPRINTF(1, "         1", "%10s", "1"); break;
 		CASE_TEST(number_width); EXPECT_VFPRINTF(1, "         1", "%10d", 1); break;
 		CASE_TEST(width_trunc);  EXPECT_VFPRINTF(1, "                        1", "%25d", 1); break;
+		CASE_TEST(errno);        errno = 22; EXPECT_VFPRINTF(is_nolibc, "errno=22", "%m"); break;
+		CASE_TEST(errno-neg);    errno = -22; EXPECT_VFPRINTF(is_nolibc, "   errno=-22", "%12m"); break;
 		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
-		CASE_TEST(strerror);     EXPECT_ZR(1, test_strerror()); break;
 		CASE_TEST(printf_error); EXPECT_ZR(1, test_printf_error()); break;
 		case __LINE__:
 			return ret; /* must be last */

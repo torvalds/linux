@@ -723,13 +723,29 @@ int setvbuf(FILE *stream __attribute__((unused)),
 }
 
 static __attribute__((unused))
+int strerror_r(int errnum, char *buf, size_t buflen)
+{
+	if (buflen < 18)
+		return ERANGE;
+
+	__builtin_memcpy(buf, "errno=", 6);
+	i64toa_r(errnum, buf + 6);
+	return 0;
+}
+
+static __attribute__((unused))
 const char *strerror(int errno)
 {
-	static char buf[18] = "errno=";
+	static char buf[18];
+	char *b = buf;
 
-	i64toa_r(errno, &buf[6]);
+	/* Force gcc to use 'register offset' to access buf[]. */
+	_NOLIBC_OPTIMIZER_HIDE_VAR(b);
 
-	return buf;
+	/* Use strerror_r() to avoid having the only .data in small programs. */
+	strerror_r(errno, b, sizeof(buf));
+
+	return b;
 }
 
 #endif /* _NOLIBC_STDIO_H */
