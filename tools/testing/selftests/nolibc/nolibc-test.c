@@ -164,21 +164,6 @@ static const char *errorname(int err)
 	}
 }
 
-static void align_result(size_t llen)
-{
-	const size_t align = 64;
-	char buf[align];
-	size_t n;
-
-	if (llen >= align)
-		return;
-
-	n = align - llen;
-	memset(buf, ' ', n);
-	buf[n] = '\0';
-	fputs(buf, stdout);
-}
-
 enum RESULT {
 	OK,
 	FAIL,
@@ -196,8 +181,10 @@ static void result(int llen, enum RESULT r)
 	else
 		msg = " [FAIL]";
 
-	align_result(llen);
-	puts(msg);
+	llen = 64 - llen;
+	if (llen < 0)
+		llen = 0;
+	printf("%*s%s\n", llen, "", msg);
 }
 
 /* The tests below are intended to be used by the macroes, which evaluate
@@ -1700,10 +1687,7 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 	}
 
 	if (memcmp(expected, buf, cmp_len) || buf[cmp_len]) {
-		/* Copy and truncate until "%.*s" supported */
-		memcpy(buf, expected, cmp_len);
-		buf[cmp_len] = 0;
-		llen += printf(" should be \"%s\"", buf);
+		llen += printf(" should be \"%.*s\"", VFPRINTF_LEN, expected);
 		result(llen, FAIL);
 		return 1;
 	}
