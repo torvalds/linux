@@ -11,8 +11,8 @@ import signal
 import socket
 import subprocess
 import sys
-from pwd import getpwuid
-from os import stat
+import tempfile
+import shutil
 
 # Allow utils module to be imported from different directory
 this_dir = os.path.dirname(os.path.realpath(__file__))
@@ -125,14 +125,14 @@ ip(f"-n {NET1} route add {addrs[0][0]}/32 dev {VETH1}")
 ip(f"netns exec {NET0} ping -c 1 {addrs[1][0]}")
 
 # Start a packet capture on each network
+tcpdump_procs = []
 for net in [NET0, NET1]:
-    tcpdump_pid = os.fork()
-    if tcpdump_pid == 0:
-        pcap = logdir+'/'+net+'.pcap'
-        subprocess.check_call(['touch', pcap])
-        user = getpwuid(stat(pcap).st_uid).pw_name
-        ip(f"netns exec {net} /usr/sbin/tcpdump -Z {user} -i any -w {pcap}")
-        sys.exit(0)
+    pcap = logdir+'/'+net+'.pcap'
+    fd, pcap_tmp = tempfile.mkstemp(suffix=".pcap", prefix=f"{net}-", dir="/tmp")
+    p = subprocess.Popen(
+        ['ip', 'netns', 'exec', net,
+         '/usr/sbin/tcpdump', '-i', 'any', '-w', pcap_tmp])
+    tcpdump_procs.append((p, pcap_tmp, pcap, fd))
 
 # simulate packet loss, duplication and corruption
 for net, iface in [(NET0, VETH0), (NET1, VETH1)]:
@@ -248,7 +248,11 @@ for s in sockets:
 print(f"getsockopt(): {nr_success}/{nr_error}")
 
 print("Stopping network packet captures")
-subprocess.check_call(['killall', '-q', 'tcpdump'])
+for p, pcap_tmp, pcap, fd in tcpdump_procs:
+    p.terminate()
+    p.wait()
+    os.close(fd)
+    shutil.move(pcap_tmp, pcap)
 
 # We're done sending and receiving stuff, now let's check if what
 # we received is what we sent.
