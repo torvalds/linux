@@ -329,103 +329,118 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				fmt++;
 			/* Output characters from the format string. */
 			len = fmt - outstr;
-		} else {
-			/* we're in a format sequence */
-
-			ch = *fmt++;
-
-			/* width */
-			while (ch >= '0' && ch <= '9') {
-				width *= 10;
-				width += ch - '0';
-
-				ch = *fmt++;
-			}
-
-			/* Length modifiers */
-			if (ch == 'l') {
-				lpref = 1;
-				ch = *fmt++;
-				if (ch == 'l') {
-					lpref = 2;
-					ch = *fmt++;
-				}
-			} else if (ch == 'j') {
-				/* intmax_t is long long */
-				lpref = 2;
-				ch = *fmt++;
-			} else {
-				lpref = 0;
-			}
-
-			if (ch == 'c' || ch == 'd' || ch == 'u' || ch == 'x' || ch == 'p') {
-				char *out = outbuf;
-
-				if (ch == 'p')
-					v = va_arg(args, unsigned long);
-				else if (lpref) {
-					if (lpref > 1)
-						v = va_arg(args, unsigned long long);
-					else
-						v = va_arg(args, unsigned long);
-				} else
-					v = va_arg(args, unsigned int);
-
-				if (ch == 'd') {
-					/* sign-extend the value */
-					if (lpref == 0)
-						v = (long long)(int)v;
-					else if (lpref == 1)
-						v = (long long)(long)v;
-				}
-
-				switch (ch) {
-				case 'c':
-					out[0] = v;
-					out[1] = 0;
-					break;
-				case 'd':
-					i64toa_r(v, out);
-					break;
-				case 'u':
-					u64toa_r(v, out);
-					break;
-				case 'p':
-					*(out++) = '0';
-					*(out++) = 'x';
-					__nolibc_fallthrough;
-				default: /* 'x' and 'p' above */
-					u64toh_r(v, out);
-					break;
-				}
-				outstr = outbuf;
-			}
-			else if (ch == 's') {
-				outstr = va_arg(args, char *);
-				if (!outstr)
-					outstr="(null)";
-			}
-			else if (ch == 'm') {
-#ifdef NOLIBC_IGNORE_ERRNO
-				outstr = "unknown error";
-#else
-				outstr = strerror(errno);
-#endif /* NOLIBC_IGNORE_ERRNO */
-			} else {
-				if (ch != '%') {
-					/* Invalid format: back up to output the format characters */
-					fmt = outstr + 1;
-					/* and output a '%' now. */
-				}
-				/* %% is documented as a 'conversion specifier'.
-				 * Any flags, precision or length modifier are ignored.
-				 */
-				width = 0;
-				outstr = "%";
-			}
-			len = strlen(outstr);
+			goto do_output;
 		}
 
+		/* we're in a format sequence */
+
+		ch = *fmt++;
+
+		/* width */
+		while (ch >= '0' && ch <= '9') {
+			width *= 10;
+			width += ch - '0';
+
+			ch = *fmt++;
+		}
+
+		/* Length modifiers */
+		if (ch == 'l') {
+			lpref = 1;
+			ch = *fmt++;
+			if (ch == 'l') {
+				lpref = 2;
+				ch = *fmt++;
+			}
+		} else if (ch == 'j') {
+			/* intmax_t is long long */
+			lpref = 2;
+			ch = *fmt++;
+		} else {
+			lpref = 0;
+		}
+
+		if (ch == 'c' || ch == 'd' || ch == 'u' || ch == 'x' || ch == 'p') {
+			char *out = outbuf;
+
+			if (ch == 'p') {
+				v = va_arg(args, unsigned long);
+			} else if (lpref) {
+				if (lpref > 1)
+					v = va_arg(args, unsigned long long);
+				else
+					v = va_arg(args, unsigned long);
+			} else {
+				v = va_arg(args, unsigned int);
+			}
+
+			if (ch == 'd') {
+				/* sign-extend the value */
+				if (lpref == 0)
+					v = (long long)(int)v;
+				else if (lpref == 1)
+					v = (long long)(long)v;
+			}
+
+			switch (ch) {
+			case 'c':
+				out[0] = v;
+				out[1] = 0;
+				break;
+			case 'd':
+				i64toa_r(v, out);
+				break;
+			case 'u':
+				u64toa_r(v, out);
+				break;
+			case 'p':
+				*(out++) = '0';
+				*(out++) = 'x';
+				__nolibc_fallthrough;
+			default: /* 'x' and 'p' above */
+				u64toh_r(v, out);
+				break;
+			}
+			outstr = outbuf;
+			goto do_strlen_output;
+		}
+
+		if (ch == 's') {
+			outstr = va_arg(args, char *);
+			if (!outstr)
+				outstr = "(null)";
+			goto do_strlen_output;
+		}
+
+		if (ch == 'm') {
+#ifdef NOLIBC_IGNORE_ERRNO
+			outstr = "unknown error";
+#else
+			outstr = strerror(errno);
+#endif /* NOLIBC_IGNORE_ERRNO */
+			goto do_strlen_output;
+		}
+
+		if (ch != '%') {
+			/* Invalid format: back up to output the format characters */
+			fmt = outstr + 1;
+			/* and output a '%' now. */
+		}
+		/* %% is documented as a 'conversion specifier'.
+		 * Any flags, precision or length modifier are ignored.
+		 */
+		len = 1;
+		width = 0;
+		outstr = fmt - 1;
+		goto do_output;
+
+do_strlen_output:
+		/* Open coded strlen() (slightly smaller). */
+		for (len = 0;; len++)
+			if (!outstr[len])
+				break;
+
+do_output:
 		written += len;
 
 		width -= len;
