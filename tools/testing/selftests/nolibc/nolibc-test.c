@@ -1833,6 +1833,7 @@ static int run_printf(int min, int max)
 		CASE_TEST(string);       EXPECT_VFPRINTF(1, "foo", "%s", "foo"); break;
 		CASE_TEST(number);       EXPECT_VFPRINTF(1, "1234", "%d", 1234); break;
 		CASE_TEST(negnumber);    EXPECT_VFPRINTF(1, "-1234", "%d", -1234); break;
+		CASE_TEST(num_sign);     EXPECT_VFPRINTF(1, "| 1|+2|+3|+4|5|", "|% d|%+d|% +d|%+ d|%#d|", 1, 2, 3, 4, 5); break;
 		CASE_TEST(unsigned);     EXPECT_VFPRINTF(1, "12345", "%u", 12345); break;
 		CASE_TEST(signed_max);   EXPECT_VFPRINTF(1, "2147483647", "%i", ~0u >> 1); break;
 		CASE_TEST(signed_min);   EXPECT_VFPRINTF(1, "-2147483648", "%i", (~0u >> 1) + 1); break;
@@ -1840,7 +1841,9 @@ static int run_printf(int min, int max)
 		CASE_TEST(char);         EXPECT_VFPRINTF(1, "c", "%c", 'c'); break;
 		CASE_TEST(hex_nolibc);   EXPECT_VFPRINTF(is_nolibc, "|f|d|", "|%x|%X|", 0xf, 0xd); break;
 		CASE_TEST(hex_libc);     EXPECT_VFPRINTF(!is_nolibc, "|f|D|", "|%x|%X|", 0xf, 0xd); break;
+		CASE_TEST(hex_alt);      EXPECT_VFPRINTF(1, "|0x1|  0x2|    0|", "|%#x|%#5x|%#5x|", 1, 2, 0); break;
 		CASE_TEST(pointer);      EXPECT_VFPRINTF(1, "0x1", "%p", (void *) 0x1); break;
+		CASE_TEST(pointer_NULL); EXPECT_VFPRINTF(is_nolibc || is_glibc, "(nil)", "%p", (void *)0); break;
 		CASE_TEST(percent);      EXPECT_VFPRINTF(1, "a%d42%69%", "a%%d%d%%%d%%", 42, 69); break;
 		CASE_TEST(perc_qual);    EXPECT_VFPRINTF(is_nolibc || is_glibc, "a%d2", "a%-14l%d%d", 2); break;
 		CASE_TEST(invalid);      EXPECT_VFPRINTF(is_nolibc || is_glibc, "a%12yx3%y42%P", "a%12yx%d%y%d%P", 3, 42); break;
