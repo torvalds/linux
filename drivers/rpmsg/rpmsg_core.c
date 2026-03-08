@@ -650,7 +650,7 @@ static int __init rpmsg_init(void)
 	ret = bus_register(&rpmsg_bus);
 	if (ret) {
 		pr_err("failed to register rpmsg bus: %d\n", ret);
-		class_destroy(&rpmsg_class);
+		class_unregister(&rpmsg_class);
 	}
 	return ret;
 }
@@ -659,7 +659,7 @@ postcore_initcall(rpmsg_init);
 static void __exit rpmsg_fini(void)
 {
 	bus_unregister(&rpmsg_bus);
-	class_destroy(&rpmsg_class);
+	class_unregister(&rpmsg_class);
 }
 module_exit(rpmsg_fini);
 
