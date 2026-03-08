@@ -345,9 +345,10 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 	long long signed_v;
 	int written, width, len;
 	unsigned int flags, ch_flag;
-	char outbuf[21];
+	char outbuf[2 + 22 + 1];
 	char *out;
 	const char *outstr;
+	unsigned int sign_prefix;
 
 	written = 0;
 	while (1) {
@@ -445,32 +446,49 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				goto do_strlen_output;
 			}
 
-			out = outbuf;
+			/* The 'sign_prefix' can be zero, one or two ("0x") characters.
+			 * Prepended least significant byte first stopping on a zero byte.
+			 */
+			sign_prefix = 0;
 
 			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'i')) {
 				/* "%d" and "%i" - signed decimal numbers. */
 				if (signed_v < 0) {
-					*out++ = '-';
+					sign_prefix = '-';
 					v = -(signed_v + 1);
 					v++;
 				}
 			}
 
+			/* The value is converted offset into the buffer so that
+			 * the sign/prefix can be added in front.
+			 * The longest digit string is 22 + 1 for octal conversions, the
+			 * space is reserved even though octal isn't currently supported.
+			 */
+			out = outbuf + 2;
+
 			/* Convert the number to ascii in the required base. */
 			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'i', 'u')) {
 				/* Base 10 */
-				u64toa_r(v, out);
+				len = u64toa_r(v, out);
 			} else {
 				/* Base 16 */
 				if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'p')) {
-					*(out++) = '0';
-					*(out++) = 'x';
+					/* "%p" needs "0x" prepending. */
+					sign_prefix = '0' << 8 | 'x';
 				}
-				u64toh_r(v, out);
+				len = u64toh_r(v, out);
 			}
 
-			outstr = outbuf;
-			goto do_strlen_output;
+			/* Add the 0, 1 or 2 ("0x") sign/prefix characters at the front. */
+			for (; sign_prefix; sign_prefix >>= 8) {
+				/* Force gcc to increment len inside the loop. */
+				_NOLIBC_OPTIMIZER_HIDE_VAR(len);
+				len++;
+				*--out = sign_prefix;
+			}
+			outstr = out;
+			goto do_output;
 		}
 
 		if (ch == 'm') {
