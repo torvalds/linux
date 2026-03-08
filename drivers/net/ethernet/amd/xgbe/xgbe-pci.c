@@ -360,18 +360,66 @@ static void xgbe_pci_remove(struct pci_dev *pdev)
 	xgbe_free_pdata(pdata);
 }
 
+static void xgbe_pci_synchronize_irqs(struct xgbe_prv_data *pdata)
+{
+	unsigned int i;
+
+	/* Synchronize main device interrupt */
+	synchronize_irq(pdata->dev_irq);
+
+	/* Synchronize ECC interrupt if separate from main device interrupt */
+	if (pdata->vdata->ecc_support && pdata->dev_irq != pdata->ecc_irq)
+		synchronize_irq(pdata->ecc_irq);
+
+	/* Synchronize I2C interrupt if separate from main device interrupt */
+	if (pdata->vdata->i2c_support && pdata->dev_irq != pdata->i2c_irq)
+		synchronize_irq(pdata->i2c_irq);
+
+	/* Synchronize AN interrupt if separate from main device interrupt */
+	if (pdata->dev_irq != pdata->an_irq)
+		synchronize_irq(pdata->an_irq);
+
+	/* Synchronize per-channel DMA interrupts */
+	if (pdata->per_channel_irq) {
+		for (i = 0; i < pdata->channel_count; i++)
+			synchronize_irq(pdata->channel[i]->dma_irq);
+	}
+}
+
 static int xgbe_pci_suspend(struct device *dev)
 {
 	struct xgbe_prv_data *pdata = dev_get_drvdata(dev);
 	struct net_device *netdev = pdata->netdev;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret = 0;
 
 	if (netif_running(netdev))
 		ret = xgbe_powerdown(netdev);
 
+	/* Disable all device interrupts to prevent spurious wakeups */
+	XP_IOWRITE(pdata, XP_INT_EN, 0x0);
+
+	/* Ensure no IRQ handlers are still executing before powering down.
+	 * This prevents race conditions where an IRQ handler could access
+	 * invalid register state after the device is disabled.
+	 */
+	xgbe_pci_synchronize_irqs(pdata);
+
+	/* Set PHY to low-power mode */
 	pdata->lpm_ctrl = XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1);
 	pdata->lpm_ctrl |= MDIO_CTRL1_LPOWER;
 	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, pdata->lpm_ctrl);
+
+	/* Disable bus mastering to prevent DMA activity */
+	pci_clear_master(pdev);
+
+	/* Save PCI configuration state and disable device */
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+
+	/* Disable wake from D3 - required for S0i3 deep sleep */
+	pci_wake_from_d3(pdev, false);
+	pci_set_power_state(pdev, PCI_D3hot);
 
 	return ret;
 }
@@ -380,10 +428,29 @@ static int xgbe_pci_resume(struct device *dev)
 {
 	struct xgbe_prv_data *pdata = dev_get_drvdata(dev);
 	struct net_device *netdev = pdata->netdev;
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret = 0;
 
+	/* Restore PCI power state */
+	pci_set_power_state(pdev, PCI_D0);
+
+	/* Restore PCI configuration state */
+	pci_restore_state(pdev);
+
+	/* Enable PCI device */
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		dev_err(dev, "pci_enable_device failed: %d\n", ret);
+		return ret;
+	}
+
+	/* Re-enable bus mastering */
+	pci_set_master(pdev);
+
+	/* Re-enable all device interrupts */
 	XP_IOWRITE(pdata, XP_INT_EN, 0x1fffff);
 
+	/* Clear PHY low-power mode */
 	pdata->lpm_ctrl &= ~MDIO_CTRL1_LPOWER;
 	XMDIO_WRITE(pdata, MDIO_MMD_PCS, MDIO_CTRL1, pdata->lpm_ctrl);
 
