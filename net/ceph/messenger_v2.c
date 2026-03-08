@@ -2833,11 +2833,14 @@ static int process_message_header(struct ceph_connection *con,
 				  void *p, void *end)
 {
 	struct ceph_frame_desc *desc = &con->v2.in_desc;
-	struct ceph_msg_header2 *hdr2 = p;
+	struct ceph_msg_header2 *hdr2;
 	struct ceph_msg_header hdr;
 	int skip;
 	int ret;
 	u64 seq;
+
+	ceph_decode_need(&p, end, sizeof(*hdr2), bad);
+	hdr2 = p;
 
 	/* verify seq# */
 	seq = le64_to_cpu(hdr2->seq);
@@ -2869,6 +2872,10 @@ static int process_message_header(struct ceph_connection *con,
 	WARN_ON(!con->in_msg);
 	WARN_ON(con->in_msg->con != con);
 	return 1;
+
+bad:
+	pr_err("failed to decode message header\n");
+	return -EINVAL;
 }
 
 static int process_message(struct ceph_connection *con)
