@@ -291,10 +291,11 @@ int fseek(FILE *stream, long offset, int whence)
 }
 
 
-/* printf(). Supports the following integer and string formats.
- *  - %[#-+ 0][width][{l,ll,j}]{c,d,u,x,p,s,m,%}
+/* printf(). Supports most of the normal integer and string formats.
+ *  - %[#-+ 0][width][{l,t,z,ll,L,j,q}]{c,d,i,u,x,X,p,s,m,%}
  *  - %% generates a single %
  *  - %m outputs strerror(errno).
+ *  - %X outputs a..f the same as %x.
  *  - The modifiers [#-+ 0] are currently ignored.
  *  - No support for precision or variable widths.
  *  - No support for floating point or wide characters.
@@ -386,9 +387,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 
 		/* Length modifier.
 		 * They miss the conversion flags characters " #+-0" so can go into flags.
-		 * Change ll to j (both always 64bits).
+		 * Change both L and ll to j (all always 64bit).
 		 */
-		ch_flag = _NOLIBC_PF_CHAR_IS_ONE_OF(ch, 'l', 'j');
+		if (ch == 'L')
+			ch = 'j';
+		ch_flag = _NOLIBC_PF_CHAR_IS_ONE_OF(ch, 'l', 't', 'z', 'j', 'q');
 		if (ch_flag != 0) {
 			if (ch == 'l' && fmt[0] == 'l') {
 				fmt++;
@@ -403,20 +406,22 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 		/* Numeric and pointer conversion specifiers.
 		 *
 		 * Use an explicit bound check (rather than _NOLIBC_PF_CHAR_IS_ONE_OF())
-		 * so ch_flag can be used later.
+		 * so that 'X' can be allowed through.
+		 * 'X' gets treated and 'x' because _NOLIBC_PF_FLAG() returns the same
+		 * value for both.
 		 */
 		ch_flag = _NOLIBC_PF_FLAG(ch);
-		if ((ch >= 'a' && ch <= 'z') &&
-		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'u', 'x', 'p')) {
+		if (((ch >= 'a' && ch <= 'z') || ch == 'X') &&
+		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'i', 'u', 'x', 'p')) {
 			/* 'long' is needed for pointer conversions and ltz lengths.
 			 * A single test can be used provided 'p' (the same bit as '0')
 			 * is masked from flags.
 			 */
 			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag | (flags & ~_NOLIBC_PF_FLAG('p')),
-						     'p', 'l')) {
+						     'p', 'l', 't', 'z')) {
 				v = va_arg(args, unsigned long);
 				signed_v = (long)v;
-			} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, 'j')) {
+			} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, 'j', 'q')) {
 				v = va_arg(args, unsigned long long);
 				signed_v = v;
 			} else {
@@ -434,7 +439,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 
 			out = outbuf;
 
-			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd')) {
+			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'i')) {
 				/* "%d" and "%i" - signed decimal numbers. */
 				if (signed_v < 0) {
 					*out++ = '-';
@@ -444,7 +449,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			}
 
 			/* Convert the number to ascii in the required base. */
-			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'u')) {
+			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'i', 'u')) {
 				/* Base 10 */
 				u64toa_r(v, out);
 			} else {
