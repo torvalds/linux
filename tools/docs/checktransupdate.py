@@ -13,6 +13,8 @@ The usage is as follows:
 This will print all the files that need to be updated or translated in the zh_CN locale.
 - tools/docs/checktransupdate.py Documentation/translations/zh_CN/dev-tools/testing-overview.rst
 This will only print the status of the specified file.
+- tools/docs/checktransupdate.py Documentation/translations/zh_CN/dev-tools
+This will print the status of all files under the directory.
 
 The output is something like:
 Documentation/dev-tools/kfence.rst
@@ -262,7 +264,7 @@ def main():
         help='Set the logging file (default: checktransupdate.log)')
 
     parser.add_argument(
-        "files", nargs="*", help="Files to check, if not specified, check all files"
+        "files", nargs="*", help="Files or directories to check, if not specified, check all files"
     )
     args = parser.parse_args()
 
@@ -293,6 +295,16 @@ def main():
                 if args.print_missing_translations:
                     logging.info(os.path.relpath(os.path.abspath(file), linux_path))
                     logging.info("No translation in the locale of %s\n", args.locale)
+    else:
+        # check if the files are directories or files
+        new_files = []
+        for file in files:
+            if os.path.isfile(file):
+                new_files.append(file)
+            elif os.path.isdir(file):
+                # for directories, list all files in the directory and its subfolders
+                new_files.extend(list_files_with_excluding_folders(file, [], "rst"))
+        files = new_files
 
     files = list(map(lambda x: os.path.relpath(os.path.abspath(x), linux_path), files))
 
