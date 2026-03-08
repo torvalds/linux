@@ -291,10 +291,14 @@ int fseek(FILE *stream, long offset, int whence)
 }
 
 
-/* minimal printf(). It supports the following formats:
- *  - %[l*]{d,u,c,x,p}
- *  - %s
- *  - unknown modifiers are ignored.
+/* printf(). Supports the following integer and string formats.
+ *  - %[#-+ 0][width][{l,ll,j}]{c,d,u,x,p,s,m,%}
+ *  - %% generates a single %
+ *  - %m outputs strerror(errno).
+ *  - The modifiers [#-+ 0] are currently ignored.
+ *  - No support for precision or variable widths.
+ *  - No support for floating point or wide characters.
+ *  - Invalid formats are copied to the output buffer.
  *
  * Called by vfprintf() and snprintf() to do the actual formatting.
  * The callers provide a callback function to save the formatted data.
@@ -305,15 +309,43 @@ int fseek(FILE *stream, long offset, int whence)
  *  - with (NULL, 0) at the end of the __nolibc_printf.
  * If the callback returns non-zero __nolibc_printf() immediately returns -1.
  */
+
 typedef int (*__nolibc_printf_cb)(void *state, const char *buf, size_t size);
+
+/* This code uses 'flag' variables that are indexed by the low 6 bits
+ * of characters to optimise checks for multiple characters.
+ *
+ * _NOLIBC_PF_FLAGS_CONTAIN(flags, 'a', 'b'. ...)
+ * returns non-zero if the bit for any of the specified characters is set.
+ *
+ * _NOLIBC_PF_CHAR_IS_ONE_OF(ch, 'a', 'b'. ...)
+ * returns the flag bit for ch if it is one of the specified characters.
+ * All the characters must be in the same 32 character block (non-alphabetic,
+ * upper case, or lower case) of the ASCII character set.
+ */
+#define _NOLIBC_PF_FLAG(ch) (1u << ((ch) & 0x1f))
+#define _NOLIBC_PF_FLAG_NZ(ch) ((ch) ? _NOLIBC_PF_FLAG(ch) : 0)
+#define _NOLIBC_PF_FLAG8(cmp_1, cmp_2, cmp_3, cmp_4, cmp_5, cmp_6, cmp_7, cmp_8, ...) \
+	(_NOLIBC_PF_FLAG_NZ(cmp_1) | _NOLIBC_PF_FLAG_NZ(cmp_2) | \
+	 _NOLIBC_PF_FLAG_NZ(cmp_3) | _NOLIBC_PF_FLAG_NZ(cmp_4) | \
+	 _NOLIBC_PF_FLAG_NZ(cmp_5) | _NOLIBC_PF_FLAG_NZ(cmp_6) | \
+	 _NOLIBC_PF_FLAG_NZ(cmp_7) | _NOLIBC_PF_FLAG_NZ(cmp_8))
+#define _NOLIBC_PF_FLAGS_CONTAIN(flags, ...) \
+	((flags) & _NOLIBC_PF_FLAG8(__VA_ARGS__, 0, 0, 0, 0, 0, 0, 0))
+#define _NOLIBC_PF_CHAR_IS_ONE_OF(ch, cmp_1, ...) \
+	((unsigned int)(ch) - (cmp_1 & 0xe0) > 0x1f ? 0 : \
+		_NOLIBC_PF_FLAGS_CONTAIN(_NOLIBC_PF_FLAG(ch), cmp_1, __VA_ARGS__))
 
 static __attribute__((unused, format(printf, 3, 0)))
 int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list args)
 {
-	char lpref, ch;
+	char ch;
 	unsigned long long v;
+	long long signed_v;
 	int written, width, len;
+	unsigned int flags, ch_flag;
 	char outbuf[21];
+	char *out;
 	const char *outstr;
 
 	written = 0;
@@ -324,6 +356,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			break;
 
 		width = 0;
+		flags = 0;
 		if (ch != '%') {
 			while (*fmt && *fmt != '%')
 				fmt++;
@@ -334,7 +367,14 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 
 		/* we're in a format sequence */
 
-		ch = *fmt++;
+		/* Conversion flag characters */
+		while (1) {
+			ch = *fmt++;
+			ch_flag = _NOLIBC_PF_CHAR_IS_ONE_OF(ch, ' ', '#', '+', '-', '0');
+			if (!ch_flag)
+				break;
+			flags |= ch_flag;
+		}
 
 		/* width */
 		while (ch >= '0' && ch <= '9') {
@@ -344,63 +384,78 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			ch = *fmt++;
 		}
 
-		/* Length modifiers */
-		if (ch == 'l') {
-			lpref = 1;
-			ch = *fmt++;
-			if (ch == 'l') {
-				lpref = 2;
-				ch = *fmt++;
+		/* Length modifier.
+		 * They miss the conversion flags characters " #+-0" so can go into flags.
+		 * Change ll to j (both always 64bits).
+		 */
+		ch_flag = _NOLIBC_PF_CHAR_IS_ONE_OF(ch, 'l', 'j');
+		if (ch_flag != 0) {
+			if (ch == 'l' && fmt[0] == 'l') {
+				fmt++;
+				ch_flag = _NOLIBC_PF_FLAG('j');
 			}
-		} else if (ch == 'j') {
-			/* intmax_t is long long */
-			lpref = 2;
+			flags |= ch_flag;
 			ch = *fmt++;
-		} else {
-			lpref = 0;
 		}
 
-		if (ch == 'c' || ch == 'd' || ch == 'u' || ch == 'x' || ch == 'p') {
-			char *out = outbuf;
+		/* Conversion specifiers. */
 
-			if (ch == 'p') {
+		/* Numeric and pointer conversion specifiers.
+		 *
+		 * Use an explicit bound check (rather than _NOLIBC_PF_CHAR_IS_ONE_OF())
+		 * so ch_flag can be used later.
+		 */
+		ch_flag = _NOLIBC_PF_FLAG(ch);
+		if ((ch >= 'a' && ch <= 'z') &&
+		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'u', 'x', 'p')) {
+			/* 'long' is needed for pointer conversions and ltz lengths.
+			 * A single test can be used provided 'p' (the same bit as '0')
+			 * is masked from flags.
+			 */
+			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag | (flags & ~_NOLIBC_PF_FLAG('p')),
+						     'p', 'l')) {
 				v = va_arg(args, unsigned long);
-			} else if (lpref) {
-				if (lpref > 1)
-					v = va_arg(args, unsigned long long);
-				else
-					v = va_arg(args, unsigned long);
+				signed_v = (long)v;
+			} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, 'j')) {
+				v = va_arg(args, unsigned long long);
+				signed_v = v;
 			} else {
 				v = va_arg(args, unsigned int);
+				signed_v = (int)v;
 			}
 
-			if (ch == 'd') {
-				/* sign-extend the value */
-				if (lpref == 0)
-					v = (long long)(int)v;
-				else if (lpref == 1)
-					v = (long long)(long)v;
+			if (ch == 'c') {
+				/* "%c" - single character. */
+				outbuf[0] = v;
+				len = 1;
+				outstr = outbuf;
+				goto do_output;
 			}
 
-			switch (ch) {
-			case 'c':
-				out[0] = v;
-				out[1] = 0;
-				break;
-			case 'd':
-				i64toa_r(v, out);
-				break;
-			case 'u':
+			out = outbuf;
+
+			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd')) {
+				/* "%d" and "%i" - signed decimal numbers. */
+				if (signed_v < 0) {
+					*out++ = '-';
+					v = -(signed_v + 1);
+					v++;
+				}
+			}
+
+			/* Convert the number to ascii in the required base. */
+			if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'u')) {
+				/* Base 10 */
 				u64toa_r(v, out);
-				break;
-			case 'p':
-				*(out++) = '0';
-				*(out++) = 'x';
-				__nolibc_fallthrough;
-			default: /* 'x' and 'p' above */
+			} else {
+				/* Base 16 */
+				if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'p')) {
+					*(out++) = '0';
+					*(out++) = 'x';
+				}
 				u64toh_r(v, out);
-				break;
 			}
+
 			outstr = outbuf;
 			goto do_strlen_output;
 		}
@@ -442,6 +497,9 @@ do_strlen_output:
 
 do_output:
 		written += len;
+
+		/* Stop gcc back-merging this code into one of the conditionals above. */
+		_NOLIBC_OPTIMIZER_HIDE_VAR(len);
 
 		width -= len;
 		while (width > 0) {
