@@ -163,8 +163,22 @@ static struct ts_config *bm_init(const void *pattern, unsigned int len,
 	struct ts_config *conf;
 	struct ts_bm *bm;
 	int i;
-	unsigned int prefix_tbl_len = len * sizeof(unsigned int);
-	size_t priv_size = sizeof(*bm) + len + prefix_tbl_len;
+	unsigned int prefix_tbl_len;
+	size_t priv_size;
+
+	/* Zero-length patterns would underflow bm_find()'s initial shift. */
+	if (unlikely(!len))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * bm->pattern is stored immediately after the good_shift[] table.
+	 * Reject lengths that would wrap while sizing either region.
+	 */
+	if (unlikely(check_mul_overflow(len, sizeof(*bm->good_shift),
+					&prefix_tbl_len) ||
+		     check_add_overflow(sizeof(*bm), (size_t)len, &priv_size) ||
+		     check_add_overflow(priv_size, prefix_tbl_len, &priv_size)))
+		return ERR_PTR(-EINVAL);
 
 	conf = alloc_ts_config(priv_size, gfp_mask);
 	if (IS_ERR(conf))
