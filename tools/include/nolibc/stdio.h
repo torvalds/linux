@@ -310,28 +310,52 @@ typedef int (*__nolibc_printf_cb)(void *state, const char *buf, size_t size);
 static __attribute__((unused, format(printf, 3, 0)))
 int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list args)
 {
-	char escape, lpref, ch;
+	char lpref, ch;
 	unsigned long long v;
 	int written, width, len;
-	size_t ofs;
 	char outbuf[21];
 	const char *outstr;
 
-	written = ofs = escape = lpref = 0;
+	written = 0;
 	while (1) {
-		ch = fmt[ofs++];
-		width = 0;
+		outstr = fmt;
+		ch = *fmt++;
+		if (!ch)
+			break;
 
-		if (escape) {
-			/* we're in an escape sequence, ofs == 1 */
-			escape = 0;
+		width = 0;
+		if (ch != '%') {
+			while (*fmt && *fmt != '%')
+				fmt++;
+			/* Output characters from the format string. */
+			len = fmt - outstr;
+		} else {
+			/* we're in a format sequence */
+
+			ch = *fmt++;
 
 			/* width */
 			while (ch >= '0' && ch <= '9') {
 				width *= 10;
 				width += ch - '0';
 
-				ch = fmt[ofs++];
+				ch = *fmt++;
+			}
+
+			/* Length modifiers */
+			if (ch == 'l') {
+				lpref = 1;
+				ch = *fmt++;
+				if (ch == 'l') {
+					lpref = 2;
+					ch = *fmt++;
+				}
+			} else if (ch == 'j') {
+				/* intmax_t is long long */
+				lpref = 2;
+				ch = *fmt++;
+			} else {
+				lpref = 0;
 			}
 
 			if (ch == 'c' || ch == 'd' || ch == 'u' || ch == 'x' || ch == 'p') {
@@ -387,56 +411,34 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 #else
 				outstr = strerror(errno);
 #endif /* NOLIBC_IGNORE_ERRNO */
-			}
-			else if (ch == '%') {
-				/* queue it verbatim */
-				continue;
-			}
-			else {
-				/* modifiers or final 0 */
-				if (ch == 'l') {
-					/* long format prefix, maintain the escape */
-					lpref++;
-				} else if (ch == 'j') {
-					lpref = 2;
+			} else {
+				if (ch != '%') {
+					/* Invalid format: back up to output the format characters */
+					fmt = outstr + 1;
+					/* and output a '%' now. */
 				}
-				escape = 1;
-				goto do_escape;
+				/* %% is documented as a 'conversion specifier'.
+				 * Any flags, precision or length modifier are ignored.
+				 */
+				width = 0;
+				outstr = "%";
 			}
 			len = strlen(outstr);
-			goto flush_str;
 		}
 
-		/* not an escape sequence */
-		if (ch == 0 || ch == '%') {
-			/* flush pending data on escape or end */
-			escape = 1;
-			lpref = 0;
-			outstr = fmt;
-			len = ofs - 1;
-		flush_str:
-			width -= len;
-			while (width > 0) {
-				/* Output pad in 16 byte blocks with the small block first. */
-				int pad_len = ((width - 1) & 15) + 1;
-				width -= pad_len;
-				written += pad_len;
-				if (cb(state, "                ", pad_len) != 0)
-					return -1;
-			}
-			if (cb(state, outstr, len) != 0)
+		written += len;
+
+		width -= len;
+		while (width > 0) {
+			/* Output pad in 16 byte blocks with the small block first. */
+			int pad_len = ((width - 1) & 15) + 1;
+			width -= pad_len;
+			written += pad_len;
+			if (cb(state, "                ", pad_len) != 0)
 				return -1;
-
-			written += len;
-		do_escape:
-			if (ch == 0)
-				break;
-			fmt += ofs;
-			ofs = 0;
-			continue;
 		}
-
-		/* literal char, just queue it */
+		if (cb(state, outstr, len) != 0)
+			return -1;
 	}
 
 	/* Request a final '\0' be added to the snprintf() output.
