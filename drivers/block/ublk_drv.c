@@ -4440,7 +4440,9 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	/* Skip partition scan if disabled by user */
 	if (ub->dev_info.flags & UBLK_F_NO_AUTO_PART_SCAN) {
-		clear_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
+		/* Not clear for unprivileged daemons, see comment above */
+		if (!ub->unprivileged_daemons)
+			clear_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 	} else {
 		/* Schedule async partition scan for trusted daemons */
 		if (!ub->unprivileged_daemons)
