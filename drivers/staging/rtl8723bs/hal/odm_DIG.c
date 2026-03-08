@@ -220,9 +220,8 @@ void odm_Adaptivity(void *pDM_VOID, u8 IGI)
 	s8 Diff, IGI_target;
 	bool EDCCA_State = false;
 
-	if (!(pDM_Odm->SupportAbility & ODM_BB_ADAPTIVITY)) {
+	if (!(pDM_Odm->SupportAbility & ODM_BB_ADAPTIVITY))
 		return;
-	}
 
 	if (*pDM_Odm->pBandWidth == ODM_BW20M) /* CHANNEL_WIDTH_20 */
 		IGI_target = pDM_Odm->IGI_Base;
@@ -286,16 +285,14 @@ void ODM_Write_DIG(void *pDM_VOID, u8 CurrentIGI)
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
-	if (pDM_DigTable->bStopDIG) {
+	if (pDM_DigTable->bStopDIG)
 		return;
-	}
 
 	if (pDM_DigTable->CurIGValue != CurrentIGI) {
 		/* 1 Check initial gain by upper bound */
 		if (!pDM_DigTable->bPSDInProgress) {
-			if (CurrentIGI > pDM_DigTable->rx_gain_range_max) {
+			if (CurrentIGI > pDM_DigTable->rx_gain_range_max)
 				CurrentIGI = pDM_DigTable->rx_gain_range_max;
-			}
 
 		}
 
@@ -314,24 +311,20 @@ bool odm_DigAbort(void *pDM_VOID)
 	struct dm_odm_t *pDM_Odm = (struct dm_odm_t *)pDM_VOID;
 
 	/* SupportAbility */
-	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT)) {
+	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return	true;
-	}
 
 	/* SupportAbility */
-	if (!(pDM_Odm->SupportAbility & ODM_BB_DIG)) {
+	if (!(pDM_Odm->SupportAbility & ODM_BB_DIG))
 		return	true;
-	}
 
 	/* ScanInProcess */
-	if (*(pDM_Odm->pbScanInProcess)) {
+	if (*(pDM_Odm->pbScanInProcess))
 		return	true;
-	}
 
 	/* add by Neil Chen to avoid PSD is processing */
-	if (pDM_Odm->bDMInitialGainEnable == false) {
+	if (pDM_Odm->bDMInitialGainEnable == false)
 		return	true;
-	}
 
 	return	false;
 }
@@ -413,9 +406,9 @@ void odm_DIG(void *pDM_VOID)
 	if (pDM_Odm->bLinked && bPerformance) {
 		/* 2 Modify DIG upper bound */
 		/* 4 Modify DIG upper bound for 92E, 8723A\B, 8821 & 8812 BT */
-		if (pDM_Odm->bBtLimitedDig == 1) {
+		if (pDM_Odm->bBtLimitedDig == 1)
 			offset = 10;
-		} else
+		else
 			offset = 15;
 
 		if ((pDM_Odm->RSSI_Min + offset) > dm_dig_max)
@@ -475,9 +468,8 @@ void odm_DIG(void *pDM_VOID)
 	}
 
 	/* 2 Abnormal lower bound case */
-	if (pDM_DigTable->rx_gain_range_min > pDM_DigTable->rx_gain_range_max) {
+	if (pDM_DigTable->rx_gain_range_min > pDM_DigTable->rx_gain_range_max)
 		pDM_DigTable->rx_gain_range_min = pDM_DigTable->rx_gain_range_max;
-	}
 
 
 	/* 1 False alarm threshold decision */
