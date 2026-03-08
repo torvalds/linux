@@ -292,7 +292,7 @@ int fseek(FILE *stream, long offset, int whence)
 
 
 /* printf(). Supports most of the normal integer and string formats.
- *  - %[#0-+ ][width|*[.precision|*}][{l,t,z,ll,L,j,q}]{c,d,i,u,x,X,p,s,m,%}
+ *  - %[#0-+ ][width|*[.precision|*}][{l,t,z,ll,L,j,q}]{c,d,i,u,o,x,X,p,s,m,%}
  *  - %% generates a single %
  *  - %m outputs strerror(errno).
  *  - %X outputs a..f the same as %x.
@@ -426,7 +426,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 		 */
 		ch_flag = _NOLIBC_PF_FLAG(ch) | (flags & _NOLIBC_PF_FLAG('#')) >> 1;
 		if (((ch >= 'a' && ch <= 'z') || ch == 'X') &&
-		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'i', 'u', 'x', 'p', 's')) {
+		    _NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'c', 'd', 'i', 'u', 'o', 'x', 'p', 's')) {
 			/* 'long' is needed for pointer/string conversions and ltz lengths.
 			 * A single test can be used provided 'p' (the same bit as '0')
 			 * is masked from flags.
@@ -479,12 +479,19 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				} else if (_NOLIBC_PF_FLAGS_CONTAIN(flags, ' ')) {
 					sign_prefix = ' ';
 				}
+			} else {
+				/* "#o" requires that the output always starts with a '0'.
+				 * This needs another check after any zero padding to avoid
+				 * adding an extra leading '0'.
+				 */
+				if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'o') &&
+						_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, '#' - 1))
+					sign_prefix = '0';
 			}
 
 			/* The value is converted offset into the buffer so that
 			 * 31 zero pad characters and the sign/prefix can be added in front.
-			 * The longest digit string is 22 + 1 for octal conversions, the
-			 * space is reserved even though octal isn't currently supported.
+			 * The longest digit string is 22 + 1 for octal conversions.
 			 */
 			out = outbuf + 2 + 31;
 
@@ -497,7 +504,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 					goto do_output;
 				}
 				if (!precision) {
-					/* Explicit %nn.0d, no digits output */
+					/* Explicit %nn.0d, no digits output (except for %#.0o) */
 					len = 0;
 					goto prepend_sign;
 				}
@@ -506,17 +513,23 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				len = 1;
 			} else {
 				/* Convert the number to ascii in the required base. */
+				unsigned long long recip;
+				unsigned int base;
 				if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'd', 'i', 'u')) {
-					/* Base 10 */
-					len = u64toa_r(v, out);
+					base = 10;
+					recip = _NOLIBC_U64TOA_RECIP(10);
+				} else if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'o')) {
+					base = 8;
+					recip = _NOLIBC_U64TOA_RECIP(8);
 				} else {
-					/* Base 16 */
+					base = 16;
+					recip = _NOLIBC_U64TOA_RECIP(16);
 					if (_NOLIBC_PF_FLAGS_CONTAIN(ch_flag, 'p', '#' - 1)) {
 						/* "%p" and "%#x" need "0x" prepending. */
 						sign_prefix = '0' << 8 | 'x';
 					}
-					len = u64toh_r(v, out);
 				}
+				len = _nolibc_u64toa_base(v, out, base, recip);
 			}
 
 			/* Add zero padding */
@@ -547,13 +560,20 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				}
 			}
 
+			/* %#o has set sign_prefix to '0', but we don't want so add an extra
+			 * leading zero here.
+			 * Since the only other byte values of sign_prefix are ' ', '+' and '-'
+			 * it is enough to check that out[] doesn't already start with sign_prefix.
+			 */
+			if (sign_prefix - *out) {
 prepend_sign:
-			/* Add the 0, 1 or 2 ("0x") sign/prefix characters at the front. */
-			for (; sign_prefix; sign_prefix >>= 8) {
-				/* Force gcc to increment len inside the loop. */
-				_NOLIBC_OPTIMIZER_HIDE_VAR(len);
-				len++;
-				*--out = sign_prefix;
+				/* Add the 0, 1 or 2 ("0x") sign/prefix characters at the front. */
+				for (; sign_prefix; sign_prefix >>= 8) {
+					/* Force gcc to increment len inside the loop. */
+					_NOLIBC_OPTIMIZER_HIDE_VAR(len);
+					len++;
+					*--out = sign_prefix;
+				}
 			}
 			outstr = out;
 			goto do_output;
