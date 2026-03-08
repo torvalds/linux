@@ -545,7 +545,11 @@ do_output:
 		/* Stop gcc back-merging this code into one of the conditionals above. */
 		_NOLIBC_OPTIMIZER_HIDE_VAR(len);
 
+		/* Output the characters on the required side of any padding. */
 		width -= len;
+		flags = _NOLIBC_PF_FLAGS_CONTAIN(flags, '-');
+		if (flags && cb(state, outstr, len) != 0)
+			return -1;
 		while (width > 0) {
 			/* Output pad in 16 byte blocks with the small block first. */
 			int pad_len = ((width - 1) & 15) + 1;
@@ -554,7 +558,7 @@ do_output:
 			if (cb(state, "                ", pad_len) != 0)
 				return -1;
 		}
-		if (cb(state, outstr, len) != 0)
+		if (!flags && cb(state, outstr, len) != 0)
 			return -1;
 	}
 
