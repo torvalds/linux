@@ -292,12 +292,10 @@ int fseek(FILE *stream, long offset, int whence)
 
 
 /* printf(). Supports most of the normal integer and string formats.
- *  - %[#-+ 0][width][{l,t,z,ll,L,j,q}]{c,d,i,u,x,X,p,s,m,%}
+ *  - %[#0-+ ][width|*[.precision|*}][{l,t,z,ll,L,j,q}]{c,d,i,u,x,X,p,s,m,%}
  *  - %% generates a single %
  *  - %m outputs strerror(errno).
  *  - %X outputs a..f the same as %x.
- *  - The modifiers [-0] are currently ignored.
- *  - No support for precision or variable widths.
  *  - No support for floating point or wide characters.
  *  - Invalid formats are copied to the output buffer.
  *
@@ -343,9 +341,9 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 	char ch;
 	unsigned long long v;
 	long long signed_v;
-	int written, width, len;
+	int written, width, precision, len;
 	unsigned int flags, ch_flag;
-	char outbuf[2 + 22 + 1];
+	char outbuf[2 + 31 + 22 + 1];
 	char *out;
 	const char *outstr;
 	unsigned int sign_prefix;
@@ -378,12 +376,24 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			flags |= ch_flag;
 		}
 
-		/* width */
-		while (ch >= '0' && ch <= '9') {
-			width *= 10;
-			width += ch - '0';
-
-			ch = *fmt++;
+		/* Width and precision */
+		for (;; ch = *fmt++) {
+			if (ch == '*') {
+				precision = va_arg(args, unsigned int);
+				ch = *fmt++;
+			} else {
+				for (precision = 0; ch >= '0' && ch <= '9'; ch = *fmt++)
+					precision = precision * 10 + (ch - '0');
+			}
+			if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '.'))
+				break;
+			width = precision;
+			if (ch != '.') {
+				/* Default precision for strings */
+				precision = INT_MAX;
+				break;
+			}
+			flags |= _NOLIBC_PF_FLAG('.');
 		}
 
 		/* Length modifier.
@@ -444,8 +454,12 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			if (ch == 's') {
 				/* "%s" - character string. */
 				outstr = (const char  *)(uintptr_t)v;
-				if (!outstr)
+				if (!outstr) {
 					outstr = "(null)";
+					/* Match glibc, nothing output if precision too small */
+					len = precision >= 6 ? 6 : 0;
+					goto do_output;
+				}
 				goto do_strlen_output;
 			}
 
@@ -468,11 +482,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			}
 
 			/* The value is converted offset into the buffer so that
-			 * the sign/prefix can be added in front.
+			 * 31 zero pad characters and the sign/prefix can be added in front.
 			 * The longest digit string is 22 + 1 for octal conversions, the
 			 * space is reserved even though octal isn't currently supported.
 			 */
-			out = outbuf + 2;
+			out = outbuf + 2 + 31;
 
 			if (v == 0) {
 				/* There are special rules for zero. */
@@ -481,6 +495,11 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 					outstr = "(nil)";
 					len = 5;
 					goto do_output;
+				}
+				if (!precision) {
+					/* Explicit %nn.0d, no digits output */
+					len = 0;
+					goto prepend_sign;
 				}
 				/* All other formats (including "%#x") just output "0". */
 				out[0] = '0';
@@ -500,6 +519,35 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				}
 			}
 
+			/* Add zero padding */
+			if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '0', '.')) {
+				if (!_NOLIBC_PF_FLAGS_CONTAIN(flags, '.')) {
+					if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '-'))
+						/* Left justify overrides zero pad */
+						goto prepend_sign;
+					/* eg "%05d", Zero pad to field width less sign.
+					 * Note that precision can end up negative so all
+					 * the variables have to be 'signed int'.
+					 */
+					precision = width;
+					if (sign_prefix) {
+						precision--;
+						if (sign_prefix >= 256)
+							precision--;
+					}
+				}
+				if (precision > 31)
+					/* Don't run off the start of outbuf[], arbitrary limit
+					 * longer than the longest number field. */
+					precision = 31;
+				for (; len < precision; len++) {
+					/* Stop gcc generating horrid code and memset(). */
+					_NOLIBC_OPTIMIZER_HIDE_VAR(len);
+					*--out = '0';
+				}
+			}
+
+prepend_sign:
 			/* Add the 0, 1 or 2 ("0x") sign/prefix characters at the front. */
 			for (; sign_prefix; sign_prefix >>= 8) {
 				/* Force gcc to increment len inside the loop. */
@@ -534,8 +582,8 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 		goto do_output;
 
 do_strlen_output:
-		/* Open coded strlen() (slightly smaller). */
-		for (len = 0;; len++)
+		/* Open coded strnlen() (slightly smaller). */
+		for (len = 0; len < precision; len++)
 			if (!outstr[len])
 				break;
 
