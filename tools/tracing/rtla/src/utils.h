@@ -76,6 +76,9 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr);
 int set_comm_cgroup(const char *comm_prefix, const char *cgroup);
 int set_pid_cgroup(pid_t pid, const char *cgroup);
 int set_cpu_dma_latency(int32_t latency);
+void *calloc_fatal(size_t n, size_t size);
+void *reallocarray_fatal(void *p, size_t n, size_t size);
+char *strdup_fatal(const char *s);
 #ifdef HAVE_LIBCPUPOWER_SUPPORT
 int save_cpu_idle_disable_state(unsigned int cpu);
 int restore_cpu_idle_disable_state(unsigned int cpu);

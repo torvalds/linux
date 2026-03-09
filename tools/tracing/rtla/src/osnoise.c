@@ -938,9 +938,7 @@ struct osnoise_context *osnoise_context_alloc(void)
 {
 	struct osnoise_context *context;
 
-	context = calloc(1, sizeof(*context));
-	if (!context)
-		return NULL;
+	context = calloc_fatal(1, sizeof(*context));
 
 	context->orig_stop_us		= OSNOISE_OPTION_INIT_VAL;
 	context->stop_us		= OSNOISE_OPTION_INIT_VAL;
@@ -1017,24 +1015,16 @@ void osnoise_destroy_tool(struct osnoise_tool *top)
 struct osnoise_tool *osnoise_init_tool(char *tool_name)
 {
 	struct osnoise_tool *top;
-	int retval;
 
-	top = calloc(1, sizeof(*top));
-	if (!top)
-		return NULL;
-
+	top = calloc_fatal(1, sizeof(*top));
 	top->context = osnoise_context_alloc();
-	if (!top->context)
-		goto out_err;
 
-	retval = trace_instance_init(&top->trace, tool_name);
-	if (retval)
-		goto out_err;
+	if (trace_instance_init(&top->trace, tool_name)) {
+		osnoise_destroy_tool(top);
+		return NULL;
+	}
 
 	return top;
-out_err:
-	osnoise_destroy_tool(top);
-	return NULL;
 }
 
 /*

@@ -15,7 +15,7 @@ void
 actions_init(struct actions *self)
 {
 	self->size = action_default_size;
-	self->list = calloc(self->size, sizeof(struct action));
+	self->list = calloc_fatal(self->size, sizeof(struct action));
 	self->len = 0;
 	self->continue_flag = false;
 
@@ -50,8 +50,10 @@ static struct action *
 actions_new(struct actions *self)
 {
 	if (self->len >= self->size) {
-		self->size *= 2;
-		self->list = realloc(self->list, self->size * sizeof(struct action));
+		const size_t new_size = self->size * 2;
+
+		self->list = reallocarray_fatal(self->list, new_size, sizeof(struct action));
+		self->size = new_size;
 	}
 
 	return &self->list[self->len++];
@@ -60,25 +62,21 @@ actions_new(struct actions *self)
 /*
  * actions_add_trace_output - add an action to output trace
  */
-int
+void
 actions_add_trace_output(struct actions *self, const char *trace_output)
 {
 	struct action *action = actions_new(self);
 
 	self->present[ACTION_TRACE_OUTPUT] = true;
 	action->type = ACTION_TRACE_OUTPUT;
-	action->trace_output = calloc(strlen(trace_output) + 1, sizeof(char));
-	if (!action->trace_output)
-		return -1;
+	action->trace_output = calloc_fatal(strlen(trace_output) + 1, sizeof(char));
 	strcpy(action->trace_output, trace_output);
-
-	return 0;
 }
 
 /*
  * actions_add_trace_output - add an action to send signal to a process
  */
-int
+void
 actions_add_signal(struct actions *self, int signal, int pid)
 {
 	struct action *action = actions_new(self);
@@ -87,40 +85,32 @@ actions_add_signal(struct actions *self, int signal, int pid)
 	action->type = ACTION_SIGNAL;
 	action->signal = signal;
 	action->pid = pid;
-
-	return 0;
 }
 
 /*
  * actions_add_shell - add an action to execute a shell command
  */
-int
+void
 actions_add_shell(struct actions *self, const char *command)
 {
 	struct action *action = actions_new(self);
 
 	self->present[ACTION_SHELL] = true;
 	action->type = ACTION_SHELL;
-	action->command = calloc(strlen(command) + 1, sizeof(char));
-	if (!action->command)
-		return -1;
+	action->command = calloc_fatal(strlen(command) + 1, sizeof(char));
 	strcpy(action->command, command);
-
-	return 0;
 }
 
 /*
  * actions_add_continue - add an action to resume measurement
  */
-int
+void
 actions_add_continue(struct actions *self)
 {
 	struct action *action = actions_new(self);
 
 	self->present[ACTION_CONTINUE] = true;
 	action->type = ACTION_CONTINUE;
-
-	return 0;
 }
 
 /*
@@ -176,7 +166,8 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 				/* Only one argument allowed */
 				return -1;
 		}
-		return actions_add_trace_output(self, trace_output);
+		actions_add_trace_output(self, trace_output);
+		break;
 	case ACTION_SIGNAL:
 		/* Takes two arguments, num (signal) and pid */
 		while (token != NULL) {
@@ -200,21 +191,26 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 			/* Missing argument */
 			return -1;
 
-		return actions_add_signal(self, signal, pid);
+		actions_add_signal(self, signal, pid);
+		break;
 	case ACTION_SHELL:
 		if (token == NULL)
 			return -1;
-		if (strlen(token) > 8 && strncmp(token, "command=", 8) == 0)
-			return actions_add_shell(self, token + 8);
-		return -1;
+		if (strlen(token) > 8 && strncmp(token, "command=", 8))
+			return -1;
+		actions_add_shell(self, token + 8);
+		break;
 	case ACTION_CONTINUE:
 		/* Takes no argument */
 		if (token != NULL)
 			return -1;
-		return actions_add_continue(self);
+		actions_add_continue(self);
+		break;
 	default:
 		return -1;
 	}
+
+	return 0;
 }
 
 /*

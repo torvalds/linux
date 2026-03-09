@@ -191,9 +191,7 @@ void trace_instance_destroy(struct trace_instance *trace)
  */
 int trace_instance_init(struct trace_instance *trace, char *tool_name)
 {
-	trace->seq = calloc(1, sizeof(*trace->seq));
-	if (!trace->seq)
-		goto out_err;
+	trace->seq = calloc_fatal(1, sizeof(*trace->seq));
 
 	trace_seq_init(trace->seq);
 
@@ -274,15 +272,9 @@ struct trace_events *trace_event_alloc(const char *event_string)
 {
 	struct trace_events *tevent;
 
-	tevent = calloc(1, sizeof(*tevent));
-	if (!tevent)
-		return NULL;
+	tevent = calloc_fatal(1, sizeof(*tevent));
 
-	tevent->system = strdup(event_string);
-	if (!tevent->system) {
-		free(tevent);
-		return NULL;
-	}
+	tevent->system = strdup_fatal(event_string);
 
 	tevent->event = strstr(tevent->system, ":");
 	if (tevent->event) {
@@ -296,31 +288,23 @@ struct trace_events *trace_event_alloc(const char *event_string)
 /*
  * trace_event_add_filter - record an event filter
  */
-int trace_event_add_filter(struct trace_events *event, char *filter)
+void trace_event_add_filter(struct trace_events *event, char *filter)
 {
 	if (event->filter)
 		free(event->filter);
 
-	event->filter = strdup(filter);
-	if (!event->filter)
-		return 1;
-
-	return 0;
+	event->filter = strdup_fatal(filter);
 }
 
 /*
  * trace_event_add_trigger - record an event trigger action
  */
-int trace_event_add_trigger(struct trace_events *event, char *trigger)
+void trace_event_add_trigger(struct trace_events *event, char *trigger)
 {
 	if (event->trigger)
 		free(event->trigger);
 
-	event->trigger = strdup(trigger);
-	if (!event->trigger)
-		return 1;
-
-	return 0;
+	event->trigger = strdup_fatal(trigger);
 }
 
 /*
