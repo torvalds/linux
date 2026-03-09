@@ -101,11 +101,11 @@ following components are available
 	   Userspace can access the driver by means of character devices.
 
 	2) Networking
-	   Standard networking applications (e.g. iperf) can by used to access
+	   Standard networking applications (e.g. iperf) can be used to access
 	   the driver via the networking subsystem.
 
 	3) Video4Linux (v4l2)
-	   Standard video applications (e.g. VLC) can by used to access the
+	   Standard video applications (e.g. VLC) can be used to access the
 	   driver via the V4L subsystem.
 
 	4) Advanced Linux Sound Architecture (ALSA)
@@ -121,7 +121,7 @@ The driver is to be configured via configfs. Each loaded component kernel
 object (see section 1.3) registers a subsystem with configfs, which is used to
 configure and establish communication pathways (links) to attached devices on
 the bus. To do so, the user has to descend into the component's configuration
-directory and create a new directory (child config itmes). The name of this
+directory and create a new directory (child config items). The name of this
 directory will be used as a reference for the link and it will contain the
 following attributes:
 
@@ -129,7 +129,7 @@ following attributes:
 	  configure the buffer size for this channel
 	- subbuffer_size
 	  configure the sub-buffer size for this channel (needed for
-	  synchronous and isochrnous data)
+	  synchronous and isochronous data)
 	- num_buffers
 	  configure number of buffers used for this channel
 	- datatype
@@ -229,7 +229,7 @@ packets within one USB transaction. This renders
 bytes for padding.
 
 Note that at least (2 * subbuffer_size) bytes for isochronous data or
-(subbuffer_size * packts_per_xact) bytes for synchronous data need to
+(subbuffer_size * packets_per_xact) bytes for synchronous data need to
 be put in the transmission buffer and passed to the driver.
 
 Since adapter drivers are allowed to change a chosen configuration to best
