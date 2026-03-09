@@ -136,6 +136,11 @@ static int ntfs_get_ea(struct inode *inode, const char *name, size_t name_len,
 	if (!ea_buf)
 		return -ENODATA;
 
+	if (ea_info_qlen > all_ea_size) {
+		err = -EIO;
+		goto free_ea_buf;
+	}
+
 	err = ntfs_ea_lookup(ea_buf, ea_info_qlen, name, name_len, &ea_off,
 			&ea_size);
 	if (!err) {
