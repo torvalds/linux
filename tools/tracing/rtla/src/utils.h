@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <stdint.h>
+#include <string.h>
 #include <time.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -23,6 +24,18 @@
 
 /* Compare string with static string, length determined at compile time */
 #define strncmp_static(s1, s2) strncmp(s1, s2, ARRAY_SIZE(s2))
+
+/**
+ * str_has_prefix - Test if a string has a given prefix
+ * @str: The string to test
+ * @prefix: The string to see if @str starts with
+ *
+ * Returns: true if @str starts with @prefix, false otherwise
+ */
+static inline bool str_has_prefix(const char *str, const char *prefix)
+{
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
 
 #define container_of(ptr, type, member)({			\
 	const typeof(((type *)0)->member) *__mptr = (ptr);	\
