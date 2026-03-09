@@ -1313,12 +1313,27 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 {
 	pmd_t old_pmd;
 
+	/*
+	 * Non-present PMDs can be migration entries or device-private THP
+	 * entries. This can happen at 2 places:
+	 * - When the address space is being unmapped zap_huge_pmd(), and we
+	 *   encounter non-present pmds.
+	 * - migrate_vma_collect_huge_pmd() could calls this during migration
+	 *   of device-private pmd entries.
+	 */
+	if (!pmd_present(*pmdp)) {
+		old_pmd = READ_ONCE(*pmdp);
+		pmd_clear(pmdp);
+		goto out;
+	}
+
 	if (radix_enabled()) {
 		old_pmd = radix__pmdp_huge_get_and_clear(mm, addr, pmdp);
 	} else {
 		old_pmd = hash__pmdp_huge_get_and_clear(mm, addr, pmdp);
 	}
 
+out:
 	page_table_check_pmd_clear(mm, addr, old_pmd);
 
 	return old_pmd;

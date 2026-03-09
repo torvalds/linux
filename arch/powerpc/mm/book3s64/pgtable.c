@@ -209,16 +209,21 @@ pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmdp, int full)
 {
 	pmd_t pmd;
+	bool was_present = pmd_present(*pmdp);
+
 	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
-	VM_BUG_ON((pmd_present(*pmdp) && !pmd_trans_huge(*pmdp)) ||
-		   !pmd_present(*pmdp));
+	VM_BUG_ON(was_present && !pmd_trans_huge(*pmdp));
+	/*
+	 * Check pmdp_huge_get_and_clear() for non-present pmd case.
+	 */
 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
 	/*
 	 * if it not a fullmm flush, then we can possibly end up converting
 	 * this PMD pte entry to a regular level 0 PTE by a parallel page fault.
-	 * Make sure we flush the tlb in this case.
+	 * Make sure we flush the tlb in this case. TLB flush not needed for
+	 * non-present case.
 	 */
-	if (!full)
+	if (was_present && !full)
 		flush_pmd_tlb_range(vma, addr, addr + HPAGE_PMD_SIZE);
 	return pmd;
 }
