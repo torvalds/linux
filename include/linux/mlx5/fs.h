@@ -55,6 +55,7 @@ enum mlx5_flow_destination_type {
 	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM,
 	MLX5_FLOW_DESTINATION_TYPE_RANGE,
 	MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE,
+	MLX5_FLOW_DESTINATION_TYPE_VHCA_RX,
 };
 
 enum {
@@ -189,6 +190,9 @@ struct mlx5_flow_destination {
 		u32			ft_num;
 		struct mlx5_flow_table	*ft;
 		struct mlx5_fc          *counter;
+		struct {
+			u16		id;
+		} vhca;
 		struct {
 			u16		num;
 			u16		vhca_id;

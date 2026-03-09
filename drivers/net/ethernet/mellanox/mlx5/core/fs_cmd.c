@@ -716,6 +716,10 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				id = dst->dest_attr.ft->id;
 				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_TABLE_TYPE;
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_VHCA_RX:
+				id = dst->dest_attr.vhca.id;
+				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_VHCA_RX;
+				break;
 			default:
 				id = dst->dest_attr.tir_num;
 				ifc_type = MLX5_IFC_FLOW_DESTINATION_TYPE_TIR;
