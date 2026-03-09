@@ -257,6 +257,8 @@ skip_link_replace:
 			continue;
 
 		mlink->ctx = vifs->new_ctx;
+		if (mlink->beacon_mon_interval)
+			WRITE_ONCE(mlink->beacon_mon_last, jiffies);
 	}
 
 out:

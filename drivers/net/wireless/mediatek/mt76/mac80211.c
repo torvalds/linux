@@ -2199,8 +2199,11 @@ mt76_offchannel_notify_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 	mvif = mlink->mvif;
 
 	if (!ieee80211_vif_is_mld(vif)) {
-		if (mt76_vif_link_phy(mlink) == data->phy)
+		if (mt76_vif_link_phy(mlink) == data->phy) {
+			if (!data->offchannel && mlink->beacon_mon_interval)
+				WRITE_ONCE(mlink->beacon_mon_last, jiffies);
 			mt76_offchannel_send_nullfunc(data, vif, -1);
+		}
 		return;
 	}
 
@@ -2213,6 +2216,9 @@ mt76_offchannel_notify_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 			continue;
 		if (mt76_vif_link_phy(mlink) != data->phy)
 			continue;
+
+		if (!data->offchannel && mlink->beacon_mon_interval)
+			WRITE_ONCE(mlink->beacon_mon_last, jiffies);
 
 		mt76_offchannel_send_nullfunc(data, vif, link_id);
 	}
@@ -2235,3 +2241,109 @@ void mt76_offchannel_notify(struct mt76_phy *phy, bool offchannel)
 	local_bh_enable();
 }
 EXPORT_SYMBOL_GPL(mt76_offchannel_notify);
+
+struct mt76_rx_beacon_data {
+	struct mt76_phy *phy;
+	const u8 *bssid;
+};
+
+static void mt76_rx_beacon_iter(void *_data, u8 *mac,
+				struct ieee80211_vif *vif)
+{
+	struct mt76_rx_beacon_data *data = _data;
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+	int link_id;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
+		return;
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		struct ieee80211_bss_conf *link_conf;
+
+		if (link_id == mvif->deflink_id)
+			mlink = (struct mt76_vif_link *)vif->drv_priv;
+		else
+			mlink = rcu_dereference(mvif->link[link_id]);
+		if (!mlink || !mlink->beacon_mon_interval)
+			continue;
+
+		if (mt76_vif_link_phy(mlink) != data->phy)
+			continue;
+
+		link_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (!link_conf)
+			continue;
+
+		if (!ether_addr_equal(link_conf->bssid, data->bssid) &&
+		    (!link_conf->nontransmitted ||
+		     !ether_addr_equal(link_conf->transmitter_bssid,
+				       data->bssid)))
+			continue;
+
+		WRITE_ONCE(mlink->beacon_mon_last, jiffies);
+	}
+}
+
+void mt76_rx_beacon(struct mt76_phy *phy, struct sk_buff *skb)
+{
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+	struct mt76_rx_beacon_data data = {
+		.phy = phy,
+		.bssid = hdr->addr3,
+	};
+
+	mt76_scan_rx_beacon(phy->dev, phy->chandef.chan);
+
+	if (!phy->num_sta)
+		return;
+
+	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_ONLY_MONITOR))
+		return;
+
+	ieee80211_iterate_active_interfaces_atomic(phy->hw,
+		IEEE80211_IFACE_ITER_RESUME_ALL,
+		mt76_rx_beacon_iter, &data);
+}
+EXPORT_SYMBOL_GPL(mt76_rx_beacon);
+
+static void mt76_beacon_mon_iter(void *data, u8 *mac,
+				 struct ieee80211_vif *vif)
+{
+	struct mt76_phy *phy = data;
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+	int link_id;
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
+		return;
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		if (link_id == mvif->deflink_id)
+			mlink = (struct mt76_vif_link *)vif->drv_priv;
+		else
+			mlink = rcu_dereference(mvif->link[link_id]);
+		if (!mlink || !mlink->beacon_mon_interval)
+			continue;
+
+		if (mt76_vif_link_phy(mlink) != phy)
+			continue;
+
+		if (time_after(jiffies,
+			       READ_ONCE(mlink->beacon_mon_last) +
+			       MT76_BEACON_MON_MAX_MISS * mlink->beacon_mon_interval))
+			ieee80211_beacon_loss(vif);
+	}
+}
+
+void mt76_beacon_mon_check(struct mt76_phy *phy)
+{
+	if (phy->offchannel)
+		return;
+
+	ieee80211_iterate_active_interfaces_atomic(phy->hw,
+		IEEE80211_IFACE_ITER_RESUME_ALL,
+		mt76_beacon_mon_iter, phy);
+}
+EXPORT_SYMBOL_GPL(mt76_beacon_mon_check);

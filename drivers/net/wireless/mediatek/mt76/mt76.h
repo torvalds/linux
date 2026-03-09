@@ -364,6 +364,7 @@ enum mt76_wcid_flags {
 };
 
 #define MT76_N_WCIDS 1088
+#define MT76_BEACON_MON_MAX_MISS	7
 
 /* stored in ieee80211_tx_info::hw_queue */
 #define MT_TX_HW_QUEUE_PHY		GENMASK(3, 2)
@@ -833,6 +834,8 @@ struct mt76_vif_link {
 	u8 mcast_rates_idx;
 	u8 beacon_rates_idx;
 	bool offchannel;
+	unsigned long beacon_mon_last;
+	u16 beacon_mon_interval;
 	struct ieee80211_chanctx_conf *ctx;
 	struct mt76_wcid *wcid;
 	struct mt76_vif_data *mvif;
@@ -1605,6 +1608,8 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 struct ieee80211_scan_request *hw_req);
 void mt76_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void mt76_scan_rx_beacon(struct mt76_dev *dev, struct ieee80211_channel *chan);
+void mt76_rx_beacon(struct mt76_phy *phy, struct sk_buff *skb);
+void mt76_beacon_mon_check(struct mt76_phy *phy);
 void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac);
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,

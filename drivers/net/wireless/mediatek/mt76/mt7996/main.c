@@ -375,6 +375,17 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		mtxq->wcid = idx;
 	}
 
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+
+		if (vif->cfg.assoc && link_conf->beacon_int) {
+			mlink->beacon_mon_interval =
+				msecs_to_jiffies(ieee80211_tu_to_usec(
+					link_conf->beacon_int) / 1000);
+			WRITE_ONCE(mlink->beacon_mon_last, jiffies);
+		}
+	}
+
 	return 0;
 }
 
@@ -831,6 +842,13 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			if (!link)
 				continue;
 
+			if (vif->type == NL80211_IFTYPE_STATION) {
+				link->mt76.beacon_mon_interval =
+					msecs_to_jiffies(ieee80211_tu_to_usec(
+						link_conf->beacon_int) / 1000);
+				WRITE_ONCE(link->mt76.beacon_mon_last, jiffies);
+			}
+
 			phy = mt7996_vif_link_phy(link);
 			if (!phy)
 				continue;
@@ -841,6 +859,20 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			mt7996_mcu_add_sta(dev, link_conf, NULL, link, NULL,
 					   CONN_STATE_PORT_SECURE,
 					   !!(changed & BSS_CHANGED_BSSID));
+		}
+	}
+
+	if ((changed & BSS_CHANGED_ASSOC) && !vif->cfg.assoc &&
+	    vif->type == NL80211_IFTYPE_STATION) {
+		struct ieee80211_bss_conf *link_conf;
+		unsigned long link_id;
+
+		for_each_vif_active_link(vif, link_conf, link_id) {
+			struct mt7996_vif_link *link;
+
+			link = mt7996_vif_link(dev, vif, link_id);
+			if (link)
+				link->mt76.beacon_mon_interval = 0;
 		}
 	}
 
