@@ -222,7 +222,7 @@ void mtd_virt_concat_destroy_items(void)
 }
 
 /**
- * mtd_virt_concat_create_add - Add a mtd device to the concat list
+ * mtd_virt_concat_add - Add a mtd device to the concat list
  * @mtd:        pointer to 'mtd_info'
  *
  * Return: true on success, false otherwise.
