@@ -19,6 +19,7 @@
 
 struct f_ncm_opts {
 	struct usb_function_instance	func_inst;
+	struct net_device		*net;
 
 	struct gether_opts		net_opts;
 	struct config_group		*ncm_interf_group;
