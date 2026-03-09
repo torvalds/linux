@@ -71,7 +71,7 @@ static void simple_bpage_reset(struct simple_buffer_page *bpage)
 	local_set(&bpage->page->commit, 0);
 }
 
-static void simple_bpage_init(struct simple_buffer_page *bpage, unsigned long page)
+static void simple_bpage_init(struct simple_buffer_page *bpage, void *page)
 {
 	INIT_LIST_HEAD(&bpage->link);
 	bpage->page = (struct buffer_data_page *)page;
@@ -372,6 +372,90 @@ int simple_ring_buffer_reset(struct simple_rb_per_cpu *cpu_buffer)
 }
 EXPORT_SYMBOL_GPL(simple_ring_buffer_reset);
 
+int simple_ring_buffer_init_mm(struct simple_rb_per_cpu *cpu_buffer,
+			       struct simple_buffer_page *bpages,
+			       const struct ring_buffer_desc *desc,
+			       void *(*load_page)(unsigned long va),
+			       void (*unload_page)(void *va))
+{
+	struct simple_buffer_page *bpage = bpages;
+	int ret = 0;
+	void *page;
+	int i;
+
+	/* At least 1 reader page and two pages in the ring-buffer */
+	if (desc->nr_page_va < 3)
+		return -EINVAL;
+
+	memset(cpu_buffer, 0, sizeof(*cpu_buffer));
+
+	cpu_buffer->meta = load_page(desc->meta_va);
+	if (!cpu_buffer->meta)
+		return -EINVAL;
+
+	memset(cpu_buffer->meta, 0, sizeof(*cpu_buffer->meta));
+	cpu_buffer->meta->meta_page_size = PAGE_SIZE;
+	cpu_buffer->meta->nr_subbufs = cpu_buffer->nr_pages;
+
+	/* The reader page is not part of the ring initially */
+	page = load_page(desc->page_va[0]);
+	if (!page) {
+		unload_page(cpu_buffer->meta);
+		return -EINVAL;
+	}
+
+	simple_bpage_init(bpage, page);
+	bpage->id = 0;
+
+	cpu_buffer->nr_pages = 1;
+
+	cpu_buffer->reader_page = bpage;
+	cpu_buffer->tail_page = bpage + 1;
+	cpu_buffer->head_page = bpage + 1;
+
+	for (i = 1; i < desc->nr_page_va; i++) {
+		page = load_page(desc->page_va[i]);
+		if (!page) {
+			ret = -EINVAL;
+			break;
+		}
+
+		simple_bpage_init(++bpage, page);
+
+		bpage->link.next = &(bpage + 1)->link;
+		bpage->link.prev = &(bpage - 1)->link;
+		bpage->id = i;
+
+		cpu_buffer->nr_pages = i + 1;
+	}
+
+	if (ret) {
+		for (i--; i >= 0; i--)
+			unload_page((void *)desc->page_va[i]);
+		unload_page(cpu_buffer->meta);
+
+		return ret;
+	}
+
+	/* Close the ring */
+	bpage->link.next = &cpu_buffer->tail_page->link;
+	cpu_buffer->tail_page->link.prev = &bpage->link;
+
+	/* The last init'ed page points to the head page */
+	simple_bpage_set_head_link(bpage);
+
+	cpu_buffer->bpages = bpages;
+
+	return 0;
+}
+
+static void *__load_page(unsigned long page)
+{
+	return (void *)page;
+}
+
+static void __unload_page(void *page) { }
+
 /**
  * simple_ring_buffer_init - Init @cpu_buffer based on @desc
  * @cpu_buffer:	A simple_rb_per_cpu buffer to init, allocated by the caller.
@@ -383,52 +467,26 @@ EXPORT_SYMBOL_GPL(simple_ring_buffer_reset);
 int simple_ring_buffer_init(struct simple_rb_per_cpu *cpu_buffer, struct simple_buffer_page *bpages,
 			    const struct ring_buffer_desc *desc)
 {
-	struct simple_buffer_page *bpage = bpages;
-	int i;
-
-	/* At least 1 reader page and two pages in the ring-buffer */
-	if (desc->nr_page_va < 3)
-		return -EINVAL;
-
-	memset(cpu_buffer, 0, sizeof(*cpu_buffer));
-
-	cpu_buffer->bpages = bpages;
-
-	cpu_buffer->meta = (void *)desc->meta_va;
-	memset(cpu_buffer->meta, 0, sizeof(*cpu_buffer->meta));
-	cpu_buffer->meta->meta_page_size = PAGE_SIZE;
-	cpu_buffer->meta->nr_subbufs = cpu_buffer->nr_pages;
-
-	/* The reader page is not part of the ring initially */
-	simple_bpage_init(bpage, desc->page_va[0]);
-	bpage->id = 0;
-
-	cpu_buffer->nr_pages = 1;
-
-	cpu_buffer->reader_page = bpage;
-	cpu_buffer->tail_page = bpage + 1;
-	cpu_buffer->head_page = bpage + 1;
-
-	for (i = 1; i < desc->nr_page_va; i++) {
-		simple_bpage_init(++bpage, desc->page_va[i]);
-
-		bpage->link.next = &(bpage + 1)->link;
-		bpage->link.prev = &(bpage - 1)->link;
-		bpage->id = i;
-
-		cpu_buffer->nr_pages = i + 1;
-	}
-
-	/* Close the ring */
-	bpage->link.next = &cpu_buffer->tail_page->link;
-	cpu_buffer->tail_page->link.prev = &bpage->link;
-
-	/* The last init'ed page points to the head page */
-	simple_bpage_set_head_link(bpage);
-
-	return 0;
+	return simple_ring_buffer_init_mm(cpu_buffer, bpages, desc, __load_page, __unload_page);
 }
 EXPORT_SYMBOL_GPL(simple_ring_buffer_init);
+
+void simple_ring_buffer_unload_mm(struct simple_rb_per_cpu *cpu_buffer,
+				  void (*unload_page)(void *))
+{
+	int p;
+
+	if (!simple_rb_loaded(cpu_buffer))
+		return;
+
+	simple_rb_enable_tracing(cpu_buffer, false);
+
+	unload_page(cpu_buffer->meta);
+	for (p = 0; p < cpu_buffer->nr_pages; p++)
+		unload_page(cpu_buffer->bpages[p].page);
+
+	cpu_buffer->bpages = NULL;
+}
 
 /**
  * simple_ring_buffer_unload - Prepare @cpu_buffer for deletion
@@ -436,12 +494,7 @@ EXPORT_SYMBOL_GPL(simple_ring_buffer_init);
  */
 void simple_ring_buffer_unload(struct simple_rb_per_cpu *cpu_buffer)
 {
-	if (!simple_rb_loaded(cpu_buffer))
-		return;
-
-	simple_rb_enable_tracing(cpu_buffer, false);
-
-	cpu_buffer->bpages = NULL;
+	return simple_ring_buffer_unload_mm(cpu_buffer, __unload_page);
 }
 EXPORT_SYMBOL_GPL(simple_ring_buffer_unload);
 
