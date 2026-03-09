@@ -342,11 +342,11 @@ static void trace_event_disable_filter(struct trace_instance *instance,
 static void trace_event_save_hist(struct trace_instance *instance,
 				  struct trace_events *tevent)
 {
-	int index, out_fd;
+	size_t index, hist_len;
 	mode_t mode = 0644;
 	char path[MAX_PATH];
 	char *hist;
-	size_t hist_len;
+	int out_fd;
 
 	if (!tevent)
 		return;
@@ -378,7 +378,15 @@ static void trace_event_save_hist(struct trace_instance *instance,
 	index = 0;
 	hist_len = strlen(hist);
 	do {
-		index += write(out_fd, &hist[index], hist_len - index);
+		const ssize_t written = write(out_fd, &hist[index], hist_len - index);
+
+		if (written < 0) {
+			if (errno == EINTR)
+				continue;
+			err_msg("  Error writing hist file: %s\n", strerror(errno));
+			break;
+		}
+		index += written;
 	} while (index < hist_len);
 
 	free(hist);
