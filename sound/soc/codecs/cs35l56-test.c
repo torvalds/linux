@@ -364,18 +364,17 @@ static void cs35l56_test_parse_xu_onchip_spkid(struct kunit *test)
 	struct cs35l56_test_priv *priv = test->priv;
 	struct cs35l56_private *cs35l56 = priv->cs35l56_priv;
 	struct software_node *ext0_node;
-	int num_gpios = 0;
-	int num_pulls = 0;
+	int num_gpios, num_pulls;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(param->spkid_gpios); i++, num_gpios++) {
-		if (param->spkid_gpios[i] < 0)
+	for (num_gpios = 0; num_gpios < ARRAY_SIZE(param->spkid_gpios); num_gpios++) {
+		if (param->spkid_gpios[num_gpios] < 0)
 			break;
 	}
 	KUNIT_ASSERT_LE(test, num_gpios, ARRAY_SIZE(cs35l56->base.onchip_spkid_gpios));
 
-	for (i = 0; i < ARRAY_SIZE(param->spkid_pulls); i++, num_pulls++) {
-		if (param->spkid_pulls[i] < 0)
+	for (num_pulls = 0; num_pulls < ARRAY_SIZE(param->spkid_pulls); num_pulls++) {
+		if (param->spkid_pulls[num_pulls] < 0)
 			break;
 	}
 	KUNIT_ASSERT_LE(test, num_pulls, ARRAY_SIZE(cs35l56->base.onchip_spkid_pulls));
