@@ -243,7 +243,7 @@ struct plat_stmmacenet_data {
 	int unicast_filter_entries;
 	int tx_fifo_size;
 	int rx_fifo_size;
-	u32 host_dma_width;
+	u8 host_dma_width;
 	u8 rx_queues_to_use;
 	u8 tx_queues_to_use;
 	u8 rx_sched_algorithm;

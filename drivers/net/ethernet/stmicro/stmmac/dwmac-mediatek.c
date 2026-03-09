@@ -93,9 +93,9 @@ struct mediatek_dwmac_variant {
 	const char * const *clk_list;
 	int num_clks;
 
-	u32 dma_bit_mask;
 	u32 rx_delay_max;
 	u32 tx_delay_max;
+	u8 dma_bit_mask;
 };
 
 /* list of clocks required for mac */
@@ -268,9 +268,9 @@ static const struct mediatek_dwmac_variant mt2712_gmac_variant = {
 		.dwmac_set_delay = mt2712_set_delay,
 		.clk_list = mt2712_dwmac_clk_l,
 		.num_clks = ARRAY_SIZE(mt2712_dwmac_clk_l),
-		.dma_bit_mask = 33,
 		.rx_delay_max = 17600,
 		.tx_delay_max = 17600,
+		.dma_bit_mask = 33,
 };
 
 static int mt8195_set_interface(struct mediatek_dwmac_plat_data *plat,
@@ -418,9 +418,9 @@ static const struct mediatek_dwmac_variant mt8195_gmac_variant = {
 	.dwmac_set_delay = mt8195_set_delay,
 	.clk_list = mt8195_dwmac_clk_l,
 	.num_clks = ARRAY_SIZE(mt8195_dwmac_clk_l),
-	.dma_bit_mask = 35,
 	.rx_delay_max = 9280,
 	.tx_delay_max = 9280,
+	.dma_bit_mask = 35,
 };
 
 static int mediatek_dwmac_config_dt(struct mediatek_dwmac_plat_data *plat)
