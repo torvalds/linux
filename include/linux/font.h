@@ -13,6 +13,8 @@
 
 #include <linux/types.h>
 
+struct console_font;
+
 /*
  * font_data_t and helpers
  */
@@ -54,6 +56,8 @@ static inline const unsigned char *font_data_buf(font_data_t *fd)
 	return (const unsigned char *)fd;
 }
 
+font_data_t *font_data_import(const struct console_font *font, unsigned int vpitch,
+			      u32 (*calc_csum)(u32, const void *, size_t));
 void font_data_get(font_data_t *fd);
 bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);
@@ -124,7 +128,7 @@ extern const struct font_desc *get_default_font(int xres, int yres,
 
 struct font_data {
 	unsigned int extra[FONT_EXTRA_WORDS];
-	const unsigned char data[];
+	unsigned char data[];
 } __packed;
 
 #endif /* _VIDEO_FONT_H */

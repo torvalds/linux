@@ -2039,8 +2039,6 @@ static void updatescrollmode(struct fbcon_display *p,
 	updatescrollmode_accel(p, info, vc);
 }
 
-#define PITCH(w) (((w) + 7) >> 3)
-
 static int fbcon_resize(struct vc_data *vc, unsigned int width,
 			unsigned int height, bool from_user)
 {
@@ -2424,7 +2422,6 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h, int charcount,
 	resize = (w != vc->vc_font.width) || (h != vc->vc_font.height);
 	p->fontdata = data;
 	vc->vc_font.data = font_data_buf(p->fontdata);
-
 	old_width = vc->vc_font.width;
 	old_height = vc->vc_font.height;
 	old_charcount = vc->vc_font.charcount;
@@ -2482,11 +2479,8 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	unsigned charcount = font->charcount;
 	int w = font->width;
 	int h = font->height;
-	int size, alloc_size;
-	int i, csum, ret;
+	int i, ret;
 	font_data_t *new_data;
-	const u8 *data = font->data;
-	int pitch = PITCH(font->width);
 
 	/* Is there a reason why fbconsole couldn't handle any charcount >256?
 	 * If not this check should be changed to charcount < 256 */
@@ -2510,34 +2504,10 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	if (fbcon_invalid_charcount(info, charcount))
 		return -EINVAL;
 
-	/* Check for integer overflow in font size calculation */
-	if (check_mul_overflow(h, pitch, &size) ||
-	    check_mul_overflow(size, charcount, &size))
-		return -EINVAL;
+	new_data = font_data_import(font, vpitch, crc32);
+	if (IS_ERR(new_data))
+		return PTR_ERR(new_data);
 
-	/* Check for overflow in allocation size calculation */
-	if (check_add_overflow(FONT_EXTRA_WORDS * sizeof(int), size, &alloc_size))
-		return -EINVAL;
-
-	new_data = kmalloc(alloc_size, GFP_USER);
-
-	if (!new_data)
-		return -ENOMEM;
-
-	memset((u8 *)new_data, 0, FONT_EXTRA_WORDS * sizeof(int));
-
-	new_data += FONT_EXTRA_WORDS * sizeof(int);
-	FNTSIZE(new_data) = size;
-	REFCOUNT(new_data) = 1;	/* usage counter */
-	for (i=0; i< charcount; i++) {
-		memcpy((u8 *)new_data + i * h * pitch, data + i * vpitch * pitch, h * pitch);
-	}
-
-	/* Since linux has a nice crc32 function use it for counting font
-	 * checksums. */
-	csum = crc32(0, new_data, size);
-
-	FNTSUM(new_data) = csum;
 	/* Check if the same font is on some other console already */
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		if (fb_display[i].fontdata &&

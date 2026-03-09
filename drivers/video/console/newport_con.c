@@ -501,31 +501,17 @@ static int newport_set_font(int unit, const struct console_font *op,
 {
 	int w = op->width;
 	int h = op->height;
-	int size = h * op->charcount;
 	int i;
 	font_data_t *new_data;
-	unsigned char *data = op->data, *p;
 
 	/* ladis: when I grow up, there will be a day... and more sizes will
 	 * be supported ;-) */
-	if ((w != 8) || (h != 16) || (vpitch != 32)
-	    || (op->charcount != 256 && op->charcount != 512))
+	if (w != 8 || h != 16 || (op->charcount != 256 && op->charcount != 512))
 		return -EINVAL;
 
-	if (!(new_data = kmalloc(FONT_EXTRA_WORDS * sizeof(int) + size,
-	     GFP_USER))) return -ENOMEM;
-
-	new_data += FONT_EXTRA_WORDS * sizeof(int);
-	FNTSIZE(new_data) = size;
-	REFCOUNT(new_data) = 1;	/* usage counter */
-	FNTSUM(new_data) = 0;
-
-	p = (unsigned char *)font_data_buf(new_data);
-	for (i = 0; i < op->charcount; i++) {
-		memcpy(p, data, h);
-		data += 32;
-		p += h;
-	}
+	new_data = font_data_import(op, vpitch, NULL);
+	if (IS_ERR(new_data))
+		return PTR_ERR(new_data);
 
 	/* check if font is already used by other console */
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {

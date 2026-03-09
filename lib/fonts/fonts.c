@@ -14,7 +14,9 @@
 
 #include <linux/container_of.h>
 #include <linux/font.h>
+#include <linux/kd.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -22,6 +24,8 @@
 #if defined(__mc68000__)
 #include <asm/setup.h>
 #endif
+
+#define console_font_pitch(font) DIV_ROUND_UP((font)->width, 8)
 
 /*
  * Helpers for font_data_t
@@ -41,6 +45,64 @@ static void font_data_free(font_data_t *fd)
 {
 	kfree(to_font_data_struct(fd));
 }
+
+/**
+ * font_data_import - Allocates and initializes font data from user space
+ * @font: A font from user space
+ * @vpitch: The size of a single glyph in @font in bytes
+ * @calc_csum: An optional helper to calculate a chechsum
+ *
+ * Font data from user space must be translated to the kernel's format. The
+ * font's glyph geometry and data is provided in @font. The parameter @vpitch
+ * gives the number of bytes per glyph, including trailing bytes.
+ *
+ * The parameter @calc_csum is optional. Fbcon passes crc32() to calculate the
+ * font data's checksum.
+ *
+ * Returns:
+ * Newly initialized font data on success, or a pointer-encoded errno value otherwise.
+ */
+font_data_t *font_data_import(const struct console_font *font, unsigned int vpitch,
+			      u32 (*calc_csum)(u32, const void *, size_t))
+{
+	unsigned int pitch = console_font_pitch(font);
+	unsigned int h = font->height;
+	unsigned int charcount = font->charcount;
+	const unsigned char *data = font->data;
+	u32 csum = 0;
+	struct font_data *font_data;
+	int size, alloc_size;
+	unsigned int i;
+	font_data_t *fd;
+
+	/* Check for integer overflow in font-size calculation */
+	if (check_mul_overflow(h, pitch, &size) ||
+	    check_mul_overflow(size, charcount, &size))
+		return ERR_PTR(-EINVAL);
+
+	/* Check for overflow in allocation size calculation */
+	if (check_add_overflow(sizeof(*font_data), size, &alloc_size))
+		return ERR_PTR(-EINVAL);
+
+	font_data = kmalloc(alloc_size, GFP_USER);
+	if (!font_data)
+		return ERR_PTR(-ENOMEM);
+	memset(font_data->extra, 0, sizeof(font_data->extra));
+
+	for (i = 0; i < charcount; ++i)
+		memcpy(font_data->data + i * h * pitch, data + i * vpitch * pitch, h * pitch);
+
+	if (calc_csum)
+		csum = calc_csum(0, font_data->data, size);
+
+	fd = font_data->data;
+	REFCOUNT(fd) = 1; /* start with reference acquired */
+	FNTSIZE(fd) = size;
+	FNTSUM(fd) = csum;
+
+	return fd;
+}
+EXPORT_SYMBOL_GPL(font_data_import);
 
 /**
  * font_data_get - Acquires a reference on font data
