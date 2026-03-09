@@ -2388,6 +2388,11 @@ void __no_stack_protector s390_reset_system(void)
 	diag_amode31_ops.diag308_reset();
 }
 
+bool arch_get_secureboot(void)
+{
+	return ipl_secure_flag;
+}
+
 #ifdef CONFIG_KEXEC_FILE
 
 int ipl_report_add_component(struct ipl_report *report, struct kexec_buf *kbuf,
@@ -2503,11 +2508,6 @@ void *ipl_report_finish(struct ipl_report *report)
 	BUG_ON(ptr > buf + report->size);
 out:
 	return buf;
-}
-
-bool arch_get_secureboot(void)
-{
-	return ipl_secure_flag;
 }
 
 int ipl_report_free(struct ipl_report *report)
