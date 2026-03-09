@@ -410,6 +410,8 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 		goto end_setxattr;
 	}
 
+	inode_set_ctime_current(inode);
+
 end_setxattr:
 	hfs_find_exit(&cat_fd);
 	hfs_dbg("finished: res %d\n", err);
@@ -894,6 +896,8 @@ static int hfsplus_removexattr(struct inode *inode, const char *name)
 		err = -EIO;
 		goto end_removexattr;
 	}
+
+	inode_set_ctime_current(inode);
 
 end_removexattr:
 	hfs_find_exit(&cat_fd);
