@@ -338,12 +338,12 @@ static const struct unicam_format_info unicam_image_formats[] = {
 		.csi_dt		= MIPI_CSI2_DT_RGB565,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_RGB24, /* rgb */
-		.code		= MEDIA_BUS_FMT_RGB888_1X24,
+		.code		= MEDIA_BUS_FMT_BGR888_1X24,
 		.depth		= 24,
 		.csi_dt		= MIPI_CSI2_DT_RGB888,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_BGR24, /* bgr */
-		.code		= MEDIA_BUS_FMT_BGR888_1X24,
+		.code		= MEDIA_BUS_FMT_RGB888_1X24,
 		.depth		= 24,
 		.csi_dt		= MIPI_CSI2_DT_RGB888,
 	}, {
@@ -2144,22 +2144,45 @@ static int unicam_video_link_validate(struct media_link *link)
 		const struct v4l2_pix_format *fmt = &node->fmt.fmt.pix;
 		const struct unicam_format_info *fmtinfo;
 
-		fmtinfo = unicam_find_format_by_fourcc(fmt->pixelformat,
-						       UNICAM_SD_PAD_SOURCE_IMAGE);
+		fmtinfo = unicam_find_format_by_code(format->code,
+						     UNICAM_SD_PAD_SOURCE_IMAGE);
 		if (WARN_ON(!fmtinfo)) {
 			ret = -EPIPE;
 			goto out;
 		}
 
-		if (fmtinfo->code != format->code ||
-		    fmt->height != format->height ||
+		/*
+		 * Unicam initially associated BGR24 to BGR888_1X24 and RGB24 to
+		 * RGB888_1X24.
+		 *
+		 * In order to allow the applications using the old behaviour to
+		 * run, let's accept the old combination, but warn about it.
+		 */
+		if (fmtinfo->fourcc != fmt->pixelformat) {
+			if ((fmt->pixelformat == V4L2_PIX_FMT_BGR24 &&
+			     format->code == MEDIA_BUS_FMT_BGR888_1X24) ||
+			    (fmt->pixelformat == V4L2_PIX_FMT_RGB24 &&
+			     format->code == MEDIA_BUS_FMT_RGB888_1X24)) {
+				dev_warn_once(node->dev->dev,
+					      "Incorrect pixel format %p4cc for 0x%04x. Fix your application to use %p4cc.\n",
+					      &fmt->pixelformat, format->code, &fmtinfo->fourcc);
+			} else {
+				dev_dbg(node->dev->dev,
+					"image: format mismatch: 0x%04x <=> %p4cc\n",
+					format->code, &fmt->pixelformat);
+				ret = -EPIPE;
+				goto out;
+			}
+		}
+
+		if (fmt->height != format->height ||
 		    fmt->width != format->width ||
 		    fmt->field != format->field) {
 			dev_dbg(node->dev->dev,
-				"image: (%u x %u) 0x%08x %s != (%u x %u) 0x%08x %s\n",
-				fmt->width, fmt->height, fmtinfo->code,
+				"image: (%u x %u) %s != (%u x %u) %s\n",
+				fmt->width, fmt->height,
 				v4l2_field_names[fmt->field],
-				format->width, format->height, format->code,
+				format->width, format->height,
 				v4l2_field_names[format->field]);
 			ret = -EPIPE;
 		}
