@@ -1019,8 +1019,10 @@ static const char *fbcon_startup(void)
 						info->pixmap.blit_y);
 		vc->vc_font.width = font->width;
 		vc->vc_font.height = font->height;
-		vc->vc_font.data = (void *)(p->fontdata = font->data);
+		vc->vc_font.data = font_data_buf(font->data);
 		vc->vc_font.charcount = font->charcount;
+
+		p->fontdata = font->data;
 	}
 
 	cols = FBCON_SWAP(par->rotate, info->var.xres, info->var.yres);
@@ -1078,11 +1080,12 @@ static void fbcon_init(struct vc_data *vc, bool init)
 		if (t->fontdata) {
 			struct vc_data *fvc = vc_cons[fg_console].d;
 
-			vc->vc_font.data = (void *)(p->fontdata =
-						    fvc->vc_font.data);
+			vc->vc_font.data = fvc->vc_font.data;
 			vc->vc_font.width = fvc->vc_font.width;
 			vc->vc_font.height = fvc->vc_font.height;
 			vc->vc_font.charcount = fvc->vc_font.charcount;
+
+			p->fontdata = t->fontdata;
 			p->userfont = t->userfont;
 
 			if (p->userfont)
@@ -1097,8 +1100,10 @@ static void fbcon_init(struct vc_data *vc, bool init)
 							info->pixmap.blit_y);
 			vc->vc_font.width = font->width;
 			vc->vc_font.height = font->height;
-			vc->vc_font.data = (void *)(p->fontdata = font->data);
+			vc->vc_font.data = font_data_buf(font->data);
 			vc->vc_font.charcount = font->charcount;
+
+			p->fontdata = font->data;
 		}
 	}
 
@@ -1409,11 +1414,12 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 	svc = *default_mode;
 	t = &fb_display[svc->vc_num];
 
-	if (!vc->vc_font.data) {
-		vc->vc_font.data = (void *)(p->fontdata = t->fontdata);
+	if (!p->fontdata) {
+		vc->vc_font.data = font_data_buf(t->fontdata);
 		vc->vc_font.width = (*default_mode)->vc_font.width;
 		vc->vc_font.height = (*default_mode)->vc_font.height;
 		vc->vc_font.charcount = (*default_mode)->vc_font.charcount;
+		p->fontdata = t->fontdata;
 		p->userfont = t->userfont;
 		if (p->userfont)
 			REFCOUNT(p->fontdata)++;
@@ -2047,7 +2053,7 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 	struct fb_var_screeninfo var = info->var;
 	int x_diff, y_diff, virt_w, virt_h, virt_fw, virt_fh;
 
-	if (p->userfont && FNTSIZE(vc->vc_font.data)) {
+	if (p->userfont && FNTSIZE(p->fontdata)) {
 		unsigned int size = vc_font_size(&vc->vc_font);
 
 		/*
@@ -2057,7 +2063,7 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 		 * charcount can change and cannot be used to determine the
 		 * font data allocated size.
 		 */
-		if (!size || size > FNTSIZE(vc->vc_font.data))
+		if (!size || size > FNTSIZE(p->fontdata))
 			return -EINVAL;
 	}
 
@@ -2281,7 +2287,8 @@ static bool fbcon_blank(struct vc_data *vc, enum vesa_blank_mode blank,
 
 static int fbcon_get_font(struct vc_data *vc, struct console_font *font, unsigned int vpitch)
 {
-	const u8 *fontdata = vc->vc_font.data;
+	struct fbcon_display *p = &fb_display[vc->vc_num];
+	font_data_t *fontdata = p->fontdata;
 	u8 *data = font->data;
 	int i, j;
 
@@ -2406,16 +2413,18 @@ static void set_vc_hi_font(struct vc_data *vc, bool set)
 }
 
 static int fbcon_do_set_font(struct vc_data *vc, int w, int h, int charcount,
-			     const u8 * data, int userfont)
+			     font_data_t *data, int userfont)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_par *par = info->fbcon_par;
 	struct fbcon_display *p = &fb_display[vc->vc_num];
 	int resize, ret, old_userfont, old_width, old_height, old_charcount;
+	font_data_t *old_fontdata = p->fontdata;
 	const u8 *old_data = vc->vc_font.data;
 
 	resize = (w != vc->vc_font.width) || (h != vc->vc_font.height);
-	vc->vc_font.data = (void *)(p->fontdata = data);
+	p->fontdata = data;
+	vc->vc_font.data = font_data_buf(p->fontdata);
 	old_userfont = p->userfont;
 	if ((p->userfont = userfont))
 		REFCOUNT(data)++;
@@ -2448,12 +2457,12 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h, int charcount,
 		update_screen(vc);
 	}
 
-	if (old_userfont && (--REFCOUNT(old_data) == 0))
-		kfree(old_data - FONT_EXTRA_WORDS * sizeof(int));
+	if (old_userfont && (--REFCOUNT(old_fontdata) == 0))
+		kfree(old_fontdata - FONT_EXTRA_WORDS * sizeof(int));
 	return 0;
 
 err_out:
-	p->fontdata = old_data;
+	p->fontdata = old_fontdata;
 	vc->vc_font.data = old_data;
 
 	if (userfont) {
@@ -2483,7 +2492,8 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	int h = font->height;
 	int size, alloc_size;
 	int i, csum;
-	u8 *new_data, *data = font->data;
+	font_data_t *new_data;
+	u8 *data = font->data;
 	int pitch = PITCH(font->width);
 
 	/* Is there a reason why fbconsole couldn't handle any charcount >256?
@@ -2522,13 +2532,13 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	if (!new_data)
 		return -ENOMEM;
 
-	memset(new_data, 0, FONT_EXTRA_WORDS * sizeof(int));
+	memset((u8 *)new_data, 0, FONT_EXTRA_WORDS * sizeof(int));
 
 	new_data += FONT_EXTRA_WORDS * sizeof(int);
 	FNTSIZE(new_data) = size;
 	REFCOUNT(new_data) = 0;	/* usage counter */
 	for (i=0; i< charcount; i++) {
-		memcpy(new_data + i*h*pitch, data +  i*vpitch*pitch, h*pitch);
+		memcpy((u8 *)new_data + i * h * pitch, data + i * vpitch * pitch, h * pitch);
 	}
 
 	/* Since linux has a nice crc32 function use it for counting font

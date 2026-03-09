@@ -33,9 +33,9 @@
 
 #define NEWPORT_LEN	0x10000
 
-#define FONT_DATA ((unsigned char *)font_vga_8x16.data)
+#define FONT_DATA font_vga_8x16.data
 
-static unsigned char *font_data[MAX_NR_CONSOLES];
+static font_data_t *font_data[MAX_NR_CONSOLES];
 
 static struct newport_regs *npregs;
 static unsigned long newport_addr;
@@ -370,9 +370,9 @@ static void newport_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
 static void newport_putc(struct vc_data *vc, u16 charattr, unsigned int ypos,
 			 unsigned int xpos)
 {
-	unsigned char *p;
+	const unsigned char *p;
 
-	p = &font_data[vc->vc_num][(charattr & 0xff) << 4];
+	p = &font_data_buf(font_data[vc->vc_num])[(charattr & 0xff) << 4];
 	charattr = (charattr >> 8) & 0xff;
 	xpos <<= 3;
 	ypos <<= 4;
@@ -400,7 +400,7 @@ static void newport_putcs(struct vc_data *vc, const u16 *s,
 			  unsigned int count, unsigned int ypos,
 			  unsigned int xpos)
 {
-	unsigned char *p;
+	const unsigned char *p;
 	unsigned int i;
 	u16 charattr;
 
@@ -424,7 +424,7 @@ static void newport_putcs(struct vc_data *vc, const u16 *s,
 				 NPORT_DMODE0_L32);
 
 	for (i = 0; i < count; i++, xpos += 8) {
-		p = &font_data[vc->vc_num][(scr_readw(s++) & 0xff) << 4];
+		p = &font_data_buf(font_data[vc->vc_num])[(scr_readw(s++) & 0xff) << 4];
 
 		newport_wait(npregs);
 
@@ -503,7 +503,8 @@ static int newport_set_font(int unit, const struct console_font *op,
 	int h = op->height;
 	int size = h * op->charcount;
 	int i;
-	unsigned char *new_data, *data = op->data, *p;
+	font_data_t *new_data;
+	unsigned char *data = op->data, *p;
 
 	/* ladis: when I grow up, there will be a day... and more sizes will
 	 * be supported ;-) */
@@ -519,7 +520,7 @@ static int newport_set_font(int unit, const struct console_font *op,
 	REFCOUNT(new_data) = 0;	/* usage counter */
 	FNTSUM(new_data) = 0;
 
-	p = new_data;
+	p = (unsigned char *)font_data_buf(new_data);
 	for (i = 0; i < op->charcount; i++) {
 		memcpy(p, data, h);
 		data += 32;

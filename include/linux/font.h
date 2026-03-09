@@ -13,12 +13,57 @@
 
 #include <linux/types.h>
 
+/*
+ * font_data_t and helpers
+ */
+
+/**
+ * font_data_t - Raw font data
+ *
+ * Values of type font_data_t store a pointer to raw font data. The format
+ * is monochrome. Each bit sets a pixel of a stored glyph. Font data does
+ * not store geometry information for the individual glyphs. Users of the
+ * font have to store glyph size, pitch and character count separately.
+ *
+ * Font data in font_data_t is not equivalent to raw u8. Each pointer stores
+ * an additional hidden header before the font data. The layout is
+ *
+ * +------+-----------------------------+
+ * | -16  |  CRC32 Checksum (optional)  |
+ * | -12  |  <Unused>                   |
+ * |  -8  |  Number of data bytes       |
+ * |  -4  |  Reference count            |
+ * +------+-----------------------------+
+ * |   0  |  Data buffer                |
+ * |  ... |                             |
+ * +------+-----------------------------+
+ *
+ * Use helpers to access font_data_t. Use font_data_buf() to get the stored data.
+ */
+typedef const unsigned char font_data_t;
+
+/**
+ * font_data_buf() - Returns the font data as raw bytes
+ * @fd: The font data
+ *
+ * Returns:
+ * The raw font data. The provided buffer is read-only.
+ */
+static inline const unsigned char *font_data_buf(font_data_t *fd)
+{
+	return (const unsigned char *)fd;
+}
+
+/*
+ * Font description
+ */
+
 struct font_desc {
     int idx;
     const char *name;
     unsigned int width, height;
     unsigned int charcount;
-    const void *data;
+    font_data_t *data;
     int pref;
 };
 
