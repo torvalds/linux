@@ -202,7 +202,7 @@ static int io_register_restrictions_task(void __user *arg, unsigned int nr_args)
 		return -EPERM;
 	/*
 	 * Similar to seccomp, disallow setting a filter if task_no_new_privs
-	 * is true and we're not CAP_SYS_ADMIN.
+	 * is false and we're not CAP_SYS_ADMIN.
 	 */
 	if (!task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
@@ -238,7 +238,7 @@ static int io_register_bpf_filter_task(void __user *arg, unsigned int nr_args)
 
 	/*
 	 * Similar to seccomp, disallow setting a filter if task_no_new_privs
-	 * is true and we're not CAP_SYS_ADMIN.
+	 * is false and we're not CAP_SYS_ADMIN.
 	 */
 	if (!task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
