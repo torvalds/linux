@@ -514,34 +514,34 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
 				&pdev->dev, plat->multicast_filter_bins);
 		plat->core_type = DWMAC_CORE_GMAC;
-		plat->pmt = 1;
+		plat->pmt = true;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.40a")) {
 		plat->core_type = DWMAC_CORE_GMAC;
-		plat->enh_desc = 1;
-		plat->tx_coe = 1;
-		plat->bugged_jumbo = 1;
-		plat->pmt = 1;
+		plat->enh_desc = true;
+		plat->tx_coe = true;
+		plat->bugged_jumbo = true;
+		plat->pmt = true;
 	}
 
 	if (of_device_compatible_match(np, stmmac_gmac4_compats)) {
 		plat->core_type = DWMAC_CORE_GMAC4;
-		plat->pmt = 1;
+		plat->pmt = true;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
 		of_device_is_compatible(np, "snps,dwmac-3.710")) {
-		plat->enh_desc = 1;
-		plat->bugged_jumbo = 1;
-		plat->force_sf_dma_mode = 1;
+		plat->enh_desc = true;
+		plat->bugged_jumbo = true;
+		plat->force_sf_dma_mode = true;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwxgmac")) {
 		plat->core_type = DWMAC_CORE_XGMAC;
-		plat->pmt = 1;
+		plat->pmt = true;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
 		of_property_read_u32(np, "snps,multicast-filter-bins",

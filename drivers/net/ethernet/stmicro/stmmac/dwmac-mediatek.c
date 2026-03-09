@@ -564,7 +564,7 @@ static int mediatek_dwmac_common_data(struct platform_device *pdev,
 		plat->flags &= ~STMMAC_FLAG_USE_PHY_WOL;
 	else
 		plat->flags |= STMMAC_FLAG_USE_PHY_WOL;
-	plat->riwt_off = 1;
+	plat->riwt_off = true;
 	plat->maxmtu = ETH_DATA_LEN;
 	plat->host_dma_width = priv_plat->variant->dma_bit_mask;
 	plat->bsp_priv = priv_plat;
