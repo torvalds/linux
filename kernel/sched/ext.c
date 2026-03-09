@@ -4546,7 +4546,7 @@ static void scx_kobj_release(struct kobject *kobj)
 	struct scx_sched *sch = container_of(kobj, struct scx_sched, kobj);
 
 	INIT_RCU_WORK(&sch->rcu_work, scx_sched_free_rcu_work);
-	queue_rcu_work(system_unbound_wq, &sch->rcu_work);
+	queue_rcu_work(system_dfl_wq, &sch->rcu_work);
 }
 
 static ssize_t scx_attr_ops_show(struct kobject *kobj,
