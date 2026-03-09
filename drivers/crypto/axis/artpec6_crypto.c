@@ -1323,7 +1323,7 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 
 	artpec6_crypto_init_dma_operation(common);
 
-	/* Upload HMAC key, must be first the first packet */
+	/* Upload HMAC key, it must be the first packet */
 	if (req_ctx->hash_flags & HASH_FLAG_HMAC) {
 		if (variant == ARTPEC6_CRYPTO) {
 			req_ctx->key_md = FIELD_PREP(A6_CRY_MD_OPER,
@@ -1333,11 +1333,8 @@ static int artpec6_crypto_prepare_hash(struct ahash_request *areq)
 						     a7_regk_crypto_dlkey);
 		}
 
-		/* Copy and pad up the key */
-		memcpy(req_ctx->key_buffer, ctx->hmac_key,
-		       ctx->hmac_key_length);
-		memset(req_ctx->key_buffer + ctx->hmac_key_length, 0,
-		       blocksize - ctx->hmac_key_length);
+		memcpy_and_pad(req_ctx->key_buffer, blocksize, ctx->hmac_key,
+			       ctx->hmac_key_length, 0);
 
 		error = artpec6_crypto_setup_out_descr(common,
 					(void *)&req_ctx->key_md,
