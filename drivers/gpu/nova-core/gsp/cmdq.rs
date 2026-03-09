@@ -2,11 +2,7 @@
 
 use core::{
     cmp,
-    mem,
-    sync::atomic::{
-        fence,
-        Ordering, //
-    }, //
+    mem, //
 };
 
 use kernel::{
@@ -146,30 +142,32 @@ static_assert!(align_of::<MsgqData>() == GSP_PAGE_SIZE);
 #[repr(C)]
 // There is no struct defined for this in the open-gpu-kernel-source headers.
 // Instead it is defined by code in `GspMsgQueuesInit()`.
-struct Msgq {
+// TODO: Revert to private once `IoView` projections replace the `gsp_mem` module.
+pub(super) struct Msgq {
     /// Header for sending messages, including the write pointer.
-    tx: MsgqTxHeader,
+    pub(super) tx: MsgqTxHeader,
     /// Header for receiving messages, including the read pointer.
-    rx: MsgqRxHeader,
+    pub(super) rx: MsgqRxHeader,
     /// The message queue proper.
     msgq: MsgqData,
 }
 
 /// Structure shared between the driver and the GSP and containing the command and message queues.
 #[repr(C)]
-struct GspMem {
+// TODO: Revert to private once `IoView` projections replace the `gsp_mem` module.
+pub(super) struct GspMem {
     /// Self-mapping page table entries.
     ptes: PteArray<{ Self::PTE_ARRAY_SIZE }>,
     /// CPU queue: the driver writes commands here, and the GSP reads them. It also contains the
     /// write and read pointers that the CPU updates.
     ///
     /// This member is read-only for the GSP.
-    cpuq: Msgq,
+    pub(super) cpuq: Msgq,
     /// GSP queue: the GSP writes messages here, and the driver reads them. It also contains the
     /// write and read pointers that the GSP updates.
     ///
     /// This member is read-only for the driver.
-    gspq: Msgq,
+    pub(super) gspq: Msgq,
 }
 
 impl GspMem {
@@ -331,12 +329,7 @@ impl DmaGspMem {
     //
     // - The returned value is between `0` and `MSGQ_NUM_PAGES`.
     fn gsp_write_ptr(&self) -> u32 {
-        let gsp_mem = self.0.start_ptr();
-
-        // SAFETY:
-        //  - The 'CoherentAllocation' contains at least one object.
-        //  - By the invariants of `CoherentAllocation` the pointer is valid.
-        (unsafe { (*gsp_mem).gspq.tx.write_ptr() } % MSGQ_NUM_PAGES)
+        super::fw::gsp_mem::gsp_write_ptr(&self.0)
     }
 
     // Returns the index of the memory page the GSP will read the next command from.
@@ -345,12 +338,7 @@ impl DmaGspMem {
     //
     // - The returned value is between `0` and `MSGQ_NUM_PAGES`.
     fn gsp_read_ptr(&self) -> u32 {
-        let gsp_mem = self.0.start_ptr();
-
-        // SAFETY:
-        //  - The 'CoherentAllocation' contains at least one object.
-        //  - By the invariants of `CoherentAllocation` the pointer is valid.
-        (unsafe { (*gsp_mem).gspq.rx.read_ptr() } % MSGQ_NUM_PAGES)
+        super::fw::gsp_mem::gsp_read_ptr(&self.0)
     }
 
     // Returns the index of the memory page the CPU can read the next message from.
@@ -359,27 +347,12 @@ impl DmaGspMem {
     //
     // - The returned value is between `0` and `MSGQ_NUM_PAGES`.
     fn cpu_read_ptr(&self) -> u32 {
-        let gsp_mem = self.0.start_ptr();
-
-        // SAFETY:
-        //  - The ['CoherentAllocation'] contains at least one object.
-        //  - By the invariants of CoherentAllocation the pointer is valid.
-        (unsafe { (*gsp_mem).cpuq.rx.read_ptr() } % MSGQ_NUM_PAGES)
+        super::fw::gsp_mem::cpu_read_ptr(&self.0)
     }
 
     // Informs the GSP that it can send `elem_count` new pages into the message queue.
     fn advance_cpu_read_ptr(&mut self, elem_count: u32) {
-        let rptr = self.cpu_read_ptr().wrapping_add(elem_count) % MSGQ_NUM_PAGES;
-
-        // Ensure read pointer is properly ordered.
-        fence(Ordering::SeqCst);
-
-        let gsp_mem = self.0.start_ptr_mut();
-
-        // SAFETY:
-        //  - The 'CoherentAllocation' contains at least one object.
-        //  - By the invariants of `CoherentAllocation` the pointer is valid.
-        unsafe { (*gsp_mem).cpuq.rx.set_read_ptr(rptr) };
+        super::fw::gsp_mem::advance_cpu_read_ptr(&self.0, elem_count)
     }
 
     // Returns the index of the memory page the CPU can write the next command to.
@@ -388,26 +361,12 @@ impl DmaGspMem {
     //
     // - The returned value is between `0` and `MSGQ_NUM_PAGES`.
     fn cpu_write_ptr(&self) -> u32 {
-        let gsp_mem = self.0.start_ptr();
-
-        // SAFETY:
-        //  - The 'CoherentAllocation' contains at least one object.
-        //  - By the invariants of `CoherentAllocation` the pointer is valid.
-        (unsafe { (*gsp_mem).cpuq.tx.write_ptr() } % MSGQ_NUM_PAGES)
+        super::fw::gsp_mem::cpu_write_ptr(&self.0)
     }
 
     // Informs the GSP that it can process `elem_count` new pages from the command queue.
     fn advance_cpu_write_ptr(&mut self, elem_count: u32) {
-        let wptr = self.cpu_write_ptr().wrapping_add(elem_count) & MSGQ_NUM_PAGES;
-        let gsp_mem = self.0.start_ptr_mut();
-
-        // SAFETY:
-        //  - The 'CoherentAllocation' contains at least one object.
-        //  - By the invariants of `CoherentAllocation` the pointer is valid.
-        unsafe { (*gsp_mem).cpuq.tx.set_write_ptr(wptr) };
-
-        // Ensure all command data is visible before triggering the GSP read.
-        fence(Ordering::SeqCst);
+        super::fw::gsp_mem::advance_cpu_write_ptr(&self.0, elem_count)
     }
 }
 
