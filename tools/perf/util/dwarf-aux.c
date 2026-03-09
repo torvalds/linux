@@ -2127,12 +2127,27 @@ Dwarf_Die *die_get_member_type(Dwarf_Die *type_die, int offset,
 
 		tag = dwarf_tag(&mb_type);
 
-		if (tag == DW_TAG_structure_type || tag == DW_TAG_union_type) {
+		if (tag == DW_TAG_structure_type || tag == DW_TAG_union_type ||
+		    tag == DW_TAG_array_type) {
 			Dwarf_Word loc;
 
 			/* Update offset for the start of the member struct */
 			if (die_get_data_member_location(member, &loc) == 0)
 				offset -= loc;
+		}
+
+		/* Handle array types: resolve to the element type by one level */
+		if (tag == DW_TAG_array_type) {
+			Dwarf_Word size;
+
+			if (die_get_real_type(&mb_type, &mb_type) == NULL)
+				return NULL;
+
+			if (dwarf_aggregate_size(&mb_type, &size) < 0)
+				return NULL;
+
+			offset = offset % size;
+			tag = dwarf_tag(&mb_type);
 		}
 	}
 	*die_mem = mb_type;
