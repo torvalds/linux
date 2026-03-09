@@ -24952,15 +24952,6 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 }
 #define SECURITY_PREFIX "security_"
 
-static int check_attach_modify_return(unsigned long addr, const char *func_name)
-{
-	if (within_error_injection_list(addr) ||
-	    !strncmp(SECURITY_PREFIX, func_name, sizeof(SECURITY_PREFIX) - 1))
-		return 0;
-
-	return -EINVAL;
-}
-
 #ifdef CONFIG_FUNCTION_ERROR_INJECTION
 
 /* list of non-sleepable functions that are otherwise on
@@ -24996,6 +24987,15 @@ static int check_attach_sleepable(u32 btf_id, unsigned long addr, const char *fu
 	return -EINVAL;
 }
 
+static int check_attach_modify_return(unsigned long addr, const char *func_name)
+{
+	if (within_error_injection_list(addr) ||
+	    !strncmp(SECURITY_PREFIX, func_name, sizeof(SECURITY_PREFIX) - 1))
+		return 0;
+
+	return -EINVAL;
+}
+
 #else
 
 /* Unfortunately, the arch-specific prefixes are hard-coded in arch syscall code
@@ -25023,11 +25023,20 @@ static bool has_arch_syscall_prefix(const char *func_name)
 #endif
 }
 
-/* Without error injection, allow sleepable progs on syscalls. */
+/* Without error injection, allow sleepable and fmod_ret progs on syscalls. */
 
 static int check_attach_sleepable(u32 btf_id, unsigned long addr, const char *func_name)
 {
 	if (has_arch_syscall_prefix(func_name))
+		return 0;
+
+	return -EINVAL;
+}
+
+static int check_attach_modify_return(unsigned long addr, const char *func_name)
+{
+	if (has_arch_syscall_prefix(func_name) ||
+	    !strncmp(SECURITY_PREFIX, func_name, sizeof(SECURITY_PREFIX) - 1))
 		return 0;
 
 	return -EINVAL;
