@@ -48,7 +48,7 @@ static struct sg_table *ivpu_bo_map_attachment(struct ivpu_device *vdev, struct 
 {
 	struct sg_table *sgt;
 
-	drm_WARN_ON(&vdev->drm, !bo->base.base.import_attach);
+	drm_WARN_ON(&vdev->drm, !drm_gem_is_imported(&bo->base.base));
 
 	ivpu_bo_lock(bo);
 
@@ -157,7 +157,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 	}
 
 	if (bo->base.sgt) {
-		if (bo->base.base.import_attach) {
+		if (drm_gem_is_imported(&bo->base.base)) {
 			dma_buf_unmap_attachment(bo->base.base.import_attach,
 						 bo->base.sgt, DMA_BIDIRECTIONAL);
 		} else {
