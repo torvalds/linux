@@ -229,24 +229,31 @@ static void update_insn_state_x86(struct type_state *state,
 
 	if (ins__is_call(&dl->ins)) {
 		struct symbol *func = dl->ops.target.sym;
+		const char *call_name;
 
-		if (func == NULL)
-			return;
+		/* Try to resolve the call target name */
+		if (func)
+			call_name = func->name;
+		else
+			call_name = dl->ops.target.name;
 
 		/* __fentry__ will preserve all registers */
-		if (!strcmp(func->name, "__fentry__"))
+		if (call_name && !strcmp(call_name, "__fentry__"))
 			return;
 
-		pr_debug_dtp("call [%x] %s\n", insn_offset, func->name);
+		if (call_name)
+			pr_debug_dtp("call [%x] %s\n", insn_offset, call_name);
+		else
+			pr_debug_dtp("call [%x] <unknown>\n", insn_offset);
 
-		/* Otherwise invalidate caller-saved registers after call */
+		/* Invalidate caller-saved registers after call (ABI requirement) */
 		for (unsigned i = 0; i < ARRAY_SIZE(state->regs); i++) {
 			if (state->regs[i].caller_saved)
 				invalidate_reg_state(&state->regs[i]);
 		}
 
 		/* Update register with the return type (if any) */
-		if (die_find_func_rettype(cu_die, func->name, &type_die)) {
+		if (call_name && die_find_func_rettype(cu_die, call_name, &type_die)) {
 			tsr = &state->regs[state->ret_reg];
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
