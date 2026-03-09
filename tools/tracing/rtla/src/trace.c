@@ -313,7 +313,7 @@ void trace_event_add_trigger(struct trace_events *event, char *trigger)
 static void trace_event_disable_filter(struct trace_instance *instance,
 				       struct trace_events *tevent)
 {
-	char filter[1024];
+	char filter[MAX_PATH];
 	int retval;
 
 	if (!tevent->filter)
@@ -325,7 +325,7 @@ static void trace_event_disable_filter(struct trace_instance *instance,
 	debug_msg("Disabling %s:%s filter %s\n", tevent->system,
 		  tevent->event ? : "*", tevent->filter);
 
-	snprintf(filter, 1024, "!%s\n", tevent->filter);
+	snprintf(filter, ARRAY_SIZE(filter), "!%s\n", tevent->filter);
 
 	retval = tracefs_event_file_write(instance->inst, tevent->system,
 					  tevent->event, "filter", filter);
@@ -344,7 +344,7 @@ static void trace_event_save_hist(struct trace_instance *instance,
 {
 	int retval, index, out_fd;
 	mode_t mode = 0644;
-	char path[1024];
+	char path[MAX_PATH];
 	char *hist;
 
 	if (!tevent)
@@ -359,7 +359,7 @@ static void trace_event_save_hist(struct trace_instance *instance,
 	if (retval)
 		return;
 
-	snprintf(path, 1024, "%s_%s_hist.txt", tevent->system, tevent->event);
+	snprintf(path, ARRAY_SIZE(path), "%s_%s_hist.txt", tevent->system, tevent->event);
 
 	printf("  Saving event %s:%s hist to %s\n", tevent->system, tevent->event, path);
 
@@ -391,7 +391,7 @@ out_close:
 static void trace_event_disable_trigger(struct trace_instance *instance,
 					struct trace_events *tevent)
 {
-	char trigger[1024];
+	char trigger[MAX_PATH];
 	int retval;
 
 	if (!tevent->trigger)
@@ -405,7 +405,7 @@ static void trace_event_disable_trigger(struct trace_instance *instance,
 
 	trace_event_save_hist(instance, tevent);
 
-	snprintf(trigger, 1024, "!%s\n", tevent->trigger);
+	snprintf(trigger, ARRAY_SIZE(trigger), "!%s\n", tevent->trigger);
 
 	retval = tracefs_event_file_write(instance->inst, tevent->system,
 					  tevent->event, "trigger", trigger);
@@ -444,7 +444,7 @@ void trace_events_disable(struct trace_instance *instance,
 static int trace_event_enable_filter(struct trace_instance *instance,
 				     struct trace_events *tevent)
 {
-	char filter[1024];
+	char filter[MAX_PATH];
 	int retval;
 
 	if (!tevent->filter)
@@ -456,7 +456,7 @@ static int trace_event_enable_filter(struct trace_instance *instance,
 		return 1;
 	}
 
-	snprintf(filter, 1024, "%s\n", tevent->filter);
+	snprintf(filter, ARRAY_SIZE(filter), "%s\n", tevent->filter);
 
 	debug_msg("Enabling %s:%s filter %s\n", tevent->system,
 		  tevent->event ? : "*", tevent->filter);
@@ -479,7 +479,7 @@ static int trace_event_enable_filter(struct trace_instance *instance,
 static int trace_event_enable_trigger(struct trace_instance *instance,
 				      struct trace_events *tevent)
 {
-	char trigger[1024];
+	char trigger[MAX_PATH];
 	int retval;
 
 	if (!tevent->trigger)
@@ -491,7 +491,7 @@ static int trace_event_enable_trigger(struct trace_instance *instance,
 		return 1;
 	}
 
-	snprintf(trigger, 1024, "%s\n", tevent->trigger);
+	snprintf(trigger, ARRAY_SIZE(trigger), "%s\n", tevent->trigger);
 
 	debug_msg("Enabling %s:%s trigger %s\n", tevent->system,
 		  tevent->event ? : "*", tevent->trigger);
