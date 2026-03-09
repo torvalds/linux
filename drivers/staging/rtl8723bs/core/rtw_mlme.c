@@ -262,17 +262,13 @@ void rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
 	spin_unlock_bh(&scanned_queue->lock);
 }
 
-signed int rtw_if_up(struct adapter *padapter)
+bool rtw_if_up(struct adapter *padapter)
 {
-	signed int res;
-
 	if (padapter->bDriverStopped || padapter->bSurpriseRemoved ||
 		!check_fwstate(&padapter->mlmepriv, _FW_LINKED))
-		res = false;
-	else
-		res =  true;
+		return false;
 
-	return res;
+	return true;
 }
 
 void rtw_generate_random_ibss(u8 *pibss)

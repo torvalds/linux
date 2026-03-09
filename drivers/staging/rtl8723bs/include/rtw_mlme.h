@@ -362,7 +362,7 @@ extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_ne
 
 extern struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 *addr);
 
-extern signed int rtw_if_up(struct adapter *padapter);
+bool rtw_if_up(struct adapter *padapter);
 
 signed int rtw_linked_check(struct adapter *padapter);
 
