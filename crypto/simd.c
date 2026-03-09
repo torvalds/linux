@@ -214,13 +214,17 @@ int simd_register_skciphers_compat(struct skcipher_alg *algs, int count,
 	const char *basename;
 	struct simd_skcipher_alg *simd;
 
+	for (i = 0; i < count; i++) {
+		if (WARN_ON(strncmp(algs[i].base.cra_name, "__", 2) ||
+			    strncmp(algs[i].base.cra_driver_name, "__", 2)))
+			return -EINVAL;
+	}
+
 	err = crypto_register_skciphers(algs, count);
 	if (err)
 		return err;
 
 	for (i = 0; i < count; i++) {
-		WARN_ON(strncmp(algs[i].base.cra_name, "__", 2));
-		WARN_ON(strncmp(algs[i].base.cra_driver_name, "__", 2));
 		algname = algs[i].base.cra_name + 2;
 		drvname = algs[i].base.cra_driver_name + 2;
 		basename = algs[i].base.cra_driver_name;
@@ -437,13 +441,17 @@ int simd_register_aeads_compat(struct aead_alg *algs, int count,
 	const char *basename;
 	struct simd_aead_alg *simd;
 
+	for (i = 0; i < count; i++) {
+		if (WARN_ON(strncmp(algs[i].base.cra_name, "__", 2) ||
+			    strncmp(algs[i].base.cra_driver_name, "__", 2)))
+			return -EINVAL;
+	}
+
 	err = crypto_register_aeads(algs, count);
 	if (err)
 		return err;
 
 	for (i = 0; i < count; i++) {
-		WARN_ON(strncmp(algs[i].base.cra_name, "__", 2));
-		WARN_ON(strncmp(algs[i].base.cra_driver_name, "__", 2));
 		algname = algs[i].base.cra_name + 2;
 		drvname = algs[i].base.cra_driver_name + 2;
 		basename = algs[i].base.cra_driver_name;
