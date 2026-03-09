@@ -23,7 +23,7 @@
  * soon be no new userspace code that will ever use a vsyscall.
  *
  * The code in this file emulates vsyscalls when notified of a page
- * fault to a vsyscall address.
+ * fault or a general protection fault to a vsyscall address.
  */
 
 #include <linux/kernel.h>
@@ -118,10 +118,9 @@ static bool __emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	long ret;
 	unsigned long orig_dx;
 
-	/*
-	 * No point in checking CS -- the only way to get here is a user mode
-	 * trap to a high address, which means that we're in 64-bit user code.
-	 */
+	/* Confirm that the fault happened in 64-bit user mode */
+	if (!user_64bit_mode(regs))
+		return false;
 
 	if (vsyscall_mode == NONE) {
 		warn_bad_vsyscall(KERN_INFO, regs,
@@ -282,6 +281,19 @@ bool emulate_vsyscall_pf(unsigned long error_code, struct pt_regs *regs,
 		WARN_ON_ONCE(!(error_code & X86_PF_INSTR));
 
 	return __emulate_vsyscall(regs, address);
+}
+
+bool emulate_vsyscall_gp(struct pt_regs *regs)
+{
+	/* Without LASS, vsyscall accesses are expected to generate a #PF */
+	if (!cpu_feature_enabled(X86_FEATURE_LASS))
+		return false;
+
+	/* Emulate only if the RIP points to the vsyscall address */
+	if (!is_vsyscall_vaddr(regs->ip))
+		return false;
+
+	return __emulate_vsyscall(regs, regs->ip);
 }
 
 /*
