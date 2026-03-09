@@ -1229,6 +1229,11 @@ again:
 		return PERF_TMR_BAIL_OUT;
 	}
 
+	if (state->regs[reg].kind == TSR_KIND_CONST &&
+	    dso__kernel(map__dso(dloc->ms->map))) {
+		if (dloc->op->offset < 0 && reg != state->stack_reg && reg != dloc->fbreg)
+			goto check_kernel;
+	}
 check_non_register:
 	if (reg == dloc->fbreg || reg == state->stack_reg) {
 		struct type_state_stack *stack;
