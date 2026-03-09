@@ -84,8 +84,11 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 			idx = i * ldev->buckets + j;
 			affinity = ports[idx];
 
+			/* affinity is 1-indexed device index,
+			 * use reverse lookup.
+			 */
 			dest.vport.vhca_id =
-				MLX5_CAP_GEN(mlx5_lag_pf(ldev, affinity - 1)->dev,
+				MLX5_CAP_GEN(mlx5_lag_pf_by_dev_idx(ldev, affinity - 1)->dev,
 					     vhca_id);
 			lag_definer->rules[idx] = mlx5_add_flow_rules(lag_definer->ft,
 								      NULL, &flow_act,
@@ -358,7 +361,7 @@ static void mlx5_lag_destroy_definer(struct mlx5_lag *ldev,
 		return;
 
 	dev = mlx5_lag_pf(ldev, first_idx)->dev;
-	mlx5_ldev_for_each(i, first_idx, ldev) {
+	mlx5_ldev_for_each(i, 0, ldev) {
 		for (j = 0; j < ldev->buckets; j++) {
 			idx = i * ldev->buckets + j;
 			mlx5_del_flow_rules(lag_definer->rules[idx]);
@@ -595,8 +598,11 @@ static int __mlx5_lag_modify_definers_destinations(struct mlx5_lag *ldev,
 			if (ldev->v2p_map[idx] == ports[idx])
 				continue;
 
+			/* ports[] contains 1-indexed device indices,
+			 * use reverse lookup.
+			 */
 			dest.vport.vhca_id =
-				MLX5_CAP_GEN(mlx5_lag_pf(ldev, ports[idx] - 1)->dev,
+				MLX5_CAP_GEN(mlx5_lag_pf_by_dev_idx(ldev, ports[idx] - 1)->dev,
 					     vhca_id);
 			err = mlx5_modify_rule_destination(def->rules[idx], &dest, NULL);
 			if (err)

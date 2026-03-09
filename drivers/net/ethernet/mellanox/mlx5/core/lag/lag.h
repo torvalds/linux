@@ -7,6 +7,12 @@
 #include <linux/debugfs.h>
 
 #define MLX5_LAG_MAX_HASH_BUCKETS 16
+/* XArray mark for the LAG master device
+ * (device with lowest mlx5_get_dev_index).
+ * Note: XA_MARK_0 is reserved by XA_FLAGS_ALLOC for free-slot tracking.
+ */
+#define MLX5_LAG_XA_MARK_MASTER XA_MARK_1
+
 #include "mlx5_core.h"
 #include "mp.h"
 #include "port_sel.h"
@@ -39,6 +45,7 @@ struct lag_func {
 	struct mlx5_core_dev *dev;
 	struct net_device    *netdev;
 	bool has_drop;
+	unsigned int idx; /* xarray index assigned by LAG */
 	struct mlx5_nb port_change_nb;
 };
 
@@ -88,6 +95,28 @@ static inline struct lag_func *
 mlx5_lag_pf(struct mlx5_lag *ldev, unsigned int idx)
 {
 	return xa_load(&ldev->pfs, idx);
+}
+
+/* Get device index (mlx5_get_dev_index) from xarray index */
+static inline int mlx5_lag_xa_to_dev_idx(struct mlx5_lag *ldev, int xa_idx)
+{
+	struct lag_func *pf = mlx5_lag_pf(ldev, xa_idx);
+
+	return pf ? mlx5_get_dev_index(pf->dev) : -ENOENT;
+}
+
+/* Find lag_func by device index (reverse lookup from mlx5_get_dev_index) */
+static inline struct lag_func *
+mlx5_lag_pf_by_dev_idx(struct mlx5_lag *ldev, int dev_idx)
+{
+	struct lag_func *pf;
+	unsigned long idx;
+
+	xa_for_each(&ldev->pfs, idx, pf) {
+		if (mlx5_get_dev_index(pf->dev) == dev_idx)
+			return pf;
+	}
+	return NULL;
 }
 
 static inline bool
