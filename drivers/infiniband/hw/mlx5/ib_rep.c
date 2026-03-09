@@ -3,6 +3,7 @@
  * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
  */
 
+#include <linux/mlx5/lag.h>
 #include <linux/mlx5/vport.h>
 #include "ib_rep.h"
 #include "srq.h"
@@ -134,7 +135,8 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 				/* Only 1 ib port is the representor for all uplinks */
 					peer_n_ports--;
 
-				if (mlx5_get_dev_index(peer_dev) < mlx5_get_dev_index(dev))
+				if (mlx5_lag_get_dev_seq(peer_dev) <
+				    mlx5_lag_get_dev_seq(dev))
 					vport_index += peer_n_ports;
 			}
 		}

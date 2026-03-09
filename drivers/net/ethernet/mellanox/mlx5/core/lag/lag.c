@@ -35,6 +35,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/eswitch.h>
 #include <linux/mlx5/vport.h>
+#include <linux/mlx5/lag.h>
 #include "lib/mlx5.h"
 #include "lib/devcom.h"
 #include "mlx5_core.h"
@@ -368,6 +369,39 @@ int mlx5_lag_get_dev_index_by_seq(struct mlx5_lag *ldev, int seq)
 	}
 	return -ENOENT;
 }
+
+/* Reverse of mlx5_lag_get_dev_index_by_seq: given a device, return its
+ * sequence number in the LAG. Master is always 0, others numbered
+ * sequentially starting from 1.
+ */
+int mlx5_lag_get_dev_seq(struct mlx5_core_dev *dev)
+{
+	struct mlx5_lag *ldev = mlx5_lag_dev(dev);
+	int master_idx, i, num = 1;
+	struct lag_func *pf;
+
+	if (!ldev)
+		return -ENOENT;
+
+	master_idx = mlx5_lag_get_master_idx(ldev);
+	if (master_idx < 0)
+		return -ENOENT;
+
+	pf = mlx5_lag_pf(ldev, master_idx);
+	if (pf && pf->dev == dev)
+		return 0;
+
+	mlx5_ldev_for_each(i, 0, ldev) {
+		if (i == master_idx)
+			continue;
+		pf = mlx5_lag_pf(ldev, i);
+		if (pf->dev == dev)
+			return num;
+		num++;
+	}
+	return -ENOENT;
+}
+EXPORT_SYMBOL(mlx5_lag_get_dev_seq);
 
 /* Devcom events for LAG master marking */
 #define LAG_DEVCOM_PAIR		(0)
