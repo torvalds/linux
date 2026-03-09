@@ -1599,7 +1599,7 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 	[NFQA_CFG_PARAMS]	= { .len = sizeof(struct nfqnl_msg_config_params) },
 	[NFQA_CFG_QUEUE_MAXLEN]	= { .type = NLA_U32 },
 	[NFQA_CFG_MASK]		= { .type = NLA_U32 },
-	[NFQA_CFG_FLAGS]	= { .type = NLA_U32 },
+	[NFQA_CFG_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFQA_CFG_F_MAX - 1),
 };
 
 static const struct nf_queue_handler nfqh = {

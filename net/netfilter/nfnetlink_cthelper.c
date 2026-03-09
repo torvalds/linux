@@ -165,7 +165,7 @@ nfnl_cthelper_expect_policy(struct nf_conntrack_expect_policy *expect_policy,
 
 static const struct nla_policy
 nfnl_cthelper_expect_policy_set[NFCTH_POLICY_SET_MAX+1] = {
-	[NFCTH_POLICY_SET_NUM] = { .type = NLA_U32, },
+	[NFCTH_POLICY_SET_NUM] = NLA_POLICY_MAX(NLA_BE32, NF_CT_MAX_EXPECT_CLASSES),
 };
 
 static int

@@ -189,7 +189,7 @@ static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
 	[NFTA_LIMIT_UNIT]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_BURST]	= { .type = NLA_U32 },
 	[NFTA_LIMIT_TYPE]	= { .type = NLA_U32 },
-	[NFTA_LIMIT_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_LIMIT_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_LIMIT_F_INV),
 };
 
 static int nft_limit_pkts_init(const struct nft_ctx *ctx,

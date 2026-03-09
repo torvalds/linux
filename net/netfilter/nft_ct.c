@@ -338,7 +338,7 @@ static void nft_ct_set_eval(const struct nft_expr *expr,
 static const struct nla_policy nft_ct_policy[NFTA_CT_MAX + 1] = {
 	[NFTA_CT_DREG]		= { .type = NLA_U32 },
 	[NFTA_CT_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
-	[NFTA_CT_DIRECTION]	= { .type = NLA_U8 },
+	[NFTA_CT_DIRECTION]	= NLA_POLICY_MAX(NLA_U8, IP_CT_DIR_REPLY),
 	[NFTA_CT_SREG]		= { .type = NLA_U32 },
 };
 

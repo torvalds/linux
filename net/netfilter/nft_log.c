@@ -69,7 +69,7 @@ static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_SNAPLEN]	= { .type = NLA_U32 },
 	[NFTA_LOG_QTHRESHOLD]	= { .type = NLA_U16 },
 	[NFTA_LOG_LEVEL]	= { .type = NLA_U32 },
-	[NFTA_LOG_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_LOG_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NF_LOG_MASK),
 };
 
 static int nft_log_modprobe(struct net *net, enum nf_log_type t)

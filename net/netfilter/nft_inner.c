@@ -321,7 +321,7 @@ err:
 
 static const struct nla_policy nft_inner_policy[NFTA_INNER_MAX + 1] = {
 	[NFTA_INNER_NUM]	= { .type = NLA_U32 },
-	[NFTA_INNER_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_INNER_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_INNER_MASK),
 	[NFTA_INNER_HDRSIZE]	= { .type = NLA_U32 },
 	[NFTA_INNER_TYPE]	= { .type = NLA_U32 },
 	[NFTA_INNER_EXPR]	= { .type = NLA_NESTED },

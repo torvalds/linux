@@ -293,7 +293,7 @@ bool nf_osf_find(const struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_osf_find);
 
 static const struct nla_policy nfnl_osf_policy[OSF_ATTR_MAX + 1] = {
-	[OSF_ATTR_FINGER]	= { .len = sizeof(struct nf_osf_user_finger) },
+	[OSF_ATTR_FINGER]	= NLA_POLICY_EXACT_LEN(sizeof(struct nf_osf_user_finger)),
 };
 
 static int nfnl_osf_add_callback(struct sk_buff *skb,
