@@ -62,6 +62,7 @@ void font_data_get(font_data_t *fd);
 bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);
 bool font_data_is_equal(font_data_t *lhs, font_data_t *rhs);
+int font_data_export(font_data_t *fd, struct console_font *font, unsigned int vpitch);
 
 /*
  * Font description

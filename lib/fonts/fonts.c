@@ -198,6 +198,46 @@ bool font_data_is_equal(font_data_t *lhs, font_data_t *rhs)
 }
 EXPORT_SYMBOL_GPL(font_data_is_equal);
 
+/**
+ * font_data_export - Stores font data for user space
+ * @fd: Font data
+ * @font: A font for user space
+ * @vpitch: The size of a single glyph in @font in bytes
+ *
+ * Store the font data given in @fd to the font in @font. Values and
+ * pointers in @font are pre-initialized. This helper mostly checks some
+ * corner cases and translates glyph sizes according to the value given
+ * @vpitch.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int font_data_export(font_data_t *fd, struct console_font *font, unsigned int vpitch)
+{
+	const unsigned char *font_data = font_data_buf(fd);
+	unsigned char *data = font->data;
+	unsigned int pitch = console_font_pitch(font);
+	unsigned int glyphsize, i;
+
+	if (!font->width || !font->height || !font->charcount || !font->data)
+		return 0;
+
+	glyphsize = font->height * pitch;
+
+	if (font->charcount * glyphsize > font_data_size(fd))
+		return -EINVAL;
+
+	for (i = 0; i < font->charcount; i++) {
+		memcpy(data, font_data, glyphsize);
+		memset(data + glyphsize, 0, pitch * vpitch - glyphsize);
+		data += pitch * vpitch;
+		font_data += glyphsize;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(font_data_export);
+
 /*
  * Font lookup
  */
