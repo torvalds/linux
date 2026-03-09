@@ -703,8 +703,10 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 }
 
 static inline struct uvc_streaming *
-uvc_queue_to_stream(struct uvc_video_queue *queue)
+uvc_queue_to_stream(struct uvc_video_queue *queue, unsigned int type)
 {
+	if (type == V4L2_BUF_TYPE_META_CAPTURE)
+		return container_of(queue, struct uvc_streaming, meta.queue);
 	return container_of(queue, struct uvc_streaming, queue);
 }
 
