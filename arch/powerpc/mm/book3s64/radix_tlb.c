@@ -185,7 +185,7 @@ static __always_inline void __tlbie_va(unsigned long va, unsigned long pid,
 	trace_tlbie(0, 0, rb, rs, ric, prs, r);
 }
 
-static __always_inline void __tlbie_lpid_va(unsigned long va, unsigned long lpid,
+static __always_inline void __tlbie_va_lpid(unsigned long va, unsigned long lpid,
 					    unsigned long ap, unsigned long ric)
 {
 	unsigned long rb,rs,prs,r;
@@ -249,17 +249,17 @@ static inline void fixup_tlbie_pid(unsigned long pid)
 	}
 }
 
-static inline void fixup_tlbie_lpid_va(unsigned long va, unsigned long lpid,
+static inline void fixup_tlbie_va_lpid(unsigned long va, unsigned long lpid,
 				       unsigned long ap)
 {
 	if (cpu_has_feature(CPU_FTR_P9_TLBIE_ERAT_BUG)) {
 		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid_va(va, 0, ap, RIC_FLUSH_TLB);
+		__tlbie_va_lpid(va, 0, ap, RIC_FLUSH_TLB);
 	}
 
 	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
 		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid_va(va, lpid, ap, RIC_FLUSH_TLB);
+		__tlbie_va_lpid(va, lpid, ap, RIC_FLUSH_TLB);
 	}
 }
 
@@ -278,7 +278,7 @@ static inline void fixup_tlbie_lpid(unsigned long lpid)
 
 	if (cpu_has_feature(CPU_FTR_P9_TLBIE_STQ_BUG)) {
 		asm volatile("ptesync": : :"memory");
-		__tlbie_lpid_va(va, lpid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
+		__tlbie_va_lpid(va, lpid, mmu_get_ap(MMU_PAGE_64K), RIC_FLUSH_TLB);
 	}
 }
 
@@ -529,14 +529,14 @@ static void do_tlbiel_va_range(void *info)
 				    t->psize, t->also_pwc);
 }
 
-static __always_inline void _tlbie_lpid_va(unsigned long va, unsigned long lpid,
+static __always_inline void _tlbie_va_lpid(unsigned long va, unsigned long lpid,
 			      unsigned long psize, unsigned long ric)
 {
 	unsigned long ap = mmu_get_ap(psize);
 
 	asm volatile("ptesync": : :"memory");
-	__tlbie_lpid_va(va, lpid, ap, ric);
-	fixup_tlbie_lpid_va(va, lpid, ap);
+	__tlbie_va_lpid(va, lpid, ap, ric);
+	fixup_tlbie_va_lpid(va, lpid, ap);
 	asm volatile("eieio; tlbsync; ptesync": : :"memory");
 }
 
@@ -1147,7 +1147,7 @@ void radix__flush_tlb_lpid_page(unsigned int lpid,
 {
 	int psize = radix_get_mmu_psize(page_size);
 
-	_tlbie_lpid_va(addr, lpid, psize, RIC_FLUSH_TLB);
+	_tlbie_va_lpid(addr, lpid, psize, RIC_FLUSH_TLB);
 }
 EXPORT_SYMBOL_GPL(radix__flush_tlb_lpid_page);
 
