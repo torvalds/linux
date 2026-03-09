@@ -3316,6 +3316,8 @@ out_bydst:
 	return -ENOMEM;
 }
 
+#define xfrm_state_deref_netexit(table) \
+	rcu_dereference_protected((table), true /* netns is going away */)
 void xfrm_state_fini(struct net *net)
 {
 	unsigned int sz;
@@ -3328,17 +3330,17 @@ void xfrm_state_fini(struct net *net)
 	WARN_ON(!list_empty(&net->xfrm.state_all));
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
-		WARN_ON(!hlist_empty(net->xfrm.state_byseq + i));
-		WARN_ON(!hlist_empty(net->xfrm.state_byspi + i));
-		WARN_ON(!hlist_empty(net->xfrm.state_bysrc + i));
-		WARN_ON(!hlist_empty(net->xfrm.state_bydst + i));
+		WARN_ON(!hlist_empty(xfrm_state_deref_netexit(net->xfrm.state_byseq) + i));
+		WARN_ON(!hlist_empty(xfrm_state_deref_netexit(net->xfrm.state_byspi) + i));
+		WARN_ON(!hlist_empty(xfrm_state_deref_netexit(net->xfrm.state_bysrc) + i));
+		WARN_ON(!hlist_empty(xfrm_state_deref_netexit(net->xfrm.state_bydst) + i));
 	}
 
 	sz = (net->xfrm.state_hmask + 1) * sizeof(struct hlist_head);
-	xfrm_hash_free(net->xfrm.state_byseq, sz);
-	xfrm_hash_free(net->xfrm.state_byspi, sz);
-	xfrm_hash_free(net->xfrm.state_bysrc, sz);
-	xfrm_hash_free(net->xfrm.state_bydst, sz);
+	xfrm_hash_free(xfrm_state_deref_netexit(net->xfrm.state_byseq), sz);
+	xfrm_hash_free(xfrm_state_deref_netexit(net->xfrm.state_byspi), sz);
+	xfrm_hash_free(xfrm_state_deref_netexit(net->xfrm.state_bysrc), sz);
+	xfrm_hash_free(xfrm_state_deref_netexit(net->xfrm.state_bydst), sz);
 	free_percpu(net->xfrm.state_cache_input);
 }
 
