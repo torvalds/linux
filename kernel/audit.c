@@ -1295,6 +1295,8 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		memset(&s, 0, sizeof(s));
 		/* guard against past and future API changes */
 		memcpy(&s, data, min_t(size_t, sizeof(s), data_len));
+		if (s.mask & ~AUDIT_STATUS_ALL)
+			return -EINVAL;
 		if (s.mask & AUDIT_STATUS_ENABLED) {
 			err = audit_set_enabled(s.enabled);
 			if (err < 0)
