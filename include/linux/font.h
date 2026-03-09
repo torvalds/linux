@@ -54,6 +54,8 @@ static inline const unsigned char *font_data_buf(font_data_t *fd)
 	return (const unsigned char *)fd;
 }
 
+void font_data_get(font_data_t *fd);
+bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);
 
 /*

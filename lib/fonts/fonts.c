@@ -12,17 +12,90 @@
  * for more details.
  */
 
+#include <linux/container_of.h>
+#include <linux/font.h>
 #include <linux/module.h>
-#include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/types.h>
+
 #if defined(__mc68000__)
 #include <asm/setup.h>
 #endif
-#include <linux/font.h>
 
 /*
  * Helpers for font_data_t
  */
+
+static struct font_data *to_font_data_struct(font_data_t *fd)
+{
+	return container_of(fd, struct font_data, data[0]);
+}
+
+static bool font_data_is_internal(font_data_t *fd)
+{
+	return !REFCOUNT(fd); /* internal fonts have no reference counting */
+}
+
+static void font_data_free(font_data_t *fd)
+{
+	kfree(to_font_data_struct(fd));
+}
+
+/**
+ * font_data_get - Acquires a reference on font data
+ * @fd: Font data
+ *
+ * Font data from user space is reference counted. The helper
+ * font_data_get() increases the reference counter by one. Invoke
+ * font_data_put() to release the reference.
+ *
+ * Internal font data is located in read-only memory. In this case
+ * the helper returns success without modifying the counter field.
+ * It is still required to call font_data_put() on internal font data.
+ */
+void font_data_get(font_data_t *fd)
+{
+	if (font_data_is_internal(fd))
+		return; /* never ref static data */
+
+	if (WARN_ON(!REFCOUNT(fd)))
+		return; /* should never be 0 */
+	++REFCOUNT(fd);
+}
+EXPORT_SYMBOL_GPL(font_data_get);
+
+/**
+ * font_data_put - Release a reference on font data
+ * @fd: Font data
+ *
+ * Font data from user space is reference counted. The helper
+ * font_data_put() decreases the reference counter by one. If this was
+ * the final reference, it frees the allocated memory.
+ *
+ * Internal font data is located in read-only memory. In this case
+ * the helper returns success without modifying the counter field.
+ *
+ * Returns:
+ * True if the font data's memory buffer has been freed, false otherwise.
+ */
+bool font_data_put(font_data_t *fd)
+{
+	unsigned int count;
+
+	if (font_data_is_internal(fd))
+		return false; /* never unref static data */
+
+	if (WARN_ON(!REFCOUNT(fd)))
+		return false; /* should never be 0 */
+
+	count = --REFCOUNT(fd);
+	if (!count)
+		font_data_free(fd);
+
+	return !count;
+}
+EXPORT_SYMBOL_GPL(font_data_put);
 
 /**
  * font_data_size - Return size of the font data in bytes

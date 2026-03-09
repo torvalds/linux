@@ -27,7 +27,6 @@
 struct fbcon_display {
     /* Filled in by the low-level console driver */
     font_data_t *fontdata;
-    int userfont;                   /* != 0 if fontdata kmalloc()ed */
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
     u_short scrollmode;             /* Scroll Method, use fb_scrollmode() */
 #endif
