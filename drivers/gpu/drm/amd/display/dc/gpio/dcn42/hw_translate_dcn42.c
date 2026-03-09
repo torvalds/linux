@@ -45,6 +45,7 @@ static bool offset_to_id(
 	enum gpio_id *id,
 	uint32_t *en)
 {
+	(void)mask;
 	switch (offset) {
 	/* HPD */
 	case REG(HPD0_DC_HPD_INT_STATUS):

@@ -695,6 +695,9 @@ static bool CalculatePrefetchSchedule(
 		double *VUpdateWidthPix,
 		double *VReadyOffsetPix)
 {
+	(void)mode_lib;
+	(void)XFCEnabled;
+
 	bool MyError = false;
 	unsigned int DPPCycles, DISPCLKCycles;
 	double DSTTotalPixelsAfterScaler, TotalRepeaterDelayTime;
@@ -1290,6 +1293,8 @@ static unsigned int CalculateVMAndRowBytes(
 		unsigned int *DPDE0BytesFrame,
 		unsigned int *MetaPTEBytesFrame)
 {
+	(void)SourcePixelFormat;
+	(void)ViewportWidth;
 	unsigned int MPDEBytesFrame;
 	unsigned int DCCMetaSurfaceBytes;
 	unsigned int MacroTileSizeBytes;
@@ -3040,6 +3045,7 @@ static double CalculateRemoteSurfaceFlipDelay(
 		double *TInitXFill,
 		double *TslvChk)
 {
+	(void)mode_lib;
 	double TSlvSetup, AvgfillRate, result;
 
 	*SrcActiveDrainRate = VRatio * SwathWidth * Bpp / LineTime;
@@ -3187,6 +3193,7 @@ static void CalculateFlipSchedule(
 		double *final_flip_bw,
 		bool *ImmediateFlipSupportedForPipe)
 {
+	(void)mode_lib;
 	double min_row_time = 0.0;
 	unsigned int HostVMDynamicLevels;
 	double TimeForFetchingMetaPTEImmediateFlip;
@@ -5294,6 +5301,15 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		double *StutterEnterPlusExitWatermark,
 		double *MinActiveDRAMClockChangeLatencySupported)
 {
+	(void)DPPCLK;
+	(void)SwathWidthSingleDPPY;
+	(void)DCFCLK;
+	(void)UrgentOutOfOrderReturn;
+	(void)ReturnBW;
+	(void)GPUVMEnable;
+	(void)dpte_group_bytes;
+	(void)MetaChunkSize;
+
 	double EffectiveLBLatencyHidingY;
 	double EffectiveLBLatencyHidingC;
 	double DPPOutputBufferLinesY;
@@ -5885,6 +5901,9 @@ static void CalculateMetaAndPTETimes(
 		double TimePerVMRequestVBlank[],
 		double TimePerVMRequestFlip[])
 {
+	(void)VRatioPrefetchY;
+	(void)VRatioPrefetchC;
+
 	unsigned int meta_chunk_width;
 	unsigned int min_meta_chunk_width;
 	unsigned int meta_chunk_per_row_int;

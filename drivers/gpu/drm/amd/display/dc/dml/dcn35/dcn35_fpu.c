@@ -202,6 +202,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 
 void dcn35_build_wm_range_table_fpu(struct clk_mgr *clk_mgr)
 {
+	(void)clk_mgr;
 	//TODO
 }
 

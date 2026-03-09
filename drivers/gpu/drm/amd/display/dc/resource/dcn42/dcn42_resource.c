@@ -1698,6 +1698,7 @@ static struct dc_cap_funcs cap_funcs = {
 
 static void dcn42_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params)
 {
+	(void)bw_params;
 	dc_assert_fp_enabled();
 
 	if (dc->current_state && dc->current_state->bw_ctx.dml2)
@@ -1774,6 +1775,8 @@ static unsigned int dcn42_get_max_hw_cursor_size(const struct dc *dc,
 			struct dc_state *state,
 			const struct dc_stream_state *stream)
 {
+	(void)state;
+	(void)stream;
 	return dc->caps.max_cursor_size;
 }
 static struct resource_funcs dcn42_res_pool_funcs = {

@@ -1085,6 +1085,7 @@ static void dc_build_cursor_attribute_update_payload1(
 		struct dmub_cursor_attributes_cfg *pl_A, const uint8_t p_idx,
 		const struct hubp *hubp, const struct dpp *dpp)
 {
+	(void)p_idx;
 	/* Hubp */
 	pl_A->aHubp.SURFACE_ADDR_HIGH = hubp->att.SURFACE_ADDR_HIGH;
 	pl_A->aHubp.SURFACE_ADDR = hubp->att.SURFACE_ADDR;

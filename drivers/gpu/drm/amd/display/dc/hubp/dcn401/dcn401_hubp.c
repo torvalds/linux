@@ -657,6 +657,7 @@ void hubp401_program_tiling(
 	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	(void)pixel_format;
 	/* DCSURF_ADDR_CONFIG still shows up in reg spec, but does not need to be programmed for DCN4x
 	 * All 4 fields NUM_PIPES, PIPE_INTERLEAVE, MAX_COMPRESSED_FRAGS and NUM_PKRS are irrelevant.
 	 *
@@ -671,6 +672,7 @@ void hubp401_program_size(
 	const struct plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc)
 {
+	(void)dcc;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	uint32_t pitch, pitch_c;
 	bool use_pitch_c = false;
@@ -709,6 +711,7 @@ void hubp401_program_surface_config(
 	bool horizontal_mirror,
 	unsigned int compat_level)
 {
+	(void)compat_level;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	hubp401_dcc_control(hubp, dcc);

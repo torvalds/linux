@@ -321,6 +321,7 @@ void hubp3_program_tiling(
 	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	(void)pixel_format;
 	REG_UPDATE_4(DCSURF_ADDR_CONFIG,
 		NUM_PIPES, log_2(info->gfx9.num_pipes),
 		PIPE_INTERLEAVE, info->gfx9.pipe_interleave,
@@ -418,6 +419,7 @@ void hubp3_program_surface_config(
 	bool horizontal_mirror,
 	unsigned int compat_level)
 {
+	(void)compat_level;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	hubp3_dcc_control_sienna_cichlid(hubp, dcc);

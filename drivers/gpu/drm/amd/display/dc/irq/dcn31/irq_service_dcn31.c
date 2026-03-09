@@ -40,6 +40,9 @@ static enum dc_irq_source to_dal_irq_source_dcn31(struct irq_service *irq_servic
 						  uint32_t src_id,
 						  uint32_t ext_id)
 {
+	(void)irq_service;
+	(void)src_id;
+	(void)ext_id;
 	switch (src_id) {
 	case DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP:
 		return DC_IRQ_SOURCE_VBLANK1;

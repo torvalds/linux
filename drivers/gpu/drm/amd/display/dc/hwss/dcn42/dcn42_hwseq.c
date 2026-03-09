@@ -386,6 +386,7 @@ void dcn42_program_cm_hist(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_plane_state *plane_state)
 {
+	(void)dc;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
 	if (dpp && dpp->funcs->dpp_cm_hist_control)
@@ -1000,6 +1001,7 @@ void dcn42_root_clock_control(struct dc *dc,
 }
 void dcn42_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 {
+	(void)dc;
 	struct crtc_stereo_flags flags = { 0 };
 	struct dc_stream_state *stream = pipe_ctx->stream;
 

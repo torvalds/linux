@@ -173,6 +173,7 @@ static bool dmub_abm_set_backlight_level_pwm_ex(struct abm *abm,
 		unsigned int controller_id,
 		unsigned int panel_inst)
 {
+	(void)controller_id;
 	bool ret = false;
 	unsigned int feature_support;
 

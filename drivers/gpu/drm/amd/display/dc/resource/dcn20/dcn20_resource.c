@@ -916,6 +916,7 @@ struct link_encoder *dcn20_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn20_link_encoder *enc20 =
 		kzalloc_obj(struct dcn20_link_encoder);
 	int link_regs_id;
@@ -1310,6 +1311,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream)
 {
+	(void)dc;
 	enum dc_status status = DC_OK;
 	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
@@ -1537,6 +1539,7 @@ void dcn20_split_stream_for_mpc(
 		struct pipe_ctx *primary_pipe,
 		struct pipe_ctx *secondary_pipe)
 {
+	(void)res_ctx;
 	int pipe_idx = secondary_pipe->pipe_idx;
 	struct pipe_ctx *sec_bot_pipe = secondary_pipe->bottom_pipe;
 
@@ -1682,6 +1685,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
 {
+	(void)pool;
 	struct pipe_ctx *secondary_pipe = NULL;
 
 	if (dc && primary_pipe) {
@@ -2161,6 +2165,7 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head)
 {
+	(void)cur_ctx;
 	struct resource_context *res_ctx = &new_ctx->res_ctx;
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(res_ctx, opp_head->stream);
 	struct pipe_ctx *sec_dpp_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
@@ -2343,6 +2348,7 @@ static struct _vcs_dpi_ip_params_st *get_asic_rev_ip_params(
 
 static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
 {
+	(void)hw_internal_rev;
 	return DML_PROJECT_NAVI10v2;
 }
 

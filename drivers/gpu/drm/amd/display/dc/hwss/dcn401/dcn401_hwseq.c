@@ -557,6 +557,7 @@ bool dcn401_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
 {
+	(void)dc;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	const struct pwl_params *params = NULL;
@@ -618,6 +619,7 @@ static void enable_stream_timing_calc(
 		struct drr_params *params,
 		unsigned int *event_triggers)
 {
+	(void)dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	int i;
 
@@ -1395,6 +1397,7 @@ void dcn401_dmub_hw_control_lock(struct dc *dc,
 		struct dc_state *context,
 		bool lock)
 {
+	(void)context;
 	/* use always for now */
 	union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
@@ -1869,6 +1872,7 @@ void dcn401_reset_back_end_for_pipe(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
+	(void)context;
 	struct dc_link *link = pipe_ctx->stream->link;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 
@@ -3244,6 +3248,7 @@ void dcn401_update_writeback_sequence(
 		struct dc_state *context,
 		struct block_sequence_state *seq_state)
 {
+	(void)context;
 	struct dwbc *dwb;
 	struct mcif_wb *mcif_wb;
 
@@ -3449,6 +3454,7 @@ void dcn401_enable_plane_sequence(struct dc *dc, struct pipe_ctx *pipe_ctx,
 				 struct dc_state *context,
 				 struct block_sequence_state *seq_state)
 {
+	(void)context;
 	struct dce_hwseq *hws = dc->hwseq;
 	uint32_t org_ip_request_cntl = 0;
 

@@ -56,6 +56,7 @@ static bool dal_vector_presized_costruct(struct vector *vector,
 					 void *initial_value,
 					 uint32_t struct_size)
 {
+	(void)ctx;
 	uint32_t i;
 
 	vector->container = NULL;

@@ -282,6 +282,7 @@ static void calculate_inits(
 	const struct scaler_data *data,
 	struct scl_ratios_inits *inits)
 {
+	(void)xfm_dce;
 	struct fixed31_32 h_init;
 	struct fixed31_32 v_init;
 
@@ -1240,6 +1241,7 @@ static void program_color_matrix(
 	const struct out_csc_color_matrix *tbl_entry,
 	enum grph_color_adjust_option options)
 {
+	(void)options;
 	{
 		REG_SET_2(OUTPUT_CSC_C11_C12, 0,
 			OUTPUT_CSC_C11, tbl_entry->regval[0],

@@ -2696,6 +2696,7 @@ static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
 					      struct slot_layout_info *slot_layout_info,
 					      unsigned int record_offset)
 {
+	(void)i;
 	unsigned int j;
 	struct bios_parser *bp;
 	ATOM_BRACKET_LAYOUT_RECORD *record;

@@ -488,6 +488,8 @@ static bool hubbub42_program_watermarks(
 
 static void hubbub42_set_request_limit(struct hubbub *hubbub, int memory_channel_count, int words_per_channel)
 {
+	(void)memory_channel_count;
+	(void)words_per_channel;
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t request_limit = 96; //MAX(12 * memory_channel_count, 96);
 

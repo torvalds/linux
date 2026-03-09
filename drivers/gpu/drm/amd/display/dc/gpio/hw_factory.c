@@ -60,6 +60,7 @@ bool dal_hw_factory_init(
 	enum dce_version dce_version,
 	enum dce_environment dce_environment)
 {
+	(void)dce_environment;
 	switch (dce_version) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case DCE_VERSION_6_0:

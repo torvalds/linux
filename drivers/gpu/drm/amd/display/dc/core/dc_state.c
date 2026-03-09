@@ -409,6 +409,7 @@ enum dc_status dc_state_add_stream(
 		struct dc_state *state,
 		struct dc_stream_state *stream)
 {
+	(void)dc;
 	enum dc_status res;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -784,6 +785,7 @@ struct dc_plane_state *dc_state_create_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *main_plane)
 {
+	(void)main_plane;
 	struct dc_plane_state *phantom_plane = dc_create_plane_state(dc);
 
 	DC_LOGGER_INIT(dc->ctx->logger);

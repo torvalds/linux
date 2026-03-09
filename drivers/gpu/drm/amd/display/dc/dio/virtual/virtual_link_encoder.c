@@ -30,52 +30,92 @@
 
 static bool virtual_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
-	const struct dc_stream_state *stream) { return true; }
+	const struct dc_stream_state *stream) {
+		(void)enc;
+		(void)stream;
+		return true;
+	}
 
-static void virtual_link_encoder_hw_init(struct link_encoder *enc) {}
+static void virtual_link_encoder_hw_init(struct link_encoder *enc)
+{
+	(void)enc;
+}
 
 static void virtual_link_encoder_setup(
-	struct link_encoder *enc,
-	enum signal_type signal) {}
+	struct link_encoder *enc, enum signal_type signal) {
+		(void)enc;
+		(void)signal;
+	}
 
 static void virtual_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
 	enum signal_type signal,
-	uint32_t pixel_clock) {}
+	uint32_t pixel_clock) {
+		(void)enc;
+		(void)clock_source;
+		(void)color_depth;
+		(void)signal;
+		(void)pixel_clock;
+	}
 
 static void virtual_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source) {}
+	enum clock_source_id clock_source) {
+		(void)enc;
+		(void)link_settings;
+		(void)clock_source;
+	}
 
 static void virtual_link_encoder_enable_dp_mst_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source) {}
+	enum clock_source_id clock_source) {
+		(void)enc;
+		(void)link_settings;
+		(void)clock_source;
+	}
 
 static void virtual_link_encoder_disable_output(
 	struct link_encoder *link_enc,
-	enum signal_type signal) {}
+	enum signal_type signal) {
+		(void)link_enc;
+		(void)signal;
+	}
 
 static void virtual_link_encoder_dp_set_lane_settings(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
-	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]) {}
+	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]) {
+		(void)enc;
+		(void)link_settings;
+		(void)lane_settings;
+	}
 
 static void virtual_link_encoder_dp_set_phy_pattern(
 	struct link_encoder *enc,
-	const struct encoder_set_dp_phy_pattern_param *param) {}
+	const struct encoder_set_dp_phy_pattern_param *param) {
+		(void)enc;
+		(void)param;
+	}
 
 static void virtual_link_encoder_update_mst_stream_allocation_table(
 	struct link_encoder *enc,
-	const struct link_mst_stream_allocation_table *table) {}
+	const struct link_mst_stream_allocation_table *table) {
+		(void)enc;
+		(void)table;
+	}
 
 static void virtual_link_encoder_connect_dig_be_to_fe(
 	struct link_encoder *enc,
 	enum engine_id engine,
-	bool connect) {}
+	bool connect) {
+		(void)enc;
+		(void)engine;
+		(void)connect;
+	}
 
 static void virtual_link_encoder_destroy(struct link_encoder **enc)
 {
@@ -86,6 +126,7 @@ static void virtual_link_encoder_destroy(struct link_encoder **enc)
 static void virtual_link_encoder_get_max_link_cap(struct link_encoder *enc,
 		struct dc_link_settings *link_settings)
 {
+	(void)enc;
 	/* Set Default link settings */
 	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
 				LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};

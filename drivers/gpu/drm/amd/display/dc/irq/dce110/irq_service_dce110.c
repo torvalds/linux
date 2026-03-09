@@ -183,6 +183,7 @@ bool dal_irq_service_dummy_set(struct irq_service *irq_service,
 			       const struct irq_source_info *info,
 			       bool enable)
 {
+	(void)enable;
 	DC_LOG_ERROR("%s: called for non-implemented irq source, src_id=%u, ext_id=%u\n",
 		     __func__, info->src_id, info->ext_id);
 
@@ -328,6 +329,7 @@ enum dc_irq_source to_dal_irq_source_dce110(
 		uint32_t src_id,
 		uint32_t ext_id)
 {
+	(void)irq_service;
 	switch (src_id) {
 	case VISLANDS30_IV_SRCID_D1_VERTICAL_INTERRUPT0:
 		return DC_IRQ_SOURCE_VBLANK1;

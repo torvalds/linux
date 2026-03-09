@@ -1316,6 +1316,7 @@ int dcn20_populate_dml_pipes_from_context(struct dc *dc,
 					  display_e2e_pipe_params_st *pipes,
 					  enum dc_validate_mode validate_mode)
 {
+	(void)validate_mode;
 	int pipe_cnt, i;
 	bool synchronized_vblank = true;
 	struct resource_context *res_ctx = &context->res_ctx;

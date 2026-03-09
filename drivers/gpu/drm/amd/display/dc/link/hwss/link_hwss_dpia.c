@@ -81,6 +81,10 @@ static void set_dio_dpia_lane_settings(struct dc_link *link,
 		const struct dc_link_settings *link_settings,
 		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
+	(void)link;
+	(void)link_res;
+	(void)link_settings;
+	(void)lane_settings;
 }
 
 static void enable_dpia_link_output(struct dc_link *link,

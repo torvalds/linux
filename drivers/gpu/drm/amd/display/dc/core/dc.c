@@ -1134,6 +1134,8 @@ static void disable_all_writeback_pipes_for_stream(
 		struct dc_stream_state *stream,
 		struct dc_state *context)
 {
+	(void)dc;
+	(void)context;
 	int i;
 
 	for (i = 0; i < stream->num_wb_info; i++)
@@ -1145,6 +1147,8 @@ static void apply_ctx_interdependent_lock(struct dc *dc,
 					  struct dc_stream_state *stream,
 					  bool lock)
 {
+	(void)dc;
+	(void)context;
 	int i;
 
 	/* Checks if interdependent update function pointer is NULL or not, takes care of DCE110 case */
@@ -3007,6 +3011,7 @@ static struct surface_update_descriptor det_surface_update(
  */
 static void force_immediate_gsl_plane_flip(struct dc *dc, struct dc_surface_update *updates, int surface_count)
 {
+	(void)dc;
 	bool has_flip_immediate_plane = false;
 	int i;
 
@@ -3285,6 +3290,7 @@ static void copy_stream_update_to_stream(struct dc *dc,
 					 struct dc_stream_state *stream,
 					 struct dc_stream_update *update)
 {
+	(void)context;
 	struct dc_context *dc_ctx = dc->ctx;
 
 	if (update == NULL || stream == NULL)
@@ -3889,6 +3895,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_state *stream)
 {
+	(void)dc;
 	if ((stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1
 			|| stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
 			&& stream->ctx->dce_version >= DCN_VERSION_3_1)
@@ -4689,6 +4696,7 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		int surface_count,
 		bool *is_plane_addition)
 {
+	(void)srf_updates;
 
 	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
 	bool force_minimal_pipe_splitting = false;
@@ -5543,6 +5551,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_stream_update *stream_update,
 		struct dc_state *state)
 {
+	(void)state;
 	bool ret = false;
 
 	dc_exit_ips_for_hw_access(dc);
@@ -5852,6 +5861,7 @@ void dc_lock_memory_clock_frequency(struct dc *dc)
 
 static void blank_and_force_memclk(struct dc *dc, bool apply, unsigned int memclk_mhz)
 {
+	(void)apply;
 	struct dc_state *context = dc->current_state;
 	struct hubp *hubp;
 	struct pipe_ctx *pipe;
@@ -6526,6 +6536,7 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 				 bool powerOn)
 {
+	(void)dc;
 	if (edp_link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
 
@@ -6652,6 +6663,7 @@ void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst,
 void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst,
 				struct power_features *out_data)
 {
+	(void)primary_otg_inst;
 	out_data->uclk_p_state = dc->current_state->clk_mgr->clks.p_state_change_support;
 	out_data->fams = dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
 }

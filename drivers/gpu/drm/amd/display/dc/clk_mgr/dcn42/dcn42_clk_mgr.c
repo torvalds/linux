@@ -158,6 +158,9 @@ void dcn42_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 		struct dc_state *context,
 		int ref_dtbclk_khz)
 {
+	(void)clk_mgr;
+	(void)context;
+	(void)ref_dtbclk_khz;
 	/* DCN42 does not implement set_dtbclk_dto function, so this is a no-op */
 }
 
@@ -835,6 +838,7 @@ void dcn42_set_low_power_state(struct clk_mgr *clk_mgr_base)
 
 void dcn42_exit_low_power_state(struct clk_mgr *clk_mgr_base)
 {
+	(void)clk_mgr_base;
 
 }
 
@@ -937,6 +941,7 @@ unsigned int dcn42_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type
 
 int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 {
+	(void)clk_mgr_base;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	uint32_t dispclk_wdivider;
 	int disp_divider;
