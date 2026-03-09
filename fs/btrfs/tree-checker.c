@@ -1992,6 +1992,32 @@ static int check_free_space_info(struct extent_buffer *leaf, struct btrfs_key *k
 	return 0;
 }
 
+static int check_free_space_extent(struct extent_buffer *leaf, struct btrfs_key *key, int slot)
+{
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
+	const u32 blocksize = fs_info->sectorsize;
+
+	if (unlikely(!IS_ALIGNED(key->objectid, blocksize))) {
+		generic_err(leaf, slot,
+		"free space extent key objectid is not aligned to %u, has " BTRFS_KEY_FMT,
+			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	if (unlikely(!IS_ALIGNED(key->offset, blocksize))) {
+		generic_err(leaf, slot,
+		"free space extent key offset is not aligned to %u, has " BTRFS_KEY_FMT,
+			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	if (unlikely(btrfs_item_size(leaf, slot) != 0)) {
+		generic_err(leaf, slot,
+			    "invalid item size for free space info, has %u expect 0",
+			    btrfs_item_size(leaf, slot));
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -2057,6 +2083,9 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_FREE_SPACE_INFO_KEY:
 		ret = check_free_space_info(leaf, key, slot);
+		break;
+	case BTRFS_FREE_SPACE_EXTENT_KEY:
+		ret = check_free_space_extent(leaf, key, slot);
 		break;
 	}
 
