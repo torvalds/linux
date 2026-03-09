@@ -182,6 +182,9 @@ struct type_state_reg {
 	s32 offset;
 	bool ok;
 	bool caller_saved;
+	/* DWARF location range tracking for register lifetime */
+	bool lifetime_active;
+	u64 lifetime_end;
 	u8 kind;
 	u8 copied_from;
 };

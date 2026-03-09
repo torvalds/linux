@@ -208,6 +208,8 @@ static void invalidate_reg_state(struct type_state_reg *reg)
 {
 	reg->kind = TSR_KIND_INVALID;
 	reg->ok = false;
+	reg->lifetime_active = false;
+	reg->lifetime_end = 0;
 	reg->copied_from = -1;
 }
 
@@ -230,6 +232,7 @@ static void update_insn_state_x86(struct type_state *state,
 	if (ins__is_call(&dl->ins)) {
 		struct symbol *func = dl->ops.target.sym;
 		const char *call_name;
+		u64 call_addr;
 
 		/* Try to resolve the call target name */
 		if (func)
@@ -246,10 +249,18 @@ static void update_insn_state_x86(struct type_state *state,
 		else
 			pr_debug_dtp("call [%x] <unknown>\n", insn_offset);
 
-		/* Invalidate caller-saved registers after call (ABI requirement) */
+		/* Invalidate caller-saved registers after call */
+		call_addr = map__rip_2objdump(dloc->ms->map,
+					      dloc->ms->sym->start + dl->al.offset);
 		for (unsigned i = 0; i < ARRAY_SIZE(state->regs); i++) {
-			if (state->regs[i].caller_saved)
-				invalidate_reg_state(&state->regs[i]);
+			struct type_state_reg *reg = &state->regs[i];
+
+			if (!reg->caller_saved)
+				continue;
+			/* Keep register valid within DWARF location lifetime */
+			if (reg->lifetime_active && call_addr < reg->lifetime_end)
+				continue;
+			invalidate_reg_state(reg);
 		}
 
 		/* Update register with the return type (if any) */
@@ -279,6 +290,8 @@ static void update_insn_state_x86(struct type_state *state,
 
 		tsr = &state->regs[dst->reg1];
 		tsr->copied_from = -1;
+		tsr->lifetime_active = false;
+		tsr->lifetime_end = 0;
 
 		if (src->imm)
 			imm_value = src->offset;
@@ -344,6 +357,8 @@ static void update_insn_state_x86(struct type_state *state,
 
 		tsr = &state->regs[dst->reg1];
 		tsr->copied_from = -1;
+		tsr->lifetime_active = false;
+		tsr->lifetime_end = 0;
 
 		if (src->imm)
 			imm_value = src->offset;
@@ -458,6 +473,8 @@ static void update_insn_state_x86(struct type_state *state,
 			state->regs[dst->reg1].kind = TSR_KIND_CONST;
 			state->regs[dst->reg1].imm_value = 0;
 			state->regs[dst->reg1].ok = true;
+			state->regs[dst->reg1].lifetime_active = false;
+			state->regs[dst->reg1].lifetime_end = 0;
 			state->regs[dst->reg1].copied_from = -1;
 			return;
 		}
@@ -544,6 +561,8 @@ static void update_insn_state_x86(struct type_state *state,
 		tsr->kind = state->regs[src->reg1].kind;
 		tsr->imm_value = state->regs[src->reg1].imm_value;
 		tsr->offset = state->regs[src->reg1].offset;
+		tsr->lifetime_active = state->regs[src->reg1].lifetime_active;
+		tsr->lifetime_end = state->regs[src->reg1].lifetime_end;
 		tsr->ok = true;
 
 		/* To copy back the variable type later (hopefully) */

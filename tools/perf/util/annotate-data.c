@@ -840,6 +840,18 @@ static bool die_is_same(Dwarf_Die *die_a, Dwarf_Die *die_b)
 	return (die_a->cu == die_b->cu) && (die_a->addr == die_b->addr);
 }
 
+static void tsr_set_lifetime(struct type_state_reg *tsr,
+			     const struct die_var_type *var)
+{
+	if (var && var->has_range && var->end > var->addr) {
+		tsr->lifetime_active = true;
+		tsr->lifetime_end = var->end;
+	} else {
+		tsr->lifetime_active = false;
+		tsr->lifetime_end = 0;
+	}
+}
+
 /**
  * update_var_state - Update type state using given variables
  * @state: type state table
@@ -865,8 +877,14 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 	}
 
 	for (var = var_types; var != NULL; var = var->next) {
-		if (var->addr != addr)
-			continue;
+		/* Check if addr falls within the variable's valid range */
+		if (var->has_range) {
+			if (addr < var->addr || (var->end && addr >= var->end))
+				continue;
+		} else {
+			if (addr != var->addr)
+				continue;
+		}
 		/* Get the type DIE using the offset */
 		if (!dwarf_offdie(dloc->di->dbg, var->die_off, &mem_die))
 			continue;
@@ -923,6 +941,7 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 				reg->type = mem_die;
 				reg->kind = TSR_KIND_POINTER;
 				reg->ok = true;
+				tsr_set_lifetime(reg, var);
 
 				pr_debug_dtp("var [%"PRIx64"] reg%d addr offset %x",
 					     insn_offset, var->reg, var->offset);
@@ -939,6 +958,7 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			reg->type = mem_die;
 			reg->kind = TSR_KIND_TYPE;
 			reg->ok = true;
+			tsr_set_lifetime(reg, var);
 
 			pr_debug_dtp("var [%"PRIx64"] reg%d offset %x",
 				     insn_offset, var->reg, var->offset);

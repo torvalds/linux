@@ -1641,7 +1641,7 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 	Dwarf_Die type_die;
 	int tag = dwarf_tag(die_mem);
 	Dwarf_Attribute attr;
-	Dwarf_Addr base, start, end;
+	Dwarf_Addr base, start, end = 0;
 	Dwarf_Op *ops;
 	size_t nops;
 	struct die_var_type *vt;
@@ -1681,6 +1681,8 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 
 	vt->die_off = dwarf_dieoffset(&type_die);
 	vt->addr = start;
+	vt->end = end;
+	vt->has_range = (end != 0 || start != 0);
 	vt->reg = reg_from_dwarf_op(ops);
 	vt->offset = offset_from_dwarf_op(ops);
 	vt->next = *var_types;
@@ -1743,6 +1745,8 @@ static int __die_collect_global_vars_cb(Dwarf_Die *die_mem, void *arg)
 
 	vt->die_off = dwarf_dieoffset(&type_die);
 	vt->addr = ops->number;
+	vt->end = 0;
+	vt->has_range = false;
 	vt->reg = -1;
 	vt->offset = 0;
 	vt->next = *var_types;

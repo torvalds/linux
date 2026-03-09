@@ -148,10 +148,12 @@ struct die_var_type {
 	struct die_var_type *next;
 	u64 die_off;
 	u64 addr;
+	u64 end;        /* end address of location range */
 	int reg;
 	int offset;
 	/* Whether the register holds a address to the type */
 	bool is_reg_var_addr;
+	bool has_range; /* whether end is valid */
 };
 
 /* Return type info of a member at offset */
