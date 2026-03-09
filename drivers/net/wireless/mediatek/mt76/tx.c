@@ -866,8 +866,14 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 	token = idr_alloc(&dev->token, *ptxwi, dev->token_start,
 			  dev->token_start + dev->token_size,
 			  GFP_ATOMIC);
-	if (token >= dev->token_start)
+	if (token >= dev->token_start) {
 		dev->token_count++;
+
+		if ((*ptxwi)->qid == MT_TXQ_PSD) {
+			struct mt76_phy *mphy = mt76_dev_phy(dev, (*ptxwi)->phy_idx);
+			atomic_inc(&mphy->mgmt_tx_pending);
+		}
+	}
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	if (mtk_wed_device_active(&dev->mmio.wed) &&
@@ -912,6 +918,12 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 	txwi = idr_remove(&dev->token, token);
 	if (txwi) {
 		dev->token_count--;
+
+		if (txwi->qid == MT_TXQ_PSD) {
+			struct mt76_phy *mphy = mt76_dev_phy(dev, txwi->phy_idx);
+			if (atomic_dec_and_test(&mphy->mgmt_tx_pending))
+				wake_up(&dev->tx_wait);
+		}
 
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 		if (mtk_wed_device_active(&dev->mmio.wed) &&

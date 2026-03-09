@@ -666,6 +666,8 @@ mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
 	if (!t)
 		goto free_skb;
 
+	t->phy_idx = phy->band_idx;
+	t->qid = qid;
 	txwi = mt76_get_txwi_ptr(dev, t);
 
 	skb->prev = skb->next = NULL;

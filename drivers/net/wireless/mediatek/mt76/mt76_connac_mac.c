@@ -1209,5 +1209,11 @@ void mt76_connac2_tx_token_put(struct mt76_dev *dev)
 	}
 	spin_unlock_bh(&dev->token_lock);
 	idr_destroy(&dev->token);
+
+	for (id = 0; id < __MT_MAX_BAND; id++) {
+		struct mt76_phy *phy = dev->phys[id];
+		if (phy)
+			atomic_set(&phy->mgmt_tx_pending, 0);
+	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_tx_token_put);

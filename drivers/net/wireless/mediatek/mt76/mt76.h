@@ -450,6 +450,7 @@ struct mt76_txwi_cache {
 	};
 
 	u8 qid;
+	u8 phy_idx;
 };
 
 struct mt76_rx_tid {
@@ -859,6 +860,8 @@ struct mt76_phy {
 	spinlock_t tx_lock;
 	struct list_head tx_list;
 	struct mt76_queue *q_tx[__MT_TXQ_MAX];
+
+	atomic_t mgmt_tx_pending;
 
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_chan_def main_chandef;

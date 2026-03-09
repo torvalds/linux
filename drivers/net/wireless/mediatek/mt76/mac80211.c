@@ -971,6 +971,9 @@ bool mt76_has_tx_pending(struct mt76_phy *phy)
 			return true;
 	}
 
+	if (atomic_read(&phy->mgmt_tx_pending))
+		return true;
+
 	return false;
 }
 EXPORT_SYMBOL_GPL(mt76_has_tx_pending);
