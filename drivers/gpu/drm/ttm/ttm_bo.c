@@ -1208,9 +1208,9 @@ const struct ttm_lru_walk_ops ttm_swap_ops = {
  * @man: The resource manager whose resources / buffer objects are
  * goint to be swapped out.
  * @gfp_flags: The gfp flags used for shmem page allocations.
- * @target: The desired number of bytes to swap out.
+ * @target: The desired number of pages to swap out.
  *
- * Return: The number of bytes actually swapped out, or negative error code
+ * Return: The number of pages actually swapped out, or negative error code
  * on error.
  */
 s64 ttm_bo_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
