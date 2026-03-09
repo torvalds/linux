@@ -19,8 +19,6 @@
 #include <asm/cputhreads.h>
 #include <asm/plpar_wrappers.h>
 
-#include "internal.h"
-
 /*
  * tlbiel instruction for radix, set invalidation
  * i.e., r=1 and is=01 or is=10 or is=11
@@ -660,7 +658,7 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
  * If always_flush is true, then flush even if this CPU can't be removed
  * from mm_cpumask.
  */
-void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
+static void exit_lazy_flush_tlb(struct mm_struct *mm)
 {
 	unsigned long pid = mm->context.id;
 	int cpu = smp_processor_id();
@@ -703,19 +701,17 @@ void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush)
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		dec_mm_active_cpus(mm);
 		cpumask_clear_cpu(cpu, mm_cpumask(mm));
-		always_flush = true;
 	}
 
 out:
-	if (always_flush)
-		_tlbiel_pid(pid, RIC_FLUSH_ALL);
+	_tlbiel_pid(pid, RIC_FLUSH_ALL);
 }
 
 #ifdef CONFIG_SMP
 static void do_exit_flush_lazy_tlb(void *arg)
 {
 	struct mm_struct *mm = arg;
-	exit_lazy_flush_tlb(mm, true);
+	exit_lazy_flush_tlb(mm);
 }
 
 static void exit_flush_lazy_tlbs(struct mm_struct *mm)
@@ -777,7 +773,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 			 * to trim.
 			 */
 			if (tick_and_test_trim_clock()) {
-				exit_lazy_flush_tlb(mm, true);
+				exit_lazy_flush_tlb(mm);
 				return FLUSH_TYPE_NONE;
 			}
 		}
@@ -823,7 +819,7 @@ static enum tlb_flush_type flush_type_needed(struct mm_struct *mm, bool fullmm)
 		if (current->mm == mm)
 			return FLUSH_TYPE_LOCAL;
 		if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
-			exit_lazy_flush_tlb(mm, true);
+			exit_lazy_flush_tlb(mm);
 		return FLUSH_TYPE_NONE;
 	}
 

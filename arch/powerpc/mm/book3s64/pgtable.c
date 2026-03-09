@@ -23,8 +23,6 @@
 #include <mm/mmu_decl.h>
 #include <trace/events/thp.h>
 
-#include "internal.h"
-
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 EXPORT_SYMBOL_GPL(mmu_psize_defs);
 

@@ -31,6 +31,4 @@ static inline bool slb_preload_disabled(void)
 
 void hpt_do_stress(unsigned long ea, unsigned long hpte_group);
 
-void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush);
-
 #endif /* ARCH_POWERPC_MM_BOOK3S64_INTERNAL_H */
