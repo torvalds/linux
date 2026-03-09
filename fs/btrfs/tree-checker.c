@@ -1945,6 +1945,53 @@ static int check_dev_extent_item(const struct extent_buffer *leaf,
 	return 0;
 }
 
+static int check_free_space_info(struct extent_buffer *leaf, struct btrfs_key *key,
+				 int slot)
+{
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
+	struct btrfs_free_space_info *fsi;
+	const u32 blocksize = fs_info->sectorsize;
+	u32 flags;
+
+	if (unlikely(!IS_ALIGNED(key->objectid, blocksize))) {
+		generic_err(leaf, slot,
+		"free space info key objectid is not aligned to %u, has " BTRFS_KEY_FMT,
+			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	if (unlikely(!IS_ALIGNED(key->offset, blocksize))) {
+		generic_err(leaf, slot,
+		"free space info key offset is not aligned to %u, has " BTRFS_KEY_FMT,
+			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	if (unlikely(btrfs_item_size(leaf, slot) !=
+		     sizeof(struct btrfs_free_space_info))) {
+		generic_err(leaf, slot,
+		"invalid item size for free space info, has %u expect %zu",
+			    btrfs_item_size(leaf, slot),
+			    sizeof(struct btrfs_free_space_info));
+		return -EUCLEAN;
+	}
+	fsi = btrfs_item_ptr(leaf, slot, struct btrfs_free_space_info);
+	flags = btrfs_free_space_flags(leaf, fsi);
+	if (unlikely(flags & ~BTRFS_FREE_SPACE_FLAGS_MASK)) {
+		generic_err(leaf, slot,
+		"unknown flags for free space info, has 0x%x valid mask 0x%lx",
+			    flags, BTRFS_FREE_SPACE_FLAGS_MASK);
+		return -EUCLEAN;
+	}
+	if (unlikely(btrfs_free_space_extent_count(leaf, fsi) >
+		     key->offset >> fs_info->sectorsize_bits)) {
+		generic_err(leaf, slot,
+			    "suspicious extent count, has %u max valid %llu",
+			    btrfs_free_space_extent_count(leaf, fsi),
+			    key->offset >> fs_info->sectorsize_bits);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -2007,6 +2054,9 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_RAID_STRIPE_KEY:
 		ret = check_raid_stripe_extent(leaf, key, slot);
+		break;
+	case BTRFS_FREE_SPACE_INFO_KEY:
+		ret = check_free_space_info(leaf, key, slot);
 		break;
 	}
 
