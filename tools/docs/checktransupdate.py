@@ -78,11 +78,11 @@ def get_origin_from_trans_smartly(origin_path, t_from_head):
     (2) Update the translation through commit HASH (TITLE)
     """
     # catch flag for 12-bit commit hash
-    HASH = r'([0-9a-f]{12})'
+    hash_re = r'([0-9a-f]{12})'
     # pattern 1: contains "update to commit HASH"
-    pat_update_to = re.compile(rf'update to commit {HASH}')
+    pat_update_to = re.compile(rf'update to commit {hash_re}')
     # pattern 2: contains "Update the translation through commit HASH"
-    pat_update_translation = re.compile(rf'Update the translation through commit {HASH}')
+    pat_update_translation = re.compile(rf'Update the translation through commit {hash_re}')
 
     origin_commit_hash = None
     for line in t_from_head["message"]:
@@ -133,7 +133,7 @@ def check_per_file(file_path):
     opath = get_origin_path(file_path)
 
     if not os.path.isfile(opath):
-        logging.error("Cannot find the origin path for {file_path}")
+        logging.error("Cannot find the origin path for %s", file_path)
         return
 
     o_from_head = get_latest_commit_from(opath, "HEAD")
