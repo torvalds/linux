@@ -32,8 +32,8 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 {
 	int node, num_rsv;
 	int status;
-	u32 fdt_val32;
-	u64 fdt_val64;
+	fdt32_t fdt_val32;
+	fdt64_t fdt_val64;
 
 	/* Do some checks on provided FDT, if it exists: */
 	if (orig_fdt) {
@@ -100,13 +100,13 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val64 = U64_MAX; /* placeholder */
+	fdt_val64 = cpu_to_fdt64(U64_MAX); /* placeholder */
 
 	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-start", fdt_val64);
 	if (status)
 		goto fdt_set_fail;
 
-	fdt_val32 = U32_MAX; /* placeholder */
+	fdt_val32 = cpu_to_fdt32(U32_MAX); /* placeholder */
 
 	status = fdt_setprop_var(fdt, node, "linux,uefi-mmap-size", fdt_val32);
 	if (status)
@@ -147,8 +147,8 @@ fdt_set_fail:
 static efi_status_t update_fdt_memmap(void *fdt, struct efi_boot_memmap *map)
 {
 	int node = fdt_path_offset(fdt, "/chosen");
-	u64 fdt_val64;
-	u32 fdt_val32;
+	fdt64_t fdt_val64;
+	fdt32_t fdt_val32;
 	int err;
 
 	if (node < 0)
