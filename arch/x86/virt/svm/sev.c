@@ -130,33 +130,20 @@ static unsigned long snp_nr_leaked_pages;
 #undef pr_fmt
 #define pr_fmt(fmt)	"SEV-SNP: " fmt
 
-static int __mfd_enable(unsigned int cpu)
-{
-	u64 val;
-
-	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
-		return 0;
-
-	rdmsrq(MSR_AMD64_SYSCFG, val);
-
-	val |= MSR_AMD64_SYSCFG_MFDM;
-
-	wrmsrq(MSR_AMD64_SYSCFG, val);
-
-	return 0;
-}
-
 static __init void mfd_enable(void *arg)
 {
-	__mfd_enable(smp_processor_id());
+	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		return;
+
+	msr_set_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
 }
 
-static int __snp_enable(unsigned int cpu)
+static __init void snp_enable(void *arg)
 {
 	u64 val;
 
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
-		return 0;
+		return;
 
 	rdmsrq(MSR_AMD64_SYSCFG, val);
 
@@ -164,13 +151,6 @@ static int __snp_enable(unsigned int cpu)
 	val |= MSR_AMD64_SYSCFG_SNP_VMPL_EN;
 
 	wrmsrq(MSR_AMD64_SYSCFG, val);
-
-	return 0;
-}
-
-static __init void snp_enable(void *arg)
-{
-	__snp_enable(smp_processor_id());
 }
 
 static void __init __snp_fixup_e820_tables(u64 pa)
@@ -553,8 +533,6 @@ int __init snp_rmptable_init(void)
 	on_each_cpu(snp_enable, NULL, 1);
 
 skip_enable:
-	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/rmptable_init:online", __snp_enable, NULL);
-
 	/*
 	 * Setting crash_kexec_post_notifiers to 'true' to ensure that SNP panic
 	 * notifier is invoked to do SNP IOMMU shutdown before kdump.
