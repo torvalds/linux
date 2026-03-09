@@ -810,7 +810,7 @@ no_hardlink:
 static int ntfs_test_inode_attr(struct inode *vi, void *data)
 {
 	struct ntfs_inode *ni = NTFS_I(vi);
-	u64 mft_no = (u64)data;
+	u64 mft_no = (u64)(uintptr_t)data;
 
 	if (ni->mft_no != mft_no)
 		return 0;
@@ -990,7 +990,7 @@ search:
 		struct inode *attr_vi;
 
 		while ((attr_vi = ilookup5(sb, ni->mft_no, ntfs_test_inode_attr,
-					   (void *)ni->mft_no)) != NULL) {
+					   (void *)(uintptr_t)ni->mft_no)) != NULL) {
 			clear_nlink(attr_vi);
 			iput(attr_vi);
 		}
