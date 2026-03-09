@@ -1721,7 +1721,6 @@ struct kvm_s2_fault {
 	bool writable;
 	bool s2_force_noncacheable;
 	kvm_pfn_t pfn;
-	bool logging_active;
 	bool force_pte;
 	enum kvm_pgtable_prot prot;
 	struct page *page;
@@ -1851,7 +1850,7 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 			 */
 			fault->s2_force_noncacheable = true;
 		}
-	} else if (fault->logging_active && !kvm_is_write_fault(s2fd->vcpu)) {
+	} else if (memslot_is_logging(s2fd->memslot) && !kvm_is_write_fault(s2fd->vcpu)) {
 		/*
 		 * Only actually map the page as writable if this was a write
 		 * fault.
@@ -1987,11 +1986,9 @@ out_unlock:
 static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 {
 	bool perm_fault = kvm_vcpu_trap_is_permission_fault(s2fd->vcpu);
-	bool logging_active = memslot_is_logging(s2fd->memslot);
 	struct kvm_s2_fault_vma_info s2vi = {};
 	struct kvm_s2_fault fault = {
-		.logging_active = logging_active,
-		.force_pte = logging_active,
+		.force_pte = memslot_is_logging(s2fd->memslot),
 		.prot = KVM_PGTABLE_PROT_R,
 	};
 	void *memcache;
@@ -2004,7 +2001,8 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 	 * and a write fault needs to collapse a block entry into a table.
 	 */
 	memcache = get_mmu_memcache(s2fd->vcpu);
-	if (!perm_fault || (logging_active && kvm_is_write_fault(s2fd->vcpu))) {
+	if (!perm_fault || (memslot_is_logging(s2fd->memslot) &&
+			    kvm_is_write_fault(s2fd->vcpu))) {
 		ret = topup_mmu_memcache(s2fd->vcpu, memcache);
 		if (ret)
 			return ret;
