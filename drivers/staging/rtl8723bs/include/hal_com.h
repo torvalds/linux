@@ -141,8 +141,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter);
 u8 GetHalDefVar(struct adapter *adapter, enum hal_def_variable variable,
 		void *value);
 
-bool eqNByte(u8 *str1, u8 *str2, u32 num);
-
 bool GetU1ByteIntegerFromStringInDecimal(char *str, u8 *in);
 
 #define		HWSET_MAX_SIZE			512
