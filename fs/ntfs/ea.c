@@ -46,10 +46,11 @@ static int ntfs_write_ea(struct ntfs_inode *ni, __le32 type, char *value, s64 ea
 }
 
 static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
-		int name_len, s64 *ea_offset, s64 *ea_size)
+			  int name_len, s64 *ea_offset, s64 *ea_size)
 {
 	const struct ea_attr *p_ea;
-	s64 offset;
+	size_t actual_size;
+	loff_t offset, p_ea_size;
 	unsigned int next;
 
 	if (ea_buf_size < sizeof(struct ea_attr))
@@ -59,27 +60,25 @@ static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
 	do {
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
+		p_ea_size = next ? next : (ea_buf_size - offset);
 
-		if (offset + next > ea_buf_size ||
-		    ((1 + p_ea->ea_name_length) > (ea_buf_size - offset)))
+		if (p_ea_size < sizeof(struct ea_attr) ||
+		    offset + p_ea_size > ea_buf_size)
+			break;
+
+		if ((s64)p_ea->ea_name_length + 1 >
+		    p_ea_size - offsetof(struct ea_attr, ea_name))
+			break;
+
+		actual_size = ALIGN(struct_size(p_ea, ea_name, 1 + p_ea->ea_name_length +
+					le16_to_cpu(p_ea->ea_value_length)), 4);
+		if (actual_size > p_ea_size)
 			break;
 
 		if (p_ea->ea_name_length == name_len &&
 		    !memcmp(p_ea->ea_name, name, name_len)) {
 			*ea_offset = offset;
-			if (next)
-				*ea_size = next;
-			else {
-				unsigned int ea_len = 1 + p_ea->ea_name_length +
-						le16_to_cpu(p_ea->ea_value_length);
-
-				if ((ea_buf_size - offset) < ea_len)
-					goto out;
-
-				*ea_size = ALIGN(struct_size(p_ea, ea_name,
-							1 + p_ea->ea_name_length +
-							le16_to_cpu(p_ea->ea_value_length)), 4);
-			}
+			*ea_size = next ? next : actual_size;
 
 			if (ea_buf_size < *ea_offset + *ea_size)
 				goto out;
@@ -87,8 +86,7 @@ static int ntfs_ea_lookup(char *ea_buf, s64 ea_buf_size, const char *name,
 			return 0;
 		}
 		offset += next;
-	} while (next > 0 && offset < ea_buf_size &&
-		 sizeof(struct ea_attr) < (ea_buf_size - offset));
+	} while (next > 0 && offset < ea_buf_size);
 
 out:
 	return -ENOENT;
