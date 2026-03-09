@@ -580,7 +580,35 @@ class RestFormat(OutputFormat):
 
 
 class ManFormat(OutputFormat):
-    """Consts and functions used by man pages output."""
+    """
+    Consts and functions used by man pages output.
+
+    This class has one mandatory parameter and some optional ones, which
+    are needed to define the title header contents:
+
+    ``modulename``
+        Defines the module name to be used at the troff ``.TH`` output.
+
+        This argument is optional. If not specified, it will be filled
+        with the directory which contains the documented file.
+
+    ``section``
+        Usually a numeric value from 0 to 9, but man pages also accept
+        some strings like "p".
+
+        Defauls to ``9``
+
+    ``manual``
+        Defaults to ``Kernel API Manual``.
+
+    The above controls the output of teh corresponding fields on troff
+    title headers, which will be filled like this::
+
+        .TH "{name}" {section} "{date}" "{modulename}" "{manual}"
+
+    where ``name``` will match the API symbol name, and ``date`` will be
+    either the date where the Kernel was compiled or the current date
+    """
 
     highlights = (
         (type_constant, r"\1"),
@@ -607,7 +635,21 @@ class ManFormat(OutputFormat):
         "%m %d %Y",
     ]
 
-    def __init__(self, modulename):
+    def modulename(self, args):
+        if self._modulename:
+            return self._modulename
+
+        return os.path.dirname(args.fname)
+
+    def emit_th(self, name, args):
+        """Emit a title header line."""
+        title = name.strip()
+        module = self.modulename(args)
+
+        self.data += f'.TH "{title}" {self.section} "{self.date}" '
+        self.data += f'"{module}" "{self.manual}"\n'
+
+    def __init__(self, modulename=None, section="9", manual="Kernel API Manual"):
         """
         Creates class variables.
 
@@ -616,7 +658,11 @@ class ManFormat(OutputFormat):
         """
 
         super().__init__()
-        self.modulename = modulename
+
+        self._modulename = modulename
+        self.section = section
+        self.manual = manual
+
         self.symbols = []
 
         dt = None
@@ -632,7 +678,7 @@ class ManFormat(OutputFormat):
         if not dt:
             dt = datetime.now()
 
-        self.man_date = dt.strftime("%B %Y")
+        self.date = dt.strftime("%B %Y")
 
     def arg_name(self, args, name):
         """
@@ -647,7 +693,8 @@ class ManFormat(OutputFormat):
         dtype = args.type
 
         if dtype == "doc":
-            return self.modulename
+            return name
+#            return os.path.basename(self.modulename(args))
 
         if dtype in ["function", "typedef"]:
             return name
@@ -697,6 +744,185 @@ class ManFormat(OutputFormat):
 
         return self.data
 
+    def emit_table(self, colspec_row, rows):
+
+        if not rows:
+            return ""
+
+        out = ""
+        colspec = "\t".join(["l"] * len(rows[0]))
+
+        out += "\n.TS\n"
+        out += "box;\n"
+        out += f"{colspec}.\n"
+
+        if colspec_row:
+            out_row = []
+
+            for text in colspec_row:
+                out_row.append(f"\\fB{text}\\fP")
+
+            out += "\t".join(out_row) + "\n_\n"
+
+        for r in rows:
+            out += "\t".join(r) + "\n"
+
+        out += ".TE\n"
+
+        return out
+
+    def grid_table(self, lines, start):
+        """
+        Ancillary function to help handling a grid table inside the text.
+        """
+
+        i = start + 1
+        rows = []
+        colspec_row = None
+
+        while i < len(lines):
+            line = lines[i]
+
+            if KernRe(r"^\s*\|.*\|\s*$").match(line):
+                parts = []
+
+                for p in line.strip('|').split('|'):
+                    parts.append(p.strip())
+
+                rows.append(parts)
+
+            elif KernRe(r'^\+\=[\+\=]+\+\s*$').match(line):
+                if rows and rows[0]:
+                    if not colspec_row:
+                        colspec_row = [""] * len(rows[0])
+
+                    for j in range(0, len(rows[0])):
+                        content = []
+                        for row in rows:
+                            content.append(row[j])
+
+                        colspec_row[j] = " ".join(content)
+
+                    rows = []
+
+            elif KernRe(r"^\s*\+[-+]+\+.*$").match(line):
+                pass
+
+            else:
+                break
+
+            i += 1
+
+        return i, self.emit_table(colspec_row, rows)
+
+    def simple_table(self, lines, start):
+        """
+        Ancillary function to help handling a simple table inside the text.
+        """
+
+        i = start
+        rows = []
+        colspec_row = None
+
+        pos = []
+        for m in KernRe(r'\-+').finditer(lines[i]):
+            pos.append((m.start(), m.end() - 1))
+
+        i += 1
+        while i < len(lines):
+            line = lines[i]
+
+            if KernRe(r"^\s*[\-]+[ \t\-]+$").match(line):
+                i += 1
+                break
+
+            elif KernRe(r'^[\s=]+$').match(line):
+                if rows and rows[0]:
+                    if not colspec_row:
+                        colspec_row = [""] * len(rows[0])
+
+                    for j in range(0, len(rows[0])):
+                        content = []
+                        for row in rows:
+                            content.append(row[j])
+
+                        colspec_row[j] = " ".join(content)
+
+                    rows = []
+
+            else:
+                row = [""] * len(pos)
+
+                for j in range(0, len(pos)):
+                    start, end = pos[j]
+
+                    row[j] = line[start:end].strip()
+
+                rows.append(row)
+
+            i += 1
+
+        return i, self.emit_table(colspec_row, rows)
+
+    def code_block(self, lines, start):
+        """
+        Ensure that code blocks won't be messed up at the output.
+
+        By default, troff join lines at the same paragraph. Disable it,
+        on code blocks.
+        """
+
+        line = lines[start]
+
+        if "code-block" in line:
+            out = "\n.nf\n"
+        elif line.startswith("..") and line.endswith("::"):
+            #
+            # Handle note, warning, error, ... markups
+            #
+            line = line[2:-1].strip().upper()
+            out = f"\n.nf\n\\fB{line}\\fP\n"
+        elif line.endswith("::"):
+            out = line[:-1]
+            out += "\n.nf\n"
+        else:
+            # Just in case. Should never happen in practice
+            out = "\n.nf\n"
+
+        i = start + 1
+        ident = None
+
+        while i < len(lines):
+            line = lines[i]
+
+            m = KernRe(r"\S").match(line)
+            if not m:
+                out += line + "\n"
+                i += 1
+                continue
+
+            pos = m.start()
+            if not ident:
+                if pos > 0:
+                    ident = pos
+                else:
+                    out += "\n.fi\n"
+                    if i > start + 1:
+                        return i - 1, out
+                    else:
+                        # Just in case. Should never happen in practice
+                        return i, out
+
+            if pos >= ident:
+                out += line + "\n"
+                i += 1
+                continue
+
+            break
+
+        out += "\n.fi\n"
+        return i, out
+
     def output_highlight(self, block):
         """
         Outputs a C symbol that may require being highlighted with
@@ -708,15 +934,46 @@ class ManFormat(OutputFormat):
         if isinstance(contents, list):
             contents = "\n".join(contents)
 
-        for line in contents.strip("\n").split("\n"):
-            line = KernRe(r"^\s*").sub("", line)
-            if not line:
-                continue
+        lines = contents.strip("\n").split("\n")
+        i = 0
 
-            if line[0] == ".":
-                self.data += "\\&" + line + "\n"
+        while i < len(lines):
+            org_line = lines[i]
+
+            line = KernRe(r"^\s*").sub("", org_line)
+
+            if line:
+                if KernRe(r"^\+\-[-+]+\+.*$").match(line):
+                    i, text = self.grid_table(lines, i)
+                    self.data += text
+                    continue
+
+                if KernRe(r"^\-+[ \t]\-[ \t\-]+$").match(line):
+                    i, text = self.simple_table(lines, i)
+                    self.data += text
+                    continue
+
+                if line.endswith("::") or KernRe(r"\.\.\s+code-block.*::").match(line):
+                    i, text = self.code_block(lines, i)
+                    self.data += text
+                    continue
+
+                if line[0] == ".":
+                    self.data += "\\&" + line + "\n"
+                    i += 1
+                    continue
+
+                #
+                # Handle lists
+                #
+                line = KernRe(r'^[-*]\s+').sub(r'.IP \[bu]\n', line)
+                line = KernRe(r'^(\d+|a-z)[\.\)]\s+').sub(r'.IP \1\n', line)
             else:
-                self.data += line + "\n"
+                line = ".PP\n"
+
+            i += 1
+
+            self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
         if not self.check_doc(name, args):
@@ -724,7 +981,7 @@ class ManFormat(OutputFormat):
 
         out_name = self.arg_name(args, name)
 
-        self.data += f'.TH "{self.modulename}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
@@ -734,7 +991,7 @@ class ManFormat(OutputFormat):
 
         out_name = self.arg_name(args, name)
 
-        self.data += f'.TH "{name}" 9 "{out_name}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         self.data += ".SH NAME\n"
         self.data += f"{name} \\- {args['purpose']}\n"
@@ -780,7 +1037,7 @@ class ManFormat(OutputFormat):
     def out_enum(self, fname, name, args):
         out_name = self.arg_name(args, name)
 
-        self.data += f'.TH "{self.modulename}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         self.data += ".SH NAME\n"
         self.data += f"enum {name} \\- {args['purpose']}\n"
@@ -813,7 +1070,7 @@ class ManFormat(OutputFormat):
         out_name = self.arg_name(args, name)
         full_proto = args.other_stuff["full_proto"]
 
-        self.data += f'.TH "{self.modulename}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         self.data += ".SH NAME\n"
         self.data += f"{name} \\- {args['purpose']}\n"
@@ -830,11 +1087,11 @@ class ManFormat(OutputFormat):
             self.output_highlight(text)
 
     def out_typedef(self, fname, name, args):
-        module = self.modulename
+        module = self.modulename(args)
         purpose = args.get('purpose')
         out_name = self.arg_name(args, name)
 
-        self.data += f'.TH "{module}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         self.data += ".SH NAME\n"
         self.data += f"typedef {name} \\- {purpose}\n"
@@ -844,12 +1101,12 @@ class ManFormat(OutputFormat):
             self.output_highlight(text)
 
     def out_struct(self, fname, name, args):
-        module = self.modulename
+        module = self.modulename(args)
         purpose = args.get('purpose')
         definition = args.get('definition')
         out_name = self.arg_name(args, name)
 
-        self.data += f'.TH "{module}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.emit_th(out_name, args)
 
         self.data += ".SH NAME\n"
         self.data += f"{args.type} {name} \\- {purpose}\n"
