@@ -17,6 +17,7 @@
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_bpf.h"
+#include "common.h"
 
 struct timerlat_top_cpu {
 	unsigned long long	irq_count;
@@ -795,10 +796,10 @@ out_err:
 static int
 timerlat_top_bpf_main_loop(struct osnoise_tool *tool)
 {
-	struct timerlat_params *params = to_timerlat_params(tool->params);
+	const struct common_params *params = tool->params;
 	int retval, wait_retval;
 
-	if (params->common.aa_only) {
+	if (params->aa_only) {
 		/* Auto-analysis only, just wait for stop tracing */
 		timerlat_bpf_wait(-1);
 		return 0;
@@ -806,8 +807,8 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *tool)
 
 	/* Pull and display data in a loop */
 	while (!stop_tracing) {
-		wait_retval = timerlat_bpf_wait(params->common.quiet ? -1 :
-						params->common.sleep_time);
+		wait_retval = timerlat_bpf_wait(params->quiet ? -1 :
+						params->sleep_time);
 
 		retval = timerlat_top_bpf_pull_data(tool);
 		if (retval) {
@@ -815,28 +816,27 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *tool)
 			return retval;
 		}
 
-		if (!params->common.quiet)
+		if (!params->quiet)
 			timerlat_print_stats(tool);
 
 		if (wait_retval != 0) {
 			/* Stopping requested by tracer */
-			actions_perform(&params->common.threshold_actions);
+			retval = common_threshold_handler(tool);
+			if (retval)
+				return retval;
 
-			if (!params->common.threshold_actions.continue_flag)
-				/* continue flag not set, break */
+			if (!should_continue_tracing(tool->params))
 				break;
 
-			/* continue action reached, re-enable tracing */
-			if (tool->record)
-				trace_instance_start(&tool->record->trace);
-			if (tool->aa)
-				trace_instance_start(&tool->aa->trace);
-			timerlat_bpf_restart_tracing();
+			if (timerlat_bpf_restart_tracing()) {
+				err_msg("Error restarting BPF trace\n");
+				return -1;
+			}
 		}
 
 		/* is there still any user-threads ? */
-		if (params->common.user_workload) {
-			if (params->common.user.stopped_running) {
+		if (params->user_workload) {
+			if (params->user.stopped_running) {
 				debug_msg("timerlat user space threads stopped!\n");
 				break;
 			}

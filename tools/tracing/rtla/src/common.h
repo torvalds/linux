@@ -146,6 +146,24 @@ struct tool_ops {
 	void (*free)(struct osnoise_tool *tool);
 };
 
+/**
+ * should_continue_tracing - check if tracing should continue after threshold
+ * @params: pointer to the common parameters structure
+ *
+ * Returns true if the continue action was configured (--on-threshold continue),
+ * indicating that tracing should be restarted after handling the threshold event.
+ *
+ * Return: 1 if tracing should continue, 0 otherwise.
+ */
+static inline int
+should_continue_tracing(const struct common_params *params)
+{
+	return params->threshold_actions.continue_flag;
+}
+
+int
+common_threshold_handler(const struct osnoise_tool *tool);
+
 int osnoise_set_cpus(struct osnoise_context *context, char *cpus);
 void osnoise_restore_cpus(struct osnoise_context *context);
 
