@@ -226,7 +226,7 @@ static void catpt_dev_init(struct catpt_dev *cdev, struct device *dev,
 	cdev->spec = spec;
 	init_completion(&cdev->fw_ready);
 	INIT_LIST_HEAD(&cdev->stream_list);
-	spin_lock_init(&cdev->list_lock);
+	mutex_init(&cdev->stream_mutex);
 	mutex_init(&cdev->clk_mutex);
 
 	/*

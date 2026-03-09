@@ -5,6 +5,7 @@
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
 
+#include <linux/cleanup.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -97,12 +98,12 @@ catpt_get_stream_template(struct snd_pcm_substream *substream)
 	return catpt_topology[type];
 }
 
+/* Caller responsible for holding ->stream_mutex. */
 struct catpt_stream_runtime *
 catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 {
 	struct catpt_stream_runtime *pos, *result = NULL;
 
-	spin_lock(&cdev->list_lock);
 	list_for_each_entry(pos, &cdev->stream_list, node) {
 		if (pos->info.stream_hw_id == stream_hw_id) {
 			result = pos;
@@ -110,7 +111,6 @@ catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 		}
 	}
 
-	spin_unlock(&cdev->list_lock);
 	return result;
 }
 
@@ -286,10 +286,6 @@ static int catpt_dai_startup(struct snd_pcm_substream *substream,
 	INIT_LIST_HEAD(&stream->node);
 	snd_soc_dai_set_dma_data(dai, substream, stream);
 
-	spin_lock(&cdev->list_lock);
-	list_add_tail(&stream->node, &cdev->stream_list);
-	spin_unlock(&cdev->list_lock);
-
 	return 0;
 
 err_request:
@@ -306,10 +302,6 @@ static void catpt_dai_shutdown(struct snd_pcm_substream *substream,
 	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
 
 	stream = snd_soc_dai_get_dma_data(dai, substream);
-
-	spin_lock(&cdev->list_lock);
-	list_del(&stream->node);
-	spin_unlock(&cdev->list_lock);
 
 	release_resource(stream->persistent);
 	kfree(stream->persistent);
@@ -410,12 +402,15 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return CATPT_IPC_RET(ret);
 
+	guard(mutex)(&cdev->stream_mutex);
+
 	ret = catpt_dai_apply_usettings(dai, stream);
 	if (ret) {
 		catpt_ipc_free_stream(cdev, stream->info.stream_hw_id);
 		return ret;
 	}
 
+	list_add_tail(&stream->node, &cdev->stream_list);
 	stream->allocated = true;
 	return 0;
 }
@@ -429,6 +424,10 @@ static int catpt_dai_hw_free(struct snd_pcm_substream *substream,
 	stream = snd_soc_dai_get_dma_data(dai, substream);
 	if (!stream->allocated)
 		return 0;
+
+	mutex_lock(&cdev->stream_mutex);
+	list_del(&stream->node);
+	mutex_unlock(&cdev->stream_mutex);
 
 	catpt_ipc_reset_stream(cdev, stream->info.stream_hw_id);
 	catpt_ipc_free_stream(cdev, stream->info.stream_hw_id);
@@ -910,6 +909,8 @@ static int catpt_stream_volume_get(struct snd_kcontrol *kcontrol,
 	int ret;
 	int i;
 
+	guard(mutex)(&cdev->stream_mutex);
+
 	stream = catpt_stream_find(cdev, pin_id);
 	if (!stream) {
 		for (i = 0; i < CATPT_CHANNELS_MAX; i++)
@@ -940,6 +941,8 @@ static int catpt_stream_volume_put(struct snd_kcontrol *kcontrol,
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	long *ctlvol = (long *)kcontrol->private_value;
 	int ret, i;
+
+	guard(mutex)(&cdev->stream_mutex);
 
 	stream = catpt_stream_find(cdev, pin_id);
 	if (!stream) {
@@ -1016,6 +1019,8 @@ static int catpt_loopback_switch_put(struct snd_kcontrol *kcontrol,
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	bool mute;
 	int ret;
+
+	guard(mutex)(&cdev->stream_mutex);
 
 	mute = (bool)ucontrol->value.integer.value[0];
 	stream = catpt_stream_find(cdev, CATPT_PIN_ID_REFERENCE);

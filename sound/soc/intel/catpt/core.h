@@ -96,7 +96,7 @@ struct catpt_dev {
 	struct catpt_module_type modules[CATPT_MODULE_COUNT];
 	struct catpt_ssp_device_format devfmt[CATPT_SSP_COUNT];
 	struct list_head stream_list;
-	spinlock_t list_lock;
+	struct mutex stream_mutex;
 	struct mutex clk_mutex;
 
 	struct catpt_dx_context dx_ctx;
