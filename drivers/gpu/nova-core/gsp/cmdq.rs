@@ -159,7 +159,7 @@ struct Msgq {
 #[repr(C)]
 struct GspMem {
     /// Self-mapping page table entries.
-    ptes: PteArray<{ GSP_PAGE_SIZE / size_of::<u64>() }>,
+    ptes: PteArray<{ Self::PTE_ARRAY_SIZE }>,
     /// CPU queue: the driver writes commands here, and the GSP reads them. It also contains the
     /// write and read pointers that the CPU updates.
     ///
@@ -170,6 +170,10 @@ struct GspMem {
     ///
     /// This member is read-only for the driver.
     gspq: Msgq,
+}
+
+impl GspMem {
+    const PTE_ARRAY_SIZE: usize = GSP_PAGE_SIZE / size_of::<u64>();
 }
 
 // SAFETY: These structs don't meet the no-padding requirements of AsBytes but
@@ -201,7 +205,13 @@ impl DmaGspMem {
 
         let gsp_mem =
             CoherentAllocation::<GspMem>::alloc_coherent(dev, 1, GFP_KERNEL | __GFP_ZERO)?;
-        dma_write!(gsp_mem, [0]?.ptes, PteArray::new(gsp_mem.dma_handle())?);
+
+        let start = gsp_mem.dma_handle();
+        // Write values one by one to avoid an on-stack instance of `PteArray`.
+        for i in 0..GspMem::PTE_ARRAY_SIZE {
+            dma_write!(gsp_mem, [0]?.ptes.0[i], PteArray::<0>::entry(start, i)?);
+        }
+
         dma_write!(
             gsp_mem,
             [0]?.cpuq.tx,
