@@ -50,7 +50,7 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *priv,
 		return -EINVAL;
 
 	fmt->dataformat = stream->meta.format;
-	fmt->buffersize = UVC_METADATA_BUF_SIZE;
+	fmt->buffersize = stream->meta.buffersize;
 
 	return 0;
 }
@@ -63,6 +63,7 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *priv,
 	struct uvc_device *dev = stream->dev;
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
 	u32 fmeta = V4L2_META_FMT_UVC;
+	u32 buffersize;
 
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
@@ -74,10 +75,12 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *priv,
 		}
 	}
 
+	buffersize = max(UVC_METADATA_BUF_MIN_SIZE, fmt->buffersize);
+
 	memset(fmt, 0, sizeof(*fmt));
 
 	fmt->dataformat = fmeta;
-	fmt->buffersize = UVC_METADATA_BUF_SIZE;
+	fmt->buffersize = buffersize;
 
 	return 0;
 }
@@ -103,6 +106,7 @@ static int uvc_meta_v4l2_set_format(struct file *file, void *priv,
 		return -EBUSY;
 
 	stream->meta.format = fmt->dataformat;
+	stream->meta.buffersize = fmt->buffersize;
 
 	return 0;
 }
@@ -229,6 +233,7 @@ int uvc_meta_register(struct uvc_streaming *stream)
 	struct uvc_video_queue *queue = &stream->meta.queue;
 
 	stream->meta.format = V4L2_META_FMT_UVC;
+	stream->meta.buffersize = UVC_METADATA_BUF_MIN_SIZE;
 
 	return uvc_register_video_device(dev, stream, queue,
 					 V4L2_BUF_TYPE_META_CAPTURE,
