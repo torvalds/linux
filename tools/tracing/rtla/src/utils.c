@@ -324,7 +324,7 @@ static int procfs_is_workload_pid(const char *comm_prefix, struct dirent *proc_e
 		return 0;
 
 	/* check if the string is a pid */
-	for (t_name = proc_entry->d_name; t_name; t_name++) {
+	for (t_name = proc_entry->d_name; *t_name; t_name++) {
 		if (!isdigit(*t_name))
 			break;
 	}
