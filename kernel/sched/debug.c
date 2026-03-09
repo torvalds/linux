@@ -8,6 +8,7 @@
  */
 #include <linux/debugfs.h>
 #include <linux/nmi.h>
+#include <linux/log2.h>
 #include "sched.h"
 
 /*
@@ -901,10 +902,13 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
-	s64 left_vruntime = -1, zero_vruntime, right_vruntime = -1, left_deadline = -1, spread;
+	s64 left_vruntime = -1, right_vruntime = -1, left_deadline = -1, spread;
+	s64 zero_vruntime = -1, sum_w_vruntime = -1;
 	struct sched_entity *last, *first, *root;
 	struct rq *rq = cpu_rq(cpu);
+	unsigned int sum_shift;
 	unsigned long flags;
+	u64 sum_weight;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	SEQ_printf(m, "\n");
@@ -925,6 +929,9 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	if (last)
 		right_vruntime = last->vruntime;
 	zero_vruntime = cfs_rq->zero_vruntime;
+	sum_w_vruntime = cfs_rq->sum_w_vruntime;
+	sum_weight = cfs_rq->sum_weight;
+	sum_shift = cfs_rq->sum_shift;
 	raw_spin_rq_unlock_irqrestore(rq, flags);
 
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "left_deadline",
@@ -933,6 +940,11 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 			SPLIT_NS(left_vruntime));
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "zero_vruntime",
 			SPLIT_NS(zero_vruntime));
+	SEQ_printf(m, "  .%-30s: %Ld (%d bits)\n", "sum_w_vruntime",
+		   sum_w_vruntime, ilog2(abs(sum_w_vruntime)));
+	SEQ_printf(m, "  .%-30s: %Lu\n", "sum_weight",
+		   sum_weight);
+	SEQ_printf(m, "  .%-30s: %u\n", "sum_shift", sum_shift);
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "avg_vruntime",
 			SPLIT_NS(avg_vruntime(cfs_rq)));
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "right_vruntime",

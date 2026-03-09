@@ -58,6 +58,8 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
 SCHED_FEAT(DELAY_DEQUEUE, true)
 SCHED_FEAT(DELAY_ZERO, true)
 
+SCHED_FEAT(PARANOID_AVG, false)
+
 /*
  * Allow wakeup-time preemption of the current task:
  */
@@ -126,3 +128,4 @@ SCHED_FEAT(LATENCY_WARN, false)
  * Do newidle balancing proportional to its success rate using randomization.
  */
 SCHED_FEAT(NI_RANDOM, true)
+SCHED_FEAT(NI_RATE, true)

@@ -3208,8 +3208,7 @@ static void scx_watchdog_workfn(struct work_struct *work)
 
 	intv = READ_ONCE(scx_watchdog_interval);
 	if (intv < ULONG_MAX)
-		queue_delayed_work(system_unbound_wq, to_delayed_work(work),
-				   intv);
+		queue_delayed_work(system_dfl_wq, to_delayed_work(work), intv);
 }
 
 void scx_tick(struct rq *rq)
@@ -5233,7 +5232,7 @@ static void refresh_watchdog(void)
 	WRITE_ONCE(scx_watchdog_interval, intv);
 
 	if (intv < ULONG_MAX)
-		mod_delayed_work(system_unbound_wq, &scx_watchdog_work, intv);
+		mod_delayed_work(system_dfl_wq, &scx_watchdog_work, intv);
 	else
 		cancel_delayed_work_sync(&scx_watchdog_work);
 }
