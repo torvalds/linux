@@ -125,7 +125,6 @@ struct tegra_gpio_soc {
 struct tegra_gpio {
 	struct gpio_chip gpio;
 	unsigned int num_irq;
-	unsigned int *irq;
 
 	const struct tegra_gpio_soc *soc;
 	unsigned int num_irqs_per_bank;
@@ -133,6 +132,8 @@ struct tegra_gpio {
 
 	void __iomem *secure;
 	void __iomem *base;
+
+	unsigned int irq[] __counted_by(num_irq);
 };
 
 static const struct tegra_gpio_port *
@@ -859,9 +860,15 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	char **names;
 	int node, err;
 
-	gpio = devm_kzalloc(&pdev->dev, sizeof(*gpio), GFP_KERNEL);
+	err = platform_irq_count(pdev);
+	if (err < 0)
+		return err;
+
+	gpio = devm_kzalloc(&pdev->dev, struct_size(gpio, irq, err), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
+
+	gpio->num_irq = err;
 
 	gpio->soc = device_get_match_data(&pdev->dev);
 	gpio->gpio.label = gpio->soc->name;
@@ -889,20 +896,9 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
 
-	err = platform_irq_count(pdev);
-	if (err < 0)
-		return err;
-
-	gpio->num_irq = err;
-
 	err = tegra186_gpio_irqs_per_bank(gpio);
 	if (err < 0)
 		return err;
-
-	gpio->irq = devm_kcalloc(&pdev->dev, gpio->num_irq, sizeof(*gpio->irq),
-				 GFP_KERNEL);
-	if (!gpio->irq)
-		return -ENOMEM;
 
 	for (i = 0; i < gpio->num_irq; i++) {
 		err = platform_get_irq(pdev, i);
