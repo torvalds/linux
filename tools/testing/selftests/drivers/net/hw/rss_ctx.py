@@ -166,9 +166,17 @@ def test_rss_key_indir(cfg):
     ksft_eq(1, max(data['rss-indirection-table']))
 
     # Check we only get traffic on the first 2 queues
-    cnts = _get_rx_cnts(cfg)
-    GenerateTraffic(cfg).wait_pkts_and_stop(20000)
-    cnts = _get_rx_cnts(cfg, prev=cnts)
+
+    # Retry a few times in case the flows skew to a single queue.
+    attempts = 3
+    for attempt in range(attempts):
+        cnts = _get_rx_cnts(cfg)
+        GenerateTraffic(cfg).wait_pkts_and_stop(20000)
+        cnts = _get_rx_cnts(cfg, prev=cnts)
+        if cnts[0] >= 5000 and cnts[1] >= 5000:
+            break
+        ksft_pr(f"Skewed queue distribution, attempt {attempt + 1}/{attempts}: " + str(cnts))
+
     # 2 queues, 20k packets, must be at least 5k per queue
     ksft_ge(cnts[0], 5000, "traffic on main context (1/2): " + str(cnts))
     ksft_ge(cnts[1], 5000, "traffic on main context (2/2): " + str(cnts))
@@ -178,9 +186,18 @@ def test_rss_key_indir(cfg):
     # Restore, and check traffic gets spread again
     reset_indir.exec()
 
-    cnts = _get_rx_cnts(cfg)
-    GenerateTraffic(cfg).wait_pkts_and_stop(20000)
-    cnts = _get_rx_cnts(cfg, prev=cnts)
+    for attempt in range(attempts):
+        cnts = _get_rx_cnts(cfg)
+        GenerateTraffic(cfg).wait_pkts_and_stop(20000)
+        cnts = _get_rx_cnts(cfg, prev=cnts)
+        if qcnt > 4:
+            if sum(cnts[:2]) < sum(cnts[2:]):
+                break
+        else:
+            if cnts[2] >= 3500:
+                break
+        ksft_pr(f"Skewed queue distribution, attempt {attempt + 1}/{attempts}: " + str(cnts))
+
     if qcnt > 4:
         # First two queues get less traffic than all the rest
         ksft_lt(sum(cnts[:2]), sum(cnts[2:]),
