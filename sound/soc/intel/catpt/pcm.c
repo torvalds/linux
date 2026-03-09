@@ -114,6 +114,46 @@ catpt_stream_find(struct catpt_dev *cdev, u8 stream_hw_id)
 	return result;
 }
 
+/* Caller responsible for holding ->stream_mutex. */
+static u8 catpt_stream_hw_id(struct catpt_dev *cdev, enum catpt_pin_id pin_id)
+{
+	struct catpt_stream_runtime *stream;
+
+	switch (pin_id) {
+	default:
+		stream = catpt_stream_find(cdev, pin_id);
+		if (stream)
+			return stream->info.stream_hw_id;
+		break;
+	case CATPT_PIN_ID_MIXER:
+		if (!list_empty(&cdev->stream_list))
+			return cdev->mixer.mixer_hw_id;
+		break;
+	}
+
+	return CATPT_PIN_ID_INVALID;
+}
+
+/* Caller responsible for holding ->stream_mutex. */
+static u32 *catpt_stream_volume_regs(struct catpt_dev *cdev, enum catpt_pin_id pin_id)
+{
+	struct catpt_stream_runtime *stream;
+
+	switch (pin_id) {
+	case CATPT_PIN_ID_MIXER:
+		if (!list_empty(&cdev->stream_list))
+			return &cdev->mixer.volume_regaddr[0];
+		break;
+	default:
+		stream = catpt_stream_find(cdev, pin_id);
+		if (stream)
+			return &stream->info.volume_regaddr[0];
+		break;
+	}
+
+	return NULL;
+}
+
 static void catpt_stream_read_position(struct catpt_dev *cdev,
 				       struct catpt_stream_runtime *stream, u32 *pos)
 {
@@ -313,6 +353,11 @@ static void catpt_dai_shutdown(struct snd_pcm_substream *substream,
 }
 
 static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol);
+
+struct catpt_control_data {
+	enum catpt_pin_id pin_id;
+	long volumes[CATPT_CHANNELS_MAX];
+};
 
 static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
 				     struct catpt_stream_runtime *stream)
@@ -855,6 +900,97 @@ static int catpt_volume_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+__maybe_unused
+static int catpt_volume_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
+	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
+	struct catpt_control_data *data;
+	u32 dspvol, *regs;
+	long *uvolumes;
+	int i;
+
+	data = (struct catpt_control_data *)kctl->private_value;
+	uvolumes = &uctl->value.integer.value[0];
+
+	guard(mutex)(&cdev->stream_mutex);
+
+	regs = catpt_stream_volume_regs(cdev, data->pin_id);
+	if (regs) {
+		for (i = 0; i < CATPT_CHANNELS_MAX; i++) {
+			dspvol = readl(cdev->lpe_ba + regs[i]);
+			data->volumes[i] = dspvol_to_ctlvol(dspvol);
+		}
+	}
+
+	memcpy(uvolumes, data->volumes, sizeof(data->volumes));
+	return 0;
+}
+
+__maybe_unused
+static int catpt_volume_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
+	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
+	struct catpt_control_data *data;
+	u8 stream_hw_id;
+	long *uvolumes;
+	int ret;
+
+	data = (struct catpt_control_data *)kctl->private_value;
+	uvolumes = &uctl->value.integer.value[0];
+
+	if (!memcmp(data->volumes, uvolumes, sizeof(data->volumes)))
+		return 0;
+
+	guard(mutex)(&cdev->stream_mutex);
+
+	stream_hw_id = catpt_stream_hw_id(cdev, data->pin_id);
+	if (stream_hw_id != CATPT_PIN_ID_INVALID) {
+		ret = catpt_set_dspvol(cdev, stream_hw_id, uvolumes);
+		if (ret)
+			return ret;
+	}
+
+	memcpy(data->volumes, uvolumes, sizeof(data->volumes));
+	return 1;
+}
+
+__maybe_unused
+static int catpt_loopback_mute_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
+{
+	uctl->value.integer.value[0] = *(bool *)kctl->private_value;
+	return 0;
+}
+
+__maybe_unused
+static int catpt_loopback_mute_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
+	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
+	bool *kmute, cmute;
+	u8 stream_hw_id;
+	int ret;
+
+	kmute = (bool *)kctl->private_value;
+	cmute = (bool)uctl->value.integer.value[0];
+
+	if (*kmute == cmute)
+		return 0;
+
+	guard(mutex)(&cdev->stream_mutex);
+
+	stream_hw_id = catpt_stream_hw_id(cdev, CATPT_PIN_ID_REFERENCE);
+	if (stream_hw_id != CATPT_PIN_ID_INVALID) {
+		ret = catpt_ipc_mute_loopback(cdev, stream_hw_id, cmute);
+		if (ret)
+			return CATPT_IPC_RET(ret);
+	}
+
+	*kmute = cmute;
+	return 1;
+}
+
 static int catpt_mixer_volume_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -1071,6 +1207,19 @@ static int catpt_waves_param_put(struct snd_kcontrol *kcontrol,
 }
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(catpt_volume_tlv, -9000, 300, 1);
+
+#define CATPT_VOLUME_CTL2(kname, pname) {		\
+	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,		\
+	.name	= kname,				\
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |	\
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,	\
+	.info	= catpt_volume_info,			\
+	.get	= catpt_volume_get,			\
+	.put	= catpt_volume_put,			\
+	.tlv.p	= catpt_volume_tlv,			\
+	.private_value = (unsigned long)		\
+		&(struct catpt_control_data) { CATPT_PIN_ID_##pname } \
+}
 
 #define CATPT_VOLUME_CTL(kname, sname) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
