@@ -1415,7 +1415,6 @@ static inline bool arch_needs_pgtable_deposit(void)
 		return false;
 	return true;
 }
-extern void serialize_against_pte_lookup(struct mm_struct *mm);
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

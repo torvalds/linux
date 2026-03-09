@@ -150,31 +150,6 @@ void set_pud_at(struct mm_struct *mm, unsigned long addr,
 	return set_pte_at_unchecked(mm, addr, pudp_ptep(pudp), pud_pte(pud));
 }
 
-static void do_serialize(void *arg)
-{
-	/* We've taken the IPI, so try to trim the mask while here */
-	if (radix_enabled()) {
-		struct mm_struct *mm = arg;
-		exit_lazy_flush_tlb(mm, false);
-	}
-}
-
-/*
- * Serialize against __find_linux_pte() which does lock-less
- * lookup in page tables with local interrupts disabled. For huge pages
- * it casts pmd_t to pte_t. Since format of pte_t is different from
- * pmd_t we want to prevent transit from pmd pointing to page table
- * to pmd pointing to huge page (and back) while interrupts are disabled.
- * We clear pmd to possibly replace it with page table pointer in
- * different code paths. So make sure we wait for the parallel
- * __find_linux_pte() to finish.
- */
-void serialize_against_pte_lookup(struct mm_struct *mm)
-{
-	smp_mb();
-	smp_call_function_many(mm_cpumask(mm), do_serialize, mm, 1);
-}
-
 /*
  * We use this to invalidate a pmdp entry before switching from a
  * hugepte to regular pmd entry.
