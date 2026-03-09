@@ -870,8 +870,16 @@ int kho_preserve_pages(struct page *page, unsigned long nr_pages)
 	}
 
 	while (pfn < end_pfn) {
-		const unsigned int order =
+		unsigned int order =
 			min(count_trailing_zeros(pfn), ilog2(end_pfn - pfn));
+
+		/*
+		 * Make sure all the pages in a single preservation are in the
+		 * same NUMA node. The restore machinery can not cope with a
+		 * preservation spanning multiple NUMA nodes.
+		 */
+		while (pfn_to_nid(pfn) != pfn_to_nid(pfn + (1UL << order) - 1))
+			order--;
 
 		err = kho_radix_add_page(tree, pfn, order);
 		if (err) {
