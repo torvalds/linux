@@ -64,7 +64,7 @@ struct mlx5_lag {
 	int			  mode_changes_in_progress;
 	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 	struct kref               ref;
-	struct lag_func           pf[MLX5_MAX_PORTS];
+	struct xarray             pfs;
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
@@ -82,6 +82,12 @@ static inline struct mlx5_lag *
 mlx5_lag_dev(struct mlx5_core_dev *dev)
 {
 	return dev->priv.lag;
+}
+
+static inline struct lag_func *
+mlx5_lag_pf(struct mlx5_lag *ldev, unsigned int idx)
+{
+	return xa_load(&ldev->pfs, idx);
 }
 
 static inline bool

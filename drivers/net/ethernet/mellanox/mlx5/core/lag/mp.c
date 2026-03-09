@@ -29,8 +29,8 @@ static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 	if (ldev->ports > MLX5_LAG_MULTIPATH_OFFLOADS_SUPPORTED_PORTS)
 		return false;
 
-	return mlx5_esw_multipath_prereq(ldev->pf[idx0].dev,
-					 ldev->pf[idx1].dev);
+	return mlx5_esw_multipath_prereq(mlx5_lag_pf(ldev, idx0)->dev,
+					 mlx5_lag_pf(ldev, idx1)->dev);
 }
 
 bool mlx5_lag_is_multipath(struct mlx5_core_dev *dev)
@@ -80,18 +80,18 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev,
 		tracker.netdev_state[idx1].link_up = true;
 		break;
 	default:
-		mlx5_core_warn(ldev->pf[idx0].dev,
+		mlx5_core_warn(mlx5_lag_pf(ldev, idx0)->dev,
 			       "Invalid affinity port %d", port);
 		return;
 	}
 
 	if (tracker.netdev_state[idx0].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[idx0].dev->priv.events,
+		mlx5_notifier_call_chain(mlx5_lag_pf(ldev, idx0)->dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
 	if (tracker.netdev_state[idx1].tx_enabled)
-		mlx5_notifier_call_chain(ldev->pf[idx1].dev->priv.events,
+		mlx5_notifier_call_chain(mlx5_lag_pf(ldev, idx1)->dev->priv.events,
 					 MLX5_DEV_EVENT_PORT_AFFINITY,
 					 (void *)0);
 
@@ -146,7 +146,7 @@ mlx5_lag_get_next_fib_dev(struct mlx5_lag *ldev,
 		fib_dev = fib_info_nh(fi, i)->fib_nh_dev;
 		ldev_idx = mlx5_lag_dev_get_netdev_idx(ldev, fib_dev);
 		if (ldev_idx >= 0)
-			return ldev->pf[ldev_idx].netdev;
+			return mlx5_lag_pf(ldev, ldev_idx)->netdev;
 	}
 
 	return NULL;
@@ -178,7 +178,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 	    mp->fib.dst_len <= fen_info->dst_len &&
 	    !(mp->fib.dst_len == fen_info->dst_len &&
 	      fi->fib_priority < mp->fib.priority)) {
-		mlx5_core_dbg(ldev->pf[idx].dev,
+		mlx5_core_dbg(mlx5_lag_pf(ldev, idx)->dev,
 			      "Multipath entry with lower priority was rejected\n");
 		return;
 	}
@@ -194,7 +194,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 	}
 
 	if (nh_dev0 == nh_dev1) {
-		mlx5_core_warn(ldev->pf[idx].dev,
+		mlx5_core_warn(mlx5_lag_pf(ldev, idx)->dev,
 			       "Multipath offload doesn't support routes with multiple nexthops of the same device");
 		return;
 	}
@@ -203,7 +203,7 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 		if (__mlx5_lag_is_active(ldev)) {
 			mlx5_ldev_for_each(i, 0, ldev) {
 				dev_idx++;
-				if (ldev->pf[i].netdev == nh_dev0)
+				if (mlx5_lag_pf(ldev, i)->netdev == nh_dev0)
 					break;
 			}
 			mlx5_lag_set_port_affinity(ldev, dev_idx);
@@ -240,7 +240,7 @@ static void mlx5_lag_fib_nexthop_event(struct mlx5_lag *ldev,
 	/* nh added/removed */
 	if (event == FIB_EVENT_NH_DEL) {
 		mlx5_ldev_for_each(i, 0, ldev) {
-			if (ldev->pf[i].netdev == fib_nh->fib_nh_dev)
+			if (mlx5_lag_pf(ldev, i)->netdev == fib_nh->fib_nh_dev)
 				break;
 			dev_idx++;
 		}
