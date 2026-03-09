@@ -111,6 +111,29 @@ actions_add_continue(struct actions *self)
 	action->type = ACTION_CONTINUE;
 }
 
+static inline const char *__extract_arg(const char *token, const char *opt, size_t opt_len)
+{
+	const size_t tok_len = strlen(token);
+
+	if (tok_len <= opt_len)
+		return NULL;
+
+	if (strncmp(token, opt, opt_len))
+		return NULL;
+
+	return token + opt_len;
+}
+
+/*
+ * extract_arg - extract argument value from option token
+ * @token: option token (e.g., "file=trace.txt")
+ * @opt: option name to match (e.g., "file")
+ *
+ * Returns pointer to argument value after "=" if token matches "opt=",
+ * otherwise returns NULL.
+ */
+#define extract_arg(token, opt) __extract_arg(token, opt "=", STRING_LENGTH(opt "="))
+
 /*
  * actions_parse - add an action based on text specification
  */
@@ -120,6 +143,7 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 	enum action_type type = ACTION_NONE;
 	const char *token;
 	char trigger_c[strlen(trigger) + 1];
+	const char *arg_value;
 
 	/* For ACTION_SIGNAL */
 	int signal = 0, pid = 0;
@@ -152,12 +176,10 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 		if (token == NULL)
 			trace_output = tracefn;
 		else {
-			if (strlen(token) > 5 && strncmp(token, "file=", 5) == 0) {
-				trace_output = token + 5;
-			} else {
+			trace_output = extract_arg(token, "file");
+			if (!trace_output)
 				/* Invalid argument */
 				return -1;
-			}
 
 			token = strtok(NULL, ",");
 			if (token != NULL)
@@ -169,17 +191,21 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 	case ACTION_SIGNAL:
 		/* Takes two arguments, num (signal) and pid */
 		while (token != NULL) {
-			if (strlen(token) > 4 && strncmp(token, "num=", 4) == 0) {
-				if (strtoi(token + 4, &signal))
-					return -1;
-			} else if (strlen(token) > 4 && strncmp(token, "pid=", 4) == 0) {
-				if (strncmp(token + 4, "parent", 7) == 0)
-					pid = -1;
-				else if (strtoi(token + 4, &pid))
+			arg_value = extract_arg(token, "num");
+			if (arg_value) {
+				if (strtoi(arg_value, &signal))
 					return -1;
 			} else {
-				/* Invalid argument */
-				return -1;
+				arg_value = extract_arg(token, "pid");
+				if (arg_value) {
+					if (strncmp_static(arg_value, "parent") == 0)
+						pid = -1;
+					else if (strtoi(arg_value, &pid))
+						return -1;
+				} else {
+					/* Invalid argument */
+					return -1;
+				}
 			}
 
 			token = strtok(NULL, ",");
@@ -194,9 +220,10 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 	case ACTION_SHELL:
 		if (token == NULL)
 			return -1;
-		if (strlen(token) > 8 && strncmp(token, "command=", 8))
+		arg_value = extract_arg(token, "command");
+		if (!arg_value)
 			return -1;
-		actions_add_shell(self, token + 8);
+		actions_add_shell(self, arg_value);
 		break;
 	case ACTION_CONTINUE:
 		/* Takes no argument */

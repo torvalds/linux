@@ -14,6 +14,16 @@
 #define MAX_NICE		20
 #define MIN_NICE		-19
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+#endif
+
+/* Calculate string length at compile time (excluding null terminator) */
+#define STRING_LENGTH(s) (ARRAY_SIZE(s) - sizeof(*(s)))
+
+/* Compare string with static string, length determined at compile time */
+#define strncmp_static(s1, s2) strncmp(s1, s2, ARRAY_SIZE(s2))
+
 #define container_of(ptr, type, member)({			\
 	const typeof(((type *)0)->member) *__mptr = (ptr);	\
 	(type *)((char *)__mptr - offsetof(type, member)) ; })
