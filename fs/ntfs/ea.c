@@ -450,7 +450,9 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct ntfs_inode *ni = NTFS_I(inode);
 	const struct ea_attr *p_ea;
 	s64 offset, ea_buf_size, ea_info_size;
-	int next, err = 0, ea_size;
+	s64 ea_size;
+	u32 next;
+	int err = 0;
 	u32 ea_info_qsize;
 	char *ea_buf = NULL;
 	ssize_t ret = 0;
@@ -471,34 +473,37 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (!ea_buf)
 		goto out;
 
-	if (ea_info_qsize > ea_buf_size)
+	if (ea_info_qsize > ea_buf_size || ea_info_qsize == 0)
 		goto out;
 
-	if (ea_buf_size < sizeof(struct ea_attr))
+	if (ea_info_qsize < sizeof(struct ea_attr)) {
+		err = -EIO;
 		goto out;
+	}
 
 	offset = 0;
 	do {
 		p_ea = (const struct ea_attr *)&ea_buf[offset];
 		next = le32_to_cpu(p_ea->next_entry_offset);
-		if (next)
-			ea_size = next;
-		else
-			ea_size = ALIGN(struct_size(p_ea, ea_name,
-						1 + p_ea->ea_name_length +
-						le16_to_cpu(p_ea->ea_value_length)),
-					4);
-		if (buffer) {
-			if (offset + ea_size > ea_info_qsize)
-				break;
+		ea_size = next ? next : (ea_info_qsize - offset);
 
+		if (ea_size < sizeof(struct ea_attr) ||
+		    offset + ea_size > ea_info_qsize) {
+			err = -EIO;
+			goto out;
+		}
+
+		if ((int)p_ea->ea_name_length + 1 >
+			ea_size - offsetof(struct ea_attr, ea_name)) {
+			err = -EIO;
+			goto out;
+		}
+
+		if (buffer) {
 			if (ret + p_ea->ea_name_length + 1 > size) {
 				err = -ERANGE;
 				goto out;
 			}
-
-			if (p_ea->ea_name_length + 1 > (ea_info_qsize - offset))
-				break;
 
 			memcpy(buffer + ret, p_ea->ea_name, p_ea->ea_name_length);
 			buffer[ret + p_ea->ea_name_length] = 0;
@@ -506,8 +511,7 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		ret += p_ea->ea_name_length + 1;
 		offset += ea_size;
-	} while (next > 0 && offset < ea_info_qsize &&
-		 sizeof(struct ea_attr) < (ea_info_qsize - offset));
+	} while (next > 0 && offset < ea_info_qsize);
 
 out:
 	mutex_unlock(&NTFS_I(inode)->mrec_lock);
