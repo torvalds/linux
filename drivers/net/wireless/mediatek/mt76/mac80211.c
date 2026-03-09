@@ -1031,9 +1031,10 @@ int __mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
 	int timeout = HZ / 5;
 	int ret;
 
-	set_bit(MT76_RESET, &phy->state);
-
 	mt76_worker_disable(&dev->tx_worker);
+	mt76_txq_schedule_pending(phy);
+
+	set_bit(MT76_RESET, &phy->state);
 	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
 	mt76_update_survey(phy);
 
