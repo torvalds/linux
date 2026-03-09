@@ -777,8 +777,6 @@ static inline unsigned long huge_page_size(const struct hstate *h)
 	return (unsigned long)PAGE_SIZE << h->order;
 }
 
-extern unsigned long vma_kernel_pagesize(struct vm_area_struct *vma);
-
 extern unsigned long vma_mmu_pagesize(struct vm_area_struct *vma);
 
 static inline unsigned long huge_page_mask(struct hstate *h)
@@ -1175,11 +1173,6 @@ static inline unsigned long huge_page_size(struct hstate *h)
 static inline unsigned long huge_page_mask(struct hstate *h)
 {
 	return PAGE_MASK;
-}
-
-static inline unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
-{
-	return PAGE_SIZE;
 }
 
 static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
