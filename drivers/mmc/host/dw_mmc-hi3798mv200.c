@@ -30,13 +30,12 @@ struct dw_mci_hi3798mv200_priv {
 	struct clk *drive_clk;
 	struct regmap *crg_reg;
 	u32 sap_dll_offset;
-	struct mmc_clk_phase_map phase_map;
 };
 
 static void dw_mci_hi3798mv200_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
 	struct dw_mci_hi3798mv200_priv *priv = host->priv;
-	struct mmc_clk_phase phase = priv->phase_map.phase[ios->timing];
+	struct mmc_clk_phase phase = host->phase_map.phase[ios->timing];
 	u32 val;
 
 	val = mci_readl(host, ENABLE_SHIFT);
@@ -158,9 +157,9 @@ tuning_out:
 		 * We don't care what timing we are tuning for,
 		 * simply use the same phase for all timing needs tuning.
 		 */
-		priv->phase_map.phase[MMC_TIMING_MMC_HS200].in_deg = degrees[mid];
-		priv->phase_map.phase[MMC_TIMING_MMC_HS400].in_deg = degrees[mid];
-		priv->phase_map.phase[MMC_TIMING_UHS_SDR104].in_deg = degrees[mid];
+		host->phase_map.phase[MMC_TIMING_MMC_HS200].in_deg = degrees[mid];
+		host->phase_map.phase[MMC_TIMING_MMC_HS400].in_deg = degrees[mid];
+		host->phase_map.phase[MMC_TIMING_UHS_SDR104].in_deg = degrees[mid];
 
 		clk_set_phase(priv->sample_clk, degrees[mid]);
 		dev_dbg(host->dev, "Tuning clk_sample[%d, %d], set[%d]\n",
@@ -184,8 +183,6 @@ static int dw_mci_hi3798mv200_init(struct dw_mci *host)
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	mmc_of_parse_clk_phase(host->dev, &priv->phase_map);
 
 	priv->sample_clk = devm_clk_get_enabled(host->dev, "ciu-sample");
 	if (IS_ERR(priv->sample_clk))
