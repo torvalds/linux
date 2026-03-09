@@ -517,18 +517,21 @@ static const struct snd_kcontrol_new peb2466_ch3_out_mix_controls[] = {
 	SOC_DAPM_SINGLE("Voice Switch", PEB2466_CR2(3), 0, 1, 0)
 };
 
+static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(peb2466_gain_p_tlv, -600, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(peb2466_gain_c_tlv, 0, 600);
+
 static const struct snd_kcontrol_new peb2466_controls[] = {
 	/* Attenuators */
-	SOC_SINGLE("DAC0 -6dB Playback Switch", PEB2466_CR3(0), 2, 1, 0),
-	SOC_SINGLE("DAC1 -6dB Playback Switch", PEB2466_CR3(1), 2, 1, 0),
-	SOC_SINGLE("DAC2 -6dB Playback Switch", PEB2466_CR3(2), 2, 1, 0),
-	SOC_SINGLE("DAC3 -6dB Playback Switch", PEB2466_CR3(3), 2, 1, 0),
+	SOC_SINGLE_TLV("DAC0 -6dB Playback Volume", PEB2466_CR3(0), 2, 1, 1, peb2466_gain_p_tlv),
+	SOC_SINGLE_TLV("DAC1 -6dB Playback Volume", PEB2466_CR3(1), 2, 1, 1, peb2466_gain_p_tlv),
+	SOC_SINGLE_TLV("DAC2 -6dB Playback Volume", PEB2466_CR3(2), 2, 1, 1, peb2466_gain_p_tlv),
+	SOC_SINGLE_TLV("DAC3 -6dB Playback Volume", PEB2466_CR3(3), 2, 1, 1, peb2466_gain_p_tlv),
 
 	/* Amplifiers */
-	SOC_SINGLE("ADC0 +6dB Capture Switch", PEB2466_CR3(0), 3, 1, 0),
-	SOC_SINGLE("ADC1 +6dB Capture Switch", PEB2466_CR3(1), 3, 1, 0),
-	SOC_SINGLE("ADC2 +6dB Capture Switch", PEB2466_CR3(2), 3, 1, 0),
-	SOC_SINGLE("ADC3 +6dB Capture Switch", PEB2466_CR3(3), 3, 1, 0),
+	SOC_SINGLE_TLV("ADC0 +6dB Capture Volume", PEB2466_CR3(0), 3, 1, 0, peb2466_gain_c_tlv),
+	SOC_SINGLE_TLV("ADC1 +6dB Capture Volume", PEB2466_CR3(1), 3, 1, 0, peb2466_gain_c_tlv),
+	SOC_SINGLE_TLV("ADC2 +6dB Capture Volume", PEB2466_CR3(2), 3, 1, 0, peb2466_gain_c_tlv),
+	SOC_SINGLE_TLV("ADC3 +6dB Capture Volume", PEB2466_CR3(3), 3, 1, 0, peb2466_gain_c_tlv),
 
 	/* Tone generators */
 	SOC_ENUM_EXT("DAC0 TG1 Freq", peb2466_tg_freq[0][0],
