@@ -11,7 +11,7 @@ Search options using a keyword: perf report -h <keyword>
 Use parent filter to see specific call path: perf report -p <regex>
 List events using substring match: perf list <keyword>
 To see list of saved events and attributes: perf evlist -v
-Use --symfs <dir> if your symbol files are in non-standard locations
+Use --symfs <dir>[,layout] if your symbol files are in non-standard locations.
 To see callchains in a more compact form: perf report -g folded
 To see call chains by final symbol taking CPU time (bottom up) use perf report -G
 Show individual samples with: perf script

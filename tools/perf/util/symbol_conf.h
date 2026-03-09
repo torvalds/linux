@@ -93,6 +93,7 @@ struct symbol_conf {
 			*tid_list,
 			*addr_list;
 	const char	*symfs;
+	bool		symfs_layout_flat;
 	int		res_sample;
 	int		pad_output_len_dso;
 	int		group_sort_idx;
