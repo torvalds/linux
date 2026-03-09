@@ -417,8 +417,8 @@ static int timerlat_aa_softirq_handler(struct trace_seq *s, struct tep_record *r
 	taa_data->thread_softirq_sum += duration;
 
 	trace_seq_printf(taa_data->softirqs_seq, "  %24s:%-3llu %.*s %9.2f us\n",
-			 softirq_name[vector], vector,
-			 24, spaces,
+			 vector < ARRAY_SIZE(softirq_name) ? softirq_name[vector] : "UNKNOWN",
+			 vector, 24, spaces,
 			 ns_to_usf(duration));
 	return 0;
 }
