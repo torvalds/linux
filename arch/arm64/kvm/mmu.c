@@ -1650,6 +1650,8 @@ struct kvm_s2_fault_vma_info {
 	unsigned long	mmu_seq;
 	long		vma_pagesize;
 	vm_flags_t	vm_flags;
+	struct page	*page;
+	kvm_pfn_t	pfn;
 	gfn_t		gfn;
 	bool		mte_allowed;
 	bool		is_vma_cacheable;
@@ -1720,10 +1722,8 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 
 struct kvm_s2_fault {
 	bool s2_force_noncacheable;
-	kvm_pfn_t pfn;
 	bool force_pte;
 	enum kvm_pgtable_prot prot;
-	struct page *page;
 };
 
 static bool kvm_s2_fault_is_perm(const struct kvm_s2_fault_desc *s2fd)
@@ -1797,11 +1797,11 @@ static int kvm_s2_fault_pin_pfn(const struct kvm_s2_fault_desc *s2fd,
 	if (ret)
 		return ret;
 
-	fault->pfn = __kvm_faultin_pfn(s2fd->memslot, get_canonical_gfn(s2fd, s2vi),
-				       kvm_is_write_fault(s2fd->vcpu) ? FOLL_WRITE : 0,
-				       &s2vi->map_writable, &fault->page);
-	if (unlikely(is_error_noslot_pfn(fault->pfn))) {
-		if (fault->pfn == KVM_PFN_ERR_HWPOISON) {
+	s2vi->pfn = __kvm_faultin_pfn(s2fd->memslot, get_canonical_gfn(s2fd, s2vi),
+				      kvm_is_write_fault(s2fd->vcpu) ? FOLL_WRITE : 0,
+				      &s2vi->map_writable, &s2vi->page);
+	if (unlikely(is_error_noslot_pfn(s2vi->pfn))) {
+		if (s2vi->pfn == KVM_PFN_ERR_HWPOISON) {
 			kvm_send_hwpoison_signal(s2fd->hva, __ffs(s2vi->vma_pagesize));
 			return 0;
 		}
@@ -1822,7 +1822,7 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 	 * Check if this is non-struct page memory PFN, and cannot support
 	 * CMOs. It could potentially be unsafe to access as cacheable.
 	 */
-	if (s2vi->vm_flags & (VM_PFNMAP | VM_MIXEDMAP) && !pfn_is_map_memory(fault->pfn)) {
+	if (s2vi->vm_flags & (VM_PFNMAP | VM_MIXEDMAP) && !pfn_is_map_memory(s2vi->pfn)) {
 		if (s2vi->is_vma_cacheable) {
 			/*
 			 * Whilst the VMA owner expects cacheable mapping to this
@@ -1910,6 +1910,7 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 	struct kvm_pgtable *pgt;
 	long perm_fault_granule;
 	long mapping_size;
+	kvm_pfn_t pfn;
 	gfn_t gfn;
 	int ret;
 
@@ -1922,6 +1923,7 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 	perm_fault_granule = (kvm_s2_fault_is_perm(s2fd) ?
 			      kvm_vcpu_trap_get_perm_fault_granule(s2fd->vcpu) : 0);
 	mapping_size = s2vi->vma_pagesize;
+	pfn = s2vi->pfn;
 	gfn = s2vi->gfn;
 
 	/*
@@ -1934,7 +1936,7 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 			mapping_size = perm_fault_granule;
 		} else {
 			mapping_size = transparent_hugepage_adjust(kvm, s2fd->memslot,
-								   s2fd->hva, &fault->pfn,
+								   s2fd->hva, &pfn,
 								   &gfn);
 			if (mapping_size < 0) {
 				ret = mapping_size;
@@ -1944,7 +1946,7 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 	}
 
 	if (!perm_fault_granule && !fault->s2_force_noncacheable && kvm_has_mte(kvm))
-		sanitise_mte_tags(kvm, fault->pfn, mapping_size);
+		sanitise_mte_tags(kvm, pfn, mapping_size);
 
 	/*
 	 * Under the premise of getting a FSC_PERM fault, we just need to relax
@@ -1961,12 +1963,12 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 								 fault->prot, flags);
 	} else {
 		ret = KVM_PGT_FN(kvm_pgtable_stage2_map)(pgt, gfn_to_gpa(gfn), mapping_size,
-							 __pfn_to_phys(fault->pfn), fault->prot,
+							 __pfn_to_phys(pfn), fault->prot,
 							 memcache, flags);
 	}
 
 out_unlock:
-	kvm_release_faultin_page(kvm, fault->page, !!ret, writable);
+	kvm_release_faultin_page(kvm, s2vi->page, !!ret, writable);
 	kvm_fault_unlock(kvm);
 
 	/*
@@ -2020,7 +2022,7 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 
 	ret = kvm_s2_fault_compute_prot(s2fd, &fault, &s2vi);
 	if (ret) {
-		kvm_release_page_unused(fault.page);
+		kvm_release_page_unused(s2vi.page);
 		return ret;
 	}
 
