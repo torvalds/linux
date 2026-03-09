@@ -328,8 +328,10 @@ void mt76_roc_complete(struct mt76_phy *phy)
 	if (mlink)
 		mlink->mvif->roc_phy = NULL;
 	if (phy->chanctx && phy->main_chandef.chan && phy->offchannel &&
-	    !test_bit(MT76_MCU_RESET, &dev->phy.state))
+	    !test_bit(MT76_MCU_RESET, &dev->phy.state)) {
 		__mt76_set_channel(phy, &phy->main_chandef, false);
+		mt76_offchannel_notify(phy, false);
+	}
 	mt76_put_vif_phy_link(phy, phy->roc_vif, phy->roc_link);
 	phy->roc_vif = NULL;
 	phy->roc_link = NULL;
@@ -367,6 +369,7 @@ int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_phy *phy = hw->priv;
 	struct mt76_dev *dev = phy->dev;
 	struct mt76_vif_link *mlink;
+	bool offchannel;
 	int ret = 0;
 
 	phy = dev->band_phys[chan->band];
@@ -392,8 +395,11 @@ int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mlink->mvif->roc_phy = phy;
 	phy->roc_vif = vif;
 	phy->roc_link = mlink;
-	ret = __mt76_set_channel(phy, &chandef,
-				 mt76_offchannel_chandef(phy, chan, &chandef));
+
+	offchannel = mt76_offchannel_chandef(phy, chan, &chandef);
+	if (offchannel)
+		mt76_offchannel_notify(phy, true);
+	ret = __mt76_set_channel(phy, &chandef, offchannel);
 	if (ret) {
 		mlink->mvif->roc_phy = NULL;
 		phy->roc_vif = NULL;

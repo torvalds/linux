@@ -17,8 +17,10 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 	clear_bit(MT76_SCANNING, &phy->state);
 
 	if (dev->scan.chan && phy->main_chandef.chan && phy->offchannel &&
-	    !test_bit(MT76_MCU_RESET, &dev->phy.state))
+	    !test_bit(MT76_MCU_RESET, &dev->phy.state)) {
 		mt76_set_channel(phy, &phy->main_chandef, false);
+		mt76_offchannel_notify(phy, false);
+	}
 	mt76_put_vif_phy_link(phy, dev->scan.vif, dev->scan.mlink);
 	memset(&dev->scan, 0, sizeof(dev->scan));
 	if (!test_bit(MT76_MCU_RESET, &dev->phy.state))
@@ -135,12 +137,15 @@ void mt76_scan_work(struct work_struct *work)
 	if (dev->scan.chan && phy->num_sta && phy->offchannel) {
 		dev->scan.chan = NULL;
 		mt76_set_channel(phy, &phy->main_chandef, false);
+		mt76_offchannel_notify(phy, false);
 		goto out;
 	}
 
 	dev->scan.chan = req->channels[dev->scan.chan_idx++];
 	offchannel = mt76_offchannel_chandef(phy, dev->scan.chan, &chandef);
 
+	if (offchannel)
+		mt76_offchannel_notify(phy, true);
 	mt76_set_channel(phy, &chandef, offchannel);
 
 	if (!req->n_ssids)
