@@ -365,6 +365,8 @@ int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags)
 				sizeof(v));
 		if (err < 0)
 			return err;
+		if (err != sizeof(v))
+			return -EIO;
 		i_uid_write(inode, le32_to_cpu(v));
 	}
 
@@ -374,12 +376,14 @@ int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags)
 				sizeof(v));
 		if (err < 0)
 			return err;
+		if (err != sizeof(v))
+			return -EIO;
 		i_gid_write(inode, le32_to_cpu(v));
 	}
 
 	/* Load mode to lxmod EA */
 	err = ntfs_get_ea(inode, "$LXMOD", sizeof("$LXMOD") - 1, &v, sizeof(v));
-	if (err > 0) {
+	if (err == sizeof(v)) {
 		inode->i_mode = le32_to_cpu(v);
 	} else {
 		/* Everyone gets all permissions. */
@@ -388,7 +392,7 @@ int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags)
 
 	/* Load mode to lxdev EA */
 	err = ntfs_get_ea(inode, "$LXDEV", sizeof("$LXDEV") - 1, &v, sizeof(v));
-	if (err > 0)
+	if (err == sizeof(v))
 		*rdevp = le32_to_cpu(v);
 	err = 0;
 
