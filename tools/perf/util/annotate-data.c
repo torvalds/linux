@@ -1629,7 +1629,9 @@ retry:
 			pr_debug_dtp("type_offset=%#x\n", type_offset);
 		}
 
-		if (!found || is_better_type(type_die, &mem_die)) {
+		if (!found || dloc->type_offset < type_offset ||
+		    (dloc->type_offset == type_offset &&
+		     !is_better_type(&mem_die, type_die))) {
 			*type_die = mem_die;
 			dloc->type_offset = type_offset;
 			found = true;
