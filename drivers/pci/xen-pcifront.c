@@ -856,7 +856,7 @@ static void pcifront_try_connect(struct pcifront_device *pdev)
 	int err;
 
 	/* Only connect once */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev, pdev->xdev->nodename) !=
 	    XenbusStateInitialised)
 		return;
 
@@ -876,7 +876,7 @@ static int pcifront_try_disconnect(struct pcifront_device *pdev)
 	enum xenbus_state prev_state;
 
 
-	prev_state = xenbus_read_driver_state(pdev->xdev->nodename);
+	prev_state = xenbus_read_driver_state(pdev->xdev, pdev->xdev->nodename);
 
 	if (prev_state >= XenbusStateClosing)
 		goto out;
@@ -895,7 +895,7 @@ out:
 
 static void pcifront_attach_devices(struct pcifront_device *pdev)
 {
-	if (xenbus_read_driver_state(pdev->xdev->nodename) ==
+	if (xenbus_read_driver_state(pdev->xdev, pdev->xdev->nodename) ==
 	    XenbusStateReconfiguring)
 		pcifront_connect(pdev);
 }
@@ -909,7 +909,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 	struct pci_dev *pci_dev;
 	char str[64];
 
-	state = xenbus_read_driver_state(pdev->xdev->nodename);
+	state = xenbus_read_driver_state(pdev->xdev, pdev->xdev->nodename);
 	if (state == XenbusStateInitialised) {
 		dev_dbg(&pdev->xdev->dev, "Handle skipped connect.\n");
 		/* We missed Connected and need to initialize. */

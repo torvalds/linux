@@ -6404,6 +6404,7 @@ int update_ftrace_direct_add(struct ftrace_ops *ops, struct ftrace_hash *hash)
 			new_filter_hash = old_filter_hash;
 		}
 	} else {
+		guard(mutex)(&ftrace_lock);
 		err = ftrace_update_ops(ops, new_filter_hash, EMPTY_HASH);
 		/*
 		 * new_filter_hash is dup-ed, so we need to release it anyway,
@@ -6530,6 +6531,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 			ops->func_hash->filter_hash = NULL;
 		}
 	} else {
+		guard(mutex)(&ftrace_lock);
 		err = ftrace_update_ops(ops, new_filter_hash, EMPTY_HASH);
 		/*
 		 * new_filter_hash is dup-ed, so we need to release it anyway,
@@ -8611,6 +8613,7 @@ ftrace_pid_follow_sched_process_fork(void *data,
 	struct trace_pid_list *pid_list;
 	struct trace_array *tr = data;
 
+	guard(preempt)();
 	pid_list = rcu_dereference_sched(tr->function_pids);
 	trace_filter_add_remove_task(pid_list, self, task);
 
@@ -8624,6 +8627,7 @@ ftrace_pid_follow_sched_process_exit(void *data, struct task_struct *task)
 	struct trace_pid_list *pid_list;
 	struct trace_array *tr = data;
 
+	guard(preempt)();
 	pid_list = rcu_dereference_sched(tr->function_pids);
 	trace_filter_add_remove_task(pid_list, NULL, task);
 

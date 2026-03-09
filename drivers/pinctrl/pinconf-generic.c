@@ -351,13 +351,13 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 
 	ret = parse_dt_cfg(np, dt_params, ARRAY_SIZE(dt_params), cfg, &ncfg);
 	if (ret)
-		return ret;
+		goto out;
 	if (pctldev && pctldev->desc->num_custom_params &&
 		pctldev->desc->custom_params) {
 		ret = parse_dt_cfg(np, pctldev->desc->custom_params,
 				   pctldev->desc->num_custom_params, cfg, &ncfg);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	/* no configs found at all */

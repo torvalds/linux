@@ -397,6 +397,8 @@ int kvm_vcpu_allocate_vncr_tlb(struct kvm_vcpu *vcpu);
 int kvm_handle_vncr_abort(struct kvm_vcpu *vcpu);
 void kvm_handle_s1e2_tlbi(struct kvm_vcpu *vcpu, u32 inst, u64 val);
 
+u16 get_asid_by_regime(struct kvm_vcpu *vcpu, enum trans_regime regime);
+
 #define vncr_fixmap(c)						\
 	({							\
 		u32 __c = (c);					\

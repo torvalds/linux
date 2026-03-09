@@ -616,38 +616,10 @@ SYM_DATA(early_recursion_flag, .long 0)
 
 	.data
 
-#if defined(CONFIG_XEN_PV) || defined(CONFIG_PVH)
-SYM_DATA_START_PTI_ALIGNED(init_top_pgt)
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
-	.org    init_top_pgt + L4_PAGE_OFFSET*8, 0
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
-	.org    init_top_pgt + L4_START_KERNEL*8, 0
-	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
-	.fill	PTI_USER_PGD_FILL,8,0
-SYM_DATA_END(init_top_pgt)
-
-SYM_DATA_START_PAGE_ALIGNED(level3_ident_pgt)
-	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
-	.fill	511, 8, 0
-SYM_DATA_END(level3_ident_pgt)
-SYM_DATA_START_PAGE_ALIGNED(level2_ident_pgt)
-	/*
-	 * Since I easily can, map the first 1G.
-	 * Don't set NX because code runs from these pages.
-	 *
-	 * Note: This sets _PAGE_GLOBAL despite whether
-	 * the CPU supports it or it is enabled.  But,
-	 * the CPU should ignore the bit.
-	 */
-	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
-SYM_DATA_END(level2_ident_pgt)
-#else
 SYM_DATA_START_PTI_ALIGNED(init_top_pgt)
 	.fill	512,8,0
 	.fill	PTI_USER_PGD_FILL,8,0
 SYM_DATA_END(init_top_pgt)
-#endif
 
 SYM_DATA_START_PAGE_ALIGNED(level4_kernel_pgt)
 	.fill	511,8,0
