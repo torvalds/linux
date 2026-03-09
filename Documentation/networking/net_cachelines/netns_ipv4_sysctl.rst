@@ -52,6 +52,7 @@ u8                              sysctl_ip_fwd_update_priority                   
 u8                              sysctl_ip_nonlocal_bind
 u8                              sysctl_ip_autobind_reuse
 u8                              sysctl_ip_dynaddr
+u32                             sysctl_ip_local_port_step_width
 u8                              sysctl_ip_early_demux                                            read_mostly         ip(6)_rcv_finish_core
 u8                              sysctl_raw_l3mdev_accept
 u8                              sysctl_tcp_early_demux                                           read_mostly         ip(6)_rcv_finish_core

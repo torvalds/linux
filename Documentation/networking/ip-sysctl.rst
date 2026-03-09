@@ -1630,6 +1630,22 @@ ip_local_reserved_ports - list of comma separated ranges
 
 	Default: Empty
 
+ip_local_port_step_width - INTEGER
+        Defines the numerical maximum increment between successive port
+        allocations within the ephemeral port range when an unavailable port is
+        reached. This can be used to mitigate accumulated nodes in port
+        distribution when reserved ports have been configured. Please note that
+        port collisions may be more frequent in a system with a very high load.
+
+        It is recommended to set this value strictly larger than the largest
+        contiguous block of ports configure in ip_local_reserved_ports. For
+        large reserved port ranges, setting this to 3x or 4x the size of the
+        largest block is advised. Using a value equal or greater than the local
+        port range size completely solves the uneven port distribution problem,
+        but it can degrade performance under port exhaustion situations.
+
+        Default: 0 (disabled)
+
 ip_unprivileged_port_start - INTEGER
 	This is a per-namespace sysctl.  It defines the first
 	unprivileged port in the network namespace.  Privileged ports
