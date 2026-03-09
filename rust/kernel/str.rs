@@ -379,19 +379,32 @@ impl AsRef<BStr> for CStr {
     }
 }
 
-/// Creates a new [`CStr`] from a string literal.
+/// Creates a new [`CStr`] at compile time.
 ///
-/// The string literal should not contain any `NUL` bytes.
+/// Rust supports C string literals since Rust 1.77, and they should be used instead of this macro
+/// where possible. This macro exists to allow static *non-literal* C strings to be created at
+/// compile time. This is most often used in other macros.
+///
+/// # Panics
+///
+/// This macro panics if the operand contains an interior `NUL` byte.
 ///
 /// # Examples
 ///
 /// ```
 /// # use kernel::c_str;
 /// # use kernel::str::CStr;
-/// const MY_CSTR: &CStr = c_str!("My awesome CStr!");
+/// // This is allowed, but `c"literal"` should be preferred for literals.
+/// const BAD: &CStr = c_str!("literal");
+///
+/// // `c_str!` is still needed for static non-literal C strings.
+/// const GOOD: &CStr = c_str!(concat!(file!(), ":", line!(), ": My CStr!"));
 /// ```
 #[macro_export]
 macro_rules! c_str {
+    // NB: We could write `($str:lit) => compile_error!("use a C string literal instead");` here but
+    // that would trigger when the literal is at the top of several macro expansions. That would be
+    // too limiting to macro authors.
     ($str:expr) => {{
         const S: &str = concat!($str, "\0");
         const C: &$crate::str::CStr = match $crate::str::CStr::from_bytes_with_nul(S.as_bytes()) {
