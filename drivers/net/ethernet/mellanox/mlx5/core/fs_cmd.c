@@ -1183,7 +1183,7 @@ int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mo
 {
 	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)] = {};
 
-	if (silent_mode && !MLX5_CAP_GEN(dev, silent_mode))
+	if (silent_mode && !MLX5_CAP_GEN(dev, silent_mode_set))
 		return -EOPNOTSUPP;
 
 	MLX5_SET(set_l2_table_entry_in, in, opcode, MLX5_CMD_OP_SET_L2_TABLE_ENTRY);

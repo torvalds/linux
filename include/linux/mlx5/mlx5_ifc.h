@@ -469,7 +469,8 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8	   table_miss_action_domain[0x1];
 	u8         termination_table[0x1];
 	u8         reformat_and_fwd_to_table[0x1];
-	u8         reserved_at_1a[0x2];
+	u8         forward_vhca_rx[0x1];
+	u8         reserved_at_1b[0x1];
 	u8         ipsec_encrypt[0x1];
 	u8         ipsec_decrypt[0x1];
 	u8         sw_owner_v2[0x1];
@@ -2012,12 +2013,14 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         disable_local_lb_mc[0x1];
 	u8         log_min_hairpin_wq_data_sz[0x5];
 	u8         reserved_at_3e8[0x1];
-	u8         silent_mode[0x1];
+	u8         silent_mode_set[0x1];
 	u8         vhca_state[0x1];
 	u8         log_max_vlan_list[0x5];
 	u8         reserved_at_3f0[0x3];
 	u8         log_max_current_mc_list[0x5];
-	u8         reserved_at_3f8[0x3];
+	u8         reserved_at_3f8[0x1];
+	u8         silent_mode_query[0x1];
+	u8         reserved_at_3fa[0x1];
 	u8         log_max_current_uc_list[0x5];
 
 	u8         general_obj_types[0x40];
@@ -2279,6 +2282,7 @@ enum mlx5_ifc_flow_destination_type {
 	MLX5_IFC_FLOW_DESTINATION_TYPE_VPORT        = 0x0,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_TABLE   = 0x1,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_TIR          = 0x2,
+	MLX5_IFC_FLOW_DESTINATION_TYPE_VHCA_RX	    = 0x4,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_FLOW_SAMPLER = 0x6,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_UPLINK       = 0x8,
 	MLX5_IFC_FLOW_DESTINATION_TYPE_TABLE_TYPE   = 0xA,
@@ -6265,7 +6269,9 @@ struct mlx5_ifc_query_l2_table_entry_out_bits {
 
 	u8         reserved_at_40[0xa0];
 
-	u8         reserved_at_e0[0x13];
+	u8         reserved_at_e0[0x11];
+	u8         silent_mode[0x1];
+	u8         reserved_at_f2[0x1];
 	u8         vlan_valid[0x1];
 	u8         vlan[0xc];
 
@@ -6281,7 +6287,10 @@ struct mlx5_ifc_query_l2_table_entry_in_bits {
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_at_40[0x60];
+	u8         reserved_at_40[0x40];
+
+	u8         silent_mode_query[0x1];
+	u8         reserved_at_81[0x1f];
 
 	u8         reserved_at_a0[0x8];
 	u8         table_index[0x18];
