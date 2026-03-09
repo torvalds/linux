@@ -1563,23 +1563,23 @@ found:
 			list_add(&x->km.all, &net->xfrm.state_all);
 			h = xfrm_dst_hash(net, daddr, saddr, tmpl->reqid, encap_family);
 			XFRM_STATE_INSERT(bydst, &x->bydst,
-					  net->xfrm.state_bydst + h,
+					  xfrm_state_deref_prot(net->xfrm.state_bydst, net) + h,
 					  x->xso.type);
 			h = xfrm_src_hash(net, daddr, saddr, encap_family);
 			XFRM_STATE_INSERT(bysrc, &x->bysrc,
-					  net->xfrm.state_bysrc + h,
+					  xfrm_state_deref_prot(net->xfrm.state_bysrc, net) + h,
 					  x->xso.type);
 			INIT_HLIST_NODE(&x->state_cache);
 			if (x->id.spi) {
 				h = xfrm_spi_hash(net, &x->id.daddr, x->id.spi, x->id.proto, encap_family);
 				XFRM_STATE_INSERT(byspi, &x->byspi,
-						  net->xfrm.state_byspi + h,
+						  xfrm_state_deref_prot(net->xfrm.state_byspi, net) + h,
 						  x->xso.type);
 			}
 			if (x->km.seq) {
 				h = xfrm_seq_hash(net, x->km.seq);
 				XFRM_STATE_INSERT(byseq, &x->byseq,
-						  net->xfrm.state_byseq + h,
+						  xfrm_state_deref_prot(net->xfrm.state_byseq, net) + h,
 						  x->xso.type);
 			}
 			x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
@@ -1730,25 +1730,29 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 
 	h = xfrm_dst_hash(net, &x->id.daddr, &x->props.saddr,
 			  x->props.reqid, x->props.family);
-	XFRM_STATE_INSERT(bydst, &x->bydst, net->xfrm.state_bydst + h,
+	XFRM_STATE_INSERT(bydst, &x->bydst,
+			  xfrm_state_deref_prot(net->xfrm.state_bydst, net) + h,
 			  x->xso.type);
 
 	h = xfrm_src_hash(net, &x->id.daddr, &x->props.saddr, x->props.family);
-	XFRM_STATE_INSERT(bysrc, &x->bysrc, net->xfrm.state_bysrc + h,
+	XFRM_STATE_INSERT(bysrc, &x->bysrc,
+			  xfrm_state_deref_prot(net->xfrm.state_bysrc, net) + h,
 			  x->xso.type);
 
 	if (x->id.spi) {
 		h = xfrm_spi_hash(net, &x->id.daddr, x->id.spi, x->id.proto,
 				  x->props.family);
 
-		XFRM_STATE_INSERT(byspi, &x->byspi, net->xfrm.state_byspi + h,
+		XFRM_STATE_INSERT(byspi, &x->byspi,
+				  xfrm_state_deref_prot(net->xfrm.state_byspi, net) + h,
 				  x->xso.type);
 	}
 
 	if (x->km.seq) {
 		h = xfrm_seq_hash(net, x->km.seq);
 
-		XFRM_STATE_INSERT(byseq, &x->byseq, net->xfrm.state_byseq + h,
+		XFRM_STATE_INSERT(byseq, &x->byseq,
+				  xfrm_state_deref_prot(net->xfrm.state_byseq, net) + h,
 				  x->xso.type);
 	}
 
@@ -1868,10 +1872,12 @@ static struct xfrm_state *__find_acq_core(struct net *net,
 			      ktime_set(net->xfrm.sysctl_acq_expires, 0),
 			      HRTIMER_MODE_REL_SOFT);
 		list_add(&x->km.all, &net->xfrm.state_all);
-		XFRM_STATE_INSERT(bydst, &x->bydst, net->xfrm.state_bydst + h,
+		XFRM_STATE_INSERT(bydst, &x->bydst,
+				  xfrm_state_deref_prot(net->xfrm.state_bydst, net) + h,
 				  x->xso.type);
 		h = xfrm_src_hash(net, daddr, saddr, family);
-		XFRM_STATE_INSERT(bysrc, &x->bysrc, net->xfrm.state_bysrc + h,
+		XFRM_STATE_INSERT(bysrc, &x->bysrc,
+				  xfrm_state_deref_prot(net->xfrm.state_bysrc, net) + h,
 				  x->xso.type);
 
 		net->xfrm.state_num++;
@@ -2603,7 +2609,9 @@ int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high,
 		if (!x0) {
 			x->id.spi = newspi;
 			h = xfrm_spi_hash(net, &x->id.daddr, newspi, x->id.proto, x->props.family);
-			XFRM_STATE_INSERT(byspi, &x->byspi, net->xfrm.state_byspi + h, x->xso.type);
+			XFRM_STATE_INSERT(byspi, &x->byspi,
+					  xfrm_state_deref_prot(net->xfrm.state_byspi, net) + h,
+					  x->xso.type);
 			spin_unlock_bh(&net->xfrm.xfrm_state_lock);
 			err = 0;
 			goto unlock;
