@@ -9,6 +9,9 @@
 struct mdio_device;
 struct phy_device;
 
+extern const struct bus_type mdio_bus_type;
+extern const struct class mdio_bus_class;
+
 /*
  * phy_supported_speeds - return all speeds currently supported by a PHY device
  */
