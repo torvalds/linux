@@ -204,6 +204,13 @@ static int x86__cpuid_parse(struct arch *arch, const char *cpuid)
 }
 
 #ifdef HAVE_LIBDW_SUPPORT
+static void invalidate_reg_state(struct type_state_reg *reg)
+{
+	reg->kind = TSR_KIND_INVALID;
+	reg->ok = false;
+	reg->copied_from = -1;
+}
+
 static void update_insn_state_x86(struct type_state *state,
 				  struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				  struct disasm_line *dl)
@@ -235,7 +242,7 @@ static void update_insn_state_x86(struct type_state *state,
 		/* Otherwise invalidate caller-saved registers after call */
 		for (unsigned i = 0; i < ARRAY_SIZE(state->regs); i++) {
 			if (state->regs[i].caller_saved)
-				state->regs[i].ok = false;
+				invalidate_reg_state(&state->regs[i]);
 		}
 
 		/* Update register with the return type (if any) */
@@ -364,8 +371,7 @@ static void update_insn_state_x86(struct type_state *state,
 		src_tsr = state->regs[sreg];
 		tsr = &state->regs[dst->reg1];
 
-		tsr->copied_from = -1;
-		tsr->ok = false;
+		invalidate_reg_state(tsr);
 
 		/* Case 1: Based on stack pointer or frame pointer */
 		if (sreg == fbreg || sreg == state->stack_reg) {
@@ -433,8 +439,7 @@ static void update_insn_state_x86(struct type_state *state,
 		    !strncmp(dl->ins.name, "inc", 3)  || !strncmp(dl->ins.name, "dec", 3)) {
 			pr_debug_dtp("%s [%x] invalidate reg%d\n",
 						dl->ins.name, insn_offset, dst->reg1);
-			state->regs[dst->reg1].ok = false;
-			state->regs[dst->reg1].copied_from = -1;
+			invalidate_reg_state(&state->regs[dst->reg1]);
 			return;
 		}
 
@@ -496,7 +501,7 @@ static void update_insn_state_x86(struct type_state *state,
 			if (!get_global_var_type(cu_die, dloc, ip, var_addr,
 						 &offset, &type_die) ||
 			    !die_get_member_type(&type_die, offset, &type_die)) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -524,7 +529,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 		if (!has_reg_type(state, src->reg1) ||
 		    !state->regs[src->reg1].ok) {
-			tsr->ok = false;
+			invalidate_reg_state(tsr);
 			return;
 		}
 
@@ -560,7 +565,7 @@ retry:
 
 			stack = find_stack_state(state, offset);
 			if (stack == NULL) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			} else if (!stack->compound) {
 				tsr->type = stack->type;
@@ -575,7 +580,7 @@ retry:
 				tsr->offset = 0;
 				tsr->ok = true;
 			} else {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -628,7 +633,7 @@ retry:
 			if (!get_global_var_type(cu_die, dloc, ip, addr, &offset,
 						 &type_die) ||
 			    !die_get_member_type(&type_die, offset, &type_die)) {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 				return;
 			}
 
@@ -679,7 +684,7 @@ retry:
 				}
 				pr_debug_type_name(&tsr->type, tsr->kind);
 			} else {
-				tsr->ok = false;
+				invalidate_reg_state(tsr);
 			}
 		}
 		/* And then dereference the calculated pointer if it has one */
@@ -721,7 +726,7 @@ retry:
 				}
 			}
 
-			tsr->ok = false;
+			invalidate_reg_state(tsr);
 		}
 	}
 	/* Case 3. register to memory transfers */
