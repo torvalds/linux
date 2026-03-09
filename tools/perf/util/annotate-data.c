@@ -455,13 +455,6 @@ static const char *match_result_str(enum type_match_result tmr)
 	}
 }
 
-static bool is_pointer_type(Dwarf_Die *type_die)
-{
-	int tag = dwarf_tag(type_die);
-
-	return tag == DW_TAG_pointer_type || tag == DW_TAG_array_type;
-}
-
 static bool is_compound_type(Dwarf_Die *type_die)
 {
 	int tag = dwarf_tag(type_die);
@@ -474,19 +467,24 @@ static bool is_better_type(Dwarf_Die *type_a, Dwarf_Die *type_b)
 {
 	Dwarf_Word size_a, size_b;
 	Dwarf_Die die_a, die_b;
+	Dwarf_Die ptr_a, ptr_b;
+	Dwarf_Die *ptr_type_a, *ptr_type_b;
+
+	ptr_type_a = die_get_pointer_type(type_a, &ptr_a);
+	ptr_type_b = die_get_pointer_type(type_b, &ptr_b);
 
 	/* pointer type is preferred */
-	if (is_pointer_type(type_a) != is_pointer_type(type_b))
-		return is_pointer_type(type_b);
+	if ((ptr_type_a != NULL) != (ptr_type_b != NULL))
+		return ptr_type_b != NULL;
 
-	if (is_pointer_type(type_b)) {
+	if (ptr_type_b) {
 		/*
 		 * We want to compare the target type, but 'void *' can fail to
 		 * get the target type.
 		 */
-		if (die_get_real_type(type_a, &die_a) == NULL)
+		if (die_get_real_type(ptr_type_a, &die_a) == NULL)
 			return true;
-		if (die_get_real_type(type_b, &die_b) == NULL)
+		if (die_get_real_type(ptr_type_b, &die_b) == NULL)
 			return false;
 
 		type_a = &die_a;
@@ -539,7 +537,7 @@ static enum type_match_result check_variable(struct data_loc_info *dloc,
 	 * and local variables are accessed directly without a pointer.
 	 */
 	if (needs_pointer) {
-		if (!is_pointer_type(type_die) ||
+		if (die_get_pointer_type(type_die, type_die) == NULL ||
 		    __die_get_real_type(type_die, type_die) == NULL)
 			return PERF_TMR_NO_POINTER;
 	}
@@ -880,12 +878,16 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 			continue;
 
 		if (var->reg == DWARF_REG_FB || var->reg == fbreg || var->reg == state->stack_reg) {
+			Dwarf_Die ptr_die;
+			Dwarf_Die *ptr_type;
 			int offset = var->offset;
 			struct type_state_stack *stack;
 
+			ptr_type = die_get_pointer_type(&mem_die, &ptr_die);
+
 			/* If the reg location holds the pointer value, dereference the type */
-			if (!var->is_reg_var_addr && is_pointer_type(&mem_die) &&
-				__die_get_real_type(&mem_die, &mem_die) == NULL)
+			if (!var->is_reg_var_addr && ptr_type &&
+			    __die_get_real_type(ptr_type, &mem_die) == NULL)
 				continue;
 
 			if (var->reg != DWARF_REG_FB)
@@ -1110,7 +1112,9 @@ again:
 		goto check_non_register;
 
 	if (state->regs[reg].kind == TSR_KIND_TYPE) {
+		Dwarf_Die ptr_die;
 		Dwarf_Die sized_type;
+		Dwarf_Die *ptr_type;
 		struct strbuf sb;
 
 		strbuf_init(&sb, 32);
@@ -1122,7 +1126,8 @@ again:
 		 * Normal registers should hold a pointer (or array) to
 		 * dereference a memory location.
 		 */
-		if (!is_pointer_type(&state->regs[reg].type)) {
+		ptr_type = die_get_pointer_type(&state->regs[reg].type, &ptr_die);
+		if (!ptr_type) {
 			if (dloc->op->offset < 0 && reg != state->stack_reg)
 				goto check_kernel;
 
@@ -1130,7 +1135,7 @@ again:
 		}
 
 		/* Remove the pointer and get the target type */
-		if (__die_get_real_type(&state->regs[reg].type, type_die) == NULL)
+		if (__die_get_real_type(ptr_type, type_die) == NULL)
 			return PERF_TMR_NO_POINTER;
 
 		dloc->type_offset = dloc->op->offset + state->regs[reg].offset;

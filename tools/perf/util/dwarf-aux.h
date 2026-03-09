@@ -60,6 +60,8 @@ Dwarf_Die *die_get_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 Dwarf_Die *__die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
 /* Get a type die, but skip qualifiers and typedef */
 Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem);
+/* Get a pointer/array type, following typedefs/qualifiers */
+Dwarf_Die *die_get_pointer_type(Dwarf_Die *type_die, Dwarf_Die *die_mem);
 
 /* Check whether the DIE is signed or not */
 bool die_is_signed_type(Dwarf_Die *tp_die);

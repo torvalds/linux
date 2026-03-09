@@ -303,6 +303,33 @@ Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
 	return vr_die;
 }
 
+/**
+ * die_get_pointer_type - Get a pointer/array type die
+ * @type_die: a DIE of a type
+ * @die_mem: where to store a type DIE
+ *
+ * Get a pointer/array type DIE from @type_die. If the type is a typedef or
+ * qualifier (const, volatile, etc.), follow the chain to find the underlying
+ * pointer type.
+ */
+Dwarf_Die *die_get_pointer_type(Dwarf_Die *type_die, Dwarf_Die *die_mem)
+{
+	int tag;
+
+	do {
+		tag = dwarf_tag(type_die);
+		if (tag == DW_TAG_pointer_type || tag == DW_TAG_array_type)
+			return type_die;
+		if (tag != DW_TAG_typedef && tag != DW_TAG_const_type &&
+		    tag != DW_TAG_restrict_type && tag != DW_TAG_volatile_type &&
+		    tag != DW_TAG_shared_type)
+			return NULL;
+		type_die = die_get_type(type_die, die_mem);
+	} while (type_die);
+
+	return NULL;
+}
+
 /* Get attribute and translate it as a udata */
 static int die_get_attr_udata(Dwarf_Die *tp_die, unsigned int attr_name,
 			      Dwarf_Word *result)
