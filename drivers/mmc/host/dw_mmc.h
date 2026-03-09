@@ -130,6 +130,7 @@ struct dw_mci_dma_slave {
  * @pdev: platform_device registered
  * @rstc: Reset controller for this host.
  * @detect_delay_ms: Delay in mS before detecting cards after interrupt.
+ * @phase_map: The map for recording in and out phases for each timing
  *
  * Locking
  * =======
@@ -250,6 +251,7 @@ struct dw_mci {
 	struct platform_device	*pdev;
 	struct reset_control *rstc;
 	u32 detect_delay_ms;
+	struct mmc_clk_phase_map phase_map;
 };
 
 /* DMA ops for Internal/External DMAC interface */
