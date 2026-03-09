@@ -5,6 +5,9 @@
 #define __MLX5_LAG_H__
 
 #include <linux/debugfs.h>
+#include <linux/errno.h>
+#include <linux/xarray.h>
+#include <linux/mlx5/fs.h>
 
 #define MLX5_LAG_MAX_HASH_BUCKETS 16
 /* XArray mark for the LAG master device
@@ -83,6 +86,9 @@ struct mlx5_lag {
 	/* Protect lag fields/state changes */
 	struct mutex		  lock;
 	struct lag_mpesw	  lag_mpesw;
+	struct mlx5_flow_table   *lag_demux_ft;
+	struct mlx5_flow_group   *lag_demux_fg;
+	struct xarray		  lag_demux_rules;
 };
 
 static inline struct mlx5_lag *
@@ -133,6 +139,12 @@ mlx5_lag_is_ready(struct mlx5_lag *ldev)
 
 bool mlx5_lag_shared_fdb_supported(struct mlx5_lag *ldev);
 bool mlx5_lag_check_prereq(struct mlx5_lag *ldev);
+int mlx5_lag_demux_init(struct mlx5_core_dev *dev,
+			struct mlx5_flow_table_attr *ft_attr);
+void mlx5_lag_demux_cleanup(struct mlx5_core_dev *dev);
+int mlx5_lag_demux_rule_add(struct mlx5_core_dev *dev, u16 vport_num,
+			    int vport_index);
+void mlx5_lag_demux_rule_del(struct mlx5_core_dev *dev, int vport_index);
 void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,

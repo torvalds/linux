@@ -252,9 +252,9 @@ mlx5_create_auto_grouped_flow_table(struct mlx5_flow_namespace *ns,
 struct mlx5_flow_table *
 mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
 			     struct mlx5_flow_table_attr *ft_attr, u16 vport);
-struct mlx5_flow_table *mlx5_create_lag_demux_flow_table(
-					       struct mlx5_flow_namespace *ns,
-					       int prio, u32 level);
+struct mlx5_flow_table *
+mlx5_create_lag_demux_flow_table(struct mlx5_flow_namespace *ns,
+				 struct mlx5_flow_table_attr *ft_attr);
 int mlx5_destroy_flow_table(struct mlx5_flow_table *ft);
 
 /* inbox should be set with the following values:

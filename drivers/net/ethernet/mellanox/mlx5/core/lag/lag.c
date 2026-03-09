@@ -1471,6 +1471,158 @@ struct mlx5_devcom_comp_dev *mlx5_lag_get_devcom_comp(struct mlx5_lag *ldev)
 	return devcom;
 }
 
+static int mlx5_lag_demux_ft_fg_init(struct mlx5_core_dev *dev,
+				     struct mlx5_flow_table_attr *ft_attr,
+				     struct mlx5_lag *ldev)
+{
+#ifdef CONFIG_MLX5_ESWITCH
+	struct mlx5_flow_namespace *ns;
+	struct mlx5_flow_group *fg;
+	int err;
+
+	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_LAG);
+	if (!ns)
+		return 0;
+
+	ldev->lag_demux_ft = mlx5_create_flow_table(ns, ft_attr);
+	if (IS_ERR(ldev->lag_demux_ft))
+		return PTR_ERR(ldev->lag_demux_ft);
+
+	fg = mlx5_esw_lag_demux_fg_create(dev->priv.eswitch,
+					  ldev->lag_demux_ft);
+	if (IS_ERR(fg)) {
+		err = PTR_ERR(fg);
+		mlx5_destroy_flow_table(ldev->lag_demux_ft);
+		ldev->lag_demux_ft = NULL;
+		return err;
+	}
+
+	ldev->lag_demux_fg = fg;
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
+static int mlx5_lag_demux_fw_init(struct mlx5_core_dev *dev,
+				  struct mlx5_flow_table_attr *ft_attr,
+				  struct mlx5_lag *ldev)
+{
+	struct mlx5_flow_namespace *ns;
+	int err;
+
+	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_LAG);
+	if (!ns)
+		return 0;
+
+	ldev->lag_demux_fg = NULL;
+	ft_attr->max_fte = 1;
+	ldev->lag_demux_ft = mlx5_create_lag_demux_flow_table(ns, ft_attr);
+	if (IS_ERR(ldev->lag_demux_ft)) {
+		err = PTR_ERR(ldev->lag_demux_ft);
+		ldev->lag_demux_ft = NULL;
+		return err;
+	}
+
+	return 0;
+}
+
+int mlx5_lag_demux_init(struct mlx5_core_dev *dev,
+			struct mlx5_flow_table_attr *ft_attr)
+{
+	struct mlx5_lag *ldev;
+
+	if (!ft_attr)
+		return -EINVAL;
+
+	ldev = mlx5_lag_dev(dev);
+	if (!ldev)
+		return -ENODEV;
+
+	xa_init(&ldev->lag_demux_rules);
+
+	if (mlx5_get_sd(dev))
+		return mlx5_lag_demux_ft_fg_init(dev, ft_attr, ldev);
+
+	return mlx5_lag_demux_fw_init(dev, ft_attr, ldev);
+}
+EXPORT_SYMBOL(mlx5_lag_demux_init);
+
+void mlx5_lag_demux_cleanup(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_handle *rule;
+	struct mlx5_lag *ldev;
+	unsigned long vport_num;
+
+	ldev = mlx5_lag_dev(dev);
+	if (!ldev)
+		return;
+
+	xa_for_each(&ldev->lag_demux_rules, vport_num, rule)
+		mlx5_del_flow_rules(rule);
+	xa_destroy(&ldev->lag_demux_rules);
+
+	if (ldev->lag_demux_fg)
+		mlx5_destroy_flow_group(ldev->lag_demux_fg);
+	if (ldev->lag_demux_ft)
+		mlx5_destroy_flow_table(ldev->lag_demux_ft);
+	ldev->lag_demux_fg = NULL;
+	ldev->lag_demux_ft = NULL;
+}
+EXPORT_SYMBOL(mlx5_lag_demux_cleanup);
+
+int mlx5_lag_demux_rule_add(struct mlx5_core_dev *vport_dev, u16 vport_num,
+			    int index)
+{
+	struct mlx5_flow_handle *rule;
+	struct mlx5_lag *ldev;
+	int err;
+
+	ldev = mlx5_lag_dev(vport_dev);
+	if (!ldev || !ldev->lag_demux_fg)
+		return 0;
+
+	if (xa_load(&ldev->lag_demux_rules, index))
+		return 0;
+
+	rule = mlx5_esw_lag_demux_rule_create(vport_dev->priv.eswitch,
+					      vport_num, ldev->lag_demux_ft);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_warn(vport_dev,
+			       "Failed to create LAG demux rule for vport %u, err %d\n",
+			       vport_num, err);
+		return err;
+	}
+
+	err = xa_err(xa_store(&ldev->lag_demux_rules, index, rule,
+			      GFP_KERNEL));
+	if (err) {
+		mlx5_del_flow_rules(rule);
+		mlx5_core_warn(vport_dev,
+			       "Failed to store LAG demux rule for vport %u, err %d\n",
+			       vport_num, err);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_lag_demux_rule_add);
+
+void mlx5_lag_demux_rule_del(struct mlx5_core_dev *dev, int index)
+{
+	struct mlx5_flow_handle *rule;
+	struct mlx5_lag *ldev;
+
+	ldev = mlx5_lag_dev(dev);
+	if (!ldev || !ldev->lag_demux_fg)
+		return;
+
+	rule = xa_erase(&ldev->lag_demux_rules, index);
+	if (rule)
+		mlx5_del_flow_rules(rule);
+}
+EXPORT_SYMBOL(mlx5_lag_demux_rule_del);
+
 static void mlx5_queue_bond_work(struct mlx5_lag *ldev, unsigned long delay)
 {
 	queue_delayed_work(ldev->wq, &ldev->bond_work, delay);
