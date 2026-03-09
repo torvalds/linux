@@ -986,7 +986,6 @@ int rtl_usb_probe(struct usb_interface *intf,
 	init_completion(&rtlpriv->firmware_loading_complete);
 	SET_IEEE80211_DEV(hw, &intf->dev);
 	udev = interface_to_usbdev(intf);
-	usb_get_dev(udev);
 	usb_priv = rtl_usbpriv(hw);
 	memset(usb_priv, 0, sizeof(*usb_priv));
 	usb_priv->dev.intf = intf;
@@ -1038,7 +1037,6 @@ error_out:
 	rtl_deinit_core(hw);
 error_out2:
 	_rtl_usb_io_handler_release(hw);
-	usb_put_dev(udev);
 	kfree(rtlpriv->usb_data);
 	ieee80211_free_hw(hw);
 	return -ENODEV;
@@ -1050,7 +1048,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	struct ieee80211_hw *hw = usb_get_intfdata(intf);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
-	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	if (unlikely(!rtlpriv))
 		return;
@@ -1072,7 +1069,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	kfree(rtlpriv->usb_data);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);
-	usb_put_dev(rtlusb->udev);
 	usb_set_intfdata(intf, NULL);
 	ieee80211_free_hw(hw);
 }
