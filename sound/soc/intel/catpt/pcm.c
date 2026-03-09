@@ -359,46 +359,48 @@ struct catpt_control_data {
 	long volumes[CATPT_CHANNELS_MAX];
 };
 
-static int catpt_dai_apply_usettings(struct snd_soc_dai *dai,
-				     struct catpt_stream_runtime *stream)
+static int catpt_apply_volume(struct catpt_dev *cdev, struct snd_soc_card *card, const char *name)
 {
-	struct snd_soc_component *component = dai->component;
-	struct snd_kcontrol *pos;
-	struct catpt_dev *cdev = dev_get_drvdata(dai->dev);
-	const char *name;
-	int ret;
-	u32 id = stream->info.stream_hw_id;
+	struct snd_kcontrol *kctl = snd_ctl_find_id_mixer(card->snd_card, name);
+	struct catpt_control_data *data;
 
-	/* only selected streams have individual controls */
-	switch (id) {
+	if (!kctl)
+		return -ENOENT;
+	data = (struct catpt_control_data *)kctl->private_value;
+
+	return catpt_set_dspvol(cdev, data->pin_id, data->volumes);
+}
+
+static int catpt_apply_mute(struct catpt_dev *cdev, struct snd_soc_card *card)
+{
+	struct snd_kcontrol *kctl = snd_ctl_find_id_mixer(card->snd_card, "Loopback Mute");
+	bool mute;
+	int ret;
+
+	if (!kctl)
+		return -ENOENT;
+	mute = *(bool *)kctl->private_value;
+
+	ret = catpt_ipc_mute_loopback(cdev, CATPT_PIN_ID_REFERENCE, mute);
+	return CATPT_IPC_RET(ret);
+}
+
+static int catpt_apply_controls(struct catpt_dev *cdev, struct snd_soc_card *card,
+				struct catpt_stream_runtime *stream)
+{
+	/* Only selected streams have individual controls. */
+	switch (stream->info.stream_hw_id) {
 	case CATPT_PIN_ID_OFFLOAD1:
-		name = "Media0 Playback Volume";
-		break;
+		return catpt_apply_volume(cdev, card, "Media0 Playback Volume");
 	case CATPT_PIN_ID_OFFLOAD2:
-		name = "Media1 Playback Volume";
-		break;
+		return catpt_apply_volume(cdev, card, "Media1 Playback Volume");
 	case CATPT_PIN_ID_CAPTURE1:
-		name = "Mic Capture Volume";
-		break;
+		return catpt_apply_volume(cdev, card, "Mic Capture Volume");
 	case CATPT_PIN_ID_REFERENCE:
-		name = "Loopback Mute";
-		break;
+		return catpt_apply_mute(cdev, card);
 	default:
 		return 0;
 	}
-
-	list_for_each_entry(pos, &component->card->snd_card->controls, list) {
-		if (pos->private_data == component &&
-		    !strncmp(name, pos->id.name, sizeof(pos->id.name)))
-			break;
-	}
-	if (list_entry_is_head(pos, &component->card->snd_card->controls, list))
-		return -ENOENT;
-
-	if (stream->template->type != CATPT_STRM_TYPE_LOOPBACK)
-		return catpt_set_dspvol(cdev, id, (long *)pos->private_value);
-	ret = catpt_ipc_mute_loopback(cdev, id, *(bool *)pos->private_value);
-	return CATPT_IPC_RET(ret);
 }
 
 static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
@@ -449,7 +451,7 @@ static int catpt_dai_hw_params(struct snd_pcm_substream *substream,
 
 	guard(mutex)(&cdev->stream_mutex);
 
-	ret = catpt_dai_apply_usettings(dai, stream);
+	ret = catpt_apply_controls(cdev, dai->component->card, stream);
 	if (ret) {
 		catpt_ipc_free_stream(cdev, stream->info.stream_hw_id);
 		return ret;
