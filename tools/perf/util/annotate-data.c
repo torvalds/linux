@@ -774,12 +774,7 @@ static void global_var__collect(struct data_loc_info *dloc)
 			if (!dwarf_offdie(dwarf, pos->die_off, &type_die))
 				continue;
 
-			if (!get_global_var_info(dloc, pos->addr, &var_name,
-						 &var_offset))
-				continue;
-
-			if (var_offset != 0)
-				continue;
+			get_global_var_info(dloc, pos->addr, &var_name, &var_offset);
 
 			global_var__add(dloc, pos->addr, var_name, &type_die);
 		}
