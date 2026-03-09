@@ -118,3 +118,8 @@ static __always_inline vma_flags_t __mk_vma_flags(size_t count,
 			vma_flags_set_flag(&flags, bits[i]);
 	return flags;
 }
+
+static inline unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+{
+	return PAGE_SIZE;
+}
