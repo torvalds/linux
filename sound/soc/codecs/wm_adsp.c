@@ -72,7 +72,7 @@ static const struct cs_dsp_client_ops wm_adsp2_client_ops;
 
 #define WM_ADSP_NUM_FW      13
 
-static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
+static const char * const wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
 	[WM_ADSP_FW_MBC_VSS] =  "MBC/VSS",
 	[WM_ADSP_FW_HIFI] =     "MasterHiFi",
 	[WM_ADSP_FW_TX] =       "Tx",
