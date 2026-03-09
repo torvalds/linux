@@ -392,8 +392,8 @@ int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mlink->mvif->roc_phy = phy;
 	phy->roc_vif = vif;
 	phy->roc_link = mlink;
-	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
-	ret = __mt76_set_channel(phy, &chandef, true);
+	ret = __mt76_set_channel(phy, &chandef,
+				 mt76_offchannel_chandef(phy, chan, &chandef));
 	if (ret) {
 		mlink->mvif->roc_phy = NULL;
 		phy->roc_vif = NULL;

@@ -139,11 +139,7 @@ void mt76_scan_work(struct work_struct *work)
 	}
 
 	dev->scan.chan = req->channels[dev->scan.chan_idx++];
-	cfg80211_chandef_create(&chandef, dev->scan.chan, NL80211_CHAN_HT20);
-	if (phy->main_chandef.chan == dev->scan.chan) {
-		chandef = phy->main_chandef;
-		offchannel = false;
-	}
+	offchannel = mt76_offchannel_chandef(phy, dev->scan.chan, &chandef);
 
 	mt76_set_channel(phy, &chandef, offchannel);
 
