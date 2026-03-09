@@ -10845,7 +10845,9 @@ struct mlx5_ifc_pcam_enhanced_features_bits {
 	u8         fec_200G_per_lane_in_pplm[0x1];
 	u8         reserved_at_1e[0x2a];
 	u8         fec_100G_per_lane_in_pplm[0x1];
-	u8         reserved_at_49[0xa];
+	u8         reserved_at_49[0x2];
+	u8         shp_pbmc_pbsr_support[0x1];
+	u8         reserved_at_4c[0x7];
 	u8	   buffer_ownership[0x1];
 	u8	   resereved_at_54[0x14];
 	u8         fec_50G_per_lane_in_pplm[0x1];
@@ -12090,8 +12092,9 @@ struct mlx5_ifc_pbmc_reg_bits {
 	u8         port_buffer_size[0x10];
 
 	struct mlx5_ifc_bufferx_reg_bits buffer[10];
+	struct mlx5_ifc_bufferx_reg_bits shared_headroom_pool;
 
-	u8         reserved_at_2e0[0x80];
+	u8         reserved_at_320[0x40];
 };
 
 struct mlx5_ifc_sbpr_reg_bits {
