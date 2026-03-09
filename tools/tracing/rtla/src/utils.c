@@ -214,6 +214,21 @@ long parse_seconds_duration(char *val)
 }
 
 /*
+ * match_time_unit - check if str starts with unit followed by end-of-string or ':'
+ *
+ * This allows the time unit parser to work both in standalone duration strings
+ * like "100ms" and in colon-delimited SCHED_DEADLINE specifications like
+ * "d:10ms:100ms", while still rejecting malformed input like "100msx".
+ */
+static bool match_time_unit(const char *str, const char *unit)
+{
+	size_t len = strlen(unit);
+
+	return strncmp(str, unit, len) == 0 &&
+	       (str[len] == '\0' || str[len] == ':');
+}
+
+/*
  * parse_ns_duration - parse duration with ns/us/ms/s converting it to nanoseconds
  */
 long parse_ns_duration(char *val)
@@ -224,15 +239,15 @@ long parse_ns_duration(char *val)
 	t = strtol(val, &end, 10);
 
 	if (end) {
-		if (!strncmp(end, "ns", 2)) {
+		if (match_time_unit(end, "ns")) {
 			return t;
-		} else if (!strncmp(end, "us", 2)) {
+		} else if (match_time_unit(end, "us")) {
 			t *= 1000;
 			return t;
-		} else if (!strncmp(end, "ms", 2)) {
+		} else if (match_time_unit(end, "ms")) {
 			t *= 1000 * 1000;
 			return t;
-		} else if (!strncmp(end, "s", 1)) {
+		} else if (match_time_unit(end, "s")) {
 			t *= 1000 * 1000 * 1000;
 			return t;
 		}
