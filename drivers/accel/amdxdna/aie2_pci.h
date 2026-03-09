@@ -303,6 +303,7 @@ int aie2_get_array_async_error(struct amdxdna_dev_hdl *ndev,
 
 /* aie2_message.c */
 void aie2_msg_init(struct amdxdna_dev_hdl *ndev);
+void aie2_destroy_mgmt_chann(struct amdxdna_dev_hdl *ndev);
 int aie2_suspend_fw(struct amdxdna_dev_hdl *ndev);
 int aie2_resume_fw(struct amdxdna_dev_hdl *ndev);
 int aie2_set_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 value);

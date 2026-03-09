@@ -95,7 +95,8 @@ static inline int compute_score(struct sock *sk, const struct net *net,
 {
 	int score = -1;
 
-	if (net_eq(sock_net(sk), net) && inet_sk(sk)->inet_num == hnum &&
+	if (net_eq(sock_net(sk), net) &&
+	    READ_ONCE(inet_sk(sk)->inet_num) == hnum &&
 	    sk->sk_family == PF_INET6) {
 		if (!ipv6_addr_equal(&sk->sk_v6_rcv_saddr, daddr))
 			return -1;
