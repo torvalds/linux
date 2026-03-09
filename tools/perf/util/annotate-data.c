@@ -814,9 +814,8 @@ bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	}
 
 	/* Try to get the variable by address first */
-	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, &offset) &&
-	    check_variable(dloc, &var_die, type_die, DWARF_REG_PC, offset,
-			   /*is_fbreg=*/false) == PERF_TMR_OK) {
+	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, type_die,
+				      &offset)) {
 		var_name = dwarf_diename(&var_die);
 		*var_offset = offset;
 		goto ok;
@@ -1606,12 +1605,13 @@ retry:
 
 		if (reg == DWARF_REG_PC) {
 			if (!die_find_variable_by_addr(&scopes[i], dloc->var_addr,
-						       &var_die, &type_offset))
+						       &var_die, &mem_die,
+						       &type_offset))
 				continue;
 		} else {
 			/* Look up variables/parameters in this scope */
 			if (!die_find_variable_by_reg(&scopes[i], pc, reg,
-						      &type_offset, is_fbreg, &var_die))
+						      &mem_die, &type_offset, is_fbreg, &var_die))
 				continue;
 		}
 
@@ -1619,26 +1619,20 @@ retry:
 			     dwarf_diename(&var_die), (long)dwarf_dieoffset(&var_die),
 			     i+1, nr_scopes, (long)dwarf_dieoffset(&scopes[i]));
 
-		/* Found a variable, see if it's correct */
-		result = check_variable(dloc, &var_die, &mem_die, reg, type_offset, is_fbreg);
-		if (result == PERF_TMR_OK) {
-			if (reg == DWARF_REG_PC) {
-				pr_debug_dtp("addr=%#"PRIx64" type_offset=%#x\n",
-					     dloc->var_addr, type_offset);
-			} else if (reg == DWARF_REG_FB || is_fbreg) {
-				pr_debug_dtp("stack_offset=%#x type_offset=%#x\n",
-					     fb_offset, type_offset);
-			} else {
-				pr_debug_dtp("type_offset=%#x\n", type_offset);
-			}
-
-			if (!found || is_better_type(type_die, &mem_die)) {
-				*type_die = mem_die;
-				dloc->type_offset = type_offset;
-				found = true;
-			}
+		if (reg == DWARF_REG_PC) {
+			pr_debug_dtp("addr=%#"PRIx64" type_offset=%#x\n",
+				     dloc->var_addr, type_offset);
+		} else if (reg == DWARF_REG_FB || is_fbreg) {
+			pr_debug_dtp("stack_offset=%#x type_offset=%#x\n",
+				     fb_offset, type_offset);
 		} else {
-			pr_debug_dtp("failed: %s\n", match_result_str(result));
+			pr_debug_dtp("type_offset=%#x\n", type_offset);
+		}
+
+		if (!found || is_better_type(type_die, &mem_die)) {
+			*type_die = mem_die;
+			dloc->type_offset = type_offset;
+			found = true;
 		}
 
 		pr_debug_location(&var_die, pc, reg);

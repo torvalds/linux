@@ -1560,7 +1560,7 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
  * when the variable is in the stack.
  */
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
-				    int *poffset, bool is_fbreg,
+				    Dwarf_Die *type_die, int *poffset, bool is_fbreg,
 				    Dwarf_Die *die_mem)
 {
 	struct find_var_data data = {
@@ -1572,8 +1572,10 @@ Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
 	Dwarf_Die *result;
 
 	result = die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
-	if (result)
+	if (result) {
 		*poffset = data.offset;
+		*type_die = data.type;
+	}
 	return result;
 }
 
@@ -1617,7 +1619,8 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
  * This is usually for global variables.
  */
 Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
-				     Dwarf_Die *die_mem, int *offset)
+				     Dwarf_Die *die_mem, Dwarf_Die *type_die,
+				     int *offset)
 {
 	struct find_var_data data = {
 		.addr = addr,
@@ -1625,8 +1628,10 @@ Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
 	Dwarf_Die *result;
 
 	result = die_find_child(sc_die, __die_find_var_addr_cb, &data, die_mem);
-	if (result)
+	if (result) {
 		*offset = data.offset;
+		*type_die = data.type;
+	}
 	return result;
 }
 
