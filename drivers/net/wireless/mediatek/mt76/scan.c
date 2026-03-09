@@ -27,6 +27,10 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 
 void mt76_abort_scan(struct mt76_dev *dev)
 {
+	spin_lock_bh(&dev->scan_lock);
+	dev->scan.beacon_wait = false;
+	spin_unlock_bh(&dev->scan_lock);
+
 	cancel_delayed_work_sync(&dev->scan_work);
 	mt76_scan_complete(dev, true);
 }
@@ -79,6 +83,28 @@ out:
 	rcu_read_unlock();
 }
 
+void mt76_scan_rx_beacon(struct mt76_dev *dev, struct ieee80211_channel *chan)
+{
+	struct mt76_phy *phy;
+
+	spin_lock(&dev->scan_lock);
+
+	if (!dev->scan.beacon_wait || dev->scan.beacon_received ||
+	    dev->scan.chan != chan)
+		goto out;
+
+	phy = dev->scan.phy;
+	if (!phy)
+		goto out;
+
+	dev->scan.beacon_received = true;
+	ieee80211_queue_delayed_work(phy->hw, &dev->scan_work, 0);
+
+out:
+	spin_unlock(&dev->scan_lock);
+}
+EXPORT_SYMBOL_GPL(mt76_scan_rx_beacon);
+
 void mt76_scan_work(struct work_struct *work)
 {
 	struct mt76_dev *dev = container_of(work, struct mt76_dev,
@@ -87,8 +113,19 @@ void mt76_scan_work(struct work_struct *work)
 	struct cfg80211_chan_def chandef = {};
 	struct mt76_phy *phy = dev->scan.phy;
 	int duration = HZ / 9; /* ~110 ms */
-	bool offchannel = true;
+	bool beacon_rx, offchannel = true;
 	int i;
+
+	if (!phy || !req)
+		return;
+
+	spin_lock_bh(&dev->scan_lock);
+	beacon_rx = dev->scan.beacon_wait && dev->scan.beacon_received;
+	dev->scan.beacon_wait = false;
+	spin_unlock_bh(&dev->scan_lock);
+
+	if (beacon_rx)
+		goto probe;
 
 	if (dev->scan.chan_idx >= req->n_channels) {
 		mt76_scan_complete(dev, false);
@@ -110,10 +147,18 @@ void mt76_scan_work(struct work_struct *work)
 
 	mt76_set_channel(phy, &chandef, offchannel);
 
-	if (!req->n_ssids ||
-	    chandef.chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR))
+	if (!req->n_ssids)
 		goto out;
 
+	if (chandef.chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) {
+		spin_lock_bh(&dev->scan_lock);
+		dev->scan.beacon_received = false;
+		dev->scan.beacon_wait = true;
+		spin_unlock_bh(&dev->scan_lock);
+		goto out;
+	}
+
+probe:
 	if (phy->offchannel)
 		duration = HZ / 16; /* ~60 ms */
 	local_bh_disable();

@@ -726,6 +726,7 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	INIT_LIST_HEAD(&dev->rxwi_cache);
 	dev->token_size = dev->drv->token_size;
 	INIT_DELAYED_WORK(&dev->scan_work, mt76_scan_work);
+	spin_lock_init(&dev->scan_lock);
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++)
 		skb_queue_head_init(&dev->rx_skb[i]);
