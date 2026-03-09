@@ -2585,7 +2585,7 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 	}
 }
 
-signed int rtw_linked_check(struct adapter *padapter)
+bool rtw_linked_check(struct adapter *padapter)
 {
 	if (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) ||
 	    check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE | WIFI_ADHOC_MASTER_STATE)) {

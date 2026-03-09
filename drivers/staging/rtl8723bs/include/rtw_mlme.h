@@ -364,7 +364,7 @@ extern struct wlan_network *_rtw_find_network(struct __queue *scanned_queue, u8 
 
 bool rtw_if_up(struct adapter *padapter);
 
-signed int rtw_linked_check(struct adapter *padapter);
+bool rtw_linked_check(struct adapter *padapter);
 
 u8 *rtw_get_capability_from_ie(u8 *ie);
 u8 *rtw_get_beacon_interval_from_ie(u8 *ie);
