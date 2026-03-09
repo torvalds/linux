@@ -160,32 +160,6 @@ static void catpt_stream_read_position(struct catpt_dev *cdev,
 	memcpy_fromio(pos, cdev->lpe_ba + stream->info.read_pos_regaddr, sizeof(*pos));
 }
 
-static u32 catpt_stream_volume(struct catpt_dev *cdev,
-			       struct catpt_stream_runtime *stream, u32 channel)
-{
-	u32 volume, offset;
-
-	if (channel >= CATPT_CHANNELS_MAX)
-		channel = 0;
-
-	offset = stream->info.volume_regaddr[channel];
-	memcpy_fromio(&volume, cdev->lpe_ba + offset, sizeof(volume));
-	return volume;
-}
-
-static u32 catpt_mixer_volume(struct catpt_dev *cdev,
-			      struct catpt_mixer_stream_info *info, u32 channel)
-{
-	u32 volume, offset;
-
-	if (channel >= CATPT_CHANNELS_MAX)
-		channel = 0;
-
-	offset = info->volume_regaddr[channel];
-	memcpy_fromio(&volume, cdev->lpe_ba + offset, sizeof(volume));
-	return volume;
-}
-
 static void catpt_arrange_page_table(struct snd_pcm_substream *substream,
 				     struct snd_dma_buffer *pgtbl)
 {
@@ -911,7 +885,6 @@ static int catpt_volume_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-__maybe_unused
 static int catpt_volume_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
@@ -938,7 +911,6 @@ static int catpt_volume_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value
 	return 0;
 }
 
-__maybe_unused
 static int catpt_volume_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
@@ -967,14 +939,12 @@ static int catpt_volume_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value
 	return 1;
 }
 
-__maybe_unused
 static int catpt_loopback_mute_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
 {
 	uctl->value.integer.value[0] = *(bool *)kctl->private_value;
 	return 0;
 }
 
-__maybe_unused
 static int catpt_loopback_mute_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kctl);
@@ -1000,195 +970,6 @@ static int catpt_loopback_mute_put(struct snd_kcontrol *kctl, struct snd_ctl_ele
 
 	*kmute = cmute;
 	return 1;
-}
-
-static int catpt_mixer_volume_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
-	u32 dspvol;
-	int ret;
-	int i;
-
-	ret = pm_runtime_resume_and_get(cdev->dev);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < CATPT_CHANNELS_MAX; i++) {
-		dspvol = catpt_mixer_volume(cdev, &cdev->mixer, i);
-		ucontrol->value.integer.value[i] = dspvol_to_ctlvol(dspvol);
-	}
-
-	pm_runtime_put_autosuspend(cdev->dev);
-
-	return 0;
-}
-
-static int catpt_mixer_volume_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
-	int ret;
-
-	ret = pm_runtime_resume_and_get(cdev->dev);
-	if (ret)
-		return ret;
-
-	ret = catpt_set_dspvol(cdev, cdev->mixer.mixer_hw_id,
-			       ucontrol->value.integer.value);
-
-	pm_runtime_put_autosuspend(cdev->dev);
-
-	return ret;
-}
-
-static int catpt_stream_volume_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol,
-				   enum catpt_pin_id pin_id)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct catpt_stream_runtime *stream;
-	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
-	long *ctlvol = (long *)kcontrol->private_value;
-	u32 dspvol;
-	int ret;
-	int i;
-
-	guard(mutex)(&cdev->stream_mutex);
-
-	stream = catpt_stream_find(cdev, pin_id);
-	if (!stream) {
-		for (i = 0; i < CATPT_CHANNELS_MAX; i++)
-			ucontrol->value.integer.value[i] = ctlvol[i];
-		return 0;
-	}
-
-	ret = pm_runtime_resume_and_get(cdev->dev);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < CATPT_CHANNELS_MAX; i++) {
-		dspvol = catpt_stream_volume(cdev, stream, i);
-		ucontrol->value.integer.value[i] = dspvol_to_ctlvol(dspvol);
-	}
-
-	pm_runtime_put_autosuspend(cdev->dev);
-
-	return 0;
-}
-
-static int catpt_stream_volume_put(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol,
-				   enum catpt_pin_id pin_id)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct catpt_stream_runtime *stream;
-	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
-	long *ctlvol = (long *)kcontrol->private_value;
-	int ret, i;
-
-	guard(mutex)(&cdev->stream_mutex);
-
-	stream = catpt_stream_find(cdev, pin_id);
-	if (!stream) {
-		for (i = 0; i < CATPT_CHANNELS_MAX; i++)
-			ctlvol[i] = ucontrol->value.integer.value[i];
-		return 0;
-	}
-
-	ret = pm_runtime_resume_and_get(cdev->dev);
-	if (ret)
-		return ret;
-
-	ret = catpt_set_dspvol(cdev, stream->info.stream_hw_id,
-			       ucontrol->value.integer.value);
-
-	pm_runtime_put_autosuspend(cdev->dev);
-
-	if (ret)
-		return ret;
-
-	for (i = 0; i < CATPT_CHANNELS_MAX; i++)
-		ctlvol[i] = ucontrol->value.integer.value[i];
-	return 0;
-}
-
-static int catpt_offload1_volume_get(struct snd_kcontrol *kctl,
-				     struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_get(kctl, uctl, CATPT_PIN_ID_OFFLOAD1);
-}
-
-static int catpt_offload1_volume_put(struct snd_kcontrol *kctl,
-				     struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_put(kctl, uctl, CATPT_PIN_ID_OFFLOAD1);
-}
-
-static int catpt_offload2_volume_get(struct snd_kcontrol *kctl,
-				     struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_get(kctl, uctl, CATPT_PIN_ID_OFFLOAD2);
-}
-
-static int catpt_offload2_volume_put(struct snd_kcontrol *kctl,
-				     struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_put(kctl, uctl, CATPT_PIN_ID_OFFLOAD2);
-}
-
-static int catpt_capture_volume_get(struct snd_kcontrol *kctl,
-				    struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_get(kctl, uctl, CATPT_PIN_ID_CAPTURE1);
-}
-
-static int catpt_capture_volume_put(struct snd_kcontrol *kctl,
-				    struct snd_ctl_elem_value *uctl)
-{
-	return catpt_stream_volume_put(kctl, uctl, CATPT_PIN_ID_CAPTURE1);
-}
-
-static int catpt_loopback_switch_get(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = *(bool *)kcontrol->private_value;
-	return 0;
-}
-
-static int catpt_loopback_switch_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct catpt_stream_runtime *stream;
-	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
-	bool mute;
-	int ret;
-
-	guard(mutex)(&cdev->stream_mutex);
-
-	mute = (bool)ucontrol->value.integer.value[0];
-	stream = catpt_stream_find(cdev, CATPT_PIN_ID_REFERENCE);
-	if (!stream) {
-		*(bool *)kcontrol->private_value = mute;
-		return 0;
-	}
-
-	ret = pm_runtime_resume_and_get(cdev->dev);
-	if (ret)
-		return ret;
-
-	ret = catpt_ipc_mute_loopback(cdev, stream->info.stream_hw_id, mute);
-
-	pm_runtime_put_autosuspend(cdev->dev);
-
-	if (ret)
-		return CATPT_IPC_RET(ret);
-
-	*(bool *)kcontrol->private_value = mute;
-	return 0;
 }
 
 static int catpt_waves_switch_get(struct snd_kcontrol *kcontrol,
@@ -1219,7 +1000,7 @@ static int catpt_waves_param_put(struct snd_kcontrol *kcontrol,
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(catpt_volume_tlv, -9000, 300, 1);
 
-#define CATPT_VOLUME_CTL2(kname, pname) {		\
+#define CATPT_VOLUME_CTL(kname, pname) {		\
 	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,		\
 	.name	= kname,				\
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |	\
@@ -1232,27 +1013,15 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(catpt_volume_tlv, -9000, 300, 1);
 		&(struct catpt_control_data) { CATPT_PIN_ID_##pname } \
 }
 
-#define CATPT_VOLUME_CTL(kname, sname) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-	.name = (kname), \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
-		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
-	.info = catpt_volume_info, \
-	.get = catpt_##sname##_volume_get, \
-	.put = catpt_##sname##_volume_put, \
-	.tlv.p = catpt_volume_tlv, \
-	.private_value = (unsigned long) \
-		&(long[CATPT_CHANNELS_MAX]) {0} }
-
 static const struct snd_kcontrol_new component_kcontrols[] = {
 /* Master volume (mixer stream) */
-CATPT_VOLUME_CTL("Master Playback Volume", mixer),
+CATPT_VOLUME_CTL("Master Playback Volume", MIXER),
 /* Individual volume controls for offload and capture */
-CATPT_VOLUME_CTL("Media0 Playback Volume", offload1),
-CATPT_VOLUME_CTL("Media1 Playback Volume", offload2),
-CATPT_VOLUME_CTL("Mic Capture Volume", capture),
+CATPT_VOLUME_CTL("Media0 Playback Volume", OFFLOAD1),
+CATPT_VOLUME_CTL("Media1 Playback Volume", OFFLOAD2),
+CATPT_VOLUME_CTL("Mic Capture Volume", CAPTURE1),
 SOC_SINGLE_BOOL_EXT("Loopback Mute", (unsigned long)&(bool[1]) {0},
-		    catpt_loopback_switch_get, catpt_loopback_switch_put),
+		    catpt_loopback_mute_get, catpt_loopback_mute_put),
 /* Enable or disable WAVES module */
 SOC_SINGLE_BOOL_EXT("Waves Switch", 0,
 		    catpt_waves_switch_get, catpt_waves_switch_put),
