@@ -388,6 +388,15 @@ static int catpt_apply_mute(struct catpt_dev *cdev, struct snd_soc_card *card)
 static int catpt_apply_controls(struct catpt_dev *cdev, struct snd_soc_card *card,
 				struct catpt_stream_runtime *stream)
 {
+	int ret;
+
+	/* Update the master volume when the first stream is opened. */
+	if (list_empty(&cdev->stream_list)) {
+		ret = catpt_apply_volume(cdev, card, "Master Playback Volume");
+		if (ret)
+			return ret;
+	}
+
 	/* Only selected streams have individual controls. */
 	switch (stream->info.stream_hw_id) {
 	case CATPT_PIN_ID_OFFLOAD1:
