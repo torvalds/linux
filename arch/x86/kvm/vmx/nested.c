@@ -6856,13 +6856,34 @@ void vmx_leave_nested(struct kvm_vcpu *vcpu)
 	free_nested(vcpu);
 }
 
+int nested_vmx_check_restored_vmcs12(struct kvm_vcpu *vcpu)
+{
+	enum vm_entry_failure_code ignored;
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+
+	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
+	    vmcs12->vmcs_link_pointer != INVALID_GPA) {
+		struct vmcs12 *shadow_vmcs12 = get_shadow_vmcs12(vcpu);
+
+		if (shadow_vmcs12->hdr.revision_id != VMCS12_REVISION ||
+		    !shadow_vmcs12->hdr.shadow_vmcs)
+			return -EINVAL;
+	}
+
+	if (nested_vmx_check_controls(vcpu, vmcs12) ||
+	    nested_vmx_check_host_state(vcpu, vmcs12) ||
+	    nested_vmx_check_guest_state(vcpu, vmcs12, &ignored))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 				struct kvm_nested_state __user *user_kvm_nested_state,
 				struct kvm_nested_state *kvm_state)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12;
-	enum vm_entry_failure_code ignored;
 	struct kvm_vmx_nested_state_data __user *user_vmx_nested_state =
 		&user_kvm_nested_state->data.vmx[0];
 	int ret;
@@ -6993,25 +7014,20 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	vmx->nested.mtf_pending =
 		!!(kvm_state->flags & KVM_STATE_NESTED_MTF_PENDING);
 
-	ret = -EINVAL;
 	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
 	    vmcs12->vmcs_link_pointer != INVALID_GPA) {
 		struct vmcs12 *shadow_vmcs12 = get_shadow_vmcs12(vcpu);
 
+		ret = -EINVAL;
 		if (kvm_state->size <
 		    sizeof(*kvm_state) +
 		    sizeof(user_vmx_nested_state->vmcs12) + sizeof(*shadow_vmcs12))
 			goto error_guest_mode;
 
+		ret = -EFAULT;
 		if (copy_from_user(shadow_vmcs12,
 				   user_vmx_nested_state->shadow_vmcs12,
-				   sizeof(*shadow_vmcs12))) {
-			ret = -EFAULT;
-			goto error_guest_mode;
-		}
-
-		if (shadow_vmcs12->hdr.revision_id != VMCS12_REVISION ||
-		    !shadow_vmcs12->hdr.shadow_vmcs)
+				   sizeof(*shadow_vmcs12)))
 			goto error_guest_mode;
 	}
 
@@ -7022,9 +7038,8 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 			kvm_state->hdr.vmx.preemption_timer_deadline;
 	}
 
-	if (nested_vmx_check_controls(vcpu, vmcs12) ||
-	    nested_vmx_check_host_state(vcpu, vmcs12) ||
-	    nested_vmx_check_guest_state(vcpu, vmcs12, &ignored))
+	ret = nested_vmx_check_restored_vmcs12(vcpu);
+	if (ret < 0)
 		goto error_guest_mode;
 
 	vmx->nested.dirty_vmcs12 = true;
