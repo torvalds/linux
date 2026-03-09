@@ -73,6 +73,8 @@ int save_trace_to_file(struct tracefs_instance *inst, const char *filename)
 	char buffer[4096];
 	int out_fd, in_fd;
 	int retval = -1;
+	ssize_t n_read;
+	ssize_t n_written;
 
 	if (!inst || !filename)
 		return 0;
@@ -90,15 +92,30 @@ int save_trace_to_file(struct tracefs_instance *inst, const char *filename)
 		goto out_close_in;
 	}
 
-	do {
-		retval = read(in_fd, buffer, sizeof(buffer));
-		if (retval <= 0)
+	for (;;) {
+		n_read = read(in_fd, buffer, sizeof(buffer));
+		if (n_read < 0) {
+			if (errno == EINTR)
+				continue;
+			err_msg("Error reading trace file: %s\n", strerror(errno));
 			goto out_close;
+		}
+		if (n_read == 0)
+			break;
 
-		retval = write(out_fd, buffer, retval);
-		if (retval < 0)
-			goto out_close;
-	} while (retval > 0);
+		n_written = 0;
+		while (n_written < n_read) {
+			const ssize_t w = write(out_fd, buffer + n_written, n_read - n_written);
+
+			if (w < 0) {
+				if (errno == EINTR)
+					continue;
+				err_msg("Error writing trace file: %s\n", strerror(errno));
+				goto out_close;
+			}
+			n_written += w;
+		}
+	}
 
 	retval = 0;
 out_close:
