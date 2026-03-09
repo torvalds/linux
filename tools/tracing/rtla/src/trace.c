@@ -346,6 +346,7 @@ static void trace_event_save_hist(struct trace_instance *instance,
 	mode_t mode = 0644;
 	char path[MAX_PATH];
 	char *hist;
+	size_t hist_len;
 
 	if (!tevent)
 		return;
@@ -376,9 +377,10 @@ static void trace_event_save_hist(struct trace_instance *instance,
 	}
 
 	index = 0;
+	hist_len = strlen(hist);
 	do {
-		index += write(out_fd, &hist[index], strlen(hist) - index);
-	} while (index < strlen(hist));
+		index += write(out_fd, &hist[index], hist_len - index);
+	} while (index < hist_len);
 
 	free(hist);
 out_close:
