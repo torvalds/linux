@@ -529,9 +529,7 @@ static int newport_set_font(int unit, const struct console_font *op,
 
 	/* check if font is already used by other console */
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		if (font_data[i] != FONT_DATA
-		    && font_data_size(font_data[i]) == size
-		    && !memcmp(font_data[i], new_data, size)) {
+		if (font_data_is_equal(font_data[i], new_data)) {
 			font_data_put(new_data);
 			/* current font is the same as the new one */
 			if (i == unit)
