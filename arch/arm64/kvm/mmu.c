@@ -1513,25 +1513,22 @@ static bool kvm_vma_is_cacheable(struct vm_area_struct *vma)
 	}
 }
 
-static int prepare_mmu_memcache(struct kvm_vcpu *vcpu, bool topup_memcache,
-				void **memcache)
+static void *get_mmu_memcache(struct kvm_vcpu *vcpu)
 {
-	int min_pages;
-
 	if (!is_protected_kvm_enabled())
-		*memcache = &vcpu->arch.mmu_page_cache;
+		return &vcpu->arch.mmu_page_cache;
 	else
-		*memcache = &vcpu->arch.pkvm_memcache;
+		return &vcpu->arch.pkvm_memcache;
+}
 
-	if (!topup_memcache)
-		return 0;
-
-	min_pages = kvm_mmu_cache_min_pages(vcpu->arch.hw_mmu);
+static int topup_mmu_memcache(struct kvm_vcpu *vcpu, void *memcache)
+{
+	int min_pages = kvm_mmu_cache_min_pages(vcpu->arch.hw_mmu);
 
 	if (!is_protected_kvm_enabled())
-		return kvm_mmu_topup_memory_cache(*memcache, min_pages);
+		return kvm_mmu_topup_memory_cache(memcache, min_pages);
 
-	return topup_hyp_memcache(*memcache, min_pages);
+	return topup_hyp_memcache(memcache, min_pages);
 }
 
 /*
@@ -1589,7 +1586,8 @@ static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	gfn_t gfn;
 	int ret;
 
-	ret = prepare_mmu_memcache(vcpu, true, &memcache);
+	memcache = get_mmu_memcache(vcpu);
+	ret = topup_mmu_memcache(vcpu, memcache);
 	if (ret)
 		return ret;
 
@@ -1712,7 +1710,6 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 
 struct kvm_s2_fault {
 	bool writable;
-	bool topup_memcache;
 	bool mte_allowed;
 	bool is_vma_cacheable;
 	bool s2_force_noncacheable;
@@ -1983,7 +1980,6 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 		.logging_active = logging_active,
 		.force_pte = logging_active,
 		.prot = KVM_PGTABLE_PROT_R,
-		.topup_memcache = !perm_fault || (logging_active && kvm_is_write_fault(s2fd->vcpu)),
 	};
 	void *memcache;
 	int ret;
@@ -1994,9 +1990,12 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 	 * only exception to this is when dirty logging is enabled at runtime
 	 * and a write fault needs to collapse a block entry into a table.
 	 */
-	ret = prepare_mmu_memcache(s2fd->vcpu, fault.topup_memcache, &memcache);
-	if (ret)
-		return ret;
+	memcache = get_mmu_memcache(s2fd->vcpu);
+	if (!perm_fault || (logging_active && kvm_is_write_fault(s2fd->vcpu))) {
+		ret = topup_mmu_memcache(s2fd->vcpu, memcache);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * Let's check if we will get back a huge page backed by hugetlbfs, or
