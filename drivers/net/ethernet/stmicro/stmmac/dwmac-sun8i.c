@@ -718,7 +718,7 @@ static void sun8i_dwmac_set_filter(struct mac_device_info *hw,
 
 static void sun8i_dwmac_flow_ctrl(struct mac_device_info *hw,
 				  unsigned int duplex, unsigned int fc,
-				  unsigned int pause_time, u32 tx_cnt)
+				  unsigned int pause_time, u8 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 v;

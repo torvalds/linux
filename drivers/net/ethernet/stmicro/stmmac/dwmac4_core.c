@@ -547,11 +547,11 @@ static void dwmac4_set_filter(struct mac_device_info *hw,
 
 static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 			     unsigned int fc, unsigned int pause_time,
-			     u32 tx_cnt)
+			     u8 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	unsigned int flow = 0;
-	u32 queue = 0;
+	u8 queue;
 
 	pr_debug("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
