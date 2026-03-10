@@ -143,6 +143,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
 
 #if IS_ENABLED(CONFIG_KUNIT)
+const char *wm_adsp_get_fwf_name_by_index(int index);
 void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
 				    char *wmfw_filename,
 				    const struct firmware *coeff_firmware,

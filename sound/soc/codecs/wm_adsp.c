@@ -318,6 +318,17 @@ struct wm_coeff_ctl {
 	struct work_struct work;
 };
 
+#if IS_ENABLED(CONFIG_KUNIT)
+const char *wm_adsp_get_fwf_name_by_index(int index)
+{
+	if (index < ARRAY_SIZE(wm_adsp_fw))
+		return wm_adsp_fw[index].file;
+
+	return NULL;
+}
+EXPORT_SYMBOL_IF_KUNIT(wm_adsp_get_fwf_name_by_index);
+#endif
+
 int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
 		   struct snd_ctl_elem_value *ucontrol)
 {
