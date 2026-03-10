@@ -55,6 +55,10 @@ properties:
           - qcom,sm8550-ipa
       - items:
           - enum:
+              - qcom,qcm2290-ipa
+          - const: qcom,sc7180-ipa
+      - items:
+          - enum:
               - qcom,sm8650-ipa
           - const: qcom,sm8550-ipa
 
