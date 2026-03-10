@@ -329,10 +329,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 		struct page *page = cma_pages;
 
 		while (nr_clear_pages > 0) {
-			void *vaddr = kmap_local_page(page);
-
-			clear_page(vaddr);
-			kunmap_local(vaddr);
+			clear_highpage(page);
 			/*
 			 * Avoid wasting time zeroing memory if the process
 			 * has been killed by SIGKILL.
