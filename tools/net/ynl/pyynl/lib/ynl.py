@@ -247,7 +247,7 @@ class NlMsg:
                 elif extack.type == Netlink.NLMSGERR_ATTR_OFFS:
                     self.extack['bad-attr-offs'] = extack.as_scalar('u32')
                 elif extack.type == Netlink.NLMSGERR_ATTR_POLICY:
-                    self.extack['policy'] = self._decode_policy(extack.raw)
+                    self.extack['policy'] = _genl_decode_policy(extack.raw)
                 else:
                     if 'unknown' not in self.extack:
                         self.extack['unknown'] = []
@@ -255,30 +255,6 @@ class NlMsg:
 
             if attr_space:
                 self.annotate_extack(attr_space)
-
-    def _decode_policy(self, raw):
-        policy = {}
-        for attr in NlAttrs(raw):
-            if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
-                type_ = attr.as_scalar('u32')
-                policy['type'] = Netlink.AttrType(type_).name
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
-                policy['min-value'] = attr.as_scalar('s64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
-                policy['max-value'] = attr.as_scalar('s64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_U:
-                policy['min-value'] = attr.as_scalar('u64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_U:
-                policy['max-value'] = attr.as_scalar('u64')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_LENGTH:
-                policy['min-length'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_LENGTH:
-                policy['max-length'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_BITFIELD32_MASK:
-                policy['bitfield32-mask'] = attr.as_scalar('u32')
-            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MASK:
-                policy['mask'] = attr.as_scalar('u64')
-        return policy
 
     def annotate_extack(self, attr_space):
         """ Make extack more human friendly with attribute information """
@@ -331,6 +307,33 @@ def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
 
 def _genl_msg_finalize(msg):
     return struct.pack("I", len(msg) + 4) + msg
+
+
+def _genl_decode_policy(raw):
+    policy = {}
+    for attr in NlAttrs(raw):
+        if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
+            type_ = attr.as_scalar('u32')
+            policy['type'] = Netlink.AttrType(type_).name
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
+            policy['min-value'] = attr.as_scalar('s64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
+            policy['max-value'] = attr.as_scalar('s64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_U:
+            policy['min-value'] = attr.as_scalar('u64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_U:
+            policy['max-value'] = attr.as_scalar('u64')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_LENGTH:
+            policy['min-length'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_LENGTH:
+            policy['max-length'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_POLICY_IDX:
+            policy['policy-idx'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_BITFIELD32_MASK:
+            policy['bitfield32-mask'] = attr.as_scalar('u32')
+        elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MASK:
+            policy['mask'] = attr.as_scalar('u64')
+    return policy
 
 
 # pylint: disable=too-many-nested-blocks
