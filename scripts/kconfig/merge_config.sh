@@ -196,7 +196,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 
 	# First pass: read merge file, store all lines and index
 	FILENAME == ARGV[1] {
-	        mergefile = FILENAME
+		mergefile = FILENAME
 		merge_lines[FNR] = $0
 		merge_total = FNR
 		cfg = get_cfg($0)
@@ -217,7 +217,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 			next
 		}
 
-	        prev_val = $0
+		prev_val = $0
 		new_val = merge_cfg[cfg]
 
 		# BUILTIN: do not demote y to m
