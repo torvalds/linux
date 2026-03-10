@@ -6182,8 +6182,6 @@ struct rtw89_dev {
 	refcount_t refcount_ap_info;
 
 	struct list_head rtwvifs_list;
-	/* used to protect rf read write */
-	struct mutex rf_mutex;
 	struct workqueue_struct *txq_wq;
 	struct work_struct txq_work;
 	struct delayed_work txq_reinvoke_work;
@@ -6808,22 +6806,18 @@ static inline u32
 rtw89_read_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 	      u32 addr, u32 mask)
 {
-	u32 val;
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
-	mutex_lock(&rtwdev->rf_mutex);
-	val = rtwdev->chip->ops->read_rf(rtwdev, rf_path, addr, mask);
-	mutex_unlock(&rtwdev->rf_mutex);
-
-	return val;
+	return rtwdev->chip->ops->read_rf(rtwdev, rf_path, addr, mask);
 }
 
 static inline void
 rtw89_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 	       u32 addr, u32 mask, u32 data)
 {
-	mutex_lock(&rtwdev->rf_mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
 	rtwdev->chip->ops->write_rf(rtwdev, rf_path, addr, mask, data);
-	mutex_unlock(&rtwdev->rf_mutex);
 }
 
 static inline u32 rtw89_read32_pci_cfg(struct rtw89_dev *rtwdev, u32 addr)
