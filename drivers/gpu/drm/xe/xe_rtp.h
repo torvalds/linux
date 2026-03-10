@@ -35,6 +35,10 @@ struct xe_reg_sr;
 	{ .match_type = XE_RTP_MATCH_SUBPLATFORM,				\
 	  .platform = plat__, .subplatform = sub__ }
 
+#define _XE_RTP_RULE_PLATFORM_STEP(start__, end__)				\
+	{ .match_type = XE_RTP_MATCH_PLATFORM_STEP,				\
+	  .step_start = start__, .step_end = end__ }
+
 #define _XE_RTP_RULE_GRAPHICS_STEP(start__, end__)				\
 	{ .match_type = XE_RTP_MATCH_GRAPHICS_STEP,				\
 	  .step_start = start__, .step_end = end__ }
@@ -65,6 +69,22 @@ struct xe_reg_sr;
  */
 #define XE_RTP_RULE_SUBPLATFORM(plat_, sub_)					\
 	_XE_RTP_RULE_SUBPLATFORM(XE_##plat_, XE_SUBPLATFORM_##plat_##_##sub_)
+
+/**
+ * XE_RTP_RULE_PLATFORM_STEP - Create rule matching platform-level stepping
+ * @start_: First stepping matching the rule
+ * @end_: First stepping that does not match the rule
+ *
+ * Note that the range matching this rule is [ @start_, @end_ ), i.e. inclusive
+ * on the left, exclusive on the right.
+ *
+ * You need to make sure that proper support for reading platform-level stepping
+ * information is present for the target platform before using this rule.
+ *
+ * Refer to XE_RTP_RULES() for expected usage.
+ */
+#define XE_RTP_RULE_PLATFORM_STEP(start_, end_)					\
+	_XE_RTP_RULE_PLATFORM_STEP(STEP_##start_, STEP_##end_)
 
 /**
  * XE_RTP_RULE_GRAPHICS_STEP - Create rule matching graphics stepping
