@@ -704,8 +704,7 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
-static void wm_adsp_release_firmware_files(struct wm_adsp *dsp,
-					   const struct firmware *wmfw_firmware,
+static void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
 					   char *wmfw_filename,
 					   const struct firmware *coeff_firmware,
 					   char *coeff_filename)
@@ -908,8 +907,7 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 					    coeff_firmware, coeff_filename,
 					    wm_adsp_fw_text[dsp->fw]);
 
-		wm_adsp_release_firmware_files(dsp,
-					       wmfw_firmware, wmfw_filename,
+		wm_adsp_release_firmware_files(wmfw_firmware, wmfw_filename,
 					       coeff_firmware, coeff_filename);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1011,8 +1009,7 @@ int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware)
 			      wm_adsp_fw_text[dsp->fw]);
 
 err:
-	wm_adsp_release_firmware_files(dsp,
-				       wmfw_firmware, wmfw_filename,
+	wm_adsp_release_firmware_files(wmfw_firmware, wmfw_filename,
 				       coeff_firmware, coeff_filename);
 
 	return ret;
