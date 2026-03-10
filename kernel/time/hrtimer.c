@@ -2031,8 +2031,8 @@ static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t expires_nex
 		 * Give the system a chance to do something else than looping
 		 * on hrtimer interrupts.
 		 */
-		expires_next = ktime_add_ns(ktime_get(), 100 * NSEC_PER_MSEC);
-		cpu_base->hang_detected = false;
+		expires_next = ktime_add_ns(ktime_get(),
+					    min(100 * NSEC_PER_MSEC, cpu_base->max_hang_time));
 	}
 	hrtimer_rearm_event(expires_next, deferred);
 }
@@ -2121,6 +2121,7 @@ retry:
 	 */
 	now = hrtimer_update_base(cpu_base);
 	expires_next = hrtimer_update_next_event(cpu_base);
+	cpu_base->hang_detected = false;
 	if (expires_next < now) {
 		if (++retries < 3)
 			goto retry;
