@@ -10670,10 +10670,7 @@ static void mm_cid_do_fixup_tasks_to_cpus(struct mm_struct *mm)
 	for_each_process_thread(p, t) {
 		if (t == current || t->mm != mm)
 			continue;
-		if (mm_cid_fixup_task_to_cpu(t, mm)) {
-			if (--users == 0)
-				return;
-		}
+		mm_cid_fixup_task_to_cpu(t, mm);
 	}
 }
 
