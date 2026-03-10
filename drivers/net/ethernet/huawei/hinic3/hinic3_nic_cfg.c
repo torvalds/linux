@@ -639,6 +639,39 @@ int hinic3_get_link_status(struct hinic3_hwdev *hwdev, bool *link_status_up)
 	return 0;
 }
 
+int hinic3_get_port_info(struct hinic3_hwdev *hwdev,
+			 struct hinic3_nic_port_info *port_info)
+{
+	struct mag_cmd_get_port_info port_msg = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	port_msg.port_id = hinic3_physical_port_id(hwdev);
+
+	mgmt_msg_params_init_default(&msg_params, &port_msg, sizeof(port_msg));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_HILINK,
+				       MAG_CMD_GET_PORT_INFO, &msg_params);
+
+	if (err || port_msg.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to get port info, err: %d, status: 0x%x\n",
+			err, port_msg.head.status);
+		return -EFAULT;
+	}
+
+	port_info->autoneg_cap = port_msg.an_support;
+	port_info->autoneg_state = port_msg.an_en;
+	port_info->duplex = port_msg.duplex;
+	port_info->port_type = port_msg.wire_type;
+	port_info->speed = port_msg.speed;
+	port_info->fec = port_msg.fec;
+	port_info->supported_mode = port_msg.supported_mode;
+	port_info->advertised_mode = port_msg.advertised_mode;
+
+	return 0;
+}
+
 int hinic3_set_vport_enable(struct hinic3_hwdev *hwdev, u16 func_id,
 			    bool enable)
 {
@@ -660,4 +693,48 @@ int hinic3_set_vport_enable(struct hinic3_hwdev *hwdev, u16 func_id,
 	}
 
 	return 0;
+}
+
+static int hinic3_cfg_hw_pause(struct hinic3_hwdev *hwdev, u8 opcode,
+			       struct hinic3_nic_pause_config *nic_pause)
+{
+	struct l2nic_cmd_pause_config pause_info = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	pause_info.port_id = hinic3_physical_port_id(hwdev);
+	pause_info.opcode = opcode;
+	if (opcode == MGMT_MSG_CMD_OP_SET) {
+		pause_info.auto_neg = nic_pause->auto_neg;
+		pause_info.rx_pause = nic_pause->rx_pause;
+		pause_info.tx_pause = nic_pause->tx_pause;
+	}
+
+	mgmt_msg_params_init_default(&msg_params, &pause_info,
+				     sizeof(pause_info));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_CFG_PAUSE_INFO, &msg_params);
+
+	if (err || pause_info.msg_head.status) {
+		dev_err(hwdev->dev, "Failed to %s pause info, err: %d, status: 0x%x\n",
+			opcode == MGMT_MSG_CMD_OP_SET ? "set" : "get",
+			err, pause_info.msg_head.status);
+		return -EFAULT;
+	}
+
+	if (opcode == MGMT_MSG_CMD_OP_GET) {
+		nic_pause->auto_neg = pause_info.auto_neg;
+		nic_pause->rx_pause = pause_info.rx_pause;
+		nic_pause->tx_pause = pause_info.tx_pause;
+	}
+
+	return 0;
+}
+
+int hinic3_get_pause_info(struct hinic3_nic_dev *nic_dev,
+			  struct hinic3_nic_pause_config *nic_pause)
+{
+	return hinic3_cfg_hw_pause(nic_dev->hwdev, MGMT_MSG_CMD_OP_GET,
+				   nic_pause);
 }

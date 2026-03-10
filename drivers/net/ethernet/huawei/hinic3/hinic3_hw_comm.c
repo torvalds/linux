@@ -580,3 +580,31 @@ int hinic3_clean_root_ctxt(struct hinic3_hwdev *hwdev)
 
 	return 0;
 }
+
+#define HINIC3_FW_VER_TYPE_MPU  1
+
+int hinic3_get_mgmt_version(struct hinic3_hwdev *hwdev, u8 *mgmt_ver,
+			    u8 version_size)
+{
+	struct comm_cmd_get_fw_version fw_ver = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	fw_ver.fw_type = HINIC3_FW_VER_TYPE_MPU;
+
+	mgmt_msg_params_init_default(&msg_params, &fw_ver, sizeof(fw_ver));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_GET_FW_VERSION, &msg_params);
+
+	if (err || fw_ver.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to get fw version, err: %d, status: 0x%x\n",
+			err, fw_ver.head.status);
+		return -EFAULT;
+	}
+
+	snprintf(mgmt_ver, version_size, "%s", fw_ver.ver);
+
+	return 0;
+}
