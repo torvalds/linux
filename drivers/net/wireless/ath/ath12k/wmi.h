@@ -4210,6 +4210,17 @@ struct wmi_dfs_unit_test_arg {
 	u32 radar_param;
 };
 
+/* update if another test command requires more */
+#define WMI_UNIT_TEST_ARGS_MAX DFS_MAX_TEST_ARGS
+
+struct wmi_unit_test_arg {
+	u32 vdev_id;
+	u32 module_id;
+	u32 diag_token;
+	u32 num_args;
+	u32 args[WMI_UNIT_TEST_ARGS_MAX];
+};
+
 struct wmi_unit_test_cmd {
 	__le32 tlv_header;
 	__le32 vdev_id;
