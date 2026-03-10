@@ -107,17 +107,42 @@ static unsigned int nr_asids;
 static unsigned long *sev_asid_bitmap;
 static unsigned long *sev_reclaim_asid_bitmap;
 
+static __always_inline void kvm_lockdep_assert_sev_lock_held(struct kvm *kvm)
+{
+#ifdef CONFIG_PROVE_LOCKING
+	/*
+	 * Querying SEV+ support is safe if there are no other references, i.e.
+	 * if concurrent initialization of SEV+ is impossible.
+	 */
+	if (!refcount_read(&kvm->users_count))
+		return;
+
+	/*
+	 * Querying SEV+ support from vCPU context is always safe, as vCPUs can
+	 * only be created after SEV+ is initialized (and KVM disallows all SEV
+	 * sub-ioctls while vCPU creation is in-progress).
+	 */
+	if (kvm_get_running_vcpu())
+		return;
+
+	lockdep_assert_held(&kvm->lock);
+#endif
+}
+
 static bool sev_guest(struct kvm *kvm)
 {
+	kvm_lockdep_assert_sev_lock_held(kvm);
 	return ____sev_guest(kvm);
 }
 static bool sev_es_guest(struct kvm *kvm)
 {
+	kvm_lockdep_assert_sev_lock_held(kvm);
 	return ____sev_es_guest(kvm);
 }
 
 static bool sev_snp_guest(struct kvm *kvm)
 {
+	kvm_lockdep_assert_sev_lock_held(kvm);
 	return ____sev_snp_guest(kvm);
 }
 
