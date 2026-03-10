@@ -6,12 +6,14 @@
 #include <linux/dma-mapping.h>
 
 #include "hinic3_cmdq.h"
+#include "hinic3_eqs.h"
 #include "hinic3_hwdev.h"
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
 
 #define CMDQ_BUF_SIZE             2048
 #define CMDQ_WQEBB_SIZE           64
+#define CMDQ_WQE_HEAD_LEN         32
 
 #define CMDQ_CMD_TIMEOUT          5000
 #define CMDQ_ENABLE_WAIT_TIMEOUT  300
@@ -113,6 +115,20 @@ enum cmdq_cmd_type {
 };
 
 #define CMDQ_WQE_NUM_WQEBBS  1
+
+static void hinic3_dump_cmdq_wqe_head(struct hinic3_hwdev *hwdev,
+				      struct cmdq_wqe *wqe)
+{
+	u32 *data = (u32 *)wqe;
+	u32 i;
+
+	for (i = 0; i < (CMDQ_WQE_HEAD_LEN / sizeof(u32)); i += 0x4) {
+		dev_dbg(hwdev->dev,
+			"wqe data: 0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+			*(data + i), *(data + i + 0x1), *(data + i + 0x2),
+			*(data + i + 0x3));
+	}
+}
 
 static struct cmdq_wqe *cmdq_read_wqe(struct hinic3_wq *wq, u16 *ci)
 {
@@ -279,6 +295,7 @@ void hinic3_cmdq_ceq_handler(struct hinic3_hwdev *hwdev, __le32 ceqe_data)
 		case HINIC3_CMD_TYPE_TIMEOUT:
 			dev_warn(hwdev->dev, "Cmdq timeout, q_id: %u, ci: %u\n",
 				 cmdq_type, ci);
+			hinic3_dump_cmdq_wqe_head(hwdev, wqe);
 			fallthrough;
 		case HINIC3_CMD_TYPE_FAKE_TIMEOUT:
 			cmdq_clear_cmd_buf(cmd_info, hwdev);
@@ -534,6 +551,8 @@ static int wait_cmdq_sync_cmd_completion(struct hinic3_cmdq *cmdq,
 
 	clear_cmd_info(cmd_info, saved_cmd_info);
 	spin_unlock_bh(&cmdq->cmdq_lock);
+
+	hinic3_dump_ceq_info(cmdq->hwdev);
 
 	return err;
 }

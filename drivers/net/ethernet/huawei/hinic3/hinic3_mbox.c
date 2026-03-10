@@ -5,6 +5,7 @@
 
 #include "hinic3_common.h"
 #include "hinic3_csr.h"
+#include "hinic3_eqs.h"
 #include "hinic3_hwdev.h"
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
@@ -616,6 +617,18 @@ static void write_mbox_msg_attr(struct hinic3_mbox *mbox,
 			      mbox_ctrl);
 }
 
+static void hinic3_dump_mbox_reg(struct hinic3_hwdev *hwdev)
+{
+	u32 val;
+
+	val = hinic3_hwif_read_reg(hwdev->hwif,
+				   HINIC3_FUNC_CSR_MAILBOX_CONTROL_OFF);
+	dev_err(hwdev->dev, "Mailbox control reg: 0x%x\n", val);
+	val = hinic3_hwif_read_reg(hwdev->hwif,
+				   HINIC3_FUNC_CSR_MAILBOX_INT_OFF);
+	dev_err(hwdev->dev, "Mailbox interrupt offset: 0x%x\n", val);
+}
+
 static u16 get_mbox_status(const struct hinic3_send_mbox *mbox)
 {
 	__be64 *wb_status = mbox->wb_vaddr;
@@ -670,6 +683,7 @@ static int send_mbox_seg(struct hinic3_mbox *mbox, __le64 header,
 	if (err) {
 		dev_err(hwdev->dev, "Send mailbox segment timeout, wb status: 0x%x\n",
 			wb_status);
+		hinic3_dump_mbox_reg(hwdev);
 		return err;
 	}
 
@@ -825,6 +839,7 @@ int hinic3_send_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	if (wait_mbox_msg_completion(mbox, msg_params->timeout_ms)) {
 		dev_err(hwdev->dev,
 			"Send mbox msg timeout, msg_id: %u\n", msg_info.msg_id);
+		hinic3_dump_aeq_info(mbox->hwdev);
 		err = -ETIMEDOUT;
 		goto err_send;
 	}
