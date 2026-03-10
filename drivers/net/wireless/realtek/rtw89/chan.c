@@ -381,6 +381,23 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 	rtw89_swap_chanctx(rtwdev, rtwvif_link->chanctx_idx, cur->chanctx_idx);
 }
 
+static u8 rtw89_entity_role_get_index(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_entity_mode mode;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	default:
+		WARN(1, "Invalid ent mode: %d\n", mode);
+		fallthrough;
+	case RTW89_ENTITY_MODE_SCC_OR_SMLD:
+	case RTW89_ENTITY_MODE_MCC:
+		return 0;
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		return 1;
+	}
+}
+
 const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 					       const char *caller_message,
 					       u8 link_index, bool nullchk)
@@ -388,7 +405,6 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	enum rtw89_chanctx_idx chanctx_idx;
-	enum rtw89_entity_mode mode;
 	u8 role_index;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
@@ -399,19 +415,7 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 		goto dflt;
 	}
 
-	mode = rtw89_get_entity_mode(rtwdev);
-	switch (mode) {
-	case RTW89_ENTITY_MODE_SCC_OR_SMLD:
-	case RTW89_ENTITY_MODE_MCC:
-		role_index = 0;
-		break;
-	case RTW89_ENTITY_MODE_MCC_PREPARE:
-		role_index = 1;
-		break;
-	default:
-		WARN(1, "Invalid ent mode: %d\n", mode);
-		goto dflt;
-	}
+	role_index = rtw89_entity_role_get_index(rtwdev);
 
 	chanctx_idx = mgnt->chanctx_tbl[role_index][link_index];
 	if (chanctx_idx == RTW89_CHANCTX_IDLE)
@@ -479,10 +483,28 @@ rtw89_entity_sel_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
 	}
 }
 
-static
-void rtw89_entity_recalc_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
+static void rtw89_entity_recalc_mlo_dbcc_mode(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_entity_mgnt *mgnt = &rtwdev->hal.entity_mgnt;
 	enum rtw89_mlo_dbcc_mode mode;
+	struct rtw89_vif *role;
+	u8 active_hws = 0;
+	u8 ridx;
+
+	ridx = rtw89_entity_role_get_index(rtwdev);
+	role = mgnt->active_roles[ridx];
+	if (role) {
+		struct rtw89_vif_link *link;
+		int i;
+
+		for (i = 0; i < role->links_inst_valid_num; i++) {
+			link = rtw89_vif_get_link_inst(role, i);
+			if (!link || !link->chanctx_assigned)
+				continue;
+
+			active_hws |= BIT(i);
+		}
+	}
 
 	mode = rtw89_entity_sel_mlo_dbcc_mode(rtwdev, active_hws);
 	rtwdev->mlo_dbcc_mode = mode;
@@ -496,7 +518,6 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_vif_link *link;
 	struct rtw89_vif *role;
-	u8 active_hws = 0;
 	u8 pos = 0;
 	int i, j;
 
@@ -545,13 +566,10 @@ fill:
 				continue;
 
 			mgnt->chanctx_tbl[pos][i] = link->chanctx_idx;
-			active_hws |= BIT(i);
 		}
 
 		mgnt->active_roles[pos++] = role;
 	}
-
-	rtw89_entity_recalc_mlo_dbcc_mode(rtwdev, active_hws);
 }
 
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
@@ -621,6 +639,9 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 		return rtw89_get_entity_mode(rtwdev);
 
 	rtw89_set_entity_mode(rtwdev, mode);
+
+	rtw89_entity_recalc_mlo_dbcc_mode(rtwdev);
+
 	return mode;
 }
 
