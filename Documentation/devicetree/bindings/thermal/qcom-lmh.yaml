@@ -23,6 +23,9 @@ properties:
           - qcom,sdm845-lmh
           - qcom,sm8150-lmh
       - items:
+          - const: qcom,sdm670-lmh
+          - const: qcom,sdm845-lmh
+      - items:
           - const: qcom,qcm2290-lmh
           - const: qcom,sm8150-lmh
 
