@@ -776,16 +776,15 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		return -ENOMEM;
 
 	/*
-	 * Make sure that filename is lower-case and any non alpha-numeric
-	 * characters except full stop and forward slash are replaced with
-	 * hyphens.
+	 * Make sure that filename after dir is lower-case and any non-alpha-numeric
+	 * characters except full-stop are replaced with hyphens.
 	 */
-	s = *filename;
+	s = *filename + strlen(dir);
 	while (*s) {
 		c = *s;
 		if (isalnum(c))
 			*s = tolower(c);
-		else if ((c != '.') && (c != '/'))
+		else if (c != '.')
 			*s = '-';
 		s++;
 	}
