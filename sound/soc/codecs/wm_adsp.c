@@ -828,9 +828,10 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 	}
 
 	if (system_name) {
-		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
-						   cirrus_dir, system_name,
-						   NULL, "wmfw")) {
+		ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+						    cirrus_dir, system_name,
+						    NULL, "wmfw");
+		if (!ret || dsp->wmfw_optional) {
 			if (suffix)
 				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
 							      cirrus_dir, system_name,
@@ -840,24 +841,10 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
 							      cirrus_dir, system_name,
 							      NULL, "bin");
-			return 0;
+
+			if (*wmfw_firmware || (dsp->wmfw_optional && *coeff_firmware))
+				return 0;
 		}
-	}
-
-	/* Check system-specific bin without wmfw before falling back to generic */
-	if (dsp->wmfw_optional && system_name) {
-		if (suffix)
-			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
-						      cirrus_dir, system_name,
-						      suffix, "bin");
-
-		if (!*coeff_firmware)
-			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
-						      cirrus_dir, system_name,
-						      NULL, "bin");
-
-		if (*coeff_firmware)
-			return 0;
 	}
 
 	/* Check legacy location */
