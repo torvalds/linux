@@ -10,6 +10,7 @@
 #include <drm/drm_managed.h>
 #include <uapi/drm/xe_drm.h>
 
+#include <generated/xe_device_wa_oob.h>
 #include <generated/xe_wa_oob.h>
 
 #include "instructions/xe_alu_commands.h"
@@ -451,6 +452,35 @@ put_exec_queue:
 	return err;
 }
 
+static void wa_14026539277(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 val;
+
+	/*
+	 * FIXME: We currently can't use FUNC(xe_rtp_match_not_sriov_vf) in the
+	 * rules for Wa_14026539277 due to xe_wa_process_device_oob() being
+	 * called before xe_sriov_probe_early(); and we can't move the call to
+	 * the former to happen after the latter because MMIO read functions
+	 * already depend on a device OOB workaround.  This needs to be fixed by
+	 * allowing workaround checks to happen at different stages of driver
+	 * initialization.
+	 */
+	if (IS_SRIOV_VF(xe))
+		return;
+
+	if (!XE_DEVICE_WA(xe, 14026539277))
+		return;
+
+	if (!xe_gt_is_main_type(gt))
+		return;
+
+	val = xe_gt_mcr_unicast_read_any(gt, L2COMPUTESIDECTRL);
+	val &= ~CECTRL;
+	val |= CECTRL_CENODATA_ALWAYS;
+	xe_gt_mcr_multicast_write(gt, L2COMPUTESIDECTRL, val);
+}
+
 int xe_gt_init_early(struct xe_gt *gt)
 {
 	int err;
@@ -575,6 +605,15 @@ static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 	 * on pre-MTL platforms, reading it there will (correctly) return 0.
 	 */
 	gt->info.gmdid = xe_mmio_read32(&gt->mmio, GMD_ID);
+
+	/*
+	 * Wa_14026539277 can't be implemented as a regular GT workaround (i.e.
+	 * as an entry in gt_was[]) for two reasons: it is actually a device
+	 * workaround that happens to involve programming a GT register; and it
+	 * needs to be applied early to avoid getting the hardware in a bad
+	 * state before we have a chance to do the necessary programming.
+	 */
+	wa_14026539277(gt);
 
 	return 0;
 }
