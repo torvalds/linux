@@ -302,6 +302,13 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 			*status = INTEGRITY_FAIL;
 			break;
 		}
+
+		if ((iint->flags & IMA_SIGV3_REQUIRED) && sig->version != 3) {
+			*cause = "IMA-sigv3-required";
+			*status = INTEGRITY_FAIL;
+			break;
+		}
+
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_IMA,
 					     (const char *)xattr_value,
 					     xattr_len,
