@@ -398,7 +398,7 @@ config SND_SOC_WM_HUBS
 	default m if SND_SOC_WM8993=m || SND_SOC_WM8994=m
 
 config SND_SOC_WM_ADSP
-	tristate
+	tristate "Cirrus Logic wm_adsp driver" if KUNIT
 	select FW_CS_DSP
 	select SND_SOC_COMPRESS
 	default y if SND_SOC_MADERA=y
@@ -423,6 +423,18 @@ config SND_SOC_WM_ADSP
 	default m if SND_SOC_CS35L45_I2C=m
 	default m if SND_SOC_CS35L56=m
 	default m if SND_SOC_CS48L32=m
+
+config SND_SOC_WM_ADSP_TEST
+	tristate "KUnit tests for Cirrus Logic wm_adsp" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on SND_SOC_WM_ADSP
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the Cirrus Logic wm_adsp library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
 
 config SND_SOC_AB8500_CODEC
 	tristate
