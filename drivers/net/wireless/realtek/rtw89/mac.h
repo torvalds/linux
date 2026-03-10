@@ -17,6 +17,7 @@
 #define BSSID_CAM_ENT_SIZE 0x08
 #define HFC_PAGE_UNIT 64
 #define RPWM_TRY_CNT 3
+#define CPU_IO_RX_RETRY_CNT 3
 
 enum rtw89_mac_hwmod_sel {
 	RTW89_DMAC_SEL = 0,

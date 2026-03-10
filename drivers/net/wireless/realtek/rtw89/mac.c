@@ -7183,7 +7183,7 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
+static int _rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
 {
 	struct rtw89_mac_h2c_info h2c_info = {};
 	struct rtw89_mac_c2h_info c2h_info = {};
@@ -7202,6 +7202,19 @@ int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
 
 	if (c2h_info.id != RTW89_FWCMD_C2HREG_FUNC_WOW_CPUIO_RX_ACK)
 		ret = -EINVAL;
+
+	return ret;
+}
+
+int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
+{
+	int i, ret;
+
+	for (i = 0; i < CPU_IO_RX_RETRY_CNT; i++) {
+		ret = _rtw89_mac_cpu_io_rx(rtwdev, wow_enable);
+		if (!ret)
+			return 0;
+	}
 
 	return ret;
 }
