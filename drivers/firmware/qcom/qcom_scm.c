@@ -922,14 +922,13 @@ struct resource_table *qcom_scm_pas_get_rsc_table(struct qcom_scm_pas_context *c
 		goto free_input_rt;
 	}
 
-	tbl_ptr = kzalloc(size, GFP_KERNEL);
+	tbl_ptr = kmemdup(output_rt_tzm, size, GFP_KERNEL);
 	if (!tbl_ptr) {
 		qcom_tzmem_free(output_rt_tzm);
 		ret = -ENOMEM;
 		goto free_input_rt;
 	}
 
-	memcpy(tbl_ptr, output_rt_tzm, size);
 	*output_rt_size = size;
 	qcom_tzmem_free(output_rt_tzm);
 
