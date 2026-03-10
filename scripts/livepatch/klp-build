@@ -220,7 +220,7 @@ process_args() {
 		esac
 	done
 
-	if [[ $# -eq 0 ]]; then
+	if [[ $# -eq 0 ]] && (( SHORT_CIRCUIT <= 2 )); then
 		usage
 		exit 1
 	fi
@@ -791,9 +791,12 @@ build_patch_module() {
 process_args "$@"
 do_init
 
-if (( SHORT_CIRCUIT <= 1 )); then
+if (( SHORT_CIRCUIT <= 2 )); then
 	status "Validating patch(es)"
 	validate_patches
+fi
+
+if (( SHORT_CIRCUIT <= 1 )); then
 	status "Building original kernel"
 	clean_kernel
 	build_kernel
