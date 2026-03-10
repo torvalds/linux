@@ -455,7 +455,7 @@ static int hid_go_feature_status_event(struct command_report *cmd_rep)
 			return 0;
 		default:
 			return -EINVAL;
-		};
+		}
 	case FEATURE_IMU_BYPASS:
 		switch (cmd_rep->device_type) {
 		case LEFT_CONTROLLER:
@@ -466,7 +466,7 @@ static int hid_go_feature_status_event(struct command_report *cmd_rep)
 			return 0;
 		default:
 			return -EINVAL;
-		};
+		}
 		break;
 	case FEATURE_LIGHT_ENABLE:
 		drvdata.rgb_en = cmd_rep->data[0];
@@ -481,7 +481,7 @@ static int hid_go_feature_status_event(struct command_report *cmd_rep)
 			return 0;
 		default:
 			return -EINVAL;
-		};
+		}
 		break;
 	case FEATURE_TOUCHPAD_ENABLE:
 		drvdata.tp_en = cmd_rep->data[0];
@@ -515,7 +515,7 @@ static int hid_go_motor_event(struct command_report *cmd_rep)
 			return 0;
 		default:
 			return -EINVAL;
-		};
+		}
 		break;
 	case RUMBLE_MODE:
 		switch (cmd_rep->device_type) {
@@ -527,7 +527,7 @@ static int hid_go_motor_event(struct command_report *cmd_rep)
 			return 0;
 		default:
 			return -EINVAL;
-		};
+		}
 	case TP_VIBRATION_ENABLE:
 		drvdata.tp_vibration_en = cmd_rep->data[0];
 		return 0;
@@ -625,7 +625,7 @@ static int hid_go_os_mode_cfg_event(struct command_report *cmd_rep)
 		return 0;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int hid_go_set_event_return(struct command_report *cmd_rep)
@@ -699,14 +699,14 @@ static int hid_go_raw_event(struct hid_device *hdev, struct hid_report *report,
 		default:
 			ret = -EINVAL;
 			break;
-		};
+		}
 		break;
 	case OS_MODE_DATA:
 		ret = hid_go_os_mode_cfg_event(cmd_rep);
 		break;
 	default:
 		goto passthrough;
-	};
+	}
 	dev_dbg(&hdev->dev, "Rx data as raw input report: [%*ph]\n",
 		GO_PACKET_SIZE, data);
 
@@ -925,7 +925,7 @@ static ssize_t feature_status_store(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (ret < 0)
 		return ret;
@@ -1013,7 +1013,7 @@ static ssize_t feature_status_show(struct device *dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		count = sysfs_emit(buf, "%u\n", i);
 		break;
 	case FEATURE_FPS_SWITCH_STATUS:
@@ -1032,7 +1032,7 @@ static ssize_t feature_status_show(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return count;
 }
@@ -1070,7 +1070,7 @@ static ssize_t feature_status_options(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (count)
 		buf[count - 1] = '\n';
@@ -1111,7 +1111,7 @@ static ssize_t motor_config_store(struct device *dev,
 		ret = sysfs_match_string(intensity_text, buf);
 		val = ret;
 		break;
-	};
+	}
 
 	if (ret < 0)
 		return ret;
@@ -1161,7 +1161,7 @@ static ssize_t motor_config_show(struct device *dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		if (i >= ARRAY_SIZE(enabled_status_text))
 			return -EINVAL;
 
@@ -1177,7 +1177,7 @@ static ssize_t motor_config_show(struct device *dev,
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 		if (i >= ARRAY_SIZE(rumble_mode_text))
 			return -EINVAL;
 
@@ -1197,7 +1197,7 @@ static ssize_t motor_config_show(struct device *dev,
 
 		count = sysfs_emit(buf, "%s\n", intensity_text[i]);
 		break;
-	};
+	}
 
 	return count;
 }
@@ -1232,7 +1232,7 @@ static ssize_t motor_config_options(struct device *dev,
 					       enabled_status_text[i]);
 		}
 		break;
-	};
+	}
 
 	if (count)
 		buf[count - 1] = '\n';
@@ -1333,7 +1333,7 @@ static ssize_t device_status_show(struct device *dev,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (i >= ARRAY_SIZE(cal_status_text))
 		return -EINVAL;
@@ -1459,7 +1459,7 @@ static int rgb_attr_show(void)
 	index = drvdata.rgb_profile + 3;
 
 	return rgb_cfg_call(drvdata.hdev, GET_RGB_CFG, index, NULL, 0);
-};
+}
 
 static ssize_t rgb_effect_store(struct device *dev,
 				struct device_attribute *attr, const char *buf,
@@ -1489,7 +1489,7 @@ static ssize_t rgb_effect_store(struct device *dev,
 
 	drvdata.rgb_effect = effect;
 	return count;
-};
+}
 
 static ssize_t rgb_effect_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
@@ -1555,7 +1555,7 @@ static ssize_t rgb_speed_store(struct device *dev,
 	drvdata.rgb_speed = val;
 
 	return count;
-};
+}
 
 static ssize_t rgb_speed_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -1599,7 +1599,7 @@ static ssize_t rgb_mode_store(struct device *dev, struct device_attribute *attr,
 	drvdata.rgb_mode = val;
 
 	return count;
-};
+}
 
 static ssize_t rgb_mode_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -1614,7 +1614,7 @@ static ssize_t rgb_mode_show(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s\n", rgb_mode_text[drvdata.rgb_mode]);
-};
+}
 
 static ssize_t rgb_mode_index_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -1653,7 +1653,7 @@ static ssize_t rgb_profile_store(struct device *dev,
 	drvdata.rgb_profile = val;
 
 	return count;
-};
+}
 
 static ssize_t rgb_profile_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1668,7 +1668,7 @@ static ssize_t rgb_profile_show(struct device *dev,
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%hhu\n", drvdata.rgb_profile);
-};
+}
 
 static ssize_t rgb_profile_range_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
@@ -1707,7 +1707,7 @@ static void hid_go_brightness_set(struct led_classdev *led_cdev,
 		break;
 	default:
 		dev_err(led_cdev->dev, "Failed to write RGB profile: %i\n", ret);
-	};
+	}
 }
 
 #define LEGO_DEVICE_ATTR_RW(_name, _attrname, _dtype, _rtype, _group)         \
