@@ -430,15 +430,6 @@ static void hubbub42_allow_self_refresh_control(struct hubbub *hubbub, bool allo
 	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
-
-	if (!allow && hubbub->ctx->dc->debug.disable_stutter) {/*controlled by registry key*/
-		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_ENABLE, 1);
-		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
-	}
 }
 static void hubbub42_set_sdp_control(struct hubbub *hubbub, bool dc_control)
 {
