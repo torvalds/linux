@@ -107,6 +107,20 @@ static unsigned int nr_asids;
 static unsigned long *sev_asid_bitmap;
 static unsigned long *sev_reclaim_asid_bitmap;
 
+static bool sev_guest(struct kvm *kvm)
+{
+	return ____sev_guest(kvm);
+}
+static bool sev_es_guest(struct kvm *kvm)
+{
+	return ____sev_es_guest(kvm);
+}
+
+static bool sev_snp_guest(struct kvm *kvm)
+{
+	return ____sev_snp_guest(kvm);
+}
+
 static int snp_decommission_context(struct kvm *kvm);
 
 struct enc_region {

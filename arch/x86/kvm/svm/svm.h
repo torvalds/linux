@@ -390,20 +390,6 @@ static __always_inline bool ____sev_snp_guest(struct kvm *kvm)
 	       !WARN_ON_ONCE(!____sev_es_guest(kvm));
 }
 
-static __always_inline bool sev_guest(struct kvm *kvm)
-{
-	return ____sev_guest(kvm);
-}
-static __always_inline bool sev_es_guest(struct kvm *kvm)
-{
-	return ____sev_es_guest(kvm);
-}
-
-static __always_inline bool sev_snp_guest(struct kvm *kvm)
-{
-	return ____sev_snp_guest(kvm);
-}
-
 static __always_inline bool is_sev_guest(struct kvm_vcpu *vcpu)
 {
 	return ____sev_guest(vcpu->kvm);
@@ -418,9 +404,6 @@ static __always_inline bool is_sev_snp_guest(struct kvm_vcpu *vcpu)
 	return ____sev_snp_guest(vcpu->kvm);
 }
 #else
-#define sev_guest(kvm) false
-#define sev_es_guest(kvm) false
-#define sev_snp_guest(kvm) false
 #define is_sev_guest(vcpu) false
 #define is_sev_es_guest(vcpu) false
 #define is_sev_snp_guest(vcpu) false
