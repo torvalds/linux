@@ -2925,6 +2925,21 @@ static int snp_decommission_context(struct kvm *kvm)
 	return 0;
 }
 
+void sev_vm_init(struct kvm *kvm)
+{
+	int type = kvm->arch.vm_type;
+
+	if (type == KVM_X86_DEFAULT_VM || type == KVM_X86_SW_PROTECTED_VM)
+		return;
+
+	kvm->arch.has_protected_state = (type == KVM_X86_SEV_ES_VM ||
+					 type == KVM_X86_SNP_VM);
+	to_kvm_sev_info(kvm)->need_init = true;
+
+	kvm->arch.has_private_mem = (type == KVM_X86_SNP_VM);
+	kvm->arch.pre_fault_allowed = !kvm->arch.has_private_mem;
+}
+
 void sev_vm_destroy(struct kvm *kvm)
 {
 	struct kvm_sev_info *sev = to_kvm_sev_info(kvm);

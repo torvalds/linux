@@ -5123,17 +5123,7 @@ static void svm_vm_destroy(struct kvm *kvm)
 
 static int svm_vm_init(struct kvm *kvm)
 {
-	int type = kvm->arch.vm_type;
-
-	if (type != KVM_X86_DEFAULT_VM &&
-	    type != KVM_X86_SW_PROTECTED_VM) {
-		kvm->arch.has_protected_state =
-			(type == KVM_X86_SEV_ES_VM || type == KVM_X86_SNP_VM);
-		to_kvm_sev_info(kvm)->need_init = true;
-
-		kvm->arch.has_private_mem = (type == KVM_X86_SNP_VM);
-		kvm->arch.pre_fault_allowed = !kvm->arch.has_private_mem;
-	}
+	sev_vm_init(kvm);
 
 	if (!pause_filter_count || !pause_filter_thresh)
 		kvm_disable_exits(kvm, KVM_X86_DISABLE_EXITS_PAUSE);

@@ -900,6 +900,7 @@ static inline struct page *snp_safe_alloc_page(void)
 
 int sev_vcpu_create(struct kvm_vcpu *vcpu);
 void sev_free_vcpu(struct kvm_vcpu *vcpu);
+void sev_vm_init(struct kvm *kvm);
 void sev_vm_destroy(struct kvm *kvm);
 void __init sev_set_cpu_caps(void);
 void __init sev_hardware_setup(void);
@@ -926,6 +927,7 @@ static inline struct page *snp_safe_alloc_page(void)
 
 static inline int sev_vcpu_create(struct kvm_vcpu *vcpu) { return 0; }
 static inline void sev_free_vcpu(struct kvm_vcpu *vcpu) {}
+static inline void sev_vm_init(struct kvm *kvm) {}
 static inline void sev_vm_destroy(struct kvm *kvm) {}
 static inline void __init sev_set_cpu_caps(void) {}
 static inline void __init sev_hardware_setup(void) {}
