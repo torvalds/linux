@@ -237,8 +237,6 @@ allOf:
         - required:
             - bias-disable
         - required:
-            - bias-high-impedance
-        - required:
             - bias-bus-hold
         - required:
             - bias-pull-up
@@ -250,8 +248,6 @@ allOf:
       oneOf:
         - required:
             - bias-disable
-        - required:
-            - bias-high-impedance
         - required:
             - bias-bus-hold
         - required:
