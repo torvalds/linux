@@ -717,20 +717,15 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
-VISIBLE_IF_KUNIT void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
-						     char *wmfw_filename,
-						     const struct firmware *coeff_firmware,
-						     char *coeff_filename)
+VISIBLE_IF_KUNIT void wm_adsp_release_firmware_files(struct wm_adsp_fw_files *fw)
 {
-	KUNIT_STATIC_STUB_REDIRECT(wm_adsp_release_firmware_files,
-				   wmfw_firmware, wmfw_filename,
-				   coeff_firmware, coeff_filename);
+	KUNIT_STATIC_STUB_REDIRECT(wm_adsp_release_firmware_files, fw);
 
-	release_firmware(wmfw_firmware);
-	kfree(wmfw_filename);
+	release_firmware(fw->wmfw.firmware);
+	kfree(fw->wmfw.filename);
 
-	release_firmware(coeff_firmware);
-	kfree(coeff_filename);
+	release_firmware(fw->coeff.firmware);
+	kfree(fw->coeff.filename);
 }
 EXPORT_SYMBOL_IF_KUNIT(wm_adsp_release_firmware_files);
 
@@ -745,7 +740,7 @@ VISIBLE_IF_KUNIT int wm_adsp_firmware_request(const struct firmware **firmware,
 EXPORT_SYMBOL_IF_KUNIT(wm_adsp_firmware_request);
 
 static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
-					 const struct firmware **firmware, char **filename,
+					 struct wm_adsp_fw_file *fw,
 					 const char *dir, const char *system_name,
 					 const char *asoc_component_prefix,
 					 const char *filetype)
@@ -761,25 +756,25 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		fwf = dsp->cs_dsp.name;
 
 	if (system_name && asoc_component_prefix)
-		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s-%s.%s", dir, dsp->part,
-				      fwf, wm_adsp_fw[dsp->fw].file, system_name,
-				      asoc_component_prefix, filetype);
+		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s-%s.%s", dir, dsp->part,
+					 fwf, wm_adsp_fw[dsp->fw].file, system_name,
+					 asoc_component_prefix, filetype);
 	else if (system_name)
-		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s.%s", dir, dsp->part,
-				      fwf, wm_adsp_fw[dsp->fw].file, system_name,
-				      filetype);
+		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s.%s", dir, dsp->part,
+					 fwf, wm_adsp_fw[dsp->fw].file, system_name,
+					 filetype);
 	else
-		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s.%s", dir, dsp->part, fwf,
-				      wm_adsp_fw[dsp->fw].file, filetype);
+		fw->filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s.%s", dir, dsp->part, fwf,
+					 wm_adsp_fw[dsp->fw].file, filetype);
 
-	if (*filename == NULL)
+	if (!fw->filename)
 		return -ENOMEM;
 
 	/*
 	 * Make sure that filename after dir is lower-case and any non-alpha-numeric
 	 * characters except full-stop are replaced with hyphens.
 	 */
-	s = *filename + strlen(dir);
+	s = fw->filename + strlen(dir);
 	while (*s) {
 		c = *s;
 		if (isalnum(c))
@@ -789,15 +784,15 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		s++;
 	}
 
-	ret = wm_adsp_firmware_request(firmware, *filename, cs_dsp->dev);
+	ret = wm_adsp_firmware_request(&fw->firmware, fw->filename, cs_dsp->dev);
 	if (ret < 0) {
-		adsp_dbg(dsp, "Failed to request '%s': %d\n", *filename, ret);
-		kfree(*filename);
-		*filename = NULL;
+		adsp_dbg(dsp, "Failed to request '%s': %d\n", fw->filename, ret);
+		kfree(fw->filename);
+		fw->filename = NULL;
 		if (ret != -ENOENT)
 			return ret;
 	} else {
-		adsp_dbg(dsp, "Found '%s'\n", *filename);
+		adsp_dbg(dsp, "Found '%s'\n", fw->filename);
 	}
 
 	return 0;
@@ -805,10 +800,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 
 static const char * const cirrus_dir = "cirrus/";
 VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
-						    const struct firmware **wmfw_firmware,
-						    char **wmfw_filename,
-						    const struct firmware **coeff_firmware,
-						    char **coeff_filename)
+						    struct wm_adsp_fw_files *fw)
 {
 	const char *system_name = dsp->system_name;
 	const char *suffix = dsp->component->name_prefix;
@@ -818,14 +810,14 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 		suffix = dsp->fwf_suffix;
 
 	if (system_name && suffix) {
-		ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+		ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
 						    cirrus_dir, system_name,
 						    suffix, "wmfw");
 		if (ret < 0)
 			goto err;
 
-		if (*wmfw_firmware) {
-			ret = wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+		if (fw->wmfw.firmware) {
+			ret = wm_adsp_request_firmware_file(dsp, &fw->coeff,
 							    cirrus_dir, system_name,
 							    suffix, "bin");
 			if (ret < 0)
@@ -836,45 +828,43 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 	}
 
 	if (system_name) {
-		ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+		ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
 						    cirrus_dir, system_name,
 						    NULL, "wmfw");
 		if (ret < 0)
 			goto err;
 
-		if (*wmfw_firmware || dsp->wmfw_optional) {
+		if (fw->wmfw.firmware || dsp->wmfw_optional) {
 			if (suffix) {
 				ret = wm_adsp_request_firmware_file(dsp,
-								    coeff_firmware, coeff_filename,
+								    &fw->coeff,
 								    cirrus_dir, system_name,
 								    suffix, "bin");
 				if (ret < 0)
 					goto err;
 			}
 
-			if (!*coeff_firmware) {
+			if (!fw->coeff.firmware) {
 				ret = wm_adsp_request_firmware_file(dsp,
-								    coeff_firmware, coeff_filename,
+								    &fw->coeff,
 								    cirrus_dir, system_name,
 								    NULL, "bin");
 				if (ret < 0)
 					goto err;
 			}
 
-			if (*wmfw_firmware || (dsp->wmfw_optional && *coeff_firmware))
+			if (fw->wmfw.firmware || (dsp->wmfw_optional && fw->coeff.firmware))
 				return 0;
 		}
 	}
 
 	/* Check legacy location */
-	ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
-					    "", NULL, NULL, "wmfw");
+	ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw, "", NULL, NULL, "wmfw");
 	if (ret < 0)
 		goto err;
 
-	if (*wmfw_firmware) {
-		ret = wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
-						    "", NULL, NULL, "bin");
+	if (fw->wmfw.firmware) {
+		ret = wm_adsp_request_firmware_file(dsp, &fw->coeff, "", NULL, NULL, "bin");
 		if (ret < 0)
 			goto err;
 
@@ -882,13 +872,13 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 	}
 
 	/* Fall back to generic wmfw and optional matching bin */
-	ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+	ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
 					    cirrus_dir, NULL, NULL, "wmfw");
 	if (ret < 0)
 		goto err;
 
-	if (*wmfw_firmware || dsp->wmfw_optional) {
-		ret = wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+	if (fw->wmfw.firmware || dsp->wmfw_optional) {
+		ret = wm_adsp_request_firmware_file(dsp, &fw->coeff,
 						    cirrus_dir, NULL, NULL, "bin");
 		if (ret < 0)
 			goto err;
@@ -903,8 +893,7 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 
 	ret = -ENOENT;
 err:
-	wm_adsp_release_firmware_files(*wmfw_firmware, *wmfw_filename,
-				       *coeff_firmware, *coeff_filename);
+	wm_adsp_release_firmware_files(fw);
 
 	return ret;
 }
@@ -939,29 +928,23 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct wm_adsp *dsps = snd_soc_component_get_drvdata(component);
 	struct wm_adsp *dsp = &dsps[w->shift];
+	struct wm_adsp_fw_files fw = { 0 };
 	int ret = 0;
-	char *wmfw_filename = NULL;
-	const struct firmware *wmfw_firmware = NULL;
-	char *coeff_filename = NULL;
-	const struct firmware *coeff_firmware = NULL;
 
 	dsp->component = component;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = wm_adsp_request_firmware_files(dsp,
-						     &wmfw_firmware, &wmfw_filename,
-						     &coeff_firmware, &coeff_filename);
+		ret = wm_adsp_request_firmware_files(dsp, &fw);
 		if (ret)
 			break;
 
 		ret = cs_dsp_adsp1_power_up(&dsp->cs_dsp,
-					    wmfw_firmware, wmfw_filename,
-					    coeff_firmware, coeff_filename,
+					    fw.wmfw.firmware, fw.wmfw.filename,
+					    fw.coeff.firmware, fw.coeff.filename,
 					    wm_adsp_fw_text[dsp->fw]);
 
-		wm_adsp_release_firmware_files(wmfw_firmware, wmfw_filename,
-					       coeff_firmware, coeff_filename);
+		wm_adsp_release_firmware_files(&fw);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		cs_dsp_adsp1_power_down(&dsp->cs_dsp);
@@ -1037,33 +1020,27 @@ EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
 int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware)
 {
+	struct wm_adsp_fw_files fw = { 0 };
 	int ret = 0;
-	char *wmfw_filename = NULL;
-	const struct firmware *wmfw_firmware = NULL;
-	char *coeff_filename = NULL;
-	const struct firmware *coeff_firmware = NULL;
 
 	if (load_firmware) {
-		ret = wm_adsp_request_firmware_files(dsp,
-						     &wmfw_firmware, &wmfw_filename,
-						     &coeff_firmware, &coeff_filename);
+		ret = wm_adsp_request_firmware_files(dsp, &fw);
 		if (ret)
 			return ret;
 	}
 
-	if (dsp->bin_mandatory && !coeff_firmware) {
+	if (dsp->bin_mandatory && !fw.coeff.firmware) {
 		ret = -ENOENT;
 		goto err;
 	}
 
 	ret = cs_dsp_power_up(&dsp->cs_dsp,
-			      wmfw_firmware, wmfw_filename,
-			      coeff_firmware, coeff_filename,
+			      fw.wmfw.firmware, fw.wmfw.filename,
+			      fw.coeff.firmware, fw.coeff.filename,
 			      wm_adsp_fw_text[dsp->fw]);
 
 err:
-	wm_adsp_release_firmware_files(wmfw_firmware, wmfw_filename,
-				       coeff_firmware, coeff_filename);
+	wm_adsp_release_firmware_files(&fw);
 
 	return ret;
 }

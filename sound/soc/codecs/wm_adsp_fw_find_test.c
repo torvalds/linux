@@ -16,10 +16,7 @@ KUNIT_DEFINE_ACTION_WRAPPER(_put_device_wrapper, put_device, struct device *);
 struct wm_adsp_fw_find_test {
 	struct wm_adsp dsp;
 
-	const struct firmware *found_wmfw_firmware;
-	const struct firmware *found_bin_firmware;
-	char *found_wmfw_filename;
-	char *found_bin_filename;
+	struct wm_adsp_fw_files found_fw;
 	char searched_fw_files[768];
 };
 
@@ -101,28 +98,24 @@ static void wm_adsp_fw_find_test_pick_file(struct kunit *test)
 				   wm_adsp_firmware_request,
 				   wm_adsp_fw_find_test_firmware_request_simple_stub);
 
-	ret = wm_adsp_request_firmware_files(dsp,
-					     &priv->found_wmfw_firmware,
-					     &priv->found_wmfw_filename,
-					     &priv->found_bin_firmware,
-					     &priv->found_bin_filename);
+	ret = wm_adsp_request_firmware_files(dsp, &priv->found_fw);
 	kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
 	KUNIT_EXPECT_EQ_MSG(test, ret,
 			    (params->expect_wmfw || params->expect_bin) ? 0 : -ENOENT,
 			    "%s\n", priv->searched_fw_files);
 
-	KUNIT_EXPECT_EQ_MSG(test, !!priv->found_wmfw_filename, !!params->expect_wmfw,
+	KUNIT_EXPECT_EQ_MSG(test, !!priv->found_fw.wmfw.filename, !!params->expect_wmfw,
 			    "%s\n", priv->searched_fw_files);
-	KUNIT_EXPECT_EQ_MSG(test, !!priv->found_bin_filename, !!params->expect_bin,
+	KUNIT_EXPECT_EQ_MSG(test, !!priv->found_fw.coeff.filename, !!params->expect_bin,
 			    "%s\n", priv->searched_fw_files);
 
 	if (params->expect_wmfw) {
-		KUNIT_EXPECT_STREQ_MSG(test, priv->found_wmfw_filename, params->expect_wmfw,
+		KUNIT_EXPECT_STREQ_MSG(test, priv->found_fw.wmfw.filename, params->expect_wmfw,
 				       "%s\n", priv->searched_fw_files);
 	}
 
 	if (params->expect_bin) {
-		KUNIT_EXPECT_STREQ_MSG(test, priv->found_bin_filename, params->expect_bin,
+		KUNIT_EXPECT_STREQ_MSG(test, priv->found_fw.coeff.filename, params->expect_bin,
 				       "%s\n", priv->searched_fw_files);
 	}
 }
@@ -181,27 +174,23 @@ static void wm_adsp_fw_find_test_search_order(struct kunit *test)
 				   wm_adsp_firmware_request,
 				   wm_adsp_fw_find_test_firmware_request_stub);
 
-	wm_adsp_request_firmware_files(dsp,
-				       &priv->found_wmfw_firmware,
-				       &priv->found_wmfw_filename,
-				       &priv->found_bin_firmware,
-				       &priv->found_bin_filename);
+	wm_adsp_request_firmware_files(dsp, &priv->found_fw);
 
 	kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
 
 	KUNIT_EXPECT_STREQ(test, priv->searched_fw_files, params->expected_searches);
 
-	KUNIT_EXPECT_EQ(test, !!priv->found_wmfw_filename, !!params->expect_wmfw);
+	KUNIT_EXPECT_EQ(test, !!priv->found_fw.wmfw.filename, !!params->expect_wmfw);
 	if (params->expect_wmfw)
-		KUNIT_EXPECT_STREQ(test, priv->found_wmfw_filename, params->expect_wmfw);
+		KUNIT_EXPECT_STREQ(test, priv->found_fw.wmfw.filename, params->expect_wmfw);
 
-	KUNIT_EXPECT_EQ(test, !!priv->found_bin_filename, !!params->expect_bin);
+	KUNIT_EXPECT_EQ(test, !!priv->found_fw.coeff.filename, !!params->expect_bin);
 	if (params->expect_bin)
-		KUNIT_EXPECT_STREQ(test, priv->found_bin_filename, params->expect_bin);
+		KUNIT_EXPECT_STREQ(test, priv->found_fw.coeff.filename, params->expect_bin);
 
 	/* Either we get a filename and firmware, or neither */
-	KUNIT_EXPECT_EQ(test, !!priv->found_wmfw_filename, !!priv->found_wmfw_firmware);
-	KUNIT_EXPECT_EQ(test, !!priv->found_bin_filename, !!priv->found_bin_firmware);
+	KUNIT_EXPECT_EQ(test, !!priv->found_fw.wmfw.filename, !!priv->found_fw.wmfw.firmware);
+	KUNIT_EXPECT_EQ(test, !!priv->found_fw.coeff.filename, !!priv->found_fw.coeff.firmware);
 }
 
 static void wm_adsp_fw_find_test_find_firmware_byindex(struct kunit *test)
@@ -221,12 +210,7 @@ static void wm_adsp_fw_find_test_find_firmware_byindex(struct kunit *test)
 					   wm_adsp_firmware_request,
 					   wm_adsp_fw_find_test_firmware_request_stub);
 
-		wm_adsp_request_firmware_files(dsp,
-					       &priv->found_wmfw_firmware,
-					       &priv->found_wmfw_filename,
-					       &priv->found_bin_firmware,
-					       &priv->found_bin_filename);
-
+		wm_adsp_request_firmware_files(dsp, &priv->found_fw);
 		kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
 
 		KUNIT_EXPECT_NOT_NULL_MSG(test,
@@ -278,8 +262,7 @@ static void wm_adsp_fw_find_test_case_exit(struct kunit *test)
 	 * dummies not allocated by the real request_firmware() call they
 	 * must not be passed to release_firmware().
 	 */
-	wm_adsp_release_firmware_files(NULL, priv->found_wmfw_filename,
-				       NULL, priv->found_bin_filename);
+	wm_adsp_release_firmware_files(&priv->found_fw);
 }
 
 static void wm_adsp_fw_find_test_param_desc(const struct wm_adsp_fw_find_test_params *param,
