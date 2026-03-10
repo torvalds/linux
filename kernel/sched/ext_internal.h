@@ -1042,7 +1042,7 @@ struct scx_sched {
 	struct kobject		kobj;
 
 	struct kthread_worker	*helper;
-	struct irq_work		error_irq_work;
+	struct irq_work		disable_irq_work;
 	struct kthread_work	disable_work;
 	struct timer_list	bypass_lb_timer;
 	struct rcu_work		rcu_work;

@@ -4498,7 +4498,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_dispatch_q *dsq;
 	int cpu, node;
 
-	irq_work_sync(&sch->error_irq_work);
+	irq_work_sync(&sch->disable_irq_work);
 	kthread_destroy_worker(sch->helper);
 	timer_shutdown_sync(&sch->bypass_lb_timer);
 
@@ -5679,7 +5679,7 @@ static void scx_disable(struct scx_sched *sch, enum scx_exit_kind kind)
 {
 	guard(preempt)();
 	if (scx_claim_exit(sch, kind))
-		kthread_queue_work(sch->helper, &sch->disable_work);
+		irq_work_queue(&sch->disable_irq_work);
 }
 
 static void dump_newline(struct seq_buf *s)
@@ -6012,9 +6012,9 @@ static void scx_dump_state(struct scx_sched *sch, struct scx_exit_info *ei,
 		       trunc_marker, sizeof(trunc_marker));
 }
 
-static void scx_error_irq_workfn(struct irq_work *irq_work)
+static void scx_disable_irq_workfn(struct irq_work *irq_work)
 {
-	struct scx_sched *sch = container_of(irq_work, struct scx_sched, error_irq_work);
+	struct scx_sched *sch = container_of(irq_work, struct scx_sched, disable_irq_work);
 	struct scx_exit_info *ei = sch->exit_info;
 
 	if (ei->kind >= SCX_EXIT_ERROR)
@@ -6048,7 +6048,7 @@ static bool scx_vexit(struct scx_sched *sch,
 	ei->kind = kind;
 	ei->reason = scx_exit_reason(ei->kind);
 
-	irq_work_queue(&sch->error_irq_work);
+	irq_work_queue(&sch->disable_irq_work);
 	return true;
 }
 
@@ -6184,7 +6184,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 
 	sch->slice_dfl = SCX_SLICE_DFL;
 	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
-	init_irq_work(&sch->error_irq_work, scx_error_irq_workfn);
+	init_irq_work(&sch->disable_irq_work, scx_disable_irq_workfn);
 	kthread_init_work(&sch->disable_work, scx_disable_workfn);
 	timer_setup(&sch->bypass_lb_timer, scx_bypass_lb_timerfn, 0);
 	sch->ops = *ops;
