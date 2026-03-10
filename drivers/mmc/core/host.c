@@ -624,11 +624,23 @@ static int mmc_validate_host_caps(struct mmc_host *host)
 		return -EINVAL;
 	}
 
+	/* UHS/DDR/HS200 modes require at least 4-bit bus */
+	if (!(caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA)) &&
+	    ((caps & (MMC_CAP_UHS | MMC_CAP_DDR)) || (caps2 & MMC_CAP2_HS200))) {
+		dev_warn(dev, "drop UHS/DDR/HS200 support since 1-bit bus only\n");
+		caps &= ~(MMC_CAP_UHS | MMC_CAP_DDR);
+		caps2 &= ~MMC_CAP2_HS200;
+	}
+
+	/* HS400 and HS400ES modes require 8-bit bus */
 	if (caps2 & (MMC_CAP2_HS400_ES | MMC_CAP2_HS400) &&
 	    !(caps & MMC_CAP_8_BIT_DATA) && !(caps2 & MMC_CAP2_NO_MMC)) {
 		dev_warn(dev, "drop HS400 support since no 8-bit bus\n");
-		host->caps2 = caps2 & ~MMC_CAP2_HS400_ES & ~MMC_CAP2_HS400;
+		caps2 &= ~(MMC_CAP2_HS400_ES | MMC_CAP2_HS400);
 	}
+
+	host->caps = caps;
+	host->caps2 = caps2;
 
 	return 0;
 }
