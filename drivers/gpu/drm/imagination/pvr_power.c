@@ -92,9 +92,9 @@ pvr_power_request_pwr_off(struct pvr_device *pvr_dev)
 static int
 pvr_power_fw_disable(struct pvr_device *pvr_dev, bool hard_reset, bool rpm_suspend)
 {
-	if (!hard_reset) {
-		int err;
+	int err;
 
+	if (!hard_reset) {
 		cancel_delayed_work_sync(&pvr_dev->watchdog.work);
 
 		err = pvr_power_request_idle(pvr_dev);
@@ -107,33 +107,46 @@ pvr_power_fw_disable(struct pvr_device *pvr_dev, bool hard_reset, bool rpm_suspe
 	}
 
 	if (rpm_suspend) {
-		/* Wait for late processing of GPU or firmware IRQs in other cores */
-		synchronize_irq(pvr_dev->irq);
+		/* This also waits for late processing of GPU or firmware IRQs in other cores */
+		disable_irq(pvr_dev->irq);
 	}
 
-	return pvr_fw_stop(pvr_dev);
+	err = pvr_fw_stop(pvr_dev);
+	if (err && rpm_suspend)
+		enable_irq(pvr_dev->irq);
+
+	return err;
 }
 
 static int
-pvr_power_fw_enable(struct pvr_device *pvr_dev)
+pvr_power_fw_enable(struct pvr_device *pvr_dev, bool rpm_resume)
 {
 	int err;
 
+	if (rpm_resume)
+		enable_irq(pvr_dev->irq);
+
 	err = pvr_fw_start(pvr_dev);
 	if (err)
-		return err;
+		goto out;
 
 	err = pvr_wait_for_fw_boot(pvr_dev);
 	if (err) {
 		drm_err(from_pvr_device(pvr_dev), "Firmware failed to boot\n");
 		pvr_fw_stop(pvr_dev);
-		return err;
+		goto out;
 	}
 
 	queue_delayed_work(pvr_dev->sched_wq, &pvr_dev->watchdog.work,
 			   msecs_to_jiffies(WATCHDOG_TIME_MS));
 
 	return 0;
+
+out:
+	if (rpm_resume)
+		disable_irq(pvr_dev->irq);
+
+	return err;
 }
 
 bool
@@ -396,7 +409,7 @@ pvr_power_device_resume(struct device *dev)
 		goto err_drm_dev_exit;
 
 	if (pvr_dev->fw_dev.booted) {
-		err = pvr_power_fw_enable(pvr_dev);
+		err = pvr_power_fw_enable(pvr_dev, true);
 		if (err)
 			goto err_power_off;
 	}
@@ -555,7 +568,7 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 
 			pvr_fw_irq_clear(pvr_dev);
 
-			err = pvr_power_fw_enable(pvr_dev);
+			err = pvr_power_fw_enable(pvr_dev, false);
 		}
 
 		if (err && hard_reset)
