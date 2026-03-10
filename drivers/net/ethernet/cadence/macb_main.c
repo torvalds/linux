@@ -4646,7 +4646,7 @@ static int macb_clk_init(struct platform_device *pdev, struct clk **pclk,
 					  tsu_clk);
 }
 
-static int macb_init(struct platform_device *pdev)
+static int macb_init_dflt(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	unsigned int hw_q, q;
@@ -4799,6 +4799,15 @@ static int macb_init(struct platform_device *pdev)
 	macb_writel(bp, NCFGR, val);
 
 	return 0;
+}
+
+static int macb_init(struct platform_device *pdev,
+		     const struct macb_config *config)
+{
+	if (config->init)
+		return config->init(pdev);
+	else
+		return macb_init_dflt(pdev);
 }
 
 static const struct macb_usrio_config macb_default_usrio = {
@@ -5301,7 +5310,7 @@ static int fu540_c000_init(struct platform_device *pdev)
 	if (IS_ERR(mgmt->reg))
 		return PTR_ERR(mgmt->reg);
 
-	return macb_init(pdev);
+	return macb_init_dflt(pdev);
 }
 
 static int init_reset_optional(struct platform_device *pdev)
@@ -5351,7 +5360,7 @@ static int init_reset_optional(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret, "failed to reset controller");
 	}
 
-	ret = macb_init(pdev);
+	ret = macb_init_dflt(pdev);
 
 err_out_phy_exit:
 	if (ret)
@@ -5376,7 +5385,7 @@ static int eyeq5_init(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to init PHY\n");
 
-	ret = macb_init(pdev);
+	ret = macb_init_dflt(pdev);
 	if (ret)
 		phy_exit(bp->phy);
 	return ret;
@@ -5402,28 +5411,24 @@ static const struct macb_config fu540_c000_config = {
 
 static const struct macb_config at91sam9260_config = {
 	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d3macb_config = {
 	.caps = MACB_CAPS_SG_DISABLED |
 		MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config pc302gem_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d2_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.jumbo_max_len = 10240,
 	.usrio = &macb_default_usrio,
 };
@@ -5431,7 +5436,6 @@ static const struct macb_config sama5d2_config = {
 static const struct macb_config sama5d29_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
@@ -5439,7 +5443,6 @@ static const struct macb_config sama5d3_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE |
 		MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.jumbo_max_len = 10240,
 	.usrio = &macb_default_usrio,
 };
@@ -5447,7 +5450,6 @@ static const struct macb_config sama5d3_config = {
 static const struct macb_config sama5d4_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.dma_burst_length = 4,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
@@ -5460,7 +5462,6 @@ static const struct macb_config emac_config = {
 
 static const struct macb_config np4_config = {
 	.caps = MACB_CAPS_USRIO_DISABLED,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
@@ -5478,7 +5479,6 @@ static const struct macb_config zynq_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_NO_GIGABIT_HALF |
 		MACB_CAPS_NEEDS_RSTONUBR,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 };
 
@@ -5498,7 +5498,6 @@ static const struct macb_config sama7g5_gem_config = {
 		MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII |
 		MACB_CAPS_MIIONRGMII | MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &sama7g5_usrio,
 };
 
@@ -5507,7 +5506,6 @@ static const struct macb_config sama7g5_emac_config = {
 		MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_MIIONRGMII |
 		MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &sama7g5_usrio,
 };
 
@@ -5538,7 +5536,6 @@ static const struct macb_config raspberrypi_rp1_config = {
 		MACB_CAPS_GEM_HAS_PTP |
 		MACB_CAPS_EEE,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 	.jumbo_max_len = 10240,
 };
@@ -5578,7 +5575,6 @@ static const struct macb_config default_gem_config = {
 		MACB_CAPS_JUMBO |
 		MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.init = macb_init,
 	.usrio = &macb_default_usrio,
 	.jumbo_max_len = 10240,
 };
@@ -5748,7 +5744,7 @@ static int macb_probe(struct platform_device *pdev)
 		bp->phy_interface = interface;
 
 	/* IP specific init */
-	err = macb_config->init(pdev);
+	err = macb_init(pdev, macb_config);
 	if (err)
 		goto err_out_free_netdev;
 
