@@ -62,8 +62,7 @@ obj64-$(CONFIG_ALTIVEC)	+= vmx-helper.o
 obj64-$(CONFIG_KPROBES_SANITY_TEST)	+= test_emulate_step.o \
 					   test_emulate_step_exec_instr.o
 
-obj-y			+= checksum_$(BITS).o checksum_wrappers.o \
-			   string_$(BITS).o
+obj-y			+= checksum_$(BITS).o string_$(BITS).o
 
 obj-y			+= sstep.o
 obj-$(CONFIG_PPC_FPU)	+= ldstfp.o
