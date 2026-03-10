@@ -5247,6 +5247,17 @@ static s32 scx_link_sched(struct scx_sched *sch)
 		s32 ret;
 
 		if (parent) {
+			/*
+			 * scx_claim_exit() propagates exit_kind transition to
+			 * its sub-scheds while holding scx_sched_lock - either
+			 * we can see the parent's non-NONE exit_kind or the
+			 * parent can shoot us down.
+			 */
+			if (atomic_read(&parent->exit_kind) != SCX_EXIT_NONE) {
+				scx_error(sch, "parent disabled");
+				return -ENOENT;
+			}
+
 			ret = rhashtable_lookup_insert_fast(&scx_sched_hash,
 					&sch->hash_node, scx_sched_hash_params);
 			if (ret) {
@@ -5637,6 +5648,11 @@ static bool scx_claim_exit(struct scx_sched *sch, enum scx_exit_kind kind)
 	 * helper kthread and can run in parallel. While most of disabling is
 	 * serialized, running them in separate threads allows parallelizing
 	 * ops.exit(), which can take arbitrarily long prolonging bypass mode.
+	 *
+	 * To guarantee forward progress, this propagation must be in-line so
+	 * that ->aborting is synchronously asserted for all sub-scheds. The
+	 * propagation is also the interlocking point against sub-sched
+	 * attachment. See scx_link_sched().
 	 *
 	 * This doesn't cause recursions as propagation only takes place for
 	 * non-propagation exits.
