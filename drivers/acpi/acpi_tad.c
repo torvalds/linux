@@ -586,6 +586,11 @@ static const struct attribute_group acpi_tad_attr_group = {
 	.is_visible = acpi_tad_attr_is_visible,
 };
 
+static const struct attribute_group *acpi_tad_attr_groups[] = {
+	&acpi_tad_attr_group,
+	NULL,
+};
+
 #ifdef CONFIG_RTC_CLASS
 /* RTC class device interface */
 
@@ -663,8 +668,6 @@ static void acpi_tad_remove(struct platform_device *pdev)
 
 	device_init_wakeup(dev, false);
 
-	sysfs_remove_group(&dev->kobj, &acpi_tad_attr_group);
-
 	scoped_guard(pm_runtime_noresume, dev) {
 		if (dd->capabilities & ACPI_TAD_AC_WAKE) {
 			acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
@@ -687,7 +690,6 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	struct acpi_tad_driver_data *dd;
 	acpi_status status;
 	unsigned long long caps;
-	int ret;
 
 	/*
 	 * Initialization failure messages are mostly about firmware issues, so
@@ -731,12 +733,6 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_suspend(dev);
 
-	ret = sysfs_create_group(&dev->kobj, &acpi_tad_attr_group);
-	if (ret) {
-		acpi_tad_remove(pdev);
-		return ret;
-	}
-
 	if (caps & ACPI_TAD_RT)
 		acpi_tad_register_rtc(dev);
 
@@ -752,6 +748,7 @@ static struct platform_driver acpi_tad_driver = {
 	.driver = {
 		.name = "acpi-tad",
 		.acpi_match_table = acpi_tad_ids,
+		.dev_groups = acpi_tad_attr_groups,
 	},
 	.probe = acpi_tad_probe,
 	.remove = acpi_tad_remove,
