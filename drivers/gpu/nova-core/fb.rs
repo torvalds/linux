@@ -100,6 +100,12 @@ impl SysmemFlush {
 
 pub(crate) struct FbRange(Range<u64>);
 
+impl FbRange {
+    pub(crate) fn len(&self) -> u64 {
+        self.0.end - self.0.start
+    }
+}
+
 impl From<Range<u64>> for FbRange {
     fn from(range: Range<u64>) -> Self {
         Self(range)
@@ -118,7 +124,7 @@ impl fmt::Debug for FbRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Use alternate format ({:#?}) to include size, compact format ({:?}) for just the range.
         if f.alternate() {
-            let size = self.0.end - self.0.start;
+            let size = self.len();
 
             if size < usize_as_u64(SZ_1M) {
                 let size_kib = size / usize_as_u64(SZ_1K);
