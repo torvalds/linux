@@ -116,6 +116,16 @@ static struct syscore aplic_syscore = {
 	.ops = &aplic_syscore_ops,
 };
 
+static bool aplic_syscore_registered __ro_after_init;
+
+static void aplic_syscore_init(void)
+{
+	if (!aplic_syscore_registered) {
+		register_syscore(&aplic_syscore);
+		aplic_syscore_registered = true;
+	}
+}
+
 static int aplic_pm_notifier(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct aplic_priv *priv = container_of(nb, struct aplic_priv, genpd_nb);
@@ -379,7 +389,7 @@ static int aplic_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	register_syscore(&aplic_syscore);
+	aplic_syscore_init();
 
 #ifdef CONFIG_ACPI
 	if (!acpi_disabled)
