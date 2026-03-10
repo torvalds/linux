@@ -1215,7 +1215,7 @@ __fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int ind
 	}
 	if (rstc_id < 0) {
 		rstc = ERR_PTR(rstc_id);
-			goto out_put;
+		goto out_put;
 	}
 
 	flags &= ~RESET_CONTROL_FLAGS_BIT_OPTIONAL;
