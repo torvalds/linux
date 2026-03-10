@@ -8,6 +8,10 @@
 
 char _license[] SEC("license") = "GPL";
 
+#ifndef SMC_HS_CTRL_NAME_MAX
+#define SMC_HS_CTRL_NAME_MAX 16
+#endif
+
 enum {
 	BPF_SMC_LISTEN	= 10,
 };
@@ -16,6 +20,20 @@ struct smc_sock___local {
 	struct sock sk;
 	struct smc_sock *listen_smc;
 	bool use_fallback;
+} __attribute__((preserve_access_index));
+
+struct smc_hs_ctrl___local {
+	char name[SMC_HS_CTRL_NAME_MAX];
+	int (*syn_option)(struct tcp_sock *);
+	int (*synack_option)(const struct tcp_sock  *, struct inet_request_sock *);
+} __attribute__((preserve_access_index));
+
+struct netns_smc___local {
+	struct smc_hs_ctrl___local *hs_ctrl;
+} __attribute__((preserve_access_index));
+
+struct net___local {
+	struct netns_smc___local smc;
 } __attribute__((preserve_access_index));
 
 int smc_cnt = 0;
@@ -88,8 +106,14 @@ int BPF_PROG(smc_run, int family, int type, int protocol)
 
 	task = bpf_get_current_task_btf();
 	/* Prevent from affecting other tests */
-	if (!task || !task->nsproxy->net_ns->smc.hs_ctrl)
+	if (!task) {
 		return protocol;
+	} else {
+		struct net___local *net = (struct net___local *)task->nsproxy->net_ns;
+
+		if (!bpf_core_field_exists(struct net___local, smc) || !net->smc.hs_ctrl)
+			return protocol;
+	}
 
 	return IPPROTO_SMC;
 }
@@ -110,7 +134,7 @@ int BPF_PROG(bpf_smc_set_tcp_option, struct tcp_sock *tp)
 }
 
 SEC(".struct_ops")
-struct smc_hs_ctrl  linkcheck = {
+struct smc_hs_ctrl___local  linkcheck = {
 	.name		= "linkcheck",
 	.syn_option	= (void *)bpf_smc_set_tcp_option,
 	.synack_option	= (void *)bpf_smc_set_tcp_option_cond,
