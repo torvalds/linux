@@ -53,6 +53,7 @@ PATCH_TMP_DIR="$TMP_DIR/tmp"
 KLP_DIFF_LOG="$DIFF_DIR/diff.log"
 
 grep0() {
+	# shellcheck disable=SC2317
 	command grep "$@" || true
 }
 
@@ -550,7 +551,6 @@ copy_orig_objects() {
 	for _file in "${files[@]}"; do
 		local rel_file="${_file/.ko/.o}"
 		local file="$OBJ/$rel_file"
-		local file_dir="$(dirname "$file")"
 		local orig_file="$ORIG_DIR/$rel_file"
 		local orig_dir="$(dirname "$orig_file")"
 
