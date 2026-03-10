@@ -3213,7 +3213,8 @@ struct rtw89_phy_iter_ra_data {
 
 static void __rtw89_phy_c2h_ra_rpt_iter(struct rtw89_sta_link *rtwsta_link,
 					struct ieee80211_link_sta *link_sta,
-					struct rtw89_phy_iter_ra_data *ra_data)
+					struct rtw89_phy_iter_ra_data *ra_data,
+					bool *changed)
 {
 	struct rtw89_dev *rtwdev = ra_data->rtwdev;
 	const struct rtw89_c2h_ra_rpt *c2h =
@@ -3222,7 +3223,7 @@ static void __rtw89_phy_c2h_ra_rpt_iter(struct rtw89_sta_link *rtwsta_link,
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool format_v1 = chip->chip_gen == RTW89_CHIP_BE;
 	u8 mode, rate, bw, giltf, mac_id;
-	u16 legacy_bitrate;
+	u16 legacy_bitrate, amsdu_len;
 	bool valid;
 	u8 mcs = 0;
 	u8 t;
@@ -3319,7 +3320,13 @@ static void __rtw89_phy_c2h_ra_rpt_iter(struct rtw89_sta_link *rtwsta_link,
 			     u16_encode_bits(mode, RTW89_HW_RATE_MASK_MOD) |
 			     u16_encode_bits(rate, RTW89_HW_RATE_MASK_VAL);
 	ra_report->might_fallback_legacy = mcs <= 2;
-	link_sta->agg.max_rc_amsdu_len = get_max_amsdu_len(rtwdev, ra_report);
+
+	amsdu_len = get_max_amsdu_len(rtwdev, ra_report);
+	if (link_sta->agg.max_rc_amsdu_len != amsdu_len) {
+		link_sta->agg.max_rc_amsdu_len = amsdu_len;
+		*changed = true;
+	}
+
 	rtwsta_link->max_agg_wait = link_sta->agg.max_rc_amsdu_len / 1500 - 1;
 }
 
@@ -3330,13 +3337,17 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta_link *rtwsta_link;
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
+	bool changed = false;
 
 	rcu_read_lock();
 
 	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
 		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, false);
-		__rtw89_phy_c2h_ra_rpt_iter(rtwsta_link, link_sta, ra_data);
+		__rtw89_phy_c2h_ra_rpt_iter(rtwsta_link, link_sta, ra_data, &changed);
 	}
+
+	if (changed)
+		ieee80211_sta_recalc_aggregates(sta);
 
 	rcu_read_unlock();
 }
