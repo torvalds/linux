@@ -276,7 +276,6 @@ void rtw89_config_roc_chandef(struct rtw89_dev *rtwdev,
 		}
 
 		hal->roc_chandef = *chandef;
-		hal->roc_link_index = rtw89_vif_link_inst_get_index(rtwvif_link);
 	} else {
 		cur = atomic_cmpxchg(&hal->roc_chanctx_idx, idx,
 				     RTW89_CHANCTX_IDLE);
@@ -389,7 +388,6 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	enum rtw89_chanctx_idx chanctx_idx;
-	enum rtw89_chanctx_idx roc_idx;
 	enum rtw89_entity_mode mode;
 	u8 role_index;
 
@@ -418,15 +416,6 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 	chanctx_idx = mgnt->chanctx_tbl[role_index][link_index];
 	if (chanctx_idx == RTW89_CHANCTX_IDLE)
 		goto dflt;
-
-	roc_idx = atomic_read(&hal->roc_chanctx_idx);
-	if (roc_idx != RTW89_CHANCTX_IDLE) {
-		/* ROC is ongoing (given ROC runs on @hal->roc_link_index).
-		 * If @link_index is the same, get the ongoing ROC chanctx.
-		 */
-		if (link_index == hal->roc_link_index)
-			chanctx_idx = roc_idx;
-	}
 
 	return rtw89_chan_get(rtwdev, chanctx_idx);
 
