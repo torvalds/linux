@@ -1290,6 +1290,7 @@ void drm_bridge_unplug(struct drm_bridge *bridge);
 
 struct drm_bridge *drm_bridge_get(struct drm_bridge *bridge);
 void drm_bridge_put(struct drm_bridge *bridge);
+void drm_bridge_clear_and_put(struct drm_bridge **bridge_pp);
 
 /* Cleanup action for use with __free() */
 DEFINE_FREE(drm_bridge_put, struct drm_bridge *, if (_T) drm_bridge_put(_T))
