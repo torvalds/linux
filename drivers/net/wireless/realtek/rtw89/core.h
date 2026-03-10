@@ -1126,6 +1126,7 @@ struct rtw89_rx_desc_info {
 	bool addr_cam_valid;
 	u8 addr_cam_id;
 	u8 sec_cam_id;
+	u8 sec_type;
 	u8 mac_id;
 	u16 offset;
 	u16 rxd_len;
@@ -6153,6 +6154,12 @@ struct rtw89_beacon_track_info {
 	u32 tbtt_diff_th;
 };
 
+struct rtw89_tid_stats {
+	s64 last_pn;
+	u16 last_sn;
+	bool started;
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -6359,6 +6366,7 @@ struct rtw89_sta {
 	struct sk_buff_head roc_queue;
 
 	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];
+	struct rtw89_tid_stats tid_rx_stats[IEEE80211_NUM_TIDS];
 	DECLARE_BITMAP(ampdu_map, IEEE80211_NUM_TIDS);
 
 	DECLARE_BITMAP(pairwise_sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
@@ -7769,6 +7777,9 @@ int rtw89_core_sta_link_remove(struct rtw89_dev *rtwdev,
 void rtw89_core_set_tid_config(struct rtw89_dev *rtwdev,
 			       struct ieee80211_sta *sta,
 			       struct cfg80211_tid_config *tid_config);
+void rtw89_core_tid_rx_stats_ctrl(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+				  struct ieee80211_ampdu_params *params, bool enable);
+void rtw89_core_tid_rx_stats_reset(struct rtw89_dev *rtwdev);
 void rtw89_core_rfkill_poll(struct rtw89_dev *rtwdev, bool force);
 void rtw89_check_quirks(struct rtw89_dev *rtwdev, const struct dmi_system_id *quirks);
 int rtw89_core_init(struct rtw89_dev *rtwdev);
