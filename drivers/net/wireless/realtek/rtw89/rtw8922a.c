@@ -492,7 +492,7 @@ static int rtw8922a_pwr_off_func(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_write32(rtwdev, R_BE_WLLPS_CTRL, 0x0000A1B2);
-	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_XTAL_OFF_A_DIE);
+	rtw89_write32_clr(rtwdev, R_BE_SYS_PW_CTRL, B_BE_XTAL_OFF_A_DIE);
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_APFM_SWLPS);
 	rtw89_write32(rtwdev, R_BE_UDM1, 0);
 
