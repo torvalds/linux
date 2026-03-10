@@ -4729,8 +4729,11 @@ void sched_cancel_fork(struct task_struct *p)
 	scx_cancel_fork(p);
 }
 
+static void sched_mm_cid_fork(struct task_struct *t);
+
 void sched_post_fork(struct task_struct *p)
 {
+	sched_mm_cid_fork(p);
 	uclamp_post_fork(p);
 	scx_post_fork(p);
 }
@@ -10646,12 +10649,13 @@ static void mm_cid_do_fixup_tasks_to_cpus(struct mm_struct *mm)
 	 * possible switch back to per task mode happens either in the
 	 * deferred handler function or in the next fork()/exit().
 	 *
-	 * The caller has already transferred. The newly incoming task is
-	 * already accounted for, but not yet visible.
+	 * The caller has already transferred so remove it from the users
+	 * count. The incoming task is already visible and has mm_cid.active,
+	 * but has task::mm_cid::cid == UNSET. Still it needs to be accounted
+	 * for. Concurrent fork()s might add more threads, but all of them have
+	 * task::mm_cid::active = 0, so they don't affect the accounting here.
 	 */
-	users = mm->mm_cid.users - 2;
-	if (!users)
-		return;
+	users = mm->mm_cid.users - 1;
 
 	guard(rcu)();
 	for_other_threads(current, t) {
@@ -10688,12 +10692,15 @@ static bool sched_mm_cid_add_user(struct task_struct *t, struct mm_struct *mm)
 	return mm_update_max_cids(mm);
 }
 
-void sched_mm_cid_fork(struct task_struct *t)
+static void sched_mm_cid_fork(struct task_struct *t)
 {
 	struct mm_struct *mm = t->mm;
 	bool percpu;
 
-	WARN_ON_ONCE(!mm || t->mm_cid.cid != MM_CID_UNSET);
+	if (!mm)
+		return;
+
+	WARN_ON_ONCE(t->mm_cid.cid != MM_CID_UNSET);
 
 	guard(mutex)(&mm->mm_cid.mutex);
 	scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
@@ -10885,6 +10892,7 @@ void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 }
 #else /* CONFIG_SCHED_MM_CID */
 static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpumask *affmsk) { }
+static inline void sched_mm_cid_fork(struct task_struct *t) { }
 #endif /* !CONFIG_SCHED_MM_CID */
 
 static DEFINE_PER_CPU(struct sched_change_ctx, sched_change_ctx);
