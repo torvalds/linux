@@ -2927,17 +2927,24 @@ static int snp_decommission_context(struct kvm *kvm)
 
 void sev_vm_init(struct kvm *kvm)
 {
-	int type = kvm->arch.vm_type;
-
-	if (type == KVM_X86_DEFAULT_VM || type == KVM_X86_SW_PROTECTED_VM)
-		return;
-
-	kvm->arch.has_protected_state = (type == KVM_X86_SEV_ES_VM ||
-					 type == KVM_X86_SNP_VM);
-	to_kvm_sev_info(kvm)->need_init = true;
-
-	kvm->arch.has_private_mem = (type == KVM_X86_SNP_VM);
-	kvm->arch.pre_fault_allowed = !kvm->arch.has_private_mem;
+	switch (kvm->arch.vm_type) {
+	case KVM_X86_DEFAULT_VM:
+	case KVM_X86_SW_PROTECTED_VM:
+		break;
+	case KVM_X86_SNP_VM:
+		kvm->arch.has_private_mem = true;
+		fallthrough;
+	case KVM_X86_SEV_ES_VM:
+		kvm->arch.has_protected_state = true;
+		fallthrough;
+	case KVM_X86_SEV_VM:
+		kvm->arch.pre_fault_allowed = !kvm->arch.has_private_mem;
+		to_kvm_sev_info(kvm)->need_init = true;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported VM type %u", kvm->arch.vm_type);
+		break;
+	}
 }
 
 void sev_vm_destroy(struct kvm *kvm)
