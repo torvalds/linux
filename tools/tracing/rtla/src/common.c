@@ -42,6 +42,18 @@ static void set_signals(struct common_params *params)
 }
 
 /*
+ * unset_signals - unsets the signals to stop the tool
+ */
+static void unset_signals(struct common_params *params)
+{
+	signal(SIGINT, SIG_DFL);
+	if (params->duration) {
+		alarm(0);
+		signal(SIGALRM, SIG_DFL);
+	}
+}
+
+/*
  * getopt_auto - auto-generates optstring from long_options
  */
 int getopt_auto(int argc, char **argv, const struct option *long_opts)
@@ -351,7 +363,7 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 
 	retval = ops->main(tool);
 	if (retval)
-		goto out_trace;
+		goto out_signals;
 
 	if (params->user_workload && !params->user.stopped_running) {
 		params->user.should_run = 0;
@@ -373,6 +385,8 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 	if (ops->analyze)
 		ops->analyze(tool, stopped);
 
+out_signals:
+	unset_signals(params);
 out_trace:
 	trace_events_destroy(&tool->record->trace, params->events);
 	params->events = NULL;
