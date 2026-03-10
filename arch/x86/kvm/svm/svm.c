@@ -4245,8 +4245,10 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 
 static int svm_vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
+#ifdef CONFIG_KVM_AMD_SEV
 	if (to_kvm_sev_info(vcpu->kvm)->need_init)
 		return -EINVAL;
+#endif
 
 	return 1;
 }

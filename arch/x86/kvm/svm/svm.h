@@ -92,6 +92,7 @@ enum {
 /* TPR and CR2 are always written before VMRUN */
 #define VMCB_ALWAYS_DIRTY_MASK	((1U << VMCB_INTR) | (1U << VMCB_CR2))
 
+#ifdef CONFIG_KVM_AMD_SEV
 struct kvm_sev_info {
 	bool active;		/* SEV enabled guest */
 	bool es_active;		/* SEV-ES enabled guest */
@@ -117,6 +118,7 @@ struct kvm_sev_info {
 	cpumask_var_t have_run_cpus; /* CPUs that have done VMRUN for this VM. */
 	bool snp_certs_enabled;	/* SNP certificate-fetching support. */
 };
+#endif
 
 struct kvm_svm {
 	struct kvm kvm;
@@ -127,7 +129,9 @@ struct kvm_svm {
 	u64 *avic_physical_id_table;
 	struct hlist_node hnode;
 
+#ifdef CONFIG_KVM_AMD_SEV
 	struct kvm_sev_info sev_info;
+#endif
 };
 
 struct kvm_vcpu;
@@ -365,12 +369,12 @@ static __always_inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 	return container_of(kvm, struct kvm_svm, kvm);
 }
 
+#ifdef CONFIG_KVM_AMD_SEV
 static __always_inline struct kvm_sev_info *to_kvm_sev_info(struct kvm *kvm)
 {
 	return &to_kvm_svm(kvm)->sev_info;
 }
 
-#ifdef CONFIG_KVM_AMD_SEV
 static __always_inline bool ____sev_guest(struct kvm *kvm)
 {
 	return to_kvm_sev_info(kvm)->active;
