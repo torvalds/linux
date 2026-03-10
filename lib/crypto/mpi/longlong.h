@@ -66,12 +66,12 @@
  * denominator).  Like udiv_qrnnd but the numbers are signed.  The quotient
  * is rounded towards 0.
  *
- * 5) count_leading_zeros(count, x) counts the number of zero-bits from the
+ * 5) count_leading_zeros(x) counts the number of zero-bits from the
  * msb to the first non-zero bit in the UWtype X.  This is the number of
- * steps X needs to be shifted left to set the msb.  Undefined for X == 0,
- * unless the symbol COUNT_LEADING_ZEROS_0 is defined to some value.
+ * steps X needs to be shifted left to set the msb.
+ * count_leading_zeros(0) == BITS_PER_LONG
  *
- * 6) count_trailing_zeros(count, x) like count_leading_zeros, but counts
+ * 6) count_trailing_zeros() like count_leading_zeros(), but counts
  * from the least significant end.
  *
  * 7) add_ssaaaa(high_sum, low_sum, high_addend_1, low_addend_1,
