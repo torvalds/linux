@@ -142,4 +142,19 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name,  int type,
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name,  int type,
 		      unsigned int alg, void *buf, size_t len);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
+				    char *wmfw_filename,
+				    const struct firmware *coeff_firmware,
+				    char *coeff_filename);
+int wm_adsp_firmware_request(const struct firmware **firmware,
+			     const char *filename,
+			     struct device *dev);
+int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
+				   const struct firmware **wmfw_firmware,
+				   char **wmfw_filename,
+				   const struct firmware **coeff_firmware,
+				   char **coeff_filename);
+#endif
+
 #endif

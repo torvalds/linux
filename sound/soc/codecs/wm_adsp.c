@@ -7,6 +7,8 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  */
 
+#include <kunit/static_stub.h>
+#include <kunit/visibility.h>
 #include <linux/array_size.h>
 #include <linux/cleanup.h>
 #include <linux/ctype.h>
@@ -704,17 +706,32 @@ int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
-static void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
-					   char *wmfw_filename,
-					   const struct firmware *coeff_firmware,
-					   char *coeff_filename)
+VISIBLE_IF_KUNIT void wm_adsp_release_firmware_files(const struct firmware *wmfw_firmware,
+						     char *wmfw_filename,
+						     const struct firmware *coeff_firmware,
+						     char *coeff_filename)
 {
+	KUNIT_STATIC_STUB_REDIRECT(wm_adsp_release_firmware_files,
+				   wmfw_firmware, wmfw_filename,
+				   coeff_firmware, coeff_filename);
+
 	release_firmware(wmfw_firmware);
 	kfree(wmfw_filename);
 
 	release_firmware(coeff_firmware);
 	kfree(coeff_filename);
 }
+EXPORT_SYMBOL_IF_KUNIT(wm_adsp_release_firmware_files);
+
+VISIBLE_IF_KUNIT int wm_adsp_firmware_request(const struct firmware **firmware,
+					      const char *filename,
+					      struct device *dev)
+{
+	KUNIT_STATIC_STUB_REDIRECT(wm_adsp_firmware_request, firmware, filename, dev);
+
+	return firmware_request_nowarn(firmware, filename, dev);
+}
+EXPORT_SYMBOL_IF_KUNIT(wm_adsp_firmware_request);
 
 static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 					 const struct firmware **firmware, char **filename,
@@ -762,7 +779,7 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 		s++;
 	}
 
-	ret = firmware_request_nowarn(firmware, *filename, cs_dsp->dev);
+	ret = wm_adsp_firmware_request(firmware, *filename, cs_dsp->dev);
 	if (ret != 0) {
 		adsp_dbg(dsp, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
@@ -775,11 +792,11 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 }
 
 static const char * const cirrus_dir = "cirrus/";
-static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
-					  const struct firmware **wmfw_firmware,
-					  char **wmfw_filename,
-					  const struct firmware **coeff_firmware,
-					  char **coeff_filename)
+VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
+						    const struct firmware **wmfw_firmware,
+						    char **wmfw_filename,
+						    const struct firmware **coeff_firmware,
+						    char **coeff_filename)
 {
 	const char *system_name = dsp->system_name;
 	const char *suffix = dsp->component->name_prefix;
@@ -856,6 +873,7 @@ static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 
 	return -ENOENT;
 }
+EXPORT_SYMBOL_IF_KUNIT(wm_adsp_request_firmware_files);
 
 static int wm_adsp_common_init(struct wm_adsp *dsp)
 {
