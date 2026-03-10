@@ -100,6 +100,15 @@ PTP_1588_IPV6_PDELAY_REQ=" \
 00 00 3e 37 63 ff fe cf 17 0e 00 01 00 01 05 7f \
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
 00 00 00 00 00 00"
+LINK_LOCAL_STP_BPDU=" \
+01:80:c2:00:00:00 00:00:de:ad:be:ef 00 26 42 42 03 \
+00 00 00 00 00 80 00 aa bb cc dd ee ff 00 00 00 00 \
+80 00 aa bb cc dd ee ff 80 01 00 00 14 00 02 00 \
+0f 00"
+LINK_LOCAL_LLDP=" \
+01:80:c2:00:00:0e 00:00:de:ad:be:ef 88:cc 02 07 04 \
+00 11 22 33 44 55 04 05 05 65 74 68 30 06 02 00 \
+78 00 00"
 
 # Disable promisc to ensure we don't receive unknown MAC DA packets
 export TCPDUMP_EXTRA_FLAGS="-pl"
@@ -213,7 +222,15 @@ run_test()
 	mc_route_destroy $rcv_if_name
 	mc_route_destroy $send_if_name
 
+	ip maddress add 01:80:c2:00:00:00 dev $rcv_if_name
+	send_raw $send_if_name "$LINK_LOCAL_STP_BPDU"
+	ip maddress del 01:80:c2:00:00:00 dev $rcv_if_name
+
 	if [ $skip_ptp = false ]; then
+		ip maddress add 01:80:c2:00:00:0e dev $rcv_if_name
+		send_raw $send_if_name "$LINK_LOCAL_LLDP"
+		ip maddress del 01:80:c2:00:00:0e dev $rcv_if_name
+
 		ip maddress add 01:1b:19:00:00:00 dev $rcv_if_name
 		send_raw $send_if_name "$PTP_1588_L2_SYNC"
 		send_raw $send_if_name "$PTP_1588_L2_FOLLOW_UP"
@@ -304,7 +321,15 @@ run_test()
 		"$smac > $UNKNOWN_MACV6_MC_ADDR3, ethertype IPv6 (0x86dd)" \
 		true "$test_name"
 
+	check_rcv $rcv_if_name "Link-local STP BPDU" \
+		"> 01:80:c2:00:00:00" \
+		true "$test_name"
+
 	if [ $skip_ptp = false ]; then
+		check_rcv $rcv_if_name "Link-local LLDP" \
+			"> 01:80:c2:00:00:0e" \
+			true "$test_name"
+
 		check_rcv $rcv_if_name "1588v2 over L2 transport, Sync" \
 			"ethertype PTP (0x88f7).* PTPv2.* msg type *: sync msg" \
 			true "$test_name"
