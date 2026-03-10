@@ -814,7 +814,9 @@ class YnlFamily(SpecFamily):
                 continue
 
             try:
-                if attr_spec["type"] == 'nest':
+                if attr_spec["type"] == 'pad':
+                    continue
+                elif attr_spec["type"] == 'nest':
                     subdict = self._decode(NlAttrs(attr.raw),
                                            attr_spec['nested-attributes'],
                                            search_attrs)
