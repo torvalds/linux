@@ -804,47 +804,42 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 {
 	const char *system_name = dsp->system_name;
 	const char *suffix = dsp->component->name_prefix;
+	bool require_bin_suffix = false;
 	int ret = 0;
 
 	if (dsp->fwf_suffix)
 		suffix = dsp->fwf_suffix;
 
-	if (system_name && suffix) {
+	if (system_name) {
 		ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
 						    cirrus_dir, system_name,
 						    suffix, "wmfw");
 		if (ret < 0)
 			goto err;
 
-		if (fw->wmfw.firmware) {
+		if (suffix) {
+			if (fw->wmfw.firmware) {
+				require_bin_suffix = true;
+			} else {
+				/* Fallback to name without suffix */
+				ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
+								    cirrus_dir, system_name,
+								    NULL, "wmfw");
+				if (ret < 0)
+					goto err;
+			}
+		}
+
+		/* Look for matching .bin file */
+		if (fw->wmfw.firmware || dsp->wmfw_optional) {
 			ret = wm_adsp_request_firmware_file(dsp, &fw->coeff,
 							    cirrus_dir, system_name,
 							    suffix, "bin");
 			if (ret < 0)
 				goto err;
 
-			return 0;
-		}
-	}
-
-	if (system_name) {
-		ret = wm_adsp_request_firmware_file(dsp, &fw->wmfw,
-						    cirrus_dir, system_name,
-						    NULL, "wmfw");
-		if (ret < 0)
-			goto err;
-
-		if (fw->wmfw.firmware || dsp->wmfw_optional) {
-			if (suffix) {
-				ret = wm_adsp_request_firmware_file(dsp,
-								    &fw->coeff,
-								    cirrus_dir, system_name,
-								    suffix, "bin");
-				if (ret < 0)
-					goto err;
-			}
-
-			if (!fw->coeff.firmware) {
+			if (suffix && !fw->coeff.firmware && !require_bin_suffix) {
+				/* Fallback to name without suffix */
 				ret = wm_adsp_request_firmware_file(dsp,
 								    &fw->coeff,
 								    cirrus_dir, system_name,
@@ -852,10 +847,10 @@ VISIBLE_IF_KUNIT int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 				if (ret < 0)
 					goto err;
 			}
-
-			if (fw->wmfw.firmware || (dsp->wmfw_optional && fw->coeff.firmware))
-				return 0;
 		}
+
+		if (fw->wmfw.firmware || (dsp->wmfw_optional && fw->coeff.firmware))
+			return 0;
 	}
 
 	/* Check legacy location */
