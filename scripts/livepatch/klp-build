@@ -95,7 +95,7 @@ restore_files() {
 
 cleanup() {
 	set +o nounset
-	revert_patches "--recount"
+	revert_patches
 	restore_files
 	[[ "$KEEP_TMP" -eq 0 ]] && rm -rf "$TMP_DIR"
 	return 0
@@ -282,7 +282,7 @@ set_module_name() {
 }
 
 # Hardcode the value printed by the localversion script to prevent patch
-# application from appending it with '+' due to a dirty git working tree.
+# application from appending it with '+' due to a dirty working tree.
 set_kernelversion() {
 	local file="$SRC/scripts/setlocalversion"
 	local localversion
@@ -300,8 +300,8 @@ get_patch_input_files() {
 	local patch="$1"
 
 	grep0 -E '^--- ' "$patch"				\
+		| grep0 -v -e '/dev/null' -e '1969-12-31' -e '1970-01-01' \
 		| gawk '{print $2}'				\
-		| grep0 -v '^/dev/null$'			\
 		| sed 's|^[^/]*/||'				\
 		| sort -u
 }
@@ -310,8 +310,8 @@ get_patch_output_files() {
 	local patch="$1"
 
 	grep0 -E '^\+\+\+ ' "$patch"				\
+		| grep0 -v -e '/dev/null' -e '1969-12-31' -e '1970-01-01' \
 		| gawk '{print $2}'				\
-		| grep0 -v '^/dev/null$'			\
 		| sed 's|^[^/]*/||'				\
 		| sort -u
 }
@@ -321,21 +321,6 @@ get_patch_files() {
 
 	{ get_patch_input_files "$patch"; get_patch_output_files "$patch"; } \
 		| sort -u
-}
-
-# Make sure git re-stats the changed files
-git_refresh() {
-	local patch="$1"
-	local files=()
-
-	[[ ! -e "$SRC/.git" ]] && return
-
-	get_patch_input_files "$patch" | mapfile -t files
-
-	(
-		cd "$SRC"
-		git update-index -q --refresh -- "${files[@]}"
-	)
 }
 
 check_unsupported_patches() {
@@ -358,36 +343,19 @@ check_unsupported_patches() {
 
 apply_patch() {
 	local patch="$1"
-	shift
-	local extra_args=("$@")
 
 	[[ ! -f "$patch" ]] && die "$patch doesn't exist"
-
-	(
-		cd "$SRC"
-
-		# The sed strips the version signature from 'git format-patch',
-		# otherwise 'git apply --recount' warns.
-		sed -n '/^-- /q;p' "$patch" |
-			git apply "${extra_args[@]}"
-	)
+	patch -d "$SRC" -p1 --dry-run --silent --no-backup-if-mismatch -r /dev/null < "$patch"
+	patch -d "$SRC" -p1 --silent --no-backup-if-mismatch -r /dev/null < "$patch"
 
 	APPLIED_PATCHES+=("$patch")
 }
 
 revert_patch() {
 	local patch="$1"
-	shift
-	local extra_args=("$@")
 	local tmp=()
 
-	(
-		cd "$SRC"
-
-		sed -n '/^-- /q;p' "$patch" |
-			git apply --reverse "${extra_args[@]}"
-	)
-	git_refresh "$patch"
+	patch -d "$SRC" -p1 -R --silent --no-backup-if-mismatch -r /dev/null < "$patch"
 
 	for p in "${APPLIED_PATCHES[@]}"; do
 		[[ "$p" == "$patch" ]] && continue
@@ -406,11 +374,10 @@ apply_patches() {
 }
 
 revert_patches() {
-	local extra_args=("$@")
 	local patches=("${APPLIED_PATCHES[@]}")
 
 	for (( i=${#patches[@]}-1 ; i>=0 ; i-- )) ; do
-		revert_patch "${patches[$i]}" "${extra_args[@]}"
+		revert_patch "${patches[$i]}"
 	done
 
 	APPLIED_PATCHES=()
@@ -434,6 +401,7 @@ do_init() {
 	APPLIED_PATCHES=()
 
 	[[ -x "$FIX_PATCH_LINES" ]] || die "can't find fix-patch-lines"
+	command -v recountdiff &>/dev/null || die "recountdiff not found (install patchutils)"
 
 	validate_config
 	set_module_name
@@ -459,12 +427,12 @@ refresh_patch() {
 	( cd "$SRC" && echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
 
 	# Copy patched source files to 'b'
-	apply_patch "$patch" --recount
+	apply_patch "$patch"
 	( cd "$SRC" && echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
-	revert_patch "$patch" --recount
+	revert_patch "$patch"
 
 	# Diff 'a' and 'b' to make a clean patch
-	( cd "$tmpdir" && git diff --no-index --no-prefix a b > "$patch" ) || true
+	( cd "$tmpdir" && diff -Nupr a b > "$patch" ) || true
 }
 
 # Copy the patches to a temporary directory, fix their lines so as not to
@@ -487,8 +455,7 @@ fix_patches() {
 
 		cp -f "$old_patch" "$tmp_patch"
 		refresh_patch "$tmp_patch"
-		"$FIX_PATCH_LINES" "$tmp_patch" > "$new_patch"
-		refresh_patch "$new_patch"
+		"$FIX_PATCH_LINES" "$tmp_patch" | recountdiff > "$new_patch"
 
 		PATCHES[i]="$new_patch"
 
