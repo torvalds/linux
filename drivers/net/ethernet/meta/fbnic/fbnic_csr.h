@@ -6,6 +6,8 @@
 
 #include <linux/bitops.h>
 
+struct fbnic_dev;
+
 #define CSR_BIT(nr)		(1u << (nr))
 #define CSR_GENMASK(h, l)	GENMASK(h, l)
 
@@ -1220,5 +1222,22 @@ enum {
 enum{
 	FBNIC_CSR_VERSION_V1_0_ASIC = 1,
 };
+
+/**
+ * enum fbnic_reg_self_test_codes - return codes from self test routines
+ *
+ * This is the code that is returned from the register self test
+ * routines.
+ *
+ * The test either returns success or the register number
+ * that failed during the test.
+ *
+ * @FBNIC_REG_TEST_SUCCESS: no errors
+ */
+enum fbnic_reg_self_test_codes {
+	FBNIC_REG_TEST_SUCCESS = 0,
+};
+
+enum fbnic_reg_self_test_codes fbnic_csr_regs_test(struct fbnic_dev *fbd);
 
 #endif /* _FBNIC_CSR_H_ */

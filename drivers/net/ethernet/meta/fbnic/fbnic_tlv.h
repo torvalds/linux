@@ -9,6 +9,8 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
+struct fbnic_dev;
+
 #define FBNIC_TLV_MSG_ALIGN(len)	ALIGN(len, sizeof(u32))
 #define FBNIC_TLV_MSG_SIZE(len)		\
 		(FBNIC_TLV_MSG_ALIGN(len) / sizeof(u32))
@@ -153,6 +155,31 @@ int fbnic_tlv_parser_error(void *opaque, struct fbnic_tlv_msg **results);
 #define fta_get_str(_results, _id, _dst, _dstsize) \
 	fbnic_tlv_attr_get_string(_results[_id], _dst, _dstsize)
 
+#define FBNIC_TLV_MSG_ID_TEST	0
+
+enum fbnic_tlv_test_attr_id {
+	FBNIC_TLV_TEST_MSG_U64,
+	FBNIC_TLV_TEST_MSG_S64,
+	FBNIC_TLV_TEST_MSG_U32,
+	FBNIC_TLV_TEST_MSG_S32,
+	FBNIC_TLV_TEST_MSG_U16,
+	FBNIC_TLV_TEST_MSG_S16,
+	FBNIC_TLV_TEST_MSG_MAC_ADDR,
+	FBNIC_TLV_TEST_MSG_FLAG_TRUE,
+	FBNIC_TLV_TEST_MSG_FLAG_FALSE,
+	FBNIC_TLV_TEST_MSG_STRING,
+	FBNIC_TLV_TEST_MSG_NESTED,
+	FBNIC_TLV_TEST_MSG_ARRAY,
+	FBNIC_TLV_TEST_MSG_MAX
+};
+
+extern const struct fbnic_tlv_index fbnic_tlv_test_index[];
+struct fbnic_tlv_msg *fbnic_tlv_test_create(struct fbnic_dev *fbd);
+int fbnic_tlv_parser_test(void *opaque, struct fbnic_tlv_msg **results);
+
+#define FBNIC_TLV_MSG_TEST \
+	FBNIC_TLV_PARSER(TEST, fbnic_tlv_test_index, \
+			 fbnic_tlv_parser_test)
 #define FBNIC_TLV_MSG_ERROR \
 	FBNIC_TLV_PARSER(UNKNOWN, NULL, fbnic_tlv_parser_error)
 #endif /* _FBNIC_TLV_H_ */
