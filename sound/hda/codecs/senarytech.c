@@ -76,7 +76,6 @@ static int set_beep_amp(struct senary_spec *spec, hda_nid_t nid,
 	unsigned int beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
 	int i;
 
-	spec->gen.beep_nid = nid;
 	for (i = 0; i < ARRAY_SIZE(senary_beep_mixer); i++) {
 		knew = snd_hda_gen_add_kctl(&spec->gen, NULL,
 					    &senary_beep_mixer[i]);
@@ -84,6 +83,8 @@ static int set_beep_amp(struct senary_spec *spec, hda_nid_t nid,
 			return -ENOMEM;
 		knew->private_value = beep_amp;
 	}
+
+	spec->gen.beep_nid = nid;
 	return 0;
 }
 
@@ -138,10 +139,9 @@ static void senary_auto_turn_eapd(struct hda_codec *codec, int num_pins,
 	int i;
 
 	for (i = 0; i < num_pins; i++) {
-		if (snd_hda_query_pin_caps(codec, pins[i]) & AC_PINCAP_EAPD)
-			snd_hda_codec_write(codec, pins[i], 0,
-					    AC_VERB_SET_EAPD_BTLENABLE,
-					    on ? 0x02 : 0);
+		snd_hda_codec_write(codec, pins[i], 0,
+				    AC_VERB_SET_EAPD_BTLENABLE,
+				    on ? 0x02 : 0);
 	}
 }
 
