@@ -289,14 +289,11 @@ static int sev_asid_new(struct kvm_sev_info *sev, unsigned long vm_type)
 	if (min_asid > max_asid)
 		return -ENOTTY;
 
-	WARN_ON(sev->misc_cg);
+	WARN_ON_ONCE(sev->misc_cg);
 	sev->misc_cg = get_current_misc_cg();
 	ret = sev_misc_cg_try_charge(sev);
-	if (ret) {
-		put_misc_cg(sev->misc_cg);
-		sev->misc_cg = NULL;
-		return ret;
-	}
+	if (ret)
+		goto e_put_cg;
 
 	asid = sev_alloc_asid(min_asid, max_asid);
 	if (asid > max_asid) {
@@ -306,8 +303,10 @@ static int sev_asid_new(struct kvm_sev_info *sev, unsigned long vm_type)
 
 	sev->asid = asid;
 	return 0;
+
 e_uncharge:
 	sev_misc_cg_uncharge(sev);
+e_put_cg:
 	put_misc_cg(sev->misc_cg);
 	sev->misc_cg = NULL;
 	return ret;
