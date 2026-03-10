@@ -17678,12 +17678,15 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	}
 
 	/* detect if R == 0 where R is returned from bpf_map_lookup_elem().
+	 * Also does the same detection for a register whose the value is
+	 * known to be 0.
 	 * NOTE: these optimizations below are related with pointer comparison
 	 *       which will never be JMP32.
 	 */
-	if (!is_jmp32 && BPF_SRC(insn->code) == BPF_K &&
-	    insn->imm == 0 && (opcode == BPF_JEQ || opcode == BPF_JNE) &&
-	    type_may_be_null(dst_reg->type)) {
+	if (!is_jmp32 && (opcode == BPF_JEQ || opcode == BPF_JNE) &&
+	    type_may_be_null(dst_reg->type) &&
+	    ((BPF_SRC(insn->code) == BPF_K && insn->imm == 0) ||
+	     (BPF_SRC(insn->code) == BPF_X && register_is_null(src_reg)))) {
 		/* Mark all identical registers in each branch as either
 		 * safe or unknown depending R == 0 or R != 0 conditional.
 		 */
