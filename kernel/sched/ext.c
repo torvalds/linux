@@ -5097,8 +5097,8 @@ static void scx_bypass(struct scx_sched *sch, bool bypass)
 		struct rq *rq = cpu_rq(cpu);
 		struct task_struct *p, *n;
 
-		raw_spin_lock(&scx_sched_lock);
 		raw_spin_rq_lock(rq);
+		raw_spin_lock(&scx_sched_lock);
 
 		scx_for_each_descendant_pre(pos, sch) {
 			struct scx_sched_pcpu *pcpu = per_cpu_ptr(pos->pcpu, cpu);
@@ -7239,8 +7239,6 @@ static void sysrq_handle_sched_ext_dump(u8 key)
 {
 	struct scx_exit_info ei = { .kind = SCX_EXIT_NONE, .reason = "SysRq-D" };
 	struct scx_sched *sch;
-
-	guard(raw_spinlock_irqsave)(&scx_sched_lock);
 
 	list_for_each_entry_rcu(sch, &scx_sched_all, all)
 		scx_dump_state(sch, &ei, 0, false);
