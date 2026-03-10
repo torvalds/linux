@@ -463,7 +463,7 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	chan = rtw89_mgnt_chan_get(rtwdev, 0);
 	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_0);
 
-	if (!rtwdev->support_mlo)
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 		return;
 
 	chan = rtw89_mgnt_chan_get(rtwdev, 1);
@@ -558,7 +558,7 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 	chan = rtw89_mgnt_chan_get(rtwdev, 0);
 	__rtw89_set_channel(rtwdev, chan, RTW89_MAC_0, RTW89_PHY_0);
 
-	if (!rtwdev->support_mlo)
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 		return 0;
 
 	chan = rtw89_mgnt_chan_get(rtwdev, 1);
