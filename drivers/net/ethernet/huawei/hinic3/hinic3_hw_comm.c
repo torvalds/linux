@@ -292,6 +292,32 @@ int hinic3_set_cmdq_depth(struct hinic3_hwdev *hwdev, u16 cmdq_depth)
 	return 0;
 }
 
+#define HINIC3_FLR_TIMEOUT    1000
+
+static enum hinic3_wait_return hinic3_check_flr_finish_handler(void *priv_data)
+{
+	struct hinic3_hwdev *hwdev = priv_data;
+	struct hinic3_hwif *hwif = hwdev->hwif;
+	enum hinic3_pf_status status;
+
+	if (!hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
+
+	status = hinic3_get_pf_status(hwif);
+	if (status == HINIC3_PF_STATUS_FLR_FINISH_FLAG) {
+		hinic3_set_pf_status(hwif, HINIC3_PF_STATUS_ACTIVE_FLAG);
+		return HINIC3_WAIT_PROCESS_CPL;
+	}
+
+	return HINIC3_WAIT_PROCESS_WAITING;
+}
+
+static int hinic3_wait_for_flr_finish(struct hinic3_hwdev *hwdev)
+{
+	return hinic3_wait_for_timeout(hwdev, hinic3_check_flr_finish_handler,
+				       HINIC3_FLR_TIMEOUT, 0xa * USEC_PER_MSEC);
+}
+
 #define HINIC3_WAIT_CMDQ_IDLE_TIMEOUT    5000
 
 static enum hinic3_wait_return check_cmdq_stop_handler(void *priv_data)
@@ -387,6 +413,14 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 		dev_warn(hwdev->dev, "Failed to notice flush message, err: %d\n",
 			 err);
 		ret = err;
+	}
+
+	if (HINIC3_FUNC_TYPE(hwdev) != HINIC3_FUNC_TYPE_VF) {
+		err = hinic3_wait_for_flr_finish(hwdev);
+		if (err) {
+			dev_warn(hwdev->dev, "Wait firmware FLR timeout\n");
+			ret = err;
+		}
 	}
 
 	hinic3_toggle_doorbell(hwif, ENABLE_DOORBELL);
