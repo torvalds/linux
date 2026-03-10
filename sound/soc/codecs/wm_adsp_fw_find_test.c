@@ -950,6 +950,13 @@ static const struct wm_adsp_fw_find_test_params wm_adsp_fw_find_normalization_ca
 			"cirrus/cs1234-dsp1-mbc-vss-vendor-device.bin",
 	},
 	{
+		.part = "cs1234", .dsp_name = "dsp1", .system_name = "Vendor/Device",
+		.expect_wmfw = "cirrus/cs1234-dsp1-mbc-vss-vendor-device.wmfw",
+		.expected_searches =
+			"cirrus/cs1234-dsp1-mbc-vss-vendor-device.wmfw "
+			"cirrus/cs1234-dsp1-mbc-vss-vendor-device.bin",
+	},
+	{
 		.part = "cs1234", .dsp_name = "dsp1", .system_name = "1234:56AB",
 		.expect_wmfw = "cirrus/cs1234-dsp1-mbc-vss-1234-56ab.wmfw",
 		.expected_searches =
@@ -996,6 +1003,14 @@ static const struct wm_adsp_fw_find_test_params wm_adsp_fw_find_normalization_ca
 		.expected_searches =
 			"cirrus/cs1234-dsp1-mbc-vss-abc-cs1234.1.wmfw "
 			"cirrus/cs1234-dsp1-mbc-vss-abc-cs1234.1.bin",
+	},
+	{
+		.part = "cs1234", .dsp_name = "dsp1", .system_name = "abc",
+		.alsa_name = "Spk/Jack",
+		.expect_wmfw = "cirrus/cs1234-dsp1-mbc-vss-abc-spk-jack.wmfw",
+		.expected_searches =
+			"cirrus/cs1234-dsp1-mbc-vss-abc-spk-jack.wmfw "
+			"cirrus/cs1234-dsp1-mbc-vss-abc-spk-jack.bin",
 	},
 };
 KUNIT_ARRAY_PARAM(wm_adsp_fw_find_normalization,
