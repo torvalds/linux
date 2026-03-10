@@ -5438,7 +5438,7 @@ static void scx_sub_disable(struct scx_sched *sch)
 	 */
 	wake_up_all(&scx_unlink_waitq);
 
-	if (sch->ops.sub_detach && sch->sub_attached) {
+	if (parent->ops.sub_detach && sch->sub_attached) {
 		struct scx_sub_detach_args sub_detach_args = {
 			.ops = &sch->ops,
 			.cgroup_path = sch->cgrp_path,
