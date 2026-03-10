@@ -189,6 +189,18 @@ xfs_open_zone_mark_full(
 		xfs_zone_account_reclaimable(rtg, rtg_blocks(rtg) - used);
 }
 
+static inline void
+xfs_zone_inc_written(
+	struct xfs_open_zone	*oz,
+	xfs_filblks_t		len)
+{
+	xfs_assert_ilocked(rtg_rmap(oz->oz_rtg), XFS_ILOCK_EXCL);
+
+	oz->oz_written += len;
+	if (oz->oz_written == rtg_blocks(oz->oz_rtg))
+		xfs_open_zone_mark_full(oz);
+}
+
 static void
 xfs_zone_record_blocks(
 	struct xfs_trans	*tp,
@@ -206,9 +218,7 @@ xfs_zone_record_blocks(
 	xfs_rtgroup_trans_join(tp, rtg, XFS_RTGLOCK_RMAP);
 	rmapip->i_used_blocks += len;
 	ASSERT(rmapip->i_used_blocks <= rtg_blocks(rtg));
-	oz->oz_written += len;
-	if (oz->oz_written == rtg_blocks(rtg))
-		xfs_open_zone_mark_full(oz);
+	xfs_zone_inc_written(oz, len);
 	xfs_trans_log_inode(tp, rmapip, XFS_ILOG_CORE);
 }
 
@@ -227,9 +237,7 @@ xfs_zone_skip_blocks(
 	trace_xfs_zone_skip_blocks(oz, 0, len);
 
 	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
-	oz->oz_written += len;
-	if (oz->oz_written == rtg_blocks(rtg))
-		xfs_open_zone_mark_full(oz);
+	xfs_zone_inc_written(oz, len);
 	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
 
 	xfs_add_frextents(rtg_mount(rtg), len);
