@@ -3545,6 +3545,50 @@ static int opal_get_sum_ranges(struct opal_dev *dev, struct opal_sum_ranges *opa
 	return ret;
 }
 
+static int opal_stack_reset(struct opal_dev *dev)
+{
+	struct opal_stack_reset *req;
+	struct opal_stack_reset_response *resp;
+	int ret;
+
+	mutex_lock(&dev->dev_lock);
+
+	memset(dev->cmd, 0, IO_BUFFER_LENGTH);
+	req = (struct opal_stack_reset *)dev->cmd;
+	req->extendedComID[0] = dev->comid >> 8;
+	req->extendedComID[1] = dev->comid & 0xFF;
+	req->request_code = cpu_to_be32(OPAL_STACK_RESET);
+
+	ret = dev->send_recv(dev->data, dev->comid, TCG_SECP_02,
+			     dev->cmd, IO_BUFFER_LENGTH, true);
+	if (ret) {
+		pr_debug("Error sending stack reset: %d\n", ret);
+		goto out;
+	}
+
+	memset(dev->resp, 0, IO_BUFFER_LENGTH);
+	ret = dev->send_recv(dev->data, dev->comid, TCG_SECP_02,
+			     dev->resp, IO_BUFFER_LENGTH, false);
+	if (ret) {
+		pr_debug("Error receiving stack reset response: %d\n", ret);
+		goto out;
+	}
+
+	resp = (struct opal_stack_reset_response *)dev->resp;
+	if (be16_to_cpu(resp->data_length) != 4) {
+		pr_debug("Stack reset pending\n");
+		ret = -EBUSY;
+		goto out;
+	}
+	if (be32_to_cpu(resp->response) != 0) {
+		pr_debug("Stack reset failed: %u\n", be32_to_cpu(resp->response));
+		ret = -EIO;
+	}
+out:
+	mutex_unlock(&dev->dev_lock);
+	return ret;
+}
+
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 {
 	void *p;
@@ -3641,6 +3685,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_GET_SUM_STATUS:
 		ret = opal_get_sum_ranges(dev, p, arg);
+		break;
+	case IOC_OPAL_STACK_RESET:
+		ret = opal_stack_reset(dev);
 		break;
 
 	default:

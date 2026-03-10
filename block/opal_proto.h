@@ -19,6 +19,7 @@
 enum {
 	TCG_SECP_00 = 0,
 	TCG_SECP_01,
+	TCG_SECP_02,
 };
 
 /*
@@ -271,6 +272,25 @@ struct opal_header {
 	struct opal_compacket cp;
 	struct opal_packet pkt;
 	struct opal_data_subpacket subpkt;
+};
+
+/*
+ * TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
+ * Section: 3.3.4.7.5 STACK_RESET
+ */
+#define OPAL_STACK_RESET 0x0002
+
+struct opal_stack_reset {
+	u8 extendedComID[4];
+	__be32 request_code;
+};
+
+struct opal_stack_reset_response {
+	u8 extendedComID[4];
+	__be32 request_code;
+	u8 reserved0[2];
+	__be16 data_length;
+	__be32 response;
 };
 
 #define FC_TPER       0x0001

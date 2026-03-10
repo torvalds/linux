@@ -245,5 +245,6 @@ struct opal_revert_lsp {
 #define IOC_OPAL_LR_SET_START_LEN   _IOW('p', 243, struct opal_user_lr_setup)
 #define IOC_OPAL_ENABLE_DISABLE_LR  _IOW('p', 244, struct opal_user_lr_setup)
 #define IOC_OPAL_GET_SUM_STATUS     _IOW('p', 245, struct opal_sum_ranges)
+#define IOC_OPAL_STACK_RESET        _IO('p', 246)
 
 #endif /* _UAPI_SED_OPAL_H */
