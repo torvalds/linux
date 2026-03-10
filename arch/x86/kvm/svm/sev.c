@@ -3268,7 +3268,7 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm;
 
-	if (!sev_es_guest(vcpu->kvm))
+	if (!is_sev_es_guest(vcpu))
 		return;
 
 	svm = to_svm(vcpu);
@@ -3278,7 +3278,7 @@ void sev_free_vcpu(struct kvm_vcpu *vcpu)
 	 * a guest-owned page. Transition the page to hypervisor state before
 	 * releasing it back to the system.
 	 */
-	if (sev_snp_guest(vcpu->kvm)) {
+	if (is_sev_snp_guest(vcpu)) {
 		u64 pfn = __pa(svm->sev_es.vmsa) >> PAGE_SHIFT;
 
 		if (kvm_rmp_make_shared(vcpu->kvm, pfn, PG_LEVEL_4K))
@@ -3479,7 +3479,7 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 			goto vmgexit_err;
 		break;
 	case SVM_VMGEXIT_AP_CREATION:
-		if (!sev_snp_guest(vcpu->kvm))
+		if (!is_sev_snp_guest(vcpu))
 			goto vmgexit_err;
 		if (lower_32_bits(control->exit_info_1) != SVM_VMGEXIT_AP_DESTROY)
 			if (!kvm_ghcb_rax_is_valid(svm))
@@ -3493,12 +3493,12 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	case SVM_VMGEXIT_TERM_REQUEST:
 		break;
 	case SVM_VMGEXIT_PSC:
-		if (!sev_snp_guest(vcpu->kvm) || !kvm_ghcb_sw_scratch_is_valid(svm))
+		if (!is_sev_snp_guest(vcpu) || !kvm_ghcb_sw_scratch_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_VMGEXIT_GUEST_REQUEST:
 	case SVM_VMGEXIT_EXT_GUEST_REQUEST:
-		if (!sev_snp_guest(vcpu->kvm) ||
+		if (!is_sev_snp_guest(vcpu) ||
 		    !PAGE_ALIGNED(control->exit_info_1) ||
 		    !PAGE_ALIGNED(control->exit_info_2) ||
 		    control->exit_info_1 == control->exit_info_2)
@@ -3572,7 +3572,8 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 int pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
-	struct kvm *kvm = svm->vcpu.kvm;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm *kvm = vcpu->kvm;
 	unsigned int asid = sev_get_asid(kvm);
 
 	/*
@@ -3580,7 +3581,7 @@ int pre_sev_run(struct vcpu_svm *svm, int cpu)
 	 * VMSA, e.g. if userspace forces the vCPU to be RUNNABLE after an SNP
 	 * AP Destroy event.
 	 */
-	if (sev_es_guest(kvm) && !VALID_PAGE(svm->vmcb->control.vmsa_pa))
+	if (is_sev_es_guest(vcpu) && !VALID_PAGE(svm->vmcb->control.vmsa_pa))
 		return -EINVAL;
 
 	/*
@@ -4126,7 +4127,7 @@ static int snp_handle_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_
 	sev_ret_code fw_err = 0;
 	int ret;
 
-	if (!sev_snp_guest(kvm))
+	if (!is_sev_snp_guest(&svm->vcpu))
 		return -EINVAL;
 
 	mutex_lock(&sev->guest_req_mutex);
@@ -4196,10 +4197,12 @@ static int snp_complete_req_certs(struct kvm_vcpu *vcpu)
 
 static int snp_handle_ext_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t resp_gpa)
 {
-	struct kvm *kvm = svm->vcpu.kvm;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm *kvm = vcpu->kvm;
+
 	u8 msg_type;
 
-	if (!sev_snp_guest(kvm))
+	if (!is_sev_snp_guest(vcpu))
 		return -EINVAL;
 
 	if (kvm_read_guest(kvm, req_gpa + offsetof(struct snp_guest_msg_hdr, msg_type),
@@ -4218,7 +4221,6 @@ static int snp_handle_ext_guest_req(struct vcpu_svm *svm, gpa_t req_gpa, gpa_t r
 	 */
 	if (msg_type == SNP_MSG_REPORT_REQ) {
 		struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-		struct kvm_vcpu *vcpu = &svm->vcpu;
 		u64 data_npages;
 		gpa_t data_gpa;
 
@@ -4335,7 +4337,7 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 				  GHCB_MSR_INFO_MASK, GHCB_MSR_INFO_POS);
 		break;
 	case GHCB_MSR_PREF_GPA_REQ:
-		if (!sev_snp_guest(vcpu->kvm))
+		if (!is_sev_snp_guest(vcpu))
 			goto out_terminate;
 
 		set_ghcb_msr_bits(svm, GHCB_MSR_PREF_GPA_NONE, GHCB_MSR_GPA_VALUE_MASK,
@@ -4346,7 +4348,7 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 	case GHCB_MSR_REG_GPA_REQ: {
 		u64 gfn;
 
-		if (!sev_snp_guest(vcpu->kvm))
+		if (!is_sev_snp_guest(vcpu))
 			goto out_terminate;
 
 		gfn = get_ghcb_msr_bits(svm, GHCB_MSR_GPA_VALUE_MASK,
@@ -4361,7 +4363,7 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 		break;
 	}
 	case GHCB_MSR_PSC_REQ:
-		if (!sev_snp_guest(vcpu->kvm))
+		if (!is_sev_snp_guest(vcpu))
 			goto out_terminate;
 
 		ret = snp_begin_psc_msr(svm, control->ghcb_gpa);
@@ -4434,7 +4436,7 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 	sev_es_sync_from_ghcb(svm);
 
 	/* SEV-SNP guest requires that the GHCB GPA must be registered */
-	if (sev_snp_guest(svm->vcpu.kvm) && !ghcb_gpa_is_registered(svm, ghcb_gpa)) {
+	if (is_sev_snp_guest(vcpu) && !ghcb_gpa_is_registered(svm, ghcb_gpa)) {
 		vcpu_unimpl(&svm->vcpu, "vmgexit: GHCB GPA [%#llx] is not registered.\n", ghcb_gpa);
 		return -EINVAL;
 	}
@@ -4692,10 +4694,10 @@ void sev_init_vmcb(struct vcpu_svm *svm, bool init_event)
 	 */
 	clr_exception_intercept(svm, GP_VECTOR);
 
-	if (init_event && sev_snp_guest(vcpu->kvm))
+	if (init_event && is_sev_snp_guest(vcpu))
 		sev_snp_init_protected_guest_state(vcpu);
 
-	if (sev_es_guest(vcpu->kvm))
+	if (is_sev_es_guest(vcpu))
 		sev_es_init_vmcb(svm, init_event);
 }
 
@@ -4706,7 +4708,7 @@ int sev_vcpu_create(struct kvm_vcpu *vcpu)
 
 	mutex_init(&svm->sev_es.snp_vmsa_mutex);
 
-	if (!sev_es_guest(vcpu->kvm))
+	if (!is_sev_es_guest(vcpu))
 		return 0;
 
 	/*
@@ -4726,8 +4728,6 @@ int sev_vcpu_create(struct kvm_vcpu *vcpu)
 
 void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa)
 {
-	struct kvm *kvm = svm->vcpu.kvm;
-
 	/*
 	 * All host state for SEV-ES guests is categorized into three swap types
 	 * based on how it is handled by hardware during a world switch:
@@ -4766,7 +4766,8 @@ void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_are
 	 * loaded with the correct values *if* the CPU writes the MSRs.
 	 */
 	if (sev_vcpu_has_debug_swap(svm) ||
-	    (sev_snp_guest(kvm) && cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP))) {
+	    (cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP) &&
+	     is_sev_snp_guest(&svm->vcpu))) {
 		hostsa->dr0_addr_mask = amd_get_dr_addr_mask(0);
 		hostsa->dr1_addr_mask = amd_get_dr_addr_mask(1);
 		hostsa->dr2_addr_mask = amd_get_dr_addr_mask(2);
@@ -5130,7 +5131,7 @@ struct vmcb_save_area *sev_decrypt_vmsa(struct kvm_vcpu *vcpu)
 	int error = 0;
 	int ret;
 
-	if (!sev_es_guest(vcpu->kvm))
+	if (!is_sev_es_guest(vcpu))
 		return NULL;
 
 	/*
@@ -5143,7 +5144,7 @@ struct vmcb_save_area *sev_decrypt_vmsa(struct kvm_vcpu *vcpu)
 	sev = to_kvm_sev_info(vcpu->kvm);
 
 	/* Check if the SEV policy allows debugging */
-	if (sev_snp_guest(vcpu->kvm)) {
+	if (is_sev_snp_guest(vcpu)) {
 		if (!(sev->policy & SNP_POLICY_MASK_DEBUG))
 			return NULL;
 	} else {
@@ -5151,7 +5152,7 @@ struct vmcb_save_area *sev_decrypt_vmsa(struct kvm_vcpu *vcpu)
 			return NULL;
 	}
 
-	if (sev_snp_guest(vcpu->kvm)) {
+	if (is_sev_snp_guest(vcpu)) {
 		struct sev_data_snp_dbg dbg = {0};
 
 		vmsa = snp_alloc_firmware_page(__GFP_ZERO);

@@ -389,10 +389,27 @@ static __always_inline bool sev_snp_guest(struct kvm *kvm)
 	return (sev->vmsa_features & SVM_SEV_FEAT_SNP_ACTIVE) &&
 	       !WARN_ON_ONCE(!sev_es_guest(kvm));
 }
+
+static __always_inline bool is_sev_guest(struct kvm_vcpu *vcpu)
+{
+	return sev_guest(vcpu->kvm);
+}
+static __always_inline bool is_sev_es_guest(struct kvm_vcpu *vcpu)
+{
+	return sev_es_guest(vcpu->kvm);
+}
+
+static __always_inline bool is_sev_snp_guest(struct kvm_vcpu *vcpu)
+{
+	return sev_snp_guest(vcpu->kvm);
+}
 #else
 #define sev_guest(kvm) false
 #define sev_es_guest(kvm) false
 #define sev_snp_guest(kvm) false
+#define is_sev_guest(vcpu) false
+#define is_sev_es_guest(vcpu) false
+#define is_sev_snp_guest(vcpu) false
 #endif
 
 static inline bool ghcb_gpa_is_registered(struct vcpu_svm *svm, u64 val)
