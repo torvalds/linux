@@ -724,6 +724,45 @@ hit_next:
 	 * We need to split the extent, and clear the bit on the first half.
 	 */
 	if (state->start <= end && state->end > end) {
+		const u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
+
+		/*
+		 * If all bits are cleared, there's no point in allocating or
+		 * using the prealloc extent, split the state record, insert the
+		 * prealloc record and then remove it. We can just adjust the
+		 * start offset of the current state and avoid all that.
+		 */
+		if ((state->state & ~bits_to_clear) == 0) {
+			const u64 orig_end = state->end;
+
+			if (tree->owner == IO_TREE_INODE_IO)
+				btrfs_split_delalloc_extent(tree->inode, state, end + 1);
+
+			/*
+			 * Temporarily adjust the end offset to match the
+			 * removed subrange to update the changeset.
+			 */
+			state->end = end;
+
+			ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
+			if (unlikely(ret < 0)) {
+				extent_io_tree_panic(tree, state,
+						     "add_extent_changeset", ret);
+				goto out;
+			}
+			ret = 0;
+
+			if (tree->owner == IO_TREE_INODE_IO)
+				btrfs_clear_delalloc_extent(tree->inode, state, bits);
+
+			state->start = end + 1;
+			state->end = orig_end;
+
+			if (wake)
+				wake_up(&state->wq);
+			goto out;
+		}
+
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc)
 			goto search_again;
