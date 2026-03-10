@@ -4517,9 +4517,17 @@ static bool svm_has_emulated_msr(struct kvm *kvm, u32 index)
 	case MSR_IA32_SMBASE:
 		if (!IS_ENABLED(CONFIG_KVM_SMM))
 			return false;
-		/* SEV-ES guests do not support SMM, so report false */
-		if (kvm && sev_es_guest(kvm))
+
+#ifdef CONFIG_KVM_AMD_SEV
+		/*
+		 * KVM can't access register state to emulate SMM for SEV-ES
+		 * guests.  Conusming stale data here is "fine", as KVM only
+		 * checks for MSR_IA32_SMBASE support without a vCPU when
+		 * userspace is querying KVM_CAP_X86_SMM.
+		 */
+		if (kvm && ____sev_es_guest(kvm))
 			return false;
+#endif
 		break;
 	default:
 		break;
