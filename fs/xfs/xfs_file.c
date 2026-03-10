@@ -597,6 +597,36 @@ xfs_dio_endio_set_isize(
 }
 
 static int
+xfs_zoned_dio_write_end_io(
+	struct kiocb		*iocb,
+	ssize_t			size,
+	int			error,
+	unsigned		flags)
+{
+	struct inode		*inode = file_inode(iocb->ki_filp);
+	struct xfs_inode	*ip = XFS_I(inode);
+	unsigned int		nofs_flag;
+
+	ASSERT(!(flags & (IOMAP_DIO_UNWRITTEN | IOMAP_DIO_COW)));
+
+	trace_xfs_end_io_direct_write(ip, iocb->ki_pos, size);
+
+	if (xfs_is_shutdown(ip->i_mount))
+		return -EIO;
+
+	if (error || !size)
+		return error;
+
+	XFS_STATS_ADD(ip->i_mount, xs_write_bytes, size);
+
+	nofs_flag = memalloc_nofs_save();
+	error = xfs_dio_endio_set_isize(inode, iocb->ki_pos, size);
+	memalloc_nofs_restore(nofs_flag);
+
+	return error;
+}
+
+static int
 xfs_dio_write_end_io(
 	struct kiocb		*iocb,
 	ssize_t			size,
@@ -608,8 +638,7 @@ xfs_dio_write_end_io(
 	loff_t			offset = iocb->ki_pos;
 	unsigned int		nofs_flag;
 
-	ASSERT(!xfs_is_zoned_inode(ip) ||
-	       !(flags & (IOMAP_DIO_UNWRITTEN | IOMAP_DIO_COW)));
+	ASSERT(!xfs_is_zoned_inode(ip));
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
@@ -702,7 +731,7 @@ xfs_dio_zoned_submit_io(
 static const struct iomap_dio_ops xfs_dio_zoned_write_ops = {
 	.bio_set	= &iomap_ioend_bioset,
 	.submit_io	= xfs_dio_zoned_submit_io,
-	.end_io		= xfs_dio_write_end_io,
+	.end_io		= xfs_zoned_dio_write_end_io,
 };
 
 /*
