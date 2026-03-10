@@ -4884,11 +4884,11 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const union kvm_smram *smram)
 	if (nested_svm_check_cached_vmcb12(vcpu) < 0)
 		goto unmap_save;
 
-	ret = enter_svm_guest_mode(vcpu, smram64->svm_guest_vmcb_gpa, vmcb12, false);
-
-	if (ret)
+	if (enter_svm_guest_mode(vcpu, smram64->svm_guest_vmcb_gpa,
+				 vmcb12, false) != 0)
 		goto unmap_save;
 
+	ret = 0;
 	svm->nested.nested_run_pending = 1;
 
 unmap_save:

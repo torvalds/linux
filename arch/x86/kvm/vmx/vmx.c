@@ -8533,8 +8533,8 @@ int vmx_leave_smm(struct kvm_vcpu *vcpu, const union kvm_smram *smram)
 			return 1;
 
 		ret = nested_vmx_enter_non_root_mode(vcpu, false);
-		if (ret)
-			return ret;
+		if (ret != NVMX_VMENTRY_SUCCESS)
+			return 1;
 
 		vmx->nested.nested_run_pending = 1;
 		vmx->nested.smm.guest_mode = false;
