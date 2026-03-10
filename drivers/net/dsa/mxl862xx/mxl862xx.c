@@ -149,7 +149,6 @@ static int mxl862xx_setup_mdio(struct dsa_switch *ds)
 		return -ENOMEM;
 
 	bus->priv = priv;
-	ds->user_mii_bus = bus;
 	bus->name = KBUILD_MODNAME "-mii";
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(dev));
 	bus->read_c45 = mxl862xx_phy_read_c45_mii_bus;
