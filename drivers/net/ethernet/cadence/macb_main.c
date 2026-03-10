@@ -5406,37 +5406,31 @@ static const struct macb_config fu540_c000_config = {
 	.clk_init = fu540_c000_clk_init,
 	.init = fu540_c000_init,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config at91sam9260_config = {
 	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d3macb_config = {
 	.caps = MACB_CAPS_SG_DISABLED |
 		MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config pc302gem_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d2_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d29_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d3_config = {
@@ -5444,25 +5438,21 @@ static const struct macb_config sama5d3_config = {
 		MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config sama5d4_config = {
 	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
 	.dma_burst_length = 4,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config emac_config = {
 	.caps = MACB_CAPS_NEEDS_RSTONUBR | MACB_CAPS_MACB_IS_EMAC,
 	.clk_init = at91ether_clk_init,
 	.init = at91ether_init,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config np4_config = {
 	.caps = MACB_CAPS_USRIO_DISABLED,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config zynqmp_config = {
@@ -5472,14 +5462,12 @@ static const struct macb_config zynqmp_config = {
 	.dma_burst_length = 16,
 	.init = init_reset_optional,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config zynq_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_NO_GIGABIT_HALF |
 		MACB_CAPS_NEEDS_RSTONUBR,
 	.dma_burst_length = 16,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config mpfs_config = {
@@ -5488,7 +5476,6 @@ static const struct macb_config mpfs_config = {
 		MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
 	.init = init_reset_optional,
-	.usrio = &macb_default_usrio,
 	.max_tx_length = 4040, /* Cadence Erratum 1686 */
 	.jumbo_max_len = 4040,
 };
@@ -5517,7 +5504,6 @@ static const struct macb_config versal_config = {
 	.dma_burst_length = 16,
 	.init = init_reset_optional,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config eyeq5_config = {
@@ -5527,7 +5513,6 @@ static const struct macb_config eyeq5_config = {
 	.dma_burst_length = 16,
 	.init = eyeq5_init,
 	.jumbo_max_len = 10240,
-	.usrio = &macb_default_usrio,
 };
 
 static const struct macb_config raspberrypi_rp1_config = {
@@ -5536,7 +5521,6 @@ static const struct macb_config raspberrypi_rp1_config = {
 		MACB_CAPS_GEM_HAS_PTP |
 		MACB_CAPS_EEE,
 	.dma_burst_length = 16,
-	.usrio = &macb_default_usrio,
 	.jumbo_max_len = 10240,
 };
 
@@ -5575,7 +5559,6 @@ static const struct macb_config default_gem_config = {
 		MACB_CAPS_JUMBO |
 		MACB_CAPS_GEM_HAS_PTP,
 	.dma_burst_length = 16,
-	.usrio = &macb_default_usrio,
 	.jumbo_max_len = 10240,
 };
 
@@ -5662,7 +5645,7 @@ static int macb_probe(struct platform_device *pdev)
 	bp->wol = 0;
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	bp->usrio = macb_config->usrio;
+	bp->usrio = macb_config->usrio ? : &macb_default_usrio;
 
 	/* By default we set to partial store and forward mode for zynqmp.
 	 * Disable if not set in devicetree.
