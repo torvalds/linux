@@ -776,7 +776,7 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 			break;
 		default:
 			dev_err(scomp->dev, "error: unknown token type %d\n",
-				array->type);
+				le32_to_cpu(array->type));
 			return -EINVAL;
 		}
 
@@ -971,7 +971,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	int ret;
 
 	dev_dbg(scomp->dev, "tplg: load control type %d name : %s\n",
-		hdr->type, hdr->name);
+		le32_to_cpu(hdr->type), hdr->name);
 
 	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
@@ -1016,7 +1016,9 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	case SND_SOC_TPLG_DAPM_CTL_PIN:
 	default:
 		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
-			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
+			 le32_to_cpu(hdr->ops.get),
+			 le32_to_cpu(hdr->ops.put),
+			 le32_to_cpu(hdr->ops.info));
 		kfree(scontrol->name);
 		kfree(scontrol);
 		return 0;
@@ -1524,7 +1526,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_pga:
 		if (!le32_to_cpu(tw->num_kcontrols)) {
 			dev_err(scomp->dev, "invalid kcontrol count %d for volume\n",
-				tw->num_kcontrols);
+				le32_to_cpu(tw->num_kcontrols));
 			ret = -EINVAL;
 			break;
 		}
