@@ -7319,6 +7319,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	},
 	.wow_ctrl = {.addr = R_AX_WOW_CTRL, .mask = B_AX_WOW_WOWEN,},
 	.agg_limit = {.addr = R_AX_AMPDU_AGG_LIMIT, .mask = B_AX_AMPDU_MAX_TIME_MASK,},
+	.ra_agg_limit = {.addr = R_AX_AMPDU_AGG_LIMIT,
+			 .mask = B_AX_RA_TRY_RATE_AGG_LMT_MASK,},
 	.txcnt_limit = {.addr = R_AX_TXCNT, .mask = B_AX_L_TXCNT_LMT_MASK,},
 
 	.check_mac_en = rtw89_mac_check_mac_en_ax,

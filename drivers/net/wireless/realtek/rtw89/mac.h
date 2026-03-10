@@ -1037,6 +1037,7 @@ struct rtw89_mac_gen_def {
 	struct rtw89_reg_def narrow_bw_ru_dis;
 	struct rtw89_reg_def wow_ctrl;
 	struct rtw89_reg_def agg_limit;
+	struct rtw89_reg_def ra_agg_limit;
 	struct rtw89_reg_def txcnt_limit;
 
 	int (*check_mac_en)(struct rtw89_dev *rtwdev, u8 band,

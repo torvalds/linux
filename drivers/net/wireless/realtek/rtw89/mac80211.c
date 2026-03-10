@@ -1005,6 +1005,8 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		clear_bit(tid, rtwsta->ampdu_map);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, rtwvif, rtwsta);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		rtw89_leave_ps_mode(rtwdev);
+		rtw89_phy_ra_recalc_agg_limit(rtwdev);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		set_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
@@ -1013,6 +1015,7 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		set_bit(tid, rtwsta->ampdu_map);
 		rtw89_leave_ps_mode(rtwdev);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, rtwvif, rtwsta);
+		rtw89_phy_ra_recalc_agg_limit(rtwdev);
 		break;
 	case IEEE80211_AMPDU_RX_START:
 		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, true, params);

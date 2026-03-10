@@ -775,6 +775,33 @@ void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 	rtw89_fw_h2c_ra(rtwdev, ra, csi);
 }
 
+void rtw89_phy_ra_recalc_agg_limit(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_reg_def *ra_limit = &mac->ra_agg_limit;
+	struct ieee80211_sta *sta;
+	struct rtw89_sta *rtwsta;
+	u16 agg_num = U16_MAX;
+	u8 tid;
+
+	for_each_station(sta, rtwdev->hw) {
+		rtwsta = sta_to_rtwsta(sta);
+
+		for_each_set_bit(tid, rtwsta->ampdu_map, IEEE80211_NUM_TIDS)
+			agg_num = min(agg_num, rtwsta->ampdu_params[tid].agg_num);
+	}
+
+	if (agg_num == U16_MAX)
+		agg_num = 0x3F;
+	else
+		agg_num = clamp(agg_num, 1, 256) - 1;
+
+	rtw89_write32_idx(rtwdev, ra_limit->addr, ra_limit->mask, agg_num, RTW89_MAC_0);
+	if (!rtwdev->dbcc_en)
+		return;
+	rtw89_write32_idx(rtwdev, ra_limit->addr, ra_limit->mask, agg_num, RTW89_MAC_1);
+}
+
 u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
 		      const struct rtw89_chan *chan,
 		      enum rtw89_bandwidth dbw)
