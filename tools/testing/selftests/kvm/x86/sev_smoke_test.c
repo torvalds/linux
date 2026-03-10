@@ -13,6 +13,30 @@
 #include "linux/psp-sev.h"
 #include "sev.h"
 
+static void guest_sev_test_msr(uint32_t msr)
+{
+	uint64_t val = rdmsr(msr);
+
+	wrmsr(msr, val);
+	GUEST_ASSERT(val == rdmsr(msr));
+}
+
+#define guest_sev_test_reg(reg)			\
+do {						\
+	uint64_t val = get_##reg();		\
+						\
+	set_##reg(val);				\
+	GUEST_ASSERT(val == get_##reg());	\
+} while (0)
+
+static void guest_sev_test_regs(void)
+{
+	guest_sev_test_msr(MSR_EFER);
+	guest_sev_test_reg(cr0);
+	guest_sev_test_reg(cr3);
+	guest_sev_test_reg(cr4);
+	guest_sev_test_reg(cr8);
+}
 
 #define XFEATURE_MASK_X87_AVX (XFEATURE_MASK_FP | XFEATURE_MASK_SSE | XFEATURE_MASK_YMM)
 
@@ -24,6 +48,8 @@ static void guest_snp_code(void)
 	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_ES_ENABLED);
 	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_SNP_ENABLED);
 
+	guest_sev_test_regs();
+
 	wrmsr(MSR_AMD64_SEV_ES_GHCB, GHCB_MSR_TERM_REQ);
 	vmgexit();
 }
@@ -33,6 +59,8 @@ static void guest_sev_es_code(void)
 	/* TODO: Check CPUID after GHCB-based hypercall support is added. */
 	GUEST_ASSERT(rdmsr(MSR_AMD64_SEV) & MSR_AMD64_SEV_ENABLED);
 	GUEST_ASSERT(rdmsr(MSR_AMD64_SEV) & MSR_AMD64_SEV_ES_ENABLED);
+
+	guest_sev_test_regs();
 
 	/*
 	 * TODO: Add GHCB and ucall support for SEV-ES guests.  For now, simply
@@ -46,6 +74,8 @@ static void guest_sev_code(void)
 {
 	GUEST_ASSERT(this_cpu_has(X86_FEATURE_SEV));
 	GUEST_ASSERT(rdmsr(MSR_AMD64_SEV) & MSR_AMD64_SEV_ENABLED);
+
+	guest_sev_test_regs();
 
 	GUEST_DONE();
 }
