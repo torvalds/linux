@@ -491,6 +491,32 @@ class SpaceAttrs:
 
 
 class YnlFamily(SpecFamily):
+    """
+    YNL family -- a Netlink interface built from a YAML spec.
+
+    Primary use of the class is to execute Netlink commands:
+
+      ynl.<op_name>(attrs, ...)
+
+    By default this will execute the <op_name> as "do", pass dump=True
+    to perform a dump operation.
+
+    ynl.<op_name> is a shorthand / convenience wrapper for the following
+    methods which take the op_name as a string:
+
+      ynl.do(op_name, attrs, flags=None) -- execute a do operation
+      ynl.dump(op_name, attrs)           -- execute a dump operation
+      ynl.do_multi(ops)                  -- batch multiple do operations
+
+    The flags argument in ynl.do() allows passing in extra NLM_F_* flags
+    which may be necessary for old families.
+
+    Notification API:
+
+      ynl.ntf_subscribe(mcast_name)      -- join a multicast group
+      ynl.check_ntf()                    -- drain pending notifications
+      ynl.poll_ntf(duration=None)        -- yield notifications
+    """
     def __init__(self, def_path, schema=None, process_unknown=False,
                  recv_size=0):
         super().__init__(def_path, schema)
