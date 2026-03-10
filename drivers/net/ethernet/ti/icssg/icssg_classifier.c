@@ -517,7 +517,7 @@ void icssg_ft3_hsr_configurations(struct regmap *miig_rt, int slice,
 
 	regmap_write(miig_rt, RX_CLASS_N_REG(slice, CLASSIFIER_PTP_DUP, RX_CLASS_AND_EN),
 		     RX_CLASS_DISABLE);
-	regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_PTP_DUP, RX_CLASS_OR_EN),
+	regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_PTP_DUP, RX_CLASS_AND_EN),
 		     RX_CLASS_OR_DUP_PTP);
 	regmap_write(miig_rt, RX_CLASS_GATES_N_REG(slice, CLASSIFIER_PTP_DUP),
 		     RX_CLASS_GATE_PTP);
@@ -525,7 +525,7 @@ void icssg_ft3_hsr_configurations(struct regmap *miig_rt, int slice,
 	if (prueth->hsr_prp_version != PRP_V1) {
 		regmap_write(miig_rt, RX_CLASS_N_REG(slice, CLASSIFIER_HSR_TAG, RX_CLASS_AND_EN),
 			     RX_CLASS_DISABLE);
-		regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_HSR_TAG, RX_CLASS_OR_EN),
+		regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_HSR_TAG, RX_CLASS_AND_EN),
 			     RX_CLASS_OR_HSR_TAG);
 		regmap_write(miig_rt, RX_CLASS_GATES_N_REG(slice, CLASSIFIER_HSR_TAG),
 			     RX_CLASS_GATE_PTP);
