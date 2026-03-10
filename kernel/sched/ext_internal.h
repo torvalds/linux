@@ -1003,6 +1003,7 @@ struct scx_sched {
 	atomic_t		bypass_dsp_enable_depth;
 
 	bool			aborting;
+	bool			dump_disabled;	/* protected by scx_dump_lock */
 	u32			dsp_max_batch;
 	s32			level;
 

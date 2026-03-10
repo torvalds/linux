@@ -136,6 +136,8 @@ static DEFINE_RAW_SPINLOCK(scx_exit_bstr_buf_lock);
 static struct scx_bstr_buf scx_exit_bstr_buf;
 
 /* ops debug dump */
+static DEFINE_RAW_SPINLOCK(scx_dump_lock);
+
 struct scx_dump_data {
 	s32			cpu;
 	bool			first;
@@ -5279,6 +5281,17 @@ static void scx_unlink_sched(struct scx_sched *sch)
 	refresh_watchdog();
 }
 
+/*
+ * Called to disable future dumps and wait for in-progress one while disabling
+ * @sch. Once @sch becomes empty during disable, there's no point in dumping it.
+ * This prevents calling dump ops on a dead sch.
+ */
+static void scx_disable_dump(struct scx_sched *sch)
+{
+	guard(raw_spinlock_irqsave)(&scx_dump_lock);
+	sch->dump_disabled = true;
+}
+
 #ifdef CONFIG_EXT_SUB_SCHED
 static DECLARE_WAIT_QUEUE_HEAD(scx_unlink_waitq);
 
@@ -5414,6 +5427,8 @@ static void scx_sub_disable(struct scx_sched *sch)
 	}
 	scx_task_iter_stop(&sti);
 
+	scx_disable_dump(sch);
+
 	scx_cgroup_unlock();
 	percpu_up_write(&scx_fork_rwsem);
 
@@ -5524,6 +5539,8 @@ static void scx_root_disable(struct scx_sched *sch)
 		scx_disable_and_exit_task(scx_task_sched(p), p);
 	}
 	scx_task_iter_stop(&sti);
+
+	scx_disable_dump(sch);
 
 	scx_cgroup_lock();
 	set_cgroup_sched(sch_cgroup(sch), NULL);
@@ -5680,7 +5697,7 @@ static __printf(2, 3) void dump_line(struct seq_buf *s, const char *fmt, ...)
 
 #ifdef CONFIG_TRACEPOINTS
 	if (trace_sched_ext_dump_enabled()) {
-		/* protected by scx_dump_state()::dump_lock */
+		/* protected by scx_dump_lock */
 		static char line_buf[SCX_EXIT_MSG_LEN];
 
 		va_start(args, fmt);
@@ -5842,7 +5859,6 @@ static void scx_dump_task(struct scx_sched *sch,
 static void scx_dump_state(struct scx_sched *sch, struct scx_exit_info *ei,
 			   size_t dump_len, bool dump_all_tasks)
 {
-	static DEFINE_RAW_SPINLOCK(dump_lock);
 	static const char trunc_marker[] = "\n\n~~~~ TRUNCATED ~~~~\n";
 	struct scx_dump_ctx dctx = {
 		.kind = ei->kind,
@@ -5856,7 +5872,10 @@ static void scx_dump_state(struct scx_sched *sch, struct scx_exit_info *ei,
 	char *buf;
 	int cpu;
 
-	guard(raw_spinlock_irqsave)(&dump_lock);
+	guard(raw_spinlock_irqsave)(&scx_dump_lock);
+
+	if (sch->dump_disabled)
+		return;
 
 	seq_buf_init(&s, ei->dump, dump_len);
 
