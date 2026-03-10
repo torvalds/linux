@@ -201,27 +201,6 @@ xfs_zone_inc_written(
 		xfs_open_zone_mark_full(oz);
 }
 
-static void
-xfs_zone_record_blocks(
-	struct xfs_trans	*tp,
-	struct xfs_open_zone	*oz,
-	xfs_fsblock_t		fsbno,
-	xfs_filblks_t		len)
-{
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_rtgroup	*rtg = oz->oz_rtg;
-	struct xfs_inode	*rmapip = rtg_rmap(rtg);
-
-	trace_xfs_zone_record_blocks(oz, xfs_rtb_to_rgbno(mp, fsbno), len);
-
-	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
-	xfs_rtgroup_trans_join(tp, rtg, XFS_RTGLOCK_RMAP);
-	rmapip->i_used_blocks += len;
-	ASSERT(rmapip->i_used_blocks <= rtg_blocks(rtg));
-	xfs_zone_inc_written(oz, len);
-	xfs_trans_log_inode(tp, rmapip, XFS_ILOG_CORE);
-}
-
 /*
  * Called for blocks that have been written to disk, but not actually linked to
  * an inode, which can happen when garbage collection races with user data
@@ -252,6 +231,8 @@ xfs_zoned_map_extent(
 	xfs_fsblock_t		old_startblock)
 {
 	struct xfs_bmbt_irec	data;
+	struct xfs_rtgroup	*rtg = oz->oz_rtg;
+	struct xfs_inode	*rmapip = rtg_rmap(rtg);
 	int			nmaps = 1;
 	int			error;
 
@@ -310,7 +291,15 @@ xfs_zoned_map_extent(
 		}
 	}
 
-	xfs_zone_record_blocks(tp, oz, new->br_startblock, new->br_blockcount);
+	trace_xfs_zone_record_blocks(oz,
+		xfs_rtb_to_rgbno(tp->t_mountp, new->br_startblock),
+		new->br_blockcount);
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	xfs_rtgroup_trans_join(tp, rtg, XFS_RTGLOCK_RMAP);
+	rmapip->i_used_blocks += new->br_blockcount;
+	ASSERT(rmapip->i_used_blocks <= rtg_blocks(rtg));
+	xfs_zone_inc_written(oz, new->br_blockcount);
+	xfs_trans_log_inode(tp, rmapip, XFS_ILOG_CORE);
 
 	/* Map the new blocks into the data fork. */
 	xfs_bmap_map_extent(tp, ip, XFS_DATA_FORK, new);
