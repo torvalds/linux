@@ -1372,6 +1372,8 @@ static void x86_pmu_enable(struct pmu *pmu)
 			else if (i < n_running)
 				continue;
 
+			cpuc->events[hwc->idx] = event;
+
 			if (hwc->state & PERF_HES_ARCH)
 				continue;
 
@@ -1379,7 +1381,6 @@ static void x86_pmu_enable(struct pmu *pmu)
 			 * if cpuc->enabled = 0, then no wrmsr as
 			 * per x86_pmu_enable_event()
 			 */
-			cpuc->events[hwc->idx] = event;
 			x86_pmu_start(event, PERF_EF_RELOAD);
 		}
 		cpuc->n_added = 0;
