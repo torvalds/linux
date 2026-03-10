@@ -290,10 +290,11 @@ TEST(ptrace_v_syscall_clobbering)
 
 		/* verify initial vsetvli settings */
 
-		if (is_xtheadvector_supported())
+		if (is_xtheadvector_supported()) {
 			EXPECT_EQ(5UL, regset_data->vtype);
-		else
+		} else {
 			EXPECT_EQ(9UL, regset_data->vtype);
+		}
 
 		EXPECT_EQ(regset_data->vlenb, regset_data->vl);
 		EXPECT_EQ(vlenb, regset_data->vlenb);
@@ -619,10 +620,11 @@ TEST_F(v_csr_invalid, ptrace_v_invalid_values)
 
 		/* verify initial vsetvli settings */
 
-		if (is_xtheadvector_supported())
+		if (is_xtheadvector_supported()) {
 			EXPECT_EQ(5UL, regset_data->vtype);
-		else
+		} else {
 			EXPECT_EQ(9UL, regset_data->vtype);
+		}
 
 		EXPECT_EQ(regset_data->vlenb, regset_data->vl);
 		EXPECT_EQ(vlenb, regset_data->vlenb);
@@ -827,10 +829,11 @@ TEST_F(v_csr_valid, ptrace_v_valid_values)
 
 		/* verify initial vsetvli settings */
 
-		if (is_xtheadvector_supported())
+		if (is_xtheadvector_supported()) {
 			EXPECT_EQ(5UL, regset_data->vtype);
-		else
+		} else {
 			EXPECT_EQ(9UL, regset_data->vtype);
+		}
 
 		EXPECT_EQ(regset_data->vlenb, regset_data->vl);
 		EXPECT_EQ(vlenb, regset_data->vlenb);
