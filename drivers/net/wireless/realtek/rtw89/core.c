@@ -4713,6 +4713,35 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 		rtw89_enter_lps_track(rtwdev);
 }
 
+void rtw89_core_dm_disable_cfg(struct rtw89_dev *rtwdev, u32 new)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 old = hal->disabled_dm_bitmap;
+
+	if (new == old)
+		return;
+
+	hal->disabled_dm_bitmap = new;
+
+	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Disable DM: 0x%x -> 0x%x\n", old, new);
+}
+
+void rtw89_core_dm_disable_set(struct rtw89_dev *rtwdev, enum rtw89_dm_type type)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 cur = hal->disabled_dm_bitmap;
+
+	rtw89_core_dm_disable_cfg(rtwdev, cur | BIT(type));
+}
+
+void rtw89_core_dm_disable_clr(struct rtw89_dev *rtwdev, enum rtw89_dm_type type)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 cur = hal->disabled_dm_bitmap;
+
+	rtw89_core_dm_disable_cfg(rtwdev, cur & ~BIT(type));
+}
+
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size)
 {
 	unsigned long bit;

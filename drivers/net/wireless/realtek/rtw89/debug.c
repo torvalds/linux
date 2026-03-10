@@ -4333,35 +4333,6 @@ static ssize_t rtw89_debug_priv_stations_get(struct rtw89_dev *rtwdev,
 	return p - buf;
 }
 
-static void rtw89_debug_disable_dm_cfg_bmap(struct rtw89_dev *rtwdev, u32 new)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 old = hal->disabled_dm_bitmap;
-
-	if (new == old)
-		return;
-
-	hal->disabled_dm_bitmap = new;
-
-	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Disable DM: 0x%x -> 0x%x\n", old, new);
-}
-
-static void rtw89_debug_disable_dm_set_flag(struct rtw89_dev *rtwdev, u8 flag)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 cur = hal->disabled_dm_bitmap;
-
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur | BIT(flag));
-}
-
-static void rtw89_debug_disable_dm_clr_flag(struct rtw89_dev *rtwdev, u8 flag)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 cur = hal->disabled_dm_bitmap;
-
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur & ~BIT(flag));
-}
-
 #define DM_INFO(type) {RTW89_DM_ ## type, #type}
 
 static const struct rtw89_disabled_dm_info {
@@ -4412,7 +4383,7 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 	if (ret)
 		return -EINVAL;
 
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, conf);
+	rtw89_core_dm_disable_cfg(rtwdev, conf);
 
 	return count;
 }
@@ -4475,7 +4446,7 @@ rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
 	if (num != 2)
 		return -EINVAL;
 
-	rtw89_debug_disable_dm_set_flag(rtwdev, RTW89_DM_MLO);
+	rtw89_core_dm_disable_set(rtwdev, RTW89_DM_MLO);
 
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Set MLO mode to %x\n", mlo_mode);
 
@@ -4485,7 +4456,7 @@ rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_STATE, "Unsupported MLO mode\n");
-		rtw89_debug_disable_dm_clr_flag(rtwdev, RTW89_DM_MLO);
+		rtw89_core_dm_disable_clr(rtwdev, RTW89_DM_MLO);
 
 		return -EOPNOTSUPP;
 	}
