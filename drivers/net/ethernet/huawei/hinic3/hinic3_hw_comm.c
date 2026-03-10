@@ -300,6 +300,10 @@ static enum hinic3_wait_return check_cmdq_stop_handler(void *priv_data)
 	enum hinic3_cmdq_type cmdq_type;
 	struct hinic3_cmdqs *cmdqs;
 
+	/* Stop waiting when card unpresent */
+	if (!hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
+
 	cmdqs = hwdev->cmdqs;
 	for (cmdq_type = 0; cmdq_type < cmdqs->cmdq_num; cmdq_type++) {
 		if (!hinic3_cmdq_idle(&cmdqs->cmdq[cmdq_type]))
@@ -346,6 +350,9 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 	struct mgmt_msg_params msg_params = {};
 	int ret = 0;
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return 0;
 
 	err = wait_cmdq_stop(hwdev);
 	if (err) {

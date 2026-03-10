@@ -32,6 +32,9 @@
 #define HINIC3_PCIE_PH_DISABLE       0
 #define HINIC3_PCIE_MSIX_ATTR_ENTRY  0
 
+#define HINIC3_CHIP_PRESENT          1
+#define HINIC3_CHIP_ABSENT           0
+
 #define HINIC3_DEFAULT_EQ_MSIX_PENDING_LIMIT      0
 #define HINIC3_DEFAULT_EQ_MSIX_COALESC_TIMER_CFG  0xFF
 #define HINIC3_DEFAULT_EQ_MSIX_RESEND_TIMER_CFG   7
@@ -545,6 +548,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 		dev_err(hwdev->dev, "Failed to init hwif\n");
 		goto err_free_hwdev;
 	}
+	hwdev->chip_present_flag = HINIC3_CHIP_PRESENT;
 
 	hwdev->workq = alloc_workqueue(HINIC3_HWDEV_WQ_NAME, WQ_MEM_RECLAIM | WQ_PERCPU,
 				       HINIC3_WQ_MAX_REQ);
@@ -621,6 +625,7 @@ void hinic3_set_api_stop(struct hinic3_hwdev *hwdev)
 	struct hinic3_recv_msg *recv_resp_msg;
 	struct hinic3_mbox *mbox;
 
+	hwdev->chip_present_flag = HINIC3_CHIP_ABSENT;
 	spin_lock_bh(&hwdev->channel_lock);
 	if (HINIC3_IS_PF(hwdev) &&
 	    test_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state)) {

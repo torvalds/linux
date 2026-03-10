@@ -353,7 +353,8 @@ static int wait_cmdqs_enable(struct hinic3_cmdqs *cmdqs)
 		if (cmdqs->status & HINIC3_CMDQ_ENABLE)
 			return 0;
 		usleep_range(1000, 2000);
-	} while (time_before(jiffies, end) && !cmdqs->disable_flag);
+	} while (time_before(jiffies, end) && !cmdqs->disable_flag &&
+		 cmdqs->hwdev->chip_present_flag);
 
 	cmdqs->disable_flag = 1;
 
@@ -681,6 +682,10 @@ int hinic3_cmdq_direct_resp(struct hinic3_hwdev *hwdev, u8 mod, u8 cmd,
 {
 	struct hinic3_cmdqs *cmdqs;
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return -ETIMEDOUT;
+
 	err = cmdq_params_valid(hwdev, buf_in);
 	if (err) {
 		dev_err(hwdev->dev, "Invalid CMDQ parameters\n");
@@ -711,6 +716,9 @@ int hinic3_cmdq_detail_resp(struct hinic3_hwdev *hwdev, u8 mod, u8 cmd,
 {
 	struct hinic3_cmdqs *cmdqs;
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return -ETIMEDOUT;
 
 	err = cmdq_params_valid(hwdev, buf_in);
 	if (err)

@@ -97,6 +97,8 @@ static enum hinic3_wait_return check_hwif_ready_handler(void *priv_data)
 	u32 attr1;
 
 	attr1 = hinic3_hwif_read_reg(hwdev->hwif, HINIC3_CSR_FUNC_ATTR1_ADDR);
+	if (attr1 == HINIC3_PCIE_LINK_DOWN)
+		return HINIC3_WAIT_PROCESS_ERR;
 
 	return HINIC3_AF1_GET(attr1, MGMT_INIT_STATUS) ?
 	       HINIC3_WAIT_PROCESS_CPL : HINIC3_WAIT_PROCESS_WAITING;

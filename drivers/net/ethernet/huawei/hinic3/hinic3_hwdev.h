@@ -76,6 +76,7 @@ struct hinic3_hwdev {
 	u32                         wq_page_size;
 	u8                          max_cmdq;
 	ulong                       func_state;
+	int                         chip_present_flag;
 };
 
 struct hinic3_event_info {

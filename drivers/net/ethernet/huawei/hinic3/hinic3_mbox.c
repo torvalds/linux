@@ -646,6 +646,9 @@ static enum hinic3_wait_return check_mbox_wb_status(void *priv_data)
 	struct hinic3_mbox *mbox = priv_data;
 	u16 wb_status;
 
+	if (!mbox->hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
+
 	wb_status = get_mbox_status(&mbox->send_mbox);
 
 	return MBOX_STATUS_FINISHED(wb_status) ?
@@ -788,6 +791,9 @@ static enum hinic3_wait_return check_mbox_msg_finish(void *priv_data)
 {
 	struct hinic3_mbox *mbox = priv_data;
 
+	if (!mbox->hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
+
 	return (mbox->event_flag == MBOX_EVENT_SUCCESS) ?
 		HINIC3_WAIT_PROCESS_CPL : HINIC3_WAIT_PROCESS_WAITING;
 }
@@ -818,6 +824,9 @@ int hinic3_send_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	struct hinic3_msg_desc *msg_desc;
 	u32 msg_len;
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return -EPERM;
 
 	/* expect response message */
 	msg_desc = get_mbox_msg_desc(mbox, MBOX_MSG_RESP, MBOX_MGMT_FUNC_ID);
@@ -896,6 +905,9 @@ int hinic3_send_mbox_to_mgmt_no_ack(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	struct hinic3_mbox *mbox = hwdev->mbox;
 	struct mbox_msg_info msg_info = {};
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return -EPERM;
 
 	mutex_lock(&mbox->mbox_send_lock);
 	err = send_mbox_msg(mbox, mod, cmd, msg_params->buf_in,
