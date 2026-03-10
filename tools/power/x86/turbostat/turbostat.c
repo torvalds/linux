@@ -2409,7 +2409,7 @@ struct topo_params {
 	int max_l3_id;
 	int max_node_num;
 	int nodes_per_pkg;
-	int cores_per_node;
+	int cores_per_pkg;
 	int threads_per_core;
 } topo;
 
@@ -9633,9 +9633,9 @@ void topology_probe(bool startup)
 	topo.max_core_id = max_core_id;	/* within a package */
 	topo.max_package_id = max_package_id;
 
-	topo.cores_per_node = max_core_id + 1;
+	topo.cores_per_pkg = max_core_id + 1;
 	if (debug > 1)
-		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n", max_core_id, topo.cores_per_node);
+		fprintf(outf, "max_core_id %d, sizing for %d cores per package\n", max_core_id, topo.cores_per_pkg);
 	if (!summary_only)
 		BIC_PRESENT(BIC_Core);
 
@@ -9700,7 +9700,7 @@ error:
 void allocate_counters(struct counters *counters)
 {
 	int i;
-	int num_cores = topo.cores_per_node * topo.nodes_per_pkg * topo.num_packages;
+	int num_cores = topo.cores_per_pkg * topo.num_packages;
 
 	counters->threads = calloc(topo.max_cpu_num + 1, sizeof(struct thread_data));
 	if (counters->threads == NULL)
