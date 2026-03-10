@@ -346,6 +346,9 @@ typedef struct xfs_mount {
 
 	/* Private data referring to a health monitor object. */
 	struct xfs_healthmon __rcu	*m_healthmon;
+
+	/* Index of uuid record in the uuid xarray. */
+	unsigned int		m_uuid_table_index;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)
