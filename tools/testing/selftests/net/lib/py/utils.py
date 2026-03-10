@@ -93,7 +93,7 @@ class cmd:
     def _process_terminate(self, terminate, timeout):
         if terminate:
             self.proc.terminate()
-        stdout, stderr = self.proc.communicate(timeout)
+        stdout, stderr = self.proc.communicate(timeout=timeout)
         self.stdout = stdout.decode("utf-8")
         self.stderr = stderr.decode("utf-8")
         self.proc.stdout.close()
