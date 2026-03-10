@@ -54,7 +54,7 @@ restart:
 	optind = 1;
 	skel = SCX_OPS_OPEN(sdt_ops, scx_sdt);
 
-	while ((opt = getopt(argc, argv, "fvh")) != -1) {
+	while ((opt = getopt(argc, argv, "vh")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbose = true;

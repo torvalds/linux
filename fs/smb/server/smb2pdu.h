@@ -83,7 +83,10 @@ struct create_durable_rsp {
 	} Data;
 } __packed;
 
-/* equivalent of the contents of SMB3.1.1 POSIX open context response */
+/*
+ * See POSIX-SMB2 2.2.14.2.16
+ * Link: https://gitlab.com/samba-team/smb3-posix-spec/-/blob/master/smb3_posix_extensions.md
+ */
 struct create_posix_rsp {
 	struct create_context_hdr ccontext;
 	__u8    Name[16];

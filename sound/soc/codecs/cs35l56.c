@@ -348,6 +348,13 @@ static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 	return wm_adsp_event(w, kcontrol, event);
 }
 
+static int cs35l56_asp_dai_probe(struct snd_soc_dai *codec_dai)
+{
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
+
+	return cs35l56_set_asp_patch(&cs35l56->base);
+}
+
 static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
@@ -552,6 +559,7 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 }
 
 static const struct snd_soc_dai_ops cs35l56_ops = {
+	.probe = cs35l56_asp_dai_probe,
 	.set_fmt = cs35l56_asp_dai_set_fmt,
 	.set_tdm_slot = cs35l56_asp_dai_set_tdm_slot,
 	.hw_params = cs35l56_asp_dai_hw_params,
@@ -1617,9 +1625,9 @@ static int cs35l56_process_xu_onchip_speaker_id(struct cs35l56_private *cs35l56,
 	if (num_pulls < 0)
 		return num_pulls;
 
-	if (num_pulls != num_gpios) {
+	if (num_pulls && (num_pulls != num_gpios)) {
 		dev_warn(cs35l56->base.dev, "%s count(%d) != %s count(%d)\n",
-			pull_name, num_pulls, gpio_name, num_gpios);
+			 pull_name, num_pulls, gpio_name, num_gpios);
 	}
 
 	ret = cs35l56_check_and_save_onchip_spkid_gpios(&cs35l56->base,

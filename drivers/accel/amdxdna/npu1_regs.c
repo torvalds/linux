@@ -67,7 +67,7 @@ const struct dpm_clk_freq npu1_dpm_clk_table[] = {
 
 static const struct aie2_fw_feature_tbl npu1_fw_feature_table[] = {
 	{ .major = 5, .min_minor = 7 },
-	{ .features = BIT_U64(AIE2_NPU_COMMAND), .min_minor = 8 },
+	{ .features = BIT_U64(AIE2_NPU_COMMAND), .major = 5, .min_minor = 8 },
 	{ 0 }
 };
 
