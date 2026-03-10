@@ -434,6 +434,10 @@ err_free_ceqs:
 static void hinic3_free_cmdqs_channel(struct hinic3_hwdev *hwdev)
 {
 	hinic3_comm_cmdqs_free(hwdev);
+
+	hinic3_set_wq_page_size(hwdev, hinic3_global_func_id(hwdev),
+				HINIC3_MIN_PAGE_SIZE);
+
 	hinic3_ceqs_free(hwdev);
 }
 

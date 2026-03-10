@@ -462,7 +462,8 @@ void hinic3_free_mbox(struct hinic3_hwdev *hwdev)
 
 	destroy_workqueue(mbox->workq);
 	free_mbox_wb_status(mbox);
-	hinic3_uninit_func_mbox_msg_channel(hwdev);
+	if (HINIC3_IS_VF(hwdev))
+		hinic3_uninit_func_mbox_msg_channel(hwdev);
 	uninit_mgmt_msg_channel(mbox);
 	kfree(mbox);
 }
