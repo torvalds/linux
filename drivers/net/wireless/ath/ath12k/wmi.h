@@ -4193,7 +4193,6 @@ struct wmi_addba_clear_resp_cmd {
 	struct ath12k_wmi_mac_addr_params peer_macaddr;
 } __packed;
 
-#define DFS_PHYERR_UNIT_TEST_CMD 0
 #define DFS_UNIT_TEST_MODULE	0x2b
 #define DFS_UNIT_TEST_TOKEN	0xAA
 
@@ -4202,12 +4201,6 @@ enum dfs_test_args_idx {
 	DFS_TEST_PDEV_ID,
 	DFS_TEST_RADAR_PARAM,
 	DFS_MAX_TEST_ARGS,
-};
-
-struct wmi_dfs_unit_test_arg {
-	u32 cmd_id;
-	u32 pdev_id;
-	u32 radar_param;
 };
 
 /* update if another test command requires more */
