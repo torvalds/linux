@@ -237,6 +237,28 @@ static void sev_misc_cg_uncharge(struct kvm_sev_info *sev)
 	misc_cg_uncharge(type, sev->misc_cg, 1);
 }
 
+static unsigned int sev_alloc_asid(unsigned int min_asid, unsigned int max_asid)
+{
+	unsigned int asid;
+	bool retry = true;
+
+	guard(mutex)(&sev_bitmap_lock);
+
+again:
+	asid = find_next_zero_bit(sev_asid_bitmap, max_asid + 1, min_asid);
+	if (asid > max_asid) {
+		if (retry && __sev_recycle_asids(min_asid, max_asid)) {
+			retry = false;
+			goto again;
+		}
+
+		return asid;
+	}
+
+	__set_bit(asid, sev_asid_bitmap);
+	return asid;
+}
+
 static int sev_asid_new(struct kvm_sev_info *sev, unsigned long vm_type)
 {
 	/*
@@ -244,7 +266,6 @@ static int sev_asid_new(struct kvm_sev_info *sev, unsigned long vm_type)
 	 * SEV-ES-enabled guest can use from 1 to min_sev_asid - 1.
 	 */
 	unsigned int min_asid, max_asid, asid;
-	bool retry = true;
 	int ret;
 
 	if (vm_type == KVM_X86_SNP_VM) {
@@ -277,23 +298,11 @@ static int sev_asid_new(struct kvm_sev_info *sev, unsigned long vm_type)
 		return ret;
 	}
 
-	mutex_lock(&sev_bitmap_lock);
-
-again:
-	asid = find_next_zero_bit(sev_asid_bitmap, max_asid + 1, min_asid);
+	asid = sev_alloc_asid(min_asid, max_asid);
 	if (asid > max_asid) {
-		if (retry && __sev_recycle_asids(min_asid, max_asid)) {
-			retry = false;
-			goto again;
-		}
-		mutex_unlock(&sev_bitmap_lock);
 		ret = -EBUSY;
 		goto e_uncharge;
 	}
-
-	__set_bit(asid, sev_asid_bitmap);
-
-	mutex_unlock(&sev_bitmap_lock);
 
 	sev->asid = asid;
 	return 0;
