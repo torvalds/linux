@@ -296,12 +296,30 @@ set_kernelversion() {
 	sed -i "2i echo $localversion; exit 0" scripts/setlocalversion
 }
 
+get_patch_input_files() {
+	local patch="$1"
+
+	grep0 -E '^--- ' "$patch"				\
+		| gawk '{print $2}'				\
+		| grep0 -v '^/dev/null$'			\
+		| sed 's|^[^/]*/||'				\
+		| sort -u
+}
+
+get_patch_output_files() {
+	local patch="$1"
+
+	grep0 -E '^\+\+\+ ' "$patch"				\
+		| gawk '{print $2}'				\
+		| grep0 -v '^/dev/null$'			\
+		| sed 's|^[^/]*/||'				\
+		| sort -u
+}
+
 get_patch_files() {
 	local patch="$1"
 
-	grep0 -E '^(--- |\+\+\+ )' "$patch"			\
-		| gawk '{print $2}'				\
-		| sed 's|^[^/]*/||'				\
+	{ get_patch_input_files "$patch"; get_patch_output_files "$patch"; } \
 		| sort -u
 }
 
@@ -312,7 +330,7 @@ git_refresh() {
 
 	[[ ! -e "$SRC/.git" ]] && return
 
-	get_patch_files "$patch" | mapfile -t files
+	get_patch_input_files "$patch" | mapfile -t files
 
 	(
 		cd "$SRC"
@@ -426,21 +444,23 @@ do_init() {
 refresh_patch() {
 	local patch="$1"
 	local tmpdir="$PATCH_TMP_DIR"
-	local files=()
+	local input_files=()
+	local output_files=()
 
 	rm -rf "$tmpdir"
 	mkdir -p "$tmpdir/a"
 	mkdir -p "$tmpdir/b"
 
 	# Get all source files affected by the patch
-	get_patch_files "$patch" | mapfile -t files
+	get_patch_input_files "$patch" | mapfile -t input_files
+	get_patch_output_files "$patch" | mapfile -t output_files
 
 	# Copy orig source files to 'a'
-	( cd "$SRC" && echo "${files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
+	( cd "$SRC" && echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
 
 	# Copy patched source files to 'b'
 	apply_patch "$patch" --recount
-	( cd "$SRC" && echo "${files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
+	( cd "$SRC" && echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
 	revert_patch "$patch" --recount
 
 	# Diff 'a' and 'b' to make a clean patch
