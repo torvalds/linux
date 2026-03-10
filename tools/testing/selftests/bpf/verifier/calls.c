@@ -1521,6 +1521,7 @@
 	.errstr = "R0 invalid mem access 'scalar'",
 	.result_unpriv = REJECT,
 	.errstr_unpriv = "invalid read from stack R7 off=-16 size=8",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"calls: two calls that receive map_value via arg=ptr_stack_of_caller. test1",
