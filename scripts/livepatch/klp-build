@@ -52,6 +52,15 @@ PATCH_TMP_DIR="$TMP_DIR/tmp"
 
 KLP_DIFF_LOG="$DIFF_DIR/diff.log"
 
+# Terminal output colors
+read -r COLOR_RESET COLOR_BOLD COLOR_ERROR COLOR_WARN <<< ""
+if [[ -t 1 && -t 2 ]]; then
+	COLOR_RESET="\033[0m"
+	COLOR_BOLD="\033[1m"
+	COLOR_ERROR="\033[0;31m"
+	COLOR_WARN="\033[0;33m"
+fi
+
 grep0() {
 	# shellcheck disable=SC2317
 	command grep "$@" || true
@@ -65,15 +74,15 @@ grep() {
 }
 
 status() {
-	echo "$*"
+	echo -e "${COLOR_BOLD}$*${COLOR_RESET}"
 }
 
 warn() {
-	echo "error: $SCRIPT: $*" >&2
+	echo -e "${COLOR_WARN}warning${COLOR_RESET}: $SCRIPT: $*" >&2
 }
 
 die() {
-	warn "$@"
+	echo -e "${COLOR_ERROR}error${COLOR_RESET}: $SCRIPT: $*" >&2
 	exit 1
 }
 
@@ -110,7 +119,7 @@ cleanup() {
 }
 
 trap_err() {
-	warn "line ${BASH_LINENO[0]}: '$BASH_COMMAND'"
+	die "line ${BASH_LINENO[0]}: '$BASH_COMMAND'"
 }
 
 trap cleanup  EXIT INT TERM HUP
