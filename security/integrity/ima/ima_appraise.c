@@ -235,40 +235,6 @@ int ima_read_xattr(struct dentry *dentry,
 }
 
 /*
- * calc_file_id_hash - calculate the hash of the ima_file_id struct data
- * @type: xattr type [enum evm_ima_xattr_type]
- * @algo: hash algorithm [enum hash_algo]
- * @digest: pointer to the digest to be hashed
- * @hash: (out) pointer to the hash
- *
- * IMA signature version 3 disambiguates the data that is signed by
- * indirectly signing the hash of the ima_file_id structure data.
- *
- * Signing the ima_file_id struct is currently only supported for
- * IMA_VERITY_DIGSIG type xattrs.
- *
- * Return 0 on success, error code otherwise.
- */
-static int calc_file_id_hash(enum evm_ima_xattr_type type,
-			     enum hash_algo algo, const u8 *digest,
-			     struct ima_digest_data *hash)
-{
-	struct ima_file_id file_id = {
-		.hash_type = IMA_VERITY_DIGSIG, .hash_algorithm = algo};
-	unsigned int unused = HASH_MAX_DIGESTSIZE - hash_digest_size[algo];
-
-	if (type != IMA_VERITY_DIGSIG)
-		return -EINVAL;
-
-	memcpy(file_id.hash, digest, hash_digest_size[algo]);
-
-	hash->algo = algo;
-	hash->length = hash_digest_size[algo];
-
-	return ima_calc_buffer_hash(&file_id, sizeof(file_id) - unused, hash);
-}
-
-/*
  * xattr_verify - verify xattr digest or signature
  *
  * Verify whether the hash or signature matches the file contents.
@@ -279,7 +245,6 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 			struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			enum integrity_status *status, const char **cause)
 {
-	struct ima_max_digest_data hash;
 	struct signature_v2_hdr *sig;
 	int rc = -EINVAL, hash_start = 0;
 	int mask;
@@ -341,7 +306,8 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 					     (const char *)xattr_value,
 					     xattr_len,
 					     iint->ima_hash->digest,
-					     iint->ima_hash->length);
+					     iint->ima_hash->length,
+					     iint->ima_hash->algo);
 		if (rc == -EOPNOTSUPP) {
 			*status = INTEGRITY_UNKNOWN;
 			break;
@@ -352,7 +318,9 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 						     (const char *)xattr_value,
 						     xattr_len,
 						     iint->ima_hash->digest,
-						     iint->ima_hash->length);
+						     iint->ima_hash->length,
+						     iint->ima_hash->algo);
+
 		if (rc) {
 			*cause = "invalid-signature";
 			*status = INTEGRITY_FAIL;
@@ -378,21 +346,16 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 			break;
 		}
 
-		rc = calc_file_id_hash(IMA_VERITY_DIGSIG, iint->ima_hash->algo,
-				       iint->ima_hash->digest,
-				       container_of(&hash.hdr,
-					       struct ima_digest_data, hdr));
-		if (rc) {
-			*cause = "sigv3-hashing-error";
-			*status = INTEGRITY_FAIL;
-			break;
-		}
-
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_IMA,
 					     (const char *)xattr_value,
-					     xattr_len, hash.digest,
-					     hash.hdr.length);
-		if (rc) {
+					     xattr_len,
+					     iint->ima_hash->digest,
+					     iint->ima_hash->length,
+					     iint->ima_hash->algo);
+		if (rc == -EOPNOTSUPP) {
+			*status = INTEGRITY_UNKNOWN;
+			break;
+		} else if (rc) {
 			*cause = "invalid-verity-signature";
 			*status = INTEGRITY_FAIL;
 		} else {

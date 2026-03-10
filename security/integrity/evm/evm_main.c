@@ -266,7 +266,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 			break;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_EVM,
 					(const char *)xattr_data, xattr_len,
-					digest.digest, digest.hdr.length);
+					digest.digest, digest.hdr.length,
+					digest.hdr.algo);
 		if (!rc) {
 			if (xattr_data->type == EVM_XATTR_PORTABLE_DIGSIG) {
 				if (iint)
