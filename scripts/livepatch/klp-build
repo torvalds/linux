@@ -360,11 +360,24 @@ check_unsupported_patches() {
 
 apply_patch() {
 	local patch="$1"
+	shift
+	local extra_args=("$@")
+	local drift_regex="with fuzz|offset [0-9]+ line"
+	local output
+	local status
 
 	[[ ! -f "$patch" ]] && die "$patch doesn't exist"
-	patch -d "$SRC" -p1 --dry-run --silent --no-backup-if-mismatch -r /dev/null < "$patch"
-	patch -d "$SRC" -p1 --silent --no-backup-if-mismatch -r /dev/null < "$patch"
+	status=0
+	output=$(patch -d "$SRC" -p1 --dry-run --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" < "$patch" 2>&1) || status=$?
+	if [[ "$status" -ne 0 ]]; then
+		echo "$output" >&2
+		die "$patch did not apply"
+	elif [[ "$output" =~ $drift_regex ]]; then
+		echo "$output" >&2
+		warn "${patch} applied with fuzz"
+	fi
 
+	patch -d "$SRC" -p1 --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" --silent < "$patch"
 	APPLIED_PATCHES+=("$patch")
 }
 
@@ -383,10 +396,11 @@ revert_patch() {
 }
 
 apply_patches() {
+	local extra_args=("$@")
 	local patch
 
 	for patch in "${PATCHES[@]}"; do
-		apply_patch "$patch"
+		apply_patch "$patch" "${extra_args[@]}"
 	done
 }
 
@@ -444,7 +458,7 @@ refresh_patch() {
 	( cd "$SRC" && echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
 
 	# Copy patched source files to 'b'
-	apply_patch "$patch"
+	apply_patch "$patch" "--silent"
 	( cd "$SRC" && echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
 	revert_patch "$patch"
 
@@ -817,7 +831,7 @@ fi
 if (( SHORT_CIRCUIT <= 2 )); then
 	status "Fixing patch(es)"
 	fix_patches
-	apply_patches
+	apply_patches "--silent"
 	status "Building patched kernel"
 	build_kernel "patched"
 	revert_patches
