@@ -1037,19 +1037,18 @@ static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (kvm_is_vcpu_creation_in_progress(kvm))
 		return -EBUSY;
 
+	ret = kvm_lock_all_vcpus(kvm);
+	if (ret)
+		return ret;
+
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		ret = mutex_lock_killable(&vcpu->mutex);
-		if (ret)
-			return ret;
-
 		ret = __sev_launch_update_vmsa(kvm, vcpu, &argp->error);
-
-		mutex_unlock(&vcpu->mutex);
 		if (ret)
-			return ret;
+			break;
 	}
 
-	return 0;
+	kvm_unlock_all_vcpus(kvm);
+	return ret;
 }
 
 static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
