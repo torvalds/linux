@@ -73,7 +73,7 @@ static inline void on_each_cpu(smp_call_func_t func, void *info, int wait)
 }
 
 /**
- * on_each_cpu_mask(): Run a function on processors specified by
+ * on_each_cpu_mask() - Run a function on processors specified by
  * cpumask, which may include the local processor.
  * @mask: The set of cpus to run on (only runs on online subset).
  * @func: The function to run. This must be fast and non-blocking.
@@ -239,27 +239,14 @@ static inline int get_boot_cpu_id(void)
 
 #endif /* !SMP */
 
-/**
+/*
  * raw_smp_processor_id() - get the current (unstable) CPU id
  *
- * For then you know what you are doing and need an unstable
+ * raw_smp_processor_id() is arch-specific/arch-defined and
+ * may be a macro or a static inline function.
+ *
+ * For when you know what you are doing and need an unstable
  * CPU id.
- */
-
-/**
- * smp_processor_id() - get the current (stable) CPU id
- *
- * This is the normal accessor to the CPU id and should be used
- * whenever possible.
- *
- * The CPU id is stable when:
- *
- *  - IRQs are disabled;
- *  - preemption is disabled;
- *  - the task is CPU affine.
- *
- * When CONFIG_DEBUG_PREEMPT; we verify these assumption and WARN
- * when smp_processor_id() is used when the CPU id is not stable.
  */
 
 /*
@@ -274,7 +261,24 @@ static inline int get_boot_cpu_id(void)
 #ifdef CONFIG_DEBUG_PREEMPT
   extern unsigned int debug_smp_processor_id(void);
 # define smp_processor_id() debug_smp_processor_id()
+
 #else
+/**
+ * smp_processor_id() - get the current (stable) CPU id
+ *
+ * This is the normal accessor to the CPU id and should be used
+ * whenever possible.
+ *
+ * The CPU id is stable when:
+ *
+ *  - IRQs are disabled;
+ *  - preemption is disabled;
+ *  - the task is CPU affine.
+ *
+ * When CONFIG_DEBUG_PREEMPT=y, we verify these assumptions and WARN
+ * when smp_processor_id() is used when the CPU id is not stable.
+ */
+
 # define smp_processor_id() __smp_processor_id()
 #endif
 
