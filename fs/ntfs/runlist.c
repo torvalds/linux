@@ -1598,7 +1598,7 @@ int ntfs_rl_sparse(struct runlist_element *rl)
 	for (rlc = rl; rlc->length; rlc++)
 		if (rlc->lcn < 0) {
 			if (rlc->lcn != LCN_HOLE && rlc->lcn != LCN_DELALLOC) {
-				pr_err("%s: bad runlist", __func__);
+				pr_err("%s: bad runlist\n", __func__);
 				return -EINVAL;
 			}
 			return 1;

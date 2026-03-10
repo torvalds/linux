@@ -2062,7 +2062,7 @@ static int ntfs_make_room_for_attr(struct mft_record *m, u8 *pos, u32 size)
 
 	/* Rigorous consistency checks. */
 	if (!m || !pos || pos < (u8 *)m) {
-		pr_err("%s: pos=%p  m=%p", __func__, pos, m);
+		pr_err("%s: pos=%p  m=%p\n", __func__, pos, m);
 		return -EINVAL;
 	}
 
@@ -2240,16 +2240,16 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	err = ntfs_attr_can_be_non_resident(ni->vol, type);
 	if (err) {
 		if (err == -EPERM)
-			pr_err("Attribute can't be non resident");
+			pr_err("Attribute can't be non resident\n");
 		else
-			pr_err("ntfs_attr_can_be_non_resident failed");
+			pr_err("ntfs_attr_can_be_non_resident failed\n");
 		return err;
 	}
 
 	/* Locate place where record should be. */
 	ctx = ntfs_attr_get_search_ctx(ni, NULL);
 	if (!ctx) {
-		pr_err("%s: Failed to get search context", __func__);
+		pr_err("%s: Failed to get search context\n", __func__);
 		return -ENOMEM;
 	}
 	/*
@@ -2260,11 +2260,11 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	err = ntfs_attr_find(type, name, name_len, CASE_SENSITIVE, NULL, 0, ctx);
 	if (!err) {
 		err = -EEXIST;
-		pr_err("Attribute 0x%x already present", type);
+		pr_err("Attribute 0x%x already present\n", type);
 		goto put_err_out;
 	}
 	if (err != -ENOENT) {
-		pr_err("ntfs_attr_find failed");
+		pr_err("ntfs_attr_find failed\n");
 		err = -EIO;
 		goto put_err_out;
 	}
@@ -2279,7 +2279,7 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 		 sizeof(a->data.non_resident.compressed_size) : 0);
 	err = ntfs_make_room_for_attr(ctx->mrec, (u8 *) ctx->attr, length);
 	if (err) {
-		pr_err("Failed to make room for attribute");
+		pr_err("Failed to make room for attribute\n");
 		goto put_err_out;
 	}
 
@@ -2319,7 +2319,7 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	if (type != AT_ATTRIBUTE_LIST && NInoAttrList(base_ni)) {
 		err = ntfs_attrlist_entry_add(ni, a);
 		if (err) {
-			pr_err("Failed add attr entry to attrlist");
+			pr_err("Failed add attr entry to attrlist\n");
 			ntfs_attr_record_resize(m, a, 0);
 			goto put_err_out;
 		}
@@ -2334,7 +2334,7 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	err = ntfs_attr_lookup(type, name, name_len, CASE_SENSITIVE,
 				lowest_vcn, NULL, 0, ctx);
 	if (err) {
-		pr_err("%s: attribute lookup failed", __func__);
+		pr_err("%s: attribute lookup failed\n", __func__);
 		ntfs_attr_put_search_ctx(ctx);
 		return err;
 
@@ -2825,7 +2825,7 @@ int ntfs_attr_open(struct ntfs_inode *ni, const __le32 type,
 	ctx = ntfs_attr_get_search_ctx(base_ni, NULL);
 	if (!ctx) {
 		err = -ENOMEM;
-		pr_err("%s: Failed to get search context", __func__);
+		pr_err("%s: Failed to get search context\n", __func__);
 		goto err_out;
 	}
 
@@ -4615,7 +4615,7 @@ int ntfs_attr_expand(struct ntfs_inode *ni, const s64 newsize, const s64 preallo
 	 * which is what Windows NT4 does, too.
 	 */
 	if (NInoEncrypted(ni)) {
-		pr_err("Failed to truncate encrypted attribute");
+		pr_err("Failed to truncate encrypted attribute\n");
 		return -EACCES;
 	}
 
@@ -4669,12 +4669,12 @@ int ntfs_attr_truncate_i(struct ntfs_inode *ni, const s64 newsize, unsigned int 
 	 * which is what Windows NT4 does, too.
 	 */
 	if (NInoEncrypted(ni)) {
-		pr_err("Failed to truncate encrypted attribute");
+		pr_err("Failed to truncate encrypted attribute\n");
 		return -EACCES;
 	}
 
 	if (NInoCompressed(ni)) {
-		pr_err("Failed to truncate compressed attribute");
+		pr_err("Failed to truncate compressed attribute\n");
 		return -EOPNOTSUPP;
 	}
 

@@ -613,7 +613,7 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 		goto out;
 
 	if (a->data.non_resident.data_size) {
-		pr_err("Can't change sparsed/compressed for non-empty file");
+		pr_err("Can't change sparsed/compressed for non-empty file\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
