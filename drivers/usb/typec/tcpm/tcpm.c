@@ -725,7 +725,7 @@ static void _tcpm_log(struct tcpm_port *port, const char *fmt, va_list args)
 
 	if (tcpm_log_full(port)) {
 		port->logbuffer_head = max(port->logbuffer_head - 1, 0);
-		strcpy(tmpbuffer, "overflow");
+		strscpy(tmpbuffer, "overflow");
 	}
 
 	if (port->logbuffer_head < 0 ||
@@ -841,10 +841,10 @@ static void tcpm_log_source_caps(struct tcpm_port *port)
 					  pdo_spr_avs_apdo_15v_to_20v_max_current_ma(pdo),
 					  pdo_spr_avs_apdo_src_peak_current(pdo));
 			else
-				strcpy(msg, "undefined APDO");
+				strscpy(msg, "undefined APDO");
 			break;
 		default:
-			strcpy(msg, "undefined");
+			strscpy(msg, "undefined");
 			break;
 		}
 		tcpm_log(port, " PDO %d: type %d, %s",
