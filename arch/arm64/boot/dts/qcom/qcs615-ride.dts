@@ -91,16 +91,6 @@
 		regulator-always-on;
 	};
 
-	vreg_12p0: regulator-vreg-12p0 {
-		compatible = "regulator-fixed";
-		regulator-name = "VREG_12P0";
-
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-	};
-
 	vreg_1p0: regulator-vreg-1p0 {
 		compatible = "regulator-fixed";
 		regulator-name = "VREG_1P0";
@@ -121,8 +111,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-
-		vin-supply = <&vreg_5p0>;
 	};
 
 	vreg_3p0: regulator-vreg-3p0 {
@@ -133,20 +121,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
-
-		vin-supply = <&vreg_12p0>;
-	};
-
-	vreg_5p0: regulator-vreg-5p0 {
-		compatible = "regulator-fixed";
-		regulator-name = "VREG_5P0";
-
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-
-		vin-supply = <&vreg_12p0>;
 	};
 
 	wcn6855-pmu {
