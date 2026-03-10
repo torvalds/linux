@@ -2751,6 +2751,24 @@ static int svm_get_feature_msr(u32 msr, u64 *data)
 	return 0;
 }
 
+static u64 *svm_vmcb_lbr(struct vcpu_svm *svm, u32 msr)
+{
+	switch (msr) {
+	case MSR_IA32_LASTBRANCHFROMIP:
+		return &svm->vmcb->save.br_from;
+	case MSR_IA32_LASTBRANCHTOIP:
+		return &svm->vmcb->save.br_to;
+	case MSR_IA32_LASTINTFROMIP:
+		return &svm->vmcb->save.last_excp_from;
+	case MSR_IA32_LASTINTTOIP:
+		return &svm->vmcb->save.last_excp_to;
+	default:
+		break;
+	}
+	KVM_BUG_ON(1, svm->vcpu.kvm);
+	return &svm->vmcb->save.br_from;
+}
+
 static bool sev_es_prevent_msr_access(struct kvm_vcpu *vcpu,
 				      struct msr_data *msr_info)
 {
@@ -2827,16 +2845,10 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = lbrv ? svm->vmcb->save.dbgctl : 0;
 		break;
 	case MSR_IA32_LASTBRANCHFROMIP:
-		msr_info->data = lbrv ? svm->vmcb->save.br_from : 0;
-		break;
 	case MSR_IA32_LASTBRANCHTOIP:
-		msr_info->data = lbrv ? svm->vmcb->save.br_to : 0;
-		break;
 	case MSR_IA32_LASTINTFROMIP:
-		msr_info->data = lbrv ? svm->vmcb->save.last_excp_from : 0;
-		break;
 	case MSR_IA32_LASTINTTOIP:
-		msr_info->data = lbrv ? svm->vmcb->save.last_excp_to : 0;
+		msr_info->data = lbrv ? *svm_vmcb_lbr(svm, msr_info->index) : 0;
 		break;
 	case MSR_VM_HSAVE_PA:
 		msr_info->data = svm->nested.hsave_msr;
@@ -3112,35 +3124,14 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		svm_update_lbrv(vcpu);
 		break;
 	case MSR_IA32_LASTBRANCHFROMIP:
-		if (!lbrv)
-			return KVM_MSR_RET_UNSUPPORTED;
-		if (!msr->host_initiated)
-			return 1;
-		svm->vmcb->save.br_from = data;
-		vmcb_mark_dirty(svm->vmcb, VMCB_LBR);
-		break;
 	case MSR_IA32_LASTBRANCHTOIP:
-		if (!lbrv)
-			return KVM_MSR_RET_UNSUPPORTED;
-		if (!msr->host_initiated)
-			return 1;
-		svm->vmcb->save.br_to = data;
-		vmcb_mark_dirty(svm->vmcb, VMCB_LBR);
-		break;
 	case MSR_IA32_LASTINTFROMIP:
-		if (!lbrv)
-			return KVM_MSR_RET_UNSUPPORTED;
-		if (!msr->host_initiated)
-			return 1;
-		svm->vmcb->save.last_excp_from = data;
-		vmcb_mark_dirty(svm->vmcb, VMCB_LBR);
-		break;
 	case MSR_IA32_LASTINTTOIP:
 		if (!lbrv)
 			return KVM_MSR_RET_UNSUPPORTED;
 		if (!msr->host_initiated)
 			return 1;
-		svm->vmcb->save.last_excp_to = data;
+		*svm_vmcb_lbr(svm, ecx) = data;
 		vmcb_mark_dirty(svm->vmcb, VMCB_LBR);
 		break;
 	case MSR_VM_HSAVE_PA:
