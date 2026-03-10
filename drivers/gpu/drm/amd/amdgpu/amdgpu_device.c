@@ -2690,8 +2690,10 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 		break;
 	default:
 		r = amdgpu_discovery_set_ip_blocks(adev);
-		if (r)
+		if (r) {
+			adev->num_ip_blocks = 0;
 			return r;
+		}
 		break;
 	}
 
