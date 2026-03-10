@@ -280,23 +280,18 @@ static int move_addr_to_user(struct sockaddr_storage *kaddr, int klen,
 
 	BUG_ON(klen > sizeof(struct sockaddr_storage));
 
-	if (can_do_masked_user_access())
-		ulen = masked_user_access_begin(ulen);
-	else if (!user_access_begin(ulen, 4))
-		return -EFAULT;
+	scoped_user_rw_access_size(ulen, 4, efault_end) {
+		unsafe_get_user(len, ulen, efault_end);
 
-	unsafe_get_user(len, ulen, efault_end);
-
-	if (len > klen)
-		len = klen;
-	/*
-	 *      "fromlen shall refer to the value before truncation.."
-	 *                      1003.1g
-	 */
-	if (len >= 0)
-		unsafe_put_user(klen, ulen, efault_end);
-
-	user_access_end();
+		if (len > klen)
+			len = klen;
+		/*
+		 *      "fromlen shall refer to the value before truncation.."
+		 *                      1003.1g
+		 */
+		if (len >= 0)
+			unsafe_put_user(klen, ulen, efault_end);
+	}
 
 	if (len) {
 		if (len < 0)
@@ -309,7 +304,6 @@ static int move_addr_to_user(struct sockaddr_storage *kaddr, int klen,
 	return 0;
 
 efault_end:
-	user_access_end();
 	return -EFAULT;
 }
 
