@@ -1097,7 +1097,7 @@ static void hid_gos_brightness_set(struct led_classdev *led_cdev,
 	default:
 		dev_err(led_cdev->dev, "Failed to write RGB profile: %i\n",
 			ret);
-	};
+	}
 }
 
 #define LEGOS_DEVICE_ATTR_RW(_name, _attrname, _rtype, _group)                 \
