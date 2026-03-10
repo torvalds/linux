@@ -372,18 +372,21 @@ static int aplic_probe(struct platform_device *pdev)
 		rc = aplic_msi_setup(dev, regs);
 	else
 		rc = aplic_direct_setup(dev, regs);
-	if (rc)
+
+	if (rc) {
 		dev_err_probe(dev, rc, "failed to setup APLIC in %s mode\n",
 			      msi_mode ? "MSI" : "direct");
-	else
-		register_syscore(&aplic_syscore);
+		return rc;
+	}
+
+	register_syscore(&aplic_syscore);
 
 #ifdef CONFIG_ACPI
 	if (!acpi_disabled)
 		acpi_dev_clear_dependencies(ACPI_COMPANION(dev));
 #endif
 
-	return rc;
+	return 0;
 }
 
 static const struct of_device_id aplic_match[] = {
