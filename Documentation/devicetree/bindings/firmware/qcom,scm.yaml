@@ -23,6 +23,7 @@ properties:
       - enum:
           - qcom,scm-apq8064
           - qcom,scm-apq8084
+          - qcom,scm-eliza
           - qcom,scm-glymur
           - qcom,scm-ipq4019
           - qcom,scm-ipq5018
@@ -205,6 +206,7 @@ allOf:
           compatible:
             contains:
               enum:
+                - qcom,scm-eliza
                 - qcom,scm-kaanapali
                 - qcom,scm-milos
                 - qcom,scm-sm8450
