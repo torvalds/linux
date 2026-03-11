@@ -116,11 +116,6 @@ static inline ktime_t hrtimer_get_softexpires(const struct hrtimer *timer)
 	return timer->_softexpires;
 }
 
-static inline s64 hrtimer_get_expires_ns(const struct hrtimer *timer)
-{
-	return ktime_to_ns(timer->node.expires);
-}
-
 ktime_t hrtimer_cb_get_time(const struct hrtimer *timer);
 
 static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
