@@ -743,7 +743,7 @@ files are there, and which are missing.
               in the kernel image
  cpuinfo      Info about the CPU
  devices      Available devices (block and character)
- dma          Used DMS channels
+ dma          Used DMA channels
  filesystems  Supported filesystems
  driver       Various drivers grouped here, currently rtc	(2.4)
  execdomains  Execdomains, related to security			(2.4)
@@ -877,14 +877,13 @@ i386 and x86_64 platforms support the new IRQ vector displays.
 Of some interest is the introduction of the /proc/irq directory to 2.4.
 It could be used to set IRQ to CPU affinity. This means that you can "hook" an
 IRQ to only one CPU, or to exclude a CPU of handling IRQs. The contents of the
-irq subdir is one subdir for each IRQ, and two files; default_smp_affinity and
-prof_cpu_mask.
+irq subdir is one subdir for each IRQ, and default_smp_affinity.
 
 For example::
 
   > ls /proc/irq/
-  0  10  12  14  16  18  2  4  6  8  prof_cpu_mask
-  1  11  13  15  17  19  3  5  7  9  default_smp_affinity
+  0  10  12  14  16  18  2  4  6  8  default_smp_affinity
+  1  11  13  15  17  19  3  5  7  9
   > ls /proc/irq/0/
   smp_affinity
 
@@ -914,9 +913,6 @@ IRQs which have not yet been allocated/activated, and hence which lack a
 The node file on an SMP system shows the node to which the device using the IRQ
 reports itself as being attached. This hardware locality information does not
 include information about any possible driver locality preference.
-
-prof_cpu_mask specifies which CPUs are to be profiled by the system wide
-profiler. Default value is ffffffff (all CPUs if there are only 32 of them).
 
 The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
 between all the CPUs which are allowed to handle it. As usual the kernel has
