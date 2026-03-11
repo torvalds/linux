@@ -25,40 +25,6 @@ static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
 /*
  * 	Checksumming routines
  */
-static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
-{
-	u16 cscov;
-
-        /* In UDPv4 a zero checksum means that the transmitter generated no
-         * checksum. UDP-Lite (like IPv6) mandates checksums, hence packets
-         * with a zero checksum field are illegal.                            */
-	if (uh->check == 0) {
-		net_dbg_ratelimited("UDPLite: zeroed checksum field\n");
-		return 1;
-	}
-
-	cscov = ntohs(uh->len);
-
-	if (cscov == 0)		 /* Indicates that full coverage is required. */
-		;
-	else if (cscov < 8  || cscov > skb->len) {
-		/*
-		 * Coverage length violates RFC 3828: log and discard silently.
-		 */
-		net_dbg_ratelimited("UDPLite: bad csum coverage %d/%d\n",
-				    cscov, skb->len);
-		return 1;
-
-	} else if (cscov < skb->len) {
-        	UDP_SKB_CB(skb)->partial_cov = 1;
-		UDP_SKB_CB(skb)->cscov = cscov;
-		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = CHECKSUM_NONE;
-		skb->csum_valid = 0;
-        }
-
-	return 0;
-}
 
 /* Fast-path computation of checksum. Socket may not be locked. */
 static inline __wsum udplite_csum(struct sk_buff *skb)
