@@ -9,8 +9,6 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
-#include "intel_display_core.h"
-#include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 
@@ -23,7 +21,7 @@ int intel_fb_bo_framebuffer_init(struct drm_gem_object *_obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
-	struct intel_display *display = to_intel_display(obj->base.dev);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned int tiling, stride;
 
 	i915_gem_object_lock(obj, NULL);
@@ -38,7 +36,7 @@ int intel_fb_bo_framebuffer_init(struct drm_gem_object *_obj,
 		 */
 		if (tiling != I915_TILING_NONE &&
 		    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-			drm_dbg_kms(display->drm,
+			drm_dbg_kms(&i915->drm,
 				    "tiling_mode doesn't match fb modifier\n");
 			return -EINVAL;
 		}
@@ -46,7 +44,7 @@ int intel_fb_bo_framebuffer_init(struct drm_gem_object *_obj,
 		if (tiling == I915_TILING_X) {
 			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
 		} else if (tiling == I915_TILING_Y) {
-			drm_dbg_kms(display->drm,
+			drm_dbg_kms(&i915->drm,
 				    "No Y tiling for legacy addfb\n");
 			return -EINVAL;
 		}
@@ -56,9 +54,9 @@ int intel_fb_bo_framebuffer_init(struct drm_gem_object *_obj,
 	 * gen2/3 display engine uses the fence if present,
 	 * so the tiling mode must match the fb modifier exactly.
 	 */
-	if (DISPLAY_VER(display) < 4 &&
+	if (GRAPHICS_VER(i915) < 4 &&
 	    tiling != intel_fb_modifier_to_tiling(mode_cmd->modifier[0])) {
-		drm_dbg_kms(display->drm,
+		drm_dbg_kms(&i915->drm,
 			    "tiling_mode must match fb modifier exactly on gen2/3\n");
 		return -EINVAL;
 	}
@@ -68,7 +66,7 @@ int intel_fb_bo_framebuffer_init(struct drm_gem_object *_obj,
 	 * the fb pitch and fence stride match.
 	 */
 	if (tiling != I915_TILING_NONE && mode_cmd->pitches[0] != stride) {
-		drm_dbg_kms(display->drm,
+		drm_dbg_kms(&i915->drm,
 			    "pitch (%d) must match tiling stride (%d)\n",
 			    mode_cmd->pitches[0], stride);
 		return -EINVAL;
