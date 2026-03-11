@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/kempld.h>
@@ -19,13 +20,26 @@
 #define KEMPLD_GPIO_MASK(x)		(BIT((x) % 8))
 #define KEMPLD_GPIO_DIR			0x40
 #define KEMPLD_GPIO_LVL			0x42
+#define KEMPLD_GPIO_STS			0x44
 #define KEMPLD_GPIO_EVT_LVL_EDGE	0x46
+#define KEMPLD_GPIO_EVT_LOW_HIGH	0x48
 #define KEMPLD_GPIO_IEN			0x4A
+#define KEMPLD_GPIO_OUT_LVL		0x4E
+
+/* The IRQ to use if none was configured in the BIOS */
+static unsigned int gpio_irq;
+module_param_hw(gpio_irq, uint, irq, 0444);
+MODULE_PARM_DESC(gpio_irq, "Set legacy GPIO IRQ (1-15)");
 
 struct kempld_gpio_data {
 	struct gpio_chip		chip;
 	struct kempld_device_data	*pld;
 	u8				out_lvl_reg;
+
+	struct mutex			irq_lock;
+	u16				ien;
+	u16				evt_low_high;
+	u16				evt_lvl_edge;
 };
 
 /*
@@ -193,6 +207,180 @@ static int kempld_gpio_pincount(struct kempld_device_data *pld)
 	return evt ? __ffs(evt) : 16;
 }
 
+static void kempld_irq_mask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+
+	gpio->ien &= ~BIT(irqd_to_hwirq(data));
+	gpiochip_disable_irq(chip, irqd_to_hwirq(data));
+}
+
+static void kempld_irq_unmask(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+
+	gpiochip_enable_irq(chip, irqd_to_hwirq(data));
+	gpio->ien |= BIT(irqd_to_hwirq(data));
+}
+
+static int kempld_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+		gpio->evt_low_high |= BIT(data->hwirq);
+		gpio->evt_lvl_edge |= BIT(data->hwirq);
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		gpio->evt_low_high &= ~BIT(data->hwirq);
+		gpio->evt_lvl_edge |= BIT(data->hwirq);
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		gpio->evt_low_high |= BIT(data->hwirq);
+		gpio->evt_lvl_edge &= ~BIT(data->hwirq);
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		gpio->evt_low_high &= ~BIT(data->hwirq);
+		gpio->evt_lvl_edge &= ~BIT(data->hwirq);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void kempld_irq_bus_lock(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+
+	mutex_lock(&gpio->irq_lock);
+}
+
+static void kempld_irq_bus_sync_unlock(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+	struct kempld_device_data *pld = gpio->pld;
+
+	kempld_get_mutex(pld);
+	kempld_write16(pld, KEMPLD_GPIO_EVT_LVL_EDGE, gpio->evt_lvl_edge);
+	kempld_write16(pld, KEMPLD_GPIO_EVT_LOW_HIGH, gpio->evt_low_high);
+	kempld_write16(pld, KEMPLD_GPIO_IEN, gpio->ien);
+	kempld_release_mutex(pld);
+
+	mutex_unlock(&gpio->irq_lock);
+}
+
+static const struct irq_chip kempld_irqchip = {
+	.name			= "kempld-gpio",
+	.irq_mask		= kempld_irq_mask,
+	.irq_unmask		= kempld_irq_unmask,
+	.irq_set_type		= kempld_irq_set_type,
+	.irq_bus_lock		= kempld_irq_bus_lock,
+	.irq_bus_sync_unlock	= kempld_irq_bus_sync_unlock,
+	.flags			= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
+static irqreturn_t kempld_gpio_irq_handler(int irq, void *data)
+{
+	struct kempld_gpio_data *gpio = data;
+	struct gpio_chip *chip = &gpio->chip;
+	unsigned int pin, child_irq;
+	unsigned long status;
+
+	kempld_get_mutex(gpio->pld);
+
+	status = kempld_read16(gpio->pld, KEMPLD_GPIO_STS);
+	if (status)
+		kempld_write16(gpio->pld, KEMPLD_GPIO_STS, status);
+
+	kempld_release_mutex(gpio->pld);
+
+	status &= gpio->ien;
+	if (!status)
+		return IRQ_NONE;
+
+	for_each_set_bit(pin, &status, chip->ngpio) {
+		child_irq = irq_find_mapping(chip->irq.domain, pin);
+		handle_nested_irq(child_irq);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int kempld_gpio_irq_init(struct device *dev,
+				struct kempld_gpio_data *gpio)
+{
+	struct kempld_device_data *pld = gpio->pld;
+	struct gpio_chip *chip = &gpio->chip;
+	struct gpio_irq_chip *girq;
+	unsigned int irq;
+	int ret;
+
+	/* Get the IRQ configured by the BIOS in the PLD */
+	kempld_get_mutex(pld);
+	irq = kempld_read8(pld, KEMPLD_IRQ_GPIO);
+	kempld_release_mutex(pld);
+
+	if (irq == 0xff) {
+		dev_info(dev, "GPIO controller has no IRQ support\n");
+		return 0;
+	}
+
+	/* Allow overriding the IRQ with the module parameter */
+	if (gpio_irq > 0) {
+		dev_warn(dev, "Forcing IRQ to %d\n", gpio_irq);
+		irq &= ~KEMPLD_IRQ_GPIO_MASK;
+		irq |= gpio_irq & KEMPLD_IRQ_GPIO_MASK;
+	}
+
+	if (!(irq & KEMPLD_IRQ_GPIO_MASK)) {
+		dev_warn(dev, "No IRQ configured\n");
+		return 0;
+	}
+
+	/* Get the current config, disable all child interrupts, clear them
+	 * and set the parent IRQ
+	 */
+	kempld_get_mutex(pld);
+	gpio->evt_low_high = kempld_read16(pld, KEMPLD_GPIO_EVT_LOW_HIGH);
+	gpio->evt_lvl_edge = kempld_read16(pld, KEMPLD_GPIO_EVT_LVL_EDGE);
+	kempld_write16(pld, KEMPLD_GPIO_IEN, 0);
+	kempld_write16(pld, KEMPLD_GPIO_STS, 0xFFFF);
+	kempld_write16(pld, KEMPLD_IRQ_GPIO, irq);
+	kempld_release_mutex(pld);
+
+	girq = &chip->irq;
+	gpio_irq_chip_set_chip(girq, &kempld_irqchip);
+
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_simple_irq;
+	girq->threaded = true;
+
+	mutex_init(&gpio->irq_lock);
+
+	ret = devm_request_threaded_irq(dev, irq & KEMPLD_IRQ_GPIO_MASK,
+					NULL, kempld_gpio_irq_handler,
+					IRQF_ONESHOT, chip->label,
+					gpio);
+	if (ret) {
+		dev_err(dev, "failed to request irq %d\n", irq);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int kempld_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -246,6 +434,10 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "No GPIO pins detected\n");
 		return -ENODEV;
 	}
+
+	ret = kempld_gpio_irq_init(dev, gpio);
+	if (ret)
+		return ret;
 
 	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {

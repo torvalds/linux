@@ -1440,6 +1440,7 @@ config GPIO_JANZ_TTL
 config GPIO_KEMPLD
 	tristate "Kontron ETX / COMexpress GPIO"
 	depends on MFD_KEMPLD
+	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the PLD GPIO interface on some Kontron ETX
 	  and COMexpress (ETXexpress) modules.
