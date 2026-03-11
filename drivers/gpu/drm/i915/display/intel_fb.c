@@ -17,7 +17,6 @@
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
 #include "intel_fb.h"
-#include "intel_fb_bo.h"
 #include "intel_frontbuffer.h"
 #include "intel_parent.h"
 #include "intel_plane.h"
@@ -2111,7 +2110,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	if (intel_fb_uses_dpt(fb))
 		intel_parent_dpt_destroy(display, intel_fb->dpt);
 
-	intel_fb_bo_framebuffer_fini(intel_fb_bo(fb));
+	intel_bo_framebuffer_fini(intel_fb_bo(fb));
 
 	intel_parent_frontbuffer_put(display, intel_fb->frontbuffer);
 
@@ -2222,7 +2221,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 
 	/*
 	 * intel_parent_frontbuffer_get() must be done before
-	 * intel_fb_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
+	 * intel_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
 	 */
 	intel_fb->frontbuffer = intel_parent_frontbuffer_get(display, obj);
 	if (!intel_fb->frontbuffer) {
@@ -2230,7 +2229,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err_free_panic;
 	}
 
-	ret = intel_fb_bo_framebuffer_init(obj, mode_cmd);
+	ret = intel_bo_framebuffer_init(obj, mode_cmd);
 	if (ret)
 		goto err_frontbuffer_put;
 
@@ -2333,7 +2332,7 @@ err_free_dpt:
 	if (intel_fb_uses_dpt(fb))
 		intel_parent_dpt_destroy(display, intel_fb->dpt);
 err_bo_framebuffer_fini:
-	intel_fb_bo_framebuffer_fini(obj);
+	intel_bo_framebuffer_fini(obj);
 err_frontbuffer_put:
 	intel_parent_frontbuffer_put(display, intel_fb->frontbuffer);
 err_free_panic:
@@ -2348,11 +2347,12 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      const struct drm_format_info *info,
 			      const struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
 
-	obj = intel_fb_bo_lookup_valid_bo(dev, filp, &mode_cmd);
+	obj = intel_bo_framebuffer_lookup(display, filp, &mode_cmd);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 

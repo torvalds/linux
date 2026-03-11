@@ -64,3 +64,24 @@ void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
 	if (display->parent->bo->describe)
 		display->parent->bo->describe(m, obj);
 }
+
+int intel_bo_framebuffer_init(struct drm_gem_object *obj, struct drm_mode_fb_cmd2 *mode_cmd)
+{
+	struct intel_display *display = to_intel_display(obj->dev);
+
+	return display->parent->bo->framebuffer_init(obj, mode_cmd);
+}
+
+void intel_bo_framebuffer_fini(struct drm_gem_object *obj)
+{
+	struct intel_display *display = to_intel_display(obj->dev);
+
+	display->parent->bo->framebuffer_fini(obj);
+}
+
+struct drm_gem_object *intel_bo_framebuffer_lookup(struct intel_display *display,
+						   struct drm_file *filp,
+						   const struct drm_mode_fb_cmd2 *user_mode_cmd)
+{
+	return display->parent->bo->framebuffer_lookup(display->drm, filp, user_mode_cmd);
+}
