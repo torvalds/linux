@@ -302,12 +302,12 @@ sysroot/$(ARCH)/include:
 	$(Q)$(MAKE) -C $(srctree)/tools/include/nolibc ARCH=$(ARCH) OUTPUT=$(CURDIR)/sysroot/ headers_standalone headers_check
 	$(Q)mv sysroot/sysroot sysroot/$(ARCH)
 
-nolibc-test: nolibc-test.c nolibc-test-linkage.c sysroot/$(ARCH)/include
+nolibc-test: $(NOLIBC_TEST_SOURCES) sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include nolibc-test.c nolibc-test-linkage.c $(LIBGCC)
+	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include $(NOLIBC_TEST_SOURCES) $(LIBGCC)
 
-libc-test: nolibc-test.c nolibc-test-linkage.c
-	$(QUIET_CC)$(HOSTCC) -o $@ nolibc-test.c nolibc-test-linkage.c
+libc-test: $(NOLIBC_TEST_SOURCES)
+	$(QUIET_CC)$(HOSTCC) -o $@ $(NOLIBC_TEST_SOURCES)
 
 # local libc-test
 run-libc-test: libc-test

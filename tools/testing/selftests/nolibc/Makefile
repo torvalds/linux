@@ -13,9 +13,9 @@ $(OUTPUT)/nolibc-test: CFLAGS = -nostdlib -nostdinc -static \
 	 -isystem $(top_srcdir)/tools/include/nolibc -isystem $(top_srcdir)/usr/include \
 	 $(CFLAGS_NOLIBC_TEST)
 $(OUTPUT)/nolibc-test: LDLIBS = $(if $(LLVM),,-lgcc)
-$(OUTPUT)/nolibc-test: nolibc-test.c nolibc-test-linkage.c | headers
+$(OUTPUT)/nolibc-test: $(NOLIBC_TEST_SOURCES) | headers
 
-$(OUTPUT)/libc-test: nolibc-test.c nolibc-test-linkage.c
+$(OUTPUT)/libc-test: $(NOLIBC_TEST_SOURCES)
 	$(call msg,CC,,$@)
 	$(Q)$(LINK.c) $^ -o $@
 
