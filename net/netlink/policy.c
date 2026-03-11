@@ -31,7 +31,7 @@ static int add_policy(struct netlink_policy_dump_state **statep,
 	struct netlink_policy_dump_state *state = *statep;
 	unsigned int old_n_alloc, n_alloc, i;
 
-	if (!policy || !maxtype)
+	if (!policy)
 		return 0;
 
 	for (i = 0; i < state->n_alloc; i++) {
@@ -85,7 +85,7 @@ int netlink_policy_dump_get_policy_idx(struct netlink_policy_dump_state *state,
 {
 	unsigned int i;
 
-	if (WARN_ON(!policy || !maxtype))
+	if (WARN_ON(!policy))
                 return 0;
 
 	for (i = 0; i < state->n_alloc; i++) {
