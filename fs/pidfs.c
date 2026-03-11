@@ -8,6 +8,8 @@
 #include <linux/mount.h>
 #include <linux/pid.h>
 #include <linux/pidfs.h>
+#include <linux/sched/signal.h>
+#include <linux/signal.h>
 #include <linux/pid_namespace.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
@@ -637,7 +639,28 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return open_namespace(ns_common);
 }
 
+static int pidfs_file_release(struct inode *inode, struct file *file)
+{
+	struct pid *pid = inode->i_private;
+	struct task_struct *task;
+
+	if (!(file->f_flags & PIDFD_AUTOKILL))
+		return 0;
+
+	guard(rcu)();
+	task = pid_task(pid, PIDTYPE_TGID);
+	if (!task)
+		return 0;
+
+	/* Not available for kthreads or user workers for now. */
+	if (WARN_ON_ONCE(task->flags & (PF_KTHREAD | PF_USER_WORKER)))
+		return 0;
+	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, task, PIDTYPE_TGID);
+	return 0;
+}
+
 static const struct file_operations pidfs_file_operations = {
+	.release	= pidfs_file_release,
 	.poll		= pidfd_poll,
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= pidfd_show_fdinfo,
@@ -1093,11 +1116,11 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	int ret;
 
 	/*
-	 * Ensure that PIDFD_STALE can be passed as a flag without
-	 * overloading other uapi pidfd flags.
+	 * Ensure that internal pidfd flags don't overlap with each
+	 * other or with uapi pidfd flags.
 	 */
-	BUILD_BUG_ON(PIDFD_STALE == PIDFD_THREAD);
-	BUILD_BUG_ON(PIDFD_STALE == PIDFD_NONBLOCK);
+	BUILD_BUG_ON(hweight32(PIDFD_THREAD | PIDFD_NONBLOCK |
+				PIDFD_STALE | PIDFD_AUTOKILL) != 4);
 
 	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
 	if (ret < 0)
@@ -1108,9 +1131,12 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	flags &= ~PIDFD_STALE;
 	flags |= O_RDWR;
 	pidfd_file = dentry_open(&path, flags, current_cred());
-	/* Raise PIDFD_THREAD explicitly as do_dentry_open() strips it. */
+	/*
+	 * Raise PIDFD_THREAD and PIDFD_AUTOKILL explicitly as
+	 * do_dentry_open() strips O_EXCL and O_TRUNC.
+	 */
 	if (!IS_ERR(pidfd_file))
-		pidfd_file->f_flags |= (flags & PIDFD_THREAD);
+		pidfd_file->f_flags |= (flags & (PIDFD_THREAD | PIDFD_AUTOKILL));
 
 	return pidfd_file;
 }
