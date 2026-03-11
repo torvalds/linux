@@ -358,10 +358,8 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 		gpiod_set_consumer_name(hdmi->hpd_gpiod, "HDMI_HPD");
 
 	ret = msm_hdmi_get_phy(hdmi);
-	if (ret) {
-		DRM_DEV_ERROR(&pdev->dev, "failed to get phy\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
