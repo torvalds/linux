@@ -3141,6 +3141,9 @@ static struct surface_update_descriptor check_update_state_and_surfaces_for_stre
 		const int surface_count,
 		const struct dc_stream_update *stream_update)
 {
+	(void)check_config;
+	(void)stream_update;
+
 	const struct dc_state *context = dc->current_state;
 
 	struct surface_update_descriptor overall_type = { UPDATE_TYPE_ADDR_ONLY, LOCK_DESCRIPTOR_NONE};
