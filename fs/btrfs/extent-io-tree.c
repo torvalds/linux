@@ -326,15 +326,10 @@ static inline struct extent_state *tree_search(struct extent_io_tree *tree, u64 
 	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
-static void __cold extent_io_tree_panic(const struct extent_io_tree *tree,
-					const struct extent_state *state,
-					const char *opname,
-					int err)
-{
-	btrfs_panic(btrfs_extent_io_tree_to_fs_info(tree), err,
-		    "extent io tree error on %s state start %llu end %llu",
-		    opname, state->start, state->end);
-}
+#define extent_io_tree_panic(tree, state, opname, err)                      \
+	btrfs_panic(btrfs_extent_io_tree_to_fs_info((tree)), (err),         \
+		    "extent io tree error on %s state start %llu end %llu", \
+		    (opname), (state)->start, (state)->end)
 
 static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *state)
 {
