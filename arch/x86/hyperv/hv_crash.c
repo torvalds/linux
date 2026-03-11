@@ -204,8 +204,8 @@ static void hv_hvcrash_ctxt_save(void)
 	ctxt->cr0 = native_read_cr0();
 	ctxt->cr4 = native_read_cr4();
 
-	asm volatile("movq %%cr2, %0" : "=a"(ctxt->cr2));
-	asm volatile("movq %%cr8, %0" : "=a"(ctxt->cr8));
+	asm volatile("movq %%cr2, %0" : "=r"(ctxt->cr2));
+	asm volatile("movq %%cr8, %0" : "=r"(ctxt->cr8));
 
 	asm volatile("movw %%cs, %0" : "=m"(ctxt->cs));
 	asm volatile("movw %%ss, %0" : "=m"(ctxt->ss));
