@@ -29,6 +29,8 @@ struct udphdr {
 
 /* UDP socket options */
 #define UDP_CORK	1	/* Never send partially complete segments */
+/* Deprecated, reserved for UDPLITE_SEND_CSCOV 10 */
+/* Deprecated, reserved for UDPLITE_RECV_CSCOV 11 */
 #define UDP_ENCAP	100	/* Set the socket to accept encapsulated packets */
 #define UDP_NO_CHECK6_TX 101	/* Disable sending checksum for UDP6X */
 #define UDP_NO_CHECK6_RX 102	/* Disable accepting checksum for UDP6 */
