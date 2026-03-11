@@ -311,10 +311,6 @@ attribute-sets:
         type: unused
         value: 0
       -
-        name: unspec
-        type: unused
-        value: 0
-      -
         name: string
         type: nest
         multi-attr: true
