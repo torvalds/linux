@@ -1786,6 +1786,7 @@ xfs_buffered_write_iomap_begin(
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, count);
 	xfs_fileoff_t		cow_fsb = NULLFILEOFF;
+	xfs_fileoff_t		eof_fsb = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
 	struct xfs_bmbt_irec	imap, cmap;
 	struct xfs_iext_cursor	icur, ccur;
 	xfs_fsblock_t		prealloc_blocks = 0;
@@ -1868,7 +1869,8 @@ xfs_buffered_write_iomap_begin(
 	 * cache and fill the iomap batch with folios that need zeroing.
 	 */
 	if ((flags & IOMAP_ZERO) && imap.br_startoff > offset_fsb) {
-		loff_t	start, end;
+		loff_t		start, end;
+		unsigned int	fbatch_count;
 
 		imap.br_blockcount = imap.br_startoff - offset_fsb;
 		imap.br_startoff = offset_fsb;
@@ -1883,15 +1885,33 @@ xfs_buffered_write_iomap_begin(
 			goto found_imap;
 		}
 
+		/* no zeroing beyond eof, so split at the boundary */
+		if (offset_fsb >= eof_fsb)
+			goto found_imap;
+		if (offset_fsb < eof_fsb && end_fsb > eof_fsb)
+			xfs_trim_extent(&imap, offset_fsb,
+					eof_fsb - offset_fsb);
+
 		/* COW fork blocks overlap the hole */
 		xfs_trim_extent(&imap, offset_fsb,
 			    cmap.br_startoff + cmap.br_blockcount - offset_fsb);
 		start = XFS_FSB_TO_B(mp, imap.br_startoff);
 		end = XFS_FSB_TO_B(mp, imap.br_startoff + imap.br_blockcount);
-		iomap_fill_dirty_folios(iter, &start, end, &iomap_flags);
+		fbatch_count = iomap_fill_dirty_folios(iter, &start, end,
+						       &iomap_flags);
 		xfs_trim_extent(&imap, offset_fsb,
 				XFS_B_TO_FSB(mp, start) - offset_fsb);
 
+		/*
+		 * Report the COW mapping if we have folios to zero. Otherwise
+		 * ignore the COW blocks as preallocation and report a hole.
+		 */
+		if (fbatch_count) {
+			xfs_trim_extent(&cmap, imap.br_startoff,
+					imap.br_blockcount);
+			imap.br_startoff = end_fsb;	/* fake hole */
+			goto found_cow;
+		}
 		goto found_imap;
 	}
 
@@ -1901,8 +1921,6 @@ xfs_buffered_write_iomap_begin(
 	 * unwritten extent.
 	 */
 	if (flags & IOMAP_ZERO) {
-		xfs_fileoff_t eof_fsb = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
-
 		if (isnullstartblock(imap.br_startblock) &&
 		    offset_fsb >= eof_fsb)
 			goto convert_delay;
