@@ -355,10 +355,10 @@ static int dwxgmac2_host_mtl_irq_status(struct stmmac_priv *priv,
 
 static void dwxgmac2_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 			       unsigned int fc, unsigned int pause_time,
-			       u32 tx_cnt)
+			       u8 tx_cnt)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 i;
+	u8 i;
 
 	if (fc & FLOW_RX)
 		writel(XGMAC_RFE, ioaddr + XGMAC_RX_FLOW_CTRL);

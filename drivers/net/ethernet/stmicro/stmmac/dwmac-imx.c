@@ -42,8 +42,8 @@
 struct imx_priv_data;
 
 struct imx_dwmac_ops {
-	u32 addr_width;
 	u32 flags;
+	u8 addr_width;
 	bool mac_rgmii_txclk_auto_adj;
 
 	int (*fix_soc_reset)(struct stmmac_priv *priv);

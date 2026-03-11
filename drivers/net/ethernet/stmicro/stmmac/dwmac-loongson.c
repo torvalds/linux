@@ -94,7 +94,7 @@ static void loongson_default_data(struct pci_dev *pdev,
 	/* clk_csr_i = 100-150MHz & MDC = clk_csr_i/62 */
 	plat->clk_csr = STMMAC_CSR_100_150M;
 	plat->core_type = DWMAC_CORE_GMAC;
-	plat->force_sf_dma_mode = 1;
+	plat->force_sf_dma_mode = true;
 
 	/* Increase the default value for multicast hash bins */
 	plat->multicast_filter_bins = 256;
@@ -511,10 +511,6 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 					   sizeof(*plat->mdio_bus_data),
 					   GFP_KERNEL);
 	if (!plat->mdio_bus_data)
-		return -ENOMEM;
-
-	plat->dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*plat->dma_cfg), GFP_KERNEL);
-	if (!plat->dma_cfg)
 		return -ENOMEM;
 
 	ld = devm_kzalloc(&pdev->dev, sizeof(*ld), GFP_KERNEL);

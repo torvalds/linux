@@ -446,8 +446,8 @@ struct dma_features {
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
 	/* TX and RX number of queues */
-	unsigned int number_rx_queues;
-	unsigned int number_tx_queues;
+	u8 number_rx_queues;
+	u8 number_tx_queues;
 	/* PPS output */
 	unsigned int pps_out_num;
 	/* Number of Traffic Classes */

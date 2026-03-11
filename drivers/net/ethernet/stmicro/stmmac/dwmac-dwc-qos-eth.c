@@ -88,7 +88,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 	plat_dat->core_type = DWMAC_CORE_GMAC4;
 	plat_dat->dma_cfg->aal = 1;
 	plat_dat->flags |= STMMAC_FLAG_TSO_EN;
-	plat_dat->pmt = 1;
+	plat_dat->pmt = true;
 
 	return 0;
 }

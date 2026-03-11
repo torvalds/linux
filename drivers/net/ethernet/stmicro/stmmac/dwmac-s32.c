@@ -163,7 +163,7 @@ static int s32_dwmac_probe(struct platform_device *pdev)
 
 	/* S32CC core feature set */
 	plat->core_type = DWMAC_CORE_GMAC4;
-	plat->pmt = 1;
+	plat->pmt = true;
 	plat->flags |= STMMAC_FLAG_SPH_DISABLE;
 	plat->rx_fifo_size = 20480;
 	plat->tx_fifo_size = 20480;

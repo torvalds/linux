@@ -138,6 +138,7 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	struct device_node *tx_node;
 	u8 queue = 0;
 	int ret = 0;
+	u32 value;
 
 	/* First Queue must always be in DCB mode. As MTL_QUEUE_DCB = 1 we need
 	 * to always set this, otherwise Queue will be classified as AVB
@@ -157,8 +158,11 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing RX queues common config */
-	of_property_read_u32(rx_node, "snps,rx-queues-to-use",
-			     &plat->rx_queues_to_use);
+	if (!of_property_read_u32(rx_node, "snps,rx-queues-to-use", &value)) {
+		if (value > U8_MAX)
+			value = U8_MAX;
+		plat->rx_queues_to_use = value;
+	}
 
 	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
@@ -208,8 +212,11 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing TX queues common config */
-	of_property_read_u32(tx_node, "snps,tx-queues-to-use",
-			     &plat->tx_queues_to_use);
+	if (!of_property_read_u32(tx_node, "snps,tx-queues-to-use", &value)) {
+		if (value > U8_MAX)
+			value = U8_MAX;
+		plat->tx_queues_to_use = value;
+	}
 
 	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
@@ -514,47 +521,41 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
 				&pdev->dev, plat->multicast_filter_bins);
 		plat->core_type = DWMAC_CORE_GMAC;
-		plat->pmt = 1;
+		plat->pmt = true;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.40a")) {
 		plat->core_type = DWMAC_CORE_GMAC;
-		plat->enh_desc = 1;
-		plat->tx_coe = 1;
-		plat->bugged_jumbo = 1;
-		plat->pmt = 1;
+		plat->enh_desc = true;
+		plat->tx_coe = true;
+		plat->bugged_jumbo = true;
+		plat->pmt = true;
 	}
 
 	if (of_device_compatible_match(np, stmmac_gmac4_compats)) {
 		plat->core_type = DWMAC_CORE_GMAC4;
-		plat->pmt = 1;
+		plat->pmt = true;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.610") ||
 		of_device_is_compatible(np, "snps,dwmac-3.710")) {
-		plat->enh_desc = 1;
-		plat->bugged_jumbo = 1;
-		plat->force_sf_dma_mode = 1;
+		plat->enh_desc = true;
+		plat->bugged_jumbo = true;
+		plat->force_sf_dma_mode = true;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwxgmac")) {
 		plat->core_type = DWMAC_CORE_XGMAC;
-		plat->pmt = 1;
+		plat->pmt = true;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
 		of_property_read_u32(np, "snps,multicast-filter-bins",
 				     &plat->multicast_filter_bins);
 	}
 
-	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
-			       GFP_KERNEL);
-	if (!dma_cfg) {
-		ret = ERR_PTR(-ENOMEM);
-		goto error_put_mdio;
-	}
-	plat->dma_cfg = dma_cfg;
+	dma_cfg = plat->dma_cfg;
 
 	of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
 	if (!dma_cfg->pbl)
