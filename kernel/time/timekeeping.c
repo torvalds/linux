@@ -989,7 +989,7 @@ u32 ktime_get_resolution_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_resolution_ns);
 
-static ktime_t *offsets[TK_OFFS_MAX] = {
+static const ktime_t *const offsets[TK_OFFS_MAX] = {
 	[TK_OFFS_REAL]	= &tk_core.timekeeper.offs_real,
 	[TK_OFFS_BOOT]	= &tk_core.timekeeper.offs_boot,
 	[TK_OFFS_TAI]	= &tk_core.timekeeper.offs_tai,
@@ -998,8 +998,9 @@ static ktime_t *offsets[TK_OFFS_MAX] = {
 ktime_t ktime_get_with_offset(enum tk_offsets offs)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
+	const ktime_t *offset = offsets[offs];
 	unsigned int seq;
-	ktime_t base, *offset = offsets[offs];
+	ktime_t base;
 	u64 nsecs;
 
 	WARN_ON(timekeeping_suspended);
@@ -1019,8 +1020,9 @@ EXPORT_SYMBOL_GPL(ktime_get_with_offset);
 ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	ktime_t base, *offset = offsets[offs];
+	const ktime_t *offset = offsets[offs];
 	unsigned int seq;
+	ktime_t base;
 	u64 nsecs;
 
 	WARN_ON(timekeeping_suspended);
@@ -1043,7 +1045,7 @@ EXPORT_SYMBOL_GPL(ktime_get_coarse_with_offset);
  */
 ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs)
 {
-	ktime_t *offset = offsets[offs];
+	const ktime_t *offset = offsets[offs];
 	unsigned int seq;
 	ktime_t tconv;
 
