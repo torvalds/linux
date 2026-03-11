@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/jiffies.h>
 
 #include "thermal_core.h"
@@ -56,10 +57,8 @@ mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	guard(thermal_zone)(tz);
 
-	if (tz->mode == THERMAL_DEVICE_ENABLED)
-		return sysfs_emit(buf, "enabled\n");
-
-	return sysfs_emit(buf, "disabled\n");
+	return sysfs_emit(buf, "%s\n",
+		str_enabled_disabled(tz->mode == THERMAL_DEVICE_ENABLED));
 }
 
 static ssize_t
