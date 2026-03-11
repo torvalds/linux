@@ -366,6 +366,8 @@ snd_pcm_chmap_elem *convert_chmap_v3(struct uac3_cluster_header_descriptor
 			/*
 			 * TODO: this conversion is not complete, update it
 			 * after adding UAC3 values to asound.h
+			 * NOTE: not all UAC3 channel relationship have a
+			 * direct ALSA chmap equivalent.
 			 */
 			switch (is->bChRelationship) {
 			case UAC3_CH_MONO:
@@ -389,6 +391,12 @@ snd_pcm_chmap_elem *convert_chmap_v3(struct uac3_cluster_header_descriptor
 				break;
 			case UAC3_CH_FRONT_RIGHT_OF_CENTER:
 				map = SNDRV_CHMAP_FRC;
+				break;
+			case UAC3_CH_FRONT_WIDE_LEFT:
+				map = SNDRV_CHMAP_FLW;
+				break;
+			case UAC3_CH_FRONT_WIDE_RIGHT:
+				map = SNDRV_CHMAP_FRW;
 				break;
 			case UAC3_CH_SIDE_LEFT:
 				map = SNDRV_CHMAP_SL;
