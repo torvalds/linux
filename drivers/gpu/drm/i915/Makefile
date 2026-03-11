@@ -76,6 +76,7 @@ i915-$(CONFIG_PERF_EVENTS) += \
 
 # core display adaptation
 i915-y += \
+	i915_bo.o \
 	i915_display_pc8.o \
 	i915_dpt.o \
 	i915_dsb_buffer.o \
@@ -239,7 +240,6 @@ i915-y += \
 	display/intel_atomic.o \
 	display/intel_audio.o \
 	display/intel_bios.o \
-	display/intel_bo.o \
 	display/intel_bw.o \
 	display/intel_casf.o \
 	display/intel_cdclk.o \
