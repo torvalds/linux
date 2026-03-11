@@ -12,9 +12,6 @@
 #define UDPLITE_SEND_CSCOV   10 /* sender partial coverage (as sent)      */
 #define UDPLITE_RECV_CSCOV   11 /* receiver partial coverage (threshold ) */
 
-extern struct proto 		udplite_prot;
-extern struct udp_table		udplite_table;
-
 /*
  *	Checksum computation is all in software, hence simpler getfrag.
  */
@@ -84,5 +81,4 @@ static inline __wsum udplite_csum(struct sk_buff *skb)
 	return skb_checksum(skb, off, len, 0);
 }
 
-void udplite4_register(void);
 #endif	/* _UDPLITE_H */

@@ -10,7 +10,6 @@
 #include <linux/inet_diag.h>
 #include <linux/udp.h>
 #include <net/udp.h>
-#include <net/udplite.h>
 #include <linux/sock_diag.h>
 
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
@@ -224,12 +223,6 @@ static int udp_diag_destroy(struct sk_buff *in_skb,
 	return __udp_diag_destroy(in_skb, req, sock_net(in_skb->sk)->ipv4.udp_table);
 }
 
-static int udplite_diag_destroy(struct sk_buff *in_skb,
-				const struct inet_diag_req_v2 *req)
-{
-	return __udp_diag_destroy(in_skb, req, &udplite_table);
-}
-
 #endif
 
 static const struct inet_diag_handler udp_diag_handler = {
@@ -244,50 +237,13 @@ static const struct inet_diag_handler udp_diag_handler = {
 #endif
 };
 
-static void udplite_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			      const struct inet_diag_req_v2 *r)
-{
-	udp_dump(&udplite_table, skb, cb, r);
-}
-
-static int udplite_diag_dump_one(struct netlink_callback *cb,
-				 const struct inet_diag_req_v2 *req)
-{
-	return udp_dump_one(&udplite_table, cb, req);
-}
-
-static const struct inet_diag_handler udplite_diag_handler = {
-	.owner		 = THIS_MODULE,
-	.dump		 = udplite_diag_dump,
-	.dump_one	 = udplite_diag_dump_one,
-	.idiag_get_info  = udp_diag_get_info,
-	.idiag_type	 = IPPROTO_UDPLITE,
-	.idiag_info_size = 0,
-#ifdef CONFIG_INET_DIAG_DESTROY
-	.destroy	 = udplite_diag_destroy,
-#endif
-};
-
 static int __init udp_diag_init(void)
 {
-	int err;
-
-	err = inet_diag_register(&udp_diag_handler);
-	if (err)
-		goto out;
-	err = inet_diag_register(&udplite_diag_handler);
-	if (err)
-		goto out_lite;
-out:
-	return err;
-out_lite:
-	inet_diag_unregister(&udp_diag_handler);
-	goto out;
+	return inet_diag_register(&udp_diag_handler);
 }
 
 static void __exit udp_diag_exit(void)
 {
-	inet_diag_unregister(&udplite_diag_handler);
 	inet_diag_unregister(&udp_diag_handler);
 }
 
@@ -296,4 +252,3 @@ module_exit(udp_diag_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("UDP socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-17 /* AF_INET - IPPROTO_UDP */);
-MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-136 /* AF_INET - IPPROTO_UDPLITE */);
