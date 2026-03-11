@@ -26,18 +26,37 @@
 
 #define CHAN_MAX_OUTPUT_INT	0xF
 
-struct irqsteer_data {
-	void __iomem		*regs;
-	struct clk		*ipg_clk;
-	int			irq[CHAN_MAX_OUTPUT_INT];
-	int			irq_count;
-	raw_spinlock_t		lock;
-	int			reg_num;
-	int			channel;
-	struct irq_domain	*domain;
-	u32			*saved_reg;
-	struct device		*dev;
+/* SoC does not implement the CHANCTRL register */
+#define IRQSTEER_QUIRK_NO_CHANCTRL	BIT(0)
+
+struct irqsteer_devtype_data {
+	u32	quirks;
 };
+
+struct irqsteer_data {
+	void __iomem				*regs;
+	struct clk				*ipg_clk;
+	int					irq[CHAN_MAX_OUTPUT_INT];
+	int					irq_count;
+	raw_spinlock_t				lock;
+	int					reg_num;
+	int					channel;
+	struct irq_domain			*domain;
+	u32					*saved_reg;
+	struct device				*dev;
+	const struct irqsteer_devtype_data	*devtype_data;
+};
+
+static const struct irqsteer_devtype_data imx_data = { };
+
+static const struct irqsteer_devtype_data s32n79_data = {
+	.quirks	= IRQSTEER_QUIRK_NO_CHANCTRL,
+};
+
+static bool irqsteer_has_chanctrl(const struct irqsteer_devtype_data *data)
+{
+	return !(data->quirks & IRQSTEER_QUIRK_NO_CHANCTRL);
+}
 
 static int imx_irqsteer_get_reg_index(struct irqsteer_data *data,
 				      unsigned long irqnum)
@@ -188,6 +207,10 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	data->devtype_data = device_get_match_data(&pdev->dev);
+	if (!data->devtype_data)
+		return dev_err_probe(&pdev->dev, -ENODEV, "failed to match device data\n");
+
 	/*
 	 * There is one output irq for each group of 64 inputs.
 	 * One register bit map can represent 32 input interrupts.
@@ -210,7 +233,8 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 	}
 
 	/* steer all IRQs into configured channel */
-	writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
+	if (irqsteer_has_chanctrl(data->devtype_data))
+		writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
 
 	data->domain = irq_domain_create_linear(dev_fwnode(&pdev->dev), data->reg_num * 32,
 						&imx_irqsteer_domain_ops, data);
@@ -279,7 +303,9 @@ static void imx_irqsteer_restore_regs(struct irqsteer_data *data)
 {
 	int i;
 
-	writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
+	if (irqsteer_has_chanctrl(data->devtype_data))
+		writel_relaxed(BIT(data->channel), data->regs + CHANCTRL);
+
 	for (i = 0; i < data->reg_num; i++)
 		writel_relaxed(data->saved_reg[i],
 			       data->regs + CHANMASK(i, data->reg_num));
@@ -319,7 +345,8 @@ static const struct dev_pm_ops imx_irqsteer_pm_ops = {
 };
 
 static const struct of_device_id imx_irqsteer_dt_ids[] = {
-	{ .compatible = "fsl,imx-irqsteer", },
+	{ .compatible = "fsl,imx-irqsteer",	.data = &imx_data },
+	{ .compatible = "nxp,s32n79-irqsteer",	.data = &s32n79_data },
 	{},
 };
 
