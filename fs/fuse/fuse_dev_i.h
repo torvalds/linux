@@ -39,18 +39,35 @@ struct fuse_copy_state {
 	} ring;
 };
 
-#define FUSE_DEV_SYNC_INIT ((struct fuse_dev *) 1)
-#define FUSE_DEV_PTR_MASK (~1UL)
+/*
+ * Lockless access is OK, because fud->fc is set once during mount and is valid
+ * until the file is released.
+ */
+static inline struct fuse_conn *fuse_dev_fc_get(struct fuse_dev *fud)
+{
+	/* Pairs with smp_store_release() in fuse_dev_fc_set() */
+	return smp_load_acquire(&fud->fc);
+}
+
+static inline void fuse_dev_fc_set(struct fuse_dev *fud, struct fuse_conn *fc)
+{
+	/* Pairs with smp_load_acquire() in fuse_dev_fc_get() */
+	smp_store_release(&fud->fc, fc);
+}
+
+static inline struct fuse_dev *fuse_file_to_fud(struct file *file)
+{
+	return file->private_data;
+}
 
 static inline struct fuse_dev *__fuse_get_dev(struct file *file)
 {
-	/*
-	 * Lockless access is OK, because file->private data is set
-	 * once during mount and is valid until the file is released.
-	 */
-	struct fuse_dev *fud = READ_ONCE(file->private_data);
+	struct fuse_dev *fud = fuse_file_to_fud(file);
 
-	return (typeof(fud)) ((unsigned long) fud & FUSE_DEV_PTR_MASK);
+	if (!fuse_dev_fc_get(fud))
+		return NULL;
+
+	return fud;
 }
 
 struct fuse_dev *fuse_get_dev(struct file *file);

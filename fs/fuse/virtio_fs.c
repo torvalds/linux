@@ -1590,8 +1590,6 @@ static int virtio_fs_fill_super(struct super_block *sb, struct fs_context *fsc)
 			goto err_free_fuse_devs;
 	}
 
-	/* virtiofs allocates and installs its own fuse devices */
-	ctx->fudptr = NULL;
 	if (ctx->dax_mode != FUSE_DAX_NEVER) {
 		if (ctx->dax_mode == FUSE_DAX_ALWAYS && !fs->dax_dev) {
 			err = -EINVAL;

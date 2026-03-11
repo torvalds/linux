@@ -577,6 +577,9 @@ struct fuse_pqueue {
  * Fuse device instance
  */
 struct fuse_dev {
+	/** Issue FUSE_INIT synchronously */
+	bool sync_init;
+
 	/** Fuse connection for this device */
 	struct fuse_conn *fc;
 
@@ -623,9 +626,6 @@ struct fuse_fs_context {
 
 	/* DAX device, may be NULL */
 	struct dax_device *dax_dev;
-
-	/* fuse_dev pointer to fill in, should contain NULL on entry */
-	void **fudptr;
 };
 
 struct fuse_sync_bucket {

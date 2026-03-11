@@ -1641,7 +1641,7 @@ EXPORT_SYMBOL_GPL(fuse_dev_alloc);
 
 void fuse_dev_install(struct fuse_dev *fud, struct fuse_conn *fc)
 {
-	fud->fc = fuse_conn_get(fc);
+	fuse_dev_fc_set(fud, fuse_conn_get(fc));
 	spin_lock(&fc->lock);
 	list_add_tail(&fud->entry, &fc->devices);
 	spin_unlock(&fc->lock);
@@ -1663,7 +1663,7 @@ EXPORT_SYMBOL_GPL(fuse_dev_alloc_install);
 
 void fuse_dev_free(struct fuse_dev *fud)
 {
-	struct fuse_conn *fc = fud->fc;
+	struct fuse_conn *fc = fuse_dev_fc_get(fud);
 
 	if (fc) {
 		spin_lock(&fc->lock);
@@ -1826,7 +1826,7 @@ EXPORT_SYMBOL_GPL(fuse_init_fs_context_submount);
 
 int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 {
-	struct fuse_dev *fud = NULL;
+	struct fuse_dev *fud = ctx->file ? fuse_file_to_fud(ctx->file) : NULL;
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 	struct fuse_conn *fc = fm->fc;
 	struct inode *root;
@@ -1860,18 +1860,11 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 			goto err;
 	}
 
-	if (ctx->fudptr) {
-		err = -ENOMEM;
-		fud = fuse_dev_alloc_install(fc);
-		if (!fud)
-			goto err_free_dax;
-	}
-
 	fc->dev = sb->s_dev;
 	fm->sb = sb;
 	err = fuse_bdi_init(fc, sb);
 	if (err)
-		goto err_dev_free;
+		goto err_free_dax;
 
 	/* Handle umasking inside the fuse code */
 	if (sb->s_flags & SB_POSIXACL)
@@ -1893,15 +1886,15 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 	set_default_d_op(sb, &fuse_dentry_operations);
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
-		goto err_dev_free;
+		goto err_free_dax;
 
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
-	if (ctx->fudptr && *ctx->fudptr) {
-		if (*ctx->fudptr == FUSE_DEV_SYNC_INIT)
-			fc->sync_init = 1;
-		else
+	if (fud) {
+		if (fuse_dev_fc_get(fud))
 			goto err_unlock;
+		if (fud->sync_init)
+			fc->sync_init = 1;
 	}
 
 	err = fuse_ctl_add_conn(fc);
@@ -1910,8 +1903,8 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	list_add_tail(&fc->entry, &fuse_conn_list);
 	sb->s_root = root_dentry;
-	if (ctx->fudptr) {
-		*ctx->fudptr = fud;
+	if (fud) {
+		fuse_dev_install(fud, fc);
 		wake_up_all(&fuse_dev_waitq);
 	}
 	mutex_unlock(&fuse_mutex);
@@ -1920,9 +1913,6 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
  err_unlock:
 	mutex_unlock(&fuse_mutex);
 	dput(root_dentry);
- err_dev_free:
-	if (fud)
-		fuse_dev_free(fud);
  err_free_dax:
 	if (IS_ENABLED(CONFIG_FUSE_DAX))
 		fuse_dax_conn_free(fc);
@@ -1948,13 +1938,10 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	if ((ctx->file->f_op != &fuse_dev_operations) ||
 	    (ctx->file->f_cred->user_ns != sb->s_user_ns))
 		return -EINVAL;
-	ctx->fudptr = &ctx->file->private_data;
 
 	err = fuse_fill_super_common(sb, ctx);
 	if (err)
 		return err;
-	/* file->private_data shall be visible on all CPUs after this */
-	smp_mb();
 
 	fm = get_fuse_mount_super(sb);
 
