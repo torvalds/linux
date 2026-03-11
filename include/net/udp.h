@@ -529,38 +529,28 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
 }
 
 /*
- * 	SNMP statistics for UDP and UDP-Lite
+ *	SNMP statistics for UDP
  */
-#define UDP_INC_STATS(net, field, is_udplite)		      do { \
-	if (unlikely(is_udplite)) SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
-	else		SNMP_INC_STATS((net)->mib.udp_statistics, field);  }  while(0)
-#define __UDP_INC_STATS(net, field, is_udplite) 	      do { \
-	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
-	else		__SNMP_INC_STATS((net)->mib.udp_statistics, field);    }  while(0)
-
-#define __UDP6_INC_STATS(net, field, is_udplite)	    do { \
-	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
-	else		__SNMP_INC_STATS((net)->mib.udp_stats_in6, field);  \
-} while(0)
-#define UDP6_INC_STATS(net, field, __lite)		    do { \
-	if (unlikely(__lite)) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
-	else	    SNMP_INC_STATS((net)->mib.udp_stats_in6, field);      \
-} while(0)
+#define __UDP_INC_STATS(net, field)				\
+	__SNMP_INC_STATS((net)->mib.udp_statistics, field)
+#define UDP_INC_STATS(net, field)				\
+	SNMP_INC_STATS((net)->mib.udp_statistics, field)
+#define __UDP6_INC_STATS(net, field)				\
+	__SNMP_INC_STATS((net)->mib.udp_stats_in6, field)
+#define UDP6_INC_STATS(net, field)				\
+	SNMP_INC_STATS((net)->mib.udp_stats_in6, field)
 
 #if IS_ENABLED(CONFIG_IPV6)
-#define __UDPX_MIB(sk, ipv4)						\
-({									\
-	ipv4 ? (IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_statistics :	\
-				 sock_net(sk)->mib.udp_statistics) :	\
-		(IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_stats_in6 :	\
-				 sock_net(sk)->mib.udp_stats_in6);	\
-})
+#define __UDPX_MIB(sk, ipv4)					\
+	({							\
+		ipv4 ? sock_net(sk)->mib.udp_statistics :	\
+			sock_net(sk)->mib.udp_stats_in6;	\
+	})
 #else
-#define __UDPX_MIB(sk, ipv4)						\
-({									\
-	IS_UDPLITE(sk) ? sock_net(sk)->mib.udplite_statistics :		\
-			 sock_net(sk)->mib.udp_statistics;		\
-})
+#define __UDPX_MIB(sk, ipv4)					\
+	({							\
+		sock_net(sk)->mib.udp_statistics;		\
+	})
 #endif
 
 #define __UDPX_INC_STATS(sk, field) \

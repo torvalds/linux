@@ -796,20 +796,18 @@ static int __udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {
-		int is_udplite = IS_UDPLITE(sk);
 		enum skb_drop_reason drop_reason;
+		struct net *net = sock_net(sk);
 
 		/* Note that an ENOMEM error is charged twice */
 		if (rc == -ENOMEM) {
-			UDP6_INC_STATS(sock_net(sk),
-					 UDP_MIB_RCVBUFERRORS, is_udplite);
+			UDP6_INC_STATS(net, UDP_MIB_RCVBUFERRORS);
 			drop_reason = SKB_DROP_REASON_SOCKET_RCVBUFF;
 		} else {
-			UDP6_INC_STATS(sock_net(sk),
-				       UDP_MIB_MEMERRORS, is_udplite);
+			UDP6_INC_STATS(net, UDP_MIB_MEMERRORS);
 			drop_reason = SKB_DROP_REASON_PROTO_MEM;
 		}
-		UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+		UDP6_INC_STATS(net, UDP_MIB_INERRORS);
 		trace_udp_fail_queue_rcv_skb(rc, sk, skb);
 		sk_skb_reason_drop(sk, skb, drop_reason);
 		return -1;
@@ -830,7 +828,7 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 {
 	enum skb_drop_reason drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	struct udp_sock *up = udp_sk(sk);
-	int is_udplite = IS_UDPLITE(sk);
+	struct net *net = sock_net(sk);
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb)) {
 		drop_reason = SKB_DROP_REASON_XFRM_POLICY;
@@ -864,9 +862,7 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 
 			ret = encap_rcv(sk, skb);
 			if (ret <= 0) {
-				__UDP6_INC_STATS(sock_net(sk),
-						 UDP_MIB_INDATAGRAMS,
-						 is_udplite);
+				__UDP6_INC_STATS(net, UDP_MIB_INDATAGRAMS);
 				return -ret;
 			}
 		}
@@ -909,9 +905,9 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 
 csum_error:
 	drop_reason = SKB_DROP_REASON_UDP_CSUM;
-	__UDP6_INC_STATS(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
+	__UDP6_INC_STATS(net, UDP_MIB_CSUMERRORS);
 drop:
-	__UDP6_INC_STATS(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
+	__UDP6_INC_STATS(net, UDP_MIB_INERRORS);
 	udp_drops_inc(sk);
 	sk_skb_reason_drop(sk, skb, drop_reason);
 	return -1;
@@ -1018,10 +1014,8 @@ start_lookup:
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (unlikely(!nskb)) {
 			udp_drops_inc(sk);
-			__UDP6_INC_STATS(net, UDP_MIB_RCVBUFERRORS,
-					 IS_UDPLITE(sk));
-			__UDP6_INC_STATS(net, UDP_MIB_INERRORS,
-					 IS_UDPLITE(sk));
+			__UDP6_INC_STATS(net, UDP_MIB_RCVBUFERRORS);
+			__UDP6_INC_STATS(net, UDP_MIB_INERRORS);
 			continue;
 		}
 
@@ -1040,8 +1034,7 @@ start_lookup:
 			consume_skb(skb);
 	} else {
 		kfree_skb(skb);
-		__UDP6_INC_STATS(net, UDP_MIB_IGNOREDMULTI,
-				 proto == IPPROTO_UDPLITE);
+		__UDP6_INC_STATS(net, UDP_MIB_IGNOREDMULTI);
 	}
 	return 0;
 }
@@ -1213,7 +1206,7 @@ no_sk:
 	if (udp_lib_checksum_complete(skb))
 		goto csum_error;
 
-	__UDP6_INC_STATS(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+	__UDP6_INC_STATS(net, UDP_MIB_NOPORTS);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 
 	sk_skb_reason_drop(sk, skb, reason);
@@ -1234,9 +1227,9 @@ report_csum_error:
 csum_error:
 	if (reason == SKB_DROP_REASON_NOT_SPECIFIED)
 		reason = SKB_DROP_REASON_UDP_CSUM;
-	__UDP6_INC_STATS(net, UDP_MIB_CSUMERRORS, proto == IPPROTO_UDPLITE);
+	__UDP6_INC_STATS(net, UDP_MIB_CSUMERRORS);
 discard:
-	__UDP6_INC_STATS(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
+	__UDP6_INC_STATS(net, UDP_MIB_INERRORS);
 	sk_skb_reason_drop(sk, skb, reason);
 	return 0;
 }
@@ -1490,13 +1483,11 @@ send:
 	err = ip6_send_skb(skb);
 	if (unlikely(err)) {
 		if (err == -ENOBUFS && !inet6_test_bit(RECVERR6, sk)) {
-			UDP6_INC_STATS(sock_net(sk),
-				       UDP_MIB_SNDBUFERRORS, is_udplite);
+			UDP6_INC_STATS(sock_net(sk), UDP_MIB_SNDBUFERRORS);
 			err = 0;
 		}
 	} else {
-		UDP6_INC_STATS(sock_net(sk),
-			       UDP_MIB_OUTDATAGRAMS, is_udplite);
+		UDP6_INC_STATS(sock_net(sk), UDP_MIB_OUTDATAGRAMS);
 	}
 	return err;
 }
@@ -1826,10 +1817,9 @@ out_no_dst:
 	 * things).  We could add another new stat but at least for now that
 	 * seems like overkill.
 	 */
-	if (err == -ENOBUFS || test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		UDP6_INC_STATS(sock_net(sk),
-			       UDP_MIB_SNDBUFERRORS, is_udplite);
-	}
+	if (err == -ENOBUFS || test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+		UDP6_INC_STATS(sock_net(sk), UDP_MIB_SNDBUFERRORS);
+
 	return err;
 
 do_confirm:

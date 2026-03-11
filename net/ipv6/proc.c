@@ -108,17 +108,6 @@ static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6MemErrors", UDP_MIB_MEMERRORS),
 };
 
-static const struct snmp_mib snmp6_udplite6_list[] = {
-	SNMP_MIB_ITEM("UdpLite6InDatagrams", UDP_MIB_INDATAGRAMS),
-	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
-	SNMP_MIB_ITEM("UdpLite6InErrors", UDP_MIB_INERRORS),
-	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
-	SNMP_MIB_ITEM("UdpLite6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
-	SNMP_MIB_ITEM("UdpLite6SndbufErrors", UDP_MIB_SNDBUFERRORS),
-	SNMP_MIB_ITEM("UdpLite6InCsumErrors", UDP_MIB_CSUMERRORS),
-	SNMP_MIB_ITEM("UdpLite6MemErrors", UDP_MIB_MEMERRORS),
-};
-
 static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, atomic_long_t *smib)
 {
 	char name[32];
@@ -226,9 +215,6 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 	snmp6_seq_show_item(seq, net->mib.udp_stats_in6,
 			    NULL, snmp6_udp6_list,
 			    ARRAY_SIZE(snmp6_udp6_list));
-	snmp6_seq_show_item(seq, net->mib.udplite_stats_in6,
-			    NULL, snmp6_udplite6_list,
-			    ARRAY_SIZE(snmp6_udplite6_list));
 	return 0;
 }
 
