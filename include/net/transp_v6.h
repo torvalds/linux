@@ -8,7 +8,6 @@
 /* IPv6 transport protocols */
 extern struct proto rawv6_prot;
 extern struct proto udpv6_prot;
-extern struct proto udplitev6_prot;
 extern struct proto tcpv6_prot;
 extern struct proto pingv6_prot;
 
@@ -28,8 +27,6 @@ int rawv6_init(void);
 void rawv6_exit(void);
 int udpv6_init(void);
 void udpv6_exit(void);
-int udplitev6_init(void);
-void udplitev6_exit(void);
 int tcpv6_init(void);
 void tcpv6_exit(void);
 
