@@ -91,7 +91,7 @@ static int msm_hdmi_get_phy(struct hdmi *hdmi)
 	struct platform_device *phy_pdev;
 	struct device_node *phy_node;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
+	phy_node = of_parse_phandle(dev_of_node(&pdev->dev), "phys", 0);
 	if (!phy_node) {
 		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
 		return -ENXIO;
@@ -287,7 +287,7 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 	spin_lock_init(&hdmi->reg_lock);
 	mutex_init(&hdmi->state_mutex);
 
-	ret = drm_of_find_panel_or_bridge(pdev->dev.of_node, 1, 0, NULL, &hdmi->next_bridge);
+	ret = drm_of_find_panel_or_bridge(dev_of_node(dev), 1, 0, NULL, &hdmi->next_bridge);
 	if (ret && ret != -ENODEV)
 		return ret;
 
