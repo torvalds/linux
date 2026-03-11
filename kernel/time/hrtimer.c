@@ -534,6 +534,8 @@ static inline void debug_activate(struct hrtimer *timer, enum hrtimer_mode mode,
 		for (bool done = false; !done; active &= ~(1U << idx))			\
 			for (base = &cpu_base->clock_base[idx]; !done; done = true)
 
+#define hrtimer_from_timerqueue_node(_n) container_of_const(_n, struct hrtimer, node)
+
 #if defined(CONFIG_NO_HZ_COMMON)
 /*
  * Same as hrtimer_bases_next_event() below, but skips the excluded timer and
@@ -578,7 +580,7 @@ static __always_inline struct hrtimer *clock_base_next_timer(struct hrtimer_cloc
 {
 	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
 
-	return container_of(next, struct hrtimer, node);
+	return hrtimer_from_timerqueue_node(next);
 }
 
 /* Find the base with the earliest expiry */
@@ -1960,7 +1962,7 @@ static __always_inline struct hrtimer *clock_base_next_timer_safe(struct hrtimer
 {
 	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
 
-	return next ? container_of(next, struct hrtimer, node) : NULL;
+	return next ? hrtimer_from_timerqueue_node(next) : NULL;
 }
 
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
@@ -2439,7 +2441,7 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 	struct hrtimer *timer;
 
 	while ((node = timerqueue_linked_first(&old_base->active))) {
-		timer = container_of(node, struct hrtimer, node);
+		timer = hrtimer_from_timerqueue_node(node);
 		BUG_ON(hrtimer_callback_running(timer));
 		debug_hrtimer_deactivate(timer);
 
