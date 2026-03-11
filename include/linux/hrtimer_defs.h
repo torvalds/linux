@@ -26,8 +26,8 @@
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base		*cpu_base;
-	unsigned int			index;
-	clockid_t			clockid;
+	const unsigned int		index;
+	const clockid_t			clockid;
 	seqcount_raw_spinlock_t		seq;
 	ktime_t				expires_next;
 	struct hrtimer			*running;
