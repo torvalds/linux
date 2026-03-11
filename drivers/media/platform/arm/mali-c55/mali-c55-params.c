@@ -830,9 +830,10 @@ void mali_c55_params_init_isp_config(struct mali_c55 *mali_c55,
 				 MALI_C55_REG_BYPASS_3_IRIDIX,
 				 MALI_C55_REG_BYPASS_3_IRIDIX);
 
-	/* Bypass the colour noise reduction  */
+	/* Bypass the colour noise reduction and the PF modules  */
 	mali_c55_ctx_write(mali_c55, MALI_C55_REG_BYPASS_4,
-			   MALI_C55_REG_BYPASS_4_CNR);
+			   MALI_C55_REG_BYPASS_4_CNR |
+			   MALI_C55_REG_BYPASS_4_PF_CORRECTION);
 
 	/* Disable the sinter module */
 	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_SINTER_CONFIG,
