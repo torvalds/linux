@@ -199,7 +199,7 @@ static void hv_hvcrash_ctxt_save(void)
 {
 	struct hv_crash_ctxt *ctxt = &hv_crash_ctxt;
 
-	asm volatile("movq %%rsp,%0" : "=m"(ctxt->rsp));
+	ctxt->rsp = current_stack_pointer;
 
 	ctxt->cr0 = native_read_cr0();
 	ctxt->cr4 = native_read_cr4();
