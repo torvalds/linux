@@ -5989,6 +5989,56 @@ fail:
 	return false;
 }
 
+static __always_inline bool can_free_to_pcs(struct slab *slab)
+{
+	int slab_node;
+	int numa_node;
+
+	if (!IS_ENABLED(CONFIG_NUMA))
+		goto check_pfmemalloc;
+
+	slab_node = slab_nid(slab);
+
+#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+	/*
+	 * numa_mem_id() points to the closest node with memory so only allow
+	 * objects from that node to the percpu sheaves
+	 */
+	numa_node = numa_mem_id();
+
+	if (likely(slab_node == numa_node))
+		goto check_pfmemalloc;
+#else
+
+	/*
+	 * numa_mem_id() is only a wrapper to numa_node_id() which is where this
+	 * cpu belongs to, but it might be a memoryless node anyway. We don't
+	 * know what the closest node is.
+	 */
+	numa_node = numa_node_id();
+
+	/* freed object is from this cpu's node, proceed */
+	if (likely(slab_node == numa_node))
+		goto check_pfmemalloc;
+
+	/*
+	 * Freed object isn't from this cpu's node, but that node is memoryless.
+	 * Proceed as it's better to cache remote objects than falling back to
+	 * the slowpath for everything. The allocation side can never obtain
+	 * a local object anyway, if none exist. We don't have numa_mem_id() to
+	 * point to the closest node as we would on a proper memoryless node
+	 * setup.
+	 */
+	if (unlikely(!node_state(numa_node, N_MEMORY)))
+		goto check_pfmemalloc;
+#endif
+
+	return false;
+
+check_pfmemalloc:
+	return likely(!slab_test_pfmemalloc(slab));
+}
+
 /*
  * Bulk free objects to the percpu sheaves.
  * Unlike free_to_pcs() this includes the calls to all necessary hooks
@@ -6003,7 +6053,6 @@ static void free_to_pcs_bulk(struct kmem_cache *s, size_t size, void **p)
 	struct node_barn *barn;
 	void *remote_objects[PCS_BATCH_MAX];
 	unsigned int remote_nr = 0;
-	int node = numa_mem_id();
 
 next_remote_batch:
 	while (i < size) {
@@ -6017,8 +6066,7 @@ next_remote_batch:
 			continue;
 		}
 
-		if (unlikely((IS_ENABLED(CONFIG_NUMA) && slab_nid(slab) != node)
-			     || slab_test_pfmemalloc(slab))) {
+		if (unlikely(!can_free_to_pcs(slab))) {
 			remote_objects[remote_nr] = p[i];
 			p[i] = p[--size];
 			if (++remote_nr >= PCS_BATCH_MAX)
@@ -6194,11 +6242,8 @@ void slab_free(struct kmem_cache *s, struct slab *slab, void *object,
 	if (unlikely(!slab_free_hook(s, object, slab_want_init_on_free(s), false)))
 		return;
 
-	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id())
-	    && likely(!slab_test_pfmemalloc(slab))) {
-		if (likely(free_to_pcs(s, object, true)))
-			return;
-	}
+	if (likely(can_free_to_pcs(slab)) && likely(free_to_pcs(s, object, true)))
+		return;
 
 	__slab_free(s, slab, object, object, 1, addr);
 	stat(s, FREE_SLOWPATH);
@@ -6569,10 +6614,8 @@ void kfree_nolock(const void *object)
 	 */
 	kasan_slab_free(s, x, false, false, /* skip quarantine */true);
 
-	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id())) {
-		if (likely(free_to_pcs(s, x, false)))
-			return;
-	}
+	if (likely(can_free_to_pcs(slab)) && likely(free_to_pcs(s, x, false)))
+		return;
 
 	/*
 	 * __slab_free() can locklessly cmpxchg16 into a slab, but then it might
