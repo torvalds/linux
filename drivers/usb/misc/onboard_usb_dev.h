@@ -80,6 +80,13 @@ static const struct onboard_dev_pdata bison_intcamera_data = {
 	.is_hub = false,
 };
 
+static const struct onboard_dev_pdata corechips_sl6341_data = {
+	.reset_us = 10000,
+	.num_supplies = 2,
+	.supply_names = { "vdd1v1", "vdd3v3" },
+	.is_hub = true,
+};
+
 static const struct onboard_dev_pdata cypress_hx3_data = {
 	.reset_us = 10000,
 	.num_supplies = 2,
@@ -165,6 +172,8 @@ static const struct of_device_id onboard_dev_match[] = {
 	{ .compatible = "usb2109,817", .data = &vialab_vl817_data, },
 	{ .compatible = "usb2109,2817", .data = &vialab_vl817_data, },
 	{ .compatible = "usb20b1,0013", .data = &xmos_xvf3500_data, },
+	{ .compatible = "usb3431,6241", .data = &corechips_sl6341_data, },
+	{ .compatible = "usb3431,6341", .data = &corechips_sl6341_data, },
 	{ .compatible = "usb5986,1198", .data = &bison_intcamera_data, },
 	{}
 };
