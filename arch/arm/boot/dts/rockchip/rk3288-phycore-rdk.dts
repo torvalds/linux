@@ -125,25 +125,25 @@
 		compatible = "nxp,pca9533";
 		reg = <0x62>;
 
-		led1 {
+		led-1 {
 			label = "red:user1";
 			linux,default-trigger = "none";
 			type = <PCA9532_TYPE_LED>;
 		};
 
-		led2 {
+		led-2 {
 			label = "green:user2";
 			linux,default-trigger = "none";
 			type = <PCA9532_TYPE_LED>;
 		};
 
-		led3 {
+		led-3 {
 			label = "blue:user3";
 			linux,default-trigger = "none";
 			type = <PCA9532_TYPE_LED>;
 		};
 
-		led4 {
+		led-4 {
 			label = "red:user4";
 			linux,default-trigger = "none";
 			type = <PCA9532_TYPE_LED>;
