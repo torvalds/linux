@@ -207,12 +207,12 @@ static void hv_hvcrash_ctxt_save(void)
 	asm volatile("movq %%cr2, %0" : "=a"(ctxt->cr2));
 	asm volatile("movq %%cr8, %0" : "=a"(ctxt->cr8));
 
-	asm volatile("movl %%cs, %%eax" : "=a"(ctxt->cs));
-	asm volatile("movl %%ss, %%eax" : "=a"(ctxt->ss));
-	asm volatile("movl %%ds, %%eax" : "=a"(ctxt->ds));
-	asm volatile("movl %%es, %%eax" : "=a"(ctxt->es));
-	asm volatile("movl %%fs, %%eax" : "=a"(ctxt->fs));
-	asm volatile("movl %%gs, %%eax" : "=a"(ctxt->gs));
+	asm volatile("movw %%cs, %0" : "=m"(ctxt->cs));
+	asm volatile("movw %%ss, %0" : "=m"(ctxt->ss));
+	asm volatile("movw %%ds, %0" : "=m"(ctxt->ds));
+	asm volatile("movw %%es, %0" : "=m"(ctxt->es));
+	asm volatile("movw %%fs, %0" : "=m"(ctxt->fs));
+	asm volatile("movw %%gs, %0" : "=m"(ctxt->gs));
 
 	native_store_gdt(&ctxt->gdtr);
 	store_idt(&ctxt->idtr);
