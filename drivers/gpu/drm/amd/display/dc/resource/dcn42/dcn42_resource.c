@@ -2018,7 +2018,7 @@ static bool dcn42_resource_construct(
 	dc->config.dcn_override_sharpness_range.hdr_rgb_mid = 1500;
 
 	dc->config.use_pipe_ctx_sync_logic = true;
-	dc->config.dc_mode_clk_limit_support = true;
+	dc->config.dc_mode_clk_limit_support = false;
 	dc->config.enable_windowed_mpo_odm = true;
 	/* Use psp mailbox to enable assr */
 	dc->config.use_assr_psp_message = true;
