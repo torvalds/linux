@@ -563,6 +563,7 @@ struct dc_config {
 	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
+	bool no_native422_support;
 };
 
 enum visual_confirm {
@@ -987,7 +988,6 @@ struct link_service;
  * causing an issue or not.
  */
 struct dc_debug_options {
-	bool native422_support;
 	bool disable_dsc;
 	enum visual_confirm visual_confirm;
 	int visual_confirm_rect_height;
