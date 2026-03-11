@@ -1045,7 +1045,7 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
 	 * which may not merge, then (if MREMAP_DONTUNMAP is not set) unmap the
 	 * source, which may split, causing a net increase of 2 mappings.
 	 */
-	if (current->mm->map_count + 2 > sysctl_max_map_count)
+	if (current->mm->map_count + 2 > get_sysctl_max_map_count())
 		return -ENOMEM;
 
 	if (vma->vm_ops && vma->vm_ops->may_split) {
@@ -1813,7 +1813,7 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 	 * net increased map count of 2. In move_vma() we check for headroom of
 	 * 2 additional mappings, so check early to avoid bailing out then.
 	 */
-	if (current->mm->map_count + 4 > sysctl_max_map_count)
+	if (current->mm->map_count + 4 > get_sysctl_max_map_count())
 		return -ENOMEM;
 
 	return 0;
