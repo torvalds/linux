@@ -24,23 +24,24 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 				 net_admin);
 }
 
-static int udp_dump_one(struct udp_table *tbl,
-			struct netlink_callback *cb,
-			const struct inet_diag_req_v2 *req)
+static int udp_diag_dump_one(struct netlink_callback *cb,
+			     const struct inet_diag_req_v2 *req)
 {
 	struct sk_buff *in_skb = cb->skb;
-	int err;
 	struct sock *sk = NULL;
 	struct sk_buff *rep;
-	struct net *net = sock_net(in_skb->sk);
+	struct net *net;
+	int err;
+
+	net = sock_net(in_skb->sk);
 
 	rcu_read_lock();
 	if (req->sdiag_family == AF_INET)
 		/* src and dst are swapped for historical reasons */
 		sk = __udp4_lib_lookup(net,
-				req->id.idiag_src[0], req->id.idiag_sport,
-				req->id.idiag_dst[0], req->id.idiag_dport,
-				req->id.idiag_if, 0, tbl, NULL);
+				       req->id.idiag_src[0], req->id.idiag_sport,
+				       req->id.idiag_dst[0], req->id.idiag_dport,
+				       req->id.idiag_if, 0, NULL);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6)
 		sk = __udp6_lib_lookup(net,
@@ -85,14 +86,15 @@ out_nosk:
 	return err;
 }
 
-static void udp_dump(struct udp_table *table, struct sk_buff *skb,
-		     struct netlink_callback *cb,
-		     const struct inet_diag_req_v2 *r)
+static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			  const struct inet_diag_req_v2 *r)
 {
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct net *net = sock_net(skb->sk);
 	int num, s_num, slot, s_slot;
+	struct udp_table *table;
 
+	table = net->ipv4.udp_table;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
@@ -139,18 +141,6 @@ done:
 	cb->args[1] = num;
 }
 
-static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  const struct inet_diag_req_v2 *r)
-{
-	udp_dump(sock_net(cb->skb->sk)->ipv4.udp_table, skb, cb, r);
-}
-
-static int udp_diag_dump_one(struct netlink_callback *cb,
-			     const struct inet_diag_req_v2 *req)
-{
-	return udp_dump_one(sock_net(cb->skb->sk)->ipv4.udp_table, cb, req);
-}
-
 static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		void *info)
 {
@@ -159,9 +149,8 @@ static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 }
 
 #ifdef CONFIG_INET_DIAG_DESTROY
-static int __udp_diag_destroy(struct sk_buff *in_skb,
-			      const struct inet_diag_req_v2 *req,
-			      struct udp_table *tbl)
+static int udp_diag_destroy(struct sk_buff *in_skb,
+			    const struct inet_diag_req_v2 *req)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct sock *sk;
@@ -171,18 +160,17 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 
 	if (req->sdiag_family == AF_INET)
 		sk = __udp4_lib_lookup(net,
-				req->id.idiag_dst[0], req->id.idiag_dport,
-				req->id.idiag_src[0], req->id.idiag_sport,
-				req->id.idiag_if, 0, tbl, NULL);
+				       req->id.idiag_dst[0], req->id.idiag_dport,
+				       req->id.idiag_src[0], req->id.idiag_sport,
+				       req->id.idiag_if, 0, NULL);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6) {
 		if (ipv6_addr_v4mapped((struct in6_addr *)req->id.idiag_dst) &&
 		    ipv6_addr_v4mapped((struct in6_addr *)req->id.idiag_src))
 			sk = __udp4_lib_lookup(net,
-					req->id.idiag_dst[3], req->id.idiag_dport,
-					req->id.idiag_src[3], req->id.idiag_sport,
-					req->id.idiag_if, 0, tbl, NULL);
-
+					       req->id.idiag_dst[3], req->id.idiag_dport,
+					       req->id.idiag_src[3], req->id.idiag_sport,
+					       req->id.idiag_if, 0, NULL);
 		else
 			sk = __udp6_lib_lookup(net,
 					       (struct in6_addr *)req->id.idiag_dst,
@@ -216,13 +204,6 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 
 	return err;
 }
-
-static int udp_diag_destroy(struct sk_buff *in_skb,
-			    const struct inet_diag_req_v2 *req)
-{
-	return __udp_diag_destroy(in_skb, req, sock_net(in_skb->sk)->ipv4.udp_table);
-}
-
 #endif
 
 static const struct inet_diag_handler udp_diag_handler = {
