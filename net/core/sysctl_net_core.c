@@ -349,6 +349,29 @@ static int proc_do_rss_key(const struct ctl_table *table, int write,
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
 }
 
+static int proc_do_skb_defer_max(const struct ctl_table *table, int write,
+		 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	static DEFINE_MUTEX(skb_defer_max_mutex);
+	int ret, oval, nval;
+
+	mutex_lock(&skb_defer_max_mutex);
+
+	oval = !net_hotdata.sysctl_skb_defer_max;
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	nval = !net_hotdata.sysctl_skb_defer_max;
+
+	if (nval != oval) {
+		if (nval)
+			static_branch_enable(&skb_defer_disable_key);
+		else
+			static_branch_disable(&skb_defer_disable_key);
+	}
+
+	mutex_unlock(&skb_defer_max_mutex);
+	return ret;
+}
+
 #ifdef CONFIG_BPF_JIT
 static int proc_dointvec_minmax_bpf_enable(const struct ctl_table *table, int write,
 					   void *buffer, size_t *lenp,
@@ -650,7 +673,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_hotdata.sysctl_skb_defer_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_do_skb_defer_max,
 		.extra1		= SYSCTL_ZERO,
 	},
 };

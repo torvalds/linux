@@ -7256,6 +7256,8 @@ static void kfree_skb_napi_cache(struct sk_buff *skb)
 	local_bh_enable();
 }
 
+DEFINE_STATIC_KEY_FALSE(skb_defer_disable_key);
+
 /**
  * skb_attempt_defer_free - queue skb for remote freeing
  * @skb: buffer
@@ -7271,6 +7273,9 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 	unsigned int defer_max;
 	bool kick;
 	int cpu;
+
+	if (static_branch_unlikely(&skb_defer_disable_key))
+		goto nodefer;
 
 	/* zero copy notifications should not be delayed. */
 	if (skb_zcopy(skb))
