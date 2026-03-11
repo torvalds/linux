@@ -5,11 +5,12 @@
 from .nlspec import SpecAttr, SpecAttrSet, SpecEnumEntry, SpecEnumSet, \
     SpecFamily, SpecOperation, SpecSubMessage, SpecSubMessageFormat, \
     SpecException
-from .ynl import YnlFamily, Netlink, NlError, YnlException
+from .ynl import YnlFamily, Netlink, NlError, NlPolicy, YnlException
 
 from .doc_generator import YnlDocGenerator
 
 __all__ = ["SpecAttr", "SpecAttrSet", "SpecEnumEntry", "SpecEnumSet",
            "SpecFamily", "SpecOperation", "SpecSubMessage", "SpecSubMessageFormat",
            "SpecException",
-           "YnlFamily", "Netlink", "NlError", "YnlDocGenerator", "YnlException"]
+           "YnlFamily", "Netlink", "NlError", "NlPolicy", "YnlException",
+           "YnlDocGenerator"]
