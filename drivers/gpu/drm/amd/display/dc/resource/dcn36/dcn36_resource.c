@@ -1781,7 +1781,8 @@ static struct resource_funcs dcn36_res_pool_funcs = {
 	.get_preferred_eng_id_dpia = dcn36_get_preferred_eng_id_dpia,
 	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
 	.update_dc_state_for_encoder_switch = dcn31_update_dc_state_for_encoder_switch,
-	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params
+	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
+	.get_default_tiling_info = dcn10_get_default_tiling_info,
 };
 
 static bool dcn36_resource_construct(

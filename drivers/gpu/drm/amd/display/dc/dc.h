@@ -1970,6 +1970,15 @@ void dc_plane_cm_retain(struct dc_plane_cm *cm);
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
+/*
+ * dc_get_default_tiling_info() - Retrieve an ASIC-appropriate default tiling
+ * description for (typically) linear surfaces.
+ *
+ * This is used by OS/DM paths that need a valid, fully-initialized tiling
+ * description without hardcoding gfx-version specifics in the caller.
+ */
+void dc_get_default_tiling_info(const struct dc *dc, struct dc_tiling_info *tiling_info);
+
 /**
  * struct dc_validation_set - Struct to store surface/stream associations for validation
  */
