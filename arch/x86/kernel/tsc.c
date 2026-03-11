@@ -1201,8 +1201,10 @@ static struct clocksource clocksource_tsc = {
 	.mask			= CLOCKSOURCE_MASK(64),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_VALID_FOR_HRES |
+				  CLOCK_SOURCE_CAN_INLINE_READ |
 				  CLOCK_SOURCE_MUST_VERIFY |
-				  CLOCK_SOURCE_VERIFY_PERCPU,
+				  CLOCK_SOURCE_VERIFY_PERCPU |
+				  CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT,
 	.id			= CSID_X86_TSC,
 	.vdso_clock_mode	= VDSO_CLOCKMODE_TSC,
 	.enable			= tsc_cs_enable,

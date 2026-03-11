@@ -412,23 +412,21 @@ EXPORT_SYMBOL_GPL(setup_APIC_eilvt);
 /*
  * Program the next event, relative to now
  */
-static int lapic_next_event(unsigned long delta,
-			    struct clock_event_device *evt)
+static int lapic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	apic_write(APIC_TMICT, delta);
 	return 0;
 }
 
-static int lapic_next_deadline(unsigned long delta,
-			       struct clock_event_device *evt)
+static int lapic_next_deadline(unsigned long delta, struct clock_event_device *evt)
 {
-	u64 tsc;
+	/*
+	 * There is no weak_wrmsr_fence() required here as all of this is purely
+	 * CPU local. Avoid the [ml]fence overhead.
+	 */
+	u64 tsc = rdtsc();
 
-	/* This MSR is special and need a special fence: */
-	weak_wrmsr_fence();
-
-	tsc = rdtsc();
-	wrmsrq(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
+	native_wrmsrq(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
 	return 0;
 }
 
@@ -452,7 +450,7 @@ static int lapic_timer_shutdown(struct clock_event_device *evt)
 	 * the timer _and_ zero the counter registers:
 	 */
 	if (v & APIC_LVT_TIMER_TSCDEADLINE)
-		wrmsrq(MSR_IA32_TSC_DEADLINE, 0);
+		native_wrmsrq(MSR_IA32_TSC_DEADLINE, 0);
 	else
 		apic_write(APIC_TMICT, 0);
 
@@ -549,6 +547,11 @@ static __init bool apic_validate_deadline_timer(void)
 
 	if (!boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
 		return false;
+
+	/* XEN_PV does not support it, but be paranoia about it */
+	if (boot_cpu_has(X86_FEATURE_XENPV))
+		goto clear;
+
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
 		return true;
 
@@ -561,9 +564,11 @@ static __init bool apic_validate_deadline_timer(void)
 	if (boot_cpu_data.microcode >= rev)
 		return true;
 
-	setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
 	pr_err(FW_BUG "TSC_DEADLINE disabled due to Errata; "
 	       "please update microcode to version: 0x%x (or later)\n", rev);
+
+clear:
+	setup_clear_cpu_cap(X86_FEATURE_TSC_DEADLINE_TIMER);
 	return false;
 }
 
@@ -586,14 +591,14 @@ static void setup_APIC_timer(void)
 
 	if (this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
 		levt->name = "lapic-deadline";
-		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC |
-				    CLOCK_EVT_FEAT_DUMMY);
+		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_DUMMY);
+		levt->features |= CLOCK_EVT_FEAT_CLOCKSOURCE_COUPLED;
+		levt->cs_id = CSID_X86_TSC;
 		levt->set_next_event = lapic_next_deadline;
-		clockevents_config_and_register(levt,
-						tsc_khz * (1000 / TSC_DIVISOR),
-						0xF, ~0UL);
-	} else
+		clockevents_config_and_register(levt, tsc_khz * (1000 / TSC_DIVISOR), 0xF, ~0UL);
+	} else {
 		clockevents_register_device(levt);
+	}
 
 	apic_update_vector(smp_processor_id(), LOCAL_TIMER_VECTOR, true);
 }

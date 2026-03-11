@@ -3,34 +3,30 @@
  *  Kernel timekeeping code and accessor functions. Based on code from
  *  timer.c, moved in commit 8524070b7982.
  */
-#include <linux/timekeeper_internal.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/kobject.h>
-#include <linux/percpu.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/nmi.h>
-#include <linux/sched.h>
-#include <linux/sched/loadavg.h>
-#include <linux/sched/clock.h>
-#include <linux/syscore_ops.h>
+#include <linux/audit.h>
 #include <linux/clocksource.h>
+#include <linux/compiler.h>
 #include <linux/jiffies.h>
+#include <linux/kobject.h>
+#include <linux/module.h>
+#include <linux/nmi.h>
+#include <linux/pvclock_gtod.h>
+#include <linux/random.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/loadavg.h>
+#include <linux/static_key.h>
+#include <linux/stop_machine.h>
+#include <linux/syscore_ops.h>
+#include <linux/tick.h>
 #include <linux/time.h>
 #include <linux/timex.h>
-#include <linux/tick.h>
-#include <linux/stop_machine.h>
-#include <linux/pvclock_gtod.h>
-#include <linux/compiler.h>
-#include <linux/audit.h>
-#include <linux/random.h>
+#include <linux/timekeeper_internal.h>
 
 #include <vdso/auxclock.h>
 
 #include "tick-internal.h"
-#include "ntp_internal.h"
 #include "timekeeping_internal.h"
+#include "ntp_internal.h"
 
 #define TK_CLEAR_NTP		(1 << 0)
 #define TK_CLOCK_WAS_SET	(1 << 1)
@@ -275,6 +271,11 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 	tk->monotonic_to_boot = ktime_to_timespec64(tk->offs_boot);
 }
 
+#ifdef CONFIG_ARCH_WANTS_CLOCKSOURCE_READ_INLINE
+#include <asm/clock_inlined.h>
+
+static DEFINE_STATIC_KEY_FALSE(clocksource_read_inlined);
+
 /*
  * tk_clock_read - atomic clocksource read() helper
  *
@@ -288,12 +289,35 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
  * a read of the fast-timekeeper tkrs (which is protected by its own locking
  * and update logic).
  */
-static inline u64 tk_clock_read(const struct tk_read_base *tkr)
+static __always_inline u64 tk_clock_read(const struct tk_read_base *tkr)
+{
+	struct clocksource *clock = READ_ONCE(tkr->clock);
+
+	if (static_branch_likely(&clocksource_read_inlined))
+		return arch_inlined_clocksource_read(clock);
+
+	return clock->read(clock);
+}
+
+static inline void clocksource_disable_inline_read(void)
+{
+	static_branch_disable(&clocksource_read_inlined);
+}
+
+static inline void clocksource_enable_inline_read(void)
+{
+	static_branch_enable(&clocksource_read_inlined);
+}
+#else
+static __always_inline u64 tk_clock_read(const struct tk_read_base *tkr)
 {
 	struct clocksource *clock = READ_ONCE(tkr->clock);
 
 	return clock->read(clock);
 }
+static inline void clocksource_disable_inline_read(void) { }
+static inline void clocksource_enable_inline_read(void) { }
+#endif
 
 /**
  * tk_setup_internals - Set up internals to use clocksource clock.
@@ -367,6 +391,27 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 	tk->tkr_raw.mult = clock->mult;
 	tk->ntp_err_mult = 0;
 	tk->skip_second_overflow = 0;
+
+	tk->cs_id = clock->id;
+
+	/* Coupled clockevent data */
+	if (IS_ENABLED(CONFIG_GENERIC_CLOCKEVENTS_COUPLED) &&
+	    clock->flags & CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT) {
+		/*
+		 * Aim for an one hour maximum delta and use KHz to handle
+		 * clocksources with a frequency above 4GHz correctly as
+		 * the frequency argument of clocks_calc_mult_shift() is u32.
+		 */
+		clocks_calc_mult_shift(&tk->cs_ns_to_cyc_mult, &tk->cs_ns_to_cyc_shift,
+				       NSEC_PER_MSEC, clock->freq_khz, 3600 * 1000);
+		/*
+		 * Initialize the conversion limit as the previous clocksource
+		 * might have the same shift/mult pair so the quick check in
+		 * tk_update_ns_to_cyc() fails to update it after a clocksource
+		 * change leaving it effectivly zero.
+		 */
+		tk->cs_ns_to_cyc_maxns = div_u64(clock->mask, tk->cs_ns_to_cyc_mult);
+	}
 }
 
 /* Timekeeper helper functions. */
@@ -375,7 +420,7 @@ static noinline u64 delta_to_ns_safe(const struct tk_read_base *tkr, u64 delta)
 	return mul_u64_u32_add_u64_shr(delta, tkr->mult, tkr->xtime_nsec, tkr->shift);
 }
 
-static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
+static __always_inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
 {
 	/* Calculate the delta since the last update_wall_time() */
 	u64 mask = tkr->mask, delta = (cycles - tkr->cycle_last) & mask;
@@ -696,6 +741,36 @@ static inline void tk_update_ktime_data(struct timekeeper *tk)
 	tk->tkr_raw.base = ns_to_ktime(tk->raw_sec * NSEC_PER_SEC);
 }
 
+static inline void tk_update_ns_to_cyc(struct timekeeper *tks, struct timekeeper *tkc)
+{
+	struct tk_read_base *tkrs = &tks->tkr_mono;
+	struct tk_read_base *tkrc = &tkc->tkr_mono;
+	unsigned int shift;
+
+	if (!IS_ENABLED(CONFIG_GENERIC_CLOCKEVENTS_COUPLED) ||
+	    !(tkrs->clock->flags & CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT))
+		return;
+
+	if (tkrs->mult == tkrc->mult && tkrs->shift == tkrc->shift)
+		return;
+	/*
+	 * The conversion math is simple:
+	 *
+	 *      CS::MULT       (1 << NS_TO_CYC_SHIFT)
+	 *   --------------- = ----------------------
+	 *   (1 << CS:SHIFT)       NS_TO_CYC_MULT
+	 *
+	 * Ergo:
+	 *
+	 *   NS_TO_CYC_MULT = (1 << (CS::SHIFT + NS_TO_CYC_SHIFT)) / CS::MULT
+	 *
+	 * NS_TO_CYC_SHIFT has been set up in tk_setup_internals()
+	 */
+	shift = tkrs->shift + tks->cs_ns_to_cyc_shift;
+	tks->cs_ns_to_cyc_mult = (u32)div_u64(1ULL << shift, tkrs->mult);
+	tks->cs_ns_to_cyc_maxns = div_u64(tkrs->clock->mask, tks->cs_ns_to_cyc_mult);
+}
+
 /*
  * Restore the shadow timekeeper from the real timekeeper.
  */
@@ -730,6 +805,7 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
 
 	if (tk->id == TIMEKEEPER_CORE) {
+		tk_update_ns_to_cyc(tk, &tkd->timekeeper);
 		update_vsyscall(tk);
 		update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
@@ -782,6 +858,71 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 		delta -= incr;
 	}
 	tk_update_coarse_nsecs(tk);
+}
+
+/*
+ * ktime_expiry_to_cycles - Convert a expiry time to clocksource cycles
+ * @id:		Clocksource ID which is required for validity
+ * @expires_ns:	Absolute CLOCK_MONOTONIC expiry time (nsecs) to be converted
+ * @cycles:	Pointer to storage for corresponding absolute cycles value
+ *
+ * Convert a CLOCK_MONOTONIC based absolute expiry time to a cycles value
+ * based on the correlated clocksource of the clockevent device by using
+ * the base nanoseconds and cycles values of the last timekeeper update and
+ * converting the delta between @expires_ns and base nanoseconds to cycles.
+ *
+ * This only works for clockevent devices which are using a less than or
+ * equal comparator against the clocksource.
+ *
+ * Utilizing this avoids two clocksource reads for such devices, the
+ * ktime_get() in clockevents_program_event() to calculate the delta expiry
+ * value and the readout in the device::set_next_event() callback to
+ * convert the delta back to a absolute comparator value.
+ *
+ * Returns: True if @id matches the current clocksource ID, false otherwise
+ */
+bool ktime_expiry_to_cycles(enum clocksource_ids id, ktime_t expires_ns, u64 *cycles)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	struct tk_read_base *tkrm = &tk->tkr_mono;
+	ktime_t base_ns, delta_ns, max_ns;
+	u64 base_cycles, delta_cycles;
+	unsigned int seq;
+	u32 mult, shift;
+
+	/*
+	 * Racy check to avoid the seqcount overhead when ID does not match. If
+	 * the relevant clocksource is installed concurrently, then this will
+	 * just delay the switch over to this mechanism until the next event is
+	 * programmed. If the ID is not matching the clock events code will use
+	 * the regular relative set_next_event() callback as before.
+	 */
+	if (data_race(tk->cs_id) != id)
+		return false;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+
+		if (tk->cs_id != id)
+			return false;
+
+		base_cycles = tkrm->cycle_last;
+		base_ns = tkrm->base + (tkrm->xtime_nsec >> tkrm->shift);
+
+		mult = tk->cs_ns_to_cyc_mult;
+		shift = tk->cs_ns_to_cyc_shift;
+		max_ns = tk->cs_ns_to_cyc_maxns;
+
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	/* Prevent negative deltas and multiplication overflows */
+	delta_ns = min(expires_ns - base_ns, max_ns);
+	delta_ns = max(delta_ns, 0);
+
+	/* Convert to cycles */
+	delta_cycles = ((u64)delta_ns * mult) >> shift;
+	*cycles = base_cycles + delta_cycles;
+	return true;
 }
 
 /**
@@ -1631,7 +1772,19 @@ int timekeeping_notify(struct clocksource *clock)
 
 	if (tk->tkr_mono.clock == clock)
 		return 0;
+
+	/* Disable inlined reads accross the clocksource switch */
+	clocksource_disable_inline_read();
+
 	stop_machine(change_clocksource, clock, NULL);
+
+	/*
+	 * If the clocksource has been selected and supports inlined reads
+	 * enable the branch.
+	 */
+	if (tk->tkr_mono.clock == clock && clock->flags & CLOCK_SOURCE_CAN_INLINE_READ)
+		clocksource_enable_inline_read();
+
 	tick_clock_notify();
 	return tk->tkr_mono.clock == clock ? 0 : -1;
 }

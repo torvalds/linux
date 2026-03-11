@@ -1097,7 +1097,7 @@ static int start_dl_timer(struct sched_dl_entity *dl_se)
 		act = ns_to_ktime(dl_next_period(dl_se));
 	}
 
-	now = hrtimer_cb_get_time(timer);
+	now = ktime_get();
 	delta = ktime_to_ns(now) - rq_clock(rq);
 	act = ktime_add_ns(act, delta);
 

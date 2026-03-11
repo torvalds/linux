@@ -41,11 +41,14 @@
 #define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
 
 #ifdef HAVE_TIF_RESTORE_SIGMASK
-# define TIF_RESTORE_SIGMASK	10	// Restore signal mask in do_signal() */
+# define TIF_RESTORE_SIGMASK	10	// Restore signal mask in do_signal()
 # define _TIF_RESTORE_SIGMASK	BIT(TIF_RESTORE_SIGMASK)
 #endif
 
 #define TIF_RSEQ		11	// Run RSEQ fast path
 #define _TIF_RSEQ		BIT(TIF_RSEQ)
+
+#define TIF_HRTIMER_REARM	12       // re-arm the timer
+#define _TIF_HRTIMER_REARM	BIT(TIF_HRTIMER_REARM)
 
 #endif /* _ASM_GENERIC_THREAD_INFO_TIF_H_ */

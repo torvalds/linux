@@ -446,6 +446,23 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 }
 EXPORT_SYMBOL(rb_erase);
 
+bool rb_erase_linked(struct rb_node_linked *node, struct rb_root_linked *root)
+{
+	if (node->prev)
+		node->prev->next = node->next;
+	else
+		root->rb_leftmost = node->next;
+
+	if (node->next)
+		node->next->prev = node->prev;
+
+	rb_erase(&node->node, &root->rb_root);
+	RB_CLEAR_LINKED_NODE(node);
+
+	return !!root->rb_leftmost;
+}
+EXPORT_SYMBOL_GPL(rb_erase_linked);
+
 /*
  * Augmented rbtree manipulation functions.
  *

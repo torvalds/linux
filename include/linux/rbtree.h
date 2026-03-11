@@ -35,10 +35,15 @@
 #define RB_CLEAR_NODE(node)  \
 	((node)->__rb_parent_color = (unsigned long)(node))
 
+#define RB_EMPTY_LINKED_NODE(lnode)  RB_EMPTY_NODE(&(lnode)->node)
+#define RB_CLEAR_LINKED_NODE(lnode)  ({					\
+	RB_CLEAR_NODE(&(lnode)->node);					\
+	(lnode)->prev = (lnode)->next = NULL;				\
+})
 
 extern void rb_insert_color(struct rb_node *, struct rb_root *);
 extern void rb_erase(struct rb_node *, struct rb_root *);
-
+extern bool rb_erase_linked(struct rb_node_linked *, struct rb_root_linked *);
 
 /* Find logical next and previous nodes in a tree */
 extern struct rb_node *rb_next(const struct rb_node *);
@@ -213,15 +218,10 @@ rb_add_cached(struct rb_node *node, struct rb_root_cached *tree,
 	return leftmost ? node : NULL;
 }
 
-/**
- * rb_add() - insert @node into @tree
- * @node: node to insert
- * @tree: tree to insert @node into
- * @less: operator defining the (partial) node order
- */
 static __always_inline void
-rb_add(struct rb_node *node, struct rb_root *tree,
-       bool (*less)(struct rb_node *, const struct rb_node *))
+__rb_add(struct rb_node *node, struct rb_root *tree,
+	 bool (*less)(struct rb_node *, const struct rb_node *),
+	 void (*linkop)(struct rb_node *, struct rb_node *, struct rb_node **))
 {
 	struct rb_node **link = &tree->rb_node;
 	struct rb_node *parent = NULL;
@@ -234,8 +234,71 @@ rb_add(struct rb_node *node, struct rb_root *tree,
 			link = &parent->rb_right;
 	}
 
+	linkop(node, parent, link);
 	rb_link_node(node, parent, link);
 	rb_insert_color(node, tree);
+}
+
+#define __node_2_linked_node(_n) \
+	rb_entry((_n), struct rb_node_linked, node)
+
+static inline void
+rb_link_linked_node(struct rb_node *node, struct rb_node *parent, struct rb_node **link)
+{
+	if (!parent)
+		return;
+
+	struct rb_node_linked *nnew = __node_2_linked_node(node);
+	struct rb_node_linked *npar = __node_2_linked_node(parent);
+
+	if (link == &parent->rb_left) {
+		nnew->prev = npar->prev;
+		nnew->next = npar;
+		npar->prev = nnew;
+		if (nnew->prev)
+			nnew->prev->next = nnew;
+	} else {
+		nnew->next = npar->next;
+		nnew->prev = npar;
+		npar->next = nnew;
+		if (nnew->next)
+			nnew->next->prev = nnew;
+	}
+}
+
+/**
+ * rb_add_linked() - insert @node into the leftmost linked tree @tree
+ * @node: node to insert
+ * @tree: linked tree to insert @node into
+ * @less: operator defining the (partial) node order
+ *
+ * Returns @true when @node is the new leftmost, @false otherwise.
+ */
+static __always_inline bool
+rb_add_linked(struct rb_node_linked *node, struct rb_root_linked *tree,
+	      bool (*less)(struct rb_node *, const struct rb_node *))
+{
+	__rb_add(&node->node, &tree->rb_root, less, rb_link_linked_node);
+	if (!node->prev)
+		tree->rb_leftmost = node;
+	return !node->prev;
+}
+
+/* Empty linkop function which is optimized away by the compiler */
+static __always_inline void
+rb_link_noop(struct rb_node *n, struct rb_node *p, struct rb_node **l) { }
+
+/**
+ * rb_add() - insert @node into @tree
+ * @node: node to insert
+ * @tree: tree to insert @node into
+ * @less: operator defining the (partial) node order
+ */
+static __always_inline void
+rb_add(struct rb_node *node, struct rb_root *tree,
+       bool (*less)(struct rb_node *, const struct rb_node *))
+{
+	__rb_add(node, tree, less, rb_link_noop);
 }
 
 /**
