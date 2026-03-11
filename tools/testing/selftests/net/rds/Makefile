@@ -7,6 +7,7 @@ TEST_PROGS := run.sh
 
 TEST_FILES := \
 	include.sh \
+	settings \
 	test.py \
 # end of TEST_FILES
 
