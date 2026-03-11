@@ -297,7 +297,7 @@ static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 		}
 
 		sig = (typeof(sig))xattr_value;
-		if (sig->version >= 3) {
+		if (sig->version > 3) {
 			*cause = "invalid-signature-version";
 			*status = INTEGRITY_FAIL;
 			break;
