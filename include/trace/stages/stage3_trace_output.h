@@ -64,36 +64,36 @@
 #define __get_rel_sockaddr(field)	((struct sockaddr *)__get_rel_dynamic_array(field))
 
 #undef __print_flags
-#define __print_flags(flag, delim, flag_array...)			\
-	({								\
-		static const struct trace_print_flags __flags[] =	\
-			{ flag_array, { -1, NULL }};			\
-		trace_print_flags_seq(p, delim, flag, __flags);	\
+#define __print_flags(flag, delim, flag_array...)					\
+	({										\
+		static const struct trace_print_flags __flags[] =			\
+			{ flag_array };							\
+		trace_print_flags_seq(p, delim, flag, __flags, ARRAY_SIZE(__flags));	\
 	})
 
 #undef __print_symbolic
-#define __print_symbolic(value, symbol_array...)			\
-	({								\
-		static const struct trace_print_flags symbols[] =	\
-			{ symbol_array, { -1, NULL }};			\
-		trace_print_symbols_seq(p, value, symbols);		\
+#define __print_symbolic(value, symbol_array...)					\
+	({										\
+		static const struct trace_print_flags symbols[] =			\
+			{ symbol_array };						\
+		trace_print_symbols_seq(p, value, symbols, ARRAY_SIZE(symbols));	\
 	})
 
 #undef __print_flags_u64
 #undef __print_symbolic_u64
 #if BITS_PER_LONG == 32
-#define __print_flags_u64(flag, delim, flag_array...)			\
-	({								\
-		static const struct trace_print_flags_u64 __flags[] =	\
-			{ flag_array, { -1, NULL } };			\
-		trace_print_flags_seq_u64(p, delim, flag, __flags);	\
+#define __print_flags_u64(flag, delim, flag_array...)						\
+	({											\
+		static const struct trace_print_flags_u64 __flags[] =				\
+			{ flag_array };								\
+		trace_print_flags_seq_u64(p, delim, flag, __flags, ARRAY_SIZE(__flags));	\
 	})
 
-#define __print_symbolic_u64(value, symbol_array...)			\
-	({								\
-		static const struct trace_print_flags_u64 symbols[] =	\
-			{ symbol_array, { -1, NULL } };			\
-		trace_print_symbols_seq_u64(p, value, symbols);	\
+#define __print_symbolic_u64(value, symbol_array...)					\
+	({										\
+		static const struct trace_print_flags_u64 symbols[] =			\
+			{ symbol_array };						\
+		trace_print_symbols_seq_u64(p, value, symbols, ARRAY_SIZE(symbols));	\
 	})
 #else
 #define __print_flags_u64(flag, delim, flag_array...)			\
