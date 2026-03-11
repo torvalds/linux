@@ -53,8 +53,6 @@
 #define PADOWN_MASK(p)			(GENMASK(3, 0) << PADOWN_SHIFT(p))
 #define PADOWN_GPP(p)			((p) / 8)
 
-#define PWMC				0x204
-
 /* Offset from pad_regs */
 #define PADCFG0				0x000
 #define PADCFG0_RXEVCFG_MASK		GENMASK(26, 25)
@@ -1549,8 +1547,10 @@ static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
 }
 
 static int intel_pinctrl_probe_pwm(struct intel_pinctrl *pctrl,
-				   struct intel_community *community)
+				   struct intel_community *community,
+				   unsigned short capability_offset)
 {
+	void __iomem *base = community->regs + capability_offset + 4;
 	static const struct pwm_lpss_boardinfo info = {
 		.clk_rate = 19200000,
 		.npwm = 1,
@@ -1564,7 +1564,7 @@ static int intel_pinctrl_probe_pwm(struct intel_pinctrl *pctrl,
 	if (!IS_REACHABLE(CONFIG_PWM_LPSS))
 		return 0;
 
-	chip = devm_pwm_lpss_probe(pctrl->dev, community->regs + PWMC, &info);
+	chip = devm_pwm_lpss_probe(pctrl->dev, base, &info);
 	return PTR_ERR_OR_ZERO(chip);
 }
 
@@ -1595,6 +1595,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 
 	for (i = 0; i < pctrl->ncommunities; i++) {
 		struct intel_community *community = &pctrl->communities[i];
+		unsigned short capability_offset[6];
 		void __iomem *regs;
 		u32 offset;
 		u32 value;
@@ -1622,15 +1623,19 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 			switch ((value & CAPLIST_ID_MASK) >> CAPLIST_ID_SHIFT) {
 			case CAPLIST_ID_GPIO_HW_INFO:
 				community->features |= PINCTRL_FEATURE_GPIO_HW_INFO;
+				capability_offset[CAPLIST_ID_GPIO_HW_INFO] = offset;
 				break;
 			case CAPLIST_ID_PWM:
 				community->features |= PINCTRL_FEATURE_PWM;
+				capability_offset[CAPLIST_ID_PWM] = offset;
 				break;
 			case CAPLIST_ID_BLINK:
 				community->features |= PINCTRL_FEATURE_BLINK;
+				capability_offset[CAPLIST_ID_BLINK] = offset;
 				break;
 			case CAPLIST_ID_EXP:
 				community->features |= PINCTRL_FEATURE_EXP;
+				capability_offset[CAPLIST_ID_EXP] = offset;
 				break;
 			default:
 				break;
@@ -1653,7 +1658,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		ret = intel_pinctrl_probe_pwm(pctrl, community);
+		ret = intel_pinctrl_probe_pwm(pctrl, community, capability_offset[CAPLIST_ID_PWM]);
 		if (ret)
 			return ret;
 	}
