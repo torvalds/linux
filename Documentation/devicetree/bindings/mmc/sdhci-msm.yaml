@@ -38,6 +38,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq5018-sdhci
+              - qcom,ipq5210-sdhci
               - qcom,ipq5332-sdhci
               - qcom,ipq5424-sdhci
               - qcom,ipq6018-sdhci
