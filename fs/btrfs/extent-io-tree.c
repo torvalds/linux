@@ -187,6 +187,8 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 				 struct extent_changeset *changeset,
 				 int set)
 {
+	int ret;
+
 	if (!changeset)
 		return 0;
 	if (set && (state->state & bits) == bits)
@@ -195,7 +197,10 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 		return 0;
 	changeset->bytes_changed += state->end - state->start + 1;
 
-	return ulist_add(&changeset->range_changed, state->start, state->end, GFP_ATOMIC);
+	ret = ulist_add(&changeset->range_changed, state->start, state->end, GFP_ATOMIC);
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 static inline struct extent_state *next_state(struct extent_state *state)
@@ -745,7 +750,6 @@ hit_next:
 						     "add_extent_changeset", ret);
 				goto out;
 			}
-			ret = 0;
 
 			if (tree->owner == IO_TREE_INODE_IO)
 				btrfs_clear_delalloc_extent(tree->inode, state, bits);
