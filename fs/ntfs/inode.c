@@ -865,10 +865,10 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	}
 skip_attr_list_load:
 	err = ntfs_attr_lookup(AT_EA_INFORMATION, NULL, 0, 0, 0, NULL, 0, ctx);
-	if (!err)
+	if (!err) {
 		NInoSetHasEA(ni);
-
-	ntfs_ea_get_wsl_inode(vi, &dev, flags);
+		ntfs_ea_get_wsl_inode(vi, &dev, flags);
+	}
 
 	if (m->flags & MFT_RECORD_IS_DIRECTORY) {
 		vi->i_mode |= S_IFDIR;

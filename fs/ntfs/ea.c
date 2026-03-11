@@ -368,7 +368,7 @@ int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags)
 		i_uid_write(inode, le32_to_cpu(v));
 	}
 
-	if (!(flags & NTFS_VOL_UID)) {
+	if (!(flags & NTFS_VOL_GID)) {
 		/* Load gid to lxgid EA */
 		err = ntfs_get_ea(inode, "$LXGID", sizeof("$LXGID") - 1, &v,
 				sizeof(v));
