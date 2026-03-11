@@ -370,8 +370,7 @@ struct sock *__udp6_lib_lookup(const struct net *net,
 		goto done;
 
 	/* Lookup redirect from BPF */
-	if (static_branch_unlikely(&bpf_sk_lookup_enabled) &&
-	    udptable == net->ipv4.udp_table) {
+	if (static_branch_unlikely(&bpf_sk_lookup_enabled)) {
 		sk = inet6_lookup_run_sk_lookup(net, IPPROTO_UDP, skb, sizeof(struct udphdr),
 						saddr, sport, daddr, hnum, dif,
 						udp6_ehashfn);
