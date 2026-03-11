@@ -3489,12 +3489,12 @@ int format_counters(PER_THREAD_PARAMS)
 
 		case PMT_TYPE_XTAL_TIME:
 			value_converted = pct(value_raw / crystal_hz, interval_float);
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 			break;
 
 		case PMT_TYPE_TCORE_CLOCK:
 			value_converted = pct(value_raw / tcore_clock_freq_hz, interval_float);
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 		}
 	}
 
