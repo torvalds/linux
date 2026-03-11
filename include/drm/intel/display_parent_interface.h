@@ -23,8 +23,21 @@ struct intel_initial_plane_config;
 struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
+struct seq_file;
+struct vm_area_struct;
 
 /* Keep struct definitions sorted */
+
+struct intel_display_bo_interface {
+	bool (*is_tiled)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_userptr)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_shmem)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_protected)(struct drm_gem_object *obj);
+	int (*key_check)(struct drm_gem_object *obj);
+	int (*fb_mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
+	int (*read_from_page)(struct drm_gem_object *obj, u64 offset, void *dst, int size);
+	void (*describe)(struct seq_file *m, struct drm_gem_object *obj); /* Optional */
+};
 
 struct intel_display_dpt_interface {
 	struct intel_dpt *(*create)(struct drm_gem_object *obj, size_t size);
@@ -174,6 +187,9 @@ struct intel_display_vma_interface {
  * check the optional pointers.
  */
 struct intel_display_parent_interface {
+	/** @bo: BO interface */
+	const struct intel_display_bo_interface *bo;
+
 	/** @dpt: DPT interface. Optional. */
 	const struct intel_display_dpt_interface *dpt;
 

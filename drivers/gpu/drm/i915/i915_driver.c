@@ -90,6 +90,7 @@
 #include "pxp/intel_pxp_debugfs.h"
 #include "pxp/intel_pxp_pm.h"
 
+#include "i915_bo.h"
 #include "i915_debugfs.h"
 #include "i915_display_pc8.h"
 #include "i915_dpt.h"
@@ -765,6 +766,7 @@ static bool vgpu_active(struct drm_device *drm)
 }
 
 static const struct intel_display_parent_interface parent = {
+	.bo = &i915_display_bo_interface,
 	.dpt = &i915_display_dpt_interface,
 	.dsb = &i915_display_dsb_interface,
 	.frontbuffer = &i915_display_frontbuffer_interface,

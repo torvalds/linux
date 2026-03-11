@@ -233,6 +233,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_audio.o \
 	i915-display/intel_backlight.o \
 	i915-display/intel_bios.o \
+	i915-display/intel_bo.o \
 	i915-display/intel_bw.o \
 	i915-display/intel_casf.o \
 	i915-display/intel_cdclk.o \
