@@ -696,7 +696,7 @@ hit_next:
 			goto search_again;
 		ret = split_state(tree, state, prealloc, start);
 		prealloc = NULL;
-		if (ret) {
+		if (unlikely(ret)) {
 			extent_io_tree_panic(tree, state, "split", ret);
 			goto out;
 		}
@@ -762,7 +762,7 @@ hit_next:
 		if (!prealloc)
 			goto search_again;
 		ret = split_state(tree, state, prealloc, end + 1);
-		if (ret) {
+		if (unlikely(ret)) {
 			extent_io_tree_panic(tree, state, "split", ret);
 			prealloc = NULL;
 			goto out;
@@ -1203,7 +1203,7 @@ hit_next:
 		if (!prealloc)
 			goto search_again;
 		ret = split_state(tree, state, prealloc, start);
-		if (ret)
+		if (unlikely(ret))
 			extent_io_tree_panic(tree, state, "split", ret);
 
 		prealloc = NULL;
@@ -1293,7 +1293,7 @@ hit_next:
 		if (!prealloc)
 			goto search_again;
 		ret = split_state(tree, state, prealloc, end + 1);
-		if (ret) {
+		if (unlikely(ret)) {
 			extent_io_tree_panic(tree, state, "split", ret);
 			prealloc = NULL;
 			goto out;
@@ -1448,7 +1448,7 @@ hit_next:
 		}
 		ret = split_state(tree, state, prealloc, start);
 		prealloc = NULL;
-		if (ret) {
+		if (unlikely(ret)) {
 			extent_io_tree_panic(tree, state, "split", ret);
 			goto out;
 		}
@@ -1532,7 +1532,7 @@ hit_next:
 		}
 
 		ret = split_state(tree, state, prealloc, end + 1);
-		if (ret) {
+		if (unlikely(ret)) {
 			extent_io_tree_panic(tree, state, "split", ret);
 			prealloc = NULL;
 			goto out;
