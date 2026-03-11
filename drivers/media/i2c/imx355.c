@@ -66,6 +66,9 @@
 #define IMX355_EXT_CLK			19200000
 #define IMX355_LINK_FREQ_INDEX		0
 
+/* number of data lanes */
+#define IMX355_DATA_LANES		4
+
 struct imx355_reg {
 	u16 address;
 	u8 val;
@@ -1703,6 +1706,9 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 
 	cfg = devm_kzalloc(dev, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
+		goto out_err;
+
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX355_DATA_LANES)
 		goto out_err;
 
 	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
