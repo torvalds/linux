@@ -552,7 +552,6 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
 #ifdef CONFIG_PROC_FS
 struct udp_seq_afinfo {
 	sa_family_t			family;
-	struct udp_table		*udp_table;
 };
 
 struct udp_iter_state {
