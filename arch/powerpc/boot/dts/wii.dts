@@ -256,13 +256,13 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		button-power {
 			label = "Power Button";
 			gpios = <&GPIO 0 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_POWER>;
 		};
 
-		eject {
+		button-eject {
 			label = "Eject Button";
 			gpios = <&GPIO 6 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_EJECTCD>;
