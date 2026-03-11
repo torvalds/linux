@@ -1903,7 +1903,7 @@ int udpv6_getsockopt(struct sock *sk, int level, int optname,
 
 /* ------------------------------------------------------------------------ */
 #ifdef CONFIG_PROC_FS
-int udp6_seq_show(struct seq_file *seq, void *v)
+static int udp6_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, IPV6_SEQ_DGRAM_HEADER);
@@ -1924,7 +1924,6 @@ const struct seq_operations udp6_seq_ops = {
 	.stop		= udp_seq_stop,
 	.show		= udp6_seq_show,
 };
-EXPORT_SYMBOL(udp6_seq_ops);
 
 static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.family		= AF_INET6,

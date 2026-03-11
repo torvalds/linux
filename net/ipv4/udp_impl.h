@@ -22,6 +22,6 @@ int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags);
 void udp_destroy_sock(struct sock *sk);
 
 #ifdef CONFIG_PROC_FS
-int udp4_seq_show(struct seq_file *seq, void *v);
+extern const struct seq_operations udp_seq_ops;
 #endif
 #endif	/* _UDP4_IMPL_H */
