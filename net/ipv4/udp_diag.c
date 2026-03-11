@@ -44,11 +44,11 @@ static int udp_dump_one(struct udp_table *tbl,
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6)
 		sk = __udp6_lib_lookup(net,
-				(struct in6_addr *)req->id.idiag_src,
-				req->id.idiag_sport,
-				(struct in6_addr *)req->id.idiag_dst,
-				req->id.idiag_dport,
-				req->id.idiag_if, 0, tbl, NULL);
+				       (struct in6_addr *)req->id.idiag_src,
+				       req->id.idiag_sport,
+				       (struct in6_addr *)req->id.idiag_dst,
+				       req->id.idiag_dport,
+				       req->id.idiag_if, 0, NULL);
 #endif
 	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
@@ -185,11 +185,11 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 
 		else
 			sk = __udp6_lib_lookup(net,
-					(struct in6_addr *)req->id.idiag_dst,
-					req->id.idiag_dport,
-					(struct in6_addr *)req->id.idiag_src,
-					req->id.idiag_sport,
-					req->id.idiag_if, 0, tbl, NULL);
+					       (struct in6_addr *)req->id.idiag_dst,
+					       req->id.idiag_dport,
+					       (struct in6_addr *)req->id.idiag_src,
+					       req->id.idiag_sport,
+					       req->id.idiag_if, 0, NULL);
 	}
 #endif
 	else {
