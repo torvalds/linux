@@ -591,14 +591,13 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	state->state &= ~bits_to_clear;
 	state_wake_up(tree, state, bits);
 	if (state->state == 0) {
+		if (unlikely(!extent_state_in_tree(state)))
+			extent_io_tree_panic(tree, state, "extent_state_in_tree", -EUCLEAN);
+
 		next = next_search_state(state, end);
-		if (extent_state_in_tree(state)) {
-			rb_erase(&state->rb_node, &tree->state);
-			RB_CLEAR_NODE(&state->rb_node);
-			btrfs_free_extent_state(state);
-		} else {
-			WARN_ON(1);
-		}
+		rb_erase(&state->rb_node, &tree->state);
+		RB_CLEAR_NODE(&state->rb_node);
+		btrfs_free_extent_state(state);
 	} else {
 		merge_state(tree, state);
 		next = next_search_state(state, end);
