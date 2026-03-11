@@ -594,10 +594,7 @@ void dcn42_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn42_dump_clk_registers(&clk_mgr_base->boot_snapshot, clk_mgr);
 
 	clk_mgr_base->clks.ref_dtbclk_khz =  clk_mgr_base->boot_snapshot.dtbclk * 10;
-	if (clk_mgr_base->boot_snapshot.dtbclk > 59000) {
-		/*dtbclk enabled based on*/
-		clk_mgr_base->clks.dtbclk_en = true;
-	}
+	clk_mgr_base->clks.dtbclk_en = clk_mgr_base->boot_snapshot.dtbclk > 59000;
 }
 
 static struct clk_bw_params dcn42_bw_params = {
@@ -1069,7 +1066,7 @@ static void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
 			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels = dpm_clks->NumMemPstatesEnabled;
 
 			/* DTBCLK*/
-			clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz = clk_mgr_base->clks.ref_dtbclk_khz / 1000;
+			clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz = 600; /* Fixed on platform */
 			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels = 1;
 		}
 	}
