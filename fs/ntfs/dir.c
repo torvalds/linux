@@ -593,7 +593,7 @@ err_out:
 		unmap_mft_record(dir_ni);
 	kfree(name);
 	*res = NULL;
-	if (ia_vi && !IS_ERR(ia_vi))
+	if (!IS_ERR_OR_NULL(ia_vi))
 		iput(ia_vi);
 	return ERR_MREF(err);
 dir_err_out:
