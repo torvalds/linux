@@ -101,8 +101,8 @@ print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
 
 	SEQ_printf(m, "  .resolution: %u nsecs\n", hrtimer_resolution);
 #ifdef CONFIG_HIGH_RES_TIMERS
-	SEQ_printf(m, "  .offset:     %Lu nsecs\n",
-		   (unsigned long long) ktime_to_ns(base->offset));
+	SEQ_printf(m, "  .offset:     %Ld nsecs\n",
+		   (long long) base->offset);
 #endif
 	SEQ_printf(m,   "active timers:\n");
 	print_active_timers(m, base, now + ktime_to_ns(base->offset));
