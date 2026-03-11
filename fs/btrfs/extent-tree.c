@@ -2933,9 +2933,15 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 	while (!TRANS_ABORTED(trans) && cached_state) {
 		struct extent_state *next_state;
 
-		if (btrfs_test_opt(fs_info, DISCARD_SYNC))
+		if (btrfs_test_opt(fs_info, DISCARD_SYNC)) {
 			ret = btrfs_discard_extent(fs_info, start,
 						   end + 1 - start, NULL, true);
+			if (ret) {
+				btrfs_warn(fs_info,
+				"discard failed for extent [%llu, %llu]: errno=%d %s",
+					   start, end, ret, btrfs_decode_error(ret));
+			}
+		}
 
 		next_state = btrfs_next_extent_state(unpin, cached_state);
 		btrfs_clear_extent_dirty(unpin, start, end, &cached_state);

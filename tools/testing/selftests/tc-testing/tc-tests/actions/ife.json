@@ -1279,5 +1279,104 @@
         "teardown": [
             "$TC actions flush action ife"
         ]
+    },
+    {
+        "id": "f2a0",
+        "name": "Update decode ife action with encode metadata",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action ife decode index 10"
+        ],
+        "cmdUnderTest": "$TC actions replace action ife encode use tcindex 1 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action ife index 10",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "ife",
+                        "mode": "encode",
+                        "control_action": {
+                            "type": "pipe"
+                        },
+                        "type": "0xed3e",
+                        "tcindex": 1,
+                        "index": 10,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
+    },
+    {
+        "id": "d352",
+        "name": "Update decode ife action into encode with multiple metadata",
+        "category": [
+            "actions",
+            "ife"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action ife",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action ife decode index 10"
+        ],
+        "cmdUnderTest": "$TC actions replace action ife encode use tcindex 1 use mark 22 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action ife index 10",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "ife",
+                        "mode": "encode",
+                        "control_action": {
+                            "type": "pipe"
+                        },
+                        "type": "0xed3e",
+                        "tcindex": 1,
+                        "mark": 22,
+                        "index": 10,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "teardown": [
+            "$TC actions flush action ife"
+        ]
     }
 ]

@@ -24,7 +24,7 @@ Keyboard settings
 
 The ``uniwill-laptop`` driver allows the user to enable/disable:
 
- - the FN and super key lock functionality of the integrated keyboard
+ - the FN lock and super key of the integrated keyboard
  - the touchpad toggle functionality of the integrated touchpad
 
 See Documentation/ABI/testing/sysfs-driver-uniwill-laptop for details.

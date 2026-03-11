@@ -836,6 +836,12 @@ struct hid_usage_id {
  * raw_event and event should return negative on error, any other value will
  * pass the event on to .event() typically return 0 for success.
  *
+ * report_fixup must return a report descriptor pointer whose lifetime is at
+ * least that of the input rdesc.  This is usually done by mutating the input
+ * rdesc and returning it or a sub-portion of it.  In case a new buffer is
+ * allocated and returned, the implementation of report_fixup is responsible for
+ * freeing it later.
+ *
  * input_mapping shall return a negative value to completely ignore this usage
  * (e.g. doubled or invalid usage), zero to continue with parsing of this
  * usage by generic code (no special handling needed) or positive to skip
