@@ -1407,12 +1407,11 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	 * If reference perf register is not supported then we should
 	 * use the nominal perf value
 	 */
-	if (CPC_SUPPORTED(reference_reg)) {
+	if (CPC_SUPPORTED(reference_reg))
 		cpc_read(cpunum, reference_reg, &ref);
-		perf_caps->reference_perf = ref;
-	} else {
-		perf_caps->reference_perf = nom;
-	}
+	else
+		ref = nom;
+	perf_caps->reference_perf = ref;
 
 	if (guaranteed_reg->type != ACPI_TYPE_BUFFER  ||
 	    IS_NULL_REG(&guaranteed_reg->cpc_entry.reg)) {
