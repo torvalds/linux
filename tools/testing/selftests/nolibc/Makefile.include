@@ -9,4 +9,4 @@ CFLAGS_NOLIBC_TEST  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 -
 		$(call cc-option,-fno-stack-protector) $(call cc-option,-Wmissing-prototypes) \
 		$(_CFLAGS_STACKPROTECTOR) $(_CFLAGS_SANITIZER)
 
-NOLIBC_TEST_SOURCES := nolibc-test.c nolibc-test-linkage.c
+NOLIBC_TEST_SOURCES := nolibc-test.c nolibc-test-linkage.c nolibc-test-ignore-errno.c
