@@ -1822,8 +1822,6 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	of_property_read_u32(np, "fsl,strobe-dll-delay-target",
 				&boarddata->strobe_dll_delay_target);
-	if (of_property_read_bool(np, "no-1-8-v"))
-		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 
 	if (of_property_read_u32(np, "fsl,delay-line", &boarddata->delay_line))
 		boarddata->delay_line = 0;
@@ -1841,6 +1839,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
 		return ret;
+
+	sdhci_get_property(pdev);
 
 	/* HS400/HS400ES require 8 bit bus */
 	if (!(host->mmc->caps & MMC_CAP_8_BIT_DATA))
