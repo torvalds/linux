@@ -338,7 +338,15 @@ struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev)
 }
 EXPORT_SYMBOL_GPL(gpio_device_get_chip);
 
-/* dynamic allocation of GPIOs, e.g. on a hotplugged device */
+/**
+ * gpiochip_find_base_unlocked() - Find a global GPIO number base
+ * @ngpio: Number of consecutive GPIOs to number
+ *
+ * Finds and allocates a consecutive range of unsigned integers representing
+ * the GPIOs on the system. Using this numberspace outside of gpiolibs
+ * internals is STRONGLY DISCOURAGED, drivers and consumers should NOT concern
+ * themselves with this numberspace.
+ */
 static int gpiochip_find_base_unlocked(u16 ngpio)
 {
 	unsigned int base = GPIO_DYNAMIC_BASE;
