@@ -1884,7 +1884,7 @@ EXPORT_SYMBOL_GPL(hrtimer_active);
  * __run_hrtimer() invocations.
  */
 static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_clock_base *base,
-			  struct hrtimer *timer, ktime_t *now, unsigned long flags)
+			  struct hrtimer *timer, ktime_t now, unsigned long flags)
 	__must_hold(&cpu_base->lock)
 {
 	enum hrtimer_restart (*fn)(struct hrtimer *);
@@ -1989,7 +1989,7 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 			if (basenow < hrtimer_get_softexpires(timer))
 				break;
 
-			__run_hrtimer(cpu_base, base, timer, &basenow, flags);
+			__run_hrtimer(cpu_base, base, timer, basenow, flags);
 			if (active_mask == HRTIMER_ACTIVE_SOFT)
 				hrtimer_sync_wait_running(cpu_base, flags);
 		}

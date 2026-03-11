@@ -254,14 +254,13 @@ TRACE_EVENT(hrtimer_start,
 /**
  * hrtimer_expire_entry - called immediately before the hrtimer callback
  * @hrtimer:	pointer to struct hrtimer
- * @now:	pointer to variable which contains current time of the
- *		timers base.
+ * @now:	variable which contains current time of the timers base.
  *
  * Allows to determine the timer latency.
  */
 TRACE_EVENT(hrtimer_expire_entry,
 
-	TP_PROTO(struct hrtimer *hrtimer, ktime_t *now),
+	TP_PROTO(struct hrtimer *hrtimer, ktime_t now),
 
 	TP_ARGS(hrtimer, now),
 
@@ -273,7 +272,7 @@ TRACE_EVENT(hrtimer_expire_entry,
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->now		= *now;
+		__entry->now		= now;
 		__entry->function	= ACCESS_PRIVATE(hrtimer, function);
 	),
 
