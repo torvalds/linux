@@ -62,6 +62,13 @@
 /* Vitesse Extended Page Access Register */
 #define MII_VSC82X4_EXT_PAGE_ACCESS	0x1f
 
+/* Vitesse VSC8662 extended control register */
+#define VSC8662_EXT_CON1		0x17
+#define VSC8662_EXT_CON_MAC_AN		BIT(13)
+
+#define VSC8662_MAC_AN			0x1b
+#define VSC8662_MAC_AN_BYPASS		BIT(13)
+
 /* Vitesse VSC73XX Extended Control Register */
 #define MII_VSC73XX_PHY_CTRL_EXT3		0x14
 
@@ -138,6 +145,38 @@ static int vsc824x_config_init(struct phy_device *phydev)
 		err = vsc824x_add_skew(phydev);
 
 	return err;
+}
+
+static unsigned int vsc8662_inband_caps(struct phy_device *phydev,
+					phy_interface_t interface)
+{
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE |
+		       LINK_INBAND_BYPASS;
+
+	return 0;
+}
+
+static int vsc8662_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	u16 mask, set;
+	int ret;
+
+	mask = VSC8662_MAC_AN_BYPASS;
+	set = modes & LINK_INBAND_BYPASS ? mask : 0;
+	ret = phy_modify(phydev, VSC8662_MAC_AN, mask, set);
+	if (ret < 0)
+		return ret;
+
+	mask = VSC8662_EXT_CON_MAC_AN;
+	set = modes & (LINK_INBAND_ENABLE | LINK_INBAND_BYPASS) ? mask : 0;
+
+	ret = phy_modify_changed(phydev, VSC8662_EXT_CON1, mask, set);
+	if (ret <= 0)
+		return ret;
+
+	/* We need to soft-reset the PHY when changing VSC8662_EXT_CON_MAC_AN */
+	return genphy_soft_reset(phydev);
 }
 
 #define VSC73XX_EXT_PAGE_ACCESS 0x1f
@@ -649,6 +688,8 @@ static struct phy_driver vsc82xx_driver[] = {
 	.phy_id_mask    = 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init    = &vsc824x_config_init,
+	.inband_caps	= vsc8662_inband_caps,
+	.config_inband	= vsc8662_config_inband,
 	.config_aneg    = &vsc82x4_config_aneg,
 	.config_intr    = &vsc82xx_config_intr,
 	.handle_interrupt = &vsc82xx_handle_interrupt,
