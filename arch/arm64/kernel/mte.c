@@ -291,6 +291,9 @@ void mte_thread_switch(struct task_struct *next)
 	/* TCO may not have been disabled on exception entry for the current task. */
 	mte_disable_tco_entry(next);
 
+	if (!system_uses_mte_async_or_asymm_mode())
+		return;
+
 	/*
 	 * Check if an async tag exception occurred at EL1.
 	 *
@@ -348,6 +351,9 @@ void mte_cpu_setup(void)
 void mte_suspend_enter(void)
 {
 	if (!system_supports_mte())
+		return;
+
+	if (!system_uses_mte_async_or_asymm_mode())
 		return;
 
 	/*
