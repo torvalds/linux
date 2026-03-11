@@ -536,6 +536,24 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	return 0;
 }
 
+static inline void state_wake_up(struct extent_io_tree *tree,
+				 struct extent_state *state, u32 bits)
+{
+	lockdep_assert_held(&tree->lock);
+
+	if (!(bits & EXTENT_LOCK_BITS))
+		return;
+
+	/*
+	 * No memory barriers because the tree's lock is held while:
+	 *
+	 * 1) Adding waiters to the queue.
+	 * 2) Waking up waiters.
+	 * 3) Removing waiters from queue.
+	 */
+	cond_wake_up_nomb(&state->wq);
+}
+
 /*
  * Use this during tree iteration to avoid doing next node searches when it's
  * not needed (the current record ends at or after the target range's end).
@@ -571,8 +589,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	if (unlikely(ret))
 		extent_io_tree_panic(tree, state, "add_extent_changeset", ret);
 	state->state &= ~bits_to_clear;
-	if (bits & EXTENT_LOCK_BITS)
-		wake_up(&state->wq);
+	state_wake_up(tree, state, bits);
 	if (state->state == 0) {
 		next = next_search_state(state, end);
 		if (extent_state_in_tree(state)) {
@@ -618,7 +635,6 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	u64 last_end;
 	int ret = 0;
 	bool clear;
-	bool wake;
 	const bool delete = (bits & EXTENT_CLEAR_ALL_BITS);
 	gfp_t mask;
 
@@ -632,7 +648,6 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	if (bits & EXTENT_DELALLOC)
 		bits |= EXTENT_NORESERVE;
 
-	wake = (bits & EXTENT_LOCK_BITS);
 	clear = (bits & (EXTENT_LOCK_BITS | EXTENT_BOUNDARY));
 again:
 	if (!prealloc) {
@@ -758,8 +773,7 @@ hit_next:
 			state->start = end + 1;
 			state->end = orig_end;
 
-			if (wake)
-				wake_up(&state->wq);
+			state_wake_up(tree, state, bits);
 			goto out;
 		}
 
@@ -773,8 +787,7 @@ hit_next:
 			goto out;
 		}
 
-		if (wake)
-			wake_up(&state->wq);
+		state_wake_up(tree, state, bits);
 
 		clear_state_bit(tree, prealloc, bits, end, changeset);
 
