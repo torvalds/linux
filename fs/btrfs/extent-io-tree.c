@@ -635,6 +635,7 @@ int btrfs_clear_extent_bit_changeset(struct extent_io_tree *tree, u64 start, u64
 	int ret = 0;
 	bool clear;
 	const bool delete = (bits & EXTENT_CLEAR_ALL_BITS);
+	const u32 bits_to_clear = (bits & ~EXTENT_CTLBITS);
 	gfp_t mask;
 
 	set_gfp_mask_from_bits(&bits, &mask);
@@ -712,6 +713,47 @@ hit_next:
 	 */
 
 	if (state->start < start) {
+		/*
+		 * If all bits are cleared, there's no point in allocating or
+		 * using the prealloc extent, split the state record, insert the
+		 * prealloc record and then remove this record. We can just
+		 * adjust this record and move on to the next without adding or
+		 * removing anything to the tree.
+		 */
+		if (state->end <= end && (state->state & ~bits_to_clear) == 0) {
+			const u64 orig_start = state->start;
+
+			if (tree->owner == IO_TREE_INODE_IO)
+				btrfs_split_delalloc_extent(tree->inode, state, start);
+
+			/*
+			 * Temporarilly ajdust this state's range to match the
+			 * range for which we are clearing bits.
+			 */
+			state->start = start;
+
+			ret = add_extent_changeset(state, bits_to_clear, changeset, false);
+			if (unlikely(ret < 0)) {
+				extent_io_tree_panic(tree, state,
+						     "add_extent_changeset", ret);
+				goto out;
+			}
+
+			if (tree->owner == IO_TREE_INODE_IO)
+				btrfs_clear_delalloc_extent(tree->inode, state, bits);
+
+			/*
+			 * Now adjust the range to the section for which no bits
+			 * are cleared.
+			 */
+			state->start = orig_start;
+			state->end = start - 1;
+
+			state_wake_up(tree, state, bits);
+			state = next_search_state(state, end);
+			goto next;
+		}
+
 		prealloc = alloc_extent_state_atomic(prealloc);
 		if (!prealloc)
 			goto search_again;
@@ -739,8 +781,6 @@ hit_next:
 	 * We need to split the extent, and clear the bit on the first half.
 	 */
 	if (state->start <= end && state->end > end) {
-		const u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
-
 		/*
 		 * If all bits are cleared, there's no point in allocating or
 		 * using the prealloc extent, split the state record, insert the
