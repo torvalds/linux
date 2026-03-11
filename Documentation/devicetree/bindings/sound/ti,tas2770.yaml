@@ -30,7 +30,7 @@ properties:
     description: |
        I2C address of the device can be between 0x41 to 0x48.
 
-  reset-gpio:
+  reset-gpios:
     maxItems: 1
     description: GPIO used to reset the device.
 
@@ -82,7 +82,7 @@ examples:
             #sound-dai-cells = <0>;
             interrupt-parent = <&gpio1>;
             interrupts = <14>;
-            reset-gpio = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
             shutdown-gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
             ti,imon-slot-no = <0>;
             ti,vmon-slot-no = <2>;
