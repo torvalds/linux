@@ -1041,10 +1041,11 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
 	vm_flags_t dummy = vma->vm_flags;
 
 	/*
-	 * We'd prefer to avoid failure later on in do_munmap:
-	 * which may split one vma into three before unmapping.
+	 * We'd prefer to avoid failure later on in do_munmap: we copy a VMA,
+	 * which may not merge, then (if MREMAP_DONTUNMAP is not set) unmap the
+	 * source, which may split, causing a net increase of 2 mappings.
 	 */
-	if (current->mm->map_count >= sysctl_max_map_count - 3)
+	if (current->mm->map_count + 2 > sysctl_max_map_count)
 		return -ENOMEM;
 
 	if (vma->vm_ops && vma->vm_ops->may_split) {
@@ -1804,20 +1805,15 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 		return -EINVAL;
 
 	/*
-	 * move_vma() need us to stay 4 maps below the threshold, otherwise
-	 * it will bail out at the very beginning.
-	 * That is a problem if we have already unmapped the regions here
-	 * (new_addr, and old_addr), because userspace will not know the
-	 * state of the vma's after it gets -ENOMEM.
-	 * So, to avoid such scenario we can pre-compute if the whole
-	 * operation has high chances to success map-wise.
-	 * Worst-scenario case is when both vma's (new_addr and old_addr) get
-	 * split in 3 before unmapping it.
-	 * That means 2 more maps (1 for each) to the ones we already hold.
-	 * Check whether current map count plus 2 still leads us to 4 maps below
-	 * the threshold, otherwise return -ENOMEM here to be more safe.
+	 * We may unmap twice before invoking move_vma(), that is if new_len <
+	 * old_len (shrinking), and in the MREMAP_FIXED case, unmapping part of
+	 * a VMA located at the destination.
+	 *
+	 * In the worst case, both unmappings will cause splits, resulting in a
+	 * net increased map count of 2. In move_vma() we check for headroom of
+	 * 2 additional mappings, so check early to avoid bailing out then.
 	 */
-	if ((current->mm->map_count + 2) >= sysctl_max_map_count - 3)
+	if (current->mm->map_count + 4 > sysctl_max_map_count)
 		return -ENOMEM;
 
 	return 0;
