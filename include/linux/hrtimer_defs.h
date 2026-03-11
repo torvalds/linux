@@ -35,7 +35,7 @@ struct hrtimer_clock_base {
 	ktime_t				offset;
 } __hrtimer_clock_base_align;
 
-enum  hrtimer_base_type {
+enum hrtimer_base_type {
 	HRTIMER_BASE_MONOTONIC,
 	HRTIMER_BASE_REALTIME,
 	HRTIMER_BASE_BOOTTIME,
