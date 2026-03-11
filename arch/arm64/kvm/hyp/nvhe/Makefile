@@ -33,7 +33,7 @@ hyp-obj-$(CONFIG_NVHE_EL2_TRACING) += clock.o trace.o events.o
 hyp-obj-y += $(lib-objs)
 
 # Path to simple_ring_buffer.c
-CFLAGS_trace.nvhe.o += -I$(objtree)/kernel/trace/
+CFLAGS_trace.nvhe.o += -I$(srctree)/kernel/trace/
 
 ##
 ## Build rules for compiling nVHE hyp code
