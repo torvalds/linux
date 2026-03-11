@@ -796,6 +796,9 @@ nft_exthdr_select_ops(const struct nft_ctx *ctx,
 		break;
 #ifdef CONFIG_NFT_EXTHDR_DCCP
 	case NFT_EXTHDR_OP_DCCP:
+		pr_warn_once("The dccp option matching is deprecated and scheduled to be removed in 2027.\n"
+			     "Please contact the netfilter-devel mailing list or update your nftables rules.\n");
+
 		if (tb[NFTA_EXTHDR_DREG])
 			return &nft_exthdr_dccp_ops;
 		break;

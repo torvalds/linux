@@ -159,6 +159,9 @@ static int __init dccp_mt_init(void)
 {
 	int ret;
 
+	pr_warn_once("The DCCP match is deprecated and scheduled to be removed in 2027.\n"
+		     "Please contact the netfilter-devel mailing list or update your iptables rules\n");
+
 	/* doff is 8 bits, so the maximum option size is (4*256).  Don't put
 	 * this in BSS since DaveM is worried about locked TLB's for kernel
 	 * BSS. */
