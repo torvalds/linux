@@ -20,7 +20,7 @@
 
 void msm_hdmi_set_mode(struct hdmi *hdmi, bool power_on)
 {
-	uint32_t ctrl = 0;
+	u32 ctrl = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hdmi->reg_lock, flags);
