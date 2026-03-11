@@ -29,7 +29,7 @@
 		bootargs = "root=/dev/mmcblk0p2 rootwait udbg-immortal";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x01800000	/* MEM1 24MB 1T-SRAM */
 		       0x10000000 0x04000000>;	/* MEM2 64MB GDDR3 */
