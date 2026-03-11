@@ -395,7 +395,8 @@ static void set_state_bits(struct extent_io_tree *tree,
 		btrfs_set_delalloc_extent(tree->inode, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
-	BUG_ON(ret < 0);
+	if (unlikely(ret))
+		extent_io_tree_panic(tree, state, "add_extent_changeset", ret);
 	state->state |= bits_to_set;
 }
 
@@ -567,7 +568,8 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 		btrfs_clear_delalloc_extent(tree->inode, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
-	BUG_ON(ret < 0);
+	if (unlikely(ret))
+		extent_io_tree_panic(tree, state, "add_extent_changeset", ret);
 	state->state &= ~bits_to_clear;
 	if (wake)
 		wake_up(&state->wq);
