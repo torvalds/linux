@@ -246,7 +246,7 @@
 		compatible = "gpio-leds";
 
 		/* This is the blue LED in the disk drive slot */
-		drive-slot {
+		led-0 {
 			label = "wii:blue:drive_slot";
 			gpios = <&GPIO 5 GPIO_ACTIVE_HIGH>;
 			panic-indicator;
