@@ -148,11 +148,6 @@ pub(crate) fn expand(
     let init_fields = init_fields(&fields, pinned, &data, &slot);
     let field_check = make_field_check(&fields, init_kind, &path);
     Ok(quote! {{
-        // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
-        // type and shadow it later when we insert the arbitrary user code. That way there will be
-        // no possibility of returning without `unsafe`.
-        struct __InitOk;
-
         // Get the data about fields from the supplied type.
         // SAFETY: TODO
         let #data = unsafe {
@@ -162,18 +157,15 @@ pub(crate) fn expand(
             #path::#get_data()
         };
         // Ensure that `#data` really is of type `#data` and help with type inference:
-        let init = ::pin_init::__internal::#data_trait::make_closure::<_, __InitOk, #error>(
+        let init = ::pin_init::__internal::#data_trait::make_closure::<_, #error>(
             #data,
             move |slot| {
-                {
-                    // Shadow the structure so it cannot be used to return early.
-                    struct __InitOk;
-                    #zeroable_check
-                    #this
-                    #init_fields
-                    #field_check
-                }
-                Ok(__InitOk)
+                #zeroable_check
+                #this
+                #init_fields
+                #field_check
+                // SAFETY: we are the `init!` macro that is allowed to call this.
+                Ok(unsafe { ::pin_init::__internal::InitOk::new() })
             }
         );
         let init = move |slot| -> ::core::result::Result<(), #error> {
