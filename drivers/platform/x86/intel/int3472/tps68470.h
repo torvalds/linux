@@ -17,6 +17,7 @@ struct tps68470_regulator_platform_data;
 struct int3472_tps68470_board_data {
 	const char *dev_name;
 	const struct tps68470_regulator_platform_data *tps68470_regulator_pdata;
+	const struct software_node *tps68470_gpio_swnode;
 	unsigned int n_gpiod_lookups;
 	struct gpiod_lookup_table *tps68470_gpio_lookup_tables[];
 };
