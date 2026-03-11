@@ -550,14 +550,14 @@ static inline struct extent_state *next_search_state(struct extent_state *state,
 
 /*
  * Utility function to clear some bits in an extent state struct.  It will
- * optionally wake up anyone waiting on this state (wake == 1).
+ * optionally wake up anyone waiting on this state.
  *
  * If no bits are set on the state struct after clearing things, the
  * struct is freed and removed from the tree
  */
 static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 					    struct extent_state *state,
-					    u32 bits, int wake, u64 end,
+					    u32 bits, u64 end,
 					    struct extent_changeset *changeset)
 {
 	struct extent_state *next;
@@ -571,7 +571,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	if (unlikely(ret))
 		extent_io_tree_panic(tree, state, "add_extent_changeset", ret);
 	state->state &= ~bits_to_clear;
-	if (wake)
+	if (bits & EXTENT_LOCK_BITS)
 		wake_up(&state->wq);
 	if (state->state == 0) {
 		next = next_search_state(state, end);
@@ -708,8 +708,7 @@ hit_next:
 			goto out;
 		}
 		if (state->end <= end) {
-			state = clear_state_bit(tree, state, bits, wake, end,
-						changeset);
+			state = clear_state_bit(tree, state, bits, end, changeset);
 			goto next;
 		}
 		if (need_resched())
@@ -777,13 +776,13 @@ hit_next:
 		if (wake)
 			wake_up(&state->wq);
 
-		clear_state_bit(tree, prealloc, bits, wake, end, changeset);
+		clear_state_bit(tree, prealloc, bits, end, changeset);
 
 		prealloc = NULL;
 		goto out;
 	}
 
-	state = clear_state_bit(tree, state, bits, wake, end, changeset);
+	state = clear_state_bit(tree, state, bits, end, changeset);
 next:
 	if (last_end >= end)
 		goto out;
@@ -1422,7 +1421,7 @@ hit_next:
 	if (state->start == start && state->end <= end) {
 		set_state_bits(tree, state, bits, NULL);
 		cache_state(state, cached_state);
-		state = clear_state_bit(tree, state, clear_bits, 0, end, NULL);
+		state = clear_state_bit(tree, state, clear_bits, end, NULL);
 		if (last_end >= end)
 			goto out;
 		start = last_end + 1;
@@ -1461,7 +1460,7 @@ hit_next:
 		if (state->end <= end) {
 			set_state_bits(tree, state, bits, NULL);
 			cache_state(state, cached_state);
-			state = clear_state_bit(tree, state, clear_bits, 0, end, NULL);
+			state = clear_state_bit(tree, state, clear_bits, end, NULL);
 			if (last_end >= end)
 				goto out;
 			start = last_end + 1;
@@ -1546,7 +1545,7 @@ hit_next:
 
 		set_state_bits(tree, prealloc, bits, NULL);
 		cache_state(prealloc, cached_state);
-		clear_state_bit(tree, prealloc, clear_bits, 0, end, NULL);
+		clear_state_bit(tree, prealloc, clear_bits, end, NULL);
 		prealloc = NULL;
 		goto out;
 	}
