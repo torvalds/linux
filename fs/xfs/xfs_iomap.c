@@ -1590,6 +1590,7 @@ xfs_zoned_buffered_write_iomap_begin(
 {
 	struct iomap_iter	*iter =
 		container_of(iomap, struct iomap_iter, iomap);
+	struct address_space	*mapping = inode->i_mapping;
 	struct xfs_zone_alloc_ctx *ac = iter->private;
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1614,6 +1615,7 @@ xfs_zoned_buffered_write_iomap_begin(
 	if (error)
 		return error;
 
+restart:
 	error = xfs_ilock_for_iomap(ip, flags, &lockmode);
 	if (error)
 		return error;
@@ -1686,8 +1688,25 @@ xfs_zoned_buffered_write_iomap_begin(
 	 * When zeroing, don't allocate blocks for holes as they are already
 	 * zeroes, but we need to ensure that no extents exist in both the data
 	 * and COW fork to ensure this really is a hole.
+	 *
+	 * A window exists where we might observe a hole in both forks with
+	 * valid data in cache. Writeback removes the COW fork blocks on
+	 * submission but doesn't remap into the data fork until completion. If
+	 * the data fork was previously a hole, we'll fail to zero. Until we
+	 * find a way to avoid this transient state, check for dirty pagecache
+	 * and flush to wait on blocks to land in the data fork.
 	 */
 	if ((flags & IOMAP_ZERO) && srcmap->type == IOMAP_HOLE) {
+		if (filemap_range_needs_writeback(mapping, offset,
+				offset + count - 1)) {
+			xfs_iunlock(ip, lockmode);
+			error = filemap_write_and_wait_range(mapping, offset,
+					offset + count - 1);
+			if (error)
+				return error;
+			goto restart;
+		}
+
 		xfs_hole_to_iomap(ip, iomap, offset_fsb, end_fsb);
 		goto out_unlock;
 	}
