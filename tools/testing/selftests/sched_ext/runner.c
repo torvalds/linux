@@ -18,7 +18,7 @@ const char help_fmt[] =
 "It's required for the testcases to be serial, as only a single host-wide sched_ext\n"
 "scheduler may be loaded at any given time."
 "\n"
-"Usage: %s [-t TEST] [-h]\n"
+"Usage: %s [-t TEST] [-s] [-l] [-q]\n"
 "\n"
 "  -t TEST       Only run tests whose name includes this string\n"
 "  -s            Include print output for skipped tests\n"
