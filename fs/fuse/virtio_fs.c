@@ -486,7 +486,7 @@ static void virtio_fs_free_devs(struct virtio_fs *fs)
 		if (!fsvq->fud)
 			continue;
 
-		fuse_dev_free(fsvq->fud);
+		fuse_dev_put(fsvq->fud);
 		fsvq->fud = NULL;
 	}
 }

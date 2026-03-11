@@ -577,6 +577,9 @@ struct fuse_pqueue {
  * Fuse device instance
  */
 struct fuse_dev {
+	/** Reference count of this object */
+	refcount_t ref;
+
 	/** Issue FUSE_INIT synchronously */
 	bool sync_init;
 
@@ -1344,7 +1347,7 @@ void fuse_conn_put(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc_install(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc(void);
 void fuse_dev_install(struct fuse_dev *fud, struct fuse_conn *fc);
-void fuse_dev_free(struct fuse_dev *fud);
+void fuse_dev_put(struct fuse_dev *fud);
 int fuse_send_init(struct fuse_mount *fm);
 
 /**

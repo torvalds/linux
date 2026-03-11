@@ -2540,7 +2540,8 @@ void fuse_wait_aborted(struct fuse_conn *fc)
 int fuse_dev_release(struct inode *inode, struct file *file)
 {
 	struct fuse_dev *fud = fuse_file_to_fud(file);
-	struct fuse_conn *fc = fuse_dev_fc_get(fud);
+	/* Pairs with cmpxchg() in fuse_dev_install() */
+	struct fuse_conn *fc = xchg(&fud->fc, FUSE_DEV_FC_DISCONNECTED);
 
 	if (fc) {
 		struct fuse_pqueue *fpq = &fud->pq;
@@ -2560,8 +2561,12 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 			WARN_ON(fc->iq.fasync != NULL);
 			fuse_abort_conn(fc);
 		}
+		spin_lock(&fc->lock);
+		list_del(&fud->entry);
+		spin_unlock(&fc->lock);
+		fuse_conn_put(fc);
 	}
-	fuse_dev_free(fud);
+	fuse_dev_put(fud);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fuse_dev_release);

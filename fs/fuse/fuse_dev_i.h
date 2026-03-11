@@ -39,20 +39,21 @@ struct fuse_copy_state {
 	} ring;
 };
 
+/* fud->fc gets assigned to this value when /dev/fuse is closed */
+#define FUSE_DEV_FC_DISCONNECTED ((struct fuse_conn *) 1)
+
 /*
  * Lockless access is OK, because fud->fc is set once during mount and is valid
  * until the file is released.
+ *
+ * fud->fc is set to FUSE_DEV_FC_DISCONNECTED only after the containing file is
+ * released, so result is safe to dereference in most cases.  Exceptions are:
+ * fuse_dev_put() and fuse_fill_super_common().
  */
 static inline struct fuse_conn *fuse_dev_fc_get(struct fuse_dev *fud)
 {
-	/* Pairs with smp_store_release() in fuse_dev_fc_set() */
+	/* Pairs with xchg() in fuse_dev_install() */
 	return smp_load_acquire(&fud->fc);
-}
-
-static inline void fuse_dev_fc_set(struct fuse_dev *fud, struct fuse_conn *fc)
-{
-	/* Pairs with smp_load_acquire() in fuse_dev_fc_get() */
-	smp_store_release(&fud->fc, fc);
 }
 
 static inline struct fuse_dev *fuse_file_to_fud(struct file *file)

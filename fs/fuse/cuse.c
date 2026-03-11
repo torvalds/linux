@@ -527,7 +527,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	cc->fc.initialized = 1;
 	rc = cuse_send_init(cc);
 	if (rc) {
-		fuse_dev_free(fud);
+		fuse_dev_put(fud);
 		return rc;
 	}
 	file->private_data = fud;
