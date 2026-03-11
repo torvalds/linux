@@ -9,6 +9,7 @@ enum adf_fw_objs {
 	ADF_FW_DC_OBJ,
 	ADF_FW_ADMIN_OBJ,
 	ADF_FW_CY_OBJ,
+	ADF_FW_WCY_OBJ,
 };
 
 struct adf_fw_config {

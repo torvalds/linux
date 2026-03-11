@@ -31,12 +31,6 @@ void adf_gen6_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 }
 EXPORT_SYMBOL_GPL(adf_gen6_init_hw_csr_ops);
 
-int adf_gen6_cfg_dev_init(struct adf_accel_dev *accel_dev)
-{
-	return adf_gen4_cfg_dev_init(accel_dev);
-}
-EXPORT_SYMBOL_GPL(adf_gen6_cfg_dev_init);
-
 int adf_gen6_comp_dev_config(struct adf_accel_dev *accel_dev)
 {
 	return adf_comp_dev_config(accel_dev);
