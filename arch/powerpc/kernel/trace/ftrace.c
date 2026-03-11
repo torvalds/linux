@@ -37,11 +37,29 @@ unsigned long ftrace_call_adjust(unsigned long addr)
 	if (addr >= (unsigned long)__exittext_begin && addr < (unsigned long)__exittext_end)
 		return 0;
 
-	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY) &&
-	    !IS_ENABLED(CONFIG_PPC_FTRACE_OUT_OF_LINE)) {
-		addr += MCOUNT_INSN_SIZE;
-		if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS))
+	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY)) {
+		if (!IS_ENABLED(CONFIG_PPC_FTRACE_OUT_OF_LINE)) {
 			addr += MCOUNT_INSN_SIZE;
+			if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS))
+				addr += MCOUNT_INSN_SIZE;
+		} else if (IS_ENABLED(CONFIG_CC_IS_CLANG) && IS_ENABLED(CONFIG_PPC64)) {
+			/*
+			 * addr points to global entry point though the NOP was emitted at local
+			 * entry point due to https://github.com/llvm/llvm-project/issues/163706
+			 * Handle that here with ppc_function_entry() for kernel symbols while
+			 * adjusting module addresses in the else case, by looking for the below
+			 * module global entry point sequence:
+			 *	ld    r2, -8(r12)
+			 *	add   r2, r2, r12
+			 */
+			if (is_kernel_text(addr) || is_kernel_inittext(addr))
+				addr = ppc_function_entry((void *)addr);
+			else if ((ppc_inst_val(ppc_inst_read((u32 *)addr)) ==
+				  PPC_RAW_LD(_R2, _R12, -8)) &&
+				 (ppc_inst_val(ppc_inst_read((u32 *)(addr+4))) ==
+				  PPC_RAW_ADD(_R2, _R2, _R12)))
+				addr += 8;
+		}
 	}
 
 	return addr;
