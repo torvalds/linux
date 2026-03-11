@@ -634,6 +634,24 @@
 		#size-cells = <2>;
 		ranges;
 
+		sram: sram@104000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x00104000 0x0 0x00001000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x00104000 0x00001000>;
+
+			scmi_shmem_tx: scpshmem-sram-section@0 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x0 0x100>;
+			};
+
+			scmi_shmem_rx: scpshmem-sram-section@100 {
+				compatible = "arm,scmi-shmem";
+				reg = <0x100 0x100>;
+			};
+		};
+
 		timer@1a810000 {
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0 0x1a810000 0x0 0x10000>;
@@ -747,31 +765,5 @@
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 12 IRQ_TYPE_LEVEL_LOW>;
-	};
-
-	sram: sram@104000 {
-		compatible = "mmio-sram";
-		reg = <0x0 0x00104000 0x0 0x00001000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0x0 0x00104000 0x00001000>;
-
-		scmi_shmem_tx: scpshmem-sram-section@0 {
-			compatible = "arm,scmi-shmem";
-			reg = <0x0 0x100>;
-		};
-
-		scmi_shmem_rx: scpshmem-sram-section@100 {
-			compatible = "arm,scmi-shmem";
-			reg = <0x100 0x100>;
-		};
-	};
-
-	memory@80000000 {
-		device_type = "memory";
-
-		/* ~2GB mapped at 2GB, another 2GB at 2TB */
-		reg = <0x00000000 0x80000000 0x00000000 0x7f000000>,
-		      <0x00000200 0x00000000 0x00000000 0x80000000>;
 	};
 };
