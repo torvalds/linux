@@ -5575,11 +5575,13 @@ static bool
 intel_dp_check_mst_status(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	bool force_retrain = intel_dp->link.force_retrain;
 	bool reprobe_needed = false;
 
 	for (;;) {
 		u8 esi[4] = {};
 		u8 ack[4] = {};
+		bool new_irqs;
 
 		if (!intel_dp_get_sink_irq_esi(intel_dp, esi)) {
 			drm_dbg_kms(display->drm,
@@ -5595,20 +5597,28 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
 
-		if (mem_is_zero(ack, sizeof(ack)))
-			break;
+		new_irqs = !mem_is_zero(ack, sizeof(ack));
 
 		drm_WARN_ON(display->drm, ack[1] & ~INTEL_DP_DEVICE_SERVICE_IRQ_MASK_MST);
 		drm_WARN_ON(display->drm, ack[3] & ~INTEL_DP_LINK_SERVICE_IRQ_MASK_MST);
 
-		if (!intel_dp_ack_sink_irq_esi(intel_dp, ack))
+		if (new_irqs && !intel_dp_ack_sink_irq_esi(intel_dp, ack))
 			drm_dbg_kms(display->drm, "Failed to ack ESI\n");
 
 		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
 			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst.mgr);
 
+		if (force_retrain) {
+			/* Defer forced retraining to the regular link status check. */
+			ack[3] |= LINK_STATUS_CHANGED;
+			force_retrain = false;
+		}
+
 		if (intel_dp_handle_link_service_irq(intel_dp, ack[3]))
 			reprobe_needed = true;
+
+		if (!new_irqs)
+			break;
 	}
 
 	return !reprobe_needed;
