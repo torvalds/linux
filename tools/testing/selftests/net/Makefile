@@ -65,6 +65,7 @@ TEST_PROGS := \
 	netns-name.sh \
 	netns-sysctl.sh \
 	nl_netdev.py \
+	nl_nlctrl.py \
 	pmtu.sh \
 	psock_snd.sh \
 	reuseaddr_ports_exhausted.sh \
