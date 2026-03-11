@@ -203,8 +203,15 @@ static bool intel_pad_owned_by_host(const struct intel_pinctrl *pctrl, unsigned 
 	community = intel_get_community(pctrl, pin);
 	if (!community)
 		return false;
-	if (!community->padown_offset)
+
+	/* If padown_offset is not provided, assume host ownership */
+	padown = community->regs + community->padown_offset;
+	if (padown == community->regs)
 		return true;
+
+	/* New HW generations have extended PAD_OWN registers */
+	if (community->features & PINCTRL_FEATURE_3BIT_PAD_OWN)
+		return !(readl(padown + pin_to_padno(community, pin) * 4) & 7);
 
 	padgrp = intel_community_get_padgroup(community, pin);
 	if (!padgrp)
@@ -212,10 +219,9 @@ static bool intel_pad_owned_by_host(const struct intel_pinctrl *pctrl, unsigned 
 
 	gpp_offset = padgroup_offset(padgrp, pin);
 	gpp = PADOWN_GPP(gpp_offset);
-	offset = community->padown_offset + padgrp->padown_num * 4 + gpp * 4;
-	padown = community->regs + offset;
+	offset = padgrp->padown_num * 4 + gpp * 4;
 
-	return !(readl(padown) & PADOWN_MASK(gpp_offset));
+	return !(readl(padown + offset) & PADOWN_MASK(gpp_offset));
 }
 
 static bool intel_pad_acpi_mode(const struct intel_pinctrl *pctrl, unsigned int pin)
@@ -1597,6 +1603,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 		struct intel_community *community = &pctrl->communities[i];
 		unsigned short capability_offset[6];
 		void __iomem *regs;
+		u32 revision;
 		u32 offset;
 		u32 value;
 
@@ -1611,10 +1618,14 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 		value = readl(regs + REVID);
 		if (value == ~0u)
 			return -ENODEV;
-		if (((value & REVID_MASK) >> REVID_SHIFT) >= 0x92) {
+
+		revision = (value & REVID_MASK) >> REVID_SHIFT;
+		if (revision >= 0x092) {
 			community->features |= PINCTRL_FEATURE_DEBOUNCE;
 			community->features |= PINCTRL_FEATURE_1K_PD;
 		}
+		if (revision >= 0x110)
+			community->features |= PINCTRL_FEATURE_3BIT_PAD_OWN;
 
 		/* Determine community features based on the capabilities */
 		offset = CAPLIST;
