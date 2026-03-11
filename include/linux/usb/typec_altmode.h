@@ -26,6 +26,9 @@ struct typec_altmode_ops;
  * @mode: Index of the Mode
  * @vdo: VDO returned by Discover Modes USB PD command
  * @active: Tells has the mode been entered or not
+ * @priority: Priority used by the automatic alternate mode selection process
+ * @mode_selection: Whether entry to this alternate mode is managed by the
+ * automatic alternate mode selection process or by the specific driver
  * @desc: Optional human readable description of the mode
  * @ops: Operations vector from the driver
  * @cable_ops: Cable operations vector from the driver.
