@@ -36,12 +36,19 @@
 /* Flags for the clone3() syscall. */
 #define CLONE_CLEAR_SIGHAND 0x100000000ULL /* Clear any signal handler and reset to SIG_DFL. */
 #define CLONE_INTO_CGROUP 0x200000000ULL /* Clone into a specific cgroup given the right permissions. */
+#define CLONE_EMPTY_MNTNS	(1ULL << 37) /* Create an empty mount namespace. */
 
 /*
  * cloning flags intersect with CSIGNAL so can be used with unshare and clone3
  * syscalls only:
  */
 #define CLONE_NEWTIME	0x00000080	/* New time namespace */
+
+/*
+ * unshare flags share the bit space with clone flags but only apply to the
+ * unshare syscall:
+ */
+#define UNSHARE_EMPTY_MNTNS 0x00100000 /* Unshare an empty mount namespace. */
 
 #ifndef __ASSEMBLY__
 /**
