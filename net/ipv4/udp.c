@@ -2479,8 +2479,7 @@ EXPORT_IPV6_MOD(udp_sk_rx_dst_set);
  */
 static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				    struct udphdr  *uh,
-				    __be32 saddr, __be32 daddr,
-				    int proto)
+				    __be32 saddr, __be32 daddr)
 {
 	struct udp_table *udptable = net->ipv4.udp_table;
 	unsigned int hash2, hash2_any, offset;
@@ -2602,7 +2601,7 @@ static int udp_unicast_rcv_skb(struct sock *sk, struct sk_buff *skb,
  *	All we need to do is get the socket, and then do a checksum.
  */
 
-static int __udp4_lib_rcv(struct sk_buff *skb, int proto)
+int udp_rcv(struct sk_buff *skb)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(skb->dev);
@@ -2661,7 +2660,7 @@ static int __udp4_lib_rcv(struct sk_buff *skb, int proto)
 	}
 
 	if (rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
-		return __udp4_lib_mcast_deliver(net, skb, uh, saddr, daddr, proto);
+		return __udp4_lib_mcast_deliver(net, skb, uh, saddr, daddr);
 
 	sk = __udp4_lib_lookup_skb(skb, uh->source, uh->dest);
 	if (sk)
@@ -2688,8 +2687,7 @@ no_sk:
 
 short_packet:
 	drop_reason = SKB_DROP_REASON_PKT_TOO_SMALL;
-	net_dbg_ratelimited("UDP%s: short packet: From %pI4:%u %d/%d to %pI4:%u\n",
-			    proto == IPPROTO_UDPLITE ? "Lite" : "",
+	net_dbg_ratelimited("UDP: short packet: From %pI4:%u %d/%d to %pI4:%u\n",
 			    &saddr, ntohs(uh->source),
 			    ulen, skb->len,
 			    &daddr, ntohs(uh->dest));
@@ -2701,8 +2699,7 @@ csum_error:
 	 * the network is concerned, anyway) as per 4.1.3.4 (MUST).
 	 */
 	drop_reason = SKB_DROP_REASON_UDP_CSUM;
-	net_dbg_ratelimited("UDP%s: bad checksum. From %pI4:%u to %pI4:%u ulen %d\n",
-			    proto == IPPROTO_UDPLITE ? "Lite" : "",
+	net_dbg_ratelimited("UDP: bad checksum. From %pI4:%u to %pI4:%u ulen %d\n",
 			    &saddr, ntohs(uh->source), &daddr, ntohs(uh->dest),
 			    ulen);
 	__UDP_INC_STATS(net, UDP_MIB_CSUMERRORS);
@@ -2843,11 +2840,6 @@ enum skb_drop_reason udp_v4_early_demux(struct sk_buff *skb)
 						     skb->dev, in_dev, &itag);
 	}
 	return SKB_NOT_DROPPED_YET;
-}
-
-int udp_rcv(struct sk_buff *skb)
-{
-	return __udp4_lib_rcv(skb, IPPROTO_UDP);
 }
 
 static void udp_destroy_sock(struct sock *sk)
