@@ -25,6 +25,7 @@
 struct kempld_gpio_data {
 	struct gpio_chip		chip;
 	struct kempld_device_data	*pld;
+	u8				out_lvl_reg;
 };
 
 /*
@@ -71,7 +72,7 @@ static int kempld_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	struct kempld_device_data *pld = gpio->pld;
 
 	kempld_get_mutex(pld);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL, offset, value);
+	kempld_gpio_bitop(pld, gpio->out_lvl_reg, offset, value);
 	kempld_release_mutex(pld);
 
 	return 0;
@@ -96,7 +97,7 @@ static int kempld_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	struct kempld_device_data *pld = gpio->pld;
 
 	kempld_get_mutex(pld);
-	kempld_gpio_bitop(pld, KEMPLD_GPIO_LVL, offset, value);
+	kempld_gpio_bitop(pld, gpio->out_lvl_reg, offset, value);
 	kempld_gpio_bitop(pld, KEMPLD_GPIO_DIR, offset, 1);
 	kempld_release_mutex(pld);
 
@@ -152,6 +153,15 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	gpio = devm_kzalloc(dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
+
+	/* Starting with version 2.8 there is a dedicated register for the
+	 * output state, earlier versions share the register used to read
+	 * the line level.
+	 */
+	if (pld->info.spec_major > 2 || pld->info.spec_minor >= 8)
+		gpio->out_lvl_reg = KEMPLD_GPIO_OUT_LVL;
+	else
+		gpio->out_lvl_reg = KEMPLD_GPIO_LVL;
 
 	gpio->pld = pld;
 
