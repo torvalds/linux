@@ -1028,6 +1028,75 @@ static void vrm_stat_account(struct vma_remap_struct *vrm,
 		mm->locked_vm += pages;
 }
 
+static bool __check_map_count_against_split(struct mm_struct *mm,
+					    bool before_unmaps)
+{
+	const int sys_map_count = get_sysctl_max_map_count();
+	int map_count = mm->map_count;
+
+	mmap_assert_write_locked(mm);
+
+	/*
+	 * At the point of shrinking the VMA, if new_len < old_len, we unmap
+	 * thusly in the worst case:
+	 *
+	 *              old_addr+old_len                    old_addr+old_len
+	 * |---------------.----.---------|    |---------------|    |---------|
+	 * |               .    .         | -> |      +1       | -1 |   +1    |
+	 * |---------------.----.---------|    |---------------|    |---------|
+	 *        old_addr+new_len                     old_addr+new_len
+	 *
+	 * At the point of removing the portion of an existing VMA to make space
+	 * for the moved VMA if MREMAP_FIXED, we unmap thusly in the worst case:
+	 *
+	 *   new_addr   new_addr+new_len         new_addr   new_addr+new_len
+	 * |----.---------------.---------|    |----|               |---------|
+	 * |    .               .         | -> | +1 |      -1       |   +1    |
+	 * |----.---------------.---------|    |----|               |---------|
+	 *
+	 * Therefore, before we consider the move anything, we have to account
+	 * for 2 additional VMAs possibly being created upon these unmappings.
+	 */
+	if (before_unmaps)
+		map_count += 2;
+
+	/*
+	 * At the point of MOVING the VMA:
+	 *
+	 * We start by copying a VMA, which creates an additional VMA if no
+	 * merge occurs, then if not MREMAP_DONTUNMAP, we unmap the source VMA.
+	 * In the worst case we might then observe:
+	 *
+	 *   new_addr   new_addr+new_len         new_addr   new_addr+new_len
+	 * |----|               |---------|    |----|---------------|---------|
+	 * |    |               |         | -> |    |      +1       |         |
+	 * |----|               |---------|    |----|---------------|---------|
+	 *
+	 *   old_addr   old_addr+old_len         old_addr   old_addr+old_len
+	 * |----.---------------.---------|    |----|               |---------|
+	 * |    .               .         | -> | +1 |      -1       |   +1    |
+	 * |----.---------------.---------|    |----|               |---------|
+	 *
+	 * Therefore we must check to ensure we have headroom of 2 additional
+	 * VMAs.
+	 */
+	return map_count + 2 <= sys_map_count;
+}
+
+/* Do we violate the map count limit if we split VMAs when moving the VMA? */
+static bool check_map_count_against_split(void)
+{
+	return __check_map_count_against_split(current->mm,
+					       /*before_unmaps=*/false);
+}
+
+/* Do we violate the map count limit if we split VMAs prior to early unmaps? */
+static bool check_map_count_against_split_early(void)
+{
+	return __check_map_count_against_split(current->mm,
+					       /*before_unmaps=*/true);
+}
+
 /*
  * Perform checks before attempting to write a VMA prior to it being
  * moved.
@@ -1045,7 +1114,7 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
 	 * which may not merge, then (if MREMAP_DONTUNMAP is not set) unmap the
 	 * source, which may split, causing a net increase of 2 mappings.
 	 */
-	if (current->mm->map_count + 2 > get_sysctl_max_map_count())
+	if (!check_map_count_against_split())
 		return -ENOMEM;
 
 	if (vma->vm_ops && vma->vm_ops->may_split) {
@@ -1804,18 +1873,6 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 	if (vrm_overlaps(vrm))
 		return -EINVAL;
 
-	/*
-	 * We may unmap twice before invoking move_vma(), that is if new_len <
-	 * old_len (shrinking), and in the MREMAP_FIXED case, unmapping part of
-	 * a VMA located at the destination.
-	 *
-	 * In the worst case, both unmappings will cause splits, resulting in a
-	 * net increased map count of 2. In move_vma() we check for headroom of
-	 * 2 additional mappings, so check early to avoid bailing out then.
-	 */
-	if (current->mm->map_count + 4 > get_sysctl_max_map_count())
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -1924,6 +1981,11 @@ static unsigned long do_mremap(struct vma_remap_struct *vrm)
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 	vrm->mmap_locked = true;
+
+	if (!check_map_count_against_split_early()) {
+		mmap_write_unlock(mm);
+		return -ENOMEM;
+	}
 
 	if (vrm_move_only(vrm)) {
 		res = remap_move(vrm);
