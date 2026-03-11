@@ -113,13 +113,13 @@ int init_uffd(void)
 	return 0;
 }
 
-int wp_init(void *lpBaseAddress, long dwRegionSize)
+int wp_init(void *addr, long size)
 {
 	struct uffdio_register uffdio_register;
 	struct uffdio_writeprotect wp;
 
-	uffdio_register.range.start = (unsigned long)lpBaseAddress;
-	uffdio_register.range.len = dwRegionSize;
+	uffdio_register.range.start = (unsigned long)addr;
+	uffdio_register.range.len = size;
 	uffdio_register.mode = UFFDIO_REGISTER_MODE_WP;
 	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
 		ksft_exit_fail_msg("ioctl(UFFDIO_REGISTER) %d %s\n", errno, strerror(errno));
@@ -127,8 +127,8 @@ int wp_init(void *lpBaseAddress, long dwRegionSize)
 	if (!(uffdio_register.ioctls & UFFDIO_WRITEPROTECT))
 		ksft_exit_fail_msg("ioctl set is incorrect\n");
 
-	wp.range.start = (unsigned long)lpBaseAddress;
-	wp.range.len = dwRegionSize;
+	wp.range.start = (unsigned long)addr;
+	wp.range.len = size;
 	wp.mode = UFFDIO_WRITEPROTECT_MODE_WP;
 
 	if (ioctl(uffd, UFFDIO_WRITEPROTECT, &wp))
@@ -137,21 +137,21 @@ int wp_init(void *lpBaseAddress, long dwRegionSize)
 	return 0;
 }
 
-int wp_free(void *lpBaseAddress, long dwRegionSize)
+int wp_free(void *addr, long size)
 {
 	struct uffdio_register uffdio_register;
 
-	uffdio_register.range.start = (unsigned long)lpBaseAddress;
-	uffdio_register.range.len = dwRegionSize;
+	uffdio_register.range.start = (unsigned long)addr;
+	uffdio_register.range.len = size;
 	uffdio_register.mode = UFFDIO_REGISTER_MODE_WP;
 	if (ioctl(uffd, UFFDIO_UNREGISTER, &uffdio_register.range))
 		ksft_exit_fail_msg("ioctl unregister failure\n");
 	return 0;
 }
 
-int wp_addr_range(void *lpBaseAddress, int dwRegionSize)
+int wp_addr_range(void *addr, int size)
 {
-	if (pagemap_ioctl(lpBaseAddress, dwRegionSize, NULL, 0,
+	if (pagemap_ioctl(addr, size, NULL, 0,
 			  PM_SCAN_WP_MATCHING | PM_SCAN_CHECK_WPASYNC,
 			  0, PAGE_IS_WRITTEN, 0, 0, PAGE_IS_WRITTEN) < 0)
 		ksft_exit_fail_msg("error %d %d %s\n", 1, errno, strerror(errno));
