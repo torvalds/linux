@@ -65,6 +65,33 @@ static int kempld_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!kempld_gpio_get_bit(pld, KEMPLD_GPIO_LVL, offset);
 }
 
+static int kempld_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
+				    unsigned long *bits)
+{
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+	struct kempld_device_data *pld = gpio->pld;
+	u8 reg = KEMPLD_GPIO_LVL;
+	unsigned int shift;
+
+	bits[0] &= ~mask[0];
+
+	kempld_get_mutex(pld);
+
+	/* Try to reduce to a single 8 bits access if possible */
+	for (shift = 0; shift < gpio->chip.ngpio; shift += 8, reg++) {
+		unsigned long msk = (mask[0] >> shift) & 0xff;
+
+		if (!msk)
+			continue;
+
+		bits[0] |= (kempld_read8(pld, reg) & msk) << shift;
+	}
+
+	kempld_release_mutex(pld);
+
+	return 0;
+}
+
 static int kempld_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			   int value)
 {
@@ -73,6 +100,37 @@ static int kempld_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	kempld_get_mutex(pld);
 	kempld_gpio_bitop(pld, gpio->out_lvl_reg, offset, value);
+	kempld_release_mutex(pld);
+
+	return 0;
+}
+
+static int kempld_gpio_set_multiple(struct gpio_chip *chip,
+				    unsigned long *mask, unsigned long *bits)
+{
+	struct kempld_gpio_data *gpio = gpiochip_get_data(chip);
+	struct kempld_device_data *pld = gpio->pld;
+	u8 reg = gpio->out_lvl_reg;
+	unsigned int shift;
+
+	kempld_get_mutex(pld);
+
+	/* Try to reduce to a single 8 bits access if possible */
+	for (shift = 0; shift < gpio->chip.ngpio; shift += 8, reg++) {
+		u8 val, msk = mask[0] >> shift;
+
+		if (!msk)
+			continue;
+
+		if (msk != 0xFF)
+			val = kempld_read8(pld, reg) & ~msk;
+		else
+			val = 0;
+
+		val |= (bits[0] >> shift) & msk;
+		kempld_write8(pld, reg, val);
+	}
+
 	kempld_release_mutex(pld);
 
 	return 0;
@@ -180,7 +238,9 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 	chip->direction_output = kempld_gpio_direction_output;
 	chip->get_direction = kempld_gpio_get_direction;
 	chip->get = kempld_gpio_get;
+	chip->get_multiple = kempld_gpio_get_multiple;
 	chip->set = kempld_gpio_set;
+	chip->set_multiple = kempld_gpio_set_multiple;
 	chip->ngpio = kempld_gpio_pincount(pld);
 	if (chip->ngpio == 0) {
 		dev_err(dev, "No GPIO pins detected\n");
