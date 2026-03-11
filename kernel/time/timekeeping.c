@@ -2985,7 +2985,7 @@ static void tk_aux_update_clocksource(void)
 			continue;
 
 		timekeeping_forward_now(tks);
-		tk_setup_internals(tks, tk_core.timekeeper.tkr_mono.clock);
+		tk_setup_internals(tks, tk_core.timekeeper.tkr_raw.clock);
 		timekeeping_update_from_shadow(tkd, TK_UPDATE_ALL);
 	}
 }
