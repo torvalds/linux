@@ -312,10 +312,9 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 		strscpy(info->driver, MAC100_ETHTOOL_NAME,
 			sizeof(info->driver));
 
-	if (priv->plat->pdev) {
-		strscpy(info->bus_info, pci_name(priv->plat->pdev),
+	if (priv->plat->provide_bus_info)
+		strscpy(info->bus_info, dev_name(priv->device),
 			sizeof(info->bus_info));
-	}
 }
 
 static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
