@@ -445,6 +445,10 @@ enum dc_gfxversion {
 			enum swizzle_mode_addr3_values swizzle;
 		} gfx_addr3;/*gfx with addr3 and above*/
 	};
+
+	struct {
+		bool avoid_full_update_on_tiling_change;
+	} flags;
 };
 
 /* Rotation angle */
