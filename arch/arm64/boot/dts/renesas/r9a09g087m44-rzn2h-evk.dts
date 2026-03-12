@@ -305,6 +305,7 @@
 };
 
 &mdio1_phy {
+	interrupts-extended = <&icu RZN2H_IRQ15 IRQ_TYPE_EDGE_FALLING>;
 	/*
 	 * PHY3 Reset Configuration:
 	 *
@@ -314,6 +315,7 @@
 };
 
 &mdio2_phy {
+	interrupts-extended = <&icu RZN2H_IRQ14 IRQ_TYPE_EDGE_FALLING>;
 	/*
 	 * PHY2 Reset Configuration:
 	 *
@@ -340,6 +342,7 @@
 	 * DSW5[6] OFF - connect MDC/MDIO of Ethernet port 2 to GMAC2
 	 * DSW5[7] ON - use pins P29_1-P29_7, P30_0-P30_4, P30_7,
 	 * P31_2, P31_4 and P31_5 are used for Ethernet port 2
+	 * DSW13[7] OFF; DSW13[8] ON - use pin P13_7 for IRQ14
 	 */
 	gmac2_pins: gmac2-pins {
 		pinmux = <RZT2H_PORT_PINMUX(29, 1, 0xf)>, /* ETH2_TXCLK */
@@ -360,7 +363,8 @@
 			 <RZT2H_PORT_PINMUX(31, 5, 0xf)>, /* ETH2_COL */
 			 <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* GMAC2_MDC */
 			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>, /* GMAC2_MDIO */
-			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>; /* ETH2_REFCLK */
+			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>, /* ETH2_REFCLK */
+			 <RZT2H_PORT_PINMUX(13, 7, 0x0)>; /* IRQ14 */
 
 	};
 
@@ -390,7 +394,8 @@
 			 <RZT2H_PORT_PINMUX(0, 3, 0xf)>, /* ETH3_COL */
 			 <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC1_MDC */
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>, /* GMAC1_MDIO */
-			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>; /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>, /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(17, 3, 0x0)>; /* IRQ15 */
 	};
 
 	/*
