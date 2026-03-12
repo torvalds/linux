@@ -95,8 +95,14 @@ Interconnect consumers
 
 Interconnect consumers are the clients which use the interconnect APIs to
 get paths between endpoints and set their bandwidth/latency/QoS requirements
-for these interconnect paths.  These interfaces are not currently
-documented.
+for these interconnect paths.
+
+.. kernel-doc:: drivers/interconnect/core.c
+   :functions: devm_of_icc_get of_icc_get_by_index of_icc_get icc_get
+               icc_put icc_enable icc_disable icc_set_bw icc_set_tag
+               icc_get_name
+
+.. kernel-doc:: drivers/interconnect/bulk.c
 
 Interconnect debugfs interfaces
 -------------------------------
