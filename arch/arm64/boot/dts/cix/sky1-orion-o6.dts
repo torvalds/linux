@@ -36,6 +36,22 @@
 
 };
 
+&fch_gpio0 {
+	status = "okay";
+};
+
+&fch_gpio1 {
+	status = "okay";
+};
+
+&fch_gpio2 {
+	status = "okay";
+};
+
+&fch_gpio3 {
+	status = "okay";
+};
+
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
@@ -83,6 +99,18 @@
 };
 
 &pcie_x1_1_rc {
+	status = "okay";
+};
+
+&s5_gpio0 {
+	status = "okay";
+};
+
+&s5_gpio1 {
+	status = "okay";
+};
+
+&s5_gpio2 {
 	status = "okay";
 };
 

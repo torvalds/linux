@@ -199,6 +199,13 @@
 		method = "smc";
 	};
 
+	s5_gpio_apb_clk: clock-100000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "s5_gpio_apb_clk";
+	};
+
 	soc@0 {
 		compatible = "simple-bus";
 		ranges = <0 0 0 0 0x20 0>;
@@ -359,6 +366,70 @@
 			clock-names = "pclk", "sysclk";
 			i3c-scl-hz = <400000>;
 			i2c-scl-hz = <100000>;
+			status = "disabled";
+		};
+
+		fch_gpio0: gpio-controller@4120000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x4120000 0x0 0x1000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_GPIO_APB>;
+
+			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
+		fch_gpio1: gpio-controller@4130000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x4130000 0x0 0x1000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_GPIO_APB>;
+
+			interrupts = <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
+		fch_gpio2: gpio-controller@4140000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x4140000 0x0 0x1000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_GPIO_APB>;
+
+			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
+		fch_gpio3: gpio-controller@4150000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x4150000 0x0 0x1000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_GPIO_APB>;
+
+			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <17>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			status = "disabled";
 		};
 
@@ -593,6 +664,54 @@
 			compatible = "cix,sky1-s5-system-control", "syscon";
 			reg = <0x0 0x16000000 0x0 0x1000>;
 			#reset-cells = <1>;
+		};
+
+		s5_gpio0: gpio-controller@16004000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x16004000 0x0 0x1000>;
+			clocks = <&s5_gpio_apb_clk>;
+
+			interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <32>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
+		s5_gpio1: gpio-controller@16005000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x16005000 0x0 0x1000>;
+			clocks = <&s5_gpio_apb_clk>;
+
+			interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <10>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
+		};
+
+		s5_gpio2: gpio-controller@16006000 {
+			compatible = "cdns,gpio-r1p02";
+			reg = <0x0 0x16006000 0x0 0x1000>;
+			clocks = <&s5_gpio_apb_clk>;
+
+			interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH 0>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <10>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			status = "disabled";
 		};
 
 		iomuxc_s5: pinctrl@16007000 {
