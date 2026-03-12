@@ -39,7 +39,10 @@ properties:
           - amlogic,meson-s4-pwm
       - items:
           - enum:
+              - amlogic,a4-pwm
+              - amlogic,a5-pwm
               - amlogic,c3-pwm
+              - amlogic,t7-pwm
               - amlogic,meson-a1-pwm
           - const: amlogic,meson-s4-pwm
       - items:
