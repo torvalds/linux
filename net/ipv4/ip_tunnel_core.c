@@ -65,7 +65,7 @@ void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 			DEV_STATS_INC(dev, tx_errors);
 		}
 		ip_rt_put(rt);
-		kfree_skb(skb);
+		kfree_skb_reason(skb, SKB_DROP_REASON_RECURSION_LIMIT);
 		return;
 	}
 
