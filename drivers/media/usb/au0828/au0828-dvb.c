@@ -571,6 +571,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	switch (dev->boardnr) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR1265:
 		dvb->frontend = dvb_attach(au8522_attach,
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
