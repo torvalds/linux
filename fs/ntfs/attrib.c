@@ -570,6 +570,35 @@ retry_remap:
 	return ERR_PTR(err);
 }
 
+static u32 ntfs_resident_attr_min_value_length(const __le32 type)
+{
+	switch (type) {
+	case AT_STANDARD_INFORMATION:
+		return offsetof(struct standard_information, ver) +
+		       sizeof(((struct standard_information *)0)->ver.v1.reserved12);
+	case AT_ATTRIBUTE_LIST:
+		return offsetof(struct attr_list_entry, name);
+	case AT_FILE_NAME:
+		return offsetof(struct file_name_attr, file_name);
+	case AT_OBJECT_ID:
+		return sizeof(struct guid);
+	case AT_SECURITY_DESCRIPTOR:
+		return sizeof(struct security_descriptor_relative);
+	case AT_VOLUME_INFORMATION:
+		return sizeof(struct volume_information);
+	case AT_INDEX_ROOT:
+		return sizeof(struct index_root);
+	case AT_REPARSE_POINT:
+		return offsetof(struct reparse_point, reparse_data);
+	case AT_EA_INFORMATION:
+		return sizeof(struct ea_information);
+	case AT_EA:
+		return offsetof(struct ea_attr, ea_name) + 1;
+	default:
+		return 0;
+	}
+}
+
 /*
  * ntfs_attr_find - find (next) attribute in mft record
  * @type:	attribute type to find
@@ -712,38 +741,69 @@ static int ntfs_attr_find(const __le32 type, const __le16 *name,
 					continue;
 			}
 		}
+
+		 /* Validate attribute's value offset/length */
+		if (!a->non_resident) {
+			u32 min_len;
+			u32 value_length = le32_to_cpu(a->data.resident.value_length);
+			u16 value_offset = le16_to_cpu(a->data.resident.value_offset);
+
+			if (value_length > le32_to_cpu(a->length) ||
+			    value_offset > le32_to_cpu(a->length) - value_length)
+				break;
+
+			min_len = ntfs_resident_attr_min_value_length(a->type);
+			if (min_len && value_length < min_len) {
+				ntfs_error(vol->sb,
+					   "Too small %#x resident attribute value in MFT record %lld\n",
+					   le32_to_cpu(a->type), (long long)ctx->ntfs_ino->mft_no);
+				break;
+			}
+		} else {
+			u32 min_len;
+			u16 mp_offset;
+
+			min_len = offsetof(struct attr_record, data.non_resident.initialized_size) +
+				  sizeof(a->data.non_resident.initialized_size);
+			if (le32_to_cpu(a->length) < min_len)
+				break;
+
+			mp_offset = le16_to_cpu(a->data.non_resident.mapping_pairs_offset);
+			if (mp_offset < min_len ||
+			    mp_offset > le32_to_cpu(a->length))
+				break;
+		}
+
 		/*
 		 * The names match or @name not present and attribute is
 		 * unnamed.  If no @val specified, we have found the attribute
 		 * and are done.
 		 */
-		if (!val)
+		if (!val || a->non_resident)
 			return 0;
 		/* @val is present; compare values. */
 		else {
-			register int rc;
+			u32 value_length = le32_to_cpu(a->data.resident.value_length);
+			int rc;
 
 			rc = memcmp(val, (u8 *)a + le16_to_cpu(
 					a->data.resident.value_offset),
-					min_t(u32, val_len, le32_to_cpu(
-					a->data.resident.value_length)));
+					min_t(u32, val_len, value_length));
 			/*
 			 * If @val collates before the current attribute's
 			 * value, there is no matching attribute.
 			 */
 			if (!rc) {
-				register u32 avl;
-
-				avl = le32_to_cpu(a->data.resident.value_length);
-				if (val_len == avl)
+				if (val_len == value_length)
 					return 0;
-				if (val_len < avl)
+				if (val_len < value_length)
 					return -ENOENT;
 			} else if (rc < 0)
 				return -ENOENT;
 		}
 	}
-	ntfs_error(vol->sb, "Inode is corrupt.  Run chkdsk.");
+	ntfs_error(vol->sb, "mft %#llx, type %#x is corrupt. Run chkdsk.",
+		   (long long)ctx->ntfs_ino->mft_no, le32_to_cpu(type));
 	NVolSetErrors(vol);
 	return -EIO;
 }

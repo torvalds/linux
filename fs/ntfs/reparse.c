@@ -450,7 +450,7 @@ static int ntfs_set_ntfs_reparse_data(struct ntfs_inode *ni, char *value, size_t
 	xrni = xr->idx_ni;
 
 	if (!ntfs_attr_exist(ni, AT_REPARSE_POINT, AT_UNNAMED, 0)) {
-		u8 dummy = 0;
+		struct reparse_point rp = {0, };
 
 		/*
 		 * no reparse data attribute : add one,
@@ -463,7 +463,7 @@ static int ntfs_set_ntfs_reparse_data(struct ntfs_inode *ni, char *value, size_t
 			goto out;
 		}
 
-		err = ntfs_attr_add(ni, AT_REPARSE_POINT, AT_UNNAMED, 0, &dummy, 0);
+		err = ntfs_attr_add(ni, AT_REPARSE_POINT, AT_UNNAMED, 0, (u8 *)&rp, sizeof(rp));
 		if (err) {
 			ntfs_index_ctx_put(xr);
 			goto out;
