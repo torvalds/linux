@@ -271,6 +271,15 @@ enum tile_split_values_new {
 	DC_SURF_TILE_SPLIT_1KB = 0x4,
 };
 
+enum otg_pwa_sync_mode {
+	DC_OTG_PWA_FRAME_SYNC_MODE_VSYNC = 0x0,
+	DC_OTG_PWA_FRAME_SYNC_MODE_VSTARTUP = 0x1,
+};
+struct otc_pwa_frame_sync {
+	enum otg_pwa_sync_mode pwa_sync_mode;
+	uint32_t pwa_frame_sync_line_offset;
+};
+
 /* TODO: These values come from hardware spec. We need to readdress this
  * if they ever change.
  */
@@ -1137,6 +1146,7 @@ struct mcif_buf_params {
 	unsigned int		warmup_pitch;
 	unsigned int		swlock;
 	unsigned int		p_vmid;
+	uint8_t				tmz_id;
 };
 
 
@@ -1162,5 +1172,68 @@ struct phy_state {
 	enum symclk_state symclk_state;
 };
 
+enum cm_hist_tap_point {
+	CM_HIST_TAP_POINT_1,
+	CM_HIST_TAP_POINT_2,
+	CM_HIST_TAP_POINT_3,
+	CM_HIST_TAP_POINT_4,
+};
+
+enum cm_hist_src {
+	CM_HIST_SRC1,
+	CM_HIST_SRC2,
+	CM_HIST_SRC3,
+};
+
+enum cm_hist_format {
+	CM_HIST_FORMAT_FIXED_POINT,
+	CM_HIST_FORMAT_FP16_POS,
+	CM_HIST_FORMAT_FP16_POS_AND_NEG,
+};
+
+enum cm_hist_read_channel_mask {
+	CM_HIST_READ_DISABLED,
+	CM_HIST_READ_CH1,
+	CM_HIST_READ_CH2,
+	CM_HIST_READ_CH1_CH2,
+	CM_HIST_READ_CH3,
+	CM_HIST_READ_CH1_CH3,
+	CM_HIST_READ_CH2_CH3,
+	CM_HIST_READ_ALL,
+};
+
+enum cm_hist_src1_mode {
+	CM_HIST_SRC1_MODE_R_OR_CR,
+	CM_HIST_SRC1_MODE_MAX_RGB,
+};
+
+enum cm_hist_src2_mode {
+	CM_HIST_SRC2_MODE_G_OR_Y,
+	CM_HIST_SRC2_MODE_RGB_TO_Y,
+};
+
+enum cm_hist_src3_mode {
+	CM_HIST_SRC3_MODE_B_OR_CB,
+	CM_HIST_SRC3_MODE_MIN_RGB,
+};
+
+struct cm_hist_control {
+	enum cm_hist_tap_point tap_point;
+	uint32_t channels_enabled;
+	enum cm_hist_src1_mode src_1_select;
+	enum cm_hist_src2_mode src_2_select;
+	enum cm_hist_src3_mode src_3_select;
+	enum cm_hist_src ch1_src;
+	enum cm_hist_src ch2_src;
+	enum cm_hist_src ch3_src;
+	enum cm_hist_format format;
+	enum cm_hist_read_channel_mask read_channel_mask;
+};
+
+struct cm_hist {
+	uint32_t ch1[256];
+	uint32_t ch2[256];
+	uint32_t ch3[256];
+};
 #endif /* DC_HW_TYPES_H */
 

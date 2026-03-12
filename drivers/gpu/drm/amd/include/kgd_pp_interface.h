@@ -1832,6 +1832,8 @@ struct amdgpu_partition_metrics_v1_1 {
 enum amdgpu_xgmi_link_status {
 	AMDGPU_XGMI_LINK_INACTIVE = 0,
 	AMDGPU_XGMI_LINK_ACTIVE = 1,
+	/* Status not available */
+	AMDGPU_XGMI_LINK_NA = 2,
 };
 
 #endif

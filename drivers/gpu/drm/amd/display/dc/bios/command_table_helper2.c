@@ -84,6 +84,7 @@ bool dal_bios_parser_init_cmd_tbl_helper2(
 	case DCN_VERSION_3_51:
 	case DCN_VERSION_3_6:
 	case DCN_VERSION_4_01:
+	case DCN_VERSION_4_2:
 		*h = dal_cmd_tbl_helper_dce112_get_table2();
 		return true;
 

@@ -654,9 +654,15 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
 	adev->gmc.shared_aperture_end =
 		adev->gmc.shared_aperture_start + (4ULL << 30) - 1;
+
 	adev->gmc.private_aperture_start = 0x1000000000000000ULL;
-	adev->gmc.private_aperture_end =
-		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 1, 0))
+		adev->gmc.private_aperture_end =
+			adev->gmc.private_aperture_start + (1ULL << 57) - 1;
+	else
+		adev->gmc.private_aperture_end =
+			adev->gmc.private_aperture_start + (4ULL << 30) - 1;
+
 	adev->gmc.noretry_flags = AMDGPU_VM_NORETRY_FLAGS_TF;
 
 	return 0;

@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2012-16 Advanced Micro Devices, Inc.
+ * Copyright 2012-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -93,6 +94,26 @@ struct dcn301_clk_internal {
 	uint32_t CLK1_CLK1_BYPASS_CNTL; //dppclk bypass
 	uint32_t CLK1_CLK2_BYPASS_CNTL; //dprefclk bypass
 	uint32_t CLK1_CLK3_BYPASS_CNTL; //dcfclk bypass
+};
+
+struct dcn42_clk_internal {
+	int dummy;
+	uint32_t CLK8_CLK0_CURRENT_CNT; //dispclk
+	uint32_t CLK8_CLK1_CURRENT_CNT; //dppclk
+	uint32_t CLK8_CLK2_CURRENT_CNT; //dprefclk
+	uint32_t CLK8_CLK3_CURRENT_CNT; //dcfclk
+	uint32_t CLK8_CLK4_CURRENT_CNT; //dtbclk
+	uint32_t CLK8_CLK0_DS_CNTL;	    //dispclk deep_sleep_divider
+	uint32_t CLK8_CLK1_DS_CNTL;	    //dppclk deep_sleep_divider
+	uint32_t CLK8_CLK2_DS_CNTL;	    //dprefclk deep_sleep_divider
+	uint32_t CLK8_CLK3_DS_CNTL;	    //dcfclk deep_sleep_divider
+	uint32_t CLK8_CLK4_DS_CNTL;	    //dtbclk deep_sleep_divider
+	uint32_t CLK8_CLK0_BYPASS_CNTL; //dispclk bypass
+	uint32_t CLK8_CLK1_BYPASS_CNTL; //dppclk bypass
+	uint32_t CLK8_CLK2_BYPASS_CNTL; //dprefclk bypass
+	uint32_t CLK8_CLK3_BYPASS_CNTL; //dcfclk bypass
+	uint32_t CLK8_CLK4_BYPASS_CNTL; //dtbclk bypass
+	uint32_t CLK8_CLK_TICK_CNT__TIMER_THRESHOLD;
 };
 
 /* Will these bw structures be ASIC specific? */
@@ -194,6 +215,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dcfclk_bypass;
 	uint32_t dprefclk_bypass;
 	uint32_t dispclk_bypass;
+	uint32_t timer_threhold;
 };
 
 struct rv1_clk_internal {

@@ -405,7 +405,7 @@ static int __smu_msg_v1_ras_filter(struct smu_msg_ctl *ctl,
 }
 
 /**
- * smu_msg_proto_v1_send_msg - Complete V1 protocol with all filtering
+ * smu_msg_v1_send_msg - Complete V1 protocol with all filtering
  * @ctl: Message control block
  * @args: Message arguments
  *
@@ -880,7 +880,7 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
-	int8_t sort_feature[MAX(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
+	int16_t sort_feature[MAX(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
 	struct smu_feature_bits feature_mask;
 	uint32_t features[2];
 	int i, feature_index;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -253,8 +253,20 @@
 	uint32_t OTG_CRC1_DATA_B32
 
 
+#define OPTC_REG_VARIABLE_LIST_DCN42 \
+	uint32_t OTG_PWA_FRAME_SYNC_CONTROL; \
+	uint32_t OTG_CRC0_DATA_R; \
+	uint32_t OTG_CRC1_DATA_R; \
+	uint32_t OTG_CRC2_DATA_R; \
+	uint32_t OTG_CRC3_DATA_R; \
+	uint32_t OTG_CRC0_DATA_G; \
+	uint32_t OTG_CRC1_DATA_G; \
+	uint32_t OTG_CRC2_DATA_G; \
+	uint32_t OTG_CRC3_DATA_G
+
 struct dcn_optc_registers {
 	OPTC_REG_VARIABLE_LIST_DCN;
+	OPTC_REG_VARIABLE_LIST_DCN42;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -679,6 +691,10 @@ struct dcn_optc_registers {
 	type OTG_UNBLANK;\
 	type OTG_PSTATE_ALLOW_WIDTH_MIN;
 
+#define TG_REG_FIELD_LIST_DCN42(type) \
+	type OTG_PWA_FRAME_SYNC_EN;\
+	type OTG_PWA_FRAME_SYNC_VCOUNT_MODE;\
+	type OTG_PWA_FRAME_SYNC_LINE;
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
@@ -687,6 +703,7 @@ struct dcn_optc_shift {
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_6(uint8_t)
 	TG_REG_FIELD_LIST_DCN401(uint8_t)
+	TG_REG_FIELD_LIST_DCN42(uint8_t)
 };
 
 struct dcn_optc_mask {
@@ -696,6 +713,7 @@ struct dcn_optc_mask {
 	TG_REG_FIELD_LIST_DCN3_5(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_6(uint32_t)
 	TG_REG_FIELD_LIST_DCN401(uint32_t)
+	TG_REG_FIELD_LIST_DCN42(uint32_t)
 };
 
 void dcn10_timing_generator_init(struct optc *optc);

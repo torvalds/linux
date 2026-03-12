@@ -256,8 +256,6 @@ EXPORT_SYMBOL(proc_dointvec_jiffies);
 int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (SYSCTL_USER_TO_KERN(dir) && USER_HZ < HZ)
-		return -EINVAL;
 	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
 				  do_proc_int_conv_userhz_jiffies);
 }

@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2020-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -47,4 +47,13 @@ HPO_DCN32 = dcn32_hpo_dp_link_encoder.o
 AMD_DAL_HPO_DCN32 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn32/,$(HPO_DCN32))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN32)
+
+###############################################################################
+# DCN42
+###############################################################################
+HPO_DCN42 = dcn42_hpo_dp_link_encoder.o
+
+AMD_DAL_HPO_DCN42 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn42/,$(HPO_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN42)
 endif

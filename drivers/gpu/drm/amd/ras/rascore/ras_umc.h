@@ -108,6 +108,8 @@ struct ras_umc_ip_func {
 			struct umc_bank_addr bank_addr, uint64_t *soc_pa);
 	int (*soc_pa_to_bank)(struct ras_core_context *ras_core,
 			uint64_t soc_pa, struct umc_bank_addr *bank_addr);
+	void (*mca_ipid_parse)(struct ras_core_context *ras_core, uint64_t ipid,
+			uint32_t *did, uint32_t *ch, uint32_t *umc_inst, uint32_t *sid);
 };
 
 struct eeprom_store_record {

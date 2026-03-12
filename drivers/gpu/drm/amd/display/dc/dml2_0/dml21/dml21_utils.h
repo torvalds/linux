@@ -9,6 +9,7 @@
 struct dc_state;
 struct dc_plane_state;
 struct pipe_ctx;
+struct dc_dmub_srv;
 
 struct dml2_context;
 struct dml2_display_rq_regs;
