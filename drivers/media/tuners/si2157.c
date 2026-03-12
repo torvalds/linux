@@ -638,20 +638,27 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 				color = 0x10;
 			}
 		}
-	} else if (params->std & V4L2_STD_MN) {
+	} else if (params->std & (V4L2_STD_MN | V4L2_STD_NTSC_443)) {
 		std = "MN";
 		bandwidth = 6000000;
 		if_frequency = 5400000;
 		system = 2;
+		if (params->std & V4L2_STD_PAL_N) {
+			std = "palN";
+			color = 0x10;
+		} else if (params->std & V4L2_STD_PAL_Nc) {
+			std = "palNc";
+			color = 0x10;
+		}
 	} else if (params->std & V4L2_STD_PAL_I) {
 		std = "palI";
 		bandwidth = 8000000;
-		if_frequency = 7250000; /* TODO: does not work yet */
+		if_frequency = 7250000;
 		system = 4;
 	} else if (params->std & V4L2_STD_DK) {
 		std = "palDK";
 		bandwidth = 8000000;
-		if_frequency = 6900000; /* TODO: does not work yet */
+		if_frequency = 6900000;
 		system = 5;
 		if (params->std & V4L2_STD_SECAM_DK) {
 			std = "secamDK";
@@ -660,7 +667,7 @@ static int si2157_set_analog_params(struct dvb_frontend *fe,
 	} else if (params->std & V4L2_STD_SECAM_L) {
 		std = "secamL";
 		bandwidth = 8000000;
-		if_frequency = 6750000; /* TODO: untested */
+		if_frequency = 6900000;
 		system = 6;
 		color = 0x10;
 	} else if (params->std & V4L2_STD_SECAM_LC) {
