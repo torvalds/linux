@@ -140,6 +140,29 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 }
 
 /**
+ * vimc_streamer_get_sensor() - Get sensor from pipeline
+ * @stream: the pipeline
+ *
+ * Helper function to find the sensor device in the pipeline.
+ * Returns pointer to sensor device or NULL if not found.
+ */
+static struct vimc_sensor_device *vimc_streamer_get_sensor(struct vimc_stream *stream)
+{
+	int i;
+
+	for (i = 0; i < stream->pipe_size; i++) {
+		struct vimc_ent_device *ved = stream->ved_pipeline[i];
+
+		if (ved && ved->ent &&
+		    ved->ent->function == MEDIA_ENT_F_CAM_SENSOR) {
+			return container_of(ved, struct vimc_sensor_device, ved);
+		}
+	}
+
+	return NULL;
+}
+
+/**
  * vimc_streamer_thread - Process frames through the pipeline
  *
  * @data:	vimc_stream struct of the current stream
@@ -154,15 +177,22 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 static int vimc_streamer_thread(void *data)
 {
 	struct vimc_stream *stream = data;
+	struct vimc_sensor_device *vsensor;
 	u8 *frame = NULL;
 	int i;
+	unsigned long fps_jiffies;
+	const unsigned long default_jiffies = HZ / 30;
 
 	set_freezable();
+	vsensor = vimc_streamer_get_sensor(stream);
 
 	for (;;) {
 		try_to_freeze();
 		if (kthread_should_stop())
 			break;
+
+		/* Read from hardware configuration */
+		fps_jiffies = vsensor ? vsensor->hw.fps_jiffies : default_jiffies;
 
 		for (i = stream->pipe_size - 1; i >= 0; i--) {
 			frame = stream->ved_pipeline[i]->process_frame(
@@ -170,9 +200,8 @@ static int vimc_streamer_thread(void *data)
 			if (!frame || IS_ERR(frame))
 				break;
 		}
-		//wait for 60hz
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ / 60);
+		schedule_timeout(fps_jiffies);
 	}
 
 	return 0;
