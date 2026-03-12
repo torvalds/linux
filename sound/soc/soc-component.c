@@ -342,15 +342,6 @@ int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 	return -ENOTSUPP;
 }
 
-void snd_soc_component_setup_regmap(struct snd_soc_component *component)
-{
-	int val_bytes = regmap_get_val_bytes(component->regmap);
-
-	/* Errors are legitimate for non-integer byte multiples */
-	if (val_bytes > 0)
-		component->val_bytes = val_bytes;
-}
-
 int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component)
 {
 	int val_bytes;
@@ -385,7 +376,6 @@ void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap)
 {
 	component->regmap = regmap;
-	snd_soc_component_setup_regmap(component);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_init_regmap);
 
