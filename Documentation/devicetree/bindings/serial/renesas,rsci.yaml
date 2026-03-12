@@ -14,6 +14,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - renesas,r9a08g046-rsci # RZ/G3L
           - renesas,r9a09g047-rsci # RZ/G3E
           - renesas,r9a09g077-rsci # RZ/T2H
 
@@ -140,6 +141,31 @@ allOf:
         clock-names:
           minItems: 5
           maxItems: 6
+
+      required:
+        - resets
+        - reset-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a08g046-rsci
+    then:
+      properties:
+        interrupts:
+          minItems: 6
+
+        interrupt-names:
+          minItems: 6
+
+        clocks:
+          minItems: 2
+          maxItems: 3
+
+        clock-names:
+          minItems: 2
+          maxItems: 3
 
       required:
         - resets
