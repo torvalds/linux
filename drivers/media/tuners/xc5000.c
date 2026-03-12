@@ -1333,6 +1333,15 @@ static int xc5000_set_config(struct dvb_frontend *fe, void *priv_cfg)
 }
 
 
+static int xc5000_get_rf_strength(struct dvb_frontend *fe, u16 *rssi)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+
+	dprintk(1, "%s()\n", __func__);
+
+	return xc_get_lock_status(priv, rssi);
+}
+
 static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.info = {
 		.name              = "Xceive XC5000",
@@ -1353,7 +1362,8 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 	.get_frequency	   = xc5000_get_frequency,
 	.get_if_frequency  = xc5000_get_if_frequency,
 	.get_bandwidth	   = xc5000_get_bandwidth,
-	.get_status	   = xc5000_get_status
+	.get_status	   = xc5000_get_status,
+	.get_rf_strength   = xc5000_get_rf_strength,
 };
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
