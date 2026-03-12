@@ -557,6 +557,11 @@ static inline uint64_t get_cr0(void)
 	return cr0;
 }
 
+static inline void set_cr0(uint64_t val)
+{
+	__asm__ __volatile__("mov %0, %%cr0" : : "r" (val) : "memory");
+}
+
 static inline uint64_t get_cr3(void)
 {
 	uint64_t cr3;
@@ -564,6 +569,11 @@ static inline uint64_t get_cr3(void)
 	__asm__ __volatile__("mov %%cr3, %[cr3]"
 			     : /* output */ [cr3]"=r"(cr3));
 	return cr3;
+}
+
+static inline void set_cr3(uint64_t val)
+{
+	__asm__ __volatile__("mov %0, %%cr3" : : "r" (val) : "memory");
 }
 
 static inline uint64_t get_cr4(void)
@@ -578,6 +588,19 @@ static inline uint64_t get_cr4(void)
 static inline void set_cr4(uint64_t val)
 {
 	__asm__ __volatile__("mov %0, %%cr4" : : "r" (val) : "memory");
+}
+
+static inline uint64_t get_cr8(void)
+{
+	uint64_t cr8;
+
+	__asm__ __volatile__("mov %%cr8, %[cr8]" : [cr8]"=r"(cr8));
+	return cr8;
+}
+
+static inline void set_cr8(uint64_t val)
+{
+	__asm__ __volatile__("mov %0, %%cr8" : : "r" (val) : "memory");
 }
 
 static inline void set_idt(const struct desc_ptr *idt_desc)
