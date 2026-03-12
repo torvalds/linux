@@ -2027,10 +2027,9 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 		status = vid_blk_write_word(dev, DIF_SRC_GAIN_CONTROL,
 						0x000035e8);
 
-		status = vid_blk_write_word(dev, DIF_AGC_CTRL_IF, 0xC2262600);
-		status = vid_blk_write_word(dev, DIF_AGC_CTRL_INT,
-						0xC2262600);
-		status = vid_blk_write_word(dev, DIF_AGC_CTRL_RF, 0xC2262600);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_IF,  0xC2262600);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_INT, 0xC2260000);
+		status = vid_blk_write_word(dev, DIF_AGC_CTRL_RF,  0xC2260000);
 
 		/* Save the Spec Inversion value */
 		dif_misc_ctrl_value &= FLD_DIF_SPEC_INV;
