@@ -139,6 +139,20 @@ static void amdgpu_vm_assert_locked(struct amdgpu_vm *vm)
 }
 
 /**
+ * amdgpu_vm_is_bo_always_valid - check if the BO is VM always valid
+ *
+ * @vm: VM to test against.
+ * @bo: BO to be tested.
+ *
+ * Returns true if the BO shares the dma_resv object with the root PD and is
+ * always guaranteed to be valid inside the VM.
+ */
+bool amdgpu_vm_is_bo_always_valid(struct amdgpu_vm *vm, struct amdgpu_bo *bo)
+{
+	return bo && bo->tbo.base.resv == vm->root.bo->tbo.base.resv;
+}
+
+/**
  * amdgpu_vm_bo_evicted - vm_bo is evicted
  *
  * @vm_bo: vm_bo which is evicted
@@ -3195,20 +3209,6 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 		}
 	}
 	xa_unlock_irqrestore(&adev->vm_manager.pasids, flags);
-}
-
-/**
- * amdgpu_vm_is_bo_always_valid - check if the BO is VM always valid
- *
- * @vm: VM to test against.
- * @bo: BO to be tested.
- *
- * Returns true if the BO shares the dma_resv object with the root PD and is
- * always guaranteed to be valid inside the VM.
- */
-bool amdgpu_vm_is_bo_always_valid(struct amdgpu_vm *vm, struct amdgpu_bo *bo)
-{
-	return bo && bo->tbo.base.resv == vm->root.bo->tbo.base.resv;
 }
 
 void amdgpu_vm_print_task_info(struct amdgpu_device *adev,
