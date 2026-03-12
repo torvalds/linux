@@ -29,6 +29,15 @@
 #define VIMC_FRAME_MIN_WIDTH 16
 #define VIMC_FRAME_MIN_HEIGHT 16
 
+#define VIMC_PIXEL_RATE_FIXED		160000000	/* 160 MHz */
+#define VIMC_HBLANK_FIXED		800
+/* VBLANK - vertical blanking (primary FPS control) */
+#define VIMC_VBLANK_MIN			4
+#define VIMC_VBLANK_MAX			65535
+#define VIMC_VBLANK_STEP		1
+#define VIMC_VBLANK_DEFAULT	        3223           /* 30fps vga */
+#define VIMC_PIXELS_THRESHOLD_30FPS	(1920 * 1080) /* 2073600 pixels */
+
 #define VIMC_FRAME_INDEX(lin, col, width, bpp) ((lin * width + col) * bpp)
 
 /* Source and sink pad checks */
@@ -173,6 +182,9 @@ struct vimc_sensor_device {
 	struct tpg_data tpg;
 	struct v4l2_ctrl_handler hdl;
 	struct media_pad pad;
+	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
 
 	u8 *frame;
 
@@ -184,6 +196,7 @@ struct vimc_sensor_device {
 		struct v4l2_area size;
 		enum vimc_sensor_osd_mode osd_value;
 		u64 start_stream_ts;
+		unsigned long fps_jiffies;
 	} hw;
 };
 
