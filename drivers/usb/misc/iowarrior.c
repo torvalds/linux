@@ -362,13 +362,16 @@ static ssize_t iowarrior_write(struct file *file,
 			       size_t count, loff_t *ppos)
 {
 	struct iowarrior *dev;
-	int retval = 0;
+	int retval;
 	char *buf = NULL;	/* for IOW24 and IOW56 we need a buffer */
 	struct urb *int_out_urb = NULL;
 
 	dev = file->private_data;
 
-	mutex_lock(&dev->mutex);
+	retval = mutex_lock_interruptible(&dev->mutex);
+	if (retval < 0)
+		return -EINTR;
+
 	/* verify that the device wasn't unplugged */
 	if (!dev->present) {
 		retval = -ENODEV;
