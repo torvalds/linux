@@ -1784,6 +1784,13 @@ intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
 	return -EINVAL;
 }
 
+void intel_lt_phy_tbt_pll_calc_state(struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->ltpll.tbt_mode = true;
+}
+
 static void
 intel_lt_phy_program_pll(struct intel_encoder *encoder,
 			 const struct intel_lt_phy_pll_state *ltpll)
@@ -2211,6 +2218,17 @@ static bool intel_lt_phy_pll_is_enabled(struct intel_encoder *encoder)
 
 	return intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port)) &
 			     XELPDP_LANE_PCLK_PLL_ACK(0);
+}
+
+bool intel_lt_phy_tbt_pll_readout_hw_state(struct intel_display *display,
+					   struct intel_dpll *pll,
+					   struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->ltpll.tbt_mode = true;
+
+	return true;
 }
 
 bool intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
