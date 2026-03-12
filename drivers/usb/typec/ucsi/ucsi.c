@@ -1184,8 +1184,10 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		}
 	}
 
-	/* Only notify USB controller if partner supports USB data */
-	if (!(UCSI_CONSTAT(con, PARTNER_FLAG_USB)))
+	if ((!UCSI_CONSTAT(con, PARTNER_FLAG_USB)) &&
+	    ((con->ucsi->quirks & UCSI_USB4_IMPLIES_USB) &&
+	     (!(UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN3) ||
+		UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN4)))))
 		u_role = USB_ROLE_NONE;
 
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);

@@ -371,6 +371,7 @@ static void pmic_glink_ucsi_destroy(void *data)
 static unsigned long quirk_sc8180x = UCSI_NO_PARTNER_PDOS;
 static unsigned long quirk_sc8280xp = UCSI_NO_PARTNER_PDOS | UCSI_DELAY_DEVICE_PDOS;
 static unsigned long quirk_sm8450 = UCSI_DELAY_DEVICE_PDOS;
+static unsigned long quirk_x1e80100 = UCSI_DELAY_DEVICE_PDOS | UCSI_USB4_IMPLIES_USB;
 
 static const struct of_device_id pmic_glink_ucsi_of_quirks[] = {
 	{ .compatible = "qcom,glymur-pmic-glink", .data = &quirk_sm8450, },
@@ -381,6 +382,7 @@ static const struct of_device_id pmic_glink_ucsi_of_quirks[] = {
 	{ .compatible = "qcom,sm8350-pmic-glink", .data = &quirk_sc8180x, },
 	{ .compatible = "qcom,sm8450-pmic-glink", .data = &quirk_sm8450, },
 	{ .compatible = "qcom,sm8550-pmic-glink", .data = &quirk_sm8450, },
+	{ .compatible = "qcom,x1e80100-pmic-glink", .data = &quirk_x1e80100, },
 	{}
 };
 
