@@ -674,7 +674,7 @@ static int spacemit_pinconf_get(struct pinctrl_dev *pctldev,
 			arg = 0;
 		break;
 	default:
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -740,7 +740,7 @@ static int spacemit_pinconf_generate_config(struct spacemit_pinctrl *pctrl,
 			}
 			break;
 		default:
-			return -EINVAL;
+			return -ENOTSUPP;
 		}
 	}
 
@@ -814,10 +814,12 @@ static int spacemit_pinconf_set(struct pinctrl_dev *pctldev,
 	struct spacemit_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct spacemit_pin *spin = spacemit_get_pin(pctrl, pin);
 	u32 value;
+	int ret;
 
-	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
-					     configs, num_configs, &value))
-		return -EINVAL;
+	ret = spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
+					       configs, num_configs, &value);
+	if (ret)
+		return ret;
 
 	return spacemit_pin_set_config(pctrl, pin, value);
 }
@@ -831,16 +833,17 @@ static int spacemit_pinconf_group_set(struct pinctrl_dev *pctldev,
 	const struct spacemit_pin *spin;
 	const struct group_desc *group;
 	u32 value;
-	int i;
+	int i, ret;
 
 	group = pinctrl_generic_get_group(pctldev, gsel);
 	if (!group)
 		return -EINVAL;
 
 	spin = spacemit_get_pin(pctrl, group->grp.pins[0]);
-	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
-					     configs, num_configs, &value))
-		return -EINVAL;
+	ret = spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
+					       configs, num_configs, &value);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < group->grp.npins; i++)
 		spacemit_pin_set_config(pctrl, group->grp.pins[i], value);
