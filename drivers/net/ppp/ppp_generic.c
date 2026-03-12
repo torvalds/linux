@@ -1602,10 +1602,7 @@ static int ppp_fill_forward_path(struct net_device_path_ctx *ctx,
 	if (!pch)
 		return -ENODEV;
 
-	chan = READ_ONCE(pch->chan);
-	if (!chan)
-		return -ENODEV;
-
+	chan = pch->chan;
 	if (!chan->ops->fill_forward_path)
 		return -EOPNOTSUPP;
 
@@ -1928,9 +1925,9 @@ ppp_push(struct ppp *ppp, struct sk_buff *skb)
 
 		spin_lock(&pch->downl);
 		chan = pch->chan;
-		if (unlikely(!chan || (!chan->direct_xmit && skb_linearize(skb)))) {
-			/* channel got unregistered, or it requires a linear
-			 * skb but linearization failed
+		if (unlikely(!chan->direct_xmit && skb_linearize(skb))) {
+			/* channel requires a linear skb but linearization
+			 * failed
 			 */
 			kfree_skb(skb);
 			ret = 1;
@@ -1991,28 +1988,23 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	hdrlen = (ppp->flags & SC_MP_XSHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 	i = 0;
 	list_for_each_entry(pch, &ppp->channels, clist) {
-		if (pch->chan) {
-			pch->avail = 1;
-			navail++;
-			pch->speed = pch->chan->speed;
-		} else {
-			pch->avail = 0;
-		}
-		if (pch->avail) {
-			if (skb_queue_empty(&pch->file.xq) ||
-				!pch->had_frag) {
-					if (pch->speed == 0)
-						nzero++;
-					else
-						totspeed += pch->speed;
+		pch->avail = 1;
+		navail++;
+		pch->speed = pch->chan->speed;
 
-					pch->avail = 2;
-					++nfree;
-					++totfree;
-				}
-			if (!pch->had_frag && i < ppp->nxchan)
-				ppp->nxchan = i;
+		if (skb_queue_empty(&pch->file.xq) || !pch->had_frag) {
+			if (pch->speed == 0)
+				nzero++;
+			else
+				totspeed += pch->speed;
+
+			pch->avail = 2;
+			++nfree;
+			++totfree;
 		}
+		if (!pch->had_frag && i < ppp->nxchan)
+			ppp->nxchan = i;
+
 		++i;
 	}
 	/*
@@ -2071,25 +2063,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 			pch->avail = 1;
 		}
 
-		/* check the channel's mtu and whether it is still attached. */
 		spin_lock(&pch->downl);
-		if (pch->chan == NULL) {
-			/* can't use this channel, it's being deregistered */
-			if (pch->speed == 0)
-				nzero--;
-			else
-				totspeed -= pch->speed;
-
-			spin_unlock(&pch->downl);
-			pch->avail = 0;
-			totlen = len;
-			totfree--;
-			nfree--;
-			if (--navail == 0)
-				break;
-			continue;
-		}
-
 		/*
 		*if the channel speed is not set divide
 		*the packet evenly among the free channels;
@@ -3035,7 +3009,7 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	ppp_disconnect_channel(pch);
 	down_write(&pch->chan_sem);
 	spin_lock_bh(&pch->downl);
-	WRITE_ONCE(pch->chan, NULL);
+	pch->chan = NULL;
 	spin_unlock_bh(&pch->downl);
 	up_write(&pch->chan_sem);
 
