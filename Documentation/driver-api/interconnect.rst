@@ -84,6 +84,12 @@ be registered with the interconnect provider core.
 
 .. kernel-doc:: include/linux/interconnect-provider.h
 
+.. kernel-doc:: drivers/interconnect/core.c
+   :functions: icc_provider_init icc_provider_register icc_provider_deregister
+               icc_node_create icc_node_create_dyn icc_node_destroy
+               icc_node_add icc_node_del icc_nodes_remove icc_node_set_name
+               icc_link_create icc_link_nodes
+
 Interconnect consumers
 ----------------------
 
