@@ -90,6 +90,7 @@ extern struct genl_family devlink_nl_family;
 	for (index = 0; (devlink = devlinks_xa_find_get(net, &index)); index++)
 
 struct devlink *devlinks_xa_find_get(struct net *net, unsigned long *indexp);
+struct devlink *devlinks_xa_lookup_get(struct net *net, unsigned long index);
 
 static inline bool __devl_is_registered(struct devlink *devlink)
 {
