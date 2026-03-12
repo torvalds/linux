@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0
+
 
 # Do not instrument the tracer itself:
 
@@ -139,6 +139,8 @@ obj-$(CONFIG_TRACE_REMOTE_TEST) += remote_test.o
 UNDEFINED_ALLOWLIST := memset alt_cb_patch_nops __x86 __ubsan __asan __kasan __gcov __aeabi_unwind
 UNDEFINED_ALLOWLIST += __stack_chk_fail stackleak_track_stack __ref_stack __sanitizer llvm_gcda llvm_gcov
 UNDEFINED_ALLOWLIST += .TOC\. __clear_pages_unrolled __memmove copy_page warn_slowpath_fmt
+UNDEFINED_ALLOWLIST += ftrace_likely_update __hwasan_load __hwasan_store __hwasan_tag_memory
+UNDEFINED_ALLOWLIST += warn_bogus_irq_restore __stack_chk_guard
 UNDEFINED_ALLOWLIST := $(addprefix -e , $(UNDEFINED_ALLOWLIST))
 
 quiet_cmd_check_undefined = NM      $<
