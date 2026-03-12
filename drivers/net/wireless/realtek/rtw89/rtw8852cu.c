@@ -15,6 +15,7 @@ static const struct rtw89_usb_info rtw8852c_usb_info = {
 	.usb3_mac_npi_config_intf_0	= R_AX_USB3_MAC_NPI_CONFIG_INTF_0_V1,
 	.usb_endpoint_0			= R_AX_USB_ENDPOINT_0_V1,
 	.usb_endpoint_2			= R_AX_USB_ENDPOINT_2_V1,
+	.rx_agg_alignment		= 8,
 	.bulkout_id = {
 		[RTW89_DMA_ACH0] = 3,
 		[RTW89_DMA_ACH2] = 5,
