@@ -233,8 +233,7 @@ static void iowarrior_write_callback(struct urb *urb)
 			"nonzero write bulk status received: %d\n", status);
 	}
 	/* free up our allocated buffer */
-	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
-			  urb->transfer_buffer, urb->transfer_dma);
+	kfree(urb->transfer_buffer);
 	/* tell a waiting writer the interrupt-out-pipe is available again */
 	atomic_dec(&dev->write_busy);
 	wake_up_interruptible(&dev->write_wait);
@@ -439,8 +438,7 @@ static ssize_t iowarrior_write(struct file *file,
 			retval = -ENOMEM;
 			goto error_no_urb;
 		}
-		buf = usb_alloc_coherent(dev->udev, dev->report_size,
-					 GFP_KERNEL, &int_out_urb->transfer_dma);
+		buf = kmalloc(dev->report_size, GFP_KERNEL);
 		if (!buf) {
 			retval = -ENOMEM;
 			dev_dbg(&dev->interface->dev,
@@ -453,7 +451,6 @@ static ssize_t iowarrior_write(struct file *file,
 				 buf, dev->report_size,
 				 iowarrior_write_callback, dev,
 				 dev->int_out_endpoint->bInterval);
-		int_out_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		if (copy_from_user(buf, user_buffer, count)) {
 			retval = -EFAULT;
 			goto error;
@@ -479,8 +476,7 @@ static ssize_t iowarrior_write(struct file *file,
 		goto exit;
 	}
 error:
-	usb_free_coherent(dev->udev, dev->report_size, buf,
-			  int_out_urb->transfer_dma);
+	kfree(buf);
 error_no_buffer:
 	usb_free_urb(int_out_urb);
 error_no_urb:
