@@ -3388,8 +3388,8 @@ static int spi_controller_id_alloc(struct spi_controller *ctlr, int start, int e
  * device identification, boards need configuration tables telling which
  * chip is at which address.
  *
- * This must be called from context that can sleep.  It returns zero on
- * success, else a negative error code (dropping the controller's refcount).
+ * This must be called from context that can sleep.
+ *
  * After a successful return, the caller is responsible for calling
  * spi_unregister_controller().
  *
