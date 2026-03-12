@@ -3250,8 +3250,10 @@ int ntfs_inode_close(struct ntfs_inode *ni)
 	 * base inode before destroying it.
 	 */
 	base_ni = ni->ext.base_ntfs_ino;
+	tmp_nis = base_ni->ext.extent_ntfs_inos;
+	if (!tmp_nis)
+		goto out;
 	for (i = 0; i < base_ni->nr_extents; ++i) {
-		tmp_nis = base_ni->ext.extent_ntfs_inos;
 		if (tmp_nis[i] != ni)
 			continue;
 		/* Found it. Disconnect. */
@@ -3279,6 +3281,7 @@ int ntfs_inode_close(struct ntfs_inode *ni)
 		break;
 	}
 
+out:
 	if (NInoDirty(ni))
 		ntfs_error(ni->vol->sb, "Releasing dirty inode %llu!\n",
 				ni->mft_no);

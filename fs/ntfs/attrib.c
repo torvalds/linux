@@ -4941,23 +4941,19 @@ int ntfs_attr_exist(struct ntfs_inode *ni, const __le32 type, __le16 *name,
 int ntfs_attr_remove(struct ntfs_inode *ni, const __le32 type, __le16 *name,
 		u32 name_len)
 {
-	struct super_block *sb;
 	int err;
 	struct inode *attr_vi;
 	struct ntfs_inode *attr_ni;
 
 	ntfs_debug("Entering\n");
 
-	sb = ni->vol->sb;
-	if (!ni) {
-		ntfs_error(sb, "NULL inode pointer\n");
+	if (!ni)
 		return -EINVAL;
-	}
 
 	attr_vi = ntfs_attr_iget(VFS_I(ni), type, name, name_len);
 	if (IS_ERR(attr_vi)) {
 		err = PTR_ERR(attr_vi);
-		ntfs_error(sb, "Failed to open attribute 0x%02x of inode 0x%llx",
+		ntfs_error(ni->vol->sb, "Failed to open attribute 0x%02x of inode 0x%llx",
 				type, (unsigned long long)ni->mft_no);
 		return err;
 	}
@@ -4965,7 +4961,7 @@ int ntfs_attr_remove(struct ntfs_inode *ni, const __le32 type, __le16 *name,
 
 	err = ntfs_attr_rm(attr_ni);
 	if (err)
-		ntfs_error(sb, "Failed to remove attribute 0x%02x of inode 0x%llx",
+		ntfs_error(ni->vol->sb, "Failed to remove attribute 0x%02x of inode 0x%llx",
 				type, (unsigned long long)ni->mft_no);
 	iput(attr_vi);
 	return err;

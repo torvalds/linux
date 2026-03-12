@@ -1661,7 +1661,7 @@ struct runlist_element *ntfs_rl_insert_range(struct runlist_element *dst_rl, int
 {
 	struct runlist_element *i_rl, *new_rl, *src_rl_origin = src_rl;
 	struct runlist_element dst_rl_split;
-	s64 start_vcn = src_rl[0].vcn;
+	s64 start_vcn;
 	int new_1st_cnt, new_2nd_cnt, new_3rd_cnt, new_cnt;
 
 	if (!dst_rl || !src_rl || !new_rl_cnt)

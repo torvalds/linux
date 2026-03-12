@@ -732,11 +732,13 @@ out:
 		folio_put(folio);
 	}
 	if (likely(!err)) {
+		if (!rl) {
+			err = -EIO;
+			goto out_restore;
+		}
 		if (is_dealloc == true)
 			ntfs_release_dirty_clusters(vol, rl->length);
 		ntfs_debug("Done.");
-		if (rl == NULL)
-			err = -EIO;
 		goto out_restore;
 	}
 	if (err != -ENOSPC)
