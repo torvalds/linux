@@ -565,6 +565,8 @@ static int atcspi_probe(struct platform_device *pdev)
 	spi->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, host);
 
+	mutex_init(&spi->mutex_lock);
+
 	ret = atcspi_init_resources(pdev, spi, &mem_res);
 	if (ret)
 		goto free_controller;
@@ -594,11 +596,11 @@ static int atcspi_probe(struct platform_device *pdev)
 		else
 			spi->use_dma = true;
 	}
-	mutex_init(&spi->mutex_lock);
 
 	return 0;
 
 free_controller:
+	mutex_destroy(&spi->mutex_lock);
 	spi_controller_put(host);
 	return ret;
 }
