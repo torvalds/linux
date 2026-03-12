@@ -1035,6 +1035,35 @@ int smu_cmn_get_smc_version(struct smu_context *smu,
 	return ret;
 }
 
+int smu_cmn_check_fw_version(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	int ret;
+
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
+	if (ret)
+		return ret;
+
+	smu_program = (smu_version >> 24) & 0xff;
+	smu_major = (smu_version >> 16) & 0xff;
+	smu_minor = (smu_version >> 8) & 0xff;
+	smu_debug = (smu_version >> 0) & 0xff;
+	adev->pm.fw_version = smu_version;
+
+	dev_info_once(adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+		      "smu fw program = %d, smu fw version = 0x%08x (%d.%d.%d)\n",
+		      smu->smc_driver_if_version, if_version,
+		      smu_program, smu_version, smu_major, smu_minor, smu_debug);
+
+	if (smu->smc_driver_if_version != SMU_IGNORE_IF_VERSION &&
+	    if_version != smu->smc_driver_if_version)
+		dev_info(adev->dev, "SMU driver if version not matched\n");
+
+	return 0;
+}
+
 int smu_cmn_update_table(struct smu_context *smu,
 			 enum smu_table_id table_index,
 			 int argument,
