@@ -56,7 +56,7 @@ static int mt7996_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 	ret = mt7996_mcu_set_hdr_trans(dev, true);
-	if (!ret && is_mt7992(&dev->mt76)) {
+	if (!ret && !is_mt7996(&dev->mt76)) {
 		u8 queue = mt76_connac_lmac_mapping(IEEE80211_AC_VI);
 
 		ret = mt7996_mcu_cp_support(dev, queue);
