@@ -238,7 +238,7 @@ static inline void *powercap_get_zone_data(struct powercap_zone *power_zone)
 *			Advantage of this parameter is that client can embed
 *			this data in its data structures and allocate in a
 *			single call, preventing multiple allocations.
-* @control_type_name:	The Name of this control_type, which will be shown
+* @name:		The Name of this control_type, which will be shown
 *			in the sysfs Interface.
 * @ops:			Callbacks for control type. This parameter is optional.
 *
@@ -277,7 +277,7 @@ int powercap_unregister_control_type(struct powercap_control_type *instance);
 * @name:	A name for this zone.
 * @parent:	A pointer to the parent power zone instance if any or NULL
 * @ops:		Pointer to zone operation callback structure.
-* @no_constraints: Number of constraints for this zone
+* @nr_constraints: Number of constraints for this zone
 * @const_ops:	Pointer to constraint callback structure
 *
 * Register a power zone under a given control type. A power zone must register
