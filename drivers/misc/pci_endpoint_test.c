@@ -85,6 +85,12 @@
 #define CAP_INTX				BIT(3)
 #define CAP_SUBRANGE_MAPPING			BIT(4)
 #define CAP_DYNAMIC_INBOUND_MAPPING		BIT(5)
+#define CAP_BAR0_RESERVED			BIT(6)
+#define CAP_BAR1_RESERVED			BIT(7)
+#define CAP_BAR2_RESERVED			BIT(8)
+#define CAP_BAR3_RESERVED			BIT(9)
+#define CAP_BAR4_RESERVED			BIT(10)
+#define CAP_BAR5_RESERVED			BIT(11)
 
 #define PCI_ENDPOINT_TEST_DB_BAR		0x34
 #define PCI_ENDPOINT_TEST_DB_OFFSET		0x38
@@ -276,6 +282,11 @@ fail:
 	return ret;
 }
 
+static bool bar_is_reserved(struct pci_endpoint_test *test, enum pci_barno bar)
+{
+	return test->ep_caps & BIT(bar + __fls(CAP_BAR0_RESERVED));
+}
+
 static const u32 bar_test_pattern[] = {
 	0xA0A0A0A0,
 	0xA1A1A1A1,
@@ -404,7 +415,7 @@ static int pci_endpoint_test_bars(struct pci_endpoint_test *test)
 
 	/* Write all BARs in order (without reading). */
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
-		if (test->bar[bar])
+		if (test->bar[bar] && !bar_is_reserved(test, bar))
 			pci_endpoint_test_bars_write_bar(test, bar);
 
 	/*
@@ -414,7 +425,7 @@ static int pci_endpoint_test_bars(struct pci_endpoint_test *test)
 	 * (Reading back the BAR directly after writing can not detect this.)
 	 */
 	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
-		if (test->bar[bar]) {
+		if (test->bar[bar] && !bar_is_reserved(test, bar)) {
 			ret = pci_endpoint_test_bars_read_bar(test, bar);
 			if (ret)
 				return ret;
@@ -1142,6 +1153,11 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 			goto ret;
 		if (is_am654_pci_dev(pdev) && bar == BAR_0)
 			goto ret;
+
+		if (bar_is_reserved(test, bar)) {
+			ret = -ENOBUFS;
+			goto ret;
+		}
 
 		if (cmd == PCITEST_BAR)
 			ret = pci_endpoint_test_bar(test, bar);
