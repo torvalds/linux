@@ -250,13 +250,13 @@ EXPORT_SYMBOL_GPL(devlink_to_dev);
 
 const char *devlink_bus_name(const struct devlink *devlink)
 {
-	return devlink->dev->bus->name;
+	return devlink->dev ? devlink->dev->bus->name : DEVLINK_INDEX_BUS_NAME;
 }
 EXPORT_SYMBOL_GPL(devlink_bus_name);
 
 const char *devlink_dev_name(const struct devlink *devlink)
 {
-	return dev_name(devlink->dev);
+	return devlink->dev ? dev_name(devlink->dev) : devlink->dev_name_index;
 }
 EXPORT_SYMBOL_GPL(devlink_dev_name);
 
@@ -329,7 +329,10 @@ static void devlink_release(struct work_struct *work)
 
 	mutex_destroy(&devlink->lock);
 	lockdep_unregister_key(&devlink->lock_key);
-	put_device(devlink->dev);
+	if (devlink->dev)
+		put_device(devlink->dev);
+	else
+		kfree(devlink->dev_name_index);
 	kvfree(devlink);
 }
 
@@ -432,7 +435,7 @@ struct devlink *__devlink_alloc(const struct devlink_ops *ops, size_t priv_size,
 	static u32 last_id;
 	int ret;
 
-	WARN_ON(!ops || !dev || !dev_driver);
+	WARN_ON(!ops || !dev_driver);
 	if (!devlink_reload_actions_valid(ops))
 		return NULL;
 
@@ -445,7 +448,14 @@ struct devlink *__devlink_alloc(const struct devlink_ops *ops, size_t priv_size,
 	if (ret < 0)
 		goto err_xa_alloc;
 
-	devlink->dev = get_device(dev);
+	if (dev) {
+		devlink->dev = get_device(dev);
+	} else {
+		devlink->dev_name_index = kasprintf(GFP_KERNEL, "%u", devlink->index);
+		if (!devlink->dev_name_index)
+			goto err_kasprintf;
+	}
+
 	devlink->ops = ops;
 	devlink->dev_driver = dev_driver;
 	xa_init_flags(&devlink->ports, XA_FLAGS_ALLOC);
@@ -471,6 +481,8 @@ struct devlink *__devlink_alloc(const struct devlink_ops *ops, size_t priv_size,
 
 	return devlink;
 
+err_kasprintf:
+	xa_erase(&devlinks, devlink->index);
 err_xa_alloc:
 	kvfree(devlink);
 	return NULL;
@@ -492,6 +504,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 				 size_t priv_size, struct net *net,
 				 struct device *dev)
 {
+	WARN_ON(!dev);
 	return __devlink_alloc(ops, priv_size, net, dev, dev->driver);
 }
 EXPORT_SYMBOL_GPL(devlink_alloc_ns);
