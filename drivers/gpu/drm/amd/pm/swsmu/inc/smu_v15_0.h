@@ -142,8 +142,6 @@ int smu_v15_0_setup_pptable(struct smu_context *smu);
 
 int smu_v15_0_get_vbios_bootup_values(struct smu_context *smu);
 
-int smu_v15_0_check_fw_version(struct smu_context *smu);
-
 int smu_v15_0_set_driver_table_location(struct smu_context *smu);
 
 int smu_v15_0_set_tool_table_location(struct smu_context *smu);

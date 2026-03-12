@@ -1416,7 +1416,7 @@ static int smu_v15_0_common_get_dpm_table(struct smu_context *smu, struct dpm_cl
 
 static const struct pptable_funcs smu_v15_0_0_ppt_funcs = {
 	.check_fw_status = smu_v15_0_check_fw_status,
-	.check_fw_version = smu_v15_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.init_smc_tables = smu_v15_0_0_init_smc_tables,
 	.fini_smc_tables = smu_v15_0_0_fini_smc_tables,
 	.get_vbios_bootup_values = smu_v15_0_get_vbios_bootup_values,
@@ -1468,6 +1468,7 @@ void smu_v15_0_0_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = smu_v15_0_0_feature_mask_map;
 	smu->table_map = smu_v15_0_0_table_map;
 	smu->is_apu = true;
+	smu->smc_driver_if_version = SMU15_DRIVER_IF_VERSION_SMU_V15_0;
 
 	smu_v15_0_0_init_msg_ctl(smu);
 }
