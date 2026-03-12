@@ -96,25 +96,22 @@ static ssize_t driver_override_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(driver_override);
 
-static struct spi_statistics __percpu *spi_alloc_pcpu_stats(struct device *dev)
+static struct spi_statistics __percpu *spi_alloc_pcpu_stats(void)
 {
 	struct spi_statistics __percpu *pcpu_stats;
+	int cpu;
 
-	if (dev)
-		pcpu_stats = devm_alloc_percpu(dev, struct spi_statistics);
-	else
-		pcpu_stats = alloc_percpu_gfp(struct spi_statistics, GFP_KERNEL);
+	pcpu_stats = alloc_percpu_gfp(struct spi_statistics, GFP_KERNEL);
+	if (!pcpu_stats)
+		return NULL;
 
-	if (pcpu_stats) {
-		int cpu;
+	for_each_possible_cpu(cpu) {
+		struct spi_statistics *stat;
 
-		for_each_possible_cpu(cpu) {
-			struct spi_statistics *stat;
-
-			stat = per_cpu_ptr(pcpu_stats, cpu);
-			u64_stats_init(&stat->syncp);
-		}
+		stat = per_cpu_ptr(pcpu_stats, cpu);
+		u64_stats_init(&stat->syncp);
 	}
+
 	return pcpu_stats;
 }
 
@@ -574,7 +571,7 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 		return NULL;
 	}
 
-	spi->pcpu_statistics = spi_alloc_pcpu_stats(NULL);
+	spi->pcpu_statistics = spi_alloc_pcpu_stats();
 	if (!spi->pcpu_statistics) {
 		kfree(spi);
 		spi_controller_put(ctlr);
@@ -3194,7 +3191,7 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 	if (!ctlr)
 		return NULL;
 
-	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(NULL);
+	ctlr->pcpu_statistics = spi_alloc_pcpu_stats();
 	if (!ctlr->pcpu_statistics) {
 		kfree(ctlr);
 		return NULL;
