@@ -28,6 +28,7 @@ ALL_TESTS="
 	kci_test_fdb_get
 	kci_test_fdb_del
 	kci_test_neigh_get
+	kci_test_neigh_update
 	kci_test_bridge_parent_id
 	kci_test_address_proto
 	kci_test_enslave_bonding
@@ -1158,6 +1159,60 @@ kci_test_neigh_get()
 	fi
 
 	end_test "PASS: neigh get"
+}
+
+kci_test_neigh_update()
+{
+	dstip=10.0.2.4
+	dstmac=de:ad:be:ef:13:37
+	local ret=0
+
+	for proxy in "" "proxy" ; do
+		# add a neighbour entry without any flags
+		run_cmd ip neigh add $proxy $dstip dev "$devdummy" lladdr $dstmac nud permanent
+		run_cmd_grep $dstip ip neigh show $proxy
+		run_cmd_grep_fail "$dstip dev $devdummy .*\(managed\|use\|router\|extern\)" ip neigh show $proxy
+
+		# set the extern_learn flag, but no other
+		run_cmd ip neigh change $proxy $dstip dev "$devdummy" extern_learn
+		run_cmd_grep "$dstip dev $devdummy .* extern_learn" ip neigh show $proxy
+		run_cmd_grep_fail "$dstip dev $devdummy .* \(managed\|use\|router\)" ip neigh show $proxy
+
+		# flags are reset when not provided
+		run_cmd ip neigh change $proxy $dstip dev "$devdummy"
+		run_cmd_grep $dstip ip neigh show $proxy
+		run_cmd_grep_fail "$dstip dev $devdummy .* extern_learn" ip neigh show $proxy
+
+		# add a protocol
+		run_cmd ip neigh change $proxy $dstip dev "$devdummy" protocol boot
+		run_cmd_grep "$dstip dev $devdummy .* proto boot" ip neigh show $proxy
+
+		# protocol is retained when not provided
+		run_cmd ip neigh change $proxy $dstip dev "$devdummy"
+		run_cmd_grep "$dstip dev $devdummy .* proto boot" ip neigh show $proxy
+
+		# change protocol
+		run_cmd ip neigh change $proxy $dstip dev "$devdummy" protocol static
+		run_cmd_grep "$dstip dev $devdummy .* proto static" ip neigh show $proxy
+
+		# also check an extended flag for non-proxy neighs
+		if [ "$proxy" = "" ]; then
+			run_cmd ip neigh change $proxy $dstip dev "$devdummy" managed
+			run_cmd_grep "$dstip dev $devdummy managed" ip neigh show $proxy
+
+			run_cmd ip neigh change $proxy $dstip dev "$devdummy" lladdr $dstmac
+			run_cmd_grep_fail "$dstip dev $devdummy managed" ip neigh show $proxy
+		fi
+
+		run_cmd ip neigh del $proxy $dstip dev "$devdummy"
+	done
+
+	if [ $ret -ne 0 ];then
+		end_test "FAIL: neigh update"
+		return 1
+	fi
+
+	end_test "PASS: neigh update"
 }
 
 kci_test_bridge_parent_id()

@@ -759,11 +759,7 @@ int net_shaper_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto free_msg;
 
-	ret = genlmsg_reply(msg, info);
-	if (ret)
-		goto free_msg;
-
-	return 0;
+	return genlmsg_reply(msg, info);
 
 free_msg:
 	nlmsg_free(msg);
@@ -1313,10 +1309,7 @@ int net_shaper_nl_cap_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto free_msg;
 
-	ret =  genlmsg_reply(msg, info);
-	if (ret)
-		goto free_msg;
-	return 0;
+	return genlmsg_reply(msg, info);
 
 free_msg:
 	nlmsg_free(msg);
