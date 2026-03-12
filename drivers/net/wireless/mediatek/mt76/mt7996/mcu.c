@@ -278,7 +278,8 @@ mt7996_mcu_set_timeout(struct mt76_dev *mdev, int cmd)
 		mdev->mcu.timeout = 2 * HZ;
 		return;
 	case MCU_UNI_CMD_EFUSE_CTRL:
-		mdev->mcu.timeout = 20 * HZ;
+	case MCU_UNI_CMD_EXT_EEPROM_CTRL:
+		mdev->mcu.timeout = 30 * HZ;
 		return;
 	default:
 		break;
