@@ -481,7 +481,7 @@ static int smu_v13_0_6_check_fw_version(struct smu_context *smu)
 {
 	int r;
 
-	r = smu_v13_0_check_fw_version(smu);
+	r = smu_cmn_check_fw_version(smu);
 	/* Initialize caps flags once fw version is fetched */
 	if (!r)
 		smu_v13_0_x_init_caps(smu);
