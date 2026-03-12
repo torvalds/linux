@@ -574,8 +574,9 @@ int rtd_pinctrl_probe(struct platform_device *pdev, const struct rtd_pinctrl_des
 		return -ENOMEM;
 
 	data->base = devm_platform_ioremap_resource(pdev, 0);
-	if (!data->base)
-		return -ENOMEM;
+	if (IS_ERR(data->base))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->base),
+				     "Failed to ioremap resource\n");
 
 	data->dev = &pdev->dev;
 	data->info = desc;
