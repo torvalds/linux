@@ -351,6 +351,23 @@ void snd_soc_component_setup_regmap(struct snd_soc_component *component)
 		component->val_bytes = val_bytes;
 }
 
+int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component)
+{
+	int val_bytes;
+
+	/* Errors are legitimate for non-integer byte multiples */
+
+	if (!component->regmap)
+		return 0;
+
+	val_bytes = regmap_get_val_bytes(component->regmap);
+	if (val_bytes < 0)
+		return 0;
+
+	return val_bytes;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_regmap_val_bytes);
+
 #ifdef CONFIG_REGMAP
 
 /**
