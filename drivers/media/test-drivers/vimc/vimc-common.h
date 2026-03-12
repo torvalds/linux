@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
+#include <media/tpg/v4l2-tpg.h>
+#include <media/v4l2-ctrls.h>
 
 #define VIMC_PDEV_NAME "vimc"
 
@@ -157,6 +159,32 @@ struct vimc_ent_type {
 struct vimc_ent_config {
 	const char *name;
 	const struct vimc_ent_type *type;
+};
+
+enum vimc_sensor_osd_mode {
+	VIMC_SENSOR_OSD_SHOW_ALL = 0,
+	VIMC_SENSOR_OSD_SHOW_COUNTERS = 1,
+	VIMC_SENSOR_OSD_SHOW_NONE = 2
+};
+
+struct vimc_sensor_device {
+	struct vimc_ent_device ved;
+	struct v4l2_subdev sd;
+	struct tpg_data tpg;
+	struct v4l2_ctrl_handler hdl;
+	struct media_pad pad;
+
+	u8 *frame;
+
+	/*
+	 * Virtual "hardware" configuration, filled when the stream starts or
+	 * when controls are set.
+	 */
+	struct {
+		struct v4l2_area size;
+		enum vimc_sensor_osd_mode osd_value;
+		u64 start_stream_ts;
+	} hw;
 };
 
 /**
