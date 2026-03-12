@@ -405,7 +405,7 @@ struct work_offq_data {
 	u32			flags;
 };
 
-static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
+static const char * const wq_affn_names[WQ_AFFN_NR_TYPES] = {
 	[WQ_AFFN_DFL]		= "default",
 	[WQ_AFFN_CPU]		= "cpu",
 	[WQ_AFFN_SMT]		= "smt",
@@ -7093,13 +7093,7 @@ int workqueue_unbound_housekeeping_update(const struct cpumask *hk)
 
 static int parse_affn_scope(const char *val)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wq_affn_names); i++) {
-		if (!strncasecmp(val, wq_affn_names[i], strlen(wq_affn_names[i])))
-			return i;
-	}
-	return -EINVAL;
+	return sysfs_match_string(wq_affn_names, val);
 }
 
 static int wq_affn_dfl_set(const char *val, const struct kernel_param *kp)
