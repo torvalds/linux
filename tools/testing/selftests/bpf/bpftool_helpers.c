@@ -2,18 +2,18 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #include "bpf_util.h"
 #include "bpftool_helpers.h"
 
-#define BPFTOOL_PATH_MAX_LEN		64
-#define BPFTOOL_FULL_CMD_MAX_LEN	512
+#define BPFTOOL_FULL_CMD_MAX_LEN	(PATH_MAX * 2)
 
 #define BPFTOOL_DEFAULT_PATH		"tools/sbin/bpftool"
 
 static int detect_bpftool_path(char *buffer, size_t size)
 {
-	char tmp[BPFTOOL_PATH_MAX_LEN];
+	char tmp[PATH_MAX];
 	const char *env_path;
 
 	/* First, check if BPFTOOL environment variable is set */
@@ -29,7 +29,7 @@ static int detect_bpftool_path(char *buffer, size_t size)
 	/* Check default bpftool location (will work if we are running the
 	 * default flavor of test_progs)
 	 */
-	snprintf(tmp, BPFTOOL_PATH_MAX_LEN, "./%s", BPFTOOL_DEFAULT_PATH);
+	snprintf(tmp, sizeof(tmp), "./%s", BPFTOOL_DEFAULT_PATH);
 	if (access(tmp, X_OK) == 0) {
 		strscpy(buffer, tmp, size);
 		return 0;
@@ -38,7 +38,7 @@ static int detect_bpftool_path(char *buffer, size_t size)
 	/* Check alternate bpftool location (will work if we are running a
 	 * specific flavor of test_progs, e.g. cpuv4 or no_alu32)
 	 */
-	snprintf(tmp, BPFTOOL_PATH_MAX_LEN, "../%s", BPFTOOL_DEFAULT_PATH);
+	snprintf(tmp, sizeof(tmp), "../%s", BPFTOOL_DEFAULT_PATH);
 	if (access(tmp, X_OK) == 0) {
 		strscpy(buffer, tmp, size);
 		return 0;
@@ -50,7 +50,7 @@ static int detect_bpftool_path(char *buffer, size_t size)
 
 static int run_command(char *args, char *output_buf, size_t output_max_len)
 {
-	static char bpftool_path[BPFTOOL_PATH_MAX_LEN] = {0};
+	static char bpftool_path[PATH_MAX] = {};
 	bool suppress_output = !(output_buf && output_max_len);
 	char command[BPFTOOL_FULL_CMD_MAX_LEN];
 	FILE *f;
@@ -60,7 +60,7 @@ static int run_command(char *args, char *output_buf, size_t output_max_len)
 	if (bpftool_path[0] == 0 && detect_bpftool_path(bpftool_path, sizeof(bpftool_path)))
 		return 1;
 
-	ret = snprintf(command, BPFTOOL_FULL_CMD_MAX_LEN, "%s %s%s",
+	ret = snprintf(command, sizeof(command), "%s %s%s",
 		       bpftool_path, args,
 		       suppress_output ? " > /dev/null 2>&1" : "");
 
@@ -84,4 +84,3 @@ int get_bpftool_command_output(char *args, char *output_buf, size_t output_max_l
 {
 	return run_command(args, output_buf, output_max_len);
 }
-
