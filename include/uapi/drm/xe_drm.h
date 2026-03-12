@@ -1057,7 +1057,7 @@ struct drm_xe_vm_destroy {
  *    not invoke autoreset. Neither will stack variables going out of scope.
  *    Therefore it's recommended to always explicitly reset the madvises when
  *    freeing the memory backing a region used in a &DRM_IOCTL_XE_MADVISE call.
- *  - DRM_XE_VM_BIND_FLAG_DECOMPRESS - Request on-device decompression for a MAP.
+ *  - %DRM_XE_VM_BIND_FLAG_DECOMPRESS - Request on-device decompression for a MAP.
  *    When set on a MAP bind operation, request the driver schedule an on-device
  *    in-place decompression (via the migrate/resolve path) for the GPU mapping
  *    created by this bind. Only valid for DRM_XE_VM_BIND_OP_MAP; usage on
