@@ -93,7 +93,7 @@ class cmd:
     def _process_terminate(self, terminate, timeout):
         if terminate:
             self.proc.terminate()
-        stdout, stderr = self.proc.communicate(timeout)
+        stdout, stderr = self.proc.communicate(timeout=timeout)
         self.stdout = stdout.decode("utf-8")
         self.stderr = stderr.decode("utf-8")
         self.proc.stdout.close()
@@ -258,8 +258,9 @@ def bpftrace(expr, json=None, ns=None, host=None, timeout=None):
         cmd_arr += ['-f', 'json', '-q']
     if timeout:
         expr += ' interval:s:' + str(timeout) + ' { exit(); }'
+        timeout += 5
     cmd_arr += ['-e', expr]
-    cmd_obj = cmd(cmd_arr, ns=ns, host=host, shell=False)
+    cmd_obj = cmd(cmd_arr, ns=ns, host=host, shell=False, timeout=timeout)
     if json:
         # bpftrace prints objects as lines
         ret = {}
