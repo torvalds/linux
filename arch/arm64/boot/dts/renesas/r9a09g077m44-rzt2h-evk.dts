@@ -227,10 +227,12 @@
 };
 
 &mdio1_phy {
+	interrupts-extended = <&icu RZT2H_IRQ3 IRQ_TYPE_EDGE_FALLING>;
 	reset-gpios = <&pinctrl RZT2H_GPIO(32, 3) GPIO_ACTIVE_LOW>;
 };
 
 &mdio2_phy {
+	interrupts-extended = <&icu RZT2H_IRQ13 IRQ_TYPE_EDGE_FALLING>;
 	/*
 	 * PHY2 Reset Configuration:
 	 *
@@ -277,7 +279,8 @@
 			 <RZT2H_PORT_PINMUX(31, 5, 0xf)>, /* ETH2_COL */
 			 <RZT2H_PORT_PINMUX(30, 5, 0x10)>, /* GMAC2_MDC */
 			 <RZT2H_PORT_PINMUX(30, 6, 0x10)>, /* GMAC2_MDIO */
-			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>; /* ETH2_REFCLK */
+			 <RZT2H_PORT_PINMUX(31, 0, 0x2)>, /* ETH2_REFCLK */
+			 <RZT2H_PORT_PINMUX(31, 1, 0x0)>; /* IRQ13 */
 	};
 
 	/*
@@ -305,7 +308,8 @@
 			 <RZT2H_PORT_PINMUX(35, 2, 0xf)>, /* ETH3_COL */
 			 <RZT2H_PORT_PINMUX(26, 1, 0x10)>, /* GMAC1_MDC */
 			 <RZT2H_PORT_PINMUX(26, 2, 0x10)>, /* GMAC1_MDIO */
-			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>; /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(34, 6, 0x2)>, /* ETH3_REFCLK */
+			 <RZT2H_PORT_PINMUX(27, 2, 0x0)>; /* IRQ3 */
 	};
 
 	/*
