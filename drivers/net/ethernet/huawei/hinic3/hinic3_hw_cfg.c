@@ -44,7 +44,7 @@ static void hinic3_parse_l2nic_res_cap(struct hinic3_hwdev *hwdev,
 				   HINIC3_CFG_MAX_QP);
 	nic_svc_cap->default_num_queues = dev_cap->nic_default_num_queues;
 
-	dev_dbg(hwdev->dev, "L2nic resource capbility, max_sqs: 0x%x, max_rqs: 0x%x\n",
+	dev_dbg(hwdev->dev, "L2nic resource capability, max_sqs: 0x%x, max_rqs: 0x%x\n",
 		nic_svc_cap->max_sqs, nic_svc_cap->max_rqs);
 }
 
