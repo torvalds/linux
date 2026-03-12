@@ -10,6 +10,8 @@
 
 #include <asm/bitops.h>
 
+#define COUNT_TRAILING_ZEROS_0 (-1)
+
 /**
  * count_leading_zeros - Count the number of zeros from the MSB back
  * @x: The value
@@ -40,12 +42,7 @@ static inline int count_leading_zeros(unsigned long x)
  */
 static inline int count_trailing_zeros(unsigned long x)
 {
-#define COUNT_TRAILING_ZEROS_0 (-1)
-
-	if (sizeof(x) == 4)
-		return ffs(x);
-	else
-		return (x != 0) ? __ffs(x) : COUNT_TRAILING_ZEROS_0;
+	return (x != 0) ? __ffs(x) : COUNT_TRAILING_ZEROS_0;
 }
 
 #endif /* _LINUX_BITOPS_COUNT_ZEROS_H_ */
