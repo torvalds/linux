@@ -782,6 +782,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 }
 
 struct s_data {
+	struct sched_domain_shared * __percpu *sds;
 	struct sched_domain * __percpu *sd;
 	struct root_domain	*rd;
 };
@@ -789,6 +790,7 @@ struct s_data {
 enum s_alloc {
 	sa_rootdomain,
 	sa_sd,
+	sa_sd_shared,
 	sa_sd_storage,
 	sa_none,
 };
@@ -1535,6 +1537,9 @@ static void set_domain_attribute(struct sched_domain *sd,
 static void __sdt_free(const struct cpumask *cpu_map);
 static int __sdt_alloc(const struct cpumask *cpu_map);
 
+static void __sds_free(struct s_data *d, const struct cpumask *cpu_map);
+static int __sds_alloc(struct s_data *d, const struct cpumask *cpu_map);
+
 static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 				 const struct cpumask *cpu_map)
 {
@@ -1545,6 +1550,9 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 		fallthrough;
 	case sa_sd:
 		free_percpu(d->sd);
+		fallthrough;
+	case sa_sd_shared:
+		__sds_free(d, cpu_map);
 		fallthrough;
 	case sa_sd_storage:
 		__sdt_free(cpu_map);
@@ -1561,9 +1569,11 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
 
 	if (__sdt_alloc(cpu_map))
 		return sa_sd_storage;
+	if (__sds_alloc(d, cpu_map))
+		return sa_sd_shared;
 	d->sd = alloc_percpu(struct sched_domain *);
 	if (!d->sd)
-		return sa_sd_storage;
+		return sa_sd_shared;
 	d->rd = alloc_rootdomain();
 	if (!d->rd)
 		return sa_sd;
@@ -2462,6 +2472,42 @@ static void __sdt_free(const struct cpumask *cpu_map)
 		free_percpu(sdd->sgc);
 		sdd->sgc = NULL;
 	}
+}
+
+static int __sds_alloc(struct s_data *d, const struct cpumask *cpu_map)
+{
+	int j;
+
+	d->sds = alloc_percpu(struct sched_domain_shared *);
+	if (!d->sds)
+		return -ENOMEM;
+
+	for_each_cpu(j, cpu_map) {
+		struct sched_domain_shared *sds;
+
+		sds = kzalloc_node(sizeof(struct sched_domain_shared),
+				GFP_KERNEL, cpu_to_node(j));
+		if (!sds)
+			return -ENOMEM;
+
+		*per_cpu_ptr(d->sds, j) = sds;
+	}
+
+	return 0;
+}
+
+static void __sds_free(struct s_data *d, const struct cpumask *cpu_map)
+{
+	int j;
+
+	if (!d->sds)
+		return;
+
+	for_each_cpu(j, cpu_map)
+		kfree(*per_cpu_ptr(d->sds, j));
+
+	free_percpu(d->sds);
+	d->sds = NULL;
 }
 
 static struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
