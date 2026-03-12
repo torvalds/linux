@@ -11234,6 +11234,7 @@ static void update_idle_cpu_scan(struct lb_env *env,
 				 unsigned long sum_util)
 {
 	struct sched_domain_shared *sd_share;
+	struct sched_domain *sd = env->sd;
 	int llc_weight, pct;
 	u64 x, y, tmp;
 	/*
@@ -11247,11 +11248,7 @@ static void update_idle_cpu_scan(struct lb_env *env,
 	if (!sched_feat(SIS_UTIL) || env->idle == CPU_NEWLY_IDLE)
 		return;
 
-	llc_weight = per_cpu(sd_llc_size, env->dst_cpu);
-	if (env->sd->span_weight != llc_weight)
-		return;
-
-	sd_share = rcu_dereference_all(per_cpu(sd_llc_shared, env->dst_cpu));
+	sd_share = sd->shared;
 	if (!sd_share)
 		return;
 
@@ -11285,10 +11282,11 @@ static void update_idle_cpu_scan(struct lb_env *env,
 	 */
 	/* equation [3] */
 	x = sum_util;
+	llc_weight = sd->span_weight;
 	do_div(x, llc_weight);
 
 	/* equation [4] */
-	pct = env->sd->imbalance_pct;
+	pct = sd->imbalance_pct;
 	tmp = x * x * pct * pct;
 	do_div(tmp, 10000 * SCHED_CAPACITY_SCALE);
 	tmp = min_t(long, tmp, SCHED_CAPACITY_SCALE);
