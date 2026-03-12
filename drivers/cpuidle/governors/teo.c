@@ -407,50 +407,13 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	 * better choice.
 	 */
 	if (2 * idx_intercept_sum > cpu_data->total - idx_hit_sum) {
-		int min_idx = idx0;
-
-		if (tick_nohz_tick_stopped()) {
-			/*
-			 * Look for the shallowest idle state below the current
-			 * candidate one whose target residency is at least
-			 * equal to the tick period length.
-			 */
-			while (min_idx < idx &&
-			       drv->states[min_idx].target_residency_ns < TICK_NSEC)
-				min_idx++;
-
-			/*
-			 * Avoid selecting a state with a lower index, but with
-			 * the same target residency as the current candidate
-			 * one.
-			 */
-			if (drv->states[min_idx].target_residency_ns ==
-					drv->states[idx].target_residency_ns)
-				goto constraint;
-		}
-
-		/*
-		 * If the minimum state index is greater than or equal to the
-		 * index of the state with the maximum intercepts metric and
-		 * the corresponding state is enabled, there is no need to look
-		 * at the deeper states.
-		 */
-		if (min_idx >= intercept_max_idx &&
-		    !dev->states_usage[min_idx].disable) {
-			idx = min_idx;
-			goto constraint;
-		}
-
 		/*
 		 * Look for the deepest enabled idle state, at most as deep as
 		 * the one with the maximum intercepts metric, whose target
 		 * residency had not been greater than the idle duration in over
 		 * a half of the relevant cases in the past.
-		 *
-		 * Take the possible duration limitation present if the tick
-		 * has been stopped already into account.
 		 */
-		for (i = idx - 1, intercept_sum = 0; i >= min_idx; i--) {
+		for (i = idx - 1, intercept_sum = 0; i >= idx0; i--) {
 			intercept_sum += cpu_data->state_bins[i].intercepts;
 
 			if (dev->states_usage[i].disable)
@@ -463,7 +426,6 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		}
 	}
 
-constraint:
 	/*
 	 * If there is a latency constraint, it may be necessary to select an
 	 * idle state shallower than the current candidate one.
@@ -472,13 +434,13 @@ constraint:
 		idx = constraint_idx;
 
 	/*
-	 * If either the candidate state is state 0 or its target residency is
-	 * low enough, there is basically nothing more to do, but if the sleep
-	 * length is not updated, the subsequent wakeup will be counted as an
-	 * "intercept" which may be problematic in the cases when timer wakeups
-	 * are dominant.  Namely, it may effectively prevent deeper idle states
-	 * from being selected at one point even if no imminent timers are
-	 * scheduled.
+	 * If the tick has not been stopped and either the candidate state is
+	 * state 0 or its target residency is low enough, there is basically
+	 * nothing more to do, but if the sleep length is not updated, the
+	 * subsequent wakeup will be counted as an "intercept".  That may be
+	 * problematic in the cases when timer wakeups are dominant because it
+	 * may effectively prevent deeper idle states from being selected at one
+	 * point even if no imminent timers are scheduled.
 	 *
 	 * However, frequent timers in the RESIDENCY_THRESHOLD_NS range on one
 	 * CPU are unlikely (user space has a default 50 us slack value for
@@ -494,13 +456,38 @@ constraint:
 	 * shallow idle states regardless of the wakeup type, so the sleep
 	 * length need not be known in that case.
 	 */
-	if ((!idx || drv->states[idx].target_residency_ns < RESIDENCY_THRESHOLD_NS) &&
+	if (!tick_nohz_tick_stopped() && (!idx ||
+	     drv->states[idx].target_residency_ns < RESIDENCY_THRESHOLD_NS) &&
 	    (2 * cpu_data->short_idles >= cpu_data->total ||
 	     latency_req < LATENCY_THRESHOLD_NS))
 		goto out_tick;
 
 	duration_ns = tick_nohz_get_sleep_length(&delta_tick);
 	cpu_data->sleep_length_ns = duration_ns;
+
+	/*
+	 * If the tick has been stopped and the closest timer is too far away,
+	 * update the selection to prevent the CPU from getting stuck in a
+	 * shallow idle state for too long.
+	 */
+	if (tick_nohz_tick_stopped() && duration_ns > SAFE_TIMER_RANGE_NS &&
+	    drv->states[idx].target_residency_ns < TICK_NSEC) {
+		/*
+		 * Look for the deepest enabled idle state with exit latency
+		 * within the PM QoS limit and with target residency within
+		 * duration_ns.
+		 */
+		for (i = constraint_idx; i > idx; i--) {
+			if (dev->states_usage[i].disable)
+				continue;
+
+			if (drv->states[i].target_residency_ns <= duration_ns) {
+				idx = i;
+				break;
+			}
+		}
+		return idx;
+	}
 
 	if (!idx)
 		goto out_tick;
