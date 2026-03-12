@@ -5,6 +5,7 @@
 
 #include "hinic3_common.h"
 #include "hinic3_csr.h"
+#include "hinic3_eqs.h"
 #include "hinic3_hwdev.h"
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
@@ -50,9 +51,9 @@
 #define MBOX_WB_STATUS_NOT_FINISHED      0x00
 
 #define MBOX_STATUS_FINISHED(wb)  \
-	((FIELD_PREP(MBOX_WB_STATUS_MASK, (wb))) != MBOX_WB_STATUS_NOT_FINISHED)
+	((FIELD_GET(MBOX_WB_STATUS_MASK, (wb))) != MBOX_WB_STATUS_NOT_FINISHED)
 #define MBOX_STATUS_SUCCESS(wb)  \
-	((FIELD_PREP(MBOX_WB_STATUS_MASK, (wb))) ==  \
+	((FIELD_GET(MBOX_WB_STATUS_MASK, (wb))) ==  \
 	MBOX_WB_STATUS_FINISHED_SUCCESS)
 #define MBOX_STATUS_ERRCODE(wb)  \
 	((wb) & MBOX_WB_ERROR_CODE_MASK)
@@ -395,6 +396,7 @@ static int hinic3_mbox_pre_init(struct hinic3_hwdev *hwdev,
 {
 	mbox->hwdev = hwdev;
 	mutex_init(&mbox->mbox_send_lock);
+	mutex_init(&mbox->mbox_seg_send_lock);
 	spin_lock_init(&mbox->mbox_lock);
 
 	mbox->workq = create_singlethread_workqueue(HINIC3_MBOX_WQ_NAME);
@@ -460,7 +462,8 @@ void hinic3_free_mbox(struct hinic3_hwdev *hwdev)
 
 	destroy_workqueue(mbox->workq);
 	free_mbox_wb_status(mbox);
-	hinic3_uninit_func_mbox_msg_channel(hwdev);
+	if (HINIC3_IS_VF(hwdev))
+		hinic3_uninit_func_mbox_msg_channel(hwdev);
 	uninit_mgmt_msg_channel(mbox);
 	kfree(mbox);
 }
@@ -616,6 +619,18 @@ static void write_mbox_msg_attr(struct hinic3_mbox *mbox,
 			      mbox_ctrl);
 }
 
+static void hinic3_dump_mbox_reg(struct hinic3_hwdev *hwdev)
+{
+	u32 val;
+
+	val = hinic3_hwif_read_reg(hwdev->hwif,
+				   HINIC3_FUNC_CSR_MAILBOX_CONTROL_OFF);
+	dev_err(hwdev->dev, "Mailbox control reg: 0x%x\n", val);
+	val = hinic3_hwif_read_reg(hwdev->hwif,
+				   HINIC3_FUNC_CSR_MAILBOX_INT_OFF);
+	dev_err(hwdev->dev, "Mailbox interrupt offset: 0x%x\n", val);
+}
+
 static u16 get_mbox_status(const struct hinic3_send_mbox *mbox)
 {
 	__be64 *wb_status = mbox->wb_vaddr;
@@ -632,6 +647,9 @@ static enum hinic3_wait_return check_mbox_wb_status(void *priv_data)
 {
 	struct hinic3_mbox *mbox = priv_data;
 	u16 wb_status;
+
+	if (!mbox->hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
 
 	wb_status = get_mbox_status(&mbox->send_mbox);
 
@@ -670,6 +688,7 @@ static int send_mbox_seg(struct hinic3_mbox *mbox, __le64 header,
 	if (err) {
 		dev_err(hwdev->dev, "Send mailbox segment timeout, wb status: 0x%x\n",
 			wb_status);
+		hinic3_dump_mbox_reg(hwdev);
 		return err;
 	}
 
@@ -705,6 +724,8 @@ static int send_mbox_msg(struct hinic3_mbox *mbox, u8 mod, u16 cmd,
 		rsp_aeq_id = MBOX_MSG_AEQ_FOR_MBOX;
 	else
 		rsp_aeq_id = 0;
+
+	mutex_lock(&mbox->mbox_seg_send_lock);
 
 	if (dst_func == MBOX_MGMT_FUNC_ID &&
 	    !(hwdev->features[0] & MBOX_COMM_F_MBOX_SEGMENT)) {
@@ -759,6 +780,8 @@ static int send_mbox_msg(struct hinic3_mbox *mbox, u8 mod, u16 cmd,
 	}
 
 err_send:
+	mutex_unlock(&mbox->mbox_seg_send_lock);
+
 	return err;
 }
 
@@ -773,6 +796,9 @@ static void set_mbox_to_func_event(struct hinic3_mbox *mbox,
 static enum hinic3_wait_return check_mbox_msg_finish(void *priv_data)
 {
 	struct hinic3_mbox *mbox = priv_data;
+
+	if (!mbox->hwdev->chip_present_flag)
+		return HINIC3_WAIT_PROCESS_ERR;
 
 	return (mbox->event_flag == MBOX_EVENT_SUCCESS) ?
 		HINIC3_WAIT_PROCESS_CPL : HINIC3_WAIT_PROCESS_WAITING;
@@ -805,6 +831,9 @@ int hinic3_send_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	u32 msg_len;
 	int err;
 
+	if (!hwdev->chip_present_flag)
+		return -EPERM;
+
 	/* expect response message */
 	msg_desc = get_mbox_msg_desc(mbox, MBOX_MSG_RESP, MBOX_MGMT_FUNC_ID);
 	mutex_lock(&mbox->mbox_send_lock);
@@ -825,6 +854,7 @@ int hinic3_send_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	if (wait_mbox_msg_completion(mbox, msg_params->timeout_ms)) {
 		dev_err(hwdev->dev,
 			"Send mbox msg timeout, msg_id: %u\n", msg_info.msg_id);
+		hinic3_dump_aeq_info(mbox->hwdev);
 		err = -ETIMEDOUT;
 		goto err_send;
 	}
@@ -881,6 +911,9 @@ int hinic3_send_mbox_to_mgmt_no_ack(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 	struct hinic3_mbox *mbox = hwdev->mbox;
 	struct mbox_msg_info msg_info = {};
 	int err;
+
+	if (!hwdev->chip_present_flag)
+		return -EPERM;
 
 	mutex_lock(&mbox->mbox_send_lock);
 	err = send_mbox_msg(mbox, mod, cmd, msg_params->buf_in,

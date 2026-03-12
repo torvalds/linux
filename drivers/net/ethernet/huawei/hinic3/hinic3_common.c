@@ -59,9 +59,13 @@ int hinic3_wait_for_timeout(void *priv_data, wait_cpl_handler handler,
 	enum hinic3_wait_return ret;
 	int err;
 
-	err = read_poll_timeout(handler, ret, ret == HINIC3_WAIT_PROCESS_CPL,
+	err = read_poll_timeout(handler, ret,
+				!(ret & HINIC3_WAIT_PROCESS_WAITING),
 				wait_once_us, wait_total_ms * USEC_PER_MSEC,
 				false, priv_data);
+
+	if (ret == HINIC3_WAIT_PROCESS_ERR)
+		return -EIO;
 
 	return err;
 }

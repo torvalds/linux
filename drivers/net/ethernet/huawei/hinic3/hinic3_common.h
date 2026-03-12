@@ -21,6 +21,7 @@ struct hinic3_dma_addr_align {
 enum hinic3_wait_return {
 	HINIC3_WAIT_PROCESS_CPL     = 0,
 	HINIC3_WAIT_PROCESS_WAITING = 1,
+	HINIC3_WAIT_PROCESS_ERR     = 2,
 };
 
 struct hinic3_sge {
