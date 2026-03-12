@@ -172,7 +172,6 @@ typedef int (*sched_domain_flags_f)(void);
 
 struct sd_data {
 	struct sched_domain *__percpu *sd;
-	struct sched_domain_shared *__percpu *sds;
 	struct sched_group *__percpu *sg;
 	struct sched_group_capacity *__percpu *sgc;
 };

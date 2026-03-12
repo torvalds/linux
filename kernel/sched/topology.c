@@ -1609,9 +1609,6 @@ static void claim_allocations(int cpu, struct s_data *d)
 		WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
 		*per_cpu_ptr(sdd->sd, cpu) = NULL;
 
-		if (atomic_read(&(*per_cpu_ptr(sdd->sds, cpu))->ref))
-			*per_cpu_ptr(sdd->sds, cpu) = NULL;
-
 		if (atomic_read(&(*per_cpu_ptr(sdd->sg, cpu))->ref))
 			*per_cpu_ptr(sdd->sg, cpu) = NULL;
 
@@ -2390,10 +2387,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 		if (!sdd->sd)
 			return -ENOMEM;
 
-		sdd->sds = alloc_percpu(struct sched_domain_shared *);
-		if (!sdd->sds)
-			return -ENOMEM;
-
 		sdd->sg = alloc_percpu(struct sched_group *);
 		if (!sdd->sg)
 			return -ENOMEM;
@@ -2404,7 +2397,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 
 		for_each_cpu(j, cpu_map) {
 			struct sched_domain *sd;
-			struct sched_domain_shared *sds;
 			struct sched_group *sg;
 			struct sched_group_capacity *sgc;
 
@@ -2414,13 +2406,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 				return -ENOMEM;
 
 			*per_cpu_ptr(sdd->sd, j) = sd;
-
-			sds = kzalloc_node(sizeof(struct sched_domain_shared),
-					GFP_KERNEL, cpu_to_node(j));
-			if (!sds)
-				return -ENOMEM;
-
-			*per_cpu_ptr(sdd->sds, j) = sds;
 
 			sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
 					GFP_KERNEL, cpu_to_node(j));
@@ -2463,8 +2448,6 @@ static void __sdt_free(const struct cpumask *cpu_map)
 				kfree(*per_cpu_ptr(sdd->sd, j));
 			}
 
-			if (sdd->sds)
-				kfree(*per_cpu_ptr(sdd->sds, j));
 			if (sdd->sg)
 				kfree(*per_cpu_ptr(sdd->sg, j));
 			if (sdd->sgc)
@@ -2472,8 +2455,6 @@ static void __sdt_free(const struct cpumask *cpu_map)
 		}
 		free_percpu(sdd->sd);
 		sdd->sd = NULL;
-		free_percpu(sdd->sds);
-		sdd->sds = NULL;
 		free_percpu(sdd->sg);
 		sdd->sg = NULL;
 		free_percpu(sdd->sgc);
