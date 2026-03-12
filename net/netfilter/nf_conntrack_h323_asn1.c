@@ -21,7 +21,6 @@
 
 #if H323_TRACE
 #define TAB_SIZE 4
-#define IFTHEN(cond, act) if(cond){act;}
 #ifdef __KERNEL__
 #define PRINT printk
 #else
@@ -29,7 +28,6 @@
 #endif
 #define FNAME(name) name,
 #else
-#define IFTHEN(cond, act)
 #define PRINT(fmt, args...)
 #define FNAME(name)
 #endif
@@ -445,11 +443,6 @@ static int decode_octstr(struct bitstr *bs, const struct field_t *f,
 			BYTE_ALIGN(bs);
 			if (base && (f->attr & DECODE)) {
 				/* The IP Address */
-				IFTHEN(f->lb == 4,
-				       PRINT(" = %d.%d.%d.%d:%d",
-					     bs->cur[0], bs->cur[1],
-					     bs->cur[2], bs->cur[3],
-					     bs->cur[4] * 256 + bs->cur[5]));
 				*((unsigned int *)(base + f->offset)) =
 				    bs->cur - bs->buf;
 			}
