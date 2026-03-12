@@ -695,6 +695,13 @@ struct sci_of_data of_rsci_rzg3e_data = {
 	.params = &rsci_rzg3e_port_params,
 };
 
+struct sci_of_data of_rsci_rzg3l_data = {
+	.type = RSCI_PORT_SCIF32_SINGLE_TCLK,
+	.ops = &rsci_port_ops,
+	.uart_ops = &rsci_uart_ops,
+	.params = &rsci_rzg3e_port_params,
+};
+
 struct sci_of_data of_rsci_rzt2h_data = {
 	.type = RSCI_PORT_SCIF16,
 	.ops = &rsci_port_ops,
@@ -703,6 +710,11 @@ struct sci_of_data of_rsci_rzt2h_data = {
 };
 
 #ifdef CONFIG_SERIAL_SH_SCI_EARLYCON
+static int __init rsci_rzg3l_early_console_setup(struct earlycon_device *device,
+						 const char *opt)
+{
+	return scix_early_console_setup(device, &of_rsci_rzg3l_data);
+}
 
 static int __init rsci_rzg3e_early_console_setup(struct earlycon_device *device,
 						 const char *opt)
@@ -716,6 +728,7 @@ static int __init rsci_rzt2h_early_console_setup(struct earlycon_device *device,
 	return scix_early_console_setup(device, &of_rsci_rzt2h_data);
 }
 
+OF_EARLYCON_DECLARE(rsci, "renesas,r9a08g046-rsci", rsci_rzg3l_early_console_setup);
 OF_EARLYCON_DECLARE(rsci, "renesas,r9a09g047-rsci", rsci_rzg3e_early_console_setup);
 OF_EARLYCON_DECLARE(rsci, "renesas,r9a09g077-rsci", rsci_rzt2h_early_console_setup);
 
