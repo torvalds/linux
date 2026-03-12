@@ -1104,8 +1104,14 @@ struct kvm_vcpu_arch {
 	 * can only occur at instruction boundaries.  The only exception is
 	 * VMX's "notify" exits, which exist in large part to break the CPU out
 	 * of infinite ucode loops, but can corrupt vCPU state in the process!
+	 *
+	 * For all intents and purposes, this is a boolean, but it's tracked as
+	 * a u8 so that KVM can detect when userspace may have stuffed vCPU
+	 * state and generated an architecturally-impossible VM-Exit.
 	 */
-	bool nested_run_pending;
+#define KVM_NESTED_RUN_PENDING			1
+#define KVM_NESTED_RUN_PENDING_UNTRUSTED	2
+	u8 nested_run_pending;
 
 #if IS_ENABLED(CONFIG_HYPERV)
 	hpa_t hv_root_tdp;

@@ -5013,7 +5013,7 @@ static int svm_leave_smm(struct kvm_vcpu *vcpu, const union kvm_smram *smram)
 	if (ret)
 		goto unmap_save;
 
-	vcpu->arch.nested_run_pending = 1;
+	vcpu->arch.nested_run_pending = KVM_NESTED_RUN_PENDING;
 
 unmap_save:
 	kvm_vcpu_unmap(vcpu, &map_save);

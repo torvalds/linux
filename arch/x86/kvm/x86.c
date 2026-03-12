@@ -11914,6 +11914,13 @@ static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 static int kvm_x86_vcpu_pre_run(struct kvm_vcpu *vcpu)
 {
 	/*
+	 * Userspace may have modified vCPU state, mark nested_run_pending as
+	 * "untrusted" to avoid triggering false-positive WARNs.
+	 */
+	if (vcpu->arch.nested_run_pending == KVM_NESTED_RUN_PENDING)
+		vcpu->arch.nested_run_pending = KVM_NESTED_RUN_PENDING_UNTRUSTED;
+
+	/*
 	 * SIPI_RECEIVED is obsolete; KVM leaves the vCPU in Wait-For-SIPI and
 	 * tracks the pending SIPI separately.  SIPI_RECEIVED is still accepted
 	 * by KVM_SET_VCPU_EVENTS for backwards compatibility, but should be
