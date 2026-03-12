@@ -685,6 +685,9 @@ static void update_top_cache_domain(int cpu)
 	if (sd) {
 		id = cpumask_first(sched_domain_span(sd));
 		size = cpumask_weight(sched_domain_span(sd));
+
+		/* If sd_llc exists, sd_llc_shared should exist too. */
+		WARN_ON_ONCE(!sd->shared);
 		sds = sd->shared;
 	}
 
@@ -732,6 +735,13 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 
 		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
+
+			/* Pick reference to parent->shared. */
+			if (parent->shared) {
+				WARN_ON_ONCE(tmp->shared);
+				tmp->shared = parent->shared;
+				parent->shared = NULL;
+			}
 
 			if (parent->parent) {
 				parent->parent->child = tmp;
@@ -1586,21 +1596,28 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
  * sched_group structure so that the subsequent __free_domain_allocs()
  * will not free the data we're using.
  */
-static void claim_allocations(int cpu, struct sched_domain *sd)
+static void claim_allocations(int cpu, struct s_data *d)
 {
-	struct sd_data *sdd = sd->private;
+	struct sched_domain *sd;
 
-	WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
-	*per_cpu_ptr(sdd->sd, cpu) = NULL;
+	if (atomic_read(&(*per_cpu_ptr(d->sds, cpu))->ref))
+		*per_cpu_ptr(d->sds, cpu) = NULL;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sds, cpu))->ref))
-		*per_cpu_ptr(sdd->sds, cpu) = NULL;
+	for (sd = *per_cpu_ptr(d->sd, cpu); sd; sd = sd->parent) {
+		struct sd_data *sdd = sd->private;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sg, cpu))->ref))
-		*per_cpu_ptr(sdd->sg, cpu) = NULL;
+		WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
+		*per_cpu_ptr(sdd->sd, cpu) = NULL;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sgc, cpu))->ref))
-		*per_cpu_ptr(sdd->sgc, cpu) = NULL;
+		if (atomic_read(&(*per_cpu_ptr(sdd->sds, cpu))->ref))
+			*per_cpu_ptr(sdd->sds, cpu) = NULL;
+
+		if (atomic_read(&(*per_cpu_ptr(sdd->sg, cpu))->ref))
+			*per_cpu_ptr(sdd->sg, cpu) = NULL;
+
+		if (atomic_read(&(*per_cpu_ptr(sdd->sgc, cpu))->ref))
+			*per_cpu_ptr(sdd->sgc, cpu) = NULL;
+	}
 }
 
 #ifdef CONFIG_NUMA
@@ -1736,16 +1753,6 @@ sd_init(struct sched_domain_topology_level *tl,
 #endif /* CONFIG_NUMA */
 	} else {
 		sd->cache_nice_tries = 1;
-	}
-
-	/*
-	 * For all levels sharing cache; connect a sched_domain_shared
-	 * instance.
-	 */
-	if (sd->flags & SD_SHARE_LLC) {
-		sd->shared = *per_cpu_ptr(sdd->sds, sd_id);
-		atomic_inc(&sd->shared->ref);
-		atomic_set(&sd->shared->nr_busy_cpus, sd_weight);
 	}
 
 	sd->private = sdd;
@@ -2729,12 +2736,20 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		while (sd->parent && (sd->parent->flags & SD_SHARE_LLC))
 			sd = sd->parent;
 
-		/*
-		 * In presence of higher domains, adjust the
-		 * NUMA imbalance stats for the hierarchy.
-		 */
-		if (IS_ENABLED(CONFIG_NUMA) && (sd->flags & SD_SHARE_LLC) && sd->parent)
-			adjust_numa_imbalance(sd);
+		if (sd->flags & SD_SHARE_LLC) {
+			int sd_id = cpumask_first(sched_domain_span(sd));
+
+			sd->shared = *per_cpu_ptr(d.sds, sd_id);
+			atomic_set(&sd->shared->nr_busy_cpus, sd->span_weight);
+			atomic_inc(&sd->shared->ref);
+
+			/*
+			 * In presence of higher domains, adjust the
+			 * NUMA imbalance stats for the hierarchy.
+			 */
+			if (IS_ENABLED(CONFIG_NUMA) && sd->parent)
+				adjust_numa_imbalance(sd);
+		}
 	}
 
 	/* Calculate CPU capacity for physical packages and nodes */
@@ -2742,10 +2757,10 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		if (!cpumask_test_cpu(i, cpu_map))
 			continue;
 
-		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent) {
-			claim_allocations(i, sd);
+		claim_allocations(i, &d);
+
+		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent)
 			init_sched_groups_capacity(i, sd);
-		}
 	}
 
 	/* Attach the domains */
