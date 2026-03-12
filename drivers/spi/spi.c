@@ -3523,7 +3523,8 @@ static void devm_spi_unregister_controller(void *ctlr)
  * Context: can sleep
  *
  * Register a SPI device as with spi_register_controller() which will
- * automatically be unregistered and freed.
+ * automatically be unregistered (and freed unless it has been allocated using
+ * devm_spi_alloc_host/target()).
  *
  * Return: zero on success, else a negative error code.
  */
@@ -3557,7 +3558,8 @@ static int __unregister(struct device *dev, void *null)
  *
  * This must be called from context that can sleep.
  *
- * Note that this function also drops a reference to the controller.
+ * Note that this function also drops a reference to the controller unless it
+ * has been allocated using devm_spi_alloc_host/target().
  */
 void spi_unregister_controller(struct spi_controller *ctlr)
 {
