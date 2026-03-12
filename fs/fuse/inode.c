@@ -1001,7 +1001,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	spin_lock_init(&fc->bg_lock);
 	init_rwsem(&fc->killsb);
 	refcount_set(&fc->count, 1);
-	atomic_set(&fc->dev_count, 1);
 	atomic_set(&fc->epoch, 1);
 	INIT_WORK(&fc->epoch_work, fuse_epoch_work);
 	init_waitqueue_head(&fc->blocked_waitq);
