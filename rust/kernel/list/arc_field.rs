@@ -66,6 +66,7 @@ impl<T, const ID: u64> ListArcField<T, ID> {
 
 /// Defines getters for a [`ListArcField`].
 #[macro_export]
+#[doc(hidden)]
 macro_rules! define_list_arc_field_getter {
     ($pub:vis fn $name:ident(&self $(<$id:tt>)?) -> &$typ:ty { $field:ident }
      $($rest:tt)*

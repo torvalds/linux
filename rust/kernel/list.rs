@@ -12,15 +12,31 @@ use core::ptr;
 use pin_init::PinInit;
 
 mod impl_list_item_mod;
+#[doc(inline)]
 pub use self::impl_list_item_mod::{
-    impl_has_list_links, impl_has_list_links_self_ptr, impl_list_item, HasListLinks, HasSelfPtr,
+    impl_has_list_links,
+    impl_has_list_links_self_ptr,
+    impl_list_item,
+    HasListLinks,
+    HasSelfPtr, //
 };
 
 mod arc;
-pub use self::arc::{impl_list_arc_safe, AtomicTracker, ListArc, ListArcSafe, TryNewListArc};
+#[doc(inline)]
+pub use self::arc::{
+    impl_list_arc_safe,
+    AtomicTracker,
+    ListArc,
+    ListArcSafe,
+    TryNewListArc, //
+};
 
 mod arc_field;
-pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
+#[doc(inline)]
+pub use self::arc_field::{
+    define_list_arc_field_getter,
+    ListArcField, //
+};
 
 /// A linked list.
 ///

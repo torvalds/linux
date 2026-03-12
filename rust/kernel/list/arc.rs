@@ -82,6 +82,7 @@ pub unsafe trait TryNewListArc<const ID: u64 = 0>: ListArcSafe<ID> {
 /// [`AtomicTracker`]. However, it is also possible to defer the tracking to another struct
 /// using also using this macro.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! impl_list_arc_safe {
     (impl$({$($generics:tt)*})? ListArcSafe<$num:tt> for $t:ty { untracked; } $($rest:tt)*) => {
         impl$(<$($generics)*>)? $crate::list::ListArcSafe<$num> for $t {
