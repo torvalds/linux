@@ -65,6 +65,12 @@
 #define CAP_INTX			BIT(3)
 #define CAP_SUBRANGE_MAPPING		BIT(4)
 #define CAP_DYNAMIC_INBOUND_MAPPING	BIT(5)
+#define CAP_BAR0_RESERVED		BIT(6)
+#define CAP_BAR1_RESERVED		BIT(7)
+#define CAP_BAR2_RESERVED		BIT(8)
+#define CAP_BAR3_RESERVED		BIT(9)
+#define CAP_BAR4_RESERVED		BIT(10)
+#define CAP_BAR5_RESERVED		BIT(11)
 
 #define PCI_EPF_TEST_BAR_SUBRANGE_NSUB	2
 
@@ -1111,6 +1117,24 @@ static void pci_epf_test_set_capabilities(struct pci_epf *epf)
 	if (epf_test->epc_features->dynamic_inbound_mapping &&
 	    epf_test->epc_features->subrange_mapping)
 		caps |= CAP_SUBRANGE_MAPPING;
+
+	if (epf_test->epc_features->bar[BAR_0].type == BAR_RESERVED)
+		caps |= CAP_BAR0_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_1].type == BAR_RESERVED)
+		caps |= CAP_BAR1_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_2].type == BAR_RESERVED)
+		caps |= CAP_BAR2_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_3].type == BAR_RESERVED)
+		caps |= CAP_BAR3_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_4].type == BAR_RESERVED)
+		caps |= CAP_BAR4_RESERVED;
+
+	if (epf_test->epc_features->bar[BAR_5].type == BAR_RESERVED)
+		caps |= CAP_BAR5_RESERVED;
 
 	reg->caps = cpu_to_le32(caps);
 }
