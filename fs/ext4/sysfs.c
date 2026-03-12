@@ -40,6 +40,7 @@ typedef enum {
 	attr_pointer_string,
 	attr_pointer_atomic,
 	attr_journal_task,
+	attr_err_report_sec,
 } attr_id_t;
 
 typedef enum {
@@ -130,6 +131,36 @@ static ssize_t trigger_test_error(struct ext4_sb_info *sbi,
 	return count;
 }
 
+static ssize_t err_report_sec_store(struct ext4_sb_info *sbi,
+				    const char *buf, size_t count)
+{
+	unsigned long t;
+	int ret;
+
+	ret = kstrtoul(skip_spaces(buf), 0, &t);
+	if (ret)
+		return ret;
+
+	/*the maximum time interval must not exceed one year.*/
+	if (t > (365*24*60*60))
+		return -EINVAL;
+
+	if (sbi->s_err_report_sec == t)		/*nothing to do*/
+		goto out;
+	else if (!sbi->s_err_report_sec && t) {
+		timer_setup(&sbi->s_err_report, print_daily_error_info, 0);
+	} else if (sbi->s_err_report_sec && !t) {
+		timer_delete_sync(&sbi->s_err_report);
+		goto out;
+	}
+
+	sbi->s_err_report_sec = t;
+	mod_timer(&sbi->s_err_report, jiffies + secs_to_jiffies(sbi->s_err_report_sec));
+
+out:
+	return count;
+}
+
 static ssize_t journal_task_show(struct ext4_sb_info *sbi, char *buf)
 {
 	if (!sbi->s_journal)
@@ -217,6 +248,7 @@ EXT4_ATTR_OFFSET(mb_group_prealloc, 0644, clusters_in_group,
 		 ext4_sb_info, s_mb_group_prealloc);
 EXT4_ATTR_OFFSET(mb_best_avail_max_trim_order, 0644, mb_order,
 		 ext4_sb_info, s_mb_best_avail_max_trim_order);
+EXT4_ATTR_OFFSET(err_report_sec, 0644, err_report_sec, ext4_sb_info, s_err_report_sec);
 EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
@@ -309,6 +341,7 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(last_trim_minblks),
 	ATTR_LIST(sb_update_sec),
 	ATTR_LIST(sb_update_kb),
+	ATTR_LIST(err_report_sec),
 	NULL,
 };
 ATTRIBUTE_GROUPS(ext4);
@@ -402,6 +435,7 @@ static ssize_t ext4_generic_attr_show(struct ext4_attr *a,
 			return sysfs_emit(buf, "%u\n", le32_to_cpup(ptr));
 		return sysfs_emit(buf, "%u\n", *((unsigned int *) ptr));
 	case attr_pointer_ul:
+	case attr_err_report_sec:
 		return sysfs_emit(buf, "%lu\n", *((unsigned long *) ptr));
 	case attr_pointer_u8:
 		return sysfs_emit(buf, "%u\n", *((unsigned char *) ptr));
@@ -525,6 +559,8 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 		return inode_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
 		return trigger_test_error(sbi, buf, len);
+	case attr_err_report_sec:
+		return err_report_sec_store(sbi, buf, len);
 	default:
 		return ext4_generic_attr_store(a, sbi, buf, len);
 	}
@@ -619,7 +655,7 @@ int __init ext4_init_sysfs(void)
 	if (!ext4_root)
 		return -ENOMEM;
 
-	ext4_feat = kzalloc(sizeof(*ext4_feat), GFP_KERNEL);
+	ext4_feat = kzalloc_obj(*ext4_feat);
 	if (!ext4_feat) {
 		ret = -ENOMEM;
 		goto root_err;

@@ -120,8 +120,7 @@ int unwind_user_faultable(struct unwind_stacktrace *trace)
 		return -EINVAL;
 
 	if (!info->cache) {
-		info->cache = kzalloc(struct_size(cache, entries, UNWIND_MAX_ENTRIES),
-				      GFP_KERNEL);
+		info->cache = kzalloc_flex(*cache, entries, UNWIND_MAX_ENTRIES);
 		if (!info->cache)
 			return -ENOMEM;
 	}

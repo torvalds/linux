@@ -1381,7 +1381,7 @@ wavefront_load_patch (snd_wavefront_t *dev, const char __user *addr)
 	wavefront_patch_info *header;
 	int err;
 	
-	header = kmalloc(sizeof(*header), GFP_KERNEL);
+	header = kmalloc_obj(*header);
 	if (! header)
 		return -ENOMEM;
 

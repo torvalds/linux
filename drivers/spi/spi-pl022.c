@@ -1606,7 +1606,7 @@ static int pl022_setup(struct spi_device *spi)
 	chip = spi_get_ctldata(spi);
 
 	if (chip == NULL) {
-		chip = kzalloc(sizeof(struct chip_data), GFP_KERNEL);
+		chip = kzalloc_obj(struct chip_data);
 		if (!chip)
 			return -ENOMEM;
 		dev_dbg(&spi->dev,
@@ -1893,7 +1893,6 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	host->handle_err = pl022_handle_err;
 	host->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	host->rt = platform_info->rt;
-	host->dev.of_node = dev->of_node;
 	host->use_gpio_descriptors = true;
 
 	/*

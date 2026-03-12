@@ -59,7 +59,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
 
 	_enter("");
 
-	conn = kzalloc(sizeof(struct rxrpc_connection), gfp);
+	conn = kzalloc_obj(struct rxrpc_connection, gfp);
 	if (conn) {
 		INIT_LIST_HEAD(&conn->cache_link);
 		timer_setup(&conn->timer, &rxrpc_connection_timer, 0);

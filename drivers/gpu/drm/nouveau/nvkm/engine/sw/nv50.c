@@ -106,7 +106,7 @@ nv50_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifoch,
 	struct nv50_sw_chan *chan;
 	int ret, i;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	*pobject = &chan->base.object;
 

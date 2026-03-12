@@ -14,7 +14,7 @@
 static struct cgroup_subsys_state *
 debug_css_alloc(struct cgroup_subsys_state *parent_css)
 {
-	struct cgroup_subsys_state *css = kzalloc(sizeof(*css), GFP_KERNEL);
+	struct cgroup_subsys_state *css = kzalloc_obj(*css);
 
 	if (!css)
 		return ERR_PTR(-ENOMEM);
@@ -230,7 +230,7 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 }
 
 static void cgroup_masks_read_one(struct seq_file *seq, const char *name,
-				  u16 mask)
+				  u32 mask)
 {
 	struct cgroup_subsys *ss;
 	int ssid;

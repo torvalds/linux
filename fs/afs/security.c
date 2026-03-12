@@ -252,7 +252,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	 * yet.
 	 */
 	size++;
-	new = kzalloc(struct_size(new, permits, size), GFP_NOFS);
+	new = kzalloc_flex(*new, permits, size, GFP_NOFS);
 	if (!new)
 		goto out_put;
 

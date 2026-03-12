@@ -96,6 +96,8 @@ impl Flags {
         self.0
     }
 
+    // Always inline to optimize out error path of `build_assert`.
+    #[inline(always)]
     const fn new(value: u32) -> Self {
         build_assert!(value as u64 <= c_ulong::MAX as u64);
         Self(value as c_ulong)

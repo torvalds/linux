@@ -298,7 +298,7 @@ __ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
 	if (WARN_ON(local->tpt_led_trigger))
 		return NULL;
 
-	tpt_trig = kzalloc(sizeof(struct tpt_led_trigger), GFP_KERNEL);
+	tpt_trig = kzalloc_obj(struct tpt_led_trigger);
 	if (!tpt_trig)
 		return NULL;
 

@@ -1077,7 +1077,7 @@ static int ip_set_create(struct sk_buff *skb, const struct nfnl_info *info,
 	/* First, and without any locks, allocate and initialize
 	 * a normal base set structure.
 	 */
-	set = kzalloc(sizeof(*set), GFP_KERNEL);
+	set = kzalloc_obj(*set);
 	if (!set)
 		return -ENOMEM;
 	spin_lock_init(&set->lock);
@@ -1135,7 +1135,7 @@ static int ip_set_create(struct sk_buff *skb, const struct nfnl_info *info,
 			/* Wraparound */
 			goto cleanup;
 
-		list = kvcalloc(i, sizeof(struct ip_set *), GFP_KERNEL);
+		list = kvzalloc_objs(struct ip_set *, i);
 		if (!list)
 			goto cleanup;
 		/* nfnl mutex is held, both lists are valid */
@@ -2377,7 +2377,7 @@ ip_set_net_init(struct net *net)
 	if (inst->ip_set_max >= IPSET_INVALID_ID)
 		inst->ip_set_max = IPSET_INVALID_ID - 1;
 
-	list = kvcalloc(inst->ip_set_max, sizeof(struct ip_set *), GFP_KERNEL);
+	list = kvzalloc_objs(struct ip_set *, inst->ip_set_max);
 	if (!list)
 		return -ENOMEM;
 	inst->is_deleted = false;

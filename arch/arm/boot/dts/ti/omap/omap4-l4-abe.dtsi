@@ -279,7 +279,7 @@
 			ranges = <0x0 0x30000 0x1000>,
 				 <0x49030000 0x49030000 0x1000>;
 
-			wdt3: wdt@0 {
+			wdt3: watchdog@0 {
 				compatible = "ti,omap4-wdt", "ti,omap3-wdt";
 				reg = <0x0 0x80>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;

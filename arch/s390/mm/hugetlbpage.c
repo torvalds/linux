@@ -135,29 +135,6 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	return __pte(pteval);
 }
 
-static void clear_huge_pte_skeys(struct mm_struct *mm, unsigned long rste)
-{
-	struct folio *folio;
-	unsigned long size, paddr;
-
-	if (!mm_uses_skeys(mm) ||
-	    rste & _SEGMENT_ENTRY_INVALID)
-		return;
-
-	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
-		folio = page_folio(pud_page(__pud(rste)));
-		size = PUD_SIZE;
-		paddr = rste & PUD_MASK;
-	} else {
-		folio = page_folio(pmd_page(__pmd(rste)));
-		size = PMD_SIZE;
-		paddr = rste & PMD_MASK;
-	}
-
-	if (!test_and_set_bit(PG_arch_1, &folio->flags.f))
-		__storage_key_init_range(paddr, paddr + size);
-}
-
 void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte)
 {
@@ -173,7 +150,6 @@ void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	} else if (likely(pte_present(pte)))
 		rste |= _SEGMENT_ENTRY_LARGE;
 
-	clear_huge_pte_skeys(mm, rste);
 	set_pte(ptep, __pte(rste));
 }
 
@@ -254,4 +230,12 @@ bool __init arch_hugetlb_valid_size(unsigned long size)
 		return true;
 	else
 		return false;
+}
+
+unsigned int __init arch_hugetlb_cma_order(void)
+{
+	if (cpu_has_edat2())
+		return PUD_SHIFT - PAGE_SHIFT;
+
+	return 0;
 }

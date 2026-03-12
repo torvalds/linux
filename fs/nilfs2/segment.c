@@ -2701,7 +2701,7 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_sc_info *sci;
 
-	sci = kzalloc(sizeof(*sci), GFP_KERNEL);
+	sci = kzalloc_obj(*sci);
 	if (!sci)
 		return NULL;
 

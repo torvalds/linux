@@ -277,7 +277,7 @@ nsim_fib4_rt_create(struct nsim_fib_data *data,
 {
 	struct nsim_fib4_rt *fib4_rt;
 
-	fib4_rt = kzalloc(sizeof(*fib4_rt), GFP_KERNEL);
+	fib4_rt = kzalloc_obj(*fib4_rt);
 	if (!fib4_rt)
 		return NULL;
 
@@ -497,7 +497,7 @@ static int nsim_fib6_rt_nh_add(struct nsim_fib6_rt *fib6_rt,
 {
 	struct nsim_fib6_rt_nh *fib6_rt_nh;
 
-	fib6_rt_nh = kzalloc(sizeof(*fib6_rt_nh), GFP_KERNEL);
+	fib6_rt_nh = kzalloc_obj(*fib6_rt_nh);
 	if (!fib6_rt_nh)
 		return -ENOMEM;
 
@@ -544,7 +544,7 @@ nsim_fib6_rt_create(struct nsim_fib_data *data,
 	int i = 0;
 	int err;
 
-	fib6_rt = kzalloc(sizeof(*fib6_rt), GFP_KERNEL);
+	fib6_rt = kzalloc_obj(*fib6_rt);
 	if (!fib6_rt)
 		return ERR_PTR(-ENOMEM);
 
@@ -807,7 +807,7 @@ static int nsim_fib6_event_init(struct nsim_fib6_event *fib6_event,
 
 	nrt6 = fen6_info->nsiblings + 1;
 
-	rt_arr = kcalloc(nrt6, sizeof(struct fib6_info *), GFP_ATOMIC);
+	rt_arr = kzalloc_objs(struct fib6_info *, nrt6, GFP_ATOMIC);
 	if (!rt_arr)
 		return -ENOMEM;
 
@@ -987,7 +987,7 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 		 */
 		return NOTIFY_DONE;
 
-	fib_event = kzalloc(sizeof(*fib_event), GFP_ATOMIC);
+	fib_event = kzalloc_obj(*fib_event, GFP_ATOMIC);
 	if (!fib_event)
 		goto err_fib_event_alloc;
 
@@ -1116,7 +1116,7 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 	u64 occ = 0;
 	int i;
 
-	nexthop = kzalloc(sizeof(*nexthop), GFP_KERNEL);
+	nexthop = kzalloc_obj(*nexthop);
 	if (!nexthop)
 		return ERR_PTR(-ENOMEM);
 
@@ -1556,7 +1556,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 	struct nsim_dev *nsim_dev;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 	data->devlink = devlink;

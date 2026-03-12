@@ -306,9 +306,9 @@ that looks like this: Name(KEY0, "value0").  An ACPI device driver would
 then retrieve the value of the property by evaluating the KEY0 object.
 However, using Name() this way has multiple problems: (1) ACPI limits
 names ("KEY0") to four characters unlike DT; (2) there is no industry
-wide registry that maintains a list of names, minimizing re-use; (3)
+wide registry that maintains a list of names, minimizing reuse; (3)
 there is also no registry for the definition of property values ("value0"),
-again making re-use difficult; and (4) how does one maintain backward
+again making reuse difficult; and (4) how does one maintain backward
 compatibility as new hardware comes out?  The _DSD method was created
 to solve precisely these sorts of problems; Linux drivers should ALWAYS
 use the _DSD method for device properties and nothing else.

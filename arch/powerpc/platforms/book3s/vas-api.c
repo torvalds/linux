@@ -266,7 +266,7 @@ static int coproc_open(struct inode *inode, struct file *fp)
 {
 	struct coproc_instance *cp_inst;
 
-	cp_inst = kzalloc(sizeof(*cp_inst), GFP_KERNEL);
+	cp_inst = kzalloc_obj(*cp_inst);
 	if (!cp_inst)
 		return -ENOMEM;
 

@@ -54,17 +54,8 @@ void sync_icache_dcache(pte_t pte)
 	__vmcache_idsync(addr, PAGE_SIZE);
 }
 
-/*
- * In order to set up page allocator "nodes",
- * somebody has to call free_area_init() for UMA.
- *
- * In this mode, we only have one pg_data_t
- * structure: contig_mem_data.
- */
-static void __init paging_init(void)
+void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = {0, };
-
 	/*
 	 *  This is not particularly well documented anywhere, but
 	 *  give ZONE_NORMAL all the memory, including the big holes
@@ -72,11 +63,11 @@ static void __init paging_init(void)
 	 *  in the bootmem_map; free_area_init should see those bits and
 	 *  adjust accordingly.
 	 */
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+}
 
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
-
-	free_area_init(max_zone_pfn);  /*  sets up the zonelists and mem_map  */
-
+static void __init paging_init(void)
+{
 	/*
 	 * Set the init_mm descriptors "context" value to point to the
 	 * initial kernel segment table's physical address.

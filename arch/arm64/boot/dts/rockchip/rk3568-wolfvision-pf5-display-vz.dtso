@@ -11,7 +11,6 @@
 #include "rk3568-wolfvision-pf5-display.dtsi"
 
 &st7789 {
-	compatible = "jasonic,jt240mhqs-hwt-ek-e3",
-		     "sitronix,st7789v";
+	compatible = "jasonic,jt240mhqs-hwt-ek-e3";
 	rotation = <270>;
 };

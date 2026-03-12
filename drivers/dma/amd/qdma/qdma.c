@@ -769,7 +769,7 @@ qdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct dma_async_tx_descriptor *tx;
 	struct qdma_mm_vdesc *vdesc;
 
-	vdesc = kzalloc(sizeof(*vdesc), GFP_NOWAIT);
+	vdesc = kzalloc_obj(*vdesc, GFP_NOWAIT);
 	if (!vdesc)
 		return NULL;
 	vdesc->sgl = sgl;

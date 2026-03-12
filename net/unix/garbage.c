@@ -288,15 +288,15 @@ int unix_prepare_fpl(struct scm_fp_list *fpl)
 		return 0;
 
 	for (i = 0; i < fpl->count_unix; i++) {
-		vertex = kmalloc(sizeof(*vertex), GFP_KERNEL);
+		vertex = kmalloc_obj(*vertex);
 		if (!vertex)
 			goto err;
 
 		list_add(&vertex->entry, &fpl->vertices);
 	}
 
-	fpl->edges = kvmalloc_array(fpl->count_unix, sizeof(*fpl->edges),
-				    GFP_KERNEL_ACCOUNT);
+	fpl->edges = kvmalloc_objs(*fpl->edges, fpl->count_unix,
+				   GFP_KERNEL_ACCOUNT);
 	if (!fpl->edges)
 		goto err;
 

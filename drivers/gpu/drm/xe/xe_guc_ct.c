@@ -1982,7 +1982,7 @@ static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bo
 {
 	struct xe_guc_ct_snapshot *snapshot;
 
-	snapshot = kzalloc(sizeof(*snapshot), atomic ? GFP_ATOMIC : GFP_KERNEL);
+	snapshot = kzalloc_obj(*snapshot, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!snapshot)
 		return NULL;
 

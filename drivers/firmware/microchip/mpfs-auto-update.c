@@ -162,9 +162,9 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	u32 *response_msg __free(kfree) =
 		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
 	struct mpfs_mss_response *response __free(kfree) =
-		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+		kzalloc_obj(struct mpfs_mss_response);
 	struct mpfs_mss_msg *message __free(kfree) =
-		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
+		kzalloc_obj(struct mpfs_mss_msg);
 	int ret;
 
 	if (!response_msg || !response || !message)
@@ -364,9 +364,9 @@ static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 	u32 *response_msg __free(kfree) =
 		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
 	struct mpfs_mss_response *response __free(kfree) =
-		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+		kzalloc_obj(struct mpfs_mss_response);
 	struct mpfs_mss_msg *message __free(kfree) =
-		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
+		kzalloc_obj(struct mpfs_mss_msg);
 	int ret;
 
 	if (!response_msg || !response || !message)

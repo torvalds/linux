@@ -1,3 +1,21 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 source "drivers/media/platform/synopsys/hdmirx/Kconfig"
+
+config VIDEO_DW_MIPI_CSI2RX
+	tristate "Synopsys DesignWare MIPI CSI-2 Receiver"
+	depends on VIDEO_DEV
+	depends on V4L_PLATFORM_DRIVERS
+	depends on PM && COMMON_CLK
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  The Synopsys DesignWare MIPI CSI-2 Receiver is a CSI-2 bridge with
+	  one input port and one output port. It receives the data with the
+	  help of an external MIPI PHY (C-PHY or D-PHY) and passes it to e.g.,
+	  the Rockchip Video Capture (VICAP) block on recent Rockchip SoCs.
+	  This is a driver for this unit.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dw-mipi-csi2rx.

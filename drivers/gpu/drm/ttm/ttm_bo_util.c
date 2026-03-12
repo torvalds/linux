@@ -233,7 +233,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	struct ttm_transfer_obj *fbo;
 	int ret;
 
-	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
+	fbo = kmalloc_obj(*fbo);
 	if (!fbo)
 		return -ENOMEM;
 

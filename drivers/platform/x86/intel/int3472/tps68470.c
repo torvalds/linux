@@ -180,7 +180,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 		if (!board_data)
 			return dev_err_probe(&client->dev, -ENODEV, "No board-data found for this model\n");
 
-		cells = kcalloc(TPS68470_WIN_MFD_CELL_COUNT, sizeof(*cells), GFP_KERNEL);
+		cells = kzalloc_objs(*cells, TPS68470_WIN_MFD_CELL_COUNT);
 		if (!cells)
 			return -ENOMEM;
 

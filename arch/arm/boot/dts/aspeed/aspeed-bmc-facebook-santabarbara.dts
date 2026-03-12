@@ -845,7 +845,14 @@
 };
 
 &i2c7 {
+	multi-master;
 	status = "okay";
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+		i2c-protocol;
+	};
 };
 
 &i2c8 {
@@ -1328,6 +1335,20 @@
 &i2c12 {
 	status = "okay";
 
+	gpio@27 {
+		compatible = "nxp,pca9555";
+		reg = <0x27>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names =
+			"PEX0_MODE_SEL1_R","PEX0_MODE_SEL2_R",
+			"PEX0_MODE_SEL3_R","PEX0_MODE_SEL4_R",
+			"","","","",
+			"UART_MUX_SEL","RST_SMB_NIC_R_N",
+			"RST_SMB_N","RST_CP2102N_N",
+			"SPI_MUX_SEL","","","";
+	};
+
 	// SWB FRU
 	eeprom@52 {
 		compatible = "atmel,24c64";
@@ -1758,11 +1779,11 @@
 	"","BIOS_DEBUG_MODE",
 	/*H0-H3 line 112-119*/
 	"FM_IOEXP_U538_INT_N","",
-	"FM_IOEXP_U539_INT_N","",
-	"FM_IOEXP_U540_INT_N","",
-	"FM_IOEXP_U541_INT_N","",
+	"FM_IOEXP_U539_INT_N","FM_MODULE_PWR_EN_N_1B",
+	"FM_IOEXP_U540_INT_N","FM_MODULE_PWR_EN_N_2B",
+	"FM_IOEXP_U541_INT_N","FM_MODULE_PWR_EN_N_3B",
 	/*H4-H7 line 120-127*/
-	"FM_IOEXP_PDB2_U1003_INT_N","",
+	"FM_IOEXP_PDB2_U1003_INT_N","FM_MODULE_PWR_EN_N_4B",
 	"","",
 	"","",
 	"FM_MAIN_PWREN_RMC_EN_ISO_R","",

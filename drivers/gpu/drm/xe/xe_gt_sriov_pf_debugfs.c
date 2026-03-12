@@ -710,7 +710,7 @@ static int config_blob_open(struct inode *inode, struct file *file)
 	if (ret < 0)
 		return ret;
 
-	cbd = kzalloc(struct_size(cbd, blob, ret), GFP_KERNEL);
+	cbd = kzalloc_flex(*cbd, blob, ret);
 	if (!cbd)
 		return -ENOMEM;
 

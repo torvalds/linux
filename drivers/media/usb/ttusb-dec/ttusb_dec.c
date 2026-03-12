@@ -809,8 +809,7 @@ static void ttusb_dec_process_urb(struct urb *urb)
 			b = urb->transfer_buffer + d->offset;
 			length = d->actual_length;
 
-			if ((frame = kmalloc(sizeof(struct urb_frame),
-					     GFP_ATOMIC))) {
+			if ((frame = kmalloc_obj(struct urb_frame, GFP_ATOMIC))) {
 				unsigned long flags;
 
 				memcpy(frame->data, b, length);
@@ -1061,8 +1060,7 @@ static int ttusb_dec_start_sec_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (!result) {
 		if (c_length == 2) {
-			if (!(finfo = kmalloc(sizeof(struct filter_info),
-					      GFP_ATOMIC)))
+			if (!(finfo = kmalloc_obj(struct filter_info, GFP_ATOMIC)))
 				return -ENOMEM;
 
 			finfo->stream_id = c[1];
@@ -1644,7 +1642,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	udev = interface_to_usbdev(intf);
 
-	if (!(dec = kzalloc(sizeof(struct ttusb_dec), GFP_KERNEL))) {
+	if (!(dec = kzalloc_obj(struct ttusb_dec))) {
 		printk("%s: couldn't allocate memory.\n", __func__);
 		return -ENOMEM;
 	}

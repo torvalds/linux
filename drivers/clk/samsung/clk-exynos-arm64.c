@@ -24,6 +24,16 @@
 #define GATE_MANUAL		BIT(20)
 #define GATE_ENABLE_HWACG	BIT(28)
 
+/* Option register bits */
+#define OPT_EN_MEM_PWR_GATING		BIT(24)
+#define OPT_EN_AUTO_GATING		BIT(28)
+#define OPT_EN_PWR_MANAGEMENT		BIT(29)
+#define OPT_EN_LAYER2_CTRL		BIT(30)
+#define OPT_EN_DBG			BIT(31)
+
+#define CMU_OPT_GLOBAL_EN_AUTO_GATING	(OPT_EN_DBG | OPT_EN_LAYER2_CTRL | \
+	OPT_EN_PWR_MANAGEMENT | OPT_EN_AUTO_GATING | OPT_EN_MEM_PWR_GATING)
+
 /* PLL_CONx_PLL register offsets range */
 #define PLL_CON_OFF_START	0x100
 #define PLL_CON_OFF_END		0x600
@@ -37,6 +47,8 @@ struct exynos_arm64_cmu_data {
 	unsigned int nr_clk_save;
 	const struct samsung_clk_reg_dump *clk_suspend;
 	unsigned int nr_clk_suspend;
+	struct samsung_clk_reg_dump *clk_sysreg_save;
+	unsigned int nr_clk_sysreg;
 
 	struct clk *clk;
 	struct clk **pclks;
@@ -76,11 +88,28 @@ static void __init exynos_arm64_init_clocks(struct device_node *np,
 	const unsigned long *reg_offs = cmu->clk_regs;
 	size_t reg_offs_len = cmu->nr_clk_regs;
 	void __iomem *reg_base;
+	bool init_auto;
 	size_t i;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base)
 		panic("%s: failed to map registers\n", __func__);
+
+	/* ensure compatibility with older DTs */
+	if (cmu->auto_clock_gate && samsung_is_auto_capable(np))
+		init_auto = true;
+	else
+		init_auto = false;
+
+	if (cmu->option_offset && init_auto) {
+		/*
+		 * Enable the global automatic mode for the entire CMU.
+		 * This overrides the individual HWACG bits in each of the
+		 * individual gate, mux and qch registers.
+		 */
+		writel(CMU_OPT_GLOBAL_EN_AUTO_GATING,
+		       reg_base + cmu->option_offset);
+	}
 
 	for (i = 0; i < reg_offs_len; ++i) {
 		void __iomem *reg = reg_base + reg_offs[i];
@@ -88,7 +117,12 @@ static void __init exynos_arm64_init_clocks(struct device_node *np,
 
 		if (cmu->manual_plls && is_pll_con1_reg(reg_offs[i])) {
 			writel(PLL_CON1_MANUAL, reg);
-		} else if (is_gate_reg(reg_offs[i])) {
+		} else if (is_gate_reg(reg_offs[i]) && !init_auto) {
+			/*
+			 * Setting GATE_MANUAL bit (which is described in TRM as
+			 * reserved!) overrides the global CMU automatic mode
+			 * option.
+			 */
 			val = readl(reg);
 			val |= GATE_MANUAL;
 			val &= ~GATE_ENABLE_HWACG;
@@ -140,7 +174,7 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 		const struct samsung_cmu_info *cmu)
 {
 	struct exynos_arm64_cmu_data *data = dev_get_drvdata(dev);
-	int i;
+	int i, ret;
 
 	data->clk_save = samsung_clk_alloc_reg_dump(cmu->clk_regs,
 						    cmu->nr_clk_regs);
@@ -148,8 +182,22 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 		return -ENOMEM;
 
 	data->nr_clk_save = cmu->nr_clk_regs;
+
+	if (cmu->nr_sysreg_clk_regs) {
+		data->clk_sysreg_save =
+			samsung_clk_alloc_reg_dump(cmu->sysreg_clk_regs,
+						   cmu->nr_sysreg_clk_regs);
+		if (!data->clk_sysreg_save) {
+			ret = -ENOMEM;
+			goto free_clk_save;
+		}
+
+		data->nr_clk_sysreg = cmu->nr_sysreg_clk_regs;
+	}
+
 	data->clk_suspend = cmu->suspend_regs;
 	data->nr_clk_suspend = cmu->nr_suspend_regs;
+
 	data->nr_pclks = of_clk_get_parent_count(dev->of_node);
 	if (!data->nr_pclks)
 		return 0;
@@ -157,23 +205,29 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 	data->pclks = devm_kcalloc(dev, sizeof(struct clk *), data->nr_pclks,
 				   GFP_KERNEL);
 	if (!data->pclks) {
-		kfree(data->clk_save);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_sysreg_save;
 	}
 
 	for (i = 0; i < data->nr_pclks; i++) {
 		struct clk *clk = of_clk_get(dev->of_node, i);
 
 		if (IS_ERR(clk)) {
-			kfree(data->clk_save);
 			while (--i >= 0)
 				clk_put(data->pclks[i]);
-			return PTR_ERR(clk);
+			ret = PTR_ERR(clk);
+			goto free_sysreg_save;
 		}
 		data->pclks[i] = clk;
 	}
 
 	return 0;
+
+free_sysreg_save:
+	kfree(data->clk_sysreg_save);
+free_clk_save:
+	kfree(data->clk_save);
+	return ret;
 }
 
 /**
@@ -210,8 +264,8 @@ void __init exynos_arm64_register_cmu(struct device *dev,
 /**
  * exynos_arm64_register_cmu_pm - Register Exynos CMU domain with PM support
  *
- * @pdev:	Platform device object
- * @set_manual:	If true, set gate clocks to manual mode
+ * @pdev:		Platform device object
+ * @init_clk_regs:	If true, initialize CMU registers
  *
  * It's a version of exynos_arm64_register_cmu() with PM support. Should be
  * called from probe function of platform driver.
@@ -219,7 +273,7 @@ void __init exynos_arm64_register_cmu(struct device *dev,
  * Return: 0 on success, or negative error code on error.
  */
 int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
-					bool set_manual)
+					bool init_clk_regs)
 {
 	const struct samsung_cmu_info *cmu;
 	struct device *dev = &pdev->dev;
@@ -249,7 +303,7 @@ int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
 		dev_err(dev, "%s: could not enable bus clock %s; err = %d\n",
 		       __func__, cmu->clk_name, ret);
 
-	if (set_manual)
+	if (init_clk_regs)
 		exynos_arm64_init_clocks(np, cmu);
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
@@ -268,8 +322,10 @@ int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	samsung_cmu_register_clocks(data->ctx, cmu);
+	samsung_cmu_register_clocks(data->ctx, cmu, np);
 	samsung_clk_of_add_provider(dev->of_node, data->ctx);
+	/* sysreg DT nodes reference a clock in this CMU */
+	samsung_en_dyn_root_clk_gating(np, data->ctx, cmu, true);
 	pm_runtime_put_sync(dev);
 
 	return 0;
@@ -280,14 +336,17 @@ int exynos_arm64_cmu_suspend(struct device *dev)
 	struct exynos_arm64_cmu_data *data = dev_get_drvdata(dev);
 	int i;
 
-	samsung_clk_save(data->ctx->reg_base, data->clk_save,
+	samsung_clk_save(data->ctx->reg_base, NULL, data->clk_save,
 			 data->nr_clk_save);
+
+	samsung_clk_save(NULL, data->ctx->sysreg, data->clk_sysreg_save,
+			 data->nr_clk_sysreg);
 
 	for (i = 0; i < data->nr_pclks; i++)
 		clk_prepare_enable(data->pclks[i]);
 
 	/* For suspend some registers have to be set to certain values */
-	samsung_clk_restore(data->ctx->reg_base, data->clk_suspend,
+	samsung_clk_restore(data->ctx->reg_base, NULL, data->clk_suspend,
 			    data->nr_clk_suspend);
 
 	for (i = 0; i < data->nr_pclks; i++)
@@ -308,8 +367,13 @@ int exynos_arm64_cmu_resume(struct device *dev)
 	for (i = 0; i < data->nr_pclks; i++)
 		clk_prepare_enable(data->pclks[i]);
 
-	samsung_clk_restore(data->ctx->reg_base, data->clk_save,
+	samsung_clk_restore(data->ctx->reg_base, NULL, data->clk_save,
 			    data->nr_clk_save);
+
+	if (data->ctx->sysreg)
+		samsung_clk_restore(NULL, data->ctx->sysreg,
+				    data->clk_sysreg_save,
+				    data->nr_clk_sysreg);
 
 	for (i = 0; i < data->nr_pclks; i++)
 		clk_disable_unprepare(data->pclks[i]);

@@ -112,7 +112,7 @@ static int __xgbe_test_loopback(struct xgbe_prv_data *pdata,
 	struct sk_buff *skb = NULL;
 	int ret = 0;
 
-	tdata = kzalloc(sizeof(*tdata), GFP_KERNEL);
+	tdata = kzalloc_obj(*tdata);
 	if (!tdata)
 		return -ENOMEM;
 

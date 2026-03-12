@@ -17,7 +17,7 @@ WANT="__${FILE%%-*}"
 # Argument 2: Where to write the build log.
 OUT="$1"
 shift
-TMP="${OUT}.tmp"
+TMP="${OUT%/*}/.${OUT##*/}.tmp"
 
 # Argument 3: Path to "nm" tool.
 NM="$1"
@@ -29,7 +29,7 @@ shift
 __cleanup() {
 	rm -f "$TMP"
 }
-trap __cleanup EXIT
+trap __cleanup EXIT HUP INT QUIT TERM
 
 # Function names in warnings are wrapped in backticks under UTF-8 locales.
 # Run the commands with LANG=C so that grep output will not change.

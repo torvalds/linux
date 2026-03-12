@@ -681,8 +681,10 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	return kn;
 
  err_out4:
-	simple_xattrs_free(&kn->iattr->xattrs, NULL);
-	kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
+	if (kn->iattr) {
+		simple_xattrs_free(&kn->iattr->xattrs, NULL);
+		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
+	}
  err_out3:
 	spin_lock(&root->kernfs_idr_lock);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
@@ -987,7 +989,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	struct kernfs_root *root;
 	struct kernfs_node *kn;
 
-	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 

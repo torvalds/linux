@@ -28,11 +28,11 @@
 #define GPR_ENET_QOS_CLK_TX_CLK_SEL	(0x1 << 20)
 #define GPR_ENET_QOS_RGMII_EN		(0x1 << 21)
 
-#define MX93_GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(3, 0)
 #define MX93_GPR_ENET_QOS_INTF_SEL_MASK		GENMASK(3, 1)
-#define MX93_GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 0)
-#define MX93_GPR_ENET_QOS_CLK_SEL_MASK		BIT_MASK(0)
-#define MX93_GPR_CLK_SEL_OFFSET			(4)
+#define MX93_GPR_ENET_QOS_ENABLE		BIT(0)
+
+#define MX93_ENET_CLK_SEL_OFFSET		(4)
+#define MX93_ENET_QOS_CLK_TX_SEL_MASK		BIT_MASK(0)
 
 #define DMA_BUS_MODE			0x00001000
 #define DMA_BUS_MODE_SFT_RESET		(0x1 << 0)
@@ -46,7 +46,7 @@ struct imx_dwmac_ops {
 	u32 flags;
 	bool mac_rgmii_txclk_auto_adj;
 
-	int (*fix_soc_reset)(struct stmmac_priv *priv, void __iomem *ioaddr);
+	int (*fix_soc_reset)(struct stmmac_priv *priv);
 	int (*set_intf_mode)(struct imx_priv_data *dwmac, u8 phy_intf_sel);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
@@ -95,17 +95,18 @@ static int imx93_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 	if (phy_intf_sel == PHY_INTF_SEL_RMII && dwmac->rmii_refclk_ext) {
 		ret = regmap_clear_bits(dwmac->intf_regmap,
 					dwmac->intf_reg_off +
-					MX93_GPR_CLK_SEL_OFFSET,
-					MX93_GPR_ENET_QOS_CLK_SEL_MASK);
+					MX93_ENET_CLK_SEL_OFFSET,
+					MX93_ENET_QOS_CLK_TX_SEL_MASK);
 		if (ret)
 			return ret;
 	}
 
 	val = FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
-	      MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	      MX93_GPR_ENET_QOS_ENABLE;
 
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-				  MX93_GPR_ENET_QOS_INTF_MODE_MASK, val);
+				  MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+				  MX93_GPR_ENET_QOS_ENABLE, val);
 };
 
 static int imx_dwmac_clks_config(void *priv, bool enabled)
@@ -205,7 +206,8 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	old_ctrl = readl(dwmac->base_addr + MAC_CTRL_REG);
 	ctrl = old_ctrl & ~CTRL_SPEED_MASK;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, 0);
+			   MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+			   MX93_GPR_ENET_QOS_ENABLE, 0);
 	writel(ctrl, dwmac->base_addr + MAC_CTRL_REG);
 
 	 /* Ensure the settings for CTRL are applied. */
@@ -213,19 +215,22 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 
 	usleep_range(10, 20);
 	iface &= MX93_GPR_ENET_QOS_INTF_SEL_MASK;
-	iface |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	iface |= MX93_GPR_ENET_QOS_ENABLE;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, iface);
+			   MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+			   MX93_GPR_ENET_QOS_ENABLE, iface);
 
 	writel(old_ctrl, dwmac->base_addr + MAC_CTRL_REG);
 }
 
-static int imx_dwmac_mx93_reset(struct stmmac_priv *priv, void __iomem *ioaddr)
+static int imx_dwmac_mx93_reset(struct stmmac_priv *priv)
 {
 	struct plat_stmmacenet_data *plat_dat = priv->plat;
-	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	void __iomem *ioaddr = priv->ioaddr;
+	u32 value;
 
 	/* DMA SW reset */
+	value = readl(ioaddr + DMA_BUS_MODE);
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
 
@@ -268,9 +273,9 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	if (of_machine_is_compatible("fsl,imx8mp") ||
 	    of_machine_is_compatible("fsl,imx91") ||
 	    of_machine_is_compatible("fsl,imx93")) {
-		/* Binding doc describes the propety:
+		/* Binding doc describes the property:
 		 * is required by i.MX8MP, i.MX91, i.MX93.
-		 * is optinoal for i.MX8DXL.
+		 * is optional for i.MX8DXL.
 		 */
 		dwmac->intf_regmap =
 			syscon_regmap_lookup_by_phandle_args(np, "intf_mode", 1,
@@ -320,6 +325,9 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 	if (data->flags & STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY)
 		plat_dat->flags |= STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY;
 
+	if (data->flags & STMMAC_FLAG_KEEP_PREAMBLE_BEFORE_SFD)
+		plat_dat->flags |= STMMAC_FLAG_KEEP_PREAMBLE_BEFORE_SFD;
+
 	/* Default TX Q0 to use TSO and rest TXQ for TBS */
 	for (int i = 1; i < plat_dat->tx_queues_to_use; i++)
 		plat_dat->tx_queues_cfg[i].tbs_en = 1;
@@ -355,7 +363,8 @@ static struct imx_dwmac_ops imx8mp_dwmac_data = {
 	.addr_width = 34,
 	.mac_rgmii_txclk_auto_adj = false,
 	.set_intf_mode = imx8mp_set_intf_mode,
-	.flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY,
+	.flags = STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY |
+		 STMMAC_FLAG_KEEP_PREAMBLE_BEFORE_SFD,
 };
 
 static struct imx_dwmac_ops imx8dxl_dwmac_data = {

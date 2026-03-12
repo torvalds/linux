@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
+#include "linux/v4l2-controls.h"
 #if !defined(_VISL_TRACE_HEVC_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _VISL_TRACE_HEVC_H_
 
@@ -343,6 +344,54 @@ DECLARE_EVENT_CLASS(v4l2_ctrl_hevc_decode_params_tmpl,
 	))
 );
 
+DECLARE_EVENT_CLASS(v4l2_ctrl_hevc_ext_sps_lt_rps_tmpl,
+	TP_PROTO(const struct v4l2_ctrl_hevc_ext_sps_lt_rps *lt),
+	TP_ARGS(lt),
+	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_hevc_ext_sps_lt_rps, lt)),
+	TP_fast_assign(__entry->lt = *lt),
+	TP_printk("\nflags %s\n"
+		  "lt_ref_pic_poc_lsb_sps %x\n",
+		  __print_flags(__entry->lt.flags, "|",
+		  {V4L2_HEVC_EXT_SPS_LT_RPS_FLAG_USED_LT, "USED_LT"}
+		  ),
+		  __entry->lt.lt_ref_pic_poc_lsb_sps
+	)
+)
+
+DECLARE_EVENT_CLASS(v4l2_ctrl_hevc_ext_sps_st_rps_tmpl,
+	TP_PROTO(const struct v4l2_ctrl_hevc_ext_sps_st_rps *st),
+	TP_ARGS(st),
+	TP_STRUCT__entry(__field_struct(struct v4l2_ctrl_hevc_ext_sps_st_rps, st)),
+	TP_fast_assign(__entry->st = *st),
+	TP_printk("\nflags %s\n"
+		  "delta_idx_minus1: %u\n"
+		  "delta_rps_sign: %u\n"
+		  "abs_delta_rps_minus1: %u\n"
+		  "num_negative_pics: %u\n"
+		  "num_positive_pics: %u\n"
+		  "used_by_curr_pic: %08x\n"
+		  "use_delta_flag: %08x\n"
+		  "delta_poc_s0_minus1: %s\n"
+		  "delta_poc_s1_minus1: %s\n",
+		  __print_flags(__entry->st.flags, "|",
+		  {V4L2_HEVC_EXT_SPS_ST_RPS_FLAG_INTER_REF_PIC_SET_PRED, "INTER_REF_PIC_SET_PRED"}
+		  ),
+		  __entry->st.delta_idx_minus1,
+		  __entry->st.delta_rps_sign,
+		  __entry->st.abs_delta_rps_minus1,
+		  __entry->st.num_negative_pics,
+		  __entry->st.num_positive_pics,
+		  __entry->st.used_by_curr_pic,
+		  __entry->st.use_delta_flag,
+		  __print_array(__entry->st.delta_poc_s0_minus1,
+				ARRAY_SIZE(__entry->st.delta_poc_s0_minus1),
+				sizeof(__entry->st.delta_poc_s0_minus1[0])),
+		  __print_array(__entry->st.delta_poc_s1_minus1,
+				ARRAY_SIZE(__entry->st.delta_poc_s1_minus1),
+				sizeof(__entry->st.delta_poc_s1_minus1[0]))
+	)
+)
+
 
 DECLARE_EVENT_CLASS(v4l2_hevc_dpb_entry_tmpl,
 	TP_PROTO(const struct v4l2_hevc_dpb_entry *e),
@@ -389,6 +438,16 @@ DEFINE_EVENT(v4l2_ctrl_hevc_scaling_matrix_tmpl, v4l2_ctrl_hevc_scaling_matrix,
 DEFINE_EVENT(v4l2_ctrl_hevc_decode_params_tmpl, v4l2_ctrl_hevc_decode_params,
 	TP_PROTO(const struct v4l2_ctrl_hevc_decode_params *d),
 	TP_ARGS(d)
+);
+
+DEFINE_EVENT(v4l2_ctrl_hevc_ext_sps_lt_rps_tmpl, v4l2_ctrl_hevc_ext_sps_lt_rps,
+	TP_PROTO(const struct v4l2_ctrl_hevc_ext_sps_lt_rps *lt),
+	TP_ARGS(lt)
+);
+
+DEFINE_EVENT(v4l2_ctrl_hevc_ext_sps_st_rps_tmpl, v4l2_ctrl_hevc_ext_sps_st_rps,
+	TP_PROTO(const struct v4l2_ctrl_hevc_ext_sps_st_rps *st),
+	TP_ARGS(st)
 );
 
 DEFINE_EVENT(v4l2_hevc_dpb_entry_tmpl, v4l2_hevc_dpb_entry,

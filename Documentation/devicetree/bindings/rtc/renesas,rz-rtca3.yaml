@@ -14,6 +14,7 @@ properties:
     items:
       - enum:
           - renesas,r9a08g045-rtca3 # RZ/G3S
+          - renesas,r9a09g056-rtca3 # RZ/V2N
           - renesas,r9a09g057-rtca3 # RZ/V2H
       - const: renesas,rz-rtca3
 
@@ -82,7 +83,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g057-rtca3
+            enum:
+              - renesas,r9a09g056-rtca3
+              - renesas,r9a09g057-rtca3
     then:
       properties:
         resets:

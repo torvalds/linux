@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_fs.h"
@@ -20,6 +20,12 @@
 	[XFS_ERRTAG_##_tag]	= (_default),
 #include "xfs_errortag.h"
 static const unsigned int xfs_errortag_random_default[] = { XFS_ERRTAGS };
+#undef XFS_ERRTAG
+
+#define XFS_ERRTAG(_tag, _name, _default) \
+        [XFS_ERRTAG_##_tag]	=  __stringify(_name),
+#include "xfs_errortag.h"
+static const char *xfs_errortag_names[] = { XFS_ERRTAGS };
 #undef XFS_ERRTAG
 
 struct xfs_errortag_attr {
@@ -50,17 +56,18 @@ xfs_errortag_attr_store(
 {
 	struct xfs_mount	*mp = to_mp(kobject);
 	unsigned int		error_tag = to_attr(attr)->tag;
+	unsigned int		val;
 	int			ret;
 
 	if (strcmp(buf, "default") == 0) {
-		mp->m_errortag[error_tag] =
-			xfs_errortag_random_default[error_tag];
+		val = xfs_errortag_random_default[error_tag];
 	} else {
-		ret = kstrtouint(buf, 0, &mp->m_errortag[error_tag]);
+		ret = kstrtouint(buf, 0, &val);
 		if (ret)
 			return ret;
 	}
 
+	WRITE_ONCE(mp->m_errortag[error_tag], val);
 	return count;
 }
 
@@ -71,9 +78,9 @@ xfs_errortag_attr_show(
 	char			*buf)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	unsigned int		error_tag = to_attr(attr)->tag;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mp->m_errortag[error_tag]);
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			READ_ONCE(mp->m_errortag[to_attr(attr)->tag]));
 }
 
 static const struct sysfs_ops xfs_errortag_sysfs_ops = {
@@ -114,18 +121,8 @@ int
 xfs_errortag_init(
 	struct xfs_mount	*mp)
 {
-	int ret;
-
-	mp->m_errortag = kzalloc(sizeof(unsigned int) * XFS_ERRTAG_MAX,
-				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
-	if (!mp->m_errortag)
-		return -ENOMEM;
-
-	ret = xfs_sysfs_init(&mp->m_errortag_kobj, &xfs_errortag_ktype,
+	return xfs_sysfs_init(&mp->m_errortag_kobj, &xfs_errortag_ktype,
 				&mp->m_kobj, "errortag");
-	if (ret)
-		kfree(mp->m_errortag);
-	return ret;
 }
 
 void
@@ -133,33 +130,6 @@ xfs_errortag_del(
 	struct xfs_mount	*mp)
 {
 	xfs_sysfs_del(&mp->m_errortag_kobj);
-	kfree(mp->m_errortag);
-}
-
-static bool
-xfs_errortag_valid(
-	unsigned int		error_tag)
-{
-	if (error_tag >= XFS_ERRTAG_MAX)
-		return false;
-
-	/* Error out removed injection types */
-	if (error_tag == XFS_ERRTAG_DROP_WRITES)
-		return false;
-	return true;
-}
-
-bool
-xfs_errortag_enabled(
-	struct xfs_mount	*mp,
-	unsigned int		tag)
-{
-	if (!mp->m_errortag)
-		return false;
-	if (!xfs_errortag_valid(tag))
-		return false;
-
-	return mp->m_errortag[tag] != 0;
 }
 
 bool
@@ -171,21 +141,7 @@ xfs_errortag_test(
 {
 	unsigned int		randfactor;
 
-	/*
-	 * To be able to use error injection anywhere, we need to ensure error
-	 * injection mechanism is already initialized.
-	 *
-	 * Code paths like I/O completion can be called before the
-	 * initialization is complete, but be able to inject errors in such
-	 * places is still useful.
-	 */
-	if (!mp->m_errortag)
-		return false;
-
-	if (!xfs_errortag_valid(error_tag))
-		return false;
-
-	randfactor = mp->m_errortag[error_tag];
+	randfactor = READ_ONCE(mp->m_errortag[error_tag]);
 	if (!randfactor || get_random_u32_below(randfactor))
 		return false;
 
@@ -195,6 +151,27 @@ xfs_errortag_test(
 	return true;
 }
 
+void
+xfs_errortag_delay(
+	struct xfs_mount	*mp,
+	const char		*file,
+	int			line,
+	unsigned int		error_tag)
+{
+	unsigned int		delay = READ_ONCE(mp->m_errortag[error_tag]);
+
+	might_sleep();
+
+	if (!delay)
+		return;
+
+	xfs_warn_ratelimited(mp,
+"Injecting %ums delay at file %s, line %d, on filesystem \"%s\"",
+		delay, file, line,
+		mp->m_super->s_id);
+	mdelay(delay);
+}
+
 int
 xfs_errortag_add(
 	struct xfs_mount	*mp,
@@ -202,17 +179,60 @@ xfs_errortag_add(
 {
 	BUILD_BUG_ON(ARRAY_SIZE(xfs_errortag_random_default) != XFS_ERRTAG_MAX);
 
-	if (!xfs_errortag_valid(error_tag))
+	if (error_tag >= XFS_ERRTAG_MAX)
 		return -EINVAL;
-	mp->m_errortag[error_tag] = xfs_errortag_random_default[error_tag];
+
+	/* Error out removed injection types */
+	switch (error_tag) {
+	case XFS_ERRTAG_DROP_WRITES:
+		return -EINVAL;
+	default:
+		break;
+	}
+
+	WRITE_ONCE(mp->m_errortag[error_tag],
+		   xfs_errortag_random_default[error_tag]);
 	return 0;
+}
+
+int
+xfs_errortag_add_name(
+	struct xfs_mount	*mp,
+	const char		*tag_name)
+{
+	unsigned int		i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++) {
+		if (xfs_errortag_names[i] &&
+		    !strcmp(xfs_errortag_names[i], tag_name))
+			return xfs_errortag_add(mp, i);
+	}
+
+	return -EINVAL;
+}
+
+void
+xfs_errortag_copy(
+	struct xfs_mount	*dst_mp,
+	struct xfs_mount	*src_mp)
+{
+	unsigned int		val, i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++) {
+		val = READ_ONCE(src_mp->m_errortag[i]);
+		if (val)
+			WRITE_ONCE(dst_mp->m_errortag[i], val);
+	}
 }
 
 int
 xfs_errortag_clearall(
 	struct xfs_mount	*mp)
 {
-	memset(mp->m_errortag, 0, sizeof(unsigned int) * XFS_ERRTAG_MAX);
+	unsigned int		i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++)
+		WRITE_ONCE(mp->m_errortag[i], 0);
 	return 0;
 }
 #endif /* DEBUG */

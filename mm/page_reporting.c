@@ -123,7 +123,7 @@ page_reporting_drain(struct page_reporting_dev_info *prdev,
 			continue;
 
 		/*
-		 * If page was not comingled with another page we can
+		 * If page was not commingled with another page we can
 		 * consider the result to be "reported" since the page
 		 * hasn't been modified, otherwise we will need to
 		 * report on the new larger page when we make our way
@@ -322,7 +322,7 @@ static void page_reporting_process(struct work_struct *work)
 	atomic_set(&prdev->state, state);
 
 	/* allocate scatterlist to store pages being reported on */
-	sgl = kmalloc_array(PAGE_REPORTING_CAPACITY, sizeof(*sgl), GFP_KERNEL);
+	sgl = kmalloc_objs(*sgl, PAGE_REPORTING_CAPACITY);
 	if (!sgl)
 		goto err_out;
 

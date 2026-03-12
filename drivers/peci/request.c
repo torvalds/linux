@@ -203,7 +203,7 @@ struct peci_request *peci_request_alloc(struct peci_device *device, u8 tx_len, u
 	 * should be converted to DMA API once support for controllers that do
 	 * allow it is added to avoid an extra copy.
 	 */
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 

@@ -464,7 +464,7 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
  *	Queued command
  */
 
-static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);

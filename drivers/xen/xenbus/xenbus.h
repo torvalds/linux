@@ -120,9 +120,9 @@ int xenbus_probe_devices(struct xen_bus_type *bus);
 
 void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
 
-int xenbus_dev_suspend(struct device *dev);
-int xenbus_dev_resume(struct device *dev);
-int xenbus_dev_cancel(struct device *dev);
+int xenbus_dev_freeze(struct device *dev);
+int xenbus_dev_restore(struct device *dev);
+int xenbus_dev_thaw(struct device *dev);
 
 void xenbus_otherend_changed(struct xenbus_watch *watch,
 			     const char *path, const char *token,

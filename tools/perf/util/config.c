@@ -20,6 +20,7 @@
 #include "util/stat.h"  /* perf_stat__set_big_num */
 #include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
 #include "util/addr2line.h"  /* addr2line_timeout_ms */
+#include "srcline.h"
 #include "build-id.h"
 #include "debug.h"
 #include "config.h"
@@ -518,6 +519,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (strstarts(var, "stat."))
 		return perf_stat_config(var, value);
+
+	if (strstarts(var, "addr2line."))
+		return addr2line_configure(var, value, dummy);
 
 	/* Add other config variables here. */
 	return 0;

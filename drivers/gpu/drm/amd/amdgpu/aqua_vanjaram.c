@@ -31,9 +31,6 @@
 #include "sdma_v4_4_2.h"
 #include "amdgpu_ip.h"
 
-#define XCP_INST_MASK(num_inst, xcp_id)                                        \
-	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
-
 void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 {
 	int i;
@@ -59,25 +56,6 @@ void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.last_non_cp = AMDGPU_DOORBELL_LAYOUT1_LAST_NON_CP;
 
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT << 1;
-}
-
-/* Fixed pattern for smn addressing on different AIDs:
- *   bit[34]: indicate cross AID access
- *   bit[33:32]: indicate target AID id
- * AID id range is 0 ~ 3 as maximum AID number is 4.
- */
-u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id)
-{
-	u64 ext_offset;
-
-	/* local routing and bit[34:32] will be zeros */
-	if (ext_id == 0)
-		return 0;
-
-	/* Initiated from host, accessing to all non-zero aids are cross traffic */
-	ext_offset = ((u64)(ext_id & 0x3) << 32) | (1ULL << 34);
-
-	return ext_offset;
 }
 
 static enum amdgpu_gfx_partition
@@ -593,7 +571,7 @@ static void aqua_read_smn_ext(struct amdgpu_device *adev,
 			      uint64_t smn_addr, int i)
 {
 	regdata->addr =
-		smn_addr + adev->asic_funcs->encode_ext_smn_addressing(i);
+		smn_addr + amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, i);
 	regdata->value = RREG32_PCIE_EXT(regdata->addr);
 }
 

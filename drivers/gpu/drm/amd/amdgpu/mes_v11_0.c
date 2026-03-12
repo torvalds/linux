@@ -56,11 +56,13 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_2_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_2_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_3_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_3_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_4_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_4_mes1.bin");
 
 static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block);
 static int mes_v11_0_hw_fini(struct amdgpu_ip_block *ip_block);
-static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev);
-static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev);
+static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev, uint32_t xcc_id);
+static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id);
 
 #define MES_EOP_SIZE   2048
 #define GFX_MES_DRAM_SIZE	0x80000
@@ -660,7 +662,7 @@ static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
 		break;
 
 	default:
-		DRM_ERROR("unsupported misc op (%d) \n", input->op);
+		drm_err(adev_to_drm(mes->adev), "unsupported misc op (%d)\n", input->op);
 		return -EINVAL;
 	}
 
@@ -718,11 +720,6 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
 	mes_set_hw_res_pkt.enable_level_process_quantum_check = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
-	if ((mes->adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x7f)
-		mes_set_hw_res_pkt.enable_lr_compute_wa = 1;
-	else
-		dev_info_once(mes->adev->dev,
-			      "MES FW version must be >= 0x7f to enable LR compute workaround.\n");
 
 	if (amdgpu_mes_log_enable) {
 		mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
@@ -811,7 +808,7 @@ static int mes_v11_0_detect_and_reset_hung_queues(struct amdgpu_mes *mes,
 	mes_reset_queue_pkt.queue_type =
 		convert_to_mes_queue_type(input->queue_type);
 	mes_reset_queue_pkt.doorbell_offset_addr =
-		mes->hung_queue_db_array_gpu_addr;
+		mes->hung_queue_db_array_gpu_addr[0];
 
 	if (input->detect_only)
 		mes_reset_queue_pkt.hang_detect_only = 1;
@@ -1570,7 +1567,7 @@ static void mes_v11_0_kiq_clear(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, regRLC_CP_SCHEDULERS, tmp);
 }
 
-static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
+static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev, uint32_t xcc_id)
 {
 	int r = 0;
 	struct amdgpu_ip_block *ip_block;
@@ -1625,7 +1622,7 @@ failure:
 	return r;
 }
 
-static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev)
+static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id)
 {
 	if (adev->mes.ring[0].sched.ready) {
 		mes_v11_0_kiq_dequeue(&adev->mes.ring[0]);
@@ -1671,7 +1668,7 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
-	if ((adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x50) {
+	if ((adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x52) {
 		r = mes_v11_0_set_hw_resources_1(&adev->mes);
 		if (r) {
 			DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);

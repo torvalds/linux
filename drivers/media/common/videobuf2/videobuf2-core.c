@@ -605,8 +605,7 @@ static void __vb2_queue_free(struct vb2_queue *q, unsigned int start, unsigned i
 	 */
 	if (vb2_get_num_buffers(q)) {
 		bool unbalanced = q->cnt_start_streaming != q->cnt_stop_streaming ||
-				  q->cnt_prepare_streaming != q->cnt_unprepare_streaming ||
-				  q->cnt_wait_prepare != q->cnt_wait_finish;
+				  q->cnt_prepare_streaming != q->cnt_unprepare_streaming;
 
 		if (unbalanced) {
 			pr_info("unbalanced counters for queue %p:\n", q);
@@ -617,13 +616,8 @@ static void __vb2_queue_free(struct vb2_queue *q, unsigned int start, unsigned i
 			if (q->cnt_prepare_streaming != q->cnt_unprepare_streaming)
 				pr_info("     prepare_streaming: %u unprepare_streaming: %u\n",
 					q->cnt_prepare_streaming, q->cnt_unprepare_streaming);
-			if (q->cnt_wait_prepare != q->cnt_wait_finish)
-				pr_info("     wait_prepare: %u wait_finish: %u\n",
-					q->cnt_wait_prepare, q->cnt_wait_finish);
 		}
 		q->cnt_queue_setup = 0;
-		q->cnt_wait_prepare = 0;
-		q->cnt_wait_finish = 0;
 		q->cnt_prepare_streaming = 0;
 		q->cnt_start_streaming = 0;
 		q->cnt_stop_streaming = 0;
@@ -847,7 +841,7 @@ static bool verify_coherency_flags(struct vb2_queue *q, bool non_coherent_mem)
 static int vb2_core_allocated_buffers_storage(struct vb2_queue *q)
 {
 	if (!q->bufs)
-		q->bufs = kcalloc(q->max_num_buffers, sizeof(*q->bufs), GFP_KERNEL);
+		q->bufs = kzalloc_objs(*q->bufs, q->max_num_buffers);
 	if (!q->bufs)
 		return -ENOMEM;
 
@@ -2037,10 +2031,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		 * become ready or for streamoff. Driver's lock is released to
 		 * allow streamoff or qbuf to be called while waiting.
 		 */
-		if (q->ops->wait_prepare)
-			call_void_qop(q, wait_prepare, q);
-		else if (q->lock)
-			mutex_unlock(q->lock);
+		mutex_unlock(q->lock);
 
 		/*
 		 * All locks have been released, it is safe to sleep now.
@@ -2050,10 +2041,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 				!list_empty(&q->done_list) || !q->streaming ||
 				q->error);
 
-		if (q->ops->wait_finish)
-			call_void_qop(q, wait_finish, q);
-		else if (q->lock)
-			mutex_lock(q->lock);
+		mutex_lock(q->lock);
 
 		q->waiting_in_dqbuf = 0;
 		/*
@@ -2653,12 +2641,8 @@ int vb2_core_queue_init(struct vb2_queue *q)
 	if (WARN_ON(q->min_reqbufs_allocation > q->max_num_buffers))
 		return -EINVAL;
 
-	/* Either both or none are set */
-	if (WARN_ON(!q->ops->wait_prepare ^ !q->ops->wait_finish))
-		return -EINVAL;
-
-	/* Warn if q->lock is NULL and no custom wait_prepare is provided */
-	if (WARN_ON(!q->lock && !q->ops->wait_prepare))
+	/* Warn if q->lock is NULL */
+	if (WARN_ON(!q->lock))
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&q->queued_list);
@@ -2877,7 +2861,7 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		(read) ? "read" : "write", q->min_reqbufs_allocation, q->fileio_read_once,
 		q->fileio_write_immediately);
 
-	fileio = kzalloc(sizeof(*fileio), GFP_KERNEL);
+	fileio = kzalloc_obj(*fileio);
 	if (fileio == NULL)
 		return -ENOMEM;
 
@@ -3220,17 +3204,10 @@ static int vb2_thread(void *data)
 				continue;
 			prequeue--;
 		} else {
-			if (!threadio->stop) {
-				if (q->ops->wait_finish)
-					call_void_qop(q, wait_finish, q);
-				else if (q->lock)
-					mutex_lock(q->lock);
+			mutex_lock(q->lock);
+			if (!threadio->stop)
 				ret = vb2_core_dqbuf(q, &index, NULL, 0);
-				if (q->ops->wait_prepare)
-					call_void_qop(q, wait_prepare, q);
-				else if (q->lock)
-					mutex_unlock(q->lock);
-			}
+			mutex_unlock(q->lock);
 			dprintk(q, 5, "file io: vb2_dqbuf result: %d\n", ret);
 			if (!ret)
 				vb = vb2_get_buffer(q, index);
@@ -3245,15 +3222,9 @@ static int vb2_thread(void *data)
 		if (copy_timestamp)
 			vb->timestamp = ktime_get_ns();
 		if (!threadio->stop) {
-			if (q->ops->wait_finish)
-				call_void_qop(q, wait_finish, q);
-			else if (q->lock)
-				mutex_lock(q->lock);
+			mutex_lock(q->lock);
 			ret = vb2_core_qbuf(q, vb, NULL, NULL);
-			if (q->ops->wait_prepare)
-				call_void_qop(q, wait_prepare, q);
-			else if (q->lock)
-				mutex_unlock(q->lock);
+			mutex_unlock(q->lock);
 		}
 		if (ret || threadio->stop)
 			break;
@@ -3285,7 +3256,7 @@ int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
 	if (WARN_ON(q->fileio))
 		return -EBUSY;
 
-	threadio = kzalloc(sizeof(*threadio), GFP_KERNEL);
+	threadio = kzalloc_obj(*threadio);
 	if (threadio == NULL)
 		return -ENOMEM;
 	threadio->fnc = fnc;

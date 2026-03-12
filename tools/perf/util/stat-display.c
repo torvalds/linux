@@ -820,12 +820,6 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 	}
 
 	if (run == 0 || ena == 0 || counter->counts->scaled == -1) {
-		if (config->metric_only) {
-			pm(config, os, METRIC_THRESHOLD_UNKNOWN, /*format=*/NULL,
-			   /*unit=*/NULL, /*val=*/0);
-			return;
-		}
-
 		ok = false;
 
 		if (counter->supported) {
@@ -848,33 +842,32 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 		print_running(config, os, run, ena, /*before_metric=*/true);
 	}
 
-	if (ok) {
-		if (!config->metric_only && counter->default_metricgroup && !counter->default_show_events) {
-			void *from = NULL;
+	if (!config->metric_only && counter->default_metricgroup &&
+	    !counter->default_show_events) {
+		void *from = NULL;
 
-			aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);
-			/* Print out all the metricgroup with the same metric event. */
-			do {
-				int num = 0;
+		aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);
+		/* Print out all the metricgroup with the same metric event. */
+		do {
+			int num = 0;
 
-				/* Print out the new line for the next new metricgroup. */
-				if (from) {
-					if (config->json_output)
-						new_line_json(config, (void *)os);
-					else
-						__new_line_std_csv(config, os);
-				}
+			/* Print out the new line for the next new metricgroup. */
+			if (from) {
+				if (config->json_output)
+					new_line_json(config, (void *)os);
+				else
+					__new_line_std_csv(config, os);
+			}
 
-				print_noise(config, os, counter, noise, /*before_metric=*/true);
-				print_running(config, os, run, ena, /*before_metric=*/true);
-				from = perf_stat__print_shadow_stats_metricgroup(config, counter, aggr_idx,
-										 &num, from, &out);
-			} while (from != NULL);
-		} else {
-			perf_stat__print_shadow_stats(config, counter, aggr_idx, &out);
-		}
+			print_noise(config, os, counter, noise,
+				    /*before_metric=*/true);
+			print_running(config, os, run, ena,
+				      /*before_metric=*/true);
+			from = perf_stat__print_shadow_stats_metricgroup(
+				config, counter, aggr_idx, &num, from, &out);
+		} while (from != NULL);
 	} else {
-		pm(config, os, METRIC_THRESHOLD_UNKNOWN, /*format=*/NULL, /*unit=*/NULL, /*val=*/0);
+		perf_stat__print_shadow_stats(config, counter, aggr_idx, &out);
 	}
 
 	if (!config->metric_only) {
@@ -987,7 +980,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	ena = aggr->counts.ena;
 	run = aggr->counts.run;
 
-	if (perf_stat__skip_metric_event(counter, ena, run))
+	if (perf_stat__skip_metric_event(counter))
 		return;
 
 	if (val == 0 && should_skip_zero_counter(config, counter, &id))
@@ -1397,21 +1390,12 @@ static void print_header(struct perf_stat_config *config,
 		num_print_iv = 0;
 }
 
-static int get_precision(double num)
-{
-	if (num > 1)
-		return 0;
-
-	return lround(ceil(-log10(num)));
-}
-
-static void print_table(struct perf_stat_config *config,
-			FILE *output, int precision, double avg)
+static void print_table(struct perf_stat_config *config, FILE *output, double avg)
 {
 	char tmp[64];
 	int idx, indent = 0;
 
-	scnprintf(tmp, 64, " %17.*f", precision, avg);
+	scnprintf(tmp, 64, " %17.9f", avg);
 	while (tmp[indent] == ' ')
 		indent++;
 
@@ -1421,8 +1405,7 @@ static void print_table(struct perf_stat_config *config,
 		double run = (double) config->walltime_run[idx] / NSEC_PER_SEC;
 		int h, n = 1 + abs((int) (100.0 * (run - avg)/run) / 5);
 
-		fprintf(output, " %17.*f (%+.*f) ",
-			precision, run, precision, run - avg);
+		fprintf(output, " %17.9f (%+.9f) ", run, run - avg);
 
 		for (h = 0; h < n; h++)
 			fprintf(output, "#");
@@ -1462,17 +1445,11 @@ static void print_footer(struct perf_stat_config *config)
 		}
 	} else {
 		double sd = stddev_stats(config->walltime_nsecs_stats) / NSEC_PER_SEC;
-		/*
-		 * Display at most 2 more significant
-		 * digits than the stddev inaccuracy.
-		 */
-		int precision = get_precision(sd) + 2;
 
 		if (config->walltime_run_table)
-			print_table(config, output, precision, avg);
+			print_table(config, output, avg);
 
-		fprintf(output, " %17.*f +- %.*f seconds time elapsed",
-			precision, avg, precision, sd);
+		fprintf(output, " %17.9f +- %.9f seconds time elapsed", avg, sd);
 
 		print_noise_pct(config, NULL, sd, avg, /*before_metric=*/false);
 	}

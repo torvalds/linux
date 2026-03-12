@@ -165,7 +165,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	struct fw_request *fw_req;
 	int ret, req_count;
 
-	fw_req = kzalloc(sizeof(*fw_req), GFP_KERNEL);
+	fw_req = kzalloc_obj(*fw_req);
 	if (!fw_req)
 		return ERR_PTR(-ENOMEM);
 
@@ -409,7 +409,7 @@ int gb_fw_download_connection_init(struct gb_connection *connection)
 	if (!connection)
 		return 0;
 
-	fw_download = kzalloc(sizeof(*fw_download), GFP_KERNEL);
+	fw_download = kzalloc_obj(*fw_download);
 	if (!fw_download)
 		return -ENOMEM;
 

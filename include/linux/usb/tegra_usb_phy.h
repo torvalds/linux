@@ -23,6 +23,11 @@ struct gpio_desc;
  * requires_extra_tuning_parameters: true if xcvr_hsslew, hssquelch_level
  *      and hsdiscon_level should be set for adequate signal quality
  * requires_pmc_ao_power_up: true if USB AO is powered down by default
+ * uhsic_registers_offset: for Tegra30+ where HSIC registers were offset
+ *      comparing to Tegra20 by 0x400, since Tegra20 has no UTMIP on PHY2
+ * uhsic_tx_rtune: fine tuned 50 Ohm termination resistor for NMOS/PMOS driver
+ * uhsic_pts_value: parallel transceiver select enumeration value
+ * portsc1_offset: register offset of PORTSC1
  */
 
 struct tegra_phy_soc_config {
@@ -31,6 +36,10 @@ struct tegra_phy_soc_config {
 	bool requires_usbmode_setup;
 	bool requires_extra_tuning_parameters;
 	bool requires_pmc_ao_power_up;
+	u32 uhsic_registers_offset;
+	u32 uhsic_tx_rtune;
+	u32 uhsic_pts_value;
+	u32 portsc1_offset;
 };
 
 struct tegra_utmip_config {
@@ -72,7 +81,7 @@ struct tegra_usb_phy {
 	struct usb_phy *ulpi;
 	struct usb_phy u_phy;
 	bool is_legacy_phy;
-	bool is_ulpi_phy;
+	enum usb_phy_interface phy_type;
 	struct gpio_desc *reset_gpio;
 	struct reset_control *pad_rst;
 	bool wakeup_enabled;

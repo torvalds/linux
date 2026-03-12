@@ -51,8 +51,10 @@
 //   - If AES-256, loads round keys into v1-v15 and continues onwards.
 //
 // Also sets vl=4 and vtype=e32,m1,ta,ma.  Clobbers t0 and t1.
-.macro	aes_begin	keyp, label128, label192
+.macro	aes_begin	keyp, label128, label192, key_len
+.ifb \key_len
 	lwu		t0, 480(\keyp)	// t0 = key length in bytes
+.endif
 	li		t1, 24		// t1 = key length for AES-192
 	vsetivli	zero, 4, e32, m1, ta, ma
 	vle32.v		v1, (\keyp)
@@ -76,12 +78,20 @@
 	vle32.v		v10, (\keyp)
 	addi		\keyp, \keyp, 16
 	vle32.v		v11, (\keyp)
+.ifb \key_len
 	blt		t0, t1, \label128	// If AES-128, goto label128.
+.else
+	blt		\key_len, t1, \label128	// If AES-128, goto label128.
+.endif
 	addi		\keyp, \keyp, 16
 	vle32.v		v12, (\keyp)
 	addi		\keyp, \keyp, 16
 	vle32.v		v13, (\keyp)
+.ifb \key_len
 	beq		t0, t1, \label192	// If AES-192, goto label192.
+.else
+	beq		\key_len, t1, \label192	// If AES-192, goto label192.
+.endif
 	// Else, it's AES-256.
 	addi		\keyp, \keyp, 16
 	vle32.v		v14, (\keyp)

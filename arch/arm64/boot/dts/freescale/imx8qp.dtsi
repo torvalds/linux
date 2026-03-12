@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR MIT)
+
+#include "imx8qm.dtsi"
+
+/delete-node/ &A72_1;
+
+&cluster1 {
+	/delete-node/ core1;
+};
+
+&gpu_3d0 {
+	assigned-clock-rates = <625000000>, <625000000>;
+};
+
+&thermal_zones {
+	cpu1-thermal {
+		cooling-maps {
+			map0 {
+				cooling-device =
+					<&A72_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+	};
+};

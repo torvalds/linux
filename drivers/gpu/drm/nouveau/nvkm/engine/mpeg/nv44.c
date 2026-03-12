@@ -65,7 +65,7 @@ nv44_mpeg_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 }
 
 static int
-nv44_mpeg_chan_fini(struct nvkm_object *object, bool suspend)
+nv44_mpeg_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 
 	struct nv44_mpeg_chan *chan = nv44_mpeg_chan(object);
@@ -107,7 +107,7 @@ nv44_mpeg_chan_new(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 	struct nv44_mpeg_chan *chan;
 	unsigned long flags;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nv44_mpeg_chan, oclass, &chan->object);
 	chan->mpeg = mpeg;
@@ -207,7 +207,7 @@ nv44_mpeg_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	struct nv44_mpeg *mpeg;
 
-	if (!(mpeg = kzalloc(sizeof(*mpeg), GFP_KERNEL)))
+	if (!(mpeg = kzalloc_obj(*mpeg)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&mpeg->chan);
 	*pmpeg = &mpeg->engine;

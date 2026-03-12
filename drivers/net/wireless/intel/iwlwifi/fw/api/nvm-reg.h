@@ -503,18 +503,26 @@ enum bios_source {
 };
 
 /**
- * struct bios_value_u32 - BIOS configuration.
+ * struct iwl_bios_config_hdr - BIOS configuration header
  * @table_source: see &enum bios_source
  * @table_revision: table revision.
  * @reserved: reserved
- * @value: value in bios.
  */
-struct bios_value_u32 {
+struct iwl_bios_config_hdr {
 	u8 table_source;
 	u8 table_revision;
 	u8 reserved[2];
+} __packed; /* BIOS_CONFIG_HDR_API_S_VER_1 */
+
+/**
+ * struct bios_value_u32 - BIOS configuration.
+ * @hdr: bios config header
+ * @value: value in bios.
+ */
+struct bios_value_u32 {
+	struct iwl_bios_config_hdr hdr;
 	__le32 value;
-} __packed; /* BIOS_TABLE_SOURCE_U32_S_VER_1 */
+} __packed; /* BIOS_CONFIG_DATA_U32_API_S_VER_1 */
 
 /**
  * struct iwl_tas_config_cmd - configures the TAS.
@@ -650,6 +658,10 @@ struct iwl_lari_config_change_cmd_v8 {
  *	bit0: enable 11be in China(CB/CN).
  *	bit1: enable 11be in South Korea.
  *	bit 2 - 31: reserved.
+ * @oem_11bn_allow_bitmap: Bitmap of 11bn allowed MCCs. The firmware expects to
+ *	get the data from the BIOS.
+ * @oem_unii9_enable: UNII-9 enablement as read from the BIOS
+ * @bios_hdr: bios config header
  */
 struct iwl_lari_config_change_cmd {
 	__le32 config_bitmap;
@@ -661,8 +673,16 @@ struct iwl_lari_config_change_cmd {
 	__le32 edt_bitmap;
 	__le32 oem_320mhz_allow_bitmap;
 	__le32 oem_11be_allow_bitmap;
+	/* since version 13 */
+	__le32 oem_11bn_allow_bitmap;
+	/* since version 13 */
+	__le32 oem_unii9_enable;
+	/* since version 13 */
+	struct iwl_bios_config_hdr bios_hdr;
 } __packed;
-/* LARI_CHANGE_CONF_CMD_S_VER_12 */
+/* LARI_CHANGE_CONF_CMD_S_VER_12
+ * LARI_CHANGE_CONF_CMD_S_VER_13
+ */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK			BIT(4)
@@ -682,11 +702,11 @@ struct iwl_pnvm_init_complete_ntfy {
 
 /**
  * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
- * @offset_map: mapping a mcc to UHB AP type support (UATS) allowed
+ * @mcc_to_ap_type_map: mapping an MCC to 6 GHz AP type support (UATS)
  * @reserved: reserved
  */
 struct iwl_mcc_allowed_ap_type_cmd {
-	u8 offset_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
+	u8 mcc_to_ap_type_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
 	__le16 reserved;
 } __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_1 */
 

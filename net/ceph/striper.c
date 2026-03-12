@@ -230,8 +230,8 @@ int ceph_extent_to_file(struct ceph_file_layout *l,
 
 	*num_file_extents = DIV_ROUND_UP_ULL(objoff + objlen, l->stripe_unit) -
 				     DIV_ROUND_DOWN_ULL(objoff, l->stripe_unit);
-	*file_extents = kmalloc_array(*num_file_extents, sizeof(**file_extents),
-				      GFP_NOIO);
+	*file_extents = kmalloc_objs(**file_extents, *num_file_extents,
+				     GFP_NOIO);
 	if (!*file_extents)
 		return -ENOMEM;
 

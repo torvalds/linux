@@ -31,6 +31,7 @@
 		compatible = "gpio-fan";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_fan>;
+		fan-supply = <&reg_vcc_5v_sw>;
 		gpio-fan,speed-map = <0     0
 				      13000 1>;
 		gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
@@ -116,6 +117,13 @@
 		regulator-name = "VCC_3V3_SW";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_vcc_1v8_exp_con: regulator-vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "VCC_1V8_EXP_CON";
 	};
 
 	thermal-zones {
@@ -225,6 +233,15 @@
 			type = <PCA9532_TYPE_LED>;
 		};
 	};
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	sda-gpios = <&gpio5 18 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	scl-gpios = <&gpio5 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 };
 
 &ldb_lvds_ch1 {
@@ -441,6 +458,20 @@
 		>;
 	};
 
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C3_SCL__I2C3_SCL		0x400001c2
+			MX8MP_IOMUXC_I2C3_SDA__I2C3_SDA		0x400001c2
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_I2C3_SCL__GPIO5_IO18	0x1e2
+			MX8MP_IOMUXC_I2C3_SDA__GPIO5_IO19	0x1e2
+		>;
+	};
+
 	pinctrl_lvds1: lvds1grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD2_WP__GPIO2_IO20		0x12
@@ -470,7 +501,7 @@
 
 	pinctrl_rtc: rtcgrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SAI1_TXD7__GPIO4_IO19	0x1C0
+			MX8MP_IOMUXC_SAI1_TXD7__GPIO4_IO19	0x1c0
 		>;
 	};
 

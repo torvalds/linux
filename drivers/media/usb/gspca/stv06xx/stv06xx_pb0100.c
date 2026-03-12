@@ -126,7 +126,7 @@ static int pb0100_init_controls(struct sd *sd)
 		.def = 1,
 	};
 
-	ctrls = kzalloc(sizeof(*ctrls), GFP_KERNEL);
+	ctrls = kzalloc_obj(*ctrls);
 	if (!ctrls)
 		return -ENOMEM;
 

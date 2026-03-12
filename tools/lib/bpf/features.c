@@ -506,6 +506,68 @@ static int probe_kern_arg_ctx_tag(int token_fd)
 	return probe_fd(prog_fd);
 }
 
+static int probe_ldimm64_full_range_off(int token_fd)
+{
+	char log_buf[1024];
+	int prog_fd, map_fd;
+	int ret;
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts,
+		.token_fd = token_fd,
+		.map_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
+	LIBBPF_OPTS(bpf_prog_load_opts, prog_opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+		.log_buf = log_buf,
+		.log_size = sizeof(log_buf),
+	);
+	struct bpf_insn insns[] = {
+		BPF_LD_MAP_VALUE(BPF_REG_1, 0, 1UL << 30),
+		BPF_EXIT_INSN(),
+	};
+	int insn_cnt = ARRAY_SIZE(insns);
+
+	map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr", sizeof(int), 1, 1, &map_opts);
+	if (map_fd < 0) {
+		ret = -errno;
+		pr_warn("Error in %s(): %s. Couldn't create simple array map.\n",
+			__func__, errstr(ret));
+		return ret;
+	}
+	insns[0].imm = map_fd;
+
+	log_buf[0] = '\0';
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "global_reloc", "GPL", insns, insn_cnt, &prog_opts);
+	ret = -errno;
+
+	close(map_fd);
+
+	if (prog_fd >= 0) {
+		pr_warn("Error in %s(): Program loading unexpectedly succeeded.\n", __func__);
+		close(prog_fd);
+		return -EINVAL;
+	}
+
+	/*
+	 * Feature is allowed if we're not failing with the error message
+	 * "direct value offset of %u is not allowed" removed in
+	 * 12a1fe6e12db ("bpf/verifier: Do not limit maximum direct offset into arena map").
+	 * We should instead fail with "invalid access to map value pointer".
+	 * Ensure we match with one of the two and we're not failing with a
+	 * different, unexpected message.
+	 */
+	if (strstr(log_buf, "direct value offset of"))
+		return 0;
+
+	if (!strstr(log_buf, "invalid access to map value pointer")) {
+		pr_warn("Error in %s(): Program unexpectedly failed with message: %s.\n",
+			__func__, log_buf);
+		return ret;
+	}
+
+	return 1;
+}
+
 typedef int (*feature_probe_fn)(int /* token_fd */);
 
 static struct kern_feature_cache feature_cache;
@@ -580,6 +642,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_BTF_QMARK_DATASEC] = {
 		"BTF DATASEC names starting from '?'", probe_kern_btf_qmark_datasec,
+	},
+	[FEAT_LDIMM64_FULL_RANGE_OFF] = {
+		"full range LDIMM64 support", probe_ldimm64_full_range_off,
 	},
 };
 

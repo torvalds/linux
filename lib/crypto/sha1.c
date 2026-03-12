@@ -49,7 +49,7 @@ static const struct sha1_block_state sha1_iv = {
 #endif
 
 /* This "rolls" over the 512-bit array */
-#define W(x) (array[(x)&15])
+#define W(x) (workspace[(x)&15])
 
 /*
  * Where do we get the source from? The first 16 iterations get it from
@@ -70,34 +70,20 @@ static const struct sha1_block_state sha1_iv = {
 #define T_40_59(t, A, B, C, D, E) SHA_ROUND(t, SHA_MIX, ((B&C)+(D&(B^C))) , 0x8f1bbcdc, A, B, C, D, E )
 #define T_60_79(t, A, B, C, D, E) SHA_ROUND(t, SHA_MIX, (B^C^D) ,  0xca62c1d6, A, B, C, D, E )
 
-/**
- * sha1_transform - single block SHA1 transform (deprecated)
- *
- * @digest: 160 bit digest to update
- * @data:   512 bits of data to hash
- * @array:  16 words of workspace (see note)
- *
- * This function executes SHA-1's internal compression function.  It updates the
- * 160-bit internal state (@digest) with a single 512-bit data block (@data).
- *
- * Don't use this function.  SHA-1 is no longer considered secure.  And even if
- * you do have to use SHA-1, this isn't the correct way to hash something with
- * SHA-1 as this doesn't handle padding and finalization.
- *
- * Note: If the hash is security sensitive, the caller should be sure
- * to clear the workspace. This is left to the caller to avoid
- * unnecessary clears between chained hashing operations.
- */
-void sha1_transform(__u32 *digest, const char *data, __u32 *array)
+#define SHA1_WORKSPACE_WORDS 16
+
+static void sha1_block_generic(struct sha1_block_state *state,
+			       const u8 data[SHA1_BLOCK_SIZE],
+			       u32 workspace[SHA1_WORKSPACE_WORDS])
 {
 	__u32 A, B, C, D, E;
 	unsigned int i = 0;
 
-	A = digest[0];
-	B = digest[1];
-	C = digest[2];
-	D = digest[3];
-	E = digest[4];
+	A = state->h[0];
+	B = state->h[1];
+	C = state->h[2];
+	D = state->h[3];
+	E = state->h[4];
 
 	/* Round 1 - iterations 0-16 take their input from 'data' */
 	for (; i < 16; ++i)
@@ -119,27 +105,12 @@ void sha1_transform(__u32 *digest, const char *data, __u32 *array)
 	for (; i < 80; ++i)
 		T_60_79(i, A, B, C, D, E);
 
-	digest[0] += A;
-	digest[1] += B;
-	digest[2] += C;
-	digest[3] += D;
-	digest[4] += E;
+	state->h[0] += A;
+	state->h[1] += B;
+	state->h[2] += C;
+	state->h[3] += D;
+	state->h[4] += E;
 }
-EXPORT_SYMBOL(sha1_transform);
-
-/**
- * sha1_init_raw - initialize the vectors for a SHA1 digest
- * @buf: vector to initialize
- */
-void sha1_init_raw(__u32 *buf)
-{
-	buf[0] = 0x67452301;
-	buf[1] = 0xefcdab89;
-	buf[2] = 0x98badcfe;
-	buf[3] = 0x10325476;
-	buf[4] = 0xc3d2e1f0;
-}
-EXPORT_SYMBOL(sha1_init_raw);
 
 static void __maybe_unused sha1_blocks_generic(struct sha1_block_state *state,
 					       const u8 *data, size_t nblocks)
@@ -147,7 +118,7 @@ static void __maybe_unused sha1_blocks_generic(struct sha1_block_state *state,
 	u32 workspace[SHA1_WORKSPACE_WORDS];
 
 	do {
-		sha1_transform(state->h, data, workspace);
+		sha1_block_generic(state, data, workspace);
 		data += SHA1_BLOCK_SIZE;
 	} while (--nblocks);
 

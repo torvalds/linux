@@ -479,7 +479,7 @@
 	/* Aquila SPI_2 CS */
 	pinctrl_main_spi0_cs0: main-spi0-cs0-default-pins {
 		pinctrl-single,pins = <
-			J784S4_IOPAD(0x0cc, PIN_OUTPUT, 0) /* (AM37) SPI0_CS0 */ /* AQUILA D16 */
+			J784S4_IOPAD(0x0cc, PIN_OUTPUT, 7) /* (AM37) SPI0_CS0.GPIO0_51 */ /* AQUILA D16 */
 		>;
 	};
 
@@ -495,7 +495,7 @@
 	/* Aquila SPI_1 CS */
 	pinctrl_main_spi2_cs0: main-spi2-cs0-default-pins {
 		pinctrl-single,pins = <
-			J784S4_IOPAD(0x09c, PIN_OUTPUT, 10) /* (AF35) MCASP0_AXR11.SPI2_CS1 */ /* AQUILA D9 */
+			J784S4_IOPAD(0x09c, PIN_OUTPUT, 7) /* (AF35) MCASP0_AXR11.GPIO0_39 */ /* AQUILA D9 */
 		>;
 	};
 
@@ -1204,6 +1204,7 @@
 &main_spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_main_spi0>, <&pinctrl_main_spi0_cs0>;
+	cs-gpios = <&main_gpio0 51 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 
@@ -1211,6 +1212,7 @@
 &main_spi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_main_spi2>, <&pinctrl_main_spi2_cs0>;
+	cs-gpios = <&main_gpio0 39 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 

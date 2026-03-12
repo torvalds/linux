@@ -207,7 +207,7 @@ struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	struct tda665x_state *state = NULL;
 	struct dvb_tuner_info *info;
 
-	state = kzalloc(sizeof(struct tda665x_state), GFP_KERNEL);
+	state = kzalloc_obj(struct tda665x_state);
 	if (!state)
 		return NULL;
 

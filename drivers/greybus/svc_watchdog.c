@@ -112,7 +112,7 @@ int gb_svc_watchdog_create(struct gb_svc *svc)
 	if (svc->watchdog)
 		return 0;
 
-	watchdog = kmalloc(sizeof(*watchdog), GFP_KERNEL);
+	watchdog = kmalloc_obj(*watchdog);
 	if (!watchdog)
 		return -ENOMEM;
 

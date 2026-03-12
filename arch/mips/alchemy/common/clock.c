@@ -154,7 +154,7 @@ static struct clk __init *alchemy_clk_setup_cpu(const char *parent_name,
 	struct clk_hw *h;
 	struct clk *clk;
 
-	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
@@ -249,7 +249,7 @@ static struct clk __init *alchemy_clk_setup_aux(const char *parent_name,
 	struct clk *c;
 	struct alchemy_auxpll_clk *a;
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a)
 		return ERR_PTR(-ENOMEM);
 
@@ -775,7 +775,7 @@ static int __init alchemy_clk_init_fgens(int ctype)
 	}
 	id.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE;
 
-	a = kcalloc(6, sizeof(*a), GFP_KERNEL);
+	a = kzalloc_objs(*a, 6);
 	if (!a)
 		return -ENOMEM;
 
@@ -996,7 +996,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
 		return -ENODEV;
 	}
 
-	a = kcalloc(6, sizeof(*a), GFP_KERNEL);
+	a = kzalloc_objs(*a, 6);
 	if (!a)
 		return -ENOMEM;
 

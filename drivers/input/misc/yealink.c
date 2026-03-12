@@ -831,7 +831,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
-	yld = kzalloc(sizeof(*yld), GFP_KERNEL);
+	yld = kzalloc_obj(*yld);
 	if (!yld)
 		return -ENOMEM;
 
@@ -854,7 +854,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
-	yld->ctl_req = kmalloc(sizeof(*(yld->ctl_req)), GFP_KERNEL);
+	yld->ctl_req = kmalloc_obj(*(yld->ctl_req));
 	if (yld->ctl_req == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 

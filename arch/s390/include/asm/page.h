@@ -65,7 +65,6 @@ static inline void copy_page(void *to, void *from)
 		: : "memory", "cc");
 }
 
-#define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
 #define vma_alloc_zeroed_movable_folio(vma, vaddr) \
@@ -78,7 +77,6 @@ static inline void copy_page(void *to, void *from)
 #ifdef STRICT_MM_TYPECHECKS
 
 typedef struct { unsigned long pgprot; } pgprot_t;
-typedef struct { unsigned long pgste; } pgste_t;
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pmd; } pmd_t;
 typedef struct { unsigned long pud; } pud_t;
@@ -94,7 +92,6 @@ static __always_inline unsigned long name ## _val(name ## _t name)	\
 #else /* STRICT_MM_TYPECHECKS */
 
 typedef unsigned long pgprot_t;
-typedef unsigned long pgste_t;
 typedef unsigned long pte_t;
 typedef unsigned long pmd_t;
 typedef unsigned long pud_t;
@@ -110,7 +107,6 @@ static __always_inline unsigned long name ## _val(name ## _t name)	\
 #endif /* STRICT_MM_TYPECHECKS */
 
 DEFINE_PGVAL_FUNC(pgprot)
-DEFINE_PGVAL_FUNC(pgste)
 DEFINE_PGVAL_FUNC(pte)
 DEFINE_PGVAL_FUNC(pmd)
 DEFINE_PGVAL_FUNC(pud)
@@ -120,7 +116,6 @@ DEFINE_PGVAL_FUNC(pgd)
 typedef pte_t *pgtable_t;
 
 #define __pgprot(x)	((pgprot_t) { (x) } )
-#define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pud(x)	((pud_t) { (x) } )

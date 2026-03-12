@@ -26,7 +26,7 @@ static void once_disable_jump(struct static_key_true *key, struct module *mod)
 {
 	struct once_work *w;
 
-	w = kmalloc(sizeof(*w), GFP_ATOMIC);
+	w = kmalloc_obj(*w, GFP_ATOMIC);
 	if (!w)
 		return;
 
@@ -93,6 +93,6 @@ void __do_once_sleepable_done(bool *done, struct static_key_true *once_key,
 {
 	*done = true;
 	mutex_unlock(&once_mutex);
-	once_disable_jump(once_key, mod);
+	static_branch_disable(once_key);
 }
 EXPORT_SYMBOL(__do_once_sleepable_done);

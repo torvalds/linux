@@ -494,12 +494,12 @@ static int rvu_nix_register_reporters(struct rvu_devlink *rvu_dl)
 	struct rvu_nix_event_ctx *nix_event_context;
 	struct rvu *rvu = rvu_dl->rvu;
 
-	rvu_reporters = kzalloc(sizeof(*rvu_reporters), GFP_KERNEL);
+	rvu_reporters = kzalloc_obj(*rvu_reporters);
 	if (!rvu_reporters)
 		return -ENOMEM;
 
 	rvu_dl->rvu_nix_health_reporter = rvu_reporters;
-	nix_event_context = kzalloc(sizeof(*nix_event_context), GFP_KERNEL);
+	nix_event_context = kzalloc_obj(*nix_event_context);
 	if (!nix_event_context)
 		return -ENOMEM;
 
@@ -1048,12 +1048,12 @@ static int rvu_npa_register_reporters(struct rvu_devlink *rvu_dl)
 	struct rvu_npa_event_ctx *npa_event_context;
 	struct rvu *rvu = rvu_dl->rvu;
 
-	rvu_reporters = kzalloc(sizeof(*rvu_reporters), GFP_KERNEL);
+	rvu_reporters = kzalloc_obj(*rvu_reporters);
 	if (!rvu_reporters)
 		return -ENOMEM;
 
 	rvu_dl->rvu_npa_health_reporter = rvu_reporters;
-	npa_event_context = kzalloc(sizeof(*npa_event_context), GFP_KERNEL);
+	npa_event_context = kzalloc_obj(*npa_event_context);
 	if (!npa_event_context)
 		return -ENOMEM;
 

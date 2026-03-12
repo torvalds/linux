@@ -80,7 +80,7 @@ pids_css_alloc(struct cgroup_subsys_state *parent)
 {
 	struct pids_cgroup *pids;
 
-	pids = kzalloc(sizeof(struct pids_cgroup), GFP_KERNEL);
+	pids = kzalloc_obj(struct pids_cgroup);
 	if (!pids)
 		return ERR_PTR(-ENOMEM);
 

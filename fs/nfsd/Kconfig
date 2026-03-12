@@ -186,3 +186,22 @@ config NFSD_V4_DELEG_TIMESTAMPS
 	  draft-ietf-nfsv4-delstid-08 "Extending the Opening of Files". This
 	  is currently an experimental feature and is therefore left disabled
 	  by default.
+
+config NFSD_V4_POSIX_ACLS
+	bool "Support NFSv4 POSIX draft ACLs"
+	depends on NFSD_V4
+	default n
+	help
+	  Include experimental support for POSIX Access Control Lists
+	  (ACLs) in NFSv4 as specified in the IETF draft
+	  draft-ietf-nfsv4-posix-acls. This protocol extension enables
+	  NFSv4 clients to retrieve and modify POSIX ACLs on exported
+	  filesystems that support them.
+
+	  This feature is based on an unratified IETF draft
+	  specification that may change in ways that impact
+	  interoperability with existing clients. Enable only for
+	  testing environments or when interoperability with specific
+	  clients that implement this draft is required.
+
+	  If unsure, say N.

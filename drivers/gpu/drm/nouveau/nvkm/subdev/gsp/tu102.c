@@ -30,6 +30,18 @@
 #include <nvfw/fw.h>
 #include <nvfw/hs.h>
 
+int
+tu102_gsp_fwsec_sb_ctor(struct nvkm_gsp *gsp)
+{
+	return nvkm_gsp_fwsec_sb_init(gsp);
+}
+
+void
+tu102_gsp_fwsec_sb_dtor(struct nvkm_gsp *gsp)
+{
+	nvkm_falcon_fw_dtor(&gsp->fws.falcon.sb);
+}
+
 static int
 tu102_gsp_booter_unload(struct nvkm_gsp *gsp, u32 mbox0, u32 mbox1)
 {
@@ -149,7 +161,7 @@ tu102_gsp_reset(struct nvkm_gsp *gsp)
 }
 
 int
-tu102_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
+tu102_gsp_fini(struct nvkm_gsp *gsp, enum nvkm_suspend_state suspend)
 {
 	u32 mbox0 = 0xff, mbox1 = 0xff;
 	int ret;
@@ -306,8 +318,13 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	/* Calculate FB layout. */
-	gsp->fb.wpr2.frts.size = 0x100000;
+	/*
+	 * Calculate FB layout. FRTS is a memory region created by the FWSEC-FRTS firmware.
+	 * FWSEC comes from VBIOS.  So on systems with no VBIOS (e.g. GA100), the FRTS does
+	 * not exist.  Therefore, use the existence of VBIOS to determine whether to reserve
+	 * an FRTS region.
+	 */
+	gsp->fb.wpr2.frts.size = device->bios ? 0x100000 : 0;
 	gsp->fb.wpr2.frts.addr = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000) - gsp->fb.wpr2.frts.size;
 
 	gsp->fb.wpr2.boot.size = gsp->boot.fw.size;
@@ -331,9 +348,12 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
-	ret = nvkm_gsp_fwsec_frts(gsp);
-	if (WARN_ON(ret))
-		return ret;
+	/* Only boot FWSEC-FRTS if it actually exists */
+	if (gsp->fb.wpr2.frts.size) {
+		ret = nvkm_gsp_fwsec_frts(gsp);
+		if (WARN_ON(ret))
+			return ret;
+	}
 
 	/* Reset GSP into RISC-V mode. */
 	ret = gsp->func->reset(gsp);
@@ -369,6 +389,9 @@ tu102_gsp = {
 	.sig_section = ".fwsignature_tu10x",
 
 	.booter.ctor = tu102_gsp_booter_ctor,
+
+	.fwsec_sb.ctor = tu102_gsp_fwsec_sb_ctor,
+	.fwsec_sb.dtor = tu102_gsp_fwsec_sb_dtor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,

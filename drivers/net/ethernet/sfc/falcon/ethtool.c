@@ -493,7 +493,7 @@ static void ef4_ethtool_self_test(struct net_device *net_dev,
 	bool already_up;
 	int rc = -ENOMEM;
 
-	ef4_tests = kzalloc(sizeof(*ef4_tests), GFP_KERNEL);
+	ef4_tests = kzalloc_obj(*ef4_tests);
 	if (!ef4_tests)
 		goto fail;
 
@@ -974,6 +974,13 @@ ef4_ethtool_get_rxfh_fields(struct net_device *net_dev,
 	return 0;
 }
 
+static u32 ef4_ethtool_get_rx_ring_count(struct net_device *net_dev)
+{
+	struct ef4_nic *efx = netdev_priv(net_dev);
+
+	return efx->n_rx_channels;
+}
+
 static int
 ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 		      struct ethtool_rxnfc *info, u32 *rule_locs)
@@ -981,10 +988,6 @@ ef4_ethtool_get_rxnfc(struct net_device *net_dev,
 	struct ef4_nic *efx = netdev_priv(net_dev);
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = efx->n_rx_channels;
-		return 0;
-
 	case ETHTOOL_GRXCLSRLCNT:
 		info->data = ef4_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
@@ -1348,6 +1351,7 @@ const struct ethtool_ops ef4_ethtool_ops = {
 	.reset			= ef4_ethtool_reset,
 	.get_rxnfc		= ef4_ethtool_get_rxnfc,
 	.set_rxnfc		= ef4_ethtool_set_rxnfc,
+	.get_rx_ring_count	= ef4_ethtool_get_rx_ring_count,
 	.get_rxfh_indir_size	= ef4_ethtool_get_rxfh_indir_size,
 	.get_rxfh		= ef4_ethtool_get_rxfh,
 	.set_rxfh		= ef4_ethtool_set_rxfh,

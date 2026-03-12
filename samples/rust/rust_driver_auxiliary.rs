@@ -5,21 +5,22 @@
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
 use kernel::{
-    auxiliary, c_str,
-    device::{Bound, Core},
+    auxiliary,
+    device::{
+        Bound,
+        Core, //
+    },
     devres::Devres,
     driver,
-    error::Error,
     pci,
     prelude::*,
-    InPlaceModule,
+    InPlaceModule, //
 };
 
 use core::any::TypeId;
-use pin_init::PinInit;
 
 const MODULE_NAME: &CStr = <LocalModule as kernel::ModuleMetadata>::NAME;
-const AUXILIARY_NAME: &CStr = c_str!("auxiliary");
+const AUXILIARY_NAME: &CStr = c"auxiliary";
 
 struct AuxiliaryDriver;
 
@@ -37,7 +38,7 @@ impl auxiliary::Driver for AuxiliaryDriver {
 
     fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         dev_info!(
-            adev.as_ref(),
+            adev,
             "Probing auxiliary driver for auxiliary device with id={}\n",
             adev.id()
         );

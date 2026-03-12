@@ -104,6 +104,7 @@
 #include <linux/io.h>
 #include <linux/kexec_handover.h>
 #include <linux/kho/abi/luo.h>
+#include <linux/list_private.h>
 #include <linux/liveupdate.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
@@ -133,9 +134,12 @@ static LIST_HEAD(luo_file_handler_list);
  *                 state that is not preserved. Set by the handler's .preserve()
  *                 callback, and must be freed in the handler's .unpreserve()
  *                 callback.
- * @retrieved:     A flag indicating whether a user/kernel in the new kernel has
+ * @retrieve_status: Status code indicating whether a user/kernel in the new kernel has
  *                 successfully called retrieve() on this file. This prevents
- *                 multiple retrieval attempts.
+ *                 multiple retrieval attempts. A value of 0 means a retrieve()
+ *                 has not been attempted, a positive value means the retrieve()
+ *                 was successful, and a negative value means the retrieve()
+ *                 failed, and the value is the error code of the call.
  * @mutex:         A mutex that protects the fields of this specific instance
  *                 (e.g., @retrieved, @file), ensuring that operations like
  *                 retrieving or finishing a file are atomic.
@@ -160,7 +164,7 @@ struct luo_file {
 	struct file *file;
 	u64 serialized_data;
 	void *private_data;
-	bool retrieved;
+	int retrieve_status;
 	struct mutex mutex;
 	struct list_head list;
 	u64 token;
@@ -273,7 +277,7 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 		goto  err_fput;
 
 	err = -ENOENT;
-	luo_list_for_each_private(fh, &luo_file_handler_list, list) {
+	list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 		if (fh->ops->can_preserve(fh, file)) {
 			err = 0;
 			break;
@@ -284,16 +288,19 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 	if (err)
 		goto err_free_files_mem;
 
-	luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+	err = luo_flb_file_preserve(fh);
+	if (err)
+		goto err_free_files_mem;
+
+	luo_file = kzalloc_obj(*luo_file);
 	if (!luo_file) {
 		err = -ENOMEM;
-		goto err_free_files_mem;
+		goto err_flb_unpreserve;
 	}
 
 	luo_file->file = file;
 	luo_file->fh = fh;
 	luo_file->token = token;
-	luo_file->retrieved = false;
 	mutex_init(&luo_file->mutex);
 
 	args.handler = fh;
@@ -311,6 +318,8 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 
 err_kfree:
 	kfree(luo_file);
+err_flb_unpreserve:
+	luo_flb_file_unpreserve(fh);
 err_free_files_mem:
 	luo_free_files_mem(file_set);
 err_fput:
@@ -352,6 +361,7 @@ void luo_file_unpreserve_files(struct luo_file_set *file_set)
 		args.serialized_data = luo_file->serialized_data;
 		args.private_data = luo_file->private_data;
 		luo_file->fh->ops->unpreserve(&args);
+		luo_flb_file_unpreserve(luo_file->fh);
 
 		list_del(&luo_file->list);
 		file_set->count--;
@@ -402,8 +412,6 @@ static void luo_file_unfreeze_one(struct luo_file_set *file_set,
 
 		luo_file->fh->ops->unfreeze(&args);
 	}
-
-	luo_file->serialized_data = 0;
 }
 
 static void __luo_file_unfreeze(struct luo_file_set *file_set,
@@ -571,7 +579,12 @@ int luo_retrieve_file(struct luo_file_set *file_set, u64 token,
 		return -ENOENT;
 
 	guard(mutex)(&luo_file->mutex);
-	if (luo_file->retrieved) {
+	if (luo_file->retrieve_status < 0) {
+		/* Retrieve was attempted and it failed. Return the error code. */
+		return luo_file->retrieve_status;
+	}
+
+	if (luo_file->retrieve_status > 0) {
 		/*
 		 * Someone is asking for this file again, so get a reference
 		 * for them.
@@ -584,16 +597,19 @@ int luo_retrieve_file(struct luo_file_set *file_set, u64 token,
 	args.handler = luo_file->fh;
 	args.serialized_data = luo_file->serialized_data;
 	err = luo_file->fh->ops->retrieve(&args);
-	if (!err) {
-		luo_file->file = args.file;
-
-		/* Get reference so we can keep this file in LUO until finish */
-		get_file(luo_file->file);
-		*filep = luo_file->file;
-		luo_file->retrieved = true;
+	if (err) {
+		/* Keep the error code for later use. */
+		luo_file->retrieve_status = err;
+		return err;
 	}
 
-	return err;
+	luo_file->file = args.file;
+	/* Get reference so we can keep this file in LUO until finish */
+	get_file(luo_file->file);
+	*filep = luo_file->file;
+	luo_file->retrieve_status = 1;
+
+	return 0;
 }
 
 static int luo_file_can_finish_one(struct luo_file_set *file_set,
@@ -609,7 +625,7 @@ static int luo_file_can_finish_one(struct luo_file_set *file_set,
 		args.handler = luo_file->fh;
 		args.file = luo_file->file;
 		args.serialized_data = luo_file->serialized_data;
-		args.retrieved = luo_file->retrieved;
+		args.retrieve_status = luo_file->retrieve_status;
 		can_finish = luo_file->fh->ops->can_finish(&args);
 	}
 
@@ -626,9 +642,10 @@ static void luo_file_finish_one(struct luo_file_set *file_set,
 	args.handler = luo_file->fh;
 	args.file = luo_file->file;
 	args.serialized_data = luo_file->serialized_data;
-	args.retrieved = luo_file->retrieved;
+	args.retrieve_status = luo_file->retrieve_status;
 
 	luo_file->fh->ops->finish(&args);
+	luo_flb_file_finish(luo_file->fh);
 }
 
 /**
@@ -760,7 +777,7 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 		bool handler_found = false;
 		struct luo_file *luo_file;
 
-		luo_list_for_each_private(fh, &luo_file_handler_list, list) {
+		list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 			if (!strcmp(fh->compatible, file_ser[i].compatible)) {
 				handler_found = true;
 				break;
@@ -773,7 +790,7 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 			return -ENOENT;
 		}
 
-		luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+		luo_file = kzalloc_obj(*luo_file);
 		if (!luo_file)
 			return -ENOMEM;
 
@@ -781,7 +798,6 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 		luo_file->file = NULL;
 		luo_file->serialized_data = file_ser[i].data;
 		luo_file->token = file_ser[i].token;
-		luo_file->retrieved = false;
 		mutex_init(&luo_file->mutex);
 		list_add_tail(&luo_file->list, &file_set->files_list);
 	}
@@ -835,7 +851,7 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		return -EBUSY;
 
 	/* Check for duplicate compatible strings */
-	luo_list_for_each_private(fh_iter, &luo_file_handler_list, list) {
+	list_private_for_each_entry(fh_iter, &luo_file_handler_list, list) {
 		if (!strcmp(fh_iter->compatible, fh->compatible)) {
 			pr_err("File handler registration failed: Compatible string '%s' already registered.\n",
 			       fh->compatible);
@@ -850,9 +866,12 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		goto err_resume;
 	}
 
+	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, flb_list));
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, list));
 	list_add_tail(&ACCESS_PRIVATE(fh, list), &luo_file_handler_list);
 	luo_session_resume();
+
+	liveupdate_test_register(fh);
 
 	return 0;
 
@@ -870,23 +889,38 @@ err_resume:
  *
  * It ensures safe removal by checking that:
  * No live update session is currently in progress.
+ * No FLB registered with this file handler.
  *
  * If the unregistration fails, the internal test state is reverted.
  *
  * Return: 0 Success. -EOPNOTSUPP when live update is not enabled. -EBUSY A live
- * update is in progress, can't quiesce live update.
+ * update is in progress, can't quiesce live update or FLB is registred with
+ * this file handler.
  */
 int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 {
+	int err = -EBUSY;
+
 	if (!liveupdate_enabled())
 		return -EOPNOTSUPP;
 
+	liveupdate_test_unregister(fh);
+
 	if (!luo_session_quiesce())
-		return -EBUSY;
+		goto err_register;
+
+	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
+		goto err_resume;
 
 	list_del(&ACCESS_PRIVATE(fh, list));
 	module_put(fh->ops->owner);
 	luo_session_resume();
 
 	return 0;
+
+err_resume:
+	luo_session_resume();
+err_register:
+	liveupdate_test_register(fh);
+	return err;
 }

@@ -1204,7 +1204,7 @@ live_gpu_reset_workarounds(void *arg)
 	if (!intel_has_gpu_reset(gt))
 		return 0;
 
-	lists = kzalloc(sizeof(*lists), GFP_KERNEL);
+	lists = kzalloc_obj(*lists);
 	if (!lists)
 		return -ENOMEM;
 
@@ -1248,7 +1248,7 @@ live_engine_reset_workarounds(void *arg)
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	lists = kzalloc(sizeof(*lists), GFP_KERNEL);
+	lists = kzalloc_obj(*lists);
 	if (!lists)
 		return -ENOMEM;
 

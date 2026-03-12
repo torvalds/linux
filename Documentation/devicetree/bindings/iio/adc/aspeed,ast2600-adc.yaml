@@ -44,6 +44,9 @@ properties:
       Input clock used to derive the sample clock. Expected to be the
       SoC's APB clock.
 
+  interrupts:
+    maxItems: 1
+
   resets:
     maxItems: 1
 

@@ -382,7 +382,7 @@ panthor_submit_ctx_add_sync_signal(struct panthor_submit_ctx *ctx, u32 handle, u
 	struct dma_fence *cur_fence;
 	int ret;
 
-	sig_sync = kzalloc(sizeof(*sig_sync), GFP_KERNEL);
+	sig_sync = kzalloc_obj(*sig_sync);
 	if (!sig_sync)
 		return -ENOMEM;
 
@@ -723,8 +723,8 @@ panthor_submit_ctx_push_jobs(struct panthor_submit_ctx *ctx,
 static int panthor_submit_ctx_init(struct panthor_submit_ctx *ctx,
 				   struct drm_file *file, u32 job_count)
 {
-	ctx->jobs = kvmalloc_array(job_count, sizeof(*ctx->jobs),
-				   GFP_KERNEL | __GFP_ZERO);
+	ctx->jobs = kvmalloc_objs(*ctx->jobs, job_count,
+				  GFP_KERNEL | __GFP_ZERO);
 	if (!ctx->jobs)
 		return -ENOMEM;
 
@@ -1471,7 +1471,7 @@ panthor_open(struct drm_device *ddev, struct drm_file *file)
 	struct panthor_file *pfile;
 	int ret;
 
-	pfile = kzalloc(sizeof(*pfile), GFP_KERNEL);
+	pfile = kzalloc_obj(*pfile);
 	if (!pfile)
 		return -ENOMEM;
 

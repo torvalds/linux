@@ -39,8 +39,7 @@ int idpf_ptp_get_caps(struct idpf_adapter *adapter)
 	u32 temp_offset;
 	int reply_sz;
 
-	recv_ptp_caps_msg = kzalloc(sizeof(struct virtchnl2_ptp_get_caps),
-				    GFP_KERNEL);
+	recv_ptp_caps_msg = kzalloc_obj(struct virtchnl2_ptp_get_caps);
 	if (!recv_ptp_caps_msg)
 		return -ENOMEM;
 
@@ -395,7 +394,7 @@ int idpf_ptp_get_vport_tstamps_caps(struct idpf_vport *vport)
 	for (u16 i = 0; i < tstamp_caps->num_entries; i++) {
 		__le32 offset_l, offset_h;
 
-		ptp_tx_tstamp = kzalloc(sizeof(*ptp_tx_tstamp), GFP_KERNEL);
+		ptp_tx_tstamp = kzalloc_obj(*ptp_tx_tstamp);
 		if (!ptp_tx_tstamp) {
 			err = -ENOMEM;
 			goto err_free_ptp_tx_stamp_list;

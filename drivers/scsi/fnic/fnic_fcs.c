@@ -376,7 +376,7 @@ static inline int fnic_import_rq_eth_pkt(struct fnic *fnic, void *fp)
 	eh = (struct ethhdr *) fp;
 	if ((eh->h_proto == cpu_to_be16(ETH_P_FIP)) && (fnic->iport.usefip)) {
 		fip_fr_elem = (struct fnic_frame_list *)
-			kzalloc(sizeof(struct fnic_frame_list), GFP_ATOMIC);
+			kzalloc_obj(struct fnic_frame_list, GFP_ATOMIC);
 		if (!fip_fr_elem)
 			return 0;
 		fip_fr_elem->fp = fp;

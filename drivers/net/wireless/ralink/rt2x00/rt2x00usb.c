@@ -196,7 +196,7 @@ void rt2x00usb_register_read_async(struct rt2x00_dev *rt2x00dev,
 	struct urb *urb;
 	struct rt2x00_async_read_data *rd;
 
-	rd = kmalloc(sizeof(*rd), GFP_ATOMIC);
+	rd = kmalloc_obj(*rd, GFP_ATOMIC);
 	if (!rd)
 		return;
 

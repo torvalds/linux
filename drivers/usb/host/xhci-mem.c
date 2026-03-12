@@ -977,7 +977,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		return 0;
 	}
 
-	dev = kzalloc(sizeof(*dev), flags);
+	dev = kzalloc_obj(*dev, flags);
 	if (!dev)
 		return 0;
 

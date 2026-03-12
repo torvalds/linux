@@ -75,7 +75,7 @@ static int snd_mts64_create(struct snd_card *card,
 
 	*rchip = NULL;
 
-	mts = kzalloc(sizeof(struct mts64), GFP_KERNEL);
+	mts = kzalloc_obj(struct mts64);
 	if (mts == NULL) 
 		return -ENOMEM;
 

@@ -355,7 +355,7 @@ int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb)
 	}
 	huff_tab = ctx->params.jpeg_huff_tab;
 	if (!huff_tab) {
-		huff_tab = kzalloc(sizeof(struct coda_huff_tab), GFP_KERNEL);
+		huff_tab = kzalloc_obj(struct coda_huff_tab);
 		if (!huff_tab)
 			return -ENOMEM;
 		ctx->params.jpeg_huff_tab = huff_tab;
@@ -593,7 +593,7 @@ static int coda9_jpeg_gen_enc_huff_tab(struct coda_ctx *ctx, int tab_num,
 	};
 	int ret = -EINVAL;
 
-	huff = kzalloc(sizeof(*huff), GFP_KERNEL);
+	huff = kzalloc_obj(*huff);
 	if (!huff)
 		return -ENOMEM;
 
@@ -723,7 +723,7 @@ static int coda9_jpeg_load_huff_tab(struct coda_ctx *ctx)
 	int i, j;
 	int ret;
 
-	huff = kzalloc(sizeof(*huff), GFP_KERNEL);
+	huff = kzalloc_obj(*huff);
 	if (!huff)
 		return -ENOMEM;
 

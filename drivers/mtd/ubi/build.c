@@ -930,7 +930,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		}
 	}
 
-	ubi = kzalloc(sizeof(struct ubi_device), GFP_KERNEL);
+	ubi = kzalloc_obj(struct ubi_device);
 	if (!ubi)
 		return -ENOMEM;
 

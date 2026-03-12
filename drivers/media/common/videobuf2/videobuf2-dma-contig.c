@@ -238,7 +238,7 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -325,7 +325,7 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
 	struct vb2_dc_buf *buf = dbuf->priv;
 	int ret;
 
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	attach = kzalloc_obj(*attach);
 	if (!attach)
 		return -ENOMEM;
 
@@ -479,7 +479,7 @@ static struct sg_table *vb2_dc_get_base_sgt(struct vb2_dc_buf *buf)
 	if (buf->non_coherent_mem)
 		return buf->dma_sgt;
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		dev_err(buf->dev, "failed to alloc sg table\n");
 		return NULL;
@@ -587,7 +587,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -624,7 +624,7 @@ static void *vb2_dc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 		goto out;
 	}
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt) {
 		pr_err("failed to allocate sg table\n");
 		ret = -ENOMEM;
@@ -779,7 +779,7 @@ static void *vb2_dc_attach_dmabuf(struct vb2_buffer *vb, struct device *dev,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 

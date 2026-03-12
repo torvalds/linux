@@ -252,9 +252,7 @@ static int bmp_buf_get(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	bbuf->bh = bh;
 
-	if (buffer_locked(bh))
-		__wait_on_buffer(bh);
-
+	wait_on_buffer(bh);
 	lock_buffer(bh);
 
 	sb = sbi->sb;
@@ -942,7 +940,7 @@ static struct indx_node *indx_new(struct ntfs_index *indx,
 	u16 fn;
 	u32 eo;
 
-	r = kzalloc(sizeof(struct indx_node), GFP_NOFS);
+	r = kzalloc_obj(struct indx_node, GFP_NOFS);
 	if (!r)
 		return ERR_PTR(-ENOMEM);
 
@@ -1028,17 +1026,18 @@ static int indx_write(struct ntfs_index *indx, struct ntfs_inode *ni,
 }
 
 /*
- * indx_read
+ * indx_read_ra
  *
  * If ntfs_readdir calls this function
  * inode is shared locked and no ni_lock.
  * Use rw_semaphore for read/write access to alloc_run.
  */
-int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
-	      struct indx_node **node)
+int indx_read_ra(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
+		 struct indx_node **node, struct file_ra_state *ra)
 {
 	int err;
 	struct INDEX_BUFFER *ib;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct runs_tree *run = &indx->alloc_run;
 	struct rw_semaphore *lock = &indx->run_lock;
 	u64 vbo = (u64)vbn << indx->vbn2vbo_bits;
@@ -1047,7 +1046,7 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 	const struct INDEX_NAMES *name;
 
 	if (!in) {
-		in = kzalloc(sizeof(struct indx_node), GFP_NOFS);
+		in = kzalloc_obj(struct indx_node, GFP_NOFS);
 		if (!in)
 			return -ENOMEM;
 	} else {
@@ -1064,7 +1063,7 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 	}
 
 	down_read(lock);
-	err = ntfs_read_bh(ni->mi.sbi, run, vbo, &ib->rhdr, bytes, &in->nb);
+	err = ntfs_read_bh_ra(sbi, run, vbo, &ib->rhdr, bytes, &in->nb, ra);
 	up_read(lock);
 	if (!err)
 		goto ok;
@@ -1084,7 +1083,7 @@ int indx_read(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 		goto out;
 
 	down_read(lock);
-	err = ntfs_read_bh(ni->mi.sbi, run, vbo, &ib->rhdr, bytes, &in->nb);
+	err = ntfs_read_bh_ra(sbi, run, vbo, &ib->rhdr, bytes, &in->nb, ra);
 	up_read(lock);
 	if (err == -E_NTFS_FIXUP)
 		goto ok;
@@ -1100,7 +1099,7 @@ ok:
 	}
 
 	if (err == -E_NTFS_FIXUP) {
-		ntfs_write_bh(ni->mi.sbi, &ib->rhdr, &in->nb, 0);
+		ntfs_write_bh(sbi, &ib->rhdr, &in->nb, 0);
 		err = 0;
 	}
 
@@ -1190,7 +1189,12 @@ int indx_find(struct ntfs_index *indx, struct ntfs_inode *ni,
 			return -EINVAL;
 		}
 
-		fnd_push(fnd, node, e);
+		err = fnd_push(fnd, node, e);
+
+		if (err) {
+			put_indx_node(node);
+			return err;
+		}
 	}
 
 	*entry = e;
@@ -1442,8 +1446,8 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	run_init(&run);
 
-	err = attr_allocate_clusters(sbi, &run, 0, 0, len, NULL, ALLOCATE_DEF,
-				     &alen, 0, NULL, NULL);
+	err = attr_allocate_clusters(sbi, &run, NULL, 0, 0, len, NULL,
+				     ALLOCATE_DEF, &alen, 0, NULL, NULL);
 	if (err)
 		goto out;
 
@@ -1527,8 +1531,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 		/* Increase bitmap. */
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
 				    &indx->bitmap_run,
-				    ntfs3_bitmap_size(bit + 1), NULL, true,
-				    NULL);
+				    ntfs3_bitmap_size(bit + 1), NULL, true);
 		if (err)
 			goto out1;
 	}
@@ -1549,8 +1552,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/* Increase allocation. */
 	err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-			    &indx->alloc_run, data_size, &data_size, true,
-			    NULL);
+			    &indx->alloc_run, data_size, &data_size, true);
 	if (err) {
 		if (bmp)
 			goto out2;
@@ -1568,7 +1570,7 @@ out:
 out2:
 	/* Ops. No space? */
 	attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-		      &indx->bitmap_run, bmp_size, &bmp_size_v, false, NULL);
+		      &indx->bitmap_run, bmp_size, &bmp_size_v, false);
 
 out1:
 	return err;
@@ -1998,6 +2000,7 @@ int indx_insert_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 					      fnd->level - 1, fnd);
 	}
 
+	indx->version += 1;
 out:
 	fnd_put(fnd_a);
 out1:
@@ -2101,7 +2104,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 	new_data = (u64)bit << indx->index_bits;
 
 	err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-			    &indx->alloc_run, new_data, &new_data, false, NULL);
+			    &indx->alloc_run, new_data, &new_data, false);
 	if (err)
 		return err;
 
@@ -2113,7 +2116,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		return 0;
 
 	err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-			    &indx->bitmap_run, bpb, &bpb, false, NULL);
+			    &indx->bitmap_run, bpb, &bpb, false);
 
 	return err;
 }
@@ -2328,6 +2331,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		hdr = &root->ihdr;
 		e = fnd->root_de;
 		n = NULL;
+		ib = NULL;
 	}
 
 	e_size = le16_to_cpu(e->size);
@@ -2350,7 +2354,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * Check to see if removing that entry made
 		 * the leaf empty.
 		 */
-		if (ib_is_leaf(ib) && ib_is_empty(ib)) {
+		if (ib && ib_is_leaf(ib) && ib_is_empty(ib)) {
 			fnd_pop(fnd);
 			fnd_push(fnd2, n, e);
 		}
@@ -2598,7 +2602,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		in = &s_index_names[indx->type];
 
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-				    &indx->alloc_run, 0, NULL, false, NULL);
+				    &indx->alloc_run, 0, NULL, false);
 		if (in->name == I30_NAME)
 			i_size_write(&ni->vfs_inode, 0);
 
@@ -2607,7 +2611,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		run_close(&indx->alloc_run);
 
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-				    &indx->bitmap_run, 0, NULL, false, NULL);
+				    &indx->bitmap_run, 0, NULL, false);
 		err = ni_remove_attr(ni, ATTR_BITMAP, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->bitmap_run);
@@ -2645,6 +2649,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		mi->dirty = true;
 	}
 
+	indx->version += 1;
 out:
 	fnd_put(fnd2);
 out1:

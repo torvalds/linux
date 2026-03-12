@@ -46,12 +46,14 @@ config SND_SOC_SDCA_CLASS
 	select SND_SOC_SDCA_FDL
 	select SND_SOC_SDCA_HID
 	select SND_SOC_SDCA_IRQ
+	select REGMAP_SOUNDWIRE
 	help
 	  This option enables support for the SDCA Class driver which should
 	  support any class compliant SDCA part.
 
 config SND_SOC_SDCA_CLASS_FUNCTION
 	tristate
+	select REGMAP_SOUNDWIRE_MBQ
 	help
 	  This option enables support for the SDCA Class Function drivers,
 	  these implement the individual functions of the SDCA Class driver.

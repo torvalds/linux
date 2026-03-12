@@ -83,7 +83,7 @@ papr_rtas_blob_generate(struct papr_rtas_sequence *seq)
 	size_t len;
 	int err = 0;
 
-	blob  = kzalloc(sizeof(*blob), GFP_KERNEL_ACCOUNT);
+	blob = kzalloc_obj(*blob, GFP_KERNEL_ACCOUNT);
 	if (!blob)
 		return NULL;
 

@@ -165,7 +165,7 @@ gf100_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_bar **pbar)
 {
 	struct gf100_bar *bar;
-	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
+	if (!(bar = kzalloc_obj(*bar)))
 		return -ENOMEM;
 	nvkm_bar_ctor(func, device, type, inst, &bar->base);
 	bar->bar2_halve = nvkm_boolopt(device->cfgopt, "NvBar2Halve", false);

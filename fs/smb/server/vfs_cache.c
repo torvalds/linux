@@ -16,10 +16,12 @@
 #include "oplock.h"
 #include "vfs.h"
 #include "connection.h"
+#include "misc.h"
 #include "mgmt/tree_connect.h"
 #include "mgmt/user_session.h"
 #include "smb_common.h"
 #include "server.h"
+#include "smb2pdu.h"
 
 #define S_DEL_PENDING			1
 #define S_DEL_ON_CLS			2
@@ -33,6 +35,97 @@ static DEFINE_RWLOCK(inode_hash_lock);
 static struct ksmbd_file_table global_ft;
 static atomic_long_t fd_limit;
 static struct kmem_cache *filp_cache;
+
+#define OPLOCK_NONE      0
+#define OPLOCK_EXCLUSIVE 1
+#define OPLOCK_BATCH     2
+#define OPLOCK_READ      3  /* level 2 oplock */
+
+#ifdef CONFIG_PROC_FS
+
+static const struct ksmbd_const_name ksmbd_lease_const_names[] = {
+	{le32_to_cpu(SMB2_LEASE_NONE_LE), "LEASE_NONE"},
+	{le32_to_cpu(SMB2_LEASE_READ_CACHING_LE), "LEASE_R"},
+	{le32_to_cpu(SMB2_LEASE_HANDLE_CACHING_LE), "LEASE_H"},
+	{le32_to_cpu(SMB2_LEASE_WRITE_CACHING_LE), "LEASE_W"},
+	{le32_to_cpu(SMB2_LEASE_READ_CACHING_LE |
+		     SMB2_LEASE_HANDLE_CACHING_LE), "LEASE_RH"},
+	{le32_to_cpu(SMB2_LEASE_READ_CACHING_LE |
+		     SMB2_LEASE_WRITE_CACHING_LE), "LEASE_RW"},
+	{le32_to_cpu(SMB2_LEASE_HANDLE_CACHING_LE |
+		     SMB2_LEASE_WRITE_CACHING_LE), "LEASE_WH"},
+	{le32_to_cpu(SMB2_LEASE_READ_CACHING_LE |
+		     SMB2_LEASE_HANDLE_CACHING_LE |
+		     SMB2_LEASE_WRITE_CACHING_LE), "LEASE_RWH"},
+};
+
+static const struct ksmbd_const_name ksmbd_oplock_const_names[] = {
+	{SMB2_OPLOCK_LEVEL_NONE, "OPLOCK_NONE"},
+	{SMB2_OPLOCK_LEVEL_II, "OPLOCK_II"},
+	{SMB2_OPLOCK_LEVEL_EXCLUSIVE, "OPLOCK_EXECL"},
+	{SMB2_OPLOCK_LEVEL_BATCH, "OPLOCK_BATCH"},
+};
+
+static int proc_show_files(struct seq_file *m, void *v)
+{
+	struct ksmbd_file *fp = NULL;
+	unsigned int id;
+	struct oplock_info *opinfo;
+
+	seq_printf(m, "#%-10s %-10s %-10s %-10s %-15s %-10s %-10s %s\n",
+		   "<tree id>", "<pid>", "<vid>", "<refcnt>",
+		   "<oplock>", "<daccess>", "<saccess>",
+		   "<name>");
+
+	read_lock(&global_ft.lock);
+	idr_for_each_entry(global_ft.idr, fp, id) {
+		seq_printf(m, "%#-10x %#-10llx %#-10llx %#-10x",
+			   fp->tcon->id,
+			   fp->persistent_id,
+			   fp->volatile_id,
+			   atomic_read(&fp->refcount));
+
+		rcu_read_lock();
+		opinfo = rcu_dereference(fp->f_opinfo);
+		rcu_read_unlock();
+
+		if (!opinfo) {
+			seq_printf(m, " %-15s", " ");
+		} else {
+			const struct ksmbd_const_name *const_names;
+			int count;
+			unsigned int level;
+
+			if (opinfo->is_lease) {
+				const_names = ksmbd_lease_const_names;
+				count = ARRAY_SIZE(ksmbd_lease_const_names);
+				level = le32_to_cpu(opinfo->o_lease->state);
+			} else {
+				const_names = ksmbd_oplock_const_names;
+				count = ARRAY_SIZE(ksmbd_oplock_const_names);
+				level = opinfo->level;
+			}
+			ksmbd_proc_show_const_name(m, " %-15s",
+						   const_names, count, level);
+		}
+
+		seq_printf(m, " %#010x %#010x %s\n",
+			   le32_to_cpu(fp->daccess),
+			   le32_to_cpu(fp->saccess),
+			   fp->filp->f_path.dentry->d_name.name);
+	}
+	read_unlock(&global_ft.lock);
+	return 0;
+}
+
+static int create_proc_files(void)
+{
+	ksmbd_proc_create("files", proc_show_files, NULL);
+	return 0;
+}
+#else
+static int create_proc_files(void) { return 0; }
+#endif
 
 static bool durable_scavenger_running;
 static DEFINE_MUTEX(durable_scavenger_lock);
@@ -210,7 +303,7 @@ static struct ksmbd_inode *ksmbd_inode_get(struct ksmbd_file *fp)
 	if (ci)
 		return ci;
 
-	ci = kmalloc(sizeof(struct ksmbd_inode), KSMBD_DEFAULT_GFP);
+	ci = kmalloc_obj(struct ksmbd_inode, KSMBD_DEFAULT_GFP);
 	if (!ci)
 		return NULL;
 
@@ -949,6 +1042,7 @@ void ksmbd_close_session_fds(struct ksmbd_work *work)
 
 int ksmbd_init_global_file_table(void)
 {
+	create_proc_files();
 	return ksmbd_init_file_table(&global_ft);
 }
 
@@ -1032,7 +1126,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
-	ft->idr = kzalloc(sizeof(struct idr), KSMBD_DEFAULT_GFP);
+	ft->idr = kzalloc_obj(struct idr, KSMBD_DEFAULT_GFP);
 	if (!ft->idr)
 		return -ENOMEM;
 

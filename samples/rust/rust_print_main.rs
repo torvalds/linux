@@ -101,7 +101,7 @@ impl Drop for RustPrint {
 }
 
 mod trace {
-    use kernel::ffi::c_int;
+    use kernel::prelude::*;
 
     kernel::declare_trace! {
         /// # Safety

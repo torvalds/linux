@@ -38,7 +38,7 @@ nv50_lut_load(struct nv50_lut *lut, int buffer, struct drm_property_blob *blob,
 	int i;
 
 	if (!in) {
-		in = kvmalloc_array(1024, sizeof(*in), GFP_KERNEL);
+		in = kvmalloc_objs(*in, 1024);
 		if (!WARN_ON(!in)) {
 			for (i = 0; i < 1024; i++) {
 				in[i].red   =

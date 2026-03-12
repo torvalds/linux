@@ -241,15 +241,13 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 	}
 
 	cmgr->hba = hba;
-	cmgr->free_list = kcalloc(arr_sz, sizeof(*cmgr->free_list),
-				  GFP_KERNEL);
+	cmgr->free_list = kzalloc_objs(*cmgr->free_list, arr_sz);
 	if (!cmgr->free_list) {
 		printk(KERN_ERR PFX "failed to alloc free_list\n");
 		goto mem_err;
 	}
 
-	cmgr->free_list_lock = kcalloc(arr_sz, sizeof(*cmgr->free_list_lock),
-				       GFP_KERNEL);
+	cmgr->free_list_lock = kzalloc_objs(*cmgr->free_list_lock, arr_sz);
 	if (!cmgr->free_list_lock) {
 		printk(KERN_ERR PFX "failed to alloc free_list_lock\n");
 		kfree(cmgr->free_list);
@@ -272,7 +270,7 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 	xid = BNX2FC_MIN_XID;
 	num_pri_ios = num_ios - hba->elstm_xids;
 	for (i = 0; i < num_ios; i++) {
-		io_req = kzalloc(sizeof(*io_req), GFP_KERNEL);
+		io_req = kzalloc_obj(*io_req);
 
 		if (!io_req) {
 			printk(KERN_ERR PFX "failed to alloc io_req\n");
@@ -942,7 +940,7 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 	port = orig_io_req->port;
 	interface = port->priv;
 
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to alloc cb_arg for seq clnup\n");
 		rc = -ENOMEM;
@@ -1836,8 +1834,8 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
  *
  * This is the IO strategy routine, called by SCSI-ML
  **/
-int bnx2fc_queuecommand(struct Scsi_Host *host,
-			struct scsi_cmnd *sc_cmd)
+enum scsi_qc_status bnx2fc_queuecommand(struct Scsi_Host *host,
+					struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport = shost_priv(host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));

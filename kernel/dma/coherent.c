@@ -49,7 +49,7 @@ static struct dma_coherent_mem *dma_init_coherent_memory(phys_addr_t phys_addr,
 	if (!mem_base)
 		return ERR_PTR(-EINVAL);
 
-	dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
+	dma_mem = kzalloc_obj(struct dma_coherent_mem);
 	if (!dma_mem)
 		goto out_unmap_membase;
 	dma_mem->bitmap = bitmap_zalloc(pages, GFP_KERNEL);

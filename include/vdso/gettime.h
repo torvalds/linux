@@ -20,5 +20,6 @@ int __vdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts);
 __kernel_old_time_t __vdso_time(__kernel_old_time_t *t);
 int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz);
 int __vdso_clock_gettime64(clockid_t clock, struct __kernel_timespec *ts);
+int __vdso_clock_getres_time64(clockid_t clock, struct __kernel_timespec *ts);
 
 #endif

@@ -556,7 +556,7 @@ static int drivetemp_add(struct device *dev)
 	struct drivetemp_data *st;
 	int err;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 

@@ -297,7 +297,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
 	    test_bit(0, &conn->c_map_queued))
-		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+		queue_delayed_work(conn->c_path->cp_wq, &conn->c_send_w, 0);
 
 	/* We expect errors as the qp is drained during shutdown */
 	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
@@ -419,7 +419,7 @@ void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits)
 
 	atomic_add(IB_SET_SEND_CREDITS(credits), &ic->i_credits);
 	if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags))
-		queue_delayed_work(rds_wq, &conn->c_send_w, 0);
+		queue_delayed_work(conn->c_path->cp_wq, &conn->c_send_w, 0);
 
 	WARN_ON(IB_GET_SEND_CREDITS(credits) >= 16384);
 
@@ -577,16 +577,42 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/* If it has a RDMA op, tell the peer we did it. This is
 		 * used by the peer to release use-once RDMA MRs. */
 		if (rm->rdma.op_active) {
-			struct rds_ext_header_rdma ext_hdr;
+			struct rds_ext_header_rdma ext_hdr = {};
+			struct rds_ext_header_rdma_bytes
+				rdma_bytes_ext_hdr = {};
 
 			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.op_rkey);
-			rds_message_add_extension(&rm->m_inc.i_hdr,
-					RDS_EXTHDR_RDMA, &ext_hdr, sizeof(ext_hdr));
+			if (rds_message_add_extension(&rm->m_inc.i_hdr,
+						      RDS_EXTHDR_RDMA,
+						      &ext_hdr)) {
+				/* prepare the rdma bytes ext header */
+				rdma_bytes_ext_hdr.h_rflags =
+					rm->rdma.op_write ?
+					RDS_FLAG_RDMA_WR_BYTES :
+					RDS_FLAG_RDMA_RD_BYTES;
+				rdma_bytes_ext_hdr.h_rdma_bytes =
+					cpu_to_be32(rm->rdma.op_bytes);
+			} else {
+				rdsdebug("RDS_EXTHDR_RDMA dropped");
+			}
+
+			if (rds_message_add_extension(&rm->m_inc.i_hdr,
+						      RDS_EXTHDR_RDMA_BYTES,
+						      &rdma_bytes_ext_hdr)) {
+				/* rdma bytes ext header was added successfully,
+				 * notify the remote side via flag in header
+				 */
+				rm->m_inc.i_hdr.h_flags |=
+					RDS_FLAG_EXTHDR_EXTENSION;
+			} else {
+				rdsdebug("RDS_EXTHDR_RDMA_BYTES dropped");
+			}
 		}
-		if (rm->m_rdma_cookie) {
-			rds_message_add_rdma_dest_extension(&rm->m_inc.i_hdr,
-					rds_rdma_cookie_key(rm->m_rdma_cookie),
-					rds_rdma_cookie_offset(rm->m_rdma_cookie));
+		if (rm->m_rdma_cookie &&
+		    !rds_message_add_rdma_dest_extension(&rm->m_inc.i_hdr,
+				rds_rdma_cookie_key(rm->m_rdma_cookie),
+				rds_rdma_cookie_offset(rm->m_rdma_cookie))) {
+			rdsdebug("RDS_EXTHDR_RDMA_DEST dropped\n");
 		}
 
 		/* Note - rds_ib_piggyb_ack clears the ACK_REQUIRED bit, so

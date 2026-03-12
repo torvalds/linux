@@ -41,7 +41,7 @@ clean distclean:
 	rm -rf pyynl.egg-info
 	rm -rf build
 
-install: libynl.a lib/*.h
+install: libynl.a lib/*.h ynltool
 	@echo -e "\tINSTALL libynl.a"
 	@$(INSTALL) -d $(DESTDIR)$(libdir)
 	@$(INSTALL) -m 0644 libynl.a $(DESTDIR)$(libdir)/libynl.a
@@ -51,7 +51,7 @@ install: libynl.a lib/*.h
 	@echo -e "\tINSTALL pyynl"
 	@pip install --prefix=$(DESTDIR)$(prefix) .
 	@make -C generated install
-	@make -C tests install
+	@make -C ynltool install
 
 run_tests:
 	@$(MAKE) -C tests run_tests

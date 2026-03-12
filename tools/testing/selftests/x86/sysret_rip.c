@@ -31,7 +31,7 @@
 void test_syscall_ins(void);
 extern const char test_page[];
 
-static void const *current_test_page_addr = test_page;
+static const void *current_test_page_addr = test_page;
 
 /* State used by our signal handlers. */
 static gregset_t initial_regs;
@@ -40,7 +40,7 @@ static volatile unsigned long rip;
 
 static void sigsegv_for_sigreturn_test(int sig, siginfo_t *info, void *ctx_void)
 {
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
 
 	if (rip != ctx->uc_mcontext.gregs[REG_RIP]) {
 		printf("[FAIL]\tRequested RIP=0x%lx but got RIP=0x%lx\n",
@@ -56,7 +56,7 @@ static void sigsegv_for_sigreturn_test(int sig, siginfo_t *info, void *ctx_void)
 
 static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
 {
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
 
 	memcpy(&initial_regs, &ctx->uc_mcontext.gregs, sizeof(gregset_t));
 
@@ -69,8 +69,6 @@ static void sigusr1(int sig, siginfo_t *info, void *ctx_void)
 	       ctx->uc_mcontext.gregs[REG_R11]);
 
 	sethandler(SIGSEGV, sigsegv_for_sigreturn_test, SA_RESETHAND);
-
-	return;
 }
 
 static void test_sigreturn_to(unsigned long ip)
@@ -84,7 +82,7 @@ static jmp_buf jmpbuf;
 
 static void sigsegv_for_fallthrough(int sig, siginfo_t *info, void *ctx_void)
 {
-	ucontext_t *ctx = (ucontext_t*)ctx_void;
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
 
 	if (rip != ctx->uc_mcontext.gregs[REG_RIP]) {
 		printf("[FAIL]\tExpected SIGSEGV at 0x%lx but got RIP=0x%lx\n",
@@ -130,7 +128,7 @@ static void test_syscall_fallthrough_to(unsigned long ip)
 	printf("[OK]\tWe survived\n");
 }
 
-int main()
+int main(void)
 {
 	/*
 	 * When the kernel returns from a slow-path syscall, it will

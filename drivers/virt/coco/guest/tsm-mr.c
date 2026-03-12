@@ -176,7 +176,7 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 	const struct bin_attribute **attrs __free(kfree) =
 		kzalloc(sizeof(*attrs) * (tm->nr_mrs + 1) + nlen, GFP_KERNEL);
 	struct tm_context *ctx __free(kfree) =
-		kzalloc(struct_size(ctx, mrs, tm->nr_mrs), GFP_KERNEL);
+		kzalloc_flex(*ctx, mrs, tm->nr_mrs);
 	char *name, *end;
 
 	if (!ctx || !attrs)

@@ -653,7 +653,7 @@ int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
 		}
 
 	if (!ctx) {
-		fctx = kmalloc(sizeof(*fctx), GFP_KERNEL);
+		fctx = kmalloc_obj(*fctx);
 		if (!fctx)
 			return -ENOMEM;
 
@@ -840,7 +840,7 @@ int userfaultfd_unmap_prep(struct vm_area_struct *vma, unsigned long start,
 	    has_unmap_ctx(ctx, unmaps, start, end))
 		return 0;
 
-	unmap_ctx = kzalloc(sizeof(*unmap_ctx), GFP_KERNEL);
+	unmap_ctx = kzalloc_obj(*unmap_ctx);
 	if (!unmap_ctx)
 		return -ENOMEM;
 

@@ -68,7 +68,7 @@ vchiq_device_register(struct device *parent, const char *name)
 	struct vchiq_device *device;
 	int ret;
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		return NULL;
 

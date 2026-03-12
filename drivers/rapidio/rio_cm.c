@@ -389,7 +389,7 @@ static int riocm_req_handler(struct cm_dev *cm, void *req_data)
 		return -EINVAL;
 	}
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req) {
 		riocm_put_channel(ch);
 		return -ENOMEM;
@@ -702,7 +702,7 @@ static int riocm_queue_req(struct cm_dev *cm, struct rio_dev *rdev,
 	unsigned long flags;
 	struct tx_req *treq;
 
-	treq = kzalloc(sizeof(*treq), GFP_KERNEL);
+	treq = kzalloc_obj(*treq);
 	if (treq == NULL)
 		return -ENOMEM;
 
@@ -965,7 +965,7 @@ static int riocm_ch_connect(u16 loc_ch, struct cm_dev *cm,
 	 * Send connect request to the remote RapidIO device
 	 */
 
-	hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+	hdr = kzalloc_obj(*hdr);
 	if (hdr == NULL) {
 		ret = -ENOMEM;
 		goto conn_done;
@@ -1022,7 +1022,7 @@ static int riocm_send_ack(struct rio_channel *ch)
 	struct rio_ch_chan_hdr *hdr;
 	int ret;
 
-	hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+	hdr = kzalloc_obj(*hdr);
 	if (hdr == NULL)
 		return -ENOMEM;
 
@@ -1283,7 +1283,7 @@ static struct rio_channel *riocm_ch_alloc(u16 ch_num)
 	int start, end;
 	struct rio_channel *ch;
 
-	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
+	ch = kzalloc_obj(*ch);
 	if (!ch)
 		return ERR_PTR(-ENOMEM);
 
@@ -1396,7 +1396,7 @@ static int riocm_send_close(struct rio_channel *ch)
 	 * Send CH_CLOSE notification to the remote RapidIO device
 	 */
 
-	hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+	hdr = kzalloc_obj(*hdr);
 	if (hdr == NULL)
 		return -ENOMEM;
 
@@ -1952,7 +1952,7 @@ static int riocm_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	riocm_debug(RDEV, "(%s)", rio_name(rdev));
 
-	peer = kmalloc(sizeof(*peer), GFP_KERNEL);
+	peer = kmalloc_obj(*peer);
 	if (!peer)
 		return -ENOMEM;
 
@@ -2099,7 +2099,7 @@ static int riocm_add_mport(struct device *dev)
 
 	riocm_debug(MPORT, "add mport %s", mport->name);
 
-	cm = kzalloc(sizeof(*cm), GFP_KERNEL);
+	cm = kzalloc_obj(*cm);
 	if (!cm)
 		return -ENOMEM;
 

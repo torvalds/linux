@@ -28,6 +28,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/vfs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -102,8 +103,8 @@ static struct meta_index *empty_meta_index(struct inode *inode, int offset,
 		 * mount time but doing it here means it is allocated only
 		 * if a 'large' file is read.
 		 */
-		msblk->meta_index = kcalloc(SQUASHFS_META_SLOTS,
-			sizeof(*(msblk->meta_index)), GFP_KERNEL);
+		msblk->meta_index = kzalloc_objs(*(msblk->meta_index),
+						 SQUASHFS_META_SLOTS);
 		if (msblk->meta_index == NULL) {
 			ERROR("Failed to allocate meta_index\n");
 			goto failed;
@@ -775,5 +776,6 @@ const struct file_operations squashfs_file_operations = {
 	.llseek		= squashfs_llseek,
 	.read_iter	= generic_file_read_iter,
 	.mmap_prepare	= generic_file_readonly_mmap_prepare,
-	.splice_read	= filemap_splice_read
+	.splice_read	= filemap_splice_read,
+	.setlease	= generic_setlease,
 };

@@ -75,7 +75,7 @@ static int get_report(struct snp_guest_dev *snp_dev, struct snp_guest_request_io
 	if (!arg->req_data || !arg->resp_data)
 		return -EINVAL;
 
-	report_req = kzalloc(sizeof(*report_req), GFP_KERNEL_ACCOUNT);
+	report_req = kzalloc_obj(*report_req, GFP_KERNEL_ACCOUNT);
 	if (!report_req)
 		return -ENOMEM;
 
@@ -135,7 +135,7 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	if (!derived_key_resp)
 		return -ENOMEM;
 
-	derived_key_req = kzalloc(sizeof(*derived_key_req), GFP_KERNEL_ACCOUNT);
+	derived_key_req = kzalloc_obj(*derived_key_req, GFP_KERNEL_ACCOUNT);
 	if (!derived_key_req)
 		return -ENOMEM;
 
@@ -181,7 +181,7 @@ static int get_ext_report(struct snp_guest_dev *snp_dev, struct snp_guest_reques
 	if (sockptr_is_null(io->req_data) || sockptr_is_null(io->resp_data))
 		return -EINVAL;
 
-	report_req = kzalloc(sizeof(*report_req), GFP_KERNEL_ACCOUNT);
+	report_req = kzalloc_obj(*report_req, GFP_KERNEL_ACCOUNT);
 	if (!report_req)
 		return -ENOMEM;
 

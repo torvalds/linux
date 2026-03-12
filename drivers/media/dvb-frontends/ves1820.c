@@ -366,7 +366,7 @@ struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 	struct ves1820_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct ves1820_state), GFP_KERNEL);
+	state = kzalloc_obj(struct ves1820_state);
 	if (state == NULL)
 		goto error;
 

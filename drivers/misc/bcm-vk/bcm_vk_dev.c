@@ -1289,7 +1289,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 boot_status;
 
 	/* allocate vk structure which is tied to kref for freeing */
-	vk = kzalloc(sizeof(*vk), GFP_KERNEL);
+	vk = kzalloc_obj(*vk);
 	if (!vk)
 		return -ENOMEM;
 

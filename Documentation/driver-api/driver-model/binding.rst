@@ -53,9 +53,12 @@ class's register_dev callback.
 Driver
 ~~~~~~
 
-When a driver is attached to a device, the device is inserted into the
-driver's list of devices.
-
+When a driver is attached to a device, the driver's probe() function is
+called. Within probe(), the driver initializes the device and allocates
+and initializes per-device data structures. This per-device state is
+associated with the device object for as long as the driver remains bound
+to it. Conceptually, this per-device data together with the binding to
+the device can be thought of as an instance of the driver.
 
 sysfs
 ~~~~~

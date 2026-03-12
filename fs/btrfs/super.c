@@ -736,14 +736,12 @@ bool btrfs_check_options(const struct btrfs_fs_info *info,
  */
 void btrfs_set_free_space_cache_settings(struct btrfs_fs_info *fs_info)
 {
-	if (fs_info->sectorsize < PAGE_SIZE) {
+	if (fs_info->sectorsize != PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
+		btrfs_info(fs_info,
+			   "forcing free space tree for sector size %u with page size %lu",
+			   fs_info->sectorsize, PAGE_SIZE);
 		btrfs_clear_opt(fs_info->mount_opt, SPACE_CACHE);
-		if (!btrfs_test_opt(fs_info, FREE_SPACE_TREE)) {
-			btrfs_info(fs_info,
-				   "forcing free space tree for sector size %u with page size %lu",
-				   fs_info->sectorsize, PAGE_SIZE);
-			btrfs_set_opt(fs_info->mount_opt, FREE_SPACE_TREE);
-		}
+		btrfs_set_opt(fs_info->mount_opt, FREE_SPACE_TREE);
 	}
 
 	/*
@@ -2056,7 +2054,7 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	 * of the fs_info (locks and such) to make cleanup easier if we find a
 	 * superblock with our given fs_devices later on at sget() time.
 	 */
-	fs_info = kvzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
+	fs_info = kvzalloc_obj(struct btrfs_fs_info);
 	if (!fs_info)
 		return -ENOMEM;
 
@@ -2175,7 +2173,7 @@ static int btrfs_init_fs_context(struct fs_context *fc)
 {
 	struct btrfs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct btrfs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct btrfs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -2485,6 +2483,18 @@ static void btrfs_shutdown(struct super_block *sb)
 }
 #endif
 
+static int btrfs_show_stats(struct seq_file *seq, struct dentry *root)
+{
+	struct btrfs_fs_info *fs_info = btrfs_sb(root->d_sb);
+
+	if (btrfs_is_zoned(fs_info)) {
+		btrfs_show_zoned_stats(fs_info, seq);
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
 	.evict_inode	= btrfs_evict_inode,
@@ -2500,6 +2510,7 @@ static const struct super_operations btrfs_super_ops = {
 	.unfreeze_fs	= btrfs_unfreeze,
 	.nr_cached_objects = btrfs_nr_cached_objects,
 	.free_cached_objects = btrfs_free_cached_objects,
+	.show_stats	= btrfs_show_stats,
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	.remove_bdev	= btrfs_remove_bdev,
 	.shutdown	= btrfs_shutdown,
@@ -2702,7 +2713,3 @@ module_exit(exit_btrfs_fs)
 
 MODULE_DESCRIPTION("B-Tree File System (BTRFS)");
 MODULE_LICENSE("GPL");
-MODULE_SOFTDEP("pre: crc32c");
-MODULE_SOFTDEP("pre: xxhash64");
-MODULE_SOFTDEP("pre: sha256");
-MODULE_SOFTDEP("pre: blake2b-256");

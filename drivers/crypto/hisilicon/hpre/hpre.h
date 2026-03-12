@@ -94,9 +94,8 @@ struct hpre_sqe {
 	__le64 key;
 	__le64 in;
 	__le64 out;
-	__le16 tag;
-	__le16 resv2;
-#define _HPRE_SQE_ALIGN_EXT	7
+	__le64 tag;
+#define _HPRE_SQE_ALIGN_EXT	6
 	__le32 rsvd1[_HPRE_SQE_ALIGN_EXT];
 };
 

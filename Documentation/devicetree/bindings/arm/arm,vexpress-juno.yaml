@@ -157,6 +157,12 @@ patternProperties:
               - const: simple-bus
           - const: simple-bus
 
+      "#interrupt-cells":
+        const: 1
+
+      interrupt-map: true
+      interrupt-map-mask: true
+
     patternProperties:
       '^motherboard-bus@':
         type: object

@@ -131,6 +131,11 @@ struct mana_ib_mr {
 	mana_handle_t mr_handle;
 };
 
+struct mana_ib_dm {
+	struct ib_dm ibdm;
+	mana_handle_t dm_handle;
+};
+
 struct mana_ib_cq {
 	struct ib_cq ibcq;
 	struct mana_ib_queue queue;
@@ -735,4 +740,11 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 					 u64 iova, int fd, int mr_access_flags,
 					 struct ib_dmah *dmah,
 					 struct uverbs_attr_bundle *attrs);
+
+struct ib_dm *mana_ib_alloc_dm(struct ib_device *dev, struct ib_ucontext *context,
+			       struct ib_dm_alloc_attr *attr, struct uverbs_attr_bundle *attrs);
+int mana_ib_dealloc_dm(struct ib_dm *dm, struct uverbs_attr_bundle *attrs);
+struct ib_mr *mana_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm, struct ib_dm_mr_attr *attr,
+				struct uverbs_attr_bundle *attrs);
+
 #endif

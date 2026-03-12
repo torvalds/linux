@@ -1977,7 +1977,7 @@ int intel_tc_port_init(struct intel_digital_port *dig_port, bool is_legacy)
 	if (drm_WARN_ON(display->drm, tc_port == TC_PORT_NONE))
 		return -EINVAL;
 
-	tc = kzalloc(sizeof(*tc), GFP_KERNEL);
+	tc = kzalloc_obj(*tc);
 	if (!tc)
 		return -ENOMEM;
 

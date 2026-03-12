@@ -323,7 +323,7 @@ static int nfnl_osf_add_callback(struct sk_buff *skb,
 	    !memchr(f->version, 0, MAXGENRELEN))
 		return -EINVAL;
 
-	kf = kmalloc(sizeof(struct nf_osf_finger), GFP_KERNEL);
+	kf = kmalloc_obj(struct nf_osf_finger);
 	if (!kf)
 		return -ENOMEM;
 

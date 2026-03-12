@@ -598,7 +598,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 		ports = 4;
 	}
 
-	card = kzalloc(struct_size(card, ports, ports), GFP_KERNEL);
+	card = kzalloc_flex(*card, ports, ports);
 	if (!card) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

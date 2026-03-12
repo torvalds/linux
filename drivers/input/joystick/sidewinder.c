@@ -578,7 +578,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 	comment[0] = 0;
 
-	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
+	sw = kzalloc_obj(*sw);
 	buf = kmalloc(SW_LENGTH, GFP_KERNEL);
 	idbuf = kmalloc(SW_LENGTH, GFP_KERNEL);
 	if (!sw || !buf || !idbuf) {

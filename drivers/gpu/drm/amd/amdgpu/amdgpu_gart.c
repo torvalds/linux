@@ -153,7 +153,7 @@ int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "%s dma_addr:%pad\n", __func__, &dma_addr);
 	/* Create SG table */
-	sg = kmalloc(sizeof(*sg), GFP_KERNEL);
+	sg = kmalloc_obj(*sg);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto error;
@@ -375,7 +375,7 @@ void amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * @start_page: first page to map in the GART aperture
  * @num_pages: number of pages to be mapped
  * @flags: page table entry flags
- * @dst: CPU address of the GART table
+ * @dst: valid CPU address of GART table, cannot be null
  *
  * Binds a BO that is allocated in VRAM to the GART page table
  * (all ASICs).
@@ -396,7 +396,7 @@ void amdgpu_gart_map_vram_range(struct amdgpu_device *adev, uint64_t pa,
 		return;
 
 	for (i = 0; i < num_pages; ++i) {
-		amdgpu_gmc_set_pte_pde(adev, adev->gart.ptr,
+		amdgpu_gmc_set_pte_pde(adev, dst,
 			start_page + i, pa + AMDGPU_GPU_PAGE_SIZE * i, flags);
 	}
 
@@ -476,7 +476,7 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 	/* Compute table size */
 	adev->gart.num_cpu_pages = adev->gmc.gart_size / PAGE_SIZE;
 	adev->gart.num_gpu_pages = adev->gmc.gart_size / AMDGPU_GPU_PAGE_SIZE;
-	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
+	drm_info(adev_to_drm(adev), "GART: num cpu pages %u, num gpu pages %u\n",
 		 adev->gart.num_cpu_pages, adev->gart.num_gpu_pages);
 
 	return 0;

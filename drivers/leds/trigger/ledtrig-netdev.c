@@ -691,7 +691,7 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 	struct device *dev;
 	int rc;
 
-	trigger_data = kzalloc(sizeof(struct led_netdev_data), GFP_KERNEL);
+	trigger_data = kzalloc_obj(struct led_netdev_data);
 	if (!trigger_data)
 		return -ENOMEM;
 

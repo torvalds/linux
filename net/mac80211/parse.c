@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  *
  * element parsing for mac80211
  */
@@ -187,6 +187,26 @@ ieee80211_parse_extension_element(u32 *crc,
 		    elems->ttlm_num < ARRAY_SIZE(elems->ttlm)) {
 			elems->ttlm[elems->ttlm_num] = (void *)data;
 			elems->ttlm_num++;
+		}
+		break;
+	case WLAN_EID_EXT_UHR_OPER:
+		if (params->mode < IEEE80211_CONN_MODE_UHR)
+			break;
+		calc_crc = true;
+		if (ieee80211_uhr_oper_size_ok(data, len,
+					       params->type == (IEEE80211_FTYPE_MGMT |
+								IEEE80211_STYPE_BEACON))) {
+			elems->uhr_operation = data;
+			elems->uhr_operation_len = len;
+		}
+		break;
+	case WLAN_EID_EXT_UHR_CAPA:
+		if (params->mode < IEEE80211_CONN_MODE_UHR)
+			break;
+		calc_crc = true;
+		if (ieee80211_uhr_capa_size_ok(data, len, true)) {
+			elems->uhr_cap = data;
+			elems->uhr_cap_len = len;
 		}
 		break;
 	}
@@ -1028,8 +1048,8 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	if (WARN_ON(params->link_id >= 0 && params->bss))
 		return NULL;
 
-	elems_parse = kzalloc(struct_size(elems_parse, scratch, scratch_len),
-			      GFP_ATOMIC);
+	elems_parse = kzalloc_flex(*elems_parse, scratch, scratch_len,
+				   GFP_ATOMIC);
 	if (!elems_parse)
 		return NULL;
 
@@ -1115,8 +1135,7 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 }
 EXPORT_SYMBOL_IF_KUNIT(ieee802_11_parse_elems_full);
 
-int ieee80211_parse_bitrates(enum nl80211_chan_width width,
-			     const struct ieee80211_supported_band *sband,
+int ieee80211_parse_bitrates(const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates)
 {
 	struct ieee80211_rate *br;

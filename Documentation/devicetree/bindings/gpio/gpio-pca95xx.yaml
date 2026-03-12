@@ -74,6 +74,8 @@ properties:
               - ti,tca9538
               - ti,tca9539
               - ti,tca9554
+              - ti,tcal6408
+              - ti,tcal6416
 
   reg:
     maxItems: 1

@@ -653,7 +653,7 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 	int stat = -ENODEV;
 	int gatestat = 0;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 	state->adr = adr;

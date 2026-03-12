@@ -136,7 +136,7 @@ static void icu_unmask_irq(struct irq_data *d)
 	}
 }
 
-struct irq_chip icu_irq_chip = {
+static const struct irq_chip icu_irq_chip = {
 	.name		= "icu_irq",
 	.irq_mask	= icu_mask_irq,
 	.irq_mask_ack	= icu_mask_ack_irq,

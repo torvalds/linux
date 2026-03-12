@@ -81,7 +81,7 @@ struct clk *rockchip_clk_register_gate_grf(const char *name,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

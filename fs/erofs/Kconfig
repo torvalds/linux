@@ -112,13 +112,14 @@ config EROFS_FS_ZIP
 config EROFS_FS_ZIP_LZMA
 	bool "EROFS LZMA compressed data support"
 	depends on EROFS_FS_ZIP
+	default y
 	help
 	  Saying Y here includes support for reading EROFS file systems
 	  containing LZMA compressed data, specifically called microLZMA. It
 	  gives better compression ratios than the default LZ4 format, at the
 	  expense of more CPU overhead.
 
-	  If unsure, say N.
+	  Say N if you want to disable LZMA compression support.
 
 config EROFS_FS_ZIP_DEFLATE
 	bool "EROFS DEFLATE compressed data support"
@@ -129,9 +130,6 @@ config EROFS_FS_ZIP_DEFLATE
 	  ratios than the default LZ4 format, while it costs more CPU
 	  overhead.
 
-	  DEFLATE support is an experimental feature for now and so most
-	  file systems will be readable without selecting this option.
-
 	  If unsure, say N.
 
 config EROFS_FS_ZIP_ZSTD
@@ -141,10 +139,7 @@ config EROFS_FS_ZIP_ZSTD
 	  Saying Y here includes support for reading EROFS file systems
 	  containing Zstandard compressed data.  It gives better compression
 	  ratios than the default LZ4 format, while it costs more CPU
-	  overhead.
-
-	  Zstandard support is an experimental feature for now and so most
-	  file systems will be readable without selecting this option.
+	  overhead and memory footprint.
 
 	  If unsure, say N.
 
@@ -192,5 +187,14 @@ config EROFS_FS_PCPU_KTHREAD_HIPRI
 	help
 	  This permits EROFS to configure per-CPU kthread workers to run
 	  at higher priority.
+
+	  If unsure, say N.
+
+config EROFS_FS_PAGE_CACHE_SHARE
+	bool "EROFS page cache share support (experimental)"
+	depends on EROFS_FS && EROFS_FS_XATTR && !EROFS_FS_ONDEMAND
+	help
+	  This enables page cache sharing among inodes with identical
+	  content fingerprints on the same machine.
 
 	  If unsure, say N.

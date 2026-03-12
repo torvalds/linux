@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +23,6 @@
  * Authors: AMD
  *
  */
-
 #include "../dmub_srv.h"
 #include "dmub_dcn20.h"
 #include "dmub_dcn21.h"
@@ -40,6 +40,7 @@
 #include "dmub_dcn351.h"
 #include "dmub_dcn36.h"
 #include "dmub_dcn401.h"
+#include "dmub_dcn42.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -66,7 +67,7 @@
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Default indirect buffer size. */
-#define DMUB_IB_MEM_SIZE (2560)
+#define DMUB_IB_MEM_SIZE (sizeof(struct dmub_fams2_config_v2))
 
 /* Default LSDMA ring buffer size. */
 #define DMUB_LSDMA_RB_SIZE (64 * 1024)
@@ -87,6 +88,7 @@
 
 static struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs;
 static struct dmub_srv_dcn35_regs dmub_srv_dcn35_regs;
+struct dmub_srv_dcn42_regs dmub_srv_dcn42_regs;
 
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
@@ -134,7 +136,7 @@ dmub_get_fw_meta_info_from_blob(const uint8_t *blob, uint32_t blob_size, uint32_
 }
 
 static const struct dmub_fw_meta_info *
-dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+dmub_get_fw_meta_info(const struct dmub_srv_fw_meta_info_params *params)
 {
 	const struct dmub_fw_meta_info *info = NULL;
 
@@ -157,6 +159,46 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 	}
 
 	return info;
+}
+
+enum dmub_status
+dmub_srv_get_fw_meta_info_from_raw_fw(struct dmub_srv_fw_meta_info_params *params,
+				      struct dmub_fw_meta_info *fw_info_out)
+{
+	const struct dmub_fw_meta_info *fw_info = NULL;
+	uint32_t inst_const_size_temp = params->inst_const_size;
+
+	/* First try custom psp footer size, if present */
+	if (params->custom_psp_footer_size) {
+		params->inst_const_size -= params->custom_psp_footer_size;
+		fw_info = dmub_get_fw_meta_info(params);
+		if (fw_info) {
+			memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+			return DMUB_STATUS_OK;
+		}
+		params->inst_const_size = inst_const_size_temp;
+	}
+
+	/* Try 256-byte psp footer size */
+	params->inst_const_size -= PSP_FOOTER_BYTES_256;
+	fw_info = dmub_get_fw_meta_info(params);
+	if (fw_info) {
+		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+		return DMUB_STATUS_OK;
+	}
+
+	/* Try 512-byte psp footer size - final attempt */
+	params->inst_const_size -= PSP_FOOTER_BYTES_256; // 256 bytes already subtracted, subtract 256 again
+	fw_info = dmub_get_fw_meta_info(params);
+	if (fw_info) {
+		memcpy(fw_info_out, fw_info, sizeof(*fw_info));
+		return DMUB_STATUS_OK;
+	}
+
+	/* Restore original inst_const_size and subtract default PSP footer size - default behaviour */
+	params->inst_const_size = inst_const_size_temp - PSP_FOOTER_BYTES_256;
+
+	return DMUB_STATUS_INVALID;
 }
 
 static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
@@ -370,6 +412,64 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->is_hw_powered_up = dmub_dcn35_is_hw_powered_up;
 			funcs->should_detect = dmub_dcn35_should_detect;
 			break;
+	case DMUB_ASIC_DCN42:
+			dmub->regs_dcn42 = &dmub_srv_dcn42_regs;
+			funcs->configure_dmub_in_system_memory = dmub_dcn42_configure_dmub_in_system_memory;
+			funcs->send_inbox0_cmd = dmub_dcn42_send_inbox0_cmd;
+			funcs->clear_inbox0_ack_register = dmub_dcn42_clear_inbox0_ack_register;
+			funcs->read_inbox0_ack_register = dmub_dcn42_read_inbox0_ack_register;
+			funcs->reset = dmub_dcn42_reset;
+			funcs->reset_release = dmub_dcn42_reset_release;
+			funcs->backdoor_load = dmub_dcn42_backdoor_load;
+			funcs->backdoor_load_zfb_mode = dmub_dcn42_backdoor_load_zfb_mode;
+			funcs->setup_windows = dmub_dcn42_setup_windows;
+			funcs->setup_mailbox = dmub_dcn42_setup_mailbox;
+			funcs->get_inbox1_wptr = dmub_dcn42_get_inbox1_wptr;
+			funcs->get_inbox1_rptr = dmub_dcn42_get_inbox1_rptr;
+			funcs->set_inbox1_wptr = dmub_dcn42_set_inbox1_wptr;
+			funcs->setup_out_mailbox = dmub_dcn42_setup_out_mailbox;
+			funcs->get_outbox1_wptr = dmub_dcn42_get_outbox1_wptr;
+			funcs->set_outbox1_rptr = dmub_dcn42_set_outbox1_rptr;
+			funcs->is_supported = dmub_dcn42_is_supported;
+			funcs->is_hw_init = dmub_dcn42_is_hw_init;
+			funcs->set_gpint = dmub_dcn42_set_gpint;
+			funcs->is_gpint_acked = dmub_dcn42_is_gpint_acked;
+			funcs->get_gpint_response = dmub_dcn42_get_gpint_response;
+			funcs->get_gpint_dataout = dmub_dcn42_get_gpint_dataout;
+			funcs->get_fw_status = dmub_dcn42_get_fw_boot_status;
+			funcs->get_fw_boot_option = dmub_dcn42_get_fw_boot_option;
+			funcs->enable_dmub_boot_options = dmub_dcn42_enable_dmub_boot_options;
+			funcs->skip_dmub_panel_power_sequence = dmub_dcn42_skip_dmub_panel_power_sequence;
+			/*outbox0 call stacks*/
+			funcs->setup_outbox0 = dmub_dcn42_setup_outbox0;
+			funcs->get_outbox0_wptr = dmub_dcn42_get_outbox0_wptr;
+			funcs->set_outbox0_rptr = dmub_dcn42_set_outbox0_rptr;
+
+			funcs->get_current_time = dmub_dcn42_get_current_time;
+			funcs->get_diagnostic_data = dmub_dcn42_get_diagnostic_data;
+			funcs->get_preos_fw_info = dmub_dcn42_get_preos_fw_info;
+
+			/*carried from dcn401*/
+			funcs->send_reg_inbox0_cmd_msg = dmub_dcn42_send_reg_inbox0_cmd_msg;
+			funcs->read_reg_inbox0_rsp_int_status = dmub_dcn42_read_reg_inbox0_rsp_int_status;
+			funcs->read_reg_inbox0_cmd_rsp = dmub_dcn42_read_reg_inbox0_cmd_rsp;
+			funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn42_write_reg_inbox0_rsp_int_ack;
+			funcs->clear_reg_inbox0_rsp_int_ack = dmub_dcn42_clear_reg_inbox0_rsp_int_ack;
+			funcs->enable_reg_inbox0_rsp_int = dmub_dcn42_enable_reg_inbox0_rsp_int;
+			default_inbox_type = DMUB_CMD_INTERFACE_FB; /*still default to FB for now*/
+
+			funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn42_write_reg_outbox0_rdy_int_ack;
+			funcs->read_reg_outbox0_msg = dmub_dcn42_read_reg_outbox0_msg;
+			funcs->write_reg_outbox0_rsp = dmub_dcn42_write_reg_outbox0_rsp;
+			funcs->read_reg_outbox0_rdy_int_status = dmub_dcn42_read_reg_outbox0_rdy_int_status;
+			funcs->read_reg_outbox0_rsp_int_status = dmub_dcn42_read_reg_outbox0_rsp_int_status;
+			funcs->enable_reg_inbox0_rsp_int = dmub_dcn42_enable_reg_inbox0_rsp_int;
+			funcs->enable_reg_outbox0_rdy_int = dmub_dcn42_enable_reg_outbox0_rdy_int;
+			funcs->init_reg_offsets = dmub_srv_dcn42_regs_init;
+
+			funcs->is_hw_powered_up = dmub_dcn42_is_hw_powered_up;
+			funcs->should_detect = dmub_dcn42_should_detect;
+			break;
 
 	case DMUB_ASIC_DCN401:
 		dmub->regs_dcn401 = &dmub_srv_dcn401_regs;
@@ -524,7 +624,6 @@ enum dmub_status
 		const struct dmub_srv_region_params *params,
 		struct dmub_srv_region_info *out)
 {
-	const struct dmub_fw_meta_info *fw_info;
 	uint32_t fw_state_size = DMUB_FW_STATE_SIZE;
 	uint32_t trace_buffer_size = DMUB_TRACE_BUFFER_SIZE;
 	uint32_t shared_state_size = DMUB_FW_HEADER_SHARED_STATE_SIZE;
@@ -538,14 +637,12 @@ enum dmub_status
 
 	out->num_regions = DMUB_NUM_WINDOWS;
 
-	fw_info = dmub_get_fw_meta_info(params);
+	if (params->fw_info) {
+		memcpy(&dmub->meta_info, params->fw_info, sizeof(*params->fw_info));
 
-	if (fw_info) {
-		memcpy(&dmub->meta_info, fw_info, sizeof(*fw_info));
-
-		fw_state_size = fw_info->fw_region_size;
-		trace_buffer_size = fw_info->trace_buffer_size;
-		shared_state_size = fw_info->shared_state_size;
+		fw_state_size = params->fw_info->fw_region_size;
+		trace_buffer_size = params->fw_info->trace_buffer_size;
+		shared_state_size = params->fw_info->shared_state_size;
 
 		/**
 		 * If DM didn't fill in a version, then fill it in based on
@@ -555,7 +652,7 @@ enum dmub_status
 		 * pass during creation.
 		 */
 		if (dmub->fw_version == 0)
-			dmub->fw_version = fw_info->fw_version;
+			dmub->fw_version = params->fw_info->fw_version;
 	}
 
 	window_sizes[DMUB_WINDOW_0_INST_CONST] = params->inst_const_size;
@@ -566,7 +663,7 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
 	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = dmub_align(DMUB_SCRATCH_MEM_SIZE, 64);
-	window_sizes[DMUB_WINDOW_IB_MEM] = DMUB_IB_MEM_SIZE;
+	window_sizes[DMUB_WINDOW_IB_MEM] = dmub_align(DMUB_IB_MEM_SIZE, 64);
 	window_sizes[DMUB_WINDOW_SHARED_STATE] = max(DMUB_FW_HEADER_SHARED_STATE_SIZE, shared_state_size);
 	window_sizes[DMUB_WINDOW_LSDMA_BUFFER] = DMUB_LSDMA_RB_SIZE;
 	window_sizes[DMUB_WINDOW_CURSOR_OFFLOAD] = dmub_align(sizeof(struct dmub_cursor_offload_v1), 64);
@@ -672,8 +769,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		}
 	}
 
-	dmub->fb_base = params->fb_base;
-	dmub->fb_offset = params->fb_offset;
+	memcpy(&dmub->soc_fb_info, &params->soc_fb_info, sizeof(params->soc_fb_info));
 	dmub->psp_version = params->psp_version;
 
 	if (dmub->hw_funcs.reset)

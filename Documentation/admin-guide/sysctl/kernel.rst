@@ -591,6 +591,9 @@ if leaking kernel pointer values to unprivileged users is a concern.
 When ``kptr_restrict`` is set to 2, kernel pointers printed using
 %pK will be replaced with 0s regardless of privileges.
 
+For disabling these security restrictions early at boot time (and once
+for all), use the ``hash_pointers`` boot parameter instead.
+
 softlockup_sys_info & hardlockup_sys_info
 =========================================
 A comma separated list of extra system information to be dumped when
@@ -1233,12 +1236,6 @@ that support this feature.
     with ``CONFIG_COMPAT_BRK`` enabled, which excludes the heap from process
     address space randomization.
 ==  ===========================================================================
-
-
-real-root-dev
-=============
-
-See Documentation/admin-guide/initrd.rst.
 
 
 reboot-cmd (SPARC only)

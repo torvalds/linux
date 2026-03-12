@@ -133,7 +133,7 @@ int cn20k_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 	mbox->reg_base = reg_base;
 	mbox->pdev = pdev;
 
-	mbox->dev = kcalloc(ndevs, sizeof(struct otx2_mbox_dev), GFP_KERNEL);
+	mbox->dev = kzalloc_objs(struct otx2_mbox_dev, ndevs);
 	if (!mbox->dev) {
 		otx2_mbox_destroy(mbox);
 		return -ENOMEM;
@@ -211,7 +211,7 @@ static int otx2_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 	mbox->reg_base = reg_base;
 	mbox->pdev = pdev;
 
-	mbox->dev = kcalloc(ndevs, sizeof(struct otx2_mbox_dev), GFP_KERNEL);
+	mbox->dev = kzalloc_objs(struct otx2_mbox_dev, ndevs);
 	if (!mbox->dev) {
 		otx2_mbox_destroy(mbox);
 		return -ENOMEM;

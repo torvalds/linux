@@ -515,7 +515,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 	unsigned i;
 	__hc32 tag;
 
-	seen = kmalloc_array(DBG_SCHED_LIMIT, sizeof(*seen), GFP_ATOMIC);
+	seen = kmalloc_objs(*seen, DBG_SCHED_LIMIT, GFP_ATOMIC);
 	if (!seen)
 		return 0;
 
@@ -738,7 +738,7 @@ static struct debug_buffer
 {
 	struct debug_buffer *buf;
 
-	buf = kzalloc(sizeof(struct debug_buffer), GFP_KERNEL);
+	buf = kzalloc_obj(struct debug_buffer);
 
 	if (buf) {
 		buf->bus = bus;
@@ -1847,7 +1847,7 @@ static struct fotg210_qh *fotg210_qh_alloc(struct fotg210_hcd *fotg210,
 	struct fotg210_qh *qh;
 	dma_addr_t dma;
 
-	qh = kzalloc(sizeof(*qh), GFP_ATOMIC);
+	qh = kzalloc_obj(*qh, GFP_ATOMIC);
 	if (!qh)
 		goto done;
 	qh->hw = (struct fotg210_qh_hw *)
@@ -3899,7 +3899,7 @@ static struct fotg210_iso_stream *iso_stream_alloc(gfp_t mem_flags)
 {
 	struct fotg210_iso_stream *stream;
 
-	stream = kzalloc(sizeof(*stream), mem_flags);
+	stream = kzalloc_obj(*stream, mem_flags);
 	if (likely(stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
@@ -4007,7 +4007,7 @@ static struct fotg210_iso_sched *iso_sched_alloc(unsigned packets,
 {
 	struct fotg210_iso_sched *iso_sched;
 
-	iso_sched = kzalloc(struct_size(iso_sched, packet, packets), mem_flags);
+	iso_sched = kzalloc_flex(*iso_sched, packet, packets, mem_flags);
 	if (likely(iso_sched != NULL))
 		INIT_LIST_HEAD(&iso_sched->td_list);
 
@@ -5625,11 +5625,6 @@ int __init fotg210_hcd_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	set_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
-	if (test_bit(USB_UHCI_LOADED, &usb_hcds_loaded) ||
-			test_bit(USB_OHCI_LOADED, &usb_hcds_loaded))
-		pr_warn("Warning! fotg210_hcd should always be loaded before uhci_hcd and ohci_hcd, not after\n");
-
 	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd\n",
 			hcd_name, sizeof(struct fotg210_qh),
 			sizeof(struct fotg210_qtd),
@@ -5643,5 +5638,4 @@ int __init fotg210_hcd_init(void)
 void __exit fotg210_hcd_cleanup(void)
 {
 	debugfs_remove(fotg210_debug_root);
-	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }

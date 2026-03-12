@@ -119,7 +119,7 @@ static struct luo_session_global luo_session_global = {
 
 static struct luo_session *luo_session_alloc(const char *name)
 {
-	struct luo_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
+	struct luo_session *session = kzalloc_obj(*session);
 
 	if (!session)
 		return ERR_PTR(-ENOMEM);

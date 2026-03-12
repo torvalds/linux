@@ -233,7 +233,7 @@ struct target_cmd_counter *target_alloc_cmd_counter(void)
 	struct target_cmd_counter *cmd_cnt;
 	int rc;
 
-	cmd_cnt = kzalloc(sizeof(*cmd_cnt), GFP_KERNEL);
+	cmd_cnt = kzalloc_obj(*cmd_cnt);
 	if (!cmd_cnt)
 		return NULL;
 
@@ -2740,7 +2740,7 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 		return kmap(sg_page(sg)) + sg->offset;
 
 	/* >1 page. use vmap */
-	pages = kmalloc_array(cmd->t_data_nents, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, cmd->t_data_nents);
 	if (!pages)
 		return NULL;
 

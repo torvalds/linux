@@ -203,7 +203,7 @@ nfp_abm_u32_knode_replace(struct nfp_abm_link *alink,
 	}
 
 	if (!match) {
-		match = kzalloc(sizeof(*match), GFP_KERNEL);
+		match = kzalloc_obj(*match);
 		if (!match)
 			return -ENOMEM;
 		list_add(&match->list, &alink->dscp_map);

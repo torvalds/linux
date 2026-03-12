@@ -79,8 +79,8 @@ static const char * const da7213_audio_hpf_corner_txt[] = {
 };
 
 static SOC_ENUM_SINGLE_DECL(da7213_dac_audio_hpf_corner,
-			    DA7213_DAC_FILTERS1
-			    , DA7213_AUDIO_HPF_CORNER_SHIFT,
+			    DA7213_DAC_FILTERS1,
+			    DA7213_AUDIO_HPF_CORNER_SHIFT,
 			    da7213_audio_hpf_corner_txt);
 
 static SOC_ENUM_SINGLE_DECL(da7213_adc_audio_hpf_corner,

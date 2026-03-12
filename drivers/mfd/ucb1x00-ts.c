@@ -367,7 +367,7 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 	struct input_dev *idev;
 	int err;
 
-	ts = kzalloc(sizeof(struct ucb1x00_ts), GFP_KERNEL);
+	ts = kzalloc_obj(struct ucb1x00_ts);
 	idev = input_allocate_device();
 	if (!ts || !idev) {
 		err = -ENOMEM;

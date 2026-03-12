@@ -341,6 +341,7 @@ struct sk_filter;
   *	@sk_reuseport_cb: reuseport group container
   *	@sk_bpf_storage: ptr to cache and control for bpf_sk_storage
   *	@sk_rcu: used during RCU grace period
+  *	@sk_freeptr: used for SLAB_TYPESAFE_BY_RCU managed sockets
   *	@sk_clockid: clockid used by time-based scheduling (SO_TXTIME)
   *	@sk_txtime_deadline_mode: set deadline mode for SO_TXTIME
   *	@sk_txtime_report_errors: set report errors mode for SO_TXTIME
@@ -582,7 +583,14 @@ struct sock {
 	struct bpf_local_storage __rcu	*sk_bpf_storage;
 #endif
 	struct numa_drop_counters *sk_drop_counters;
-	struct rcu_head		sk_rcu;
+	/* sockets using SLAB_TYPESAFE_BY_RCU can use sk_freeptr.
+	 * By the time kfree() is called, sk_rcu can not be in
+	 * use and can be mangled.
+	 */
+	union {
+		struct rcu_head	sk_rcu;
+		freeptr_t	sk_freeptr;
+	};
 	netns_tracker		ns_tracker;
 	struct xarray		sk_user_frags;
 
@@ -1368,6 +1376,7 @@ struct proto {
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
+	unsigned int		freeptr_offset;
 	unsigned int		ipv6_pinfo_offset;
 	slab_flags_t		slab_flags;
 	unsigned int		useroffset;	/* Usercopy region offset */
@@ -2089,7 +2098,7 @@ static inline int sk_rx_queue_get(const struct sock *sk)
 
 static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 {
-	sk->sk_socket = sock;
+	WRITE_ONCE(sk->sk_socket, sock);
 	if (sock) {
 		WRITE_ONCE(sk->sk_uid, SOCK_INODE(sock)->i_uid);
 		WRITE_ONCE(sk->sk_ino, SOCK_INODE(sock)->i_ino);

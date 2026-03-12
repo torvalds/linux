@@ -157,7 +157,7 @@ static int identify_descriptor(struct gb_interface *intf,
 			 expected_size, desc_size);
 	}
 
-	descriptor = kzalloc(sizeof(*descriptor), GFP_KERNEL);
+	descriptor = kzalloc_obj(*descriptor);
 	if (!descriptor)
 		return -ENOMEM;
 
@@ -275,8 +275,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 	if (!count)
 		return 0;
 
-	bundle->cport_desc = kcalloc(count, sizeof(*bundle->cport_desc),
-				     GFP_KERNEL);
+	bundle->cport_desc = kzalloc_objs(*bundle->cport_desc, count);
 	if (!bundle->cport_desc)
 		goto exit;
 

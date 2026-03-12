@@ -123,6 +123,12 @@ There is NO WARRANTY, to the extent permitted by law.""",
         help="Generate code for client or server side",
         type=str,
     )
+    source_parser.add_argument(
+        "--no-enum-validation",
+        action="store_true",
+        default=False,
+        help="Disable enum value validation in decoders",
+    )
     source_parser.add_argument("filename", help="File containing an XDR specification")
     source_parser.set_defaults(func=source.subcmd)
 
@@ -133,7 +139,5 @@ There is NO WARRANTY, to the extent permitted by law.""",
 try:
     if __name__ == "__main__":
         sys.exit(main())
-except SystemExit:
-    sys.exit(0)
 except (KeyboardInterrupt, BrokenPipeError):
     sys.exit(1)

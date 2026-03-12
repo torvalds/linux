@@ -60,7 +60,7 @@ static int vgem_open(struct drm_device *dev, struct drm_file *file)
 	struct vgem_file *vfile;
 	int ret;
 
-	vfile = kzalloc(sizeof(*vfile), GFP_KERNEL);
+	vfile = kzalloc_obj(*vfile);
 	if (!vfile)
 		return -ENOMEM;
 
@@ -94,7 +94,7 @@ static struct drm_gem_object *vgem_gem_create_object(struct drm_device *dev, siz
 {
 	struct drm_gem_shmem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

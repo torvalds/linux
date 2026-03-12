@@ -291,7 +291,7 @@ int pvcalls_front_socket(struct socket *sock)
 	}
 	bedata = dev_get_drvdata(&pvcalls_front_dev->dev);
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (map == NULL) {
 		pvcalls_exit();
 		return -ENOMEM;
@@ -820,7 +820,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock,
 		}
 	}
 
-	map2 = kzalloc(sizeof(*map2), GFP_KERNEL);
+	map2 = kzalloc_obj(*map2);
 	if (map2 == NULL) {
 		clear_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
 			  (void *)&map->passive.flags);
@@ -1179,7 +1179,7 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 		return -ENODEV;
 	pr_info("%s max-page-order is %u\n", __func__, max_page_order);
 
-	bedata = kzalloc(sizeof(struct pvcalls_bedata), GFP_KERNEL);
+	bedata = kzalloc_obj(struct pvcalls_bedata);
 	if (!bedata)
 		return -ENOMEM;
 

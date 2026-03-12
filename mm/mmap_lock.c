@@ -45,65 +45,111 @@ EXPORT_SYMBOL(__mmap_lock_do_trace_released);
 
 #ifdef CONFIG_MMU
 #ifdef CONFIG_PER_VMA_LOCK
+
+/* State shared across __vma_[start, end]_exclude_readers. */
+struct vma_exclude_readers_state {
+	/* Input parameters. */
+	struct vm_area_struct *vma;
+	int state; /* TASK_KILLABLE or TASK_UNINTERRUPTIBLE. */
+	bool detaching;
+
+	/* Output parameters. */
+	bool detached;
+	bool exclusive; /* Are we exclusively locked? */
+};
+
 /*
- * __vma_enter_locked() returns 0 immediately if the vma is not
- * attached, otherwise it waits for any current readers to finish and
- * returns 1.  Returns -EINTR if a signal is received while waiting.
+ * Now that all readers have been evicted, mark the VMA as being out of the
+ * 'exclude readers' state.
  */
-static inline int __vma_enter_locked(struct vm_area_struct *vma,
-		bool detaching, int state)
+static void __vma_end_exclude_readers(struct vma_exclude_readers_state *ves)
 {
-	int err;
-	unsigned int tgt_refcnt = VMA_LOCK_OFFSET;
+	struct vm_area_struct *vma = ves->vma;
+
+	VM_WARN_ON_ONCE(ves->detached);
+
+	ves->detached = refcount_sub_and_test(VM_REFCNT_EXCLUDE_READERS_FLAG,
+					      &vma->vm_refcnt);
+	__vma_lockdep_release_exclusive(vma);
+}
+
+static unsigned int get_target_refcnt(struct vma_exclude_readers_state *ves)
+{
+	const unsigned int tgt = ves->detaching ? 0 : 1;
+
+	return tgt | VM_REFCNT_EXCLUDE_READERS_FLAG;
+}
+
+/*
+ * Mark the VMA as being in a state of excluding readers, check to see if any
+ * VMA read locks are indeed held, and if so wait for them to be released.
+ *
+ * Note that this function pairs with vma_refcount_put() which will wake up this
+ * thread when it detects that the last reader has released its lock.
+ *
+ * The ves->state parameter ought to be set to TASK_UNINTERRUPTIBLE in cases
+ * where we wish the thread to sleep uninterruptibly or TASK_KILLABLE if a fatal
+ * signal is permitted to kill it.
+ *
+ * The function sets the ves->exclusive parameter to true if readers were
+ * excluded, or false if the VMA was detached or an error arose on wait.
+ *
+ * If the function indicates an exclusive lock was acquired via ves->exclusive
+ * the caller is required to invoke __vma_end_exclude_readers() once the
+ * exclusive state is no longer required.
+ *
+ * If ves->state is set to something other than TASK_UNINTERRUPTIBLE, the
+ * function may also return -EINTR to indicate a fatal signal was received while
+ * waiting.  Otherwise, the function returns 0.
+ */
+static int __vma_start_exclude_readers(struct vma_exclude_readers_state *ves)
+{
+	struct vm_area_struct *vma = ves->vma;
+	unsigned int tgt_refcnt = get_target_refcnt(ves);
+	int err = 0;
 
 	mmap_assert_write_locked(vma->vm_mm);
-
-	/* Additional refcnt if the vma is attached. */
-	if (!detaching)
-		tgt_refcnt++;
 
 	/*
 	 * If vma is detached then only vma_mark_attached() can raise the
 	 * vm_refcnt. mmap_write_lock prevents racing with vma_mark_attached().
+	 *
+	 * See the comment describing the vm_area_struct->vm_refcnt field for
+	 * details of possible refcnt values.
 	 */
-	if (!refcount_add_not_zero(VMA_LOCK_OFFSET, &vma->vm_refcnt))
+	if (!refcount_add_not_zero(VM_REFCNT_EXCLUDE_READERS_FLAG, &vma->vm_refcnt)) {
+		ves->detached = true;
 		return 0;
+	}
 
-	rwsem_acquire(&vma->vmlock_dep_map, 0, 0, _RET_IP_);
+	__vma_lockdep_acquire_exclusive(vma);
 	err = rcuwait_wait_event(&vma->vm_mm->vma_writer_wait,
 		   refcount_read(&vma->vm_refcnt) == tgt_refcnt,
-		   state);
+		   ves->state);
 	if (err) {
-		if (refcount_sub_and_test(VMA_LOCK_OFFSET, &vma->vm_refcnt)) {
-			/*
-			 * The wait failed, but the last reader went away
-			 * as well.  Tell the caller the VMA is detached.
-			 */
-			WARN_ON_ONCE(!detaching);
-			err = 0;
-		}
-		rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
+		__vma_end_exclude_readers(ves);
 		return err;
 	}
-	lock_acquired(&vma->vmlock_dep_map, _RET_IP_);
 
-	return 1;
+	__vma_lockdep_stat_mark_acquired(vma);
+	ves->exclusive = true;
+	return 0;
 }
 
-static inline void __vma_exit_locked(struct vm_area_struct *vma, bool *detached)
+int __vma_start_write(struct vm_area_struct *vma, int state)
 {
-	*detached = refcount_sub_and_test(VMA_LOCK_OFFSET, &vma->vm_refcnt);
-	rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
-}
+	const unsigned int mm_lock_seq = __vma_raw_mm_seqnum(vma);
+	struct vma_exclude_readers_state ves = {
+		.vma = vma,
+		.state = state,
+	};
+	int err;
 
-int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
-		int state)
-{
-	int locked;
-
-	locked = __vma_enter_locked(vma, false, state);
-	if (locked < 0)
-		return locked;
+	err = __vma_start_exclude_readers(&ves);
+	if (err) {
+		WARN_ON_ONCE(ves.detached);
+		return err;
+	}
 
 	/*
 	 * We should use WRITE_ONCE() here because we can have concurrent reads
@@ -113,39 +159,42 @@ int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
 	 */
 	WRITE_ONCE(vma->vm_lock_seq, mm_lock_seq);
 
-	if (locked) {
-		bool detached;
-
-		__vma_exit_locked(vma, &detached);
-		WARN_ON_ONCE(detached); /* vma should remain attached */
+	if (ves.exclusive) {
+		__vma_end_exclude_readers(&ves);
+		/* VMA should remain attached. */
+		WARN_ON_ONCE(ves.detached);
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__vma_start_write);
 
-void vma_mark_detached(struct vm_area_struct *vma)
+void __vma_exclude_readers_for_detach(struct vm_area_struct *vma)
 {
-	vma_assert_write_locked(vma);
-	vma_assert_attached(vma);
+	struct vma_exclude_readers_state ves = {
+		.vma = vma,
+		.state = TASK_UNINTERRUPTIBLE,
+		.detaching = true,
+	};
+	int err;
 
 	/*
-	 * We are the only writer, so no need to use vma_refcount_put().
-	 * The condition below is unlikely because the vma has been already
-	 * write-locked and readers can increment vm_refcnt only temporarily
-	 * before they check vm_lock_seq, realize the vma is locked and drop
-	 * back the vm_refcnt. That is a narrow window for observing a raised
-	 * vm_refcnt.
+	 * Wait until the VMA is detached with no readers. Since we hold the VMA
+	 * write lock, the only read locks that might be present are those from
+	 * threads trying to acquire the read lock and incrementing the
+	 * reference count before realising the write lock is held and
+	 * decrementing it.
 	 */
-	if (unlikely(!refcount_dec_and_test(&vma->vm_refcnt))) {
-		/* Wait until vma is detached with no readers. */
-		if (__vma_enter_locked(vma, true, TASK_UNINTERRUPTIBLE)) {
-			bool detached;
-
-			__vma_exit_locked(vma, &detached);
-			WARN_ON_ONCE(!detached);
-		}
+	err = __vma_start_exclude_readers(&ves);
+	if (!err && ves.exclusive) {
+		/*
+		 * Once this is complete, no readers can increment the
+		 * reference count, and the VMA is marked detached.
+		 */
+		__vma_end_exclude_readers(&ves);
 	}
+	/* If an error arose but we were detached anyway, we don't care. */
+	WARN_ON_ONCE(!ves.detached);
 }
 
 /*
@@ -180,19 +229,21 @@ static inline struct vm_area_struct *vma_start_read(struct mm_struct *mm,
 	}
 
 	/*
-	 * If VMA_LOCK_OFFSET is set, __refcount_inc_not_zero_limited_acquire()
-	 * will fail because VMA_REF_LIMIT is less than VMA_LOCK_OFFSET.
+	 * If VM_REFCNT_EXCLUDE_READERS_FLAG is set,
+	 * __refcount_inc_not_zero_limited_acquire() will fail because
+	 * VM_REFCNT_LIMIT is less than VM_REFCNT_EXCLUDE_READERS_FLAG.
+	 *
 	 * Acquire fence is required here to avoid reordering against later
 	 * vm_lock_seq check and checks inside lock_vma_under_rcu().
 	 */
 	if (unlikely(!__refcount_inc_not_zero_limited_acquire(&vma->vm_refcnt, &oldcnt,
-							      VMA_REF_LIMIT))) {
+							      VM_REFCNT_LIMIT))) {
 		/* return EAGAIN if vma got detached from under us */
 		vma = oldcnt ? NULL : ERR_PTR(-EAGAIN);
 		goto err;
 	}
 
-	rwsem_acquire_read(&vma->vmlock_dep_map, 0, 1, _RET_IP_);
+	__vma_lockdep_acquire_read(vma);
 
 	if (unlikely(vma->vm_mm != mm))
 		goto err_unstable;

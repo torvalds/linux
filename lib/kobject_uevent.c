@@ -124,7 +124,7 @@ static int kobject_action_args(const char *buf, size_t count,
 	if (!count)
 		return -EINVAL;
 
-	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return -ENOMEM;
 
@@ -537,7 +537,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	}
 
 	/* environment buffer */
-	env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
+	env = kzalloc_obj(struct kobj_uevent_env);
 	if (!env)
 		return -ENOMEM;
 
@@ -776,7 +776,7 @@ static int uevent_net_init(struct net *net)
 		.flags	= NL_CFG_F_NONROOT_RECV
 	};
 
-	ue_sk = kzalloc(sizeof(*ue_sk), GFP_KERNEL);
+	ue_sk = kzalloc_obj(*ue_sk);
 	if (!ue_sk)
 		return -ENOMEM;
 

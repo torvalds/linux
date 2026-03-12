@@ -1099,7 +1099,7 @@ static int sa_run(struct sa_req *req)
 	gfp_flags = req->base->flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
 		GFP_KERNEL : GFP_ATOMIC;
 
-	rxd = kzalloc(sizeof(*rxd), gfp_flags);
+	rxd = kzalloc_obj(*rxd, gfp_flags);
 	if (!rxd)
 		return -ENOMEM;
 

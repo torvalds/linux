@@ -285,8 +285,6 @@ void xfs_free_rtgroups(struct xfs_mount *mp, xfs_rgnumber_t first_rgno,
 int xfs_initialize_rtgroups(struct xfs_mount *mp, xfs_rgnumber_t first_rgno,
 		xfs_rgnumber_t end_rgno, xfs_rtbxlen_t rextents);
 
-xfs_rtxnum_t __xfs_rtgroup_extents(struct xfs_mount *mp, xfs_rgnumber_t rgno,
-		xfs_rgnumber_t rgcount, xfs_rtbxlen_t rextents);
 xfs_rtxnum_t xfs_rtgroup_extents(struct xfs_mount *mp, xfs_rgnumber_t rgno);
 void xfs_rtgroup_calc_geometry(struct xfs_mount *mp, struct xfs_rtgroup *rtg,
 		xfs_rgnumber_t rgno, xfs_rgnumber_t rgcount,
@@ -371,6 +369,21 @@ xfs_rtgs_to_rfsbs(
 	uint32_t		nr_groups)
 {
 	return xfs_groups_to_rfsbs(mp, nr_groups, XG_TYPE_RTG);
+}
+
+/*
+ * Return the "raw" size of a group on the hardware device.  This includes the
+ * daddr gaps present for XFS_SB_FEAT_INCOMPAT_ZONE_GAPS file systems.
+ */
+static inline xfs_rgblock_t
+xfs_rtgroup_raw_size(
+	struct xfs_mount	*mp)
+{
+	struct xfs_groups	*g = &mp->m_groups[XG_TYPE_RTG];
+
+	if (g->has_daddr_gaps)
+		return 1U << g->blklog;
+	return g->blocks;
 }
 
 #endif /* __LIBXFS_RTGROUP_H */

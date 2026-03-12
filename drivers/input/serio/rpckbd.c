@@ -108,8 +108,8 @@ static int rpckbd_probe(struct platform_device *dev)
 	if (tx_irq < 0)
 		return tx_irq;
 
-	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
-	rpckbd = kzalloc(sizeof(*rpckbd), GFP_KERNEL);
+	serio = kzalloc_obj(*serio);
+	rpckbd = kzalloc_obj(*rpckbd);
 	if (!serio || !rpckbd) {
 		kfree(rpckbd);
 		kfree(serio);

@@ -64,7 +64,7 @@ static int snd_hrtimer_open(struct snd_timer *t)
 {
 	struct snd_hrtimer *stime;
 
-	stime = kzalloc(sizeof(*stime), GFP_KERNEL);
+	stime = kzalloc_obj(*stime);
 	if (!stime)
 		return -ENOMEM;
 	stime->timer = t;

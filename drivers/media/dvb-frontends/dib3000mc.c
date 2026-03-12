@@ -861,7 +861,7 @@ int dib3000mc_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defa
 
 	static const u8 DIB3000MC_I2C_ADDRESS[] = { 20, 22, 24, 26 };
 
-	dmcst = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
+	dmcst = kzalloc_obj(struct dib3000mc_state);
 	if (dmcst == NULL)
 		return -ENOMEM;
 
@@ -910,7 +910,7 @@ struct dvb_frontend * dib3000mc_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr
 {
 	struct dvb_frontend *demod;
 	struct dib3000mc_state *st;
-	st = kzalloc(sizeof(struct dib3000mc_state), GFP_KERNEL);
+	st = kzalloc_obj(struct dib3000mc_state);
 	if (st == NULL)
 		return NULL;
 

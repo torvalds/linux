@@ -41,7 +41,7 @@ hws_pool_create_one_resource(struct mlx5hws_pool *pool, u32 log_range,
 	u32 obj_id = 0;
 	int ret;
 
-	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
+	resource = kzalloc_obj(*resource);
 	if (!resource)
 		return NULL;
 
@@ -347,7 +347,7 @@ mlx5hws_pool_create(struct mlx5hws_context *ctx, struct mlx5hws_pool_attr *pool_
 	enum mlx5hws_db_type res_db_type;
 	struct mlx5hws_pool *pool;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 

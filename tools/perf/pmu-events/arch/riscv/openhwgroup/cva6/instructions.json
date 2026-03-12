@@ -1,0 +1,47 @@
+[
+  {
+    "EventName": "LOAD_INSTRUCTIONS_RETIRED",
+    "EventCode": "0x5",
+    "BriefDescription": "number of data memory load instructions retired"
+  },
+  {
+    "EventName": "STORE_INSTRUCTIONS_RETIRED",
+    "EventCode": "0x6",
+    "BriefDescription": "number of data memory store instructions retired"
+  },
+  {
+    "EventName": "EXCEPTIONS",
+    "EventCode": "0x7",
+    "BriefDescription": "valid exceptions encountered"
+  },
+  {
+    "EventName": "EXCEPTION_HANDLER_RETURNS",
+    "EventCode": "0x8",
+    "BriefDescription": "return from an exception"
+  },
+  {
+    "EventName": "BRANCH_INSTRUCTIONS_RETIRED",
+    "EventCode": "0x9",
+    "BriefDescription": "number of branch instructions encountered retired"
+  },
+  {
+    "EventName": "CALL_INSTRUCTIONS_RETIRED",
+    "EventCode": "0xC",
+    "BriefDescription": "number of call instructions retired"
+  },
+  {
+    "EventName": "RETURN_INSTRUCTIONS_RETIRED",
+    "EventCode": "0xD",
+    "BriefDescription": "number of return instructions retired"
+  },
+  {
+    "EventName": "INTEGER_INSTRUCTIONS_RETIRED",
+    "EventCode": "0x14",
+    "BriefDescription": "number of integer instructions retired"
+  },
+  {
+    "EventName": "FLOATING_POINT_INSTRUCTIONS_RETIRED",
+    "EventCode": "0x15",
+    "BriefDescription": "number of floating point instructions retired"
+  }
+]

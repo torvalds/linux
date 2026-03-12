@@ -120,8 +120,7 @@ static inline bool kfd_dbg_has_gws_support(struct kfd_node *dev)
 			&& dev->kfd->mec2_fw_version < 0x1b6) ||
 		(KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1)
 			&& dev->kfd->mec2_fw_version < 0x30) ||
-		(KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0) &&
-			KFD_GC_VERSION(dev) < IP_VERSION(12, 0, 0)))
+		kfd_dbg_has_cwsr_workaround(dev))
 		return false;
 
 	/* Assume debugging and cooperative launch supported otherwise. */

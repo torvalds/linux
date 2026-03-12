@@ -123,7 +123,7 @@ int acrn_ioreq_range_add(struct acrn_ioreq_client *client,
 		return -EINVAL;
 	}
 
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	range = kzalloc_obj(*range);
 	if (!range)
 		return -ENOMEM;
 
@@ -424,7 +424,7 @@ struct acrn_ioreq_client *acrn_ioreq_client_create(struct acrn_vm *vm,
 			"Cannot create non-default client w/o handler!\n");
 		return NULL;
 	}
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return NULL;
 
@@ -602,7 +602,7 @@ int acrn_ioreq_init(struct acrn_vm *vm, u64 buf_vma)
 	if (vm->ioreq_buf)
 		return -EEXIST;
 
-	set_buffer = kzalloc(sizeof(*set_buffer), GFP_KERNEL);
+	set_buffer = kzalloc_obj(*set_buffer);
 	if (!set_buffer)
 		return -ENOMEM;
 

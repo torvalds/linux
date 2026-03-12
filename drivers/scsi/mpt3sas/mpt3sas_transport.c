@@ -698,8 +698,7 @@ mpt3sas_transport_port_add(struct MPT3SAS_ADAPTER *ioc, u16 handle,
 		return NULL;
 	}
 
-	mpt3sas_port = kzalloc(sizeof(struct _sas_port),
-	    GFP_KERNEL);
+	mpt3sas_port = kzalloc_obj(struct _sas_port);
 	if (!mpt3sas_port) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);

@@ -172,9 +172,20 @@ static inline void kvm_nested_vmexit_handle_ibrs(struct kvm_vcpu *vcpu)
 		indirect_branch_prediction_barrier();
 }
 
-static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
+/*
+ * Disallow modifying CPUID and feature MSRs, which affect the core virtual CPU
+ * model exposed to the guest and virtualized by KVM, if the vCPU has already
+ * run or is in guest mode (L2).  In both cases, KVM has already consumed the
+ * current virtual CPU model, and doesn't support "unwinding" to react to the
+ * new model.
+ *
+ * Note, the only way is_guest_mode() can be true with 'last_vmentry_cpu == -1'
+ * is if userspace sets CPUID and feature MSRs (to enable VMX/SVM), then sets
+ * nested state, and then attempts to set CPUID and/or feature MSRs *again*.
+ */
+static inline bool kvm_can_set_cpuid_and_feature_msrs(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.last_vmentry_cpu != -1;
+	return vcpu->arch.last_vmentry_cpu == -1 && !is_guest_mode(vcpu);
 }
 
 static inline void kvm_set_mp_state(struct kvm_vcpu *vcpu, int mp_state)
@@ -470,6 +481,9 @@ extern struct kvm_caps kvm_caps;
 extern struct kvm_host_values kvm_host;
 
 extern bool enable_pmu;
+extern bool enable_mediated_pmu;
+
+void kvm_setup_xss_caps(void);
 
 /*
  * Get a filtered version of KVM's supported XCR0 that strips out dynamic

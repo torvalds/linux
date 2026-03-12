@@ -15,7 +15,8 @@ then
   test_prog="perf test -w noploop"
 fi
 
-err=0
+skip=0
+err=3
 for m in $(perf list --raw-dump metrics); do
   echo "Testing $m"
   result=$(perf stat -M "$m" $system_wide_flag -- $test_prog 2>&1)
@@ -23,6 +24,10 @@ for m in $(perf list --raw-dump metrics); do
   if [[ $result_err -eq 0 && "$result" =~ ${m:0:50} ]]
   then
     # No error result and metric shown.
+    if [[ "$err" -ne 1 ]]
+    then
+      err=0
+    fi
     continue
   fi
   if [[ "$result" =~ "Cannot resolve IDs for" || "$result" =~ "No supported events found" ]]
@@ -44,7 +49,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   elif [[ "$result" =~ "in per-thread mode, enable system wide" ]]
@@ -53,7 +58,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   elif [[ "$result" =~ "<not supported>" ]]
@@ -68,7 +73,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   elif [[ "$result" =~ "<not counted>" ]]
@@ -77,7 +82,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   elif [[ "$result" =~ "FP_ARITH" || "$result" =~ "AMX" ]]
@@ -86,7 +91,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   elif [[ "$result" =~ "PMM" ]]
@@ -95,7 +100,7 @@ for m in $(perf list --raw-dump metrics); do
     echo $result
     if [[ $err -eq 0 ]]
     then
-      err=2 # Skip
+      skip=1
     fi
     continue
   fi
@@ -106,11 +111,21 @@ for m in $(perf list --raw-dump metrics); do
   if [[ $result_err -eq 0 && "$result" =~ ${m:0:50} ]]
   then
     # No error result and metric shown.
+    if [[ "$err" -ne 1 ]]
+    then
+      err=0
+    fi
     continue
   fi
   echo "[Failed $m] has non-zero error '$result_err' or not printed in:"
   echo "$result"
   err=1
 done
+
+# return SKIP only if no success returned
+if [[ "$err" -eq 3 && "$skip" -eq 1 ]]
+then
+  err=2
+fi
 
 exit "$err"

@@ -1082,9 +1082,8 @@ static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 		return;
 
 	clock->ptp_info.pin_config =
-			kcalloc(clock->ptp_info.n_pins,
-				sizeof(*clock->ptp_info.pin_config),
-				GFP_KERNEL);
+			kzalloc_objs(*clock->ptp_info.pin_config,
+				     clock->ptp_info.n_pins);
 	if (!clock->ptp_info.pin_config)
 		return;
 	clock->ptp_info.enable = mlx5_ptp_enable;
@@ -1407,7 +1406,7 @@ static int mlx5_clock_alloc(struct mlx5_core_dev *mdev, bool shared)
 	struct mlx5_clock_priv *cpriv;
 	struct mlx5_clock *clock;
 
-	cpriv = kzalloc(sizeof(*cpriv), GFP_KERNEL);
+	cpriv = kzalloc_obj(*cpriv);
 	if (!cpriv)
 		return -ENOMEM;
 
@@ -1604,7 +1603,7 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 		return 0;
 	}
 
-	clock_state = kzalloc(sizeof(*clock_state), GFP_KERNEL);
+	clock_state = kzalloc_obj(*clock_state);
 	if (!clock_state)
 		return -ENOMEM;
 	clock_state->mdev = mdev;

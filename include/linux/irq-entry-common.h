@@ -110,7 +110,7 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
 static inline void local_irq_enable_exit_to_user(unsigned long ti_work);
 
 #ifndef local_irq_enable_exit_to_user
-static inline void local_irq_enable_exit_to_user(unsigned long ti_work)
+static __always_inline void local_irq_enable_exit_to_user(unsigned long ti_work)
 {
 	local_irq_enable();
 }
@@ -125,7 +125,7 @@ static inline void local_irq_enable_exit_to_user(unsigned long ti_work)
 static inline void local_irq_disable_exit_to_user(void);
 
 #ifndef local_irq_disable_exit_to_user
-static inline void local_irq_disable_exit_to_user(void)
+static __always_inline void local_irq_disable_exit_to_user(void)
 {
 	local_irq_disable();
 }

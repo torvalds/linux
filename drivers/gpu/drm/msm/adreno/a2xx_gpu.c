@@ -77,7 +77,10 @@ static bool a2xx_me_init(struct msm_gpu *gpu)
 
 	/* Vertex and Pixel Shader Start Addresses in instructions
 	 * (3 DWORDS per instruction) */
-	OUT_RING(ring, 0x80000180);
+	if (adreno_is_a225(adreno_gpu))
+		OUT_RING(ring, 0x80000300);
+	else
+		OUT_RING(ring, 0x80000180);
 	/* Maximum Contexts */
 	OUT_RING(ring, 0x00000001);
 	/* Write Confirm Interval and The CP will wait the
@@ -454,7 +457,7 @@ static void a2xx_dump(struct msm_gpu *gpu)
 
 static struct msm_gpu_state *a2xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct msm_gpu_state *state = kzalloc_obj(*state);
 
 	if (!state)
 		return ERR_PTR(-ENOMEM);
@@ -506,7 +509,7 @@ static struct msm_gpu *a2xx_gpu_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	a2xx_gpu = kzalloc(sizeof(*a2xx_gpu), GFP_KERNEL);
+	a2xx_gpu = kzalloc_obj(*a2xx_gpu);
 	if (!a2xx_gpu) {
 		ret = -ENOMEM;
 		goto fail;

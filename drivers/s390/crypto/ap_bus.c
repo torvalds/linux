@@ -16,6 +16,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/moduleparam.h>
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -52,24 +53,24 @@ MODULE_LICENSE("GPL");
 
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
-module_param_named(domain, ap_domain_index, int, 0440);
+module_param_named(domain, ap_domain_index, int, 0444);
 MODULE_PARM_DESC(domain, "domain index for ap devices");
 EXPORT_SYMBOL(ap_domain_index);
 
 static int ap_thread_flag;
-module_param_named(poll_thread, ap_thread_flag, int, 0440);
+module_param_named(poll_thread, ap_thread_flag, int, 0444);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static char *apm_str;
-module_param_named(apmask, apm_str, charp, 0440);
+module_param_named(apmask, apm_str, charp, 0444);
 MODULE_PARM_DESC(apmask, "AP bus adapter mask.");
 
 static char *aqm_str;
-module_param_named(aqmask, aqm_str, charp, 0440);
+module_param_named(aqmask, aqm_str, charp, 0444);
 MODULE_PARM_DESC(aqmask, "AP bus domain mask.");
 
 static int ap_useirq = 1;
-module_param_named(useirq, ap_useirq, int, 0440);
+module_param_named(useirq, ap_useirq, int, 0444);
 MODULE_PARM_DESC(useirq, "Use interrupt if available, default is 1 (on).");
 
 atomic_t ap_max_msg_size = ATOMIC_INIT(AP_DEFAULT_MAX_MSG_SIZE);
@@ -130,7 +131,7 @@ debug_info_t *ap_dbf_info;
  */
 static mempool_t *ap_msg_pool;
 static unsigned int ap_msg_pool_min_items = 8;
-module_param_named(msgpool_min_items, ap_msg_pool_min_items, uint, 0440);
+module_param_named(msgpool_min_items, ap_msg_pool_min_items, uint, 0400);
 MODULE_PARM_DESC(msgpool_min_items, "AP message pool minimal items");
 
 /*

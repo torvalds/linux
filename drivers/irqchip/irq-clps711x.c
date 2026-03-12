@@ -155,7 +155,7 @@ static int __init _clps711x_intc_init(struct device_node *np,
 {
 	int err;
 
-	clps711x_intc = kzalloc(sizeof(*clps711x_intc), GFP_KERNEL);
+	clps711x_intc = kzalloc_obj(*clps711x_intc);
 	if (!clps711x_intc)
 		return -ENOMEM;
 

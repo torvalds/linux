@@ -5,7 +5,7 @@
  * Copyright 2002, Phil Karn, KA9Q
  * May be used under the terms of the GNU General Public License (GPL)
  *
- * Adaption to the kernel by Thomas Gleixner (tglx@linutronix.de)
+ * Adaption to the kernel by Thomas Gleixner (tglx@kernel.org)
  *
  * Generic data width independent code which is included by the wrappers.
  */

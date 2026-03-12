@@ -426,8 +426,10 @@ int libbfd__read_build_id(const char *filename, struct build_id *bid)
 
 	if (!filename)
 		return -EFAULT;
+
+	errno = 0;
 	if (!is_regular_file(filename))
-		return -EWOULDBLOCK;
+		return errno == 0 ? -EWOULDBLOCK : -errno;
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
@@ -499,7 +501,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 	struct bpf_prog_info_node *info_node;
 	int len = sym->end - sym->start;
 	disassembler_ftype disassemble;
-	struct map *map = args->ms.map;
+	struct map *map = args->ms->map;
 	struct perf_bpil *info_linear;
 	struct disassemble_info info;
 	struct dso *dso = map__dso(map);
@@ -610,7 +612,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 			args->line = strdup(srcline);
 			args->line_nr = 0;
 			args->fileloc = NULL;
-			args->ms.sym  = sym;
+			args->ms->sym = sym;
 			dl = disasm_line__new(args);
 			if (dl) {
 				annotation_line__add(&dl->al,
@@ -622,7 +624,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 		args->line = buf + prev_buf_size;
 		args->line_nr = 0;
 		args->fileloc = NULL;
-		args->ms.sym  = sym;
+		args->ms->sym = sym;
 		dl = disasm_line__new(args);
 		if (dl)
 			annotation_line__add(&dl->al, &notes->src->source);

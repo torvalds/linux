@@ -274,7 +274,7 @@ siw_mmap_entry_insert(struct siw_ucontext *uctx,
 		      void *address, size_t length,
 		      u64 *offset)
 {
-	struct siw_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	struct siw_user_mmap_entry *entry = kzalloc_obj(*entry);
 	int rv;
 
 	*offset = SIW_INVAL_UOBJ_KEY;
@@ -1360,7 +1360,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 		umem = NULL;
 		goto err_out;
 	}
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		rv = -ENOMEM;
 		goto err_out;
@@ -1441,7 +1441,7 @@ struct ib_mr *siw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 		pbl = NULL;
 		goto err_out;
 	}
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		rv = -ENOMEM;
 		goto err_out;
@@ -1556,7 +1556,7 @@ struct ib_mr *siw_get_dma_mr(struct ib_pd *pd, int rights)
 		rv = -ENOMEM;
 		goto err_out;
 	}
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		rv = -ENOMEM;
 		goto err_out;

@@ -15,7 +15,6 @@
 #include "hci.h"
 #include "dat.h"
 
-
 /*
  * Device Address Table Structure
  */
@@ -35,13 +34,26 @@
 /*	DAT_0_IBI_PAYLOAD		W0_BIT_(12) */
 #define DAT_0_STATIC_ADDRESS		W0_MASK(6, 0)
 
-#define dat_w0_read(i)		readl(hci->DAT_regs + (i) * 8)
-#define dat_w1_read(i)		readl(hci->DAT_regs + (i) * 8 + 4)
-#define dat_w0_write(i, v)	writel(v, hci->DAT_regs + (i) * 8)
-#define dat_w1_write(i, v)	writel(v, hci->DAT_regs + (i) * 8 + 4)
+#define dat_w0_read(i)		hci->DAT[i].w0
+#define dat_w1_read(i)		hci->DAT[i].w1
+#define dat_w0_write(i, v)	hci_dat_w0_write(hci, i, v)
+#define dat_w1_write(i, v)	hci_dat_w1_write(hci, i, v)
+
+static inline void hci_dat_w0_write(struct i3c_hci *hci, int i, u32 v)
+{
+	hci->DAT[i].w0 = v;
+	writel(v, hci->DAT_regs + i * 8);
+}
+
+static inline void hci_dat_w1_write(struct i3c_hci *hci, int i, u32 v)
+{
+	hci->DAT[i].w1 = v;
+	writel(v, hci->DAT_regs + i * 8 + 4);
+}
 
 static int hci_dat_v1_init(struct i3c_hci *hci)
 {
+	struct device *dev = hci->master.dev.parent;
 	unsigned int dat_idx;
 
 	if (!hci->DAT_regs) {
@@ -55,9 +67,15 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 		return -EOPNOTSUPP;
 	}
 
+	if (!hci->DAT) {
+		hci->DAT = devm_kcalloc(dev, hci->DAT_entries, hci->DAT_entry_size, GFP_KERNEL);
+		if (!hci->DAT)
+			return -ENOMEM;
+	}
+
 	if (!hci->DAT_data) {
 		/* use a bitmap for faster free slot search */
-		hci->DAT_data = bitmap_zalloc(hci->DAT_entries, GFP_KERNEL);
+		hci->DAT_data = devm_bitmap_zalloc(dev, hci->DAT_entries, GFP_KERNEL);
 		if (!hci->DAT_data)
 			return -ENOMEM;
 
@@ -69,12 +87,6 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 	}
 
 	return 0;
-}
-
-static void hci_dat_v1_cleanup(struct i3c_hci *hci)
-{
-	bitmap_free(hci->DAT_data);
-	hci->DAT_data = NULL;
 }
 
 static int hci_dat_v1_alloc_entry(struct i3c_hci *hci)
@@ -169,9 +181,16 @@ static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 	return -ENODEV;
 }
 
+static void hci_dat_v1_restore(struct i3c_hci *hci)
+{
+	for (int i = 0; i < hci->DAT_entries; i++) {
+		writel(hci->DAT[i].w0, hci->DAT_regs + i * 8);
+		writel(hci->DAT[i].w1, hci->DAT_regs + i * 8 + 4);
+	}
+}
+
 const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.init			= hci_dat_v1_init,
-	.cleanup		= hci_dat_v1_cleanup,
 	.alloc_entry		= hci_dat_v1_alloc_entry,
 	.free_entry		= hci_dat_v1_free_entry,
 	.set_dynamic_addr	= hci_dat_v1_set_dynamic_addr,
@@ -179,4 +198,5 @@ const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.set_flags		= hci_dat_v1_set_flags,
 	.clear_flags		= hci_dat_v1_clear_flags,
 	.get_index		= hci_dat_v1_get_index,
+	.restore		= hci_dat_v1_restore,
 };

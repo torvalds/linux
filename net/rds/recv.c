@@ -204,8 +204,14 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 		struct rds_ext_header_version version;
 		__be16 rds_npaths;
 		__be32 rds_gen_num;
+		u8 dummy;
 	} buffer;
+	bool new_with_sport_idx = false;
 	u32 new_peer_gen_num = 0;
+	int new_npaths;
+	bool fan_out;
+
+	new_npaths = conn->c_npaths;
 
 	while (1) {
 		len = sizeof(buffer);
@@ -215,21 +221,48 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 		/* Process extension header here */
 		switch (type) {
 		case RDS_EXTHDR_NPATHS:
-			conn->c_npaths = min_t(int, RDS_MPATH_WORKERS,
-					       be16_to_cpu(buffer.rds_npaths));
+			new_npaths = min_t(int, RDS_MPATH_WORKERS,
+					   be16_to_cpu(buffer.rds_npaths));
 			break;
 		case RDS_EXTHDR_GEN_NUM:
 			new_peer_gen_num = be32_to_cpu(buffer.rds_gen_num);
+			break;
+		case RDS_EXTHDR_SPORT_IDX:
+			new_with_sport_idx = true;
 			break;
 		default:
 			pr_warn_ratelimited("ignoring unknown exthdr type "
 					     "0x%x\n", type);
 		}
 	}
+
+	conn->c_with_sport_idx = new_with_sport_idx;
+
+	if (new_npaths > 1 && new_npaths != conn->c_npaths) {
+		/* We're about to fan-out.
+		 * Make sure that messages from cp_index#0
+		 * are sent prior to handling other lanes.
+		 */
+		struct rds_conn_path *cp0 = conn->c_path;
+		unsigned long flags;
+
+		spin_lock_irqsave(&cp0->cp_lock, flags);
+		conn->c_cp0_mprds_catchup_tx_seq = cp0->cp_next_tx_seq;
+		spin_unlock_irqrestore(&cp0->cp_lock, flags);
+		fan_out = true;
+	} else {
+		fan_out = false;
+	}
+
 	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
-	conn->c_npaths = max_t(int, conn->c_npaths, 1);
+	conn->c_npaths = max_t(int, new_npaths, 1);
+
 	conn->c_ping_triggered = 0;
 	rds_conn_peer_gen_update(conn, new_peer_gen_num);
+
+	if (conn->c_npaths > 1 &&
+	    conn->c_trans->conn_slots_available)
+		conn->c_trans->conn_slots_available(conn, fan_out);
 }
 
 /* rds_start_mprds() will synchronously start multiple paths when appropriate.

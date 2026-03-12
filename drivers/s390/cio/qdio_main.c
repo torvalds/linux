@@ -965,7 +965,7 @@ int qdio_allocate(struct ccw_device *cdev, unsigned int no_input_qs,
 	if (!irq_ptr)
 		return -ENOMEM;
 
-	irq_ptr->ccw = kmalloc(sizeof(*irq_ptr->ccw), GFP_KERNEL | GFP_DMA);
+	irq_ptr->ccw = kmalloc_obj(*irq_ptr->ccw, GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr->ccw)
 		goto err_ccw;
 

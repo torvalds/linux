@@ -309,7 +309,7 @@ ia_css_isp_dvs_statistics_allocate(
 	if (!grid->enable)
 		return NULL;
 
-	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -350,7 +350,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
-	me = kvmalloc(sizeof(*me), GFP_KERNEL);
+	me = kvmalloc_obj(*me);
 	if (!me) {
 		IA_CSS_LOG("cannot allocate memory");
 		goto err;

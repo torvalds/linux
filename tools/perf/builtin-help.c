@@ -9,7 +9,6 @@
 #include "util/strbuf.h"
 #include "builtin.h"
 #include <subcmd/exec-cmd.h>
-#include "common-cmds.h"
 #include <subcmd/parse-options.h>
 #include <subcmd/run-command.h>
 #include <subcmd/help.h>
@@ -301,16 +300,58 @@ static struct cmdnames main_cmds, other_cmds;
 
 void list_common_cmds_help(void)
 {
-	unsigned int i, longest = 0;
+	const struct cmdname_help {
+		const char *name;
+		const char *help;
+	} common_cmds[] = {
+		{"annotate", "Read perf.data (created by perf record) and display annotated code"},
+		{"archive",
+		 "Create archive with object files with build-ids found in perf.data file"},
+		{"bench", "General framework for benchmark suites"},
+		{"buildid-cache", "Manage build-id cache."},
+		{"buildid-list", "List the buildids in a perf.data file"},
+		{"c2c", "Shared Data C2C/HITM Analyzer."},
+		{"config", "Get and set variables in a configuration file."},
+		{"daemon", "Run record sessions on background"},
+		{"data", "Data file related processing"},
+		{"diff", "Read perf.data files and display the differential profile"},
+		{"evlist", "List the event names in a perf.data file"},
+		{"ftrace", "simple wrapper for kernel's ftrace functionality"},
+		{"inject", "Filter to augment the events stream with additional information"},
+		{"iostat", "Show I/O performance metrics"},
+		{"kallsyms", "Searches running kernel for symbols"},
+		{"kvm", "Tool to trace/measure kvm guest os"},
+		{"list", "List all symbolic event types"},
+		{"mem", "Profile memory accesses"},
+		{"record", "Run a command and record its profile into perf.data"},
+		{"report", "Read perf.data (created by perf record) and display the profile"},
+		{"script", "Read perf.data (created by perf record) and display trace output"},
+		{"stat", "Run a command and gather performance counter statistics"},
+		{"test", "Runs sanity tests."},
+		{"top", "System profiling tool."},
+		{"version", "display the version of perf binary"},
+	#ifdef HAVE_LIBELF_SUPPORT
+		{"probe", "Define new dynamic tracepoints"},
+	#endif /* HAVE_LIBELF_SUPPORT */
+	#ifdef HAVE_LIBTRACEEVENT
+		{"trace", "strace inspired tool"},
+		{"kmem", "Tool to trace/measure kernel memory properties"},
+		{"kwork", "Tool to trace/measure kernel work properties (latencies)"},
+		{"lock", "Analyze lock events"},
+		{"sched", "Tool to trace/measure scheduler properties (latencies)"},
+		{"timechart", "Tool to visualize total system behavior during a workload"},
+	#endif /* HAVE_LIBTRACEEVENT */
+	};
+	size_t longest = 0;
 
-	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(common_cmds); i++) {
 		if (longest < strlen(common_cmds[i].name))
 			longest = strlen(common_cmds[i].name);
 	}
 
 	puts(" The most commonly used perf commands are:");
-	for (i = 0; i < ARRAY_SIZE(common_cmds); i++) {
-		printf("   %-*s   ", longest, common_cmds[i].name);
+	for (size_t i = 0; i < ARRAY_SIZE(common_cmds); i++) {
+		printf("   %-*s   ", (int)longest, common_cmds[i].name);
 		puts(common_cmds[i].help);
 	}
 }

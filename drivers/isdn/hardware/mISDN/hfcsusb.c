@@ -249,7 +249,7 @@ hfcsusb_ph_info(struct hfcsusb *hw)
 	struct dchannel *dch = &hw->dch;
 	int i;
 
-	phi = kzalloc(struct_size(phi, bch, dch->dev.nrbchan), GFP_ATOMIC);
+	phi = kzalloc_flex(*phi, bch, dch->dev.nrbchan, GFP_ATOMIC);
 	if (!phi)
 		return -ENOMEM;
 
@@ -1696,7 +1696,7 @@ hfcsusb_stop_endpoint(struct hfcsusb *hw, int channel)
 static int
 setup_hfcsusb(struct hfcsusb *hw)
 {
-	void *dmabuf = kmalloc(sizeof(u_char), GFP_KERNEL);
+	void *dmabuf = kmalloc_obj(u_char);
 	u_char b;
 	int ret;
 
@@ -2018,7 +2018,7 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -EIO;
 
 	iface = iface_used;
-	hw = kzalloc(sizeof(struct hfcsusb), GFP_KERNEL);
+	hw = kzalloc_obj(struct hfcsusb);
 	if (!hw)
 		return -ENOMEM;	/* got no mem */
 	snprintf(hw->name, MISDN_MAX_IDLEN - 1, "%s", DRIVER_NAME);

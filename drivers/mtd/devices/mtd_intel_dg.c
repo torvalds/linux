@@ -720,7 +720,7 @@ static int intel_dg_nvm_init_mtd(struct intel_dg_nvm *nvm, struct device *device
 	nvm->mtd.erasesize = SZ_4K; /* 4K bytes granularity */
 	nvm->mtd.size = nvm->size;
 
-	parts = kcalloc(nvm->nregions, sizeof(*parts), GFP_KERNEL);
+	parts = kzalloc_objs(*parts, nvm->nregions);
 	if (!parts)
 		return -ENOMEM;
 
@@ -764,12 +764,13 @@ static int intel_dg_mtd_probe(struct auxiliary_device *aux_dev,
 		return -ENODEV;
 	}
 
-	nvm = kzalloc(struct_size(nvm, regions, nregions), GFP_KERNEL);
+	nvm = kzalloc_flex(*nvm, regions, nregions);
 	if (!nvm)
 		return -ENOMEM;
 
 	kref_init(&nvm->refcnt);
 	mutex_init(&nvm->lock);
+	nvm->nregions = nregions;
 
 	for (n = 0, i = 0; i < INTEL_DG_NVM_REGIONS; i++) {
 		if (!invm->regions[i].name)
@@ -777,13 +778,15 @@ static int intel_dg_mtd_probe(struct auxiliary_device *aux_dev,
 
 		char *name = kasprintf(GFP_KERNEL, "%s.%s",
 				       dev_name(&aux_dev->dev), invm->regions[i].name);
-		if (!name)
-			continue;
+		if (!name) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
 		nvm->regions[n].name = name;
 		nvm->regions[n].id = i;
 		n++;
 	}
-	nvm->nregions = n; /* in case where kasprintf fail */
 
 	ret = devm_pm_runtime_enable(device);
 	if (ret < 0) {

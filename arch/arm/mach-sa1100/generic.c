@@ -321,7 +321,7 @@ int __init sa11x0_register_fixed_regulator(int n,
 {
 	struct regulator_init_data *id;
 
-	cfg->init_data = id = kzalloc(sizeof(*cfg->init_data), GFP_KERNEL);
+	cfg->init_data = id = kzalloc_obj(*cfg->init_data);
 	if (!cfg->init_data)
 		return -ENOMEM;
 

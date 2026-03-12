@@ -6,6 +6,7 @@
 menuconfig ACPI_WMI
 	tristate "ACPI-WMI support"
 	depends on ACPI && X86
+	select NLS
 	help
 	  This option enables support for the ACPI-WMI driver core.
 
@@ -30,5 +31,7 @@ config ACPI_WMI_LEGACY_DEVICE_NAMES
 	  scheme when creating WMI devices. Doing so might be necessary for some
 	  userspace applications but will cause the registration of WMI devices with
 	  the same GUID to fail in some corner cases.
+
+source "drivers/platform/wmi/tests/Kconfig"
 
 endif # ACPI_WMI

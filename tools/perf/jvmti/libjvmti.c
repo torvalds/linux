@@ -142,7 +142,7 @@ copy_class_filename(const char * class_sign, const char * file_name, char * resu
 	*/
 	if (*class_sign == 'L') {
 		size_t j, i = 0;
-		char *p = strrchr(class_sign, '/');
+		const char *p = strrchr(class_sign, '/');
 		if (p) {
 			/* drop the 'L' prefix and copy up to the final '/' */
 			for (i = 0; i < (size_t)(p - class_sign); i++)

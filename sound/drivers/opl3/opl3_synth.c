@@ -313,7 +313,7 @@ struct fm_patch *snd_opl3_find_patch(struct snd_opl3 *opl3, int prog, int bank,
 	if (!create_patch)
 		return NULL;
 
-	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
+	patch = kzalloc_obj(*patch);
 	if (!patch)
 		return NULL;
 	patch->prog = prog;

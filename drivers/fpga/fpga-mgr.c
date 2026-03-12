@@ -486,7 +486,7 @@ static int fpga_mgr_buf_load(struct fpga_manager *mgr,
 	 */
 	nr_pages = DIV_ROUND_UP((unsigned long)buf + count, PAGE_SIZE) -
 		   (unsigned long)buf / PAGE_SIZE;
-	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_objs(struct page *, nr_pages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -801,7 +801,7 @@ __fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *
 		return ERR_PTR(-EINVAL);
 	}
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (!mgr)
 		return ERR_PTR(-ENOMEM);
 

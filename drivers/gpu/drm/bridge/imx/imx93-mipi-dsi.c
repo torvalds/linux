@@ -609,7 +609,7 @@ static u32 *imx93_dsi_get_input_bus_fmts(void *priv_data,
 		return NULL;
 	}
 
-	input_fmts = kmalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kmalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 	input_fmts[0] = input_fmt;

@@ -21,6 +21,7 @@
 #include "gaccess.h"
 #include "trace.h"
 #include "trace-s390.h"
+#include "faultin.h"
 
 u8 kvm_s390_get_ilen(struct kvm_vcpu *vcpu)
 {
@@ -367,8 +368,11 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 					      reg2, &srcaddr, GACC_FETCH, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	rc = kvm_s390_handle_dat_fault(vcpu, srcaddr, 0);
-	if (rc != 0)
+
+	do {
+		rc = kvm_s390_faultin_gfn_simple(vcpu, NULL, gpa_to_gfn(srcaddr), false);
+	} while (rc == -EAGAIN);
+	if (rc)
 		return rc;
 
 	/* Ensure that the source is paged-in, no actual access -> no key checking */
@@ -376,8 +380,11 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 					      reg1, &dstaddr, GACC_STORE, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
-	rc = kvm_s390_handle_dat_fault(vcpu, dstaddr, FOLL_WRITE);
-	if (rc != 0)
+
+	do {
+		rc = kvm_s390_faultin_gfn_simple(vcpu, NULL, gpa_to_gfn(dstaddr), true);
+	} while (rc == -EAGAIN);
+	if (rc)
 		return rc;
 
 	kvm_s390_retry_instr(vcpu);

@@ -91,7 +91,6 @@ void mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH
 			| SPI_LSB_FIRST | SPI_LOOP;
 
-	ctlr->dev.of_node = dev->of_node;
 
 	mpc8xxx_spi = spi_controller_get_devdata(ctlr);
 	mpc8xxx_spi->dev = dev;

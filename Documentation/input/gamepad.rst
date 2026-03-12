@@ -79,7 +79,7 @@ change the mappings so you can advise users to set these.
 All new gamepads are supposed to comply with this mapping. Please report any
 bugs, if they don't.
 
-There are a lot of less-featured/less-powerful devices out there, which re-use
+There are a lot of less-featured/less-powerful devices out there, which reuse
 the buttons from this protocol. However, they try to do this in a compatible
 fashion. For example, the "Nintendo Wii Nunchuk" provides two trigger buttons
 and one analog stick. It reports them as if it were a gamepad with only one

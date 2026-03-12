@@ -34,7 +34,7 @@ static u32 cffrml_rcv_error;
 static u32 cffrml_rcv_checsum_error;
 struct cflayer *cffrml_create(u16 phyid, bool use_fcs)
 {
-	struct cffrml *this = kzalloc(sizeof(struct cffrml), GFP_ATOMIC);
+	struct cffrml *this = kzalloc_obj(struct cffrml, GFP_ATOMIC);
 	if (!this)
 		return NULL;
 	this->pcpu_refcnt = alloc_percpu(int);

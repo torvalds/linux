@@ -1228,10 +1228,10 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	struct sdw_port_runtime *p_rt;
 	struct sdw_slave *slave;
 	unsigned long *port_mask;
-	int maxport, pn, nports = 0, ret = 0;
+	int maxport, pn, nports = 0;
 	unsigned int m_port;
-	struct sdw_port_config *pconfig __free(kfree) = kcalloc(ctrl->nports,
-								sizeof(*pconfig), GFP_KERNEL);
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc_objs(*pconfig,
+								     ctrl->nports);
 	if (!pconfig)
 		return -ENOMEM;
 
@@ -1246,7 +1246,8 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	sconfig.type = stream->type;
 	sconfig.bps = 1;
 
-	mutex_lock(&ctrl->port_lock);
+	guard(mutex)(&ctrl->port_lock);
+
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		/*
 		 * For streams with multiple masters:
@@ -1272,8 +1273,7 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 
 				if (pn > maxport) {
 					dev_err(ctrl->dev, "All ports busy\n");
-					ret = -EBUSY;
-					goto out;
+					return -EBUSY;
 				}
 				set_bit(pn, port_mask);
 				pconfig[nports].num = pn;
@@ -1285,10 +1285,8 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 
 	sdw_stream_add_master(&ctrl->bus, &sconfig, pconfig,
 			      nports, stream);
-out:
-	mutex_unlock(&ctrl->port_lock);
 
-	return ret;
+	return 0;
 }
 
 static int qcom_swrm_hw_params(struct snd_pcm_substream *substream,

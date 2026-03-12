@@ -181,7 +181,7 @@ static int
 nouveau_ttm_init_vram(struct nouveau_drm *drm)
 {
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		struct ttm_resource_manager *man = kzalloc(sizeof(*man), GFP_KERNEL);
+		struct ttm_resource_manager *man = kzalloc_obj(*man);
 
 		if (!man)
 			return -ENOMEM;
@@ -229,7 +229,7 @@ nouveau_ttm_init_gtt(struct nouveau_drm *drm)
 		return ttm_range_man_init(&drm->ttm.bdev, TTM_PL_TT, true,
 					  size_pages);
 
-	man = kzalloc(sizeof(*man), GFP_KERNEL);
+	man = kzalloc_obj(*man);
 	if (!man)
 		return -ENOMEM;
 

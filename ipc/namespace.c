@@ -58,7 +58,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	}
 
 	err = -ENOMEM;
-	ns = kzalloc(sizeof(struct ipc_namespace), GFP_KERNEL_ACCOUNT);
+	ns = kzalloc_obj(struct ipc_namespace, GFP_KERNEL_ACCOUNT);
 	if (ns == NULL)
 		goto fail_dec;
 

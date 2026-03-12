@@ -379,8 +379,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_CPC", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Ints/Bufs) */
-	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER | ACPI_RTYPE_BUFFER, 0,
-		     0, 0, 0),
+	PACKAGE_INFO(ACPI_PTYPE1_VAR,
+		     ACPI_RTYPE_INTEGER | ACPI_RTYPE_BUFFER |
+		     ACPI_RTYPE_PACKAGE, 0, 0, 0, 0),
 
 	{{"_CR3", METHOD_0ARGS,	/* ACPI 6.0 */
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
@@ -586,6 +587,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_HPX", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Pkgs) each (var Ints) */
 	PACKAGE_INFO(ACPI_PTYPE2_MIN, ACPI_RTYPE_INTEGER, 5, 0, 0, 0),
+
+	{{"_VDM", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_HRV", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},

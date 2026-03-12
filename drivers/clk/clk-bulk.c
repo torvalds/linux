@@ -54,7 +54,7 @@ static int __must_check of_clk_bulk_get_all(struct device_node *np,
 	if (!num_clks)
 		return 0;
 
-	clk_bulk = kmalloc_array(num_clks, sizeof(*clk_bulk), GFP_KERNEL);
+	clk_bulk = kmalloc_objs(*clk_bulk, num_clks);
 	if (!clk_bulk)
 		return -ENOMEM;
 

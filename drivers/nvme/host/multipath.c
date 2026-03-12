@@ -1300,7 +1300,7 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 	mutex_lock(&head->subsys->lock);
 	/*
 	 * We are called when all paths have been removed, and at that point
-	 * head->list is expected to be empty. However, nvme_remove_ns() and
+	 * head->list is expected to be empty. However, nvme_ns_remove() and
 	 * nvme_init_ns_head() can run concurrently and so if head->delayed_
 	 * removal_secs is configured, it is possible that by the time we reach
 	 * this point, head->list may no longer be empty. Therefore, we recheck
@@ -1310,13 +1310,11 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 	if (!list_empty(&head->list))
 		goto out;
 
-	if (head->delayed_removal_secs) {
-		/*
-		 * Ensure that no one could remove this module while the head
-		 * remove work is pending.
-		 */
-		if (!try_module_get(THIS_MODULE))
-			goto out;
+	/*
+	 * Ensure that no one could remove this module while the head
+	 * remove work is pending.
+	 */
+	if (head->delayed_removal_secs && try_module_get(THIS_MODULE)) {
 		mod_delayed_work(nvme_wq, &head->remove_work,
 				head->delayed_removal_secs * HZ);
 	} else {

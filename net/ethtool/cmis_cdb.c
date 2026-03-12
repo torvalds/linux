@@ -276,7 +276,7 @@ ethtool_cmis_cdb_init(struct net_device *dev,
 	struct ethtool_cmis_cdb *cdb;
 	int err;
 
-	cdb = kzalloc(sizeof(*cdb), GFP_KERNEL);
+	cdb = kzalloc_obj(*cdb);
 	if (!cdb)
 		return ERR_PTR(-ENOMEM);
 

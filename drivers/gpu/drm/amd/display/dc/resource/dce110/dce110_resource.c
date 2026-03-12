@@ -516,7 +516,7 @@ static struct timing_generator *dce110_timing_generator_create(
 		const struct dce110_timing_generator_offsets *offsets)
 {
 	struct dce110_timing_generator *tg110 =
-		kzalloc(sizeof(struct dce110_timing_generator), GFP_KERNEL);
+		kzalloc_obj(struct dce110_timing_generator);
 
 	if (!tg110)
 		return NULL;
@@ -530,7 +530,7 @@ static struct stream_encoder *dce110_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dce110_stream_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_stream_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dce110_stream_encoder);
 
 	if (!enc110)
 		return NULL;
@@ -563,7 +563,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dce110_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -608,8 +608,7 @@ static struct mem_input *dce110_mem_input_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dce_mem_input *dce_mi = kzalloc(sizeof(struct dce_mem_input),
-					       GFP_KERNEL);
+	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input);
 
 	if (!dce_mi) {
 		BREAK_TO_DEBUGGER();
@@ -632,7 +631,7 @@ static struct transform *dce110_transform_create(
 	uint32_t inst)
 {
 	struct dce_transform *transform =
-		kzalloc(sizeof(struct dce_transform), GFP_KERNEL);
+		kzalloc_obj(struct dce_transform);
 
 	if (!transform)
 		return NULL;
@@ -645,7 +644,7 @@ static struct transform *dce110_transform_create(
 static struct input_pixel_processor *dce110_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
-	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
+	struct dce_ipp *ipp = kzalloc_obj(struct dce_ipp);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -669,7 +668,7 @@ static struct link_encoder *dce110_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dce110_link_encoder);
 	int link_regs_id;
 
 	if (!enc110 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
@@ -690,7 +689,7 @@ static struct link_encoder *dce110_link_encoder_create(
 static struct panel_cntl *dce110_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dce_panel_cntl *panel_cntl =
-		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+		kzalloc_obj(struct dce_panel_cntl);
 
 	if (!panel_cntl)
 		return NULL;
@@ -709,7 +708,7 @@ static struct output_pixel_processor *dce110_opp_create(
 	uint32_t inst)
 {
 	struct dce110_opp *opp =
-		kzalloc(sizeof(struct dce110_opp), GFP_KERNEL);
+		kzalloc_obj(struct dce110_opp);
 
 	if (!opp)
 		return NULL;
@@ -724,7 +723,7 @@ static struct dce_aux *dce110_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110);
 
 	if (!aux_engine)
 		return NULL;
@@ -762,7 +761,7 @@ static struct dce_i2c_hw *dce110_i2c_hw_create(
 	uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -780,7 +779,7 @@ static struct clock_source *dce110_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src);
 
 	if (!clk_src)
 		return NULL;
@@ -895,6 +894,8 @@ static void get_pixel_clock_parameters(
 	 */
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		pixel_clk_params->encoder_object_id = stream->link->link_enc->analog_id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
@@ -1248,14 +1249,10 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 
 static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	struct dce110_timing_generator *dce110_tgv = kzalloc(sizeof(*dce110_tgv),
-							     GFP_KERNEL);
-	struct dce_transform *dce110_xfmv = kzalloc(sizeof(*dce110_xfmv),
-						    GFP_KERNEL);
-	struct dce_mem_input *dce110_miv = kzalloc(sizeof(*dce110_miv),
-						   GFP_KERNEL);
-	struct dce110_opp *dce110_oppv = kzalloc(sizeof(*dce110_oppv),
-						 GFP_KERNEL);
+	struct dce110_timing_generator *dce110_tgv = kzalloc_obj(*dce110_tgv);
+	struct dce_transform *dce110_xfmv = kzalloc_obj(*dce110_xfmv);
+	struct dce_mem_input *dce110_miv = kzalloc_obj(*dce110_miv);
+	struct dce110_opp *dce110_oppv = kzalloc_obj(*dce110_oppv);
 
 	if (!dce110_tgv || !dce110_xfmv || !dce110_miv || !dce110_oppv) {
 		kfree(dce110_tgv);
@@ -1543,7 +1540,7 @@ struct resource_pool *dce110_create_resource_pool(
 	struct hw_asic_id asic_id)
 {
 	struct dce110_resource_pool *pool =
-		kzalloc(sizeof(struct dce110_resource_pool), GFP_KERNEL);
+		kzalloc_obj(struct dce110_resource_pool);
 
 	if (!pool)
 		return NULL;

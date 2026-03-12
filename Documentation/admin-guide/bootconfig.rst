@@ -20,17 +20,25 @@ Config File Syntax
 
 The boot config syntax is a simple structured key-value. Each key consists
 of dot-connected-words, and key and value are connected by ``=``. The value
-has to be terminated by semi-colon (``;``) or newline (``\n``).
-For array value, array entries are separated by comma (``,``). ::
-
-  KEY[.WORD[...]] = VALUE[, VALUE2[...]][;]
-
-Unlike the kernel command line syntax, spaces are OK around the comma and ``=``.
+string has to be terminated by the following delimiters described below.
 
 Each key word must contain only alphabets, numbers, dash (``-``) or underscore
 (``_``). And each value only contains printable characters or spaces except
 for delimiters such as semi-colon (``;``), new-line (``\n``), comma (``,``),
 hash (``#``) and closing brace (``}``).
+
+If the ``=`` is followed by whitespace up to one of these delimiters, the
+key is assigned an empty value.
+
+For arrays, the array values are comma (``,``) separated, and comments and
+line breaks with newline (``\n``) are allowed between array values for
+readability. Thus the first entry of the array must be on the same line as
+the key.::
+
+  KEY[.WORD[...]] = VALUE[, VALUE2[...]][;]
+
+Unlike the kernel command line syntax, white spaces (including tabs) are
+ignored around the comma and ``=``.
 
 If you want to use those delimiters in a value, you can use either double-
 quotes (``"VALUE"``) or single-quotes (``'VALUE'``) to quote it. Note that
@@ -138,8 +146,8 @@ This is parsed as below::
  foo = value
  bar = 1, 2, 3
 
-Note that you can not put a comment between value and delimiter(``,`` or
-``;``). This means following config has a syntax error ::
+Note that you can NOT put a comment or a newline between value and delimiter
+(``,`` or ``;``). This means following config has a syntax error ::
 
  key = 1 # comment
        ,2

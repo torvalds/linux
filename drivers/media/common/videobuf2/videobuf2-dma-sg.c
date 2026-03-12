@@ -109,7 +109,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 	if (WARN_ON(!dev) || WARN_ON(!size))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -126,7 +126,7 @@ static void *vb2_dma_sg_alloc(struct vb2_buffer *vb, struct device *dev,
 	 * there is no memory consistency guarantee, hence dma-sg ignores DMA
 	 * attributes passed from the upper layer.
 	 */
-	buf->pages = kvcalloc(buf->num_pages, sizeof(struct page *), GFP_KERNEL);
+	buf->pages = kvzalloc_objs(struct page *, buf->num_pages);
 	if (!buf->pages)
 		goto fail_pages_array_alloc;
 
@@ -230,7 +230,7 @@ static void *vb2_dma_sg_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -375,7 +375,7 @@ static int vb2_dma_sg_dmabuf_ops_attach(struct dma_buf *dbuf,
 	struct vb2_dma_sg_buf *buf = dbuf->priv;
 	int ret;
 
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	attach = kzalloc_obj(*attach);
 	if (!attach)
 		return -ENOMEM;
 
@@ -626,7 +626,7 @@ static void *vb2_dma_sg_attach_dmabuf(struct vb2_buffer *vb, struct device *dev,
 	if (dbuf->size < size)
 		return ERR_PTR(-EFAULT);
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 

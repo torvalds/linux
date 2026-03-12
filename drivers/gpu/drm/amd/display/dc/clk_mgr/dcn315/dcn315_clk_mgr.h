@@ -44,7 +44,6 @@ void dcn315_clk_mgr_construct(struct dc_context *ctx,
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg);
 
-void dcn315_init_clocks(struct clk_mgr *clk_mgr);
 void dcn315_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int);
 
 #endif //__DCN315_CLK_MGR_H__

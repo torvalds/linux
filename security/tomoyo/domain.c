@@ -611,6 +611,7 @@ out:
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_environ(struct tomoyo_execve *ee)
+	__must_hold_shared(&tomoyo_ss)
 {
 	struct tomoyo_request_info *r = &ee->r;
 	struct linux_binprm *bprm = ee->bprm;
@@ -707,7 +708,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bool reject_on_transition_failure = false;
 	const struct tomoyo_path_info *candidate;
 	struct tomoyo_path_info exename;
-	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+	struct tomoyo_execve *ee = kzalloc_obj(*ee, GFP_NOFS);
 
 	if (!ee)
 		return -ENOMEM;

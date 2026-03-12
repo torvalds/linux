@@ -23,6 +23,7 @@ const struct device_type sdw_slave_type = {
 	.release =	sdw_slave_release,
 	.uevent =	sdw_slave_uevent,
 };
+EXPORT_SYMBOL_GPL(sdw_slave_type);
 
 int sdw_slave_add(struct sdw_bus *bus,
 		  struct sdw_slave_id *id, struct fwnode_handle *fwnode)
@@ -31,7 +32,7 @@ int sdw_slave_add(struct sdw_bus *bus,
 	int ret;
 	int i;
 
-	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
+	slave = kzalloc_obj(*slave);
 	if (!slave)
 		return -ENOMEM;
 

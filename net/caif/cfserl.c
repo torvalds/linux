@@ -38,7 +38,7 @@ void cfserl_release(struct cflayer *layer)
 
 struct cflayer *cfserl_create(int instance, bool use_stx)
 {
-	struct cfserl *this = kzalloc(sizeof(struct cfserl), GFP_ATOMIC);
+	struct cfserl *this = kzalloc_obj(struct cfserl, GFP_ATOMIC);
 	if (!this)
 		return NULL;
 	caif_assert(offsetof(struct cfserl, layer) == 0);

@@ -194,7 +194,7 @@ struct genwqe_ddcb_cmd *ddcb_requ_alloc(void)
 {
 	struct ddcb_requ *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 
@@ -1046,16 +1046,13 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 			"[%s] **err: could not allocate DDCB **\n", __func__);
 		return -ENOMEM;
 	}
-	queue->ddcb_req = kcalloc(queue->ddcb_max, sizeof(struct ddcb_requ *),
-				  GFP_KERNEL);
+	queue->ddcb_req = kzalloc_objs(struct ddcb_requ *, queue->ddcb_max);
 	if (!queue->ddcb_req) {
 		rc = -ENOMEM;
 		goto free_ddcbs;
 	}
 
-	queue->ddcb_waitqs = kcalloc(queue->ddcb_max,
-				     sizeof(wait_queue_head_t),
-				     GFP_KERNEL);
+	queue->ddcb_waitqs = kzalloc_objs(wait_queue_head_t, queue->ddcb_max);
 	if (!queue->ddcb_waitqs) {
 		rc = -ENOMEM;
 		goto free_requs;

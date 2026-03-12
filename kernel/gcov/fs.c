@@ -116,7 +116,7 @@ static struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 	/* Dry-run to get the actual buffer size. */
 	size = convert_to_gcda(NULL, info);
 
-	iter = kvmalloc(struct_size(iter, buffer, size), GFP_KERNEL);
+	iter = kvmalloc_flex(*iter, buffer, size);
 	if (!iter)
 		return NULL;
 
@@ -482,7 +482,7 @@ static void add_links(struct gcov_node *node, struct dentry *parent)
 
 	for (num = 0; gcov_link[num].ext; num++)
 		/* Nothing. */;
-	node->links = kcalloc(num, sizeof(struct dentry *), GFP_KERNEL);
+	node->links = kzalloc_objs(struct dentry *, num);
 	if (!node->links)
 		return;
 	for (i = 0; i < num; i++) {
@@ -545,8 +545,7 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	if (!node)
 		goto err_nomem;
 	if (info) {
-		node->loaded_info = kcalloc(1, sizeof(struct gcov_info *),
-					   GFP_KERNEL);
+		node->loaded_info = kzalloc_objs(struct gcov_info *, 1);
 		if (!node->loaded_info)
 			goto err_nomem;
 	}
@@ -731,7 +730,7 @@ static void add_info(struct gcov_node *node, struct gcov_info *info)
 	 * case the new data set is incompatible, the node only contains
 	 * unloaded data sets and there's not enough memory for the array.
 	 */
-	loaded_info = kcalloc(num + 1, sizeof(struct gcov_info *), GFP_KERNEL);
+	loaded_info = kzalloc_objs(struct gcov_info *, num + 1);
 	if (!loaded_info) {
 		pr_warn("could not add '%s' (out of memory)\n",
 			gcov_info_filename(info));

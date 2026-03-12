@@ -100,7 +100,6 @@ struct samsung_dsim_plat_data {
 struct samsung_dsim {
 	struct mipi_dsi_host dsi_host;
 	struct drm_bridge bridge;
-	struct drm_bridge *out_bridge;
 	struct device *dev;
 	struct drm_display_mode mode;
 

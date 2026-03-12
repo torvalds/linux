@@ -107,7 +107,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	num--;
 
 	if (!hti) {
-		hti = kmalloc(sizeof(*hti), GFP_KERNEL);
+		hti = kmalloc_obj(*hti);
 		if (!hti)
 			return -ENOMEM;
 

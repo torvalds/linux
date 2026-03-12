@@ -26,7 +26,7 @@ static int of_pmem_region_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENXIO;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

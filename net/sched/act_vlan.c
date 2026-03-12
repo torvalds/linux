@@ -233,7 +233,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 
 	v = to_vlan(*a);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		err = -ENOMEM;
 		goto put_chain;

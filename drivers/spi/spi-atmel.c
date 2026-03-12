@@ -1300,7 +1300,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	asd = spi->controller_state;
 	if (!asd) {
-		asd = kzalloc(sizeof(struct atmel_spi_device), GFP_KERNEL);
+		asd = kzalloc_obj(struct atmel_spi_device);
 		if (!asd)
 			return -ENOMEM;
 
@@ -1536,7 +1536,6 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	host->use_gpio_descriptors = true;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = pdev->id;
 	host->num_chipselect = 4;
 	host->setup = atmel_spi_setup;

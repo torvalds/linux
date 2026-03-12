@@ -1149,7 +1149,7 @@ static int ehci_mem_init(struct oxu_hcd *oxu, gfp_t flags)
 	for (i = 0; i < QTD_NUM; i++)
 		oxu->qtd_used[i] = 0;
 
-	oxu->murb_pool = kcalloc(MURB_NUM, sizeof(struct oxu_murb), flags);
+	oxu->murb_pool = kzalloc_objs(struct oxu_murb, MURB_NUM, flags);
 	if (!oxu->murb_pool)
 		goto fail;
 

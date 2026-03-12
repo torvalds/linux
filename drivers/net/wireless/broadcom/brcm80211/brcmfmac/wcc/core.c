@@ -24,8 +24,7 @@ static int brcmf_wcc_alloc_fweh_info(struct brcmf_pub *drvr)
 {
 	struct brcmf_fweh_info *fweh;
 
-	fweh = kzalloc(struct_size(fweh, evt_handler, BRCMF_WCC_E_LAST),
-		       GFP_KERNEL);
+	fweh = kzalloc_flex(*fweh, evt_handler, BRCMF_WCC_E_LAST);
 	if (!fweh)
 		return -ENOMEM;
 

@@ -90,6 +90,9 @@ next_interface:
 	/* next (or first) interface */
 	iter->sdata = list_prepare_entry(iter->sdata, &local->interfaces, list);
 	list_for_each_entry_continue(iter->sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(iter->sdata))
+			continue;
+
 		/* AP_VLAN has a chanctx pointer but follows AP */
 		if (iter->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
@@ -1609,7 +1612,7 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	vif_chsw = kcalloc(n_vifs, sizeof(vif_chsw[0]), GFP_KERNEL);
+	vif_chsw = kzalloc_objs(vif_chsw[0], n_vifs);
 	if (!vif_chsw)
 		return -ENOMEM;
 

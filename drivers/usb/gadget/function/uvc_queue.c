@@ -86,10 +86,17 @@ static int uvc_buffer_prepare(struct vb2_buffer *vb)
 		buf->bytesused = 0;
 	} else {
 		buf->bytesused = vb2_get_plane_payload(vb, 0);
-		buf->req_payload_size =
-			  DIV_ROUND_UP(buf->bytesused +
-				       (video->reqs_per_frame * UVCG_REQUEST_HEADER_LEN),
-				       video->reqs_per_frame);
+
+		if (video->reqs_per_frame != 0)	{
+			buf->req_payload_size =
+				DIV_ROUND_UP(buf->bytesused +
+					(video->reqs_per_frame * UVCG_REQUEST_HEADER_LEN),
+					video->reqs_per_frame);
+			if (buf->req_payload_size > video->req_size)
+				buf->req_payload_size = video->req_size;
+		} else {
+			buf->req_payload_size = video->max_req_size;
+		}
 	}
 
 	return 0;
@@ -175,7 +182,15 @@ int uvcg_alloc_buffers(struct uvc_video_queue *queue,
 {
 	int ret;
 
+retry:
 	ret = vb2_reqbufs(&queue->queue, rb);
+	if (ret < 0 && queue->use_sg) {
+		uvc_trace(UVC_TRACE_IOCTL,
+			  "failed to alloc buffer with sg enabled, try non-sg mode\n");
+		queue->use_sg = 0;
+		queue->queue.mem_ops = &vb2_vmalloc_memops;
+		goto retry;
+	}
 
 	return ret ? ret : rb->count;
 }

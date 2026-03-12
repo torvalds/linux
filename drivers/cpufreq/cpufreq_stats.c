@@ -222,7 +222,7 @@ void cpufreq_stats_create_table(struct cpufreq_policy *policy)
 	if (policy->stats)
 		return;
 
-	stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+	stats = kzalloc_obj(*stats);
 	if (!stats)
 		return;
 

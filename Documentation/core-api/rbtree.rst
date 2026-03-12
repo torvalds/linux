@@ -197,7 +197,7 @@ Cached rbtrees
 --------------
 
 Computing the leftmost (smallest) node is quite a common task for binary
-search trees, such as for traversals or users relying on a the particular
+search trees, such as for traversals or users relying on the particular
 order for their own logic. To this end, users can use 'struct rb_root_cached'
 to optimize O(logN) rb_first() calls to a simple pointer fetch avoiding
 potentially expensive tree iterations. This is done at negligible runtime
@@ -255,7 +255,7 @@ affected subtrees.
 
 When erasing a node, the user must call rb_erase_augmented() instead of
 rb_erase(). rb_erase_augmented() calls back into user provided functions
-to updated the augmented information on affected subtrees.
+to update the augmented information on affected subtrees.
 
 In both cases, the callbacks are provided through struct rb_augment_callbacks.
 3 callbacks must be defined:
@@ -293,7 +293,7 @@ way making it possible to do efficient lookup and exact match.
 
 This "extra information" stored in each node is the maximum hi
 (max_hi) value among all the nodes that are its descendants. This
-information can be maintained at each node just be looking at the node
+information can be maintained at each node just by looking at the node
 and its immediate children. And this will be used in O(log n) lookup
 for lowest match (lowest start address among all possible matches)
 with something like::

@@ -5,19 +5,21 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME wwnr
+
 enum states_wwnr {
-	not_running_wwnr = 0,
+	not_running_wwnr,
 	running_wwnr,
-	state_max_wwnr
+	state_max_wwnr,
 };
 
 #define INVALID_STATE state_max_wwnr
 
 enum events_wwnr {
-	switch_in_wwnr = 0,
+	switch_in_wwnr,
 	switch_out_wwnr,
 	wakeup_wwnr,
-	event_max_wwnr
+	event_max_wwnr,
 };
 
 struct automaton_wwnr {
@@ -31,12 +33,12 @@ struct automaton_wwnr {
 static const struct automaton_wwnr automaton_wwnr = {
 	.state_names = {
 		"not_running",
-		"running"
+		"running",
 	},
 	.event_names = {
 		"switch_in",
 		"switch_out",
-		"wakeup"
+		"wakeup",
 	},
 	.function = {
 		{       running_wwnr,      INVALID_STATE,   not_running_wwnr },

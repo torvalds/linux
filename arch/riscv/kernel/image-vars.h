@@ -29,7 +29,7 @@ __efistub__end			= _end;
 __efistub__edata		= _edata;
 __efistub___init_text_end	= __init_text_end;
 #if defined(CONFIG_EFI_EARLYCON) || defined(CONFIG_SYSFB)
-__efistub_screen_info		= screen_info;
+__efistub_sysfb_primary_display	= sysfb_primary_display;
 #endif
 
 #endif

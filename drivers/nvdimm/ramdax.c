@@ -40,7 +40,7 @@ static int ramdax_register_region(struct resource *res,
 	struct nd_interleave_set *nd_set;
 	int nid = phys_to_target_node(res->start);
 
-	nd_set = kzalloc(sizeof(*nd_set), GFP_KERNEL);
+	nd_set = kzalloc_obj(*nd_set);
 	if (!nd_set)
 		return -ENOMEM;
 
@@ -80,7 +80,7 @@ static int ramdax_register_dimm(struct resource *res, void *data)
 	struct ramdax_dimm *dimm;
 	int err;
 
-	dimm = kzalloc(sizeof(*dimm), GFP_KERNEL);
+	dimm = kzalloc_obj(*dimm);
 	if (!dimm)
 		return -ENOMEM;
 

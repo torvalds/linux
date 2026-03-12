@@ -13,6 +13,8 @@
 #define HINIC3_PCIE_SNOOP        0
 #define HINIC3_PCIE_TPH_DISABLE  0
 
+#define HINIC3_SYNFW_TIME_PERIOD  (60 * 60 * 1000)
+
 #define HINIC3_DMA_ATTR_INDIR_IDX_MASK          GENMASK(9, 0)
 #define HINIC3_DMA_ATTR_INDIR_IDX_SET(val, member)  \
 	FIELD_PREP(HINIC3_DMA_ATTR_INDIR_##member##_MASK, val)
@@ -38,6 +40,7 @@
 #define HINIC3_WQ_MAX_REQ       10
 
 enum hinic3_hwdev_init_state {
+	HINIC3_HWDEV_MGMT_INITED = 1,
 	HINIC3_HWDEV_MBOX_INITED = 2,
 	HINIC3_HWDEV_CMDQ_INITED = 3,
 };
@@ -197,7 +200,7 @@ static int init_ceqs_msix_attr(struct hinic3_hwdev *hwdev)
 	for (q_id = 0; q_id < ceqs->num_ceqs; q_id++) {
 		eq = &ceqs->ceq[q_id];
 		info.msix_index = eq->msix_entry_idx;
-		err = hinic3_set_interrupt_cfg_direct(hwdev, &info);
+		err = hinic3_set_interrupt_cfg(hwdev, info);
 		if (err) {
 			dev_err(hwdev->dev, "Set msix attr for ceq %u failed\n",
 				q_id);
@@ -206,6 +209,36 @@ static int init_ceqs_msix_attr(struct hinic3_hwdev *hwdev)
 	}
 
 	return 0;
+}
+
+static int hinic3_comm_pf_to_mgmt_init(struct hinic3_hwdev *hwdev)
+{
+	int err;
+
+	if (HINIC3_IS_VF(hwdev))
+		return 0;
+
+	err = hinic3_pf_to_mgmt_init(hwdev);
+	if (err)
+		return err;
+
+	set_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state);
+
+	return 0;
+}
+
+static void hinic3_comm_pf_to_mgmt_free(struct hinic3_hwdev *hwdev)
+{
+	if (HINIC3_IS_VF(hwdev))
+		return;
+
+	spin_lock_bh(&hwdev->channel_lock);
+	clear_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state);
+	spin_unlock_bh(&hwdev->channel_lock);
+
+	hinic3_aeq_unregister_cb(hwdev, HINIC3_MSG_FROM_FW);
+
+	hinic3_pf_to_mgmt_free(hwdev);
 }
 
 static int init_basic_mgmt_channel(struct hinic3_hwdev *hwdev)
@@ -409,9 +442,13 @@ static int hinic3_init_comm_ch(struct hinic3_hwdev *hwdev)
 	if (err)
 		return err;
 
-	err = init_basic_attributes(hwdev);
+	err = hinic3_comm_pf_to_mgmt_init(hwdev);
 	if (err)
 		goto err_free_basic_mgmt_ch;
+
+	err = init_basic_attributes(hwdev);
+	if (err)
+		goto err_free_comm_pf_to_mgmt;
 
 	err = init_cmdqs_channel(hwdev);
 	if (err) {
@@ -419,10 +456,14 @@ static int hinic3_init_comm_ch(struct hinic3_hwdev *hwdev)
 		goto err_clear_func_svc_used_state;
 	}
 
+	hinic3_set_pf_status(hwdev->hwif, HINIC3_PF_STATUS_ACTIVE_FLAG);
+
 	return 0;
 
 err_clear_func_svc_used_state:
 	hinic3_set_func_svc_used_state(hwdev, COMM_FUNC_SVC_T_COMM, 0);
+err_free_comm_pf_to_mgmt:
+	hinic3_comm_pf_to_mgmt_free(hwdev);
 err_free_basic_mgmt_ch:
 	free_base_mgmt_channel(hwdev);
 
@@ -431,9 +472,42 @@ err_free_basic_mgmt_ch:
 
 static void hinic3_uninit_comm_ch(struct hinic3_hwdev *hwdev)
 {
+	hinic3_set_pf_status(hwdev->hwif, HINIC3_PF_STATUS_INIT);
 	hinic3_free_cmdqs_channel(hwdev);
 	hinic3_set_func_svc_used_state(hwdev, COMM_FUNC_SVC_T_COMM, 0);
+	hinic3_comm_pf_to_mgmt_free(hwdev);
 	free_base_mgmt_channel(hwdev);
+}
+
+static void hinic3_auto_sync_time_work(struct work_struct *work)
+{
+	struct delayed_work *delay = to_delayed_work(work);
+	struct hinic3_hwdev *hwdev;
+
+	hwdev = container_of(delay, struct hinic3_hwdev, sync_time_task);
+
+	hinic3_sync_time_to_fw(hwdev);
+
+	queue_delayed_work(hwdev->workq, &hwdev->sync_time_task,
+			   msecs_to_jiffies(HINIC3_SYNFW_TIME_PERIOD));
+}
+
+static void hinic3_init_ppf_work(struct hinic3_hwdev *hwdev)
+{
+	if (hinic3_ppf_idx(hwdev) != hinic3_global_func_id(hwdev))
+		return;
+
+	INIT_DELAYED_WORK(&hwdev->sync_time_task, hinic3_auto_sync_time_work);
+	queue_delayed_work(hwdev->workq, &hwdev->sync_time_task,
+			   msecs_to_jiffies(HINIC3_SYNFW_TIME_PERIOD));
+}
+
+static void hinic3_free_ppf_work(struct hinic3_hwdev *hwdev)
+{
+	if (hinic3_ppf_idx(hwdev) != hinic3_global_func_id(hwdev))
+		return;
+
+	disable_delayed_work_sync(&hwdev->sync_time_task);
 }
 
 static DEFINE_IDA(hinic3_adev_ida);
@@ -454,7 +528,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 	struct hinic3_hwdev *hwdev;
 	int err;
 
-	hwdev = kzalloc(sizeof(*hwdev), GFP_KERNEL);
+	hwdev = kzalloc_obj(*hwdev);
 	if (!hwdev)
 		return -ENOMEM;
 
@@ -472,7 +546,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 		goto err_free_hwdev;
 	}
 
-	hwdev->workq = alloc_workqueue(HINIC3_HWDEV_WQ_NAME, WQ_MEM_RECLAIM,
+	hwdev->workq = alloc_workqueue(HINIC3_HWDEV_WQ_NAME, WQ_MEM_RECLAIM | WQ_PERCPU,
 				       HINIC3_WQ_MAX_REQ);
 	if (!hwdev->workq) {
 		dev_err(hwdev->dev, "Failed to alloc hardware workq\n");
@@ -498,15 +572,19 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 		goto err_uninit_comm_ch;
 	}
 
+	hinic3_init_ppf_work(hwdev);
+
 	err = hinic3_set_comm_features(hwdev, hwdev->features,
 				       COMM_MAX_FEATURE_QWORD);
 	if (err) {
 		dev_err(hwdev->dev, "Failed to set comm features\n");
-		goto err_uninit_comm_ch;
+		goto err_free_ppf_work;
 	}
 
 	return 0;
 
+err_free_ppf_work:
+	hinic3_free_ppf_work(hwdev);
 err_uninit_comm_ch:
 	hinic3_uninit_comm_ch(hwdev);
 err_free_cfg_mgmt:
@@ -528,6 +606,7 @@ void hinic3_free_hwdev(struct hinic3_hwdev *hwdev)
 	u64 drv_features[COMM_MAX_FEATURE_QWORD] = {};
 
 	hinic3_set_comm_features(hwdev, drv_features, COMM_MAX_FEATURE_QWORD);
+	hinic3_free_ppf_work(hwdev);
 	hinic3_func_rx_tx_flush(hwdev);
 	hinic3_uninit_comm_ch(hwdev);
 	hinic3_free_cfg_mgmt(hwdev);
@@ -539,9 +618,21 @@ void hinic3_free_hwdev(struct hinic3_hwdev *hwdev)
 
 void hinic3_set_api_stop(struct hinic3_hwdev *hwdev)
 {
+	struct hinic3_recv_msg *recv_resp_msg;
 	struct hinic3_mbox *mbox;
 
 	spin_lock_bh(&hwdev->channel_lock);
+	if (HINIC3_IS_PF(hwdev) &&
+	    test_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state)) {
+		recv_resp_msg = &hwdev->pf_to_mgmt->recv_resp_msg_from_mgmt;
+		spin_lock_bh(&hwdev->pf_to_mgmt->sync_event_lock);
+		if (hwdev->pf_to_mgmt->event_flag == COMM_SEND_EVENT_START) {
+			complete(&recv_resp_msg->recv_done);
+			hwdev->pf_to_mgmt->event_flag = COMM_SEND_EVENT_TIMEOUT;
+		}
+		spin_unlock_bh(&hwdev->pf_to_mgmt->sync_event_lock);
+	}
+
 	if (test_bit(HINIC3_HWDEV_MBOX_INITED, &hwdev->func_state)) {
 		mbox = hwdev->mbox;
 		spin_lock(&mbox->mbox_lock);

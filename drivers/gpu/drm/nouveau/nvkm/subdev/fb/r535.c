@@ -35,7 +35,7 @@ r535_fb_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct nvkm_ram *ram;
 	int ret;
 
-	if (!(ram = *pram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = *pram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 
 	ram->func = &r535_fb_ram;
@@ -71,7 +71,7 @@ r535_fb_new(const struct nvkm_fb_func *hw,
 	struct nvkm_fb_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm)))
 		return -ENOMEM;
 
 	rm->dtor = r535_fb_dtor;

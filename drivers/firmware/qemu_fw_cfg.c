@@ -94,7 +94,7 @@ static ssize_t fw_cfg_dma_transfer(void *address, u32 length, u32 control)
 	struct fw_cfg_dma_access *d = NULL;
 	ssize_t ret = length;
 
-	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		ret = -ENOMEM;
 		goto end;
@@ -325,7 +325,7 @@ static ssize_t fw_cfg_write_vmcoreinfo(const struct fw_cfg_file *f)
 	static struct fw_cfg_vmcoreinfo *data;
 	ssize_t ret;
 
-	data = kmalloc(sizeof(struct fw_cfg_vmcoreinfo), GFP_KERNEL);
+	data = kmalloc_obj(struct fw_cfg_vmcoreinfo);
 	if (!data)
 		return -ENOMEM;
 
@@ -530,7 +530,7 @@ static int fw_cfg_build_symlink(struct kset *dir,
 			dir = to_kset(ko);
 		} else {
 			/* create new subdirectory kset */
-			subdir = kzalloc(sizeof(struct kset), GFP_KERNEL);
+			subdir = kzalloc_obj(struct kset);
 			if (!subdir) {
 				ret = -ENOMEM;
 				break;
@@ -593,7 +593,7 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 #endif
 
 	/* allocate new entry */
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

@@ -164,7 +164,7 @@ static void delta_push_dts(struct delta_ctx *ctx, u64 val)
 {
 	struct delta_dts *dts;
 
-	dts = kzalloc(sizeof(*dts), GFP_KERNEL);
+	dts = kzalloc_obj(*dts);
 	if (!dts)
 		return;
 
@@ -1629,7 +1629,7 @@ static int delta_open(struct file *file)
 
 	mutex_lock(&delta->lock);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto err;

@@ -49,6 +49,8 @@ static int add_string(const char *str, const char ***vals, int *count)
 		array = realloc(array, sizeof(char *) * size);
 		if (!array) {
 			fprintf(stderr, "Failed memory allocation\n");
+			free(*vals);
+			*vals = NULL;
 			return -1;
 		}
 		*vals = array;

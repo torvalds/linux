@@ -13,6 +13,7 @@
 #include <linux/soundwire/sdw_type.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <sound/soc.h>
+#include "../../../drivers/soundwire/bus.h"
 
 #define RT1320_DEV_ID 0x6981
 #define RT1321_DEV_ID 0x7045
@@ -21,6 +22,8 @@
 #define RT1320_DEV_VERSION_ID_1 0xc404
 #define RT1320_DEV_ID_1 0xc405
 #define RT1320_DEV_ID_0 0xc406
+
+#define RT1320_POWER_STATE 0xc560
 
 #define RT1321_PATCH_MAIN_VER 0x1000cffe
 #define RT1321_PATCH_BETA_VER 0x1000cfff
@@ -96,6 +99,57 @@ enum rt1320_version_id {
 #define RT1320_VC_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vc.bin"
 #define RT1321_VA_MCU_PATCH "realtek/rt1320/rt1321-patch-code-va.bin"
 
+#define RT1320_FW_PARAM_ADDR 0x3fc2ab80
+#define RT1320_CMD_ID 0x3fc2ab81
+#define RT1320_CMD_PARAM_ADDR 0x3fc2ab90
+#define RT1320_DSPFW_STATUS_ADDR 0x3fc2bfc4
+
+#define RT1321_FW_PARAM_ADDR 0x3fc2d300
+#define RT1321_CMD_ID 0x3fc2d301
+#define RT1321_CMD_PARAM_ADDR 0x3fc2d310
+#define RT1321_DSPFW_STATUS_ADDR 0x3fc2dfc4
+
+/* FW parameter id 6, 7 */
+struct rt1320_datafixpoint {
+	int silencedetect;
+	int r0;
+	int meanr0;
+	int advancegain;
+	int ts;
+	int re;
+	int t;
+	int invrs;
+};
+
+struct rt1320_paramcmd {
+	unsigned char moudleid;
+	unsigned char commandtype;
+	unsigned short reserved1;
+	unsigned int commandlength;
+	long long reserved2;
+	unsigned int paramid;
+	unsigned int paramlength;
+};
+
+enum rt1320_fw_cmdid {
+	RT1320_FW_READY,
+	RT1320_SET_PARAM,
+	RT1320_GET_PARAM,
+	RT1320_GET_POOLSIZE,
+};
+
+enum rt1320_power_state {
+	RT1320_NORMAL_STATE = 0x18,
+	RT1320_K_R0_STATE = 0x1b,
+};
+
+enum rt1320_rw_type {
+	RT1320_BRA_WRITE = 0,
+	RT1320_BRA_READ = 1,
+	RT1320_PARAM_WRITE = 2,
+	RT1320_PARAM_READ = 3,
+};
+
 struct rt1320_sdw_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
@@ -108,6 +162,18 @@ struct rt1320_sdw_priv {
 	unsigned int dev_id;
 	bool fu_dapm_mute;
 	bool fu_mixer_mute[4];
+	unsigned long long r0_l_reg;
+	unsigned long long r0_r_reg;
+	unsigned int r0_l_calib;
+	unsigned int r0_r_calib;
+	unsigned int temp_l_calib;
+	unsigned int temp_r_calib;
+	const char *dspfw_name;
+	bool cali_done;
+	bool fw_load_done;
+	bool rae_update_done;
+	struct work_struct load_dspfw_work;
+	struct sdw_bpt_msg bra_msg;
 };
 
 #endif /* __RT1320_SDW_H__ */

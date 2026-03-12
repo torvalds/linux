@@ -609,7 +609,7 @@ static int cxd2099_probe(struct i2c_client *client)
 	unsigned int val;
 	int ret;
 
-	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
+	ci = kzalloc_obj(*ci);
 	if (!ci) {
 		ret = -ENOMEM;
 		goto err;

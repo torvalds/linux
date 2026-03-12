@@ -4,7 +4,7 @@
 #ifndef __BNG_RES_H__
 #define __BNG_RES_H__
 
-#include "roce_hsi.h"
+#include "bng_roce_hsi.h"
 
 #define BNG_ROCE_FW_MAX_TIMEOUT	60
 

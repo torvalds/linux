@@ -42,7 +42,7 @@ static inline struct zfcp_reqlist *zfcp_reqlist_alloc(void)
 	size_t i;
 	struct zfcp_reqlist *rl;
 
-	rl = kzalloc(sizeof(struct zfcp_reqlist), GFP_KERNEL);
+	rl = kzalloc_obj(struct zfcp_reqlist);
 	if (!rl)
 		return NULL;
 

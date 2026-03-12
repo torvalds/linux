@@ -588,21 +588,23 @@ impl Cmdq {
             header.length(),
         );
 
+        let payload_length = header.payload_length();
+
         // Check that the driver read area is large enough for the message.
-        if slice_1.len() + slice_2.len() < header.length() {
+        if slice_1.len() + slice_2.len() < payload_length {
             return Err(EIO);
         }
 
         // Cut the message slices down to the actual length of the message.
-        let (slice_1, slice_2) = if slice_1.len() > header.length() {
-            // PANIC: we checked above that `slice_1` is at least as long as `msg_header.length()`.
-            (slice_1.split_at(header.length()).0, &slice_2[0..0])
+        let (slice_1, slice_2) = if slice_1.len() > payload_length {
+            // PANIC: we checked above that `slice_1` is at least as long as `payload_length`.
+            (slice_1.split_at(payload_length).0, &slice_2[0..0])
         } else {
             (
                 slice_1,
                 // PANIC: we checked above that `slice_1.len() + slice_2.len()` is at least as
-                // large as `msg_header.length()`.
-                slice_2.split_at(header.length() - slice_1.len()).0,
+                // large as `payload_length`.
+                slice_2.split_at(payload_length - slice_1.len()).0,
             )
         };
 
@@ -615,7 +617,7 @@ impl Cmdq {
         {
             dev_err!(
                 self.dev,
-                "GSP RPC: receive: Call {} - bad checksum",
+                "GSP RPC: receive: Call {} - bad checksum\n",
                 header.sequence()
             );
             return Err(EIO);

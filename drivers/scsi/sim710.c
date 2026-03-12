@@ -87,7 +87,7 @@ static int sim710_probe_common(struct device *dev, unsigned long base_addr,
 {
 	struct Scsi_Host * host = NULL;
 	struct NCR_700_Host_Parameters *hostdata =
-		kzalloc(sizeof(struct NCR_700_Host_Parameters),	GFP_KERNEL);
+		kzalloc_obj(struct NCR_700_Host_Parameters);
 
 	printk(KERN_NOTICE "sim710: %s\n", dev_name(dev));
 	printk(KERN_NOTICE "sim710: irq = %d, clock = %d, base = 0x%lx, scsi_id = %d\n",

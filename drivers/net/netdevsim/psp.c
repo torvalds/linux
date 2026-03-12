@@ -72,10 +72,12 @@ nsim_do_psp(struct sk_buff *skb, struct netdevsim *ns,
 		skb->decrypted = 1;
 
 		u64_stats_update_begin(&ns->psp.syncp);
-		ns->psp.tx_packets++;
-		ns->psp.rx_packets++;
-		ns->psp.tx_bytes += skb->len - skb_inner_transport_offset(skb);
-		ns->psp.rx_bytes += skb->len - skb_inner_transport_offset(skb);
+		u64_stats_inc(&ns->psp.tx_packets);
+		u64_stats_inc(&ns->psp.rx_packets);
+		u64_stats_add(&ns->psp.tx_bytes,
+			      skb->len - skb_inner_transport_offset(skb));
+		u64_stats_add(&ns->psp.rx_bytes,
+			      skb->len - skb_inner_transport_offset(skb));
 		u64_stats_update_end(&ns->psp.syncp);
 	} else {
 		struct ipv6hdr *ip6h __maybe_unused;
@@ -183,10 +185,10 @@ static void nsim_get_stats(struct psp_dev *psd, struct psp_dev_stats *stats)
 
 	do {
 		start = u64_stats_fetch_begin(&ns->psp.syncp);
-		stats->rx_bytes = ns->psp.rx_bytes;
-		stats->rx_packets = ns->psp.rx_packets;
-		stats->tx_bytes = ns->psp.tx_bytes;
-		stats->tx_packets = ns->psp.tx_packets;
+		stats->rx_bytes = u64_stats_read(&ns->psp.rx_bytes);
+		stats->rx_packets = u64_stats_read(&ns->psp.rx_packets);
+		stats->tx_bytes = u64_stats_read(&ns->psp.tx_bytes);
+		stats->tx_packets = u64_stats_read(&ns->psp.tx_packets);
 	} while (u64_stats_fetch_retry(&ns->psp.syncp, start));
 }
 

@@ -71,7 +71,7 @@ static int ssb_pcihost_probe(struct pci_dev *dev,
 	int err = -ENOMEM;
 	u32 val;
 
-	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
+	ssb = kzalloc_obj(*ssb);
 	if (!ssb)
 		goto out;
 	err = pci_enable_device(dev);

@@ -143,7 +143,7 @@ static int kcore_ram_list(struct list_head *head)
 {
 	struct kcore_list *ent;
 
-	ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kmalloc_obj(*ent);
 	if (!ent)
 		return -ENOMEM;
 	ent->addr = (unsigned long)__va(0);
@@ -178,7 +178,7 @@ get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
 				end = tmp->addr;
 	}
 	if (start < end) {
-		vmm = kmalloc(sizeof(*vmm), GFP_KERNEL);
+		vmm = kmalloc_obj(*vmm);
 		if (!vmm)
 			return 0;
 		vmm->addr = start;
@@ -210,7 +210,7 @@ kclist_add_private(unsigned long pfn, unsigned long nr_pages, void *arg)
 
 	p = pfn_to_page(pfn);
 
-	ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kmalloc_obj(*ent);
 	if (!ent)
 		return -ENOMEM;
 	ent->addr = (unsigned long)page_to_virt(p);

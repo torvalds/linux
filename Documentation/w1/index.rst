@@ -12,10 +12,3 @@
    w1-netlink.rst
    masters/index
    slaves/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

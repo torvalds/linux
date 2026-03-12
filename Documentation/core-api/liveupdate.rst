@@ -18,6 +18,11 @@ LUO Preserving File Descriptors
 .. kernel-doc:: kernel/liveupdate/luo_file.c
    :doc: LUO File Descriptors
 
+LUO File Lifecycle Bound Global Data
+====================================
+.. kernel-doc:: kernel/liveupdate/luo_flb.c
+   :doc: LUO File Lifecycle Bound Global Data
+
 Live Update Orchestrator ABI
 ============================
 .. kernel-doc:: include/linux/kho/abi/luo.h
@@ -40,12 +45,18 @@ Public API
 .. kernel-doc:: kernel/liveupdate/luo_core.c
    :export:
 
+.. kernel-doc:: kernel/liveupdate/luo_flb.c
+   :export:
+
 .. kernel-doc:: kernel/liveupdate/luo_file.c
    :export:
 
 Internal API
 ============
 .. kernel-doc:: kernel/liveupdate/luo_core.c
+   :internal:
+
+.. kernel-doc:: kernel/liveupdate/luo_flb.c
    :internal:
 
 .. kernel-doc:: kernel/liveupdate/luo_session.c
@@ -58,4 +69,4 @@ See Also
 ========
 
 - :doc:`Live Update uAPI </userspace-api/liveupdate>`
-- :doc:`/core-api/kho/concepts`
+- :doc:`/core-api/kho/index`

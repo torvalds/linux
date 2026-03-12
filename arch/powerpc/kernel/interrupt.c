@@ -38,7 +38,7 @@ static inline bool exit_must_hard_disable(void)
 #else
 static inline bool exit_must_hard_disable(void)
 {
-	return false;
+	return true;
 }
 #endif
 
@@ -443,6 +443,9 @@ again:
 
 		if (unlikely(stack_store))
 			__hard_EE_RI_disable();
+#else
+	} else {
+		__hard_EE_RI_disable();
 #endif /* CONFIG_PPC64 */
 	}
 

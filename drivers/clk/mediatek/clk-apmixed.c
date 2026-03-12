@@ -77,7 +77,7 @@ struct clk_hw *mtk_clk_register_ref2usb_tx(const char *name,
 	struct clk_init_data init = {};
 	int ret;
 
-	tx = kzalloc(sizeof(*tx), GFP_KERNEL);
+	tx = kzalloc_obj(*tx);
 	if (!tx)
 		return ERR_PTR(-ENOMEM);
 

@@ -413,7 +413,7 @@ qede_alloc_filter(struct qede_dev *edev, int min_hlen)
 	if (bit_id >= QEDE_RFS_MAX_FLTR)
 		return NULL;
 
-	n = kzalloc(sizeof(*n), GFP_ATOMIC);
+	n = kzalloc_obj(*n, GFP_ATOMIC);
 	if (!n)
 		return NULL;
 
@@ -682,7 +682,7 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	DP_VERBOSE(edev, NETIF_MSG_IFUP, "Adding vlan 0x%04x\n", vid);
 
-	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan) {
 		DP_INFO(edev, "Failed to allocate struct for vlan\n");
 		return -ENOMEM;
@@ -1916,7 +1916,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 		goto unlock;
 	}
 
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	n = kzalloc_obj(*n);
 	if (!n) {
 		rc = -ENOMEM;
 		goto unlock;
@@ -2059,7 +2059,7 @@ int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		goto unlock;
 	}
 
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	n = kzalloc_obj(*n);
 	if (!n) {
 		rc = -ENOMEM;
 		goto unlock;

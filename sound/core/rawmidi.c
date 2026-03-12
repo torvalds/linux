@@ -159,7 +159,7 @@ static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
 {
 	struct snd_rawmidi_runtime *runtime;
 
-	runtime = kzalloc(sizeof(*runtime), GFP_KERNEL);
+	runtime = kzalloc_obj(*runtime);
 	if (!runtime)
 		return -ENOMEM;
 	runtime->substream = substream;
@@ -472,7 +472,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	fflags = snd_rawmidi_file_flags(file);
 	if ((file->f_flags & O_APPEND) || maj == SOUND_MAJOR) /* OSS emul? */
 		fflags |= SNDRV_RAWMIDI_LFLG_APPEND;
-	rawmidi_file = kmalloc(sizeof(*rawmidi_file), GFP_KERNEL);
+	rawmidi_file = kmalloc_obj(*rawmidi_file);
 	if (rawmidi_file == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -1803,7 +1803,7 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 	int idx;
 
 	for (idx = 0; idx < count; idx++) {
-		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
+		substream = kzalloc_obj(*substream);
 		if (!substream)
 			return -ENOMEM;
 		substream->stream = direction;
@@ -1891,7 +1891,7 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 
 	if (rrawmidi)
 		*rrawmidi = NULL;
-	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
+	rmidi = kzalloc_obj(*rmidi);
 	if (!rmidi)
 		return -ENOMEM;
 	err = snd_rawmidi_init(rmidi, card, id, device,

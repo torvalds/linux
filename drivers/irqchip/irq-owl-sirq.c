@@ -288,7 +288,7 @@ static int __init owl_sirq_init(const struct owl_sirq_params *params,
 		return -ENXIO;
 	}
 
-	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
+	chip_data = kzalloc_obj(*chip_data);
 	if (!chip_data)
 		return -ENOMEM;
 

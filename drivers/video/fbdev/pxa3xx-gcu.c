@@ -530,7 +530,7 @@ pxa3xx_gcu_add_buffer(struct device *dev,
 {
 	struct pxa3xx_gcu_batch *buffer;
 
-	buffer = kzalloc(sizeof(struct pxa3xx_gcu_batch), GFP_KERNEL);
+	buffer = kzalloc_obj(struct pxa3xx_gcu_batch);
 	if (!buffer)
 		return -ENOMEM;
 

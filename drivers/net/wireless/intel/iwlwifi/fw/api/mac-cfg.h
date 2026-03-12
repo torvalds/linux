@@ -66,6 +66,18 @@ enum iwl_mac_conf_subcmd_ids {
 	 */
 	TWT_OPERATION_CMD = 0x10,
 	/**
+	 * @NAN_CFG_CMD: &struct iwl_nan_config_cmd
+	 */
+	NAN_CFG_CMD = 0x12,
+	/**
+	 * @NAN_DW_END_NOTIF: &struct iwl_nan_dw_end_notif
+	 */
+	NAN_DW_END_NOTIF = 0xf4,
+	/**
+	 * @NAN_JOINED_CLUSTER_NOTIF: &struct iwl_nan_cluster_notif
+	 */
+	NAN_JOINED_CLUSTER_NOTIF = 0xf5,
+	/**
 	 * @MISSED_BEACONS_NOTIF: &struct iwl_missed_beacons_notif
 	 */
 	MISSED_BEACONS_NOTIF = 0xF6,
@@ -492,22 +504,36 @@ enum iwl_link_modify_bandwidth {
 };
 
 /**
+ * enum iwl_npca_flags - NPCA flags
+ * @IWL_NPCA_FLAG_MAC_HDR_BASED: MAC header based NPCA operation
+ *	permitted in the BSS (MOPLEN)
+ */
+enum iwl_npca_flags {
+	IWL_NPCA_FLAG_MAC_HDR_BASED = BIT(0),
+}; /* NPCA_FLAG_E */
+
+/**
  * struct iwl_npca_params - NPCA parameters (non-primary channel access)
  *
+ * @dis_subch_bmap: disabled subchannel bitmap for NPCA
  * @switch_delay: after switch, delay TX according to destination AP
  * @switch_back_delay: switch back to control channel before OBSS frame end
+ * @initial_qsrc: Indicates the value that is used to initialize the
+ *	EDCAF QSRC[AC] variables
  * @min_dur_threshold: minimum PPDU time to switch to the non-primary
- *	NPCA channel
- * @flags: NPCA flags - bit 0: puncturing allowed, bit 1: new TX allowed
+ *	NPCA channel (usec)
+ * @flags: NPCA flags, see &enum iwl_npca_flags
  * @reserved: reserved for alignment purposes
  */
 struct iwl_npca_params {
+	__le16 dis_subch_bmap;
 	u8 switch_delay;
 	u8 switch_back_delay;
-	__le16 min_dur_threshold;
-	__le16 flags;
-	__le16 reserved;
-} __packed; /* NPCA_PARAM_API_S_VER_1 */
+	u8 initial_qsrc;
+	u8 min_dur_threshold;
+	u8 flags;
+	u8 reserved;
+} __packed; /* NPCA_PARAM_API_S_VER_2 */
 
 /**
  * struct iwl_link_config_cmd - command structure to configure the LINK context
@@ -618,7 +644,8 @@ struct iwl_link_config_cmd {
 	struct iwl_npca_params npca_params; /* since _VER_7 */
 	struct iwl_ac_qos prio_edca_params; /* since _VER_7 */
 	__le32 reserved3[4];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4, _VER_5, _VER_6, _VER_7 */
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3, _VER_4,
+	     *				    _VER_5, _VER_6, _VER_7, _VER_8 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
@@ -989,5 +1016,123 @@ struct iwl_twt_operation_cmd {
 	u8 dl_tid_bitmap;
 	u8 ul_tid_bitmap;
 } __packed; /* TWT_OPERATION_API_S_VER_1 */
+
+enum iwl_nan_band {
+	IWL_NAN_BAND_5GHZ = 0,
+	IWL_NAN_BAND_2GHZ = 1,
+	IWL_NUM_NAN_BANDS,
+};
+
+/**
+ * struct iwl_nan_band_config - NAN band configuration
+ *
+ * @rssi_close: RSSI threshold for close proximity in dBm
+ * @rssi_middle: RSSI threshold for middle proximity in dBm
+ * @dw_interval: Discovery Window (DW) interval for synchronization beacons and
+ *	SDFs. Valid values of DW interval are: 1, 2, 3, 4 and 5 corresponding to
+ *	1, 2, 4, 8, and 16 DWs.
+ * @reserved: reserved
+ */
+struct iwl_nan_band_config {
+	u8 rssi_close;
+	u8 rssi_middle;
+	u8 dw_interval;
+	u8 reserved;
+}; /* NAN_BAND_SPECIFIC_CONFIG_API_S_VER_1 */
+
+/**
+ * enum iwl_nan_flags - flags for NAN configuration
+ *
+ * @IWL_NAN_FLAG_DW_END_NOTIF_ENABLED: indicates that the host wants to receive
+ *	notifications when a DW ends.
+ */
+enum iwl_nan_flags {
+	IWL_NAN_FLAG_DW_END_NOTIF_ENABLED = BIT(0),
+};
+
+/**
+ * struct iwl_nan_config_cmd - NAN configuration command
+ *
+ * @action: action to perform, see &enum iwl_ctxt_action
+ * @nmi_addr: NAN Management Interface (NMI) address
+ * @reserved_for_nmi_addr: reserved
+ * @discovery_beacon_interval: discovery beacon interval in TUs
+ * @cluster_id: lower last two bytes of the cluster ID, in case the local
+ *	device starts a cluster
+ * @sta_id: station ID of the NAN station
+ * @hb_channel: channel for 5 GHz if the device supports operation on 5 GHz.
+ *	Valid values are 44 and 149, which correspond to the 5 GHz channel, and
+ *	0 which means that NAN operation on the 5 GHz band is disabled.
+ * @master_pref: master preference
+ * @dwell_time: dwell time on the discovery channel during scan (milliseconds).
+ *	If set to 0, the dwell time is determined by the firmware.
+ * @scan_period: scan period in seconds. If set to 0, the scan period is
+ *	determined by the firmware.
+ * @flags: flags for NAN configuration, see &enum iwl_nan_flags
+ * @band_config: band configuration for NAN, one for each band
+ * @nan_attr_len: length of the NAN attributes to be added to the beacon (bytes)
+ * @nan_vendor_elems_len: length of the NAN vendor elements to be added to the
+ *	beacon (bytes)
+ * @beacon_data: variable length data that contains the NAN attributes
+ *	(&nan_attr_len) followed by the NAN vendor elements
+ *	(&nan_vendor_elems_len).
+ */
+struct iwl_nan_config_cmd {
+	__le32 action;
+	u8 nmi_addr[6];
+	__le16 reserved_for_nmi_addr;
+	__le32 discovery_beacon_interval;
+
+	u8 cluster_id[2];
+	u8 sta_id;
+	u8 hb_channel;
+
+	u8 master_pref;
+	u8 dwell_time;
+	u8 scan_period;
+	u8 flags;
+
+	struct iwl_nan_band_config band_config[IWL_NUM_NAN_BANDS];
+
+	__le32 nan_attr_len;
+	__le32 nan_vendor_elems_len;
+	u8 beacon_data[];
+} __packed; /*  NAN_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_nan_cluster_notif_flags - flags for the cluster notification
+ *
+ * @IWL_NAN_CLUSTER_NOTIF_FLAG_NEW_CLUSTER: indicates that the device has
+ *	started a new cluster. If not set, the device has joined an existing
+ *	cluster.
+ */
+enum iwl_nan_cluster_notif_flags {
+	IWL_NAN_CLUSTER_NOTIF_FLAG_NEW_CLUSTER	= BIT(0),
+}; /* NAN_JOINED_CLUSTER_FLAG_E_VER_1 */
+
+/**
+ * struct iwl_nan_cluster_notif - event sent when the device starts or joins a
+ *	NAN cluster.
+ *
+ * @cluster_id: the last two bytes of the cluster ID
+ * @flags: combination of &enum iwl_nan_cluster_notif_flags
+ * @reserved: reserved
+ */
+struct iwl_nan_cluster_notif {
+	u8 cluster_id[2];
+	u8 flags;
+	u8 reserved;
+}; /* NAN_JOINED_CLUSTER_NTF_API_S_VER_1 */
+
+/**
+ * struct iwl_nan_dw_end_notif - sent to notify the host the end of a DW.
+ *
+ * @band: band on which the DW ended. See &enum iwl_nan_band.
+ * @reserved: reserved
+ */
+struct iwl_nan_dw_end_notif {
+	u8 band;
+	u8 reserved[3];
+} __packed; /* NAN_DW_END_NTF_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_mac_cfg_h__ */

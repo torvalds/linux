@@ -6577,7 +6577,7 @@ static int bnx2x_gunzip_init(struct bnx2x *bp)
 	if (bp->gunzip_buf  == NULL)
 		goto gunzip_nomem1;
 
-	bp->strm = kmalloc(sizeof(*bp->strm), GFP_KERNEL);
+	bp->strm = kmalloc_obj(*bp->strm);
 	if (bp->strm  == NULL)
 		goto gunzip_nomem2;
 
@@ -8396,8 +8396,7 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 			goto alloc_mem_err;
 		allocated += bp->context[i].size;
 	}
-	bp->ilt->lines = kcalloc(ILT_MAX_LINES, sizeof(struct ilt_line),
-				 GFP_KERNEL);
+	bp->ilt->lines = kzalloc_objs(struct ilt_line, ILT_MAX_LINES);
 	if (!bp->ilt->lines)
 		goto alloc_mem_err;
 
@@ -10660,7 +10659,7 @@ static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 	up(&bnx2x_prev_sem);
 
 	/* Create an entry for this path and add it */
-	tmp_list = kmalloc(sizeof(struct bnx2x_prev_path_list), GFP_KERNEL);
+	tmp_list = kmalloc_obj(struct bnx2x_prev_path_list);
 	if (!tmp_list) {
 		BNX2X_ERR("Failed to allocate 'bnx2x_prev_path_list'\n");
 		return -ENOMEM;
@@ -12954,7 +12953,7 @@ static int bnx2x_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	DP(NETIF_MSG_IFUP, "Adding VLAN %d\n", vid);
 
-	vlan = kmalloc(sizeof(*vlan), GFP_KERNEL);
+	vlan = kmalloc_obj(*vlan);
 	if (!vlan)
 		return -ENOMEM;
 
@@ -14841,7 +14840,7 @@ static int bnx2x_get_fc_npiv(struct net_device *dev,
 
 	DP(BNX2X_MSG_MCP, "About to read the FC-NPIV table\n");
 
-	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kmalloc_obj(*tbl);
 	if (!tbl) {
 		BNX2X_ERR("Failed to allocate fc_npiv table\n");
 		goto out;

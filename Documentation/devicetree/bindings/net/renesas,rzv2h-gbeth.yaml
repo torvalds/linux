@@ -27,6 +27,9 @@ properties:
   compatible:
     oneOf:
       - items:
+          - const: renesas,r9a08g046-gbeth # RZ/G3L
+          - const: snps,dwmac-5.30a
+      - items:
           - enum:
               - renesas,r9a09g047-gbeth # RZ/G3E
               - renesas,r9a09g056-gbeth # RZ/V2N
@@ -47,13 +50,19 @@ properties:
   clocks:
     oneOf:
       - items:
-          - description: CSR clock
-          - description: AXI system clock
+          - description: CSR/Register access clock
+          - description: AXI system/Main clock
           - description: PTP clock
           - description: TX clock
           - description: RX clock
           - description: TX clock phase-shifted by 180 degrees
           - description: RX clock phase-shifted by 180 degrees
+          - description: RMII clock
+          - description: RMII TX clock
+          - description: RMII RX clock
+
+        minItems: 7
+
       - items:
           - description: CSR clock
           - description: AXI system clock
@@ -69,6 +78,12 @@ properties:
           - const: rx
           - const: tx-180
           - const: rx-180
+          - const: rmii
+          - const: rmii_tx
+          - const: rmii_rx
+
+        minItems: 7
+
       - items:
           - const: stmmaceth
           - const: pclk
@@ -88,6 +103,22 @@ properties:
           - const: tx-queue-1
           - const: tx-queue-2
           - const: tx-queue-3
+      - items:
+          - const: macirq
+          - const: eth_wake_irq
+          - const: eth_lpi
+          - const: rx-queue-0
+          - const: rx-queue-1
+          - const: rx-queue-2
+          - const: rx-queue-3
+          - const: tx-queue-0
+          - const: tx-queue-1
+          - const: tx-queue-2
+          - const: tx-queue-3
+          - const: ptp-pps-0
+          - const: ptp-pps-1
+          - const: ptp-pps-2
+          - const: ptp-pps-3
       - items:
           - const: macirq
           - const: eth_wake_irq
@@ -139,6 +170,27 @@ allOf:
       properties:
         compatible:
           contains:
+            const: renesas,r9a08g046-gbeth
+    then:
+      properties:
+        clocks:
+          minItems: 10
+
+        clock-names:
+          minItems: 10
+
+        interrupts:
+          minItems: 15
+          maxItems: 15
+
+        interrupt-names:
+          minItems: 15
+          maxItems: 15
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: renesas,r9a09g077-gbeth
     then:
       properties:
@@ -164,11 +216,25 @@ allOf:
         - reset-names
     else:
       properties:
+        resets:
+          maxItems: 1
+
+        pcs-handle: false
+
+        reset-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzv2h-gbeth
+    then:
+      properties:
         clocks:
-          minItems: 7
+          maxItems: 7
 
         clock-names:
-          minItems: 7
+          maxItems: 7
 
         interrupts:
           minItems: 11
@@ -177,13 +243,6 @@ allOf:
         interrupt-names:
           minItems: 11
           maxItems: 11
-
-        resets:
-          maxItems: 1
-
-        pcs-handle: false
-
-        reset-names: false
 
 unevaluatedProperties: false
 

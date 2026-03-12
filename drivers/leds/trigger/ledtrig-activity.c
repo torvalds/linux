@@ -188,7 +188,7 @@ static int activity_activate(struct led_classdev *led_cdev)
 {
 	struct activity_data *activity_data;
 
-	activity_data = kzalloc(sizeof(*activity_data), GFP_KERNEL);
+	activity_data = kzalloc_obj(*activity_data);
 	if (!activity_data)
 		return -ENOMEM;
 

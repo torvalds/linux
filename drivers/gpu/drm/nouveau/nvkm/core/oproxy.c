@@ -87,7 +87,7 @@ nvkm_oproxy_uevent(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_oproxy_fini(struct nvkm_object *object, bool suspend)
+nvkm_oproxy_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
 	int ret;
@@ -178,7 +178,7 @@ int
 nvkm_oproxy_new_(const struct nvkm_oproxy_func *func,
 		 const struct nvkm_oclass *oclass, struct nvkm_oproxy **poproxy)
 {
-	if (!(*poproxy = kzalloc(sizeof(**poproxy), GFP_KERNEL)))
+	if (!(*poproxy = kzalloc_obj(**poproxy)))
 		return -ENOMEM;
 	nvkm_oproxy_ctor(func, oclass, *poproxy);
 	return 0;

@@ -2,7 +2,7 @@
 /*
  * Intel Elkhart Lake PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2019, Intel Corporation
+ * Copyright (C) 2019 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 

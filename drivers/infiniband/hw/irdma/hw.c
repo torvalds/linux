@@ -99,6 +99,74 @@ static void irdma_puda_ce_handler(struct irdma_pci_f *rf,
 }
 
 /**
+ * irdma_process_normal_ceqe - Handle a CEQE for a normal CQ.
+ * @rf: RDMA PCI function.
+ * @dev: iWARP device.
+ * @cq_idx: CQ ID. Must be in table bounds.
+ *
+ * Context: Atomic (CEQ lock must be held)
+ */
+static void irdma_process_normal_ceqe(struct irdma_pci_f *rf,
+				      struct irdma_sc_dev *dev, u32 cq_idx)
+{
+	/* cq_idx bounds validated in irdma_sc_process_ceq. */
+	struct irdma_cq *icq = READ_ONCE(rf->cq_table[cq_idx]);
+	struct irdma_sc_cq *cq;
+
+	if (unlikely(!icq)) {
+		/* Should not happen since CEQ is scrubbed upon CQ delete. */
+		ibdev_warn_ratelimited(to_ibdev(dev), "Stale CEQE for CQ %u",
+				       cq_idx);
+		return;
+	}
+
+	cq = &icq->sc_cq;
+
+	if (unlikely(cq->cq_type != IRDMA_CQ_TYPE_IWARP)) {
+		ibdev_warn_ratelimited(to_ibdev(dev), "Unexpected CQ type %u",
+				       cq->cq_type);
+		return;
+	}
+
+	writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+	irdma_iwarp_ce_handler(cq);
+}
+
+/**
+ * irdma_process_reserved_ceqe - Handle a CEQE for a reserved CQ.
+ * @rf: RDMA PCI function.
+ * @dev: iWARP device.
+ * @cq_idx: CQ ID.
+ *
+ * Context: Atomic
+ */
+static void irdma_process_reserved_ceqe(struct irdma_pci_f *rf,
+					struct irdma_sc_dev *dev, u32 cq_idx)
+{
+	struct irdma_sc_cq *cq;
+
+	if (cq_idx == IRDMA_RSVD_CQ_ID_CQP) {
+		cq = &rf->ccq.sc_cq;
+		/* CQP CQ lifetime > CEQ. */
+		writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+		queue_work(rf->cqp_cmpl_wq, &rf->cqp_cmpl_work);
+	} else if (cq_idx == IRDMA_RSVD_CQ_ID_ILQ ||
+		   cq_idx == IRDMA_RSVD_CQ_ID_IEQ) {
+		scoped_guard(spinlock_irqsave, &dev->puda_cq_lock) {
+			cq = (cq_idx == IRDMA_RSVD_CQ_ID_ILQ) ?
+				dev->ilq_cq : dev->ieq_cq;
+			if (!cq) {
+				ibdev_warn_ratelimited(to_ibdev(dev),
+						       "Stale ILQ/IEQ CEQE");
+				return;
+			}
+			writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+			irdma_puda_ce_handler(rf, cq);
+		}
+	}
+}
+
+/**
  * irdma_process_ceq - handle ceq for completions
  * @rf: RDMA PCI function
  * @ceq: ceq having cq for completion
@@ -107,28 +175,28 @@ static void irdma_process_ceq(struct irdma_pci_f *rf, struct irdma_ceq *ceq)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_sc_ceq *sc_ceq;
-	struct irdma_sc_cq *cq;
 	unsigned long flags;
+	u32 cq_idx;
 
 	sc_ceq = &ceq->sc_ceq;
 	do {
 		spin_lock_irqsave(&ceq->ce_lock, flags);
-		cq = irdma_sc_process_ceq(dev, sc_ceq);
-		if (!cq) {
+
+		if (!irdma_sc_process_ceq(dev, sc_ceq, &cq_idx)) {
 			spin_unlock_irqrestore(&ceq->ce_lock, flags);
 			break;
 		}
 
-		if (cq->cq_type == IRDMA_CQ_TYPE_IWARP)
-			irdma_iwarp_ce_handler(cq);
+		/* Normal CQs must be handled while holding CEQ lock. */
+		if (likely(cq_idx > IRDMA_RSVD_CQ_ID_IEQ)) {
+			irdma_process_normal_ceqe(rf, dev, cq_idx);
+			spin_unlock_irqrestore(&ceq->ce_lock, flags);
+			continue;
+		}
 
 		spin_unlock_irqrestore(&ceq->ce_lock, flags);
 
-		if (cq->cq_type == IRDMA_CQ_TYPE_CQP)
-			queue_work(rf->cqp_cmpl_wq, &rf->cqp_cmpl_work);
-		else if (cq->cq_type == IRDMA_CQ_TYPE_ILQ ||
-			 cq->cq_type == IRDMA_CQ_TYPE_IEQ)
-			irdma_puda_ce_handler(rf, cq);
+		irdma_process_reserved_ceqe(rf, dev, cq_idx);
 	} while (1);
 }
 
@@ -961,7 +1029,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	u16 maj_err, min_err;
 	int i, status;
 
-	cqp->cqp_requests = kcalloc(sqsize, sizeof(*cqp->cqp_requests), GFP_KERNEL);
+	cqp->cqp_requests = kzalloc_objs(*cqp->cqp_requests, sqsize);
 	if (!cqp->cqp_requests)
 		return -ENOMEM;
 
@@ -971,8 +1039,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 		goto err_scratch;
 	}
 
-	cqp->oop_op_array = kcalloc(sqsize, sizeof(*cqp->oop_op_array),
-				    GFP_KERNEL);
+	cqp->oop_op_array = kzalloc_objs(*cqp->oop_op_array, sqsize);
 	if (!cqp->oop_op_array) {
 		status = -ENOMEM;
 		goto err_oop;
@@ -1298,7 +1365,7 @@ static int irdma_setup_ceq_0(struct irdma_pci_f *rf)
 	u32 num_ceqs;
 
 	num_ceqs = min(rf->msix_count, rf->sc_dev.hmc_fpm_misc.max_ceqs);
-	rf->ceqlist = kcalloc(num_ceqs, sizeof(*rf->ceqlist), GFP_KERNEL);
+	rf->ceqlist = kzalloc_objs(*rf->ceqlist, num_ceqs);
 	if (!rf->ceqlist) {
 		status = -ENOMEM;
 		goto exit;
@@ -1532,8 +1599,8 @@ static int irdma_initialize_ilq(struct irdma_device *iwdev)
 	int status;
 
 	info.type = IRDMA_PUDA_RSRC_TYPE_ILQ;
-	info.cq_id = 1;
-	info.qp_id = 1;
+	info.cq_id = IRDMA_RSVD_CQ_ID_ILQ;
+	info.qp_id = IRDMA_RSVD_QP_ID_GSI_ILQ;
 	info.count = 1;
 	info.pd_id = 1;
 	info.abi_ver = IRDMA_ABI_VER;
@@ -1562,7 +1629,7 @@ static int irdma_initialize_ieq(struct irdma_device *iwdev)
 	int status;
 
 	info.type = IRDMA_PUDA_RSRC_TYPE_IEQ;
-	info.cq_id = 2;
+	info.cq_id = IRDMA_RSVD_CQ_ID_IEQ;
 	info.qp_id = iwdev->vsi.exception_lan_q;
 	info.count = 1;
 	info.pd_id = 2;
@@ -1868,7 +1935,7 @@ int irdma_rt_init_hw(struct irdma_device *iwdev,
 	vsi_info.pf_data_vsi_num = iwdev->vsi_num;
 	vsi_info.register_qset = rf->gen_ops.register_qset;
 	vsi_info.unregister_qset = rf->gen_ops.unregister_qset;
-	vsi_info.exception_lan_q = 2;
+	vsi_info.exception_lan_q = IRDMA_RSVD_QP_ID_IEQ;
 	irdma_sc_vsi_init(&iwdev->vsi, &vsi_info);
 
 	status = irdma_setup_cm_core(iwdev, rf->rdma_ver);
@@ -2099,18 +2166,18 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	irdma_set_hw_rsrc(rf);
 
 	set_bit(0, rf->allocated_mrs);
-	set_bit(0, rf->allocated_qps);
-	set_bit(0, rf->allocated_cqs);
+	set_bit(IRDMA_RSVD_QP_ID_0, rf->allocated_qps);
+	set_bit(IRDMA_RSVD_CQ_ID_CQP, rf->allocated_cqs);
 	set_bit(0, rf->allocated_srqs);
 	set_bit(0, rf->allocated_pds);
 	set_bit(0, rf->allocated_arps);
 	set_bit(0, rf->allocated_ahs);
 	set_bit(0, rf->allocated_mcgs);
-	set_bit(2, rf->allocated_qps); /* qp 2 IEQ */
-	set_bit(1, rf->allocated_qps); /* qp 1 ILQ */
-	set_bit(1, rf->allocated_cqs);
+	set_bit(IRDMA_RSVD_QP_ID_IEQ, rf->allocated_qps);
+	set_bit(IRDMA_RSVD_QP_ID_GSI_ILQ, rf->allocated_qps);
+	set_bit(IRDMA_RSVD_CQ_ID_ILQ, rf->allocated_cqs);
 	set_bit(1, rf->allocated_pds);
-	set_bit(2, rf->allocated_cqs);
+	set_bit(IRDMA_RSVD_CQ_ID_IEQ, rf->allocated_cqs);
 	set_bit(2, rf->allocated_pds);
 
 	INIT_LIST_HEAD(&rf->mc_qht_list.list);
@@ -2398,7 +2465,7 @@ struct irdma_apbvt_entry *irdma_add_apbvt(struct irdma_device *iwdev, u16 port)
 		return entry;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry) {
 		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
 		return NULL;

@@ -334,7 +334,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	}
 
 	/* Allocate an fcall for the reply */
-	rpl_context = kmalloc(sizeof *rpl_context, GFP_NOFS);
+	rpl_context = kmalloc_obj(*rpl_context, GFP_NOFS);
 	if (!rpl_context) {
 		err = -ENOMEM;
 		goto recv_error;
@@ -363,7 +363,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 
 dont_need_post_recv:
 	/* Post the request */
-	c = kmalloc(sizeof *c, GFP_NOFS);
+	c = kmalloc_obj(*c, GFP_NOFS);
 	if (!c) {
 		err = -ENOMEM;
 		goto send_error;
@@ -460,7 +460,7 @@ static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)
 {
 	struct p9_trans_rdma *rdma;
 
-	rdma = kzalloc(sizeof(struct p9_trans_rdma), GFP_KERNEL);
+	rdma = kzalloc_obj(struct p9_trans_rdma);
 	if (!rdma)
 		return NULL;
 

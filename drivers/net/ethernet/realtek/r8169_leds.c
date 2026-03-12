@@ -154,7 +154,7 @@ struct r8169_led_classdev *rtl8168_init_leds(struct net_device *ndev)
 	struct r8169_led_classdev *leds;
 	int i;
 
-	leds = kcalloc(RTL8168_NUM_LEDS + 1, sizeof(*leds), GFP_KERNEL);
+	leds = kzalloc_objs(*leds, RTL8168_NUM_LEDS + 1);
 	if (!leds)
 		return NULL;
 
@@ -253,7 +253,7 @@ struct r8169_led_classdev *rtl8125_init_leds(struct net_device *ndev)
 	struct r8169_led_classdev *leds;
 	int i;
 
-	leds = kcalloc(RTL8125_NUM_LEDS + 1, sizeof(*leds), GFP_KERNEL);
+	leds = kzalloc_objs(*leds, RTL8125_NUM_LEDS + 1);
 	if (!leds)
 		return NULL;
 

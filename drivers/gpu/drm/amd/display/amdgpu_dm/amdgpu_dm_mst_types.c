@@ -640,7 +640,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_connector *connector;
 	int i;
 
-	aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
+	aconnector = kzalloc_obj(*aconnector);
 	if (!aconnector)
 		return NULL;
 

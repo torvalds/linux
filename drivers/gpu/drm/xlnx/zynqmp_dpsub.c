@@ -189,7 +189,7 @@ static int zynqmp_dpsub_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Allocate private data. */
-	dpsub = kzalloc(sizeof(*dpsub), GFP_KERNEL);
+	dpsub = kzalloc_obj(*dpsub);
 	if (!dpsub)
 		return -ENOMEM;
 

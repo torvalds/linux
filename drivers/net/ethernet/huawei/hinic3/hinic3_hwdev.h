@@ -17,6 +17,24 @@ enum hinic3_event_service_type {
 	HINIC3_EVENT_SRV_NIC  = 1
 };
 
+enum hinic3_comm_event_type {
+	HINIC3_COMM_EVENT_PCIE_LINK_DOWN = 0,
+	HINIC3_COMM_EVENT_HEART_LOST = 1,
+	HINIC3_COMM_EVENT_FAULT = 2,
+	HINIC3_COMM_EVENT_SRIOV_STATE_CHANGE = 3,
+	HINIC3_COMM_EVENT_CARD_REMOVE = 4,
+	HINIC3_COMM_EVENT_MGMT_WATCHDOG = 5,
+};
+
+enum hinic3_fault_err_level {
+	HINIC3_FAULT_LEVEL_SERIOUS_FLR = 3,
+};
+
+enum hinic3_fault_source_type {
+	HINIC3_FAULT_SRC_HW_PHY_FAULT = 9,
+	HINIC3_FAULT_SRC_TX_TIMEOUT   = 22,
+};
+
 #define HINIC3_SRV_EVENT_TYPE(svc, type)    (((svc) << 16) | (type))
 
 /* driver-specific data of pci_dev */
@@ -28,6 +46,7 @@ struct hinic3_pcidev {
 
 	void __iomem         *cfg_reg_base;
 	void __iomem         *intr_reg_base;
+	void __iomem         *mgmt_reg_base;
 	void __iomem         *db_base;
 	u64                  db_dwqe_len;
 	u64                  db_base_phy;
@@ -48,7 +67,9 @@ struct hinic3_hwdev {
 	struct hinic3_ceqs          *ceqs;
 	struct hinic3_mbox          *mbox;
 	struct hinic3_cmdqs         *cmdqs;
+	struct delayed_work         sync_time_task;
 	struct workqueue_struct     *workq;
+	struct hinic3_msg_pf_to_mgmt *pf_to_mgmt;
 	/* protect channel init and uninit */
 	spinlock_t                  channel_lock;
 	u64                         features[COMM_MAX_FEATURE_QWORD];

@@ -79,7 +79,7 @@ struct clk *rockchip_clk_register_inverter(const char *name,
 	struct rockchip_inv_clock *inv_clock;
 	struct clk *clk;
 
-	inv_clock = kmalloc(sizeof(*inv_clock), GFP_KERNEL);
+	inv_clock = kmalloc_obj(*inv_clock);
 	if (!inv_clock)
 		return ERR_PTR(-ENOMEM);
 

@@ -629,7 +629,7 @@ struct fman_keygen *keygen_init(struct fman_kg_regs __iomem *keygen_regs)
 	int i;
 
 	/* Allocate memory for KeyGen driver */
-	keygen = kzalloc(sizeof(*keygen), GFP_KERNEL);
+	keygen = kzalloc_obj(*keygen);
 	if (!keygen)
 		return NULL;
 

@@ -254,7 +254,7 @@ struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 	struct zl10039_state *state = NULL;
 
 	dprintk("%s\n", __func__);
-	state = kmalloc(sizeof(struct zl10039_state), GFP_KERNEL);
+	state = kmalloc_obj(struct zl10039_state);
 	if (state == NULL)
 		goto error;
 

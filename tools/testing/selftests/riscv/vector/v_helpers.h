@@ -5,4 +5,6 @@ bool is_xtheadvector_supported(void);
 
 bool is_vector_supported(void);
 
+unsigned long get_vr_len(void);
+
 int launch_test(char *next_program, int test_inherit, int xtheadvector);

@@ -165,7 +165,7 @@ in the page fault error code.
 When a task forks a child, its shadow stack PTEs are copied and both the
 parent's and the child's shadow stack PTEs are cleared of the dirty bit.
 Upon the next shadow stack access, the resulting shadow stack page fault
-is handled by page copy/re-use.
+is handled by page copy/reuse.
 
 When a pthread child is created, the kernel allocates a new shadow stack
 for the new thread. New shadow stack creation behaves like mmap() with respect

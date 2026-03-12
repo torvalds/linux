@@ -1393,7 +1393,7 @@ int usb_add_gadget(struct usb_gadget *gadget)
 	struct usb_udc		*udc;
 	int			ret = -ENOMEM;
 
-	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
+	udc = kzalloc_obj(*udc);
 	if (!udc)
 		goto error;
 

@@ -733,6 +733,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "gfx";
+		power-domains = <&ps_pmp>;
 	};
 
 	ps_dcs4: power-controller@320 {
@@ -1103,6 +1104,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "atc0_usb_aon";
+		apple,always-on; /* Needs to stay on for dwc3 to work */
 	};
 
 	ps_atc1_usb_aon: power-controller@90 {
@@ -1111,6 +1113,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "atc1_usb_aon";
+		apple,always-on; /* Needs to stay on for dwc3 to work */
 	};
 
 	ps_atc0_usb: power-controller@98 {

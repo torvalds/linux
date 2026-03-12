@@ -148,7 +148,7 @@ static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
 {
 	struct ackqueue_entry *n;
 
-	n = kmalloc(sizeof(*n), GFP_ATOMIC);
+	n = kmalloc_obj(*n, GFP_ATOMIC);
 	if (unlikely(!n)) {
 		printk(KERN_ERR "capi: alloc datahandle failed\n");
 		return -1;
@@ -215,7 +215,7 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 	struct device *dev;
 	unsigned int minor;
 
-	mp = kzalloc(sizeof(*mp), GFP_KERNEL);
+	mp = kzalloc_obj(*mp);
 	if (!mp) {
 		printk(KERN_ERR "capi: can't alloc capiminor\n");
 		return NULL;
@@ -341,7 +341,7 @@ static struct capincci *capincci_alloc(struct capidev *cdev, u32 ncci)
 {
 	struct capincci *np;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc_obj(*np);
 	if (!np)
 		return NULL;
 	np->ncci = ncci;
@@ -981,7 +981,7 @@ static int capi_open(struct inode *inode, struct file *file)
 {
 	struct capidev *cdev;
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return -ENOMEM;
 
@@ -1259,8 +1259,7 @@ static int __init capinc_tty_init(void)
 	if (capi_ttyminors <= 0)
 		capi_ttyminors = CAPINC_NR_PORTS;
 
-	capiminors = kcalloc(capi_ttyminors, sizeof(struct capiminor *),
-			     GFP_KERNEL);
+	capiminors = kzalloc_objs(struct capiminor *, capi_ttyminors);
 	if (!capiminors)
 		return -ENOMEM;
 

@@ -1811,7 +1811,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	gpd_data = kzalloc(sizeof(*gpd_data), GFP_KERNEL);
+	gpd_data = kzalloc_obj(*gpd_data);
 	if (!gpd_data) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -1822,7 +1822,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 
 	/* Allocate data used by a governor. */
 	if (has_governor) {
-		td = kzalloc(sizeof(*td), GFP_KERNEL);
+		td = kzalloc_obj(*td);
 		if (!td) {
 			ret = -ENOMEM;
 			goto err_free;
@@ -2161,7 +2161,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 		return -EINVAL;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 
@@ -2269,7 +2269,7 @@ static int genpd_set_default_power_state(struct generic_pm_domain *genpd)
 {
 	struct genpd_power_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 
@@ -2295,7 +2295,7 @@ static int genpd_alloc_data(struct generic_pm_domain *genpd)
 		return -ENOMEM;
 
 	if (genpd->gov) {
-		gd = kzalloc(sizeof(*gd), GFP_KERNEL);
+		gd = kzalloc_obj(*gd);
 		if (!gd) {
 			ret = -ENOMEM;
 			goto free;
@@ -2623,7 +2623,7 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 {
 	struct of_genpd_provider *cp;
 
-	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	cp = kzalloc_obj(*cp);
 	if (!cp)
 		return -ENOMEM;
 
@@ -3316,7 +3316,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 		return ERR_PTR(-ENODEV);
 
 	/* Allocate and register device on the genpd bus. */
-	virt_dev = kzalloc(sizeof(*virt_dev), GFP_KERNEL);
+	virt_dev = kzalloc_obj(*virt_dev);
 	if (!virt_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -3474,7 +3474,7 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 		return 0;
 	}
 
-	st = kcalloc(ret, sizeof(*st), GFP_KERNEL);
+	st = kzalloc_objs(*st, ret);
 	if (!st)
 		return -ENOMEM;
 

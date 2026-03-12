@@ -78,7 +78,7 @@ const struct btf_member *btf_find_struct_member(struct btf *btf,
 	const char *name;
 	int i, top = 0;
 
-	anon_stack = kcalloc(BTF_ANON_STACK_MAX, sizeof(*anon_stack), GFP_KERNEL);
+	anon_stack = kzalloc_objs(*anon_stack, BTF_ANON_STACK_MAX);
 	if (!anon_stack)
 		return ERR_PTR(-ENOMEM);
 

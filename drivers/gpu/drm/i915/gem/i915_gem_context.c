@@ -285,7 +285,7 @@ proto_context_create(struct drm_i915_file_private *fpriv,
 {
 	struct i915_gem_proto_context *pc, *err;
 
-	pc = kzalloc(sizeof(*pc), GFP_KERNEL);
+	pc = kzalloc_obj(*pc);
 	if (!pc)
 		return ERR_PTR(-ENOMEM);
 
@@ -442,7 +442,7 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 	if (num_siblings == 0)
 		return 0;
 
-	siblings = kmalloc_array(num_siblings, sizeof(*siblings), GFP_KERNEL);
+	siblings = kmalloc_objs(*siblings, num_siblings);
 	if (!siblings)
 		return -ENOMEM;
 
@@ -644,9 +644,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 		return -EINVAL;
 	}
 
-	siblings = kmalloc_array(num_siblings * width,
-				 sizeof(*siblings),
-				 GFP_KERNEL);
+	siblings = kmalloc_objs(*siblings, num_siblings * width);
 	if (!siblings)
 		return -ENOMEM;
 
@@ -761,7 +759,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 	if (set.num_engines > I915_EXEC_RING_MASK + 1)
 		return -EINVAL;
 
-	set.engines = kmalloc_array(set.num_engines, sizeof(*set.engines), GFP_KERNEL);
+	set.engines = kmalloc_objs(*set.engines, set.num_engines);
 	if (!set.engines)
 		return -ENOMEM;
 
@@ -1105,7 +1103,7 @@ static struct i915_gem_engines *alloc_engines(unsigned int count)
 {
 	struct i915_gem_engines *e;
 
-	e = kzalloc(struct_size(e, engines, count), GFP_KERNEL);
+	e = kzalloc_flex(*e, engines, count);
 	if (!e)
 		return NULL;
 
@@ -1611,7 +1609,7 @@ i915_gem_create_context(struct drm_i915_private *i915,
 	int err;
 	int i;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

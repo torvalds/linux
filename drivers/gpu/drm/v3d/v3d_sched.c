@@ -585,7 +585,7 @@ v3d_reset_performance_queries(struct v3d_cpu_job *job)
 			perfmon = v3d_perfmon_find(v3d_priv,
 						   performance_query->queries[i].kperfmon_ids[j]);
 			if (!perfmon) {
-				DRM_DEBUG("Failed to find perfmon.");
+				drm_dbg(&v3d->drm, "Failed to find perfmon.");
 				continue;
 			}
 
@@ -620,7 +620,7 @@ v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data,
 		perfmon = v3d_perfmon_find(v3d_priv,
 					   perf_query->kperfmon_ids[i]);
 		if (!perfmon) {
-			DRM_DEBUG("Failed to find perfmon.");
+			drm_dbg(&v3d->drm, "Failed to find perfmon.");
 			continue;
 		}
 
@@ -690,7 +690,7 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	struct v3d_dev *v3d = job->base.v3d;
 
 	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
-		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
+		drm_dbg(&v3d->drm, "Unknown CPU job: %d\n", job->job_type);
 		return NULL;
 	}
 

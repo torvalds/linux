@@ -21,8 +21,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group *block_group,
 					struct btrfs_path *path);
 
-static struct btrfs_root *btrfs_free_space_root(
-				struct btrfs_block_group *block_group)
+struct btrfs_root *btrfs_free_space_root(struct btrfs_block_group *block_group)
 {
 	struct btrfs_key key = {
 		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
@@ -93,7 +92,6 @@ static int add_new_free_space_info(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-EXPORT_FOR_TESTS
 struct btrfs_free_space_info *btrfs_search_free_space_info(
 		struct btrfs_trans_handle *trans,
 		struct btrfs_block_group *block_group,
@@ -220,7 +218,7 @@ int btrfs_convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		return 0;
 
 	start = block_group->start;
-	end = block_group->start + block_group->length;
+	end = btrfs_block_group_end(block_group);
 
 	key.objectid = end - 1;
 	key.type = (u8)-1;
@@ -360,7 +358,7 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 		return 0;
 
 	start = block_group->start;
-	end = block_group->start + block_group->length;
+	end = btrfs_block_group_end(block_group);
 
 	key.objectid = end - 1;
 	key.type = (u8)-1;
@@ -667,7 +665,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	 * Read the bit for the block immediately after the extent of space if
 	 * that block is within the block group.
 	 */
-	if (end < block_group->start + block_group->length) {
+	if (end < btrfs_block_group_end(block_group)) {
 		/* The next block may be in the next bitmap. */
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 		if (end >= key.objectid + key.offset) {
@@ -940,7 +938,7 @@ static int add_free_space_extent(struct btrfs_trans_handle *trans,
 
 right:
 	/* Search for a neighbor on the right. */
-	if (end == block_group->start + block_group->length)
+	if (end == btrfs_block_group_end(block_group))
 		goto insert;
 	key.objectid = end;
 	key.type = (u8)-1;
@@ -1106,7 +1104,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	 * highest, block group).
 	 */
 	start = block_group->start;
-	end = block_group->start + block_group->length;
+	end = btrfs_block_group_end(block_group);
 	while (ret == 0) {
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 
@@ -1396,9 +1394,9 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	 * can use multiple transactions, every time btrfs_end_transaction() is
 	 * called at btrfs_rebuild_free_space_tree() we finish the creation of
 	 * new block groups by calling btrfs_create_pending_block_groups(), and
-	 * that in turn calls us, through add_block_group_free_space(), to add
-	 * a free space info item and a free space extent item for the block
-	 * group.
+	 * that in turn calls us, through btrfs_add_block_group_free_space(),
+	 * to add a free space info item and a free space extent item for the
+	 * block group.
 	 *
 	 * Then later btrfs_rebuild_free_space_tree() may find such new block
 	 * groups and processes them with populate_free_space_tree(), which can
@@ -1479,7 +1477,7 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 	}
 
 	start = block_group->start;
-	end = block_group->start + block_group->length;
+	end = btrfs_block_group_end(block_group);
 
 	key.objectid = end - 1;
 	key.type = (u8)-1;
@@ -1525,32 +1523,27 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 	}
 
-	ret = 0;
-
-	return ret;
+	return 0;
 }
 
 static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 				   struct btrfs_path *path,
 				   u32 expected_extent_count)
 {
-	struct btrfs_block_group *block_group;
-	struct btrfs_fs_info *fs_info;
+	struct btrfs_block_group *block_group = caching_ctl->block_group;
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
 	bool prev_bit_set = false;
 	/* Initialize to silence GCC. */
 	u64 extent_start = 0;
-	u64 end, offset;
+	const u64 end = btrfs_block_group_end(block_group);
+	u64 offset;
 	u64 total_found = 0;
 	u32 extent_count = 0;
 	int ret;
 
-	block_group = caching_ctl->block_group;
-	fs_info = block_group->fs_info;
 	root = btrfs_free_space_root(block_group);
-
-	end = block_group->start + block_group->length;
 
 	while (1) {
 		ret = btrfs_next_item(root, path);
@@ -1617,20 +1610,16 @@ static int load_free_space_extents(struct btrfs_caching_control *caching_ctl,
 				   struct btrfs_path *path,
 				   u32 expected_extent_count)
 {
-	struct btrfs_block_group *block_group;
-	struct btrfs_fs_info *fs_info;
+	struct btrfs_block_group *block_group = caching_ctl->block_group;
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	u64 end;
+	const u64 end = btrfs_block_group_end(block_group);
 	u64 total_found = 0;
 	u32 extent_count = 0;
 	int ret;
 
-	block_group = caching_ctl->block_group;
-	fs_info = block_group->fs_info;
 	root = btrfs_free_space_root(block_group);
-
-	end = block_group->start + block_group->length;
 
 	while (1) {
 		u64 space_added;
@@ -1711,4 +1700,107 @@ int btrfs_load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 		return load_free_space_bitmaps(caching_ctl, path, extent_count);
 	else
 		return load_free_space_extents(caching_ctl, path, extent_count);
+}
+
+static int delete_orphan_free_space_entries(struct btrfs_root *fst_root,
+					    struct btrfs_path *path,
+					    u64 first_bg_bytenr)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	trans = btrfs_start_transaction(fst_root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	while (true) {
+		struct btrfs_key key = { 0 };
+		int i;
+
+		ret = btrfs_search_slot(trans, fst_root, &key, path, -1, 1);
+		if (ret < 0)
+			break;
+		ASSERT(ret > 0);
+		ret = 0;
+		for (i = 0; i < btrfs_header_nritems(path->nodes[0]); i++) {
+			btrfs_item_key_to_cpu(path->nodes[0], &key, i);
+			if (key.objectid >= first_bg_bytenr) {
+				/*
+				 * Only break the for() loop and continue to
+				 * delete items.
+				 */
+				break;
+			}
+		}
+		/* No items to delete, finished. */
+		if (i == 0)
+			break;
+
+		ret = btrfs_del_items(trans, fst_root, path, 0, i);
+		if (ret < 0)
+			break;
+		btrfs_release_path(path);
+	}
+	btrfs_release_path(path);
+	btrfs_end_transaction(trans);
+	if (ret == 0)
+		btrfs_info(fst_root->fs_info, "deleted orphan free space tree entries");
+	return ret;
+}
+
+/* Remove any free space entry before the first block group. */
+int btrfs_delete_orphan_free_space_entries(struct btrfs_fs_info *fs_info)
+{
+	BTRFS_PATH_AUTO_RELEASE(path);
+	struct btrfs_key key = {
+		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
+		.type = BTRFS_ROOT_ITEM_KEY,
+		.offset = 0,
+	};
+	struct btrfs_root *root;
+	struct btrfs_block_group *bg;
+	u64 first_bg_bytenr;
+	int ret;
+
+	/*
+	 * Extent tree v2 has multiple global roots based on the block group.
+	 * This means we cannot easily grab the global free space tree and locate
+	 * orphan items.  Furthermore this is still experimental, all users
+	 * should use the latest btrfs-progs anyway.
+	 */
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+		return 0;
+	if (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+		return 0;
+	root = btrfs_global_root(fs_info, &key);
+	if (!root)
+		return 0;
+
+	key.objectid = 0;
+	key.type = 0;
+	key.offset = 0;
+
+	bg = btrfs_lookup_first_block_group(fs_info, 0);
+	if (unlikely(!bg)) {
+		btrfs_err(fs_info, "no block group found");
+		return -EUCLEAN;
+	}
+	first_bg_bytenr = bg->start;
+	btrfs_put_block_group(bg);
+
+	ret = btrfs_search_slot(NULL, root, &key, &path, 0, 0);
+	if (ret < 0)
+		return ret;
+	/* There should not be an all-zero key in fst. */
+	ASSERT(ret > 0);
+
+	/* Empty free space tree. */
+	if (path.slots[0] >= btrfs_header_nritems(path.nodes[0]))
+		return 0;
+
+	btrfs_item_key_to_cpu(path.nodes[0], &key, path.slots[0]);
+	if (key.objectid >= first_bg_bytenr)
+		return 0;
+	btrfs_release_path(&path);
+	return delete_orphan_free_space_entries(root, &path, first_bg_bytenr);
 }

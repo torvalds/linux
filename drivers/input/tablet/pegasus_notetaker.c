@@ -293,7 +293,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
-	pegasus = kzalloc(sizeof(*pegasus), GFP_KERNEL);
+	pegasus = kzalloc_obj(*pegasus);
 	input_dev = input_allocate_device();
 	if (!pegasus || !input_dev) {
 		error = -ENOMEM;

@@ -65,7 +65,7 @@ int ima_read_modsig(enum ima_hooks func, const void *buf, loff_t buf_len,
 	buf_len -= sig_len + sizeof(*sig);
 
 	/* Allocate sig_len additional bytes to hold the raw PKCS#7 data. */
-	hdr = kzalloc(struct_size(hdr, raw_pkcs7, sig_len), GFP_KERNEL);
+	hdr = kzalloc_flex(*hdr, raw_pkcs7, sig_len);
 	if (!hdr)
 		return -ENOMEM;
 

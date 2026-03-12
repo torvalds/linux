@@ -119,7 +119,7 @@ struct clk_hw *imx_clk_hw_pllv1(enum imx_pllv1_type type, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kmalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

@@ -34,6 +34,10 @@ properties:
     maxItems: 1
     description: DVFSRC common register address and length.
 
+  clocks:
+    items:
+      - description: Clock that drives the DVFSRC MCU
+
   regulators:
     type: object
     $ref: /schemas/regulator/mediatek,mt6873-dvfsrc-regulator.yaml#
@@ -50,6 +54,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/mt8195-clk.h>
     soc {
         #address-cells = <2>;
         #size-cells = <2>;
@@ -57,6 +62,7 @@ examples:
         system-controller@10012000 {
             compatible = "mediatek,mt8195-dvfsrc";
             reg = <0 0x10012000 0 0x1000>;
+            clocks = <&topckgen CLK_TOP_DVFSRC>;
 
             regulators {
                 compatible = "mediatek,mt8195-dvfsrc-regulator";

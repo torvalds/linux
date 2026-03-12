@@ -375,10 +375,14 @@
 /* NAND on such SKUs */
 &gpmi {
 	fsl,use-minimum-ecc;
-	nand-ecc-mode = "hw";
-	nand-on-flash-bbt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
+
+	nand@0 {
+		reg = <0>;
+		nand-ecc-mode = "hw";
+		nand-on-flash-bbt;
+	};
 };
 
 /* On-module Power I2C */

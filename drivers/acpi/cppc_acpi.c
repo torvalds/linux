@@ -362,7 +362,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 end:
 	if (cmd == CMD_WRITE) {
 		if (unlikely(ret)) {
-			for_each_possible_cpu(i) {
+			for_each_online_cpu(i) {
 				struct cpc_desc *desc = per_cpu(cpc_desc_ptr, i);
 
 				if (!desc)
@@ -524,7 +524,7 @@ int acpi_get_psd_map(unsigned int cpu, struct cppc_cpudata *cpu_data)
 	else if (pdomain->coord_type == DOMAIN_COORD_TYPE_SW_ANY)
 		cpu_data->shared_type = CPUFREQ_SHARED_TYPE_ANY;
 
-	for_each_possible_cpu(i) {
+	for_each_online_cpu(i) {
 		if (i == cpu)
 			continue;
 
@@ -636,8 +636,7 @@ static int pcc_data_alloc(int pcc_ss_id)
 	if (pcc_data[pcc_ss_id]) {
 		pcc_data[pcc_ss_id]->refcount++;
 	} else {
-		pcc_data[pcc_ss_id] = kzalloc(sizeof(struct cppc_pcc_data),
-					      GFP_KERNEL);
+		pcc_data[pcc_ss_id] = kzalloc_obj(struct cppc_pcc_data);
 		if (!pcc_data[pcc_ss_id])
 			return -ENOMEM;
 		pcc_data[pcc_ss_id]->refcount++;
@@ -712,7 +711,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 	out_obj = (union acpi_object *) output.pointer;
 
-	cpc_ptr = kzalloc(sizeof(struct cpc_desc), GFP_KERNEL);
+	cpc_ptr = kzalloc_obj(struct cpc_desc);
 	if (!cpc_ptr) {
 		ret = -ENOMEM;
 		goto out_buf_free;
@@ -1424,6 +1423,32 @@ out_err:
 EXPORT_SYMBOL_GPL(cppc_get_perf_caps);
 
 /**
+ * cppc_perf_ctrs_in_pcc_cpu - Check if any perf counters of a CPU are in PCC.
+ * @cpu: CPU on which to check perf counters.
+ *
+ * Return: true if any of the counters are in PCC regions, false otherwise
+ */
+bool cppc_perf_ctrs_in_pcc_cpu(unsigned int cpu)
+{
+	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpu);
+	struct cpc_register_resource *ref_perf_reg;
+
+	/*
+	 * If reference perf register is not supported then we should use the
+	 * nominal perf value
+	 */
+	ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
+	if (!CPC_SUPPORTED(ref_perf_reg))
+		ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+
+	return CPC_IN_PCC(&cpc_desc->cpc_regs[DELIVERED_CTR]) ||
+		CPC_IN_PCC(&cpc_desc->cpc_regs[REFERENCE_CTR]) ||
+		CPC_IN_PCC(&cpc_desc->cpc_regs[CTR_WRAP_TIME]) ||
+		CPC_IN_PCC(ref_perf_reg);
+}
+EXPORT_SYMBOL_GPL(cppc_perf_ctrs_in_pcc_cpu);
+
+/**
  * cppc_perf_ctrs_in_pcc - Check if any perf counters are in a PCC region.
  *
  * CPPC has flexibility about how CPU performance counters are accessed.
@@ -1437,27 +1462,7 @@ bool cppc_perf_ctrs_in_pcc(void)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		struct cpc_register_resource *ref_perf_reg;
-		struct cpc_desc *cpc_desc;
-
-		cpc_desc = per_cpu(cpc_desc_ptr, cpu);
-
-		if (CPC_IN_PCC(&cpc_desc->cpc_regs[DELIVERED_CTR]) ||
-		    CPC_IN_PCC(&cpc_desc->cpc_regs[REFERENCE_CTR]) ||
-		    CPC_IN_PCC(&cpc_desc->cpc_regs[CTR_WRAP_TIME]))
-			return true;
-
-
-		ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
-
-		/*
-		 * If reference perf register is not supported then we should
-		 * use the nominal perf value
-		 */
-		if (!CPC_SUPPORTED(ref_perf_reg))
-			ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
-
-		if (CPC_IN_PCC(ref_perf_reg))
+		if (cppc_perf_ctrs_in_pcc_cpu(cpu))
 			return true;
 	}
 
@@ -1609,7 +1614,7 @@ EXPORT_SYMBOL_GPL(cppc_set_epp_perf);
  */
 int cppc_set_epp(int cpu, u64 epp_val)
 {
-	if (epp_val > CPPC_ENERGY_PERF_MAX)
+	if (epp_val > CPPC_EPP_ENERGY_EFFICIENCY_PREF)
 		return -EINVAL;
 
 	return cppc_set_reg_val(cpu, ENERGY_PERF, epp_val);

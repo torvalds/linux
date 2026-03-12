@@ -381,7 +381,7 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 		goto out;
 	}
 
-	dat_entry = kmalloc(sizeof(*dat_entry), GFP_ATOMIC);
+	dat_entry = kmalloc_obj(*dat_entry, GFP_ATOMIC);
 	if (!dat_entry)
 		goto out;
 
@@ -635,8 +635,7 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
 	if (!bat_priv->orig_hash)
 		return NULL;
 
-	res = kmalloc_array(BATADV_DAT_CANDIDATES_NUM, sizeof(*res),
-			    GFP_ATOMIC);
+	res = kmalloc_objs(*res, BATADV_DAT_CANDIDATES_NUM, GFP_ATOMIC);
 	if (!res)
 		return NULL;
 

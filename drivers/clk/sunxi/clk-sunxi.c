@@ -991,11 +991,11 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 		return NULL;
 	}
 
-	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+	clk_data = kmalloc_obj(struct clk_onecell_data);
 	if (!clk_data)
 		goto out_unmap;
 
-	clks = kcalloc(ndivs, sizeof(*clks), GFP_KERNEL);
+	clks = kzalloc_objs(*clks, ndivs);
 	if (!clks)
 		goto free_clkdata;
 
@@ -1022,7 +1022,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 
 		/* If this leaf clock can be gated, create a gate */
 		if (data->div[i].gate) {
-			gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+			gate = kzalloc_obj(*gate);
 			if (!gate)
 				goto free_clks;
 
@@ -1035,7 +1035,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 
 		/* Leaves can be fixed or configurable divisors */
 		if (data->div[i].fixed) {
-			fix_factor = kzalloc(sizeof(*fix_factor), GFP_KERNEL);
+			fix_factor = kzalloc_obj(*fix_factor);
 			if (!fix_factor)
 				goto free_gate;
 
@@ -1045,7 +1045,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 			rate_hw = &fix_factor->hw;
 			rate_ops = &clk_fixed_factor_ops;
 		} else {
-			divider = kzalloc(sizeof(*divider), GFP_KERNEL);
+			divider = kzalloc_obj(*divider);
 			if (!divider)
 				goto free_gate;
 

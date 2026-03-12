@@ -109,9 +109,11 @@ static int __init aclint_sswi_probe(struct fwnode_handle *fwnode)
 	if (!is_of_node(fwnode))
 		return -EINVAL;
 
-	reg = of_iomap(to_of_node(fwnode), 0);
-	if (!reg)
-		return -ENOMEM;
+	reg = of_io_request_and_map(to_of_node(fwnode), 0, NULL);
+	if (IS_ERR(reg)) {
+		pr_err("%pfwP: Failed to map MMIO region\n", fwnode);
+		return PTR_ERR(reg);
+	}
 
 	/* Parse SSWI setting */
 	rc = aclint_sswi_parse_irq(fwnode, reg);

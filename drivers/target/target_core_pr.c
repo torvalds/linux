@@ -1490,7 +1490,7 @@ core_scsi3_decode_spec_i_port(
 	 * local_node_acl pointer and add to struct list_head tid_dest_list
 	 * for add registration processing in the loop of tid_dest_list below.
 	 */
-	tidh_new = kzalloc(sizeof(struct pr_transport_id_holder), GFP_KERNEL);
+	tidh_new = kzalloc_obj(struct pr_transport_id_holder);
 	if (!tidh_new) {
 		pr_err("Unable to allocate tidh_new\n");
 		return TCM_INSUFFICIENT_REGISTRATION_RESOURCES;
@@ -1712,8 +1712,7 @@ core_scsi3_decode_spec_i_port(
 		 * the dest_node_acl and dest_se_deve pointers for the
 		 * loop below.
 		 */
-		tidh_new = kzalloc(sizeof(struct pr_transport_id_holder),
-				GFP_KERNEL);
+		tidh_new = kzalloc_obj(struct pr_transport_id_holder);
 		if (!tidh_new) {
 			pr_err("Unable to allocate tidh_new\n");
 			core_scsi3_lunacl_undepend_item(dest_se_deve);

@@ -52,7 +52,7 @@
 	{(1UL << GLF_DEMOTE_IN_PROGRESS),	"p" },		\
 	{(1UL << GLF_DIRTY),			"y" },		\
 	{(1UL << GLF_LFLUSH),			"f" },		\
-	{(1UL << GLF_PENDING_REPLY),		"R" },		\
+	{(1UL << GLF_MAY_CANCEL),		"c" },		\
 	{(1UL << GLF_HAVE_REPLY),		"r" },		\
 	{(1UL << GLF_INITIAL),			"a" },		\
 	{(1UL << GLF_HAVE_FROZEN_REPLY),	"F" },		\
@@ -111,9 +111,9 @@ TRACE_EVENT(gfs2_glock_state_change,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->glnum		= gl->gl_name.ln_number;
-		__entry->gltype		= gl->gl_name.ln_type;
+		__entry->dev		= glock_sbd(gl)->sd_vfs->s_dev;
+		__entry->glnum		= glock_number(gl);
+		__entry->gltype		= glock_type(gl);
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->new_state	= glock_trace_state(new_state);
 		__entry->tgt_state	= glock_trace_state(gl->gl_target);
@@ -147,9 +147,9 @@ TRACE_EVENT(gfs2_glock_put,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->gltype		= gl->gl_name.ln_type;
-		__entry->glnum		= gl->gl_name.ln_number;
+		__entry->dev		= glock_sbd(gl)->sd_vfs->s_dev;
+		__entry->gltype		= glock_type(gl);
+		__entry->glnum		= glock_number(gl);
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
 	),
@@ -181,9 +181,9 @@ TRACE_EVENT(gfs2_demote_rq,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->gltype		= gl->gl_name.ln_type;
-		__entry->glnum		= gl->gl_name.ln_number;
+		__entry->dev		= glock_sbd(gl)->sd_vfs->s_dev;
+		__entry->gltype		= glock_type(gl);
+		__entry->glnum		= glock_number(gl);
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->dmt_state	= glock_trace_state(gl->gl_demote_state);
 		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
@@ -215,9 +215,9 @@ TRACE_EVENT(gfs2_promote,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= gh->gh_gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->glnum	= gh->gh_gl->gl_name.ln_number;
-		__entry->gltype	= gh->gh_gl->gl_name.ln_type;
+		__entry->dev	= glock_sbd(gh->gh_gl)->sd_vfs->s_dev;
+		__entry->glnum	= glock_number(gh->gh_gl);
+		__entry->gltype	= glock_type(gh->gh_gl);
 		__entry->state	= glock_trace_state(gh->gh_state);
 	),
 
@@ -243,9 +243,9 @@ TRACE_EVENT(gfs2_glock_queue,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= gh->gh_gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->glnum	= gh->gh_gl->gl_name.ln_number;
-		__entry->gltype	= gh->gh_gl->gl_name.ln_type;
+		__entry->dev	= glock_sbd(gh->gh_gl)->sd_vfs->s_dev;
+		__entry->glnum	= glock_number(gh->gh_gl);
+		__entry->gltype	= glock_type(gh->gh_gl);
 		__entry->queue	= queue;
 		__entry->state	= glock_trace_state(gh->gh_state);
 	),
@@ -282,9 +282,9 @@ TRACE_EVENT(gfs2_glock_lock_time,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->glnum          = gl->gl_name.ln_number;
-		__entry->gltype         = gl->gl_name.ln_type;
+		__entry->dev            = glock_sbd(gl)->sd_vfs->s_dev;
+		__entry->glnum          = glock_number(gl);
+		__entry->gltype         = glock_type(gl);
 		__entry->status		= gl->gl_lksb.sb_status;
 		__entry->flags		= gl->gl_lksb.sb_flags;
 		__entry->tdiff		= tdiff;
@@ -337,11 +337,11 @@ TRACE_EVENT(gfs2_pin,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bd->bd_gl->gl_name.ln_sbd->sd_vfs->s_dev;
+		__entry->dev		= glock_sbd(bd->bd_gl)->sd_vfs->s_dev;
 		__entry->pin		= pin;
 		__entry->len		= bd->bd_bh->b_size;
 		__entry->block		= bd->bd_bh->b_blocknr;
-		__entry->ino		= bd->bd_gl->gl_name.ln_number;
+		__entry->ino		= glock_number(bd->bd_gl);
 	),
 
 	TP_printk("%u,%u log %s %llu/%lu inode %llu",
@@ -458,7 +458,7 @@ TRACE_EVENT(gfs2_bmap,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
+		__entry->dev            = glock_sbd(ip->i_gl)->sd_vfs->s_dev;
 		__entry->lblock		= lblock;
 		__entry->pblock		= buffer_mapped(bh) ?  bh->b_blocknr : 0;
 		__entry->inum		= ip->i_no_addr;
@@ -494,7 +494,7 @@ TRACE_EVENT(gfs2_iomap_start,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
+		__entry->dev            = glock_sbd(ip->i_gl)->sd_vfs->s_dev;
 		__entry->inum		= ip->i_no_addr;
 		__entry->pos		= pos;
 		__entry->length		= length;
@@ -526,7 +526,7 @@ TRACE_EVENT(gfs2_iomap_end,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
+		__entry->dev            = glock_sbd(ip->i_gl)->sd_vfs->s_dev;
 		__entry->inum		= ip->i_no_addr;
 		__entry->offset		= iomap->offset;
 		__entry->length		= iomap->length;
@@ -568,7 +568,7 @@ TRACE_EVENT(gfs2_block_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rgd->rd_gl->gl_name.ln_sbd->sd_vfs->s_dev;
+		__entry->dev		= glock_sbd(rgd->rd_gl)->sd_vfs->s_dev;
 		__entry->start		= block;
 		__entry->inum		= ip->i_no_addr;
 		__entry->len		= len;

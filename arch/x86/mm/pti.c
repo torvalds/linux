@@ -15,7 +15,7 @@
  *   Signed-off-by: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
  *
  * Major changes to the original code by: Dave Hansen <dave.hansen@intel.com>
- * Mostly rewritten by Thomas Gleixner <tglx@linutronix.de> and
+ * Mostly rewritten by Thomas Gleixner <tglx@kernel.org> and
  *		       Andy Lutomirsky <luto@amacapital.net>
  */
 #include <linux/kernel.h>

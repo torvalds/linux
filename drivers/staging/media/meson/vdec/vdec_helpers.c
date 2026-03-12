@@ -233,7 +233,7 @@ int amvdec_add_ts(struct amvdec_session *sess, u64 ts,
 	struct amvdec_timestamp *new_ts;
 	unsigned long flags;
 
-	new_ts = kzalloc(sizeof(*new_ts), GFP_KERNEL);
+	new_ts = kzalloc_obj(*new_ts);
 	if (!new_ts)
 		return -ENOMEM;
 

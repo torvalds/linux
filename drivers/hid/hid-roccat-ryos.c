@@ -96,7 +96,7 @@ static int ryos_init_specials(struct hid_device *hdev)
 		return 0;
 	}
 
-	ryos = kzalloc(sizeof(*ryos), GFP_KERNEL);
+	ryos = kzalloc_obj(*ryos);
 	if (!ryos) {
 		hid_err(hdev, "can't alloc device descriptor\n");
 		return -ENOMEM;

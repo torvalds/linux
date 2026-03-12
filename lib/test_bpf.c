@@ -94,7 +94,7 @@ static int bpf_fill_maxinsns1(struct bpf_test *self)
 	__u32 k = ~0;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -113,7 +113,7 @@ static int bpf_fill_maxinsns2(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -133,7 +133,7 @@ static int bpf_fill_maxinsns3(struct bpf_test *self)
 	struct rnd_state rnd;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -159,7 +159,7 @@ static int bpf_fill_maxinsns4(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -178,7 +178,7 @@ static int bpf_fill_maxinsns5(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -201,7 +201,7 @@ static int bpf_fill_maxinsns6(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -223,7 +223,7 @@ static int bpf_fill_maxinsns7(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -249,7 +249,7 @@ static int bpf_fill_maxinsns8(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i, jmp_off = len - 3;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -272,7 +272,7 @@ static int bpf_fill_maxinsns9(struct bpf_test *self)
 	struct bpf_insn *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -298,7 +298,7 @@ static int bpf_fill_maxinsns10(struct bpf_test *self)
 	struct bpf_insn *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -324,7 +324,7 @@ static int __bpf_fill_ja(struct bpf_test *self, unsigned int len,
 	unsigned int rlen;
 	int i, j;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -358,7 +358,7 @@ static int bpf_fill_maxinsns12(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -381,7 +381,7 @@ static int bpf_fill_maxinsns13(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -410,7 +410,7 @@ static int bpf_fill_ld_abs_get_processor_id(struct bpf_test *self)
 	struct sock_filter *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -434,7 +434,7 @@ static int __bpf_fill_stxdw(struct bpf_test *self, int size)
 	struct bpf_insn *insn;
 	int i;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -484,7 +484,7 @@ static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm, bool alu3
 	int len = S16_MAX + 5;
 	int i;
 
-	insns = kmalloc_array(len, sizeof(*insns), GFP_KERNEL);
+	insns = kmalloc_objs(*insns, len);
 	if (!insns)
 		return -ENOMEM;
 
@@ -626,7 +626,7 @@ static int __bpf_fill_alu_shift(struct bpf_test *self, u8 op,
 	int imm, k;
 	int i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -759,7 +759,7 @@ static int __bpf_fill_alu_shift_same_reg(struct bpf_test *self, u8 op,
 	int i = 0;
 	u64 val;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -1244,7 +1244,7 @@ static int __bpf_fill_alu_imm_regs(struct bpf_test *self, u8 op, bool alu32)
 	u32 imm;
 	int rd;
 
-	insns = kmalloc_array(len, sizeof(*insns), GFP_KERNEL);
+	insns = kmalloc_objs(*insns, len);
 	if (!insns)
 		return -ENOMEM;
 
@@ -1426,7 +1426,7 @@ static int __bpf_fill_alu_reg_pairs(struct bpf_test *self, u8 op, bool alu32)
 	int rd, rs;
 	int i = 0;
 
-	insns = kmalloc_array(len, sizeof(*insns), GFP_KERNEL);
+	insns = kmalloc_objs(*insns, len);
 	if (!insns)
 		return -ENOMEM;
 
@@ -1917,7 +1917,7 @@ static int __bpf_fill_atomic_reg_pairs(struct bpf_test *self, u8 width, u8 op)
 	u64 mem, upd, res;
 	int rd, rs, i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -2163,7 +2163,7 @@ static int bpf_fill_ld_imm64_magn(struct bpf_test *self)
 	int bit, adj, sign;
 	int i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -2217,7 +2217,7 @@ static int __bpf_fill_ld_imm64_bytes(struct bpf_test *self,
 	u32 rand = 1;
 	int i = 0;
 
-	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	insn = kmalloc_objs(*insn, len);
 	if (!insn)
 		return -ENOMEM;
 
@@ -2724,7 +2724,7 @@ static int __bpf_fill_staggered_jumps(struct bpf_test *self,
 	struct bpf_insn *insns;
 	int off, ind;
 
-	insns = kmalloc_array(len, sizeof(*insns), GFP_KERNEL);
+	insns = kmalloc_objs(*insns, len);
 	if (!insns)
 		return -ENOMEM;
 
@@ -15461,7 +15461,7 @@ static __init int prepare_tail_call_tests(struct bpf_array **pprogs)
 	int which, err;
 
 	/* Allocate the table of programs to be used for tail calls */
-	progs = kzalloc(struct_size(progs, ptrs, ntests + 1), GFP_KERNEL);
+	progs = kzalloc_flex(*progs, ptrs, ntests + 1);
 	if (!progs)
 		goto out_nomem;
 

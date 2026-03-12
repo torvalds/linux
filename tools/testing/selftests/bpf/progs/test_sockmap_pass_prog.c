@@ -44,4 +44,18 @@ int prog_skb_parser(struct __sk_buff *skb)
 	return SK_PASS;
 }
 
+SEC("sk_skb/stream_verdict")
+int prog_skb_verdict_ingress(struct __sk_buff *skb)
+{
+	int one = 1;
+
+	return bpf_sk_redirect_map(skb, &sock_map_rx, one, BPF_F_INGRESS);
+}
+
+SEC("sk_skb/stream_parser")
+int prog_skb_verdict_ingress_strp(struct __sk_buff *skb)
+{
+	return skb->len;
+}
+
 char _license[] SEC("license") = "GPL";

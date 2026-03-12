@@ -837,7 +837,8 @@ int cache_tree_init(struct pcache_cache *cache, struct pcache_cache_tree *cache_
 	 * Each element is a cache tree structure that contains
 	 * an RB tree root and a spinlock for protecting its contents.
 	 */
-	cache_tree->subtrees = kvcalloc(cache_tree->n_subtrees, sizeof(struct pcache_cache_subtree), GFP_KERNEL);
+	cache_tree->subtrees = kvzalloc_objs(struct pcache_cache_subtree,
+					     cache_tree->n_subtrees);
 	if (!cache_tree->subtrees) {
 		ret = -ENOMEM;
 		goto key_pool_exit;

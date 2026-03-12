@@ -93,7 +93,7 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 		last = &entry->next;
 	}
 
-	entry = kzalloc(sizeof(struct intc_virq_list), GFP_ATOMIC);
+	entry = kzalloc_obj(struct intc_virq_list, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
@@ -168,7 +168,7 @@ static void __init intc_subgroup_init_one(struct intc_desc *desc,
 		if (!subgroup->enum_ids[i])
 			continue;
 
-		entry = kmalloc(sizeof(*entry), GFP_NOWAIT);
+		entry = kmalloc_obj(*entry, GFP_NOWAIT);
 		if (!entry)
 			break;
 

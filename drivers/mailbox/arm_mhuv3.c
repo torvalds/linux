@@ -333,7 +333,7 @@ struct mhuv3_extension {
  * @rev: MHUv3 controller IIDR revision.
  * @var: MHUv3 controller IIDR variant.
  * @prod_id: MHUv3 controller IIDR product_id.
- * @num_chans: The total number of channnels discovered across all extensions.
+ * @num_chans: The total number of channels discovered across all extensions.
  * @cmb_irq: Combined IRQ number if any found defined.
  * @ctrl: A reference to the MHUv3 control page for this block.
  * @pbx: Base address of the PBX register mapping region.

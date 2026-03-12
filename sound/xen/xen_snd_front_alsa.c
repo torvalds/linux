@@ -442,8 +442,7 @@ static int shbuf_setup_backstore(struct xen_snd_front_pcm_stream_info *stream,
 
 	stream->buffer_sz = buffer_sz;
 	stream->num_pages = DIV_ROUND_UP(stream->buffer_sz, PAGE_SIZE);
-	stream->pages = kcalloc(stream->num_pages, sizeof(struct page *),
-				GFP_KERNEL);
+	stream->pages = kzalloc_objs(struct page *, stream->num_pages);
 	if (!stream->pages)
 		return -ENOMEM;
 

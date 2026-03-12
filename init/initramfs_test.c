@@ -403,7 +403,7 @@ static void __init initramfs_test_fname_pad(struct kunit *test)
 	struct test_fname_pad {
 		char padded_fname[4096 - CPIO_HDRLEN];
 		char cpio_srcbuf[CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)];
-	} *tbufs = kzalloc(sizeof(struct test_fname_pad), GFP_KERNEL);
+	} *tbufs = kzalloc_obj(struct test_fname_pad);
 	struct initramfs_test_cpio c[] = { {
 		.magic = "070701",
 		.ino = 1,
@@ -447,6 +447,53 @@ out:
 	kfree(tbufs);
 }
 
+static void __init initramfs_test_fname_path_max(struct kunit *test)
+{
+	char *err;
+	size_t len;
+	struct kstat st0, st1;
+	char fdata[] = "this file data will not be unpacked";
+	struct test_fname_path_max {
+		char fname_oversize[PATH_MAX + 1];
+		char fname_ok[PATH_MAX];
+		char cpio_src[(CPIO_HDRLEN + PATH_MAX + 3 + sizeof(fdata)) * 2];
+	} *tbufs = kzalloc_obj(struct test_fname_path_max);
+	struct initramfs_test_cpio c[] = { {
+		.magic = "070701",
+		.ino = 1,
+		.mode = S_IFDIR | 0777,
+		.nlink = 1,
+		.namesize = sizeof(tbufs->fname_oversize),
+		.fname = tbufs->fname_oversize,
+		.filesize = sizeof(fdata),
+		.data = fdata,
+	}, {
+		.magic = "070701",
+		.ino = 2,
+		.mode = S_IFDIR | 0777,
+		.nlink = 1,
+		.namesize = sizeof(tbufs->fname_ok),
+		.fname = tbufs->fname_ok,
+	} };
+
+	memset(tbufs->fname_oversize, '/', sizeof(tbufs->fname_oversize) - 1);
+	memset(tbufs->fname_ok, '/', sizeof(tbufs->fname_ok) - 1);
+	memcpy(tbufs->fname_oversize, "fname_oversize",
+	       sizeof("fname_oversize") - 1);
+	memcpy(tbufs->fname_ok, "fname_ok", sizeof("fname_ok") - 1);
+	len = fill_cpio(c, ARRAY_SIZE(c), tbufs->cpio_src);
+
+	/* unpack skips over fname_oversize instead of returning an error */
+	err = unpack_to_rootfs(tbufs->cpio_src, len);
+	KUNIT_EXPECT_NULL(test, err);
+
+	KUNIT_EXPECT_EQ(test, init_stat("fname_oversize", &st0, 0), -ENOENT);
+	KUNIT_EXPECT_EQ(test, init_stat("fname_ok", &st1, 0), 0);
+	KUNIT_EXPECT_EQ(test, init_rmdir("fname_ok"), 0);
+
+	kfree(tbufs);
+}
+
 /*
  * The kunit_case/_suite struct cannot be marked as __initdata as this will be
  * used in debugfs to retrieve results after test has run.
@@ -459,6 +506,7 @@ static struct kunit_case __refdata initramfs_test_cases[] = {
 	KUNIT_CASE(initramfs_test_hardlink),
 	KUNIT_CASE(initramfs_test_many),
 	KUNIT_CASE(initramfs_test_fname_pad),
+	KUNIT_CASE(initramfs_test_fname_path_max),
 	{},
 };
 

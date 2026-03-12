@@ -70,7 +70,7 @@ int af_alg_register_type(const struct af_alg_type *type)
 			goto unlock;
 	}
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
+	node = kmalloc_obj(*node);
 	err = -ENOMEM;
 	if (!node)
 		goto unlock;

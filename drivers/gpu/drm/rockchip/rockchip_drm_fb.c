@@ -36,7 +36,7 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	struct drm_afbc_framebuffer *afbc_fb;
 	int ret;
 
-	afbc_fb = kzalloc(sizeof(*afbc_fb), GFP_KERNEL);
+	afbc_fb = kzalloc_obj(*afbc_fb);
 	if (!afbc_fb)
 		return ERR_PTR(-ENOMEM);
 

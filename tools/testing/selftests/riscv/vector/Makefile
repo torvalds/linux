@@ -2,10 +2,13 @@
 # Copyright (C) 2021 ARM Limited
 # Originally tools/testing/arm64/abi/Makefile
 
-TEST_GEN_PROGS := v_initval vstate_prctl vstate_ptrace
+TEST_GEN_PROGS := v_initval vstate_prctl vstate_ptrace validate_v_ptrace
 TEST_GEN_PROGS_EXTENDED := vstate_exec_nolibc v_exec_initval_nolibc
+TEST_GEN_LIBS := v_helpers.c sys_hwprobe.c
 
 include ../../lib.mk
+
+TEST_GEN_OBJ := $(patsubst %.c, $(OUTPUT)/%.o, $(TEST_GEN_LIBS))
 
 $(OUTPUT)/sys_hwprobe.o: ../hwprobe/sys_hwprobe.S
 	$(CC) -static -c -o$@ $(CFLAGS) $^
@@ -29,3 +32,8 @@ $(OUTPUT)/v_exec_initval_nolibc: v_exec_initval_nolibc.c
 
 $(OUTPUT)/vstate_ptrace: vstate_ptrace.c $(OUTPUT)/sys_hwprobe.o $(OUTPUT)/v_helpers.o
 	$(CC) -static -o$@ $(CFLAGS) $(LDFLAGS) $^
+
+$(OUTPUT)/validate_v_ptrace: validate_v_ptrace.c $(OUTPUT)/sys_hwprobe.o $(OUTPUT)/v_helpers.o
+	$(CC) -static -o$@ $(CFLAGS) $(LDFLAGS) $^
+
+EXTRA_CLEAN += $(TEST_GEN_OBJ)

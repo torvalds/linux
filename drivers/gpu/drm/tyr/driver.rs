@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 
-use kernel::c_str;
 use kernel::clk::Clk;
 use kernel::clk::OptionalClk;
 use kernel::device::Bound;
@@ -9,6 +8,7 @@ use kernel::device::Device;
 use kernel::devres::Devres;
 use kernel::drm;
 use kernel::drm::ioctl;
+use kernel::io::poll;
 use kernel::new_mutex;
 use kernel::of;
 use kernel::platform;
@@ -16,10 +16,10 @@ use kernel::prelude::*;
 use kernel::regulator;
 use kernel::regulator::Regulator;
 use kernel::sizes::SZ_2M;
+use kernel::sync::aref::ARef;
 use kernel::sync::Arc;
 use kernel::sync::Mutex;
 use kernel::time;
-use kernel::types::ARef;
 
 use crate::file::File;
 use crate::gem::TyrObject;
@@ -34,7 +34,7 @@ pub(crate) type TyrDevice = drm::Device<TyrDriver>;
 
 #[pin_data(PinnedDrop)]
 pub(crate) struct TyrDriver {
-    device: ARef<TyrDevice>,
+    _device: ARef<TyrDevice>,
 }
 
 #[pin_data(PinnedDrop)]
@@ -68,20 +68,13 @@ unsafe impl Sync for TyrData {}
 fn issue_soft_reset(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
     regs::GPU_CMD.write(dev, iomem, regs::GPU_CMD_SOFT_RESET)?;
 
-    // TODO: We cannot poll, as there is no support in Rust currently, so we
-    // sleep. Change this when read_poll_timeout() is implemented in Rust.
-    kernel::time::delay::fsleep(time::Delta::from_millis(100));
-
-    if regs::GPU_IRQ_RAWSTAT.read(dev, iomem)? & regs::GPU_IRQ_RAWSTAT_RESET_COMPLETED == 0 {
-        dev_err!(dev, "GPU reset failed with errno\n");
-        dev_err!(
-            dev,
-            "GPU_INT_RAWSTAT is {}\n",
-            regs::GPU_IRQ_RAWSTAT.read(dev, iomem)?
-        );
-
-        return Err(EIO);
-    }
+    poll::read_poll_timeout(
+        || regs::GPU_IRQ_RAWSTAT.read(dev, iomem),
+        |status| *status & regs::GPU_IRQ_RAWSTAT_RESET_COMPLETED != 0,
+        time::Delta::from_millis(1),
+        time::Delta::from_millis(100),
+    )
+    .inspect_err(|_| dev_err!(dev, "GPU reset failed."))?;
 
     Ok(())
 }
@@ -91,8 +84,8 @@ kernel::of_device_table!(
     MODULE_OF_TABLE,
     <TyrDriver as platform::Driver>::IdInfo,
     [
-        (of::DeviceId::new(c_str!("rockchip,rk3588-mali")), ()),
-        (of::DeviceId::new(c_str!("arm,mali-valhall-csf")), ())
+        (of::DeviceId::new(c"rockchip,rk3588-mali"), ()),
+        (of::DeviceId::new(c"arm,mali-valhall-csf"), ())
     ]
 );
 
@@ -104,16 +97,16 @@ impl platform::Driver for TyrDriver {
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
     ) -> impl PinInit<Self, Error> {
-        let core_clk = Clk::get(pdev.as_ref(), Some(c_str!("core")))?;
-        let stacks_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("stacks")))?;
-        let coregroup_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("coregroup")))?;
+        let core_clk = Clk::get(pdev.as_ref(), Some(c"core"))?;
+        let stacks_clk = OptionalClk::get(pdev.as_ref(), Some(c"stacks"))?;
+        let coregroup_clk = OptionalClk::get(pdev.as_ref(), Some(c"coregroup"))?;
 
         core_clk.prepare_enable()?;
         stacks_clk.prepare_enable()?;
         coregroup_clk.prepare_enable()?;
 
-        let mali_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c_str!("mali"))?;
-        let sram_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c_str!("sram"))?;
+        let mali_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c"mali")?;
+        let sram_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c"sram")?;
 
         let request = pdev.io_request_by_index(0).ok_or(ENODEV)?;
         let iomem = Arc::pin_init(request.iomap_sized::<SZ_2M>(), GFP_KERNEL)?;
@@ -134,8 +127,8 @@ impl platform::Driver for TyrDriver {
                     coregroup: coregroup_clk,
                 }),
                 regulators <- new_mutex!(Regulators {
-                    mali: mali_regulator,
-                    sram: sram_regulator,
+                    _mali: mali_regulator,
+                    _sram: sram_regulator,
                 }),
                 gpu_info,
         });
@@ -143,11 +136,11 @@ impl platform::Driver for TyrDriver {
         let tdev: ARef<TyrDevice> = drm::Device::new(pdev.as_ref(), data)?;
         drm::driver::Registration::new_foreign_owned(&tdev, pdev.as_ref(), 0)?;
 
-        let driver = TyrDriver { device: tdev };
+        let driver = TyrDriver { _device: tdev };
 
         // We need this to be dev_info!() because dev_dbg!() does not work at
         // all in Rust for now, and we need to see whether probe succeeded.
-        dev_info!(pdev.as_ref(), "Tyr initialized correctly.\n");
+        dev_info!(pdev, "Tyr initialized correctly.\n");
         Ok(driver)
     }
 }
@@ -174,8 +167,8 @@ const INFO: drm::DriverInfo = drm::DriverInfo {
     major: 1,
     minor: 5,
     patchlevel: 0,
-    name: c_str!("panthor"),
-    desc: c_str!("ARM Mali Tyr DRM driver"),
+    name: c"panthor",
+    desc: c"ARM Mali Tyr DRM driver",
 };
 
 #[vtable]
@@ -200,6 +193,6 @@ struct Clocks {
 
 #[pin_data]
 struct Regulators {
-    mali: Regulator<regulator::Enabled>,
-    sram: Regulator<regulator::Enabled>,
+    _mali: Regulator<regulator::Enabled>,
+    _sram: Regulator<regulator::Enabled>,
 }

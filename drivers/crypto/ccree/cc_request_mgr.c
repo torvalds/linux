@@ -116,7 +116,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
 
-	req_mgr_h = kzalloc(sizeof(*req_mgr_h), GFP_KERNEL);
+	req_mgr_h = kzalloc_obj(*req_mgr_h);
 	if (!req_mgr_h) {
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
@@ -426,7 +426,7 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	if (rc == -ENOSPC && backlog_ok) {
 		spin_unlock_bh(&mgr->hw_lock);
 
-		bli = kmalloc(sizeof(*bli), flags);
+		bli = kmalloc_obj(*bli, flags);
 		if (!bli) {
 			cc_pm_put_suspend(dev);
 			return -ENOMEM;

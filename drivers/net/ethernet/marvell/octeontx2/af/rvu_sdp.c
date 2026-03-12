@@ -56,7 +56,7 @@ int rvu_sdp_init(struct rvu *rvu)
 	struct rvu_pfvf *pfvf;
 	u32 i = 0;
 
-	if (rvu->fwdata->channel_data.valid) {
+	if (rvu->fwdata && rvu->fwdata->channel_data.valid) {
 		sdp_pf_num[0] = 0;
 		pfvf = &rvu->pf[sdp_pf_num[0]];
 		pfvf->sdp_info = &rvu->fwdata->channel_data.info;

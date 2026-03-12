@@ -969,7 +969,7 @@ static int ct_mixer_get_mem(struct ct_mixer **rmixer)
 
 	*rmixer = NULL;
 	/* Allocate mem for mixer obj */
-	mixer = kzalloc(sizeof(*mixer), GFP_KERNEL);
+	mixer = kzalloc_obj(*mixer);
 	if (!mixer)
 		return -ENOMEM;
 

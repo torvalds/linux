@@ -63,11 +63,11 @@ static void __init sun7i_a20_gmac_clk_setup(struct device_node *node)
 		return;
 
 	/* allocate mux and gate clock structs */
-	mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
+	mux = kzalloc_obj(struct clk_mux);
 	if (!mux)
 		return;
 
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+	gate = kzalloc_obj(struct clk_gate);
 	if (!gate)
 		goto free_mux;
 

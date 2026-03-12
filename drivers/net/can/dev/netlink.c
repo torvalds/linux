@@ -377,6 +377,7 @@ static int can_ctrlmode_changelink(struct net_device *dev,
 	}
 
 	can_set_default_mtu(dev);
+	can_set_cap_info(dev);
 
 	return 0;
 }

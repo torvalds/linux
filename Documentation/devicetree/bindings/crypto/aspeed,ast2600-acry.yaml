@@ -30,11 +30,17 @@ properties:
   interrupts:
     maxItems: 1
 
+  aspeed,ahbc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      A phandle to the AHB controller node, which must be a syscon
+
 required:
   - compatible
   - reg
   - clocks
   - interrupts
+  - aspeed,ahbc
 
 additionalProperties: false
 
@@ -46,4 +52,5 @@ examples:
         reg = <0x1e6fa000 0x400>, <0x1e710000 0x1800>;
         interrupts = <160>;
         clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
+        aspeed,ahbc = <&ahbc>;
     };

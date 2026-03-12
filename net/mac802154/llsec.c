@@ -117,7 +117,7 @@ llsec_key_alloc(const struct ieee802154_llsec_key *template)
 	struct mac802154_llsec_key *key;
 	int i;
 
-	key = kzalloc(sizeof(*key), GFP_KERNEL);
+	key = kzalloc_obj(*key);
 	if (!key)
 		return NULL;
 
@@ -241,7 +241,7 @@ int mac802154_llsec_key_add(struct mac802154_llsec *sec,
 		break;
 	}
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return -ENOMEM;
 
@@ -369,7 +369,7 @@ int mac802154_llsec_dev_add(struct mac802154_llsec *sec,
 	     llsec_dev_find_long(sec, dev->hwaddr))
 		return -EEXIST;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -441,7 +441,7 @@ int mac802154_llsec_devkey_add(struct mac802154_llsec *sec,
 	if (llsec_devkey_find(dev, &key->key_id))
 		return -EEXIST;
 
-	devkey = kmalloc(sizeof(*devkey), GFP_KERNEL);
+	devkey = kmalloc_obj(*devkey);
 	if (!devkey)
 		return -ENOMEM;
 
@@ -500,7 +500,7 @@ int mac802154_llsec_seclevel_add(struct mac802154_llsec *sec,
 	if (llsec_find_seclevel(sec, sl))
 		return -EEXIST;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -925,7 +925,7 @@ llsec_update_devkey_record(struct mac802154_llsec_device *dev,
 	if (!devkey) {
 		struct mac802154_llsec_device_key *next;
 
-		next = kzalloc(sizeof(*devkey), GFP_ATOMIC);
+		next = kzalloc_obj(*devkey, GFP_ATOMIC);
 		if (!next)
 			return -ENOMEM;
 

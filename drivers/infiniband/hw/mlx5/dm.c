@@ -285,7 +285,7 @@ static struct ib_dm *handle_alloc_dm_memic(struct ib_ucontext *ctx,
 	if (!dm_db || !MLX5_CAP_DEV_MEM(dm_db->dev, memic))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
+	dm = kzalloc_obj(*dm);
 	if (!dm)
 		return ERR_PTR(-ENOMEM);
 
@@ -382,7 +382,7 @@ static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
+	dm = kzalloc_obj(*dm);
 	if (!dm)
 		return ERR_PTR(-ENOMEM);
 

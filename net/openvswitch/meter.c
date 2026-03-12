@@ -69,7 +69,7 @@ static struct dp_meter_instance *dp_meter_instance_alloc(const u32 size)
 {
 	struct dp_meter_instance *ti;
 
-	ti = kvzalloc(struct_size(ti, dp_meters, size), GFP_KERNEL);
+	ti = kvzalloc_flex(*ti, dp_meters, size);
 	if (!ti)
 		return NULL;
 
@@ -341,7 +341,7 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 			return ERR_PTR(-EINVAL);
 
 	/* Allocate and set up the meter before locking anything. */
-	meter = kzalloc(struct_size(meter, bands, n_bands), GFP_KERNEL_ACCOUNT);
+	meter = kzalloc_flex(*meter, bands, n_bands, GFP_KERNEL_ACCOUNT);
 	if (!meter)
 		return ERR_PTR(-ENOMEM);
 

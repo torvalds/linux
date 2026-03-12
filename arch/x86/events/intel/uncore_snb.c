@@ -245,6 +245,30 @@
 #define MTL_UNC_HBO_CTR				0x2048
 #define MTL_UNC_HBO_CTRL			0x2042
 
+/* PTL Low Power Bridge register */
+#define PTL_UNC_IA_CORE_BRIDGE_PER_CTR0		0x2028
+#define PTL_UNC_IA_CORE_BRIDGE_PERFEVTSEL0	0x2022
+
+/* PTL Santa register */
+#define PTL_UNC_SANTA_CTR0			0x2418
+#define PTL_UNC_SANTA_CTRL0			0x2412
+
+/* PTL cNCU register */
+#define PTL_UNC_CNCU_MSR_OFFSET			0x140
+
+/* NVL cNCU register */
+#define NVL_UNC_CNCU_BOX_CTL			0x202e
+#define NVL_UNC_CNCU_FIXED_CTR			0x2028
+#define NVL_UNC_CNCU_FIXED_CTRL			0x2022
+
+/* NVL SANTA register */
+#define NVL_UNC_SANTA_CTR0			0x2048
+#define NVL_UNC_SANTA_CTRL0			0x2042
+
+/* NVL CBOX register */
+#define NVL_UNC_CBOX_PER_CTR0			0x2108
+#define NVL_UNC_CBOX_PERFEVTSEL0		0x2102
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(chmask, chmask, "config:8-11");
@@ -1921,8 +1945,36 @@ void ptl_uncore_mmio_init(void)
 						 ptl_uncores);
 }
 
+static struct intel_uncore_type ptl_uncore_ia_core_bridge = {
+	.name		= "ia_core_bridge",
+	.num_counters   = 2,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= PTL_UNC_IA_CORE_BRIDGE_PER_CTR0,
+	.event_ctl	= PTL_UNC_IA_CORE_BRIDGE_PERFEVTSEL0,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
+static struct intel_uncore_type ptl_uncore_santa = {
+	.name		= "santa",
+	.num_counters   = 2,
+	.num_boxes	= 2,
+	.perf_ctr_bits	= 48,
+	.perf_ctr	= PTL_UNC_SANTA_CTR0,
+	.event_ctl	= PTL_UNC_SANTA_CTRL0,
+	.event_mask	= ADL_UNC_RAW_EVENT_MASK,
+	.msr_offset	= SNB_UNC_CBO_MSR_OFFSET,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &adl_uncore_format_group,
+};
+
 static struct intel_uncore_type *ptl_msr_uncores[] = {
 	&mtl_uncore_cbox,
+	&ptl_uncore_ia_core_bridge,
+	&ptl_uncore_santa,
+	&mtl_uncore_cncu,
 	NULL
 };
 
@@ -1930,7 +1982,40 @@ void ptl_uncore_cpu_init(void)
 {
 	mtl_uncore_cbox.num_boxes = 6;
 	mtl_uncore_cbox.ops = &lnl_uncore_msr_ops;
+
+	mtl_uncore_cncu.num_counters = 2;
+	mtl_uncore_cncu.num_boxes = 2;
+	mtl_uncore_cncu.msr_offset = PTL_UNC_CNCU_MSR_OFFSET;
+	mtl_uncore_cncu.single_fixed = 0;
+
 	uncore_msr_uncores = ptl_msr_uncores;
 }
 
 /* end of Panther Lake uncore support */
+
+/* Nova Lake uncore support */
+
+static struct intel_uncore_type *nvl_msr_uncores[] = {
+	&mtl_uncore_cbox,
+	&ptl_uncore_santa,
+	&mtl_uncore_cncu,
+	NULL
+};
+
+void nvl_uncore_cpu_init(void)
+{
+	mtl_uncore_cbox.num_boxes = 12;
+	mtl_uncore_cbox.perf_ctr = NVL_UNC_CBOX_PER_CTR0;
+	mtl_uncore_cbox.event_ctl = NVL_UNC_CBOX_PERFEVTSEL0;
+
+	ptl_uncore_santa.perf_ctr = NVL_UNC_SANTA_CTR0;
+	ptl_uncore_santa.event_ctl = NVL_UNC_SANTA_CTRL0;
+
+	mtl_uncore_cncu.box_ctl = NVL_UNC_CNCU_BOX_CTL;
+	mtl_uncore_cncu.fixed_ctr = NVL_UNC_CNCU_FIXED_CTR;
+	mtl_uncore_cncu.fixed_ctl = NVL_UNC_CNCU_FIXED_CTRL;
+
+	uncore_msr_uncores = nvl_msr_uncores;
+}
+
+/* end of Nova Lake uncore support */

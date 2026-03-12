@@ -485,11 +485,37 @@
 			#size-cells = <0>;
 			reg = <2>;
 
+			accelerometer@1e {
+				compatible = "nxp,fxos8700";
+				reg = <0x1e>;
+			};
+
+			gyroscope@21 {
+				compatible = "nxp,fxas21002c";
+				reg = <0x21>;
+			};
+
 			pressure-sensor@60 {
 				compatible = "fsl,mpl3115";
 				reg = <0x60>;
 				vdd-supply = <&reg_3v3>;
 				vddio-supply = <&reg_3v3>;
+			};
+
+			/* Ref SCH-54536 */
+			inertial-meter@68 {
+				compatible = "invensense,icm20602";
+				reg = <0x68>;
+			};
+
+			inertial-meter@69 {
+				compatible = "invensense,iam20380";
+				reg = <0x69>;
+			};
+
+			pressure-sensor@77 {
+				compatible = "meas,ms5611";
+				reg = <0x77>;
 			};
 		};
 
@@ -519,6 +545,12 @@
 				reg = <0x44>;
 				interrupt-parent = <&lsio_gpio1>;
 				interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			};
+
+			/* Ref SCH-54536 */
+			light-sensort@60 {
+				compatible = "vishay,vcnl4035";
+				reg = <0x60>;
 			};
 		};
 	};
@@ -1030,9 +1062,9 @@
 
 	pinctrl_mipi_csi0: mipi-csi0grp {
 		fsl,pins = <
-			IMX8QXP_MIPI_CSI0_GPIO0_01_LSIO_GPIO3_IO07		0xC0000041
-			IMX8QXP_MIPI_CSI0_GPIO0_00_LSIO_GPIO3_IO08		0xC0000041
-			IMX8QXP_MIPI_CSI0_MCLK_OUT_MIPI_CSI0_ACM_MCLK_OUT	0xC0000041
+			IMX8QXP_MIPI_CSI0_GPIO0_01_LSIO_GPIO3_IO07		0xc0000041
+			IMX8QXP_MIPI_CSI0_GPIO0_00_LSIO_GPIO3_IO08		0xc0000041
+			IMX8QXP_MIPI_CSI0_MCLK_OUT_MIPI_CSI0_ACM_MCLK_OUT	0xc0000041
 		>;
 	};
 

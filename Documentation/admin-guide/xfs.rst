@@ -215,6 +215,14 @@ When mounting an XFS filesystem, the following options are accepted.
 	inconsistent namespace presentation during or after a
 	failover event.
 
+  errortag=tagname
+	When specified, enables the error inject tag named "tagname" with the
+	default frequency.  Can be specified multiple times to enable multiple
+	errortags.  Specifying this option on remount will reset the error tag
+	to the default value if it was set to any other value before.
+	This option is only supported when CONFIG_XFS_DEBUG is enabled, and
+	will not be reflected in /proc/self/mounts.
+
 Deprecation of V4 Format
 ========================
 

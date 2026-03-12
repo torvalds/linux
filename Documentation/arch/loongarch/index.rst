@@ -13,10 +13,3 @@ LoongArch Architecture
    irq-chip-model
 
    features
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

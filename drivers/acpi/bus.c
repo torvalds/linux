@@ -180,103 +180,238 @@ void acpi_bus_detach_private_data(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
-static void acpi_print_osc_error(acpi_handle handle,
-				 struct acpi_osc_context *context, char *error)
+static void acpi_dump_osc_data(acpi_handle handle, const guid_t *guid, int rev,
+			       struct acpi_buffer *cap)
 {
+	u32 *capbuf = cap->pointer;
 	int i;
 
-	acpi_handle_debug(handle, "(%s): %s\n", context->uuid_str, error);
+	acpi_handle_debug(handle, "_OSC: UUID: %pUL, rev: %d\n", guid, rev);
+	for (i = 0; i < cap->length / sizeof(u32); i++)
+		acpi_handle_debug(handle, "_OSC: capabilities DWORD %i: [%08x]\n",
+				  i, capbuf[i]);
+}
 
-	pr_debug("_OSC request data:");
-	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		pr_debug(" %x", *((u32 *)(context->cap.pointer + i)));
+#define OSC_ERROR_MASK 	(OSC_REQUEST_ERROR | OSC_INVALID_UUID_ERROR | \
+			 OSC_INVALID_REVISION_ERROR | \
+			 OSC_CAPABILITIES_MASK_ERROR)
 
-	pr_debug("\n");
+static int acpi_eval_osc(acpi_handle handle, guid_t *guid, int rev,
+			 struct acpi_buffer *cap,
+			 union acpi_object in_params[at_least 4],
+			 struct acpi_buffer *output)
+{
+	struct acpi_object_list input;
+	union acpi_object *out_obj;
+	acpi_status status;
+
+	in_params[0].type = ACPI_TYPE_BUFFER;
+	in_params[0].buffer.length = sizeof(*guid);
+	in_params[0].buffer.pointer = (u8 *)guid;
+	in_params[1].type = ACPI_TYPE_INTEGER;
+	in_params[1].integer.value = rev;
+	in_params[2].type = ACPI_TYPE_INTEGER;
+	in_params[2].integer.value = cap->length / sizeof(u32);
+	in_params[3].type = ACPI_TYPE_BUFFER;
+	in_params[3].buffer.length = cap->length;
+	in_params[3].buffer.pointer = cap->pointer;
+	input.pointer = in_params;
+	input.count = 4;
+
+	output->length = ACPI_ALLOCATE_BUFFER;
+	output->pointer = NULL;
+
+	status = acpi_evaluate_object(handle, "_OSC", &input, output);
+	if (ACPI_FAILURE(status) || !output->length)
+		return -ENODATA;
+
+	out_obj = output->pointer;
+	if (out_obj->type != ACPI_TYPE_BUFFER ||
+	    out_obj->buffer.length != cap->length) {
+		acpi_handle_debug(handle, "Invalid _OSC return buffer\n");
+		acpi_dump_osc_data(handle, guid, rev, cap);
+		ACPI_FREE(out_obj);
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
+static bool acpi_osc_error_check(acpi_handle handle, guid_t *guid, int rev,
+				 struct acpi_buffer *cap, u32 *retbuf)
+{
+	/* Only take defined error bits into account. */
+	u32 errors = retbuf[OSC_QUERY_DWORD] & OSC_ERROR_MASK;
+	u32 *capbuf = cap->pointer;
+	bool fail;
+
+	/*
+	 * If OSC_QUERY_ENABLE is set, ignore the "capabilities masked"
+	 * bit because it merely means that some features have not been
+	 * acknowledged which is not unexpected.
+	 */
+	if (capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE)
+		errors &= ~OSC_CAPABILITIES_MASK_ERROR;
+
+	if (!errors)
+		return false;
+
+	acpi_dump_osc_data(handle, guid, rev, cap);
+	/*
+	 * As a rule, fail only if OSC_QUERY_ENABLE is set because otherwise the
+	 * acknowledged features need to be controlled.
+	 */
+	fail = !!(capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE);
+
+	if (errors & OSC_REQUEST_ERROR)
+		acpi_handle_debug(handle, "_OSC: request failed\n");
+
+	if (errors & OSC_INVALID_UUID_ERROR) {
+		acpi_handle_debug(handle, "_OSC: invalid UUID\n");
+		/*
+		 * Always fail if this bit is set because it means that the
+		 * request could not be processed.
+		 */
+		fail = true;
+	}
+
+	if (errors & OSC_INVALID_REVISION_ERROR)
+		acpi_handle_debug(handle, "_OSC: invalid revision\n");
+
+	if (errors & OSC_CAPABILITIES_MASK_ERROR)
+		acpi_handle_debug(handle, "_OSC: capability bits masked\n");
+
+	return fail;
 }
 
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 {
-	acpi_status status;
-	struct acpi_object_list input;
-	union acpi_object in_params[4];
-	union acpi_object *out_obj;
+	union acpi_object in_params[4], *out_obj;
+	struct acpi_buffer output;
+	acpi_status status = AE_OK;
 	guid_t guid;
-	u32 errors;
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
+	u32 *retbuf;
+	int ret;
 
-	if (!context)
+	if (!context || !context->cap.pointer ||
+	    context->cap.length < 2 * sizeof(u32) ||
+	    guid_parse(context->uuid_str, &guid))
+		return AE_BAD_PARAMETER;
+
+	ret = acpi_eval_osc(handle, &guid, context->rev, &context->cap,
+			    in_params, &output);
+	if (ret)
 		return AE_ERROR;
-	if (guid_parse(context->uuid_str, &guid))
-		return AE_ERROR;
-	context->ret.length = ACPI_ALLOCATE_BUFFER;
-	context->ret.pointer = NULL;
-
-	/* Setting up input parameters */
-	input.count = 4;
-	input.pointer = in_params;
-	in_params[0].type 		= ACPI_TYPE_BUFFER;
-	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= (u8 *)&guid;
-	in_params[1].type 		= ACPI_TYPE_INTEGER;
-	in_params[1].integer.value 	= context->rev;
-	in_params[2].type 		= ACPI_TYPE_INTEGER;
-	in_params[2].integer.value	= context->cap.length/sizeof(u32);
-	in_params[3].type		= ACPI_TYPE_BUFFER;
-	in_params[3].buffer.length 	= context->cap.length;
-	in_params[3].buffer.pointer 	= context->cap.pointer;
-
-	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	if (!output.length)
-		return AE_NULL_OBJECT;
 
 	out_obj = output.pointer;
-	if (out_obj->type != ACPI_TYPE_BUFFER
-		|| out_obj->buffer.length != context->cap.length) {
-		acpi_print_osc_error(handle, context,
-			"_OSC evaluation returned wrong type");
-		status = AE_TYPE;
-		goto out_kfree;
-	}
-	/* Need to ignore the bit0 in result code */
-	errors = *((u32 *)out_obj->buffer.pointer) & ~(1 << 0);
-	if (errors) {
-		if (errors & OSC_REQUEST_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC request failed");
-		if (errors & OSC_INVALID_UUID_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC invalid UUID");
-		if (errors & OSC_INVALID_REVISION_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC invalid revision");
-		if (errors & OSC_CAPABILITIES_MASK_ERROR) {
-			if (((u32 *)context->cap.pointer)[OSC_QUERY_DWORD]
-			    & OSC_QUERY_ENABLE)
-				goto out_success;
-			status = AE_SUPPORT;
-			goto out_kfree;
-		}
+	retbuf = (u32 *)out_obj->buffer.pointer;
+
+	if (acpi_osc_error_check(handle, &guid, context->rev, &context->cap, retbuf)) {
 		status = AE_ERROR;
-		goto out_kfree;
+		goto out;
 	}
-out_success:
+
 	context->ret.length = out_obj->buffer.length;
-	context->ret.pointer = kmemdup(out_obj->buffer.pointer,
-				       context->ret.length, GFP_KERNEL);
+	context->ret.pointer = kmemdup(retbuf, context->ret.length, GFP_KERNEL);
 	if (!context->ret.pointer) {
 		status =  AE_NO_MEMORY;
-		goto out_kfree;
+		goto out;
 	}
 	status =  AE_OK;
 
-out_kfree:
-	kfree(output.pointer);
+out:
+	ACPI_FREE(out_obj);
 	return status;
 }
 EXPORT_SYMBOL(acpi_run_osc);
+
+static int acpi_osc_handshake(acpi_handle handle, const char *uuid_str,
+			      int rev, u32 *capbuf, size_t bufsize)
+{
+	union acpi_object in_params[4], *out_obj;
+	struct acpi_object_list input;
+	struct acpi_buffer cap = {
+		.pointer = capbuf,
+		.length = bufsize * sizeof(u32),
+	};
+	struct acpi_buffer output;
+	u32 *retbuf, test;
+	guid_t guid;
+	int ret, i;
+
+	if (!capbuf || bufsize < 2 || guid_parse(uuid_str, &guid))
+		return -EINVAL;
+
+	/* First evaluate _OSC with OSC_QUERY_ENABLE set. */
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
+
+	ret = acpi_eval_osc(handle, &guid, rev, &cap, in_params, &output);
+	if (ret)
+		return ret;
+
+	out_obj = output.pointer;
+	retbuf = (u32 *)out_obj->buffer.pointer;
+
+	if (acpi_osc_error_check(handle, &guid, rev, &cap, retbuf)) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	/*
+	 * Clear the feature bits in the capabilities buffer that have not been
+	 * acknowledged and clear the return buffer.
+	 */
+	for (i = OSC_QUERY_DWORD + 1, test = 0; i < bufsize; i++) {
+		capbuf[i] &= retbuf[i];
+		test |= capbuf[i];
+		retbuf[i] = 0;
+	}
+	/*
+	 * If none of the feature bits have been acknowledged, there's nothing
+	 * more to do.  capbuf[] contains a feature mask of all zeros.
+	 */
+	if (!test)
+		goto out;
+
+	retbuf[OSC_QUERY_DWORD] = 0;
+	/*
+	 * Now evaluate _OSC again (directly) with OSC_QUERY_ENABLE clear and
+	 * the updated input and output buffers used before.  Since the feature
+	 * bits that were clear in the return buffer from the previous _OSC
+	 * evaluation are also clear in the capabilities buffer now, this _OSC
+	 * evaluation is not expected to fail.
+	 */
+	capbuf[OSC_QUERY_DWORD] = 0;
+	/* Reuse in_params[] populated by acpi_eval_osc(). */
+	input.pointer = in_params;
+	input.count = 4;
+
+	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_OSC", &input, &output))) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	/*
+	 * Clear the feature bits in capbuf[] that have not been acknowledged.
+	 * After that, capbuf[] contains the resultant feature mask.
+	 */
+	for (i = OSC_QUERY_DWORD + 1; i < bufsize; i++)
+		capbuf[i] &= retbuf[i];
+
+	if (retbuf[OSC_QUERY_DWORD] & OSC_ERROR_MASK) {
+		/*
+		 * Complain about the unexpected errors and print diagnostic
+		 * information related to them.
+		 */
+		acpi_handle_err(handle, "_OSC: errors while processing control request\n");
+		acpi_handle_err(handle, "_OSC: some features may be missing\n");
+		acpi_osc_error_check(handle, &guid, rev, &cap, retbuf);
+	}
+
+out:
+	ACPI_FREE(out_obj);
+	return ret;
+}
 
 bool osc_sb_apei_support_acked;
 
@@ -309,101 +444,69 @@ EXPORT_SYMBOL_GPL(osc_sb_native_usb4_support_confirmed);
 
 bool osc_sb_cppc2_support_acked;
 
-static u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
 static void acpi_bus_osc_negotiate_platform_control(void)
 {
-	u32 capbuf[2], *capbuf_ret;
-	struct acpi_osc_context context = {
-		.uuid_str = sb_uuid_str,
-		.rev = 1,
-		.cap.length = 8,
-		.cap.pointer = capbuf,
-	};
+	static const u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
+	u32 capbuf[2], feature_mask;
 	acpi_handle handle;
 
-	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_DWORD] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
+	feature_mask = OSC_SB_PR3_SUPPORT | OSC_SB_HOTPLUG_OST_SUPPORT |
+			OSC_SB_PCLPI_SUPPORT | OSC_SB_OVER_16_PSTATES_SUPPORT |
+			OSC_SB_GED_SUPPORT | OSC_SB_IRQ_RESOURCE_SOURCE_SUPPORT;
+
+	if (IS_ENABLED(CONFIG_ARM64) || IS_ENABLED(CONFIG_X86))
+		feature_mask |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
+
+	if (IS_ENABLED(CONFIG_ACPI_CPPC_LIB)) {
+		feature_mask |= OSC_SB_CPC_SUPPORT | OSC_SB_CPCV2_SUPPORT |
+				OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
+		if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
+			feature_mask |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
+	}
+
 	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR_AGGREGATOR))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
+		feature_mask |= OSC_SB_PAD_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
+		feature_mask |= OSC_SB_PPC_OST_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_THERMAL))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
+		feature_mask |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_BATTERY))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_BATTERY_CHARGE_LIMITING_SUPPORT;
+		feature_mask |= OSC_SB_BATTERY_CHARGE_LIMITING_SUPPORT;
 
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_OVER_16_PSTATES_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GED_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_IRQ_RESOURCE_SOURCE_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_PRMT))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PRM_SUPPORT;
+		feature_mask |= OSC_SB_PRM_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_FFH))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FFH_OPR_SUPPORT;
-
-#ifdef CONFIG_ARM64
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-#endif
-#ifdef CONFIG_X86
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-#endif
-
-#ifdef CONFIG_ACPI_CPPC_LIB
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
-#endif
-
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
-
-	if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
+		feature_mask |= OSC_SB_FFH_OPR_SUPPORT;
 
 	if (IS_ENABLED(CONFIG_USB4))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_NATIVE_USB4_SUPPORT;
+		feature_mask |= OSC_SB_NATIVE_USB4_SUPPORT;
 
 	if (!ghes_disable)
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_APEI_SUPPORT;
+		feature_mask |= OSC_SB_APEI_SUPPORT;
+
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
 		return;
 
-	if (ACPI_FAILURE(acpi_run_osc(handle, &context)))
+	capbuf[OSC_SUPPORT_DWORD] = feature_mask;
+
+	acpi_handle_info(handle, "platform _OSC: OS support mask [%08x]\n", feature_mask);
+
+	if (acpi_osc_handshake(handle, sb_uuid_str, 1, capbuf, ARRAY_SIZE(capbuf)))
 		return;
 
-	capbuf_ret = context.ret.pointer;
-	if (context.ret.length <= OSC_SUPPORT_DWORD) {
-		kfree(context.ret.pointer);
-		return;
-	}
+	feature_mask = capbuf[OSC_SUPPORT_DWORD];
 
-	/*
-	 * Now run _OSC again with query flag clear and with the caps
-	 * supported by both the OS and the platform.
-	 */
-	capbuf[OSC_QUERY_DWORD] = 0;
-	capbuf[OSC_SUPPORT_DWORD] = capbuf_ret[OSC_SUPPORT_DWORD];
-	kfree(context.ret.pointer);
+	acpi_handle_info(handle, "platform _OSC: OS control mask [%08x]\n", feature_mask);
 
-	if (ACPI_FAILURE(acpi_run_osc(handle, &context)))
-		return;
-
-	capbuf_ret = context.ret.pointer;
-	if (context.ret.length > OSC_SUPPORT_DWORD) {
-#ifdef CONFIG_ACPI_CPPC_LIB
-		osc_sb_cppc2_support_acked = capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_CPCV2_SUPPORT;
-#endif
-
-		osc_sb_apei_support_acked =
-			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_APEI_SUPPORT;
-		osc_pc_lpi_support_confirmed =
-			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_PCLPI_SUPPORT;
-		osc_sb_native_usb4_support_confirmed =
-			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_NATIVE_USB4_SUPPORT;
-		osc_cpc_flexible_adr_space_confirmed =
-			capbuf_ret[OSC_SUPPORT_DWORD] & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
-	}
-
-	kfree(context.ret.pointer);
+	osc_sb_cppc2_support_acked = feature_mask & OSC_SB_CPCV2_SUPPORT;
+	osc_sb_apei_support_acked = feature_mask & OSC_SB_APEI_SUPPORT;
+	osc_pc_lpi_support_confirmed = feature_mask & OSC_SB_PCLPI_SUPPORT;
+	osc_sb_native_usb4_support_confirmed = feature_mask & OSC_SB_NATIVE_USB4_SUPPORT;
+	osc_cpc_flexible_adr_space_confirmed = feature_mask & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 }
 
 /*
@@ -423,19 +526,11 @@ static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 	       (bits & OSC_USB_XDOMAIN) ? '+' : '-');
 }
 
-static u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
 static void acpi_bus_osc_negotiate_usb_control(void)
 {
-	u32 capbuf[3], *capbuf_ret;
-	struct acpi_osc_context context = {
-		.uuid_str = sb_usb_uuid_str,
-		.rev = 1,
-		.cap.length = sizeof(capbuf),
-		.cap.pointer = capbuf,
-	};
+	static const u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
+	u32 capbuf[3], control;
 	acpi_handle handle;
-	acpi_status status;
-	u32 control;
 
 	if (!osc_sb_native_usb4_support_confirmed)
 		return;
@@ -446,54 +541,16 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	control = OSC_USB_USB3_TUNNELING | OSC_USB_DP_TUNNELING |
 		  OSC_USB_PCIE_TUNNELING | OSC_USB_XDOMAIN;
 
-	/*
-	 * Run _OSC first with query bit set, trying to get control over
-	 * all tunneling. The platform can then clear out bits in the
-	 * control dword that it does not want to grant to the OS.
-	 */
-	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 	capbuf[OSC_SUPPORT_DWORD] = 0;
 	capbuf[OSC_CONTROL_DWORD] = control;
 
-	status = acpi_run_osc(handle, &context);
-	if (ACPI_FAILURE(status))
+	if (acpi_osc_handshake(handle, sb_usb_uuid_str, 1, capbuf, ARRAY_SIZE(capbuf)))
 		return;
 
-	if (context.ret.length != sizeof(capbuf)) {
-		pr_info("USB4 _OSC: returned invalid length buffer\n");
-		goto out_free;
-	}
-
-	/*
-	 * Run _OSC again now with query bit clear and the control dword
-	 * matching what the platform granted (which may not have all
-	 * the control bits set).
-	 */
-	capbuf_ret = context.ret.pointer;
-
-	capbuf[OSC_QUERY_DWORD] = 0;
-	capbuf[OSC_CONTROL_DWORD] = capbuf_ret[OSC_CONTROL_DWORD];
-
-	kfree(context.ret.pointer);
-
-	status = acpi_run_osc(handle, &context);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (context.ret.length != sizeof(capbuf)) {
-		pr_info("USB4 _OSC: returned invalid length buffer\n");
-		goto out_free;
-	}
-
-	osc_sb_native_usb4_control =
-		control & acpi_osc_ctx_get_pci_control(&context);
+	osc_sb_native_usb4_control = capbuf[OSC_CONTROL_DWORD];
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
-	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",
-				osc_sb_native_usb4_control);
-
-out_free:
-	kfree(context.ret.pointer);
+	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls", osc_sb_native_usb4_control);
 }
 
 /* --------------------------------------------------------------------------
@@ -761,6 +818,9 @@ const struct acpi_device *acpi_companion_match(const struct device *dev)
 	if (list_empty(&adev->pnp.ids))
 		return NULL;
 
+	if (adev->pnp.type.backlight)
+		return adev;
+
 	return acpi_primary_dev_companion(adev, dev);
 }
 
@@ -956,30 +1016,24 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
-static const void *acpi_of_device_get_match_data(const struct device *dev)
-{
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	const struct of_device_id *match = NULL;
-
-	if (!acpi_of_match_device(adev, dev->driver->of_match_table, &match))
-		return NULL;
-
-	return match->data;
-}
-
 const void *acpi_device_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *acpi_ids = dev->driver->acpi_match_table;
-	const struct acpi_device_id *match;
+	const struct of_device_id *of_ids = dev->driver->of_match_table;
+	const struct acpi_device *adev = acpi_companion_match(dev);
+	const struct acpi_device_id *acpi_id = NULL;
+	const struct of_device_id *of_id = NULL;
 
-	if (!acpi_ids)
-		return acpi_of_device_get_match_data(dev);
-
-	match = acpi_match_device(acpi_ids, dev);
-	if (!match)
+	if (!__acpi_match_device(adev, acpi_ids, of_ids, &acpi_id, &of_id))
 		return NULL;
 
-	return (const void *)match->driver_data;
+	if (acpi_id)
+		return (const void *)acpi_id->driver_data;
+
+	if (of_id)
+		return of_id->data;
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(acpi_device_get_match_data);
 
@@ -1196,6 +1250,9 @@ static int __init acpi_bus_init_irq(void)
 		break;
 	case ACPI_IRQ_MODEL_GIC:
 		message = "GIC";
+		break;
+	case ACPI_IRQ_MODEL_GIC_V5:
+		message = "GICv5";
 		break;
 	case ACPI_IRQ_MODEL_PLATFORM:
 		message = "platform specific model";

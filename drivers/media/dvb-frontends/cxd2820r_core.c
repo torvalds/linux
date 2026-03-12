@@ -594,7 +594,7 @@ static int cxd2820r_probe(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err;

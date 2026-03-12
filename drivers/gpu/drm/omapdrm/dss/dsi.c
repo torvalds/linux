@@ -1041,7 +1041,7 @@ static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 	unsigned long flags;
 	struct dsi_irq_stats *stats;
 
-	stats = kmalloc(sizeof(*stats), GFP_KERNEL);
+	stats = kmalloc_obj(*stats);
 	if (!stats)
 		return -ENOMEM;
 

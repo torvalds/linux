@@ -1712,8 +1712,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt)
 		/* allocate space for flow reorder info */
 		brcmf_dbg(INFO, "flow-%d: start, maxidx %d\n",
 			  flow_id, max_idx);
-		rfi = kzalloc(struct_size(rfi, pktslots, max_idx + 1),
-			      GFP_ATOMIC);
+		rfi = kzalloc_flex(*rfi, pktslots, max_idx + 1, GFP_ATOMIC);
 		if (rfi == NULL) {
 			bphy_err(drvr, "failed to alloc buffer\n");
 			brcmf_netif_rx(ifp, pkt);
@@ -2343,7 +2342,7 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 	int rc;
 	u32 mode;
 
-	fws = kzalloc(sizeof(*fws), GFP_KERNEL);
+	fws = kzalloc_obj(*fws);
 	if (!fws) {
 		rc = -ENOMEM;
 		goto fail;

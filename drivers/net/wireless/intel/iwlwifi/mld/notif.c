@@ -111,6 +111,9 @@ static bool iwl_mld_cancel_##name##_notif(struct iwl_mld *mld,			\
 #define RX_HANDLER_OF_FTM_REQ(_grp, _cmd, _name)				\
 	RX_HANDLER_OF_OBJ(_grp, _cmd, _name, FTM_REQ)
 
+#define RX_HANDLER_OF_NAN(_grp, _cmd, _name)				\
+	RX_HANDLER_OF_OBJ(_grp, _cmd, _name, NAN)
+
 static void iwl_mld_handle_mfuart_notif(struct iwl_mld *mld,
 					struct iwl_rx_packet *pkt)
 {
@@ -344,6 +347,8 @@ CMD_VERSIONS(time_sync_confirm_notif,
 	     CMD_VER_ENTRY(1, iwl_time_msmt_cfm_notify))
 CMD_VERSIONS(ftm_resp_notif, CMD_VER_ENTRY(10, iwl_tof_range_rsp_ntfy))
 CMD_VERSIONS(beacon_filter_notif, CMD_VER_ENTRY(2, iwl_beacon_filter_notif))
+CMD_VERSIONS(nan_cluster_notif, CMD_VER_ENTRY(1, iwl_nan_cluster_notif))
+CMD_VERSIONS(nan_dw_end_notif, CMD_VER_ENTRY(1, iwl_nan_dw_end_notif))
 
 DEFINE_SIMPLE_CANCELLATION(session_prot, iwl_session_prot_notif, mac_link_id)
 DEFINE_SIMPLE_CANCELLATION(tlc, iwl_tlc_update_notif, sta_id)
@@ -459,6 +464,10 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			   beacon_filter_notif)
 	RX_HANDLER_OF_FTM_REQ(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
 			      ftm_resp_notif)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_JOINED_CLUSTER_NOTIF,
+			  nan_cluster_notif)
+	RX_HANDLER_OF_NAN(MAC_CONF_GROUP, NAN_DW_END_NOTIF,
+			  nan_dw_end_notif)
 };
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_rx_handlers);
 
@@ -531,6 +540,8 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_rx_packet *pkt)
 {
+	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
+
 	for (int i = 0; i < ARRAY_SIZE(iwl_mld_rx_handlers); i++) {
 		const struct iwl_rx_handler *rx_h = &iwl_mld_rx_handlers[i];
 		struct iwl_async_handler_entry *entry;
@@ -546,7 +557,7 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 			break;
 		}
 
-		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kzalloc_obj(*entry, GFP_ATOMIC);
 		/* we can't do much... */
 		if (!entry)
 			return;
@@ -571,6 +582,8 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 	}
 
 	iwl_notification_wait_notify(&mld->notif_wait, pkt);
+	iwl_dbg_tlv_time_point(&mld->fwrt,
+			       IWL_FW_INI_TIME_POINT_FW_RSP_OR_NOTIF, &tp_data);
 }
 
 void iwl_mld_rx(struct iwl_op_mode *op_mode, struct napi_struct *napi,

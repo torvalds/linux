@@ -176,7 +176,7 @@ static void __init combiner_init(void __iomem *combiner_base,
 
 	nr_irq = max_nr * IRQ_IN_COMBINER;
 
-	combiner_data = kcalloc(max_nr, sizeof (*combiner_data), GFP_KERNEL);
+	combiner_data = kzalloc_objs(*combiner_data, max_nr);
 	if (!combiner_data)
 		return;
 

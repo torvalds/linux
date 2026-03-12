@@ -295,7 +295,7 @@ nouveau_drm_debugfs_init(struct drm_minor *minor)
 int
 nouveau_debugfs_init(struct nouveau_drm *drm)
 {
-	drm->debugfs = kzalloc(sizeof(*drm->debugfs), GFP_KERNEL);
+	drm->debugfs = kzalloc_obj(*drm->debugfs);
 	if (!drm->debugfs)
 		return -ENOMEM;
 

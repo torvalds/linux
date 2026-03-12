@@ -792,7 +792,7 @@ static int sbefifo_user_open(struct inode *inode, struct file *file)
 	struct sbefifo *sbefifo = container_of(inode->i_cdev, struct sbefifo, cdev);
 	struct sbefifo_user *user;
 
-	user = kzalloc(sizeof(struct sbefifo_user), GFP_KERNEL);
+	user = kzalloc_obj(struct sbefifo_user);
 	if (!user)
 		return -ENOMEM;
 
@@ -1022,9 +1022,9 @@ static void sbefifo_free(struct device *dev)
  * Probe/remove
  */
 
-static int sbefifo_probe(struct device *dev)
+static int sbefifo_probe(struct fsi_device *fsi_dev)
 {
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	struct device *dev = &fsi_dev->dev;
 	struct sbefifo *sbefifo;
 	struct device_node *np;
 	struct platform_device *child;
@@ -1033,7 +1033,7 @@ static int sbefifo_probe(struct device *dev)
 
 	dev_dbg(dev, "Found sbefifo device\n");
 
-	sbefifo = kzalloc(sizeof(*sbefifo), GFP_KERNEL);
+	sbefifo = kzalloc_obj(*sbefifo);
 	if (!sbefifo)
 		return -ENOMEM;
 
@@ -1045,7 +1045,7 @@ static int sbefifo_probe(struct device *dev)
 
 	sbefifo->magic = SBEFIFO_MAGIC;
 	sbefifo->fsi_dev = fsi_dev;
-	dev_set_drvdata(dev, sbefifo);
+	fsi_set_drvdata(fsi_dev, sbefifo);
 	mutex_init(&sbefifo->lock);
 	sbefifo->timeout_in_cmd_ms = SBEFIFO_TIMEOUT_IN_CMD;
 	sbefifo->timeout_start_rsp_ms = SBEFIFO_TIMEOUT_START_RSP;
@@ -1101,9 +1101,10 @@ static int sbefifo_unregister_child(struct device *dev, void *data)
 	return 0;
 }
 
-static int sbefifo_remove(struct device *dev)
+static void sbefifo_remove(struct fsi_device *fsi_dev)
 {
-	struct sbefifo *sbefifo = dev_get_drvdata(dev);
+	struct device *dev = &fsi_dev->dev;
+	struct sbefifo *sbefifo = fsi_get_drvdata(fsi_dev);
 
 	dev_dbg(dev, "Removing sbefifo device...\n");
 
@@ -1117,8 +1118,6 @@ static int sbefifo_remove(struct device *dev)
 	fsi_free_minor(sbefifo->dev.devt);
 	device_for_each_child(dev, NULL, sbefifo_unregister_child);
 	put_device(&sbefifo->dev);
-
-	return 0;
 }
 
 static const struct fsi_device_id sbefifo_ids[] = {
@@ -1131,26 +1130,14 @@ static const struct fsi_device_id sbefifo_ids[] = {
 
 static struct fsi_driver sbefifo_drv = {
 	.id_table = sbefifo_ids,
+	.probe = sbefifo_probe,
+	.remove = sbefifo_remove,
 	.drv = {
 		.name = DEVICE_NAME,
-		.bus = &fsi_bus_type,
-		.probe = sbefifo_probe,
-		.remove = sbefifo_remove,
 	}
 };
 
-static int sbefifo_init(void)
-{
-	return fsi_driver_register(&sbefifo_drv);
-}
-
-static void sbefifo_exit(void)
-{
-	fsi_driver_unregister(&sbefifo_drv);
-}
-
-module_init(sbefifo_init);
-module_exit(sbefifo_exit);
+module_fsi_driver(sbefifo_drv);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Brad Bishop <bradleyb@fuzziesquirrel.com>");
 MODULE_AUTHOR("Eddie James <eajames@linux.vnet.ibm.com>");

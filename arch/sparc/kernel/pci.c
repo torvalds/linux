@@ -181,6 +181,28 @@ static int __init ofpci_debug(char *str)
 
 __setup("ofpci_debug=", ofpci_debug);
 
+static void of_fixup_pci_pref(struct pci_dev *dev, int index,
+			      struct resource *res)
+{
+	struct pci_bus_region region;
+
+	if (!(res->flags & IORESOURCE_MEM_64))
+		return;
+
+	if (!resource_size(res))
+		return;
+
+	pcibios_resource_to_bus(dev->bus, &region, res);
+	if (region.end <= ~((u32)0))
+		return;
+
+	if (!(res->flags & IORESOURCE_PREFETCH)) {
+		res->flags |= IORESOURCE_PREFETCH;
+		pci_info(dev, "reg 0x%x: fixup: pref added to 64-bit resource\n",
+			 index);
+	}
+}
+
 static unsigned long pci_parse_of_flags(u32 addr0)
 {
 	unsigned long flags = 0;
@@ -244,6 +266,7 @@ static void pci_parse_of_addrs(struct platform_device *op,
 		res->end = op_res->end;
 		res->flags = flags;
 		res->name = pci_name(dev);
+		of_fixup_pci_pref(dev, i, res);
 
 		pci_info(dev, "reg 0x%x: %pR\n", i, res);
 	}
@@ -331,6 +354,13 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->current_state = PCI_UNKNOWN;	/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
+
+	/*
+	 * Assume 64-bit addresses for MSI initially. Will be changed to 32-bit
+	 * if MSI (rather than MSI-X) capability does not have
+	 * PCI_MSI_FLAGS_64BIT. Can also be overridden by driver.
+	 */
+	dev->msi_addr_mask = DMA_BIT_MASK(64);
 
 	if (of_node_name_eq(node, "pci")) {
 		/* a PCI-PCI bridge */
@@ -627,7 +657,7 @@ static void pci_claim_legacy_resources(struct pci_dev *dev)
 	if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
 		return;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return;
 

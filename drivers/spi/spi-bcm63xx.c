@@ -571,7 +571,6 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	host->dev.of_node = dev->of_node;
 	host->bus_num = bus_num;
 	host->num_chipselect = num_cs;
 	host->transfer_one_message = bcm63xx_spi_transfer_one;

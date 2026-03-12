@@ -1401,7 +1401,7 @@ static int __init nr_proto_init(void)
 		goto unregister_proto;
 	}
 
-	dev_nr = kcalloc(nr_ndevs, sizeof(struct net_device *), GFP_KERNEL);
+	dev_nr = kzalloc_objs(struct net_device *, nr_ndevs);
 	if (!dev_nr) {
 		pr_err("NET/ROM: %s - unable to allocate device array\n",
 		       __func__);

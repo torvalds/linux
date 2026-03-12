@@ -17,8 +17,8 @@ description: |+
 
   Supported number of devices and endpoints vary depending on hardware
   revisions. AST2400 and AST2500 Virtual Hub supports 5 downstream devices
-  and 15 generic endpoints, while AST2600 Virtual Hub supports 7 downstream
-  devices and 21 generic endpoints.
+  and 15 generic endpoints, while AST2600 and AST2700 Virtual Hub supports
+  7 downstream devices and 21 generic endpoints.
 
 properties:
   compatible:
@@ -26,11 +26,15 @@ properties:
       - aspeed,ast2400-usb-vhub
       - aspeed,ast2500-usb-vhub
       - aspeed,ast2600-usb-vhub
+      - aspeed,ast2700-usb-vhub
 
   reg:
     maxItems: 1
 
   clocks:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
   interrupts:
@@ -106,6 +110,20 @@ required:
   - interrupts
   - aspeed,vhub-downstream-ports
   - aspeed,vhub-generic-endpoints
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: aspeed,ast2700-usb-vhub
+
+then:
+  required:
+    - resets
+
+else:
+  properties:
+    resets: false
 
 additionalProperties: false
 

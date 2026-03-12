@@ -681,7 +681,7 @@ static struct mux_state *mux_state_get(struct device *dev, const char *mux_name)
 {
 	struct mux_state *mstate;
 
-	mstate = kzalloc(sizeof(*mstate), GFP_KERNEL);
+	mstate = kzalloc_obj(*mstate);
 	if (!mstate)
 		return ERR_PTR(-ENOMEM);
 

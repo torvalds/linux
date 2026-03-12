@@ -329,7 +329,7 @@ static int dt9812_write_multiple_registers(struct comedi_device *dev,
 	int i, count;
 	int ret;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -358,7 +358,7 @@ static int dt9812_rmw_multiple_registers(struct comedi_device *dev,
 	int i, count;
 	int ret;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

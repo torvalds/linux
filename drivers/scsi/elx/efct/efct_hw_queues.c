@@ -127,7 +127,7 @@ efct_hw_map_wq_cpu(struct efct_hw *hw)
 struct hw_eq *
 efct_hw_new_eq(struct efct_hw *hw, u32 entry_count)
 {
-	struct hw_eq *eq = kzalloc(sizeof(*eq), GFP_KERNEL);
+	struct hw_eq *eq = kzalloc_obj(*eq);
 
 	if (!eq)
 		return NULL;
@@ -159,7 +159,7 @@ struct hw_cq *
 efct_hw_new_cq(struct hw_eq *eq, u32 entry_count)
 {
 	struct efct_hw *hw = eq->hw;
-	struct hw_cq *cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	struct hw_cq *cq = kzalloc_obj(*cq);
 
 	if (!cq)
 		return NULL;
@@ -204,7 +204,7 @@ efct_hw_new_cq_set(struct hw_eq *eqs[], struct hw_cq *cqs[],
 		cqs[i] = NULL;
 
 	for (i = 0; i < num_cqs; i++) {
-		cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+		cq = kzalloc_obj(*cq);
 		if (!cq)
 			goto error;
 
@@ -244,7 +244,7 @@ struct hw_mq *
 efct_hw_new_mq(struct hw_cq *cq, u32 entry_count)
 {
 	struct efct_hw *hw = cq->eq->hw;
-	struct hw_mq *mq = kzalloc(sizeof(*mq), GFP_KERNEL);
+	struct hw_mq *mq = kzalloc_obj(*mq);
 
 	if (!mq)
 		return NULL;
@@ -275,7 +275,7 @@ struct hw_wq *
 efct_hw_new_wq(struct hw_cq *cq, u32 entry_count)
 {
 	struct efct_hw *hw = cq->eq->hw;
-	struct hw_wq *wq = kzalloc(sizeof(*wq), GFP_KERNEL);
+	struct hw_wq *wq = kzalloc_obj(*wq);
 
 	if (!wq)
 		return NULL;
@@ -324,7 +324,7 @@ efct_hw_new_rq_set(struct hw_cq *cqs[], struct hw_rq *rqs[],
 	 * encapsulates 2 SLI queues (for rq pair)
 	 */
 	for (i = 0, q_count = 0; i < num_rq_pairs; i++, q_count += 2) {
-		rq = kzalloc(sizeof(*rq), GFP_KERNEL);
+		rq = kzalloc_obj(*rq);
 		if (!rq)
 			goto error;
 

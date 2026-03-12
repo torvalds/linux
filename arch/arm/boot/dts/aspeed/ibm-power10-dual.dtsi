@@ -88,13 +88,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -105,13 +105,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -122,13 +122,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -139,13 +139,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 		};
@@ -257,13 +257,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -274,13 +274,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -291,13 +291,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 
@@ -308,13 +308,13 @@
 				#size-cells = <0>;
 
 				eeprom@0 {
-					at25,byte-len = <0x80000>;
-					at25,addr-mode = <4>;
-					at25,page-size = <256>;
-
 					compatible = "atmel,at25";
 					reg = <0>;
 					spi-max-frequency = <1000000>;
+
+					address-width = <24>;
+					pagesize = <256>;
+					size = <0x80000>;
 				};
 			};
 		};

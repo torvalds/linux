@@ -36,7 +36,7 @@ r535_devinit_new(const struct nvkm_devinit_func *hw,
 	struct nvkm_devinit_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm)))
 		return -ENOMEM;
 
 	rm->dtor = r535_devinit_dtor;

@@ -124,8 +124,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 	if (desc->get_refclk_freq)
 		clk_data.clk_num += 1;
 
-	clk_data.clks = kcalloc(clk_data.clk_num, sizeof(*clk_data.clks),
-				GFP_KERNEL);
+	clk_data.clks = kzalloc_objs(*clk_data.clks, clk_data.clk_num);
 	if (WARN_ON(!clk_data.clks)) {
 		iounmap(base);
 		return;
@@ -258,7 +257,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 		clk_put(clk);
 	}
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (WARN_ON(!ctrl))
 		goto ctrl_out;
 
@@ -272,8 +271,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 		n++;
 
 	ctrl->num_gates = n;
-	ctrl->gates = kcalloc(ctrl->num_gates, sizeof(*ctrl->gates),
-			      GFP_KERNEL);
+	ctrl->gates = kzalloc_objs(*ctrl->gates, ctrl->num_gates);
 	if (WARN_ON(!ctrl->gates))
 		goto gates_out;
 

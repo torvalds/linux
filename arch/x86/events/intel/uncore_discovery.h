@@ -2,9 +2,15 @@
 
 /* Store the full address of the global discovery table */
 #define UNCORE_DISCOVERY_MSR			0x201e
+/* Base address of uncore perfmon discovery table for CBB domain */
+#define CBB_UNCORE_DISCOVERY_MSR		0x710
+/* Base address of uncore perfmon discovery table for the package */
+#define PACKAGE_UNCORE_DISCOVERY_MSR		0x711
 
 /* Generic device ID of a discovery table device */
 #define UNCORE_DISCOVERY_TABLE_DEVICE		0x09a7
+/* Device ID used on DMR */
+#define DMR_UNCORE_DISCOVERY_TABLE_DEVICE	0x09a1
 /* Capability ID for a discovery table device */
 #define UNCORE_EXT_CAP_ID_DISCOVERY		0x23
 /* First DVSEC offset */
@@ -136,7 +142,7 @@ struct intel_uncore_discovery_type {
 	u16		num_units;	/* number of units */
 };
 
-bool intel_uncore_has_discovery_tables(int *ignore);
+bool uncore_discovery(struct uncore_plat_init *init);
 void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);

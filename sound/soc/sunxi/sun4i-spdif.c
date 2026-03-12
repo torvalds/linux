@@ -171,6 +171,8 @@
  * @reg_dac_txdata: TX FIFO offset for DMA config.
  * @has_reset: SoC needs reset deasserted.
  * @val_fctl_ftx: TX FIFO flush bitmask.
+ * @mclk_multiplier: ratio of internal MCLK divider
+ * @tx_clk_name: name of TX module clock if split clock design
  */
 struct sun4i_spdif_quirks {
 	unsigned int reg_dac_txdata;
@@ -682,6 +684,10 @@ static int sun4i_spdif_probe(struct platform_device *pdev)
 
 	host->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 						&sun4i_spdif_regmap_config);
+	if (IS_ERR(host->regmap)) {
+		dev_err(&pdev->dev, "failed to initialise regmap.\n");
+		return PTR_ERR(host->regmap);
+	}
 
 	/* Clocks */
 	host->apb_clk = devm_clk_get(&pdev->dev, "apb");

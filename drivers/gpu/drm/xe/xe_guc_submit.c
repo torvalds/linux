@@ -1953,7 +1953,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	xe_gt_assert(guc_to_gt(guc), xe_device_uc_enabled(guc_to_xe(guc)));
 
-	ge = kzalloc(sizeof(*ge), GFP_KERNEL);
+	ge = kzalloc_obj(*ge);
 	if (!ge)
 		return -ENOMEM;
 
@@ -2109,7 +2109,7 @@ static int guc_exec_queue_set_priority(struct xe_exec_queue *q,
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -2127,7 +2127,7 @@ static int guc_exec_queue_set_timeslice(struct xe_exec_queue *q, u32 timeslice_u
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -2146,7 +2146,7 @@ static int guc_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -2166,7 +2166,7 @@ static int guc_exec_queue_set_multi_queue_priority(struct xe_exec_queue *q,
 	if (exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -3196,7 +3196,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	struct xe_guc_submit_exec_queue_snapshot *snapshot;
 	int i;
 
-	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+	snapshot = kzalloc_obj(*snapshot, GFP_ATOMIC);
 
 	if (!snapshot)
 		return NULL;
@@ -3212,8 +3212,8 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	snapshot->sched_props.preempt_timeout_us =
 		q->sched_props.preempt_timeout_us;
 
-	snapshot->lrc = kmalloc_array(q->width, sizeof(struct xe_lrc_snapshot *),
-				      GFP_ATOMIC);
+	snapshot->lrc = kmalloc_objs(struct xe_lrc_snapshot *, q->width,
+				     GFP_ATOMIC);
 
 	if (snapshot->lrc) {
 		for (i = 0; i < q->width; ++i) {

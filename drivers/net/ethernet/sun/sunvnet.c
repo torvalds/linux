@@ -436,7 +436,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto err_out_put_mdesc;
 	}
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	err = -ENOMEM;
 	if (!port)
 		goto err_out_put_mdesc;

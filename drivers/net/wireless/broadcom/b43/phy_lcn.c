@@ -669,7 +669,7 @@ static int b43_phy_lcn_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_lcn *phy_lcn;
 
-	phy_lcn = kzalloc(sizeof(*phy_lcn), GFP_KERNEL);
+	phy_lcn = kzalloc_obj(*phy_lcn);
 	if (!phy_lcn)
 		return -ENOMEM;
 	dev->phy.lcn = phy_lcn;

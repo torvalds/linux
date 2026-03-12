@@ -1175,7 +1175,7 @@ static int ds_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	if (ds_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 
-	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	dp = kzalloc_obj(*dp);
 	err = -ENOMEM;
 	if (!dp)
 		goto out_err;

@@ -99,7 +99,7 @@ static int subdev_open(struct file *file)
 	struct v4l2_subdev_fh *subdev_fh;
 	int ret;
 
-	subdev_fh = kzalloc(sizeof(*subdev_fh), GFP_KERNEL);
+	subdev_fh = kzalloc_obj(*subdev_fh);
 	if (subdev_fh == NULL)
 		return -ENOMEM;
 
@@ -1606,7 +1606,7 @@ __v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
 	struct v4l2_subdev_state *state;
 	int ret;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
@@ -1620,8 +1620,7 @@ __v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
 
 	/* Drivers that support streams do not need the legacy pad config */
 	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS) && sd->entity.num_pads) {
-		state->pads = kvcalloc(sd->entity.num_pads,
-				       sizeof(*state->pads), GFP_KERNEL);
+		state->pads = kvzalloc_objs(*state->pads, sd->entity.num_pads);
 		if (!state->pads) {
 			ret = -ENOMEM;
 			goto err;
@@ -1889,9 +1888,8 @@ v4l2_subdev_init_stream_configs(struct v4l2_subdev_stream_configs *stream_config
 	}
 
 	if (new_configs.num_configs) {
-		new_configs.configs = kvcalloc(new_configs.num_configs,
-					       sizeof(*new_configs.configs),
-					       GFP_KERNEL);
+		new_configs.configs = kvzalloc_objs(*new_configs.configs,
+						    new_configs.num_configs);
 
 		if (!new_configs.configs)
 			return -ENOMEM;
@@ -2112,7 +2110,7 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 {
 	u32 *remote_pads = NULL;
 	unsigned int i, j;
-	int ret = -EINVAL;
+	int ret = -ENXIO;
 
 	if (disallow & (V4L2_SUBDEV_ROUTING_NO_STREAM_MIX |
 			V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING)) {

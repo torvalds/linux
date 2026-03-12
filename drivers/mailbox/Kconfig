@@ -199,7 +199,7 @@ config POLARFIRE_SOC_MAILBOX
 	tristate "PolarFire SoC (MPFS) Mailbox"
 	depends on HAS_IOMEM
 	depends on MFD_SYSCON
-	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	help
 	  This driver adds support for the PolarFire SoC (MPFS) mailbox controller.
 
@@ -279,7 +279,7 @@ config MTK_ADSP_MBOX
 	tristate "MediaTek ADSP Mailbox Controller"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
-          Say yes here to add support for "MediaTek ADSP Mailbox Controller.
+          Say yes here to add support for MediaTek ADSP Mailbox Controller.
           This mailbox driver is used to send notification or short message
           between processors with ADSP. It will place the message to share
 	  buffer and will access the ipc control.
@@ -303,6 +303,15 @@ config MTK_GPUEB_MBOX
 	  MediaTek SoCs, such as the MT8196.
 	  Say Y or m here if you want to support the MT8196 SoC in your kernel
 	  build.
+
+config MTK_VCP_MBOX
+	tristate "MediaTek VCP Mailbox Support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  Say yes here to add support for the MediaTek VCP mailbox driver.
+	  The mailbox implementation provides access from the application
+	  processor to Video Companion Processor Unit.
+	  If unsure say N.
 
 config ZYNQMP_IPI_MBOX
 	tristate "Xilinx ZynqMP IPI Mailbox"
@@ -387,7 +396,7 @@ config RISCV_SBI_MPXY_MBOX
 	  Mailbox driver implementation for RISC-V SBI Message Proxy (MPXY)
 	  extension. This mailbox driver is used to send messages to the
 	  remote processor through the SBI implementation (M-mode firmware
-	  or HS-mode hypervisor). Say Y here if you want to have this support.
-	  If unsure say N.
+	  or HS-mode hypervisor). Say Y here, unless you are sure you do not
+	  need this.
 
 endif

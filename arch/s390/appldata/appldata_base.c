@@ -140,7 +140,7 @@ int appldata_diag(char record_nr, u16 function, unsigned long buffer,
 	struct appldata_product_id *id;
 	int rc;
 
-	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
+	parm_list = kmalloc_obj(*parm_list);
 	id = kmemdup(&appldata_id, sizeof(appldata_id), GFP_KERNEL);
 	rc = -ENOMEM;
 	if (parm_list && id) {
@@ -350,7 +350,7 @@ int appldata_register_ops(struct appldata_ops *ops)
 	if (ops->size > APPLDATA_MAX_REC_SIZE)
 		return -EINVAL;
 
-	ops->ctl_table = kcalloc(1, sizeof(struct ctl_table), GFP_KERNEL);
+	ops->ctl_table = kzalloc_objs(struct ctl_table, 1);
 	if (!ops->ctl_table)
 		return -ENOMEM;
 

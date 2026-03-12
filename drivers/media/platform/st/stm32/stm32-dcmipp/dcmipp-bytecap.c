@@ -57,6 +57,7 @@ struct dcmipp_bytecap_pix_map {
 static const struct dcmipp_bytecap_pix_map dcmipp_bytecap_pix_map_list[] = {
 	PIXMAP_MBUS_PFMT(RGB565_2X8_LE, RGB565),
 	PIXMAP_MBUS_PFMT(RGB565_1X16, RGB565),
+	PIXMAP_MBUS_PFMT(RGB888_1X24, RGB24),
 	PIXMAP_MBUS_PFMT(YUYV8_2X8, YUYV),
 	PIXMAP_MBUS_PFMT(YUYV8_1X16, YUYV),
 	PIXMAP_MBUS_PFMT(YVYU8_2X8, YVYU),
@@ -66,6 +67,9 @@ static const struct dcmipp_bytecap_pix_map dcmipp_bytecap_pix_map_list[] = {
 	PIXMAP_MBUS_PFMT(VYUY8_2X8, VYUY),
 	PIXMAP_MBUS_PFMT(VYUY8_1X16, VYUY),
 	PIXMAP_MBUS_PFMT(Y8_1X8, GREY),
+	PIXMAP_MBUS_PFMT(Y10_1X10, Y10),
+	PIXMAP_MBUS_PFMT(Y12_1X12, Y12),
+	PIXMAP_MBUS_PFMT(Y14_1X14, Y14),
 	PIXMAP_MBUS_PFMT(SBGGR8_1X8, SBGGR8),
 	PIXMAP_MBUS_PFMT(SGBRG8_1X8, SGBRG8),
 	PIXMAP_MBUS_PFMT(SGRBG8_1X8, SGRBG8),
@@ -143,7 +147,6 @@ struct dcmipp_bytecap_device {
 
 	void __iomem *regs;
 
-	u32 cmier;
 	u32 cmsr2;
 
 	struct {
@@ -439,8 +442,7 @@ static int dcmipp_bytecap_start_streaming(struct vb2_queue *vq,
 	dcmipp_start_capture(vcap, vcap->next);
 
 	/* Enable interruptions */
-	vcap->cmier |= DCMIPP_CMIER_P0ALL;
-	reg_set(vcap, DCMIPP_CMIER, vcap->cmier);
+	reg_set(vcap, DCMIPP_CMIER, DCMIPP_CMIER_P0ALL);
 
 	vcap->state = DCMIPP_RUNNING;
 
@@ -496,7 +498,7 @@ static void dcmipp_bytecap_stop_streaming(struct vb2_queue *vq)
 	media_pipeline_stop(vcap->vdev.entity.pads);
 
 	/* Disable interruptions */
-	reg_clear(vcap, DCMIPP_CMIER, vcap->cmier);
+	reg_clear(vcap, DCMIPP_CMIER, DCMIPP_CMIER_P0ALL);
 
 	/* Stop capture */
 	reg_clear(vcap, DCMIPP_P0FCTCR, DCMIPP_P0FCTCR_CPTREQ);
@@ -511,6 +513,9 @@ static void dcmipp_bytecap_stop_streaming(struct vb2_queue *vq)
 
 	/* Disable pipe */
 	reg_clear(vcap, DCMIPP_P0FSCR, DCMIPP_P0FSCR_PIPEN);
+
+	/* Clear any pending interrupts */
+	reg_write(vcap, DCMIPP_CMFCR, DCMIPP_CMIER_P0ALL);
 
 	spin_lock_irq(&vcap->irqlock);
 
@@ -742,23 +747,20 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 	struct dcmipp_bytecap_device *vcap =
 			container_of(arg, struct dcmipp_bytecap_device, ved);
 	size_t bytesused = 0;
-	u32 cmsr2;
 
 	spin_lock_irq(&vcap->irqlock);
-
-	cmsr2 = vcap->cmsr2 & vcap->cmier;
 
 	/*
 	 * If we have an overrun, a frame-end will probably not be generated,
 	 * in that case the active buffer will be recycled as next buffer by
 	 * the VSYNC handler
 	 */
-	if (cmsr2 & DCMIPP_CMSR2_P0OVRF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0OVRF) {
 		vcap->count.errors++;
 		vcap->count.overrun++;
 	}
 
-	if (cmsr2 & DCMIPP_CMSR2_P0FRAMEF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0FRAMEF) {
 		vcap->count.frame++;
 
 		/* Read captured buffer size */
@@ -766,7 +768,7 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 		dcmipp_bytecap_process_frame(vcap, bytesused);
 	}
 
-	if (cmsr2 & DCMIPP_CMSR2_P0VSYNCF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0VSYNCF) {
 		vcap->count.vsync++;
 		if (vcap->state == DCMIPP_WAIT_FOR_BUFFER) {
 			vcap->count.underrun++;
@@ -797,7 +799,7 @@ static irqreturn_t dcmipp_bytecap_irq_callback(int irq, void *arg)
 			container_of(arg, struct dcmipp_bytecap_device, ved);
 
 	/* Store interrupt status register */
-	vcap->cmsr2 = reg_read(vcap, DCMIPP_CMSR2) & vcap->cmier;
+	vcap->cmsr2 = reg_read(vcap, DCMIPP_CMSR2) & DCMIPP_CMIER_P0ALL;
 	vcap->count.it++;
 
 	/* Clear interrupt */
@@ -865,7 +867,7 @@ struct dcmipp_ent_device *dcmipp_bytecap_ent_init(struct device *dev,
 	int ret = 0;
 
 	/* Allocate the dcmipp_bytecap_device struct */
-	vcap = kzalloc(sizeof(*vcap), GFP_KERNEL);
+	vcap = kzalloc_obj(*vcap);
 	if (!vcap)
 		return ERR_PTR(-ENOMEM);
 

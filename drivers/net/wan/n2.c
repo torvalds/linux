@@ -340,7 +340,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 		return -ENODEV;
 	}
 
-	card = kzalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc_obj(card_t);
 	if (!card)
 		return -ENOBUFS;
 

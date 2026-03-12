@@ -2006,7 +2006,7 @@ static int cp210x_port_probe(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct cp210x_port_private *port_priv;
 
-	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
+	port_priv = kzalloc_obj(*port_priv);
 	if (!port_priv)
 		return -ENOMEM;
 
@@ -2163,7 +2163,7 @@ static int cp210x_attach(struct usb_serial *serial)
 	int result;
 	struct cp210x_serial_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

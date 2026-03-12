@@ -89,6 +89,7 @@ test_buffer() {
 	# The id must be four bytes, test that 3 bytes fails a write
 	if echo -n abc > ./trace_marker_raw ; then
 		echo "Too small of write expected to fail but did not"
+		echo ${ORIG} > buffer_size_kb
 		exit_fail
 	fi
 
@@ -99,9 +100,24 @@ test_buffer() {
 
 	if write_buffer 0xdeadbeef $size ; then
 		echo "Too big of write expected to fail but did not"
+		echo ${ORIG} > buffer_size_kb
 		exit_fail
 	fi
 }
 
+ORIG=`cat buffer_size_kb`
+
+# test_multiple_writes test needs at least 12KB buffer
+NEW_SIZE=12
+
+if [ ${ORIG} -lt ${NEW_SIZE} ]; then
+	echo ${NEW_SIZE} > buffer_size_kb
+fi
+
 test_buffer
-test_multiple_writes
+if ! test_multiple_writes; then
+	echo ${ORIG} > buffer_size_kb
+	exit_fail
+fi
+
+echo ${ORIG} > buffer_size_kb

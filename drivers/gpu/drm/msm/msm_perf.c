@@ -65,13 +65,13 @@ static int refill_buf(struct msm_perf_state *perf)
 
 	if ((perf->cnt++ % 32) == 0) {
 		/* Header line: */
-		n = snprintf(ptr, rem, "%%BUSY");
+		n = scnprintf(ptr, rem, "%%BUSY");
 		ptr += n;
 		rem -= n;
 
 		for (i = 0; i < gpu->num_perfcntrs; i++) {
 			const struct msm_gpu_perfcntr *perfcntr = &gpu->perfcntrs[i];
-			n = snprintf(ptr, rem, "\t%s", perfcntr->name);
+			n = scnprintf(ptr, rem, "\t%s", perfcntr->name);
 			ptr += n;
 			rem -= n;
 		}
@@ -93,21 +93,21 @@ static int refill_buf(struct msm_perf_state *perf)
 			return ret;
 
 		val = totaltime ? 1000 * activetime / totaltime : 0;
-		n = snprintf(ptr, rem, "%3d.%d%%", val / 10, val % 10);
+		n = scnprintf(ptr, rem, "%3d.%d%%", val / 10, val % 10);
 		ptr += n;
 		rem -= n;
 
 		for (i = 0; i < ret; i++) {
 			/* cycle counters (I think).. convert to MHz.. */
 			val = cntrs[i] / 10000;
-			n = snprintf(ptr, rem, "\t%5d.%02d",
+			n = scnprintf(ptr, rem, "\t%5d.%02d",
 					val / 100, val % 100);
 			ptr += n;
 			rem -= n;
 		}
 	}
 
-	n = snprintf(ptr, rem, "\n");
+	n = scnprintf(ptr, rem, "\n");
 	ptr += n;
 	rem -= n;
 
@@ -204,7 +204,7 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	if (priv->perf)
 		return 0;
 
-	perf = kzalloc(sizeof(*perf), GFP_KERNEL);
+	perf = kzalloc_obj(*perf);
 	if (!perf)
 		return -ENOMEM;
 

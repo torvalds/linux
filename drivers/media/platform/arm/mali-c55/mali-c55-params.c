@@ -582,13 +582,6 @@ static int mali_c55_params_buf_prepare(struct vb2_buffer *vb)
 	struct mali_c55 *mali_c55 = params->mali_c55;
 	int ret;
 
-	if (config->version != MALI_C55_PARAM_BUFFER_V1) {
-		dev_dbg(mali_c55->dev,
-			"Unsupported extensible format version: %u\n",
-			config->version);
-		return -EINVAL;
-	}
-
 	ret = v4l2_isp_params_validate_buffer_size(mali_c55->dev, vb,
 			v4l2_isp_params_buffer_size(MALI_C55_PARAMS_MAX_SIZE));
 	if (ret)

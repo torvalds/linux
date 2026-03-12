@@ -94,7 +94,7 @@ static int tee_heap_attach(struct dma_buf *dmabuf,
 	struct tee_heap_attachment *a;
 	int ret;
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static struct dma_buf *tee_dma_heap_alloc(struct dma_heap *heap,
 	if (!teedev)
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf) {
 		dmabuf = ERR_PTR(-ENOMEM);
 		goto err;
@@ -260,7 +260,7 @@ static int alloc_dma_heap(struct tee_device *teedev, enum tee_dma_heap_id id,
 		return -ENOMEM;
 	}
 
-	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return -ENOMEM;
 	h->id = id;
@@ -472,7 +472,7 @@ struct tee_protmem_pool *tee_protmem_static_pool_alloc(phys_addr_t paddr,
 	if (!pfn_valid(PHYS_PFN(paddr)))
 		return ERR_PTR(-EINVAL);
 
-	stp = kzalloc(sizeof(*stp), GFP_KERNEL);
+	stp = kzalloc_obj(*stp);
 	if (!stp)
 		return ERR_PTR(-ENOMEM);
 

@@ -1333,7 +1333,8 @@ static void nvme_queue_keep_alive_work(struct nvme_ctrl *ctrl)
 }
 
 static enum rq_end_io_ret nvme_keep_alive_end_io(struct request *rq,
-						 blk_status_t status)
+						 blk_status_t status,
+						 const struct io_comp_batch *iob)
 {
 	struct nvme_ctrl *ctrl = rq->end_io_data;
 	unsigned long rtt = jiffies - (rq->deadline - rq->timeout);
@@ -1468,7 +1469,7 @@ static int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.cns = NVME_ID_CNS_CTRL;
 
-	*id = kmalloc(sizeof(struct nvme_id_ctrl), GFP_KERNEL);
+	*id = kmalloc_obj(struct nvme_id_ctrl);
 	if (!*id)
 		return -ENOMEM;
 
@@ -1598,7 +1599,7 @@ int nvme_identify_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	c.identify.nsid = cpu_to_le32(nsid);
 	c.identify.cns = NVME_ID_CNS_NS;
 
-	*id = kmalloc(sizeof(**id), GFP_KERNEL);
+	*id = kmalloc_obj(**id);
 	if (!*id)
 		return -ENOMEM;
 
@@ -1662,7 +1663,7 @@ static int nvme_ns_info_from_id_cs_indep(struct nvme_ctrl *ctrl,
 	};
 	int ret;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	id = kmalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 
@@ -1922,7 +1923,7 @@ static int nvme_identify_ns_nvm(struct nvme_ctrl *ctrl, unsigned int nsid,
 	struct nvme_id_ns_nvm *nvm;
 	int ret;
 
-	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+	nvm = kzalloc_obj(*nvm);
 	if (!nvm)
 		return -ENOMEM;
 
@@ -2045,14 +2046,10 @@ static u32 nvme_configure_atomic_write(struct nvme_ns *ns,
 		if (id->nabspf)
 			boundary = (le16_to_cpu(id->nabspf) + 1) * bs;
 	} else {
-		/*
-		 * Use the controller wide atomic write unit.  This sucks
-		 * because the limit is defined in terms of logical blocks while
-		 * namespaces can have different formats, and because there is
-		 * no clear language in the specification prohibiting different
-		 * values for different controllers in the subsystem.
-		 */
-		atomic_bs = (1 + ns->ctrl->subsys->awupf) * bs;
+		if (ns->ctrl->awupf)
+			dev_info_once(ns->ctrl->device,
+				"AWUPF ignored, only NAWUPF accepted\n");
+		atomic_bs = bs;
 	}
 
 	lim->atomic_write_hw_max = atomic_bs;
@@ -2783,7 +2780,7 @@ static int nvme_configure_host_options(struct nvme_ctrl *ctrl)
 	if (!acre && !lbafee)
 		return 0;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc_obj(*host);
 	if (!host)
 		return 0;
 
@@ -2872,7 +2869,7 @@ static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 		return 0;
 	}
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return 0;
 
@@ -3207,7 +3204,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	struct nvme_subsystem *subsys, *found;
 	int ret;
 
-	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
+	subsys = kzalloc_obj(*subsys);
 	if (!subsys)
 		return -ENOMEM;
 
@@ -3221,7 +3218,6 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	memcpy(subsys->model, id->mn, sizeof(subsys->model));
 	subsys->vendor_id = le16_to_cpu(id->vid);
 	subsys->cmic = id->cmic;
-	subsys->awupf = le16_to_cpu(id->awupf);
 
 	/* Versions prior to 1.4 don't necessarily report a valid type */
 	if (id->cntrltype == NVME_CTRL_DISC ||
@@ -3325,7 +3321,7 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 	if (cel)
 		goto out;
 
-	cel = kzalloc(sizeof(*cel), GFP_KERNEL);
+	cel = kzalloc_obj(*cel);
 	if (!cel)
 		return -ENOMEM;
 
@@ -3378,7 +3374,7 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
 	    test_bit(NVME_CTRL_SKIP_ID_CNS_CS, &ctrl->flags))
 		return 0;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 
@@ -3407,7 +3403,7 @@ static int nvme_init_effects_log(struct nvme_ctrl *ctrl,
 {
 	struct nvme_effects_log *effects, *old;
 
-	effects = kzalloc(sizeof(*effects), GFP_KERNEL);
+	effects = kzalloc_obj(*effects);
 	if (!effects)
 		return -ENOMEM;
 
@@ -3654,6 +3650,7 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 		dev_pm_qos_expose_latency_tolerance(ctrl->device);
 	else if (!ctrl->apst_enabled && prev_apst_enabled)
 		dev_pm_qos_hide_latency_tolerance(ctrl->device);
+	ctrl->awupf = le16_to_cpu(id->awupf);
 out_free:
 	kfree(id);
 	return ret;
@@ -4185,13 +4182,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 	nvme_mpath_add_disk(ns, info->anagrpid);
 	nvme_fault_inject_init(&ns->fault_inject, ns->disk->disk_name);
 
-	/*
-	 * Set ns->disk->device->driver_data to ns so we can access
-	 * ns->head->passthru_err_log_enabled in
-	 * nvme_io_passthru_err_log_enabled_[store | show]().
-	 */
-	dev_set_drvdata(disk_to_dev(ns->disk), ns);
-
 	return;
 
  out_cleanup_ns_from_list:
@@ -4687,7 +4677,7 @@ static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 	struct nvme_fw_slot_info_log *log;
 	u8 next_fw_slot, cur_fw_slot;
 
-	log = kmalloc(sizeof(*log), GFP_KERNEL);
+	log = kmalloc_obj(*log);
 	if (!log)
 		return;
 
@@ -4863,6 +4853,13 @@ int nvme_alloc_admin_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
 	ret = blk_mq_alloc_tag_set(set);
 	if (ret)
 		return ret;
+
+	/*
+	 * If a previous admin queue exists (e.g., from before a reset),
+	 * put it now before allocating a new one to avoid orphaning it.
+	 */
+	if (ctrl->admin_q)
+		blk_put_queue(ctrl->admin_q);
 
 	ctrl->admin_q = blk_mq_alloc_queue(set, &lim, NULL);
 	if (IS_ERR(ctrl->admin_q)) {

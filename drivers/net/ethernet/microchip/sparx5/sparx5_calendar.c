@@ -585,7 +585,7 @@ int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 	struct sparx5_calendar_data *data;
 	int err = 0;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

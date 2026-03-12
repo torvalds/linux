@@ -41,7 +41,8 @@ config IOMMUFD_TEST
 	depends on DEBUG_KERNEL
 	depends on FAULT_INJECTION
 	depends on RUNTIME_TESTING_MENU
-	depends on IOMMU_PT_AMDV1
+	depends on IOMMU_PT_AMDV1=y || IOMMUFD=IOMMU_PT_AMDV1
+	select DMA_SHARED_BUFFER
 	select IOMMUFD_DRIVER
 	default n
 	help

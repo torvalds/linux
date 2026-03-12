@@ -61,7 +61,7 @@ int tegra_vde_alloc_bo(struct tegra_vde *vde,
 	struct tegra_vde_bo *bo;
 	int err;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return -ENOMEM;
 

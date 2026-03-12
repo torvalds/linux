@@ -125,6 +125,7 @@ static inline long scx_hotplug_seq(void)
 {
 	int fd;
 	char buf[32];
+	char *endptr;
 	ssize_t len;
 	long val;
 
@@ -137,8 +138,10 @@ static inline long scx_hotplug_seq(void)
 	buf[len] = 0;
 	close(fd);
 
-	val = strtoul(buf, NULL, 10);
-	SCX_BUG_ON(val < 0, "invalid num hotplug events: %lu", val);
+	errno = 0;
+	val = strtoul(buf, &endptr, 10);
+	SCX_BUG_ON(errno == ERANGE || endptr == buf ||
+		   (*endptr != '\n' && *endptr != '\0'), "invalid num hotplug events: %ld", val);
 
 	return val;
 }

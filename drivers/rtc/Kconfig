@@ -418,6 +418,7 @@ config RTC_DRV_SPACEMIT_P1
 
 config RTC_DRV_NVIDIA_VRS10
 	tristate "NVIDIA VRS10 RTC device"
+	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the battery backed RTC device
 	  of NVIDIA VRS (Voltage Regulator Specification). The RTC is connected via
@@ -570,7 +571,8 @@ config RTC_DRV_BD70528
 	depends on MFD_ROHM_BD71828
 	help
 	  If you say Y here you will get support for the RTC
-	  block on ROHM BD71815 and BD71828 Power Management IC.
+	  block on ROHM BD71815, BD71828 and BD72720 Power
+	  Management ICs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-bd70528.

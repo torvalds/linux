@@ -1090,7 +1090,7 @@ fritzpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int err = -ENOMEM;
 	struct fritzcard *card;
 
-	card = kzalloc(sizeof(struct fritzcard), GFP_KERNEL);
+	card = kzalloc_obj(struct fritzcard);
 	if (!card) {
 		pr_info("No kmem for fritzcard\n");
 		return err;

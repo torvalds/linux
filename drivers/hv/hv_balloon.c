@@ -801,7 +801,7 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 		 * is, create a gap and update covered_end_pfn.
 		 */
 		if (has->covered_end_pfn != start_pfn) {
-			gap = kzalloc(sizeof(struct hv_hotadd_gap), GFP_ATOMIC);
+			gap = kzalloc_obj(struct hv_hotadd_gap, GFP_ATOMIC);
 			if (!gap) {
 				ret = -ENOMEM;
 				break;

@@ -26,6 +26,8 @@
 #include <net/tcp_states.h>
 #include <net/l3mdev.h>
 
+#define IP_OPTIONS_DATA_FIXED_SIZE 40
+
 /** struct ip_options - IP Options
  *
  * @faddr - Saved first hop address
@@ -58,12 +60,9 @@ struct ip_options {
 
 struct ip_options_rcu {
 	struct rcu_head rcu;
-	struct ip_options opt;
-};
 
-struct ip_options_data {
-	struct ip_options_rcu	opt;
-	char			data[40];
+	/* Must be last as it ends in a flexible-array member. */
+	struct ip_options opt;
 };
 
 struct inet_request_sock {
@@ -101,10 +100,7 @@ struct inet_request_sock {
 	};
 };
 
-static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
-{
-	return (struct inet_request_sock *)sk;
-}
+#define inet_rsk(ptr) container_of_const(ptr, struct inet_request_sock, req)
 
 static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 {
@@ -163,6 +159,13 @@ static inline bool inet_sk_bound_dev_eq(const struct net *net,
 #endif
 }
 
+struct inet6_cork {
+	struct ipv6_txoptions *opt;
+	u8 hop_limit;
+	u8 tclass;
+	u8 dontfrag:1;
+};
+
 struct inet_cork {
 	unsigned int		flags;
 	__be32			addr;
@@ -183,6 +186,9 @@ struct inet_cork {
 struct inet_cork_full {
 	struct inet_cork	base;
 	struct flowi		fl;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct inet6_cork	base6;
+#endif
 };
 
 struct ip_mc_socklist;

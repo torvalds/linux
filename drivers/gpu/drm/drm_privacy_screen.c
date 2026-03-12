@@ -395,7 +395,7 @@ struct drm_privacy_screen *drm_privacy_screen_register(
 	struct drm_privacy_screen *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

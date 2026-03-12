@@ -29,7 +29,7 @@ DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(gsc_info);
 void intel_gsc_uc_debugfs_register(struct intel_gsc_uc *gsc_uc, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "gsc_info", &gsc_info_fops, NULL },
+		{ .name = "gsc_info", .fops = &gsc_info_fops },
 	};
 
 	if (!intel_gsc_uc_is_supported(gsc_uc))

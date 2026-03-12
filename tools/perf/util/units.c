@@ -12,7 +12,7 @@ unsigned long parse_tag_value(const char *str, struct parse_tag *tags)
 	struct parse_tag *i = tags;
 
 	while (i->tag) {
-		char *s = strchr(str, i->tag);
+		const char *s = strchr(str, i->tag);
 
 		if (s) {
 			unsigned long int value;

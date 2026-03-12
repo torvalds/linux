@@ -273,7 +273,7 @@ ice_sf_eth_activate(struct ice_dynamic_port *dyn_port,
 		return err;
 	}
 
-	sf_dev = kzalloc(sizeof(*sf_dev), GFP_KERNEL);
+	sf_dev = kzalloc_obj(*sf_dev);
 	if (!sf_dev) {
 		err = -ENOMEM;
 		NL_SET_ERR_MSG_MOD(extack, "Could not allocate SF memory");

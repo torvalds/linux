@@ -52,7 +52,7 @@ irq_pool_request_irq(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_de
 	u32 irq_index;
 	int err;
 
-	auto_desc = kvzalloc(sizeof(*auto_desc), GFP_KERNEL);
+	auto_desc = kvzalloc_obj(*auto_desc);
 	if (!auto_desc)
 		return ERR_PTR(-ENOMEM);
 

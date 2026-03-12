@@ -142,7 +142,7 @@ attribute-sets:
         name: ifindex
         doc: |
           ifindex of the netdev to which the pool belongs.
-          May be reported as 0 if the page pool was allocated for a netdev
+          May not be reported if the page pool was allocated for a netdev
           which got destroyed already (page pools may outlast their netdevs
           because they wait for all memory to be returned).
         type: u32
@@ -601,7 +601,9 @@ operations:
       name: page-pool-get
       doc: |
         Get / dump information about Page Pools.
-        (Only Page Pools associated with a net_device can be listed.)
+        Only Page Pools associated by the driver with a net_device
+        can be listed. ifindex will not be reported if the net_device
+        no longer exists.
       attribute-set: page-pool
       do:
         request:

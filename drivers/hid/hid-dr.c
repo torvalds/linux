@@ -104,7 +104,7 @@ static int drff_init(struct hid_device *hid)
 		return -ENODEV;
 	}
 
-	drff = kzalloc(sizeof(struct drff_device), GFP_KERNEL);
+	drff = kzalloc_obj(struct drff_device);
 	if (!drff)
 		return -ENOMEM;
 

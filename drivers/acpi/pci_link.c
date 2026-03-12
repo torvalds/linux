@@ -448,7 +448,7 @@ static int acpi_isa_irq_penalty[ACPI_MAX_ISA_IRQS] = {
 	/* >IRQ15 */
 };
 
-static int acpi_irq_pci_sharing_penalty(int irq)
+static int acpi_irq_pci_sharing_penalty(u32 irq)
 {
 	struct acpi_pci_link *link;
 	int penalty = 0;
@@ -474,7 +474,7 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 	return penalty;
 }
 
-static int acpi_irq_get_penalty(int irq)
+static int acpi_irq_get_penalty(u32 irq)
 {
 	int penalty = 0;
 
@@ -528,7 +528,7 @@ static int acpi_irq_balance = -1;	/* 0: static, 1: balance */
 static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 {
 	acpi_handle handle = link->device->handle;
-	int irq;
+	u32 irq;
 	int i;
 
 	if (link->irq.initialized) {
@@ -598,44 +598,53 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 	return 0;
 }
 
-/*
- * acpi_pci_link_allocate_irq
- * success: return IRQ >= 0
- * failure: return -1
+/**
+ * acpi_pci_link_allocate_irq(): Retrieve a link device GSI
+ *
+ * @handle: Handle for the link device
+ * @index: GSI index
+ * @triggering: pointer to store the GSI trigger
+ * @polarity: pointer to store GSI polarity
+ * @name: pointer to store link device name
+ * @gsi: pointer to store GSI number
+ *
+ * Returns:
+ *	0 on success with @triggering, @polarity, @name, @gsi initialized.
+ *	-ENODEV on failure
  */
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
-			       int *polarity, char **name)
+			       int *polarity, char **name, u32 *gsi)
 {
 	struct acpi_device *device = acpi_fetch_acpi_dev(handle);
 	struct acpi_pci_link *link;
 
 	if (!device) {
 		acpi_handle_err(handle, "Invalid link device\n");
-		return -1;
+		return -ENODEV;
 	}
 
 	link = acpi_driver_data(device);
 	if (!link) {
 		acpi_handle_err(handle, "Invalid link context\n");
-		return -1;
+		return -ENODEV;
 	}
 
 	/* TBD: Support multiple index (IRQ) entries per Link Device */
 	if (index) {
 		acpi_handle_err(handle, "Invalid index %d\n", index);
-		return -1;
+		return -ENODEV;
 	}
 
 	mutex_lock(&acpi_link_lock);
 	if (acpi_pci_link_allocate(link)) {
 		mutex_unlock(&acpi_link_lock);
-		return -1;
+		return -ENODEV;
 	}
 
 	if (!link->irq.active) {
 		mutex_unlock(&acpi_link_lock);
 		acpi_handle_err(handle, "Link active IRQ is 0!\n");
-		return -1;
+		return -ENODEV;
 	}
 	link->refcnt++;
 	mutex_unlock(&acpi_link_lock);
@@ -647,7 +656,9 @@ int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 	if (name)
 		*name = acpi_device_bid(link->device);
 	acpi_handle_debug(handle, "Link is referenced\n");
-	return link->irq.active;
+	*gsi = link->irq.active;
+
+	return 0;
 }
 
 /*
@@ -709,7 +720,7 @@ static int acpi_pci_link_add(struct acpi_device *device,
 	int result;
 	int i;
 
-	link = kzalloc(sizeof(struct acpi_pci_link), GFP_KERNEL);
+	link = kzalloc_obj(struct acpi_pci_link);
 	if (!link)
 		return -ENOMEM;
 

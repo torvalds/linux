@@ -113,7 +113,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	dev_dbg(dev, "pasemi_nand at %pR\n", &res);
 
 	/* Allocate memory for MTD device structure and private data */
-	ddata = kzalloc(sizeof(*ddata), GFP_KERNEL);
+	ddata = kzalloc_obj(*ddata);
 	if (!ddata) {
 		err = -ENOMEM;
 		goto out;

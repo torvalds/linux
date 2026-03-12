@@ -984,7 +984,7 @@ struct bfq_group_data {
  *                   unused for the root group. Used to know whether there
  *                   are groups with more than one active @bfq_entity
  *                   (see the comments to the function
- *                   bfq_bfqq_may_idle()).
+ *                   bfq_better_to_idle()).
  * @rq_pos_tree: rbtree sorted by next_request position, used when
  *               determining if two or more queues have interleaving
  *               requests (see bfq_find_close_cooperator()).

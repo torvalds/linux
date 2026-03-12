@@ -811,7 +811,7 @@ static int memac_add_hash_mac_address(struct fman_mac *memac,
 	hash = get_mac_addr_hash_code(addr) & HASH_CTRL_ADDR_MASK;
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
+	hash_entry = kmalloc_obj(*hash_entry, GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -1086,12 +1086,12 @@ static struct fman_mac *memac_config(struct mac_device *mac_dev,
 	struct memac_cfg *memac_drv_param;
 
 	/* allocate memory for the m_emac data structure */
-	memac = kzalloc(sizeof(*memac), GFP_KERNEL);
+	memac = kzalloc_obj(*memac);
 	if (!memac)
 		return NULL;
 
 	/* allocate memory for the m_emac driver parameters data structure */
-	memac_drv_param = kzalloc(sizeof(*memac_drv_param), GFP_KERNEL);
+	memac_drv_param = kzalloc_obj(*memac_drv_param);
 	if (!memac_drv_param) {
 		memac_free(memac);
 		return NULL;

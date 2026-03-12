@@ -443,12 +443,11 @@ int ptp_populate_pin_groups(struct ptp_clock *ptp)
 	if (!n_pins)
 		return 0;
 
-	ptp->pin_dev_attr = kcalloc(n_pins, sizeof(*ptp->pin_dev_attr),
-				    GFP_KERNEL);
+	ptp->pin_dev_attr = kzalloc_objs(*ptp->pin_dev_attr, n_pins);
 	if (!ptp->pin_dev_attr)
 		goto no_dev_attr;
 
-	ptp->pin_attr = kcalloc(1 + n_pins, sizeof(*ptp->pin_attr), GFP_KERNEL);
+	ptp->pin_attr = kzalloc_objs(*ptp->pin_attr, 1 + n_pins);
 	if (!ptp->pin_attr)
 		goto no_pin_attr;
 

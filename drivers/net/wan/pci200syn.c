@@ -281,7 +281,7 @@ static int pci200_pci_init_one(struct pci_dev *pdev,
 		return i;
 	}
 
-	card = kzalloc(sizeof(card_t), GFP_KERNEL);
+	card = kzalloc_obj(card_t);
 	if (!card) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

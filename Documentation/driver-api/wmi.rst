@@ -16,5 +16,8 @@ which will be bound to compatible WMI devices by the driver core.
 .. kernel-doc:: include/linux/wmi.h
    :internal:
 
+.. kernel-doc:: drivers/platform/wmi/string.c
+   :export:
+
 .. kernel-doc:: drivers/platform/wmi/core.c
    :export:

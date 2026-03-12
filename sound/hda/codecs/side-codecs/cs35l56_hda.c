@@ -249,7 +249,7 @@ static int cs35l56_hda_posture_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs35l56_hda *cs35l56 = snd_kcontrol_chip(kcontrol);
-	unsigned long pos = ucontrol->value.integer.value[0];
+	long pos = ucontrol->value.integer.value[0];
 	bool changed;
 	int ret;
 
@@ -402,10 +402,6 @@ static void cs35l56_hda_remove_controls(struct cs35l56_hda *cs35l56)
 	snd_ctl_remove(cs35l56->codec->card, cs35l56->posture_ctl);
 	snd_ctl_remove(cs35l56->codec->card, cs35l56->volume_ctl);
 }
-
-static const struct cs_dsp_client_ops cs35l56_hda_client_ops = {
-	/* cs_dsp requires the client to provide this even if it is empty */
-};
 
 static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 					     const struct firmware **firmware, char **filename,
@@ -588,7 +584,8 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 
 	cs35l56->base.fw_patched = false;
 
-	ret = pm_runtime_resume_and_get(cs35l56->base.dev);
+	PM_RUNTIME_ACQUIRE_IF_ENABLED(cs35l56->base.dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret < 0) {
 		dev_err(cs35l56->base.dev, "Failed to resume and get %d\n", ret);
 		return;
@@ -601,7 +598,7 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 */
 	ret = cs35l56_read_prot_status(&cs35l56->base, &firmware_missing, &preloaded_fw_ver);
 	if (ret)
-		goto err_pm_put;
+		return;
 
 	if (firmware_missing)
 		preloaded_fw_ver = 0;
@@ -690,8 +687,6 @@ err:
 err_fw_release:
 	cs35l56_hda_release_firmware_files(wmfw_firmware, wmfw_filename,
 					   coeff_firmware, coeff_filename);
-err_pm_put:
-	pm_runtime_put(cs35l56->base.dev);
 }
 
 static void cs35l56_hda_dsp_work(struct work_struct *work)
@@ -708,14 +703,12 @@ static ssize_t cs35l56_hda_debugfs_calibrate_write(struct file *file,
 	struct cs35l56_base *cs35l56_base = file->private_data;
 	ssize_t ret;
 
-	ret = pm_runtime_resume_and_get(cs35l56_base->dev);
+	PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(cs35l56_base->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret)
 		return ret;
 
-	ret = cs35l56_calibrate_debugfs_write(cs35l56_base, from, count, ppos);
-	pm_runtime_autosuspend(cs35l56_base->dev);
-
-	return ret;
+	return cs35l56_calibrate_debugfs_write(cs35l56_base, from, count, ppos);
 }
 
 static ssize_t cs35l56_hda_debugfs_cal_temperature_write(struct file *file,
@@ -725,14 +718,12 @@ static ssize_t cs35l56_hda_debugfs_cal_temperature_write(struct file *file,
 	struct cs35l56_base *cs35l56_base = file->private_data;
 	ssize_t ret;
 
-	ret = pm_runtime_resume_and_get(cs35l56_base->dev);
+	PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(cs35l56_base->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret)
 		return ret;
 
-	ret = cs35l56_cal_ambient_debugfs_write(cs35l56_base, from, count, ppos);
-	pm_runtime_autosuspend(cs35l56_base->dev);
-
-	return ret;
+	return cs35l56_cal_ambient_debugfs_write(cs35l56_base, from, count, ppos);
 }
 
 static ssize_t cs35l56_hda_debugfs_cal_data_read(struct file *file,
@@ -742,14 +733,12 @@ static ssize_t cs35l56_hda_debugfs_cal_data_read(struct file *file,
 	struct cs35l56_base *cs35l56_base = file->private_data;
 	ssize_t ret;
 
-	ret = pm_runtime_resume_and_get(cs35l56_base->dev);
+	PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(cs35l56_base->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret)
 		return ret;
 
-	ret = cs35l56_cal_data_debugfs_read(cs35l56_base, to, count, ppos);
-	pm_runtime_autosuspend(cs35l56_base->dev);
-
-	return ret;
+	return cs35l56_cal_data_debugfs_read(cs35l56_base, to, count, ppos);
 }
 
 static ssize_t cs35l56_hda_debugfs_cal_data_write(struct file *file,
@@ -767,7 +756,8 @@ static ssize_t cs35l56_hda_debugfs_cal_data_write(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	ret = pm_runtime_resume_and_get(cs35l56_base->dev);
+	PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(cs35l56_base->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (ret)
 		return ret;
 
@@ -776,8 +766,6 @@ static ssize_t cs35l56_hda_debugfs_cal_data_write(struct file *file,
 		cs35l56_mbox_send(cs35l56_base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 	else
 		count = -EIO;
-
-	pm_runtime_autosuspend(cs35l56_base->dev);
 
 	return count;
 }
@@ -1157,7 +1145,6 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	cs35l56->base.cal_index = cs35l56->index;
 
 	cs35l56_init_cs_dsp(&cs35l56->base, &cs35l56->cs_dsp);
-	cs35l56->cs_dsp.client_ops = &cs35l56_hda_client_ops;
 
 	if (cs35l56->base.reset_gpio) {
 		dev_dbg(cs35l56->base.dev, "Hard reset\n");

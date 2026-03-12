@@ -321,7 +321,7 @@ static int brcmf_pno_prep_fwconfig(struct brcmf_pno_info *pi,
 	}
 
 	*buckets = NULL;
-	fw_buckets = kcalloc(pi->n_reqs, sizeof(*fw_buckets), GFP_KERNEL);
+	fw_buckets = kzalloc_objs(*fw_buckets, pi->n_reqs);
 	if (!fw_buckets)
 		return -ENOMEM;
 
@@ -517,7 +517,7 @@ int brcmf_pno_attach(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_pno_info *pi;
 
 	brcmf_dbg(TRACE, "enter\n");
-	pi = kzalloc(sizeof(*pi), GFP_KERNEL);
+	pi = kzalloc_obj(*pi);
 	if (!pi)
 		return -ENOMEM;
 

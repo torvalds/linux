@@ -798,7 +798,7 @@ static bool __init sgx_page_cache_init(void)
 	int nid;
 	int i;
 
-	sgx_numa_nodes = kmalloc_array(num_possible_nodes(), sizeof(*sgx_numa_nodes), GFP_KERNEL);
+	sgx_numa_nodes = kmalloc_objs(*sgx_numa_nodes, num_possible_nodes());
 	if (!sgx_numa_nodes)
 		return false;
 

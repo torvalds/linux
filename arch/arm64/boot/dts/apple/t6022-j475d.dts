@@ -16,6 +16,11 @@
 / {
 	compatible = "apple,j475d", "apple,t6022", "apple,arm-platform";
 	model = "Apple Mac Studio (M2 Ultra, 2023)";
+
+	aliases {
+		atcphy4 = &atcphy0_die1;
+		atcphy5 = &atcphy1_die1;
+	};
 };
 
 &framebuffer0 {
@@ -30,6 +35,32 @@
 &pcie0_dart_1 {
 	status = "okay";
 };
+
+&typec4 {
+	label = "USB-C Front Right";
+};
+
+&typec5 {
+	label = "USB-C Front Left";
+};
+
+/* delete unused USB nodes on die 1 */
+/delete-node/ &dwc3_2_dart_0_die1;
+/delete-node/ &dwc3_2_dart_1_die1;
+/delete-node/ &dwc3_2_die1;
+/delete-node/ &atcphy2_die1;
+
+/delete-node/ &dwc3_3_dart_0_die1;
+/delete-node/ &dwc3_3_dart_1_die1;
+/delete-node/ &dwc3_3_die1;
+/delete-node/ &atcphy3_die1;
+
+/* delete unused always-on power-domains on die 1 */
+/delete-node/ &ps_atc2_usb_aon_die1;
+/delete-node/ &ps_atc2_usb_die1;
+
+/delete-node/ &ps_atc3_usb_aon_die1;
+/delete-node/ &ps_atc3_usb_die1;
 
 &wifi0 {
 	compatible = "pci14e4,4434";

@@ -577,7 +577,7 @@ struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
 
 	mxl_dbg("()");
 
-	state = kzalloc(sizeof(struct mxl111sf_demod_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mxl111sf_demod_state);
 	if (state == NULL)
 		return NULL;
 

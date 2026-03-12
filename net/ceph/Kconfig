@@ -6,6 +6,7 @@ config CEPH_LIB
 	select CRYPTO_AES
 	select CRYPTO_CBC
 	select CRYPTO_GCM
+	select CRYPTO_KRB5
 	select CRYPTO_LIB_SHA256
 	select CRYPTO
 	select KEYS

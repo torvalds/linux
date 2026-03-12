@@ -359,7 +359,7 @@ mlx5_generate_ttc_rule(struct mlx5_core_dev *dev, struct mlx5_flow_table *ft,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -536,7 +536,7 @@ static int mlx5_create_ttc_table_groups(struct mlx5_ttc_table *ttc,
 	int err;
 	u8 *mc;
 
-	ttc->g = kcalloc(groups->num_groups, sizeof(*ttc->g), GFP_KERNEL);
+	ttc->g = kzalloc_objs(*ttc->g, groups->num_groups);
 	if (!ttc->g)
 		return -ENOMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -630,7 +630,7 @@ mlx5_generate_inner_ttc_rule(struct mlx5_core_dev *dev,
 	int err = 0;
 	u8 ipv;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -713,7 +713,7 @@ static int mlx5_create_inner_ttc_table_groups(struct mlx5_ttc_table *ttc,
 	int err;
 	u8 *mc;
 
-	ttc->g = kcalloc(groups->num_groups, sizeof(*ttc->g), GFP_KERNEL);
+	ttc->g = kzalloc_objs(*ttc->g, groups->num_groups);
 	if (!ttc->g)
 		return -ENOMEM;
 	in = kvzalloc(inlen, GFP_KERNEL);
@@ -804,7 +804,7 @@ struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	ttc = kvzalloc_obj(*ttc);
 	if (!ttc)
 		return ERR_PTR(-ENOMEM);
 
@@ -882,7 +882,7 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	ttc = kvzalloc_obj(*ttc);
 	if (!ttc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1029,7 +1029,7 @@ mlx5_ttc_create_ipsec_outer_rule(struct mlx5_ttc_table *ttc,
 	if (err)
 		return ERR_PTR(err);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -1070,7 +1070,7 @@ mlx5_ttc_create_ipsec_inner_rule(struct mlx5_ttc_table *ttc,
 	if (err)
 		return ERR_PTR(err);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 

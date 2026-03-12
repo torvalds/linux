@@ -191,11 +191,9 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 	return rt715_sdca_init(&slave->dev, mbq_regmap, regmap, slave);
 }
 
-static int rt715_sdca_sdw_remove(struct sdw_slave *slave)
+static void rt715_sdca_sdw_remove(struct sdw_slave *slave)
 {
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 static const struct sdw_device_id rt715_sdca_id[] = {

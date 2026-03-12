@@ -15,7 +15,7 @@ The CODEC device in DA9055 has a separate, configurable I2C address and so
 is instantiated separately from the PMIC.
 
 For details on accompanying CODEC I2C device, see the following:
-Documentation/devicetree/bindings/sound/da9055.txt
+Documentation/devicetree/bindings/sound/trivial-codec.yaml
 
 ======
 

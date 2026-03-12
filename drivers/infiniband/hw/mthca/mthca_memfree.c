@@ -145,7 +145,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 	/* We use sg_set_buf for coherent allocs, which assumes low memory */
 	BUG_ON(coherent && (gfp_mask & __GFP_HIGHMEM));
 
-	icm = kmalloc(sizeof *icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+	icm = kmalloc_obj(*icm, gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 	if (!icm)
 		return icm;
 
@@ -156,8 +156,8 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 
 	while (npages > 0) {
 		if (!chunk) {
-			chunk = kmalloc(sizeof *chunk,
-					gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+			chunk = kmalloc_obj(*chunk,
+					    gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 			if (!chunk)
 				goto fail;
 
@@ -367,7 +367,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	obj_per_chunk = MTHCA_TABLE_CHUNK_SIZE / obj_size;
 	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
-	table = kmalloc(struct_size(table, icm, num_icm), GFP_KERNEL);
+	table = kmalloc_flex(*table, icm, num_icm);
 	if (!table)
 		return NULL;
 
@@ -532,7 +532,7 @@ struct mthca_user_db_table *mthca_init_user_db_tab(struct mthca_dev *dev)
 		return NULL;
 
 	npages = dev->uar_table.uarc_size / MTHCA_ICM_PAGE_SIZE;
-	db_tab = kmalloc(struct_size(db_tab, page, npages), GFP_KERNEL);
+	db_tab = kmalloc_flex(*db_tab, page, npages);
 	if (!db_tab)
 		return ERR_PTR(-ENOMEM);
 
@@ -707,7 +707,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	if (!mthca_is_memfree(dev))
 		return 0;
 
-	dev->db_tab = kmalloc(sizeof *dev->db_tab, GFP_KERNEL);
+	dev->db_tab = kmalloc_obj(*dev->db_tab);
 	if (!dev->db_tab)
 		return -ENOMEM;
 
@@ -717,9 +717,8 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	dev->db_tab->max_group1 = 0;
 	dev->db_tab->min_group2 = dev->db_tab->npages - 1;
 
-	dev->db_tab->page = kmalloc_array(dev->db_tab->npages,
-					  sizeof(*dev->db_tab->page),
-					  GFP_KERNEL);
+	dev->db_tab->page = kmalloc_objs(*dev->db_tab->page,
+					 dev->db_tab->npages);
 	if (!dev->db_tab->page) {
 		kfree(dev->db_tab);
 		return -ENOMEM;

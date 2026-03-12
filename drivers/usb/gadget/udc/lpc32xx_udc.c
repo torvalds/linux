@@ -1705,7 +1705,7 @@ static struct usb_request *lpc32xx_ep_alloc_request(struct usb_ep *_ep,
 {
 	struct lpc32xx_request *req;
 
-	req = kzalloc(sizeof(struct lpc32xx_request), gfp_flags);
+	req = kzalloc_obj(struct lpc32xx_request, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -3020,7 +3020,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	pdev->dev.dma_mask = &lpc32xx_usbd_dmamask;
 	retval = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (retval)
-		return retval;
+		goto err_put_client;
 
 	udc->board = &lpc32xx_usbddata;
 
@@ -3038,28 +3038,32 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	/* Get IRQs */
 	for (i = 0; i < 4; i++) {
 		udc->udp_irq[i] = platform_get_irq(pdev, i);
-		if (udc->udp_irq[i] < 0)
-			return udc->udp_irq[i];
+		if (udc->udp_irq[i] < 0) {
+			retval = udc->udp_irq[i];
+			goto err_put_client;
+		}
 	}
 
 	udc->udp_baseaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->udp_baseaddr)) {
 		dev_err(udc->dev, "IO map failure\n");
-		return PTR_ERR(udc->udp_baseaddr);
+		retval = PTR_ERR(udc->udp_baseaddr);
+		goto err_put_client;
 	}
 
 	/* Get USB device clock */
 	udc->usb_slv_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc->usb_slv_clk)) {
 		dev_err(udc->dev, "failed to acquire USB device clock\n");
-		return PTR_ERR(udc->usb_slv_clk);
+		retval = PTR_ERR(udc->usb_slv_clk);
+		goto err_put_client;
 	}
 
 	/* Enable USB device clock */
 	retval = clk_prepare_enable(udc->usb_slv_clk);
 	if (retval < 0) {
 		dev_err(udc->dev, "failed to start USB device clock\n");
-		return retval;
+		goto err_put_client;
 	}
 
 	/* Setup deferred workqueue data */
@@ -3080,7 +3084,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (!udc->udca_v_base) {
 		dev_err(udc->dev, "error getting UDCA region\n");
 		retval = -ENOMEM;
-		goto i2c_fail;
+		goto err_disable_clk;
 	}
 	udc->udca_p_base = dma_handle;
 	dev_dbg(udc->dev, "DMA buffer(0x%x bytes), P:0x%08x, V:0x%p\n",
@@ -3093,7 +3097,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (!udc->dd_cache) {
 		dev_err(udc->dev, "error getting DD DMA region\n");
 		retval = -ENOMEM;
-		goto dma_alloc_fail;
+		goto err_free_dma;
 	}
 
 	/* Clear USB peripheral and initialize gadget endpoints */
@@ -3107,14 +3111,14 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (retval < 0) {
 		dev_err(udc->dev, "LP request irq %d failed\n",
 			udc->udp_irq[IRQ_USB_LP]);
-		goto irq_req_fail;
+		goto err_destroy_pool;
 	}
 	retval = devm_request_irq(dev, udc->udp_irq[IRQ_USB_HP],
 				  lpc32xx_usb_hp_irq, 0, "udc_hp", udc);
 	if (retval < 0) {
 		dev_err(udc->dev, "HP request irq %d failed\n",
 			udc->udp_irq[IRQ_USB_HP]);
-		goto irq_req_fail;
+		goto err_destroy_pool;
 	}
 
 	retval = devm_request_irq(dev, udc->udp_irq[IRQ_USB_DEVDMA],
@@ -3122,7 +3126,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (retval < 0) {
 		dev_err(udc->dev, "DEV request irq %d failed\n",
 			udc->udp_irq[IRQ_USB_DEVDMA]);
-		goto irq_req_fail;
+		goto err_destroy_pool;
 	}
 
 	/* The transceiver interrupt is used for VBUS detection and will
@@ -3133,7 +3137,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (retval < 0) {
 		dev_err(udc->dev, "VBUS request irq %d failed\n",
 			udc->udp_irq[IRQ_USB_ATX]);
-		goto irq_req_fail;
+		goto err_destroy_pool;
 	}
 
 	/* Initialize wait queue */
@@ -3142,7 +3146,7 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 
 	retval = usb_add_gadget_udc(dev, &udc->gadget);
 	if (retval < 0)
-		goto add_gadget_fail;
+		goto err_destroy_pool;
 
 	dev_set_drvdata(dev, udc);
 	device_init_wakeup(dev, 1);
@@ -3154,14 +3158,16 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	dev_info(udc->dev, "%s version %s\n", driver_name, DRIVER_VERSION);
 	return 0;
 
-add_gadget_fail:
-irq_req_fail:
+err_destroy_pool:
 	dma_pool_destroy(udc->dd_cache);
-dma_alloc_fail:
+err_free_dma:
 	dma_free_coherent(&pdev->dev, UDCA_BUFF_SIZE,
 			  udc->udca_v_base, udc->udca_p_base);
-i2c_fail:
+err_disable_clk:
 	clk_disable_unprepare(udc->usb_slv_clk);
+err_put_client:
+	put_device(&udc->isp1301_i2c_client->dev);
+
 	dev_err(udc->dev, "%s probe failed, %d\n", driver_name, retval);
 
 	return retval;
@@ -3190,6 +3196,8 @@ static void lpc32xx_udc_remove(struct platform_device *pdev)
 			  udc->udca_v_base, udc->udca_p_base);
 
 	clk_disable_unprepare(udc->usb_slv_clk);
+
+	put_device(&udc->isp1301_i2c_client->dev);
 }
 
 #ifdef CONFIG_PM

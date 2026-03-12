@@ -135,7 +135,7 @@ nvkm_i2c_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_i2c_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_i2c_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
 	struct nvkm_i2c_pad *pad;
@@ -266,7 +266,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 	u8 ver, hdr;
 	int ret, i, ids;
 
-	if (!(i2c = *pi2c = kzalloc(sizeof(*i2c), GFP_KERNEL)))
+	if (!(i2c = *pi2c = kzalloc_obj(*i2c)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_i2c, device, type, inst, &i2c->subdev);

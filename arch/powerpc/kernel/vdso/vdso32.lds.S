@@ -124,6 +124,7 @@ VERSION
 		__kernel_clock_gettime;
 		__kernel_clock_gettime64;
 		__kernel_clock_getres;
+		__kernel_clock_getres_time64;
 		__kernel_time;
 		__kernel_get_tbfreq;
 		__kernel_sync_dicache;

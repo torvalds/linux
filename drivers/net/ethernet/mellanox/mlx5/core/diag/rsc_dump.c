@@ -137,7 +137,7 @@ struct mlx5_rsc_dump_cmd *mlx5_rsc_dump_cmd_create(struct mlx5_core_dev *dev,
 	if (!sgmt_type && key->rsc != MLX5_SGMT_TYPE_MENU)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		mlx5_core_err(dev, "Resource dump: Failed to allocate command\n");
 		return ERR_PTR(-ENOMEM);
@@ -255,7 +255,7 @@ struct mlx5_rsc_dump *mlx5_rsc_dump_create(struct mlx5_core_dev *dev)
 		mlx5_core_dbg(dev, "Resource dump: capability not present\n");
 		return NULL;
 	}
-	rsc_dump = kzalloc(sizeof(*rsc_dump), GFP_KERNEL);
+	rsc_dump = kzalloc_obj(*rsc_dump);
 	if (!rsc_dump)
 		return ERR_PTR(-ENOMEM);
 

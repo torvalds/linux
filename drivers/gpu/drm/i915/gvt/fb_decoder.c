@@ -35,17 +35,17 @@
 
 #include <uapi/drm/drm_fourcc.h>
 
+#include "display/i9xx_plane_regs.h"
+#include "display/intel_cursor_regs.h"
+#include "display/intel_display_regs.h"
+#include "display/intel_sprite_regs.h"
+#include "display/skl_universal_plane_regs.h"
+
+#include "display_helpers.h"
 #include "gvt.h"
 #include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "i915_reg.h"
-#include "display/intel_display_regs.h"
-
-#include "display/i9xx_plane_regs.h"
-#include "display/intel_cursor_regs.h"
-#include "display/intel_display_core.h"
-#include "display/intel_sprite_regs.h"
-#include "display/skl_universal_plane_regs.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {

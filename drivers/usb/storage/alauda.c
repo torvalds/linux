@@ -1113,7 +1113,7 @@ static int init_alauda(struct us_data *us)
 	struct usb_host_interface *altsetting = us->pusb_intf->cur_altsetting;
 	nand_init_ecc();
 
-	us->extra = kzalloc(sizeof(struct alauda_info), GFP_NOIO);
+	us->extra = kzalloc_obj(struct alauda_info, GFP_NOIO);
 	if (!us->extra)
 		return -ENOMEM;
 

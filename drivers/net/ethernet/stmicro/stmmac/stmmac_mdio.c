@@ -483,7 +483,7 @@ void stmmac_pcs_clean(struct net_device *ndev)
  *	If a specific clk_csr value is passed from the platform
  *	this means that the CSR Clock Range selection cannot be
  *	changed at run-time and it is fixed (as reported in the driver
- *	documentation). Viceversa the driver will try to set the MDC
+ *	documentation). Vice versa the driver will try to set the MDC
  *	clock dynamically according to the actual clock input.
  */
 static u32 stmmac_clk_csr_set(struct stmmac_priv *priv)

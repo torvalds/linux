@@ -295,7 +295,7 @@ static int stk1160_probe(struct usb_interface *interface,
 		return rc;
 	}
 
-	dev = kzalloc(sizeof(struct stk1160), GFP_KERNEL);
+	dev = kzalloc_obj(struct stk1160);
 	if (dev == NULL) {
 		kfree(alt_max_pkt_size);
 		return -ENOMEM;

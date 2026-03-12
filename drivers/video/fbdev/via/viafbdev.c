@@ -840,7 +840,7 @@ static int viafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		struct {
 			u8 data[CURSOR_SIZE];
 			u32 bak[CURSOR_SIZE / 4];
-		} *cr_data = kzalloc(sizeof(*cr_data), GFP_ATOMIC);
+		} *cr_data = kzalloc_obj(*cr_data, GFP_ATOMIC);
 		int size = ((cursor->image.width + 7) >> 3) *
 			cursor->image.height;
 

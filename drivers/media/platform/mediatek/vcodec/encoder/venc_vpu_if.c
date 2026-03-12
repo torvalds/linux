@@ -133,7 +133,7 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 int vpu_enc_init(struct venc_vpu_inst *vpu)
 {
 	int status;
-	struct venc_ap_ipi_msg_init out;
+	struct venc_ap_ipi_msg_init out = { };
 
 	init_waitqueue_head(&vpu->wq_hd);
 	vpu->signaled = 0;
@@ -149,7 +149,6 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 		return -EINVAL;
 	}
 
-	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_INIT;
 	out.venc_inst = (unsigned long)vpu;
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
@@ -192,11 +191,10 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 	size_t msg_size = is_ext ?
 		sizeof(struct venc_ap_ipi_msg_set_param_ext) :
 		sizeof(struct venc_ap_ipi_msg_set_param);
-	struct venc_ap_ipi_msg_set_param_ext out;
+	struct venc_ap_ipi_msg_set_param_ext out = { };
 
 	mtk_venc_debug(vpu->ctx, "id %d ->", id);
 
-	memset(&out, 0, sizeof(out));
 	out.base.msg_id = AP_IPIMSG_ENC_SET_PARAM;
 	out.base.vpu_inst_addr = vpu->inst_addr;
 	out.base.param_id = id;
@@ -259,11 +257,10 @@ static int vpu_enc_encode_32bits(struct venc_vpu_inst *vpu,
 	size_t msg_size = is_ext ?
 		sizeof(struct venc_ap_ipi_msg_enc_ext) :
 		sizeof(struct venc_ap_ipi_msg_enc);
-	struct venc_ap_ipi_msg_enc_ext out;
+	struct venc_ap_ipi_msg_enc_ext out = { };
 
 	mtk_venc_debug(vpu->ctx, "bs_mode %d ->", bs_mode);
 
-	memset(&out, 0, sizeof(out));
 	out.base.msg_id = AP_IPIMSG_ENC_ENCODE;
 	out.base.vpu_inst_addr = vpu->inst_addr;
 	out.base.bs_mode = bs_mode;
@@ -303,12 +300,11 @@ static int vpu_enc_encode_34bits(struct venc_vpu_inst *vpu,
 				 struct mtk_vcodec_mem *bs_buf,
 				 struct venc_frame_info *frame_info)
 {
-	struct venc_ap_ipi_msg_enc_ext_34 out;
+	struct venc_ap_ipi_msg_enc_ext_34 out = { };
 	size_t msg_size = sizeof(struct venc_ap_ipi_msg_enc_ext_34);
 
 	mtk_venc_debug(vpu->ctx, "bs_mode %d ->", bs_mode);
 
-	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_ENCODE;
 	out.vpu_inst_addr = vpu->inst_addr;
 	out.bs_mode = bs_mode;
@@ -368,9 +364,8 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 
 int vpu_enc_deinit(struct venc_vpu_inst *vpu)
 {
-	struct venc_ap_ipi_msg_deinit out;
+	struct venc_ap_ipi_msg_deinit out = { };
 
-	memset(&out, 0, sizeof(out));
 	out.msg_id = AP_IPIMSG_ENC_DEINIT;
 	out.vpu_inst_addr = vpu->inst_addr;
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {

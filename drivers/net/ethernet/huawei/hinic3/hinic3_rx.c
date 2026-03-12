@@ -33,6 +33,31 @@
 	 HINIC3_RX_IPV6_PKT ? HINIC3_LRO_PKT_HDR_LEN_IPV6 : \
 	 HINIC3_LRO_PKT_HDR_LEN_IPV4)
 
+static void hinic3_rxq_clean_stats(struct hinic3_rxq_stats *rxq_stats)
+{
+	u64_stats_update_begin(&rxq_stats->syncp);
+	rxq_stats->bytes = 0;
+	rxq_stats->packets = 0;
+	rxq_stats->errors = 0;
+	rxq_stats->csum_errors = 0;
+	rxq_stats->other_errors = 0;
+	rxq_stats->dropped = 0;
+	rxq_stats->rx_buf_empty = 0;
+
+	rxq_stats->alloc_skb_err = 0;
+	rxq_stats->alloc_rx_buf_err = 0;
+	rxq_stats->restore_drop_sge = 0;
+	u64_stats_update_end(&rxq_stats->syncp);
+}
+
+static void hinic3_rxq_stats_init(struct hinic3_rxq *rxq)
+{
+	struct hinic3_rxq_stats *rxq_stats = &rxq->rxq_stats;
+
+	u64_stats_init(&rxq_stats->syncp);
+	hinic3_rxq_clean_stats(rxq_stats);
+}
+
 int hinic3_alloc_rxqs(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -41,7 +66,7 @@ int hinic3_alloc_rxqs(struct net_device *netdev)
 	struct hinic3_rxq *rxq;
 	u16 q_id;
 
-	nic_dev->rxqs = kcalloc(num_rxqs, sizeof(*nic_dev->rxqs), GFP_KERNEL);
+	nic_dev->rxqs = kzalloc_objs(*nic_dev->rxqs, num_rxqs);
 	if (!nic_dev->rxqs)
 		return -ENOMEM;
 
@@ -54,6 +79,8 @@ int hinic3_alloc_rxqs(struct net_device *netdev)
 		rxq->buf_len_shift = ilog2(nic_dev->rx_buf_len);
 		rxq->q_depth = nic_dev->q_params.rq_depth;
 		rxq->q_mask = nic_dev->q_params.rq_depth - 1;
+
+		hinic3_rxq_stats_init(rxq);
 	}
 
 	return 0;
@@ -392,8 +419,7 @@ int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
 
 	for (idx = 0; idx < num_rq; idx++) {
 		rqres = &rxqs_res[idx];
-		rqres->rx_info = kcalloc(rq_depth, sizeof(*rqres->rx_info),
-					 GFP_KERNEL);
+		rqres->rx_info = kzalloc_objs(*rqres->rx_info, rq_depth);
 		if (!rqres->rx_info)
 			goto err_free_rqres;
 

@@ -1320,7 +1320,7 @@ struct bch_control *bch_init(int m, int t, unsigned int prim_poly,
 	if (prim_poly == 0)
 		prim_poly = prim_poly_tab[m-min_m];
 
-	bch = kzalloc(sizeof(*bch), GFP_KERNEL);
+	bch = kzalloc_obj(*bch);
 	if (bch == NULL)
 		goto fail;
 

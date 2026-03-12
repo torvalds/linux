@@ -237,7 +237,7 @@ static struct mmu_notifier *gru_alloc_notifier(struct mm_struct *mm)
 {
 	struct gru_mm_struct *gms;
 
-	gms = kzalloc(sizeof(*gms), GFP_KERNEL);
+	gms = kzalloc_obj(*gms);
 	if (!gms)
 		return ERR_PTR(-ENOMEM);
 	STAT(gms_alloc);

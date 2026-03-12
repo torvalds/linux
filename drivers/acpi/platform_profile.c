@@ -560,8 +560,7 @@ struct device *platform_profile_register(struct device *dev, const char *name,
 	    !ops->profile_set || !ops->probe))
 		return ERR_PTR(-EINVAL);
 
-	struct platform_profile_handler *pprof __free(kfree) = kzalloc(
-		sizeof(*pprof), GFP_KERNEL);
+	struct platform_profile_handler *pprof __free(kfree) = kzalloc_obj(*pprof);
 	if (!pprof)
 		return ERR_PTR(-ENOMEM);
 

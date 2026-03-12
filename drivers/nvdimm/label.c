@@ -982,7 +982,7 @@ static int init_labels(struct nd_mapping *nd_mapping, int num_labels)
 	 * they can be garbage collected after writing the new labels.
 	 */
 	for (i = old_num_labels; i < num_labels; i++) {
-		label_ent = kzalloc(sizeof(*label_ent), GFP_KERNEL);
+		label_ent = kzalloc_obj(*label_ent);
 		if (!label_ent)
 			return -ENOMEM;
 		mutex_lock(&nd_mapping->lock);

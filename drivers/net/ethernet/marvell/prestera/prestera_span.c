@@ -27,7 +27,7 @@ prestera_span_entry_create(struct prestera_port *port, u8 span_id)
 {
 	struct prestera_span_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -170,7 +170,7 @@ int prestera_span_init(struct prestera_switch *sw)
 {
 	struct prestera_span *span;
 
-	span = kzalloc(sizeof(*span), GFP_KERNEL);
+	span = kzalloc_obj(*span);
 	if (!span)
 		return -ENOMEM;
 

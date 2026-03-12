@@ -1330,7 +1330,7 @@ static struct usb_request *m66592_alloc_request(struct usb_ep *_ep,
 {
 	struct m66592_request *req;
 
-	req = kzalloc(sizeof(struct m66592_request), gfp_flags);
+	req = kzalloc_obj(struct m66592_request, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -1571,7 +1571,7 @@ static int m66592_probe(struct platform_device *pdev)
 	}
 
 	/* initialize ucd */
-	m66592 = kzalloc(sizeof(struct m66592), GFP_KERNEL);
+	m66592 = kzalloc_obj(struct m66592);
 	if (m66592 == NULL) {
 		ret = -ENOMEM;
 		goto clean_up;

@@ -13,7 +13,7 @@ mlx5dr_fw_create_recalc_cs_ft(struct mlx5dr_domain *dmn, u16 vport_num)
 	u64 rx_icm_addr, modify_ttl_action;
 	int ret;
 
-	recalc_cs_ft = kzalloc(sizeof(*recalc_cs_ft), GFP_KERNEL);
+	recalc_cs_ft = kzalloc_obj(*recalc_cs_ft);
 	if (!recalc_cs_ft)
 		return NULL;
 

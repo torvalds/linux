@@ -8,9 +8,11 @@
 #ifndef _LINUX_WMI_H
 #define _LINUX_WMI_H
 
+#include <linux/compiler_attributes.h>
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <linux/mod_devicetable.h>
+#include <linux/types.h>
 
 /**
  * struct wmi_device - WMI device structure
@@ -36,6 +38,42 @@ struct wmi_device {
  */
 #define to_wmi_device(device)	container_of_const(device, struct wmi_device, dev)
 
+/**
+ * struct wmi_buffer - WMI data buffer
+ * @length: Buffer length in bytes
+ * @data: Pointer to the buffer content
+ *
+ * This structure is used to exchange data with the WMI driver core.
+ */
+struct wmi_buffer {
+	size_t length;
+	void *data;
+};
+
+/**
+ * struct wmi_string - WMI string representation
+ * @length: Size of @chars in bytes
+ * @chars: UTF16-LE characters with optional nul termination and padding
+ *
+ * This structure is used when exchanging string data over the WMI interface.
+ */
+struct wmi_string {
+	__le16 length;
+	__le16 chars[];
+} __packed;
+
+ssize_t wmi_string_to_utf8s(const struct wmi_string *str, u8 *dst, size_t length);
+
+ssize_t wmi_string_from_utf8s(struct wmi_string *str, size_t max_chars, const u8 *src,
+			      size_t src_length);
+
+int wmidev_invoke_method(struct wmi_device *wdev, u8 instance, u32 method_id,
+			 const struct wmi_buffer *in, struct wmi_buffer *out);
+
+int wmidev_query_block(struct wmi_device *wdev, u8 instance, struct wmi_buffer *out);
+
+int wmidev_set_block(struct wmi_device *wdev, u8 instance, const struct wmi_buffer *in);
+
 acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 method_id,
 				   const struct acpi_buffer *in, struct acpi_buffer *out);
 
@@ -54,9 +92,11 @@ u8 wmidev_instance_count(struct wmi_device *wdev);
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
- * @notify: Callback for receiving WMI events
+ * @notify: Callback for receiving WMI events (deprecated)
+ * @notify_new: Callback for receiving WMI events
  *
- * This represents WMI drivers which handle WMI devices.
+ * This represents WMI drivers which handle WMI devices. The data inside the buffer
+ * passed to the @notify_new callback is guaranteed to be aligned on a 8-byte boundary.
  */
 struct wmi_driver {
 	struct device_driver driver;
@@ -68,6 +108,7 @@ struct wmi_driver {
 	void (*remove)(struct wmi_device *wdev);
 	void (*shutdown)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
+	void (*notify_new)(struct wmi_device *device, const struct wmi_buffer *data);
 };
 
 /**

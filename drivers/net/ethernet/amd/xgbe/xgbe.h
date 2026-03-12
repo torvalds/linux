@@ -659,6 +659,7 @@ struct xgbe_mmc_stats {
 	u64 rxfifooverflow;
 	u64 rxvlanframes_gb;
 	u64 rxwatchdogerror;
+	u64 rxalignmenterror;
 };
 
 struct xgbe_ext_stats {
@@ -1002,9 +1003,6 @@ struct xgbe_prv_data {
 	unsigned int pp2;
 	unsigned int pp3;
 	unsigned int pp4;
-
-	/* Overall device lock */
-	spinlock_t lock;
 
 	/* XPCS indirect addressing lock */
 	spinlock_t xpcs_lock;

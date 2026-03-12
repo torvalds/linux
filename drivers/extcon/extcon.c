@@ -1060,7 +1060,7 @@ struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 	if (!supported_cable)
 		return ERR_PTR(-EINVAL);
 
-	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+	edev = kzalloc_obj(*edev);
 	if (!edev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1098,8 +1098,7 @@ static int extcon_alloc_cables(struct extcon_dev *edev)
 	if (!edev->max_supported)
 		return 0;
 
-	edev->cables = kcalloc(edev->max_supported, sizeof(*edev->cables),
-			       GFP_KERNEL);
+	edev->cables = kzalloc_objs(*edev->cables, edev->max_supported);
 	if (!edev->cables)
 		return -ENOMEM;
 
@@ -1160,13 +1159,11 @@ static int extcon_alloc_muex(struct extcon_dev *edev)
 	for (index = 0; edev->mutually_exclusive[index]; index++)
 		;
 
-	edev->attrs_muex = kcalloc(index + 1, sizeof(*edev->attrs_muex),
-				   GFP_KERNEL);
+	edev->attrs_muex = kzalloc_objs(*edev->attrs_muex, index + 1);
 	if (!edev->attrs_muex)
 		return -ENOMEM;
 
-	edev->d_attrs_muex = kcalloc(index, sizeof(*edev->d_attrs_muex),
-				     GFP_KERNEL);
+	edev->d_attrs_muex = kzalloc_objs(*edev->d_attrs_muex, index);
 	if (!edev->d_attrs_muex) {
 		kfree(edev->attrs_muex);
 		return -ENOMEM;
@@ -1210,9 +1207,8 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
 	if (!edev->max_supported)
 		return 0;
 
-	edev->extcon_dev_type.groups = kcalloc(edev->max_supported + 2,
-					  sizeof(*edev->extcon_dev_type.groups),
-					  GFP_KERNEL);
+	edev->extcon_dev_type.groups = kzalloc_objs(*edev->extcon_dev_type.groups,
+						    edev->max_supported + 2);
 	if (!edev->extcon_dev_type.groups)
 		return -ENOMEM;
 
@@ -1294,8 +1290,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	spin_lock_init(&edev->lock);
 	if (edev->max_supported) {
-		edev->nh = kcalloc(edev->max_supported, sizeof(*edev->nh),
-				GFP_KERNEL);
+		edev->nh = kzalloc_objs(*edev->nh, edev->max_supported);
 		if (!edev->nh) {
 			ret = -ENOMEM;
 			goto err_alloc_nh;

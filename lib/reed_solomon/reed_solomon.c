@@ -2,7 +2,7 @@
 /*
  * Generic Reed Solomon encoder / decoder library
  *
- * Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
+ * Copyright (C) 2004 Thomas Gleixner (tglx@kernel.org)
  *
  * Reed Solomon code lifted from reed solomon library written by Phil Karn
  * Copyright 2002 Phil Karn, KA9Q
@@ -73,7 +73,7 @@ static struct rs_codec *codec_init(int symsize, int gfpoly, int (*gffunc)(int),
 	int i, j, sr, root, iprim;
 	struct rs_codec *rs;
 
-	rs = kzalloc(sizeof(*rs), gfp);
+	rs = kzalloc_obj(*rs, gfp);
 	if (!rs)
 		return NULL;
 

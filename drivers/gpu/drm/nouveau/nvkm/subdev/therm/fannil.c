@@ -40,7 +40,7 @@ nvkm_fannil_create(struct nvkm_therm *therm)
 {
 	struct nvkm_fan *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	therm->fan = priv;
 	if (!priv)
 		return -ENOMEM;

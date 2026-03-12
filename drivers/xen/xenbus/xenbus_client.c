@@ -226,8 +226,9 @@ __xenbus_switch_state(struct xenbus_device *dev,
 	struct xenbus_transaction xbt;
 	int current_state;
 	int err, abort;
+	bool vanished = false;
 
-	if (state == dev->state)
+	if (state == dev->state || dev->vanished)
 		return 0;
 
 again:
@@ -242,6 +243,10 @@ again:
 	err = xenbus_scanf(xbt, dev->nodename, "state", "%d", &current_state);
 	if (err != 1)
 		goto abort;
+	if (current_state != dev->state && current_state == XenbusStateInitialising) {
+		vanished = true;
+		goto abort;
+	}
 
 	err = xenbus_printf(xbt, dev->nodename, "state", "%d", state);
 	if (err) {
@@ -256,7 +261,7 @@ abort:
 		if (err == -EAGAIN && !abort)
 			goto again;
 		xenbus_switch_fatal(dev, depth, err, "ending transaction");
-	} else
+	} else if (!vanished)
 		dev->state = state;
 
 	return 0;
@@ -535,11 +540,11 @@ int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
-	info->node = kzalloc(sizeof(*info->node), GFP_KERNEL);
+	info->node = kzalloc_obj(*info->node);
 	if (!info->node)
 		err = -ENOMEM;
 	else
@@ -931,14 +936,20 @@ static int xenbus_unmap_ring_hvm(struct xenbus_device *dev, void *vaddr)
 
 /**
  * xenbus_read_driver_state - read state from a store path
+ * @dev: xenbus device pointer
  * @path: path for driver
  *
  * Returns: the state of the driver rooted at the given store path, or
  * XenbusStateUnknown if no state can be read.
  */
-enum xenbus_state xenbus_read_driver_state(const char *path)
+enum xenbus_state xenbus_read_driver_state(const struct xenbus_device *dev,
+					   const char *path)
 {
 	enum xenbus_state result;
+
+	if (dev && dev->vanished)
+		return XenbusStateUnknown;
+
 	int err = xenbus_gather(XBT_NIL, path, "state", "%d", &result, NULL);
 	if (err)
 		result = XenbusStateUnknown;

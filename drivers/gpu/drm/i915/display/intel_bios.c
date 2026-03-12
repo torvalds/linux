@@ -486,8 +486,7 @@ init_bdb_block(struct intel_display *display,
 	if (section_id == BDB_MIPI_SEQUENCE && *(const u8 *)block >= 3)
 		block_size += 5;
 
-	entry = kzalloc(struct_size(entry, data, max(min_size, block_size) + 3),
-			GFP_KERNEL);
+	entry = kzalloc_flex(*entry, data, max(min_size, block_size) + 3);
 	if (!entry) {
 		kfree(temp_block);
 		return;
@@ -852,7 +851,7 @@ parse_lfp_panel_dtd(struct intel_display *display,
 					      lfp_data_ptrs,
 					      panel_type);
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -968,7 +967,7 @@ parse_generic_dtd(struct intel_display *display,
 
 	dtd = &generic_dtd->dtd[panel->vbt.panel_type];
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -1141,7 +1140,7 @@ parse_sdvo_lvds_data(struct intel_display *display,
 		return;
 	}
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -2929,7 +2928,7 @@ parse_general_definitions(struct intel_display *display)
 			    "Found VBT child device with type 0x%x\n",
 			    child->device_type);
 
-		devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+		devdata = kzalloc_obj(*devdata);
 		if (!devdata)
 			break;
 
@@ -3010,7 +3009,7 @@ init_vbt_missing_defaults(struct intel_display *display)
 			continue;
 
 		/* Create fake child device config */
-		devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+		devdata = kzalloc_obj(*devdata);
 		if (!devdata)
 			break;
 

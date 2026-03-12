@@ -300,7 +300,7 @@ static int __init ftm_timer_init(struct device_node *np)
 	unsigned long freq;
 	int ret, irq;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

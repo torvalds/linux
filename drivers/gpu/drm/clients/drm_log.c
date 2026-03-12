@@ -182,7 +182,7 @@ static u32 drm_log_find_usable_format(struct drm_plane *plane)
 	int i;
 
 	for (i = 0; i < plane->format_count; i++)
-		if (drm_draw_color_from_xrgb8888(0xffffff, plane->format_types[i]) != 0)
+		if (drm_draw_can_convert_from_xrgb8888(plane->format_types[i]))
 			return plane->format_types[i];
 	return DRM_FORMAT_INVALID;
 }
@@ -248,7 +248,7 @@ static void drm_log_init_client(struct drm_log *dlog)
 	if (!max_modeset)
 		return;
 
-	dlog->scanout = kcalloc(max_modeset, sizeof(*dlog->scanout), GFP_KERNEL);
+	dlog->scanout = kzalloc_objs(*dlog->scanout, max_modeset);
 	if (!dlog->scanout)
 		return;
 
@@ -419,7 +419,7 @@ void drm_log_register(struct drm_device *dev)
 {
 	struct drm_log *new;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		goto err_warn;
 

@@ -816,7 +816,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 
 	mutex_unlock(&dev->dmasound.lock);
 
-	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
+	pcm = kzalloc_obj(*pcm);
 	if (pcm == NULL)
 		return -ENOMEM;
 

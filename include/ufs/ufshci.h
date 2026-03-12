@@ -288,6 +288,7 @@ enum {
 
 /* REG_UFS_MEM_CFG - Global Config Registers 300h */
 #define MCQ_MODE_SELECT	BIT(0)
+#define ESI_ENABLE	BIT(1)
 
 /* CQISy - CQ y Interrupt Status Register  */
 #define UFSHCD_MCQ_CQIS_TAIL_ENT_PUSH_STS	0x1

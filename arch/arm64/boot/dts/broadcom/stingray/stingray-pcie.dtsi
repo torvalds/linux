@@ -38,7 +38,7 @@ pcie8: pcie@60400000 {
 	phy-names = "pcie-phy";
 };
 
-pcie-ss {
+pcie-ss-bus@40000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
 	#size-cells = <1>;

@@ -769,7 +769,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	const u32 *formats;
 	int err;
 
-	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
@@ -943,7 +943,7 @@ static int tegra_display_hub_init(struct host1x_client *client)
 	struct tegra_drm *tegra = drm->dev_private;
 	struct tegra_display_hub_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

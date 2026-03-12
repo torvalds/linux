@@ -41,7 +41,7 @@ static struct property *clone_property(struct property *prop, u32 prop_sz)
 {
 	struct property *new_prop;
 
-	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	new_prop = kzalloc_obj(*new_prop);
 	if (!new_prop)
 		return NULL;
 
@@ -430,8 +430,7 @@ static void __init init_drmem_v1_lmbs(const __be32 *prop)
 	if (drmem_info->n_lmbs == 0)
 		return;
 
-	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
-				   GFP_KERNEL);
+	drmem_info->lmbs = kzalloc_objs(*lmb, drmem_info->n_lmbs);
 	if (!drmem_info->lmbs)
 		return;
 
@@ -458,8 +457,7 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 		drmem_info->n_lmbs += dr_cell.seq_lmbs;
 	}
 
-	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
-				   GFP_KERNEL);
+	drmem_info->lmbs = kzalloc_objs(*lmb, drmem_info->n_lmbs);
 	if (!drmem_info->lmbs)
 		return;
 

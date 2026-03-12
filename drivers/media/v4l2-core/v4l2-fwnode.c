@@ -465,6 +465,9 @@ static int __v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
 	enum v4l2_mbus_type mbus_type;
 	int rval;
 
+	if (!fwnode)
+		return -EINVAL;
+
 	pr_debug("===== begin parsing endpoint %pfw\n", fwnode);
 
 	fwnode_property_read_u32(fwnode, "bus-type", &bus_type);
@@ -782,7 +785,7 @@ int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
 	if (!connector_ep)
 		return -ENOTCONN;
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link);
 	if (!link) {
 		err = -ENOMEM;
 		goto err;
@@ -1254,7 +1257,7 @@ int v4l2_async_register_subdev_sensor(struct v4l2_subdev *sd)
 	if (WARN_ON(!sd->dev))
 		return -ENODEV;
 
-	notifier = kzalloc(sizeof(*notifier), GFP_KERNEL);
+	notifier = kzalloc_obj(*notifier);
 	if (!notifier)
 		return -ENOMEM;
 

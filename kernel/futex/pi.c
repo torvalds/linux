@@ -17,7 +17,7 @@ int refill_pi_state_cache(void)
 	if (likely(current->pi_state_cache))
 		return 0;
 
-	pi_state = kzalloc(sizeof(*pi_state), GFP_KERNEL);
+	pi_state = kzalloc_obj(*pi_state);
 
 	if (!pi_state)
 		return -ENOMEM;

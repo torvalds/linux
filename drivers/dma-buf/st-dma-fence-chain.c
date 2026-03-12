@@ -116,13 +116,11 @@ static int fence_chains_init(struct fence_chains *fc, unsigned int count,
 	unsigned int i;
 	int err = 0;
 
-	fc->chains = kvmalloc_array(count, sizeof(*fc->chains),
-				    GFP_KERNEL | __GFP_ZERO);
+	fc->chains = kvmalloc_objs(*fc->chains, count, GFP_KERNEL | __GFP_ZERO);
 	if (!fc->chains)
 		return -ENOMEM;
 
-	fc->fences = kvmalloc_array(count, sizeof(*fc->fences),
-				    GFP_KERNEL | __GFP_ZERO);
+	fc->fences = kvmalloc_objs(*fc->fences, count, GFP_KERNEL | __GFP_ZERO);
 	if (!fc->fences) {
 		err = -ENOMEM;
 		goto err_chains;
@@ -452,7 +450,7 @@ static int find_race(void *arg)
 	if (err)
 		return err;
 
-	threads = kmalloc_array(ncpus, sizeof(*threads), GFP_KERNEL);
+	threads = kmalloc_objs(*threads, ncpus);
 	if (!threads) {
 		err = -ENOMEM;
 		goto err;

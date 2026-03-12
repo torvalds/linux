@@ -34,7 +34,7 @@ struct platform_device *regulator_register_always_on(int id, const char *name,
 {
 	struct fixed_regulator_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 

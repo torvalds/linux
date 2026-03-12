@@ -201,7 +201,7 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 	if (!psd)
 		return -EINVAL;
 
-	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
+	ce = kzalloc_obj(*ce);
 	if (!ce)
 		return -ENOMEM;
 
@@ -282,7 +282,7 @@ int of_pm_clk_add_clks(struct device *dev)
 	if (count <= 0)
 		return -ENODEV;
 
-	clks = kcalloc(count, sizeof(*clks), GFP_KERNEL);
+	clks = kzalloc_objs(*clks, count);
 	if (!clks)
 		return -ENOMEM;
 

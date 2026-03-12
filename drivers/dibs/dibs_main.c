@@ -133,7 +133,7 @@ struct dibs_dev *dibs_dev_alloc(void)
 {
 	struct dibs_dev *dibs;
 
-	dibs = kzalloc(sizeof(*dibs), GFP_KERNEL);
+	dibs = kzalloc_obj(*dibs);
 	if (!dibs)
 		return dibs;
 	dibs->dev.release = dibs_dev_release;

@@ -30,7 +30,7 @@ static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
 	struct squashfs_stream *stream;
 	int err = -ENOMEM;
 
-	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kmalloc_obj(*stream);
 	if (stream == NULL)
 		goto out;
 

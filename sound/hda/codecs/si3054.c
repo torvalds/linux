@@ -256,7 +256,7 @@ static void si3054_remove(struct hda_codec *codec)
 
 static int si3054_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
-	codec->spec = kzalloc(sizeof(struct si3054_spec), GFP_KERNEL);
+	codec->spec = kzalloc_obj(struct si3054_spec);
 	if (!codec->spec)
 		return -ENOMEM;
 	return 0;

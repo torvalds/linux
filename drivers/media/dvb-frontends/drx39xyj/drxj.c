@@ -12276,7 +12276,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	int result;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct drx39xxj_state), GFP_KERNEL);
+	state = kzalloc_obj(struct drx39xxj_state);
 	if (state == NULL)
 		goto error;
 

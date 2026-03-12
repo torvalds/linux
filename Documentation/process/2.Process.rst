@@ -3,7 +3,7 @@
 How the development process works
 =================================
 
-Linux kernel development in the early 1990's was a pretty loose affair,
+Linux kernel development in the early 1990s was a pretty loose affair,
 with relatively small numbers of users and developers involved.  With a
 user base in the millions and with some 2,000 developers involved over the
 course of one year, the kernel has since had to evolve a number of

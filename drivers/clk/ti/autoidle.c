@@ -191,7 +191,7 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
 	if (of_property_read_u32(node, "ti,autoidle-shift", &shift))
 		return 0;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 
 	if (!clk)
 		return -ENOMEM;

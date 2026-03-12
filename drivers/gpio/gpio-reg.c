@@ -150,7 +150,7 @@ struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
 	if (dev)
 		r = devm_kzalloc(dev, sizeof(*r), GFP_KERNEL);
 	else
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
+		r = kzalloc_obj(*r);
 
 	if (!r)
 		return ERR_PTR(-ENOMEM);

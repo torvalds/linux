@@ -45,6 +45,7 @@
 #include "stm32f769-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "STMicroelectronics STM32F769-DISCO board";
@@ -79,14 +80,18 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led-usr2 {
+		led_usr2: led-usr2 {
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpioj 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 		led-usr1 {
+			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpioj 13 GPIO_ACTIVE_HIGH>;
 		};
 		led-usr3 {
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpioa 12 GPIO_ACTIVE_HIGH>;
 		};
 	};
@@ -98,6 +103,13 @@
 			label = "User";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_usr2>;
 		};
 	};
 

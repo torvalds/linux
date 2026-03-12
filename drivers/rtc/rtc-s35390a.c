@@ -18,6 +18,7 @@
 #define S35390A_CMD_TIME1	2
 #define S35390A_CMD_TIME2	3
 #define S35390A_CMD_INT2_REG1	5
+#define S35390A_CMD_FREE_REG    7
 
 #define S35390A_BYTE_YEAR	0
 #define S35390A_BYTE_MONTH	1
@@ -416,6 +417,23 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 	.ioctl          = s35390a_rtc_ioctl,
 };
 
+static int s35390a_nvmem_read(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct s35390a *s35390a = priv;
+
+	/* The offset is ignored because the NVMEM region is only 1 byte */
+	return s35390a_get_reg(s35390a, S35390A_CMD_FREE_REG, val, bytes);
+}
+
+static int s35390a_nvmem_write(void *priv, unsigned int offset, void *val,
+			       size_t bytes)
+{
+	struct s35390a *s35390a = priv;
+
+	return s35390a_set_reg(s35390a, S35390A_CMD_FREE_REG, val, bytes);
+}
+
 static int s35390a_probe(struct i2c_client *client)
 {
 	int err, err_read;
@@ -424,6 +442,15 @@ static int s35390a_probe(struct i2c_client *client)
 	struct rtc_device *rtc;
 	u8 buf, status1;
 	struct device *dev = &client->dev;
+	struct nvmem_config nvmem_cfg = {
+		.name = "s35390a_nvram",
+		.type = NVMEM_TYPE_BATTERY_BACKED,
+		.word_size = 1,
+		.stride = 1,
+		.size = 1,
+		.reg_read = s35390a_nvmem_read,
+		.reg_write = s35390a_nvmem_write,
+	};
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -489,6 +516,11 @@ static int s35390a_probe(struct i2c_client *client)
 
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(rtc, 1, RTC_AF);
+
+	nvmem_cfg.priv = s35390a;
+	err = devm_rtc_nvmem_register(rtc, &nvmem_cfg);
+	if (err)
+		return err;
 
 	return devm_rtc_register_device(rtc);
 }

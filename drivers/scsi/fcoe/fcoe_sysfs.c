@@ -986,7 +986,7 @@ struct fcoe_fcf_device *fcoe_fcf_device_add(struct fcoe_ctlr_device *ctlr,
 		}
 	}
 
-	fcf = kzalloc(sizeof(struct fcoe_fcf_device), GFP_ATOMIC);
+	fcf = kzalloc_obj(struct fcoe_fcf_device, GFP_ATOMIC);
 	if (unlikely(!fcf))
 		goto out;
 

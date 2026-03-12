@@ -158,8 +158,8 @@ static const struct dma_fence_ops drm_crtc_fence_ops;
 
 static struct drm_crtc *fence_to_crtc(struct dma_fence *fence)
 {
-	BUG_ON(fence->ops != &drm_crtc_fence_ops);
-	return container_of(fence->lock, struct drm_crtc, fence_lock);
+	BUG_ON(rcu_access_pointer(fence->ops) != &drm_crtc_fence_ops);
+	return container_of(fence->extern_lock, struct drm_crtc, fence_lock);
 }
 
 static const char *drm_crtc_fence_get_driver_name(struct dma_fence *fence)
@@ -185,7 +185,7 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 {
 	struct dma_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -845,9 +845,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		connector_set = kmalloc_array(crtc_req->count_connectors,
-					      sizeof(struct drm_connector *),
-					      GFP_KERNEL);
+		connector_set = kmalloc_objs(struct drm_connector *,
+					     crtc_req->count_connectors);
 		if (!connector_set) {
 			ret = -ENOMEM;
 			goto out;

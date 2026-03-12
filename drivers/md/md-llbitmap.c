@@ -712,8 +712,10 @@ static int llbitmap_suspend_timeout(struct llbitmap *llbitmap, int page_idx)
 	percpu_ref_kill(&pctl->active);
 
 	if (!wait_event_timeout(pctl->wait, percpu_ref_is_zero(&pctl->active),
-			llbitmap->mddev->bitmap_info.daemon_sleep * HZ))
+			llbitmap->mddev->bitmap_info.daemon_sleep * HZ)) {
+		percpu_ref_resurrect(&pctl->active);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
@@ -980,7 +982,7 @@ static int llbitmap_create(struct mddev *mddev)
 	if (ret)
 		return ret;
 
-	llbitmap = kzalloc(sizeof(*llbitmap), GFP_KERNEL);
+	llbitmap = kzalloc_obj(*llbitmap);
 	if (!llbitmap)
 		return -ENOMEM;
 

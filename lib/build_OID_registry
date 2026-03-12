@@ -60,10 +60,12 @@ for (my $i = 0; $i <= $#names; $i++) {
     # Determine the encoded length of this OID
     my $size = $#components;
     for (my $loop = 2; $loop <= $#components; $loop++) {
-	my $c = $components[$loop];
+	$ENV{'BC_LINE_LENGTH'} = "0";
+	my $c = `echo "ibase=10; obase=2; $components[$loop]" | bc`;
+	chomp($c);
 
 	# We will base128 encode the number
-	my $tmp = ($c == 0) ? 0 : int(log($c)/log(2));
+	my $tmp = length($c) - 1;
 	$tmp = int($tmp / 7);
 	$size += $tmp;
     }
@@ -100,16 +102,24 @@ for (my $i = 0; $i <= $#names; $i++) {
     push @octets, $components[0] * 40 + $components[1];
 
     for (my $loop = 2; $loop <= $#components; $loop++) {
-	my $c = $components[$loop];
+	# get the base 2 representation of the component
+	$ENV{'BC_LINE_LENGTH'} = "0";
+	my $c = `echo "ibase=10; obase=2; $components[$loop]" | bc`;
+	chomp($c);
 
-	# Base128 encode the number
-	my $tmp = ($c == 0) ? 0 : int(log($c)/log(2));
+	my $tmp = length($c) - 1;
 	$tmp = int($tmp / 7);
 
-	for (; $tmp > 0; $tmp--) {
-	    push @octets, (($c >> $tmp * 7) & 0x7f) | 0x80;
+	# zero pad upto length multiple of 7
+	$c = substr("0000000", 0, ($tmp + 1) * 7 - length($c)).$c;
+
+	# Base128 encode the number
+	for (my $j = 0; $j < $tmp; $j++) {
+	    my $b = oct("0b".substr($c, $j * 7, 7));
+
+	    push @octets, $b | 0x80;
 	}
-	push @octets, $c & 0x7f;
+	push @octets, oct("0b".substr($c, $tmp * 7, 7));
     }
 
     push @encoded_oids, \@octets;

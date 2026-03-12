@@ -313,7 +313,7 @@ static int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	atomic_set(&mhi_cntrl->dev_wake, 0);
 	atomic_set(&mhi_cntrl->pending_pkts, 0);
 
-	mhi_ctxt = kzalloc(sizeof(*mhi_ctxt), GFP_KERNEL);
+	mhi_ctxt = kzalloc_obj(*mhi_ctxt);
 	if (!mhi_ctxt)
 		return -ENOMEM;
 
@@ -699,8 +699,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 
 	num = config->num_events;
 	mhi_cntrl->total_ev_rings = num;
-	mhi_cntrl->mhi_event = kcalloc(num, sizeof(*mhi_cntrl->mhi_event),
-				       GFP_KERNEL);
+	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event, num);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
@@ -841,17 +840,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		mhi_chan->lpm_notify = ch_cfg->lpm_notify;
 		mhi_chan->offload_ch = ch_cfg->offload_channel;
 		mhi_chan->db_cfg.reset_req = ch_cfg->doorbell_mode_switch;
-		mhi_chan->pre_alloc = ch_cfg->auto_queue;
 		mhi_chan->wake_capable = ch_cfg->wake_capable;
-
-		/*
-		 * If MHI host allocates buffers, then the channel direction
-		 * should be DMA_FROM_DEVICE
-		 */
-		if (mhi_chan->pre_alloc && mhi_chan->dir != DMA_FROM_DEVICE) {
-			dev_err(dev, "Invalid channel configuration\n");
-			goto error_chan_cfg;
-		}
 
 		/*
 		 * Bi-directional and direction less channel must be an
@@ -948,8 +937,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	if (ret)
 		return -EINVAL;
 
-	mhi_cntrl->mhi_cmd = kcalloc(NR_OF_CMD_RINGS,
-				     sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
+	mhi_cntrl->mhi_cmd = kzalloc_objs(*mhi_cntrl->mhi_cmd, NR_OF_CMD_RINGS);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
 		goto err_free_event;
@@ -1105,7 +1093,7 @@ struct mhi_controller *mhi_alloc_controller(void)
 {
 	struct mhi_controller *mhi_cntrl;
 
-	mhi_cntrl = kzalloc(sizeof(*mhi_cntrl), GFP_KERNEL);
+	mhi_cntrl = kzalloc_obj(*mhi_cntrl);
 
 	return mhi_cntrl;
 }
@@ -1242,7 +1230,7 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	struct mhi_device *mhi_dev;
 	struct device *dev;
 
-	mhi_dev = kzalloc(sizeof(*mhi_dev), GFP_KERNEL);
+	mhi_dev = kzalloc_obj(*mhi_dev);
 	if (!mhi_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1265,7 +1253,7 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	return mhi_dev;
 }
 
-static int mhi_driver_probe(struct device *dev)
+static int mhi_probe(struct device *dev)
 {
 	struct mhi_device *mhi_dev = to_mhi_device(dev);
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
@@ -1341,7 +1329,7 @@ exit_probe:
 	return ret;
 }
 
-static int mhi_driver_remove(struct device *dev)
+static void mhi_remove(struct device *dev)
 {
 	struct mhi_device *mhi_dev = to_mhi_device(dev);
 	struct mhi_driver *mhi_drv = to_mhi_driver(dev->driver);
@@ -1355,7 +1343,7 @@ static int mhi_driver_remove(struct device *dev)
 
 	/* Skip if it is a controller device */
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)
-		return 0;
+		return;
 
 	/* Reset both channels */
 	for (dir = 0; dir < 2; dir++) {
@@ -1407,8 +1395,6 @@ static int mhi_driver_remove(struct device *dev)
 
 	while (mhi_dev->dev_wake)
 		mhi_device_put(mhi_dev);
-
-	return 0;
 }
 
 int __mhi_driver_register(struct mhi_driver *mhi_drv, struct module *owner)
@@ -1420,8 +1406,6 @@ int __mhi_driver_register(struct mhi_driver *mhi_drv, struct module *owner)
 
 	driver->bus = &mhi_bus_type;
 	driver->owner = owner;
-	driver->probe = mhi_driver_probe;
-	driver->remove = mhi_driver_remove;
 
 	return driver_register(driver);
 }
@@ -1468,6 +1452,8 @@ const struct bus_type mhi_bus_type = {
 	.dev_name = "mhi",
 	.match = mhi_match,
 	.uevent = mhi_uevent,
+	.probe = mhi_probe,
+	.remove = mhi_remove,
 	.dev_groups = mhi_dev_groups,
 };
 

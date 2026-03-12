@@ -58,7 +58,7 @@ of_init(struct nvkm_bios *bios, const char *name)
 	struct priv *priv;
 	if (!(dn = pci_device_to_OF_node(pdev)))
 		return ERR_PTR(-ENODEV);
-	if (!(priv = kzalloc(sizeof(*priv), GFP_KERNEL)))
+	if (!(priv = kzalloc_obj(*priv)))
 		return ERR_PTR(-ENOMEM);
 	if ((priv->data = of_get_property(dn, "NVDA,BMP", &priv->size)))
 		return priv;

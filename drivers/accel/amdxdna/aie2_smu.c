@@ -84,7 +84,6 @@ int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 	}
 
 	ndev->hclk_freq = freq;
-	ndev->dpm_level = dpm_level;
 	ndev->max_tops = 2 * ndev->total_col;
 	ndev->curr_tops = ndev->max_tops * freq / 1028;
 
@@ -114,7 +113,6 @@ int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 
 	ndev->npuclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].npuclk;
 	ndev->hclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].hclk;
-	ndev->dpm_level = dpm_level;
 	ndev->max_tops = NPU4_DPM_TOPS(ndev, ndev->max_dpm_level);
 	ndev->curr_tops = NPU4_DPM_TOPS(ndev, dpm_level);
 

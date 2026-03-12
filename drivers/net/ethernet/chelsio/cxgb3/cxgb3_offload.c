@@ -1185,7 +1185,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	unsigned int l2t_capacity;
 	struct l2t_data *l2td;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 	if (!t)
 		return -ENOMEM;
 

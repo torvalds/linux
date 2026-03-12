@@ -34,29 +34,29 @@
 #define _GVT_H_
 
 #include <uapi/linux/pci_regs.h>
-#include <linux/vfio.h>
 #include <linux/mdev.h>
-
+#include <linux/vfio.h>
 #include <asm/kvm_page_track.h>
 
-#include "gt/intel_gt.h"
-#include "intel_gvt.h"
+#include "display/intel_display_limits.h"
 
+#include "gt/intel_gt.h"
+
+#include "cmd_parser.h"
 #include "debug.h"
-#include "mmio.h"
-#include "reg.h"
-#include "interrupt.h"
-#include "gtt.h"
 #include "display.h"
+#include "dmabuf.h"
 #include "edid.h"
 #include "execlist.h"
-#include "scheduler.h"
-#include "sched_policy.h"
-#include "mmio_context.h"
-#include "cmd_parser.h"
 #include "fb_decoder.h"
-#include "dmabuf.h"
+#include "gtt.h"
+#include "intel_gvt.h"
+#include "interrupt.h"
+#include "mmio.h"
+#include "mmio_context.h"
 #include "page_track.h"
+#include "reg.h"
+#include "scheduler.h"
 
 #define GVT_MAX_VGPU 8
 

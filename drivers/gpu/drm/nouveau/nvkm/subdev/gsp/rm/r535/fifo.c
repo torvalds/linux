@@ -591,7 +591,7 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 	const struct nvkm_rm_gpu *gpu = device->gsp->rm->gpu;
 	struct nvkm_fifo_func *rm;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm)))
 		return -ENOMEM;
 
 	rm->dtor = r535_fifo_dtor;

@@ -35,7 +35,7 @@ static struct cdnsp_segment *cdnsp_segment_alloc(struct cdnsp_device *pdev,
 	dma_addr_t dma;
 	int i;
 
-	seg = kzalloc(sizeof(*seg), flags);
+	seg = kzalloc_obj(*seg, flags);
 	if (!seg)
 		return NULL;
 
@@ -376,7 +376,7 @@ static struct cdnsp_ring *cdnsp_ring_alloc(struct cdnsp_device *pdev,
 	struct cdnsp_ring *ring;
 	int ret;
 
-	ring = kzalloc(sizeof *(ring), flags);
+	ring = kzalloc_obj(*(ring), flags);
 	if (!ring)
 		return NULL;
 
@@ -575,9 +575,8 @@ int cdnsp_alloc_stream_info(struct cdnsp_device *pdev,
 	stream_info->num_stream_ctxs = num_stream_ctxs;
 
 	/* Initialize the array of virtual pointers to stream rings. */
-	stream_info->stream_rings = kcalloc(num_streams,
-					    sizeof(struct cdnsp_ring *),
-					    GFP_ATOMIC);
+	stream_info->stream_rings = kzalloc_objs(struct cdnsp_ring *,
+						 num_streams, GFP_ATOMIC);
 	if (!stream_info->stream_rings)
 		return -ENOMEM;
 

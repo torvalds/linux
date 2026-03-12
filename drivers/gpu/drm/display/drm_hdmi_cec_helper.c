@@ -97,7 +97,7 @@ int drmm_connector_hdmi_cec_register(struct drm_connector *connector,
 	if (!funcs->init || !funcs->enable || !funcs->log_addr || !funcs->transmit)
 		return -EINVAL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

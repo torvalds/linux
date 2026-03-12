@@ -451,7 +451,7 @@ static struct mrb *qla4xxx_get_new_mrb(struct scsi_qla_host *ha)
 {
 	struct mrb *mrb;
 
-	mrb = kzalloc(sizeof(*mrb), GFP_KERNEL);
+	mrb = kzalloc_obj(*mrb);
 	if (!mrb)
 		return mrb;
 

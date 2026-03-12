@@ -4,7 +4,7 @@
  *
  * Builtin list command: list all event types
  *
- * Copyright (C) 2009, Thomas Gleixner <tglx@linutronix.de>
+ * Copyright (C) 2009, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  * Copyright (C) 2008-2009, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  */
@@ -648,7 +648,7 @@ int cmd_list(int argc, const char **argv)
 	}
 
 	for (i = 0; i < argc; ++i) {
-		char *sep, *s;
+		char *s;
 
 		if (strcmp(argv[i], "tracepoint") == 0) {
 			char *old_pmu_glob = default_ps.pmu_glob;
@@ -720,7 +720,7 @@ int cmd_list(int argc, const char **argv)
 		else if (strcmp(argv[i], "pfm") == 0)
 			print_libpfm_events(&print_cb, ps);
 #endif
-		else if ((sep = strchr(argv[i], ':')) != NULL) {
+		else if (strchr(argv[i], ':') != NULL) {
 			char *old_pmu_glob = ps->pmu_glob;
 			char *old_event_glob = ps->event_glob;
 

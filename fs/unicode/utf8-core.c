@@ -176,7 +176,7 @@ struct unicode_map *utf8_load(unsigned int version)
 {
 	struct unicode_map *um;
 
-	um = kzalloc(sizeof(struct unicode_map), GFP_KERNEL);
+	um = kzalloc_obj(struct unicode_map);
 	if (!um)
 		return ERR_PTR(-ENOMEM);
 	um->version = version;

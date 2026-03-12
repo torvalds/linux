@@ -406,7 +406,7 @@ static int fsl_qdma_pre_request_enqueue_desc(struct fsl_qdma_queue *queue)
 	struct fsl_qdma_comp *comp_temp, *_comp_temp;
 
 	for (i = 0; i < queue->n_cq + FSL_COMMAND_QUEUE_OVERFLLOW; i++) {
-		comp_temp = kzalloc(sizeof(*comp_temp), GFP_KERNEL);
+		comp_temp = kzalloc_obj(*comp_temp);
 		if (!comp_temp)
 			goto err_alloc;
 		comp_temp->virt_addr =

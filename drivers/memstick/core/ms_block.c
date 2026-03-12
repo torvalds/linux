@@ -1203,8 +1203,7 @@ static int msb_read_boot_blocks(struct msb_data *msb)
 	dbg_verbose("Start of a scan for the boot blocks");
 
 	if (!msb->boot_page) {
-		page = kmalloc_array(2, sizeof(struct ms_boot_page),
-				     GFP_KERNEL);
+		page = kmalloc_objs(struct ms_boot_page, 2);
 		if (!page)
 			return -ENOMEM;
 
@@ -2151,7 +2150,7 @@ static int msb_probe(struct memstick_dev *card)
 	struct msb_data *msb;
 	int rc = 0;
 
-	msb = kzalloc(sizeof(struct msb_data), GFP_KERNEL);
+	msb = kzalloc_obj(struct msb_data);
 	if (!msb)
 		return -ENOMEM;
 	memstick_set_drvdata(card, msb);
@@ -2225,7 +2224,7 @@ static int msb_resume(struct memstick_dev *card)
 #endif
 	mutex_lock(&card->host->lock);
 
-	new_msb = kzalloc(sizeof(struct msb_data), GFP_KERNEL);
+	new_msb = kzalloc_obj(struct msb_data);
 	if (!new_msb)
 		goto out;
 

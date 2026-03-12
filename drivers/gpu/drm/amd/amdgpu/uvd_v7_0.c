@@ -438,7 +438,7 @@ static int uvd_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 			adev->firmware.fw_size +=
 				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 		}
-		DRM_INFO("PSP loading UVD firmware\n");
+		drm_info(adev_to_drm(adev), "PSP loading UVD firmware\n");
 	}
 
 	for (j = 0; j < adev->uvd.num_uvd_inst; j++) {
@@ -542,7 +542,7 @@ static int uvd_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 
 			r = amdgpu_ring_alloc(ring, 10);
 			if (r) {
-				DRM_ERROR("amdgpu: (%d)ring failed to lock UVD ring (%d).\n", j, r);
+				drm_err(adev_to_drm(adev), "ring alloc failed (%d).\n", r);
 				goto done;
 			}
 
@@ -582,7 +582,7 @@ static int uvd_v7_0_hw_init(struct amdgpu_ip_block *ip_block)
 	}
 done:
 	if (!r)
-		DRM_INFO("UVD and UVD ENC initialized successfully.\n");
+		drm_info(adev_to_drm(adev), "UVD and UVD ENC initialized successfully.\n");
 
 	return r;
 }
@@ -1606,7 +1606,7 @@ static void uvd_v7_0_set_ring_funcs(struct amdgpu_device *adev)
 			continue;
 		adev->uvd.inst[i].ring.funcs = &uvd_v7_0_ring_vm_funcs;
 		adev->uvd.inst[i].ring.me = i;
-		DRM_INFO("UVD(%d) is enabled in VM mode\n", i);
+		drm_info(adev_to_drm(adev), "UVD(%d) is enabled in VM mode\n", i);
 	}
 }
 
@@ -1622,7 +1622,7 @@ static void uvd_v7_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 			adev->uvd.inst[j].ring_enc[i].me = j;
 		}
 
-		DRM_INFO("UVD(%d) ENC is enabled in VM mode\n", j);
+		drm_info(adev_to_drm(adev), "UVD(%d) ENC is enabled in VM mode\n", j);
 	}
 }
 

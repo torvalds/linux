@@ -386,7 +386,7 @@ static unsigned char *add_mcs(unsigned char *bits, int bitrate,
 	}
 
 	/* Allocate a new mcs */
-	if ((p = kmalloc(sizeof(struct yam_mcs), GFP_KERNEL)) == NULL) {
+	if ((p = kmalloc_obj(struct yam_mcs)) == NULL) {
 		release_firmware(fw);
 		return NULL;
 	}

@@ -962,8 +962,10 @@ static int mega_query_adapter(adapter_t *);
 static int issue_scb(adapter_t *, scb_t *);
 static int mega_setup_mailbox(adapter_t *);
 
-static int megaraid_queue (struct Scsi_Host *, struct scsi_cmnd *);
-static scb_t * mega_build_cmd(adapter_t *, struct scsi_cmnd *, int *);
+static enum scsi_qc_status megaraid_queue(struct Scsi_Host *,
+					  struct scsi_cmnd *);
+static scb_t *mega_build_cmd(adapter_t *, struct scsi_cmnd *,
+			     enum scsi_qc_status *);
 static void __mega_runpendq(adapter_t *);
 static int issue_scb_block(adapter_t *, u_char *);
 

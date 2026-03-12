@@ -202,14 +202,14 @@ static int sgl_map_user_pages(struct st_buffer *, const unsigned int,
 			      unsigned long, size_t, int);
 static int sgl_unmap_user_pages(struct st_buffer *, const unsigned int, int);
 
-static int st_probe(struct device *);
-static int st_remove(struct device *);
+static int st_probe(struct scsi_device *);
+static void st_remove(struct scsi_device *);
 
 static struct scsi_driver st_template = {
+	.probe = st_probe,
+	.remove = st_remove,
 	.gendrv = {
 		.name		= "st",
-		.probe		= st_probe,
-		.remove		= st_remove,
 		.groups		= st_drv_groups,
 	},
 };
@@ -462,7 +462,7 @@ static struct st_request *st_allocate_request(struct scsi_tape *stp)
 {
 	struct st_request *streq;
 
-	streq = kzalloc(sizeof(*streq), GFP_KERNEL);
+	streq = kzalloc_obj(*streq);
 	if (streq)
 		streq->stp = stp;
 	else {
@@ -525,7 +525,8 @@ static void st_do_stats(struct scsi_tape *STp, struct request *req)
 }
 
 static enum rq_end_io_ret st_scsi_execute_end(struct request *req,
-					      blk_status_t status)
+					      blk_status_t status,
+					      const struct io_comp_batch *iob)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	struct st_request *SRpnt = req->end_io_data;
@@ -3972,7 +3973,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 {
 	struct st_buffer *tb;
 
-	tb = kzalloc(sizeof(struct st_buffer), GFP_KERNEL);
+	tb = kzalloc_obj(struct st_buffer);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
@@ -3981,8 +3982,7 @@ static struct st_buffer *new_tape_buffer(int max_sg)
 	tb->use_sg = max_sg;
 	tb->buffer_size = 0;
 
-	tb->reserved_pages = kcalloc(max_sg, sizeof(struct page *),
-				     GFP_KERNEL);
+	tb->reserved_pages = kzalloc_objs(struct page *, max_sg);
 	if (!tb->reserved_pages) {
 		kfree(tb);
 		return NULL;
@@ -4342,9 +4342,9 @@ static void remove_cdevs(struct scsi_tape *tape)
 	}
 }
 
-static int st_probe(struct device *dev)
+static int st_probe(struct scsi_device *SDp)
 {
-	struct scsi_device *SDp = to_scsi_device(dev);
+	struct device *dev = &SDp->sdev_gendev;
 	struct scsi_tape *tpnt = NULL;
 	struct st_modedef *STm;
 	struct st_partstat *STps;
@@ -4373,7 +4373,7 @@ static int st_probe(struct device *dev)
 		goto out;
 	}
 
-	tpnt = kzalloc(sizeof(struct scsi_tape), GFP_KERNEL);
+	tpnt = kzalloc_obj(struct scsi_tape);
 	if (tpnt == NULL) {
 		sdev_printk(KERN_ERR, SDp,
 			    "st: Can't allocate device descriptor.\n");
@@ -4456,7 +4456,7 @@ static int st_probe(struct device *dev)
 	}
 	tpnt->index = error;
 	sprintf(tpnt->name, "st%d", tpnt->index);
-	tpnt->stats = kzalloc(sizeof(struct scsi_tape_stats), GFP_KERNEL);
+	tpnt->stats = kzalloc_obj(struct scsi_tape_stats);
 	if (tpnt->stats == NULL) {
 		sdev_printk(KERN_ERR, SDp,
 			    "st: Can't allocate statistics.\n");
@@ -4499,12 +4499,13 @@ out:
 };
 
 
-static int st_remove(struct device *dev)
+static void st_remove(struct scsi_device *SDp)
 {
+	struct device *dev = &SDp->sdev_gendev;
 	struct scsi_tape *tpnt = dev_get_drvdata(dev);
 	int index = tpnt->index;
 
-	scsi_autopm_get_device(to_scsi_device(dev));
+	scsi_autopm_get_device(SDp);
 	remove_cdevs(tpnt);
 
 	mutex_lock(&st_ref_mutex);
@@ -4513,7 +4514,6 @@ static int st_remove(struct device *dev)
 	spin_lock(&st_index_lock);
 	idr_remove(&st_index_idr, index);
 	spin_unlock(&st_index_lock);
-	return 0;
 }
 
 /**
@@ -4576,7 +4576,7 @@ static int __init init_st(void)
 		goto err_class;
 	}
 
-	err = scsi_register_driver(&st_template.gendrv);
+	err = scsi_register_driver(&st_template);
 	if (err)
 		goto err_chrdev;
 
@@ -4592,7 +4592,7 @@ err_class:
 
 static void __exit exit_st(void)
 {
-	scsi_unregister_driver(&st_template.gendrv);
+	scsi_unregister_driver(&st_template);
 	unregister_chrdev_region(MKDEV(SCSI_TAPE_MAJOR, 0),
 				 ST_MAX_TAPE_ENTRIES);
 	class_unregister(&st_sysfs_class);
@@ -5006,7 +5006,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 	if (count == 0)
 		return 0;
 
-	pages = kmalloc_array(max_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, max_pages);
 	if (pages == NULL)
 		return -ENOMEM;
 

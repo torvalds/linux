@@ -547,8 +547,8 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 	int tid_down;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
-		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
-				   GFP_ATOMIC);
+		new_node = kzalloc_obj(struct mwifiex_tx_ba_stream_tbl,
+				       GFP_ATOMIC);
 		if (!new_node)
 			return;
 

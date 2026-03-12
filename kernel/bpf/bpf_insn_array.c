@@ -98,7 +98,7 @@ static long insn_array_delete_elem(struct bpf_map *map, void *key)
 	return -EINVAL;
 }
 
-static int insn_array_check_btf(const struct bpf_map *map,
+static int insn_array_check_btf(struct bpf_map *map,
 			      const struct btf *btf,
 			      const struct btf_type *key_type,
 			      const struct btf_type *value_type)
@@ -123,10 +123,10 @@ static int insn_array_map_direct_value_addr(const struct bpf_map *map, u64 *imm,
 
 	if ((off % sizeof(long)) != 0 ||
 	    (off / sizeof(long)) >= map->max_entries)
-		return -EINVAL;
+		return -EACCES;
 
 	/* from BPF's point of view, this map is a jump table */
-	*imm = (unsigned long)insn_array->ips + off;
+	*imm = (unsigned long)insn_array->ips;
 
 	return 0;
 }

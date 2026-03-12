@@ -124,7 +124,7 @@ static int virtio_pci_admin_legacy_io_read(struct pci_dev *pdev, u16 opcode,
 	if (vf_id < 0)
 		return vf_id;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -210,7 +210,7 @@ int virtio_pci_admin_legacy_io_notify_info(struct pci_dev *pdev,
 	if (vf_id < 0)
 		return vf_id;
 
-	result = kzalloc(sizeof(*result), GFP_KERNEL);
+	result = kzalloc_obj(*result);
 	if (!result)
 		return -ENOMEM;
 

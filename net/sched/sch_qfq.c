@@ -373,7 +373,7 @@ static void qfq_rm_from_agg(struct qfq_sched *q, struct qfq_class *cl)
 /* Deschedule class and remove it from its parent aggregate. */
 static void qfq_deact_rm_from_agg(struct qfq_sched *q, struct qfq_class *cl)
 {
-	if (cl->qdisc->q.qlen > 0) /* class is active */
+	if (cl_is_active(cl)) /* class is active */
 		qfq_deactivate_class(q, cl);
 
 	qfq_rm_from_agg(q, cl);
@@ -392,7 +392,7 @@ static int qfq_change_agg(struct Qdisc *sch, struct qfq_class *cl, u32 weight,
 
 	new_agg = qfq_find_agg(q, lmax, weight);
 	if (new_agg == NULL) { /* create new aggregate */
-		new_agg = kzalloc(sizeof(*new_agg), GFP_ATOMIC);
+		new_agg = kzalloc_obj(*new_agg, GFP_ATOMIC);
 		if (new_agg == NULL)
 			return -ENOBUFS;
 		qfq_init_agg(q, new_agg, lmax, weight);
@@ -476,7 +476,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	}
 
 	/* create and init new class */
-	cl = kzalloc(sizeof(struct qfq_class), GFP_KERNEL);
+	cl = kzalloc_obj(struct qfq_class);
 	if (cl == NULL)
 		return -ENOBUFS;
 
@@ -508,7 +508,7 @@ set_change_agg:
 	new_agg = qfq_find_agg(q, lmax, weight);
 	if (new_agg == NULL) { /* create new aggregate */
 		sch_tree_unlock(sch);
-		new_agg = kzalloc(sizeof(*new_agg), GFP_KERNEL);
+		new_agg = kzalloc_obj(*new_agg);
 		if (new_agg == NULL) {
 			err = -ENOBUFS;
 			gen_kill_estimator(&cl->rate_est);
@@ -529,8 +529,10 @@ set_change_agg:
 	return 0;
 
 destroy_class:
-	qdisc_put(cl->qdisc);
-	kfree(cl);
+	if (!existing) {
+		qdisc_put(cl->qdisc);
+		kfree(cl);
+	}
 	return err;
 }
 
@@ -1481,7 +1483,7 @@ static void qfq_reset_qdisc(struct Qdisc *sch)
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
-			if (cl->qdisc->q.qlen > 0)
+			if (cl_is_active(cl))
 				qfq_deactivate_class(q, cl);
 
 			qdisc_reset(cl->qdisc);

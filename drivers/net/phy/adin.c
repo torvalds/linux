@@ -89,6 +89,9 @@
 #define ADIN1300_CLOCK_STOP_REG			0x9400
 #define ADIN1300_LPI_WAKE_ERR_CNT_REG		0xa000
 
+#define ADIN1300_B_100_ZPTM_DIMRX		0xB685
+#define ADIN1300_B_100_ZPTM_EN_DIMRX		BIT(0)
+
 #define ADIN1300_CDIAG_RUN			0xba1b
 #define   ADIN1300_CDIAG_RUN_EN			BIT(0)
 
@@ -522,6 +525,19 @@ static int adin_config_clk_out(struct phy_device *phydev)
 			      ADIN1300_GE_CLK_CFG_MASK, sel);
 }
 
+static int adin_config_zptm100(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+
+	if (!(device_property_read_bool(dev, "adi,low-cmode-impedance")))
+		return 0;
+
+	/* clear bit 0 to configure for lowest common-mode impedance */
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND1,
+					  ADIN1300_B_100_ZPTM_DIMRX,
+					  ADIN1300_B_100_ZPTM_EN_DIMRX);
+}
+
 static int adin_config_init(struct phy_device *phydev)
 {
 	int rc;
@@ -545,6 +561,10 @@ static int adin_config_init(struct phy_device *phydev)
 		return rc;
 
 	rc = adin_config_clk_out(phydev);
+	if (rc < 0)
+		return rc;
+
+	rc = adin_config_zptm100(phydev);
 	if (rc < 0)
 		return rc;
 

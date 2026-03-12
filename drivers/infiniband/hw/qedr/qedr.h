@@ -53,11 +53,8 @@
 		 DP_NAME(dev) ? DP_NAME(dev) : "", ## __VA_ARGS__)
 
 #define QEDR_MSG_INIT "INIT"
-#define QEDR_MSG_MISC "MISC"
 #define QEDR_MSG_CQ   "  CQ"
 #define QEDR_MSG_MR   "  MR"
-#define QEDR_MSG_RQ   "  RQ"
-#define QEDR_MSG_SQ   "  SQ"
 #define QEDR_MSG_QP   "  QP"
 #define QEDR_MSG_SRQ  " SRQ"
 #define QEDR_MSG_GSI  " GSI"
@@ -65,7 +62,6 @@
 
 #define QEDR_CQ_MAGIC_NUMBER	(0x11223344)
 
-#define FW_PAGE_SIZE		(RDMA_RING_PAGE_SIZE)
 #define FW_PAGE_SHIFT		(12)
 
 struct qedr_dev;
@@ -178,24 +174,18 @@ struct qedr_dev {
 	u8 user_dpm_enabled;
 };
 
-#define QEDR_MAX_SQ_PBL			(0x8000)
 #define QEDR_MAX_SQ_PBL_ENTRIES		(0x10000 / sizeof(void *))
 #define QEDR_SQE_ELEMENT_SIZE		(sizeof(struct rdma_sq_sge))
 #define QEDR_MAX_SQE_ELEMENTS_PER_SQE	(ROCE_REQ_MAX_SINGLE_SQ_WQE_SIZE / \
-					 QEDR_SQE_ELEMENT_SIZE)
-#define QEDR_MAX_SQE_ELEMENTS_PER_PAGE	((RDMA_RING_PAGE_SIZE) / \
 					 QEDR_SQE_ELEMENT_SIZE)
 #define QEDR_MAX_SQE			((QEDR_MAX_SQ_PBL_ENTRIES) *\
 					 (RDMA_RING_PAGE_SIZE) / \
 					 (QEDR_SQE_ELEMENT_SIZE) /\
 					 (QEDR_MAX_SQE_ELEMENTS_PER_SQE))
 /* RQ */
-#define QEDR_MAX_RQ_PBL			(0x2000)
 #define QEDR_MAX_RQ_PBL_ENTRIES		(0x10000 / sizeof(void *))
 #define QEDR_RQE_ELEMENT_SIZE		(sizeof(struct rdma_rq_sge))
 #define QEDR_MAX_RQE_ELEMENTS_PER_RQE	(RDMA_MAX_SGE_PER_RQ_WQE)
-#define QEDR_MAX_RQE_ELEMENTS_PER_PAGE	((RDMA_RING_PAGE_SIZE) / \
-					 QEDR_RQE_ELEMENT_SIZE)
 #define QEDR_MAX_RQE			((QEDR_MAX_RQ_PBL_ENTRIES) *\
 					 (RDMA_RING_PAGE_SIZE) / \
 					 (QEDR_RQE_ELEMENT_SIZE) /\
@@ -210,12 +200,8 @@ struct qedr_dev {
 
 #define QEDR_ROCE_MAX_CNQ_SIZE		(0x4000)
 
-#define QEDR_MAX_PORT			(1)
 #define QEDR_PORT			(1)
 
-#define QEDR_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
-
-#define QEDR_ROCE_PKEY_MAX 1
 #define QEDR_ROCE_PKEY_TABLE_LEN 1
 #define QEDR_ROCE_PKEY_DEFAULT 0xffff
 
@@ -335,12 +321,6 @@ struct qedr_qp_hwq_info {
 	void __iomem *iwarp_db2;
 	union db_prod32 iwarp_db2_data;
 };
-
-#define QEDR_INC_SW_IDX(p_info, index)					\
-	do {								\
-		p_info->index = (p_info->index + 1) &			\
-				qed_chain_get_capacity(p_info->pbl)	\
-	} while (0)
 
 struct qedr_srq_hwq_info {
 	u32 max_sges;

@@ -137,7 +137,7 @@ static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 	unsigned int bucket;
 	struct shadow_info *si;
 
-	si = kmalloc(sizeof(*si), GFP_NOIO);
+	si = kmalloc_obj(*si, GFP_NOIO);
 	if (si) {
 		struct rb_node **node, *parent;
 		si->where = b;
@@ -185,7 +185,7 @@ static struct dm_transaction_manager *dm_tm_create(struct dm_block_manager *bm,
 	unsigned int i;
 	struct dm_transaction_manager *tm;
 
-	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
+	tm = kmalloc_obj(*tm);
 	if (!tm)
 		return ERR_PTR(-ENOMEM);
 
@@ -207,7 +207,7 @@ struct dm_transaction_manager *dm_tm_create_non_blocking_clone(struct dm_transac
 {
 	struct dm_transaction_manager *tm;
 
-	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
+	tm = kmalloc_obj(*tm);
 	if (tm) {
 		tm->is_clone = 1;
 		tm->real = real;

@@ -322,7 +322,7 @@ static int invalidate_keyring_keys(struct key *keyring)
 
 	keyring_payload_len = key_type_keyring.read(keyring, NULL, 0);
 	num_keys = keyring_payload_len / sizeof(key_serial_t);
-	key_array = kcalloc(num_keys, sizeof(key_serial_t), GFP_KERNEL);
+	key_array = kzalloc_objs(key_serial_t, num_keys);
 	if (!key_array)
 		return -ENOMEM;
 

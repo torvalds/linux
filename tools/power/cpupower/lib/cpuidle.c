@@ -150,6 +150,7 @@ unsigned long long cpuidle_state_get_one_value(unsigned int cpu,
 	if (len == 0)
 		return 0;
 
+	errno = 0;
 	value = strtoull(linebuf, &endp, 0);
 
 	if (endp == linebuf || errno == ERANGE)
@@ -193,8 +194,7 @@ static char *cpuidle_state_get_one_string(unsigned int cpu,
 	if (result == NULL)
 		return NULL;
 
-	if (result[strlen(result) - 1] == '\n')
-		result[strlen(result) - 1] = '\0';
+	result[strcspn(result, "\n")] = '\0';
 
 	return result;
 }
@@ -366,8 +366,7 @@ static char *sysfs_cpuidle_get_one_string(enum cpuidle_string which)
 	if (result == NULL)
 		return NULL;
 
-	if (result[strlen(result) - 1] == '\n')
-		result[strlen(result) - 1] = '\0';
+	result[strcspn(result, "\n")] = '\0';
 
 	return result;
 }

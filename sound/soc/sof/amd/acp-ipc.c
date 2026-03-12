@@ -190,15 +190,13 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	dsp_ack = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_ack_write);
 	if (dsp_ack) {
 		if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
-			spin_lock_irq(&sdev->ipc_lock);
+			guard(spinlock_irq)(&sdev->ipc_lock);
 
 			/* handle immediate reply from DSP core */
 			acp_dsp_ipc_get_reply(sdev);
 			snd_sof_ipc_reply(sdev, 0);
 			/* set the done bit */
 			acp_dsp_ipc_dsp_done(sdev);
-
-			spin_unlock_irq(&sdev->ipc_lock);
 		} else {
 			dev_dbg_ratelimited(sdev->dev, "IPC reply before FW_BOOT_COMPLETE: %#x\n",
 					    dsp_ack);

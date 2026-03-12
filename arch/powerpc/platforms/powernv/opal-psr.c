@@ -132,8 +132,7 @@ void __init opal_psr_init(void)
 		return;
 	}
 
-	psr_attrs = kcalloc(of_get_child_count(psr), sizeof(*psr_attrs),
-			    GFP_KERNEL);
+	psr_attrs = kzalloc_objs(*psr_attrs, of_get_child_count(psr));
 	if (!psr_attrs)
 		goto out_put_psr;
 

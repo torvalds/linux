@@ -408,7 +408,6 @@
 
 			vcca3v0_codec: LDO_REG5 {
 				regulator-name = "vcca3v0_codec";
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;

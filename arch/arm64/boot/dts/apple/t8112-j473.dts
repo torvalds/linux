@@ -15,10 +15,30 @@
 / {
 	compatible = "apple,j473", "apple,t8112", "apple,arm-platform";
 	model = "Apple Mac mini (M2, 2023)";
+	chassis-type = "desktop";
 
 	aliases {
 		ethernet0 = &ethernet0;
 	};
+};
+
+/*
+ * Keep the power-domains used for the HDMI port on.
+ */
+&framebuffer0 {
+	power-domains = <&ps_dispext_cpu0>, <&ps_dptx_ext_phy>;
+};
+
+/*
+ * The M2 Mac mini uses dispext for the HDMI output so it's not necessary to
+ * keep disp0 power-domains always-on.
+ */
+&ps_disp0_sys {
+	/delete-property/ apple,always-on;
+};
+
+&ps_disp0_fe {
+	/delete-property/ apple,always-on;
 };
 
 /*
@@ -51,4 +71,16 @@
 
 &pcie2_dart {
 	status = "okay";
+};
+
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Back-left";
+};
+
+&typec1 {
+	label = "USB-C Back-right";
 };

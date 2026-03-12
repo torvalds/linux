@@ -2128,7 +2128,7 @@ ahc_alloc_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel)
 	 && ahc->enabled_targets[scsi_id] != master_tstate)
 		panic("%s: ahc_alloc_tstate - Target already allocated",
 		      ahc_name(ahc));
-	tstate = kmalloc(sizeof(*tstate), GFP_ATOMIC);
+	tstate = kmalloc_obj(*tstate, GFP_ATOMIC);
 	if (tstate == NULL)
 		return (NULL);
 
@@ -4381,14 +4381,14 @@ ahc_alloc(void *platform_arg, char *name)
 	struct  ahc_softc *ahc;
 	int	i;
 
-	ahc = kzalloc(sizeof(*ahc), GFP_ATOMIC);
+	ahc = kzalloc_obj(*ahc, GFP_ATOMIC);
 	if (!ahc) {
 		printk("aic7xxx: cannot malloc softc!\n");
 		kfree(name);
 		return NULL;
 	}
 
-	ahc->seep_config = kmalloc(sizeof(*ahc->seep_config), GFP_ATOMIC);
+	ahc->seep_config = kmalloc_obj(*ahc->seep_config, GFP_ATOMIC);
 	if (ahc->seep_config == NULL) {
 		kfree(ahc);
 		kfree(name);
@@ -4433,7 +4433,7 @@ ahc_softc_init(struct ahc_softc *ahc)
 	ahc->pause = ahc->unpause | PAUSE;
 	/* XXX The shared scb data stuff should be deprecated */
 	if (ahc->scb_data == NULL) {
-		ahc->scb_data = kzalloc(sizeof(*ahc->scb_data), GFP_ATOMIC);
+		ahc->scb_data = kzalloc_obj(*ahc->scb_data, GFP_ATOMIC);
 		if (ahc->scb_data == NULL)
 			return (ENOMEM);
 	}
@@ -4738,8 +4738,8 @@ ahc_init_scbdata(struct ahc_softc *ahc)
 	SLIST_INIT(&scb_data->sg_maps);
 
 	/* Allocate SCB resources */
-	scb_data->scbarray = kcalloc(AHC_SCB_MAX_ALLOC, sizeof(struct scb),
-				     GFP_ATOMIC);
+	scb_data->scbarray = kzalloc_objs(struct scb, AHC_SCB_MAX_ALLOC,
+					  GFP_ATOMIC);
 	if (scb_data->scbarray == NULL)
 		return (ENOMEM);
 
@@ -4943,7 +4943,7 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 
 	next_scb = &scb_data->scbarray[scb_data->numscbs];
 
-	sg_map = kmalloc(sizeof(*sg_map), GFP_ATOMIC);
+	sg_map = kmalloc_obj(*sg_map, GFP_ATOMIC);
 
 	if (sg_map == NULL)
 		return;
@@ -4970,7 +4970,7 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 	for (i = 0; i < newcount; i++) {
 		struct scb_platform_data *pdata;
 
-		pdata = kmalloc(sizeof(*pdata), GFP_ATOMIC);
+		pdata = kmalloc_obj(*pdata, GFP_ATOMIC);
 		if (pdata == NULL)
 			break;
 		next_scb->platform_data = pdata;
@@ -7488,7 +7488,7 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 				return;
 			}
 		}
-		lstate = kzalloc(sizeof(*lstate), GFP_ATOMIC);
+		lstate = kzalloc_obj(*lstate, GFP_ATOMIC);
 		if (lstate == NULL) {
 			xpt_print_path(ccb->ccb_h.path);
 			printk("Couldn't allocate lstate\n");

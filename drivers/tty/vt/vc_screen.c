@@ -131,7 +131,7 @@ vcs_poll_data_get(struct file *file)
 	if (poll)
 		return poll;
 
-	poll = kzalloc(sizeof(*poll), GFP_KERNEL);
+	poll = kzalloc_obj(*poll);
 	if (!poll)
 		return NULL;
 	poll->cons_num = console(file_inode(file));

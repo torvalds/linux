@@ -114,7 +114,6 @@ void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx)
  */
 void irdma_uk_qp_post_wr(struct irdma_qp_uk *qp)
 {
-	dma_wmb();
 	writel(qp->qp_id, qp->wqe_alloc_db);
 }
 
@@ -1107,8 +1106,6 @@ void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
 
 	set_64bit_val(cq->shadow_area, 32, temp_val);
 
-	dma_wmb(); /* make sure WQE is populated before valid bit is set */
-
 	writel(cq->cq_id, cq->cqe_alloc_db);
 }
 
@@ -1408,8 +1405,7 @@ exit:
 		 * from SW for all unprocessed WQEs. For GEN3 and beyond
 		 * FW will generate/flush these CQEs so move to the next CQE
 		 */
-			move_cq_head = qp->uk_attrs->hw_rev <= IRDMA_GEN_2 ?
-						false : true;
+			move_cq_head = qp->uk_attrs->hw_rev > IRDMA_GEN_2;
 	}
 
 	if (move_cq_head) {

@@ -908,7 +908,7 @@ static int scmi_dbg_raw_mode_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	raw = inode->i_private;
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return -ENOMEM;
 

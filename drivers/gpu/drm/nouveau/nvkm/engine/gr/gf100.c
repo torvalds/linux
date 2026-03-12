@@ -285,7 +285,7 @@ gf100_gr_object_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct gf100_gr_chan *chan = gf100_gr_chan(oclass->parent);
 	struct gf100_gr_object *object;
 
-	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
+	if (!(object = kzalloc_obj(*object)))
 		return -ENOMEM;
 	*pobject = &object->object;
 
@@ -384,7 +384,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int ret;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&gf100_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
@@ -2330,7 +2330,7 @@ gf100_gr_reset(struct nvkm_gr *base)
 
 	WARN_ON(gf100_gr_fecs_halt_pipeline(gr));
 
-	subdev->func->fini(subdev, false);
+	subdev->func->fini(subdev, NVKM_POWEROFF);
 	nvkm_mc_disable(device, subdev->type, subdev->inst);
 	if (gr->func->gpccs.reset)
 		gr->func->gpccs.reset(gr);
@@ -2624,7 +2624,7 @@ gf100_gr_new_(const struct gf100_gr_fwif *fwif, struct nvkm_device *device,
 	struct gf100_gr *gr;
 	int ret;
 
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+	if (!(gr = kzalloc_obj(*gr)))
 		return -ENOMEM;
 	*pgr = &gr->base;
 

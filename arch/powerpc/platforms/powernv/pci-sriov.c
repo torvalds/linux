@@ -149,7 +149,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 	struct pnv_iov_data *iov;
 	int mul;
 
-	iov = kzalloc(sizeof(*iov), GFP_KERNEL);
+	iov = kzalloc_obj(*iov);
 	if (!iov)
 		goto disable_iov;
 	pdev->dev.archdata.iov_data = iov;

@@ -828,7 +828,7 @@ static int sierra_startup(struct usb_serial *serial)
 {
 	struct sierra_intf_private *intfdata;
 
-	intfdata = kzalloc(sizeof(*intfdata), GFP_KERNEL);
+	intfdata = kzalloc_obj(*intfdata);
 	if (!intfdata)
 		return -ENOMEM;
 
@@ -861,7 +861,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 	const struct sierra_iface_list *himemory_list;
 	u8 ifnum;
 
-	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
+	portdata = kzalloc_obj(*portdata);
 	if (!portdata)
 		return -ENOMEM;
 

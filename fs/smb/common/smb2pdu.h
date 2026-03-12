@@ -2,6 +2,9 @@
 #ifndef _COMMON_SMB2PDU_H
 #define _COMMON_SMB2PDU_H
 
+#include <linux/types.h>
+#include <linux/build_bug.h>
+
 /*
  * Note that, due to trying to use names similar to the protocol specifications,
  * there are many mixed case field names in the structures below.  Although

@@ -34,10 +34,26 @@
 
 #define IS31FL32XX_PWM_FREQUENCY_22KHZ  0x01
 
+/* Registers for IS31FL3293 */
+#define IS31FL3293_SHUTDOWN_REG 0x01
+#define IS31FL3293_SHUTDOWN_SSD_DISABLE  BIT(0)
+#define IS31FL3293_SHUTDOWN_EN1 BIT(4)
+#define IS31FL3293_SHUTDOWN_EN2 BIT(5)
+#define IS31FL3293_SHUTDOWN_EN3 BIT(6)
+#define IS31FL3293_GCC_REG 0x03
+#define IS31FL3293_GCC_LEVEL_MAX 0x3f
+#define IS31FL3293_CL_REG 0x10
+#define IS31FL3293_COLOR_UPDATE_REG 0x27
+#define IS31FL3293_COLOR_UPDATE_MAGIC 0xc5
+#define IS31FL3293_RESET_REG 0x3c
+#define IS31FL3293_RESET_MAGIC 0xc5
+#define IS31FL3293_MAX_MICROAMP 20000
+
 struct is31fl32xx_priv;
 struct is31fl32xx_led_data {
 	struct led_classdev cdev;
 	u8 channel; /* 1-based, max priv->cdef->channels */
+	u32 max_microamp;
 	struct is31fl32xx_priv *priv;
 };
 
@@ -53,6 +69,7 @@ struct is31fl32xx_priv {
  * @channels            : Number of LED channels
  * @shutdown_reg        : address of Shutdown register (optional)
  * @pwm_update_reg      : address of PWM Update register
+ * @pwm_update_value    : value to write to PWM Update register
  * @global_control_reg  : address of Global Control register (optional)
  * @reset_reg           : address of Reset register (optional)
  * @output_frequency_setting_reg: address of output frequency register (optional)
@@ -60,6 +77,7 @@ struct is31fl32xx_priv {
  * @pwm_registers_reversed: : true if PWM registers count down instead of up
  * @led_control_register_base : address of first LED control register (optional)
  * @enable_bits_per_led_control_register: number of LEDs enable bits in each
+ * @brightness_steps    : number of brightness steps supported by the chip
  * @reset_func          : pointer to reset function
  * @sw_shutdown_func    : pointer to software shutdown function
  *
@@ -77,6 +95,7 @@ struct is31fl32xx_chipdef {
 	u8	channels;
 	u8	shutdown_reg;
 	u8	pwm_update_reg;
+	u8	pwm_update_value;
 	u8	global_control_reg;
 	u8	reset_reg;
 	u8	output_frequency_setting_reg;
@@ -84,74 +103,9 @@ struct is31fl32xx_chipdef {
 	bool	pwm_registers_reversed;
 	u8	led_control_register_base;
 	u8	enable_bits_per_led_control_register;
+	u16	brightness_steps;
 	int (*reset_func)(struct is31fl32xx_priv *priv);
 	int (*sw_shutdown_func)(struct is31fl32xx_priv *priv, bool enable);
-};
-
-static const struct is31fl32xx_chipdef is31fl3236_cdef = {
-	.channels				= 36,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x26,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3236a_cdef = {
-	.channels				= 36,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= 0x4b,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x26,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3235_cdef = {
-	.channels				= 28,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x05,
-	.led_control_register_base		= 0x2a,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3218_cdef = {
-	.channels				= 18,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x16,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
-	.reset_reg				= 0x17,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x13,
-	.enable_bits_per_led_control_register	= 6,
-};
-
-static int is31fl3216_reset(struct is31fl32xx_priv *priv);
-static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
-					bool enable);
-static const struct is31fl32xx_chipdef is31fl3216_cdef = {
-	.channels				= 16,
-	.shutdown_reg				= IS31FL32XX_REG_NONE,
-	.pwm_update_reg				= 0xB0,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
-	.reset_reg				= IS31FL32XX_REG_NONE,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x10,
-	.pwm_registers_reversed			= true,
-	.led_control_register_base		= 0x01,
-	.enable_bits_per_led_control_register	= 8,
-	.reset_func				= is31fl3216_reset,
-	.sw_shutdown_func			= is31fl3216_software_shutdown,
 };
 
 static int is31fl32xx_write(struct is31fl32xx_priv *priv, u8 reg, u8 val)
@@ -219,6 +173,62 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 }
 
 /*
+ * Custom Reset function for IS31FL3293. We need to set the global current limit
+ * and write to the color update register once.
+ */
+static int is31fl3293_reset(struct is31fl32xx_priv *priv)
+{
+	int i, ret;
+
+	ret = is31fl32xx_write(priv, IS31FL3293_RESET_REG,
+			       IS31FL3293_RESET_MAGIC);
+	if (ret)
+		return ret;
+
+	/* Set the global current limit to maximum */
+	ret = is31fl32xx_write(priv, IS31FL3293_GCC_REG,
+			       IS31FL3293_GCC_LEVEL_MAX);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < priv->num_leds; i++) {
+		struct is31fl32xx_led_data *led_data = &priv->leds[i];
+		int current_level_reg = IS31FL3293_CL_REG + led_data->channel - 1;
+		int microamp = max(led_data->max_microamp, IS31FL3293_MAX_MICROAMP);
+		int current_level = (microamp * 0xff) / IS31FL3293_MAX_MICROAMP;
+
+		ret = is31fl32xx_write(priv, current_level_reg, current_level);
+		if (ret)
+			return ret;
+	}
+
+	ret = is31fl32xx_write(priv, IS31FL3293_COLOR_UPDATE_REG,
+			       IS31FL3293_COLOR_UPDATE_MAGIC);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * Custom Software-Shutdown function for IS31FL3293 because the SHUTDOWN
+ * register of this device also has bits to enable the channels.
+ */
+static int is31fl3293_software_shutdown(struct is31fl32xx_priv *priv,
+					bool enable)
+{
+	u8 value = 0;
+
+	if (!enable)
+		value =	IS31FL3293_SHUTDOWN_SSD_DISABLE |
+			IS31FL3293_SHUTDOWN_EN1 |
+			IS31FL3293_SHUTDOWN_EN2 |
+			IS31FL3293_SHUTDOWN_EN3;
+
+	return is31fl32xx_write(priv, IS31FL3293_SHUTDOWN_REG, value);
+}
+
+/*
  * NOTE: A mutex is not needed in this function because:
  * - All referenced data is read-only after probe()
  * - The I2C core has a mutex on to protect the bus
@@ -256,13 +266,36 @@ static int is31fl32xx_brightness_set(struct led_classdev *led_cdev,
 	else
 		pwm_register_offset = led_data->channel - 1;
 
-	ret = is31fl32xx_write(led_data->priv,
-			       cdef->pwm_register_base + pwm_register_offset,
-			       brightness);
-	if (ret)
-		return ret;
+	switch (cdef->brightness_steps) {
+	case 256:
+		ret = is31fl32xx_write(led_data->priv,
+				       cdef->pwm_register_base + pwm_register_offset,
+				       brightness);
+		if (ret)
+			return ret;
 
-	return is31fl32xx_write(led_data->priv, cdef->pwm_update_reg, 0);
+		break;
+	case 4096:
+		/* IS31FL329x devices use two registers to store 12 bits of brightness */
+		pwm_register_offset *= 2;
+
+		ret = is31fl32xx_write(led_data->priv,
+				       cdef->pwm_register_base + pwm_register_offset,
+				       brightness & 0xff);
+		if (ret)
+			return ret;
+
+		ret = is31fl32xx_write(led_data->priv,
+				       cdef->pwm_register_base + pwm_register_offset + 1,
+				       (brightness >> 8) & 0xf);
+		if (ret)
+			return ret;
+
+		break;
+	}
+
+	return is31fl32xx_write(led_data->priv, cdef->pwm_update_reg,
+				cdef->pwm_update_value);
 }
 
 static int is31fl32xx_reset_regs(struct is31fl32xx_priv *priv)
@@ -361,6 +394,8 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	}
 	led_data->channel = reg;
 
+	of_property_read_u32(child, "led-max-microamp", &led_data->max_microamp);
+
 	cdev->brightness_set_blocking = is31fl32xx_brightness_set;
 
 	return 0;
@@ -405,6 +440,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 		const struct is31fl32xx_led_data *other_led_data;
 
 		led_data->priv = priv;
+		led_data->cdev.max_brightness = priv->cdef->brightness_steps - 1;
 
 		ret = is31fl32xx_parse_child_dt(dev, child, led_data);
 		if (ret)
@@ -435,8 +471,89 @@ static int is31fl32xx_parse_dt(struct device *dev,
 
 	return 0;
 }
+static const struct is31fl32xx_chipdef is31fl3236_cdef = {
+	.channels				= 36,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x26,
+	.enable_bits_per_led_control_register	= 1,
+};
+
+static const struct is31fl32xx_chipdef is31fl3236a_cdef = {
+	.channels				= 36,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= 0x4b,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x26,
+	.enable_bits_per_led_control_register	= 1,
+	.brightness_steps			= 256,
+};
+
+static const struct is31fl32xx_chipdef is31fl3235_cdef = {
+	.channels				= 28,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x05,
+	.led_control_register_base		= 0x2a,
+	.enable_bits_per_led_control_register	= 1,
+	.brightness_steps			= 256,
+};
+
+static const struct is31fl32xx_chipdef is31fl3218_cdef = {
+	.channels				= 18,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x16,
+	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.reset_reg				= 0x17,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x13,
+	.enable_bits_per_led_control_register	= 6,
+	.brightness_steps			= 256,
+};
+
+static const struct is31fl32xx_chipdef is31fl3216_cdef = {
+	.channels				= 16,
+	.shutdown_reg				= IS31FL32XX_REG_NONE,
+	.pwm_update_reg				= 0xB0,
+	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.reset_reg				= IS31FL32XX_REG_NONE,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x10,
+	.pwm_registers_reversed			= true,
+	.led_control_register_base		= 0x01,
+	.enable_bits_per_led_control_register	= 8,
+	.reset_func				= is31fl3216_reset,
+	.sw_shutdown_func			= is31fl3216_software_shutdown,
+	.brightness_steps			= 256,
+};
+
+static const struct is31fl32xx_chipdef is31fl3293_cdef = {
+	.channels				= 3,
+	.shutdown_reg				= IS31FL32XX_REG_NONE,
+	.pwm_update_reg				= 0x28,
+	.pwm_update_value			= 0xc5,
+	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.reset_reg				= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x19,
+	.led_control_register_base		= IS31FL32XX_REG_NONE,
+	.brightness_steps			= 4096,
+	.reset_func				= is31fl3293_reset,
+	.sw_shutdown_func			= is31fl3293_software_shutdown,
+};
 
 static const struct of_device_id of_is31fl32xx_match[] = {
+	{ .compatible = "issi,is31fl3293",  .data = &is31fl3293_cdef, },
 	{ .compatible = "issi,is31fl3236",  .data = &is31fl3236_cdef, },
 	{ .compatible = "issi,is31fl3236a", .data = &is31fl3236a_cdef, },
 	{ .compatible = "issi,is31fl3235",  .data = &is31fl3235_cdef, },
@@ -472,11 +589,11 @@ static int is31fl32xx_probe(struct i2c_client *client)
 	priv->cdef = cdef;
 	i2c_set_clientdata(client, priv);
 
-	ret = is31fl32xx_init_regs(priv);
+	ret = is31fl32xx_parse_dt(dev, priv);
 	if (ret)
 		return ret;
 
-	ret = is31fl32xx_parse_dt(dev, priv);
+	ret = is31fl32xx_init_regs(priv);
 	if (ret)
 		return ret;
 
@@ -499,6 +616,7 @@ static void is31fl32xx_remove(struct i2c_client *client)
  * even though it is not used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl32xx_id[] = {
+	{ "is31fl3293" },
 	{ "is31fl3236" },
 	{ "is31fl3236a" },
 	{ "is31fl3235" },

@@ -91,6 +91,8 @@ zl3073x_ref_freq_set(struct zl3073x_ref *ref, u32 freq)
 
 	ref->freq_base = base;
 	ref->freq_mult = mult;
+	ref->freq_ratio_m = 1;
+	ref->freq_ratio_n = 1;
 
 	return 0;
 }

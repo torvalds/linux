@@ -341,7 +341,7 @@ static int xlnx_formatter_pcm_open(struct snd_soc_component *component,
 		 !adata->s2mm_presence)
 		return -ENODEV;
 
-	stream_data = kzalloc(sizeof(*stream_data), GFP_KERNEL);
+	stream_data = kzalloc_obj(*stream_data);
 	if (!stream_data)
 		return -ENOMEM;
 

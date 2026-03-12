@@ -174,7 +174,7 @@ lpfc_alloc_bsg_buffers(struct lpfc_hba *phba, unsigned int size,
 	/* Allocate dma buffer and place in BPL passed */
 	while (bytes_left) {
 		/* Allocate dma buffer  */
-		mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+		mp = kmalloc_obj(struct lpfc_dmabuf);
 		if (!mp) {
 			if (mlist)
 				lpfc_free_bsg_buffers(phba, mlist);
@@ -416,7 +416,7 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		return -ENODEV;
 
 	/* allocate our bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	dd_data = kmalloc_obj(struct bsg_job_data);
 	if (!dd_data) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2733 Failed allocation of dd_data\n");
@@ -430,7 +430,7 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		goto free_dd;
 	}
 
-	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	bmp = kmalloc_obj(struct lpfc_dmabuf);
 	if (!bmp) {
 		rc = -ENOMEM;
 		goto free_cmdiocbq;
@@ -683,7 +683,7 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 	}
 
 	/* allocate our bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	dd_data = kmalloc_obj(struct bsg_job_data);
 	if (!dd_data) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2735 Failed allocation of dd_data\n");
@@ -843,7 +843,7 @@ lpfc_bsg_event_unref(struct lpfc_bsg_event *evt)
 static struct lpfc_bsg_event *
 lpfc_bsg_event_new(uint32_t ev_mask, int ev_reg_id, uint32_t ev_req_id)
 {
-	struct lpfc_bsg_event *evt = kzalloc(sizeof(*evt), GFP_KERNEL);
+	struct lpfc_bsg_event *evt = kzalloc_obj(*evt);
 
 	if (!evt)
 		return NULL;
@@ -939,7 +939,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		lpfc_bsg_event_ref(evt);
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
-		evt_dat = kzalloc(sizeof(*evt_dat), GFP_KERNEL);
+		evt_dat = kzalloc_obj(*evt_dat);
 		if (evt_dat == NULL) {
 			spin_lock_irqsave(&phba->ct_ev_lock, flags);
 			lpfc_bsg_event_unref(evt);
@@ -1215,7 +1215,7 @@ lpfc_bsg_hba_set_event(struct bsg_job *job)
 
 	if (&evt->node == &phba->ct_ev_waiters) {
 		/* no event waiting struct yet - first call */
-		dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+		dd_data = kmalloc_obj(struct bsg_job_data);
 		if (dd_data == NULL) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 					"2734 Failed allocation of dd_data\n");
@@ -1477,7 +1477,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 	}
 
 	/* allocate our bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	dd_data = kmalloc_obj(struct bsg_job_data);
 	if (!dd_data) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2736 Failed allocation of dd_data\n");
@@ -1605,7 +1605,7 @@ lpfc_bsg_send_mgmt_rsp(struct bsg_job *job)
 		goto send_mgmt_rsp_exit;
 	}
 
-	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	bmp = kmalloc_obj(struct lpfc_dmabuf);
 	if (!bmp) {
 		rc = -ENOMEM;
 		goto send_mgmt_rsp_exit;
@@ -2628,7 +2628,7 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
 	rspiocbq = lpfc_sli_get_iocbq(phba);
 
-	dmabuf = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kmalloc_obj(struct lpfc_dmabuf);
 	if (dmabuf) {
 		dmabuf->virt = lpfc_mbuf_alloc(phba, 0, &dmabuf->phys);
 		if (dmabuf->virt) {
@@ -2733,7 +2733,7 @@ lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba)
 	struct pci_dev *pcidev = phba->pcidev;
 
 	/* allocate dma buffer struct */
-	dmabuf = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kmalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return NULL;
 
@@ -2829,7 +2829,7 @@ diag_cmd_data_alloc(struct lpfc_hba *phba,
 			cnt = size;
 
 		/* allocate struct lpfc_dmabufext buffer header */
-		dmp = kmalloc(sizeof(struct lpfc_dmabufext), GFP_KERNEL);
+		dmp = kmalloc_obj(struct lpfc_dmabufext);
 		if (!dmp)
 			goto out;
 
@@ -2909,7 +2909,7 @@ static int lpfcdiag_sli3_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 	pring = lpfc_phba_elsring(phba);
 
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
-	rxbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	rxbmp = kmalloc_obj(struct lpfc_dmabuf);
 	if (rxbmp != NULL) {
 		rxbmp->virt = lpfc_mbuf_alloc(phba, 0, &rxbmp->phys);
 		if (rxbmp->virt) {
@@ -3160,7 +3160,7 @@ lpfc_bsg_diag_loopback_run(struct bsg_job *job)
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
 	if (phba->sli_rev < LPFC_SLI_REV4)
 		rspiocbq = lpfc_sli_get_iocbq(phba);
-	txbmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	txbmp = kmalloc_obj(struct lpfc_dmabuf);
 
 	if (txbmp) {
 		txbmp->virt = lpfc_mbuf_alloc(phba, 0, &txbmp->phys);
@@ -4074,7 +4074,7 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 	}
 
 	/* bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	dd_data = kmalloc_obj(struct bsg_job_data);
 	if (!dd_data) {
 		rc = -ENOMEM;
 		goto job_error;
@@ -4275,7 +4275,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 
 	if (ext_buf_cnt == 1) {
 		/* bsg tracking structure */
-		dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+		dd_data = kmalloc_obj(struct bsg_job_data);
 		if (!dd_data) {
 			rc = -ENOMEM;
 			goto job_error;
@@ -4624,7 +4624,7 @@ lpfc_bsg_write_ebuf_set(struct lpfc_hba *phba, struct bsg_job *job,
 				"ebuffers received\n",
 				phba->mbox_ext_buf_ctx.numBuf);
 
-		dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+		dd_data = kmalloc_obj(struct bsg_job_data);
 		if (!dd_data) {
 			rc = -ENOMEM;
 			goto job_error;
@@ -4896,7 +4896,7 @@ lpfc_bsg_issue_mbox(struct lpfc_hba *phba, struct bsg_job *job,
 		goto job_done; /* must be negative */
 
 	/* allocate our bsg tracking structure */
-	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
+	dd_data = kmalloc_obj(struct bsg_job_data);
 	if (!dd_data) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"2727 Failed allocation of dd_data\n");

@@ -1657,7 +1657,7 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 		return NULL;
 	}
 
-	margining = kzalloc(sizeof(*margining), GFP_KERNEL);
+	margining = kzalloc_obj(*margining);
 	if (!margining)
 		return NULL;
 

@@ -140,7 +140,7 @@ static int iio_sysfs_trigger_probe(int id)
 		ret = -EINVAL;
 		goto err_unlock;
 	}
-	t = kmalloc(sizeof(*t), GFP_KERNEL);
+	t = kmalloc_obj(*t);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto err_unlock;

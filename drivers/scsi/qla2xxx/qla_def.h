@@ -1270,6 +1270,7 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
  */
 #define MBC_LOAD_RAM			1	/* Load RAM. */
 #define MBC_EXECUTE_FIRMWARE		2	/* Execute firmware. */
+#define MBC_LOAD_FLASH_FIRMWARE		3	/* Load flash firmware. */
 #define MBC_READ_RAM_WORD		5	/* Read RAM word. */
 #define MBC_MAILBOX_REGISTER_TEST	6	/* Wrap incoming mailboxes */
 #define MBC_VERIFY_CHECKSUM		7	/* Verify checksum. */
@@ -1384,6 +1385,26 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define MBC_SET_GET_ETH_SERDES_REG	0x150
 #define HCS_WRITE_SERDES		0x3
 #define HCS_READ_SERDES			0x4
+
+/*
+ * ISP2[7|8]xx mailbox commands.
+ */
+#define MBC_MPI_PASSTHROUGH            0x200
+
+/* MBC_MPI_PASSTHROUGH */
+#define MPIPT_REQ_V1 1
+enum {
+       MPIPT_SUBCMD_GET_SUP_CMD = 0x10,
+       MPIPT_SUBCMD_GET_SUP_FEATURE,
+       MPIPT_SUBCMD_GET_STATUS,
+       MPIPT_SUBCMD_VALIDATE_FW,
+};
+
+enum {
+       MPIPT_MPI_STATUS = 1,
+       MPIPT_FCORE_STATUS,
+       MPIPT_LOCKDOWN_STATUS,
+};
 
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
@@ -4149,6 +4170,7 @@ struct qla_hw_data {
 		uint32_t	eeh_flush:2;
 #define EEH_FLUSH_RDY  1
 #define EEH_FLUSH_DONE 2
+		uint32_t	secure_mcu:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4413,6 +4435,8 @@ struct qla_hw_data {
 #define IS_ZIO_THRESHOLD_CAPABLE(ha) \
 	((IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&\
 	 (ha->zio_mode == QLA_ZIO_MODE_6))
+
+#define IS_QLA28XX_SECURED(ha)	(IS_QLA28XX(ha) && ha->flags.secure_mcu)
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -5368,7 +5392,7 @@ struct edif_sa_index_entry {
 	struct list_head next;
 };
 
-/* Refer to SNIA SFF 8247 */
+/* Refer to SNIA SFF 8472 */
 struct sff_8247_a0 {
 	u8 txid;	/* transceiver id */
 	u8 ext_txid;
@@ -5412,6 +5436,7 @@ struct sff_8247_a0 {
 #define FC_SP_32 BIT_3
 #define FC_SP_2  BIT_2
 #define FC_SP_1  BIT_0
+#define FC_SPEED_2	BIT_1
 	u8 fc_sp_cc10;
 	u8 encode;
 	u8 bitrate;
@@ -5430,7 +5455,8 @@ struct sff_8247_a0 {
 	u8 vendor_pn[SFF_PART_NAME_LEN];	/* part number */
 	u8 vendor_rev[4];
 	u8 wavelength[2];
-	u8 resv;
+#define FC_SP_64	BIT_0
+	u8 fiber_channel_speed2;
 	u8 cc_base;
 	u8 options[2];	/* offset 64 */
 	u8 br_max;

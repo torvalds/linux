@@ -1,0 +1,61 @@
+# sched-ext mandatory options
+#
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_BPF_JIT_ALWAYS_ON=y
+CONFIG_BPF_JIT_DEFAULT_ON=y
+CONFIG_SCHED_CLASS_EXT=y
+
+# Required by some rust schedulers (e.g. scx_p2dq)
+#
+CONFIG_KALLSYMS_ALL=y
+
+# Required on arm64
+#
+# CONFIG_DEBUG_INFO_REDUCED is not set
+
+# LAVD tracks futex to give an additional time slice for futex holder
+# (i.e., avoiding lock holder preemption) for better system-wide progress.
+# LAVD first tries to use ftrace to trace futex function calls.
+# If that is not available, it tries to use a tracepoint.
+CONFIG_FUNCTION_TRACER=y
+
+# Enable scheduling debugging
+#
+CONFIG_SCHED_DEBUG=y
+
+# Enable extra scheduling features (for a better code coverage while testing
+# the schedulers)
+#
+CONFIG_SCHED_AUTOGROUP=y
+CONFIG_SCHED_CORE=y
+CONFIG_SCHED_MC=y
+
+# Enable fully preemptible kernel for a better test coverage of the schedulers
+#
+# CONFIG_PREEMPT_NONE is not set
+# CONFIG_PREEMPT_VOLUNTARY is not set
+CONFIG_PREEMPT=y
+CONFIG_PREEMPT_DYNAMIC=y
+
+# Additional debugging information (useful to catch potential locking issues)
+CONFIG_DEBUG_LOCKDEP=y
+CONFIG_DEBUG_ATOMIC_SLEEP=y
+CONFIG_PROVE_LOCKING=y
+
+# Bpftrace headers (for additional debug info)
+CONFIG_BPF_EVENTS=y
+CONFIG_FTRACE_SYSCALLS=y
+CONFIG_DYNAMIC_FTRACE=y
+CONFIG_KPROBES=y
+CONFIG_KPROBE_EVENTS=y
+CONFIG_UPROBES=y
+CONFIG_UPROBE_EVENTS=y
+CONFIG_DEBUG_FS=y
+
+# Enable access to kernel configuration and headers at runtime
+CONFIG_IKHEADERS=y
+CONFIG_IKCONFIG_PROC=y
+CONFIG_IKCONFIG=y

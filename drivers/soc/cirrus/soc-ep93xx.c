@@ -92,7 +92,7 @@ static struct auxiliary_device __init *ep93xx_adev_alloc(struct device *parent,
 	struct auxiliary_device *adev;
 	int ret;
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev);
 	if (!rdev)
 		return ERR_PTR(-ENOMEM);
 

@@ -73,7 +73,7 @@ nvkm_uevent_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 }
 
 static int
-nvkm_uevent_fini(struct nvkm_object *object, bool suspend)
+nvkm_uevent_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_uevent *uevent = nvkm_uevent(object);
 
@@ -144,7 +144,7 @@ nvkm_uevent_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
 
-	if (!(uevent = kzalloc(sizeof(*uevent), GFP_KERNEL)))
+	if (!(uevent = kzalloc_obj(*uevent)))
 		return -ENOMEM;
 	*pobject = &uevent->object;
 

@@ -69,11 +69,11 @@ static void vbattb_clk_action(void *data)
 
 	ret = reset_control_assert(rstc);
 	if (ret)
-		dev_err(dev, "Failed to de-assert reset!");
+		dev_err(dev, "Failed to de-assert reset!\n");
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret < 0)
-		dev_err(dev, "Failed to runtime suspend!");
+		dev_err(dev, "Failed to runtime suspend!\n");
 
 	of_clk_del_provider(dev->of_node);
 }

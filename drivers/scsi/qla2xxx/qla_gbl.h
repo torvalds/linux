@@ -345,6 +345,9 @@ extern int
 qla2x00_execute_fw(scsi_qla_host_t *, uint32_t);
 
 extern int
+qla28xx_load_flash_firmware(scsi_qla_host_t *vha);
+
+extern int
 qla2x00_get_fw_version(scsi_qla_host_t *);
 
 extern int
@@ -838,6 +841,8 @@ extern int qla82xx_write_optrom_data(struct scsi_qla_host *, void *,
 /* Mailbox related functions */
 extern int qla82xx_abort_isp(scsi_qla_host_t *);
 extern int qla82xx_restart_isp(scsi_qla_host_t *);
+
+extern int qla_mpipt_validate_fw(scsi_qla_host_t *vha, u16 img_idx, u16 *state);
 
 /* IOCB related functions */
 extern int qla82xx_start_scsi(srb_t *);

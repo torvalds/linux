@@ -194,7 +194,7 @@ nvkm_control_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 {
 	struct nvkm_control *ctrl;
 
-	if (!(ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL)))
+	if (!(ctrl = kzalloc_obj(*ctrl)))
 		return -ENOMEM;
 	*pobject = &ctrl->object;
 	ctrl->device = device;

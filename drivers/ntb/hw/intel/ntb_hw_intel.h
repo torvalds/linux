@@ -71,6 +71,7 @@
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_SKX	0x201C
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_ICX	0x347e
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_GNR	0x0db4
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_DMR	0x7868
 
 /* Ntb control and link status */
 #define NTB_CTL_CFG_LOCK		BIT(0)
@@ -233,6 +234,11 @@ static inline int pdev_is_gen4(struct pci_dev *pdev)
 static inline int pdev_is_gen5(struct pci_dev *pdev)
 {
 	return pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_GNR;
+}
+
+static inline int pdev_is_gen6(struct pci_dev *pdev)
+{
+	return pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_DMR;
 }
 
 #endif

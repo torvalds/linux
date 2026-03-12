@@ -203,7 +203,7 @@ static int __init vt8500_irq_init(struct device_node *node,
 	struct vt8500_irq_data *intc;
 	int irq, i, ret = 0;
 
-	intc = kzalloc(sizeof(*intc), GFP_KERNEL);
+	intc = kzalloc_obj(*intc);
 	if (!intc)
 		return -ENOMEM;
 

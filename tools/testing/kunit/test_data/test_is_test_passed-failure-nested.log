@@ -1,0 +1,10 @@
+KTAP version 1
+1..2
+    KTAP version 1
+    1..1
+        ok 1 test 1
+not ok 1 subtest 1
+    KTAP version 1
+    1..1
+        not ok 1 subsubtest 1
+not ok 2 subtest 2

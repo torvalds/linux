@@ -138,10 +138,10 @@ static u32 dce_v6_0_audio_endpt_rreg(struct amdgpu_device *adev,
 	unsigned long flags;
 	u32 r;
 
-	spin_lock_irqsave(&adev->audio_endpt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.audio_endpt.lock, flags);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	r = RREG32(mmAZALIA_F0_CODEC_ENDPOINT_DATA + block_offset);
-	spin_unlock_irqrestore(&adev->audio_endpt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.audio_endpt.lock, flags);
 
 	return r;
 }
@@ -151,11 +151,11 @@ static void dce_v6_0_audio_endpt_wreg(struct amdgpu_device *adev,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&adev->audio_endpt_idx_lock, flags);
+	spin_lock_irqsave(&adev->reg.audio_endpt.lock, flags);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_INDEX + block_offset,
 		reg | AZALIA_F0_CODEC_ENDPOINT_INDEX__AZALIA_ENDPOINT_REG_WRITE_EN_MASK);
 	WREG32(mmAZALIA_F0_CODEC_ENDPOINT_DATA + block_offset, v);
-	spin_unlock_irqrestore(&adev->audio_endpt_idx_lock, flags);
+	spin_unlock_irqrestore(&adev->reg.audio_endpt.lock, flags);
 }
 
 static u32 dce_v6_0_vblank_get_counter(struct amdgpu_device *adev, int crtc)
@@ -1818,7 +1818,7 @@ static int dce_v6_0_afmt_init(struct amdgpu_device *adev)
 
 	/* DCE6 has audio blocks tied to DIG encoders */
 	for (i = 0; i < adev->mode_info.num_dig; i++) {
-		adev->mode_info.afmt[i] = kzalloc(sizeof(struct amdgpu_afmt), GFP_KERNEL);
+		adev->mode_info.afmt[i] = kzalloc_obj(struct amdgpu_afmt);
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
@@ -2697,8 +2697,8 @@ static int dce_v6_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
-	adev->audio_endpt_rreg = &dce_v6_0_audio_endpt_rreg;
-	adev->audio_endpt_wreg = &dce_v6_0_audio_endpt_wreg;
+	adev->reg.audio_endpt.rreg = &dce_v6_0_audio_endpt_rreg;
+	adev->reg.audio_endpt.wreg = &dce_v6_0_audio_endpt_wreg;
 
 	dce_v6_0_set_display_funcs(adev);
 
@@ -3413,7 +3413,7 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 	}
 
 	/* add a new one */
-	amdgpu_encoder = kzalloc(sizeof(struct amdgpu_encoder), GFP_KERNEL);
+	amdgpu_encoder = kzalloc_obj(struct amdgpu_encoder);
 	if (!amdgpu_encoder)
 		return;
 

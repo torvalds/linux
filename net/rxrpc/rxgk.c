@@ -351,7 +351,7 @@ static int rxgk_secure_packet_integrity(const struct rxrpc_call *call,
 
 	_enter("");
 
-	hdr = kzalloc(sizeof(*hdr), GFP_NOFS);
+	hdr = kzalloc_obj(*hdr, GFP_NOFS);
 	if (!hdr)
 		goto error_gk;
 
@@ -483,7 +483,7 @@ static int rxgk_verify_packet_integrity(struct rxrpc_call *call,
 	crypto_krb5_where_is_the_data(gk->krb5, KRB5_CHECKSUM_MODE,
 				      &data_offset, &data_len);
 
-	hdr = kzalloc(sizeof(*hdr), GFP_NOFS);
+	hdr = kzalloc_obj(*hdr, GFP_NOFS);
 	if (!hdr)
 		goto put_gk;
 
@@ -678,7 +678,7 @@ static int rxgk_issue_challenge(struct rxrpc_connection *conn)
 
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	if (ret > 0)
-		conn->peer->last_tx_at = ktime_get_seconds();
+		rxrpc_peer_mark_tx(conn->peer);
 	__free_page(page);
 
 	if (ret < 0) {

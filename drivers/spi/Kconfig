@@ -136,6 +136,15 @@ config SPI_AR934X
 	  This enables support for the SPI controller present on the
 	  Qualcomm Atheros AR934X/QCA95XX SoCs.
 
+config SPI_ATCSPI200
+	tristate "Andes ATCSPI200 SPI controller"
+	depends on ARCH_ANDES
+	help
+	  SPI driver for Andes ATCSPI200 SPI controller.
+	  ATCSPI200 controller supports DMA and PIO modes. When DMA
+	  is not available, the driver automatically falls back to
+	  PIO mode.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 || COMPILE_TEST
@@ -203,6 +212,17 @@ config SPI_AXI_SPI_ENGINE
 	  This enables support for the Analog Devices AXI SPI Engine SPI controller.
 	  It is part of the SPI Engine framework that is used in some Analog Devices
 	  reference designs for FPGAs.
+
+config SPI_AXIADO
+	tristate "Axiado DB-H SPI controller"
+	depends on SPI_MEM
+	depends on ARCH_AXIADO || COMPILE_TEST
+	help
+	  Enable support for the SPI controller present on Axiado AX3000 SoCs.
+
+	  The implementation supports host-only mode and does not provide target
+	  functionality. It is intended for use cases where the SoC acts as the SPI
+	  host, communicating with peripheral devices such as flash memory.
 
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
@@ -365,33 +385,6 @@ config SPI_DW_MMIO
 	tristate "Memory-mapped io interface driver for DW SPI core"
 	depends on HAS_IOMEM
 
-config SPI_DW_BT1
-	tristate "Baikal-T1 SPI driver for DW SPI core"
-	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
-	select MULTIPLEXER
-	help
-	  Baikal-T1 SoC is equipped with three DW APB SSI-based MMIO SPI
-	  controllers. Two of them are pretty much normal: with IRQ, DMA,
-	  FIFOs of 64 words depth, 4x CSs, but the third one as being a
-	  part of the Baikal-T1 System Boot Controller has got a very
-	  limited resources: no IRQ, no DMA, only a single native
-	  chip-select and Tx/Rx FIFO with just 8 words depth available.
-	  The later one is normally connected to an external SPI-nor flash
-	  of 128Mb (in general can be of bigger size).
-
-config SPI_DW_BT1_DIRMAP
-	bool "Directly mapped Baikal-T1 Boot SPI flash support"
-	depends on SPI_DW_BT1
-	help
-	  Directly mapped SPI flash memory is an interface specific to the
-	  Baikal-T1 System Boot Controller. It is a 16MB MMIO region, which
-	  can be used to access a peripheral memory device just by
-	  reading/writing data from/to it. Note that the system APB bus
-	  will stall during each IO from/to the dirmap region until the
-	  operation is finished. So try not to use it concurrently with
-	  time-critical tasks (like the SPI memory operations implemented
-	  in this driver).
-
 endif
 
 config SPI_DLN2
@@ -478,6 +471,16 @@ config SPI_NXP_FLEXSPI
 	  This enables support for the Flex SPI controller in master mode.
 	  Up to four slave devices can be connected on two buses with two
 	  chipselects each.
+	  This controller does not support generic SPI messages and only
+	  supports the high-level SPI memory interface.
+
+config SPI_NXP_XSPI
+        tristate "NXP xSPI controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables support for the xSPI controller. Up to two devices
+	  can be connected to one host.
 	  This controller does not support generic SPI messages and only
 	  supports the high-level SPI memory interface.
 

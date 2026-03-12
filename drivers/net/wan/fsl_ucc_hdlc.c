@@ -203,17 +203,13 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		goto free_tx_bd;
 	}
 
-	priv->rx_skbuff = kcalloc(priv->rx_ring_size,
-				  sizeof(*priv->rx_skbuff),
-				  GFP_KERNEL);
+	priv->rx_skbuff = kzalloc_objs(*priv->rx_skbuff, priv->rx_ring_size);
 	if (!priv->rx_skbuff) {
 		ret = -ENOMEM;
 		goto free_ucc_pram;
 	}
 
-	priv->tx_skbuff = kcalloc(priv->tx_ring_size,
-				  sizeof(*priv->tx_skbuff),
-				  GFP_KERNEL);
+	priv->tx_skbuff = kzalloc_objs(*priv->tx_skbuff, priv->tx_ring_size);
 	if (!priv->tx_skbuff) {
 		ret = -ENOMEM;
 		goto free_rx_skbuff;
@@ -790,18 +786,14 @@ static void uhdlc_memclean(struct ucc_hdlc_private *priv)
 
 	if (priv->rx_buffer) {
 		dma_free_coherent(priv->dev,
-				  RX_BD_RING_LEN * MAX_RX_BUF_LENGTH,
+				  (RX_BD_RING_LEN + TX_BD_RING_LEN) * MAX_RX_BUF_LENGTH,
 				  priv->rx_buffer, priv->dma_rx_addr);
 		priv->rx_buffer = NULL;
 		priv->dma_rx_addr = 0;
-	}
 
-	if (priv->tx_buffer) {
-		dma_free_coherent(priv->dev,
-				  TX_BD_RING_LEN * MAX_RX_BUF_LENGTH,
-				  priv->tx_buffer, priv->dma_tx_addr);
 		priv->tx_buffer = NULL;
 		priv->dma_tx_addr = 0;
+
 	}
 }
 
@@ -904,8 +896,7 @@ static int uhdlc_suspend(struct device *dev)
 	priv->gumr = ioread32be(&uf_regs->gumr);
 	priv->guemr = ioread8(&uf_regs->guemr);
 
-	priv->ucc_pram_bak = kmalloc(sizeof(*priv->ucc_pram_bak),
-					GFP_KERNEL);
+	priv->ucc_pram_bak = kmalloc_obj(*priv->ucc_pram_bak);
 	if (!priv->ucc_pram_bak)
 		return -ENOMEM;
 
@@ -1177,7 +1168,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ut_info->uf_info.regs = res.start;
 	ut_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	uhdlc_priv = kzalloc(sizeof(*uhdlc_priv), GFP_KERNEL);
+	uhdlc_priv = kzalloc_obj(*uhdlc_priv);
 	if (!uhdlc_priv)
 		return -ENOMEM;
 
@@ -1190,7 +1181,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	uhdlc_priv->hdlc_bus = of_property_read_bool(np, "fsl,hdlc-bus");
 
 	if (uhdlc_priv->tsa == 1) {
-		utdm = kzalloc(sizeof(*utdm), GFP_KERNEL);
+		utdm = kzalloc_obj(*utdm);
 		if (!utdm) {
 			ret = -ENOMEM;
 			dev_err(&pdev->dev, "No mem to alloc ucc tdm data\n");

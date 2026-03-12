@@ -111,7 +111,7 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	static u32 next;
 	int err;
 
-	rel = kzalloc(sizeof(*rel), GFP_KERNEL);
+	rel = kzalloc_obj(*rel);
 	if (!rel)
 		return ERR_PTR(-ENOMEM);
 
@@ -178,9 +178,7 @@ int devlink_rel_nested_in_add(u32 *rel_index, u32 devlink_index,
  * a notification of a change of this object should be sent
  * over netlink. The parent devlink instance lock needs to be
  * taken during the notification preparation.
- * However, since the devlink lock of nested instance is held here,
- * we would end with wrong devlink instance lock ordering and
- * deadlock. Therefore the work is utilized to avoid that.
+ * Since the parent may or may not be locked, 'work' is utilized.
  */
 void devlink_rel_nested_in_notify(struct devlink *devlink)
 {
@@ -420,7 +418,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (!devlink_reload_actions_valid(ops))
 		return NULL;
 
-	devlink = kvzalloc(struct_size(devlink, priv, priv_size), GFP_KERNEL);
+	devlink = kvzalloc_flex(*devlink, priv, priv_size);
 	if (!devlink)
 		return NULL;
 
@@ -477,7 +475,7 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->resource_list));
 	WARN_ON(!list_empty(&devlink->dpipe_table_list));
 	WARN_ON(!list_empty(&devlink->sb_list));
-	WARN_ON(!list_empty(&devlink->rate_list));
+	WARN_ON(devlink_rates_check(devlink, NULL, NULL));
 	WARN_ON(!list_empty(&devlink->linecard_list));
 	WARN_ON(!xa_empty(&devlink->ports));
 

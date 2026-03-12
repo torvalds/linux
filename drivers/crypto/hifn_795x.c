@@ -2248,7 +2248,7 @@ static int hifn_alg_alloc(struct hifn_device *dev, const struct hifn_alg_templat
 	struct hifn_crypto_alg *alg;
 	int err;
 
-	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
+	alg = kzalloc_obj(*alg);
 	if (!alg)
 		return -ENOMEM;
 

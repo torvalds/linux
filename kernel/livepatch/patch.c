@@ -179,7 +179,7 @@ static int klp_patch_func(struct klp_func *func)
 			return -EINVAL;
 		}
 
-		ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+		ops = kzalloc_obj(*ops);
 		if (!ops)
 			return -ENOMEM;
 

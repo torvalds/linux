@@ -163,6 +163,35 @@ static const char *mmhub_client_ids_v3_3_1[][2] = {
 	[32+30][1] = "VCN1",
 };
 
+static const char *mmhub_client_ids_v3_4[][2] = {
+	[0][0] = "VMC",
+	[4][0] = "DCEDMC",
+	[5][0] = "MPXSP",
+	[6][0] = "MPASP",
+	[7][0] = "MP1",
+	[8][0] = "MPM",
+	[23][0] = "HDP",
+	[24][0] = "LSDMA",
+	[25][0] = "JPEG",
+	[26][0] = "VPE",
+	[27][0] = "VSCH",
+	[28][0] = "VCNU",
+	[30][0] = "VCNRD",
+	[3][1] = "DCEDWB",
+	[4][1] = "DCEDMC",
+	[5][1] = "MPXSP",
+	[6][1] = "MPASAP",
+	[7][1] = "MP1",
+	[8][1] = "MPM",
+	[21][1] = "OSSSYS",
+	[23][1] = "HDP",
+	[24][1] = "LSDMA",
+	[25][1] = "JPEG",
+	[26][1] = "VPE",
+	[27][1] = "VSCH",
+	[29][1] = "VCNWR",
+};
+
 static uint32_t mmhub_v3_3_get_invalidate_req(unsigned int vmid,
 						uint32_t flush_type)
 {
@@ -210,6 +239,11 @@ mmhub_v3_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_3_1) ?
 			    mmhub_client_ids_v3_3_1[cid][rw] :
 			    cid == 0x140 ? "UMSCH" : NULL;
+		break;
+	case IP_VERSION(3, 4, 0):
+		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_4) ?
+			mmhub_client_ids_v3_4[cid][rw] :
+		cid == 0x140 ? "UMSCH" : NULL;
 		break;
 	default:
 		mmhub_cid = NULL;

@@ -2474,10 +2474,10 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 {
 	struct dvb_frontend *fe;
 	struct dib9000_state *st;
-	st = kzalloc(sizeof(struct dib9000_state), GFP_KERNEL);
+	st = kzalloc_obj(struct dib9000_state);
 	if (st == NULL)
 		return NULL;
-	fe = kzalloc(sizeof(struct dvb_frontend), GFP_KERNEL);
+	fe = kzalloc_obj(struct dvb_frontend);
 	if (fe == NULL) {
 		kfree(st);
 		return NULL;

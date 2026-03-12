@@ -318,7 +318,7 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 		return -EINVAL;
 
 	pdc_region_cnt = n / 3;
-	pdc_region = kcalloc(pdc_region_cnt, sizeof(*pdc_region), GFP_KERNEL);
+	pdc_region = kzalloc_objs(*pdc_region, pdc_region_cnt);
 	if (!pdc_region) {
 		pdc_region_cnt = 0;
 		return -ENOMEM;

@@ -218,7 +218,7 @@ nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_udevice_fini(struct nvkm_object *object, bool suspend)
+nvkm_udevice_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
 	struct nvkm_device *device = udev->device;
@@ -327,7 +327,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_udevice *udev;
 
-	if (!(udev = kzalloc(sizeof(*udev), GFP_KERNEL)))
+	if (!(udev = kzalloc_obj(*udev)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nvkm_udevice, oclass, &udev->object);
 	*pobject = &udev->object;

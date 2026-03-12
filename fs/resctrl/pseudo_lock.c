@@ -154,7 +154,7 @@ static int pseudo_lock_cstates_constrain(struct pseudo_lock_region *plr)
 	int ret;
 
 	for_each_cpu(cpu, &plr->d->hdr.cpu_mask) {
-		pm_req = kzalloc(sizeof(*pm_req), GFP_KERNEL);
+		pm_req = kzalloc_obj(*pm_req);
 		if (!pm_req) {
 			rdt_last_cmd_puts("Failure to allocate memory for PM QoS\n");
 			ret = -ENOMEM;
@@ -270,7 +270,7 @@ static int pseudo_lock_init(struct rdtgroup *rdtgrp)
 {
 	struct pseudo_lock_region *plr;
 
-	plr = kzalloc(sizeof(*plr), GFP_KERNEL);
+	plr = kzalloc_obj(*plr);
 	if (!plr)
 		return -ENOMEM;
 
@@ -1044,7 +1044,7 @@ static int pseudo_lock_dev_mmap_prepare(struct vm_area_desc *desc)
 	 * Ensure changes are carried directly to the memory being mapped,
 	 * do not allow copy-on-write mapping.
 	 */
-	if (!(desc->vm_flags & VM_SHARED)) {
+	if (!vma_desc_test_flags(desc, VMA_SHARED_BIT)) {
 		mutex_unlock(&rdtgroup_mutex);
 		return -EINVAL;
 	}

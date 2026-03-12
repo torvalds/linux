@@ -43,7 +43,7 @@ static inline struct gfs2_sbd *gfs2_mapping2sbd(struct address_space *mapping)
 	if (mapping->a_ops == &gfs2_meta_aops) {
 		struct gfs2_glock_aspace *gla =
 			container_of(mapping, struct gfs2_glock_aspace, mapping);
-		return gla->glock.gl_name.ln_sbd;
+		return glock_sbd(&gla->glock);
 	} else
 		return inode->i_sb->s_fs_info;
 }

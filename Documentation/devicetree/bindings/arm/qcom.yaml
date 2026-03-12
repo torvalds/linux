@@ -63,6 +63,11 @@ properties:
 
       - items:
           - enum:
+              - fairphone,fp6
+          - const: qcom,milos
+
+      - items:
+          - enum:
               - microsoft,dempsey
               - microsoft,makepeace
               - microsoft,moneypenny
@@ -327,6 +332,12 @@ properties:
               - qcom,ipq9574-ap-al02-c9
           - const: qcom,ipq9574
 
+      - items:
+          - enum:
+              - qcom,kaanapali-mtp
+              - qcom,kaanapali-qrd
+          - const: qcom,kaanapali
+
       - description: Sierra Wireless MangOH Green with WP8548 Module
         items:
           - const: swir,mangoh-green-wp8548
@@ -336,6 +347,7 @@ properties:
       - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
+              - arduino,imola
               - qcom,qrb2210-rb1
           - const: qcom,qrb2210
           - const: qcom,qcm2290
@@ -348,6 +360,7 @@ properties:
               - qcom,qcs6490-rb3gen2
               - radxa,dragon-q6a
               - shift,otter
+              - thundercomm,rubikpi3
           - const: qcom,qcm6490
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
@@ -900,6 +913,8 @@ properties:
 
       - items:
           - enum:
+              - google,blueline
+              - google,crosshatch
               - huawei,planck
               - lenovo,yoga-c630
               - lg,judyln
@@ -1069,6 +1084,19 @@ properties:
 
       - items:
           - enum:
+              - medion,sprchrgd14s1
+              - tuxedo,elite14gen1
+          - const: qcom,x1e78100
+          - const: qcom,x1e80100
+
+      - items:
+          - const: microsoft,denali-lcd
+          - const: microsoft,denali
+          - const: qcom,x1p64100
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
               - asus,vivobook-s15
               - asus,zenbook-a14-ux3407ra
               - dell,inspiron-14-plus-7441
@@ -1087,6 +1115,11 @@ properties:
           - enum:
               - qcom,hamoa-iot-evk
           - const: qcom,hamoa-iot-som
+          - const: qcom,x1e80100
+
+      - items:
+          - const: microsoft,denali-oled
+          - const: microsoft,denali
           - const: qcom,x1e80100
 
       - items:

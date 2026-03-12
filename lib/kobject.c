@@ -765,7 +765,7 @@ static struct kobject *kobject_create(void)
 {
 	struct kobject *kobj;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return NULL;
 
@@ -962,7 +962,7 @@ static struct kset *kset_create(const char *name,
 	struct kset *kset;
 	int retval;
 
-	kset = kzalloc(sizeof(*kset), GFP_KERNEL);
+	kset = kzalloc_obj(*kset);
 	if (!kset)
 		return NULL;
 	retval = kobject_set_name(&kset->kobj, "%s", name);

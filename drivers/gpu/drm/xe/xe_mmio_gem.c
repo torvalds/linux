@@ -78,7 +78,7 @@ struct xe_mmio_gem *xe_mmio_gem_create(struct xe_device *xe, struct drm_file *fi
 	if ((phys_addr % PAGE_SIZE != 0) || (size % PAGE_SIZE != 0))
 		return ERR_PTR(-EINVAL);
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

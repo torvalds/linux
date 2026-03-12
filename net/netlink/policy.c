@@ -102,8 +102,7 @@ static struct netlink_policy_dump_state *alloc_state(void)
 {
 	struct netlink_policy_dump_state *state;
 
-	state = kzalloc(struct_size(state, policies, INITIAL_POLICIES_ALLOC),
-			GFP_KERNEL);
+	state = kzalloc_flex(*state, policies, INITIAL_POLICIES_ALLOC);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 	state->n_alloc = INITIAL_POLICIES_ALLOC;

@@ -28,7 +28,6 @@ struct dpu_hw_cwb_setup_cfg {
 };
 
 /**
- *
  * struct dpu_hw_cwb_ops : Interface to the cwb hw driver functions
  * @config_cwb: configure CWB mux
  */
@@ -54,7 +53,7 @@ struct dpu_hw_cwb {
 };
 
 /**
- * dpu_hw_cwb - convert base object dpu_hw_base to container
+ * to_dpu_hw_cwb - convert base object dpu_hw_base to container
  * @hw: Pointer to base hardware block
  * return: Pointer to hardware block container
  */

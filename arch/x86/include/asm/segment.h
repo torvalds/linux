@@ -348,7 +348,7 @@ static inline void __loadsegment_fs(unsigned short value)
  * Save a segment register away:
  */
 #define savesegment(seg, value)				\
-	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
+	asm("movl %%" #seg ",%k0" : "=r" (value) : : "memory")
 
 #endif /* !__ASSEMBLER__ */
 #endif /* __KERNEL__ */

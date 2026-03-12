@@ -164,7 +164,7 @@ struct clk_hw *imx93_clk_gate(struct device *dev, const char *name, const char *
 	int ret;
 	u32 authen;
 
-	gate = kzalloc(sizeof(struct imx93_clk_gate), GFP_KERNEL);
+	gate = kzalloc_obj(struct imx93_clk_gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

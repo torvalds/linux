@@ -99,11 +99,6 @@ struct amdxdna_hwctx {
 	u32				start_col;
 	u32				num_col;
 	u32				num_unused_col;
-#define HWCTX_STAT_INIT  0
-#define HWCTX_STAT_READY 1
-#define HWCTX_STAT_STOP  2
-	u32				status;
-	u32				old_status;
 
 	struct amdxdna_qos_info		     qos;
 	struct amdxdna_hwctx_param_config_cu *cus;
@@ -172,6 +167,9 @@ amdxdna_cmd_get_state(struct amdxdna_gem_obj *abo)
 
 void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size);
 u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
+int amdxdna_cmd_set_error(struct amdxdna_gem_obj *abo,
+			  struct amdxdna_sched_job *job, u32 cmd_idx,
+			  enum ert_cmd_state error_state);
 
 void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job);
 void amdxdna_hwctx_remove_all(struct amdxdna_client *client);

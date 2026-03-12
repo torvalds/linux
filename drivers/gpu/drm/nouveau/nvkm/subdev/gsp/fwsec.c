@@ -337,16 +337,10 @@ nvkm_gsp_fwsec_sb(struct nvkm_gsp *gsp)
 }
 
 int
-nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *gsp)
+nvkm_gsp_fwsec_sb_init(struct nvkm_gsp *gsp)
 {
 	return nvkm_gsp_fwsec_init(gsp, &gsp->fws.falcon.sb, "fwsec-sb",
 				   NVFW_FALCON_APPIF_DMEMMAPPER_CMD_SB);
-}
-
-void
-nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *gsp)
-{
-	nvkm_falcon_fw_dtor(&gsp->fws.falcon.sb);
 }
 
 int

@@ -89,7 +89,7 @@ nv40_gr_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 }
 
 static int
-nv40_gr_chan_fini(struct nvkm_object *object, bool suspend)
+nv40_gr_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nv40_gr_chan *chan = nv40_gr_chan(object);
 	struct nv40_gr *gr = chan->gr;
@@ -101,7 +101,7 @@ nv40_gr_chan_fini(struct nvkm_object *object, bool suspend)
 	nvkm_mask(device, 0x400720, 0x00000001, 0x00000000);
 
 	if (nvkm_rd32(device, 0x40032c) == inst) {
-		if (suspend) {
+		if (suspend != NVKM_POWEROFF) {
 			nvkm_wr32(device, 0x400720, 0x00000000);
 			nvkm_wr32(device, 0x400784, inst);
 			nvkm_mask(device, 0x400310, 0x00000020, 0x00000020);
@@ -152,7 +152,7 @@ nv40_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	struct nv40_gr_chan *chan;
 	unsigned long flags;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nv40_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
@@ -433,7 +433,7 @@ nv40_gr_new_(const struct nvkm_gr_func *func, struct nvkm_device *device,
 {
 	struct nv40_gr *gr;
 
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+	if (!(gr = kzalloc_obj(*gr)))
 		return -ENOMEM;
 	*pgr = &gr->base;
 	INIT_LIST_HEAD(&gr->chan);

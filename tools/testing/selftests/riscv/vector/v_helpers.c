@@ -26,6 +26,29 @@ bool is_vector_supported(void)
 	return pair.value & RISCV_HWPROBE_EXT_ZVE32X;
 }
 
+unsigned long get_vr_len(void)
+{
+	unsigned long vlenb;
+
+	if (is_vector_supported()) {
+		asm volatile("csrr %[vlenb], vlenb" : [vlenb] "=r"(vlenb));
+		return vlenb;
+	}
+
+	if (is_xtheadvector_supported()) {
+		asm volatile (
+			// 0 | zimm[10:0] | rs1 | 1 1 1 | rd | 1010111 | vsetvli
+			// vsetvli	t4, x0, e8, m1, d1
+			".4byte		0b00000000000000000111111011010111\n\t"
+			"mv		%[vlenb], t4\n\t"
+			: [vlenb] "=r"(vlenb) : : "memory", "t4");
+		return vlenb;
+	}
+
+	printf("WARNING: vector not supported\n");
+	return 0;
+}
+
 int launch_test(char *next_program, int test_inherit, int xtheadvector)
 {
 	char *exec_argv[4], *exec_envp[1];

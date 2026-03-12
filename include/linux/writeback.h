@@ -328,9 +328,6 @@ struct dirty_throttle_control {
 	bool			dirty_exceeded;
 };
 
-void laptop_io_completion(struct backing_dev_info *info);
-void laptop_sync_completion(void);
-void laptop_mode_timer_fn(struct timer_list *t);
 bool node_dirty_ok(struct pglist_data *pgdat);
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -342,7 +339,6 @@ extern struct wb_domain global_wb_domain;
 /* These are exported to sysctl. */
 extern unsigned int dirty_writeback_interval;
 extern unsigned int dirty_expire_interval;
-extern int laptop_mode;
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
 unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh);

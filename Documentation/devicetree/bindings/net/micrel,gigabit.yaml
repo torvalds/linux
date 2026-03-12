@@ -1,0 +1,253 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/micrel,gigabit.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Micrel series Gigabit Ethernet PHYs
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Stefan Eichenberger <eichest@gmail.com>
+
+description:
+  Some boards require special skew tuning values, particularly when it comes
+  to clock delays. These values can be specified in the device tree using
+  the properties listed here.
+
+properties:
+  compatible:
+    enum:
+      - ethernet-phy-id0022.1610  # KSZ9021
+      - ethernet-phy-id0022.1611  # KSZ9021RLRN
+      - ethernet-phy-id0022.1620  # KSZ9031
+      - ethernet-phy-id0022.1631  # KSZ9477
+      - ethernet-phy-id0022.1640  # KSZ9131
+      - ethernet-phy-id0022.1650  # LAN8841
+      - ethernet-phy-id0022.1660  # LAN8814
+      - ethernet-phy-id0022.1670  # LAN8804
+
+  micrel,force-master:
+    type: boolean
+    description: |
+      Force phy to master mode. Only set this option if the phy reference
+      clock provided at CLK125_NDO pin is used as MAC reference clock
+      because the clock jitter in slave mode is too high (errata#2).
+      Attention: The link partner must be configurable as slave otherwise
+      no link will be established.
+
+  coma-mode-gpios:
+    maxItems: 1
+    description: |
+      If present the given gpio will be deasserted when the PHY is probed.
+
+      Some PHYs have a COMA mode input pin which puts the PHY into
+      isolate and power-down mode. On some boards this input is connected
+      to a GPIO of the SoC.
+
+  micrel,led-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      LED mode value to set for PHYs with configurable LEDs.
+
+      Configure the LED mode with single value. The list of PHYs and the
+      bits that are currently supported:
+
+      LAN8814: register EP5.0, bit 6
+
+      See the respective PHY datasheet for the mode values.
+    minimum: 0
+    maximum: 1
+
+patternProperties:
+  '^([rt]xc)-skew-psec$':
+    $ref: /schemas/types.yaml#/definitions/int32
+    description:
+      Skew control of the pad in picoseconds.
+    minimum: -700
+    maximum: 2400
+    multipleOf: 100
+    default: 0
+
+  '^([rt]xd[0-3]|rxdv|txen)-skew-psec$':
+    $ref: /schemas/types.yaml#/definitions/int32
+    description: |
+      Skew control of the pad in picoseconds.
+    minimum: -700
+    maximum: 800
+    multipleOf: 100
+    default: 0
+
+allOf:
+  - $ref: ethernet-phy.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ethernet-phy-id0022.1610
+              - ethernet-phy-id0022.1611
+    then:
+      patternProperties:
+        '^([rt]xd[0-3]|[rt]xc|rxdv|txen)-skew-ps$':
+          description: |
+            Skew control of the pad in picoseconds.
+            The actual increment on the chip is 120ps ranging from -840ps to
+            960ps, this mismatch comes from a documentation error before
+            datasheet revision 1.2 (Feb 2014).
+
+            The device tree value to delay mapping looks as follows:
+            Device Tree Value   Delay
+            --------------------------
+            0                   -840ps
+            200                 -720ps
+            400                 -600ps
+            600                 -480ps
+            800                 -360ps
+            1000                -240ps
+            1200                -120ps
+            1400                   0ps
+            1600                 120ps
+            1800                 240ps
+            2000                 360ps
+            2200                 480ps
+            2400                 600ps
+            2600                 720ps
+            2800                 840ps
+            3000                 960ps
+          minimum: 0
+          maximum: 3000
+          multipleOf: 200
+          default: 1400
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ethernet-phy-id0022.1620
+    then:
+      patternProperties:
+        '^([rt]xc)-skew-ps$':
+          description: |
+            Skew control of the pad in picoseconds.
+
+            The device tree value to delay mapping is as follows:
+            Device Tree Value   Delay
+            --------------------------
+            0                   -900ps
+            60                  -840ps
+            120                 -780ps
+            180                 -720ps
+            240                 -660ps
+            300                 -600ps
+            360                 -540ps
+            420                 -480ps
+            480                 -420ps
+            540                 -360ps
+            600                 -300ps
+            660                 -240ps
+            720                 -180ps
+            780                 -120ps
+            840                  -60ps
+            900                    0ps
+            960                   60ps
+            1020                 120ps
+            1080                 180ps
+            1140                 240ps
+            1200                 300ps
+            1260                 360ps
+            1320                 420ps
+            1380                 480ps
+            1440                 540ps
+            1500                 600ps
+            1560                 660ps
+            1620                 720ps
+            1680                 780ps
+            1740                 840ps
+            1800                 900ps
+            1860                 960ps
+          minimum: 0
+          maximum: 1860
+          multipleOf: 60
+          default: 900
+        '^([rt]xd[0-3]|rxdv|txen)-skew-ps$':
+          description: |
+            Skew control of the pad in picoseconds.
+
+            The device tree value to delay mapping is as follows:
+            Device Tree Value   Delay
+            --------------------------
+            0                   -420ps
+            60                  -360ps
+            120                 -300ps
+            180                 -240ps
+            240                 -180ps
+            300                 -120ps
+            360                  -60ps
+            420                    0ps
+            480                   60ps
+            540                  120ps
+            600                  180ps
+            660                  240ps
+            720                  300ps
+            780                  360ps
+            840                  420ps
+            900                  480ps
+          minimum: 0
+          maximum: 900
+          multipleOf: 60
+          default: 420
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - ethernet-phy-id0022.1640
+                - ethernet-phy-id0022.1650
+    then:
+      patternProperties:
+        '^([rt]xd[0-3]|[rt]xc|rxdv|txen)-skew-psec$': false
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ethernet-phy-id0022.1620
+    then:
+      properties:
+        micrel,force-master: false
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ethernet-phy-id0022.1660
+    then:
+      properties:
+        coma-mode-gpios: false
+        micrel,led-mode: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet-phy@7 {
+            compatible = "ethernet-phy-id0022.1610";
+            reg = <7>;
+            rxc-skew-ps = <3000>;
+            rxdv-skew-ps = <0>;
+            txc-skew-ps = <3000>;
+            txen-skew-ps = <0>;
+        };
+
+        ethernet-phy@9 {
+            compatible = "ethernet-phy-id0022.1640";
+            reg = <9>;
+            rxc-skew-psec = <(-100)>;
+            txc-skew-psec = <(-100)>;
+        };
+    };

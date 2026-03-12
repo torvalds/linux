@@ -69,13 +69,10 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 				data->primary = primary;
 				data->extension = extension;
 
-				spin_lock_irq(&sdev->ipc_lock);
-
+				guard(spinlock_irq)(&sdev->ipc_lock);
 				snd_sof_ipc_get_reply(sdev);
 				cnl_ipc_host_done(sdev);
 				snd_sof_ipc_reply(sdev, data->primary);
-
-				spin_unlock_irq(&sdev->ipc_lock);
 			} else {
 				dev_dbg_ratelimited(sdev->dev,
 						    "IPC reply before FW_READY: %#x|%#x\n",
@@ -141,15 +138,11 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 					CNL_DSP_REG_HIPCCTL_DONE, 0);
 
 		if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
-			spin_lock_irq(&sdev->ipc_lock);
-
 			/* handle immediate reply from DSP core */
+			guard(spinlock_irq)(&sdev->ipc_lock);
 			hda_dsp_ipc_get_reply(sdev);
 			snd_sof_ipc_reply(sdev, msg);
-
 			cnl_ipc_dsp_done(sdev);
-
-			spin_unlock_irq(&sdev->ipc_lock);
 		} else {
 			dev_dbg_ratelimited(sdev->dev, "IPC reply before FW_READY: %#x\n",
 					    msg);
@@ -408,7 +401,7 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_fw_data *ipc4_data;
 
-		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
+		sdev->private = kzalloc_obj(*ipc4_data);
 		if (!sdev->private)
 			return -ENOMEM;
 

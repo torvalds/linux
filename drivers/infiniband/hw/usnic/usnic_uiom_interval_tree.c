@@ -70,7 +70,7 @@ static struct usnic_uiom_interval_node*
 usnic_uiom_interval_node_alloc(long int start, long int last, int ref_cnt,
 				int flags)
 {
-	struct usnic_uiom_interval_node *interval = kzalloc(sizeof(*interval),
+	struct usnic_uiom_interval_node *interval = kzalloc_obj(*interval,
 								GFP_ATOMIC);
 	if (!interval)
 		return NULL;

@@ -37,7 +37,7 @@ static int x25_add_route(struct x25_address *address, unsigned int sigdigits,
 			goto out;
 	}
 
-	rt = kmalloc(sizeof(*rt), GFP_ATOMIC);
+	rt = kmalloc_obj(*rt, GFP_ATOMIC);
 	rc = -ENOMEM;
 	if (!rt)
 		goto out;

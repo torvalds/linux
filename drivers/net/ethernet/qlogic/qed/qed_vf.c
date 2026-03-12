@@ -454,7 +454,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	p_hwfn->hw_info.concrete_fid = REG_RD(p_hwfn, reg);
 
 	/* Allocate vf sriov info */
-	p_iov = kzalloc(sizeof(*p_iov), GFP_KERNEL);
+	p_iov = kzalloc_obj(*p_iov);
 	if (!p_iov)
 		return -ENOMEM;
 

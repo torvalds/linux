@@ -395,7 +395,7 @@ static int vega12_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct vega12_hwmgr *data;
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	data = kzalloc(sizeof(struct vega12_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct vega12_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -2271,11 +2271,12 @@ static int vega12_get_current_pcie_link_speed(struct pp_hwmgr *hwmgr)
 	return link_speed[speed_level];
 }
 
-static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, char *buf)
+static int vega12_emit_clock_levels(struct pp_hwmgr *hwmgr,
+				    enum pp_clock_type type, char *buf,
+				    int *offset)
 {
-	int i, now, size = 0;
 	struct pp_clock_levels_with_latency clocks;
+	int i, now, size = *offset;
 
 	switch (type) {
 	case PP_SCLK:
@@ -2289,9 +2290,13 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				"Attempt to get gfx clk levels Failed!",
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n", i,
+				clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 ==
+				 now / 100) ?
+					"*" :
+					"");
 		break;
 
 	case PP_MCLK:
@@ -2305,9 +2310,13 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				"Attempt to get memory clk levels Failed!",
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n", i,
+				clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 ==
+				 now / 100) ?
+					"*" :
+					"");
 		break;
 
 	case PP_SOCCLK:
@@ -2323,9 +2332,12 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				"Attempt to get soc clk levels Failed!",
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n", i,
+				clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ?
+					"*" :
+					"");
 		break;
 
 	case PP_DCEFCLK:
@@ -2341,9 +2353,12 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 				"Attempt to get dcef clk levels Failed!",
 				return -1);
 		for (i = 0; i < clocks.num_levels; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n", i,
+				clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz / 1000 == now) ?
+					"*" :
+					"");
 		break;
 
 	case PP_PCIE:
@@ -2352,7 +2367,10 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 	default:
 		break;
 	}
-	return size;
+
+	*offset = size;
+
+	return 0;
 }
 
 static int vega12_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
@@ -2951,7 +2969,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.set_watermarks_for_clocks_ranges = vega12_set_watermarks_for_clocks_ranges,
 	.display_clock_voltage_request = vega12_display_clock_voltage_request,
 	.force_clock_level = vega12_force_clock_level,
-	.print_clock_levels = vega12_print_clock_levels,
+	.emit_clock_levels = vega12_emit_clock_levels,
 	.apply_clocks_adjust_rules =
 		vega12_apply_clocks_adjust_rules,
 	.pre_display_config_changed =

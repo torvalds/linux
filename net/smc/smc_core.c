@@ -905,7 +905,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		}
 	}
 
-	lgr = kzalloc(sizeof(*lgr), GFP_KERNEL);
+	lgr = kzalloc_obj(*lgr);
 	if (!lgr) {
 		rc = SMC_CLC_DECL_MEM;
 		goto ism_put_vlan;
@@ -2320,7 +2320,7 @@ static struct smc_buf_desc *smcr_new_buf_create(struct smc_link_group *lgr,
 	struct smc_buf_desc *buf_desc;
 
 	/* try to alloc a new buffer */
-	buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
+	buf_desc = kzalloc_obj(*buf_desc);
 	if (!buf_desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -2394,7 +2394,7 @@ static struct smc_buf_desc *smcd_new_buf_create(struct smc_link_group *lgr,
 	int rc;
 
 	/* try to alloc a new DMB */
-	buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
+	buf_desc = kzalloc_obj(*buf_desc);
 	if (!buf_desc)
 		return ERR_PTR(-ENOMEM);
 	if (is_dmb) {
@@ -2578,7 +2578,7 @@ int smcd_buf_attach(struct smc_sock *smc)
 	struct smc_buf_desc *buf_desc;
 	int rc;
 
-	buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
+	buf_desc = kzalloc_obj(*buf_desc);
 	if (!buf_desc)
 		return -ENOMEM;
 

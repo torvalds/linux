@@ -311,7 +311,7 @@ struct mlx5_aso *mlx5_aso_create(struct mlx5_core_dev *mdev, u32 pdn)
 	struct mlx5_aso *aso;
 	int err;
 
-	aso = kzalloc(sizeof(*aso), GFP_KERNEL);
+	aso = kzalloc_obj(*aso);
 	if (!aso)
 		return ERR_PTR(-ENOMEM);
 

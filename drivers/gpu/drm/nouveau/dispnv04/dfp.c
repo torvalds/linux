@@ -697,7 +697,7 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 		return -EINVAL;
 	}
 
-	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	nv_encoder = kzalloc_obj(*nv_encoder);
 	if (!nv_encoder)
 		return -ENOMEM;
 

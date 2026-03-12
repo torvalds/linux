@@ -713,11 +713,13 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 	/* make sure pipe is not busy */
 	ret = usbhsp_pipe_barrier(pipe);
 	if (ret < 0) {
+		usbhsp_put_pipe(pipe);
 		dev_err(dev, "pipe setup failed %d\n", usbhs_pipe_number(pipe));
 		return NULL;
 	}
 
 	if (usbhsp_setup_pipecfg(pipe, is_host, dir_in, &pipecfg)) {
+		usbhsp_put_pipe(pipe);
 		dev_err(dev, "can't setup pipe\n");
 		return NULL;
 	}
@@ -820,8 +822,7 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 		return -EINVAL;
 	}
 
-	info->pipe = kcalloc(pipe_size, sizeof(struct usbhs_pipe),
-			     GFP_KERNEL);
+	info->pipe = kzalloc_objs(struct usbhs_pipe, pipe_size);
 	if (!info->pipe)
 		return -ENOMEM;
 

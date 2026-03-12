@@ -112,10 +112,10 @@ static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 	spinlock_t *fclk_gate_lock;
 	void __iomem *fclk_gate_reg = fclk_ctrl_reg + 8;
 
-	fclk_lock = kmalloc(sizeof(*fclk_lock), GFP_KERNEL);
+	fclk_lock = kmalloc_obj(*fclk_lock);
 	if (!fclk_lock)
 		goto err;
-	fclk_gate_lock = kmalloc(sizeof(*fclk_gate_lock), GFP_KERNEL);
+	fclk_gate_lock = kmalloc_obj(*fclk_gate_lock);
 	if (!fclk_gate_lock)
 		goto err_fclk_gate_lock;
 	spin_lock_init(fclk_lock);
@@ -180,7 +180,7 @@ static void __init zynq_clk_register_periph_clk(enum zynq_clk clk0,
 	char *div_name;
 	spinlock_t *lock;
 
-	lock = kmalloc(sizeof(*lock), GFP_KERNEL);
+	lock = kmalloc_obj(*lock);
 	if (!lock)
 		goto err;
 	spin_lock_init(lock);

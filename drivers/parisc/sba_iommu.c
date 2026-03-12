@@ -578,8 +578,8 @@ sba_io_pdir_entry(__le64 *pdir_ptr, space_t sid, phys_addr_t pba,
 	pba &= IOVP_MASK;
 	pba |= (ci >> PAGE_SHIFT) & 0xff;  /* move CI (8 bits) into lowest byte */
 
-	pba |= SBA_PDIR_VALID_BIT;	/* set "valid" bit */
-	*pdir_ptr = cpu_to_le64(pba);	/* swap and store into I/O Pdir */
+	/* set "valid" bit, swap and store into I/O Pdir */
+	*pdir_ptr = cpu_to_le64((unsigned long)pba | SBA_PDIR_VALID_BIT);
 
 	/*
 	 * If the PDC_MODEL capabilities has Non-coherent IO-PDIR bit set
@@ -1939,7 +1939,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	printk(KERN_INFO "%s found %s at 0x%llx\n",
 		MODULE_NAME, version, (unsigned long long)dev->hpa.start);
 
-	sba_dev = kzalloc(sizeof(struct sba_device), GFP_KERNEL);
+	sba_dev = kzalloc_obj(struct sba_device);
 	if (!sba_dev) {
 		printk(KERN_ERR MODULE_NAME " - couldn't alloc sba_device\n");
 		return -ENOMEM;

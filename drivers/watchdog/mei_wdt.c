@@ -563,7 +563,7 @@ static int mei_wdt_probe(struct mei_cl_device *cldev,
 	struct mei_wdt *wdt;
 	int ret;
 
-	wdt = kzalloc(sizeof(struct mei_wdt), GFP_KERNEL);
+	wdt = kzalloc_obj(struct mei_wdt);
 	if (!wdt)
 		return -ENOMEM;
 

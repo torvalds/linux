@@ -111,7 +111,7 @@ static struct wspace *alloc_ws(struct rs_codec *rs)
 	struct wspace *ws;
 	int nn = rs->nn;
 
-	ws = kzalloc(sizeof(*ws), GFP_KERNEL);
+	ws = kzalloc_obj(*ws);
 	if (!ws)
 		return NULL;
 
@@ -124,7 +124,7 @@ static struct wspace *alloc_ws(struct rs_codec *rs)
 	ws->s = ws->r + nn;
 	ws->corr = ws->s + nroots;
 
-	ws->errlocs = kmalloc_array(nn + nroots, sizeof(int), GFP_KERNEL);
+	ws->errlocs = kmalloc_objs(int, nn + nroots);
 	if (!ws->errlocs)
 		goto err;
 

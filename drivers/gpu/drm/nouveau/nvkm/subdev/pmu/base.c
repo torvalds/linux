@@ -77,7 +77,7 @@ nvkm_pmu_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_pmu_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 
@@ -161,7 +161,7 @@ nvkm_pmu_new_(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_pmu **ppmu)
 {
 	struct nvkm_pmu *pmu;
-	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
+	if (!(pmu = *ppmu = kzalloc_obj(*pmu)))
 		return -ENOMEM;
 	return nvkm_pmu_ctor(fwif, device, type, inst, *ppmu);
 }

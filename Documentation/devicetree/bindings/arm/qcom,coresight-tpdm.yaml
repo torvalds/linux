@@ -19,8 +19,8 @@ description: |
   sources and send it to a TPDA for packetization, timestamping, and funneling.
 
 maintainers:
-  - Mao Jinlong <quic_jinlmao@quicinc.com>
-  - Tao Zhang <quic_taozha@quicinc.com>
+  - Mao Jinlong <jinlong.mao@oss.qualcomm.com>
+  - Tao Zhang <tao.zhang@oss.qualcomm.com>
 
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:

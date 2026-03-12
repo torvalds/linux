@@ -417,7 +417,7 @@ static int qe_ep_rxbd_update(struct qe_ep *ep)
 
 	bd = ep->rxbase;
 
-	ep->rxframe = kmalloc(sizeof(*ep->rxframe), GFP_ATOMIC);
+	ep->rxframe = kmalloc_obj(*ep->rxframe, GFP_ATOMIC);
 	if (!ep->rxframe)
 		return -ENOMEM;
 
@@ -666,7 +666,7 @@ static int qe_ep_init(struct qe_udc *udc,
 	}
 
 	if ((ep->tm == USBP_TM_CTL) || (ep->dir == USB_DIR_IN)) {
-		ep->txframe = kmalloc(sizeof(*ep->txframe), GFP_ATOMIC);
+		ep->txframe = kmalloc_obj(*ep->txframe, GFP_ATOMIC);
 		if (!ep->txframe)
 			goto en_done2;
 		qe_frame_init(ep->txframe);
@@ -1670,7 +1670,7 @@ static struct usb_request *qe_alloc_request(struct usb_ep *_ep,	gfp_t gfp_flags)
 {
 	struct qe_req *req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -2344,7 +2344,7 @@ static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 	u64 size;
 	u32 offset;
 
-	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
+	udc = kzalloc_obj(*udc);
 	if (!udc)
 		goto cleanup;
 

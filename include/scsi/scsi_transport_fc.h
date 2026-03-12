@@ -317,6 +317,15 @@ struct fc_fpin_stats {
 	u64 cn_device_specific;
 };
 
+#define FC_RPORT_ENCRYPTION_STATUS_MAX_LEN      14
+/*
+ * Encryption Information
+ */
+struct fc_encryption_info {
+	/* Encryption Status */
+	u8 status;
+};
+
 /* Macro for use in defining Remote Port attributes */
 #define FC_RPORT_ATTR(_name,_mode,_show,_store)				\
 struct device_attribute dev_attr_rport_##_name = 	\
@@ -364,6 +373,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	u64 port_name;
 	u32 port_id;
 	u32 roles;
+	struct fc_encryption_info enc_info;
 	enum fc_port_state port_state;	/* Will only be ONLINE or UNKNOWN */
 	u32 scsi_target_id;
 	u32 fast_io_fail_tmo;
@@ -690,6 +700,8 @@ struct fc_function_template {
 
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
+
+	struct fc_encryption_info * (*get_fc_rport_enc_info)(struct fc_rport *);
 
 	int	(*issue_fc_host_lip)(struct Scsi_Host *);
 

@@ -211,7 +211,7 @@ static int cypress_probe(struct usb_interface *interface,
 	int retval = -ENOMEM;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto error_mem;
 

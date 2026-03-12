@@ -80,7 +80,7 @@ static void populate_error_injection_list(struct error_injection_entry *start,
 			continue;
 		}
 
-		ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+		ent = kmalloc_obj(*ent);
 		if (!ent)
 			break;
 		ent->start_addr = entry;

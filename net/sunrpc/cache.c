@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/hex.h>
 #include <linux/slab.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -1037,7 +1038,7 @@ static int cache_open(struct inode *inode, struct file *filp,
 		return -EACCES;
 	nonseekable_open(inode, filp);
 	if (filp->f_mode & FMODE_READ) {
-		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
+		rp = kmalloc_obj(*rp);
 		if (!rp) {
 			module_put(cd->owner);
 			return -ENOMEM;
@@ -1224,7 +1225,7 @@ static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	if (!buf)
 		return -EAGAIN;
 
-	crq = kmalloc(sizeof (*crq), GFP_KERNEL);
+	crq = kmalloc_obj(*crq);
 	if (!crq) {
 		kfree(buf);
 		return -EAGAIN;
@@ -1744,8 +1745,7 @@ struct cache_detail *cache_create_net(const struct cache_detail *tmpl, struct ne
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	cd->hash_table = kcalloc(cd->hash_size, sizeof(struct hlist_head),
-				 GFP_KERNEL);
+	cd->hash_table = kzalloc_objs(struct hlist_head, cd->hash_size);
 	if (cd->hash_table == NULL) {
 		kfree(cd);
 		return ERR_PTR(-ENOMEM);

@@ -579,7 +579,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	struct ata_port *ap;
 	int rc;
 
-	ata_host = kzalloc(sizeof(*ata_host), GFP_KERNEL);
+	ata_host = kzalloc_obj(*ata_host);
 	if (!ata_host)	{
 		pr_err("ata host alloc failed.\n");
 		return -ENOMEM;

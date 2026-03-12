@@ -6,6 +6,54 @@
 #include "imx91-pinfunc.h"
 #include "imx91_93_common.dtsi"
 
+/{
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			thermal-sensors = <&tmu 0>;
+
+			trips {
+				cpu_alert: cpu-alert {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit: cpu-crit {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&A55_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+	};
+};
+
+&aips1 {
+	tmu: thermal-sensor@44482000 {
+		compatible = "fsl,imx91-tmu";
+		reg = <0x44482000 0x1000>;
+		#thermal-sensor-cells = <0>;
+		clocks = <&clk IMX93_CLK_TMC_GATE>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "thr1", "thr2", "ready";
+		nvmem-cells = <&tmu_trim1>, <&tmu_trim2>;
+		nvmem-cell-names = "trim1", "trim2";
+	};
+};
+
 &clk {
 	compatible = "fsl,imx91-ccm";
 };
@@ -68,4 +116,14 @@
 		 <&clk IMX93_CLK_MIPI_CSI_GATE>;
 	clock-names = "apb", "axi", "nic", "disp", "cam",
 		      "lcdif", "isi", "csi";
+};
+
+&ocotp {
+	tmu_trim1: tmu-trim@a0 {
+		reg = <0xa0 0x4>;
+	};
+
+	tmu_trim2: tmu-trim@a4 {
+		reg = <0xa4 0x4>;
+	};
 };

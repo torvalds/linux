@@ -3,7 +3,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <uapi/linux/types.h>
 #include <linux/iommufd.h>
 #include <linux/limits.h>
 #include <linux/mman.h>
@@ -162,12 +161,8 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	if (rc == -EOPNOTSUPP)
 		goto unmap;
 
-	/*
-	 * IOMMUFD compatibility-mode does not support huge mappings when
-	 * using VFIO_TYPE1_IOMMU.
-	 */
-	if (!strcmp(variant->iommu_mode, "iommufd_compat_type1"))
-		mapping_size = SZ_4K;
+	if (self->iommu->mode->iommu_type == VFIO_TYPE1_IOMMU)
+		goto unmap;
 
 	ASSERT_EQ(0, rc);
 	printf("Found IOMMU mappings for IOVA 0x%lx:\n", region.iova);

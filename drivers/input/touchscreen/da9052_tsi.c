@@ -232,7 +232,7 @@ static int da9052_ts_probe(struct platform_device *pdev)
 	if (!da9052)
 		return -EINVAL;
 
-	tsi = kzalloc(sizeof(*tsi), GFP_KERNEL);
+	tsi = kzalloc_obj(*tsi);
 	input_dev = input_allocate_device();
 	if (!tsi || !input_dev) {
 		error = -ENOMEM;

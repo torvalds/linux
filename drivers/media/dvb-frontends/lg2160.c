@@ -1396,7 +1396,7 @@ struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 	       i2c_adap ? i2c_adapter_id(i2c_adap) : 0,
 	       config ? config->i2c_addr : 0);
 
-	state = kzalloc(sizeof(struct lg216x_state), GFP_KERNEL);
+	state = kzalloc_obj(struct lg216x_state);
 	if (!state)
 		return NULL;
 

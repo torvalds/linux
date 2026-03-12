@@ -1100,7 +1100,7 @@ ubi_alloc_vid_buf(const struct ubi_device *ubi, gfp_t gfp_flags)
 	struct ubi_vid_io_buf *vidb;
 	void *buf;
 
-	vidb = kzalloc(sizeof(*vidb), gfp_flags);
+	vidb = kzalloc_obj(*vidb, gfp_flags);
 	if (!vidb)
 		return NULL;
 

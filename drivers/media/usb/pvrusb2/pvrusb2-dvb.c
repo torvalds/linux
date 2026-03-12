@@ -449,7 +449,7 @@ struct pvr2_dvb_adapter *pvr2_dvb_create(struct pvr2_context *pvr)
 		   the DVB side of the driver either.  For now. */
 		return NULL;
 	}
-	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	adap = kzalloc_obj(*adap);
 	if (!adap) return adap;
 	pvr2_channel_init(&adap->channel, pvr);
 	adap->channel.check_func = pvr2_dvb_internal_check;

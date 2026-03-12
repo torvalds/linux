@@ -67,6 +67,11 @@
 	status = "okay";
 };
 
+&lpass_tlmm {
+	/delete-property/ clocks;
+	/delete-property/ clock-names;
+};
+
 &lpasscc {
 	status = "okay";
 };

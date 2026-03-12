@@ -44,7 +44,7 @@ properties:
 
   clock-names:
     minItems: 3
-    maxItems: 5
+    maxItems: 6
 
   interrupts:
     minItems: 1
@@ -212,14 +212,17 @@ allOf:
     then:
       properties:
         clocks:
-          maxItems: 5
+          minItems: 5
+          maxItems: 6
         clock-names:
+          minItems: 5
           items:
             - const: pcie
             - const: pcie_bus
             - const: pcie_phy
             - const: pcie_aux
             - const: ref
+            - const: extref  # Optional
 
 unevaluatedProperties: false
 

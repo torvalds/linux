@@ -1092,7 +1092,7 @@ next_mr:
 				continue;
 			}
 
-			frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+			frame = kzalloc_obj(*frame);
 			if (!frame) {
 				ret = -ENOMEM;
 				goto end;
@@ -2097,7 +2097,7 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 		return mlx5_ib_prefetch_sg_list(pd, advice, pf_flags, sg_list,
 						num_sge);
 
-	work = kvzalloc(struct_size(work, frags, num_sge), GFP_KERNEL);
+	work = kvzalloc_flex(*work, frags, num_sge);
 	if (!work)
 		return -ENOMEM;
 

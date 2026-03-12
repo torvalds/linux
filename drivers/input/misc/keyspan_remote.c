@@ -453,7 +453,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	if (!endpoint)
 		return -ENODEV;
 
-	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
+	remote = kzalloc_obj(*remote);
 	input_dev = input_allocate_device();
 	if (!remote || !input_dev) {
 		error = -ENOMEM;

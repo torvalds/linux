@@ -111,7 +111,15 @@ static bool batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh,
 			/* unsupported WiFi driver version */
 			goto default_throughput;
 
-		real_netdev = batadv_get_real_netdev(hard_iface->net_dev);
+		/* only use rtnl_trylock because the elp worker will be cancelled while
+		 * the rntl_lock is held. the cancel_delayed_work_sync() would otherwise
+		 * wait forever when the elp work_item was started and it is then also
+		 * trying to rtnl_lock
+		 */
+		if (!rtnl_trylock())
+			return false;
+		real_netdev = __batadv_get_real_netdev(hard_iface->net_dev);
+		rtnl_unlock();
 		if (!real_netdev)
 			goto default_throughput;
 
@@ -355,7 +363,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 		 * context. Therefore add it to metric_queue and process it
 		 * outside rcu protected context.
 		 */
-		metric_entry = kzalloc(sizeof(*metric_entry), GFP_ATOMIC);
+		metric_entry = kzalloc_obj(*metric_entry, GFP_ATOMIC);
 		if (!metric_entry) {
 			batadv_hardif_neigh_put(hardif_neigh);
 			continue;

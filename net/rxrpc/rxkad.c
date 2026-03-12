@@ -511,7 +511,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	if (nsg <= 4) {
 		nsg = 4;
 	} else {
-		sg = kmalloc_array(nsg, sizeof(*sg), GFP_NOIO);
+		sg = kmalloc_objs(*sg, nsg, GFP_NOIO);
 		if (!sg)
 			return -ENOMEM;
 	}
@@ -694,7 +694,7 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 		return -EAGAIN;
 	}
 
-	conn->peer->last_tx_at = ktime_get_seconds();
+	rxrpc_peer_mark_tx(conn->peer);
 	trace_rxrpc_tx_packet(conn->debug_id, &whdr,
 			      rxrpc_tx_point_rxkad_challenge);
 	_leave(" = 0");
@@ -1139,7 +1139,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	}
 
 	ret = -ENOMEM;
-	response = kzalloc(sizeof(struct rxkad_response), GFP_NOFS);
+	response = kzalloc_obj(struct rxkad_response, GFP_NOFS);
 	if (!response)
 		goto temporary_error;
 

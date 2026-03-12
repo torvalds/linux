@@ -42,8 +42,6 @@ nitpick_ignore = [
     ("c:func", "struct fd_set"),
     ("c:func", "struct pollfd"),
     ("c:func", "usb_make_path"),
-    ("c:func", "wait_finish"),
-    ("c:func", "wait_prepare"),
     ("c:func", "write"),
 
     ("c:type", "atomic_t"),

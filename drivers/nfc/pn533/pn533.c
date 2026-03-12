@@ -444,7 +444,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 
 	dev_dbg(dev->dev, "Sending command 0x%x\n", cmd_code);
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -518,7 +518,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	struct pn533_cmd *cmd;
 	int rc;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -2019,7 +2019,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		*next = 0;
 	}
 
-	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
+	arg = kmalloc_obj(*arg);
 	if (!arg) {
 		dev_kfree_skb(skb);
 		return -ENOMEM;
@@ -2266,7 +2266,7 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 		goto error;
 	}
 
-	arg = kmalloc(sizeof(*arg), GFP_KERNEL);
+	arg = kmalloc_obj(*arg);
 	if (!arg) {
 		rc = -ENOMEM;
 		goto error;
@@ -2744,7 +2744,7 @@ struct pn533 *pn53x_common_init(u32 device_type,
 {
 	struct pn533 *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

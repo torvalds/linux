@@ -70,12 +70,7 @@ static int gve_ptp_init(struct gve_priv *priv)
 	struct gve_ptp *ptp;
 	int err;
 
-	if (!priv->nic_timestamp_supported) {
-		dev_dbg(&priv->pdev->dev, "Device does not support PTP\n");
-		return -EOPNOTSUPP;
-	}
-
-	priv->ptp = kzalloc(sizeof(*priv->ptp), GFP_KERNEL);
+	priv->ptp = kzalloc_obj(*priv->ptp);
 	if (!priv->ptp)
 		return -ENOMEM;
 
@@ -115,9 +110,6 @@ static void gve_ptp_release(struct gve_priv *priv)
 int gve_init_clock(struct gve_priv *priv)
 {
 	int err;
-
-	if (!priv->nic_timestamp_supported)
-		return 0;
 
 	err = gve_ptp_init(priv);
 	if (err)

@@ -596,12 +596,6 @@ static ssize_t param_attr_store(const struct module_attribute *mattr,
 }
 #endif
 
-#ifdef CONFIG_MODULES
-#define __modinit
-#else
-#define __modinit __init
-#endif
-
 #ifdef CONFIG_SYSFS
 void kernel_param_lock(struct module *mod)
 {
@@ -626,9 +620,9 @@ EXPORT_SYMBOL(kernel_param_unlock);
  * create file in sysfs.  Returns an error on out of memory.  Always cleans up
  * if there's an error.
  */
-static __modinit int add_sysfs_param(struct module_kobject *mk,
-				     const struct kernel_param *kp,
-				     const char *name)
+static __init_or_module int add_sysfs_param(struct module_kobject *mk,
+					    const struct kernel_param *kp,
+					    const char *name)
 {
 	struct module_param_attrs *new_mp;
 	struct attribute **new_attrs;
@@ -639,13 +633,12 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 
 	if (!mk->mp) {
 		/* First allocation. */
-		mk->mp = kzalloc(sizeof(*mk->mp), GFP_KERNEL);
+		mk->mp = kzalloc_obj(*mk->mp);
 		if (!mk->mp)
 			return -ENOMEM;
 		mk->mp->grp.name = "parameters";
 		/* NULL-terminated attribute array. */
-		mk->mp->grp.attrs = kzalloc(sizeof(mk->mp->grp.attrs[0]),
-					    GFP_KERNEL);
+		mk->mp->grp.attrs = kzalloc_obj(mk->mp->grp.attrs[0]);
 		/* Caller will cleanup via free_module_param_attrs */
 		if (!mk->mp->grp.attrs)
 			return -ENOMEM;
@@ -761,7 +754,8 @@ void destroy_params(const struct kernel_param *params, unsigned num)
 			params[i].ops->free(params[i].arg);
 }
 
-struct module_kobject __modinit * lookup_or_create_module_kobject(const char *name)
+struct module_kobject * __init_or_module
+lookup_or_create_module_kobject(const char *name)
 {
 	struct module_kobject *mk;
 	struct kobject *kobj;
@@ -771,7 +765,7 @@ struct module_kobject __modinit * lookup_or_create_module_kobject(const char *na
 	if (kobj)
 		return to_module_kobject(kobj);
 
-	mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
+	mk = kzalloc_obj(struct module_kobject);
 	if (!mk)
 		return NULL;
 

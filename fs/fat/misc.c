@@ -299,62 +299,47 @@ struct timespec64 fat_truncate_atime(const struct msdos_sb_info *sbi,
 }
 
 /*
- * truncate mtime to 2 second granularity
+ * Update the in-inode atime and/or mtime after truncating the timestamp to the
+ * granularity.  All timestamps in root inode are always 0.
+ *
+ * ctime and mtime share the same on-disk field, and should be identical in
+ * memory.  All mtime updates will be applied to ctime, but ctime updates are
+ * ignored.
  */
-struct timespec64 fat_truncate_mtime(const struct msdos_sb_info *sbi,
-				     const struct timespec64 *ts)
-{
-	return fat_timespec64_trunc_2secs(*ts);
-}
-
-/*
- * truncate the various times with appropriate granularity:
- *   all times in root node are always 0
- */
-int fat_truncate_time(struct inode *inode, struct timespec64 *now, int flags)
+void fat_truncate_time(struct inode *inode, struct timespec64 *now,
+		unsigned int flags)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	struct timespec64 ts;
 
 	if (inode->i_ino == MSDOS_ROOT_INO)
-		return 0;
+		return;
 
 	if (now == NULL) {
 		now = &ts;
 		ts = current_time(inode);
 	}
 
-	if (flags & S_ATIME)
+	if (flags & FAT_UPDATE_ATIME)
 		inode_set_atime_to_ts(inode, fat_truncate_atime(sbi, now));
-	/*
-	 * ctime and mtime share the same on-disk field, and should be
-	 * identical in memory. all mtime updates will be applied to ctime,
-	 * but ctime updates are ignored.
-	 */
-	if (flags & S_MTIME)
-		inode_set_mtime_to_ts(inode,
-				      inode_set_ctime_to_ts(inode, fat_truncate_mtime(sbi, now)));
+	if (flags & FAT_UPDATE_CMTIME) {
+		/* truncate mtime to 2 second granularity */
+		struct timespec64 mtime = fat_timespec64_trunc_2secs(*now);
 
-	return 0;
+		inode_set_mtime_to_ts(inode, mtime);
+		inode_set_ctime_to_ts(inode, mtime);
+	}
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, int flags)
+int fat_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
-	int dirty_flags = 0;
-
-	if (inode->i_ino == MSDOS_ROOT_INO)
-		return 0;
-
-	if (flags & (S_ATIME | S_CTIME | S_MTIME)) {
-		fat_truncate_time(inode, NULL, flags);
-		if (inode->i_sb->s_flags & SB_LAZYTIME)
-			dirty_flags |= I_DIRTY_TIME;
-		else
-			dirty_flags |= I_DIRTY_SYNC;
+	if (inode->i_ino != MSDOS_ROOT_INO) {
+		fat_truncate_time(inode, NULL, type == FS_UPD_ATIME ?
+				FAT_UPDATE_ATIME : FAT_UPDATE_CMTIME);
+		__mark_inode_dirty(inode, inode_time_dirty_flag(inode));
 	}
-
-	__mark_inode_dirty(inode, dirty_flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_update_time);

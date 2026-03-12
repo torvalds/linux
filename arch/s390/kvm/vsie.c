@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/mman.h>
 
-#include <asm/gmap.h>
 #include <asm/mmu_context.h>
 #include <asm/sclp.h>
 #include <asm/nmi.h>
@@ -23,6 +22,7 @@
 #include <asm/facility.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
+#include "gmap.h"
 
 enum vsie_page_flags {
 	VSIE_PAGE_IN_USE = 0,
@@ -41,8 +41,11 @@ struct vsie_page {
 	 * are reused conditionally, should be accessed via READ_ONCE.
 	 */
 	struct kvm_s390_sie_block *scb_o;	/* 0x0218 */
-	/* the shadow gmap in use by the vsie_page */
-	struct gmap *gmap;			/* 0x0220 */
+	/*
+	 * Flags: must be set/cleared atomically after the vsie page can be
+	 * looked up by other CPUs.
+	 */
+	unsigned long flags;			/* 0x0220 */
 	/* address of the last reported fault to guest2 */
 	unsigned long fault_addr;		/* 0x0228 */
 	/* calculated guest addresses of satellite control blocks */
@@ -57,33 +60,14 @@ struct vsie_page {
 	 * radix tree.
 	 */
 	gpa_t scb_gpa;				/* 0x0258 */
-	/*
-	 * Flags: must be set/cleared atomically after the vsie page can be
-	 * looked up by other CPUs.
-	 */
-	unsigned long flags;			/* 0x0260 */
-	__u8 reserved[0x0700 - 0x0268];		/* 0x0268 */
+	/* the shadow gmap in use by the vsie_page */
+	struct gmap_cache gmap_cache;		/* 0x0260 */
+	__u8 reserved[0x0700 - 0x0278];		/* 0x0278 */
 	struct kvm_s390_crypto_cb crycb;	/* 0x0700 */
 	__u8 fac[S390_ARCH_FAC_LIST_SIZE_BYTE];	/* 0x0800 */
 };
 
-/**
- * gmap_shadow_valid() - check if a shadow guest address space matches the
- *                       given properties and is still valid
- * @sg: pointer to the shadow guest address space structure
- * @asce: ASCE for which the shadow table is requested
- * @edat_level: edat level to be used for the shadow translation
- *
- * Returns 1 if the gmap shadow is still valid and matches the given
- * properties, the caller can continue using it. Returns 0 otherwise; the
- * caller has to request a new shadow gmap in this case.
- */
-int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level)
-{
-	if (sg->removed)
-		return 0;
-	return sg->orig_asce == asce && sg->edat_level == edat_level;
-}
+static_assert(sizeof(struct vsie_page) == PAGE_SIZE);
 
 /* trigger a validity icpt for the given scb */
 static int set_validity_icpt(struct kvm_s390_sie_block *scb,
@@ -612,26 +596,17 @@ out:
 	return rc;
 }
 
-void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
-				 unsigned long end)
+void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, gpa_t start, gpa_t end)
 {
-	struct kvm *kvm = gmap->private;
-	struct vsie_page *cur;
+	struct vsie_page *cur, *next;
 	unsigned long prefix;
-	int i;
 
-	if (!gmap_is_shadow(gmap))
-		return;
+	KVM_BUG_ON(!test_bit(GMAP_FLAG_SHADOW, &gmap->flags), gmap->kvm);
 	/*
 	 * Only new shadow blocks are added to the list during runtime,
 	 * therefore we can safely reference them all the time.
 	 */
-	for (i = 0; i < kvm->arch.vsie.page_count; i++) {
-		cur = READ_ONCE(kvm->arch.vsie.pages[i]);
-		if (!cur)
-			continue;
-		if (READ_ONCE(cur->gmap) != gmap)
-			continue;
+	list_for_each_entry_safe(cur, next, &gmap->scb_users, gmap_cache.list) {
 		prefix = cur->scb_s.prefix << GUEST_PREFIX_SHIFT;
 		/* with mso/msl, the prefix lies at an offset */
 		prefix += cur->scb_s.mso;
@@ -652,7 +627,7 @@ void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
  *          - -EAGAIN if the caller can retry immediately
  *          - -ENOMEM if out of memory
  */
-static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	u64 prefix = scb_s->prefix << GUEST_PREFIX_SHIFT;
@@ -667,10 +642,9 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* with mso/msl, the prefix lies at offset *mso* */
 	prefix += scb_s->mso;
 
-	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, prefix, NULL);
+	rc = gaccess_shadow_fault(vcpu, sg, prefix, NULL, true);
 	if (!rc && (scb_s->ecb & ECB_TE))
-		rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-					   prefix + PAGE_SIZE, NULL);
+		rc = gaccess_shadow_fault(vcpu, sg, prefix + PAGE_SIZE, NULL, true);
 	/*
 	 * We don't have to mprotect, we will be called for all unshadows.
 	 * SIE will detect if protection applies and trigger a validity.
@@ -951,8 +925,9 @@ static int inject_fault(struct kvm_vcpu *vcpu, __u16 code, __u64 vaddr,
  *          - > 0 if control has to be given to guest 2
  *          - < 0 if an error occurred
  */
-static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
+	bool wr = kvm_s390_cur_gmap_fault_is_write();
 	int rc;
 
 	if ((current->thread.gmap_int_code & PGM_INT_CODE_MASK) == PGM_PROTECTION)
@@ -960,12 +935,10 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		return inject_fault(vcpu, PGM_PROTECTION,
 				    current->thread.gmap_teid.addr * PAGE_SIZE, 1);
 
-	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-				   current->thread.gmap_teid.addr * PAGE_SIZE, NULL);
+	rc = gaccess_shadow_fault(vcpu, sg, current->thread.gmap_teid.addr * PAGE_SIZE, NULL, wr);
 	if (rc > 0) {
 		rc = inject_fault(vcpu, rc,
-				  current->thread.gmap_teid.addr * PAGE_SIZE,
-				  kvm_s390_cur_gmap_fault_is_write());
+				  current->thread.gmap_teid.addr * PAGE_SIZE, wr);
 		if (rc >= 0)
 			vsie_page->fault_addr = current->thread.gmap_teid.addr * PAGE_SIZE;
 	}
@@ -978,12 +951,10 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *
  * Will ignore any errors. The next SIE fault will do proper fault handling.
  */
-static void handle_last_fault(struct kvm_vcpu *vcpu,
-			      struct vsie_page *vsie_page)
+static void handle_last_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	if (vsie_page->fault_addr)
-		kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-				      vsie_page->fault_addr, NULL);
+		gaccess_shadow_fault(vcpu, sg, vsie_page->fault_addr, NULL, true);
 	vsie_page->fault_addr = 0;
 }
 
@@ -1065,11 +1036,12 @@ static u64 vsie_get_register(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 	}
 }
 
-static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	unsigned long pei_dest, pei_src, src, dest, mask, prefix;
+	unsigned long src, dest, mask, prefix;
 	u64 *pei_block = &vsie_page->scb_o->mcic;
+	union mvpg_pei pei_dest, pei_src;
 	int edat, rc_dest, rc_src;
 	union ctlreg0 cr0;
 
@@ -1083,8 +1055,8 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	src = vsie_get_register(vcpu, vsie_page, scb_s->ipb >> 16) & mask;
 	src = _kvm_s390_real_to_abs(prefix, src) + scb_s->mso;
 
-	rc_dest = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, dest, &pei_dest);
-	rc_src = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, src, &pei_src);
+	rc_dest = gaccess_shadow_fault(vcpu, sg, dest, &pei_dest, true);
+	rc_src = gaccess_shadow_fault(vcpu, sg, src, &pei_src, false);
 	/*
 	 * Either everything went well, or something non-critical went wrong
 	 * e.g. because of a race. In either case, simply retry.
@@ -1119,8 +1091,8 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		rc_src = rc_src != PGM_PAGE_TRANSLATION ? rc_src : 0;
 	}
 	if (!rc_dest && !rc_src) {
-		pei_block[0] = pei_dest;
-		pei_block[1] = pei_src;
+		pei_block[0] = pei_dest.val;
+		pei_block[1] = pei_src.val;
 		return 1;
 	}
 
@@ -1144,7 +1116,7 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *          - > 0 if control has to be given to guest 2
  *          - < 0 if an error occurred
  */
-static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 	__releases(vcpu->kvm->srcu)
 	__acquires(vcpu->kvm->srcu)
 {
@@ -1153,7 +1125,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	int guest_bp_isolation;
 	int rc = 0;
 
-	handle_last_fault(vcpu, vsie_page);
+	handle_last_fault(vcpu, vsie_page, sg);
 
 	kvm_vcpu_srcu_read_unlock(vcpu);
 
@@ -1191,7 +1163,7 @@ xfer_to_guest_mode_check:
 			goto xfer_to_guest_mode_check;
 		}
 		guest_timing_enter_irqoff();
-		rc = kvm_s390_enter_exit_sie(scb_s, vcpu->run->s.regs.gprs, vsie_page->gmap->asce);
+		rc = kvm_s390_enter_exit_sie(scb_s, vcpu->run->s.regs.gprs, sg->asce.val);
 		guest_timing_exit_irqoff();
 		local_irq_enable();
 	}
@@ -1215,7 +1187,7 @@ skip_sie:
 	if (rc > 0)
 		rc = 0; /* we could still have an icpt */
 	else if (current->thread.gmap_int_code)
-		return handle_fault(vcpu, vsie_page);
+		return handle_fault(vcpu, vsie_page, sg);
 
 	switch (scb_s->icptcode) {
 	case ICPT_INST:
@@ -1233,7 +1205,7 @@ skip_sie:
 		break;
 	case ICPT_PARTEXEC:
 		if (scb_s->ipa == 0xb254)
-			rc = vsie_handle_mvpg(vcpu, vsie_page);
+			rc = vsie_handle_mvpg(vcpu, vsie_page, sg);
 		break;
 	}
 	return rc;
@@ -1241,43 +1213,67 @@ skip_sie:
 
 static void release_gmap_shadow(struct vsie_page *vsie_page)
 {
-	if (vsie_page->gmap)
-		gmap_put(vsie_page->gmap);
-	WRITE_ONCE(vsie_page->gmap, NULL);
+	struct gmap *gmap = vsie_page->gmap_cache.gmap;
+
+	lockdep_assert_held(&gmap->kvm->arch.gmap->children_lock);
+
+	list_del(&vsie_page->gmap_cache.list);
+	vsie_page->gmap_cache.gmap = NULL;
 	prefix_unmapped(vsie_page);
+
+	if (list_empty(&gmap->scb_users)) {
+		gmap_remove_child(gmap);
+		gmap_put(gmap);
+	}
 }
 
-static int acquire_gmap_shadow(struct kvm_vcpu *vcpu,
-			       struct vsie_page *vsie_page)
+static struct gmap *acquire_gmap_shadow(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
-	unsigned long asce;
 	union ctlreg0 cr0;
 	struct gmap *gmap;
+	union asce asce;
 	int edat;
 
-	asce = vcpu->arch.sie_block->gcr[1];
+	asce.val = vcpu->arch.sie_block->gcr[1];
 	cr0.val = vcpu->arch.sie_block->gcr[0];
 	edat = cr0.edat && test_kvm_facility(vcpu->kvm, 8);
 	edat += edat && test_kvm_facility(vcpu->kvm, 78);
 
-	/*
-	 * ASCE or EDAT could have changed since last icpt, or the gmap
-	 * we're holding has been unshadowed. If the gmap is still valid,
-	 * we can safely reuse it.
-	 */
-	if (vsie_page->gmap && gmap_shadow_valid(vsie_page->gmap, asce, edat)) {
-		vcpu->kvm->stat.gmap_shadow_reuse++;
-		return 0;
+	scoped_guard(spinlock, &vcpu->kvm->arch.gmap->children_lock) {
+		gmap = vsie_page->gmap_cache.gmap;
+		if (gmap) {
+			/*
+			 * ASCE or EDAT could have changed since last icpt, or the gmap
+			 * we're holding has been unshadowed. If the gmap is still valid,
+			 * we can safely reuse it.
+			 */
+			if (gmap_is_shadow_valid(gmap, asce, edat)) {
+				vcpu->kvm->stat.gmap_shadow_reuse++;
+				gmap_get(gmap);
+				return gmap;
+			}
+			/* release the old shadow and mark the prefix as unmapped */
+			release_gmap_shadow(vsie_page);
+		}
 	}
-
-	/* release the old shadow - if any, and mark the prefix as unmapped */
-	release_gmap_shadow(vsie_page);
-	gmap = gmap_shadow(vcpu->arch.gmap, asce, edat);
+again:
+	gmap = gmap_create_shadow(vcpu->arch.mc, vcpu->kvm->arch.gmap, asce, edat);
 	if (IS_ERR(gmap))
-		return PTR_ERR(gmap);
-	vcpu->kvm->stat.gmap_shadow_create++;
-	WRITE_ONCE(vsie_page->gmap, gmap);
-	return 0;
+		return gmap;
+	scoped_guard(spinlock, &vcpu->kvm->arch.gmap->children_lock) {
+		/* unlikely race condition, remove the previous shadow */
+		if (vsie_page->gmap_cache.gmap)
+			release_gmap_shadow(vsie_page);
+		if (!gmap->parent) {
+			gmap_put(gmap);
+			goto again;
+		}
+		vcpu->kvm->stat.gmap_shadow_create++;
+		list_add(&vsie_page->gmap_cache.list, &gmap->scb_users);
+		vsie_page->gmap_cache.gmap = gmap;
+		prefix_unmapped(vsie_page);
+	}
+	return gmap;
 }
 
 /*
@@ -1330,15 +1326,20 @@ static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
 static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	struct gmap *sg;
 	int rc = 0;
 
 	while (1) {
-		rc = acquire_gmap_shadow(vcpu, vsie_page);
+		sg = acquire_gmap_shadow(vcpu, vsie_page);
+		if (IS_ERR(sg)) {
+			rc = PTR_ERR(sg);
+			sg = NULL;
+		}
 		if (!rc)
-			rc = map_prefix(vcpu, vsie_page);
+			rc = map_prefix(vcpu, vsie_page, sg);
 		if (!rc) {
 			update_intervention_requests(vsie_page);
-			rc = do_vsie_run(vcpu, vsie_page);
+			rc = do_vsie_run(vcpu, vsie_page, sg);
 		}
 		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
 
@@ -1361,6 +1362,9 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 			kvm_s390_rewind_psw(vcpu, 4);
 			break;
 		}
+		if (sg)
+			sg = gmap_put(sg);
+		cond_resched();
 	}
 
 	if (rc == -EFAULT) {
@@ -1457,8 +1461,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	vsie_page->scb_gpa = ULONG_MAX;
 
 	/* Double use of the same address or allocation failure. */
-	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9,
-			      vsie_page)) {
+	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9, vsie_page)) {
 		put_vsie_page(vsie_page);
 		mutex_unlock(&kvm->arch.vsie.mutex);
 		return NULL;
@@ -1467,7 +1470,12 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	mutex_unlock(&kvm->arch.vsie.mutex);
 
 	memset(&vsie_page->scb_s, 0, sizeof(struct kvm_s390_sie_block));
-	release_gmap_shadow(vsie_page);
+	if (vsie_page->gmap_cache.gmap) {
+		scoped_guard(spinlock, &kvm->arch.gmap->children_lock)
+			if (vsie_page->gmap_cache.gmap)
+				release_gmap_shadow(vsie_page);
+	}
+	prefix_unmapped(vsie_page);
 	vsie_page->fault_addr = 0;
 	vsie_page->scb_s.ihcpu = 0xffffU;
 	return vsie_page;
@@ -1498,11 +1506,13 @@ int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu)
 	}
 
 	vsie_page = get_vsie_page(vcpu->kvm, scb_addr);
-	if (IS_ERR(vsie_page))
+	if (IS_ERR(vsie_page)) {
 		return PTR_ERR(vsie_page);
-	else if (!vsie_page)
+	} else if (!vsie_page) {
 		/* double use of sie control block - simply do nothing */
+		kvm_s390_rewind_psw(vcpu, 4);
 		return 0;
+	}
 
 	rc = pin_scb(vcpu, vsie_page, scb_addr);
 	if (rc)
@@ -1543,8 +1553,10 @@ void kvm_s390_vsie_destroy(struct kvm *kvm)
 	mutex_lock(&kvm->arch.vsie.mutex);
 	for (i = 0; i < kvm->arch.vsie.page_count; i++) {
 		vsie_page = kvm->arch.vsie.pages[i];
+		scoped_guard(spinlock, &kvm->arch.gmap->children_lock)
+			if (vsie_page->gmap_cache.gmap)
+				release_gmap_shadow(vsie_page);
 		kvm->arch.vsie.pages[i] = NULL;
-		release_gmap_shadow(vsie_page);
 		/* free the radix tree entry */
 		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,

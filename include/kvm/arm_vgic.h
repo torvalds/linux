@@ -300,11 +300,7 @@ struct vgic_dist {
 	 */
 	u64			propbaser;
 
-#define LPI_XA_MARK_DEBUG_ITER	XA_MARK_0
 	struct xarray		lpi_xa;
-
-	/* used by vgic-debug */
-	struct vgic_state_iter *iter;
 
 	/*
 	 * GICv4 ITS per-VM data, containing the IRQ domain, the VPE

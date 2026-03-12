@@ -694,7 +694,7 @@ struct go7007 *go7007_alloc(const struct go7007_board_info *board,
 {
 	struct go7007 *go;
 
-	go = kzalloc(sizeof(struct go7007), GFP_KERNEL);
+	go = kzalloc_obj(struct go7007);
 	if (go == NULL)
 		return NULL;
 	go->dev = dev;

@@ -628,7 +628,7 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 	struct qcom_sysmon *sysmon;
 	int ret;
 
-	sysmon = kzalloc(sizeof(*sysmon), GFP_KERNEL);
+	sysmon = kzalloc_obj(*sysmon);
 	if (!sysmon)
 		return ERR_PTR(-ENOMEM);
 

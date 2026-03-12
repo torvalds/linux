@@ -354,7 +354,7 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	struct omap3isp_h3a_af_config *af_recover_cfg = NULL;
 	int ret;
 
-	af_cfg = kzalloc(sizeof(*af_cfg), GFP_KERNEL);
+	af_cfg = kzalloc_obj(*af_cfg);
 	if (af_cfg == NULL)
 		return -ENOMEM;
 
@@ -364,7 +364,7 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af->isp = isp;
 
 	/* Set recover state configuration */
-	af_recover_cfg = kzalloc(sizeof(*af_recover_cfg), GFP_KERNEL);
+	af_recover_cfg = kzalloc_obj(*af_recover_cfg);
 	if (!af_recover_cfg) {
 		dev_err(af->isp->dev,
 			"AF: cannot allocate memory for recover configuration.\n");

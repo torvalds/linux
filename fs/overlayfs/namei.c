@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/cred.h>
 #include <linux/ctype.h>
+#include <linux/hex.h>
 #include <linux/namei.h>
 #include <linux/xattr.h>
 #include <linux/ratelimit.h>
@@ -158,6 +159,18 @@ invalid:
 	goto out;
 }
 
+bool ovl_uuid_match(struct ovl_fs *ofs, const struct super_block *sb,
+		    const uuid_t *uuid)
+{
+	/*
+	 * Make sure that the stored uuid matches the uuid of the lower
+	 * layer where file handle will be decoded.
+	 * In case of uuid=off option just make sure that stored uuid is null.
+	 */
+	return ovl_origin_uuid(ofs) ? uuid_equal(uuid, &sb->s_uuid) :
+				      uuid_is_null(uuid);
+}
+
 struct dentry *ovl_decode_real_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 				  struct vfsmount *mnt, bool connected)
 {
@@ -167,14 +180,7 @@ struct dentry *ovl_decode_real_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 	if (!capable(CAP_DAC_READ_SEARCH))
 		return NULL;
 
-	/*
-	 * Make sure that the stored uuid matches the uuid of the lower
-	 * layer where file handle will be decoded.
-	 * In case of uuid=off option just make sure that stored uuid is null.
-	 */
-	if (ovl_origin_uuid(ofs) ?
-	    !uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid) :
-	    !uuid_is_null(&fh->fb.uuid))
+	if (!ovl_uuid_match(ofs, mnt->mnt_sb, &fh->fb.uuid))
 		return NULL;
 
 	bytes = (fh->fb.len - offsetof(struct ovl_fb, fid));
@@ -475,7 +481,7 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 		goto invalid;
 
 	if (!*stackp)
-		*stackp = kmalloc(sizeof(struct ovl_path), GFP_KERNEL);
+		*stackp = kmalloc_obj(struct ovl_path);
 	if (!*stackp) {
 		dput(origin);
 		return -ENOMEM;

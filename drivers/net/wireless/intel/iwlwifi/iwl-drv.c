@@ -1459,7 +1459,7 @@ static int iwl_alloc_ucode_mem(struct fw_img *out, struct fw_img_parsing *img)
 {
 	struct fw_desc *sec;
 
-	sec = kcalloc(img->sec_counter, sizeof(*sec), GFP_KERNEL);
+	sec = kzalloc_objs(*sec, img->sec_counter);
 	if (!sec)
 		return -ENOMEM;
 
@@ -1597,7 +1597,7 @@ static void _iwl_op_mode_stop(struct iwl_drv *drv)
  */
 static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 {
-	unsigned int min_core, max_core, loaded_core;
+	int min_core, max_core, loaded_core;
 	struct iwl_drv *drv = context;
 	struct iwl_fw *fw = &drv->fw;
 	const struct iwl_ucode_header *ucode;
@@ -1622,7 +1622,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	/* dump all fw memory areas by default */
 	fw->dbg.dump_mask = 0xffffffff;
 
-	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
+	pieces = kzalloc_obj(*pieces);
 	if (!pieces)
 		goto out_free_fw;
 
@@ -1676,7 +1676,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (loaded_core < min_core || loaded_core > max_core) {
 		IWL_ERR(drv,
 			"Driver unable to support your firmware API. "
-			"Driver supports FW core %u..%u, firmware is %u.\n",
+			"Driver supports FW core %d..%d, firmware is %d.\n",
 			min_core, max_core, loaded_core);
 		goto try_again;
 	}
@@ -1915,7 +1915,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	struct iwl_drv *drv;
 	int ret;
 
-	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
+	drv = kzalloc_obj(*drv);
 	if (!drv) {
 		ret = -ENOMEM;
 		goto err;

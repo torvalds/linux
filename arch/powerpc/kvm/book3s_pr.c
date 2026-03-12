@@ -1738,8 +1738,7 @@ static int kvmppc_core_vcpu_create_pr(struct kvm_vcpu *vcpu)
 	vcpu->arch.book3s = vcpu_book3s;
 
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
-	vcpu->arch.shadow_vcpu =
-		kzalloc(sizeof(*vcpu->arch.shadow_vcpu), GFP_KERNEL);
+	vcpu->arch.shadow_vcpu = kzalloc_obj(*vcpu->arch.shadow_vcpu);
 	if (!vcpu->arch.shadow_vcpu)
 		goto free_vcpu3s;
 #endif

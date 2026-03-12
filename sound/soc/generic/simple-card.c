@@ -726,7 +726,7 @@ static int simple_probe(struct platform_device *pdev)
 	card->driver_name       = "simple-card";
 
 	ret = -ENOMEM;
-	struct link_info *li __free(kfree) = kzalloc(sizeof(*li), GFP_KERNEL);
+	struct link_info *li __free(kfree) = kzalloc_obj(*li);
 	if (!li)
 		goto end;
 

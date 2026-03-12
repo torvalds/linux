@@ -192,7 +192,7 @@ struct bsg_device *bsg_register_queue(struct request_queue *q,
 	struct bsg_device *bd;
 	int ret;
 
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	bd = kzalloc_obj(*bd);
 	if (!bd)
 		return ERR_PTR(-ENOMEM);
 	bd->max_queue = BSG_DEFAULT_CMDS;

@@ -165,7 +165,7 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 	u32 val;
 
 	/* Alloc */
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc_obj(*bus);
 	if (!bus)
 		goto out;
 

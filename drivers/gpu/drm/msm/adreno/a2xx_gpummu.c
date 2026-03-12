@@ -95,7 +95,7 @@ struct msm_mmu *a2xx_gpummu_new(struct device *dev, struct msm_gpu *gpu)
 {
 	struct a2xx_gpummu *gpummu;
 
-	gpummu = kzalloc(sizeof(*gpummu), GFP_KERNEL);
+	gpummu = kzalloc_obj(*gpummu);
 	if (!gpummu)
 		return ERR_PTR(-ENOMEM);
 

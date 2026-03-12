@@ -60,7 +60,8 @@ static const struct spl_fixed31_32 spl_fixpt_one = { 0x100000000LL };
  * @brief
  * result = numerator / denominator
  */
-struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long denominator);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_fraction(
+	long long numerator, long long denominator));
 
 /*
  * @brief
@@ -280,7 +281,8 @@ static inline struct spl_fixed31_32 spl_fixpt_sub_int(struct spl_fixed31_32 arg1
  * @brief
  * result = arg1 * arg2
  */
-struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed31_32 arg2);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_mul(
+	struct spl_fixed31_32 arg1, struct spl_fixed31_32 arg2));
 
 
 /*
@@ -289,14 +291,14 @@ struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed
  */
 static inline struct spl_fixed31_32 spl_fixpt_mul_int(struct spl_fixed31_32 arg1, int arg2)
 {
-	return spl_fixpt_mul(arg1, spl_fixpt_from_int(arg2));
+	return SPL_NAMESPACE(spl_fixpt_mul(arg1, spl_fixpt_from_int(arg2)));
 }
 
 /*
  * @brief
  * result = square(arg) := arg * arg
  */
-struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sqr(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -304,7 +306,8 @@ struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg);
  */
 static inline struct spl_fixed31_32 spl_fixpt_div_int(struct spl_fixed31_32 arg1, long long arg2)
 {
-	return spl_fixpt_from_fraction(arg1.value, spl_fixpt_from_int((int)arg2).value);
+	return SPL_NAMESPACE(spl_fixpt_from_fraction(arg1.value,
+		spl_fixpt_from_int((int)arg2).value));
 }
 
 /*
@@ -313,7 +316,7 @@ static inline struct spl_fixed31_32 spl_fixpt_div_int(struct spl_fixed31_32 arg1
  */
 static inline struct spl_fixed31_32 spl_fixpt_div(struct spl_fixed31_32 arg1, struct spl_fixed31_32 arg2)
 {
-	return spl_fixpt_from_fraction(arg1.value, arg2.value);
+	return SPL_NAMESPACE(spl_fixpt_from_fraction(arg1.value, arg2.value));
 }
 
 /*
@@ -328,7 +331,7 @@ static inline struct spl_fixed31_32 spl_fixpt_div(struct spl_fixed31_32 arg1, st
  * @note
  * No special actions taken in case argument is zero.
  */
-struct spl_fixed31_32 spl_fixpt_recip(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_recip(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -343,7 +346,7 @@ struct spl_fixed31_32 spl_fixpt_recip(struct spl_fixed31_32 arg);
  * Argument specified in radians,
  * internally it's normalized to [-2pi...2pi] range.
  */
-struct spl_fixed31_32 spl_fixpt_sinc(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sinc(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -353,7 +356,7 @@ struct spl_fixed31_32 spl_fixpt_sinc(struct spl_fixed31_32 arg);
  * Argument specified in radians,
  * internally it's normalized to [-2pi...2pi] range.
  */
-struct spl_fixed31_32 spl_fixpt_sin(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_sin(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -365,7 +368,7 @@ struct spl_fixed31_32 spl_fixpt_sin(struct spl_fixed31_32 arg);
  * passing arguments outside that range
  * will cause incorrect result!
  */
-struct spl_fixed31_32 spl_fixpt_cos(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_cos(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -379,7 +382,7 @@ struct spl_fixed31_32 spl_fixpt_cos(struct spl_fixed31_32 arg);
  * @note
  * Currently, function is verified for abs(arg) <= 1.
  */
-struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_exp(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -391,7 +394,7 @@ struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg);
  * Currently, no special actions taken
  * in case of invalid argument(s). Take care!
  */
-struct spl_fixed31_32 spl_fixpt_log(struct spl_fixed31_32 arg);
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_log(struct spl_fixed31_32 arg));
 
 /*
  * @brief
@@ -410,10 +413,10 @@ static inline struct spl_fixed31_32 spl_fixpt_pow(struct spl_fixed31_32 arg1, st
 	if (arg1.value == 0)
 		return arg2.value == 0 ? spl_fixpt_one : spl_fixpt_zero;
 
-	return spl_fixpt_exp(
-		spl_fixpt_mul(
-			spl_fixpt_log(arg1),
-			arg2));
+	return SPL_NAMESPACE(spl_fixpt_exp(
+		SPL_NAMESPACE(spl_fixpt_mul(
+			SPL_NAMESPACE(spl_fixpt_log(arg1)),
+			arg2))));
 }
 
 /*
@@ -482,19 +485,19 @@ static inline int spl_fixpt_ceil(struct spl_fixed31_32 arg)
  * fractional
  */
 
-unsigned int spl_fixpt_u4d19(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_u4d19(struct spl_fixed31_32 arg));
 
-unsigned int spl_fixpt_u3d19(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_u3d19(struct spl_fixed31_32 arg));
 
-unsigned int spl_fixpt_u2d19(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_u2d19(struct spl_fixed31_32 arg));
 
-unsigned int spl_fixpt_u0d19(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_u0d19(struct spl_fixed31_32 arg));
 
-unsigned int spl_fixpt_clamp_u0d14(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_clamp_u0d14(struct spl_fixed31_32 arg));
 
-unsigned int spl_fixpt_clamp_u0d10(struct spl_fixed31_32 arg);
+unsigned int SPL_NAMESPACE(spl_fixpt_clamp_u0d10(struct spl_fixed31_32 arg));
 
-int spl_fixpt_s4d19(struct spl_fixed31_32 arg);
+int SPL_NAMESPACE(spl_fixpt_s4d19(struct spl_fixed31_32 arg));
 
 static inline struct spl_fixed31_32 spl_fixpt_truncate(struct spl_fixed31_32 arg, unsigned int frac_bits)
 {
@@ -513,10 +516,11 @@ static inline struct spl_fixed31_32 spl_fixpt_truncate(struct spl_fixed31_32 arg
 	return arg;
 }
 
-struct spl_fixed31_32 spl_fixpt_from_ux_dy(unsigned int value, unsigned int integer_bits, unsigned int fractional_bits);
-struct spl_fixed31_32 spl_fixpt_from_int_dy(unsigned int int_value,
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_ux_dy(unsigned int value,
+		unsigned int integer_bits, unsigned int fractional_bits));
+struct spl_fixed31_32 SPL_NAMESPACE(spl_fixpt_from_int_dy(unsigned int int_value,
 		unsigned int frac_value,
 		unsigned int integer_bits,
-		unsigned int fractional_bits);
+		unsigned int fractional_bits));
 
 #endif

@@ -47,7 +47,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	if (!vaddr)
 		return -ENOMEM;
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	st = kmalloc_obj(*st);
 	if (!st)
 		goto err_pci;
 

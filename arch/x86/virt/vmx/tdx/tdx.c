@@ -194,7 +194,7 @@ static int add_tdx_memblock(struct list_head *tmb_list, unsigned long start_pfn,
 {
 	struct tdx_memblock *tmb;
 
-	tmb = kmalloc(sizeof(*tmb), GFP_KERNEL);
+	tmb = kmalloc_obj(*tmb);
 	if (!tmb)
 		return -ENOMEM;
 

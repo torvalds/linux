@@ -222,9 +222,7 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct ac97_controller *ctrl;
-	pxa2xx_audio_ops_t *pdata = pdev->dev.platform_data;
 	struct resource *regs;
-	void **codecs_pdata;
 
 	if (pdev->id != -1) {
 		dev_err(&pdev->dev, "PXA2xx has only one AC97 port.\n");
@@ -247,10 +245,9 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	codecs_pdata = pdata ? pdata->codec_pdata : NULL;
 	ctrl = snd_ac97_controller_register(&pxa2xx_ac97_ops, &pdev->dev,
 					    AC97_SLOTS_AVAILABLE_ALL,
-					    codecs_pdata);
+					    NULL);
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 

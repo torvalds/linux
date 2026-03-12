@@ -1426,7 +1426,7 @@ static int __schizo_init(struct platform_device *op, unsigned long chip_type)
 	portid = of_getintprop_default(dp, "portid", 0xff);
 
 	err = -ENOMEM;
-	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	pbm = kzalloc_obj(*pbm);
 	if (!pbm) {
 		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
 		goto out_err;
@@ -1434,7 +1434,7 @@ static int __schizo_init(struct platform_device *op, unsigned long chip_type)
 
 	pbm->sibling = schizo_find_sibling(portid, chip_type);
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+	iommu = kzalloc_obj(struct iommu);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
 		goto out_free_pbm;

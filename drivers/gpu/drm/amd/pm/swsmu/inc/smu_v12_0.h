@@ -62,5 +62,8 @@ int smu_v12_0_set_driver_table_location(struct smu_context *smu);
 
 int smu_v12_0_get_vbios_bootup_values(struct smu_context *smu);
 
+void smu_v12_0_init_msg_ctl(struct smu_context *smu,
+			    const struct cmn2asic_msg_mapping *message_map);
+
 #endif
 #endif

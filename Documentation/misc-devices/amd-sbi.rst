@@ -15,7 +15,7 @@ and SB Temperature Sensor Interface (SB-TSI)).
 More details on the interface can be found in chapter
 "5 Advanced Platform Management Link (APML)" of the family/model PPR [1]_.
 
-.. [1] https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/programmer-references/55898_B1_pub_0_50.zip
+.. [1] https://docs.amd.com/v/u/en-US/55898_B1_pub_0_50
 
 
 SBRMI device

@@ -228,9 +228,8 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 			return ret;
 
 		_debug("unmarshall FID array");
-		call->request = kcalloc(call->count,
-					sizeof(struct afs_callback_break),
-					GFP_KERNEL);
+		call->request = kzalloc_objs(struct afs_callback_break,
+					     call->count);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -340,7 +339,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
+		call->request = kmalloc_obj(struct afs_uuid);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -457,7 +456,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
+		call->request = kmalloc_obj(struct afs_uuid);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -589,9 +588,8 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 			return ret;
 
 		_debug("unmarshall FID array");
-		call->request = kcalloc(call->count,
-					sizeof(struct afs_callback_break),
-					GFP_KERNEL);
+		call->request = kzalloc_objs(struct afs_callback_break,
+					     call->count);
 		if (!call->request)
 			return -ENOMEM;
 

@@ -453,8 +453,8 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 	snprintf(engine->name, sizeof(engine->name),
 		 "%s-engine", dev_name(dev));
 
+	guard(spinlock_init)(&engine->queue_lock);
 	crypto_init_queue(&engine->queue, qlen);
-	spin_lock_init(&engine->queue_lock);
 
 	engine->kworker = kthread_run_worker(0, "%s", engine->name);
 	if (IS_ERR(engine->kworker)) {
@@ -524,16 +524,13 @@ int crypto_engine_register_aeads(struct aead_engine_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_engine_register_aead(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_engine_unregister_aeads(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	crypto_engine_unregister_aeads(algs, i);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_aeads);
 
@@ -566,16 +563,13 @@ int crypto_engine_register_ahashes(struct ahash_engine_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_engine_register_ahash(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_engine_unregister_ahashes(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	crypto_engine_unregister_ahashes(algs, i);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_ahashes);
 
@@ -638,16 +632,13 @@ int crypto_engine_register_skciphers(struct skcipher_engine_alg *algs,
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_engine_register_skcipher(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_engine_unregister_skciphers(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	crypto_engine_unregister_skciphers(algs, i);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_skciphers);
 

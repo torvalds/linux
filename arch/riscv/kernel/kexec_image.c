@@ -22,7 +22,7 @@ static int image_probe(const char *kernel_buf, unsigned long kernel_len)
 	if (!h || kernel_len < sizeof(*h))
 		return -EINVAL;
 
-	/* According to Documentation/riscv/boot-image-header.rst,
+	/* According to Documentation/arch/riscv/boot-image-header.rst,
 	 * use "magic2" field to check when version >= 0.2.
 	 */
 

@@ -823,7 +823,7 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
 	u32 cend;
 	struct ocfs2_write_ctxt *wc;
 
-	wc = kzalloc(sizeof(struct ocfs2_write_ctxt), GFP_NOFS);
+	wc = kzalloc_obj(struct ocfs2_write_ctxt, GFP_NOFS);
 	if (!wc)
 		return -ENOMEM;
 
@@ -1325,8 +1325,7 @@ retry:
 
 	if (new == NULL) {
 		spin_unlock(&oi->ip_lock);
-		new = kmalloc(sizeof(struct ocfs2_unwritten_extent),
-			     GFP_NOFS);
+		new = kmalloc_obj(struct ocfs2_unwritten_extent, GFP_NOFS);
 		if (new == NULL) {
 			ret = -ENOMEM;
 			goto out;
@@ -2080,7 +2079,7 @@ ocfs2_dio_alloc_write_ctx(struct buffer_head *bh, int *alloc)
 	if (bh->b_private)
 		return bh->b_private;
 
-	dwc = kmalloc(sizeof(struct ocfs2_dio_write_ctxt), GFP_NOFS);
+	dwc = kmalloc_obj(struct ocfs2_dio_write_ctxt, GFP_NOFS);
 	if (dwc == NULL)
 		return NULL;
 	INIT_LIST_HEAD(&dwc->dw_zero_list);

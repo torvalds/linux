@@ -168,7 +168,7 @@ void __init opal_sensor_groups_init(void)
 		return;
 	}
 
-	sgs = kcalloc(of_get_child_count(sg), sizeof(*sgs), GFP_KERNEL);
+	sgs = kzalloc_objs(*sgs, of_get_child_count(sg));
 	if (!sgs)
 		goto out_sg_put;
 
@@ -190,14 +190,11 @@ void __init opal_sensor_groups_init(void)
 		if (!nr_attrs)
 			continue;
 
-		sgs[i].sgattrs = kcalloc(nr_attrs, sizeof(*sgs[i].sgattrs),
-					 GFP_KERNEL);
+		sgs[i].sgattrs = kzalloc_objs(*sgs[i].sgattrs, nr_attrs);
 		if (!sgs[i].sgattrs)
 			goto out_sgs_sgattrs;
 
-		sgs[i].sg.attrs = kcalloc(nr_attrs + 1,
-					  sizeof(*sgs[i].sg.attrs),
-					  GFP_KERNEL);
+		sgs[i].sg.attrs = kzalloc_objs(*sgs[i].sg.attrs, nr_attrs + 1);
 
 		if (!sgs[i].sg.attrs) {
 			kfree(sgs[i].sgattrs);

@@ -3,7 +3,7 @@
  * Copyright (C) 2019-2023 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -207,7 +207,7 @@ xchk_setup_fscounters(
 	if (!xfs_has_lazysbcount(sc->mp))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
-	sc->buf = kzalloc(sizeof(struct xchk_fscounters), XCHK_GFP_FLAGS);
+	sc->buf = kzalloc_obj(struct xchk_fscounters, XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
 	sc->buf_cleanup = xchk_fscounters_cleanup;

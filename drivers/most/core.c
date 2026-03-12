@@ -880,7 +880,7 @@ static int arm_mbo_chain(struct most_channel *c, int dir,
 	atomic_set(&c->mbo_nq_level, 0);
 
 	for (i = 0; i < c->cfg.num_buffers; i++) {
-		mbo = kzalloc(sizeof(*mbo), GFP_KERNEL);
+		mbo = kzalloc_obj(*mbo);
 		if (!mbo)
 			goto flush_fifos;
 
@@ -1282,19 +1282,28 @@ int most_register_interface(struct most_interface *iface)
 	int id;
 	struct most_channel *c;
 
-	if (!iface || !iface->enqueue || !iface->configure ||
-	    !iface->poison_channel || (iface->num_channels > MAX_CHANNELS))
+	if (!iface)
 		return -EINVAL;
+
+	device_initialize(iface->dev);
+
+	if (!iface->enqueue || !iface->configure || !iface->poison_channel ||
+	    (iface->num_channels > MAX_CHANNELS)) {
+		put_device(iface->dev);
+		return -EINVAL;
+	}
 
 	id = ida_alloc(&mdev_id, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(iface->dev, "Failed to allocate device ID\n");
+		put_device(iface->dev);
 		return id;
 	}
 
-	iface->p = kzalloc(sizeof(*iface->p), GFP_KERNEL);
+	iface->p = kzalloc_obj(*iface->p);
 	if (!iface->p) {
 		ida_free(&mdev_id, id);
+		put_device(iface->dev);
 		return -ENOMEM;
 	}
 
@@ -1304,7 +1313,7 @@ int most_register_interface(struct most_interface *iface)
 	iface->dev->bus = &mostbus;
 	iface->dev->groups = interface_attr_groups;
 	dev_set_drvdata(iface->dev, iface);
-	if (device_register(iface->dev)) {
+	if (device_add(iface->dev)) {
 		dev_err(iface->dev, "Failed to register interface device\n");
 		kfree(iface->p);
 		put_device(iface->dev);
@@ -1315,7 +1324,7 @@ int most_register_interface(struct most_interface *iface)
 	for (i = 0; i < iface->num_channels; i++) {
 		const char *name_suffix = iface->channel_vector[i].name_suffix;
 
-		c = kzalloc(sizeof(*c), GFP_KERNEL);
+		c = kzalloc_obj(*c);
 		if (!c)
 			goto err_free_resources;
 		if (!name_suffix)

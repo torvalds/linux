@@ -197,7 +197,7 @@ static void update_rsi(struct cache_head *cnew, struct cache_head *citem)
 
 static struct cache_head *rsi_alloc(void)
 {
-	struct rsi *rsii = kmalloc(sizeof(*rsii), GFP_KERNEL);
+	struct rsi *rsii = kmalloc_obj(*rsii);
 	if (rsii)
 		return &rsii->h;
 	else
@@ -449,7 +449,7 @@ update_rsc(struct cache_head *cnew, struct cache_head *ctmp)
 static struct cache_head *
 rsc_alloc(void)
 {
-	struct rsc *rsci = kmalloc(sizeof(*rsci), GFP_KERNEL);
+	struct rsc *rsci = kmalloc_obj(*rsci);
 	if (rsci)
 		return &rsci->h;
 	else
@@ -814,7 +814,7 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	struct auth_domain	*test;
 	int			stat = -ENOMEM;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		goto out;
 	kref_init(&new->h.ref);
@@ -1069,7 +1069,7 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 		goto out_denied_free;
 
 	pages = DIV_ROUND_UP(inlen, PAGE_SIZE);
-	in_token->pages = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
+	in_token->pages = kzalloc_objs(struct page *, pages + 1);
 	if (!in_token->pages)
 		goto out_denied_free;
 	in_token->page_base = 0;
@@ -1083,7 +1083,8 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 	}
 
 	length = min_t(unsigned int, inlen, (char *)xdr->end - (char *)xdr->p);
-	memcpy(page_address(in_token->pages[0]), xdr->p, length);
+	if (length)
+		memcpy(page_address(in_token->pages[0]), xdr->p, length);
 	inlen -= length;
 
 	to_offs = length;
@@ -1630,7 +1631,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp)
 
 	rqstp->rq_auth_stat = rpc_autherr_failed;
 	if (!svcdata)
-		svcdata = kmalloc(sizeof(*svcdata), GFP_KERNEL);
+		svcdata = kmalloc_obj(*svcdata);
 	if (!svcdata)
 		goto auth_err;
 	rqstp->rq_auth_data = svcdata;

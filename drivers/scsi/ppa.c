@@ -816,7 +816,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 	return 0;
 }
 
-static int ppa_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status ppa_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	ppa_struct *dev = ppa_dev(cmd->device->host);
 
@@ -1042,7 +1042,7 @@ static int __ppa_attach(struct parport *pb)
 	int err = -ENOMEM;
 	struct pardev_cb ppa_cb;
 
-	dev = kzalloc(sizeof(ppa_struct), GFP_KERNEL);
+	dev = kzalloc_obj(ppa_struct);
 	if (!dev)
 		return -ENOMEM;
 	dev->base = -1;

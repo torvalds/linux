@@ -106,7 +106,7 @@ static struct ec_event_queue *event_queue_new(int capacity)
 {
 	struct ec_event_queue *q;
 
-	q = kzalloc(struct_size(q, entries, capacity), GFP_KERNEL);
+	q = kzalloc_flex(*q, entries, capacity);
 	if (!q)
 		return NULL;
 
@@ -457,7 +457,7 @@ static int event_device_add(struct acpi_device *adev)
 		return error;
 	}
 
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = kzalloc_obj(*dev_data);
 	if (!dev_data) {
 		error = -ENOMEM;
 		goto free_minor;

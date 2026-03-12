@@ -366,7 +366,7 @@ void *unwind_add_table(struct module *module, const void *table_start,
 	if (table_size <= 0)
 		return NULL;
 
-	table = kmalloc(sizeof(*table), GFP_KERNEL);
+	table = kmalloc_obj(*table);
 	if (!table)
 		return NULL;
 

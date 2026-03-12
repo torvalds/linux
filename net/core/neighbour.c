@@ -51,9 +51,8 @@ do {						\
 #define PNEIGH_HASHMASK		0xF
 
 static void neigh_timer_handler(struct timer_list *t);
-static void __neigh_notify(struct neighbour *n, int type, int flags,
-			   u32 pid);
-static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
+static void neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
+static void __neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
 static void pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm);
 
@@ -117,7 +116,7 @@ static int neigh_blackhole(struct neighbour *neigh, struct sk_buff *skb)
 static void neigh_cleanup_and_release(struct neighbour *neigh)
 {
 	trace_neigh_cleanup_and_release(neigh, 0);
-	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
+	neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
 }
@@ -563,7 +562,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	struct neigh_hash_table *ret;
 	int i;
 
-	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
+	ret = kmalloc_obj(*ret, GFP_ATOMIC);
 	if (!ret)
 		return NULL;
 
@@ -1105,6 +1104,7 @@ static void neigh_timer_handler(struct timer_list *t)
 {
 	unsigned long now, next;
 	struct neighbour *neigh = timer_container_of(neigh, t, timer);
+	bool skip_probe = false;
 	unsigned int state;
 	int notify = 0;
 
@@ -1172,8 +1172,14 @@ static void neigh_timer_handler(struct timer_list *t)
 			neigh_invalidate(neigh);
 		}
 		notify = 1;
-		goto out;
+		skip_probe = true;
 	}
+
+	if (notify)
+		__neigh_notify(neigh, RTM_NEWNEIGH, 0, 0);
+
+	if (skip_probe)
+		goto out;
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
 		if (time_before(next, jiffies + HZ/100))
@@ -1189,7 +1195,7 @@ out:
 	}
 
 	if (notify)
-		neigh_update_notify(neigh, 0);
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 
 	trace_neigh_timer_handler(neigh, 0);
 
@@ -1303,6 +1309,47 @@ static void neigh_update_hhs(struct neighbour *neigh)
 	}
 }
 
+static void neigh_update_process_arp_queue(struct neighbour *neigh)
+	__releases(neigh->lock)
+	__acquires(neigh->lock)
+{
+	struct sk_buff *skb;
+
+	/* Again: avoid deadlock if something went wrong. */
+	while (neigh->nud_state & NUD_VALID &&
+	       (skb = __skb_dequeue(&neigh->arp_queue)) != NULL) {
+		struct dst_entry *dst = skb_dst(skb);
+		struct neighbour *n2, *n1 = neigh;
+
+		write_unlock_bh(&neigh->lock);
+
+		rcu_read_lock();
+
+		/* Why not just use 'neigh' as-is?  The problem is that
+		 * things such as shaper, eql, and sch_teql can end up
+		 * using alternative, different, neigh objects to output
+		 * the packet in the output path.  So what we need to do
+		 * here is re-lookup the top-level neigh in the path so
+		 * we can reinject the packet there.
+		 */
+		n2 = NULL;
+		if (dst &&
+		    READ_ONCE(dst->obsolete) != DST_OBSOLETE_DEAD) {
+			n2 = dst_neigh_lookup_skb(dst, skb);
+			if (n2)
+				n1 = n2;
+		}
+		READ_ONCE(n1->output)(n1, skb);
+		if (n2)
+			neigh_release(n2);
+		rcu_read_unlock();
+
+		write_lock_bh(&neigh->lock);
+	}
+	__skb_queue_purge(&neigh->arp_queue);
+	neigh->arp_queue_len_bytes = 0;
+}
+
 /* Generic update routine.
    -- lladdr is new lladdr or NULL, if it is not supplied.
    -- new    is new state.
@@ -1329,6 +1376,7 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 			  struct netlink_ext_ack *extack)
 {
 	bool gc_update = false, managed_update = false;
+	bool process_arp_queue = false;
 	int update_isrouter = 0;
 	struct net_device *dev;
 	int err, notify = 0;
@@ -1462,53 +1510,30 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 		neigh_connect(neigh);
 	else
 		neigh_suspect(neigh);
-	if (!(old & NUD_VALID)) {
-		struct sk_buff *skb;
 
-		/* Again: avoid dead loop if something went wrong */
+	if (!(old & NUD_VALID))
+		process_arp_queue = true;
 
-		while (neigh->nud_state & NUD_VALID &&
-		       (skb = __skb_dequeue(&neigh->arp_queue)) != NULL) {
-			struct dst_entry *dst = skb_dst(skb);
-			struct neighbour *n2, *n1 = neigh;
-			write_unlock_bh(&neigh->lock);
-
-			rcu_read_lock();
-
-			/* Why not just use 'neigh' as-is?  The problem is that
-			 * things such as shaper, eql, and sch_teql can end up
-			 * using alternative, different, neigh objects to output
-			 * the packet in the output path.  So what we need to do
-			 * here is re-lookup the top-level neigh in the path so
-			 * we can reinject the packet there.
-			 */
-			n2 = NULL;
-			if (dst &&
-			    READ_ONCE(dst->obsolete) != DST_OBSOLETE_DEAD) {
-				n2 = dst_neigh_lookup_skb(dst, skb);
-				if (n2)
-					n1 = n2;
-			}
-			READ_ONCE(n1->output)(n1, skb);
-			if (n2)
-				neigh_release(n2);
-			rcu_read_unlock();
-
-			write_lock_bh(&neigh->lock);
-		}
-		__skb_queue_purge(&neigh->arp_queue);
-		neigh->arp_queue_len_bytes = 0;
-	}
 out:
 	if (update_isrouter)
 		neigh_update_is_router(neigh, flags, &notify);
+
+	if (notify)
+		__neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+
+	if (process_arp_queue)
+		neigh_update_process_arp_queue(neigh);
+
 	write_unlock_bh(&neigh->lock);
+
 	if (((new ^ old) & NUD_PERMANENT) || gc_update)
 		neigh_update_gc_list(neigh);
 	if (managed_update)
 		neigh_update_managed_list(neigh);
+
 	if (notify)
-		neigh_update_notify(neigh, nlmsg_pid);
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
+
 	trace_neigh_update_done(neigh, err);
 	return err;
 }
@@ -2622,8 +2647,8 @@ out:
 	return skb->len;
 }
 
-static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
-			   u32 pid, u32 seq, int type, unsigned int flags)
+static int __neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
+			     u32 pid, u32 seq, int type, unsigned int flags)
 {
 	u32 neigh_flags, neigh_flags_ext;
 	unsigned long now = jiffies;
@@ -2649,23 +2674,19 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 	if (nla_put(skb, NDA_DST, neigh->tbl->key_len, neigh->primary_key))
 		goto nla_put_failure;
 
-	read_lock_bh(&neigh->lock);
 	ndm->ndm_state	 = neigh->nud_state;
 	if (neigh->nud_state & NUD_VALID) {
 		char haddr[MAX_ADDR_LEN];
 
 		neigh_ha_snapshot(haddr, neigh, neigh->dev);
-		if (nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, haddr) < 0) {
-			read_unlock_bh(&neigh->lock);
+		if (nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, haddr) < 0)
 			goto nla_put_failure;
-		}
 	}
 
 	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
 	ci.ndm_confirmed = jiffies_to_clock_t(now - neigh->confirmed);
 	ci.ndm_updated	 = jiffies_to_clock_t(now - neigh->updated);
 	ci.ndm_refcnt	 = refcount_read(&neigh->refcnt) - 1;
-	read_unlock_bh(&neigh->lock);
 
 	if (nla_put_u32(skb, NDA_PROBES, atomic_read(&neigh->probes)) ||
 	    nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
@@ -2682,6 +2703,20 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
+}
+
+static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
+			   u32 pid, u32 seq, int type, unsigned int flags)
+	__releases(neigh->lock)
+	__acquires(neigh->lock)
+{
+	int err;
+
+	read_lock_bh(&neigh->lock);
+	err = __neigh_fill_info(skb, neigh, pid, seq, type, flags);
+	read_unlock_bh(&neigh->lock);
+
+	return err;
 }
 
 static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
@@ -2725,12 +2760,6 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
-}
-
-static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid)
-{
-	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	__neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
 }
 
 static bool neigh_master_filtered(struct net_device *dev, int master_idx)
@@ -3545,7 +3574,7 @@ static void __neigh_notify(struct neighbour *n, int type, int flags,
 	if (skb == NULL)
 		goto errout;
 
-	err = neigh_fill_info(skb, n, pid, 0, type, flags);
+	err = __neigh_fill_info(skb, n, pid, 0, type, flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -3560,9 +3589,16 @@ out:
 	rcu_read_unlock();
 }
 
+static void neigh_notify(struct neighbour *neigh, int type, int flags, u32 pid)
+{
+	read_lock_bh(&neigh->lock);
+	__neigh_notify(neigh, type, flags, pid);
+	read_unlock_bh(&neigh->lock);
+}
+
 void neigh_app_ns(struct neighbour *n)
 {
-	__neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST, 0);
+	neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST, 0);
 }
 EXPORT_SYMBOL(neigh_app_ns);
 

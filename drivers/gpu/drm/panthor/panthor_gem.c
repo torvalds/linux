@@ -45,7 +45,7 @@ static void panthor_gem_debugfs_bo_add(struct panthor_gem_object *bo)
 	struct panthor_device *ptdev = container_of(bo->base.base.dev,
 						    struct panthor_device, base);
 
-	bo->debugfs.creator.tgid = current->group_leader->pid;
+	bo->debugfs.creator.tgid = current->tgid;
 	get_task_comm(bo->debugfs.creator.process_name, current->group_leader);
 
 	mutex_lock(&ptdev->gems.lock);
@@ -183,7 +183,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	if (drm_WARN_ON(&ptdev->base, !vm))
 		return ERR_PTR(-EINVAL);
 
-	kbo = kzalloc(sizeof(*kbo), GFP_KERNEL);
+	kbo = kzalloc_obj(*kbo);
 	if (!kbo)
 		return ERR_PTR(-ENOMEM);
 
@@ -399,7 +399,7 @@ struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t
 {
 	struct panthor_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -666,7 +666,7 @@ static void panthor_gem_debugfs_bo_print(struct panthor_gem_object *bo,
 		   resident_size,
 		   drm_vma_node_start(&bo->base.base.vma_node));
 
-	if (bo->base.base.import_attach)
+	if (drm_gem_is_imported(&bo->base.base))
 		gem_state_flags |= PANTHOR_DEBUGFS_GEM_STATE_FLAG_IMPORTED;
 	if (bo->base.base.dma_buf)
 		gem_state_flags |= PANTHOR_DEBUGFS_GEM_STATE_FLAG_EXPORTED;

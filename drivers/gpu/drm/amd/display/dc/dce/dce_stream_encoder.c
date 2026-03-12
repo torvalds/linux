@@ -1498,7 +1498,10 @@ static void dig_connect_to_otg(
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
+	if (enc->id == ENGINE_ID_DACA || enc->id == ENGINE_ID_DACB)
+		REG_UPDATE(DAC_SOURCE_SELECT, DAC_SOURCE_SELECT, tg_inst);
+	else
+		REG_UPDATE(DIG_FE_CNTL, DIG_SOURCE_SELECT, tg_inst);
 }
 
 static unsigned int dig_source_otg(
@@ -1507,7 +1510,10 @@ static unsigned int dig_source_otg(
 	uint32_t tg_inst = 0;
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 
-	REG_GET(DIG_FE_CNTL, DIG_SOURCE_SELECT, &tg_inst);
+	if (enc->id == ENGINE_ID_DACA || enc->id == ENGINE_ID_DACB)
+		REG_GET(DAC_SOURCE_SELECT, DAC_SOURCE_SELECT, &tg_inst);
+	else
+		REG_GET(DIG_FE_CNTL, DIG_SOURCE_SELECT, &tg_inst);
 
 	return tg_inst;
 }
@@ -1568,16 +1574,25 @@ void dce110_stream_encoder_construct(
 	enc110->se_mask = se_mask;
 }
 
-static const struct stream_encoder_funcs dce110_an_str_enc_funcs = {};
+static const struct stream_encoder_funcs dce110_an_str_enc_funcs = {
+	.dig_connect_to_otg  = dig_connect_to_otg,
+	.dig_source_otg = dig_source_otg,
+};
 
 void dce110_analog_stream_encoder_construct(
 	struct dce110_stream_encoder *enc110,
 	struct dc_context *ctx,
 	struct dc_bios *bp,
-	enum engine_id eng_id)
+	enum engine_id eng_id,
+	const struct dce110_stream_enc_registers *regs,
+	const struct dce_stream_encoder_shift *se_shift,
+	const struct dce_stream_encoder_mask *se_mask)
 {
 	enc110->base.funcs = &dce110_an_str_enc_funcs;
 	enc110->base.ctx = ctx;
 	enc110->base.id = eng_id;
 	enc110->base.bp = bp;
+	enc110->regs = regs;
+	enc110->se_shift = se_shift;
+	enc110->se_mask = se_mask;
 }

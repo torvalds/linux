@@ -163,7 +163,7 @@ int ieee80211_rate_control_register(const struct rate_control_ops *ops)
 		}
 	}
 
-	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
+	alg = kzalloc_obj(*alg);
 	if (alg == NULL) {
 		mutex_unlock(&rate_ctrl_mutex);
 		return -ENOMEM;
@@ -263,7 +263,7 @@ rate_control_alloc(const char *name, struct ieee80211_local *local)
 {
 	struct rate_control_ref *ref;
 
-	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
+	ref = kmalloc_obj(struct rate_control_ref);
 	if (!ref)
 		return NULL;
 	ref->ops = ieee80211_rate_control_ops_get(name);

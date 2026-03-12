@@ -859,7 +859,7 @@ static int port100_send_cmd_async(struct port100 *dev, u8 cmd_code,
 	if (!resp)
 		return -ENOMEM;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		dev_kfree_skb(resp);
 		return -ENOMEM;
@@ -1211,7 +1211,7 @@ static int port100_in_send_cmd(struct nfc_digital_dev *ddev,
 	struct port100_cb_arg *cb_arg;
 	__le16 timeout;
 
-	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
+	cb_arg = kzalloc_obj(struct port100_cb_arg);
 	if (!cb_arg)
 		return -ENOMEM;
 
@@ -1377,7 +1377,7 @@ static int port100_tg_send_cmd(struct nfc_digital_dev *ddev,
 	struct port100_tg_comm_rf_cmd *hdr;
 	struct port100_cb_arg *cb_arg;
 
-	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
+	cb_arg = kzalloc_obj(struct port100_cb_arg);
 	if (!cb_arg)
 		return -ENOMEM;
 
@@ -1418,7 +1418,7 @@ static int port100_listen_mdaa(struct nfc_digital_dev *ddev,
 	if (rc)
 		return rc;
 
-	cb_arg = kzalloc(sizeof(struct port100_cb_arg), GFP_KERNEL);
+	cb_arg = kzalloc_obj(struct port100_cb_arg);
 	if (!cb_arg)
 		return -ENOMEM;
 

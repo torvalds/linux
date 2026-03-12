@@ -21,14 +21,25 @@ class ParseFeature:
     from it.
     """
 
+    #: feature header string.
     h_name = "Feature"
+
+    #: Kernel config header string.
     h_kconfig = "Kconfig"
+
+    #: description header string.
     h_description = "Description"
+
+    #: subsystem header string.
     h_subsys = "Subsystem"
+
+    #: status header string.
     h_status = "Status"
+
+    #: architecture header string.
     h_arch = "Architecture"
 
-    # Sort order for status. Others will be mapped at the end.
+    #: Sort order for status. Others will be mapped at the end.
     status_map = {
         "ok":   0,
         "TODO": 1,
@@ -40,7 +51,7 @@ class ParseFeature:
 
     def __init__(self, prefix, debug=0, enable_fname=False):
         """
-        Sets internal variables
+        Sets internal variables.
         """
 
         self.prefix = prefix
@@ -63,11 +74,13 @@ class ParseFeature:
         self.msg = ""
 
     def emit(self, msg="", end="\n"):
+        """Helper function to append a new message for feature output."""
+
         self.msg += msg + end
 
     def parse_error(self, fname, ln, msg, data=None):
         """
-        Displays an error message, printing file name and line
+        Displays an error message, printing file name and line.
         """
 
         if ln:
@@ -82,7 +95,7 @@ class ParseFeature:
             print("", file=sys.stderr)
 
     def parse_feat_file(self, fname):
-        """Parses a single arch-support.txt feature file"""
+        """Parses a single arch-support.txt feature file."""
 
         if os.path.isdir(fname):
             return
@@ -204,7 +217,7 @@ class ParseFeature:
         self.max_size_arch_with_header = self.max_size_arch + len(self.h_arch)
 
     def parse(self):
-        """Parses all arch-support.txt feature files inside self.prefix"""
+        """Parses all arch-support.txt feature files inside self.prefix."""
 
         path = os.path.expanduser(self.prefix)
 
@@ -281,7 +294,7 @@ class ParseFeature:
 
     def output_feature(self, feat):
         """
-        Output a feature on all architectures
+        Output a feature on all architectures.
         """
 
         title = f"Feature {feat}"
@@ -331,7 +344,7 @@ class ParseFeature:
 
     def matrix_lines(self, desc_size, max_size_status, header):
         """
-        Helper function to split element tables at the output matrix
+        Helper function to split element tables at the output matrix.
         """
 
         if header:

@@ -13,7 +13,7 @@ struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp)
 {
 	struct ceph_buffer *b;
 
-	b = kmalloc(sizeof(*b), gfp);
+	b = kmalloc_obj(*b, gfp);
 	if (!b)
 		return NULL;
 

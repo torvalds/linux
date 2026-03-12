@@ -414,7 +414,7 @@ static int rtnl_register_internal(struct module *owner,
 		if (!link)
 			goto unlock;
 	} else {
-		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link)
 			goto unlock;
 	}
@@ -3969,7 +3969,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int ops_srcu_index;
 	int ret;
 
-	tbs = kmalloc(sizeof(*tbs), GFP_KERNEL);
+	tbs = kmalloc_obj(*tbs);
 	if (!tbs)
 		return -ENOMEM;
 

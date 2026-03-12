@@ -79,7 +79,7 @@ static int alloc_info_private(struct snd_info_entry *entry,
 		return -ENODEV;
 	if (!try_module_get(entry->module))
 		return -EFAULT;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data) {
 		module_put(entry->module);
 		return -ENOMEM;
@@ -311,7 +311,7 @@ static ssize_t snd_info_text_entry_write(struct file *file,
 	guard(mutex)(&entry->access);
 	buf = data->wbuffer;
 	if (!buf) {
-		data->wbuffer = buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+		data->wbuffer = buf = kzalloc_obj(*buf);
 		if (!buf)
 			return -ENOMEM;
 	}
@@ -355,7 +355,7 @@ static int snd_info_text_entry_open(struct inode *inode, struct file *file)
 	if (err < 0)
 		return err;
 
-	data->rbuffer = kzalloc(sizeof(*data->rbuffer), GFP_KERNEL);
+	data->rbuffer = kzalloc_obj(*data->rbuffer);
 	if (!data->rbuffer) {
 		err = -ENOMEM;
 		goto error;
@@ -663,7 +663,7 @@ snd_info_create_entry(const char *name, struct snd_info_entry *parent,
 		      struct module *module)
 {
 	struct snd_info_entry *entry;
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (entry == NULL)
 		return NULL;
 	entry->name = kstrdup(name, GFP_KERNEL);

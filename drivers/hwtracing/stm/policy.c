@@ -437,7 +437,7 @@ stp_policy_make(struct config_group *group, const char *name)
 		goto unlock_policy;
 	}
 
-	stm->policy = kzalloc(sizeof(*stm->policy), GFP_KERNEL);
+	stm->policy = kzalloc_obj(*stm->policy);
 	if (!stm->policy) {
 		ret = ERR_PTR(-ENOMEM);
 		goto unlock_policy;

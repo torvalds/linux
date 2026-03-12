@@ -164,7 +164,7 @@ int rxrpc_service_prealloc(struct rxrpc_sock *rx, gfp_t gfp)
 	struct rxrpc_backlog *b = rx->backlog;
 
 	if (!b) {
-		b = kzalloc(sizeof(struct rxrpc_backlog), gfp);
+		b = kzalloc_obj(struct rxrpc_backlog, gfp);
 		if (!b)
 			return -ENOMEM;
 		rx->backlog = b;

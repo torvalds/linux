@@ -557,7 +557,7 @@ static int rproc_handle_trace(struct rproc *rproc, void *ptr,
 		return -EINVAL;
 	}
 
-	trace = kzalloc(sizeof(*trace), GFP_KERNEL);
+	trace = kzalloc_obj(*trace);
 	if (!trace)
 		return -ENOMEM;
 
@@ -635,7 +635,7 @@ static int rproc_handle_devmem(struct rproc *rproc, void *ptr,
 		return -EINVAL;
 	}
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 
@@ -727,7 +727,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	 * physical address in this case.
 	 */
 	if (mem->da != FW_RSC_ADDR_ANY && rproc->domain) {
-		mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+		mapping = kzalloc_obj(*mapping);
 		if (!mapping) {
 			ret = -ENOMEM;
 			goto dma_free;
@@ -917,7 +917,7 @@ rproc_mem_entry_init(struct device *dev,
 	struct rproc_mem_entry *mem;
 	va_list args;
 
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	mem = kzalloc_obj(*mem);
 	if (!mem)
 		return mem;
 
@@ -960,7 +960,7 @@ rproc_of_resm_mem_entry_init(struct device *dev, u32 of_resm_idx, size_t len,
 	struct rproc_mem_entry *mem;
 	va_list args;
 
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	mem = kzalloc_obj(*mem);
 	if (!mem)
 		return mem;
 

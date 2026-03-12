@@ -2564,7 +2564,7 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 		rt5640->use_platform_clock = jack_data->use_platform_clock;
 
 	ret = request_irq(rt5640->irq, rt5640_irq,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "rt5640", rt5640);
 	if (ret) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
@@ -2618,7 +2618,7 @@ static void rt5640_enable_hda_jack_detect(
 	rt5640->jack = jack;
 
 	ret = request_irq(rt5640->irq, rt5640_irq,
-			  IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5640", rt5640);
+			  IRQF_TRIGGER_RISING, "rt5640", rt5640);
 	if (ret) {
 		dev_warn(component->dev, "Failed to request IRQ %d: %d\n", rt5640->irq, ret);
 		rt5640->jack = NULL;

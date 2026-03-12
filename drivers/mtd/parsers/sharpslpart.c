@@ -362,9 +362,8 @@ static int sharpsl_parse_mtd_partitions(struct mtd_info *master,
 		return err;
 	}
 
-	sharpsl_nand_parts = kcalloc(SHARPSL_NAND_PARTS,
-				     sizeof(*sharpsl_nand_parts),
-				     GFP_KERNEL);
+	sharpsl_nand_parts = kzalloc_objs(*sharpsl_nand_parts,
+					  SHARPSL_NAND_PARTS);
 	if (!sharpsl_nand_parts)
 		return -ENOMEM;
 

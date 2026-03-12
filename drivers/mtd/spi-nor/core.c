@@ -1553,7 +1553,7 @@ spi_nor_init_erase_cmd(const struct spi_nor_erase_region *region,
 {
 	struct spi_nor_erase_command *cmd;
 
-	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kmalloc_obj(*cmd);
 	if (!cmd)
 		return ERR_PTR(-ENOMEM);
 

@@ -141,7 +141,7 @@ lockd(void *vrqstp)
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
 		nlmsvc_retry_blocked(rqstp);
-		svc_recv(rqstp);
+		svc_recv(rqstp, 0);
 	}
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
@@ -340,7 +340,7 @@ static int lockd_get(void)
 		return -ENOMEM;
 	}
 
-	error = svc_set_num_threads(serv, NULL, 1);
+	error = svc_set_num_threads(serv, 0, 1);
 	if (error < 0) {
 		svc_destroy(&serv);
 		return error;
@@ -368,7 +368,7 @@ static void lockd_put(void)
 	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
 
-	svc_set_num_threads(nlmsvc_serv, NULL, 0);
+	svc_set_num_threads(nlmsvc_serv, 0, 0);
 	timer_delete_sync(&nlmsvc_retry);
 	svc_destroy(&nlmsvc_serv);
 	dprintk("lockd_down: service destroyed\n");

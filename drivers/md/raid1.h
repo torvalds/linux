@@ -93,11 +93,6 @@ struct r1conf {
 	 */
 	int			fullsync;
 
-	/* When the same as mddev->recovery_disabled we don't allow
-	 * recovery to be attempted as we expect a read error.
-	 */
-	int			recovery_disabled;
-
 	mempool_t		*r1bio_pool;
 	mempool_t		r1buf_pool;
 

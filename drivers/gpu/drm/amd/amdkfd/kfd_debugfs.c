@@ -146,7 +146,7 @@ void kfd_debugfs_add_process(struct kfd_process *p)
 	char name[MAX_DEBUGFS_FILENAME_LEN];
 	struct debugfs_proc_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return;
 

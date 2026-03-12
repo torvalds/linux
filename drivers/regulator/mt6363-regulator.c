@@ -861,7 +861,7 @@ static int mt6363_regulator_probe(struct platform_device *pdev)
 	struct irq_domain *domain;
 	struct irq_fwspec fwspec;
 	struct spmi_device *sdev;
-	int i, ret;
+	int i, ret, val;
 
 	config.regmap = mt6363_spmi_register_regmap(dev);
 	if (IS_ERR(config.regmap))
@@ -869,6 +869,13 @@ static int mt6363_regulator_probe(struct platform_device *pdev)
 				     "Cannot get regmap\n");
 	config.dev = dev;
 	sdev = to_spmi_device(dev->parent);
+
+	/*
+	 * The first read may fail if the bootloader sets sleep mode: wake up
+	 * this PMIC with W/R on the SPMI bus and ignore the first result.
+	 * This matches the MT6373 driver behavior.
+	 */
+	regmap_read(config.regmap, MT6363_TOP_TRAP, &val);
 
 	interrupt_parent = of_irq_find_parent(dev->of_node);
 	if (!interrupt_parent)
@@ -892,10 +899,8 @@ static int mt6363_regulator_probe(struct platform_device *pdev)
 					     "Failed to map IRQ%d\n", info->hwirq);
 
 		ret = devm_add_action_or_reset(dev, mt6363_irq_remove, &info->virq);
-		if (ret) {
-			irq_dispose_mapping(info->hwirq);
+		if (ret)
 			return ret;
-		}
 
 		config.driver_data = info;
 		INIT_DELAYED_WORK(&info->oc_work, mt6363_oc_irq_enable_work);

@@ -624,3 +624,220 @@ int ice_tspll_init(struct ice_hw *hw)
 
 	return err;
 }
+
+/**
+ * ice_tspll_bypass_mux_active_e825c - check if the given port is set active
+ * @hw: Pointer to the HW struct
+ * @port: Number of the port
+ * @active: Output flag showing if port is active
+ * @output: Output pin, we have two in E825C
+ *
+ * Check if given port is selected as recovered clock source for given output.
+ *
+ * Return:
+ * * 0 - success
+ * * negative - error
+ */
+int ice_tspll_bypass_mux_active_e825c(struct ice_hw *hw, u8 port, bool *active,
+				      enum ice_synce_clk output)
+{
+	u8 active_clk;
+	u32 val;
+	int err;
+
+	switch (output) {
+	case ICE_SYNCE_CLK0:
+		err = ice_read_cgu_reg(hw, ICE_CGU_R10, &val);
+		if (err)
+			return err;
+		active_clk = FIELD_GET(ICE_CGU_R10_SYNCE_S_REF_CLK, val);
+		break;
+	case ICE_SYNCE_CLK1:
+		err = ice_read_cgu_reg(hw, ICE_CGU_R11, &val);
+		if (err)
+			return err;
+		active_clk = FIELD_GET(ICE_CGU_R11_SYNCE_S_BYP_CLK, val);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (active_clk == port % hw->ptp.ports_per_phy +
+			  ICE_CGU_BYPASS_MUX_OFFSET_E825C)
+		*active = true;
+	else
+		*active = false;
+
+	return 0;
+}
+
+/**
+ * ice_tspll_cfg_bypass_mux_e825c - configure reference clock mux
+ * @hw: Pointer to the HW struct
+ * @ena: true to enable the reference, false if disable
+ * @port_num: Number of the port
+ * @output: Output pin, we have two in E825C
+ *
+ * Set reference clock source and output clock selection.
+ *
+ * Context: Called under pf->dplls.lock
+ * Return:
+ * * 0 - success
+ * * negative - error
+ */
+int ice_tspll_cfg_bypass_mux_e825c(struct ice_hw *hw, bool ena, u32 port_num,
+				   enum ice_synce_clk output)
+{
+	u8 first_mux;
+	int err;
+	u32 r10;
+
+	err = ice_read_cgu_reg(hw, ICE_CGU_R10, &r10);
+	if (err)
+		return err;
+
+	if (!ena)
+		first_mux = ICE_CGU_NET_REF_CLK0;
+	else
+		first_mux = port_num + ICE_CGU_BYPASS_MUX_OFFSET_E825C;
+
+	r10 &= ~(ICE_CGU_R10_SYNCE_DCK_RST | ICE_CGU_R10_SYNCE_DCK2_RST);
+
+	switch (output) {
+	case ICE_SYNCE_CLK0:
+		r10 &= ~(ICE_CGU_R10_SYNCE_ETHCLKO_SEL |
+			 ICE_CGU_R10_SYNCE_ETHDIV_LOAD |
+			 ICE_CGU_R10_SYNCE_S_REF_CLK);
+		r10 |= FIELD_PREP(ICE_CGU_R10_SYNCE_S_REF_CLK, first_mux);
+		r10 |= FIELD_PREP(ICE_CGU_R10_SYNCE_ETHCLKO_SEL,
+				  ICE_CGU_REF_CLK_BYP0_DIV);
+		break;
+	case ICE_SYNCE_CLK1:
+	{
+		u32 val;
+
+		err = ice_read_cgu_reg(hw, ICE_CGU_R11, &val);
+		if (err)
+			return err;
+		val &= ~ICE_CGU_R11_SYNCE_S_BYP_CLK;
+		val |= FIELD_PREP(ICE_CGU_R11_SYNCE_S_BYP_CLK, first_mux);
+		err = ice_write_cgu_reg(hw, ICE_CGU_R11, val);
+		if (err)
+			return err;
+		r10 &= ~(ICE_CGU_R10_SYNCE_CLKODIV_LOAD |
+			 ICE_CGU_R10_SYNCE_CLKO_SEL);
+		r10 |= FIELD_PREP(ICE_CGU_R10_SYNCE_CLKO_SEL,
+				  ICE_CGU_REF_CLK_BYP1_DIV);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	err = ice_write_cgu_reg(hw, ICE_CGU_R10, r10);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/**
+ * ice_tspll_get_div_e825c - get the divider for the given speed
+ * @link_speed: link speed of the port
+ * @divider: output value, calculated divider
+ *
+ * Get CGU divider value based on the link speed.
+ *
+ * Return:
+ * * 0 - success
+ * * negative - error
+ */
+static int ice_tspll_get_div_e825c(u16 link_speed, unsigned int *divider)
+{
+	switch (link_speed) {
+	case ICE_AQ_LINK_SPEED_100GB:
+	case ICE_AQ_LINK_SPEED_50GB:
+	case ICE_AQ_LINK_SPEED_25GB:
+		*divider = 10;
+		break;
+	case ICE_AQ_LINK_SPEED_40GB:
+	case ICE_AQ_LINK_SPEED_10GB:
+		*divider = 4;
+		break;
+	case ICE_AQ_LINK_SPEED_5GB:
+	case ICE_AQ_LINK_SPEED_2500MB:
+	case ICE_AQ_LINK_SPEED_1000MB:
+		*divider = 2;
+		break;
+	case ICE_AQ_LINK_SPEED_100MB:
+		*divider = 1;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/**
+ * ice_tspll_cfg_synce_ethdiv_e825c - set the divider on the mux
+ * @hw: Pointer to the HW struct
+ * @output: Output pin, we have two in E825C
+ *
+ * Set the correct CGU divider for RCLKA or RCLKB.
+ *
+ * Context: Called under pf->dplls.lock
+ * Return:
+ * * 0 - success
+ * * negative - error
+ */
+int ice_tspll_cfg_synce_ethdiv_e825c(struct ice_hw *hw,
+				     enum ice_synce_clk output)
+{
+	unsigned int divider;
+	u16 link_speed;
+	u32 val;
+	int err;
+
+	link_speed = hw->port_info->phy.link_info.link_speed;
+	if (!link_speed)
+		return 0;
+
+	err = ice_tspll_get_div_e825c(link_speed, &divider);
+	if (err)
+		return err;
+
+	err = ice_read_cgu_reg(hw, ICE_CGU_R10, &val);
+	if (err)
+		return err;
+
+	/* programmable divider value (from 2 to 16) minus 1 for ETHCLKOUT */
+	switch (output) {
+	case ICE_SYNCE_CLK0:
+		val &= ~(ICE_CGU_R10_SYNCE_ETHDIV_M1 |
+			 ICE_CGU_R10_SYNCE_ETHDIV_LOAD);
+		val |= FIELD_PREP(ICE_CGU_R10_SYNCE_ETHDIV_M1, divider - 1);
+		err = ice_write_cgu_reg(hw, ICE_CGU_R10, val);
+		if (err)
+			return err;
+		val |= ICE_CGU_R10_SYNCE_ETHDIV_LOAD;
+		break;
+	case ICE_SYNCE_CLK1:
+		val &= ~(ICE_CGU_R10_SYNCE_CLKODIV_M1 |
+			 ICE_CGU_R10_SYNCE_CLKODIV_LOAD);
+		val |= FIELD_PREP(ICE_CGU_R10_SYNCE_CLKODIV_M1, divider - 1);
+		err = ice_write_cgu_reg(hw, ICE_CGU_R10, val);
+		if (err)
+			return err;
+		val |= ICE_CGU_R10_SYNCE_CLKODIV_LOAD;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = ice_write_cgu_reg(hw, ICE_CGU_R10, val);
+	if (err)
+		return err;
+
+	return 0;
+}

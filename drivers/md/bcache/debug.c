@@ -208,7 +208,7 @@ static int bch_dump_open(struct inode *inode, struct file *file)
 	struct cache_set *c = inode->i_private;
 	struct dump_iterator *i;
 
-	i = kzalloc(sizeof(struct dump_iterator), GFP_KERNEL);
+	i = kzalloc_obj(struct dump_iterator);
 	if (!i)
 		return -ENOMEM;
 

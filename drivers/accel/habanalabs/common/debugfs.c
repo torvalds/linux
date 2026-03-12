@@ -2052,7 +2052,7 @@ int hl_debugfs_device_init(struct hl_device *hdev)
 	int count = ARRAY_SIZE(hl_debugfs_list);
 
 	dev_entry->hdev = hdev;
-	dev_entry->entry_arr = kmalloc_array(count, sizeof(struct hl_debugfs_entry), GFP_KERNEL);
+	dev_entry->entry_arr = kmalloc_objs(struct hl_debugfs_entry, count);
 	if (!dev_entry->entry_arr)
 		return -ENOMEM;
 

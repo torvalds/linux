@@ -97,6 +97,8 @@ enum {
 	FUNC_FC_SHRD20,
 	FUNC_FUSA,
 	FUNC_GPIO,
+	FUNC_I2C,
+	FUNC_I2C_Sa,
 	FUNC_IB_TRG_a,
 	FUNC_IB_TRG_b,
 	FUNC_IB_TRG_c,
@@ -112,9 +114,11 @@ enum {
 	FUNC_IRQ1,
 	FUNC_IRQ1_IN,
 	FUNC_IRQ1_OUT,
+	FUNC_IRQ2,
 	FUNC_IRQ3,
 	FUNC_IRQ4,
 	FUNC_EXT_IRQ,
+	FUNC_MACLED,
 	FUNC_MIIM,
 	FUNC_MIIM_a,
 	FUNC_MIIM_b,
@@ -126,6 +130,7 @@ enum {
 	FUNC_OB_TRG_a,
 	FUNC_OB_TRG_b,
 	FUNC_PHY_LED,
+	FUNC_PHY_DBG,
 	FUNC_PCI_WAKE,
 	FUNC_MD,
 	FUNC_PCIE_PERST,
@@ -156,10 +161,12 @@ enum {
 	FUNC_SG0,
 	FUNC_SG1,
 	FUNC_SG2,
+	FUNC_SPI,
 	FUNC_SGPIO_a,
 	FUNC_SGPIO_b,
 	FUNC_SI,
 	FUNC_SI2,
+	FUNC_SI_Sa,
 	FUNC_SYNCE,
 	FUNC_TACHO,
 	FUNC_TACHO_a,
@@ -188,6 +195,7 @@ enum {
 	FUNC_EMMC_SD,
 	FUNC_REF_CLK,
 	FUNC_RCVRD_CLK,
+	FUNC_RGMII,
 	FUNC_MAX
 };
 
@@ -237,6 +245,8 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_FC_SHRD20]	= "fc_shrd20",
 	[FUNC_FUSA]		= "fusa",
 	[FUNC_GPIO]		= "gpio",
+	[FUNC_I2C]		= "i2c",
+	[FUNC_I2C_Sa]		= "i2c_slave_a",
 	[FUNC_IB_TRG_a]		= "ib_trig_a",
 	[FUNC_IB_TRG_b]		= "ib_trig_b",
 	[FUNC_IB_TRG_c]		= "ib_trig_c",
@@ -252,9 +262,11 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_IRQ1]		= "irq1",
 	[FUNC_IRQ1_IN]		= "irq1_in",
 	[FUNC_IRQ1_OUT]		= "irq1_out",
+	[FUNC_IRQ2]		= "irq2",
 	[FUNC_IRQ3]		= "irq3",
 	[FUNC_IRQ4]		= "irq4",
 	[FUNC_EXT_IRQ]		= "ext_irq",
+	[FUNC_MACLED]		= "mac_led",
 	[FUNC_MIIM]		= "miim",
 	[FUNC_MIIM_a]		= "miim_a",
 	[FUNC_MIIM_b]		= "miim_b",
@@ -263,6 +275,7 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_MIIM_Sb]		= "miim_slave_b",
 	[FUNC_MIIM_IRQ]		= "miim_irq",
 	[FUNC_PHY_LED]		= "phy_led",
+	[FUNC_PHY_DBG]		= "phy_dbg",
 	[FUNC_PCI_WAKE]		= "pci_wake",
 	[FUNC_PCIE_PERST]	= "pcie_perst",
 	[FUNC_MD]		= "md",
@@ -300,6 +313,8 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_SGPIO_b]		= "sgpio_b",
 	[FUNC_SI]		= "si",
 	[FUNC_SI2]		= "si2",
+	[FUNC_SI_Sa]		= "si_slave_a",
+	[FUNC_SPI]		= "spi",
 	[FUNC_SYNCE]		= "synce",
 	[FUNC_TACHO]		= "tacho",
 	[FUNC_TACHO_a]		= "tacho_a",
@@ -328,6 +343,7 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_EMMC_SD]		= "emmc_sd",
 	[FUNC_REF_CLK]		= "ref_clk",
 	[FUNC_RCVRD_CLK]	= "rcvrd_clk",
+	[FUNC_RGMII]		= "rgmii",
 };
 
 struct ocelot_pmx_func {
@@ -358,12 +374,14 @@ struct ocelot_pinctrl {
 	const struct ocelot_pincfg_data *pincfg_data;
 	struct ocelot_pmx_func func[FUNC_MAX];
 	u8 stride;
+	u8 altm_stride;
 	struct workqueue_struct *wq;
 };
 
 struct ocelot_match_data {
 	struct pinctrl_desc desc;
 	struct ocelot_pincfg_data pincfg_data;
+	unsigned int n_alt_modes;
 };
 
 struct ocelot_irq_work {
@@ -1321,6 +1339,132 @@ static const struct pinctrl_pin_desc lan969x_pins[] = {
 	LAN969X_PIN(66),
 };
 
+#define LAN9645X_P(p, f0, f1, f2, f3, f4, f5, f6, f7)            \
+static struct ocelot_pin_caps lan9645x_pin_##p = {               \
+	.pin = p,                                              \
+	.functions = {                                         \
+		FUNC_##f0, FUNC_##f1, FUNC_##f2,               \
+		FUNC_##f3                                      \
+	},                                                     \
+	.a_functions = {                                       \
+		FUNC_##f4, FUNC_##f5, FUNC_##f6,               \
+		FUNC_##f7                                      \
+	},                                                     \
+}
+
+/*      Pin    FUNC0     FUNC1         FUNC2       FUNC3       FUNC4     FUNC5     FUNC6    FUNC7 */
+LAN9645X_P(0,     GPIO,      SPI,        SI_Sa,     I2C_Sa,    MIIM_Sa,     UART,     MIIM,    PHY_DBG);
+LAN9645X_P(1,     GPIO,      SPI,        SI_Sa,     I2C_Sa,    MIIM_Sa,     UART,     MIIM,    PHY_DBG);
+LAN9645X_P(2,     GPIO,      SPI,        SI_Sa,        I2C,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(3,     GPIO,      SPI,        SI_Sa,        I2C,    MIIM_Sa,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(4,     GPIO,    RGMII,    TWI_SCL_M,        I2C,       NONE,     NONE,    SI_Sa,    PHY_DBG);
+LAN9645X_P(5,     GPIO,    RGMII,    TWI_SCL_M,        I2C,       NONE,     NONE,    SI_Sa,    PHY_DBG);
+LAN9645X_P(6,     GPIO,    RGMII,    TWI_SCL_M,       NONE,       NONE,     NONE,    SI_Sa,    PHY_DBG);
+LAN9645X_P(7,     GPIO,    RGMII,    TWI_SCL_M,        SFP,    SGPIO_a,     MIIM,    SI_Sa,    PHY_DBG);
+LAN9645X_P(8,     GPIO,    RGMII,    TWI_SCL_M,        SFP,    SGPIO_a,     MIIM,     NONE,    PHY_DBG);
+LAN9645X_P(9,     GPIO,    RGMII,    TWI_SCL_M,   RECO_CLK,    SGPIO_a,     IRQ1,     UART,    PHY_DBG);
+LAN9645X_P(10,    GPIO,    RGMII,    TWI_SCL_M,   RECO_CLK,    SGPIO_a,     IRQ2,     UART,    PHY_DBG);
+LAN9645X_P(11,    GPIO,    RGMII,    TWI_SCL_M,       MIIM,       NONE,     IRQ3,     NONE,    PHY_DBG);
+LAN9645X_P(12,    GPIO,    RGMII,    TWI_SCL_M,       MIIM,       PTP0,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(13,    GPIO,    RGMII,    TWI_SCL_M,     CLKMON,       PTP1,   MACLED,     NONE,    PHY_DBG);
+LAN9645X_P(14,    GPIO,    RGMII,    TWI_SCL_M,     CLKMON,       PTP2,   MACLED,     NONE,    PHY_DBG);
+LAN9645X_P(15,    GPIO,    RGMII,    TWI_SCL_M,     CLKMON,       PTP3,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(16,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(17,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(18,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(19,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(20,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(21,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(22,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(23,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(24,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(25,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(26,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(27,    GPIO,    RGMII,         NONE,       NONE,       NONE,     NONE,     NONE,    PHY_DBG);
+LAN9645X_P(28,    GPIO, RECO_CLK,         MIIM,       NONE,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(29,    GPIO, RECO_CLK,         MIIM,       NONE,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(30,    GPIO,     PTP0,          I2C,       UART,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(31,    GPIO,     PTP1,    TWI_SCL_M,       UART,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(32,    GPIO,     PTP2,    TWI_SCL_M,       NONE,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(33,    GPIO,     PTP3,         IRQ0,       NONE,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(34,    GPIO, RECO_CLK,      PHY_LED,    PHY_LED,       NONE,     NONE,     NONE,          R);
+LAN9645X_P(35,    GPIO, RECO_CLK,      PHY_LED,    PHY_LED,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(36,    GPIO,     PTP0,      PHY_LED,    PHY_LED,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(37,    GPIO,     PTP1,      PHY_LED,    PHY_LED,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(38,    GPIO,     NONE,      PHY_LED,    PHY_LED,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(39,    GPIO,     UART,      PHY_LED,       NONE,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(40,    GPIO,      SPI,      PHY_LED,    SGPIO_a,       NONE,   MACLED,     NONE,          R);
+LAN9645X_P(41,    GPIO,      SPI,      PHY_LED,    SGPIO_a,       IRQ1,   MACLED,     NONE,          R);
+LAN9645X_P(42,    GPIO,      SPI,      PHY_LED,    SGPIO_a,       IRQ2,   MACLED,      SFP,          R);
+LAN9645X_P(43,    GPIO,      SPI,      PHY_LED,    SGPIO_a,       IRQ3,   MACLED,      SFP,          R);
+LAN9645X_P(44,    GPIO,     MIIM,          I2C,      NONE,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(45,    GPIO,     MIIM,          I2C,      NONE,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(46,    GPIO,     NONE,      PHY_LED,      NONE,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(47,    GPIO,     NONE,      PHY_LED,      NONE,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(48,    GPIO,  MIIM_Sa,      PHY_LED,      NONE,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(49,    GPIO,  MIIM_Sa,      PHY_LED,    I2C_Sa,        NONE,     NONE,     NONE,          R);
+LAN9645X_P(50,    GPIO,  MIIM_Sa,      PHY_LED,    I2C_Sa,        NONE,     NONE,     NONE,          R);
+
+#define LAN9645X_PIN(n) {                                       \
+	.number = n,                                           \
+	.name = "GPIO_"#n,                                     \
+	.drv_data = &lan9645x_pin_##n                           \
+}
+
+static const struct pinctrl_pin_desc lan9645x_pins[] = {
+	LAN9645X_PIN(0),
+	LAN9645X_PIN(1),
+	LAN9645X_PIN(2),
+	LAN9645X_PIN(3),
+	LAN9645X_PIN(4),
+	LAN9645X_PIN(5),
+	LAN9645X_PIN(6),
+	LAN9645X_PIN(7),
+	LAN9645X_PIN(8),
+	LAN9645X_PIN(9),
+	LAN9645X_PIN(10),
+	LAN9645X_PIN(11),
+	LAN9645X_PIN(12),
+	LAN9645X_PIN(13),
+	LAN9645X_PIN(14),
+	LAN9645X_PIN(15),
+	LAN9645X_PIN(16),
+	LAN9645X_PIN(17),
+	LAN9645X_PIN(18),
+	LAN9645X_PIN(19),
+	LAN9645X_PIN(20),
+	LAN9645X_PIN(21),
+	LAN9645X_PIN(22),
+	LAN9645X_PIN(23),
+	LAN9645X_PIN(24),
+	LAN9645X_PIN(25),
+	LAN9645X_PIN(26),
+	LAN9645X_PIN(27),
+	LAN9645X_PIN(28),
+	LAN9645X_PIN(29),
+	LAN9645X_PIN(30),
+	LAN9645X_PIN(31),
+	LAN9645X_PIN(32),
+	LAN9645X_PIN(33),
+	LAN9645X_PIN(34),
+	LAN9645X_PIN(35),
+	LAN9645X_PIN(36),
+	LAN9645X_PIN(37),
+	LAN9645X_PIN(38),
+	LAN9645X_PIN(39),
+	LAN9645X_PIN(40),
+	LAN9645X_PIN(41),
+	LAN9645X_PIN(42),
+	LAN9645X_PIN(43),
+	LAN9645X_PIN(44),
+	LAN9645X_PIN(45),
+	LAN9645X_PIN(46),
+	LAN9645X_PIN(47),
+	LAN9645X_PIN(48),
+	LAN9645X_PIN(49),
+	LAN9645X_PIN(50),
+};
+
 static int ocelot_get_functions_count(struct pinctrl_dev *pctldev)
 {
 	return ARRAY_SIZE(ocelot_function_names);
@@ -1362,7 +1506,7 @@ static int ocelot_pin_function_idx(struct ocelot_pinctrl *info,
 	return -1;
 }
 
-#define REG_ALT(msb, info, p) (OCELOT_GPIO_ALT0 * (info)->stride + 4 * ((msb) + ((info)->stride * ((p) / 32))))
+#define REG_ALT(msb, info, p) (OCELOT_GPIO_ALT0 * (info)->stride + 4 * ((msb) + ((info)->altm_stride * ((p) / 32))))
 
 static int ocelot_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int selector, unsigned int group)
@@ -1469,6 +1613,13 @@ static int lan966x_gpio_request_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int lan9645x_gpio_request_enable(struct pinctrl_dev *pctldev,
+					struct pinctrl_gpio_range *range,
+					unsigned int offset)
+{
+	return 0;
+}
+
 static const struct pinmux_ops ocelot_pmx_ops = {
 	.get_functions_count = ocelot_get_functions_count,
 	.get_function_name = ocelot_get_function_name,
@@ -1485,6 +1636,15 @@ static const struct pinmux_ops lan966x_pmx_ops = {
 	.set_mux = lan966x_pinmux_set_mux,
 	.gpio_set_direction = ocelot_gpio_set_direction,
 	.gpio_request_enable = lan966x_gpio_request_enable,
+};
+
+static const struct pinmux_ops lan9645x_pmx_ops = {
+	.get_functions_count = ocelot_get_functions_count,
+	.get_function_name = ocelot_get_function_name,
+	.get_function_groups = ocelot_get_function_groups,
+	.set_mux = lan966x_pinmux_set_mux,
+	.gpio_set_direction = ocelot_gpio_set_direction,
+	.gpio_request_enable = lan9645x_gpio_request_enable,
 };
 
 static int ocelot_pctl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -1884,6 +2044,24 @@ static const struct ocelot_match_data lan969x_desc = {
 	},
 };
 
+static struct ocelot_match_data lan9645xf_desc = {
+	.desc = {
+		.name = "lan9645xf-pinctrl",
+		.pins = lan9645x_pins,
+		.npins = ARRAY_SIZE(lan9645x_pins),
+		.pctlops = &ocelot_pctl_ops,
+		.pmxops = &lan9645x_pmx_ops,
+		.confops = &ocelot_confops,
+		.owner = THIS_MODULE,
+	},
+	.pincfg_data = {
+		.pd_bit = BIT(3),
+		.pu_bit = BIT(2),
+		.drive_bits = GENMASK(1, 0),
+	},
+	.n_alt_modes = 7,
+};
+
 static int ocelot_create_group_func_map(struct device *dev,
 					struct ocelot_pinctrl *info)
 {
@@ -2084,7 +2262,7 @@ static void ocelot_irq_unmask_level(struct irq_data *data)
 	if (active) {
 		struct ocelot_irq_work *work;
 
-		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+		work = kmalloc_obj(*work, GFP_ATOMIC);
 		if (!work)
 			return;
 
@@ -2218,6 +2396,7 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{ .compatible = "microchip,sparx5-pinctrl", .data = &sparx5_desc },
 	{ .compatible = "microchip,lan966x-pinctrl", .data = &lan966x_desc },
 	{ .compatible = "microchip,lan9691-pinctrl", .data = &lan969x_desc },
+	{ .compatible = "microchip,lan96455f-pinctrl", .data = &lan9645xf_desc },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ocelot_pinctrl_of_match);
@@ -2294,6 +2473,9 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 	reset_control_reset(reset);
 
 	info->stride = 1 + (info->desc->npins - 1) / 32;
+	info->altm_stride = info->stride;
+	if (data->n_alt_modes)
+		info->altm_stride = fls(data->n_alt_modes);
 
 	regmap_config.max_register = OCELOT_GPIO_SD_MAP * info->stride + 15 * 4;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2015-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,7 +52,7 @@ struct drr_params;
 struct dc_underflow_debug_data;
 struct dsc_optc_config;
 struct vm_system_aperture_param;
-
+struct memory_qos;
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
 	bool lock;
@@ -172,6 +172,12 @@ struct program_surface_config_params {
 struct program_mcache_id_and_split_coordinate {
 	struct hubp *hubp;
 	struct dml2_hubp_pipe_mcache_regs *mcache_regs;
+};
+
+struct control_cm_hist_params {
+	struct dpp *dpp;
+	struct cm_hist_control cm_hist_control;
+	enum dc_color_space color_space;
 };
 
 struct program_cursor_update_now_params {
@@ -755,6 +761,7 @@ union block_sequence_params {
 	struct dmub_hw_control_lock_fast_params dmub_hw_control_lock_fast_params;
 	struct program_surface_config_params program_surface_config_params;
 	struct program_mcache_id_and_split_coordinate program_mcache_id_and_split_coordinate;
+	struct control_cm_hist_params control_cm_hist_params;
 	struct program_cursor_update_now_params program_cursor_update_now_params;
 	struct hubp_wait_pipe_read_start_params hubp_wait_pipe_read_start_params;
 	struct apply_update_flags_for_phantom_params apply_update_flags_for_phantom_params;
@@ -879,6 +886,7 @@ enum block_sequence_func {
 	DMUB_HW_CONTROL_LOCK_FAST,
 	HUBP_PROGRAM_SURFACE_CONFIG,
 	HUBP_PROGRAM_MCACHE_ID,
+	DPP_PROGRAM_CM_HIST,
 	PROGRAM_CURSOR_UPDATE_NOW,
 	HUBP_WAIT_PIPE_READ_START,
 	HWS_APPLY_UPDATE_FLAGS_FOR_PHANTOM,
@@ -1184,9 +1192,13 @@ struct hw_sequencer_funcs {
 			const struct link_resource *link_res,
 			enum clock_source_id clock_source,
 			uint32_t pixel_clock);
+	void (*enable_analog_link_output)(struct dc_link *link,
+			uint32_t pixel_clock);
 	void (*disable_link_output)(struct dc_link *link,
 			const struct link_resource *link_res,
 			enum signal_type signal);
+	bool (*dac_load_detect)(struct dc_link *link);
+	void (*prepare_ddc)(struct dc_link *link);
 
 	void (*get_dcc_en_bits)(struct dc *dc, int *dcc_en_bits);
 
@@ -1287,6 +1299,17 @@ struct hw_sequencer_funcs {
 	void (*get_underflow_debug_data)(const struct dc *dc,
 			struct timing_generator *tg,
 			struct dc_underflow_debug_data *out_data);
+
+	/**
+	 * measure_memory_qos - Measure memory QoS metrics
+	 * @dc: DC structure
+	 * @qos: Pointer to memory_qos struct to populate with measured values
+	 *
+	 * Populates the provided memory_qos struct with peak bandwidth, average bandwidth,
+	 * max latency, min latency, and average latency from hardware performance counters.
+	 */
+	void (*measure_memory_qos)(struct dc *dc, struct memory_qos *qos);
+
 };
 
 void color_space_to_black_color(
@@ -1341,6 +1364,10 @@ void get_dcc_visual_confirm_color(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
+
+void get_refresh_rate_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color);
 
 void set_p_state_switch_method(
 		struct dc *dc,
@@ -1399,6 +1426,8 @@ void hwss_subvp_save_surf_addr(union block_sequence_params *params);
 void hwss_program_surface_config(union block_sequence_params *params);
 
 void hwss_program_mcache_id_and_split_coordinate(union block_sequence_params *params);
+
+void hwss_program_cm_hist(union block_sequence_params *params);
 
 void hwss_set_odm_combine(union block_sequence_params *params);
 
@@ -1749,6 +1778,11 @@ void hwss_add_opp_program_bit_depth_reduction(struct block_sequence_state *seq_s
 		struct output_pixel_processor *opp,
 		bool use_default_params,
 		struct pipe_ctx *pipe_ctx);
+
+void hwss_add_dpp_program_cm_hist(struct block_sequence_state *seq_state,
+		struct dpp *dpp,
+		struct cm_hist_control cm_hist_control,
+		enum dc_color_space color_space);
 
 void hwss_add_dc_ip_request_cntl(struct block_sequence_state *seq_state,
 		struct dc *dc,

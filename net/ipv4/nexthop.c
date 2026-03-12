@@ -116,7 +116,7 @@ static int nh_notifier_single_info_init(struct nh_notifier_info *info,
 	struct nh_info *nhi = rtnl_dereference(nh->nh_info);
 
 	info->type = NH_NOTIFIER_INFO_TYPE_SINGLE;
-	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
+	info->nh = kzalloc_obj(*info->nh);
 	if (!info->nh)
 		return -ENOMEM;
 
@@ -137,8 +137,7 @@ static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
 	int i;
 
 	info->type = NH_NOTIFIER_INFO_TYPE_GRP;
-	info->nh_grp = kzalloc(struct_size(info->nh_grp, nh_entries, num_nh),
-			       GFP_KERNEL);
+	info->nh_grp = kzalloc_flex(*info->nh_grp, nh_entries, num_nh);
 	if (!info->nh_grp)
 		return -ENOMEM;
 
@@ -318,8 +317,7 @@ static int nh_notifier_res_bucket_info_init(struct nh_notifier_info *info,
 		return err;
 
 	info->type = NH_NOTIFIER_INFO_TYPE_RES_BUCKET;
-	info->nh_res_bucket = kzalloc(sizeof(*info->nh_res_bucket),
-				      GFP_KERNEL);
+	info->nh_res_bucket = kzalloc_obj(*info->nh_res_bucket);
 	if (!info->nh_res_bucket)
 		return -ENOMEM;
 
@@ -535,7 +533,7 @@ static struct nexthop *nexthop_alloc(void)
 {
 	struct nexthop *nh;
 
-	nh = kzalloc(sizeof(struct nexthop), GFP_KERNEL);
+	nh = kzalloc_obj(struct nexthop);
 	if (nh) {
 		INIT_LIST_HEAD(&nh->fi_list);
 		INIT_LIST_HEAD(&nh->f6i_list);
@@ -550,7 +548,7 @@ static struct nh_group *nexthop_grp_alloc(u16 num_nh)
 {
 	struct nh_group *nhg;
 
-	nhg = kzalloc(struct_size(nhg, nh_entries, num_nh), GFP_KERNEL);
+	nhg = kzalloc_flex(*nhg, nh_entries, num_nh);
 	if (nhg)
 		nhg->num_nh = num_nh;
 
@@ -715,9 +713,8 @@ static int nh_notifier_grp_hw_stats_init(struct nh_notifier_info *info,
 
 	info->id = nh->id;
 	info->type = NH_NOTIFIER_INFO_TYPE_GRP_HW_STATS;
-	info->nh_grp_hw_stats = kzalloc(struct_size(info->nh_grp_hw_stats,
-						    stats, nhg->num_nh),
-					GFP_KERNEL);
+	info->nh_grp_hw_stats = kzalloc_flex(*info->nh_grp_hw_stats, stats,
+					     nhg->num_nh);
 	if (!info->nh_grp_hw_stats)
 		return -ENOMEM;
 
@@ -2897,7 +2894,7 @@ static struct nexthop *nexthop_create(struct net *net, struct nh_config *cfg,
 	if (!nh)
 		return ERR_PTR(-ENOMEM);
 
-	nhi = kzalloc(sizeof(*nhi), GFP_KERNEL);
+	nhi = kzalloc_obj(*nhi);
 	if (!nhi) {
 		kfree(nh);
 		return ERR_PTR(-ENOMEM);

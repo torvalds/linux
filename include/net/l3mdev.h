@@ -207,18 +207,19 @@ struct sk_buff *l3mdev_ip6_rcv(struct sk_buff *skb)
 static inline
 struct sk_buff *l3mdev_l3_out(struct sock *sk, struct sk_buff *skb, u16 proto)
 {
-	struct net_device *dev = skb_dst(skb)->dev;
+	struct net_device *dev;
 
+	rcu_read_lock();
+	dev = skb_dst_dev_rcu(skb);
 	if (netif_is_l3_slave(dev)) {
 		struct net_device *master;
 
-		rcu_read_lock();
 		master = netdev_master_upper_dev_get_rcu(dev);
 		if (master && master->l3mdev_ops->l3mdev_l3_out)
 			skb = master->l3mdev_ops->l3mdev_l3_out(master, sk,
 								skb, proto);
-		rcu_read_unlock();
 	}
+	rcu_read_unlock();
 
 	return skb;
 }

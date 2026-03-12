@@ -1597,7 +1597,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 	ring_count = txr_count + rxr_count;
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc(struct_size(q_vector, ring, ring_count), GFP_KERNEL);
+	q_vector = kzalloc_flex(*q_vector, ring, ring_count);
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -1825,8 +1825,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	v_budget = min_t(int, v_budget, hw->mac.max_msix_vectors);
 
 	/* A failure in MSI-X entry allocation is fatal. */
-	interface->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
-					  GFP_KERNEL);
+	interface->msix_entries = kzalloc_objs(struct msix_entry, v_budget);
 	if (!interface->msix_entries)
 		return -ENOMEM;
 

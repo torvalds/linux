@@ -68,6 +68,8 @@ static u64 to_hpa(u64 dpa_offset, int pos, u8 r_eiw, u16 r_eig, u8 hb_ways,
 
 	/* Calculate base HPA offset from DPA and position */
 	hpa_offset = cxl_calculate_hpa_offset(dpa_offset, pos, r_eiw, r_eig);
+	if (hpa_offset == ULLONG_MAX)
+		return ULLONG_MAX;
 
 	if (math == XOR_MATH) {
 		cximsd->nr_maps = hbiw_to_nr_maps[hb_ways];
@@ -258,19 +260,23 @@ static int test_random_params(void)
 		pos = get_random_u32() % ways;
 		dpa = get_random_u64() >> 12;
 
+		reverse_dpa = ULLONG_MAX;
+		reverse_pos = -1;
+
 		hpa = cxl_calculate_hpa_offset(dpa, pos, eiw, eig);
-		reverse_dpa = cxl_calculate_dpa_offset(hpa, eiw, eig);
-		reverse_pos = cxl_calculate_position(hpa, eiw, eig);
+		if (hpa != ULLONG_MAX) {
+			reverse_dpa = cxl_calculate_dpa_offset(hpa, eiw, eig);
+			reverse_pos = cxl_calculate_position(hpa, eiw, eig);
+			if (reverse_dpa == dpa && reverse_pos == pos)
+				continue;
+		}
 
-		if (reverse_dpa != dpa || reverse_pos != pos) {
-			pr_err("test random iter %d FAIL hpa=%llu, dpa=%llu reverse_dpa=%llu, pos=%d reverse_pos=%d eiw=%u eig=%u\n",
-			       i, hpa, dpa, reverse_dpa, pos, reverse_pos, eiw,
-			       eig);
+		pr_err("test random iter %d FAIL hpa=%llu, dpa=%llu reverse_dpa=%llu, pos=%d reverse_pos=%d eiw=%u eig=%u\n",
+		       i, hpa, dpa, reverse_dpa, pos, reverse_pos, eiw, eig);
 
-			if (failures++ > 10) {
-				pr_err("test random too many failures, stop\n");
-				break;
-			}
+		if (failures++ > 10) {
+			pr_err("test random too many failures, stop\n");
+			break;
 		}
 	}
 	pr_info("..... test random: PASS %d FAIL %d\n", i - failures, failures);

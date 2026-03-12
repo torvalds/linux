@@ -60,7 +60,7 @@ static struct hw_consumer_buffer *iio_hw_consumer_get_buffer(
 			return buf;
 	}
 
-	buf = kzalloc(struct_size(buf, scan_mask, mask_longs), GFP_KERNEL);
+	buf = kzalloc_flex(*buf, scan_mask, mask_longs);
 	if (!buf)
 		return NULL;
 
@@ -87,7 +87,7 @@ struct iio_hw_consumer *iio_hw_consumer_alloc(struct device *dev)
 	struct iio_channel *chan;
 	int ret;
 
-	hwc = kzalloc(sizeof(*hwc), GFP_KERNEL);
+	hwc = kzalloc_obj(*hwc);
 	if (!hwc)
 		return ERR_PTR(-ENOMEM);
 

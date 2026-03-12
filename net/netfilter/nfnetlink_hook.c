@@ -408,7 +408,7 @@ static int nfnl_hook_dump_start(struct netlink_callback *cb)
 	if (head && IS_ERR(head))
 		return PTR_ERR(head);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

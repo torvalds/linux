@@ -52,7 +52,7 @@ static int aca_banks_add_bank(struct aca_banks *banks, struct aca_bank *bank)
 	if (!bank)
 		return -EINVAL;
 
-	node = kvzalloc(sizeof(*node), GFP_KERNEL);
+	node = kvzalloc_obj(*node);
 	if (!node)
 		return -ENOMEM;
 
@@ -230,7 +230,7 @@ static struct aca_bank_error *new_bank_error(struct aca_error *aerr, struct aca_
 {
 	struct aca_bank_error *bank_error;
 
-	bank_error = kvzalloc(sizeof(*bank_error), GFP_KERNEL);
+	bank_error = kvzalloc_obj(*bank_error);
 	if (!bank_error)
 		return NULL;
 
@@ -641,6 +641,7 @@ static void aca_error_fini(struct aca_error *aerr)
 		aca_bank_error_remove(aerr, bank_error);
 
 out_unlock:
+	mutex_unlock(&aerr->lock);
 	mutex_destroy(&aerr->lock);
 }
 

@@ -337,7 +337,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 		return ERR_CAST(netdev);
 
 	rn = netdev_priv(netdev);
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter) {
 		rc = -ENOMEM;
 		goto adapter_err;

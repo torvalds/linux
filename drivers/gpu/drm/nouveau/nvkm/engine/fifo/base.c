@@ -122,7 +122,7 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_dev
 }
 
 static int
-nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
+nvkm_fifo_fini(struct nvkm_engine *engine, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nvkm_runl *runl;
@@ -377,7 +377,7 @@ nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 {
 	struct nvkm_fifo *fifo;
 
-	if (!(fifo = *pfifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
+	if (!(fifo = *pfifo = kzalloc_obj(*fifo)))
 		return -ENOMEM;
 
 	fifo->func = func;

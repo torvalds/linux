@@ -223,5 +223,4 @@ module_mcb_driver(men_z127_driver);
 MODULE_AUTHOR("Andreas Werner <andreas.werner@men.de>");
 MODULE_DESCRIPTION("MEN GPIO Controller");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("mcb:16z127");
 MODULE_IMPORT_NS("MCB");

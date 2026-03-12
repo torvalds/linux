@@ -299,7 +299,7 @@ static struct nfs3_createdata *nfs3_alloc_createdata(void)
 {
 	struct nfs3_createdata *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data != NULL) {
 		data->msg.rpc_argp = &data->arg;
 		data->msg.rpc_resp = &data->res;
@@ -1027,11 +1027,10 @@ static int nfs3_have_delegation(struct inode *inode, fmode_t type, int flags)
 	return 0;
 }
 
-static int nfs3_return_delegation(struct inode *inode)
+static void nfs3_return_delegation(struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	return 0;
 }
 
 static const struct inode_operations nfs3_dir_inode_operations = {

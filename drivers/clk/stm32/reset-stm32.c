@@ -130,7 +130,7 @@ int stm32_rcc_reset_init(struct device *dev, struct clk_stm32_reset_data *data,
 {
 	struct stm32_reset_data *reset_data;
 
-	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
+	reset_data = kzalloc_obj(*reset_data);
 	if (!reset_data)
 		return -ENOMEM;
 

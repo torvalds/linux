@@ -175,6 +175,4 @@ static inline int minix_test_bit(int nr, const void *vaddr)
 	__minix_error_inode((inode), __func__, __LINE__,	\
 			    (fmt), ##__VA_ARGS__)
 
-#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
-
 #endif /* FS_MINIX_H */

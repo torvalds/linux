@@ -308,7 +308,7 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
+	ipu_state = kzalloc_obj(*ipu_state);
 
 	if (ipu_state)
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
@@ -322,7 +322,7 @@ ipu_plane_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (state)
 		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
 

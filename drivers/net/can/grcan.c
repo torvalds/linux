@@ -1054,8 +1054,7 @@ static int grcan_open(struct net_device *dev)
 		return err;
 	}
 
-	priv->echo_skb = kcalloc(dma->tx.size, sizeof(*priv->echo_skb),
-				 GFP_KERNEL);
+	priv->echo_skb = kzalloc_objs(*priv->echo_skb, dma->tx.size);
 	if (!priv->echo_skb) {
 		err = -ENOMEM;
 		goto exit_free_dma_buffers;

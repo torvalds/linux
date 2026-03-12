@@ -238,7 +238,7 @@ int xe_eu_stall_init(struct xe_gt *gt)
 	if (!xe_eu_stall_supported_on_platform(xe))
 		return 0;
 
-	gt->eu_stall = kzalloc(sizeof(*gt->eu_stall), GFP_KERNEL);
+	gt->eu_stall = kzalloc_obj(*gt->eu_stall);
 	if (!gt->eu_stall) {
 		ret = -ENOMEM;
 		goto exit;
@@ -636,7 +636,7 @@ static int xe_eu_stall_data_buf_alloc(struct xe_eu_stall_data_stream *stream,
 	struct xe_bo *bo;
 	u32 size;
 
-	stream->xecore_buf = kcalloc(last_xecore, sizeof(*stream->xecore_buf), GFP_KERNEL);
+	stream->xecore_buf = kzalloc_objs(*stream->xecore_buf, last_xecore);
 	if (!stream->xecore_buf)
 		return -ENOMEM;
 
@@ -905,7 +905,7 @@ static int xe_eu_stall_stream_open_locked(struct drm_device *dev,
 		return -EBUSY;
 	}
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 

@@ -148,7 +148,11 @@ static int imx8m_soc_prepare(struct platform_device *pdev, const char *ocotp_com
 		goto err_clk;
 	}
 
-	return clk_prepare_enable(drvdata->clk);
+	ret = clk_prepare_enable(drvdata->clk);
+	if (ret)
+		goto err_clk;
+
+	return 0;
 
 err_clk:
 	iounmap(drvdata->ocotp_base);

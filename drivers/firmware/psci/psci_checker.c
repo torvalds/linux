@@ -155,8 +155,7 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 	if (!alloc_cpumask_var(&tmp, GFP_KERNEL))
 		return -ENOMEM;
 
-	cpu_groups = kcalloc(nb_available_cpus, sizeof(*cpu_groups),
-			     GFP_KERNEL);
+	cpu_groups = kzalloc_objs(*cpu_groups, nb_available_cpus);
 	if (!cpu_groups) {
 		free_cpumask_var(tmp);
 		return -ENOMEM;
@@ -370,8 +369,7 @@ static int suspend_tests(void)
 	struct task_struct **threads;
 	int nb_threads = 0;
 
-	threads = kmalloc_array(nb_available_cpus, sizeof(*threads),
-				GFP_KERNEL);
+	threads = kmalloc_objs(*threads, nb_available_cpus);
 	if (!threads)
 		return -ENOMEM;
 

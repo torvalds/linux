@@ -170,7 +170,7 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 	const char *name;
 	struct clk *clk;
 
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw);
 	if (!clk_hw) {
 		pr_err("%s: could not allocate dra7_atl_desc\n", __func__);
 		return;

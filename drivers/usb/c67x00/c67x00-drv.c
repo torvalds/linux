@@ -121,7 +121,7 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENODEV;
 
-	c67x00 = kzalloc(sizeof(*c67x00), GFP_KERNEL);
+	c67x00 = kzalloc_obj(*c67x00);
 	if (!c67x00)
 		return -ENOMEM;
 

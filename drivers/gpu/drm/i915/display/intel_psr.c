@@ -842,7 +842,12 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp,
 
 void intel_psr_panel_replay_enable_sink(struct intel_dp *intel_dp)
 {
-	if (CAN_PANEL_REPLAY(intel_dp))
+	/*
+	 * NOTE: We might want to trigger mode set when
+	 * disabling/enabling Panel Replay via debugfs interface to
+	 * ensure this bit is cleared/set accordingly.
+	 */
+	if (CAN_PANEL_REPLAY(intel_dp) && panel_replay_global_enabled(intel_dp))
 		drm_dp_dpcd_writeb(&intel_dp->aux, PANEL_REPLAY_CONFIG,
 				   DP_PANEL_REPLAY_ENABLE);
 }
@@ -1302,9 +1307,14 @@ static bool psr2_granularity_check(struct intel_crtc_state *crtc_state,
 	u16 sink_y_granularity = crtc_state->has_panel_replay ?
 		connector->dp.panel_replay_caps.su_y_granularity :
 		connector->dp.psr_caps.su_y_granularity;
-	u16 sink_w_granularity =  crtc_state->has_panel_replay ?
-		connector->dp.panel_replay_caps.su_w_granularity :
-		connector->dp.psr_caps.su_w_granularity;
+	u16 sink_w_granularity;
+
+	if (crtc_state->has_panel_replay)
+		sink_w_granularity = connector->dp.panel_replay_caps.su_w_granularity ==
+			DP_PANEL_REPLAY_FULL_LINE_GRANULARITY ?
+			crtc_hdisplay : connector->dp.panel_replay_caps.su_w_granularity;
+	else
+		sink_w_granularity = connector->dp.psr_caps.su_w_granularity;
 
 	/* PSR2 HW only send full lines so we only need to validate the width */
 	if (crtc_hdisplay % sink_w_granularity)

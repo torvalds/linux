@@ -98,6 +98,17 @@ static int hda_sdw_bpt_dma_prepare(struct device *dev, struct hdac_ext_stream **
 	struct hdac_ext_stream *bpt_stream;
 	unsigned int format = HDA_CL_STREAM_FORMAT;
 
+	if (!sdev->dspless_mode_selected) {
+		int ret;
+
+		/*
+		 * Make sure that the DSP is booted up, which might not be the
+		 * case if the on-demand DSP boot is used
+		 */
+		ret = snd_sof_boot_dsp_firmware(sdev);
+		if (ret)
+			return ret;
+	}
 	/*
 	 * the baseline format needs to be adjusted to
 	 * bandwidth requirements
@@ -107,7 +118,8 @@ static int hda_sdw_bpt_dma_prepare(struct device *dev, struct hdac_ext_stream **
 
 	dev_dbg(dev, "direction %d format_val %#x\n", direction, format);
 
-	bpt_stream = hda_cl_prepare(dev, format, bpt_num_bytes, dmab_bdl, false, direction, false);
+	bpt_stream = hda_data_stream_prepare(dev, format, bpt_num_bytes, dmab_bdl,
+					     false, direction, false, true);
 	if (IS_ERR(bpt_stream)) {
 		dev_err(sdev->dev, "%s: SDW BPT DMA prepare failed: dir %d\n",
 			__func__, direction);
@@ -151,7 +163,7 @@ static int hda_sdw_bpt_dma_deprepare(struct device *dev, struct hdac_ext_stream 
 	u32 mask;
 	int ret;
 
-	ret = hda_cl_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream);
+	ret = hda_data_stream_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "%s: SDW BPT DMA cleanup failed\n",
 			__func__);

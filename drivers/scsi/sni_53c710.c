@@ -64,7 +64,7 @@ static int snirm710_probe(struct platform_device *dev)
 		return -ENODEV;
 
 	base = res->start;
-	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
+	hostdata = kzalloc_obj(*hostdata);
 	if (!hostdata)
 		return -ENOMEM;
 

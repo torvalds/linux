@@ -232,7 +232,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 
 	dev_dbg(dev, "%s called: %d\n", __func__, idxd_wq_refcount(wq));
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -538,7 +538,7 @@ int idxd_wq_add_cdev(struct idxd_wq *wq)
 	struct idxd_cdev_context *cdev_ctx;
 	int rc, minor;
 
-	idxd_cdev = kzalloc(sizeof(*idxd_cdev), GFP_KERNEL);
+	idxd_cdev = kzalloc_obj(*idxd_cdev);
 	if (!idxd_cdev)
 		return -ENOMEM;
 

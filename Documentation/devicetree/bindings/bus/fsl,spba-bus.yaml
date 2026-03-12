@@ -19,21 +19,29 @@ description: |
   the SDMA can access.  There are no special clocks for the bus, because
   the SDMA controller itself has its interrupt and clock assignments.
 
+  EMI (External Memory Interface) for legacy i.MX35.
+
 select:
   properties:
     compatible:
       contains:
-        const: fsl,spba-bus
+        enum:
+          - fsl,aips
+          - fsl,emi
+          - fsl,spba-bus
   required:
     - compatible
 
 properties:
   $nodename:
-    pattern: "^spba-bus(@[0-9a-f]+)?$"
+    pattern: "^((spba|emi)-bus|bus)(@[0-9a-f]+)?$"
 
   compatible:
     items:
-      - const: fsl,spba-bus
+      - enum:
+          - fsl,aips
+          - fsl,emi
+          - fsl,spba-bus
       - const: simple-bus
 
   '#address-cells':

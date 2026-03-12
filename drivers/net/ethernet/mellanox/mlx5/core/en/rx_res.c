@@ -325,7 +325,7 @@ static struct mlx5e_rx_res *mlx5e_rx_res_alloc(struct mlx5_core_dev *mdev, unsig
 {
 	struct mlx5e_rx_res *rx_res;
 
-	rx_res = kvzalloc(sizeof(*rx_res), GFP_KERNEL);
+	rx_res = kvzalloc_obj(*rx_res);
 	if (!rx_res)
 		return NULL;
 
@@ -359,7 +359,7 @@ static int mlx5e_rx_res_channels_init(struct mlx5e_rx_res *res)
 	if (!builder)
 		return -ENOMEM;
 
-	res->channels = kvcalloc(res->max_nch, sizeof(*res->channels), GFP_KERNEL);
+	res->channels = kvzalloc_objs(*res->channels, res->max_nch);
 	if (!res->channels) {
 		err = -ENOMEM;
 		goto out;

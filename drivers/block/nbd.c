@@ -307,7 +307,7 @@ static void nbd_mark_nsock_dead(struct nbd_device *nbd, struct nbd_sock *nsock,
 {
 	if (!nsock->dead && notify && !nbd_disconnected(nbd->config)) {
 		struct link_dead_args *args;
-		args = kmalloc(sizeof(struct link_dead_args), GFP_NOIO);
+		args = kmalloc_obj(struct link_dead_args, GFP_NOIO);
 		if (args) {
 			INIT_WORK(&args->work, nbd_dead_link_work);
 			args->index = nbd->index;
@@ -1274,7 +1274,7 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 		goto put_socket;
 	}
 
-	nsock = kzalloc(sizeof(*nsock), GFP_KERNEL);
+	nsock = kzalloc_obj(*nsock);
 	if (!nsock) {
 		err = -ENOMEM;
 		goto put_socket;
@@ -1322,7 +1322,7 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 	if (!sock)
 		return err;
 
-	args = kzalloc(sizeof(*args), GFP_KERNEL);
+	args = kzalloc_obj(*args);
 	if (!args) {
 		sockfd_put(sock);
 		return -ENOMEM;
@@ -1510,7 +1510,7 @@ retry:
 	for (i = 0; i < num_connections; i++) {
 		struct recv_thread_args *args;
 
-		args = kzalloc(sizeof(*args), GFP_KERNEL);
+		args = kzalloc_obj(*args);
 		if (!args) {
 			sock_shutdown(nbd);
 			/*
@@ -1677,7 +1677,7 @@ static int nbd_alloc_and_init_config(struct nbd_device *nbd)
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	config = kzalloc(sizeof(struct nbd_config), GFP_NOFS);
+	config = kzalloc_obj(struct nbd_config, GFP_NOFS);
 	if (!config) {
 		module_put(THIS_MODULE);
 		return -ENOMEM;
@@ -1916,7 +1916,7 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 	struct gendisk *disk;
 	int err = -ENOMEM;
 
-	nbd = kzalloc(sizeof(struct nbd_device), GFP_KERNEL);
+	nbd = kzalloc_obj(struct nbd_device);
 	if (!nbd)
 		goto out;
 

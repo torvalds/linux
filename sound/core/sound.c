@@ -257,7 +257,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	if (snd_BUG_ON(!device))
 		return -EINVAL;
 
-	preg = kmalloc(sizeof *preg, GFP_KERNEL);
+	preg = kmalloc_obj(*preg);
 	if (preg == NULL)
 		return -ENOMEM;
 	preg->type = type;

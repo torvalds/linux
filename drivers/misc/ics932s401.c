@@ -433,7 +433,7 @@ static int ics932s401_probe(struct i2c_client *client)
 	struct ics932s401_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct ics932s401_data), GFP_KERNEL);
+	data = kzalloc_obj(struct ics932s401_data);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit;

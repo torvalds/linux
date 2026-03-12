@@ -64,8 +64,7 @@ static int mse_get_channels(struct phy_device *phydev,
 	if (!data->capability.supported_caps)
 		return 0;
 
-	data->snapshots = kcalloc(PHY_MSE_CHANNEL_COUNT,
-				  sizeof(*data->snapshots), GFP_KERNEL);
+	data->snapshots = kzalloc_objs(*data->snapshots, PHY_MSE_CHANNEL_COUNT);
 	if (!data->snapshots)
 		return -ENOMEM;
 

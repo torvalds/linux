@@ -12,7 +12,7 @@ struct ia_css_host_data *ia_css_host_data_allocate(size_t size)
 {
 	struct ia_css_host_data *me;
 
-	me =  kmalloc(sizeof(struct ia_css_host_data), GFP_KERNEL);
+	me =  kmalloc_obj(struct ia_css_host_data);
 	if (!me)
 		return NULL;
 	me->size = (uint32_t)size;

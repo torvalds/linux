@@ -46,6 +46,7 @@
 #include "amdgpu_dm_psr.h"
 #endif
 
+#define MULTIPLIER_TO_LR 270000
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
 	uint32_t reserved[3];
@@ -95,7 +96,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 		return -EFAULT;
 	}
 
-	/* check number of parameters. isspace could not differ space and \n */
+	/* check number of parameters. isspace could not differ space and\n */
 	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
 		/* skip space*/
 		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
@@ -302,8 +303,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	switch (param[1]) {
 	case LINK_RATE_LOW:
+	case LINK_RATE_RATE_2:
+	case LINK_RATE_RATE_3:
 	case LINK_RATE_HIGH:
 	case LINK_RATE_RBR2:
+	case LINK_RATE_RATE_6:
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
 	case LINK_RATE_UHBR10:
@@ -2710,6 +2714,65 @@ static int ips_status_show(struct seq_file *m, void *unused)
 }
 
 /*
+ * IPS residency information from DMUB service. Read only.
+ *
+ * For time-window (segment) measurement:
+ *	1) echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency_cntl
+ *	2) sleep <seconds>
+ *	3) echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency_cntl
+ *	4) cat /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency
+ */
+static int ips_residency_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dc *dc = adev->dm.dc;
+	uint8_t panel_inst = 0;
+	enum ips_residency_mode mode;
+	struct dmub_ips_residency_info info;
+
+	mutex_lock(&adev->dm.dc_lock);
+
+	mode = IPS_RESIDENCY__IPS1_RCG;
+	if (!dc_dmub_srv_ips_query_residency_info(dc->ctx, panel_inst, &info, mode)) {
+		seq_printf(m, "ISP query failed\n");
+	} else {
+		unsigned int pct, frac;
+		pct = info.residency_millipercent / 1000;
+		frac = info.residency_millipercent % 1000;
+
+		seq_printf(m, "IPS residency: %u.%03u%% \n", pct, frac);
+		seq_printf(m, "    entry_counter: %u\n", info.entry_counter);
+		seq_printf(m, "    total_time_us: %llu\n",
+			(unsigned long long)info.total_time_us);
+		seq_printf(m, "    total_inactive_time_us: %llu\n",
+			(unsigned long long)info.total_inactive_time_us);
+	}
+	mutex_unlock(&adev->dm.dc_lock);
+	return 0;
+}
+
+static int ips_residency_cntl_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+static int ips_residency_cntl_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+	struct dc *dc = adev->dm.dc;
+	uint8_t panel_inst = 0;
+	int ret = 0;
+
+	mutex_lock(&adev->dm.dc_lock);
+	if (!dc_dmub_srv_ips_residency_cntl(dc->ctx, panel_inst, !!val))
+		ret = -EIO;
+	mutex_unlock(&adev->dm.dc_lock);
+
+	return ret;
+}
+
+/*
  * Backlight at this moment.  Read only.
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
@@ -3370,9 +3433,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
 			disallow_edp_enter_psr_get,
 			disallow_edp_enter_psr_set, "%llu\n");
 
+DEFINE_DEBUGFS_ATTRIBUTE(ips_residency_cntl_fops, ips_residency_cntl_get,
+			   ips_residency_cntl_set, "%llu\n");
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
 DEFINE_SHOW_ATTRIBUTE(ips_status);
+DEFINE_SHOW_ATTRIBUTE(ips_residency);
 
 static const struct {
 	char *name;
@@ -3442,6 +3508,10 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	uint8_t param_nums = 0;
 	long param[2];
 	bool valid_input = true;
+	uint8_t supported_link_rates[16] = {0};
+	uint32_t entry = 0;
+	uint32_t link_rate_in_khz = 0;
+	uint8_t dpcd_rev = 0;
 
 	if (size == 0)
 		return -EINVAL;
@@ -3486,6 +3556,20 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 		return size;
 	}
 
+	if (!dm_helpers_dp_read_dpcd(link->ctx, link, DP_SUPPORTED_LINK_RATES,
+		supported_link_rates, sizeof(supported_link_rates)))
+		return -EINVAL;
+
+	dpcd_rev = link->dpcd_caps.dpcd_rev.raw;
+	if (dpcd_rev < DP_DPCD_REV_13 ||
+		(supported_link_rates[entry + 1] == 0 && supported_link_rates[entry] == 0)) {
+		return size;
+	}
+
+	entry = param[1] * 2;
+	link_rate_in_khz = (supported_link_rates[entry + 1] * 0x100 +
+						supported_link_rates[entry]) * 200;
+
 	/* save user force lane_count, link_rate to preferred settings
 	 * spread spectrum will not be changed
 	 */
@@ -3493,7 +3577,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	prefer_link_settings.lane_count = param[0];
 	prefer_link_settings.use_link_rate_set = true;
 	prefer_link_settings.link_rate_set = param[1];
-	prefer_link_settings.link_rate = link->dpcd_caps.edp_supported_link_rates[param[1]];
+	prefer_link_settings.link_rate = link_rate_in_khz / MULTIPLIER_TO_LR;
 
 	mutex_lock(&adev->dm.dc_lock);
 	dc_link_set_preferred_training_settings(dc, &prefer_link_settings,
@@ -3755,6 +3839,50 @@ static int crc_win_update_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(crc_win_update_fops, crc_win_update_get,
 			 crc_win_update_set, "%llu\n");
+
+/*
+ * Trigger to set crc polynomial mode
+ * 0: 16-bit CRC, 1: 32-bit CRC
+ * only accepts 0 or 1 for supported hwip versions
+ */
+static int crc_poly_mode_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct amdgpu_crtc *acrtc;
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
+
+	if ((amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 6, 0)) &&
+		(amdgpu_ip_version(adev, DCE_HWIP, 0) != IP_VERSION(4, 0, 1)) &&
+		(val < 2)) {
+		acrtc = to_amdgpu_crtc(crtc);
+		mutex_lock(&adev->dm.dc_lock);
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		acrtc->dm_irq_params.crc_poly_mode = val;
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		mutex_unlock(&adev->dm.dc_lock);
+	}
+
+	return 0;
+}
+
+/*
+ * Get crc polynomial mode (0: 16-bit CRC, 1: 32-bit CRC)
+ */
+static int crc_poly_mode_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_poly_mode;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_poly_mode_fops, crc_poly_mode_get,
+			 crc_poly_mode_set, "%llu\n");
 #endif
 void crtc_debugfs_init(struct drm_crtc *crtc)
 {
@@ -3774,6 +3902,8 @@ void crtc_debugfs_init(struct drm_crtc *crtc)
 				   &crc_win_y_end_fops);
 	debugfs_create_file_unsafe("crc_win_update", 0644, dir, crtc,
 				   &crc_win_update_fops);
+	debugfs_create_file_unsafe("crc_poly_mode", 0644, dir, crtc,
+				   &crc_poly_mode_fops);
 	dput(dir);
 #endif
 	debugfs_create_file("amdgpu_current_bpc", 0644, crtc->debugfs_entry,
@@ -4171,7 +4301,7 @@ static ssize_t dcc_en_bits_read(
 	int *dcc_en_bits;
 	int i, r;
 
-	dcc_en_bits = kcalloc(num_pipes, sizeof(int), GFP_KERNEL);
+	dcc_en_bits = kzalloc_objs(int, num_pipes);
 	if (!dcc_en_bits)
 		return -ENOMEM;
 
@@ -4271,7 +4401,14 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
 				   &disable_hpd_ops);
 
-	if (adev->dm.dc->caps.ips_support)
+	if (adev->dm.dc->caps.ips_support) {
 		debugfs_create_file_unsafe("amdgpu_dm_ips_status", 0644, root, adev,
 					   &ips_status_fops);
+
+		debugfs_create_file_unsafe("amdgpu_dm_ips_residency_cntl", 0644, root, adev,
+					   &ips_residency_cntl_fops);
+
+		debugfs_create_file_unsafe("amdgpu_dm_ips_residency", 0644, root, adev,
+					   &ips_residency_fops);
+	}
 }

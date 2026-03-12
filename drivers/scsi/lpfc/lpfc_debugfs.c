@@ -872,6 +872,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				 ndlp->nlp_rpi);
 		len += scnprintf(buf+len, size-len, "flag:x%08lx ",
 				 ndlp->nlp_flag);
+		if (ndlp->nlp_enc_info.status) {
+			len += scnprintf(buf + len,
+					 size - len, "ENCRYPTED");
+			len += scnprintf(buf + len, size - len,
+					 ndlp->nlp_enc_info.level
+					 ? "(CNSA2.0) " : "(CNSA1.0) ");
+		}
 		if (!ndlp->nlp_type)
 			len += scnprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
@@ -1944,7 +1951,7 @@ lpfc_debugfs_disc_trc_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -1994,7 +2001,7 @@ lpfc_debugfs_slow_ring_trc_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2038,7 +2045,7 @@ lpfc_debugfs_hbqinfo_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2080,7 +2087,7 @@ lpfc_debugfs_multixripools_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2125,7 +2132,7 @@ lpfc_debugfs_lockstat_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2262,7 +2269,7 @@ lpfc_debugfs_ras_log_open(struct inode *inode, struct file *file)
 			       phba->cfg_ras_fwlog_buffsize, &size))
 		goto out;
 
-	debug = kzalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kzalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2309,7 +2316,7 @@ lpfc_debugfs_dumpHBASlim_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2351,7 +2358,7 @@ lpfc_debugfs_dumpHostSlim_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2515,7 +2522,7 @@ lpfc_debugfs_nodelist_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2681,7 +2688,7 @@ lpfc_debugfs_nvmestat_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2769,7 +2776,7 @@ lpfc_debugfs_scsistat_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2823,7 +2830,7 @@ lpfc_debugfs_ioktime_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -2950,7 +2957,7 @@ lpfc_debugfs_nvmeio_trc_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -3055,7 +3062,7 @@ lpfc_debugfs_hdwqstat_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -3219,7 +3226,7 @@ lpfc_idiag_open(struct inode *inode, struct file *file)
 {
 	struct lpfc_debug *debug;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		return -ENOMEM;
 
@@ -5464,7 +5471,7 @@ lpfc_cgn_buffer_open(struct inode *inode, struct file *file)
 	struct lpfc_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -5556,7 +5563,7 @@ lpfc_rx_monitor_open(struct inode *inode, struct file *file)
 	struct lpfc_rx_monitor_debug *debug;
 	int rc = -ENOMEM;
 
-	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	debug = kmalloc_obj(*debug);
 	if (!debug)
 		goto out;
 
@@ -6203,10 +6210,8 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				    phba->hba_debugfs_root, phba,
 				    &lpfc_debugfs_op_slow_ring_trc);
 		if (!phba->slow_ring_trc) {
-			phba->slow_ring_trc = kcalloc(
-				lpfc_debugfs_max_slow_ring_trc,
-				sizeof(struct lpfc_debugfs_trc),
-				GFP_KERNEL);
+			phba->slow_ring_trc = kzalloc_objs(struct lpfc_debugfs_trc,
+							   lpfc_debugfs_max_slow_ring_trc);
 			if (!phba->slow_ring_trc) {
 				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 						 "0416 Cannot create debugfs "

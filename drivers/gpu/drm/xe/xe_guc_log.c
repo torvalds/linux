@@ -116,7 +116,7 @@ static struct xe_guc_log_snapshot *xe_guc_log_snapshot_alloc(struct xe_guc_log *
 	size_t remain;
 	int i;
 
-	snapshot = kzalloc(sizeof(*snapshot), atomic ? GFP_ATOMIC : GFP_KERNEL);
+	snapshot = kzalloc_obj(*snapshot, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!snapshot)
 		return NULL;
 
@@ -128,8 +128,8 @@ static struct xe_guc_log_snapshot *xe_guc_log_snapshot_alloc(struct xe_guc_log *
 	snapshot->size = xe_bo_size(log->bo);
 	snapshot->num_chunks = DIV_ROUND_UP(snapshot->size, GUC_LOG_CHUNK_SIZE);
 
-	snapshot->copy = kcalloc(snapshot->num_chunks, sizeof(*snapshot->copy),
-				 atomic ? GFP_ATOMIC : GFP_KERNEL);
+	snapshot->copy = kzalloc_objs(*snapshot->copy, snapshot->num_chunks,
+				      atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!snapshot->copy)
 		goto fail_snap;
 

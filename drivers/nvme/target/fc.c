@@ -528,8 +528,7 @@ nvmet_fc_alloc_ls_iodlist(struct nvmet_fc_tgtport *tgtport)
 	struct nvmet_fc_ls_iod *iod;
 	int i;
 
-	iod = kcalloc(NVMET_LS_CTX_COUNT, sizeof(struct nvmet_fc_ls_iod),
-			GFP_KERNEL);
+	iod = kzalloc_objs(struct nvmet_fc_ls_iod, NVMET_LS_CTX_COUNT);
 	if (!iod)
 		return -ENOMEM;
 
@@ -789,7 +788,7 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	if (qid > NVMET_NR_QUEUES)
 		return NULL;
 
-	queue = kzalloc(struct_size(queue, fod, sqsize), GFP_KERNEL);
+	queue = kzalloc_flex(*queue, fod, sqsize);
 	if (!queue)
 		return NULL;
 
@@ -1034,7 +1033,7 @@ nvmet_fc_alloc_hostport(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 	if (match)
 		return match;
 
-	newhost = kzalloc(sizeof(*newhost), GFP_KERNEL);
+	newhost = kzalloc_obj(*newhost);
 	if (!newhost)
 		return ERR_PTR(-ENOMEM);
 
@@ -1116,7 +1115,7 @@ nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 	if (!tgtport->pe)
 		return NULL;
 
-	assoc = kzalloc(sizeof(*assoc), GFP_KERNEL);
+	assoc = kzalloc_obj(*assoc);
 	if (!assoc)
 		return NULL;
 
@@ -2717,7 +2716,7 @@ nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *target_port,
 		spin_unlock_irqrestore(&queue->qlock, flags);
 
 		/* Now we need to dynamically allocate one */
-		deferfcp = kmalloc(sizeof(*deferfcp), GFP_KERNEL);
+		deferfcp = kmalloc_obj(*deferfcp);
 		if (!deferfcp) {
 			/* release the queue lookup reference */
 			nvmet_fc_tgt_q_put(queue);
@@ -2882,7 +2881,7 @@ nvmet_fc_add_port(struct nvmet_port *port)
 	if (ret)
 		return ret;
 
-	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	pe = kzalloc_obj(*pe);
 	if (!pe)
 		return -ENOMEM;
 

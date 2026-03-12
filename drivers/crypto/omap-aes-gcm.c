@@ -177,7 +177,7 @@ static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 {
 	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
 
-	aes_encrypt(&ctx->actx, (u8 *)tag, (u8 *)iv);
+	aes_encrypt(&ctx->akey, (u8 *)tag, (const u8 *)iv);
 	return 0;
 }
 
@@ -314,7 +314,7 @@ int omap_aes_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 	struct omap_aes_gcm_ctx *ctx = crypto_aead_ctx(tfm);
 	int ret;
 
-	ret = aes_expandkey(&ctx->actx, key, keylen);
+	ret = aes_prepareenckey(&ctx->akey, key, keylen);
 	if (ret)
 		return ret;
 
@@ -334,7 +334,7 @@ int omap_aes_4106gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 		return -EINVAL;
 	keylen -= 4;
 
-	ret = aes_expandkey(&ctx->actx, key, keylen);
+	ret = aes_prepareenckey(&ctx->akey, key, keylen);
 	if (ret)
 		return ret;
 

@@ -219,15 +219,12 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 {
 	mutex_init(&dev->dev_lock);
-	dev->cq_tbl = kcalloc(OCRDMA_MAX_CQ, sizeof(struct ocrdma_cq *),
-			      GFP_KERNEL);
+	dev->cq_tbl = kzalloc_objs(struct ocrdma_cq *, OCRDMA_MAX_CQ);
 	if (!dev->cq_tbl)
 		goto alloc_err;
 
 	if (dev->attr.max_qp) {
-		dev->qp_tbl = kcalloc(OCRDMA_MAX_QP,
-				      sizeof(struct ocrdma_qp *),
-				      GFP_KERNEL);
+		dev->qp_tbl = kzalloc_objs(struct ocrdma_qp *, OCRDMA_MAX_QP);
 		if (!dev->qp_tbl)
 			goto alloc_err;
 	}
@@ -271,7 +268,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		return NULL;
 	}
 
-	dev->mbx_cmd = kzalloc(sizeof(struct ocrdma_mqe_emb_cmd), GFP_KERNEL);
+	dev->mbx_cmd = kzalloc_obj(struct ocrdma_mqe_emb_cmd);
 	if (!dev->mbx_cmd)
 		goto init_err;
 

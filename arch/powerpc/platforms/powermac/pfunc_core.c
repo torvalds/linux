@@ -644,7 +644,7 @@ static int pmf_add_function_prop(struct pmf_device *dev, void *driverdata,
 
 	while (length >= 12) {
 		/* Allocate a structure */
-		func = kzalloc(sizeof(*func), GFP_KERNEL);
+		func = kzalloc_obj(*func);
 		if (func == NULL)
 			goto bail;
 		kref_init(&func->ref);
@@ -720,7 +720,7 @@ int pmf_register_driver(struct device_node *np,
 		return -EBUSY;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		DBG("pmf: no memory !\n");
 		return -ENOMEM;

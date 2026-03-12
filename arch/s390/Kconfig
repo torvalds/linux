@@ -32,9 +32,6 @@ config GENERIC_BUG_RELATIVE_POINTERS
 config GENERIC_LOCKBREAK
 	def_bool y if PREEMPTION
 
-config PGSTE
-	def_bool y if KVM
-
 config AUDIT_ARCH
 	def_bool y
 
@@ -69,6 +66,12 @@ config CC_HAS_ASM_AOR_FORMAT_FLAGS
 	  Clang versions before 19.1.0 do not support A,
 	  O, and R inline assembly format flags.
 
+config CC_HAS_ASM_IMMEDIATE_STRINGS
+	def_bool !(CC_IS_GCC && GCC_VERSION < 90000)
+	help
+	  GCC versions before 9.0.0 cannot handle strings as immediate
+	  input operands in inline assemblies.
+
 config CC_HAS_STACKPROTECTOR_GLOBAL
 	def_bool $(cc-option, -mstack-protector-guard=global -mstack-protector-guard-record)
 
@@ -85,6 +88,7 @@ config S390
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
@@ -275,6 +279,7 @@ config S390
 	select SPARSE_IRQ
 	select SWIOTLB
 	select SYSCTL_EXCEPTION_TRACE
+	select SYSTEM_DATA_VERIFICATION if KEXEC_SIG
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
 	select TTY
@@ -294,6 +299,14 @@ config PGTABLE_LEVELS
 
 source "kernel/livepatch/Kconfig"
 
+config ARCH_CC_CAN_LINK
+	bool
+	default $(cc_can_link_user,-m64)
+
+config ARCH_USERFLAGS
+	string
+	default "-m64"
+
 config ARCH_SUPPORTS_KEXEC
 	def_bool y
 
@@ -301,7 +314,7 @@ config ARCH_SUPPORTS_KEXEC_FILE
 	def_bool y
 
 config ARCH_SUPPORTS_KEXEC_SIG
-	def_bool MODULE_SIG_FORMAT
+	def_bool y
 
 config ARCH_SUPPORTS_KEXEC_PURGATORY
 	def_bool y
@@ -703,6 +716,10 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
+
+config ILLEGAL_POINTER_VALUE
+	hex
+	default 0xdead000000000000
 
 config MAX_PHYSMEM_BITS
 	int "Maximum size of supported physical memory in bits (42-53)"

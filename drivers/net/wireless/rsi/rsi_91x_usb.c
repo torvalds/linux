@@ -620,7 +620,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	struct rsi_91x_usbdev *rsi_dev;
 	int status;
 
-	rsi_dev = kzalloc(sizeof(*rsi_dev), GFP_KERNEL);
+	rsi_dev = kzalloc_obj(*rsi_dev);
 	if (!rsi_dev)
 		return -ENOMEM;
 

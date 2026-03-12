@@ -93,7 +93,7 @@ void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_ch
 int mlx5e_rss_params_indir_init(struct mlx5e_rss_params_indir *indir,
 				u32 actual_table_size, u32 max_table_size)
 {
-	indir->table = kvmalloc_array(max_table_size, sizeof(*indir->table), GFP_KERNEL);
+	indir->table = kvmalloc_objs(*indir->table, max_table_size);
 	if (!indir->table)
 		return -ENOMEM;
 
@@ -134,7 +134,7 @@ static struct mlx5e_rss *mlx5e_rss_init_copy(const struct mlx5e_rss *from)
 	struct mlx5e_rss *rss;
 	int err;
 
-	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
+	rss = kvzalloc_obj(*rss);
 	if (!rss)
 		return ERR_PTR(-ENOMEM);
 
@@ -216,7 +216,7 @@ mlx5e_rss_create_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	if (*tir_p)
 		return -EINVAL;
 
-	tir = kvzalloc(sizeof(*tir), GFP_KERNEL);
+	tir = kvzalloc_obj(*tir);
 	if (!tir)
 		return -ENOMEM;
 
@@ -372,7 +372,7 @@ mlx5e_rss_init(struct mlx5_core_dev *mdev,
 	struct mlx5e_rss *rss;
 	int err;
 
-	rss = kvzalloc(sizeof(*rss), GFP_KERNEL);
+	rss = kvzalloc_obj(*rss);
 	if (!rss)
 		return ERR_PTR(-ENOMEM);
 

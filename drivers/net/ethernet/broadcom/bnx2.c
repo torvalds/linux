@@ -8084,7 +8084,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->phy_flags = 0;
 
 	bp->temp_stats_blk =
-		kzalloc(sizeof(struct statistics_block), GFP_KERNEL);
+		kzalloc_obj(struct statistics_block);
 
 	if (!bp->temp_stats_blk) {
 		rc = -ENOMEM;

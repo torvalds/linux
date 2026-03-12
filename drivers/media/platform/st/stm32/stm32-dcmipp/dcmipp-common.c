@@ -20,7 +20,7 @@ struct media_pad *dcmipp_pads_init(u16 num_pads, const unsigned long *pads_flags
 	unsigned int i;
 
 	/* Allocate memory for the pads */
-	pads = kcalloc(num_pads, sizeof(*pads), GFP_KERNEL);
+	pads = kzalloc_objs(*pads, num_pads);
 	if (!pads)
 		return ERR_PTR(-ENOMEM);
 

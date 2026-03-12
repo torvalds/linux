@@ -53,7 +53,8 @@ struct nfsd_attrs {
 	struct posix_acl	*na_dpacl;	/* input */
 
 	int			na_labelerr;	/* output */
-	int			na_aclerr;	/* output */
+	int			na_dpaclerr;	/* output */
+	int			na_paclerr;	/* output */
 };
 
 static inline void nfsd_attrs_free(struct nfsd_attrs *attrs)
@@ -67,7 +68,8 @@ static inline bool nfsd_attrs_valid(struct nfsd_attrs *attrs)
 	struct iattr *iap = attrs->na_iattr;
 
 	return (iap->ia_valid || (attrs->na_seclabel &&
-		attrs->na_seclabel->len));
+		attrs->na_seclabel->len) ||
+		attrs->na_pacl || attrs->na_dpacl);
 }
 
 __be32		nfserrno (int errno);

@@ -7,19 +7,21 @@
 The relationship between the CPU and GPU can be described as the
 producer-consumer problem, where the CPU fills out a buffer with operations
 (producer) to be executed by the GPU (consumer). The requested operations in
-the buffer are called Command Packets, which can be summarized as a compressed
-way of transmitting command information to the graphics controller.
+the buffer are called **Command Packets**, which can be summarized as a
+compressed way of transmitting command information to the graphics controller.
 
 The component that acts as the front end between the CPU and the GPU is called
-the Command Processor (CP). This component is responsible for providing greater
-flexibility to the GC since CP makes it possible to program various aspects of
-the GPU pipeline. CP also coordinates the communication between the CPU and GPU
-via a mechanism named **Ring Buffers**, where the CPU appends information to
-the buffer while the GPU removes operations. It is relevant to highlight that a
-CPU can add a pointer to the Ring Buffer that points to another region of
-memory outside the Ring Buffer, and CP can handle it; this mechanism is called
-**Indirect Buffer (IB)**. CP receives and parses the Command Streams (CS), and
-writes the operations to the correct hardware blocks.
+**Command Processor (CP)**. This component is responsible for providing greater
+flexibility to the **Graphics and Compute (GC)** since CP makes it possible to
+program various aspects of the GPU pipeline. CP also coordinates the
+communication between the CPU and GPU via a mechanism named **Ring Buffers**,
+where the CPU appends information to the buffer while the GPU removes
+operations. CP is also responsible for handling **Indirect Buffers (IB)**.
+
+For reference, internally the CP consists of several sub-blocks (CPC - CP
+compute, CPG - CP graphics, and CPF - CP fetcher). Some of these acronyms
+appear in register names, but this is more of an implementation detail and not
+something that directly impacts driver programming or debugging.
 
 Graphics (GFX) and Compute Microcontrollers
 -------------------------------------------

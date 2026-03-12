@@ -489,7 +489,7 @@ static struct clk *clk_register_apb_mul(struct device *dev, const char *name,
 	struct clk_init_data init;
 	struct clk *clk;
 
-	am = kzalloc(sizeof(*am), GFP_KERNEL);
+	am = kzalloc_obj(*am);
 	if (!am)
 		return ERR_PTR(-ENOMEM);
 
@@ -815,7 +815,7 @@ static struct clk_hw *clk_register_pll_div(const char *name,
 	int ret;
 
 	/* allocate the divider */
-	pll_div = kzalloc(sizeof(*pll_div), GFP_KERNEL);
+	pll_div = kzalloc_obj(*pll_div);
 	if (!pll_div)
 		return ERR_PTR(-ENOMEM);
 
@@ -937,7 +937,7 @@ static struct clk_hw *stm32f4_rcc_register_pll(const char *pllsrc,
 	const struct stm32f4_vco_data *vco;
 
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -1107,7 +1107,7 @@ static struct clk_hw *clk_register_rgate(struct device *dev, const char *name,
 	struct clk_hw *hw;
 	int ret;
 
-	rgate = kzalloc(sizeof(*rgate), GFP_KERNEL);
+	rgate = kzalloc_obj(*rgate);
 	if (!rgate)
 		return ERR_PTR(-ENOMEM);
 
@@ -1202,13 +1202,13 @@ static struct clk_hw *stm32_register_cclk(struct device *dev, const char *name,
 	struct clk_gate *gate;
 	struct clk_mux *mux;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate) {
 		hw = ERR_PTR(-EINVAL);
 		goto fail;
 	}
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux) {
 		kfree(gate);
 		hw = ERR_PTR(-EINVAL);
@@ -1776,7 +1776,7 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 	const struct clk_ops *mux_ops = NULL, *gate_ops = NULL;
 
 	if (offset_gate != NO_GATE) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate);
 		if (!gate) {
 			hw = ERR_PTR(-EINVAL);
 			goto fail;
@@ -1791,7 +1791,7 @@ static struct clk_hw *stm32_register_aux_clk(const char *name,
 	}
 
 	if (offset_mux != NO_MUX) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux);
 		if (!mux) {
 			hw = ERR_PTR(-EINVAL);
 			goto fail;
@@ -1855,8 +1855,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 
 	stm32fx_end_primary_clk = data->end_primary;
 
-	clks = kmalloc_array(data->gates_num + stm32fx_end_primary_clk,
-			sizeof(*clks), GFP_KERNEL);
+	clks = kmalloc_objs(*clks, data->gates_num + stm32fx_end_primary_clk);
 	if (!clks)
 		goto fail;
 

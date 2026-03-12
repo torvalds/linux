@@ -161,7 +161,7 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 	/* If this memory allocation fails still return 0. The SID
 	 * is valid, it just won't be added to the cache.
 	 */
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_ATOMIC);
 	if (new) {
 		new->nsec.ns = ns;
 		new->nsec.ifindex = ifindex;

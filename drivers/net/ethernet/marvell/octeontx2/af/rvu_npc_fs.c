@@ -1297,7 +1297,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 find_rule:
 	rule = rvu_mcam_find_rule(mcam, entry_index);
 	if (!rule) {
-		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+		rule = kzalloc_obj(*rule);
 		if (!rule)
 			return -ENOMEM;
 		new = true;
@@ -1741,7 +1741,7 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 	}
 
 	/* Add this entry to mcam rules list */
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 

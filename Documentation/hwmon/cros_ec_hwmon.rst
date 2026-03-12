@@ -23,9 +23,26 @@ ChromeOS embedded controller used in Chromebooks and other devices.
 
 The channel labels exposed via hwmon are retrieved from the EC itself.
 
-Fan and temperature readings are supported. PWM fan control is also supported if
-the EC also supports setting fan PWM values and fan mode. Note that EC will
-switch fan control mode back to auto when suspended. This driver will restore
-the fan state to what they were before suspended when resumed.
-If a fan is controllable, this driver will register that fan as a cooling device
-in the thermal framework as well.
+Supported features
+------------------
+
+Fan readings
+    Always supported.
+
+Fan target speed
+    If supported by the EC.
+
+Temperature readings
+    Always supported.
+
+Temperature thresholds
+    If supported by the EC.
+
+PWM fan control
+    If the EC also supports setting fan PWM values and fan mode.
+
+    Note that EC will switch fan control mode back to auto when suspended.
+    This driver will restore the fan state to what they were before suspended when resumed.
+
+    If a fan is controllable, this driver will register that fan as a cooling device
+    in the thermal framework as well.

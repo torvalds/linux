@@ -159,7 +159,7 @@ static long tce_iommu_register_pages(struct tce_container *container,
 			return ret;
 	}
 
-	tcemem = kzalloc(sizeof(*tcemem), GFP_KERNEL);
+	tcemem = kzalloc_obj(*tcemem);
 	if (!tcemem) {
 		ret = -ENOMEM;
 		goto put_exit;
@@ -322,7 +322,7 @@ static void *tce_iommu_open(unsigned long arg)
 		return ERR_PTR(-EINVAL);
 	}
 
-	container = kzalloc(sizeof(*container), GFP_KERNEL);
+	container = kzalloc_obj(*container);
 	if (!container)
 		return ERR_PTR(-ENOMEM);
 
@@ -1290,7 +1290,7 @@ static int tce_iommu_attach_group(void *iommu_data,
 		}
 	}
 
-	tcegrp = kzalloc(sizeof(*tcegrp), GFP_KERNEL);
+	tcegrp = kzalloc_obj(*tcegrp);
 	if (!tcegrp) {
 		ret = -ENOMEM;
 		goto unlock_exit;

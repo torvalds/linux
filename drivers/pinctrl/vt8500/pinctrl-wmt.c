@@ -251,7 +251,7 @@ static int wmt_pctl_dt_node_to_map_pull(struct wmt_pinctrl_data *data,
 		return group;
 	}
 
-	configs = kzalloc(sizeof(*configs), GFP_KERNEL);
+	configs = kzalloc_obj(*configs);
 	if (!configs)
 		return -ENOMEM;
 
@@ -344,8 +344,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (num_pulls)
 		maps_per_pin++;
 
-	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
-				 GFP_KERNEL);
+	cur_map = maps = kzalloc_objs(*maps, num_pins * maps_per_pin);
 	if (!maps)
 		return -ENOMEM;
 

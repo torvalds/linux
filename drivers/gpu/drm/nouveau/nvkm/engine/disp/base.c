@@ -99,13 +99,13 @@ nvkm_disp_intr(struct nvkm_engine *engine)
 }
 
 static int
-nvkm_disp_fini(struct nvkm_engine *engine, bool suspend)
+nvkm_disp_fini(struct nvkm_engine *engine, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_disp *disp = nvkm_disp(engine);
 	struct nvkm_outp *outp;
 
 	if (disp->func->fini)
-		disp->func->fini(disp, suspend);
+		disp->func->fini(disp, suspend != NVKM_POWEROFF);
 
 	list_for_each_entry(outp, &disp->outps, head) {
 		if (outp->func->fini)
@@ -232,7 +232,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	struct nvkm_disp *disp;
 	int ret;
 
-	if (!(disp = *pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
+	if (!(disp = *pdisp = kzalloc_obj(**pdisp)))
 		return -ENOMEM;
 
 	disp->func = func;

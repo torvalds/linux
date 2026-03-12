@@ -15,25 +15,25 @@ if PINCTRL_MESON
 
 config PINCTRL_MESON8
 	bool "Meson 8 SoC pinctrl driver"
-	depends on ARM
+	depends on ARM || COMPILE_TEST
 	select PINCTRL_MESON8_PMX
 	default ARCH_MESON
 
 config PINCTRL_MESON8B
 	bool "Meson 8b SoC pinctrl driver"
-	depends on ARM
+	depends on ARM || COMPILE_TEST
 	select PINCTRL_MESON8_PMX
 	default ARCH_MESON
 
 config PINCTRL_MESON_GXBB
 	tristate "Meson gxbb SoC pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON8_PMX
 	default ARCH_MESON
 
 config PINCTRL_MESON_GXL
 	tristate "Meson gxl SoC pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON8_PMX
 	default ARCH_MESON
 
@@ -42,7 +42,7 @@ config PINCTRL_MESON8_PMX
 
 config PINCTRL_MESON_AXG
 	tristate "Meson axg Soc pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 
@@ -51,25 +51,25 @@ config PINCTRL_MESON_AXG_PMX
 
 config PINCTRL_MESON_G12A
 	tristate "Meson g12a Soc pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 
 config PINCTRL_MESON_A1
 	tristate "Meson a1 Soc pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 
 config PINCTRL_MESON_S4
 	tristate "Meson s4 Soc pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 
 config PINCTRL_AMLOGIC_A4
 	bool "AMLOGIC pincontrol"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	default ARCH_MESON
 	help
 	  This is the driver for the pin controller found on Amlogic SoCs.
@@ -80,13 +80,13 @@ config PINCTRL_AMLOGIC_A4
 
 config PINCTRL_AMLOGIC_C3
 	tristate "Amlogic C3 SoC pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 
 config PINCTRL_AMLOGIC_T7
 	tristate "Amlogic T7 SoC pinctrl driver"
-	depends on ARM64
+	depends on ARM64 || COMPILE_TEST
 	select PINCTRL_MESON_AXG_PMX
 	default ARCH_MESON
 

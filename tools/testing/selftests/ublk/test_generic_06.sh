@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="generic_06"
 ERR_CODE=0
 
 _prep_test "fault_inject" "fast cleanup when all I/Os of one hctx are in server"

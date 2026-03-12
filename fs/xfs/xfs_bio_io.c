@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2019 Christoph Hellwig.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 
 static inline unsigned int bio_max_vecs(unsigned int count)
 {

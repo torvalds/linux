@@ -318,7 +318,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		if (require_existed)
 			return -EPERM;
 
-		ref = kmalloc(sizeof(*ref), GFP_KERNEL);
+		ref = kmalloc_obj(*ref);
 		if (unlikely(ref == NULL)) {
 			return -ENOMEM;
 		}
@@ -404,7 +404,7 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 
 struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev)
 {
-	struct ttm_object_file *tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
+	struct ttm_object_file *tfile = kmalloc_obj(*tfile);
 
 	if (unlikely(tfile == NULL))
 		return NULL;
@@ -422,7 +422,7 @@ struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev)
 struct ttm_object_device *
 ttm_object_device_init(const struct dma_buf_ops *ops)
 {
-	struct ttm_object_device *tdev = kmalloc(sizeof(*tdev), GFP_KERNEL);
+	struct ttm_object_device *tdev = kmalloc_obj(*tdev);
 
 	if (unlikely(tdev == NULL))
 		return NULL;

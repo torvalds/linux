@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -437,8 +437,12 @@ struct dcn_hubbub_registers {
 		type DCHUBBUB_ARB_REFCYC_PER_META_TRIP_A;\
 		type DCHUBBUB_ARB_REFCYC_PER_META_TRIP_B;\
 		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_A;\
-		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_B
+		type DCHUBBUB_ARB_FRAC_URG_BW_MALL_B;\
+		type DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_VALUE;\
+		type DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_ENABLE
 
+#define HUBBUB_REG_FIELD_LIST_DCN4_2(type) \
+	type URGENT_ZERO_SIZE_REQ_EN
 struct dcn_hubbub_shift {
 	DCN_HUBBUB_REG_FIELD_LIST(uint8_t);
 	HUBBUB_STUTTER_REG_FIELD_LIST(uint8_t);
@@ -447,6 +451,8 @@ struct dcn_hubbub_shift {
 	HUBBUB_REG_FIELD_LIST_DCN32(uint8_t);
 	HUBBUB_REG_FIELD_LIST_DCN35(uint8_t);
 	HUBBUB_REG_FIELD_LIST_DCN4_01(uint8_t);
+	HUBBUB_REG_FIELD_LIST_DCN4_2(uint8_t);
+
 };
 
 struct dcn_hubbub_mask {
@@ -457,6 +463,8 @@ struct dcn_hubbub_mask {
 	HUBBUB_REG_FIELD_LIST_DCN32(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN35(uint32_t);
 	HUBBUB_REG_FIELD_LIST_DCN4_01(uint32_t);
+	HUBBUB_REG_FIELD_LIST_DCN4_2(uint8_t);
+
 };
 
 struct dc;
@@ -514,5 +522,9 @@ bool hubbub1_program_pstate_watermarks(
 		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
+
+void dcn10_hubbub_global_timer_enable(struct hubbub *hubbub, bool enable, uint32_t refdiv);
+
+void dcn10_hubbub_read_fb_aperture(struct hubbub *hubbub, uint32_t *fb_base_value, uint32_t *fb_offset_value);
 
 #endif

@@ -2056,11 +2056,11 @@ static struct parport *__parport_pc_probe_port(unsigned long int base,
 		}
 	}
 
-	ops = kmalloc(sizeof(struct parport_operations), GFP_KERNEL);
+	ops = kmalloc_obj(struct parport_operations);
 	if (!ops)
 		goto out1;
 
-	priv = kmalloc(sizeof(struct parport_pc_private), GFP_KERNEL);
+	priv = kmalloc_obj(struct parport_pc_private);
 	if (!priv)
 		goto out2;
 
@@ -2880,7 +2880,7 @@ static int parport_pc_pci_probe(struct pci_dev *dev,
 	if (err)
 		return err;
 
-	data = kmalloc(sizeof(struct pci_parport_data), GFP_KERNEL);
+	data = kmalloc_obj(struct pci_parport_data);
 	if (!data)
 		return -ENOMEM;
 

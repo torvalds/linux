@@ -748,7 +748,7 @@ static int tower_probe(struct usb_interface *interface, const struct usb_device_
 	int result;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto exit;
 

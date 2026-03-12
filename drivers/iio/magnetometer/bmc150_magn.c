@@ -906,12 +906,9 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 			goto err_poweroff;
 		}
 
-		ret = request_threaded_irq(irq,
-					   iio_trigger_generic_data_rdy_poll,
-					   NULL,
-					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					   "bmc150_magn_event",
-					   data->dready_trig);
+		ret = request_irq(irq, iio_trigger_generic_data_rdy_poll,
+				  IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
+				  "bmc150_magn_event", data->dready_trig);
 		if (ret < 0) {
 			dev_err(dev, "request irq %d failed\n", irq);
 			goto err_trigger_unregister;

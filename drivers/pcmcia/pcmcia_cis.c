@@ -264,7 +264,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 	struct pcmcia_cfg_mem *cfg_mem;
 	int ret;
 
-	cfg_mem = kzalloc(sizeof(struct pcmcia_cfg_mem), GFP_KERNEL);
+	cfg_mem = kzalloc_obj(struct pcmcia_cfg_mem);
 	if (cfg_mem == NULL)
 		return -ENOMEM;
 

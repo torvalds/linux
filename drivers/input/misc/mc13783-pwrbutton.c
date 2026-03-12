@@ -108,7 +108,7 @@ static int mc13783_pwrbutton_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		err = -ENOMEM;
 		dev_dbg(&pdev->dev, "Can't allocate power button\n");

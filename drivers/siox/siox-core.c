@@ -822,7 +822,7 @@ static struct siox_device *siox_device_add(struct siox_master *smaster,
 	int ret;
 	size_t buf_len;
 
-	sdevice = kzalloc(sizeof(*sdevice), GFP_KERNEL);
+	sdevice = kzalloc_obj(*sdevice);
 	if (!sdevice)
 		return ERR_PTR(-ENOMEM);
 

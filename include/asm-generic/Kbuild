@@ -32,6 +32,7 @@ mandatory-y += irq_work.h
 mandatory-y += kdebug.h
 mandatory-y += kmap_size.h
 mandatory-y += kprobes.h
+mandatory-y += kvm_types.h
 mandatory-y += linkage.h
 mandatory-y += local.h
 mandatory-y += local64.h

@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2025 NXP
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx93-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	flexcan_phy: can-phy {
+		compatible = "nxp,tja1057";
+		#phy-cells = <0>;
+		max-bitrate = <5000000>;
+		silent-gpios = <&pcal6524 23 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&flexcan1 {
+	phys = <&flexcan_phy>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_flexcan1: flexcan1grp {
+		fsl,pins = <
+			MX93_PAD_PDM_CLK__CAN1_TX		0x139e
+			MX93_PAD_PDM_BIT_STREAM0__CAN1_RX	0x139e
+		>;
+	};
+};
+
+/* micfi1 use the A port, conflict with can1 */
+&micfil {
+	status = "disabled";
+};
+
+&pcal6524 {
+	/*
+	 * mic-can-sel-hog have property 'output-low', dt overlay don't
+	 * support /delete-property/. Both 'output-low' and 'output-high'
+	 * will be exist under hog nodes if overlay file set 'output-high'.
+	 * Workaround is disable this hog and create new hog with
+	 * 'output-high'.
+	 */
+	mic-can-sel-hog {
+		status = "disabled";
+	};
+
+	/*
+	 * Config the MIC/CAN_SEL to high, chose B
+	 * port, connect to CAN.
+	 */
+	mic-can-high-sel-hog {
+		gpio-hog;
+		gpios = <0x11 0x00>;
+		output-high;
+	};
+};

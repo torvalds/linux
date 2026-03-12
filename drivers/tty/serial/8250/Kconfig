@@ -116,6 +116,7 @@ config SERIAL_8250_DMA
 
 config SERIAL_8250_PCILIB
 	bool
+	depends on SERIAL_8250 && PCI
 
 config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support"
@@ -205,6 +206,37 @@ config SERIAL_8250_EXTENDED
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about serial driver options. If unsure, say N.
 
+config SERIAL_8250_SHARE_IRQ
+	bool "Support for sharing serial interrupts"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Some serial boards have hardware support which allows multiple dumb
+	  serial ports on the same board to share a single IRQ. To enable
+	  support for this in the serial driver, say Y here.
+
+config SERIAL_8250_DETECT_IRQ
+	bool "Autodetect IRQ on standard ports (unsafe)"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Say Y here if you want the kernel to try to guess which IRQ
+	  to use for your serial port.
+
+	  This is considered unsafe; it is far better to configure the IRQ in
+	  a boot script using the setserial command.
+
+	  If unsure, say N.
+
+config SERIAL_8250_RSA
+	bool "Support RSA serial ports"
+	depends on SERIAL_8250_EXTENDED
+	help
+	  Say Y here if you have a IODATA RSA-DV II/S ISA card and
+	  would like to use its >115kbps speeds.
+	  You will need to provide module parameter "probe_rsa", or boot-time
+	  parameter 8250.probe_rsa with I/O addresses of this card then.
+
+	  If you don't have such card, or if unsure, say N.
+
 config SERIAL_8250_MANY_PORTS
 	bool "Support more than 4 legacy serial ports"
 	depends on SERIAL_8250_EXTENDED
@@ -239,19 +271,6 @@ config SERIAL_8250_ACCENT
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called 8250_accent.
-
-config SERIAL_8250_ASPEED_VUART
-	tristate "Aspeed Virtual UART"
-	depends on SERIAL_8250
-	depends on OF
-	depends on MFD_SYSCON
-	depends on ARCH_ASPEED || COMPILE_TEST
-	select REGMAP
-	help
-	  If you want to use the virtual UART (VUART) device on Aspeed
-	  BMC platforms, enable this option. This enables the 16550A-
-	  compatible device on the local LPC bus, giving a UART device
-	  with no physical RS232 connections.
 
 config SERIAL_8250_BOCA
 	tristate "Support Boca cards"
@@ -293,43 +312,22 @@ config SERIAL_8250_PCI1XXXX
 	 serial driver for the serial interface. This driver support
 	 will ensure to support baud rates upto 1.5Mpbs.
 
+config SERIAL_8250_ASPEED_VUART
+	tristate "Aspeed Virtual UART"
+	depends on SERIAL_8250
+	depends on OF
+	depends on MFD_SYSCON
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select REGMAP
+	help
+	  If you want to use the virtual UART (VUART) device on Aspeed
+	  BMC platforms, enable this option. This enables the 16550A-
+	  compatible device on the local LPC bus, giving a UART device
+	  with no physical RS232 connections.
+
 #
 # Misc. options/drivers.
 #
-
-config SERIAL_8250_SHARE_IRQ
-	bool "Support for sharing serial interrupts"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Some serial boards have hardware support which allows multiple dumb
-	  serial ports on the same board to share a single IRQ. To enable
-	  support for this in the serial driver, say Y here.
-
-config SERIAL_8250_DETECT_IRQ
-	bool "Autodetect IRQ on standard ports (unsafe)"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Say Y here if you want the kernel to try to guess which IRQ
-	  to use for your serial port.
-
-	  This is considered unsafe; it is far better to configure the IRQ in
-	  a boot script using the setserial command.
-
-	  If unsure, say N.
-
-config SERIAL_8250_RSA
-	bool "Support RSA serial ports"
-	depends on SERIAL_8250_EXTENDED
-	help
-	  Say Y here if you have a IODATA RSA-DV II/S ISA card and
-	  would like to use its >115kbps speeds.
-	  You will need to provide module parameter "probe_rsa", or boot-time
-	  parameter 8250.probe_rsa with I/O addresses of this card then.
-
-	  If you don't have such card, or if unsure, say N.
-
-config SERIAL_8250_DWLIB
-	bool
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
@@ -596,3 +594,6 @@ config SERIAL_OF_PLATFORM
 	  are probed through devicetree, including Open Firmware based
 	  PowerPC systems and embedded systems on architectures using the
 	  flattened device tree format.
+
+config SERIAL_8250_DWLIB
+	bool

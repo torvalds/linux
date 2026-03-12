@@ -998,7 +998,7 @@ resize:
 		/* Resize is in process and kernel side add, save values */
 		struct mtype_resize_ad *x;
 
-		x = kzalloc(sizeof(struct mtype_resize_ad), GFP_ATOMIC);
+		x = kzalloc_obj(struct mtype_resize_ad, GFP_ATOMIC);
 		if (!x)
 			/* Don't bother */
 			goto out;
@@ -1086,8 +1086,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			/* Resize is in process and kernel side del,
 			 * save values
 			 */
-			x = kzalloc(sizeof(struct mtype_resize_ad),
-				    GFP_ATOMIC);
+			x = kzalloc_obj(struct mtype_resize_ad, GFP_ATOMIC);
 			if (x) {
 				x->ad = IPSET_DEL;
 				memcpy(&x->d, value,

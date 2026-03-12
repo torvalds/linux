@@ -192,7 +192,7 @@ static inline void sas_phy_set_target(struct asd_sas_phy *p, struct domain_devic
 
 static inline struct domain_device *sas_alloc_device(void)
 {
-	struct domain_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct domain_device *dev = kzalloc_obj(*dev);
 
 	if (dev) {
 		INIT_LIST_HEAD(&dev->siblings);

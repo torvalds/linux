@@ -309,7 +309,7 @@ struct drm_suballoc *drm_suballoc_alloc(gfp_t gfp)
 {
 	struct drm_suballoc *sa;
 
-	sa = kmalloc(sizeof(*sa), gfp);
+	sa = kmalloc_obj(*sa, gfp);
 	if (!sa)
 		return ERR_PTR(-ENOMEM);
 

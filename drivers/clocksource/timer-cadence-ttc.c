@@ -334,7 +334,7 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 	struct ttc_timer_clocksource *ttccs;
 	int err;
 
-	ttccs = kzalloc(sizeof(*ttccs), GFP_KERNEL);
+	ttccs = kzalloc_obj(*ttccs);
 	if (!ttccs)
 		return -ENOMEM;
 
@@ -417,7 +417,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 	struct ttc_timer_clockevent *ttcce;
 	int err;
 
-	ttcce = kzalloc(sizeof(*ttcce), GFP_KERNEL);
+	ttcce = kzalloc_obj(*ttcce);
 	if (!ttcce)
 		return -ENOMEM;
 

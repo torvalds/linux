@@ -18,7 +18,9 @@ struct sk_buff;
 struct sock;
 struct sockaddr;
 
-struct dst_entry *inet6_csk_route_req(const struct sock *sk, struct flowi6 *fl6,
+struct dst_entry *inet6_csk_route_req(const struct sock *sk,
+				      struct dst_entry *dst,
+				      struct flowi6 *fl6,
 				      const struct request_sock *req, u8 proto);
 
 int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);

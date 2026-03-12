@@ -904,7 +904,7 @@ int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 		goto err_out;
 	}
 
-	xs = kzalloc(sizeof(*xs), GFP_ATOMIC);
+	xs = kzalloc_obj(*xs, GFP_ATOMIC);
 	if (unlikely(!xs)) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1233,7 +1233,7 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 	if (t_dis || r_dis)
 		return;
 
-	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
+	ipsec = kzalloc_obj(*ipsec);
 	if (!ipsec)
 		goto err1;
 	hash_init(ipsec->rx_sa_list);

@@ -650,7 +650,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	unsigned int raw_bit_depth,
 	bool valid)
 {
-	struct ia_css_frame *me = kvmalloc(sizeof(*me), GFP_KERNEL);
+	struct ia_css_frame *me = kvmalloc_obj(*me);
 
 	if (!me)
 		return NULL;

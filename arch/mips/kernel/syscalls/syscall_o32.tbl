@@ -458,3 +458,4 @@
 468	o32	file_getattr			sys_file_getattr
 469	o32	file_setattr			sys_file_setattr
 470	o32	listns				sys_listns
+471	o32	rseq_slice_yield		sys_rseq_slice_yield

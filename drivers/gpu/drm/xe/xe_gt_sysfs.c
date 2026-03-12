@@ -36,7 +36,7 @@ int xe_gt_sysfs_init(struct xe_gt *gt)
 	struct kobj_gt *kg;
 	int err;
 
-	kg = kzalloc(sizeof(*kg), GFP_KERNEL);
+	kg = kzalloc_obj(*kg);
 	if (!kg)
 		return -ENOMEM;
 

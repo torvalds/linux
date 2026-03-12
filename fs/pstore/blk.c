@@ -297,7 +297,7 @@ static int __init __best_effort_init(void)
 		return -EINVAL;
 	}
 
-	best_effort_dev = kzalloc(sizeof(*best_effort_dev), GFP_KERNEL);
+	best_effort_dev = kzalloc_obj(*best_effort_dev);
 	if (!best_effort_dev)
 		return -ENOMEM;
 

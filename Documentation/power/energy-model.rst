@@ -14,8 +14,8 @@ subsystems willing to use that information to make energy-aware decisions.
 The source of the information about the power consumed by devices can vary greatly
 from one platform to another. These power costs can be estimated using
 devicetree data in some cases. In others, the firmware will know better.
-Alternatively, userspace might be best positioned. And so on. In order to avoid
-each and every client subsystem to re-implement support for each and every
+Alternatively, userspace might be best positioned. In order to avoid
+having each and every client subsystem re-implement support for each and every
 possible source of information on its own, the EM framework intervenes as an
 abstraction layer which standardizes the format of power cost tables in the
 kernel, hence enabling to avoid redundant work.
@@ -32,7 +32,7 @@ be found in the Intelligent Power Allocation in
 Documentation/driver-api/thermal/power_allocator.rst.
 Kernel subsystems might implement automatic detection to check whether EM
 registered devices have inconsistent scale (based on EM internal flag).
-Important thing to keep in mind is that when the power values are expressed in
+An important thing to keep in mind is that when the power values are expressed in
 an 'abstract scale' deriving real energy in micro-Joules would not be possible.
 
 The figure below depicts an example of drivers (Arm-specific here, but the
@@ -82,7 +82,7 @@ using kref mechanism. The device driver which provided the new EM at runtime,
 should call EM API to free it safely when it's no longer needed. The EM
 framework will handle the clean-up when it's possible.
 
-The kernel code which want to modify the EM values is protected from concurrent
+The kernel code which wants to modify the EM values is protected from concurrent
 access using a mutex. Therefore, the device driver code must run in sleeping
 context when it tries to modify the EM.
 
@@ -113,7 +113,7 @@ Registration of 'advanced' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 'advanced' EM gets its name due to the fact that the driver is allowed
-to provide more precised power model. It's not limited to some implemented math
+to provide a more precise power model. It's not limited to some implemented math
 formula in the framework (like it is in 'simple' EM case). It can better reflect
 the real power measurements performed for each performance state. Thus, this
 registration method should be preferred in case considering EM static power
@@ -172,7 +172,7 @@ Registration of 'simple' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The 'simple' EM is registered using the framework helper function
-cpufreq_register_em_with_opp(). It implements a power model which is tight to
+cpufreq_register_em_with_opp(). It implements a power model which is tied to a
 math formula::
 
 	Power = C * V^2 * f
@@ -251,7 +251,7 @@ It returns the 'struct em_perf_state' pointer which is an array of performance
 states in ascending order.
 This function must be called in the RCU read lock section (after the
 rcu_read_lock()). When the EM table is not needed anymore there is a need to
-call rcu_real_unlock(). In this way the EM safely uses the RCU read section
+call rcu_read_unlock(). In this way the EM safely uses the RCU read section
 and protects the users. It also allows the EM framework to manage the memory
 and free it. More details how to use it can be found in Section 3.2 in the
 example driver.
@@ -308,12 +308,12 @@ EM framework::
   05
   06		/* Use the 'foo' protocol to ceil the frequency */
   07		freq = foo_get_freq_ceil(dev, *KHz);
-  08		if (freq < 0);
+  08		if (freq < 0)
   09			return freq;
   10
   11		/* Estimate the power cost for the dev at the relevant freq. */
   12		power = foo_estimate_power(dev, freq);
-  13		if (power < 0);
+  13		if (power < 0)
   14			return power;
   15
   16		/* Return the values to the EM framework */

@@ -388,7 +388,7 @@ struct dm_block_manager *dm_block_manager_create(struct block_device *bdev,
 	int r;
 	struct dm_block_manager *bm;
 
-	bm = kmalloc(sizeof(*bm), GFP_KERNEL);
+	bm = kmalloc_obj(*bm);
 	if (!bm) {
 		r = -ENOMEM;
 		goto bad;

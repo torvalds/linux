@@ -106,21 +106,25 @@ static u64 notrace sp804_read(void)
 	return ~readl_relaxed(sched_clkevt->value);
 }
 
+/* Register delay timer backed by the hardware counter */
 #ifdef CONFIG_ARM
 static struct delay_timer delay;
+static struct sp804_clkevt *delay_clkevt;
+
 static unsigned long sp804_read_delay_timer_read(void)
 {
-	return sp804_read();
+	return ~readl_relaxed(delay_clkevt->value);
 }
 
-static void sp804_register_delay_timer(int freq)
+static void sp804_register_delay_timer(struct sp804_clkevt *clk, int freq)
 {
+	delay_clkevt = clk;
 	delay.freq = freq;
 	delay.read_current_timer = sp804_read_delay_timer_read;
 	register_current_timer_delay(&delay);
 }
 #else
-static inline void sp804_register_delay_timer(int freq) {}
+static inline void sp804_register_delay_timer(struct sp804_clkevt *clk, int freq) {}
 #endif
 
 static int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
@@ -134,8 +138,6 @@ static int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
 	rate = sp804_get_clock_rate(clk, name);
 	if (rate < 0)
 		return -EINVAL;
-
-	sp804_register_delay_timer(rate);
 
 	clkevt = sp804_clkevt_get(base);
 
@@ -151,6 +153,8 @@ static int __init sp804_clocksource_and_sched_clock_init(void __iomem *base,
 
 	clocksource_mmio_init(clkevt->value, name,
 		rate, 200, 32, clocksource_mmio_readl_down);
+
+	sp804_register_delay_timer(clkevt, rate);
 
 	if (use_sched_clock) {
 		sched_clkevt = clkevt;

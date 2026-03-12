@@ -186,7 +186,7 @@ static int tda18212_probe(struct i2c_client *client)
 		.val_bits = 8,
 	};
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		ret = -ENOMEM;
 		dev_err(&client->dev, "kzalloc() failed\n");

@@ -239,6 +239,18 @@ enum irdma_queue_type {
 	IRDMA_QUEUE_TYPE_SRQ,
 };
 
+enum irdma_rsvd_cq_id {
+	IRDMA_RSVD_CQ_ID_CQP,
+	IRDMA_RSVD_CQ_ID_ILQ,
+	IRDMA_RSVD_CQ_ID_IEQ,
+};
+
+enum irdma_rsvd_qp_id {
+	IRDMA_RSVD_QP_ID_0,
+	IRDMA_RSVD_QP_ID_GSI_ILQ,
+	IRDMA_RSVD_QP_ID_IEQ,
+};
+
 struct irdma_sc_dev;
 struct irdma_vsi_pestat;
 
@@ -695,6 +707,9 @@ struct irdma_sc_dev {
 	struct irdma_sc_aeq *aeq;
 	struct irdma_sc_ceq *ceq[IRDMA_CEQ_MAX_COUNT];
 	struct irdma_sc_cq *ccq;
+	spinlock_t puda_cq_lock;
+	struct irdma_sc_cq *ilq_cq;
+	struct irdma_sc_cq *ieq_cq;
 	const struct irdma_irq_ops *irq_ops;
 	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	struct irdma_hmc_fpm_misc hmc_fpm_misc;
@@ -1332,7 +1347,8 @@ int irdma_sc_ceq_destroy(struct irdma_sc_ceq *ceq, u64 scratch, bool post_sq);
 int irdma_sc_ceq_init(struct irdma_sc_ceq *ceq,
 		      struct irdma_ceq_init_info *info);
 void irdma_sc_cleanup_ceqes(struct irdma_sc_cq *cq, struct irdma_sc_ceq *ceq);
-void *irdma_sc_process_ceq(struct irdma_sc_dev *dev, struct irdma_sc_ceq *ceq);
+bool irdma_sc_process_ceq(struct irdma_sc_dev *dev, struct irdma_sc_ceq *ceq,
+			  u32 *cq_idx);
 
 int irdma_sc_aeq_init(struct irdma_sc_aeq *aeq,
 		      struct irdma_aeq_init_info *info);

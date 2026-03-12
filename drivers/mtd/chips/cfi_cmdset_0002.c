@@ -604,7 +604,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;
@@ -776,9 +776,8 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kmalloc_array(mtd->numeraseregions,
-					  sizeof(struct mtd_erase_region_info),
-					  GFP_KERNEL);
+	mtd->eraseregions = kmalloc_objs(struct mtd_erase_region_info,
+					 mtd->numeraseregions);
 	if (!mtd->eraseregions)
 		goto setup_err;
 
@@ -2819,7 +2818,7 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
 	for (i = 0; i < mtd->numeraseregions; i++)
 		max_sectors += regions[i].numblocks;
 
-	sect = kcalloc(max_sectors, sizeof(struct ppb_lock), GFP_KERNEL);
+	sect = kzalloc_objs(struct ppb_lock, max_sectors);
 	if (!sect)
 		return -ENOMEM;
 

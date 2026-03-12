@@ -92,7 +92,7 @@ struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct platform_de
 	struct bbc_i2c_client *client;
 	const u32 *reg;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return NULL;
 	client->bp = bp;
@@ -298,7 +298,7 @@ static struct bbc_i2c_bus * attach_one_i2c(struct platform_device *op, int index
 	struct device_node *dp;
 	int entry;
 
-	bp = kzalloc(sizeof(*bp), GFP_KERNEL);
+	bp = kzalloc_obj(*bp);
 	if (!bp)
 		return NULL;
 

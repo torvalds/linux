@@ -856,11 +856,10 @@ static int cb7210_allocate_private(struct gpib_board *board)
 {
 	struct cb7210_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct cb7210_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct cb7210_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct cb7210_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	return 0;
 }
@@ -876,11 +875,13 @@ static int cb7210_generic_attach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
 
-	if (cb7210_allocate_private(board))
-		return -ENOMEM;
+	retval = cb7210_allocate_private(board);
+	if (retval)
+		return retval;
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
@@ -1187,7 +1188,7 @@ static int cb_gpib_probe(struct pcmcia_device *link)
 	int ret;
 
 	/* Allocate space for private device-specific data */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

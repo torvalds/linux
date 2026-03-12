@@ -26,9 +26,9 @@ void __weak efi_cache_sync_image(unsigned long image_base,
 	// executable code loaded into memory to be safe for execution.
 }
 
-struct screen_info *alloc_screen_info(void)
+struct sysfb_display_info *alloc_primary_display(void)
 {
-	return __alloc_screen_info();
+	return __alloc_primary_display();
 }
 
 asmlinkage efi_status_t __efiapi

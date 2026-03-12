@@ -241,7 +241,7 @@ unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
 {
 	if (IS_ERR_OR_NULL(opp) || !opp->available) {
 		pr_err("%s: Invalid parameters\n", __func__);
-		return 0;
+		return U32_MAX;
 	}
 
 	return opp->level;
@@ -1532,7 +1532,7 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	 * Allocate a new OPP table. In the infrequent case where a new
 	 * device is needed to be added, we pay this penalty.
 	 */
-	opp_table = kzalloc(sizeof(*opp_table), GFP_KERNEL);
+	opp_table = kzalloc_obj(*opp_table);
 	if (!opp_table)
 		return ERR_PTR(-ENOMEM);
 
@@ -2260,9 +2260,7 @@ static int _opp_set_regulators(struct opp_table *opp_table, struct device *dev,
 	if (opp_table->regulators)
 		return 0;
 
-	opp_table->regulators = kmalloc_array(count,
-					      sizeof(*opp_table->regulators),
-					      GFP_KERNEL);
+	opp_table->regulators = kmalloc_objs(*opp_table->regulators, count);
 	if (!opp_table->regulators)
 		return -ENOMEM;
 
@@ -2364,8 +2362,7 @@ static int _opp_set_clknames(struct opp_table *opp_table, struct device *dev,
 	if (opp_table->clks)
 		return 0;
 
-	opp_table->clks = kmalloc_array(count, sizeof(*opp_table->clks),
-					GFP_KERNEL);
+	opp_table->clks = kmalloc_objs(*opp_table->clks, count);
 	if (!opp_table->clks)
 		return -ENOMEM;
 
@@ -2550,7 +2547,7 @@ int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 	unsigned int id;
 	int ret;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

@@ -31,10 +31,10 @@ struct snd_seq_port_info32 {
 static int snd_seq_call_port_info_ioctl(struct snd_seq_client *client, unsigned int cmd,
 					struct snd_seq_port_info32 __user *data32)
 {
-	struct snd_seq_port_info *data __free(kfree) = NULL;
 	int err;
+	struct snd_seq_port_info *data __free(kfree) =
+		kmalloc_obj(*data);
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

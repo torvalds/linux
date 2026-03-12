@@ -67,11 +67,11 @@ nvkm_devinit_post(struct nvkm_devinit *init)
 }
 
 static int
-nvkm_devinit_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_devinit_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_devinit *init = nvkm_devinit(subdev);
 	/* force full reinit on resume */
-	if (suspend)
+	if (suspend != NVKM_POWEROFF)
 		init->post = true;
 	return 0;
 }

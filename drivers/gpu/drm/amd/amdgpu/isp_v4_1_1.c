@@ -26,6 +26,7 @@
  */
 
 #include <linux/gpio/machine.h>
+#include <linux/pm_runtime.h>
 #include "amdgpu.h"
 #include "isp_v4_1_1.h"
 
@@ -145,6 +146,9 @@ static int isp_genpd_add_device(struct device *dev, void *data)
 		return -ENODEV;
 	}
 
+	/* The devices will be managed by the pm ops from the parent */
+	dev_pm_syscore_device(dev, true);
+
 exit:
 	/* Continue to add */
 	return 0;
@@ -177,10 +181,45 @@ static int isp_genpd_remove_device(struct device *dev, void *data)
 		drm_err(&adev->ddev, "Failed to remove dev from genpd %d\n", ret);
 		return -ENODEV;
 	}
+	dev_pm_syscore_device(dev, false);
 
 exit:
 	/* Continue to remove */
 	return 0;
+}
+
+static int isp_suspend_device(struct device *dev, void *data)
+{
+	return pm_runtime_force_suspend(dev);
+}
+
+static int isp_resume_device(struct device *dev, void *data)
+{
+	return pm_runtime_force_resume(dev);
+}
+
+static int isp_v4_1_1_hw_suspend(struct amdgpu_isp *isp)
+{
+	int r;
+
+	r = device_for_each_child(isp->parent, NULL,
+				  isp_suspend_device);
+	if (r)
+		dev_err(isp->parent, "failed to suspend hw devices (%d)\n", r);
+
+	return r;
+}
+
+static int isp_v4_1_1_hw_resume(struct amdgpu_isp *isp)
+{
+	int r;
+
+	r = device_for_each_child(isp->parent, NULL,
+				  isp_resume_device);
+	if (r)
+		dev_err(isp->parent, "failed to resume hw device (%d)\n", r);
+
+	return r;
 }
 
 static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
@@ -220,7 +259,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 		return -EINVAL;
 	}
 
-	isp->isp_cell = kcalloc(3, sizeof(struct mfd_cell), GFP_KERNEL);
+	isp->isp_cell = kzalloc_objs(struct mfd_cell, 3);
 	if (!isp->isp_cell) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd cell alloc failed (%d)\n", r);
@@ -229,15 +268,14 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 
 	num_res = MAX_ISP411_MEM_RES + MAX_ISP411_INT_SRC;
 
-	isp->isp_res = kcalloc(num_res, sizeof(struct resource),
-			       GFP_KERNEL);
+	isp->isp_res = kzalloc_objs(struct resource, num_res);
 	if (!isp->isp_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd resource alloc failed (%d)\n", r);
 		goto failure;
 	}
 
-	isp->isp_pdata = kzalloc(sizeof(*isp->isp_pdata), GFP_KERNEL);
+	isp->isp_pdata = kzalloc_obj(*isp->isp_pdata);
 	if (!isp->isp_pdata) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp platform data alloc failed (%d)\n", r);
@@ -279,7 +317,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp i2c platform data */
-	isp->isp_i2c_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	isp->isp_i2c_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_i2c_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd res alloc failed (%d)\n", r);
@@ -298,7 +336,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[1].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp gpiochip platform data */
-	isp->isp_gpio_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	isp->isp_gpio_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_gpio_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp gpio resource alloc failed (%d)\n", r);
@@ -369,6 +407,8 @@ static int isp_v4_1_1_hw_fini(struct amdgpu_isp *isp)
 static const struct isp_funcs isp_v4_1_1_funcs = {
 	.hw_init = isp_v4_1_1_hw_init,
 	.hw_fini = isp_v4_1_1_hw_fini,
+	.hw_suspend = isp_v4_1_1_hw_suspend,
+	.hw_resume = isp_v4_1_1_hw_resume,
 };
 
 void isp_v4_1_1_set_isp_funcs(struct amdgpu_isp *isp)

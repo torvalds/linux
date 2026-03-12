@@ -604,8 +604,15 @@ static void rtw89_pci_release_rpp(struct rtw89_dev *rtwdev, void *rpp)
 
 	info->parse_rpp(rtwdev, rpp, &rpp_info);
 
-	if (rpp_info.txch == RTW89_TXCH_CH12) {
-		rtw89_warn(rtwdev, "should no fwcmd release report\n");
+	if (unlikely(rpp_info.txch >= RTW89_TXCH_NUM ||
+		     info->tx_dma_ch_mask & BIT(rpp_info.txch))) {
+		rtw89_warn(rtwdev, "should no release report on txch %d\n",
+			   rpp_info.txch);
+		return;
+	}
+
+	if (unlikely(rpp_info.seq >= RTW89_PCI_TXWD_NUM_MAX)) {
+		rtw89_warn(rtwdev, "invalid seq %d\n", rpp_info.seq);
 		return;
 	}
 
@@ -962,6 +969,9 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 
 	if (unlikely(isrs.halt_c2h_isrs & isr_def->isr_wdt_timeout))
 		rtw89_ser_notify(rtwdev, MAC_AX_ERR_L2_ERR_WDT_TIMEOUT_INT);
+
+	if (unlikely(isrs.halt_c2h_isrs & isr_def->isr_sps_ocp))
+		rtw89_warn(rtwdev, "SPS OCP alarm 0x%x\n", isrs.halt_c2h_isrs);
 
 	if (unlikely(rtwpci->under_recovery))
 		goto enable_intr;
@@ -3998,7 +4008,8 @@ static void rtw89_pci_recovery_intr_mask_v3(struct rtw89_dev *rtwdev)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
-	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
+	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN |
+				 B_BE_SPSANA_OCP_INT_EN | B_BE_SPS_OCP_INT_EN;
 	rtwpci->intrs[0] = 0;
 	rtwpci->intrs[1] = 0;
 }
@@ -4008,7 +4019,8 @@ static void rtw89_pci_default_intr_mask_v3(struct rtw89_dev *rtwdev)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
-	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
+	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN |
+				 B_BE_SPSANA_OCP_INT_EN | B_BE_SPS_OCP_INT_EN;
 	rtwpci->intrs[0] = 0;
 	rtwpci->intrs[1] = B_BE_PCIE_RDU_CH1_IMR |
 			   B_BE_PCIE_RDU_CH0_IMR |
@@ -4598,6 +4610,7 @@ static int __maybe_unused rtw89_pci_resume(struct device *dev)
 		rtw89_write32_clr(rtwdev, R_AX_PCIE_PS_CTRL_V1,
 				  B_AX_SEL_REQ_ENTR_L1);
 	}
+	rtw89_pci_hci_ldo(rtwdev);
 	rtw89_pci_l2_hci_ldo(rtwdev);
 
 	rtw89_pci_basic_cfg(rtwdev, true);
@@ -4649,6 +4662,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_ax = {
 	.isr_rdu = B_AX_RDU_INT,
 	.isr_halt_c2h = B_AX_HALT_C2H_INT_EN,
 	.isr_wdt_timeout = B_AX_WDT_TIMEOUT_INT_EN,
+	.isr_sps_ocp = 0,
 	.isr_clear_rpq = {R_AX_PCIE_HISR00, B_AX_RPQDMA_INT | B_AX_RPQBD_FULL_INT},
 	.isr_clear_rxq = {R_AX_PCIE_HISR00, B_AX_RXP1DMA_INT | B_AX_RXDMA_INT |
 					    B_AX_RDU_INT},

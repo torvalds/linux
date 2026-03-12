@@ -3,4 +3,4 @@
 # Makefile for the linux alpha-specific parts of the memory manager.
 #
 
-obj-y	:= init.o fault.o
+obj-y	:= init.o fault.o tlbflush.o

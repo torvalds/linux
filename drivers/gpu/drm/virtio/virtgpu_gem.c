@@ -154,7 +154,7 @@ struct virtio_gpu_object_array *virtio_gpu_panic_array_alloc(void)
 {
 	struct virtio_gpu_object_array *objs;
 
-	objs = kmalloc(sizeof(struct virtio_gpu_object_array), GFP_ATOMIC);
+	objs = kmalloc_obj(struct virtio_gpu_object_array, GFP_ATOMIC);
 	if (!objs)
 		return NULL;
 
@@ -167,7 +167,7 @@ struct virtio_gpu_object_array *virtio_gpu_array_alloc(u32 nents)
 {
 	struct virtio_gpu_object_array *objs;
 
-	objs = kmalloc(struct_size(objs, objs, nents), GFP_KERNEL);
+	objs = kmalloc_flex(*objs, objs, nents);
 	if (!objs)
 		return NULL;
 

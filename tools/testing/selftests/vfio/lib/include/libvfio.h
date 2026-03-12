@@ -23,4 +23,13 @@
 const char *vfio_selftests_get_bdf(int *argc, char *argv[]);
 char **vfio_selftests_get_bdfs(int *argc, char *argv[], int *nr_bdfs);
 
+/*
+ * Reserve virtual address space of size at an address satisfying
+ * (vaddr % align) == offset.
+ *
+ * Returns the reserved vaddr. The caller is responsible for unmapping
+ * the returned region.
+ */
+void *mmap_reserve(size_t size, size_t align, size_t offset);
+
 #endif /* SELFTESTS_VFIO_LIB_INCLUDE_LIBVFIO_H */

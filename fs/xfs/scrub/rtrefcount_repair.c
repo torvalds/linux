@@ -3,7 +3,7 @@
  * Copyright (c) 2021-2024 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -128,13 +128,7 @@ int
 xrep_setup_rtrefcountbt(
 	struct xfs_scrub	*sc)
 {
-	char			*descr;
-	int			error;
-
-	descr = xchk_xfile_ag_descr(sc, "rmap record bag");
-	error = xrep_setup_xfbtree(sc, descr);
-	kfree(descr);
-	return error;
+	return xrep_setup_xfbtree(sc, "realtime rmap record bag");
 }
 
 /* Check for any obvious conflicts with this shared/CoW staging extent. */
@@ -704,7 +698,6 @@ xrep_rtrefcountbt(
 {
 	struct xrep_rtrefc	*rr;
 	struct xfs_mount	*mp = sc->mp;
-	char			*descr;
 	int			error;
 
 	/* We require the rmapbt to rebuild anything. */
@@ -716,17 +709,15 @@ xrep_rtrefcountbt(
 	if (error)
 		return error;
 
-	rr = kzalloc(sizeof(struct xrep_rtrefc), XCHK_GFP_FLAGS);
+	rr = kzalloc_obj(struct xrep_rtrefc, XCHK_GFP_FLAGS);
 	if (!rr)
 		return -ENOMEM;
 	rr->sc = sc;
 
 	/* Set up enough storage to handle one refcount record per rt extent. */
-	descr = xchk_xfile_ag_descr(sc, "reference count records");
-	error = xfarray_create(descr, mp->m_sb.sb_rextents,
-			sizeof(struct xfs_refcount_irec),
+	error = xfarray_create("realtime reference count records",
+			mp->m_sb.sb_rextents, sizeof(struct xfs_refcount_irec),
 			&rr->refcount_records);
-	kfree(descr);
 	if (error)
 		goto out_rr;
 

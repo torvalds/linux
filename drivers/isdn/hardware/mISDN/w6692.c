@@ -1342,7 +1342,7 @@ w6692_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct w6692_hw	*card;
 	struct w6692map	*m = (struct w6692map *)ent->driver_data;
 
-	card = kzalloc(sizeof(struct w6692_hw), GFP_KERNEL);
+	card = kzalloc_obj(struct w6692_hw);
 	if (!card) {
 		pr_info("No kmem for w6692 card\n");
 		return err;

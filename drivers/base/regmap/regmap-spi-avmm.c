@@ -630,7 +630,7 @@ spi_avmm_bridge_ctx_gen(struct spi_device *spi)
 			return ERR_PTR(-EINVAL);
 	}
 
-	br = kzalloc(sizeof(*br), GFP_KERNEL);
+	br = kzalloc_obj(*br);
 	if (!br)
 		return ERR_PTR(-ENOMEM);
 

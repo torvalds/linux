@@ -265,10 +265,11 @@ int __lockfunc resilient_tas_spin_lock(rqspinlock_t *lock)
 
 	RES_INIT_TIMEOUT(ts);
 	/*
-	 * The fast path is not invoked for the TAS fallback, so we must grab
-	 * the deadlock detection entry here.
+	 * We are either called directly from res_spin_lock after grabbing the
+	 * deadlock detection entry when queued spinlocks are disabled, or from
+	 * resilient_queued_spin_lock_slowpath after grabbing the deadlock
+	 * detection entry. No need to obtain it here.
 	 */
-	grab_held_lock_entry(lock);
 
 	/*
 	 * Since the waiting loop's time is dependent on the amount of
@@ -694,7 +695,6 @@ __bpf_kfunc int bpf_res_spin_lock(struct bpf_res_spin_lock *lock)
 	int ret;
 
 	BUILD_BUG_ON(sizeof(rqspinlock_t) != sizeof(struct bpf_res_spin_lock));
-	BUILD_BUG_ON(__alignof__(rqspinlock_t) != __alignof__(struct bpf_res_spin_lock));
 
 	preempt_disable();
 	ret = res_spin_lock((rqspinlock_t *)lock);

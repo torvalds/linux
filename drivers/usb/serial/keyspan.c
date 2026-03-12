@@ -2789,7 +2789,7 @@ static int keyspan_startup(struct usb_serial *serial)
 	}
 
 	/* Setup private data for serial driver */
-	s_priv = kzalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
+	s_priv = kzalloc_obj(struct keyspan_serial_private);
 	if (!s_priv)
 		return -ENOMEM;
 
@@ -2886,7 +2886,7 @@ static int keyspan_port_probe(struct usb_serial_port *port)
 	s_priv = usb_get_serial_data(serial);
 	d_details = s_priv->device_details;
 
-	p_priv = kzalloc(sizeof(*p_priv), GFP_KERNEL);
+	p_priv = kzalloc_obj(*p_priv);
 	if (!p_priv)
 		return -ENOMEM;
 

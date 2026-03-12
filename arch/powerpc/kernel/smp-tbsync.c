@@ -117,7 +117,7 @@ void smp_generic_give_timebase(void)
 	pr_debug("Software timebase sync\n");
 
 	/* if this fails then this kernel won't work anyway... */
-	tbsync = kzalloc( sizeof(*tbsync), GFP_KERNEL );
+	tbsync = kzalloc_obj(*tbsync);
 	mb();
 	running = 1;
 

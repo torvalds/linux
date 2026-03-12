@@ -100,6 +100,13 @@ config DRM_I2C_NXP_TDA998X
 	help
 	  Support for NXP Semiconductors TDA998X HDMI encoders.
 
+config DRM_INNO_HDMI
+	tristate
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_KMS_HELPER
+
 config DRM_ITE_IT6263
 	tristate "ITE IT6263 LVDS/HDMI bridge"
 	depends on OF
@@ -334,6 +341,16 @@ config DRM_THINE_THC63LVD1024
 	depends on OF
 	help
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
+
+config DRM_THEAD_TH1520_DW_HDMI
+	tristate "T-Head TH1520 DesignWare HDMI bridge"
+	depends on OF
+	depends on COMMON_CLK
+	depends on ARCH_THEAD || COMPILE_TEST
+	select DRM_DW_HDMI
+	help
+	  Choose this to enable support for the internal HDMI bridge found
+	  on the T-Head TH1520 SoC.
 
 config DRM_TOSHIBA_TC358762
 	tristate "TC358762 DSI/DPI bridge"

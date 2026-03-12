@@ -423,6 +423,8 @@ struct pmc_info {
  *			specific attributes
  * @lpm_req_regs:	List of substate requirements
  * @ltr_ign:		Holds LTR ignore data while suspended
+ * @num_lpm_modes:	Count of enabled modes
+ * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
  *
  * pmc contains info about one power management controller device.
  */
@@ -432,6 +434,8 @@ struct pmc {
 	const struct pmc_reg_map *map;
 	u32 *lpm_req_regs;
 	u32 ltr_ign;
+	u8 num_lpm_modes;
+	u8 lpm_en_modes[LPM_MAX_NUM_MODES];
 };
 
 /**
@@ -446,8 +450,6 @@ struct pmc {
  * @pkgc_res_cnt:	Array of PKGC residency counters
  * @num_of_pkgc:	Number of PKGC
  * @s0ix_counter:	S0ix residency (step adjusted)
- * @num_lpm_modes:	Count of enabled modes
- * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
  * @suspend:		Function to perform platform specific suspend
  * @resume:		Function to perform platform specific resume
  *
@@ -462,8 +464,6 @@ struct pmc_dev {
 	struct mutex lock; /* generic mutex lock for PMC Core */
 
 	u64 s0ix_counter;
-	int num_lpm_modes;
-	int lpm_en_modes[LPM_MAX_NUM_MODES];
 	void (*suspend)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
 
@@ -535,7 +535,6 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
-void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
 void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 *guids);
 void pmc_core_set_device_d3(unsigned int device);
 
@@ -563,10 +562,10 @@ int pmc_core_pmt_get_blk_sub_req(struct pmc_dev *pmcdev, struct pmc *pmc,
 extern const struct file_operations pmc_core_substate_req_regs_fops;
 extern const struct file_operations pmc_core_substate_blk_req_fops;
 
-#define pmc_for_each_mode(mode, pmcdev)						\
+#define pmc_for_each_mode(mode, pmc)						\
 	for (unsigned int __i = 0, __cond;					\
-	     __cond = __i < (pmcdev)->num_lpm_modes,				\
-	     __cond && ((mode) = (pmcdev)->lpm_en_modes[__i]),			\
+	     __cond = __i < (pmc)->num_lpm_modes,				\
+	     __cond && ((mode) = (pmc)->lpm_en_modes[__i]),			\
 	     __cond;								\
 	     __i++)
 

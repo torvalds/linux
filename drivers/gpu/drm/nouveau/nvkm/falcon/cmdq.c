@@ -203,7 +203,7 @@ nvkm_falcon_cmdq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
 {
 	struct nvkm_falcon_cmdq *cmdq = *pcmdq;
 
-	if (!(cmdq = *pcmdq = kzalloc(sizeof(*cmdq), GFP_KERNEL)))
+	if (!(cmdq = *pcmdq = kzalloc_obj(*cmdq)))
 		return -ENOMEM;
 
 	cmdq->qmgr = qmgr;

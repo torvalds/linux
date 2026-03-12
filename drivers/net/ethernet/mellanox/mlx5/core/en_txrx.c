@@ -125,6 +125,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,
 					       napi);
+	struct mlx5e_icosq *aicosq = c->async_icosq;
 	struct mlx5e_ch_stats *ch_stats = c->stats;
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
 	struct mlx5e_txqsq __rcu **qos_sqs;
@@ -180,15 +181,18 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	busy |= work_done == budget;
 
 	mlx5e_poll_ico_cq(&c->icosq.cq);
-	if (mlx5e_poll_ico_cq(&c->async_icosq.cq))
-		/* Don't clear the flag if nothing was polled to prevent
-		 * queueing more WQEs and overflowing the async ICOSQ.
-		 */
-		clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state);
+	if (aicosq) {
+		if (mlx5e_poll_ico_cq(&aicosq->cq))
+			/* Don't clear the flag if nothing was polled to prevent
+			 * queueing more WQEs and overflowing the async ICOSQ.
+			 */
+			clear_bit(MLX5E_SQ_STATE_PENDING_XSK_TX,
+				  &aicosq->state);
 
-	/* Keep after async ICOSQ CQ poll */
-	if (unlikely(mlx5e_ktls_rx_pending_resync_list(c, budget)))
-		busy |= mlx5e_ktls_rx_handle_resync_list(c, budget);
+		/* Keep after async ICOSQ CQ poll */
+		if (unlikely(mlx5e_ktls_rx_pending_resync_list(c, budget)))
+			busy |= mlx5e_ktls_rx_handle_resync_list(c, budget);
+	}
 
 	busy |= INDIRECT_CALL_2(rq->post_wqes,
 				mlx5e_post_rx_mpwqes,
@@ -236,15 +240,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 
 	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
-	mlx5e_cq_arm(&c->async_icosq.cq);
+	if (aicosq) {
+		mlx5e_cq_arm(&aicosq->cq);
+		if (xsk_open) {
+			mlx5e_handle_rx_dim(xskrq);
+			mlx5e_cq_arm(&xsksq->cq);
+			mlx5e_cq_arm(&xskrq->cq);
+		}
+	}
 	if (c->xdpsq)
 		mlx5e_cq_arm(&c->xdpsq->cq);
-
-	if (xsk_open) {
-		mlx5e_handle_rx_dim(xskrq);
-		mlx5e_cq_arm(&xsksq->cq);
-		mlx5e_cq_arm(&xskrq->cq);
-	}
 
 	if (unlikely(aff_change && busy_xsk)) {
 		mlx5e_trigger_irq(&c->icosq);

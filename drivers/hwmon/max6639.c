@@ -563,7 +563,6 @@ static int max6639_init_client(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	const struct device_node *np = dev->of_node;
-	struct device_node *child;
 	int i, err;
 	u8 target_duty;
 
@@ -582,15 +581,13 @@ static int max6639_init_client(struct i2c_client *client,
 	data->target_rpm[0] = 4000;
 	data->target_rpm[1] = 4000;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (strcmp(child->name, "fan"))
 			continue;
 
 		err = max6639_probe_child_from_dt(client, child, data);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			return err;
-		}
 	}
 
 	for (i = 0; i < MAX6639_NUM_CHANNELS; i++) {
@@ -610,7 +607,7 @@ static int max6639_init_client(struct i2c_client *client,
 			return err;
 
 		/* Fans PWM polarity high by default */
-		err = regmap_write(data->regmap, MAX6639_REG_FAN_CONFIG2a(i), 0x00);
+		err = regmap_write(data->regmap, MAX6639_REG_FAN_CONFIG2a(i), 0x02);
 		if (err)
 			return err;
 

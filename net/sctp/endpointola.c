@@ -135,7 +135,7 @@ struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 	struct sctp_endpoint *ep;
 
 	/* Build a local endpoint. */
-	ep = kzalloc(sizeof(*ep), gfp);
+	ep = kzalloc_obj(*ep, gfp);
 	if (!ep)
 		goto fail;
 

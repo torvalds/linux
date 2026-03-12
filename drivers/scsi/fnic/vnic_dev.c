@@ -422,7 +422,7 @@ static int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
 	if (vdev->devcmd2)
 		return 0;
 
-	vdev->devcmd2 = kzalloc(sizeof(*vdev->devcmd2), GFP_ATOMIC);
+	vdev->devcmd2 = kzalloc_obj(*vdev->devcmd2, GFP_ATOMIC);
 	if (!vdev->devcmd2)
 		return -ENOMEM;
 
@@ -911,7 +911,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar)
 {
 	if (!vdev) {
-		vdev = kzalloc(sizeof(struct vnic_dev), GFP_KERNEL);
+		vdev = kzalloc_obj(struct vnic_dev);
 		if (!vdev)
 			return NULL;
 	}

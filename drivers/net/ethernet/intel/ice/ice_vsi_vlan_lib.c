@@ -94,7 +94,7 @@ static int ice_vsi_manage_vlan_insertion(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int err;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -141,7 +141,7 @@ static int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	if (vsi->info.port_based_inner_vlan)
 		return 0;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -239,7 +239,7 @@ static int __ice_vsi_set_inner_port_vlan(struct ice_vsi *vsi, u16 pvid_info)
 	struct ice_vsi_ctx *ctxt;
 	int ret;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -292,7 +292,7 @@ int ice_vsi_clear_inner_port_vlan(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int ret;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -336,7 +336,7 @@ static int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena)
 		return 0;
 
 	pf = vsi->back;
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -382,7 +382,7 @@ static int ice_cfg_vlan_antispoof(struct ice_vsi *vsi, bool enable)
 	struct ice_vsi_ctx *ctx;
 	int err;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -478,7 +478,7 @@ int ice_vsi_ena_outer_stripping(struct ice_vsi *vsi, u16 tpid)
 	if (tpid_to_vsi_outer_vlan_type(tpid, &tag_type))
 		return -EINVAL;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -529,7 +529,7 @@ int ice_vsi_dis_outer_stripping(struct ice_vsi *vsi)
 	if (vsi->info.port_based_outer_vlan)
 		return 0;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -584,7 +584,7 @@ int ice_vsi_ena_outer_insertion(struct ice_vsi *vsi, u16 tpid)
 	if (tpid_to_vsi_outer_vlan_type(tpid, &tag_type))
 		return -EINVAL;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -636,7 +636,7 @@ int ice_vsi_dis_outer_insertion(struct ice_vsi *vsi)
 	if (vsi->info.port_based_outer_vlan)
 		return 0;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -694,7 +694,7 @@ __ice_vsi_set_outer_port_vlan(struct ice_vsi *vsi, u16 vlan_info, u16 tpid)
 	if (tpid_to_vsi_outer_vlan_type(tpid, &tag_type))
 		return -EINVAL;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -767,7 +767,7 @@ int ice_vsi_clear_outer_port_vlan(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int err;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -794,7 +794,7 @@ int ice_vsi_clear_port_vlan(struct ice_vsi *vsi)
 	struct ice_vsi_ctx *ctxt;
 	int err;
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 

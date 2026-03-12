@@ -21,10 +21,10 @@ class dot2k(Monitor, Dot2c):
         Dot2c.__init__(self, file_path, extra_params.get("model_name"))
         self.enum_suffix = "_%s" % self.name
 
-    def fill_monitor_type(self):
+    def fill_monitor_type(self) -> str:
         return self.monitor_type.upper()
 
-    def fill_tracepoint_handlers_skel(self):
+    def fill_tracepoint_handlers_skel(self) -> str:
         buff = []
         for event in self.events:
             buff.append("static void handle_%s(void *data, /* XXX: fill header */)" % event)
@@ -38,26 +38,26 @@ class dot2k(Monitor, Dot2c):
                 handle = "handle_start_run_event"
             if self.monitor_type == "per_task":
                 buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;");
-                buff.append("\tda_%s_%s(p, %s%s);" % (handle, self.name, event, self.enum_suffix));
+                buff.append("\tda_%s(p, %s%s);" % (handle, event, self.enum_suffix));
             else:
-                buff.append("\tda_%s_%s(%s%s);" % (handle, self.name, event, self.enum_suffix));
+                buff.append("\tda_%s(%s%s);" % (handle, event, self.enum_suffix));
             buff.append("}")
             buff.append("")
         return '\n'.join(buff)
 
-    def fill_tracepoint_attach_probe(self):
+    def fill_tracepoint_attach_probe(self) -> str:
         buff = []
         for event in self.events:
             buff.append("\trv_attach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
         return '\n'.join(buff)
 
-    def fill_tracepoint_detach_helper(self):
+    def fill_tracepoint_detach_helper(self) -> str:
         buff = []
         for event in self.events:
             buff.append("\trv_detach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
         return '\n'.join(buff)
 
-    def fill_model_h_header(self):
+    def fill_model_h_header(self) -> list[str]:
         buff = []
         buff.append("/* SPDX-License-Identifier: GPL-2.0 */")
         buff.append("/*")
@@ -66,10 +66,12 @@ class dot2k(Monitor, Dot2c):
         buff.append(" *   Documentation/trace/rv/deterministic_automata.rst")
         buff.append(" */")
         buff.append("")
+        buff.append("#define MONITOR_NAME %s" % (self.name))
+        buff.append("")
 
         return buff
 
-    def fill_model_h(self):
+    def fill_model_h(self) -> str:
         #
         # Adjust the definition names
         #
@@ -83,17 +85,17 @@ class dot2k(Monitor, Dot2c):
 
         return '\n'.join(buff)
 
-    def fill_monitor_class_type(self):
+    def fill_monitor_class_type(self) -> str:
         if self.monitor_type == "per_task":
             return "DA_MON_EVENTS_ID"
         return "DA_MON_EVENTS_IMPLICIT"
 
-    def fill_monitor_class(self):
+    def fill_monitor_class(self) -> str:
         if self.monitor_type == "per_task":
             return "da_monitor_id"
         return "da_monitor"
 
-    def fill_tracepoint_args_skel(self, tp_type):
+    def fill_tracepoint_args_skel(self, tp_type: str) -> str:
         buff = []
         tp_args_event = [
                 ("char *", "state"),
@@ -115,7 +117,7 @@ class dot2k(Monitor, Dot2c):
         buff.append("	     TP_ARGS(%s)" % tp_args_c)
         return '\n'.join(buff)
 
-    def fill_main_c(self):
+    def fill_main_c(self) -> str:
         main_c = super().fill_main_c()
 
         min_type = self.get_minimun_type()

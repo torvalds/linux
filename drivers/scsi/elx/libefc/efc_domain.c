@@ -134,7 +134,7 @@ efc_domain_alloc(struct efc *efc, uint64_t fcf_wwn)
 {
 	struct efc_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_ATOMIC);
+	domain = kzalloc_obj(*domain, GFP_ATOMIC);
 	if (!domain)
 		return NULL;
 

@@ -9,11 +9,16 @@
  *	Andrew F. Davis <afd@ti.com>
  */
 
+#include <linux/bits.h>
+#include <linux/cleanup.h>
+#include <linux/device/devres.h>
+#include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
+#include <linux/types.h>
 
 #define SLG7XL45106_GPO_REG	0xDB
 
@@ -94,7 +99,7 @@ static int pca9570_set(struct gpio_chip *chip, unsigned int offset, int value)
 	u8 buffer;
 	int ret;
 
-	mutex_lock(&gpio->lock);
+	guard(mutex)(&gpio->lock);
 
 	buffer = gpio->out;
 	if (value)
@@ -104,18 +109,18 @@ static int pca9570_set(struct gpio_chip *chip, unsigned int offset, int value)
 
 	ret = pca9570_write(gpio, buffer);
 	if (ret)
-		goto out;
+		return ret;
 
 	gpio->out = buffer;
 
-out:
-	mutex_unlock(&gpio->lock);
-	return ret;
+	return 0;
 }
 
 static int pca9570_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct pca9570 *gpio;
+	int ret;
 
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -132,7 +137,9 @@ static int pca9570_probe(struct i2c_client *client)
 	gpio->chip.ngpio = gpio->chip_data->ngpio;
 	gpio->chip.can_sleep = true;
 
-	mutex_init(&gpio->lock);
+	ret = devm_mutex_init(dev, &gpio->lock);
+	if (ret)
+		return ret;
 
 	/* Read the current output level */
 	pca9570_read(gpio, &gpio->out);

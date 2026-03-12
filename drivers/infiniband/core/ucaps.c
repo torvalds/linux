@@ -160,7 +160,7 @@ int ib_create_ucap(enum rdma_user_cap type)
 		return 0;
 	}
 
-	ucap = kzalloc(sizeof(*ucap), GFP_KERNEL);
+	ucap = kzalloc_obj(*ucap);
 	if (!ucap) {
 		ret = -ENOMEM;
 		goto unlock;

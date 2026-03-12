@@ -392,13 +392,13 @@
 			/* ubia (first OpenWrt) - a/b names to prevent confusion with ubi0/1/etc. */
 			partition@2800000 {
 				label = "ubia";
-				reg = <0x2800000 0x6C00000>;
+				reg = <0x2800000 0x6c00000>;
 			};
 
 			/* ubib (second OpenWrt) */
 			partition@9400000 {
 				label = "ubib";
-				reg = <0x9400000 0x6C00000>;
+				reg = <0x9400000 0x6c00000>;
 			};
 		};
 	};

@@ -22,7 +22,7 @@ ATOMIC_NOTIFIER_HEAD(fips_fail_notif_chain);
 EXPORT_SYMBOL_GPL(fips_fail_notif_chain);
 
 /* Process kernel command-line parameter at boot time. fips=0 or fips=1 */
-static int fips_enable(char *str)
+static int __init fips_enable(char *str)
 {
 	if (kstrtoint(str, 0, &fips_enabled))
 		return 0;

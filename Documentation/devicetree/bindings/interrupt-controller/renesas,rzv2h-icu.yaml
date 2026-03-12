@@ -22,6 +22,7 @@ properties:
   compatible:
     enum:
       - renesas,r9a09g047-icu # RZ/G3E
+      - renesas,r9a09g056-icu # RZ/V2N
       - renesas,r9a09g057-icu # RZ/V2H(P)
 
   '#interrupt-cells':

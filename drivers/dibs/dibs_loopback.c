@@ -64,7 +64,7 @@ static int dibs_lo_register_dmb(struct dibs_dev *dibs, struct dibs_dmb *dmb,
 	if (sba_idx == DIBS_LO_MAX_DMBS)
 		return -ENOSPC;
 
-	dmb_node = kzalloc(sizeof(*dmb_node), GFP_KERNEL);
+	dmb_node = kzalloc_obj(*dmb_node);
 	if (!dmb_node) {
 		rc = -ENOMEM;
 		goto err_bit;
@@ -303,7 +303,7 @@ static int dibs_lo_dev_probe(void)
 	struct dibs_dev *dibs;
 	int ret;
 
-	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
+	ldev = kzalloc_obj(*ldev);
 	if (!ldev)
 		return -ENOMEM;
 

@@ -132,7 +132,7 @@ struct radeon_agp_head *radeon_agp_head_init(struct drm_device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct radeon_agp_head *head;
 
-	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	head = kzalloc_obj(*head);
 	if (!head)
 		return NULL;
 	head->bridge = agp_find_bridge(pdev);

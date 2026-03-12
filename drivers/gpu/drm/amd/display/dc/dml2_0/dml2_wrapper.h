@@ -239,6 +239,7 @@ struct dml2_configuration_options {
 
 	bool use_clock_dc_limits;
 	bool gpuvm_enable;
+	bool hostvm_enable;
 	bool force_tdlut_enable;
 	void *bb_from_dmub;
 };
@@ -306,4 +307,13 @@ bool dml2_validate(const struct dc *in_dc,
 void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 	unsigned int *fclk_change_support, unsigned int *dram_clk_change_support);
 void dml2_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2);
+
+void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *dml2);
+bool dml2_validate_only(struct dc_state *context, enum dc_validate_mode validate_mode);
+bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_state *context,
+		enum dc_validate_mode validate_mode);
+
+struct dml2_context *dml2_allocate_memory(void);
+
 #endif //_DML2_WRAPPER_H_
+

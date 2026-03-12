@@ -66,7 +66,7 @@ static struct nfcsim_link *nfcsim_link_new(void)
 {
 	struct nfcsim_link *link;
 
-	link = kzalloc(sizeof(struct nfcsim_link), GFP_KERNEL);
+	link = kzalloc_obj(struct nfcsim_link);
 	if (!link)
 		return NULL;
 
@@ -373,7 +373,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 	struct nfcsim *dev;
 	int rc;
 
-	dev = kzalloc(sizeof(struct nfcsim), GFP_KERNEL);
+	dev = kzalloc_obj(struct nfcsim);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

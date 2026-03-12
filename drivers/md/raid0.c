@@ -27,7 +27,9 @@ module_param(default_layout, int, 0644);
 	 (1L << MD_JOURNAL_CLEAN) |	\
 	 (1L << MD_FAILFAST_SUPPORTED) |\
 	 (1L << MD_HAS_PPL) |		\
-	 (1L << MD_HAS_MULTIPLE_PPLS))
+	 (1L << MD_HAS_MULTIPLE_PPLS) |	\
+	 (1L << MD_FAILLAST_DEV) |	\
+	 (1L << MD_SERIALIZE_POLICY))
 
 /*
  * inform the user of the raid configuration
@@ -67,7 +69,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	struct md_rdev *smallest, *rdev1, *rdev2, *rdev, **dev;
 	struct strip_zone *zone;
 	int cnt;
-	struct r0conf *conf = kzalloc(sizeof(*conf), GFP_KERNEL);
+	struct r0conf *conf = kzalloc_obj(*conf);
 	unsigned int blksize = 512;
 
 	if (!mddev_is_dm(mddev))
@@ -141,9 +143,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	}
 
 	err = -ENOMEM;
-	conf->strip_zone = kcalloc(conf->nr_strip_zones,
-				   sizeof(struct strip_zone),
-				   GFP_KERNEL);
+	conf->strip_zone = kzalloc_objs(struct strip_zone, conf->nr_strip_zones);
 	if (!conf->strip_zone)
 		goto abort;
 	conf->devlist = kzalloc(array3_size(sizeof(struct md_rdev *),

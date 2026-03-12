@@ -135,7 +135,7 @@ struct DriverData {
 
 impl DriverData {
     fn new() -> impl PinInit<Self, Error> {
-        try_pin_init!(Self {
+        pin_init!(Self {
             status <- CMutex::new(0),
             buffer: Box::init(pin_init::init_zeroed())?,
         }? Error)

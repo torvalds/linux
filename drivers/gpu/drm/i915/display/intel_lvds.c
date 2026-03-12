@@ -886,7 +886,7 @@ void intel_lvds_init(struct intel_display *display)
 			    "LVDS is not present in VBT, but enabled anyway\n");
 	}
 
-	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
+	lvds_encoder = kzalloc_obj(*lvds_encoder);
 	if (!lvds_encoder)
 		return;
 

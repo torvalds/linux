@@ -649,7 +649,7 @@ int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
 				__func__);
 		return ret;
 	}
-	rem_info = kzalloc(sizeof(struct iwpm_remote_info), GFP_ATOMIC);
+	rem_info = kzalloc_obj(struct iwpm_remote_info, GFP_ATOMIC);
 	if (!rem_info) {
 		ret = -ENOMEM;
 		return ret;

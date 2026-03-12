@@ -5,7 +5,7 @@
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2023, 2025 Intel Corporation
+ * Copyright (C) 2018-2023, 2025-2026 Intel Corporation
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -1144,7 +1144,8 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 					       ev->ij.channel);
 			break;
 		case EVENT_STOPPED:
-			cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev);
+			cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev,
+				       ev->link_id);
 			break;
 		case EVENT_PORT_AUTHORIZED:
 			__cfg80211_port_authorized(wdev, ev->pa.peer_addr,
@@ -1203,7 +1204,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		dev->ieee80211_ptr->use_4addr = false;
 		rdev_set_qos_map(rdev, dev, NULL);
 
-		cfg80211_leave(rdev, dev->ieee80211_ptr);
+		cfg80211_leave(rdev, dev->ieee80211_ptr, -1);
 
 		cfg80211_process_rdev_events(rdev);
 		cfg80211_mlme_purge_registrations(dev->ieee80211_ptr);
@@ -1561,36 +1562,42 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	tmp = result;
 	tmp *= SCALE;
 	do_div(tmp, mcs_divisors[rate->mcs]);
-	result = tmp;
 
 	/* and take NSS, DCM into account */
-	result = (result * rate->nss) / 8;
+	tmp *= rate->nss;
+	do_div(tmp, 8);
 	if (rate->he_dcm)
-		result /= 2;
+		do_div(tmp, 2);
+
+	result = tmp;
 
 	return result / 10000;
 }
 
-static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
+static u32 _cfg80211_calculate_bitrate_eht_uhr(struct rate_info *rate)
 {
 #define SCALE 6144
-	static const u32 mcs_divisors[16] = {
-		102399, /* 16.666666... */
-		 51201, /*  8.333333... */
-		 34134, /*  5.555555... */
-		 25599, /*  4.166666... */
-		 17067, /*  2.777777... */
-		 12801, /*  2.083333... */
-		 11377, /*  1.851725... */
-		 10239, /*  1.666666... */
-		  8532, /*  1.388888... */
-		  7680, /*  1.250000... */
-		  6828, /*  1.111111... */
-		  6144, /*  1.000000... */
-		  5690, /*  0.926106... */
-		  5120, /*  0.833333... */
-		409600, /* 66.666666... */
-		204800, /* 33.333333... */
+	static const u32 mcs_divisors[] = {
+		[ 0] = 102399, /* 16.666666... */
+		[ 1] =  51201, /*  8.333333... */
+		[ 2] =  34134, /*  5.555555... */
+		[ 3] =  25599, /*  4.166666... */
+		[ 4] =  17067, /*  2.777777... */
+		[ 5] =  12801, /*  2.083333... */
+		[ 6] =  11377, /*  1.851725... */
+		[ 7] =  10239, /*  1.666666... */
+		[ 8] =   8532, /*  1.388888... */
+		[ 9] =   7680, /*  1.250000... */
+		[10] =   6828, /*  1.111111... */
+		[11] =   6144, /*  1.000000... */
+		[12] =   5690, /*  0.926106... */
+		[13] =   5120, /*  0.833333... */
+		[14] = 409600, /* 66.666666... */
+		[15] = 204800, /* 33.333333... */
+		[17] =  38400, /*  6.250180... */
+		[19] =  19200, /*  3.125090... */
+		[20] =  15360, /*  2.500000... */
+		[23] =   9600, /*  1.562545... */
 	};
 	static const u32 rates_996[3] =  { 480388888, 453700000, 408333333 };
 	static const u32 rates_484[3] =  { 229411111, 216666666, 195000000 };
@@ -1601,8 +1608,6 @@ static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
 	u64 tmp;
 	u32 result;
 
-	if (WARN_ON_ONCE(rate->mcs > 15))
-		return 0;
 	if (WARN_ON_ONCE(rate->eht_gi > NL80211_RATE_INFO_EHT_GI_3_2))
 		return 0;
 	if (WARN_ON_ONCE(rate->eht_ru_alloc >
@@ -1683,7 +1688,7 @@ static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
 		 rate->eht_ru_alloc == NL80211_RATE_INFO_EHT_RU_ALLOC_26)
 		result = rates_26[rate->eht_gi];
 	else {
-		WARN(1, "invalid EHT MCS: bw:%d, ru:%d\n",
+		WARN(1, "invalid EHT or UHR MCS: bw:%d, ru:%d\n",
 		     rate->bw, rate->eht_ru_alloc);
 		return 0;
 	}
@@ -1697,9 +1702,62 @@ static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
 	tmp *= rate->nss;
 	do_div(tmp, 8);
 
+	/* and handle interference mitigation - 0.9x */
+	if (rate->flags & RATE_INFO_FLAGS_UHR_IM) {
+		if (WARN(rate->nss != 1 || rate->mcs == 15,
+			 "invalid NSS or MCS for UHR IM\n"))
+			return 0;
+		tmp *= 9000;
+		do_div(tmp, 10000);
+	}
+
 	result = tmp;
 
 	return result / 10000;
+}
+
+static u32 cfg80211_calculate_bitrate_eht(struct rate_info *rate)
+{
+	if (WARN_ONCE(rate->mcs > 15, "bad EHT MCS %d\n", rate->mcs))
+		return 0;
+
+	if (WARN_ONCE(rate->flags & (RATE_INFO_FLAGS_UHR_ELR_MCS |
+				     RATE_INFO_FLAGS_UHR_IM),
+		      "bad EHT MCS flags 0x%x\n", rate->flags))
+		return 0;
+
+	return _cfg80211_calculate_bitrate_eht_uhr(rate);
+}
+
+static u32 cfg80211_calculate_bitrate_uhr(struct rate_info *rate)
+{
+	if (rate->flags & RATE_INFO_FLAGS_UHR_ELR_MCS) {
+		WARN_ONCE(rate->eht_gi != NL80211_RATE_INFO_EHT_GI_1_6,
+			  "bad UHR ELR guard interval %d\n",
+			  rate->eht_gi);
+		WARN_ONCE(rate->mcs > 1, "bad UHR ELR MCS %d\n", rate->mcs);
+		WARN_ONCE(rate->nss != 1, "bad UHR ELR NSS %d\n", rate->nss);
+		WARN_ONCE(rate->bw != RATE_INFO_BW_20,
+			  "bad UHR ELR bandwidth %d\n",
+			  rate->bw);
+		WARN_ONCE(rate->flags & RATE_INFO_FLAGS_UHR_IM,
+			  "bad UHR MCS flags 0x%x\n", rate->flags);
+		if (rate->mcs == 0)
+			return 17;
+		return 33;
+	}
+
+	switch (rate->mcs) {
+	case 0 ... 15:
+	case 17:
+	case 19:
+	case 20:
+	case 23:
+		return _cfg80211_calculate_bitrate_eht_uhr(rate);
+	}
+
+	WARN_ONCE(1, "bad UHR MCS %d\n", rate->mcs);
+	return 0;
 }
 
 static u32 cfg80211_calculate_bitrate_s1g(struct rate_info *rate)
@@ -1826,6 +1884,8 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 		return cfg80211_calculate_bitrate_he(rate);
 	if (rate->flags & RATE_INFO_FLAGS_EHT_MCS)
 		return cfg80211_calculate_bitrate_eht(rate);
+	if (rate->flags & RATE_INFO_FLAGS_UHR_MCS)
+		return cfg80211_calculate_bitrate_uhr(rate);
 	if (rate->flags & RATE_INFO_FLAGS_S1G_MCS)
 		return cfg80211_calculate_bitrate_s1g(rate);
 
@@ -2653,8 +2713,8 @@ bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
 int cfg80211_link_sinfo_alloc_tid_stats(struct link_station_info *link_sinfo,
 					gfp_t gfp)
 {
-	link_sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
-				     sizeof(*link_sinfo->pertid), gfp);
+	link_sinfo->pertid = kzalloc_objs(*link_sinfo->pertid,
+					  IEEE80211_NUM_TIDS + 1, gfp);
 	if (!link_sinfo->pertid)
 		return -ENOMEM;
 
@@ -2664,9 +2724,8 @@ EXPORT_SYMBOL(cfg80211_link_sinfo_alloc_tid_stats);
 
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
 {
-	sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
-				sizeof(*(sinfo->pertid)),
-				gfp);
+	sinfo->pertid = kzalloc_objs(*(sinfo->pertid), IEEE80211_NUM_TIDS + 1,
+				     gfp);
 	if (!sinfo->pertid)
 		return -ENOMEM;
 

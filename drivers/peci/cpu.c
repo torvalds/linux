@@ -199,7 +199,7 @@ static struct auxiliary_device *adev_alloc(struct peci_cpu *priv, int idx)
 	const char *name;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return ERR_PTR(-ENOMEM);
 

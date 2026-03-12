@@ -1363,7 +1363,7 @@ static struct mei_cl_device *mei_cl_bus_dev_alloc(struct mei_device *bus,
 	struct mei_cl_device *cldev;
 	struct mei_cl *cl;
 
-	cldev = kzalloc(sizeof(*cldev), GFP_KERNEL);
+	cldev = kzalloc_obj(*cldev);
 	if (!cldev)
 		return NULL;
 

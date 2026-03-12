@@ -202,7 +202,7 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 	struct urb *urb;
 
 	/* create message: */
-	msg = kzalloc(sizeof(struct message), GFP_ATOMIC);
+	msg = kzalloc_obj(struct message, GFP_ATOMIC);
 	if (msg == NULL)
 		return -ENOMEM;
 

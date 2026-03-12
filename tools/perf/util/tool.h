@@ -81,7 +81,9 @@ struct perf_tool {
 			stat_round,
 			feature,
 			finished_init,
-			bpf_metadata;
+			bpf_metadata,
+			schedstat_cpu,
+			schedstat_domain;
 	event_op4	compressed;
 	event_op3	auxtrace;
 	bool		ordered_events;

@@ -87,6 +87,7 @@ required:
 
 allOf:
   - $ref: can-controller.yaml#
+  - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml
   - if:
       properties:
         compatible:

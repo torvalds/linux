@@ -223,11 +223,11 @@ int __init xen_xlate_map_ballooned_pages(xen_pfn_t **gfns, void **virt,
 
 	BUG_ON(nr_grant_frames == 0);
 	nr_pages = DIV_ROUND_UP(nr_grant_frames, XEN_PFN_PER_PAGE);
-	pages = kcalloc(nr_pages, sizeof(pages[0]), GFP_KERNEL);
+	pages = kzalloc_objs(pages[0], nr_pages);
 	if (!pages)
 		return -ENOMEM;
 
-	pfns = kcalloc(nr_grant_frames, sizeof(pfns[0]), GFP_KERNEL);
+	pfns = kzalloc_objs(pfns[0], nr_grant_frames);
 	if (!pfns) {
 		kfree(pages);
 		return -ENOMEM;

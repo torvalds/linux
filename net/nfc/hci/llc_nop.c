@@ -28,7 +28,7 @@ static void *llc_nop_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
 	*rx_headroom = 0;
 	*rx_tailroom = 0;
 
-	llc_nop = kzalloc(sizeof(struct llc_nop), GFP_KERNEL);
+	llc_nop = kzalloc_obj(struct llc_nop);
 	if (llc_nop == NULL)
 		return NULL;
 

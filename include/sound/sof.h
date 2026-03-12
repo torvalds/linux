@@ -159,6 +159,9 @@ struct sof_dev_desc {
 	/* The platform supports DSPless mode */
 	bool dspless_mode_supported;
 
+	/* On demand DSP booting is possible on the platform */
+	bool on_demand_dsp_boot;
+
 	/* defaults paths for firmware, library and topology files */
 	const char *default_fw_path[SOF_IPC_TYPE_COUNT];
 	const char *default_lib_path[SOF_IPC_TYPE_COUNT];

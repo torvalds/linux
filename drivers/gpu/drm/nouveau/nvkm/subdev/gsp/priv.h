@@ -7,9 +7,8 @@ enum nvkm_acr_lsf_id;
 
 int nvkm_gsp_fwsec_frts(struct nvkm_gsp *);
 
-int nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *);
 int nvkm_gsp_fwsec_sb(struct nvkm_gsp *);
-void nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *);
+int nvkm_gsp_fwsec_sb_init(struct nvkm_gsp *gsp);
 
 struct nvkm_gsp_fwif {
 	int version;
@@ -52,10 +51,15 @@ struct nvkm_gsp_func {
 			    struct nvkm_falcon *, struct nvkm_falcon_fw *);
 	} booter;
 
+	struct {
+		int (*ctor)(struct nvkm_gsp *);
+		void (*dtor)(struct nvkm_gsp *);
+	} fwsec_sb;
+
 	void (*dtor)(struct nvkm_gsp *);
 	int (*oneinit)(struct nvkm_gsp *);
 	int (*init)(struct nvkm_gsp *);
-	int (*fini)(struct nvkm_gsp *, bool suspend);
+	int (*fini)(struct nvkm_gsp *, enum nvkm_suspend_state suspend);
 	int (*reset)(struct nvkm_gsp *);
 
 	struct {
@@ -67,9 +71,11 @@ extern const struct nvkm_falcon_func tu102_gsp_flcn;
 extern const struct nvkm_falcon_fw_func tu102_gsp_fwsec;
 int tu102_gsp_booter_ctor(struct nvkm_gsp *, const char *, const struct firmware *,
 			  struct nvkm_falcon *, struct nvkm_falcon_fw *);
+int tu102_gsp_fwsec_sb_ctor(struct nvkm_gsp *);
+void tu102_gsp_fwsec_sb_dtor(struct nvkm_gsp *);
 int tu102_gsp_oneinit(struct nvkm_gsp *);
 int tu102_gsp_init(struct nvkm_gsp *);
-int tu102_gsp_fini(struct nvkm_gsp *, bool suspend);
+int tu102_gsp_fini(struct nvkm_gsp *, enum nvkm_suspend_state suspend);
 int tu102_gsp_reset(struct nvkm_gsp *);
 u64 tu102_gsp_wpr_heap_size(struct nvkm_gsp *);
 
@@ -81,15 +87,28 @@ int ga102_gsp_reset(struct nvkm_gsp *);
 
 int gh100_gsp_oneinit(struct nvkm_gsp *);
 int gh100_gsp_init(struct nvkm_gsp *);
-int gh100_gsp_fini(struct nvkm_gsp *, bool suspend);
+int gh100_gsp_fini(struct nvkm_gsp *, enum nvkm_suspend_state suspend);
 
 void r535_gsp_dtor(struct nvkm_gsp *);
 int r535_gsp_oneinit(struct nvkm_gsp *);
 int r535_gsp_init(struct nvkm_gsp *);
-int r535_gsp_fini(struct nvkm_gsp *, bool suspend);
+int r535_gsp_fini(struct nvkm_gsp *, enum nvkm_suspend_state suspend);
 
 int nvkm_gsp_new_(const struct nvkm_gsp_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gsp **);
+
+static inline int nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *gsp)
+{
+	if (gsp->func->fwsec_sb.ctor)
+		return gsp->func->fwsec_sb.ctor(gsp);
+	return 0;
+}
+
+static inline void nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *gsp)
+{
+	if (gsp->func->fwsec_sb.dtor)
+		gsp->func->fwsec_sb.dtor(gsp);
+}
 
 extern const struct nvkm_gsp_func gv100_gsp;
 #endif

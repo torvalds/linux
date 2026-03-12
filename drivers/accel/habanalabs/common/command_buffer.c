@@ -116,10 +116,10 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 	 * and must use GFP_ATOMIC for all memory allocations.
 	 */
 	if (ctx_id == HL_KERNEL_ASID_ID && !hdev->disabled)
-		cb = kzalloc(sizeof(*cb), GFP_ATOMIC);
+		cb = kzalloc_obj(*cb, GFP_ATOMIC);
 
 	if (!cb)
-		cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+		cb = kzalloc_obj(*cb);
 
 	if (!cb)
 		return NULL;

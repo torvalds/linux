@@ -246,7 +246,7 @@ c67x00_ep_data_alloc(struct c67x00_hcd *c67x00, struct urb *urb)
 	}
 
 	/* Allocate and initialize a new c67x00 endpoint data structure */
-	ep_data = kzalloc(sizeof(*ep_data), GFP_ATOMIC);
+	ep_data = kzalloc_obj(*ep_data, GFP_ATOMIC);
 	if (!ep_data)
 		return NULL;
 
@@ -349,7 +349,7 @@ int c67x00_urb_enqueue(struct usb_hcd *hcd,
 	int port = get_root_port(urb->dev)-1;
 
 	/* Allocate and initialize urb private data */
-	urbp = kzalloc(sizeof(*urbp), mem_flags);
+	urbp = kzalloc_obj(*urbp, mem_flags);
 	if (!urbp) {
 		ret = -ENOMEM;
 		goto err_urbp;
@@ -574,7 +574,7 @@ static int c67x00_create_td(struct c67x00_hcd *c67x00, struct urb *urb,
 				  || usb_pipeint(urb->pipe)))
 		return -EMSGSIZE;	/* Not really an error, but expected */
 
-	td = kzalloc(sizeof(*td), GFP_ATOMIC);
+	td = kzalloc_obj(*td, GFP_ATOMIC);
 	if (!td)
 		return -ENOMEM;
 

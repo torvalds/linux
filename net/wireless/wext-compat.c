@@ -414,8 +414,7 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	 * to do it first in case the allocation fails. Don't use wext.
 	 */
 	if (!wdev->wext.keys) {
-		wdev->wext.keys = kzalloc(sizeof(*wdev->wext.keys),
-					  GFP_KERNEL);
+		wdev->wext.keys = kzalloc_obj(*wdev->wext.keys);
 		if (!wdev->wext.keys)
 			return -ENOMEM;
 		for (i = 0; i < 4; i++)
@@ -684,7 +683,7 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 
 	idx = erq->flags & IW_ENCODE_INDEX;
 	if (cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
-		if (idx < 4 || idx > 5) {
+		if (idx < 5 || idx > 6) {
 			idx = wdev->wext.default_mgmt_key;
 			if (idx < 0)
 				return -EINVAL;

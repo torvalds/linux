@@ -184,7 +184,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 		 *	a fib object in order to manage the linked lists
 		 */
 		if (dev->aif_thread)
-			if((fib = kmalloc(sizeof(struct fib), GFP_ATOMIC)) == NULL)
+			if((fib = kmalloc_obj(struct fib, GFP_ATOMIC)) == NULL)
 				fib = &fibctx;
 		
 		memset(fib, 0, sizeof(struct fib));
@@ -284,9 +284,9 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index, int isAif,
 		 * manage the linked lists.
 		 */
 		if ((!dev->aif_thread)
-		 || (!(fib = kzalloc(sizeof(struct fib),GFP_ATOMIC))))
+		 || (!(fib = kzalloc_obj(struct fib, GFP_ATOMIC))))
 			return 1;
-		if (!(hw_fib = kzalloc(sizeof(struct hw_fib),GFP_ATOMIC))) {
+		if (!(hw_fib = kzalloc_obj(struct hw_fib, GFP_ATOMIC))) {
 			kfree (fib);
 			return 1;
 		}

@@ -5,6 +5,9 @@
 
 # When adding new entries keep the list in alphabetical order
 obj-$(CONFIG_ABP060MG) += abp060mg.o
+obj-$(CONFIG_ABP2030PA) += abp2030pa.o
+obj-$(CONFIG_ABP2030PA_I2C) += abp2030pa_i2c.o
+obj-$(CONFIG_ABP2030PA_SPI) += abp2030pa_spi.o
 obj-$(CONFIG_ADP810) += adp810.o
 obj-$(CONFIG_ROHM_BM1390) += rohm-bm1390.o
 obj-$(CONFIG_BMP280) += bmp280.o

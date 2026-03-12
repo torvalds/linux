@@ -1570,8 +1570,7 @@ static void a5xx_gpu_state_get_hlsq_regs(struct msm_gpu *gpu,
 
 static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	struct a5xx_gpu_state *a5xx_state = kzalloc(sizeof(*a5xx_state),
-			GFP_KERNEL);
+	struct a5xx_gpu_state *a5xx_state = kzalloc_obj(*a5xx_state);
 	bool stalled = !!(gpu_read(gpu, REG_A5XX_RBBM_STATUS3) & BIT(24));
 
 	if (!a5xx_state)
@@ -1735,7 +1734,7 @@ static struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	unsigned int nr_rings;
 	int ret;
 
-	a5xx_gpu = kzalloc(sizeof(*a5xx_gpu), GFP_KERNEL);
+	a5xx_gpu = kzalloc_obj(*a5xx_gpu);
 	if (!a5xx_gpu)
 		return ERR_PTR(-ENOMEM);
 

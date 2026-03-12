@@ -344,7 +344,7 @@ iscsi_boot_create_kobj(struct iscsi_boot_kset *boot_kset,
 {
 	struct iscsi_boot_kobj *boot_kobj;
 
-	boot_kobj = kzalloc(sizeof(*boot_kobj), GFP_KERNEL);
+	boot_kobj = kzalloc_obj(*boot_kobj);
 	if (!boot_kobj)
 		return NULL;
 	INIT_LIST_HEAD(&boot_kobj->list);
@@ -497,7 +497,7 @@ struct iscsi_boot_kset *iscsi_boot_create_kset(const char *set_name)
 {
 	struct iscsi_boot_kset *boot_kset;
 
-	boot_kset = kzalloc(sizeof(*boot_kset), GFP_KERNEL);
+	boot_kset = kzalloc_obj(*boot_kset);
 	if (!boot_kset)
 		return NULL;
 

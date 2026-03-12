@@ -70,7 +70,7 @@ int txgbe_test_hostif(struct wx *wx)
 	buffer.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
 
 	return wx_host_interface_command(wx, (u32 *)&buffer, sizeof(buffer),
-					WX_HI_COMMAND_TIMEOUT, true);
+					 WX_HI_COMMAND_TIMEOUT, false);
 }
 
 int txgbe_read_eeprom_hostif(struct wx *wx,
@@ -148,7 +148,7 @@ static int txgbe_set_phy_link_hostif(struct wx *wx, int speed, int autoneg, int 
 	buffer.duplex = duplex;
 
 	return wx_host_interface_command(wx, (u32 *)&buffer, sizeof(buffer),
-					 WX_HI_COMMAND_TIMEOUT, true);
+					 WX_HI_COMMAND_TIMEOUT, false);
 }
 
 static void txgbe_get_link_capabilities(struct wx *wx, int *speed,

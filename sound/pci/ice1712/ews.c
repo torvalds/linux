@@ -431,7 +431,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 		break;
 	}
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -530,7 +530,7 @@ static int snd_ice1712_ews_init(struct snd_ice1712 *ice)
 	}
 
 	/* analog section */
-	ak = ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ak = ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

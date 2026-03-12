@@ -909,10 +909,10 @@ static unsigned int get_source_mpc_factor(const struct dml2_context *ctx,
 		const struct dc_plane_state *plane)
 {
 	struct pipe_ctx *dpp_pipes[MAX_PIPES] = {0};
-	int dpp_pipe_count = ctx->config.callbacks.get_dpp_pipes_for_plane(plane,
-			&state->res_ctx, dpp_pipes);
 
-	ASSERT(dpp_pipe_count > 0);
+	if (ctx->config.callbacks.get_dpp_pipes_for_plane(plane, &state->res_ctx, dpp_pipes) <= 0)
+		ASSERT(false);
+
 	return ctx->config.callbacks.get_mpc_slice_count(dpp_pipes[0]);
 }
 

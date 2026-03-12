@@ -55,7 +55,7 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
 	if (bits > 64 || bits < 16)
 		return -EINVAL;
 
-	cs = kzalloc(sizeof(struct clocksource_mmio), GFP_KERNEL);
+	cs = kzalloc_obj(struct clocksource_mmio);
 	if (!cs)
 		return -ENOMEM;
 

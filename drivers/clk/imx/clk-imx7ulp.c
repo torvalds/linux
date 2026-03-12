@@ -49,8 +49,7 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 	struct clk_hw **hws;
 	void __iomem *base;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_SCG1_END),
-			   GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, IMX7ULP_CLK_SCG1_END);
 	if (!clk_data)
 		return;
 
@@ -138,8 +137,7 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 	struct clk_hw **hws;
 	void __iomem *base;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_PCC2_END),
-			   GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, IMX7ULP_CLK_PCC2_END);
 	if (!clk_data)
 		return;
 
@@ -186,8 +184,7 @@ static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
 	struct clk_hw **hws;
 	void __iomem *base;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_PCC3_END),
-			   GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, IMX7ULP_CLK_PCC3_END);
 	if (!clk_data)
 		return;
 
@@ -233,8 +230,7 @@ static void __init imx7ulp_clk_smc1_init(struct device_node *np)
 	struct clk_hw **hws;
 	void __iomem *base;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_SMC1_END),
-			   GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, IMX7ULP_CLK_SMC1_END);
 	if (!clk_data)
 		return;
 

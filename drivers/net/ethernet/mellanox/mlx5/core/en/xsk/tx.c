@@ -26,13 +26,15 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		 * active and not polled by NAPI. Return 0, because the upcoming
 		 * activate will trigger the IRQ for us.
 		 */
-		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &c->async_icosq.state)))
+		if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED,
+				       &c->async_icosq->state)))
 			return 0;
 
-		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX, &c->async_icosq.state))
+		if (test_and_set_bit(MLX5E_SQ_STATE_PENDING_XSK_TX,
+				     &c->async_icosq->state))
 			return 0;
 
-		mlx5e_trigger_napi_icosq(c);
+		mlx5e_trigger_napi_async_icosq(c);
 	}
 
 	return 0;

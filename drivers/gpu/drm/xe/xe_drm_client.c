@@ -88,7 +88,7 @@ struct xe_drm_client *xe_drm_client_alloc(void)
 {
 	struct xe_drm_client *client;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return NULL;
 

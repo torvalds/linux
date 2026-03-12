@@ -35,13 +35,16 @@ void accept_memory(phys_addr_t start, unsigned long size)
 	struct efi_unaccepted_memory *unaccepted;
 	unsigned long range_start, range_end;
 	struct accept_range range, *entry;
-	phys_addr_t end = start + size;
 	unsigned long flags;
+	phys_addr_t end;
 	u64 unit_size;
 
 	unaccepted = efi_get_unaccepted_table();
 	if (!unaccepted)
 		return;
+
+	end = PAGE_ALIGN(start + size);
+	start = PAGE_ALIGN_DOWN(start);
 
 	unit_size = unaccepted->unit_size;
 
@@ -160,14 +163,17 @@ retry:
 bool range_contains_unaccepted_memory(phys_addr_t start, unsigned long size)
 {
 	struct efi_unaccepted_memory *unaccepted;
-	phys_addr_t end = start + size;
 	unsigned long flags;
 	bool ret = false;
+	phys_addr_t end;
 	u64 unit_size;
 
 	unaccepted = efi_get_unaccepted_table();
 	if (!unaccepted)
 		return false;
+
+	end = PAGE_ALIGN(start + size);
+	start = PAGE_ALIGN_DOWN(start);
 
 	unit_size = unaccepted->unit_size;
 

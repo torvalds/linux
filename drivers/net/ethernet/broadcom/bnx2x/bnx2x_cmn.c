@@ -4582,9 +4582,8 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 			   "allocating tx memory of fp %d cos %d\n",
 			   index, cos);
 
-			txdata->tx_buf_ring = kcalloc(NUM_TX_BD,
-						      sizeof(struct sw_tx_bd),
-						      GFP_KERNEL);
+			txdata->tx_buf_ring = kzalloc_objs(struct sw_tx_bd,
+							   NUM_TX_BD);
 			if (!txdata->tx_buf_ring)
 				goto alloc_mem_err;
 			txdata->tx_desc_ring = BNX2X_PCI_ALLOC(&txdata->tx_desc_mapping,
@@ -4598,7 +4597,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	if (!skip_rx_queue(bp, index)) {
 		/* fastpath rx rings: rx_buf rx_desc rx_comp */
 		bnx2x_fp(bp, index, rx_buf_ring) =
-			kcalloc(NUM_RX_BD, sizeof(struct sw_rx_bd), GFP_KERNEL);
+			kzalloc_objs(struct sw_rx_bd, NUM_RX_BD);
 		if (!bnx2x_fp(bp, index, rx_buf_ring))
 			goto alloc_mem_err;
 		bnx2x_fp(bp, index, rx_desc_ring) =
@@ -4616,8 +4615,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 
 		/* SGE ring */
 		bnx2x_fp(bp, index, rx_page_ring) =
-			kcalloc(NUM_RX_SGE, sizeof(struct sw_rx_page),
-				GFP_KERNEL);
+			kzalloc_objs(struct sw_rx_page, NUM_RX_SGE);
 		if (!bnx2x_fp(bp, index, rx_page_ring))
 			goto alloc_mem_err;
 		bnx2x_fp(bp, index, rx_sge_ring) =
@@ -4747,13 +4745,13 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	bp->fp_array_size = fp_array_size;
 	BNX2X_DEV_INFO("fp_array_size %d\n", bp->fp_array_size);
 
-	fp = kcalloc(bp->fp_array_size, sizeof(*fp), GFP_KERNEL);
+	fp = kzalloc_objs(*fp, bp->fp_array_size);
 	if (!fp)
 		goto alloc_err;
 	for (i = 0; i < bp->fp_array_size; i++) {
 		fp[i].tpa_info =
-			kcalloc(ETH_MAX_AGGREGATION_QUEUES_E1H_E2,
-				sizeof(struct bnx2x_agg_info), GFP_KERNEL);
+			kzalloc_objs(struct bnx2x_agg_info,
+				     ETH_MAX_AGGREGATION_QUEUES_E1H_E2);
 		if (!(fp[i].tpa_info))
 			goto alloc_err;
 	}
@@ -4761,14 +4759,12 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	bp->fp = fp;
 
 	/* allocate sp objs */
-	bp->sp_objs = kcalloc(bp->fp_array_size, sizeof(struct bnx2x_sp_objs),
-			      GFP_KERNEL);
+	bp->sp_objs = kzalloc_objs(struct bnx2x_sp_objs, bp->fp_array_size);
 	if (!bp->sp_objs)
 		goto alloc_err;
 
 	/* allocate fp_stats */
-	bp->fp_stats = kcalloc(bp->fp_array_size, sizeof(struct bnx2x_fp_stats),
-			       GFP_KERNEL);
+	bp->fp_stats = kzalloc_objs(struct bnx2x_fp_stats, bp->fp_array_size);
 	if (!bp->fp_stats)
 		goto alloc_err;
 
@@ -4777,19 +4773,18 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 		BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS + CNIC_SUPPORT(bp);
 	BNX2X_DEV_INFO("txq_array_size %d", txq_array_size);
 
-	bp->bnx2x_txq = kcalloc(txq_array_size, sizeof(struct bnx2x_fp_txdata),
-				GFP_KERNEL);
+	bp->bnx2x_txq = kzalloc_objs(struct bnx2x_fp_txdata, txq_array_size);
 	if (!bp->bnx2x_txq)
 		goto alloc_err;
 
 	/* msix table */
-	tbl = kcalloc(msix_table_size, sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_objs(*tbl, msix_table_size);
 	if (!tbl)
 		goto alloc_err;
 	bp->msix_table = tbl;
 
 	/* ilt */
-	ilt = kzalloc(sizeof(*ilt), GFP_KERNEL);
+	ilt = kzalloc_obj(*ilt);
 	if (!ilt)
 		goto alloc_err;
 	bp->ilt = ilt;

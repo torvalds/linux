@@ -219,7 +219,7 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 		}
 	}
 
-	job = *pjob = kzalloc(sizeof(*job), GFP_KERNEL);
+	job = *pjob = kzalloc_obj(*job);
 	if (!job)
 		return -ENOMEM;
 

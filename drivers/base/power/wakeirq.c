@@ -55,7 +55,7 @@ int dev_pm_set_wake_irq(struct device *dev, int irq)
 	if (irq < 0)
 		return -EINVAL;
 
-	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
+	wirq = kzalloc_obj(*wirq);
 	if (!wirq)
 		return -ENOMEM;
 
@@ -83,13 +83,16 @@ EXPORT_SYMBOL_GPL(dev_pm_set_wake_irq);
  */
 void dev_pm_clear_wake_irq(struct device *dev)
 {
-	struct wake_irq *wirq = dev->power.wakeirq;
+	struct wake_irq *wirq;
 	unsigned long flags;
 
-	if (!wirq)
-		return;
-
 	spin_lock_irqsave(&dev->power.lock, flags);
+	wirq = dev->power.wakeirq;
+	if (!wirq) {
+		spin_unlock_irqrestore(&dev->power.lock, flags);
+		return;
+	}
+
 	device_wakeup_detach_irq(dev);
 	dev->power.wakeirq = NULL;
 	spin_unlock_irqrestore(&dev->power.lock, flags);
@@ -176,7 +179,7 @@ static int __dev_pm_set_dedicated_wake_irq(struct device *dev, int irq, unsigned
 	if (irq < 0)
 		return -EINVAL;
 
-	wirq = kzalloc(sizeof(*wirq), GFP_KERNEL);
+	wirq = kzalloc_obj(*wirq);
 	if (!wirq)
 		return -ENOMEM;
 
@@ -270,8 +273,10 @@ EXPORT_SYMBOL_GPL(dev_pm_set_dedicated_wake_irq_reverse);
  * otherwise try to disable already disabled wakeirq. The wake-up interrupt
  * starts disabled with IRQ_NOAUTOEN set.
  *
- * Should be only called from rpm_suspend() and rpm_resume() path.
- * Caller must hold &dev->power.lock to change wirq->status
+ * Should be called from rpm_suspend(), rpm_resume(),
+ * pm_runtime_force_suspend() or pm_runtime_force_resume().
+ * Caller must hold &dev->power.lock or disable runtime PM to change
+ * wirq->status.
  */
 void dev_pm_enable_wake_irq_check(struct device *dev,
 				  bool can_change_status)
@@ -303,7 +308,8 @@ enable:
  * @cond_disable: if set, also check WAKE_IRQ_DEDICATED_REVERSE
  *
  * Disables wake-up interrupt conditionally based on status.
- * Should be only called from rpm_suspend() and rpm_resume() path.
+ * Should be called from rpm_suspend(), rpm_resume(),
+ * pm_runtime_force_suspend() or pm_runtime_force_resume().
  */
 void dev_pm_disable_wake_irq_check(struct device *dev, bool cond_disable)
 {
@@ -329,7 +335,7 @@ void dev_pm_disable_wake_irq_check(struct device *dev, bool cond_disable)
  * enable wake IRQ after running ->runtime_suspend() which depends on
  * WAKE_IRQ_DEDICATED_REVERSE.
  *
- * Should be only called from rpm_suspend() path.
+ * Should be called from rpm_suspend() or pm_runtime_force_suspend().
  */
 void dev_pm_enable_wake_irq_complete(struct device *dev)
 {

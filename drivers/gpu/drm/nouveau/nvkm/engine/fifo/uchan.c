@@ -72,7 +72,7 @@ struct nvkm_uobj {
 };
 
 static int
-nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
+nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
 	struct nvkm_chan *chan = uobj->chan;
@@ -87,7 +87,7 @@ nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
 		nvkm_chan_cctx_bind(chan, ectx->engn, NULL);
 
 		if (refcount_dec_and_test(&ectx->uses))
-			nvkm_object_fini(ectx->object, false);
+			nvkm_object_fini(ectx->object, NVKM_POWEROFF);
 		mutex_unlock(&chan->cgrp->mutex);
 	}
 
@@ -166,7 +166,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		return -EINVAL;
 
 	/* Allocate SW object. */
-	if (!(uobj = kzalloc(sizeof(*uobj), GFP_KERNEL)))
+	if (!(uobj = kzalloc_obj(*uobj)))
 		return -ENOMEM;
 
 	nvkm_oproxy_ctor(&nvkm_uchan_object, oclass, &uobj->oproxy);
@@ -269,7 +269,7 @@ nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
+nvkm_uchan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
 
@@ -375,7 +375,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	}
 
 	/* Allocate channel. */
-	if (!(uchan = kzalloc(sizeof(*uchan), GFP_KERNEL))) {
+	if (!(uchan = kzalloc_obj(*uchan))) {
 		ret = -ENOMEM;
 		goto done;
 	}

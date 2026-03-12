@@ -564,7 +564,7 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 	int ret;
 
 	/* Allocate the vdebayer struct */
-	vdebayer = kzalloc(sizeof(*vdebayer), GFP_KERNEL);
+	vdebayer = kzalloc_obj(*vdebayer);
 	if (!vdebayer)
 		return ERR_PTR(-ENOMEM);
 

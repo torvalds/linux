@@ -402,7 +402,8 @@ static irqreturn_t fdomain_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int fdomain_queue(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
+static enum scsi_qc_status fdomain_queue(struct Scsi_Host *sh,
+					 struct scsi_cmnd *cmd)
 {
 	struct scsi_pointer *scsi_pointer = fdomain_scsi_pointer(cmd);
 	struct fdomain *fd = shost_priv(cmd->device->host);

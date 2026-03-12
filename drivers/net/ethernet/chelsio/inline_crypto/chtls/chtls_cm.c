@@ -57,7 +57,7 @@ static unsigned char new_state[16] = {
 
 static struct chtls_sock *chtls_sock_create(struct chtls_dev *cdev)
 {
-	struct chtls_sock *csk = kzalloc(sizeof(*csk), GFP_ATOMIC);
+	struct chtls_sock *csk = kzalloc_obj(*csk, GFP_ATOMIC);
 
 	if (!csk)
 		return NULL;
@@ -548,7 +548,7 @@ static struct listen_info *listen_hash_add(struct chtls_dev *cdev,
 					   struct sock *sk,
 					   unsigned int stid)
 {
-	struct listen_info *p = kmalloc(sizeof(*p), GFP_KERNEL);
+	struct listen_info *p = kmalloc_obj(*p);
 
 	if (p) {
 		int key = listen_hashfn(sk);
@@ -666,7 +666,7 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 	if (listen_hash_find(cdev, sk) >= 0)   /* already have it */
 		return -EADDRINUSE;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

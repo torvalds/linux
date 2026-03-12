@@ -43,6 +43,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -372,7 +373,7 @@ static int ns_init_card(int i, struct pci_dev *pcidev)
 		return error;
         }
 
-	card = kmalloc(sizeof(*card), GFP_KERNEL);
+	card = kmalloc_obj(*card);
 	if (!card) {
 		printk
 		    ("nicstar%d: can't allocate memory for device structure.\n",
@@ -866,7 +867,7 @@ static scq_info *get_scq(ns_dev *card, int size, u32 scd)
 	if (size != VBR_SCQSIZE && size != CBR_SCQSIZE)
 		return NULL;
 
-	scq = kmalloc(sizeof(*scq), GFP_KERNEL);
+	scq = kmalloc_obj(*scq);
 	if (!scq)
 		return NULL;
         scq->org = dma_alloc_coherent(&card->pcidev->dev,
@@ -875,8 +876,7 @@ static scq_info *get_scq(ns_dev *card, int size, u32 scd)
 		kfree(scq);
 		return NULL;
 	}
-	scq->skb = kcalloc(size / NS_SCQE_SIZE, sizeof(*scq->skb),
-			   GFP_KERNEL);
+	scq->skb = kzalloc_objs(*scq->skb, size / NS_SCQE_SIZE);
 	if (!scq->skb) {
 		dma_free_coherent(&card->pcidev->dev,
 				  2 * size, scq->org, scq->dma);

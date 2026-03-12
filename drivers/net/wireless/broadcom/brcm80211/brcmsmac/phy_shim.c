@@ -40,7 +40,7 @@ struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 					  struct brcms_c_info *wlc) {
 	struct phy_shim_info *physhim;
 
-	physhim = kzalloc(sizeof(*physhim), GFP_ATOMIC);
+	physhim = kzalloc_obj(*physhim, GFP_ATOMIC);
 	if (!physhim)
 		return NULL;
 

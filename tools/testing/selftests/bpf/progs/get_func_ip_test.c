@@ -103,3 +103,26 @@ int BPF_URETPROBE(test8, int ret)
 	test8_result = (const void *) addr == (const void *) uprobe_trigger;
 	return 0;
 }
+
+__u64 test9_entry_result = 0;
+__u64 test9_exit_result = 0;
+#if defined(bpf_target_x86) || defined(bpf_target_arm64) || defined(bpf_target_riscv)
+SEC("fsession/bpf_fentry_test1")
+int BPF_PROG(test9, int a)
+{
+	__u64 addr = bpf_get_func_ip(ctx);
+
+	if (bpf_session_is_return(ctx))
+		test9_exit_result = (const void *) addr == &bpf_fentry_test1;
+	else
+		test9_entry_result = (const void *) addr == &bpf_fentry_test1;
+	return 0;
+}
+#else
+SEC("fentry/bpf_fentry_test1")
+int BPF_PROG(test9, int a)
+{
+	test9_entry_result = test9_exit_result = 1;
+	return 0;
+}
+#endif

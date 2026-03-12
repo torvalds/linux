@@ -2124,7 +2124,7 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	struct v4l2_ctrl_handler *hdl;
 	int err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (NULL == dev)
 		return -ENOMEM;
 

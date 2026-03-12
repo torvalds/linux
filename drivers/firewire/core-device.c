@@ -849,7 +849,7 @@ static void create_units(struct fw_device *device)
 		 * Get the address of the unit directory and try to
 		 * match the drivers id_tables against it.
 		 */
-		unit = kzalloc(sizeof(*unit), GFP_KERNEL);
+		unit = kzalloc_obj(*unit);
 		if (unit == NULL)
 			continue;
 
@@ -1339,7 +1339,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * without actually having a link.
 		 */
  create:
-		device = kzalloc(sizeof(*device), GFP_ATOMIC);
+		device = kzalloc_obj(*device, GFP_ATOMIC);
 		if (device == NULL)
 			break;
 

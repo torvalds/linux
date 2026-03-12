@@ -677,7 +677,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	list_for_each_entry_safe(hole, next, &mm->hole_stack, hole_stack) {
 		struct drm_mm_node *resv;
 
-		resv = kzalloc(sizeof(*resv), GFP_NOWAIT);
+		resv = kzalloc_obj(*resv, GFP_NOWAIT);
 		if (!resv) {
 			err = -ENOMEM;
 			goto out_park;

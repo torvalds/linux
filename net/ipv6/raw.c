@@ -90,23 +90,24 @@ EXPORT_SYMBOL_GPL(raw_v6_match);
  *	0 - deliver
  *	1 - block
  */
-static int icmpv6_filter(const struct sock *sk, const struct sk_buff *skb)
+static int icmpv6_filter(const struct sock *sk, struct sk_buff *skb)
 {
-	struct icmp6hdr _hdr;
 	const struct icmp6hdr *hdr;
+	const __u32 *data;
+	unsigned int type;
 
 	/* We require only the four bytes of the ICMPv6 header, not any
 	 * additional bytes of message body in "struct icmp6hdr".
 	 */
-	hdr = skb_header_pointer(skb, skb_transport_offset(skb),
-				 ICMPV6_HDRLEN, &_hdr);
-	if (hdr) {
-		const __u32 *data = &raw6_sk(sk)->filter.data[0];
-		unsigned int type = hdr->icmp6_type;
+	if (!pskb_may_pull(skb, ICMPV6_HDRLEN))
+		return 1;
 
-		return (data[type >> 5] & (1U << (type & 31))) != 0;
-	}
-	return 1;
+	hdr = (struct icmp6hdr *)skb->data;
+	type = hdr->icmp6_type;
+
+	data = &raw6_sk(sk)->filter.data[0];
+
+	return (data[type >> 5] & (1U << (type & 31))) != 0;
 }
 
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
@@ -141,15 +142,13 @@ EXPORT_SYMBOL(rawv6_mh_filter_unregister);
 static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct net *net = dev_net(skb->dev);
-	const struct in6_addr *saddr;
-	const struct in6_addr *daddr;
+	const struct ipv6hdr *ip6h;
 	struct hlist_head *hlist;
-	struct sock *sk;
 	bool delivered = false;
+	struct sock *sk;
 	__u8 hash;
 
-	saddr = &ipv6_hdr(skb)->saddr;
-	daddr = saddr + 1;
+	ip6h = ipv6_hdr(skb);
 
 	hash = raw_hashfunc(net, nexthdr);
 	hlist = &raw_v6_hashinfo.ht[hash];
@@ -157,7 +156,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	sk_for_each_rcu(sk, hlist) {
 		int filtered;
 
-		if (!raw_v6_match(net, sk, nexthdr, daddr, saddr,
+		if (!raw_v6_match(net, sk, nexthdr, &ip6h->daddr, &ip6h->saddr,
 				  inet6_iif(skb), inet6_sdif(skb)))
 			continue;
 
@@ -171,6 +170,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 		switch (nexthdr) {
 		case IPPROTO_ICMPV6:
 			filtered = icmpv6_filter(sk, skb);
+			ip6h = ipv6_hdr(skb);
 			break;
 
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
@@ -529,7 +529,7 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 
 	offset = rp->offset;
 	total_len = inet_sk(sk)->cork.base.length;
-	opt = inet6_sk(sk)->cork.opt;
+	opt = inet_sk(sk)->cork.base6.opt;
 	total_len -= opt ? opt->opt_flen : 0;
 
 	if (offset >= total_len - 1) {

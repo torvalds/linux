@@ -6,6 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/font.h>
@@ -20,6 +21,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
+#include <asm/setup.h>
 
 #define NO_SCROLL
 
@@ -463,7 +465,7 @@ static noinline void draw_byte(unsigned char c, long locX, long locY)
 {
 	unsigned char *base	= calc_base(locX << 3, locY << 4);
 	unsigned int font_index = c * 16;
-	const unsigned char *font	= font_sun_8x16.data + font_index;
+	const unsigned char *font = PTRRELOC(font_sun_8x16.data) + font_index;
 	int rb			= dispDeviceRowBytes;
 
 	rmci_maybe_on();

@@ -13,6 +13,15 @@ declare -A ip_args=(
 		-D TFO_COOKIE_ZERO=b7c12350a90dc8f5
 		-D CMSG_LEVEL_IP=SOL_IP
 		-D CMSG_TYPE_RECVERR=IP_RECVERR"
+	[ipv4-mapped-ipv6]="--ip_version=ipv4-mapped-ipv6
+		--local_ip=192.168.0.1
+		--gateway_ip=192.168.0.1
+		--netmask_ip=255.255.0.0
+		--remote_ip=192.0.2.1
+		-D TFO_COOKIE=3021b9d889017eeb
+		-D TFO_COOKIE_ZERO=b7c12350a90dc8f5
+		-D CMSG_LEVEL_IP=SOL_IPV6
+		-D CMSG_TYPE_RECVERR=IPV6_RECVERR"
 	[ipv6]="--ip_version=ipv6
 		--mtu=1520
 		--local_ip=fd3d:0a0b:17d6::1
@@ -45,7 +54,7 @@ fi
 
 ip_versions=$(grep -E '^--ip_version=' $script | cut -d '=' -f 2)
 if [[ -z $ip_versions ]]; then
-	ip_versions="ipv4 ipv6"
+	ip_versions="ipv4 ipv6 ipv4-mapped-ipv6"
 elif [[ ! "$ip_versions" =~ ^ipv[46]$ ]]; then
 	ktap_exit_fail_msg "Too many or unsupported --ip_version: $ip_versions"
 	exit "$KSFT_FAIL"

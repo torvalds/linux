@@ -40,7 +40,7 @@ static int rvu_rep_mcam_flow_init(struct rep_dev *rep)
 	int ent, allocated = 0;
 	int count;
 
-	rep->flow_cfg = kcalloc(1, sizeof(struct otx2_flow_config), GFP_KERNEL);
+	rep->flow_cfg = kzalloc_objs(struct otx2_flow_config, 1);
 
 	if (!rep->flow_cfg)
 		return -ENOMEM;
@@ -504,7 +504,7 @@ static int rvu_rep_napi_init(struct otx2_nic *priv,
 	int err = 0, qidx, vec;
 	char *irq_name;
 
-	qset->napi = kcalloc(hw->cint_cnt, sizeof(*cq_poll), GFP_KERNEL);
+	qset->napi = kzalloc_objs(*cq_poll, hw->cint_cnt);
 	if (!qset->napi)
 		return -ENOMEM;
 
@@ -656,7 +656,7 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 	if (err)
 		return -ENOMEM;
 
-	priv->reps = kcalloc(rep_cnt, sizeof(struct rep_dev *), GFP_KERNEL);
+	priv->reps = kzalloc_objs(struct rep_dev *, rep_cnt);
 	if (!priv->reps)
 		return -ENOMEM;
 

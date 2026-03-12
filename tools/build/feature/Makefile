@@ -13,7 +13,7 @@ FILES=                                          \
          test-gtk2-infobar.bin                  \
          test-hello.bin                         \
          test-libbfd.bin                        \
-         test-libbfd-buildid.bin		\
+	 test-libbfd-threadsafe.bin      	\
          test-disassembler-four-args.bin        \
          test-disassembler-init-styled.bin	\
          test-reallocarray.bin			\
@@ -67,12 +67,14 @@ FILES=                                          \
          test-libopencsd.bin			\
          test-clang.bin				\
          test-llvm.bin				\
-         test-llvm-perf.bin   \
+         test-llvm-perf.bin   			\
          test-libaio.bin			\
          test-libzstd.bin			\
          test-clang-bpf-co-re.bin		\
          test-file-handle.bin			\
-         test-libpfm4.bin
+         test-libpfm4.bin			\
+         test-rust.bin				\
+         test-libopenssl.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -106,7 +108,7 @@ all: $(FILES)
 __BUILD = $(CC) $(CFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
   BUILD = $(__BUILD) > $(@:.bin=.make.output) 2>&1
   BUILD_BFD = $(BUILD) -DPACKAGE='"perf"' -lbfd -ldl
-  BUILD_ALL = $(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -lslang $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -ldl -lz -llzma -lzstd
+  BUILD_ALL = $(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -lslang $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -ldl -lz -llzma -lzstd -lssl
 
 __BUILDXX = $(CXX) $(CXXFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
   BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
@@ -267,7 +269,7 @@ $(OUTPUT)test-libpython.bin:
 $(OUTPUT)test-libbfd.bin:
 	$(BUILD_BFD)
 
-$(OUTPUT)test-libbfd-buildid.bin:
+$(OUTPUT)test-libbfd-threadsafe.bin:
 	$(BUILD_BFD) || $(BUILD_BFD) -liberty || $(BUILD_BFD) -liberty -lz
 
 $(OUTPUT)test-disassembler-four-args.bin:
@@ -381,9 +383,21 @@ $(OUTPUT)test-file-handle.bin:
 $(OUTPUT)test-libpfm4.bin:
 	$(BUILD) -lpfm
 
+$(OUTPUT)test-libopenssl.bin:
+	$(BUILD) -lssl
+
 $(OUTPUT)test-bpftool-skeletons.bin:
 	$(SYSTEM_BPFTOOL) version | grep '^features:.*skeletons' \
 		> $(@:.bin=.make.output) 2>&1
+
+# Testing Rust is special: we don't compile anything, it's enough to check the
+# compiler presence. Compiling a test code for this purposes is problematic,
+# because Rust will emit a dependency file without any external references,
+# meaning that if rustc will be removed the build process will still think it's
+# there.
+$(OUTPUT)test-rust.bin:
+	$(RUSTC) --version > /dev/null 2>&1
+
 ###############################
 
 clean:

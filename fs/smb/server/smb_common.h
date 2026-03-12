@@ -143,6 +143,7 @@ struct file_id_both_directory_info {
 
 struct smb_version_ops {
 	u16 (*get_cmd_val)(struct ksmbd_work *swork);
+	void (*inc_reqs)(unsigned int cmd);
 	int (*init_rsp_hdr)(struct ksmbd_work *swork);
 	void (*set_rsp_status)(struct ksmbd_work *swork, __le32 err);
 	int (*allocate_rsp_buf)(struct ksmbd_work *work);
@@ -165,6 +166,7 @@ struct smb_version_cmds {
 
 int ksmbd_min_protocol(void);
 int ksmbd_max_protocol(void);
+const char *ksmbd_get_protocol_string(int version);
 
 int ksmbd_lookup_protocol_idx(char *str);
 
@@ -203,4 +205,13 @@ unsigned int ksmbd_server_side_copy_max_chunk_size(void);
 unsigned int ksmbd_server_side_copy_max_total_size(void);
 bool is_asterisk(char *p);
 __le32 smb_map_generic_desired_access(__le32 daccess);
+
+/*
+ * Get the body of the smb message excluding the 4 byte rfc1002 headers
+ * from request/response buffer.
+ */
+static inline void *smb_get_msg(void *buf)
+{
+	return buf + 4;
+}
 #endif /* __SMB_SERVER_COMMON_H__ */

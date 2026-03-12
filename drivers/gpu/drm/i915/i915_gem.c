@@ -1319,7 +1319,7 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file)
 
 	drm_dbg(&i915->drm, "\n");
 
-	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc_obj(*file_priv);
 	if (!file_priv)
 		goto err_alloc;
 

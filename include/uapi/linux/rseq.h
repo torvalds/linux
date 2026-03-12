@@ -19,13 +19,20 @@ enum rseq_cpu_id_state {
 };
 
 enum rseq_flags {
-	RSEQ_FLAG_UNREGISTER = (1 << 0),
+	RSEQ_FLAG_UNREGISTER			= (1 << 0),
+	RSEQ_FLAG_SLICE_EXT_DEFAULT_ON		= (1 << 1),
 };
 
 enum rseq_cs_flags_bit {
+	/* Historical and unsupported bits */
 	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT_BIT	= 0,
 	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT	= 1,
 	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT	= 2,
+	/* (3) Intentional gap to put new bits into a separate byte */
+
+	/* User read only feature flags */
+	RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE_BIT	= 4,
+	RSEQ_CS_FLAG_SLICE_EXT_ENABLED_BIT	= 5,
 };
 
 enum rseq_cs_flags {
@@ -35,6 +42,11 @@ enum rseq_cs_flags {
 		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT),
 	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	=
 		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT),
+
+	RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE	=
+		(1U << RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE_BIT),
+	RSEQ_CS_FLAG_SLICE_EXT_ENABLED		=
+		(1U << RSEQ_CS_FLAG_SLICE_EXT_ENABLED_BIT),
 };
 
 /*
@@ -53,11 +65,39 @@ struct rseq_cs {
 	__u64 abort_ip;
 } __attribute__((aligned(4 * sizeof(__u64))));
 
-/*
- * struct rseq is aligned on 4 * 8 bytes to ensure it is always
- * contained within a single cache-line.
+/**
+ * rseq_slice_ctrl - Time slice extension control structure
+ * @all:	Compound value
+ * @request:	Request for a time slice extension
+ * @granted:	Granted time slice extension
  *
- * A single struct rseq per thread is allowed.
+ * @request is set by user space and can be cleared by user space or kernel
+ * space.  @granted is set and cleared by the kernel and must only be read
+ * by user space.
+ */
+struct rseq_slice_ctrl {
+	union {
+		__u32		all;
+		struct {
+			__u8	request;
+			__u8	granted;
+			__u16	__reserved;
+		};
+	};
+};
+
+/*
+ * The original size and alignment of the allocation for struct rseq is
+ * 32 bytes.
+ *
+ * The allocation size needs to be greater or equal to
+ * max(getauxval(AT_RSEQ_FEATURE_SIZE), 32), and the allocation needs to
+ * be aligned on max(getauxval(AT_RSEQ_ALIGN), 32).
+ *
+ * As an alternative, userspace is allowed to use both the original size
+ * and alignment of 32 bytes for backward compatibility.
+ *
+ * A single active struct rseq registration per thread is allowed.
  */
 struct rseq {
 	/*
@@ -142,9 +182,26 @@ struct rseq {
 	__u32 mm_cid;
 
 	/*
+	 * Time slice extension control structure. CPU local updates from
+	 * kernel and user space.
+	 */
+	struct rseq_slice_ctrl slice_ctrl;
+
+	/*
+	 * Before rseq became extensible, its original size was 32 bytes even
+	 * though the active rseq area was only 20 bytes.
+	 * Exposing a 32 bytes feature size would make life needlessly painful
+	 * for userspace. Therefore, add a reserved byte after byte 32
+	 * to bump the rseq feature size from 32 to 33.
+	 * The next field to be added to the rseq area will be larger
+	 * than one byte, and will replace this reserved byte.
+	 */
+	__u8 __reserved;
+
+	/*
 	 * Flexible array member at end of structure, after last feature field.
 	 */
 	char end[];
-} __attribute__((aligned(4 * sizeof(__u64))));
+} __attribute__((aligned(32)));
 
 #endif /* _UAPI_LINUX_RSEQ_H */

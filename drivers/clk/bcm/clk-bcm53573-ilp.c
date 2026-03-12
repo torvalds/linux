@@ -102,7 +102,7 @@ static void bcm53573_ilp_init(struct device_node *np)
 	const char *parent_name;
 	int err;
 
-	ilp = kzalloc(sizeof(*ilp), GFP_KERNEL);
+	ilp = kzalloc_obj(*ilp);
 	if (!ilp)
 		return;
 

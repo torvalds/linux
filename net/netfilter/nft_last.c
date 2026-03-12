@@ -30,7 +30,7 @@ static int nft_last_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	u64 last_jiffies;
 	int err;
 
-	last = kzalloc(sizeof(*last), GFP_KERNEL_ACCOUNT);
+	last = kzalloc_obj(*last, GFP_KERNEL_ACCOUNT);
 	if (!last)
 		return -ENOMEM;
 
@@ -107,7 +107,7 @@ static int nft_last_clone(struct nft_expr *dst, const struct nft_expr *src, gfp_
 	struct nft_last_priv *priv_dst = nft_expr_priv(dst);
 	struct nft_last_priv *priv_src = nft_expr_priv(src);
 
-	priv_dst->last = kzalloc(sizeof(*priv_dst->last), gfp);
+	priv_dst->last = kzalloc_obj(*priv_dst->last, gfp);
 	if (!priv_dst->last)
 		return -ENOMEM;
 

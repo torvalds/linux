@@ -290,15 +290,13 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 	if (sizeof(struct tsc2046_adc_atom) * max_count > PAGE_SIZE)
 		return -ENOSPC;
 
-	struct tsc2046_adc_atom *tx_buf __free(kfree) = kcalloc(max_count,
-								sizeof(*tx_buf),
-								GFP_KERNEL);
+	struct tsc2046_adc_atom *tx_buf __free(kfree) = kzalloc_objs(*tx_buf,
+								     max_count);
 	if (!tx_buf)
 		return -ENOMEM;
 
-	struct tsc2046_adc_atom *rx_buf __free(kfree) = kcalloc(max_count,
-								sizeof(*rx_buf),
-								GFP_KERNEL);
+	struct tsc2046_adc_atom *rx_buf __free(kfree) = kzalloc_objs(*rx_buf,
+								     max_count);
 	if (!rx_buf)
 		return -ENOMEM;
 

@@ -28,7 +28,6 @@
 struct vfio_pci_core_device;
 struct vfio_pci_region;
 struct p2pdma_provider;
-struct dma_buf_phys_vec;
 struct dma_buf_attachment;
 
 struct vfio_pci_eventfd {
@@ -62,25 +61,25 @@ struct vfio_pci_device_ops {
 	int (*get_dmabuf_phys)(struct vfio_pci_core_device *vdev,
 			       struct p2pdma_provider **provider,
 			       unsigned int region_index,
-			       struct dma_buf_phys_vec *phys_vec,
+			       struct phys_vec *phys_vec,
 			       struct vfio_region_dma_range *dma_ranges,
 			       size_t nr_ranges);
 };
 
 #if IS_ENABLED(CONFIG_VFIO_PCI_DMABUF)
-int vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+int vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 				struct vfio_region_dma_range *dma_ranges,
 				size_t nr_ranges, phys_addr_t start,
 				phys_addr_t len);
 int vfio_pci_core_get_dmabuf_phys(struct vfio_pci_core_device *vdev,
 				  struct p2pdma_provider **provider,
 				  unsigned int region_index,
-				  struct dma_buf_phys_vec *phys_vec,
+				  struct phys_vec *phys_vec,
 				  struct vfio_region_dma_range *dma_ranges,
 				  size_t nr_ranges);
 #else
 static inline int
-vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 			    struct vfio_region_dma_range *dma_ranges,
 			    size_t nr_ranges, phys_addr_t start,
 			    phys_addr_t len)
@@ -89,7 +88,7 @@ vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
 }
 static inline int vfio_pci_core_get_dmabuf_phys(
 	struct vfio_pci_core_device *vdev, struct p2pdma_provider **provider,
-	unsigned int region_index, struct dma_buf_phys_vec *phys_vec,
+	unsigned int region_index, struct phys_vec *phys_vec,
 	struct vfio_region_dma_range *dma_ranges, size_t nr_ranges)
 {
 	return -EOPNOTSUPP;
@@ -145,6 +144,13 @@ struct vfio_pci_core_device {
 	struct list_head	dmabufs;
 };
 
+enum vfio_pci_io_width {
+	VFIO_PCI_IO_WIDTH_1 = 1,
+	VFIO_PCI_IO_WIDTH_2 = 2,
+	VFIO_PCI_IO_WIDTH_4 = 4,
+	VFIO_PCI_IO_WIDTH_8 = 8,
+};
+
 /* Will be exported for vfio pci drivers usage */
 int vfio_pci_core_register_dev_region(struct vfio_pci_core_device *vdev,
 				      unsigned int type, unsigned int subtype,
@@ -188,7 +194,8 @@ pci_ers_result_t vfio_pci_core_aer_err_detected(struct pci_dev *pdev,
 ssize_t vfio_pci_core_do_io_rw(struct vfio_pci_core_device *vdev, bool test_mem,
 			       void __iomem *io, char __user *buf,
 			       loff_t off, size_t count, size_t x_start,
-			       size_t x_end, bool iswrite);
+			       size_t x_end, bool iswrite,
+			       enum vfio_pci_io_width max_width);
 bool __vfio_pci_memory_enabled(struct vfio_pci_core_device *vdev);
 bool vfio_pci_core_range_intersect_range(loff_t buf_start, size_t buf_cnt,
 					 loff_t reg_start, size_t reg_cnt,
@@ -228,6 +235,6 @@ static inline bool is_aligned_for_order(struct vm_area_struct *vma,
 }
 
 int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys);
+				 struct phys_vec *phys);
 
 #endif /* VFIO_PCI_CORE_H */

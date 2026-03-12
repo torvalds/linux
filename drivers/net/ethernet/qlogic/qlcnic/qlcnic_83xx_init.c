@@ -2388,7 +2388,7 @@ static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
 	struct qlc_83xx_fw_info *fw_info;
 	int err = 0;
 
-	ahw->fw_info = kzalloc(sizeof(*fw_info), GFP_KERNEL);
+	ahw->fw_info = kzalloc_obj(*fw_info);
 	if (!ahw->fw_info) {
 		err = -ENOMEM;
 	} else {

@@ -169,7 +169,7 @@ enum bpf_function_id {
 	profiler_bpf_sched_process_exec,
 	profiler_bpf_sched_process_exit,
 	profiler_bpf_sys_enter_kill,
-	profiler_bpf_do_filp_open_ret,
+	profiler_bpf_do_file_open_ret,
 	profiler_bpf_sched_process_fork,
 	profiler_bpf_vfs_link,
 	profiler_bpf_vfs_symlink,

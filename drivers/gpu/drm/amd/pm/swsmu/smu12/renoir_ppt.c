@@ -41,15 +41,6 @@
 #undef pr_info
 #undef pr_debug
 
-#define mmMP1_SMN_C2PMSG_66                                                                            0x0282
-#define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_82                                                                            0x0292
-#define mmMP1_SMN_C2PMSG_82_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_90                                                                            0x029a
-#define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
-
 static struct cmn2asic_msg_mapping renoir_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,                  1),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetSmuVersion,                1),
@@ -157,6 +148,7 @@ static int renoir_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -165,22 +157,23 @@ static int renoir_init_smc_tables(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
+	smu_table->clocks_table = kzalloc_obj(DpmClocks_t);
 	if (!smu_table->clocks_table)
 		goto err0_out;
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		goto err1_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v2_2),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err3_out;
 
 	return 0;
@@ -491,11 +484,12 @@ static int renoir_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 	return 0;
 }
 
-static int renoir_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int renoir_emit_clk_levels(struct smu_context *smu,
+				  enum smu_clk_type clk_type, char *buf,
+				  int *offset)
 {
-	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
+	int i, idx, size = *offset, ret = 0, start_offset = *offset;
 	SmuMetrics_t metrics;
 	bool cur_value_match_level = false;
 
@@ -504,9 +498,6 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_RANGE:
@@ -534,24 +525,24 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		/* retirve table returned paramters unit is MHz */
 		cur_value = metrics.ClockFrequency[CLOCK_GFXCLK];
 		ret = renoir_get_dpm_ultimate_freq(smu, SMU_GFXCLK, &min, &max);
-		if (!ret) {
-			/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
-			if (cur_value  == max)
-				i = 2;
-			else if (cur_value == min)
-				i = 0;
-			else
-				i = 1;
-
-			size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
-					i == 0 ? "*" : "");
-			size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
-					i == 1 ? cur_value : RENOIR_UMD_PSTATE_GFXCLK,
-					i == 1 ? "*" : "");
-			size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
-					i == 2 ? "*" : "");
-		}
-		return size - start_offset;
+		if (ret)
+			return ret;
+		/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
+		if (cur_value == max)
+			i = 2;
+		else if (cur_value == min)
+			i = 0;
+		else
+			i = 1;
+		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
+				      i == 0 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
+				      i == 1 ? cur_value :
+					       RENOIR_UMD_PSTATE_GFXCLK,
+				      i == 1 ? "*" : "");
+		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
+				      i == 2 ? "*" : "");
+		break;
 	case SMU_SOCCLK:
 		count = NUM_SOCCLK_DPM_LEVELS;
 		cur_value = metrics.ClockFrequency[CLOCK_SOCCLK];
@@ -608,7 +599,9 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context *smu)
@@ -1371,9 +1364,9 @@ static bool renoir_is_dpm_running(struct smu_context *smu)
 static ssize_t renoir_get_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_2 *gpu_metrics =
-		(struct gpu_metrics_v2_2 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_2 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int ret = 0;
 
@@ -1429,6 +1422,8 @@ static ssize_t renoir_get_gpu_metrics(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v2_2);
 }
 
@@ -1439,18 +1434,18 @@ static int renoir_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 }
 
 static int renoir_get_enabled_mask(struct smu_context *smu,
-				   uint64_t *feature_mask)
+				   struct smu_feature_bits *feature_mask)
 {
 	if (!feature_mask)
 		return -EINVAL;
-	memset(feature_mask, 0xff, sizeof(*feature_mask));
+	smu_feature_bits_fill(feature_mask);
 
 	return 0;
 }
 
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_power_state = NULL,
-	.print_clk_levels = renoir_print_clk_levels,
+	.emit_clk_levels = renoir_emit_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
@@ -1464,8 +1459,6 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.check_fw_status = smu_v12_0_check_fw_status,
 	.check_fw_version = smu_v12_0_check_fw_version,
 	.powergate_sdma = smu_v12_0_powergate_sdma,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.set_gfx_cgpg = smu_v12_0_set_gfx_cgpg,
 	.gfx_off_control = smu_v12_0_gfx_off_control,
 	.get_gfx_off_status = smu_v12_0_get_gfxoff_status,
@@ -1491,16 +1484,11 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
-
 	smu->ppt_funcs = &renoir_ppt_funcs;
-	smu->message_map = renoir_message_map;
 	smu->clock_map = renoir_clk_map;
 	smu->table_map = renoir_table_map;
 	smu->workload_map = renoir_workload_map;
 	smu->smc_driver_if_version = SMU12_DRIVER_IF_VERSION;
 	smu->is_apu = true;
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
+	smu_v12_0_init_msg_ctl(smu, renoir_message_map);
 }

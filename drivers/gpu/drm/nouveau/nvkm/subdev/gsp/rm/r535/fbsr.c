@@ -184,7 +184,7 @@ fbsr_vram(struct fbsr *fbsr, const char *type, u64 addr, u64 size)
 {
 	struct fbsr_item *item;
 
-	if (!(item = kzalloc(sizeof(*item), GFP_KERNEL)))
+	if (!(item = kzalloc_obj(*item)))
 		return false;
 
 	item->type = type;
@@ -208,7 +208,7 @@ r535_fbsr_resume(struct nvkm_gsp *gsp)
 }
 
 static int
-r535_fbsr_suspend(struct nvkm_gsp *gsp)
+r535_fbsr_suspend(struct nvkm_gsp *gsp, bool runtime)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -309,7 +309,7 @@ r535_instmem_new(const struct nvkm_instmem_func *hw,
 	struct nvkm_instmem_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm)))
 		return -ENOMEM;
 
 	rm->dtor = r535_instmem_dtor;

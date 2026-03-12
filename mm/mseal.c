@@ -21,7 +21,7 @@
  * It disallows unmapped regions from start to end whether they exist at the
  * start, in the middle, or at the end of the range, or any combination thereof.
  *
- * This is because after sealng a range, there's nothing to stop memory mapping
+ * This is because after sealing a range, there's nothing to stop memory mapping
  * of ranges in the remaining gaps later, meaning that the user might then
  * wrongly consider the entirety of the mseal()'d range to be sealed when it
  * in fact isn't.
@@ -124,7 +124,7 @@ static int mseal_apply(struct mm_struct *mm,
  *  -EINVAL:
  *   invalid input flags.
  *   start address is not page aligned.
- *   Address arange (start + len) overflow.
+ *   Address range (start + len) overflow.
  *  -ENOMEM:
  *   addr is not a valid address (not allocated).
  *   end (start + len) is not a valid address.

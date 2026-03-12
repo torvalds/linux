@@ -120,7 +120,7 @@ static acpi_status handle_ioapic_add(acpi_handle handle, u32 lvl,
 		goto exit;
 	}
 
-	ioapic = kzalloc(sizeof(*ioapic), GFP_KERNEL);
+	ioapic = kzalloc_obj(*ioapic);
 	if (!ioapic) {
 		pr_err("cannot allocate memory for new IOAPIC\n");
 		goto exit;

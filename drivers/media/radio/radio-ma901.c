@@ -346,7 +346,7 @@ static int usb_ma901radio_probe(struct usb_interface *intf,
 		|| strncmp(dev->manufacturer, "www.masterkit.ru", 16) != 0))
 		return -ENODEV;
 
-	radio = kzalloc(sizeof(struct ma901radio_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct ma901radio_device);
 	if (!radio) {
 		dev_err(&intf->dev, "kzalloc for ma901radio_device failed\n");
 		retval = -ENOMEM;

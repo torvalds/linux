@@ -38,11 +38,12 @@ struct scmi_pinctrl_imx {
 };
 
 /* SCMI pin control types, aligned with SCMI firmware */
-#define IMX_SCMI_NUM_CFG	4
+#define IMX_SCMI_NUM_CFG	5
 #define IMX_SCMI_PIN_MUX	192
 #define IMX_SCMI_PIN_CONFIG	193
 #define IMX_SCMI_PIN_DAISY_ID	194
 #define IMX_SCMI_PIN_DAISY_CFG	195
+#define IMX_SCMI_PIN_EXT	196
 
 #define IMX_SCMI_NO_PAD_CTL		BIT(31)
 #define IMX_SCMI_PAD_SION		BIT(30)
@@ -50,8 +51,9 @@ struct scmi_pinctrl_imx {
 
 #define IMX_SCMI_PIN_SIZE	24
 
-#define IMX95_DAISY_OFF		0x408
 #define IMX94_DAISY_OFF		0x608
+#define IMX95_DAISY_OFF		0x408
+#define IMX952_DAISY_OFF	0x460
 
 static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 					   struct device_node *np,
@@ -73,6 +75,8 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 			daisy_off = IMX95_DAISY_OFF;
 		} else if (of_machine_is_compatible("fsl,imx94")) {
 			daisy_off = IMX94_DAISY_OFF;
+		} else if (of_machine_is_compatible("fsl,imx952")) {
+			daisy_off = IMX952_DAISY_OFF;
 		} else {
 			dev_err(pctldev->dev, "platform not support scmi pinctrl\n");
 			return -EINVAL;
@@ -95,8 +99,7 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	num_pins = size / pin_size;
 	map_num = num_pins;
 
-	new_map = kmalloc_array(map_num, sizeof(struct pinctrl_map),
-				GFP_KERNEL);
+	new_map = kmalloc_objs(struct pinctrl_map, map_num);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -118,7 +121,14 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		pin_id = mux_reg / 4;
 
-		cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_MUX, mux_val);
+		cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_MUX, (mux_val & 0xFF));
+
+		if (mux_val & 0xFF00) {
+			int ext_val = (mux_val & 0xFF00) >> 8;
+
+			cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_EXT, ext_val);
+		} else
+			ncfg--;
 
 		if (!conf_reg || (conf_val & IMX_SCMI_NO_PAD_CTL))
 			ncfg--;
@@ -291,8 +301,9 @@ scmi_pinctrl_imx_get_pins(struct scmi_pinctrl_imx *pmx, struct pinctrl_desc *des
 }
 
 static const char * const scmi_pinctrl_imx_allowlist[] = {
-	"fsl,imx95",
 	"fsl,imx94",
+	"fsl,imx95",
+	"fsl,imx952",
 	NULL
 };
 

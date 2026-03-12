@@ -185,8 +185,7 @@ static int scan_header(struct partition *part)
 	if (!part->header_cache)
 		goto err;
 
-	part->blocks = kcalloc(part->total_blocks, sizeof(struct block),
-			GFP_KERNEL);
+	part->blocks = kzalloc_objs(struct block, part->total_blocks);
 	if (!part->blocks)
 		goto err;
 
@@ -270,7 +269,7 @@ static int erase_block(struct partition *part, int block)
 	struct erase_info *erase;
 	int rc;
 
-	erase = kmalloc(sizeof(struct erase_info), GFP_KERNEL);
+	erase = kmalloc_obj(struct erase_info);
 	if (!erase)
 		return -ENOMEM;
 
@@ -752,7 +751,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	    mtd->size > UINT_MAX)
 		return;
 
-	part = kzalloc(sizeof(struct partition), GFP_KERNEL);
+	part = kzalloc_obj(struct partition);
 	if (!part)
 		return;
 

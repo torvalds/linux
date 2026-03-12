@@ -2513,7 +2513,6 @@ static const struct nvkm_device_chip
 nv170_chipset = {
 	.name = "GA100",
 	.bar      = { 0x00000001, tu102_bar_new },
-	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga100_fb_new },
@@ -2530,6 +2529,7 @@ nv170_chipset = {
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.ce       = { 0x000003ff, ga100_ce_new },
 	.fifo     = { 0x00000001, ga100_fifo_new },
+	.sec2     = { 0x00000001, tu102_sec2_new },
 };
 
 static const struct nvkm_device_chip
@@ -2936,13 +2936,25 @@ nvkm_device_engine(struct nvkm_device *device, int type, int inst)
 }
 
 int
-nvkm_device_fini(struct nvkm_device *device, bool suspend)
+nvkm_device_fini(struct nvkm_device *device, enum nvkm_suspend_state suspend)
 {
-	const char *action = suspend ? "suspend" : "fini";
+	const char *action;
 	struct nvkm_subdev *subdev;
 	int ret;
 	s64 time;
 
+	switch (suspend) {
+	case NVKM_POWEROFF:
+	default:
+		action = "fini";
+		break;
+	case NVKM_SUSPEND:
+		action = "suspend";
+		break;
+	case NVKM_RUNTIME_SUSPEND:
+		action = "runtime";
+		break;
+	}
 	nvdev_trace(device, "%s running...\n", action);
 	time = ktime_to_us(ktime_get());
 
@@ -3032,7 +3044,7 @@ nvkm_device_init(struct nvkm_device *device)
 	if (ret)
 		return ret;
 
-	nvkm_device_fini(device, false);
+	nvkm_device_fini(device, NVKM_POWEROFF);
 
 	nvdev_trace(device, "init running...\n");
 	time = ktime_to_us(ktime_get());
@@ -3060,9 +3072,9 @@ nvkm_device_init(struct nvkm_device *device)
 
 fail_subdev:
 	list_for_each_entry_from(subdev, &device->subdev, head)
-		nvkm_subdev_fini(subdev, false);
+		nvkm_subdev_fini(subdev, NVKM_POWEROFF);
 fail:
-	nvkm_device_fini(device, false);
+	nvkm_device_fini(device, NVKM_POWEROFF);
 
 	nvdev_error(device, "init failed with %d\n", ret);
 	return ret;
@@ -3329,6 +3341,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	case 0x166: device->chip = &nv166_chipset; break;
 	case 0x167: device->chip = &nv167_chipset; break;
 	case 0x168: device->chip = &nv168_chipset; break;
+	case 0x170: device->chip = &nv170_chipset; break;
 	case 0x172: device->chip = &nv172_chipset; break;
 	case 0x173: device->chip = &nv173_chipset; break;
 	case 0x174: device->chip = &nv174_chipset; break;
@@ -3348,14 +3361,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	case 0x1b6: device->chip = &nv1b6_chipset; break;
 	case 0x1b7: device->chip = &nv1b7_chipset; break;
 	default:
-		if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
-			switch (device->chipset) {
-			case 0x170: device->chip = &nv170_chipset; break;
-			default:
-				break;
-			}
-		}
-
 		if (!device->chip) {
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			ret = -ENODEV;

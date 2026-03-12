@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
+#include <linux/hex.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>

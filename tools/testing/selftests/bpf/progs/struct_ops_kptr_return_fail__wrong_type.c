@@ -12,7 +12,7 @@ void bpf_task_release(struct task_struct *p) __ksym;
  * reject programs returning a referenced kptr of the wrong type.
  */
 SEC("struct_ops/test_return_ref_kptr")
-__failure __msg("At program exit the register R0 is not a known value (ptr_or_null_)")
+__failure __msg("At program exit the register R0 is not a known value (trusted_ptr_or_null_)")
 struct task_struct *BPF_PROG(kptr_return_fail__wrong_type, int dummy,
 			     struct task_struct *task, struct cgroup *cgrp)
 {

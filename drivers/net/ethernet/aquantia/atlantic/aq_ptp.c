@@ -1130,8 +1130,7 @@ static void aq_ptp_gpio_init(struct ptp_clock_info *info,
 	if (!info->n_pins)
 		return;
 
-	info->pin_config = kcalloc(info->n_pins, sizeof(struct ptp_pin_desc),
-				   GFP_KERNEL);
+	info->pin_config = kzalloc_objs(struct ptp_pin_desc, info->n_pins);
 
 	if (!info->pin_config)
 		return;
@@ -1183,7 +1182,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 
 	aq_ptp_offset_init(&mbox.info.ptp_offset);
 
-	aq_ptp = kzalloc(sizeof(*aq_ptp), GFP_KERNEL);
+	aq_ptp = kzalloc_obj(*aq_ptp);
 	if (!aq_ptp) {
 		err = -ENOMEM;
 		goto err_exit;

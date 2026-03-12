@@ -93,8 +93,8 @@ static int clk_mt6735_apmixed_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, clk_data);
 
-	ret = mtk_clk_register_plls(pdev->dev.of_node, apmixedsys_plls,
-				   ARRAY_SIZE(apmixedsys_plls), clk_data);
+	ret = mtk_clk_register_plls(&pdev->dev, apmixedsys_plls,
+				    ARRAY_SIZE(apmixedsys_plls), clk_data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register PLLs: %d\n", ret);
 		return ret;

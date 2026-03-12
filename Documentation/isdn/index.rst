@@ -12,10 +12,3 @@ ISDN
    m_isdn
 
    credits
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

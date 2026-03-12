@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/bsg-lib.h>
 #include <scsi/scsi_device.h>
@@ -1328,6 +1329,46 @@ store_fc_rport_fast_io_fail_tmo(struct device *dev,
 static FC_DEVICE_ATTR(rport, fast_io_fail_tmo, S_IRUGO | S_IWUSR,
 	show_fc_rport_fast_io_fail_tmo, store_fc_rport_fast_io_fail_tmo);
 
+#define fc_rport_encryption(name)							\
+static ssize_t fc_rport_encinfo_##name(struct device *cd,				\
+				       struct device_attribute *attr,			\
+				       char *buf)					\
+{											\
+	struct fc_rport *rport = transport_class_to_rport(cd);				\
+	struct Scsi_Host *shost = rport_to_shost(rport);				\
+	struct fc_internal *i = to_fc_internal(shost->transportt);			\
+	struct fc_encryption_info *info;						\
+	ssize_t ret = -ENOENT;								\
+	u32 data;									\
+											\
+	if (i->f->get_fc_rport_enc_info) {						\
+		info = (i->f->get_fc_rport_enc_info)(rport);				\
+		if (info) {								\
+			data = info->name;						\
+			if (!strcmp(#name, "status")) {					\
+				ret = scnprintf(buf,					\
+						FC_RPORT_ENCRYPTION_STATUS_MAX_LEN,	\
+						"%s\n",					\
+						data ? "Encrypted" : "Unencrypted");	\
+			}								\
+		}									\
+	}										\
+	return ret;									\
+}											\
+static FC_DEVICE_ATTR(rport, encryption_##name, 0444, fc_rport_encinfo_##name, NULL)	\
+
+fc_rport_encryption(status);
+
+static struct attribute *fc_rport_encryption_attrs[] = {
+	&device_attr_rport_encryption_status.attr,
+	NULL
+};
+
+static struct attribute_group fc_rport_encryption_group = {
+	.name = "encryption",
+	.attrs = fc_rport_encryption_attrs,
+};
+
 #define fc_rport_fpin_statistic(name)					\
 static ssize_t fc_rport_fpinstat_##name(struct device *cd,		\
 				  struct device_attribute *attr,	\
@@ -2610,8 +2651,7 @@ struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
 	int count;
-	struct fc_internal *i = kzalloc(sizeof(struct fc_internal),
-					GFP_KERNEL);
+	struct fc_internal *i = kzalloc_obj(struct fc_internal);
 
 	if (unlikely(!i))
 		return NULL;
@@ -2633,6 +2673,8 @@ fc_attach_transport(struct fc_function_template *ft)
 	i->rport_attr_cont.ac.attrs = &i->rport_attrs[0];
 	i->rport_attr_cont.ac.class = &fc_rport_class.class;
 	i->rport_attr_cont.ac.match = fc_rport_match;
+	if (ft->get_fc_rport_enc_info)
+		i->rport_attr_cont.encryption = &fc_rport_encryption_group;
 	i->rport_attr_cont.statistics = &fc_rport_statistics_group;
 	transport_container_register(&i->rport_attr_cont);
 

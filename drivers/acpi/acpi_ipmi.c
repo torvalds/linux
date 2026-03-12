@@ -117,7 +117,7 @@ ipmi_dev_alloc(int iface, struct device *dev, acpi_handle handle)
 	int err;
 	struct ipmi_user *user;
 
-	ipmi_device = kzalloc(sizeof(*ipmi_device), GFP_KERNEL);
+	ipmi_device = kzalloc_obj(*ipmi_device);
 	if (!ipmi_device)
 		return NULL;
 
@@ -197,7 +197,7 @@ static struct acpi_ipmi_msg *ipmi_msg_alloc(void)
 	if (!ipmi)
 		return NULL;
 
-	ipmi_msg = kzalloc(sizeof(struct acpi_ipmi_msg), GFP_KERNEL);
+	ipmi_msg = kzalloc_obj(struct acpi_ipmi_msg);
 	if (!ipmi_msg) {
 		acpi_ipmi_dev_put(ipmi);
 		return NULL;

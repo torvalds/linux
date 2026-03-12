@@ -111,7 +111,7 @@ void dal_hw_generic_init(
 		*hw_generic = NULL;
 	}
 
-	*hw_generic = kzalloc(sizeof(struct hw_generic), GFP_KERNEL);
+	*hw_generic = kzalloc_obj(struct hw_generic);
 	if (!*hw_generic) {
 		ASSERT_CRITICAL(false);
 		return;

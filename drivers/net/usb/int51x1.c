@@ -4,12 +4,9 @@
  *
  * Intellon usb PLC (Powerline Communications) usb net driver
  *
- * http://www.tandel.be/downloads/INT51X1_Datasheet.pdf
+ * https://web.archive.org/web/20101025091240id_/http://www.tandel.be/downloads/INT51X1_Datasheet.pdf
  *
  * Based on the work of Jan 'RedBully' Seiffert
- */
-
-/*
  */
 
 #include <linux/module.h>
@@ -26,14 +23,6 @@
 #define INT51X1_PRODUCT_ID	0x5121
 
 #define INT51X1_HEADER_SIZE	2	/* 2 byte header */
-
-#define PACKET_TYPE_PROMISCUOUS		(1 << 0)
-#define PACKET_TYPE_ALL_MULTICAST	(1 << 1) /* no filter */
-#define PACKET_TYPE_DIRECTED		(1 << 2)
-#define PACKET_TYPE_BROADCAST		(1 << 3)
-#define PACKET_TYPE_MULTICAST		(1 << 4) /* filtered */
-
-#define SET_ETHERNET_PACKET_FILTER	0x43
 
 static int int51x1_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
@@ -104,29 +93,6 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	return skb;
 }
 
-static void int51x1_set_multicast(struct net_device *netdev)
-{
-	struct usbnet *dev = netdev_priv(netdev);
-	u16 filter = PACKET_TYPE_DIRECTED | PACKET_TYPE_BROADCAST;
-
-	if (netdev->flags & IFF_PROMISC) {
-		/* do not expect to see traffic of other PLCs */
-		filter |= PACKET_TYPE_PROMISCUOUS;
-		netdev_info(dev->net, "promiscuous mode enabled\n");
-	} else if (!netdev_mc_empty(netdev) ||
-		  (netdev->flags & IFF_ALLMULTI)) {
-		filter |= PACKET_TYPE_ALL_MULTICAST;
-		netdev_dbg(dev->net, "receive all multicast enabled\n");
-	} else {
-		/* ~PROMISCUOUS, ~MULTICAST */
-		netdev_dbg(dev->net, "receive own packets only\n");
-	}
-
-	usbnet_write_cmd_async(dev, SET_ETHERNET_PACKET_FILTER,
-			       USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			       filter, 0, NULL, 0);
-}
-
 static const struct net_device_ops int51x1_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -136,7 +102,7 @@ static const struct net_device_ops int51x1_netdev_ops = {
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_rx_mode	= int51x1_set_multicast,
+	.ndo_set_rx_mode	= usbnet_set_rx_mode,
 };
 
 static int int51x1_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -158,6 +124,7 @@ static const struct driver_info int51x1_info = {
 	.bind        = int51x1_bind,
 	.rx_fixup    = int51x1_rx_fixup,
 	.tx_fixup    = int51x1_tx_fixup,
+	.set_rx_mode = usbnet_cdc_update_filter,
 	.in          = 1,
 	.out         = 2,
 	.flags       = FLAG_ETHER,

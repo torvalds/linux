@@ -3554,7 +3554,7 @@ static int mvneta_txq_sw_init(struct mvneta_port *pp,
 
 	txq->last_desc = txq->size - 1;
 
-	txq->buf = kmalloc_array(txq->size, sizeof(*txq->buf), GFP_KERNEL);
+	txq->buf = kmalloc_objs(*txq->buf, txq->size);
 	if (!txq->buf)
 		return -ENOMEM;
 

@@ -54,9 +54,80 @@ static void power_off(struct drm_bridge *bridge)
 #define SPD_IFRAME_LINE_NUMBER 1
 #define VENSPEC_IFRAME_LINE_NUMBER 3
 
-static int msm_hdmi_config_avi_infoframe(struct hdmi *hdmi,
-					 const u8 *buffer, size_t len)
+static int msm_hdmi_bridge_clear_avi_infoframe(struct drm_bridge *bridge)
 {
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	u32 val;
+
+	val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL0);
+	val &= ~(HDMI_INFOFRAME_CTRL0_AVI_SEND |
+		 HDMI_INFOFRAME_CTRL0_AVI_CONT);
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0, val);
+
+	val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL1);
+	val &= ~HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__MASK;
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL1, val);
+
+	return 0;
+}
+
+static int msm_hdmi_bridge_clear_audio_infoframe(struct drm_bridge *bridge)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	u32 val;
+
+	val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL0);
+	val &= ~(HDMI_INFOFRAME_CTRL0_AUDIO_INFO_SEND |
+		 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_CONT |
+		 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_SOURCE |
+		 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_UPDATE);
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0, val);
+
+	val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL1);
+	val &= ~HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__MASK;
+	hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL1, val);
+
+	return 0;
+}
+
+static int msm_hdmi_bridge_clear_spd_infoframe(struct drm_bridge *bridge)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	u32 val;
+
+	val = hdmi_read(hdmi, REG_HDMI_GEN_PKT_CTRL);
+	val &= ~(HDMI_GEN_PKT_CTRL_GENERIC1_SEND |
+		 HDMI_GEN_PKT_CTRL_GENERIC1_CONT |
+		 HDMI_GEN_PKT_CTRL_GENERIC1_LINE__MASK);
+	hdmi_write(hdmi, REG_HDMI_GEN_PKT_CTRL, val);
+
+	return 0;
+}
+
+static int msm_hdmi_bridge_clear_hdmi_infoframe(struct drm_bridge *bridge)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
+	u32 val;
+
+	val = hdmi_read(hdmi, REG_HDMI_GEN_PKT_CTRL);
+	val &= ~(HDMI_GEN_PKT_CTRL_GENERIC0_SEND |
+		 HDMI_GEN_PKT_CTRL_GENERIC0_CONT |
+		 HDMI_GEN_PKT_CTRL_GENERIC0_UPDATE |
+		 HDMI_GEN_PKT_CTRL_GENERIC0_LINE__MASK);
+	hdmi_write(hdmi, REG_HDMI_GEN_PKT_CTRL, val);
+
+	return 0;
+}
+
+static int msm_hdmi_bridge_write_avi_infoframe(struct drm_bridge *bridge,
+					       const u8 *buffer, size_t len)
+{
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	u32 buf[4] = {};
 	u32 val;
 	int i;
@@ -66,6 +137,8 @@ static int msm_hdmi_config_avi_infoframe(struct hdmi *hdmi,
 			"failed to configure avi infoframe\n");
 		return -EINVAL;
 	}
+
+	msm_hdmi_bridge_clear_avi_infoframe(bridge);
 
 	/*
 	 * the AVI_INFOx registers don't map exactly to how the AVI infoframes
@@ -93,9 +166,11 @@ static int msm_hdmi_config_avi_infoframe(struct hdmi *hdmi,
 	return 0;
 }
 
-static int msm_hdmi_config_audio_infoframe(struct hdmi *hdmi,
-					   const u8 *buffer, size_t len)
+static int msm_hdmi_bridge_write_audio_infoframe(struct drm_bridge *bridge,
+						 const u8 *buffer, size_t len)
 {
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	u32 val;
 
 	if (len != HDMI_INFOFRAME_SIZE(AUDIO)) {
@@ -103,6 +178,8 @@ static int msm_hdmi_config_audio_infoframe(struct hdmi *hdmi,
 			"failed to configure audio infoframe\n");
 		return -EINVAL;
 	}
+
+	msm_hdmi_bridge_clear_audio_infoframe(bridge);
 
 	hdmi_write(hdmi, REG_HDMI_AUDIO_INFO0,
 		   buffer[3] |
@@ -126,9 +203,11 @@ static int msm_hdmi_config_audio_infoframe(struct hdmi *hdmi,
 	return 0;
 }
 
-static int msm_hdmi_config_spd_infoframe(struct hdmi *hdmi,
-					 const u8 *buffer, size_t len)
+static int msm_hdmi_bridge_write_spd_infoframe(struct drm_bridge *bridge,
+					       const u8 *buffer, size_t len)
 {
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	u32 buf[7] = {};
 	u32 val;
 	int i;
@@ -138,6 +217,8 @@ static int msm_hdmi_config_spd_infoframe(struct hdmi *hdmi,
 			"failed to configure SPD infoframe\n");
 		return -EINVAL;
 	}
+
+	msm_hdmi_bridge_clear_spd_infoframe(bridge);
 
 	/* checksum gets written together with the body of the frame */
 	hdmi_write(hdmi, REG_HDMI_GENERIC1_HDR,
@@ -159,9 +240,11 @@ static int msm_hdmi_config_spd_infoframe(struct hdmi *hdmi,
 	return 0;
 }
 
-static int msm_hdmi_config_hdmi_infoframe(struct hdmi *hdmi,
-					  const u8 *buffer, size_t len)
+static int msm_hdmi_bridge_write_hdmi_infoframe(struct drm_bridge *bridge,
+						const u8 *buffer, size_t len)
 {
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	u32 buf[7] = {};
 	u32 val;
 	int i;
@@ -172,6 +255,8 @@ static int msm_hdmi_config_hdmi_infoframe(struct hdmi *hdmi,
 			"failed to configure HDMI infoframe\n");
 		return -EINVAL;
 	}
+
+	msm_hdmi_bridge_clear_hdmi_infoframe(bridge);
 
 	/* checksum gets written together with the body of the frame */
 	hdmi_write(hdmi, REG_HDMI_GENERIC0_HDR,
@@ -192,90 +277,6 @@ static int msm_hdmi_config_hdmi_infoframe(struct hdmi *hdmi,
 	hdmi_write(hdmi, REG_HDMI_GEN_PKT_CTRL, val);
 
 	return 0;
-}
-
-static int msm_hdmi_bridge_clear_infoframe(struct drm_bridge *bridge,
-					   enum hdmi_infoframe_type type)
-{
-	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
-	struct hdmi *hdmi = hdmi_bridge->hdmi;
-	u32 val;
-
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
-		val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL0);
-		val &= ~(HDMI_INFOFRAME_CTRL0_AVI_SEND |
-			 HDMI_INFOFRAME_CTRL0_AVI_CONT);
-		hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0, val);
-
-		val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL1);
-		val &= ~HDMI_INFOFRAME_CTRL1_AVI_INFO_LINE__MASK;
-		hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL1, val);
-
-		break;
-
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL0);
-		val &= ~(HDMI_INFOFRAME_CTRL0_AUDIO_INFO_SEND |
-			 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_CONT |
-			 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_SOURCE |
-			 HDMI_INFOFRAME_CTRL0_AUDIO_INFO_UPDATE);
-		hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL0, val);
-
-		val = hdmi_read(hdmi, REG_HDMI_INFOFRAME_CTRL1);
-		val &= ~HDMI_INFOFRAME_CTRL1_AUDIO_INFO_LINE__MASK;
-		hdmi_write(hdmi, REG_HDMI_INFOFRAME_CTRL1, val);
-
-		break;
-
-	case HDMI_INFOFRAME_TYPE_SPD:
-		val = hdmi_read(hdmi, REG_HDMI_GEN_PKT_CTRL);
-		val &= ~(HDMI_GEN_PKT_CTRL_GENERIC1_SEND |
-			 HDMI_GEN_PKT_CTRL_GENERIC1_CONT |
-			 HDMI_GEN_PKT_CTRL_GENERIC1_LINE__MASK);
-		hdmi_write(hdmi, REG_HDMI_GEN_PKT_CTRL, val);
-
-		break;
-
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		val = hdmi_read(hdmi, REG_HDMI_GEN_PKT_CTRL);
-		val &= ~(HDMI_GEN_PKT_CTRL_GENERIC0_SEND |
-			 HDMI_GEN_PKT_CTRL_GENERIC0_CONT |
-			 HDMI_GEN_PKT_CTRL_GENERIC0_UPDATE |
-			 HDMI_GEN_PKT_CTRL_GENERIC0_LINE__MASK);
-		hdmi_write(hdmi, REG_HDMI_GEN_PKT_CTRL, val);
-
-		break;
-
-	default:
-		drm_dbg_driver(hdmi_bridge->base.dev, "Unsupported infoframe type %x\n", type);
-	}
-
-	return 0;
-}
-
-static int msm_hdmi_bridge_write_infoframe(struct drm_bridge *bridge,
-					   enum hdmi_infoframe_type type,
-					   const u8 *buffer, size_t len)
-{
-	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
-	struct hdmi *hdmi = hdmi_bridge->hdmi;
-
-	msm_hdmi_bridge_clear_infoframe(bridge, type);
-
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
-		return msm_hdmi_config_avi_infoframe(hdmi, buffer, len);
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		return msm_hdmi_config_audio_infoframe(hdmi, buffer, len);
-	case HDMI_INFOFRAME_TYPE_SPD:
-		return msm_hdmi_config_spd_infoframe(hdmi, buffer, len);
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		return msm_hdmi_config_hdmi_infoframe(hdmi, buffer, len);
-	default:
-		drm_dbg_driver(hdmi_bridge->base.dev, "Unsupported infoframe type %x\n", type);
-		return 0;
-	}
 }
 
 static void msm_hdmi_set_timings(struct hdmi *hdmi,
@@ -462,8 +463,14 @@ static const struct drm_bridge_funcs msm_hdmi_bridge_funcs = {
 	.hpd_enable = msm_hdmi_hpd_enable,
 	.hpd_disable = msm_hdmi_hpd_disable,
 	.hdmi_tmds_char_rate_valid = msm_hdmi_bridge_tmds_char_rate_valid,
-	.hdmi_clear_infoframe = msm_hdmi_bridge_clear_infoframe,
-	.hdmi_write_infoframe = msm_hdmi_bridge_write_infoframe,
+	.hdmi_clear_audio_infoframe = msm_hdmi_bridge_clear_audio_infoframe,
+	.hdmi_write_audio_infoframe = msm_hdmi_bridge_write_audio_infoframe,
+	.hdmi_clear_avi_infoframe = msm_hdmi_bridge_clear_avi_infoframe,
+	.hdmi_write_avi_infoframe = msm_hdmi_bridge_write_avi_infoframe,
+	.hdmi_clear_spd_infoframe = msm_hdmi_bridge_clear_spd_infoframe,
+	.hdmi_write_spd_infoframe = msm_hdmi_bridge_write_spd_infoframe,
+	.hdmi_clear_hdmi_infoframe = msm_hdmi_bridge_clear_hdmi_infoframe,
+	.hdmi_write_hdmi_infoframe = msm_hdmi_bridge_write_hdmi_infoframe,
 	.hdmi_audio_prepare = msm_hdmi_bridge_audio_prepare,
 	.hdmi_audio_shutdown = msm_hdmi_bridge_audio_shutdown,
 };

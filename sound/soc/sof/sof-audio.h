@@ -209,6 +209,7 @@ struct sof_ipc_tplg_widget_ops {
  * @widget_setup: Function pointer for setting up setup in the DSP
  * @widget_free: Function pointer for freeing widget in the DSP
  * @dai_config: Function pointer for sending DAI config IPC to the DSP
+ * @host_config: Function pointer for setting the DMA ID for host widgets
  * @dai_get_param: Function pointer for getting the DAI parameter
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
@@ -230,6 +231,8 @@ struct sof_ipc_tplg_ops {
 	int (*widget_free)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 	int (*dai_config)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 			  unsigned int flags, struct snd_sof_dai_config_data *data);
+	void (*host_config)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			    struct snd_sof_platform_stream_params *platform_params);
 	int (*dai_get_param)(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int param_type);
 	int (*set_up_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
 	int (*tear_down_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
@@ -351,7 +354,9 @@ struct snd_sof_pcm {
 	struct snd_sof_pcm_stream stream[2];
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
+	struct snd_sof_platform_stream_params platform_params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
+	bool setup_done[2]; /* the setup of the SOF PCM device is done */
 	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
 
 	/* Must be last - ends in a flex-array member. */
@@ -454,6 +459,11 @@ struct snd_sof_widget {
 	/* Scheduling domain (enum sof_comp_domain), unset, Low Latency, or Data Processing */
 	u32 comp_domain;
 
+	/* The values below are added to mod_init pay load if comp_domain indicates DP component */
+	u32 dp_domain_id;	/* DP process userspace domain ID */
+	u32 dp_stack_bytes;	/* DP process stack size requirement in bytes */
+	u32 dp_heap_bytes;	/* DP process heap size requirement in bytes */
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_pipeline *spipe;
@@ -502,6 +512,9 @@ struct snd_sof_widget {
  * @complete: flag used to indicate that pipeline set up is complete.
  * @core_mask: Mask containing target cores for all modules in the pipeline
  * @list: List item in sdev pipeline_list
+ * @direction_valid: flag indicating if the direction is set in topology
+ * @direction: pipeline direction set in topology, valid is direction_valid is true
+ *
  */
 struct snd_sof_pipeline {
 	struct snd_sof_widget *pipe_widget;
@@ -510,6 +523,8 @@ struct snd_sof_pipeline {
 	int complete;
 	unsigned long core_mask;
 	struct list_head list;
+	bool direction_valid;
+	u32 direction;
 };
 
 /* ASoC SOF DAPM route */
@@ -668,6 +683,11 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 			  struct snd_pcm_hw_params *fe_params,
 			  struct snd_sof_platform_stream_params *platform_params,
 			  int dir);
+int sof_widget_list_prepare(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+			    struct snd_pcm_hw_params *fe_params,
+			    struct snd_sof_platform_stream_params *platform_params,
+			    int dir);
+void sof_widget_list_unprepare(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
 			 struct snd_sof_pcm *spcm);

@@ -159,7 +159,7 @@ int libipw_register_crypto_ops(const struct libipw_crypto_ops *ops)
 	unsigned long flags;
 	struct libipw_crypto_alg *alg;
 
-	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
+	alg = kzalloc_obj(*alg);
 	if (alg == NULL)
 		return -ENOMEM;
 

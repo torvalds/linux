@@ -87,7 +87,7 @@ static int usbtv_probe(struct usb_interface *intf,
 	size = size * usb_endpoint_maxp_mult(&ep->desc);
 
 	/* Device structure */
-	usbtv = kzalloc(sizeof(struct usbtv), GFP_KERNEL);
+	usbtv = kzalloc_obj(struct usbtv);
 	if (usbtv == NULL)
 		return -ENOMEM;
 	usbtv->dev = dev;

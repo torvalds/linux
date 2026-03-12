@@ -866,12 +866,16 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 		print_cpus();
 
 	ret = scx_bpf_create_dsq(SHARED_DSQ, -1);
-	if (ret)
+	if (ret) {
+		scx_bpf_error("failed to create DSQ %d (%d)", SHARED_DSQ, ret);
 		return ret;
+	}
 
 	ret = scx_bpf_create_dsq(HIGHPRI_DSQ, -1);
-	if (ret)
+	if (ret) {
+		scx_bpf_error("failed to create DSQ %d (%d)", HIGHPRI_DSQ, ret);
 		return ret;
+	}
 
 	timer = bpf_map_lookup_elem(&monitor_timer, &key);
 	if (!timer)

@@ -40,7 +40,7 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 	struct auxiliary_device *auxdev;
 	int ret;
 
-	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
+	ldev = kzalloc_obj(*ldev);
 	if (!ldev)
 		return ERR_PTR(-ENOMEM);
 
@@ -186,7 +186,7 @@ static struct sdw_intel_ctx
 	 * the parent .probe.
 	 * If devm_ was used, the memory might never be freed on errors.
 	 */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -198,7 +198,7 @@ static struct sdw_intel_ctx
 	 * If some links are disabled, the link pointer will remain NULL. Given that the
 	 * number of links is small, this is simpler than using a list to keep track of links.
 	 */
-	ctx->ldev = kcalloc(ctx->count, sizeof(*ctx->ldev), GFP_KERNEL);
+	ctx->ldev = kzalloc_objs(*ctx->ldev, ctx->count);
 	if (!ctx->ldev) {
 		kfree(ctx);
 		return NULL;
@@ -253,8 +253,7 @@ static struct sdw_intel_ctx
 			num_slaves++;
 	}
 
-	ctx->peripherals = kmalloc(struct_size(ctx->peripherals, array, num_slaves),
-				   GFP_KERNEL);
+	ctx->peripherals = kmalloc_flex(*ctx->peripherals, array, num_slaves);
 	if (!ctx->peripherals)
 		goto err;
 	ctx->peripherals->num_peripherals = num_slaves;

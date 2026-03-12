@@ -25,7 +25,7 @@ efct_io_pool_create(struct efct *efct, u32 num_sgl)
 	struct efct_io *io;
 
 	/* Allocate the IO pool */
-	io_pool = kzalloc(sizeof(*io_pool), GFP_KERNEL);
+	io_pool = kzalloc_obj(*io_pool);
 	if (!io_pool)
 		return NULL;
 
@@ -35,7 +35,7 @@ efct_io_pool_create(struct efct *efct, u32 num_sgl)
 	spin_lock_init(&io_pool->lock);
 
 	for (i = 0; i < EFCT_NUM_SCSI_IOS; i++) {
-		io = kzalloc(sizeof(*io), GFP_KERNEL);
+		io = kzalloc_obj(*io);
 		if (!io)
 			break;
 

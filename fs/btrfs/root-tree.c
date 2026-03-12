@@ -217,8 +217,6 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	struct btrfs_root *root;
-	int err = 0;
-	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -230,20 +228,19 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 	while (1) {
 		u64 root_objectid;
+		int ret;
 
 		ret = btrfs_search_slot(NULL, tree_root, &key, path, 0, 0);
-		if (ret < 0) {
-			err = ret;
-			break;
-		}
+		if (ret < 0)
+			return ret;
 
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(tree_root, path);
 			if (ret < 0)
-				err = ret;
-			if (ret != 0)
-				break;
+				return ret;
+			else if (ret > 0)
+				return 0;
 			leaf = path->nodes[0];
 		}
 
@@ -252,34 +249,32 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 		if (key.objectid != BTRFS_ORPHAN_OBJECTID ||
 		    key.type != BTRFS_ORPHAN_ITEM_KEY)
-			break;
+			return 0;
 
 		root_objectid = key.offset;
 		key.offset++;
 
 		root = btrfs_get_fs_root(fs_info, root_objectid, false);
-		err = PTR_ERR_OR_ZERO(root);
-		if (err && err != -ENOENT) {
-			break;
-		} else if (err == -ENOENT) {
+		ret = PTR_ERR_OR_ZERO(root);
+		if (ret && ret != -ENOENT) {
+			return ret;
+		} else if (ret == -ENOENT) {
 			struct btrfs_trans_handle *trans;
-
-			btrfs_release_path(path);
 
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
-				btrfs_handle_fs_error(fs_info, err,
-					    "Failed to start trans to delete orphan item");
-				break;
+				ret = PTR_ERR(trans);
+				btrfs_err(fs_info,
+			  "failed to join transaction to delete orphan item: %d",
+					  ret);
+				return ret;
 			}
-			err = btrfs_del_orphan_item(trans, tree_root,
-						    root_objectid);
+			ret = btrfs_del_orphan_item(trans, tree_root, root_objectid);
 			btrfs_end_transaction(trans);
-			if (err) {
-				btrfs_handle_fs_error(fs_info, err,
-					    "Failed to delete root orphan item");
-				break;
+			if (ret) {
+				btrfs_err(fs_info,
+				  "failed to delete root orphan item: %d", ret);
+				return ret;
 			}
 			continue;
 		}
@@ -307,7 +302,7 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 		btrfs_put_root(root);
 	}
 
-	return err;
+	return 0;
 }
 
 /* drop the root item for 'key' from the tree root */

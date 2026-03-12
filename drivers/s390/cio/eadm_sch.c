@@ -215,7 +215,7 @@ static int eadm_subchannel_probe(struct subchannel *sch)
 	struct eadm_private *private;
 	int ret;
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+	private = kzalloc_obj(*private, GFP_KERNEL | GFP_DMA);
 	if (!private)
 		return -ENOMEM;
 

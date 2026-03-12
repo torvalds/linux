@@ -233,7 +233,6 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_noent		cpu_to_be32(NFSERR_NOENT)
 #define	nfserr_io		cpu_to_be32(NFSERR_IO)
 #define	nfserr_nxio		cpu_to_be32(NFSERR_NXIO)
-#define	nfserr_eagain		cpu_to_be32(NFSERR_EAGAIN)
 #define	nfserr_acces		cpu_to_be32(NFSERR_ACCES)
 #define	nfserr_exist		cpu_to_be32(NFSERR_EXIST)
 #define	nfserr_xdev		cpu_to_be32(NFSERR_XDEV)
@@ -455,6 +454,16 @@ enum {
 #define NFSD4_2_SECURITY_ATTRS		0
 #endif
 
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+#define NFSD4_2_POSIX_ACL_ATTRS \
+	(FATTR4_WORD2_ACL_TRUEFORM | \
+	FATTR4_WORD2_ACL_TRUEFORM_SCOPE | \
+	FATTR4_WORD2_POSIX_DEFAULT_ACL | \
+	FATTR4_WORD2_POSIX_ACCESS_ACL)
+#else
+#define NFSD4_2_POSIX_ACL_ATTRS		0
+#endif
+
 #define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
 	FATTR4_WORD2_MODE_UMASK | \
@@ -463,7 +472,8 @@ enum {
 	FATTR4_WORD2_XATTR_SUPPORT | \
 	FATTR4_WORD2_TIME_DELEG_ACCESS | \
 	FATTR4_WORD2_TIME_DELEG_MODIFY | \
-	FATTR4_WORD2_OPEN_ARGUMENTS)
+	FATTR4_WORD2_OPEN_ARGUMENTS | \
+	NFSD4_2_POSIX_ACL_ATTRS)
 
 extern const u32 nfsd_suppattrs[3][3];
 
@@ -531,11 +541,18 @@ static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 #else
 #define MAYBE_FATTR4_WORD2_SECURITY_LABEL 0
 #endif
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+#define MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS \
+	FATTR4_WORD2_POSIX_DEFAULT_ACL | FATTR4_WORD2_POSIX_ACCESS_ACL
+#else
+#define MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS 0
+#endif
 #define NFSD_WRITEABLE_ATTRS_WORD2 \
 	(FATTR4_WORD2_MODE_UMASK \
 	| MAYBE_FATTR4_WORD2_SECURITY_LABEL \
 	| FATTR4_WORD2_TIME_DELEG_ACCESS \
 	| FATTR4_WORD2_TIME_DELEG_MODIFY \
+	| MAYBE_FATTR4_WORD2_POSIX_ACL_ATTRS \
 	)
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
@@ -547,8 +564,18 @@ static inline bool nfsd_attrs_supported(u32 minorversion, const u32 *bmval)
 #define NFSD_SUPPATTR_EXCLCREAT_WORD1 \
 	(NFSD_WRITEABLE_ATTRS_WORD1 & \
 	 ~(FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET))
+/*
+ * The FATTR4_WORD2_TIME_DELEG attributes are not to be allowed for
+ * OPEN(create) with EXCLUSIVE4_1. It doesn't make sense to set a
+ * delegated timestamp on a new file.
+ *
+ * This mask includes NFSv4.2-only attributes (e.g., POSIX ACLs).
+ * Version filtering occurs via nfsd_suppattrs[] before this mask
+ * is applied, so pre-4.2 clients never see unsupported attributes.
+ */
 #define NFSD_SUPPATTR_EXCLCREAT_WORD2 \
-	NFSD_WRITEABLE_ATTRS_WORD2
+	(NFSD_WRITEABLE_ATTRS_WORD2 & \
+	~(FATTR4_WORD2_TIME_DELEG_ACCESS | FATTR4_WORD2_TIME_DELEG_MODIFY))
 
 extern int nfsd4_is_junction(struct dentry *dentry);
 extern int register_cld_notifier(void);

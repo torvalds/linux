@@ -33,7 +33,7 @@ static int xe_ttm_sys_mgr_new(struct ttm_resource_manager *man,
 	struct xe_ttm_sys_node *node;
 	int r;
 
-	node = kzalloc(struct_size(node, base.mm_nodes, 1), GFP_KERNEL);
+	node = kzalloc_flex(*node, base.mm_nodes, 1);
 	if (!node)
 		return -ENOMEM;
 

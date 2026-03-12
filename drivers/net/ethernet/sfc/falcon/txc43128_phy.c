@@ -323,7 +323,7 @@ static int txc43128_phy_probe(struct ef4_nic *efx)
 	struct txc43128_data *phy_data;
 
 	/* Allocate phy private storage */
-	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	phy_data = kzalloc_obj(*phy_data);
 	if (!phy_data)
 		return -ENOMEM;
 	efx->phy_data = phy_data;

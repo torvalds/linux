@@ -18,8 +18,8 @@
 
 #define MAX_INLINE_NEST 1024
 
-/* If addr2line doesn't return data for 1 second then timeout. */
-int addr2line_timeout_ms = 1 * 1000;
+/* If addr2line doesn't return data for 5 seconds then timeout. */
+int addr2line_timeout_ms = 5 * 1000;
 
 static int filename_split(char *filename, unsigned int *line_nr)
 {
@@ -90,16 +90,16 @@ static struct child_process *addr2line_subprocess_init(const char *addr2line_pat
 	return a2l;
 }
 
-enum a2l_style {
+enum cmd_a2l_style {
 	BROKEN,
 	GNU_BINUTILS,
 	LLVM,
 };
 
-static enum a2l_style addr2line_configure(struct child_process *a2l, const char *dso_name)
+static enum cmd_a2l_style cmd_addr2line_configure(struct child_process *a2l, const char *dso_name)
 {
 	static bool cached;
-	static enum a2l_style style;
+	static enum cmd_a2l_style style;
 
 	if (!cached) {
 		char buf[128];
@@ -149,7 +149,7 @@ static enum a2l_style addr2line_configure(struct child_process *a2l, const char 
 }
 
 static int read_addr2line_record(struct io *io,
-				 enum a2l_style style,
+				 enum cmd_a2l_style style,
 				 const char *dso_name,
 				 u64 addr,
 				 bool first,
@@ -298,7 +298,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	char buf[128];
 	ssize_t written;
 	struct io io = { .eof = false };
-	enum a2l_style a2l_style;
+	enum cmd_a2l_style cmd_a2l_style;
 
 	if (!a2l) {
 		if (!filename__has_section(dso_name, ".debug_line"))
@@ -314,8 +314,8 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 			pr_warning("%s %s: addr2line_subprocess_init failed\n", __func__, dso_name);
 		goto out;
 	}
-	a2l_style = addr2line_configure(a2l, dso_name);
-	if (a2l_style == BROKEN)
+	cmd_a2l_style = cmd_addr2line_configure(a2l, dso_name);
+	if (cmd_a2l_style == BROKEN)
 		goto out;
 
 	/*
@@ -336,7 +336,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	}
 	io__init(&io, a2l->out, buf, sizeof(buf));
 	io.timeout_ms = addr2line_timeout_ms;
-	switch (read_addr2line_record(&io, a2l_style, dso_name, addr, /*first=*/true,
+	switch (read_addr2line_record(&io, cmd_a2l_style, dso_name, addr, /*first=*/true,
 				      &record_function, &record_filename, &record_line_nr)) {
 	case -1:
 		if (!symbol_conf.disable_add2line_warn)
@@ -351,7 +351,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 		 * binutils, also force a non-zero address as we're no longer
 		 * reading that record.
 		 */
-		switch (read_addr2line_record(&io, a2l_style, dso_name,
+		switch (read_addr2line_record(&io, cmd_a2l_style, dso_name,
 					      /*addr=*/1, /*first=*/true,
 					      NULL, NULL, NULL)) {
 		case -1:
@@ -397,7 +397,7 @@ int cmd__addr2line(const char *dso_name, u64 addr,
 	 * as we're reading records beyond the first.
 	 */
 	while ((record_status = read_addr2line_record(&io,
-						      a2l_style,
+						      cmd_a2l_style,
 						      dso_name,
 						      /*addr=*/1,
 						      /*first=*/false,

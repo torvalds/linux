@@ -128,7 +128,7 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	mtouch = kzalloc(sizeof(*mtouch), GFP_KERNEL);
+	mtouch = kzalloc_obj(*mtouch);
 	input_dev = input_allocate_device();
 	if (!mtouch || !input_dev) {
 		err = -ENOMEM;
@@ -137,7 +137,7 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 
 	mtouch->serio = serio;
 	mtouch->dev = input_dev;
-	snprintf(mtouch->phys, sizeof(mtouch->phys), "%s/input0", serio->phys);
+	scnprintf(mtouch->phys, sizeof(mtouch->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "MicroTouch Serial TouchScreen";
 	input_dev->phys = mtouch->phys;

@@ -8,7 +8,7 @@
  *
  * Completely replaces the previous ECC implementation which was written by:
  *   Steven J. Hill (sjhill@realitydiluted.com)
- *   Thomas Gleixner (tglx@linutronix.de)
+ *   Thomas Gleixner (tglx@kernel.org)
  *
  * Information on how this algorithm works and how it was developed
  * can be found in Documentation/driver-api/mtd/nand_ecc.rst
@@ -496,7 +496,7 @@ int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 	if (conf->step_size != 256 && conf->step_size != 512)
 		conf->step_size = 256;
 
-	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
+	engine_conf = kzalloc_obj(*engine_conf);
 	if (!engine_conf)
 		return -ENOMEM;
 

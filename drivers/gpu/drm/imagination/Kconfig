@@ -18,3 +18,15 @@ config DRM_POWERVR
 	  Technologies PowerVR (Series 6 or later) or IMG GPU.
 
 	  If "M" is selected, the module will be called powervr.
+
+config DRM_POWERVR_KUNIT_TEST
+	tristate "KUnit tests for the drm powervr driver" if !KUNIT_ALL_TESTS
+	depends on DRM_POWERVR && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Choose this option to allow the driver to perform selftests under
+	  the kunit framework
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".

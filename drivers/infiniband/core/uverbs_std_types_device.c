@@ -209,6 +209,39 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT)(
 					     &resp, sizeof(resp));
 }
 
+static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT_SPEED)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_ucontext *ucontext;
+	struct ib_device *ib_dev;
+	u32 port_num;
+	u64 speed;
+	int ret;
+
+	ucontext = ib_uverbs_get_ucontext(attrs);
+	if (IS_ERR(ucontext))
+		return PTR_ERR(ucontext);
+	ib_dev = ucontext->device;
+
+	if (!ib_dev->ops.query_port_speed)
+		return -EOPNOTSUPP;
+
+	ret = uverbs_get_const(&port_num, attrs,
+			       UVERBS_ATTR_QUERY_PORT_SPEED_PORT_NUM);
+	if (ret)
+		return ret;
+
+	if (!rdma_is_port_valid(ib_dev, port_num))
+		return -EINVAL;
+
+	ret = ib_dev->ops.query_port_speed(ib_dev, port_num, &speed);
+	if (ret)
+		return ret;
+
+	return uverbs_copy_to(attrs, UVERBS_ATTR_QUERY_PORT_SPEED_RESP,
+			      &speed, sizeof(speed));
+}
+
 static int UVERBS_HANDLER(UVERBS_METHOD_GET_CONTEXT)(
 	struct uverbs_attr_bundle *attrs)
 {
@@ -470,6 +503,14 @@ DECLARE_UVERBS_NAMED_METHOD(
 		UA_MANDATORY));
 
 DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_QUERY_PORT_SPEED,
+	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_PORT_SPEED_PORT_NUM, u32,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_QUERY_PORT_SPEED_RESP,
+			    UVERBS_ATTR_TYPE(u64),
+			    UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_QUERY_GID_TABLE,
 	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_QUERY_GID_TABLE_ENTRY_SIZE, u64,
 			     UA_MANDATORY),
@@ -498,6 +539,7 @@ DECLARE_UVERBS_GLOBAL_METHODS(UVERBS_OBJECT_DEVICE,
 			      &UVERBS_METHOD(UVERBS_METHOD_INVOKE_WRITE),
 			      &UVERBS_METHOD(UVERBS_METHOD_INFO_HANDLES),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT),
+			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_PORT_SPEED),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_CONTEXT),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_GID_TABLE),
 			      &UVERBS_METHOD(UVERBS_METHOD_QUERY_GID_ENTRY));

@@ -177,7 +177,7 @@ void sock_diag_broadcast_destroy(struct sock *sk)
 {
 	/* Note, this function is often called from an interrupt context. */
 	struct broadcast_sk *bsk =
-		kmalloc(sizeof(struct broadcast_sk), GFP_ATOMIC);
+		kmalloc_obj(struct broadcast_sk, GFP_ATOMIC);
 	if (!bsk)
 		return sk_destruct(sk);
 	bsk->sk = sk;

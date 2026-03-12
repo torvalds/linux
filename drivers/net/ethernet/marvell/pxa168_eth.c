@@ -1024,7 +1024,7 @@ static int rxq_init(struct net_device *dev)
 	int rx_desc_num = pep->rx_ring_size;
 
 	/* Allocate RX skb rings */
-	pep->rx_skb = kcalloc(rx_desc_num, sizeof(*pep->rx_skb), GFP_KERNEL);
+	pep->rx_skb = kzalloc_objs(*pep->rx_skb, rx_desc_num);
 	if (!pep->rx_skb)
 		return -ENOMEM;
 
@@ -1083,7 +1083,7 @@ static int txq_init(struct net_device *dev)
 	int size = 0, i = 0;
 	int tx_desc_num = pep->tx_ring_size;
 
-	pep->tx_skb = kcalloc(tx_desc_num, sizeof(*pep->tx_skb), GFP_KERNEL);
+	pep->tx_skb = kzalloc_objs(*pep->tx_skb, tx_desc_num);
 	if (!pep->tx_skb)
 		return -ENOMEM;
 

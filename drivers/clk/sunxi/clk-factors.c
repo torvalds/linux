@@ -200,7 +200,7 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 	else
 		of_property_read_string(node, "clock-output-names", &clk_name);
 
-	factors = kzalloc(sizeof(struct clk_factors), GFP_KERNEL);
+	factors = kzalloc_obj(struct clk_factors);
 	if (!factors)
 		goto err_factors;
 
@@ -213,7 +213,7 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 
 	/* Add a gate if this factor clock can be gated */
 	if (data->enable) {
-		gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+		gate = kzalloc_obj(struct clk_gate);
 		if (!gate)
 			goto err_gate;
 
@@ -228,7 +228,7 @@ static struct clk *__sunxi_factors_register(struct device_node *node,
 
 	/* Add a mux if this factor clock can be muxed */
 	if (data->mux) {
-		mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
+		mux = kzalloc_obj(struct clk_mux);
 		if (!mux)
 			goto err_mux;
 

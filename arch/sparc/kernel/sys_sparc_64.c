@@ -647,8 +647,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 	}
 	if (!current_thread_info()->utraps) {
 		current_thread_info()->utraps =
-			kcalloc(UT_TRAP_INSTRUCTION_31 + 1, sizeof(long),
-				GFP_KERNEL);
+			kzalloc_objs(long, UT_TRAP_INSTRUCTION_31 + 1);
 		if (!current_thread_info()->utraps)
 			return -ENOMEM;
 		current_thread_info()->utraps[0] = 1;
@@ -658,9 +657,7 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 			unsigned long *p = current_thread_info()->utraps;
 
 			current_thread_info()->utraps =
-				kmalloc_array(UT_TRAP_INSTRUCTION_31 + 1,
-					      sizeof(long),
-					      GFP_KERNEL);
+				kmalloc_objs(long, UT_TRAP_INSTRUCTION_31 + 1);
 			if (!current_thread_info()->utraps) {
 				current_thread_info()->utraps = p;
 				return -ENOMEM;

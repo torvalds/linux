@@ -1810,10 +1810,10 @@ doc_probe_device(struct docg3_cascade *cascade, int floor, struct device *dev)
 	struct mtd_info *mtd;
 
 	ret = -ENOMEM;
-	docg3 = kzalloc(sizeof(struct docg3), GFP_KERNEL);
+	docg3 = kzalloc_obj(struct docg3);
 	if (!docg3)
 		goto nomem1;
-	mtd = kzalloc(sizeof(struct mtd_info), GFP_KERNEL);
+	mtd = kzalloc_obj(struct mtd_info);
 	if (!mtd)
 		goto nomem2;
 	mtd->priv = docg3;

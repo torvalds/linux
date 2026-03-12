@@ -95,10 +95,36 @@ static int test__exclude_cmdnames(struct test_suite *test __maybe_unused,
 	return TEST_OK;
 }
 
+static int test__exclude_cmdnames_no_overlap(struct test_suite *test __maybe_unused,
+					     int subtest __maybe_unused)
+{
+	struct cmdnames cmds1 = {};
+	struct cmdnames cmds2 = {};
+
+	add_cmdname(&cmds1, "read-vdso32", 11);
+	add_cmdname(&cmds2, "archive", 7);
+
+	TEST_ASSERT_VAL("invalid original size", cmds1.cnt == 1);
+	TEST_ASSERT_VAL("invalid original size", cmds2.cnt == 1);
+
+	exclude_cmds(&cmds1, &cmds2);
+
+	TEST_ASSERT_VAL("invalid excluded size", cmds1.cnt == 1);
+	TEST_ASSERT_VAL("invalid excluded size", cmds2.cnt == 1);
+
+	TEST_ASSERT_VAL("cannot find cmd", is_in_cmdlist(&cmds1, "read-vdso32") == 1);
+	TEST_ASSERT_VAL("wrong cmd", is_in_cmdlist(&cmds1, "archive") == 0);
+
+	clean_cmdnames(&cmds1);
+	clean_cmdnames(&cmds2);
+	return TEST_OK;
+}
+
 static struct test_case tests__subcmd_help[] = {
 	TEST_CASE("Load subcmd names", load_cmdnames),
 	TEST_CASE("Uniquify subcmd names", uniq_cmdnames),
 	TEST_CASE("Exclude duplicate subcmd names", exclude_cmdnames),
+	TEST_CASE("Exclude disjoint subcmd names", exclude_cmdnames_no_overlap),
 	{	.name = NULL, }
 };
 

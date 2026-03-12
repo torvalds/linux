@@ -111,7 +111,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 
 	/* Populate the resource table */
 	if (num_reg) {
-		res = kcalloc(num_reg, sizeof(*res), GFP_KERNEL);
+		res = kzalloc_objs(*res, num_reg);
 		if (!res) {
 			platform_device_put(dev);
 			return NULL;
@@ -394,7 +394,6 @@ int of_platform_bus_probe(struct device_node *root,
 			  const struct of_device_id *matches,
 			  struct device *parent)
 {
-	struct device_node *child;
 	int rc = 0;
 
 	root = root ? of_node_get(root) : of_find_node_by_path("/");
@@ -407,13 +406,13 @@ int of_platform_bus_probe(struct device_node *root,
 	/* Do a self check of bus type, if there's a match, create children */
 	if (of_match_node(matches, root)) {
 		rc = of_platform_bus_create(root, matches, NULL, parent, false);
-	} else for_each_child_of_node(root, child) {
-		if (!of_match_node(matches, child))
-			continue;
-		rc = of_platform_bus_create(child, matches, NULL, parent, false);
-		if (rc) {
-			of_node_put(child);
-			break;
+	} else {
+		for_each_child_of_node_scoped(root, child) {
+			if (!of_match_node(matches, child))
+				continue;
+			rc = of_platform_bus_create(child, matches, NULL, parent, false);
+			if (rc)
+				break;
 		}
 	}
 
@@ -569,7 +568,7 @@ static int __init of_platform_default_populate_init(void)
 
 		node = of_find_node_by_path("/firmware");
 		if (node) {
-			of_platform_populate(node, NULL, NULL, NULL);
+			of_platform_default_populate(node, NULL, NULL);
 			of_node_put(node);
 		}
 

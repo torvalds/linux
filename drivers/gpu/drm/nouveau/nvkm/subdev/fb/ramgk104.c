@@ -1371,7 +1371,7 @@ gk104_ram_train_init(struct nvkm_ram *ram)
 	struct gk104_ram_train *train;
 	int ret, i;
 
-	if (!(train = kzalloc(sizeof(*train), GFP_KERNEL)))
+	if (!(train = kzalloc_obj(*train)))
 		return -ENOMEM;
 
 	for (i = 0; i < 0x100; i++) {
@@ -1446,7 +1446,7 @@ gk104_ram_ctor_data(struct gk104_ram *ram, u8 ramcfg, int i)
 	u32 data;
 	int ret;
 
-	if (!(cfg = kmalloc(sizeof(*cfg), GFP_KERNEL)))
+	if (!(cfg = kmalloc_obj(*cfg)))
 		return -ENOMEM;
 	p = &list_last_entry(&ram->cfg, typeof(*cfg), head)->bios;
 	n = &cfg->bios;
@@ -1530,7 +1530,7 @@ gk104_ram_new_(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	u8  ramcfg = nvbios_ramcfg_index(subdev);
 	u32 tmp;
 
-	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 	*pram = &ram->base;
 

@@ -86,7 +86,7 @@ static struct intel_stolen_node *xe_stolen_node_alloc(struct drm_device *drm)
 	struct xe_device *xe = to_xe_device(drm);
 	struct intel_stolen_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return NULL;
 

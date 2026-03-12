@@ -390,7 +390,7 @@ static struct trap_node *create_trap_node(u8 type, __be16 trap_num, u32 lid)
 {
 	struct trap_node *trap;
 
-	trap = kzalloc(sizeof(*trap), GFP_ATOMIC);
+	trap = kzalloc_obj(*trap, GFP_ATOMIC);
 	if (!trap)
 		return NULL;
 
@@ -3736,7 +3736,7 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 {
 	struct cc_state *old_cc_state, *new_cc_state;
 
-	new_cc_state = kzalloc(sizeof(*new_cc_state), GFP_KERNEL);
+	new_cc_state = kzalloc_obj(*new_cc_state);
 	if (!new_cc_state)
 		return;
 

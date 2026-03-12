@@ -254,8 +254,8 @@ static int ps2_probe(struct sa1111_dev *dev)
 	struct serio *serio;
 	int ret;
 
-	ps2if = kzalloc(sizeof(*ps2if), GFP_KERNEL);
-	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
+	ps2if = kzalloc_obj(*ps2if);
+	serio = kzalloc_obj(*serio);
 	if (!ps2if || !serio) {
 		ret = -ENOMEM;
 		goto free;

@@ -1328,7 +1328,7 @@ static int snd_usbmidi_in_endpoint_create(struct snd_usb_midi *umidi,
 	int err;
 
 	rep->in = NULL;
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 	ep->umidi = umidi;
@@ -1414,7 +1414,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi *umidi,
 	int err;
 
 	rep->out = NULL;
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 	ep->umidi = umidi;
@@ -2506,7 +2506,7 @@ int __snd_usbmidi_create(struct snd_card *card,
 	int out_ports, in_ports;
 	int i, err;
 
-	umidi = kzalloc(sizeof(*umidi), GFP_KERNEL);
+	umidi = kzalloc_obj(*umidi);
 	if (!umidi)
 		return -ENOMEM;
 	umidi->dev = interface_to_usbdev(iface);

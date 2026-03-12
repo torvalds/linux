@@ -66,7 +66,7 @@ int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl)
 	for (j = 0; j < cl->tx_ring_size; ++j) {
 		struct ishtp_cl_tx_ring	*tx_buf;
 
-		tx_buf = kzalloc(sizeof(struct ishtp_cl_tx_ring), GFP_KERNEL);
+		tx_buf = kzalloc_obj(struct ishtp_cl_tx_ring);
 		if (!tx_buf)
 			goto	out;
 
@@ -183,7 +183,7 @@ struct ishtp_cl_rb *ishtp_io_rb_init(struct ishtp_cl *cl)
 {
 	struct ishtp_cl_rb *rb;
 
-	rb = kzalloc(sizeof(struct ishtp_cl_rb), GFP_KERNEL);
+	rb = kzalloc_obj(struct ishtp_cl_rb);
 	if (!rb)
 		return NULL;
 

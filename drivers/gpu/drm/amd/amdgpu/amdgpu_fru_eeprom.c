@@ -130,7 +130,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 		return 0;
 
 	if (!adev->fru_info) {
-		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		adev->fru_info = kzalloc_obj(*adev->fru_info);
 		if (!adev->fru_info)
 			return -ENOMEM;
 	}

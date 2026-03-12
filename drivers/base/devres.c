@@ -554,7 +554,7 @@ void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 	struct devres_group *grp;
 	unsigned long flags;
 
-	grp = kmalloc(sizeof(*grp), gfp);
+	grp = kmalloc_obj(*grp, gfp);
 	if (unlikely(!grp))
 		return NULL;
 

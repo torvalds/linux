@@ -148,8 +148,7 @@ static int __init adummy_init(void)
 
 	printk(KERN_ERR "adummy: version %s\n", DRV_VERSION);
 
-	adummy_dev = kzalloc(sizeof(struct adummy_dev),
-						   GFP_KERNEL);
+	adummy_dev = kzalloc_obj(struct adummy_dev);
 	if (!adummy_dev) {
 		printk(KERN_ERR DEV_LABEL ": kzalloc() failed\n");
 		err = -ENOMEM;

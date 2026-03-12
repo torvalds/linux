@@ -613,7 +613,7 @@ static int mtu3_mem_alloc(struct mtu3 *mtu)
 
 	/* one for ep0, another is reserved */
 	mtu->num_eps = min(in_ep_num, out_ep_num) + 1;
-	ep_array = kcalloc(mtu->num_eps * 2, sizeof(*ep_array), GFP_KERNEL);
+	ep_array = kzalloc_objs(*ep_array, mtu->num_eps * 2);
 	if (ep_array == NULL)
 		return -ENOMEM;
 

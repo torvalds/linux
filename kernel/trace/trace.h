@@ -68,14 +68,17 @@ enum trace_type {
 #undef __field_fn
 #define __field_fn(type, item)		type	item;
 
+#undef __field_packed
+#define __field_packed(type, item)	type	item;
+
 #undef __field_struct
 #define __field_struct(type, item)	__field(type, item)
 
 #undef __field_desc
 #define __field_desc(type, container, item)
 
-#undef __field_packed
-#define __field_packed(type, container, item)
+#undef __field_desc_packed
+#define __field_desc_packed(type, container, item)
 
 #undef __array
 #define __array(type, item, size)	type	item[size];
@@ -128,7 +131,7 @@ enum trace_type {
 
 #define FAULT_STRING "(fault)"
 
-#define HIST_STACKTRACE_DEPTH	16
+#define HIST_STACKTRACE_DEPTH	31
 #define HIST_STACKTRACE_SIZE	(HIST_STACKTRACE_DEPTH * sizeof(unsigned long))
 #define HIST_STACKTRACE_SKIP	5
 
@@ -329,29 +332,33 @@ struct trace_array {
 	struct list_head	list;
 	char			*name;
 	struct array_buffer	array_buffer;
-#ifdef CONFIG_TRACER_MAX_TRACE
+#ifdef CONFIG_TRACER_SNAPSHOT
 	/*
-	 * The max_buffer is used to snapshot the trace when a maximum
+	 * The snapshot_buffer is used to snapshot the trace when a maximum
 	 * latency is reached, or when the user initiates a snapshot.
 	 * Some tracers will use this to store a maximum trace while
 	 * it continues examining live traces.
 	 *
-	 * The buffers for the max_buffer are set up the same as the array_buffer
-	 * When a snapshot is taken, the buffer of the max_buffer is swapped
-	 * with the buffer of the array_buffer and the buffers are reset for
-	 * the array_buffer so the tracing can continue.
+	 * The buffers for the snapshot_buffer are set up the same as the
+	 * array_buffer. When a snapshot is taken, the buffer of the
+	 * snapshot_buffer is swapped with the buffer of the array_buffer
+	 * and the buffers are reset for the array_buffer so the tracing can
+	 * continue.
 	 */
-	struct array_buffer	max_buffer;
+	struct array_buffer	snapshot_buffer;
 	bool			allocated_snapshot;
 	spinlock_t		snapshot_trigger_lock;
 	unsigned int		snapshot;
+#ifdef CONFIG_TRACER_MAX_TRACE
 	unsigned long		max_latency;
-#ifdef CONFIG_FSNOTIFY
 	struct dentry		*d_max_latency;
+#ifdef CONFIG_FSNOTIFY
 	struct work_struct	fsnotify_work;
 	struct irq_work		fsnotify_irqwork;
-#endif
-#endif
+#endif /* CONFIG_FSNOTIFY */
+#endif /* CONFIG_TRACER_MAX_TRACE */
+#endif /* CONFIG_TRACER_SNAPSHOT */
+
 	/* The below is for memory mapped ring buffer */
 	unsigned int		mapped;
 	unsigned long		range_addr_start;
@@ -377,7 +384,7 @@ struct trace_array {
 	 *
 	 * It is also used in other places outside the update_max_tr
 	 * so it needs to be defined outside of the
-	 * CONFIG_TRACER_MAX_TRACE.
+	 * CONFIG_TRACER_SNAPSHOT.
 	 */
 	arch_spinlock_t		max_lock;
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -476,12 +483,13 @@ extern struct trace_array *trace_array_find(const char *instance);
 extern struct trace_array *trace_array_find_get(const char *instance);
 
 extern u64 tracing_event_time_stamp(struct trace_buffer *buffer, struct ring_buffer_event *rbe);
-extern int tracing_set_filter_buffering(struct trace_array *tr, bool set);
 extern int tracing_set_clock(struct trace_array *tr, const char *clockstr);
 
 extern bool trace_clock_in_ns(struct trace_array *tr);
 
 extern unsigned long trace_adjust_address(struct trace_array *tr, unsigned long addr);
+
+extern struct trace_array *printk_trace;
 
 /*
  * The global tracer (top) should be the first trace array added,
@@ -658,6 +666,8 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 	return iter->buffer_iter ? iter->buffer_iter[cpu] : NULL;
 }
 
+extern int tracing_disabled;
+
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void tracing_reset_online_cpus(struct array_buffer *buf);
@@ -669,7 +679,6 @@ int tracing_release_generic_tr(struct inode *inode, struct file *file);
 int tracing_open_file_tr(struct inode *inode, struct file *filp);
 int tracing_release_file_tr(struct inode *inode, struct file *filp);
 int tracing_single_release_file_tr(struct inode *inode, struct file *filp);
-bool tracing_is_disabled(void);
 bool tracer_tracing_is_on(struct trace_array *tr);
 void tracer_tracing_on(struct trace_array *tr);
 void tracer_tracing_off(struct trace_array *tr);
@@ -769,6 +778,7 @@ extern cpumask_var_t __read_mostly tracing_buffer_mask;
 extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 extern unsigned long tracing_thresh;
+extern struct workqueue_struct *trace_init_wq __initdata;
 
 /* PID filtering */
 
@@ -787,22 +797,22 @@ int trace_pid_write(struct trace_pid_list *filtered_pids,
 		    struct trace_pid_list **new_pid_list,
 		    const char __user *ubuf, size_t cnt);
 
-#ifdef CONFIG_TRACER_MAX_TRACE
+#ifdef CONFIG_TRACER_SNAPSHOT
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
 		   void *cond_data);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
-#ifdef CONFIG_FSNOTIFY
-#define LATENCY_FS_NOTIFY
+#if defined(CONFIG_TRACER_MAX_TRACE) && defined(CONFIG_FSNOTIFY)
+# define LATENCY_FS_NOTIFY
 #endif
-#endif /* CONFIG_TRACER_MAX_TRACE */
 
 #ifdef LATENCY_FS_NOTIFY
 void latency_fsnotify(struct trace_array *tr);
 #else
 static inline void latency_fsnotify(struct trace_array *tr) { }
 #endif
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 #ifdef CONFIG_STACKTRACE
 void __trace_stack(struct trace_array *tr, unsigned int trace_ctx, int skip);
@@ -812,6 +822,18 @@ static inline void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
 {
 }
 #endif /* CONFIG_STACKTRACE */
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+static inline bool tracer_uses_snapshot(struct tracer *tracer)
+{
+	return tracer->use_max_tr;
+}
+#else
+static inline bool tracer_uses_snapshot(struct tracer *tracer)
+{
+	return false;
+}
+#endif
 
 void trace_last_func_repeats(struct trace_array *tr,
 			     struct trace_func_repeats *last_info,
@@ -862,6 +884,7 @@ extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
+extern bool __read_mostly tracing_selftest_running;
 /*
  * Tracer data references selftest functions that only occur
  * on boot up. These can be __init functions. Thus, when selftests
@@ -874,6 +897,7 @@ static inline void __init disable_tracing_selftest(const char *reason)
 }
 /* Tracers are seldom changed. Optimize when selftests are disabled. */
 #define __tracer_data		__read_mostly
+#define tracing_selftest_running	0
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
@@ -1411,6 +1435,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(COPY_MARKER,		"copy_trace_marker"),	\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
+		C(BITMASK_LIST,		"bitmask-list"),	\
 		FUNCTION_FLAGS					\
 		FGRAPH_FLAGS					\
 		STACK_FLAGS					\
@@ -1563,6 +1588,47 @@ void trace_user_fault_destroy(struct trace_user_buf_info *tinfo);
 char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 			    const char __user *ptr, size_t size,
 			    trace_user_buf_copy copy_func, void *data);
+
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned int trace_ctx)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, type, trace_ctx);
+}
+
+static __always_inline struct ring_buffer_event *
+__trace_buffer_lock_reserve(struct trace_buffer *buffer,
+			  int type,
+			  unsigned long len,
+			  unsigned int trace_ctx)
+{
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(buffer, len);
+	if (event != NULL)
+		trace_event_setup(event, type, trace_ctx);
+
+	return event;
+}
+
+static __always_inline void
+__buffer_unlock_commit(struct trace_buffer *buffer, struct ring_buffer_event *event)
+{
+	__this_cpu_write(trace_taskinfo_save, true);
+
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+		/* ring_buffer_unlock_commit() enables preemption */
+		preempt_enable_notrace();
+	} else
+		ring_buffer_unlock_commit(buffer);
+}
 
 static inline void
 __trace_event_discard_commit(struct trace_buffer *buffer,
@@ -2084,6 +2150,7 @@ extern const char *__stop___tracepoint_str[];
 
 void trace_printk_control(bool enabled);
 void trace_printk_start_comm(void);
+void trace_printk_start_stop_comm(int enabled);
 int trace_keep_overwrite(struct tracer *tracer, u64 mask, int set);
 int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled);
 
@@ -2116,7 +2183,7 @@ extern void tracing_log_err(struct trace_array *tr,
  * about performance). The internal_trace_puts() is for such
  * a purpose.
  */
-#define internal_trace_puts(str) __trace_puts(_THIS_IP_, str, strlen(str))
+#define internal_trace_puts(str) __trace_puts(_THIS_IP_, str)
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print)	\
@@ -2233,6 +2300,37 @@ static inline void sanitize_event_name(char *name)
 		if (*name == ':' || *name == '.' || *name == '*')
 			*name = '_';
 }
+
+#ifdef CONFIG_STACKTRACE
+void __ftrace_trace_stack(struct trace_array *tr,
+			  struct trace_buffer *buffer,
+			  unsigned int trace_ctx,
+			  int skip, struct pt_regs *regs);
+
+static __always_inline void ftrace_trace_stack(struct trace_array *tr,
+					       struct trace_buffer *buffer,
+					       unsigned int trace_ctx,
+					       int skip, struct pt_regs *regs)
+{
+	if (!(tr->trace_flags & TRACE_ITER(STACKTRACE)))
+		return;
+
+	__ftrace_trace_stack(tr, buffer, trace_ctx, skip, regs);
+}
+#else
+static inline void __ftrace_trace_stack(struct trace_array *tr,
+					struct trace_buffer *buffer,
+					unsigned int trace_ctx,
+					int skip, struct pt_regs *regs)
+{
+}
+static inline void ftrace_trace_stack(struct trace_array *tr,
+				      struct trace_buffer *buffer,
+				      unsigned long trace_ctx,
+				      int skip, struct pt_regs *regs)
+{
+}
+#endif
 
 /*
  * This is a generic way to read and write a u64 value from a file in tracefs.

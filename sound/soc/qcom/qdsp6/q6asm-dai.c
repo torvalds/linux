@@ -378,7 +378,7 @@ static int q6asm_dai_open(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	prtd = kzalloc(sizeof(struct q6asm_dai_rtd), GFP_KERNEL);
+	prtd = kzalloc_obj(struct q6asm_dai_rtd);
 	if (prtd == NULL)
 		return -ENOMEM;
 
@@ -621,7 +621,7 @@ static int q6asm_dai_compr_open(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		return -ENOMEM;
 

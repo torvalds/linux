@@ -15,6 +15,10 @@ description: |
   supply of 2.5V to 5.5V. It can provide up to 3.5A continuous current
   capability at over 80% high efficiency.
 
+  The RT8092 is similar type buck converter. Compared to RT5739, it can offer
+  up to 4A output current and more output voltage range to meet the application
+  on most mobile products.
+
 allOf:
   - $ref: regulator.yaml#
 
@@ -23,6 +27,7 @@ properties:
     enum:
       - richtek,rt5733
       - richtek,rt5739
+      - richtek,rt8092
 
   reg:
     maxItems: 1

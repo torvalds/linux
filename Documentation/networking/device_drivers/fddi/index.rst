@@ -10,10 +10,3 @@ Contents:
 
    defza
    skfp
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

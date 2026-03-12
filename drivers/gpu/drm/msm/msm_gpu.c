@@ -346,8 +346,7 @@ static void crashstate_get_vm_logs(struct msm_gpu_state *state, struct msm_gem_v
 		state->nr_vm_logs = vm_log_len;
 	}
 
-	state->vm_logs = kmalloc_array(
-		state->nr_vm_logs, sizeof(vm->log[0]), GFP_KERNEL);
+	state->vm_logs = kmalloc_objs(vm->log[0], state->nr_vm_logs);
 	if (!state->vm_logs) {
 		state->nr_vm_logs = 0;
 	}

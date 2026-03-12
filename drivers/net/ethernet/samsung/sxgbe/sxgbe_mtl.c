@@ -25,7 +25,7 @@ static void sxgbe_mtl_init(void __iomem *ioaddr, unsigned int etsalg,
 	reg_val = readl(ioaddr + SXGBE_MTL_OP_MODE_REG);
 	reg_val &= ETS_RST;
 
-	/* ETS Algorith */
+	/* ETS Algorithm */
 	switch (etsalg & SXGBE_MTL_OPMODE_ESTMASK) {
 	case ETS_WRR:
 		reg_val &= ETS_WRR;

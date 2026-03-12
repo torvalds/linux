@@ -304,7 +304,7 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
-	acpi_processor_perf = kzalloc(sizeof(*acpi_processor_perf), GFP_KERNEL);
+	acpi_processor_perf = kzalloc_obj(*acpi_processor_perf);
 	if (!acpi_processor_perf) {
 		retval = -ENOMEM;
 		goto err0;

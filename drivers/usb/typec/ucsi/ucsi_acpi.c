@@ -86,21 +86,6 @@ static int ucsi_acpi_read_message_in(struct ucsi *ucsi, void *val, size_t val_le
 	return 0;
 }
 
-static int ucsi_acpi_write_message_out(struct ucsi *ucsi, void *data, size_t data_len)
-{
-	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-
-	if (!data || !data_len)
-		return -EINVAL;
-
-	if (ucsi->version <= UCSI_VERSION_1_2)
-		memcpy(ua->base + UCSI_MESSAGE_OUT, data, data_len);
-	else
-		memcpy(ua->base + UCSIv2_MESSAGE_OUT, data, data_len);
-
-	return 0;
-}
-
 static int ucsi_acpi_async_control(struct ucsi *ucsi, u64 command)
 {
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
@@ -116,19 +101,19 @@ static const struct ucsi_operations ucsi_acpi_ops = {
 	.read_cci = ucsi_acpi_read_cci,
 	.poll_cci = ucsi_acpi_poll_cci,
 	.read_message_in = ucsi_acpi_read_message_in,
-	.write_message_out = ucsi_acpi_write_message_out,
 	.sync_control = ucsi_sync_control_common,
 	.async_control = ucsi_acpi_async_control
 };
 
-static int ucsi_gram_sync_control(struct ucsi *ucsi, u64 command, u32 *cci)
+static int ucsi_gram_sync_control(struct ucsi *ucsi, u64 command, u32 *cci,
+				  void *val, size_t len)
 {
 	u16 bogus_change = UCSI_CONSTAT_POWER_LEVEL_CHANGE |
 			   UCSI_CONSTAT_PDOS_CHANGE;
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
 	int ret;
 
-	ret = ucsi_sync_control_common(ucsi, command, cci);
+	ret = ucsi_sync_control_common(ucsi, command, cci, val, len);
 	if (ret < 0)
 		return ret;
 
@@ -140,8 +125,8 @@ static int ucsi_gram_sync_control(struct ucsi *ucsi, u64 command, u32 *cci)
 	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_CONNECTOR_STATUS &&
 	    ua->check_bogus_event) {
 		/* Clear the bogus change */
-		if (*(u16 *)ucsi->message_in == bogus_change)
-			*(u16 *)ucsi->message_in = 0;
+		if (*(u16 *)val == bogus_change)
+			*(u16 *)val = 0;
 
 		ua->check_bogus_event = false;
 	}

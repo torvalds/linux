@@ -1615,7 +1615,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	u64 seq;
 	int ret;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (e == NULL) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -2094,7 +2094,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 
 	vblank = drm_crtc_vblank_crtc(crtc);
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (e == NULL)
 		return -ENOMEM;
 

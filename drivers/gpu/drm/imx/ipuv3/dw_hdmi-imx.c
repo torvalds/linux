@@ -241,7 +241,7 @@ static int dw_hdmi_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(hdmi->hdmi))
 		return PTR_ERR(hdmi->hdmi);
 
-	hdmi->bridge = of_drm_find_bridge(np);
+	hdmi->bridge = of_drm_find_and_get_bridge(np);
 	if (!hdmi->bridge) {
 		dev_err(hdmi->dev, "Unable to find bridge\n");
 		dw_hdmi_remove(hdmi->hdmi);
@@ -249,8 +249,10 @@ static int dw_hdmi_imx_probe(struct platform_device *pdev)
 	}
 
 	ret = component_add(&pdev->dev, &dw_hdmi_imx_ops);
-	if (ret)
+	if (ret) {
+		drm_bridge_put(hdmi->bridge);
 		dw_hdmi_remove(hdmi->hdmi);
+	}
 
 	return ret;
 }
@@ -260,6 +262,7 @@ static void dw_hdmi_imx_remove(struct platform_device *pdev)
 	struct imx_hdmi *hdmi = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &dw_hdmi_imx_ops);
+	drm_bridge_put(hdmi->bridge);
 	dw_hdmi_remove(hdmi->hdmi);
 }
 

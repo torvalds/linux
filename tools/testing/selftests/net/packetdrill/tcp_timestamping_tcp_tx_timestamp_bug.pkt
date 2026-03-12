@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test after "tcp: tcp_tx_timestamp() must look at the rtx queue"
+
+// This test is about receiving the SCM_TSTAMP_ACK,
+// we do not care about its SCM_TIMESTAMPING precision.
+--tolerance_usecs=1000000
+
+`./defaults.sh
+sysctl -q net.ipv4.tcp_min_tso_segs=70
+`
+
+// Create a socket and set it to non-blocking.
+    0	socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0	fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
+   +0	fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+// Establish connection and verify that there was no error.
+   +0	connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0	> S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
++.010	< S. 0:0(0) ack 1 win 65535 <mss 1000,sackOK,TS val 700 ecr 100,nop,wscale 7>
+   +0	> . 1:1(0) ack 1 <nop,nop,TS val 200 ecr 700>
+   +0	getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+   +0	setsockopt(3, SOL_SOCKET, SO_SNDBUF, [30000], 4) = 0
+
+   +0   write(3, ..., 9880) = 9880
+   +0   > P. 1:9881(9880) ack 1 <nop,nop,TS val 200 ecr 700>
++.010   < . 1:1(0) ack 9881 win 10000 <nop,nop,TS val 701 ecr 200>
+
+   +0   write(3, ..., 19760) = 19760
+   +0   > P. 9881:29641(19760) ack 1 <nop,nop,TS val 201 ecr 701>
++.010   < . 1:1(0) ack 29641 win 10000 <nop,nop,TS val 702 ecr 201>
+
+   +0   write(3, ..., 39520) = 39520
+   +0   > P. 29641:69161(39520) ack 1 <nop,nop,TS val 202 ecr 702>
++.010   < . 1:1(0) ack 69161 win 10000 <nop,nop,TS val 703 ecr 202>
+
+// One more write to increase cwnd
+   +0	write(3, ..., 79040) = 79040
+   +0	> P. 69161:108681(39520) ack 1 <nop,nop,TS val 203 ecr 703>
+   +0	> P. 108681:148201(39520) ack 1 <nop,nop,TS val 203 ecr 703>
++.010	< . 1:1(0) ack 148201 win 1000 <nop,nop,TS val 704 ecr 203>
+
+   +0	setsockopt(3, SOL_SOCKET, SO_TIMESTAMPING,
+		   [SOF_TIMESTAMPING_TX_ACK | SOF_TIMESTAMPING_SOFTWARE |
+		    SOF_TIMESTAMPING_OPT_ID], 4) = 0
+
+// We have one write filling one skb
+// last byte can not be stored because of our small SO_SNDBUF
+   +0	write(3, ..., 65209) = 65208
+   +0	> P. 148201:213409(65208) ack 1 <nop,nop,TS val 204 ecr 704>
++.010	< . 1:1(0) ack 213409 win 1000 <nop,nop,TS val 705 ecr 204>
+
+// SCM_TSTAMP_ACK should be received after the last ack at
+// t=60ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=60000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_ACK,
+				    ee_data=65207}}
+		    ]}, MSG_ERRQUEUE) = 0

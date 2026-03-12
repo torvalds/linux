@@ -193,7 +193,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	bitbang = spi_controller_get_devdata(spi->controller);
 
 	if (!cs) {
-		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc_obj(*cs);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;

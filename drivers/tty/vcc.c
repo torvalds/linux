@@ -574,7 +574,7 @@ static int vcc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		return -ENODEV;
 	}
 
-	port = kzalloc(sizeof(struct vcc_port), GFP_KERNEL);
+	port = kzalloc_obj(struct vcc_port);
 	if (!port)
 		return -ENOMEM;
 
@@ -957,7 +957,7 @@ static int vcc_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (ret)
 		return ret;
 
-	port_tty = kzalloc(sizeof(struct tty_port), GFP_KERNEL);
+	port_tty = kzalloc_obj(struct tty_port);
 	if (!port_tty)
 		return -ENOMEM;
 

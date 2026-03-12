@@ -8,6 +8,21 @@ menu "DPLL device support"
 config DPLL
 	bool
 
+config DPLL_REFCNT_TRACKER
+	bool "DPLL reference count tracking"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT && DPLL
+	select REF_TRACKER
+	help
+	  Enable reference count tracking for DPLL devices and pins.
+	  This helps debugging reference leaks and use-after-free bugs
+	  by recording stack traces for each get/put operation.
+
+	  The tracking information is exposed via debugfs at:
+	    /sys/kernel/debug/ref_tracker/dpll_device_*
+	    /sys/kernel/debug/ref_tracker/dpll_pin_*
+
+	  If unsure, say N.
+
 source "drivers/dpll/zl3073x/Kconfig"
 
 endmenu

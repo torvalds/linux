@@ -90,7 +90,7 @@ static inline void __hard_EE_RI_disable(void)
 	if (IS_ENABLED(CONFIG_BOOKE))
 		wrtee(0);
 	else if (IS_ENABLED(CONFIG_PPC_8xx))
-		wrtspr(SPRN_NRI);
+		wrtspr_sync(SPRN_NRI);
 	else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
 		__mtmsrd(0, 1);
 	else

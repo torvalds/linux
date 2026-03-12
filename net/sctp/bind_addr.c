@@ -147,7 +147,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	struct sctp_sockaddr_entry *addr;
 
 	/* Add the address to the bind address list.  */
-	addr = kzalloc(sizeof(*addr), gfp);
+	addr = kzalloc_obj(*addr, gfp);
 	if (!addr)
 		return -ENOMEM;
 

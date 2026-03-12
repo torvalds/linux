@@ -639,7 +639,7 @@ static int nvt_ir_raw_set_wakeup_filter(struct rc_dev *dev,
 	if (!sc_filter->mask)
 		return 0;
 
-	raw = kmalloc_array(WAKEUP_MAX_SIZE, sizeof(*raw), GFP_KERNEL);
+	raw = kmalloc_objs(*raw, WAKEUP_MAX_SIZE);
 	if (!raw)
 		return -ENOMEM;
 

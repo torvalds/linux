@@ -98,8 +98,10 @@ OPTIONS
 
 -g::
 --gen-script=::
-        Generate perf-script.[ext] starter script for given language,
-        using current perf.data.
+	Generate a starter script. If a language is given then the
+        script is named perf-script.[ext] according to the
+        language. If a file path is given then python is used for
+        files ending '.py' and perl used for files ending '.pl'.
 
 --dlfilter=<file>::
 	Filter sample events using the given shared object file.

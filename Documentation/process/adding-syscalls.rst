@@ -111,13 +111,13 @@ should use a file descriptor as the handle for that object -- don't invent a
 new type of userspace object handle when the kernel already has mechanisms and
 well-defined semantics for using file descriptors.
 
-If your new :manpage:`xyzzy(2)` system call does return a new file descriptor,
+If your new xyzzy(2) system call does return a new file descriptor,
 then the flags argument should include a value that is equivalent to setting
 ``O_CLOEXEC`` on the new FD.  This makes it possible for userspace to close
 the timing window between ``xyzzy()`` and calling
 ``fcntl(fd, F_SETFD, FD_CLOEXEC)``, where an unexpected ``fork()`` and
 ``execve()`` in another thread could leak a descriptor to
-the exec'ed program. (However, resist the temptation to re-use the actual value
+the exec'ed program. (However, resist the temptation to reuse the actual value
 of the ``O_CLOEXEC`` constant, as it is architecture-specific and is part of a
 numbering space of ``O_*`` flags that is fairly full.)
 
@@ -127,18 +127,18 @@ descriptor. Making a file descriptor ready for reading or writing is the
 normal way for the kernel to indicate to userspace that an event has
 occurred on the corresponding kernel object.
 
-If your new :manpage:`xyzzy(2)` system call involves a filename argument::
+If your new xyzzy(2) system call involves a filename argument::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
 
-you should also consider whether an :manpage:`xyzzyat(2)` version is more appropriate::
+you should also consider whether an xyzzyat(2) version is more appropriate::
 
     int sys_xyzzyat(int dfd, const char __user *path, ..., unsigned int flags);
 
 This allows more flexibility for how userspace specifies the file in question;
 in particular it allows userspace to request the functionality for an
 already-opened file descriptor using the ``AT_EMPTY_PATH`` flag, effectively
-giving an :manpage:`fxyzzy(3)` operation for free::
+giving an fxyzzy(3) operation for free::
 
  - xyzzyat(AT_FDCWD, path, ..., 0) is equivalent to xyzzy(path,...)
  - xyzzyat(fd, "", ..., AT_EMPTY_PATH) is equivalent to fxyzzy(fd, ...)
@@ -147,11 +147,11 @@ giving an :manpage:`fxyzzy(3)` operation for free::
 :manpage:`openat(2)` man page; for an example of AT_EMPTY_PATH, see the
 :manpage:`fstatat(2)` man page.)
 
-If your new :manpage:`xyzzy(2)` system call involves a parameter describing an
+If your new xyzzy(2) system call involves a parameter describing an
 offset within a file, make its type ``loff_t`` so that 64-bit offsets can be
 supported even on 32-bit architectures.
 
-If your new :manpage:`xyzzy(2)` system call involves privileged functionality,
+If your new xyzzy(2) system call involves privileged functionality,
 it needs to be governed by the appropriate Linux capability bit (checked with
 a call to ``capable()``), as described in the :manpage:`capabilities(7)` man
 page.  Choose an existing capability bit that governs related functionality,
@@ -160,7 +160,7 @@ under the same bit, as this goes against capabilities' purpose of splitting
 the power of root.  In particular, avoid adding new uses of the already
 overly-general ``CAP_SYS_ADMIN`` capability.
 
-If your new :manpage:`xyzzy(2)` system call manipulates a process other than
+If your new xyzzy(2) system call manipulates a process other than
 the calling process, it should be restricted (using a call to
 ``ptrace_may_access()``) so that only a calling process with the same
 permissions as the target process, or with the necessary capabilities, can
@@ -196,7 +196,7 @@ be cc'ed to linux-api@vger.kernel.org.
 Generic System Call Implementation
 ----------------------------------
 
-The main entry point for your new :manpage:`xyzzy(2)` system call will be called
+The main entry point for your new xyzzy(2) system call will be called
 ``sys_xyzzy()``, but you add this entry point with the appropriate
 ``SYSCALL_DEFINEn()`` macro rather than explicitly.  The 'n' indicates the
 number of arguments to the system call, and the macro takes the system call name
@@ -459,7 +459,7 @@ the compatibility wrapper::
     ...
     555   x32      xyzzy     __x32_compat_sys_xyzzy
 
-If no pointers are involved, then it is preferable to re-use the 64-bit system
+If no pointers are involved, then it is preferable to reuse the 64-bit system
 call for the x32 ABI (and consequently the entry in
 arch/x86/entry/syscalls/syscall_64.tbl is unchanged).
 

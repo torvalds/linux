@@ -139,11 +139,11 @@ int dhry(int n)
 
 	/* Initializations */
 
-	Next_Ptr_Glob = (Rec_Pointer)kzalloc(sizeof(Rec_Type), GFP_ATOMIC);
+	Next_Ptr_Glob = (Rec_Pointer) kzalloc_obj(Rec_Type, GFP_ATOMIC);
 	if (!Next_Ptr_Glob)
 		return -ENOMEM;
 
-	Ptr_Glob = (Rec_Pointer)kzalloc(sizeof(Rec_Type), GFP_ATOMIC);
+	Ptr_Glob = (Rec_Pointer) kzalloc_obj(Rec_Type, GFP_ATOMIC);
 	if (!Ptr_Glob) {
 		kfree(Next_Ptr_Glob);
 		return -ENOMEM;

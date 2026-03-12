@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Kernel Debugger Architecture Dependent Console I/O handler
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.
  *
  * Copyright (c) 1999-2006 Silicon Graphics, Inc.  All Rights Reserved.
  * Copyright (c) 2009 Wind River Systems, Inc.  All Rights Reserved.

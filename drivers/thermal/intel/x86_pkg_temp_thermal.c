@@ -128,6 +128,9 @@ sys_set_trip_temp(struct thermal_zone_device *tzd,
 	u32 l, h, mask, shift, intr;
 	int tj_max, val, ret;
 
+	if (temp == THERMAL_TEMP_INVALID)
+		temp = 0;
+
 	tj_max = intel_tcc_get_tjmax(zonedev->cpu);
 	if (tj_max < 0)
 		return tj_max;
@@ -332,7 +335,7 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 		return tj_max;
 	tj_max *= 1000;
 
-	zonedev = kzalloc(sizeof(*zonedev), GFP_KERNEL);
+	zonedev = kzalloc_obj(*zonedev);
 	if (!zonedev)
 		return -ENOMEM;
 
@@ -489,8 +492,7 @@ static int __init pkg_temp_thermal_init(void)
 		return -ENODEV;
 
 	max_id = topology_max_packages() * topology_max_dies_per_package();
-	zones = kcalloc(max_id, sizeof(struct zone_device *),
-			   GFP_KERNEL);
+	zones = kzalloc_objs(struct zone_device *, max_id);
 	if (!zones)
 		return -ENOMEM;
 

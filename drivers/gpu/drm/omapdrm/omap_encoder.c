@@ -122,7 +122,7 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 	struct drm_encoder *encoder = NULL;
 	struct omap_encoder *omap_encoder;
 
-	omap_encoder = kzalloc(sizeof(*omap_encoder), GFP_KERNEL);
+	omap_encoder = kzalloc_obj(*omap_encoder);
 	if (!omap_encoder)
 		goto fail;
 

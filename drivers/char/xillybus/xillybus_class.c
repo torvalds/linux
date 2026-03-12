@@ -57,7 +57,7 @@ int xillybus_init_chrdev(struct device *dev,
 	size_t namelen;
 	struct xilly_unit *unit, *u;
 
-	unit = kzalloc(sizeof(*unit), GFP_KERNEL);
+	unit = kzalloc_obj(*unit);
 
 	if (!unit)
 		return -ENOMEM;

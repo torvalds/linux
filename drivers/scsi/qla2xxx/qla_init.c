@@ -1859,15 +1859,6 @@ void qla2x00_handle_rscn(scsi_qla_host_t *vha, struct event_arg *ea)
 	case RSCN_PORT_ADDR:
 		fcport = qla2x00_find_fcport_by_nportid(vha, &ea->id, 1);
 		if (fcport) {
-			if (ql2xfc2target &&
-			    fcport->flags & FCF_FCP2_DEVICE &&
-			    atomic_read(&fcport->state) == FCS_ONLINE) {
-				ql_dbg(ql_dbg_disc, vha, 0x2115,
-				       "Delaying session delete for FCP2 portid=%06x %8phC ",
-					fcport->d_id.b24, fcport->port_name);
-				return;
-			}
-
 			if (vha->hw->flags.edif_enabled && DBELL_ACTIVE(vha)) {
 				/*
 				 * On ipsec start by remote port, Target port
@@ -2471,8 +2462,23 @@ qla24xx_handle_plogi_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 	    ea->sp->gen1, fcport->rscn_gen,
 	    ea->data[0], ea->data[1], ea->iop[0], ea->iop[1]);
 
-	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PRLI_PEND)) {
+	if (fcport->fw_login_state == DSC_LS_PLOGI_PEND) {
+		ql_dbg(ql_dbg_disc, vha, 0x20ea,
+		    "%s %d %8phC Remote is trying to login\n",
+		    __func__, __LINE__, fcport->port_name);
+		/*
+		 * If we get here, there is port thats already logged in,
+		 * but it's state has not moved ahead. Recheck with FW on
+		 * what state it is in and proceed ahead
+		 */
+		if (!N2N_TOPO(vha->hw)) {
+			fcport->fw_login_state = DSC_LS_PRLI_COMP;
+			qla24xx_post_gpdb_work(vha, fcport, 0);
+		}
+		return;
+	}
+
+	if (fcport->fw_login_state == DSC_LS_PRLI_PEND) {
 		ql_dbg(ql_dbg_disc, vha, 0x20ea,
 		    "%s %d %8phC Remote is trying to login\n",
 		    __func__, __LINE__, fcport->port_name);
@@ -4027,9 +4033,7 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 			req->num_outstanding_cmds = ha->cur_fw_iocb_count;
 	}
 
-	req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
-					sizeof(srb_t *),
-					GFP_KERNEL);
+	req->outstanding_cmds = kzalloc_objs(srb_t *, req->num_outstanding_cmds);
 
 	if (!req->outstanding_cmds) {
 		/*
@@ -4037,9 +4041,8 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 		 * initialization.
 		 */
 		req->num_outstanding_cmds = MIN_OUTSTANDING_COMMANDS;
-		req->outstanding_cmds = kcalloc(req->num_outstanding_cmds,
-						sizeof(srb_t *),
-						GFP_KERNEL);
+		req->outstanding_cmds = kzalloc_objs(srb_t *,
+						     req->num_outstanding_cmds);
 
 		if (!req->outstanding_cmds) {
 			ql_log(ql_log_fatal, NULL, 0x0126,
@@ -4073,6 +4076,22 @@ static void qla2xxx_print_sfp_info(struct scsi_qla_host *vha)
 	struct sff_8247_a0 *a0 = (struct sff_8247_a0 *)vha->hw->sfp_data;
 	u8 str[STR_LEN], *ptr, p;
 	int leftover, len;
+
+	ql_dbg(ql_dbg_init, vha, 0x015a,
+	    "SFP: %.*s -> %.*s ->%s%s%s%s%s%s%s\n",
+	    (int)sizeof(a0->vendor_name), a0->vendor_name,
+	    (int)sizeof(a0->vendor_pn), a0->vendor_pn,
+	    a0->fc_sp_cc10 & FC_SP_2 ? a0->fiber_channel_speed2  &  FC_SP_64 ?
+					" 64G" : "" : "",
+	    a0->fc_sp_cc10 & FC_SP_32 ? " 32G" : "",
+	    a0->fc_sp_cc10 & FC_SP_16 ? " 16G" : "",
+	    a0->fc_sp_cc10 & FC_SP_8  ?  " 8G" : "",
+	    a0->fc_sp_cc10 & FC_SP_4  ?  " 4G" : "",
+	    a0->fc_sp_cc10 & FC_SP_2  ?  " 2G" : "",
+	    a0->fc_sp_cc10 & FC_SP_1  ?  " 1G" : "");
+
+	if (!(ql2xextended_error_logging & ql_dbg_verbose))
+		return;
 
 	memset(str, 0, STR_LEN);
 	snprintf(str, SFF_VEN_NAME_LEN+1, a0->vendor_name);
@@ -5552,7 +5571,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 {
 	fc_port_t *fcport;
 
-	fcport = kzalloc(sizeof(fc_port_t), flags);
+	fcport = kzalloc_obj(fc_port_t, flags);
 	if (!fcport)
 		return NULL;
 
@@ -6472,8 +6491,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 
 	/* Try GID_PT to get device list, else GAN. */
 	if (!ha->swl)
-		ha->swl = kcalloc(ha->max_fibre_devices, sizeof(sw_info_t),
-		    GFP_KERNEL);
+		ha->swl = kzalloc_objs(sw_info_t, ha->max_fibre_devices);
 	swl = ha->swl;
 	if (!swl) {
 		/*EMPTY*/
@@ -8443,6 +8461,148 @@ bool qla24xx_risc_firmware_invalid(uint32_t *dword)
 }
 
 static int
+qla28xx_get_srisc_addr(scsi_qla_host_t *vha, uint32_t *srisc_addr,
+		       uint32_t faddr)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	uint32_t *dcode;
+	int rval;
+
+	*srisc_addr = 0;
+	dcode = (uint32_t *)req->ring;
+
+	rval = qla24xx_read_flash_data(vha, dcode, faddr, 10);
+	if (rval) {
+		ql_log(ql_log_fatal, vha, 0x01aa,
+		    "-> Failed to read flash addr + size .\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	*srisc_addr = be32_to_cpu((__force __be32)dcode[2]);
+	return QLA_SUCCESS;
+}
+
+static int
+qla28xx_load_fw_template(scsi_qla_host_t *vha, uint32_t faddr)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct fwdt *fwdt = ha->fwdt;
+	struct req_que *req = ha->req_q_map[0];
+	uint32_t risc_size, risc_attr = 0;
+	uint templates, segments, fragment;
+	uint32_t *dcode;
+	ulong dlen;
+	int rval;
+	uint j;
+
+	dcode = (uint32_t *)req->ring;
+	segments = FA_RISC_CODE_SEGMENTS;
+
+	for (j = 0; j < segments; j++) {
+		rval = qla24xx_read_flash_data(vha, dcode, faddr, 10);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x01a1,
+			       "-> Failed to read flash addr + size .\n");
+			return QLA_FUNCTION_FAILED;
+		}
+
+		risc_size = be32_to_cpu((__force __be32)dcode[3]);
+
+		if (risc_attr == 0)
+			risc_attr = be32_to_cpu((__force __be32)dcode[9]);
+
+		dlen = ha->fw_transfer_size >> 2;
+		for (fragment = 0; fragment < risc_size; fragment++) {
+			if (dlen > risc_size)
+				dlen = risc_size;
+
+			faddr += dlen;
+			risc_size -= dlen;
+		}
+	}
+
+	templates = (risc_attr & BIT_9) ? 2 : 1;
+
+	ql_dbg(ql_dbg_init, vha, 0x01a1, "-> templates = %u\n", templates);
+
+	for (j = 0; j < templates; j++, fwdt++) {
+		vfree(fwdt->template);
+		fwdt->template = NULL;
+		fwdt->length = 0;
+
+		dcode = (uint32_t *)req->ring;
+
+		rval = qla24xx_read_flash_data(vha, dcode, faddr, 7);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x01a2,
+			    "-> Unable to read template size.\n");
+			goto failed;
+		}
+
+		risc_size = be32_to_cpu((__force __be32)dcode[2]);
+		ql_dbg(ql_dbg_init, vha, 0x01a3,
+		    "-> fwdt%u template array at %#x (%#x dwords)\n",
+		    j, faddr, risc_size);
+		if (!risc_size || !~risc_size) {
+			ql_dbg(ql_dbg_init, vha, 0x01a4,
+			    "-> fwdt%u failed to read array\n", j);
+			goto failed;
+		}
+
+		/* skip header and ignore checksum */
+		faddr += 7;
+		risc_size -= 8;
+
+		ql_dbg(ql_dbg_init, vha, 0x01a5,
+		    "-> fwdt%u template allocate template %#x words...\n",
+		    j, risc_size);
+		fwdt->template = vmalloc(risc_size * sizeof(*dcode));
+		if (!fwdt->template) {
+			ql_log(ql_log_warn, vha, 0x01a6,
+			    "-> fwdt%u failed allocate template.\n", j);
+			goto failed;
+		}
+
+		dcode = fwdt->template;
+		rval = qla24xx_read_flash_data(vha, dcode, faddr, risc_size);
+
+		if (rval || !qla27xx_fwdt_template_valid(dcode)) {
+			ql_log(ql_log_warn, vha, 0x01a7,
+			    "-> fwdt%u failed template validate (rval %x)\n",
+			    j, rval);
+			goto failed;
+		}
+
+		dlen = qla27xx_fwdt_template_size(dcode);
+		ql_dbg(ql_dbg_init, vha, 0x01a7,
+		    "-> fwdt%u template size %#lx bytes (%#lx words)\n",
+		    j, dlen, dlen / sizeof(*dcode));
+		if (dlen > risc_size * sizeof(*dcode)) {
+			ql_log(ql_log_warn, vha, 0x01a8,
+			    "-> fwdt%u template exceeds array (%-lu bytes)\n",
+			    j, dlen - risc_size * sizeof(*dcode));
+			goto failed;
+		}
+
+		fwdt->length = dlen;
+		ql_dbg(ql_dbg_init, vha, 0x01a9,
+		    "-> fwdt%u loaded template ok\n", j);
+
+		faddr += risc_size + 1;
+	}
+
+	return QLA_SUCCESS;
+
+failed:
+	vfree(fwdt->template);
+	fwdt->template = NULL;
+	fwdt->length = 0;
+
+	return QLA_SUCCESS;
+}
+
+static int
 qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
     uint32_t faddr)
 {
@@ -8881,22 +9041,58 @@ int
 qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int rval;
+	uint32_t f_region = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct active_regions active_regions = { };
 
-	if (ql2xfwloadbin == 2)
+	if (ql2xfwloadbin == 2 && !IS_QLA28XX(ha))
 		goto try_blob_fw;
 
 	/* FW Load priority:
-	 * 1) Firmware residing in flash.
-	 * 2) Firmware via request-firmware interface (.bin file).
-	 * 3) Golden-Firmware residing in flash -- (limited operation).
+	 * 1) If 28xxx, ROM cmd to load flash firmware.
+	 * 2) Firmware residing in flash.
+	 * 3) Firmware via request-firmware interface (.bin file).
+	 * 4) Golden-Firmware residing in flash -- (limited operation).
 	 */
 
 	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		goto try_primary_fw;
 
 	qla27xx_get_active_image(vha, &active_regions);
+
+	/* For 28XXX, always load the flash firmware using rom mbx */
+	if (IS_QLA28XX_SECURED(ha)) {
+		rval = qla28xx_load_flash_firmware(vha);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_fatal, vha, 0x019e,
+			       "Failed to load flash firmware.\n");
+			goto exit_load_risc;
+		}
+
+		f_region =
+		(active_regions.global != QLA27XX_SECONDARY_IMAGE) ?
+		 ha->flt_region_fw : ha->flt_region_fw_sec;
+
+		ql_log(ql_log_info, vha, 0x019f,
+		       "Load flash firmware successful (%s).\n",
+		       ((active_regions.global != QLA27XX_SECONDARY_IMAGE) ?
+		       "Primary" : "Secondary"));
+
+		rval = qla28xx_get_srisc_addr(vha, srisc_addr, f_region);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0x019f,
+			       "failed to read srisc address\n");
+			goto exit_load_risc;
+		}
+
+		rval = qla28xx_load_fw_template(vha, f_region);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0x01a0,
+			       "failed to read firmware template\n");
+		}
+
+		goto exit_load_risc;
+	}
 
 	if (active_regions.global != QLA27XX_SECONDARY_IMAGE)
 		goto try_primary_fw;
@@ -8927,6 +9123,8 @@ try_blob_fw:
 
 	ql_log(ql_log_info, vha, 0x009a, "Need firmware flash update.\n");
 	ha->flags.running_gold_fw = 1;
+
+exit_load_risc:
 	return rval;
 }
 
@@ -9029,7 +9227,7 @@ qla84xx_get_chip(struct scsi_qla_host *vha)
 		}
 	}
 
-	cs84xx = kzalloc(sizeof(*cs84xx), GFP_KERNEL);
+	cs84xx = kzalloc_obj(*cs84xx);
 	if (!cs84xx)
 		goto done;
 
@@ -9683,7 +9881,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 	}
 
 	if (ql2xmqsupport || ql2xnvmeenable) {
-		qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
+		qpair = kzalloc_obj(struct qla_qpair);
 		if (qpair == NULL) {
 			ql_log(ql_log_warn, vha, 0x0182,
 			    "Failed to allocate memory for queue pair.\n");

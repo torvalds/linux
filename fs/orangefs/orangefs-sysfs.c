@@ -1170,7 +1170,7 @@ int orangefs_sysfs_init(void)
 	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_init: start\n");
 
 	/* create /sys/fs/orangefs. */
-	orangefs_obj = kzalloc(sizeof(*orangefs_obj), GFP_KERNEL);
+	orangefs_obj = kzalloc_obj(*orangefs_obj);
 	if (!orangefs_obj)
 		goto out;
 
@@ -1185,7 +1185,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/acache. */
-	acache_orangefs_obj = kzalloc(sizeof(*acache_orangefs_obj), GFP_KERNEL);
+	acache_orangefs_obj = kzalloc_obj(*acache_orangefs_obj);
 	if (!acache_orangefs_obj) {
 		rc = -EINVAL;
 		goto ofs_obj_bail;
@@ -1202,8 +1202,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(acache_orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/capcache. */
-	capcache_orangefs_obj =
-		kzalloc(sizeof(*capcache_orangefs_obj), GFP_KERNEL);
+	capcache_orangefs_obj = kzalloc_obj(*capcache_orangefs_obj);
 	if (!capcache_orangefs_obj) {
 		rc = -EINVAL;
 		goto acache_obj_bail;
@@ -1219,8 +1218,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(capcache_orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/ccache. */
-	ccache_orangefs_obj =
-		kzalloc(sizeof(*ccache_orangefs_obj), GFP_KERNEL);
+	ccache_orangefs_obj = kzalloc_obj(*ccache_orangefs_obj);
 	if (!ccache_orangefs_obj) {
 		rc = -EINVAL;
 		goto capcache_obj_bail;
@@ -1236,7 +1234,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(ccache_orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/ncache. */
-	ncache_orangefs_obj = kzalloc(sizeof(*ncache_orangefs_obj), GFP_KERNEL);
+	ncache_orangefs_obj = kzalloc_obj(*ncache_orangefs_obj);
 	if (!ncache_orangefs_obj) {
 		rc = -EINVAL;
 		goto ccache_obj_bail;
@@ -1253,7 +1251,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(ncache_orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/perf_counters. */
-	pc_orangefs_obj = kzalloc(sizeof(*pc_orangefs_obj), GFP_KERNEL);
+	pc_orangefs_obj = kzalloc_obj(*pc_orangefs_obj);
 	if (!pc_orangefs_obj) {
 		rc = -EINVAL;
 		goto ncache_obj_bail;
@@ -1270,7 +1268,7 @@ int orangefs_sysfs_init(void)
 	kobject_uevent(pc_orangefs_obj, KOBJ_ADD);
 
 	/* create /sys/fs/orangefs/stats. */
-	stats_orangefs_obj = kzalloc(sizeof(*stats_orangefs_obj), GFP_KERNEL);
+	stats_orangefs_obj = kzalloc_obj(*stats_orangefs_obj);
 	if (!stats_orangefs_obj) {
 		rc = -EINVAL;
 		goto pc_obj_bail;

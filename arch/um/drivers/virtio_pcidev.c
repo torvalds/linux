@@ -537,7 +537,7 @@ static int virtio_pcidev_virtio_probe(struct virtio_device *vdev)
 	struct virtio_pcidev_device *dev;
 	int err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

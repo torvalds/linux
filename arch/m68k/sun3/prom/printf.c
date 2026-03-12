@@ -30,9 +30,9 @@ prom_printf(char *fmt, ...)
 
 #ifdef CONFIG_KGDB
 	ppbuf[0] = 'O';
-	vsprintf(ppbuf + 1, fmt, args) + 1;
+	vsnprintf(ppbuf + 1, sizeof(ppbuf) - 1, fmt, args);
 #else
-	vsprintf(ppbuf, fmt, args);
+	vsnprintf(ppbuf, sizeof(ppbuf), fmt, args);
 #endif
 
 	bptr = ppbuf;

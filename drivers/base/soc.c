@@ -140,13 +140,13 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 		return NULL;
 	}
 
-	soc_dev = kzalloc(sizeof(*soc_dev), GFP_KERNEL);
+	soc_dev = kzalloc_obj(*soc_dev);
 	if (!soc_dev) {
 		ret = -ENOMEM;
 		goto out1;
 	}
 
-	soc_attr_groups = kcalloc(3, sizeof(*soc_attr_groups), GFP_KERNEL);
+	soc_attr_groups = kzalloc_objs(*soc_attr_groups, 3);
 	if (!soc_attr_groups) {
 		ret = -ENOMEM;
 		goto out2;

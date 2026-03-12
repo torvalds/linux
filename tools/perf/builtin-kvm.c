@@ -2,6 +2,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include <dwarf-regs.h>
 #include "util/build-id.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
@@ -52,7 +53,7 @@
 #include <math.h>
 #include <perf/mmap.h>
 
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 #define GET_EVENT_KEY(func, field)					\
 static u64 get_event_ ##func(struct kvm_event *event, int vcpu)		\
 {									\
@@ -597,7 +598,7 @@ static void kvm_display(struct perf_kvm_stat *kvm)
 
 #endif /* HAVE_SLANG_SUPPORT */
 
-#endif // defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#endif // defined(HAVE_LIBTRACEEVENT)
 
 static const char *get_filename_for_perf_kvm(void)
 {
@@ -613,13 +614,13 @@ static const char *get_filename_for_perf_kvm(void)
 	return filename;
 }
 
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 
-static bool register_kvm_events_ops(struct perf_kvm_stat *kvm)
+static bool register_kvm_events_ops(struct perf_kvm_stat *kvm, uint16_t e_machine)
 {
-	struct kvm_reg_events_ops *events_ops = kvm_reg_events_ops;
+	const struct kvm_reg_events_ops *events_ops;
 
-	for (events_ops = kvm_reg_events_ops; events_ops->name; events_ops++) {
+	for (events_ops = kvm_reg_events_ops(e_machine); events_ops->name; events_ops++) {
 		if (!strcmp(events_ops->name, kvm->report_event)) {
 			kvm->events_ops = events_ops->ops;
 			return true;
@@ -809,7 +810,7 @@ static bool is_child_event(struct perf_kvm_stat *kvm,
 			   struct perf_sample *sample,
 			   struct event_key *key)
 {
-	struct child_event_ops *child_ops;
+	const struct child_event_ops *child_ops;
 
 	child_ops = kvm->events_ops->child_ops;
 
@@ -841,11 +842,11 @@ static bool handle_child_event(struct perf_kvm_stat *kvm,
 	return true;
 }
 
-static bool skip_event(const char *event)
+static bool skip_event(uint16_t e_machine, const char *event)
 {
 	const char * const *skip_events;
 
-	for (skip_events = kvm_skip_events; *skip_events; skip_events++)
+	for (skip_events = kvm_skip_events(e_machine); *skip_events; skip_events++)
 		if (!strcmp(event, *skip_events))
 			return true;
 
@@ -901,9 +902,10 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 
 	if (kvm->duration && time_diff > kvm->duration) {
 		char decode[KVM_EVENT_NAME_LEN];
+		uint16_t e_machine = perf_session__e_machine(kvm->session, /*e_flags=*/NULL);
 
 		kvm->events_ops->decode_key(kvm, &event->key, decode);
-		if (!skip_event(decode)) {
+		if (!skip_event(e_machine, decode)) {
 			pr_info("%" PRIu64 " VM %d, vcpu %d: %s event took %" PRIu64 "usec\n",
 				 sample->time, sample->pid, vcpu_record->vcpu_id,
 				 decode, time_diff / NSEC_PER_USEC);
@@ -921,6 +923,8 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 	/* Only kvm_entry records vcpu id. */
 	if (!thread__priv(thread) && kvm_entry_event(evsel)) {
 		struct vcpu_event_record *vcpu_record;
+		struct machine *machine = maps__machine(thread__maps(thread));
+		uint16_t e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 
 		vcpu_record = zalloc(sizeof(*vcpu_record));
 		if (!vcpu_record) {
@@ -928,7 +932,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str);
+		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str(e_machine));
 		thread__set_priv(thread, vcpu_record);
 	}
 
@@ -1163,6 +1167,7 @@ static int cpu_isa_config(struct perf_kvm_stat *kvm)
 {
 	char buf[128], *cpuid;
 	int err;
+	uint16_t e_machine;
 
 	if (kvm->live) {
 		struct perf_cpu cpu = {-1};
@@ -1182,7 +1187,8 @@ static int cpu_isa_config(struct perf_kvm_stat *kvm)
 		return -EINVAL;
 	}
 
-	err = cpu_isa_init(kvm, cpuid);
+	e_machine = perf_session__e_machine(kvm->session, /*e_flags=*/NULL);
+	err = cpu_isa_init(kvm, e_machine, cpuid);
 	if (err == -ENOTSUP)
 		pr_err("CPU %s is not supported.\n", cpuid);
 
@@ -1413,7 +1419,7 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 
 	if (!verify_vcpu(kvm->trace_vcpu) ||
 	    !is_valid_key(kvm) ||
-	    !register_kvm_events_ops(kvm)) {
+		!register_kvm_events_ops(kvm, EM_HOST)) {
 		goto out;
 	}
 
@@ -1543,7 +1549,7 @@ out:
 static int read_events(struct perf_kvm_stat *kvm)
 {
 	int ret;
-
+	uint16_t e_machine;
 	struct perf_data file = {
 		.path  = kvm->file_name,
 		.mode  = PERF_DATA_MODE_READ,
@@ -1564,6 +1570,12 @@ static int read_events(struct perf_kvm_stat *kvm)
 	symbol__init(perf_session__env(kvm->session));
 
 	if (!perf_session__has_traces(kvm->session, "kvm record")) {
+		ret = -EINVAL;
+		goto out_delete;
+	}
+
+	e_machine = perf_session__e_machine(kvm->session, /*e_flags=*/NULL);
+	if (!register_kvm_events_ops(kvm, e_machine)) {
 		ret = -EINVAL;
 		goto out_delete;
 	}
@@ -1610,9 +1622,6 @@ static int kvm_events_report_vcpu(struct perf_kvm_stat *kvm)
 	if (!is_valid_key(kvm))
 		goto exit;
 
-	if (!register_kvm_events_ops(kvm))
-		goto exit;
-
 	if (kvm->use_stdio) {
 		use_browser = 0;
 		setup_pager();
@@ -1636,11 +1645,6 @@ exit:
 	return ret;
 }
 
-int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
-{
-	return 0;
-}
-
 static int
 kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 {
@@ -1658,15 +1662,16 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	};
 	const char * const *events_tp;
 	int ret;
+	uint16_t e_machine = EM_HOST;
 
 	events_tp_size = 0;
-	ret = setup_kvm_events_tp(kvm);
+	ret = setup_kvm_events_tp(kvm, e_machine);
 	if (ret < 0) {
 		pr_err("Unable to setup the kvm tracepoints\n");
 		return ret;
 	}
 
-	for (events_tp = kvm_events_tp; *events_tp; events_tp++)
+	for (events_tp = kvm_events_tp(e_machine); *events_tp; events_tp++)
 		events_tp_size++;
 
 	rec_argc = ARRAY_SIZE(record_args) + argc + 2 +
@@ -1681,7 +1686,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 
 	for (j = 0; j < events_tp_size; j++) {
 		rec_argv[i++] = STRDUP_FAIL_EXIT("-e");
-		rec_argv[i++] = STRDUP_FAIL_EXIT(kvm_events_tp[j]);
+		rec_argv[i++] = STRDUP_FAIL_EXIT(kvm_events_tp(e_machine)[j]);
 	}
 
 	rec_argv[i++] = STRDUP_FAIL_EXIT("-o");
@@ -1775,7 +1780,7 @@ static struct evlist *kvm_live_event_list(void)
 	if (evlist == NULL)
 		return NULL;
 
-	for (events_tp = kvm_events_tp; *events_tp; events_tp++) {
+	for (events_tp = kvm_events_tp(EM_HOST); *events_tp; events_tp++) {
 
 		tp = strdup(*events_tp);
 		if (tp == NULL)
@@ -1900,7 +1905,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	/*
 	 * generate the event list
 	 */
-	err = setup_kvm_events_tp(kvm);
+	err = setup_kvm_events_tp(kvm, EM_HOST);
 	if (err < 0) {
 		pr_err("Unable to setup the kvm tracepoints\n");
 		return err;
@@ -1985,13 +1990,7 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 perf_stat:
 	return cmd_stat(argc, argv);
 }
-#endif /* HAVE_KVM_STAT_SUPPORT */
-
-int __weak kvm_add_default_arch_event(int *argc __maybe_unused,
-					const char **argv __maybe_unused)
-{
-	return 0;
-}
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int __cmd_record(const char *file_name, int argc, const char **argv)
 {
@@ -2016,7 +2015,7 @@ static int __cmd_record(const char *file_name, int argc, const char **argv)
 
 	BUG_ON(i + 2 != rec_argc);
 
-	ret = kvm_add_default_arch_event(&i, rec_argv);
+	ret = kvm_add_default_arch_event(EM_HOST, &i, rec_argv);
 	if (ret)
 		goto EXIT;
 
@@ -2103,7 +2102,7 @@ static int __cmd_top(int argc, const char **argv)
 
 	BUG_ON(i != argc);
 
-	ret = kvm_add_default_arch_event(&i, rec_argv);
+	ret = kvm_add_default_arch_event(EM_HOST, &i, rec_argv);
 	if (ret)
 		goto EXIT;
 
@@ -2179,7 +2178,7 @@ int cmd_kvm(int argc, const char **argv)
 		return __cmd_top(argc, argv);
 	else if (strlen(argv[0]) > 2 && strstarts("buildid-list", argv[0]))
 		return __cmd_buildid_list(file_name, argc, argv);
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 	else if (strlen(argv[0]) > 2 && strstarts("stat", argv[0]))
 		return kvm_cmd_stat(file_name, argc, argv);
 #endif

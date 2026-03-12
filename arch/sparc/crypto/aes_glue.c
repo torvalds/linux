@@ -32,8 +32,6 @@
 #include <asm/elf.h>
 
 struct aes_ops {
-	void (*encrypt)(const u64 *key, const u32 *input, u32 *output);
-	void (*decrypt)(const u64 *key, const u32 *input, u32 *output);
 	void (*load_encrypt_keys)(const u64 *key);
 	void (*load_decrypt_keys)(const u64 *key);
 	void (*ecb_encrypt)(const u64 *key, const u64 *input, u64 *output,
@@ -55,79 +53,7 @@ struct crypto_sparc64_aes_ctx {
 	u32 expanded_key_length;
 };
 
-extern void aes_sparc64_encrypt_128(const u64 *key, const u32 *input,
-				    u32 *output);
-extern void aes_sparc64_encrypt_192(const u64 *key, const u32 *input,
-				    u32 *output);
-extern void aes_sparc64_encrypt_256(const u64 *key, const u32 *input,
-				    u32 *output);
-
-extern void aes_sparc64_decrypt_128(const u64 *key, const u32 *input,
-				    u32 *output);
-extern void aes_sparc64_decrypt_192(const u64 *key, const u32 *input,
-				    u32 *output);
-extern void aes_sparc64_decrypt_256(const u64 *key, const u32 *input,
-				    u32 *output);
-
-extern void aes_sparc64_load_encrypt_keys_128(const u64 *key);
-extern void aes_sparc64_load_encrypt_keys_192(const u64 *key);
-extern void aes_sparc64_load_encrypt_keys_256(const u64 *key);
-
-extern void aes_sparc64_load_decrypt_keys_128(const u64 *key);
-extern void aes_sparc64_load_decrypt_keys_192(const u64 *key);
-extern void aes_sparc64_load_decrypt_keys_256(const u64 *key);
-
-extern void aes_sparc64_ecb_encrypt_128(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-extern void aes_sparc64_ecb_encrypt_192(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-extern void aes_sparc64_ecb_encrypt_256(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-
-extern void aes_sparc64_ecb_decrypt_128(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-extern void aes_sparc64_ecb_decrypt_192(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-extern void aes_sparc64_ecb_decrypt_256(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len);
-
-extern void aes_sparc64_cbc_encrypt_128(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_cbc_encrypt_192(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_cbc_encrypt_256(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_cbc_decrypt_128(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_cbc_decrypt_192(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_cbc_decrypt_256(const u64 *key, const u64 *input,
-					u64 *output, unsigned int len,
-					u64 *iv);
-
-extern void aes_sparc64_ctr_crypt_128(const u64 *key, const u64 *input,
-				      u64 *output, unsigned int len,
-				      u64 *iv);
-extern void aes_sparc64_ctr_crypt_192(const u64 *key, const u64 *input,
-				      u64 *output, unsigned int len,
-				      u64 *iv);
-extern void aes_sparc64_ctr_crypt_256(const u64 *key, const u64 *input,
-				      u64 *output, unsigned int len,
-				      u64 *iv);
-
 static struct aes_ops aes128_ops = {
-	.encrypt		= aes_sparc64_encrypt_128,
-	.decrypt		= aes_sparc64_decrypt_128,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_128,
 	.load_decrypt_keys	= aes_sparc64_load_decrypt_keys_128,
 	.ecb_encrypt		= aes_sparc64_ecb_encrypt_128,
@@ -138,8 +64,6 @@ static struct aes_ops aes128_ops = {
 };
 
 static struct aes_ops aes192_ops = {
-	.encrypt		= aes_sparc64_encrypt_192,
-	.decrypt		= aes_sparc64_decrypt_192,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_192,
 	.load_decrypt_keys	= aes_sparc64_load_decrypt_keys_192,
 	.ecb_encrypt		= aes_sparc64_ecb_encrypt_192,
@@ -150,8 +74,6 @@ static struct aes_ops aes192_ops = {
 };
 
 static struct aes_ops aes256_ops = {
-	.encrypt		= aes_sparc64_encrypt_256,
-	.decrypt		= aes_sparc64_decrypt_256,
 	.load_encrypt_keys	= aes_sparc64_load_encrypt_keys_256,
 	.load_decrypt_keys	= aes_sparc64_load_decrypt_keys_256,
 	.ecb_encrypt		= aes_sparc64_ecb_encrypt_256,
@@ -161,13 +83,10 @@ static struct aes_ops aes256_ops = {
 	.ctr_crypt		= aes_sparc64_ctr_crypt_256,
 };
 
-extern void aes_sparc64_key_expand(const u32 *in_key, u64 *output_key,
-				   unsigned int key_len);
-
-static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		       unsigned int key_len)
+static int aes_set_key_skcipher(struct crypto_skcipher *tfm, const u8 *in_key,
+				unsigned int key_len)
 {
-	struct crypto_sparc64_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_sparc64_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	switch (key_len) {
 	case AES_KEYSIZE_128:
@@ -193,26 +112,6 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	ctx->key_length = key_len;
 
 	return 0;
-}
-
-static int aes_set_key_skcipher(struct crypto_skcipher *tfm, const u8 *in_key,
-				unsigned int key_len)
-{
-	return aes_set_key(crypto_skcipher_tfm(tfm), in_key, key_len);
-}
-
-static void crypto_aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	struct crypto_sparc64_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	ctx->ops->encrypt(&ctx->key[0], (const u32 *) src, (u32 *) dst);
-}
-
-static void crypto_aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	struct crypto_sparc64_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	ctx->ops->decrypt(&ctx->key[0], (const u32 *) src, (u32 *) dst);
 }
 
 static int ecb_encrypt(struct skcipher_request *req)
@@ -358,26 +257,6 @@ static int ctr_crypt(struct skcipher_request *req)
 	return err;
 }
 
-static struct crypto_alg cipher_alg = {
-	.cra_name		= "aes",
-	.cra_driver_name	= "aes-sparc64",
-	.cra_priority		= SPARC_CR_OPCODE_PRIORITY,
-	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		= AES_BLOCK_SIZE,
-	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
-	.cra_alignmask		= 3,
-	.cra_module		= THIS_MODULE,
-	.cra_u	= {
-		.cipher	= {
-			.cia_min_keysize	= AES_MIN_KEY_SIZE,
-			.cia_max_keysize	= AES_MAX_KEY_SIZE,
-			.cia_setkey		= aes_set_key,
-			.cia_encrypt		= crypto_aes_encrypt,
-			.cia_decrypt		= crypto_aes_decrypt
-		}
-	}
-};
-
 static struct skcipher_alg skcipher_algs[] = {
 	{
 		.base.cra_name		= "ecb(aes)",
@@ -440,26 +319,17 @@ static bool __init sparc64_has_aes_opcode(void)
 
 static int __init aes_sparc64_mod_init(void)
 {
-	int err;
-
 	if (!sparc64_has_aes_opcode()) {
 		pr_info("sparc64 aes opcodes not available.\n");
 		return -ENODEV;
 	}
 	pr_info("Using sparc64 aes opcodes optimized AES implementation\n");
-	err = crypto_register_alg(&cipher_alg);
-	if (err)
-		return err;
-	err = crypto_register_skciphers(skcipher_algs,
-					ARRAY_SIZE(skcipher_algs));
-	if (err)
-		crypto_unregister_alg(&cipher_alg);
-	return err;
+	return crypto_register_skciphers(skcipher_algs,
+					 ARRAY_SIZE(skcipher_algs));
 }
 
 static void __exit aes_sparc64_mod_fini(void)
 {
-	crypto_unregister_alg(&cipher_alg);
 	crypto_unregister_skciphers(skcipher_algs, ARRAY_SIZE(skcipher_algs));
 }
 

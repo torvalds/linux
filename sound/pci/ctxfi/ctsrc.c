@@ -540,7 +540,7 @@ int src_mgr_create(struct hw *hw, void **rsrc_mgr)
 	struct src_mgr *src_mgr;
 
 	*rsrc_mgr = NULL;
-	src_mgr = kzalloc(sizeof(*src_mgr), GFP_KERNEL);
+	src_mgr = kzalloc_obj(*src_mgr);
 	if (!src_mgr)
 		return -ENOMEM;
 
@@ -669,8 +669,7 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 		return err;
 
 	/* Reserve memory for imapper nodes */
-	srcimp->imappers = kcalloc(desc->msr, sizeof(struct imapper),
-				   GFP_KERNEL);
+	srcimp->imappers = kzalloc_objs(struct imapper, desc->msr);
 	if (!srcimp->imappers) {
 		err = -ENOMEM;
 		goto error1;
@@ -811,7 +810,7 @@ int srcimp_mgr_create(struct hw *hw, void **rsrcimp_mgr)
 	struct imapper *entry;
 
 	*rsrcimp_mgr = NULL;
-	srcimp_mgr = kzalloc(sizeof(*srcimp_mgr), GFP_KERNEL);
+	srcimp_mgr = kzalloc_obj(*srcimp_mgr);
 	if (!srcimp_mgr)
 		return -ENOMEM;
 
@@ -822,7 +821,7 @@ int srcimp_mgr_create(struct hw *hw, void **rsrcimp_mgr)
 	spin_lock_init(&srcimp_mgr->mgr_lock);
 	spin_lock_init(&srcimp_mgr->imap_lock);
 	INIT_LIST_HEAD(&srcimp_mgr->imappers);
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		err = -ENOMEM;
 		goto error2;

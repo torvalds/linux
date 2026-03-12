@@ -1079,7 +1079,7 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 		return -EINVAL;
 	}
 
-	rmu = kzalloc(sizeof(struct fsl_rmu), GFP_KERNEL);
+	rmu = kzalloc_obj(struct fsl_rmu);
 	if (!rmu)
 		return -ENOMEM;
 

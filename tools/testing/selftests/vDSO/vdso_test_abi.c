@@ -36,6 +36,7 @@ typedef long (*vdso_gettimeofday_t)(struct timeval *tv, struct timezone *tz);
 typedef long (*vdso_clock_gettime_t)(clockid_t clk_id, struct timespec *ts);
 typedef long (*vdso_clock_gettime64_t)(clockid_t clk_id, struct vdso_timespec64 *ts);
 typedef long (*vdso_clock_getres_t)(clockid_t clk_id, struct timespec *ts);
+typedef long (*vdso_clock_getres_time64_t)(clockid_t clk_id, struct vdso_timespec64 *ts);
 typedef time_t (*vdso_time_t)(time_t *t);
 
 static const char * const vdso_clock_name[] = {
@@ -179,7 +180,7 @@ static void vdso_test_clock_getres(clockid_t clk_id)
 		clock_getres_fail++;
 	}
 
-	ret = syscall(SYS_clock_getres, clk_id, &sys_ts);
+	ret = syscall(__NR_clock_getres, clk_id, &sys_ts);
 
 	ksft_print_msg("The syscall resolution is %lld %lld\n",
 			(long long)sys_ts.tv_sec, (long long)sys_ts.tv_nsec);
@@ -196,6 +197,55 @@ static void vdso_test_clock_getres(clockid_t clk_id)
 	}
 }
 
+#ifdef __NR_clock_getres_time64
+static void vdso_test_clock_getres_time64(clockid_t clk_id)
+{
+	int clock_getres_fail = 0;
+
+	/* Find clock_getres. */
+	vdso_clock_getres_time64_t vdso_clock_getres_time64 =
+		(vdso_clock_getres_time64_t)vdso_sym(version, name[7]);
+
+	if (!vdso_clock_getres_time64) {
+		ksft_print_msg("Couldn't find %s\n", name[7]);
+		ksft_test_result_skip("%s %s\n", name[7],
+				      vdso_clock_name[clk_id]);
+		return;
+	}
+
+	struct vdso_timespec64 ts, sys_ts;
+	long ret = VDSO_CALL(vdso_clock_getres_time64, 2, clk_id, &ts);
+
+	if (ret == 0) {
+		ksft_print_msg("The vdso resolution is %lld %lld\n",
+			       (long long)ts.tv_sec, (long long)ts.tv_nsec);
+	} else {
+		clock_getres_fail++;
+	}
+
+	ret = syscall(__NR_clock_getres_time64, clk_id, &sys_ts);
+
+	ksft_print_msg("The syscall resolution is %lld %lld\n",
+			(long long)sys_ts.tv_sec, (long long)sys_ts.tv_nsec);
+
+	if ((sys_ts.tv_sec != ts.tv_sec) || (sys_ts.tv_nsec != ts.tv_nsec))
+		clock_getres_fail++;
+
+	if (clock_getres_fail > 0) {
+		ksft_test_result_fail("%s %s\n", name[7],
+				      vdso_clock_name[clk_id]);
+	} else {
+		ksft_test_result_pass("%s %s\n", name[7],
+				      vdso_clock_name[clk_id]);
+	}
+}
+#else /* !__NR_clock_getres_time64 */
+static void vdso_test_clock_getres_time64(clockid_t clk_id)
+{
+	ksft_test_result_skip("%s %s\n", name[7], vdso_clock_name[clk_id]);
+}
+#endif /* __NR_clock_getres_time64 */
+
 /*
  * This function calls vdso_test_clock_gettime and vdso_test_clock_getres
  * with different values for clock_id.
@@ -208,9 +258,10 @@ static inline void vdso_test_clock(clockid_t clock_id)
 	vdso_test_clock_gettime64(clock_id);
 
 	vdso_test_clock_getres(clock_id);
+	vdso_test_clock_getres_time64(clock_id);
 }
 
-#define VDSO_TEST_PLAN	29
+#define VDSO_TEST_PLAN	38
 
 int main(int argc, char **argv)
 {

@@ -145,8 +145,8 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 			   gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN),
 			   dev->numa_node);
 	if (!icm) {
-		icm = kmalloc(sizeof(*icm),
-			      gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
+		icm = kmalloc_obj(*icm,
+				  gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 		if (!icm)
 			return NULL;
 	}
@@ -163,9 +163,8 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 							  __GFP_NOWARN),
 					     dev->numa_node);
 			if (!chunk) {
-				chunk = kzalloc(sizeof(*chunk),
-						gfp_mask & ~(__GFP_HIGHMEM |
-							     __GFP_NOWARN));
+				chunk = kzalloc_obj(*chunk,
+						    gfp_mask & ~(__GFP_HIGHMEM | __GFP_NOWARN));
 				if (!chunk)
 					goto fail;
 			}
@@ -427,7 +426,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 		return -EINVAL;
 	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
-	table->icm      = kvcalloc(num_icm, sizeof(*table->icm), GFP_KERNEL);
+	table->icm      = kvzalloc_objs(*table->icm, num_icm);
 	if (!table->icm)
 		return -ENOMEM;
 	table->virt     = virt;

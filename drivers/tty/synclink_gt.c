@@ -3477,7 +3477,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 {
 	struct slgt_info *info;
 
-	info = kzalloc(sizeof(struct slgt_info), GFP_KERNEL);
+	info = kzalloc_obj(struct slgt_info);
 
 	if (!info) {
 		DBGERR(("%s device alloc failed adapter=%d port=%d\n",

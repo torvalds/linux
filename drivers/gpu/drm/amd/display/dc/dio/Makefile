@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2020-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -23,11 +23,20 @@
 #
 #
 
+###############################################################################
+# VIRTUAL
+###############################################################################
+DIO_VIRTUAL = virtual_link_encoder.o virtual_stream_encoder.o
+
+AMD_DAL_DIO_VIRTUAL = $(addprefix $(AMDDALPATH)/dc/dio/virtual/,$(DIO_VIRTUAL))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_VIRTUAL)
+
 ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################
 # DCN10
 ###############################################################################
-DIO_DCN10 = dcn10_link_encoder.o dcn10_stream_encoder.o
+DIO_DCN10 = dcn10_link_encoder.o dcn10_stream_encoder.o dcn10_dio.o
 
 AMD_DAL_DIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/dio/dcn10/,$(DIO_DCN10))
 
@@ -114,4 +123,13 @@ DIO_DCN401 = dcn401_dio_link_encoder.o dcn401_dio_stream_encoder.o
 AMD_DAL_DIO_DCN401 = $(addprefix $(AMDDALPATH)/dc/dio/dcn401/,$(DIO_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN401)
+
+###############################################################################
+# DCN42
+###############################################################################
+DIO_DCN42 = dcn42_dio_link_encoder.o dcn42_dio_stream_encoder.o
+
+AMD_DAL_DIO_DCN42 = $(addprefix $(AMDDALPATH)/dc/dio/dcn42/,$(DIO_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN42)
 endif

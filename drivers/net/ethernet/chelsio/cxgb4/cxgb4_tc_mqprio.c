@@ -100,8 +100,7 @@ static int cxgb4_init_eosw_txq(struct net_device *dev,
 
 	memset(eosw_txq, 0, sizeof(*eosw_txq));
 
-	ring = kcalloc(CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM,
-		       sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_objs(*ring, CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM);
 	if (!ring)
 		return -ENOMEM;
 
@@ -157,15 +156,13 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 
 	/* Allocate ETHOFLD hardware queue structures if not done already */
 	if (!refcount_read(&adap->tc_mqprio->refcnt)) {
-		adap->sge.eohw_rxq = kcalloc(adap->sge.eoqsets,
-					     sizeof(struct sge_ofld_rxq),
-					     GFP_KERNEL);
+		adap->sge.eohw_rxq = kzalloc_objs(struct sge_ofld_rxq,
+						  adap->sge.eoqsets);
 		if (!adap->sge.eohw_rxq)
 			return -ENOMEM;
 
-		adap->sge.eohw_txq = kcalloc(adap->sge.eoqsets,
-					     sizeof(struct sge_eohw_txq),
-					     GFP_KERNEL);
+		adap->sge.eohw_txq = kzalloc_objs(struct sge_eohw_txq,
+						  adap->sge.eoqsets);
 		if (!adap->sge.eohw_txq) {
 			kfree(adap->sge.eohw_rxq);
 			return -ENOMEM;
@@ -657,12 +654,11 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 	int ret = 0;
 	u8 i;
 
-	tc_mqprio = kzalloc(sizeof(*tc_mqprio), GFP_KERNEL);
+	tc_mqprio = kzalloc_obj(*tc_mqprio);
 	if (!tc_mqprio)
 		return -ENOMEM;
 
-	tc_port_mqprio = kcalloc(adap->params.nports, sizeof(*tc_port_mqprio),
-				 GFP_KERNEL);
+	tc_port_mqprio = kzalloc_objs(*tc_port_mqprio, adap->params.nports);
 	if (!tc_port_mqprio) {
 		ret = -ENOMEM;
 		goto out_free_mqprio;
@@ -673,8 +669,7 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 	tc_mqprio->port_mqprio = tc_port_mqprio;
 	for (i = 0; i < adap->params.nports; i++) {
 		port_mqprio = &tc_mqprio->port_mqprio[i];
-		eosw_txq = kcalloc(adap->tids.neotids, sizeof(*eosw_txq),
-				   GFP_KERNEL);
+		eosw_txq = kzalloc_objs(*eosw_txq, adap->tids.neotids);
 		if (!eosw_txq) {
 			ret = -ENOMEM;
 			goto out_free_ports;

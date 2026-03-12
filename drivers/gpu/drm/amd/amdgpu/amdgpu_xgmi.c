@@ -42,8 +42,6 @@
 
 #define XGMI_STATE_DISABLE                      0xD1
 #define XGMI_STATE_LS0                          0x81
-#define XGMI_LINK_ACTIVE			1
-#define XGMI_LINK_INACTIVE			0
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -340,7 +338,7 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 	if (!(adev->aid_mask & BIT(i)))
 		return U32_MAX;
 
-	addr += adev->asic_funcs->encode_ext_smn_addressing(i);
+	addr += amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, i);
 
 	return RREG32_PCIE_EXT(addr);
 }
@@ -348,6 +346,9 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 {
 	u32 xgmi_state_reg_val;
+
+	if (amdgpu_sriov_vf(adev))
+		return AMDGPU_XGMI_LINK_NA;
 
 	if (adev->gmc.xgmi.num_physical_nodes <= 1)
 		return -EINVAL;
@@ -365,9 +366,9 @@ int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 		return -ENOLINK;
 
 	if ((xgmi_state_reg_val & 0xFF) == XGMI_STATE_LS0)
-		return XGMI_LINK_ACTIVE;
+		return AMDGPU_XGMI_LINK_ACTIVE;
 
-	return XGMI_LINK_INACTIVE;
+	return AMDGPU_XGMI_LINK_INACTIVE;
 }
 
 /**
@@ -692,7 +693,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 			goto pro_end;
 	}
 
-	hive = kzalloc(sizeof(*hive), GFP_KERNEL);
+	hive = kzalloc_obj(*hive);
 	if (!hive) {
 		dev_err(adev->dev, "XGMI: allocation failed\n");
 		ret = -ENOMEM;
@@ -1176,7 +1177,7 @@ static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
-		if (ext_error_code != 0 && ext_error_code != 9)
+		if (ext_error_code != 0 && ext_error_code != 1 && ext_error_code != 9)
 			count = 0ULL;
 
 		bank->aca_err_type = ACA_ERROR_TYPE_UE;
@@ -1292,7 +1293,10 @@ static void amdgpu_xgmi_legacy_reset_ras_error_count(struct amdgpu_device *adev)
 
 static void __xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst, u64 mca_base)
 {
-	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
+	uint64_t smn_base =
+		amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, xgmi_inst);
+
+	WREG64_MCA(smn_base, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst)
@@ -1502,6 +1506,7 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 					    u64 mca_base, struct ras_err_data *err_data)
 {
 	int xgmi_inst = mcm_info->die_id;
+	uint64_t smn_base;
 	u64 status = 0;
 
 	status = RREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS);
@@ -1518,8 +1523,8 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 	default:
 		break;
 	}
-
-	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
+	smn_base = amdgpu_reg_get_smn_base64(adev, XGMI_HWIP, xgmi_inst);
+	WREG64_MCA(smn_base, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, int xgmi_inst, struct ras_err_data *err_data)

@@ -397,7 +397,7 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 			 */
 			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 
-			meta = kmalloc(sizeof(*meta), GFP_KERNEL);
+			meta = kmalloc_obj(*meta);
 			if (meta) {
 				meta->sequence = src_buf->sequence;
 				meta->timecode = src_buf->timecode;

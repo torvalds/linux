@@ -40,7 +40,7 @@ DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(uc_usage);
 void intel_uc_debugfs_register(struct intel_uc *uc, struct dentry *gt_root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "usage", &uc_usage_fops, NULL },
+		{ .name = "usage", .fops = &uc_usage_fops },
 	};
 	struct dentry *root;
 

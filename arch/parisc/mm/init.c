@@ -693,13 +693,9 @@ static void __init fixmap_init(void)
 	} while (addr < end);
 }
 
-static void __init parisc_bootmem_free(void)
+void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
-
-	max_zone_pfn[0] = memblock_end_of_DRAM();
-
-	free_area_init(max_zone_pfn);
+	max_zone_pfns[ZONE_NORMAL] = PFN_DOWN(memblock_end_of_DRAM());
 }
 
 void __init paging_init(void)
@@ -710,9 +706,6 @@ void __init paging_init(void)
 	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
-
-	sparse_init();
-	parisc_bootmem_free();
 }
 
 static void alloc_btlb(unsigned long start, unsigned long end, int *slot,

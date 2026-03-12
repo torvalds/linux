@@ -201,7 +201,7 @@ $(addprefix $(obj)/, mconf.o $(lxdialog)): | $(obj)/mconf-cflags
 # qconf: Used for the xconfig target based on Qt
 hostprogs	+= qconf
 qconf-cxxobjs	:= qconf.o qconf-moc.o
-qconf-objs	:= images.o $(common-objs)
+qconf-objs	:= $(common-objs)
 
 HOSTLDLIBS_qconf         = $(call read-file, $(obj)/qconf-libs)
 HOSTCXXFLAGS_qconf.o     = -std=c++11 -fPIC $(call read-file, $(obj)/qconf-cflags)
@@ -219,7 +219,7 @@ targets += qconf-moc.cc
 
 # gconf: Used for the gconfig target based on GTK+
 hostprogs	+= gconf
-gconf-objs	:= gconf.o images.o $(common-objs)
+gconf-objs	:= gconf.o $(common-objs)
 
 HOSTLDLIBS_gconf   = $(call read-file, $(obj)/gconf-libs)
 HOSTCFLAGS_gconf.o = $(call read-file, $(obj)/gconf-cflags)

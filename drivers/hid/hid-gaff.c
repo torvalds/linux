@@ -96,7 +96,7 @@ static int gaff_init(struct hid_device *hid)
 		return -ENODEV;
 	}
 
-	gaff = kzalloc(sizeof(struct gaff_device), GFP_KERNEL);
+	gaff = kzalloc_obj(struct gaff_device);
 	if (!gaff)
 		return -ENOMEM;
 

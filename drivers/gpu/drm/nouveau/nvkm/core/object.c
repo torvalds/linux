@@ -142,13 +142,25 @@ nvkm_object_bind(struct nvkm_object *object, struct nvkm_gpuobj *gpuobj,
 }
 
 int
-nvkm_object_fini(struct nvkm_object *object, bool suspend)
+nvkm_object_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
-	const char *action = suspend ? "suspend" : "fini";
+	const char *action;
 	struct nvkm_object *child;
 	s64 time;
 	int ret;
 
+	switch (suspend) {
+	case NVKM_POWEROFF:
+	default:
+		action = "fini";
+		break;
+	case NVKM_SUSPEND:
+		action = "suspend";
+		break;
+	case NVKM_RUNTIME_SUSPEND:
+		action = "runtime";
+		break;
+	}
 	nvif_debug(object, "%s children...\n", action);
 	time = ktime_to_us(ktime_get());
 	list_for_each_entry_reverse(child, &object->tree, head) {
@@ -212,11 +224,11 @@ nvkm_object_init(struct nvkm_object *object)
 
 fail_child:
 	list_for_each_entry_continue_reverse(child, &object->tree, head)
-		nvkm_object_fini(child, false);
+		nvkm_object_fini(child, NVKM_POWEROFF);
 fail:
 	nvif_error(object, "init failed with %d\n", ret);
 	if (object->func->fini)
-		object->func->fini(object, false);
+		object->func->fini(object, NVKM_POWEROFF);
 	return ret;
 }
 
@@ -278,7 +290,7 @@ nvkm_object_new_(const struct nvkm_object_func *func,
 		 struct nvkm_object **pobject)
 {
 	if (size == 0) {
-		if (!(*pobject = kzalloc(sizeof(**pobject), GFP_KERNEL)))
+		if (!(*pobject = kzalloc_obj(**pobject)))
 			return -ENOMEM;
 		nvkm_object_ctor(func, oclass, *pobject);
 		return 0;

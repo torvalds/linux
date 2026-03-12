@@ -23,4 +23,9 @@ static const struct platform_clk_data sc7280_clk_table[] = {
 	{IRIS_HW_AHB_CLK,  "vcodec_bus"   },
 };
 
+static const char * const sc7280_opp_clk_table[] = {
+	"vcodec_core",
+	NULL,
+};
+
 #endif

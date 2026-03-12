@@ -181,6 +181,7 @@ SYM_FUNC_END(test_kprobes_c_bnez)
 
 #endif /* CONFIG_RISCV_ISA_C */
 
+.section .rodata
 SYM_DATA_START(test_kprobes_addresses)
 	RISCV_PTR test_kprobes_add_addr1
 	RISCV_PTR test_kprobes_add_addr2
@@ -212,6 +213,7 @@ SYM_DATA_START(test_kprobes_addresses)
 	RISCV_PTR 0
 SYM_DATA_END(test_kprobes_addresses)
 
+.section .rodata
 SYM_DATA_START(test_kprobes_functions)
 	RISCV_PTR test_kprobes_add
 	RISCV_PTR test_kprobes_jal

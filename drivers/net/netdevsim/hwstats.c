@@ -238,7 +238,7 @@ nsim_dev_hwstats_enable_ifindex(struct nsim_dev_hwstats *hwstats,
 		goto out_unlock_list;
 	}
 
-	hwsdev = kzalloc(sizeof(*hwsdev), GFP_KERNEL);
+	hwsdev = kzalloc_obj(*hwsdev);
 	if (!hwsdev) {
 		err = -ENOMEM;
 		goto out_put_netdev;

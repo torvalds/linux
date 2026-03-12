@@ -201,9 +201,8 @@ static int snd_opl3_synth_create_port(struct snd_opl3 * opl3)
 
 /* ------------------------------ */
 
-static int snd_opl3_seq_probe(struct device *_dev)
+static int snd_opl3_seq_probe(struct snd_seq_device *dev)
 {
-	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct snd_opl3 *opl3;
 	int client, err;
 	char name[32];
@@ -244,14 +243,13 @@ static int snd_opl3_seq_probe(struct device *_dev)
 	return 0;
 }
 
-static int snd_opl3_seq_remove(struct device *_dev)
+static void snd_opl3_seq_remove(struct snd_seq_device *dev)
 {
-	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct snd_opl3 *opl3;
 
 	opl3 = *(struct snd_opl3 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (opl3 == NULL)
-		return -EINVAL;
+		return;
 
 #if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_opl3_free_seq_oss(opl3);
@@ -260,14 +258,13 @@ static int snd_opl3_seq_remove(struct device *_dev)
 		snd_seq_delete_kernel_client(opl3->seq_client);
 		opl3->seq_client = -1;
 	}
-	return 0;
 }
 
 static struct snd_seq_driver opl3_seq_driver = {
+	.probe = snd_opl3_seq_probe,
+	.remove = snd_opl3_seq_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.probe = snd_opl3_seq_probe,
-		.remove = snd_opl3_seq_remove,
 	},
 	.id = SNDRV_SEQ_DEV_ID_OPL3,
 	.argsize = sizeof(struct snd_opl3 *),

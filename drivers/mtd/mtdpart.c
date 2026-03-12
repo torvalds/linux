@@ -53,7 +53,7 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	u64 tmp;
 
 	/* allocate the partition structure */
-	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	child = kzalloc_obj(*child);
 	name = kstrdup(part->name, GFP_KERNEL);
 	if (!name || !child) {
 		printk(KERN_ERR"memory allocation error while creating partitions for \"%s\"\n",

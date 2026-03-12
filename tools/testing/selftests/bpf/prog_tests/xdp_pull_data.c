@@ -114,12 +114,14 @@ static void test_xdp_pull_data_basic(void)
 {
 	u32 pg_sz, max_meta_len, max_data_len;
 	struct test_xdp_pull_data *skel;
+	int buff_len;
 
 	skel = test_xdp_pull_data__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_xdp_pull_data__open_and_load"))
 		return;
 
 	pg_sz = sysconf(_SC_PAGE_SIZE);
+	buff_len = pg_sz + pg_sz / 2;
 
 	if (find_xdp_sizes(skel, pg_sz))
 		goto out;
@@ -140,13 +142,13 @@ static void test_xdp_pull_data_basic(void)
 	run_test(skel, XDP_PASS, pg_sz, 9000, 0, 1025, 1025);
 
 	/* multi-buf pkt, empty linear data area, pull requires memmove */
-	run_test(skel, XDP_PASS, pg_sz, 9000, 0, 0, PULL_MAX);
+	run_test(skel, XDP_PASS, pg_sz, buff_len, 0, 0, PULL_MAX);
 
 	/* multi-buf pkt, no headroom */
-	run_test(skel, XDP_PASS, pg_sz, 9000, max_meta_len, 1024, PULL_MAX);
+	run_test(skel, XDP_PASS, pg_sz, buff_len, max_meta_len, 1024, PULL_MAX);
 
 	/* multi-buf pkt, no tailroom, pull requires memmove */
-	run_test(skel, XDP_PASS, pg_sz, 9000, 0, max_data_len, PULL_MAX);
+	run_test(skel, XDP_PASS, pg_sz, buff_len, 0, max_data_len, PULL_MAX);
 
 	/* Test cases with invalid pull length */
 
@@ -154,18 +156,18 @@ static void test_xdp_pull_data_basic(void)
 	run_test(skel, XDP_DROP, pg_sz, 2048, 0, 2048, 2049);
 
 	/* multi-buf pkt with no space left in linear data area */
-	run_test(skel, XDP_DROP, pg_sz, 9000, max_meta_len, max_data_len,
+	run_test(skel, XDP_DROP, pg_sz, buff_len, max_meta_len, max_data_len,
 		 PULL_MAX | PULL_PLUS_ONE);
 
 	/* multi-buf pkt, empty linear data area */
-	run_test(skel, XDP_DROP, pg_sz, 9000, 0, 0, PULL_MAX | PULL_PLUS_ONE);
+	run_test(skel, XDP_DROP, pg_sz, buff_len, 0, 0, PULL_MAX | PULL_PLUS_ONE);
 
 	/* multi-buf pkt, no headroom */
-	run_test(skel, XDP_DROP, pg_sz, 9000, max_meta_len, 1024,
+	run_test(skel, XDP_DROP, pg_sz, buff_len, max_meta_len, 1024,
 		 PULL_MAX | PULL_PLUS_ONE);
 
 	/* multi-buf pkt, no tailroom */
-	run_test(skel, XDP_DROP, pg_sz, 9000, 0, max_data_len,
+	run_test(skel, XDP_DROP, pg_sz, buff_len, 0, max_data_len,
 		 PULL_MAX | PULL_PLUS_ONE);
 
 out:

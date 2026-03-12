@@ -196,7 +196,7 @@ static int __init avic_of_init(struct device_node *node,
 	if (WARN_ON(!regs))
 		return -EIO;
 
-	vic = kzalloc(sizeof(struct aspeed_vic), GFP_KERNEL);
+	vic = kzalloc_obj(struct aspeed_vic);
 	if (WARN_ON(!vic)) {
 		iounmap(regs);
 		return -ENOMEM;

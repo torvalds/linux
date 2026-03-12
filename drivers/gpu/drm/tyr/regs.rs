@@ -11,6 +11,7 @@ use kernel::bits::bit_u32;
 use kernel::device::Bound;
 use kernel::device::Device;
 use kernel::devres::Devres;
+use kernel::io::Io;
 use kernel::prelude::*;
 
 use crate::driver::IoMem;

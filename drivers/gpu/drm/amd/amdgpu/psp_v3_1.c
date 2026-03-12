@@ -315,7 +315,7 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, 0);
 
 	if (ret) {
-		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		drm_info(adev_to_drm(adev), "psp is not working correctly before mode1 reset!\n");
 		return -EINVAL;
 	}
 
@@ -329,11 +329,11 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, 0);
 
 	if (ret) {
-		DRM_INFO("psp mode 1 reset failed!\n");
+		drm_info(adev_to_drm(adev), "psp mode 1 reset failed!\n");
 		return -EINVAL;
 	}
 
-	DRM_INFO("psp mode1 reset succeed \n");
+	drm_info(adev_to_drm(adev), "psp mode1 reset succeed\n");
 
 	return 0;
 }

@@ -204,7 +204,7 @@ static struct ls1x_dma_desc *ls1x_dma_alloc_desc(void)
 {
 	struct ls1x_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -335,7 +335,7 @@ ls1x_dma_prep_dma_cyclic(struct dma_chan *dchan, dma_addr_t buf_addr,
 
 	/* allocate the scatterlist */
 	sg_len = buf_len / period_len;
-	sgl = kmalloc_array(sg_len, sizeof(*sgl), GFP_NOWAIT);
+	sgl = kmalloc_objs(*sgl, sg_len, GFP_NOWAIT);
 	if (!sgl)
 		return NULL;
 

@@ -23,6 +23,7 @@
 #include <linux/fs_stack.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
@@ -354,13 +355,13 @@ static int ecryptfs_validate_options(struct fs_context *fc)
 		int cipher_name_len = strlen(ECRYPTFS_DEFAULT_CIPHER);
 
 		BUG_ON(cipher_name_len > ECRYPTFS_MAX_CIPHER_NAME_SIZE);
-		strcpy(mount_crypt_stat->global_default_cipher_name,
-		       ECRYPTFS_DEFAULT_CIPHER);
+		strscpy(mount_crypt_stat->global_default_cipher_name,
+			ECRYPTFS_DEFAULT_CIPHER);
 	}
 	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
 	    && !ctx->fn_cipher_name_set)
-		strcpy(mount_crypt_stat->global_default_fn_cipher_name,
-		       mount_crypt_stat->global_default_cipher_name);
+		strscpy(mount_crypt_stat->global_default_fn_cipher_name,
+			mount_crypt_stat->global_default_cipher_name);
 	if (!ctx->cipher_key_bytes_set)
 		mount_crypt_stat->global_default_cipher_key_size = 0;
 	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
@@ -609,7 +610,7 @@ static int ecryptfs_init_fs_context(struct fs_context *fc)
 	struct ecryptfs_fs_context *ctx;
 	struct ecryptfs_sb_info *sbi = NULL;
 
-	ctx = kzalloc(sizeof(struct ecryptfs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct ecryptfs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);

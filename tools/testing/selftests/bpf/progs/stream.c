@@ -42,6 +42,10 @@ int size;
 u64 fault_addr;
 void *arena_ptr;
 
+#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+
+private(STREAM) struct bpf_spin_lock block;
+
 SEC("syscall")
 __success __retval(0)
 int stream_exhaust(void *ctx)
@@ -233,5 +237,54 @@ int stream_arena_callback_fault(void *ctx)
 	bpf_timer_start(arr_timer, 0, 0);
 	return 0;
 }
+
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_print_stack_kfunc(void *ctx)
+{
+	return bpf_stream_print_stack(BPF_STDERR);
+}
+
+SEC("syscall")
+__success __retval(-2)
+int stream_print_stack_invalid_id(void *ctx)
+{
+	/* Try to pass an invalid stream ID. */
+	return bpf_stream_print_stack((enum bpf_stream_id)0xbadcafe);
+}
+
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stdout(_STR)
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_print_kfuncs_locked(void *ctx)
+{
+	int ret;
+
+	bpf_spin_lock(&block);
+
+	ret = bpf_stream_printk(BPF_STDOUT, _STR);
+	if (ret)
+		goto out;
+
+	ret = bpf_stream_print_stack(BPF_STDERR);
+
+out:
+	bpf_spin_unlock(&block);
+
+	return ret;
+}
+
 
 char _license[] SEC("license") = "GPL";

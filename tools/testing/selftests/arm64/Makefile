@@ -30,13 +30,15 @@ all:
 	@for DIR in $(ARM64_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\
 		mkdir -p $$BUILD_TARGET;			\
-		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\
+		make OUTPUT=$$BUILD_TARGET -C $$DIR $@		\
+			$(if $(FORCE_TARGETS),|| exit); \
 	done
 
 install: all
 	@for DIR in $(ARM64_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\
-		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\
+		make OUTPUT=$$BUILD_TARGET -C $$DIR $@		\
+			$(if $(FORCE_TARGETS),|| exit); \
 	done
 
 run_tests: all

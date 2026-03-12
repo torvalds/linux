@@ -40,10 +40,3 @@ Device Mapper
     verity
     writecache
     zero
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -105,7 +105,7 @@ iser_create_fastreg_desc(struct iser_device *device,
 	enum ib_mr_type mr_type;
 	int ret;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -305,7 +305,7 @@ struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 		if (device->ib_device->node_guid == cma_id->device->node_guid)
 			goto inc_refcnt;
 
-	device = kzalloc(sizeof *device, GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		goto out;
 

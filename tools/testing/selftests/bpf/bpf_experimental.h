@@ -580,11 +580,6 @@ extern void bpf_iter_css_destroy(struct bpf_iter_css *it) __weak __ksym;
 
 extern int bpf_wq_init(struct bpf_wq *wq, void *p__map, unsigned int flags) __weak __ksym;
 extern int bpf_wq_start(struct bpf_wq *wq, unsigned int flags) __weak __ksym;
-extern int bpf_wq_set_callback_impl(struct bpf_wq *wq,
-		int (callback_fn)(void *map, int *key, void *value),
-		unsigned int flags__k, void *aux__ign) __ksym;
-#define bpf_wq_set_callback(timer, cb, flags) \
-	bpf_wq_set_callback_impl(timer, cb, flags, NULL)
 
 struct bpf_iter_kmem_cache;
 extern int bpf_iter_kmem_cache_new(struct bpf_iter_kmem_cache *it) __weak __ksym;
@@ -615,9 +610,17 @@ extern int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
 #define HARDIRQ_MASK	(__IRQ_MASK(HARDIRQ_BITS) << HARDIRQ_SHIFT)
 #define NMI_MASK	(__IRQ_MASK(NMI_BITS)     << NMI_SHIFT)
 
+#define SOFTIRQ_OFFSET	(1UL << SOFTIRQ_SHIFT)
+
 extern bool CONFIG_PREEMPT_RT __kconfig __weak;
 #ifdef bpf_target_x86
-extern const int __preempt_count __ksym;
+extern const int __preempt_count __ksym __weak;
+
+struct pcpu_hot___local {
+	int preempt_count;
+} __attribute__((preserve_access_index));
+
+extern struct pcpu_hot___local pcpu_hot __ksym __weak;
 #endif
 
 struct task_struct___preempt_rt {
@@ -627,7 +630,19 @@ struct task_struct___preempt_rt {
 static inline int get_preempt_count(void)
 {
 #if defined(bpf_target_x86)
-	return *(int *) bpf_this_cpu_ptr(&__preempt_count);
+	/* By default, read the per-CPU __preempt_count. */
+	if (bpf_ksym_exists(&__preempt_count))
+		return *(int *) bpf_this_cpu_ptr(&__preempt_count);
+
+	/*
+	 * If __preempt_count does not exist, try to read preempt_count under
+	 * struct pcpu_hot. Between v6.1 and v6.14 -- more specifically,
+	 * [64701838bf057, 46e8fff6d45fe), preempt_count had been managed
+	 * under struct pcpu_hot.
+	 */
+	if (bpf_core_field_exists(pcpu_hot.preempt_count))
+		return ((struct pcpu_hot___local *)
+			bpf_this_cpu_ptr(&pcpu_hot))->preempt_count;
 #elif defined(bpf_target_arm64)
 	return bpf_get_current_task_btf()->thread_info.preempt.count;
 #endif
@@ -653,4 +668,60 @@ static inline int bpf_in_interrupt(void)
 	       (tsk->softirq_disable_cnt & SOFTIRQ_MASK);
 }
 
+/* Description
+ *	Report whether it is in NMI context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_nmi(void)
+{
+	return get_preempt_count() & NMI_MASK;
+}
+
+/* Description
+ *	Report whether it is in hard IRQ context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_hardirq(void)
+{
+	return get_preempt_count() & HARDIRQ_MASK;
+}
+
+/* Description
+ *	Report whether it is in softirq context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_serving_softirq(void)
+{
+	struct task_struct___preempt_rt *tsk;
+	int pcnt;
+
+	pcnt = get_preempt_count();
+	if (!CONFIG_PREEMPT_RT)
+		return (pcnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET;
+
+	tsk = (void *) bpf_get_current_task_btf();
+	return (tsk->softirq_disable_cnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET;
+}
+
+/* Description
+ *	Report whether it is in task context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_task(void)
+{
+	struct task_struct___preempt_rt *tsk;
+	int pcnt;
+
+	pcnt = get_preempt_count();
+	if (!CONFIG_PREEMPT_RT)
+		return !(pcnt & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET));
+
+	tsk = (void *) bpf_get_current_task_btf();
+	return !((pcnt & (NMI_MASK | HARDIRQ_MASK)) |
+		 ((tsk->softirq_disable_cnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET));
+}
 #endif

@@ -137,8 +137,7 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->dma_address = kvcalloc(ttm->num_pages, sizeof(*ttm->dma_address),
-				    GFP_KERNEL);
+	ttm->dma_address = kvzalloc_objs(*ttm->dma_address, ttm->num_pages);
 	if (!ttm->dma_address)
 		return -ENOMEM;
 
@@ -330,7 +329,7 @@ int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
 	struct page *to_page;
 	int i, ret;
 
-	swap_storage = shmem_file_setup("ttm swap", size, 0);
+	swap_storage = shmem_file_setup("ttm swap", size, EMPTY_VMA_FLAGS);
 	if (IS_ERR(swap_storage)) {
 		pr_err("Failed allocating swap storage\n");
 		return PTR_ERR(swap_storage);

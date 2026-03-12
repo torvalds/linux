@@ -116,7 +116,7 @@ static u32 *display_connector_get_output_bus_fmts(struct drm_bridge *bridge,
 		u32 *out_bus_fmts;
 
 		*num_output_fmts = 1;
-		out_bus_fmts = kmalloc(sizeof(*out_bus_fmts), GFP_KERNEL);
+		out_bus_fmts = kmalloc_obj(*out_bus_fmts);
 		if (!out_bus_fmts)
 			return NULL;
 
@@ -158,7 +158,7 @@ static u32 *display_connector_get_input_bus_fmts(struct drm_bridge *bridge,
 		u32 *in_bus_fmts;
 
 		*num_input_fmts = 1;
-		in_bus_fmts = kmalloc(sizeof(*in_bus_fmts), GFP_KERNEL);
+		in_bus_fmts = kmalloc_obj(*in_bus_fmts);
 		if (!in_bus_fmts)
 			return NULL;
 

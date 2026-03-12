@@ -148,6 +148,7 @@ static int test__kallsyms_split(struct test_suite *test __maybe_unused,
 	ret = TEST_OK;
 
 out:
+	map__put(map);
 	remove_proc_dir(0);
 	machine__exit(&m);
 	return ret;

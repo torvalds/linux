@@ -65,7 +65,7 @@ static int __init pmc_core_platform_init(void)
 	if (!x86_match_cpu(intel_pmc_core_platform_ids))
 		return -ENODEV;
 
-	pmc_core_device = kzalloc(sizeof(*pmc_core_device), GFP_KERNEL);
+	pmc_core_device = kzalloc_obj(*pmc_core_device);
 	if (!pmc_core_device)
 		return -ENOMEM;
 

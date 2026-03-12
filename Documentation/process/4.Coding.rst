@@ -160,12 +160,12 @@ irrelevant.
 Locking
 *******
 
-In May, 2006, the "Devicescape" networking stack was, with great
+In May 2006, the "Devicescape" networking stack was, with great
 fanfare, released under the GPL and made available for inclusion in the
 mainline kernel.  This donation was welcome news; support for wireless
 networking in Linux was considered substandard at best, and the Devicescape
 stack offered the promise of fixing that situation.  Yet, this code did not
-actually make it into the mainline until June, 2007 (2.6.22).  What
+actually make it into the mainline until June 2007 (2.6.22).  What
 happened?
 
 This code showed a number of signs of having been developed behind
@@ -204,7 +204,7 @@ regression in the first place.
 It is often argued that a regression can be justified if it causes things
 to work for more people than it creates problems for.  Why not make a
 change if it brings new functionality to ten systems for each one it
-breaks?  The best answer to this question was expressed by Linus in July,
+breaks?  The best answer to this question was expressed by Linus in July
 2007:
 
 ::

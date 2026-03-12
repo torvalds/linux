@@ -109,8 +109,8 @@ static const struct attribute_group integer_attr_group = {
 int hp_alloc_integer_data(void)
 {
 	bioscfg_drv.integer_instances_count = hp_get_instance_count(HP_WMI_BIOS_INTEGER_GUID);
-	bioscfg_drv.integer_data = kcalloc(bioscfg_drv.integer_instances_count,
-					   sizeof(*bioscfg_drv.integer_data), GFP_KERNEL);
+	bioscfg_drv.integer_data = kzalloc_objs(*bioscfg_drv.integer_data,
+						bioscfg_drv.integer_instances_count);
 
 	if (!bioscfg_drv.integer_data) {
 		bioscfg_drv.integer_instances_count = 0;
@@ -227,7 +227,7 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 			size = min_t(u32, integer_data->common.prerequisites_size, MAX_PREREQUISITES_SIZE);
 
 			for (reqs = 0; reqs < size; reqs++) {
-				if (elem >= integer_obj_count) {
+				if (elem + reqs >= integer_obj_count) {
 					pr_err("Error elem-objects package is too small\n");
 					return -EINVAL;
 				}

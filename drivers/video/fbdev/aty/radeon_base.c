@@ -1653,7 +1653,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	int depth = var_to_depth(mode);
 	int use_rmx = 0;
 
-	newmode = kmalloc(sizeof(struct radeon_regs), GFP_KERNEL);
+	newmode = kmalloc_obj(struct radeon_regs);
 	if (!newmode)
 		return -ENOMEM;
 

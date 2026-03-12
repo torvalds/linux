@@ -205,7 +205,7 @@ static void siw_cep_socket_assoc(struct siw_cep *cep, struct socket *s)
 
 static struct siw_cep *siw_cep_alloc(struct siw_device *sdev)
 {
-	struct siw_cep *cep = kzalloc(sizeof(*cep), GFP_KERNEL);
+	struct siw_cep *cep = kzalloc_obj(*cep);
 	unsigned long flags;
 
 	if (!cep)
@@ -334,7 +334,7 @@ static int siw_cm_alloc_work(struct siw_cep *cep, int num)
 	struct siw_cm_work *work;
 
 	while (num--) {
-		work = kmalloc(sizeof(*work), GFP_KERNEL);
+		work = kmalloc_obj(*work);
 		if (!work) {
 			if (!(list_empty(&cep->work_freelist)))
 				siw_cm_free_work(cep);
@@ -1915,7 +1915,7 @@ int siw_create_listen(struct iw_cm_id *id, int backlog)
 	 */
 	if (!id->provider_data) {
 		id->provider_data =
-			kmalloc(sizeof(struct list_head), GFP_KERNEL);
+			kmalloc_obj(struct list_head);
 		if (!id->provider_data) {
 			rv = -ENOMEM;
 			goto error;

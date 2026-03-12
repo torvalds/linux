@@ -453,7 +453,7 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 	int rc;
 
 	/* Allocate probe data and struct efx_nic */
-	probe_data = kzalloc(sizeof(*probe_data), GFP_KERNEL);
+	probe_data = kzalloc_obj(*probe_data);
 	if (!probe_data)
 		return -ENOMEM;
 	probe_data->pci_dev = pci_dev;

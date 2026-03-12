@@ -6,7 +6,7 @@
 config NET_VENDOR_REALTEK
 	bool "Realtek devices"
 	default y
-	depends on PCI || (PARPORT && X86)
+	depends on PCI
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -16,20 +16,6 @@ config NET_VENDOR_REALTEK
 	  your specific card in the following questions.
 
 if NET_VENDOR_REALTEK
-
-config ATP
-	tristate "AT-LAN-TEC/RealTek pocket adapter support"
-	depends on PARPORT && X86
-	select CRC32
-	help
-	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read the file <file:drivers/net/ethernet/realtek/atp.c>
-	  if you want to use this.  If you intend to use this driver, you
-	  should have said N to the "Parallel printer support", because the two
-	  drivers don't like each other.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called atp.
 
 config 8139CP
 	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support"

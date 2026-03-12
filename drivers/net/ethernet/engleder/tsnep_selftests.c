@@ -354,7 +354,7 @@ static bool tsnep_test_taprio(struct tsnep_adapter *adapter)
 	struct tc_taprio_qopt_offload *qopt;
 	int i;
 
-	qopt = kzalloc(struct_size(qopt, entries, 255), GFP_KERNEL);
+	qopt = kzalloc_flex(*qopt, entries, 255);
 	if (!qopt)
 		return false;
 	for (i = 0; i < 255; i++)
@@ -451,7 +451,7 @@ static bool tsnep_test_taprio_change(struct tsnep_adapter *adapter)
 	struct tc_taprio_qopt_offload *qopt;
 	int i;
 
-	qopt = kzalloc(struct_size(qopt, entries, 255), GFP_KERNEL);
+	qopt = kzalloc_flex(*qopt, entries, 255);
 	if (!qopt)
 		return false;
 	for (i = 0; i < 255; i++)
@@ -604,7 +604,7 @@ static bool tsnep_test_taprio_extension(struct tsnep_adapter *adapter)
 	struct tc_taprio_qopt_offload *qopt;
 	int i;
 
-	qopt = kzalloc(struct_size(qopt, entries, 255), GFP_KERNEL);
+	qopt = kzalloc_flex(*qopt, entries, 255);
 	if (!qopt)
 		return false;
 	for (i = 0; i < 255; i++)

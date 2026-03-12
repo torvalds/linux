@@ -27,11 +27,11 @@
 #include <xen/xen.h>
 
 #include <asm/apic.h>
-#include <asm/hypervisor.h>
 #include <asm/io_apic.h>
 #include <asm/mpspec.h>
 #include <asm/msr.h>
 #include <asm/smp.h>
+#include <asm/numa.h>
 
 #include "cpu.h"
 
@@ -236,20 +236,6 @@ static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 		cpuid_to_apicid[cpu] = apic_id;
 		topo_set_cpuids(cpu, apic_id, acpi_id);
 	} else {
-		u32 pkgid = topo_apicid(apic_id, TOPO_PKG_DOMAIN);
-
-		/*
-		 * Check for present APICs in the same package when running
-		 * on bare metal. Allow the bogosity in a guest.
-		 */
-		if (hypervisor_is_type(X86_HYPER_NATIVE) &&
-		    topo_unit_count(pkgid, TOPO_PKG_DOMAIN, phys_cpu_present_map)) {
-			pr_info_once("Ignoring hot-pluggable APIC ID %x in present package.\n",
-				     apic_id);
-			topo_info.nr_rejected_cpus++;
-			return;
-		}
-
 		topo_info.nr_disabled_cpus++;
 	}
 
@@ -507,11 +493,19 @@ void __init topology_init_possible_cpus(void)
 	set_nr_cpu_ids(allowed);
 
 	cnta = domain_weight(TOPO_PKG_DOMAIN);
-	cntb = domain_weight(TOPO_DIE_DOMAIN);
 	__max_logical_packages = cnta;
+
+	pr_info("Max. logical packages: %3u\n", __max_logical_packages);
+
+	cntb = num_phys_nodes();
+	__num_nodes_per_package = DIV_ROUND_UP(cntb, cnta);
+
+	pr_info("Max. logical nodes:    %3u\n", cntb);
+	pr_info("Num. nodes per package:%3u\n", __num_nodes_per_package);
+
+	cntb = domain_weight(TOPO_DIE_DOMAIN);
 	__max_dies_per_package = 1U << (get_count_order(cntb) - get_count_order(cnta));
 
-	pr_info("Max. logical packages: %3u\n", cnta);
 	pr_info("Max. logical dies:     %3u\n", cntb);
 	pr_info("Max. dies per package: %3u\n", __max_dies_per_package);
 

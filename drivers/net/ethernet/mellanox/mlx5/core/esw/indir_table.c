@@ -46,7 +46,7 @@ struct mlx5_esw_indir_table {
 struct mlx5_esw_indir_table *
 mlx5_esw_indir_table_init(void)
 {
-	struct mlx5_esw_indir_table *indir = kvzalloc(sizeof(*indir), GFP_KERNEL);
+	struct mlx5_esw_indir_table *indir = kvzalloc_obj(*indir);
 
 	if (!indir)
 		return ERR_PTR(-ENOMEM);
@@ -111,7 +111,7 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 		return 0;
 	}
 
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 
@@ -258,7 +258,7 @@ mlx5_esw_indir_table_entry_create(struct mlx5_eswitch *esw, struct mlx5_flow_att
 	if (!root_ns)
 		return ERR_PTR(-ENOENT);
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return ERR_PTR(-ENOMEM);
 

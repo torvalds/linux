@@ -1,0 +1,258 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2020-2024 Fedor Ross <fedor.ross@ifm.com>
+ */
+
+/dts-v1/;
+
+#include "imx8mn-vhip4-evalboard-common.dtsi"
+
+/ {
+	model = "ifm i.MX8MNano VHIP4 Evaluation Board v1";
+	compatible = "ifm,imx8mn-vhip4-evalboard-v1", "ifm,imx8mn-vhip4-evalboard",
+		     "ifm,imx8mn-vhip4", "fsl,imx8mn";
+};
+
+&ifm_led {
+	pinctrl-1 = <&pinctrl_gpio_led_v1>;
+
+	led-2 {
+		function = LED_FUNCTION_STATUS;
+		function-enumerator = <3>;
+		color = <LED_COLOR_ID_YELLOW>;
+		gpios = <&gpio2 17 GPIO_ACTIVE_HIGH>;
+		default-state = "keep";
+	};
+
+	led-3 {
+		function = LED_FUNCTION_STATUS;
+		function-enumerator = <4>;
+		color = <LED_COLOR_ID_GREEN>;
+		gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		default-state = "keep";
+	};
+};
+
+&ecspi1 {
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>, <&gpio5 21 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	eeprom@0 {
+		compatible = "anvo,anv32c81w", "atmel,at25";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+		spi-cpha;
+		spi-cpol;
+		pagesize = <1>;
+		size = <32768>;
+		address-width = <16>;
+	};
+};
+
+&ecspi3 {
+	cs-gpios = <&gpio5 25 GPIO_ACTIVE_LOW>, <&gpio5 4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	can0: can@0 {
+		compatible = "microchip,mcp25625";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mcp25625>;
+		reg = <0>;
+		clocks = <&can_clk20m>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	can1: can@1 {
+		compatible = "microchip,mcp2518fd";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mcp2518>;
+		reg = <1>;
+		clocks = <&can_clk40m>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		microchip,rx-int-gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
+&i2c1 {
+	scl-gpios = <&gpio5 14 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	temperature-sensor@48 {
+		compatible = "national,lm75";
+		reg = <0x48>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c128";
+		reg = <0x50>;
+	};
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio5 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&i2c3 {
+	scl-gpios = <&gpio2 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&ifm_pmic {
+	interrupt-parent = <&gpio2>;
+	interrupts = <0 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl_ecspi1_cs: ecspi1-cs-grp {
+		fsl,pins = <
+			/* KS8794 nCS */
+			MX8MN_IOMUXC_I2C4_SDA_GPIO5_IO21		0x150
+			/* ANV32C81 nCS */
+			MX8MN_IOMUXC_ECSPI1_SS0_GPIO5_IO9		0x150
+		>;
+	};
+
+	pinctrl_ecspi3_cs: ecspi3-cs-grp {
+		fsl,pins = <
+			/* MCP25625 nCS */
+			MX8MN_IOMUXC_UART2_TXD_GPIO5_IO25		0x150
+			/* MCP2518FD nCS */
+			MX8MN_IOMUXC_SPDIF_RX_GPIO5_IO4			0x150
+		>;
+	};
+
+	pinctrl_gpio_5: gpio5-grp {
+		fsl,pins = <
+			/* CFG_EEPROM_WP */
+			MX8MN_IOMUXC_I2C4_SCL_GPIO5_IO20		0x140
+		>;
+	};
+
+	pinctrl_gpio_led_v1: gpioled-v1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD2_DATA2_GPIO2_IO17		0x116
+			MX8MN_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x116
+		>;
+	};
+
+	pinctrl_i2c1: i2c1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C1_SCL_I2C1_SCL			0x40000056
+			MX8MN_IOMUXC_I2C1_SDA_I2C1_SDA			0x400000d6
+		>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C1_SCL_GPIO5_IO14		0x56
+			MX8MN_IOMUXC_I2C1_SDA_GPIO5_IO15		0xd6
+		>;
+	};
+
+	pinctrl_i2c2: i2c2-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C2_SCL_I2C2_SCL			0x40000056
+			MX8MN_IOMUXC_I2C2_SDA_I2C2_SDA			0x400000d6
+		>;
+	};
+
+	pinctrl_i2c2_gpio: i2c2-gpio-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C2_SCL_GPIO5_IO16		0x56
+			MX8MN_IOMUXC_I2C2_SDA_GPIO5_IO17		0xd6
+		>;
+	};
+
+	pinctrl_i2c3: i2c3-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_RESET_B_I2C3_SCL		0x40000056
+			MX8MN_IOMUXC_SD1_STROBE_I2C3_SDA		0x400000d6
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3-gpio-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_RESET_B_GPIO2_IO10		0x56
+			MX8MN_IOMUXC_SD1_STROBE_GPIO2_IO11		0xd6
+		>;
+	};
+
+	pinctrl_mcp2518: mcp2518-grp {
+		fsl,pins = <
+			/* MCP2518 nINT line */
+			MX8MN_IOMUXC_SAI3_MCLK_GPIO5_IO2		0x116
+			/* MCP2518 nINT1/GPIO1 line */
+			MX8MN_IOMUXC_SAI3_TXD_GPIO5_IO1			0x116
+		>;
+	};
+
+	pinctrl_mcp25625: mcp25625-grp {
+		fsl,pins = <
+			/* MCP25625 nINT line */
+			MX8MN_IOMUXC_SAI2_RXFS_GPIO4_IO21		0x156
+		>;
+	};
+
+	pinctrl_pmic: pmic-irq-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_CLK_GPIO2_IO0			0x16
+		>;
+	};
+
+	pinctrl_uart3: uart3-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_UART3_RXD_UART3_DCE_RX		0x142
+			MX8MN_IOMUXC_UART3_TXD_UART3_DCE_TX		0x142
+		>;
+	};
+
+	pinctrl_usb_nreset: usbnreset-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SAI3_RXC_GPIO4_IO29                0x14a
+		>;
+	};
+
+	pinctrl_wdog: wdog-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B		0x64
+		>;
+	};
+};
+
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio_5>;
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "",
+		"ifm_device_info_eeprom_wp",
+		"", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&usbotg1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_nreset>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	usb-hub@1 {
+		compatible = "usb424,2512", "usb424,2514";
+		reg = <1>;
+		reset-gpios = <&gpio4 29 GPIO_ACTIVE_LOW>;
+	};
+};

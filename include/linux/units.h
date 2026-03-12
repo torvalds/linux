@@ -21,13 +21,35 @@
 #define PICO	1000000000000ULL
 #define FEMTO	1000000000000000ULL
 
+/*
+ * Percentage and related scaling units
+ *
+ * These macros define scaling factors used to convert between ratio and
+ * percentage-based representations with different decimal resolutions.
+ * They are used for precise fractional calculations in engineering, finance,
+ * and measurement applications.
+ *
+ * Examples:
+ *   1%     = 0.01    = 1 / PERCENT
+ *   0.1%   = 0.001   = 1 / PERMILLE
+ *   0.01%  = 0.0001  = 1 / PERMYRIAD (1 basis point)
+ *   0.001% = 0.00001 = 1 / PERCENTMILLE
+ */
+#define PERCENT		100
+#define PERMILLE	1000
+#define PERMYRIAD	10000
+#define PERCENTMILLE	100000
+
 #define NANOHZ_PER_HZ		1000000000UL
 #define MICROHZ_PER_HZ		1000000UL
 #define MILLIHZ_PER_HZ		1000UL
 
+/* Hz based multipliers */
 #define HZ_PER_KHZ		1000UL
 #define HZ_PER_MHZ		1000000UL
+#define HZ_PER_GHZ		1000000000UL
 
+/* kHz based multipliers */
 #define KHZ_PER_MHZ		1000UL
 #define KHZ_PER_GHZ		1000000UL
 

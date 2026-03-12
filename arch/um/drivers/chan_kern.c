@@ -504,7 +504,7 @@ static struct chan *parse_chan(struct line *line, char *str, int device,
 		return NULL;
 	}
 
-	chan = kmalloc(sizeof(*chan), GFP_ATOMIC);
+	chan = kmalloc_obj(*chan, GFP_ATOMIC);
 	if (chan == NULL) {
 		*error_out = "Memory allocation failed";
 		return NULL;

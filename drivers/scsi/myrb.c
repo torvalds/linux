@@ -1260,8 +1260,8 @@ static int myrb_host_reset(struct scsi_cmnd *scmd)
 	return SUCCESS;
 }
 
-static int myrb_pthru_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_pthru_queuecommand(struct Scsi_Host *shost,
+						   struct scsi_cmnd *scmd)
 {
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	struct myrb_hba *cb = shost_priv(shost);
@@ -1416,8 +1416,8 @@ static void myrb_read_capacity(struct myrb_hba *cb, struct scsi_cmnd *scmd,
 	scsi_sg_copy_from_buffer(scmd, data, 8);
 }
 
-static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_ldev_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *scmd)
 {
 	struct myrb_hba *cb = shost_priv(shost);
 	struct myrb_cmdblk *cmd_blk = scsi_cmd_priv(scmd);
@@ -1603,8 +1603,8 @@ submit:
 	return 0;
 }
 
-static int myrb_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_queuecommand(struct Scsi_Host *shost,
+					     struct scsi_cmnd *scmd)
 {
 	struct scsi_device *sdev = scmd->device;
 
@@ -1628,7 +1628,7 @@ static int myrb_ldev_sdev_init(struct scsi_device *sdev)
 
 	ldev_info = cb->ldev_info_buf + ldev_num;
 
-	sdev->hostdata = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
+	sdev->hostdata = kzalloc_obj(*ldev_info);
 	if (!sdev->hostdata)
 		return -ENOMEM;
 	dev_dbg(&sdev->sdev_gendev,
@@ -1672,7 +1672,7 @@ static int myrb_pdev_sdev_init(struct scsi_device *sdev)
 	if (sdev->id > MYRB_MAX_TARGETS)
 		return -ENXIO;
 
-	pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
+	pdev_info = kzalloc_obj(*pdev_info);
 	if (!pdev_info)
 		return -ENOMEM;
 

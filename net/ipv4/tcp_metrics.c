@@ -197,7 +197,7 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 		}
 		tm = oldest;
 	} else {
-		tm = kzalloc(sizeof(*tm), GFP_ATOMIC);
+		tm = kzalloc_obj(*tm, GFP_ATOMIC);
 		if (!tm)
 			goto out_unlock;
 	}

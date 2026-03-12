@@ -21,14 +21,9 @@
 
 static vm_vaddr_t exception_handlers;
 
-static uint64_t page_align(struct kvm_vm *vm, uint64_t v)
-{
-	return (v + vm->page_size) & ~(vm->page_size - 1);
-}
-
 static uint64_t pgd_index(struct kvm_vm *vm, vm_vaddr_t gva)
 {
-	unsigned int shift = (vm->pgtable_levels - 1) * (vm->page_shift - 3) + vm->page_shift;
+	unsigned int shift = (vm->mmu.pgtable_levels - 1) * (vm->page_shift - 3) + vm->page_shift;
 	uint64_t mask = (1UL << (vm->va_bits - shift)) - 1;
 
 	return (gva >> shift) & mask;
@@ -39,7 +34,7 @@ static uint64_t pud_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	unsigned int shift = 2 * (vm->page_shift - 3) + vm->page_shift;
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
-	TEST_ASSERT(vm->pgtable_levels == 4,
+	TEST_ASSERT(vm->mmu.pgtable_levels == 4,
 		"Mode %d does not have 4 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
@@ -50,7 +45,7 @@ static uint64_t pmd_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	unsigned int shift = (vm->page_shift - 3) + vm->page_shift;
 	uint64_t mask = (1UL << (vm->page_shift - 3)) - 1;
 
-	TEST_ASSERT(vm->pgtable_levels >= 3,
+	TEST_ASSERT(vm->mmu.pgtable_levels >= 3,
 		"Mode %d does not have >= 3 page table levels", vm->mode);
 
 	return (gva >> shift) & mask;
@@ -104,7 +99,7 @@ static uint64_t pte_addr(struct kvm_vm *vm, uint64_t pte)
 
 static uint64_t ptrs_per_pgd(struct kvm_vm *vm)
 {
-	unsigned int shift = (vm->pgtable_levels - 1) * (vm->page_shift - 3) + vm->page_shift;
+	unsigned int shift = (vm->mmu.pgtable_levels - 1) * (vm->page_shift - 3) + vm->page_shift;
 	return 1 << (vm->va_bits - shift);
 }
 
@@ -115,15 +110,15 @@ static uint64_t __maybe_unused ptrs_per_pte(struct kvm_vm *vm)
 
 void virt_arch_pgd_alloc(struct kvm_vm *vm)
 {
-	size_t nr_pages = page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size;
+	size_t nr_pages = vm_page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size;
 
-	if (vm->pgd_created)
+	if (vm->mmu.pgd_created)
 		return;
 
-	vm->pgd = vm_phy_pages_alloc(vm, nr_pages,
-				     KVM_GUEST_PAGE_TABLE_MIN_PADDR,
-				     vm->memslots[MEM_REGION_PT]);
-	vm->pgd_created = true;
+	vm->mmu.pgd = vm_phy_pages_alloc(vm, nr_pages,
+					 KVM_GUEST_PAGE_TABLE_MIN_PADDR,
+					 vm->memslots[MEM_REGION_PT]);
+	vm->mmu.pgd_created = true;
 }
 
 static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
@@ -147,12 +142,12 @@ static void _virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		"  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		paddr, vm->max_gfn, vm->page_size);
 
-	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, vaddr) * 8;
+	ptep = addr_gpa2hva(vm, vm->mmu.pgd) + pgd_index(vm, vaddr) * 8;
 	if (!*ptep)
 		*ptep = addr_pte(vm, vm_alloc_page_table(vm),
 				 PGD_TYPE_TABLE | PTE_VALID);
 
-	switch (vm->pgtable_levels) {
+	switch (vm->mmu.pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, vaddr) * 8;
 		if (!*ptep)
@@ -190,16 +185,16 @@ uint64_t *virt_get_pte_hva_at_level(struct kvm_vm *vm, vm_vaddr_t gva, int level
 {
 	uint64_t *ptep;
 
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		goto unmapped_gva;
 
-	ptep = addr_gpa2hva(vm, vm->pgd) + pgd_index(vm, gva) * 8;
+	ptep = addr_gpa2hva(vm, vm->mmu.pgd) + pgd_index(vm, gva) * 8;
 	if (!ptep)
 		goto unmapped_gva;
 	if (level == 0)
 		return ptep;
 
-	switch (vm->pgtable_levels) {
+	switch (vm->mmu.pgtable_levels) {
 	case 4:
 		ptep = addr_gpa2hva(vm, pte_addr(vm, *ptep)) + pud_index(vm, gva) * 8;
 		if (!ptep)
@@ -263,13 +258,13 @@ static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t p
 
 void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
-	int level = 4 - (vm->pgtable_levels - 1);
+	int level = 4 - (vm->mmu.pgtable_levels - 1);
 	uint64_t pgd, *ptep;
 
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		return;
 
-	for (pgd = vm->pgd; pgd < vm->pgd + ptrs_per_pgd(vm) * 8; pgd += 8) {
+	for (pgd = vm->mmu.pgd; pgd < vm->mmu.pgd + ptrs_per_pgd(vm) * 8; pgd += 8) {
 		ptep = addr_gpa2hva(vm, pgd);
 		if (!*ptep)
 			continue;
@@ -350,7 +345,7 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
-	ttbr0_el1 = vm->pgd & GENMASK(47, vm->page_shift);
+	ttbr0_el1 = vm->mmu.pgd & GENMASK(47, vm->page_shift);
 
 	/* Configure output size */
 	switch (vm->mode) {
@@ -358,7 +353,7 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	case VM_MODE_P52V48_16K:
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= TCR_IPS_52_BITS;
-		ttbr0_el1 |= FIELD_GET(GENMASK(51, 48), vm->pgd) << 2;
+		ttbr0_el1 |= FIELD_GET(GENMASK(51, 48), vm->mmu.pgd) << 2;
 		break;
 	case VM_MODE_P48V48_4K:
 	case VM_MODE_P48V48_16K:
@@ -384,6 +379,8 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 
 	tcr_el1 |= TCR_IRGN0_WBWA | TCR_ORGN0_WBWA | TCR_SH0_INNER;
 	tcr_el1 |= TCR_T0SZ(vm->va_bits);
+	tcr_el1 |= TCR_TBI1;
+	tcr_el1 |= TCR_EPD1_MASK;
 	if (use_lpa2_pte_format(vm))
 		tcr_el1 |= TCR_DS;
 

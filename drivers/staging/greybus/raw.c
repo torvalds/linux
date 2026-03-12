@@ -73,7 +73,7 @@ static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 		goto exit;
 	}
 
-	raw_data = kmalloc(struct_size(raw_data, data, len), GFP_KERNEL);
+	raw_data = kmalloc_flex(*raw_data, data, len);
 	if (!raw_data) {
 		retval = -ENOMEM;
 		goto exit;
@@ -164,7 +164,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_RAW)
 		return -ENODEV;
 
-	raw = kzalloc(sizeof(*raw), GFP_KERNEL);
+	raw = kzalloc_obj(*raw);
 	if (!raw)
 		return -ENOMEM;
 

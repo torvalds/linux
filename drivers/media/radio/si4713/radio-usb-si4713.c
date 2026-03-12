@@ -420,7 +420,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 			id->idVendor, id->idProduct);
 
 	/* Initialize local device structure */
-	radio = kzalloc(sizeof(struct si4713_usb_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct si4713_usb_device);
 	if (radio)
 		radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 

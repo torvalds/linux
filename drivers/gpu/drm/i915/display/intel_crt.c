@@ -1037,7 +1037,7 @@ void intel_crt_init(struct intel_display *display)
 		intel_de_write(display, adpa_reg, adpa);
 	}
 
-	crt = kzalloc(sizeof(struct intel_crt), GFP_KERNEL);
+	crt = kzalloc_obj(struct intel_crt);
 	if (!crt)
 		return;
 

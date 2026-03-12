@@ -1158,7 +1158,7 @@ static int rp1_pctl_legacy_map_pull(struct rp1_pinctrl *pc,
 		return -EINVAL;
 	}
 
-	configs = kzalloc(sizeof(*configs), GFP_KERNEL);
+	configs = kzalloc_obj(*configs);
 	if (!configs)
 		return -ENOMEM;
 
@@ -1233,7 +1233,7 @@ static int rp1_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (num_configs || num_pulls)
 		maps_per_pin++;
 	reserved_maps = num_pins * maps_per_pin;
-	maps = kcalloc(reserved_maps, sizeof(*maps), GFP_KERNEL);
+	maps = kzalloc_objs(*maps, reserved_maps);
 	if (!maps)
 		return -ENOMEM;
 

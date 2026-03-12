@@ -1027,7 +1027,7 @@ static int add_delayed_ref(struct btrfs_trans_handle *trans,
 	delayed_refs = &trans->transaction->delayed_refs;
 
 	if (btrfs_qgroup_full_accounting(fs_info) && !generic_ref->skip_qgroup) {
-		record = kzalloc(sizeof(*record), GFP_NOFS);
+		record = kzalloc_obj(*record, GFP_NOFS);
 		if (!record) {
 			ret = -ENOMEM;
 			goto free_head_ref;

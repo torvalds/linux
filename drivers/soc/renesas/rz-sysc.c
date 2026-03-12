@@ -110,7 +110,7 @@ static int rz_sysc_probe(struct platform_device *pdev)
 	struct rz_sysc *sysc;
 	int ret;
 
-	struct regmap_config *regmap_cfg __free(kfree) = kzalloc(sizeof(*regmap_cfg), GFP_KERNEL);
+	struct regmap_config *regmap_cfg __free(kfree) = kzalloc_obj(*regmap_cfg);
 	if (!regmap_cfg)
 		return -ENOMEM;
 

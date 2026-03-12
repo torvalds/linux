@@ -5,18 +5,20 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME sssw
+
 enum states_sssw {
-	runnable_sssw = 0,
+	runnable_sssw,
 	signal_wakeup_sssw,
 	sleepable_sssw,
 	sleeping_sssw,
-	state_max_sssw
+	state_max_sssw,
 };
 
 #define INVALID_STATE state_max_sssw
 
 enum events_sssw {
-	sched_set_state_runnable_sssw = 0,
+	sched_set_state_runnable_sssw,
 	sched_set_state_sleepable_sssw,
 	sched_switch_blocking_sssw,
 	sched_switch_in_sssw,
@@ -25,7 +27,7 @@ enum events_sssw {
 	sched_switch_yield_sssw,
 	sched_wakeup_sssw,
 	signal_deliver_sssw,
-	event_max_sssw
+	event_max_sssw,
 };
 
 struct automaton_sssw {
@@ -41,7 +43,7 @@ static const struct automaton_sssw automaton_sssw = {
 		"runnable",
 		"signal_wakeup",
 		"sleepable",
-		"sleeping"
+		"sleeping",
 	},
 	.event_names = {
 		"sched_set_state_runnable",
@@ -52,7 +54,7 @@ static const struct automaton_sssw automaton_sssw = {
 		"sched_switch_suspend",
 		"sched_switch_yield",
 		"sched_wakeup",
-		"signal_deliver"
+		"signal_deliver",
 	},
 	.function = {
 		{
@@ -64,7 +66,7 @@ static const struct automaton_sssw automaton_sssw = {
 			INVALID_STATE,
 			runnable_sssw,
 			runnable_sssw,
-			runnable_sssw
+			runnable_sssw,
 		},
 		{
 			INVALID_STATE,
@@ -75,7 +77,7 @@ static const struct automaton_sssw automaton_sssw = {
 			INVALID_STATE,
 			signal_wakeup_sssw,
 			signal_wakeup_sssw,
-			runnable_sssw
+			runnable_sssw,
 		},
 		{
 			runnable_sssw,
@@ -86,7 +88,7 @@ static const struct automaton_sssw automaton_sssw = {
 			sleeping_sssw,
 			signal_wakeup_sssw,
 			runnable_sssw,
-			sleepable_sssw
+			sleepable_sssw,
 		},
 		{
 			INVALID_STATE,
@@ -97,7 +99,7 @@ static const struct automaton_sssw automaton_sssw = {
 			INVALID_STATE,
 			INVALID_STATE,
 			runnable_sssw,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 	},
 	.initial_state = runnable_sssw,

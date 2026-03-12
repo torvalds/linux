@@ -447,6 +447,23 @@ struct {
 	} [nr_pmu];
 };
 
+	HEADER_CPU_DOMAIN_INFO = 32,
+
+List of cpu-domain relation info. The format of the data is as below.
+
+struct domain_info {
+	int domain;
+	char dname[];
+	char cpumask[];
+	char cpulist[];
+};
+
+struct cpu_domain_info {
+	int cpu;
+	int nr_domains;
+	struct domain_info domains[];
+};
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 

@@ -419,7 +419,7 @@ void ext2_init_block_alloc_info(struct inode *inode)
 	struct ext2_block_alloc_info *block_i;
 	struct super_block *sb = inode->i_sb;
 
-	block_i = kmalloc(sizeof(*block_i), GFP_KERNEL);
+	block_i = kmalloc_obj(*block_i);
 	if (block_i) {
 		struct ext2_reserve_window_node *rsv = &block_i->rsv_window_node;
 

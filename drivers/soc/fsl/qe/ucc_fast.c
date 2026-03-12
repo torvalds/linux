@@ -191,7 +191,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 		return -EINVAL;
 	}
 
-	uccf = kzalloc(sizeof(struct ucc_fast_private), GFP_KERNEL);
+	uccf = kzalloc_obj(struct ucc_fast_private);
 	if (!uccf) {
 		printk(KERN_ERR "%s: Cannot allocate private data\n",
 			__func__);

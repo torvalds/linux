@@ -99,6 +99,7 @@
 #include "i915_gmch.h"
 #include "i915_hdcp_gsc.h"
 #include "i915_hwmon.h"
+#include "i915_initial_plane.h"
 #include "i915_ioc32.h"
 #include "i915_ioctl.h"
 #include "i915_irq.h"
@@ -764,6 +765,7 @@ static bool vgpu_active(struct drm_device *drm)
 
 static const struct intel_display_parent_interface parent = {
 	.hdcp = &i915_display_hdcp_interface,
+	.initial_plane = &i915_display_initial_plane_interface,
 	.irq = &i915_display_irq_interface,
 	.panic = &i915_display_panic_interface,
 	.pc8 = &i915_display_pc8_interface,

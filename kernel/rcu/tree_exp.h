@@ -589,7 +589,12 @@ static void synchronize_rcu_expedited_stall(unsigned long jiffies_start, unsigne
 	pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
 		j - jiffies_start, rcu_state.expedited_sequence, data_race(rnp_root->expmask),
 		".T"[!!data_race(rnp_root->exp_tasks)]);
-	if (ndetected) {
+	if (!ndetected) {
+		// This is invoked from the grace-period worker, so
+		// a new grace period cannot have started.  And if this
+		// worker were stalled, we would not get here.  ;-)
+		pr_err("INFO: Expedited stall ended before state dump start\n");
+	} else {
 		pr_err("blocking rcu_node structures (internal RCU debug):");
 		rcu_for_each_node_breadth_first(rnp) {
 			if (rnp == rnp_root)

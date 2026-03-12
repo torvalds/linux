@@ -792,8 +792,7 @@ static u32 qlcnic_read_memory_pexdma(struct qlcnic_adapter *adapter,
 	}
 
 	/* Create DMA descriptor */
-	dma_descr = kzalloc(sizeof(struct qlcnic_pex_dma_descriptor),
-			    GFP_KERNEL);
+	dma_descr = kzalloc_obj(struct qlcnic_pex_dma_descriptor);
 	if (!dma_descr) {
 		*ret = -ENOMEM;
 		return 0;

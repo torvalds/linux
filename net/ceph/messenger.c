@@ -1993,8 +1993,7 @@ struct ceph_msg *ceph_msg_new2(int type, int front_len, int max_data_items,
 	m->front_alloc_len = m->front.iov_len = front_len;
 
 	if (max_data_items) {
-		m->data = kmalloc_array(max_data_items, sizeof(*m->data),
-					flags);
+		m->data = kmalloc_objs(*m->data, max_data_items, flags);
 		if (!m->data)
 			goto out2;
 

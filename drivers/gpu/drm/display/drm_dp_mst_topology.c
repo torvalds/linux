@@ -1333,7 +1333,7 @@ static struct drm_dp_mst_branch *drm_dp_add_mst_branch_device(u8 lct, u8 *rad)
 {
 	struct drm_dp_mst_branch *mstb;
 
-	mstb = kzalloc(sizeof(*mstb), GFP_KERNEL);
+	mstb = kzalloc_obj(*mstb);
 	if (!mstb)
 		return NULL;
 
@@ -2317,7 +2317,7 @@ drm_dp_mst_add_port(struct drm_device *dev,
 		    struct drm_dp_mst_topology_mgr *mgr,
 		    struct drm_dp_mst_branch *mstb, u8 port_number)
 {
-	struct drm_dp_mst_port *port = kzalloc(sizeof(*port), GFP_KERNEL);
+	struct drm_dp_mst_port *port = kzalloc_obj(*port);
 
 	if (!port)
 		return NULL;
@@ -2923,7 +2923,7 @@ static int drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	int i, ret, port_mask = 0;
 	bool changed = false;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg)
 		return -ENOMEM;
 
@@ -3000,7 +3000,7 @@ drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg)
 		return;
 
@@ -3025,7 +3025,7 @@ drm_dp_send_enum_path_resources(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg)
 		return -ENOMEM;
 
@@ -3138,7 +3138,7 @@ static int drm_dp_payload_send_msg(struct drm_dp_mst_topology_mgr *mgr,
 			return -EINVAL;
 	}
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		ret = -ENOMEM;
 		goto fail_put;
@@ -3185,7 +3185,7 @@ int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
 	if (!port)
 		return -EINVAL;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		drm_dp_mst_topology_put_port(port);
 		return -ENOMEM;
@@ -3219,7 +3219,7 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 	u8 nonce[7];
 	int ret;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg)
 		return -ENOMEM;
 
@@ -3470,7 +3470,7 @@ static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mstb)
 		return -EINVAL;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		ret = -ENOMEM;
 		goto fail_put;
@@ -3521,7 +3521,7 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mstb)
 		return -EINVAL;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		ret = -ENOMEM;
 		goto fail_put;
@@ -3562,7 +3562,7 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg)
 		return -ENOMEM;
 
@@ -4135,7 +4135,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 	if (!mgr->up_req_recv.have_eomt)
 		return 0;
 
-	up_req = kzalloc(sizeof(*up_req), GFP_KERNEL);
+	up_req = kzalloc_obj(*up_req);
 	if (!up_req) {
 		ret = -ENOMEM;
 		goto out_clear_reply;
@@ -4479,7 +4479,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 
 	/* Add the new allocation to the state, note the VCPI isn't assigned until the end */
 	if (!payload) {
-		payload = kzalloc(sizeof(*payload), GFP_KERNEL);
+		payload = kzalloc_obj(*payload);
 		if (!payload)
 			return -ENOMEM;
 
@@ -4604,8 +4604,8 @@ int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
 			continue;
 
 		num_commit_deps = hweight32(mst_state->pending_crtc_mask);
-		mst_state->commit_deps = kmalloc_array(num_commit_deps,
-						       sizeof(*mst_state->commit_deps), GFP_KERNEL);
+		mst_state->commit_deps = kmalloc_objs(*mst_state->commit_deps,
+						      num_commit_deps);
 		if (!mst_state->commit_deps)
 			return -ENOMEM;
 		mst_state->num_commit_deps = num_commit_deps;
@@ -5184,6 +5184,28 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	kfree(mst_state);
 }
 
+static struct drm_private_state *
+drm_dp_mst_atomic_create_state(struct drm_private_obj *obj)
+{
+	struct drm_dp_mst_topology_mgr *mgr =
+		to_dp_mst_topology_mgr(obj);
+	struct drm_dp_mst_topology_state *mst_state;
+
+	mst_state = kzalloc_obj(*mst_state);
+	if (!mst_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_private_obj_create_state(obj, &mst_state->base);
+
+	mst_state->total_avail_slots = 63;
+	mst_state->start_slot = 1;
+
+	mst_state->mgr = mgr;
+	INIT_LIST_HEAD(&mst_state->payloads);
+
+	return &mst_state->base;
+}
+
 static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
 						 struct drm_dp_mst_branch *branch)
 {
@@ -5620,6 +5642,7 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_dp_mst_atomic_check);
 
 const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs = {
+	.atomic_create_state = drm_dp_mst_atomic_create_state,
 	.atomic_duplicate_state = drm_dp_mst_duplicate_state,
 	.atomic_destroy_state = drm_dp_mst_destroy_state,
 };
@@ -5708,8 +5731,6 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 int max_dpcd_transaction_bytes, int max_payloads,
 				 int conn_base_id)
 {
-	struct drm_dp_mst_topology_state *mst_state;
-
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
 	mutex_init(&mgr->delayed_destroy_lock);
@@ -5743,18 +5764,8 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mgr->max_payloads = max_payloads;
 	mgr->conn_base_id = conn_base_id;
 
-	mst_state = kzalloc(sizeof(*mst_state), GFP_KERNEL);
-	if (mst_state == NULL)
-		return -ENOMEM;
-
-	mst_state->total_avail_slots = 63;
-	mst_state->start_slot = 1;
-
-	mst_state->mgr = mgr;
-	INIT_LIST_HEAD(&mst_state->payloads);
-
 	drm_atomic_private_obj_init(dev, &mgr->base,
-				    &mst_state->base,
+				    NULL,
 				    &drm_dp_mst_topology_state_funcs);
 
 	return 0;
@@ -5843,7 +5854,7 @@ static int drm_dp_mst_i2c_read(struct drm_dp_mst_branch *mstb,
 	msg.u.i2c_read.read_i2c_device_id = msgs[num - 1].addr;
 	msg.u.i2c_read.num_bytes_read = msgs[num - 1].len;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		ret = -ENOMEM;
 		goto out;
@@ -5883,7 +5894,7 @@ static int drm_dp_mst_i2c_write(struct drm_dp_mst_branch *mstb,
 	struct drm_dp_sideband_msg_tx *txmsg = NULL;
 	int ret;
 
-	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	txmsg = kzalloc_obj(*txmsg);
 	if (!txmsg) {
 		ret = -ENOMEM;
 		goto out;

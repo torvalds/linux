@@ -176,7 +176,7 @@ struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
 {
 	struct tifm_adapter *fm;
 
-	fm = kzalloc(struct_size(fm, sockets, num_sockets), GFP_KERNEL);
+	fm = kzalloc_flex(*fm, sockets, num_sockets);
 	if (fm) {
 		fm->dev.class = &tifm_adapter_class;
 		fm->dev.parent = dev;
@@ -252,7 +252,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
 	if (!tifm_media_type_name(type, 0))
 		return sock;
 
-	sock = kzalloc(sizeof(struct tifm_dev), GFP_KERNEL);
+	sock = kzalloc_obj(struct tifm_dev);
 	if (sock) {
 		spin_lock_init(&sock->lock);
 		sock->type = type;

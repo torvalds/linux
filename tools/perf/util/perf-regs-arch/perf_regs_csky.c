@@ -1,10 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0
-
+#include <elf.h>
+#ifndef EF_CSKY_ABIMASK
+#define EF_CSKY_ABIMASK	0XF0000000
+#endif
+#ifndef EF_CSKY_ABIV2
+#define EF_CSKY_ABIV2	0X20000000
+#endif
 #include "../perf_regs.h"
-#include "../../arch/csky/include/uapi/asm/perf_regs.h"
+#undef __CSKYABIV2__
+#define __CSKYABIV2__ 1  // Always want the V2 register definitions.
+#include "../../arch/csky/include/perf_regs.h"
 
-const char *__perf_reg_name_csky(int id)
+uint64_t __perf_reg_mask_csky(bool intr __maybe_unused)
 {
+	return PERF_REGS_MASK;
+}
+
+const char *__perf_reg_name_csky(int id, uint32_t e_flags)
+{
+	if (id >= PERF_REG_CSKY_EXREGS0 && (e_flags & EF_CSKY_ABIMASK) == EF_CSKY_ABIV2)
+		return NULL;
+
 	switch (id) {
 	case PERF_REG_CSKY_A0:
 		return "a0";
@@ -40,7 +56,6 @@ const char *__perf_reg_name_csky(int id)
 		return "lr";
 	case PERF_REG_CSKY_PC:
 		return "pc";
-#if defined(__CSKYABIV2__)
 	case PERF_REG_CSKY_EXREGS0:
 		return "exregs0";
 	case PERF_REG_CSKY_EXREGS1:
@@ -77,12 +92,9 @@ const char *__perf_reg_name_csky(int id)
 		return "hi";
 	case PERF_REG_CSKY_LO:
 		return "lo";
-#endif
 	default:
 		return NULL;
 	}
-
-	return NULL;
 }
 
 uint64_t __perf_reg_ip_csky(void)

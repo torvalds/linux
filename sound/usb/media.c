@@ -49,7 +49,7 @@ int snd_media_stream_init(struct snd_usb_substream *subs, struct snd_pcm *pcm,
 		return 0;
 
 	/* allocate media_ctl */
-	mctl = kzalloc(sizeof(*mctl), GFP_KERNEL);
+	mctl = kzalloc_obj(*mctl);
 	if (!mctl)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static int snd_media_mixer_init(struct snd_usb_audio *chip)
 			continue;
 
 		/* allocate media_mixer_ctl */
-		mctl = kzalloc(sizeof(*mctl), GFP_KERNEL);
+		mctl = kzalloc_obj(*mctl);
 		if (!mctl)
 			return -ENOMEM;
 

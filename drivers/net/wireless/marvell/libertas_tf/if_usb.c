@@ -154,7 +154,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	lbtf_deb_enter(LBTF_DEB_USB);
 	udev = interface_to_usbdev(intf);
 
-	cardp = kzalloc(sizeof(struct if_usb_card), GFP_KERNEL);
+	cardp = kzalloc_obj(struct if_usb_card);
 	if (!cardp)
 		goto error;
 

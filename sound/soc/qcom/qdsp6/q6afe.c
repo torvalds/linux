@@ -931,13 +931,11 @@ static void q6afe_port_free(struct kref *ref)
 {
 	struct q6afe_port *port;
 	struct q6afe *afe;
-	unsigned long flags;
 
 	port = container_of(ref, struct q6afe_port, refcount);
 	afe = port->afe;
-	spin_lock_irqsave(&afe->port_list_lock, flags);
-	list_del(&port->node);
-	spin_unlock_irqrestore(&afe->port_list_lock, flags);
+	scoped_guard(spinlock_irqsave, &afe->port_list_lock)
+		list_del(&port->node);
 	kfree(port->scfg);
 	kfree(port);
 }
@@ -958,11 +956,11 @@ static struct q6afe_port *q6afe_find_port(struct q6afe *afe, int token)
 	return ret;
 }
 
-static int q6afe_callback(struct apr_device *adev, struct apr_resp_pkt *data)
+static int q6afe_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
 	struct q6afe *afe = dev_get_drvdata(&adev->dev);
-	struct aprv2_ibasic_rsp_result_t *res;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct aprv2_ibasic_rsp_result_t *res;
+	const struct apr_hdr *hdr = &data->hdr;
 	struct q6afe_port *port;
 
 	if (!data->payload_size)
@@ -1077,6 +1075,7 @@ static int q6afe_set_param(struct q6afe *afe, struct q6afe_port *port,
 	struct apr_pkt *pkt;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	void *pl;
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1128,6 +1127,7 @@ static int q6afe_port_set_param_v2(struct q6afe_port *port, void *data,
 	u16 port_id = port->id;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*param) + sizeof(*pdata) + psize;
 	void *pl;
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1277,7 +1277,6 @@ int q6afe_port_stop(struct q6afe_port *port)
 	int port_id = port->id;
 	int ret = 0;
 	int index, pkt_size;
-	void *p __free(kfree) = NULL;
 
 	index = port->token;
 	if (index < 0 || index >= AFE_PORT_MAX) {
@@ -1286,7 +1285,7 @@ int q6afe_port_stop(struct q6afe_port *port)
 	}
 
 	pkt_size = APR_HDR_SIZE + sizeof(*stop);
-	p = kzalloc(pkt_size, GFP_KERNEL);
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -1360,7 +1359,7 @@ void q6afe_tdm_port_prepare(struct q6afe_port *port,
 
 	pcfg->tdm_cfg.slot_width = cfg->slot_width;
 	pcfg->tdm_cfg.slot_mask = cfg->slot_mask;
-	port->scfg = kzalloc(sizeof(*port->scfg), GFP_KERNEL);
+	port->scfg = kzalloc_obj(*port->scfg);
 	if (!port->scfg)
 		return;
 
@@ -1667,7 +1666,6 @@ int q6afe_port_start(struct q6afe_port *port)
 	int ret, param_id = port->cfg_type;
 	struct apr_pkt *pkt;
 	int pkt_size;
-	void *p __free(kfree) = NULL;
 
 	ret  = q6afe_port_set_param_v2(port, &port->port_cfg, param_id,
 				       AFE_MODULE_AUDIO_DEV_INTERFACE,
@@ -1690,7 +1688,7 @@ int q6afe_port_start(struct q6afe_port *port)
 	}
 
 	pkt_size = APR_HDR_SIZE + sizeof(*start);
-	p = kzalloc(pkt_size, GFP_KERNEL);
+	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -1807,8 +1805,8 @@ struct q6afe_port *q6afe_port_get_from_id(struct device *dev, int id)
 	port->cfg_type = cfg_type;
 	kref_init(&port->refcount);
 
-	guard(spinlock_irqsave)(&afe->port_list_lock);
-	list_add_tail(&port->node, &afe->port_list);
+	scoped_guard(spinlock_irqsave, &afe->port_list_lock)
+		list_add_tail(&port->node, &afe->port_list);
 
 	return port;
 
@@ -1834,6 +1832,7 @@ int q6afe_unvote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	struct apr_pkt *pkt;
 	int ret = 0;
 	int pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -1868,6 +1867,7 @@ int q6afe_vote_lpass_core_hw(struct device *dev, uint32_t hw_block_id,
 	struct apr_pkt *pkt;
 	int ret = 0;
 	int pkt_size = APR_HDR_SIZE + sizeof(*vote_cfg);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;

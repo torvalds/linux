@@ -1027,7 +1027,7 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 	int rv = -ENOMEM;
 	struct wdm_device *desc;
 
-	desc = kzalloc(sizeof(struct wdm_device), GFP_KERNEL);
+	desc = kzalloc_obj(struct wdm_device);
 	if (!desc)
 		goto out;
 	INIT_LIST_HEAD(&desc->device_list);
@@ -1050,10 +1050,10 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 
 	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
 
-	desc->orq = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	desc->orq = kmalloc_obj(struct usb_ctrlrequest);
 	if (!desc->orq)
 		goto err;
-	desc->irq = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	desc->irq = kmalloc_obj(struct usb_ctrlrequest);
 	if (!desc->irq)
 		goto err;
 

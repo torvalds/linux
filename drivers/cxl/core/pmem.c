@@ -83,7 +83,7 @@ static struct cxl_nvdimm_bridge *cxl_nvdimm_bridge_alloc(struct cxl_port *port)
 	struct device *dev;
 	int rc;
 
-	cxl_nvb = kzalloc(sizeof(*cxl_nvb), GFP_KERNEL);
+	cxl_nvb = kzalloc_obj(*cxl_nvb);
 	if (!cxl_nvb)
 		return ERR_PTR(-ENOMEM);
 
@@ -115,15 +115,17 @@ static void unregister_nvb(void *_cxl_nvb)
 	device_unregister(&cxl_nvb->dev);
 }
 
-/**
- * devm_cxl_add_nvdimm_bridge() - add the root of a LIBNVDIMM topology
- * @host: platform firmware root device
- * @port: CXL port at the root of a CXL topology
- *
- * Return: bridge device that can host cxl_nvdimm objects
- */
-struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
-						     struct cxl_port *port)
+static bool cxl_nvdimm_bridge_failed_attach(struct cxl_nvdimm_bridge *cxl_nvb)
+{
+	struct device *dev = &cxl_nvb->dev;
+
+	guard(device)(dev);
+	/* If the device has no driver, then it failed to attach. */
+	return dev->driver == NULL;
+}
+
+struct cxl_nvdimm_bridge *__devm_cxl_add_nvdimm_bridge(struct device *host,
+						       struct cxl_port *port)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb;
 	struct device *dev;
@@ -145,6 +147,11 @@ struct cxl_nvdimm_bridge *devm_cxl_add_nvdimm_bridge(struct device *host,
 	if (rc)
 		goto err;
 
+	if (cxl_nvdimm_bridge_failed_attach(cxl_nvb)) {
+		unregister_nvb(cxl_nvb);
+		return ERR_PTR(-ENODEV);
+	}
+
 	rc = devm_add_action_or_reset(host, unregister_nvb, cxl_nvb);
 	if (rc)
 		return ERR_PTR(rc);
@@ -155,7 +162,7 @@ err:
 	put_device(dev);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_nvdimm_bridge, "CXL");
+EXPORT_SYMBOL_FOR_MODULES(__devm_cxl_add_nvdimm_bridge, "cxl_pmem");
 
 static void cxl_nvdimm_release(struct device *dev)
 {
@@ -198,7 +205,7 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_nvdimm_bridge *cxl_nvb,
 	struct cxl_nvdimm *cxl_nvd;
 	struct device *dev;
 
-	cxl_nvd = kzalloc(sizeof(*cxl_nvd), GFP_KERNEL);
+	cxl_nvd = kzalloc_obj(*cxl_nvd);
 	if (!cxl_nvd)
 		return ERR_PTR(-ENOMEM);
 
@@ -237,12 +244,13 @@ static void cxlmd_release_nvdimm(void *_cxlmd)
 
 /**
  * devm_cxl_add_nvdimm() - add a bridge between a cxl_memdev and an nvdimm
- * @parent_port: parent port for the (to be added) @cxlmd endpoint port
- * @cxlmd: cxl_memdev instance that will perform LIBNVDIMM operations
+ * @host: host device for devm operations
+ * @port: any port in the CXL topology to find the nvdimm-bridge device
+ * @cxlmd: parent of the to be created cxl_nvdimm device
  *
  * Return: 0 on success negative error code on failure.
  */
-int devm_cxl_add_nvdimm(struct cxl_port *parent_port,
+int devm_cxl_add_nvdimm(struct device *host, struct cxl_port *port,
 			struct cxl_memdev *cxlmd)
 {
 	struct cxl_nvdimm_bridge *cxl_nvb;
@@ -250,9 +258,24 @@ int devm_cxl_add_nvdimm(struct cxl_port *parent_port,
 	struct device *dev;
 	int rc;
 
-	cxl_nvb = cxl_find_nvdimm_bridge(parent_port);
+	cxl_nvb = cxl_find_nvdimm_bridge(port);
 	if (!cxl_nvb)
 		return -ENODEV;
+
+	/*
+	 * Take the uport_dev lock to guard against race of nvdimm_bus object.
+	 * cxl_acpi_probe() registers the nvdimm_bus and is done under the
+	 * root port uport_dev lock.
+	 *
+	 * Take the cxl_nvb device lock to ensure that cxl_nvb driver is in a
+	 * consistent state. And the driver registers nvdimm_bus.
+	 */
+	guard(device)(cxl_nvb->port->uport_dev);
+	guard(device)(&cxl_nvb->dev);
+	if (!cxl_nvb->nvdimm_bus) {
+		rc = -ENODEV;
+		goto err_alloc;
+	}
 
 	cxl_nvd = cxl_nvdimm_alloc(cxl_nvb, cxlmd);
 	if (IS_ERR(cxl_nvd)) {
@@ -270,10 +293,10 @@ int devm_cxl_add_nvdimm(struct cxl_port *parent_port,
 	if (rc)
 		goto err;
 
-	dev_dbg(&cxlmd->dev, "register %s\n", dev_name(dev));
+	dev_dbg(host, "register %s\n", dev_name(dev));
 
 	/* @cxlmd carries a reference on @cxl_nvb until cxlmd_release_nvdimm */
-	return devm_add_action_or_reset(&cxlmd->dev, cxlmd_release_nvdimm, cxlmd);
+	return devm_add_action_or_reset(host, cxlmd_release_nvdimm, cxlmd);
 
 err:
 	put_device(dev);

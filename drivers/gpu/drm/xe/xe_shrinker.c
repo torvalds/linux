@@ -282,7 +282,7 @@ static void xe_shrinker_fini(struct drm_device *drm, void *arg)
  */
 int xe_shrinker_create(struct xe_device *xe)
 {
-	struct xe_shrinker *shrinker = kzalloc(sizeof(*shrinker), GFP_KERNEL);
+	struct xe_shrinker *shrinker = kzalloc_obj(*shrinker);
 
 	if (!shrinker)
 		return -ENOMEM;

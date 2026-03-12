@@ -628,7 +628,7 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	if (unlikely(handler_data))
 		goto out;
 
-	handler_data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
+	handler_data = kzalloc_obj(struct irq_handler_data, GFP_ATOMIC);
 	if (unlikely(!handler_data)) {
 		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
 		prom_halt();
@@ -654,7 +654,7 @@ static unsigned int sun4v_build_common(u32 devhandle, unsigned int devino,
 	if (!irq)
 		goto out;
 
-	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
+	data = kzalloc_obj(struct irq_handler_data, GFP_ATOMIC);
 	if (unlikely(!data)) {
 		pr_err("IRQ handler data allocation failed.\n");
 		irq_free(irq);

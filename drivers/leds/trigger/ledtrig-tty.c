@@ -312,7 +312,7 @@ static int ledtrig_tty_activate(struct led_classdev *led_cdev)
 {
 	struct ledtrig_tty_data *trigger_data;
 
-	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
+	trigger_data = kzalloc_obj(*trigger_data);
 	if (!trigger_data)
 		return -ENOMEM;
 

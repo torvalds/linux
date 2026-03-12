@@ -224,8 +224,7 @@ mlxsw_sp1_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	nr_entries = div_u64(resource_size, info->alloc_size);
-	part = kzalloc(struct_size(part, usage, BITS_TO_LONGS(nr_entries)),
-		       GFP_KERNEL);
+	part = kzalloc_flex(*part, usage, BITS_TO_LONGS(nr_entries));
 	if (!part)
 		return ERR_PTR(-ENOMEM);
 

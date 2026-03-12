@@ -61,7 +61,7 @@ static int uflash_devinit(struct platform_device *op, struct device_node *dp)
 		return -ENODEV;
 	}
 
-	up = kzalloc(sizeof(struct uflash_dev), GFP_KERNEL);
+	up = kzalloc_obj(struct uflash_dev);
 	if (!up)
 		return -ENOMEM;
 

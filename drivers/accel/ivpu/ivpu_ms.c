@@ -59,7 +59,7 @@ int ivpu_ms_start_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 		goto unlock;
 	}
 
-	ms = kzalloc(sizeof(*ms), GFP_KERNEL);
+	ms = kzalloc_obj(*ms);
 	if (!ms) {
 		ret = -ENOMEM;
 		goto unlock;

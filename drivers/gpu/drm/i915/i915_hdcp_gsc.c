@@ -94,7 +94,7 @@ static struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_de
 	struct intel_hdcp_gsc_context *gsc_context;
 	int ret;
 
-	gsc_context = kzalloc(sizeof(*gsc_context), GFP_KERNEL);
+	gsc_context = kzalloc_obj(*gsc_context);
 	if (!gsc_context)
 		return ERR_PTR(-ENOMEM);
 

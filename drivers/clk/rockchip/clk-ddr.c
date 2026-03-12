@@ -100,7 +100,7 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	struct clk_init_data init;
 	struct clk *clk;
 
-	ddrclk = kzalloc(sizeof(*ddrclk), GFP_KERNEL);
+	ddrclk = kzalloc_obj(*ddrclk);
 	if (!ddrclk)
 		return ERR_PTR(-ENOMEM);
 

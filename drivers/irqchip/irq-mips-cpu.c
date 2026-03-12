@@ -237,7 +237,7 @@ static void mips_cpu_register_ipi_domain(struct device_node *of_node)
 {
 	struct cpu_ipi_domain_state *ipi_domain_state;
 
-	ipi_domain_state = kzalloc(sizeof(*ipi_domain_state), GFP_KERNEL);
+	ipi_domain_state = kzalloc_obj(*ipi_domain_state);
 	ipi_domain = irq_domain_create_hierarchy(irq_domain, IRQ_DOMAIN_FLAG_IPI_SINGLE, 2,
 						 of_fwnode_handle(of_node),
 						 &mips_cpu_ipi_chip_ops, ipi_domain_state);

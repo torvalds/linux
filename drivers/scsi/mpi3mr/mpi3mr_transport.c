@@ -1022,8 +1022,7 @@ mpi3mr_alloc_hba_port(struct mpi3mr_ioc *mrioc, u16 port_id)
 {
 	struct mpi3mr_hba_port *hba_port;
 
-	hba_port = kzalloc(sizeof(struct mpi3mr_hba_port),
-	    GFP_KERNEL);
+	hba_port = kzalloc_obj(struct mpi3mr_hba_port);
 	if (!hba_port)
 		return NULL;
 	hba_port->port_id = port_id;
@@ -1221,8 +1220,7 @@ void mpi3mr_sas_host_add(struct mpi3mr_ioc *mrioc)
 	mrioc->sas_hba.host_node = 1;
 	INIT_LIST_HEAD(&mrioc->sas_hba.sas_port_list);
 	mrioc->sas_hba.parent_dev = &mrioc->shost->shost_gendev;
-	mrioc->sas_hba.phy = kcalloc(num_phys,
-	    sizeof(struct mpi3mr_sas_phy), GFP_KERNEL);
+	mrioc->sas_hba.phy = kzalloc_objs(struct mpi3mr_sas_phy, num_phys);
 	if (!mrioc->sas_hba.phy)
 		return;
 
@@ -1344,7 +1342,7 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		return NULL;
 	}
 
-	mr_sas_port = kzalloc(sizeof(struct mpi3mr_sas_port), GFP_KERNEL);
+	mr_sas_port = kzalloc_obj(struct mpi3mr_sas_port);
 	if (!mr_sas_port)
 		return NULL;
 
@@ -1721,7 +1719,7 @@ mpi3mr_refresh_sas_ports(struct mpi3mr_ioc *mrioc)
 	sas_io_unit_pg0 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_io_unit_pg0)
 		return;
-	h_port = kcalloc(64, sizeof(struct host_port), GFP_KERNEL);
+	h_port = kzalloc_objs(struct host_port, 64);
 	if (!h_port)
 		goto out;
 
@@ -2098,8 +2096,7 @@ int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle)
 	if (sas_expander)
 		return 0;
 
-	sas_expander = kzalloc(sizeof(struct mpi3mr_sas_node),
-	    GFP_KERNEL);
+	sas_expander = kzalloc_obj(struct mpi3mr_sas_node);
 	if (!sas_expander)
 		return -ENOMEM;
 
@@ -2118,8 +2115,8 @@ int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle)
 		rc = -1;
 		goto out_fail;
 	}
-	sas_expander->phy = kcalloc(sas_expander->num_phys,
-	    sizeof(struct mpi3mr_sas_phy), GFP_KERNEL);
+	sas_expander->phy = kzalloc_objs(struct mpi3mr_sas_phy,
+					 sas_expander->num_phys);
 	if (!sas_expander->phy) {
 		rc = -1;
 		goto out_fail;
@@ -2284,11 +2281,11 @@ void mpi3mr_expander_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device
  *
- * This function identifies whether the target device is
- * attached directly or through expander and issues sas phy
- * page0 or expander phy page1 and gets the link rate, if there
- * is any failure in reading the pages then this returns link
- * rate of 1.5.
+ * This function first tries to use the link rate from DevicePage0
+ * (populated by firmware during device discovery). If the cached
+ * value is not available or invalid, it falls back to reading from
+ * sas phy page0 or expander phy page1.
+ *
  *
  * Return: logical link rate.
  */
@@ -2301,6 +2298,14 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 	u32 phynum_handle;
 	u16 ioc_status;
 
+	/* First, try to use link rate from DevicePage0 (populated by firmware) */
+	if (tgtdev->dev_spec.sas_sata_inf.negotiated_link_rate >=
+	    MPI3_SAS_NEG_LINK_RATE_1_5) {
+		link_rate = tgtdev->dev_spec.sas_sata_inf.negotiated_link_rate;
+		goto out;
+	}
+
+	/* Fallback to reading from phy pages if DevicePage0 value not available */
 	phy_number = tgtdev->dev_spec.sas_sata_inf.phy_id;
 	if (!(tgtdev->devpg0_flag & MPI3_DEVICE0_FLAGS_ATT_METHOD_DIR_ATTACHED)) {
 		phynum_handle = ((phy_number<<MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT)
@@ -2318,9 +2323,7 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 			    __FILE__, __LINE__, __func__);
 			goto out;
 		}
-		link_rate = (expander_pg1.negotiated_link_rate &
-			     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
-			MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+		link_rate = expander_pg1.negotiated_link_rate;
 		goto out;
 	}
 	if (mpi3mr_cfg_get_sas_phy_pg0(mrioc, &ioc_status, &phy_pg0,
@@ -2335,11 +2338,11 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 		    __FILE__, __LINE__, __func__);
 		goto out;
 	}
-	link_rate = (phy_pg0.negotiated_link_rate &
-		     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
-		MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+	link_rate = phy_pg0.negotiated_link_rate;
+
 out:
-	return link_rate;
+	return ((link_rate & MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
+		MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT);
 }
 
 /**

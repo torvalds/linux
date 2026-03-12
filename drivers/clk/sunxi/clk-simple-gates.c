@@ -34,14 +34,14 @@ static void __init sunxi_simple_gates_setup(struct device_node *node,
 
 	clk_parent = of_clk_get_parent_name(node, 0);
 
-	clk_data = kmalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+	clk_data = kmalloc_obj(struct clk_onecell_data);
 	if (!clk_data)
 		goto err_unmap;
 
 	number = of_property_count_u32_elems(node, "clock-indices");
 	of_property_read_u32_index(node, "clock-indices", number - 1, &number);
 
-	clk_data->clks = kcalloc(number + 1, sizeof(struct clk *), GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, number + 1);
 	if (!clk_data->clks)
 		goto err_free_data;
 

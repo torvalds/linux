@@ -538,7 +538,7 @@ static _cdebbuf *cdebbuf_alloc(void)
 		cdb = g_debbuf;
 		goto init;
 	} else
-		cdb = kmalloc(sizeof(_cdebbuf), GFP_ATOMIC);
+		cdb = kmalloc_obj(_cdebbuf, GFP_ATOMIC);
 	if (!cdb)
 		return NULL;
 	cdb->buf = kmalloc(CDEBUG_SIZE, GFP_ATOMIC);
@@ -592,7 +592,7 @@ _cdebbuf *capi_message2str(u8 *msg)
 	if (likely(cdb == g_debbuf))
 		cmsg = g_cmsg;
 	else
-		cmsg = kmalloc(sizeof(_cmsg), GFP_ATOMIC);
+		cmsg = kmalloc_obj(_cmsg, GFP_ATOMIC);
 	if (unlikely(!cmsg)) {
 		cdebbuf_free(cdb);
 		return NULL;
@@ -618,10 +618,10 @@ _cdebbuf *capi_message2str(u8 *msg)
 
 int __init cdebug_init(void)
 {
-	g_cmsg = kmalloc(sizeof(_cmsg), GFP_KERNEL);
+	g_cmsg = kmalloc_obj(_cmsg);
 	if (!g_cmsg)
 		return -ENOMEM;
-	g_debbuf = kmalloc(sizeof(_cdebbuf), GFP_KERNEL);
+	g_debbuf = kmalloc_obj(_cdebbuf);
 	if (!g_debbuf) {
 		kfree(g_cmsg);
 		return -ENOMEM;

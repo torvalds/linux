@@ -103,6 +103,7 @@ VERSION
 		__vdso_clock_getres;
 #if _MIPS_SIM != _MIPS_SIM_ABI64
 		__vdso_clock_gettime64;
+		__vdso_clock_getres_time64;
 #endif
 #endif
 	local: *;

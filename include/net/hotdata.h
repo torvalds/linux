@@ -42,6 +42,7 @@ struct net_hotdata {
 	int			netdev_budget_usecs;
 	int			tstamp_prequeue;
 	int			max_backlog;
+	int			qdisc_max_burst;
 	int			dev_tx_weight;
 	int			dev_rx_weight;
 	int			sysctl_max_skb_frags;

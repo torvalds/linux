@@ -1196,7 +1196,7 @@ static int agilent_82357a_allocate_private(struct gpib_board *board)
 {
 	struct agilent_82357a_priv *a_priv;
 
-	board->private_data = kzalloc(sizeof(struct agilent_82357a_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct agilent_82357a_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	a_priv = board->private_data;
@@ -1316,7 +1316,7 @@ static int agilent_82357a_attach(struct gpib_board *board, const struct gpib_boa
 		return -ERESTARTSYS;
 
 	retval = agilent_82357a_allocate_private(board);
-	if (retval < 0) {
+	if (retval) {
 		mutex_unlock(&agilent_82357a_hotplug_lock);
 		return retval;
 	}

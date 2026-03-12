@@ -100,7 +100,6 @@ struct ethqos_emac_driver_data {
 struct qcom_ethqos {
 	struct platform_device *pdev;
 	void __iomem *rgmii_base;
-	void __iomem *mac_base;
 	int (*configure_func)(struct qcom_ethqos *ethqos, int speed);
 
 	unsigned int link_clk_rate;
@@ -660,10 +659,18 @@ static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
 		return ret;
 
 	ret = phy_power_on(ethqos->serdes_phy);
-	if (ret)
+	if (ret) {
+		phy_exit(ethqos->serdes_phy);
 		return ret;
+	}
 
-	return phy_set_speed(ethqos->serdes_phy, ethqos->serdes_speed);
+	ret = phy_set_speed(ethqos->serdes_phy, ethqos->serdes_speed);
+	if (ret) {
+		phy_power_off(ethqos->serdes_phy);
+		phy_exit(ethqos->serdes_phy);
+	}
+
+	return ret;
 }
 
 static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
@@ -771,8 +778,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (IS_ERR(ethqos->rgmii_base))
 		return dev_err_probe(dev, PTR_ERR(ethqos->rgmii_base),
 				     "Failed to map rgmii resource\n");
-
-	ethqos->mac_base = stmmac_res.addr;
 
 	data = of_device_get_match_data(dev);
 	ethqos->por = data->por;

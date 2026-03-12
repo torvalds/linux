@@ -54,7 +54,7 @@ static const char * const bench_uprobe_usage[] = {
 							   /*opts=*/&uprobe_opts); \
 	if (!skel->links.prog) { \
 		err = -errno; \
-		fprintf(stderr, "Failed to attach bench uprobe \"%s\": %s\n", #prog, strerror(errno)); \
+		fprintf(stderr, "Failed to attach bench uprobe \"%s\": %m\n", #prog); \
 		goto cleanup; \
 	}
 

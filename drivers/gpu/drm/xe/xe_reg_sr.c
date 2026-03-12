@@ -91,7 +91,7 @@ int xe_reg_sr_add(struct xe_reg_sr *sr,
 		return 0;
 	}
 
-	pentry = kmalloc(sizeof(*pentry), GFP_KERNEL);
+	pentry = kmalloc_obj(*pentry);
 	if (!pentry) {
 		ret = -ENOMEM;
 		goto fail;

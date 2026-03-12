@@ -339,12 +339,10 @@ int qedr_create_gsi_qp(struct qedr_dev *dev, struct ib_qp_init_attr *attrs,
 	qp->rq.max_wr = attrs->cap.max_recv_wr;
 	qp->sq.max_wr = attrs->cap.max_send_wr;
 
-	qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
-				GFP_KERNEL);
+	qp->rqe_wr_id = kzalloc_objs(*qp->rqe_wr_id, qp->rq.max_wr);
 	if (!qp->rqe_wr_id)
 		goto err;
-	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
-				GFP_KERNEL);
+	qp->wqe_wr_id = kzalloc_objs(*qp->wqe_wr_id, qp->sq.max_wr);
 	if (!qp->wqe_wr_id)
 		goto err;
 
@@ -507,7 +505,7 @@ static inline int qedr_gsi_build_packet(struct qedr_dev *dev,
 
 	header_size = ib_ud_header_pack(&udh, &ud_header_buffer);
 
-	packet = kzalloc(sizeof(*packet), GFP_ATOMIC);
+	packet = kzalloc_obj(*packet, GFP_ATOMIC);
 	if (!packet)
 		return -ENOMEM;
 

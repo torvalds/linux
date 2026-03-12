@@ -125,7 +125,9 @@ enum iwl_dsm_funcs {
 	DSM_FUNC_ENERGY_DETECTION_THRESHOLD = 10,
 	DSM_FUNC_RFI_CONFIG = 11,
 	DSM_FUNC_ENABLE_11BE = 12,
-	DSM_FUNC_NUM_FUNCS = 13,
+	DSM_FUNC_ENABLE_11BN = 13,
+	DSM_FUNC_ENABLE_UNII_9 = 14,
+	DSM_FUNC_NUM_FUNCS,
 };
 
 enum iwl_dsm_values_srd {
@@ -217,11 +219,6 @@ int iwl_bios_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_bios_get_eckv(struct iwl_fw_runtime *fwrt, u32 *ext_clk);
 int iwl_bios_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
-
-__le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
-int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
-			 struct iwl_lari_config_change_cmd *cmd,
-			 size_t *cmd_size);
 
 int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value);

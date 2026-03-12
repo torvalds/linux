@@ -140,7 +140,7 @@ struct iosm_trace *ipc_trace_init(struct iosm_imem *ipc_imem)
 	ipc_imem_channel_init(ipc_imem, IPC_CTYPE_CTRL, chnl_cfg,
 			      IRQ_MOD_OFF);
 
-	ipc_trace = kzalloc(sizeof(*ipc_trace), GFP_KERNEL);
+	ipc_trace = kzalloc_obj(*ipc_trace);
 	if (!ipc_trace)
 		return NULL;
 

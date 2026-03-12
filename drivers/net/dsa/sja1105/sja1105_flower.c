@@ -41,7 +41,7 @@ static int sja1105_setup_bcast_policer(struct sja1105_private *priv,
 	int rc;
 
 	if (!rule) {
-		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+		rule = kzalloc_obj(*rule);
 		if (!rule)
 			return -ENOMEM;
 
@@ -112,7 +112,7 @@ static int sja1105_setup_tc_policer(struct sja1105_private *priv,
 	int rc;
 
 	if (!rule) {
-		rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+		rule = kzalloc_obj(*rule);
 		if (!rule)
 			return -ENOMEM;
 

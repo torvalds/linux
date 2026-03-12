@@ -458,7 +458,7 @@ struct dvb_frontend *atbm8830_attach(const struct atbm8830_config *config,
 	if (config == NULL || i2c == NULL)
 		return NULL;
 
-	priv = kzalloc(sizeof(struct atbm_state), GFP_KERNEL);
+	priv = kzalloc_obj(struct atbm_state);
 	if (priv == NULL)
 		goto error_out;
 

@@ -84,7 +84,7 @@ static int catpt_wait_msg_completion(struct catpt_dev *cdev, int timeout)
 
 static int catpt_dsp_do_send_msg(struct catpt_dev *cdev,
 				 struct catpt_ipc_msg request,
-				 struct catpt_ipc_msg *reply, int timeout)
+				 struct catpt_ipc_msg *reply, int timeout, const char *name)
 {
 	struct catpt_ipc *ipc = &cdev->ipc;
 	unsigned long flags;
@@ -111,6 +111,8 @@ static int catpt_dsp_do_send_msg(struct catpt_dev *cdev,
 	}
 
 	ret = ipc->rx.rsp.status;
+	if (ret)
+		dev_err(cdev->dev, "%s (0x%08x) failed: %d\n", name, request.header, ret);
 	if (reply) {
 		reply->header = ipc->rx.header;
 
@@ -123,23 +125,23 @@ static int catpt_dsp_do_send_msg(struct catpt_dev *cdev,
 
 int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 			       struct catpt_ipc_msg request,
-			       struct catpt_ipc_msg *reply, int timeout)
+			       struct catpt_ipc_msg *reply, int timeout, const char *name)
 {
 	struct catpt_ipc *ipc = &cdev->ipc;
 	int ret;
 
 	mutex_lock(&ipc->mutex);
-	ret = catpt_dsp_do_send_msg(cdev, request, reply, timeout);
+	ret = catpt_dsp_do_send_msg(cdev, request, reply, timeout, name);
 	mutex_unlock(&ipc->mutex);
 
 	return ret;
 }
 
 int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
-		       struct catpt_ipc_msg *reply)
+		       struct catpt_ipc_msg *reply, const char *name)
 {
 	return catpt_dsp_send_msg_timeout(cdev, request, reply,
-					  cdev->ipc.default_timeout);
+					  cdev->ipc.default_timeout, name);
 }
 
 static void

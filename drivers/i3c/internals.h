@@ -11,6 +11,10 @@
 #include <linux/i3c/master.h>
 #include <linux/io.h>
 
+int __must_check i3c_bus_rpm_get(struct i3c_bus *bus);
+void i3c_bus_rpm_put(struct i3c_bus *bus);
+bool i3c_bus_rpm_ibi_allowed(struct i3c_bus *bus);
+
 void i3c_bus_normaluse_lock(struct i3c_bus *bus);
 void i3c_bus_normaluse_unlock(struct i3c_bus *bus);
 

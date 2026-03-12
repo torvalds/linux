@@ -165,7 +165,7 @@ static int __init ostm_init(struct device_node *np)
 	struct timer_of *to;
 	int ret;
 
-	to = kzalloc(sizeof(*to), GFP_KERNEL);
+	to = kzalloc_obj(*to);
 	if (!to)
 		return -ENOMEM;
 

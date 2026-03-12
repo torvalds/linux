@@ -633,7 +633,7 @@ static int tuner_probe(struct i2c_client *client)
 	int ret;
 #endif
 
-	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
+	t = kzalloc_obj(struct tuner);
 	if (NULL == t)
 		return -ENOMEM;
 	v4l2_i2c_subdev_init(&t->sd, client, &tuner_ops);

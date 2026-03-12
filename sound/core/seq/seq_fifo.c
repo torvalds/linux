@@ -19,7 +19,7 @@ struct snd_seq_fifo *snd_seq_fifo_new(int poolsize)
 {
 	struct snd_seq_fifo *f;
 
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	f = kzalloc_obj(*f);
 	if (!f)
 		return NULL;
 

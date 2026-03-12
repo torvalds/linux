@@ -82,7 +82,7 @@ void ipc_mmio_update_cp_capability(struct iosm_mmio *ipc_mmio)
 
 struct iosm_mmio *ipc_mmio_init(void __iomem *mmio, struct device *dev)
 {
-	struct iosm_mmio *ipc_mmio = kzalloc(sizeof(*ipc_mmio), GFP_KERNEL);
+	struct iosm_mmio *ipc_mmio = kzalloc_obj(*ipc_mmio);
 	int retries = IPC_MMIO_EXEC_STAGE_TIMEOUT;
 	enum ipc_mem_exec_stage stage;
 

@@ -12,6 +12,7 @@
 #include <drm/drm_mm.h>
 #include <drm/drm_print.h>
 
+#include <linux/hashtable.h>
 #include <linux/pci.h>
 #include <linux/xarray.h>
 #include <uapi/drm/ivpu_accel.h>
@@ -43,16 +44,13 @@
 /* SSID 1 is used by the VPU to represent reserved context */
 #define IVPU_RESERVED_CONTEXT_MMU_SSID 1
 #define IVPU_USER_CONTEXT_MIN_SSID     2
-#define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
+#define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 128)
 
 #define IVPU_MIN_DB 1
 #define IVPU_MAX_DB 255
 
 #define IVPU_JOB_ID_JOB_MASK		GENMASK(7, 0)
 #define IVPU_JOB_ID_CONTEXT_MASK	GENMASK(31, 8)
-
-#define IVPU_NUM_PRIORITIES    4
-#define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_PRIORITIES)
 
 #define IVPU_CMDQ_MIN_ID 1
 #define IVPU_CMDQ_MAX_ID 255
@@ -123,6 +121,16 @@ struct ivpu_fw_info;
 struct ivpu_ipc_info;
 struct ivpu_pm_info;
 
+struct ivpu_user_limits {
+	struct hlist_node hash_node;
+	struct ivpu_device *vdev;
+	struct kref ref;
+	u32 max_ctx_count;
+	u32 max_db_count;
+	u32 uid;
+	atomic_t db_count;
+};
+
 struct ivpu_device {
 	struct drm_device drm;
 	void __iomem *regb;
@@ -142,6 +150,8 @@ struct ivpu_device {
 	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
+	DECLARE_HASHTABLE(user_limits, 8);
+	struct mutex user_limits_lock; /* Protects user_limits */
 
 	struct xarray db_xa;
 	struct xa_limit db_limit;
@@ -189,6 +199,7 @@ struct ivpu_file_priv {
 	struct list_head ms_instance_list;
 	struct ivpu_bo *ms_info_bo;
 	struct xa_limit job_limit;
+	struct ivpu_user_limits *user_limits;
 	u32 job_id_next;
 	struct xa_limit cmdq_limit;
 	u32 cmdq_id_next;
@@ -284,6 +295,13 @@ static inline u32 ivpu_get_context_count(struct ivpu_device *vdev)
 	struct xa_limit ctx_limit = vdev->context_xa_limit;
 
 	return (ctx_limit.max - ctx_limit.min + 1);
+}
+
+static inline u32 ivpu_get_doorbell_count(struct ivpu_device *vdev)
+{
+	struct xa_limit db_limit = vdev->db_limit;
+
+	return (db_limit.max - db_limit.min + 1);
 }
 
 static inline u32 ivpu_get_platform(struct ivpu_device *vdev)

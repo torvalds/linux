@@ -721,7 +721,7 @@ static int grpci2_of_probe(struct platform_device *ofdev)
 		goto err1;
 	}
 
-	priv = grpci2priv = kzalloc(sizeof(struct grpci2_priv), GFP_KERNEL);
+	priv = grpci2priv = kzalloc_obj(struct grpci2_priv);
 	if (grpci2priv == NULL) {
 		err = -ENOMEM;
 		goto err1;

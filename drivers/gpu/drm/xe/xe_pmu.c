@@ -142,7 +142,7 @@ static bool event_gt_forcewake(struct perf_event *event)
 
 	gt = xe_device_get_gt(xe, config_to_gt_id(config));
 
-	fw_ref = kzalloc(sizeof(*fw_ref), GFP_KERNEL);
+	fw_ref = kzalloc_obj(*fw_ref);
 	if (!fw_ref)
 		return false;
 

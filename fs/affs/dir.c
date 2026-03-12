@@ -15,6 +15,7 @@
  */
 
 #include <linux/iversion.h>
+#include <linux/filelock.h>
 #include "affs.h"
 
 struct affs_dir_data {
@@ -35,7 +36,7 @@ static int affs_dir_open(struct inode *inode, struct file *file)
 {
 	struct affs_dir_data	*data;
 
-	data = kzalloc(sizeof(struct affs_dir_data), GFP_KERNEL);
+	data = kzalloc_obj(struct affs_dir_data);
 	if (!data)
 		return -ENOMEM;
 	file->private_data = data;
@@ -55,6 +56,7 @@ const struct file_operations affs_dir_operations = {
 	.iterate_shared	= affs_readdir,
 	.fsync		= affs_file_fsync,
 	.release	= affs_dir_release,
+	.setlease	= generic_setlease,
 };
 
 /*

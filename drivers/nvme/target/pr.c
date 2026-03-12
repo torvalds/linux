@@ -230,7 +230,7 @@ static u16 nvmet_pr_register(struct nvmet_req *req,
 	u16 status = NVME_SC_SUCCESS;
 	u64 nrkey = le64_to_cpu(d->nrkey);
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		return NVME_SC_INTERNAL;
 
@@ -331,7 +331,7 @@ static u16 nvmet_pr_update_reg_attr(struct nvmet_pr *pr,
 		return NVME_SC_SUCCESS;
 	}
 
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_ATOMIC);
 	if (!new)
 		return NVME_SC_INTERNAL;
 
@@ -380,7 +380,7 @@ static void nvmet_execute_pr_register(struct nvmet_req *req)
 	u8 reg_act = cdw10 & 0x07; /* Reservation Register Action, bit 02:00 */
 	u16 status;
 
-	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -662,7 +662,7 @@ static void nvmet_execute_pr_acquire(struct nvmet_req *req)
 		goto out;
 	}
 
-	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -773,7 +773,7 @@ static void nvmet_execute_pr_release(struct nvmet_req *req)
 		goto out;
 	}
 
-	d = kmalloc(sizeof(*d), GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -1013,7 +1013,7 @@ static int nvmet_pr_alloc_and_insert_pc_ref(struct nvmet_ns *ns,
 	struct nvmet_pr_per_ctrl_ref *pc_ref;
 	int ret;
 
-	pc_ref = kmalloc(sizeof(*pc_ref), GFP_ATOMIC);
+	pc_ref = kmalloc_obj(*pc_ref, GFP_ATOMIC);
 	if (!pc_ref)
 		return  -ENOMEM;
 

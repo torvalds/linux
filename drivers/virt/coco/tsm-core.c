@@ -4,16 +4,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/tsm.h>
-#include <linux/pci.h>
-#include <linux/rwsem.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/cleanup.h>
 #include <linux/pci-tsm.h>
-#include <linux/pci-ide.h>
 
 static struct class *tsm_class;
-static DECLARE_RWSEM(tsm_rwsem);
 static DEFINE_IDA(tsm_ida);
 
 static int match_id(struct device *dev, const void *data)
@@ -39,7 +35,7 @@ static struct tsm_dev *alloc_tsm_dev(struct device *parent)
 	int id;
 
 	struct tsm_dev *tsm_dev __free(kfree) =
-		kzalloc(sizeof(*tsm_dev), GFP_KERNEL);
+		kzalloc_obj(*tsm_dev);
 	if (!tsm_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -107,32 +103,6 @@ void tsm_unregister(struct tsm_dev *tsm_dev)
 	device_unregister(&tsm_dev->dev);
 }
 EXPORT_SYMBOL_GPL(tsm_unregister);
-
-/* must be invoked between tsm_register / tsm_unregister */
-int tsm_ide_stream_register(struct pci_ide *ide)
-{
-	struct pci_dev *pdev = ide->pdev;
-	struct pci_tsm *tsm = pdev->tsm;
-	struct tsm_dev *tsm_dev = tsm->tsm_dev;
-	int rc;
-
-	rc = sysfs_create_link(&tsm_dev->dev.kobj, &pdev->dev.kobj, ide->name);
-	if (rc)
-		return rc;
-
-	ide->tsm_dev = tsm_dev;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tsm_ide_stream_register);
-
-void tsm_ide_stream_unregister(struct pci_ide *ide)
-{
-	struct tsm_dev *tsm_dev = ide->tsm_dev;
-
-	ide->tsm_dev = NULL;
-	sysfs_remove_link(&tsm_dev->dev.kobj, ide->name);
-}
-EXPORT_SYMBOL_GPL(tsm_ide_stream_unregister);
 
 static void tsm_release(struct device *dev)
 {

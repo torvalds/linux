@@ -260,6 +260,17 @@ mode to off when the CPU is in any one of the available idle states.  This may
 help performance of a sibling CPU at the expense of a slightly higher wakeup
 latency for the idle CPU.
 
+The ``table`` argument allows customization of idle state latency and target
+residency. The syntax is a comma-separated list of ``name:latency:residency``
+entries, where ``name`` is the idle state name, ``latency`` is the exit latency
+in microseconds, and ``residency`` is the target residency in microseconds. It
+is not necessary to specify all idle states; only those to be customized. For
+example, ``C1:1:3,C6:50:100`` sets the exit latency and target residency for
+C1 and C6 to 1/3 and 50/100 microseconds, respectively. Remaining idle states
+keep their default values. The driver verifies that deeper idle states have
+higher latency and target residency than shallower ones. Also, target
+residency cannot be smaller than exit latency. If any of these conditions is
+not met, the driver ignores the entire ``table`` parameter.
 
 .. _intel-idle-core-and-package-idle-states:
 

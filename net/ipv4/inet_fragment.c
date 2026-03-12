@@ -188,7 +188,7 @@ static void fqdir_work_fn(struct work_struct *work)
 
 int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net)
 {
-	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
+	struct fqdir *fqdir = kzalloc_obj(*fqdir);
 	int res;
 
 	if (!fqdir)
@@ -488,6 +488,8 @@ int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
 	}
 
 	FRAG_CB(skb)->ip_defrag_offset = offset;
+	if (offset)
+		nf_reset_ct(skb);
 
 	return IPFRAG_OK;
 }

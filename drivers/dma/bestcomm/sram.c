@@ -48,7 +48,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 		return -EBUSY;
 	}
 
-	bcom_sram = kmalloc(sizeof(struct bcom_sram), GFP_KERNEL);
+	bcom_sram = kmalloc_obj(struct bcom_sram);
 	if (!bcom_sram) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
 			"Couldn't allocate internal state !\n", owner);

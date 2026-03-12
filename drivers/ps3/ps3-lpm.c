@@ -1181,7 +1181,7 @@ static int ps3_lpm_probe(struct ps3_system_bus_device *dev)
 		return -EBUSY;
 	}
 
-	lpm_priv = kzalloc(sizeof(*lpm_priv), GFP_KERNEL);
+	lpm_priv = kzalloc_obj(*lpm_priv);
 
 	if (!lpm_priv)
 		return -ENOMEM;

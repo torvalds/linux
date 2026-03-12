@@ -328,7 +328,7 @@ ovpn_aead_crypto_key_slot_new(const struct ovpn_key_config *kc)
 		return ERR_PTR(-EINVAL);
 
 	/* build the key slot */
-	ks = kmalloc(sizeof(*ks), GFP_KERNEL);
+	ks = kmalloc_obj(*ks);
 	if (!ks)
 		return ERR_PTR(-ENOMEM);
 

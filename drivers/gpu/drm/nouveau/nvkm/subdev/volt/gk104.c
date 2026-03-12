@@ -113,7 +113,7 @@ gk104_volt_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		volt_func = &gk104_volt_pwm;
 	}
 
-	if (!(volt = kzalloc(sizeof(*volt), GFP_KERNEL)))
+	if (!(volt = kzalloc_obj(*volt)))
 		return -ENOMEM;
 	nvkm_volt_ctor(volt_func, device, type, inst, &volt->base);
 	*pvolt = &volt->base;

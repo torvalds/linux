@@ -457,7 +457,7 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 	struct crypto_alg *base;
 	int ret;
 
-	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	tmpl = kzalloc_obj(*tmpl);
 	if (!tmpl)
 		return -ENOMEM;
 

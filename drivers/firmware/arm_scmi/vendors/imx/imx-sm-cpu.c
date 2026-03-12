@@ -233,15 +233,10 @@ static int scmi_imx_cpu_attributes_get(const struct scmi_protocol_handle *ph,
 static int scmi_imx_cpu_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	struct scmi_imx_cpu_info *info;
-	u32 version;
 	int ret, i;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_info(ph->dev, "NXP SM CPU Protocol Version %d.%d\n",
-		 PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	info = devm_kzalloc(ph->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -257,7 +252,7 @@ static int scmi_imx_cpu_protocol_init(const struct scmi_protocol_handle *ph)
 			return ret;
 	}
 
-	return ph->set_priv(ph, info, version);
+	return ph->set_priv(ph, info);
 }
 
 static const struct scmi_protocol scmi_imx_cpu = {

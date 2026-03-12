@@ -355,7 +355,7 @@ static void *ocrdma_init_emb_mqe(u8 opcode, u32 cmd_len)
 {
 	struct ocrdma_mqe *mqe;
 
-	mqe = kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
+	mqe = kzalloc_obj(struct ocrdma_mqe);
 	if (!mqe)
 		return NULL;
 	mqe->hdr.spcl_sge_cnt_emb |=
@@ -1289,7 +1289,7 @@ int ocrdma_mbx_rdma_stats(struct ocrdma_dev *dev, bool reset)
 	struct ocrdma_rdma_stats_resp *old_stats;
 	int status;
 
-	old_stats = kmalloc(sizeof(*old_stats), GFP_KERNEL);
+	old_stats = kmalloc_obj(*old_stats);
 	if (old_stats == NULL)
 		return -ENOMEM;
 
@@ -1332,7 +1332,7 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 	struct ocrdma_get_ctrl_attribs_rsp *ctrl_attr_rsp;
 	struct mgmt_hba_attribs *hba_attribs;
 
-	mqe = kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
+	mqe = kzalloc_obj(struct ocrdma_mqe);
 	if (!mqe)
 		return status;
 
@@ -1592,8 +1592,7 @@ void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
 {
 	int status;
 
-	dev->pd_mgr = kzalloc(sizeof(struct ocrdma_pd_resource_mgr),
-			      GFP_KERNEL);
+	dev->pd_mgr = kzalloc_obj(struct ocrdma_pd_resource_mgr);
 	if (!dev->pd_mgr)
 		return;
 
@@ -3082,7 +3081,7 @@ static int ocrdma_create_eqs(struct ocrdma_dev *dev)
 	if (!num_eq)
 		return -EINVAL;
 
-	dev->eq_tbl = kcalloc(num_eq, sizeof(struct ocrdma_eq), GFP_KERNEL);
+	dev->eq_tbl = kzalloc_objs(struct ocrdma_eq, num_eq);
 	if (!dev->eq_tbl)
 		return -ENOMEM;
 

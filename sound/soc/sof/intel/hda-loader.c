@@ -53,65 +53,8 @@ hda_cl_prepare(struct device *dev, unsigned int format, unsigned int size,
 	       struct snd_dma_buffer *dmab, bool persistent_buffer, int direction,
 	       bool is_iccmax)
 {
-	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	struct hdac_ext_stream *hext_stream;
-	struct hdac_stream *hstream;
-	int ret;
-
-	hext_stream = hda_dsp_stream_get(sdev, direction, 0);
-
-	if (!hext_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
-		return ERR_PTR(-ENODEV);
-	}
-	hstream = &hext_stream->hstream;
-	hstream->substream = NULL;
-
-	/*
-	 * Allocate DMA buffer if it is temporary or if the buffer is intended
-	 * to be persistent but not yet allocated.
-	 * We cannot rely solely on !dmab->area as caller might use a struct on
-	 * stack (when it is temporary) without clearing it to 0.
-	 */
-	if (!persistent_buffer || !dmab->area) {
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, dev, size, dmab);
-		if (ret < 0) {
-			dev_err(sdev->dev, "%s: memory alloc failed: %d\n",
-				__func__, ret);
-			goto out_put;
-		}
-	}
-
-	hstream->period_bytes = 0;/* initialize period_bytes */
-	hstream->format_val = format;
-	hstream->bufsize = size;
-
-	if (is_iccmax) {
-		ret = hda_dsp_iccmax_stream_hw_params(sdev, hext_stream, dmab, NULL);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: iccmax stream prepare failed: %d\n", ret);
-			goto out_free;
-		}
-	} else {
-		ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, NULL);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
-			goto out_free;
-		}
-		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_ENABLE, size);
-	}
-
-	return hext_stream;
-
-out_free:
-	snd_dma_free_pages(dmab);
-	dmab->area = NULL;
-	dmab->bytes = 0;
-	hstream->bufsize = 0;
-	hstream->format_val = 0;
-out_put:
-	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
-	return ERR_PTR(ret);
+	return hda_data_stream_prepare(dev, format, size, dmab, persistent_buffer,
+				       direction, is_iccmax, false);
 }
 EXPORT_SYMBOL_NS(hda_cl_prepare, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
@@ -275,38 +218,7 @@ EXPORT_SYMBOL_NS(hda_cl_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
 int hda_cl_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
 			  bool persistent_buffer, struct hdac_ext_stream *hext_stream)
 {
-	struct snd_sof_dev *sdev =  dev_get_drvdata(dev);
-	struct hdac_stream *hstream = &hext_stream->hstream;
-	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-	int ret = 0;
-
-	if (hstream->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
-	else
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
-					SOF_HDA_SD_CTL_DMA_START, 0);
-
-	hda_dsp_stream_put(sdev, hstream->direction, hstream->stream_tag);
-	hstream->running = 0;
-	hstream->substream = NULL;
-
-	/* reset BDL address */
-	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL, 0);
-	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU, 0);
-
-	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset, 0);
-
-	if (!persistent_buffer) {
-		snd_dma_free_pages(dmab);
-		dmab->area = NULL;
-		dmab->bytes = 0;
-		hstream->bufsize = 0;
-		hstream->format_val = 0;
-	}
-
-	return ret;
+	return hda_data_stream_cleanup(dev, dmab, persistent_buffer, hext_stream, false);
 }
 EXPORT_SYMBOL_NS(hda_cl_cleanup, "SND_SOC_SOF_INTEL_HDA_COMMON");
 

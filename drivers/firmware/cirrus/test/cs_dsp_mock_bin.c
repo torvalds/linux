@@ -56,13 +56,14 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_get_firmware, "FW_CS_DSP_KUNIT_TEST_UTILS")
  * @alg_id:		Algorithm ID.
  * @alg_ver:		Algorithm version.
  * @type:		Type of the block.
- * @offset:		Offset.
+ * @offset:		16-bit offset.
+ * @offset32:		32-bit offset (sample rate on V1 and V2 file formats).
  * @payload_data:	Pointer to buffer containing the payload data.
  * @payload_len_bytes:	Length of payload data in bytes.
  */
 void cs_dsp_mock_bin_add_raw_block(struct cs_dsp_mock_bin_builder *builder,
 				   unsigned int alg_id, unsigned int alg_ver,
-				   int type, unsigned int offset,
+				   int type, u16 offset, u32 offset32,
 				   const void *payload_data, size_t payload_len_bytes)
 {
 	struct wmfw_coeff_item *item;
@@ -75,6 +76,7 @@ void cs_dsp_mock_bin_add_raw_block(struct cs_dsp_mock_bin_builder *builder,
 	item = builder->write_p;
 
 	item->offset = cpu_to_le16(offset);
+	item->offset32 = cpu_to_le32(offset32);
 	item->type = cpu_to_le16(type);
 	item->id = cpu_to_le32(alg_id);
 	item->ver = cpu_to_le32(alg_ver << 8);
@@ -104,7 +106,7 @@ static void cs_dsp_mock_bin_add_name_or_info(struct cs_dsp_mock_bin_builder *bui
 		info = tmp;
 	}
 
-	cs_dsp_mock_bin_add_raw_block(builder, 0, 0, WMFW_INFO_TEXT, 0, info, info_len);
+	cs_dsp_mock_bin_add_raw_block(builder, 0, 0, WMFW_INFO_TEXT, 0, 0, info, info_len);
 	kunit_kfree(builder->test_priv->test, tmp);
 }
 
@@ -156,10 +158,38 @@ void cs_dsp_mock_bin_add_patch(struct cs_dsp_mock_bin_builder *builder,
 	KUNIT_ASSERT_EQ(builder->test_priv->test, payload_len_bytes % 4, 0);
 
 	cs_dsp_mock_bin_add_raw_block(builder, alg_id, alg_ver,
-				      mem_region, reg_addr_offset,
+				      mem_region, (u16)reg_addr_offset, 0,
 				      payload_data, payload_len_bytes);
 }
 EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_add_patch, "FW_CS_DSP_KUNIT_TEST_UTILS");
+
+/**
+ * cs_dsp_mock_bin_add_patch_off32() - Add a patch data block with 32-bit offset.
+ *
+ * @builder:		Pointer to struct cs_dsp_mock_bin_builder.
+ * @alg_id:		Algorithm ID for the patch.
+ * @alg_ver:		Algorithm version for the patch.
+ * @mem_region:		Memory region for the patch.
+ * @reg_addr_offset:	Offset to start of data in register addresses.
+ * @payload_data:	Pointer to buffer containing the payload data.
+ * @payload_len_bytes:	Length of payload data in bytes.
+ */
+void cs_dsp_mock_bin_add_patch_off32(struct cs_dsp_mock_bin_builder *builder,
+				     unsigned int alg_id, unsigned int alg_ver,
+				     int mem_region, unsigned int reg_addr_offset,
+				     const void *payload_data, size_t payload_len_bytes)
+{
+	/* Payload length must be a multiple of 4 */
+	KUNIT_ASSERT_EQ(builder->test_priv->test, payload_len_bytes % 4, 0);
+
+	/* Mark the block as using the 32-bit offset */
+	mem_region |= 0xf400;
+
+	cs_dsp_mock_bin_add_raw_block(builder, alg_id, alg_ver,
+				      mem_region, 0, reg_addr_offset,
+				      payload_data, payload_len_bytes);
+}
+EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_add_patch_off32, "FW_CS_DSP_KUNIT_TEST_UTILS");
 
 /**
  * cs_dsp_mock_bin_init() - Initialize a struct cs_dsp_mock_bin_builder.

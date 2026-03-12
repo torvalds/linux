@@ -261,7 +261,7 @@ static int i2cr_probe(struct i2c_client *client)
 	struct fsi_master_i2cr *i2cr;
 	int ret;
 
-	i2cr = kzalloc(sizeof(*i2cr), GFP_KERNEL);
+	i2cr = kzalloc_obj(*i2cr);
 	if (!i2cr)
 		return -ENOMEM;
 

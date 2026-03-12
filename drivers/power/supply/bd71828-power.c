@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/rohm-bd71815.h>
 #include <linux/mfd/rohm-bd71828.h>
+#include <linux/mfd/rohm-bd72720.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
@@ -44,19 +45,21 @@
 #define VBAT_LOW_TH			0x00D4
 
 struct pwr_regs {
-	u8 vbat_avg;
-	u8 ibat;
-	u8 ibat_avg;
-	u8 btemp_vth;
-	u8 chg_state;
-	u8 bat_temp;
-	u8 dcin_stat;
-	u8 dcin_collapse_limit;
-	u8 chg_set1;
-	u8 chg_en;
-	u8 vbat_alm_limit_u;
-	u8 conf;
-	u8 vdcin;
+	unsigned int vbat_avg;
+	unsigned int ibat;
+	unsigned int ibat_avg;
+	unsigned int btemp_vth;
+	unsigned int chg_state;
+	unsigned int bat_temp;
+	unsigned int dcin_stat;
+	unsigned int dcin_online_mask;
+	unsigned int dcin_collapse_limit;
+	unsigned int chg_set1;
+	unsigned int chg_en;
+	unsigned int vbat_alm_limit_u;
+	unsigned int conf;
+	unsigned int vdcin;
+	unsigned int vdcin_himask;
 };
 
 static const struct pwr_regs pwr_regs_bd71828 = {
@@ -67,12 +70,14 @@ static const struct pwr_regs pwr_regs_bd71828 = {
 	.chg_state = BD71828_REG_CHG_STATE,
 	.bat_temp = BD71828_REG_BAT_TEMP,
 	.dcin_stat = BD71828_REG_DCIN_STAT,
+	.dcin_online_mask = BD7182x_MASK_DCIN_DET,
 	.dcin_collapse_limit = BD71828_REG_DCIN_CLPS,
 	.chg_set1 = BD71828_REG_CHG_SET1,
 	.chg_en   = BD71828_REG_CHG_EN,
 	.vbat_alm_limit_u = BD71828_REG_ALM_VBAT_LIMIT_U,
 	.conf = BD71828_REG_CONF,
 	.vdcin = BD71828_REG_VDCIN_U,
+	.vdcin_himask = BD7182x_MASK_VDCIN_U,
 };
 
 static const struct pwr_regs pwr_regs_bd71815 = {
@@ -85,6 +90,7 @@ static const struct pwr_regs pwr_regs_bd71815 = {
 	.chg_state = BD71815_REG_CHG_STATE,
 	.bat_temp = BD71815_REG_BAT_TEMP,
 	.dcin_stat = BD71815_REG_DCIN_STAT,
+	.dcin_online_mask = BD7182x_MASK_DCIN_DET,
 	.dcin_collapse_limit = BD71815_REG_DCIN_CLPS,
 	.chg_set1 = BD71815_REG_CHG_SET1,
 	.chg_en   = BD71815_REG_CHG_SET1,
@@ -92,6 +98,31 @@ static const struct pwr_regs pwr_regs_bd71815 = {
 	.conf = BD71815_REG_CONF,
 
 	.vdcin = BD71815_REG_VM_DCIN_U,
+	.vdcin_himask = BD7182x_MASK_VDCIN_U,
+};
+
+static struct pwr_regs pwr_regs_bd72720 = {
+	.vbat_avg = BD72720_REG_VM_SA_VBAT_U,
+	.ibat = BD72720_REG_CC_CURCD_U,
+	.ibat_avg = BD72720_REG_CC_SA_CURCD_U,
+	.btemp_vth = BD72720_REG_VM_BTMP_U,
+	/*
+	 * Note, state 0x40 IMP_CHK. not documented
+	 * on other variants but was still handled in
+	 * existing code. No memory traces as to why.
+	 */
+	.chg_state = BD72720_REG_CHG_STATE,
+	.bat_temp = BD72720_REG_CHG_BAT_TEMP_STAT,
+	.dcin_stat = BD72720_REG_INT_VBUS_SRC,
+	.dcin_online_mask = BD72720_MASK_DCIN_DET,
+	.dcin_collapse_limit = -1, /* Automatic. Setting not supported */
+	.chg_set1 = BD72720_REG_CHG_SET_1,
+	.chg_en = BD72720_REG_CHG_EN,
+	/* 15mV note in data-sheet */
+	.vbat_alm_limit_u = BD72720_REG_ALM_VBAT_TH_U,
+	.conf = BD72720_REG_CONF, /* o XSTB, only PON. Seprate slave addr */
+	.vdcin = BD72720_REG_VM_VBUS_U, /* 10 bits not 11 as with other ICs */
+	.vdcin_himask = BD72720_MASK_VDCIN_U,
 };
 
 struct bd71828_power {
@@ -298,7 +329,7 @@ static int get_chg_online(struct bd71828_power *pwr, int *chg_online)
 		dev_err(pwr->dev, "Failed to read DCIN status\n");
 		return ret;
 	}
-	*chg_online = ((r & BD7182x_MASK_DCIN_DET) != 0);
+	*chg_online = ((r & pwr->regs->dcin_online_mask) != 0);
 
 	return 0;
 }
@@ -329,8 +360,8 @@ static int bd71828_bat_inserted(struct bd71828_power *pwr)
 	ret = val & BD7182x_MASK_CONF_PON;
 
 	if (ret)
-		regmap_update_bits(pwr->regmap, pwr->regs->conf,
-				   BD7182x_MASK_CONF_PON, 0);
+		if (regmap_update_bits(pwr->regmap, pwr->regs->conf, BD7182x_MASK_CONF_PON, 0))
+			dev_err(pwr->dev, "Failed to write CONF register\n");
 
 	return ret;
 }
@@ -358,11 +389,13 @@ static int bd71828_init_hardware(struct bd71828_power *pwr)
 	int ret;
 
 	/* TODO: Collapse limit should come from device-tree ? */
-	ret = regmap_write(pwr->regmap, pwr->regs->dcin_collapse_limit,
-			   BD7182x_DCIN_COLLAPSE_DEFAULT);
-	if (ret) {
-		dev_err(pwr->dev, "Failed to write DCIN collapse limit\n");
-		return ret;
+	if (pwr->regs->dcin_collapse_limit != (unsigned int)-1) {
+		ret = regmap_write(pwr->regmap, pwr->regs->dcin_collapse_limit,
+				   BD7182x_DCIN_COLLAPSE_DEFAULT);
+		if (ret) {
+			dev_err(pwr->dev, "Failed to write DCIN collapse limit\n");
+			return ret;
+		}
 	}
 
 	ret = pwr->bat_inserted(pwr);
@@ -419,7 +452,7 @@ static int bd71828_charger_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = bd7182x_read16_himask(pwr, pwr->regs->vdcin,
-					    BD7182x_MASK_VDCIN_U, &tmp);
+					    pwr->regs->vdcin_himask, &tmp);
 		if (ret)
 			return ret;
 
@@ -630,6 +663,9 @@ BD_ISR_AC(dcin_ovp_det, "DCIN OVER VOLTAGE", true)
 BD_ISR_DUMMY(dcin_mon_det, "DCIN voltage below threshold")
 BD_ISR_DUMMY(dcin_mon_res, "DCIN voltage above threshold")
 
+BD_ISR_DUMMY(vbus_curr_limit, "VBUS current limited")
+BD_ISR_DUMMY(vsys_ov_res, "VSYS over-voltage cleared")
+BD_ISR_DUMMY(vsys_ov_det, "VSYS over-voltage")
 BD_ISR_DUMMY(vsys_uv_res, "VSYS under-voltage cleared")
 BD_ISR_DUMMY(vsys_uv_det, "VSYS under-voltage")
 BD_ISR_DUMMY(vsys_low_res, "'VSYS low' cleared")
@@ -878,6 +914,51 @@ static int bd7182x_get_irqs(struct platform_device *pdev,
 		BDIRQ("bd71828-temp-125-over", bd71828_temp_vf125_det),
 		BDIRQ("bd71828-temp-125-under", bd71828_temp_vf125_res),
 	};
+	static const struct bd7182x_irq_res bd72720_irqs[] = {
+		BDIRQ("bd72720_int_vbus_rmv", BD_ISR_NAME(dcin_removed)),
+		BDIRQ("bd72720_int_vbus_det", bd7182x_dcin_detected),
+		BDIRQ("bd72720_int_vbus_mon_res", BD_ISR_NAME(dcin_mon_res)),
+		BDIRQ("bd72720_int_vbus_mon_det", BD_ISR_NAME(dcin_mon_det)),
+		BDIRQ("bd72720_int_vsys_mon_res", BD_ISR_NAME(vsys_mon_res)),
+		BDIRQ("bd72720_int_vsys_mon_det", BD_ISR_NAME(vsys_mon_det)),
+		BDIRQ("bd72720_int_vsys_uv_res", BD_ISR_NAME(vsys_uv_res)),
+		BDIRQ("bd72720_int_vsys_uv_det", BD_ISR_NAME(vsys_uv_det)),
+		BDIRQ("bd72720_int_vsys_lo_res", BD_ISR_NAME(vsys_low_res)),
+		BDIRQ("bd72720_int_vsys_lo_det", BD_ISR_NAME(vsys_low_det)),
+		BDIRQ("bd72720_int_vsys_ov_res", BD_ISR_NAME(vsys_ov_res)),
+		BDIRQ("bd72720_int_vsys_ov_det", BD_ISR_NAME(vsys_ov_det)),
+		BDIRQ("bd72720_int_bat_ilim", BD_ISR_NAME(vbus_curr_limit)),
+		BDIRQ("bd72720_int_chg_done", bd718x7_chg_done),
+		BDIRQ("bd72720_int_extemp_tout", BD_ISR_NAME(chg_wdg_temp)),
+		BDIRQ("bd72720_int_chg_wdt_exp", BD_ISR_NAME(chg_wdg)),
+		BDIRQ("bd72720_int_bat_mnt_out", BD_ISR_NAME(rechg_res)),
+		BDIRQ("bd72720_int_bat_mnt_in", BD_ISR_NAME(rechg_det)),
+		BDIRQ("bd72720_int_chg_trns", BD_ISR_NAME(chg_state_changed)),
+
+		BDIRQ("bd72720_int_vbat_mon_res", BD_ISR_NAME(bat_mon_res)),
+		BDIRQ("bd72720_int_vbat_mon_det", BD_ISR_NAME(bat_mon)),
+		BDIRQ("bd72720_int_vbat_sht_res", BD_ISR_NAME(bat_short_res)),
+		BDIRQ("bd72720_int_vbat_sht_det", BD_ISR_NAME(bat_short)),
+		BDIRQ("bd72720_int_vbat_lo_res", BD_ISR_NAME(bat_low_res)),
+		BDIRQ("bd72720_int_vbat_lo_det", BD_ISR_NAME(bat_low)),
+		BDIRQ("bd72720_int_vbat_ov_res", BD_ISR_NAME(bat_ov_res)),
+		BDIRQ("bd72720_int_vbat_ov_det", BD_ISR_NAME(bat_ov)),
+		BDIRQ("bd72720_int_bat_rmv", BD_ISR_NAME(bat_removed)),
+		BDIRQ("bd72720_int_bat_det", BD_ISR_NAME(bat_det)),
+		BDIRQ("bd72720_int_dbat_det", BD_ISR_NAME(bat_dead)),
+		BDIRQ("bd72720_int_bat_temp_trns", BD_ISR_NAME(temp_transit)),
+		BDIRQ("bd72720_int_lobtmp_res", BD_ISR_NAME(temp_bat_low_res)),
+		BDIRQ("bd72720_int_lobtmp_det", BD_ISR_NAME(temp_bat_low)),
+		BDIRQ("bd72720_int_ovbtmp_res", BD_ISR_NAME(temp_bat_hi_res)),
+		BDIRQ("bd72720_int_ovbtmp_det", BD_ISR_NAME(temp_bat_hi)),
+		BDIRQ("bd72720_int_ocur1_res", BD_ISR_NAME(bat_oc1_res)),
+		BDIRQ("bd72720_int_ocur1_det", BD_ISR_NAME(bat_oc1)),
+		BDIRQ("bd72720_int_ocur2_res", BD_ISR_NAME(bat_oc2_res)),
+		BDIRQ("bd72720_int_ocur2_det", BD_ISR_NAME(bat_oc2)),
+		BDIRQ("bd72720_int_ocur3_res", BD_ISR_NAME(bat_oc3_res)),
+		BDIRQ("bd72720_int_ocur3_det", BD_ISR_NAME(bat_oc3)),
+		BDIRQ("bd72720_int_cc_mon2_det", BD_ISR_NAME(bat_cc_mon)),
+	};
 	int num_irqs;
 	const struct bd7182x_irq_res *irqs;
 
@@ -889,6 +970,10 @@ static int bd7182x_get_irqs(struct platform_device *pdev,
 	case ROHM_CHIP_TYPE_BD71815:
 		irqs = &bd71815_irqs[0];
 		num_irqs = ARRAY_SIZE(bd71815_irqs);
+		break;
+	case ROHM_CHIP_TYPE_BD72720:
+		irqs = &bd72720_irqs[0];
+		num_irqs = ARRAY_SIZE(bd72720_irqs);
 		break;
 	default:
 		return -EINVAL;
@@ -958,21 +1043,25 @@ static int bd71828_power_probe(struct platform_device *pdev)
 	struct power_supply_config ac_cfg = {};
 	struct power_supply_config bat_cfg = {};
 	int ret;
-	struct regmap *regmap;
-
-	regmap = dev_get_regmap(pdev->dev.parent, NULL);
-	if (!regmap) {
-		dev_err(&pdev->dev, "No parent regmap\n");
-		return -EINVAL;
-	}
 
 	pwr = devm_kzalloc(&pdev->dev, sizeof(*pwr), GFP_KERNEL);
 	if (!pwr)
 		return -ENOMEM;
 
-	pwr->regmap = regmap;
-	pwr->dev = &pdev->dev;
+	/*
+	 * The BD72720 MFD device registers two regmaps. Power-supply driver
+	 * uses the "wrap-map", which provides access to both of the I2C slave
+	 * addresses used by the BD72720
+	 */
 	pwr->chip_type = platform_get_device_id(pdev)->driver_data;
+	if (pwr->chip_type != ROHM_CHIP_TYPE_BD72720)
+		pwr->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	else
+		pwr->regmap = dev_get_regmap(pdev->dev.parent, "wrap-map");
+	if (!pwr->regmap)
+		return dev_err_probe(&pdev->dev, -EINVAL, "No parent regmap\n");
+
+	pwr->dev = &pdev->dev;
 
 	switch (pwr->chip_type) {
 	case ROHM_CHIP_TYPE_BD71828:
@@ -985,9 +1074,14 @@ static int bd71828_power_probe(struct platform_device *pdev)
 		pwr->get_temp = bd71815_get_temp;
 		pwr->regs = &pwr_regs_bd71815;
 		break;
+	case ROHM_CHIP_TYPE_BD72720:
+		pwr->bat_inserted = bd71828_bat_inserted;
+		pwr->regs = &pwr_regs_bd72720;
+		pwr->get_temp = bd71828_get_temp;
+		dev_dbg(pwr->dev, "Found ROHM BD72720\n");
+		break;
 	default:
-		dev_err(pwr->dev, "Unknown PMIC\n");
-		return -EINVAL;
+		return dev_err_probe(pwr->dev, -EINVAL, "Unknown PMIC\n");
 	}
 
 	ret = bd7182x_get_rsens(pwr);
@@ -1030,6 +1124,7 @@ static int bd71828_power_probe(struct platform_device *pdev)
 static const struct platform_device_id bd71828_charger_id[] = {
 	{ "bd71815-power", ROHM_CHIP_TYPE_BD71815 },
 	{ "bd71828-power", ROHM_CHIP_TYPE_BD71828 },
+	{ "bd72720-power", ROHM_CHIP_TYPE_BD72720 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, bd71828_charger_id);

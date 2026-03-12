@@ -48,9 +48,10 @@
 /dts-v1/;
 #include "stm32f429.dtsi"
 #include "stm32f429-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "STMicroelectronics STM32F429i-DISCO board";
@@ -73,9 +74,12 @@
 	leds {
 		compatible = "gpio-leds";
 		led-red {
+			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpiog 14 0>;
 		};
-		led-green {
+		led_green: led-green {
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpiog 13 0>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -88,6 +92,13 @@
 			label = "User";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpioa 0 0>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_green>;
 		};
 	};
 

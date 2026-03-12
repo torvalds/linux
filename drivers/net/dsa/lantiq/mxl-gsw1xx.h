@@ -10,6 +10,8 @@
 #include <linux/bitfield.h>
 
 #define GSW1XX_PORTS				6
+#define GSW150_PORTS				7
+
 /* Port used for RGMII or optional RMII */
 #define GSW1XX_MII_PORT				5
 /* Port used for SGMII */
@@ -108,8 +110,19 @@
 #define GSW1XX_SHELL_BASE			0xfa00
 #define  GSW1XX_SHELL_RST_REQ			0x01
 #define   GSW1XX_RST_REQ_SGMII_SHELL		BIT(5)
+#define  GSW1XX_SHELL_MANU_ID			0x10
+#define   GSW1XX_SHELL_MANU_ID_PNUML		GENMASK(15, 12)
+#define   GSW1XX_SHELL_MANU_ID_MANID		GENMASK(11, 1)
+#define    GSW1XX_SHELL_MANU_ID_MANID_VAL	0x389
+#define   GSW1XX_SHELL_MANU_ID_FIX1		BIT(0)
+#define  GSW1XX_SHELL_PNUM_ID			0x11
+#define   GSW1XX_SHELL_PNUM_ID_VER		GENMASK(15, 12)
+#define   GSW1XX_SHELL_PNUM_ID_PNUMM		GENMASK(11, 0)
+
 /* RGMII PAD Slew Control Register */
 #define  GSW1XX_SHELL_RGMII_SLEW_CFG		0x78
+#define   RGMII_SLEW_CFG_DRV_TXC		BIT(2)
+#define   RGMII_SLEW_CFG_DRV_TXD		BIT(3)
 #define   RGMII_SLEW_CFG_RX_2_5_V		BIT(4)
 #define   RGMII_SLEW_CFG_TX_2_5_V		BIT(5)
 

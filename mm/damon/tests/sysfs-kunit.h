@@ -48,8 +48,8 @@ static void damon_sysfs_test_add_targets(struct kunit *test)
 	if (!sysfs_targets)
 		kunit_skip(test, "sysfs_targets alloc fail");
 	sysfs_targets->nr = 1;
-	sysfs_targets->targets_arr = kmalloc_array(1,
-			sizeof(*sysfs_targets->targets_arr), GFP_KERNEL);
+	sysfs_targets->targets_arr = kmalloc_objs(*sysfs_targets->targets_arr,
+						  1);
 	if (!sysfs_targets->targets_arr) {
 		kfree(sysfs_targets);
 		kunit_skip(test, "targets_arr alloc fail");

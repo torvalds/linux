@@ -3734,7 +3734,7 @@ ice_adj_prof_priorities(struct ice_hw *hw, enum ice_block blk, u16 vsig,
 	int status = 0;
 	u16 idx;
 
-	attr_used = kcalloc(ICE_MAX_PTG_ATTRS, sizeof(*attr_used), GFP_KERNEL);
+	attr_used = kzalloc_objs(*attr_used, ICE_MAX_PTG_ATTRS);
 	if (!attr_used)
 		return -ENOMEM;
 
@@ -4021,7 +4021,7 @@ ice_find_prof_vsig(struct ice_hw *hw, enum ice_block blk, u64 hdl, u16 *vsig)
 
 	INIT_LIST_HEAD(&lst);
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 	if (!t)
 		return false;
 

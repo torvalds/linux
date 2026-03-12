@@ -1237,7 +1237,7 @@ struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
 	if (IS_ERR_OR_NULL(root) || !if_types || !if_read)
 		return NULL;
 
-	infoframes = kzalloc(sizeof(*infoframes), GFP_KERNEL);
+	infoframes = kzalloc_obj(*infoframes);
 	if (!infoframes)
 		return NULL;
 

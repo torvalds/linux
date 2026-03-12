@@ -193,11 +193,12 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 {
 	struct dpll_pin_frequency *ranges;
 	struct zl3073x_pin_props *props;
-	int i, j, num_freqs, rc;
+	int i, j, num_freqs = 0, rc;
+	u64 *freqs = NULL;
 	const char *type;
-	u64 *freqs;
+	u32 curr_freq;
 
-	props = kzalloc(sizeof(*props), GFP_KERNEL);
+	props = kzalloc_obj(*props);
 	if (!props)
 		return ERR_PTR(-ENOMEM);
 
@@ -207,6 +208,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 		props->dpll_props.capabilities =
 			DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE |
 			DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+		curr_freq = zl3073x_dev_ref_freq_get(zldev, index);
 	} else {
 		u8 out, synth;
 		u32 f;
@@ -220,6 +222,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 		synth = zl3073x_dev_out_synth_get(zldev, out);
 		f = 2 * zl3073x_dev_synth_freq_get(zldev, synth);
 		props->dpll_props.phase_gran = f ? div_u64(PSEC_PER_SEC, f) : 1;
+		curr_freq = zl3073x_dev_output_pin_freq_get(zldev, index);
 	}
 
 	props->dpll_props.phase_range.min = S32_MIN;
@@ -230,7 +233,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 	/* Get firmware node for the given pin */
 	rc = zl3073x_prop_pin_fwnode_get(zldev, props, dir, index);
 	if (rc)
-		return props; /* Return if it does not exist */
+		goto skip_fwnode_props;
 
 	/* Look for label property and store the value as board label */
 	fwnode_property_read_string(props->fwnode, "label",
@@ -249,6 +252,8 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 			props->dpll_props.type = DPLL_PIN_TYPE_INT_OSCILLATOR;
 		else if (!strcmp(type, "synce"))
 			props->dpll_props.type = DPLL_PIN_TYPE_SYNCE_ETH_PORT;
+		else if (!strcmp(type, "mux"))
+			props->dpll_props.type = DPLL_PIN_TYPE_MUX;
 		else
 			dev_warn(zldev->dev,
 				 "Unknown or unsupported pin type '%s'\n",
@@ -262,9 +267,10 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 	/* Read supported frequencies property if it is specified */
 	num_freqs = fwnode_property_count_u64(props->fwnode,
 					      "supported-frequencies-hz");
-	if (num_freqs <= 0)
-		/* Return if the property does not exist or number is 0 */
-		return props;
+	if (num_freqs <= 0) {
+		num_freqs = 0;
+		goto skip_fwnode_props;
+	}
 
 	/* The firmware node specifies list of supported frequencies while
 	 * DPLL core pin properties requires list of frequency ranges.
@@ -281,19 +287,25 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 				       "supported-frequencies-hz", freqs,
 				       num_freqs);
 
-	/* Allocate frequency ranges list and fill it */
-	ranges = kcalloc(num_freqs, sizeof(*ranges), GFP_KERNEL);
+skip_fwnode_props:
+	/* Allocate frequency ranges list - extra slot for current frequency */
+	ranges = kzalloc_objs(*ranges, num_freqs + 1);
 	if (!ranges) {
 		rc = -ENOMEM;
 		goto err_alloc_ranges;
 	}
 
-	/* Convert list of frequencies to list of frequency ranges but
-	 * filter-out frequencies that are not representable by device
+	/* Start with current frequency at index 0 */
+	ranges[0] = (struct dpll_pin_frequency)DPLL_PIN_FREQUENCY(curr_freq);
+
+	/* Add frequencies from firmware node, skipping current frequency
+	 * and filtering out frequencies not representable by device
 	 */
-	for (i = 0, j = 0; i < num_freqs; i++) {
+	for (i = 0, j = 1; i < num_freqs; i++) {
 		struct dpll_pin_frequency freq = DPLL_PIN_FREQUENCY(freqs[i]);
 
+		if (freqs[i] == curr_freq)
+			continue;
 		if (zl3073x_pin_check_freq(zldev, dir, index, freqs[i])) {
 			ranges[j] = freq;
 			j++;

@@ -934,7 +934,7 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 		return -EBUSY;
 	}
 
-	ps3av = kzalloc(sizeof(*ps3av), GFP_KERNEL);
+	ps3av = kzalloc_obj(*ps3av);
 	if (!ps3av)
 		return -ENOMEM;
 

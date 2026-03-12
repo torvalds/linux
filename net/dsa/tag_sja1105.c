@@ -152,7 +152,7 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 	if (!xmit_work_fn || !xmit_worker)
 		return NULL;
 
-	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	xmit_work = kzalloc_obj(*xmit_work, GFP_ATOMIC);
 	if (!xmit_work)
 		return NULL;
 
@@ -701,7 +701,7 @@ static int sja1105_connect(struct dsa_switch *ds)
 	struct kthread_worker *xmit_worker;
 	int err;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

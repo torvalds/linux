@@ -27,55 +27,55 @@
 			gpios = <&gpio 4 1 0>; /* GPI_P3 1 */
 		};
 
-		key1 {
+		key-1 {
 			label = "KEY1";
 			linux,code = <1>;
 			gpios = <&pca9532 0 0>;
 		};
 
-		key2 {
+		key-2 {
 			label = "KEY2";
 			linux,code = <2>;
 			gpios = <&pca9532 1 0>;
 		};
 
-		key3 {
+		key-3 {
 			label = "KEY3";
 			linux,code = <3>;
 			gpios = <&pca9532 2 0>;
 		};
 
-		key4 {
+		key-4 {
 			label = "KEY4";
 			linux,code = <4>;
 			gpios = <&pca9532 3 0>;
 		};
 
-		joy0 {
+		key-joy0 {
 			label = "Joystick Key 0";
 			linux,code = <10>;
 			gpios = <&gpio 2 0 0>; /* P2.0 */
 		};
 
-		joy1 {
+		key-joy1 {
 			label = "Joystick Key 1";
 			linux,code = <11>;
 			gpios = <&gpio 2 1 0>; /* P2.1 */
 		};
 
-		joy2 {
+		key-joy2 {
 			label = "Joystick Key 2";
 			linux,code = <12>;
 			gpios = <&gpio 2 2 0>; /* P2.2 */
 		};
 
-		joy3 {
+		key-joy3 {
 			label = "Joystick Key 3";
 			linux,code = <13>;
 			gpios = <&gpio 2 3 0>; /* P2.3 */
 		};
 
-		joy4 {
+		key-joy4 {
 			label = "Joystick Key 4";
 			linux,code = <14>;
 			gpios = <&gpio 2 4 0>; /* P2.4 */

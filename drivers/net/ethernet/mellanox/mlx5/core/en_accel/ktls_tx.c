@@ -196,7 +196,7 @@ mlx5e_tls_priv_tx_init(struct mlx5_core_dev *mdev, struct mlx5e_tls_sw_stats *sw
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	int err;
 
-	priv_tx = kzalloc(sizeof(*priv_tx), GFP_KERNEL);
+	priv_tx = kzalloc_obj(*priv_tx);
 	if (!priv_tx)
 		return ERR_PTR(-ENOMEM);
 
@@ -360,7 +360,7 @@ static struct mlx5e_tls_tx_pool *mlx5e_tls_tx_pool_init(struct mlx5_core_dev *md
 
 	BUILD_BUG_ON(MLX5E_TLS_TX_POOL_LOW + MLX5E_TLS_TX_POOL_BULK >= MLX5E_TLS_TX_POOL_HIGH);
 
-	pool = kvzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kvzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 

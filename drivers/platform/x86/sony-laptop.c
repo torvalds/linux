@@ -829,7 +829,7 @@ static int sony_nc_handles_setup(struct platform_device *pd)
 {
 	int i, r, result, arg;
 
-	handles = kzalloc(sizeof(*handles), GFP_KERNEL);
+	handles = kzalloc_obj(*handles);
 	if (!handles)
 		return -ENOMEM;
 
@@ -1902,7 +1902,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		}
 	}
 
-	kbdbl_ctl = kzalloc(sizeof(*kbdbl_ctl), GFP_KERNEL);
+	kbdbl_ctl = kzalloc_obj(*kbdbl_ctl);
 	if (!kbdbl_ctl)
 		return -ENOMEM;
 
@@ -2070,7 +2070,7 @@ static int sony_nc_battery_care_setup(struct platform_device *pd,
 {
 	int ret = 0;
 
-	bcare_ctl = kzalloc(sizeof(struct battery_care_control), GFP_KERNEL);
+	bcare_ctl = kzalloc_obj(struct battery_care_control);
 	if (!bcare_ctl)
 		return -ENOMEM;
 
@@ -2222,7 +2222,7 @@ static ssize_t sony_nc_thermal_mode_show(struct device *dev,
 static int sony_nc_thermal_setup(struct platform_device *pd)
 {
 	int ret = 0;
-	th_handle = kzalloc(sizeof(struct snc_thermal_ctrl), GFP_KERNEL);
+	th_handle = kzalloc_obj(struct snc_thermal_ctrl);
 	if (!th_handle)
 		return -ENOMEM;
 
@@ -2370,7 +2370,7 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd,
 	if (sony_call_snc_handle(handle, 0x0000, &result))
 		return -EIO;
 
-	lid_ctl = kzalloc(sizeof(struct snc_lid_resume_control), GFP_KERNEL);
+	lid_ctl = kzalloc_obj(struct snc_lid_resume_control);
 	if (!lid_ctl)
 		return -ENOMEM;
 
@@ -2497,7 +2497,7 @@ static int sony_nc_gfx_switch_setup(struct platform_device *pd,
 {
 	unsigned int result;
 
-	gfxs_ctl = kzalloc(sizeof(struct snc_gfx_switch_control), GFP_KERNEL);
+	gfxs_ctl = kzalloc_obj(struct snc_gfx_switch_control);
 	if (!gfxs_ctl)
 		return -ENOMEM;
 
@@ -2576,7 +2576,7 @@ static int sony_nc_highspeed_charging_setup(struct platform_device *pd)
 		return 0;
 	}
 
-	hsc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	hsc_handle = kzalloc_obj(struct device_attribute);
 	if (!hsc_handle)
 		return -ENOMEM;
 
@@ -2642,7 +2642,7 @@ static int sony_nc_lowbatt_setup(struct platform_device *pd)
 {
 	unsigned int result;
 
-	lowbatt_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	lowbatt_handle = kzalloc_obj(struct device_attribute);
 	if (!lowbatt_handle)
 		return -ENOMEM;
 
@@ -2719,11 +2719,11 @@ static int sony_nc_fanspeed_setup(struct platform_device *pd)
 {
 	unsigned int result;
 
-	fan_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	fan_handle = kzalloc_obj(struct device_attribute);
 	if (!fan_handle)
 		return -ENOMEM;
 
-	hsf_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	hsf_handle = kzalloc_obj(struct device_attribute);
 	if (!hsf_handle) {
 		result = -ENOMEM;
 		goto out_hsf_handle_alloc;
@@ -2823,7 +2823,7 @@ static int sony_nc_usb_charge_setup(struct platform_device *pd)
 		return 0;
 	}
 
-	uc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	uc_handle = kzalloc_obj(struct device_attribute);
 	if (!uc_handle)
 		return -ENOMEM;
 
@@ -2870,7 +2870,7 @@ static int sony_nc_panelid_setup(struct platform_device *pd)
 {
 	unsigned int result;
 
-	panel_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	panel_handle = kzalloc_obj(struct device_attribute);
 	if (!panel_handle)
 		return -ENOMEM;
 
@@ -2925,7 +2925,7 @@ static int sony_nc_smart_conn_setup(struct platform_device *pd)
 {
 	unsigned int result;
 
-	sc_handle = kzalloc(sizeof(struct device_attribute), GFP_KERNEL);
+	sc_handle = kzalloc_obj(struct device_attribute);
 	if (!sc_handle)
 		return -ENOMEM;
 
@@ -2999,7 +2999,7 @@ static int sony_nc_touchpad_setup(struct platform_device *pd,
 {
 	int ret = 0;
 
-	tp_ctl = kzalloc(sizeof(struct touchpad_control), GFP_KERNEL);
+	tp_ctl = kzalloc_obj(struct touchpad_control);
 	if (!tp_ctl)
 		return -ENOMEM;
 
@@ -4161,7 +4161,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		{
 			/* start IO enumeration */
-			struct sony_pic_ioport *ioport = kzalloc(sizeof(*ioport), GFP_KERNEL);
+			struct sony_pic_ioport *ioport = kzalloc_obj(*ioport);
 			if (!ioport)
 				return AE_ERROR;
 
@@ -4191,8 +4191,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 						p->interrupts[i]);
 					continue;
 				}
-				interrupt = kzalloc(sizeof(*interrupt),
-						GFP_KERNEL);
+				interrupt = kzalloc_obj(*interrupt);
 				if (!interrupt)
 					return AE_ERROR;
 

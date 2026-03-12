@@ -4103,7 +4103,7 @@ struct dvb_frontend *mxl5005s_attach(struct dvb_frontend *fe,
 	struct mxl5005s_state *state = NULL;
 	dprintk(1, "%s()\n", __func__);
 
-	state = kzalloc(sizeof(struct mxl5005s_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mxl5005s_state);
 	if (state == NULL)
 		return NULL;
 

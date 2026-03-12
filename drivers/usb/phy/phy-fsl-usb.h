@@ -345,7 +345,7 @@ inline struct fsl_otg_timer *otg_timer_initializer
 {
 	struct fsl_otg_timer *timer;
 
-	timer = kmalloc(sizeof(struct fsl_otg_timer), GFP_KERNEL);
+	timer = kmalloc_obj(struct fsl_otg_timer);
 	if (!timer)
 		return NULL;
 	timer->function = function;

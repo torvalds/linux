@@ -119,7 +119,7 @@
  * a fuss about it. This makes the programmer responsible for tagging
  * the functions that can be garbage-collected.
  *
- * With the macro it is possible to write the following:
+ * With the macro it is possible to write the following::
  *
  *     static int foo_suspend(struct device *dev)
  *     {

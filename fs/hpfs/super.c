@@ -513,7 +513,7 @@ static int hpfs_fill_super(struct super_block *s, struct fs_context *fc)
 	struct hpfs_dirent *de = NULL;
 	struct quad_buffer_head qbh;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi) {
 		return -ENOMEM;
 	}
@@ -715,7 +715,7 @@ static int hpfs_init_fs_context(struct fs_context *fc)
 {
 	struct hpfs_fc_context *ctx;
 
-	ctx = kzalloc(sizeof(struct hpfs_fc_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct hpfs_fc_context);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -564,17 +564,19 @@ barf:
  * under SunOS are nothing short of bletcherous:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
+ *
+ * clone3() - Uses regular kernel return value conventions
  */
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	u64 clone_flags = args->flags;
-	unsigned long sp = args->stack;
 	unsigned long tls = args->tls;
 	struct thread_info *t = task_thread_info(p);
 	struct pt_regs *regs = current_pt_regs();
 	struct sparc_stackf *parent_sf;
 	unsigned long child_stack_sz;
 	char *child_trap_frame;
+	unsigned long sp = args->stack ? args->stack : regs->u_regs[UREG_FP];
 
 	/* Calculate offset to stack_frame & pt_regs */
 	child_stack_sz = (STACKFRAME_SZ + TRACEREG_SZ);
@@ -616,12 +618,25 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	if (t->utraps)
 		t->utraps[0]++;
 
-	/* Set the return value for the child. */
-	t->kregs->u_regs[UREG_I0] = current->pid;
-	t->kregs->u_regs[UREG_I1] = 1;
+	/* Handle return value conventions */
+	if (regs->u_regs[UREG_G1] == __NR_clone3) {
+		/* clone3() - use regular kernel return value convention */
 
-	/* Set the second return value for the parent. */
-	regs->u_regs[UREG_I1] = 0;
+		/* Set the return value for the child. */
+		t->kregs->u_regs[UREG_I0] = 0;
+
+		/* Clear g1 to indicate user thread */
+		t->kregs->u_regs[UREG_G1] = 0;
+	} else {
+		/* clone()/fork() - use SunOS return value convention */
+
+		/* Set the return value for the child. */
+		t->kregs->u_regs[UREG_I0] = current->pid;
+		t->kregs->u_regs[UREG_I1] = 1;
+
+		/* Set the second return value for the parent. */
+		regs->u_regs[UREG_I1] = 0;
+	}
 
 	if (clone_flags & CLONE_SETTLS)
 		t->kregs->u_regs[UREG_G7] = tls;

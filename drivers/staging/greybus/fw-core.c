@@ -68,7 +68,7 @@ static int gb_fw_core_probe(struct gb_bundle *bundle,
 	u16 cport_id;
 	u8 protocol_id;
 
-	fw_core = kzalloc(sizeof(*fw_core), GFP_KERNEL);
+	fw_core = kzalloc_obj(*fw_core);
 	if (!fw_core)
 		return -ENOMEM;
 

@@ -79,7 +79,7 @@ static struct intel_panic *xe_panic_alloc(void)
 {
 	struct intel_panic *panic;
 
-	panic = kzalloc(sizeof(*panic), GFP_KERNEL);
+	panic = kzalloc_obj(*panic);
 
 	return panic;
 }

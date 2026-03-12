@@ -109,14 +109,6 @@ EXPORT_SYMBOL_GPL(dirty_writeback_interval);
  */
 unsigned int dirty_expire_interval = 30 * 100; /* centiseconds */
 
-/*
- * Flag that puts the machine in "laptop mode". Doubles as a timeout in jiffies:
- * a full sync is triggered after this time elapses without any disk activity.
- */
-int laptop_mode;
-
-EXPORT_SYMBOL(laptop_mode);
-
 /* End of sysctl-exported parameters */
 
 struct wb_domain global_wb_domain;
@@ -1843,17 +1835,7 @@ static int balance_dirty_pages(struct bdi_writeback *wb,
 			balance_domain_limits(mdtc, strictlimit);
 		}
 
-		/*
-		 * In laptop mode, we wait until hitting the higher threshold
-		 * before starting background writeout, and then write out all
-		 * the way down to the lower threshold.  So slow writers cause
-		 * minimal disk activity.
-		 *
-		 * In normal mode, we start background writeout at the lower
-		 * background_thresh, to keep the amount of dirty memory low.
-		 */
-		if (!laptop_mode && nr_dirty > gdtc->bg_thresh &&
-		    !writeback_in_progress(wb))
+		if (nr_dirty > gdtc->bg_thresh && !writeback_in_progress(wb))
 			wb_start_background_writeback(wb);
 
 		/*
@@ -1875,10 +1857,6 @@ free_running:
 			current->nr_dirtied_pause = min(intv, m_intv);
 			break;
 		}
-
-		/* Start writeback even when in laptop mode */
-		if (unlikely(!writeback_in_progress(wb)))
-			wb_start_background_writeback(wb);
 
 		mem_cgroup_flush_foreign(wb);
 
@@ -2198,41 +2176,6 @@ static int dirty_writeback_centisecs_handler(const struct ctl_table *table, int 
 }
 #endif
 
-void laptop_mode_timer_fn(struct timer_list *t)
-{
-	struct backing_dev_info *backing_dev_info =
-		timer_container_of(backing_dev_info, t, laptop_mode_wb_timer);
-
-	wakeup_flusher_threads_bdi(backing_dev_info, WB_REASON_LAPTOP_TIMER);
-}
-
-/*
- * We've spun up the disk and we're in laptop mode: schedule writeback
- * of all dirty data a few seconds from now.  If the flush is already scheduled
- * then push it back - the user is still using the disk.
- */
-void laptop_io_completion(struct backing_dev_info *info)
-{
-	mod_timer(&info->laptop_mode_wb_timer, jiffies + laptop_mode);
-}
-
-/*
- * We're in laptop mode and we've just synced. The sync's writes will have
- * caused another writeback to be scheduled by laptop_io_completion.
- * Nothing needs to be written back anymore, so we unschedule the writeback.
- */
-void laptop_sync_completion(void)
-{
-	struct backing_dev_info *bdi;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
-		timer_delete(&bdi->laptop_mode_wb_timer);
-
-	rcu_read_unlock();
-}
-
 /*
  * If ratelimit_pages is too high then we can get into dirty-data overload
  * if a large number of processes all perform writes at the same time.
@@ -2262,6 +2205,19 @@ static int page_writeback_cpu_online(unsigned int cpu)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int laptop_mode;
+static int laptop_mode_handler(const struct ctl_table *table, int write,
+			       void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret = proc_dointvec_jiffies(table, write, buffer, lenp, ppos);
+
+	if (!ret && write)
+		pr_warn("%s: vm.laptop_mode is deprecated. Ignoring setting.\n",
+			current->comm);
+
+	return ret;
+}
 
 /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
 static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
@@ -2332,7 +2288,7 @@ static const struct ctl_table vm_page_writeback_sysctls[] = {
 		.data		= &laptop_mode,
 		.maxlen		= sizeof(laptop_mode),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.proc_handler	= laptop_mode_handler,
 	},
 };
 #endif

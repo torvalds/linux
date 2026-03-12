@@ -402,7 +402,7 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 	int err, num_opps;
 
 
-	dfc = kzalloc(sizeof(*dfc), GFP_KERNEL);
+	dfc = kzalloc_obj(*dfc);
 	if (!dfc)
 		return ERR_PTR(-ENOMEM);
 

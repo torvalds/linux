@@ -53,6 +53,9 @@ properties:
       how much time to wait (in milliseconds) before reading again the
       values from the tsc2007.
 
+  "#io-channel-cells":
+    const: 1
+
 required:
   - compatible
   - reg

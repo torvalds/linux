@@ -272,7 +272,7 @@ net_shaper_hierarchy_setup(struct net_shaper_binding *binding)
 	if (hierarchy)
 		return hierarchy;
 
-	hierarchy = kmalloc(sizeof(*hierarchy), GFP_KERNEL);
+	hierarchy = kmalloc_obj(*hierarchy);
 	if (!hierarchy)
 		return NULL;
 
@@ -329,7 +329,7 @@ static int net_shaper_pre_insert(struct net_shaper_binding *binding,
 		id_allocated = true;
 	}
 
-	cur = kzalloc(sizeof(*cur), GFP_KERNEL);
+	cur = kzalloc_obj(*cur);
 	if (!cur) {
 		ret = -ENOMEM;
 		goto free_id;
@@ -1033,8 +1033,7 @@ static int net_shaper_pre_del_node(struct net_shaper_binding *binding,
 			return -EINVAL;
 	}
 
-	leaves = kcalloc(shaper->leaves, sizeof(struct net_shaper),
-			 GFP_KERNEL);
+	leaves = kzalloc_objs(struct net_shaper, shaper->leaves);
 	if (!leaves)
 		return -ENOMEM;
 

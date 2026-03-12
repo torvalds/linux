@@ -572,7 +572,7 @@ static int lzx_decompress_block(const struct lzx_decompressor *d,
  */
 struct lzx_decompressor *lzx_allocate_decompressor(void)
 {
-	return kmalloc(sizeof(struct lzx_decompressor), GFP_NOFS);
+	return kmalloc_obj(struct lzx_decompressor, GFP_NOFS);
 }
 
 /*

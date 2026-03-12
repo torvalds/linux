@@ -62,7 +62,6 @@ static int q6prm_set_hw_core_req(struct device *dev, uint32_t hw_block_id, bool 
 	struct prm_cmd_request_hw_core *req;
 	gpr_device_t *gdev = prm->gdev;
 	uint32_t opcode, rsp_opcode;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 
 	if (enable) {
 		opcode = PRM_CMD_REQUEST_HW_RSC;
@@ -72,7 +71,8 @@ static int q6prm_set_hw_core_req(struct device *dev, uint32_t hw_block_id, bool 
 		rsp_opcode = PRM_CMD_RSP_RELEASE_HW_RSC;
 	}
 
-	pkt = audioreach_alloc_cmd_pkt(sizeof(*req), opcode, 0, gdev->svc.id, GPR_PRM_MODULE_IID);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_cmd_pkt(sizeof(*req), opcode, 0, gdev->svc.id, GPR_PRM_MODULE_IID);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -111,10 +111,10 @@ static int q6prm_request_lpass_clock(struct device *dev, int clk_id, int clk_att
 	struct apm_module_param_data *param_data;
 	struct prm_cmd_request_rsc *req;
 	gpr_device_t *gdev = prm->gdev;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 
-	pkt = audioreach_alloc_cmd_pkt(sizeof(*req), PRM_CMD_REQUEST_HW_RSC, 0, gdev->svc.id,
-				       GPR_PRM_MODULE_IID);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_cmd_pkt(sizeof(*req), PRM_CMD_REQUEST_HW_RSC, 0,
+					 gdev->svc.id, GPR_PRM_MODULE_IID);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -143,10 +143,10 @@ static int q6prm_release_lpass_clock(struct device *dev, int clk_id, int clk_att
 	struct apm_module_param_data *param_data;
 	struct prm_cmd_release_rsc *rel;
 	gpr_device_t *gdev = prm->gdev;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 
-	pkt = audioreach_alloc_cmd_pkt(sizeof(*rel), PRM_CMD_RELEASE_HW_RSC, 0, gdev->svc.id,
-				       GPR_PRM_MODULE_IID);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_cmd_pkt(sizeof(*rel), PRM_CMD_RELEASE_HW_RSC, 0,
+					 gdev->svc.id, GPR_PRM_MODULE_IID);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -175,12 +175,12 @@ int q6prm_set_lpass_clock(struct device *dev, int clk_id, int clk_attr, int clk_
 }
 EXPORT_SYMBOL_GPL(q6prm_set_lpass_clock);
 
-static int prm_callback(struct gpr_resp_pkt *data, void *priv, int op)
+static int prm_callback(const struct gpr_resp_pkt *data, void *priv, int op)
 {
 	gpr_device_t *gdev = priv;
 	struct q6prm *prm = dev_get_drvdata(&gdev->dev);
-	struct gpr_ibasic_rsp_result_t *result;
-	struct gpr_hdr *hdr = &data->hdr;
+	const struct gpr_ibasic_rsp_result_t *result;
+	const struct gpr_hdr *hdr = &data->hdr;
 
 	switch (hdr->opcode) {
 	case PRM_CMD_RSP_REQUEST_HW_RSC:

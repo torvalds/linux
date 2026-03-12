@@ -448,8 +448,7 @@ static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		goto init_failure;
 
-	q->flows = kvcalloc(q->flows_cnt, sizeof(struct fq_pie_flow),
-			    GFP_KERNEL);
+	q->flows = kvzalloc_objs(struct fq_pie_flow, q->flows_cnt);
 	if (!q->flows) {
 		err = -ENOMEM;
 		goto init_failure;

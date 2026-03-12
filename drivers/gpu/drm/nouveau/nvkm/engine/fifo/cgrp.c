@@ -69,7 +69,7 @@ nvkm_cgrp_ectx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_e
 
 	/* Nope - create a fresh one. */
 	CGRP_TRACE(cgrp, "ctor ectx %d[%s]", engn->id, engn->engine->subdev.name);
-	if (!(ectx = *pectx = kzalloc(sizeof(*ectx), GFP_KERNEL)))
+	if (!(ectx = *pectx = kzalloc_obj(*ectx)))
 		return -ENOMEM;
 
 	ectx->engn = engn;
@@ -141,7 +141,7 @@ nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_c
 
 	/* Now, create the sub-context. */
 	CGRP_TRACE(cgrp, "ctor vctx %d[%s]", engn->id, engn->engine->subdev.name);
-	if (!(vctx = *pvctx = kzalloc(sizeof(*vctx), GFP_KERNEL))) {
+	if (!(vctx = *pvctx = kzalloc_obj(*vctx))) {
 		nvkm_cgrp_ectx_put(cgrp, &ectx);
 		return -ENOMEM;
 	}
@@ -224,7 +224,7 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 {
 	struct nvkm_cgrp *cgrp;
 
-	if (!(cgrp = *pcgrp = kmalloc(sizeof(*cgrp), GFP_KERNEL)))
+	if (!(cgrp = *pcgrp = kmalloc_obj(*cgrp)))
 		return -ENOMEM;
 
 	cgrp->func = runl->fifo->func->cgrp.func;

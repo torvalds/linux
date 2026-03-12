@@ -20,7 +20,7 @@
 
 int smc_stats_init(struct net *net)
 {
-	net->smc.fback_rsn = kzalloc(sizeof(*net->smc.fback_rsn), GFP_KERNEL);
+	net->smc.fback_rsn = kzalloc_obj(*net->smc.fback_rsn);
 	if (!net->smc.fback_rsn)
 		goto err_fback;
 	net->smc.smc_stats = alloc_percpu(struct smc_stats);
@@ -285,7 +285,7 @@ int smc_nl_get_stats(struct sk_buff *skb,
 	attrs = nla_nest_start(skb, SMC_GEN_STATS);
 	if (!attrs)
 		goto errnest;
-	stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+	stats = kzalloc_obj(*stats);
 	if (!stats)
 		goto erralloc;
 	size = sizeof(*stats) / sizeof(u64);

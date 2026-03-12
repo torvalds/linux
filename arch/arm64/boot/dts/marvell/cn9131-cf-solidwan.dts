@@ -202,6 +202,8 @@
 	expander0: gpio@41 {
 		compatible = "nxp,pca9536";
 		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		usb-a-vbus0-ilimit-hog {
 			gpio-hog;

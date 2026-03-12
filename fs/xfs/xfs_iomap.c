@@ -4,7 +4,7 @@
  * Copyright (c) 2016-2018 Christoph Hellwig.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -1831,7 +1831,6 @@ xfs_buffered_write_iomap_begin(
 	 */
 	if (flags & IOMAP_ZERO) {
 		xfs_fileoff_t eof_fsb = XFS_B_TO_FSB(mp, XFS_ISIZE(ip));
-		u64 end;
 
 		if (isnullstartblock(imap.br_startblock) &&
 		    offset_fsb >= eof_fsb)
@@ -1851,12 +1850,14 @@ xfs_buffered_write_iomap_begin(
 		 */
 		if (imap.br_state == XFS_EXT_UNWRITTEN &&
 		    offset_fsb < eof_fsb) {
-			loff_t len = min(count,
-					 XFS_FSB_TO_B(mp, imap.br_blockcount));
+			loff_t foffset = offset, fend;
 
-			end = iomap_fill_dirty_folios(iter, offset, len);
+			fend = offset +
+			       min(count, XFS_FSB_TO_B(mp, imap.br_blockcount));
+			iomap_fill_dirty_folios(iter, &foffset, fend,
+						&iomap_flags);
 			end_fsb = min_t(xfs_fileoff_t, end_fsb,
-					XFS_B_TO_FSB(mp, end));
+					XFS_B_TO_FSB(mp, foffset));
 		}
 
 		xfs_trim_extent(&imap, offset_fsb, end_fsb - offset_fsb);

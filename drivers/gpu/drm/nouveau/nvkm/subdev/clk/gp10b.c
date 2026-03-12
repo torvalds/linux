@@ -165,7 +165,7 @@ gp10b_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct gp10b_clk *clk;
 	int ret, i;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return -ENOMEM;
 	*pclk = &clk->base;

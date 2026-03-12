@@ -50,7 +50,7 @@ struct clk *tegra_clk_register_sync_source(const char *name,
 	struct clk_init_data init;
 	struct clk *clk;
 
-	sync = kzalloc(sizeof(*sync), GFP_KERNEL);
+	sync = kzalloc_obj(*sync);
 	if (!sync) {
 		pr_err("%s: could not allocate sync source clk\n", __func__);
 		return ERR_PTR(-ENOMEM);

@@ -139,7 +139,7 @@ static void __init check_unaligned_access_speed_all_cpus(void)
 {
 	unsigned int cpu;
 	unsigned int cpu_count = num_possible_cpus();
-	struct page **bufs = kcalloc(cpu_count, sizeof(*bufs), GFP_KERNEL);
+	struct page **bufs = kzalloc_objs(*bufs, cpu_count);
 
 	if (!bufs) {
 		pr_warn("Allocation failure, not measuring misaligned performance\n");

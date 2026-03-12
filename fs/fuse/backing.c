@@ -112,7 +112,7 @@ int fuse_backing_open(struct fuse_conn *fc, struct fuse_backing_map *map)
 	if (backing_sb->s_stack_depth >= fc->max_stack_depth)
 		goto out_fput;
 
-	fb = kmalloc(sizeof(struct fuse_backing), GFP_KERNEL);
+	fb = kmalloc_obj(struct fuse_backing);
 	res = -ENOMEM;
 	if (!fb)
 		goto out_fput;

@@ -182,7 +182,7 @@ static int dsa_port_do_mdb_add(struct dsa_port *dp,
 		goto out;
 	}
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a) {
 		err = -ENOMEM;
 		goto out;
@@ -280,7 +280,7 @@ static int dsa_port_do_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		goto out;
 	}
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a) {
 		err = -ENOMEM;
 		goto out;
@@ -368,7 +368,7 @@ static int dsa_switch_do_lag_fdb_add(struct dsa_switch *ds, struct dsa_lag *lag,
 		goto out;
 	}
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a) {
 		err = -ENOMEM;
 		goto out;
@@ -719,7 +719,7 @@ static int dsa_port_do_vlan_add(struct dsa_port *dp,
 		goto out;
 	}
 
-	v = kzalloc(sizeof(*v), GFP_KERNEL);
+	v = kzalloc_obj(*v);
 	if (!v) {
 		err = -ENOMEM;
 		goto out;

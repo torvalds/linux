@@ -1580,7 +1580,7 @@ static struct usb_request *r8a66597_alloc_request(struct usb_ep *_ep,
 {
 	struct r8a66597_request *req;
 
-	req = kzalloc(sizeof(struct r8a66597_request), gfp_flags);
+	req = kzalloc_obj(struct r8a66597_request, gfp_flags);
 	if (!req)
 		return NULL;
 

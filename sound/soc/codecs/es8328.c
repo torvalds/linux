@@ -163,11 +163,10 @@ static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 	if (es8328->deemph == deemph)
 		return 0;
 
+	es8328->deemph = deemph;
 	ret = es8328_set_deemph(component);
 	if (ret < 0)
 		return ret;
-
-	es8328->deemph = deemph;
 
 	return 1;
 }
@@ -406,16 +405,6 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 
 	{ "Mic Bias", NULL, "Mic Bias Gen" },
 
-	{ "Left Line Mux", "Line 1", "LINPUT1" },
-	{ "Left Line Mux", "Line 2", "LINPUT2" },
-	{ "Left Line Mux", "PGA", "Left PGA Mux" },
-	{ "Left Line Mux", "Differential", "Differential Mux" },
-
-	{ "Right Line Mux", "Line 1", "RINPUT1" },
-	{ "Right Line Mux", "Line 2", "RINPUT2" },
-	{ "Right Line Mux", "PGA", "Right PGA Mux" },
-	{ "Right Line Mux", "Differential", "Differential Mux" },
-
 	{ "Left Mixer", NULL, "Left DAC" },
 	{ "Left Mixer", "Left Bypass Switch", "Left Line Mux" },
 	{ "Left Mixer", "Right Playback Switch", "Right DAC" },
@@ -471,6 +460,7 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
+	int ret;
 	int i;
 	int reg;
 	int wl;
@@ -504,9 +494,12 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 		es8328->mclkdiv2 = 0;
 	}
 
-	snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-			ES8328_MASTERMODE_MCLKDIV2,
-			es8328->mclkdiv2 ? ES8328_MASTERMODE_MCLKDIV2 : 0);
+	ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+					    ES8328_MASTERMODE_MCLKDIV2,
+					    es8328->mclkdiv2 ?
+					    ES8328_MASTERMODE_MCLKDIV2 : 0);
+	if (ret < 0)
+		return ret;
 
 	switch (params_width(params)) {
 	case 16:
@@ -529,18 +522,28 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
-				ES8328_DACCONTROL1_DACWL_MASK,
-				wl << ES8328_DACCONTROL1_DACWL_SHIFT);
+		ret = snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
+						    ES8328_DACCONTROL1_DACWL_MASK,
+						    wl << ES8328_DACCONTROL1_DACWL_SHIFT);
+		if (ret < 0)
+			return ret;
 
 		es8328->playback_fs = params_rate(params);
-		es8328_set_deemph(component);
-	} else
-		snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
-				ES8328_ADCCONTROL4_ADCWL_MASK,
-				wl << ES8328_ADCCONTROL4_ADCWL_SHIFT);
+		ret = es8328_set_deemph(component);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
+						    ES8328_ADCCONTROL4_ADCWL_MASK,
+						    wl << ES8328_ADCCONTROL4_ADCWL_SHIFT);
+		if (ret < 0)
+			return ret;
+	}
 
-	return snd_soc_component_update_bits(component, reg, ES8328_RATEMASK, ratio);
+	ret = snd_soc_component_update_bits(component, reg, ES8328_RATEMASK, ratio);
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
@@ -589,21 +592,26 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
+	int ret;
 	u8 dac_mode = 0;
 	u8 adc_mode = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		/* Master serial port mode, with BCLK generated automatically */
-		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-				    ES8328_MASTERMODE_MSC,
-				    ES8328_MASTERMODE_MSC);
+		ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+						    ES8328_MASTERMODE_MSC,
+						    ES8328_MASTERMODE_MSC);
+		if (ret < 0)
+			return ret;
 		es8328->provider = true;
 		break;
 	case SND_SOC_DAIFMT_CBC_CFC:
 		/* Slave serial port mode */
-		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-				    ES8328_MASTERMODE_MSC, 0);
+		ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+						    ES8328_MASTERMODE_MSC, 0);
+		if (ret < 0)
+			return ret;
 		es8328->provider = false;
 		break;
 	default:
@@ -632,10 +640,17 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF)
 		return -EINVAL;
 
-	snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
-			ES8328_DACCONTROL1_DACFORMAT_MASK, dac_mode);
-	snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
-			ES8328_ADCCONTROL4_ADCFORMAT_MASK, adc_mode);
+	ret = snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
+					    ES8328_DACCONTROL1_DACFORMAT_MASK,
+					    dac_mode);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
+					    ES8328_ADCCONTROL4_ADCFORMAT_MASK,
+					    adc_mode);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -644,6 +659,7 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -651,43 +667,56 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VREF, VMID=2x50k, digital enabled */
-		snd_soc_component_write(component, ES8328_CHIPPOWER, 0);
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				ES8328_CONTROL1_VMIDSEL_50k |
-				ES8328_CONTROL1_ENREF);
+		ret = snd_soc_component_write(component, ES8328_CHIPPOWER, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    ES8328_CONTROL1_VMIDSEL_50k |
+						    ES8328_CONTROL1_ENREF);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
-			snd_soc_component_update_bits(component, ES8328_CONTROL1,
-					ES8328_CONTROL1_VMIDSEL_MASK |
-					ES8328_CONTROL1_ENREF,
-					ES8328_CONTROL1_VMIDSEL_5k |
-					ES8328_CONTROL1_ENREF);
+			ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+							    ES8328_CONTROL1_VMIDSEL_MASK |
+							    ES8328_CONTROL1_ENREF,
+							    ES8328_CONTROL1_VMIDSEL_5k |
+							    ES8328_CONTROL1_ENREF);
+			if (ret < 0)
+				return ret;
 
 			/* Charge caps */
 			msleep(100);
 		}
 
-		snd_soc_component_write(component, ES8328_CONTROL2,
-				ES8328_CONTROL2_OVERCURRENT_ON |
-				ES8328_CONTROL2_THERMAL_SHUTDOWN_ON);
+		ret = snd_soc_component_write(component, ES8328_CONTROL2,
+					      ES8328_CONTROL2_OVERCURRENT_ON |
+					      ES8328_CONTROL2_THERMAL_SHUTDOWN_ON);
+		if (ret < 0)
+			return ret;
 
 		/* VREF, VMID=2*500k, digital stopped */
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				ES8328_CONTROL1_VMIDSEL_500k |
-				ES8328_CONTROL1_ENREF);
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    ES8328_CONTROL1_VMIDSEL_500k |
+						    ES8328_CONTROL1_ENREF);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				0);
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    0);
+		if (ret < 0)
+			return ret;
 		break;
 	}
 	return 0;
@@ -742,11 +771,8 @@ static int es8328_suspend(struct snd_soc_component *component)
 
 static int es8328_resume(struct snd_soc_component *component)
 {
-	struct regmap *regmap = dev_get_regmap(component->dev, NULL);
-	struct es8328_priv *es8328;
+	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 	int ret;
-
-	es8328 = snd_soc_component_get_drvdata(component);
 
 	ret = clk_prepare_enable(es8328->clk);
 	if (ret) {
@@ -758,17 +784,23 @@ static int es8328_resume(struct snd_soc_component *component)
 					es8328->supplies);
 	if (ret) {
 		dev_err(component->dev, "unable to enable regulators\n");
-		return ret;
+		goto err_clk;
 	}
 
-	regcache_mark_dirty(regmap);
-	ret = regcache_sync(regmap);
+	regcache_mark_dirty(es8328->regmap);
+	ret = regcache_sync(es8328->regmap);
 	if (ret) {
 		dev_err(component->dev, "unable to sync regcache\n");
-		return ret;
+		goto err_regulators;
 	}
 
 	return 0;
+
+err_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(es8328->supplies), es8328->supplies);
+err_clk:
+	clk_disable_unprepare(es8328->clk);
+	return ret;
 }
 
 static int es8328_component_probe(struct snd_soc_component *component)

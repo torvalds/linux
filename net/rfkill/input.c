@@ -221,7 +221,7 @@ static int rfkill_connect(struct input_handler *handler, struct input_dev *dev,
 	struct input_handle *handle;
 	int error;
 
-	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	handle = kzalloc_obj(struct input_handle);
 	if (!handle)
 		return -ENOMEM;
 

@@ -63,9 +63,9 @@ void msm_dp_panel_disable_vsc_sdp(struct msm_dp_panel *msm_dp_panel);
 
 /**
  * is_link_rate_valid() - validates the link rate
- * @lane_rate: link rate requested by the sink
+ * @bw_code: link rate requested by the sink
  *
- * Returns true if the requested link rate is supported.
+ * Returns: true if the requested link rate is supported.
  */
 static inline bool is_link_rate_valid(u32 bw_code)
 {
@@ -76,10 +76,10 @@ static inline bool is_link_rate_valid(u32 bw_code)
 }
 
 /**
- * msm_dp_link_is_lane_count_valid() - validates the lane count
+ * is_lane_count_valid() - validates the lane count
  * @lane_count: lane count requested by the sink
  *
- * Returns true if the requested lane count is supported.
+ * Returns: true if the requested lane count is supported.
  */
 static inline bool is_lane_count_valid(u32 lane_count)
 {

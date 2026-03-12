@@ -129,7 +129,7 @@ static int hub_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (nr_irqs > 1 || !info)
 		return -EINVAL;
 
-	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
+	hd = kzalloc_obj(*hd);
 	if (!hd)
 		return -ENOMEM;
 

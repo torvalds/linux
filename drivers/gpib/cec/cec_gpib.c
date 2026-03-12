@@ -220,11 +220,10 @@ static int cec_allocate_private(struct gpib_board *board)
 {
 	struct cec_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct cec_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct cec_priv);
 	if (!board->private_data)
-		return -1;
+		return -ENOMEM;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct cec_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	return 0;
 }
@@ -239,11 +238,13 @@ static int cec_generic_attach(struct gpib_board *board)
 {
 	struct cec_priv *cec_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
 
-	if (cec_allocate_private(board))
-		return -ENOMEM;
+	retval = cec_allocate_private(board);
+	if (retval)
+		return retval;
 	cec_priv = board->private_data;
 	nec_priv = &cec_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_ioport_read_byte;

@@ -94,7 +94,7 @@ static int __init wf_cpufreq_clamp_init(void)
 		goto fail;
 	}
 
-	clamp = kmalloc(sizeof(struct wf_control), GFP_KERNEL);
+	clamp = kmalloc_obj(struct wf_control);
 	if (clamp == NULL) {
 		ret = -ENOMEM;
 		goto fail;

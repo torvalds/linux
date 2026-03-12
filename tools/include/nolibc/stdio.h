@@ -170,7 +170,7 @@ int putchar(int c)
 }
 
 
-/* fwrite(), puts(), fputs(). Note that puts() emits '\n' but not fputs(). */
+/* fwrite(), fread(), puts(), fputs(). Note that puts() emits '\n' but not fputs(). */
 
 /* internal fwrite()-like function which only takes a size and returns 0 on
  * success or EOF on error. It automatically retries on short writes.
@@ -202,6 +202,38 @@ size_t fwrite(const void *s, size_t size, size_t nmemb, FILE *stream)
 		s += size;
 	}
 	return written;
+}
+
+/* internal fread()-like function which only takes a size and returns 0 on
+ * success or EOF on error. It automatically retries on short reads.
+ */
+static __attribute__((unused))
+int _fread(void *buf, size_t size, FILE *stream)
+{
+	int fd = fileno(stream);
+	ssize_t ret;
+
+	while (size) {
+		ret = read(fd, buf, size);
+		if (ret <= 0)
+			return EOF;
+		size -= ret;
+		buf += ret;
+	}
+	return 0;
+}
+
+static __attribute__((unused))
+size_t fread(void *s, size_t size, size_t nmemb, FILE *stream)
+{
+	size_t nread;
+
+	for (nread = 0; nread < nmemb; nread++) {
+		if (_fread(s, size, stream) != 0)
+			break;
+		s += size;
+	}
+	return nread;
 }
 
 static __attribute__((unused))
@@ -237,6 +269,25 @@ char *fgets(char *s, int size, FILE *stream)
 	if (ofs < size)
 		s[ofs] = 0;
 	return ofs ? s : NULL;
+}
+
+
+/* fseek */
+static __attribute__((unused))
+int fseek(FILE *stream, long offset, int whence)
+{
+	int fd = fileno(stream);
+	off_t ret;
+
+	ret = lseek(fd, offset, whence);
+
+	/* lseek() and fseek() differ in that lseek returns the new
+	 * position or -1, fseek() returns either 0 or -1.
+	 */
+	if (ret >= 0)
+		return 0;
+
+	return -1;
 }
 
 

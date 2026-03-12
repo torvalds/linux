@@ -370,7 +370,7 @@ static int nilfs_scan_dsync_log(struct the_nilfs *nilfs, sector_t start_blocknr,
 			if (unlikely(!binfo))
 				goto out;
 
-			rb = kmalloc(sizeof(*rb), GFP_NOFS);
+			rb = kmalloc_obj(*rb, GFP_NOFS);
 			if (unlikely(!rb)) {
 				err = -ENOMEM;
 				goto out;
@@ -414,7 +414,7 @@ struct nilfs_segment_entry {
 
 static int nilfs_segment_list_add(struct list_head *head, __u64 segnum)
 {
-	struct nilfs_segment_entry *ent = kmalloc(sizeof(*ent), GFP_NOFS);
+	struct nilfs_segment_entry *ent = kmalloc_obj(*ent, GFP_NOFS);
 
 	if (unlikely(!ent))
 		return -ENOMEM;

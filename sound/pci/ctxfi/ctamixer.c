@@ -205,6 +205,7 @@ static int amixer_rsc_init(struct amixer *amixer,
 
 	/* Set amixer specific operations */
 	amixer->rsc.ops = &amixer_basic_rsc_ops;
+	amixer->rsc.conj = 0;
 	amixer->ops = &amixer_ops;
 	amixer->input = NULL;
 	amixer->sum = NULL;
@@ -295,7 +296,7 @@ int amixer_mgr_create(struct hw *hw, void **ramixer_mgr)
 	struct amixer_mgr *amixer_mgr;
 
 	*ramixer_mgr = NULL;
-	amixer_mgr = kzalloc(sizeof(*amixer_mgr), GFP_KERNEL);
+	amixer_mgr = kzalloc_obj(*amixer_mgr);
 	if (!amixer_mgr)
 		return -ENOMEM;
 
@@ -367,6 +368,7 @@ static int sum_rsc_init(struct sum *sum,
 		return err;
 
 	sum->rsc.ops = &sum_basic_rsc_ops;
+	sum->rsc.conj = 0;
 
 	return 0;
 }
@@ -446,7 +448,7 @@ int sum_mgr_create(struct hw *hw, void **rsum_mgr)
 	struct sum_mgr *sum_mgr;
 
 	*rsum_mgr = NULL;
-	sum_mgr = kzalloc(sizeof(*sum_mgr), GFP_KERNEL);
+	sum_mgr = kzalloc_obj(*sum_mgr);
 	if (!sum_mgr)
 		return -ENOMEM;
 

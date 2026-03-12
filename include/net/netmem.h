@@ -389,8 +389,36 @@ static inline unsigned long netmem_get_dma_addr(netmem_ref netmem)
 	return netmem_to_nmdesc(netmem)->dma_addr;
 }
 
-void get_netmem(netmem_ref netmem);
-void put_netmem(netmem_ref netmem);
+#if defined(CONFIG_NET_DEVMEM)
+static inline bool net_is_devmem_iov(const struct net_iov *niov)
+{
+	return niov->type == NET_IOV_DMABUF;
+}
+#else
+static inline bool net_is_devmem_iov(const struct net_iov *niov)
+{
+	return false;
+}
+#endif
+
+void __get_netmem(netmem_ref netmem);
+void __put_netmem(netmem_ref netmem);
+
+static __always_inline void get_netmem(netmem_ref netmem)
+{
+	if (netmem_is_net_iov(netmem))
+		__get_netmem(netmem);
+	else
+		get_page(netmem_to_page(netmem));
+}
+
+static __always_inline void put_netmem(netmem_ref netmem)
+{
+	if (netmem_is_net_iov(netmem))
+		__put_netmem(netmem);
+	else
+		put_page(netmem_to_page(netmem));
+}
 
 #define netmem_dma_unmap_addr_set(NETMEM, PTR, ADDR_NAME, VAL)   \
 	do {                                                     \

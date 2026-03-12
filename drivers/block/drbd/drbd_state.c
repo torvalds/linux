@@ -1468,7 +1468,7 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	    ns.disk > D_NEGOTIATING)
 		device->last_reattach_jif = jiffies;
 
-	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
+	ascw = kmalloc_obj(*ascw, GFP_ATOMIC);
 	if (ascw) {
 		ascw->os = os;
 		ascw->ns = ns;
@@ -2351,7 +2351,7 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 	conn_pr_state_change(connection, os, ns_max, flags);
 	remember_new_state(state_change);
 
-	acscw = kmalloc(sizeof(*acscw), GFP_ATOMIC);
+	acscw = kmalloc_obj(*acscw, GFP_ATOMIC);
 	if (acscw) {
 		acscw->oc = os.conn;
 		acscw->ns_min = ns_min;

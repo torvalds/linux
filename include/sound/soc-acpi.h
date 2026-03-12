@@ -203,6 +203,8 @@ struct snd_soc_acpi_link_adr {
  *	@mach: the pointer of the machine driver
  *	@prefix: the prefix of the topology file name. Typically, it is the path.
  *	@tplg_files: the pointer of the array of the topology file names.
+ *	@best_effort: ignore non supported links and try to build the card in best effort
+ *		      with supported links
  */
 /* Descriptor for SST ASoC machine driver */
 struct snd_soc_acpi_mach {
@@ -224,7 +226,8 @@ struct snd_soc_acpi_mach {
 	const u32 tplg_quirk_mask;
 	int (*get_function_tplg_files)(struct snd_soc_card *card,
 				       const struct snd_soc_acpi_mach *mach,
-				       const char *prefix, const char ***tplg_files);
+				       const char *prefix, const char ***tplg_files,
+				       bool best_effort);
 };
 
 #define SND_SOC_ACPI_MAX_CODECS 3

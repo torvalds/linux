@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_HW_H
@@ -78,6 +78,7 @@
 #define ATH12K_DEFAULT_CAL_FILE		"caldata.bin"
 #define ATH12K_AMSS_FILE		"amss.bin"
 #define ATH12K_M3_FILE			"m3.bin"
+#define ATH12K_AUX_UC_FILE		"aux_ucode.bin"
 #define ATH12K_REGDB_FILE_NAME		"regdb.bin"
 
 #define ATH12K_PCIE_MAX_PAYLOAD_SIZE	128
@@ -128,11 +129,6 @@ struct ath12k_hw_ring_mask {
 	u8 tx_mon_dest[ATH12K_EXT_IRQ_GRP_NUM_MAX];
 };
 
-struct ath12k_hw_hal_params {
-	enum hal_rx_buf_return_buf_manager rx_buf_rbm;
-	u32	  wbm2sw_cc_enable;
-};
-
 enum ath12k_m3_fw_loaders {
 	ath12k_m3_fw_loader_driver,
 	ath12k_m3_fw_loader_remoteproc,
@@ -147,6 +143,7 @@ struct ath12k_hw_params {
 		size_t board_size;
 		size_t cal_offset;
 		enum ath12k_m3_fw_loaders m3_loader;
+		bool download_aux_ucode:1;
 	} fw;
 
 	u8 max_radios;
@@ -156,7 +153,6 @@ struct ath12k_hw_params {
 
 	const struct ath12k_hw_ops *hw_ops;
 	const struct ath12k_hw_ring_mask *ring_mask;
-	const struct ath12k_hw_regs *regs;
 
 	const struct ce_attr *host_ce_config;
 	u32 ce_count;
@@ -164,8 +160,6 @@ struct ath12k_hw_params {
 	u32 target_ce_count;
 	const struct service_to_pipe *svc_to_ce_map;
 	u32 svc_to_ce_map_len;
-
-	const struct ath12k_hw_hal_params *hal_params;
 
 	bool rxdma1_enable:1;
 	int num_rxdma_per_pdev;
@@ -192,8 +186,6 @@ struct ath12k_hw_params {
 
 	void (*wmi_init)(struct ath12k_base *ab,
 			 struct ath12k_wmi_resource_config_arg *config);
-
-	const struct hal_ops *hal_ops;
 
 	u64 qmi_cnss_feature_bitmap;
 
@@ -285,86 +277,6 @@ enum ath12k_bd_ie_type {
 	ATH12K_BD_IE_REGDB = 1,
 };
 
-struct ath12k_hw_regs {
-	u32 hal_tcl1_ring_id;
-	u32 hal_tcl1_ring_misc;
-	u32 hal_tcl1_ring_tp_addr_lsb;
-	u32 hal_tcl1_ring_tp_addr_msb;
-	u32 hal_tcl1_ring_consumer_int_setup_ix0;
-	u32 hal_tcl1_ring_consumer_int_setup_ix1;
-	u32 hal_tcl1_ring_msi1_base_lsb;
-	u32 hal_tcl1_ring_msi1_base_msb;
-	u32 hal_tcl1_ring_msi1_data;
-	u32 hal_tcl_ring_base_lsb;
-	u32 hal_tcl1_ring_base_lsb;
-	u32 hal_tcl1_ring_base_msb;
-	u32 hal_tcl2_ring_base_lsb;
-
-	u32 hal_tcl_status_ring_base_lsb;
-
-	u32 hal_reo1_qdesc_addr;
-	u32 hal_reo1_qdesc_max_peerid;
-
-	u32 hal_wbm_idle_ring_base_lsb;
-	u32 hal_wbm_idle_ring_misc_addr;
-	u32 hal_wbm_r0_idle_list_cntl_addr;
-	u32 hal_wbm_r0_idle_list_size_addr;
-	u32 hal_wbm_scattered_ring_base_lsb;
-	u32 hal_wbm_scattered_ring_base_msb;
-	u32 hal_wbm_scattered_desc_head_info_ix0;
-	u32 hal_wbm_scattered_desc_head_info_ix1;
-	u32 hal_wbm_scattered_desc_tail_info_ix0;
-	u32 hal_wbm_scattered_desc_tail_info_ix1;
-	u32 hal_wbm_scattered_desc_ptr_hp_addr;
-
-	u32 hal_wbm_sw_release_ring_base_lsb;
-	u32 hal_wbm_sw1_release_ring_base_lsb;
-	u32 hal_wbm0_release_ring_base_lsb;
-	u32 hal_wbm1_release_ring_base_lsb;
-
-	u32 pcie_qserdes_sysclk_en_sel;
-	u32 pcie_pcs_osc_dtct_config_base;
-
-	u32 hal_umac_ce0_src_reg_base;
-	u32 hal_umac_ce0_dest_reg_base;
-	u32 hal_umac_ce1_src_reg_base;
-	u32 hal_umac_ce1_dest_reg_base;
-
-	u32 hal_ppe_rel_ring_base;
-
-	u32 hal_reo2_ring_base;
-	u32 hal_reo1_misc_ctrl_addr;
-	u32 hal_reo1_sw_cookie_cfg0;
-	u32 hal_reo1_sw_cookie_cfg1;
-	u32 hal_reo1_qdesc_lut_base0;
-	u32 hal_reo1_qdesc_lut_base1;
-	u32 hal_reo1_ring_base_lsb;
-	u32 hal_reo1_ring_base_msb;
-	u32 hal_reo1_ring_id;
-	u32 hal_reo1_ring_misc;
-	u32 hal_reo1_ring_hp_addr_lsb;
-	u32 hal_reo1_ring_hp_addr_msb;
-	u32 hal_reo1_ring_producer_int_setup;
-	u32 hal_reo1_ring_msi1_base_lsb;
-	u32 hal_reo1_ring_msi1_base_msb;
-	u32 hal_reo1_ring_msi1_data;
-	u32 hal_reo1_aging_thres_ix0;
-	u32 hal_reo1_aging_thres_ix1;
-	u32 hal_reo1_aging_thres_ix2;
-	u32 hal_reo1_aging_thres_ix3;
-
-	u32 hal_reo2_sw0_ring_base;
-
-	u32 hal_sw2reo_ring_base;
-	u32 hal_sw2reo1_ring_base;
-
-	u32 hal_reo_cmd_ring_base;
-
-	u32 hal_reo_status_ring_base;
-
-	u32 gcc_gcc_pcie_hot_rst;
-};
-
 static inline const char *ath12k_bd_ie_type_str(enum ath12k_bd_ie_type type)
 {
 	switch (type) {
@@ -376,7 +288,5 @@ static inline const char *ath12k_bd_ie_type_str(enum ath12k_bd_ie_type type)
 
 	return "unknown";
 }
-
-int ath12k_hw_init(struct ath12k_base *ab);
 
 #endif

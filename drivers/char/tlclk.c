@@ -776,7 +776,7 @@ static int __init tlclk_init(void)
 
 	telclk_interrupt = (inb(TLCLK_REG7) & 0x0f);
 
-	alarm_events = kzalloc( sizeof(struct tlclk_alarms), GFP_KERNEL);
+	alarm_events = kzalloc_obj(struct tlclk_alarms);
 	if (!alarm_events) {
 		ret = -ENOMEM;
 		goto out1;

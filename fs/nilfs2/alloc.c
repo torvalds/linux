@@ -54,7 +54,7 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 
-	mi->mi_bgl = kmalloc(sizeof(*mi->mi_bgl), GFP_NOFS);
+	mi->mi_bgl = kmalloc_obj(*mi->mi_bgl, GFP_NOFS);
 	if (!mi->mi_bgl)
 		return -ENOMEM;
 

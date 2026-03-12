@@ -75,7 +75,7 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 {
 	struct drm_display_mode *nmode;
 
-	nmode = kzalloc(sizeof(struct drm_display_mode), GFP_KERNEL);
+	nmode = kzalloc_obj(struct drm_display_mode);
 	if (!nmode)
 		return NULL;
 

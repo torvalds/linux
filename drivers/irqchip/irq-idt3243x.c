@@ -52,7 +52,7 @@ static int idt_pic_init(struct device_node *of_node, struct device_node *parent)
 	unsigned int parent_irq;
 	int ret = 0;
 
-	idtpic = kzalloc(sizeof(*idtpic), GFP_KERNEL);
+	idtpic = kzalloc_obj(*idtpic);
 	if (!idtpic) {
 		ret = -ENOMEM;
 		goto out_err;

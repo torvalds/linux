@@ -535,7 +535,7 @@ struct pci_epf *pci_epf_create(const char *name)
 	struct device *dev;
 	int len;
 
-	epf = kzalloc(sizeof(*epf), GFP_KERNEL);
+	epf = kzalloc_obj(*epf);
 	if (!epf)
 		return ERR_PTR(-ENOMEM);
 

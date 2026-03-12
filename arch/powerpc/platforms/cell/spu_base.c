@@ -558,7 +558,7 @@ static int __init create_spu(void *data)
 	unsigned long flags;
 
 	ret = -ENOMEM;
-	spu = kzalloc(sizeof (*spu), GFP_KERNEL);
+	spu = kzalloc_obj(*spu);
 	if (!spu)
 		goto out;
 

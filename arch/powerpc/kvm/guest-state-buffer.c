@@ -28,7 +28,7 @@ struct kvmppc_gs_buff *kvmppc_gsb_new(size_t size, unsigned long guest_id,
 {
 	struct kvmppc_gs_buff *gsb;
 
-	gsb = kzalloc(sizeof(*gsb), flags);
+	gsb = kzalloc_obj(*gsb, flags);
 	if (!gsb)
 		return NULL;
 
@@ -540,7 +540,7 @@ struct kvmppc_gs_msg *kvmppc_gsm_new(struct kvmppc_gs_msg_ops *ops, void *data,
 {
 	struct kvmppc_gs_msg *gsm;
 
-	gsm = kzalloc(sizeof(*gsm), gfp_flags);
+	gsm = kzalloc_obj(*gsm, gfp_flags);
 	if (!gsm)
 		return NULL;
 

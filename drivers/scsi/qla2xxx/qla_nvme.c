@@ -1286,7 +1286,7 @@ void qla2xxx_process_purls_iocb(void **pkt, struct rsp_que **rsp)
 		goto out;
 	}
 
-	uctx = kzalloc(sizeof(*uctx), GFP_ATOMIC);
+	uctx = kzalloc_obj(*uctx, GFP_ATOMIC);
 	if (!uctx) {
 		ql_log(ql_log_info, vha, 0x2126, "Failed allocate memory\n");
 		a.reason = FCNVME_RJT_RC_LOGIC;

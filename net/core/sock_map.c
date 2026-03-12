@@ -1858,7 +1858,7 @@ int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 		goto out;
 	}
 
-	sockmap_link = kzalloc(sizeof(*sockmap_link), GFP_USER);
+	sockmap_link = kzalloc_obj(*sockmap_link, GFP_USER);
 	if (!sockmap_link) {
 		ret = -ENOMEM;
 		goto out;

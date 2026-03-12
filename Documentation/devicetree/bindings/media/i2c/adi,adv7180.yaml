@@ -30,7 +30,27 @@ properties:
           - adi,adv7282-m
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: main register map
+      - description: VPP or CSI register map
+      - description: CSI register map
+    description:
+      The ADV7180 family may have up to three register maps. All chips have
+      the main register map. The availability of the CSI and VPP register maps
+      depends on the chip variant.
+
+      The addresses of the CSI and VPP register maps are programmable by
+      software. They depend on the board layout and other devices on the I2C
+      bus and are determined by the hardware designer to avoid address
+      conflicts on the I2C bus.
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: main
+      - enum: [ csi, vpp ]
+      - const: csi
 
   powerdown-gpios:
     maxItems: 1
@@ -138,6 +158,62 @@ allOf:
       required:
         - ports
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adv7180
+              - adi,adv7180cp
+              - adi,adv7180st
+              - adi,adv7182
+    then:
+      properties:
+        reg:
+          maxItems: 1
+
+        reg-names:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adv7281
+              - adi,adv7281-m
+              - adi,adv7281-ma
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+
+        reg-names:
+          minItems: 1
+          items:
+            - const: main
+            - const: csi
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adv7280
+              - adi,adv7282
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+
+        reg-names:
+          minItems: 1
+          items:
+            - const: main
+            - const: vpp
+
 examples:
   - |
     i2c {
@@ -183,6 +259,25 @@ examples:
                                     adv7180_out: endpoint {
                                             remote-endpoint = <&vin4_in>;
                                     };
+                            };
+                    };
+            };
+    };
+
+  - |
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            composite-in@20 {
+                    compatible = "adi,adv7280-m";
+                    reg = <0x20>, <0x42>, <0x44>;
+                    reg-names = "main", "vpp", "csi";
+
+                    port {
+                            adv7280_out: endpoint {
+                                    bus-width = <8>;
+                                    remote-endpoint = <&vin1ep>;
                             };
                     };
             };

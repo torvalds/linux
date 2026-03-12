@@ -264,7 +264,7 @@ static int mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto out;
 
-	map = kmalloc(sizeof(*map), GFP_KERNEL);
+	map = kmalloc_obj(*map);
 	err = -ENOMEM;
 	if (!map)
 		goto release;

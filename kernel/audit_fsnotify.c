@@ -89,7 +89,7 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 		goto out;
 	}
 
-	audit_mark = kzalloc(sizeof(*audit_mark), GFP_KERNEL);
+	audit_mark = kzalloc_obj(*audit_mark);
 	if (unlikely(!audit_mark)) {
 		audit_mark = ERR_PTR(-ENOMEM);
 		goto out;

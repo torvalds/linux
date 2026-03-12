@@ -5,19 +5,21 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME wip
+
 enum states_wip {
-	preemptive_wip = 0,
+	preemptive_wip,
 	non_preemptive_wip,
-	state_max_wip
+	state_max_wip,
 };
 
 #define INVALID_STATE state_max_wip
 
 enum events_wip {
-	preempt_disable_wip = 0,
+	preempt_disable_wip,
 	preempt_enable_wip,
 	sched_waking_wip,
-	event_max_wip
+	event_max_wip,
 };
 
 struct automaton_wip {
@@ -31,12 +33,12 @@ struct automaton_wip {
 static const struct automaton_wip automaton_wip = {
 	.state_names = {
 		"preemptive",
-		"non_preemptive"
+		"non_preemptive",
 	},
 	.event_names = {
 		"preempt_disable",
 		"preempt_enable",
-		"sched_waking"
+		"sched_waking",
 	},
 	.function = {
 		{ non_preemptive_wip,      INVALID_STATE,      INVALID_STATE },

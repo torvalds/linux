@@ -218,7 +218,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	u8 vendor, device;
 	char *name, *devid;
 
-	ch7xxx = kzalloc(sizeof(*ch7xxx), GFP_KERNEL);
+	ch7xxx = kzalloc_obj(*ch7xxx);
 	if (ch7xxx == NULL)
 		return false;
 

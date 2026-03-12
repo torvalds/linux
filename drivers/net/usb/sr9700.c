@@ -16,9 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/mii.h>
 #include <linux/usb.h>
-#include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
 
 #include "sr9700.h"
@@ -38,7 +36,7 @@ static int sr_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
 	int err;
 
-	err = usbnet_write_cmd(dev, SR_WR_REGS, SR_REQ_WR_REG, 0, reg, data,
+	err = usbnet_write_cmd(dev, SR_WR_MULTIPLE_REGS, SR_REQ_WR_REG, 0, reg, data,
 			       length);
 	if ((err >= 0) && (err < length))
 		err = -EINVAL;
@@ -52,28 +50,28 @@ static int sr_read_reg(struct usbnet *dev, u8 reg, u8 *value)
 
 static int sr_write_reg(struct usbnet *dev, u8 reg, u8 value)
 {
-	return usbnet_write_cmd(dev, SR_WR_REGS, SR_REQ_WR_REG,
+	return usbnet_write_cmd(dev, SR_WR_SINGLE_REG, SR_REQ_WR_REG,
 				value, reg, NULL, 0);
 }
 
 static void sr_write_async(struct usbnet *dev, u8 reg, u16 length,
 			   const void *data)
 {
-	usbnet_write_cmd_async(dev, SR_WR_REGS, SR_REQ_WR_REG,
+	usbnet_write_cmd_async(dev, SR_WR_MULTIPLE_REGS, SR_REQ_WR_REG,
 			       0, reg, data, length);
 }
 
 static void sr_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 {
-	usbnet_write_cmd_async(dev, SR_WR_REGS, SR_REQ_WR_REG,
+	usbnet_write_cmd_async(dev, SR_WR_SINGLE_REG, SR_REQ_WR_REG,
 			       value, reg, NULL, 0);
 }
 
-static int wait_phy_eeprom_ready(struct usbnet *dev, int phy)
+static int wait_eeprom_ready(struct usbnet *dev)
 {
 	int i;
 
-	for (i = 0; i < SR_SHARE_TIMEOUT; i++) {
+	for (i = 0; i < SR_EEPROM_TIMEOUT; i++) {
 		u8 tmp = 0;
 		int ret;
 
@@ -87,38 +85,37 @@ static int wait_phy_eeprom_ready(struct usbnet *dev, int phy)
 			return 0;
 	}
 
-	netdev_err(dev->net, "%s write timed out!\n", phy ? "phy" : "eeprom");
+	netdev_err(dev->net, "eeprom write timed out!\n");
 
 	return -EIO;
 }
 
-static int sr_share_read_word(struct usbnet *dev, int phy, u8 reg,
-			      __le16 *value)
+static int sr_read_eeprom_word(struct usbnet *dev, u8 reg, __le16 *value)
 {
 	int ret;
 
 	mutex_lock(&dev->phy_mutex);
 
-	sr_write_reg(dev, SR_EPAR, phy ? (reg | EPAR_PHY_ADR) : reg);
-	sr_write_reg(dev, SR_EPCR, phy ? (EPCR_EPOS | EPCR_ERPRR) : EPCR_ERPRR);
+	sr_write_reg(dev, SR_EPAR, reg);
+	sr_write_reg(dev, SR_EPCR, EPCR_ERPRR);
 
-	ret = wait_phy_eeprom_ready(dev, phy);
+	ret = wait_eeprom_ready(dev);
 	if (ret < 0)
 		goto out_unlock;
 
 	sr_write_reg(dev, SR_EPCR, 0x0);
 	ret = sr_read(dev, SR_EPDR, 2, value);
 
-	netdev_dbg(dev->net, "read shared %d 0x%02x returned 0x%04x, %d\n",
-		   phy, reg, *value, ret);
+	netdev_dbg(dev->net, "read eeprom 0x%02x returned 0x%04x, %d\n",
+		   reg, *value, ret);
 
 out_unlock:
 	mutex_unlock(&dev->phy_mutex);
 	return ret;
 }
 
-static int sr_share_write_word(struct usbnet *dev, int phy, u8 reg,
-			       __le16 value)
+static int __maybe_unused sr_write_eeprom_word(struct usbnet *dev, u8 reg,
+					       __le16 value)
 {
 	int ret;
 
@@ -128,11 +125,10 @@ static int sr_share_write_word(struct usbnet *dev, int phy, u8 reg,
 	if (ret < 0)
 		goto out_unlock;
 
-	sr_write_reg(dev, SR_EPAR, phy ? (reg | EPAR_PHY_ADR) : reg);
-	sr_write_reg(dev, SR_EPCR, phy ? (EPCR_WEP | EPCR_EPOS | EPCR_ERPRW) :
-		    (EPCR_WEP | EPCR_ERPRW));
+	sr_write_reg(dev, SR_EPAR, reg);
+	sr_write_reg(dev, SR_EPCR, EPCR_WEP | EPCR_ERPRW);
 
-	ret = wait_phy_eeprom_ready(dev, phy);
+	ret = wait_eeprom_ready(dev);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -141,11 +137,6 @@ static int sr_share_write_word(struct usbnet *dev, int phy, u8 reg,
 out_unlock:
 	mutex_unlock(&dev->phy_mutex);
 	return ret;
-}
-
-static int sr_read_eeprom_word(struct usbnet *dev, u8 offset, void *value)
-{
-	return sr_share_read_word(dev, 0, offset, value);
 }
 
 static int sr9700_get_eeprom_len(struct net_device *netdev)
@@ -174,80 +165,56 @@ static int sr9700_get_eeprom(struct net_device *netdev,
 	return ret;
 }
 
-static int sr_mdio_read(struct net_device *netdev, int phy_id, int loc)
+static void sr9700_handle_link_change(struct net_device *netdev, bool link)
 {
-	struct usbnet *dev = netdev_priv(netdev);
-	int err, res;
-	__le16 word;
-	int rc = 0;
-
-	if (phy_id) {
-		netdev_dbg(netdev, "Only internal phy supported\n");
-		return 0;
+	if (netif_carrier_ok(netdev) != link) {
+		if (link) {
+			netif_carrier_on(netdev);
+			netdev_info(netdev, "link up, 10Mbps, half-duplex\n");
+		} else {
+			netif_carrier_off(netdev);
+			netdev_info(netdev, "link down\n");
+		}
 	}
-
-	/* Access NSR_LINKST bit for link status instead of MII_BMSR */
-	if (loc == MII_BMSR) {
-		u8 value;
-
-		err = sr_read_reg(dev, SR_NSR, &value);
-		if (err < 0)
-			return err;
-
-		if (value & NSR_LINKST)
-			rc = 1;
-	}
-	err = sr_share_read_word(dev, 1, loc, &word);
-	if (err < 0)
-		return err;
-
-	if (rc == 1)
-		res = le16_to_cpu(word) | BMSR_LSTATUS;
-	else
-		res = le16_to_cpu(word) & ~BMSR_LSTATUS;
-
-	netdev_dbg(netdev, "sr_mdio_read() phy_id=0x%02x, loc=0x%02x, returns=0x%04x\n",
-		   phy_id, loc, res);
-
-	return res;
-}
-
-static void sr_mdio_write(struct net_device *netdev, int phy_id, int loc,
-			  int val)
-{
-	struct usbnet *dev = netdev_priv(netdev);
-	__le16 res = cpu_to_le16(val);
-
-	if (phy_id) {
-		netdev_dbg(netdev, "Only internal phy supported\n");
-		return;
-	}
-
-	netdev_dbg(netdev, "sr_mdio_write() phy_id=0x%02x, loc=0x%02x, val=0x%04x\n",
-		   phy_id, loc, val);
-
-	sr_share_write_word(dev, 1, loc, res);
 }
 
 static u32 sr9700_get_link(struct net_device *netdev)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 	u8 value = 0;
-	int rc = 0;
+	u32 link = 0;
 
-	/* Get the Link Status directly */
 	sr_read_reg(dev, SR_NSR, &value);
-	if (value & NSR_LINKST)
-		rc = 1;
+	link = !!(value & NSR_LINKST);
 
-	return rc;
+	sr9700_handle_link_change(netdev, link);
+
+	return link;
 }
 
-static int sr9700_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
+/*
+ * The device supports only 10Mbps half-duplex operation. It implements the
+ * DM9601 speed/duplex status registers, but as the values are always the same,
+ * using them would add unnecessary complexity.
+ */
+static int sr9700_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
-	struct usbnet *dev = netdev_priv(netdev);
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
 
-	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, 10baseT_Half);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+	cmd->base.speed = SPEED_10;
+	cmd->base.duplex = DUPLEX_HALF;
+	cmd->base.port = PORT_TP;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+
+	return 0;
 }
 
 static const struct ethtool_ops sr9700_ethtool_ops = {
@@ -257,39 +224,21 @@ static const struct ethtool_ops sr9700_ethtool_ops = {
 	.set_msglevel	= usbnet_set_msglevel,
 	.get_eeprom_len	= sr9700_get_eeprom_len,
 	.get_eeprom	= sr9700_get_eeprom,
-	.nway_reset	= usbnet_nway_reset,
-	.get_link_ksettings	= usbnet_get_link_ksettings_mii,
-	.set_link_ksettings	= usbnet_set_link_ksettings_mii,
+	.get_link_ksettings	= sr9700_get_link_ksettings,
 };
 
 static void sr9700_set_multicast(struct net_device *netdev)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	/* We use the 20 byte dev->data for our 8 byte filter buffer
-	 * to avoid allocating memory that is tricky to free later
-	 */
-	u8 *hashes = (u8 *)&dev->data;
 	/* rx_ctl setting : enable, disable_long, disable_crc */
 	u8 rx_ctl = RCR_RXEN | RCR_DIS_CRC | RCR_DIS_LONG;
 
-	memset(hashes, 0x00, SR_MCAST_SIZE);
-	/* broadcast address */
-	hashes[SR_MCAST_SIZE - 1] |= SR_MCAST_ADDR_FLAG;
-	if (netdev->flags & IFF_PROMISC) {
+	if (netdev->flags & IFF_PROMISC)
 		rx_ctl |= RCR_PRMSC;
-	} else if (netdev->flags & IFF_ALLMULTI ||
-		   netdev_mc_count(netdev) > SR_MCAST_MAX) {
-		rx_ctl |= RCR_RUNT;
-	} else if (!netdev_mc_empty(netdev)) {
-		struct netdev_hw_addr *ha;
+	else if (netdev->flags & IFF_ALLMULTI || !netdev_mc_empty(netdev))
+		/* The chip has no multicast filter */
+		rx_ctl |= RCR_ALL;
 
-		netdev_for_each_mc_addr(ha, netdev) {
-			u32 crc = ether_crc(ETH_ALEN, ha->addr) >> 26;
-			hashes[crc >> 3] |= 1 << (crc & 0x7);
-		}
-	}
-
-	sr_write_async(dev, SR_MAR, SR_MCAST_SIZE, hashes);
 	sr_write_reg_async(dev, SR_RCR, rx_ctl);
 }
 
@@ -305,7 +254,7 @@ static int sr9700_set_mac_address(struct net_device *netdev, void *p)
 	}
 
 	eth_hw_addr_set(netdev, addr->sa_data);
-	sr_write_async(dev, SR_PAR, 6, netdev->dev_addr);
+	sr_write_async(dev, SR_PAR, ETH_ALEN, netdev->dev_addr);
 
 	return 0;
 }
@@ -318,7 +267,6 @@ static const struct net_device_ops sr9700_netdev_ops = {
 	.ndo_change_mtu		= usbnet_change_mtu,
 	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_eth_ioctl		= sr9700_ioctl,
 	.ndo_set_rx_mode	= sr9700_set_multicast,
 	.ndo_set_mac_address	= sr9700_set_mac_address,
 };
@@ -326,7 +274,6 @@ static const struct net_device_ops sr9700_netdev_ops = {
 static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct net_device *netdev;
-	struct mii_if_info *mii;
 	u8 addr[ETH_ALEN];
 	int ret;
 
@@ -342,13 +289,6 @@ static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->hard_mtu = netdev->mtu + netdev->hard_header_len;
 	/* bulkin buffer is preferably not less than 3K */
 	dev->rx_urb_size = 3072;
-
-	mii = &dev->mii;
-	mii->dev = netdev;
-	mii->mdio_read = sr_mdio_read;
-	mii->mdio_write = sr_mdio_write;
-	mii->phy_id_mask = 0x1f;
-	mii->reg_num_mask = 0x1f;
 
 	sr_write_reg(dev, SR_NCR, NCR_RST);
 	udelay(20);
@@ -376,11 +316,6 @@ static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* receive broadcast packets */
 	sr9700_set_multicast(netdev);
 
-	sr_mdio_write(netdev, mii->phy_id, MII_BMCR, BMCR_RESET);
-	sr_mdio_write(netdev, mii->phy_id, MII_ADVERTISE, ADVERTISE_ALL |
-		      ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP);
-	mii_nway_restart(mii);
-
 out:
 	return ret;
 }
@@ -391,20 +326,20 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	int len;
 
 	/* skb content (packets) format :
-	 *                    p0            p1            p2    ......    pm
+	 *                    p1            p2            p3    ......    pn
 	 *                 /      \
 	 *            /                \
 	 *        /                            \
 	 *  /                                        \
-	 * p0b0 p0b1 p0b2 p0b3 ...... p0b(n-4) p0b(n-3)...p0bn
+	 * p1b1 p1b2 p1b3 p1b4 ...... p1b(n-4) p1b(n-3)...p1bn
 	 *
-	 * p0 : packet 0
-	 * p0b0 : packet 0 byte 0
+	 * p1 : packet 1
+	 * p1b1 : packet 1 byte 1
 	 *
-	 * b0: rx status
-	 * b1: packet length (incl crc) low
-	 * b2: packet length (incl crc) high
-	 * b3..n-4: packet data
+	 * b1: rx status
+	 * b2: packet length (incl crc) low
+	 * b3: packet length (incl crc) high
+	 * b4..n-4: packet data
 	 * bn-3..bn: ethernet packet crc
 	 */
 	if (unlikely(skb->len < SR_RX_OVERHEAD)) {
@@ -414,7 +349,7 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	/* one skb may contains multiple packets */
 	while (skb->len > SR_RX_OVERHEAD) {
-		if (skb->data[0] != 0x40)
+		if (skb->data[0] != RSR_MF)
 			return 0;
 
 		/* ignore the CRC length */
@@ -452,12 +387,12 @@ static struct sk_buff *sr9700_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	/* SR9700 can only send out one ethernet packet at once.
 	 *
-	 * b0 b1 b2 b3 ...... b(n-4) b(n-3)...bn
+	 * b1 b2 b3 b4 ...... b(n-4) b(n-3)...bn
 	 *
-	 * b0: rx status
-	 * b1: packet length (incl crc) low
-	 * b2: packet length (incl crc) high
-	 * b3..n-4: packet data
+	 * b1: rx status
+	 * b2: packet length (incl crc) low
+	 * b3: packet length (incl crc) high
+	 * b4..n-4: packet data
 	 * bn-3..bn: ethernet packet crc
 	 */
 
@@ -484,18 +419,18 @@ static struct sk_buff *sr9700_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 static void sr9700_status(struct usbnet *dev, struct urb *urb)
 {
-	int link;
+	bool link;
 	u8 *buf;
 
 	/* format:
-	   b0: net status
-	   b1: tx status 1
-	   b2: tx status 2
-	   b3: rx status
-	   b4: rx overflow
-	   b5: rx count
-	   b6: tx count
-	   b7: gpr
+	   b1: net status
+	   b2: tx status 1
+	   b3: tx status 2
+	   b4: rx status
+	   b5: rx overflow
+	   b6: rx count
+	   b7: tx count
+	   b8: gpr
 	*/
 
 	if (urb->actual_length < 8)
@@ -503,24 +438,8 @@ static void sr9700_status(struct usbnet *dev, struct urb *urb)
 
 	buf = urb->transfer_buffer;
 
-	link = !!(buf[0] & 0x40);
-	if (netif_carrier_ok(dev->net) != link) {
-		usbnet_link_change(dev, link, 1);
-		netdev_dbg(dev->net, "Link Status is: %d\n", link);
-	}
-}
-
-static int sr9700_link_reset(struct usbnet *dev)
-{
-	struct ethtool_cmd ecmd;
-
-	mii_check_media(&dev->mii, 1, 1);
-	mii_ethtool_gset(&dev->mii, &ecmd);
-
-	netdev_dbg(dev->net, "link_reset() speed: %d duplex: %d\n",
-		   ecmd.speed, ecmd.duplex);
-
-	return 0;
+	link = !!(buf[0] & NSR_LINKST);
+	sr9700_handle_link_change(dev->net, link);
 }
 
 static const struct driver_info sr9700_driver_info = {
@@ -530,13 +449,16 @@ static const struct driver_info sr9700_driver_info = {
 	.rx_fixup	= sr9700_rx_fixup,
 	.tx_fixup	= sr9700_tx_fixup,
 	.status		= sr9700_status,
-	.link_reset	= sr9700_link_reset,
-	.reset		= sr9700_link_reset,
 };
 
 static const struct usb_device_id products[] = {
 	{
 		USB_DEVICE(0x0fe6, 0x9700),	/* SR9700 device */
+		.driver_info = (unsigned long)&sr9700_driver_info,
+	},
+	{
+		/* SR9700 with virtual driver CD-ROM - interface 0 is the CD-ROM device */
+		USB_DEVICE_INTERFACE_NUMBER(0x0fe6, 0x9702, 1),
 		.driver_info = (unsigned long)&sr9700_driver_info,
 	},
 	{},			/* END */

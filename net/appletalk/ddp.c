@@ -233,7 +233,7 @@ static void atif_drop_device(struct net_device *dev)
 static struct atalk_iface *atif_add_device(struct net_device *dev,
 					   struct atalk_addr *sa)
 {
-	struct atalk_iface *iface = kzalloc(sizeof(*iface), GFP_KERNEL);
+	struct atalk_iface *iface = kzalloc_obj(*iface);
 
 	if (!iface)
 		goto out;
@@ -564,7 +564,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 	}
 
 	if (!rt) {
-		rt = kzalloc(sizeof(*rt), GFP_ATOMIC);
+		rt = kzalloc_obj(*rt, GFP_ATOMIC);
 
 		retval = -ENOBUFS;
 		if (!rt)

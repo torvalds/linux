@@ -244,7 +244,7 @@ static int smssdio_probe(struct sdio_func *func,
 
 	board_id = id->driver_data;
 
-	smsdev = kzalloc(sizeof(struct smssdio_device), GFP_KERNEL);
+	smsdev = kzalloc_obj(struct smssdio_device);
 	if (!smsdev)
 		return -ENOMEM;
 

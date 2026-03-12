@@ -387,7 +387,7 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct device *dev = subdev->device->dev;
 
-	if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
+	if (!(node = kzalloc_obj(*node)))
 		return -ENOMEM;
 	*_node = &node->base;
 
@@ -577,7 +577,7 @@ gk20a_instmem_new(struct nvkm_device *device, enum nvkm_subdev_type type, int in
 	struct nvkm_device_tegra *tdev = device->func->tegra(device);
 	struct gk20a_instmem *imem;
 
-	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
+	if (!(imem = kzalloc_obj(*imem)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(&gk20a_instmem, device, type, inst, &imem->base);
 	mutex_init(&imem->lock);

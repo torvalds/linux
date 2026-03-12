@@ -212,7 +212,7 @@ static int hclge_get_ring_chain_from_mbx(
 	cur_chain = ring_chain;
 
 	for (i = 1; i < ring_num; i++) {
-		new_chain = kzalloc(sizeof(*new_chain), GFP_KERNEL);
+		new_chain = kzalloc_obj(*new_chain);
 		if (!new_chain)
 			goto err;
 

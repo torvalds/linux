@@ -24,7 +24,7 @@ static ssize_t fw_version_show(struct device *dev,
 	pm_runtime_put_autosuspend(cdev->dev);
 
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	return sysfs_emit(buf, "%d.%d.%d.%d\n", version.type, version.major,
 			  version.minor, version.build);

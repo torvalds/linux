@@ -220,7 +220,7 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 			return;
 		}
 
-		fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
+		fil = kzalloc_obj(struct qlcnic_filter, GFP_ATOMIC);
 		if (!fil)
 			return;
 
@@ -346,7 +346,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 		return;
 	}
 
-	fil = kzalloc(sizeof(struct qlcnic_filter), GFP_ATOMIC);
+	fil = kzalloc_obj(struct qlcnic_filter, GFP_ATOMIC);
 	if (!fil)
 		return;
 

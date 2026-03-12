@@ -12,10 +12,3 @@ GPIO
     gpio-sim
     gpio-virtuser
     Obsolete APIs <obsolete>
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

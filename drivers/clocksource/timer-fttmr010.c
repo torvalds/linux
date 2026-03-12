@@ -295,7 +295,7 @@ static int __init fttmr010_common_init(struct device_node *np,
 		return ret;
 	}
 
-	fttmr010 = kzalloc(sizeof(*fttmr010), GFP_KERNEL);
+	fttmr010 = kzalloc_obj(*fttmr010);
 	if (!fttmr010) {
 		ret = -ENOMEM;
 		goto out_disable_clock;

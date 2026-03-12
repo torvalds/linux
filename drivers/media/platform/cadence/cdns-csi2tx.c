@@ -573,7 +573,7 @@ static int csi2tx_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	csi2tx = kzalloc(sizeof(*csi2tx), GFP_KERNEL);
+	csi2tx = kzalloc_obj(*csi2tx);
 	if (!csi2tx)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, csi2tx);

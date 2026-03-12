@@ -44,6 +44,7 @@ struct mlx5e_accel_fs_psp_prot {
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *miss_group;
 	struct mlx5_flow_handle *miss_rule;
+	struct mlx5_modify_hdr *rx_modify_hdr;
 	struct mlx5_flow_destination default_dest;
 	struct mlx5e_psp_rx_err rx_err;
 	u32 refcnt;
@@ -141,7 +142,7 @@ static int accel_psp_fs_rx_err_add_rule(struct mlx5e_psp_fs *fs,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -286,11 +287,17 @@ out_err:
 	return err;
 }
 
-static void accel_psp_fs_rx_fs_destroy(struct mlx5e_accel_fs_psp_prot *fs_prot)
+static void accel_psp_fs_rx_fs_destroy(struct mlx5e_psp_fs *fs,
+				       struct mlx5e_accel_fs_psp_prot *fs_prot)
 {
 	if (fs_prot->def_rule) {
 		mlx5_del_flow_rules(fs_prot->def_rule);
 		fs_prot->def_rule = NULL;
+	}
+
+	if (fs_prot->rx_modify_hdr) {
+		mlx5_modify_header_dealloc(fs->mdev, fs_prot->rx_modify_hdr);
+		fs_prot->rx_modify_hdr = NULL;
 	}
 
 	if (fs_prot->miss_rule) {
@@ -337,7 +344,7 @@ static int accel_psp_fs_rx_create_ft(struct mlx5e_psp_fs *fs,
 	int err = 0;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!flow_group_in || !spec) {
 		err = -ENOMEM;
 		goto out;
@@ -396,6 +403,7 @@ static int accel_psp_fs_rx_create_ft(struct mlx5e_psp_fs *fs,
 		modify_hdr = NULL;
 		goto out_err;
 	}
+	fs_prot->rx_modify_hdr = modify_hdr;
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			  MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT |
@@ -416,7 +424,7 @@ static int accel_psp_fs_rx_create_ft(struct mlx5e_psp_fs *fs,
 	goto out;
 
 out_err:
-	accel_psp_fs_rx_fs_destroy(fs_prot);
+	accel_psp_fs_rx_fs_destroy(fs, fs_prot);
 out:
 	kvfree(flow_group_in);
 	kvfree(spec);
@@ -433,7 +441,7 @@ static int accel_psp_fs_rx_destroy(struct mlx5e_psp_fs *fs, enum accel_fs_psp_ty
 	/* The netdev unreg already happened, so all offloaded rule are already removed */
 	fs_prot = &accel_psp->fs_prot[type];
 
-	accel_psp_fs_rx_fs_destroy(fs_prot);
+	accel_psp_fs_rx_fs_destroy(fs, fs_prot);
 
 	accel_psp_fs_rx_err_destroy_ft(fs, &fs_prot->rx_err);
 
@@ -552,7 +560,7 @@ static int accel_psp_fs_init_rx(struct mlx5e_psp_fs *fs)
 	enum accel_fs_psp_type i;
 	int err;
 
-	accel_psp = kzalloc(sizeof(*accel_psp), GFP_KERNEL);
+	accel_psp = kzalloc_obj(*accel_psp);
 	if (!accel_psp)
 		return -ENOMEM;
 
@@ -678,7 +686,7 @@ static int accel_psp_fs_tx_create_ft_table(struct mlx5e_psp_fs *fs)
 	struct mlx5_flow_group *fg;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!spec || !in) {
 		err = -ENOMEM;
@@ -807,7 +815,7 @@ static int accel_psp_fs_init_tx(struct mlx5e_psp_fs *fs)
 	if (!ns)
 		return -EOPNOTSUPP;
 
-	tx_fs = kzalloc(sizeof(*tx_fs), GFP_KERNEL);
+	tx_fs = kzalloc_obj(*tx_fs);
 	if (!tx_fs)
 		return -ENOMEM;
 
@@ -888,7 +896,7 @@ static struct mlx5e_psp_fs *mlx5e_accel_psp_fs_init(struct mlx5e_priv *priv)
 	struct mlx5e_psp_fs *fs;
 	int err = 0;
 
-	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
+	fs = kzalloc_obj(*fs);
 	if (!fs)
 		return ERR_PTR(-ENOMEM);
 
@@ -1119,7 +1127,7 @@ int mlx5e_psp_init(struct mlx5e_priv *priv)
 		return 0;
 	}
 
-	psp = kzalloc(sizeof(*psp), GFP_KERNEL);
+	psp = kzalloc_obj(*psp);
 	if (!psp)
 		return -ENOMEM;
 

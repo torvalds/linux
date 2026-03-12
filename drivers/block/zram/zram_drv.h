@@ -65,10 +65,15 @@ enum zram_pageflags {
  */
 struct zram_table_entry {
 	unsigned long handle;
-	unsigned long flags;
+	union {
+		unsigned long __lock;
+		struct attr {
+			u32 flags;
 #ifdef CONFIG_ZRAM_TRACK_ENTRY_ACTIME
-	ktime_t ac_time;
+			u32 ac_time;
 #endif
+		} attr;
+	};
 	struct lockdep_map dep_map;
 };
 
@@ -106,8 +111,8 @@ struct zram {
 	struct zcomp *comps[ZRAM_MAX_COMPS];
 	struct zcomp_params params[ZRAM_MAX_COMPS];
 	struct gendisk *disk;
-	/* Prevent concurrent execution of device init */
-	struct rw_semaphore init_lock;
+	/* Locks the device either in exclusive or in shared mode */
+	struct rw_semaphore dev_lock;
 	/*
 	 * the number of pages zram can consume for storing compressed data
 	 */
@@ -128,6 +133,7 @@ struct zram {
 #ifdef CONFIG_ZRAM_WRITEBACK
 	struct file *backing_dev;
 	bool wb_limit_enable;
+	bool wb_compressed;
 	u32 wb_batch_size;
 	u64 bd_wb_limit;
 	struct block_device *bdev;
@@ -137,6 +143,5 @@ struct zram {
 #ifdef CONFIG_ZRAM_MEMORY_TRACKING
 	struct dentry *debugfs_dir;
 #endif
-	atomic_t pp_in_progress;
 };
 #endif

@@ -23,7 +23,6 @@ test_tcpnotify_user
 test_libbpf
 xdping
 test_cpp
-test_progs_verification_cert
 *.d
 *.subskel.h
 *.skel.h
@@ -45,3 +44,6 @@ xdp_synproxy
 xdp_hw_metadata
 xdp_features
 verification_cert.h
+*.BTF
+*.BTF_ids
+*.BTF.base

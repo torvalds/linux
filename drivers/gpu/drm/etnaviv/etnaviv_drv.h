@@ -48,6 +48,9 @@ struct etnaviv_drm_private {
 	/* list of GEM objects: */
 	struct mutex gem_lock;
 	struct list_head gem_list;
+
+	/* ppu flop reset data */
+	struct etnaviv_cmdbuf *flop_reset_data_ppu;
 };
 
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,

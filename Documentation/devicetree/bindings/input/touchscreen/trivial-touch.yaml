@@ -23,9 +23,6 @@ properties:
       # Hynitron cstxxx series touchscreen controller
       - hynitron,cst340
       # Ilitek I2C Touchscreen Controller
-      - ilitek,ili210x
-      - ilitek,ili2117
-      - ilitek,ili2120
       - ilitek,ili2130
       - ilitek,ili2131
       - ilitek,ili2132
@@ -33,7 +30,6 @@ properties:
       - ilitek,ili2322
       - ilitek,ili2323
       - ilitek,ili2326
-      - ilitek,ili251x
       - ilitek,ili2520
       - ilitek,ili2521
       # MAXI MAX11801 Resistive touch screen controller with i2c interface

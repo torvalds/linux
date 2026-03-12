@@ -31,6 +31,7 @@
 #include "callchain.h"
 #include "branch.h"
 #include "symbol.h"
+#include "thread.h"
 #include "util.h"
 #include "../perf.h"
 
@@ -1042,7 +1043,7 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
 		struct map_symbol ms = {
-			.maps = maps__get(list->ms.maps),
+			.thread = thread__get(list->ms.thread),
 			.map = map__get(list->ms.map),
 		};
 		callchain_cursor_append(cursor, list->ip, &ms, false, NULL, 0, 0, 0, list->srcline);
@@ -1147,10 +1148,11 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
 			bool hide_unresolved)
 {
-	struct machine *machine = node->ms.maps ? maps__machine(node->ms.maps) : NULL;
+	struct machine *machine = NULL;
 
-	maps__put(al->maps);
-	al->maps = maps__get(node->ms.maps);
+	if (node->ms.thread)
+		machine = maps__machine(thread__maps(node->ms.thread));
+
 	map__put(al->map);
 	al->map = map__get(node->ms.map);
 	al->sym = node->ms.sym;
@@ -1163,7 +1165,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 		if (al->map == NULL)
 			goto out;
 	}
-	if (maps__equal(al->maps, machine__kernel_maps(machine))) {
+	if (maps__equal(thread__maps(al->thread), machine__kernel_maps(machine))) {
 		if (machine__is_host(machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';
@@ -1679,7 +1681,7 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 		map_symbol__exit(&node->ms);
 }
 
-void callchain_param_setup(u64 sample_type, const char *arch)
+void callchain_param_setup(u64 sample_type, uint16_t e_machine)
 {
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
@@ -1701,7 +1703,7 @@ void callchain_param_setup(u64 sample_type, const char *arch)
 	 * erroneous entries. Always skipping the LR and starting from the FP
 	 * can result in missing entries.
 	 */
-	if (callchain_param.record_mode == CALLCHAIN_FP && !strcmp(arch, "arm64"))
+	if (callchain_param.record_mode == CALLCHAIN_FP && e_machine == EM_AARCH64)
 		dwarf_callchain_users = true;
 }
 

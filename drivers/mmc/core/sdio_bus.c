@@ -232,6 +232,15 @@ static void sdio_bus_remove(struct device *dev)
 		pm_runtime_put_sync(dev);
 }
 
+static void sdio_bus_shutdown(struct device *dev)
+{
+	struct sdio_driver *drv = to_sdio_driver(dev->driver);
+	struct sdio_func *func = dev_to_sdio_func(dev);
+
+	if (dev->driver && drv->shutdown)
+		drv->shutdown(func);
+}
+
 static const struct dev_pm_ops sdio_bus_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_generic_suspend, pm_generic_resume)
 	SET_RUNTIME_PM_OPS(
@@ -248,6 +257,7 @@ static const struct bus_type sdio_bus_type = {
 	.uevent		= sdio_bus_uevent,
 	.probe		= sdio_bus_probe,
 	.remove		= sdio_bus_remove,
+	.shutdown	= sdio_bus_shutdown,
 	.pm		= &sdio_bus_pm_ops,
 };
 
@@ -261,6 +271,14 @@ void sdio_unregister_bus(void)
 	bus_unregister(&sdio_bus_type);
 }
 
+static void sdio_legacy_shutdown(struct sdio_func *func)
+{
+	struct device *dev = &func->dev;
+	struct device_driver *driver = dev->driver;
+
+	driver->shutdown(dev);
+}
+
 /**
  *	__sdio_register_driver - register a function driver
  *	@drv: SDIO function driver
@@ -271,6 +289,13 @@ int __sdio_register_driver(struct sdio_driver *drv, struct module *owner)
 	drv->drv.name = drv->name;
 	drv->drv.bus = &sdio_bus_type;
 	drv->drv.owner = owner;
+
+	/*
+	 * This driver needs updating. Note that driver_register() warns about
+	 * this, so we're not adding another warning here.
+	 */
+	if (!drv->shutdown && drv->drv.shutdown)
+		drv->shutdown = sdio_legacy_shutdown;
 
 	return driver_register(&drv->drv);
 }
@@ -312,7 +337,7 @@ struct sdio_func *sdio_alloc_func(struct mmc_card *card)
 {
 	struct sdio_func *func;
 
-	func = kzalloc(sizeof(struct sdio_func), GFP_KERNEL);
+	func = kzalloc_obj(struct sdio_func);
 	if (!func)
 		return ERR_PTR(-ENOMEM);
 

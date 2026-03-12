@@ -17,7 +17,7 @@ struct dpu_hw_vbif;
  */
 struct dpu_hw_vbif_ops {
 	/**
-	 * set_limit_conf - set transaction limit config
+	 * @set_limit_conf: set transaction limit config
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @rd: true for read limit; false for write limit
@@ -27,7 +27,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id, bool rd, u32 limit);
 
 	/**
-	 * get_limit_conf - get transaction limit config
+	 * @get_limit_conf: get transaction limit config
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @rd: true for read limit; false for write limit
@@ -37,7 +37,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id, bool rd);
 
 	/**
-	 * set_halt_ctrl - set halt control
+	 * @set_halt_ctrl: set halt control
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @enable: halt control enable
@@ -46,7 +46,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id, bool enable);
 
 	/**
-	 * get_halt_ctrl - get halt control
+	 * @get_halt_ctrl: get halt control
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @return: halt control enable
@@ -55,7 +55,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id);
 
 	/**
-	 * set_qos_remap - set QoS priority remap
+	 * @set_qos_remap: set QoS priority remap
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @level: priority level
@@ -65,7 +65,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id, u32 level, u32 remap_level);
 
 	/**
-	 * set_mem_type - set memory type
+	 * @set_mem_type: set memory type
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 * @value: memory type value
@@ -74,7 +74,7 @@ struct dpu_hw_vbif_ops {
 			u32 xin_id, u32 value);
 
 	/**
-	 * clear_errors - clear any vbif errors
+	 * @clear_errors: clear any vbif errors
 	 *	This function clears any detected pending/source errors
 	 *	on the VBIF interface, and optionally returns the detected
 	 *	error mask(s).
@@ -86,7 +86,7 @@ struct dpu_hw_vbif_ops {
 		u32 *pnd_errors, u32 *src_errors);
 
 	/**
-	 * set_write_gather_en - set write_gather enable
+	 * @set_write_gather_en: set write_gather enable
 	 * @vbif: vbif context driver
 	 * @xin_id: client interface identifier
 	 */

@@ -455,7 +455,7 @@ static int rt700_sdw_probe(struct sdw_slave *slave,
 	return rt700_init(&slave->dev, sdw_regmap, regmap, slave);
 }
 
-static int rt700_sdw_remove(struct sdw_slave *slave)
+static void rt700_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt700_priv *rt700 = dev_get_drvdata(&slave->dev);
 
@@ -465,8 +465,6 @@ static int rt700_sdw_remove(struct sdw_slave *slave)
 	}
 
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 static const struct sdw_device_id rt700_id[] = {

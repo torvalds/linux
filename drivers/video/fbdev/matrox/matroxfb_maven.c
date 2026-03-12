@@ -1260,7 +1260,7 @@ static int maven_probe(struct i2c_client *client)
 					      I2C_FUNC_NOSTART |
 					      I2C_FUNC_PROTOCOL_MANGLING))
 		goto ERROR0;
-	if (!(data = kzalloc(sizeof(*data), GFP_KERNEL))) {
+	if (!(data = kzalloc_obj(*data))) {
 		err = -ENOMEM;
 		goto ERROR0;
 	}

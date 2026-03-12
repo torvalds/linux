@@ -117,11 +117,13 @@ mlx5_fs_hws_pr_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 		return NULL;
 	pr_pool_ctx = pool_ctx;
 	bulk_len = MLX5_FS_HWS_DEFAULT_BULK_LEN;
-	pr_bulk = kvzalloc(struct_size(pr_bulk, prs_data, bulk_len), GFP_KERNEL);
+	pr_bulk = kvzalloc_flex(*pr_bulk, prs_data, bulk_len);
 	if (!pr_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &pr_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&pr_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &pr_bulk->fs_bulk))
 		goto free_pr_bulk;
 
 	for (i = 0; i < bulk_len; i++) {
@@ -184,7 +186,7 @@ int mlx5_fs_hws_pr_pool_init(struct mlx5_fs_pool *pr_pool,
 	    reformat_type != MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2)
 		return -EOPNOTSUPP;
 
-	pr_pool_ctx = kzalloc(sizeof(*pr_pool_ctx), GFP_KERNEL);
+	pr_pool_ctx = kzalloc_obj(*pr_pool_ctx);
 	if (!pr_pool_ctx)
 		return -ENOMEM;
 	pr_pool_ctx->reformat_type = reformat_type;
@@ -271,11 +273,13 @@ mlx5_fs_hws_mh_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 
 	pattern = pool_ctx;
 	bulk_len = MLX5_FS_HWS_DEFAULT_BULK_LEN;
-	mh_bulk = kvzalloc(struct_size(mh_bulk, mhs_data, bulk_len), GFP_KERNEL);
+	mh_bulk = kvzalloc_flex(*mh_bulk, mhs_data, bulk_len);
 	if (!mh_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &mh_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&mh_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &mh_bulk->fs_bulk))
 		goto free_mh_bulk;
 
 	for (int i = 0; i < bulk_len; i++) {
@@ -327,7 +331,7 @@ int mlx5_fs_hws_mh_pool_init(struct mlx5_fs_pool *fs_hws_mh_pool,
 {
 	struct mlx5hws_action_mh_pattern *pool_pattern;
 
-	pool_pattern = kzalloc(sizeof(*pool_pattern), GFP_KERNEL);
+	pool_pattern = kzalloc_obj(*pool_pattern);
 	if (!pool_pattern)
 		return -ENOMEM;
 	pool_pattern->data = kmemdup(pattern->data, pattern->sz, GFP_KERNEL);

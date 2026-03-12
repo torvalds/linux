@@ -79,6 +79,7 @@ static const char *const rds_stat_names[] = {
 	"recv_bytes_added_to_sock",
 	"recv_bytes_freed_fromsock",
 	"send_stuck_rm",
+	"mprds_catchup_tx0_retries",
 };
 
 void rds_stats_info_copy(struct rds_info_iterator *iter,

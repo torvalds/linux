@@ -27,7 +27,7 @@ struct folio_queue *netfs_folioq_alloc(unsigned int rreq_id, gfp_t gfp,
 {
 	struct folio_queue *fq;
 
-	fq = kmalloc(sizeof(*fq), gfp);
+	fq = kmalloc_obj(*fq, gfp);
 	if (fq) {
 		netfs_stat(&netfs_n_folioq);
 		folioq_init(fq, rreq_id);

@@ -501,7 +501,7 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;
@@ -627,9 +627,8 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kcalloc(mtd->numeraseregions,
-				    sizeof(struct mtd_erase_region_info),
-				    GFP_KERNEL);
+	mtd->eraseregions = kzalloc_objs(struct mtd_erase_region_info,
+					 mtd->numeraseregions);
 	if (!mtd->eraseregions)
 		goto setup_err;
 
@@ -777,13 +776,10 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		}
 
 		numvirtchips = cfi->numchips * numparts;
-		newcfi = kmalloc(struct_size(newcfi, chips, numvirtchips),
-				 GFP_KERNEL);
+		newcfi = kmalloc_flex(*newcfi, chips, numvirtchips);
 		if (!newcfi)
 			return -ENOMEM;
-		shared = kmalloc_array(cfi->numchips,
-				       sizeof(struct flchip_shared),
-				       GFP_KERNEL);
+		shared = kmalloc_objs(struct flchip_shared, cfi->numchips);
 		if (!shared) {
 			kfree(newcfi);
 			return -ENOMEM;

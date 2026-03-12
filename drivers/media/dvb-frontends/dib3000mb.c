@@ -746,7 +746,7 @@ struct dvb_frontend* dib3000mb_attach(const struct dib3000_config* config,
 	struct dib3000_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct dib3000_state), GFP_KERNEL);
+	state = kzalloc_obj(struct dib3000_state);
 	if (state == NULL)
 		goto error;
 

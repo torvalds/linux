@@ -7,9 +7,15 @@
 #include <linux/types.h>
 
 struct dma_fence;
+struct drm_crtc;
 struct drm_device;
+struct drm_framebuffer;
+struct drm_gem_object;
+struct drm_plane_state;
 struct drm_scanout_buffer;
+struct i915_vma;
 struct intel_hdcp_gsc_context;
+struct intel_initial_plane_config;
 struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
@@ -23,6 +29,14 @@ struct intel_display_hdcp_interface {
 	bool (*gsc_check_status)(struct drm_device *drm);
 	struct intel_hdcp_gsc_context *(*gsc_context_alloc)(struct drm_device *drm);
 	void (*gsc_context_free)(struct intel_hdcp_gsc_context *gsc_context);
+};
+
+struct intel_display_initial_plane_interface {
+	void (*vblank_wait)(struct drm_crtc *crtc);
+	struct drm_gem_object *(*alloc_obj)(struct drm_device *drm, struct intel_initial_plane_config *plane_config);
+	int (*setup)(struct drm_plane_state *plane_state, struct intel_initial_plane_config *plane_config,
+		     struct drm_framebuffer *fb, struct i915_vma *vma);
+	void (*config_fini)(struct intel_initial_plane_config *plane_configs);
 };
 
 struct intel_display_irq_interface {
@@ -94,6 +108,9 @@ struct intel_display_stolen_interface {
 struct intel_display_parent_interface {
 	/** @hdcp: HDCP GSC interface */
 	const struct intel_display_hdcp_interface *hdcp;
+
+	/** @initial_plane: Initial plane interface */
+	const struct intel_display_initial_plane_interface *initial_plane;
 
 	/** @irq: IRQ interface */
 	const struct intel_display_irq_interface *irq;

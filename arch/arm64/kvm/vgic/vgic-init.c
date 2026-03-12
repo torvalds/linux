@@ -140,6 +140,10 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		goto out_unlock;
 	}
 
+	kvm->arch.vgic.in_kernel = true;
+	kvm->arch.vgic.vgic_model = type;
+	kvm->arch.vgic.implementation_rev = KVM_VGIC_IMP_REV_LATEST;
+
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		ret = vgic_allocate_private_irqs_locked(vcpu, type);
 		if (ret)
@@ -155,10 +159,6 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 		goto out_unlock;
 	}
-
-	kvm->arch.vgic.in_kernel = true;
-	kvm->arch.vgic.vgic_model = type;
-	kvm->arch.vgic.implementation_rev = KVM_VGIC_IMP_REV_LATEST;
 
 	kvm->arch.vgic.vgic_dist_base = VGIC_ADDR_UNDEF;
 
@@ -199,7 +199,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	int i;
 
 	dist->active_spis = (atomic_t)ATOMIC_INIT(0);
-	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
+	dist->spis = kzalloc_objs(struct vgic_irq, nr_spis, GFP_KERNEL_ACCOUNT);
 	if (!dist->spis)
 		return  -ENOMEM;
 
@@ -269,9 +269,9 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 	if (vgic_cpu->private_irqs)
 		return 0;
 
-	vgic_cpu->private_irqs = kcalloc(VGIC_NR_PRIVATE_IRQS,
-					 sizeof(struct vgic_irq),
-					 GFP_KERNEL_ACCOUNT);
+	vgic_cpu->private_irqs = kzalloc_objs(struct vgic_irq,
+					      VGIC_NR_PRIVATE_IRQS,
+					      GFP_KERNEL_ACCOUNT);
 
 	if (!vgic_cpu->private_irqs)
 		return -ENOMEM;
@@ -654,7 +654,7 @@ static struct gic_kvm_info *gic_kvm_info;
 void __init vgic_set_kvm_info(const struct gic_kvm_info *info)
 {
 	BUG_ON(gic_kvm_info != NULL);
-	gic_kvm_info = kmalloc(sizeof(*info), GFP_KERNEL);
+	gic_kvm_info = kmalloc_obj(*gic_kvm_info);
 	if (gic_kvm_info)
 		*gic_kvm_info = *info;
 }

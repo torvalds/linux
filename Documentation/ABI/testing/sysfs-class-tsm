@@ -7,13 +7,3 @@ Description:
 		signals when the PCI layer is able to support establishment of
 		link encryption and other device-security features coordinated
 		through a platform tsm.
-
-What:		/sys/class/tsm/tsmN/streamH.R.E
-Contact:	linux-pci@vger.kernel.org
-Description:
-		(RO) When a host bridge has established a secure connection via
-		the platform TSM, symlink appears. The primary function of this
-		is have a system global review of TSM resource consumption
-		across host bridges. The link points to the endpoint PCI device
-		and matches the same link published by the host bridge. See
-		Documentation/ABI/testing/sysfs-devices-pci-host-bridge.

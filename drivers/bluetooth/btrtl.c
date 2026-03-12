@@ -524,7 +524,7 @@ static int btrtl_parse_section(struct hci_dev *hdev,
 			break;
 		}
 
-		subsec = kzalloc(sizeof(*subsec), GFP_KERNEL);
+		subsec = kzalloc_obj(*subsec);
 		if (!subsec)
 			return -ENOMEM;
 		subsec->opcode = opcode;
@@ -828,7 +828,7 @@ static int rtl_download_firmware(struct hci_dev *hdev,
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *rp;
 
-	dl_cmd = kmalloc(sizeof(*dl_cmd), GFP_KERNEL);
+	dl_cmd = kmalloc_obj(*dl_cmd);
 	if (!dl_cmd)
 		return -ENOMEM;
 
@@ -1077,7 +1077,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 	u8 key_id;
 	u8 reg_val[2];
 
-	btrtl_dev = kzalloc(sizeof(*btrtl_dev), GFP_KERNEL);
+	btrtl_dev = kzalloc_obj(*btrtl_dev);
 	if (!btrtl_dev) {
 		ret = -ENOMEM;
 		goto err_alloc;

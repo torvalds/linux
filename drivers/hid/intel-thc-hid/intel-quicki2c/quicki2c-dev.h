@@ -213,7 +213,7 @@ struct quicki2c_device {
 	u8 *report_descriptor;
 	u8 *input_buf;
 	u8 *report_buf;
-	u32 report_len;
+	size_t report_len;
 
 	wait_queue_head_t reset_ack_wq;
 	bool reset_ack;

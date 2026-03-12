@@ -1403,7 +1403,7 @@ struct dvb_frontend * dib7000m_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 {
 	struct dvb_frontend *demod;
 	struct dib7000m_state *st;
-	st = kzalloc(sizeof(struct dib7000m_state), GFP_KERNEL);
+	st = kzalloc_obj(struct dib7000m_state);
 	if (st == NULL)
 		return NULL;
 

@@ -359,7 +359,7 @@ static int gred_offload_dump_stats(struct Qdisc *sch)
 	unsigned int i;
 	int ret;
 
-	hw_stats = kzalloc(sizeof(*hw_stats), GFP_KERNEL);
+	hw_stats = kzalloc_obj(*hw_stats);
 	if (!hw_stats)
 		return -ENOMEM;
 
@@ -700,7 +700,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 			prio = ctl->prio;
 	}
 
-	prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
+	prealloc = kzalloc_obj(*prealloc);
 	sch_tree_lock(sch);
 
 	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P, &prealloc,
@@ -757,7 +757,7 @@ static int gred_init(struct Qdisc *sch, struct nlattr *opt,
 		             * psched_mtu(qdisc_dev(sch));
 
 	if (qdisc_dev(sch)->netdev_ops->ndo_setup_tc) {
-		table->opt = kzalloc(sizeof(*table->opt), GFP_KERNEL);
+		table->opt = kzalloc_obj(*table->opt);
 		if (!table->opt)
 			return -ENOMEM;
 	}

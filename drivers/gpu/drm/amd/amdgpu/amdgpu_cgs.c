@@ -349,7 +349,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				strscpy(fw_name, "amdgpu/vega20_smc.bin");
 				break;
 			default:
-				DRM_ERROR("SMC firmware not supported\n");
+				drm_err(adev_to_drm(adev), "SMC firmware not supported\n");
 				return -EINVAL;
 			}
 
@@ -357,7 +357,8 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 						   AMDGPU_UCODE_REQUIRED,
 						   "%s", fw_name);
 			if (err) {
-				DRM_ERROR("Failed to load firmware \"%s\"", fw_name);
+				drm_err(adev_to_drm(adev),
+					"Failed to load firmware \"%s\"\n", fw_name);
 				amdgpu_ucode_release(&adev->pm.fw);
 				return err;
 			}
@@ -398,11 +399,10 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 
 struct cgs_device *amdgpu_cgs_create_device(struct amdgpu_device *adev)
 {
-	struct amdgpu_cgs_device *cgs_device =
-		kmalloc(sizeof(*cgs_device), GFP_KERNEL);
+	struct amdgpu_cgs_device *cgs_device = kmalloc_obj(*cgs_device);
 
 	if (!cgs_device) {
-		DRM_ERROR("Couldn't allocate CGS device structure\n");
+		drm_err(adev_to_drm(adev), "Couldn't allocate CGS device structure\n");
 		return NULL;
 	}
 

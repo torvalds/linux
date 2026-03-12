@@ -12,20 +12,16 @@
 #include <linux/zalloc.h>
 
 static
-struct rb_node *strlist__node_new(struct rblist *rblist, const void *entry)
+struct rb_node *strlist__node_new(struct rblist *rblist __maybe_unused, const void *entry)
 {
 	const char *s = entry;
 	struct rb_node *rc = NULL;
-	struct strlist *strlist = container_of(rblist, struct strlist, rblist);
 	struct str_node *snode = malloc(sizeof(*snode));
 
 	if (snode != NULL) {
-		if (strlist->dupstr) {
-			s = strdup(s);
-			if (s == NULL)
-				goto out_delete;
-		}
-		snode->s = s;
+		snode->s = strdup(s);
+		if (snode->s == NULL)
+			goto out_delete;
 		rc = &snode->rb_node;
 	}
 
@@ -36,20 +32,18 @@ out_delete:
 	return NULL;
 }
 
-static void str_node__delete(struct str_node *snode, bool dupstr)
+static void str_node__delete(struct str_node *snode)
 {
-	if (dupstr)
-		zfree((char **)&snode->s);
+	zfree((char **)&snode->s);
 	free(snode);
 }
 
 static
-void strlist__node_delete(struct rblist *rblist, struct rb_node *rb_node)
+void strlist__node_delete(struct rblist *rblist __maybe_unused, struct rb_node *rb_node)
 {
-	struct strlist *slist = container_of(rblist, struct strlist, rblist);
 	struct str_node *snode = container_of(rb_node, struct str_node, rb_node);
 
-	str_node__delete(snode, slist->dupstr);
+	str_node__delete(snode);
 }
 
 static int strlist__node_cmp(struct rb_node *rb_node, const void *entry)
@@ -139,21 +133,25 @@ out:
 	return err;
 }
 
-static int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir)
+static int strlist__parse_list(struct strlist *slist, const char *list, const char *subst_dir)
 {
-	char *sep;
+	char *sep, *s = strdup(list), *sdup = s;
 	int err;
+
+	if (s == NULL)
+		return -ENOMEM;
 
 	while ((sep = strchr(s, ',')) != NULL) {
 		*sep = '\0';
 		err = strlist__parse_list_entry(slist, s, subst_dir);
-		*sep = ',';
 		if (err != 0)
 			return err;
 		s = sep + 1;
 	}
 
-	return *s ? strlist__parse_list_entry(slist, s, subst_dir) : 0;
+	err = *s ? strlist__parse_list_entry(slist, s, subst_dir) : 0;
+	free(sdup);
+	return err;
 }
 
 struct strlist *strlist__new(const char *list, const struct strlist_config *config)
@@ -161,12 +159,10 @@ struct strlist *strlist__new(const char *list, const struct strlist_config *conf
 	struct strlist *slist = malloc(sizeof(*slist));
 
 	if (slist != NULL) {
-		bool dupstr = true;
 		bool file_only = false;
 		const char *dirname = NULL;
 
 		if (config) {
-			dupstr = !config->dont_dupstr;
 			dirname = config->dirname;
 			file_only = config->file_only;
 		}
@@ -176,7 +172,6 @@ struct strlist *strlist__new(const char *list, const struct strlist_config *conf
 		slist->rblist.node_new    = strlist__node_new;
 		slist->rblist.node_delete = strlist__node_delete;
 
-		slist->dupstr	 = dupstr;
 		slist->file_only = file_only;
 
 		if (list && strlist__parse_list(slist, list, dirname) != 0)

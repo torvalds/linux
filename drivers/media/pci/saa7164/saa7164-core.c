@@ -1238,7 +1238,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	int err, i;
 	u32 version;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (NULL == dev)
 		return -ENOMEM;
 

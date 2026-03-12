@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: spacemit,k1-pinctrl
+    enum:
+      - spacemit,k1-pinctrl
+      - spacemit,k3-pinctrl
 
   reg:
     items:
@@ -29,6 +31,10 @@ properties:
 
   resets:
     maxItems: 1
+
+  spacemit,apbc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to syscon that access the protected register
 
 patternProperties:
   '-cfg$':
@@ -72,10 +78,20 @@ patternProperties:
             enum: [ 0, 1 ]
 
           drive-strength:
-            description: |
-              typical current when output high level.
-              1.8V output: 11, 21, 32, 42 (mA)
-              3.3V output: 7, 10, 13, 16, 19, 23, 26, 29 (mA)
+            description:
+              typical current (in mA) when the output at high level.
+            anyOf:
+              - enum: [ 11, 21, 32, 42 ]
+                description: For K1 SoC, 1.8V voltage output
+
+              - enum: [ 7, 10, 13, 16, 19, 23, 26, 29 ]
+                description: For K1 SoC, 3.3V voltage output
+
+              - enum: [ 2, 4, 6, 7, 9, 11, 13, 14, 21, 23, 25, 26, 28, 30, 31, 33 ]
+                description: For K3 SoC, 1.8V voltage output
+
+              - enum: [ 3, 5, 7, 9, 11, 13, 15, 17, 25, 27, 29, 31, 33, 35, 37, 38 ]
+                description: For K3 SoC, 3.3V voltage output
 
           input-schmitt:
             description: |
@@ -126,6 +142,7 @@ examples:
             clocks = <&syscon_apbc 42>,
                      <&syscon_apbc 94>;
             clock-names = "func", "bus";
+            spacemit,apbc = <&syscon_apbc>;
 
             uart0_2_cfg: uart0-2-cfg {
                 uart0-2-pins {

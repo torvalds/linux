@@ -101,8 +101,7 @@ static int ig3rdma_cfg_regions(struct irdma_hw *hw,
 		return -ENOMEM;
 
 	hw->num_io_regions = le16_to_cpu(idc_priv->num_memory_regions);
-	hw->io_regs = kcalloc(hw->num_io_regions,
-			      sizeof(struct irdma_mmio_region), GFP_KERNEL);
+	hw->io_regs = kzalloc_objs(struct irdma_mmio_region, hw->num_io_regions);
 
 	if (!hw->io_regs) {
 		iounmap(hw->rdma_reg.addr);
@@ -175,7 +174,7 @@ static int ig3rdma_core_probe(struct auxiliary_device *aux_dev,
 	struct irdma_pci_f *rf;
 	int err;
 
-	rf = kzalloc(sizeof(*rf), GFP_KERNEL);
+	rf = kzalloc_obj(*rf);
 	if (!rf)
 		return -ENOMEM;
 

@@ -1164,7 +1164,7 @@ octeon_register_dispatch_fn(struct octeon_device *oct,
 
 		dev_dbg(&oct->pci_dev->dev,
 			"Adding opcode to dispatch list linked list\n");
-		dispatch = kmalloc(sizeof(*dispatch), GFP_KERNEL);
+		dispatch = kmalloc_obj(*dispatch);
 		if (!dispatch)
 			return 1;
 

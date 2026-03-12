@@ -440,7 +440,7 @@ static int qce_skcipher_register_one(const struct qce_skcipher_def *def,
 	struct skcipher_alg *alg;
 	int ret;
 
-	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	tmpl = kzalloc_obj(*tmpl);
 	if (!tmpl)
 		return -ENOMEM;
 

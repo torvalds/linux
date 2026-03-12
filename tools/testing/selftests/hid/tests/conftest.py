@@ -5,6 +5,7 @@
 # Copyright (c) 2017 Benjamin Tissoires <benjamin.tissoires@gmail.com>
 # Copyright (c) 2017 Red Hat, Inc.
 
+from packaging.version import Version
 import platform
 import pytest
 import re
@@ -12,6 +13,19 @@ import resource
 import subprocess
 from .base import HIDTestUdevRule
 from pathlib import Path
+
+
+@pytest.fixture(autouse=True)
+def hidtools_version_check():
+    HIDTOOLS_VERSION = "0.12"
+    try:
+        import hidtools
+
+        version = hidtools.__version__  # type: ignore
+        if Version(version) < Version(HIDTOOLS_VERSION):
+            pytest.skip(reason=f"have hidtools {version}, require >={HIDTOOLS_VERSION}")
+    except Exception:
+        pytest.skip(reason=f"hidtools >={HIDTOOLS_VERSION} required")
 
 
 # See the comment in HIDTestUdevRule, this doesn't set up but it will clean

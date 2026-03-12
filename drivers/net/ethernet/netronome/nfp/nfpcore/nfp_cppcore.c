@@ -802,7 +802,7 @@ int nfp_cpp_area_cache_add(struct nfp_cpp *cpp, size_t size)
 	if (!area)
 		return -ENOMEM;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (!cache) {
 		nfp_cpp_area_free(area);
 		return -ENOMEM;
@@ -1170,7 +1170,7 @@ nfp_cpp_from_operations(const struct nfp_cpp_operations *ops,
 	u32 xpbaddr;
 	size_t tgt;
 
-	cpp = kzalloc(sizeof(*cpp), GFP_KERNEL);
+	cpp = kzalloc_obj(*cpp);
 	if (!cpp) {
 		err = -ENOMEM;
 		goto err_malloc;

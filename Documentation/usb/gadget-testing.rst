@@ -368,14 +368,15 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "midi".
 The MIDI function provides these attributes in its function directory:
 
-	=============== ====================================
-	buflen		MIDI buffer length
-	id		ID string for the USB MIDI adapter
-	in_ports	number of MIDI input ports
-	index		index value for the USB MIDI adapter
-	out_ports	number of MIDI output ports
-	qlen		USB read request queue length
-	=============== ====================================
+	================ ====================================
+	buflen		 MIDI buffer length
+	id		 ID string for the USB MIDI adapter
+	in_ports	 number of MIDI input ports
+	index		 index value for the USB MIDI adapter
+	out_ports	 number of MIDI output ports
+	qlen		 USB read request queue length
+	interface_string USB AudioControl interface string
+	================ ====================================
 
 Testing the MIDI function
 -------------------------
@@ -686,6 +687,7 @@ The SOURCESINK function provides these attributes in its function directory:
 	isoc_mult	0..2 (hs/ss only)
 	isoc_maxburst	0..15 (ss only)
 	bulk_buflen	buffer length
+	bulk_maxburst	0..15 (ss only)
 	bulk_qlen	depth of queue for bulk
 	iso_qlen	depth of queue for iso
 	=============== ==================================

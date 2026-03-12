@@ -67,10 +67,6 @@
 #define SMI330_CHIP_ID 0x42
 #define SMI330_SOFT_RESET_DELAY 2000
 
-/* Non-constant mask variant of FIELD_GET() and FIELD_PREP() */
-#define smi330_field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
-#define smi330_field_prep(_mask, _val) (((_val) << (ffs(_mask) - 1)) & (_mask))
-
 #define SMI330_ACCEL_CHANNEL(_axis) {					\
 	.type = IIO_ACCEL,						\
 	.modified = 1,							\
@@ -361,7 +357,7 @@ static int smi330_get_sensor_config(struct smi330_data *data,
 	if (ret)
 		return ret;
 
-	reg_val = smi330_field_get(attr->mask, reg_val);
+	reg_val = field_get(attr->mask, reg_val);
 
 	if (attr->type == IIO_VAL_INT) {
 		for (i = 0; i < attr->len; i++) {
@@ -410,7 +406,7 @@ static int smi330_set_sensor_config(struct smi330_data *data,
 	if (ret)
 		return ret;
 
-	reg_val = smi330_field_prep(attr->mask, reg_val);
+	reg_val = field_prep(attr->mask, reg_val);
 	ret = regmap_update_bits(data->regmap, reg, attr->mask, reg_val);
 	if (ret)
 		return ret;
@@ -475,7 +471,6 @@ static int smi330_read_avail(struct iio_dev *indio_dev,
 		*vals = smi330_average_attr.vals;
 		*length = smi330_average_attr.len;
 		*type = smi330_average_attr.type;
-		*type = IIO_VAL_INT;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		*vals = smi330_bandwidth_attr.vals;

@@ -72,7 +72,7 @@ static struct ima_key_entry *ima_alloc_key_entry(struct key *keyring,
 	const char *audit_cause = "ENOMEM";
 	struct ima_key_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (entry) {
 		entry->payload = kmemdup(payload, payload_len, GFP_KERNEL);
 		entry->keyring_name = kstrdup(keyring->description,

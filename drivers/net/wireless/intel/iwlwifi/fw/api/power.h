@@ -766,7 +766,7 @@ enum iwl_6ghz_ap_type {
  * AP_TX_POWER_CONSTRAINTS_CMD
  * Used for VLP/LPI/AFC Access Point power constraints for 6GHz channels
  * @link_id: linkId
- * @ap_type: see &enum iwl_ap_type
+ * @ap_type: see &enum iwl_6ghz_ap_type
  * @eirp_pwr: 8-bit 2s complement signed integer in the range
  *	-64 dBm to 63 dBm with a 0.5 dB step
  *	default &DEFAULT_TPE_TX_POWER (no maximum limit)

@@ -187,7 +187,7 @@ static void pxa1928_clk_reset_init(struct device_node *np,
 	int i, base, nr_resets;
 
 	nr_resets = ARRAY_SIZE(apbc_gate_clks);
-	cells = kcalloc(nr_resets, sizeof(*cells), GFP_KERNEL);
+	cells = kzalloc_objs(*cells, nr_resets);
 	if (!cells)
 		return;
 
@@ -208,7 +208,7 @@ static void __init pxa1928_mpmu_clk_init(struct device_node *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 
-	pxa_unit = kzalloc(sizeof(*pxa_unit), GFP_KERNEL);
+	pxa_unit = kzalloc_obj(*pxa_unit);
 	if (!pxa_unit)
 		return;
 
@@ -227,7 +227,7 @@ static void __init pxa1928_apmu_clk_init(struct device_node *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 
-	pxa_unit = kzalloc(sizeof(*pxa_unit), GFP_KERNEL);
+	pxa_unit = kzalloc_obj(*pxa_unit);
 	if (!pxa_unit)
 		return;
 
@@ -248,7 +248,7 @@ static void __init pxa1928_apbc_clk_init(struct device_node *np)
 {
 	struct pxa1928_clk_unit *pxa_unit;
 
-	pxa_unit = kzalloc(sizeof(*pxa_unit), GFP_KERNEL);
+	pxa_unit = kzalloc_obj(*pxa_unit);
 	if (!pxa_unit)
 		return;
 

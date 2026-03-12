@@ -244,14 +244,11 @@ br_multicast_port_vid_to_port_ctx(struct net_bridge_port *port, u16 vid)
 
 	lockdep_assert_held_once(&port->br->multicast_lock);
 
-	if (!br_opt_get(port->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED))
-		return NULL;
-
 	/* Take RCU to access the vlan. */
 	rcu_read_lock();
 
 	vlan = br_vlan_find(nbp_vlan_group_rcu(port), vid);
-	if (vlan && !br_multicast_port_ctx_vlan_disabled(&vlan->port_mcast_ctx))
+	if (vlan)
 		pmctx = &vlan->port_mcast_ctx;
 
 	rcu_read_unlock();
@@ -701,7 +698,10 @@ br_multicast_port_ngroups_inc_one(struct net_bridge_mcast_port *pmctx,
 	u32 max = READ_ONCE(pmctx->mdb_max_entries);
 	u32 n = READ_ONCE(pmctx->mdb_n_entries);
 
-	if (max && n >= max) {
+	/* enforce the max limit when it's a port pmctx or a port-vlan pmctx
+	 * with snooping enabled
+	 */
+	if (!br_multicast_port_ctx_vlan_disabled(pmctx) && max && n >= max) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "%s is already in %u groups, and mcast_max_groups=%u",
 				       what, n, max);
 		return -E2BIG;
@@ -736,9 +736,7 @@ static int br_multicast_port_ngroups_inc(struct net_bridge_port *port,
 		return err;
 	}
 
-	/* Only count on the VLAN context if VID is given, and if snooping on
-	 * that VLAN is enabled.
-	 */
+	/* Only count on the VLAN context if VID is given */
 	if (!group->vid)
 		return 0;
 
@@ -1292,7 +1290,7 @@ struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
 		return ERR_PTR(-E2BIG);
 	}
 
-	mp = kzalloc(sizeof(*mp), GFP_ATOMIC);
+	mp = kzalloc_obj(*mp, GFP_ATOMIC);
 	if (unlikely(!mp))
 		return ERR_PTR(-ENOMEM);
 
@@ -1383,7 +1381,7 @@ br_multicast_new_group_src(struct net_bridge_port_group *pg, struct br_ip *src_i
 #endif
 	}
 
-	grp_src = kzalloc(sizeof(*grp_src), GFP_ATOMIC);
+	grp_src = kzalloc_obj(*grp_src, GFP_ATOMIC);
 	if (unlikely(!grp_src))
 		return NULL;
 
@@ -1416,7 +1414,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 	if (err)
 		return NULL;
 
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	p = kzalloc_obj(*p, GFP_ATOMIC);
 	if (unlikely(!p)) {
 		NL_SET_ERR_MSG_MOD(extack, "Couldn't allocate new port group");
 		goto dec_out;
@@ -2011,6 +2009,18 @@ void br_multicast_port_ctx_init(struct net_bridge_port *port,
 	timer_setup(&pmctx->ip6_own_query.timer,
 		    br_ip6_multicast_port_query_expired, 0);
 #endif
+	/* initialize mdb_n_entries if a new port vlan is being created */
+	if (vlan) {
+		struct net_bridge_port_group *pg;
+		u32 n = 0;
+
+		spin_lock_bh(&port->br->multicast_lock);
+		hlist_for_each_entry(pg, &port->mglist, mglist)
+			if (pg->key.addr.vid == vlan->vid)
+				n++;
+		WRITE_ONCE(pmctx->mdb_n_entries, n);
+		spin_unlock_bh(&port->br->multicast_lock);
+	}
 }
 
 void br_multicast_port_ctx_deinit(struct net_bridge_mcast_port *pmctx)
@@ -2093,25 +2103,6 @@ static void __br_multicast_enable_port_ctx(struct net_bridge_mcast_port *pmctx)
 	if (pmctx->multicast_router == MDB_RTR_TYPE_PERM) {
 		br_ip4_multicast_add_router(brmctx, pmctx);
 		br_ip6_multicast_add_router(brmctx, pmctx);
-	}
-
-	if (br_multicast_port_ctx_is_vlan(pmctx)) {
-		struct net_bridge_port_group *pg;
-		u32 n = 0;
-
-		/* The mcast_n_groups counter might be wrong. First,
-		 * BR_VLFLAG_MCAST_ENABLED is toggled before temporary entries
-		 * are flushed, thus mcast_n_groups after the toggle does not
-		 * reflect the true values. And second, permanent entries added
-		 * while BR_VLFLAG_MCAST_ENABLED was disabled, are not reflected
-		 * either. Thus we have to refresh the counter.
-		 */
-
-		hlist_for_each_entry(pg, &pmctx->port->mglist, mglist) {
-			if (pg->key.addr.vid == pmctx->vlan->vid)
-				n++;
-		}
-		WRITE_ONCE(pmctx->mdb_n_entries, n);
 	}
 }
 
@@ -4900,7 +4891,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 			continue;
 
 		hlist_for_each_entry_rcu(group, &port->mglist, mglist) {
-			entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+			entry = kmalloc_obj(*entry, GFP_ATOMIC);
 			if (!entry)
 				goto unlock;
 
@@ -5201,7 +5192,7 @@ void br_multicast_get_stats(const struct net_bridge *br,
 
 		do {
 			start = u64_stats_fetch_begin(&cpu_stats->syncp);
-			memcpy(&temp, &cpu_stats->mstats, sizeof(temp));
+			u64_stats_copy(&temp, &cpu_stats->mstats, sizeof(temp));
 		} while (u64_stats_fetch_retry(&cpu_stats->syncp, start));
 
 		mcast_stats_add_dir(tdst.igmp_v1queries, temp.igmp_v1queries);

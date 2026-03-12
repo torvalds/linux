@@ -218,6 +218,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
+	struct f2fs_lock_context lc;
 	struct folio *ifolio, *folio;
 	int err = 0;
 
@@ -235,7 +236,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi, &lc);
 
 	ifolio = f2fs_get_inode_folio(sbi, inode->i_ino);
 	if (IS_ERR(ifolio)) {
@@ -250,7 +251,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
 
 	f2fs_put_dnode(&dn);
 out:
-	f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi, &lc);
 
 	f2fs_folio_put(folio, true);
 
@@ -597,13 +598,14 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct folio *ifolio;
 	struct f2fs_filename fname;
+	struct f2fs_lock_context lc;
 	void *inline_dentry = NULL;
 	int err = 0;
 
 	if (!f2fs_has_inline_dentry(dir))
 		return 0;
 
-	f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi, &lc);
 
 	err = f2fs_setup_filename(dir, &dentry->d_name, 0, &fname);
 	if (err)
@@ -628,7 +630,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
 out_fname:
 	f2fs_free_filename(&fname);
 out:
-	f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi, &lc);
 	return err;
 }
 

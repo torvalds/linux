@@ -34,12 +34,6 @@
 
 #define pr_fmt(fmt) "amdgpu: " fmt
 
-#ifdef dev_fmt
-#undef dev_fmt
-#endif
-
-#define dev_fmt(fmt) "amdgpu: " fmt
-
 #include "amdgpu_ctx.h"
 
 #include <linux/atomic.h>
@@ -87,6 +81,7 @@
 #include "amdgpu_sdma.h"
 #include "amdgpu_lsdma.h"
 #include "amdgpu_nbio.h"
+#include "amdgpu_reg_access.h"
 #include "amdgpu_hdp.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
@@ -116,6 +111,7 @@
 #include "amdgpu_reg_state.h"
 #include "amdgpu_userq.h"
 #include "amdgpu_eviction_fence.h"
+#include "amdgpu_ip.h"
 #if defined(CONFIG_DRM_AMD_ISP)
 #include "amdgpu_isp.h"
 #endif
@@ -222,9 +218,7 @@ extern struct amdgpu_watchdog_timer amdgpu_watchdog_timer;
 extern int amdgpu_async_gfx_ring;
 extern int amdgpu_mcbp;
 extern int amdgpu_discovery;
-extern int amdgpu_mes;
 extern int amdgpu_mes_log_enable;
-extern int amdgpu_mes_kiq;
 extern int amdgpu_uni_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
@@ -273,6 +267,8 @@ extern int amdgpu_rebar;
 
 extern int amdgpu_wbrf;
 extern int amdgpu_user_queue;
+
+extern uint amdgpu_hdmi_hpd_debounce_delay_ms;
 
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
@@ -361,59 +357,6 @@ enum amdgpu_kiq_irq {
 #define MAX_KIQ_REG_WAIT       5000 /* in usecs, 5ms */
 #define MAX_KIQ_REG_BAILOUT_INTERVAL   5 /* in msecs, 5ms */
 #define MAX_KIQ_REG_TRY 1000
-
-int amdgpu_device_ip_set_clockgating_state(void *dev,
-					   enum amd_ip_block_type block_type,
-					   enum amd_clockgating_state state);
-int amdgpu_device_ip_set_powergating_state(void *dev,
-					   enum amd_ip_block_type block_type,
-					   enum amd_powergating_state state);
-void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
-					    u64 *flags);
-int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
-				   enum amd_ip_block_type block_type);
-bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
-			    enum amd_ip_block_type block_type);
-bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
-			      enum amd_ip_block_type block_type);
-int amdgpu_ip_block_suspend(struct amdgpu_ip_block *ip_block);
-
-int amdgpu_ip_block_resume(struct amdgpu_ip_block *ip_block);
-
-#define AMDGPU_MAX_IP_NUM AMD_IP_BLOCK_TYPE_NUM
-
-struct amdgpu_ip_block_status {
-	bool valid;
-	bool sw;
-	bool hw;
-	bool late_initialized;
-	bool hang;
-};
-
-struct amdgpu_ip_block_version {
-	const enum amd_ip_block_type type;
-	const u32 major;
-	const u32 minor;
-	const u32 rev;
-	const struct amd_ip_funcs *funcs;
-};
-
-struct amdgpu_ip_block {
-	struct amdgpu_ip_block_status status;
-	const struct amdgpu_ip_block_version *version;
-	struct amdgpu_device *adev;
-};
-
-int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
-				       enum amd_ip_block_type type,
-				       u32 major, u32 minor);
-
-struct amdgpu_ip_block *
-amdgpu_device_ip_get_ip_block(struct amdgpu_device *adev,
-			      enum amd_ip_block_type type);
-
-int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
-			       const struct amdgpu_ip_block_version *ip_block_version);
 
 /*
  * BIOS.
@@ -736,90 +679,10 @@ void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device);
 /*
  * Core structure, functions and helpers.
  */
-typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device*, uint32_t);
-typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
-
-typedef uint32_t (*amdgpu_rreg_ext_t)(struct amdgpu_device*, uint64_t);
-typedef void (*amdgpu_wreg_ext_t)(struct amdgpu_device*, uint64_t, uint32_t);
-
-typedef uint64_t (*amdgpu_rreg64_t)(struct amdgpu_device*, uint32_t);
-typedef void (*amdgpu_wreg64_t)(struct amdgpu_device*, uint32_t, uint64_t);
-
-typedef uint64_t (*amdgpu_rreg64_ext_t)(struct amdgpu_device*, uint64_t);
-typedef void (*amdgpu_wreg64_ext_t)(struct amdgpu_device*, uint64_t, uint64_t);
-
-typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
-typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
-
 struct amdgpu_mmio_remap {
 	u32 reg_offset;
 	resource_size_t bus_addr;
 	struct amdgpu_bo *bo;
-};
-
-/* Define the HW IP blocks will be used in driver , add more if necessary */
-enum amd_hw_ip_block_type {
-	GC_HWIP = 1,
-	HDP_HWIP,
-	SDMA0_HWIP,
-	SDMA1_HWIP,
-	SDMA2_HWIP,
-	SDMA3_HWIP,
-	SDMA4_HWIP,
-	SDMA5_HWIP,
-	SDMA6_HWIP,
-	SDMA7_HWIP,
-	LSDMA_HWIP,
-	MMHUB_HWIP,
-	ATHUB_HWIP,
-	NBIO_HWIP,
-	MP0_HWIP,
-	MP1_HWIP,
-	UVD_HWIP,
-	VCN_HWIP = UVD_HWIP,
-	JPEG_HWIP = VCN_HWIP,
-	VCN1_HWIP,
-	VCE_HWIP,
-	VPE_HWIP,
-	DF_HWIP,
-	DCE_HWIP,
-	OSSSYS_HWIP,
-	SMUIO_HWIP,
-	PWR_HWIP,
-	NBIF_HWIP,
-	THM_HWIP,
-	CLK_HWIP,
-	UMC_HWIP,
-	RSMU_HWIP,
-	XGMI_HWIP,
-	DCI_HWIP,
-	PCIE_HWIP,
-	ISP_HWIP,
-	MAX_HWIP
-};
-
-#define HWIP_MAX_INSTANCE	44
-
-#define HW_ID_MAX		300
-#define IP_VERSION_FULL(mj, mn, rv, var, srev) \
-	(((mj) << 24) | ((mn) << 16) | ((rv) << 8) | ((var) << 4) | (srev))
-#define IP_VERSION(mj, mn, rv)		IP_VERSION_FULL(mj, mn, rv, 0, 0)
-#define IP_VERSION_MAJ(ver)		((ver) >> 24)
-#define IP_VERSION_MIN(ver)		(((ver) >> 16) & 0xFF)
-#define IP_VERSION_REV(ver)		(((ver) >> 8) & 0xFF)
-#define IP_VERSION_VARIANT(ver)		(((ver) >> 4) & 0xF)
-#define IP_VERSION_SUBREV(ver)		((ver) & 0xF)
-#define IP_VERSION_MAJ_MIN_REV(ver)	((ver) >> 8)
-
-struct amdgpu_ip_map_info {
-	/* Map of logical to actual dev instances/mask */
-	uint32_t 		dev_inst[MAX_HWIP][HWIP_MAX_INSTANCE];
-	int8_t (*logical_to_dev_inst)(struct amdgpu_device *adev,
-				      enum amd_hw_ip_block_type block,
-				      int8_t inst);
-	uint32_t (*logical_to_dev_mask)(struct amdgpu_device *adev,
-					enum amd_hw_ip_block_type block,
-					uint32_t mask);
 };
 
 enum amdgpu_uid_type {
@@ -834,6 +697,38 @@ enum amdgpu_uid_type {
 struct amdgpu_uid {
 	uint64_t uid[AMDGPU_UID_TYPE_MAX][AMDGPU_UID_INST_MAX];
 	struct amdgpu_device *adev;
+};
+
+#define MAX_UMA_OPTION_NAME	28
+#define MAX_UMA_OPTION_ENTRIES	19
+
+#define AMDGPU_UMA_FLAG_AUTO	BIT(1)
+#define AMDGPU_UMA_FLAG_CUSTOM	BIT(0)
+
+/**
+ * struct amdgpu_uma_carveout_option - single UMA carveout option
+ * @name: Name of the carveout option
+ * @memory_carved_mb: Amount of memory carved in MB
+ * @flags: ATCS flags supported by this option
+ */
+struct amdgpu_uma_carveout_option {
+	char name[MAX_UMA_OPTION_NAME];
+	uint32_t memory_carved_mb;
+	uint8_t flags;
+};
+
+/**
+ * struct amdgpu_uma_carveout_info - table of available UMA carveout options
+ * @num_entries: Number of available options
+ * @uma_option_index: The index of the option currently applied
+ * @update_lock: Lock to serialize changes to the option
+ * @entries: The array of carveout options
+ */
+struct amdgpu_uma_carveout_info {
+	uint8_t num_entries;
+	uint8_t uma_option_index;
+	struct mutex update_lock;
+	struct amdgpu_uma_carveout_option entries[MAX_UMA_OPTION_ENTRIES];
 };
 
 struct amd_powerplay {
@@ -880,6 +775,12 @@ struct amd_powerplay {
 					  (rid == 0x01) || \
 					  (rid == 0x10))))
 
+enum amdgpu_mqd_update_flag {
+       AMDGPU_UPDATE_FLAG_DBG_WA_ENABLE = 1,
+       AMDGPU_UPDATE_FLAG_DBG_WA_DISABLE = 2,
+       AMDGPU_UPDATE_FLAG_IS_GWS = 4, /* quirk for gfx9 IP */
+};
+
 struct amdgpu_mqd_prop {
 	uint64_t mqd_gpu_addr;
 	uint64_t hqd_base_gpu_addr;
@@ -891,6 +792,7 @@ struct amdgpu_mqd_prop {
 	uint64_t eop_gpu_addr;
 	uint32_t hqd_pipe_priority;
 	uint32_t hqd_queue_priority;
+	uint32_t mqd_stride_size;
 	bool allow_tunneling;
 	bool hqd_active;
 	uint64_t shadow_addr;
@@ -899,6 +801,10 @@ struct amdgpu_mqd_prop {
 	uint64_t fence_address;
 	bool tmz_queue;
 	bool kernel_queue;
+	uint32_t *cu_mask;
+	uint32_t cu_mask_count;
+	uint32_t cu_flags;
+	bool is_user_cu_masked;
 };
 
 struct amdgpu_mqd {
@@ -994,42 +900,8 @@ struct amdgpu_device {
 	/* protects concurrent MM_INDEX/DATA based register access */
 	spinlock_t mmio_idx_lock;
 	struct amdgpu_mmio_remap        rmmio_remap;
-	/* protects concurrent SMC based register access */
-	spinlock_t smc_idx_lock;
-	amdgpu_rreg_t			smc_rreg;
-	amdgpu_wreg_t			smc_wreg;
-	/* protects concurrent PCIE register access */
-	spinlock_t pcie_idx_lock;
-	amdgpu_rreg_t			pcie_rreg;
-	amdgpu_wreg_t			pcie_wreg;
-	amdgpu_rreg_t			pciep_rreg;
-	amdgpu_wreg_t			pciep_wreg;
-	amdgpu_rreg_ext_t		pcie_rreg_ext;
-	amdgpu_wreg_ext_t		pcie_wreg_ext;
-	amdgpu_rreg64_t			pcie_rreg64;
-	amdgpu_wreg64_t			pcie_wreg64;
-	amdgpu_rreg64_ext_t			pcie_rreg64_ext;
-	amdgpu_wreg64_ext_t			pcie_wreg64_ext;
-	/* protects concurrent UVD register access */
-	spinlock_t uvd_ctx_idx_lock;
-	amdgpu_rreg_t			uvd_ctx_rreg;
-	amdgpu_wreg_t			uvd_ctx_wreg;
-	/* protects concurrent DIDT register access */
-	spinlock_t didt_idx_lock;
-	amdgpu_rreg_t			didt_rreg;
-	amdgpu_wreg_t			didt_wreg;
-	/* protects concurrent gc_cac register access */
-	spinlock_t gc_cac_idx_lock;
-	amdgpu_rreg_t			gc_cac_rreg;
-	amdgpu_wreg_t			gc_cac_wreg;
-	/* protects concurrent se_cac register access */
-	spinlock_t se_cac_idx_lock;
-	amdgpu_rreg_t			se_cac_rreg;
-	amdgpu_wreg_t			se_cac_wreg;
-	/* protects concurrent ENDPOINT (audio) register access */
-	spinlock_t audio_endpt_idx_lock;
-	amdgpu_block_rreg_t		audio_endpt_rreg;
-	amdgpu_block_wreg_t		audio_endpt_wreg;
+	/* Indirect register access blocks */
+	struct amdgpu_reg_access reg;
 	struct amdgpu_doorbell		doorbell;
 
 	/* clock/pll info */
@@ -1319,11 +1191,21 @@ struct amdgpu_device {
 	struct work_struct              userq_reset_work;
 	struct amdgpu_uid *uid_info;
 
+	struct amdgpu_uma_carveout_info uma_info;
+
 	/* KFD
 	 * Must be last --ends in a flexible-array member.
 	 */
 	struct amdgpu_kfd_dev		kfd;
 };
+
+/*
+ * MES FW uses address(mqd_addr + sizeof(struct mqd) + 3*sizeof(uint32_t))
+ * as fence address and writes a 32 bit fence value to this address.
+ * Driver needs to allocate at least 4 DWs extra memory in addition to
+ * sizeof(struct mqd). Add 8 DWs and align to AMDGPU_GPU_PAGE_SIZE for safety.
+ */
+#define AMDGPU_MQD_SIZE_ALIGN(mqd_size) AMDGPU_GPU_PAGE_ALIGN(((mqd_size) + 32))
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
 					 uint8_t ip, uint8_t inst)
@@ -1375,42 +1257,6 @@ size_t amdgpu_device_aper_access(struct amdgpu_device *adev, loff_t pos,
 
 void amdgpu_device_vram_access(struct amdgpu_device *adev, loff_t pos,
 			       void *buf, size_t size, bool write);
-uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev,
-			    uint32_t inst, uint32_t reg_addr, char reg_name[],
-			    uint32_t expected_value, uint32_t mask);
-uint32_t amdgpu_device_rreg(struct amdgpu_device *adev,
-			    uint32_t reg, uint32_t acc_flags);
-u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev,
-				    u64 reg_addr);
-uint32_t amdgpu_device_xcc_rreg(struct amdgpu_device *adev,
-				uint32_t reg, uint32_t acc_flags,
-				uint32_t xcc_id);
-void amdgpu_device_wreg(struct amdgpu_device *adev,
-			uint32_t reg, uint32_t v,
-			uint32_t acc_flags);
-void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev,
-				     u64 reg_addr, u32 reg_data);
-void amdgpu_device_xcc_wreg(struct amdgpu_device *adev,
-			    uint32_t reg, uint32_t v,
-			    uint32_t acc_flags,
-			    uint32_t xcc_id);
-void amdgpu_mm_wreg_mmio_rlc(struct amdgpu_device *adev,
-			     uint32_t reg, uint32_t v, uint32_t xcc_id);
-void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
-uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
-
-u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
-				u32 reg_addr);
-u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
-				  u32 reg_addr);
-u64 amdgpu_device_indirect_rreg64_ext(struct amdgpu_device *adev,
-				  u64 reg_addr);
-void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
-				 u32 reg_addr, u32 reg_data);
-void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
-				   u32 reg_addr, u64 reg_data);
-void amdgpu_device_indirect_wreg64_ext(struct amdgpu_device *adev,
-				   u64 reg_addr, u64 reg_data);
 u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev);
 bool amdgpu_device_asic_has_dc_support(struct pci_dev *pdev,
 				       enum amd_asic_type asic_type);
@@ -1450,28 +1296,30 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define REG_GET(FIELD, v) (((v) << FIELD##_SHIFT) & FIELD##_MASK)
 #define RREG32_XCC(reg, inst) amdgpu_device_xcc_rreg(adev, (reg), 0, inst)
 #define WREG32_XCC(reg, v, inst) amdgpu_device_xcc_wreg(adev, (reg), (v), 0, inst)
-#define RREG32_PCIE(reg) adev->pcie_rreg(adev, (reg))
-#define WREG32_PCIE(reg, v) adev->pcie_wreg(adev, (reg), (v))
-#define RREG32_PCIE_PORT(reg) adev->pciep_rreg(adev, (reg))
-#define WREG32_PCIE_PORT(reg, v) adev->pciep_wreg(adev, (reg), (v))
-#define RREG32_PCIE_EXT(reg) adev->pcie_rreg_ext(adev, (reg))
-#define WREG32_PCIE_EXT(reg, v) adev->pcie_wreg_ext(adev, (reg), (v))
-#define RREG64_PCIE(reg) adev->pcie_rreg64(adev, (reg))
-#define WREG64_PCIE(reg, v) adev->pcie_wreg64(adev, (reg), (v))
-#define RREG64_PCIE_EXT(reg) adev->pcie_rreg64_ext(adev, (reg))
-#define WREG64_PCIE_EXT(reg, v) adev->pcie_wreg64_ext(adev, (reg), (v))
-#define RREG32_SMC(reg) adev->smc_rreg(adev, (reg))
-#define WREG32_SMC(reg, v) adev->smc_wreg(adev, (reg), (v))
-#define RREG32_UVD_CTX(reg) adev->uvd_ctx_rreg(adev, (reg))
-#define WREG32_UVD_CTX(reg, v) adev->uvd_ctx_wreg(adev, (reg), (v))
-#define RREG32_DIDT(reg) adev->didt_rreg(adev, (reg))
-#define WREG32_DIDT(reg, v) adev->didt_wreg(adev, (reg), (v))
-#define RREG32_GC_CAC(reg) adev->gc_cac_rreg(adev, (reg))
-#define WREG32_GC_CAC(reg, v) adev->gc_cac_wreg(adev, (reg), (v))
-#define RREG32_SE_CAC(reg) adev->se_cac_rreg(adev, (reg))
-#define WREG32_SE_CAC(reg, v) adev->se_cac_wreg(adev, (reg), (v))
-#define RREG32_AUDIO_ENDPT(block, reg) adev->audio_endpt_rreg(adev, (block), (reg))
-#define WREG32_AUDIO_ENDPT(block, reg, v) adev->audio_endpt_wreg(adev, (block), (reg), (v))
+#define RREG32_PCIE(reg) amdgpu_reg_pcie_rd32(adev, (reg))
+#define WREG32_PCIE(reg, v) amdgpu_reg_pcie_wr32(adev, (reg), (v))
+#define RREG32_PCIE_PORT(reg) amdgpu_reg_pciep_rd32(adev, (reg))
+#define WREG32_PCIE_PORT(reg, v) amdgpu_reg_pciep_wr32(adev, (reg), (v))
+#define RREG32_PCIE_EXT(reg) amdgpu_reg_pcie_ext_rd32(adev, (reg))
+#define WREG32_PCIE_EXT(reg, v) amdgpu_reg_pcie_ext_wr32(adev, (reg), (v))
+#define RREG64_PCIE(reg) amdgpu_reg_pcie_rd64(adev, (reg))
+#define WREG64_PCIE(reg, v) amdgpu_reg_pcie_wr64(adev, (reg), (v))
+#define RREG64_PCIE_EXT(reg) amdgpu_reg_pcie_ext_rd64(adev, (reg))
+#define WREG64_PCIE_EXT(reg, v) amdgpu_reg_pcie_ext_wr64(adev, (reg), (v))
+#define RREG32_SMC(reg) amdgpu_reg_smc_rd32(adev, (reg))
+#define WREG32_SMC(reg, v) amdgpu_reg_smc_wr32(adev, (reg), (v))
+#define RREG32_UVD_CTX(reg) amdgpu_reg_uvd_ctx_rd32(adev, (reg))
+#define WREG32_UVD_CTX(reg, v) amdgpu_reg_uvd_ctx_wr32(adev, (reg), (v))
+#define RREG32_DIDT(reg) amdgpu_reg_didt_rd32(adev, (reg))
+#define WREG32_DIDT(reg, v) amdgpu_reg_didt_wr32(adev, (reg), (v))
+#define RREG32_GC_CAC(reg) amdgpu_reg_gc_cac_rd32(adev, (reg))
+#define WREG32_GC_CAC(reg, v) amdgpu_reg_gc_cac_wr32(adev, (reg), (v))
+#define RREG32_SE_CAC(reg) amdgpu_reg_se_cac_rd32(adev, (reg))
+#define WREG32_SE_CAC(reg, v) amdgpu_reg_se_cac_wr32(adev, (reg), (v))
+#define RREG32_AUDIO_ENDPT(block, reg) \
+	amdgpu_reg_audio_endpt_rd32(adev, (block), (reg))
+#define WREG32_AUDIO_ENDPT(block, reg, v) \
+	amdgpu_reg_audio_endpt_wr32(adev, (block), (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\
@@ -1545,8 +1393,13 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 #define amdgpu_asic_get_pcie_usage(adev, cnt0, cnt1) ((adev)->asic_funcs->get_pcie_usage((adev), (cnt0), (cnt1)))
 #define amdgpu_asic_need_reset_on_init(adev) (adev)->asic_funcs->need_reset_on_init((adev))
 #define amdgpu_asic_get_pcie_replay_count(adev) ((adev)->asic_funcs->get_pcie_replay_count((adev)))
-#define amdgpu_asic_supports_baco(adev) (adev)->asic_funcs->supports_baco((adev))
-#define amdgpu_asic_pre_asic_init(adev) (adev)->asic_funcs->pre_asic_init((adev))
+#define amdgpu_asic_supports_baco(adev) \
+    ((adev)->asic_funcs->supports_baco ? (adev)->asic_funcs->supports_baco((adev)) : 0)
+#define amdgpu_asic_pre_asic_init(adev)                                      \
+	{                                                                    \
+		if ((adev)->asic_funcs && (adev)->asic_funcs->pre_asic_init) \
+			(adev)->asic_funcs->pre_asic_init((adev));           \
+	}
 #define amdgpu_asic_update_umd_stable_pstate(adev, enter) \
 	((adev)->asic_funcs->update_umd_stable_pstate ? (adev)->asic_funcs->update_umd_stable_pstate((adev), (enter)) : 0)
 #define amdgpu_asic_query_video_codecs(adev, e, c) (adev)->asic_funcs->query_video_codecs((adev), (e), (c))
@@ -1596,10 +1449,6 @@ void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 		struct amdgpu_ring *ring);
 
 void amdgpu_device_halt(struct amdgpu_device *adev);
-u32 amdgpu_device_pcie_port_rreg(struct amdgpu_device *adev,
-				u32 reg);
-void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
-				u32 reg, u32 v);
 struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
@@ -1609,6 +1458,8 @@ struct dma_fence *amdgpu_device_enforce_isolation(struct amdgpu_device *adev,
 bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
 ssize_t amdgpu_get_soft_full_reset_mask(struct amdgpu_ring *ring);
 ssize_t amdgpu_show_reset_mask(char *buf, uint32_t supported_reset);
+void amdgpu_sdma_set_vm_pte_scheds(struct amdgpu_device *adev,
+				   const struct amdgpu_vm_pte_funcs *vm_pte_funcs);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
@@ -1686,12 +1537,14 @@ int amdgpu_acpi_init(struct amdgpu_device *adev);
 void amdgpu_acpi_fini(struct amdgpu_device *adev);
 bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *adev);
 bool amdgpu_acpi_is_power_shift_control_supported(void);
+bool amdgpu_acpi_is_set_uma_allocation_size_supported(void);
 int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 						u8 perf_req, bool advertise);
 int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 				    u8 dev_state, bool drv_state);
 int amdgpu_acpi_smart_shift_update(struct amdgpu_device *adev,
 				   enum amdgpu_ss ss_state);
+int amdgpu_acpi_set_uma_allocation_size(struct amdgpu_device *adev, u8 index, u8 type);
 int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev);
 int amdgpu_acpi_get_tmr_info(struct amdgpu_device *adev, u64 *tmr_offset,
 			     u64 *tmr_size);
@@ -1720,12 +1573,17 @@ static inline bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev) { re
 static inline void amdgpu_acpi_detect(void) { }
 static inline void amdgpu_acpi_release(void) { }
 static inline bool amdgpu_acpi_is_power_shift_control_supported(void) { return false; }
+static inline bool amdgpu_acpi_is_set_uma_allocation_size_supported(void) { return false; }
 static inline int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 						  u8 dev_state, bool drv_state) { return 0; }
 static inline int amdgpu_acpi_smart_shift_update(struct amdgpu_device *adev,
 						 enum amdgpu_ss ss_state)
 {
 	return 0;
+}
+static inline int amdgpu_acpi_set_uma_allocation_size(struct amdgpu_device *adev, u8 index, u8 type)
+{
+	return -EINVAL;
 }
 static inline void amdgpu_acpi_get_backlight_caps(struct amdgpu_dm_backlight_caps *caps) { }
 #endif

@@ -64,7 +64,7 @@ pvr_sync_signal_array_add(struct xarray *array, struct drm_file *file, u32 handl
 	int err;
 	u32 id;
 
-	sig_sync = kzalloc(sizeof(*sig_sync), GFP_KERNEL);
+	sig_sync = kzalloc_obj(*sig_sync);
 	if (!sig_sync)
 		return ERR_PTR(-ENOMEM);
 

@@ -11,7 +11,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <uapi/linux/types.h>
 #include <linux/iommufd.h>
 #include <linux/limits.h>
 #include <linux/mman.h>

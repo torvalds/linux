@@ -52,6 +52,7 @@
 
 		rgmii0: phy@1 {
 			reg = <0x1>;
+			motorcomm,auto-sleep-disabled;
 		};
 	};
 };
@@ -75,6 +76,7 @@
 
 		rgmii1: phy@1 {
 			reg = <0x1>;
+			motorcomm,auto-sleep-disabled;
 		};
 	};
 };

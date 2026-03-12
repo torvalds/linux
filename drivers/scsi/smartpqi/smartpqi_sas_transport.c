@@ -22,7 +22,7 @@ static struct pqi_sas_phy *pqi_alloc_sas_phy(struct pqi_sas_port *pqi_sas_port)
 	struct pqi_sas_phy *pqi_sas_phy;
 	struct sas_phy *phy;
 
-	pqi_sas_phy = kzalloc(sizeof(*pqi_sas_phy), GFP_KERNEL);
+	pqi_sas_phy = kzalloc_obj(*pqi_sas_phy);
 	if (!pqi_sas_phy)
 		return NULL;
 
@@ -131,7 +131,7 @@ static struct pqi_sas_port *pqi_alloc_sas_port(
 	struct pqi_sas_port *pqi_sas_port;
 	struct sas_port *port;
 
-	pqi_sas_port = kzalloc(sizeof(*pqi_sas_port), GFP_KERNEL);
+	pqi_sas_port = kzalloc_obj(*pqi_sas_port);
 	if (!pqi_sas_port)
 		return NULL;
 
@@ -180,7 +180,7 @@ static struct pqi_sas_node *pqi_alloc_sas_node(struct device *parent_dev)
 {
 	struct pqi_sas_node *pqi_sas_node;
 
-	pqi_sas_node = kzalloc(sizeof(*pqi_sas_node), GFP_KERNEL);
+	pqi_sas_node = kzalloc_obj(*pqi_sas_node);
 	if (pqi_sas_node) {
 		pqi_sas_node->parent_dev = parent_dev;
 		INIT_LIST_HEAD(&pqi_sas_node->port_list_head);
@@ -463,7 +463,7 @@ pqi_build_csmi_smp_passthru_buffer(struct sas_rphy *rphy,
 	u32 req_size;
 	u32 resp_size;
 
-	smp_buf = kzalloc(sizeof(*smp_buf), GFP_KERNEL);
+	smp_buf = kzalloc_obj(*smp_buf);
 	if (!smp_buf)
 		return NULL;
 

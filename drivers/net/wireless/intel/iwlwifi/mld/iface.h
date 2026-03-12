@@ -32,6 +32,7 @@ enum iwl_mld_cca_40mhz_wa_status {
  *      link is preventing EMLSR. This is a temporary blocking that is set when
  *      there is an indication that a non-BSS interface is to be added.
  * @IWL_MLD_EMLSR_BLOCKED_TPT: throughput is too low to make EMLSR worthwhile
+ * @IWL_MLD_EMLSR_BLOCKED_NAN: NAN is preventing EMLSR.
  */
 enum iwl_mld_emlsr_blocked {
 	IWL_MLD_EMLSR_BLOCKED_PREVENTION	= 0x1,
@@ -40,6 +41,7 @@ enum iwl_mld_emlsr_blocked {
 	IWL_MLD_EMLSR_BLOCKED_NON_BSS		= 0x8,
 	IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS	= 0x10,
 	IWL_MLD_EMLSR_BLOCKED_TPT		= 0x20,
+	IWL_MLD_EMLSR_BLOCKED_NAN		= 0x40,
 };
 
 /**

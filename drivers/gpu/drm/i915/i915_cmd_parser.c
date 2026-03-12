@@ -918,8 +918,7 @@ static int init_hash_table(struct intel_engine_cs *engine,
 		for (j = 0; j < table->count; j++) {
 			const struct drm_i915_cmd_descriptor *desc =
 				&table->table[j];
-			struct cmd_node *desc_node =
-				kmalloc(sizeof(*desc_node), GFP_KERNEL);
+			struct cmd_node *desc_node = kmalloc_obj(*desc_node);
 
 			if (!desc_node)
 				return -ENOMEM;

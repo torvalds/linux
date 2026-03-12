@@ -43,7 +43,7 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 	struct i2c_msg msg = { };
 	size_t i;
 	int ret = -EOPNOTSUPP;
-	u8 attr[] = {
+	static const u8 attr[] = {
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
@@ -55,8 +55,7 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 		return;
 	}
 
-	params = kmalloc_array(arg->num_params, sizeof(struct tee_param),
-			       GFP_KERNEL);
+	params = kmalloc_objs(struct tee_param, arg->num_params);
 	if (!params) {
 		arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
 		return;
@@ -192,8 +191,7 @@ static void handle_rpc_supp_cmd(struct tee_context *ctx, struct optee *optee,
 
 	arg->ret_origin = TEEC_ORIGIN_COMMS;
 
-	params = kmalloc_array(arg->num_params, sizeof(struct tee_param),
-			       GFP_KERNEL);
+	params = kmalloc_objs(struct tee_param, arg->num_params);
 	if (!params) {
 		arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
 		return;
@@ -247,8 +245,8 @@ void optee_rpc_cmd_free_suppl(struct tee_context *ctx, struct tee_shm *shm)
 	param.u.value.c = 0;
 
 	/*
-	 * Match the tee_shm_get_from_id() in cmd_alloc_suppl() as secure
-	 * world has released its reference.
+	 * Match the tee_shm_get_from_id() in optee_rpc_cmd_alloc_suppl()
+	 * as secure world has released its reference.
 	 *
 	 * It's better to do this before sending the request to supplicant
 	 * as we'd like to let the process doing the initial allocation to

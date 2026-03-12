@@ -334,7 +334,7 @@ virtio_gpu_user_framebuffer_create(struct drm_device *dev,
 	if (!obj)
 		return ERR_PTR(-EINVAL);
 
-	virtio_gpu_fb = kzalloc(sizeof(*virtio_gpu_fb), GFP_KERNEL);
+	virtio_gpu_fb = kzalloc_obj(*virtio_gpu_fb);
 	if (virtio_gpu_fb == NULL) {
 		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);

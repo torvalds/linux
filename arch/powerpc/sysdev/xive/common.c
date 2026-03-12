@@ -1016,7 +1016,7 @@ static struct xive_irq_data *xive_irq_alloc_data(unsigned int virq, irq_hw_numbe
 	struct xive_irq_data *xd;
 	int rc;
 
-	xd = kzalloc(sizeof(struct xive_irq_data), GFP_KERNEL);
+	xd = kzalloc_obj(struct xive_irq_data);
 	if (!xd)
 		return ERR_PTR(-ENOMEM);
 	rc = xive_ops->populate_irq_data(hw, xd);
@@ -1144,7 +1144,8 @@ static int __init xive_init_ipis(void)
 	if (!ipi_domain)
 		goto out_free_fwnode;
 
-	xive_ipis = kcalloc(nr_node_ids, sizeof(*xive_ipis), GFP_KERNEL | __GFP_NOFAIL);
+	xive_ipis = kzalloc_objs(*xive_ipis, nr_node_ids,
+				 GFP_KERNEL | __GFP_NOFAIL);
 	if (!xive_ipis)
 		goto out_free_domain;
 

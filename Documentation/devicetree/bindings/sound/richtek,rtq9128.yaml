@@ -14,13 +14,21 @@ description:
   class-D audio power amplifier and delivering 4x75W into 4OHm at 10%
   THD+N from a 25V supply in automotive applications.
 
+  The RTQ9154 is the family series of RTQ9128. The major change is to modify
+  the package size. Beside this, whole functions are almost all the same.
+
 allOf:
   - $ref: dai-common.yaml#
 
 properties:
   compatible:
-    enum:
-      - richtek,rtq9128
+    oneOf:
+      - enum:
+          - richtek,rtq9128
+      - items:
+          - enum:
+              - richtek,rtq9154
+          - const: richtek,rtq9128
 
   reg:
     maxItems: 1

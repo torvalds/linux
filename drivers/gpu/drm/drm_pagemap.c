@@ -94,7 +94,7 @@ drm_pagemap_zdd_alloc(struct drm_pagemap *dpagemap)
 {
 	struct drm_pagemap_zdd *zdd;
 
-	zdd = kmalloc(sizeof(*zdd), GFP_KERNEL);
+	zdd = kmalloc_obj(*zdd);
 	if (!zdd)
 		return NULL;
 
@@ -201,7 +201,7 @@ static void drm_pagemap_get_devmem_page(struct page *page,
 					struct drm_pagemap_zdd *zdd)
 {
 	page->zone_device_data = drm_pagemap_zdd_get(zdd);
-	zone_device_page_init(page, 0);
+	zone_device_page_init(page, page_pgmap(page), 0);
 }
 
 /**
@@ -851,7 +851,7 @@ drm_pagemap_dev_hold(struct drm_pagemap *dpagemap)
 	struct drm_pagemap_dev_hold *dev_hold;
 	struct drm_device *drm = dpagemap->drm;
 
-	dev_hold = kzalloc(sizeof(*dev_hold), GFP_KERNEL);
+	dev_hold = kzalloc_obj(*dev_hold);
 	if (!dev_hold)
 		return ERR_PTR(-ENOMEM);
 

@@ -821,7 +821,7 @@ out:
 	if (ret)
 		return ret;
 
-	node = kzalloc(sizeof(struct coresight_node), GFP_KERNEL);
+	node = kzalloc_obj(struct coresight_node);
 	if (!node)
 		return -ENOMEM;
 
@@ -840,7 +840,7 @@ struct coresight_path *coresight_build_path(struct coresight_device *source,
 	if (!sink)
 		return ERR_PTR(-EINVAL);
 
-	path = kzalloc(sizeof(struct coresight_path), GFP_KERNEL);
+	path = kzalloc_obj(struct coresight_path);
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
@@ -1327,7 +1327,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	struct coresight_device *csdev;
 	bool registered = false;
 
-	csdev = kzalloc(sizeof(*csdev), GFP_KERNEL);
+	csdev = kzalloc_obj(*csdev);
 	if (!csdev) {
 		ret = -ENOMEM;
 		goto err_out;

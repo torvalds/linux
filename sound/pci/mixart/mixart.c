@@ -255,7 +255,7 @@ snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
 			"add_ref_pipe audio chip(%d) pcm(%d)\n",
 			chip->chip_idx, pcm_number);
 
-		buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+		buf = kmalloc_obj(*buf);
 		if (!buf)
 			return NULL;
 
@@ -1017,7 +1017,7 @@ static int snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int 
 		.dev_free = snd_mixart_chip_dev_free,
 	};
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -1243,7 +1243,7 @@ static int snd_mixart_probe(struct pci_dev *pci,
 
 	/*
 	 */
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (! mgr) {
 		pci_disable_device(pci);
 		return -ENOMEM;

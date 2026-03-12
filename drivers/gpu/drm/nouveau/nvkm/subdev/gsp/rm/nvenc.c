@@ -17,7 +17,7 @@ nvkm_rm_nvenc_new(struct nvkm_rm *rm, int inst)
 	struct nvkm_nvenc *nvenc;
 	int ret;
 
-	nvenc = kzalloc(sizeof(*nvenc), GFP_KERNEL);
+	nvenc = kzalloc_obj(*nvenc);
 	if (!nvenc)
 		return -ENOMEM;
 

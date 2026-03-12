@@ -431,7 +431,7 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 		return -EBADFD;
 	if (vcc->user_back)
 		return -EINVAL;
-	clip_vcc = kmalloc(sizeof(struct clip_vcc), GFP_KERNEL);
+	clip_vcc = kmalloc_obj(struct clip_vcc);
 	if (!clip_vcc)
 		return -ENOMEM;
 	pr_debug("%p vcc %p\n", clip_vcc, vcc);

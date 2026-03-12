@@ -332,7 +332,7 @@ static int efa_create_eqs(struct efa_dev *dev)
 
 	neqs = min_t(u32, neqs, dev->num_irq_vectors - EFA_COMP_EQS_VEC_BASE);
 	dev->neqs = neqs;
-	dev->eqs = kcalloc(neqs, sizeof(*dev->eqs), GFP_KERNEL);
+	dev->eqs = kzalloc_objs(*dev->eqs, neqs);
 	if (!dev->eqs)
 		return -ENOMEM;
 

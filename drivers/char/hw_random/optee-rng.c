@@ -205,15 +205,12 @@ static int get_optee_rng_info(struct device *dev)
 
 static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 {
-	if (ver->impl_id == TEE_IMPL_ID_OPTEE)
-		return 1;
-	else
-		return 0;
+	return (ver->impl_id == TEE_IMPL_ID_OPTEE);
 }
 
-static int optee_rng_probe(struct device *dev)
+static int optee_rng_probe(struct tee_client_device *rng_device)
 {
-	struct tee_client_device *rng_device = to_tee_client_device(dev);
+	struct device *dev = &rng_device->dev;
 	int ret = 0, err = -ENODEV;
 	struct tee_ioctl_open_session_arg sess_arg;
 
@@ -261,12 +258,10 @@ out_ctx:
 	return err;
 }
 
-static int optee_rng_remove(struct device *dev)
+static void optee_rng_remove(struct tee_client_device *tee_dev)
 {
 	tee_client_close_session(pvt_data.ctx, pvt_data.session_id);
 	tee_client_close_context(pvt_data.ctx);
-
-	return 0;
 }
 
 static const struct tee_client_device_id optee_rng_id_table[] = {
@@ -278,27 +273,15 @@ static const struct tee_client_device_id optee_rng_id_table[] = {
 MODULE_DEVICE_TABLE(tee, optee_rng_id_table);
 
 static struct tee_client_driver optee_rng_driver = {
+	.probe		= optee_rng_probe,
+	.remove		= optee_rng_remove,
 	.id_table	= optee_rng_id_table,
 	.driver		= {
 		.name		= DRIVER_NAME,
-		.bus		= &tee_bus_type,
-		.probe		= optee_rng_probe,
-		.remove		= optee_rng_remove,
 	},
 };
 
-static int __init optee_rng_mod_init(void)
-{
-	return driver_register(&optee_rng_driver.driver);
-}
-
-static void __exit optee_rng_mod_exit(void)
-{
-	driver_unregister(&optee_rng_driver.driver);
-}
-
-module_init(optee_rng_mod_init);
-module_exit(optee_rng_mod_exit);
+module_tee_client_driver(optee_rng_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sumit Garg <sumit.garg@linaro.org>");

@@ -73,7 +73,7 @@ void nvmet_execute_identify_ctrl_zns(struct nvmet_req *req)
 	struct nvme_id_ctrl_zns *id;
 	u16 status;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -104,7 +104,7 @@ void nvmet_execute_identify_ns_zns(struct nvmet_req *req)
 		goto out;
 	}
 
-	id_zns = kzalloc(sizeof(*id_zns), GFP_KERNEL);
+	id_zns = kzalloc_obj(*id_zns);
 	if (!id_zns) {
 		status = NVME_SC_INTERNAL;
 		goto out;

@@ -54,7 +54,7 @@ void fat_cache_destroy(void)
 	kmem_cache_destroy(fat_cache_cachep);
 }
 
-static inline struct fat_cache *fat_cache_alloc(struct inode *inode)
+static inline struct fat_cache *fat_cache_alloc(void)
 {
 	return kmem_cache_alloc(fat_cache_cachep, GFP_NOFS);
 }
@@ -144,7 +144,7 @@ static void fat_cache_add(struct inode *inode, struct fat_cache_id *new)
 			MSDOS_I(inode)->nr_caches++;
 			spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
 
-			tmp = fat_cache_alloc(inode);
+			tmp = fat_cache_alloc();
 			if (!tmp) {
 				spin_lock(&MSDOS_I(inode)->cache_lru_lock);
 				MSDOS_I(inode)->nr_caches--;

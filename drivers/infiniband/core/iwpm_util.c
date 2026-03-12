@@ -58,13 +58,13 @@ static struct iwpm_admin_data iwpm_admin;
  */
 int iwpm_init(u8 nl_client)
 {
-	iwpm_hash_bucket = kcalloc(IWPM_MAPINFO_HASH_SIZE,
-				   sizeof(struct hlist_head), GFP_KERNEL);
+	iwpm_hash_bucket = kzalloc_objs(struct hlist_head,
+					IWPM_MAPINFO_HASH_SIZE);
 	if (!iwpm_hash_bucket)
 		return -ENOMEM;
 
-	iwpm_reminfo_bucket = kcalloc(IWPM_REMINFO_HASH_SIZE,
-				      sizeof(struct hlist_head), GFP_KERNEL);
+	iwpm_reminfo_bucket = kzalloc_objs(struct hlist_head,
+					   IWPM_REMINFO_HASH_SIZE);
 	if (!iwpm_reminfo_bucket) {
 		kfree(iwpm_hash_bucket);
 		return -ENOMEM;
@@ -113,7 +113,7 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	map_info = kzalloc(sizeof(struct iwpm_mapping_info), GFP_KERNEL);
+	map_info = kzalloc_obj(struct iwpm_mapping_info);
 	if (!map_info)
 		return -ENOMEM;
 
@@ -310,7 +310,7 @@ struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
 	struct iwpm_nlmsg_request *nlmsg_request;
 	unsigned long flags;
 
-	nlmsg_request = kzalloc(sizeof(struct iwpm_nlmsg_request), gfp);
+	nlmsg_request = kzalloc_obj(struct iwpm_nlmsg_request, gfp);
 	if (!nlmsg_request)
 		return NULL;
 

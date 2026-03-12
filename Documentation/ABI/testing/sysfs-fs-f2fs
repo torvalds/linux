@@ -520,7 +520,7 @@ What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Give a way to change checkpoint merge daemon's io priority.
-		Its default value is "be,3", which means "BE" I/O class and
+		Its default value is "rt,3", which means "RT" I/O class and
 		I/O priority "3". We can select the class between "rt" and "be",
 		and set the I/O priority within valid range of it. "," delimiter
 		is necessary in between I/O class and priority number.
@@ -732,7 +732,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_TRUNCATE                   0x00000400
 		FAULT_READ_IO                    0x00000800
 		FAULT_CHECKPOINT                 0x00001000
-		FAULT_DISCARD                    0x00002000
+		FAULT_DISCARD                    0x00002000 (obsolete)
 		FAULT_WRITE_IO                   0x00004000
 		FAULT_SLAB_ALLOC                 0x00008000
 		FAULT_DQUOT_INIT                 0x00010000
@@ -741,8 +741,10 @@ Description:	Support configuring fault injection type, should be
 		FAULT_BLKADDR_CONSISTENCE        0x00080000
 		FAULT_NO_SEGMENT                 0x00100000
 		FAULT_INCONSISTENT_FOOTER        0x00200000
-		FAULT_TIMEOUT                    0x00400000 (1000ms)
+		FAULT_ATOMIC_TIMEOUT             0x00400000 (1000ms)
 		FAULT_VMALLOC                    0x00800000
+		FAULT_LOCK_TIMEOUT               0x01000000 (1000ms)
+		FAULT_SKIP_WRITE                 0x02000000
 		===========================      ==========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
@@ -939,3 +941,57 @@ Description:	Controls write priority in multi-devices setups. A value of 0 means
 		allocate_section_policy = 1  Prioritize writing to section before allocate_section_hint
 		allocate_section_policy = 2  Prioritize writing to section after allocate_section_hint
 		===========================  ==========================================================
+
+What:		/sys/fs/f2fs/<disk>/max_lock_elapsed_time
+Date:		December 2025
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a threshold, once a thread enters critical region that lock covers, total
+		elapsed time exceeds this threshold, f2fs will print tracepoint to dump information
+		of related context. This sysfs entry can be used to control the value of threshold,
+		by default, the value is 500 ms.
+
+What:		/sys/fs/f2fs/<disk>/inject_timeout_type
+Date:		December 2025
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This sysfs entry can be used to change type of injected timeout:
+		==========     ===============================
+		Flag_Value     Flag_Description
+		==========     ===============================
+		0x00000000     No timeout (default)
+		0x00000001     Simulate running time
+		0x00000002     Simulate IO type sleep time
+		0x00000003     Simulate Non-IO type sleep time
+		0x00000004     Simulate runnable time
+		==========     ===============================
+
+What:		/sys/fs/f2fs/<disk>/adjust_lock_priority
+Date:		January 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This sysfs entry can be used to enable/disable to adjust priority for task
+		which is in critical region covered by lock.
+		==========     ==================
+		Flag_Value     Flag_Description
+		==========     ==================
+		0x00000000     Disabled (default)
+		0x00000001     cp_rwsem
+		0x00000002     node_change
+		0x00000004     node_write
+		0x00000008     gc_lock
+		0x00000010     cp_global
+		0x00000020     io_rwsem
+		==========     ==================
+
+What:		/sys/fs/f2fs/<disk>/lock_duration_priority
+Date:		January 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	f2fs can tune priority of thread which has entered into critical region covered by
+		f2fs rwsemphore lock. This sysfs entry can be used to control priority value, the
+		range is [100,139], by default the value is 120.
+
+What:		/sys/fs/f2fs/<disk>/critical_task_priority
+Date:		February 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	It can be used to tune priority of f2fs critical task, e.g. f2fs_ckpt, f2fs_gc
+		threads, limitation as below:
+		- it requires user has CAP_SYS_NICE capability.
+		- the range is [100, 139], by default the value is 100.

@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Minimal active open.
+// First to close connection.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4
+
+   // Connect to server: active open: three-way handshake
+   +0...0 connect(4, ..., ...) = 0
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 0 ecr 0,nop,wscale 8>
+   +0 < S. 0:0(0) ack 1 win 65535 <mss 1460,sackOK,nop,nop,nop,wscale 7>
+   +0 > . 1:1(0) ack 1
+
+   // Send data
+   +0 send(4, ..., 1000, 0) = 1000
+   +0 > P. 1:1001(1000) ack 1
+   +0 < . 1:1(0) ack 1001 win 257
+
+   +0 close(4) = 0
+   +0 > F. 1001:1001(0) ack 1
+   +0 < F. 1:1(0) ack 1002 win 257
+   +0 > . 1002:1002(0) ack 2

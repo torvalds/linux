@@ -1737,8 +1737,7 @@ static __net_init int ipv4_mib_init_net(struct net *net)
 	net->mib.icmp_statistics = alloc_percpu(struct icmp_mib);
 	if (!net->mib.icmp_statistics)
 		goto err_icmp_mib;
-	net->mib.icmpmsg_statistics = kzalloc(sizeof(struct icmpmsg_mib),
-					      GFP_KERNEL);
+	net->mib.icmpmsg_statistics = kzalloc_obj(struct icmpmsg_mib);
 	if (!net->mib.icmpmsg_statistics)
 		goto err_icmpmsg_mib;
 

@@ -3,7 +3,7 @@
  * Copyright (c) 2017 Christoph Hellwig.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_bit.h"

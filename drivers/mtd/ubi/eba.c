@@ -124,12 +124,11 @@ struct ubi_eba_table *ubi_eba_create_table(struct ubi_volume *vol,
 	int err = -ENOMEM;
 	int i;
 
-	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (!tbl)
 		return ERR_PTR(-ENOMEM);
 
-	tbl->entries = kmalloc_array(nentries, sizeof(*tbl->entries),
-				     GFP_KERNEL);
+	tbl->entries = kmalloc_objs(*tbl->entries, nentries);
 	if (!tbl->entries)
 		goto err;
 
@@ -248,7 +247,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 {
 	struct ubi_ltree_entry *le, *le1, *le_free;
 
-	le = kmalloc(sizeof(struct ubi_ltree_entry), GFP_NOFS);
+	le = kmalloc_obj(struct ubi_ltree_entry, GFP_NOFS);
 	if (!le)
 		return ERR_PTR(-ENOMEM);
 
@@ -1536,11 +1535,11 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
-	scan_eba = kmalloc_array(num_volumes, sizeof(*scan_eba), GFP_KERNEL);
+	scan_eba = kmalloc_objs(*scan_eba, num_volumes);
 	if (!scan_eba)
 		return -ENOMEM;
 
-	fm_eba = kmalloc_array(num_volumes, sizeof(*fm_eba), GFP_KERNEL);
+	fm_eba = kmalloc_objs(*fm_eba, num_volumes);
 	if (!fm_eba) {
 		kfree(scan_eba);
 		return -ENOMEM;
@@ -1551,17 +1550,13 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 		if (!vol)
 			continue;
 
-		scan_eba[i] = kmalloc_array(vol->reserved_pebs,
-					    sizeof(**scan_eba),
-					    GFP_KERNEL);
+		scan_eba[i] = kmalloc_objs(**scan_eba, vol->reserved_pebs);
 		if (!scan_eba[i]) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
 
-		fm_eba[i] = kmalloc_array(vol->reserved_pebs,
-					  sizeof(**fm_eba),
-					  GFP_KERNEL);
+		fm_eba[i] = kmalloc_objs(**fm_eba, vol->reserved_pebs);
 		if (!fm_eba[i]) {
 			ret = -ENOMEM;
 			kfree(scan_eba[i]);

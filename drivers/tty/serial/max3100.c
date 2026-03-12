@@ -708,7 +708,7 @@ static int max3100_probe(struct spi_device *spi)
 		return dev_err_probe(dev, -ENOSPC, "too many MAX3100 chips\n");
 	}
 
-	max3100s[i] = kzalloc(sizeof(struct max3100_port), GFP_KERNEL);
+	max3100s[i] = kzalloc_obj(struct max3100_port);
 	if (!max3100s[i]) {
 		mutex_unlock(&max3100s_lock);
 		return -ENOMEM;

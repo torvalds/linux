@@ -92,7 +92,7 @@ static int hws_action_get_shared_stc_nic(struct mlx5hws_context *ctx,
 		return 0;
 	}
 
-	shared_stc = kzalloc(sizeof(*shared_stc), GFP_KERNEL);
+	shared_stc = kzalloc_obj(*shared_stc);
 	if (!shared_stc) {
 		ret = -ENOMEM;
 		goto unlock_and_out;
@@ -632,7 +632,7 @@ hws_action_create_generic_bulk(struct mlx5hws_context *ctx,
 	if (!hws_action_validate_hws_action(ctx, flags))
 		return NULL;
 
-	action = kcalloc(bulk_sz, sizeof(*action), GFP_KERNEL);
+	action = kzalloc_objs(*action, bulk_sz);
 	if (!action)
 		return NULL;
 
@@ -1383,7 +1383,7 @@ mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx, size_t num_dest,
 		return NULL;
 	}
 
-	dest_list = kcalloc(num_dest, sizeof(*dest_list), GFP_KERNEL);
+	dest_list = kzalloc_objs(*dest_list, num_dest);
 	if (!dest_list)
 		return NULL;
 
@@ -1477,7 +1477,7 @@ mlx5hws_action_create_insert_header(struct mlx5hws_context *ctx,
 	if (!action)
 		return NULL;
 
-	reformat_hdrs = kcalloc(num_of_hdrs, sizeof(*reformat_hdrs), GFP_KERNEL);
+	reformat_hdrs = kzalloc_objs(*reformat_hdrs, num_of_hdrs);
 	if (!reformat_hdrs)
 		goto free_action;
 
@@ -1557,7 +1557,7 @@ hws_action_create_dest_match_range_definer(struct mlx5hws_context *ctx)
 	__be32 *tag;
 	int ret;
 
-	definer = kzalloc(sizeof(*definer), GFP_KERNEL);
+	definer = kzalloc_obj(*definer);
 	if (!definer)
 		return NULL;
 
@@ -1600,7 +1600,7 @@ hws_action_create_dest_match_range_table(struct mlx5hws_context *ctx,
 		return NULL;
 	}
 
-	table_ste = kzalloc(sizeof(*table_ste), GFP_KERNEL);
+	table_ste = kzalloc_obj(*table_ste);
 	if (!table_ste)
 		return NULL;
 
@@ -2019,7 +2019,7 @@ __must_hold(&ctx->ctrl_lock)
 		return 0;
 	}
 
-	default_stc = kzalloc(sizeof(*default_stc), GFP_KERNEL);
+	default_stc = kzalloc_obj(*default_stc);
 	if (!default_stc)
 		return -ENOMEM;
 
@@ -2621,7 +2621,7 @@ mlx5hws_action_template_create(enum mlx5hws_action_type action_type[])
 	u8 num_actions = 0;
 	int i;
 
-	at = kzalloc(sizeof(*at), GFP_KERNEL);
+	at = kzalloc_obj(*at);
 	if (!at)
 		return NULL;
 
@@ -2629,7 +2629,7 @@ mlx5hws_action_template_create(enum mlx5hws_action_type action_type[])
 		;
 
 	at->num_actions = num_actions - 1;
-	at->action_type_arr = kcalloc(num_actions, sizeof(*action_type), GFP_KERNEL);
+	at->action_type_arr = kzalloc_objs(*action_type, num_actions);
 	if (!at->action_type_arr)
 		goto free_at;
 

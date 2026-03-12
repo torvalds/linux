@@ -114,7 +114,7 @@ static int belkin_sa_port_probe(struct usb_serial_port *port)
 	struct usb_device *dev = port->serial->dev;
 	struct belkin_sa_private *priv;
 
-	priv = kmalloc(sizeof(struct belkin_sa_private), GFP_KERNEL);
+	priv = kmalloc_obj(struct belkin_sa_private);
 	if (!priv)
 		return -ENOMEM;
 

@@ -404,8 +404,7 @@ static int devlink_linecard_types_init(struct devlink_linecard *linecard)
 	int i;
 
 	count = linecard->ops->types_count(linecard, linecard->priv);
-	linecard->types = kmalloc_array(count, sizeof(*linecard_type),
-					GFP_KERNEL);
+	linecard->types = kmalloc_objs(*linecard_type, count);
 	if (!linecard->types)
 		return -ENOMEM;
 	linecard->types_count = count;
@@ -451,7 +450,7 @@ devl_linecard_create(struct devlink *devlink, unsigned int linecard_index,
 	if (devlink_linecard_index_exists(devlink, linecard_index))
 		return ERR_PTR(-EEXIST);
 
-	linecard = kzalloc(sizeof(*linecard), GFP_KERNEL);
+	linecard = kzalloc_obj(*linecard);
 	if (!linecard)
 		return ERR_PTR(-ENOMEM);
 

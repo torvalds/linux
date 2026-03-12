@@ -411,7 +411,7 @@ struct property *__of_prop_dup(const struct property *prop, gfp_t allocflags)
 {
 	struct property *new;
 
-	new = kzalloc(sizeof(*new), allocflags);
+	new = kzalloc_obj(*new, allocflags);
 	if (!new)
 		return NULL;
 
@@ -454,7 +454,7 @@ struct device_node *__of_node_dup(const struct device_node *np,
 {
 	struct device_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return NULL;
 	node->full_name = kstrdup(full_name, GFP_KERNEL);
@@ -908,7 +908,7 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 	if (WARN_ON(action >= ARRAY_SIZE(action_names)))
 		return -EINVAL;
 
-	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
+	ce = kzalloc_obj(*ce);
 	if (!ce)
 		return -ENOMEM;
 

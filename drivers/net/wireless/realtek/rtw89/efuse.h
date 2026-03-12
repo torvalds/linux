@@ -11,6 +11,11 @@
 #define RTW89_EFUSE_BLOCK_SIZE_MASK GENMASK(15, 0)
 #define RTW89_EFUSE_MAX_BLOCK_SIZE 0x10000
 
+#define EF_FV_OFSET 0x5EA
+#define EF_FV_OFSET_BE_V1 0x17CA
+#define EF_CV_MASK GENMASK(7, 4)
+#define EF_CV_INV 15
+
 struct rtw89_efuse_block_cfg {
 	u32 offset;
 	u32 size;
@@ -26,5 +31,6 @@ int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *efv);
 int rtw89_efuse_recognize_mss_info_v1(struct rtw89_dev *rtwdev, u8 b1, u8 b2);
 int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev);
+int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev);
 
 #endif

@@ -58,7 +58,7 @@ void t1_tp_destroy(struct petp *tp)
 
 struct petp *t1_tp_create(adapter_t *adapter, struct tp_params *p)
 {
-	struct petp *tp = kzalloc(sizeof(*tp), GFP_KERNEL);
+	struct petp *tp = kzalloc_obj(*tp);
 
 	if (!tp)
 		return NULL;

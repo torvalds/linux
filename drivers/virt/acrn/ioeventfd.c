@@ -96,7 +96,7 @@ static int acrn_ioeventfd_assign(struct acrn_vm *vm,
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		ret = -ENOMEM;
 		goto fail;

@@ -105,7 +105,7 @@ static bool report_matches(const struct expect_report *r)
 
 	/* Title */
 	cur = expected_header;
-	end = &expected_header[sizeof(expected_header) - 1];
+	end = ARRAY_END(expected_header);
 
 	cur += scnprintf(cur, end - cur, "BUG: KMSAN: %s", r->error_type);
 
@@ -168,7 +168,7 @@ static void test_uninit_kmalloc(struct kunit *test)
 	int *ptr;
 
 	kunit_info(test, "uninitialized kmalloc test (UMR report)\n");
-	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kmalloc_obj(*ptr);
 	USE(*ptr);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
@@ -182,7 +182,7 @@ static void test_init_kmalloc(struct kunit *test)
 	int *ptr;
 
 	kunit_info(test, "initialized kmalloc test (no reports)\n");
-	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kmalloc_obj(*ptr);
 	memset(ptr, 0, sizeof(*ptr));
 	USE(*ptr);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
@@ -195,7 +195,7 @@ static void test_init_kzalloc(struct kunit *test)
 	int *ptr;
 
 	kunit_info(test, "initialized kzalloc test (no reports)\n");
-	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kzalloc_obj(*ptr);
 	USE(*ptr);
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
@@ -322,7 +322,7 @@ static void test_init_kmsan_vmap_vunmap(struct kunit *test)
 
 	kunit_info(test, "pages initialized via vmap (no reports)\n");
 
-	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, npages);
 	for (int i = 0; i < npages; i++)
 		pages[i] = alloc_page(GFP_KERNEL);
 	vbuf = vmap(pages, npages, VM_MAP, PAGE_KERNEL);
@@ -361,7 +361,7 @@ static void test_init_vmalloc(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
 
-/* Test case: ensure that use-after-free reporting works. */
+/* Test case: ensure that use-after-free reporting works for kmalloc. */
 static void test_uaf(struct kunit *test)
 {
 	EXPECTATION_USE_AFTER_FREE(expect);
@@ -375,6 +375,65 @@ static void test_uaf(struct kunit *test)
 	/* Copy the invalid value before checking it. */
 	value = var[3];
 	USE(value);
+	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
+}
+
+static void test_uninit_page(struct kunit *test)
+{
+	EXPECTATION_UNINIT_VALUE(expect);
+	struct page *page;
+	int *ptr;
+
+	kunit_info(test, "uninitialized page allocation (UMR report)\n");
+	page = alloc_pages(GFP_KERNEL, 0);
+	ptr = page_address(page);
+	USE(*ptr);
+	__free_pages(page, 0);
+	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
+}
+
+static volatile char *test_uaf_pages_helper(int order, int offset)
+{
+	struct page *page;
+	volatile char *var;
+
+	/* Memory is initialized up until __free_pages() thanks to __GFP_ZERO. */
+	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
+	var = page_address(page) + offset;
+	__free_pages(page, order);
+
+	return var;
+}
+
+/* Test case: ensure that use-after-free reporting works for a freed page. */
+static void test_uaf_pages(struct kunit *test)
+{
+	EXPECTATION_USE_AFTER_FREE(expect);
+	volatile char value;
+
+	kunit_info(test, "use-after-free on a freed page (UMR report)\n");
+	/* Allocate a single page, free it, then try to access it. */
+	value = *test_uaf_pages_helper(0, 3);
+	USE(value);
+
+	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
+}
+
+/* Test case: ensure that UAF reporting works for high order pages. */
+static void test_uaf_high_order_pages(struct kunit *test)
+{
+	EXPECTATION_USE_AFTER_FREE(expect);
+	volatile char value;
+
+	kunit_info(test,
+		   "use-after-free on a freed high-order page (UMR report)\n");
+	/*
+	 * Create a high-order non-compound page, free it, then try to access
+	 * its tail page.
+	 */
+	value = *test_uaf_pages_helper(1, PAGE_SIZE + 3);
+	USE(value);
+
 	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
 }
 
@@ -682,7 +741,10 @@ static struct kunit_case kmsan_test_cases[] = {
 	KUNIT_CASE(test_uninit_kmsan_check_memory),
 	KUNIT_CASE(test_init_kmsan_vmap_vunmap),
 	KUNIT_CASE(test_init_vmalloc),
+	KUNIT_CASE(test_uninit_page),
 	KUNIT_CASE(test_uaf),
+	KUNIT_CASE(test_uaf_pages),
+	KUNIT_CASE(test_uaf_high_order_pages),
 	KUNIT_CASE(test_percpu_propagate),
 	KUNIT_CASE(test_printk),
 	KUNIT_CASE(test_init_memcpy),

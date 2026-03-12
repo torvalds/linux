@@ -316,7 +316,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 		}
 	}
 
-	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+	if (!(fb = *pfb = kzalloc_obj(*fb)))
 		return -ENOMEM;
 
 	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
@@ -646,7 +646,7 @@ nouveau_display_create(struct drm_device *dev)
 	struct nouveau_display *disp;
 	int ret;
 
-	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
+	disp = drm->display = kzalloc_obj(*disp);
 	if (!disp)
 		return -ENOMEM;
 

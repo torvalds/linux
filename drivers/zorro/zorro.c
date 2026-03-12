@@ -135,8 +135,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	int error;
 
 	/* Initialize the Zorro bus */
-	bus = kzalloc(struct_size(bus, devices, zorro_num_autocon),
-		      GFP_KERNEL);
+	bus = kzalloc_flex(*bus, devices, zorro_num_autocon);
 	if (!bus)
 		return -ENOMEM;
 

@@ -699,6 +699,69 @@ static const struct snd_soc_acpi_adr_device cs35l56_1_fb_adr[] = {
 	},
 };
 
+static const struct snd_soc_acpi_adr_device cs35l56_6amp_1_fb_adr[] = {
+	{
+		.adr = 0x00013701FA355601ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
+		.name_prefix = "AMP6"
+	},
+	{
+		.adr = 0x00013601FA355601ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_3_fb_endpoints),
+		.endpoints = cs35l56_3_fb_endpoints,
+		.name_prefix = "AMP5"
+	},
+	{
+		.adr = 0x00013501FA355601ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_5_fb_endpoints),
+		.endpoints = cs35l56_5_fb_endpoints,
+		.name_prefix = "AMP4"
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l63_6amp_3_fb_adr[] = {
+	{
+		.adr = 0x00033001FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_l_fb_endpoints),
+		.endpoints = cs35l56_l_fb_endpoints,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00033201FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_2_fb_endpoints),
+		.endpoints = cs35l56_2_fb_endpoints,
+		.name_prefix = "AMP3"
+	},
+	{
+		.adr = 0x00033401FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_4_fb_endpoints),
+		.endpoints = cs35l56_4_fb_endpoints,
+		.name_prefix = "AMP5"
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l63_6amp_2_fb_adr[] = {
+	{
+		.adr = 0x00023101FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
+		.name_prefix = "AMP2"
+	},
+	{
+		.adr = 0x00023301FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_3_fb_endpoints),
+		.endpoints = cs35l56_3_fb_endpoints,
+		.name_prefix = "AMP4"
+	},
+	{
+		.adr = 0x00023501FA356301ull,
+		.num_endpoints = ARRAY_SIZE(cs35l56_5_fb_endpoints),
+		.endpoints = cs35l56_5_fb_endpoints,
+		.name_prefix = "AMP6"
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs35l56_2_r_adr[] = {
 	{
 		.adr = 0x00023201FA355601ull,
@@ -950,7 +1013,7 @@ static const struct snd_soc_acpi_adr_device cs42l42_0_adr[] = {
 
 static const struct snd_soc_acpi_adr_device tas2783_0_adr[] = {
 	{
-		.adr = 0x0000380102000001ull,
+		.adr = 0x00003c0102000001ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
 		.name_prefix = "tas2783-1"
@@ -960,6 +1023,18 @@ static const struct snd_soc_acpi_adr_device tas2783_0_adr[] = {
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "tas2783-2"
+	},
+	{
+		.adr = 0x00003d0102000001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "tas2783-3"
+	},
+	{
+		.adr = 0x00003a0102000001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "tas2783-4"
 	}
 };
 
@@ -1065,6 +1140,35 @@ static const struct snd_soc_acpi_link_adr mtl_cs35l56_x8_link0_link1_fb[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(cs35l56_0_fb_adr),
 		.adr_d = cs35l56_0_fb_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr mtl_cs35l56_x6_link0_link1_fb[] = {
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l56_6amp_1_fb_adr),
+		.adr_d = cs35l56_6amp_1_fb_adr,
+	},
+	{
+		.mask = BIT(0),
+		/* First 3 amps in cs35l56_0_fb_adr */
+		.num_adr = 3,
+		.adr_d = cs35l56_0_fb_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr mtl_cs35l63_x6_link2_link3_fb[] = {
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(cs35l63_6amp_3_fb_adr),
+		.adr_d = cs35l63_6amp_3_fb_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(cs35l63_6amp_2_fb_adr),
+		.adr_d = cs35l63_6amp_2_fb_adr,
 	},
 	{}
 };
@@ -1190,6 +1294,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = mtl_cs35l56_x6_link0_link1_fb,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-cs35l56-l01-fb6.tplg"
+	},
+	{
 		.link_mask = BIT(0),
 		.links = mtl_cs42l43_l0,
 		.drv_name = "sof_sdw",
@@ -1201,6 +1311,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.links = mtl_cs35l63_x2_link1_link3_fb,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-cs35l56-l01-fb8.tplg",
+	},
+	{
+		.link_mask = BIT(2) | BIT(3),
+		.links = mtl_cs35l63_x6_link2_link3_fb,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-cs35l56-l01-fb6.tplg",
 	},
 	{
 		.link_mask = GENMASK(3, 0),

@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -107,7 +108,7 @@ static int vpd_section_attrib_add(const u8 *key, u32 key_len,
 	if (vpd_section_check_key_name(key, key_len) != VPD_OK)
 		return VPD_OK;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

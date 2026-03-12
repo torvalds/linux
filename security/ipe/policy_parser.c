@@ -30,7 +30,7 @@ static struct ipe_parsed_policy *new_parsed_policy(void)
 	struct ipe_op_table *t = NULL;
 	size_t i = 0;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -305,7 +305,7 @@ static int parse_property(char *t, struct ipe_rule *r)
 	int token;
 	char *dup = NULL;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 
@@ -373,7 +373,7 @@ static int parse_rule(char *line, struct ipe_parsed_policy *p)
 	if (IS_ERR_OR_NULL(line))
 		return -EBADMSG;
 
-	r = kzalloc(sizeof(*r), GFP_KERNEL);
+	r = kzalloc_obj(*r);
 	if (!r)
 		return -ENOMEM;
 

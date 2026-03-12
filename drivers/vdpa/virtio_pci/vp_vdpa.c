@@ -608,7 +608,7 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct virtio_device_id *mdev_id = NULL;
 	int err;
 
-	vp_vdpa_mgtdev = kzalloc(sizeof(*vp_vdpa_mgtdev), GFP_KERNEL);
+	vp_vdpa_mgtdev = kzalloc_obj(*vp_vdpa_mgtdev);
 	if (!vp_vdpa_mgtdev)
 		return -ENOMEM;
 
@@ -616,7 +616,7 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mgtdev->ops = &vp_vdpa_mdev_ops;
 	mgtdev->device = dev;
 
-	mdev = kzalloc(sizeof(struct virtio_pci_modern_device), GFP_KERNEL);
+	mdev = kzalloc_obj(struct virtio_pci_modern_device);
 	if (!mdev) {
 		err = -ENOMEM;
 		goto mdev_err;
@@ -626,7 +626,7 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * id_table should be a null terminated array, so allocate one additional
 	 * entry here, see vdpa_mgmtdev_get_classes().
 	 */
-	mdev_id = kcalloc(2, sizeof(struct virtio_device_id), GFP_KERNEL);
+	mdev_id = kzalloc_objs(struct virtio_device_id, 2);
 	if (!mdev_id) {
 		err = -ENOMEM;
 		goto mdev_id_err;

@@ -92,7 +92,11 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 	{"Processor Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
 	{"3.0 Thermal Model", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
 	{"3.0 _SCP Extensions", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
-	{"Processor Aggregator Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0}
+	{"Processor Aggregator Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+
+	/* See https://learn.microsoft.com/en-us/windows-hardware/drivers/display/automatic-display-switch */
+
+	{"DisplayMux", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0}
 };
 
 /*******************************************************************************

@@ -160,7 +160,7 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 	struct afs_call *call;
 	int o;
 
-	call = kzalloc(sizeof(*call), gfp);
+	call = kzalloc_obj(*call, gfp);
 	if (!call)
 		return NULL;
 

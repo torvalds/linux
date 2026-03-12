@@ -50,7 +50,7 @@
 	{							\
 		.max = 1,					\
 		.types = BIT(NL80211_IFTYPE_P2P_DEVICE),	\
-	}
+	},
 
 static const struct ieee80211_iface_limit iwl_mld_limits[] = {
 	IWL_MLD_LIMITS(0)
@@ -58,6 +58,22 @@ static const struct ieee80211_iface_limit iwl_mld_limits[] = {
 
 static const struct ieee80211_iface_limit iwl_mld_limits_ap[] = {
 	IWL_MLD_LIMITS(BIT(NL80211_IFTYPE_AP))
+};
+
+static const struct ieee80211_iface_limit iwl_mld_limits_nan[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_NAN),
+	},
+	/* Removed when two channels are permitted */
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
 };
 
 static const struct ieee80211_iface_combination
@@ -74,6 +90,19 @@ iwl_mld_iface_combinations[] = {
 		.limits = iwl_mld_limits_ap,
 		.n_limits = ARRAY_SIZE(iwl_mld_limits_ap),
 	},
+	/* NAN combinations follow, these exclude P2P */
+	{
+		.num_different_channels = 2,
+		.max_interfaces = 3,
+		.limits = iwl_mld_limits_nan,
+		.n_limits = ARRAY_SIZE(iwl_mld_limits_nan) - 1,
+	},
+	{
+		.num_different_channels = 1,
+		.max_interfaces = 4,
+		.limits = iwl_mld_limits_nan,
+		.n_limits = ARRAY_SIZE(iwl_mld_limits_nan),
+	}
 };
 
 static const u8 ext_capa_base[IWL_MLD_STA_EXT_CAPA_SIZE] = {
@@ -305,8 +334,38 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 
 	wiphy->hw_timestamp_max_peers = 1;
 
-	wiphy->iface_combinations = iwl_mld_iface_combinations;
-	wiphy->n_iface_combinations = ARRAY_SIZE(iwl_mld_iface_combinations);
+	if (iwl_mld_nan_supported(mld)) {
+		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_NAN);
+		hw->wiphy->iface_combinations = iwl_mld_iface_combinations;
+		hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(iwl_mld_iface_combinations);
+
+		hw->wiphy->nan_supported_bands = BIT(NL80211_BAND_2GHZ);
+		if (mld->nvm_data->bands[NL80211_BAND_5GHZ].n_channels)
+			hw->wiphy->nan_supported_bands |=
+				BIT(NL80211_BAND_5GHZ);
+
+		hw->wiphy->nan_capa.flags = WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC |
+					    WIPHY_NAN_FLAGS_USERSPACE_DE;
+
+		hw->wiphy->nan_capa.op_mode = NAN_OP_MODE_PHY_MODE_MASK |
+					      NAN_OP_MODE_80P80MHZ |
+					      NAN_OP_MODE_160MHZ;
+
+		/* Support 2 antenna's for Tx and Rx */
+		hw->wiphy->nan_capa.n_antennas = 0x22;
+
+		/* Maximal channel switch time is 4 msec */
+		hw->wiphy->nan_capa.max_channel_switch_time = 4;
+		hw->wiphy->nan_capa.dev_capabilities =
+			NAN_DEV_CAPA_EXT_KEY_ID_SUPPORTED |
+			NAN_DEV_CAPA_NDPE_SUPPORTED;
+	} else {
+		wiphy->iface_combinations = iwl_mld_iface_combinations;
+		/* Do not include NAN combinations */
+		wiphy->n_iface_combinations =
+			ARRAY_SIZE(iwl_mld_iface_combinations) - 2;
+	}
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_DFS_CONCURRENT);
@@ -318,6 +377,8 @@ static void iwl_mac_hw_set_wiphy(struct iwl_mld *mld)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
+	wiphy_ext_feature_set(wiphy,
+			      NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT);
 
 	if (fw_has_capa(ucode_capa, IWL_UCODE_TLV_CAPA_PROTECTED_TWT))
@@ -616,10 +677,11 @@ int iwl_mld_mac80211_add_interface(struct ieee80211_hw *hw,
 	 * Add the default link, but not if this is an MLD vif as that implies
 	 * the HW is restarting and it will be configured by change_vif_links.
 	 */
-	if (!ieee80211_vif_is_mld(vif))
+	if (vif->type != NL80211_IFTYPE_NAN && !ieee80211_vif_is_mld(vif)) {
 		ret = iwl_mld_add_link(mld, &vif->bss_conf);
-	if (ret)
-		goto err;
+		if (ret)
+			goto err;
+	}
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		vif->driver_flags |= IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC;
@@ -646,6 +708,9 @@ int iwl_mld_mac80211_add_interface(struct ieee80211_hw *hw,
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		mld->p2p_device_vif = vif;
+
+	if (vif->type == NL80211_IFTYPE_NAN)
+		mld->nan_device_vif = vif;
 
 	return 0;
 
@@ -674,7 +739,10 @@ void iwl_mld_mac80211_remove_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		mld->p2p_device_vif = NULL;
 
-	iwl_mld_remove_link(mld, &vif->bss_conf);
+	if (vif->type == NL80211_IFTYPE_NAN)
+		mld->nan_device_vif = NULL;
+	else
+		iwl_mld_remove_link(mld, &vif->bss_conf);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	debugfs_remove(iwl_mld_vif_from_mac80211(vif)->dbgfs_slink);
@@ -984,7 +1052,9 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
-	unsigned int n_active = iwl_mld_count_active_links(mld, vif);
+	struct iwl_mld_link *temp_mld_link;
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	u16 final_active_links = 0;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
@@ -992,10 +1062,7 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(!mld_link))
 		return -EINVAL;
 
-	/* if the assigned one was not counted yet, count it now */
 	if (!rcu_access_pointer(mld_link->chan_ctx)) {
-		n_active++;
-
 		/* Track addition of non-BSS link */
 		if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION) {
 			ret = iwl_mld_emlsr_check_non_bss_block(mld, 1);
@@ -1016,17 +1083,25 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(mld_link->chan_ctx, ctx);
 
-	if (n_active > 1) {
-		struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	/* We cannot rely on vif->active_links at this stage as it contains
+	 * both the removed links and the newly added links.
+	 * Therefore, we create our own bitmap of the final active links,
+	 * which does not include the removed links.
+	 */
+	for_each_mld_vif_valid_link(mld_vif, temp_mld_link) {
+		if (rcu_access_pointer(temp_mld_link->chan_ctx))
+			final_active_links |= BIT(link_id);
+	}
 
+	if (hweight16(final_active_links) > 1) {
 		/* Indicate to mac80211 that EML is enabled */
 		vif->driver_flags |= IEEE80211_VIF_EML_ACTIVE;
 		mld_vif->emlsr.last_entry_ts = jiffies;
 
-		if (vif->active_links & BIT(mld_vif->emlsr.selected_links))
+		if (final_active_links == mld_vif->emlsr.selected_links)
 			mld_vif->emlsr.primary = mld_vif->emlsr.selected_primary;
 		else
-			mld_vif->emlsr.primary = __ffs(vif->active_links);
+			mld_vif->emlsr.primary = __ffs(final_active_links);
 
 		iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_ESR_LINK_UP,
 				       NULL);
@@ -1506,6 +1581,9 @@ iwl_mld_mac80211_conf_tx(struct ieee80211_hw *hw,
 
 	lockdep_assert_wiphy(mld->wiphy);
 
+	if (vif->type == NL80211_IFTYPE_NAN)
+		return 0;
+
 	link = iwl_mld_link_dereference_check(mld_vif, link_id);
 	if (!link)
 		return -EINVAL;
@@ -1706,6 +1784,9 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 			/* Ensure any block due to a non-BSS link is synced */
 			iwl_mld_emlsr_check_non_bss_block(mld, 0);
 
+			/* Ensure NAN block is synced */
+			iwl_mld_emlsr_check_nan_block(mld, vif);
+
 			/* Block EMLSR until a certain throughput it reached */
 			if (!mld->fw_status.in_hw_restart &&
 			    IWL_MLD_ENTER_EMLSR_TPT_THRESH > 0)
@@ -1759,6 +1840,8 @@ static int iwl_mld_move_sta_state_down(struct iwl_mld *mld,
 			wiphy_work_cancel(mld->wiphy, &mld_vif->emlsr.unblock_tpt_wk);
 			wiphy_delayed_work_cancel(mld->wiphy,
 						  &mld_vif->emlsr.check_tpt_wk);
+			wiphy_delayed_work_cancel(mld->wiphy,
+						  &mld_vif->mlo_scan_start_wk);
 
 			iwl_mld_reset_cca_40mhz_workaround(mld, vif);
 			iwl_mld_smps_workaround(mld, vif, true);
@@ -2009,8 +2092,7 @@ static int iwl_mld_alloc_ptk_pn(struct iwl_mld *mld,
 		return -EINVAL;
 
 	WARN_ON(rcu_access_pointer(mld_sta->ptk_pn[keyidx]));
-	*ptk_pn = kzalloc(struct_size(*ptk_pn, q, num_rx_queues),
-			  GFP_KERNEL);
+	*ptk_pn = kzalloc_flex(**ptk_pn, q, num_rx_queues);
 	if (!*ptk_pn)
 		return -ENOMEM;
 
@@ -2699,4 +2781,7 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.set_hw_timestamp = iwl_mld_set_hw_timestamp,
 	.start_pmsr = iwl_mld_start_pmsr,
 	.can_neg_ttlm = iwl_mld_can_neg_ttlm,
+	.start_nan = iwl_mld_start_nan,
+	.stop_nan = iwl_mld_stop_nan,
+	.nan_change_conf = iwl_mld_nan_change_config,
 };

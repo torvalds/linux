@@ -43,7 +43,6 @@ struct dev_pin_info {
 #endif
 };
 
-extern int pinctrl_bind_pins(struct device *dev);
 extern int pinctrl_init_done(struct device *dev);
 
 static inline struct pinctrl *dev_pinctrl(struct device *dev)
@@ -57,11 +56,6 @@ static inline struct pinctrl *dev_pinctrl(struct device *dev)
 #else
 
 /* Stubs if we're not using pinctrl */
-
-static inline int pinctrl_bind_pins(struct device *dev)
-{
-	return 0;
-}
 
 static inline int pinctrl_init_done(struct device *dev)
 {

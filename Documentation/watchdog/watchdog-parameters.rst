@@ -209,13 +209,6 @@ iTCO_wdt:
 
 -------------------------------------------------
 
-iTCO_vendor_support:
-    vendorsupport:
-	iTCO vendor specific support mode, default=0 (none),
-	1=SuperMicro Pent3, 2=SuperMicro Pent4+, 911=Broken SMI BIOS
-
--------------------------------------------------
-
 ib700wdt:
     timeout:
 	Watchdog timeout in seconds. 0<= timeout <=30, default=30.

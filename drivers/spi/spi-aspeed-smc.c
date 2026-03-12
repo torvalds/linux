@@ -48,6 +48,8 @@
 /* CEx Address Decoding Range Register */
 #define CE0_SEGMENT_ADDR_REG		0x30
 
+#define FULL_DUPLEX_RX_DATA		0x1e4
+
 /* CEx Read timing compensation register */
 #define CE0_TIMING_COMPENSATION_REG	0x94
 
@@ -81,6 +83,7 @@ struct aspeed_spi_data {
 	u32	hclk_mask;
 	u32	hdiv_max;
 	u32	min_window_size;
+	bool	full_duplex;
 
 	phys_addr_t (*segment_start)(struct aspeed_spi *aspi, u32 reg);
 	phys_addr_t (*segment_end)(struct aspeed_spi *aspi, u32 reg);
@@ -105,6 +108,7 @@ struct aspeed_spi {
 
 	struct clk		*clk;
 	u32			 clk_freq;
+	u8			 cs_change;
 
 	struct aspeed_spi_chip	 chips[ASPEED_SPI_MAX_NUM_CS];
 };
@@ -280,7 +284,8 @@ stop_user:
 }
 
 /* support for 1-1-1, 1-1-2 or 1-1-4 */
-static bool aspeed_spi_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
+static bool aspeed_spi_supports_mem_op(struct spi_mem *mem,
+				       const struct spi_mem_op *op)
 {
 	if (op->cmd.buswidth > 1)
 		return false;
@@ -305,7 +310,8 @@ static bool aspeed_spi_supports_op(struct spi_mem *mem, const struct spi_mem_op 
 
 static const struct aspeed_spi_data ast2400_spi_data;
 
-static int do_aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
+static int do_aspeed_spi_exec_mem_op(struct spi_mem *mem,
+				     const struct spi_mem_op *op)
 {
 	struct aspeed_spi *aspi = spi_controller_get_devdata(mem->spi->controller);
 	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(mem->spi, 0)];
@@ -367,11 +373,12 @@ static int do_aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 	return ret;
 }
 
-static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
+static int aspeed_spi_exec_mem_op(struct spi_mem *mem,
+				  const struct spi_mem_op *op)
 {
 	int ret;
 
-	ret = do_aspeed_spi_exec_op(mem, op);
+	ret = do_aspeed_spi_exec_mem_op(mem, op);
 	if (ret)
 		dev_err(&mem->spi->dev, "operation failed: %d\n", ret);
 	return ret;
@@ -773,8 +780,8 @@ static ssize_t aspeed_spi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 }
 
 static const struct spi_controller_mem_ops aspeed_spi_mem_ops = {
-	.supports_op = aspeed_spi_supports_op,
-	.exec_op = aspeed_spi_exec_op,
+	.supports_op = aspeed_spi_supports_mem_op,
+	.exec_op = aspeed_spi_exec_mem_op,
 	.get_name = aspeed_spi_get_name,
 	.dirmap_create = aspeed_spi_dirmap_create,
 	.dirmap_read = aspeed_spi_dirmap_read,
@@ -843,6 +850,110 @@ static void aspeed_spi_enable(struct aspeed_spi *aspi, bool enable)
 		aspeed_spi_chip_enable(aspi, cs, enable);
 }
 
+static int aspeed_spi_user_prepare_msg(struct spi_controller *ctlr,
+				       struct spi_message *msg)
+{
+	struct aspeed_spi *aspi =
+		(struct aspeed_spi *)spi_controller_get_devdata(ctlr);
+	const struct aspeed_spi_data *data = aspi->data;
+	struct spi_device *spi = msg->spi;
+	u32 cs = spi_get_chipselect(spi, 0);
+	struct aspeed_spi_chip *chip = &aspi->chips[cs];
+	u32 ctrl_val;
+	u32 clk_div = data->get_clk_div(chip, spi->max_speed_hz);
+
+	ctrl_val = chip->ctl_val[ASPEED_SPI_BASE];
+	ctrl_val &= ~CTRL_IO_MODE_MASK & data->hclk_mask;
+	ctrl_val |= clk_div;
+	chip->ctl_val[ASPEED_SPI_BASE] = ctrl_val;
+
+	if (aspi->cs_change == 0)
+		aspeed_spi_start_user(chip);
+
+	return 0;
+}
+
+static int aspeed_spi_user_unprepare_msg(struct spi_controller *ctlr,
+					 struct spi_message *msg)
+{
+	struct aspeed_spi *aspi =
+		(struct aspeed_spi *)spi_controller_get_devdata(ctlr);
+	struct spi_device *spi = msg->spi;
+	u32 cs = spi_get_chipselect(spi, 0);
+	struct aspeed_spi_chip *chip = &aspi->chips[cs];
+
+	if (aspi->cs_change == 0)
+		aspeed_spi_stop_user(chip);
+
+	return 0;
+}
+
+static void aspeed_spi_user_transfer_tx(struct aspeed_spi *aspi,
+					struct spi_device *spi,
+					const u8 *tx_buf, u8 *rx_buf,
+					void *dst, u32 len)
+{
+	const struct aspeed_spi_data *data = aspi->data;
+	bool full_duplex_transfer = data->full_duplex && tx_buf == rx_buf;
+	u32 i;
+
+	if (full_duplex_transfer &&
+	    !!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD |
+			    SPI_RX_DUAL | SPI_RX_QUAD))) {
+		dev_err(aspi->dev,
+			"full duplex is only supported for single IO mode\n");
+		return;
+	}
+
+	for (i = 0; i < len; i++) {
+		writeb(tx_buf[i], dst);
+		if (full_duplex_transfer)
+			rx_buf[i] = readb(aspi->regs + FULL_DUPLEX_RX_DATA);
+	}
+}
+
+static int aspeed_spi_user_transfer(struct spi_controller *ctlr,
+				    struct spi_device *spi,
+				    struct spi_transfer *xfer)
+{
+	struct aspeed_spi *aspi =
+		(struct aspeed_spi *)spi_controller_get_devdata(ctlr);
+	u32 cs = spi_get_chipselect(spi, 0);
+	struct aspeed_spi_chip *chip = &aspi->chips[cs];
+	void __iomem *ahb_base = aspi->chips[cs].ahb_base;
+	const u8 *tx_buf = xfer->tx_buf;
+	u8 *rx_buf = xfer->rx_buf;
+
+	dev_dbg(aspi->dev,
+		"[cs%d] xfer: width %d, len %u, tx %p, rx %p\n",
+		cs, xfer->bits_per_word, xfer->len,
+		tx_buf, rx_buf);
+
+	if (tx_buf) {
+		if (spi->mode & SPI_TX_DUAL)
+			aspeed_spi_set_io_mode(chip, CTRL_IO_DUAL_DATA);
+		else if (spi->mode & SPI_TX_QUAD)
+			aspeed_spi_set_io_mode(chip, CTRL_IO_QUAD_DATA);
+
+		aspeed_spi_user_transfer_tx(aspi, spi, tx_buf, rx_buf,
+					    (void *)ahb_base, xfer->len);
+	}
+
+	if (rx_buf && rx_buf != tx_buf) {
+		if (spi->mode & SPI_RX_DUAL)
+			aspeed_spi_set_io_mode(chip, CTRL_IO_DUAL_DATA);
+		else if (spi->mode & SPI_RX_QUAD)
+			aspeed_spi_set_io_mode(chip, CTRL_IO_QUAD_DATA);
+
+		ioread8_rep(ahb_base, rx_buf, xfer->len);
+	}
+
+	xfer->error = 0;
+	aspi->cs_change = xfer->cs_change;
+
+	return 0;
+}
+
 static int aspeed_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -898,7 +1009,9 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	ctlr->setup = aspeed_spi_setup;
 	ctlr->cleanup = aspeed_spi_cleanup;
 	ctlr->num_chipselect = of_get_available_child_count(dev->of_node);
-	ctlr->dev.of_node = dev->of_node;
+	ctlr->prepare_message = aspeed_spi_user_prepare_msg;
+	ctlr->unprepare_message = aspeed_spi_user_unprepare_msg;
+	ctlr->transfer_one = aspeed_spi_user_transfer;
 
 	aspi->num_cs = ctlr->num_chipselect;
 
@@ -1455,6 +1568,7 @@ static const struct aspeed_spi_data ast2400_fmc_data = {
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
 	.min_window_size = 0x800000,
+	.full_duplex   = false,
 	.calibrate     = aspeed_spi_calibrate,
 	.get_clk_div   = aspeed_get_clk_div_ast2400,
 	.segment_start = aspeed_spi_segment_start,
@@ -1471,6 +1585,7 @@ static const struct aspeed_spi_data ast2400_spi_data = {
 	.timing	       = 0x14,
 	.hclk_mask     = 0xfffff0ff,
 	.hdiv_max      = 1,
+	.full_duplex   = false,
 	.get_clk_div   = aspeed_get_clk_div_ast2400,
 	.calibrate     = aspeed_spi_calibrate,
 	/* No segment registers */
@@ -1485,6 +1600,7 @@ static const struct aspeed_spi_data ast2500_fmc_data = {
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
 	.min_window_size = 0x800000,
+	.full_duplex   = false,
 	.get_clk_div   = aspeed_get_clk_div_ast2500,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
@@ -1502,6 +1618,7 @@ static const struct aspeed_spi_data ast2500_spi_data = {
 	.hclk_mask     = 0xffffd0ff,
 	.hdiv_max      = 1,
 	.min_window_size = 0x800000,
+	.full_duplex   = false,
 	.get_clk_div   = aspeed_get_clk_div_ast2500,
 	.calibrate     = aspeed_spi_calibrate,
 	.segment_start = aspeed_spi_segment_start,
@@ -1520,6 +1637,7 @@ static const struct aspeed_spi_data ast2600_fmc_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_size = 0x200000,
+	.full_duplex   = false,
 	.get_clk_div   = aspeed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
@@ -1538,6 +1656,7 @@ static const struct aspeed_spi_data ast2600_spi_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_size = 0x200000,
+	.full_duplex   = false,
 	.get_clk_div   = aspeed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2600_start,
@@ -1556,6 +1675,7 @@ static const struct aspeed_spi_data ast2700_fmc_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_size = 0x10000,
+	.full_duplex   = true,
 	.get_clk_div   = aspeed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2700_start,
@@ -1573,6 +1693,7 @@ static const struct aspeed_spi_data ast2700_spi_data = {
 	.hclk_mask     = 0xf0fff0ff,
 	.hdiv_max      = 2,
 	.min_window_size = 0x10000,
+	.full_duplex   = true,
 	.get_clk_div   = aspeed_get_clk_div_ast2600,
 	.calibrate     = aspeed_spi_ast2600_calibrate,
 	.segment_start = aspeed_spi_segment_ast2700_start,

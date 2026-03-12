@@ -66,7 +66,7 @@ static struct live_active *__live_alloc(struct drm_i915_private *i915)
 {
 	struct live_active *active;
 
-	active = kzalloc(sizeof(*active), GFP_KERNEL);
+	active = kzalloc_obj(*active);
 	if (!active)
 		return NULL;
 
@@ -323,9 +323,9 @@ static void active_flush(struct i915_active *ref,
 	if (!fence)
 		return;
 
-	spin_lock_irq(fence->lock);
+	spin_lock_irq(dma_fence_spinlock(fence));
 	__list_del_entry(&active->cb.node);
-	spin_unlock_irq(fence->lock); /* serialise with fence->cb_list */
+	spin_unlock_irq(dma_fence_spinlock(fence)); /* serialise with fence->cb_list */
 	atomic_dec(&ref->count);
 
 	GEM_BUG_ON(!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));

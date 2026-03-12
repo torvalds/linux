@@ -1,7 +1,7 @@
 /*
  * Performance events x86 architecture header
  *
- *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (C) 2008 Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
  *  Copyright (C) 2009 Jaswinder Singh Rajput
  *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
@@ -45,6 +45,10 @@ enum extra_reg_type {
 	EXTRA_REG_FE		= 4,  /* fe_* */
 	EXTRA_REG_SNOOP_0	= 5,  /* snoop response 0 */
 	EXTRA_REG_SNOOP_1	= 6,  /* snoop response 1 */
+	EXTRA_REG_OMR_0		= 7,  /* OMR 0 */
+	EXTRA_REG_OMR_1		= 8,  /* OMR 1 */
+	EXTRA_REG_OMR_2		= 9,  /* OMR 2 */
+	EXTRA_REG_OMR_3		= 10,  /* OMR 3 */
 
 	EXTRA_REG_MAX		      /* number of entries needed */
 };
@@ -182,6 +186,13 @@ struct amd_nb {
 	 (1ULL << PERF_REG_X86_R13)   | \
 	 (1ULL << PERF_REG_X86_R14)   | \
 	 (1ULL << PERF_REG_X86_R15))
+
+/* user space rdpmc control values */
+enum {
+	X86_USER_RDPMC_NEVER_ENABLE		= 0,
+	X86_USER_RDPMC_CONDITIONAL_ENABLE	= 1,
+	X86_USER_RDPMC_ALWAYS_ENABLE		= 2,
+};
 
 /*
  * Per register state.
@@ -1099,6 +1110,7 @@ do {									\
 #define PMU_FL_RETIRE_LATENCY	0x200 /* Support Retire Latency in PEBS */
 #define PMU_FL_BR_CNTR		0x400 /* Support branch counter logging */
 #define PMU_FL_DYN_CONSTRAINT	0x800 /* Needs dynamic constraint */
+#define PMU_FL_HAS_OMR		0x1000 /* has 4 equivalent OMR regs */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr
@@ -1319,6 +1331,12 @@ static inline int x86_pmu_max_num_counters_fixed(struct pmu *pmu)
 static inline u64 x86_pmu_get_event_config(struct perf_event *event)
 {
 	return event->attr.config & hybrid(event->pmu, config_mask);
+}
+
+static inline bool x86_pmu_has_rdpmc_user_disable(struct pmu *pmu)
+{
+	return !!(hybrid(pmu, config_mask) &
+		 ARCH_PERFMON_EVENTSEL_RDPMC_USER_DISABLE);
 }
 
 extern struct event_constraint emptyconstraint;
@@ -1574,13 +1592,22 @@ static inline bool intel_pmu_has_bts_period(struct perf_event *event, u64 period
 	struct hw_perf_event *hwc = &event->hw;
 	unsigned int hw_event, bts_event;
 
-	if (event->attr.freq)
+	/*
+	 * Only use BTS for fixed rate period==1 events.
+	 */
+	if (event->attr.freq || period != 1)
+		return false;
+
+	/*
+	 * BTS doesn't virtualize.
+	 */
+	if (event->attr.exclude_host)
 		return false;
 
 	hw_event = hwc->config & INTEL_ARCH_EVENT_MASK;
 	bts_event = x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
 
-	return hw_event == bts_event && period == 1;
+	return hw_event == bts_event;
 }
 
 static inline bool intel_pmu_has_bts(struct perf_event *event)
@@ -1659,6 +1686,10 @@ u64 lnl_latency_data(struct perf_event *event, u64 status);
 
 u64 arl_h_latency_data(struct perf_event *event, u64 status);
 
+u64 pnc_latency_data(struct perf_event *event, u64 status);
+
+u64 nvl_latency_data(struct perf_event *event, u64 status);
+
 extern struct event_constraint intel_core2_pebs_event_constraints[];
 
 extern struct event_constraint intel_atom_pebs_event_constraints[];
@@ -1670,6 +1701,8 @@ extern struct event_constraint intel_glm_pebs_event_constraints[];
 extern struct event_constraint intel_glp_pebs_event_constraints[];
 
 extern struct event_constraint intel_grt_pebs_event_constraints[];
+
+extern struct event_constraint intel_arw_pebs_event_constraints[];
 
 extern struct event_constraint intel_nehalem_pebs_event_constraints[];
 
@@ -1690,6 +1723,8 @@ extern struct event_constraint intel_icl_pebs_event_constraints[];
 extern struct event_constraint intel_glc_pebs_event_constraints[];
 
 extern struct event_constraint intel_lnc_pebs_event_constraints[];
+
+extern struct event_constraint intel_pnc_pebs_event_constraints[];
 
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 

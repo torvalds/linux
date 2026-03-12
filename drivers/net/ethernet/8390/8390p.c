@@ -91,16 +91,5 @@ void NS8390p_init(struct net_device *dev, int startp)
 }
 EXPORT_SYMBOL(NS8390p_init);
 
-static int __init NS8390p_init_module(void)
-{
-	return 0;
-}
-
-static void __exit NS8390p_cleanup_module(void)
-{
-}
-
-module_init(NS8390p_init_module);
-module_exit(NS8390p_cleanup_module);
 MODULE_DESCRIPTION("National Semiconductor 8390 core for ISA driver");
 MODULE_LICENSE("GPL");

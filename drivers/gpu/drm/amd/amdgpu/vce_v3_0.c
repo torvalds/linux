@@ -485,7 +485,7 @@ static int vce_v3_0_hw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	DRM_INFO("VCE initialized successfully.\n");
+	drm_info(adev_to_drm(adev), "VCE initialized successfully.\n");
 
 	return 0;
 }
@@ -846,7 +846,7 @@ static void vce_v3_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64
 		data = RREG32_SMC(ixCURRENT_PG_STATUS);
 
 	if (data & CURRENT_PG_STATUS__VCE_PG_STATUS_MASK) {
-		DRM_INFO("Cannot get clockgating state when VCE is powergated.\n");
+		drm_info(adev_to_drm(adev), "Cannot get clockgating state when VCE is powergated.\n");
 		goto out;
 	}
 
@@ -978,13 +978,13 @@ static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev)
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_vm_funcs;
 			adev->vce.ring[i].me = i;
 		}
-		DRM_INFO("VCE enabled in VM mode\n");
+		drm_info(adev_to_drm(adev), "VCE enabled in VM mode\n");
 	} else {
 		for (i = 0; i < adev->vce.num_rings; i++) {
 			adev->vce.ring[i].funcs = &vce_v3_0_ring_phys_funcs;
 			adev->vce.ring[i].me = i;
 		}
-		DRM_INFO("VCE enabled in physical mode\n");
+		drm_info(adev_to_drm(adev), "VCE enabled in physical mode\n");
 	}
 }
 

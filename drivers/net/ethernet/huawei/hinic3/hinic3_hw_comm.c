@@ -9,6 +9,36 @@
 #include "hinic3_hwif.h"
 #include "hinic3_mbox.h"
 
+static int hinic3_get_interrupt_cfg(struct hinic3_hwdev *hwdev,
+				    struct hinic3_interrupt_info *info)
+{
+	struct comm_cmd_cfg_msix_ctrl_reg msix_cfg = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	msix_cfg.func_id = hinic3_global_func_id(hwdev);
+	msix_cfg.msix_index = info->msix_index;
+	msix_cfg.opcode = MGMT_MSG_CMD_OP_GET;
+
+	mgmt_msg_params_init_default(&msg_params, &msix_cfg, sizeof(msix_cfg));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_CFG_MSIX_CTRL_REG, &msg_params);
+	if (err || msix_cfg.head.status) {
+		dev_err(hwdev->dev, "Failed to get interrupt config, err: %d, status: 0x%x\n",
+			err, msix_cfg.head.status);
+		return -EFAULT;
+	}
+
+	info->lli_credit_limit = msix_cfg.lli_credit_cnt;
+	info->lli_timer_cfg = msix_cfg.lli_timer_cnt;
+	info->pending_limit = msix_cfg.pending_cnt;
+	info->coalesc_timer_cfg = msix_cfg.coalesce_timer_cnt;
+	info->resend_timer_cfg = msix_cfg.resend_timer_cnt;
+
+	return 0;
+}
+
 int hinic3_set_interrupt_cfg_direct(struct hinic3_hwdev *hwdev,
 				    const struct hinic3_interrupt_info *info)
 {
@@ -38,6 +68,30 @@ int hinic3_set_interrupt_cfg_direct(struct hinic3_hwdev *hwdev,
 	}
 
 	return 0;
+}
+
+int hinic3_set_interrupt_cfg(struct hinic3_hwdev *hwdev,
+			     struct hinic3_interrupt_info info)
+{
+	struct hinic3_interrupt_info temp_info;
+	int err;
+
+	temp_info.msix_index = info.msix_index;
+
+	err = hinic3_get_interrupt_cfg(hwdev, &temp_info);
+	if (err)
+		return err;
+
+	info.lli_credit_limit = temp_info.lli_credit_limit;
+	info.lli_timer_cfg = temp_info.lli_timer_cfg;
+
+	if (!info.interrupt_coalesc_set) {
+		info.pending_limit = temp_info.pending_limit;
+		info.coalesc_timer_cfg = temp_info.coalesc_timer_cfg;
+		info.resend_timer_cfg = temp_info.resend_timer_cfg;
+	}
+
+	return hinic3_set_interrupt_cfg_direct(hwdev, &info);
 }
 
 int hinic3_func_reset(struct hinic3_hwdev *hwdev, u16 func_id, u64 reset_flag)
@@ -314,6 +368,8 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 			ret = -EFAULT;
 	}
 
+	hinic3_set_pf_status(hwif, HINIC3_PF_STATUS_FLR_START_FLAG);
+
 	clr_res.func_id = hwif->attr.func_global_idx;
 	msg_params.buf_in = &clr_res;
 	msg_params.in_size = sizeof(clr_res);
@@ -335,6 +391,65 @@ int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev)
 	}
 
 	return ret;
+}
+
+int hinic3_set_bdf_ctxt(struct hinic3_hwdev *hwdev,
+			struct comm_cmd_bdf_info *bdf_info)
+{
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	mgmt_msg_params_init_default(&msg_params, bdf_info, sizeof(*bdf_info));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_SEND_BDF_INFO, &msg_params);
+	if (err || bdf_info->head.status) {
+		dev_err(hwdev->dev,
+			"Failed to set bdf info to fw, err: %d, status: 0x%x\n",
+			err, bdf_info->head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int hinic3_sync_time(struct hinic3_hwdev *hwdev, u64 time)
+{
+	struct comm_cmd_sync_time time_info = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	time_info.mstime = time;
+
+	mgmt_msg_params_init_default(&msg_params, &time_info,
+				     sizeof(time_info));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_COMM,
+				       COMM_CMD_SYNC_TIME, &msg_params);
+	if (err || time_info.head.status) {
+		dev_err(hwdev->dev,
+			"Failed to sync time to mgmt, err: %d, status: 0x%x\n",
+			err, time_info.head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+void hinic3_sync_time_to_fw(struct hinic3_hwdev *hwdev)
+{
+	struct timespec64 ts = {};
+	u64 time;
+	int err;
+
+	ktime_get_real_ts64(&ts);
+	time = (u64)(ts.tv_sec * MSEC_PER_SEC + ts.tv_nsec / NSEC_PER_MSEC);
+
+	err = hinic3_sync_time(hwdev, time);
+	if (err)
+		dev_err(hwdev->dev,
+			"Synchronize UTC time to firmware failed, err=%d\n",
+			err);
 }
 
 static int get_hw_rx_buf_size_idx(int rx_buf_sz, u16 *buf_sz_idx)

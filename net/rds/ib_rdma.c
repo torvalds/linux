@@ -67,7 +67,7 @@ static int rds_ib_add_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 {
 	struct rds_ib_ipaddr *i_ipaddr;
 
-	i_ipaddr = kmalloc(sizeof *i_ipaddr, GFP_KERNEL);
+	i_ipaddr = kmalloc_obj(*i_ipaddr);
 	if (!i_ipaddr)
 		return -ENOMEM;
 
@@ -585,7 +585,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		if (key_ret)
 			*key_ret = ib_mr->rkey;
 
-		ibmr = kzalloc(sizeof(*ibmr), GFP_KERNEL);
+		ibmr = kzalloc_obj(*ibmr);
 		if (!ibmr) {
 			ib_dereg_mr(ib_mr);
 			ret = -ENOMEM;
@@ -641,7 +641,7 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 {
 	struct rds_ib_mr_pool *pool;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 

@@ -104,7 +104,7 @@ struct acpi_lpat_conversion_table *acpi_lpat_get_conversion_table(acpi_handle
 	    (obj_p->package.count % 2) || (obj_p->package.count < 4))
 		goto out;
 
-	lpat = kcalloc(obj_p->package.count, sizeof(int), GFP_KERNEL);
+	lpat = kzalloc_objs(int, obj_p->package.count);
 	if (!lpat)
 		goto out;
 
@@ -117,7 +117,7 @@ struct acpi_lpat_conversion_table *acpi_lpat_get_conversion_table(acpi_handle
 		lpat[i] = (s64)obj_e->integer.value;
 	}
 
-	lpat_table = kzalloc(sizeof(*lpat_table), GFP_KERNEL);
+	lpat_table = kzalloc_obj(*lpat_table);
 	if (!lpat_table) {
 		kfree(lpat);
 		goto out;

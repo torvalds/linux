@@ -125,7 +125,7 @@ void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
 	spin_lock_bh(&ab->base_lock);
 	peer = ath11k_peer_find(ab, vdev_id, mac_addr);
 	if (!peer) {
-		peer = kzalloc(sizeof(*peer), GFP_ATOMIC);
+		peer = kzalloc_obj(*peer, GFP_ATOMIC);
 		if (!peer)
 			goto exit;
 

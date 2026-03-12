@@ -137,6 +137,35 @@ static int fsl_mc_bus_uevent(const struct device *dev, struct kobj_uevent_env *e
 	return 0;
 }
 
+static int fsl_mc_probe(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (mc_drv->probe)
+		return mc_drv->probe(mc_dev);
+
+	return 0;
+}
+
+static void fsl_mc_remove(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (mc_drv->remove)
+		mc_drv->remove(mc_dev);
+}
+
+static void fsl_mc_shutdown(struct device *dev)
+{
+	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+
+	if (dev->driver && mc_drv->shutdown)
+		mc_drv->shutdown(mc_dev);
+}
+
 static int fsl_mc_dma_configure(struct device *dev)
 {
 	const struct device_driver *drv = READ_ONCE(dev->driver);
@@ -202,8 +231,12 @@ static ssize_t driver_override_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
+	ssize_t len;
 
-	return sysfs_emit(buf, "%s\n", mc_dev->driver_override);
+	device_lock(dev);
+	len = sysfs_emit(buf, "%s\n", mc_dev->driver_override);
+	device_unlock(dev);
+	return len;
 }
 static DEVICE_ATTR_RW(driver_override);
 
@@ -314,6 +347,9 @@ const struct bus_type fsl_mc_bus_type = {
 	.name = "fsl-mc",
 	.match = fsl_mc_bus_match,
 	.uevent = fsl_mc_bus_uevent,
+	.probe = fsl_mc_probe,
+	.remove = fsl_mc_remove,
+	.shutdown = fsl_mc_shutdown,
 	.dma_configure  = fsl_mc_dma_configure,
 	.dma_cleanup = fsl_mc_dma_cleanup,
 	.dev_groups = fsl_mc_dev_groups,
@@ -396,10 +432,9 @@ const struct device_type fsl_mc_bus_dpdmai_type = {
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdmai_type);
 
-const struct device_type fsl_mc_bus_dpdbg_type = {
+static const struct device_type fsl_mc_bus_dpdbg_type = {
 	.name = "fsl_mc_bus_dpdbg"
 };
-EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdbg_type);
 
 static const struct device_type *fsl_mc_get_device_type(const char *type)
 {
@@ -434,42 +469,6 @@ static const struct device_type *fsl_mc_get_device_type(const char *type)
 	return NULL;
 }
 
-static int fsl_mc_driver_probe(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv;
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-	int error;
-
-	mc_drv = to_fsl_mc_driver(dev->driver);
-
-	error = mc_drv->probe(mc_dev);
-	if (error < 0) {
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "%s failed: %d\n", __func__, error);
-		return error;
-	}
-
-	return 0;
-}
-
-static int fsl_mc_driver_remove(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-
-	mc_drv->remove(mc_dev);
-
-	return 0;
-}
-
-static void fsl_mc_driver_shutdown(struct device *dev)
-{
-	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(dev->driver);
-	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
-
-	mc_drv->shutdown(mc_dev);
-}
-
 /*
  * __fsl_mc_driver_register - registers a child device driver with the
  * MC bus
@@ -485,15 +484,6 @@ int __fsl_mc_driver_register(struct fsl_mc_driver *mc_driver,
 
 	mc_driver->driver.owner = owner;
 	mc_driver->driver.bus = &fsl_mc_bus_type;
-
-	if (mc_driver->probe)
-		mc_driver->driver.probe = fsl_mc_driver_probe;
-
-	if (mc_driver->remove)
-		mc_driver->driver.remove = fsl_mc_driver_remove;
-
-	if (mc_driver->shutdown)
-		mc_driver->driver.shutdown = fsl_mc_driver_shutdown;
 
 	error = driver_register(&mc_driver->driver);
 	if (error < 0) {
@@ -682,8 +672,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		return -EINVAL;
 	}
 
-	regions = kmalloc_array(obj_desc->region_count,
-				sizeof(regions[0]), GFP_KERNEL);
+	regions = kmalloc_objs(regions[0], obj_desc->region_count);
 	if (!regions)
 		return -ENOMEM;
 
@@ -798,7 +787,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		/*
 		 * Allocate an MC bus device object:
 		 */
-		mc_bus = kzalloc(sizeof(*mc_bus), GFP_KERNEL);
+		mc_bus = kzalloc_obj(*mc_bus);
 		if (!mc_bus)
 			return -ENOMEM;
 
@@ -808,7 +797,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		/*
 		 * Allocate a regular fsl_mc_device object:
 		 */
-		mc_dev = kzalloc(sizeof(*mc_dev), GFP_KERNEL);
+		mc_dev = kzalloc_obj(*mc_dev);
 		if (!mc_dev)
 			return -ENOMEM;
 	}
@@ -905,11 +894,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 	return 0;
 
 error_cleanup_dev:
-	kfree(mc_dev->regions);
-	if (mc_bus)
-		kfree(mc_bus);
-	else
-		kfree(mc_dev);
+	put_device(&mc_dev->dev);
 
 	return error;
 }

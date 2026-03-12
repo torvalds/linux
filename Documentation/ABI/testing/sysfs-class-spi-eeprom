@@ -17,3 +17,14 @@ Description:
 	from the device.
 
 	This is a read-only attribute.
+
+What:		/sys/class/spi_master/spi<bus>/spi<bus>.<dev>/jedec_id
+Date:		January 2026
+KernelVersion:	6.19
+Contact:	Patrick Wicki <patrick.wicki@siemens.com>
+Description:
+	Contains the raw JEDEC ID bytes returned by the RDID (0x9f) command. The
+	bytes are exposed as a hex string in big-endian order as read from the
+	device.
+
+	This is a read-only attribute.

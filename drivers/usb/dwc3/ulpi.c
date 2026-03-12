@@ -33,13 +33,13 @@ static int dwc3_ulpi_busyloop(struct dwc3 *dwc, u8 addr, bool read)
 	if (read)
 		ns += DWC3_ULPI_BASE_DELAY;
 
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg = dwc3_readl(dwc, DWC3_GUSB2PHYCFG(0));
 	if (reg & DWC3_GUSB2PHYCFG_SUSPHY)
 		usleep_range(1000, 1200);
 
 	while (count--) {
 		ndelay(ns);
-		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYACC(0));
+		reg = dwc3_readl(dwc, DWC3_GUSB2PHYACC(0));
 		if (reg & DWC3_GUSB2PHYACC_DONE)
 			return 0;
 		cpu_relax();
@@ -55,13 +55,13 @@ static int dwc3_ulpi_read(struct device *dev, u8 addr)
 	int ret;
 
 	reg = DWC3_GUSB2PHYACC_NEWREGREQ | DWC3_ULPI_ADDR(addr);
-	dwc3_writel(dwc->regs, DWC3_GUSB2PHYACC(0), reg);
+	dwc3_writel(dwc, DWC3_GUSB2PHYACC(0), reg);
 
 	ret = dwc3_ulpi_busyloop(dwc, addr, true);
 	if (ret)
 		return ret;
 
-	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYACC(0));
+	reg = dwc3_readl(dwc, DWC3_GUSB2PHYACC(0));
 
 	return DWC3_GUSB2PHYACC_DATA(reg);
 }
@@ -73,7 +73,7 @@ static int dwc3_ulpi_write(struct device *dev, u8 addr, u8 val)
 
 	reg = DWC3_GUSB2PHYACC_NEWREGREQ | DWC3_ULPI_ADDR(addr);
 	reg |= DWC3_GUSB2PHYACC_WRITE | val;
-	dwc3_writel(dwc->regs, DWC3_GUSB2PHYACC(0), reg);
+	dwc3_writel(dwc, DWC3_GUSB2PHYACC(0), reg);
 
 	return dwc3_ulpi_busyloop(dwc, addr, false);
 }

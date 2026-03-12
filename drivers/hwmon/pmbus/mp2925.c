@@ -40,6 +40,7 @@
 struct mp2925_data {
 	struct pmbus_driver_info info;
 	int vout_scale[MP2925_PAGE_NUM];
+	int vid_offset[MP2925_PAGE_NUM];
 };
 
 #define to_mp2925_data(x) container_of(x, struct mp2925_data, info)
@@ -94,8 +95,15 @@ static int mp2925_read_word_data(struct i2c_client *client, int page, int phase,
 		if (ret < 0)
 			return ret;
 
-		ret = DIV_ROUND_CLOSEST((ret & GENMASK(11, 0)) * data->vout_scale[page],
-					MP2925_VOUT_DIV);
+		/*
+		 * In vid mode, the MP2925 vout telemetry has 49 vid step offset, but
+		 * PMBUS_VOUT_OV_FAULT_LIMIT and PMBUS_VOUT_UV_FAULT_LIMIT do not take
+		 * this into consideration, its resolution is 1.95mV/LSB, as a result,
+		 * format[PSC_VOLTAGE_OUT] can not be set to vid directly. Adding extra
+		 * vid_offset variable for vout telemetry.
+		 */
+		ret = DIV_ROUND_CLOSEST(((ret & GENMASK(11, 0)) + data->vid_offset[page]) *
+					data->vout_scale[page], MP2925_VOUT_DIV);
 		break;
 	case PMBUS_VOUT_OV_FAULT_LIMIT:
 	case PMBUS_VOUT_UV_FAULT_LIMIT:
@@ -231,10 +239,21 @@ mp2925_identify_vout_scale(struct i2c_client *client, struct pmbus_driver_info *
 			data->vout_scale[page] = 2560;
 		else
 			data->vout_scale[page] = 5120;
+
+		/*
+		 * In vid mode, the MP2925 vout telemetry has 49 vid step offset, but
+		 * PMBUS_VOUT_OV_FAULT_LIMIT and PMBUS_VOUT_UV_FAULT_LIMIT do not take
+		 * this into consideration, its resolution is 1.95mV/LSB, as a result,
+		 * format[PSC_VOLTAGE_OUT] can not be set to vid directly. Adding extra
+		 * vid_offset variable for vout telemetry.
+		 */
+		data->vid_offset[page] = 49;
 	} else if (FIELD_GET(GENMASK(4, 4), ret)) {
 		data->vout_scale[page] = 1;
+		data->vid_offset[page] = 0;
 	} else {
 		data->vout_scale[page] = 512;
+		data->vid_offset[page] = 0;
 	}
 
 	return 0;

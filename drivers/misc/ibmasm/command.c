@@ -24,7 +24,7 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 	if (buffer_size > IBMASM_CMD_MAX_BUFFER_SIZE)
 		return NULL;
 
-	cmd = kzalloc(sizeof(struct command), GFP_KERNEL);
+	cmd = kzalloc_obj(struct command);
 	if (cmd == NULL)
 		return NULL;
 

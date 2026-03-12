@@ -718,8 +718,7 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
-	struct sdw_port_config *pconfig __free(kfree) = kzalloc(sizeof(*pconfig),
-								GFP_KERNEL);
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc_obj(*pconfig);
 	if (!pconfig)
 		return -ENOMEM;
 
@@ -764,7 +763,7 @@ static int amd_set_sdw_stream(struct snd_soc_dai *dai, void *stream, int directi
 		}
 
 		/* allocate and set dai_runtime info */
-		dai_runtime = kzalloc(sizeof(*dai_runtime), GFP_KERNEL);
+		dai_runtime = kzalloc_obj(*dai_runtime);
 		if (!dai_runtime)
 			return -ENOMEM;
 

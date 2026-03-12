@@ -153,6 +153,7 @@ static void mlx5_fc_stats_query_all_counters(struct mlx5_core_dev *dev)
 static void mlx5_fc_free(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 {
 	mlx5_cmd_fc_free(dev, counter->id);
+	kfree(counter->bulk);
 	kfree(counter);
 }
 
@@ -163,7 +164,7 @@ static void mlx5_fc_release(struct mlx5_core_dev *dev, struct mlx5_fc *counter)
 	if (WARN_ON(counter->type == MLX5_FC_TYPE_LOCAL))
 		return;
 
-	if (counter->bulk)
+	if (counter->type == MLX5_FC_TYPE_POOL_ACQUIRED)
 		mlx5_fc_pool_release_counter(&fc_stats->fc_pool, counter);
 	else
 		mlx5_fc_free(dev, counter);
@@ -220,22 +221,43 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	mlx5_fc_stats_query_all_counters(dev);
 }
 
+static void mlx5_fc_bulk_init(struct mlx5_fc_bulk *fc_bulk, u32 base_id)
+{
+	fc_bulk->base_id = base_id;
+	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
+	mutex_init(&fc_bulk->hws_data.lock);
+}
+
 static struct mlx5_fc *mlx5_fc_single_alloc(struct mlx5_core_dev *dev)
 {
+	struct mlx5_fc_bulk *fc_bulk;
 	struct mlx5_fc *counter;
 	int err;
 
-	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	counter = kzalloc_obj(*counter);
 	if (!counter)
 		return ERR_PTR(-ENOMEM);
 
-	err = mlx5_cmd_fc_alloc(dev, &counter->id);
-	if (err) {
-		kfree(counter);
-		return ERR_PTR(err);
+	fc_bulk = kzalloc_obj(*fc_bulk);
+	if (!fc_bulk) {
+		err = -ENOMEM;
+		goto free_counter;
 	}
+	err = mlx5_cmd_fc_alloc(dev, &counter->id);
+	if (err)
+		goto free_bulk;
 
+	counter->type = MLX5_FC_TYPE_SINGLE;
+	mlx5_fs_bulk_init(&fc_bulk->fs_bulk, 1);
+	mlx5_fc_bulk_init(fc_bulk, counter->id);
+	counter->bulk = fc_bulk;
 	return counter;
+
+free_bulk:
+	kfree(fc_bulk);
+free_counter:
+	kfree(counter);
+	return ERR_PTR(err);
 }
 
 static struct mlx5_fc *mlx5_fc_acquire(struct mlx5_core_dev *dev, bool aging)
@@ -306,7 +328,7 @@ int mlx5_init_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats;
 
-	fc_stats = kzalloc(sizeof(*fc_stats), GFP_KERNEL);
+	fc_stats = kzalloc_obj(*fc_stats);
 	if (!fc_stats)
 		return -ENOMEM;
 	dev->priv.fc_stats = fc_stats;
@@ -438,21 +460,22 @@ static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
 	alloc_bitmask = MLX5_CAP_GEN(dev, flow_counter_bulk_alloc);
 	bulk_len = alloc_bitmask > 0 ? MLX5_FC_BULK_NUM_FCS(alloc_bitmask) : 1;
 
-	fc_bulk = kvzalloc(struct_size(fc_bulk, fcs, bulk_len), GFP_KERNEL);
+	fc_bulk = kvzalloc_flex(*fc_bulk, fcs, bulk_len);
 	if (!fc_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &fc_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&fc_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &fc_bulk->fs_bulk))
 		goto fc_bulk_free;
 
 	if (mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id))
 		goto fs_bulk_cleanup;
-	fc_bulk->base_id = base_id;
+
+	mlx5_fc_bulk_init(fc_bulk, base_id);
 	for (i = 0; i < bulk_len; i++)
 		mlx5_fc_init(&fc_bulk->fcs[i], fc_bulk, base_id + i);
 
-	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
-	mutex_init(&fc_bulk->hws_data.lock);
 	return &fc_bulk->fs_bulk;
 
 fs_bulk_cleanup:
@@ -549,10 +572,10 @@ mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
 	struct mlx5_fc_bulk *fc_bulk;
 	struct mlx5_fc *counter;
 
-	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	counter = kzalloc_obj(*counter);
 	if (!counter)
 		return ERR_PTR(-ENOMEM);
-	fc_bulk = kzalloc(sizeof(*fc_bulk), GFP_KERNEL);
+	fc_bulk = kzalloc_obj(*fc_bulk);
 	if (!fc_bulk) {
 		kfree(counter);
 		return ERR_PTR(-ENOMEM);
@@ -560,10 +583,8 @@ mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
 
 	counter->type = MLX5_FC_TYPE_LOCAL;
 	counter->id = counter_id;
-	fc_bulk->base_id = counter_id - offset;
-	fc_bulk->fs_bulk.bulk_len = bulk_size;
-	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
-	mutex_init(&fc_bulk->hws_data.lock);
+	mlx5_fs_bulk_init(&fc_bulk->fs_bulk, bulk_size);
+	mlx5_fc_bulk_init(fc_bulk, counter_id - offset);
 	counter->bulk = fc_bulk;
 	refcount_set(&counter->fc_local_refcount, 1);
 	return counter;

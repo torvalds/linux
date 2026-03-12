@@ -784,8 +784,7 @@ int jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 
 	BUG_ON(!(c->flags & JFFS2_SB_FLAG_BUILDING));
 
-	xref_tmphash = kcalloc(XREF_TMPHASH_SIZE,
-			       sizeof(struct jffs2_xattr_ref *), GFP_KERNEL);
+	xref_tmphash = kzalloc_objs(struct jffs2_xattr_ref *, XREF_TMPHASH_SIZE);
 	if (!xref_tmphash)
 		return -ENOMEM;
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/bpf.h>
+#include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
 
 SEC("lsm/file_permission")
@@ -157,6 +158,34 @@ __naked int disabled_hook_test3(void *ctx)
 	"r0 = 0;"
 	"exit;"
 	::: __clobber_all);
+}
+
+SEC("lsm/mmap_file")
+__description("not null checking nullable pointer in bpf_lsm_mmap_file")
+__failure __msg("R1 invalid mem access 'trusted_ptr_or_null_'")
+int BPF_PROG(no_null_check, struct file *file)
+{
+	struct inode *inode;
+
+	inode = file->f_inode;
+	__sink(inode);
+
+	return 0;
+}
+
+SEC("lsm/mmap_file")
+__description("null checking nullable pointer in bpf_lsm_mmap_file")
+__success
+int BPF_PROG(null_check, struct file *file)
+{
+	struct inode *inode;
+
+	if (file) {
+		inode = file->f_inode;
+		__sink(inode);
+	}
+
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

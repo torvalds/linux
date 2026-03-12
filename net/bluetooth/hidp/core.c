@@ -920,7 +920,7 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 	ctrl = bt_sk(ctrl_sock->sk);
 	intr = bt_sk(intr_sock->sk);
 
-	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	session = kzalloc_obj(*session);
 	if (!session)
 		return -ENOMEM;
 

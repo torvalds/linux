@@ -112,7 +112,7 @@ gf100_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 {
 	struct gf100_fb *fb;
 
-	if (!(fb = kzalloc(sizeof(*fb), GFP_KERNEL)))
+	if (!(fb = kzalloc_obj(*fb)))
 		return -ENOMEM;
 	nvkm_fb_ctor(func, device, type, inst, &fb->base);
 	*pfb = &fb->base;

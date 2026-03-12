@@ -14,6 +14,17 @@ xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ name }} *ptr)
 
 	if (xdr_stream_decode_u32(xdr, &val) < 0)
 		return false;
+{% if validate and enumerators %}
+	/* Compiler may optimize to a range check for dense enums */
+	switch (val) {
+{% for e in enumerators %}
+	case {{ e.name }}:
+{% endfor %}
+		break;
+	default:
+		return false;
+	}
+{% endif %}
 	*ptr = val;
 	return true;
 }

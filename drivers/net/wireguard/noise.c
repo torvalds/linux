@@ -97,7 +97,7 @@ void wg_noise_handshake_clear(struct noise_handshake *handshake)
 
 static struct noise_keypair *keypair_create(struct wg_peer *peer)
 {
-	struct noise_keypair *keypair = kzalloc(sizeof(*keypair), GFP_KERNEL);
+	struct noise_keypair *keypair = kzalloc_obj(*keypair);
 
 	if (unlikely(!keypair))
 		return NULL;

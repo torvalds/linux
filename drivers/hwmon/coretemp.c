@@ -145,6 +145,15 @@ static const struct tjmax_model tjmax_model_table[] = {
 							 * Also matches S12x0 (stepping 9), covered by
 							 * PCI table
 							 */
+	{ INTEL_ATOM_SILVERMONT,      9, 110000 },	/* Atom Bay Trail E38xx (embedded) */
+	{ INTEL_ATOM_SILVERMONT,      ANY, 90000 },	/* Atom Bay Trail Z37xx (tablet) */
+	{ INTEL_ATOM_SILVERMONT_MID,  ANY, 90000 },	/* Atom Merrifield (Z34xx) */
+	{ INTEL_ATOM_SILVERMONT_MID2, ANY, 90000 },	/* Atom Moorefield (Z35xx) */
+	{ INTEL_ATOM_AIRMONT,	      ANY, 90000 },	/* Atom Cherry Trail (Z8xxx) */
+	{ INTEL_ATOM_GOLDMONT,	      ANY, 105000 },	/* Atom Apollo Lake (J3xxx, N3xxx, E39xx) */
+	{ INTEL_ATOM_GOLDMONT_PLUS,   ANY, 105000 },	/* Atom Gemini Lake (J4xxx, N4xxx, N5xxx) */
+	{ INTEL_ATOM_TREMONT,	      ANY, 105000 },	/* Atom Elkhart Lake */
+	{ INTEL_ATOM_TREMONT_L,	      ANY, 105000 },	/* Atom Jasper Lake */
 };
 
 static bool is_pkg_temp_data(struct temp_data *tdata)
@@ -483,13 +492,13 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 		 * when this information becomes available.
 		 */
 		pdata->nr_cores = NUM_REAL_CORES;
-		pdata->core_data = kcalloc(pdata->nr_cores, sizeof(struct temp_data *),
-					   GFP_KERNEL);
+		pdata->core_data = kzalloc_objs(struct temp_data *,
+						pdata->nr_cores);
 		if (!pdata->core_data)
 			return NULL;
 	}
 
-	tdata = kzalloc(sizeof(struct temp_data), GFP_KERNEL);
+	tdata = kzalloc_obj(struct temp_data);
 	if (!tdata)
 		return NULL;
 
@@ -616,7 +625,7 @@ static int coretemp_device_add(int zoneid)
 	int err;
 
 	/* Initialize the per-zone data structures */
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 
@@ -795,8 +804,7 @@ static int __init coretemp_init(void)
 		return -ENODEV;
 
 	max_zones = topology_max_packages() * topology_max_dies_per_package();
-	zone_devices = kcalloc(max_zones, sizeof(struct platform_device *),
-			      GFP_KERNEL);
+	zone_devices = kzalloc_objs(struct platform_device *, max_zones);
 	if (!zone_devices)
 		return -ENOMEM;
 

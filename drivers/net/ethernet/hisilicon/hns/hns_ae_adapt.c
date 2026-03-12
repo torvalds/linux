@@ -81,8 +81,7 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	vfnum_per_port = hns_ae_get_vf_num_per_port(dsaf_dev, port_id);
 	qnum_per_vf = hns_ae_get_q_num_per_vf(dsaf_dev, port_id);
 
-	vf_cb = kzalloc(struct_size(vf_cb, ae_handle.qs, qnum_per_vf),
-			GFP_KERNEL);
+	vf_cb = kzalloc_flex(*vf_cb, ae_handle.qs, qnum_per_vf);
 	if (unlikely(!vf_cb)) {
 		dev_err(dsaf_dev->dev, "malloc vf_cb fail!\n");
 		ae_handle = ERR_PTR(-ENOMEM);

@@ -227,7 +227,7 @@ static int resize_iovec(struct vringh_kiov *iov, gfp_t gfp)
 	if (flag)
 		new = krealloc_array(iov->iov, new_num, sizeof(*new), gfp);
 	else {
-		new = kmalloc_array(new_num, sizeof(*new), gfp);
+		new = kmalloc_objs(*new, new_num, gfp);
 		if (new) {
 			memcpy(new, iov->iov,
 			       iov->max_num * sizeof(struct iovec));

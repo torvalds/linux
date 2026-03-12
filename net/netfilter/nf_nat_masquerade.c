@@ -115,7 +115,7 @@ static void nf_nat_masq_schedule(struct net *net, union nf_inet_addr *addr,
 	if (!try_module_get(THIS_MODULE))
 		goto err_module;
 
-	w = kzalloc(sizeof(*w), gfp_flags);
+	w = kzalloc_obj(*w, gfp_flags);
 	if (w) {
 		/* We can overshoot MAX_MASQ_WORKER_COUNT, no big deal */
 		atomic_inc(&masq_worker_count);

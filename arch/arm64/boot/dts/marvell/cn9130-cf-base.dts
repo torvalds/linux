@@ -137,7 +137,7 @@
 
 &cp0_pinctrl {
 	pinctrl-0 = <&sim_select_pins>;
-	pintrl-names = "default";
+	pinctrl-names = "default";
 
 	rear_button_pins: cp0-rear-button-pins {
 		marvell,pins = "mpp31";

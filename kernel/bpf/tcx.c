@@ -321,7 +321,7 @@ int tcx_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		ret = -ENODEV;
 		goto out;
 	}
-	tcx = kzalloc(sizeof(*tcx), GFP_USER);
+	tcx = kzalloc_obj(*tcx, GFP_USER);
 	if (!tcx) {
 		ret = -ENOMEM;
 		goto out;

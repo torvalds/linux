@@ -387,6 +387,10 @@
 	status = "okay";
 };
 
+&gpu_zap_shader {
+	firmware-name = "qcom/sm8150/a640_zap.mbn";
+};
+
 &i2c4 {
 	clock-frequency = <100000>;
 

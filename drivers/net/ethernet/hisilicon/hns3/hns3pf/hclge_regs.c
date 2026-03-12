@@ -190,7 +190,7 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	nodata_num = HCLGE_32_BIT_DESC_NODATA_LEN;
 	cmd_num = DIV_ROUND_UP(regs_num + nodata_num,
 			       HCLGE_32_BIT_REG_RTN_DATANUM);
-	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	desc = kzalloc_objs(struct hclge_desc, cmd_num);
 	if (!desc)
 		return -ENOMEM;
 
@@ -244,7 +244,7 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	nodata_len = HCLGE_64_BIT_DESC_NODATA_LEN;
 	cmd_num = DIV_ROUND_UP(regs_num + nodata_len,
 			       HCLGE_64_BIT_REG_RTN_DATANUM);
-	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	desc = kzalloc_objs(struct hclge_desc, cmd_num);
 	if (!desc)
 		return -ENOMEM;
 
@@ -394,7 +394,7 @@ static int hclge_get_dfx_reg_len(struct hclge_dev *hdev, int *len)
 	int ret;
 	u32 i;
 
-	bd_num_list = kcalloc(dfx_reg_type_num, sizeof(int), GFP_KERNEL);
+	bd_num_list = kzalloc_objs(int, dfx_reg_type_num);
 	if (!bd_num_list)
 		return -ENOMEM;
 
@@ -455,7 +455,7 @@ static int hclge_get_dfx_reg(struct hclge_dev *hdev, void *data)
 	int ret;
 	u32 i;
 
-	bd_num_list = kcalloc(dfx_reg_type_num, sizeof(int), GFP_KERNEL);
+	bd_num_list = kzalloc_objs(int, dfx_reg_type_num);
 	if (!bd_num_list)
 		return -ENOMEM;
 

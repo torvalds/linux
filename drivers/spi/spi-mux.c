@@ -161,7 +161,6 @@ static int spi_mux_probe(struct spi_device *spi)
 	ctlr->setup = spi_mux_setup;
 	ctlr->num_chipselect = mux_control_states(priv->mux);
 	ctlr->bus_num = -1;
-	ctlr->dev.of_node = spi->dev.of_node;
 	ctlr->must_async = true;
 	ctlr->defer_optimize_message = true;
 

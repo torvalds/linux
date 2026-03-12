@@ -81,7 +81,7 @@ static struct media_device *__media_device_get(struct device *dev,
 		return &mdi->mdev;
 	}
 
-	mdi = kzalloc(sizeof(*mdi), GFP_KERNEL);
+	mdi = kzalloc_obj(*mdi);
 	if (!mdi)
 		return NULL;
 

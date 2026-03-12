@@ -815,7 +815,7 @@ static int mcp3911_probe(struct spi_device *spi)
 		 * don't enable the interrupt to avoid extra load on the system.
 		 */
 		ret = devm_request_irq(dev, spi->irq, &iio_trigger_generic_data_rdy_poll,
-				       IRQF_NO_AUTOEN | IRQF_ONESHOT,
+				       IRQF_NO_AUTOEN | IRQF_NO_THREAD,
 				       indio_dev->name, adc->trig);
 		if (ret)
 			return ret;

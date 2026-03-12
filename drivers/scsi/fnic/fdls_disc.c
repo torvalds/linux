@@ -272,7 +272,7 @@ void fdls_schedule_oxid_free(struct fnic_iport_s *iport, uint16_t *active_oxid)
 	*active_oxid = FNIC_UNASSIGNED_OXID;
 
 	reclaim_entry = (struct reclaim_entry_s *)
-		kzalloc(sizeof(struct reclaim_entry_s), GFP_ATOMIC);
+		kzalloc_obj(struct reclaim_entry_s, GFP_ATOMIC);
 
 	if (!reclaim_entry) {
 		FNIC_FCS_DBG(KERN_WARNING, fnic->host, fnic->fnic_num,
@@ -316,7 +316,7 @@ void fdls_schedule_oxid_free_retry_work(struct work_struct *work)
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			"Schedule oxid free. oxid idx: %d\n", idx);
 
-		reclaim_entry = kzalloc(sizeof(*reclaim_entry), GFP_KERNEL);
+		reclaim_entry = kzalloc_obj(*reclaim_entry);
 		if (!reclaim_entry) {
 			schedule_delayed_work(&oxid_pool->schedule_oxid_free_retry,
 				msecs_to_jiffies(SCHEDULE_OXID_FREE_RETRY_TIME));
@@ -1270,7 +1270,7 @@ bool fdls_delete_tport(struct fnic_iport_s *iport, struct fnic_tport_s *tport)
 
 	if (tport->flags & FNIC_FDLS_SCSI_REGISTERED) {
 		tport_del_evt =
-			kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
+			kzalloc_obj(struct fnic_tport_event_s, GFP_ATOMIC);
 		if (!tport_del_evt) {
 			FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 				 "Failed to allocate memory for tport fcid: 0x%0x\n",
@@ -1776,7 +1776,7 @@ static struct fnic_tport_s *fdls_create_tport(struct fnic_iport_s *iport,
 	FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			 "FDLS create tport: fcid: 0x%x wwpn: 0x%llx", fcid, wwpn);
 
-	tport = kzalloc(sizeof(struct fnic_tport_s), GFP_ATOMIC);
+	tport = kzalloc_obj(struct fnic_tport_s, GFP_ATOMIC);
 	if (!tport) {
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			 "Memory allocation failure while creating tport: 0x%x\n",
@@ -2365,7 +2365,7 @@ static void fdls_send_delete_tport_msg(struct fnic_tport_s *tport)
 	struct fnic *fnic = iport->fnic;
 	struct fnic_tport_event_s *tport_del_evt;
 
-	tport_del_evt = kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
+	tport_del_evt = kzalloc_obj(struct fnic_tport_event_s, GFP_ATOMIC);
 	if (!tport_del_evt) {
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			 "Failed to allocate memory for tport event fcid: 0x%x",
@@ -2852,7 +2852,7 @@ fdls_process_tgt_prli_rsp(struct fnic_iport_s *iport,
 	fdls_set_tport_state(tport, FDLS_TGT_STATE_READY);
 
 	/* Inform the driver about new target added */
-	tport_add_evt = kzalloc(sizeof(struct fnic_tport_event_s), GFP_ATOMIC);
+	tport_add_evt = kzalloc_obj(struct fnic_tport_event_s, GFP_ATOMIC);
 	if (!tport_add_evt) {
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 				 "tport event memory allocation failure: 0x%0x\n",

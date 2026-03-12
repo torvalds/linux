@@ -11,6 +11,7 @@
 #include <linux/hid-debug.h>
 
 #include <linux/fb.h>
+#include <linux/hex.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 

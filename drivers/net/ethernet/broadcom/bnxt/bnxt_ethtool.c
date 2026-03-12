@@ -1346,16 +1346,17 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	struct bnxt_l2_filter *l2_fltr;
 	struct bnxt_flow_masks *fmasks;
 	struct flow_keys *fkeys;
-	u32 idx, ring;
+	u32 idx;
 	int rc;
-	u8 vf;
 
 	if (!bp->vnic_info)
 		return -EAGAIN;
 
-	vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
-	ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
-	if ((fs->flow_type & (FLOW_MAC_EXT | FLOW_EXT)) || vf)
+	if (fs->flow_type & (FLOW_MAC_EXT | FLOW_EXT))
+		return -EOPNOTSUPP;
+
+	if (fs->ring_cookie != RX_CLS_FLOW_DISC &&
+	    ethtool_get_flow_spec_ring_vf(fs->ring_cookie))
 		return -EOPNOTSUPP;
 
 	if (flow_type == IP_USER_FLOW) {
@@ -1370,7 +1371,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 			return -EOPNOTSUPP;
 	}
 
-	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
+	new_fltr = kzalloc_obj(*new_fltr);
 	if (!new_fltr)
 		return -ENOMEM;
 
@@ -1481,7 +1482,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
 		new_fltr->base.flags |= BNXT_ACT_DROP;
 	else
-		new_fltr->base.rxq = ring;
+		new_fltr->base.rxq = ethtool_get_flow_spec_ring(fs->ring_cookie);
 	__set_bit(BNXT_FLTR_VALID, &new_fltr->base.state);
 	rc = bnxt_insert_ntp_filter(bp, new_fltr, idx);
 	if (!rc) {
@@ -3216,6 +3217,56 @@ static int bnxt_get_fecparam(struct net_device *dev,
 	return 0;
 }
 
+static const struct ethtool_fec_hist_range bnxt_fec_ranges[] = {
+	{ 0, 0},
+	{ 1, 1},
+	{ 2, 2},
+	{ 3, 3},
+	{ 4, 4},
+	{ 5, 5},
+	{ 6, 6},
+	{ 7, 7},
+	{ 8, 8},
+	{ 9, 9},
+	{ 10, 10},
+	{ 11, 11},
+	{ 12, 12},
+	{ 13, 13},
+	{ 14, 14},
+	{ 15, 15},
+	{ 0, 0},
+};
+
+static void bnxt_hwrm_port_phy_fdrstat(struct bnxt *bp,
+				       struct ethtool_fec_hist *hist)
+{
+	struct ethtool_fec_hist_value *values = hist->values;
+	struct hwrm_port_phy_fdrstat_output *resp;
+	struct hwrm_port_phy_fdrstat_input *req;
+	int rc, i;
+
+	if (!(bp->phy_flags & BNXT_PHY_FL_FDRSTATS))
+		return;
+
+	rc = hwrm_req_init(bp, req, HWRM_PORT_PHY_FDRSTAT);
+	if (rc)
+		return;
+
+	req->port_id = cpu_to_le16(bp->pf.port_id);
+	req->ops = cpu_to_le16(PORT_PHY_FDRSTAT_REQ_OPS_COUNTER);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc) {
+		hist->ranges = bnxt_fec_ranges;
+		for (i = 0; i <= 15; i++) {
+			__le64 sum = resp->accumulated_codewords_err_s[i];
+
+			values[i].sum = le64_to_cpu(sum);
+		}
+	}
+	hwrm_req_drop(bp, req);
+}
+
 static void bnxt_get_fec_stats(struct net_device *dev,
 			       struct ethtool_fec_stats *fec_stats,
 			       struct ethtool_fec_hist *hist)
@@ -3237,6 +3288,7 @@ static void bnxt_get_fec_stats(struct net_device *dev,
 		*(rx + BNXT_RX_STATS_EXT_OFFSET(rx_fec_corrected_blocks));
 	fec_stats->uncorrectable_blocks.total =
 		*(rx + BNXT_RX_STATS_EXT_OFFSET(rx_fec_uncorrectable_blocks));
+	bnxt_hwrm_port_phy_fdrstat(bp, hist);
 }
 
 static u32 bnxt_ethtool_forced_fec_to_fw(struct bnxt_link_info *link_info,
@@ -3379,6 +3431,40 @@ static u32 bnxt_get_link(struct net_device *dev)
 
 	/* TODO: handle MF, VF, driver close case */
 	return BNXT_LINK_IS_UP(bp);
+}
+
+static int bnxt_get_link_ext_state(struct net_device *dev,
+				   struct ethtool_link_ext_state_info *info)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	u8 reason;
+
+	if (BNXT_LINK_IS_UP(bp))
+		return -ENODATA;
+
+	reason = bp->link_info.link_down_reason;
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_RF) {
+		info->link_ext_state = ETHTOOL_LINK_EXT_STATE_LINK_TRAINING_FAILURE;
+		info->link_training = ETHTOOL_LINK_EXT_SUBSTATE_LT_REMOTE_FAULT;
+		return 0;
+	}
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_CABLE_REMOVED) {
+		info->link_ext_state = ETHTOOL_LINK_EXT_STATE_NO_CABLE;
+		return 0;
+	}
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_OTP_SPEED_VIOLATION) {
+		info->link_ext_state = ETHTOOL_LINK_EXT_STATE_OTP_SPEED_VIOLATION;
+		return 0;
+	}
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_MODULE_FAULT) {
+		info->link_ext_state = ETHTOOL_LINK_EXT_STATE_MODULE;
+		return 0;
+	}
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_BMC_REQUEST) {
+		info->link_ext_state = ETHTOOL_LINK_EXT_STATE_BMC_REQUEST_DOWN;
+		return 0;
+	}
+	return -ENODATA;
 }
 
 int bnxt_hwrm_nvm_get_dev_info(struct bnxt *bp,
@@ -3797,9 +3883,25 @@ static int nvm_update_err_to_stderr(struct net_device *dev, u8 result,
 #define BNXT_NVM_MORE_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_MODE))
 #define BNXT_NVM_LAST_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_LAST))
 
+static int bnxt_hwrm_nvm_defrag(struct bnxt *bp)
+{
+	struct hwrm_nvm_defrag_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_NVM_DEFRAG);
+	if (rc)
+		return rc;
+	req->flags = cpu_to_le32(NVM_DEFRAG_REQ_FLAGS_DEFRAG);
+	hwrm_req_timeout(bp, req, bp->hwrm_cmd_max_timeout);
+
+	return hwrm_req_send(bp, req);
+}
+
 static int bnxt_resize_update_entry(struct net_device *dev, size_t fw_size,
 				    struct netlink_ext_ack *extack)
 {
+	struct bnxt *bp = netdev_priv(dev);
+	bool retry = false;
 	u32 item_len;
 	int rc;
 
@@ -3812,9 +3914,19 @@ static int bnxt_resize_update_entry(struct net_device *dev, size_t fw_size,
 	}
 
 	if (fw_size > item_len) {
-		rc = bnxt_flash_nvram(dev, BNX_DIR_TYPE_UPDATE,
-				      BNX_DIR_ORDINAL_FIRST, 0, 1,
-				      round_up(fw_size, 4096), NULL, 0);
+		do {
+			rc = bnxt_flash_nvram(dev, BNX_DIR_TYPE_UPDATE,
+					      BNX_DIR_ORDINAL_FIRST, 0, 1,
+					      round_up(fw_size, 4096), NULL,
+					      0);
+
+			if (rc == -ENOSPC) {
+				if (retry || bnxt_hwrm_nvm_defrag(bp))
+					break;
+				retry = true;
+			}
+		} while (rc == -ENOSPC);
+
 		if (rc) {
 			BNXT_NVM_ERR_MSG(dev, extack, MSG_RESIZE_UPDATE_ERR);
 			return rc;
@@ -5373,7 +5485,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 
 	test_info = bp->test_info;
 	if (!test_info) {
-		test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+		test_info = kzalloc_obj(*bp->test_info);
 		if (!test_info)
 			return;
 		bp->test_info = test_info;
@@ -5634,6 +5746,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_eeprom             = bnxt_get_eeprom,
 	.set_eeprom		= bnxt_set_eeprom,
 	.get_link		= bnxt_get_link,
+	.get_link_ext_state	= bnxt_get_link_ext_state,
 	.get_link_ext_stats	= bnxt_get_link_ext_stats,
 	.get_eee		= bnxt_get_eee,
 	.set_eee		= bnxt_set_eee,

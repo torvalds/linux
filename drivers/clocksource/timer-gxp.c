@@ -76,7 +76,7 @@ static int __init gxp_timer_init(struct device_node *node)
 	u32 freq;
 	int ret, irq;
 
-	gxp_timer = kzalloc(sizeof(*gxp_timer), GFP_KERNEL);
+	gxp_timer = kzalloc_obj(*gxp_timer);
 	if (!gxp_timer) {
 		ret = -ENOMEM;
 		pr_err("Can't allocate gxp_timer");

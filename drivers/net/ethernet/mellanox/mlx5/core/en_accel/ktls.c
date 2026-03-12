@@ -135,10 +135,15 @@ int mlx5e_ktls_set_feature_rx(struct net_device *netdev, bool enable)
 	int err = 0;
 
 	mutex_lock(&priv->state_lock);
-	if (enable)
+	if (enable) {
 		err = mlx5e_accel_fs_tcp_create(priv->fs);
-	else
+		if (!err && !priv->ktls_rx_was_enabled) {
+			priv->ktls_rx_was_enabled = true;
+			mlx5e_safe_reopen_channels(priv);
+		}
+	} else {
 		mlx5e_accel_fs_tcp_destroy(priv->fs);
+	}
 	mutex_unlock(&priv->state_lock);
 
 	return err;
@@ -161,6 +166,7 @@ int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
 			destroy_workqueue(priv->tls->rx_wq);
 			return err;
 		}
+		priv->ktls_rx_was_enabled = true;
 	}
 
 	return 0;
@@ -193,7 +199,7 @@ int mlx5e_ktls_init(struct mlx5e_priv *priv)
 	if (!mlx5e_is_ktls_device(priv->mdev))
 		return 0;
 
-	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
+	tls = kzalloc_obj(*tls);
 	if (!tls)
 		return -ENOMEM;
 	tls->mdev = priv->mdev;

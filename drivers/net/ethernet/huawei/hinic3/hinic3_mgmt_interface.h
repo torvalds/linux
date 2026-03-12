@@ -56,6 +56,31 @@ struct l2nic_cmd_update_mac {
 	u8                   new_mac[ETH_ALEN];
 };
 
+struct l2nic_cmd_vlan_config {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u16                  vlan_id;
+	u16                  rsvd2;
+};
+
+struct l2nic_cmd_vlan_offload {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   vlan_offload;
+	u8                   rsvd1[5];
+};
+
+/* set vlan filter */
+struct l2nic_cmd_set_vlan_filter {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   rsvd[2];
+	/* bit0:vlan filter en; bit1:broadcast_filter_en */
+	u32                  vlan_filter_ctrl;
+};
+
 struct l2nic_cmd_set_ci_attr {
 	struct mgmt_msg_head msg_head;
 	u16                  func_idx;
@@ -90,6 +115,22 @@ struct l2nic_cmd_set_vport_state {
 	u8                   rsvd2[3];
 };
 
+/* *
+ * Definition of the NIC receiving mode
+ */
+#define L2NIC_RX_MODE_UC       0x01
+#define L2NIC_RX_MODE_MC       0x02
+#define L2NIC_RX_MODE_BC       0x04
+#define L2NIC_RX_MODE_MC_ALL   0x08
+#define L2NIC_RX_MODE_PROMISC  0x10
+
+struct l2nic_rx_mode_config {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u16                  rsvd1;
+	u32                  rx_mode;
+};
+
 struct l2nic_cmd_set_dcb_state {
 	struct mgmt_msg_head head;
 	u16                  func_id;
@@ -100,6 +141,26 @@ struct l2nic_cmd_set_dcb_state {
 	/* 0 - disable, 1 - enable dcb */
 	u8                   port_state;
 	u8                   rsvd[7];
+};
+
+struct l2nic_cmd_lro_config {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u8                   lro_ipv4_en;
+	u8                   lro_ipv6_en;
+	/* unit is 1K */
+	u8                   lro_max_pkt_len;
+	u8                   resv2[13];
+};
+
+struct l2nic_cmd_lro_timer {
+	struct mgmt_msg_head msg_head;
+	/* 1: set timer value, 0: get timer value */
+	u8                   opcode;
+	u8                   rsvd[3];
+	u32                  timer;
 };
 
 #define L2NIC_RSS_TYPE_VALID_MASK         BIT(23)
@@ -160,12 +221,19 @@ enum l2nic_cmd {
 	/* FUNC CFG */
 	L2NIC_CMD_SET_FUNC_TBL        = 5,
 	L2NIC_CMD_SET_VPORT_ENABLE    = 6,
+	L2NIC_CMD_SET_RX_MODE         = 7,
 	L2NIC_CMD_SET_SQ_CI_ATTR      = 8,
 	L2NIC_CMD_CLEAR_QP_RESOURCE   = 11,
+	L2NIC_CMD_CFG_RX_LRO          = 13,
+	L2NIC_CMD_CFG_LRO_TIMER       = 14,
 	L2NIC_CMD_FEATURE_NEGO        = 15,
+	L2NIC_CMD_GET_MAC             = 20,
 	L2NIC_CMD_SET_MAC             = 21,
 	L2NIC_CMD_DEL_MAC             = 22,
 	L2NIC_CMD_UPDATE_MAC          = 23,
+	L2NIC_CMD_CFG_FUNC_VLAN       = 25,
+	L2NIC_CMD_SET_VLAN_FILTER_EN  = 26,
+	L2NIC_CMD_SET_RX_VLAN_OFFLOAD = 27,
 	L2NIC_CMD_CFG_RSS             = 60,
 	L2NIC_CMD_CFG_RSS_HASH_KEY    = 63,
 	L2NIC_CMD_CFG_RSS_HASH_ENGINE = 64,
@@ -189,6 +257,7 @@ enum l2nic_ucode_cmd {
 
 /* hilink mac group command */
 enum mag_cmd {
+	MAG_CMD_SET_PORT_ENABLE = 6,
 	MAG_CMD_GET_LINK_STATUS = 7,
 };
 

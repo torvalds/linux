@@ -1417,7 +1417,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (!parent_css) {
 		blkcg = &blkcg_root;
 	} else {
-		blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);
+		blkcg = kzalloc_obj(*blkcg);
 		if (!blkcg)
 			goto unlock;
 	}

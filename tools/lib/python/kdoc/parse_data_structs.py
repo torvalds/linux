@@ -9,12 +9,12 @@ Parse a source file or header, creating ReStructured Text cross references.
 It accepts an optional file to change the default symbol reference or to
 suppress symbols from the output.
 
-It is capable of identifying defines, functions, structs, typedefs,
-enums and enum symbols and create cross-references for all of them.
+It is capable of identifying ``define``, function, ``struct``, ``typedef``,
+``enum`` and ``enum`` symbols and create cross-references for all of them.
 It is also capable of distinguish #define used for specifying a Linux
 ioctl.
 
-The optional rules file contains a set of rules like:
+The optional rules file contains a set of rules like::
 
     ignore ioctl VIDIOC_ENUM_FMT
     replace ioctl VIDIOC_DQBUF vidioc_qbuf
@@ -34,8 +34,8 @@ class ParseDataStructs:
     It is meant to allow having a more comprehensive documentation, where
     uAPI headers will create cross-reference links to the code.
 
-    It is capable of identifying defines, functions, structs, typedefs,
-    enums and enum symbols and create cross-references for all of them.
+    It is capable of identifying ``define``, function, ``struct``, ``typedef``,
+    ``enum`` and ``enum`` symbols and create cross-references for all of them.
     It is also capable of distinguish #define used for specifying a Linux
     ioctl.
 
@@ -43,13 +43,13 @@ class ParseDataStructs:
     allows parsing an exception file. Such file contains a set of rules
     using the syntax below:
 
-    1. Ignore rules:
+    1. Ignore rules::
 
         ignore <type> <symbol>`
 
     Removes the symbol from reference generation.
 
-    2. Replace rules:
+    2. Replace rules::
 
         replace <type> <old_symbol> <new_reference>
 
@@ -58,22 +58,22 @@ class ParseDataStructs:
         - A simple symbol name;
         - A full Sphinx reference.
 
-    3. Namespace rules
+    3. Namespace rules::
 
         namespace <namespace>
 
        Sets C namespace to be used during cross-reference generation. Can
        be overridden by replace rules.
 
-    On ignore and replace rules, <type> can be:
-        - ioctl: for defines that end with _IO*, e.g. ioctl definitions
-        - define: for other defines
-        - symbol: for symbols defined within enums;
-        - typedef: for typedefs;
-        - enum: for the name of a non-anonymous enum;
-        - struct: for structs.
+    On ignore and replace rules, ``<type>`` can be:
+        - ``ioctl``: for defines that end with ``_IO*``, e.g. ioctl definitions
+        - ``define``: for other defines
+        - ``symbol``: for symbols defined within enums;
+        - ``typedef``: for typedefs;
+        - ``enum``: for the name of a non-anonymous enum;
+        - ``struct``: for structs.
 
-    Examples:
+    Examples::
 
         ignore define __LINUX_MEDIA_H
         ignore ioctl VIDIOC_ENUM_FMT
@@ -83,13 +83,15 @@ class ParseDataStructs:
         namespace MC
     """
 
-    # Parser regexes with multiple ways to capture enums and structs
+    #: Parser regex with multiple ways to capture enums.
     RE_ENUMS = [
         re.compile(r"^\s*enum\s+([\w_]+)\s*\{"),
         re.compile(r"^\s*enum\s+([\w_]+)\s*$"),
         re.compile(r"^\s*typedef\s*enum\s+([\w_]+)\s*\{"),
         re.compile(r"^\s*typedef\s*enum\s+([\w_]+)\s*$"),
     ]
+
+    #: Parser regex with multiple ways to capture structs.
     RE_STRUCTS = [
         re.compile(r"^\s*struct\s+([_\w][\w\d_]+)\s*\{"),
         re.compile(r"^\s*struct\s+([_\w][\w\d_]+)$"),
@@ -97,11 +99,13 @@ class ParseDataStructs:
         re.compile(r"^\s*typedef\s*struct\s+([_\w][\w\d_]+)$"),
     ]
 
-    # FIXME: the original code was written a long time before Sphinx C
+    # NOTE: the original code was written a long time before Sphinx C
     # domain to have multiple namespaces. To avoid to much turn at the
     # existing hyperlinks, the code kept using "c:type" instead of the
     # right types. To change that, we need to change the types not only
     # here, but also at the uAPI media documentation.
+
+    #: Dictionary containing C type identifiers to be transformed.
     DEF_SYMBOL_TYPES = {
         "ioctl": {
             "prefix": "\\ ",
@@ -158,6 +162,10 @@ class ParseDataStructs:
             self.symbols[symbol_type] = {}
 
     def read_exceptions(self, fname: str):
+        """
+        Read an optional exceptions file, used to override defaults.
+        """
+
         if not fname:
             return
 
@@ -242,9 +250,9 @@ class ParseDataStructs:
     def store_type(self, ln, symbol_type: str, symbol: str,
                    ref_name: str = None, replace_underscores: bool = True):
         """
-        Stores a new symbol at self.symbols under symbol_type.
+        Store a new symbol at self.symbols under symbol_type.
 
-        By default, underscores are replaced by "-"
+        By default, underscores are replaced by ``-``.
         """
         defs = self.DEF_SYMBOL_TYPES[symbol_type]
 
@@ -276,12 +284,16 @@ class ParseDataStructs:
         self.symbols[symbol_type][symbol] = (f"{prefix}{ref_link}{suffix}", ln)
 
     def store_line(self, line):
-        """Stores a line at self.data, properly indented"""
+        """
+        Store a line at self.data, properly indented.
+        """
         line = "    " + line.expandtabs()
         self.data += line.rstrip(" ")
 
     def parse_file(self, file_in: str, exceptions: str = None):
-        """Reads a C source file and get identifiers"""
+        """
+        Read a C source file and get identifiers.
+        """
         self.data = ""
         is_enum = False
         is_comment = False
@@ -433,7 +445,7 @@ class ParseDataStructs:
 
     def gen_toc(self):
         """
-        Create a list of symbols to be part of a TOC contents table
+        Create a list of symbols to be part of a TOC contents table.
         """
         text = []
 
@@ -464,6 +476,10 @@ class ParseDataStructs:
         return "\n".join(text)
 
     def write_output(self, file_in: str, file_out: str, toc: bool):
+        """
+        Write a ReST output file.
+        """
+
         title = os.path.basename(file_in)
 
         if toc:

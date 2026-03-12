@@ -172,7 +172,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (ubi->ro_mode)
 		return -EROFS;
 
-	vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
+	vol = kzalloc_obj(struct ubi_volume);
 	if (!vol)
 		return -ENOMEM;
 

@@ -650,7 +650,7 @@ static int break_ksm_pmd_entry(pmd_t *pmdp, unsigned long addr, unsigned long en
 		}
 	}
 out_unlock:
-	pte_unmap_unlock(ptep, ptl);
+	pte_unmap_unlock(start_ptep, ptl);
 	return found;
 }
 
@@ -3586,8 +3586,7 @@ static ssize_t merge_across_nodes_store(struct kobject *kobj,
 			 * Allocate stable and unstable together:
 			 * MAXSMP NODES_SHIFT 10 will use 16kB.
 			 */
-			buf = kcalloc(nr_node_ids + nr_node_ids, sizeof(*buf),
-				      GFP_KERNEL);
+			buf = kzalloc_objs(*buf, nr_node_ids + nr_node_ids);
 			/* Let us assume that RB_ROOT is NULL is zero */
 			if (!buf)
 				err = -ENOMEM;

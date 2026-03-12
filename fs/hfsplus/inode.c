@@ -328,6 +328,9 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 	struct hfsplus_vh *vhdr = sbi->s_vhdr;
 	int error = 0, error2;
 
+	hfs_dbg("inode->i_ino %lu, start %llu, end %llu\n",
+		inode->i_ino, start, end);
+
 	error = file_write_and_wait_range(file, start, end);
 	if (error)
 		return error;
@@ -393,6 +396,19 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 	.fileattr_set	= hfsplus_fileattr_set,
 };
 
+static const struct inode_operations hfsplus_symlink_inode_operations = {
+	.get_link	= page_get_link,
+	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
+	.listxattr	= hfsplus_listxattr,
+};
+
+static const struct inode_operations hfsplus_special_inode_operations = {
+	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
+	.listxattr	= hfsplus_listxattr,
+};
+
 static const struct file_operations hfsplus_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
@@ -452,12 +468,17 @@ struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 		hip->clump_blocks = sbi->data_clump_blocks;
 	} else if (S_ISLNK(inode->i_mode)) {
 		sbi->file_count++;
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &hfsplus_symlink_inode_operations;
 		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &hfsplus_aops;
 		hip->clump_blocks = 1;
+	} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
+		   S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
+		sbi->file_count++;
+		inode->i_op = &hfsplus_special_inode_operations;
 	} else
 		sbi->file_count++;
+
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 	hfsplus_mark_mdb_dirty(sb);
@@ -588,10 +609,11 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			inode->i_fop = &hfsplus_file_operations;
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else if (S_ISLNK(inode->i_mode)) {
-			inode->i_op = &page_symlink_inode_operations;
+			inode->i_op = &hfsplus_symlink_inode_operations;
 			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else {
+			inode->i_op = &hfsplus_special_inode_operations;
 			init_special_inode(inode, inode->i_mode,
 					   be32_to_cpu(file->permissions.dev));
 		}
@@ -612,9 +634,12 @@ out:
 int hfsplus_cat_write_inode(struct inode *inode)
 {
 	struct inode *main_inode = inode;
+	struct hfs_btree *tree = HFSPLUS_SB(inode->i_sb)->cat_tree;
 	struct hfs_find_data fd;
 	hfsplus_cat_entry entry;
 	int res = 0;
+
+	hfs_dbg("inode->i_ino %lu\n", inode->i_ino);
 
 	if (HFSPLUS_IS_RSRC(inode))
 		main_inode = HFSPLUS_I(inode)->rsrc_inode;
@@ -622,7 +647,7 @@ int hfsplus_cat_write_inode(struct inode *inode)
 	if (!main_inode->i_nlink)
 		return 0;
 
-	if (hfs_find_init(HFSPLUS_SB(main_inode->i_sb)->cat_tree, &fd))
+	if (hfs_find_init(tree, &fd))
 		/* panic? */
 		return -EIO;
 
@@ -687,6 +712,15 @@ int hfsplus_cat_write_inode(struct inode *inode)
 	set_bit(HFSPLUS_I_CAT_DIRTY, &HFSPLUS_I(inode)->flags);
 out:
 	hfs_find_exit(&fd);
+
+	if (!res) {
+		res = hfs_btree_write(tree);
+		if (res) {
+			pr_err("b-tree write err: %d, ino %lu\n",
+			       res, inode->i_ino);
+		}
+	}
+
 	return res;
 }
 

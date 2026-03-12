@@ -92,14 +92,29 @@ static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 	if (!sinfo)
 		goto inconsistent;
 
+#ifdef CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA
+	msg->authattrs_rej_waivable = true;
+#endif
+
 	if (sinfo->authattrs) {
 		want = true;
 		msg->have_authattrs = true;
+#ifdef CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA
+		if (strncmp(sinfo->sig->pkey_algo, "mldsa", 5) != 0)
+			msg->authattrs_rej_waivable = false;
+#endif
+	} else if (sinfo->sig->algo_takes_data) {
+		sinfo->sig->hash_algo = "none";
 	}
 
-	for (sinfo = sinfo->next; sinfo; sinfo = sinfo->next)
+	for (sinfo = sinfo->next; sinfo; sinfo = sinfo->next) {
 		if (!!sinfo->authattrs != want)
 			goto inconsistent;
+
+		if (!sinfo->authattrs &&
+		    sinfo->sig->algo_takes_data)
+			sinfo->sig->hash_algo = "none";
+	}
 	return 0;
 
 inconsistent:
@@ -118,17 +133,16 @@ struct pkcs7_message *pkcs7_parse_message(const void *data, size_t datalen)
 	struct pkcs7_message *msg = ERR_PTR(-ENOMEM);
 	int ret;
 
-	ctx = kzalloc(sizeof(struct pkcs7_parse_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct pkcs7_parse_context);
 	if (!ctx)
 		goto out_no_ctx;
-	ctx->msg = kzalloc(sizeof(struct pkcs7_message), GFP_KERNEL);
+	ctx->msg = kzalloc_obj(struct pkcs7_message);
 	if (!ctx->msg)
 		goto out_no_msg;
-	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
+	ctx->sinfo = kzalloc_obj(struct pkcs7_signed_info);
 	if (!ctx->sinfo)
 		goto out_no_sinfo;
-	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
-				  GFP_KERNEL);
+	ctx->sinfo->sig = kzalloc_obj(struct public_key_signature);
 	if (!ctx->sinfo->sig)
 		goto out_no_sig;
 
@@ -296,6 +310,21 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_gost2012PKey512:
 		ctx->sinfo->sig->pkey_algo = "ecrdsa";
 		ctx->sinfo->sig->encoding = "raw";
+		break;
+	case OID_id_ml_dsa_44:
+		ctx->sinfo->sig->pkey_algo = "mldsa44";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
+		break;
+	case OID_id_ml_dsa_65:
+		ctx->sinfo->sig->pkey_algo = "mldsa65";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
+		break;
+	case OID_id_ml_dsa_87:
+		ctx->sinfo->sig->pkey_algo = "mldsa87";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);
@@ -599,8 +628,8 @@ int pkcs7_sig_note_set_of_authattrs(void *context, size_t hdrlen,
 	}
 
 	/* We need to switch the 'CONT 0' to a 'SET OF' when we digest */
-	sinfo->authattrs = value - (hdrlen - 1);
-	sinfo->authattrs_len = vlen + (hdrlen - 1);
+	sinfo->authattrs = value - hdrlen;
+	sinfo->authattrs_len = vlen + hdrlen;
 	return 0;
 }
 
@@ -699,11 +728,10 @@ int pkcs7_note_signed_info(void *context, size_t hdrlen,
 	sinfo->index = ++ctx->sinfo_index;
 	*ctx->ppsinfo = sinfo;
 	ctx->ppsinfo = &sinfo->next;
-	ctx->sinfo = kzalloc(sizeof(struct pkcs7_signed_info), GFP_KERNEL);
+	ctx->sinfo = kzalloc_obj(struct pkcs7_signed_info);
 	if (!ctx->sinfo)
 		return -ENOMEM;
-	ctx->sinfo->sig = kzalloc(sizeof(struct public_key_signature),
-				  GFP_KERNEL);
+	ctx->sinfo->sig = kzalloc_obj(struct public_key_signature);
 	if (!ctx->sinfo->sig)
 		return -ENOMEM;
 	return 0;

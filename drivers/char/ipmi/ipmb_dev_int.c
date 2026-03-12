@@ -208,7 +208,7 @@ static void ipmb_handle_request(struct ipmb_dev *ipmb_dev)
 			REQUEST_QUEUE_MAX_LEN)
 		return;
 
-	queue_elem = kmalloc(sizeof(*queue_elem), GFP_ATOMIC);
+	queue_elem = kmalloc_obj(*queue_elem, GFP_ATOMIC);
 	if (!queue_elem)
 		return;
 

@@ -3,10 +3,10 @@
 Programming Language
 ====================
 
-The kernel is written in the C programming language [c-language]_.
-More precisely, the kernel is typically compiled with ``gcc`` [gcc]_
+The Linux kernel is written in the C programming language [c-language]_.
+More precisely, it is typically compiled with ``gcc`` [gcc]_
 under ``-std=gnu11`` [gcc-c-dialect-options]_: the GNU dialect of ISO C11.
-``clang`` [clang]_ is also supported, see docs on
+``clang`` [clang]_ is also supported; see documentation on
 :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 
 This dialect contains many extensions to the language [gnu-extensions]_,
@@ -34,7 +34,7 @@ Please refer to ``include/linux/compiler_attributes.h`` for more information.
 Rust
 ----
 
-The kernel has experimental support for the Rust programming language
+The kernel has support for the Rust programming language
 [rust-language]_ under ``CONFIG_RUST``. It is compiled with ``rustc`` [rustc]_
 under ``--edition=2021`` [rust-editions]_. Editions are a way to introduce
 small changes to the language that are not backwards compatible.

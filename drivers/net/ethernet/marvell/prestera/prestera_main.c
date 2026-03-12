@@ -1014,7 +1014,7 @@ static int prestera_lag_init(struct prestera_switch *sw)
 {
 	u16 id;
 
-	sw->lags = kcalloc(sw->lag_max, sizeof(*sw->lags), GFP_KERNEL);
+	sw->lags = kzalloc_objs(*sw->lags, sw->lag_max);
 	if (!sw->lags)
 		return -ENOMEM;
 
@@ -1209,7 +1209,7 @@ prestera_mdb_entry_create(struct prestera_switch *sw,
 	struct prestera_flood_domain *flood_domain;
 	struct prestera_mdb_entry *mdb_entry;
 
-	mdb_entry = kzalloc(sizeof(*mdb_entry), GFP_KERNEL);
+	mdb_entry = kzalloc_obj(*mdb_entry);
 	if (!mdb_entry)
 		goto err_mdb_alloc;
 
@@ -1247,7 +1247,7 @@ prestera_flood_domain_create(struct prestera_switch *sw)
 {
 	struct prestera_flood_domain *domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return NULL;
 
@@ -1279,7 +1279,7 @@ prestera_flood_domain_port_create(struct prestera_flood_domain *flood_domain,
 	bool is_first_port_in_list = false;
 	int err;
 
-	flood_domain_port = kzalloc(sizeof(*flood_domain_port), GFP_KERNEL);
+	flood_domain_port = kzalloc_obj(*flood_domain_port);
 	if (!flood_domain_port) {
 		err = -ENOMEM;
 		goto err_port_alloc;

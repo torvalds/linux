@@ -1936,7 +1936,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 
 	pf->qset.cq_cnt = pf->hw.rx_queues + otx2_get_total_tx_queues(pf);
 
-	qset->napi = kcalloc(pf->hw.cint_cnt, sizeof(*cq_poll), GFP_KERNEL);
+	qset->napi = kzalloc_objs(*cq_poll, pf->hw.cint_cnt);
 	if (!qset->napi)
 		return -ENOMEM;
 
@@ -1945,18 +1945,16 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 	/* CQ size of SQ */
 	qset->sqe_cnt = qset->sqe_cnt ? qset->sqe_cnt : Q_COUNT(Q_SIZE_4K);
 
-	qset->cq = kcalloc(pf->qset.cq_cnt,
-			   sizeof(struct otx2_cq_queue), GFP_KERNEL);
+	qset->cq = kzalloc_objs(struct otx2_cq_queue, pf->qset.cq_cnt);
 	if (!qset->cq)
 		goto err_free_mem;
 
-	qset->sq = kcalloc(otx2_get_total_tx_queues(pf),
-			   sizeof(struct otx2_snd_queue), GFP_KERNEL);
+	qset->sq = kzalloc_objs(struct otx2_snd_queue,
+				otx2_get_total_tx_queues(pf));
 	if (!qset->sq)
 		goto err_free_mem;
 
-	qset->rq = kcalloc(pf->hw.rx_queues,
-			   sizeof(struct otx2_rcv_queue), GFP_KERNEL);
+	qset->rq = kzalloc_objs(struct otx2_rcv_queue, pf->hw.rx_queues);
 	if (!qset->rq)
 		goto err_free_mem;
 
@@ -3249,7 +3247,9 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;
 
 	netdev->netdev_ops = &otx2_netdev_ops;
-	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT;
+	netdev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			       NETDEV_XDP_ACT_NDO_XMIT |
+			       NETDEV_XDP_ACT_XSK_ZEROCOPY;
 
 	netdev->min_mtu = OTX2_MIN_MTU;
 	netdev->max_mtu = otx2_get_max_mtu(pf);
@@ -3313,6 +3313,7 @@ err_free_zc_bmap:
 err_sriov_cleannup:
 	otx2_sriov_vfcfg_cleanup(pf);
 err_pf_sriov_init:
+	otx2_unregister_dl(pf);
 	otx2_shutdown_tc(pf);
 err_mcam_flow_del:
 	otx2_mcam_flow_del(pf);

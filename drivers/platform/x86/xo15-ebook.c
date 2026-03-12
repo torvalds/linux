@@ -86,7 +86,7 @@ static int ebook_switch_add(struct acpi_device *device)
 	struct input_dev *input;
 	int error;
 
-	button = kzalloc(sizeof(struct ebook_switch), GFP_KERNEL);
+	button = kzalloc_obj(struct ebook_switch);
 	if (!button)
 		return -ENOMEM;
 

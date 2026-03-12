@@ -336,6 +336,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	BUILD_BUG_ON(!IS_ALIGNED(TEXT_OFFSET, THREAD_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(__NO_KASLR_START_KERNEL, THREAD_SIZE));
 	BUILD_BUG_ON(__NO_KASLR_END_KERNEL > _REGION1_SIZE);
+	BUILD_BUG_ON(CONFIG_ILLEGAL_POINTER_VALUE < _REGION1_SIZE);
 	vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION3_SIZE);
 	boot_debug("vmem size estimated: 0x%016lx\n", vsize);
 	if (IS_ENABLED(CONFIG_KASAN) || __NO_KASLR_END_KERNEL > _REGION2_SIZE ||

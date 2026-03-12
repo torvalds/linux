@@ -319,7 +319,7 @@ static int __init omap1_system_dma_init(void)
 		goto exit_iounmap;
 	}
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d) {
 		ret = -ENOMEM;
 		goto exit_iounmap;

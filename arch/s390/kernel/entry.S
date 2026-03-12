@@ -23,6 +23,7 @@
 #include <asm/unistd.h>
 #include <asm/page.h>
 #include <asm/sigp.h>
+#include <asm/bug.h>
 #include <asm/irq.h>
 #include <asm/fpu-insn.h>
 #include <asm/setup.h>
@@ -172,6 +173,16 @@ SYM_FUNC_START(__switch_to_asm)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to_asm)
+
+#if defined(CONFIG_BUG) && defined(CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS)
+
+SYM_FUNC_START(__WARN_trap)
+	mc	MONCODE_BUG_ARG(%r0),0
+	BR_EX	%r14
+SYM_FUNC_END(__WARN_trap)
+EXPORT_SYMBOL(__WARN_trap)
+
+#endif /* CONFIG_BUG && CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS */
 
 #if IS_ENABLED(CONFIG_KVM)
 /*

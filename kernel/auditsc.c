@@ -255,7 +255,7 @@ static int grow_tree_refs(struct audit_context *ctx)
 {
 	struct audit_tree_refs *p = ctx->trees;
 
-	ctx->trees = kzalloc(sizeof(struct audit_tree_refs), GFP_KERNEL);
+	ctx->trees = kzalloc_obj(struct audit_tree_refs);
 	if (!ctx->trees) {
 		ctx->trees = p;
 		return 0;
@@ -1032,7 +1032,7 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 {
 	struct audit_context *context;
 
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return NULL;
 	context->context = AUDIT_CTX_UNUSED;
@@ -2153,7 +2153,7 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 		aname = &context->preallocated_names[context->name_count];
 		memset(aname, 0, sizeof(*aname));
 	} else {
-		aname = kzalloc(sizeof(*aname), GFP_NOFS);
+		aname = kzalloc_obj(*aname, GFP_NOFS);
 		if (!aname)
 			return NULL;
 		aname->should_free = true;
@@ -2167,29 +2167,6 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 	if (!context->pwd.dentry)
 		get_fs_pwd(current->fs, &context->pwd);
 	return aname;
-}
-
-/**
- * __audit_reusename - fill out filename with info from existing entry
- * @uptr: userland ptr to pathname
- *
- * Search the audit_names list for the current audit context. If there is an
- * existing entry with a matching "uptr" then return the filename
- * associated with that audit_name. If not, return NULL.
- */
-struct filename *
-__audit_reusename(const __user char *uptr)
-{
-	struct audit_context *context = audit_context();
-	struct audit_names *n;
-
-	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name)
-			continue;
-		if (n->name->uptr == uptr)
-			return refname(n->name);
-	}
-	return NULL;
 }
 
 /**
@@ -2214,7 +2191,7 @@ void __audit_getname(struct filename *name)
 	n->name = name;
 	n->name_len = AUDIT_NAME_FULL;
 	name->aname = n;
-	refname(name);
+	name->refcnt++;
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
@@ -2346,7 +2323,7 @@ out_alloc:
 		return;
 	if (name) {
 		n->name = name;
-		refname(name);
+		name->refcnt++;
 	}
 
 out:
@@ -2468,7 +2445,7 @@ void __audit_inode_child(struct inode *parent,
 		if (found_parent) {
 			found_child->name = found_parent->name;
 			found_child->name_len = AUDIT_NAME_FULL;
-			refname(found_child->name);
+			found_child->name->refcnt++;
 		}
 	}
 
@@ -2673,7 +2650,7 @@ int __audit_sockaddr(int len, void *a)
 	struct audit_context *context = audit_context();
 
 	if (!context->sockaddr) {
-		void *p = kmalloc(sizeof(struct sockaddr_storage), GFP_KERNEL);
+		void *p = kmalloc_obj(struct sockaddr_storage);
 
 		if (!p)
 			return -ENOMEM;
@@ -2727,7 +2704,7 @@ int audit_signal_info_syscall(struct task_struct *t)
 
 	axp = (void *)ctx->aux_pids;
 	if (!axp || axp->pid_count == AUDIT_AUX_PIDS) {
-		axp = kzalloc(sizeof(*axp), GFP_ATOMIC);
+		axp = kzalloc_obj(*axp, GFP_ATOMIC);
 		if (!axp)
 			return -ENOMEM;
 
@@ -2766,7 +2743,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	struct audit_context *context = audit_context();
 	struct cpu_vfs_cap_data vcaps;
 
-	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
+	ax = kmalloc_obj(*ax);
 	if (!ax)
 		return -ENOMEM;
 

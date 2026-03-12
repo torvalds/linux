@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -230,8 +230,8 @@ xfs_bulkstat_one(
 
 	ASSERT(breq->icount == 1);
 
-	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	bc.buf = kzalloc_obj(struct xfs_bulkstat,
+			     GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -317,8 +317,8 @@ xfs_bulkstat(
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	bc.buf = kzalloc_obj(struct xfs_bulkstat,
+			     GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 

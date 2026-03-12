@@ -314,9 +314,7 @@ static int wil_init_rx_buff_arr(struct wil6210_priv *wil,
 	struct list_head *free = &wil->rx_buff_mgmt.free;
 	int i;
 
-	wil->rx_buff_mgmt.buff_arr = kcalloc(size + 1,
-					     sizeof(struct wil_rx_buff),
-					     GFP_KERNEL);
+	wil->rx_buff_mgmt.buff_arr = kzalloc_objs(struct wil_rx_buff, size + 1);
 	if (!wil->rx_buff_mgmt.buff_arr)
 		return -ENOMEM;
 
@@ -382,7 +380,7 @@ static int wil_ring_alloc_desc_ring(struct wil6210_priv *wil,
 
 	ring->swhead = 0;
 	ring->swtail = 0;
-	ring->ctx = kcalloc(ring->size, sizeof(ring->ctx[0]), GFP_KERNEL);
+	ring->ctx = kzalloc_objs(ring->ctx[0], ring->size);
 	if (!ring->ctx)
 		goto err;
 

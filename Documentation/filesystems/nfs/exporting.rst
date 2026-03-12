@@ -119,43 +119,11 @@ For a filesystem to be exportable it must:
 
 A file system implementation declares that instances of the filesystem
 are exportable by setting the s_export_op field in the struct
-super_block.  This field must point to a "struct export_operations"
-struct which has the following members:
+super_block.  This field must point to a struct export_operations
+which has the following members:
 
-  encode_fh (mandatory)
-    Takes a dentry and creates a filehandle fragment which may later be used
-    to find or create a dentry for the same object.
-
-  fh_to_dentry (mandatory)
-    Given a filehandle fragment, this should find the implied object and
-    create a dentry for it (possibly with d_obtain_alias).
-
-  fh_to_parent (optional but strongly recommended)
-    Given a filehandle fragment, this should find the parent of the
-    implied object and create a dentry for it (possibly with
-    d_obtain_alias).  May fail if the filehandle fragment is too small.
-
-  get_parent (optional but strongly recommended)
-    When given a dentry for a directory, this should return  a dentry for
-    the parent.  Quite possibly the parent dentry will have been allocated
-    by d_alloc_anon.  The default get_parent function just returns an error
-    so any filehandle lookup that requires finding a parent will fail.
-    ->lookup("..") is *not* used as a default as it can leave ".." entries
-    in the dcache which are too messy to work with.
-
-  get_name (optional)
-    When given a parent dentry and a child dentry, this should find a name
-    in the directory identified by the parent dentry, which leads to the
-    object identified by the child dentry.  If no get_name function is
-    supplied, a default implementation is provided which uses vfs_readdir
-    to find potential names, and matches inode numbers to find the correct
-    match.
-
-  flags
-    Some filesystems may need to be handled differently than others. The
-    export_operations struct also includes a flags field that allows the
-    filesystem to communicate such information to nfsd. See the Export
-    Operations Flags section below for more explanation.
+.. kernel-doc:: include/linux/exportfs.h
+   :identifiers: struct export_operations
 
 A filehandle fragment consists of an array of 1 or more 4byte words,
 together with a one byte "type".

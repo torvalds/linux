@@ -402,7 +402,7 @@ static int path_init(struct mmphw_path_plat *path_plat,
 	dev_info(ctrl->dev, "%s: %s\n", __func__, config->name);
 
 	/* init driver data */
-	path_info = kzalloc(sizeof(*path_info), GFP_KERNEL);
+	path_info = kzalloc_obj(*path_info);
 	if (!path_info)
 		return 0;
 

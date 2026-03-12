@@ -95,7 +95,7 @@ void cec_queue_event_fh(struct cec_fh *fh,
 	if (ev_idx < CEC_NUM_CORE_EVENTS)
 		entry = &fh->core_events[ev_idx];
 	else
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kmalloc_obj(*entry);
 	if (entry) {
 		if (new_ev->event == CEC_EVENT_LOST_MSGS &&
 		    fh->queued_events[ev_idx]) {
@@ -218,7 +218,7 @@ static void cec_queue_msg_fh(struct cec_fh *fh, const struct cec_msg *msg)
 	struct cec_msg_entry *entry;
 
 	mutex_lock(&fh->lock);
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (entry) {
 		entry->msg = *msg;
 		/* Add new msg at the end of the queue */
@@ -922,7 +922,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		return -EBUSY;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

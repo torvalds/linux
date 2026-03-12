@@ -123,6 +123,10 @@ static int sof_probes_compr_set_params(struct snd_compr_stream *cstream,
 	if (ret)
 		return ret;
 
+	ret = sof_client_boot_dsp(cdev);
+	if (ret)
+		return ret;
+
 	ret = ipc->init(cdev, priv->extractor_stream_tag, rtd->dma_bytes);
 	if (ret < 0) {
 		dev_err(dai->dev, "Failed to init probe: %d\n", ret);
@@ -224,6 +228,10 @@ static ssize_t sof_probes_dfs_points_read(struct file *file, char __user *to,
 		goto exit;
 	}
 
+	ret = sof_client_boot_dsp(cdev);
+	if (ret)
+		goto pm_error;
+
 	ret = ipc->points_info(cdev, &desc, &num_desc, type);
 	if (ret < 0)
 		goto pm_error;
@@ -312,9 +320,12 @@ sof_probes_dfs_points_write(struct file *file, const char __user *from,
 		goto exit;
 	}
 
-	ret = ipc->points_add(cdev, desc, bytes / sizeof(*desc));
-	if (!ret)
-		ret = count;
+	ret = sof_client_boot_dsp(cdev);
+	if (!ret) {
+		ret = ipc->points_add(cdev, desc, bytes / sizeof(*desc));
+		if (!ret)
+			ret = count;
+	}
 
 	err = pm_runtime_put_autosuspend(dev);
 	if (err < 0)
@@ -367,9 +378,12 @@ sof_probes_dfs_points_remove_write(struct file *file, const char __user *from,
 		goto exit;
 	}
 
-	ret = ipc->points_remove(cdev, &array[1], array[0]);
-	if (!ret)
-		ret = count;
+	ret = sof_client_boot_dsp(cdev);
+	if (!ret) {
+		ret = ipc->points_remove(cdev, &array[1], array[0]);
+		if (!ret)
+			ret = count;
+	}
 
 	err = pm_runtime_put_autosuspend(dev);
 	if (err < 0)

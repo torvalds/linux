@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/ti/ti,omap-prm-inst.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OMAP PRM instances
+
+maintainers:
+  - Aaro Koskinen <aaro.koskinen@iki.fi>
+  - Andreas Kemnade <andreas@kemnade.info>
+  - Kevin Hilman <khilman@baylibre.com>
+  - Roger Quadros <rogerq@kernel.org>
+  - Tony Lindgren <tony@atomide.com>
+
+description:
+  Power and Reset Manager is an IP block on OMAP family of devices which
+  handle the power domains and their current state, and provide reset
+  handling for the domains and/or separate IP blocks under the power domain
+  hierarchy.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,am3-prm-inst
+          - ti,am4-prm-inst
+          - ti,omap4-prm-inst
+          - ti,omap5-prm-inst
+          - ti,dra7-prm-inst
+      - const: ti,omap-prm-inst
+
+  reg:
+    maxItems: 1
+
+  "#power-domain-cells":
+    const: 0
+
+  "#reset-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    reset-controller@1b00 {
+        compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
+        reg = <0x1b00 0x40>;
+        #power-domain-cells = <0>;
+        #reset-cells = <1>;
+    };

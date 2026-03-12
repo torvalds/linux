@@ -17,16 +17,16 @@
 static int module_extend_max_pages(struct load_info *info, unsigned int extent)
 {
 	struct page **new_pages;
+	unsigned int new_max = info->max_pages + extent;
 
-	new_pages = kvmalloc_array(info->max_pages + extent,
-				   sizeof(info->pages), GFP_KERNEL);
+	new_pages = kvrealloc(info->pages,
+			      size_mul(new_max, sizeof(*info->pages)),
+			      GFP_KERNEL);
 	if (!new_pages)
 		return -ENOMEM;
 
-	memcpy(new_pages, info->pages, info->max_pages * sizeof(info->pages));
-	kvfree(info->pages);
 	info->pages = new_pages;
-	info->max_pages += extent;
+	info->max_pages = new_max;
 
 	return 0;
 }

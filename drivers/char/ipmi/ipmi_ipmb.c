@@ -202,11 +202,16 @@ static int ipmi_ipmb_slave_cb(struct i2c_client *client,
 		break;
 
 	case I2C_SLAVE_READ_REQUESTED:
+		*val = 0xff;
+		ipmi_ipmb_check_msg_done(iidev);
+		break;
+
 	case I2C_SLAVE_STOP:
 		ipmi_ipmb_check_msg_done(iidev);
 		break;
 
 	case I2C_SLAVE_READ_PROCESSED:
+		*val = 0xff;
 		break;
 	}
 

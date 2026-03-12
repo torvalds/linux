@@ -207,7 +207,7 @@ static int __init rk_clkevt_init(struct device_node *np)
 	struct clock_event_device *ce;
 	int ret = -EINVAL;
 
-	rk_clkevt = kzalloc(sizeof(struct rk_clkevt), GFP_KERNEL);
+	rk_clkevt = kzalloc_obj(struct rk_clkevt);
 	if (!rk_clkevt) {
 		ret = -ENOMEM;
 		goto out;
@@ -254,7 +254,7 @@ static int __init rk_clksrc_init(struct device_node *np)
 {
 	int ret = -EINVAL;
 
-	rk_clksrc = kzalloc(sizeof(struct rk_timer), GFP_KERNEL);
+	rk_clksrc = kzalloc_obj(struct rk_timer);
 	if (!rk_clksrc) {
 		ret = -ENOMEM;
 		goto out;

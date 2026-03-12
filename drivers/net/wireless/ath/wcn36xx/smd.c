@@ -847,7 +847,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	mutex_lock(&wcn->hal_mutex);
-	msg_body = kzalloc(sizeof(*msg_body), GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body) {
 		ret = -ENOMEM;
 		goto out;
@@ -942,7 +942,7 @@ int wcn36xx_smd_update_channel_list(struct wcn36xx *wcn, struct cfg80211_scan_re
 	struct wcn36xx_hal_update_channel_list_req_msg *msg_body;
 	int ret, i;
 
-	msg_body = kzalloc(sizeof(*msg_body), GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body)
 		return -ENOMEM;
 
@@ -1624,7 +1624,7 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	struct cfg80211_chan_def *chandef;
 	int ret;
 
-	msg_body = kzalloc(sizeof(*msg_body), GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body)
 		return -ENOMEM;
 
@@ -1744,7 +1744,7 @@ static int wcn36xx_smd_config_bss_v0(struct wcn36xx *wcn,
 	struct wcn36xx_hal_config_sta_params *sta_params;
 	int ret;
 
-	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kzalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -3306,7 +3306,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
 	case WCN36XX_HAL_PRINT_REG_INFO_IND:
 	case WCN36XX_HAL_SCAN_OFFLOAD_IND:
-		msg_ind = kmalloc(struct_size(msg_ind, msg, len), GFP_ATOMIC);
+		msg_ind = kmalloc_flex(*msg_ind, msg, len, GFP_ATOMIC);
 		if (!msg_ind) {
 			wcn36xx_err("Run out of memory while handling SMD_EVENT (%d)\n",
 				    msg_header->msg_type);

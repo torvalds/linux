@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ */
+
+#ifndef QCOM_PHY_QMP_DP_PHY_V8_H_
+#define QCOM_PHY_QMP_DP_PHY_V8_H_
+
+/* Only for QMP V8 PHY - DP PHY registers */
+#define QSERDES_V8_DP_PHY_VCO_DIV			0x070
+#define QSERDES_V8_DP_PHY_AUX_INTERRUPT_STATUS		0x0e0
+#define QSERDES_V8_DP_PHY_TSYNC_OVRD			0x074
+#define QSERDES_V8_DP_PHY_TX0_TX1_LANE_CTL		0x078
+#define QSERDES_V8_DP_PHY_TX2_TX3_LANE_CTL		0x0bc
+#define QSERDES_V8_DP_PHY_AUXLESS_CFG1			0x0c8
+#define QSERDES_V8_DP_PHY_LFPS_PERIOD			0x0d0
+#define QSERDES_V8_DP_PHY_LFPS_CYC			0x0d4
+#define QSERDES_V8_DP_PHY_AUXLESS_SETUP_CYC		0x0d8
+#define QSERDES_V8_DP_PHY_AUXLESS_SILENCE_CYC		0x0d8
+#define QSERDES_V8_DP_PHY_LN0_DRV_LVL			0x0e0
+#define QSERDES_V8_DP_PHY_LN1_DRV_LVL			0x0e4
+#define QSERDES_V8_DP_PHY_STATUS			0x114
+
+
+#endif

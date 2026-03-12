@@ -104,7 +104,7 @@ static int vmcp_open(struct inode *inode, struct file *file)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	session = kmalloc(sizeof(*session), GFP_KERNEL);
+	session = kmalloc_obj(*session);
 	if (!session)
 		return -ENOMEM;
 

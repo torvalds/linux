@@ -87,7 +87,7 @@ static struct xhci_regset *xhci_debugfs_alloc_regset(struct xhci_hcd *xhci)
 {
 	struct xhci_regset	*regset;
 
-	regset = kzalloc(sizeof(*regset), GFP_KERNEL);
+	regset = kzalloc_obj(*regset);
 	if (!regset)
 		return NULL;
 
@@ -468,7 +468,7 @@ void xhci_debugfs_create_endpoint(struct xhci_hcd *xhci,
 	if (spriv->eps[ep_index])
 		return;
 
-	epriv = kzalloc(sizeof(*epriv), GFP_KERNEL);
+	epriv = kzalloc_obj(*epriv);
 	if (!epriv)
 		return;
 
@@ -608,7 +608,7 @@ void xhci_debugfs_create_slot(struct xhci_hcd *xhci, int slot_id)
 	struct xhci_slot_priv	*priv;
 	struct xhci_virt_device	*dev = xhci->devs[slot_id];
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return;
 

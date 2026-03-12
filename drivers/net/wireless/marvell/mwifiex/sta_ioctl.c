@@ -330,8 +330,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			return -EINVAL;
 
 		/* Allocate and fill new bss descriptor */
-		bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
-				   GFP_KERNEL);
+		bss_desc = kzalloc_obj(struct mwifiex_bssdescriptor);
 		if (!bss_desc)
 			return -ENOMEM;
 

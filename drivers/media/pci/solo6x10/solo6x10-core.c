@@ -449,7 +449,7 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int ret;
 	u8 chip_id;
 
-	solo_dev = kzalloc(sizeof(*solo_dev), GFP_KERNEL);
+	solo_dev = kzalloc_obj(*solo_dev);
 	if (solo_dev == NULL)
 		return -ENOMEM;
 

@@ -2503,7 +2503,7 @@ static const struct drm_edid *_drm_edid_alloc(const void *edid, size_t size)
 	if (!edid || !size || size < EDID_LENGTH)
 		return NULL;
 
-	drm_edid = kzalloc(sizeof(*drm_edid), GFP_KERNEL);
+	drm_edid = kzalloc_obj(*drm_edid);
 	if (drm_edid) {
 		drm_edid->edid = edid;
 		drm_edid->size = size;
@@ -5764,7 +5764,7 @@ static int _drm_edid_to_sad(const struct drm_edid *drm_edid,
 			int i;
 
 			count = cea_db_payload_len(db) / 3; /* SAD is 3B */
-			sads = kcalloc(count, sizeof(*sads), GFP_KERNEL);
+			sads = kzalloc_objs(*sads, count);
 			*psads = sads;
 			if (!sads)
 				return -ENOMEM;

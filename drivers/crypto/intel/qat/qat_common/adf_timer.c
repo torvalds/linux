@@ -40,7 +40,7 @@ int adf_timer_start(struct adf_accel_dev *accel_dev)
 {
 	struct adf_timer *timer_ctx;
 
-	timer_ctx = kzalloc(sizeof(*timer_ctx), GFP_KERNEL);
+	timer_ctx = kzalloc_obj(*timer_ctx);
 	if (!timer_ctx)
 		return -ENOMEM;
 

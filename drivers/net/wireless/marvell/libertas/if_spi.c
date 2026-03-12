@@ -1113,7 +1113,7 @@ static int if_spi_probe(struct spi_device *spi)
 	}
 
 	/* Allocate card structure to represent this specific device */
-	card = kzalloc(sizeof(struct if_spi_card), GFP_KERNEL);
+	card = kzalloc_obj(struct if_spi_card);
 	if (!card) {
 		err = -ENOMEM;
 		goto teardown;

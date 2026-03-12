@@ -84,7 +84,7 @@ retry:
 		return -EAGAIN;
 	}
 
-	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
+	tm = kmalloc_obj(*tm);
 	if (tm == NULL) {
 		textsearch_destroy(ts_conf);
 		return -ENOBUFS;

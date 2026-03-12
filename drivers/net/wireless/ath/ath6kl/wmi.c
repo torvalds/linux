@@ -4135,7 +4135,7 @@ void *ath6kl_wmi_init(struct ath6kl *dev)
 {
 	struct wmi *wmi;
 
-	wmi = kzalloc(sizeof(struct wmi), GFP_KERNEL);
+	wmi = kzalloc_obj(struct wmi);
 	if (!wmi)
 		return NULL;
 

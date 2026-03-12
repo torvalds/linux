@@ -87,7 +87,7 @@ out:
 
 static struct ps_internal *_alloc_path_selector(struct path_selector_type *pst)
 {
-	struct ps_internal *psi = kzalloc(sizeof(*psi), GFP_KERNEL);
+	struct ps_internal *psi = kzalloc_obj(*psi);
 
 	if (psi)
 		psi->pst = *pst;
@@ -107,7 +107,7 @@ int dm_register_path_selector(struct path_selector_type *pst)
 
 	if (__find_path_selector_type(pst->name)) {
 		kfree(psi);
-		r = -EEXIST;
+		r = -EBUSY;
 	} else
 		list_add(&psi->list, &_path_selectors);
 

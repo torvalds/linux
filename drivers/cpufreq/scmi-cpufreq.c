@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * System Control and Power Interface (SCMI) based CPUFreq Interface driver
+ * System Control and Management Interface (SCMI) based CPUFreq Interface driver
  *
  * Copyright (C) 2018-2021 ARM Ltd.
  * Sudeep Holla <sudeep.holla@arm.com>
@@ -101,6 +101,7 @@ static int scmi_cpu_domain_id(struct device *cpu_dev)
 			return -EINVAL;
 	}
 
+	of_node_put(domain_id.np);
 	return domain_id.args[0];
 }
 
@@ -213,7 +214,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	if (domain < 0)
 		return domain;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

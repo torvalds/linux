@@ -428,7 +428,7 @@ static int rt722_sdca_sdw_probe(struct sdw_slave *slave,
 	return rt722_sdca_init(&slave->dev, regmap, slave);
 }
 
-static int rt722_sdca_sdw_remove(struct sdw_slave *slave)
+static void rt722_sdca_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(&slave->dev);
 
@@ -442,8 +442,6 @@ static int rt722_sdca_sdw_remove(struct sdw_slave *slave)
 
 	mutex_destroy(&rt722->calibrate_mutex);
 	mutex_destroy(&rt722->disable_irq_lock);
-
-	return 0;
 }
 
 static const struct sdw_device_id rt722_sdca_id[] = {

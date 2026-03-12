@@ -49,7 +49,7 @@ int nfc_llc_register(const char *name, const struct nfc_llc_ops *ops)
 {
 	struct nfc_llc_engine *llc_engine;
 
-	llc_engine = kzalloc(sizeof(struct nfc_llc_engine), GFP_KERNEL);
+	llc_engine = kzalloc_obj(struct nfc_llc_engine);
 	if (llc_engine == NULL)
 		return -ENOMEM;
 
@@ -90,7 +90,7 @@ struct nfc_llc *nfc_llc_allocate(const char *name, struct nfc_hci_dev *hdev,
 	if (llc_engine == NULL)
 		return NULL;
 
-	llc = kzalloc(sizeof(struct nfc_llc), GFP_KERNEL);
+	llc = kzalloc_obj(struct nfc_llc);
 	if (llc == NULL)
 		return NULL;
 

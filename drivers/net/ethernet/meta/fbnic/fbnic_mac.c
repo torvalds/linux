@@ -835,7 +835,7 @@ static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 				     long *val)
 {
 	struct fbnic_fw_completion *fw_cmpl;
-	int err = 0, retries = 5;
+	int err = 0;
 	s32 *sensor;
 
 	fw_cmpl = fbnic_fw_alloc_cmpl(FBNIC_TLV_MSG_ID_TSENE_READ_RESP);
@@ -862,24 +862,10 @@ static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 		goto exit_free;
 	}
 
-	/* Allow 2 seconds for reply, resend and try up to 5 times */
-	while (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
-		retries--;
-
-		if (retries == 0) {
-			dev_err(fbd->dev,
-				"Timed out waiting for TSENE read\n");
-			err = -ETIMEDOUT;
-			goto exit_cleanup;
-		}
-
-		err = fbnic_fw_xmit_tsene_read_msg(fbd, NULL);
-		if (err) {
-			dev_err(fbd->dev,
-				"Failed to transmit TSENE read msg, err %d\n",
-				err);
-			goto exit_cleanup;
-		}
+	if (!wait_for_completion_timeout(&fw_cmpl->done, 10 * HZ)) {
+		dev_err(fbd->dev, "Timed out waiting for TSENE read\n");
+		err = -ETIMEDOUT;
+		goto exit_cleanup;
 	}
 
 	/* Handle error returned by firmware */

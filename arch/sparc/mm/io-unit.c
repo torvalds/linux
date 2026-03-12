@@ -44,7 +44,7 @@ static void __init iounit_iommu_init(struct platform_device *op)
 	iopte_t __iomem *xpt;
 	iopte_t __iomem *xptend;
 
-	iounit = kzalloc(sizeof(struct iounit_struct), GFP_ATOMIC);
+	iounit = kzalloc_obj(struct iounit_struct, GFP_ATOMIC);
 	if (!iounit) {
 		prom_printf("SUN4D: Cannot alloc iounit, halting.\n");
 		prom_halt();

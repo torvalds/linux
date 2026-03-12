@@ -3,7 +3,7 @@
  * Copyright (c) 2022-2024 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -36,7 +36,7 @@ rcbag_init(
 	struct rcbag		*bag;
 	int			error;
 
-	bag = kzalloc(sizeof(struct rcbag), XCHK_GFP_FLAGS);
+	bag = kzalloc_obj(struct rcbag, XCHK_GFP_FLAGS);
 	if (!bag)
 		return -ENOMEM;
 

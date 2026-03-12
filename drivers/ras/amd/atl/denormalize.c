@@ -683,7 +683,7 @@ static int denorm_addr_df4_np2(struct addr_ctx *ctx)
 	default:
 		atl_debug_on_bad_intlv_mode(ctx);
 		return -EINVAL;
-	};
+	}
 
 	if (ctx->map.num_intlv_sockets == 1) {
 		hash_pa8	= BIT_ULL(shift_value) & ctx->ret_addr;

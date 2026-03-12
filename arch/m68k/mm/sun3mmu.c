@@ -41,7 +41,6 @@ void __init paging_init(void)
 	unsigned long address;
 	unsigned long next_pgtable;
 	unsigned long bootmem_end;
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 	unsigned long size;
 
 	empty_zero_page = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
@@ -80,14 +79,6 @@ void __init paging_init(void)
 	mmu_emu_init(bootmem_end);
 
 	current->mm = NULL;
-
-	/* memory sizing is a hack stolen from motorola.c..  hope it works for us */
-	max_zone_pfn[ZONE_DMA] = ((unsigned long)high_memory) >> PAGE_SHIFT;
-
-	/* I really wish I knew why the following change made things better...  -- Sam */
-	free_area_init(max_zone_pfn);
-
-
 }
 
 static const pgprot_t protection_map[16] = {

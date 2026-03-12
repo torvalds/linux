@@ -151,7 +151,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		goto failure;
 	}
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (unlikely(!new)) {
 		err = -ENOMEM;
 		goto failure;

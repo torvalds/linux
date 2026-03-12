@@ -1528,7 +1528,7 @@ static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 {
 	struct dw_xpcs *xpcs;
 
-	xpcs = kzalloc(sizeof(*xpcs), GFP_KERNEL);
+	xpcs = kzalloc_obj(*xpcs);
 	if (!xpcs)
 		return ERR_PTR(-ENOMEM);
 

@@ -32,6 +32,8 @@ properties:
   reg:
     maxItems: 1
 
+  cx-supply: true
+
   px-supply:
     description: Phandle to the PX regulator
 
@@ -159,6 +161,9 @@ allOf:
           items:
             - const: lcx
             - const: lmx
+    else:
+      properties:
+        cx-supply: false
 
   - if:
       properties:

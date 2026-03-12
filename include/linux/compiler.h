@@ -190,7 +190,9 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #define data_race(expr)							\
 ({									\
 	__kcsan_disable_current();					\
+	disable_context_analysis();					\
 	auto __v = (expr);						\
+	enable_context_analysis();					\
 	__kcsan_enable_current();					\
 	__v;								\
 })
@@ -229,16 +231,6 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #define __must_be_noncstr(p) \
 	__BUILD_BUG_ON_ZERO_MSG(!__is_noncstr(p), \
 				"must be non-C-string (not NUL-terminated)")
-
-/*
- * Use __typeof_unqual__() when available.
- *
- * XXX: Remove test for __CHECKER__ once
- * sparse learns about __typeof_unqual__().
- */
-#if CC_HAS_TYPEOF_UNQUAL && !defined(__CHECKER__)
-# define USE_TYPEOF_UNQUAL 1
-#endif
 
 /*
  * Define TYPEOF_UNQUAL() to use __typeof_unqual__() as typeof

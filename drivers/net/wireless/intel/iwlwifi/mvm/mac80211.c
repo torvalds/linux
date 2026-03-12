@@ -1109,7 +1109,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	mvmvif->ba_enabled = false;
 	mvmvif->ap_sta = NULL;
 
-	mvmvif->esr_active = false;
 	vif->driver_flags &= ~IEEE80211_VIF_EML_ACTIVE;
 
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
@@ -1127,39 +1126,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	if (probe_data)
 		kfree_rcu(probe_data, rcu_head);
 	RCU_INIT_POINTER(mvmvif->deflink.probe_resp_data, NULL);
-}
-
-static void iwl_mvm_cleanup_sta_iterator(void *data, struct ieee80211_sta *sta)
-{
-	struct iwl_mvm *mvm = data;
-	struct iwl_mvm_sta *mvm_sta;
-	struct ieee80211_vif *vif;
-	int link_id;
-
-	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	vif = mvm_sta->vif;
-
-	if (!sta->valid_links)
-		return;
-
-	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++) {
-		struct iwl_mvm_link_sta *mvm_link_sta;
-
-		mvm_link_sta =
-			rcu_dereference_check(mvm_sta->link[link_id],
-					      lockdep_is_held(&mvm->mutex));
-		if (mvm_link_sta && !(vif->active_links & BIT(link_id))) {
-			/*
-			 * We have a link STA but the link is inactive in
-			 * mac80211. This will happen if we failed to
-			 * deactivate the link but mac80211 roll back the
-			 * deactivation of the link.
-			 * Delete the stale data to avoid issues later on.
-			 */
-			iwl_mvm_mld_free_sta_link(mvm, mvm_sta, mvm_link_sta,
-						  link_id);
-		}
-	}
 }
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
@@ -1183,10 +1149,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 * gone down during the HW restart
 	 */
 	ieee80211_iterate_interfaces(mvm->hw, 0, iwl_mvm_cleanup_iterator, mvm);
-
-	/* cleanup stations as links may be gone after restart */
-	ieee80211_iterate_stations_atomic(mvm->hw,
-					  iwl_mvm_cleanup_sta_iterator, mvm);
 
 	mvm->p2p_device_vif = NULL;
 
@@ -2639,7 +2601,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			   u32 duration_override, unsigned int link_id)
+			   u32 duration_override)
 {
 	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
 	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
@@ -2659,8 +2621,7 @@ void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
 		iwl_mvm_schedule_session_protection(mvm, vif, 900,
-						    min_duration, false,
-						    link_id);
+						    min_duration, false);
 	else
 		iwl_mvm_protect_session(mvm, vif, duration,
 					min_duration, 500, false);
@@ -2860,7 +2821,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				 * time could be small without us having heard
 				 * a beacon yet.
 				 */
-				iwl_mvm_protect_assoc(mvm, vif, 0, 0);
+				iwl_mvm_protect_assoc(mvm, vif, 0);
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
@@ -3921,12 +3882,6 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 
 		mvmvif->authorized = 1;
 
-		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-			mvmvif->link_selection_res = vif->active_links;
-			mvmvif->link_selection_primary =
-				vif->active_links ? __ffs(vif->active_links) : 0;
-		}
-
 		callbacks->mac_ctxt_changed(mvm, vif, false);
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 	}
@@ -3972,7 +3927,6 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 		 * time.
 		 */
 		mvmvif->authorized = 0;
-		mvmvif->link_selection_res = 0;
 
 		/* disable beacon filtering */
 		iwl_mvm_disable_beacon_filter(mvm, vif);
@@ -4197,7 +4151,7 @@ void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 		return;
 
 	guard(mvm)(mvm);
-	iwl_mvm_protect_assoc(mvm, vif, info->duration, info->link_id);
+	iwl_mvm_protect_assoc(mvm, vif, info->duration);
 }
 
 void iwl_mvm_mac_mgd_complete_tx(struct ieee80211_hw *hw,
@@ -4394,9 +4348,8 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			int tid, q;
 
 			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
-			ptk_pn = kzalloc(struct_size(ptk_pn, q,
-						     mvm->trans->info.num_rxqs),
-					 GFP_KERNEL);
+			ptk_pn = kzalloc_flex(*ptk_pn, q,
+					      mvm->trans->info.num_rxqs);
 			if (!ptk_pn) {
 				ret = -ENOMEM;
 				break;
@@ -5568,8 +5521,7 @@ static int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
 		if (!vif->cfg.assoc || !vif->bss_conf.dtim_period)
 			return -EBUSY;
 
-		if (chsw->delay > IWL_MAX_CSA_BLOCK_TX &&
-		    hweight16(vif->valid_links) <= 1)
+		if (chsw->delay > IWL_MAX_CSA_BLOCK_TX)
 			schedule_delayed_work(&mvmvif->csa_work, 0);
 
 		if (chsw->block_tx) {
@@ -5733,15 +5685,8 @@ void iwl_mvm_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return;
 	}
 
-	if (!drop && hweight16(vif->active_links) <= 1) {
-		int link_id = vif->active_links ? __ffs(vif->active_links) : 0;
-		struct ieee80211_bss_conf *link_conf;
-
-		link_conf = wiphy_dereference(hw->wiphy,
-					      vif->link_conf[link_id]);
-		if (WARN_ON(!link_conf))
-			return;
-		if (link_conf->csa_active && mvmvif->csa_blocks_tx)
+	if (!drop) {
+		if (vif->bss_conf.csa_active && mvmvif->csa_blocks_tx)
 			drop = true;
 	}
 

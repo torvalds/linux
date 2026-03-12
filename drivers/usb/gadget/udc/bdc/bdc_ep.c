@@ -138,16 +138,15 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		__func__, ep, num_tabs);
 
 	/* Allocate memory for table array */
-	ep->bd_list.bd_table_array = kcalloc(num_tabs,
-					     sizeof(struct bd_table *),
-					     GFP_ATOMIC);
+	ep->bd_list.bd_table_array = kzalloc_objs(struct bd_table *, num_tabs,
+						  GFP_ATOMIC);
 	if (!ep->bd_list.bd_table_array)
 		return -ENOMEM;
 
 	/* Allocate memory for each table */
 	for (index = 0; index < num_tabs; index++) {
 		/* Allocate memory for bd_table structure */
-		bd_table = kzalloc(sizeof(*bd_table), GFP_ATOMIC);
+		bd_table = kzalloc_obj(*bd_table, GFP_ATOMIC);
 		if (!bd_table)
 			goto fail;
 
@@ -1829,7 +1828,7 @@ static struct usb_request *bdc_gadget_alloc_request(struct usb_ep *_ep,
 	struct bdc_req *req;
 	struct bdc_ep *ep;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -1946,7 +1945,7 @@ static int init_ep(struct bdc *bdc, u32 epnum, u32 dir)
 	struct bdc_ep *ep;
 
 	dev_dbg(bdc->dev, "%s epnum=%d dir=%d\n", __func__, epnum, dir);
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 

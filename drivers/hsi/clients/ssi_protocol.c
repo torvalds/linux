@@ -259,7 +259,7 @@ static int ssip_alloc_cmds(struct ssi_protocol *ssi)
 		msg = hsi_alloc_msg(1, GFP_KERNEL);
 		if (!msg)
 			goto out;
-		buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+		buf = kmalloc_obj(*buf);
 		if (!buf) {
 			hsi_free_msg(msg);
 			goto out;
@@ -1077,7 +1077,7 @@ static int ssi_protocol_probe(struct device *dev)
 	struct ssi_protocol *ssi;
 	int err;
 
-	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
+	ssi = kzalloc_obj(*ssi);
 	if (!ssi)
 		return -ENOMEM;
 

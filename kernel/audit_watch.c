@@ -139,7 +139,7 @@ static struct audit_parent *audit_init_parent(const struct path *path)
 	struct audit_parent *parent;
 	int ret;
 
-	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+	parent = kzalloc_obj(*parent);
 	if (unlikely(!parent))
 		return ERR_PTR(-ENOMEM);
 
@@ -161,7 +161,7 @@ static struct audit_watch *audit_init_watch(char *path)
 {
 	struct audit_watch *watch;
 
-	watch = kzalloc(sizeof(*watch), GFP_KERNEL);
+	watch = kzalloc_obj(*watch);
 	if (unlikely(!watch))
 		return ERR_PTR(-ENOMEM);
 

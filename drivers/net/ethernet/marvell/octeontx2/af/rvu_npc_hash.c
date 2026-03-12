@@ -796,7 +796,7 @@ static int rvu_npc_exact_add_to_list(struct rvu *rvu, enum npc_exact_opc_type op
 		return -EFAULT;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		rvu_npc_exact_free_id(rvu, *seq_id);
 		dev_err(rvu->dev, "%s: Memory allocation failed\n", __func__);
@@ -1896,7 +1896,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	/* Set capability to true */
 	rvu->hw->cap.npc_exact_match_enabled = true;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return -ENOMEM;
 

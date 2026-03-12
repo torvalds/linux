@@ -122,7 +122,6 @@ struct scmi_powercap_state {
 };
 
 struct powercap_info {
-	u32 version;
 	int num_domains;
 	bool notify_cap_cmd;
 	bool notify_measurements_cmd;
@@ -434,7 +433,7 @@ static int __scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 	}
 
 	/* Save the last explicitly set non-zero powercap value */
-	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x2 && !ret && power_cap)
+	if (PROTOCOL_REV_MAJOR(ph->version) >= 0x2 && !ret && power_cap)
 		pi->states[domain_id].last_pcap = power_cap;
 
 	return ret;
@@ -454,7 +453,7 @@ static int scmi_powercap_cap_set(const struct scmi_protocol_handle *ph,
 		return -EINVAL;
 
 	/* Just log the last set request if acting on a disabled domain */
-	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x2 &&
+	if (PROTOCOL_REV_MAJOR(ph->version) >= 0x2 &&
 	    !pi->states[domain_id].enabled) {
 		pi->states[domain_id].last_pcap = power_cap;
 		return 0;
@@ -635,7 +634,7 @@ static int scmi_powercap_cap_enable_set(const struct scmi_protocol_handle *ph,
 	u32 power_cap;
 	struct powercap_info *pi = ph->get_priv(ph);
 
-	if (PROTOCOL_REV_MAJOR(pi->version) < 0x2)
+	if (PROTOCOL_REV_MAJOR(ph->version) < 0x2)
 		return -EINVAL;
 
 	if (enable == pi->states[domain_id].enabled)
@@ -676,7 +675,7 @@ static int scmi_powercap_cap_enable_get(const struct scmi_protocol_handle *ph,
 	struct powercap_info *pi = ph->get_priv(ph);
 
 	*enable = true;
-	if (PROTOCOL_REV_MAJOR(pi->version) < 0x2)
+	if (PROTOCOL_REV_MAJOR(ph->version) < 0x2)
 		return 0;
 
 	/*
@@ -961,15 +960,10 @@ static int
 scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int domain, ret;
-	u32 version;
 	struct powercap_info *pinfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_dbg(ph->dev, "Powercap Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
@@ -1006,7 +1000,7 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 						     &pinfo->powercaps[domain].fc_info);
 
 		/* Grab initial state when disable is supported. */
-		if (PROTOCOL_REV_MAJOR(version) >= 0x2) {
+		if (PROTOCOL_REV_MAJOR(ph->version) >= 0x2) {
 			ret = __scmi_powercap_cap_get(ph,
 						      &pinfo->powercaps[domain],
 						      &pinfo->states[domain].last_pcap);
@@ -1018,8 +1012,7 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 		}
 	}
 
-	pinfo->version = version;
-	return ph->set_priv(ph, pinfo, version);
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_powercap = {

@@ -189,7 +189,7 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 	 * with the pci_hotplug subsystem.
 	 */
 	for (i = first; i <= last; ++i) {
-		slot = kzalloc(sizeof(struct slot), GFP_KERNEL);
+		slot = kzalloc_obj(struct slot);
 		if (!slot) {
 			status = -ENOMEM;
 			goto error;

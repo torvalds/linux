@@ -11,7 +11,7 @@ struct nvif_client {
 
 int  nvif_client_ctor(struct nvif_client *parent, const char *name, struct nvif_client *);
 void nvif_client_dtor(struct nvif_client *);
-int  nvif_client_suspend(struct nvif_client *);
+int  nvif_client_suspend(struct nvif_client *, bool);
 int  nvif_client_resume(struct nvif_client *);
 
 /*XXX*/

@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 	 * L1 needs to read its own PML5 table to set up L2. Identity map
 	 * the PML5 table to facilitate this.
 	 */
-	virt_map(vm, vm->pgd, vm->pgd, 1);
+	virt_map(vm, vm->mmu.pgd, vm->mmu.pgd, 1);
 
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
 	vcpu_args_set(vcpu, 1, vmx_pages_gva);

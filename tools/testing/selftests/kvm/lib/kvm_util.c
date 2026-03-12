@@ -209,6 +209,15 @@ const char *vm_guest_mode_string(uint32_t i)
 		[VM_MODE_P36V48_64K]	= "PA-bits:36,  VA-bits:48, 64K pages",
 		[VM_MODE_P47V47_16K]	= "PA-bits:47,  VA-bits:47, 16K pages",
 		[VM_MODE_P36V47_16K]	= "PA-bits:36,  VA-bits:47, 16K pages",
+		[VM_MODE_P56V57_4K]	= "PA-bits:56,  VA-bits:57,  4K pages",
+		[VM_MODE_P56V48_4K]	= "PA-bits:56,  VA-bits:48,  4K pages",
+		[VM_MODE_P56V39_4K]	= "PA-bits:56,  VA-bits:39,  4K pages",
+		[VM_MODE_P50V57_4K]	= "PA-bits:50,  VA-bits:57,  4K pages",
+		[VM_MODE_P50V48_4K]	= "PA-bits:50,  VA-bits:48,  4K pages",
+		[VM_MODE_P50V39_4K]	= "PA-bits:50,  VA-bits:39,  4K pages",
+		[VM_MODE_P41V57_4K]	= "PA-bits:41,  VA-bits:57,  4K pages",
+		[VM_MODE_P41V48_4K]	= "PA-bits:41,  VA-bits:48,  4K pages",
+		[VM_MODE_P41V39_4K]	= "PA-bits:41,  VA-bits:39,  4K pages",
 	};
 	_Static_assert(sizeof(strings)/sizeof(char *) == NUM_VM_MODES,
 		       "Missing new mode strings?");
@@ -236,6 +245,15 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 	[VM_MODE_P36V48_64K]	= { 36, 48, 0x10000, 16 },
 	[VM_MODE_P47V47_16K]	= { 47, 47,  0x4000, 14 },
 	[VM_MODE_P36V47_16K]	= { 36, 47,  0x4000, 14 },
+	[VM_MODE_P56V57_4K]	= { 56, 57,  0x1000, 12 },
+	[VM_MODE_P56V48_4K]	= { 56, 48,  0x1000, 12 },
+	[VM_MODE_P56V39_4K]	= { 56, 39,  0x1000, 12 },
+	[VM_MODE_P50V57_4K]	= { 50, 57,  0x1000, 12 },
+	[VM_MODE_P50V48_4K]	= { 50, 48,  0x1000, 12 },
+	[VM_MODE_P50V39_4K]	= { 50, 39,  0x1000, 12 },
+	[VM_MODE_P41V57_4K]	= { 41, 57,  0x1000, 12 },
+	[VM_MODE_P41V48_4K]	= { 41, 48,  0x1000, 12 },
+	[VM_MODE_P41V39_4K]	= { 41, 39,  0x1000, 12 },
 };
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
@@ -281,34 +299,34 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P52V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P48V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P48V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P40V48_4K:
 	case VM_MODE_P36V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P40V48_64K:
 	case VM_MODE_P36V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P52V48_16K:
 	case VM_MODE_P48V48_16K:
 	case VM_MODE_P40V48_16K:
 	case VM_MODE_P36V48_16K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P47V47_16K:
 	case VM_MODE_P36V47_16K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_PXXVYY_4K:
 #ifdef __x86_64__
@@ -321,22 +339,37 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 			 vm->va_bits);
 
 		if (vm->va_bits == 57) {
-			vm->pgtable_levels = 5;
+			vm->mmu.pgtable_levels = 5;
 		} else {
 			TEST_ASSERT(vm->va_bits == 48,
 				    "Unexpected guest virtual address width: %d",
 				    vm->va_bits);
-			vm->pgtable_levels = 4;
+			vm->mmu.pgtable_levels = 4;
 		}
 #else
 		TEST_FAIL("VM_MODE_PXXVYY_4K not supported on non-x86 platforms");
 #endif
 		break;
 	case VM_MODE_P47V64_4K:
-		vm->pgtable_levels = 5;
+		vm->mmu.pgtable_levels = 5;
 		break;
 	case VM_MODE_P44V64_4K:
-		vm->pgtable_levels = 5;
+		vm->mmu.pgtable_levels = 5;
+		break;
+	case VM_MODE_P56V57_4K:
+	case VM_MODE_P50V57_4K:
+	case VM_MODE_P41V57_4K:
+		vm->mmu.pgtable_levels = 5;
+		break;
+	case VM_MODE_P56V48_4K:
+	case VM_MODE_P50V48_4K:
+	case VM_MODE_P41V48_4K:
+		vm->mmu.pgtable_levels = 4;
+		break;
+	case VM_MODE_P56V39_4K:
+	case VM_MODE_P50V39_4K:
+	case VM_MODE_P41V39_4K:
+		vm->mmu.pgtable_levels = 3;
 		break;
 	default:
 		TEST_FAIL("Unknown guest mode: 0x%x", vm->mode);
@@ -1351,7 +1384,7 @@ struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
  * Output Args: None
  *
  * Return:
- *   Lowest virtual address at or below vaddr_min, with at least
+ *   Lowest virtual address at or above vaddr_min, with at least
  *   sz unused bytes.  TEST_ASSERT failure if no area of at least
  *   size sz is available.
  *
@@ -1956,8 +1989,8 @@ void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	fprintf(stream, "%*sMapped Virtual Pages:\n", indent, "");
 	sparsebit_dump(stream, vm->vpages_mapped, indent + 2);
 	fprintf(stream, "%*spgd_created: %u\n", indent, "",
-		vm->pgd_created);
-	if (vm->pgd_created) {
+		vm->mmu.pgd_created);
+	if (vm->mmu.pgd_created) {
 		fprintf(stream, "%*sVirtual Translation Tables:\n",
 			indent + 2, "");
 		virt_dump(stream, vm, indent + 4);

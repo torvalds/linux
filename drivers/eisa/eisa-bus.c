@@ -317,7 +317,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
 	/* First try to get hold of slot 0. If there is no device
 	 * here, simply fail, unless root->force_probe is set. */
 
-	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+	edev = kzalloc_obj(*edev);
 	if (!edev)
 		return -ENOMEM;
 
@@ -350,7 +350,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
  force_probe:
 
 	for (c = 0, i = 1; i <= root->slots; i++) {
-		edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+		edev = kzalloc_obj(*edev);
 		if (!edev) {
 			dev_err(root->dev, "EISA: Out of memory for slot %d\n",
 				i);

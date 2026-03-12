@@ -175,7 +175,7 @@ static struct sock_reuseport *__reuseport_alloc(unsigned int max_socks)
 {
 	struct sock_reuseport *reuse;
 
-	reuse = kzalloc(struct_size(reuse, socks, max_socks), GFP_ATOMIC);
+	reuse = kzalloc_flex(*reuse, socks, max_socks, GFP_ATOMIC);
 	if (!reuse)
 		return NULL;
 

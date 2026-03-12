@@ -310,7 +310,7 @@ static int debugfs_init_fs_context(struct fs_context *fc)
 {
 	struct debugfs_fs_info *fsi;
 
-	fsi = kzalloc(sizeof(struct debugfs_fs_info), GFP_KERNEL);
+	fsi = kzalloc_obj(struct debugfs_fs_info);
 	if (!fsi)
 		return -ENOMEM;
 
@@ -841,8 +841,10 @@ int __printf(2, 3) debugfs_change_name(struct dentry *dentry, const char *fmt, .
 	rd.new_parent = rd.old_parent;
 	rd.flags = RENAME_NOREPLACE;
 	target = lookup_noperm_unlocked(&QSTR(new_name), rd.new_parent);
-	if (IS_ERR(target))
-		return PTR_ERR(target);
+	if (IS_ERR(target)) {
+		error = PTR_ERR(target);
+		goto out_free;
+	}
 
 	error = start_renaming_two_dentries(&rd, dentry, target);
 	if (error) {
@@ -862,6 +864,7 @@ int __printf(2, 3) debugfs_change_name(struct dentry *dentry, const char *fmt, .
 out:
 	dput(rd.old_parent);
 	dput(target);
+out_free:
 	kfree_const(new_name);
 	return error;
 }

@@ -610,7 +610,7 @@ struct se_lun *core_tpg_alloc_lun(
 {
 	struct se_lun *lun;
 
-	lun = kzalloc(sizeof(*lun), GFP_KERNEL);
+	lun = kzalloc_obj(*lun);
 	if (!lun) {
 		pr_err("Unable to allocate se_lun memory\n");
 		return ERR_PTR(-ENOMEM);

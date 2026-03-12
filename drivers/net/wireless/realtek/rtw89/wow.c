@@ -809,6 +809,10 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
 	switch (reason) {
+	case RTW89_WOW_RSN_RX_DISASSOC:
+		wakeup.disconnect = true;
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx disassoc\n");
+		break;
 	case RTW89_WOW_RSN_RX_DEAUTH:
 		wakeup.disconnect = true;
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx deauth\n");
@@ -1070,7 +1074,7 @@ static void rtw89_wow_pattern_clear_cam(struct rtw89_dev *rtwdev)
 	for (i = 0; i < rtw_wow->pattern_cnt; i++) {
 		rtw_pattern = &rtw_wow->patterns[i];
 		rtw_pattern->valid = false;
-		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern);
+		rtw89_chip_h2c_wow_cam_update(rtwdev, rtw_pattern);
 	}
 }
 
@@ -1081,7 +1085,7 @@ static void rtw89_wow_pattern_write(struct rtw89_dev *rtwdev)
 	int i;
 
 	for (i = 0; i < rtw_wow->pattern_cnt; i++)
-		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern + i);
+		rtw89_chip_h2c_wow_cam_update(rtwdev, rtw_pattern + i);
 }
 
 static void rtw89_wow_pattern_clear(struct rtw89_dev *rtwdev)
@@ -1263,15 +1267,15 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool include_bb = !!chip->bbmcu_nr;
-	bool disable_intr_for_dlfw = false;
+	bool disable_intr_for_dlfw = true;
 	struct ieee80211_sta *wow_sta;
 	struct rtw89_sta_link *rtwsta_link = NULL;
 	struct rtw89_sta *rtwsta;
 	bool is_conn = true;
 	int ret;
 
-	if (chip_id == RTL8852C || chip_id == RTL8922A)
-		disable_intr_for_dlfw = true;
+	if (chip->chip_gen == RTW89_CHIP_AX && chip_id != RTL8852C)
+		disable_intr_for_dlfw = false;
 
 	wow_sta = ieee80211_find_sta(wow_vif, wow_vif->cfg.ap_addr);
 	if (wow_sta) {
@@ -1486,7 +1490,7 @@ static int rtw89_pno_scan_update_probe_req(struct rtw89_dev *rtwdev,
 		skb_put_data(skb, basic_rate_ie, sizeof(basic_rate_ie));
 		skb_put_data(skb, nd_config->ie, nd_config->ie_len);
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc_obj(*info);
 		if (!info) {
 			kfree_skb(skb);
 			rtw89_fw_release_pno_pkt_list(rtwdev, rtwvif_link);

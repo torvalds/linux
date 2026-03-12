@@ -510,3 +510,4 @@
 578	common	file_getattr			sys_file_getattr
 579	common	file_setattr			sys_file_setattr
 580	common	listns				sys_listns
+581	common	rseq_slice_yield		sys_rseq_slice_yield

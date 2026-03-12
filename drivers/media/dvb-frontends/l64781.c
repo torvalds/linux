@@ -497,7 +497,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 			   { .addr = config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct l64781_state), GFP_KERNEL);
+	state = kzalloc_obj(struct l64781_state);
 	if (state == NULL) goto error;
 
 	/* setup the state */

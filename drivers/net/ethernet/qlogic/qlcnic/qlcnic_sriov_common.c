@@ -149,15 +149,14 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	if (!qlcnic_sriov_enable_check(adapter))
 		return -EIO;
 
-	sriov  = kzalloc(sizeof(struct qlcnic_sriov), GFP_KERNEL);
+	sriov  = kzalloc_obj(struct qlcnic_sriov);
 	if (!sriov)
 		return -ENOMEM;
 
 	adapter->ahw->sriov = sriov;
 	sriov->num_vfs = num_vfs;
 	bc = &sriov->bc;
-	sriov->vf_info = kcalloc(num_vfs, sizeof(struct qlcnic_vf_info),
-				 GFP_KERNEL);
+	sriov->vf_info = kzalloc_objs(struct qlcnic_vf_info, num_vfs);
 	if (!sriov->vf_info) {
 		err = -ENOMEM;
 		goto qlcnic_free_sriov;
@@ -201,7 +200,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 		INIT_WORK(&vf->trans_work, qlcnic_sriov_process_bc_cmd);
 
 		if (qlcnic_sriov_pf_check(adapter)) {
-			vp = kzalloc(sizeof(struct qlcnic_vport), GFP_KERNEL);
+			vp = kzalloc_obj(struct qlcnic_vport);
 			if (!vp) {
 				err = -ENOMEM;
 				goto qlcnic_destroy_async_wq;
@@ -699,7 +698,7 @@ int qlcnic_sriov_func_to_index(struct qlcnic_adapter *adapter, u8 pci_func)
 
 static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
 {
-	*trans = kzalloc(sizeof(struct qlcnic_bc_trans), GFP_ATOMIC);
+	*trans = kzalloc_obj(struct qlcnic_bc_trans, GFP_ATOMIC);
 	if (!*trans)
 		return -ENOMEM;
 
@@ -710,7 +709,7 @@ static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
 static inline int qlcnic_sriov_alloc_bc_msg(struct qlcnic_bc_hdr **hdr,
 					    u32 size)
 {
-	*hdr = kcalloc(size, sizeof(struct qlcnic_bc_hdr), GFP_ATOMIC);
+	*hdr = kzalloc_objs(struct qlcnic_bc_hdr, size, GFP_ATOMIC);
 	if (!*hdr)
 		return -ENOMEM;
 
@@ -1634,7 +1633,7 @@ qlcnic_sriov_alloc_async_cmd(struct qlcnic_back_channel *bc,
 {
 	struct qlcnic_async_cmd *entry = NULL;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (!entry)
 		return NULL;
 

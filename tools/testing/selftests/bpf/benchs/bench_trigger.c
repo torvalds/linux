@@ -146,6 +146,7 @@ static void setup_ctx(void)
 	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, true);
 
 	ctx.skel->rodata->batch_iters = args.batch_iters;
+	ctx.skel->rodata->stacktrace = env.stacktrace;
 }
 
 static void load_ctx(void)
@@ -229,8 +230,8 @@ static void trigger_fentry_setup(void)
 static void attach_ksyms_all(struct bpf_program *empty, bool kretprobe)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
-	char **syms = NULL;
-	size_t cnt = 0;
+	struct bpf_link *link = NULL;
+	struct ksyms *ksyms = NULL;
 
 	/* Some recursive functions will be skipped in
 	 * bpf_get_ksyms -> skip_entry, as they can introduce sufficient
@@ -240,16 +241,18 @@ static void attach_ksyms_all(struct bpf_program *empty, bool kretprobe)
 	 * So, don't run the kprobe-multi-all and kretprobe-multi-all on
 	 * a debug kernel.
 	 */
-	if (bpf_get_ksyms(&syms, &cnt, true)) {
+	if (bpf_get_ksyms(&ksyms, true)) {
 		fprintf(stderr, "failed to get ksyms\n");
 		exit(1);
 	}
 
-	opts.syms = (const char **) syms;
-	opts.cnt = cnt;
+	opts.syms = (const char **)ksyms->filtered_syms;
+	opts.cnt = ksyms->filtered_cnt;
 	opts.retprobe = kretprobe;
 	/* attach empty to all the kernel functions except bpf_get_numa_node_id. */
-	if (!bpf_program__attach_kprobe_multi_opts(empty, NULL, &opts)) {
+	link = bpf_program__attach_kprobe_multi_opts(empty, NULL, &opts);
+	free_kallsyms_local(ksyms);
+	if (!link) {
 		fprintf(stderr, "failed to attach bpf_program__attach_kprobe_multi_opts to all\n");
 		exit(1);
 	}

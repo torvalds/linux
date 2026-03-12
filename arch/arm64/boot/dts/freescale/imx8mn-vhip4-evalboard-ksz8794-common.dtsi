@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2025 Fedor Ross <fedor.ross@ifm.com>
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+#include "imx8mn-pinfunc.h"
+
+&ecspi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ksz8794: ethernet-switch@1 {
+		compatible = "microchip,ksz8794";
+		pinctrl-names = "default", "reset";
+		pinctrl-0 = <&pinctrl_ks8794>;
+		pinctrl-1 = <&pinctrl_ks8794>;
+		reg = <1>;
+		reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <5000000>;
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan1";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan3";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "cpu";
+				ethernet = <&fec1>;
+				phy-mode = "rgmii-id";
+				rx-internal-delay-ps = <2000>;
+				tx-internal-delay-ps = <2000>;
+				fixed-link {
+					full-duplex;
+					speed = <1000>;
+				};
+			};
+		};
+	};
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	fixed-link {
+		full-duplex;
+		speed = <1000>;
+	};
+};
+
+&iomuxc {
+	pinctrl_fec1: fec1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_ENET_MDC_ENET1_MDC			0x16
+			MX8MN_IOMUXC_ENET_MDIO_ENET1_MDIO		0x96
+			MX8MN_IOMUXC_ENET_TD3_ENET1_RGMII_TD3		0x16
+			MX8MN_IOMUXC_ENET_TD2_ENET1_RGMII_TD2		0x16
+			MX8MN_IOMUXC_ENET_TD1_ENET1_RGMII_TD1		0x16
+			MX8MN_IOMUXC_ENET_TD0_ENET1_RGMII_TD0		0x16
+			MX8MN_IOMUXC_ENET_RD3_ENET1_RGMII_RD3		0x96
+			MX8MN_IOMUXC_ENET_RD2_ENET1_RGMII_RD2		0x96
+			MX8MN_IOMUXC_ENET_RD1_ENET1_RGMII_RD1		0x96
+			MX8MN_IOMUXC_ENET_RD0_ENET1_RGMII_RD0		0x96
+			MX8MN_IOMUXC_ENET_TXC_ENET1_RGMII_TXC		0x10
+			MX8MN_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x96
+			MX8MN_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x96
+			MX8MN_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x16
+			MX8MN_IOMUXC_SAI3_TXFS_GPIO4_IO31		0x1d6
+		>;
+	};
+
+	pinctrl_ks8794: ks8794-grp {
+		fsl,pins = <
+			/* KSZ8794 reset line */
+			MX8MN_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x16
+		>;
+	};
+};

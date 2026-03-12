@@ -107,7 +107,7 @@ static struct hfi1_i2c_bus *init_i2c_bus(struct hfi1_devdata *dd,
 	struct hfi1_i2c_bus *bus;
 	int ret;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc_obj(*bus);
 	if (!bus)
 		return NULL;
 

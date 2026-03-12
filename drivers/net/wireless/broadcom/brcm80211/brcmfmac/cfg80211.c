@@ -932,7 +932,7 @@ static struct wireless_dev *brcmf_mon_add_vif(struct wiphy *wiphy,
 	ndev->type = ARPHRD_IEEE80211_RADIOTAP;
 	ndev->ieee80211_ptr = &vif->wdev;
 	ndev->needs_free_netdev = true;
-	ndev->priv_destructor = brcmf_cfg80211_free_netdev;
+	ndev->priv_destructor = brcmf_cfg80211_free_vif;
 	SET_NETDEV_DEV(ndev, wiphy_dev(cfg->wiphy));
 
 	ifp = netdev_priv(ndev);
@@ -2527,7 +2527,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		offsetof(struct brcmf_assoc_params_le, chanspec_list);
 	if (cfg->channel)
 		join_params_size += sizeof(u16);
-	ext_join_params = kzalloc(sizeof(*ext_join_params), GFP_KERNEL);
+	ext_join_params = kzalloc_obj(*ext_join_params);
 	if (ext_join_params == NULL) {
 		err = -ENOMEM;
 		goto done;
@@ -4330,7 +4330,7 @@ brcmf_pmksa_v3_op(struct brcmf_if *ifp, struct cfg80211_pmksa *pmksa,
 	int length = offsetof(struct brcmf_pmk_op_v3_le, pmk);
 	int ret;
 
-	pmk_op = kzalloc(sizeof(*pmk_op), GFP_KERNEL);
+	pmk_op = kzalloc_obj(*pmk_op);
 	if (!pmk_op)
 		return -ENOMEM;
 
@@ -5588,7 +5588,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			err = -EINVAL;
 			goto exit;
 		}
-		af_params = kzalloc(sizeof(*af_params), GFP_KERNEL);
+		af_params = kzalloc_obj(*af_params);
 		if (af_params == NULL) {
 			bphy_err(drvr, "unable to allocate frame\n");
 			err = -ENOMEM;
@@ -6050,7 +6050,7 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 
 	brcmf_dbg(TRACE, "allocating virtual interface (size=%zu)\n",
 		  sizeof(*vif));
-	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
+	vif = kzalloc_obj(*vif);
 	if (!vif)
 		return ERR_PTR(-ENOMEM);
 
@@ -6082,7 +6082,7 @@ void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
 	kfree(vif);
 }
 
-void brcmf_cfg80211_free_netdev(struct net_device *ndev)
+void brcmf_cfg80211_free_vif(struct net_device *ndev)
 {
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_if *ifp;
@@ -6540,7 +6540,7 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 			return -EINVAL;
 		}
 
-		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		sinfo = kzalloc_obj(*sinfo);
 		if (!sinfo)
 			return -ENOMEM;
 
@@ -6828,7 +6828,7 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
 {
-	cfg->conf = kzalloc(sizeof(*cfg->conf), GFP_KERNEL);
+	cfg->conf = kzalloc_obj(*cfg->conf);
 	if (!cfg->conf)
 		goto init_priv_mem_out;
 	cfg->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
@@ -7486,7 +7486,7 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 	mchan = brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MCHAN);
 
 	n_combos = 1 + !!(p2p && !rsdb) + !!mbss;
-	combo = kcalloc(n_combos, sizeof(*combo), GFP_KERNEL);
+	combo = kzalloc_objs(*combo, n_combos);
 	if (!combo)
 		goto err;
 
@@ -7503,7 +7503,7 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 	c = 0;
 	i = 0;
 	n_limits = 1 + mon_flag + (p2p ? 2 : 0) + (rsdb || !p2p);
-	c0_limits = kcalloc(n_limits, sizeof(*c0_limits), GFP_KERNEL);
+	c0_limits = kzalloc_objs(*c0_limits, n_limits);
 	if (!c0_limits)
 		goto err;
 
@@ -7542,7 +7542,7 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 	if (p2p && !rsdb) {
 		c++;
 		i = 0;
-		p2p_limits = kcalloc(4, sizeof(*p2p_limits), GFP_KERNEL);
+		p2p_limits = kzalloc_objs(*p2p_limits, 4);
 		if (!p2p_limits)
 			goto err;
 		p2p_limits[i].max = 1;
@@ -7563,8 +7563,7 @@ static int brcmf_setup_ifmodes(struct wiphy *wiphy, struct brcmf_if *ifp)
 		c++;
 		i = 0;
 		n_limits = 1 + mon_flag;
-		mbss_limits = kcalloc(n_limits, sizeof(*mbss_limits),
-				      GFP_KERNEL);
+		mbss_limits = kzalloc_objs(*mbss_limits, n_limits);
 		if (!mbss_limits)
 			goto err;
 		mbss_limits[i].max = 4;
@@ -8322,7 +8321,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		return NULL;
 	}
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg) {
 		bphy_err(drvr, "Could not allocate wiphy device\n");
 		return NULL;

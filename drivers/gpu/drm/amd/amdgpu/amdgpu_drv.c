@@ -223,9 +223,7 @@ uint amdgpu_dc_visual_confirm;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = -1;
 int amdgpu_discovery = -1;
-int amdgpu_mes;
 int amdgpu_mes_log_enable = 0;
-int amdgpu_mes_kiq;
 int amdgpu_uni_mes = 1;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
@@ -247,6 +245,7 @@ int amdgpu_damage_clips = -1; /* auto */
 int amdgpu_umsch_mm_fwlog;
 int amdgpu_rebar = -1; /* auto */
 int amdgpu_user_queue = -1;
+uint amdgpu_hdmi_hpd_debounce_delay_ms;
 
 DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
 			"DRM_UT_CORE",
@@ -690,15 +689,6 @@ MODULE_PARM_DESC(discovery,
 module_param_named(discovery, amdgpu_discovery, int, 0444);
 
 /**
- * DOC: mes (int)
- * Enable Micro Engine Scheduler. This is a new hw scheduling engine for gfx, sdma, and compute.
- * (0 = disabled (default), 1 = enabled)
- */
-MODULE_PARM_DESC(mes,
-	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
-module_param_named(mes, amdgpu_mes, int, 0444);
-
-/**
  * DOC: mes_log_enable (int)
  * Enable Micro Engine Scheduler log. This is used to enable/disable MES internal log.
  * (0 = disabled (default), 1 = enabled)
@@ -706,15 +696,6 @@ module_param_named(mes, amdgpu_mes, int, 0444);
 MODULE_PARM_DESC(mes_log_enable,
 	"Enable Micro Engine Scheduler log (0 = disabled (default), 1 = enabled)");
 module_param_named(mes_log_enable, amdgpu_mes_log_enable, int, 0444);
-
-/**
- * DOC: mes_kiq (int)
- * Enable Micro Engine Scheduler KIQ. This is a new engine pipe for kiq.
- * (0 = disabled (default), 1 = enabled)
- */
-MODULE_PARM_DESC(mes_kiq,
-	"Enable Micro Engine Scheduler KIQ (0 = disabled (default), 1 = enabled)");
-module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
 
 /**
  * DOC: uni_mes (int)
@@ -1122,6 +1103,16 @@ module_param_named(rebar, amdgpu_rebar, int, 0444);
  */
 MODULE_PARM_DESC(user_queue, "Enable user queues (-1 = auto (default), 0 = disable, 1 = enable, 2 = enable UQs and disable KQs)");
 module_param_named(user_queue, amdgpu_user_queue, int, 0444);
+
+/*
+ * DOC: hdmi_hpd_debounce_delay_ms (uint)
+ * HDMI HPD disconnect debounce delay in milliseconds.
+ *
+ * Used to filter short disconnect->reconnect HPD toggles some HDMI sinks
+ * generate while entering/leaving power save. Set to 0 to disable by default.
+ */
+MODULE_PARM_DESC(hdmi_hpd_debounce_delay_ms, "HDMI HPD disconnect debounce delay in milliseconds (0 to disable (by default), 1500 is common)");
+module_param_named(hdmi_hpd_debounce_delay_ms, amdgpu_hdmi_hpd_debounce_delay_ms, uint, 0644);
 
 /* These devices are not supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers
@@ -2394,15 +2385,12 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 			return -ENODEV;
 	}
 
-	if (amdgpu_aspm == -1 && !pcie_aspm_enabled(pdev))
-		amdgpu_aspm = 0;
-
 	if (amdgpu_virtual_display ||
 	    amdgpu_device_asic_has_dc_support(pdev, flags & AMD_ASIC_MASK))
 		supports_atomic = true;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
-		DRM_INFO("This hardware requires experimental hardware support.\n"
+		dev_info(&pdev->dev, "This hardware requires experimental hardware support.\n"
 			 "See modparam exp_hw_support\n");
 		return -ENODEV;
 	}
@@ -2449,7 +2437,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 retry_init:
 	ret = drm_dev_register(ddev, flags);
 	if (ret == -EAGAIN && ++retry <= 3) {
-		DRM_INFO("retry init %d\n", retry);
+		drm_info(adev_to_drm(adev), "retry init %d\n", retry);
 		/* Don't request EX mode too frequently which is attacking */
 		msleep(5000);
 		goto retry_init;
@@ -3164,7 +3152,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	amdgpu_register_atpx_handler();
 	amdgpu_acpi_detect();
 

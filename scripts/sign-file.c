@@ -24,10 +24,11 @@
 #include <arpa/inet.h>
 #include <openssl/opensslv.h>
 #include <openssl/bio.h>
+#include <openssl/cms.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 # define USE_PKCS11_PROVIDER
 # include <openssl/provider.h>
 # include <openssl/store.h>
@@ -38,29 +39,6 @@
 # endif
 #endif
 #include "ssl-common.h"
-
-/*
- * Use CMS if we have openssl-1.0.0 or newer available - otherwise we have to
- * assume that it's not available and its header file is missing and that we
- * should use PKCS#7 instead.  Switching to the older PKCS#7 format restricts
- * the options we have on specifying the X.509 certificate we want.
- *
- * Further, older versions of OpenSSL don't support manually adding signers to
- * the PKCS#7 message so have to accept that we get a certificate included in
- * the signature message.  Nor do such older versions of OpenSSL support
- * signing with anything other than SHA1 - so we're stuck with that if such is
- * the case.
- */
-#if defined(LIBRESSL_VERSION_NUMBER) || \
-	OPENSSL_VERSION_NUMBER < 0x10000000L || \
-	defined(OPENSSL_NO_CMS)
-#define USE_PKCS7
-#endif
-#ifndef USE_PKCS7
-#include <openssl/cms.h>
-#else
-#include <openssl/pkcs7.h>
-#endif
 
 struct module_signature {
 	uint8_t		algo;		/* Public-key crypto algorithm [0] */
@@ -228,15 +206,10 @@ int main(int argc, char **argv)
 	bool raw_sig = false;
 	unsigned char buf[4096];
 	unsigned long module_size, sig_size;
-	unsigned int use_signed_attrs;
 	const EVP_MD *digest_algo;
 	EVP_PKEY *private_key;
-#ifndef USE_PKCS7
 	CMS_ContentInfo *cms = NULL;
 	unsigned int use_keyid = 0;
-#else
-	PKCS7 *pkcs7 = NULL;
-#endif
 	X509 *x509;
 	BIO *bd, *bm;
 	int opt, n;
@@ -246,21 +219,13 @@ int main(int argc, char **argv)
 
 	key_pass = getenv("KBUILD_SIGN_PIN");
 
-#ifndef USE_PKCS7
-	use_signed_attrs = CMS_NOATTR;
-#else
-	use_signed_attrs = PKCS7_NOATTR;
-#endif
-
 	do {
 		opt = getopt(argc, argv, "sdpk");
 		switch (opt) {
 		case 's': raw_sig = true; break;
 		case 'p': save_sig = true; break;
 		case 'd': sign_only = true; save_sig = true; break;
-#ifndef USE_PKCS7
 		case 'k': use_keyid = CMS_USE_KEYID; break;
-#endif
 		case -1: break;
 		default: format();
 		}
@@ -289,14 +254,6 @@ int main(int argc, char **argv)
 		replace_orig = true;
 	}
 
-#ifdef USE_PKCS7
-	if (strcmp(hash_algo, "sha1") != 0) {
-		fprintf(stderr, "sign-file: %s only supports SHA1 signing\n",
-			OPENSSL_VERSION_TEXT);
-		exit(3);
-	}
-#endif
-
 	/* Open the module file */
 	bm = BIO_new_file(module_name, "rb");
 	ERR(!bm, "%s", module_name);
@@ -314,27 +271,38 @@ int main(int argc, char **argv)
 		digest_algo = EVP_get_digestbyname(hash_algo);
 		ERR(!digest_algo, "EVP_get_digestbyname");
 
-#ifndef USE_PKCS7
+		unsigned int flags =
+			CMS_NOCERTS |
+			CMS_NOATTR |
+			CMS_PARTIAL |
+			CMS_BINARY |
+			CMS_DETACHED |
+			CMS_STREAM  |
+			CMS_NOSMIMECAP |
+#ifdef CMS_NO_SIGNING_TIME
+			CMS_NO_SIGNING_TIME |
+#endif
+			use_keyid;
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L && OPENSSL_VERSION_NUMBER < 0x40000000L
+		if (EVP_PKEY_is_a(private_key, "ML-DSA-44") ||
+		    EVP_PKEY_is_a(private_key, "ML-DSA-65") ||
+		    EVP_PKEY_is_a(private_key, "ML-DSA-87")) {
+			 /* ML-DSA + CMS_NOATTR is not supported in openssl-3.5
+			  * and before.
+			  */
+			flags &= ~CMS_NOATTR;
+		}
+#endif
+
 		/* Load the signature message from the digest buffer. */
-		cms = CMS_sign(NULL, NULL, NULL, NULL,
-			       CMS_NOCERTS | CMS_PARTIAL | CMS_BINARY |
-			       CMS_DETACHED | CMS_STREAM);
+		cms = CMS_sign(NULL, NULL, NULL, NULL, flags);
 		ERR(!cms, "CMS_sign");
 
-		ERR(!CMS_add1_signer(cms, x509, private_key, digest_algo,
-				     CMS_NOCERTS | CMS_BINARY |
-				     CMS_NOSMIMECAP | use_keyid |
-				     use_signed_attrs),
+		ERR(!CMS_add1_signer(cms, x509, private_key, digest_algo, flags),
 		    "CMS_add1_signer");
-		ERR(CMS_final(cms, bm, NULL, CMS_NOCERTS | CMS_BINARY) != 1,
+		ERR(CMS_final(cms, bm, NULL, flags) != 1,
 		    "CMS_final");
-
-#else
-		pkcs7 = PKCS7_sign(x509, private_key, NULL, bm,
-				   PKCS7_NOCERTS | PKCS7_BINARY |
-				   PKCS7_DETACHED | use_signed_attrs);
-		ERR(!pkcs7, "PKCS7_sign");
-#endif
 
 		if (save_sig) {
 			char *sig_file_name;
@@ -344,13 +312,8 @@ int main(int argc, char **argv)
 			    "asprintf");
 			b = BIO_new_file(sig_file_name, "wb");
 			ERR(!b, "%s", sig_file_name);
-#ifndef USE_PKCS7
 			ERR(i2d_CMS_bio_stream(b, cms, NULL, 0) != 1,
 			    "%s", sig_file_name);
-#else
-			ERR(i2d_PKCS7_bio(b, pkcs7) != 1,
-			    "%s", sig_file_name);
-#endif
 			BIO_free(b);
 		}
 
@@ -377,11 +340,7 @@ int main(int argc, char **argv)
 	module_size = BIO_number_written(bd);
 
 	if (!raw_sig) {
-#ifndef USE_PKCS7
 		ERR(i2d_CMS_bio_stream(bd, cms, NULL, 0) != 1, "%s", dest_name);
-#else
-		ERR(i2d_PKCS7_bio(bd, pkcs7) != 1, "%s", dest_name);
-#endif
 	} else {
 		BIO *b;
 

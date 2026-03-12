@@ -15,10 +15,3 @@ InfiniBand
    ucaps
    user_mad
    user_verbs
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

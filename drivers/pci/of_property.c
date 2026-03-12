@@ -119,7 +119,7 @@ static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
 		res = &pdev->resource[PCI_STD_RESOURCES];
 	}
 
-	rp = kcalloc(num, sizeof(*rp), GFP_KERNEL);
+	rp = kzalloc_objs(*rp, num);
 	if (!rp)
 		return -ENOMEM;
 

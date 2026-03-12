@@ -112,7 +112,7 @@ struct drm_framebuffer *tegra_fb_alloc(struct drm_device *drm,
 	unsigned int i;
 	int err;
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 

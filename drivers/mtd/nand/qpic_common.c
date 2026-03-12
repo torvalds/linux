@@ -156,7 +156,7 @@ int qcom_prepare_bam_async_desc(struct qcom_nand_controller *nandc,
 	enum dma_transfer_direction dir_eng;
 	struct dma_async_tx_descriptor *dma_desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return -ENOMEM;
 
@@ -364,7 +364,7 @@ int qcom_prep_adm_dma_desc(struct qcom_nand_controller *nandc, bool read,
 	struct scatterlist *sgl;
 	int ret;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return -ENOMEM;
 

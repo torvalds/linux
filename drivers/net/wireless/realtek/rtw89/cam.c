@@ -420,7 +420,7 @@ static int rtw89_cam_sec_key_install(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	sec_cam = kzalloc(sizeof(*sec_cam), GFP_KERNEL);
+	sec_cam = kzalloc_obj(*sec_cam);
 	if (!sec_cam) {
 		ret = -ENOMEM;
 		goto err_release_cam;
@@ -1139,4 +1139,138 @@ void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 	h2c->w12 = le32_encode_bits(mld_bssid[4], DCTLINFO_V2_W12_MLD_BSSID_4) |
 		   le32_encode_bits(mld_bssid[5], DCTLINFO_V2_W12_MLD_BSSID_5);
 	h2c->m12 = cpu_to_le32(DCTLINFO_V2_W12_ALL);
+}
+
+void rtw89_cam_fill_dctl_sec_cam_info_v3(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link,
+					 struct rtw89_h2c_dctlinfo_ud_v3 *h2c)
+{
+	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link->rtwvif);
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_addr_cam_entry *addr_cam =
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
+	bool is_mld = sta ? sta->mlo : ieee80211_vif_is_mld(vif);
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
+	u8 *mld_sma, *mld_tma, *mld_bssid;
+
+	h2c->c0 = le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
+						 rtwvif_link->mac_id,
+				   DCTLINFO_V3_C0_MACID) |
+		  le32_encode_bits(1, DCTLINFO_V3_C0_OP);
+
+	h2c->w2 = le32_encode_bits(is_mld, DCTLINFO_V3_W2_IS_MLD);
+	h2c->m2 = cpu_to_le32(DCTLINFO_V3_W2_IS_MLD);
+
+	h2c->w4 = le32_encode_bits(addr_cam->sec_ent_keyid[0],
+				   DCTLINFO_V3_W4_SEC_ENT0_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[1],
+				   DCTLINFO_V3_W4_SEC_ENT1_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[2],
+				   DCTLINFO_V3_W4_SEC_ENT2_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[3],
+				   DCTLINFO_V3_W4_SEC_ENT3_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[4],
+				   DCTLINFO_V3_W4_SEC_ENT4_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[5],
+				   DCTLINFO_V3_W4_SEC_ENT5_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[6],
+				   DCTLINFO_V3_W4_SEC_ENT6_KEYID);
+	h2c->m4 = cpu_to_le32(DCTLINFO_V3_W4_SEC_ENT0_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT1_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT2_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT3_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT4_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT5_KEYID |
+			      DCTLINFO_V3_W4_SEC_ENT6_KEYID);
+
+	h2c->w5 = le32_encode_bits(addr_cam->sec_cam_map[0],
+				   DCTLINFO_V3_W5_SEC_ENT_VALID_V1);
+	h2c->m5 = cpu_to_le32(DCTLINFO_V3_W5_SEC_ENT_VALID_V1);
+
+	h2c->w6 = le32_encode_bits(addr_cam->sec_ent[0],
+				   DCTLINFO_V3_W6_SEC_ENT0_V2) |
+		  le32_encode_bits(addr_cam->sec_ent[1],
+				   DCTLINFO_V3_W6_SEC_ENT1_V2) |
+		  le32_encode_bits(addr_cam->sec_ent[2],
+				   DCTLINFO_V3_W6_SEC_ENT2_V2);
+	h2c->m6 = cpu_to_le32(DCTLINFO_V3_W6_SEC_ENT0_V2 |
+			      DCTLINFO_V3_W6_SEC_ENT1_V2 |
+			      DCTLINFO_V3_W6_SEC_ENT2_V2);
+
+	h2c->w7 = le32_encode_bits(addr_cam->sec_ent[3],
+				   DCTLINFO_V3_W7_SEC_ENT3_V2) |
+		  le32_encode_bits(addr_cam->sec_ent[4],
+				   DCTLINFO_V3_W7_SEC_ENT4_V2) |
+		  le32_encode_bits(addr_cam->sec_ent[5],
+				   DCTLINFO_V3_W7_SEC_ENT5_V2);
+	h2c->m7 = cpu_to_le32(DCTLINFO_V3_W7_SEC_ENT3_V2 |
+			      DCTLINFO_V3_W7_SEC_ENT4_V2 |
+			      DCTLINFO_V3_W7_SEC_ENT5_V2);
+
+	h2c->w8 = le32_encode_bits(addr_cam->sec_ent[6],
+				   DCTLINFO_V3_W8_SEC_ENT6_V2);
+	h2c->m8 = cpu_to_le32(DCTLINFO_V3_W8_SEC_ENT6_V2);
+
+	if (rtw_wow->ptk_alg) {
+		h2c->w0 = le32_encode_bits(ptk_tx_iv[0] | ptk_tx_iv[1] << 8,
+					   DCTLINFO_V3_W0_AES_IV_L);
+		h2c->m0 = cpu_to_le32(DCTLINFO_V3_W0_AES_IV_L);
+
+		h2c->w1 = le32_encode_bits(ptk_tx_iv[4] |
+					   ptk_tx_iv[5] << 8 |
+					   ptk_tx_iv[6] << 16 |
+					   ptk_tx_iv[7] << 24,
+					   DCTLINFO_V3_W1_AES_IV_H);
+		h2c->m1 = cpu_to_le32(DCTLINFO_V3_W1_AES_IV_H);
+
+		h2c->w4 |= le32_encode_bits(rtw_wow->ptk_keyidx,
+					    DCTLINFO_V3_W4_SEC_KEY_ID);
+		h2c->m4 |= cpu_to_le32(DCTLINFO_V3_W4_SEC_KEY_ID);
+	}
+
+	if (!is_mld)
+		return;
+
+	if (rtwvif_link->net_type == RTW89_NET_TYPE_INFRA) {
+		mld_sma = rtwvif->mac_addr;
+		mld_tma = vif->cfg.ap_addr;
+		mld_bssid = vif->cfg.ap_addr;
+	} else if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE && sta) {
+		mld_sma = rtwvif->mac_addr;
+		mld_tma = sta->addr;
+		mld_bssid = rtwvif->mac_addr;
+	} else {
+		return;
+	}
+
+	h2c->w9 = le32_encode_bits(mld_sma[0], DCTLINFO_V3_W9_MLD_SMA_0_V2) |
+		  le32_encode_bits(mld_sma[1], DCTLINFO_V3_W9_MLD_SMA_1_V2) |
+		  le32_encode_bits(mld_sma[2], DCTLINFO_V3_W9_MLD_SMA_2_V2) |
+		  le32_encode_bits(mld_sma[3], DCTLINFO_V3_W9_MLD_SMA_3_V2);
+	h2c->m9 = cpu_to_le32(DCTLINFO_V3_W9_ALL);
+
+	h2c->w10 = le32_encode_bits(mld_sma[4], DCTLINFO_V3_W10_MLD_SMA_4_V2) |
+		   le32_encode_bits(mld_sma[5], DCTLINFO_V3_W10_MLD_SMA_5_V2) |
+		   le32_encode_bits(mld_tma[0], DCTLINFO_V3_W10_MLD_TMA_0_V2) |
+		   le32_encode_bits(mld_tma[1], DCTLINFO_V3_W10_MLD_TMA_1_V2);
+	h2c->m10 = cpu_to_le32(DCTLINFO_V3_W10_ALL);
+
+	h2c->w11 = le32_encode_bits(mld_tma[2], DCTLINFO_V3_W11_MLD_TMA_2_V2) |
+		   le32_encode_bits(mld_tma[3], DCTLINFO_V3_W11_MLD_TMA_3_V2) |
+		   le32_encode_bits(mld_tma[4], DCTLINFO_V3_W11_MLD_TMA_4_V2) |
+		   le32_encode_bits(mld_tma[5], DCTLINFO_V3_W11_MLD_TMA_5_V2);
+	h2c->m11 = cpu_to_le32(DCTLINFO_V3_W11_ALL);
+
+	h2c->w12 = le32_encode_bits(mld_bssid[0], DCTLINFO_V3_W12_MLD_TA_BSSID_0_V2) |
+		   le32_encode_bits(mld_bssid[1], DCTLINFO_V3_W12_MLD_TA_BSSID_1_V2) |
+		   le32_encode_bits(mld_bssid[2], DCTLINFO_V3_W12_MLD_TA_BSSID_2_V2) |
+		   le32_encode_bits(mld_bssid[3], DCTLINFO_V3_W12_MLD_TA_BSSID_3_V2);
+	h2c->m12 = cpu_to_le32(DCTLINFO_V3_W12_ALL);
+
+	h2c->w13 = le32_encode_bits(mld_bssid[4], DCTLINFO_V3_W13_MLD_TA_BSSID_4_V2) |
+		   le32_encode_bits(mld_bssid[5], DCTLINFO_V3_W13_MLD_TA_BSSID_5_V2);
+	h2c->m13 = cpu_to_le32(DCTLINFO_V3_W13_ALL);
 }

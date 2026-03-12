@@ -246,7 +246,7 @@ static inline u8 qm_cyc_diff(u8 ringsize, u8 first, u8 last)
  */
 struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 {
-	struct qbman_swp *p = kzalloc(sizeof(*p), GFP_KERNEL);
+	struct qbman_swp *p = kzalloc_obj(*p);
 	u32 reg;
 	u32 mask_size;
 	u32 eqcr_pi;

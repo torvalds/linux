@@ -39,12 +39,17 @@ properties:
     const: 1
 
   mediatek,pnswap:
-    description: Invert polarity of the SGMII data lanes
+    description:
+      Invert polarity of the SGMII data lanes.
+      This property is deprecated, for details please refer to
+      Documentation/devicetree/bindings/phy/phy-common-props.yaml.
     type: boolean
+    deprecated: true
 
   pcs:
     type: object
     description: MediaTek LynxI HSGMII PCS
+    $ref: /schemas/phy/phy-common-props.yaml#
     properties:
       compatible:
         const: mediatek,mt7988-sgmii

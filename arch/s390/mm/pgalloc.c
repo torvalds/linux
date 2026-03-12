@@ -114,30 +114,6 @@ err_p4d:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_PGSTE
-
-struct ptdesc *page_table_alloc_pgste_noprof(struct mm_struct *mm)
-{
-	struct ptdesc *ptdesc;
-	u64 *table;
-
-	ptdesc = pagetable_alloc_noprof(GFP_KERNEL_ACCOUNT, 0);
-	if (ptdesc) {
-		table = (u64 *)ptdesc_address(ptdesc);
-		__arch_set_page_dat(table, 1);
-		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
-		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
-	}
-	return ptdesc;
-}
-
-void page_table_free_pgste(struct ptdesc *ptdesc)
-{
-	pagetable_free(ptdesc);
-}
-
-#endif /* CONFIG_PGSTE */
-
 unsigned long *page_table_alloc_noprof(struct mm_struct *mm)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;

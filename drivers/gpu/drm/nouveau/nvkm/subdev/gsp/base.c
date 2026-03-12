@@ -48,7 +48,7 @@ nvkm_gsp_intr_stall(struct nvkm_gsp *gsp, enum nvkm_subdev_type type, int inst)
 }
 
 static int
-nvkm_gsp_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_gsp_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_gsp *gsp = nvkm_gsp(subdev);
 
@@ -132,7 +132,7 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 {
 	struct nvkm_gsp *gsp;
 
-	if (!(gsp = *pgsp = kzalloc(sizeof(*gsp), GFP_KERNEL)))
+	if (!(gsp = *pgsp = kzalloc_obj(*gsp)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_gsp, device, type, inst, &gsp->subdev);
@@ -148,7 +148,7 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 	if (fwif->rm) {
 		nvkm_info(&gsp->subdev, "RM version: %s\n", fwif->ver);
 
-		gsp->rm = kzalloc(sizeof(*gsp->rm), GFP_KERNEL);
+		gsp->rm = kzalloc_obj(*gsp->rm);
 		if (!gsp->rm)
 			return -ENOMEM;
 

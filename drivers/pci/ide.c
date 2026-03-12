@@ -11,7 +11,6 @@
 #include <linux/pci_regs.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include <linux/tsm.h>
 
 #include "pci.h"
 
@@ -168,7 +167,7 @@ void pci_ide_init(struct pci_dev *pdev)
 	for (u16 i = 0; i < nr_streams; i++) {
 		int pos = __sel_ide_offset(ide_cap, nr_link_ide, i, nr_ide_mem);
 
-		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CAP, &val);
+		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CTL, &val);
 		if (val & PCI_IDE_SEL_CTL_EN)
 			continue;
 		val &= ~PCI_IDE_SEL_CTL_ID;
@@ -259,7 +258,7 @@ struct pci_ide *pci_ide_stream_alloc(struct pci_dev *pdev)
 	if (!pdev->ide_cap)
 		return NULL;
 
-	struct pci_ide *ide __free(kfree) = kzalloc(sizeof(*ide), GFP_KERNEL);
+	struct pci_ide *ide __free(kfree) = kzalloc_obj(*ide);
 	if (!ide)
 		return NULL;
 
@@ -283,8 +282,8 @@ struct pci_ide *pci_ide_stream_alloc(struct pci_dev *pdev)
 	/* for SR-IOV case, cover all VFs */
 	num_vf = pci_num_vf(pdev);
 	if (num_vf)
-		rid_end = PCI_DEVID(pci_iov_virtfn_bus(pdev, num_vf),
-				    pci_iov_virtfn_devfn(pdev, num_vf));
+		rid_end = PCI_DEVID(pci_iov_virtfn_bus(pdev, num_vf - 1),
+				    pci_iov_virtfn_devfn(pdev, num_vf - 1));
 	else
 		rid_end = pci_dev_id(pdev);
 
@@ -372,9 +371,6 @@ void pci_ide_stream_release(struct pci_ide *ide)
 
 	if (ide->partner[PCI_IDE_EP].enable)
 		pci_ide_stream_disable(pdev, ide);
-
-	if (ide->tsm_dev)
-		tsm_ide_stream_unregister(ide);
 
 	if (ide->partner[PCI_IDE_RP].setup)
 		pci_ide_stream_teardown(rp, ide);

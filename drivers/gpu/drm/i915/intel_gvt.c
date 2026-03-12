@@ -21,16 +21,19 @@
  * SOFTWARE.
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_print.h>
+
+#include "gem/i915_gem_dmabuf.h"
+
+#include "gt/intel_context.h"
+#include "gt/intel_ring.h"
+#include "gt/shmem_utils.h"
 
 #include "i915_drv.h"
 #include "i915_vgpu.h"
 #include "intel_gvt.h"
-#include "gem/i915_gem_dmabuf.h"
-#include "gt/intel_context.h"
-#include "gt/intel_ring.h"
-#include "gt/shmem_utils.h"
-#include <linux/vmalloc.h>
 
 /**
  * DOC: Intel GVT-g host support

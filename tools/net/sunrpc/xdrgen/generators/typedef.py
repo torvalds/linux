@@ -58,7 +58,7 @@ def emit_typedef_declaration(environment: Environment, node: _XdrDeclaration) ->
     elif isinstance(node, _XdrOptionalData):
         raise NotImplementedError("<optional_data> typedef not yet implemented")
     elif isinstance(node, _XdrVoid):
-        raise NotImplementedError("<void> typedef not yet implemented")
+        raise ValueError("invalid void usage in RPC Specification")
     else:
         raise NotImplementedError("typedef: type not recognized")
 
@@ -104,7 +104,7 @@ def emit_type_definition(environment: Environment, node: _XdrDeclaration) -> Non
     elif isinstance(node, _XdrOptionalData):
         raise NotImplementedError("<optional_data> typedef not yet implemented")
     elif isinstance(node, _XdrVoid):
-        raise NotImplementedError("<void> typedef not yet implemented")
+        raise ValueError("invalid void usage in RPC Specification")
     else:
         raise NotImplementedError("typedef: type not recognized")
 
@@ -165,7 +165,7 @@ def emit_typedef_decoder(environment: Environment, node: _XdrDeclaration) -> Non
     elif isinstance(node, _XdrOptionalData):
         raise NotImplementedError("<optional_data> typedef not yet implemented")
     elif isinstance(node, _XdrVoid):
-        raise NotImplementedError("<void> typedef not yet implemented")
+        raise ValueError("invalid void usage in RPC Specification")
     else:
         raise NotImplementedError("typedef: type not recognized")
 
@@ -225,7 +225,7 @@ def emit_typedef_encoder(environment: Environment, node: _XdrDeclaration) -> Non
     elif isinstance(node, _XdrOptionalData):
         raise NotImplementedError("<optional_data> typedef not yet implemented")
     elif isinstance(node, _XdrVoid):
-        raise NotImplementedError("<void> typedef not yet implemented")
+        raise ValueError("invalid void usage in RPC Specification")
     else:
         raise NotImplementedError("typedef: type not recognized")
 

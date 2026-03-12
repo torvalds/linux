@@ -214,15 +214,6 @@ allOf:
             - const: wbm2host-tx-completions-ring2
             - const: wbm2host-tx-completions-ring1
             - const: tcl2host-status-ring
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,ipq8074-wifi
-              - qcom,ipq6018-wifi
-    then:
       required:
         - interrupt-names
 

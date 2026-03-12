@@ -16,10 +16,3 @@ Contents:
    switchdev
    tracepoints
    counters
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

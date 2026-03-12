@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-17 Advanced Micro Devices, Inc.
+ * Copyright 2012-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -288,16 +288,22 @@
 	type MCACHEID_MALL_PREF_2H_P1;\
 	type HUBP_FGCG_REP_DIS
 
+#define DCN42_HUBP_REG_FIELD_VARIABLE_LIST(type) \
+	type HUBP_3DLUT_CROSSBAR_SEL_G;\
+	type HUBP_3DLUT_CROSSBAR_SEL_B;\
+	type HUBP_3DLUT_CROSSBAR_SEL_R
 struct dcn_hubp2_registers {
 	DCN401_HUBP_REG_COMMON_VARIABLE_LIST;
 };
 
 struct dcn_hubp2_shift {
 	DCN401_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
+	DCN42_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
 };
 
 struct dcn_hubp2_mask {
 	DCN401_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
+	DCN42_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
 };
 
 struct dcn20_hubp {

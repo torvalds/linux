@@ -45,7 +45,7 @@ static int snd_cobalt_card_create(struct cobalt_stream *s,
 				       struct snd_card *sc,
 				       struct snd_cobalt_card **cobsc)
 {
-	*cobsc = kzalloc(sizeof(struct snd_cobalt_card), GFP_KERNEL);
+	*cobsc = kzalloc_obj(struct snd_cobalt_card);
 	if (*cobsc == NULL)
 		return -ENOMEM;
 

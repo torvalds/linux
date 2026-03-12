@@ -231,7 +231,7 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	cd = kzalloc(sizeof(struct gpcv2_irqchip_data), GFP_KERNEL);
+	cd = kzalloc_obj(struct gpcv2_irqchip_data);
 	if (!cd)
 		return -ENOMEM;
 

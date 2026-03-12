@@ -102,15 +102,6 @@
 #define PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
 #define PSR_ENDIAN_MASK	0x00000200	/* Endianness state mask */
 
-/*
- * Default endianness state
- */
-#ifdef CONFIG_CPU_ENDIAN_BE8
-#define PSR_ENDSTATE	PSR_E_BIT
-#else
-#define PSR_ENDSTATE	0
-#endif
-
 /* 
  * These are 'magic' values for PTRACE_PEEKUSR that return info about where a
  * process is located in memory.

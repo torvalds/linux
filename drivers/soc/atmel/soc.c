@@ -368,7 +368,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 		return NULL;
 	}
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return NULL;
 

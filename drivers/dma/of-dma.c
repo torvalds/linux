@@ -127,7 +127,7 @@ int of_dma_controller_register(struct device_node *np,
 		return -EINVAL;
 	}
 
-	ofdma = kzalloc(sizeof(*ofdma), GFP_KERNEL);
+	ofdma = kzalloc_obj(*ofdma);
 	if (!ofdma)
 		return -ENOMEM;
 
@@ -194,7 +194,7 @@ int of_dma_router_register(struct device_node *np,
 		return -EINVAL;
 	}
 
-	ofdma = kzalloc(sizeof(*ofdma), GFP_KERNEL);
+	ofdma = kzalloc_obj(*ofdma);
 	if (!ofdma)
 		return -ENOMEM;
 

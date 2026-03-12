@@ -397,7 +397,7 @@ static struct usb_request *dwc2_hsotg_ep_alloc_request(struct usb_ep *ep,
 {
 	struct dwc2_hsotg_req *req;
 
-	req = kzalloc(sizeof(*req), flags);
+	req = kzalloc_obj(*req, flags);
 	if (!req)
 		return NULL;
 

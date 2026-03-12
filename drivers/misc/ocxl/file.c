@@ -526,7 +526,7 @@ int ocxl_file_register_afu(struct ocxl_afu *afu)
 	struct ocxl_fn *fn = afu->fn;
 	struct pci_dev *pci_dev = to_pci_dev(fn->dev.parent);
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (info == NULL)
 		return -ENOMEM;
 

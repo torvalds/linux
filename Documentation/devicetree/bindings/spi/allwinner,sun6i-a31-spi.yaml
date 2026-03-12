@@ -17,6 +17,7 @@ properties:
   compatible:
     oneOf:
       - const: allwinner,sun50i-r329-spi
+      - const: allwinner,sun55i-a523-spi
       - const: allwinner,sun6i-a31-spi
       - const: allwinner,sun8i-h3-spi
       - items:
@@ -35,6 +36,9 @@ properties:
           - const: allwinner,sun20i-d1-spi-dbi
           - const: allwinner,sun50i-r329-spi-dbi
           - const: allwinner,sun50i-r329-spi
+      - items:
+          - const: allwinner,sun55i-a523-spi-dbi
+          - const: allwinner,sun55i-a523-spi
 
   reg:
     maxItems: 1
@@ -77,10 +81,12 @@ patternProperties:
           maximum: 4
 
       spi-rx-bus-width:
-        const: 1
+        items:
+          - const: 1
 
       spi-tx-bus-width:
-        const: 1
+        items:
+          - const: 1
 
 required:
   - compatible

@@ -401,7 +401,7 @@ int afs_proc_addr_prefs_write(struct file *file, char *buf, size_t size)
 	max_prefs = min_t(size_t, (psize - sizeof(*old)) / sizeof(old->prefs[0]), 255);
 
 	ret = -ENOMEM;
-	preflist = kmalloc(struct_size(preflist, prefs, max_prefs), GFP_KERNEL);
+	preflist = kmalloc_flex(*preflist, prefs, max_prefs);
 	if (!preflist)
 		goto done;
 

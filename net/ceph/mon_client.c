@@ -117,7 +117,7 @@ static struct ceph_monmap *ceph_monmap_decode(void **p, void *end, bool msgr2)
 	if (num_mon > CEPH_MAX_MON)
 		goto e_inval;
 
-	monmap = kmalloc(struct_size(monmap, mon_inst, num_mon), GFP_NOIO);
+	monmap = kmalloc_flex(*monmap, mon_inst, num_mon, GFP_NOIO);
 	if (!monmap) {
 		ret = -ENOMEM;
 		goto fail;
@@ -611,7 +611,7 @@ alloc_generic_request(struct ceph_mon_client *monc, gfp_t gfp)
 {
 	struct ceph_mon_generic_request *req;
 
-	req = kzalloc(sizeof(*req), gfp);
+	req = kzalloc_obj(*req, gfp);
 	if (!req)
 		return NULL;
 
@@ -1140,8 +1140,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	int i;
 
 	/* build initial monmap */
-	monc->monmap = kzalloc(struct_size(monc->monmap, mon_inst, num_mon),
-			       GFP_KERNEL);
+	monc->monmap = kzalloc_flex(*monc->monmap, mon_inst, num_mon);
 	if (!monc->monmap)
 		return -ENOMEM;
 	monc->monmap->num_mon = num_mon;
@@ -1417,7 +1416,7 @@ static int mon_handle_auth_done(struct ceph_connection *con,
 	if (!ret)
 		finish_hunting(monc);
 	mutex_unlock(&monc->mutex);
-	return 0;
+	return ret;
 }
 
 static int mon_handle_auth_bad_method(struct ceph_connection *con,

@@ -362,7 +362,7 @@ static int phantom_probe(struct pci_dev *pdev,
 	}
 
 	retval = -ENOMEM;
-	pht = kzalloc(sizeof(*pht), GFP_KERNEL);
+	pht = kzalloc_obj(*pht);
 	if (pht == NULL) {
 		dev_err(&pdev->dev, "unable to allocate device\n");
 		goto err_reg;

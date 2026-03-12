@@ -146,6 +146,18 @@ static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 		t->rseq = current->rseq;
 }
 
+/*
+ * Value returned by getauxval(AT_RSEQ_ALIGN) and expected by rseq
+ * registration. This is the active rseq area size rounded up to next
+ * power of 2, which guarantees that the rseq structure will always be
+ * aligned on the nearest power of two large enough to contain it, even
+ * as it grows.
+ */
+static inline unsigned int rseq_alloc_align(void)
+{
+	return 1U << get_count_order(offsetof(struct rseq, end));
+}
+
 #else /* CONFIG_RSEQ */
 static inline void rseq_handle_slowpath(struct pt_regs *regs) { }
 static inline void rseq_signal_deliver(struct ksignal *ksig, struct pt_regs *regs) { }
@@ -162,5 +174,16 @@ void rseq_syscall(struct pt_regs *regs);
 #else /* CONFIG_DEBUG_RSEQ */
 static inline void rseq_syscall(struct pt_regs *regs) { }
 #endif /* !CONFIG_DEBUG_RSEQ */
+
+#ifdef CONFIG_RSEQ_SLICE_EXTENSION
+void rseq_syscall_enter_work(long syscall);
+int rseq_slice_extension_prctl(unsigned long arg2, unsigned long arg3);
+#else /* CONFIG_RSEQ_SLICE_EXTENSION */
+static inline void rseq_syscall_enter_work(long syscall) { }
+static inline int rseq_slice_extension_prctl(unsigned long arg2, unsigned long arg3)
+{
+	return -ENOTSUPP;
+}
+#endif /* !CONFIG_RSEQ_SLICE_EXTENSION */
 
 #endif /* _LINUX_RSEQ_H */

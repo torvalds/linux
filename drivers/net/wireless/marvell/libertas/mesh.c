@@ -983,7 +983,7 @@ static int lbs_add_mesh(struct lbs_private *priv)
 	int ret = 0;
 
 	/* Allocate a virtual mesh device */
-	mesh_wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+	mesh_wdev = kzalloc_obj(struct wireless_dev);
 	if (!mesh_wdev) {
 		lbs_deb_mesh("init mshX wireless device failed\n");
 		ret = -ENOMEM;

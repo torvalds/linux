@@ -199,7 +199,7 @@ static struct exiu_irq_data *exiu_init(const struct fwnode_handle *fwnode,
 	struct exiu_irq_data *data;
 	int err;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use core::mem::size_of_val;
-
 use kernel::{
     device,
     dma::{
@@ -34,11 +32,11 @@ use crate::{
 /// that scheme before nova-core becomes stable, which means this module will eventually be
 /// removed.
 mod elf {
-    use core::mem::size_of;
-
-    use kernel::bindings;
-    use kernel::str::CStr;
-    use kernel::transmute::FromBytes;
+    use kernel::{
+        bindings,
+        prelude::*,
+        transmute::FromBytes, //
+    };
 
     /// Newtype to provide a [`FromBytes`] implementation.
     #[repr(transparent)]
@@ -93,10 +91,7 @@ mod elf {
 
             // Get the start of the name.
             elf.get(name_idx..)
-                // Stop at the first `0`.
-                .and_then(|nstr| nstr.get(0..=nstr.iter().position(|b| *b == 0)?))
-                // Convert into CStr. This should never fail because of the line above.
-                .and_then(|nstr| CStr::from_bytes_with_nul(nstr).ok())
+                .and_then(|nstr| CStr::from_bytes_until_nul(nstr).ok())
                 // Convert into str.
                 .and_then(|c_str| c_str.to_str().ok())
                 // Check that the name matches.
@@ -153,82 +148,93 @@ pub(crate) struct GspFirmware {
 impl GspFirmware {
     /// Loads the GSP firmware binaries, map them into `dev`'s address-space, and creates the page
     /// tables expected by the GSP bootloader to load it.
-    pub(crate) fn new<'a, 'b>(
+    pub(crate) fn new<'a>(
         dev: &'a device::Device<device::Bound>,
         chipset: Chipset,
-        ver: &'b str,
-    ) -> Result<impl PinInit<Self, Error> + 'a> {
-        let fw = super::request_firmware(dev, chipset, "gsp", ver)?;
+        ver: &'a str,
+    ) -> impl PinInit<Self, Error> + 'a {
+        pin_init::pin_init_scope(move || {
+            let firmware = super::request_firmware(dev, chipset, "gsp", ver)?;
 
-        let fw_section = elf::elf64_section(fw.data(), ".fwimage").ok_or(EINVAL)?;
+            let fw_section = elf::elf64_section(firmware.data(), ".fwimage").ok_or(EINVAL)?;
 
-        let sigs_section = match chipset.arch() {
-            Architecture::Ampere => ".fwsignature_ga10x",
-            Architecture::Ada => ".fwsignature_ad10x",
-            _ => return Err(ENOTSUPP),
-        };
-        let signatures = elf::elf64_section(fw.data(), sigs_section)
-            .ok_or(EINVAL)
-            .and_then(|data| DmaObject::from_data(dev, data))?;
+            let size = fw_section.len();
 
-        let size = fw_section.len();
+            // Move the firmware into a vmalloc'd vector and map it into the device address
+            // space.
+            let fw_vvec = VVec::with_capacity(fw_section.len(), GFP_KERNEL)
+                .and_then(|mut v| {
+                    v.extend_from_slice(fw_section, GFP_KERNEL)?;
+                    Ok(v)
+                })
+                .map_err(|_| ENOMEM)?;
 
-        // Move the firmware into a vmalloc'd vector and map it into the device address
-        // space.
-        let fw_vvec = VVec::with_capacity(fw_section.len(), GFP_KERNEL)
-            .and_then(|mut v| {
-                v.extend_from_slice(fw_section, GFP_KERNEL)?;
-                Ok(v)
-            })
-            .map_err(|_| ENOMEM)?;
+            Ok(try_pin_init!(Self {
+                fw <- SGTable::new(dev, fw_vvec, DataDirection::ToDevice, GFP_KERNEL),
+                level2 <- {
+                    // Allocate the level 2 page table, map the firmware onto it, and map it into
+                    // the device address space.
+                    VVec::<u8>::with_capacity(
+                        fw.iter().count() * core::mem::size_of::<u64>(),
+                        GFP_KERNEL,
+                    )
+                    .map_err(|_| ENOMEM)
+                    .and_then(|level2| map_into_lvl(&fw, level2))
+                    .map(|level2| SGTable::new(dev, level2, DataDirection::ToDevice, GFP_KERNEL))?
+                },
+                level1 <- {
+                    // Allocate the level 1 page table, map the level 2 page table onto it, and map
+                    // it into the device address space.
+                    VVec::<u8>::with_capacity(
+                        level2.iter().count() * core::mem::size_of::<u64>(),
+                        GFP_KERNEL,
+                    )
+                    .map_err(|_| ENOMEM)
+                    .and_then(|level1| map_into_lvl(&level2, level1))
+                    .map(|level1| SGTable::new(dev, level1, DataDirection::ToDevice, GFP_KERNEL))?
+                },
+                level0: {
+                    // Allocate the level 0 page table as a device-visible DMA object, and map the
+                    // level 1 page table onto it.
 
-        let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
-        let bootloader = RiscvFirmware::new(dev, &bl)?;
+                    // Level 0 page table data.
+                    let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
 
-        Ok(try_pin_init!(Self {
-            fw <- SGTable::new(dev, fw_vvec, DataDirection::ToDevice, GFP_KERNEL),
-            level2 <- {
-                // Allocate the level 2 page table, map the firmware onto it, and map it into the
-                // device address space.
-                VVec::<u8>::with_capacity(
-                    fw.iter().count() * core::mem::size_of::<u64>(),
-                    GFP_KERNEL,
-                )
-                .map_err(|_| ENOMEM)
-                .and_then(|level2| map_into_lvl(&fw, level2))
-                .map(|level2| SGTable::new(dev, level2, DataDirection::ToDevice, GFP_KERNEL))?
-            },
-            level1 <- {
-                // Allocate the level 1 page table, map the level 2 page table onto it, and map it
-                // into the device address space.
-                VVec::<u8>::with_capacity(
-                    level2.iter().count() * core::mem::size_of::<u64>(),
-                    GFP_KERNEL,
-                )
-                .map_err(|_| ENOMEM)
-                .and_then(|level1| map_into_lvl(&level2, level1))
-                .map(|level1| SGTable::new(dev, level1, DataDirection::ToDevice, GFP_KERNEL))?
-            },
-            level0: {
-                // Allocate the level 0 page table as a device-visible DMA object, and map the
-                // level 1 page table onto it.
+                    // Fill level 1 page entry.
+                    let level1_entry = level1.iter().next().ok_or(EINVAL)?;
+                    let level1_entry_addr = level1_entry.dma_address();
+                    let dst = &mut level0_data[..size_of_val(&level1_entry_addr)];
+                    dst.copy_from_slice(&level1_entry_addr.to_le_bytes());
 
-                // Level 0 page table data.
-                let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
+                    // Turn the level0 page table into a [`DmaObject`].
+                    DmaObject::from_data(dev, &level0_data)?
+                },
+                size,
+                signatures: {
+                    let sigs_section = match chipset.arch() {
+                        Architecture::Turing
+                            if matches!(chipset, Chipset::TU116 | Chipset::TU117) =>
+                        {
+                            ".fwsignature_tu11x"
+                        }
+                        Architecture::Turing => ".fwsignature_tu10x",
+                        // GA100 uses the same firmware as Turing
+                        Architecture::Ampere if chipset == Chipset::GA100 => ".fwsignature_tu10x",
+                        Architecture::Ampere => ".fwsignature_ga10x",
+                        Architecture::Ada => ".fwsignature_ad10x",
+                    };
 
-                // Fill level 1 page entry.
-                let level1_entry = level1.iter().next().ok_or(EINVAL)?;
-                let level1_entry_addr = level1_entry.dma_address();
-                let dst = &mut level0_data[..size_of_val(&level1_entry_addr)];
-                dst.copy_from_slice(&level1_entry_addr.to_le_bytes());
+                    elf::elf64_section(firmware.data(), sigs_section)
+                        .ok_or(EINVAL)
+                        .and_then(|data| DmaObject::from_data(dev, data))?
+                },
+                bootloader: {
+                    let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
 
-                // Turn the level0 page table into a [`DmaObject`].
-                DmaObject::from_data(dev, &level0_data)?
-            },
-            size,
-            signatures,
-            bootloader,
-        }))
+                    RiscvFirmware::new(dev, &bl)?
+                },
+            }))
+        })
     }
 
     /// Returns the DMA handle of the radix3 level 0 page table.

@@ -248,7 +248,7 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 			return;
 	}
 
-	stored_entry = kzalloc(sizeof(*stored_entry), GFP_ATOMIC);
+	stored_entry = kzalloc_obj(*stored_entry, GFP_ATOMIC);
 	if (!stored_entry) {
 		pr_debug("%s: failed to allocate chip data\n", __func__);
 		return;

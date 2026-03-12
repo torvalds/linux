@@ -806,7 +806,7 @@ static struct zfcp_fsf_req *zfcp_fsf_alloc(mempool_t *pool)
 	if (likely(pool))
 		req = mempool_alloc(pool, GFP_ATOMIC);
 	else
-		req = kmalloc(sizeof(*req), GFP_ATOMIC);
+		req = kmalloc_obj(*req, GFP_ATOMIC);
 
 	if (unlikely(!req))
 		return NULL;

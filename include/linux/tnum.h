@@ -63,6 +63,11 @@ struct tnum tnum_union(struct tnum t1, struct tnum t2);
 /* Return @a with all but the lowest @size bytes cleared */
 struct tnum tnum_cast(struct tnum a, u8 size);
 
+/* Swap the bytes of a tnum */
+struct tnum tnum_bswap16(struct tnum a);
+struct tnum tnum_bswap32(struct tnum a);
+struct tnum tnum_bswap64(struct tnum a);
+
 /* Returns true if @a is a known constant */
 static inline bool tnum_is_const(struct tnum a)
 {
@@ -125,5 +130,8 @@ static inline bool tnum_subreg_is_const(struct tnum a)
 {
 	return !(tnum_subreg(a)).mask;
 }
+
+/* Returns the smallest member of t larger than z */
+u64 tnum_step(struct tnum t, u64 z);
 
 #endif /* _LINUX_TNUM_H */

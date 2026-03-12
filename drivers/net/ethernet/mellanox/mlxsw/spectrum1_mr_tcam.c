@@ -259,8 +259,8 @@ mlxsw_sp1_mr_tcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	}
 	mr_tcam_region->parman = parman;
 
-	parman_prios = kmalloc_array(MLXSW_SP_MR_ROUTE_PRIO_MAX + 1,
-				     sizeof(*parman_prios), GFP_KERNEL);
+	parman_prios = kmalloc_objs(*parman_prios,
+				    MLXSW_SP_MR_ROUTE_PRIO_MAX + 1);
 	if (!parman_prios) {
 		err = -ENOMEM;
 		goto err_parman_prios_alloc;

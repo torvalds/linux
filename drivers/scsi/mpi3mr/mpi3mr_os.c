@@ -676,7 +676,7 @@ static struct mpi3mr_tgt_dev *mpi3mr_alloc_tgtdev(void)
 {
 	struct mpi3mr_tgt_dev *tgtdev;
 
-	tgtdev = kzalloc(sizeof(*tgtdev), GFP_ATOMIC);
+	tgtdev = kzalloc_obj(*tgtdev, GFP_ATOMIC);
 	if (!tgtdev)
 		return NULL;
 	kref_init(&tgtdev->ref_count);
@@ -1139,6 +1139,89 @@ static void mpi3mr_refresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_debug_dump_devpg0 - Dump device page0
+ * @mrioc: Adapter instance reference
+ * @dev_pg0: Device page 0.
+ *
+ * Prints pertinent details of the device page 0.
+ *
+ * Return: Nothing.
+ */
+static void
+mpi3mr_debug_dump_devpg0(struct mpi3mr_ioc *mrioc, struct mpi3_device_page0 *dev_pg0)
+{
+	ioc_info(mrioc,
+	    "device_pg0: handle(0x%04x), perst_id(%d), wwid(0x%016llx), encl_handle(0x%04x), slot(%d)\n",
+	    le16_to_cpu(dev_pg0->dev_handle),
+	    le16_to_cpu(dev_pg0->persistent_id),
+	    le64_to_cpu(dev_pg0->wwid), le16_to_cpu(dev_pg0->enclosure_handle),
+	    le16_to_cpu(dev_pg0->slot));
+	ioc_info(mrioc, "device_pg0: access_status(0x%02x), flags(0x%04x), device_form(0x%02x), queue_depth(%d)\n",
+	    dev_pg0->access_status, le16_to_cpu(dev_pg0->flags),
+	    dev_pg0->device_form, le16_to_cpu(dev_pg0->queue_depth));
+	ioc_info(mrioc, "device_pg0: parent_handle(0x%04x), iounit_port(%d)\n",
+	    le16_to_cpu(dev_pg0->parent_dev_handle), dev_pg0->io_unit_port);
+
+	switch (dev_pg0->device_form) {
+	case MPI3_DEVICE_DEVFORM_SAS_SATA:
+	{
+
+		struct mpi3_device0_sas_sata_format *sasinf =
+		    &dev_pg0->device_specific.sas_sata_format;
+		ioc_info(mrioc,
+		    "device_pg0: sas_sata: sas_address(0x%016llx),flags(0x%04x),\n"
+		    "device_info(0x%04x), phy_num(%d), attached_phy_id(%d),negotiated_link_rate(0x%02x)\n",
+		    le64_to_cpu(sasinf->sas_address),
+		    le16_to_cpu(sasinf->flags),
+		    le16_to_cpu(sasinf->device_info), sasinf->phy_num,
+		    sasinf->attached_phy_identifier, sasinf->negotiated_link_rate);
+		break;
+	}
+	case MPI3_DEVICE_DEVFORM_PCIE:
+	{
+
+		struct mpi3_device0_pcie_format *pcieinf =
+		    &dev_pg0->device_specific.pcie_format;
+		ioc_info(mrioc,
+		    "device_pg0: pcie: port_num(%d), device_info(0x%04x), mdts(%d), page_sz(0x%02x)\n",
+		    pcieinf->port_num, le16_to_cpu(pcieinf->device_info),
+		    le32_to_cpu(pcieinf->maximum_data_transfer_size),
+		    pcieinf->page_size);
+		ioc_info(mrioc,
+		    "device_pg0: pcie: abort_timeout(%d), reset_timeout(%d) capabilities (0x%08x)\n",
+		    pcieinf->nvme_abort_to, pcieinf->controller_reset_to,
+		    le32_to_cpu(pcieinf->capabilities));
+		break;
+	}
+	case MPI3_DEVICE_DEVFORM_VD:
+	{
+
+		struct mpi3_device0_vd_format *vdinf =
+		    &dev_pg0->device_specific.vd_format;
+
+		ioc_info(mrioc,
+		    "device_pg0: vd: state(0x%02x), raid_level(%d), flags(0x%04x),\n"
+		    "device_info(0x%04x) abort_timeout(%d), reset_timeout(%d)\n",
+		    vdinf->vd_state, vdinf->raid_level,
+		    le16_to_cpu(vdinf->flags),
+		    le16_to_cpu(vdinf->device_info),
+		    vdinf->vd_abort_to, vdinf->vd_reset_to);
+		ioc_info(mrioc,
+		    "device_pg0: vd: tg_id(%d), high(%dMiB), low(%dMiB), qd_reduction_factor(%d)\n",
+		    vdinf->io_throttle_group,
+		    le16_to_cpu(vdinf->io_throttle_group_high),
+		    le16_to_cpu(vdinf->io_throttle_group_low),
+		    ((le16_to_cpu(vdinf->flags) &
+		       MPI3_DEVICE0_VD_FLAGS_IO_THROTTLE_GROUP_QD_MASK) >> 12));
+		break;
+
+	}
+	default:
+		break;
+	}
+}
+
+/**
  * mpi3mr_update_tgtdev - DevStatusChange evt bottomhalf
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device internal structure
@@ -1158,6 +1241,10 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data = NULL;
 	struct mpi3mr_enclosure_node *enclosure_dev = NULL;
 	u8 prot_mask = 0;
+
+	if (mrioc->logging_level &
+	    (MPI3_DEBUG_EVENT | MPI3_DEBUG_EVENT_WORK_TASK))
+		mpi3mr_debug_dump_devpg0(mrioc, dev_pg0);
 
 	tgtdev->perst_id = le16_to_cpu(dev_pg0->persistent_id);
 	tgtdev->dev_handle = le16_to_cpu(dev_pg0->dev_handle);
@@ -1237,6 +1324,8 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		tgtdev->dev_spec.sas_sata_inf.phy_id = sasinf->phy_num;
 		tgtdev->dev_spec.sas_sata_inf.attached_phy_id =
 		    sasinf->attached_phy_identifier;
+		tgtdev->dev_spec.sas_sata_inf.negotiated_link_rate =
+			sasinf->negotiated_link_rate;
 		if ((dev_info & MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_MASK) !=
 		    MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_END_DEVICE)
 			tgtdev->is_hidden = 1;
@@ -1621,8 +1710,7 @@ static void mpi3mr_encldev_add_chg_evt_bh(struct mpi3mr_ioc *mrioc,
 		    encl_handle);
 	if (!enclosure_dev && present) {
 		enclosure_dev =
-			kzalloc(sizeof(struct mpi3mr_enclosure_node),
-			    GFP_KERNEL);
+			kzalloc_obj(struct mpi3mr_enclosure_node);
 		if (!enclosure_dev)
 			return;
 		list_add_tail(&enclosure_dev->list,
@@ -1962,7 +2050,7 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 static void mpi3mr_logdata_evt_bh(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_fwevt *fwevt)
 {
-	mpi3mr_app_save_logdata(mrioc, fwevt->event_data,
+	mpi3mr_app_save_logdata_th(mrioc, fwevt->event_data,
 	    fwevt->event_data_size);
 }
 
@@ -2446,8 +2534,7 @@ static void mpi3mr_dev_rmhs_send_tm(struct mpi3mr_ioc *mrioc, u16 handle,
 	} while (retrycount--);
 
 	if (cmd_idx >= MPI3MR_NUM_DEVRMCMD) {
-		delayed_dev_rmhs = kzalloc(sizeof(*delayed_dev_rmhs),
-		    GFP_ATOMIC);
+		delayed_dev_rmhs = kzalloc_obj(*delayed_dev_rmhs, GFP_ATOMIC);
 		if (!delayed_dev_rmhs)
 			return;
 		INIT_LIST_HEAD(&delayed_dev_rmhs->list);
@@ -2588,8 +2675,7 @@ static void mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 	} while (retrycount--);
 
 	if (cmd_idx >= MPI3MR_NUM_EVTACKCMD) {
-		delayed_evtack = kzalloc(sizeof(*delayed_evtack),
-		    GFP_ATOMIC);
+		delayed_evtack = kzalloc_obj(*delayed_evtack, GFP_ATOMIC);
 		if (!delayed_evtack)
 			return;
 		INIT_LIST_HEAD(&delayed_evtack->list);
@@ -3058,6 +3144,11 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:
 	case MPI3_EVENT_LOG_DATA:
+
+		sz = event_reply->event_data_length * 4;
+		mpi3mr_app_save_logdata_th(mrioc,
+			(char *)event_reply->event_data, sz);
+		break;
 	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI3_EVENT_ENCL_DEVICE_ADDED:
 	{
@@ -4806,7 +4897,7 @@ static int mpi3mr_sdev_init(struct scsi_device *sdev)
 
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
-	scsi_dev_priv_data = kzalloc(sizeof(*scsi_dev_priv_data), GFP_KERNEL);
+	scsi_dev_priv_data = kzalloc_obj(*scsi_dev_priv_data);
 	if (!scsi_dev_priv_data)
 		return -ENOMEM;
 
@@ -4837,7 +4928,7 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	int retval = 0;
 	struct sas_rphy *rphy = NULL;
 
-	scsi_tgt_priv_data = kzalloc(sizeof(*scsi_tgt_priv_data), GFP_KERNEL);
+	scsi_tgt_priv_data = kzalloc_obj(*scsi_tgt_priv_data);
 	if (!scsi_tgt_priv_data)
 		return -ENOMEM;
 
@@ -5029,8 +5120,8 @@ inline bool mpi3mr_allow_scmd_to_fw(struct scsi_cmnd *scmd)
  *         SCSI_MLQUEUE_DEVICE_BUSY when the device is busy.
  *         SCSI_MLQUEUE_HOST_BUSY when the host queue is full.
  */
-static int mpi3mr_qcmd(struct Scsi_Host *shost,
-	struct scsi_cmnd *scmd)
+static enum scsi_qc_status mpi3mr_qcmd(struct Scsi_Host *shost,
+				       struct scsi_cmnd *scmd)
 {
 	struct mpi3mr_ioc *mrioc = shost_priv(shost);
 	struct mpi3mr_stgt_priv_data *stgt_priv_data;
@@ -5381,8 +5472,10 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (retval < 0)
 		goto id_alloc_failed;
 	mrioc->id = (u8)retval;
-	sprintf(mrioc->driver_name, "%s", MPI3MR_DRIVER_NAME);
-	sprintf(mrioc->name, "%s%d", mrioc->driver_name, mrioc->id);
+	strscpy(mrioc->driver_name, MPI3MR_DRIVER_NAME,
+	    sizeof(mrioc->driver_name));
+	scnprintf(mrioc->name, sizeof(mrioc->name),
+	    "%s%u", mrioc->driver_name, mrioc->id);
 	INIT_LIST_HEAD(&mrioc->list);
 	spin_lock(&mrioc_list_lock);
 	list_add_tail(&mrioc->list, &mrioc_list);
@@ -5983,7 +6076,10 @@ static struct pci_driver mpi3mr_pci_driver = {
 	.remove = mpi3mr_remove,
 	.shutdown = mpi3mr_shutdown,
 	.err_handler = &mpi3mr_err_handler,
-	.driver.pm = &mpi3mr_pm_ops,
+	.driver = {
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.pm = &mpi3mr_pm_ops,
+	},
 };
 
 static ssize_t event_counter_show(struct device_driver *dd, char *buf)

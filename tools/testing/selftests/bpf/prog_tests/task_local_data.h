@@ -94,7 +94,7 @@ struct tld_metadata {
 };
 
 struct tld_meta_u {
-	_Atomic __u8 cnt;
+	_Atomic __u16 cnt;
 	__u16 size;
 	struct tld_metadata metadata[];
 };
@@ -217,7 +217,7 @@ out:
 static tld_key_t __tld_create_key(const char *name, size_t size, bool dyn_data)
 {
 	int err, i, sz, off = 0;
-	__u8 cnt;
+	__u16 cnt;
 
 	if (!TLD_READ_ONCE(tld_meta_p)) {
 		err = __tld_init_meta_p();
@@ -262,7 +262,7 @@ retry:
 		if (!atomic_compare_exchange_strong(&tld_meta_p->cnt, &cnt, cnt + 1))
 			goto retry;
 
-		strncpy(tld_meta_p->metadata[i].name, name, TLD_NAME_LEN);
+		strscpy(tld_meta_p->metadata[i].name, name);
 		atomic_store(&tld_meta_p->metadata[i].size, size);
 		return (tld_key_t){(__s16)off};
 	}

@@ -944,7 +944,7 @@ static int pvr2_v4l2_open(struct file *file)
 		return -EIO;
 	}
 
-	fhp = kzalloc(sizeof(*fhp),GFP_KERNEL);
+	fhp = kzalloc_obj(*fhp);
 	if (!fhp) {
 		return -ENOMEM;
 	}
@@ -1236,7 +1236,7 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 {
 	struct pvr2_v4l2 *vp;
 
-	vp = kzalloc(sizeof(*vp),GFP_KERNEL);
+	vp = kzalloc_obj(*vp);
 	if (!vp) return vp;
 	pvr2_channel_init(&vp->channel,mnp);
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_v4l2 id=%p",vp);
@@ -1244,12 +1244,12 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 	vp->channel.check_func = pvr2_v4l2_internal_check;
 
 	/* register streams */
-	vp->dev_video = kzalloc(sizeof(*vp->dev_video),GFP_KERNEL);
+	vp->dev_video = kzalloc_obj(*vp->dev_video);
 	if (!vp->dev_video) goto fail;
 	pvr2_v4l2_dev_init(vp->dev_video,vp,VFL_TYPE_VIDEO);
 	if (pvr2_hdw_get_input_available(vp->channel.mc_head->hdw) &
 	    (1 << PVR2_CVAL_INPUT_RADIO)) {
-		vp->dev_radio = kzalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
+		vp->dev_radio = kzalloc_obj(*vp->dev_radio);
 		if (!vp->dev_radio) goto fail;
 		pvr2_v4l2_dev_init(vp->dev_radio,vp,VFL_TYPE_RADIO);
 	}

@@ -4,28 +4,15 @@
 DAMON: Data Access MONitoring and Access-aware System Operations
 ================================================================
 
-DAMON is a Linux kernel subsystem that provides a framework for data access
-monitoring and the monitoring results based system operations.  The core
-monitoring :ref:`mechanisms <damon_design_monitoring>` of DAMON make it
+DAMON is a Linux kernel subsystem for efficient :ref:`data access monitoring
+<damon_design_monitoring>` and :ref:`access-aware system operations
+<damon_design_damos>`.  It is designed for being
 
- - *accurate* (the monitoring output is useful enough for DRAM level memory
-   management; It might not appropriate for CPU Cache levels, though),
- - *light-weight* (the monitoring overhead is low enough to be applied online),
-   and
- - *scalable* (the upper-bound of the overhead is in constant range regardless
-   of the size of target workloads).
-
-Using this framework, therefore, the kernel can operate system in an
-access-aware fashion.  Because the features are also exposed to the :doc:`user
-space </admin-guide/mm/damon/index>`, users who have special information about
-their workloads can write personalized applications for better understanding
-and optimizations of their workloads and systems.
-
-For easier development of such systems, DAMON provides a feature called
-:ref:`DAMOS <damon_design_damos>` (DAMon-based Operation Schemes) in addition
-to the monitoring.  Using the feature, DAMON users in both kernel and :doc:`user
-spaces </admin-guide/mm/damon/index>` can do access-aware system operations
-with no code but simple configurations.
+ - *accurate* (for DRAM level memory management),
+ - *light-weight* (for production online usages),
+ - *scalable* (in terms of memory size),
+ - *tunable* (for flexible usages), and
+ - *autoamted* (for production operation without manual tunings).
 
 .. toctree::
    :maxdepth: 2

@@ -866,7 +866,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	if (!ops)
 		return -EINVAL;
 
-	fpi = kzalloc(sizeof(*fpi), GFP_KERNEL);
+	fpi = kzalloc_obj(*fpi);
 	if (!fpi)
 		return -ENOMEM;
 

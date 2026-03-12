@@ -23,7 +23,8 @@ impl Refcount {
     /// Construct a new [`Refcount`] from an initial value.
     ///
     /// The initial value should be non-saturated.
-    #[inline]
+    // Always inline to optimize out error path of `build_assert`.
+    #[inline(always)]
     pub fn new(value: i32) -> Self {
         build_assert!(value >= 0, "initial value saturated");
         // SAFETY: There are no safety requirements for this FFI call.

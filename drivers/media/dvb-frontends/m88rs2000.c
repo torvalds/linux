@@ -786,7 +786,7 @@ struct dvb_frontend *m88rs2000_attach(const struct m88rs2000_config *config,
 	struct m88rs2000_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct m88rs2000_state), GFP_KERNEL);
+	state = kzalloc_obj(struct m88rs2000_state);
 	if (state == NULL)
 		goto error;
 

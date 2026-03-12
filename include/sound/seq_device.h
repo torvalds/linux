@@ -43,6 +43,8 @@ struct snd_seq_device {
  *	Typically, call snd_device_free(dev->card, dev->driver_data)
  */
 struct snd_seq_driver {
+	int (*probe)(struct snd_seq_device *dev);
+	void (*remove)(struct snd_seq_device *dev);
 	struct device_driver driver;
 	char *id;
 	int argsize;

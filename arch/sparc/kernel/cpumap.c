@@ -194,7 +194,7 @@ static struct cpuinfo_tree *build_cpuinfo_tree(void)
 
 	n = enumerate_cpuinfo_nodes(tmp_level);
 
-	new_tree = kzalloc(struct_size(new_tree, nodes, n), GFP_ATOMIC);
+	new_tree = kzalloc_flex(*new_tree, nodes, n, GFP_ATOMIC);
 	if (!new_tree)
 		return NULL;
 

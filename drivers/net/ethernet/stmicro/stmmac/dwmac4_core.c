@@ -572,8 +572,8 @@ static void dwmac4_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 			flow = GMAC_TX_FLOW_CTRL_TFE;
 
 			if (duplex)
-				flow |=
-				(pause_time << GMAC_TX_FLOW_CTRL_PT_SHIFT);
+				flow |= FIELD_PREP(GMAC_TX_FLOW_CTRL_PT_MASK,
+						   pause_time);
 
 			writel(flow, ioaddr + GMAC_QX_TX_FLOW_CTRL(queue));
 		}
@@ -615,10 +615,10 @@ static int dwmac4_irq_mtl_status(struct stmmac_priv *priv,
 	return ret;
 }
 
-static int dwmac4_irq_status(struct mac_device_info *hw,
+static int dwmac4_irq_status(struct stmmac_priv *priv,
 			     struct stmmac_extra_stats *x)
 {
-	void __iomem *ioaddr = hw->pcsr;
+	void __iomem *ioaddr = priv->hw->pcsr;
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
 	u32 intr_enable = readl(ioaddr + GMAC_INT_EN);
 	int ret = 0;
@@ -658,7 +658,8 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 			x->irq_rx_path_exit_lpi_mode_n++;
 	}
 
-	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
+	if (intr_status & (PCS_ANE_IRQ | PCS_LINK_IRQ))
+		stmmac_integrated_pcs_irq(priv, intr_status, x);
 
 	return ret;
 }
@@ -681,8 +682,8 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 		if (value & MTL_DEBUG_TWCSTS)
 			x->mmtl_fifo_ctrl++;
 		if (value & MTL_DEBUG_TRCSTS_MASK) {
-			u32 trcsts = (value & MTL_DEBUG_TRCSTS_MASK)
-				     >> MTL_DEBUG_TRCSTS_SHIFT;
+			u32 trcsts = FIELD_GET(MTL_DEBUG_TRCSTS_MASK, value);
+
 			if (trcsts == MTL_DEBUG_TRCSTS_WRITE)
 				x->mtl_tx_fifo_read_ctrl_write++;
 			else if (trcsts == MTL_DEBUG_TRCSTS_TXW)
@@ -700,8 +701,7 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 		value = readl(ioaddr + MTL_CHAN_RX_DEBUG(dwmac4_addrs, queue));
 
 		if (value & MTL_DEBUG_RXFSTS_MASK) {
-			u32 rxfsts = (value & MTL_DEBUG_RXFSTS_MASK)
-				     >> MTL_DEBUG_RRCSTS_SHIFT;
+			u32 rxfsts = FIELD_GET(MTL_DEBUG_RXFSTS_MASK, value);
 
 			if (rxfsts == MTL_DEBUG_RXFSTS_FULL)
 				x->mtl_rx_fifo_fill_level_full++;
@@ -713,8 +713,7 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 				x->mtl_rx_fifo_fill_level_empty++;
 		}
 		if (value & MTL_DEBUG_RRCSTS_MASK) {
-			u32 rrcsts = (value & MTL_DEBUG_RRCSTS_MASK) >>
-				     MTL_DEBUG_RRCSTS_SHIFT;
+			u32 rrcsts = FIELD_GET(MTL_DEBUG_RRCSTS_MASK, value);
 
 			if (rrcsts == MTL_DEBUG_RRCSTS_FLUSH)
 				x->mtl_rx_fifo_read_ctrl_flush++;
@@ -733,8 +732,7 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	value = readl(ioaddr + GMAC_DEBUG);
 
 	if (value & GMAC_DEBUG_TFCSTS_MASK) {
-		u32 tfcsts = (value & GMAC_DEBUG_TFCSTS_MASK)
-			      >> GMAC_DEBUG_TFCSTS_SHIFT;
+		u32 tfcsts = FIELD_GET(GMAC_DEBUG_TFCSTS_MASK, value);
 
 		if (tfcsts == GMAC_DEBUG_TFCSTS_XFER)
 			x->mac_tx_frame_ctrl_xfer++;
@@ -748,8 +746,8 @@ static void dwmac4_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_TPESTS)
 		x->mac_gmii_tx_proto_engine++;
 	if (value & GMAC_DEBUG_RFCFCSTS_MASK)
-		x->mac_rx_frame_ctrl_fifo = (value & GMAC_DEBUG_RFCFCSTS_MASK)
-					    >> GMAC_DEBUG_RFCFCSTS_SHIFT;
+		x->mac_rx_frame_ctrl_fifo = FIELD_GET(GMAC_DEBUG_RFCFCSTS_MASK,
+						      value);
 	if (value & GMAC_DEBUG_RPESTS)
 		x->mac_gmii_rx_proto_engine++;
 }
@@ -770,8 +768,7 @@ static void dwmac4_sarc_configure(void __iomem *ioaddr, int val)
 {
 	u32 value = readl(ioaddr + GMAC_CONFIG);
 
-	value &= ~GMAC_CONFIG_SARC;
-	value |= val << GMAC_CONFIG_SARC_SHIFT;
+	value = u32_replace_bits(value, val, GMAC_CONFIG_SARC);
 
 	writel(value, ioaddr + GMAC_CONFIG);
 }
@@ -879,9 +876,9 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
 
 	if (sa) {
-		value = match & GMAC_L4SP0;
+		value = FIELD_PREP(GMAC_L4SP0, match);
 	} else {
-		value = (match << GMAC_L4DP0_SHIFT) & GMAC_L4DP0;
+		value = FIELD_PREP(GMAC_L4DP0, match);
 	}
 
 	writel(value, ioaddr + GMAC_L4_ADDR(filter_no));

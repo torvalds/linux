@@ -2073,7 +2073,7 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 		return -1;
 	}
 
-	minfo = kzalloc(sizeof(*minfo), GFP_KERNEL);
+	minfo = kzalloc_obj(*minfo);
 	if (!minfo)
 		return -ENOMEM;
 

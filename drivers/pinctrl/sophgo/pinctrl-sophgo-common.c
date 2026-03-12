@@ -94,7 +94,7 @@ int sophgo_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node 
 	if (!grpnames)
 		return -ENOMEM;
 
-	map = kcalloc(ngroups * 2, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, ngroups * 2);
 	if (!map)
 		return -ENOMEM;
 

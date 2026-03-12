@@ -130,7 +130,7 @@ int __init snd_seq_system_client_init(void)
 	struct snd_seq_port_info *port;
 	int err;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return -ENOMEM;
 

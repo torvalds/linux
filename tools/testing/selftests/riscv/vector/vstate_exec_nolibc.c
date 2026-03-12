@@ -16,10 +16,10 @@ int main(int argc, char **argv)
 	if (argc > 2 && strcmp(argv[2], "x"))
 		xtheadvector = 1;
 
-	ctrl = my_syscall1(__NR_prctl, PR_RISCV_V_GET_CONTROL);
-	if (ctrl < 0) {
+	ctrl = prctl(PR_RISCV_V_GET_CONTROL, 0, 0, 0, 0);
+	if (ctrl == -1) {
 		puts("PR_RISCV_V_GET_CONTROL is not supported\n");
-		return ctrl;
+		exit(-1);
 	}
 
 	if (test_inherit) {
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 		}
 
 		if (!pid) {
-			rc = my_syscall1(__NR_prctl, PR_RISCV_V_GET_CONTROL);
+			rc = prctl(PR_RISCV_V_GET_CONTROL, 0, 0, 0, 0);
 			if (rc != ctrl) {
 				puts("child's vstate_ctrl not equal to parent's\n");
 				exit(-1);

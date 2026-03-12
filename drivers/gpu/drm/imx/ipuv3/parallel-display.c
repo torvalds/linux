@@ -66,7 +66,7 @@ imx_pd_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	}
 
 	*num_output_fmts = 1;
-	output_fmts = kmalloc(sizeof(*output_fmts), GFP_KERNEL);
+	output_fmts = kmalloc_obj(*output_fmts);
 	if (!output_fmts)
 		return NULL;
 
@@ -117,7 +117,7 @@ imx_pd_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	}
 
 	*num_input_fmts = 1;
-	input_fmts = kmalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kmalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 
@@ -256,7 +256,9 @@ static int imx_pd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, imxpd);
 
-	devm_drm_bridge_add(dev, &imxpd->bridge);
+	ret = devm_drm_bridge_add(dev, &imxpd->bridge);
+	if (ret)
+		return ret;
 
 	return component_add(dev, &imx_pd_ops);
 }

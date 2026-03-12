@@ -373,7 +373,7 @@ struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_discrecor
 		     ((nzones > 1) ? ADFS_DR_SIZE_BITS : 0);
 	map_addr = signed_asl(map_addr, asb->s_map2blk);
 
-	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
+	dm = kmalloc_objs(*dm, nzones);
 	if (dm == NULL) {
 		adfs_error(sb, "not enough memory");
 		return ERR_PTR(-ENOMEM);

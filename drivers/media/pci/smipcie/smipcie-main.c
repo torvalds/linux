@@ -946,7 +946,7 @@ static int smi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev) < 0)
 		return -ENODEV;
 
-	dev = kzalloc(sizeof(struct smi_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct smi_dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err_pci_disable_device;

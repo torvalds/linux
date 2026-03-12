@@ -66,7 +66,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
-	brd = kzalloc(sizeof(*brd), GFP_KERNEL);
+	brd = kzalloc_obj(*brd);
 	if (!brd) {
 		rc = -ENOMEM;
 		goto out_release_regions;

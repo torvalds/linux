@@ -147,8 +147,7 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 	struct gpio_desc_label *new = NULL, *old;
 
 	if (label) {
-		new = kzalloc(struct_size(new, str, strlen(label) + 1),
-			      GFP_KERNEL);
+		new = kzalloc_flex(*new, str, strlen(label) + 1);
 		if (!new)
 			return -ENOMEM;
 
@@ -467,9 +466,6 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &flags) &&
 	    test_bit(GPIOD_FLAG_IS_OUT, &flags))
 		return 0;
-
-	if (!guard.gc->get_direction)
-		return -ENOTSUPP;
 
 	ret = gpiochip_get_direction(guard.gc, offset);
 	if (ret < 0)
@@ -1105,6 +1101,18 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	gdev->ngpio = gc->ngpio;
 	gdev->can_sleep = gc->can_sleep;
 
+	rwlock_init(&gdev->line_state_lock);
+	RAW_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->device_notifier);
+
+	ret = init_srcu_struct(&gdev->srcu);
+	if (ret)
+		goto err_free_label;
+
+	ret = init_srcu_struct(&gdev->desc_srcu);
+	if (ret)
+		goto err_cleanup_gdev_srcu;
+
 	scoped_guard(mutex, &gpio_devices_lock) {
 		/*
 		 * TODO: this allocates a Linux GPIO number base in the global
@@ -1119,7 +1127,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 			if (base < 0) {
 				ret = base;
 				base = 0;
-				goto err_free_label;
+				goto err_cleanup_desc_srcu;
 			}
 
 			/*
@@ -1139,21 +1147,9 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		ret = gpiodev_add_to_list_unlocked(gdev);
 		if (ret) {
 			gpiochip_err(gc, "GPIO integer space overlap, cannot add chip\n");
-			goto err_free_label;
+			goto err_cleanup_desc_srcu;
 		}
 	}
-
-	rwlock_init(&gdev->line_state_lock);
-	RAW_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
-	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->device_notifier);
-
-	ret = init_srcu_struct(&gdev->srcu);
-	if (ret)
-		goto err_remove_from_list;
-
-	ret = init_srcu_struct(&gdev->desc_srcu);
-	if (ret)
-		goto err_cleanup_gdev_srcu;
 
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
@@ -1164,11 +1160,11 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 	ret = gpiochip_set_names(gc);
 	if (ret)
-		goto err_cleanup_desc_srcu;
+		goto err_remove_from_list;
 
 	ret = gpiochip_init_valid_mask(gc);
 	if (ret)
-		goto err_cleanup_desc_srcu;
+		goto err_remove_from_list;
 
 	for (desc_index = 0; desc_index < gc->ngpio; desc_index++) {
 		struct gpio_desc *desc = &gdev->descs[desc_index];
@@ -1248,10 +1244,6 @@ err_remove_of_chip:
 	of_gpiochip_remove(gc);
 err_free_valid_mask:
 	gpiochip_free_valid_mask(gc);
-err_cleanup_desc_srcu:
-	cleanup_srcu_struct(&gdev->desc_srcu);
-err_cleanup_gdev_srcu:
-	cleanup_srcu_struct(&gdev->srcu);
 err_remove_from_list:
 	scoped_guard(mutex, &gpio_devices_lock)
 		list_del_rcu(&gdev->list);
@@ -1261,6 +1253,10 @@ err_remove_from_list:
 		gpio_device_put(gdev);
 		goto err_print_message;
 	}
+err_cleanup_desc_srcu:
+	cleanup_srcu_struct(&gdev->desc_srcu);
+err_cleanup_gdev_srcu:
+	cleanup_srcu_struct(&gdev->srcu);
 err_free_label:
 	kfree_const(gdev->label);
 err_free_descs:
@@ -2336,7 +2332,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2397,7 +2393,7 @@ int gpiochip_add_pin_range_with_pins(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2456,7 +2452,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
  * on each other, and help provide better diagnostics in debugfs.
  * They're called even less than the "set direction" calls.
  */
-static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
+int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 {
 	unsigned int offset;
 	int ret;
@@ -2518,7 +2514,7 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 	return ret;
 }
 
-static void gpiod_free_commit(struct gpio_desc *desc)
+void gpiod_free_commit(struct gpio_desc *desc)
 {
 	unsigned long flags;
 
@@ -3271,8 +3267,12 @@ static int gpiochip_get(struct gpio_chip *gc, unsigned int offset)
 
 	/* Make sure this is called after checking for gc->get(). */
 	ret = gc->get(gc, offset);
-	if (ret > 1)
-		ret = -EBADE;
+	if (ret > 1) {
+		gpiochip_warn(gc,
+			"invalid return value from gc->get(): %d, consider fixing the driver\n",
+			ret);
+		ret = !!ret;
+	}
 
 	return ret;
 }
@@ -4508,45 +4508,41 @@ void gpiod_remove_hogs(struct gpiod_hog *hogs)
 }
 EXPORT_SYMBOL_GPL(gpiod_remove_hogs);
 
-static struct gpiod_lookup_table *gpiod_find_lookup_table(struct device *dev)
+static bool gpiod_match_lookup_table(struct device *dev,
+				     const struct gpiod_lookup_table *table)
 {
 	const char *dev_id = dev ? dev_name(dev) : NULL;
-	struct gpiod_lookup_table *table;
 
-	list_for_each_entry(table, &gpio_lookup_list, list) {
-		if (table->dev_id && dev_id) {
-			/*
-			 * Valid strings on both ends, must be identical to have
-			 * a match
-			 */
-			if (!strcmp(table->dev_id, dev_id))
-				return table;
-		} else {
-			/*
-			 * One of the pointers is NULL, so both must be to have
-			 * a match
-			 */
-			if (dev_id == table->dev_id)
-				return table;
-		}
+	lockdep_assert_held(&gpio_lookup_lock);
+
+	if (table->dev_id && dev_id) {
+		/*
+		 * Valid strings on both ends, must be identical to have
+		 * a match
+		 */
+		if (!strcmp(table->dev_id, dev_id))
+			return true;
+	} else {
+		/*
+		 * One of the pointers is NULL, so both must be to have
+		 * a match
+		 */
+		if (dev_id == table->dev_id)
+			return true;
 	}
 
-	return NULL;
+	return false;
 }
 
-static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
-				    unsigned int idx, unsigned long *flags)
+static struct gpio_desc *gpio_desc_table_match(struct device *dev, const char *con_id,
+					       unsigned int idx, unsigned long *flags,
+					       struct gpiod_lookup_table *table)
 {
-	struct gpio_desc *desc = ERR_PTR(-ENOENT);
-	struct gpiod_lookup_table *table;
+	struct gpio_desc *desc;
 	struct gpiod_lookup *p;
 	struct gpio_chip *gc;
 
-	guard(mutex)(&gpio_lookup_lock);
-
-	table = gpiod_find_lookup_table(dev);
-	if (!table)
-		return desc;
+	lockdep_assert_held(&gpio_lookup_lock);
 
 	for (p = &table->table[0]; p->key; p++) {
 		/* idx must always match exactly */
@@ -4600,7 +4596,30 @@ static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
 		return desc;
 	}
 
-	return desc;
+	return NULL;
+}
+
+static struct gpio_desc *gpiod_find(struct device *dev, const char *con_id,
+				    unsigned int idx, unsigned long *flags)
+{
+	struct gpiod_lookup_table *table;
+	struct gpio_desc *desc;
+
+	guard(mutex)(&gpio_lookup_lock);
+
+	list_for_each_entry(table, &gpio_lookup_list, list) {
+		if (!gpiod_match_lookup_table(dev, table))
+			continue;
+
+		desc = gpio_desc_table_match(dev, con_id, idx, flags, table);
+		if (!desc)
+			continue;
+
+		/* On IS_ERR() or match. */
+		return desc;
+	}
+
+	return ERR_PTR(-ENOENT);
 }
 
 static int platform_gpio_count(struct device *dev, const char *con_id)
@@ -4610,14 +4629,16 @@ static int platform_gpio_count(struct device *dev, const char *con_id)
 	unsigned int count = 0;
 
 	scoped_guard(mutex, &gpio_lookup_lock) {
-		table = gpiod_find_lookup_table(dev);
-		if (!table)
-			return -ENOENT;
+		list_for_each_entry(table, &gpio_lookup_list, list) {
+			if (!gpiod_match_lookup_table(dev, table))
+				continue;
 
-		for (p = &table->table[0]; p->key; p++) {
-			if ((con_id && p->con_id && !strcmp(con_id, p->con_id)) ||
-			    (!con_id && !p->con_id))
-				count++;
+			for (p = &table->table[0]; p->key; p++) {
+				if ((con_id && p->con_id &&
+				    !strcmp(con_id, p->con_id)) ||
+				    (!con_id && !p->con_id))
+					count++;
+			}
 		}
 	}
 
@@ -4696,7 +4717,8 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 			 * lookup table for the proxy device as previously
 			 * we only knew the consumer's fwnode.
 			 */
-			ret = gpio_shared_add_proxy_lookup(consumer, lookupflags);
+			ret = gpio_shared_add_proxy_lookup(consumer, con_id,
+							   lookupflags);
 			if (ret)
 				return ERR_PTR(ret);
 
@@ -5242,27 +5264,21 @@ void gpiod_put_array(struct gpio_descs *descs)
 }
 EXPORT_SYMBOL_GPL(gpiod_put_array);
 
-static int gpio_stub_drv_probe(struct device *dev)
-{
-	/*
-	 * The DT node of some GPIO chips have a "compatible" property, but
-	 * never have a struct device added and probed by a driver to register
-	 * the GPIO chip with gpiolib. In such cases, fw_devlink=on will cause
-	 * the consumers of the GPIO chip to get probe deferred forever because
-	 * they will be waiting for a device associated with the GPIO chip
-	 * firmware node to get added and bound to a driver.
-	 *
-	 * To allow these consumers to probe, we associate the struct
-	 * gpio_device of the GPIO chip with the firmware node and then simply
-	 * bind it to this stub driver.
-	 */
-	return 0;
-}
-
+/*
+ * The DT node of some GPIO chips have a "compatible" property, but
+ * never have a struct device added and probed by a driver to register
+ * the GPIO chip with gpiolib. In such cases, fw_devlink=on will cause
+ * the consumers of the GPIO chip to get probe deferred forever because
+ * they will be waiting for a device associated with the GPIO chip
+ * firmware node to get added and bound to a driver.
+ *
+ * To allow these consumers to probe, we associate the struct
+ * gpio_device of the GPIO chip with the firmware node and then simply
+ * bind it to this stub driver.
+ */
 static struct device_driver gpio_stub_drv = {
 	.name = "gpio_stub_drv",
 	.bus = &gpio_bus_type,
-	.probe = gpio_stub_drv_probe,
 };
 
 static int __init gpiolib_dev_init(void)
@@ -5357,7 +5373,7 @@ static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 
 	s->private = NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 

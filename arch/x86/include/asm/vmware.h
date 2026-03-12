@@ -140,7 +140,7 @@ unsigned long vmware_hypercall3(unsigned long cmd, unsigned long in1,
 		  "b" (in1),
 		  "c" (cmd),
 		  "d" (0)
-		: "cc", "memory");
+		: "di", "si", "cc", "memory");
 	return out0;
 }
 
@@ -165,7 +165,7 @@ unsigned long vmware_hypercall4(unsigned long cmd, unsigned long in1,
 		  "b" (in1),
 		  "c" (cmd),
 		  "d" (0)
-		: "cc", "memory");
+		: "di", "si", "cc", "memory");
 	return out0;
 }
 

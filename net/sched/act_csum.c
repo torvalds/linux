@@ -93,7 +93,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 
 	p = to_tcf_csum(*a);
 
-	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
+	params_new = kzalloc_obj(*params_new);
 	if (unlikely(!params_new)) {
 		err = -ENOMEM;
 		goto put_chain;

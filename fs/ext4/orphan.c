@@ -598,9 +598,7 @@ int ext4_init_orphan_info(struct super_block *sb)
 	}
 	oi->of_blocks = inode->i_size >> sb->s_blocksize_bits;
 	oi->of_csum_seed = EXT4_I(inode)->i_csum_seed;
-	oi->of_binfo = kvmalloc_array(oi->of_blocks,
-				     sizeof(struct ext4_orphan_block),
-				     GFP_KERNEL);
+	oi->of_binfo = kvmalloc_objs(struct ext4_orphan_block, oi->of_blocks);
 	if (!oi->of_binfo) {
 		ret = -ENOMEM;
 		goto out_put;

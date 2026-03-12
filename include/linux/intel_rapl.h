@@ -152,7 +152,7 @@ struct rapl_if_priv {
 	union rapl_reg reg_unit;
 	union rapl_reg regs[RAPL_DOMAIN_MAX][RAPL_DOMAIN_REG_MAX];
 	int limits[RAPL_DOMAIN_MAX];
-	int (*read_raw)(int id, struct reg_action *ra, bool atomic);
+	int (*read_raw)(int id, struct reg_action *ra, bool pmu_ctx);
 	int (*write_raw)(int id, struct reg_action *ra);
 	void *defaults;
 	void *rpi;

@@ -1586,15 +1586,13 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 {
 	int i, err;
 
-	ovs_net->ct_limit_info = kmalloc(sizeof(*ovs_net->ct_limit_info),
-					 GFP_KERNEL);
+	ovs_net->ct_limit_info = kmalloc_obj(*ovs_net->ct_limit_info);
 	if (!ovs_net->ct_limit_info)
 		return -ENOMEM;
 
 	ovs_net->ct_limit_info->default_limit = OVS_CT_LIMIT_DEFAULT;
 	ovs_net->ct_limit_info->limits =
-		kmalloc_array(CT_LIMIT_HASH_BUCKETS, sizeof(struct hlist_head),
-			      GFP_KERNEL);
+		kmalloc_objs(struct hlist_head, CT_LIMIT_HASH_BUCKETS);
 	if (!ovs_net->ct_limit_info->limits) {
 		kfree(ovs_net->ct_limit_info);
 		return -ENOMEM;
@@ -1688,8 +1686,7 @@ static int ovs_ct_limit_set_zone_limit(struct nlattr *nla_zone_limit,
 		} else {
 			struct ovs_ct_limit *ct_limit;
 
-			ct_limit = kmalloc(sizeof(*ct_limit),
-					   GFP_KERNEL_ACCOUNT);
+			ct_limit = kmalloc_obj(*ct_limit, GFP_KERNEL_ACCOUNT);
 			if (!ct_limit)
 				return -ENOMEM;
 

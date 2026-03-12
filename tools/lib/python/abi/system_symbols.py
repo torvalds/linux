@@ -18,11 +18,11 @@ from random import shuffle
 from abi.helpers import AbiDebug
 
 class SystemSymbols:
-    """Stores arguments for the class and initialize class vars"""
+    """Stores arguments for the class and initialize class vars."""
 
     def graph_add_file(self, path, link=None):
         """
-        add a file path to the sysfs graph stored at self.root
+        add a file path to the sysfs graph stored at self.root.
         """
 
         if path in self.files:
@@ -43,7 +43,7 @@ class SystemSymbols:
         self.files.add(path)
 
     def print_graph(self, root_prefix="", root=None, level=0):
-        """Prints a reference tree graph using UTF-8 characters"""
+        """Prints a reference tree graph using UTF-8 characters."""
 
         if not root:
             root = self.root
@@ -173,7 +173,7 @@ class SystemSymbols:
         self._walk(sysfs)
 
     def check_file(self, refs, found):
-        """Check missing ABI symbols for a given sysfs file"""
+        """Check missing ABI symbols for a given sysfs file."""
 
         res_list = []
 
@@ -214,7 +214,7 @@ class SystemSymbols:
         return res_list
 
     def _ref_interactor(self, root):
-        """Recursive function to interact over the sysfs tree"""
+        """Recursive function to interact over the sysfs tree."""
 
         for k, v in root.items():
             if isinstance(v, dict):
@@ -232,7 +232,7 @@ class SystemSymbols:
 
 
     def get_fileref(self, all_refs, chunk_size):
-        """Interactor to group refs into chunks"""
+        """Interactor to group refs into chunks."""
 
         n = 0
         refs = []
@@ -250,7 +250,7 @@ class SystemSymbols:
 
     def check_undefined_symbols(self, max_workers=None, chunk_size=50,
                                 found=None, dry_run=None):
-        """Seach ABI for sysfs symbols missing documentation"""
+        """Seach ABI for sysfs symbols missing documentation."""
 
         self.abi.parse_abi()
 

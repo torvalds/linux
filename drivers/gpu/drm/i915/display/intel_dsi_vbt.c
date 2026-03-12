@@ -231,7 +231,7 @@ static void soc_opaque_gpio_set_value(struct intel_connector *connector,
 {
 	struct gpiod_lookup_table *lookup;
 
-	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	lookup = kzalloc_flex(*lookup, table, 2);
 	if (!lookup)
 		return;
 

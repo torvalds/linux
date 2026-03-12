@@ -126,6 +126,7 @@
 #include <linux/string.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/capability.h>

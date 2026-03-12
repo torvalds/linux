@@ -929,7 +929,7 @@ int usb_hub_clear_tt_buffer(struct urb *urb)
 	 * since each TT has "at least two" buffers that can need it (and
 	 * there can be many TTs per hub).  even if they're uncommon.
 	 */
-	clear = kmalloc(sizeof *clear, GFP_ATOMIC);
+	clear = kmalloc_obj(*clear, GFP_ATOMIC);
 	if (clear == NULL) {
 		dev_err(&udev->dev, "can't save CLEAR_TT_BUFFER state\n");
 		/* FIXME recover somehow ... RESET_TT? */
@@ -1461,20 +1461,20 @@ static int hub_configure(struct usb_hub *hub,
 	unsigned full_load;
 	unsigned maxchild;
 
-	hub->buffer = kmalloc(sizeof(*hub->buffer), GFP_KERNEL);
+	hub->buffer = kmalloc_obj(*hub->buffer);
 	if (!hub->buffer) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	hub->status = kmalloc(sizeof(*hub->status), GFP_KERNEL);
+	hub->status = kmalloc_obj(*hub->status);
 	if (!hub->status) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 	mutex_init(&hub->status_mutex);
 
-	hub->descriptor = kzalloc(sizeof(*hub->descriptor), GFP_KERNEL);
+	hub->descriptor = kzalloc_obj(*hub->descriptor);
 	if (!hub->descriptor) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1522,7 +1522,7 @@ static int hub_configure(struct usb_hub *hub,
 	dev_info(hub_dev, "%d port%s detected\n", maxchild,
 			str_plural(maxchild));
 
-	hub->ports = kcalloc(maxchild, sizeof(struct usb_port *), GFP_KERNEL);
+	hub->ports = kzalloc_objs(struct usb_port *, maxchild);
 	if (!hub->ports) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1958,7 +1958,7 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* We found a hub */
 	dev_info(&intf->dev, "USB hub found\n");
 
-	hub = kzalloc(sizeof(*hub), GFP_KERNEL);
+	hub = kzalloc_obj(*hub);
 	if (!hub)
 		return -ENOMEM;
 
@@ -4142,7 +4142,7 @@ static int usb_req_set_sel(struct usb_device *udev)
 	 * which may be initiated by an error path of a mass storage driver.
 	 * Therefore, use GFP_NOIO.
 	 */
-	sel_values = kmalloc(sizeof *(sel_values), GFP_NOIO);
+	sel_values = kmalloc_obj(*(sel_values), GFP_NOIO);
 	if (!sel_values)
 		return -ENOMEM;
 
@@ -5236,7 +5236,7 @@ check_highspeed(struct usb_hub *hub, struct usb_device *udev, int port1)
 	if (udev->quirks & USB_QUIRK_DEVICE_QUALIFIER)
 		return;
 
-	qual = kmalloc(sizeof *qual, GFP_KERNEL);
+	qual = kmalloc_obj(*qual);
 	if (qual == NULL)
 		return;
 

@@ -84,7 +84,7 @@ enum pnfs_try_status {
 	PNFS_TRY_AGAIN     = 2,
 };
 
-#ifdef CONFIG_NFS_V4_1
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
 
@@ -303,10 +303,9 @@ int pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				u32 seq);
 int pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
 		struct list_head *lseg_list);
-bool pnfs_roc(struct inode *ino,
-		struct nfs4_layoutreturn_args *args,
-		struct nfs4_layoutreturn_res *res,
-		const struct cred *cred);
+bool pnfs_roc(struct inode *ino, struct nfs4_layoutreturn_args *args,
+	      struct nfs4_layoutreturn_res *res, const struct cred *cred,
+	      bool sync);
 int pnfs_roc_done(struct rpc_task *task, struct nfs4_layoutreturn_args **argpp,
 		  struct nfs4_layoutreturn_res **respp, int *ret);
 void pnfs_roc_release(struct nfs4_layoutreturn_args *args,
@@ -705,7 +704,7 @@ static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
 }
 
 #endif /* NFS_DEBUG */
-#else  /* CONFIG_NFS_V4_1 */
+#else  /* CONFIG_NFS_V4 */
 
 static inline bool nfs_have_layout(struct inode *inode)
 {
@@ -773,12 +772,10 @@ pnfs_layoutcommit_outstanding(struct inode *inode)
 	return false;
 }
 
-
-static inline bool
-pnfs_roc(struct inode *ino,
-		struct nfs4_layoutreturn_args *args,
-		struct nfs4_layoutreturn_res *res,
-		const struct cred *cred)
+static inline bool pnfs_roc(struct inode *ino,
+			    struct nfs4_layoutreturn_args *args,
+			    struct nfs4_layoutreturn_res *res,
+			    const struct cred *cred, bool sync)
 {
 	return false;
 }
@@ -916,7 +913,7 @@ static inline bool pnfs_layout_is_valid(const struct pnfs_layout_hdr *lo)
 	return false;
 }
 
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_NFS_V4 */
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)
 int pnfs_report_layoutstat(struct inode *inode, gfp_t gfp_flags);

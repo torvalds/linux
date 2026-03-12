@@ -71,7 +71,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
 {
 	struct vgem_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 

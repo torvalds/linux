@@ -10,6 +10,7 @@
 #include <linux/dpll.h>
 #include <linux/list.h>
 #include <linux/refcount.h>
+#include <linux/ref_tracker.h>
 #include "dpll_nl.h"
 
 #define DPLL_REGISTERED		XA_MARK_1
@@ -23,6 +24,7 @@
  * @type:		type of a dpll
  * @pin_refs:		stores pins registered within a dpll
  * @refcount:		refcount
+ * @refcnt_tracker:	ref_tracker directory for debugging reference leaks
  * @registration_list:	list of registered ops and priv data of dpll owners
  **/
 struct dpll_device {
@@ -33,6 +35,7 @@ struct dpll_device {
 	enum dpll_type type;
 	struct xarray pin_refs;
 	refcount_t refcount;
+	struct ref_tracker_dir refcnt_tracker;
 	struct list_head registration_list;
 };
 
@@ -42,11 +45,13 @@ struct dpll_device {
  * @pin_idx:		index of a pin given by dev driver
  * @clock_id:		clock_id of creator
  * @module:		module of creator
+ * @fwnode:		optional reference to firmware node
  * @dpll_refs:		hold referencees to dplls pin was registered with
  * @parent_refs:	hold references to parent pins pin was registered with
  * @ref_sync_pins:	hold references to pins for Reference SYNC feature
  * @prop:		pin properties copied from the registerer
  * @refcount:		refcount
+ * @refcnt_tracker:	ref_tracker directory for debugging reference leaks
  * @rcu:		rcu_head for kfree_rcu()
  **/
 struct dpll_pin {
@@ -54,11 +59,13 @@ struct dpll_pin {
 	u32 pin_idx;
 	u64 clock_id;
 	struct module *module;
+	struct fwnode_handle *fwnode;
 	struct xarray dpll_refs;
 	struct xarray parent_refs;
 	struct xarray ref_sync_pins;
 	struct dpll_pin_properties prop;
 	refcount_t refcount;
+	struct ref_tracker_dir refcnt_tracker;
 	struct rcu_head rcu;
 };
 
@@ -89,4 +96,8 @@ struct dpll_pin_ref *dpll_xa_ref_dpll_first(struct xarray *xa_refs);
 extern struct xarray dpll_device_xa;
 extern struct xarray dpll_pin_xa;
 extern struct mutex dpll_lock;
+
+void dpll_device_notify(struct dpll_device *dpll, unsigned long action);
+void dpll_pin_notify(struct dpll_pin *pin, unsigned long action);
+
 #endif

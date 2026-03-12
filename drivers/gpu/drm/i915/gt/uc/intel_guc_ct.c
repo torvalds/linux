@@ -866,7 +866,7 @@ static struct ct_incoming_msg *ct_alloc_msg(u32 num_dwords)
 {
 	struct ct_incoming_msg *msg;
 
-	msg = kmalloc(struct_size(msg, msg, num_dwords), GFP_ATOMIC);
+	msg = kmalloc_flex(*msg, msg, num_dwords, GFP_ATOMIC);
 	if (msg)
 		msg->size = num_dwords;
 	return msg;

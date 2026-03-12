@@ -912,7 +912,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	if (rec->mm_i2c && (radeon_hw_i2c == 0))
 		return NULL;
 
-	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
+	i2c = kzalloc_obj(struct radeon_i2c_chan);
 	if (i2c == NULL)
 		return NULL;
 
@@ -931,7 +931,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
 			 "Radeon i2c hw bus %s", name);
 		i2c->adapter.algo = &radeon_i2c_algo;
-		ret = i2c_add_adapter(&i2c->adapter);
+		ret = devm_i2c_add_adapter(dev->dev, &i2c->adapter);
 		if (ret)
 			goto out_free;
 	} else if (rec->hw_capable &&
@@ -972,15 +972,6 @@ out_free:
 
 }
 
-void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
-{
-	if (!i2c)
-		return;
-	WARN_ON(i2c->has_aux);
-	i2c_del_adapter(&i2c->adapter);
-	kfree(i2c);
-}
-
 /* Add the default buses */
 void radeon_i2c_init(struct radeon_device *rdev)
 {
@@ -999,10 +990,8 @@ void radeon_i2c_fini(struct radeon_device *rdev)
 	int i;
 
 	for (i = 0; i < RADEON_MAX_I2C_BUS; i++) {
-		if (rdev->i2c_bus[i]) {
-			radeon_i2c_destroy(rdev->i2c_bus[i]);
+		if (rdev->i2c_bus[i])
 			rdev->i2c_bus[i] = NULL;
-		}
 	}
 }
 

@@ -34,8 +34,7 @@ static void ishtp_hbm_fw_cl_allocate(struct ishtp_device *dev)
 		return;
 
 	/* allocate storage for fw clients representation */
-	clients = kcalloc(dev->fw_clients_num, sizeof(struct ishtp_fw_client),
-			  GFP_KERNEL);
+	clients = kzalloc_objs(struct ishtp_fw_client, dev->fw_clients_num);
 	if (!clients) {
 		dev->dev_state = ISHTP_DEV_RESETTING;
 		ish_hw_reset(dev);

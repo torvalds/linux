@@ -5,7 +5,7 @@
 
 #include <linux/shmem_fs.h>
 
-#include <drm/drm_buddy.h>
+#include <linux/gpu_buddy.h>
 #include <drm/drm_print.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_tt.h>
@@ -200,7 +200,8 @@ static int i915_ttm_tt_shmem_populate(struct ttm_device *bdev,
 		struct address_space *mapping;
 		gfp_t mask;
 
-		filp = shmem_file_setup("i915-shmem-tt", size, VM_NORESERVE);
+		filp = shmem_file_setup("i915-shmem-tt", size,
+					mk_vma_flags(VMA_NORESERVE_BIT));
 		if (IS_ERR(filp))
 			return PTR_ERR(filp);
 
@@ -278,7 +279,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (i915_ttm_is_ghost_object(bo))
 		return NULL;
 
-	i915_tt = kzalloc(sizeof(*i915_tt), GFP_KERNEL);
+	i915_tt = kzalloc_obj(*i915_tt);
 	if (!i915_tt)
 		return NULL;
 

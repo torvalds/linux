@@ -82,7 +82,7 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 	if (pci_is_enabled(func)) {
 		cdnsp = pci_get_drvdata(func);
 	} else {
-		cdnsp = kzalloc(sizeof(*cdnsp), GFP_KERNEL);
+		cdnsp = kzalloc_obj(*cdnsp);
 		if (!cdnsp) {
 			ret = -ENOMEM;
 			goto put_pci;

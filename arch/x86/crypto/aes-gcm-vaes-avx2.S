@@ -122,8 +122,9 @@
 	.octa	2
 
 // Offsets in struct aes_gcm_key_vaes_avx2
-#define OFFSETOF_AESKEYLEN	480
-#define OFFSETOF_H_POWERS	512
+#define OFFSETOF_AESKEYLEN	0
+#define OFFSETOF_AESROUNDKEYS	16
+#define OFFSETOF_H_POWERS	288
 #define NUM_H_POWERS		8
 #define OFFSETOFEND_H_POWERS    (OFFSETOF_H_POWERS + (NUM_H_POWERS * 16))
 #define OFFSETOF_H_POWERS_XORED	OFFSETOFEND_H_POWERS
@@ -240,9 +241,9 @@ SYM_FUNC_START(aes_gcm_precompute_vaes_avx2)
 
 	// Encrypt an all-zeroes block to get the raw hash subkey.
 	movl		OFFSETOF_AESKEYLEN(KEY), %eax
-	lea		6*16(KEY,%rax,4), RNDKEYLAST_PTR
-	vmovdqu		(KEY), H_CUR_XMM  // Zero-th round key XOR all-zeroes block
-	lea		16(KEY), %rax
+	lea		OFFSETOF_AESROUNDKEYS+6*16(KEY,%rax,4), RNDKEYLAST_PTR
+	vmovdqu		OFFSETOF_AESROUNDKEYS(KEY), H_CUR_XMM
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rax
 1:
 	vaesenc		(%rax), H_CUR_XMM, H_CUR_XMM
 	add		$16, %rax
@@ -635,7 +636,7 @@ SYM_FUNC_END(aes_gcm_aad_update_vaes_avx2)
 // the last AES round.  Clobbers %rax and TMP0.
 .macro	_aesenc_loop	vecs:vararg
 	_ctr_begin	\vecs
-	lea		16(KEY), %rax
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rax
 .Laesenc_loop\@:
 	vbroadcasti128	(%rax), TMP0
 	_vaesenc	TMP0, \vecs
@@ -768,8 +769,8 @@ SYM_FUNC_END(aes_gcm_aad_update_vaes_avx2)
 	// Make RNDKEYLAST_PTR point to the last AES round key.  This is the
 	// round key with index 10, 12, or 14 for AES-128, AES-192, or AES-256
 	// respectively.  Then load the zero-th and last round keys.
-	lea		6*16(KEY,AESKEYLEN64,4), RNDKEYLAST_PTR
-	vbroadcasti128	(KEY), RNDKEY0
+	lea		OFFSETOF_AESROUNDKEYS+6*16(KEY,AESKEYLEN64,4), RNDKEYLAST_PTR
+	vbroadcasti128	OFFSETOF_AESROUNDKEYS(KEY), RNDKEY0
 	vbroadcasti128	(RNDKEYLAST_PTR), RNDKEYLAST
 
 	// Finish initializing LE_CTR by adding 1 to the second block.
@@ -1069,12 +1070,12 @@ SYM_FUNC_END(aes_gcm_aad_update_vaes_avx2)
 .endif
 
 	// Make %rax point to the last AES round key for the chosen AES variant.
-	lea		6*16(KEY,AESKEYLEN64,4), %rax
+	lea		OFFSETOF_AESROUNDKEYS+6*16(KEY,AESKEYLEN64,4), %rax
 
 	// Start the AES encryption of the counter block by swapping the counter
 	// block to big-endian and XOR-ing it with the zero-th AES round key.
 	vpshufb		BSWAP_MASK, LE_CTR, %xmm0
-	vpxor		(KEY), %xmm0, %xmm0
+	vpxor		OFFSETOF_AESROUNDKEYS(KEY), %xmm0, %xmm0
 
 	// Complete the AES encryption and multiply GHASH_ACC by H^1.
 	// Interleave the AES and GHASH instructions to improve performance.

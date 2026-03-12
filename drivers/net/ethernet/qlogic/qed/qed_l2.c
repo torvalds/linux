@@ -58,7 +58,7 @@ int qed_l2_alloc(struct qed_hwfn *p_hwfn)
 	if (!QED_IS_L2_PERSONALITY(p_hwfn))
 		return 0;
 
-	p_l2_info = kzalloc(sizeof(*p_l2_info), GFP_KERNEL);
+	p_l2_info = kzalloc_obj(*p_l2_info);
 	if (!p_l2_info)
 		return -ENOMEM;
 	p_hwfn->p_l2_info = p_l2_info;

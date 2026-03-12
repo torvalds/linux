@@ -55,9 +55,7 @@ static void __init __vdso_init(struct __vdso_info *vdso_info)
 		vdso_info->vdso_code_start) >>
 		PAGE_SHIFT;
 
-	vdso_pagelist = kcalloc(vdso_info->vdso_pages,
-				sizeof(struct page *),
-				GFP_KERNEL);
+	vdso_pagelist = kzalloc_objs(struct page *, vdso_info->vdso_pages);
 	if (vdso_pagelist == NULL)
 		panic("vDSO kcalloc failed!\n");
 
@@ -98,6 +96,13 @@ static struct __vdso_info compat_vdso_info __ro_after_init = {
 
 static int __init vdso_init(void)
 {
+	/* Hart implements zimop, expose cfi compiled vdso */
+	if (IS_ENABLED(CONFIG_RISCV_USER_CFI) &&
+	    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMOP)) {
+		vdso_info.vdso_code_start = vdso_cfi_start;
+		vdso_info.vdso_code_end = vdso_cfi_end;
+	}
+
 	__vdso_init(&vdso_info);
 #ifdef CONFIG_COMPAT
 	__vdso_init(&compat_vdso_info);

@@ -53,7 +53,7 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 		goto put_device;
 	}
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		ret = -ENOMEM;
 		goto put_device;
@@ -90,7 +90,7 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 	if (test_and_set_bit(map->req_idx, dmamux->used_chans)) {
 		ret = -EBUSY;
-		goto free_map;
+		goto put_dma_spec_np;
 	}
 
 	mask = BIT(map->req_idx);
@@ -103,6 +103,8 @@ static void *rzn1_dmamux_route_allocate(struct of_phandle_args *dma_spec,
 
 clear_bitmap:
 	clear_bit(map->req_idx, dmamux->used_chans);
+put_dma_spec_np:
+	of_node_put(dma_spec->np);
 free_map:
 	kfree(map);
 put_device:

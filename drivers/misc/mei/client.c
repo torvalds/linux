@@ -370,7 +370,7 @@ static struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl,
 {
 	struct mei_cl_cb *cb;
 
-	cb = kzalloc(sizeof(*cb), GFP_KERNEL);
+	cb = kzalloc_obj(*cb);
 	if (!cb)
 		return NULL;
 
@@ -605,7 +605,7 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 {
 	struct mei_cl *cl;
 
-	cl = kmalloc(sizeof(*cl), GFP_KERNEL);
+	cl = kmalloc_obj(*cl);
 	if (!cl)
 		return NULL;
 
@@ -1273,7 +1273,7 @@ struct mei_cl_vtag *mei_cl_vtag_alloc(struct file *fp, u8 vtag)
 {
 	struct mei_cl_vtag *cl_vtag;
 
-	cl_vtag = kzalloc(sizeof(*cl_vtag), GFP_KERNEL);
+	cl_vtag = kzalloc_obj(*cl_vtag);
 	if (!cl_vtag)
 		return ERR_PTR(-ENOMEM);
 

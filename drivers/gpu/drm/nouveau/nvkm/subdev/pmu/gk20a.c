@@ -215,7 +215,7 @@ gk20a_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	struct gk20a_pmu *pmu;
 	int ret;
 
-	if (!(pmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
+	if (!(pmu = kzalloc_obj(*pmu)))
 		return -ENOMEM;
 	*ppmu = &pmu->base;
 

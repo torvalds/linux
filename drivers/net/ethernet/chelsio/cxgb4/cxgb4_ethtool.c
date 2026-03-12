@@ -1784,6 +1784,13 @@ static int cxgb4_get_rxfh_fields(struct net_device *dev,
 	return 0;
 }
 
+static u32 get_rx_ring_count(struct net_device *dev)
+{
+	const struct port_info *pi = netdev_priv(dev);
+
+	return pi->nqsets;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
@@ -1793,9 +1800,6 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	int ret = 0;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = pi->nqsets;
-		return 0;
 	case ETHTOOL_GRXCLSRLCNT:
 		info->rule_cnt =
 		       adap->ethtool_filters->port[pi->port_id].in_use;
@@ -2200,6 +2204,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs          = get_regs,
 	.get_rxnfc         = get_rxnfc,
 	.set_rxnfc         = set_rxnfc,
+	.get_rx_ring_count = get_rx_ring_count,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
@@ -2245,13 +2250,11 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	u32 nentries, i;
 	int ret;
 
-	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
+	eth_filter = kzalloc_obj(*eth_filter);
 	if (!eth_filter)
 		return -ENOMEM;
 
-	eth_filter_info = kcalloc(adap->params.nports,
-				  sizeof(*eth_filter_info),
-				  GFP_KERNEL);
+	eth_filter_info = kzalloc_objs(*eth_filter_info, adap->params.nports);
 	if (!eth_filter_info) {
 		ret = -ENOMEM;
 		goto free_eth_filter;

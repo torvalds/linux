@@ -141,7 +141,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 
-	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
+	zclk = kzalloc_obj(*zclk);
 	if (!zclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -169,14 +169,14 @@ static struct clk * __init cpg_rcan_clk_register(const char *name,
 	struct clk_gate *gate;
 	struct clk *clk;
 
-	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
+	fixed = kzalloc_obj(*fixed);
 	if (!fixed)
 		return ERR_PTR(-ENOMEM);
 
 	fixed->mult = 1;
 	fixed->div = 6;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate) {
 		kfree(fixed);
 		return ERR_PTR(-ENOMEM);
@@ -213,7 +213,7 @@ static struct clk * __init cpg_adsp_clk_register(const char *name,
 	struct clk_gate *gate;
 	struct clk *clk;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
@@ -222,7 +222,7 @@ static struct clk * __init cpg_adsp_clk_register(const char *name,
 	div->table = cpg_adsp_div_table;
 	div->lock = &cpg_lock;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate) {
 		kfree(div);
 		return ERR_PTR(-ENOMEM);

@@ -84,7 +84,7 @@ struct clk *tegra_clk_register_periph_fixed(const char *name,
 	if (!regs)
 		return ERR_PTR(-EINVAL);
 
-	fixed = kzalloc(sizeof(*fixed), GFP_KERNEL);
+	fixed = kzalloc_obj(*fixed);
 	if (!fixed)
 		return ERR_PTR(-ENOMEM);
 

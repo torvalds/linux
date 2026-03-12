@@ -728,7 +728,7 @@ static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
 	*rx_headroom = SHDLC_LLC_HEAD_ROOM;
 	*rx_tailroom = 0;
 
-	shdlc = kzalloc(sizeof(struct llc_shdlc), GFP_KERNEL);
+	shdlc = kzalloc_obj(struct llc_shdlc);
 	if (shdlc == NULL)
 		return NULL;
 
@@ -761,6 +761,14 @@ static void *llc_shdlc_init(struct nfc_hci_dev *hdev, xmit_to_drv_t xmit_to_drv,
 static void llc_shdlc_deinit(struct nfc_llc *llc)
 {
 	struct llc_shdlc *shdlc = nfc_llc_get_data(llc);
+
+	timer_shutdown_sync(&shdlc->connect_timer);
+	timer_shutdown_sync(&shdlc->t1_timer);
+	timer_shutdown_sync(&shdlc->t2_timer);
+	shdlc->t1_active = false;
+	shdlc->t2_active = false;
+
+	cancel_work_sync(&shdlc->sm_work);
 
 	skb_queue_purge(&shdlc->rcv_q);
 	skb_queue_purge(&shdlc->send_q);

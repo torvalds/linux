@@ -774,3 +774,12 @@ Full List API
 
 .. kernel-doc:: include/linux/list.h
    :internal:
+
+Private List API
+================
+
+.. kernel-doc:: include/linux/list_private.h
+   :doc: Private List Primitives
+
+.. kernel-doc:: include/linux/list_private.h
+   :internal:

@@ -40,7 +40,7 @@ static int __init imx_soc_device_init(void)
 	if (!__mxc_cpu_type)
 		return 0;
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENOMEM;
 

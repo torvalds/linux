@@ -245,11 +245,11 @@ static struct hsu_dma_desc *hsu_dma_alloc_desc(unsigned int nents)
 {
 	struct hsu_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->sg = kcalloc(nents, sizeof(*desc->sg), GFP_NOWAIT);
+	desc->sg = kzalloc_objs(*desc->sg, nents, GFP_NOWAIT);
 	if (!desc->sg) {
 		kfree(desc);
 		return NULL;

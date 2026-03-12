@@ -100,7 +100,7 @@ static int nfs_referral_loop_protect(void)
 	struct nfs_referral_count *p, *new;
 	int ret = -ENOMEM;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		goto out;
 	new->task = current;

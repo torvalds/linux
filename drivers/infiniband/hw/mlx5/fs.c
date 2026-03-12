@@ -1021,7 +1021,7 @@ static struct mlx5_per_qp_opfc *get_per_qp_opfc(struct xarray *qpn_opfc_xa,
 	per_qp_opfc = xa_load(qpn_opfc_xa, qp_num);
 	if (per_qp_opfc)
 		return per_qp_opfc;
-	per_qp_opfc = kzalloc(sizeof(*per_qp_opfc), GFP_KERNEL);
+	per_qp_opfc = kzalloc_obj(*per_qp_opfc);
 
 	if (!per_qp_opfc)
 		return NULL;
@@ -1057,7 +1057,7 @@ static int add_op_fc_rules(struct mlx5_ib_dev *dev,
 
 	opfc->fc = fc_arr[type];
 
-	spec = kcalloc(MAX_OPFC_RULES, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_objs(*spec, MAX_OPFC_RULES);
 	if (!spec) {
 		err = -ENOMEM;
 		goto null_fc;
@@ -1231,7 +1231,7 @@ int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,
 	struct mlx5_ib_flow_prio *prio;
 	struct mlx5_flow_spec *spec;
 
-	spec = kcalloc(MAX_OPFC_RULES, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_objs(*spec, MAX_OPFC_RULES);
 	if (!spec)
 		return -ENOMEM;
 
@@ -1532,8 +1532,8 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 	if (dev->is_rep && is_egress)
 		return ERR_PTR(-EINVAL);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	handler = kzalloc(sizeof(*handler), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
+	handler = kzalloc_obj(*handler);
 	if (!handler || !spec) {
 		err = -ENOMEM;
 		goto free;
@@ -1792,7 +1792,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 		goto free_ucmd;
 	}
 
-	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
+	dst = kzalloc_obj(*dst);
 	if (!dst) {
 		err = -ENOMEM;
 		goto free_ucmd;
@@ -2060,8 +2060,8 @@ _create_raw_flow_rule(struct mlx5_ib_dev *dev,
 	struct mlx5_flow_table *ft = ft_prio->flow_table;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
-	handler = kzalloc(sizeof(*handler), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
+	handler = kzalloc_obj(*handler);
 	if (!handler || !spec) {
 		err = -ENOMEM;
 		goto free;
@@ -2153,7 +2153,7 @@ static struct mlx5_ib_flow_handler *raw_fs_rule_add(
 	if (fs_matcher->priority > MLX5_IB_FLOW_LAST_PRIO)
 		return ERR_PTR(-ENOMEM);
 
-	dst = kcalloc(2, sizeof(*dst), GFP_KERNEL);
+	dst = kzalloc_objs(*dst, 2);
 	if (!dst)
 		return ERR_PTR(-ENOMEM);
 
@@ -3080,7 +3080,7 @@ mlx5_ib_create_modify_header(struct mlx5_ib_dev *dev,
 	if (ret)
 		return ERR_PTR(-EINVAL);
 
-	maction = kzalloc(sizeof(*maction), GFP_KERNEL);
+	maction = kzalloc_obj(*maction);
 	if (!maction)
 		return ERR_PTR(-ENOMEM);
 
@@ -3479,23 +3479,21 @@ int mlx5_ib_fs_init(struct mlx5_ib_dev *dev)
 {
 	int i, j;
 
-	dev->flow_db = kzalloc(sizeof(*dev->flow_db), GFP_KERNEL);
+	dev->flow_db = kzalloc_obj(*dev->flow_db);
 
 	if (!dev->flow_db)
 		return -ENOMEM;
 
 	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
 		dev->flow_db->rdma_transport_rx[i] =
-			kcalloc(dev->num_ports,
-				sizeof(struct mlx5_ib_flow_prio), GFP_KERNEL);
+			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports);
 		if (!dev->flow_db->rdma_transport_rx[i])
 			goto free_rdma_transport_rx;
 	}
 
 	for (j = 0; j < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; j++) {
 		dev->flow_db->rdma_transport_tx[j] =
-			kcalloc(dev->num_ports,
-				sizeof(struct mlx5_ib_flow_prio), GFP_KERNEL);
+			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports);
 		if (!dev->flow_db->rdma_transport_tx[j])
 			goto free_rdma_transport_tx;
 	}

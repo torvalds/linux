@@ -247,7 +247,7 @@ gm200_acr_hsfw_ctor(struct nvkm_acr *acr, const char *bl, const char *fw, const 
 {
 	struct nvkm_acr_hsfw *hsfw;
 
-	if (!(hsfw = kzalloc(sizeof(*hsfw), GFP_KERNEL)))
+	if (!(hsfw = kzalloc_obj(*hsfw)))
 		return -ENOMEM;
 
 	hsfw->falcon_id = fwif->falcon_id;

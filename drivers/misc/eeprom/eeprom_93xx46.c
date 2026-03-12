@@ -45,6 +45,7 @@ struct eeprom_93xx46_platform_data {
 #define OP_START	0x4
 #define OP_WRITE	(OP_START | 0x1)
 #define OP_READ		(OP_START | 0x2)
+/* The following addresses are offset for the 1K EEPROM variant in 16-bit mode */
 #define ADDR_EWDS	0x00
 #define ADDR_ERAL	0x20
 #define ADDR_EWEN	0x30
@@ -191,10 +192,7 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 	bits = edev->addrlen + 3;
 
 	cmd_addr = OP_START << edev->addrlen;
-	if (edev->pdata->flags & EE_ADDR8)
-		cmd_addr |= (is_on ? ADDR_EWEN : ADDR_EWDS) << 1;
-	else
-		cmd_addr |= (is_on ? ADDR_EWEN : ADDR_EWDS);
+	cmd_addr |= (is_on ? ADDR_EWEN : ADDR_EWDS) << (edev->addrlen - 6);
 
 	if (has_quirk_instruction_length(edev)) {
 		cmd_addr <<= 2;
@@ -328,10 +326,7 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 	bits = edev->addrlen + 3;
 
 	cmd_addr = OP_START << edev->addrlen;
-	if (edev->pdata->flags & EE_ADDR8)
-		cmd_addr |= ADDR_ERAL << 1;
-	else
-		cmd_addr |= ADDR_ERAL;
+	cmd_addr |= ADDR_ERAL << (edev->addrlen - 6);
 
 	if (has_quirk_instruction_length(edev)) {
 		cmd_addr <<= 2;

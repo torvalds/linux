@@ -898,7 +898,7 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		return TCM_PARAMETER_LIST_LENGTH_ERROR;
 	}
 
-	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
+	xop = kzalloc_obj(struct xcopy_op);
 	if (!xop)
 		goto err;
 	xop->xop_se_cmd = se_cmd;

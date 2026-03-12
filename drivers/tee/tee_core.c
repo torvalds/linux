@@ -51,7 +51,7 @@ struct tee_context *teedev_open(struct tee_device *teedev)
 	if (!tee_device_get(teedev))
 		return ERR_PTR(-EINVAL);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto err;
@@ -560,8 +560,7 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kcalloc(arg.num_params, sizeof(struct tee_param),
-				 GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;
@@ -638,8 +637,7 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kcalloc(arg.num_params, sizeof(struct tee_param),
-				 GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;
@@ -699,8 +697,7 @@ static int tee_ioctl_object_invoke(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kcalloc(arg.num_params, sizeof(struct tee_param),
-				 GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;
@@ -844,7 +841,7 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 	if (size_add(sizeof(*uarg), TEE_IOCTL_PARAM_SIZE(num_params)) != buf.buf_len)
 		return -EINVAL;
 
-	params = kcalloc(num_params, sizeof(struct tee_param), GFP_KERNEL);
+	params = kzalloc_objs(struct tee_param, num_params);
 	if (!params)
 		return -ENOMEM;
 
@@ -958,7 +955,7 @@ static int tee_ioctl_supp_send(struct tee_context *ctx,
 	if (size_add(sizeof(*uarg), TEE_IOCTL_PARAM_SIZE(num_params)) > buf.buf_len)
 		return -EINVAL;
 
-	params = kcalloc(num_params, sizeof(struct tee_param), GFP_KERNEL);
+	params = kzalloc_objs(struct tee_param, num_params);
 	if (!params)
 		return -ENOMEM;
 
@@ -1052,7 +1049,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	    !teedesc->ops->release)
 		return ERR_PTR(-EINVAL);
 
-	teedev = kzalloc(sizeof(*teedev), GFP_KERNEL);
+	teedev = kzalloc_obj(*teedev);
 	if (!teedev) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err;
@@ -1146,7 +1143,56 @@ static struct attribute *tee_dev_attrs[] = {
 	NULL
 };
 
-ATTRIBUTE_GROUPS(tee_dev);
+static const struct attribute_group tee_dev_group = {
+	.attrs = tee_dev_attrs,
+};
+
+static ssize_t revision_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct tee_device *teedev = container_of(dev, struct tee_device, dev);
+	char version[TEE_REVISION_STR_SIZE];
+	int ret;
+
+	if (!teedev->desc->ops->get_tee_revision)
+		return -ENODEV;
+
+	ret = teedev->desc->ops->get_tee_revision(teedev, version,
+						  sizeof(version));
+	if (ret)
+		return ret;
+
+	return sysfs_emit(buf, "%s\n", version);
+}
+static DEVICE_ATTR_RO(revision);
+
+static struct attribute *tee_revision_attrs[] = {
+	&dev_attr_revision.attr,
+	NULL
+};
+
+static umode_t tee_revision_attr_is_visible(struct kobject *kobj,
+					    struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct tee_device *teedev = container_of(dev, struct tee_device, dev);
+
+	if (teedev->desc->ops->get_tee_revision)
+		return attr->mode;
+
+	return 0;
+}
+
+static const struct attribute_group tee_revision_group = {
+	.attrs = tee_revision_attrs,
+	.is_visible = tee_revision_attr_is_visible,
+};
+
+static const struct attribute_group *tee_dev_groups[] = {
+	&tee_dev_group,
+	&tee_revision_group,
+	NULL
+};
 
 static const struct class tee_class = {
 	.name = "tee",
@@ -1398,12 +1444,96 @@ static int tee_client_device_uevent(const struct device *dev,
 	return add_uevent_var(env, "MODALIAS=tee:%pUb", dev_id);
 }
 
+static int tee_client_device_probe(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (drv->probe)
+		return drv->probe(tcdev);
+	else
+		return 0;
+}
+
+static void tee_client_device_remove(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (drv->remove)
+		drv->remove(tcdev);
+}
+
+static void tee_client_device_shutdown(struct device *dev)
+{
+	struct tee_client_device *tcdev = to_tee_client_device(dev);
+	struct tee_client_driver *drv = to_tee_client_driver(dev->driver);
+
+	if (dev->driver && drv->shutdown)
+		drv->shutdown(tcdev);
+}
+
 const struct bus_type tee_bus_type = {
 	.name		= "tee",
 	.match		= tee_client_device_match,
 	.uevent		= tee_client_device_uevent,
+	.probe		= tee_client_device_probe,
+	.remove		= tee_client_device_remove,
+	.shutdown	= tee_client_device_shutdown,
 };
 EXPORT_SYMBOL_GPL(tee_bus_type);
+
+static int tee_client_device_probe_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	return driver->probe(dev);
+}
+
+static void tee_client_device_remove_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	driver->remove(dev);
+}
+
+static void tee_client_device_shutdown_legacy(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+	struct device_driver *driver = dev->driver;
+
+	driver->shutdown(dev);
+}
+
+int __tee_client_driver_register(struct tee_client_driver *tee_driver,
+				 struct module *owner)
+{
+	tee_driver->driver.owner = owner;
+	tee_driver->driver.bus = &tee_bus_type;
+
+	/*
+	 * Drivers that have callbacks set for tee_driver->driver need updating
+	 * to use the callbacks in tee_driver instead. driver_register() warns
+	 * about that, so no need to warn here, too.
+	 */
+	if (!tee_driver->probe && tee_driver->driver.probe)
+		tee_driver->probe = tee_client_device_probe_legacy;
+	if (!tee_driver->remove && tee_driver->driver.remove)
+		tee_driver->remove = tee_client_device_remove_legacy;
+	if (!tee_driver->shutdown && tee_driver->driver.probe)
+		tee_driver->shutdown = tee_client_device_shutdown_legacy;
+
+	return driver_register(&tee_driver->driver);
+}
+EXPORT_SYMBOL_GPL(__tee_client_driver_register);
+
+void tee_client_driver_unregister(struct tee_client_driver *tee_driver)
+{
+	driver_unregister(&tee_driver->driver);
+}
+EXPORT_SYMBOL_GPL(tee_client_driver_unregister);
 
 static int __init tee_init(void)
 {

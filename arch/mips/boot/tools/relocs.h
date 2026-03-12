@@ -29,6 +29,13 @@ void die(char *fmt, ...);
 #define R_MIPS_PC26_S2		61
 #endif
 
+/*
+ * GNU extension that available in glibc only since 2023, not available on musl.
+ */
+#ifndef R_MIPS_PC32
+#define R_MIPS_PC32		248
+#endif
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 enum symtype {

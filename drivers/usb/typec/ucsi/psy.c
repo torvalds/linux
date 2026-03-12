@@ -112,15 +112,20 @@ static int ucsi_psy_get_voltage_max(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
 	u32 pdo;
+	int max_voltage = 0;
 
 	switch (UCSI_CONSTAT(con, PWR_OPMODE)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
-		if (con->num_pdos > 0) {
-			pdo = con->src_pdos[con->num_pdos - 1];
-			val->intval = pdo_fixed_voltage(pdo) * 1000;
-		} else {
-			val->intval = 0;
+		for (int i = 0; i < con->num_pdos; i++) {
+			int pdo_voltage = 0;
+
+			pdo = con->src_pdos[i];
+			if (pdo_type(pdo) == PDO_TYPE_FIXED)
+				pdo_voltage = pdo_fixed_voltage(pdo) * 1000;
+			max_voltage = (pdo_voltage > max_voltage) ? pdo_voltage
+								  : max_voltage;
 		}
+		val->intval = max_voltage;
 		break;
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0:
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
@@ -168,6 +173,7 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
 	u32 pdo;
+	int max_current = 0;
 
 	if (!UCSI_CONSTAT(con, CONNECTED)) {
 		val->intval = 0;
@@ -176,12 +182,16 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 
 	switch (UCSI_CONSTAT(con, PWR_OPMODE)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
-		if (con->num_pdos > 0) {
-			pdo = con->src_pdos[con->num_pdos - 1];
-			val->intval = pdo_max_current(pdo) * 1000;
-		} else {
-			val->intval = 0;
+		for (int i = 0; i < con->num_pdos; i++) {
+			int pdo_current = 0;
+
+			pdo = con->src_pdos[i];
+			if (pdo_type(pdo) == PDO_TYPE_FIXED)
+				pdo_current = pdo_max_current(pdo) * 1000;
+			max_current = (pdo_current > max_current) ? pdo_current
+								  : max_current;
 		}
+		val->intval = max_current;
 		break;
 	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
 		val->intval = UCSI_TYPEC_1_5_CURRENT * 1000;
@@ -202,10 +212,28 @@ static int ucsi_psy_get_current_max(struct ucsi_connector *con,
 static int ucsi_psy_get_current_now(struct ucsi_connector *con,
 				    union power_supply_propval *val)
 {
-	if (UCSI_CONSTAT(con, PWR_OPMODE) == UCSI_CONSTAT_PWR_OPMODE_PD)
-		val->intval = rdo_op_current(con->rdo) * 1000;
-	else
+	if (!UCSI_CONSTAT(con, CONNECTED)) {
 		val->intval = 0;
+		return 0;
+	}
+
+	switch (UCSI_CONSTAT(con, PWR_OPMODE)) {
+	case UCSI_CONSTAT_PWR_OPMODE_PD:
+		val->intval = rdo_op_current(con->rdo) * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_TYPEC1_5:
+		val->intval = UCSI_TYPEC_1_5_CURRENT * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_TYPEC3_0:
+		val->intval = UCSI_TYPEC_3_0_CURRENT * 1000;
+		break;
+	case UCSI_CONSTAT_PWR_OPMODE_BC:
+	case UCSI_CONSTAT_PWR_OPMODE_DEFAULT:
+	/* UCSI can't tell b/w DCP/CDP or USB2/3x1/3x2 SDP chargers */
+	default:
+		val->intval = UCSI_TYPEC_DEFAULT_CURRENT * 1000;
+		break;
+	}
 	return 0;
 }
 

@@ -91,7 +91,7 @@ static int wl_add(struct acpi_device *device)
 	struct wl_button *button;
 	int err;
 
-	button = kzalloc(sizeof(struct wl_button), GFP_KERNEL);
+	button = kzalloc_obj(struct wl_button);
 	if (!button)
 		return -ENOMEM;
 

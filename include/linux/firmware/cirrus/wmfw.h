@@ -172,7 +172,7 @@ struct wmfw_coeff_item {
 	__le16 type;
 	__le32 id;
 	__le32 ver;
-	__le32 sr;
+	__le32 offset32;
 	__le32 len;
 	u8 data[];
 } __packed;
@@ -199,5 +199,10 @@ struct wmfw_coeff_item {
 #define WMFW_HALO_PM_PACKED 0x10
 #define WMFW_HALO_XM_PACKED 0x11
 #define WMFW_HALO_YM_PACKED 0x12
+
+#define WMFW_ADSP2_XM_LONG	 0xf405
+#define WMFW_ADSP2_YM_LONG	 0xf406
+#define WMFW_HALO_XM_PACKED_LONG 0xf411
+#define WMFW_HALO_YM_PACKED_LONG 0xf412
 
 #endif

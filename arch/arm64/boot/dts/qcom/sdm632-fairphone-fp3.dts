@@ -36,6 +36,42 @@
 		};
 	};
 
+	vreg_cam_af_2p85: regulator-cam-af-2p85 {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_af_2p85";
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+
+		gpio = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vph_pwr>;
+	};
+
+	vreg_cam_io_1p8: regulator-cam-io-1p8 {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_io_1p8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 130 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vph_pwr>;
+	};
+
+	vreg_cam2_dig_1p2: regulator-cam2-dig-1p2 {
+		compatible = "regulator-fixed";
+		regulator-name = "cam2_dig_1p2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+
+		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vph_pwr>;
+	};
+
 	/* Dummy regulator until PMI632 has LCDB VSP/VSN support */
 	lcdb_dummy: regulator-lcdb-dummy {
 		compatible = "regulator-fixed";
@@ -50,6 +86,27 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+};
+
+&cci {
+	status = "okay";
+};
+
+&cci_i2c0 {
+	/* Sony IMX363 (rear) @ 0x10 */
+
+	eeprom@50 {
+		compatible = "belling,bl24s64", "atmel,24c64";
+		reg = <0x50>;
+		vcc-supply = <&vreg_cam_io_1p8>;
+		read-only;
+	};
+
+	/* ON Semi LC898217 VCM @ 0x72 */
+};
+
+&cci_i2c1 {
+	/* Samsung S5K4H7YX (front) @ 0x10 */
 };
 
 &gpu {

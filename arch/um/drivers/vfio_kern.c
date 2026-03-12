@@ -107,7 +107,7 @@ static int uml_vfio_open_group(int group_id)
 		}
 	}
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return -ENOMEM;
 
@@ -514,9 +514,8 @@ static void uml_vfio_open_device(struct uml_vfio_device *dev)
 		goto teardown_udev;
 	}
 
-	dev->intr_ctx = kmalloc_array(dev->udev.irq_count,
-				      sizeof(struct uml_vfio_intr_ctx),
-				      GFP_KERNEL);
+	dev->intr_ctx = kmalloc_objs(struct uml_vfio_intr_ctx,
+				     dev->udev.irq_count);
 	if (!dev->intr_ctx) {
 		pr_err("Failed to allocate interrupt context (%s)\n",
 		       dev->name);
@@ -600,7 +599,7 @@ static struct uml_vfio_device *uml_vfio_add_device(const char *device)
 	if (uml_vfio_find_device(device))
 		return ERR_PTR(-EEXIST);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

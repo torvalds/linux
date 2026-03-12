@@ -504,15 +504,15 @@ static u32 vsc8584_macsec_flow_context_id(struct macsec_flow *flow)
 static int vsc8584_macsec_derive_key(const u8 *key, u16 key_len, u8 hkey[16])
 {
 	const u8 input[AES_BLOCK_SIZE] = {0};
-	struct crypto_aes_ctx ctx;
+	struct aes_enckey aes;
 	int ret;
 
-	ret = aes_expandkey(&ctx, key, key_len);
+	ret = aes_prepareenckey(&aes, key, key_len);
 	if (ret)
 		return ret;
 
-	aes_encrypt(&ctx, hkey, input);
-	memzero_explicit(&ctx, sizeof(ctx));
+	aes_encrypt(&aes, hkey, input);
+	memzero_explicit(&aes, sizeof(aes));
 	return 0;
 }
 
@@ -610,7 +610,7 @@ static struct macsec_flow *vsc8584_macsec_alloc_flow(struct vsc8531_private *pri
 	if (index == MSCC_MS_MAX_FLOWS)
 		return ERR_PTR(-ENOMEM);
 
-	flow = kzalloc(sizeof(*flow), GFP_KERNEL);
+	flow = kzalloc_obj(*flow);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 

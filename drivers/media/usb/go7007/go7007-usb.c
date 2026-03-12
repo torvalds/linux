@@ -1115,7 +1115,7 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	if (go == NULL)
 		return -ENOMEM;
 
-	usb = kzalloc(sizeof(struct go7007_usb), GFP_KERNEL);
+	usb = kzalloc_obj(struct go7007_usb);
 	if (usb == NULL) {
 		kfree(go);
 		return -ENOMEM;

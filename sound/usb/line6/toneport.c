@@ -363,7 +363,7 @@ static int toneport_setup(struct usb_line6_toneport *toneport)
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
 
-	ticks = kmalloc(sizeof(*ticks), GFP_KERNEL);
+	ticks = kmalloc_obj(*ticks);
 	if (!ticks)
 		return -ENOMEM;
 

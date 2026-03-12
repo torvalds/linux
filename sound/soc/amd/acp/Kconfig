@@ -15,7 +15,13 @@ config SND_SOC_AMD_ACP_COMMON
 
 config SND_SOC_ACPI_AMD_MATCH
 	tristate
-	select SND_SOC_ACPI if ACPI
+        select SND_SOC_ACPI_AMD_SDCA_QUIRKS if SND_SOC_SDCA
+        select SND_SOC_ACPI if ACPI
+
+config SND_SOC_ACPI_AMD_SDCA_QUIRKS
+	tristate
+	depends on ACPI
+	depends on SND_SOC_SDCA
 
 if SND_SOC_AMD_ACP_COMMON
 
@@ -104,7 +110,6 @@ config SND_AMD_ASOC_ACP70
 config SND_SOC_AMD_MACH_COMMON
 	tristate
 	depends on X86 && PCI && I2C
-	select CLK_FIXED_FCH
 	select SND_SOC_RT5682_I2C
 	select SND_SOC_DMIC
 	select SND_SOC_RT1019

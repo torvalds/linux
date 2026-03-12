@@ -893,7 +893,8 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	if (pagecount <= ARRAY_SIZE(pg_array->page_array))
 		pg_array->pagevec = pg_array->page_array;
 	else {
-		pg_array->pagevec = kcalloc(pagecount, sizeof(struct page *), gfp_flags);
+		pg_array->pagevec = kzalloc_objs(struct page *, pagecount,
+						 gfp_flags);
 		if (!pg_array->pagevec) {
 			pg_array->npages = 0;
 			nfs_pgio_error(hdr);
@@ -991,7 +992,7 @@ nfs_pageio_alloc_mirrors(struct nfs_pageio_descriptor *desc,
 	desc->pg_mirrors_dynamic = NULL;
 	if (mirror_count == 1)
 		return desc->pg_mirrors_static;
-	ret = kmalloc_array(mirror_count, sizeof(*ret), nfs_io_gfp_mask());
+	ret = kmalloc_objs(*ret, mirror_count, nfs_io_gfp_mask());
 	if (ret != NULL) {
 		for (i = 0; i < mirror_count; i++)
 			nfs_pageio_mirror_init(&ret[i], desc->pg_bsize);

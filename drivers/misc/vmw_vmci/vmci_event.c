@@ -151,7 +151,7 @@ int vmci_event_subscribe(u32 event,
 		return VMCI_ERROR_INVALID_ARGS;
 	}
 
-	sub = kzalloc(sizeof(*sub), GFP_KERNEL);
+	sub = kzalloc_obj(*sub);
 	if (!sub)
 		return VMCI_ERROR_NO_MEM;
 

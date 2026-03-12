@@ -10,10 +10,3 @@ Contents:
 
    intel/ipw2100
    intel/ipw2200
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

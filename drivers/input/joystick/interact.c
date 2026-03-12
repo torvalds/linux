@@ -192,7 +192,7 @@ static int interact_connect(struct gameport *gameport, struct gameport_driver *d
 	int i, t;
 	int err;
 
-	interact = kzalloc(sizeof(*interact), GFP_KERNEL);
+	interact = kzalloc_obj(*interact);
 	input_dev = input_allocate_device();
 	if (!interact || !input_dev) {
 		err = -ENOMEM;

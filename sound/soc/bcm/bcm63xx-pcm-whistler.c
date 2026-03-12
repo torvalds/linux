@@ -48,7 +48,7 @@ static int bcm63xx_pcm_hw_params(struct snd_soc_component *component,
 	struct i2s_dma_desc *dma_desc;
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
-	dma_desc = kzalloc(sizeof(*dma_desc), GFP_NOWAIT);
+	dma_desc = kzalloc_obj(*dma_desc, GFP_NOWAIT);
 	if (!dma_desc)
 		return -ENOMEM;
 
@@ -210,7 +210,7 @@ static int bcm63xx_pcm_open(struct snd_soc_component *component,
 		goto out;
 
 	ret = -ENOMEM;
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		goto out;
 

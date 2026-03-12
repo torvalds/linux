@@ -98,7 +98,8 @@ dochelp:
 	@echo  '  cleandocs       - clean all generated files'
 	@echo
 	@echo  '  make SPHINXDIRS="s1 s2" [target] Generate only docs of folder s1, s2'
-	@echo  '  top level values for SPHINXDIRS are: $(_SPHINXDIRS)'
+	@echo  '  top level values for SPHINXDIRS are:'
+	@echo  '$(_SPHINXDIRS)' | fmt -s -w 75 -g 75 | sed 's/^/    /'
 	@echo  '  you may also use a subdirectory like SPHINXDIRS=userspace-api/media,'
 	@echo  '  provided that there is an index.rst file at the subdirectory.'
 	@echo

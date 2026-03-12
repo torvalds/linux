@@ -22,11 +22,11 @@ struct dpu_hw_wb_cfg {
 };
 
 /**
- *
  * struct dpu_hw_wb_ops : Interface to the wb hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
  *  @setup_outaddress: setup output address from the writeback job
  *  @setup_outformat: setup output format of writeback block from writeback job
+ *  @setup_roi:       setup ROI (Region of Interest) parameters
  *  @setup_qos_lut:   setup qos LUT for writeback block based on input
  *  @setup_cdp:       setup chroma down prefetch block for writeback block
  *  @setup_clk_force_ctrl: setup clock force control
@@ -61,7 +61,7 @@ struct dpu_hw_wb_ops {
  * struct dpu_hw_wb : WB driver object
  * @hw: block hardware details
  * @idx: hardware index number within type
- * @wb_hw_caps: hardware capabilities
+ * @caps: hardware capabilities
  * @ops: function pointers
  */
 struct dpu_hw_wb {

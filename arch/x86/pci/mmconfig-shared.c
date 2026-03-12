@@ -77,7 +77,7 @@ static struct pci_mmcfg_region *pci_mmconfig_alloc(int segment, int start,
 	if (addr == 0)
 		return NULL;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return NULL;
 

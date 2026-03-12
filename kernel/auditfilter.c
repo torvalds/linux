@@ -108,11 +108,11 @@ static inline struct audit_entry *audit_init_entry(u32 field_count)
 	struct audit_entry *entry;
 	struct audit_field *fields;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (unlikely(!entry))
 		return NULL;
 
-	fields = kcalloc(field_count, sizeof(*fields), GFP_KERNEL);
+	fields = kzalloc_objs(*fields, field_count);
 	if (unlikely(!fields)) {
 		kfree(entry);
 		return NULL;
@@ -638,7 +638,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 	void *bufp;
 	int i;
 
-	data = kzalloc(struct_size(data, buf, krule->buflen), GFP_KERNEL);
+	data = kzalloc_flex(*data, buf, krule->buflen);
 	if (unlikely(!data))
 		return NULL;
 
@@ -1180,7 +1180,7 @@ int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 	 * happen if we're actually running in the context of auditctl
 	 * trying to _send_ the stuff */
 
-	dest = kmalloc(sizeof(*dest), GFP_KERNEL);
+	dest = kmalloc_obj(*dest);
 	if (!dest)
 		return -ENOMEM;
 	dest->net = get_net(sock_net(NETLINK_CB(request_skb).sk));

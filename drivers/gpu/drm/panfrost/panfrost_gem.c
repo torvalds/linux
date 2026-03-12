@@ -35,7 +35,7 @@ void panfrost_gem_init(struct panfrost_device *pfdev)
 static void panfrost_gem_debugfs_bo_add(struct panfrost_device *pfdev,
 					struct panfrost_gem_object *bo)
 {
-	bo->debugfs.creator.tgid = current->group_leader->pid;
+	bo->debugfs.creator.tgid = current->tgid;
 	get_task_comm(bo->debugfs.creator.process_name, current->group_leader);
 
 	mutex_lock(&pfdev->debugfs.gems_lock);
@@ -175,7 +175,7 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
 	struct panfrost_gem_mapping *mapping;
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 
@@ -429,7 +429,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -702,7 +702,7 @@ static void panfrost_gem_debugfs_bo_print(struct panfrost_gem_object *bo,
 		   resident_size,
 		   drm_vma_node_start(&bo->base.base.vma_node));
 
-	if (bo->base.base.import_attach)
+	if (drm_gem_is_imported(&bo->base.base))
 		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_IMPORTED;
 	if (bo->base.base.dma_buf)
 		gem_state_flags |= PANFROST_DEBUGFS_GEM_STATE_FLAG_EXPORTED;

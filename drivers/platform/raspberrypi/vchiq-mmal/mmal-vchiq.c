@@ -190,7 +190,7 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 	int handle;
 
 	/* todo: should this be allocated from a pool to avoid kzalloc */
-	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
+	msg_context = kzalloc_obj(*msg_context);
 
 	if (!msg_context)
 		return ERR_PTR(-ENOMEM);
@@ -1898,7 +1898,7 @@ int vchiq_mmal_init(struct device *dev, struct vchiq_mmal_instance **out_instanc
 		goto err_shutdown_vchiq;
 	}
 
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 
 	if (!instance) {
 		err = -ENOMEM;

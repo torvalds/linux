@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched/isolation.h>
+#include <linux/hex.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -325,10 +326,16 @@ static int proc_do_dev_weight(const struct ctl_table *table, int write,
 static int proc_do_rss_key(const struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table fake_table;
 	char buf[NETDEV_RSS_KEY_LEN * 3];
+	struct ctl_table fake_table;
+	char *pos = buf;
 
-	snprintf(buf, sizeof(buf), "%*phC", NETDEV_RSS_KEY_LEN, netdev_rss_key);
+	for (int i = 0; i < NETDEV_RSS_KEY_LEN; i++) {
+		pos = hex_byte_pack(pos, netdev_rss_key[i]);
+		*pos++ = ':';
+	}
+	*(--pos) = 0;
+
 	fake_table.data = buf;
 	fake_table.maxlen = sizeof(buf);
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
@@ -425,6 +432,13 @@ static struct ctl_table net_core_table[] = {
 	{
 		.procname	= "netdev_max_backlog",
 		.data		= &net_hotdata.max_backlog,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "qdisc_max_burst",
+		.data		= &net_hotdata.qdisc_max_burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec

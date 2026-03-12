@@ -36,6 +36,7 @@ static int ublk_null_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 			.max_segments 		= 32,
 		},
 	};
+	ublk_set_integrity_params(ctx, &dev->tgt.params);
 
 	if (info->flags & UBLK_F_SUPPORT_ZERO_COPY)
 		dev->tgt.sq_depth = dev->tgt.cq_depth = 2 * info->queue_depth;
@@ -43,12 +44,12 @@ static int ublk_null_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 }
 
 static void __setup_nop_io(int tag, const struct ublksrv_io_desc *iod,
-		struct io_uring_sqe *sqe, int q_id)
+		struct io_uring_sqe *sqe, int q_id, unsigned buf_idx)
 {
 	unsigned ublk_op = ublksrv_get_op(iod);
 
 	io_uring_prep_nop(sqe);
-	sqe->buf_index = tag;
+	sqe->buf_index = buf_idx;
 	sqe->flags |= IOSQE_FIXED_FILE;
 	sqe->rw_flags = IORING_NOP_FIXED_BUFFER | IORING_NOP_INJECT_RESULT;
 	sqe->len = iod->nr_sectors << 9; 	/* injected result */
@@ -60,18 +61,19 @@ static int null_queue_zc_io(struct ublk_thread *t, struct ublk_queue *q,
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	struct io_uring_sqe *sqe[3];
+	unsigned short buf_idx = ublk_io_buf_idx(t, q, tag);
 
 	ublk_io_alloc_sqes(t, sqe, 3);
 
-	io_uring_prep_buf_register(sqe[0], q, tag, q->q_id, ublk_get_io(q, tag)->buf_index);
+	io_uring_prep_buf_register(sqe[0], q, tag, q->q_id, buf_idx);
 	sqe[0]->user_data = build_user_data(tag,
 			ublk_cmd_op_nr(sqe[0]->cmd_op), 0, q->q_id, 1);
 	sqe[0]->flags |= IOSQE_CQE_SKIP_SUCCESS | IOSQE_IO_HARDLINK;
 
-	__setup_nop_io(tag, iod, sqe[1], q->q_id);
+	__setup_nop_io(tag, iod, sqe[1], q->q_id, buf_idx);
 	sqe[1]->flags |= IOSQE_IO_HARDLINK;
 
-	io_uring_prep_buf_unregister(sqe[2], q, tag, q->q_id, ublk_get_io(q, tag)->buf_index);
+	io_uring_prep_buf_unregister(sqe[2], q, tag, q->q_id, buf_idx);
 	sqe[2]->user_data = build_user_data(tag, ublk_cmd_op_nr(sqe[2]->cmd_op), 0, q->q_id, 1);
 
 	// buf register is marked as IOSQE_CQE_SKIP_SUCCESS
@@ -85,7 +87,7 @@ static int null_queue_auto_zc_io(struct ublk_thread *t, struct ublk_queue *q,
 	struct io_uring_sqe *sqe[1];
 
 	ublk_io_alloc_sqes(t, sqe, 1);
-	__setup_nop_io(tag, iod, sqe[0], q->q_id);
+	__setup_nop_io(tag, iod, sqe[0], q->q_id, ublk_io_buf_idx(t, q, tag));
 	return 1;
 }
 
@@ -136,11 +138,12 @@ static int ublk_null_queue_io(struct ublk_thread *t, struct ublk_queue *q,
  * return invalid buffer index for triggering auto buffer register failure,
  * then UBLK_IO_RES_NEED_REG_BUF handling is covered
  */
-static unsigned short ublk_null_buf_index(const struct ublk_queue *q, int tag)
+static unsigned short ublk_null_buf_index(const struct ublk_thread *t,
+		const struct ublk_queue *q, int tag)
 {
 	if (ublk_queue_auto_zc_fallback(q))
 		return (unsigned short)-1;
-	return q->ios[tag].buf_index;
+	return ublk_io_buf_idx(t, q, tag);
 }
 
 const struct ublk_tgt_ops null_tgt_ops = {

@@ -826,12 +826,8 @@ static int dpu_plane_atomic_check_nosspp(struct drm_plane *plane,
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_plane_state);
 	struct dpu_sw_pipe_cfg *pipe_cfg;
 	struct dpu_sw_pipe_cfg *r_pipe_cfg;
-	struct dpu_sw_pipe_cfg init_pipe_cfg;
 	struct drm_rect fb_rect = { 0 };
-	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	uint32_t max_linewidth;
-	u32 num_lm;
-	int stage_id, num_stages;
 
 	min_scale = FRAC_16_16(1, MAX_UPSCALE_RATIO);
 	max_scale = MAX_DOWNSCALE_RATIO << 16;
@@ -854,10 +850,13 @@ static int dpu_plane_atomic_check_nosspp(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	num_lm = dpu_crtc_get_num_lm(crtc_state);
-
+	/* move the assignment here, to ease handling to another pairs later */
+	pipe_cfg = &pstate->pipe_cfg[0];
+	r_pipe_cfg = &pstate->pipe_cfg[1];
 	/* state->src is 16.16, src_rect is not */
-	drm_rect_fp_to_int(&init_pipe_cfg.src_rect, &new_plane_state->src);
+	drm_rect_fp_to_int(&pipe_cfg->src_rect, &new_plane_state->src);
+
+	pipe_cfg->dst_rect = new_plane_state->dst;
 
 	fb_rect.x2 = new_plane_state->fb->width;
 	fb_rect.y2 = new_plane_state->fb->height;
@@ -882,93 +881,34 @@ static int dpu_plane_atomic_check_nosspp(struct drm_plane *plane,
 
 	max_linewidth = pdpu->catalog->caps->max_linewidth;
 
-	drm_rect_rotate(&init_pipe_cfg.src_rect,
+	drm_rect_rotate(&pipe_cfg->src_rect,
 			new_plane_state->fb->width, new_plane_state->fb->height,
 			new_plane_state->rotation);
 
-	/*
-	 * We have 1 mixer pair cfg for 1:1:1 and 2:2:1 topology, 2 mixer pair
-	 * configs for left and right half screen in case of 4:4:2 topology.
-	 * But we may have 2 rect to split wide plane that exceeds limit with 1
-	 * config for 2:2:1. So need to handle both wide plane splitting, and
-	 * two halves of screen splitting for quad-pipe case. Check dest
-	 * rectangle left/right clipping first, then check wide rectangle
-	 * splitting in every half next.
-	 */
-	num_stages = (num_lm + 1) / 2;
-	/* iterate mixer configs for this plane, to separate left/right with the id */
-	for (stage_id = 0; stage_id < num_stages; stage_id++) {
-		struct drm_rect mixer_rect = {
-			.x1 = stage_id * mode->hdisplay / num_stages,
-			.y1 = 0,
-			.x2 = (stage_id + 1) * mode->hdisplay / num_stages,
-			.y2 = mode->vdisplay
-			};
-		int cfg_idx = stage_id * PIPES_PER_STAGE;
-
-		pipe_cfg = &pstate->pipe_cfg[cfg_idx];
-		r_pipe_cfg = &pstate->pipe_cfg[cfg_idx + 1];
-
-		drm_rect_fp_to_int(&pipe_cfg->src_rect, &new_plane_state->src);
-		pipe_cfg->dst_rect = new_plane_state->dst;
-
-		DPU_DEBUG_PLANE(pdpu, "checking src " DRM_RECT_FMT
-				" vs clip window " DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&pipe_cfg->src_rect),
-				DRM_RECT_ARG(&mixer_rect));
-
-		/*
-		 * If this plane does not fall into mixer rect, check next
-		 * mixer rect.
-		 */
-		if (!drm_rect_clip_scaled(&pipe_cfg->src_rect,
-					  &pipe_cfg->dst_rect,
-					  &mixer_rect)) {
-			memset(pipe_cfg, 0, 2 * sizeof(struct dpu_sw_pipe_cfg));
-
-			continue;
+	if ((drm_rect_width(&pipe_cfg->src_rect) > max_linewidth) ||
+	     _dpu_plane_calc_clk(&crtc_state->adjusted_mode, pipe_cfg) > max_mdp_clk_rate) {
+		if (drm_rect_width(&pipe_cfg->src_rect) > 2 * max_linewidth) {
+			DPU_DEBUG_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u\n",
+					DRM_RECT_ARG(&pipe_cfg->src_rect), max_linewidth);
+			return -E2BIG;
 		}
 
-		pipe_cfg->dst_rect.x1 -= mixer_rect.x1;
-		pipe_cfg->dst_rect.x2 -= mixer_rect.x1;
-
-		DPU_DEBUG_PLANE(pdpu, "Got clip src:" DRM_RECT_FMT " dst: " DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&pipe_cfg->src_rect), DRM_RECT_ARG(&pipe_cfg->dst_rect));
-
-		/* Split wide rect into 2 rect */
-		if ((drm_rect_width(&pipe_cfg->src_rect) > max_linewidth) ||
-		     _dpu_plane_calc_clk(mode, pipe_cfg) > max_mdp_clk_rate) {
-
-			if (drm_rect_width(&pipe_cfg->src_rect) > 2 * max_linewidth) {
-				DPU_DEBUG_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u\n",
-						DRM_RECT_ARG(&pipe_cfg->src_rect), max_linewidth);
-				return -E2BIG;
-			}
-
-			memcpy(r_pipe_cfg, pipe_cfg, sizeof(struct dpu_sw_pipe_cfg));
-			pipe_cfg->src_rect.x2 = (pipe_cfg->src_rect.x1 + pipe_cfg->src_rect.x2) >> 1;
-			pipe_cfg->dst_rect.x2 = (pipe_cfg->dst_rect.x1 + pipe_cfg->dst_rect.x2) >> 1;
-			r_pipe_cfg->src_rect.x1 = pipe_cfg->src_rect.x2;
-			r_pipe_cfg->dst_rect.x1 = pipe_cfg->dst_rect.x2;
-			DPU_DEBUG_PLANE(pdpu, "Split wide plane into:"
-					DRM_RECT_FMT " and " DRM_RECT_FMT "\n",
-					DRM_RECT_ARG(&pipe_cfg->src_rect),
-					DRM_RECT_ARG(&r_pipe_cfg->src_rect));
-		} else {
-			memset(r_pipe_cfg, 0, sizeof(struct dpu_sw_pipe_cfg));
-		}
-
-		drm_rect_rotate_inv(&pipe_cfg->src_rect,
-				    new_plane_state->fb->width,
-				    new_plane_state->fb->height,
-				    new_plane_state->rotation);
-
-		if (drm_rect_width(&r_pipe_cfg->src_rect) != 0)
-			drm_rect_rotate_inv(&r_pipe_cfg->src_rect,
-					    new_plane_state->fb->width,
-					    new_plane_state->fb->height,
-					    new_plane_state->rotation);
+		*r_pipe_cfg = *pipe_cfg;
+		pipe_cfg->src_rect.x2 = (pipe_cfg->src_rect.x1 + pipe_cfg->src_rect.x2) >> 1;
+		pipe_cfg->dst_rect.x2 = (pipe_cfg->dst_rect.x1 + pipe_cfg->dst_rect.x2) >> 1;
+		r_pipe_cfg->src_rect.x1 = pipe_cfg->src_rect.x2;
+		r_pipe_cfg->dst_rect.x1 = pipe_cfg->dst_rect.x2;
+	} else {
+		memset(r_pipe_cfg, 0, sizeof(*r_pipe_cfg));
 	}
+
+	drm_rect_rotate_inv(&pipe_cfg->src_rect,
+			    new_plane_state->fb->width, new_plane_state->fb->height,
+			    new_plane_state->rotation);
+	if (drm_rect_width(&r_pipe_cfg->src_rect) != 0)
+		drm_rect_rotate_inv(&r_pipe_cfg->src_rect,
+				    new_plane_state->fb->width, new_plane_state->fb->height,
+				    new_plane_state->rotation);
 
 	pstate->needs_qos_remap = drm_atomic_crtc_needs_modeset(crtc_state);
 
@@ -1045,17 +985,20 @@ static int dpu_plane_atomic_check_sspp(struct drm_plane *plane,
 		drm_atomic_get_new_plane_state(state, plane);
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_plane_state);
-	struct dpu_sw_pipe *pipe;
-	struct dpu_sw_pipe_cfg *pipe_cfg;
-	int ret = 0, i;
+	struct dpu_sw_pipe *pipe = &pstate->pipe[0];
+	struct dpu_sw_pipe *r_pipe = &pstate->pipe[1];
+	struct dpu_sw_pipe_cfg *pipe_cfg = &pstate->pipe_cfg[0];
+	struct dpu_sw_pipe_cfg *r_pipe_cfg = &pstate->pipe_cfg[1];
+	int ret = 0;
 
-	for (i = 0; i < PIPES_PER_PLANE; i++) {
-		pipe = &pstate->pipe[i];
-		pipe_cfg = &pstate->pipe_cfg[i];
-		if (!drm_rect_width(&pipe_cfg->src_rect))
-			continue;
-		DPU_DEBUG_PLANE(pdpu, "pipe %d is in use, validate it\n", i);
-		ret = dpu_plane_atomic_check_pipe(pdpu, pipe, pipe_cfg,
+	ret = dpu_plane_atomic_check_pipe(pdpu, pipe, pipe_cfg,
+					  &crtc_state->adjusted_mode,
+					  new_plane_state);
+	if (ret)
+		return ret;
+
+	if (drm_rect_width(&r_pipe_cfg->src_rect) != 0) {
+		ret = dpu_plane_atomic_check_pipe(pdpu, r_pipe, r_pipe_cfg,
 						  &crtc_state->adjusted_mode,
 						  new_plane_state);
 		if (ret)
@@ -1741,7 +1684,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
+	pstate = kzalloc_obj(*pstate);
 	if (!pstate) {
 		DPU_ERROR_PLANE(pdpu, "failed to allocate state\n");
 		return;

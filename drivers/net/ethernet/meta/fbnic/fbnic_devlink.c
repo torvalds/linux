@@ -178,7 +178,7 @@ fbnic_flash_start(struct fbnic_dev *fbd, struct pldmfw_component *component)
 		goto cmpl_free;
 
 	/* Wait for firmware to ack firmware upgrade start */
-	if (wait_for_completion_timeout(&cmpl->done, 10 * HZ))
+	if (fbnic_mbx_wait_for_cmpl(cmpl))
 		err = cmpl->result;
 	else
 		err = -ETIMEDOUT;
@@ -252,7 +252,7 @@ fbnic_flash_component(struct pldmfw *context,
 		goto err_no_msg;
 
 	while (offset < size) {
-		if (!wait_for_completion_timeout(&cmpl->done, 15 * HZ)) {
+		if (!fbnic_mbx_wait_for_cmpl(cmpl)) {
 			err = -ETIMEDOUT;
 			break;
 		}
@@ -390,7 +390,7 @@ static int fbnic_fw_reporter_dump(struct devlink_health_reporter *reporter,
 				   "Failed to transmit core dump info msg");
 		goto cmpl_free;
 	}
-	if (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+	if (!fbnic_mbx_wait_for_cmpl(fw_cmpl)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Timed out waiting on core dump info");
 		err = -ETIMEDOUT;
@@ -447,7 +447,7 @@ static int fbnic_fw_reporter_dump(struct devlink_health_reporter *reporter,
 				goto cmpl_cleanup;
 		}
 
-		if (wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+		if (fbnic_mbx_wait_for_cmpl(fw_cmpl)) {
 			reinit_completion(&fw_cmpl->done);
 		} else {
 			NL_SET_ERR_MSG_FMT_MOD(extack,

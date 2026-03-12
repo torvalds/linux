@@ -155,9 +155,7 @@ static int ionic_init_hw_stats(struct ionic_ibdev *dev)
 	dev->hw_stats_count = hw_stats_count;
 
 	/* alloc and init array of names, for alloc_hw_stats */
-	dev->hw_stats_hdrs = kcalloc(hw_stats_count,
-				     sizeof(*dev->hw_stats_hdrs),
-				     GFP_KERNEL);
+	dev->hw_stats_hdrs = kzalloc_objs(*dev->hw_stats_hdrs, hw_stats_count);
 	if (!dev->hw_stats_hdrs) {
 		rc = -ENOMEM;
 		goto err_dma;
@@ -241,7 +239,7 @@ ionic_counter_alloc_stats(struct rdma_counter *counter)
 	struct ionic_counter *cntr;
 	int err;
 
-	cntr = kzalloc(sizeof(*cntr), GFP_KERNEL);
+	cntr = kzalloc_obj(*cntr);
 	if (!cntr)
 		return NULL;
 
@@ -402,8 +400,7 @@ static int ionic_alloc_counters(struct ionic_ibdev *dev)
 	cs->queue_stats_count = hw_stats_count;
 
 	/* alloc and init array of names */
-	cs->stats_hdrs = kcalloc(hw_stats_count, sizeof(*cs->stats_hdrs),
-				 GFP_KERNEL);
+	cs->stats_hdrs = kzalloc_objs(*cs->stats_hdrs, hw_stats_count);
 	if (!cs->stats_hdrs) {
 		rc = -ENOMEM;
 		goto err_dma;
@@ -449,8 +446,7 @@ void ionic_stats_init(struct ionic_ibdev *dev)
 	}
 
 	if (stats_type & IONIC_LIF_RDMA_STAT_QP) {
-		dev->counter_stats = kzalloc(sizeof(*dev->counter_stats),
-					     GFP_KERNEL);
+		dev->counter_stats = kzalloc_obj(*dev->counter_stats);
 		if (!dev->counter_stats)
 			return;
 

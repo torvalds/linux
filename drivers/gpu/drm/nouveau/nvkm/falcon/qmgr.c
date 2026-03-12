@@ -73,7 +73,7 @@ nvkm_falcon_qmgr_new(struct nvkm_falcon *falcon,
 	struct nvkm_falcon_qmgr *qmgr;
 	int i;
 
-	if (!(qmgr = *pqmgr = kzalloc(sizeof(*qmgr), GFP_KERNEL)))
+	if (!(qmgr = *pqmgr = kzalloc_obj(*qmgr)))
 		return -ENOMEM;
 
 	qmgr->falcon = falcon;

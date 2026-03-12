@@ -2,7 +2,7 @@
 /*
  * Pinctrl GPIO driver for Intel Baytrail
  *
- * Copyright (c) 2012-2013, Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * Author: Mathias Nyman <mathias.nyman@linux.intel.com>
  */
 
@@ -101,10 +101,12 @@ struct intel_pad_context {
 	u32 val;
 };
 
-#define COMMUNITY(p, n, map)		\
+#define BYT_COMMUNITY(p, n, g, map)	\
 	{				\
 		.pin_base	= (p),	\
 		.npins		= (n),	\
+		.gpps = (g),		\
+		.ngpps = ARRAY_SIZE(g),	\
 		.pad_map	= (map),\
 	}
 
@@ -360,8 +362,15 @@ static const struct intel_function byt_score_functions[] = {
 	FUNCTION("gpio", byt_score_gpio_groups),
 };
 
+static const struct intel_padgroup byt_score_gpps[] = {
+	INTEL_GPP(0, 0, 31, 0),
+	INTEL_GPP(1, 32, 63, 32),
+	INTEL_GPP(2, 64, 95, 64),
+	INTEL_GPP(3, 96, 101, 96),
+};
+
 static const struct intel_community byt_score_communities[] = {
-	COMMUNITY(0, BYT_NGPIO_SCORE, byt_score_pins_map),
+	BYT_COMMUNITY(0, 102, byt_score_gpps, byt_score_pins_map),
 };
 
 static const struct intel_pinctrl_soc_data byt_score_soc_data = {
@@ -483,8 +492,13 @@ static const struct intel_function byt_sus_functions[] = {
 	FUNCTION("pmu_clk", byt_sus_pmu_clk_groups),
 };
 
+static const struct intel_padgroup byt_sus_gpps[] = {
+	INTEL_GPP(0, 0, 31, 0),
+	INTEL_GPP(1, 32, 43, 32),
+};
+
 static const struct intel_community byt_sus_communities[] = {
-	COMMUNITY(0, BYT_NGPIO_SUS, byt_sus_pins_map),
+	BYT_COMMUNITY(0, 44, byt_sus_gpps, byt_sus_pins_map),
 };
 
 static const struct intel_pinctrl_soc_data byt_sus_soc_data = {
@@ -536,8 +550,12 @@ static const unsigned int byt_ncore_pins_map[BYT_NGPIO_NCORE] = {
 	3, 6, 10, 13, 2, 5, 9, 7,
 };
 
+static const struct intel_padgroup byt_ncore_gpps[] = {
+	INTEL_GPP(0, 0, 27, 0),
+};
+
 static const struct intel_community byt_ncore_communities[] = {
-	COMMUNITY(0, BYT_NGPIO_NCORE, byt_ncore_pins_map),
+	BYT_COMMUNITY(0, 28, byt_ncore_gpps, byt_ncore_pins_map),
 };
 
 static const struct intel_pinctrl_soc_data byt_ncore_soc_data = {
@@ -1490,19 +1508,6 @@ static int byt_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
-static int byt_gpio_add_pin_ranges(struct gpio_chip *chip)
-{
-	struct intel_pinctrl *vg = gpiochip_get_data(chip);
-	struct device *dev = vg->dev;
-	int ret;
-
-	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, vg->soc->npins);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
-
-	return 0;
-}
-
 static int byt_gpio_probe(struct intel_pinctrl *vg)
 {
 	struct platform_device *pdev = to_platform_device(vg->dev);
@@ -1515,7 +1520,7 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 	gc->label	= dev_name(vg->dev);
 	gc->base	= -1;
 	gc->can_sleep	= false;
-	gc->add_pin_ranges = byt_gpio_add_pin_ranges;
+	gc->add_pin_ranges = intel_gpio_add_pin_ranges;
 	gc->parent	= vg->dev;
 	gc->ngpio	= vg->soc->npins;
 
@@ -1611,7 +1616,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 
 	vg->pctldev = devm_pinctrl_register(dev, &vg->pctldesc, vg);
 	if (IS_ERR(vg->pctldev))
-		return dev_err_probe(dev, PTR_ERR(vg->pctldev), "failed to register pinctrl\n");
+		return PTR_ERR(vg->pctldev);
 
 	ret = byt_gpio_probe(vg);
 	if (ret)

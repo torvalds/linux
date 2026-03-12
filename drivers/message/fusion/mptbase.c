@@ -1771,7 +1771,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct proc_dir_entry *dent;
 #endif
 
-	ioc = kzalloc(sizeof(MPT_ADAPTER), GFP_KERNEL);
+	ioc = kzalloc_obj(MPT_ADAPTER);
 	if (ioc == NULL) {
 		printk(KERN_ERR MYNAM ": ERROR - Insufficient memory to add adapter!\n");
 		return -ENOMEM;
@@ -5700,8 +5700,7 @@ mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
 		    buffer->PhysDisk[i].PhysDiskNum, &phys_disk) != 0)
 			continue;
 
-		if ((component_info = kmalloc(sizeof (*component_info),
-		 GFP_KERNEL)) == NULL)
+		if ((component_info = kmalloc_obj(*component_info)) == NULL)
 			continue;
 
 		component_info->volumeID = id;

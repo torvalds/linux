@@ -273,8 +273,8 @@ static bool ldm_validate_privheads(struct parsed_partitions *state,
 
 	BUG_ON (!state || !ph1);
 
-	ph[1] = kmalloc (sizeof (*ph[1]), GFP_KERNEL);
-	ph[2] = kmalloc (sizeof (*ph[2]), GFP_KERNEL);
+	ph[1] = kmalloc_obj(*ph[1]);
+	ph[2] = kmalloc_obj(*ph[2]);
 	if (!ph[1] || !ph[2]) {
 		ldm_crit ("Out of memory.");
 		goto out;
@@ -362,7 +362,7 @@ static bool ldm_validate_tocblocks(struct parsed_partitions *state,
 	BUG_ON(!state || !ldb);
 	ph = &ldb->ph;
 	tb[0] = &ldb->toc;
-	tb[1] = kmalloc_array(3, sizeof(*tb[1]), GFP_KERNEL);
+	tb[1] = kmalloc_objs(*tb[1], 3);
 	if (!tb[1]) {
 		ldm_crit("Out of memory.");
 		goto err;
@@ -1158,7 +1158,7 @@ static bool ldm_ldmdb_add (u8 *data, int len, struct ldmdb *ldb)
 
 	BUG_ON (!data || !ldb);
 
-	vb = kmalloc (sizeof (*vb), GFP_KERNEL);
+	vb = kmalloc_obj(*vb);
 	if (!vb) {
 		ldm_crit ("Out of memory.");
 		return false;
@@ -1438,7 +1438,7 @@ int ldm_partition(struct parsed_partitions *state)
 	if (!ldm_validate_partition_table(state))
 		return 0;
 
-	ldb = kmalloc (sizeof (*ldb), GFP_KERNEL);
+	ldb = kmalloc_obj(*ldb);
 	if (!ldb) {
 		ldm_crit ("Out of memory.");
 		goto out;

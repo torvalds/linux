@@ -183,7 +183,7 @@ static void test_polyval_preparekey_in_irqs(struct kunit *test)
 
 	rand_bytes(state.raw_key, sizeof(state.raw_key));
 	polyval_preparekey(&state.expected_key, state.raw_key);
-	kunit_run_irq_test(test, polyval_irq_test_func, 20000, &state);
+	kunit_run_irq_test(test, polyval_irq_test_func, 200000, &state);
 }
 
 static int polyval_suite_init(struct kunit_suite *suite)

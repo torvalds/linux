@@ -213,6 +213,10 @@ static inline void device_set_driver(struct device *dev, const struct device_dri
 	WRITE_ONCE(dev->driver, (struct device_driver *)drv);
 }
 
+void devres_for_each_res(struct device *dev, dr_release_t release,
+			 dr_match_t match, void *match_data,
+			 void (*fn)(struct device *, void *, void *),
+			 void *data);
 int devres_release_all(struct device *dev);
 void device_block_probing(void);
 void device_unblock_probing(void);
@@ -289,3 +293,12 @@ static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
 
 void software_node_notify(struct device *dev);
 void software_node_notify_remove(struct device *dev);
+
+#ifdef CONFIG_PINCTRL
+int pinctrl_bind_pins(struct device *dev);
+#else
+static inline int pinctrl_bind_pins(struct device *dev)
+{
+	return 0;
+}
+#endif /* CONFIG_PINCTRL */

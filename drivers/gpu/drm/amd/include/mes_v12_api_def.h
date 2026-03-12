@@ -71,6 +71,13 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_MAX = 0xFF
 };
 
+enum MES_RRMT_MODE {
+	MES_RRMT_MODE_LOCAL_XCD,
+	MES_RRMT_MODE_LOCAL_REMOTE_AID,
+	MES_RRMT_MODE_REMOTE_XCD,
+	MES_RRMT_MODE_REMOTE_MID
+};
+
 union MES_API_HEADER {
 	struct {
 		uint32_t type	  : 4; /* 0 - Invalid; 1 - Scheduling; 2 - TBD */
@@ -310,7 +317,8 @@ union MESAPI_SET_HW_RESOURCES_1 {
 		union {
 			struct {
 				uint32_t enable_mes_debug_ctx : 1;
-				uint32_t reserved : 31;
+				uint32_t mes_coop_mode : 1; /* 0: non-coop; 1: coop */
+				uint32_t reserved : 30;
 			};
 			uint32_t uint32_all;
 		};
@@ -318,7 +326,8 @@ union MESAPI_SET_HW_RESOURCES_1 {
 		uint32_t                            mes_debug_ctx_size;
 		/* unit is 100ms */
 		uint32_t                            mes_kiq_unmap_timeout;
-		uint64_t                            reserved1;
+		/* shared buffer of master/slaves, valid if mes_coop_mode=1 */
+		uint64_t                            coop_sch_shared_mc_addr;
 		uint64_t                            cleaner_shader_fence_mc_addr;
 	};
 
@@ -383,6 +392,7 @@ union MESAPI__ADD_QUEUE {
 		uint32_t		pipe_id;	//used for mapping legacy kernel queue
 		uint32_t		queue_id;
 		uint32_t		alignment_mode_setting;
+		uint32_t		full_sh_mem_config_data;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -482,8 +492,10 @@ union MESAPI__SUSPEND {
 		union MES_API_HEADER	header;
 		/* false - suspend all gangs; true - specific gang */
 		struct {
-			uint32_t	suspend_all_gangs : 1;
-			uint32_t	reserved : 31;
+			uint32_t      suspend_all_gangs : 1; // suspend all compute gangs (can be set together with suspend_all_sdma_gangs)
+			uint32_t      query_status : 1;
+			uint32_t      suspend_all_sdma_gangs : 1; // suspend all sdma gangs (can be set together with suspend_all_gangs)
+			uint32_t      reserved : 29;
 		};
 		/* gang_context_addr is valid only if suspend_all = false */
 
@@ -553,7 +565,26 @@ union MESAPI__RESET {
 		/* valid only if reset_queue_only = true */
 		uint32_t			doorbell_offset;
 
-		/* valid only if hang_detect_then_reset = true */
+		/*
+		 * valid only if hang_detect_then_reset or hang_detect_only = true
+		 * doorbell_offset_addr will store the structure as follows
+		 * struct
+		 * {
+		 *	uint32_t db_offset[list_size];
+		 *	uint32_t hqd_id[list_size];
+		 * }
+		 * The hqd_id has following defines :
+		 * struct
+		 * {
+		 *	uint32 queue_type : 3;  Type of the queue
+		 *	uint32 pipe_index : 4;  pipe Index
+		 *	uint32 hqd_index  : 8;  This is queue_index within the pipe
+		 *	uint32 reserved   : 17;
+		 * };
+		 * The list_size is the total queue numbers that been managed by mes.
+		 * It can be calculated from all hqd_masks(including gfX, compute and sdma)
+		 * on set_hw_resource API
+	         */
 		uint64_t			doorbell_offset_addr;
 		enum MES_QUEUE_TYPE		queue_type;
 
@@ -672,6 +703,7 @@ union MESAPI__SET_DEBUG_VMID {
 		uint32_t		process_context_array_index;
 
 		uint32_t		alignment_mode_setting;
+		uint32_t		full_sh_mem_config_data;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -696,9 +728,26 @@ enum MESAPI_MISC_OPCODE {
 
 enum {MISC_DATA_MAX_SIZE_IN_DWORDS = 20};
 
+/*
+ * RRMT(Register Remapping Table), allow the firmware to modify the upper
+ * address to correctly steer the register transaction to expected DIE
+ */
+struct RRMT_OPTION {
+	union {
+		struct {
+			uint32_t mode : 4;
+			uint32_t mid_die_id : 4;
+			uint32_t xcd_die_id : 4;
+		};
+		uint32_t all;
+	};
+};
+
+
 struct WRITE_REG {
-	uint32_t	reg_offset;
-	uint32_t	reg_value;
+	uint32_t                  reg_offset;
+	uint32_t                  reg_value;
+	struct RRMT_OPTION        rrmt_opt;
 };
 
 struct READ_REG {
@@ -711,6 +760,7 @@ struct READ_REG {
 		} bits;
 		uint32_t all;
 	} option;
+	struct RRMT_OPTION        rrmt_opt;
 };
 
 struct INV_GART {
@@ -736,6 +786,8 @@ struct WAIT_REG_MEM {
 	uint32_t mask;
 	uint32_t reg_offset1;
 	uint32_t reg_offset2;
+	struct RRMT_OPTION rrmt_opt1; /* for reg1 */
+	struct RRMT_OPTION rrmt_opt2; /* for reg2 */
 };
 
 struct SET_SHADER_DEBUGGER {
@@ -744,7 +796,8 @@ struct SET_SHADER_DEBUGGER {
 		struct {
 			uint32_t single_memop : 1; // SQ_DEBUG.single_memop
 			uint32_t single_alu_op : 1; // SQ_DEBUG.single_alu_op
-			uint32_t reserved : 30;
+			uint32_t lds_oor_reporting : 1; /* SQ_DEBUG.ADDR_OUT_OF_RANGE_REPORTING */
+			uint32_t reserved : 29;
 		};
 		uint32_t u32all;
 	} flags;

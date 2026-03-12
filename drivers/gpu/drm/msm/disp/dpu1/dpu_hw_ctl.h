@@ -12,9 +12,9 @@
 #include "dpu_hw_sspp.h"
 
 /**
- * dpu_ctl_mode_sel: Interface mode selection
- * DPU_CTL_MODE_SEL_VID:    Video mode interface
- * DPU_CTL_MODE_SEL_CMD:    Command mode interface
+ * enum dpu_ctl_mode_sel: Interface mode selection
+ * @DPU_CTL_MODE_SEL_VID:    Video mode interface
+ * @DPU_CTL_MODE_SEL_CMD:    Command mode interface
  */
 enum dpu_ctl_mode_sel {
 	DPU_CTL_MODE_SEL_VID = 0,
@@ -37,6 +37,7 @@ struct dpu_hw_stage_cfg {
  * struct dpu_hw_intf_cfg :Describes how the DPU writes data to output interface
  * @intf :                 Interface id
  * @intf_master:           Master interface id in the dual pipe topology
+ * @wb:                    Writeback mode
  * @mode_3d:               3d mux configuration
  * @merge_3d:              3d merge block used
  * @intf_mode_sel:         Interface mode, cmd / vid
@@ -64,21 +65,21 @@ struct dpu_hw_intf_cfg {
  */
 struct dpu_hw_ctl_ops {
 	/**
-	 * kickoff hw operation for Sw controlled interfaces
+	 * @trigger_start: kickoff hw operation for Sw controlled interfaces
 	 * DSI cmd mode and WB interface are SW controlled
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*trigger_start)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * check if the ctl is started
+	 * @is_started: check if the ctl is started
 	 * @ctx       : ctl path ctx pointer
 	 * @Return: true if started, false if stopped
 	 */
 	bool (*is_started)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * kickoff prepare is in progress hw operation for sw
+	 * @trigger_pending: kickoff prepare is in progress hw operation for sw
 	 * controlled interfaces: DSI cmd mode and WB interface
 	 * are SW controlled
 	 * @ctx       : ctl path ctx pointer
@@ -86,7 +87,7 @@ struct dpu_hw_ctl_ops {
 	void (*trigger_pending)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Clear the value of the cached pending_flush_mask
+	 * @clear_pending_flush: Clear the value of the cached pending_flush_mask
 	 * No effect on hardware.
 	 * Required to be implemented.
 	 * @ctx       : ctl path ctx pointer
@@ -94,14 +95,15 @@ struct dpu_hw_ctl_ops {
 	void (*clear_pending_flush)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Query the value of the cached pending_flush_mask
+	 * @get_pending_flush: Query the value of the cached pending_flush_mask
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
 	u32 (*get_pending_flush)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * OR in the given flushbits to the cached pending_flush_mask
+	 * @update_pending_flush: OR in the given flushbits to the cached
+	 * pending_flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @flushbits : module flushmask
@@ -110,7 +112,8 @@ struct dpu_hw_ctl_ops {
 		u32 flushbits);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(wb_)flush_mask
+	 * @update_pending_flush_wb: OR in the given flushbits to the
+	 * cached pending_(wb_)flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : writeback block index
@@ -119,7 +122,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_wb blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(cwb_)flush_mask
+	 * @update_pending_flush_cwb: OR in the given flushbits to the
+	 * cached pending_(cwb_)flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : concurrent writeback block index
@@ -128,7 +132,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_cwb blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(intf_)flush_mask
+	 * @update_pending_flush_intf: OR in the given flushbits to the
+	 * cached pending_(intf_)flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : interface block index
@@ -137,7 +142,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_intf blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(periph_)flush_mask
+	 * @update_pending_flush_periph: OR in the given flushbits to the
+	 * cached pending_(periph_)flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : interface block index
@@ -146,7 +152,8 @@ struct dpu_hw_ctl_ops {
 					    enum dpu_intf blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(merge_3d_)flush_mask
+	 * @update_pending_flush_merge_3d: OR in the given flushbits to the
+	 * cached pending_(merge_3d_)flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : interface block index
@@ -155,7 +162,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_merge_3d blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_flush_mask
+	 * @update_pending_flush_sspp: OR in the given flushbits to the
+	 * cached pending_flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : SSPP block index
@@ -164,7 +172,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_sspp blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_flush_mask
+	 * @update_pending_flush_mixer: OR in the given flushbits to the
+	 * cached pending_flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : LM block index
@@ -173,7 +182,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_lm blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_flush_mask
+	 * @update_pending_flush_dspp: OR in the given flushbits to the
+	 * cached pending_flush_mask.
 	 * No effect on hardware
 	 * @ctx       : ctl path ctx pointer
 	 * @blk       : DSPP block index
@@ -183,7 +193,8 @@ struct dpu_hw_ctl_ops {
 		enum dpu_dspp blk, u32 dspp_sub_blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(dsc_)flush_mask
+	 * @update_pending_flush_dsc: OR in the given flushbits to the
+	 * cached pending_(dsc_)flush_mask.
 	 * No effect on hardware
 	 * @ctx: ctl path ctx pointer
 	 * @blk: interface block index
@@ -192,7 +203,8 @@ struct dpu_hw_ctl_ops {
 					 enum dpu_dsc blk);
 
 	/**
-	 * OR in the given flushbits to the cached pending_(cdm_)flush_mask
+	 * @update_pending_flush_cdm: OR in the given flushbits to the
+	 * cached pending_(cdm_)flush_mask.
 	 * No effect on hardware
 	 * @ctx: ctl path ctx pointer
 	 * @cdm_num: idx of cdm to be flushed
@@ -200,20 +212,20 @@ struct dpu_hw_ctl_ops {
 	void (*update_pending_flush_cdm)(struct dpu_hw_ctl *ctx, enum dpu_cdm cdm_num);
 
 	/**
-	 * Write the value of the pending_flush_mask to hardware
+	 * @trigger_flush: Write the value of the pending_flush_mask to hardware
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*trigger_flush)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Read the value of the flush register
+	 * @get_flush_register: Read the value of the flush register
 	 * @ctx       : ctl path ctx pointer
 	 * @Return: value of the ctl flush register.
 	 */
 	u32 (*get_flush_register)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Setup ctl_path interface config
+	 * @setup_intf_cfg: Setup ctl_path interface config
 	 * @ctx
 	 * @cfg    : interface config structure pointer
 	 */
@@ -221,17 +233,20 @@ struct dpu_hw_ctl_ops {
 		struct dpu_hw_intf_cfg *cfg);
 
 	/**
-	 * reset ctl_path interface config
+	 * @reset_intf_cfg: reset ctl_path interface config
 	 * @ctx    : ctl path ctx pointer
 	 * @cfg    : interface config structure pointer
 	 */
 	void (*reset_intf_cfg)(struct dpu_hw_ctl *ctx,
 			struct dpu_hw_intf_cfg *cfg);
 
+	/**
+	 * @reset: reset function for this ctl type
+	 */
 	int (*reset)(struct dpu_hw_ctl *c);
 
-	/*
-	 * wait_reset_status - checks ctl reset status
+	/**
+	 * @wait_reset_status: checks ctl reset status
 	 * @ctx       : ctl path ctx pointer
 	 *
 	 * This function checks the ctl reset status bit.
@@ -242,13 +257,13 @@ struct dpu_hw_ctl_ops {
 	int (*wait_reset_status)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Set all blend stages to disabled
+	 * @clear_all_blendstages: Set all blend stages to disabled
 	 * @ctx       : ctl path ctx pointer
 	 */
 	void (*clear_all_blendstages)(struct dpu_hw_ctl *ctx);
 
 	/**
-	 * Configure layer mixer to pipe configuration
+	 * @setup_blendstage: Configure layer mixer to pipe configuration
 	 * @ctx       : ctl path ctx pointer
 	 * @lm        : layer mixer enumeration
 	 * @cfg       : blend stage configuration
@@ -256,11 +271,16 @@ struct dpu_hw_ctl_ops {
 	void (*setup_blendstage)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm lm, struct dpu_hw_stage_cfg *cfg);
 
+	/**
+	 * @set_active_fetch_pipes: Set active pipes attached to this CTL
+	 * @ctx: ctl path ctx pointer
+	 * @active_pipes: bitmap of enum dpu_sspp
+	 */
 	void (*set_active_fetch_pipes)(struct dpu_hw_ctl *ctx,
 		unsigned long *fetch_active);
 
 	/**
-	 * Set active pipes attached to this CTL
+	 * @set_active_pipes: Set active pipes attached to this CTL
 	 * @ctx: ctl path ctx pointer
 	 * @active_pipes: bitmap of enum dpu_sspp
 	 */
@@ -268,13 +288,12 @@ struct dpu_hw_ctl_ops {
 				 unsigned long *active_pipes);
 
 	/**
-	 * Set active layer mixers attached to this CTL
+	 * @set_active_lms: Set active layer mixers attached to this CTL
 	 * @ctx: ctl path ctx pointer
 	 * @active_lms: bitmap of enum dpu_lm
 	 */
 	void (*set_active_lms)(struct dpu_hw_ctl *ctx,
 			       unsigned long *active_lms);
-
 };
 
 /**
@@ -289,6 +308,9 @@ struct dpu_hw_ctl_ops {
  * @pending_intf_flush_mask: pending INTF flush
  * @pending_wb_flush_mask: pending WB flush
  * @pending_cwb_flush_mask: pending CWB flush
+ * @pending_periph_flush_mask: pending PERIPH flush
+ * @pending_merge_3d_flush_mask: pending MERGE 3D flush
+ * @pending_dspp_flush_mask: pending DSPP flush
  * @pending_dsc_flush_mask: pending DSC flush
  * @pending_cdm_flush_mask: pending CDM flush
  * @mdss_ver: MDSS revision information
@@ -320,7 +342,7 @@ struct dpu_hw_ctl {
 };
 
 /**
- * dpu_hw_ctl - convert base object dpu_hw_base to container
+ * to_dpu_hw_ctl - convert base object dpu_hw_base to container
  * @hw: Pointer to base hardware block
  * return: Pointer to hardware block container
  */

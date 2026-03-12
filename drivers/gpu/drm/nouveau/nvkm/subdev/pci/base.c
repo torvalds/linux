@@ -74,7 +74,7 @@ nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 }
 
 static int
-nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_pci_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
 
@@ -162,7 +162,7 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 {
 	struct nvkm_pci *pci;
 
-	if (!(pci = *ppci = kzalloc(sizeof(**ppci), GFP_KERNEL)))
+	if (!(pci = *ppci = kzalloc_obj(**ppci)))
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_pci_func, device, type, inst, &pci->subdev);
 	pci->func = func;

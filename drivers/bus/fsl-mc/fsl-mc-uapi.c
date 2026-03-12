@@ -483,7 +483,7 @@ static int fsl_mc_uapi_dev_open(struct inode *inode, struct file *filep)
 	struct fsl_mc_bus *mc_bus;
 	int error;
 
-	priv_data = kzalloc(sizeof(*priv_data), GFP_KERNEL);
+	priv_data = kzalloc_obj(*priv_data);
 	if (!priv_data)
 		return -ENOMEM;
 

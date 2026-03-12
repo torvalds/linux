@@ -98,11 +98,11 @@ mod pthread_mtx {
                 // SAFETY: mutex has been initialized
                 unsafe { pin_init_from_closure(init) }
             }
-            try_pin_init!(Self {
-            data: UnsafeCell::new(data),
-            raw <- init_raw(),
-            pin: PhantomPinned,
-        }? Error)
+            pin_init!(Self {
+                data: UnsafeCell::new(data),
+                raw <- init_raw(),
+                pin: PhantomPinned,
+            }? Error)
         }
 
         #[allow(dead_code)]

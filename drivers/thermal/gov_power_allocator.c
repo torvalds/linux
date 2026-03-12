@@ -622,8 +622,7 @@ static int allocate_actors_buffer(struct power_allocator_params *params,
 		goto clean_state;
 	}
 
-	params->power = kcalloc(num_actors, sizeof(struct power_actor),
-				GFP_KERNEL);
+	params->power = kzalloc_objs(struct power_actor, num_actors);
 	if (!params->power) {
 		ret = -ENOMEM;
 		goto clean_state;
@@ -699,7 +698,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	struct power_allocator_params *params;
 	int ret;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
@@ -720,7 +719,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	}
 
 	if (!tz->tzp) {
-		tz->tzp = kzalloc(sizeof(*tz->tzp), GFP_KERNEL);
+		tz->tzp = kzalloc_obj(*tz->tzp);
 		if (!tz->tzp) {
 			ret = -ENOMEM;
 			goto free_params;

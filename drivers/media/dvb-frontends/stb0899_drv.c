@@ -1613,7 +1613,7 @@ struct dvb_frontend *stb0899_attach(struct stb0899_config *config, struct i2c_ad
 {
 	struct stb0899_state *state = NULL;
 
-	state = kzalloc(sizeof (struct stb0899_state), GFP_KERNEL);
+	state = kzalloc_obj(struct stb0899_state);
 	if (state == NULL)
 		goto error;
 

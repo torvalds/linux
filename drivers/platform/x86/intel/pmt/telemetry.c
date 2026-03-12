@@ -107,7 +107,7 @@ static int pmt_telem_add_endpoint(struct intel_vsec_device *ivdev,
 	struct telem_endpoint *ep;
 
 	/* Endpoint lifetimes are managed by kref, not devres */
-	entry->ep = kzalloc(sizeof(*(entry->ep)), GFP_KERNEL);
+	entry->ep = kzalloc_obj(*(entry->ep));
 	if (!entry->ep)
 		return -ENOMEM;
 

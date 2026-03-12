@@ -133,7 +133,7 @@ int wl1251_cmd_vbm(struct wl1251 *wl, u8 identity,
 
 	wl1251_debug(DEBUG_CMD, "cmd vbm");
 
-	vbm = kzalloc(sizeof(*vbm), GFP_KERNEL);
+	vbm = kzalloc_obj(*vbm);
 	if (!vbm)
 		return -ENOMEM;
 
@@ -169,7 +169,7 @@ int wl1251_cmd_data_path_rx(struct wl1251 *wl, u8 channel, bool enable)
 
 	wl1251_debug(DEBUG_CMD, "cmd data path");
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -203,7 +203,7 @@ int wl1251_cmd_data_path_tx(struct wl1251 *wl, u8 channel, bool enable)
 
 	wl1251_debug(DEBUG_CMD, "cmd data path");
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -233,7 +233,7 @@ int wl1251_cmd_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 	int ret, i;
 	u8 *bssid;
 
-	join = kzalloc(sizeof(*join), GFP_KERNEL);
+	join = kzalloc_obj(*join);
 	if (!join)
 		return -ENOMEM;
 
@@ -276,7 +276,7 @@ int wl1251_cmd_ps_mode(struct wl1251 *wl, u8 ps_mode)
 
 	wl1251_debug(DEBUG_CMD, "cmd set ps mode");
 
-	ps_params = kzalloc(sizeof(*ps_params), GFP_KERNEL);
+	ps_params = kzalloc_obj(*ps_params);
 	if (!ps_params)
 		return -ENOMEM;
 
@@ -342,7 +342,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 
 	WARN_ON(n_channels > SCAN_MAX_NUM_OF_CHANNELS);
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -409,7 +409,7 @@ int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout)
 
 	wl1251_debug(DEBUG_CMD, "cmd trigger scan to");
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

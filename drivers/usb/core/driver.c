@@ -57,7 +57,7 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	if (fields < 2)
 		return -EINVAL;
 
-	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
+	dynid = kzalloc_obj(*dynid);
 	if (!dynid)
 		return -ENOMEM;
 
@@ -1810,13 +1810,11 @@ EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
 void usb_autopm_put_interface_async(struct usb_interface *intf)
 {
 	struct usb_device	*udev = interface_to_usbdev(intf);
-	int			status;
 
 	usb_mark_last_busy(udev);
-	status = pm_runtime_put(&intf->dev);
-	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
-			__func__, atomic_read(&intf->dev.power.usage_count),
-			status);
+	pm_runtime_put(&intf->dev);
+	dev_vdbg(&intf->dev, "%s: cnt %d\n",
+			__func__, atomic_read(&intf->dev.power.usage_count));
 }
 EXPORT_SYMBOL_GPL(usb_autopm_put_interface_async);
 

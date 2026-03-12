@@ -179,20 +179,13 @@ static void wx_dma_sync_frag(struct wx_ring *rx_ring,
 
 static struct wx_rx_buffer *wx_get_rx_buffer(struct wx_ring *rx_ring,
 					     union wx_rx_desc *rx_desc,
-					     struct sk_buff **skb,
-					     int *rx_buffer_pgcnt)
+					     struct sk_buff **skb)
 {
 	struct wx_rx_buffer *rx_buffer;
 	unsigned int size;
 
 	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
 	size = le16_to_cpu(rx_desc->wb.upper.length);
-
-#if (PAGE_SIZE < 8192)
-	*rx_buffer_pgcnt = page_count(rx_buffer->page);
-#else
-	*rx_buffer_pgcnt = 0;
-#endif
 
 	prefetchw(rx_buffer->page);
 	*skb = rx_buffer->skb;
@@ -221,8 +214,7 @@ skip_sync:
 
 static void wx_put_rx_buffer(struct wx_ring *rx_ring,
 			     struct wx_rx_buffer *rx_buffer,
-			     struct sk_buff *skb,
-			     int rx_buffer_pgcnt)
+			     struct sk_buff *skb)
 {
 	/* clear contents of rx_buffer */
 	rx_buffer->page = NULL;
@@ -685,7 +677,6 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 		struct wx_rx_buffer *rx_buffer;
 		union wx_rx_desc *rx_desc;
 		struct sk_buff *skb;
-		int rx_buffer_pgcnt;
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= WX_RX_BUFFER_WRITE) {
@@ -703,7 +694,7 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 		 */
 		dma_rmb();
 
-		rx_buffer = wx_get_rx_buffer(rx_ring, rx_desc, &skb, &rx_buffer_pgcnt);
+		rx_buffer = wx_get_rx_buffer(rx_ring, rx_desc, &skb);
 
 		/* retrieve a buffer from the ring */
 		skb = wx_build_skb(rx_ring, rx_buffer, rx_desc);
@@ -714,7 +705,7 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 			break;
 		}
 
-		wx_put_rx_buffer(rx_ring, rx_buffer, skb, rx_buffer_pgcnt);
+		wx_put_rx_buffer(rx_ring, rx_buffer, skb);
 		cleaned_count++;
 
 		/* place incomplete frames back on ring for completion */
@@ -1914,16 +1905,14 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 	nvecs = min_t(int, nvecs, num_online_cpus());
 	nvecs = min_t(int, nvecs, wx->mac.max_msix_vectors);
 
-	wx->msix_q_entries = kcalloc(nvecs, sizeof(struct msix_entry),
-				     GFP_KERNEL);
+	wx->msix_q_entries = kzalloc_objs(struct msix_entry, nvecs);
 	if (!wx->msix_q_entries)
 		return -ENOMEM;
 
 	/* One for non-queue interrupts */
 	nvecs += 1;
 
-	wx->msix_entry = kcalloc(1, sizeof(struct msix_entry),
-				 GFP_KERNEL);
+	wx->msix_entry = kzalloc_objs(struct msix_entry, 1);
 	if (!wx->msix_entry) {
 		kfree(wx->msix_q_entries);
 		wx->msix_q_entries = NULL;
@@ -2106,8 +2095,7 @@ static int wx_alloc_q_vector(struct wx *wx,
 	/* note this will allocate space for the ring structure as well! */
 	ring_count = txr_count + rxr_count;
 
-	q_vector = kzalloc(struct_size(q_vector, ring, ring_count),
-			   GFP_KERNEL);
+	q_vector = kzalloc_flex(*q_vector, ring, ring_count);
 	if (!q_vector)
 		return -ENOMEM;
 

@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) "cio: " fmt
 
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>

@@ -415,13 +415,13 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 	struct i2c_adapter *new_adapter;
 	struct i2c_algo_iop3xx_data *adapter_data;
 
-	new_adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
+	new_adapter = kzalloc_obj(struct i2c_adapter);
 	if (!new_adapter) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	adapter_data = kzalloc(sizeof(struct i2c_algo_iop3xx_data), GFP_KERNEL);
+	adapter_data = kzalloc_obj(struct i2c_algo_iop3xx_data);
 	if (!adapter_data) {
 		ret = -ENOMEM;
 		goto free_adapter;

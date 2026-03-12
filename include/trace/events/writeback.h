@@ -42,7 +42,6 @@
 	EM( WB_REASON_VMSCAN,			"vmscan")		\
 	EM( WB_REASON_SYNC,			"sync")			\
 	EM( WB_REASON_PERIODIC,			"periodic")		\
-	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
 	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
 	EM( WB_REASON_FORKER_THREAD,		"forker_thread")	\
 	EMe(WB_REASON_FOREIGN_FLUSH,		"foreign_flush")
@@ -851,12 +850,6 @@ DECLARE_EVENT_CLASS(writeback_inode_template,
 );
 
 DEFINE_EVENT(writeback_inode_template, writeback_lazytime,
-	TP_PROTO(struct inode *inode),
-
-	TP_ARGS(inode)
-);
-
-DEFINE_EVENT(writeback_inode_template, writeback_lazytime_iput,
 	TP_PROTO(struct inode *inode),
 
 	TP_ARGS(inode)

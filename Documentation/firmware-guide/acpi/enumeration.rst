@@ -12,7 +12,7 @@ In addition we are starting to see peripherals integrated in the
 SoC/Chipset to appear only in ACPI namespace. These are typically devices
 that are accessed through memory-mapped registers.
 
-In order to support this and re-use the existing drivers as much as
+In order to support this and reuse the existing drivers as much as
 possible we decided to do following:
 
   - Devices that have no bus connector resource are represented as

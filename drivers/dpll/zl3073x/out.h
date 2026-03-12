@@ -80,6 +80,23 @@ static inline bool zl3073x_out_is_enabled(const struct zl3073x_out *out)
 }
 
 /**
+ * zl3073x_out_is_ndiv - check if the given output is in N-div mode
+ * @out: pointer to out state
+ *
+ * Return: true if output is in N-div mode, false otherwise
+ */
+static inline bool zl3073x_out_is_ndiv(const struct zl3073x_out *out)
+{
+	switch (zl3073x_out_signal_format_get(out)) {
+	case ZL_OUTPUT_MODE_SIGNAL_FORMAT_2_NDIV:
+	case ZL_OUTPUT_MODE_SIGNAL_FORMAT_2_NDIV_INV:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
  * zl3073x_out_synth_get - get synth connected to given output
  * @out: pointer to out state
  *

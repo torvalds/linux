@@ -7,6 +7,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/sysfs.h>
 #include "processor_thermal_device.h"
 
 /* List of workload types */
@@ -28,9 +29,9 @@ static ssize_t workload_available_types_show(struct device *dev,
 	int ret = 0;
 
 	while (workload_types[i] != NULL)
-		ret += sprintf(&buf[ret], "%s ", workload_types[i++]);
+		ret += sysfs_emit_at(buf, ret, "%s ", workload_types[i++]);
 
-	ret += sprintf(&buf[ret], "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 
 	return ret;
 }
@@ -85,7 +86,7 @@ static ssize_t workload_type_show(struct device *dev,
 	if (cmd_resp > ARRAY_SIZE(workload_types) - 1)
 		return -EINVAL;
 
-	return sprintf(buf, "%s\n", workload_types[cmd_resp]);
+	return sysfs_emit(buf, "%s\n", workload_types[cmd_resp]);
 }
 
 static DEVICE_ATTR_RW(workload_type);

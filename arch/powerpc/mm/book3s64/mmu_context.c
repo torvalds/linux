@@ -96,8 +96,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 {
 	int index;
 
-	mm->context.hash_context = kmalloc(sizeof(struct hash_mm_context),
-					   GFP_KERNEL);
+	mm->context.hash_context = kmalloc_obj(struct hash_mm_context);
 	if (!mm->context.hash_context)
 		return -ENOMEM;
 
@@ -124,8 +123,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 		/* inherit subpage prot details if we have one. */
 		if (current->mm->context.hash_context->spt) {
-			mm->context.hash_context->spt = kmalloc(sizeof(struct subpage_prot_table),
-								GFP_KERNEL);
+			mm->context.hash_context->spt = kmalloc_obj(struct subpage_prot_table);
 			if (!mm->context.hash_context->spt) {
 				kfree(mm->context.hash_context);
 				return -ENOMEM;

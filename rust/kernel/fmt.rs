@@ -6,7 +6,7 @@
 
 pub use core::fmt::{Arguments, Debug, Error, Formatter, Result, Write};
 
-/// Internal adapter used to route allow implementations of formatting traits for foreign types.
+/// Internal adapter used to route and allow implementations of formatting traits for foreign types.
 ///
 /// It is inserted automatically by the [`fmt!`] macro and is not meant to be used directly.
 ///

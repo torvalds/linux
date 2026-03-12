@@ -346,7 +346,7 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	gq->ndev = ndev;
 
 	if (!dir_tx) {
-		gq->rx_bufs = kcalloc(gq->ring_size, sizeof(*gq->rx_bufs), GFP_KERNEL);
+		gq->rx_bufs = kzalloc_objs(*gq->rx_bufs, gq->ring_size);
 		if (!gq->rx_bufs)
 			return -ENOMEM;
 		if (rswitch_gwca_queue_alloc_rx_buf(gq, 0, gq->ring_size) < 0)
@@ -356,10 +356,10 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 						 sizeof(struct rswitch_ext_ts_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
 	} else {
-		gq->skbs = kcalloc(gq->ring_size, sizeof(*gq->skbs), GFP_KERNEL);
+		gq->skbs = kzalloc_objs(*gq->skbs, gq->ring_size);
 		if (!gq->skbs)
 			return -ENOMEM;
-		gq->unmap_addrs = kcalloc(gq->ring_size, sizeof(*gq->unmap_addrs), GFP_KERNEL);
+		gq->unmap_addrs = kzalloc_objs(*gq->unmap_addrs, gq->ring_size);
 		if (!gq->unmap_addrs)
 			goto out;
 		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,
@@ -1891,7 +1891,7 @@ static int rswitch_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	info->phc_index = ptp_clock_index(rdev->priv->ptp_priv->clock);
+	info->phc_index = rcar_gen4_ptp_clock_index(rdev->priv->ptp_priv);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
@@ -2150,17 +2150,16 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	if (attr)
 		priv->etha_no_runtime_change = true;
 
-	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev);
-	if (!priv->ptp_priv)
-		return -ENOMEM;
-
 	platform_set_drvdata(pdev, priv);
 	priv->pdev = pdev;
 	priv->addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->addr))
 		return PTR_ERR(priv->addr);
 
-	priv->ptp_priv->addr = priv->addr + RSWITCH_GPTP_OFFSET_S4;
+	priv->ptp_priv =
+		rcar_gen4_ptp_alloc(pdev, priv->addr + RSWITCH_GPTP_OFFSET_S4);
+	if (!priv->ptp_priv)
+		return -ENOMEM;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 	if (ret < 0) {

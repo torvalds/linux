@@ -249,8 +249,8 @@ static struct block_entry *add_block_entry(struct btrfs_fs_info *fs_info,
 	struct block_entry *be = NULL, *exist;
 	struct root_entry *re = NULL;
 
-	re = kzalloc(sizeof(struct root_entry), GFP_NOFS);
-	be = kzalloc(sizeof(struct block_entry), GFP_NOFS);
+	re = kzalloc_obj(struct root_entry, GFP_NOFS);
+	be = kzalloc_obj(struct block_entry, GFP_NOFS);
 	if (!be || !re) {
 		kfree(re);
 		kfree(be);
@@ -298,7 +298,7 @@ static int add_tree_block(struct btrfs_fs_info *fs_info, u64 ref_root,
 	struct root_entry *re;
 	struct ref_entry *ref = NULL, *exist;
 
-	ref = kmalloc(sizeof(struct ref_entry), GFP_NOFS);
+	ref = kmalloc_obj(struct ref_entry, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
 
@@ -343,7 +343,7 @@ static int add_shared_data_ref(struct btrfs_fs_info *fs_info,
 	struct block_entry *be;
 	struct ref_entry *ref;
 
-	ref = kzalloc(sizeof(struct ref_entry), GFP_NOFS);
+	ref = kzalloc_obj(struct ref_entry, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
 	be = add_block_entry(fs_info, bytenr, num_bytes, 0);
@@ -378,7 +378,7 @@ static int add_extent_data_ref(struct btrfs_fs_info *fs_info,
 	u64 offset = btrfs_extent_data_ref_offset(leaf, dref);
 	u32 num_refs = btrfs_extent_data_ref_count(leaf, dref);
 
-	ref = kzalloc(sizeof(struct ref_entry), GFP_NOFS);
+	ref = kzalloc_obj(struct ref_entry, GFP_NOFS);
 	if (!ref)
 		return -ENOMEM;
 	be = add_block_entry(fs_info, bytenr, num_bytes, ref_root);
@@ -680,8 +680,8 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 	}
 	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
 
-	ref = kzalloc(sizeof(struct ref_entry), GFP_NOFS);
-	ra = kmalloc(sizeof(struct ref_action), GFP_NOFS);
+	ref = kzalloc_obj(struct ref_entry, GFP_NOFS);
+	ra = kmalloc_obj(struct ref_action, GFP_NOFS);
 	if (!ra || !ref) {
 		kfree(ref);
 		kfree(ra);
@@ -755,7 +755,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		struct root_entry *tmp;
 
 		if (!parent) {
-			re = kmalloc(sizeof(struct root_entry), GFP_NOFS);
+			re = kmalloc_obj(struct root_entry, GFP_NOFS);
 			if (!re) {
 				kfree(ref);
 				kfree(ra);

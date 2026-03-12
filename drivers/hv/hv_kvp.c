@@ -134,7 +134,7 @@ kvp_register(int reg_value)
 	struct hv_kvp_msg *kvp_msg;
 	char *version;
 
-	kvp_msg = kzalloc(sizeof(*kvp_msg), GFP_KERNEL);
+	kvp_msg = kzalloc_obj(*kvp_msg);
 
 	if (kvp_msg) {
 		version = kvp_msg->body.kvp_register.version;
@@ -385,7 +385,7 @@ kvp_send_key(struct work_struct *dummy)
 	if (kvp_transaction.state != HVUTIL_HOSTMSG_RECEIVED)
 		return;
 
-	message = kzalloc(sizeof(*message), GFP_KERNEL);
+	message = kzalloc_obj(*message);
 	if (!message)
 		return;
 

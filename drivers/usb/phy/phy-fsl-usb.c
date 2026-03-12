@@ -779,11 +779,11 @@ static int fsl_otg_conf(struct platform_device *pdev)
 		return 0;
 
 	/* allocate space to fsl otg device */
-	fsl_otg_tc = kzalloc(sizeof(struct fsl_otg), GFP_KERNEL);
+	fsl_otg_tc = kzalloc_obj(struct fsl_otg);
 	if (!fsl_otg_tc)
 		return -ENOMEM;
 
-	fsl_otg_tc->phy.otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
+	fsl_otg_tc->phy.otg = kzalloc_obj(struct usb_otg);
 	if (!fsl_otg_tc->phy.otg) {
 		kfree(fsl_otg_tc);
 		return -ENOMEM;
@@ -988,6 +988,7 @@ static void fsl_otg_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
+	disable_delayed_work_sync(&fsl_otg_dev->otg_event);
 	usb_remove_phy(&fsl_otg_dev->phy);
 	free_irq(fsl_otg_dev->irq, fsl_otg_dev);
 

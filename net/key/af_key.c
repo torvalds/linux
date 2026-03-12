@@ -1196,7 +1196,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 				err = -ENOSYS;
 				goto out;
 			}
-			x->calg = kmalloc(sizeof(*x->calg), GFP_KERNEL);
+			x->calg = kmalloc_obj(*x->calg);
 			if (!x->calg) {
 				err = -ENOMEM;
 				goto out;
@@ -1261,7 +1261,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 		const struct sadb_x_nat_t_type* n_type;
 		struct xfrm_encap_tmpl *natt;
 
-		x->encap = kzalloc(sizeof(*x->encap), GFP_KERNEL);
+		x->encap = kzalloc_obj(*x->encap);
 		if (!x->encap) {
 			err = -ENOMEM;
 			goto out;
@@ -1855,7 +1855,7 @@ static int pfkey_dump(struct sock *sk, struct sk_buff *skb, const struct sadb_ms
 			mutex_unlock(&pfk->dump_lock);
 			return -EINVAL;
 		}
-		filter = kmalloc(sizeof(*filter), GFP_KERNEL);
+		filter = kmalloc_obj(*filter);
 		if (filter == NULL) {
 			mutex_unlock(&pfk->dump_lock);
 			return -ENOMEM;

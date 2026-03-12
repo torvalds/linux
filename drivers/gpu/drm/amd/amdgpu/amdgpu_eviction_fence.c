@@ -161,7 +161,7 @@ amdgpu_eviction_fence_create(struct amdgpu_eviction_fence_mgr *evf_mgr)
 {
 	struct amdgpu_eviction_fence *ev_fence;
 
-	ev_fence = kzalloc(sizeof(*ev_fence), GFP_KERNEL);
+	ev_fence = kzalloc_obj(*ev_fence);
 	if (!ev_fence)
 		return NULL;
 

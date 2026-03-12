@@ -293,7 +293,7 @@ struct optee_msg_arg *optee_get_msg_arg(struct tee_context *ctx,
 	/*
 	 * No entry was found, let's allocate a new.
 	 */
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		res = ERR_PTR(-ENOMEM);
 		goto out;
@@ -404,7 +404,7 @@ int optee_open_session(struct tee_context *ctx,
 	if (rc)
 		goto out;
 
-	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	sess = kzalloc_obj(*sess);
 	if (!sess) {
 		rc = -ENOMEM;
 		goto out;

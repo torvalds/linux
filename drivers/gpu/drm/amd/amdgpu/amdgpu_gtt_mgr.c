@@ -26,6 +26,8 @@
 
 #include "amdgpu.h"
 
+#define GART_ENTRY_WITHOUT_BO_COLOR	1
+
 static inline struct amdgpu_gtt_mgr *
 to_gtt_mgr(struct ttm_resource_manager *man)
 {
@@ -120,7 +122,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_resource_manager *man,
 	struct ttm_range_mgr_node *node;
 	int r;
 
-	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
+	node = kzalloc_flex(*node, mm_nodes, 1);
 	if (!node)
 		return -ENOMEM;
 
@@ -181,6 +183,49 @@ static void amdgpu_gtt_mgr_del(struct ttm_resource_manager *man,
 }
 
 /**
+ * amdgpu_gtt_mgr_alloc_entries - alloc GART entries without GTT bo
+ *
+ * @mgr: The GTT manager object
+ * @mm_node: The drm mm node to return the new allocation node information
+ * @num_pages: The number of pages for the new allocation
+ * @mode: The new allocation mode
+ *
+ * Helper to dynamic alloc GART entries to map memory not accociated with
+ * GTT BO, for example VRAM BO physical memory, remote physical memory.
+ */
+int amdgpu_gtt_mgr_alloc_entries(struct amdgpu_gtt_mgr *mgr,
+				 struct drm_mm_node *mm_node,
+				 u64 num_pages,
+				 enum drm_mm_insert_mode mode)
+{
+	struct amdgpu_device *adev = container_of(mgr, typeof(*adev), mman.gtt_mgr);
+	int r;
+
+	spin_lock(&mgr->lock);
+	r = drm_mm_insert_node_in_range(&mgr->mm, mm_node, num_pages,
+					0, GART_ENTRY_WITHOUT_BO_COLOR, 0,
+					adev->gmc.gart_size >> PAGE_SHIFT,
+					mode);
+	spin_unlock(&mgr->lock);
+	return r;
+}
+
+/**
+ * amdgpu_gtt_mgr_free_entries - free GART entries not accocaited with GTT bo
+ *
+ * @mgr: The GTT manager object
+ * @mm_node: The drm mm node to free
+ */
+void amdgpu_gtt_mgr_free_entries(struct amdgpu_gtt_mgr *mgr,
+				 struct drm_mm_node *mm_node)
+{
+	spin_lock(&mgr->lock);
+	if (drm_mm_node_allocated(mm_node))
+		drm_mm_remove_node(mm_node);
+	spin_unlock(&mgr->lock);
+}
+
+/**
  * amdgpu_gtt_mgr_recover - re-init gart
  *
  * @mgr: amdgpu_gtt_mgr pointer
@@ -196,6 +241,9 @@ void amdgpu_gtt_mgr_recover(struct amdgpu_gtt_mgr *mgr)
 	adev = container_of(mgr, typeof(*adev), mman.gtt_mgr);
 	spin_lock(&mgr->lock);
 	drm_mm_for_each_node(mm_node, &mgr->mm) {
+		if (mm_node->color == GART_ENTRY_WITHOUT_BO_COLOR)
+			continue;
+
 		node = container_of(mm_node, typeof(*node), mm_nodes[0]);
 		amdgpu_ttm_recover_gart(node->base.bo);
 	}
@@ -276,17 +324,13 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 {
 	struct amdgpu_gtt_mgr *mgr = &adev->mman.gtt_mgr;
 	struct ttm_resource_manager *man = &mgr->manager;
-	uint64_t start, size;
 
 	man->use_tt = true;
 	man->func = &amdgpu_gtt_mgr_func;
 
 	ttm_resource_manager_init(man, &adev->mman.bdev, gtt_size);
 
-	start = AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS;
-	start += amdgpu_vce_required_gart_pages(adev);
-	size = (adev->gmc.gart_size >> PAGE_SHIFT) - start;
-	drm_mm_init(&mgr->mm, start, size);
+	drm_mm_init(&mgr->mm, 0, adev->gmc.gart_size >> PAGE_SHIFT);
 	spin_lock_init(&mgr->lock);
 
 	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_TT, &mgr->manager);

@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/mutex.h>
+#include <linux/string.h>
 
 #include "internals.h"
 
@@ -317,7 +318,7 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 	if (!desc->dir || action->dir || !action->name || !name_unique(irq, action))
 		return;
 
-	snprintf(name, MAX_NAMELEN, "%s", action->name);
+	strscpy(name, action->name);
 
 	/* create /proc/irq/1234/handler/ */
 	action->dir = proc_mkdir(name, desc->dir);

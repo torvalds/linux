@@ -90,7 +90,7 @@ static int v9fs_get_tree(struct fs_context *fc)
 
 	p9_debug(P9_DEBUG_VFS, "\n");
 
-	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
+	v9ses = kzalloc_obj(struct v9fs_session_info);
 	if (!v9ses)
 		return -ENOMEM;
 
@@ -308,7 +308,7 @@ static int v9fs_init_fs_context(struct fs_context *fc)
 {
 	struct v9fs_context	*ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

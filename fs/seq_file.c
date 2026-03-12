@@ -11,6 +11,7 @@
 #include <linux/cache.h>
 #include <linux/fs.h>
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
@@ -572,7 +573,7 @@ static void single_stop(struct seq_file *p, void *v)
 int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 		void *data)
 {
-	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL_ACCOUNT);
+	struct seq_operations *op = kmalloc_obj(*op, GFP_KERNEL_ACCOUNT);
 	int res = -ENOMEM;
 
 	if (op) {

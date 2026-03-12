@@ -226,7 +226,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	if (!lcd)
 		return -ENOMEM;
 
-	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
+	hd = kzalloc_obj(*hd);
 	if (!hd)
 		goto fail2;
 

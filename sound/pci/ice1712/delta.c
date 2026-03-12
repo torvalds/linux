@@ -707,7 +707,7 @@ static int snd_ice1712_delta_init(struct snd_ice1712 *ice)
 	}
 
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ak = ice->akm = kmalloc_obj(struct snd_akm4xxx);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

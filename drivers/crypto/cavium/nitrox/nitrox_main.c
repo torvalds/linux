@@ -441,7 +441,7 @@ static int nitrox_probe(struct pci_dev *pdev,
 		goto flr_fail;
 	pci_set_master(pdev);
 
-	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+	ndev = kzalloc_obj(*ndev);
 	if (!ndev) {
 		err = -ENOMEM;
 		goto ndev_fail;

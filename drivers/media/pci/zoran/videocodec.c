@@ -73,7 +73,7 @@ struct videocodec *videocodec_attach(struct videocodec_master *master)
 			res = codec->setup(codec);
 			if (res == 0) {
 				zrdev_dbg(zr, "%s: '%s'\n", __func__, codec->name);
-				ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+				ptr = kzalloc_obj(*ptr);
 				if (!ptr)
 					goto out_kfree;
 				ptr->codec = codec;
@@ -180,7 +180,7 @@ int videocodec_register(const struct videocodec *codec)
 		  "videocodec: register '%s', type: %x, flags %lx, magic %lx\n",
 		  codec->name, codec->type, codec->flags, codec->magic);
 
-	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kzalloc_obj(*ptr);
 	if (!ptr)
 		return -ENOMEM;
 	ptr->codec = codec;

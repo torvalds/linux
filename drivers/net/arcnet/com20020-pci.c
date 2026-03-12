@@ -115,6 +115,8 @@ static const struct attribute_group com20020_state_group = {
 	.attrs = com20020_state_attrs,
 };
 
+static struct com20020_pci_card_info card_info_2p5mbit;
+
 static void com20020pci_remove(struct pci_dev *pdev);
 
 static int com20020pci_probe(struct pci_dev *pdev,
@@ -140,7 +142,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 	ci = (struct com20020_pci_card_info *)id->driver_data;
 	if (!ci)
-		return -EINVAL;
+		ci = &card_info_2p5mbit;
 
 	priv->ci = ci;
 	mm = &ci->misc_map;
@@ -345,6 +347,18 @@ static struct com20020_pci_card_info card_info_5mbit = {
 		},
 	},
 	.flags = ARC_IS_5MBIT,
+};
+
+static struct com20020_pci_card_info card_info_2p5mbit = {
+	.name = "ARC-PCI",
+	.devcount = 1,
+	.chan_map_tbl = {
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
+	},
 };
 
 static struct com20020_pci_card_info card_info_sohard = {
@@ -618,17 +632,4 @@ static struct pci_driver com20020pci_driver = {
 	.remove		= com20020pci_remove,
 };
 
-static int __init com20020pci_init(void)
-{
-	if (BUGLVL(D_NORMAL))
-		pr_info("%s\n", "COM20020 PCI support");
-	return pci_register_driver(&com20020pci_driver);
-}
-
-static void __exit com20020pci_cleanup(void)
-{
-	pci_unregister_driver(&com20020pci_driver);
-}
-
-module_init(com20020pci_init)
-module_exit(com20020pci_cleanup)
+module_pci_driver(com20020pci_driver);

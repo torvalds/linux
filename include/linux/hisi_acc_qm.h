@@ -447,12 +447,16 @@ struct hisi_qp_ops {
 	int (*fill_sqe)(void *sqe, void *q_parm, void *d_parm);
 };
 
+struct instance_backlog {
+	struct list_head list;
+	spinlock_t lock;
+};
+
 struct hisi_qp {
 	u32 qp_id;
 	u16 sq_depth;
 	u16 cq_depth;
 	u8 alg_type;
-	u8 req_type;
 
 	struct qm_dma qdma;
 	void *sqe;
@@ -462,7 +466,6 @@ struct hisi_qp {
 
 	struct hisi_qp_status qp_status;
 	struct hisi_qp_ops *hw_ops;
-	void *qp_ctx;
 	void (*req_cb)(struct hisi_qp *qp, void *data);
 	void (*event_cb)(struct hisi_qp *qp);
 
@@ -471,6 +474,11 @@ struct hisi_qp {
 	bool is_in_kernel;
 	u16 pasid;
 	struct uacce_queue *uacce_q;
+
+	u32 ref_count;
+	spinlock_t qp_lock;
+	struct instance_backlog backlog;
+	const void **msg;
 };
 
 static inline int vfs_num_set(const char *val, const struct kernel_param *kp)
@@ -563,6 +571,7 @@ void hisi_qm_reset_done(struct pci_dev *pdev);
 int hisi_qm_wait_mb_ready(struct hisi_qm *qm);
 int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
 	       bool op);
+int hisi_qm_mb_read(struct hisi_qm *qm, u64 *base, u8 cmd, u16 queue);
 
 struct hisi_acc_sgl_pool;
 struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
@@ -575,7 +584,7 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 void hisi_acc_free_sgl_pool(struct device *dev,
 			    struct hisi_acc_sgl_pool *pool);
 int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
-			   u8 alg_type, int node, struct hisi_qp **qps);
+			   u8 *alg_type, int node, struct hisi_qp **qps);
 void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num);
 void hisi_qm_dev_shutdown(struct pci_dev *pdev);
 void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list);

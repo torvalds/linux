@@ -236,6 +236,13 @@
 		clock-output-names = "xtal_24MHz";
 	};
 
+	db_ipg_clk: clock-db-ipg {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <456000000>;
+		clock-output-names = "db_ipg_clk";
+	};
+
 	/* sorted in register address */
 	#include "imx8-ss-cm40.dtsi"
 	#include "imx8-ss-adma.dtsi"

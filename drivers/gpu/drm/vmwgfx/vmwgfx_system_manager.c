@@ -37,7 +37,7 @@ static int vmw_sys_man_alloc(struct ttm_resource_manager *man,
 			     const struct ttm_place *place,
 			     struct ttm_resource **res)
 {
-	*res = kzalloc(sizeof(**res), GFP_KERNEL);
+	*res = kzalloc_obj(**res);
 	if (!*res)
 		return -ENOMEM;
 
@@ -60,8 +60,7 @@ static const struct ttm_resource_manager_func vmw_sys_manager_func = {
 int vmw_sys_man_init(struct vmw_private *dev_priv)
 {
 	struct ttm_device *bdev = &dev_priv->bdev;
-	struct ttm_resource_manager *man =
-			kzalloc(sizeof(*man), GFP_KERNEL);
+	struct ttm_resource_manager *man = kzalloc_obj(*man);
 
 	if (!man)
 		return -ENOMEM;

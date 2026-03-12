@@ -159,7 +159,7 @@ static struct configfs_fragment *new_fragment(void)
 {
 	struct configfs_fragment *p;
 
-	p = kmalloc(sizeof(struct configfs_fragment), GFP_KERNEL);
+	p = kmalloc_obj(struct configfs_fragment);
 	if (p) {
 		atomic_set(&p->frag_count, 1);
 		init_rwsem(&p->frag_sem);
@@ -1847,7 +1847,7 @@ configfs_register_default_group(struct config_group *parent_group,
 	int ret;
 	struct config_group *group;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 	config_group_init_type_name(group, name, item_type);

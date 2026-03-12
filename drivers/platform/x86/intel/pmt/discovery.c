@@ -503,8 +503,10 @@ static int pmt_features_discovery(struct pmt_features_priv *priv,
 
 	ret = kobject_init_and_add(&feature->kobj, ktype, &priv->dev->kobj,
 				   "%s", pmt_feature_names[feature->id]);
-	if (ret)
+	if (ret) {
+		kobject_put(&feature->kobj);
 		return ret;
+	}
 
 	kobject_uevent(&feature->kobj, KOBJ_ADD);
 	pmt_features_add_feat(feature);
@@ -546,9 +548,9 @@ static int pmt_features_probe(struct auxiliary_device *auxdev, const struct auxi
 	priv->dev = device_create(&intel_pmt_class, &auxdev->dev, MKDEV(0, 0), priv,
 				  "%s-%s", "features", dev_name(priv->parent));
 	if (IS_ERR(priv->dev))
-		return dev_err_probe(priv->dev, PTR_ERR(priv->dev),
+		return dev_err_probe(&auxdev->dev, PTR_ERR(priv->dev),
 				     "Could not create %s-%s device node\n",
-				     "features", dev_name(priv->dev));
+				     "features", dev_name(priv->parent));
 
 	/* Initialize each feature */
 	for (i = 0; i < ivdev->num_resources; i++) {

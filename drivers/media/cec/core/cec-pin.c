@@ -1367,7 +1367,7 @@ struct cec_adapter *cec_pin_allocate_adapter(const struct cec_pin_ops *pin_ops,
 					void *priv, const char *name, u32 caps)
 {
 	struct cec_adapter *adap;
-	struct cec_pin *pin = kzalloc(sizeof(*pin), GFP_KERNEL);
+	struct cec_pin *pin = kzalloc_obj(*pin);
 
 	if (pin == NULL)
 		return ERR_PTR(-ENOMEM);

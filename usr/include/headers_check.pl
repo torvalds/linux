@@ -40,7 +40,6 @@ foreach my $file (@files) {
 		&check_include();
 		&check_asm_types();
 		&check_declarations();
-		# Dropped for now. Too much noise &check_config();
 	}
 	close $fh;
 }
@@ -74,13 +73,6 @@ sub check_declarations
 			      "userspace cannot reference function or " .
 			      "variable defined in the kernel\n";
 		$ret = 1;
-	}
-}
-
-sub check_config
-{
-	if ($line =~ m/[^a-zA-Z0-9_]+CONFIG_([a-zA-Z0-9_]+)[^a-zA-Z0-9_]/) {
-		printf STDERR "$filename:$lineno: leaks CONFIG_$1 to userspace where it is not valid\n";
 	}
 }
 

@@ -323,7 +323,7 @@ static const struct dvb_frontend_ops vp702x_fe_ops;
 
 struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 {
-	struct vp702x_fe_state *s = kzalloc(sizeof(struct vp702x_fe_state), GFP_KERNEL);
+	struct vp702x_fe_state *s = kzalloc_obj(struct vp702x_fe_state);
 	if (s == NULL)
 		goto error;
 

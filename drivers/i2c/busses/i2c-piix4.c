@@ -919,7 +919,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	struct i2c_piix4_adapdata *adapdata;
 	int retval;
 
-	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	adap = kzalloc_obj(*adap);
 	if (adap == NULL) {
 		release_region(smba, SMBIOSIZE);
 		return -ENOMEM;
@@ -930,7 +930,7 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 	adap->algo = sb800_main ? &piix4_smbus_algorithm_sb800
 				: &smbus_algorithm;
 
-	adapdata = kzalloc(sizeof(*adapdata), GFP_KERNEL);
+	adapdata = kzalloc_obj(*adapdata);
 	if (adapdata == NULL) {
 		kfree(adap);
 		release_region(smba, SMBIOSIZE);

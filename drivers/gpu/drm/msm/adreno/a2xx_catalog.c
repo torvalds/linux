@@ -43,6 +43,18 @@ static const struct adreno_info a2xx_gpus[] = {
 		.gmem  = SZ_512K,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
 		.funcs = &a2xx_gpu_funcs,
+	}, {
+		/* Only for msm8960v3, v2 required a special firmware */
+		.chip_ids = ADRENO_CHIP_IDS(0x02020506),
+		.family = ADRENO_2XX_GEN2,
+		.revn  = 225,
+		.fw = {
+			[ADRENO_FW_PM4] = "a225_pm4.fw",
+			[ADRENO_FW_PFP] = "a225_pfp.fw",
+		},
+		.gmem  = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.funcs = &a2xx_gpu_funcs,
 	}
 };
 DECLARE_ADRENO_GPULIST(a2xx);

@@ -450,7 +450,7 @@ static struct fs_path *fs_path_alloc(void)
 {
 	struct fs_path *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p);
 	if (!p)
 		return NULL;
 	init_path(p);
@@ -1429,7 +1429,7 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	 * fs_info->commit_root_sem (at iterate_extent_inodes()), so must do a
 	 * NOFS allocation.
 	 */
-	new_entry = kmalloc(sizeof(struct backref_cache_entry), GFP_NOFS);
+	new_entry = kmalloc_obj(struct backref_cache_entry, GFP_NOFS);
 	/* No worries, cache is optional. */
 	if (!new_entry)
 		return;
@@ -2743,7 +2743,7 @@ static int cache_dir_utimes(struct send_ctx *sctx, u64 dir, u64 gen)
 		return 0;
 
 	/* Caching is optional, don't fail if we can't allocate memory. */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return send_utimes(sctx, dir, gen);
 
@@ -2870,7 +2870,7 @@ static void cache_dir_created(struct send_ctx *sctx, u64 dir)
 	int ret;
 
 	/* Caching is optional, ignore any failures. */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return;
 
@@ -2974,7 +2974,7 @@ static struct recorded_ref *recorded_ref_alloc(void)
 {
 	struct recorded_ref *ref;
 
-	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+	ref = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 	RB_CLEAR_NODE(&ref->node);
@@ -3083,7 +3083,7 @@ static struct orphan_dir_info *add_orphan_dir_info(struct send_ctx *sctx,
 			return entry;
 	}
 
-	odi = kmalloc(sizeof(*odi), GFP_KERNEL);
+	odi = kmalloc_obj(*odi);
 	if (!odi)
 		return ERR_PTR(-ENOMEM);
 	odi->ino = dir_ino;
@@ -3284,7 +3284,7 @@ static int add_waiting_dir_move(struct send_ctx *sctx, u64 ino, bool orphanized)
 	struct rb_node *parent = NULL;
 	struct waiting_dir_move *entry, *dm;
 
-	dm = kmalloc(sizeof(*dm), GFP_KERNEL);
+	dm = kmalloc_obj(*dm);
 	if (!dm)
 		return -ENOMEM;
 	dm->ino = ino;
@@ -3352,7 +3352,7 @@ static int add_pending_dir_move(struct send_ctx *sctx,
 	int exists = 0;
 	int ret;
 
-	pm = kmalloc(sizeof(*pm), GFP_KERNEL);
+	pm = kmalloc_obj(*pm);
 	if (!pm)
 		return -ENOMEM;
 	pm->parent_ino = parent_ino;
@@ -6383,6 +6383,8 @@ static int range_is_hole_in_parent(struct send_ctx *sctx,
 		extent_end = btrfs_file_extent_end(path);
 		if (extent_end <= start)
 			goto next;
+		if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE)
+			return 0;
 		if (btrfs_file_extent_disk_bytenr(leaf, fi) == 0) {
 			search_start = extent_end;
 			goto next;
@@ -6447,11 +6449,9 @@ static int process_extent(struct send_ctx *sctx,
 	if (sctx->parent_root && !sctx->cur_inode_new) {
 		ret = is_extent_unchanged(sctx, path, key);
 		if (ret < 0)
-			goto out;
-		if (ret) {
-			ret = 0;
+			return ret;
+		if (ret)
 			goto out_hole;
-		}
 	} else {
 		struct btrfs_file_extent_item *ei;
 		u8 type;
@@ -6467,31 +6467,25 @@ static int process_extent(struct send_ctx *sctx,
 			 * we have enough commands queued up to justify rev'ing
 			 * the send spec.
 			 */
-			if (type == BTRFS_FILE_EXTENT_PREALLOC) {
-				ret = 0;
-				goto out;
-			}
+			if (type == BTRFS_FILE_EXTENT_PREALLOC)
+				return 0;
 
 			/* Have a hole, just skip it. */
-			if (btrfs_file_extent_disk_bytenr(path->nodes[0], ei) == 0) {
-				ret = 0;
-				goto out;
-			}
+			if (btrfs_file_extent_disk_bytenr(path->nodes[0], ei) == 0)
+				return 0;
 		}
 	}
 
 	ret = find_extent_clone(sctx, path, key->objectid, key->offset,
 			sctx->cur_inode_size, &found_clone);
 	if (ret != -ENOENT && ret < 0)
-		goto out;
+		return ret;
 
 	ret = send_write_or_clone(sctx, path, key, found_clone);
 	if (ret)
-		goto out;
+		return ret;
 out_hole:
-	ret = maybe_send_hole(sctx, path, key);
-out:
-	return ret;
+	return maybe_send_hole(sctx, path, key);
 }
 
 static int process_all_extents(struct send_ctx *sctx)
@@ -6533,23 +6527,24 @@ static int process_recorded_refs_if_needed(struct send_ctx *sctx, bool at_end,
 					   int *pending_move,
 					   int *refs_processed)
 {
-	int ret = 0;
+	int ret;
 
 	if (sctx->cur_ino == 0)
-		goto out;
+		return 0;
+
 	if (!at_end && sctx->cur_ino == sctx->cmp_key->objectid &&
 	    sctx->cmp_key->type <= BTRFS_INODE_EXTREF_KEY)
-		goto out;
+		return 0;
+
 	if (list_empty(&sctx->new_refs) && list_empty(&sctx->deleted_refs))
-		goto out;
+		return 0;
 
 	ret = process_recorded_refs(sctx, pending_move);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	*refs_processed = 1;
-out:
-	return ret;
+	return 0;
 }
 
 static int finish_inode_if_needed(struct send_ctx *sctx, bool at_end)
@@ -6766,7 +6761,7 @@ static void close_current_inode(struct send_ctx *sctx)
 static int changed_inode(struct send_ctx *sctx,
 			 enum btrfs_compare_tree_result result)
 {
-	int ret = 0;
+	int ret;
 	struct btrfs_key *key = sctx->cmp_key;
 	struct btrfs_inode_item *left_ii = NULL;
 	struct btrfs_inode_item *right_ii = NULL;
@@ -6858,7 +6853,7 @@ static int changed_inode(struct send_ctx *sctx,
 	if (result == BTRFS_COMPARE_TREE_NEW) {
 		if (btrfs_inode_nlink(sctx->left_path->nodes[0], left_ii) == 0) {
 			sctx->ignore_cur_inode = true;
-			goto out;
+			return 0;
 		}
 		sctx->cur_inode_gen = left_gen;
 		sctx->cur_inode_new = true;
@@ -6886,7 +6881,7 @@ static int changed_inode(struct send_ctx *sctx,
 		old_nlinks = btrfs_inode_nlink(sctx->right_path->nodes[0], right_ii);
 		if (new_nlinks == 0 && old_nlinks == 0) {
 			sctx->ignore_cur_inode = true;
-			goto out;
+			return 0;
 		} else if (new_nlinks == 0 || old_nlinks == 0) {
 			sctx->cur_inode_new_gen = 1;
 		}
@@ -6912,7 +6907,7 @@ static int changed_inode(struct send_ctx *sctx,
 				ret = process_all_refs(sctx,
 						BTRFS_COMPARE_TREE_DELETED);
 				if (ret < 0)
-					goto out;
+					return ret;
 			}
 
 			/*
@@ -6933,11 +6928,11 @@ static int changed_inode(struct send_ctx *sctx,
 						left_ii);
 				ret = send_create_inode_if_needed(sctx);
 				if (ret < 0)
-					goto out;
+					return ret;
 
 				ret = process_all_refs(sctx, BTRFS_COMPARE_TREE_NEW);
 				if (ret < 0)
-					goto out;
+					return ret;
 				/*
 				 * Advance send_progress now as we did not get
 				 * into process_recorded_refs_if_needed in the
@@ -6951,10 +6946,10 @@ static int changed_inode(struct send_ctx *sctx,
 				 */
 				ret = process_all_extents(sctx);
 				if (ret < 0)
-					goto out;
+					return ret;
 				ret = process_all_new_xattrs(sctx);
 				if (ret < 0)
-					goto out;
+					return ret;
 			}
 		} else {
 			sctx->cur_inode_gen = left_gen;
@@ -6968,8 +6963,7 @@ static int changed_inode(struct send_ctx *sctx,
 		}
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
@@ -7102,20 +7096,20 @@ static int compare_refs(struct send_ctx *sctx, struct btrfs_path *path,
 	u32 item_size;
 	u32 cur_offset = 0;
 	int ref_name_len;
-	int ret = 0;
 
 	/* Easy case, just check this one dirid */
 	if (key->type == BTRFS_INODE_REF_KEY) {
 		dirid = key->offset;
 
-		ret = dir_changed(sctx, dirid);
-		goto out;
+		return dir_changed(sctx, dirid);
 	}
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size(leaf, path->slots[0]);
 	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	while (cur_offset < item_size) {
+		int ret;
+
 		extref = (struct btrfs_inode_extref *)(ptr +
 						       cur_offset);
 		dirid = btrfs_inode_extref_parent(leaf, extref);
@@ -7125,11 +7119,10 @@ static int compare_refs(struct send_ctx *sctx, struct btrfs_path *path,
 			continue;
 		ret = dir_changed(sctx, dirid);
 		if (ret)
-			break;
+			return ret;
 		last_dirid = dirid;
 	}
-out:
-	return ret;
+	return 0;
 }
 
 /*
@@ -7210,12 +7203,12 @@ static int changed_cb(struct btrfs_path *left_path,
 
 	ret = finish_inode_if_needed(sctx, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/* Ignore non-FS objects */
 	if (key->objectid == BTRFS_FREE_INO_OBJECTID ||
 	    key->objectid == BTRFS_FREE_SPACE_OBJECTID)
-		goto out;
+		return 0;
 
 	if (key->type == BTRFS_INODE_ITEM_KEY) {
 		ret = changed_inode(sctx, result);
@@ -7232,7 +7225,6 @@ static int changed_cb(struct btrfs_path *left_path,
 			ret = changed_verity(sctx, result);
 	}
 
-out:
 	return ret;
 }
 
@@ -8043,7 +8035,7 @@ long btrfs_ioctl_send(struct btrfs_root *send_root, const struct btrfs_ioctl_sen
 		goto out;
 	}
 
-	sctx = kzalloc(sizeof(struct send_ctx), GFP_KERNEL);
+	sctx = kzalloc_obj(struct send_ctx);
 	if (!sctx) {
 		ret = -ENOMEM;
 		goto out;
@@ -8105,9 +8097,8 @@ long btrfs_ioctl_send(struct btrfs_root *send_root, const struct btrfs_ioctl_sen
 			goto out;
 		}
 		send_buf_num_pages = sctx->send_max_size >> PAGE_SHIFT;
-		sctx->send_buf_pages = kcalloc(send_buf_num_pages,
-					       sizeof(*sctx->send_buf_pages),
-					       GFP_KERNEL);
+		sctx->send_buf_pages = kzalloc_objs(*sctx->send_buf_pages,
+						    send_buf_num_pages);
 		if (!sctx->send_buf_pages) {
 			ret = -ENOMEM;
 			goto out;
@@ -8125,9 +8116,8 @@ long btrfs_ioctl_send(struct btrfs_root *send_root, const struct btrfs_ioctl_sen
 		goto out;
 	}
 
-	sctx->clone_roots = kvcalloc(arg->clone_sources_count + 1,
-				     sizeof(*sctx->clone_roots),
-				     GFP_KERNEL);
+	sctx->clone_roots = kvzalloc_objs(*sctx->clone_roots,
+					  arg->clone_sources_count + 1);
 	if (!sctx->clone_roots) {
 		ret = -ENOMEM;
 		goto out;

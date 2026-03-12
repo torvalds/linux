@@ -461,7 +461,7 @@ static struct qed_dev *qed_alloc_cdev(struct pci_dev *pdev)
 {
 	struct qed_dev *cdev;
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return cdev;
 
@@ -612,7 +612,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 	case QED_INT_MODE_MSIX:
 		/* Allocate MSIX table */
 		cnt = int_params->in.num_vectors;
-		int_params->msix_table = kcalloc(cnt, sizeof(*tbl), GFP_KERNEL);
+		int_params->msix_table = kzalloc_objs(*tbl, cnt);
 		if (!int_params->msix_table) {
 			rc = -ENOMEM;
 			goto out;
@@ -1050,7 +1050,7 @@ static int qed_alloc_stream_mem(struct qed_dev *cdev)
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		p_hwfn->stream = kzalloc(sizeof(*p_hwfn->stream), GFP_KERNEL);
+		p_hwfn->stream = kzalloc_obj(*p_hwfn->stream);
 		if (!p_hwfn->stream)
 			return -ENOMEM;
 

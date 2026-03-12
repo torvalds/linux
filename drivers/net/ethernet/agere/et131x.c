@@ -1866,10 +1866,10 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct fbr_lookup *fbr;
 
 	/* Alloc memory for the lookup table */
-	rx_ring->fbr[0] = kzalloc(sizeof(*fbr), GFP_KERNEL);
+	rx_ring->fbr[0] = kzalloc_obj(*fbr);
 	if (rx_ring->fbr[0] == NULL)
 		return -ENOMEM;
-	rx_ring->fbr[1] = kzalloc(sizeof(*fbr), GFP_KERNEL);
+	rx_ring->fbr[1] = kzalloc_obj(*fbr);
 	if (rx_ring->fbr[1] == NULL)
 		return -ENOMEM;
 
@@ -2089,7 +2089,7 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
-		rfd = kzalloc(sizeof(*rfd), GFP_ATOMIC | GFP_DMA);
+		rfd = kzalloc_obj(*rfd, GFP_ATOMIC | GFP_DMA);
 		if (!rfd)
 			return -ENOMEM;
 
@@ -2357,8 +2357,8 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	tx_ring->tcb_ring = kcalloc(NUM_TCB, sizeof(struct tcb),
-				    GFP_KERNEL | GFP_DMA);
+	tx_ring->tcb_ring = kzalloc_objs(struct tcb, NUM_TCB,
+					 GFP_KERNEL | GFP_DMA);
 	if (!tx_ring->tcb_ring)
 		return -ENOMEM;
 

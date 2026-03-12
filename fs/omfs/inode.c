@@ -464,7 +464,7 @@ static int omfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int ret = -EINVAL;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	sbi = kzalloc(sizeof(struct omfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct omfs_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -612,7 +612,7 @@ static int omfs_init_fs_context(struct fs_context *fc)
 {
 	struct omfs_mount_options *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return -ENOMEM;
 

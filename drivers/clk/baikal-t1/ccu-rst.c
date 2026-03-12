@@ -172,7 +172,7 @@ struct ccu_rst *ccu_rst_hw_register(const struct ccu_rst_init_data *rst_init)
 	if (!rst_init)
 		return ERR_PTR(-EINVAL);
 
-	rst = kzalloc(sizeof(*rst), GFP_KERNEL);
+	rst = kzalloc_obj(*rst);
 	if (!rst)
 		return ERR_PTR(-ENOMEM);
 

@@ -4,18 +4,26 @@
 $id: http://devicetree.org/schemas/iio/adc/adi,ad7768-1.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD7768-1 ADC device driver
+title: Analog Devices AD7768-1 ADC family
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
 
 description: |
-  Datasheet at:
-    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7768-1.pdf
+  Analog Devices AD7768-1 24-Bit Single Channel Low Power sigma-delta ADC family
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ad7768-1.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/adaq7767-1.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/adaq7768-1.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/adaq7769-1.pdf
 
 properties:
   compatible:
-    const: adi,ad7768-1
+    enum:
+      - adi,ad7768-1
+      - adi,adaq7767-1
+      - adi,adaq7768-1
+      - adi,adaq7769-1
 
   reg:
     maxItems: 1
@@ -57,6 +65,25 @@ properties:
   vref-supply:
     description:
       ADC reference voltage supply
+
+  adi,aaf-gain-bp:
+    description: |
+       Specifies the gain applied by the Analog Anti-Aliasing Filter (AAF)
+       to the ADC input in basis points (one hundredth of a percent).
+       The hardware gain is determined by which input pin(s) the signal goes
+       through into the AAF. The possible connections are:
+       * For the ADAQ7767-1: Input connected to IN1±, IN2± or IN3±.
+       * For the ADAQ7769-1: OUT_PGA pin connected to IN1_AAF+, IN2_AAF+,
+         or IN3_AAF+.
+    enum: [1430, 3640, 10000]
+    default: 10000
+
+  pga-gpios:
+    description:
+      GAIN 0, GAIN1 and GAIN2 pins for gain selection. For devices that have
+      PGA configuration input pins, pga-gpios must be defined.
+    minItems: 3
+    maxItems: 3
 
   adi,sync-in-gpios:
     maxItems: 1
@@ -146,6 +173,35 @@ patternProperties:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  # AAF Gain property only applies to ADAQ7767-1 and ADAQ7769-1 devices
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adaq7767-1
+              - adi,adaq7769-1
+    then:
+      required:
+        - adi,aaf-gain-bp
+    else:
+      properties:
+        adi,aaf-gain-bp: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adaq7768-1
+              - adi,adaq7769-1
+    then:
+      required:
+        - pga-gpios
+    else:
+      properties:
+        pga-gpios: false
 
 unevaluatedProperties: false
 

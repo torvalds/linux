@@ -284,7 +284,7 @@ int intel_dbuf_bw_init(struct intel_display *display)
 {
 	struct intel_dbuf_bw_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

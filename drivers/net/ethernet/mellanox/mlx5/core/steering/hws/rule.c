@@ -136,7 +136,7 @@ hws_rule_save_resize_info(struct mlx5hws_rule *rule,
 
 	/* resize_info might already exist (if we're in update flow) */
 	if (likely(!rule->resize_info)) {
-		rule->resize_info = kzalloc(sizeof(*rule->resize_info), GFP_KERNEL);
+		rule->resize_info = kzalloc_obj(*rule->resize_info);
 		if (unlikely(!rule->resize_info)) {
 			pr_warn("HWS: resize info isn't allocated for rule\n");
 			return;

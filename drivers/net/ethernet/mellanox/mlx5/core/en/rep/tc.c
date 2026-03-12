@@ -503,7 +503,7 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 		if (indr_priv)
 			return -EEXIST;
 
-		indr_priv = kmalloc(sizeof(*indr_priv), GFP_KERNEL);
+		indr_priv = kmalloc_obj(*indr_priv);
 		if (!indr_priv)
 			return -ENOMEM;
 

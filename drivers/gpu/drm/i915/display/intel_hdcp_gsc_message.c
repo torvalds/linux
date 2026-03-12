@@ -633,7 +633,7 @@ int intel_hdcp_gsc_init(struct intel_display *display)
 	struct i915_hdcp_arbiter *arbiter;
 	int ret = 0;
 
-	arbiter = kzalloc(sizeof(*arbiter), GFP_KERNEL);
+	arbiter = kzalloc_obj(*arbiter);
 	if (!arbiter)
 		return -ENOMEM;
 

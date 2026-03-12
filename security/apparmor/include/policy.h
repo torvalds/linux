@@ -79,11 +79,33 @@ enum profile_mode {
 };
 
 
+struct aa_tags_header {
+	u32 mask;	/* bit mask matching permissions */
+	u32 count;	/* number of strings per entry */
+	u32 size;	/* size of all strings covered by count */
+	u32 tags;	/* index into string table */
+};
+
+struct aa_tags_struct {
+	struct {
+		u32 size;		/* number of entries in tagsets */
+		u32 *table;		/* indexes into headers & strs */
+	} sets;
+	struct {
+		u32 size;		/* number of headers == num of strs */
+		struct aa_tags_header *table;
+	} hdrs;
+	struct aa_str_table strs;
+};
+
 /* struct aa_policydb - match engine for a policy
- * count: refcount for the pdb
- * dfa: dfa pattern match
- * perms: table of permissions
- * strs: table of strings, index by x
+ * @count: refcount for the pdb
+ * @dfa: dfa pattern match
+ * @perms: table of permissions
+ * @size: number of entries in @perms
+ * @trans: table of strings, index by x
+ * @tags: table of tags that perms->tag indexes
+ * @start:_states to start in for each class
  * start: set of start states for the different classes of data
  */
 struct aa_policydb {
@@ -94,11 +116,13 @@ struct aa_policydb {
 		u32 size;
 	};
 	struct aa_str_table trans;
+	struct aa_tags_struct tags;
 	aa_state_t start[AA_CLASS_LAST + 1];
 };
 
 extern struct aa_policydb *nullpdb;
 
+void aa_destroy_tags(struct aa_tags_struct *tags);
 struct aa_policydb *aa_alloc_pdb(gfp_t gfp);
 void aa_pdb_free_kref(struct kref *kref);
 

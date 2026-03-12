@@ -231,7 +231,7 @@ struct kimage *do_kimage_alloc_init(void)
 	struct kimage *image;
 
 	/* Allocate a controlling structure */
-	image = kzalloc(sizeof(*image), GFP_KERNEL);
+	image = kzalloc_obj(*image);
 	if (!image)
 		return NULL;
 
@@ -953,22 +953,29 @@ int kimage_load_segment(struct kimage *image, int idx)
 	return result;
 }
 
-void *kimage_map_segment(struct kimage *image,
-			 unsigned long addr, unsigned long size)
+void *kimage_map_segment(struct kimage *image, int idx)
 {
+	unsigned long addr, size, eaddr;
 	unsigned long src_page_addr, dest_page_addr = 0;
-	unsigned long eaddr = addr + size;
 	kimage_entry_t *ptr, entry;
 	struct page **src_pages;
 	unsigned int npages;
+	struct page *cma;
 	void *vaddr = NULL;
 	int i;
 
+	cma = image->segment_cma[idx];
+	if (cma)
+		return page_address(cma);
+
+	addr = image->segment[idx].mem;
+	size = image->segment[idx].memsz;
+	eaddr = addr + size;
 	/*
 	 * Collect the source pages and map them in a contiguous VA range.
 	 */
 	npages = PFN_UP(eaddr) - PFN_DOWN(addr);
-	src_pages = kmalloc_array(npages, sizeof(*src_pages), GFP_KERNEL);
+	src_pages = kmalloc_objs(*src_pages, npages);
 	if (!src_pages) {
 		pr_err("Could not allocate ima pages array.\n");
 		return NULL;
@@ -1004,7 +1011,8 @@ void *kimage_map_segment(struct kimage *image,
 
 void kimage_unmap_segment(void *segment_buffer)
 {
-	vunmap(segment_buffer);
+	if (is_vmalloc_addr(segment_buffer))
+		vunmap(segment_buffer);
 }
 
 struct kexec_load_limit {

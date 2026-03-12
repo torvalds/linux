@@ -115,6 +115,15 @@ extern void timecounter_init(struct timecounter *tc,
  */
 extern u64 timecounter_read(struct timecounter *tc);
 
+/*
+ * This is like cyclecounter_cyc2ns(), but it is used for computing a
+ * time previous to the time stored in the cycle counter.
+ */
+static inline u64 cc_cyc2ns_backwards(const struct cyclecounter *cc, u64 cycles, u64 frac)
+{
+	return ((cycles * cc->mult) - frac) >> cc->shift;
+}
+
 /**
  * timecounter_cyc2time - convert a cycle counter to same
  *                        time base as values returned by
@@ -131,7 +140,25 @@ extern u64 timecounter_read(struct timecounter *tc);
  *
  * Returns: cycle counter converted to nanoseconds since the initial time stamp
  */
-extern u64 timecounter_cyc2time(const struct timecounter *tc,
-				u64 cycle_tstamp);
+static inline u64 timecounter_cyc2time(const struct timecounter *tc, u64 cycle_tstamp)
+{
+	const struct cyclecounter *cc = tc->cc;
+	u64 delta = (cycle_tstamp - tc->cycle_last) & cc->mask;
+	u64 nsec = tc->nsec, frac = tc->frac;
+
+	/*
+	 * Instead of always treating cycle_tstamp as more recent than
+	 * tc->cycle_last, detect when it is too far in the future and
+	 * treat it as old time stamp instead.
+	 */
+	if (unlikely(delta > cc->mask / 2)) {
+		delta = (tc->cycle_last - cycle_tstamp) & cc->mask;
+		nsec -= cc_cyc2ns_backwards(cc, delta, frac);
+	} else {
+		nsec += cyclecounter_cyc2ns(cc, delta, tc->mask, &frac);
+	}
+
+	return nsec;
+}
 
 #endif

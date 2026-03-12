@@ -245,7 +245,7 @@ static int metrousb_port_probe(struct usb_serial_port *port)
 {
 	struct metrousb_private *metro_priv;
 
-	metro_priv = kzalloc(sizeof(*metro_priv), GFP_KERNEL);
+	metro_priv = kzalloc_obj(*metro_priv);
 	if (!metro_priv)
 		return -ENOMEM;
 

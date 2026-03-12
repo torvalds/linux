@@ -404,7 +404,7 @@ rcar_du_vsp_plane_atomic_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_obj(*copy);
 	if (copy == NULL)
 		return NULL;
 
@@ -429,7 +429,7 @@ static void rcar_du_vsp_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return;
 
@@ -488,7 +488,7 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 
 	num_planes = rcdu->info->num_rpf;
 
-	vsp->planes = kcalloc(num_planes, sizeof(*vsp->planes), GFP_KERNEL);
+	vsp->planes = kzalloc_objs(*vsp->planes, num_planes);
 	if (!vsp->planes)
 		return -ENOMEM;
 

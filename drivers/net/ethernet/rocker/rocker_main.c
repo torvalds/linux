@@ -66,7 +66,7 @@ static struct rocker_wait *rocker_wait_create(void)
 {
 	struct rocker_wait *wait;
 
-	wait = kzalloc(sizeof(*wait), GFP_KERNEL);
+	wait = kzalloc_obj(*wait);
 	if (!wait)
 		return NULL;
 	return wait;
@@ -435,8 +435,7 @@ static int rocker_dma_ring_create(const struct rocker *rocker,
 	info->type = type;
 	info->head = 0;
 	info->tail = 0;
-	info->desc_info = kcalloc(info->size, sizeof(*info->desc_info),
-				  GFP_KERNEL);
+	info->desc_info = kzalloc_objs(*info->desc_info, info->size);
 	if (!info->desc_info)
 		return -ENOMEM;
 
@@ -1524,9 +1523,8 @@ static void rocker_world_port_post_fini(struct rocker_port *rocker_port)
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
-	if (!wops->port_post_fini)
-		return;
-	wops->port_post_fini(rocker_port);
+	if (wops->port_post_fini)
+		wops->port_post_fini(rocker_port);
 	kfree(rocker_port->wpriv);
 }
 
@@ -2156,7 +2154,7 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	if (info->family != AF_INET)
 		return NOTIFY_DONE;
 
-	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	fib_work = kzalloc_obj(*fib_work, GFP_ATOMIC);
 	if (WARN_ON(!fib_work))
 		return NOTIFY_BAD;
 
@@ -2649,9 +2647,7 @@ static int rocker_msix_init(struct rocker *rocker)
 	if (msix_entries != ROCKER_MSIX_VEC_COUNT(rocker->port_count))
 		return -EINVAL;
 
-	rocker->msix_entries = kmalloc_array(msix_entries,
-					     sizeof(struct msix_entry),
-					     GFP_KERNEL);
+	rocker->msix_entries = kmalloc_objs(struct msix_entry, msix_entries);
 	if (!rocker->msix_entries)
 		return -ENOMEM;
 
@@ -2765,7 +2761,7 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 		return rocker_switchdev_port_attr_set_event(dev, ptr);
 
 	rocker_port = netdev_priv(dev);
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
 		return NOTIFY_BAD;
 
@@ -2851,7 +2847,7 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct rocker *rocker;
 	int err;
 
-	rocker = kzalloc(sizeof(*rocker), GFP_KERNEL);
+	rocker = kzalloc_obj(*rocker);
 	if (!rocker)
 		return -ENOMEM;
 

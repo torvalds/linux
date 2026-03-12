@@ -766,7 +766,7 @@ struct b43_lo_calib *b43_calibrate_lo_setting(struct b43_wldev *dev,
 		       loctl.i, loctl.q);
 	}
 
-	cal = kmalloc(sizeof(*cal), GFP_KERNEL);
+	cal = kmalloc_obj(*cal);
 	if (!cal) {
 		b43warn(dev->wl, "LO calib: out of memory\n");
 		return NULL;

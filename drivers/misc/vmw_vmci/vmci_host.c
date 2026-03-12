@@ -120,7 +120,7 @@ static int vmci_host_open(struct inode *inode, struct file *filp)
 {
 	struct vmci_host_dev *vmci_host_dev;
 
-	vmci_host_dev = kzalloc(sizeof(struct vmci_host_dev), GFP_KERNEL);
+	vmci_host_dev = kzalloc_obj(struct vmci_host_dev);
 	if (vmci_host_dev == NULL)
 		return -ENOMEM;
 

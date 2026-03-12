@@ -749,7 +749,7 @@ static int s390_gs_cb_set(struct task_struct *target,
 	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!target->thread.gs_cb) {
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 	}
@@ -800,7 +800,7 @@ static int s390_gs_bc_set(struct task_struct *target,
 	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 		target->thread.gs_bc_cb = data;
@@ -861,7 +861,7 @@ static int s390_runtime_instr_set(struct task_struct *target,
 		return -ENODEV;
 
 	if (!target->thread.ri_cb) {
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 	}

@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024 Fedor Ross <fedor.ross@ifm.com>
+ */
+
+/dts-v1/;
+
+#include "imx8mn-vhip4-evalboard-common.dtsi"
+
+/ {
+	model = "ifm i.MX8MNano VHIP4 Evaluation Board v2";
+	compatible = "ifm,imx8mn-vhip4-evalboard-v2", "ifm,imx8mn-vhip4-evalboard",
+		     "ifm,imx8mn-vhip4", "fsl,imx8mn";
+
+	multi-led {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_INDICATOR;
+		leds = <&rgb_0>, <&rgb_1>, <&rgb_2>;
+	};
+};
+
+&ifm_led {
+	pinctrl-1 = <&pinctrl_gpio_led_v2>;
+
+	rgb_0: rgb-led-red {
+		color = <LED_COLOR_ID_RED>;
+		gpios = <&gpio2 17 GPIO_ACTIVE_HIGH>;
+		default-state = "keep";
+	};
+
+	rgb_1: rgb-led-green {
+		color = <LED_COLOR_ID_GREEN>;
+		gpios = <&gpio2 19 GPIO_ACTIVE_HIGH>;
+		default-state = "keep";
+	};
+
+	rgb_2: rgb-led-blue {
+		color = <LED_COLOR_ID_BLUE>;
+		gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;
+		default-state = "keep";
+	};
+};
+
+&ecspi1 {
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>, <&gpio1 11 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	eeprom@0 {
+		compatible = "fujitsu,mb85rs64", "atmel,at25";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+		spi-cpha;
+		spi-cpol;
+		pagesize = <1>;
+		size = <32768>;
+		address-width = <16>;
+	};
+};
+
+&ecspi3 {
+	cs-gpios = <&gpio5 25 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	can0: can@0 {
+		compatible = "microchip,mcp2518fd";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_mcp2518>;
+		reg = <0>;
+		clocks = <&can_clk40m>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
+		microchip,rx-int-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
+&i2c1 {
+	scl-gpios = <&gpio2 6 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	temperature-sensor@48 {
+		compatible = "ti,tmp1075";
+		reg = <0x48>;
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c128";
+		reg = <0x54>;
+	};
+};
+
+&i2c3 {
+	scl-gpios = <&gpio5 18 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 19 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&ifm_pmic {
+	interrupt-parent = <&gpio5>;
+	interrupts = <17 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl_ecspi1_cs: ecspi1-cs-grp {
+		fsl,pins = <
+			/* KS8794 nCS */
+			MX8MN_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x150
+			/* Retain memory nCS (FRAM or MRAM) */
+			MX8MN_IOMUXC_ECSPI1_SS0_GPIO5_IO9		0x150
+			/* RETAIN_nHOLD */
+			MX8MN_IOMUXC_SPDIF_RX_GPIO5_IO4			0x140
+		>;
+	};
+
+	pinctrl_ecspi3_cs: ecspi3-cs-grp {
+		fsl,pins = <
+			/* MCP2518FD nCS */
+			MX8MN_IOMUXC_UART2_TXD_GPIO5_IO25		0x150
+		>;
+	};
+
+	pinctrl_gpio_led_v2: gpioled-v2-grp {
+		fsl,pins = <
+			/* LED_RGB_RED */
+			MX8MN_IOMUXC_SD2_DATA2_GPIO2_IO17		0x116
+			/* LED_RGB_GREEN */
+			MX8MN_IOMUXC_SD2_RESET_B_GPIO2_IO19		0x116
+			/* LED_RGB_BLUE */
+			MX8MN_IOMUXC_SD2_WP_GPIO2_IO20			0x116
+		>;
+	};
+
+	pinctrl_i2c1: i2c1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_DATA4_I2C1_SCL			0x40000056
+			MX8MN_IOMUXC_SD1_DATA5_I2C1_SDA			0x400000d6
+		>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_DATA4_GPIO2_IO6		0x56
+			MX8MN_IOMUXC_SD1_DATA5_GPIO2_IO7		0xd6
+			/* CFG_EEPROM_WP */
+			MX8MN_IOMUXC_SD1_STROBE_GPIO2_IO11		0x140
+			/* RTC_nIRQ */
+			MX8MN_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5		0x116
+			/* LOG_EE_WP */
+			MX8MN_IOMUXC_SPDIF_TX_GPIO5_IO3			0x140
+		>;
+	};
+
+	pinctrl_i2c3: i2c3-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C3_SCL_I2C3_SCL			0x40000056
+			MX8MN_IOMUXC_I2C3_SDA_I2C3_SDA			0x400000d6
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3-gpio-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C3_SCL_GPIO5_IO18		0x56
+			MX8MN_IOMUXC_I2C3_SDA_GPIO5_IO19		0xd6
+		>;
+	};
+
+	pinctrl_mcp2518: mcp2518-grp {
+		fsl,pins = <
+			/* CAN0_CLKO */
+			MX8MN_IOMUXC_GPIO1_IO00_GPIO1_IO0		0x116
+			/* CAN0_nINT0 */
+			MX8MN_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x116
+			/* CAN0_nINT1 */
+			MX8MN_IOMUXC_GPIO1_IO04_GPIO1_IO4		0x116
+			/* CAN0_nINT */
+			MX8MN_IOMUXC_GPIO1_IO01_GPIO1_IO1		0x116
+		>;
+	};
+
+	pinctrl_pmic: pmic-irq-grp {
+		fsl,pins = <
+			/* PMIC_nIRQ */
+			MX8MN_IOMUXC_I2C2_SDA_GPIO5_IO17		0x1d6
+		>;
+	};
+
+	pinctrl_uart3: uart3-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SD1_DATA6_UART3_DCE_TX		0x142
+			MX8MN_IOMUXC_SD1_DATA7_UART3_DCE_RX		0x142
+		>;
+	};
+
+	pinctrl_wdog: wdog-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B		0x64
+		>;
+	};
+};
+
+&gpio2 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "",
+		"ifm_device_info_eeprom_wp",
+		"", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"", "", "",
+		"ifm_logging_eeprom_wp",
+		"", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "",	"", "", "", "",
+		"", "", "", "", "", "", "", "";
+};

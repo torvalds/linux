@@ -116,7 +116,7 @@ int snd_gus_create(struct snd_card *card,
 	};
 
 	*rgus = NULL;
-	gus = kzalloc(sizeof(*gus), GFP_KERNEL);
+	gus = kzalloc_obj(*gus);
 	if (gus == NULL)
 		return -ENOMEM;
 	spin_lock_init(&gus->reg_lock);

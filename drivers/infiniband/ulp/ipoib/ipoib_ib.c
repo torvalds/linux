@@ -59,7 +59,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;
 
-	ah = kmalloc(sizeof(*ah), GFP_KERNEL);
+	ah = kmalloc_obj(*ah);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 
@@ -422,7 +422,7 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 		ipoib_warn(priv,
 			   "failed send event (status=%d, wrid=%d vend_err %#x)\n",
 			   wc->status, wr_id, wc->vendor_err);
-		qp_work = kzalloc(sizeof(*qp_work), GFP_ATOMIC);
+		qp_work = kzalloc_obj(*qp_work, GFP_ATOMIC);
 		if (!qp_work)
 			return;
 

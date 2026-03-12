@@ -250,7 +250,6 @@ static irqreturn_t gma_irq_handler(int irq, void *arg)
 void gma_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct drm_crtc *crtc;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
@@ -261,15 +260,10 @@ void gma_irq_preinstall(struct drm_device *dev)
 	PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
 	PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
 
-	drm_for_each_crtc(crtc, dev) {
-		struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
-
-		if (vblank->enabled) {
-			u32 mask = drm_crtc_index(crtc) ? _PSB_VSYNC_PIPEB_FLAG :
-				_PSB_VSYNC_PIPEA_FLAG;
-			dev_priv->vdc_irq_mask |= mask;
-		}
-	}
+	if (dev->vblank[0].enabled)
+		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
+	if (dev->vblank[1].enabled)
+		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEB_FLAG;
 
 	/* Revisit this area - want per device masks ? */
 	if (dev_priv->ops->hotplug)
@@ -284,8 +278,8 @@ void gma_irq_preinstall(struct drm_device *dev)
 void gma_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct drm_crtc *crtc;
 	unsigned long irqflags;
+	unsigned int i;
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
@@ -298,13 +292,11 @@ void gma_irq_postinstall(struct drm_device *dev)
 	PSB_WVDC32(dev_priv->vdc_irq_mask, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	drm_for_each_crtc(crtc, dev) {
-		struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
-
-		if (vblank->enabled)
-			gma_enable_pipestat(dev_priv, drm_crtc_index(crtc), PIPE_VBLANK_INTERRUPT_ENABLE);
+	for (i = 0; i < dev->num_crtcs; ++i) {
+		if (dev->vblank[i].enabled)
+			gma_enable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 		else
-			gma_disable_pipestat(dev_priv, drm_crtc_index(crtc), PIPE_VBLANK_INTERRUPT_ENABLE);
+			gma_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 	}
 
 	if (dev_priv->ops->hotplug_enable)
@@ -345,8 +337,8 @@ void gma_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct drm_crtc *crtc;
 	unsigned long irqflags;
+	unsigned int i;
 
 	if (!dev_priv->irq_enabled)
 		return;
@@ -358,11 +350,9 @@ void gma_irq_uninstall(struct drm_device *dev)
 
 	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
 
-	drm_for_each_crtc(crtc, dev) {
-		struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
-
-		if (vblank->enabled)
-			gma_disable_pipestat(dev_priv, drm_crtc_index(crtc), PIPE_VBLANK_INTERRUPT_ENABLE);
+	for (i = 0; i < dev->num_crtcs; ++i) {
+		if (dev->vblank[i].enabled)
+			gma_disable_pipestat(dev_priv, i, PIPE_VBLANK_INTERRUPT_ENABLE);
 	}
 
 	dev_priv->vdc_irq_mask &= _PSB_IRQ_SGX_FLAG |

@@ -2920,7 +2920,7 @@ out:
 }
 
 /**
- * mpi3mr_app_save_logdata - Save Log Data events
+ * mpi3mr_app_save_logdata_th - Save Log Data events
  * @mrioc: Adapter instance reference
  * @event_data: event data associated with log data event
  * @event_data_size: event data size to copy
@@ -2932,7 +2932,7 @@ out:
  *
  * Return:Nothing
  */
-void mpi3mr_app_save_logdata(struct mpi3mr_ioc *mrioc, char *event_data,
+void mpi3mr_app_save_logdata_th(struct mpi3mr_ioc *mrioc, char *event_data,
 	u16 event_data_size)
 {
 	u32 index = mrioc->logdata_buf_idx, sz;
@@ -3255,6 +3255,29 @@ adp_state_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(adp_state);
 
+/**
+ * fwfault_count_show() - SysFS callback to show firmware fault count
+ * @dev: class device
+ * @attr: Device attribute
+ * @buf: Buffer to copy data into
+ *
+ * Displays the total number of firmware faults detected by the driver
+ * since the controller was initialized.
+ *
+ * Return: Number of bytes written to @buf
+ */
+
+static ssize_t
+fwfault_count_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct mpi3mr_ioc *mrioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n", mrioc->fwfault_counter);
+}
+static DEVICE_ATTR_RO(fwfault_count);
+
 static struct attribute *mpi3mr_host_attrs[] = {
 	&dev_attr_version_fw.attr,
 	&dev_attr_fw_queue_depth.attr,
@@ -3263,6 +3286,7 @@ static struct attribute *mpi3mr_host_attrs[] = {
 	&dev_attr_reply_qfull_count.attr,
 	&dev_attr_logging_level.attr,
 	&dev_attr_adp_state.attr,
+	&dev_attr_fwfault_count.attr,
 	NULL,
 };
 

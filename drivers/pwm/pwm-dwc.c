@@ -22,13 +22,14 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
+#include <linux/sizes.h>
 
 #include "pwm-dwc.h"
 
 /* Elkhart Lake */
 static const struct dwc_pwm_info ehl_pwm_info = {
 	.nr = 2,
-	.size = 0x1000,
+	.size = SZ_4K,
 };
 
 static int dwc_pwm_init_one(struct device *dev, struct dwc_pwm_drvdata *ddata, unsigned int idx)

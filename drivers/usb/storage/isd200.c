@@ -1463,7 +1463,7 @@ static int isd200_init_info(struct us_data *us)
 {
 	struct isd200_info *info;
 
-	info = kzalloc(sizeof(struct isd200_info), GFP_KERNEL);
+	info = kzalloc_obj(struct isd200_info);
 	if (!info)
 		return -ENOMEM;
 

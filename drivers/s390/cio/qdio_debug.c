@@ -81,7 +81,7 @@ int qdio_allocate_dbf(struct qdio_irq *irq_ptr)
 		}
 		debug_set_level(irq_ptr->debug_area, DBF_WARN);
 		DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf created");
-		new_entry = kzalloc(sizeof(struct qdio_dbf_entry), GFP_KERNEL);
+		new_entry = kzalloc_obj(struct qdio_dbf_entry);
 		if (!new_entry) {
 			debug_unregister(irq_ptr->debug_area);
 			return -ENOMEM;

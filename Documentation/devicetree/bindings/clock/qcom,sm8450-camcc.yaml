@@ -9,23 +9,32 @@ title: Qualcomm Camera Clock & Reset Controller on SM8450
 maintainers:
   - Vladimir Zapolskiy <vladimir.zapolskiy@linaro.org>
   - Jagadeesh Kona <quic_jkona@quicinc.com>
+  - Taniya Das <taniya.das@oss.qualcomm.com>
 
 description: |
   Qualcomm camera clock control module provides the clocks, resets and power
   domains on SM8450.
 
   See also:
+    include/dt-bindings/clock/qcom,kaanapali-camcc.h
+    include/dt-bindings/clock/qcom,kaanapali-cambistmclkcc.h
     include/dt-bindings/clock/qcom,sm8450-camcc.h
     include/dt-bindings/clock/qcom,sm8550-camcc.h
     include/dt-bindings/clock/qcom,sm8650-camcc.h
+    include/dt-bindings/clock/qcom,sm8750-cambistmclkcc.h
+    include/dt-bindings/clock/qcom,sm8750-camcc.h
 
 properties:
   compatible:
     enum:
+      - qcom,kaanapali-cambistmclkcc
+      - qcom,kaanapali-camcc
       - qcom,sm8450-camcc
       - qcom,sm8475-camcc
       - qcom,sm8550-camcc
       - qcom,sm8650-camcc
+      - qcom,sm8750-cambistmclkcc
+      - qcom,sm8750-camcc
 
   clocks:
     items:
@@ -63,6 +72,8 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,kaanapali-cambistmclkcc
+              - qcom,kaanapali-camcc
               - qcom,sc8280xp-camcc
               - qcom,sm8450-camcc
               - qcom,sm8550-camcc

@@ -188,7 +188,7 @@ int gb_audio_manager_module_create(struct gb_audio_manager_module **module,
 	int err;
 	struct gb_audio_manager_module *m;
 
-	m = kzalloc(sizeof(*m), GFP_ATOMIC);
+	m = kzalloc_obj(*m, GFP_ATOMIC);
 	if (!m)
 		return -ENOMEM;
 

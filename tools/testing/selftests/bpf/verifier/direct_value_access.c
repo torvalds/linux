@@ -81,7 +81,7 @@
 	},
 	.fixup_map_array_48b = { 1 },
 	.result = REJECT,
-	.errstr = "direct value offset of 4294967295 is not allowed",
+	.errstr = "invalid access to map value pointer, value_size=48 off=4294967295",
 },
 {
 	"direct map access, write test 8",
@@ -141,7 +141,7 @@
 	},
 	.fixup_map_array_48b = { 1 },
 	.result = REJECT,
-	.errstr = "direct value offset of 536870912 is not allowed",
+	.errstr = "invalid access to map value pointer, value_size=48 off=536870912",
 },
 {
 	"direct map access, write test 13",

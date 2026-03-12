@@ -146,7 +146,7 @@ static void show_gpci_data(struct seq_file *m)
 	unsigned int affinity_score;
 	long ret;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kmalloc_obj(*buf);
 	if (buf == NULL)
 		return;
 

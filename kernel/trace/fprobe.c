@@ -749,7 +749,7 @@ static int fprobe_init(struct fprobe *fp, unsigned long *addrs, int num)
 		return -E2BIG;
 	fp->entry_data_size = size;
 
-	hlist_array = kzalloc(struct_size(hlist_array, array, num), GFP_KERNEL);
+	hlist_array = kzalloc_flex(*hlist_array, array, num);
 	if (!hlist_array)
 		return -ENOMEM;
 
@@ -805,7 +805,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	if (!addrs)
 		return -ENOMEM;
 
-	mods = kcalloc(num, sizeof(*mods), GFP_KERNEL);
+	mods = kzalloc_objs(*mods, num);
 	if (!mods)
 		return -ENOMEM;
 

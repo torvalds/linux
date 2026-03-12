@@ -14,6 +14,8 @@ description: |
   The ZynqMP AES-GCM hardened cryptographic accelerator is used to
   encrypt or decrypt the data with provided key and initialization vector.
 
+deprecated: true
+
 properties:
   compatible:
     const: xlnx,zynqmp-aes

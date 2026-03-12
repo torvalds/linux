@@ -403,7 +403,7 @@ static bool rtw_usb_tx_agg_skb(struct rtw_usb *rtwusb, struct sk_buff_head *list
 	if (skb_queue_empty(list))
 		return false;
 
-	txcb = kmalloc(sizeof(*txcb), GFP_ATOMIC);
+	txcb = kmalloc_obj(*txcb, GFP_ATOMIC);
 	if (!txcb)
 		return false;
 
@@ -965,7 +965,7 @@ static int rtw_usb_init_rx(struct rtw_dev *rtwdev)
 	struct sk_buff *rx_skb;
 	int i;
 
-	rtwusb->rxwq = alloc_workqueue("rtw88_usb: rx wq", WQ_BH | WQ_UNBOUND,
+	rtwusb->rxwq = alloc_workqueue("rtw88_usb: rx wq", WQ_BH | WQ_PERCPU,
 				       0);
 	if (!rtwusb->rxwq) {
 		rtw_err(rtwdev, "failed to create RX work queue\n");

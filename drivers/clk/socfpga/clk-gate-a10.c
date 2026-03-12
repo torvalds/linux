@@ -52,7 +52,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	struct clk_init_data init;
 	int rc;
 
-	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
+	socfpga_clk = kzalloc_obj(*socfpga_clk);
 	if (WARN_ON(!socfpga_clk))
 		return;
 

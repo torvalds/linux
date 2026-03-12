@@ -1,22 +1,16 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * bcm2712-rpi-5-b-ovl-rp1.dts is the overlay-ready DT which will make
- * the RP1 driver to load the RP1 dtb overlay at runtime, while
- * bcm2712-rpi-5-b.dts (this file) is the fully defined one (i.e. it
- * already contains RP1 node, so no overlay is loaded nor needed).
- * This file is intended to host the override nodes for the RP1 peripherals,
- * e.g. to declare the phy of the ethernet interface or the custom pin setup
- * for several RP1 peripherals.
- * This in turn is due to the fact that there's no current generic
- * infrastructure to reference nodes (i.e. the nodes in rp1-common.dtsi) that
- * are not yet defined in the DT since they are loaded at runtime via overlay.
+ * As a loose attempt to separate RP1 customizations from SoC peripherals
+ * definitioni, this file is intended to host the override nodes for the RP1
+ * peripherals, e.g. to declare the phy of the ethernet interface or custom
+ * pin setup.
  * All other nodes that do not have anything to do with RP1 should be added
- * to the included bcm2712-rpi-5-b-ovl-rp1.dts instead.
+ * to the included bcm2712-rpi-5-b-base.dtsi instead.
  */
 
 /dts-v1/;
 
-#include "bcm2712-rpi-5-b-ovl-rp1.dts"
+#include "bcm2712-rpi-5-b-base.dtsi"
 
 / {
 	aliases {
@@ -25,7 +19,26 @@
 };
 
 &pcie2 {
-	#include "rp1-nexus.dtsi"
+	pci@0,0 {
+		reg = <0x0 0x0 0x0 0x0 0x0>;
+		ranges;
+		bus-range = <0 1>;
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		dev@0,0 {
+			compatible = "pci1de4,1";
+			reg = <0x10000 0x0 0x0 0x0 0x0>;
+			ranges = <0x1 0x0 0x0 0x82010000 0x0 0x0 0x0 0x400000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			#include "rp1-common.dtsi"
+		};
+	};
 };
 
 &rp1_eth {

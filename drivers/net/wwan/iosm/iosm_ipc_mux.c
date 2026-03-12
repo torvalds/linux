@@ -278,7 +278,7 @@ out:
 struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 			      struct iosm_imem *imem)
 {
-	struct iosm_mux *ipc_mux = kzalloc(sizeof(*ipc_mux), GFP_KERNEL);
+	struct iosm_mux *ipc_mux = kzalloc_obj(*ipc_mux);
 	int i, j, ul_tds, ul_td_size;
 	struct sk_buff_head *free_list;
 	struct sk_buff *skb;
@@ -456,6 +456,7 @@ void ipc_mux_deinit(struct iosm_mux *ipc_mux)
 	struct sk_buff_head *free_list;
 	union mux_msg mux_msg;
 	struct sk_buff *skb;
+	int i;
 
 	if (!ipc_mux->initialized)
 		return;
@@ -477,6 +478,11 @@ void ipc_mux_deinit(struct iosm_mux *ipc_mux)
 	if (ipc_mux->channel) {
 		ipc_mux->channel->ul_pipe.is_open = false;
 		ipc_mux->channel->dl_pipe.is_open = false;
+	}
+
+	if (ipc_mux->protocol != MUX_LITE) {
+		for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++)
+			kfree(ipc_mux->ul_adb.pp_qlt[i]);
 	}
 
 	kfree(ipc_mux);

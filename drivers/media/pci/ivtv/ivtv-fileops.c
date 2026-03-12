@@ -990,7 +990,7 @@ static int ivtv_open(struct file *filp)
 	}
 
 	/* Allocate memory */
-	item = kzalloc(sizeof(struct ivtv_open_id), GFP_KERNEL);
+	item = kzalloc_obj(struct ivtv_open_id);
 	if (NULL == item) {
 		IVTV_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;

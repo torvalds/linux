@@ -273,7 +273,7 @@ static int mei_pxp_probe(struct mei_cl_device *cldev,
 		goto enable_err_exit;
 	}
 
-	comp_master = kzalloc(sizeof(*comp_master), GFP_KERNEL);
+	comp_master = kzalloc_obj(*comp_master);
 	if (!comp_master) {
 		ret = -ENOMEM;
 		goto err_exit;

@@ -1331,7 +1331,7 @@ static struct rtw_rsvd_page *rtw_alloc_rsvd_page(struct rtw_dev *rtwdev,
 {
 	struct rtw_rsvd_page *rsvd_pkt = NULL;
 
-	rsvd_pkt = kzalloc(sizeof(*rsvd_pkt), GFP_KERNEL);
+	rsvd_pkt = kzalloc_obj(*rsvd_pkt);
 
 	if (!rsvd_pkt)
 		return NULL;

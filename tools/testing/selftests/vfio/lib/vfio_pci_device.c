@@ -11,11 +11,14 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include <uapi/linux/types.h>
+#include <linux/align.h>
 #include <linux/iommufd.h>
+#include <linux/kernel.h>
 #include <linux/limits.h>
+#include <linux/log2.h>
 #include <linux/mman.h>
 #include <linux/overflow.h>
+#include <linux/sizes.h>
 #include <linux/types.h>
 #include <linux/vfio.h>
 
@@ -124,20 +127,38 @@ static void vfio_pci_region_get(struct vfio_pci_device *device, int index,
 static void vfio_pci_bar_map(struct vfio_pci_device *device, int index)
 {
 	struct vfio_pci_bar *bar = &device->bars[index];
+	size_t align, size;
 	int prot = 0;
+	void *vaddr;
 
 	VFIO_ASSERT_LT(index, PCI_STD_NUM_BARS);
 	VFIO_ASSERT_NULL(bar->vaddr);
 	VFIO_ASSERT_TRUE(bar->info.flags & VFIO_REGION_INFO_FLAG_MMAP);
+	VFIO_ASSERT_TRUE(is_power_of_2(bar->info.size));
 
 	if (bar->info.flags & VFIO_REGION_INFO_FLAG_READ)
 		prot |= PROT_READ;
 	if (bar->info.flags & VFIO_REGION_INFO_FLAG_WRITE)
 		prot |= PROT_WRITE;
 
-	bar->vaddr = mmap(NULL, bar->info.size, prot, MAP_FILE | MAP_SHARED,
+	size = bar->info.size;
+
+	/*
+	 * Align BAR mmaps to improve page fault granularity during potential
+	 * subsequent IOMMU mapping of these BAR vaddr. 1G for x86 is the
+	 * largest hugepage size across any architecture, so no benefit from
+	 * larger alignment. BARs smaller than 1G will be aligned by their
+	 * power-of-two size, guaranteeing sufficient alignment for smaller
+	 * hugepages, if present.
+	 */
+	align = min_t(size_t, size, SZ_1G);
+
+	vaddr = mmap_reserve(size, align, 0);
+	bar->vaddr = mmap(vaddr, size, prot, MAP_SHARED | MAP_FIXED,
 			  device->fd, bar->info.offset);
 	VFIO_ASSERT_NE(bar->vaddr, MAP_FAILED);
+
+	madvise(bar->vaddr, size, MADV_HUGEPAGE);
 }
 
 static void vfio_pci_bar_unmap(struct vfio_pci_device *device, int index)

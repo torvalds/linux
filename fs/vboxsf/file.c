@@ -26,7 +26,7 @@ struct vboxsf_handle *vboxsf_create_sf_handle(struct inode *inode,
 	struct vboxsf_inode *sf_i = VBOXSF_I(inode);
 	struct vboxsf_handle *sf_handle;
 
-	sf_handle = kmalloc(sizeof(*sf_handle), GFP_KERNEL);
+	sf_handle = kmalloc_obj(*sf_handle);
 	if (!sf_handle)
 		return ERR_PTR(-ENOMEM);
 
@@ -218,7 +218,6 @@ const struct file_operations vboxsf_reg_fops = {
 	.release = vboxsf_file_release,
 	.fsync = noop_fsync,
 	.splice_read = filemap_splice_read,
-	.setlease = simple_nosetlease,
 };
 
 const struct inode_operations vboxsf_reg_iops = {

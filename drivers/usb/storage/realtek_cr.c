@@ -976,7 +976,7 @@ static int init_realtek_cr(struct us_data *us)
 	struct rts51x_chip *chip;
 	int size, i, retval;
 
-	chip = kzalloc(sizeof(struct rts51x_chip), GFP_KERNEL);
+	chip = kzalloc_obj(struct rts51x_chip);
 	if (!chip)
 		return -ENOMEM;
 

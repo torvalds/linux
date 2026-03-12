@@ -428,7 +428,7 @@ static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **h
 		/* this one isn't an aligned length, so we'll make a new entry
 		 * and split it up.
 		 */
-		split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+		split_node = kmalloc_obj(*split_node);
 
 		if (!split_node)
 			return NULL;
@@ -553,7 +553,7 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 			if ((node->length - (temp_dword - node->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -573,7 +573,7 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 			/* this one is longer than we need
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -650,7 +650,7 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 			if ((max->length - (temp_dword - max->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -668,7 +668,7 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 			/* this one isn't end aligned properly at the top
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -747,7 +747,7 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 			if ((node->length - (temp_dword - node->base)) < size)
 				continue;
 
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -767,7 +767,7 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 			/* this one is longer than we need
 			 * so we'll make a new entry and split it up
 			 */
-			split_node = kmalloc(sizeof(*split_node), GFP_KERNEL);
+			split_node = kmalloc_obj(*split_node);
 
 			if (!split_node)
 				return NULL;
@@ -955,7 +955,7 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
 	struct pci_func *new_slot;
 	struct pci_func *next;
 
-	new_slot = kzalloc(sizeof(*new_slot), GFP_KERNEL);
+	new_slot = kzalloc_obj(*new_slot);
 	if (new_slot == NULL)
 		return new_slot;
 
@@ -2435,10 +2435,10 @@ static int configure_new_function(struct controller *ctrl, struct pci_func *func
 		/* Make copies of the nodes we are going to pass down so that
 		 * if there is a problem,we can just use these to free resources
 		 */
-		hold_bus_node = kmalloc(sizeof(*hold_bus_node), GFP_KERNEL);
-		hold_IO_node = kmalloc(sizeof(*hold_IO_node), GFP_KERNEL);
-		hold_mem_node = kmalloc(sizeof(*hold_mem_node), GFP_KERNEL);
-		hold_p_mem_node = kmalloc(sizeof(*hold_p_mem_node), GFP_KERNEL);
+		hold_bus_node = kmalloc_obj(*hold_bus_node);
+		hold_IO_node = kmalloc_obj(*hold_IO_node);
+		hold_mem_node = kmalloc_obj(*hold_mem_node);
+		hold_p_mem_node = kmalloc_obj(*hold_p_mem_node);
 
 		if (!hold_bus_node || !hold_IO_node || !hold_mem_node || !hold_p_mem_node) {
 			kfree(hold_bus_node);

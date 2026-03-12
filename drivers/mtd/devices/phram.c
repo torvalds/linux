@@ -130,7 +130,7 @@ static int register_device(struct platform_device *pdev, const char *name,
 	struct phram_mtd_list *new;
 	int ret = -ENOMEM;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		goto out0;
 

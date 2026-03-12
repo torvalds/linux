@@ -538,7 +538,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 
 	if (copy_from_user(&be, arg, sizeof be))
 		return -EFAULT;
-	brvcc = kzalloc(sizeof(struct br2684_vcc), GFP_KERNEL);
+	brvcc = kzalloc_obj(struct br2684_vcc);
 	if (!brvcc)
 		return -ENOMEM;
 	/*

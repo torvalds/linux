@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/st,spi-fsm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics SPI FSM Serial NOR Flash Controller
+
+maintainers:
+  - Angus Clark <angus.clark@st.com>
+
+description:
+  The STMicroelectronics Fast Sequence Mode (FSM) controller is a dedicated
+  hardware accelerator integrated in older STiH4xx/STiDxxx set-top box SoCs
+  (such as STiH407, STiH416, STiD127). It connects directly to a single
+  external serial flash device used as the primary boot device. The FSM
+  executes hard-coded or configurable instruction sequences in hardware,
+  providing low-latency reads suitable for execute-in-place (XIP) boot
+  and high read bandwidth.
+
+properties:
+  compatible:
+    const: st,spi-fsm
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    const: spi-fsm
+
+  interrupts:
+    maxItems: 1
+
+  st,syscfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the system configuration registers used for boot-device selection.
+
+  st,boot-device-reg:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Offset of the boot-device register within the st,syscfg node.
+
+  st,boot-device-spi:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Expected boot-device value when booting from this SPI controller.
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - pinctrl-0
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    spifsm@fe902000 {
+        compatible = "st,spi-fsm";
+        reg = <0xfe902000 0x1000>;
+        reg-names = "spi-fsm";
+        interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+        pinctrl-0 = <&pinctrl_fsm>;
+        st,syscfg = <&syscfg_rear>;
+        st,boot-device-reg = <0x958>;
+        st,boot-device-spi = <0x1a>;
+    };
+...

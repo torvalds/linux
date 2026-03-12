@@ -94,6 +94,8 @@ LLVM_STRIP	?= llvm-strip
 # Some tools require bpftool
 SYSTEM_BPFTOOL	?= bpftool
 
+RUSTC		?= rustc
+
 ifeq ($(CC_NO_CLANG), 1)
 EXTRA_WARNINGS += -Wstrict-aliasing=3
 

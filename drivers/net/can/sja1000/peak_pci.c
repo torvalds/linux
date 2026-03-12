@@ -452,7 +452,7 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	/* channel is the first one: do the init part */
 	} else {
 		/* create the bit banging I2C adapter structure */
-		card = kzalloc(sizeof(*card), GFP_KERNEL);
+		card = kzalloc_obj(*card);
 		if (!card)
 			return -ENOMEM;
 

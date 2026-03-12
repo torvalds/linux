@@ -67,7 +67,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 	void *backing_store;
 	struct kfd_signal_page *page;
 
-	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	page = kzalloc_obj(*page);
 	if (!page)
 		return NULL;
 
@@ -331,7 +331,13 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 	if (p->signal_page)
 		return -EBUSY;
 
-	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	if (size < KFD_SIGNAL_EVENT_LIMIT * 8) {
+		pr_err("Event page size %llu is too small, need at least %lu bytes\n",
+				size, (unsigned long)(KFD_SIGNAL_EVENT_LIMIT * 8));
+		return -EINVAL;
+	}
+
+	page = kzalloc_obj(*page);
 	if (!page)
 		return -ENOMEM;
 
@@ -399,7 +405,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index)
 {
 	int ret = 0;
-	struct kfd_event *ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	struct kfd_event *ev = kzalloc_obj(*ev);
 
 	if (!ev)
 		return -ENOMEM;
@@ -452,11 +458,11 @@ int kfd_criu_restore_event(struct file *devkfd,
 	struct kfd_event *ev = NULL;
 	int ret = 0;
 
-	ev_priv = kmalloc(sizeof(*ev_priv), GFP_KERNEL);
+	ev_priv = kmalloc_obj(*ev_priv);
 	if (!ev_priv)
 		return -ENOMEM;
 
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	ev = kzalloc_obj(*ev);
 	if (!ev) {
 		ret = -ENOMEM;
 		goto exit;
@@ -785,8 +791,7 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	struct kfd_event_waiter *event_waiters;
 	uint32_t i;
 
-	event_waiters = kcalloc(num_events, sizeof(struct kfd_event_waiter),
-				GFP_KERNEL);
+	event_waiters = kzalloc_objs(struct kfd_event_waiter, num_events);
 	if (!event_waiters)
 		return NULL;
 
@@ -1379,4 +1384,33 @@ void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 	send_sig(SIGBUS, p->lead_thread, 0);
 
 	kfd_unref_process(p);
+}
+
+/* signal KFD_EVENT_TYPE_SIGNAL events from process p
+ * send signal SIGBUS to correspondent user space process
+ */
+void kfd_signal_process_terminate_event(struct kfd_process *p)
+{
+	struct kfd_event *ev;
+	u32 id;
+
+	rcu_read_lock();
+
+	/* iterate from id 1 for KFD_EVENT_TYPE_SIGNAL events */
+	id = 1;
+	idr_for_each_entry_continue(&p->event_idr, ev, id)
+		if (ev->type == KFD_EVENT_TYPE_SIGNAL) {
+			spin_lock(&ev->lock);
+			set_event(ev);
+			spin_unlock(&ev->lock);
+		}
+
+	/* Send SIGBUS to p->lead_thread */
+	dev_notice(kfd_device,
+		   "Sending SIGBUS to process %d",
+		   p->lead_thread->pid);
+
+	send_sig(SIGBUS, p->lead_thread, 0);
+
+	rcu_read_unlock();
 }

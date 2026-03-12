@@ -150,7 +150,7 @@ static int init_tasklet_work(struct otx2_cptlfs_info *lfs)
 	int i, ret = 0;
 
 	for (i = 0; i < lfs->lfs_num; i++) {
-		wqe = kzalloc(sizeof(struct otx2_cptlf_wqe), GFP_KERNEL);
+		wqe = kzalloc_obj(struct otx2_cptlf_wqe);
 		if (!wqe) {
 			ret = -ENOMEM;
 			goto cleanup_tasklet;

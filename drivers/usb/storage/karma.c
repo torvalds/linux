@@ -174,7 +174,7 @@ static void rio_karma_destructor(void *extra)
 
 static int rio_karma_init(struct us_data *us)
 {
-	struct karma_data *data = kzalloc(sizeof(struct karma_data), GFP_NOIO);
+	struct karma_data *data = kzalloc_obj(struct karma_data, GFP_NOIO);
 
 	if (!data)
 		return -ENOMEM;

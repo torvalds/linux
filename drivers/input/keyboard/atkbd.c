@@ -1277,7 +1277,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *dev;
 	int err = -ENOMEM;
 
-	atkbd = kzalloc(sizeof(*atkbd), GFP_KERNEL);
+	atkbd = kzalloc_obj(*atkbd);
 	dev = input_allocate_device();
 	if (!atkbd || !dev)
 		goto fail1;

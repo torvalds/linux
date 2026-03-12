@@ -116,7 +116,7 @@ static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 		case ELS_ADDR_FMT_PORT:
 			FC_DISC_DBG(disc, "Port address format for port "
 				    "(%6.6x)\n", ntoh24(pp->rscn_fid));
-			dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+			dp = kzalloc_obj(*dp);
 			if (!dp) {
 				redisc = 1;
 				break;

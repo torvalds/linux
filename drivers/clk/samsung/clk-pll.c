@@ -1435,7 +1435,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	struct clk_init_data init;
 	int ret, len;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll) {
 		pr_err("%s: could not allocate pll clk %s\n",
 			__func__, pll_clk->name);

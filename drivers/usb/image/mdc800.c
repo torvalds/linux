@@ -982,7 +982,7 @@ static int __init usb_mdc800_init (void)
 {
 	int retval = -ENODEV;
 	/* Allocate Memory */
-	mdc800=kzalloc (sizeof (struct mdc800_data), GFP_KERNEL);
+	mdc800=kzalloc_obj(struct mdc800_data);
 	if (!mdc800)
 		goto cleanup_on_fail;
 

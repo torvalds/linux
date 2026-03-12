@@ -13,11 +13,11 @@
 #include "quicki2c-hid.h"
 #include "quicki2c-protocol.h"
 
-static int quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, int cmd_len,
-				   bool append_data_reg, u8 *data, int data_len,
-				   u8 *write_buf, int write_buf_len)
+static ssize_t quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, size_t cmd_len,
+				       bool append_data_reg, u8 *data, size_t data_len,
+				       u8 *write_buf, size_t write_buf_len)
 {
-	int buf_len, offset = 0;
+	size_t buf_len, offset = 0;
 
 	buf_len = HIDI2C_REG_LEN + cmd_len;
 
@@ -30,20 +30,23 @@ static int quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, int c
 	if (buf_len > write_buf_len)
 		return -EINVAL;
 
-	memcpy(write_buf, &qcdev->dev_desc.cmd_reg, HIDI2C_REG_LEN);
-	offset += HIDI2C_REG_LEN;
-	memcpy(write_buf + offset, &cmd, cmd_len);
-	offset += cmd_len;
+	if (cmd_len) {
+		memcpy(write_buf, &qcdev->dev_desc.cmd_reg, HIDI2C_REG_LEN);
+		offset += HIDI2C_REG_LEN;
+		memcpy(write_buf + offset, &cmd, cmd_len);
+		offset += cmd_len;
 
-	if (append_data_reg) {
-		memcpy(write_buf + offset, &qcdev->dev_desc.data_reg, HIDI2C_REG_LEN);
+		if (append_data_reg) {
+			memcpy(write_buf + offset, &qcdev->dev_desc.data_reg, HIDI2C_REG_LEN);
+			offset += HIDI2C_REG_LEN;
+		}
+	} else {
+		memcpy(write_buf, &qcdev->dev_desc.output_reg, HIDI2C_REG_LEN);
 		offset += HIDI2C_REG_LEN;
 	}
 
 	if (data && data_len) {
-		__le16 len = cpu_to_le16(data_len + HIDI2C_LENGTH_LEN);
-
-		memcpy(write_buf + offset, &len, HIDI2C_LENGTH_LEN);
+		put_unaligned_le16(data_len + HIDI2C_LENGTH_LEN, write_buf + offset);
 		offset += HIDI2C_LENGTH_LEN;
 		memcpy(write_buf + offset, data, data_len);
 	}
@@ -51,10 +54,10 @@ static int quicki2c_init_write_buf(struct quicki2c_device *qcdev, u32 cmd, int c
 	return buf_len;
 }
 
-static int quicki2c_encode_cmd(struct quicki2c_device *qcdev, u32 *cmd_buf,
-			       u8 opcode, u8 report_type, u8 report_id)
+static size_t quicki2c_encode_cmd(struct quicki2c_device *qcdev, u32 *cmd_buf,
+				  u8 opcode, u8 report_type, u8 report_id)
 {
-	int cmd_len;
+	size_t cmd_len;
 
 	*cmd_buf = FIELD_PREP(HIDI2C_CMD_OPCODE, opcode) |
 		   FIELD_PREP(HIDI2C_CMD_REPORT_TYPE, report_type);
@@ -72,22 +75,20 @@ static int quicki2c_encode_cmd(struct quicki2c_device *qcdev, u32 *cmd_buf,
 }
 
 static int write_cmd_to_txdma(struct quicki2c_device *qcdev, int opcode,
-			      int report_type, int report_id, u8 *buf, int buf_len)
+			      int report_type, int report_id, u8 *buf, size_t buf_len)
 {
-	size_t write_buf_len;
-	int cmd_len, ret;
+	size_t cmd_len;
+	ssize_t len;
 	u32 cmd;
 
 	cmd_len = quicki2c_encode_cmd(qcdev, &cmd, opcode, report_type, report_id);
 
-	ret = quicki2c_init_write_buf(qcdev, cmd, cmd_len, buf ? true : false, buf,
+	len = quicki2c_init_write_buf(qcdev, cmd, cmd_len, buf ? true : false, buf,
 				      buf_len, qcdev->report_buf, qcdev->report_len);
-	if (ret < 0)
-		return ret;
+	if (len < 0)
+		return len;
 
-	write_buf_len = ret;
-
-	return thc_dma_write(qcdev->thc_hw, qcdev->report_buf, write_buf_len);
+	return thc_dma_write(qcdev->thc_hw, qcdev->report_buf, len);
 }
 
 int quicki2c_set_power(struct quicki2c_device *qcdev, enum hidi2c_power_state power_state)
@@ -126,13 +127,13 @@ int quicki2c_get_report_descriptor(struct quicki2c_device *qcdev)
 }
 
 int quicki2c_get_report(struct quicki2c_device *qcdev, u8 report_type,
-			unsigned int reportnum, void *buf, u32 buf_len)
+			unsigned int reportnum, void *buf, size_t buf_len)
 {
 	struct hidi2c_report_packet *rpt;
-	size_t write_buf_len, read_len = 0;
-	int cmd_len, rep_type;
+	size_t cmd_len, read_len = 0;
+	int rep_type, ret;
+	ssize_t len;
 	u32 cmd;
-	int ret;
 
 	if (report_type == HID_INPUT_REPORT) {
 		rep_type = HIDI2C_INPUT;
@@ -145,25 +146,22 @@ int quicki2c_get_report(struct quicki2c_device *qcdev, u8 report_type,
 
 	cmd_len = quicki2c_encode_cmd(qcdev, &cmd, HIDI2C_GET_REPORT, rep_type, reportnum);
 
-	ret = quicki2c_init_write_buf(qcdev, cmd, cmd_len, true, NULL, 0,
+	len = quicki2c_init_write_buf(qcdev, cmd, cmd_len, true, NULL, 0,
 				      qcdev->report_buf, qcdev->report_len);
-	if (ret < 0)
-		return ret;
-
-	write_buf_len = ret;
+	if (len < 0)
+		return len;
 
 	rpt = (struct hidi2c_report_packet *)qcdev->input_buf;
 
-	ret = thc_swdma_read(qcdev->thc_hw, qcdev->report_buf, write_buf_len,
-			     NULL, rpt, &read_len);
+	ret = thc_swdma_read(qcdev->thc_hw, qcdev->report_buf, len, NULL, rpt, &read_len);
 	if (ret) {
-		dev_err_once(qcdev->dev, "Get report failed, ret %d, read len (%zu vs %d)\n",
+		dev_err_once(qcdev->dev, "Get report failed, ret %d, read len (%zu vs %zu)\n",
 			     ret, read_len, buf_len);
 		return ret;
 	}
 
 	if (HIDI2C_DATA_LEN(le16_to_cpu(rpt->len)) != buf_len || rpt->data[0] != reportnum) {
-		dev_err_once(qcdev->dev, "Invalid packet, len (%d vs %d) report id (%d vs %d)\n",
+		dev_err_once(qcdev->dev, "Invalid packet, len (%d vs %zu) report id (%d vs %d)\n",
 			     le16_to_cpu(rpt->len), buf_len, rpt->data[0], reportnum);
 		return -EINVAL;
 	}
@@ -174,7 +172,7 @@ int quicki2c_get_report(struct quicki2c_device *qcdev, u8 report_type,
 }
 
 int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
-			unsigned int reportnum, void *buf, u32 buf_len)
+			unsigned int reportnum, void *buf, size_t buf_len)
 {
 	int rep_type;
 	int ret;
@@ -191,6 +189,25 @@ int quicki2c_set_report(struct quicki2c_device *qcdev, u8 report_type,
 	ret = write_cmd_to_txdma(qcdev, HIDI2C_SET_REPORT, rep_type, reportnum, buf, buf_len);
 	if (ret) {
 		dev_err_once(qcdev->dev, "Set Report failed, ret %d\n", ret);
+		return ret;
+	}
+
+	return buf_len;
+}
+
+int quicki2c_output_report(struct quicki2c_device *qcdev, void *buf, size_t buf_len)
+{
+	ssize_t len;
+	int ret;
+
+	len = quicki2c_init_write_buf(qcdev, 0, 0, false, buf, buf_len,
+				      qcdev->report_buf, qcdev->report_len);
+	if (len < 0)
+		return -EINVAL;
+
+	ret = thc_dma_write(qcdev->thc_hw, qcdev->report_buf, len);
+	if (ret) {
+		dev_err(qcdev->dev, "Output Report failed, ret %d\n", ret);
 		return ret;
 	}
 

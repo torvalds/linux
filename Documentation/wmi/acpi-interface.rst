@@ -104,3 +104,71 @@ holding the notification ID of the event. This method should be evaluated every
 time an ACPI notification is received, since some ACPI implementations use a
 queue to store WMI event data items. This queue will overflow after a couple
 of WMI events are received without retrieving the associated WMI event data.
+
+Conversion rules for ACPI data types
+------------------------------------
+
+Consumers of the ACPI-WMI interface use binary buffers to exchange data with the WMI driver core,
+with the internal structure of the buffer being only know to the consumers. The WMI driver core is
+thus responsible for converting the data inside the buffer into an appropriate ACPI data type for
+consumption by the ACPI firmware. Additionally, any data returned by the various ACPI methods needs
+to be converted back into a binary buffer.
+
+The layout of said buffers is defined by the MOF description of the WMI method or data block in
+question [1]_:
+
+=============== ======================================================================= =========
+Data Type       Layout                                                                  Alignment
+=============== ======================================================================= =========
+``string``      Starts with an unsigned 16-bit little endian integer specifying         2 bytes
+                the length of the string data in bytes, followed by the string data
+                encoded as UTF-16LE with **optional** NULL termination and padding.
+                Keep in mind that some firmware implementations might depend on the
+                terminating NULL character to be present. Also the padding should
+                always be performed with NULL characters.
+``boolean``     Single byte where 0 means ``false`` and nonzero means ``true``.         1 byte
+``sint8``       Signed 8-bit integer.                                                   1 byte
+``uint8``       Unsigned 8-bit integer.                                                 1 byte
+``sint16``      Signed 16-bit little endian integer.                                    2 bytes
+``uint16``      Unsigned 16-bit little endian integer.                                  2 bytes
+``sint32``      Signed 32-bit little endian integer.                                    4 bytes
+``uint32``      Unsigned 32-bit little endian integer.                                  4 bytes
+``sint64``      Signed 64-bit little endian integer.                                    8 bytes
+``uint64``      Unsigned 64-bit little endian integer.                                  8 bytes
+``datetime``    A fixed-length 25-character UTF-16LE string with the format             2 bytes
+                *yyyymmddhhmmss.mmmmmmsutc* where *yyyy* is the 4-digit year, *mm* is
+                the 2-digit month, *dd* is the 2-digit day, *hh* is the 2-digit hour
+                based on a 24-hour clock, *mm* is the 2-digit minute, *ss* is the
+                2-digit second, *mmmmmm* is the 6-digit microsecond, *s* is a plus or
+                minus character depending on whether *utc* is a positive or negative
+                offset from UTC (or a colon if the date is an interval). Unpopulated
+                fields should be filled with asterisks.
+=============== ======================================================================= =========
+
+Arrays should be aligned based on the alignment of their base type, while objects should be
+aligned based on the largest alignment of an element inside them.
+
+All buffers returned by the WMI driver core are 8-byte aligned. When converting ACPI data types
+into such buffers the following conversion rules apply:
+
+=============== ============================================================
+ACPI Data Type  Converted into
+=============== ============================================================
+Buffer          Copied as-is.
+Integer         Converted into a ``uint32``.
+String          Converted into a ``string`` with a terminating NULL character
+                to match the behavior the of the Windows driver.
+Package         Each element inside the package is converted with alignment
+                of the resulting data types being respected. Nested packages
+                are not allowed.
+=============== ============================================================
+
+The Windows driver does attempt to handle nested packages, but this results in internal data
+structures (``_ACPI_METHOD_ARGUMENT_V1``) erroneously being copied into the resulting buffer.
+ACPI firmware implementations should thus not return nested packages from ACPI methods
+associated with the ACPI-WMI interface.
+
+References
+==========
+
+.. [1] https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/driver-defined-wmi-data-items

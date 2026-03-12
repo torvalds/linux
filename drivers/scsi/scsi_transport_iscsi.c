@@ -4848,7 +4848,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	if (priv)
 		return NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 	INIT_LIST_HEAD(&priv->list);

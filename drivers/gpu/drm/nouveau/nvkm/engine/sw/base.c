@@ -100,7 +100,7 @@ nvkm_sw_new_(const struct nvkm_sw_func *func, struct nvkm_device *device,
 {
 	struct nvkm_sw *sw;
 
-	if (!(sw = *psw = kzalloc(sizeof(*sw), GFP_KERNEL)))
+	if (!(sw = *psw = kzalloc_obj(*sw)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&sw->chan);
 	sw->func = func;

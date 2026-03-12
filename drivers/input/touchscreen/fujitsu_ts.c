@@ -99,7 +99,7 @@ static int fujitsu_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	fujitsu = kzalloc(sizeof(*fujitsu), GFP_KERNEL);
+	fujitsu = kzalloc_obj(*fujitsu);
 	input_dev = input_allocate_device();
 	if (!fujitsu || !input_dev) {
 		err = -ENOMEM;
@@ -108,8 +108,7 @@ static int fujitsu_connect(struct serio *serio, struct serio_driver *drv)
 
 	fujitsu->serio = serio;
 	fujitsu->dev = input_dev;
-	snprintf(fujitsu->phys, sizeof(fujitsu->phys),
-		 "%s/input0", serio->phys);
+	scnprintf(fujitsu->phys, sizeof(fujitsu->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "Fujitsu Serial Touchscreen";
 	input_dev->phys = fujitsu->phys;

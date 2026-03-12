@@ -80,11 +80,9 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_CALIBRATE: periodic calibration
  * @ATH5K_DEBUG_TXPOWER: transmit power setting
  * @ATH5K_DEBUG_LED: led management
- * @ATH5K_DEBUG_DUMP_RX: print received skb content
- * @ATH5K_DEBUG_DUMP_TX: print transmit skb content
  * @ATH5K_DEBUG_DUMPBANDS: dump bands
  * @ATH5K_DEBUG_DMA: debug dma start/stop
- * @ATH5K_DEBUG_TRACE: trace function calls
+ * @ATH5K_DEBUG_ANI: debug Adaptive Noise Immunity
  * @ATH5K_DEBUG_DESC: descriptor setup
  * @ATH5K_DEBUG_ANY: show at any debug level
  *

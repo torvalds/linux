@@ -55,11 +55,23 @@
 
 #define HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_IEEE_REGISTRATION_ID 0x00001A
 #define AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE 0x40
+#define AMD_VDSB_VERSION_3_PANEL_TYPE_MASK 0xC0
+#define AMD_VDSB_VERSION_3_PANEL_TYPE_SHIFT 6
 #define HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3 0x3
+
+enum amd_vsdb_panel_type {
+	AMD_VSDB_PANEL_TYPE_DEFAULT = 0,
+	AMD_VSDB_PANEL_TYPE_MINILED,
+	AMD_VSDB_PANEL_TYPE_OLED,
+	AMD_VSDB_PANEL_TYPE_RESERVED,
+};
 
 #define AMDGPU_HDR_MULT_DEFAULT (0x100000000LL)
 
-#define AMDGPU_DM_HDMI_HPD_DEBOUNCE_MS 1500
+/*
+ * Maximum HDMI HPD debounce delay in milliseconds
+ */
+#define AMDGPU_DM_MAX_HDMI_HPD_DEBOUNCE_MS 5000
 /*
 #include "include/amdgpu_dal_power_if.h"
 #include "amdgpu_dm_irq.h"
@@ -89,6 +101,8 @@ struct amd_vsdb_block {
 	unsigned char ieee_id[3];
 	unsigned char version;
 	unsigned char feature_caps;
+	unsigned char reserved[3];
+	unsigned char color_space_eotf_support;
 };
 
 struct common_irq_params {
@@ -412,6 +426,13 @@ struct amdgpu_display_manager {
 	 * DMCUB firmware version.
 	 */
 	uint32_t dmcub_fw_version;
+
+	/**
+	 * @fw_inst_size:
+	 *
+	 * Size of the firmware instruction buffer.
+	 */
+	uint32_t fw_inst_size;
 
 	/**
 	 * @cgs_device:
@@ -808,6 +829,7 @@ struct amdgpu_dm_connector {
 
 	int sr_skip_count;
 	bool disallow_edp_enter_psr;
+	bool disallow_edp_enter_replay;
 
 	/* Record progress status of mst*/
 	uint8_t mst_status;

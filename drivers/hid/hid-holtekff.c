@@ -149,7 +149,7 @@ static int holtekff_init(struct hid_device *hid)
 		return -ENODEV;
 	}
 
-	holtekff = kzalloc(sizeof(*holtekff), GFP_KERNEL);
+	holtekff = kzalloc_obj(*holtekff);
 	if (!holtekff)
 		return -ENOMEM;
 

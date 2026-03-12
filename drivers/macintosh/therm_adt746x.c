@@ -498,7 +498,7 @@ static int probe_thermostat(struct i2c_client *client)
 		}
 	}
 
-	th = kzalloc(sizeof(struct thermostat), GFP_KERNEL);
+	th = kzalloc_obj(struct thermostat);
 	if (!th)
 		return -ENOMEM;
 

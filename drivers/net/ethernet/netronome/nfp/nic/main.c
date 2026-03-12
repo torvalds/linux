@@ -51,7 +51,7 @@ static int nfp_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 		return err;
 
 	if (sizeof(*app_pri)) {
-		nn->app_priv = kzalloc(sizeof(*app_pri), GFP_KERNEL);
+		nn->app_priv = kzalloc_obj(*app_pri);
 		if (!nn->app_priv)
 			return -ENOMEM;
 	}

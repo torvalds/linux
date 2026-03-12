@@ -429,7 +429,7 @@ int efx_mcdi_phy_probe(struct efx_nic *efx)
 	int rc;
 
 	/* Initialise and populate phy_data */
-	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	phy_data = kzalloc_obj(*phy_data);
 	if (phy_data == NULL)
 		return -ENOMEM;
 

@@ -208,7 +208,7 @@ static int rx_add_rule_drop_auth_trailer(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -287,7 +287,7 @@ static int rx_add_rule_drop_replay(struct mlx5e_ipsec_sa_entry *sa_entry, struct
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -347,7 +347,7 @@ static int ipsec_rx_status_drop_all_create(struct mlx5e_ipsec *ipsec,
 	int err = 0;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!flow_group_in || !spec) {
 		err = -ENOMEM;
 		goto err_out;
@@ -454,7 +454,7 @@ ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -554,7 +554,7 @@ static int ipsec_miss_create(struct mlx5_core_dev *mdev,
 	int err = 0;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!flow_group_in || !spec) {
 		err = -ENOMEM;
 		goto out;
@@ -1226,7 +1226,7 @@ static int ipsec_counter_rule_tx(struct mlx5_core_dev *mdev, struct mlx5e_ipsec_
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -1962,7 +1962,7 @@ static int rx_add_rule_sa_selector(struct mlx5e_ipsec_sa_entry *sa_entry,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -2046,7 +2046,7 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (IS_ERR(rx))
 		return PTR_ERR(rx);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -2176,7 +2176,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (IS_ERR(tx))
 		return PTR_ERR(tx);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -2267,7 +2267,7 @@ static int tx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -2354,7 +2354,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 
 	rx = ipsec_rx(pol_entry->ipsec, attrs->addrs.family, attrs->type);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -2434,7 +2434,7 @@ static struct mlx5e_ipsec_fc *ipsec_fs_init_single_counter(struct mlx5_core_dev 
 	struct mlx5_fc *counter;
 	int err;
 
-	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
+	fc = kzalloc_obj(*fc);
 	if (!fc)
 		return ERR_PTR(-ENOMEM);
 
@@ -2778,24 +2778,24 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec,
 		if (!ns_esw)
 			return -EOPNOTSUPP;
 
-		ipsec->tx_esw = kzalloc(sizeof(*ipsec->tx_esw), GFP_KERNEL);
+		ipsec->tx_esw = kzalloc_obj(*ipsec->tx_esw);
 		if (!ipsec->tx_esw)
 			return -ENOMEM;
 
-		ipsec->rx_esw = kzalloc(sizeof(*ipsec->rx_esw), GFP_KERNEL);
+		ipsec->rx_esw = kzalloc_obj(*ipsec->rx_esw);
 		if (!ipsec->rx_esw)
 			goto err_rx_esw;
 	}
 
-	ipsec->tx = kzalloc(sizeof(*ipsec->tx), GFP_KERNEL);
+	ipsec->tx = kzalloc_obj(*ipsec->tx);
 	if (!ipsec->tx)
 		goto err_tx;
 
-	ipsec->rx_ipv4 = kzalloc(sizeof(*ipsec->rx_ipv4), GFP_KERNEL);
+	ipsec->rx_ipv4 = kzalloc_obj(*ipsec->rx_ipv4);
 	if (!ipsec->rx_ipv4)
 		goto err_rx_ipv4;
 
-	ipsec->rx_ipv6 = kzalloc(sizeof(*ipsec->rx_ipv6), GFP_KERNEL);
+	ipsec->rx_ipv6 = kzalloc_obj(*ipsec->rx_ipv6);
 	if (!ipsec->rx_ipv6)
 		goto err_rx_ipv6;
 

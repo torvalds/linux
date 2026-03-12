@@ -35,7 +35,7 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 {
 	struct tty_audit_buf *buf;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		goto err;
 

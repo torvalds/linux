@@ -6722,7 +6722,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	int status;
 
 	dprintk(1, "\n");
-	state = kzalloc(sizeof(struct drxk_state), GFP_KERNEL);
+	state = kzalloc_obj(struct drxk_state);
 	if (!state)
 		return NULL;
 

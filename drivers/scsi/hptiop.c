@@ -993,7 +993,7 @@ static int hptiop_reset_comm_mvfrey(struct hptiop_hba *hba)
 	return 0;
 }
 
-static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
+static enum scsi_qc_status hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *host = scp->device->host;
 	struct hptiop_hba *hba = (struct hptiop_hba *)host->hostdata;

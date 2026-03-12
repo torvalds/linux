@@ -723,7 +723,7 @@ static struct nsim_rq *nsim_queue_alloc(void)
 {
 	struct nsim_rq *rq;
 
-	rq = kzalloc(sizeof(*rq), GFP_KERNEL_ACCOUNT);
+	rq = kzalloc_obj(*rq, GFP_KERNEL_ACCOUNT);
 	if (!rq)
 		return NULL;
 
@@ -758,7 +758,9 @@ struct nsim_queue_mem {
 };
 
 static int
-nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
+nsim_queue_mem_alloc(struct net_device *dev,
+		     struct netdev_queue_config *qcfg,
+		     void *per_queue_mem, int idx)
 {
 	struct nsim_queue_mem *qmem = per_queue_mem;
 	struct netdevsim *ns = netdev_priv(dev);
@@ -807,7 +809,8 @@ static void nsim_queue_mem_free(struct net_device *dev, void *per_queue_mem)
 }
 
 static int
-nsim_queue_start(struct net_device *dev, void *per_queue_mem, int idx)
+nsim_queue_start(struct net_device *dev, struct netdev_queue_config *qcfg,
+		 void *per_queue_mem, int idx)
 {
 	struct nsim_queue_mem *qmem = per_queue_mem;
 	struct netdevsim *ns = netdev_priv(dev);
@@ -994,8 +997,7 @@ static int nsim_queue_init(struct netdevsim *ns)
 	struct net_device *dev = ns->netdev;
 	int i;
 
-	ns->rq = kcalloc(dev->num_rx_queues, sizeof(*ns->rq),
-			 GFP_KERNEL_ACCOUNT);
+	ns->rq = kzalloc_objs(*ns->rq, dev->num_rx_queues, GFP_KERNEL_ACCOUNT);
 	if (!ns->rq)
 		return -ENOMEM;
 

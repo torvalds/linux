@@ -31,5 +31,24 @@ int mlx5_lag_mpesw_do_mirred(struct mlx5_core_dev *mdev,
 bool mlx5_lag_is_mpesw(struct mlx5_core_dev *dev);
 void mlx5_lag_mpesw_disable(struct mlx5_core_dev *dev);
 int mlx5_lag_mpesw_enable(struct mlx5_core_dev *dev);
+#ifdef CONFIG_MLX5_ESWITCH
+void mlx5_lag_disable_mpesw(struct mlx5_lag *ldev);
+#else
+static inline void mlx5_lag_disable_mpesw(struct mlx5_lag *ldev) {}
+#endif /* CONFIG_MLX5_ESWITCH */
+
+#ifdef CONFIG_MLX5_ESWITCH
+void mlx5_mpesw_speed_update_work(struct work_struct *work);
+int mlx5_lag_mpesw_port_change_event(struct notifier_block *nb,
+				     unsigned long event, void *data);
+#else
+static inline void mlx5_mpesw_speed_update_work(struct work_struct *work) {}
+static inline int mlx5_lag_mpesw_port_change_event(struct notifier_block *nb,
+						   unsigned long event,
+						   void *data)
+{
+	return NOTIFY_DONE;
+}
+#endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_LAG_MPESW_H__ */

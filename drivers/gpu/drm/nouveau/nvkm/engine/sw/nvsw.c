@@ -64,7 +64,7 @@ nvkm_nvsw_new_(const struct nvkm_nvsw_func *func, struct nvkm_sw_chan *chan,
 {
 	struct nvkm_nvsw *nvsw;
 
-	if (!(nvsw = kzalloc(sizeof(*nvsw), GFP_KERNEL)))
+	if (!(nvsw = kzalloc_obj(*nvsw)))
 		return -ENOMEM;
 	*pobject = &nvsw->object;
 

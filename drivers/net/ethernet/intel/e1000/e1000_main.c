@@ -1322,13 +1322,13 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
  **/
 static int e1000_alloc_queues(struct e1000_adapter *adapter)
 {
-	adapter->tx_ring = kcalloc(adapter->num_tx_queues,
-				   sizeof(struct e1000_tx_ring), GFP_KERNEL);
+	adapter->tx_ring = kzalloc_objs(struct e1000_tx_ring,
+					adapter->num_tx_queues);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
 
-	adapter->rx_ring = kcalloc(adapter->num_rx_queues,
-				   sizeof(struct e1000_rx_ring), GFP_KERNEL);
+	adapter->rx_ring = kzalloc_objs(struct e1000_rx_ring,
+					adapter->num_rx_queues);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
 		return -ENOMEM;
@@ -4094,7 +4094,15 @@ static bool e1000_tbi_should_accept(struct e1000_adapter *adapter,
 				    u32 length, const u8 *data)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u8 last_byte = *(data + length - 1);
+	u8 last_byte;
+
+	/* Guard against OOB on data[length - 1] */
+	if (unlikely(!length))
+		return false;
+	/* Upper bound: length must not exceed rx_buffer_len */
+	if (unlikely(length > adapter->rx_buffer_len))
+		return false;
+	last_byte = *(data + length - 1);
 
 	if (TBI_ACCEPT(hw, status, errors, length, last_byte)) {
 		unsigned long irq_flags;

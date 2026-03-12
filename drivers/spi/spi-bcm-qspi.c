@@ -712,7 +712,7 @@ static int bcm_qspi_setup(struct spi_device *spi)
 
 	xp = spi_get_ctldata(spi);
 	if (!xp) {
-		xp = kzalloc(sizeof(*xp), GFP_KERNEL);
+		xp = kzalloc_obj(*xp);
 		if (!xp)
 			return -ENOMEM;
 		spi_set_ctldata(spi, xp);
@@ -1529,7 +1529,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	host->transfer_one = bcm_qspi_transfer_one;
 	host->mem_ops = &bcm_qspi_mem_ops;
 	host->cleanup = bcm_qspi_cleanup;
-	host->dev.of_node = dev->of_node;
 	host->num_chipselect = NUM_CHIPSELECT;
 	host->use_gpio_descriptors = true;
 
@@ -1566,8 +1565,7 @@ int bcm_qspi_probe(struct platform_device *pdev,
 			return PTR_ERR(qspi->base[CHIP_SELECT]);
 	}
 
-	qspi->dev_ids = kcalloc(num_irqs, sizeof(struct bcm_qspi_dev_id),
-				GFP_KERNEL);
+	qspi->dev_ids = kzalloc_objs(struct bcm_qspi_dev_id, num_irqs);
 	if (!qspi->dev_ids)
 		return -ENOMEM;
 

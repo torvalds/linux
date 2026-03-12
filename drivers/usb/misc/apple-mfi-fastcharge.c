@@ -184,7 +184,7 @@ static int mfi_fc_probe(struct usb_device *udev)
 	if (!mfi_fc_match(udev))
 		return -ENODEV;
 
-	mfi = kzalloc(sizeof(struct mfi_device), GFP_KERNEL);
+	mfi = kzalloc_obj(struct mfi_device);
 	if (!mfi)
 		return -ENOMEM;
 

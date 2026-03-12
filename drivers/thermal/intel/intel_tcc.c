@@ -172,7 +172,7 @@ static u32 get_temp_mask(bool pkg)
 
 /**
  * intel_tcc_get_tjmax() - returns the default TCC activation Temperature
- * @cpu: cpu that the MSR should be run on, nagative value means any cpu.
+ * @cpu: cpu that the MSR should be run on, negative value means any cpu.
  *
  * Get the TjMax value, which is the default thermal throttling or TCC
  * activation temperature in degrees C.
@@ -199,7 +199,7 @@ EXPORT_SYMBOL_NS_GPL(intel_tcc_get_tjmax, "INTEL_TCC");
 
 /**
  * intel_tcc_get_offset() - returns the TCC Offset value to Tjmax
- * @cpu: cpu that the MSR should be run on, nagative value means any cpu.
+ * @cpu: cpu that the MSR should be run on, negative value means any cpu.
  *
  * Get the TCC offset value to Tjmax. The effective thermal throttling or TCC
  * activation temperature equals "Tjmax" - "TCC Offset", in degrees C.
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_NS_GPL(intel_tcc_get_offset, "INTEL_TCC");
 
 /**
  * intel_tcc_set_offset() - set the TCC offset value to Tjmax
- * @cpu: cpu that the MSR should be run on, nagative value means any cpu.
+ * @cpu: cpu that the MSR should be run on, negative value means any cpu.
  * @offset: TCC offset value in degree C
  *
  * Set the TCC Offset value to Tjmax. The effective thermal throttling or TCC
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_NS_GPL(intel_tcc_set_offset, "INTEL_TCC");
 
 /**
  * intel_tcc_get_temp() - returns the current temperature
- * @cpu: cpu that the MSR should be run on, nagative value means any cpu.
+ * @cpu: cpu that the MSR should be run on, negative value means any cpu.
  * @temp: pointer to the memory for saving cpu temperature.
  * @pkg: true: Package Thermal Sensor. false: Core Thermal Sensor.
  *

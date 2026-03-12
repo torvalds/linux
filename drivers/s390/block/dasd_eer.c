@@ -544,7 +544,7 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	struct eerbuffer *eerb;
 	unsigned long flags;
 
-	eerb = kzalloc(sizeof(struct eerbuffer), GFP_KERNEL);
+	eerb = kzalloc_obj(struct eerbuffer);
 	if (!eerb)
 		return -ENOMEM;
 	eerb->buffer_page_count = eer_pages;
@@ -689,7 +689,7 @@ int __init dasd_eer_init(void)
 {
 	int rc;
 
-	dasd_eer_dev = kzalloc(sizeof(*dasd_eer_dev), GFP_KERNEL);
+	dasd_eer_dev = kzalloc_obj(*dasd_eer_dev);
 	if (!dasd_eer_dev)
 		return -ENOMEM;
 

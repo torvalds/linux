@@ -34,6 +34,10 @@ __retry:
 	return true;
 }
 
+#define vcpu_is_preempted vcpu_is_preempted
+
+bool vcpu_is_preempted(int cpu);
+
 #endif /* CONFIG_PARAVIRT */
 
 #include <asm-generic/qspinlock.h>

@@ -384,7 +384,7 @@ hisi_ptt_alloc_add_filter(struct hisi_ptt *hisi_ptt, u16 devid, bool is_port)
 		return NULL;
 	}
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter) {
 		pci_err(hisi_ptt->pdev, "failed to add filter for %s\n",
 			filter_name);
@@ -1043,11 +1043,11 @@ static void *hisi_ptt_pmu_setup_aux(struct perf_event *event, void **pages,
 	if (nr_pages < HISI_PTT_TRACE_TOTAL_BUF_SIZE / PAGE_SIZE)
 		return NULL;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return NULL;
 
-	pagelist = kcalloc(nr_pages, sizeof(*pagelist), GFP_KERNEL);
+	pagelist = kzalloc_objs(*pagelist, nr_pages);
 	if (!pagelist)
 		goto err;
 

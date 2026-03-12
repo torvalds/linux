@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/phy/phy-common-props.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include <net/dsa.h>
@@ -229,10 +231,16 @@ static int gsw1xx_pcs_phy_xaui_write(struct gsw1xx_priv *priv, u16 addr,
 					1000, 100000);
 }
 
-static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
+static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv, phy_interface_t interface)
 {
+	struct dsa_port *sgmii_port;
+	unsigned int pol;
 	int ret;
 	u16 val;
+
+	sgmii_port = dsa_to_port(priv->gswip.ds, GSW1XX_SGMII_PORT);
+	if (!sgmii_port)
+		return -EINVAL;
 
 	/* Assert and deassert SGMII shell reset */
 	ret = regmap_set_bits(priv->shell, GSW1XX_SHELL_RST_REQ,
@@ -260,15 +268,20 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	      FIELD_PREP(GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT,
 			 GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT_DEF);
 
+	ret = phy_get_manual_rx_polarity(of_fwnode_handle(sgmii_port->dn),
+					 phy_modes(interface), &pol);
+	if (ret)
+		return ret;
+
 	/* RX lane seems to be inverted internally, so bit
 	 * GSW1XX_SGMII_PHY_RX0_CFG2_INVERT needs to be set for normal
-	 * (ie. non-inverted) operation.
-	 *
-	 * TODO: Take care of inverted RX pair once generic property is
-	 *       available
+	 * (ie. non-inverted) operation matching the chips external pins as
+	 * described in datasheets dated 2023-11-08, ie. pin B20 (RX0_P) being
+	 * the positive signal and pin B21 (RX0_M) being the negative signal of
+	 * the differential input pair.
 	 */
-
-	val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
+	if (pol == PHY_POL_NORMAL)
+		val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_RX0_CFG2, val);
 	if (ret < 0)
@@ -277,9 +290,13 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	val = FIELD_PREP(GSW1XX_SGMII_PHY_TX0_CFG3_VBOOST_LEVEL,
 			 GSW1XX_SGMII_PHY_TX0_CFG3_VBOOST_LEVEL_DEF);
 
-	/* TODO: Take care of inverted TX pair once generic property is
-	 *       available
-	 */
+	ret = phy_get_manual_tx_polarity(of_fwnode_handle(sgmii_port->dn),
+					 phy_modes(interface), &pol);
+	if (ret)
+		return ret;
+
+	if (pol == PHY_POL_INVERT)
+		val |= GSW1XX_SGMII_PHY_TX0_CFG3_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_TX0_CFG3, val);
 	if (ret < 0)
@@ -336,7 +353,7 @@ static int gsw1xx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	priv->tbi_interface = PHY_INTERFACE_MODE_NA;
 
 	if (!reconf)
-		ret = gsw1xx_pcs_reset(priv);
+		ret = gsw1xx_pcs_reset(priv, interface);
 
 	if (ret)
 		return ret;
@@ -502,6 +519,14 @@ static const struct phylink_pcs_ops gsw1xx_pcs_ops = {
 	.pcs_link_up = gsw1xx_pcs_link_up,
 };
 
+static void gsw1xx_phylink_get_lpi_caps(struct phylink_config *config)
+{
+	config->lpi_capabilities = MAC_100FD | MAC_1000FD;
+	config->lpi_timer_default = 20;
+	memcpy(config->lpi_interfaces, config->supported_interfaces,
+	       sizeof(config->lpi_interfaces));
+}
+
 static void gsw1xx_phylink_get_caps(struct dsa_switch *ds, int port,
 				    struct phylink_config *config)
 {
@@ -511,14 +536,12 @@ static void gsw1xx_phylink_get_caps(struct dsa_switch *ds, int port,
 				   MAC_10 | MAC_100 | MAC_1000;
 
 	switch (port) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
+	case 0 ... 3: /* built-in PHYs */
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
 		break;
-	case 4: /* port 4: SGMII */
+
+	case 4: /* SGMII */
 		__set_bit(PHY_INTERFACE_MODE_SGMII,
 			  config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_1000BASEX,
@@ -529,17 +552,40 @@ static void gsw1xx_phylink_get_caps(struct dsa_switch *ds, int port,
 			config->mac_capabilities |= MAC_2500FD;
 		}
 		return; /* no support for EEE on SGMII port */
-	case 5: /* port 5: RGMII or RMII */
+
+	case 5: /* RGMII or RMII */
 		__set_bit(PHY_INTERFACE_MODE_RMII,
 			  config->supported_interfaces);
 		phy_interface_set_rgmii(config->supported_interfaces);
 		break;
 	}
 
-	config->lpi_capabilities = MAC_100FD | MAC_1000FD;
-	config->lpi_timer_default = 20;
-	memcpy(config->lpi_interfaces, config->supported_interfaces,
-	       sizeof(config->lpi_interfaces));
+	gsw1xx_phylink_get_lpi_caps(config);
+}
+
+static void gsw150_phylink_get_caps(struct dsa_switch *ds, int port,
+				    struct phylink_config *config)
+{
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+				   MAC_10 | MAC_100 | MAC_1000;
+
+	switch (port) {
+	case 0 ... 4: /* built-in PHYs */
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+		break;
+
+	case 5: /* GMII or RGMII */
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+		fallthrough;
+
+	case 6: /* RGMII */
+		phy_interface_set_rgmii(config->supported_interfaces);
+		break;
+	}
+
+	gsw1xx_phylink_get_lpi_caps(config);
 }
 
 static struct phylink_pcs *gsw1xx_phylink_mac_select_pcs(struct phylink_config *config,
@@ -557,6 +603,43 @@ static struct phylink_pcs *gsw1xx_phylink_mac_select_pcs(struct phylink_config *
 	default:
 		return NULL;
 	}
+}
+
+static int gsw1xx_rmii_slew_rate(const struct device_node *np, struct gsw1xx_priv *priv,
+				 const char *prop, u16 mask)
+{
+	u32 rate;
+	int ret;
+
+	ret = of_property_read_u32(np, prop, &rate);
+	/* Optional property */
+	if (ret == -EINVAL)
+		return 0;
+	if (ret < 0 || rate > 1) {
+		dev_err(&priv->mdio_dev->dev, "Invalid %s value\n", prop);
+		return (ret < 0) ? ret : -EINVAL;
+	}
+
+	return regmap_update_bits(priv->shell, GSW1XX_SHELL_RGMII_SLEW_CFG, mask, mask * rate);
+}
+
+static int gsw1xx_port_setup(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct device_node *np = dp->dn;
+	struct gsw1xx_priv *gsw1xx_priv;
+	struct gswip_priv *gswip_priv;
+
+	if (dp->index != GSW1XX_MII_PORT)
+		return 0;
+
+	gswip_priv = ds->priv;
+	gsw1xx_priv = container_of(gswip_priv, struct gsw1xx_priv, gswip);
+
+	return gsw1xx_rmii_slew_rate(np, gsw1xx_priv,
+				     "maxlinear,slew-rate-txc", RGMII_SLEW_CFG_DRV_TXC) ?:
+	       gsw1xx_rmii_slew_rate(np, gsw1xx_priv,
+				     "maxlinear,slew-rate-txd", RGMII_SLEW_CFG_DRV_TXD);
 }
 
 static struct regmap *gsw1xx_regmap_init(struct gsw1xx_priv *priv,
@@ -579,11 +662,35 @@ static struct regmap *gsw1xx_regmap_init(struct gsw1xx_priv *priv,
 				priv, &config);
 }
 
+static int gsw1xx_serdes_pcs_init(struct gsw1xx_priv *priv)
+{
+	/* do nothing if the chip doesn't have a SerDes PCS */
+	if (!priv->gswip.hw_info->mac_select_pcs)
+		return 0;
+
+	priv->pcs.ops = &gsw1xx_pcs_ops;
+	priv->pcs.poll = true;
+	__set_bit(PHY_INTERFACE_MODE_SGMII,
+		  priv->pcs.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_1000BASEX,
+		  priv->pcs.supported_interfaces);
+	if (priv->gswip.hw_info->supports_2500m)
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
+			  priv->pcs.supported_interfaces);
+	priv->tbi_interface = PHY_INTERFACE_MODE_NA;
+
+	/* assert SGMII reset to power down SGMII unit */
+	return regmap_set_bits(priv->shell, GSW1XX_SHELL_RST_REQ,
+			       GSW1XX_RST_REQ_SGMII_SHELL);
+}
+
 static int gsw1xx_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct gsw1xx_priv *priv;
-	u32 version;
+	u32 version, val;
+	u8 shellver;
+	u16 pnum;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -631,20 +738,28 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(priv->shell))
 		return PTR_ERR(priv->shell);
 
-	priv->pcs.ops = &gsw1xx_pcs_ops;
-	priv->pcs.poll = true;
-	__set_bit(PHY_INTERFACE_MODE_SGMII,
-		  priv->pcs.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_1000BASEX,
-		  priv->pcs.supported_interfaces);
-	if (priv->gswip.hw_info->supports_2500m)
-		__set_bit(PHY_INTERFACE_MODE_2500BASEX,
-			  priv->pcs.supported_interfaces);
-	priv->tbi_interface = PHY_INTERFACE_MODE_NA;
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_MANU_ID, &val);
+	if (ret < 0)
+		return ret;
 
-	/* assert SGMII reset to power down SGMII unit */
-	ret = regmap_set_bits(priv->shell, GSW1XX_SHELL_RST_REQ,
-			      GSW1XX_RST_REQ_SGMII_SHELL);
+	/* validate chip ID */
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_FIX1, val) != 1)
+		return -ENODEV;
+
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_MANID, val) !=
+	    GSW1XX_SHELL_MANU_ID_MANID_VAL)
+		return -ENODEV;
+
+	pnum = FIELD_GET(GSW1XX_SHELL_MANU_ID_PNUML, val);
+
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_PNUM_ID, &val);
+	if (ret < 0)
+		return ret;
+
+	pnum |= FIELD_GET(GSW1XX_SHELL_PNUM_ID_PNUMM, val) << 4;
+	shellver = FIELD_GET(GSW1XX_SHELL_PNUM_ID_VER, val);
+
+	ret = gsw1xx_serdes_pcs_init(priv);
 	if (ret < 0)
 		return ret;
 
@@ -663,6 +778,8 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	ret = gswip_probe_common(&priv->gswip, version);
 	if (ret)
 		return ret;
+
+	dev_info(dev, "standalone switch part number 0x%x v1.%u\n", pnum, shellver);
 
 	dev_set_drvdata(dev, &priv->gswip);
 
@@ -702,11 +819,20 @@ static void gsw1xx_shutdown(struct mdio_device *mdiodev)
 static const struct gswip_hw_info gsw12x_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
@@ -715,11 +841,20 @@ static const struct gswip_hw_info gsw12x_data = {
 static const struct gswip_hw_info gsw140_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
@@ -728,10 +863,44 @@ static const struct gswip_hw_info gsw140_data = {
 static const struct gswip_hw_info gsw141_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= gsw1xx_phylink_get_caps,
+	.port_setup		= gsw1xx_port_setup,
+	.pce_microcode		= &gsw1xx_pce_microcode,
+	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
+	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
+};
+
+static const struct gswip_hw_info gsw150_data = {
+	.max_ports		= GSW150_PORTS,
+	.allowed_cpu_ports	= BIT(5) | BIT(6),
+	.mii_cfg = {
+		[0 ... 4] = -1,
+		[5] = 0,
+		[6] = 10,
+	},
+	.mii_pcdu = {
+		[0 ... 4] = -1,
+		[5] = 1,
+		[6] = 11,
+	},
+	.phylink_get_caps	= gsw150_phylink_get_caps,
+	/* There is only a single RGMII_SLEW_CFG register in GSW150 and it is
+	 * unknown if RGMII slew configuration affects both RGMII ports
+	 * or only port 5. Use .port_setup which assumes it affects port 5
+	 * for now.
+	 */
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
@@ -742,6 +911,8 @@ static const struct gswip_hw_info gsw141_data = {
  * GSW145 is the industrial temperature version of GSW140.
  */
 static const struct of_device_id gsw1xx_of_match[] = {
+	{ .compatible = "intel,gsw150", .data = &gsw150_data },
+	{ .compatible = "lantiq,peb7084", .data = &gsw150_data },
 	{ .compatible = "maxlinear,gsw120", .data = &gsw12x_data },
 	{ .compatible = "maxlinear,gsw125", .data = &gsw12x_data },
 	{ .compatible = "maxlinear,gsw140", .data = &gsw140_data },
@@ -765,5 +936,5 @@ static struct mdio_driver gsw1xx_driver = {
 mdio_module_driver(gsw1xx_driver);
 
 MODULE_AUTHOR("Daniel Golle <daniel@makrotopia.org>");
-MODULE_DESCRIPTION("Driver for MaxLinear GSW1xx ethernet switch");
+MODULE_DESCRIPTION("Driver for Intel/MaxLinear GSW1xx Ethernet switch");
 MODULE_LICENSE("GPL");

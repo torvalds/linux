@@ -33,7 +33,7 @@ static struct property *dlpar_clone_property(struct property *prop,
 {
 	struct property *new_prop;
 
-	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	new_prop = kzalloc_obj(*new_prop);
 	if (!new_prop)
 		return NULL;
 

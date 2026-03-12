@@ -297,7 +297,7 @@ static int register_client(struct pci_dev *pdev,
 {
 	struct vga_switcheroo_client *client;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
 

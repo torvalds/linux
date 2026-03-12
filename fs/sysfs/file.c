@@ -689,7 +689,6 @@ int sysfs_file_change_owner(struct kobject *kobj, const char *name, kuid_t kuid,
 
 	return error;
 }
-EXPORT_SYMBOL_GPL(sysfs_file_change_owner);
 
 /**
  *	sysfs_change_owner - change owner of the given object.
@@ -736,7 +735,6 @@ int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sysfs_change_owner);
 
 /**
  *	sysfs_emit - scnprintf equivalent, aware of PAGE_SIZE buffer.

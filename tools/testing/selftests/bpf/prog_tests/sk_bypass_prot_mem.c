@@ -5,9 +5,14 @@
 #include "sk_bypass_prot_mem.skel.h"
 #include "network_helpers.h"
 
+#ifndef PAGE_SIZE
+#include <unistd.h>
+#define PAGE_SIZE getpagesize()
+#endif
+
 #define NR_PAGES	32
 #define NR_SOCKETS	2
-#define BUF_TOTAL	(NR_PAGES * 4096 / NR_SOCKETS)
+#define BUF_TOTAL	(NR_PAGES * PAGE_SIZE / NR_SOCKETS)
 #define BUF_SINGLE	1024
 #define NR_SEND		(BUF_TOTAL / BUF_SINGLE)
 

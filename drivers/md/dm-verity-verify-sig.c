@@ -7,12 +7,19 @@
  */
 #include <linux/device-mapper.h>
 #include <linux/verification.h>
+#include <linux/key.h>
 #include <keys/user-type.h>
 #include <linux/module.h>
 #include "dm-verity.h"
 #include "dm-verity-verify-sig.h"
 
 #define DM_VERITY_VERIFY_ERR(s) DM_VERITY_ROOT_HASH_VERIFICATION " " s
+
+static struct key *dm_verity_keyring;
+
+static bool dm_verity_keyring_unsealed __ro_after_init;
+module_param_named(keyring_unsealed, dm_verity_keyring_unsealed, bool, 0444);
+MODULE_PARM_DESC(keyring_unsealed, "Leave the dm-verity keyring unsealed");
 
 static bool require_signatures;
 module_param(require_signatures, bool, 0444);
@@ -143,6 +150,17 @@ int verity_verify_root_hash(const void *root_hash, size_t root_hash_len,
 					VERIFYING_UNSPECIFIED_SIGNATURE, NULL, NULL);
 #endif
 
+	if (ret != -ENOKEY && ret != -EKEYREJECTED)
+		return ret;
+
+	if (dm_verity_keyring->keys.nr_leaves_on_tree &&
+	    dm_verity_keyring->restrict_link)
+		ret = verify_pkcs7_signature(root_hash, root_hash_len,
+					     sig_data, sig_len,
+					     dm_verity_keyring,
+					     VERIFYING_UNSPECIFIED_SIGNATURE,
+					     NULL, NULL);
+
 	return ret;
 }
 
@@ -151,4 +169,31 @@ void verity_verify_sig_opts_cleanup(struct dm_verity_sig_opts *sig_opts)
 	kfree(sig_opts->sig);
 	sig_opts->sig = NULL;
 	sig_opts->sig_size = 0;
+}
+
+int __init dm_verity_verify_sig_init(void)
+{
+	dm_verity_keyring = keyring_alloc(".dm-verity",
+					  GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
+					  current_cred(),
+					  KEY_POS_SEARCH |
+					  KEY_USR_VIEW | KEY_USR_READ |
+					  KEY_USR_WRITE | KEY_USR_SEARCH |
+					  KEY_USR_SETATTR,
+					  KEY_ALLOC_NOT_IN_QUOTA,
+					  NULL, NULL);
+	if (IS_ERR(dm_verity_keyring))
+		panic("dm-verity can't allocate keyring\n");
+
+	if (!dm_verity_keyring_unsealed &&
+	    keyring_restrict(make_key_ref(dm_verity_keyring, true), NULL, NULL))
+		panic("dm-verity can't seal keyring\n");
+
+	return 0;
+}
+
+void dm_verity_verify_sig_exit(void)
+{
+	key_revoke(dm_verity_keyring);
+	key_put(dm_verity_keyring);
 }

@@ -42,7 +42,7 @@ r535_sec2_new(const struct nvkm_sec2_func *func, struct nvkm_device *device,
 	struct nvkm_sec2 *sec2;
 	int ret;
 
-	if (!(sec2 = *psec2 = kzalloc(sizeof(*sec2), GFP_KERNEL)))
+	if (!(sec2 = *psec2 = kzalloc_obj(*sec2)))
 		return -ENOMEM;
 
 	ret = nvkm_engine_ctor(&r535_sec2, device, type, inst, true, &sec2->engine);

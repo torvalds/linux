@@ -50,7 +50,8 @@ bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget);
 static inline bool
 mlx5e_ktls_rx_pending_resync_list(struct mlx5e_channel *c, int budget)
 {
-	return budget && test_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &c->async_icosq.state);
+	return budget && test_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
+				  &c->async_icosq->state);
 }
 
 static inline void

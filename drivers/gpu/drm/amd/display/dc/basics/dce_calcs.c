@@ -120,19 +120,19 @@ static void calculate_bandwidth(
 	int32_t number_of_displays_enabled_with_margin = 0;
 	int32_t number_of_aligned_displays_with_no_margin = 0;
 
-	yclk = kcalloc(3, sizeof(*yclk), GFP_KERNEL);
+	yclk = kzalloc_objs(*yclk, 3);
 	if (!yclk)
 		return;
 
-	sclk = kcalloc(8, sizeof(*sclk), GFP_KERNEL);
+	sclk = kzalloc_objs(*sclk, 8);
 	if (!sclk)
 		goto free_yclk;
 
-	tiling_mode = kcalloc(maximum_number_of_surfaces, sizeof(*tiling_mode), GFP_KERNEL);
+	tiling_mode = kzalloc_objs(*tiling_mode, maximum_number_of_surfaces);
 	if (!tiling_mode)
 		goto free_sclk;
 
-	surface_type = kcalloc(maximum_number_of_surfaces, sizeof(*surface_type), GFP_KERNEL);
+	surface_type = kzalloc_objs(*surface_type, maximum_number_of_surfaces);
 	if (!surface_type)
 		goto free_tiling_mode;
 
@@ -2049,11 +2049,11 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 
 	enum bw_calcs_version version = bw_calcs_version_from_asic_id(asic_id);
 
-	dceip = kzalloc(sizeof(*dceip), GFP_KERNEL);
+	dceip = kzalloc_obj(*dceip);
 	if (!dceip)
 		return;
 
-	vbios = kzalloc(sizeof(*vbios), GFP_KERNEL);
+	vbios = kzalloc_obj(*vbios);
 	if (!vbios) {
 		kfree(dceip);
 		return;
@@ -3045,8 +3045,7 @@ bool bw_calcs(struct dc_context *ctx,
 	int pipe_count,
 	struct dce_bw_output *calcs_output)
 {
-	struct bw_calcs_data *data = kzalloc(sizeof(struct bw_calcs_data),
-					     GFP_KERNEL);
+	struct bw_calcs_data *data = kzalloc_obj(struct bw_calcs_data);
 	if (!data)
 		return false;
 

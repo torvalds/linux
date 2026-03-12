@@ -220,14 +220,14 @@ int kmb_dsi_host_bridge_init(struct device *dev)
 
 	/* Create and register MIPI DSI host */
 	if (!dsi_host) {
-		dsi_host = kzalloc(sizeof(*dsi_host), GFP_KERNEL);
+		dsi_host = kzalloc_obj(*dsi_host);
 		if (!dsi_host)
 			return -ENOMEM;
 
 		dsi_host->ops = &kmb_dsi_host_ops;
 
 		if (!dsi_device) {
-			dsi_device = kzalloc(sizeof(*dsi_device), GFP_KERNEL);
+			dsi_device = kzalloc_obj(*dsi_device);
 			if (!dsi_device) {
 				kfree(dsi_host);
 				return -ENOMEM;

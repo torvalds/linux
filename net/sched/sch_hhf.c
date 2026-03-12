@@ -230,7 +230,7 @@ static struct hh_flow_state *alloc_new_hh(struct list_head *head,
 		return NULL;
 	}
 	/* Create new entry. */
-	flow = kzalloc(sizeof(struct hh_flow_state), GFP_ATOMIC);
+	flow = kzalloc_obj(struct hh_flow_state, GFP_ATOMIC);
 	if (!flow)
 		return NULL;
 
@@ -604,8 +604,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	if (!q->hh_flows) {
 		/* Initialize heavy-hitter flow table. */
-		q->hh_flows = kvcalloc(HH_FLOWS_CNT, sizeof(struct list_head),
-				       GFP_KERNEL);
+		q->hh_flows = kvzalloc_objs(struct list_head, HH_FLOWS_CNT);
 		if (!q->hh_flows)
 			return -ENOMEM;
 		for (i = 0; i < HH_FLOWS_CNT; i++)

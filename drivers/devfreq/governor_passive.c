@@ -310,8 +310,7 @@ static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
 			continue;
 		}
 
-		parent_cpu_data = kzalloc(sizeof(*parent_cpu_data),
-						GFP_KERNEL);
+		parent_cpu_data = kzalloc_obj(*parent_cpu_data);
 		if (!parent_cpu_data) {
 			ret = -ENOMEM;
 			goto err_put_policy;

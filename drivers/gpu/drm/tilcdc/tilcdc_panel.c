@@ -272,7 +272,7 @@ static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 		return NULL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		goto put_node;
 

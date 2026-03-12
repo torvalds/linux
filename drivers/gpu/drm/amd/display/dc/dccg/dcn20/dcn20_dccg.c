@@ -131,6 +131,54 @@ void dccg2_otg_drop_pixel(struct dccg *dccg,
 
 void dccg2_init(struct dccg *dccg)
 {
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* Hardcoded register values for DCN20
+	 * These are specific to 100Mhz refclk
+	 * Different ASICs with different refclk may override this in their own init
+	 */
+	REG_WRITE(MICROSECOND_TIME_BASE_DIV, 0x00120264);
+	REG_WRITE(MILLISECOND_TIME_BASE_DIV, 0x001186a0);
+	REG_WRITE(DISPCLK_FREQ_CHANGE_CNTL, 0x0e01003c);
+
+	if (REG(REFCLK_CNTL))
+		REG_WRITE(REFCLK_CNTL, 0);
+}
+
+void dccg2_refclk_setup(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* REFCLK programming that must occur after hubbub initialization */
+	if (REG(REFCLK_CNTL))
+		REG_WRITE(REFCLK_CNTL, 0);
+}
+
+bool dccg2_is_s0i3_golden_init_wa_done(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	return REG_READ(MICROSECOND_TIME_BASE_DIV) == 0x00120464;
+}
+
+void dccg2_allow_clock_gating(struct dccg *dccg, bool allow)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (allow) {
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+	} else {
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0xFFFFFFFF);
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0xFFFFFFFF);
+	}
+}
+
+void dccg2_enable_memory_low_power(struct dccg *dccg, bool enable)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, enable ? 0 : 1);
 }
 
 static const struct dccg_funcs dccg2_funcs = {
@@ -139,7 +187,11 @@ static const struct dccg_funcs dccg2_funcs = {
 	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,
 	.otg_add_pixel = dccg2_otg_add_pixel,
 	.otg_drop_pixel = dccg2_otg_drop_pixel,
-	.dccg_init = dccg2_init
+	.dccg_init = dccg2_init,
+	.refclk_setup = dccg2_refclk_setup, /* Deprecated - for backward compatibility only */
+	.allow_clock_gating = dccg2_allow_clock_gating,
+	.enable_memory_low_power = dccg2_enable_memory_low_power,
+	.is_s0i3_golden_init_wa_done = dccg2_is_s0i3_golden_init_wa_done /* Deprecated - for backward compatibility only */
 };
 
 struct dccg *dccg2_create(
@@ -148,7 +200,7 @@ struct dccg *dccg2_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask)
 {
-	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dcn_dccg *dccg_dcn = kzalloc_obj(*dccg_dcn);
 	struct dccg *base;
 
 	if (dccg_dcn == NULL) {

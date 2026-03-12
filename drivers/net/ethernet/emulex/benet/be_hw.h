@@ -16,7 +16,7 @@
  * The software must write this register twice to post any command. First,
  * it writes the register with hi=1 and the upper bits of the physical address
  * for the MAILBOX structure. Software must poll the ready bit until this
- * is acknowledged. Then, sotware writes the register with hi=0 with the lower
+ * is acknowledged. Then, software writes the register with hi=0 with the lower
  * bits in the address. It must poll the ready bit until the command is
  * complete. Upon completion, the MAILBOX will contain a valid completion
  * queue entry.
@@ -27,7 +27,7 @@
 
 #define MPU_EP_CONTROL 		0
 
-/********** MPU semphore: used for SH & BE  *************/
+/********** MPU semaphore: used for SH & BE  *************/
 #define SLIPORT_SOFTRESET_OFFSET		0x5c	/* CSR BAR offset */
 #define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac  /* CSR BAR offset */
 #define SLIPORT_SEMAPHORE_OFFSET_SH		0x94  /* PCI-CFG offset */
@@ -39,7 +39,7 @@
 /* Soft Reset register masks */
 #define SLIPORT_SOFTRESET_SR_MASK		0x00000080	/* SR bit */
 
-/* MPU semphore POST stage values */
+/* MPU semaphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */
 #define POST_STAGE_HOST_RDY 		0x2 /* Host has given go-ahed to FW */
 #define POST_STAGE_BE_RESET		0x3 /* Host wants to reset chip */

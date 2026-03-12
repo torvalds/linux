@@ -705,7 +705,7 @@ static struct ntsync_obj *ntsync_alloc_obj(struct ntsync_device *dev,
 {
 	struct ntsync_obj *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return NULL;
 	obj->type = type;
@@ -884,7 +884,7 @@ static int setup_wait(struct ntsync_device *dev,
 	if (args->alert)
 		fds[count] = args->alert;
 
-	q = kmalloc(struct_size(q, entries, total_count), GFP_KERNEL);
+	q = kmalloc_flex(*q, entries, total_count);
 	if (!q)
 		return -ENOMEM;
 	q->task = current;
@@ -1145,7 +1145,7 @@ static int ntsync_char_open(struct inode *inode, struct file *file)
 {
 	struct ntsync_device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

@@ -60,7 +60,7 @@ static int idpf_plug_vport_aux_dev(struct iidc_rdma_core_dev_info *cdev_info,
 	struct auxiliary_device *adev;
 	int ret;
 
-	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
+	iadev = kzalloc_obj(*iadev);
 	if (!iadev)
 		return -ENOMEM;
 
@@ -120,7 +120,7 @@ static int idpf_idc_init_aux_vport_dev(struct idpf_vport *vport)
 	if (!(le16_to_cpu(vport_msg->vport_flags) & VIRTCHNL2_VPORT_ENABLE_RDMA))
 		return 0;
 
-	vport->vdev_info = kzalloc(sizeof(*vdev_info), GFP_KERNEL);
+	vport->vdev_info = kzalloc_obj(*vdev_info);
 	if (!vport->vdev_info)
 		return -ENOMEM;
 
@@ -198,7 +198,7 @@ static int idpf_plug_core_aux_dev(struct iidc_rdma_core_dev_info *cdev_info)
 	struct auxiliary_device *adev;
 	int ret;
 
-	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
+	iadev = kzalloc_obj(*iadev);
 	if (!iadev)
 		return -ENOMEM;
 
@@ -322,7 +322,7 @@ static void idpf_idc_vport_dev_down(struct idpf_adapter *adapter)
 	for (i = 0; i < adapter->num_alloc_vports; i++) {
 		struct idpf_vport *vport = adapter->vports[i];
 
-		if (!vport)
+		if (!vport || !vport->vdev_info)
 			continue;
 
 		idpf_unplug_aux_dev(vport->vdev_info->adev);
@@ -414,12 +414,12 @@ int idpf_idc_init_aux_core_dev(struct idpf_adapter *adapter,
 	struct iidc_rdma_priv_dev_info *privd;
 	int err, i;
 
-	adapter->cdev_info = kzalloc(sizeof(*cdev_info), GFP_KERNEL);
+	adapter->cdev_info = kzalloc_obj(*cdev_info);
 	if (!adapter->cdev_info)
 		return -ENOMEM;
 	cdev_info = adapter->cdev_info;
 
-	privd = kzalloc(sizeof(*privd), GFP_KERNEL);
+	privd = kzalloc_obj(*privd);
 	if (!privd) {
 		err = -ENOMEM;
 		goto err_privd_alloc;
@@ -431,9 +431,8 @@ int idpf_idc_init_aux_core_dev(struct idpf_adapter *adapter,
 	privd->ftype = ftype;
 
 	privd->mapped_mem_regions =
-		kcalloc(adapter->hw.num_lan_regs,
-			sizeof(struct iidc_rdma_lan_mapped_mem_region),
-			GFP_KERNEL);
+		kzalloc_objs(struct iidc_rdma_lan_mapped_mem_region,
+			     adapter->hw.num_lan_regs);
 	if (!privd->mapped_mem_regions) {
 		err = -ENOMEM;
 		goto err_plug_aux_dev;

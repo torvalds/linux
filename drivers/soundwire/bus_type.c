@@ -72,13 +72,7 @@ int sdw_slave_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-const struct bus_type sdw_bus_type = {
-	.name = "soundwire",
-	.match = sdw_bus_match,
-};
-EXPORT_SYMBOL_GPL(sdw_bus_type);
-
-static int sdw_drv_probe(struct device *dev)
+static int sdw_bus_probe(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
@@ -105,7 +99,7 @@ static int sdw_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = ida_alloc_max(&slave->bus->slave_ida, SDW_FW_MAX_DEVICES, GFP_KERNEL);
+	ret = ida_alloc_max(&slave->bus->slave_ida, SDW_FW_MAX_DEVICES - 1, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(dev, "Failed to allocated ID: %d\n", ret);
 		return ret;
@@ -164,11 +158,10 @@ static int sdw_drv_probe(struct device *dev)
 	return 0;
 }
 
-static int sdw_drv_remove(struct device *dev)
+static void sdw_bus_remove(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
-	int ret = 0;
 
 	mutex_lock(&slave->sdw_dev_lock);
 
@@ -177,21 +170,28 @@ static int sdw_drv_remove(struct device *dev)
 	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)
-		ret = drv->remove(slave);
+		drv->remove(slave);
 
 	ida_free(&slave->bus->slave_ida, slave->index);
-
-	return ret;
 }
 
-static void sdw_drv_shutdown(struct device *dev)
+static void sdw_bus_shutdown(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
 
-	if (drv->shutdown)
+	if (dev->driver && drv->shutdown)
 		drv->shutdown(slave);
 }
+
+const struct bus_type sdw_bus_type = {
+	.name = "soundwire",
+	.match = sdw_bus_match,
+	.probe = sdw_bus_probe,
+	.remove = sdw_bus_remove,
+	.shutdown = sdw_bus_shutdown,
+};
+EXPORT_SYMBOL_GPL(sdw_bus_type);
 
 /**
  * __sdw_register_driver() - register a SoundWire Slave driver
@@ -211,9 +211,6 @@ int __sdw_register_driver(struct sdw_driver *drv, struct module *owner)
 	}
 
 	drv->driver.owner = owner;
-	drv->driver.probe = sdw_drv_probe;
-	drv->driver.remove = sdw_drv_remove;
-	drv->driver.shutdown = sdw_drv_shutdown;
 	drv->driver.dev_groups = sdw_attr_groups;
 
 	return driver_register(&drv->driver);

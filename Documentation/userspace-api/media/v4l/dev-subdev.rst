@@ -460,7 +460,7 @@ selection will refer to the sink pad format dimensions instead.
     :alt:   subdev-image-processing-crop.svg
     :align: center
 
-    **Figure 4.5. Image processing in subdevs: simple crop example**
+    Image processing in subdevs: simple crop example
 
 In the above example, the subdev supports cropping on its sink pad. To
 configure it, the user sets the media bus format on the subdev's sink
@@ -477,7 +477,7 @@ pad.
     :alt:   subdev-image-processing-scaling-multi-source.svg
     :align: center
 
-    **Figure 4.6. Image processing in subdevs: scaling with multiple sources**
+    Image processing in subdevs: scaling with multiple sources
 
 In this example, the subdev is capable of first cropping, then scaling
 and finally cropping for two source pads individually from the resulting
@@ -493,7 +493,7 @@ an area at location specified by the source crop rectangle from it.
     :alt:    subdev-image-processing-full.svg
     :align:  center
 
-    **Figure 4.7. Image processing in subdevs: scaling and composition with multiple sinks and sources**
+    Image processing in subdevs: scaling and composition with multiple sinks and sources
 
 The subdev driver supports two sink pads and two source pads. The images
 from both of the sink pads are individually cropped, then scaled and
@@ -578,15 +578,14 @@ Device types and routing setup
 
 Different kinds of sub-devices have differing behaviour for route activation,
 depending on the hardware. In all cases, however, only routes that have the
-``V4L2_SUBDEV_STREAM_FL_ACTIVE`` flag set are active.
+``V4L2_SUBDEV_ROUTE_FL_ACTIVE`` flag set are active.
 
 Devices generating the streams may allow enabling and disabling some of the
 routes or have a fixed routing configuration. If the routes can be disabled, not
-declaring the routes (or declaring them without
-``V4L2_SUBDEV_STREAM_FL_ACTIVE`` flag set) in ``VIDIOC_SUBDEV_S_ROUTING`` will
-disable the routes. ``VIDIOC_SUBDEV_S_ROUTING`` will still return such routes
-back to the user in the routes array, with the ``V4L2_SUBDEV_STREAM_FL_ACTIVE``
-flag unset.
+declaring the routes (or declaring them without ``V4L2_SUBDEV_ROUTE_FL_ACTIVE``
+flag set) in ``VIDIOC_SUBDEV_S_ROUTING`` will disable the routes.
+``VIDIOC_SUBDEV_S_ROUTING`` will still return such routes back to the user in
+the routes array, with the ``V4L2_SUBDEV_ROUTE_FL_ACTIVE`` flag unset.
 
 Devices transporting the streams almost always have more configurability with
 respect to routing. Typically any route between the sub-device's sink and source

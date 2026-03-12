@@ -2,7 +2,7 @@
 
 #include <linux/completion.h>
 
-void rust_helper_init_completion(struct completion *x)
+__rust_helper void rust_helper_init_completion(struct completion *x)
 {
 	init_completion(x);
 }

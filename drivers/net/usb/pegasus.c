@@ -18,9 +18,6 @@
 #include <linux/uaccess.h>
 #include "pegasus.h"
 
-/*
- * Version Information
- */
 #define DRIVER_AUTHOR "Petko Manolov <petkan@nucleusys.com>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
@@ -30,6 +27,17 @@ static const char driver_name[] = "pegasus";
 #define	BMSR_MEDIA	(BMSR_10HALF | BMSR_10FULL | BMSR_100HALF | \
 			BMSR_100FULL | BMSR_ANEGCAPABLE)
 #define CARRIER_CHECK_DELAY (2 * HZ)
+
+/*
+ * USB endpoints.
+ */
+
+enum pegasus_usb_ep {
+	PEGASUS_USB_EP_CONTROL	= 0,
+	PEGASUS_USB_EP_BULK_IN	= 1,
+	PEGASUS_USB_EP_BULK_OUT	= 2,
+	PEGASUS_USB_EP_INT_IN	= 3,
+};
 
 static bool loopback;
 static bool mii_mode;
@@ -143,7 +151,7 @@ static int update_eth_regs_async(pegasus_t *pegasus)
 	struct urb *async_urb;
 	struct usb_ctrlrequest *req;
 
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
+	req = kmalloc_obj(struct usb_ctrlrequest, GFP_ATOMIC);
 	if (req == NULL)
 		return ret;
 
@@ -168,6 +176,8 @@ static int update_eth_regs_async(pegasus_t *pegasus)
 			netif_device_detach(pegasus->net);
 		netif_err(pegasus, drv, pegasus->net,
 			  "%s returned %d\n", __func__, ret);
+		usb_free_urb(async_urb);
+		kfree(req);
 	}
 	return ret;
 }
@@ -543,7 +553,7 @@ static void read_bulk_callback(struct urb *urb)
 		goto tl_sched;
 goon:
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
-			  usb_rcvbulkpipe(pegasus->usb, 1),
+			  usb_rcvbulkpipe(pegasus->usb, PEGASUS_USB_EP_BULK_IN),
 			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	rx_status = usb_submit_urb(pegasus->rx_urb, GFP_ATOMIC);
@@ -583,7 +593,7 @@ static void rx_fixup(struct tasklet_struct *t)
 		return;
 	}
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
-			  usb_rcvbulkpipe(pegasus->usb, 1),
+			  usb_rcvbulkpipe(pegasus->usb, PEGASUS_USB_EP_BULK_IN),
 			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 try_again:
@@ -711,7 +721,7 @@ static netdev_tx_t pegasus_start_xmit(struct sk_buff *skb,
 	((__le16 *) pegasus->tx_buff)[0] = cpu_to_le16(l16);
 	skb_copy_from_linear_data(skb, pegasus->tx_buff + 2, skb->len);
 	usb_fill_bulk_urb(pegasus->tx_urb, pegasus->usb,
-			  usb_sndbulkpipe(pegasus->usb, 2),
+			  usb_sndbulkpipe(pegasus->usb, PEGASUS_USB_EP_BULK_OUT),
 			  pegasus->tx_buff, count,
 			  write_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->tx_urb, GFP_ATOMIC))) {
@@ -802,7 +812,18 @@ static void unlink_all_urbs(pegasus_t *pegasus)
 
 static int alloc_urbs(pegasus_t *pegasus)
 {
+	static const u8 bulk_ep_addr[] = {
+		1 | USB_DIR_IN,
+		2 | USB_DIR_OUT,
+		0};
+	static const u8 int_ep_addr[] = {
+		3 | USB_DIR_IN,
+		0};
 	int res = -ENOMEM;
+
+	if (!usb_check_bulk_endpoints(pegasus->intf, bulk_ep_addr) ||
+	    !usb_check_int_endpoints(pegasus->intf, int_ep_addr))
+		return -ENODEV;
 
 	pegasus->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!pegasus->rx_urb) {
@@ -838,7 +859,7 @@ static int pegasus_open(struct net_device *net)
 	set_registers(pegasus, EthID, 6, net->dev_addr);
 
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
-			  usb_rcvbulkpipe(pegasus->usb, 1),
+			  usb_rcvbulkpipe(pegasus->usb, PEGASUS_USB_EP_BULK_IN),
 			  pegasus->rx_skb->data, PEGASUS_MTU,
 			  read_bulk_callback, pegasus);
 	if ((res = usb_submit_urb(pegasus->rx_urb, GFP_KERNEL))) {
@@ -849,7 +870,7 @@ static int pegasus_open(struct net_device *net)
 	}
 
 	usb_fill_int_urb(pegasus->intr_urb, pegasus->usb,
-			 usb_rcvintpipe(pegasus->usb, 3),
+			 usb_rcvintpipe(pegasus->usb, PEGASUS_USB_EP_INT_IN),
 			 pegasus->intr_buff, sizeof(pegasus->intr_buff),
 			 intr_callback, pegasus, pegasus->intr_interval);
 	if ((res = usb_submit_urb(pegasus->intr_urb, GFP_KERNEL))) {
@@ -1134,9 +1155,23 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus_t *pegasus;
 	int dev_index = id - pegasus_ids;
 	int res = -ENOMEM;
+	static const u8 bulk_ep_addr[] = {
+		PEGASUS_USB_EP_BULK_IN | USB_DIR_IN,
+		PEGASUS_USB_EP_BULK_OUT | USB_DIR_OUT,
+		0};
+	static const u8 int_ep_addr[] = {
+		PEGASUS_USB_EP_INT_IN | USB_DIR_IN,
+		0};
 
 	if (pegasus_blacklisted(dev))
 		return -ENODEV;
+
+	/* Verify that all required endpoints are present */
+	if (!usb_check_bulk_endpoints(intf, bulk_ep_addr) ||
+	    !usb_check_int_endpoints(intf, int_ep_addr)) {
+		dev_err(&intf->dev, "Missing or invalid endpoints\n");
+		return -ENODEV;
+	}
 
 	net = alloc_etherdev(sizeof(struct pegasus));
 	if (!net)
@@ -1144,6 +1179,7 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	pegasus = netdev_priv(net);
 	pegasus->dev_index = dev_index;
+	pegasus->intf = intf;
 
 	res = alloc_urbs(pegasus);
 	if (res < 0) {
@@ -1155,7 +1191,6 @@ static int pegasus_probe(struct usb_interface *intf,
 
 	INIT_DELAYED_WORK(&pegasus->carrier_check, check_carrier);
 
-	pegasus->intf = intf;
 	pegasus->usb = dev;
 	pegasus->net = net;
 

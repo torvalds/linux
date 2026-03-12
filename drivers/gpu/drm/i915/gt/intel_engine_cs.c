@@ -471,7 +471,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 	if (GEM_DEBUG_WARN_ON(gt->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
-	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
+	engine = kzalloc_obj(*engine);
 	if (!engine)
 		return -ENOMEM;
 
@@ -1311,7 +1311,7 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 
 	GEM_BUG_ON(!engine->gt->scratch);
 
-	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	frame = kzalloc_obj(*frame);
 	if (!frame)
 		return -ENOMEM;
 

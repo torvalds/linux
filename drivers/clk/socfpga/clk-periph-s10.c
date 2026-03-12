@@ -108,7 +108,7 @@ struct clk_hw *s10_register_periph(const struct stratix10_perip_c_clock *clks,
 	const char *parent_name = clks->parent_name;
 	int ret;
 
-	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
+	periph_clk = kzalloc_obj(*periph_clk);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 
@@ -144,7 +144,7 @@ struct clk_hw *n5x_register_periph(const struct n5x_perip_c_clock *clks,
 	const char *parent_name = clks->parent_name;
 	int ret;
 
-	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
+	periph_clk = kzalloc_obj(*periph_clk);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 
@@ -179,7 +179,7 @@ struct clk_hw *s10_register_cnt_periph(const struct stratix10_perip_cnt_clock *c
 	const char *parent_name = clks->parent_name;
 	int ret;
 
-	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
+	periph_clk = kzalloc_obj(*periph_clk);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 
@@ -224,7 +224,7 @@ struct clk_hw *agilex5_register_cnt_periph(const struct agilex5_perip_cnt_clock 
 	const char *name = clks->name;
 	int ret;
 
-	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
+	periph_clk = kzalloc_obj(*periph_clk);
 	if (WARN_ON(!periph_clk))
 		return NULL;
 

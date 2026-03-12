@@ -1863,7 +1863,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	u8        *curr_ptr;
 	u16	templen, count;
 
-	fcs_hba_attr = kzalloc(sizeof(*fcs_hba_attr), GFP_KERNEL);
+	fcs_hba_attr = kzalloc_obj(*fcs_hba_attr);
 	if (!fcs_hba_attr)
 		return -ENOMEM;
 

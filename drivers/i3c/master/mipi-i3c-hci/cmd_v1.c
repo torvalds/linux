@@ -15,7 +15,6 @@
 #include "dat.h"
 #include "dct.h"
 
-
 /*
  * Address Assignment Command
  */
@@ -99,7 +98,6 @@
 #define CMD_M0_MIPI_CMD				   W0_MASK(11,  8)
 #define CMD_M0_VENDOR_INFO_PRESENT		   W0_BIT_( 7)
 #define CMD_M0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
-
 
 /* Data Transfer Speed and Mode */
 enum hci_cmd_mode {

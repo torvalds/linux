@@ -940,6 +940,8 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 	int ret;
 
 	idr_for_each_entry_ul(idr, p, tmp, id) {
+		if (IS_ERR(p))
+			continue;
 		if (tc_act_in_hw(p) && !mutex_taken) {
 			rtnl_lock();
 			mutex_taken = true;
@@ -983,7 +985,7 @@ static int tcf_pernet_add_id_list(unsigned int id)
 		}
 	}
 
-	id_ptr = kzalloc(sizeof(*id_ptr), GFP_KERNEL);
+	id_ptr = kzalloc_obj(*id_ptr);
 	if (!id_ptr) {
 		ret = -ENOMEM;
 		goto err_out;
@@ -1270,7 +1272,7 @@ errout:
 
 static struct tc_cookie *nla_memdup_cookie(struct nlattr **tb)
 {
-	struct tc_cookie *c = kzalloc(sizeof(*c), GFP_KERNEL);
+	struct tc_cookie *c = kzalloc_obj(*c);
 	if (!c)
 		return NULL;
 

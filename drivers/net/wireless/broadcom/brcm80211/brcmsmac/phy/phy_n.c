@@ -23049,8 +23049,7 @@ wlc_phy_gen_load_samples_nphy(struct brcms_phy *pi, u32 f_kHz, u16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = kmalloc_array(tbl_len, sizeof(struct cordic_iq),
-				 GFP_ATOMIC);
+	tone_buf = kmalloc_objs(struct cordic_iq, tbl_len, GFP_ATOMIC);
 	if (tone_buf == NULL)
 		return 0;
 

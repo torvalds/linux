@@ -92,7 +92,7 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 {
 	struct sctp_transport *transport;
 
-	transport = kzalloc(sizeof(*transport), gfp);
+	transport = kzalloc_obj(*transport, gfp);
 	if (!transport)
 		return NULL;
 

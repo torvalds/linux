@@ -281,7 +281,7 @@ struct hv_vmcb_enlightenments {
 #define HV_VMCB_NESTED_ENLIGHTENMENTS		31
 
 /* Synthetic VM-Exit */
-#define HV_SVM_EXITCODE_ENL			0xf0000000
+#define HV_SVM_EXITCODE_ENL			0xf0000000ull
 #define HV_SVM_ENL_EXITCODE_TRAP_AFTER_FLUSH	(1)
 
 /* VM_PARTITION_ASSIST_PAGE */

@@ -81,8 +81,8 @@ static __init int acpi_parse_mrrm(struct acpi_table_header *table)
 		return -EINVAL;
 	}
 
-	mrrm_mem_range_entry = kmalloc_array(mre_count, sizeof(*mrrm_mem_range_entry),
-					     GFP_KERNEL | __GFP_ZERO);
+	mrrm_mem_range_entry = kmalloc_objs(*mrrm_mem_range_entry, mre_count,
+					    GFP_KERNEL | __GFP_ZERO);
 	if (!mrrm_mem_range_entry)
 		return -ENOMEM;
 
@@ -161,7 +161,7 @@ static __init int add_boot_memory_ranges(void)
 	if (!pkobj)
 		return -ENOMEM;
 
-	kobjs = kcalloc(mrrm_mem_entry_num, sizeof(*kobjs), GFP_KERNEL);
+	kobjs = kzalloc_objs(*kobjs, mrrm_mem_entry_num);
 	if (!kobjs) {
 		kobject_put(pkobj);
 		return -ENOMEM;

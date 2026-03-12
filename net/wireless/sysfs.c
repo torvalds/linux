@@ -88,7 +88,7 @@ static void cfg80211_leave_all(struct cfg80211_registered_device *rdev)
 	struct wireless_dev *wdev;
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
-		cfg80211_leave(rdev, wdev);
+		cfg80211_leave(rdev, wdev, -1);
 }
 
 static int wiphy_suspend(struct device *dev)

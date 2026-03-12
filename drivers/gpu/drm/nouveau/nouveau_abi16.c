@@ -44,7 +44,7 @@ nouveau_abi16(struct drm_file *file_priv)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	if (!cli->abi16) {
 		struct nouveau_abi16 *abi16;
-		cli->abi16 = abi16 = kzalloc(sizeof(*abi16), GFP_KERNEL);
+		cli->abi16 = abi16 = kzalloc_obj(*abi16);
 		if (cli->abi16) {
 			abi16->cli = cli;
 			INIT_LIST_HEAD(&abi16->channels);
@@ -124,7 +124,7 @@ nouveau_abi16_obj_new(struct nouveau_abi16 *abi16, enum nouveau_abi16_obj_type t
 	if (obj)
 		return ERR_PTR(-EEXIST);
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 
@@ -334,6 +334,35 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 }
 
 int
+nouveau_abi16_ioctl_get_zcull_info(ABI16_IOCTL_ARGS)
+{
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_gr *gr = nvxx_gr(drm);
+	struct drm_nouveau_get_zcull_info *out = data;
+
+	if (gr->has_zcull_info) {
+		const struct nvkm_gr_zcull_info *i = &gr->zcull_info;
+
+		out->width_align_pixels = i->width_align_pixels;
+		out->height_align_pixels = i->height_align_pixels;
+		out->pixel_squares_by_aliquots = i->pixel_squares_by_aliquots;
+		out->aliquot_total = i->aliquot_total;
+		out->zcull_region_byte_multiplier = i->zcull_region_byte_multiplier;
+		out->zcull_region_header_size = i->zcull_region_header_size;
+		out->zcull_subregion_header_size = i->zcull_subregion_header_size;
+		out->subregion_count = i->subregion_count;
+		out->subregion_width_align_pixels = i->subregion_width_align_pixels;
+		out->subregion_height_align_pixels = i->subregion_height_align_pixels;
+		out->ctxsw_size = i->ctxsw_size;
+		out->ctxsw_align = i->ctxsw_align;
+
+		return 0;
+	} else {
+		return -ENOTTY;
+	}
+}
+
+int
 nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_channel_alloc *init = data;
@@ -397,7 +426,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOMEM);
 
@@ -597,7 +626,7 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 	if (!oclass)
 		return nouveau_abi16_put(abi16, -EINVAL);
 
-	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
+	ntfy = kzalloc_obj(*ntfy);
 	if (!ntfy)
 		return nouveau_abi16_put(abi16, -ENOMEM);
 
@@ -635,7 +664,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (!chan)
 		return nouveau_abi16_put(abi16, -ENOENT);
 
-	ntfy = kzalloc(sizeof(*ntfy), GFP_KERNEL);
+	ntfy = kzalloc_obj(*ntfy);
 	if (!ntfy)
 		return nouveau_abi16_put(abi16, -ENOMEM);
 

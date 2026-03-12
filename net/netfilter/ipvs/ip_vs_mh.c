@@ -293,9 +293,8 @@ static int ip_vs_mh_reassign(struct ip_vs_mh_state *s,
 		return -EINVAL;
 
 	if (svc->num_dests >= 1) {
-		s->dest_setup = kcalloc(svc->num_dests,
-					sizeof(struct ip_vs_mh_dest_setup),
-					GFP_KERNEL);
+		s->dest_setup = kzalloc_objs(struct ip_vs_mh_dest_setup,
+					     svc->num_dests);
 		if (!s->dest_setup)
 			return -ENOMEM;
 	}
@@ -383,12 +382,11 @@ static int ip_vs_mh_init_svc(struct ip_vs_service *svc)
 	struct ip_vs_mh_state *s;
 
 	/* Allocate the MH table for this service */
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
-	s->lookup = kcalloc(IP_VS_MH_TAB_SIZE, sizeof(struct ip_vs_mh_lookup),
-			    GFP_KERNEL);
+	s->lookup = kzalloc_objs(struct ip_vs_mh_lookup, IP_VS_MH_TAB_SIZE);
 	if (!s->lookup) {
 		kfree(s);
 		return -ENOMEM;

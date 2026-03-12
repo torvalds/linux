@@ -18,6 +18,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -831,7 +832,6 @@ int usbnet_stop(struct net_device *net)
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue(net);
-	netdev_reset_queue(net);
 
 	netif_info(dev, ifdown, dev->net,
 		   "stop stats: rx/tx %lu/%lu, errs %lu/%lu\n",
@@ -874,6 +874,8 @@ int usbnet_stop(struct net_device *net)
 	cancel_work_sync(&dev->bh_work);
 	timer_delete_sync(&dev->delay);
 	cancel_work_sync(&dev->kevent);
+
+	netdev_reset_queue(net);
 
 	if (!pm)
 		usb_autopm_put_interface(dev->intf);
@@ -1083,6 +1085,14 @@ int usbnet_nway_reset(struct net_device *net)
 	return mii_nway_restart(&dev->mii);
 }
 EXPORT_SYMBOL_GPL(usbnet_nway_reset);
+
+int usbnet_mii_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
+{
+	struct usbnet *dev = netdev_priv(net);
+
+	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
+}
+EXPORT_SYMBOL_GPL(usbnet_mii_ioctl);
 
 void usbnet_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 {
@@ -1367,8 +1377,7 @@ static int build_dma_sg(const struct sk_buff *skb, struct urb *urb)
 		return 0;
 
 	/* reserve one for zero packet */
-	urb->sg = kmalloc_array(num_sgs + 1, sizeof(struct scatterlist),
-				GFP_ATOMIC);
+	urb->sg = kmalloc_objs(struct scatterlist, num_sgs + 1, GFP_ATOMIC);
 	if (!urb->sg)
 		return -ENOMEM;
 
@@ -1820,9 +1829,12 @@ usbnet_probe(struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_NOARP) != 0)
 			net->flags |= IFF_NOARP;
 
-		/* maybe the remote can't receive an Ethernet MTU */
-		if (net->mtu > (dev->hard_mtu - net->hard_header_len))
-			net->mtu = dev->hard_mtu - net->hard_header_len;
+		if (net->max_mtu > (dev->hard_mtu - net->hard_header_len))
+			net->max_mtu = dev->hard_mtu - net->hard_header_len;
+
+		if (net->mtu > net->max_mtu)
+			net->mtu = net->max_mtu;
+
 	} else if (!info->in || !info->out)
 		status = usbnet_get_endpoints(dev, udev);
 	else {
@@ -1983,6 +1995,7 @@ int usbnet_resume(struct usb_interface *intf)
 			} else {
 				netif_trans_update(dev->net);
 				__skb_queue_tail(&dev->txq, skb);
+				netdev_sent_queue(dev->net, skb->len);
 			}
 		}
 
@@ -2220,7 +2233,7 @@ int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 		}
 	}
 
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
+	req = kmalloc_obj(struct usb_ctrlrequest, GFP_ATOMIC);
 	if (!req)
 		goto fail_free_buf;
 

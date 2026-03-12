@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -329,8 +329,8 @@ xlog_recover_inode_commit_pass2(
 	if (item->ri_buf[0].iov_len == sizeof(struct xfs_inode_log_format)) {
 		in_f = item->ri_buf[0].iov_base;
 	} else {
-		in_f = kmalloc(sizeof(struct xfs_inode_log_format),
-				GFP_KERNEL | __GFP_NOFAIL);
+		in_f = kmalloc_obj(struct xfs_inode_log_format,
+				   GFP_KERNEL | __GFP_NOFAIL);
 		need_free = 1;
 		error = xfs_inode_item_format_convert(&item->ri_buf[0], in_f);
 		if (error)

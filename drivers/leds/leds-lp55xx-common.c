@@ -1204,7 +1204,6 @@ static struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 							     struct device_node *np,
 							     struct lp55xx_chip *chip)
 {
-	struct device_node *child;
 	struct lp55xx_platform_data *pdata;
 	struct lp55xx_led_config *cfg;
 	int num_channels;
@@ -1229,12 +1228,10 @@ static struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 	pdata->num_channels = num_channels;
 	cfg->max_channel = chip->cfg->max_channel;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		ret = lp55xx_parse_logical_led(child, cfg, i);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return ERR_PTR(-EINVAL);
-		}
 		i++;
 	}
 

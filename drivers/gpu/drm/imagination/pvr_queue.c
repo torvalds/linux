@@ -249,7 +249,7 @@ pvr_queue_fence_alloc(void)
 {
 	struct pvr_queue_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -1266,7 +1266,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 	if (ctx_state_size < 0)
 		return ERR_PTR(ctx_state_size);
 
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue);
 	if (!queue)
 		return ERR_PTR(-ENOMEM);
 

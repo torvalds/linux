@@ -110,7 +110,6 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 	mr->access = access_flags;
 	mr->ibmr.length = length;
 	mr->ibmr.iova = iova;
-	mr->page_offset = ib_umem_offset(&umem_odp->umem);
 
 	err = rxe_odp_init_pages(mr);
 	if (err) {
@@ -179,8 +178,10 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 			return err;
 
 		need_fault = rxe_check_pagefault(umem_odp, iova, length);
-		if (need_fault)
+		if (need_fault) {
+			mutex_unlock(&umem_odp->umem_mutex);
 			return -EFAULT;
+		}
 	}
 
 	return 0;
@@ -522,7 +523,7 @@ static int rxe_ib_advise_mr_prefetch(struct ib_pd *ibpd,
 					       num_sge);
 
 	/* Asynchronous call is "best-effort" and allowed to fail */
-	work = kvzalloc(struct_size(work, frags, num_sge), GFP_KERNEL);
+	work = kvzalloc_flex(*work, frags, num_sge);
 	if (!work)
 		return -ENOMEM;
 

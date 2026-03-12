@@ -21,7 +21,7 @@ static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
 
 struct pubkey_hashtable *wg_pubkey_hashtable_alloc(void)
 {
-	struct pubkey_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
+	struct pubkey_hashtable *table = kvmalloc_obj(*table);
 
 	if (!table)
 		return NULL;
@@ -82,7 +82,7 @@ static struct hlist_head *index_bucket(struct index_hashtable *table,
 
 struct index_hashtable *wg_index_hashtable_alloc(void)
 {
-	struct index_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
+	struct index_hashtable *table = kvmalloc_obj(*table);
 
 	if (!table)
 		return NULL;

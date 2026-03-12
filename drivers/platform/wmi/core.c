@@ -23,6 +23,7 @@
 #include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/rwsem.h>
@@ -32,6 +33,8 @@
 #include <linux/uuid.h>
 #include <linux/wmi.h>
 #include <linux/fs.h>
+
+#include "internal.h"
 
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("ACPI-WMI Mapping Driver");
@@ -302,7 +305,7 @@ acpi_status wmi_evaluate_method(const char *guid_string, u8 instance, u32 method
 EXPORT_SYMBOL_GPL(wmi_evaluate_method);
 
 /**
- * wmidev_evaluate_method - Evaluate a WMI method
+ * wmidev_evaluate_method - Evaluate a WMI method (deprecated)
  * @wdev: A wmi bus device from a driver
  * @instance: Instance index
  * @method_id: Method ID to call
@@ -359,6 +362,70 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 met
 	return acpi_evaluate_object(handle, method, &input, out);
 }
 EXPORT_SYMBOL_GPL(wmidev_evaluate_method);
+
+/**
+ * wmidev_invoke_method - Invoke a WMI method
+ * @wdev: A wmi bus device from a driver
+ * @instance: Instance index
+ * @method_id: Method ID to call
+ * @in: Mandatory WMI buffer containing input for the method call
+ * @out: Optional WMI buffer to return the method results
+ *
+ * Invoke a WMI method, the caller must free the resulting data inside @out.
+ * Said data is guaranteed to be aligned on a 8-byte boundary.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int wmidev_invoke_method(struct wmi_device *wdev, u8 instance, u32 method_id,
+			 const struct wmi_buffer *in, struct wmi_buffer *out)
+{
+	struct wmi_block *wblock = container_of(wdev, struct wmi_block, dev);
+	struct acpi_buffer aout = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_buffer ain;
+	union acpi_object *obj;
+	acpi_status status;
+	int ret;
+
+	if (wblock->gblock.flags & ACPI_WMI_STRING) {
+		ret = wmi_marshal_string(in, &ain);
+		if (ret < 0)
+			return ret;
+	} else {
+		if (in->length > U32_MAX)
+			return -E2BIG;
+
+		ain.length = in->length;
+		ain.pointer = in->data;
+	}
+
+	if (out)
+		status = wmidev_evaluate_method(wdev, instance, method_id, &ain, &aout);
+	else
+		status = wmidev_evaluate_method(wdev, instance, method_id, &ain, NULL);
+
+	if (wblock->gblock.flags & ACPI_WMI_STRING)
+		kfree(ain.pointer);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	if (!out)
+		return 0;
+
+	obj = aout.pointer;
+	if (!obj) {
+		out->length = 0;
+		out->data = ZERO_SIZE_PTR;
+
+		return 0;
+	}
+
+	ret = wmi_unmarshal_acpi_object(obj, out);
+	kfree(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wmidev_invoke_method);
 
 static acpi_status __query_block(struct wmi_block *wblock, u8 instance,
 				 struct acpi_buffer *out)
@@ -432,7 +499,7 @@ acpi_status wmi_query_block(const char *guid_string, u8 instance,
 EXPORT_SYMBOL_GPL(wmi_query_block);
 
 /**
- * wmidev_block_query - Return contents of a WMI block
+ * wmidev_block_query - Return contents of a WMI block (deprectated)
  * @wdev: A wmi bus device from a driver
  * @instance: Instance index
  *
@@ -451,6 +518,33 @@ union acpi_object *wmidev_block_query(struct wmi_device *wdev, u8 instance)
 	return out.pointer;
 }
 EXPORT_SYMBOL_GPL(wmidev_block_query);
+
+/**
+ * wmidev_query_block - Return contents of a WMI data block
+ * @wdev: A wmi bus device from a driver
+ * @instance: Instance index
+ * @out: WMI buffer to fill
+ *
+ * Query a WMI data block, the caller must free the resulting data inside @out.
+ * Said data is guaranteed to be aligned on a 8-byte boundary.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int wmidev_query_block(struct wmi_device *wdev, u8 instance, struct wmi_buffer *out)
+{
+	union acpi_object *obj;
+	int ret;
+
+	obj = wmidev_block_query(wdev, instance);
+	if (!obj)
+		return -EIO;
+
+	ret = wmi_unmarshal_acpi_object(obj, out);
+	kfree(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wmidev_query_block);
 
 /**
  * wmi_set_block - Write to a WMI block (deprecated)
@@ -486,7 +580,7 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance, const struct acp
 EXPORT_SYMBOL_GPL(wmi_set_block);
 
 /**
- * wmidev_block_set - Write to a WMI block
+ * wmidev_block_set - Write to a WMI block (deprecated)
  * @wdev: A wmi bus device from a driver
  * @instance: Instance index
  * @in: Buffer containing new values for the data block
@@ -534,6 +628,46 @@ acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct 
 	return acpi_evaluate_object(handle, method, &input, NULL);
 }
 EXPORT_SYMBOL_GPL(wmidev_block_set);
+
+/**
+ * wmidev_set_block - Write to a WMI data block
+ * @wdev: A wmi bus device from a driver
+ * @instance: Instance index
+ * @in: WMI buffer containing new values for the data block
+ *
+ * Write the content of @in into a WMI data block.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int wmidev_set_block(struct wmi_device *wdev, u8 instance, const struct wmi_buffer *in)
+{
+	struct wmi_block *wblock = container_of(wdev, struct wmi_block, dev);
+	struct acpi_buffer buffer;
+	acpi_status status;
+	int ret;
+
+	if (wblock->gblock.flags & ACPI_WMI_STRING) {
+		ret = wmi_marshal_string(in, &buffer);
+		if (ret < 0)
+			return ret;
+	} else {
+		if (in->length > U32_MAX)
+			return -E2BIG;
+
+		buffer.length = in->length;
+		buffer.pointer = in->data;
+	}
+
+	status = wmidev_block_set(wdev, instance, &buffer);
+	if (wblock->gblock.flags & ACPI_WMI_STRING)
+		kfree(buffer.pointer);
+
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wmidev_set_block);
 
 /**
  * wmi_install_notify_handler - Register handler for WMI events (deprecated)
@@ -862,7 +996,7 @@ static int wmi_dev_probe(struct device *dev)
 		return -ENODEV;
 	}
 
-	if (wdriver->notify) {
+	if (wdriver->notify || wdriver->notify_new) {
 		if (test_bit(WMI_NO_EVENT_DATA, &wblock->flags) && !wdriver->no_notify_data)
 			return -ENODEV;
 	}
@@ -1162,7 +1296,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			continue;
 		}
 
-		wblock = kzalloc(sizeof(*wblock), GFP_KERNEL);
+		wblock = kzalloc_obj(*wblock);
 		if (!wblock)
 			continue;
 
@@ -1221,6 +1355,8 @@ static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj
 static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
 {
 	struct wmi_driver *driver = to_wmi_driver(wblock->dev.dev.driver);
+	struct wmi_buffer buffer;
+	int ret;
 
 	if (!obj && !driver->no_notify_data) {
 		dev_warn(&wblock->dev.dev, "Event contains no event data\n");
@@ -1229,6 +1365,22 @@ static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
 
 	if (driver->notify)
 		driver->notify(&wblock->dev, obj);
+
+	if (driver->notify_new) {
+		if (!obj) {
+			driver->notify_new(&wblock->dev, NULL);
+			return;
+		}
+
+		ret = wmi_unmarshal_acpi_object(obj, &buffer);
+		if (ret < 0) {
+			dev_warn(&wblock->dev.dev, "Failed to unmarshal event data: %d\n", ret);
+			return;
+		}
+
+		driver->notify_new(&wblock->dev, &buffer);
+		kfree(buffer.data);
+	}
 }
 
 static int wmi_notify_device(struct device *dev, void *data)

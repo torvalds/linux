@@ -144,19 +144,22 @@ static inline int io_import_rw_buffer(int rw, struct io_kiocb *req,
 	return 0;
 }
 
-static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
+static bool io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_async_rw *rw = req->async_data;
 
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED))
-		return;
+		return false;
 
 	io_alloc_cache_vec_kasan(&rw->vec);
 	if (rw->vec.nr > IO_VEC_CACHE_SOFT_CAP)
 		io_vec_free(&rw->vec);
 
-	if (io_alloc_cache_put(&req->ctx->rw_cache, rw))
+	if (io_alloc_cache_put(&req->ctx->rw_cache, rw)) {
 		io_req_async_data_clear(req, 0);
+		return true;
+	}
+	return false;
 }
 
 static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
@@ -190,7 +193,11 @@ static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 	 */
 	if (!(req->flags & (REQ_F_REISSUE | REQ_F_REFCOUNT))) {
 		req->flags &= ~REQ_F_NEED_CLEANUP;
-		io_rw_recycle(req, issue_flags);
+		if (!io_rw_recycle(req, issue_flags)) {
+			struct io_async_rw *rw = req->async_data;
+
+			io_vec_free(&rw->vec);
+		}
 	}
 }
 
@@ -695,7 +702,8 @@ static ssize_t loop_rw_iter(int ddir, struct io_rw *rw, struct iov_iter *iter)
 	if ((kiocb->ki_flags & IOCB_NOWAIT) &&
 	    !(kiocb->ki_filp->f_flags & O_NONBLOCK))
 		return -EAGAIN;
-	if ((req->flags & REQ_F_BUF_NODE) && req->buf_node->buf->is_kbuf)
+	if ((req->flags & REQ_F_BUF_NODE) &&
+	     (req->buf_node->buf->flags & IO_REGBUF_F_KBUF))
 		return -EFAULT;
 
 	ppos = io_kiocb_ppos(kiocb);
@@ -1246,7 +1254,7 @@ static int io_uring_classic_poll(struct io_kiocb *req, struct io_comp_batch *iob
 {
 	struct file *file = req->file;
 
-	if (req->opcode == IORING_OP_URING_CMD) {
+	if (io_is_uring_cmd(req)) {
 		struct io_uring_cmd *ioucmd;
 
 		ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -1296,12 +1304,13 @@ static int io_uring_hybrid_poll(struct io_kiocb *req,
 				struct io_comp_batch *iob, unsigned int poll_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	u64 runtime, sleep_time;
+	u64 runtime, sleep_time, iopoll_start;
 	int ret;
 
+	iopoll_start = READ_ONCE(req->iopoll_start);
 	sleep_time = io_hybrid_iopoll_delay(ctx, req);
 	ret = io_uring_classic_poll(req, iob, poll_flags);
-	runtime = ktime_get_ns() - req->iopoll_start - sleep_time;
+	runtime = ktime_get_ns() - iopoll_start - sleep_time;
 
 	/*
 	 * Use minimum sleep time if we're polling devices with different
@@ -1315,10 +1324,16 @@ static int io_uring_hybrid_poll(struct io_kiocb *req,
 
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 {
-	struct io_wq_work_node *pos, *start, *prev;
 	unsigned int poll_flags = 0;
 	DEFINE_IO_COMP_BATCH(iob);
+	struct io_kiocb *req, *tmp;
 	int nr_events = 0;
+
+	/*
+	 * Store the polling io_ring_ctx so drivers can detect if they're
+	 * completing a request in the same ring context that's polling.
+	 */
+	iob.poll_ctx = ctx;
 
 	/*
 	 * Only spin for completions if we don't have multiple devices hanging
@@ -1327,8 +1342,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 	if (ctx->poll_multi_queue || force_nonspin)
 		poll_flags |= BLK_POLL_ONESHOT;
 
-	wq_list_for_each(pos, start, &ctx->iopoll_list) {
-		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
+	list_for_each_entry(req, &ctx->iopoll_list, iopoll_node) {
 		int ret;
 
 		/*
@@ -1357,31 +1371,20 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	if (!rq_list_empty(&iob.req_list))
 		iob.complete(&iob);
-	else if (!pos)
-		return 0;
 
-	prev = start;
-	wq_list_for_each_resume(pos, prev) {
-		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
-
+	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, iopoll_node) {
 		/* order with io_complete_rw_iopoll(), e.g. ->result updates */
 		if (!smp_load_acquire(&req->iopoll_completed))
-			break;
+			continue;
+		list_del(&req->iopoll_node);
+		wq_list_add_tail(&req->comp_list, &ctx->submit_state.compl_reqs);
 		nr_events++;
 		req->cqe.flags = io_put_kbuf(req, req->cqe.res, NULL);
-		if (req->opcode != IORING_OP_URING_CMD)
+		if (!io_is_uring_cmd(req))
 			io_req_rw_cleanup(req, 0);
 	}
-	if (unlikely(!nr_events))
-		return 0;
-
-	pos = start ? start->next : ctx->iopoll_list.first;
-	wq_list_cut(&ctx->iopoll_list, prev, start);
-
-	if (WARN_ON_ONCE(!wq_list_empty(&ctx->submit_state.compl_reqs)))
-		return 0;
-	ctx->submit_state.compl_reqs.first = pos;
-	__io_submit_flush_completions(ctx);
+	if (nr_events)
+		__io_submit_flush_completions(ctx);
 	return nr_events;
 }
 

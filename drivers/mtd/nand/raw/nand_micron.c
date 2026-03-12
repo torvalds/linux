@@ -484,7 +484,7 @@ static int micron_nand_init(struct nand_chip *chip)
 	int ondie;
 	int ret;
 
-	micron = kzalloc(sizeof(*micron), GFP_KERNEL);
+	micron = kzalloc_obj(*micron);
 	if (!micron)
 		return -ENOMEM;
 

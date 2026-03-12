@@ -82,7 +82,7 @@ static void subsystem_restart_event_callback(const u32 *payload, void *data)
 	memcpy(zynqmp_pm_init_restart_work->args, &payload[0],
 	       sizeof(zynqmp_pm_init_restart_work->args));
 
-	queue_work(system_unbound_wq, &zynqmp_pm_init_restart_work->callback_work);
+	queue_work(system_dfl_wq, &zynqmp_pm_init_restart_work->callback_work);
 }
 
 static void suspend_event_callback(const u32 *payload, void *data)
@@ -95,7 +95,7 @@ static void suspend_event_callback(const u32 *payload, void *data)
 	memcpy(zynqmp_pm_init_suspend_work->args, &payload[1],
 	       sizeof(zynqmp_pm_init_suspend_work->args));
 
-	queue_work(system_unbound_wq, &zynqmp_pm_init_suspend_work->callback_work);
+	queue_work(system_dfl_wq, &zynqmp_pm_init_suspend_work->callback_work);
 }
 
 static irqreturn_t zynqmp_pm_isr(int irq, void *data)
@@ -140,7 +140,7 @@ static void ipi_receive_callback(struct mbox_client *cl, void *data)
 		memcpy(zynqmp_pm_init_suspend_work->args, &payload[1],
 		       sizeof(zynqmp_pm_init_suspend_work->args));
 
-		queue_work(system_unbound_wq,
+		queue_work(system_dfl_wq,
 			   &zynqmp_pm_init_suspend_work->callback_work);
 
 		/* Send NULL message to mbox controller to ack the message */

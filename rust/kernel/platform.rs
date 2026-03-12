@@ -5,34 +5,60 @@
 //! C header: [`include/linux/platform_device.h`](srctree/include/linux/platform_device.h)
 
 use crate::{
-    acpi, bindings, container_of,
-    device::{self, Bound},
+    acpi,
+    bindings,
+    container_of,
+    device::{
+        self,
+        Bound, //
+    },
     driver,
-    error::{from_result, to_result, Result},
-    io::{mem::IoRequest, Resource},
-    irq::{self, IrqRequest},
+    error::{
+        from_result,
+        to_result, //
+    },
+    io::{
+        mem::IoRequest,
+        Resource, //
+    },
+    irq::{
+        self,
+        IrqRequest, //
+    },
     of,
     prelude::*,
     types::Opaque,
-    ThisModule,
+    ThisModule, //
 };
 
 use core::{
     marker::PhantomData,
     mem::offset_of,
-    ptr::{addr_of_mut, NonNull},
+    ptr::{
+        addr_of_mut,
+        NonNull, //
+    },
 };
 
 /// An adapter for the registration of platform drivers.
 pub struct Adapter<T: Driver>(T);
 
-// SAFETY: A call to `unregister` for a given instance of `RegType` is guaranteed to be valid if
+// SAFETY:
+// - `bindings::platform_driver` is a C type declared as `repr(C)`.
+// - `T` is the type of the driver's device private data.
+// - `struct platform_driver` embeds a `struct device_driver`.
+// - `DEVICE_DRIVER_OFFSET` is the correct byte offset to the embedded `struct device_driver`.
+unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
+    type DriverType = bindings::platform_driver;
+    type DriverData = T;
+    const DEVICE_DRIVER_OFFSET: usize = core::mem::offset_of!(Self::DriverType, driver);
+}
+
+// SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
 // a preceding call to `register` has been successful.
 unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
-    type RegType = bindings::platform_driver;
-
     unsafe fn register(
-        pdrv: &Opaque<Self::RegType>,
+        pdrv: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result {
@@ -55,12 +81,12 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
             (*pdrv.get()).driver.acpi_match_table = acpi_table;
         }
 
-        // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
+        // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe { bindings::__platform_driver_register(pdrv.get(), module.0) })
     }
 
-    unsafe fn unregister(pdrv: &Opaque<Self::RegType>) {
-        // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
+    unsafe fn unregister(pdrv: &Opaque<Self::DriverType>) {
+        // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         unsafe { bindings::platform_driver_unregister(pdrv.get()) };
     }
 }
@@ -86,15 +112,15 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: The platform bus only ever calls the remove callback with a valid pointer to a
         // `struct platform_device`.
         //
-        // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
+        // INVARIANT: `pdev` is valid for the duration of `remove_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { pdev.as_ref().drvdata_obtain::<T>() };
+        let data = unsafe { pdev.as_ref().drvdata_borrow::<T>() };
 
-        T::unbind(pdev, data.as_ref());
+        T::unbind(pdev, data);
     }
 }
 
@@ -137,8 +163,13 @@ macro_rules! module_platform_driver {
 /// # Examples
 ///
 ///```
-/// # use kernel::{acpi, bindings, c_str, device::Core, of, platform};
-///
+/// # use kernel::{
+/// #     acpi,
+/// #     bindings,
+/// #     device::Core,
+/// #     of,
+/// #     platform,
+/// # };
 /// struct MyDriver;
 ///
 /// kernel::of_device_table!(
@@ -146,7 +177,7 @@ macro_rules! module_platform_driver {
 ///     MODULE_OF_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
-///         (of::DeviceId::new(c_str!("test,device")), ())
+///         (of::DeviceId::new(c"test,device"), ())
 ///     ]
 /// );
 ///
@@ -155,7 +186,7 @@ macro_rules! module_platform_driver {
 ///     MODULE_ACPI_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
-///         (acpi::DeviceId::new(c_str!("LNUXBEEF")), ())
+///         (acpi::DeviceId::new(c"LNUXBEEF"), ())
 ///     ]
 /// );
 ///

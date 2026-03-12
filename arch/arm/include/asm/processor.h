@@ -73,7 +73,8 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
 		regs->ARM_cpsr = USR26_MODE;				\
 	if (elf_hwcap & HWCAP_THUMB && pc & 1)				\
 		regs->ARM_cpsr |= PSR_T_BIT;				\
-	regs->ARM_cpsr |= PSR_ENDSTATE;					\
+	if (IS_ENABLED(CONFIG_CPU_ENDIAN_BE8))				\
+		regs->ARM_cpsr |= PSR_E_BIT;				\
 	regs->ARM_pc = pc & ~1;		/* pc */			\
 	regs->ARM_sp = sp;		/* sp */			\
 })

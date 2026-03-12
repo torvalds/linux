@@ -1739,7 +1739,7 @@ static int mvs_handle_event(struct mvs_info *mvi, void *data, int handler)
 	struct mvs_wq *mwq;
 	int ret = 0;
 
-	mwq = kmalloc(sizeof(struct mvs_wq), GFP_ATOMIC);
+	mwq = kmalloc_obj(struct mvs_wq, GFP_ATOMIC);
 	if (mwq) {
 		mwq->mvi = mvi;
 		mwq->data = data;

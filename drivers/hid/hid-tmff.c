@@ -132,7 +132,7 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	input_dev = hidinput->input;
 
-	tmff = kzalloc(sizeof(struct tmff_device), GFP_KERNEL);
+	tmff = kzalloc_obj(struct tmff_device);
 	if (!tmff)
 		return -ENOMEM;
 

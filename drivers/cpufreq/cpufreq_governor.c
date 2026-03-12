@@ -429,7 +429,7 @@ int cpufreq_dbs_governor_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	dbs_data = kzalloc(sizeof(*dbs_data), GFP_KERNEL);
+	dbs_data = kzalloc_obj(*dbs_data);
 	if (!dbs_data) {
 		ret = -ENOMEM;
 		goto free_policy_dbs_info;

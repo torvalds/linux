@@ -64,7 +64,7 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 
 	/* Initialize sysfs attributes */
 	vendor_attribute =
-		kzalloc(sizeof(struct sm_sysfs_attribute), GFP_KERNEL);
+		kzalloc_obj(struct sm_sysfs_attribute);
 	if (!vendor_attribute)
 		goto error2;
 
@@ -78,14 +78,13 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 
 
 	/* Create array of pointers to the attributes */
-	attributes = kcalloc(NUM_ATTRIBUTES + 1, sizeof(struct attribute *),
-								GFP_KERNEL);
+	attributes = kzalloc_objs(struct attribute *, NUM_ATTRIBUTES + 1);
 	if (!attributes)
 		goto error3;
 	attributes[0] = &vendor_attribute->dev_attr.attr;
 
 	/* Finally create the attribute group */
-	attr_group = kzalloc(sizeof(struct attribute_group), GFP_KERNEL);
+	attr_group = kzalloc_obj(struct attribute_group);
 	if (!attr_group)
 		goto error4;
 	attr_group->attrs = attributes;
@@ -1134,7 +1133,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	struct sm_ftl *ftl;
 
 	/* Allocate & initialize our private structure */
-	ftl = kzalloc(sizeof(struct sm_ftl), GFP_KERNEL);
+	ftl = kzalloc_obj(struct sm_ftl);
 	if (!ftl)
 		goto error1;
 
@@ -1156,8 +1155,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		goto error2;
 
 	/* Allocate zone array, it will be initialized on demand */
-	ftl->zones = kcalloc(ftl->zone_count, sizeof(struct ftl_zone),
-								GFP_KERNEL);
+	ftl->zones = kzalloc_objs(struct ftl_zone, ftl->zone_count);
 	if (!ftl->zones)
 		goto error3;
 
@@ -1171,7 +1169,7 @@ static void sm_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 
 	/* Allocate upper layer structure and initialize it */
-	trans = kzalloc(sizeof(struct mtd_blktrans_dev), GFP_KERNEL);
+	trans = kzalloc_obj(struct mtd_blktrans_dev);
 	if (!trans)
 		goto error5;
 

@@ -499,7 +499,7 @@ static int s5p_make_sg_cpy(struct s5p_aes_dev *dev, struct scatterlist *src,
 	void *pages;
 	int len;
 
-	*dst = kmalloc(sizeof(**dst), GFP_ATOMIC);
+	*dst = kmalloc_obj(**dst, GFP_ATOMIC);
 	if (!*dst)
 		return -ENOMEM;
 
@@ -1056,7 +1056,7 @@ static int s5p_hash_copy_sg_lists(struct s5p_hash_reqctx *ctx,
 	if (ctx->bufcnt)
 		n++;
 
-	ctx->sg = kmalloc_array(n, sizeof(*sg), GFP_KERNEL);
+	ctx->sg = kmalloc_objs(*sg, n);
 	if (!ctx->sg) {
 		ctx->error = true;
 		return -ENOMEM;

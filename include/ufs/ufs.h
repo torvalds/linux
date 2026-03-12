@@ -21,6 +21,7 @@
  * in this header file of the size of struct utp_upiu_header.
  */
 static_assert(sizeof(struct utp_upiu_header) == 12);
+static_assert(sizeof(struct utp_upiu_query) == 20);
 
 #define GENERAL_UPIU_REQUEST_SIZE (sizeof(struct utp_upiu_req))
 #define QUERY_DESC_MAX_SIZE       255
@@ -561,7 +562,7 @@ enum ufs_dev_pwr_mode {
 #define UFS_WB_BUF_REMAIN_PERCENT(val) ((val) / 10)
 
 /**
- * struct utp_cmd_rsp - Response UPIU structure
+ * struct utp_cmd_rsp - RESPONSE UPIU structure
  * @residual_transfer_count: Residual transfer count DW-3
  * @reserved: Reserved double words DW-4 to DW-7
  * @sense_data_len: Sense data length DW-8 U16
@@ -573,6 +574,8 @@ struct utp_cmd_rsp {
 	__be16 sense_data_len;
 	u8 sense_data[UFS_SENSE_SIZE];
 };
+
+static_assert(sizeof(struct utp_cmd_rsp) == 40);
 
 /**
  * struct utp_upiu_rsp - general upiu response structure

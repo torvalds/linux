@@ -397,7 +397,7 @@ static inline void handle_invalid_op(struct pt_regs *regs)
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
 
-static noinstr bool handle_bug(struct pt_regs *regs)
+noinstr bool handle_bug(struct pt_regs *regs)
 {
 	unsigned long addr = regs->ip;
 	bool handled = false;
@@ -549,7 +549,7 @@ __visible void __noreturn handle_stack_overflow(struct pt_regs *regs,
 {
 	const char *name = stack_type_name(info->type);
 
-	printk(KERN_EMERG "BUG: %s stack guard page was hit at %p (stack is %p..%p)\n",
+	printk(KERN_EMERG "BUG: %s stack guard page was hit at %px (stack is %px..%px)\n",
 	       name, (void *)fault_address, info->begin, info->end);
 
 	die("stack guard page", regs, 0);

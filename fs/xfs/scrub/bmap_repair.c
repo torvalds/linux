@@ -3,7 +3,7 @@
  * Copyright (C) 2018-2023 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -923,7 +923,6 @@ xrep_bmap(
 	bool			allow_unwritten)
 {
 	struct xrep_bmap	*rb;
-	char			*descr;
 	xfs_extnum_t		max_bmbt_recs;
 	bool			large_extcount;
 	int			error = 0;
@@ -934,7 +933,7 @@ xrep_bmap(
 	if (error)
 		return error;
 
-	rb = kzalloc(sizeof(struct xrep_bmap), XCHK_GFP_FLAGS);
+	rb = kzalloc_obj(struct xrep_bmap, XCHK_GFP_FLAGS);
 	if (!rb)
 		return -ENOMEM;
 	rb->sc = sc;
@@ -945,11 +944,8 @@ xrep_bmap(
 	/* Set up enough storage to handle the max records for this fork. */
 	large_extcount = xfs_has_large_extent_counts(sc->mp);
 	max_bmbt_recs = xfs_iext_max_nextents(large_extcount, whichfork);
-	descr = xchk_xfile_ino_descr(sc, "%s fork mapping records",
-			whichfork == XFS_DATA_FORK ? "data" : "attr");
-	error = xfarray_create(descr, max_bmbt_recs,
+	error = xfarray_create("fork mapping records", max_bmbt_recs,
 			sizeof(struct xfs_bmbt_rec), &rb->bmap_records);
-	kfree(descr);
 	if (error)
 		goto out_rb;
 

@@ -150,14 +150,6 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 		default:
 			return SIGNAL_TYPE_NONE;
 		}
-	} else if (downstream.type == OBJECT_TYPE_ENCODER) {
-		switch (downstream.id) {
-		case ENCODER_ID_EXTERNAL_NUTMEG:
-		case ENCODER_ID_EXTERNAL_TRAVIS:
-			return SIGNAL_TYPE_DISPLAY_PORT;
-		default:
-			return SIGNAL_TYPE_NONE;
-		}
 	}
 
 	return SIGNAL_TYPE_NONE;
@@ -171,7 +163,12 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 					 enum dc_detect_reason reason)
 {
 	enum signal_type result;
+	struct audio_support *aud_support;
 	struct graphics_object_id enc_id;
+
+	/* External DP bridges should use DP signal regardless of connector type. */
+	if (link->ext_enc_id.id)
+		return SIGNAL_TYPE_DISPLAY_PORT;
 
 	if (link->is_dig_mapping_flexible)
 		enc_id = (struct graphics_object_id){.id = ENCODER_ID_UNKNOWN};
@@ -183,53 +180,51 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	if (link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return result;
 
-	/* Internal digital encoder will detect only dongles
+	/*
+	 * Internal digital encoder will detect only dongles
 	 * that require digital signal
 	 */
 
-	/* Detection mechanism is different
+	/*
+	 * Detection mechanism is different
 	 * for different native connectors.
 	 * LVDS connector supports only LVDS signal;
 	 * PCIE is a bus slot, the actual connector needs to be detected first;
 	 * eDP connector supports only eDP signal;
 	 * HDMI should check straps for audio
 	 */
-
-	/* PCIE detects the actual connector on add-on board */
-	if (link->link_id.id == CONNECTOR_ID_PCIE) {
-		/* ZAZTODO implement PCIE add-on card detection */
-	}
-
 	switch (link->link_id.id) {
-	case CONNECTOR_ID_HDMI_TYPE_A: {
-		/* check audio support:
+	case CONNECTOR_ID_HDMI_TYPE_A:
+		/*
+		 * check audio support:
 		 * if native HDMI is not supported, switch to DVI
 		 */
-		struct audio_support *aud_support =
-					&link->dc->res_pool->audio_support;
+		aud_support = &link->dc->res_pool->audio_support;
 
 		if (!aud_support->hdmi_audio_native)
-			if (link->link_id.id == CONNECTOR_ID_HDMI_TYPE_A)
-				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
-	}
-	break;
+			result = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
-	case CONNECTOR_ID_USBC: {
-		/* DP HPD short pulse. Passive DP dongle will not
+	case CONNECTOR_ID_USBC:
+		/*
+		 * DP HPD short pulse. Passive DP dongle will not
 		 * have short pulse
 		 */
 		if (reason != DETECT_REASON_HPDRX) {
-			/* Check whether DP signal detected: if not -
+			/*
+			 * Check whether DP signal detected: if not -
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
 			if (!dm_helpers_is_dp_sink_present(link))
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
-	}
-	break;
+		break;
+	case CONNECTOR_ID_PCIE:
+		/* ZAZTODO implement PCIE add-on card detection */
+		break;
 	default:
-	break;
+		break;
 	}
 
 	return result;
@@ -336,7 +331,7 @@ static void query_dp_dual_mode_adaptor(
 
 	/* Assume we have no valid DP passive dongle connected */
 	*dongle = DISPLAY_DONGLE_NONE;
-	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
+	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
 	if (!i2c_read(
@@ -392,6 +387,8 @@ static void query_dp_dual_mode_adaptor(
 
 		}
 	}
+	if (is_valid_hdmi_signature)
+		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
 
 	if (is_type2_dongle) {
 		uint32_t max_tmds_clk =
@@ -619,11 +616,22 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.raw = 0;
 	}
 
+	if (link->ext_enc_id.id) {
+		/* Fix number of connected sinks reported by external DP bridge */
+		link->dpcd_caps.sink_count.bits.SINK_COUNT = 1;
+		/* NUTMEG requires that we use HBR, doesn't work with RBR. */
+		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_00001A)
+			link->preferred_link_setting.link_rate = LINK_RATE_HIGH;
+	}
+
 	return true;
 }
 
 static bool is_same_edid(struct dc_edid *old_edid, struct dc_edid *new_edid)
 {
+	if (old_edid == NULL || new_edid == NULL)
+		return false;
+
 	if (old_edid->length != new_edid->length)
 		return false;
 
@@ -899,11 +907,21 @@ static bool link_detect_evaluate_edid_header(uint8_t edid_header[8])
  */
 static bool link_detect_ddc_probe(struct dc_link *link)
 {
+	enum signal_type signal = link_detect_sink_signal_type(link, DETECT_REASON_HPD);
+	enum ddc_transaction_type transaction_type = get_ddc_transaction_type(signal);
+	uint8_t edid_header[8] = {0};
+	uint8_t zero = 0;
+	bool ddc_probed;
+
 	if (!link->ddc)
 		return false;
 
-	uint8_t edid_header[8] = {0};
-	bool ddc_probed = i2c_read(link->ddc, 0x50, edid_header, sizeof(edid_header));
+	if (link->dc->hwss.prepare_ddc)
+		link->dc->hwss.prepare_ddc(link);
+
+	set_ddc_transaction_type(link->ddc, transaction_type);
+
+	ddc_probed = link_query_ddc_data(link->ddc, 0x50, &zero, 1, edid_header, sizeof(edid_header));
 
 	if (!ddc_probed)
 		return false;
@@ -928,26 +946,10 @@ static bool link_detect_ddc_probe(struct dc_link *link)
  */
 static bool link_detect_dac_load_detect(struct dc_link *link)
 {
-	struct dc_bios *bios = link->ctx->dc_bios;
-	struct link_encoder *link_enc = link->link_enc;
-	enum engine_id engine_id = link_enc->preferred_engine;
-	enum dal_device_type device_type = DEVICE_TYPE_CRT;
-	enum bp_result bp_result;
-	uint32_t enum_id;
+	if (!link->dc->hwss.dac_load_detect)
+		return false;
 
-	switch (engine_id) {
-	case ENGINE_ID_DACB:
-		enum_id = 2;
-		break;
-	case ENGINE_ID_DACA:
-	default:
-		engine_id = ENGINE_ID_DACA;
-		enum_id = 1;
-		break;
-	}
-
-	bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
-	return bp_result == BP_RESULT_OK;
+	return link->dc->hwss.dac_load_detect(link);
 }
 
 /*
@@ -1169,19 +1171,20 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			 * - cheap DVI-A cable or adapter that doesn't connect DDC
 			 */
 			if (dc_connector_supports_analog(link->link_id.id)) {
-				/* If we didn't do DAC load detection yet, do it now
-				 * to verify there really is a display connected.
+				/* If we didn't already detect a display using
+				 * DAC load detection, we know it isn't connected.
 				 */
-				if (link->type != dc_connection_dac_load &&
-					!link_detect_dac_load_detect(link)) {
+				if (link->type != dc_connection_analog_load) {
 					if (prev_sink)
 						dc_sink_release(prev_sink);
 					link_disconnect_sink(link);
 					return false;
 				}
 
-				DC_LOG_INFO("%s detected analog display without EDID\n", __func__);
-				link->type = dc_connection_dac_load;
+				LINK_INFO("link=%d, analog display detected without EDID\n",
+					   link->link_index);
+
+				link->type = dc_connection_analog_load;
 				sink->edid_caps.analog = true;
 				break;
 			}
@@ -1326,7 +1329,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			// Pickup base DM settings
 			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config, sink);
 			// Override dc_panel_config if system has specific settings
-			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
+			dm_helpers_override_panel_settings(dc_ctx, link);
 
 			//sink only can use supported link rate table, we are foreced to enable it
 			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
@@ -1363,17 +1366,17 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 }
 
 /**
- * link_detect_analog() - Determines if an analog sink is connected.
+ * link_detect_connection_type_analog() - Determines if an analog sink is connected.
  *
  * @link: DC link to evaluate (must support analog signalling).
  * @type: Updated with the detected connection type:
  *        dc_connection_single (analog via DDC),
- *        dc_connection_dac_load (via load-detect),
+ *        dc_connection_analog_load (via load-detect),
  *        or dc_connection_none.
  *
  * Return: true if detection completed.
  */
-static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *type)
+static bool link_detect_connection_type_analog(struct dc_link *link, enum dc_connection_type *type)
 {
 	/* Don't care about connectors that don't support an analog signal. */
 	ASSERT(dc_connector_supports_analog(link->link_id.id));
@@ -1384,7 +1387,7 @@ static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *ty
 	}
 
 	if (link_detect_dac_load_detect(link)) {
-		*type = dc_connection_dac_load;
+		*type = dc_connection_analog_load;
 		return true;
 	}
 
@@ -1401,8 +1404,6 @@ static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *ty
  */
 bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *type)
 {
-	uint32_t is_hpd_high = 0;
-
 	if (link->connector_signal == SIGNAL_TYPE_LVDS) {
 		*type = dc_connection_single;
 		return true;
@@ -1417,7 +1418,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	 *   (So it's high even when no display is connected.)
 	 */
 	if (dc_connector_supports_analog(link->link_id.id))
-		return link_detect_analog(link, type);
+		return link_detect_connection_type_analog(link, type);
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		/*in case it is not on*/
@@ -1437,10 +1438,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 
-	if (!query_hpd_status(link, &is_hpd_high))
-		goto hpd_gpio_failure;
-
-	if (is_hpd_high) {
+	if (link_get_hpd_state(link)) {
 		*type = dc_connection_single;
 		/* TODO: need to do the actual detection */
 	} else {
@@ -1453,9 +1451,6 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 	return true;
-
-hpd_gpio_failure:
-	return false;
 }
 
 bool link_detect(struct dc_link *link, enum dc_detect_reason reason)

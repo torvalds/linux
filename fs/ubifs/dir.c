@@ -1099,7 +1099,7 @@ static int ubifs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	dbg_gen("dent '%pd' in dir ino %lu", dentry, dir->i_ino);
 
 	if (S_ISBLK(mode) || S_ISCHR(mode)) {
-		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
+		dev = kmalloc_obj(union ubifs_dev_desc, GFP_NOFS);
 		if (!dev)
 			return -ENOMEM;
 		devlen = ubifs_encode_dev(dev, rdev);
@@ -1399,7 +1399,7 @@ static int do_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (flags & RENAME_WHITEOUT) {
 		union ubifs_dev_desc *dev = NULL;
 
-		dev = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
+		dev = kmalloc_obj(union ubifs_dev_desc, GFP_NOFS);
 		if (!dev) {
 			err = -ENOMEM;
 			goto out_release;
@@ -1725,7 +1725,7 @@ static int ubifs_dir_open(struct inode *inode, struct file *file)
 {
 	struct ubifs_dir_data *data;
 
-	data = kzalloc(sizeof(struct ubifs_dir_data), GFP_KERNEL);
+	data = kzalloc_obj(struct ubifs_dir_data);
 	if (!data)
 		return -ENOMEM;
 	file->private_data = data;

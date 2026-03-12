@@ -267,7 +267,7 @@ static struct marvell_c22_pcs *marvell_c22_pcs_alloc(struct device *dev,
 {
 	struct marvell_c22_pcs *mpcs;
 
-	mpcs = kzalloc(sizeof(*mpcs), GFP_KERNEL);
+	mpcs = kzalloc_obj(*mpcs);
 	if (!mpcs)
 		return NULL;
 

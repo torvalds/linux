@@ -481,7 +481,7 @@ static void agilent_82350b_return_to_local(struct gpib_board *board)
 
 static int agilent_82350b_allocate_private(struct gpib_board *board)
 {
-	board->private_data = kzalloc(sizeof(struct agilent_82350b_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct agilent_82350b_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	return 0;
@@ -599,8 +599,9 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 
 	board->status = 0;
 
-	if (agilent_82350b_allocate_private(board))
-		return -ENOMEM;
+	retval = agilent_82350b_allocate_private(board);
+	if (retval)
+		return retval;
 	a_priv = board->private_data;
 	a_priv->using_fifos = use_fifos;
 	tms_priv = &a_priv->tms9914_priv;

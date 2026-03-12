@@ -76,6 +76,14 @@ quiet_cmd_host_ld_multi = HOSTLD  $@
       cmd_host_ld_multi = $(if $(strip $(obj-y)),\
                           $(HOSTLD) -r -o $@  $(filter $(obj-y),$^),rm -f $@; $(HOSTAR) rcs $@)
 
+rust_common_cmd = \
+	$(RUSTC) $(rust_flags) \
+	--crate-type staticlib -L $(objtree)/rust/ \
+	--emit=dep-info=$(depfile),link
+
+quiet_cmd_rustc_a_rs = $(RUSTC) $(quiet_modtag) $@
+      cmd_rustc_a_rs = $(rust_common_cmd) -o $@ -g $< $(cmd_objtool)
+
 ifneq ($(filter $(obj),$(hostprogs)),)
   host = host_
 endif
@@ -104,6 +112,12 @@ $(OUTPUT)%.s: %.S FORCE
 $(OUTPUT)%.s: %.c FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_s_c)
+
+# it's recommended to build a static rust library, when a foreight (to rust)
+# linker is used.
+$(OUTPUT)%.a: %.rs FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,rustc_a_rs)
 
 # bison and flex files are generated in the OUTPUT directory
 # so it needs a separate rule to depend on them properly

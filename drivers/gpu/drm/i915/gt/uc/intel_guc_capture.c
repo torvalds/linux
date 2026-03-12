@@ -275,7 +275,7 @@ __alloc_ext_regs(struct __guc_mmio_reg_descr_group *newlist,
 {
 	struct __guc_mmio_reg_descr *list;
 
-	list = kcalloc(num_regs, sizeof(struct __guc_mmio_reg_descr), GFP_KERNEL);
+	list = kzalloc_objs(struct __guc_mmio_reg_descr, num_regs);
 	if (!list)
 		return -ENOMEM;
 
@@ -320,7 +320,7 @@ guc_capture_alloc_steered_lists(struct intel_guc *guc,
 		return;
 
 	/* allocate an extra for an end marker */
-	extlists = kcalloc(2, sizeof(struct __guc_mmio_reg_descr_group), GFP_KERNEL);
+	extlists = kzalloc_objs(struct __guc_mmio_reg_descr_group, 2);
 	if (!extlists)
 		return;
 
@@ -984,13 +984,13 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 	struct __guc_capture_parsed_output *new;
 	int i;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return NULL;
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
-		new->reginfo[i].regs = kcalloc(guc->capture->max_mmio_per_node,
-					       sizeof(struct guc_mmio_reg), GFP_KERNEL);
+		new->reginfo[i].regs = kzalloc_objs(struct guc_mmio_reg,
+						    guc->capture->max_mmio_per_node);
 		if (!new->reginfo[i].regs) {
 			while (i)
 				kfree(new->reginfo[--i].regs);
@@ -1639,7 +1639,7 @@ void intel_guc_capture_destroy(struct intel_guc *guc)
 
 int intel_guc_capture_init(struct intel_guc *guc)
 {
-	guc->capture = kzalloc(sizeof(*guc->capture), GFP_KERNEL);
+	guc->capture = kzalloc_obj(*guc->capture);
 	if (!guc->capture)
 		return -ENOMEM;
 

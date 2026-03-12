@@ -1530,11 +1530,11 @@ static struct device **create_namespace_io(struct nd_region *nd_region)
 	struct device *dev, **devs;
 	struct resource *res;
 
-	nsio = kzalloc(sizeof(*nsio), GFP_KERNEL);
+	nsio = kzalloc_obj(*nsio);
 	if (!nsio)
 		return NULL;
 
-	devs = kcalloc(2, sizeof(struct device *), GFP_KERNEL);
+	devs = kzalloc_objs(struct device *, 2);
 	if (!devs) {
 		kfree(nsio);
 		return NULL;
@@ -1693,7 +1693,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 			nsl_uuid_raw(ndd, nd_label));
 	}
 
-	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
+	nspm = kzalloc_obj(*nspm);
 	if (!nspm)
 		return ERR_PTR(-ENOMEM);
 
@@ -1797,7 +1797,7 @@ static struct device *nd_namespace_pmem_create(struct nd_region *nd_region)
 	if (!is_memory(&nd_region->dev))
 		return NULL;
 
-	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
+	nspm = kzalloc_obj(*nspm);
 	if (!nspm)
 		return NULL;
 
@@ -1931,7 +1931,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 	resource_size_t map_end = nd_mapping->start + nd_mapping->size - 1;
 
-	devs = kcalloc(2, sizeof(dev), GFP_KERNEL);
+	devs = kzalloc_objs(dev, 2);
 	if (!devs)
 		return NULL;
 
@@ -1954,7 +1954,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 		if (i < count)
 			continue;
 		if (count) {
-			__devs = kcalloc(count + 2, sizeof(dev), GFP_KERNEL);
+			__devs = kzalloc_objs(dev, count + 2);
 			if (!__devs)
 				goto err;
 			memcpy(__devs, devs, sizeof(dev) * count);
@@ -1984,7 +1984,7 @@ static struct device **scan_labels(struct nd_region *nd_region)
 
 		/* Publish a zero-sized namespace for userspace to configure. */
 		nd_mapping_free_labels(nd_mapping);
-		nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
+		nspm = kzalloc_obj(*nspm);
 		if (!nspm)
 			goto err;
 		dev = &nspm->nsio.common.dev;
@@ -2118,7 +2118,7 @@ static int init_active_labels(struct nd_region *nd_region)
 		for (j = 0; j < count; j++) {
 			struct nd_namespace_label *label;
 
-			label_ent = kzalloc(sizeof(*label_ent), GFP_KERNEL);
+			label_ent = kzalloc_obj(*label_ent);
 			if (!label_ent)
 				break;
 			label = nd_label_active(ndd, j);

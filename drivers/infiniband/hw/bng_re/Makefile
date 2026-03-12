@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-y := -I $(srctree)/drivers/net/ethernet/broadcom/bnge -I $(srctree)/drivers/infiniband/hw/bnxt_re
+ccflags-y := -I $(srctree)/drivers/net/ethernet/broadcom/bnge
 
 obj-$(CONFIG_INFINIBAND_BNG_RE) += bng_re.o
 

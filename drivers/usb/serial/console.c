@@ -133,7 +133,7 @@ static int usb_console_setup(struct console *co, char *options)
 			 * the termios structure, then later call set_termios to
 			 * configure according to command line arguments
 			 */
-			tty = kzalloc(sizeof(*tty), GFP_KERNEL);
+			tty = kzalloc_obj(*tty);
 			if (!tty) {
 				retval = -ENOMEM;
 				goto reset_open_count;

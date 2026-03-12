@@ -185,8 +185,8 @@ static const struct attribute_group password_attr_group = {
 int hp_alloc_password_data(void)
 {
 	bioscfg_drv.password_instances_count = hp_get_instance_count(HP_WMI_BIOS_PASSWORD_GUID);
-	bioscfg_drv.password_data = kcalloc(bioscfg_drv.password_instances_count,
-					    sizeof(*bioscfg_drv.password_data), GFP_KERNEL);
+	bioscfg_drv.password_data = kzalloc_objs(*bioscfg_drv.password_data,
+						 bioscfg_drv.password_instances_count);
 	if (!bioscfg_drv.password_data) {
 		bioscfg_drv.password_instances_count = 0;
 		return -ENOMEM;
@@ -303,6 +303,11 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 				     MAX_PREREQUISITES_SIZE);
 
 			for (reqs = 0; reqs < size; reqs++) {
+				if (elem + reqs >= password_obj_count) {
+					pr_err("Error elem-objects package is too small\n");
+					return -EINVAL;
+				}
+
 				ret = hp_convert_hexstr_to_str(password_obj[elem + reqs].string.pointer,
 							       password_obj[elem + reqs].string.length,
 							       &str_value, &value_len);

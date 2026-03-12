@@ -227,7 +227,7 @@ at91_clk_register_programmable(struct regmap *regmap,
 	if (id > PROG_ID_MAX || !(parent_names || parent_hws))
 		return ERR_PTR(-EINVAL);
 
-	prog = kzalloc(sizeof(*prog), GFP_KERNEL);
+	prog = kzalloc_obj(*prog);
 	if (!prog)
 		return ERR_PTR(-ENOMEM);
 

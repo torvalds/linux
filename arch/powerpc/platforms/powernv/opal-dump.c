@@ -329,7 +329,7 @@ static void create_dump_obj(uint32_t id, size_t size, uint32_t type)
 	struct dump_obj *dump;
 	int rc;
 
-	dump = kzalloc(sizeof(*dump), GFP_KERNEL);
+	dump = kzalloc_obj(*dump);
 	if (!dump)
 		return;
 

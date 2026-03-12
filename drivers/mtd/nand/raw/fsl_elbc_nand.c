@@ -895,13 +895,13 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
 	mutex_lock(&fsl_elbc_nand_mutex);
 	if (!fsl_lbc_ctrl_dev->nand) {
-		elbc_fcm_ctrl = kzalloc(sizeof(*elbc_fcm_ctrl), GFP_KERNEL);
+		elbc_fcm_ctrl = kzalloc_obj(*elbc_fcm_ctrl);
 		if (!elbc_fcm_ctrl) {
 			mutex_unlock(&fsl_elbc_nand_mutex);
 			ret = -ENOMEM;

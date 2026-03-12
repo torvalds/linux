@@ -549,7 +549,7 @@ kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char
 	struct kobj_eclass *keclass;
 	int err = 0;
 
-	keclass = kzalloc(sizeof(*keclass), GFP_KERNEL);
+	keclass = kzalloc_obj(*keclass);
 	if (!keclass)
 		return NULL;
 
@@ -582,7 +582,7 @@ static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
 	struct kobject *kobj;
 	int err = 0;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return -ENOMEM;
 
@@ -629,7 +629,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 	u16 class_mask = 0;
 	int err = 0;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return -ENOMEM;
 

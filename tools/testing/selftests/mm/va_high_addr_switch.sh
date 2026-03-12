@@ -61,9 +61,9 @@ check_supported_ppc64()
 
 check_test_requirements()
 {
-	# The test supports x86_64 and powerpc64. We currently have no useful
-	# eligibility check for powerpc64, and the test itself will reject other
-	# architectures.
+	# The test supports x86_64, powerpc64 and arm64. There's check for arm64
+	# in va_high_addr_switch.c. The test itself will reject other architectures.
+
 	case `uname -m` in
 		"x86_64")
 			check_supported_x86_64
@@ -111,7 +111,9 @@ setup_nr_hugepages()
 
 check_test_requirements
 save_nr_hugepages
-# 4 keep_mapped pages, and one for tmp usage
-setup_nr_hugepages 5
+# The HugeTLB tests require 6 pages
+setup_nr_hugepages 6
 ./va_high_addr_switch --run-hugetlb
+retcode=$?
 restore_nr_hugepages
+exit $retcode

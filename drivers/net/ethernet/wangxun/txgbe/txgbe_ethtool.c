@@ -73,7 +73,7 @@ static int txgbe_set_ringparam(struct net_device *netdev,
 
 	/* allocate temporary buffer to store rings in */
 	i = max_t(int, wx->num_tx_queues, wx->num_rx_queues);
-	temp_ring = kvmalloc_array(i, sizeof(struct wx_ring), GFP_KERNEL);
+	temp_ring = kvmalloc_objs(struct wx_ring, i);
 	if (!temp_ring) {
 		err = -ENOMEM;
 		goto clear_reset;
@@ -193,6 +193,13 @@ static int txgbe_get_ethtool_fdir_all(struct txgbe *txgbe,
 	return 0;
 }
 
+static u32 txgbe_get_rx_ring_count(struct net_device *dev)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	return wx->num_rx_queues;
+}
+
 static int txgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			   u32 *rule_locs)
 {
@@ -201,10 +208,6 @@ static int txgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = wx->num_rx_queues;
-		ret = 0;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = txgbe->fdir_filter_count;
 		ret = 0;
@@ -387,7 +390,7 @@ static int txgbe_add_ethtool_fdir_entry(struct txgbe *txgbe,
 		return -EINVAL;
 	}
 
-	input = kzalloc(sizeof(*input), GFP_ATOMIC);
+	input = kzalloc_obj(*input, GFP_ATOMIC);
 	if (!input)
 		return -ENOMEM;
 
@@ -587,6 +590,7 @@ static const struct ethtool_ops txgbe_ethtool_ops = {
 	.set_channels		= txgbe_set_channels,
 	.get_rxnfc		= txgbe_get_rxnfc,
 	.set_rxnfc		= txgbe_set_rxnfc,
+	.get_rx_ring_count	= txgbe_get_rx_ring_count,
 	.get_rxfh_fields	= wx_get_rxfh_fields,
 	.set_rxfh_fields	= wx_set_rxfh_fields,
 	.get_rxfh_indir_size	= wx_rss_indir_size,

@@ -141,8 +141,7 @@ spu_skcipher_rx_sg_create(struct brcm_message *mssg,
 	struct iproc_ctx_s *ctx = rctx->ctx;
 	u32 datalen;		/* Number of bytes of response data expected */
 
-	mssg->spu.dst = kmalloc_array(rx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.dst = kmalloc_objs(struct scatterlist, rx_frag_num, rctx->gfp);
 	if (!mssg->spu.dst)
 		return -ENOMEM;
 
@@ -205,8 +204,7 @@ spu_skcipher_tx_sg_create(struct brcm_message *mssg,
 	u32 datalen;		/* Number of bytes of response data expected */
 	u32 stat_len;
 
-	mssg->spu.src = kmalloc_array(tx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.src = kmalloc_objs(struct scatterlist, tx_frag_num, rctx->gfp);
 	if (unlikely(!mssg->spu.src))
 		return -ENOMEM;
 
@@ -532,8 +530,7 @@ spu_ahash_rx_sg_create(struct brcm_message *mssg,
 	struct scatterlist *sg;	/* used to build sgs in mbox message */
 	struct iproc_ctx_s *ctx = rctx->ctx;
 
-	mssg->spu.dst = kmalloc_array(rx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.dst = kmalloc_objs(struct scatterlist, rx_frag_num, rctx->gfp);
 	if (!mssg->spu.dst)
 		return -ENOMEM;
 
@@ -587,8 +584,7 @@ spu_ahash_tx_sg_create(struct brcm_message *mssg,
 	u32 datalen;		/* Number of bytes of response data expected */
 	u32 stat_len;
 
-	mssg->spu.src = kmalloc_array(tx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.src = kmalloc_objs(struct scatterlist, tx_frag_num, rctx->gfp);
 	if (!mssg->spu.src)
 		return -ENOMEM;
 
@@ -1077,8 +1073,7 @@ static int spu_aead_rx_sg_create(struct brcm_message *mssg,
 		/* have to catch gcm pad in separate buffer */
 		rx_frag_num++;
 
-	mssg->spu.dst = kmalloc_array(rx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.dst = kmalloc_objs(struct scatterlist, rx_frag_num, rctx->gfp);
 	if (!mssg->spu.dst)
 		return -ENOMEM;
 
@@ -1179,8 +1174,7 @@ static int spu_aead_tx_sg_create(struct brcm_message *mssg,
 	u32 assoc_offset = 0;
 	u32 stat_len;
 
-	mssg->spu.src = kmalloc_array(tx_frag_num, sizeof(struct scatterlist),
-				      rctx->gfp);
+	mssg->spu.src = kmalloc_objs(struct scatterlist, tx_frag_num, rctx->gfp);
 	if (!mssg->spu.src)
 		return -ENOMEM;
 

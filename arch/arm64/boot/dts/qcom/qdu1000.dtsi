@@ -1592,7 +1592,7 @@
 
 		gem_noc: interconnect@19100000 {
 			compatible = "qcom,qdu1000-gem-noc";
-			reg = <0x0 0x19100000 0x0 0xB8080>;
+			reg = <0x0 0x19100000 0x0 0xb8080>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 			#interconnect-cells = <2>;
 		};

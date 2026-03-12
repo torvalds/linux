@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/module.h>
@@ -360,7 +360,9 @@ static void sta_accumulate_removed_link_stats(struct sta_info *sta, int link_id)
 	struct link_sta_info *link_sta = wiphy_dereference(sta->local->hw.wiphy,
 							   sta->link[link_id]);
 	struct ieee80211_link_data *link;
+	unsigned int start;
 	int ac, tid;
+	u64 value;
 	u32 thr;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -369,8 +371,13 @@ static void sta_accumulate_removed_link_stats(struct sta_info *sta, int link_id)
 		sta->rem_link_stats.tx_bytes += link_sta->tx_stats.bytes[ac];
 	}
 
+	do {
+		start = u64_stats_fetch_begin(&link_sta->rx_stats.syncp);
+		value = u64_stats_read(&link_sta->rx_stats.bytes);
+	} while (u64_stats_fetch_retry(&link_sta->rx_stats.syncp, start));
+
 	sta->rem_link_stats.rx_packets += link_sta->rx_stats.packets;
-	sta->rem_link_stats.rx_bytes += link_sta->rx_stats.bytes;
+	sta->rem_link_stats.rx_bytes += value;
 	sta->rem_link_stats.tx_retries += link_sta->status_stats.retry_count;
 	sta->rem_link_stats.tx_failed += link_sta->status_stats.retry_failed;
 	sta->rem_link_stats.rx_dropped_misc += link_sta->rx_stats.dropped;
@@ -380,8 +387,13 @@ static void sta_accumulate_removed_link_stats(struct sta_info *sta, int link_id)
 		sta->rem_link_stats.expected_throughput += thr;
 
 	for (tid = 0; tid < IEEE80211_NUM_TIDS; tid++) {
-		sta->rem_link_stats.pertid_stats.rx_msdu +=
-			link_sta->rx_stats.msdu[tid];
+		do {
+			start = u64_stats_fetch_begin(&link_sta->rx_stats.syncp);
+			value = u64_stats_read(&link_sta->rx_stats.msdu[tid]);
+		} while (u64_stats_fetch_retry(&link_sta->rx_stats.syncp,
+					       start));
+
+		sta->rem_link_stats.pertid_stats.rx_msdu += value;
 		sta->rem_link_stats.pertid_stats.tx_msdu +=
 			link_sta->tx_stats.msdu[tid];
 		sta->rem_link_stats.pertid_stats.tx_msdu_retries +=
@@ -632,7 +644,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_init(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
 #ifdef CONFIG_MAC80211_MESH
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		sta->mesh = kzalloc(sizeof(*sta->mesh), gfp);
+		sta->mesh = kzalloc_obj(*sta->mesh, gfp);
 		if (!sta->mesh)
 			goto free;
 		sta->mesh->plink_sta = sta;
@@ -891,7 +903,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_cleanup;
 	}
 
-	sinfo = kzalloc(sizeof(struct station_info), GFP_KERNEL);
+	sinfo = kzalloc_obj(struct station_info);
 	if (!sinfo) {
 		err = -ENOMEM;
 		goto out_cleanup;
@@ -1533,6 +1545,10 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 		}
 	}
 
+	sinfo = kzalloc_obj(*sinfo);
+	if (sinfo)
+		sta_set_sinfo(sta, sinfo, true);
+
 	if (sta->uploaded) {
 		ret = drv_sta_state(local, sdata, sta, IEEE80211_STA_NONE,
 				    IEEE80211_STA_NOTEXIST);
@@ -1541,9 +1557,6 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
-	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
-	if (sinfo)
-		sta_set_sinfo(sta, sinfo, true);
 	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
@@ -2554,6 +2567,17 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
 		rinfo->eht_gi = STA_STATS_GET(EHT_GI, rate);
 		rinfo->eht_ru_alloc = STA_STATS_GET(EHT_RU, rate);
 		break;
+	case STA_STATS_RATE_TYPE_UHR:
+		rinfo->flags = RATE_INFO_FLAGS_UHR_MCS;
+		rinfo->mcs = STA_STATS_GET(UHR_MCS, rate);
+		rinfo->nss = STA_STATS_GET(UHR_NSS, rate);
+		rinfo->eht_gi = STA_STATS_GET(UHR_GI, rate);
+		rinfo->eht_ru_alloc = STA_STATS_GET(UHR_RU, rate);
+		if (STA_STATS_GET(UHR_ELR, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_UHR_ELR_MCS;
+		if (STA_STATS_GET(UHR_IM, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_UHR_IM;
+		break;
 	}
 }
 
@@ -2577,7 +2601,7 @@ static inline u64 sta_get_tidstats_msdu(struct ieee80211_sta_rx_stats *rxstats,
 
 	do {
 		start = u64_stats_fetch_begin(&rxstats->syncp);
-		value = rxstats->msdu[tid];
+		value = u64_stats_read(&rxstats->msdu[tid]);
 	} while (u64_stats_fetch_retry(&rxstats->syncp, start));
 
 	return value;
@@ -2653,7 +2677,7 @@ static inline u64 sta_get_stats_bytes(struct ieee80211_sta_rx_stats *rxstats)
 
 	do {
 		start = u64_stats_fetch_begin(&rxstats->syncp);
-		value = rxstats->bytes;
+		value = u64_stats_read(&rxstats->bytes);
 	} while (u64_stats_fetch_retry(&rxstats->syncp, start));
 
 	return value;
@@ -3282,7 +3306,7 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 		    sta->link[link_id]))
 		return -EBUSY;
 
-	alloc = kzalloc(sizeof(*alloc), GFP_KERNEL);
+	alloc = kzalloc_obj(*alloc);
 	if (!alloc)
 		return -ENOMEM;
 

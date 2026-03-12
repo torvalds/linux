@@ -503,7 +503,7 @@ static int mlx5e_ipsec_event(struct notifier_block *nb, unsigned long event,
 	if (!sa_entry)
 		return NOTIFY_DONE;
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return NOTIFY_DONE;
 
@@ -522,7 +522,7 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 	struct device *pdev;
 	int err;
 
-	aso = kzalloc(sizeof(*ipsec->aso), GFP_KERNEL);
+	aso = kzalloc_obj(*ipsec->aso);
 	if (!aso)
 		return -ENOMEM;
 

@@ -488,7 +488,7 @@ static void dmub_psr_construct(struct dmub_psr *psr, struct dc_context *ctx)
  */
 struct dmub_psr *dmub_psr_create(struct dc_context *ctx)
 {
-	struct dmub_psr *psr = kzalloc(sizeof(struct dmub_psr), GFP_KERNEL);
+	struct dmub_psr *psr = kzalloc_obj(struct dmub_psr);
 
 	if (psr == NULL) {
 		BREAK_TO_DEBUGGER();

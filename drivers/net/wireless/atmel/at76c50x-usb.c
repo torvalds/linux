@@ -378,7 +378,7 @@ static int at76_usbdfu_download(struct usb_device *udev, u8 *buf, u32 size,
 		return -EINVAL;
 	}
 
-	dfu_stat_buf = kmalloc(sizeof(*dfu_stat_buf), GFP_KERNEL);
+	dfu_stat_buf = kmalloc_obj(*dfu_stat_buf);
 	if (!dfu_stat_buf) {
 		ret = -ENOMEM;
 		goto exit;
@@ -607,7 +607,7 @@ static inline int at76_get_hw_cfg_intersil(struct usb_device *udev,
 static int at76_get_hw_config(struct at76_priv *priv)
 {
 	int ret;
-	union at76_hwcfg *hwcfg = kmalloc(sizeof(*hwcfg), GFP_KERNEL);
+	union at76_hwcfg *hwcfg = kmalloc_obj(*hwcfg);
 
 	if (!hwcfg)
 		return -ENOMEM;
@@ -931,7 +931,7 @@ static void at76_dump_mib_mac_addr(struct at76_priv *priv)
 {
 	int i;
 	int ret;
-	struct mib_mac_addr *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_mac_addr *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -959,7 +959,7 @@ static void at76_dump_mib_mac_wep(struct at76_priv *priv)
 	int i;
 	int ret;
 	int key_len;
-	struct mib_mac_wep *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_mac_wep *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -994,7 +994,7 @@ exit:
 static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_mac_mgmt *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_mac_mgmt *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -1030,7 +1030,7 @@ exit:
 static void at76_dump_mib_mac(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_mac *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_mac *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -1067,7 +1067,7 @@ exit:
 static void at76_dump_mib_phy(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_phy *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_phy *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -1100,7 +1100,7 @@ exit:
 static void at76_dump_mib_local(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_local *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_local *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -1125,7 +1125,7 @@ exit:
 static void at76_dump_mib_mdomain(struct at76_priv *priv)
 {
 	int ret;
-	struct mib_mdomain *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	struct mib_mdomain *m = kmalloc_obj(*m);
 
 	if (!m)
 		return;
@@ -2442,7 +2442,7 @@ static int at76_probe(struct usb_interface *interface,
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
-	fwv = kmalloc(sizeof(*fwv), GFP_KERNEL);
+	fwv = kmalloc_obj(*fwv);
 	if (!fwv) {
 		ret = -ENOMEM;
 		goto exit;

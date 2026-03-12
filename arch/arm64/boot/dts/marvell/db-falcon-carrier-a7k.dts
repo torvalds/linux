@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2023 Marvell International Ltd.
+ *
+ * Device tree for the Falcon DB Type 7 Com Express carrier board,
+ * Utilizing the Armada 7020 COM Express CPU module board.
+ * This specific carrier board (DB-98CX8540/80)
+ * only maintains a PCIe link with the CPU module,
+ * which does not require any special DTS definitions.
+ *
+ * There is no Linux CPU booting in this mode on the carrier, only on the
+ * Armada 7020 COM Express CPU module.
+ * What runs the Linux is the Armada 7020 on the COM Express CPU module,
+ * And it accesses the switch end-point on the Falcon DB portion of the carrier
+ * via PCIe.
+ */
+
+#include "armada-7020-comexpress.dtsi"
+#include "db-falcon-carrier.dtsi"
+
+/ {
+	model = "Marvell Falcon DB COM EXPRESS type 7 carrier board with Armada 7020 CPU module";
+	compatible = "marvell,armada7020-falcon-carrier", "marvell,db-falcon-carrier",
+			"marvell,armada7020-cpu-module", "marvell,armada7020",
+			"marvell,armada-ap806-dual", "marvell,armada-ap806";
+
+};

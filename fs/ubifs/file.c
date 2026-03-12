@@ -848,7 +848,7 @@ static int ubifs_bulk_read(struct folio *folio)
 	if (mutex_trylock(&c->bu_mutex))
 		bu = &c->bu;
 	else {
-		bu = kmalloc(sizeof(struct bu_info), GFP_NOFS | __GFP_NOWARN);
+		bu = kmalloc_obj(struct bu_info, GFP_NOFS | __GFP_NOWARN);
 		if (!bu)
 			goto out_unlock;
 
@@ -1361,17 +1361,8 @@ static inline int mctime_update_needed(const struct inode *inode,
 	return 0;
 }
 
-/**
- * ubifs_update_time - update time of inode.
- * @inode: inode to update
- * @flags: time updating control flag determines updating
- *	    which time fields of @inode
- *
- * This function updates time of the inode.
- *
- * Returns: %0 for success or a negative error code otherwise.
- */
-int ubifs_update_time(struct inode *inode, int flags)
+int ubifs_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1379,17 +1370,22 @@ int ubifs_update_time(struct inode *inode, int flags)
 			.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 	int err, release;
 
-	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT)) {
-		generic_update_time(inode, flags);
-		return 0;
-	}
+	/* ubifs sets S_NOCMTIME on all inodes, this should not happen. */
+	if (WARN_ON_ONCE(type != FS_UPD_ATIME))
+		return -EIO;
+
+	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+		return generic_update_time(inode, type, flags);
+
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
 		return err;
 
 	mutex_lock(&ui->ui_mutex);
-	inode_update_timestamps(inode, flags);
+	inode_update_time(inode, type, flags);
 	release = ui->dirty;
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
 	mutex_unlock(&ui->ui_mutex);

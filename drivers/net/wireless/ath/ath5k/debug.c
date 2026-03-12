@@ -928,7 +928,7 @@ static int open_file_eeprom(struct inode *inode, struct file *file)
 
 	/* Create private struct and assign to file */
 
-	ep = kmalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kmalloc_obj(*ep);
 	if (!ep) {
 		ret = -ENOMEM;
 		goto freebuf;

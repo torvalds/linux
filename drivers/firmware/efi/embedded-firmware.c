@@ -64,7 +64,7 @@ static int __init efi_check_md_for_embedded_firmware(
 
 	pr_info("Found EFI embedded fw '%s'\n", desc->name);
 
-	fw = kmalloc(sizeof(*fw), GFP_KERNEL);
+	fw = kmalloc_obj(*fw);
 	if (!fw) {
 		memunmap(map);
 		return -ENOMEM;

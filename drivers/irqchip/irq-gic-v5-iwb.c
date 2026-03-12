@@ -4,6 +4,7 @@
  */
 #define pr_fmt(fmt)	"GICv5 IWB: " fmt
 
+#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/msi.h>
@@ -136,18 +137,31 @@ static int gicv5_iwb_irq_domain_translate(struct irq_domain *d, struct irq_fwspe
 					  irq_hw_number_t *hwirq,
 					  unsigned int *type)
 {
-	if (!is_of_node(fwspec->fwnode))
-		return -EINVAL;
+	if (is_of_node(fwspec->fwnode)) {
 
-	if (fwspec->param_count < 2)
-		return -EINVAL;
+		if (fwspec->param_count < 2)
+			return -EINVAL;
 
-	/*
-	 * param[0] is be the wire
-	 * param[1] is the interrupt type
-	 */
-	*hwirq = fwspec->param[0];
-	*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
+		/*
+		 * param[0] is be the wire
+		 * param[1] is the interrupt type
+		 */
+		*hwirq = fwspec->param[0];
+		*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
+	}
+
+	if (is_acpi_device_node(fwspec->fwnode)) {
+
+		if (fwspec->param_count < 2)
+			return -EINVAL;
+
+		/*
+		 * Extract the wire from param[0]
+		 * param[1] is the interrupt type
+		 */
+		*hwirq = FIELD_GET(GICV5_GSI_IWB_WIRE, fwspec->param[0]);
+		*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
+	}
 
 	return 0;
 }
@@ -205,8 +219,7 @@ gicv5_iwb_init_bases(void __iomem *iwb_base, struct platform_device *pdev)
 	unsigned int n;
 	int ret;
 
-	struct gicv5_iwb_chip_data *iwb_node __free(kfree) = kzalloc(sizeof(*iwb_node),
-								     GFP_KERNEL);
+	struct gicv5_iwb_chip_data *iwb_node __free(kfree) = kzalloc_obj(*iwb_node);
 	if (!iwb_node)
 		return ERR_PTR(-ENOMEM);
 
@@ -265,10 +278,18 @@ static const struct of_device_id gicv5_iwb_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, gicv5_iwb_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id iwb_acpi_match[] = {
+	{ "ARMH0003", 0 },
+	{}
+};
+#endif
+
 static struct platform_driver gicv5_iwb_platform_driver = {
 	.driver = {
 		.name			= "GICv5 IWB",
 		.of_match_table		= gicv5_iwb_of_match,
+		.acpi_match_table	= ACPI_PTR(iwb_acpi_match),
 		.suppress_bind_attrs	= true,
 	},
 	.probe				= gicv5_iwb_device_probe,

@@ -39,7 +39,7 @@ static int privcmd_buf_open(struct inode *ino, struct file *file)
 {
 	struct privcmd_buf_private *file_priv;
 
-	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
+	file_priv = kzalloc_obj(*file_priv);
 	if (!file_priv)
 		return -ENOMEM;
 
@@ -141,7 +141,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
-	vma_priv = kzalloc(struct_size(vma_priv, pages, count), GFP_KERNEL);
+	vma_priv = kzalloc_flex(*vma_priv, pages, count);
 	if (!vma_priv)
 		return -ENOMEM;
 

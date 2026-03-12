@@ -738,7 +738,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (unlikely(!ctx)) {
 		ret = -ENOMEM;
 		goto out_ret;

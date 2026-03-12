@@ -771,7 +771,7 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	if (i == 8)
 		return;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res)
 		return;
 

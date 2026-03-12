@@ -454,7 +454,8 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	return 0;
 }
 
-int fnic_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc)
+enum scsi_qc_status fnic_queuecommand(struct Scsi_Host *shost,
+				      struct scsi_cmnd *sc)
 {
 	struct request *const rq = scsi_cmd_to_rq(sc);
 	uint32_t mqtag = 0;

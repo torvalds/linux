@@ -60,7 +60,7 @@ struct bpf_crypto_ctx {
 int bpf_crypto_register_type(const struct bpf_crypto_type *type)
 {
 	struct bpf_crypto_type_list *node;
-	int err = -EEXIST;
+	int err = -EBUSY;
 
 	down_write(&bpf_crypto_types_sem);
 	list_for_each_entry(node, &bpf_crypto_types, list) {
@@ -68,7 +68,7 @@ int bpf_crypto_register_type(const struct bpf_crypto_type *type)
 			goto unlock;
 	}
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
+	node = kmalloc_obj(*node);
 	err = -ENOMEM;
 	if (!node)
 		goto unlock;
@@ -176,7 +176,7 @@ bpf_crypto_ctx_create(const struct bpf_crypto_params *params, u32 params__sz,
 		goto err_module_put;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		*err = -ENOMEM;
 		goto err_module_put;
@@ -260,6 +260,12 @@ __bpf_kfunc void bpf_crypto_ctx_release(struct bpf_crypto_ctx *ctx)
 	if (refcount_dec_and_test(&ctx->usage))
 		call_rcu(&ctx->rcu, crypto_free_cb);
 }
+
+__bpf_kfunc void bpf_crypto_ctx_release_dtor(void *ctx)
+{
+	bpf_crypto_ctx_release(ctx);
+}
+CFI_NOSEAL(bpf_crypto_ctx_release_dtor);
 
 static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 			    const struct bpf_dynptr_kern *src,
@@ -368,7 +374,7 @@ static const struct btf_kfunc_id_set crypt_kfunc_set = {
 
 BTF_ID_LIST(bpf_crypto_dtor_ids)
 BTF_ID(struct, bpf_crypto_ctx)
-BTF_ID(func, bpf_crypto_ctx_release)
+BTF_ID(func, bpf_crypto_ctx_release_dtor)
 
 static int __init crypto_kfunc_init(void)
 {

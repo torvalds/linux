@@ -191,7 +191,7 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 
 	/* socket is not owned: attach to this ovpn instance */
 
-	ovpn_sock = kzalloc(sizeof(*ovpn_sock), GFP_KERNEL);
+	ovpn_sock = kzalloc_obj(*ovpn_sock);
 	if (!ovpn_sock) {
 		ovpn_sock = ERR_PTR(-ENOMEM);
 		goto sock_release;
@@ -199,24 +199,6 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 
 	ovpn_sock->sk = sk;
 	kref_init(&ovpn_sock->refcount);
-
-	/* the newly created ovpn_socket is holding reference to sk,
-	 * therefore we increase its refcounter.
-	 *
-	 * This ovpn_socket instance is referenced by all peers
-	 * using the same socket.
-	 *
-	 * ovpn_socket_release() will take care of dropping the reference.
-	 */
-	sock_hold(sk);
-
-	ret = ovpn_socket_attach(ovpn_sock, sock, peer);
-	if (ret < 0) {
-		sock_put(sk);
-		kfree(ovpn_sock);
-		ovpn_sock = ERR_PTR(ret);
-		goto sock_release;
-	}
 
 	/* TCP sockets are per-peer, therefore they are linked to their unique
 	 * peer
@@ -234,7 +216,28 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 			    GFP_KERNEL);
 	}
 
-	rcu_assign_sk_user_data(sk, ovpn_sock);
+	/* the newly created ovpn_socket is holding reference to sk,
+	 * therefore we increase its refcounter.
+	 *
+	 * This ovpn_socket instance is referenced by all peers
+	 * using the same socket.
+	 *
+	 * ovpn_socket_release() will take care of dropping the reference.
+	 */
+	sock_hold(sk);
+
+	ret = ovpn_socket_attach(ovpn_sock, sock, peer);
+	if (ret < 0) {
+		if (sk->sk_protocol == IPPROTO_TCP)
+			ovpn_peer_put(peer);
+		else if (sk->sk_protocol == IPPROTO_UDP)
+			netdev_put(peer->ovpn->dev, &ovpn_sock->dev_tracker);
+
+		sock_put(sk);
+		kfree(ovpn_sock);
+		ovpn_sock = ERR_PTR(ret);
+	}
+
 sock_release:
 	release_sock(sk);
 	return ovpn_sock;

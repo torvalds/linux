@@ -173,9 +173,12 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		return -ENOMEM;
 	}
 
-	/* Add [0, 1K) */
+	/*
+	 * Add [0, 1K) which is inlined. And the extent map length must
+	 * be one block.
+	 */
 	em->start = 0;
-	em->len = SZ_1K;
+	em->len = SZ_4K;
 	em->disk_bytenr = EXTENT_MAP_INLINE;
 	em->disk_num_bytes = 0;
 	em->ram_bytes = SZ_1K;
@@ -219,7 +222,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 
 	/* Add [0, 1K) */
 	em->start = 0;
-	em->len = SZ_1K;
+	em->len = SZ_4K;
 	em->disk_bytenr = EXTENT_MAP_INLINE;
 	em->disk_num_bytes = 0;
 	em->ram_bytes = SZ_1K;
@@ -235,7 +238,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (em->start != 0 || btrfs_extent_map_end(em) != SZ_1K ||
+	if (em->start != 0 || btrfs_extent_map_end(em) != SZ_4K ||
 	    em->disk_bytenr != EXTENT_MAP_INLINE) {
 		test_err(
 "case2 [0 1K]: ret %d return a wrong em (start %llu len %llu disk_bytenr %llu",
@@ -1059,6 +1062,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 
 	if (out_stripe_len != BTRFS_STRIPE_LEN) {
 		test_err("calculated stripe length doesn't match");
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1066,12 +1070,14 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 		for (i = 0; i < out_ndaddrs; i++)
 			test_msg("mapped %llu", logical[i]);
 		test_err("unexpected number of mapped addresses: %d", out_ndaddrs);
+		ret = -EINVAL;
 		goto out;
 	}
 
 	for (i = 0; i < out_ndaddrs; i++) {
 		if (logical[i] != test->mapped_logical[i]) {
 			test_err("unexpected logical address mapped");
+			ret = -EINVAL;
 			goto out;
 		}
 	}
@@ -1128,8 +1134,11 @@ int btrfs_test_extent_map(void)
 	/*
 	 * Note: the fs_info is not set up completely, we only need
 	 * fs_info::fsid for the tracepoint.
+	 *
+	 * And all the immediate numbers are based on 4K blocksize,
+	 * thus we have to use 4K as sectorsize no matter the page size.
 	 */
-	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);
+	fs_info = btrfs_alloc_dummy_fs_info(SZ_4K, SZ_4K);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;

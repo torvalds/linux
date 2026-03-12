@@ -401,7 +401,7 @@ int xen_pcibk_config_add_field_offset(struct pci_dev *dev,
 	struct config_field_entry *cfg_entry;
 	void *tmp;
 
-	cfg_entry = kmalloc(sizeof(*cfg_entry), GFP_KERNEL);
+	cfg_entry = kmalloc_obj(*cfg_entry);
 	if (!cfg_entry) {
 		err = -ENOMEM;
 		goto out;

@@ -57,7 +57,7 @@ void mite_init(void)
 	for (pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID, NULL);
 		pcidev;
 		pcidev = pci_get_device(PCI_VENDOR_ID_NATINST, PCI_ANY_ID, pcidev)) {
-		mite = kzalloc(sizeof(*mite), GFP_KERNEL);
+		mite = kzalloc_obj(*mite);
 		if (!mite)
 			return;
 

@@ -212,7 +212,7 @@ static int __dtpm_cpu_setup(int cpu, struct dtpm *parent)
 		goto release_policy;
 	}
 
-	dtpm_cpu = kzalloc(sizeof(*dtpm_cpu), GFP_KERNEL);
+	dtpm_cpu = kzalloc_obj(*dtpm_cpu);
 	if (!dtpm_cpu) {
 		ret = -ENOMEM;
 		goto release_policy;

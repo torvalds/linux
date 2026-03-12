@@ -52,7 +52,7 @@ Kconfig 変更のレビュー
 1) 新規の、もしくは変更された ``CONFIG`` オプションについて、それが関係する
    コンフィグメニューへの悪影響がない。また、
    Documentation/kbuild/kconfig-language.rst の
-   "Menu attibutes: default value" に記載の例外条件を満たす場合を除き、
+   "Menu attributes: default value" に記載の例外条件を満たす場合を除き、
    そのデフォルトが無効になっている。
 
 2) 新規の ``Kconfig`` オプションにヘルプテキストがある。
@@ -75,7 +75,7 @@ Kconfig 変更のレビュー
 4) 新規モジュール・パラメータが、すべて ``MODULE_PARM_DESC()`` によって記述
    されている。
 
-5) 新規ユーザースペース・インターフェースが、すべて ``Documentaion/ABI/``
+5) 新規ユーザースペース・インターフェースが、すべて ``Documentation/ABI/``
    以下に記載されている。詳しくは、 Documentation/admin-guide/abi.rst
    (もしくは ``Documentation/ABI/README``) を参照。
    ユーザースペース・インターフェースを変更するパッチは、

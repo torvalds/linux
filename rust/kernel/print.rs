@@ -11,6 +11,11 @@ use crate::{
     fmt,
     prelude::*,
     str::RawFormatter,
+    sync::atomic::{
+        Atomic,
+        AtomicType,
+        Relaxed, //
+    },
 };
 
 // Called from `vsprintf` with format specifier `%pA`.
@@ -421,5 +426,153 @@ macro_rules! pr_debug (
 macro_rules! pr_cont (
     ($($arg:tt)*) => (
         $crate::print_macro!($crate::print::format_strings::CONT, true, $($arg)*)
+    )
+);
+
+/// A lightweight `call_once` primitive.
+///
+/// This structure provides the Rust equivalent of the kernel's `DO_ONCE_LITE` macro.
+/// While it would be possible to implement the feature entirely as a Rust macro,
+/// the functionality that can be implemented as regular functions has been
+/// extracted and implemented as the `OnceLite` struct for better code maintainability.
+pub struct OnceLite(Atomic<State>);
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+enum State {
+    Incomplete = 0,
+    Complete = 1,
+}
+
+// SAFETY: `State` and `i32` has the same size and alignment, and it's round-trip
+// transmutable to `i32`.
+unsafe impl AtomicType for State {
+    type Repr = i32;
+}
+
+impl OnceLite {
+    /// Creates a new [`OnceLite`] in the incomplete state.
+    #[inline(always)]
+    #[allow(clippy::new_without_default)]
+    pub const fn new() -> Self {
+        OnceLite(Atomic::new(State::Incomplete))
+    }
+
+    /// Calls the provided function exactly once.
+    ///
+    /// There is no other synchronization between two `call_once()`s
+    /// except that only one will execute `f`, in other words, callers
+    /// should not use a failed `call_once()` as a proof that another
+    /// `call_once()` has already finished and the effect is observable
+    /// to this thread.
+    pub fn call_once<F>(&self, f: F) -> bool
+    where
+        F: FnOnce(),
+    {
+        // Avoid expensive cmpxchg if already completed.
+        // ORDERING: `Relaxed` is used here since no synchronization is required.
+        let old = self.0.load(Relaxed);
+        if old == State::Complete {
+            return false;
+        }
+
+        // ORDERING: `Relaxed` is used here since no synchronization is required.
+        let old = self.0.xchg(State::Complete, Relaxed);
+        if old == State::Complete {
+            return false;
+        }
+
+        f();
+        true
+    }
+}
+
+/// Run the given function exactly once.
+///
+/// This is equivalent to the kernel's `DO_ONCE_LITE` macro.
+///
+/// # Examples
+///
+/// ```
+/// kernel::do_once_lite! {
+///     kernel::pr_info!("This will be printed only once\n");
+/// };
+/// ```
+#[macro_export]
+macro_rules! do_once_lite {
+    { $($e:tt)* } => {{
+        #[link_section = ".data..once"]
+        static ONCE: $crate::print::OnceLite = $crate::print::OnceLite::new();
+        ONCE.call_once(|| { $($e)* });
+    }};
+}
+
+/// Prints an emergency-level message (level 0) only once.
+///
+/// Equivalent to the kernel's `pr_emerg_once` macro.
+#[macro_export]
+macro_rules! pr_emerg_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_emerg!($($arg)*) }
+    )
+);
+
+/// Prints an alert-level message (level 1) only once.
+///
+/// Equivalent to the kernel's `pr_alert_once` macro.
+#[macro_export]
+macro_rules! pr_alert_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_alert!($($arg)*) }
+    )
+);
+
+/// Prints a critical-level message (level 2) only once.
+///
+/// Equivalent to the kernel's `pr_crit_once` macro.
+#[macro_export]
+macro_rules! pr_crit_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_crit!($($arg)*) }
+    )
+);
+
+/// Prints an error-level message (level 3) only once.
+///
+/// Equivalent to the kernel's `pr_err_once` macro.
+#[macro_export]
+macro_rules! pr_err_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_err!($($arg)*) }
+    )
+);
+
+/// Prints a warning-level message (level 4) only once.
+///
+/// Equivalent to the kernel's `pr_warn_once` macro.
+#[macro_export]
+macro_rules! pr_warn_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_warn!($($arg)*) }
+    )
+);
+
+/// Prints a notice-level message (level 5) only once.
+///
+/// Equivalent to the kernel's `pr_notice_once` macro.
+#[macro_export]
+macro_rules! pr_notice_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_notice!($($arg)*) }
+    )
+);
+
+/// Prints an info-level message (level 6) only once.
+///
+/// Equivalent to the kernel's `pr_info_once` macro.
+#[macro_export]
+macro_rules! pr_info_once (
+    ($($arg:tt)*) => (
+        $crate::do_once_lite! { $crate::pr_info!($($arg)*) }
     )
 );

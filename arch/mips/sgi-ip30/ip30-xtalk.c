@@ -44,7 +44,7 @@ static void bridge_platform_create(int widget, int masterwid)
 	struct platform_device *pdev_bd;
 	struct resource w1_res;
 
-	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
+	wd = kzalloc_obj(*wd);
 	if (!wd) {
 		pr_warn("xtalk:%x bridge create out of memory\n", widget);
 		return;
@@ -79,7 +79,7 @@ static void bridge_platform_create(int widget, int masterwid)
 	/* platform_device_add_data() duplicates the data */
 	kfree(wd);
 
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	bd = kzalloc_obj(*bd);
 	if (!bd) {
 		pr_warn("xtalk:%x bridge create out of memory\n", widget);
 		goto err_unregister_pdev_wd;

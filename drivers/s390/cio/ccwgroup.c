@@ -322,7 +322,7 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	if (num_devices < 1)
 		return -EINVAL;
 
-	gdev = kzalloc(struct_size(gdev, cdev, num_devices), GFP_KERNEL);
+	gdev = kzalloc_flex(*gdev, cdev, num_devices);
 	if (!gdev)
 		return -ENOMEM;
 

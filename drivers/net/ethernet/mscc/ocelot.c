@@ -576,7 +576,7 @@ static int ocelot_update_vlan_reclassify_rule(struct ocelot *ocelot, int port)
 	}
 
 	/* Filter doesn't exist, create it */
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 
@@ -682,7 +682,7 @@ static int ocelot_vlan_member_add(struct ocelot *ocelot, int port, u16 vid,
 		return 0;
 	}
 
-	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan)
 		return -ENOMEM;
 
@@ -1664,7 +1664,7 @@ int ocelot_trap_add(struct ocelot *ocelot, int port,
 	trap = ocelot_vcap_block_find_filter_by_id(block_vcap_is2, cookie,
 						   false);
 	if (!trap) {
-		trap = kzalloc(sizeof(*trap), GFP_KERNEL);
+		trap = kzalloc_obj(*trap);
 		if (!trap)
 			return -ENOMEM;
 
@@ -2046,7 +2046,7 @@ static struct ocelot_pgid *ocelot_pgid_alloc(struct ocelot *ocelot, int index,
 {
 	struct ocelot_pgid *pgid;
 
-	pgid = kzalloc(sizeof(*pgid), GFP_KERNEL);
+	pgid = kzalloc_obj(*pgid);
 	if (!pgid)
 		return ERR_PTR(-ENOMEM);
 
@@ -2307,14 +2307,16 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 
 	/* Now, set PGIDs for each active LAG */
 	for (lag = 0; lag < ocelot->num_phys_ports; lag++) {
-		struct net_device *bond = ocelot->ports[lag]->bond;
+		struct ocelot_port *ocelot_port = ocelot->ports[lag];
 		int num_active_ports = 0;
+		struct net_device *bond;
 		unsigned long bond_mask;
 		u8 aggr_idx[16];
 
-		if (!bond || (visited & BIT(lag)))
+		if (!ocelot_port || !ocelot_port->bond || (visited & BIT(lag)))
 			continue;
 
+		bond = ocelot_port->bond;
 		bond_mask = ocelot_get_bond_mask(ocelot, bond);
 
 		for_each_set_bit(port, &bond_mask, ocelot->num_phys_ports) {
@@ -2561,7 +2563,7 @@ int ocelot_lag_fdb_add(struct ocelot *ocelot, struct net_device *bond,
 	struct ocelot_lag_fdb *fdb;
 	int lag, err;
 
-	fdb = kzalloc(sizeof(*fdb), GFP_KERNEL);
+	fdb = kzalloc_obj(*fdb);
 	if (!fdb)
 		return -ENOMEM;
 
@@ -2892,7 +2894,7 @@ struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
 		return m;
 	}
 
-	m = kzalloc(sizeof(*m), GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 

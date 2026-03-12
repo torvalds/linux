@@ -3485,7 +3485,7 @@ static int dct_hw_info_get(struct amd64_pvt *pvt)
 
 static int umc_hw_info_get(struct amd64_pvt *pvt)
 {
-	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
+	pvt->umc = kzalloc_objs(struct amd64_umc, pvt->max_mcs);
 	if (!pvt->umc)
 		return -ENOMEM;
 
@@ -3716,7 +3716,7 @@ static int gpu_hw_info_get(struct amd64_pvt *pvt)
 	if (ret)
 		return ret;
 
-	pvt->umc = kcalloc(pvt->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
+	pvt->umc = kzalloc_objs(struct amd64_umc, pvt->max_mcs);
 	if (!pvt->umc)
 		return -ENOMEM;
 
@@ -3911,12 +3911,12 @@ static int per_family_init(struct amd64_pvt *pvt)
 	}
 
 	if (tmp_name)
-		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), tmp_name);
+		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), "%s", tmp_name);
 	else
 		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), "F%02Xh_M%02Xh",
 			  pvt->fam, pvt->model);
 
-	pvt->csels = kcalloc(pvt->max_mcs, sizeof(*pvt->csels), GFP_KERNEL);
+	pvt->csels = kzalloc_objs(*pvt->csels, pvt->max_mcs);
 	if (!pvt->csels)
 		return -ENOMEM;
 
@@ -4000,13 +4000,13 @@ static int probe_one_instance(unsigned int nid)
 	int ret;
 
 	ret = -ENOMEM;
-	s = kzalloc(sizeof(struct ecc_settings), GFP_KERNEL);
+	s = kzalloc_obj(struct ecc_settings);
 	if (!s)
 		goto err_out;
 
 	ecc_stngs[nid] = s;
 
-	pvt = kzalloc(sizeof(struct amd64_pvt), GFP_KERNEL);
+	pvt = kzalloc_obj(struct amd64_pvt);
 	if (!pvt)
 		goto err_settings;
 
@@ -4146,7 +4146,7 @@ static int __init amd64_edac_init(void)
 	opstate_init();
 
 	err = -ENOMEM;
-	ecc_stngs = kcalloc(amd_nb_num(), sizeof(ecc_stngs[0]), GFP_KERNEL);
+	ecc_stngs = kzalloc_objs(ecc_stngs[0], amd_nb_num());
 	if (!ecc_stngs)
 		goto err_free;
 

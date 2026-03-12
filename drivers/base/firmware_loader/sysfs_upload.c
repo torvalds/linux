@@ -315,13 +315,13 @@ firmware_upload_register(struct module *module, struct device *parent,
 	if (!try_module_get(module))
 		return ERR_PTR(-EFAULT);
 
-	fw_upload = kzalloc(sizeof(*fw_upload), GFP_KERNEL);
+	fw_upload = kzalloc_obj(*fw_upload);
 	if (!fw_upload) {
 		ret = -ENOMEM;
 		goto exit_module_put;
 	}
 
-	fw_upload_priv = kzalloc(sizeof(*fw_upload_priv), GFP_KERNEL);
+	fw_upload_priv = kzalloc_obj(*fw_upload_priv);
 	if (!fw_upload_priv) {
 		ret = -ENOMEM;
 		goto free_fw_upload;

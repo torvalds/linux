@@ -201,7 +201,7 @@ __fpga_region_register_full(struct device *parent, const struct fpga_region_info
 		return ERR_PTR(-EINVAL);
 	}
 
-	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	region = kzalloc_obj(*region);
 	if (!region)
 		return ERR_PTR(-ENOMEM);
 

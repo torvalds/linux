@@ -58,7 +58,7 @@ _debugfs_iocdump_open(struct inode *inode, struct file *file)
 	struct MPT3SAS_ADAPTER *ioc = inode->i_private;
 	struct mpt3sas_debugfs_buffer *debug;
 
-	debug = kzalloc(sizeof(struct mpt3sas_debugfs_buffer), GFP_KERNEL);
+	debug = kzalloc_obj(struct mpt3sas_debugfs_buffer);
 	if (!debug)
 		return -ENOMEM;
 

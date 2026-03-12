@@ -296,14 +296,13 @@ alloc_gid_entry(const struct ib_gid_attr *attr)
 	struct ib_gid_table_entry *entry;
 	struct net_device *ndev;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
 	ndev = rcu_dereference_protected(attr->ndev, 1);
 	if (ndev) {
-		entry->ndev_storage = kzalloc(sizeof(*entry->ndev_storage),
-					      GFP_KERNEL);
+		entry->ndev_storage = kzalloc_obj(*entry->ndev_storage);
 		if (!entry->ndev_storage) {
 			kfree(entry);
 			return NULL;
@@ -771,12 +770,12 @@ const struct ib_gid_attr *rdma_find_gid_by_filter(
 
 static struct ib_gid_table *alloc_gid_table(int sz)
 {
-	struct ib_gid_table *table = kzalloc(sizeof(*table), GFP_KERNEL);
+	struct ib_gid_table *table = kzalloc_obj(*table);
 
 	if (!table)
 		return NULL;
 
-	table->data_vec = kcalloc(sz, sizeof(*table->data_vec), GFP_KERNEL);
+	table->data_vec = kzalloc_objs(*table->data_vec, sz);
 	if (!table->data_vec)
 		goto err_free_table;
 
@@ -926,6 +925,13 @@ static int gid_table_setup_one(struct ib_device *ib_dev)
 
 	if (err)
 		return err;
+
+	/*
+	 * Mark the device as ready for GID cache updates. This allows netdev
+	 * event handlers to update the GID cache even before the device is
+	 * fully registered.
+	 */
+	ib_device_enable_gid_updates(ib_dev);
 
 	rdma_roce_rescan_device(ib_dev);
 
@@ -1452,7 +1458,7 @@ ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
 	if (!rdma_is_port_valid(device, port))
 		return -EINVAL;
 
-	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
+	tprops = kmalloc_obj(*tprops);
 	if (!tprops)
 		return -ENOMEM;
 
@@ -1472,9 +1478,8 @@ ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
 	update_pkeys &= !!tprops->pkey_tbl_len;
 
 	if (update_pkeys) {
-		pkey_cache = kmalloc(struct_size(pkey_cache, table,
-						 tprops->pkey_tbl_len),
-				     GFP_KERNEL);
+		pkey_cache = kmalloc_flex(*pkey_cache, table,
+					  tprops->pkey_tbl_len);
 		if (!pkey_cache) {
 			ret = -ENOMEM;
 			goto err;
@@ -1537,7 +1542,8 @@ static void ib_cache_event_task(struct work_struct *_work)
 	 * the cache.
 	 */
 	ret = ib_cache_update(work->event.device, work->event.element.port_num,
-			      work->event.event == IB_EVENT_GID_CHANGE,
+			      work->event.event == IB_EVENT_GID_CHANGE ||
+			      work->event.event == IB_EVENT_CLIENT_REREGISTER,
 			      work->event.event == IB_EVENT_PKEY_CHANGE,
 			      work->enforce_security);
 
@@ -1582,7 +1588,7 @@ void ib_dispatch_event(const struct ib_event *event)
 {
 	struct ib_update_work *work;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return;
 
@@ -1638,6 +1644,12 @@ void ib_cache_release_one(struct ib_device *device)
 
 void ib_cache_cleanup_one(struct ib_device *device)
 {
+	/*
+	 * Clear the GID updates mark first to prevent event handlers from
+	 * accessing the device while it's being torn down.
+	 */
+	ib_device_disable_gid_updates(device);
+
 	/* The cleanup function waits for all in-progress workqueue
 	 * elements and cleans up the GID cache. This function should be
 	 * called after the device was removed from the devices list and

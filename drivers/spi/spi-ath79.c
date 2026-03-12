@@ -180,7 +180,6 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	}
 
 	sp = spi_controller_get_devdata(host);
-	host->dev.of_node = pdev->dev.of_node;
 	platform_set_drvdata(pdev, sp);
 
 	host->use_gpio_descriptors = true;

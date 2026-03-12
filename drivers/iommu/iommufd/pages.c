@@ -289,6 +289,7 @@ static void batch_clear(struct pfn_batch *batch)
 	batch->end = 0;
 	batch->pfns[0] = 0;
 	batch->npfns[0] = 0;
+	batch->kind = 0;
 }
 
 /*
@@ -1077,7 +1078,7 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 }
 
 struct pfn_reader_dmabuf {
-	struct dma_buf_phys_vec phys;
+	struct phys_vec phys;
 	unsigned long start_offset;
 };
 
@@ -1371,7 +1372,7 @@ static struct iopt_pages *iopt_alloc_pages(unsigned long start_byte,
 	if (length > SIZE_MAX - PAGE_SIZE || length == 0)
 		return ERR_PTR(-EINVAL);
 
-	pages = kzalloc(sizeof(*pages), GFP_KERNEL_ACCOUNT);
+	pages = kzalloc_obj(*pages, GFP_KERNEL_ACCOUNT);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
@@ -1451,7 +1452,7 @@ static void iopt_revoke_notify(struct dma_buf_attachment *attach)
 
 static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
 	.allow_peer2peer = true,
-	.move_notify = iopt_revoke_notify,
+	.invalidate_mappings = iopt_revoke_notify,
 };
 
 /*
@@ -1460,7 +1461,7 @@ static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
  */
 static int
 sym_vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys)
+				 struct phys_vec *phys)
 {
 	typeof(&vfio_pci_dma_buf_iommufd_map) fn;
 	int rc;
@@ -1501,9 +1502,13 @@ static int iopt_map_dmabuf(struct iommufd_ctx *ictx, struct iopt_pages *pages,
 		mutex_unlock(&pages->mutex);
 	}
 
-	rc = sym_vfio_pci_dma_buf_iommufd_map(attach, &pages->dmabuf.phys);
+	rc = dma_buf_pin(attach);
 	if (rc)
 		goto err_detach;
+
+	rc = sym_vfio_pci_dma_buf_iommufd_map(attach, &pages->dmabuf.phys);
+	if (rc)
+		goto err_unpin;
 
 	dma_resv_unlock(dmabuf->resv);
 
@@ -1511,6 +1516,8 @@ static int iopt_map_dmabuf(struct iommufd_ctx *ictx, struct iopt_pages *pages,
 	pages->dmabuf.attach = attach;
 	return 0;
 
+err_unpin:
+	dma_buf_unpin(attach);
 err_detach:
 	dma_resv_unlock(dmabuf->resv);
 	dma_buf_detach(dmabuf, attach);
@@ -1574,7 +1581,7 @@ int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
 		if (WARN_ON(track->domain == domain && track->area == area))
 			return -EINVAL;
 
-	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	track = kzalloc_obj(*track);
 	if (!track)
 		return -ENOMEM;
 	track->domain = domain;
@@ -1656,6 +1663,7 @@ void iopt_release_pages(struct kref *kref)
 	if (iopt_is_dmabuf(pages) && pages->dmabuf.attach) {
 		struct dma_buf *dmabuf = pages->dmabuf.attach->dmabuf;
 
+		dma_buf_unpin(pages->dmabuf.attach);
 		dma_buf_detach(dmabuf, pages->dmabuf.attach);
 		dma_buf_put(dmabuf);
 		WARN_ON(!list_empty(&pages->dmabuf.tracker));
@@ -2454,7 +2462,7 @@ int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
 		return 0;
 	}
 
-	access = kzalloc(sizeof(*access), GFP_KERNEL_ACCOUNT);
+	access = kzalloc_obj(*access, GFP_KERNEL_ACCOUNT);
 	if (!access) {
 		rc = -ENOMEM;
 		goto err_unlock;

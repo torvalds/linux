@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -47,6 +47,7 @@
 #define LOG_RSVD1	0x01000000	/* Reserved */
 #define LOG_RSVD2	0x02000000	/* Reserved */
 #define LOG_CGN_MGMT    0x04000000	/* Congestion Mgmt events */
+#define LOG_ENCRYPTION  0x40000000      /* EDIF Encryption events. */
 #define LOG_TRACE_EVENT 0x80000000	/* Dmp the DBG log on this err */
 #define LOG_ALL_MSG	0x7fffffff	/* LOG all messages */
 

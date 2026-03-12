@@ -179,8 +179,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 	if (utt->multi) {
 		tt_index = utt->hcpriv;
 		if (!tt_index) {	/* Create the index array */
-			tt_index = kcalloc(utt->hub->maxchild,
-					sizeof(*tt_index), GFP_KERNEL);
+			tt_index = kzalloc_objs(*tt_index, utt->hub->maxchild);
 			if (!tt_index)
 				return ERR_PTR(-ENOMEM);
 			utt->hcpriv = tt_index;
@@ -193,7 +192,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 
 	tt = *ptt;
 	if (!tt) {	/* Create the mu3h_sch_tt */
-		tt = kzalloc(sizeof(*tt), GFP_KERNEL);
+		tt = kzalloc_obj(*tt);
 		if (!tt) {
 			if (allocated_index) {
 				utt->hcpriv = NULL;
@@ -264,7 +263,7 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 	else
 		len = 1;
 
-	sch_ep = kzalloc(struct_size(sch_ep, bw_budget_table, len), GFP_KERNEL);
+	sch_ep = kzalloc_flex(*sch_ep, bw_budget_table, len);
 	if (!sch_ep)
 		return ERR_PTR(-ENOMEM);
 
@@ -891,7 +890,7 @@ int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk)
 	/* ss IN and OUT are separated */
 	num_usb_bus = xhci->usb3_rhub.num_ports * 2 + xhci->usb2_rhub.num_ports;
 
-	sch_array = kcalloc(num_usb_bus, sizeof(*sch_array), GFP_KERNEL);
+	sch_array = kzalloc_objs(*sch_array, num_usb_bus);
 	if (sch_array == NULL)
 		return -ENOMEM;
 

@@ -1,0 +1,208 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,ads131m02.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments ADS131M0x 2-, 3-, 4-, 6- and 8-Channel ADCs
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+description: |
+  The ADS131M0x are a family of multichannel, simultaneous sampling,
+  24-bit, delta-sigma, analog-to-digital converters (ADCs) with a
+  built-in programmable gain amplifier (PGA) and internal reference.
+  Communication with the ADC chip is via SPI.
+
+  Datasheets:
+  - ADS131M02: https://www.ti.com/lit/ds/symlink/ads131m02.pdf
+  - ADS131M03: https://www.ti.com/lit/ds/symlink/ads131m03.pdf
+  - ADS131M04: https://www.ti.com/lit/ds/symlink/ads131m04.pdf
+  - ADS131M06: https://www.ti.com/lit/ds/symlink/ads131m06.pdf
+  - ADS131M08: https://www.ti.com/lit/ds/symlink/ads131m08.pdf
+
+properties:
+  compatible:
+    enum:
+      - ti,ads131m02
+      - ti,ads131m03
+      - ti,ads131m04
+      - ti,ads131m06
+      - ti,ads131m08
+
+  reg:
+    description: SPI chip select number.
+
+  clocks:
+    description:
+      Phandle to the external clock source required by the ADC's CLKIN pin.
+      The datasheet recommends specific frequencies based on the desired power
+      mode (e.g., 8.192 MHz for High-Resolution mode).
+    maxItems: 1
+
+  avdd-supply:
+    description: Analog power supply (AVDD).
+
+  dvdd-supply:
+    description: Digital power supply (DVDD).
+
+  interrupts:
+    description: DRDY (Data Ready) output signal.
+    maxItems: 1
+
+  reset-gpios:
+    description: Optional RESET signal.
+    maxItems: 1
+
+  clock-names:
+    description:
+      Indicates if a crystal oscillator (XTAL) or CMOS signal is connected
+      (CLKIN). Note that XTAL mode is only supported on ADS131M06 and ADS131M08.
+    enum: [xtal, clkin]
+
+  refin-supply:
+    description: Optional external reference supply (REFIN).
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - avdd-supply
+  - dvdd-supply
+
+patternProperties:
+  "^channel@[0-7]$":
+    type: object
+    $ref: /schemas/iio/adc/adc.yaml#
+    description: Properties for a single ADC channel.
+
+    properties:
+      reg:
+        description: The channel index (0-7).
+        minimum: 0
+        maximum: 7  # Max channels on ADS131M08
+
+      label: true
+
+    required:
+      - reg
+
+    unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  - if:
+      # 20-pin devices: M02, M03, M04
+      # These do not support XTAL or REFIN.
+      properties:
+        compatible:
+          enum:
+            - ti,ads131m02
+            - ti,ads131m03
+            - ti,ads131m04
+    then:
+      properties:
+        clock-names:
+          const: clkin
+        refin-supply: false
+
+  - if:
+      # ADS131M02: 2 channels max (0-1)
+      properties:
+        compatible:
+          contains:
+            const: ti,ads131m02
+    then:
+      patternProperties:
+        "^channel@[0-1]$":
+          properties:
+            reg:
+              maximum: 1
+        "^channel@[2-7]$": false
+
+  - if:
+      # ADS131M03: 3 channels max (0-2)
+      properties:
+        compatible:
+          contains:
+            const: ti,ads131m03
+    then:
+      patternProperties:
+        "^channel@[0-2]$":
+          properties:
+            reg:
+              maximum: 2
+        "^channel@[3-7]$": false
+
+  - if:
+      # ADS131M04: 4 channels max (0-3)
+      properties:
+        compatible:
+          contains:
+            const: ti,ads131m04
+    then:
+      patternProperties:
+        "^channel@[0-3]$":
+          properties:
+            reg:
+              maximum: 3
+        "^channel@[4-7]$": false
+
+  - if:
+      # ADS131M06: 6 channels max (0-5)
+      properties:
+        compatible:
+          contains:
+            const: ti,ads131m06
+    then:
+      patternProperties:
+        "^channel@[0-5]$":
+          properties:
+            reg:
+              maximum: 5
+        "^channel@[6-7]$": false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+
+    spi1 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,ads131m02";
+            reg = <0>;
+            spi-max-frequency = <8000000>;
+
+            clocks = <&rcc CK_MCO2>;
+            clock-names = "clkin";
+
+            avdd-supply = <&vdd_ana>;
+            dvdd-supply = <&vdd_dig>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            channel@0 {
+                reg = <0>;
+                label = "input_voltage";
+            };
+
+            channel@1 {
+                reg = <1>;
+                label = "input_current";
+            };
+        };
+    };

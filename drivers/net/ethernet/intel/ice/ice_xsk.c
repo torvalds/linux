@@ -174,9 +174,8 @@ int
 ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present)
 {
 	if (pool_present) {
-		rx_ring->xdp_buf = kcalloc(rx_ring->count,
-					   sizeof(*rx_ring->xdp_buf),
-					   GFP_KERNEL);
+		rx_ring->xdp_buf = kzalloc_objs(*rx_ring->xdp_buf,
+						rx_ring->count);
 		if (!rx_ring->xdp_buf)
 			return -ENOMEM;
 	} else {
@@ -497,7 +496,7 @@ static int ice_xmit_xdp_tx_zc(struct xdp_buff *xdp,
 	return ICE_XDP_TX;
 
 busy:
-	xdp_ring->ring_stats->tx_stats.tx_busy++;
+	ice_stats_inc(xdp_ring->ring_stats, tx_busy);
 
 	return ICE_XDP_CONSUMED;
 }
@@ -659,7 +658,7 @@ construct_skb:
 			xsk_buff_free(first);
 			first = NULL;
 
-			rx_ring->ring_stats->rx_stats.alloc_buf_failed++;
+			ice_stats_inc(rx_ring->ring_stats, rx_buf_failed);
 			continue;
 		}
 
@@ -899,6 +898,9 @@ void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring)
 {
 	u16 ntc = rx_ring->next_to_clean;
 	u16 ntu = rx_ring->next_to_use;
+
+	if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 
 	while (ntc != ntu) {
 		struct xdp_buff *xdp = *ice_xdp_buf(rx_ring, ntc);

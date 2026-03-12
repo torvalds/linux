@@ -143,7 +143,7 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 		pr_warn("Subscription rejected, illegal request\n");
 		return NULL;
 	}
-	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
+	sub = kmalloc_obj(*sub, GFP_ATOMIC);
 	if (!sub) {
 		pr_warn("Subscription rejected, no memory\n");
 		return NULL;

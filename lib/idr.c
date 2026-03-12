@@ -40,6 +40,8 @@ int idr_alloc_u32(struct idr *idr, void *ptr, u32 *nextid,
 
 	if (WARN_ON_ONCE(!(idr->idr_rt.xa_flags & ROOT_IS_IDR)))
 		idr->idr_rt.xa_flags |= IDR_RT_MARKER;
+	if (max < base)
+		return -ENOSPC;
 
 	id = (id < base) ? 0 : id - base;
 	radix_tree_iter_init(&iter, id);
@@ -415,7 +417,7 @@ next:
 		}
 		bitmap = alloc;
 		if (!bitmap)
-			bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+			bitmap = kzalloc_obj(*bitmap, GFP_NOWAIT);
 		if (!bitmap)
 			goto alloc;
 		bitmap->bitmap[0] = tmp;
@@ -442,7 +444,7 @@ next:
 		} else {
 			bitmap = alloc;
 			if (!bitmap)
-				bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+				bitmap = kzalloc_obj(*bitmap, GFP_NOWAIT);
 			if (!bitmap)
 				goto alloc;
 			__set_bit(bit, bitmap->bitmap);
@@ -463,7 +465,7 @@ out:
 	return xas.xa_index * IDA_BITMAP_BITS + bit;
 alloc:
 	xas_unlock_irqrestore(&xas, flags);
-	alloc = kzalloc(sizeof(*bitmap), gfp);
+	alloc = kzalloc_obj(*bitmap, gfp);
 	if (!alloc)
 		return -ENOMEM;
 	xas_set(&xas, min / IDA_BITMAP_BITS);

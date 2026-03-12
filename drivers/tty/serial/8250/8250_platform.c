@@ -111,7 +111,7 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 	struct resource *regs;
 	int ret, line;
 
-	struct uart_8250_port *uart __free(kfree) = kzalloc(sizeof(*uart), GFP_KERNEL);
+	struct uart_8250_port *uart __free(kfree) = kzalloc_obj(*uart);
 	if (!uart)
 		return -ENOMEM;
 
@@ -156,7 +156,7 @@ static int serial8250_probe_platform(struct platform_device *dev, struct plat_se
 {
 	int ret, i;
 
-	struct uart_8250_port *uart __free(kfree) = kzalloc(sizeof(*uart), GFP_KERNEL);
+	struct uart_8250_port *uart __free(kfree) = kzalloc_obj(*uart);
 	if (!uart)
 		return -ENOMEM;
 

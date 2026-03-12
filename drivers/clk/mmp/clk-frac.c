@@ -180,7 +180,7 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	factor = kzalloc(sizeof(*factor), GFP_KERNEL);
+	factor = kzalloc_obj(*factor);
 	if (!factor)
 		return ERR_PTR(-ENOMEM);
 

@@ -563,8 +563,7 @@ static int __init zpci_directed_irq_init(void)
 	iib.diib.disb_addr = virt_to_phys(zpci_sbv->vector);
 	zpci_set_irq_ctrl(SIC_IRQ_MODE_DIRECT, 0, &iib);
 
-	zpci_ibv = kcalloc(num_possible_cpus(), sizeof(*zpci_ibv),
-			   GFP_KERNEL);
+	zpci_ibv = kzalloc_objs(*zpci_ibv, num_possible_cpus());
 	if (!zpci_ibv)
 		return -ENOMEM;
 
@@ -590,7 +589,7 @@ static int __init zpci_directed_irq_init(void)
 
 static int __init zpci_floating_irq_init(void)
 {
-	zpci_ibv = kcalloc(ZPCI_NR_DEVICES, sizeof(*zpci_ibv), GFP_KERNEL);
+	zpci_ibv = kzalloc_objs(*zpci_ibv, ZPCI_NR_DEVICES);
 	if (!zpci_ibv)
 		return -ENOMEM;
 

@@ -21,12 +21,6 @@ _DEFAULT_LOG_LEVEL = 'WARNING'
 _FILENAME_PATTERN = r'^\..*\.cmd$'
 _LINE_PATTERN = r'^(saved)?cmd_[^ ]*\.o := (?P<command_prefix>.* )(?P<file_path>[^ ]*\.[cS]) *(;|$)'
 _VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-
-# Pre-compiled regexes for better performance
-_INCLUDE_PATTERN = re.compile(r'^\s*#\s*include\s*[<"]([^>"]*)[>"]')
-_C_INCLUDE_PATTERN = re.compile(r'^\s*#\s*include\s*"([^"]*\.c)"\s*$')
-_FILENAME_MATCHER = re.compile(_FILENAME_PATTERN)
-
 # The tools/ directory adopts a different build system, and produces .cmd
 # files in a different format. Do not support it.
 _EXCLUDE_DIRS = ['.git', 'Documentation', 'include', 'tools']
@@ -88,6 +82,7 @@ def cmdfiles_in_dir(directory):
         The path to a .cmd file.
     """
 
+    filename_matcher = re.compile(_FILENAME_PATTERN)
     exclude_dirs = [ os.path.join(directory, d) for d in _EXCLUDE_DIRS ]
 
     for dirpath, dirnames, filenames in os.walk(directory, topdown=True):
@@ -97,7 +92,7 @@ def cmdfiles_in_dir(directory):
             continue
 
         for filename in filenames:
-            if _FILENAME_MATCHER.match(filename):
+            if filename_matcher.match(filename):
                 yield os.path.join(dirpath, filename)
 
 
@@ -154,87 +149,8 @@ def cmdfiles_for_modorder(modorder):
                     yield to_cmdfile(mod_line.rstrip())
 
 
-def extract_includes_from_file(source_file, root_directory):
-    """Extract #include statements from a C file.
-
-    Args:
-        source_file: Path to the source .c file to analyze
-        root_directory: Root directory for resolving relative paths
-
-    Returns:
-        List of header files that should be included (without quotes/brackets)
-    """
-    includes = []
-    if not os.path.exists(source_file):
-        return includes
-
-    try:
-        with open(source_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                # Look for #include statements.
-                # Match both #include "header.h" and #include <header.h>.
-                match = _INCLUDE_PATTERN.match(line)
-                if match:
-                    header = match.group(1)
-                    # Skip including other .c files to avoid circular includes.
-                    if not header.endswith('.c'):
-                        # For relative includes (quoted), resolve path relative to source file.
-                        if '"' in line:
-                            src_dir = os.path.dirname(source_file)
-                            header_path = os.path.join(src_dir, header)
-                            if os.path.exists(header_path):
-                                rel_header = os.path.relpath(header_path, root_directory)
-                                includes.append(rel_header)
-                            else:
-                                includes.append(header)
-                        else:
-                            # System include like <linux/sched.h>.
-                            includes.append(header)
-    except IOError:
-        pass
-
-    return includes
-
-
-def find_included_c_files(source_file, root_directory):
-    """Find .c files that are included by the given source file.
-
-    Args:
-        source_file: Path to the source .c file
-        root_directory: Root directory for resolving relative paths
-
-    Yields:
-        Full paths to included .c files
-    """
-    if not os.path.exists(source_file):
-        return
-
-    try:
-        with open(source_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                # Look for #include "*.c" patterns.
-                match = _C_INCLUDE_PATTERN.match(line)
-                if match:
-                    included_file = match.group(1)
-                    # Handle relative paths.
-                    if not os.path.isabs(included_file):
-                        src_dir = os.path.dirname(source_file)
-                        included_file = os.path.join(src_dir, included_file)
-
-                    # Normalize the path.
-                    included_file = os.path.normpath(included_file)
-
-                    # Check if the file exists.
-                    if os.path.exists(included_file):
-                        yield included_file
-    except IOError:
-        pass
-
-
 def process_line(root_directory, command_prefix, file_path):
-    """Extracts information from a .cmd line and creates entries from it.
+    """Extracts information from a .cmd line and creates an entry from it.
 
     Args:
         root_directory: The directory that was searched for .cmd files. Usually
@@ -244,8 +160,7 @@ def process_line(root_directory, command_prefix, file_path):
             Usually relative to root_directory, but sometimes absolute.
 
     Returns:
-        A list of entries to append to compile_commands (may include multiple
-        entries if the source file includes other .c files).
+        An entry to append to compile_commands.
 
     Raises:
         ValueError: Could not find the extracted file based on file_path and
@@ -261,47 +176,11 @@ def process_line(root_directory, command_prefix, file_path):
     abs_path = os.path.realpath(os.path.join(root_directory, file_path))
     if not os.path.exists(abs_path):
         raise ValueError('File %s not found' % abs_path)
-
-    entries = []
-
-    # Create entry for the main source file.
-    main_entry = {
+    return {
         'directory': root_directory,
         'file': abs_path,
         'command': prefix + file_path,
     }
-    entries.append(main_entry)
-
-    # Find and create entries for included .c files.
-    for included_c_file in find_included_c_files(abs_path, root_directory):
-        # For included .c files, create a compilation command that:
-        # 1. Uses the same compilation flags as the parent file
-        # 2. But compiles the included file directly (not the parent)
-        # 3. Includes necessary headers from the parent file for proper macro resolution
-
-        # Convert absolute path to relative for the command.
-        rel_path = os.path.relpath(included_c_file, root_directory)
-
-        # Extract includes from the parent file to provide proper compilation context.
-        extra_includes = ''
-        try:
-            parent_includes = extract_includes_from_file(abs_path, root_directory)
-            if parent_includes:
-                extra_includes = ' ' + ' '.join('-include ' + inc for inc in parent_includes)
-        except IOError:
-            pass
-
-        included_entry = {
-            'directory': root_directory,
-            'file': included_c_file,
-            # Use the same compilation prefix but target the included file directly.
-            # Add extra headers for proper macro resolution.
-            'command': prefix + extra_includes + ' ' + rel_path,
-        }
-        entries.append(included_entry)
-        logging.debug('Added entry for included file: %s', included_c_file)
-
-    return entries
 
 
 def main():
@@ -334,9 +213,9 @@ def main():
                 result = line_matcher.match(f.readline())
                 if result:
                     try:
-                        entries = process_line(directory, result.group('command_prefix'),
+                        entry = process_line(directory, result.group('command_prefix'),
                                              result.group('file_path'))
-                        compile_commands.extend(entries)
+                        compile_commands.append(entry)
                     except ValueError as err:
                         logging.info('Could not add line from %s: %s',
                                      cmdfile, err)

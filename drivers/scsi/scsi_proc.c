@@ -162,7 +162,7 @@ int scsi_proc_hostdir_add(const struct scsi_host_template *sht)
 	mutex_lock(&global_host_template_mutex);
 	e = __scsi_lookup_proc_entry(sht);
 	if (!e) {
-		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		e = kzalloc_obj(*e);
 		if (!e) {
 			ret = -ENOMEM;
 			goto unlock;

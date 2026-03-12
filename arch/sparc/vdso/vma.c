@@ -266,7 +266,7 @@ static int __init init_vdso_image(const struct vdso_image *image,
 	if (WARN_ON(image->size % PAGE_SIZE != 0))
 		goto oom;
 
-	cpp = kcalloc(cnpages, sizeof(struct page *), GFP_KERNEL);
+	cpp = kzalloc_objs(struct page *, cnpages);
 	vdso_mapping->pages = cpp;
 
 	if (!cpp)
@@ -288,7 +288,7 @@ static int __init init_vdso_image(const struct vdso_image *image,
 		dnpages = (sizeof(struct vvar_data) / PAGE_SIZE) + 1;
 		if (WARN_ON(dnpages != 1))
 			goto oom;
-		dpp = kcalloc(dnpages, sizeof(struct page *), GFP_KERNEL);
+		dpp = kzalloc_objs(struct page *, dnpages);
 		vvar_mapping.pages = dpp;
 
 		if (!dpp)

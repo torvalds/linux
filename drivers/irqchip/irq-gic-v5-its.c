@@ -5,6 +5,8 @@
 
 #define pr_fmt(fmt)	"GICv5 ITS: " fmt
 
+#include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/bitmap.h>
 #include <linux/iommu.h>
 #include <linux/init.h>
@@ -755,7 +757,7 @@ static struct gicv5_its_dev *gicv5_its_alloc_device(struct gicv5_its_chip_data *
 		return ERR_PTR(-EBUSY);
 	}
 
-	its_dev = kzalloc(sizeof(*its_dev), GFP_KERNEL);
+	its_dev = kzalloc_obj(*its_dev);
 	if (!its_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -849,7 +851,7 @@ static int gicv5_its_map_event(struct gicv5_its_dev *its_dev, u16 event_id, u32 
 
 	itte = gicv5_its_device_get_itte_ref(its_dev, event_id);
 
-	if (FIELD_GET(GICV5_ITTL2E_VALID, *itte))
+	if (FIELD_GET(GICV5_ITTL2E_VALID, le64_to_cpu(*itte)))
 		return -EEXIST;
 
 	itt_entry = FIELD_PREP(GICV5_ITTL2E_LPI_ID, lpi) |
@@ -900,7 +902,7 @@ static int gicv5_its_alloc_eventid(struct gicv5_its_dev *its_dev, msi_alloc_info
 		event_id_base = info->hwirq;
 
 		if (event_id_base >= its_dev->num_events) {
-			pr_err("EventID ouside of ITT range; cannot allocate an ITT entry!\n");
+			pr_err("EventID outside of ITT range; cannot allocate an ITT entry!\n");
 
 			return -EINVAL;
 		}
@@ -1098,7 +1100,7 @@ static int gicv5_its_init_domain(struct gicv5_its_chip_data *its, struct irq_dom
 	};
 	struct msi_domain_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -1115,7 +1117,7 @@ static int gicv5_its_init_domain(struct gicv5_its_chip_data *its, struct irq_dom
 }
 
 static int __init gicv5_its_init_bases(void __iomem *its_base, struct fwnode_handle *handle,
-				       struct irq_domain *parent_domain)
+				       struct irq_domain *parent_domain, bool noncoherent)
 {
 	struct device_node *np = to_of_node(handle);
 	struct gicv5_its_chip_data *its_node;
@@ -1123,7 +1125,7 @@ static int __init gicv5_its_init_bases(void __iomem *its_base, struct fwnode_han
 	bool enabled;
 	int ret;
 
-	its_node = kzalloc(sizeof(*its_node), GFP_KERNEL);
+	its_node = kzalloc_obj(*its_node);
 	if (!its_node)
 		return -ENOMEM;
 
@@ -1208,7 +1210,8 @@ static int __init gicv5_its_init(struct device_node *node)
 	}
 
 	ret = gicv5_its_init_bases(its_base, of_fwnode_handle(node),
-				   gicv5_global_data.lpi_domain);
+				   gicv5_global_data.lpi_domain,
+				   of_property_read_bool(node, "dma-noncoherent"));
 	if (ret)
 		goto out_unmap;
 
@@ -1231,3 +1234,128 @@ void __init gicv5_its_of_probe(struct device_node *parent)
 			pr_err("Failed to init ITS %s\n", np->full_name);
 	}
 }
+
+#ifdef CONFIG_ACPI
+
+#define ACPI_GICV5_ITS_MEM_SIZE (SZ_64K)
+
+static struct acpi_madt_gicv5_translator *current_its_entry __initdata;
+static struct fwnode_handle *current_its_fwnode __initdata;
+
+static int __init gic_acpi_parse_madt_its_translate(union acpi_subtable_headers *header,
+						    const unsigned long end)
+{
+	struct acpi_madt_gicv5_translate_frame *its_frame;
+	struct fwnode_handle *msi_dom_handle;
+	struct resource res = {};
+	int err;
+
+	its_frame = (struct acpi_madt_gicv5_translate_frame *)header;
+	if (its_frame->linked_translator_id != current_its_entry->translator_id)
+		return 0;
+
+	res.start = its_frame->base_address;
+	res.end = its_frame->base_address + ACPI_GICV5_ITS_MEM_SIZE - 1;
+	res.flags = IORESOURCE_MEM;
+
+	msi_dom_handle = irq_domain_alloc_parented_fwnode(&res.start, current_its_fwnode);
+	if (!msi_dom_handle) {
+		pr_err("ITS@%pa: Unable to allocate GICv5 ITS translate domain token\n",
+		       &res.start);
+		return -ENOMEM;
+	}
+
+	err = iort_register_domain_token(its_frame->translate_frame_id, res.start,
+					 msi_dom_handle);
+	if (err) {
+		pr_err("ITS@%pa: Unable to register GICv5 ITS domain token (ITS TRANSLATE FRAME ID %d) to IORT\n",
+		       &res.start, its_frame->translate_frame_id);
+		irq_domain_free_fwnode(msi_dom_handle);
+		return err;
+	}
+
+	return 0;
+}
+
+static int __init gic_acpi_free_madt_its_translate(union acpi_subtable_headers *header,
+						   const unsigned long end)
+{
+	struct acpi_madt_gicv5_translate_frame *its_frame;
+	struct fwnode_handle *msi_dom_handle;
+
+	its_frame = (struct acpi_madt_gicv5_translate_frame *)header;
+	if (its_frame->linked_translator_id != current_its_entry->translator_id)
+		return 0;
+
+	msi_dom_handle = iort_find_domain_token(its_frame->translate_frame_id);
+	if (!msi_dom_handle)
+		return 0;
+
+	iort_deregister_domain_token(its_frame->translate_frame_id);
+	irq_domain_free_fwnode(msi_dom_handle);
+
+	return 0;
+}
+
+static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
+					  const unsigned long end)
+{
+	struct acpi_madt_gicv5_translator *its_entry;
+	struct fwnode_handle *dom_handle;
+	struct resource res = {};
+	void __iomem *its_base;
+	int err;
+
+	its_entry = (struct acpi_madt_gicv5_translator *)header;
+	res.start = its_entry->base_address;
+	res.end = its_entry->base_address + ACPI_GICV5_ITS_MEM_SIZE - 1;
+	res.flags = IORESOURCE_MEM;
+
+	if (!request_mem_region(res.start, resource_size(&res), "GICv5 ITS"))
+		return -EBUSY;
+
+	dom_handle = irq_domain_alloc_fwnode(&res.start);
+	if (!dom_handle) {
+		pr_err("ITS@%pa: Unable to allocate GICv5 ITS domain token\n",
+		       &res.start);
+		err = -ENOMEM;
+		goto out_rel_res;
+	}
+
+	current_its_entry = its_entry;
+	current_its_fwnode = dom_handle;
+
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE,
+			      gic_acpi_parse_madt_its_translate, 0);
+
+	its_base = ioremap(res.start, ACPI_GICV5_ITS_MEM_SIZE);
+	if (!its_base) {
+		err = -ENOMEM;
+		goto out_unregister;
+	}
+
+	err = gicv5_its_init_bases(its_base, dom_handle, gicv5_global_data.lpi_domain,
+				   its_entry->flags & ACPI_MADT_GICV5_ITS_NON_COHERENT);
+	if (err)
+		goto out_unmap;
+
+	return 0;
+
+out_unmap:
+	iounmap(its_base);
+out_unregister:
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE,
+			      gic_acpi_free_madt_its_translate, 0);
+	irq_domain_free_fwnode(dom_handle);
+out_rel_res:
+	release_mem_region(res.start, resource_size(&res));
+	return err;
+}
+
+void __init gicv5_its_acpi_probe(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GICV5_ITS, gic_acpi_parse_madt_its, 0);
+}
+#else
+void __init gicv5_its_acpi_probe(void) { }
+#endif

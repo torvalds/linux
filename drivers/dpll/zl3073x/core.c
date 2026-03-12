@@ -710,8 +710,11 @@ zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
 		if (rc)
 			return rc;
 
-		/* Convert to ppm -> ffo = (10^6 * value) / 2^32 */
-		zldev->ref[i].ffo = mul_s64_u64_shr(value, 1000000, 32);
+		/* Convert to ppt
+		 * ffo = (10^12 * value) / 2^32
+		 * ffo = ( 5^12 * value) / 2^20
+		 */
+		zldev->ref[i].ffo = mul_s64_u64_shr(value, 244140625, 20);
 	}
 
 	return 0;
@@ -978,11 +981,7 @@ zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
 	}
 
 	/* Add devres action to release DPLL related resources */
-	rc = devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
-	if (rc)
-		goto error;
-
-	return 0;
+	return devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
 
 error:
 	zl3073x_dev_dpll_fini(zldev);
@@ -1023,6 +1022,7 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 				     "Unknown or non-match chip ID: 0x%0x\n",
 				     id);
 	}
+	zldev->chip_id = id;
 
 	/* Read revision, firmware version and custom config version */
 	rc = zl3073x_read_u16(zldev, ZL_REG_REVISION, &revision);

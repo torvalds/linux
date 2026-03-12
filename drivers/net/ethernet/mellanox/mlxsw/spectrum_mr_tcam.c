@@ -52,7 +52,7 @@ mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mr_erif_sublist *erif_sublist;
 	int err;
 
-	erif_sublist = kzalloc(sizeof(*erif_sublist), GFP_KERNEL);
+	erif_sublist = kzalloc_obj(*erif_sublist);
 	if (!erif_sublist)
 		return ERR_PTR(-ENOMEM);
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,

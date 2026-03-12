@@ -110,7 +110,7 @@ static int lwq_test(void)
 	for (i = 0; i < ARRAY_SIZE(threads); i++)
 		threads[i] = kthread_run(lwq_exercise, &q, "lwq-test-%d", i);
 	for (i = 0; i < 100; i++) {
-		t = kmalloc(sizeof(*t), GFP_KERNEL);
+		t = kmalloc_obj(*t);
 		if (!t)
 			break;
 		t->i = i;

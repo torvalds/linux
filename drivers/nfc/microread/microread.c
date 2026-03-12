@@ -473,7 +473,7 @@ static void microread_target_discovered(struct nfc_hci_dev *hdev, u8 gate,
 
 	pr_info("target discovered to gate 0x%x\n", gate);
 
-	targets = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
+	targets = kzalloc_obj(struct nfc_target);
 	if (targets == NULL) {
 		r = -ENOMEM;
 		goto exit;
@@ -650,7 +650,7 @@ int microread_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 	struct nfc_hci_init_data init_data;
 	int r;
 
-	info = kzalloc(sizeof(struct microread_info), GFP_KERNEL);
+	info = kzalloc_obj(struct microread_info);
 	if (!info) {
 		r = -ENOMEM;
 		goto err_info_alloc;

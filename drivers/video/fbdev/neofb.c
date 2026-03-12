@@ -1768,7 +1768,7 @@ static int neo_scan_monitor(struct fb_info *info)
 	int w;
 
 	// Eventually we will have i2c support.
-	info->monspecs.modedb = kmalloc(sizeof(struct fb_videomode), GFP_KERNEL);
+	info->monspecs.modedb = kmalloc_obj(struct fb_videomode);
 	if (!info->monspecs.modedb)
 		return -ENOMEM;
 	info->monspecs.modedb_len = 1;

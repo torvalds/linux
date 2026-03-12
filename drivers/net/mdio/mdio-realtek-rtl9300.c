@@ -354,7 +354,6 @@ static int rtl9300_mdiobus_probe_one(struct device *dev, struct rtl9300_mdio_pri
 				     struct fwnode_handle *node)
 {
 	struct rtl9300_mdio_chan *chan;
-	struct fwnode_handle *child;
 	struct mii_bus *bus;
 	u32 mdio_bus;
 	int err;
@@ -371,7 +370,7 @@ static int rtl9300_mdiobus_probe_one(struct device *dev, struct rtl9300_mdio_pri
 	 * compatible = "ethernet-phy-ieee802.3-c45". This does mean we can't
 	 * support both c45 and c22 on the same MDIO bus.
 	 */
-	fwnode_for_each_child_node(node, child)
+	fwnode_for_each_child_node_scoped(node, child)
 		if (fwnode_device_is_compatible(child, "ethernet-phy-ieee802.3-c45"))
 			priv->smi_bus_is_c45[mdio_bus] = true;
 
@@ -409,7 +408,6 @@ static int rtl9300_mdiobus_map_ports(struct device *dev)
 {
 	struct rtl9300_mdio_priv *priv = dev_get_drvdata(dev);
 	struct device *parent = dev->parent;
-	struct fwnode_handle *port;
 	int err;
 
 	struct fwnode_handle *ports __free(fwnode_handle) =
@@ -418,7 +416,7 @@ static int rtl9300_mdiobus_map_ports(struct device *dev)
 		return dev_err_probe(dev, -EINVAL, "%pfwP missing ethernet-ports\n",
 				     dev_fwnode(parent));
 
-	fwnode_for_each_child_node(ports, port) {
+	fwnode_for_each_child_node_scoped(ports, port) {
 		struct device_node *mdio_dn;
 		u32 addr;
 		u32 bus;

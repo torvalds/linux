@@ -5,20 +5,22 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME snep
+
 enum states_snep {
-	non_scheduling_context_snep = 0,
+	non_scheduling_context_snep,
 	scheduling_contex_snep,
-	state_max_snep
+	state_max_snep,
 };
 
 #define INVALID_STATE state_max_snep
 
 enum events_snep {
-	preempt_disable_snep = 0,
+	preempt_disable_snep,
 	preempt_enable_snep,
 	schedule_entry_snep,
 	schedule_exit_snep,
-	event_max_snep
+	event_max_snep,
 };
 
 struct automaton_snep {
@@ -32,26 +34,26 @@ struct automaton_snep {
 static const struct automaton_snep automaton_snep = {
 	.state_names = {
 		"non_scheduling_context",
-		"scheduling_contex"
+		"scheduling_contex",
 	},
 	.event_names = {
 		"preempt_disable",
 		"preempt_enable",
 		"schedule_entry",
-		"schedule_exit"
+		"schedule_exit",
 	},
 	.function = {
 		{
 			non_scheduling_context_snep,
 			non_scheduling_context_snep,
 			scheduling_contex_snep,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			INVALID_STATE,
 			INVALID_STATE,
 			INVALID_STATE,
-			non_scheduling_context_snep
+			non_scheduling_context_snep,
 		},
 	},
 	.initial_state = non_scheduling_context_snep,

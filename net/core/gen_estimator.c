@@ -154,7 +154,7 @@ int gen_new_estimator(struct gnet_stats_basic_sync *bstats,
 	if (parm->ewma_log == 0 || parm->ewma_log >= 31)
 		return -EINVAL;
 
-	est = kzalloc(sizeof(*est), GFP_KERNEL);
+	est = kzalloc_obj(*est);
 	if (!est)
 		return -ENOBUFS;
 

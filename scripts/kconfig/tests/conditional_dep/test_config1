@@ -1,0 +1,6 @@
+# Basic check that everything can be configured if selected.
+CONFIG_FOO=y
+CONFIG_BAR=y
+CONFIG_BAZ=m
+# Ensure that TEST_OPTIONAL=y with BAZ=m is converted to TEST_OPTIONAL=m
+CONFIG_TEST_OPTIONAL=y

@@ -33,21 +33,31 @@ class PythonVersion:
     """
 
     def __init__(self, version):
-        """Ïnitialize self.version tuple from a version string"""
+        """
+        Ïnitialize self.version tuple from a version string.
+        """
         self.version = self.parse_version(version)
 
     @staticmethod
     def parse_version(version):
-        """Convert a major.minor.patch version into a tuple"""
+        """
+        Convert a major.minor.patch version into a tuple.
+        """
         return tuple(int(x) for x in version.split("."))
 
     @staticmethod
     def ver_str(version):
-        """Returns a version tuple as major.minor.patch"""
+        """
+        Returns a version tuple as major.minor.patch.
+        """
         return ".".join([str(x) for x in version])
 
     @staticmethod
     def cmd_print(cmd, max_len=80):
+        """
+        Outputs a command line, repecting maximum width.
+        """
+
         cmd_line = []
 
         for w in cmd:
@@ -66,7 +76,9 @@ class PythonVersion:
         return "\n  ".join(cmd_line)
 
     def __str__(self):
-        """Returns a version tuple as major.minor.patch from self.version"""
+        """
+        Return a version tuple as major.minor.patch from self.version.
+        """
         return self.ver_str(self.version)
 
     @staticmethod

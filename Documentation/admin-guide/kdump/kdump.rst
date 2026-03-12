@@ -591,7 +591,7 @@ with /sys/kernel/config/crash_dm_crypt_keys for setup,
     cat /sys/kernel/config/crash_dm_crypt_keys/count
     2
 
-    # To support CPU/memory hot-plugging, re-use keys already saved to reserved
+    # To support CPU/memory hot-plugging, reuse keys already saved to reserved
     # memory
     echo true > /sys/kernel/config/crash_dm_crypt_key/reuse
 

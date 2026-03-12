@@ -817,28 +817,15 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			   NL80211_IFTYPE_P2P_DEVICE ||
 			   info.control.vif->type == NL80211_IFTYPE_AP ||
 			   info.control.vif->type == NL80211_IFTYPE_ADHOC) {
-			u32 link_id = u32_get_bits(info.control.flags,
-						   IEEE80211_TX_CTRL_MLO_LINK);
-			struct iwl_mvm_vif_link_info *link;
-
-			if (link_id == IEEE80211_LINK_UNSPECIFIED) {
-				if (info.control.vif->active_links)
-					link_id = ffs(info.control.vif->active_links) - 1;
-				else
-					link_id = 0;
-			}
-
-			link = mvmvif->link[link_id];
-			if (WARN_ON(!link))
-				return -1;
 
 			if (!ieee80211_is_data(hdr->frame_control))
-				sta_id = link->bcast_sta.sta_id;
+				sta_id = mvmvif->deflink.bcast_sta.sta_id;
 			else
-				sta_id = link->mcast_sta.sta_id;
+				sta_id = mvmvif->deflink.mcast_sta.sta_id;
 
-			queue = iwl_mvm_get_ctrl_vif_queue(mvm, link, &info,
-							   skb);
+			queue = iwl_mvm_get_ctrl_vif_queue(mvm,
+							   &mvmvif->deflink,
+							   &info, skb);
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
 			queue = mvm->snif_queue;
 			sta_id = mvm->snif_sta.sta_id;
@@ -895,33 +882,9 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 	 */
 	val = mvmsta->max_amsdu_len;
 
-	if (hweight16(sta->valid_links) <= 1) {
-		if (sta->valid_links) {
-			struct ieee80211_bss_conf *link_conf;
-			unsigned int link = ffs(sta->valid_links) - 1;
+	band = mvmsta->vif->bss_conf.chanreq.oper.chan->band;
 
-			rcu_read_lock();
-			link_conf = rcu_dereference(mvmsta->vif->link_conf[link]);
-			if (WARN_ON(!link_conf))
-				band = NL80211_BAND_2GHZ;
-			else
-				band = link_conf->chanreq.oper.chan->band;
-			rcu_read_unlock();
-		} else {
-			band = mvmsta->vif->bss_conf.chanreq.oper.chan->band;
-		}
-
-		lmac = iwl_mvm_get_lmac_id(mvm, band);
-	} else if (fw_has_capa(&mvm->fw->ucode_capa,
-			       IWL_UCODE_TLV_CAPA_CDB_SUPPORT)) {
-		/* for real MLO restrict to both LMACs if they exist */
-		lmac = IWL_LMAC_5G_INDEX;
-		val = min_t(unsigned int, val,
-			    mvm->fwrt.smem_cfg.lmac[lmac].txfifo_size[txf] - 256);
-		lmac = IWL_LMAC_24G_INDEX;
-	} else {
-		lmac = IWL_LMAC_24G_INDEX;
-	}
+	lmac = iwl_mvm_get_lmac_id(mvm, band);
 
 	return min_t(unsigned int, val,
 		     mvm->fwrt.smem_cfg.lmac[lmac].txfifo_size[txf] - 256);

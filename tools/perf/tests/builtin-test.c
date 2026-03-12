@@ -153,6 +153,11 @@ static struct test_workload *workloads[] = {
 	&workload__datasym,
 	&workload__landlock,
 	&workload__traploop,
+	&workload__inlineloop,
+
+#ifdef HAVE_RUST_SUPPORT
+	&workload__code_with_type,
+#endif
 };
 
 #define workloads__for_each(workload) \

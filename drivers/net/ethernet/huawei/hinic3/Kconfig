@@ -11,6 +11,7 @@ config HINIC3
 	depends on X86 || ARM64 || COMPILE_TEST
 	depends on PCI_MSI && 64BIT
 	select AUXILIARY_BUS
+	select DIMLIB
 	select PAGE_POOL
 	help
 	  This driver supports HiNIC 3rd gen Network Adapter (HINIC3).

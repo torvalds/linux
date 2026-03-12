@@ -8,23 +8,8 @@
 #include <linux/slab.h>
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifs_debug.h"
-
-int cifs_remap(struct cifs_sb_info *cifs_sb)
-{
-	int map_type;
-
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SFM_CHR)
-		map_type = SFM_MAP_UNI_RSVD;
-	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR)
-		map_type = SFU_MAP_UNI_RSVD;
-	else
-		map_type = NO_MAP_UNI_RSVD;
-
-	return map_type;
-}
 
 /* Convert character using the SFU - "Services for Unix" remapping range */
 static bool

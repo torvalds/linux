@@ -147,7 +147,7 @@ static int spaceorb_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	spaceorb = kzalloc(sizeof(*spaceorb), GFP_KERNEL);
+	spaceorb = kzalloc_obj(*spaceorb);
 	input_dev = input_allocate_device();
 	if (!spaceorb || !input_dev)
 		goto fail1;

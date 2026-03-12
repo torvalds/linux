@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
- *		  2002-2006 Thomas Gleixner (tglx@linutronix.de)
+ *		  2002-2006 Thomas Gleixner (tglx@kernel.org)
  *
  *  Credits:
  *	David Woodhouse for adding multichip support
@@ -306,7 +306,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	if (le16_to_cpu(p->opt_cmd) & ONFI_OPT_CMD_READ_CACHE)
 		chip->parameters.supports_read_cache = true;
 
-	onfi = kzalloc(sizeof(*onfi), GFP_KERNEL);
+	onfi = kzalloc_obj(*onfi);
 	if (!onfi) {
 		ret = -ENOMEM;
 		goto free_model;

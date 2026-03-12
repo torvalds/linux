@@ -82,7 +82,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 	struct mlx5_flow_handle *flow;
 	struct mlx5_flow_spec *spec;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -186,7 +186,7 @@ static int accel_fs_tcp_create_groups(struct mlx5e_flow_table *ft,
 	int err;
 	u8 *mc;
 
-	ft->g = kcalloc(MLX5E_ACCEL_FS_TCP_NUM_GROUPS, sizeof(*ft->g), GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, MLX5E_ACCEL_FS_TCP_NUM_GROUPS);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if  (!in || !ft->g) {
 		kfree(ft->g);
@@ -378,7 +378,7 @@ int mlx5e_accel_fs_tcp_create(struct mlx5e_flow_steering *fs)
 	if (!MLX5_CAP_FLOWTABLE_NIC_RX(mlx5e_fs_get_mdev(fs), ft_field_support.outer_ip_version))
 		return -EOPNOTSUPP;
 
-	accel_tcp = kzalloc(sizeof(*accel_tcp), GFP_KERNEL);
+	accel_tcp = kzalloc_obj(*accel_tcp);
 	if (!accel_tcp)
 		return -ENOMEM;
 	mlx5e_fs_set_accel_tcp(fs, accel_tcp);

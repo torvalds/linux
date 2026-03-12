@@ -140,7 +140,7 @@ static __init struct key_restriction *get_builtin_and_secondary_restriction(void
 {
 	struct key_restriction *restriction;
 
-	restriction = kzalloc(sizeof(struct key_restriction), GFP_KERNEL);
+	restriction = kzalloc_obj(struct key_restriction);
 
 	if (!restriction)
 		panic("Can't allocate secondary trusted keyring restriction\n");

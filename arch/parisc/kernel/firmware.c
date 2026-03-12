@@ -1643,11 +1643,36 @@ int pdc_pat_pd_get_pdc_revisions(unsigned long *legacy_rev,
 	return retval;
 }
 
+/**
+ * pdc_pat_pd_get_platform_counter - Retrieve address of free-running 64-bit counter.
+ * @addr: The address of the 64-bit counter.
+ * @freq: The frequency of the counter, or -1 if unknown.
+ * @unique: Although monotonic growing, may it return the same number twice?
+ *
+ */
+int pdc_pat_pd_get_platform_counter(uint64_t **addr,
+		unsigned long *freq, unsigned long *unique)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_PD, PDC_PAT_PD_GET_PLATFORM_COUNTER,
+				__pa(pdc_result));
+	if (retval == PDC_OK) {
+		*addr = (uint64_t *)pdc_result[0];
+		*freq = pdc_result[1];
+		*unique = pdc_result[2];
+	}
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
 
 /**
  * pdc_pat_io_pci_cfg_read - Read PCI configuration space.
  * @pci_addr: PCI configuration space address for which the read request is being made.
- * @pci_size: Size of read in bytes. Valid values are 1, 2, and 4. 
+ * @pci_size: Size of read in bytes. Valid values are 1, 2, and 4.
  * @mem_addr: Pointer to return memory buffer.
  *
  */

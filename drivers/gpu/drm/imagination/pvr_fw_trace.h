@@ -68,9 +68,6 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev);
 /* Forward declaration from <linux/dcache.h>. */
 struct dentry;
 
-void pvr_fw_trace_mask_update(struct pvr_device *pvr_dev, u32 old_mask,
-			      u32 new_mask);
-
 void pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir);
 
 #endif /* PVR_FW_TRACE_H */

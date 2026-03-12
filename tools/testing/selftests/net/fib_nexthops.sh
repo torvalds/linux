@@ -800,6 +800,14 @@ ipv6_fcnal()
 	set +e
 	check_nexthop "dev veth1" ""
 	log_test $? 0 "Nexthops removed on admin down"
+
+	# error routes should be deleted when their nexthop is deleted
+	run_cmd "$IP li set dev veth1 up"
+	run_cmd "$IP -6 nexthop add id 58 dev veth1"
+	run_cmd "$IP ro add blackhole 2001:db8:101::1/128 nhid 58"
+	run_cmd "$IP nexthop del id 58"
+	check_route6 "2001:db8:101::1" ""
+	log_test $? 0 "Error route removed on nexthop deletion"
 }
 
 ipv6_grp_refs()
@@ -1459,6 +1467,13 @@ ipv4_fcnal()
 
 	run_cmd "$IP ro del 172.16.102.0/24"
 	log_test $? 0 "Delete route when not specifying nexthop attributes"
+
+	# error routes should be deleted when their nexthop is deleted
+	run_cmd "$IP nexthop add id 23 dev veth1"
+	run_cmd "$IP ro add blackhole 172.16.102.100/32 nhid 23"
+	run_cmd "$IP nexthop del id 23"
+	check_route "172.16.102.100" ""
+	log_test $? 0 "Error route removed on nexthop deletion"
 }
 
 ipv4_grp_fcnal()
@@ -1657,6 +1672,17 @@ ipv4_withv6_fcnal()
 
 	run_cmd "$IP ro replace 172.16.101.1/32 via inet6 2001:db8:50::1 dev veth1"
 	log_test $? 2 "IPv4 route with invalid IPv6 gateway"
+
+	# Test IPv4 route with loopback IPv6 nexthop
+	# Regression test: loopback IPv6 nexthop was misclassified as reject
+	# route, skipping nhc_pcpu_rth_output allocation, causing panic when
+	# an IPv4 route references it and triggers __mkroute_output().
+	run_cmd "$IP -6 nexthop add id 20 dev lo"
+	run_cmd "$IP ro add 172.20.20.0/24 nhid 20"
+	run_cmd "ip netns exec $me ping -c1 -W1 172.20.20.1"
+	log_test $? 1 "IPv4 route with loopback IPv6 nexthop (no crash)"
+	run_cmd "$IP ro del 172.20.20.0/24"
+	run_cmd "$IP nexthop del id 20"
 }
 
 ipv4_fcnal_runtime()

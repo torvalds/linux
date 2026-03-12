@@ -21,15 +21,18 @@
 #include "hif.h"
 #include "pci.h"
 #include "wow.h"
+#include "dp_cmn.h"
+#include "peer.h"
 
-static int ahb_err, pci_err;
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
+EXPORT_SYMBOL(ath12k_debug_mask);
 
 bool ath12k_ftm_mode;
 module_param_named(ftm_mode, ath12k_ftm_mode, bool, 0444);
 MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
+EXPORT_SYMBOL(ath12k_ftm_mode);
 
 /* protected with ath12k_hw_group_mutex */
 static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_list);
@@ -632,6 +635,7 @@ u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
 {
 	return ath12k_core_get_max_station_per_radio(ab) + TARGET_NUM_VDEVS(ab);
 }
+EXPORT_SYMBOL(ath12k_core_get_max_peers_per_radio);
 
 struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
 						  int index)
@@ -700,6 +704,8 @@ void ath12k_core_to_group_ref_put(struct ath12k_base *ab)
 
 static void ath12k_core_stop(struct ath12k_base *ab)
 {
+	ath12k_link_sta_rhash_tbl_destroy(ab);
+
 	ath12k_core_to_group_ref_put(ab);
 
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
@@ -710,7 +716,7 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
 	ath12k_hif_stop(ab);
 	ath12k_wmi_detach(ab);
-	ath12k_dp_free(ab);
+	ath12k_dp_cmn_device_deinit(ath12k_ab_to_dp(ab));
 
 	/* De-Init of components as needed */
 }
@@ -895,7 +901,7 @@ static int ath12k_core_start(struct ath12k_base *ab)
 		goto err_hif_stop;
 	}
 
-	ret = ath12k_dp_htt_connect(&ab->dp);
+	ret = ath12k_dp_htt_connect(ath12k_ab_to_dp(ab));
 	if (ret) {
 		ath12k_err(ab, "failed to connect to HTT: %d\n", ret);
 		goto err_hif_stop;
@@ -920,15 +926,13 @@ static int ath12k_core_start(struct ath12k_base *ab)
 		goto err_hif_stop;
 	}
 
-	ath12k_dp_cc_config(ab);
+	ath12k_hal_cc_config(ab);
 
 	ret = ath12k_dp_rx_pdev_reo_setup(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to initialize reo destination rings: %d\n", ret);
 		goto err_hif_stop;
 	}
-
-	ath12k_dp_hal_rx_desc_init(ab);
 
 	ret = ath12k_wmi_cmd_init(ab);
 	if (ret) {
@@ -963,6 +967,12 @@ static int ath12k_core_start(struct ath12k_base *ab)
 
 	/* Indicate the core start in the appropriate group */
 	ath12k_core_to_group_ref_get(ab);
+
+	ret = ath12k_link_sta_rhash_tbl_init(ab);
+	if (ret) {
+		ath12k_warn(ab, "failed to init peer addr rhash table %d\n", ret);
+		goto err_reo_cleanup;
+	}
 
 	return 0;
 
@@ -1288,7 +1298,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 		goto err_firmware_stop;
 	}
 
-	ret = ath12k_dp_alloc(ab);
+	ret = ath12k_dp_cmn_device_init(ath12k_ab_to_dp(ab));
 	if (ret) {
 		ath12k_err(ab, "failed to init DP: %d\n", ret);
 		goto err_firmware_stop;
@@ -1300,7 +1310,7 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 	ret = ath12k_core_start(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to start core: %d\n", ret);
-		goto err_dp_free;
+		goto err_deinit;
 	}
 
 	mutex_unlock(&ab->core_lock);
@@ -1333,8 +1343,8 @@ err_core_stop:
 	mutex_unlock(&ag->mutex);
 	goto exit;
 
-err_dp_free:
-	ath12k_dp_free(ab);
+err_deinit:
+	ath12k_dp_cmn_device_deinit(ath12k_ab_to_dp(ab));
 	mutex_unlock(&ab->core_lock);
 	mutex_unlock(&ag->mutex);
 
@@ -1350,13 +1360,14 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 	int ret, total_vdev;
 
 	mutex_lock(&ab->core_lock);
+	ath12k_link_sta_rhash_tbl_destroy(ab);
 	ath12k_dp_pdev_free(ab);
 	ath12k_ce_cleanup_pipes(ab);
 	ath12k_wmi_detach(ab);
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
 	mutex_unlock(&ab->core_lock);
 
-	ath12k_dp_free(ab);
+	ath12k_dp_cmn_device_deinit(ath12k_ab_to_dp(ab));
 	ath12k_hal_srng_deinit(ab);
 	total_vdev = ab->num_radios * TARGET_NUM_VDEVS(ab);
 	ab->free_vdev_map = (1LL << total_vdev) - 1;
@@ -1565,6 +1576,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 				ath12k_core_halt(ar);
 			}
 
+			ath12k_mac_dp_peer_cleanup(ah);
 			break;
 		case ATH12K_HW_STATE_OFF:
 			ath12k_warn(ab,
@@ -1739,17 +1751,11 @@ enum ath12k_qmi_mem_mode ath12k_core_get_memory_mode(struct ath12k_base *ab)
 
 	return ATH12K_QMI_MEMORY_MODE_DEFAULT;
 }
+EXPORT_SYMBOL(ath12k_core_get_memory_mode);
 
 int ath12k_core_pre_init(struct ath12k_base *ab)
 {
 	const struct ath12k_mem_profile_based_param *param;
-	int ret;
-
-	ret = ath12k_hw_init(ab);
-	if (ret) {
-		ath12k_err(ab, "failed to init hw params: %d\n", ret);
-		return ret;
-	}
 
 	param = &ath12k_mem_profile_based_param[ab->target_mem_mode];
 	ab->profile_param = param;
@@ -1799,7 +1805,7 @@ static struct ath12k_hw_group *ath12k_core_hw_group_alloc(struct ath12k_base *ab
 	list_for_each_entry(ag, &ath12k_hw_group_list, list)
 		count++;
 
-	ag = kzalloc(sizeof(*ag), GFP_KERNEL);
+	ag = kzalloc_obj(*ag);
 	if (!ag)
 		return NULL;
 
@@ -1996,6 +2002,8 @@ exit:
 	ag->ab[ab->device_id] = ab;
 	ab->ag = ag;
 
+	ath12k_dp_cmn_hw_group_assign(ath12k_ab_to_dp(ab), ag);
+
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "wsi group-id %d num-devices %d index %d",
 		   ag->id, ag->num_devices, wsi->index);
 
@@ -2022,6 +2030,8 @@ void ath12k_core_hw_group_unassign(struct ath12k_base *ab)
 		mutex_unlock(&ag->mutex);
 		return;
 	}
+
+	ath12k_dp_cmn_hw_group_unassign(ath12k_ab_to_dp(ab), ag);
 
 	ag->ab[device_id] = NULL;
 	ab->ag = NULL;
@@ -2253,7 +2263,6 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	spin_lock_init(&ab->base_lock);
 	init_completion(&ab->reset_complete);
 
-	INIT_LIST_HEAD(&ab->peers);
 	init_waitqueue_head(&ab->peer_mapping_wq);
 	init_waitqueue_head(&ab->wmi_ab.tx_credits_wq);
 	INIT_WORK(&ab->restart_work, ath12k_core_restart);
@@ -2291,31 +2300,5 @@ err_sc_free:
 	return NULL;
 }
 
-static int ath12k_init(void)
-{
-	ahb_err = ath12k_ahb_init();
-	if (ahb_err)
-		pr_warn("Failed to initialize ath12k AHB device: %d\n", ahb_err);
-
-	pci_err = ath12k_pci_init();
-	if (pci_err)
-		pr_warn("Failed to initialize ath12k PCI device: %d\n", pci_err);
-
-	/* If both failed, return one of the failures (arbitrary) */
-	return ahb_err && pci_err ? ahb_err : 0;
-}
-
-static void ath12k_exit(void)
-{
-	if (!pci_err)
-		ath12k_pci_exit();
-
-	if (!ahb_err)
-		ath12k_ahb_exit();
-}
-
-module_init(ath12k_init);
-module_exit(ath12k_exit);
-
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11be WLAN devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Technologies WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");

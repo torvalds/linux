@@ -15,15 +15,15 @@ DECLARE_EVENT_CLASS(dma_buf,
 	TP_ARGS(dmabuf),
 
 	TP_STRUCT__entry(
-		__string(exp_name, dmabuf->exp_name)
-		__field(size_t, size)
-		__field(ino_t, ino)
+		__string(	exp_name,		dmabuf->exp_name)
+		__field(	size_t,			size)
+		__field(	ino_t,			ino)
 	),
 
 	TP_fast_assign(
 		__assign_str(exp_name);
-		__entry->size = dmabuf->size;
-		__entry->ino = dmabuf->file->f_inode->i_ino;
+		__entry->size	= dmabuf->size;
+		__entry->ino	= dmabuf->file->f_inode->i_ino;
 	),
 
 	TP_printk("exp_name=%s size=%zu ino=%lu",
@@ -40,21 +40,21 @@ DECLARE_EVENT_CLASS(dma_buf_attach_dev,
 	TP_ARGS(dmabuf, attach, is_dynamic, dev),
 
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name(dev))
-		__string(exp_name, dmabuf->exp_name)
-		__field(size_t, size)
-		__field(ino_t, ino)
-		__field(struct dma_buf_attachment *, attach)
-		__field(bool, is_dynamic)
+		__string(	dev_name,			dev_name(dev))
+		__string(	exp_name,			dmabuf->exp_name)
+		__field(	size_t,				size)
+		__field(	ino_t,				ino)
+		__field(	struct dma_buf_attachment *,	attach)
+		__field(	bool,				is_dynamic)
 	),
 
 	TP_fast_assign(
 		__assign_str(dev_name);
 		__assign_str(exp_name);
-		__entry->size = dmabuf->size;
-		__entry->ino = dmabuf->file->f_inode->i_ino;
-		__entry->is_dynamic = is_dynamic;
-		__entry->attach = attach;
+		__entry->size		= dmabuf->size;
+		__entry->ino		= dmabuf->file->f_inode->i_ino;
+		__entry->is_dynamic	= is_dynamic;
+		__entry->attach		= attach;
 	),
 
 	TP_printk("exp_name=%s size=%zu ino=%lu attachment:%p is_dynamic=%d dev_name=%s",
@@ -73,17 +73,17 @@ DECLARE_EVENT_CLASS(dma_buf_fd,
 	TP_ARGS(dmabuf, fd),
 
 	TP_STRUCT__entry(
-		__string(exp_name, dmabuf->exp_name)
-		__field(size_t, size)
-		__field(ino_t, ino)
-		__field(int, fd)
+		__string(	exp_name,		dmabuf->exp_name)
+		__field(	size_t,			size)
+		__field(	ino_t,			ino)
+		__field(	int,			fd)
 	),
 
 	TP_fast_assign(
 		__assign_str(exp_name);
-		__entry->size = dmabuf->size;
-		__entry->ino = dmabuf->file->f_inode->i_ino;
-		__entry->fd = fd;
+		__entry->size	= dmabuf->size;
+		__entry->ino	= dmabuf->file->f_inode->i_ino;
+		__entry->fd	= fd;
 	),
 
 	TP_printk("exp_name=%s size=%zu ino=%lu fd=%d",
@@ -137,11 +137,13 @@ DEFINE_EVENT(dma_buf_attach_dev, dma_buf_detach,
 	TP_ARGS(dmabuf, attach, is_dynamic, dev)
 );
 
-DEFINE_EVENT(dma_buf_fd, dma_buf_fd,
+DEFINE_EVENT_CONDITION(dma_buf_fd, dma_buf_fd,
 
 	TP_PROTO(struct dma_buf *dmabuf, int fd),
 
-	TP_ARGS(dmabuf, fd)
+	TP_ARGS(dmabuf, fd),
+
+	TP_CONDITION(fd >= 0)
 );
 
 DEFINE_EVENT(dma_buf_fd, dma_buf_get,

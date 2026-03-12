@@ -37,7 +37,7 @@ static struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags
 {
 	struct drm_flip_task *task;
 
-	task = kzalloc(sizeof(*task), flags);
+	task = kzalloc_obj(*task, flags);
 	if (task)
 		task->data = data;
 

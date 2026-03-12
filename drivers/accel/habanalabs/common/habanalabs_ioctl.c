@@ -201,7 +201,7 @@ static int debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, struct hl
 	void *input = NULL, *output = NULL;
 	int rc;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
@@ -682,11 +682,11 @@ static int sec_attest_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	sec_attest_info = kmalloc(sizeof(*sec_attest_info), GFP_KERNEL);
+	sec_attest_info = kmalloc_obj(*sec_attest_info);
 	if (!sec_attest_info)
 		return -ENOMEM;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		rc = -ENOMEM;
 		goto free_sec_attest_info;
@@ -731,11 +731,11 @@ static int dev_info_signed(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	dev_info_signed = kzalloc(sizeof(*dev_info_signed), GFP_KERNEL);
+	dev_info_signed = kzalloc_obj(*dev_info_signed);
 	if (!dev_info_signed)
 		return -ENOMEM;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		rc = -ENOMEM;
 		goto free_dev_info_signed;

@@ -280,7 +280,7 @@ struct nfp_nsp *nfp_nsp_open(struct nfp_cpp *cpp)
 	if (IS_ERR(res))
 		return ERR_CAST(res);
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state) {
 		nfp_resource_release(res);
 		return ERR_PTR(-ENOMEM);
@@ -514,7 +514,7 @@ nfp_nsp_command_buf_dma_sg(struct nfp_nsp *nsp,
 	dma_size = BIT_ULL(dma_order);
 	nseg = DIV_ROUND_UP(max_size, chunk_size);
 
-	chunks = kcalloc(nseg, sizeof(*chunks), GFP_KERNEL);
+	chunks = kzalloc_objs(*chunks, nseg);
 	if (!chunks)
 		return -ENOMEM;
 

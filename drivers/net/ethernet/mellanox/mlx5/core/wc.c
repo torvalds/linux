@@ -2,6 +2,7 @@
 // Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mlx5/transobj.h>
 #include "lib/clock.h"
 #include "mlx5_core.h"
@@ -15,7 +16,7 @@
 #define TEST_WC_NUM_WQES 255
 #define TEST_WC_LOG_CQ_SZ (order_base_2(TEST_WC_NUM_WQES))
 #define TEST_WC_SQ_LOG_WQ_SZ TEST_WC_LOG_CQ_SZ
-#define TEST_WC_POLLING_MAX_TIME_JIFFIES msecs_to_jiffies(100)
+#define TEST_WC_POLLING_MAX_TIME_USEC (100 * USEC_PER_MSEC)
 
 struct mlx5_wc_cq {
 	/* data path - accessed per cqe */
@@ -359,14 +360,13 @@ static int mlx5_wc_poll_cq(struct mlx5_wc_sq *sq)
 static void mlx5_core_test_wc(struct mlx5_core_dev *mdev)
 {
 	unsigned int offset = 0;
-	unsigned long expires;
 	struct mlx5_wc_sq *sq;
 	int i, err;
 
 	if (mdev->wc_state != MLX5_WC_STATE_UNINITIALIZED)
 		return;
 
-	sq = kzalloc(sizeof(*sq), GFP_KERNEL);
+	sq = kzalloc_obj(*sq);
 	if (!sq)
 		return;
 
@@ -389,13 +389,9 @@ static void mlx5_core_test_wc(struct mlx5_core_dev *mdev)
 
 	mlx5_wc_post_nop(sq, &offset, true);
 
-	expires = jiffies + TEST_WC_POLLING_MAX_TIME_JIFFIES;
-	do {
-		err = mlx5_wc_poll_cq(sq);
-		if (err)
-			usleep_range(2, 10);
-	} while (mdev->wc_state == MLX5_WC_STATE_UNINITIALIZED &&
-		 time_is_after_jiffies(expires));
+	poll_timeout_us(mlx5_wc_poll_cq(sq),
+			mdev->wc_state != MLX5_WC_STATE_UNINITIALIZED, 10,
+			TEST_WC_POLLING_MAX_TIME_USEC, false);
 
 	mlx5_wc_destroy_sq(sq);
 

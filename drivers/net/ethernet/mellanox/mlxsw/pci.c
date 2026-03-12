@@ -1264,7 +1264,7 @@ static int mlxsw_pci_queue_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	if (!mem_item->buf)
 		return -ENOMEM;
 
-	q->elem_info = kcalloc(q->count, sizeof(*q->elem_info), GFP_KERNEL);
+	q->elem_info = kzalloc_objs(*q->elem_info, q->count);
 	if (!q->elem_info) {
 		err = -ENOMEM;
 		goto err_elem_info_alloc;
@@ -1316,7 +1316,7 @@ static int mlxsw_pci_queue_group_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	int err;
 
 	queue_group = mlxsw_pci_queue_type_group_get(mlxsw_pci, q_ops->type);
-	queue_group->q = kcalloc(num_qs, sizeof(*queue_group->q), GFP_KERNEL);
+	queue_group->q = kzalloc_objs(*queue_group->q, num_qs);
 	if (!queue_group->q)
 		return -ENOMEM;
 
@@ -1667,8 +1667,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	int i;
 	int err;
 
-	mlxsw_pci->fw_area.items = kcalloc(num_pages, sizeof(*mem_item),
-					   GFP_KERNEL);
+	mlxsw_pci->fw_area.items = kzalloc_objs(*mem_item, num_pages);
 	if (!mlxsw_pci->fw_area.items)
 		return -ENOMEM;
 	mlxsw_pci->fw_area.count = num_pages;
@@ -2414,7 +2413,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct mlxsw_pci *mlxsw_pci;
 	int err;
 
-	mlxsw_pci = kzalloc(sizeof(*mlxsw_pci), GFP_KERNEL);
+	mlxsw_pci = kzalloc_obj(*mlxsw_pci);
 	if (!mlxsw_pci)
 		return -ENOMEM;
 
@@ -2541,18 +2540,6 @@ void mlxsw_pci_driver_unregister(struct pci_driver *pci_driver)
 	pci_unregister_driver(pci_driver);
 }
 EXPORT_SYMBOL(mlxsw_pci_driver_unregister);
-
-static int __init mlxsw_pci_module_init(void)
-{
-	return 0;
-}
-
-static void __exit mlxsw_pci_module_exit(void)
-{
-}
-
-module_init(mlxsw_pci_module_init);
-module_exit(mlxsw_pci_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");

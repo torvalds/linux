@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2017 Thomas Gleixner <tglx@linutronix.de>
+// Copyright (C) 2017 Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
 
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
@@ -51,7 +51,7 @@ __init struct irq_matrix *irq_alloc_matrix(unsigned int matrix_bits,
 	unsigned int cpu, matrix_size = BITS_TO_LONGS(matrix_bits);
 	struct irq_matrix *m;
 
-	m = kzalloc(struct_size(m, scratch_map, matrix_size * 2), GFP_KERNEL);
+	m = kzalloc_flex(*m, scratch_map, matrix_size * 2);
 	if (!m)
 		return NULL;
 

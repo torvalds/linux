@@ -441,7 +441,7 @@ struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 {
 	struct tea5767_priv *priv = NULL;
 
-	priv = kzalloc(sizeof(struct tea5767_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct tea5767_priv);
 	if (priv == NULL)
 		return NULL;
 	fe->tuner_priv = priv;

@@ -31,7 +31,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct wlcore_scan_channels *cmd_channels = NULL;
 	int ret;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		ret = -ENOMEM;
 		goto out;
@@ -67,7 +67,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	/* configure channels */
 	WARN_ON(req->n_ssids > 1);
 
-	cmd_channels = kzalloc(sizeof(*cmd_channels), GFP_KERNEL);
+	cmd_channels = kzalloc_obj(*cmd_channels);
 	if (!cmd_channels) {
 		ret = -ENOMEM;
 		goto out;
@@ -169,7 +169,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	if (filter_type < 0)
 		return filter_type;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		ret = -ENOMEM;
 		goto out;
@@ -201,7 +201,7 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	/* don't stop scanning automatically when something is found */
 	cmd->terminate_after = 0;
 
-	cmd_channels = kzalloc(sizeof(*cmd_channels), GFP_KERNEL);
+	cmd_channels = kzalloc_obj(*cmd_channels);
 	if (!cmd_channels) {
 		ret = -ENOMEM;
 		goto out;
@@ -301,7 +301,7 @@ static int __wl18xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	wl1271_debug(DEBUG_CMD, "cmd periodic scan stop");
 
-	stop = kzalloc(sizeof(*stop), GFP_KERNEL);
+	stop = kzalloc_obj(*stop);
 	if (!stop) {
 		wl1271_error("failed to alloc memory to send sched scan stop");
 		return -ENOMEM;

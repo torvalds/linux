@@ -368,7 +368,7 @@ struct axg_tdm_stream *axg_tdm_stream_alloc(struct axg_tdm_iface *iface)
 {
 	struct axg_tdm_stream *ts;
 
-	ts = kzalloc(sizeof(*ts), GFP_KERNEL);
+	ts = kzalloc_obj(*ts);
 	if (ts) {
 		INIT_LIST_HEAD(&ts->formatter_list);
 		mutex_init(&ts->lock);

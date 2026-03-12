@@ -90,9 +90,10 @@ enum {
 	MAC_40000FD	= BIT(13),
 	MAC_50000FD	= BIT(14),
 	MAC_56000FD	= BIT(15),
-	MAC_100000FD	= BIT(16),
-	MAC_200000FD	= BIT(17),
-	MAC_400000FD	= BIT(18),
+	MAC_80000FD	= BIT(16),
+	MAC_100000FD	= BIT(17),
+	MAC_200000FD	= BIT(18),
+	MAC_400000FD	= BIT(19),
 };
 
 static inline bool phylink_autoneg_inband(unsigned int mode)
@@ -836,4 +837,9 @@ void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 
 void phylink_decode_usxgmii_word(struct phylink_link_state *state,
 				 uint16_t lpa);
+
+void phylink_replay_link_begin(struct phylink *pl);
+
+void phylink_replay_link_end(struct phylink *pl);
+
 #endif

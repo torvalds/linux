@@ -1328,8 +1328,6 @@ struct scarlett2_data {
 	struct snd_kcontrol *mux_ctls[SCARLETT2_MUX_MAX];
 	struct snd_kcontrol *mix_ctls[SCARLETT2_MIX_MAX];
 	struct snd_kcontrol *compressor_ctls[SCARLETT2_COMPRESSOR_CTLS_MAX];
-	struct snd_kcontrol *precomp_flt_ctls[SCARLETT2_PRECOMP_FLT_CTLS_MAX];
-	struct snd_kcontrol *peq_flt_ctls[SCARLETT2_PEQ_FLT_CTLS_MAX];
 	struct snd_kcontrol *precomp_flt_switch_ctls[SCARLETT2_DSP_SWITCH_MAX];
 	struct snd_kcontrol *peq_flt_switch_ctls[SCARLETT2_DSP_SWITCH_MAX];
 	struct snd_kcontrol *direct_monitor_ctl;
@@ -2377,18 +2375,18 @@ static int scarlett2_usb(
 {
 	struct scarlett2_data *private = mixer->private_data;
 	struct usb_device *dev = mixer->chip->dev;
-	struct scarlett2_usb_packet *req __free(kfree) = NULL;
-	struct scarlett2_usb_packet *resp __free(kfree) = NULL;
-	size_t req_buf_size = struct_size(req, data, req_size);
-	size_t resp_buf_size = struct_size(resp, data, resp_size);
 	int retries = 0;
 	const int max_retries = 5;
 	int err;
 
+	struct scarlett2_usb_packet *req __free(kfree) = NULL;
+	size_t req_buf_size = struct_size(req, data, req_size);
 	req = kmalloc(req_buf_size, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
+	struct scarlett2_usb_packet *resp __free(kfree) = NULL;
+	size_t resp_buf_size = struct_size(resp, data, resp_size);
 	resp = kmalloc(resp_buf_size, GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
@@ -2533,13 +2531,13 @@ static int scarlett2_usb_get_config(
 		err = scarlett2_usb_get(mixer, config_item->offset, buf, size);
 		if (err < 0)
 			return err;
-		if (size == 2) {
+		if (config_item->size == 16) {
 			u16 *buf_16 = buf;
 
 			for (i = 0; i < count; i++, buf_16++)
 				*buf_16 = le16_to_cpu(*(__le16 *)buf_16);
-		} else if (size == 4) {
-			u32 *buf_32 = buf;
+		} else if (config_item->size == 32) {
+			u32 *buf_32 = (u32 *)buf;
 
 			for (i = 0; i < count; i++, buf_32++)
 				*buf_32 = le32_to_cpu(*(__le32 *)buf_32);
@@ -3197,7 +3195,7 @@ static int scarlett2_add_new_ctl(struct usb_mixer_interface *mixer,
 	struct usb_mixer_elem_info *elem;
 	int err;
 
-	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+	elem = kzalloc_obj(*elem);
 	if (!elem)
 		return -ENOMEM;
 
@@ -3446,7 +3444,6 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 		else
 			private->autogain_status[i] =
 				private->num_autogain_status_texts - 1;
-
 
 	for (i = 0; i < SCARLETT2_AG_TARGET_COUNT; i++)
 		if (scarlett2_has_config_item(private,
@@ -3919,9 +3916,9 @@ static int scarlett2_input_select_ctl_info(
 	struct scarlett2_data *private = mixer->private_data;
 	int inputs = private->info->gain_input_count;
 	int i, err;
-	char **values __free(kfree) = NULL;
+	char **values __free(kfree) =
+		kcalloc(inputs, sizeof(char *), GFP_KERNEL);
 
-	values = kcalloc(inputs, sizeof(char *), GFP_KERNEL);
 	if (!values)
 		return -ENOMEM;
 
@@ -5372,8 +5369,7 @@ static int scarlett2_update_filter_values(struct usb_mixer_interface *mixer)
 
 	err = scarlett2_usb_get_config(
 		mixer, SCARLETT2_CONFIG_PEQ_FLT_SWITCH,
-		info->dsp_input_count * info->peq_flt_count,
-		private->peq_flt_switch);
+		info->dsp_input_count, private->peq_flt_switch);
 	if (err < 0)
 		return err;
 
@@ -6546,7 +6542,7 @@ static int scarlett2_add_dsp_ctls(struct usb_mixer_interface *mixer, int i)
 		err = scarlett2_add_new_ctl(
 			mixer, &scarlett2_precomp_flt_ctl,
 			i * info->precomp_flt_count + j,
-			1, s, &private->precomp_flt_switch_ctls[j]);
+			1, s, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -6556,7 +6552,7 @@ static int scarlett2_add_dsp_ctls(struct usb_mixer_interface *mixer, int i)
 		err = scarlett2_add_new_ctl(
 			mixer, &scarlett2_peq_flt_ctl,
 			i * info->peq_flt_count + j,
-			1, s, &private->peq_flt_switch_ctls[j]);
+			1, s, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -8272,7 +8268,7 @@ static int scarlett2_init_private(struct usb_mixer_interface *mixer,
 				  const struct scarlett2_device_entry *entry)
 {
 	struct scarlett2_data *private =
-		kzalloc(sizeof(struct scarlett2_data), GFP_KERNEL);
+		kzalloc_obj(struct scarlett2_data);
 
 	if (!private)
 		return -ENOMEM;
@@ -9083,8 +9079,6 @@ static long scarlett2_hwdep_read(struct snd_hwdep *hw,
 		__le32 len;
 	} __packed req;
 
-	u8 *resp __free(kfree) = NULL;
-
 	/* Flash segment must first be selected */
 	if (private->flash_write_state != SCARLETT2_FLASH_WRITE_STATE_SELECTED)
 		return -EINVAL;
@@ -9122,7 +9116,8 @@ static long scarlett2_hwdep_read(struct snd_hwdep *hw,
 	req.offset = cpu_to_le32(*offset);
 	req.len = cpu_to_le32(count);
 
-	resp = kzalloc(count, GFP_KERNEL);
+	u8 *resp __free(kfree) =
+		kzalloc(count, GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
 
@@ -9267,7 +9262,6 @@ static ssize_t scarlett2_devmap_read(
 	loff_t                 pos)
 {
 	struct usb_mixer_interface *mixer = entry->private_data;
-	u8           *resp_buf __free(kfree) = NULL;
 	const size_t  block_size = SCARLETT2_DEVMAP_BLOCK_SIZE;
 	size_t        copied = 0;
 
@@ -9277,7 +9271,8 @@ static ssize_t scarlett2_devmap_read(
 	if (pos + count > entry->size)
 		count = entry->size - pos;
 
-	resp_buf = kmalloc(block_size, GFP_KERNEL);
+	u8 *resp_buf __free(kfree) =
+		kmalloc(block_size, GFP_KERNEL);
 	if (!resp_buf)
 		return -ENOMEM;
 

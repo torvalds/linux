@@ -34,8 +34,6 @@
 #define CR_ABORT		BIT(1)
 #define CR_DMAEN		BIT(2)
 #define CR_FTHRES_SHIFT		8
-#define CR_TEIE			BIT(16)
-#define CR_TCIE			BIT(17)
 #define CR_SMIE			BIT(19)
 #define CR_APMS			BIT(22)
 #define CR_CSSEL		BIT(24)
@@ -106,7 +104,7 @@
 #define STM32_ABT_TIMEOUT_US		100000
 #define STM32_COMP_TIMEOUT_MS		5000
 #define STM32_BUSY_TIMEOUT_US		100000
-
+#define STM32_WAIT_CMD_TIMEOUT_US	5000
 
 #define STM32_AUTOSUSPEND_DELAY -1
 
@@ -116,7 +114,6 @@ struct stm32_ospi {
 	struct clk *clk;
 	struct reset_control *rstc;
 
-	struct completion data_completion;
 	struct completion match_completion;
 
 	struct dma_chan *dma_chtx;
@@ -142,14 +139,32 @@ struct stm32_ospi {
 	struct mutex lock;
 };
 
-static void stm32_ospi_read_fifo(u8 *val, void __iomem *addr)
+static void stm32_ospi_read_fifo(void *val, void __iomem *addr, u8 len)
 {
-	*val = readb_relaxed(addr);
+	switch (len) {
+	case sizeof(u32):
+		*((u32 *)val) = readl_relaxed(addr);
+		break;
+	case sizeof(u16):
+		*((u16 *)val) = readw_relaxed(addr);
+		break;
+	case sizeof(u8):
+		*((u8 *)val) = readb_relaxed(addr);
+	}
 }
 
-static void stm32_ospi_write_fifo(u8 *val, void __iomem *addr)
+static void stm32_ospi_write_fifo(void *val, void __iomem *addr, u8 len)
 {
-	writeb_relaxed(*val, addr);
+	switch (len) {
+	case sizeof(u32):
+		writel_relaxed(*((u32 *)val), addr);
+		break;
+	case sizeof(u16):
+		writew_relaxed(*((u16 *)val), addr);
+		break;
+	case sizeof(u8):
+		writeb_relaxed(*((u8 *)val), addr);
+	}
 }
 
 static int stm32_ospi_abort(struct stm32_ospi *ospi)
@@ -172,19 +187,20 @@ static int stm32_ospi_abort(struct stm32_ospi *ospi)
 	return timeout;
 }
 
-static int stm32_ospi_poll(struct stm32_ospi *ospi, u8 *buf, u32 len, bool read)
+static int stm32_ospi_poll(struct stm32_ospi *ospi, void *buf, u32 len, bool read)
 {
 	void __iomem *regs_base = ospi->regs_base;
-	void (*fifo)(u8 *val, void __iomem *addr);
+	void (*fifo)(void *val, void __iomem *addr, u8 len);
 	u32 sr;
 	int ret;
+	u8 step;
 
 	if (read)
 		fifo = stm32_ospi_read_fifo;
 	else
 		fifo = stm32_ospi_write_fifo;
 
-	while (len--) {
+	while (len) {
 		ret = readl_relaxed_poll_timeout_atomic(regs_base + OSPI_SR,
 							sr, sr & SR_FTF, 1,
 							STM32_FIFO_TIMEOUT_US);
@@ -193,7 +209,17 @@ static int stm32_ospi_poll(struct stm32_ospi *ospi, u8 *buf, u32 len, bool read)
 				len, sr);
 			return ret;
 		}
-		fifo(buf++, regs_base + OSPI_DR);
+
+		if (len >= sizeof(u32))
+			step = sizeof(u32);
+		else if (len >= sizeof(u16))
+			step = sizeof(u16);
+		else
+			step = sizeof(u8);
+
+		fifo(buf, regs_base + OSPI_DR, step);
+		len -= step;
+		buf += step;
 	}
 
 	return 0;
@@ -211,22 +237,16 @@ static int stm32_ospi_wait_nobusy(struct stm32_ospi *ospi)
 static int stm32_ospi_wait_cmd(struct stm32_ospi *ospi)
 {
 	void __iomem *regs_base = ospi->regs_base;
-	u32 cr, sr;
+	u32 sr;
 	int err = 0;
 
-	if ((readl_relaxed(regs_base + OSPI_SR) & SR_TCF) ||
-	    ospi->fmode == CR_FMODE_APM)
+	if (ospi->fmode == CR_FMODE_APM)
 		goto out;
 
-	reinit_completion(&ospi->data_completion);
-	cr = readl_relaxed(regs_base + OSPI_CR);
-	writel_relaxed(cr | CR_TCIE | CR_TEIE, regs_base + OSPI_CR);
+	err = readl_relaxed_poll_timeout_atomic(ospi->regs_base + OSPI_SR, sr,
+						(sr & (SR_TEF | SR_TCF)), 1,
+						STM32_WAIT_CMD_TIMEOUT_US);
 
-	if (!wait_for_completion_timeout(&ospi->data_completion,
-				msecs_to_jiffies(STM32_COMP_TIMEOUT_MS)))
-		err = -ETIMEDOUT;
-
-	sr = readl_relaxed(regs_base + OSPI_SR);
 	if (sr & SR_TCF)
 		/* avoid false timeout */
 		err = 0;
@@ -259,29 +279,29 @@ static irqreturn_t stm32_ospi_irq(int irq, void *dev_id)
 	cr = readl_relaxed(regs_base + OSPI_CR);
 	sr = readl_relaxed(regs_base + OSPI_SR);
 
-	if (cr & CR_SMIE && sr & SR_SMF) {
+	if (sr & SR_SMF) {
 		/* disable irq */
 		cr &= ~CR_SMIE;
 		writel_relaxed(cr, regs_base + OSPI_CR);
 		complete(&ospi->match_completion);
-
-		return IRQ_HANDLED;
-	}
-
-	if (sr & (SR_TEF | SR_TCF)) {
-		/* disable irq */
-		cr &= ~CR_TCIE & ~CR_TEIE;
-		writel_relaxed(cr, regs_base + OSPI_CR);
-		complete(&ospi->data_completion);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
-			 struct dma_slave_config *dma_cfg)
+static int stm32_ospi_dma_setup(struct stm32_ospi *ospi,
+				struct dma_slave_config *dma_cfg)
 {
+	struct dma_slave_caps caps;
+	int ret = 0;
+
 	if (dma_cfg && ospi->dma_chrx) {
+		ret = dma_get_slave_caps(ospi->dma_chrx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg->src_maxburst = caps.max_burst / dma_cfg->src_addr_width;
+
 		if (dmaengine_slave_config(ospi->dma_chrx, dma_cfg)) {
 			dev_err(ospi->dev, "dma rx config failed\n");
 			dma_release_channel(ospi->dma_chrx);
@@ -290,6 +310,12 @@ static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
 	}
 
 	if (dma_cfg && ospi->dma_chtx) {
+		ret = dma_get_slave_caps(ospi->dma_chtx, &caps);
+		if (ret)
+			return ret;
+
+		dma_cfg->dst_maxburst = caps.max_burst / dma_cfg->dst_addr_width;
+
 		if (dmaengine_slave_config(ospi->dma_chtx, dma_cfg)) {
 			dev_err(ospi->dev, "dma tx config failed\n");
 			dma_release_channel(ospi->dma_chtx);
@@ -298,6 +324,8 @@ static void stm32_ospi_dma_setup(struct stm32_ospi *ospi,
 	}
 
 	init_completion(&ospi->dma_completion);
+
+	return ret;
 }
 
 static int stm32_ospi_tx_mm(struct stm32_ospi *ospi,
@@ -391,7 +419,7 @@ static int stm32_ospi_xfer(struct stm32_ospi *ospi, const struct spi_mem_op *op)
 	if (op->data.dir == SPI_MEM_DATA_IN)
 		buf = op->data.buf.in;
 	else
-		buf = (u8 *)op->data.buf.out;
+		buf = (void *)op->data.buf.out;
 
 	return stm32_ospi_poll(ospi, buf, op->data.nbytes,
 			       op->data.dir == SPI_MEM_DATA_IN);
@@ -838,7 +866,6 @@ static int stm32_ospi_get_resources(struct platform_device *pdev)
 		dev_info(dev, "No memory-map region found\n");
 	}
 
-	init_completion(&ospi->data_completion);
 	init_completion(&ospi->match_completion);
 
 	return 0;
@@ -899,9 +926,9 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	dma_cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma_cfg.src_addr = ospi->regs_phys_base + OSPI_DR;
 	dma_cfg.dst_addr = ospi->regs_phys_base + OSPI_DR;
-	dma_cfg.src_maxburst = 4;
-	dma_cfg.dst_maxburst = 4;
-	stm32_ospi_dma_setup(ospi, &dma_cfg);
+	ret = stm32_ospi_dma_setup(ospi, &dma_cfg);
+	if (ret)
+		return ret;
 
 	mutex_init(&ospi->lock);
 
@@ -915,7 +942,6 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	ctrl->use_gpio_descriptors = true;
 	ctrl->transfer_one_message = stm32_ospi_transfer_one_message;
 	ctrl->num_chipselect = STM32_OSPI_MAX_NORCHIP;
-	ctrl->dev.of_node = dev->of_node;
 
 	pm_runtime_enable(ospi->dev);
 	pm_runtime_set_autosuspend_delay(ospi->dev, STM32_AUTOSUSPEND_DELAY);
@@ -985,7 +1011,7 @@ static void stm32_ospi_remove(struct platform_device *pdev)
 	pm_runtime_force_suspend(ospi->dev);
 }
 
-static int __maybe_unused stm32_ospi_suspend(struct device *dev)
+static int stm32_ospi_suspend(struct device *dev)
 {
 	struct stm32_ospi *ospi = dev_get_drvdata(dev);
 
@@ -996,7 +1022,7 @@ static int __maybe_unused stm32_ospi_suspend(struct device *dev)
 	return pm_runtime_force_suspend(ospi->dev);
 }
 
-static int __maybe_unused stm32_ospi_resume(struct device *dev)
+static int stm32_ospi_resume(struct device *dev)
 {
 	struct stm32_ospi *ospi = dev_get_drvdata(dev);
 	void __iomem *regs_base = ospi->regs_base;
@@ -1025,7 +1051,7 @@ static int __maybe_unused stm32_ospi_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_ospi_runtime_suspend(struct device *dev)
+static int stm32_ospi_runtime_suspend(struct device *dev)
 {
 	struct stm32_ospi *ospi = dev_get_drvdata(dev);
 
@@ -1034,7 +1060,7 @@ static int __maybe_unused stm32_ospi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_ospi_runtime_resume(struct device *dev)
+static int stm32_ospi_runtime_resume(struct device *dev)
 {
 	struct stm32_ospi *ospi = dev_get_drvdata(dev);
 
@@ -1042,9 +1068,8 @@ static int __maybe_unused stm32_ospi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops stm32_ospi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_ospi_suspend, stm32_ospi_resume)
-	SET_RUNTIME_PM_OPS(stm32_ospi_runtime_suspend,
-			   stm32_ospi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(stm32_ospi_suspend, stm32_ospi_resume)
+	RUNTIME_PM_OPS(stm32_ospi_runtime_suspend, stm32_ospi_runtime_resume, NULL)
 };
 
 static const struct of_device_id stm32_ospi_of_match[] = {
@@ -1058,7 +1083,7 @@ static struct platform_driver stm32_ospi_driver = {
 	.remove	= stm32_ospi_remove,
 	.driver	= {
 		.name = "stm32-ospi",
-		.pm = &stm32_ospi_pm_ops,
+		.pm = pm_ptr(&stm32_ospi_pm_ops),
 		.of_match_table = stm32_ospi_of_match,
 	},
 };

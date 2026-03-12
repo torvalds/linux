@@ -163,7 +163,7 @@ ppp_asynctty_open(struct tty_struct *tty)
 		return -EOPNOTSUPP;
 
 	err = -ENOMEM;
-	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	ap = kzalloc_obj(*ap);
 	if (!ap)
 		goto out;
 

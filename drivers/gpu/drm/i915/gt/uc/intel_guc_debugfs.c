@@ -132,12 +132,13 @@ DEFINE_SIMPLE_ATTRIBUTE(guc_sched_disable_gucid_threshold_fops,
 void intel_guc_debugfs_register(struct intel_guc *guc, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "guc_info", &guc_info_fops, NULL },
-		{ "guc_registered_contexts", &guc_registered_contexts_fops, NULL },
-		{ "guc_slpc_info", &guc_slpc_info_fops, &intel_eval_slpc_support},
-		{ "guc_sched_disable_delay_ms", &guc_sched_disable_delay_ms_fops, NULL },
-		{ "guc_sched_disable_gucid_threshold", &guc_sched_disable_gucid_threshold_fops,
-		   NULL },
+		{ .name = "guc_info", .fops = &guc_info_fops },
+		{ .name = "guc_registered_contexts", .fops = &guc_registered_contexts_fops },
+		{ .name = "guc_slpc_info", .fops = &guc_slpc_info_fops,
+		  .eval = intel_eval_slpc_support },
+		{ .name = "guc_sched_disable_delay_ms", .fops = &guc_sched_disable_delay_ms_fops },
+		{ .name = "guc_sched_disable_gucid_threshold",
+		  .fops = &guc_sched_disable_gucid_threshold_fops },
 	};
 
 	if (!intel_guc_is_supported(guc))

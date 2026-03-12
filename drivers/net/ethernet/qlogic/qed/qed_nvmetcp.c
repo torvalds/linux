@@ -218,7 +218,7 @@ static int qed_nvmetcp_start(struct qed_dev *cdev,
 	if (!tasks)
 		return 0;
 
-	tid_info = kzalloc(sizeof(*tid_info), GFP_KERNEL);
+	tid_info = kzalloc_obj(*tid_info);
 	if (!tid_info) {
 		qed_nvmetcp_stop(cdev);
 
@@ -477,7 +477,7 @@ static int qed_nvmetcp_allocate_connection(struct qed_hwfn *p_hwfn,
 
 	/* Need to allocate a new connection */
 	p_params = &p_hwfn->pf_params.nvmetcp_pf_params;
-	p_conn = kzalloc(sizeof(*p_conn), GFP_KERNEL);
+	p_conn = kzalloc_obj(*p_conn);
 	if (!p_conn)
 		return -ENOMEM;
 
@@ -568,7 +568,7 @@ int qed_nvmetcp_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_nvmetcp_info *p_nvmetcp_info;
 
-	p_nvmetcp_info = kzalloc(sizeof(*p_nvmetcp_info), GFP_KERNEL);
+	p_nvmetcp_info = kzalloc_obj(*p_nvmetcp_info);
 	if (!p_nvmetcp_info)
 		return -ENOMEM;
 
@@ -611,7 +611,7 @@ static int qed_nvmetcp_acquire_conn(struct qed_dev *cdev,
 	int rc;
 
 	/* Allocate a hashed connection */
-	hash_con = kzalloc(sizeof(*hash_con), GFP_ATOMIC);
+	hash_con = kzalloc_obj(*hash_con, GFP_ATOMIC);
 	if (!hash_con)
 		return -ENOMEM;
 

@@ -119,16 +119,17 @@ class SphinxBuilder:
 
         return path
 
-    def check_rust(self):
+    def check_rust(self, sphinxdirs):
         """
         Checks if Rust is enabled
         """
-        self.rustdoc = False
-
         config = os.path.join(self.srctree, ".config")
 
+        if not {'.', 'rust'}.intersection(sphinxdirs):
+            return False
+
         if not os.path.isfile(config):
-            return
+            return False
 
         re_rust = re.compile(r"CONFIG_RUST=(m|y)")
 
@@ -136,11 +137,13 @@ class SphinxBuilder:
             with open(config, "r", encoding="utf-8") as fp:
                 for line in fp:
                     if re_rust.match(line):
-                        self.rustdoc = True
-                        return
+                        return True
 
         except OSError as e:
             print(f"Failed to open {config}", file=sys.stderr)
+            return False
+
+        return False
 
     def get_sphinx_extra_opts(self, n_jobs):
         """
@@ -165,6 +168,7 @@ class SphinxBuilder:
         parser = argparse.ArgumentParser()
         parser.add_argument('-j', '--jobs', type=int)
         parser.add_argument('-q', '--quiet', action='store_true')
+        parser.add_argument('-v', '--verbose', default=0, action='count')
 
         #
         # Other sphinx-build arguments go as-is, so place them
@@ -176,10 +180,14 @@ class SphinxBuilder:
         # Build a list of sphinx args, honoring verbosity here if specified
         #
 
-        verbose = self.verbose
         sphinx_args, self.sphinxopts = parser.parse_known_args(sphinxopts)
+
+        verbose = sphinx_args.verbose
+        if self.verbose:
+            verbose += 1
+
         if sphinx_args.quiet is True:
-            verbose = False
+            verbose = 0
 
         #
         # If the user explicitly sets "-j" at command line, use it.
@@ -192,8 +200,11 @@ class SphinxBuilder:
         else:
             self.n_jobs = None
 
-        if not verbose:
+        if verbose < 1:
             self.sphinxopts += ["-q"]
+        else:
+            for i in range(1, sphinx_args.verbose):
+                self.sphinxopts += ["-v"]
 
     def __init__(self, builddir, venv=None, verbose=False, n_jobs=None,
                  interactive=None):
@@ -246,7 +257,7 @@ class SphinxBuilder:
         #
         self.sphinxbuild = os.environ.get("SPHINXBUILD", "sphinx-build")
         self.kerneldoc = self.get_path(os.environ.get("KERNELDOC",
-                                                      "scripts/kernel-doc.py"))
+                                                      "tools/docs/kernel-doc"))
         self.builddir = self.get_path(builddir, use_cwd=True, abs_path=True)
 
         #
@@ -258,8 +269,6 @@ class SphinxBuilder:
         self.env = os.environ.copy()
 
         self.get_sphinx_extra_opts(n_jobs)
-
-        self.check_rust()
 
         #
         # If venv command line argument is specified, run Sphinx from venv
@@ -351,23 +360,6 @@ class SphinxBuilder:
                 shutil.copy2(css, static_dir)
             except (OSError, IOError) as e:
                 print(f"Warning: Failed to copy CSS: {e}", file=sys.stderr)
-
-        if self.rustdoc:
-            print("Building rust docs")
-            if "MAKE" in self.env:
-                cmd = [self.env["MAKE"]]
-            else:
-                cmd = ["make", "LLVM=1"]
-
-            cmd += [ "rustdoc"]
-            if self.verbose:
-                print(" ".join(cmd))
-
-            try:
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError as e:
-                print(f"Ignored errors when building rustdoc: {e}. Is RUST enabled?",
-                      file=sys.stderr)
 
     def build_pdf_file(self, latex_cmd, from_dir, path):
         """Builds a single pdf file using latex_cmd"""
@@ -689,29 +681,8 @@ class SphinxBuilder:
         if kerneldoc.startswith(self.srctree):
             kerneldoc = os.path.relpath(kerneldoc, self.srctree)
 
-        args = [ "-b", builder, "-c", docs_dir ]
-
-        if builder == "latex":
-            if not paper:
-                paper = PAPER[1]
-
-            args.extend(["-D", f"latex_elements.papersize={paper}paper"])
-
-        if self.rustdoc:
-            args.extend(["-t", "rustdoc"])
-
         if not sphinxdirs:
             sphinxdirs = os.environ.get("SPHINXDIRS", ".")
-
-        #
-        # The sphinx-build tool has a bug: internally, it tries to set
-        # locale with locale.setlocale(locale.LC_ALL, ''). This causes a
-        # crash if language is not set. Detect and fix it.
-        #
-        try:
-            locale.setlocale(locale.LC_ALL, '')
-        except locale.Error:
-            self.env["LC_ALL"] = "C"
 
         #
         # sphinxdirs can be a list or a whitespace-separated string
@@ -722,6 +693,28 @@ class SphinxBuilder:
                 sphinxdirs_list += sphinxdir
             else:
                 sphinxdirs_list += sphinxdir.split()
+
+        args = [ "-b", builder, "-c", docs_dir ]
+
+        if builder == "latex":
+            if not paper:
+                paper = PAPER[1]
+
+            args.extend(["-D", f"latex_elements.papersize={paper}paper"])
+
+        rustdoc = self.check_rust(sphinxdirs_list)
+        if rustdoc:
+            args.extend(["-t", "rustdoc"])
+
+        #
+        # The sphinx-build tool has a bug: internally, it tries to set
+        # locale with locale.setlocale(locale.LC_ALL, ''). This causes a
+        # crash if language is not set. Detect and fix it.
+        #
+        try:
+            locale.setlocale(locale.LC_ALL, '')
+        except locale.Error:
+            self.env["LC_ALL"] = "C"
 
         #
         # Step 1:  Build each directory in separate.
@@ -750,7 +743,6 @@ class SphinxBuilder:
 
             build_args = args + [
                 "-d", doctree_dir,
-                "-D", f"kerneldoc_bin={kerneldoc}",
                 "-D", f"version={self.kernelversion}",
                 "-D", f"release={self.kernelrelease}",
                 "-D", f"kerneldoc_srctree={self.srctree}",
@@ -786,6 +778,23 @@ class SphinxBuilder:
         elif target == "infodocs":
             self.handle_info(output_dirs)
 
+        if rustdoc and target in ["htmldocs", "epubdocs"]:
+            print("Building rust docs")
+            if "MAKE" in self.env:
+                cmd = [self.env["MAKE"]]
+            else:
+                cmd = ["make", "LLVM=1"]
+
+            cmd += [ "rustdoc"]
+            if self.verbose:
+                print(" ".join(cmd))
+
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Ignored errors when building rustdoc: {e}. Is RUST enabled?",
+                      file=sys.stderr)
+
 def jobs_type(value):
     """
     Handle valid values for -j. Accepts Sphinx "-jauto", plus a number
@@ -805,20 +814,42 @@ def jobs_type(value):
     except ValueError:
         raise argparse.ArgumentTypeError(f"Must be 'auto' or positive integer, got {value}")  # pylint: disable=W0707
 
+EPILOG="""
+Besides the command line arguments, several environment variables affect its
+default behavior, meant to be used when called via Kernel Makefile:
+
+- KERNELVERSION:  Kernel major version
+- KERNELRELEASE:  Kernel release
+- KBUILD_VERBOSE: Contains the value of "make V=[0|1] variable.
+                  When V=0 (KBUILD_VERBOSE=0), sets verbose level to "-q".
+- SPHINXBUILD:    Documentation build tool (default: "sphinx-build").
+- SPHINXOPTS:     Extra options pased to SPHINXBUILD
+                  (default: "-j auto" and "-q" if KBUILD_VERBOSE=0).
+                  The "-v" flag can be used to increase verbosity.
+                  If V=0, the first "-v" will drop "-q".
+- PYTHON3:        Python command to run SPHINXBUILD
+- PDFLATEX:       LaTeX PDF engine. (default: "xelatex")
+- LATEXOPTS:      Optional set of command line arguments to the LaTeX engine
+- srctree:        Location of the Kernel root directory (default: ".").
+
+"""
+
 def main():
     """
     Main function. The only mandatory argument is the target. If not
     specified, the other arguments will use default values if not
     specified at os.environ.
     """
-    parser = argparse.ArgumentParser(description="Kernel documentation builder")
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
+                                     description=__doc__,
+                                     epilog=EPILOG)
 
     parser.add_argument("target", choices=list(TARGETS.keys()),
                         help="Documentation target to build")
     parser.add_argument("--sphinxdirs", nargs="+",
                         help="Specific directories to build")
     parser.add_argument("--builddir", default="output",
-                        help="Sphinx configuration file")
+                        help="Sphinx configuration file (default: %(default)s)")
 
     parser.add_argument("--theme", help="Sphinx theme to use")
 
@@ -834,7 +865,7 @@ def main():
                         help="place build in verbose mode")
 
     parser.add_argument('-j', '--jobs', type=jobs_type,
-                        help="Sets number of jobs to use with sphinx-build")
+                        help="Sets number of jobs to use with sphinx-build(default: auto)")
 
     parser.add_argument('-i', '--interactive', action='store_true',
                         help="Change latex default to run in interactive mode")

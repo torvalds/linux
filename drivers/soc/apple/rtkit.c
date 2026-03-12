@@ -590,7 +590,7 @@ static void apple_rtkit_rx(struct apple_mbox *mbox, struct apple_mbox_msg msg,
 	    rtk->ops->recv_message_early(rtk->cookie, ep, msg.msg0))
 		return;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return;
 
@@ -667,7 +667,7 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
-	rtk = kzalloc(sizeof(*rtk), GFP_KERNEL);
+	rtk = kzalloc_obj(*rtk);
 	if (!rtk)
 		return ERR_PTR(-ENOMEM);
 
@@ -850,6 +850,22 @@ int apple_rtkit_shutdown(struct apple_rtkit *rtk)
 	return apple_rtkit_reinit(rtk);
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_shutdown);
+
+int apple_rtkit_poweroff(struct apple_rtkit *rtk)
+{
+	int ret;
+
+	ret = apple_rtkit_set_ap_power_state(rtk, APPLE_RTKIT_PWR_STATE_OFF);
+	if (ret)
+		return ret;
+
+	ret = apple_rtkit_set_iop_power_state(rtk, APPLE_RTKIT_PWR_STATE_OFF);
+	if (ret)
+		return ret;
+
+	return apple_rtkit_reinit(rtk);
+}
+EXPORT_SYMBOL_GPL(apple_rtkit_poweroff);
 
 int apple_rtkit_idle(struct apple_rtkit *rtk)
 {

@@ -35,6 +35,17 @@ void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev);
 #define cpg_mssr_detach_dev	NULL
 #endif
 
+enum {
+	PLL5_TARGET_DPI,
+	PLL5_TARGET_DSI
+};
+
+#ifdef CONFIG_CLK_RZG2L
+void rzg2l_cpg_dsi_div_set_divider(u8 divider, int target);
+#else
+static inline void rzg2l_cpg_dsi_div_set_divider(u8 divider, int target) { }
+#endif
+
 /**
  * struct rzv2h_pll_limits - PLL parameter constraints
  *

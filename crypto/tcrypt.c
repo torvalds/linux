@@ -180,7 +180,7 @@ static int test_mb_aead_jiffies(struct test_mb_aead_data *data, int enc,
 	int ret = 0;
 	int *rc;
 
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
+	rc = kzalloc_objs(*rc, num_mb);
 	if (!rc)
 		return -ENOMEM;
 
@@ -207,7 +207,7 @@ static int test_mb_aead_cycles(struct test_mb_aead_data *data, int enc,
 	int i;
 	int *rc;
 
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
+	rc = kzalloc_objs(*rc, num_mb);
 	if (!rc)
 		return -ENOMEM;
 
@@ -270,7 +270,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 	else
 		e = "decryption";
 
-	data = kcalloc(num_mb, sizeof(*data), GFP_KERNEL);
+	data = kzalloc_objs(*data, num_mb);
 	if (!data)
 		goto out_free_iv;
 
@@ -997,7 +997,7 @@ static int test_mb_acipher_jiffies(struct test_mb_skcipher_data *data, int enc,
 	int ret = 0;
 	int *rc;
 
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
+	rc = kzalloc_objs(*rc, num_mb);
 	if (!rc)
 		return -ENOMEM;
 
@@ -1024,7 +1024,7 @@ static int test_mb_acipher_cycles(struct test_mb_skcipher_data *data, int enc,
 	int i;
 	int *rc;
 
-	rc = kcalloc(num_mb, sizeof(*rc), GFP_KERNEL);
+	rc = kzalloc_objs(*rc, num_mb);
 	if (!rc)
 		return -ENOMEM;
 
@@ -1075,7 +1075,7 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 	else
 		e = "decryption";
 
-	data = kcalloc(num_mb, sizeof(*data), GFP_KERNEL);
+	data = kzalloc_objs(*data, num_mb);
 	if (!data)
 		return;
 

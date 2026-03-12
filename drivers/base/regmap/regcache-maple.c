@@ -95,12 +95,13 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 
 	mas_unlock(&mas);
 
-	if (ret == 0) {
-		kfree(lower);
-		kfree(upper);
+	if (ret) {
+		kfree(entry);
+		return ret;
 	}
-	
-	return ret;
+	kfree(lower);
+	kfree(upper);
+	return 0;
 }
 
 static int regcache_maple_drop(struct regmap *map, unsigned int min,
@@ -293,7 +294,7 @@ static int regcache_maple_init(struct regmap *map)
 {
 	struct maple_tree *mt;
 
-	mt = kmalloc(sizeof(*mt), map->alloc_flags);
+	mt = kmalloc_obj(*mt, map->alloc_flags);
 	if (!mt)
 		return -ENOMEM;
 	map->cache = mt;

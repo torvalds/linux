@@ -116,6 +116,20 @@ extern "C" {
 /* Low-level functions (you probably don't need these)                */
 /**********************************************************************/
 
+/**
+ * fdt_offset_ptr - safely get a byte range within the device tree blob
+ * @fdt:	Pointer to the device tree blob
+ * @offset:	Offset within the blob to the desired byte range
+ * @checklen:	Required length of the byte range
+ *
+ * fdt_offset_ptr() returns a pointer to the byte range of length @checklen at
+ * the given @offset within the device tree blob, after verifying that the byte
+ * range fits entirely within the blob and does not overflow.
+ *
+ * returns:
+ *	pointer to the byte range, on success
+ *	NULL, if the requested range does not fit within the blob
+ */
 #ifndef SWIG /* This function is not useful in Python */
 const void *fdt_offset_ptr(const void *fdt, int offset, unsigned int checklen);
 #endif
@@ -124,6 +138,20 @@ static inline void *fdt_offset_ptr_w(void *fdt, int offset, int checklen)
 	return (void *)(uintptr_t)fdt_offset_ptr(fdt, offset, checklen);
 }
 
+/**
+ * fdt_next_tag - get next tag in the device tree
+ * @fdt:	Pointer to the device tree blob
+ * @offset:	Offset within the blob to start searching
+ * @nextoffset:	Pointer to variable to store the offset of the next tag
+ *
+ * fdt_next_tag() returns the tag type of the next tag in the device tree
+ * blob starting from the given @offset. If @nextoffset is non-NULL, it will
+ * be set to the offset immediately following the tag.
+ *
+ * returns:
+ *	the tag type (FDT_BEGIN_NODE, FDT_END_NODE, FDT_PROP, FDT_NOP, FDT_END),
+ *	FDT_END, if offset is out of bounds
+ */
 uint32_t fdt_next_tag(const void *fdt, int offset, int *nextoffset);
 
 /*
@@ -334,6 +362,23 @@ int fdt_move(const void *fdt, void *buf, int bufsize);
 /* Read-only functions                                                */
 /**********************************************************************/
 
+/**
+ * fdt_check_full - check device tree validity
+ * @fdt:	pointer to the device tree blob
+ * @bufsize:	size of the buffer containing the device tree
+ *
+ * fdt_check_full() checks that the given buffer contains a valid
+ * flattened device tree and that the tree structure is internally
+ * consistent. This is a more thorough check than fdt_check_header().
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
 int fdt_check_full(const void *fdt, size_t bufsize);
 
 /**
@@ -1540,10 +1585,90 @@ int fdt_create_with_flags(void *buf, int bufsize, uint32_t flags);
  */
 int fdt_create(void *buf, int bufsize);
 
+/**
+ * fdt_resize - move and resize a device tree in sequential write state
+ * @fdt:	Pointer to the device tree to resize
+ * @buf:	Buffer where resized tree should be placed
+ * @bufsize:	Size of the buffer at @buf
+ *
+ * fdt_resize() moves the device tree blob from @fdt to @buf and
+ * resizes it to fit in the new buffer size.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if @bufsize is too small
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE, standard meanings
+ */
 int fdt_resize(void *fdt, void *buf, int bufsize);
+
+/**
+ * fdt_add_reservemap_entry - add an entry to the memory reserve map
+ * @fdt:	Pointer to the device tree blob
+ * @addr:	Start address of the reserve map entry
+ * @size:	Size of the reserved region
+ *
+ * fdt_add_reservemap_entry() adds a memory reserve map entry to the
+ * device tree blob during the sequential write process. This function
+ * can only be called after fdt_create() and before fdt_finish_reservemap().
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if there is insufficient space in the blob
+ *	-FDT_ERR_BADSTATE, if not in the correct sequential write state
+ */
 int fdt_add_reservemap_entry(void *fdt, uint64_t addr, uint64_t size);
+
+/**
+ * fdt_finish_reservemap - complete the memory reserve map
+ * @fdt:	Pointer to the device tree blob
+ *
+ * fdt_finish_reservemap() completes the memory reserve map section
+ * of the device tree blob during sequential write. After calling this
+ * function, no more reserve map entries can be added and the blob
+ * moves to the structure creation phase.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADSTATE, if not in the correct sequential write state
+ */
 int fdt_finish_reservemap(void *fdt);
+
+/**
+ * fdt_begin_node - start creation of a new node
+ * @fdt:	Pointer to the device tree blob
+ * @name:	Name of the node to create
+ *
+ * fdt_begin_node() starts the creation of a new node with the given
+ * @name during sequential write. After calling this function, properties
+ * can be added with fdt_property() and subnodes can be created with
+ * additional fdt_begin_node() calls. The node must be completed with
+ * fdt_end_node().
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if there is insufficient space in the blob
+ *	-FDT_ERR_BADSTATE, if not in the correct sequential write state
+ */
 int fdt_begin_node(void *fdt, const char *name);
+
+/**
+ * fdt_property - add a property to the current node
+ * @fdt:	Pointer to the device tree blob
+ * @name:	Name of the property to add
+ * @val:	Pointer to the property value
+ * @len:	Length of the property value in bytes
+ *
+ * fdt_property() adds a property with the given @name and value to
+ * the current node during sequential write. This function can only
+ * be called between fdt_begin_node() and fdt_end_node().
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if there is insufficient space in the blob
+ *	-FDT_ERR_BADSTATE, if not currently within a node
+ */
 int fdt_property(void *fdt, const char *name, const void *val, int len);
 static inline int fdt_property_u32(void *fdt, const char *name, uint32_t val)
 {
@@ -1580,15 +1705,94 @@ int fdt_property_placeholder(void *fdt, const char *name, int len, void **valp);
 
 #define fdt_property_string(fdt, name, str) \
 	fdt_property(fdt, name, str, strlen(str)+1)
+
+/**
+ * fdt_end_node - complete the current node
+ * @fdt:	Pointer to the device tree blob
+ *
+ * fdt_end_node() completes the current node during sequential write.  This
+ * function must be called to close each node started with
+ * fdt_begin_node(). After calling this function, no more properties or subnodes
+ * can be added to the node.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADSTATE, if not currently within a node
+ */
 int fdt_end_node(void *fdt);
+
+/**
+ * fdt_finish - complete device tree creation
+ * @fdt:	Pointer to the device tree blob
+ *
+ * fdt_finish() completes the device tree creation process started with
+ * fdt_create(). This function finalizes the device tree blob and makes it ready
+ * for use. After calling this function, the blob is complete and can be used
+ * with libfdt read-only and read-write functions, but not with sequential write
+ * functions.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADSTATE, if the sequential write process is incomplete
+ */
 int fdt_finish(void *fdt);
 
 /**********************************************************************/
 /* Read-write functions                                               */
 /**********************************************************************/
 
+/**
+ * fdt_create_empty_tree - create an empty device tree
+ * @buf:	Buffer where the empty tree should be created
+ * @bufsize:	Size of the buffer at @buf
+ *
+ * fdt_create_empty_tree() creates a minimal empty device tree blob
+ * in the given buffer. The tree contains only a root node with no
+ * properties or subnodes.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if @bufsize is too small for even an empty tree
+ */
 int fdt_create_empty_tree(void *buf, int bufsize);
+
+/**
+ * fdt_open_into - move a device tree into a new buffer and make editable
+ * @fdt:	Pointer to the device tree to move
+ * @buf:	Buffer where the editable tree should be placed
+ * @bufsize:	Size of the buffer at @buf
+ *
+ * fdt_open_into() moves and reorganizes the device tree blob from @fdt
+ * into @buf, converting it to a format suitable for read-write operations.
+ * The new buffer should allow space for modifications.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_NOSPACE, if @bufsize is too small
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_TRUNCATED, standard meanings
+ */
 int fdt_open_into(const void *fdt, void *buf, int bufsize);
+
+/**
+ * fdt_pack - pack a device tree blob
+ * @fdt:	Pointer to the device tree blob
+ *
+ * fdt_pack() reorganizes the device tree blob to eliminate any free space
+ * and pack it into the minimum possible size. This is useful after making
+ * modifications that might have left gaps in the blob.
+ *
+ * returns:
+ *	0, on success
+ *	-FDT_ERR_BADMAGIC,
+ *	-FDT_ERR_BADVERSION,
+ *	-FDT_ERR_BADSTATE,
+ *	-FDT_ERR_BADSTRUCTURE,
+ *	-FDT_ERR_BADLAYOUT, standard meanings
+ */
 int fdt_pack(void *fdt);
 
 /**
@@ -2317,6 +2521,16 @@ int fdt_overlay_target_offset(const void *fdt, const void *fdto,
 /* Debugging / informational functions                                */
 /**********************************************************************/
 
+/**
+ * fdt_strerror - return string description of error code
+ * @errval:	Error code returned by a libfdt function
+ *
+ * fdt_strerror() returns a string description of the error code passed
+ * in @errval.
+ *
+ * returns:
+ *	pointer to a string describing the error code
+ */
 const char *fdt_strerror(int errval);
 
 #ifdef __cplusplus

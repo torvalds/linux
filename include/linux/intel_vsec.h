@@ -80,13 +80,13 @@ enum intel_vsec_quirks {
 
 /**
  * struct pmt_callbacks - Callback infrastructure for PMT devices
- * ->read_telem() when specified, called by client driver to access PMT data (instead
- * of direct copy).
- * @pdev:  PCI device reference for the callback's use
- * @guid:  ID of data to acccss
- * @data:  buffer for the data to be copied
- * @off:   offset into the requested buffer
- * @count: size of buffer
+ * @read_telem: when specified, called by client driver to access PMT
+ * data (instead of direct copy).
+ * * pdev:  PCI device reference for the callback's use
+ * * guid:  ID of data to acccss
+ * * data:  buffer for the data to be copied
+ * * off:   offset into the requested buffer
+ * * count: size of buffer
  */
 struct pmt_callbacks {
 	int (*read_telem)(struct pci_dev *pdev, u32 guid, u64 *data, loff_t off, u32 count);
@@ -120,7 +120,7 @@ struct intel_vsec_platform_info {
 };
 
 /**
- * struct intel_sec_device - Auxbus specific device information
+ * struct intel_vsec_device - Auxbus specific device information
  * @auxdev:        auxbus device struct for auxbus access
  * @pcidev:        pci device associated with the device
  * @resource:      any resources shared by the parent
@@ -128,6 +128,7 @@ struct intel_vsec_platform_info {
  * @num_resources: number of resources
  * @id:            xarray id
  * @priv_data:     any private data needed
+ * @priv_data_size: size of private data area
  * @quirks:        specified quirks
  * @base_addr:     base address of entries (if specified)
  * @cap_id:        the enumerated id of the vsec feature

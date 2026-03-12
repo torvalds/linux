@@ -1,0 +1,236 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/renesas,r9a09g077-icu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/{T2H,N2H} Interrupt Controller
+
+maintainers:
+  - Cosmin Tanislav <cosmin-gabriel.tanislav.xa@renesas.com>
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+
+description:
+  The Interrupt Controller (ICU) handles software-triggered interrupts
+  (INTCPU), external interrupts (IRQ and SEI), error interrupts and DMAC
+  requests.
+
+properties:
+  compatible:
+    oneOf:
+      - const: renesas,r9a09g077-icu # RZ/T2H
+
+      - items:
+          - enum:
+              - renesas,r9a09g087-icu # RZ/N2H
+          - const: renesas,r9a09g077-icu
+
+  reg:
+    items:
+      - description: Non-safety registers (INTCPU0-13, IRQ0-13)
+      - description: Safety registers (INTCPU14-15, IRQ14-15, SEI)
+
+  '#interrupt-cells':
+    description: The first cell is the SPI number of the interrupt, as per user
+      manual. The second cell is used to specify the flag.
+    const: 2
+
+  '#address-cells':
+    const: 0
+
+  interrupt-controller: true
+
+  interrupts:
+    items:
+      - description: Software interrupt 0
+      - description: Software interrupt 1
+      - description: Software interrupt 2
+      - description: Software interrupt 3
+      - description: Software interrupt 4
+      - description: Software interrupt 5
+      - description: Software interrupt 6
+      - description: Software interrupt 7
+      - description: Software interrupt 8
+      - description: Software interrupt 9
+      - description: Software interrupt 10
+      - description: Software interrupt 11
+      - description: Software interrupt 12
+      - description: Software interrupt 13
+      - description: Software interrupt 14
+      - description: Software interrupt 15
+      - description: External pin interrupt 0
+      - description: External pin interrupt 1
+      - description: External pin interrupt 2
+      - description: External pin interrupt 3
+      - description: External pin interrupt 4
+      - description: External pin interrupt 5
+      - description: External pin interrupt 6
+      - description: External pin interrupt 7
+      - description: External pin interrupt 8
+      - description: External pin interrupt 9
+      - description: External pin interrupt 10
+      - description: External pin interrupt 11
+      - description: External pin interrupt 12
+      - description: External pin interrupt 13
+      - description: External pin interrupt 14
+      - description: External pin interrupt 15
+      - description: System error interrupt
+      - description: Cortex-A55 error event 0
+      - description: Cortex-A55 error event 1
+      - description: Cortex-R52 CPU 0 error event 0
+      - description: Cortex-R52 CPU 0 error event 1
+      - description: Cortex-R52 CPU 1 error event 0
+      - description: Cortex-R52 CPU 1 error event 1
+      - description: Peripherals error event 0
+      - description: Peripherals error event 1
+      - description: DSMIF error event 0
+      - description: DSMIF error event 1
+      - description: ENCIF error event 0
+      - description: ENCIF error event 1
+
+  interrupt-names:
+    items:
+      - const: intcpu0
+      - const: intcpu1
+      - const: intcpu2
+      - const: intcpu3
+      - const: intcpu4
+      - const: intcpu5
+      - const: intcpu6
+      - const: intcpu7
+      - const: intcpu8
+      - const: intcpu9
+      - const: intcpu10
+      - const: intcpu11
+      - const: intcpu12
+      - const: intcpu13
+      - const: intcpu14
+      - const: intcpu15
+      - const: irq0
+      - const: irq1
+      - const: irq2
+      - const: irq3
+      - const: irq4
+      - const: irq5
+      - const: irq6
+      - const: irq7
+      - const: irq8
+      - const: irq9
+      - const: irq10
+      - const: irq11
+      - const: irq12
+      - const: irq13
+      - const: irq14
+      - const: irq15
+      - const: sei
+      - const: ca55-err0
+      - const: ca55-err1
+      - const: cr520-err0
+      - const: cr520-err1
+      - const: cr521-err0
+      - const: cr521-err1
+      - const: peri-err0
+      - const: peri-err1
+      - const: dsmif-err0
+      - const: dsmif-err1
+      - const: encif-err0
+      - const: encif-err1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#interrupt-cells'
+  - '#address-cells'
+  - interrupt-controller
+  - interrupts
+  - interrupt-names
+  - clocks
+  - power-domains
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
+
+    icu: interrupt-controller@802a0000 {
+      compatible = "renesas,r9a09g077-icu";
+      reg = <0x802a0000 0x10000>,
+            <0x812a0000 0x50>;
+      #interrupt-cells = <2>;
+      #address-cells = <0>;
+      interrupt-controller;
+      interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 2 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 5 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 6 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 7 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 8 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 9 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 10 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 11 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 12 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 13 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 14 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 15 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 16 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 17 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 18 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 20 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 28 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 30 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 31 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 406 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 407 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 408 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 409 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 410 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 411 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 412 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 413 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 415 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 416 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 417 IRQ_TYPE_EDGE_RISING>,
+                   <GIC_SPI 418 IRQ_TYPE_EDGE_RISING>;
+      interrupt-names = "intcpu0", "intcpu1", "intcpu2",
+                        "intcpu3", "intcpu4", "intcpu5",
+                        "intcpu6", "intcpu7", "intcpu8",
+                        "intcpu9", "intcpu10", "intcpu11",
+                        "intcpu12", "intcpu13", "intcpu14",
+                        "intcpu15",
+                        "irq0", "irq1", "irq2", "irq3",
+                        "irq4", "irq5", "irq6", "irq7",
+                        "irq8", "irq9", "irq10", "irq11",
+                        "irq12", "irq13", "irq14", "irq15",
+                        "sei",
+                        "ca55-err0", "ca55-err1",
+                        "cr520-err0", "cr520-err1",
+                        "cr521-err0", "cr521-err1",
+                        "peri-err0", "peri-err1",
+                        "dsmif-err0", "dsmif-err1",
+                        "encif-err0", "encif-err1";
+      clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
+      power-domains = <&cpg>;
+    };

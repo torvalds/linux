@@ -1607,7 +1607,7 @@ static void ib_sa_service_rec_callback(struct ib_sa_query *sa_query, int status,
 		return;
 	}
 
-	rec = kmalloc_array(num_services, sizeof(*rec), GFP_KERNEL);
+	rec = kmalloc_objs(*rec, num_services);
 	if (!rec) {
 		query->callback(-ENOMEM, NULL, 0, query->context);
 		return;
@@ -1689,7 +1689,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kzalloc(sizeof(*query), gfp_mask);
+	query = kzalloc_obj(*query, gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -1702,8 +1702,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 		} else if (status == PR_OPA_SUPPORTED) {
 			query->sa_query.flags |= IB_SA_QUERY_OPA;
 		} else {
-			query->conv_pr =
-				kmalloc(sizeof(*query->conv_pr), gfp_mask);
+			query->conv_pr = kmalloc_obj(*query->conv_pr, gfp_mask);
 			if (!query->conv_pr) {
 				ret = -ENOMEM;
 				goto err1;
@@ -1814,7 +1813,7 @@ int ib_sa_service_rec_get(struct ib_sa_client *client,
 	port = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kzalloc(sizeof(*query), gfp_mask);
+	query = kzalloc_obj(*query, gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -1906,7 +1905,7 @@ int ib_sa_mcmember_rec_query(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kzalloc(sizeof(*query), gfp_mask);
+	query = kzalloc_obj(*query, gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -2002,7 +2001,7 @@ int ib_sa_guid_info_rec_query(struct ib_sa_client *client,
 	port  = &sa_dev->port[port_num - sa_dev->start_port];
 	agent = port->agent;
 
-	query = kzalloc(sizeof(*query), gfp_mask);
+	query = kzalloc_obj(*query, gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -2131,7 +2130,7 @@ static int ib_sa_classport_info_rec_query(struct ib_sa_port *port,
 
 	agent = port->agent;
 
-	query = kzalloc(sizeof(*query), gfp_mask);
+	query = kzalloc_obj(*query, gfp_mask);
 	if (!query)
 		return -ENOMEM;
 
@@ -2189,7 +2188,7 @@ static void update_ib_cpi(struct work_struct *work)
 	}
 	spin_unlock_irqrestore(&port->classport_lock, flags);
 
-	cb_context = kmalloc(sizeof(*cb_context), GFP_KERNEL);
+	cb_context = kmalloc_obj(*cb_context);
 	if (!cb_context)
 		goto err_nomem;
 
@@ -2307,7 +2306,7 @@ static void update_sm_ah(struct work_struct *work)
 		return;
 	}
 
-	new_ah = kmalloc(sizeof(*new_ah), GFP_KERNEL);
+	new_ah = kmalloc_obj(*new_ah);
 	if (!new_ah)
 		return;
 
@@ -2415,9 +2414,7 @@ static int ib_sa_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	sa_dev = kzalloc(struct_size(sa_dev, port,
-				     size_add(size_sub(e, s), 1)),
-			 GFP_KERNEL);
+	sa_dev = kzalloc_flex(*sa_dev, port, size_add(size_sub(e, s), 1));
 	if (!sa_dev)
 		return -ENOMEM;
 

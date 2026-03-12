@@ -100,7 +100,7 @@ static int octeon_irq_set_ciu_mapping(int irq, int line, int bit, int gpio_line,
 {
 	struct octeon_ciu_chip_data *cd;
 
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		return -ENOMEM;
 
@@ -1462,7 +1462,7 @@ static int __init octeon_irq_init_ciu(
 	struct irq_domain *ciu_domain = NULL;
 	struct octeon_irq_ciu_domain_data *dd;
 
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kzalloc_obj(*dd);
 	if (!dd)
 		return -ENOMEM;
 
@@ -1633,7 +1633,7 @@ static int __init octeon_irq_init_gpio(
 		return -EINVAL;
 	}
 
-	gpiod = kzalloc(sizeof(*gpiod), GFP_KERNEL);
+	gpiod = kzalloc_obj(*gpiod);
 	if (gpiod) {
 		/* gpio domain host_data is the base hwirq number. */
 		gpiod->base_hwirq = base_hwirq;
@@ -2223,7 +2223,7 @@ static int octeon_irq_cib_map(struct irq_domain *d,
 		return -EINVAL;
 	}
 
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		return -ENOMEM;
 
@@ -2304,7 +2304,7 @@ static int __init octeon_irq_init_cib(struct device_node *ciu_node,
 		return -EINVAL;
 	}
 
-	host_data = kzalloc(sizeof(*host_data), GFP_KERNEL);
+	host_data = kzalloc_obj(*host_data);
 	if (!host_data)
 		return -ENOMEM;
 	raw_spin_lock_init(&host_data->lock);

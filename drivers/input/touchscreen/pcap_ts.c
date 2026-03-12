@@ -138,7 +138,7 @@ static int pcap_ts_probe(struct platform_device *pdev)
 	struct pcap_ts *pcap_ts;
 	int err = -ENOMEM;
 
-	pcap_ts = kzalloc(sizeof(*pcap_ts), GFP_KERNEL);
+	pcap_ts = kzalloc_obj(*pcap_ts);
 	if (!pcap_ts)
 		return err;
 

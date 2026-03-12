@@ -480,7 +480,7 @@ static int add_pdo(struct usb_power_delivery_capabilities *cap, u32 pdo, int pos
 	struct pdo *p;
 	int ret;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 
@@ -569,7 +569,7 @@ usb_power_delivery_register_capabilities(struct usb_power_delivery *pd,
 	int ret;
 	int i;
 
-	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+	cap = kzalloc_obj(*cap);
 	if (!cap)
 		return ERR_PTR(-ENOMEM);
 
@@ -697,7 +697,7 @@ usb_power_delivery_register(struct device *parent, struct usb_power_delivery_des
 	struct usb_power_delivery *pd;
 	int ret;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 

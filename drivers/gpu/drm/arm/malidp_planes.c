@@ -81,7 +81,7 @@ static void malidp_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_destroy_state(&state->base);
 	kfree(state);
 	plane->state = NULL;
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state)
 		__drm_atomic_helper_plane_reset(plane, &state->base);
 }
@@ -94,7 +94,7 @@ drm_plane_state *malidp_duplicate_plane_state(struct drm_plane *plane)
 	if (!plane->state)
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 

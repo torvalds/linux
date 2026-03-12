@@ -449,7 +449,7 @@ void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 	}
 }
 
-static uint16_t read_proc_e_machine_for_pid(pid_t pid)
+static uint16_t read_proc_e_machine_for_pid(pid_t pid, uint32_t *e_flags)
 {
 	char path[6 /* "/proc/" */ + 11 /* max length of pid */ + 5 /* "/exe\0" */];
 	int fd;
@@ -458,52 +458,71 @@ static uint16_t read_proc_e_machine_for_pid(pid_t pid)
 	snprintf(path, sizeof(path), "/proc/%d/exe", pid);
 	fd = open(path, O_RDONLY);
 	if (fd >= 0) {
-		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
-		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
-		if (pread(fd, &e_machine, sizeof(e_machine), 18) != sizeof(e_machine))
-			e_machine = EM_NONE;
+		e_machine = dso__read_e_machine(/*optional_dso=*/NULL, fd, e_flags);
 		close(fd);
 	}
 	return e_machine;
 }
 
-static int thread__e_machine_callback(struct map *map, void *machine)
+struct thread__e_machine_callback_args {
+	struct machine *machine;
+	uint32_t e_flags;
+	uint16_t e_machine;
+};
+
+static int thread__e_machine_callback(struct map *map, void *_args)
 {
+	struct thread__e_machine_callback_args *args = _args;
 	struct dso *dso = map__dso(map);
 
-	_Static_assert(0 == EM_NONE, "Unexpected EM_NONE");
 	if (!dso)
-		return EM_NONE;
+		return 0; // No dso, continue search.
 
-	return dso__e_machine(dso, machine);
+	args->e_machine = dso__e_machine(dso, args->machine, &args->e_flags);
+	return args->e_machine != EM_NONE ? 1 /* stop search */ : 0 /* continue search */;
 }
 
-uint16_t thread__e_machine(struct thread *thread, struct machine *machine)
+uint16_t thread__e_machine(struct thread *thread, struct machine *machine, uint32_t *e_flags)
 {
 	pid_t tid, pid;
 	uint16_t e_machine = RC_CHK_ACCESS(thread)->e_machine;
+	uint32_t local_e_flags = 0;
+	struct thread__e_machine_callback_args args = {
+		.machine = machine,
+		.e_flags = 0,
+		.e_machine = EM_NONE,
+	};
 
-	if (e_machine != EM_NONE)
+	if (e_machine != EM_NONE) {
+		if (e_flags)
+			*e_flags = thread__e_flags(thread);
 		return e_machine;
+	}
 
+	if (machine == NULL) {
+		struct maps *maps = thread__maps(thread);
+
+		machine = maps__machine(maps);
+	}
 	tid = thread__tid(thread);
 	pid = thread__pid(thread);
 	if (pid != tid) {
 		struct thread *parent = machine__findnew_thread(machine, pid, pid);
 
 		if (parent) {
-			e_machine = thread__e_machine(parent, machine);
+			e_machine = thread__e_machine(parent, machine, &local_e_flags);
 			thread__put(parent);
-			thread__set_e_machine(thread, e_machine);
-			return e_machine;
+			goto out;
 		}
 		/* Something went wrong, fallback. */
 	}
 	/* Reading on the PID thread. First try to find from the maps. */
-	e_machine = maps__for_each_map(thread__maps(thread),
-				       thread__e_machine_callback,
-				       machine);
-	if (e_machine == EM_NONE) {
+	maps__for_each_map(thread__maps(thread), thread__e_machine_callback, &args);
+
+	if (args.e_machine != EM_NONE) {
+		e_machine = args.e_machine;
+		local_e_flags = args.e_flags;
+	} else {
 		/* Maps failed, perhaps we're live with map events disabled. */
 		bool is_live = machine->machines == NULL;
 
@@ -517,12 +536,18 @@ uint16_t thread__e_machine(struct thread *thread, struct machine *machine)
 		}
 		/* Read from /proc/pid/exe if live. */
 		if (is_live)
-			e_machine = read_proc_e_machine_for_pid(pid);
+			e_machine = read_proc_e_machine_for_pid(pid, &local_e_flags);
 	}
-	if (e_machine != EM_NONE)
+out:
+	if (e_machine != EM_NONE) {
 		thread__set_e_machine(thread, e_machine);
-	else
+		thread__set_e_flags(thread, local_e_flags);
+	} else {
 		e_machine = EM_HOST;
+		local_e_flags = EF_HOST;
+	}
+	if (e_flags)
+		*e_flags = local_e_flags;
 	return e_machine;
 }
 

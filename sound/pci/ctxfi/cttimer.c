@@ -390,7 +390,7 @@ struct ct_timer *ct_timer_new(struct ct_atc *atc)
 	struct ct_timer *atimer;
 	struct hw *hw;
 
-	atimer = kzalloc(sizeof(*atimer), GFP_KERNEL);
+	atimer = kzalloc_obj(*atimer);
 	if (!atimer)
 		return NULL;
 	spin_lock_init(&atimer->lock);

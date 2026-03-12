@@ -1,101 +1,41 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{token_stream, Group, Ident, TokenStream, TokenTree};
+use proc_macro2::TokenStream;
+use quote::ToTokens;
+use syn::{
+    parse::{
+        Parse,
+        ParseStream, //
+    },
+    Attribute,
+    Error,
+    LitStr,
+    Result, //
+};
 
-pub(crate) fn try_ident(it: &mut token_stream::IntoIter) -> Option<String> {
-    if let Some(TokenTree::Ident(ident)) = it.next() {
-        Some(ident.to_string())
-    } else {
-        None
-    }
-}
+/// A string literal that is required to have ASCII value only.
+pub(crate) struct AsciiLitStr(LitStr);
 
-pub(crate) fn try_sign(it: &mut token_stream::IntoIter) -> Option<char> {
-    let peek = it.clone().next();
-    match peek {
-        Some(TokenTree::Punct(punct)) if punct.as_char() == '-' => {
-            let _ = it.next();
-            Some(punct.as_char())
+impl Parse for AsciiLitStr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let s: LitStr = input.parse()?;
+        if !s.value().is_ascii() {
+            return Err(Error::new_spanned(s, "expected ASCII-only string literal"));
         }
-        _ => None,
+        Ok(Self(s))
     }
 }
 
-pub(crate) fn try_literal(it: &mut token_stream::IntoIter) -> Option<String> {
-    if let Some(TokenTree::Literal(literal)) = it.next() {
-        Some(literal.to_string())
-    } else {
-        None
+impl ToTokens for AsciiLitStr {
+    fn to_tokens(&self, ts: &mut TokenStream) {
+        self.0.to_tokens(ts);
     }
 }
 
-pub(crate) fn try_string(it: &mut token_stream::IntoIter) -> Option<String> {
-    try_literal(it).and_then(|string| {
-        if string.starts_with('\"') && string.ends_with('\"') {
-            let content = &string[1..string.len() - 1];
-            if content.contains('\\') {
-                panic!("Escape sequences in string literals not yet handled");
-            }
-            Some(content.to_string())
-        } else if string.starts_with("r\"") {
-            panic!("Raw string literals are not yet handled");
-        } else {
-            None
-        }
-    })
-}
-
-pub(crate) fn expect_ident(it: &mut token_stream::IntoIter) -> String {
-    try_ident(it).expect("Expected Ident")
-}
-
-pub(crate) fn expect_punct(it: &mut token_stream::IntoIter) -> char {
-    if let TokenTree::Punct(punct) = it.next().expect("Reached end of token stream for Punct") {
-        punct.as_char()
-    } else {
-        panic!("Expected Punct");
+impl AsciiLitStr {
+    pub(crate) fn value(&self) -> String {
+        self.0.value()
     }
-}
-
-pub(crate) fn expect_string(it: &mut token_stream::IntoIter) -> String {
-    try_string(it).expect("Expected string")
-}
-
-pub(crate) fn expect_string_ascii(it: &mut token_stream::IntoIter) -> String {
-    let string = try_string(it).expect("Expected string");
-    assert!(string.is_ascii(), "Expected ASCII string");
-    string
-}
-
-pub(crate) fn expect_group(it: &mut token_stream::IntoIter) -> Group {
-    if let TokenTree::Group(group) = it.next().expect("Reached end of token stream for Group") {
-        group
-    } else {
-        panic!("Expected Group");
-    }
-}
-
-pub(crate) fn expect_end(it: &mut token_stream::IntoIter) {
-    if it.next().is_some() {
-        panic!("Expected end");
-    }
-}
-
-/// Given a function declaration, finds the name of the function.
-pub(crate) fn function_name(input: TokenStream) -> Option<Ident> {
-    let mut input = input.into_iter();
-    while let Some(token) = input.next() {
-        match token {
-            TokenTree::Ident(i) if i.to_string() == "fn" => {
-                if let Some(TokenTree::Ident(i)) = input.next() {
-                    return Some(i);
-                }
-                return None;
-            }
-            _ => continue,
-        }
-    }
-    None
 }
 
 pub(crate) fn file() -> String {
@@ -115,16 +55,7 @@ pub(crate) fn file() -> String {
     }
 }
 
-/// Parse a token stream of the form `expected_name: "value",` and return the
-/// string in the position of "value".
-///
-/// # Panics
-///
-/// - On parse error.
-pub(crate) fn expect_string_field(it: &mut token_stream::IntoIter, expected_name: &str) -> String {
-    assert_eq!(expect_ident(it), expected_name);
-    assert_eq!(expect_punct(it), ':');
-    let string = expect_string(it);
-    assert_eq!(expect_punct(it), ',');
-    string
+/// Obtain all `#[cfg]` attributes.
+pub(crate) fn gather_cfg_attrs(attr: &[Attribute]) -> impl Iterator<Item = &Attribute> + '_ {
+    attr.iter().filter(|a| a.path().is_ident("cfg"))
 }

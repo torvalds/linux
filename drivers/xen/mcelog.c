@@ -165,9 +165,7 @@ static long xen_mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 	case MCE_GETCLEAR_FLAGS: {
 		unsigned flags;
 
-		do {
-			flags = xen_mcelog.flags;
-		} while (cmpxchg(&xen_mcelog.flags, flags, 0) != flags);
+		flags = xchg(&xen_mcelog.flags, 0);
 
 		return put_user(flags, p);
 	}
@@ -375,8 +373,7 @@ static int bind_virq_for_mce(void)
 
 	/* Fetch each CPU Physical Info for later reference*/
 	ncpus = mc_op.u.mc_physcpuinfo.ncpus;
-	g_physinfo = kcalloc(ncpus, sizeof(struct mcinfo_logical_cpu),
-			     GFP_KERNEL);
+	g_physinfo = kzalloc_objs(struct mcinfo_logical_cpu, ncpus);
 	if (!g_physinfo)
 		return -ENOMEM;
 	set_xen_guest_handle(mc_op.u.mc_physcpuinfo.info, g_physinfo);

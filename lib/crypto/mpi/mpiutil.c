@@ -33,7 +33,7 @@ MPI mpi_alloc(unsigned nlimbs)
 {
 	MPI a;
 
-	a = kmalloc(sizeof *a, GFP_KERNEL);
+	a = kmalloc_obj(*a);
 	if (!a)
 		return a;
 
@@ -93,14 +93,14 @@ int mpi_resize(MPI a, unsigned nlimbs)
 		return 0;	/* no need to do it */
 
 	if (a->d) {
-		p = kcalloc(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);
+		p = kzalloc_objs(mpi_limb_t, nlimbs);
 		if (!p)
 			return -ENOMEM;
 		memcpy(p, a->d, a->alloced * sizeof(mpi_limb_t));
 		kfree_sensitive(a->d);
 		a->d = p;
 	} else {
-		a->d = kcalloc(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);
+		a->d = kzalloc_objs(mpi_limb_t, nlimbs);
 		if (!a->d)
 			return -ENOMEM;
 	}

@@ -25,11 +25,6 @@
 		ethernet1 = "/axi/ethernet@ff0c0000"; /* &gem1 */
 	};
 
-	ina260-u14 {
-		compatible = "iio-hwmon";
-		io-channels = <&u14 0>, <&u14 1>, <&u14 2>;
-	};
-
 	clk_125: clock0 { /* u87 - GEM0/1 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -96,7 +91,6 @@
 
 	u14: ina260@40 { /* u14 */
 		compatible = "ti,ina260";
-		#io-channel-cells = <1>;
 		label = "ina260-u14";
 		reg = <0x40>;
 	};
@@ -104,7 +98,6 @@
 	slg7xl45106: gpio@11 { /* u19 - reset logic */
 		compatible = "dlg,slg7xl45106";
 		reg = <0x11>;
-		label = "resetchip";
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-line-names = "USB0_PHY_RESET_B", "USB1_PHY_RESET_B",

@@ -96,7 +96,7 @@ static void lnbp22_release(struct dvb_frontend *fe)
 struct dvb_frontend *lnbp22_attach(struct dvb_frontend *fe,
 					struct i2c_adapter *i2c)
 {
-	struct lnbp22 *lnbp22 = kmalloc(sizeof(struct lnbp22), GFP_KERNEL);
+	struct lnbp22 *lnbp22 = kmalloc_obj(struct lnbp22);
 	if (!lnbp22)
 		return NULL;
 

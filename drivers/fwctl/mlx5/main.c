@@ -167,7 +167,7 @@ static void *mlx5ctl_info(struct fwctl_uctx *uctx, size_t *length)
 		container_of(uctx, struct mlx5ctl_uctx, uctx);
 	struct fwctl_info_mlx5 *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 

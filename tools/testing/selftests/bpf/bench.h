@@ -26,6 +26,7 @@ struct env {
 	bool list;
 	bool affinity;
 	bool quiet;
+	bool stacktrace;
 	int consumer_cnt;
 	int producer_cnt;
 	int nr_cpus;

@@ -24,7 +24,7 @@ enum msm_format_flags {
 #define MSM_FORMAT_FLAG_UNPACK_TIGHT	BIT(MSM_FORMAT_FLAG_UNPACK_TIGHT_BIT)
 #define MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB BIT(MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB_BIT)
 
-/**
+/*
  * DPU HW,Component order color map
  */
 enum {
@@ -37,6 +37,10 @@ enum {
 /**
  * struct msm_format: defines the format configuration
  * @pixel_format: format fourcc
+ * @bpc_g_y: element bit widths: BPC for G or Y
+ * @bpc_b_cb: element bit widths: BPC for B or Cb
+ * @bpc_r_cr: element bit widths: BPC for R or Cr
+ * @bpc_a: element bit widths: BPC for the alpha channel
  * @element: element color ordering
  * @fetch_type: how the color components are packed in pixel format
  * @chroma_sample: chroma sub-samplng type

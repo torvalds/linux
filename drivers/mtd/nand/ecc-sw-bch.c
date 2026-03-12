@@ -227,7 +227,7 @@ int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 		return -EINVAL;
 	}
 
-	engine_conf = kzalloc(sizeof(*engine_conf), GFP_KERNEL);
+	engine_conf = kzalloc_obj(*engine_conf);
 	if (!engine_conf)
 		return -ENOMEM;
 

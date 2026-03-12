@@ -899,7 +899,7 @@ nfsd_alloc_fcache_disposal(void)
 {
 	struct nfsd_fcache_disposal *l;
 
-	l = kmalloc(sizeof(*l), GFP_KERNEL);
+	l = kmalloc_obj(*l);
 	if (!l)
 		return NULL;
 	spin_lock_init(&l->lock);

@@ -11,6 +11,18 @@ config CRYPTO_LIB_UTILS
 config CRYPTO_LIB_AES
 	tristate
 
+config CRYPTO_LIB_AES_ARCH
+	bool
+	depends on CRYPTO_LIB_AES && !UML && !KMSAN
+	default y if ARM
+	default y if ARM64
+	default y if PPC && (SPE || (PPC64 && VSX))
+	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
+		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
+	default y if S390
+	default y if SPARC64
+	default y if X86
+
 config CRYPTO_LIB_AESCFB
 	tristate
 	select CRYPTO_LIB_AES
@@ -100,6 +112,26 @@ config CRYPTO_LIB_MD5_ARCH
 	default y if MIPS && CPU_CAVIUM_OCTEON
 	default y if PPC
 	default y if SPARC64
+
+config CRYPTO_LIB_MLDSA
+	tristate
+	select CRYPTO_LIB_SHA3
+	help
+	  The ML-DSA library functions.  Select this if your module uses any of
+	  the functions from <crypto/mldsa.h>.
+
+config CRYPTO_LIB_NH
+	tristate
+	help
+	  Implementation of the NH almost-universal hash function, specifically
+	  the variant of NH used in Adiantum.
+
+config CRYPTO_LIB_NH_ARCH
+	bool
+	depends on CRYPTO_LIB_NH && !UML && !KMSAN
+	default y if ARM && KERNEL_MODE_NEON
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if X86_64
 
 config CRYPTO_LIB_POLY1305
 	tristate

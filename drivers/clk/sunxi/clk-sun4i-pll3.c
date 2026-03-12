@@ -37,7 +37,7 @@ static void __init sun4i_a10_pll3_setup(struct device_node *node)
 		return;
 	}
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		goto err_unmap;
 
@@ -45,7 +45,7 @@ static void __init sun4i_a10_pll3_setup(struct device_node *node)
 	gate->bit_idx = SUN4I_A10_PLL3_GATE_BIT;
 	gate->lock = &sun4i_a10_pll3_lock;
 
-	mult = kzalloc(sizeof(*mult), GFP_KERNEL);
+	mult = kzalloc_obj(*mult);
 	if (!mult)
 		goto err_free_gate;
 

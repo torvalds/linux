@@ -93,6 +93,8 @@ enum bp_external_encoder_control_action {
 	EXTERNAL_ENCODER_CONTROL_SETUP = 0xf,
 	EXTERNAL_ENCODER_CONTROL_UNBLANK = 0x10,
 	EXTERNAL_ENCODER_CONTROL_BLANK = 0x11,
+	EXTERNAL_ENCODER_CONTROL_DAC_LOAD_DETECT = 0x12,
+	EXTERNAL_ENCODER_CONTROL_DDC_SETUP = 0x14,
 };
 
 enum bp_pipe_control_action {
@@ -136,7 +138,7 @@ struct bp_crtc_source_select {
 	enum engine_id engine_id;
 	enum controller_id controller_id;
 	enum signal_type sink_signal;
-	uint8_t bit_depth;
+	enum dc_color_depth color_depth;
 };
 
 struct bp_transmitter_control {

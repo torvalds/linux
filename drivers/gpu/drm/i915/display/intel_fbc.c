@@ -809,19 +809,32 @@ static u64 intel_fbc_cfb_base_max(struct intel_display *display)
 
 static u64 intel_fbc_stolen_end(struct intel_display *display)
 {
-	u64 end;
+	u64 end = intel_fbc_cfb_base_max(display);
 
-	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
+	/*
+	 * The FBC hardware for BDW/SKL doesn't have access to the stolen
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
-	 * underruns, even if that range is not reserved by the BIOS. */
+	 * underruns, even if that range is not reserved by the BIOS.
+	 */
 	if (display->platform.broadwell ||
-	    (DISPLAY_VER(display) == 9 && !display->platform.broxton))
-		end = intel_parent_stolen_area_size(display) - 8 * 1024 * 1024;
-	else
-		end = U64_MAX;
+	    (DISPLAY_VER(display) == 9 && !display->platform.broxton)) {
+		u64 stolen_area_size = intel_parent_stolen_area_size(display);
 
-	return min(end, intel_fbc_cfb_base_max(display));
+		/*
+		 * If stolen_area_size is less than SZ_8M, use
+		 * intel_fbc_cfb_base_max instead.  This should not happen,
+		 * so warn if it does.
+		 */
+		if (drm_WARN_ON(display->drm,
+				check_sub_overflow(stolen_area_size,
+						   SZ_8M, &stolen_area_size)))
+			return end;
+
+		return min(end, stolen_area_size);
+	}
+
+	return end;
 }
 
 static int intel_fbc_min_limit(const struct intel_plane_state *plane_state)
@@ -1202,13 +1215,15 @@ static bool xe3p_lpd_fbc_pixel_format_is_valid(const struct intel_plane_state *p
 	}
 }
 
-bool
-intel_fbc_is_enable_pixel_normalizer(const struct intel_plane_state *plane_state)
+bool intel_fbc_need_pixel_normalizer(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 
-	return DISPLAY_VER(display) >= 35 &&
-	       xe3p_lpd_fbc_fp16_format_is_valid(plane_state);
+	if (HAS_PIXEL_NORMALIZER(display) &&
+	    xe3p_lpd_fbc_fp16_format_is_valid(plane_state))
+		return true;
+
+	return false;
 }
 
 static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)
@@ -2279,7 +2294,7 @@ static struct intel_fbc *intel_fbc_create(struct intel_display *display,
 {
 	struct intel_fbc *fbc;
 
-	fbc = kzalloc(sizeof(*fbc), GFP_KERNEL);
+	fbc = kzalloc_obj(*fbc);
 	if (!fbc)
 		return NULL;
 

@@ -256,7 +256,7 @@ struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 	}
 
 placeholder:
-	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+	slot = kzalloc_obj(*slot);
 	if (!slot) {
 		err = -ENOMEM;
 		goto err;

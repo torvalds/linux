@@ -17,6 +17,27 @@ void __weak arch_do_signal_or_restart(struct pt_regs *regs) { }
 #define EXIT_TO_USER_MODE_WORK_LOOP	(EXIT_TO_USER_MODE_WORK)
 #endif
 
+/* TIF bits, which prevent a time slice extension. */
+#ifdef CONFIG_PREEMPT_RT
+/*
+ * Since rseq slice ext has a direct correlation to the worst case
+ * scheduling latency (schedule is delayed after all), only have it affect
+ * LAZY reschedules on PREEMPT_RT for now.
+ *
+ * However, since this delay is only applicable to userspace, a value
+ * for rseq_slice_extension_nsec that is strictly less than the worst case
+ * kernel space preempt_disable() region, should mean the scheduling latency
+ * is not affected, even for !LAZY.
+ *
+ * However, since this value depends on the hardware at hand, it cannot be
+ * pre-determined in any sensible way. Hence punt on this problem for now.
+ */
+# define TIF_SLICE_EXT_SCHED	(_TIF_NEED_RESCHED_LAZY)
+#else
+# define TIF_SLICE_EXT_SCHED	(_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY)
+#endif
+#define TIF_SLICE_EXT_DENY	(EXIT_TO_USER_MODE_WORK & ~TIF_SLICE_EXT_SCHED)
+
 static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *regs,
 							      unsigned long ti_work)
 {
@@ -28,8 +49,10 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 
 		local_irq_enable_exit_to_user(ti_work);
 
-		if (ti_work & (_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY))
-			schedule();
+		if (ti_work & (_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY)) {
+			if (!rseq_grant_slice_extension(ti_work & TIF_SLICE_EXT_DENY))
+				schedule();
+		}
 
 		if (ti_work & _TIF_UPROBE)
 			uprobe_notify_resume(regs);

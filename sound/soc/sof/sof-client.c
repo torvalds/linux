@@ -265,9 +265,8 @@ int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 	}
 
 	/* add to list of SOF client devices */
-	mutex_lock(&sdev->ipc_client_mutex);
-	list_add(&centry->list, &sdev->ipc_client_list);
-	mutex_unlock(&sdev->ipc_client_mutex);
+	scoped_guard(mutex, &sdev->ipc_client_mutex)
+		list_add(&centry->list, &sdev->ipc_client_list);
 
 	return 0;
 
@@ -285,7 +284,7 @@ void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 i
 {
 	struct sof_client_dev_entry *centry;
 
-	mutex_lock(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	/*
 	 * sof_client_auxdev_release() will be invoked to free up memory
@@ -301,8 +300,6 @@ void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 i
 			break;
 		}
 	}
-
-	mutex_unlock(&sdev->ipc_client_mutex);
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_dev_unregister, "SND_SOC_SOF_CLIENT");
 
@@ -400,7 +397,7 @@ int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 	const struct auxiliary_driver *adrv;
 	struct sof_client_dev_entry *centry;
 
-	mutex_lock(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	list_for_each_entry(centry, &sdev->ipc_client_list, list) {
 		struct sof_client_dev *cdev = &centry->client_dev;
@@ -414,8 +411,6 @@ int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 			adrv->suspend(&cdev->auxdev, state);
 	}
 
-	mutex_unlock(&sdev->ipc_client_mutex);
-
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sof_suspend_clients, "SND_SOC_SOF_CLIENT");
@@ -425,7 +420,7 @@ int sof_resume_clients(struct snd_sof_dev *sdev)
 	const struct auxiliary_driver *adrv;
 	struct sof_client_dev_entry *centry;
 
-	mutex_lock(&sdev->ipc_client_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	list_for_each_entry(centry, &sdev->ipc_client_list, list) {
 		struct sof_client_dev *cdev = &centry->client_dev;
@@ -438,8 +433,6 @@ int sof_resume_clients(struct snd_sof_dev *sdev)
 		if (adrv->resume)
 			adrv->resume(&cdev->auxdev);
 	}
-
-	mutex_unlock(&sdev->ipc_client_mutex);
 
 	return 0;
 }
@@ -486,6 +479,12 @@ enum sof_ipc_type sof_client_get_ipc_type(struct sof_client_dev *cdev)
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_ipc_type, "SND_SOC_SOF_CLIENT");
 
+int sof_client_boot_dsp(struct sof_client_dev *cdev)
+{
+	return snd_sof_boot_dsp_firmware(sof_client_dev_to_sof_dev(cdev));
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_boot_dsp, "SND_SOC_SOF_CLIENT");
+
 /* module refcount management of SOF core */
 int sof_client_core_module_get(struct sof_client_dev *cdev)
 {
@@ -526,14 +525,11 @@ void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
 		return;
 	}
 
-	mutex_lock(&sdev->client_event_handler_mutex);
-
+	guard(mutex)(&sdev->client_event_handler_mutex);
 	list_for_each_entry(event, &sdev->ipc_rx_handler_list, list) {
 		if (event->ipc_msg_type == msg_type)
 			event->callback(event->cdev, msg_buf);
 	}
-
-	mutex_unlock(&sdev->client_event_handler_mutex);
 }
 
 int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
@@ -558,7 +554,7 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 		return -EINVAL;
 	}
 
-	event = kmalloc(sizeof(*event), GFP_KERNEL);
+	event = kmalloc_obj(*event);
 	if (!event)
 		return -ENOMEM;
 
@@ -567,9 +563,8 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 	event->callback = callback;
 
 	/* add to list of SOF client devices */
-	mutex_lock(&sdev->client_event_handler_mutex);
+	guard(mutex)(&sdev->client_event_handler_mutex);
 	list_add(&event->list, &sdev->ipc_rx_handler_list);
-	mutex_unlock(&sdev->client_event_handler_mutex);
 
 	return 0;
 }
@@ -581,7 +576,7 @@ void sof_client_unregister_ipc_rx_handler(struct sof_client_dev *cdev,
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 	struct sof_ipc_event_entry *event;
 
-	mutex_lock(&sdev->client_event_handler_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	list_for_each_entry(event, &sdev->ipc_rx_handler_list, list) {
 		if (event->cdev == cdev && event->ipc_msg_type == ipc_msg_type) {
@@ -590,8 +585,6 @@ void sof_client_unregister_ipc_rx_handler(struct sof_client_dev *cdev,
 			break;
 		}
 	}
-
-	mutex_unlock(&sdev->client_event_handler_mutex);
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_unregister_ipc_rx_handler, "SND_SOC_SOF_CLIENT");
 
@@ -600,12 +593,10 @@ void sof_client_fw_state_dispatcher(struct snd_sof_dev *sdev)
 {
 	struct sof_state_event_entry *event;
 
-	mutex_lock(&sdev->client_event_handler_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	list_for_each_entry(event, &sdev->fw_state_handler_list, list)
 		event->callback(event->cdev, sdev->fw_state);
-
-	mutex_unlock(&sdev->client_event_handler_mutex);
 }
 
 int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
@@ -617,7 +608,7 @@ int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
 	if (!callback)
 		return -EINVAL;
 
-	event = kmalloc(sizeof(*event), GFP_KERNEL);
+	event = kmalloc_obj(*event);
 	if (!event)
 		return -ENOMEM;
 
@@ -625,9 +616,8 @@ int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
 	event->callback = callback;
 
 	/* add to list of SOF client devices */
-	mutex_lock(&sdev->client_event_handler_mutex);
+	guard(mutex)(&sdev->client_event_handler_mutex);
 	list_add(&event->list, &sdev->fw_state_handler_list);
-	mutex_unlock(&sdev->client_event_handler_mutex);
 
 	return 0;
 }
@@ -638,7 +628,7 @@ void sof_client_unregister_fw_state_handler(struct sof_client_dev *cdev)
 	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
 	struct sof_state_event_entry *event;
 
-	mutex_lock(&sdev->client_event_handler_mutex);
+	guard(mutex)(&sdev->ipc_client_mutex);
 
 	list_for_each_entry(event, &sdev->fw_state_handler_list, list) {
 		if (event->cdev == cdev) {
@@ -647,8 +637,6 @@ void sof_client_unregister_fw_state_handler(struct sof_client_dev *cdev)
 			break;
 		}
 	}
-
-	mutex_unlock(&sdev->client_event_handler_mutex);
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_unregister_fw_state_handler, "SND_SOC_SOF_CLIENT");
 

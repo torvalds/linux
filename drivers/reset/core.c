@@ -778,7 +778,7 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 		}
 	}
 
-	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	rstc = kzalloc_obj(*rstc);
 	if (!rstc)
 		return ERR_PTR(-ENOMEM);
 
@@ -836,7 +836,7 @@ static int reset_add_gpio_aux_device(struct device *parent,
 	struct auxiliary_device *adev;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 
@@ -868,11 +868,11 @@ static int reset_add_gpio_aux_device(struct device *parent,
  */
 static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 {
-	struct property_entry properties[2] = { };
+	struct property_entry properties[3] = { };
 	unsigned int offset, of_flags, lflags;
 	struct reset_gpio_lookup *rgpio_dev;
 	struct device *parent;
-	int id, ret;
+	int id, ret, prop = 0;
 
 	/*
 	 * Currently only #gpio-cells=2 is supported with the meaning of:
@@ -923,14 +923,15 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 
 	lflags = GPIO_PERSISTENT | (of_flags & GPIO_ACTIVE_LOW);
 	parent = gpio_device_to_device(gdev);
-	properties[0] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
+	properties[prop++] = PROPERTY_ENTRY_STRING("compatible", "reset-gpio");
+	properties[prop++] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
 
 	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
 	if (id < 0)
 		return id;
 
 	/* Not freed on success, because it is persisent subsystem data. */
-	rgpio_dev = kzalloc(sizeof(*rgpio_dev), GFP_KERNEL);
+	rgpio_dev = kzalloc_obj(*rgpio_dev);
 	if (!rgpio_dev) {
 		ret = -ENOMEM;
 		goto err_ida_free;
@@ -1359,7 +1360,7 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	if (num < 0)
 		return optional ? NULL : ERR_PTR(num);
 
-	resets = kzalloc(struct_size(resets, rstc, num), GFP_KERNEL);
+	resets = kzalloc_flex(*resets, rstc, num);
 	if (!resets)
 		return ERR_PTR(-ENOMEM);
 	resets->num_rstcs = num;

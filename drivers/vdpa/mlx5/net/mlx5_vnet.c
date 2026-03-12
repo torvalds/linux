@@ -1229,8 +1229,8 @@ static int query_virtqueues(struct mlx5_vdpa_net *ndev,
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "query vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
-	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1562,8 +1562,8 @@ static int modify_virtqueues(struct mlx5_vdpa_net *ndev, int start_vq, int num_v
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "modify vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvcalloc(num_vqs, sizeof(*cmds), GFP_KERNEL);
-	cmd_mem = kvcalloc(num_vqs, sizeof(*cmd_mem), GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1649,7 +1649,7 @@ static int suspend_vqs(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs)
 	if (err)
 		return err;
 
-	attrs = kcalloc(num_vqs, sizeof(struct mlx5_virtq_attr), GFP_KERNEL);
+	attrs = kzalloc_objs(struct mlx5_virtq_attr, num_vqs);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -1922,7 +1922,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 	int err;
 	u16 vid;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -2034,7 +2034,7 @@ static int mac_vlan_add(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vid, bool tagge
 	if (mac_vlan_lookup(ndev, val))
 		return -EEXIST;
 
-	ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kzalloc_obj(*ptr);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -2125,6 +2125,74 @@ static void teardown_steering(struct mlx5_vdpa_net *ndev)
 	mlx5_destroy_flow_table(ndev->rxft);
 }
 
+static int mlx5_vdpa_change_mac(struct mlx5_vdpa_net *ndev,
+				struct mlx5_core_dev *pfmdev,
+				const u8 *new_mac)
+{
+	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
+	u8 old_mac[ETH_ALEN];
+
+	if (is_zero_ether_addr(new_mac))
+		return -EINVAL;
+
+	if (!is_zero_ether_addr(ndev->config.mac)) {
+		if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
+			mlx5_vdpa_warn(mvdev, "failed to delete old MAC %pM from MPFS table\n",
+				       ndev->config.mac);
+			return -EIO;
+		}
+	}
+
+	if (mlx5_mpfs_add_mac(pfmdev, (u8 *)new_mac)) {
+		mlx5_vdpa_warn(mvdev, "failed to insert new MAC %pM into MPFS table\n",
+			       new_mac);
+		return -EIO;
+	}
+
+	/* backup the original mac address so that if failed to add the forward rules
+	 * we could restore it
+	 */
+	ether_addr_copy(old_mac, ndev->config.mac);
+
+	ether_addr_copy(ndev->config.mac, new_mac);
+
+	/* Need recreate the flow table entry, so that the packet could forward back
+	 */
+	mac_vlan_del(ndev, old_mac, 0, false);
+
+	if (mac_vlan_add(ndev, ndev->config.mac, 0, false)) {
+		mlx5_vdpa_warn(mvdev, "failed to insert forward rules, try to restore\n");
+
+		/* Although it hardly run here, we still need double check */
+		if (is_zero_ether_addr(old_mac)) {
+			mlx5_vdpa_warn(mvdev, "restore mac failed: Original MAC is zero\n");
+			return -EIO;
+		}
+
+		/* Try to restore original mac address to MFPS table, and try to restore
+		 * the forward rule entry.
+		 */
+		if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
+			mlx5_vdpa_warn(mvdev, "restore mac failed: delete MAC %pM from MPFS table failed\n",
+				       ndev->config.mac);
+		}
+
+		if (mlx5_mpfs_add_mac(pfmdev, old_mac)) {
+			mlx5_vdpa_warn(mvdev, "restore mac failed: insert old MAC %pM into MPFS table failed\n",
+				       old_mac);
+		}
+
+		ether_addr_copy(ndev->config.mac, old_mac);
+
+		if (mac_vlan_add(ndev, ndev->config.mac, 0, false))
+			mlx5_vdpa_warn(mvdev, "restore forward rules failed: insert forward rules failed\n");
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 {
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
@@ -2132,12 +2200,13 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 	virtio_net_ctrl_ack status = VIRTIO_NET_ERR;
 	struct mlx5_core_dev *pfmdev;
 	size_t read;
-	u8 mac[ETH_ALEN], mac_back[ETH_ALEN];
+	u8 mac[ETH_ALEN];
 
 	pfmdev = pci_get_drvdata(pci_physfn(mvdev->mdev->pdev));
 	switch (cmd) {
 	case VIRTIO_NET_CTRL_MAC_ADDR_SET:
-		read = vringh_iov_pull_iotlb(&cvq->vring, &cvq->riov, (void *)mac, ETH_ALEN);
+		read = vringh_iov_pull_iotlb(&cvq->vring, &cvq->riov,
+					     (void *)mac, ETH_ALEN);
 		if (read != ETH_ALEN)
 			break;
 
@@ -2145,66 +2214,8 @@ static virtio_net_ctrl_ack handle_ctrl_mac(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 			status = VIRTIO_NET_OK;
 			break;
 		}
-
-		if (is_zero_ether_addr(mac))
-			break;
-
-		if (!is_zero_ether_addr(ndev->config.mac)) {
-			if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
-				mlx5_vdpa_warn(mvdev, "failed to delete old MAC %pM from MPFS table\n",
-					       ndev->config.mac);
-				break;
-			}
-		}
-
-		if (mlx5_mpfs_add_mac(pfmdev, mac)) {
-			mlx5_vdpa_warn(mvdev, "failed to insert new MAC %pM into MPFS table\n",
-				       mac);
-			break;
-		}
-
-		/* backup the original mac address so that if failed to add the forward rules
-		 * we could restore it
-		 */
-		memcpy(mac_back, ndev->config.mac, ETH_ALEN);
-
-		memcpy(ndev->config.mac, mac, ETH_ALEN);
-
-		/* Need recreate the flow table entry, so that the packet could forward back
-		 */
-		mac_vlan_del(ndev, mac_back, 0, false);
-
-		if (mac_vlan_add(ndev, ndev->config.mac, 0, false)) {
-			mlx5_vdpa_warn(mvdev, "failed to insert forward rules, try to restore\n");
-
-			/* Although it hardly run here, we still need double check */
-			if (is_zero_ether_addr(mac_back)) {
-				mlx5_vdpa_warn(mvdev, "restore mac failed: Original MAC is zero\n");
-				break;
-			}
-
-			/* Try to restore original mac address to MFPS table, and try to restore
-			 * the forward rule entry.
-			 */
-			if (mlx5_mpfs_del_mac(pfmdev, ndev->config.mac)) {
-				mlx5_vdpa_warn(mvdev, "restore mac failed: delete MAC %pM from MPFS table failed\n",
-					       ndev->config.mac);
-			}
-
-			if (mlx5_mpfs_add_mac(pfmdev, mac_back)) {
-				mlx5_vdpa_warn(mvdev, "restore mac failed: insert old MAC %pM into MPFS table failed\n",
-					       mac_back);
-			}
-
-			memcpy(ndev->config.mac, mac_back, ETH_ALEN);
-
-			if (mac_vlan_add(ndev, ndev->config.mac, 0, false))
-				mlx5_vdpa_warn(mvdev, "restore forward rules failed: insert forward rules failed\n");
-
-			break;
-		}
-
-		status = VIRTIO_NET_OK;
+		status = mlx5_vdpa_change_mac(ndev, pfmdev, mac) ? VIRTIO_NET_ERR :
+								       VIRTIO_NET_OK;
 		break;
 
 	default:
@@ -2835,7 +2846,7 @@ static int queue_link_work(struct mlx5_vdpa_net *ndev)
 {
 	struct mlx5_vdpa_wq_ent *wqent;
 
-	wqent = kzalloc(sizeof(*wqent), GFP_ATOMIC);
+	wqent = kzalloc_obj(*wqent, GFP_ATOMIC);
 	if (!wqent)
 		return -ENOMEM;
 
@@ -3640,9 +3651,6 @@ static int mlx5_set_group_asid(struct vdpa_device *vdev, u32 group,
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	int err = 0;
 
-	if (group >= MLX5_VDPA_NUMVQ_GROUPS)
-		return -EINVAL;
-
 	mvdev->mres.group2asid[group] = asid;
 
 	mutex_lock(&mvdev->mres.lock);
@@ -3801,7 +3809,8 @@ static void allocate_irqs(struct mlx5_vdpa_net *ndev)
 	if (!ndev->mvdev.mdev->pdev)
 		return;
 
-	ndev->irqp.entries = kcalloc(ndev->mvdev.max_vqs, sizeof(*ndev->irqp.entries), GFP_KERNEL);
+	ndev->irqp.entries = kzalloc_objs(*ndev->irqp.entries,
+					  ndev->mvdev.max_vqs);
 	if (!ndev->irqp.entries)
 		return;
 
@@ -3893,8 +3902,8 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 
 	mlx5_cmd_init_async_ctx(mdev, &mvdev->async_ctx);
 
-	ndev->vqs = kcalloc(max_vqs, sizeof(*ndev->vqs), GFP_KERNEL);
-	ndev->event_cbs = kcalloc(max_vqs + 1, sizeof(*ndev->event_cbs), GFP_KERNEL);
+	ndev->vqs = kzalloc_objs(*ndev->vqs, max_vqs);
+	ndev->event_cbs = kzalloc_objs(*ndev->event_cbs, max_vqs + 1);
 	if (!ndev->vqs || !ndev->event_cbs) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -4044,7 +4053,6 @@ static void mlx5_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 static int mlx5_vdpa_set_attr(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *dev,
 			      const struct vdpa_dev_set_config *add_config)
 {
-	struct virtio_net_config *config;
 	struct mlx5_core_dev *pfmdev;
 	struct mlx5_vdpa_dev *mvdev;
 	struct mlx5_vdpa_net *ndev;
@@ -4054,16 +4062,23 @@ static int mlx5_vdpa_set_attr(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 	mvdev = to_mvdev(dev);
 	ndev = to_mlx5_vdpa_ndev(mvdev);
 	mdev = mvdev->mdev;
-	config = &ndev->config;
 
 	down_write(&ndev->reslock);
-	if (add_config->mask & (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
+
+	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
+		if (!(ndev->mvdev.status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+			ndev->mvdev.mlx_features |= BIT_ULL(VIRTIO_NET_F_MAC);
+		} else {
+			mlx5_vdpa_warn(mvdev, "device running, skip updating MAC\n");
+			err = -EBUSY;
+			goto out;
+		}
 		pfmdev = pci_get_drvdata(pci_physfn(mdev->pdev));
-		err = mlx5_mpfs_add_mac(pfmdev, config->mac);
-		if (!err)
-			ether_addr_copy(config->mac, add_config->net.mac);
+		err = mlx5_vdpa_change_mac(ndev, pfmdev,
+					   (u8 *)add_config->net.mac);
 	}
 
+out:
 	up_write(&ndev->reslock);
 	return err;
 }
@@ -4088,7 +4103,7 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 	struct mlx5_vdpa_mgmtdev *mgtdev;
 	int err;
 
-	mgtdev = kzalloc(sizeof(*mgtdev), GFP_KERNEL);
+	mgtdev = kzalloc_obj(*mgtdev);
 	if (!mgtdev)
 		return -ENOMEM;
 

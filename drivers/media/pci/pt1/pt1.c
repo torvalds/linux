@@ -833,7 +833,7 @@ pt1_alloc_adapter(struct pt1 *pt1)
 	struct dmxdev *dmxdev;
 	int ret;
 
-	adap = kzalloc(sizeof(struct pt1_adapter), GFP_KERNEL);
+	adap = kzalloc_obj(struct pt1_adapter);
 	if (!adap) {
 		ret = -ENOMEM;
 		goto err;
@@ -1356,7 +1356,7 @@ static int pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pci_release_regions;
 	}
 
-	pt1 = kzalloc(sizeof(struct pt1), GFP_KERNEL);
+	pt1 = kzalloc_obj(struct pt1);
 	if (!pt1) {
 		ret = -ENOMEM;
 		goto err_pci_iounmap;

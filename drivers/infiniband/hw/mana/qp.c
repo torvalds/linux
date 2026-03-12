@@ -164,8 +164,7 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 	ibdev_dbg(&mdev->ib_dev, "rx_hash_function %d port %d\n",
 		  ucmd.rx_hash_function, port);
 
-	mana_ind_table = kcalloc(ind_tbl_size, sizeof(mana_handle_t),
-				 GFP_KERNEL);
+	mana_ind_table = kzalloc_objs(mana_handle_t, ind_tbl_size);
 	if (!mana_ind_table) {
 		ret = -ENOMEM;
 		goto fail;

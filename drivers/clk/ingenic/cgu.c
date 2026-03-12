@@ -676,7 +676,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 		goto out;
 	}
 
-	ingenic_clk = kzalloc(sizeof(*ingenic_clk), GFP_KERNEL);
+	ingenic_clk = kzalloc_obj(*ingenic_clk);
 	if (!ingenic_clk) {
 		err = -ENOMEM;
 		goto out;
@@ -790,7 +790,7 @@ ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
 {
 	struct ingenic_cgu *cgu;
 
-	cgu = kzalloc(sizeof(*cgu), GFP_KERNEL);
+	cgu = kzalloc_obj(*cgu);
 	if (!cgu)
 		goto err_out;
 
@@ -819,8 +819,7 @@ int ingenic_cgu_register_clocks(struct ingenic_cgu *cgu)
 	unsigned i;
 	int err;
 
-	cgu->clocks.clks = kcalloc(cgu->clocks.clk_num, sizeof(struct clk *),
-				   GFP_KERNEL);
+	cgu->clocks.clks = kzalloc_objs(struct clk *, cgu->clocks.clk_num);
 	if (!cgu->clocks.clks) {
 		err = -ENOMEM;
 		goto err_out;

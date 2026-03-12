@@ -1140,7 +1140,7 @@ static int jit_prepare_final_mem_alloc(struct jit_context *ctx)
 	}
 
 	if (ctx->need_extra_pass) {
-		ctx->jit_data = kzalloc(sizeof(*ctx->jit_data), GFP_KERNEL);
+		ctx->jit_data = kzalloc_obj(*ctx->jit_data);
 		if (!ctx->jit_data)
 			return -ENOMEM;
 	}

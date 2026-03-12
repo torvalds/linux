@@ -1305,7 +1305,7 @@ static int ag71xx_rings_init(struct ag71xx *ag)
 	ring_size = BIT(tx->order) + BIT(rx->order);
 	tx_size = BIT(tx->order);
 
-	tx->buf = kcalloc(ring_size, sizeof(*tx->buf), GFP_KERNEL);
+	tx->buf = kzalloc_objs(*tx->buf, ring_size);
 	if (!tx->buf)
 		return -ENOMEM;
 

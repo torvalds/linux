@@ -163,6 +163,7 @@ struct rkvdec_vp9_ctx {
 	struct v4l2_vp9_frame_context frame_context[4];
 	struct rkvdec_vp9_frame_info cur;
 	struct rkvdec_vp9_frame_info last;
+	struct rkvdec_regs regs;
 };
 
 static void write_coeff_plane(const u8 coef[6][6][3], u8 *coeff_plane)
@@ -347,38 +348,6 @@ static void init_probs(struct rkvdec_ctx *ctx,
 		init_inter_probs(ctx, run);
 }
 
-struct rkvdec_vp9_ref_reg {
-	u32 reg_frm_size;
-	u32 reg_hor_stride;
-	u32 reg_y_stride;
-	u32 reg_yuv_stride;
-	u32 reg_ref_base;
-};
-
-static struct rkvdec_vp9_ref_reg ref_regs[] = {
-	{
-		.reg_frm_size = RKVDEC_REG_VP9_FRAME_SIZE(0),
-		.reg_hor_stride = RKVDEC_VP9_HOR_VIRSTRIDE(0),
-		.reg_y_stride = RKVDEC_VP9_LAST_FRAME_YSTRIDE,
-		.reg_yuv_stride = RKVDEC_VP9_LAST_FRAME_YUVSTRIDE,
-		.reg_ref_base = RKVDEC_REG_VP9_LAST_FRAME_BASE,
-	},
-	{
-		.reg_frm_size = RKVDEC_REG_VP9_FRAME_SIZE(1),
-		.reg_hor_stride = RKVDEC_VP9_HOR_VIRSTRIDE(1),
-		.reg_y_stride = RKVDEC_VP9_GOLDEN_FRAME_YSTRIDE,
-		.reg_yuv_stride = 0,
-		.reg_ref_base = RKVDEC_REG_VP9_GOLDEN_FRAME_BASE,
-	},
-	{
-		.reg_frm_size = RKVDEC_REG_VP9_FRAME_SIZE(2),
-		.reg_hor_stride = RKVDEC_VP9_HOR_VIRSTRIDE(2),
-		.reg_y_stride = RKVDEC_VP9_ALTREF_FRAME_YSTRIDE,
-		.reg_yuv_stride = 0,
-		.reg_ref_base = RKVDEC_REG_VP9_ALTREF_FRAME_BASE,
-	}
-};
-
 static struct rkvdec_decoded_buffer *
 get_ref_buf(struct rkvdec_ctx *ctx, struct vb2_v4l2_buffer *dst, u64 timestamp)
 {
@@ -412,18 +381,17 @@ static dma_addr_t get_mv_base_addr(struct rkvdec_decoded_buffer *buf)
 static void config_ref_registers(struct rkvdec_ctx *ctx,
 				 const struct rkvdec_vp9_run *run,
 				 struct rkvdec_decoded_buffer *ref_buf,
-				 struct rkvdec_vp9_ref_reg *ref_reg)
+				 int i)
 {
 	unsigned int aligned_pitch, aligned_height, y_len, yuv_len;
-	struct rkvdec_dev *rkvdec = ctx->dev;
+	struct rkvdec_vp9_ctx *vp9_ctx = ctx->priv;
+	struct rkvdec_regs *regs = &vp9_ctx->regs;
 
 	aligned_height = round_up(ref_buf->vp9.height, 64);
-	writel_relaxed(RKVDEC_VP9_FRAMEWIDTH(ref_buf->vp9.width) |
-		       RKVDEC_VP9_FRAMEHEIGHT(ref_buf->vp9.height),
-		       rkvdec->regs + ref_reg->reg_frm_size);
+	regs->vp9.reg17_19[i].frameheight = ref_buf->vp9.height;
+	regs->vp9.reg17_19[i].framewidth = ref_buf->vp9.width;
 
-	writel_relaxed(vb2_dma_contig_plane_dma_addr(&ref_buf->base.vb.vb2_buf, 0),
-		       rkvdec->regs + ref_reg->reg_ref_base);
+	regs->vp9.refer_bases[i] = vb2_dma_contig_plane_dma_addr(&ref_buf->base.vb.vb2_buf, 0);
 
 	if (&ref_buf->base.vb == run->base.bufs.dst)
 		return;
@@ -432,59 +400,50 @@ static void config_ref_registers(struct rkvdec_ctx *ctx,
 	y_len = aligned_height * aligned_pitch;
 	yuv_len = (y_len * 3) / 2;
 
-	writel_relaxed(RKVDEC_HOR_Y_VIRSTRIDE(aligned_pitch / 16) |
-		       RKVDEC_HOR_UV_VIRSTRIDE(aligned_pitch / 16),
-		       rkvdec->regs + ref_reg->reg_hor_stride);
-	writel_relaxed(RKVDEC_VP9_REF_YSTRIDE(y_len / 16),
-		       rkvdec->regs + ref_reg->reg_y_stride);
+	regs->vp9.reg37_39[i].y_hor_virstride = aligned_pitch / 16;
+	regs->vp9.reg37_39[i].uv_hor_virstride = aligned_pitch / 16;
+	regs->vp9.reg48_50[i].virstride = y_len / 16;
 
-	if (!ref_reg->reg_yuv_stride)
-		return;
-
-	writel_relaxed(RKVDEC_VP9_REF_YUVSTRIDE(yuv_len / 16),
-		       rkvdec->regs + ref_reg->reg_yuv_stride);
+	if (!i)
+		regs->vp9.reg51.lastref_yuv_virstride = yuv_len / 16;
 }
 
 static void config_seg_registers(struct rkvdec_ctx *ctx, unsigned int segid)
 {
 	struct rkvdec_vp9_ctx *vp9_ctx = ctx->priv;
+	struct rkvdec_regs *regs = &vp9_ctx->regs;
 	const struct v4l2_vp9_segmentation *seg;
-	struct rkvdec_dev *rkvdec = ctx->dev;
 	s16 feature_val;
 	int feature_id;
-	u32 val = 0;
 
 	seg = vp9_ctx->last.valid ? &vp9_ctx->last.seg : &vp9_ctx->cur.seg;
 	feature_id = V4L2_VP9_SEG_LVL_ALT_Q;
 	if (v4l2_vp9_seg_feat_enabled(seg->feature_enabled, feature_id, segid)) {
 		feature_val = seg->feature_data[segid][feature_id];
-		val |= RKVDEC_SEGID_FRAME_QP_DELTA_EN(1) |
-		       RKVDEC_SEGID_FRAME_QP_DELTA(feature_val);
+		regs->vp9.reg20_27[segid].segid_frame_qp_delta_en = 1;
+		regs->vp9.reg20_27[segid].segid_frame_qp_delta = feature_val;
 	}
 
 	feature_id = V4L2_VP9_SEG_LVL_ALT_L;
 	if (v4l2_vp9_seg_feat_enabled(seg->feature_enabled, feature_id, segid)) {
 		feature_val = seg->feature_data[segid][feature_id];
-		val |= RKVDEC_SEGID_FRAME_LOOPFILTER_VALUE_EN(1) |
-		       RKVDEC_SEGID_FRAME_LOOPFILTER_VALUE(feature_val);
+		regs->vp9.reg20_27[segid].segid_frame_loopfilter_value_en = 1;
+		regs->vp9.reg20_27[segid].segid_frame_loopfilter_value = feature_val;
 	}
 
 	feature_id = V4L2_VP9_SEG_LVL_REF_FRAME;
 	if (v4l2_vp9_seg_feat_enabled(seg->feature_enabled, feature_id, segid)) {
 		feature_val = seg->feature_data[segid][feature_id];
-		val |= RKVDEC_SEGID_REFERINFO_EN(1) |
-		       RKVDEC_SEGID_REFERINFO(feature_val);
+		regs->vp9.reg20_27[segid].segid_referinfo_en = 1;
+		regs->vp9.reg20_27[segid].segid_referinfo = feature_val;
 	}
 
 	feature_id = V4L2_VP9_SEG_LVL_SKIP;
-	if (v4l2_vp9_seg_feat_enabled(seg->feature_enabled, feature_id, segid))
-		val |= RKVDEC_SEGID_FRAME_SKIP_EN(1);
+	regs->vp9.reg20_27[segid].segid_frame_skip_en =
+		v4l2_vp9_seg_feat_enabled(seg->feature_enabled, feature_id, segid);
 
-	if (!segid &&
-	    (seg->flags & V4L2_VP9_SEGMENTATION_FLAG_ABS_OR_DELTA_UPDATE))
-		val |= RKVDEC_SEGID_ABS_DELTA(1);
-
-	writel_relaxed(val, rkvdec->regs + RKVDEC_VP9_SEGID_GRP(segid));
+	regs->vp9.reg20_27[segid].segid_abs_delta = !segid &&
+		(seg->flags & V4L2_VP9_SEGMENTATION_FLAG_ABS_OR_DELTA_UPDATE);
 }
 
 static void update_dec_buf_info(struct rkvdec_decoded_buffer *buf,
@@ -521,7 +480,7 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	struct rkvdec_decoded_buffer *ref_bufs[3];
 	struct rkvdec_decoded_buffer *dst, *last, *mv_ref;
 	struct rkvdec_vp9_ctx *vp9_ctx = ctx->priv;
-	u32 val, last_frame_info = 0;
+	struct rkvdec_regs *regs = &vp9_ctx->regs;
 	const struct v4l2_vp9_segmentation *seg;
 	struct rkvdec_dev *rkvdec = ctx->dev;
 	dma_addr_t addr;
@@ -547,8 +506,7 @@ static void config_registers(struct rkvdec_ctx *ctx,
 			(V4L2_VP9_FRAME_FLAG_KEY_FRAME |
 			 V4L2_VP9_FRAME_FLAG_INTRA_ONLY));
 
-	writel_relaxed(RKVDEC_MODE(RKVDEC_MODE_VP9),
-		       rkvdec->regs + RKVDEC_REG_SYSCTRL);
+	regs->common.reg02.dec_mode = RKVDEC_MODE_VP9;
 
 	bit_depth = dec_params->bit_depth;
 	aligned_height = round_up(ctx->decoded_fmt.fmt.pix_mp.height, 64);
@@ -560,17 +518,14 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	uv_len = y_len / 2;
 	yuv_len = y_len + uv_len;
 
-	writel_relaxed(RKVDEC_Y_HOR_VIRSTRIDE(aligned_pitch / 16) |
-		       RKVDEC_UV_HOR_VIRSTRIDE(aligned_pitch / 16),
-		       rkvdec->regs + RKVDEC_REG_PICPAR);
-	writel_relaxed(RKVDEC_Y_VIRSTRIDE(y_len / 16),
-		       rkvdec->regs + RKVDEC_REG_Y_VIRSTRIDE);
-	writel_relaxed(RKVDEC_YUV_VIRSTRIDE(yuv_len / 16),
-		       rkvdec->regs + RKVDEC_REG_YUV_VIRSTRIDE);
+	regs->common.reg03.y_hor_virstride = aligned_pitch / 16;
+	regs->common.reg03.uv_hor_virstride = aligned_pitch / 16;
+	regs->common.reg08.y_virstride = y_len / 16;
+	regs->common.reg09.yuv_virstride = yuv_len / 16;
 
 	stream_len = vb2_get_plane_payload(&run->base.bufs.src->vb2_buf, 0);
-	writel_relaxed(RKVDEC_STRM_LEN(stream_len),
-		       rkvdec->regs + RKVDEC_REG_STRM_LEN);
+
+	regs->common.stream_len = stream_len;
 
 	/*
 	 * Reset count buffer, because decoder only output intra related syntax
@@ -588,14 +543,13 @@ static void config_registers(struct rkvdec_ctx *ctx,
 		vp9_ctx->cur.segmapid++;
 
 	for (i = 0; i < ARRAY_SIZE(ref_bufs); i++)
-		config_ref_registers(ctx, run, ref_bufs[i], &ref_regs[i]);
+		config_ref_registers(ctx, run, ref_bufs[i], i);
 
 	for (i = 0; i < 8; i++)
 		config_seg_registers(ctx, i);
 
-	writel_relaxed(RKVDEC_VP9_TX_MODE(vp9_ctx->cur.tx_mode) |
-		       RKVDEC_VP9_FRAME_REF_MODE(dec_params->reference_mode),
-		       rkvdec->regs + RKVDEC_VP9_CPRHEADER_CONFIG);
+	regs->vp9.reg28.tx_mode = vp9_ctx->cur.tx_mode;
+	regs->vp9.reg28.frame_reference_mode = dec_params->reference_mode;
 
 	if (!intra_only) {
 		const struct v4l2_vp9_loop_filter *lf;
@@ -606,46 +560,58 @@ static void config_registers(struct rkvdec_ctx *ctx,
 		else
 			lf = &vp9_ctx->cur.lf;
 
-		val = 0;
 		for (i = 0; i < ARRAY_SIZE(lf->ref_deltas); i++) {
 			delta = lf->ref_deltas[i];
-			val |= RKVDEC_REF_DELTAS_LASTFRAME(i, delta);
+			switch (i) {
+			case 0:
+				regs->vp9.reg32.ref_deltas_lastframe0 = delta;
+				break;
+			case 1:
+				regs->vp9.reg32.ref_deltas_lastframe1 = delta;
+				break;
+			case 2:
+				regs->vp9.reg32.ref_deltas_lastframe2 = delta;
+				break;
+			case 3:
+				regs->vp9.reg32.ref_deltas_lastframe3 = delta;
+				break;
+			}
 		}
-
-		writel_relaxed(val,
-			       rkvdec->regs + RKVDEC_VP9_REF_DELTAS_LASTFRAME);
 
 		for (i = 0; i < ARRAY_SIZE(lf->mode_deltas); i++) {
 			delta = lf->mode_deltas[i];
-			last_frame_info |= RKVDEC_MODE_DELTAS_LASTFRAME(i,
-									delta);
+			switch (i) {
+			case 0:
+				regs->vp9.reg33.mode_deltas_lastframe0 = delta;
+				break;
+			case 1:
+				regs->vp9.reg33.mode_deltas_lastframe1 = delta;
+				break;
+			}
 		}
 	}
 
-	if (vp9_ctx->last.valid && !intra_only &&
-	    vp9_ctx->last.seg.flags & V4L2_VP9_SEGMENTATION_FLAG_ENABLED)
-		last_frame_info |= RKVDEC_SEG_EN_LASTFRAME;
+	regs->vp9.reg33.segmentation_enable_lstframe =
+		vp9_ctx->last.valid && !intra_only &&
+		vp9_ctx->last.seg.flags & V4L2_VP9_SEGMENTATION_FLAG_ENABLED;
 
-	if (vp9_ctx->last.valid &&
-	    vp9_ctx->last.flags & V4L2_VP9_FRAME_FLAG_SHOW_FRAME)
-		last_frame_info |= RKVDEC_LAST_SHOW_FRAME;
+	regs->vp9.reg33.last_show_frame =
+		vp9_ctx->last.valid &&
+		vp9_ctx->last.flags & V4L2_VP9_FRAME_FLAG_SHOW_FRAME;
 
-	if (vp9_ctx->last.valid &&
-	    vp9_ctx->last.flags &
-	    (V4L2_VP9_FRAME_FLAG_KEY_FRAME | V4L2_VP9_FRAME_FLAG_INTRA_ONLY))
-		last_frame_info |= RKVDEC_LAST_INTRA_ONLY;
+	regs->vp9.reg33.last_intra_only =
+		vp9_ctx->last.valid &&
+		vp9_ctx->last.flags &
+		(V4L2_VP9_FRAME_FLAG_KEY_FRAME | V4L2_VP9_FRAME_FLAG_INTRA_ONLY);
 
-	if (vp9_ctx->last.valid &&
-	    last->vp9.width == dst->vp9.width &&
-	    last->vp9.height == dst->vp9.height)
-		last_frame_info |= RKVDEC_LAST_WIDHHEIGHT_EQCUR;
+	regs->vp9.reg33.last_widthheight_eqcur =
+		vp9_ctx->last.valid &&
+		last->vp9.width == dst->vp9.width &&
+		last->vp9.height == dst->vp9.height;
 
-	writel_relaxed(last_frame_info,
-		       rkvdec->regs + RKVDEC_VP9_INFO_LASTFRAME);
-
-	writel_relaxed(stream_len - dec_params->compressed_header_size -
-		       dec_params->uncompressed_header_size,
-		       rkvdec->regs + RKVDEC_VP9_LASTTILE_SIZE);
+	regs->vp9.reg36.lasttile_size =
+		stream_len - dec_params->compressed_header_size -
+		dec_params->uncompressed_header_size;
 
 	for (i = 0; !intra_only && i < ARRAY_SIZE(ref_bufs); i++) {
 		unsigned int refw = ref_bufs[i]->vp9.width;
@@ -654,29 +620,28 @@ static void config_registers(struct rkvdec_ctx *ctx,
 
 		hscale = (refw << 14) /	dst->vp9.width;
 		vscale = (refh << 14) / dst->vp9.height;
-		writel_relaxed(RKVDEC_VP9_REF_HOR_SCALE(hscale) |
-			       RKVDEC_VP9_REF_VER_SCALE(vscale),
-			       rkvdec->regs + RKVDEC_VP9_REF_SCALE(i));
+
+		regs->vp9.reg29_31[i].ref_hor_scale = hscale;
+		regs->vp9.reg29_31[i].ref_ver_scale = vscale;
 	}
 
 	addr = vb2_dma_contig_plane_dma_addr(&dst->base.vb.vb2_buf, 0);
-	writel_relaxed(addr, rkvdec->regs + RKVDEC_REG_DECOUT_BASE);
+	regs->common.decout_base = addr;
 	addr = vb2_dma_contig_plane_dma_addr(&run->base.bufs.src->vb2_buf, 0);
-	writel_relaxed(addr, rkvdec->regs + RKVDEC_REG_STRM_RLC_BASE);
-	writel_relaxed(vp9_ctx->priv_tbl.dma +
-		       offsetof(struct rkvdec_vp9_priv_tbl, probs),
-		       rkvdec->regs + RKVDEC_REG_CABACTBL_PROB_BASE);
-	writel_relaxed(vp9_ctx->count_tbl.dma,
-		       rkvdec->regs + RKVDEC_REG_VP9COUNT_BASE);
+	regs->common.strm_rlc_base = addr;
 
-	writel_relaxed(vp9_ctx->priv_tbl.dma +
-		       offsetof(struct rkvdec_vp9_priv_tbl, segmap) +
-		       (RKVDEC_VP9_MAX_SEGMAP_SIZE * vp9_ctx->cur.segmapid),
-		       rkvdec->regs + RKVDEC_REG_VP9_SEGIDCUR_BASE);
-	writel_relaxed(vp9_ctx->priv_tbl.dma +
-		       offsetof(struct rkvdec_vp9_priv_tbl, segmap) +
-		       (RKVDEC_VP9_MAX_SEGMAP_SIZE * (!vp9_ctx->cur.segmapid)),
-		       rkvdec->regs + RKVDEC_REG_VP9_SEGIDLAST_BASE);
+	regs->common.cabactbl_base = vp9_ctx->priv_tbl.dma +
+		offsetof(struct rkvdec_vp9_priv_tbl, probs);
+
+	regs->vp9.count_base = vp9_ctx->count_tbl.dma;
+
+	regs->vp9.segidlast_base = vp9_ctx->priv_tbl.dma +
+		offsetof(struct rkvdec_vp9_priv_tbl, segmap) +
+		(RKVDEC_VP9_MAX_SEGMAP_SIZE * (!vp9_ctx->cur.segmapid));
+
+	regs->vp9.segidcur_base = vp9_ctx->priv_tbl.dma +
+		offsetof(struct rkvdec_vp9_priv_tbl, segmap) +
+		(RKVDEC_VP9_MAX_SEGMAP_SIZE * vp9_ctx->cur.segmapid);
 
 	if (!intra_only &&
 	    !(dec_params->flags & V4L2_VP9_FRAME_FLAG_ERROR_RESILIENT) &&
@@ -685,12 +650,15 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	else
 		mv_ref = dst;
 
-	writel_relaxed(get_mv_base_addr(mv_ref),
-		       rkvdec->regs + RKVDEC_VP9_REF_COLMV_BASE);
+	regs->vp9.refcolmv_base = get_mv_base_addr(mv_ref);
 
-	writel_relaxed(ctx->decoded_fmt.fmt.pix_mp.width |
-		       (ctx->decoded_fmt.fmt.pix_mp.height << 16),
-		       rkvdec->regs + RKVDEC_REG_PERFORMANCE_CYCLE);
+	regs->vp9.performance_cycle = ctx->decoded_fmt.fmt.pix_mp.width |
+		       (ctx->decoded_fmt.fmt.pix_mp.height << 16);
+
+	regs->vp9.reg44.strmd_error_e = 0xe;
+
+	rkvdec_memcpy_toio(rkvdec->regs, regs,
+			   MIN(sizeof(*regs), sizeof(u32) * rkvdec->variant->num_regs));
 }
 
 static int validate_dec_params(struct rkvdec_ctx *ctx,
@@ -822,8 +790,6 @@ static int rkvdec_vp9_run(struct rkvdec_ctx *ctx)
 
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_LUMA_CACHE_COMMAND);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_CHR_CACHE_COMMAND);
-
-	writel(0xe, rkvdec->regs + RKVDEC_REG_STRMD_ERR_EN);
 
 	if (rkvdec->variant->quirks & RKVDEC_QUIRK_DISABLE_QOS)
 		rkvdec_quirks_disable_qos(ctx);
@@ -1005,7 +971,7 @@ static int rkvdec_vp9_start(struct rkvdec_ctx *ctx)
 	unsigned char *count_tbl;
 	int ret;
 
-	vp9_ctx = kzalloc(sizeof(*vp9_ctx), GFP_KERNEL);
+	vp9_ctx = kzalloc_obj(*vp9_ctx);
 	if (!vp9_ctx)
 		return -ENOMEM;
 

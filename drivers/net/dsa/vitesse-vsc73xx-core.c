@@ -1664,7 +1664,7 @@ static int vsc73xx_port_vlan_add(struct dsa_switch *ds, int port,
 	vsc73xx_vlan = vsc73xx_bridge_vlan_find(vsc, vlan->vid);
 
 	if (!vsc73xx_vlan) {
-		vsc73xx_vlan = kzalloc(sizeof(*vsc73xx_vlan), GFP_KERNEL);
+		vsc73xx_vlan = kzalloc_obj(*vsc73xx_vlan);
 		if (!vsc73xx_vlan)
 			return -ENOMEM;
 

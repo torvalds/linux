@@ -410,7 +410,7 @@ static void omap_plane_reset(struct drm_plane *plane)
 	if (plane->state)
 		drm_atomic_helper_plane_destroy_state(plane, plane->state);
 
-	omap_state = kzalloc(sizeof(*omap_state), GFP_KERNEL);
+	omap_state = kzalloc_obj(*omap_state);
 	if (!omap_state)
 		return;
 
@@ -427,7 +427,7 @@ omap_plane_atomic_duplicate_state(struct drm_plane *plane)
 
 	current_state = to_omap_plane_state(plane->state);
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -533,7 +533,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (WARN_ON(idx >= num_planes))
 		return ERR_PTR(-EINVAL);
 
-	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
+	omap_plane = kzalloc_obj(*omap_plane);
 	if (!omap_plane)
 		return ERR_PTR(-ENOMEM);
 

@@ -75,7 +75,7 @@ static struct drm_dp_aux_dev *alloc_drm_dp_aux_dev(struct drm_dp_aux *aux)
 	struct drm_dp_aux_dev *aux_dev;
 	int index;
 
-	aux_dev = kzalloc(sizeof(*aux_dev), GFP_KERNEL);
+	aux_dev = kzalloc_obj(*aux_dev);
 	if (!aux_dev)
 		return ERR_PTR(-ENOMEM);
 	aux_dev->aux = aux;

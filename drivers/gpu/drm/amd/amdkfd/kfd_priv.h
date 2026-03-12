@@ -91,7 +91,7 @@
 
 /* Macro for allocating structures */
 #define kfd_alloc_struct(ptr_to_struct)	\
-	((typeof(ptr_to_struct)) kzalloc(sizeof(*ptr_to_struct), GFP_KERNEL))
+	((typeof(ptr_to_struct)) kzalloc_obj(*ptr_to_struct))
 
 #define KFD_MAX_NUM_OF_PROCESSES 512
 #define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
@@ -215,7 +215,8 @@ enum cache_policy {
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(12, 1, 0)))
 
 struct kfd_node;
 
@@ -241,7 +242,6 @@ struct kfd_device_info {
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
 	unsigned int num_reserved_sdma_queues_per_engine;
-	DECLARE_BITMAP(reserved_sdma_queues_bitmap, KFD_MAX_SDMA_QUEUES);
 };
 
 unsigned int kfd_get_num_sdma_engines(struct kfd_node *kdev);
@@ -252,7 +252,7 @@ struct kfd_mem_obj {
 	uint32_t range_end;
 	uint64_t gpu_addr;
 	uint32_t *cpu_ptr;
-	void *gtt_mem;
+	void *mem;
 };
 
 struct kfd_vmid_info {
@@ -434,7 +434,6 @@ enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
-	KFD_QUEUE_TYPE_DIQ,
 	KFD_QUEUE_TYPE_SDMA_XGMI,
 	KFD_QUEUE_TYPE_SDMA_BY_ENG_ID
 };
@@ -507,7 +506,8 @@ struct queue_properties {
 	enum kfd_queue_format format;
 	unsigned int queue_id;
 	uint64_t queue_address;
-	uint64_t  queue_size;
+	uint64_t queue_size;
+	uint64_t metadata_queue_size;
 	uint32_t priority;
 	uint32_t queue_percent;
 	void __user *read_ptr;
@@ -698,6 +698,7 @@ struct qcm_process_device {
 	uint32_t num_gws;
 	uint32_t num_oac;
 	uint32_t sh_hidden_private_base;
+	uint32_t vm_cntx_cntl;
 
 	/* CWSR memory */
 	struct kgd_mem *cwsr_mem;
@@ -1018,9 +1019,19 @@ struct kfd_process {
 
 	/* if gpu page fault sent to KFD */
 	bool gpu_page_fault;
+
+	/*kfd context id */
+	u16 context_id;
+
+	/* The primary kfd_process allocating IDs for its secondary kfd_process, 0 for primary kfd_process */
+	struct ida id_table;
+
 };
 
-#define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
+#define KFD_PROCESS_TABLE_SIZE 8 /* bits: 256 entries */
+#define KFD_CONTEXT_ID_PRIMARY	0xFFFF
+#define KFD_CONTEXT_ID_MIN 0
+
 extern DECLARE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
 extern struct srcu_struct kfd_processes_srcu;
 
@@ -1045,14 +1056,16 @@ struct amdkfd_ioctl_desc {
 };
 bool kfd_dev_is_large_bar(struct kfd_node *dev);
 
+struct kfd_process *create_process(const struct task_struct *thread, bool primary);
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 void kfd_cleanup_processes(void);
 struct kfd_process *kfd_create_process(struct task_struct *thread);
-struct kfd_process *kfd_get_process(const struct task_struct *task);
+int kfd_create_process_sysfs(struct kfd_process *process);
 struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid,
 						 struct kfd_process_device **pdd);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
+struct kfd_process *kfd_lookup_process_by_id(const struct mm_struct *mm, u16 id);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
 int kfd_process_gpuid_from_node(struct kfd_process *p, struct kfd_node *node,
@@ -1090,6 +1103,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported);
 
 int kfd_reserved_mem_mmap(struct kfd_node *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma);
+void kfd_process_notifier_release_internal(struct kfd_process *p);
 
 /* KFD process API for creating and translating handles */
 int kfd_process_device_create_obj_handle(struct kfd_process_device *pdd,
@@ -1163,9 +1177,11 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 	struct kfd_dev *dev = adev->kfd.dev;
 	uint32_t i;
 
-	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0))
+	/*
+	 * On multi-aid system, attempt per-node matching. Otherwise,
+	 * fall back to the first node.
+	 */
+	if (!amdgpu_is_multi_aid(adev))
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)
@@ -1176,6 +1192,7 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 }
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
+uint32_t kfd_gpu_node_num(void);
 
 /* Interrupts */
 #define	KFD_IRQ_FENCE_CLIENTID	0xff
@@ -1341,6 +1358,8 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
 struct mqd_manager *mqd_manager_init_v12(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
+struct mqd_manager *mqd_manager_init_v12_1(enum KFD_MQD_TYPE type,
+		struct kfd_node *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_node *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
@@ -1494,6 +1513,7 @@ extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v9_4_3;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v10;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v11;
+extern const struct kfd_event_interrupt_class event_interrupt_class_v12_1;
 
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
@@ -1528,6 +1548,7 @@ void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 void kfd_signal_reset_event(struct kfd_node *dev);
 
 void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid);
+void kfd_signal_process_terminate_event(struct kfd_process *p);
 
 static inline void kfd_flush_tlb(struct kfd_process_device *pdd,
 				 enum TLB_FLUSH_TYPE type)

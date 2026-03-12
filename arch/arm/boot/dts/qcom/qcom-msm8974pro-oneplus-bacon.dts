@@ -214,7 +214,6 @@
 
 &pronto {
 	vddmx-supply = <&pm8841_s1>;
-	vddcx-supply = <&pm8841_s2>;
 	vddpx-supply = <&pm8941_s3>;
 
 	pinctrl-names = "default";
@@ -240,8 +239,6 @@
 };
 
 &remoteproc_adsp {
-	cx-supply = <&pm8841_s2>;
-
 	status = "okay";
 };
 
@@ -252,12 +249,6 @@
 		pm8841_s1: s1 {
 			regulator-min-microvolt = <675000>;
 			regulator-max-microvolt = <1050000>;
-		};
-
-		pm8841_s2: s2 {
-			regulator-min-microvolt = <875000>;
-			regulator-max-microvolt = <1050000>;
-			regulator-always-on;
 		};
 
 		pm8841_s3: s3 {

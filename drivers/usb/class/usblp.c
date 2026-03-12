@@ -1142,7 +1142,7 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Malloc and start initializing usblp structure so we can use it
 	 * directly. */
-	usblp = kzalloc(sizeof(struct usblp), GFP_KERNEL);
+	usblp = kzalloc_obj(struct usblp);
 	if (!usblp) {
 		retval = -ENOMEM;
 		goto abort_ret;

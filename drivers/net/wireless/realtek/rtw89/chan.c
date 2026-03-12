@@ -60,6 +60,28 @@ static enum rtw89_subband rtw89_get_subband_type(enum rtw89_band band,
 	}
 }
 
+static enum rtw89_tx_comp_band rtw89_get_tx_comp_band(enum rtw89_band band,
+						      u8 center_chan)
+{
+	switch (band) {
+	default:
+	case RTW89_BAND_2G:
+		return RTW89_TX_COMP_BAND_2GHZ;
+	case RTW89_BAND_5G:
+		if (center_chan < 149)
+			return RTW89_TX_COMP_BAND_5GHZ_L;
+		else
+			return RTW89_TX_COMP_BAND_5GHZ_H;
+	case RTW89_BAND_6G:
+		if (center_chan < 65)
+			return RTW89_TX_COMP_BAND_5GHZ_H;
+		else if (center_chan < 193)
+			return RTW89_TX_COMP_BAND_6GHZ_M;
+		else
+			return RTW89_TX_COMP_BAND_6GHZ_UH;
+	}
+}
+
 static enum rtw89_sc_offset rtw89_get_primary_chan_idx(enum rtw89_bandwidth bw,
 						       u32 center_freq,
 						       u32 primary_freq)
@@ -123,6 +145,7 @@ void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 
 	chan->freq = center_freq;
 	chan->subband_type = rtw89_get_subband_type(band, center_chan);
+	chan->tx_comp_band = rtw89_get_tx_comp_band(band, center_chan);
 	chan->pri_ch_idx = rtw89_get_primary_chan_idx(bandwidth, center_freq,
 						      primary_freq);
 	chan->pri_sb_idx = rtw89_get_primary_sb_idx(center_chan, primary_chan,
@@ -295,6 +318,8 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 			mgnt->chanctx_tbl[i][j] = RTW89_CHANCTX_IDLE;
 	}
 
+	hal->entity_force_hw = RTW89_PHY_NUM;
+
 	rtw89_config_default_chandef(rtwdev);
 }
 
@@ -347,8 +372,8 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 	if (unlikely(!rtwvif_link->chanctx_assigned))
 		return;
 
-	cur = rtw89_vif_get_link_inst(rtwvif, 0);
-	if (!cur || !cur->chanctx_assigned)
+	cur = rtw89_get_designated_link(rtwvif);
+	if (unlikely(!cur) || !cur->chanctx_assigned)
 		return;
 
 	if (cur == rtwvif_link)
@@ -417,11 +442,42 @@ dflt:
 }
 EXPORT_SYMBOL(__rtw89_mgnt_chan_get);
 
+bool rtw89_entity_check_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	switch (rtwdev->mlo_dbcc_mode) {
+	case MLO_2_PLUS_0_1RF:
+		return phy_idx == RTW89_PHY_0;
+	case MLO_0_PLUS_2_1RF:
+		return phy_idx == RTW89_PHY_1;
+	default:
+		return false;
+	}
+}
+
+void rtw89_entity_force_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	rtwdev->hal.entity_force_hw = phy_idx;
+
+	if (phy_idx != RTW89_PHY_NUM)
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN, "%s: %d\n", __func__, phy_idx);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN, "%s: (none)\n", __func__);
+}
+
 static enum rtw89_mlo_dbcc_mode
 rtw89_entity_sel_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
 {
 	if (rtwdev->chip->chip_gen != RTW89_CHIP_BE)
 		return MLO_DBCC_NOT_SUPPORT;
+
+	switch (rtwdev->hal.entity_force_hw) {
+	case RTW89_PHY_0:
+		return MLO_2_PLUS_0_1RF;
+	case RTW89_PHY_1:
+		return MLO_0_PLUS_2_1RF;
+	default:
+		break;
+	}
 
 	switch (active_hws) {
 	case BIT(0):
@@ -466,8 +522,8 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	}
 
 	/* To be consistent with legacy behavior, expect the first active role
-	 * which uses RTW89_CHANCTX_0 to put at position 0, and make its first
-	 * link instance take RTW89_CHANCTX_0. (normalizing)
+	 * which uses RTW89_CHANCTX_0 to put at position 0 and its designated
+	 * link take RTW89_CHANCTX_0. (normalizing)
 	 */
 	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
 		for (i = 0; i < role->links_inst_valid_num; i++) {
@@ -2608,17 +2664,20 @@ bool rtw89_mcc_detect_go_bcn(struct rtw89_dev *rtwdev,
 static void rtw89_mcc_detect_connection(struct rtw89_dev *rtwdev,
 					struct rtw89_mcc_role *role)
 {
+	struct rtw89_vif_link *rtwvif_link = role->rtwvif_link;
 	struct ieee80211_vif *vif;
 	bool start_detect;
 	int ret;
 
 	ret = rtw89_core_send_nullfunc(rtwdev, role->rtwvif_link, true, false,
 				       RTW89_MCC_PROBE_TIMEOUT);
-	if (ret)
+	if (ret &&
+	    READ_ONCE(rtwvif_link->sync_bcn_tsf) == rtwvif_link->last_sync_bcn_tsf)
 		role->probe_count++;
 	else
 		role->probe_count = 0;
 
+	rtwvif_link->last_sync_bcn_tsf = READ_ONCE(rtwvif_link->sync_bcn_tsf);
 	if (role->probe_count < RTW89_MCC_PROBE_MAX_TRIES)
 		return;
 

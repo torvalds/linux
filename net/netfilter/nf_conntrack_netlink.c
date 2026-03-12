@@ -32,6 +32,7 @@
 #include <linux/siphash.h>
 
 #include <linux/netfilter.h>
+#include <net/ipv6.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_conntrack.h>
@@ -998,7 +999,7 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 		return ERR_PTR(-EOPNOTSUPP);
 #endif
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (filter == NULL)
 		return ERR_PTR(-ENOMEM);
 

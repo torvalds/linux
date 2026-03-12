@@ -188,12 +188,10 @@
 };
 
 &remoteproc_adsp {
-	cx-supply = <&pm8841_s2>;
 	status = "okay";
 };
 
 &remoteproc_mss {
-	cx-supply = <&pm8841_s2>;
 	mss-supply = <&pm8841_s3>;
 	mx-supply = <&pm8841_s1>;
 	pll-supply = <&pm8941_l12>;
@@ -209,19 +207,9 @@
 			regulator-max-microvolt = <1050000>;
 		};
 
-		pm8841_s2: s2 {
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1050000>;
-		};
-
 		pm8841_s3: s3 {
 			regulator-min-microvolt = <1050000>;
 			regulator-max-microvolt = <1050000>;
-		};
-
-		pm8841_s4: s4 {
-			regulator-min-microvolt = <815000>;
-			regulator-max-microvolt = <900000>;
 		};
 	};
 

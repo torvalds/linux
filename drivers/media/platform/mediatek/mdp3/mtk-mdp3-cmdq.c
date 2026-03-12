@@ -564,7 +564,7 @@ static struct mdp_cmdq_cmd *mdp_cmdq_prepare(struct mdp_dev *mdp,
 		goto err_uninit;
 	}
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		ret = -ENOMEM;
 		goto err_uninit;
@@ -583,13 +583,13 @@ static struct mdp_cmdq_cmd *mdp_cmdq_prepare(struct mdp_dev *mdp,
 		goto err_destroy_pkt;
 	}
 
-	comps = kcalloc(num_comp, sizeof(*comps), GFP_KERNEL);
+	comps = kzalloc_objs(*comps, num_comp);
 	if (!comps) {
 		ret = -ENOMEM;
 		goto err_destroy_pkt;
 	}
 
-	path = kzalloc(sizeof(*path), GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path) {
 		ret = -ENOMEM;
 		goto err_free_comps;

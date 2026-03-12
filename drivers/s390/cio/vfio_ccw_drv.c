@@ -171,7 +171,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 		return -ENODEV;
 	}
 
-	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+	parent = kzalloc_obj(*parent);
 	if (!parent)
 		return -ENOMEM;
 
@@ -281,7 +281,7 @@ static void vfio_ccw_queue_crw(struct vfio_ccw_private *private,
 	 * carry on.  The guest will either see a later one or
 	 * learn when it issues its own store subchannel.
 	 */
-	crw = kzalloc(sizeof(*crw), GFP_ATOMIC);
+	crw = kzalloc_obj(*crw, GFP_ATOMIC);
 	if (!crw)
 		return;
 

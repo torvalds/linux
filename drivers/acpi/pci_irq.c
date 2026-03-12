@@ -147,7 +147,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	    prt->pin + 1 != pin)
 		return -ENODEV;
 
-	entry = kzalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
+	entry = kzalloc_obj(struct acpi_prt_entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * the IRQ value, which is hardwired to specific interrupt inputs on
 	 * the interrupt controller.
 	 */
-	pr_debug("%04x:%02x:%02x[%c] -> %s[%d]\n",
+	pr_debug("%04x:%02x:%02x[%c] -> %s[%u]\n",
 		 entry->id.segment, entry->id.bus, entry->id.device,
 		 pin_name(entry->pin), prt->source, entry->index);
 
@@ -384,7 +384,7 @@ static inline bool acpi_pci_irq_valid(struct pci_dev *dev, u8 pin)
 int acpi_pci_irq_enable(struct pci_dev *dev)
 {
 	struct acpi_prt_entry *entry;
-	int gsi;
+	u32 gsi;
 	u8 pin;
 	int triggering = ACPI_LEVEL_SENSITIVE;
 	/*
@@ -422,18 +422,21 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 			return 0;
 	}
 
+	rc = -ENODEV;
+
 	if (entry) {
 		if (entry->link)
-			gsi = acpi_pci_link_allocate_irq(entry->link,
+			rc = acpi_pci_link_allocate_irq(entry->link,
 							 entry->index,
 							 &triggering, &polarity,
-							 &link);
-		else
+							 &link, &gsi);
+		else {
 			gsi = entry->index;
-	} else
-		gsi = -1;
+			rc = 0;
+		}
+	}
 
-	if (gsi < 0) {
+	if (rc < 0) {
 		/*
 		 * No IRQ known to the ACPI subsystem - maybe the BIOS /
 		 * driver reported one, then use it. Exit in any case.

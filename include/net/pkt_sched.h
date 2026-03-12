@@ -308,4 +308,28 @@ static inline unsigned int qdisc_peek_len(struct Qdisc *sch)
 	return len;
 }
 
+static inline void qdisc_lock_init(struct Qdisc *sch,
+				   const struct Qdisc_ops *ops)
+{
+	spin_lock_init(&sch->q.lock);
+
+	/* Skip dynamic keys if nesting is not possible */
+	if (ops->static_flags & TCQ_F_INGRESS ||
+	    ops == &noqueue_qdisc_ops)
+		return;
+
+	lockdep_register_key(&sch->root_lock_key);
+	lockdep_set_class(&sch->q.lock, &sch->root_lock_key);
+}
+
+static inline void qdisc_lock_uninit(struct Qdisc *sch,
+				     const struct Qdisc_ops *ops)
+{
+	if (ops->static_flags & TCQ_F_INGRESS ||
+	    ops == &noqueue_qdisc_ops)
+		return;
+
+	lockdep_unregister_key(&sch->root_lock_key);
+}
+
 #endif

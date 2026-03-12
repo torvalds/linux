@@ -45,7 +45,7 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	pr_debug("NFTL: add_mtd for %s\n", mtd->name);
 
-	nftl = kzalloc(sizeof(struct NFTLrecord), GFP_KERNEL);
+	nftl = kzalloc_obj(struct NFTLrecord);
 
 	if (!nftl)
 		return;

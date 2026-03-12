@@ -311,9 +311,8 @@ Lock order is as follows::
 
   folio_lock
     mm->page_table_lock or split pte_lock
-      folio_memcg_lock (memcg->move_lock)
-        mapping->i_pages lock
-          lruvec->lru_lock.
+      mapping->i_pages lock
+        lruvec->lru_lock.
 
 Per-node-per-memcgroup LRU (cgroup's private LRU) is guarded by
 lruvec->lru_lock; the folio LRU flag is cleared before

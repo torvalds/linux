@@ -48,19 +48,39 @@ required:
   - compatible
   - '#clock-cells'
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: mediatek,mt8183-audiosys
-then:
-  properties:
-    audio-controller:
-      $ref: /schemas/sound/mediatek,mt8183-audio.yaml#
-else:
-  properties:
-    audio-controller:
-      $ref: /schemas/sound/mediatek,mt2701-audio.yaml#
+allOf:
+ - if:
+     properties:
+       compatible:
+         contains:
+           enum:
+             - mediatek,mt2701-audsys
+             - mediatek,mt7622-audsys
+   then:
+     properties:
+       audio-controller:
+         $ref: /schemas/sound/mediatek,mt2701-audio.yaml#
+
+ - if:
+     properties:
+       compatible:
+         contains:
+           const: mediatek,mt8183-audiosys
+   then:
+     properties:
+       audio-controller:
+         $ref: /schemas/sound/mediatek,mt8183-audio.yaml#
+
+ - if:
+     properties:
+       compatible:
+         contains:
+           const: mediatek,mt8192-audsys
+   then:
+     properties:
+       audio-controller:
+         $ref: /schemas/sound/mt8192-afe-pcm.yaml#
+
 
 additionalProperties: false
 

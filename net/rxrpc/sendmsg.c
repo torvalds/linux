@@ -282,7 +282,7 @@ static int rxrpc_alloc_txqueue(struct sock *sk, struct rxrpc_call *call)
 {
 	struct rxrpc_txqueue *tq;
 
-	tq = kzalloc(sizeof(*tq), sk->sk_allocation);
+	tq = kzalloc_obj(*tq, sk->sk_allocation);
 	if (!tq)
 		return -ENOMEM;
 

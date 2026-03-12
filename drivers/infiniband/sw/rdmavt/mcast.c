@@ -34,7 +34,7 @@ static struct rvt_mcast_qp *rvt_mcast_qp_alloc(struct rvt_qp *qp)
 {
 	struct rvt_mcast_qp *mqp;
 
-	mqp = kmalloc(sizeof(*mqp), GFP_KERNEL);
+	mqp = kmalloc_obj(*mqp);
 	if (!mqp)
 		goto bail;
 
@@ -66,7 +66,7 @@ static struct rvt_mcast *rvt_mcast_alloc(union ib_gid *mgid, u16 lid)
 {
 	struct rvt_mcast *mcast;
 
-	mcast = kzalloc(sizeof(*mcast), GFP_KERNEL);
+	mcast = kzalloc_obj(*mcast);
 	if (!mcast)
 		goto bail;
 

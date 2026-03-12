@@ -6,14 +6,19 @@
  *                    Cirrus Logic International Semiconductor Ltd.
  */
 
+#include <linux/acpi.h>
+#include <linux/cleanup.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <linux/mutex.h>
 #include <linux/iopoll.h>
 
 #include "cs8409.h"
+#include "../side-codecs/hda_component.h"
 
 /******************************************************************************
  *                        CS8409 Specific Functions
@@ -56,7 +61,7 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 	codec->spec = spec;
@@ -1216,6 +1221,172 @@ void cs8409_cs42l42_fixups(struct hda_codec *codec, const struct hda_fixup *fix,
 	}
 }
 
+static int cs8409_comp_bind(struct device *dev)
+{
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+	struct cs8409_spec *spec = codec->spec;
+
+	return hda_component_manager_bind(codec, &spec->comps);
+}
+
+static void cs8409_comp_unbind(struct device *dev)
+{
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+	struct cs8409_spec *spec = codec->spec;
+
+	hda_component_manager_unbind(codec, &spec->comps);
+}
+
+static const struct component_master_ops cs8409_comp_master_ops = {
+	.bind = cs8409_comp_bind,
+	.unbind = cs8409_comp_unbind,
+};
+
+static void cs8409_comp_playback_hook(struct hda_pcm_stream *hinfo, struct hda_codec *codec,
+				      struct snd_pcm_substream *sub, int action)
+{
+	struct cs8409_spec *spec = codec->spec;
+
+	hda_component_manager_playback_hook(&spec->comps, action);
+}
+
+static void cs8409_cdb35l56_four_hw_init(struct hda_codec *codec)
+{
+	const struct cs8409_cir_param *seq = cs8409_cdb35l56_four_hw_cfg;
+
+	for (; seq->nid; seq++)
+		cs8409_vendor_coef_set(codec, seq->cir, seq->coeff);
+}
+
+static int cs8409_spk_sw_get(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs8409_spec *spec = codec->spec;
+
+	ucontrol->value.integer.value[0] = !spec->speaker_muted;
+
+	return 0;
+}
+
+static int cs8409_spk_sw_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct cs8409_spec *spec = codec->spec;
+	bool muted = !ucontrol->value.integer.value[0];
+
+	if (muted == spec->speaker_muted)
+		return 0;
+
+	spec->speaker_muted = muted;
+
+	return 1;
+}
+
+static const struct snd_kcontrol_new cs8409_spk_sw_component_ctrl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = snd_ctl_boolean_mono_info,
+	.get = cs8409_spk_sw_get,
+	.put = cs8409_spk_sw_put,
+};
+
+void cs8409_cdb35l56_four_autodet_fixup(struct hda_codec *codec,
+				  const struct hda_fixup *fix,
+				  int action)
+{
+	struct device *dev = hda_codec_dev(codec);
+	struct cs8409_spec *spec = codec->spec;
+	struct acpi_device *adev;
+	const char *bus = NULL;
+	static const struct {
+		const char *hid;
+		const char *name;
+	} acpi_ids[] = {{ "CSC3554", "cs35l54-hda" },
+			{ "CSC3556", "cs35l56-hda" },
+			{ "CSC3557", "cs35l57-hda" }};
+	char *match;
+	int i, count = 0, count_devindex = 0;
+	int ret;
+
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE: {
+		for (i = 0; i < ARRAY_SIZE(acpi_ids); ++i) {
+			adev = acpi_dev_get_first_match_dev(acpi_ids[i].hid, NULL, -1);
+			if (adev)
+				break;
+		}
+		if (!adev) {
+			dev_err(dev, "Failed to find ACPI entry for a Cirrus Amp\n");
+			return;
+		}
+
+		count = i2c_acpi_client_count(adev);
+		if (count > 0) {
+			bus = "i2c";
+		} else {
+			count = acpi_spi_count_resources(adev);
+			if (count > 0)
+				bus = "spi";
+		}
+
+		struct fwnode_handle *fwnode __free(fwnode_handle) =
+			fwnode_handle_get(acpi_fwnode_handle(adev));
+		acpi_dev_put(adev);
+
+		if (!bus) {
+			dev_err(dev, "Did not find any buses for %s\n", acpi_ids[i].hid);
+			return;
+		}
+
+		if (!fwnode) {
+			dev_err(dev, "Could not get fwnode for %s\n", acpi_ids[i].hid);
+			return;
+		}
+
+		/*
+		 * When available the cirrus,dev-index property is an accurate
+		 * count of the amps in a system and is used in preference to
+		 * the count of bus devices that can contain additional address
+		 * alias entries.
+		 */
+		count_devindex = fwnode_property_count_u32(fwnode, "cirrus,dev-index");
+		if (count_devindex > 0)
+			count = count_devindex;
+
+		match = devm_kasprintf(dev, GFP_KERNEL, "-%%s:00-%s.%%d", acpi_ids[i].name);
+		if (!match)
+			return;
+		dev_info(dev, "Found %d %s on %s (%s)\n", count, acpi_ids[i].hid, bus, match);
+
+		ret = hda_component_manager_init(codec, &spec->comps, count, bus,
+						 acpi_ids[i].hid, match,
+						 &cs8409_comp_master_ops);
+		if (ret)
+			return;
+
+		spec->gen.pcm_playback_hook = cs8409_comp_playback_hook;
+
+		snd_hda_add_verbs(codec, cs8409_cdb35l56_four_init_verbs);
+		snd_hda_sequence_write(codec, cs8409_cdb35l56_four_init_verbs);
+		break;
+	}
+	case HDA_FIXUP_ACT_PROBE:
+		spec->speaker_muted = 0; /* speakers begin enabled */
+		snd_hda_gen_add_kctl(&spec->gen, "Speaker Playback Switch",
+				     &cs8409_spk_sw_component_ctrl);
+		spec->gen.stream_analog_playback = &cs42l42_48k_pcm_analog_playback;
+		snd_hda_codec_set_name(codec, "CS8409/CS35L56");
+		break;
+	case HDA_FIXUP_ACT_INIT:
+		cs8409_cdb35l56_four_hw_init(codec);
+		break;
+	case HDA_FIXUP_ACT_FREE:
+		hda_component_manager_free(&spec->comps, &cs8409_comp_master_ops);
+		break;
+	}
+}
+
 /******************************************************************************
  *                          Dolphin Specific Functions
  *                               CS8409/ 2 X CS42L42
@@ -1473,3 +1644,4 @@ module_hda_codec_driver(cs8409_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic HDA bridge");
+MODULE_IMPORT_NS("SND_HDA_SCODEC_COMPONENT");

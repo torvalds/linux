@@ -1605,10 +1605,10 @@ nvkm_device_pci_irq(struct nvkm_device *device)
 }
 
 static void
-nvkm_device_pci_fini(struct nvkm_device *device, bool suspend)
+nvkm_device_pci_fini(struct nvkm_device *device, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_device_pci *pdev = nvkm_device_pci(device);
-	if (suspend) {
+	if (suspend != NVKM_POWEROFF) {
 		pci_disable_device(pdev->pdev);
 		pdev->suspend = true;
 	}
@@ -1688,7 +1688,7 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 		pcid++;
 	}
 
-	if (!(pdev = kzalloc(sizeof(*pdev), GFP_KERNEL))) {
+	if (!(pdev = kzalloc_obj(*pdev))) {
 		pci_disable_device(pci_dev);
 		return -ENOMEM;
 	}

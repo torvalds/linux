@@ -222,8 +222,7 @@ bool ipc_protocol_resume(struct iosm_protocol *ipc_protocol)
 
 struct iosm_protocol *ipc_protocol_init(struct iosm_imem *ipc_imem)
 {
-	struct iosm_protocol *ipc_protocol =
-		kzalloc(sizeof(*ipc_protocol), GFP_KERNEL);
+	struct iosm_protocol *ipc_protocol = kzalloc_obj(*ipc_protocol);
 	struct ipc_protocol_context_info *p_ci;
 	u64 addr;
 

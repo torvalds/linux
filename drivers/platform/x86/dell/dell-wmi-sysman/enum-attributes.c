@@ -119,8 +119,8 @@ int alloc_enum_data(void)
 
 	wmi_priv.enumeration_instances_count =
 		get_instance_count(DELL_WMI_BIOS_ENUMERATION_ATTRIBUTE_GUID);
-	wmi_priv.enumeration_data = kcalloc(wmi_priv.enumeration_instances_count,
-					sizeof(struct enumeration_data), GFP_KERNEL);
+	wmi_priv.enumeration_data = kzalloc_objs(struct enumeration_data,
+						 wmi_priv.enumeration_instances_count);
 	if (!wmi_priv.enumeration_data) {
 		wmi_priv.enumeration_instances_count = 0;
 		ret = -ENOMEM;

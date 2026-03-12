@@ -842,8 +842,10 @@ int BPF_STRUCT_OPS_SLEEPABLE(fcg_cgroup_init, struct cgroup *cgrp,
 	 * unlikely case that it breaks.
 	 */
 	ret = scx_bpf_create_dsq(cgid, -1);
-	if (ret)
+	if (ret) {
+		scx_bpf_error("scx_bpf_create_dsq failed (%d)", ret);
 		return ret;
+	}
 
 	cgc = bpf_cgrp_storage_get(&cgrp_ctx, cgrp, 0,
 				   BPF_LOCAL_STORAGE_GET_F_CREATE);
@@ -927,7 +929,15 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(fcg_init)
 {
-	return scx_bpf_create_dsq(FALLBACK_DSQ, -1);
+	int ret;
+
+	ret = scx_bpf_create_dsq(FALLBACK_DSQ, -1);
+	if (ret) {
+		scx_bpf_error("failed to create DSQ %d (%d)", FALLBACK_DSQ, ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 void BPF_STRUCT_OPS(fcg_exit, struct scx_exit_info *ei)

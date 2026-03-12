@@ -346,7 +346,7 @@ static int tpm_crb_ffa_probe(struct ffa_device *ffa_dev)
 		return -EINVAL;
 	}
 
-	p = kzalloc(sizeof(*tpm_crb_ffa), GFP_KERNEL);
+	p = kzalloc_obj(*tpm_crb_ffa);
 	if (!p)
 		return -ENOMEM;
 	tpm_crb_ffa = p;

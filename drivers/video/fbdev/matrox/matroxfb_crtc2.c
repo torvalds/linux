@@ -693,7 +693,7 @@ static void* matroxfb_crtc2_probe(struct matrox_fb_info* minfo) {
 	/* hardware is CRTC2 incapable... */
 	if (!minfo->devflags.crtc2)
 		return NULL;
-	m2info = kzalloc(sizeof(*m2info), GFP_KERNEL);
+	m2info = kzalloc_obj(*m2info);
 	if (!m2info)
 		return NULL;
 

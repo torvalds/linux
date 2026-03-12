@@ -831,7 +831,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct pp_atomfwctrl_voltage_table vol_table;
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	data = kzalloc(sizeof(struct vega10_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct vega10_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1029,8 +1029,7 @@ static int vega10_trim_voltage_table(struct pp_hwmgr *hwmgr,
 
 	PP_ASSERT_WITH_CODE(vol_table,
 			"Voltage Table empty.", return -EINVAL);
-	table = kzalloc(sizeof(struct pp_atomfwctrl_voltage_table),
-			GFP_KERNEL);
+	table = kzalloc_obj(struct pp_atomfwctrl_voltage_table);
 
 	if (!table)
 		return -ENOMEM;
@@ -4825,146 +4824,6 @@ static int vega10_emit_clock_levels(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, char *buf)
-{
-	struct vega10_hwmgr *data = hwmgr->backend;
-	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
-	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
-	struct vega10_single_dpm_table *soc_table = &(data->dpm_table.soc_table);
-	struct vega10_single_dpm_table *dcef_table = &(data->dpm_table.dcef_table);
-	struct vega10_odn_clock_voltage_dependency_table *podn_vdd_dep = NULL;
-	uint32_t gen_speed, lane_width, current_gen_speed, current_lane_width;
-	PPTable_t *pptable = &(data->smc_state_table.pp_table);
-
-	int i, ret, now,  size = 0, count = 0;
-
-	switch (type) {
-	case PP_SCLK:
-		if (data->registry_data.sclk_dpm_key_disabled)
-			break;
-
-		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex, &now);
-		if (ret)
-			break;
-
-		if (hwmgr->pp_one_vf &&
-		    (hwmgr->dpm_level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK))
-			count = 5;
-		else
-			count = sclk_table->count;
-		for (i = 0; i < count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					i, sclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
-		break;
-	case PP_MCLK:
-		if (data->registry_data.mclk_dpm_key_disabled)
-			break;
-
-		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex, &now);
-		if (ret)
-			break;
-
-		for (i = 0; i < mclk_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					i, mclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
-		break;
-	case PP_SOCCLK:
-		if (data->registry_data.socclk_dpm_key_disabled)
-			break;
-
-		ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentSocclkIndex, &now);
-		if (ret)
-			break;
-
-		for (i = 0; i < soc_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					i, soc_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
-		break;
-	case PP_DCEFCLK:
-		if (data->registry_data.dcefclk_dpm_key_disabled)
-			break;
-
-		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_GetClockFreqMHz, CLK_DCEFCLK, &now);
-		if (ret)
-			break;
-
-		for (i = 0; i < dcef_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					i, dcef_table->dpm_levels[i].value / 100,
-					(dcef_table->dpm_levels[i].value / 100 == now) ?
-					"*" : "");
-		break;
-	case PP_PCIE:
-		current_gen_speed =
-			vega10_get_current_pcie_link_speed_level(hwmgr);
-		current_lane_width =
-			vega10_get_current_pcie_link_width_level(hwmgr);
-		for (i = 0; i < NUM_LINK_LEVELS; i++) {
-			gen_speed = pptable->PcieGenSpeed[i];
-			lane_width = pptable->PcieLaneCount[i];
-
-			size += sprintf(buf + size, "%d: %s %s %s\n", i,
-					(gen_speed == 0) ? "2.5GT/s," :
-					(gen_speed == 1) ? "5.0GT/s," :
-					(gen_speed == 2) ? "8.0GT/s," :
-					(gen_speed == 3) ? "16.0GT/s," : "",
-					(lane_width == 1) ? "x1" :
-					(lane_width == 2) ? "x2" :
-					(lane_width == 3) ? "x4" :
-					(lane_width == 4) ? "x8" :
-					(lane_width == 5) ? "x12" :
-					(lane_width == 6) ? "x16" : "",
-					(current_gen_speed == gen_speed) &&
-					(current_lane_width == lane_width) ?
-					"*" : "");
-		}
-		break;
-
-	case OD_SCLK:
-		if (hwmgr->od_enabled) {
-			size += sprintf(buf + size, "%s:\n", "OD_SCLK");
-			podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_sclk;
-			for (i = 0; i < podn_vdd_dep->count; i++)
-				size += sprintf(buf + size, "%d: %10uMhz %10umV\n",
-					i, podn_vdd_dep->entries[i].clk / 100,
-						podn_vdd_dep->entries[i].vddc);
-		}
-		break;
-	case OD_MCLK:
-		if (hwmgr->od_enabled) {
-			size += sprintf(buf + size, "%s:\n", "OD_MCLK");
-			podn_vdd_dep = &data->odn_dpm_table.vdd_dep_on_mclk;
-			for (i = 0; i < podn_vdd_dep->count; i++)
-				size += sprintf(buf + size, "%d: %10uMhz %10umV\n",
-					i, podn_vdd_dep->entries[i].clk/100,
-						podn_vdd_dep->entries[i].vddc);
-		}
-		break;
-	case OD_RANGE:
-		if (hwmgr->od_enabled) {
-			size += sprintf(buf + size, "%s:\n", "OD_RANGE");
-			size += sprintf(buf + size, "SCLK: %7uMHz %10uMHz\n",
-				data->golden_dpm_table.gfx_table.dpm_levels[0].value/100,
-				hwmgr->platform_descriptor.overdriveLimit.engineClock/100);
-			size += sprintf(buf + size, "MCLK: %7uMHz %10uMHz\n",
-				data->golden_dpm_table.mem_table.dpm_levels[0].value/100,
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock/100);
-			size += sprintf(buf + size, "VDDC: %7umV %11umV\n",
-				data->odn_dpm_table.min_vddc,
-				data->odn_dpm_table.max_vddc);
-		}
-		break;
-	default:
-		break;
-	}
-	return size;
-}
-
 static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
@@ -5792,7 +5651,6 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.display_clock_voltage_request = vega10_display_clock_voltage_request,
 	.force_clock_level = vega10_force_clock_level,
 	.emit_clock_levels = vega10_emit_clock_levels,
-	.print_clock_levels = vega10_print_clock_levels,
 	.display_config_changed = vega10_display_configuration_changed_task,
 	.powergate_uvd = vega10_power_gate_uvd,
 	.powergate_vce = vega10_power_gate_vce,

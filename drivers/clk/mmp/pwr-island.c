@@ -95,7 +95,7 @@ struct generic_pm_domain *mmp_pm_domain_register(const char *name,
 {
 	struct mmp_pm_domain *pm_domain;
 
-	pm_domain = kzalloc(sizeof(*pm_domain), GFP_KERNEL);
+	pm_domain = kzalloc_obj(*pm_domain);
 	if (!pm_domain)
 		return ERR_PTR(-ENOMEM);
 

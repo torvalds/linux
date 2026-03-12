@@ -3,7 +3,7 @@
  * Copyright (c) 2018-2024 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -1516,8 +1516,10 @@ xrep_xattr_teardown(
 		xfblob_destroy(rx->pptr_names);
 	if (rx->pptr_recs)
 		xfarray_destroy(rx->pptr_recs);
-	xfblob_destroy(rx->xattr_blobs);
-	xfarray_destroy(rx->xattr_records);
+	if (rx->xattr_blobs)
+		xfblob_destroy(rx->xattr_blobs);
+	if (rx->xattr_records)
+		xfarray_destroy(rx->xattr_records);
 	mutex_destroy(&rx->lock);
 	kfree(rx);
 }
@@ -1529,11 +1531,10 @@ xrep_xattr_setup_scan(
 	struct xrep_xattr	**rxp)
 {
 	struct xrep_xattr	*rx;
-	char			*descr;
 	int			max_len;
 	int			error;
 
-	rx = kzalloc(sizeof(struct xrep_xattr), XCHK_GFP_FLAGS);
+	rx = kzalloc_obj(struct xrep_xattr, XCHK_GFP_FLAGS);
 	if (!rx)
 		return -ENOMEM;
 	rx->sc = sc;
@@ -1555,35 +1556,26 @@ xrep_xattr_setup_scan(
 		goto out_rx;
 
 	/* Set up some staging for salvaged attribute keys and values */
-	descr = xchk_xfile_ino_descr(sc, "xattr keys");
-	error = xfarray_create(descr, 0, sizeof(struct xrep_xattr_key),
+	error = xfarray_create("xattr keys", 0, sizeof(struct xrep_xattr_key),
 			&rx->xattr_records);
-	kfree(descr);
 	if (error)
 		goto out_rx;
 
-	descr = xchk_xfile_ino_descr(sc, "xattr names");
-	error = xfblob_create(descr, &rx->xattr_blobs);
-	kfree(descr);
+	error = xfblob_create("xattr names", &rx->xattr_blobs);
 	if (error)
 		goto out_keys;
 
 	if (xfs_has_parent(sc->mp)) {
 		ASSERT(sc->flags & XCHK_FSGATES_DIRENTS);
 
-		descr = xchk_xfile_ino_descr(sc,
-				"xattr retained parent pointer entries");
-		error = xfarray_create(descr, 0,
+		error = xfarray_create("xattr parent pointer entries", 0,
 				sizeof(struct xrep_xattr_pptr),
 				&rx->pptr_recs);
-		kfree(descr);
 		if (error)
 			goto out_values;
 
-		descr = xchk_xfile_ino_descr(sc,
-				"xattr retained parent pointer names");
-		error = xfblob_create(descr, &rx->pptr_names);
-		kfree(descr);
+		error = xfblob_create("xattr parent pointer names",
+				&rx->pptr_names);
 		if (error)
 			goto out_pprecs;
 

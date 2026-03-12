@@ -606,7 +606,6 @@ struct dlm_ls {
 
 	struct dlm_rsb		ls_local_rsb;	/* for returning errors */
 	struct dlm_lkb		ls_local_lkb;	/* for returning errors */
-	struct dlm_message	ls_local_ms;	/* for faking a reply */
 
 	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
 	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
@@ -665,6 +664,9 @@ struct dlm_ls {
 
 	int			ls_namelen;
 	char			ls_name[DLM_LOCKSPACE_LEN + 1];
+
+	/* Must be last --ends in a flexible-array member.*/
+	struct dlm_message	ls_local_ms;	/* for faking a reply */
 };
 
 /*

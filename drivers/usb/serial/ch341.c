@@ -381,7 +381,7 @@ static int ch341_port_probe(struct usb_serial_port *port)
 	struct ch341_private *priv;
 	int r;
 
-	priv = kzalloc(sizeof(struct ch341_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct ch341_private);
 	if (!priv)
 		return -ENOMEM;
 

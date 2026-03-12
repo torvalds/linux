@@ -491,6 +491,28 @@ bool dc_link_get_replay_state(const struct dc_link *link, uint64_t *state)
 	return link->dc->link_srv->edp_get_replay_state(link, state);
 }
 
+bool dc_link_set_pr_enable(struct dc_link *link, bool enable)
+{
+	return link->dc->link_srv->dp_pr_enable(link, enable);
+}
+
+bool dc_link_update_pr_state(struct dc_link *link,
+		struct dmub_cmd_pr_update_state_data *update_state_data)
+{
+	return link->dc->link_srv->dp_pr_update_state(link, update_state_data);
+}
+
+bool dc_link_set_pr_general_cmd(struct dc_link *link,
+		struct dmub_cmd_pr_general_cmd_data *general_cmd_data)
+{
+	return link->dc->link_srv->dp_pr_set_general_cmd(link, general_cmd_data);
+}
+
+bool dc_link_get_pr_state(const struct dc_link *link, uint64_t *state)
+{
+	return link->dc->link_srv->dp_pr_get_state(link, state);
+}
+
 bool dc_link_wait_for_t12(struct dc_link *link)
 {
 	return link->dc->link_srv->edp_wait_for_t12(link);
@@ -527,4 +549,3 @@ void dc_link_get_alpm_support(struct dc_link *link,
 {
 	link->dc->link_srv->edp_get_alpm_support(link, auxless_support, auxwake_support);
 }
-

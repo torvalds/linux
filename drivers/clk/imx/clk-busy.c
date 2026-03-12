@@ -82,7 +82,7 @@ struct clk_hw *imx_clk_hw_busy_divider(const char *name, const char *parent_name
 	struct clk_init_data init;
 	int ret;
 
-	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
+	busy = kzalloc_obj(*busy);
 	if (!busy)
 		return ERR_PTR(-ENOMEM);
 
@@ -162,7 +162,7 @@ struct clk_hw *imx_clk_hw_busy_mux(const char *name, void __iomem *reg, u8 shift
 	struct clk_init_data init;
 	int ret;
 
-	busy = kzalloc(sizeof(*busy), GFP_KERNEL);
+	busy = kzalloc_obj(*busy);
 	if (!busy)
 		return ERR_PTR(-ENOMEM);
 

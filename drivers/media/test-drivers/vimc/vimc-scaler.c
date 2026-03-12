@@ -392,7 +392,7 @@ static struct vimc_ent_device *vimc_scaler_add(struct vimc_device *vimc,
 	int ret;
 
 	/* Allocate the vscaler struct */
-	vscaler = kzalloc(sizeof(*vscaler), GFP_KERNEL);
+	vscaler = kzalloc_obj(*vscaler);
 	if (!vscaler)
 		return ERR_PTR(-ENOMEM);
 

@@ -291,7 +291,7 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	struct omap3isp_h3a_aewb_config *aewb_recover_cfg = NULL;
 	int ret;
 
-	aewb_cfg = kzalloc(sizeof(*aewb_cfg), GFP_KERNEL);
+	aewb_cfg = kzalloc_obj(*aewb_cfg);
 	if (!aewb_cfg)
 		return -ENOMEM;
 
@@ -301,7 +301,7 @@ int omap3isp_h3a_aewb_init(struct isp_device *isp)
 	aewb->isp = isp;
 
 	/* Set recover state configuration */
-	aewb_recover_cfg = kzalloc(sizeof(*aewb_recover_cfg), GFP_KERNEL);
+	aewb_recover_cfg = kzalloc_obj(*aewb_recover_cfg);
 	if (!aewb_recover_cfg) {
 		dev_err(aewb->isp->dev,
 			"AEWB: cannot allocate memory for recover configuration.\n");

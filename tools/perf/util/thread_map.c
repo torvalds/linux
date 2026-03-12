@@ -164,19 +164,16 @@ static struct perf_thread_map *thread_map__new_by_pid_str(const char *pid_str)
 	struct dirent **namelist = NULL;
 	int i, j = 0;
 	pid_t pid, prev_pid = INT_MAX;
-	char *end_ptr;
 	struct str_node *pos;
-	struct strlist_config slist_config = { .dont_dupstr = true, };
-	struct strlist *slist = strlist__new(pid_str, &slist_config);
+	struct strlist *slist = strlist__new(pid_str, NULL);
 
 	if (!slist)
 		return NULL;
 
 	strlist__for_each_entry(pos, slist) {
-		pid = strtol(pos->s, &end_ptr, 10);
+		pid = strtol(pos->s, NULL, 10);
 
-		if (pid == INT_MIN || pid == INT_MAX ||
-		    (*end_ptr != '\0' && *end_ptr != ','))
+		if (pid == INT_MIN || pid == INT_MAX)
 			goto out_free_threads;
 
 		if (pid == prev_pid)
@@ -223,24 +220,21 @@ struct perf_thread_map *thread_map__new_by_tid_str(const char *tid_str)
 	struct perf_thread_map *threads = NULL, *nt;
 	int ntasks = 0;
 	pid_t tid, prev_tid = INT_MAX;
-	char *end_ptr;
 	struct str_node *pos;
-	struct strlist_config slist_config = { .dont_dupstr = true, };
 	struct strlist *slist;
 
 	/* perf-stat expects threads to be generated even if tid not given */
 	if (!tid_str)
 		return perf_thread_map__new_dummy();
 
-	slist = strlist__new(tid_str, &slist_config);
+	slist = strlist__new(tid_str, NULL);
 	if (!slist)
 		return NULL;
 
 	strlist__for_each_entry(pos, slist) {
-		tid = strtol(pos->s, &end_ptr, 10);
+		tid = strtol(pos->s, NULL, 10);
 
-		if (tid == INT_MIN || tid == INT_MAX ||
-		    (*end_ptr != '\0' && *end_ptr != ','))
+		if (tid == INT_MIN || tid == INT_MAX)
 			goto out_free_threads;
 
 		if (tid == prev_tid)

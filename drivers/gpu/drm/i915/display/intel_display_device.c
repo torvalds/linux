@@ -1664,7 +1664,7 @@ struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
 	const struct subplatform_desc *subdesc;
 	enum intel_step step;
 
-	display = kzalloc(sizeof(*display), GFP_KERNEL);
+	display = kzalloc_obj(*display);
 	if (!display)
 		return ERR_PTR(-ENOMEM);
 

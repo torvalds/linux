@@ -1060,7 +1060,7 @@ drm_gpuvm_resv_object_alloc(struct drm_device *drm)
 {
 	struct drm_gem_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return NULL;
 
@@ -1581,7 +1581,7 @@ drm_gpuvm_bo_create(struct drm_gpuvm *gpuvm,
 	if (ops && ops->vm_bo_alloc)
 		vm_bo = ops->vm_bo_alloc();
 	else
-		vm_bo = kzalloc(sizeof(*vm_bo), GFP_KERNEL);
+		vm_bo = kzalloc_obj(*vm_bo);
 
 	if (unlikely(!vm_bo))
 		return NULL;
@@ -1602,24 +1602,23 @@ drm_gpuvm_bo_create(struct drm_gpuvm *gpuvm,
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_create);
 
+/*
+ * drm_gpuvm_bo_destroy_not_in_lists() - final part of drm_gpuvm_bo cleanup
+ * @vm_bo: the &drm_gpuvm_bo to destroy
+ *
+ * It is illegal to call this method if the @vm_bo is present in the GEMs gpuva
+ * list, the extobj list, or the evicted list.
+ *
+ * Note that this puts a refcount on the GEM object, which may destroy the GEM
+ * object if the refcount reaches zero. It's illegal for this to happen if the
+ * caller holds the GEMs gpuva mutex because it would free the mutex.
+ */
 static void
-drm_gpuvm_bo_destroy(struct kref *kref)
+drm_gpuvm_bo_destroy_not_in_lists(struct drm_gpuvm_bo *vm_bo)
 {
-	struct drm_gpuvm_bo *vm_bo = container_of(kref, struct drm_gpuvm_bo,
-						  kref);
 	struct drm_gpuvm *gpuvm = vm_bo->vm;
 	const struct drm_gpuvm_ops *ops = gpuvm->ops;
 	struct drm_gem_object *obj = vm_bo->obj;
-	bool lock = !drm_gpuvm_resv_protected(gpuvm);
-
-	if (!lock)
-		drm_gpuvm_resv_assert_held(gpuvm);
-
-	drm_gpuvm_bo_list_del(vm_bo, extobj, lock);
-	drm_gpuvm_bo_list_del(vm_bo, evict, lock);
-
-	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
-	list_del(&vm_bo->list.entry.gem);
 
 	if (ops && ops->vm_bo_free)
 		ops->vm_bo_free(vm_bo);
@@ -1628,6 +1627,35 @@ drm_gpuvm_bo_destroy(struct kref *kref)
 
 	drm_gpuvm_put(gpuvm);
 	drm_gem_object_put(obj);
+}
+
+static void
+drm_gpuvm_bo_destroy_not_in_lists_kref(struct kref *kref)
+{
+	struct drm_gpuvm_bo *vm_bo = container_of(kref, struct drm_gpuvm_bo,
+						  kref);
+
+	drm_gpuvm_bo_destroy_not_in_lists(vm_bo);
+}
+
+static void
+drm_gpuvm_bo_destroy(struct kref *kref)
+{
+	struct drm_gpuvm_bo *vm_bo = container_of(kref, struct drm_gpuvm_bo,
+						  kref);
+	struct drm_gpuvm *gpuvm = vm_bo->vm;
+	bool lock = !drm_gpuvm_resv_protected(gpuvm);
+
+	if (!lock)
+		drm_gpuvm_resv_assert_held(gpuvm);
+
+	drm_gpuvm_bo_list_del(vm_bo, extobj, lock);
+	drm_gpuvm_bo_list_del(vm_bo, evict, lock);
+
+	drm_gem_gpuva_assert_lock_held(gpuvm, vm_bo->obj);
+	list_del(&vm_bo->list.entry.gem);
+
+	drm_gpuvm_bo_destroy_not_in_lists(vm_bo);
 }
 
 /**
@@ -1745,9 +1773,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_put_deferred);
 void
 drm_gpuvm_bo_deferred_cleanup(struct drm_gpuvm *gpuvm)
 {
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
 	struct drm_gpuvm_bo *vm_bo;
-	struct drm_gem_object *obj;
 	struct llist_node *bo_defer;
 
 	bo_defer = llist_del_all(&gpuvm->bo_defer);
@@ -1766,14 +1792,7 @@ drm_gpuvm_bo_deferred_cleanup(struct drm_gpuvm *gpuvm)
 	while (bo_defer) {
 		vm_bo = llist_entry(bo_defer, struct drm_gpuvm_bo, list.entry.bo_defer);
 		bo_defer = bo_defer->next;
-		obj = vm_bo->obj;
-		if (ops && ops->vm_bo_free)
-			ops->vm_bo_free(vm_bo);
-		else
-			kfree(vm_bo);
-
-		drm_gpuvm_put(gpuvm);
-		drm_gem_object_put(obj);
+		drm_gpuvm_bo_destroy_not_in_lists(vm_bo);
 	}
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_deferred_cleanup);
@@ -1815,8 +1834,8 @@ drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_find);
 
 /**
- * drm_gpuvm_bo_obtain() - obtains an instance of the &drm_gpuvm_bo for the
- * given &drm_gpuvm and &drm_gem_object
+ * drm_gpuvm_bo_obtain_locked() - obtains an instance of the &drm_gpuvm_bo for
+ * the given &drm_gpuvm and &drm_gem_object
  * @gpuvm: The &drm_gpuvm the @obj is mapped in.
  * @obj: The &drm_gem_object being mapped in the @gpuvm.
  *
@@ -1825,15 +1844,25 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_find);
  * count of the &drm_gpuvm_bo accordingly. If not found, allocates a new
  * &drm_gpuvm_bo.
  *
+ * Requires the lock for the GEMs gpuva list.
+ *
  * A new &drm_gpuvm_bo is added to the GEMs gpuva list.
  *
  * Returns: a pointer to the &drm_gpuvm_bo on success, an ERR_PTR on failure
  */
 struct drm_gpuvm_bo *
-drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
-		    struct drm_gem_object *obj)
+drm_gpuvm_bo_obtain_locked(struct drm_gpuvm *gpuvm,
+			   struct drm_gem_object *obj)
 {
 	struct drm_gpuvm_bo *vm_bo;
+
+	/*
+	 * In immediate mode this would require the caller to hold the GEMs
+	 * gpuva mutex, but it's not okay to allocate while holding that lock,
+	 * and this method allocates. Immediate mode drivers should use
+	 * drm_gpuvm_bo_obtain_prealloc() instead.
+	 */
+	drm_WARN_ON(gpuvm->drm, drm_gpuvm_immediate_mode(gpuvm));
 
 	vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
 	if (vm_bo)
@@ -1848,7 +1877,7 @@ drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
 
 	return vm_bo;
 }
-EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain);
+EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain_locked);
 
 /**
  * drm_gpuvm_bo_obtain_prealloc() - obtains an instance of the &drm_gpuvm_bo
@@ -1860,6 +1889,9 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain);
  * count of the found &drm_gpuvm_bo accordingly, while the @__vm_bo reference
  * count is decreased. If not found @__vm_bo is returned without further
  * increase of the reference count.
+ *
+ * The provided @__vm_bo must not already be in the gpuva, evict, or extobj
+ * lists prior to calling this method.
  *
  * A new &drm_gpuvm_bo is added to the GEMs gpuva list.
  *
@@ -1873,14 +1905,19 @@ drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *__vm_bo)
 	struct drm_gem_object *obj = __vm_bo->obj;
 	struct drm_gpuvm_bo *vm_bo;
 
+	drm_WARN_ON(gpuvm->drm, !drm_gpuvm_immediate_mode(gpuvm));
+
+	mutex_lock(&obj->gpuva.lock);
 	vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
 	if (vm_bo) {
-		drm_gpuvm_bo_put(__vm_bo);
+		mutex_unlock(&obj->gpuva.lock);
+		kref_put(&__vm_bo->kref, drm_gpuvm_bo_destroy_not_in_lists_kref);
 		return vm_bo;
 	}
 
 	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	list_add_tail(&__vm_bo->list.entry.gem, &obj->gpuva.list);
+	mutex_unlock(&obj->gpuva.lock);
 
 	return __vm_bo;
 }
@@ -2258,7 +2295,7 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_interval_empty);
 void
 drm_gpuva_map(struct drm_gpuvm *gpuvm,
 	      struct drm_gpuva *va,
-	      struct drm_gpuva_op_map *op)
+	      const struct drm_gpuva_op_map *op)
 {
 	drm_gpuva_init_from_op(va, op);
 	drm_gpuva_insert(gpuvm, va);
@@ -2278,7 +2315,7 @@ EXPORT_SYMBOL_GPL(drm_gpuva_map);
 void
 drm_gpuva_remap(struct drm_gpuva *prev,
 		struct drm_gpuva *next,
-		struct drm_gpuva_op_remap *op)
+		const struct drm_gpuva_op_remap *op)
 {
 	struct drm_gpuva *va = op->unmap->va;
 	struct drm_gpuvm *gpuvm = va->vm;
@@ -2305,7 +2342,7 @@ EXPORT_SYMBOL_GPL(drm_gpuva_remap);
  * Removes the &drm_gpuva associated with the &drm_gpuva_op_unmap.
  */
 void
-drm_gpuva_unmap(struct drm_gpuva_op_unmap *op)
+drm_gpuva_unmap(const struct drm_gpuva_op_unmap *op)
 {
 	drm_gpuva_remove(op->va);
 }
@@ -2815,7 +2852,7 @@ gpuva_op_alloc(struct drm_gpuvm *gpuvm)
 	if (fn && fn->op_alloc)
 		op = fn->op_alloc();
 	else
-		op = kzalloc(sizeof(*op), GFP_KERNEL);
+		op = kzalloc_obj(*op);
 
 	if (unlikely(!op))
 		return NULL;
@@ -2909,7 +2946,7 @@ __drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
 	} args;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (unlikely(!ops))
 		return ERR_PTR(-ENOMEM);
 
@@ -3043,7 +3080,7 @@ drm_gpuvm_sm_unmap_ops_create(struct drm_gpuvm *gpuvm,
 	} args;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (unlikely(!ops))
 		return ERR_PTR(-ENOMEM);
 
@@ -3093,7 +3130,7 @@ drm_gpuvm_prefetch_ops_create(struct drm_gpuvm *gpuvm,
 	u64 end = addr + range;
 	int ret;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (!ops)
 		return ERR_PTR(-ENOMEM);
 
@@ -3147,7 +3184,7 @@ drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
 
 	drm_gem_gpuva_assert_lock_held(vm_bo->vm, vm_bo->obj);
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (!ops)
 		return ERR_PTR(-ENOMEM);
 

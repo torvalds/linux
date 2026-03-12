@@ -78,7 +78,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	serport = kzalloc(sizeof(*serport), GFP_KERNEL);
+	serport = kzalloc_obj(*serport);
 	if (!serport)
 		return -ENOMEM;
 
@@ -159,7 +159,7 @@ static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file,
 	if (test_and_set_bit(SERPORT_BUSY, &serport->flags))
 		return -EBUSY;
 
-	serport->serio = serio = kzalloc(sizeof(*serio), GFP_KERNEL);
+	serport->serio = serio = kzalloc_obj(*serio);
 	if (!serio)
 		return -ENOMEM;
 

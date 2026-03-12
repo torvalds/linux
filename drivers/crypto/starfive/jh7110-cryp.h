@@ -216,13 +216,15 @@ struct starfive_cryp_request_ctx {
 
 	struct scatterlist			*in_sg;
 	struct scatterlist			*out_sg;
-	struct ahash_request			ahash_fbk_req;
 	size_t					total;
 	unsigned int				blksize;
 	unsigned int				digsize;
 	unsigned long				in_sg_len;
 	unsigned char				*adata;
 	u8 rsa_data[STARFIVE_RSA_MAX_KEYSZ] __aligned(sizeof(u32));
+
+	/* Must be last as it ends in a flexible-array member. */
+	struct ahash_request			ahash_fbk_req;
 };
 
 struct starfive_cryp_dev *starfive_cryp_find_dev(struct starfive_cryp_ctx *ctx);

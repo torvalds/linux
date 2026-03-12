@@ -577,7 +577,7 @@ int gb_fw_mgmt_connection_init(struct gb_connection *connection)
 	if (!connection)
 		return 0;
 
-	fw_mgmt = kzalloc(sizeof(*fw_mgmt), GFP_KERNEL);
+	fw_mgmt = kzalloc_obj(*fw_mgmt);
 	if (!fw_mgmt)
 		return -ENOMEM;
 

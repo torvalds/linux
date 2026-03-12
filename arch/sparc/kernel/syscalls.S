@@ -103,6 +103,12 @@ sys_clone:
 	ba,pt	%xcc, sparc_clone
 	 add	%sp, PTREGS_OFF, %o0
 
+	.align	32
+__sys_clone3:
+	flushw
+	ba,pt	%xcc, sparc_clone3
+	 add	%sp, PTREGS_OFF, %o0
+
 	.globl	ret_from_fork
 ret_from_fork:
 	/* Clear current_thread_info()->new_child. */
@@ -113,6 +119,8 @@ ret_from_fork:
 	brnz,pt	%o0, ret_sys_call
 	 ldx	[%g6 + TI_FLAGS], %l0
 	ldx	[%sp + PTREGS_OFF + PT_V9_G1], %l1
+	brz,pt	%l1, ret_sys_call
+	 nop
 	call	%l1
 	 ldx	[%sp + PTREGS_OFF + PT_V9_G2], %o0
 	ba,pt	%xcc, ret_sys_call

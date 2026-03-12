@@ -183,9 +183,9 @@ static void __init of_dra7_apll_setup(struct device_node *node)
 	const char **parent_names = NULL;
 	int ret;
 
-	ad = kzalloc(sizeof(*ad), GFP_KERNEL);
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
-	init = kzalloc(sizeof(*init), GFP_KERNEL);
+	ad = kzalloc_obj(*ad);
+	clk_hw = kzalloc_obj(*clk_hw);
+	init = kzalloc_obj(*init);
 	if (!ad || !clk_hw || !init)
 		goto cleanup;
 
@@ -347,9 +347,9 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	u32 val;
 	int ret;
 
-	ad = kzalloc(sizeof(*ad), GFP_KERNEL);
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
-	init = kzalloc(sizeof(*init), GFP_KERNEL);
+	ad = kzalloc_obj(*ad);
+	clk_hw = kzalloc_obj(*clk_hw);
+	init = kzalloc_obj(*init);
 
 	if (!ad || !clk_hw || !init)
 		goto cleanup;

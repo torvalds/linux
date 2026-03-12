@@ -15,6 +15,7 @@
 
 #include <linux/uio.h>
 #include <linux/blkdev.h>
+#include <linux/filelock.h>
 #include <linux/mpage.h>
 #include "affs.h"
 
@@ -1008,6 +1009,7 @@ const struct file_operations affs_file_operations = {
 	.release	= affs_file_release,
 	.fsync		= affs_file_fsync,
 	.splice_read	= filemap_splice_read,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations affs_file_inode_operations = {

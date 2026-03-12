@@ -420,7 +420,7 @@ static int devpts_init_fs_context(struct fs_context *fc)
 {
 	struct pts_fs_info *fsi;
 
-	fsi = kzalloc(sizeof(struct pts_fs_info), GFP_KERNEL);
+	fsi = kzalloc_obj(struct pts_fs_info);
 	if (!fsi)
 		return -ENOMEM;
 

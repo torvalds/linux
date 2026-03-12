@@ -4,12 +4,12 @@
 #include "vmcs12.h"
 
 #define VMCS12_OFFSET(x) offsetof(struct vmcs12, x)
-#define FIELD(number, name)	[ROL16(number, 6)] = VMCS12_OFFSET(name)
+#define FIELD(number, name)	[ENC_TO_VMCS12_IDX(number)] = VMCS12_OFFSET(name)
 #define FIELD64(number, name)						\
 	FIELD(number, name),						\
-	[ROL16(number##_HIGH, 6)] = VMCS12_OFFSET(name) + sizeof(u32)
+	[ENC_TO_VMCS12_IDX(number##_HIGH)] = VMCS12_OFFSET(name) + sizeof(u32)
 
-const unsigned short vmcs12_field_offsets[] = {
+static const u16 kvm_supported_vmcs12_field_offsets[] __initconst = {
 	FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id),
 	FIELD(POSTED_INTR_NV, posted_intr_nv),
 	FIELD(GUEST_ES_SELECTOR, guest_es_selector),
@@ -158,4 +158,70 @@ const unsigned short vmcs12_field_offsets[] = {
 	FIELD(HOST_SSP, host_ssp),
 	FIELD(HOST_INTR_SSP_TABLE, host_ssp_tbl),
 };
-const unsigned int nr_vmcs12_fields = ARRAY_SIZE(vmcs12_field_offsets);
+
+u16 vmcs12_field_offsets[ARRAY_SIZE(kvm_supported_vmcs12_field_offsets)] __ro_after_init;
+unsigned int nr_vmcs12_fields __ro_after_init;
+
+#define VMCS12_CASE64(enc) case enc##_HIGH: case enc
+
+static __init bool cpu_has_vmcs12_field(unsigned int idx)
+{
+	switch (VMCS12_IDX_TO_ENC(idx)) {
+	case VIRTUAL_PROCESSOR_ID:
+		return cpu_has_vmx_vpid();
+	case POSTED_INTR_NV:
+		return cpu_has_vmx_posted_intr();
+	VMCS12_CASE64(TSC_MULTIPLIER):
+		return cpu_has_vmx_tsc_scaling();
+	case TPR_THRESHOLD:
+	VMCS12_CASE64(VIRTUAL_APIC_PAGE_ADDR):
+		return cpu_has_vmx_tpr_shadow();
+	VMCS12_CASE64(APIC_ACCESS_ADDR):
+		return cpu_has_vmx_virtualize_apic_accesses();
+	VMCS12_CASE64(POSTED_INTR_DESC_ADDR):
+		return cpu_has_vmx_posted_intr();
+	case GUEST_INTR_STATUS:
+		return cpu_has_vmx_virtual_intr_delivery();
+	VMCS12_CASE64(VM_FUNCTION_CONTROL):
+	VMCS12_CASE64(EPTP_LIST_ADDRESS):
+		return cpu_has_vmx_vmfunc();
+	VMCS12_CASE64(EPT_POINTER):
+		return cpu_has_vmx_ept();
+	VMCS12_CASE64(XSS_EXIT_BITMAP):
+		return cpu_has_vmx_xsaves();
+	VMCS12_CASE64(ENCLS_EXITING_BITMAP):
+		return cpu_has_vmx_encls_vmexit();
+	VMCS12_CASE64(GUEST_IA32_PERF_GLOBAL_CTRL):
+	VMCS12_CASE64(HOST_IA32_PERF_GLOBAL_CTRL):
+		return cpu_has_load_perf_global_ctrl();
+	case SECONDARY_VM_EXEC_CONTROL:
+		return cpu_has_secondary_exec_ctrls();
+	case GUEST_S_CET:
+	case GUEST_SSP:
+	case GUEST_INTR_SSP_TABLE:
+	case HOST_S_CET:
+	case HOST_SSP:
+	case HOST_INTR_SSP_TABLE:
+		return cpu_has_load_cet_ctrl();
+
+	/* KVM always emulates PML and the VMX preemption timer in software. */
+	case GUEST_PML_INDEX:
+	case VMX_PREEMPTION_TIMER_VALUE:
+	default:
+		return true;
+	}
+}
+
+void __init nested_vmx_setup_vmcs12_fields(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(kvm_supported_vmcs12_field_offsets); i++) {
+		if (!kvm_supported_vmcs12_field_offsets[i] ||
+		    !cpu_has_vmcs12_field(i))
+			continue;
+
+		vmcs12_field_offsets[i] = kvm_supported_vmcs12_field_offsets[i];
+		nr_vmcs12_fields = i + 1;
+	}
+}

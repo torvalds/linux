@@ -81,7 +81,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 		goto out;
 	}
 
-	dev_entry = kmalloc(sizeof(*dev_entry), GFP_KERNEL);
+	dev_entry = kmalloc_obj(*dev_entry);
 	if (!dev_entry) {
 		err = -ENOMEM;
 		xenbus_dev_fatal(pdev->xdev, err,
@@ -186,7 +186,7 @@ static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 	int slot;
 	struct vpci_dev_data *vpci_dev;
 
-	vpci_dev = kmalloc(sizeof(*vpci_dev), GFP_KERNEL);
+	vpci_dev = kmalloc_obj(*vpci_dev);
 	if (!vpci_dev)
 		return -ENOMEM;
 

@@ -114,7 +114,7 @@ static int ll_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	ll = kzalloc(sizeof(*ll), GFP_KERNEL);
+	ll = kzalloc_obj(*ll);
 	if (!ll)
 		return -ENOMEM;
 

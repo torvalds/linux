@@ -288,7 +288,11 @@
 	__SMU_DUMMY_MAP(GetBadPageIpid), \
 	__SMU_DUMMY_MAP(EraseRasTable),  \
 	__SMU_DUMMY_MAP(SetFastPptLimit), \
-	__SMU_DUMMY_MAP(GetFastPptLimit),
+	__SMU_DUMMY_MAP(GetFastPptLimit), \
+	__SMU_DUMMY_MAP(AllowZstates), \
+	__SMU_DUMMY_MAP(GetSmartShiftStatus), \
+	__SMU_DUMMY_MAP(EnableLSdma), \
+	__SMU_DUMMY_MAP(DisableLSdma),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

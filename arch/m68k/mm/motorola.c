@@ -429,7 +429,6 @@ DECLARE_VM_GET_PAGE_PROT
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 	unsigned long min_addr, max_addr;
 	unsigned long addr;
 	int i;
@@ -511,12 +510,9 @@ void __init paging_init(void)
 	set_fc(USER_DATA);
 
 #ifdef DEBUG
-	printk ("before free_area_init\n");
+	printk ("before node_set_state\n");
 #endif
 	for (i = 0; i < m68k_num_memory; i++)
 		if (node_present_pages(i))
 			node_set_state(i, N_NORMAL_MEMORY);
-
-	max_zone_pfn[ZONE_DMA] = memblock_end_of_DRAM();
-	free_area_init(max_zone_pfn);
 }

@@ -528,7 +528,7 @@ ax25_cb *ax25_create_cb(void)
 {
 	ax25_cb *ax25;
 
-	if ((ax25 = kzalloc(sizeof(*ax25), GFP_ATOMIC)) == NULL)
+	if ((ax25 = kzalloc_obj(*ax25, GFP_ATOMIC)) == NULL)
 		return NULL;
 
 	refcount_set(&ax25->refcount, 1);
@@ -1249,7 +1249,7 @@ static int __must_check ax25_connect(struct socket *sock,
 			goto out_release;
 		}
 
-		if ((digi = kmalloc(sizeof(ax25_digi), GFP_KERNEL)) == NULL) {
+		if ((digi = kmalloc_obj(ax25_digi)) == NULL) {
 			err = -ENOBUFS;
 			goto out_release;
 		}

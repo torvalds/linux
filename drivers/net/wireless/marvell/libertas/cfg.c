@@ -2094,7 +2094,7 @@ struct wireless_dev *lbs_cfg_alloc(struct device *dev)
 	int ret = 0;
 	struct wireless_dev *wdev;
 
-	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+	wdev = kzalloc_obj(struct wireless_dev);
 	if (!wdev)
 		return ERR_PTR(-ENOMEM);
 

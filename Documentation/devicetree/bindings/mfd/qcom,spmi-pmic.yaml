@@ -77,8 +77,12 @@ properties:
           - qcom,pmc8180
           - qcom,pmc8180c
           - qcom,pmc8380
+          - qcom,pmcx0102
           - qcom,pmd8028
           - qcom,pmd9635
+          - qcom,pmh0101
+          - qcom,pmh0104
+          - qcom,pmh0110
           - qcom,pmi632
           - qcom,pmi8950
           - qcom,pmi8962
@@ -89,6 +93,7 @@ properties:
           - qcom,pmk8002
           - qcom,pmk8350
           - qcom,pmk8550
+          - qcom,pmk8850
           - qcom,pmm8155au
           - qcom,pmm8654au
           - qcom,pmp8074
@@ -101,6 +106,7 @@ properties:
           - qcom,pmx75
           - qcom,smb2351
           - qcom,smb2360
+          - qcom,smb2370
       - const: qcom,spmi-pmic
 
   reg:

@@ -246,7 +246,7 @@ static void __init tcon_ch1_setup(struct device_node *node)
 		goto err_unmap;
 	}
 
-	tclk = kzalloc(sizeof(*tclk), GFP_KERNEL);
+	tclk = kzalloc_obj(*tclk);
 	if (!tclk)
 		goto err_unmap;
 

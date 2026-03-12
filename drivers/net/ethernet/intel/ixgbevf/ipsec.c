@@ -628,7 +628,7 @@ void ixgbevf_init_ipsec_offload(struct ixgbevf_adapter *adapter)
 		return;
 	}
 
-	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
+	ipsec = kzalloc_obj(*ipsec);
 	if (!ipsec)
 		goto err1;
 	hash_init(ipsec->rx_sa_list);

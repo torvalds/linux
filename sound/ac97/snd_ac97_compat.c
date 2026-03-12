@@ -69,7 +69,7 @@ struct snd_ac97 *snd_ac97_compat_alloc(struct ac97_codec_device *adev)
 	struct snd_ac97 *ac97;
 	int ret;
 
-	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
+	ac97 = kzalloc_obj(struct snd_ac97);
 	if (ac97 == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -81,9 +81,7 @@ static int __init __vdso_init(enum vdso_abi abi)
 			vdso_info[abi].vdso_code_start) >>
 			PAGE_SHIFT;
 
-	vdso_pagelist = kcalloc(vdso_info[abi].vdso_pages,
-				sizeof(struct page *),
-				GFP_KERNEL);
+	vdso_pagelist = kzalloc_objs(struct page *, vdso_info[abi].vdso_pages);
 	if (vdso_pagelist == NULL)
 		return -ENOMEM;
 

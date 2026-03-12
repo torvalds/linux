@@ -37,15 +37,6 @@ int lsm_task_alloc(struct task_struct *task);
 
 /* LSM framework initializers */
 
-#ifdef CONFIG_MMU
-int min_addr_init(void);
-#else
-static inline int min_addr_init(void)
-{
-	return 0;
-}
-#endif /* CONFIG_MMU */
-
 #ifdef CONFIG_SECURITYFS
 int securityfs_init(void);
 #else

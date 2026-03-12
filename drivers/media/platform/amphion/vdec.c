@@ -9,7 +9,6 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -17,7 +16,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/videobuf2-vmalloc.h>
 #include "vpu.h"
 #include "vpu_defs.h"
 #include "vpu_core.h"
@@ -724,6 +722,7 @@ static int vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd
 	switch (cmd->cmd) {
 	case V4L2_DEC_CMD_START:
 		vdec_cmd_start(inst);
+		vb2_clear_last_buffer_dequeued(v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx));
 		break;
 	case V4L2_DEC_CMD_STOP:
 		vdec_cmd_stop(inst);
@@ -949,7 +948,7 @@ static void vdec_stop_done(struct vpu_inst *inst)
 	vpu_inst_unlock(inst);
 }
 
-static bool vdec_check_source_change(struct vpu_inst *inst)
+static bool vdec_check_source_change(struct vpu_inst *inst, struct vpu_dec_codec_info *hdr)
 {
 	struct vdec_t *vdec = inst->priv;
 	const struct vpu_format *sibling;
@@ -961,26 +960,35 @@ static bool vdec_check_source_change(struct vpu_inst *inst)
 		return false;
 
 	sibling = vpu_helper_find_sibling(inst, inst->cap_format.type, inst->cap_format.pixfmt);
-	if (sibling && vdec->codec_info.pixfmt == sibling->pixfmt)
-		vdec->codec_info.pixfmt = inst->cap_format.pixfmt;
+	if (sibling && hdr->pixfmt == sibling->pixfmt)
+		hdr->pixfmt = inst->cap_format.pixfmt;
 
 	if (!vb2_is_streaming(v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx)))
 		return true;
-	if (inst->cap_format.pixfmt != vdec->codec_info.pixfmt)
+	if (inst->cap_format.pixfmt != hdr->pixfmt)
 		return true;
-	if (inst->cap_format.width != vdec->codec_info.decoded_width)
+	if (inst->cap_format.width != hdr->decoded_width)
 		return true;
-	if (inst->cap_format.height != vdec->codec_info.decoded_height)
+	if (inst->cap_format.height != hdr->decoded_height)
 		return true;
 	if (vpu_get_num_buffers(inst, inst->cap_format.type) < inst->min_buffer_cap)
 		return true;
-	if (inst->crop.left != vdec->codec_info.offset_x)
+	if (inst->crop.left != hdr->offset_x)
 		return true;
-	if (inst->crop.top != vdec->codec_info.offset_y)
+	if (inst->crop.top != hdr->offset_y)
 		return true;
-	if (inst->crop.width != vdec->codec_info.width)
+	if (inst->crop.width != hdr->width)
 		return true;
-	if (inst->crop.height != vdec->codec_info.height)
+	if (inst->crop.height != hdr->height)
+		return true;
+	if (!hdr->progressive)
+		return true;
+
+	if (vdec->seq_hdr_found &&
+	    (hdr->color_primaries != vdec->codec_info.color_primaries ||
+	     hdr->transfer_chars != vdec->codec_info.transfer_chars ||
+	     hdr->matrix_coeffs != vdec->codec_info.matrix_coeffs ||
+	     hdr->full_range != vdec->codec_info.full_range))
 		return true;
 
 	return false;
@@ -1332,20 +1340,25 @@ static void vdec_event_seq_hdr(struct vpu_inst *inst, struct vpu_dec_codec_info 
 	struct vdec_t *vdec = inst->priv;
 
 	vpu_inst_lock(inst);
-	memcpy(&vdec->codec_info, hdr, sizeof(vdec->codec_info));
 
-	vpu_trace(inst->dev, "[%d] %d x %d, crop : (%d, %d) %d x %d, %d, %d\n",
+	vpu_trace(inst->dev,
+		  "[%d] %d x %d, crop : (%d, %d) %d x %d, %d, %d, colorspace: %d, %d, %d, %d\n",
 		  inst->id,
-		  vdec->codec_info.decoded_width,
-		  vdec->codec_info.decoded_height,
-		  vdec->codec_info.offset_x,
-		  vdec->codec_info.offset_y,
-		  vdec->codec_info.width,
-		  vdec->codec_info.height,
+		  hdr->decoded_width,
+		  hdr->decoded_height,
+		  hdr->offset_x,
+		  hdr->offset_y,
+		  hdr->width,
+		  hdr->height,
 		  hdr->num_ref_frms,
-		  hdr->num_dpb_frms);
+		  hdr->num_dpb_frms,
+		  hdr->color_primaries,
+		  hdr->transfer_chars,
+		  hdr->matrix_coeffs,
+		  hdr->full_range);
 	inst->min_buffer_cap = hdr->num_ref_frms + hdr->num_dpb_frms;
-	vdec->is_source_changed = vdec_check_source_change(inst);
+	vdec->is_source_changed = vdec_check_source_change(inst, hdr);
+	memcpy(&vdec->codec_info, hdr, sizeof(vdec->codec_info));
 	vdec_init_fmt(inst);
 	vdec_init_crop(inst);
 	vdec_init_mbi(inst);
@@ -1374,7 +1387,12 @@ static void vdec_event_resolution_change(struct vpu_inst *inst)
 {
 	struct vdec_t *vdec = inst->priv;
 
-	vpu_trace(inst->dev, "[%d]\n", inst->id);
+	vpu_trace(inst->dev, "[%d] input : %d, decoded : %d, display : %d, sequence : %d\n",
+		  inst->id,
+		  vdec->params.frame_count,
+		  vdec->decoded_frame_count,
+		  vdec->display_frame_count,
+		  vdec->sequence);
 	vpu_inst_lock(inst);
 	vdec->seq_tag = vdec->codec_info.tag;
 	vdec_clear_fs(&vdec->mbi);
@@ -1642,9 +1660,9 @@ static void vdec_cleanup(struct vpu_inst *inst)
 		vdec->slots = NULL;
 		vdec->slot_count = 0;
 	}
-	vfree(vdec);
+	kfree(vdec);
 	inst->priv = NULL;
-	vfree(inst);
+	kfree(inst);
 }
 
 static void vdec_init_params(struct vdec_t *vdec)
@@ -1909,22 +1927,21 @@ static int vdec_open(struct file *file)
 	struct vdec_t *vdec;
 	int ret;
 
-	inst = vzalloc(sizeof(*inst));
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
-	vdec = vzalloc(sizeof(*vdec));
+	vdec = kzalloc_obj(*vdec);
 	if (!vdec) {
-		vfree(inst);
+		kfree(inst);
 		return -ENOMEM;
 	}
 
-	vdec->slots = kmalloc_array(VDEC_SLOT_CNT_DFT,
-				    sizeof(*vdec->slots),
-				    GFP_KERNEL | __GFP_ZERO);
+	vdec->slots = kmalloc_objs(*vdec->slots, VDEC_SLOT_CNT_DFT,
+				   GFP_KERNEL | __GFP_ZERO);
 	if (!vdec->slots) {
-		vfree(vdec);
-		vfree(inst);
+		kfree(vdec);
+		kfree(inst);
 		return -ENOMEM;
 	}
 	vdec->slot_count = VDEC_SLOT_CNT_DFT;

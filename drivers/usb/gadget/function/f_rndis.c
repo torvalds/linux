@@ -673,7 +673,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis_opts = container_of(f->fi, struct f_rndis_opts, func_inst);
 
 	if (cdev->use_os_string) {
-		os_desc_table = kzalloc(sizeof(*os_desc_table), GFP_KERNEL);
+		os_desc_table = kzalloc_obj(*os_desc_table);
 		if (!os_desc_table)
 			return -ENOMEM;
 	}
@@ -888,7 +888,7 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 	char *names[1];
 	struct config_group *rndis_interf_group;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	opts->rndis_os_desc.ext_compat_id = opts->rndis_ext_compat_id;
@@ -956,7 +956,7 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 	struct rndis_params *params;
 
 	/* allocate and initialize one new instance */
-	rndis = kzalloc(sizeof(*rndis), GFP_KERNEL);
+	rndis = kzalloc_obj(*rndis);
 	if (!rndis)
 		return ERR_PTR(-ENOMEM);
 

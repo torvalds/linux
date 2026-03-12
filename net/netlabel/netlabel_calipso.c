@@ -95,7 +95,7 @@ static int netlbl_calipso_add_pass(struct genl_info *info,
 	int ret_val;
 	struct calipso_doi *doi_def = NULL;
 
-	doi_def = kmalloc(sizeof(*doi_def), GFP_KERNEL);
+	doi_def = kmalloc_obj(*doi_def);
 	if (!doi_def)
 		return -ENOMEM;
 	doi_def->type = CALIPSO_MAP_PASS;

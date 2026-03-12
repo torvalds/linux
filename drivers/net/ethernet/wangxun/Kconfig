@@ -21,6 +21,7 @@ config LIBWX
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PAGE_POOL
 	select DIMLIB
+	select PHYLINK
 	help
 	Common library for Wangxun(R) Ethernet drivers.
 
@@ -29,7 +30,6 @@ config NGBE
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select LIBWX
-	select PHYLINK
 	help
 	  This driver supports Wangxun(R) GbE PCI Express family of
 	  adapters.
@@ -48,7 +48,6 @@ config TXGBE
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select MARVELL_10G_PHY
 	select REGMAP
-	select PHYLINK
 	select HWMON if TXGBE=y
 	select SFP
 	select GPIOLIB
@@ -71,7 +70,6 @@ config TXGBEVF
 	depends on PCI_MSI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select LIBWX
-	select PHYLINK
 	help
 	  This driver supports virtual functions for SP1000A, WX1820AL,
 	  WX5XXX, WX5XXXAL.

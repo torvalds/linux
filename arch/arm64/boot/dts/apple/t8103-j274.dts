@@ -15,6 +15,7 @@
 / {
 	compatible = "apple,j274", "apple,t8103", "apple,arm-platform";
 	model = "Apple Mac mini (M1, 2020)";
+	chassis-type = "desktop";
 
 	aliases {
 		ethernet0 = &ethernet0;
@@ -27,6 +28,18 @@
 
 &wifi0 {
 	brcm,board-type = "apple,atlantisb";
+};
+
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Back-left";
+};
+
+&typec1 {
+	label = "USB-C Back-right";
 };
 
 /*

@@ -372,7 +372,7 @@ static int load_fw(struct device *dev, struct fw_info_t *fw_info,
 	int ucode_type, ucode_size;
 	int ret;
 
-	uc_info = kzalloc(sizeof(*uc_info), GFP_KERNEL);
+	uc_info = kzalloc_obj(*uc_info);
 	if (!uc_info)
 		return -ENOMEM;
 

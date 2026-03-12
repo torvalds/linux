@@ -127,8 +127,7 @@ static int _store_optimized_voltages(struct device *dev,
 		goto out;
 	}
 
-	table = kcalloc(data->num_vdd_table, sizeof(*data->vdd_table),
-			GFP_KERNEL);
+	table = kzalloc_objs(*data->vdd_table, data->num_vdd_table);
 	if (!table) {
 		ret = -ENOMEM;
 		goto out;

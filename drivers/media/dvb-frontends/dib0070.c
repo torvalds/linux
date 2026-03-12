@@ -738,7 +738,7 @@ static const struct dvb_tuner_ops dib0070_ops = {
 
 struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg)
 {
-	struct dib0070_state *state = kzalloc(sizeof(struct dib0070_state), GFP_KERNEL);
+	struct dib0070_state *state = kzalloc_obj(struct dib0070_state);
 	if (state == NULL)
 		return NULL;
 

@@ -60,7 +60,7 @@ struct iio_cb_buffer *iio_channel_get_all_cb(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	cb_buff = kzalloc(sizeof(*cb_buff), GFP_KERNEL);
+	cb_buff = kzalloc_obj(*cb_buff);
 	if (cb_buff == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -243,7 +243,7 @@ int mlxsw_sp_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 
-	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
+	mall_entry = kzalloc_obj(*mall_entry);
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;

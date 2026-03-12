@@ -966,7 +966,7 @@ mt7996_mac_sta_init_link(struct mt7996_dev *dev,
 			mtxq->wcid = idx;
 		}
 	} else {
-		msta_link = kzalloc(sizeof(*msta_link), GFP_KERNEL);
+		msta_link = kzalloc_obj(*msta_link);
 		if (!msta_link)
 			return -ENOMEM;
 

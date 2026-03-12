@@ -35,6 +35,16 @@ static int __init setup_forced_irqthreads(char *arg)
 early_param("threadirqs", setup_forced_irqthreads);
 #endif
 
+#ifdef CONFIG_SMP
+static inline void synchronize_irqwork(struct irq_desc *desc)
+{
+	/* Synchronize pending or on the fly redirect work */
+	irq_work_sync(&desc->redirect.work);
+}
+#else
+static inline void synchronize_irqwork(struct irq_desc *desc) { }
+#endif
+
 static int __irq_get_irqchip_state(struct irq_data *d, enum irqchip_irq_state which, bool *state);
 
 static void __synchronize_hardirq(struct irq_desc *desc, bool sync_chip)
@@ -107,7 +117,9 @@ EXPORT_SYMBOL(synchronize_hardirq);
 
 static void __synchronize_irq(struct irq_desc *desc)
 {
+	synchronize_irqwork(desc);
 	__synchronize_hardirq(desc, true);
+
 	/*
 	 * We made sure that no hardirq handler is running. Now verify that no
 	 * threaded handlers are active.
@@ -217,8 +229,7 @@ static inline void irq_validate_effective_affinity(struct irq_data *data) { }
 
 static DEFINE_PER_CPU(struct cpumask, __tmp_mask);
 
-int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
-			bool force)
+int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 {
 	struct cpumask *tmp_mask = this_cpu_ptr(&__tmp_mask);
 	struct irq_desc *desc = irq_data_to_desc(data);
@@ -347,6 +358,21 @@ static bool irq_set_affinity_deactivated(struct irq_data *data,
 	return true;
 }
 
+/**
+ * irq_affinity_schedule_notify_work - Schedule work to notify about affinity change
+ * @desc:  Interrupt descriptor whose affinity changed
+ */
+void irq_affinity_schedule_notify_work(struct irq_desc *desc)
+{
+	lockdep_assert_held(&desc->lock);
+
+	kref_get(&desc->affinity_notify->kref);
+	if (!schedule_work(&desc->affinity_notify->work)) {
+		/* Work was already scheduled, drop our extra ref */
+		kref_put(&desc->affinity_notify->kref, desc->affinity_notify->release);
+	}
+}
+
 int irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask,
 			    bool force)
 {
@@ -367,14 +393,9 @@ int irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask,
 		irq_copy_pending(desc, mask);
 	}
 
-	if (desc->affinity_notify) {
-		kref_get(&desc->affinity_notify->kref);
-		if (!schedule_work(&desc->affinity_notify->work)) {
-			/* Work was already scheduled, drop our extra ref */
-			kref_put(&desc->affinity_notify->kref,
-				 desc->affinity_notify->release);
-		}
-	}
+	if (desc->affinity_notify)
+		irq_affinity_schedule_notify_work(desc);
+
 	irqd_set(data, IRQD_AFFINITY_SET);
 
 	return ret;
@@ -1311,7 +1332,7 @@ static int irq_setup_forced_threading(struct irqaction *new)
 	 */
 	if (new->handler && new->thread_fn) {
 		/* Allocate the secondary action */
-		new->secondary = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+		new->secondary = kzalloc_obj(struct irqaction);
 		if (!new->secondary)
 			return -ENOMEM;
 		new->secondary->handler = irq_forced_secondary_handler;
@@ -1472,6 +1493,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	 */
 	if (!(new->flags & IRQF_TRIGGER_MASK))
 		new->flags |= irqd_get_trigger_type(&desc->irq_data);
+
+	/*
+	 * IRQF_ONESHOT means the interrupt source in the IRQ chip will be
+	 * masked until the threaded handled is done. If there is no thread
+	 * handler then it makes no sense to have IRQF_ONESHOT.
+	 */
+	WARN_ON_ONCE(new->flags & IRQF_ONESHOT && !new->thread_fn);
 
 	/*
 	 * Check whether the interrupt nests into another interrupt
@@ -1778,8 +1806,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	chip_bus_sync_unlock(desc);
 	mutex_unlock(&desc->request_mutex);
 
-	irq_setup_timings(desc, new);
-
 	wake_up_and_wait_for_irq_thread_ready(desc, new);
 	wake_up_and_wait_for_irq_thread_ready(desc, new->secondary);
 
@@ -1950,7 +1976,6 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 
 		irq_release_resources(desc);
 		chip_bus_sync_unlock(desc);
-		irq_remove_timings(desc);
 	}
 
 	mutex_unlock(&desc->request_mutex);
@@ -2131,7 +2156,7 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		handler = irq_default_primary_handler;
 	}
 
-	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc_obj(struct irqaction);
 	if (!action)
 		return -ENOMEM;
 
@@ -2451,36 +2476,6 @@ void free_percpu_nmi(unsigned int irq, void __percpu *dev_id)
 	kfree(__free_percpu_irq(irq, dev_id));
 }
 
-/**
- * setup_percpu_irq - setup a per-cpu interrupt
- * @irq:	Interrupt line to setup
- * @act:	irqaction for the interrupt
- *
- * Used to statically setup per-cpu interrupts in the early boot process.
- */
-int setup_percpu_irq(unsigned int irq, struct irqaction *act)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-	int retval;
-
-	if (!desc || !irq_settings_is_per_cpu_devid(desc))
-		return -EINVAL;
-
-	retval = irq_chip_pm_get(&desc->irq_data);
-	if (retval < 0)
-		return retval;
-
-	if (!act->affinity)
-		act->affinity = cpu_online_mask;
-
-	retval = __setup_irq(irq, desc, act);
-
-	if (retval)
-		irq_chip_pm_put(&desc->irq_data);
-
-	return retval;
-}
-
 static
 struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long flags,
 					  const char *devname, const cpumask_t *affinity,
@@ -2491,7 +2486,7 @@ struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long f
 	if (!affinity)
 		affinity = cpu_possible_mask;
 
-	action = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
+	action = kzalloc_obj(struct irqaction);
 	if (!action)
 		return NULL;
 
@@ -2513,10 +2508,9 @@ struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long f
 }
 
 /**
- * __request_percpu_irq - allocate a percpu interrupt line
+ * request_percpu_irq_affinity - allocate a percpu interrupt line
  * @irq:	Interrupt line to allocate
  * @handler:	Function to be called when the IRQ occurs.
- * @flags:	Interrupt type flags (IRQF_TIMER only)
  * @devname:	An ascii name for the claiming device
  * @affinity:	A cpumask describing the target CPUs for this interrupt
  * @dev_id:	A percpu cookie passed back to the handler function
@@ -2529,9 +2523,8 @@ struct irqaction *create_percpu_irqaction(irq_handler_t handler, unsigned long f
  * the handler gets called with the interrupted CPU's instance of
  * that variable.
  */
-int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
-			 unsigned long flags, const char *devname,
-			 const cpumask_t *affinity, void __percpu *dev_id)
+int request_percpu_irq_affinity(unsigned int irq, irq_handler_t handler, const char *devname,
+				const cpumask_t *affinity, void __percpu *dev_id)
 {
 	struct irqaction *action;
 	struct irq_desc *desc;
@@ -2545,10 +2538,7 @@ int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
 	    !irq_settings_is_per_cpu_devid(desc))
 		return -EINVAL;
 
-	if (flags && flags != IRQF_TIMER)
-		return -EINVAL;
-
-	action = create_percpu_irqaction(handler, flags, devname, affinity, dev_id);
+	action = create_percpu_irqaction(handler, 0, devname, affinity, dev_id);
 	if (!action)
 		return -ENOMEM;
 
@@ -2567,7 +2557,7 @@ int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(__request_percpu_irq);
+EXPORT_SYMBOL_GPL(request_percpu_irq_affinity);
 
 /**
  * request_percpu_nmi - allocate a percpu interrupt line for NMI delivery

@@ -2111,7 +2111,7 @@ create_l2(struct mISDNchannel *ch, u_int protocol, u_long options, int tei,
 	struct layer2		*l2;
 	struct channel_req	rq;
 
-	l2 = kzalloc(sizeof(struct layer2), GFP_KERNEL);
+	l2 = kzalloc_obj(struct layer2);
 	if (!l2) {
 		printk(KERN_ERR "kzalloc layer2 failed\n");
 		return NULL;

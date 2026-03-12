@@ -88,7 +88,7 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	if (str_len >= PAGE_SIZE)
 		return -ENOMEM;
 
-	ctx = kmalloc(struct_size(ctx, ctx_str, str_len + 1), gfp);
+	ctx = kmalloc_flex(*ctx, ctx_str, str_len + 1, gfp);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -354,7 +354,7 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 	if (rc)
 		return rc;
 
-	ctx = kmalloc(struct_size(ctx, ctx_str, str_len), GFP_ATOMIC);
+	ctx = kmalloc_flex(*ctx, ctx_str, str_len, GFP_ATOMIC);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out;

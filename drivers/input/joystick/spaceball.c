@@ -199,7 +199,7 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 	if ((id = serio->id.id) > SPACEBALL_MAX_ID)
 		return -ENODEV;
 
-	spaceball = kmalloc(sizeof(*spaceball), GFP_KERNEL);
+	spaceball = kmalloc_obj(*spaceball);
 	input_dev = input_allocate_device();
 	if (!spaceball || !input_dev)
 		goto fail1;

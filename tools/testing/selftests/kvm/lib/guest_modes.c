@@ -4,7 +4,7 @@
  */
 #include "guest_modes.h"
 
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__riscv)
 #include "processor.h"
 enum vm_guest_mode vm_mode_default;
 #endif
@@ -13,9 +13,11 @@ struct guest_mode guest_modes[NUM_VM_MODES];
 
 void guest_modes_append_default(void)
 {
-#ifndef __aarch64__
+#if !defined(__aarch64__) && !defined(__riscv)
 	guest_mode_append(VM_MODE_DEFAULT, true);
-#else
+#endif
+
+#ifdef __aarch64__
 	{
 		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
 		uint32_t ipa4k, ipa16k, ipa64k;
@@ -74,11 +76,36 @@ void guest_modes_append_default(void)
 #ifdef __riscv
 	{
 		unsigned int sz = kvm_check_cap(KVM_CAP_VM_GPA_BITS);
+		unsigned long satp_mode = riscv64_get_satp_mode() << SATP_MODE_SHIFT;
+		int i;
 
-		if (sz >= 52)
-			guest_mode_append(VM_MODE_P52V48_4K, true);
-		if (sz >= 48)
-			guest_mode_append(VM_MODE_P48V48_4K, true);
+		switch (sz) {
+		case 59:
+			guest_mode_append(VM_MODE_P56V57_4K, satp_mode >= SATP_MODE_57);
+			guest_mode_append(VM_MODE_P56V48_4K, satp_mode >= SATP_MODE_48);
+			guest_mode_append(VM_MODE_P56V39_4K, satp_mode >= SATP_MODE_39);
+			break;
+		case 50:
+			guest_mode_append(VM_MODE_P50V57_4K, satp_mode >= SATP_MODE_57);
+			guest_mode_append(VM_MODE_P50V48_4K, satp_mode >= SATP_MODE_48);
+			guest_mode_append(VM_MODE_P50V39_4K, satp_mode >= SATP_MODE_39);
+			break;
+		case 41:
+			guest_mode_append(VM_MODE_P41V57_4K, satp_mode >= SATP_MODE_57);
+			guest_mode_append(VM_MODE_P41V48_4K, satp_mode >= SATP_MODE_48);
+			guest_mode_append(VM_MODE_P41V39_4K, satp_mode >= SATP_MODE_39);
+			break;
+		default:
+			break;
+		}
+
+		/* set the first supported mode as default */
+		vm_mode_default = NUM_VM_MODES;
+		for (i = 0; vm_mode_default == NUM_VM_MODES && i < NUM_VM_MODES; i++) {
+			if (guest_modes[i].supported && guest_modes[i].enabled)
+				vm_mode_default = i;
+		}
+		TEST_ASSERT(vm_mode_default != NUM_VM_MODES, "No supported mode!");
 	}
 #endif
 }

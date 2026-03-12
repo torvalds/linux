@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config COMMON_CLK_ASPEED
+        bool "Clock driver for Aspeed BMC SoCs"
+        depends on ARCH_ASPEED || COMPILE_TEST
+        default ARCH_ASPEED
+        select MFD_SYSCON
+        select RESET_CONTROLLER
+        help
+          This driver supports the SoC clocks on the Aspeed BMC platforms.
+
+          The G4 and G5 series, including the ast2400 and ast2500, are supported
+          by this driver.
+
+config COMMON_CLK_AST2700
+        bool "Clock driver for AST2700 SoC"
+        depends on ARCH_ASPEED || COMPILE_TEST
+        help
+          This driver provides support for clock on AST2700 SoC.
+          The driver is responsible for managing the various clocks required
+          by the peripherals and cores within the AST2700.

@@ -171,7 +171,7 @@ static int virt_cpufreq_get_freq_info(struct cpufreq_policy *policy)
 		return 0;
 	}
 
-	table = kcalloc(num_perftbl_entries + 1, sizeof(*table), GFP_KERNEL);
+	table = kzalloc_objs(*table, num_perftbl_entries + 1);
 	if (!table)
 		return -ENOMEM;
 

@@ -11,7 +11,7 @@ void init_mlme_ap_info(struct adapter *padapter);
 void free_mlme_ap_info(struct adapter *padapter);
 /* void update_BCNTIM(struct adapter *padapter); */
 void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx);
-void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level);
+void add_ratid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level);
 void expire_timeout_chk(struct adapter *padapter);
 void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta);
 void start_bss_network(struct adapter *padapter);

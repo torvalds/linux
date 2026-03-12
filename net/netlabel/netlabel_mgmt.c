@@ -84,7 +84,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 	struct calipso_doi *calipso = NULL;
 #endif
 	u32 tmp_val;
-	struct netlbl_dom_map *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	struct netlbl_dom_map *entry = kzalloc_obj(*entry);
 
 	if (!entry)
 		return -ENOMEM;
@@ -148,7 +148,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		struct in_addr *mask;
 		struct netlbl_domaddr4_map *map;
 
-		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
+		addrmap = kzalloc_obj(*addrmap);
 		if (addrmap == NULL) {
 			ret_val = -ENOMEM;
 			goto add_doi_put_def;
@@ -169,7 +169,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		addr = nla_data(info->attrs[NLBL_MGMT_A_IPV4ADDR]);
 		mask = nla_data(info->attrs[NLBL_MGMT_A_IPV4MASK]);
 
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (map == NULL) {
 			ret_val = -ENOMEM;
 			goto add_free_addrmap;
@@ -195,7 +195,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		struct in6_addr *mask;
 		struct netlbl_domaddr6_map *map;
 
-		addrmap = kzalloc(sizeof(*addrmap), GFP_KERNEL);
+		addrmap = kzalloc_obj(*addrmap);
 		if (addrmap == NULL) {
 			ret_val = -ENOMEM;
 			goto add_doi_put_def;
@@ -216,7 +216,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 		addr = nla_data(info->attrs[NLBL_MGMT_A_IPV6ADDR]);
 		mask = nla_data(info->attrs[NLBL_MGMT_A_IPV6MASK]);
 
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (map == NULL) {
 			ret_val = -ENOMEM;
 			goto add_free_addrmap;

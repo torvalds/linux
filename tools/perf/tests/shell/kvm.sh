@@ -7,9 +7,10 @@ set -e
 err=0
 perfdata=$(mktemp /tmp/__perf_kvm_test.perf.data.XXXXX)
 qemu_pid_file=$(mktemp /tmp/__perf_kvm_test.qemu.pid.XXXXX)
+log_file=$(mktemp /tmp/__perf_kvm_test.live_log.XXXXX)
 
 cleanup() {
-	rm -f "${perfdata}"
+	rm -f "${perfdata}" "${log_file}"
 	if [ -f "${qemu_pid_file}" ]; then
 		if [ -s "${qemu_pid_file}" ]; then
 			qemu_pid=$(cat "${qemu_pid_file}")
@@ -96,6 +97,32 @@ test_kvm_buildid_list() {
 	echo "perf kvm buildid-list test [Success]"
 }
 
+test_kvm_stat_live() {
+	echo "Testing perf kvm stat live"
+
+        # Run perf kvm live for 5 seconds, monitoring that PID
+	# Use sleep to keep stdin open but silent, preventing EOF loop or interactive spam
+	if ! sleep 10 | timeout 5s perf kvm stat live -p "${qemu_pid}" > "${log_file}" 2>&1; then
+		retval=$?
+		if [ $retval -ne 124 ] && [ $retval -ne 0 ]; then
+			echo "perf kvm stat live [Failed: perf kvm stat live failed to start or run (ret=$retval)]"
+			head -n 50 "${log_file}"
+			err=1
+			return
+		fi
+	fi
+
+	# Check for some sample data (percentage)
+	if ! grep -E -q "[0-9]+\.[0-9]+%" "${log_file}"; then
+		echo "perf kvm stat live [Failed: no sample percentage found]"
+		head -n 50 "${log_file}"
+		err=1
+		return
+	fi
+
+	echo "perf kvm stat live test [Success]"
+}
+
 setup_qemu() {
 	# Find qemu
 	if [ "$(uname -m)" = "x86_64" ]; then
@@ -118,7 +145,7 @@ setup_qemu() {
 		skip "/dev/kvm not accessible"
 	fi
 
-	if ! perf kvm stat record -a sleep 0.01 >/dev/null 2>&1; then
+	if ! perf kvm stat record -o /dev/null -a sleep 0.01 >/dev/null 2>&1; then
 		skip "No permission to record kvm events"
 	fi
 
@@ -148,6 +175,7 @@ if [ $err -eq 0 ]; then
 	test_kvm_stat
 	test_kvm_record_report
 	test_kvm_buildid_list
+	test_kvm_stat_live
 fi
 
 cleanup

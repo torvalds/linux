@@ -25,7 +25,7 @@ int rdma_restrack_init(struct ib_device *dev)
 	struct rdma_restrack_root *rt;
 	int i;
 
-	dev->res = kcalloc(RDMA_RESTRACK_MAX, sizeof(*rt), GFP_KERNEL);
+	dev->res = kzalloc_objs(*rt, RDMA_RESTRACK_MAX);
 	if (!dev->res)
 		return -ENOMEM;
 

@@ -1,0 +1,27 @@
+[
+  {
+    "EventName": "BRANCH_MISPREDICTS",
+    "EventCode": "0xA",
+    "BriefDescription": "number of branch mispredictions"
+  },
+  {
+    "EventName": "BRANCH_EXCEPTIONS",
+    "EventCode": "0xB",
+    "BriefDescription": "number of valid branch exceptions"
+  },
+  {
+    "EventName": "MSB_FULL",
+    "EventCode": "0xE",
+    "BriefDescription": "scoreboard is full"
+  },
+  {
+    "EventName": "INSTRUCTION_FETCH_EMPTY",
+    "EventCode": "0xF",
+    "BriefDescription": "number of invalid instructions in IF stage"
+  },
+  {
+    "EventName": "PIPELINE_STALL",
+    "EventCode": "0x16",
+    "BriefDescription": "number of cycles the pipeline is stalled during read operands"
+  }
+]

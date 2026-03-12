@@ -44,7 +44,7 @@ nvkm_nvenc_new_(const struct nvkm_nvenc_fwif *fwif, struct nvkm_device *device,
 	struct nvkm_nvenc *nvenc;
 	int ret;
 
-	if (!(nvenc = *pnvenc = kzalloc(sizeof(*nvenc), GFP_KERNEL)))
+	if (!(nvenc = *pnvenc = kzalloc_obj(*nvenc)))
 		return -ENOMEM;
 
 	ret = nvkm_engine_ctor(&nvkm_nvenc, device, type, inst, true,

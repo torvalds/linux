@@ -210,7 +210,7 @@ static struct config_item *acpi_table_make_item(struct config_group *group,
 {
 	struct acpi_table *table;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return ERR_PTR(-ENOMEM);
 

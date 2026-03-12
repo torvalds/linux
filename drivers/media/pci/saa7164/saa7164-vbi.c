@@ -422,7 +422,7 @@ static int fops_open(struct file *file)
 	dprintk(DBGLVL_VBI, "%s()\n", __func__);
 
 	/* allocate + initialize per filehandle data */
-	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	fh = kzalloc_obj(*fh);
 	if (NULL == fh)
 		return -ENOMEM;
 

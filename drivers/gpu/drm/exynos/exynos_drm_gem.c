@@ -152,7 +152,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 	struct drm_gem_object *obj;
 	int ret;
 
-	exynos_gem = kzalloc(sizeof(*exynos_gem), GFP_KERNEL);
+	exynos_gem = kzalloc_obj(*exynos_gem);
 	if (!exynos_gem)
 		return ERR_PTR(-ENOMEM);
 
@@ -411,7 +411,7 @@ struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	struct sg_table *sgt;
 	int ret;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
-//
-// Copyright (C) 2019 ROHM Semiconductors
-//
-// ROHM BD71828/BD71815 PMIC driver
+/*
+ * Copyright (C) 2019 ROHM Semiconductors
+ *
+ * ROHM BD718[15/28/79] and BD72720 PMIC driver
+ */
 
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
@@ -13,11 +14,28 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/rohm-bd71815.h>
 #include <linux/mfd/rohm-bd71828.h>
+#include <linux/mfd/rohm-bd72720.h>
 #include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
+
+#define BD72720_TYPED_IRQ_REG(_irq, _stat_offset, _mask, _type_offset)     \
+	[_irq] = {							   \
+		.reg_offset = (_stat_offset),				   \
+		.mask = (_mask),					   \
+		{							   \
+			.type_reg_offset = (_type_offset),		   \
+			.type_reg_mask = BD72720_GPIO_IRQ_TYPE_MASK,	   \
+			.type_rising_val = BD72720_GPIO_IRQ_TYPE_RISING,   \
+			.type_falling_val = BD72720_GPIO_IRQ_TYPE_FALLING, \
+			.type_level_low_val = BD72720_GPIO_IRQ_TYPE_LOW,   \
+			.type_level_high_val = BD72720_GPIO_IRQ_TYPE_HIGH, \
+			.types_supported = IRQ_TYPE_EDGE_BOTH |		   \
+				IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW,  \
+		},							   \
+	}
 
 static struct gpio_keys_button button = {
 	.code = KEY_POWER,
@@ -41,6 +59,12 @@ static const struct resource bd71828_rtc_irqs[] = {
 	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC0, "bd70528-rtc-alm-0"),
 	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC1, "bd70528-rtc-alm-1"),
 	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC2, "bd70528-rtc-alm-2"),
+};
+
+static const struct resource bd72720_rtc_irqs[] = {
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_RTC0, "bd70528-rtc-alm-0"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_RTC1, "bd70528-rtc-alm-1"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_RTC2, "bd70528-rtc-alm-2"),
 };
 
 static const struct resource bd71815_power_irqs[] = {
@@ -156,56 +180,181 @@ static struct mfd_cell bd71828_mfd_cells[] = {
 	},
 };
 
-static const struct regmap_range bd71815_volatile_ranges[] = {
+static const struct resource bd72720_power_irqs[] = {
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBUS_RMV, "bd72720_int_vbus_rmv"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBUS_DET, "bd72720_int_vbus_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBUS_MON_RES, "bd72720_int_vbus_mon_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBUS_MON_DET, "bd72720_int_vbus_mon_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_MON_RES, "bd72720_int_vsys_mon_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_MON_DET, "bd72720_int_vsys_mon_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_UV_RES, "bd72720_int_vsys_uv_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_UV_DET, "bd72720_int_vsys_uv_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_LO_RES, "bd72720_int_vsys_lo_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_LO_DET, "bd72720_int_vsys_lo_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_OV_RES, "bd72720_int_vsys_ov_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VSYS_OV_DET, "bd72720_int_vsys_ov_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_ILIM, "bd72720_int_bat_ilim"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CHG_DONE, "bd72720_int_chg_done"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_EXTEMP_TOUT, "bd72720_int_extemp_tout"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CHG_WDT_EXP, "bd72720_int_chg_wdt_exp"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_MNT_OUT, "bd72720_int_bat_mnt_out"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_MNT_IN, "bd72720_int_bat_mnt_in"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CHG_TRNS, "bd72720_int_chg_trns"),
+
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_MON_RES, "bd72720_int_vbat_mon_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_MON_DET, "bd72720_int_vbat_mon_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_SHT_RES, "bd72720_int_vbat_sht_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_SHT_DET, "bd72720_int_vbat_sht_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_LO_RES, "bd72720_int_vbat_lo_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_LO_DET, "bd72720_int_vbat_lo_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_OV_RES, "bd72720_int_vbat_ov_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_VBAT_OV_DET, "bd72720_int_vbat_ov_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_RMV, "bd72720_int_bat_rmv"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_DET, "bd72720_int_bat_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_DBAT_DET, "bd72720_int_dbat_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_BAT_TEMP_TRNS, "bd72720_int_bat_temp_trns"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_LOBTMP_RES, "bd72720_int_lobtmp_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_LOBTMP_DET, "bd72720_int_lobtmp_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OVBTMP_RES, "bd72720_int_ovbtmp_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OVBTMP_DET, "bd72720_int_ovbtmp_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR1_RES, "bd72720_int_ocur1_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR1_DET, "bd72720_int_ocur1_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR2_RES, "bd72720_int_ocur2_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR2_DET, "bd72720_int_ocur2_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR3_RES, "bd72720_int_ocur3_res"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_OCUR3_DET, "bd72720_int_ocur3_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CC_MON1_DET, "bd72720_int_cc_mon1_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CC_MON2_DET, "bd72720_int_cc_mon2_det"),
+	DEFINE_RES_IRQ_NAMED(BD72720_INT_CC_MON3_DET, "bd72720_int_cc_mon3_det"),
+};
+
+static const struct mfd_cell bd72720_mfd_cells[] = {
+	{ .name = "bd72720-pmic", },
+	{ .name = "bd72720-gpio", },
+	{ .name = "bd72720-led", },
+	{ .name = "bd72720-clk", },
 	{
-		.range_min = BD71815_REG_SEC,
-		.range_max = BD71815_REG_YEAR,
+		.name = "bd72720-power",
+		.resources = bd72720_power_irqs,
+		.num_resources = ARRAY_SIZE(bd72720_power_irqs),
 	}, {
-		.range_min = BD71815_REG_CONF,
-		.range_max = BD71815_REG_BAT_TEMP,
+		.name = "bd72720-rtc",
+		.resources = bd72720_rtc_irqs,
+		.num_resources = ARRAY_SIZE(bd72720_rtc_irqs),
 	}, {
-		.range_min = BD71815_REG_VM_IBAT_U,
-		.range_max = BD71815_REG_CC_CTRL,
-	}, {
-		.range_min = BD71815_REG_CC_STAT,
-		.range_max = BD71815_REG_CC_CURCD_L,
-	}, {
-		.range_min = BD71815_REG_VM_BTMP_MON,
-		.range_max = BD71815_REG_VM_BTMP_MON,
-	}, {
-		.range_min = BD71815_REG_INT_STAT,
-		.range_max = BD71815_REG_INT_UPDATE,
-	}, {
-		.range_min = BD71815_REG_VM_VSYS_U,
-		.range_max = BD71815_REG_REX_CTRL_1,
-	}, {
-		.range_min = BD71815_REG_FULL_CCNTD_3,
-		.range_max = BD71815_REG_CCNTD_CHG_2,
+		.name = "gpio-keys",
+		.platform_data = &bd71828_powerkey_data,
+		.pdata_size = sizeof(bd71828_powerkey_data),
 	},
 };
 
+static const struct regmap_range bd71815_volatile_ranges[] = {
+	regmap_reg_range(BD71815_REG_SEC, BD71815_REG_YEAR),
+	regmap_reg_range(BD71815_REG_CONF, BD71815_REG_BAT_TEMP),
+	regmap_reg_range(BD71815_REG_VM_IBAT_U, BD71815_REG_CC_CTRL),
+	regmap_reg_range(BD71815_REG_CC_STAT, BD71815_REG_CC_CURCD_L),
+	regmap_reg_range(BD71815_REG_VM_BTMP_MON, BD71815_REG_VM_BTMP_MON),
+	regmap_reg_range(BD71815_REG_INT_STAT, BD71815_REG_INT_UPDATE),
+	regmap_reg_range(BD71815_REG_VM_VSYS_U, BD71815_REG_REX_CTRL_1),
+	regmap_reg_range(BD71815_REG_FULL_CCNTD_3, BD71815_REG_CCNTD_CHG_2),
+};
+
 static const struct regmap_range bd71828_volatile_ranges[] = {
-	{
-		.range_min = BD71828_REG_PS_CTRL_1,
-		.range_max = BD71828_REG_PS_CTRL_1,
-	}, {
-		.range_min = BD71828_REG_PS_CTRL_3,
-		.range_max = BD71828_REG_PS_CTRL_3,
-	}, {
-		.range_min = BD71828_REG_RTC_SEC,
-		.range_max = BD71828_REG_RTC_YEAR,
-	}, {
-		/*
-		 * For now make all charger registers volatile because many
-		 * needs to be and because the charger block is not that
-		 * performance critical.
-		 */
-		.range_min = BD71828_REG_CHG_STATE,
-		.range_max = BD71828_REG_CHG_FULL,
-	}, {
-		.range_min = BD71828_REG_INT_MAIN,
-		.range_max = BD71828_REG_IO_STAT,
-	},
+	regmap_reg_range(BD71828_REG_PS_CTRL_1, BD71828_REG_PS_CTRL_1),
+	regmap_reg_range(BD71828_REG_PS_CTRL_3, BD71828_REG_PS_CTRL_3),
+	regmap_reg_range(BD71828_REG_RTC_SEC, BD71828_REG_RTC_YEAR),
+	/*
+	 * For now make all charger registers volatile because many
+	 * needs to be and because the charger block is not that
+	 * performance critical.
+	 */
+	regmap_reg_range(BD71828_REG_CHG_STATE, BD71828_REG_CHG_FULL),
+	regmap_reg_range(BD71828_REG_INT_MAIN, BD71828_REG_IO_STAT),
+};
+
+static const struct regmap_range bd72720_volatile_ranges_4b[] = {
+	regmap_reg_range(BD72720_REG_RESETSRC_1, BD72720_REG_RESETSRC_2),
+	regmap_reg_range(BD72720_REG_POWER_STATE, BD72720_REG_POWER_STATE),
+	/* The state indicator bit changes when new state is reached */
+	regmap_reg_range(BD72720_REG_PS_CTRL_1, BD72720_REG_PS_CTRL_1),
+	regmap_reg_range(BD72720_REG_RCVNUM, BD72720_REG_RCVNUM),
+	regmap_reg_range(BD72720_REG_CONF, BD72720_REG_HALL_STAT),
+	regmap_reg_range(BD72720_REG_RTC_SEC, BD72720_REG_RTC_YEAR),
+	regmap_reg_range(BD72720_REG_INT_LVL1_STAT, BD72720_REG_INT_ETC2_SRC),
+};
+
+static const struct regmap_range bd72720_precious_ranges_4b[] = {
+	regmap_reg_range(BD72720_REG_INT_LVL1_STAT, BD72720_REG_INT_ETC2_STAT),
+};
+
+/*
+ * The BD72720 is an odd beast in that it contains two separate sets of
+ * registers, both starting from address 0x0. The twist is that these "pages"
+ * are behind different I2C slave addresses. Most of the registers are behind
+ * a slave address 0x4b, which will be used as the "main" address for this
+ * device.
+ *
+ * Most of the charger related registers are located behind slave address 0x4c.
+ * It is tempting to push the dealing with the charger registers and the extra
+ * 0x4c device in power-supply driver - but perhaps it's better for the sake of
+ * the cleaner re-use to deal with setting up all of the regmaps here.
+ * Furthermore, the LED stuff may need access to both of these devices.
+ *
+ * Instead of providing one of the regmaps to sub-devices in MFD platform data,
+ * we create one more 'wrapper regmap' with custom read/write operations. These
+ * custom accessors will select which of the 'real' regmaps to use, based on
+ * the register address.
+ *
+ * The register addresses are 8-bit, so we add offset 0x100 to the addresses
+ * behind the secondary slave 0x4c. The 'wrapper' regmap can then detect the
+ * correct slave address based on the register address and call regmap_write()
+ * and regmap_read() using correct 'real' regmap. This way the registers of
+ * both of the slaves can be accessed using one 'wrapper' regmap.
+ *
+ * NOTE: The added offsets mean that the defined addresses for slave 0x4c must
+ * be used through the 'wrapper' regmap because the offset must be stripped
+ * from the register addresses. The 0x4b can be accessed both indirectly using
+ * the 'wrapper' regmap, and directly using the 'real' regmap.
+ */
+#define BD72720_SECONDARY_I2C_SLAVE 0x4c
+#define BD72720_SECONDARY_I2C_REG_OFFSET 0x100
+
+struct bd72720_regmaps {
+	struct regmap *map1_4b;
+	struct regmap *map2_4c;
+};
+
+/* Translate the slave 0x4c wrapper register address to a real one */
+#define BD72720_REG_UNWRAP(reg) ((reg) - BD72720_SECONDARY_I2C_REG_OFFSET)
+
+/* Ranges given to 'real' 0x4c regmap must use unwrapped addresses. */
+#define BD72720_UNWRAP_REG_RANGE(startreg, endreg)					\
+	regmap_reg_range(BD72720_REG_UNWRAP(startreg), BD72720_REG_UNWRAP(endreg))
+
+static const struct regmap_range bd72720_volatile_ranges_4c[] = {
+	/* Status information */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_CHG_STATE, BD72720_REG_CHG_EN),
+	/*
+	 * Under certain circumstances, write to some bits may be
+	 * ignored
+	 */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_CHG_CTRL, BD72720_REG_CHG_CTRL),
+	/*
+	 * TODO: Ensure this is used to advertise state, not (only?) to
+	 * control it.
+	 */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_VSYS_STATE_STAT, BD72720_REG_VSYS_STATE_STAT),
+	/* Measured data */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_VM_VBAT_U, BD72720_REG_VM_VF_L),
+	/* Self clearing bits */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_VM_VSYS_SA_MINMAX_CTRL,
+				 BD72720_REG_VM_VSYS_SA_MINMAX_CTRL),
+	/* Counters, self clearing bits */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_CC_CURCD_U, BD72720_REG_CC_CTRL),
+	/* Self clearing bits */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_CC_CCNTD_CTRL, BD72720_REG_CC_CCNTD_CTRL),
+	/* Self clearing bits */
+	BD72720_UNWRAP_REG_RANGE(BD72720_REG_IMPCHK_CTRL, BD72720_REG_IMPCHK_CTRL),
 };
 
 static const struct regmap_access_table bd71815_volatile_regs = {
@@ -216,6 +365,21 @@ static const struct regmap_access_table bd71815_volatile_regs = {
 static const struct regmap_access_table bd71828_volatile_regs = {
 	.yes_ranges = &bd71828_volatile_ranges[0],
 	.n_yes_ranges = ARRAY_SIZE(bd71828_volatile_ranges),
+};
+
+static const struct regmap_access_table bd72720_volatile_regs_4b = {
+	.yes_ranges = &bd72720_volatile_ranges_4b[0],
+	.n_yes_ranges = ARRAY_SIZE(bd72720_volatile_ranges_4b),
+};
+
+static const struct regmap_access_table bd72720_precious_regs_4b = {
+	.yes_ranges = &bd72720_precious_ranges_4b[0],
+	.n_yes_ranges = ARRAY_SIZE(bd72720_precious_ranges_4b),
+};
+
+static const struct regmap_access_table bd72720_volatile_regs_4c = {
+	.yes_ranges = &bd72720_volatile_ranges_4c[0],
+	.n_yes_ranges = ARRAY_SIZE(bd72720_volatile_ranges_4c),
 };
 
 static const struct regmap_config bd71815_regmap = {
@@ -234,10 +398,79 @@ static const struct regmap_config bd71828_regmap = {
 	.cache_type = REGCACHE_MAPLE,
 };
 
+static int regmap_write_wrapper(void *context, unsigned int reg, unsigned int val)
+{
+	struct bd72720_regmaps *maps = context;
+
+	if (reg < BD72720_SECONDARY_I2C_REG_OFFSET)
+		return regmap_write(maps->map1_4b, reg, val);
+
+	reg = BD72720_REG_UNWRAP(reg);
+
+	return regmap_write(maps->map2_4c, reg, val);
+}
+
+static int regmap_read_wrapper(void *context, unsigned int reg, unsigned int *val)
+{
+	struct bd72720_regmaps *maps = context;
+
+	if (reg < BD72720_SECONDARY_I2C_REG_OFFSET)
+		return regmap_read(maps->map1_4b, reg, val);
+
+	reg = BD72720_REG_UNWRAP(reg);
+
+	return regmap_read(maps->map2_4c, reg, val);
+}
+
+static const struct regmap_config bd72720_wrapper_map_config = {
+	.name = "wrap-map",
+	.reg_bits = 9,
+	.val_bits = 8,
+	.max_register = BD72720_REG_IMPCHK_CTRL,
+	/*
+	 * We don't want to duplicate caches. It would be a bit faster to
+	 * have the cache in this 'wrapper regmap', and not in the 'real
+	 * regmaps' bd72720_regmap_4b and bd72720_regmap_4c below. This would
+	 * require all the subdevices to use the wrapper-map in order to be
+	 * able to benefit from the cache.
+	 * Currently most of the sub-devices use only the same slave-address
+	 * as this MFD driver. Now, because we don't add the offset to the
+	 * registers belonging to this slave, those devices can use either the
+	 * wrapper map, or the bd72720_regmap_4b directly. This means majority
+	 * of our sub devices don't need to care which regmap they get using
+	 * the dev_get_regmap(). This unifies the code between the BD72720 and
+	 * those variants which don't have this 'multiple slave addresses'
+	 * -hassle.
+	 * So, for a small performance penalty, we simplify the code for the
+	 * sub-devices by having the caches in the wrapped regmaps and not here.
+	 */
+	.cache_type = REGCACHE_NONE,
+	.reg_write = regmap_write_wrapper,
+	.reg_read = regmap_read_wrapper,
+};
+
+static const struct regmap_config bd72720_regmap_4b = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_table = &bd72720_volatile_regs_4b,
+	.precious_table = &bd72720_precious_regs_4b,
+	.max_register = BD72720_REG_INT_ETC2_SRC,
+	.cache_type = REGCACHE_MAPLE,
+};
+
+static const struct regmap_config bd72720_regmap_4c = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.volatile_table = &bd72720_volatile_regs_4c,
+	.max_register = BD72720_REG_UNWRAP(BD72720_REG_IMPCHK_CTRL),
+	.cache_type = REGCACHE_MAPLE,
+};
+
 /*
  * Mapping of main IRQ register bits to sub-IRQ register offsets so that we can
  * access corect sub-IRQ registers based on bits that are set in main IRQ
- * register. BD71815 and BD71828 have same sub-register-block offests.
+ * register. BD71815 and BD71828 have same sub-register-block offests, the
+ * BD72720 has a different one.
  */
 
 static unsigned int bit0_offsets[] = {11};		/* RTC IRQ */
@@ -249,6 +482,15 @@ static unsigned int bit5_offsets[] = {3};		/* VSYS IRQ */
 static unsigned int bit6_offsets[] = {1, 2};		/* DCIN IRQ */
 static unsigned int bit7_offsets[] = {0};		/* BUCK IRQ */
 
+static unsigned int bd72720_bit0_offsets[] = {0, 1};	/* PS1 and PS2 */
+static unsigned int bd72720_bit1_offsets[] = {2, 3};	/* DVS1 and DVS2 */
+static unsigned int bd72720_bit2_offsets[] = {4};	/* VBUS */
+static unsigned int bd72720_bit3_offsets[] = {5};	/* VSYS */
+static unsigned int bd72720_bit4_offsets[] = {6};	/* CHG */
+static unsigned int bd72720_bit5_offsets[] = {7, 8};	/* BAT1 and BAT2 */
+static unsigned int bd72720_bit6_offsets[] = {9};	/* IBAT */
+static unsigned int bd72720_bit7_offsets[] = {10, 11};	/* ETC1 and ETC2 */
+
 static const struct regmap_irq_sub_irq_map bd718xx_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit1_offsets),
@@ -258,6 +500,17 @@ static const struct regmap_irq_sub_irq_map bd718xx_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit5_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit6_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit7_offsets),
+};
+
+static const struct regmap_irq_sub_irq_map bd72720_sub_irq_offsets[] = {
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit0_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit1_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit2_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit3_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit4_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit5_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit6_offsets),
+	REGMAP_IRQ_MAIN_REG_OFFSET(bd72720_bit7_offsets),
 };
 
 static const struct regmap_irq bd71815_irqs[] = {
@@ -433,6 +686,117 @@ static const struct regmap_irq bd71828_irqs[] = {
 	REGMAP_IRQ_REG(BD71828_INT_RTC2, 11, BD71828_INT_RTC2_MASK),
 };
 
+static const struct regmap_irq bd72720_irqs[] = {
+	REGMAP_IRQ_REG(BD72720_INT_LONGPUSH, 0, BD72720_INT_LONGPUSH_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_MIDPUSH, 0, BD72720_INT_MIDPUSH_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_SHORTPUSH, 0, BD72720_INT_SHORTPUSH_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_PUSH, 0, BD72720_INT_PUSH_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_HALL_DET, 0, BD72720_INT_HALL_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_HALL_TGL, 0, BD72720_INT_HALL_TGL_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_WDOG, 0, BD72720_INT_WDOG_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_SWRESET, 0, BD72720_INT_SWRESET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_SEQ_DONE, 1, BD72720_INT_SEQ_DONE_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_PGFAULT, 1, BD72720_INT_PGFAULT_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK1_DVS, 2, BD72720_INT_BUCK1_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK2_DVS, 2, BD72720_INT_BUCK2_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK3_DVS, 2, BD72720_INT_BUCK3_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK4_DVS, 2, BD72720_INT_BUCK4_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK5_DVS, 2, BD72720_INT_BUCK5_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK6_DVS, 2, BD72720_INT_BUCK6_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK7_DVS, 2, BD72720_INT_BUCK7_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK8_DVS, 2, BD72720_INT_BUCK8_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK9_DVS, 3, BD72720_INT_BUCK9_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BUCK10_DVS, 3, BD72720_INT_BUCK10_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LDO1_DVS, 3, BD72720_INT_LDO1_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LDO2_DVS, 3, BD72720_INT_LDO2_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LDO3_DVS, 3, BD72720_INT_LDO3_DVS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LDO4_DVS, 3, BD72720_INT_LDO4_DVS_MASK),
+
+	REGMAP_IRQ_REG(BD72720_INT_VBUS_RMV, 4, BD72720_INT_VBUS_RMV_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBUS_DET, 4, BD72720_INT_VBUS_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBUS_MON_RES, 4, BD72720_INT_VBUS_MON_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBUS_MON_DET, 4, BD72720_INT_VBUS_MON_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_MON_RES, 5, BD72720_INT_VSYS_MON_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_MON_DET, 5, BD72720_INT_VSYS_MON_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_UV_RES, 5, BD72720_INT_VSYS_UV_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_UV_DET, 5, BD72720_INT_VSYS_UV_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_LO_RES, 5, BD72720_INT_VSYS_LO_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_LO_DET, 5, BD72720_INT_VSYS_LO_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_OV_RES, 5, BD72720_INT_VSYS_OV_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VSYS_OV_DET, 5, BD72720_INT_VSYS_OV_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_ILIM, 6, BD72720_INT_BAT_ILIM_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CHG_DONE, 6, BD72720_INT_CHG_DONE_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_EXTEMP_TOUT, 6, BD72720_INT_EXTEMP_TOUT_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CHG_WDT_EXP, 6, BD72720_INT_CHG_WDT_EXP_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_MNT_OUT, 6, BD72720_INT_BAT_MNT_OUT_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_MNT_IN, 6, BD72720_INT_BAT_MNT_IN_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CHG_TRNS, 6, BD72720_INT_CHG_TRNS_MASK),
+
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_MON_RES, 7, BD72720_INT_VBAT_MON_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_MON_DET, 7, BD72720_INT_VBAT_MON_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_SHT_RES, 7, BD72720_INT_VBAT_SHT_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_SHT_DET, 7, BD72720_INT_VBAT_SHT_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_LO_RES, 7, BD72720_INT_VBAT_LO_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_LO_DET, 7, BD72720_INT_VBAT_LO_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_OV_RES, 7, BD72720_INT_VBAT_OV_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VBAT_OV_DET, 7, BD72720_INT_VBAT_OV_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_RMV, 8, BD72720_INT_BAT_RMV_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_DET, 8, BD72720_INT_BAT_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_DBAT_DET, 8, BD72720_INT_DBAT_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_BAT_TEMP_TRNS, 8, BD72720_INT_BAT_TEMP_TRNS_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LOBTMP_RES, 8, BD72720_INT_LOBTMP_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_LOBTMP_DET, 8, BD72720_INT_LOBTMP_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OVBTMP_RES, 8, BD72720_INT_OVBTMP_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OVBTMP_DET, 8, BD72720_INT_OVBTMP_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR1_RES, 9, BD72720_INT_OCUR1_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR1_DET, 9, BD72720_INT_OCUR1_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR2_RES, 9, BD72720_INT_OCUR2_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR2_DET, 9, BD72720_INT_OCUR2_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR3_RES, 9, BD72720_INT_OCUR3_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_OCUR3_DET, 9, BD72720_INT_OCUR3_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CC_MON1_DET, 10, BD72720_INT_CC_MON1_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CC_MON2_DET, 10, BD72720_INT_CC_MON2_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_CC_MON3_DET, 10, BD72720_INT_CC_MON3_DET_MASK),
+/*
+ * The GPIO1_IN and GPIO2_IN IRQs are generated from the PMIC's GPIO1 and GPIO2
+ * pins. Eg, they may be wired to other devices which can then use the PMIC as
+ * an interrupt controller. The GPIO1 and GPIO2 can have the IRQ type
+ * specified. All of the types (falling, rising, and both edges as well as low
+ * and high levels) are supported.
+ */
+	BD72720_TYPED_IRQ_REG(BD72720_INT_GPIO1_IN, 10, BD72720_INT_GPIO1_IN_MASK, 0),
+	BD72720_TYPED_IRQ_REG(BD72720_INT_GPIO2_IN, 10, BD72720_INT_GPIO2_IN_MASK, 1),
+	REGMAP_IRQ_REG(BD72720_INT_VF125_RES, 11, BD72720_INT_VF125_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VF125_DET, 11, BD72720_INT_VF125_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VF_RES, 11, BD72720_INT_VF_RES_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_VF_DET, 11, BD72720_INT_VF_DET_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_RTC0, 11, BD72720_INT_RTC0_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_RTC1, 11, BD72720_INT_RTC1_MASK),
+	REGMAP_IRQ_REG(BD72720_INT_RTC2, 11, BD72720_INT_RTC2_MASK),
+};
+
+static int bd72720_set_type_config(unsigned int **buf, unsigned int type,
+				   const struct regmap_irq *irq_data,
+				   int idx, void *irq_drv_data)
+{
+	const struct regmap_irq_type *t = &irq_data->type;
+
+	/*
+	 * The regmap IRQ ecpects IRQ_TYPE_EDGE_BOTH to be written to register
+	 * as logical OR of the type_falling_val and type_rising_val. This is
+	 * not how the BD72720 implements this configuration, hence we need
+	 * to handle this specific case separately.
+	 */
+	if (type == IRQ_TYPE_EDGE_BOTH) {
+		buf[0][idx] &= ~t->type_reg_mask;
+		buf[0][idx] |= BD72720_GPIO_IRQ_TYPE_BOTH;
+
+		return 0;
+	}
+
+	return regmap_irq_set_type_config_simple(buf, type, irq_data, idx, irq_drv_data);
+}
+
 static const struct regmap_irq_chip bd71828_irq_chip = {
 	.name = "bd71828_irq",
 	.main_status = BD71828_REG_INT_MAIN,
@@ -461,6 +825,28 @@ static const struct regmap_irq_chip bd71815_irq_chip = {
 	.num_regs = 12,
 	.num_main_regs = 1,
 	.sub_reg_offsets = &bd718xx_sub_irq_offsets[0],
+	.num_main_status_bits = 8,
+	.irq_reg_stride = 1,
+};
+
+static const unsigned int bd72720_irq_type_base[] = { BD72720_REG_GPIO1_CTRL };
+
+static const struct regmap_irq_chip bd72720_irq_chip = {
+	.name = "bd72720_irq",
+	.main_status = BD72720_REG_INT_LVL1_STAT,
+	.irqs = &bd72720_irqs[0],
+	.num_irqs = ARRAY_SIZE(bd72720_irqs),
+	.status_base = BD72720_REG_INT_PS1_STAT,
+	.unmask_base = BD72720_REG_INT_PS1_EN,
+	.config_base = &bd72720_irq_type_base[0],
+	.num_config_bases = 1,
+	.num_config_regs = 2,
+	.set_type_config = bd72720_set_type_config,
+	.ack_base = BD72720_REG_INT_PS1_STAT,
+	.init_ack_masked = true,
+	.num_regs = 12,
+	.num_main_regs = 1,
+	.sub_reg_offsets = &bd72720_sub_irq_offsets[0],
 	.num_main_status_bits = 8,
 	.irq_reg_stride = 1,
 };
@@ -511,11 +897,39 @@ static void bd71828_remove_poweroff(void *data)
 	pm_power_off = NULL;
 }
 
+static struct regmap *bd72720_do_regmaps(struct i2c_client *i2c)
+{
+	struct bd72720_regmaps *maps;
+	struct i2c_client *secondary_i2c;
+
+	secondary_i2c = devm_i2c_new_dummy_device(&i2c->dev, i2c->adapter,
+						  BD72720_SECONDARY_I2C_SLAVE);
+	if (IS_ERR(secondary_i2c)) {
+		dev_err_probe(&i2c->dev, PTR_ERR(secondary_i2c), "Failed to get secondary I2C\n");
+
+		return ERR_CAST(secondary_i2c);
+	}
+
+	maps = devm_kzalloc(&i2c->dev, sizeof(*maps), GFP_KERNEL);
+	if (!maps)
+		return ERR_PTR(-ENOMEM);
+
+	maps->map1_4b = devm_regmap_init_i2c(i2c, &bd72720_regmap_4b);
+	if (IS_ERR(maps->map1_4b))
+		return maps->map1_4b;
+
+	maps->map2_4c = devm_regmap_init_i2c(secondary_i2c, &bd72720_regmap_4c);
+	if (IS_ERR(maps->map2_4c))
+		return maps->map2_4c;
+
+	return devm_regmap_init(&i2c->dev, NULL, maps, &bd72720_wrapper_map_config);
+}
+
 static int bd71828_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_irq_chip_data *irq_data;
 	int ret;
-	struct regmap *regmap;
+	struct regmap *regmap = NULL;
 	const struct regmap_config *regmap_config;
 	const struct regmap_irq_chip *irqchip;
 	unsigned int chip_type;
@@ -523,6 +937,7 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	int cells;
 	int button_irq;
 	int clkmode_reg;
+	int main_lvl_mask_reg = 0, main_lvl_val = 0;
 
 	if (!i2c->irq) {
 		dev_err(&i2c->dev, "No IRQ configured\n");
@@ -554,15 +969,34 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 		 */
 		button_irq = 0;
 		break;
+	case ROHM_CHIP_TYPE_BD72720:
+	{
+		mfd = bd72720_mfd_cells;
+		cells = ARRAY_SIZE(bd72720_mfd_cells);
+
+		regmap = bd72720_do_regmaps(i2c);
+		if (IS_ERR(regmap))
+			return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
+				     "Failed to initialize Regmap\n");
+
+		irqchip = &bd72720_irq_chip;
+		clkmode_reg = BD72720_REG_OUT32K;
+		button_irq = BD72720_INT_SHORTPUSH;
+		main_lvl_mask_reg = BD72720_REG_INT_LVL1_EN;
+		main_lvl_val = BD72720_MASK_LVL1_EN_ALL;
+		break;
+	}
 	default:
 		dev_err(&i2c->dev, "Unknown device type");
 		return -EINVAL;
 	}
 
-	regmap = devm_regmap_init_i2c(i2c, regmap_config);
-	if (IS_ERR(regmap))
-		return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
+	if (!regmap) {
+		regmap = devm_regmap_init_i2c(i2c, regmap_config);
+		if (IS_ERR(regmap))
+			return dev_err_probe(&i2c->dev, PTR_ERR(regmap),
 				     "Failed to initialize Regmap\n");
+	}
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, regmap, i2c->irq,
 				       IRQF_ONESHOT, 0, irqchip, &irq_data);
@@ -573,6 +1007,20 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	dev_dbg(&i2c->dev, "Registered %d IRQs for chip\n",
 		irqchip->num_irqs);
 
+	/*
+	 * On some ICs the main IRQ register has corresponding mask register.
+	 * This is not handled by the regmap IRQ. Let's enable all the main
+	 * level IRQs here. Further writes to the main level MASK is not
+	 * needed because masking is handled by the per IRQ 2.nd level MASK
+	 * registers. 2.nd level masks are handled by the regmap IRQ.
+	 */
+	if (main_lvl_mask_reg) {
+		ret = regmap_write(regmap, main_lvl_mask_reg, main_lvl_val);
+		if (ret) {
+			return dev_err_probe(&i2c->dev, ret,
+					"Failed to enable main level IRQs\n");
+		}
+	}
 	if (button_irq) {
 		ret = regmap_irq_get_virq(irq_data, button_irq);
 		if (ret < 0)
@@ -614,6 +1062,9 @@ static const struct of_device_id bd71828_of_match[] = {
 	}, {
 		.compatible = "rohm,bd71815",
 		.data = (void *)ROHM_CHIP_TYPE_BD71815,
+	}, {
+		.compatible = "rohm,bd72720",
+		.data = (void *)ROHM_CHIP_TYPE_BD72720,
 	 },
 	{ },
 };

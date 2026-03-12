@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -60,6 +60,7 @@ void serial_base_driver_unregister(struct device_driver *driver)
 	driver_unregister(driver);
 }
 
+/* On failure the caller must put device @dev with put_device() */
 static int serial_base_device_init(struct uart_port *port,
 				   struct device *dev,
 				   struct device *parent_dev,
@@ -73,7 +74,9 @@ static int serial_base_device_init(struct uart_port *port,
 	dev->parent = parent_dev;
 	dev->bus = &serial_base_bus_type;
 	dev->release = release;
-	device_set_of_node_from_dev(dev, parent_dev);
+	dev->of_node_reused = true;
+
+	device_set_node(dev, fwnode_handle_get(dev_fwnode(parent_dev)));
 
 	if (!serial_base_initialized) {
 		dev_dbg(port->dev, "uart_add_one_port() called before arch_initcall()?\n");
@@ -94,7 +97,7 @@ static void serial_base_ctrl_release(struct device *dev)
 {
 	struct serial_ctrl_device *ctrl_dev = to_serial_base_ctrl_device(dev);
 
-	of_node_put(dev->of_node);
+	fwnode_handle_put(dev_fwnode(dev));
 	kfree(ctrl_dev);
 }
 
@@ -113,7 +116,7 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 	struct serial_ctrl_device *ctrl_dev;
 	int err;
 
-	ctrl_dev = kzalloc(sizeof(*ctrl_dev), GFP_KERNEL);
+	ctrl_dev = kzalloc_obj(*ctrl_dev);
 	if (!ctrl_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -142,7 +145,7 @@ static void serial_base_port_release(struct device *dev)
 {
 	struct serial_port_device *port_dev = to_serial_base_port_device(dev);
 
-	of_node_put(dev->of_node);
+	fwnode_handle_put(dev_fwnode(dev));
 	kfree(port_dev);
 }
 
@@ -153,7 +156,7 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 	int min = 0, max = -1;	/* Use -1 for max to apply IDA defaults */
 	int err;
 
-	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
+	port_dev = kzalloc_obj(*port_dev);
 	if (!port_dev)
 		return ERR_PTR(-ENOMEM);
 

@@ -222,7 +222,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 rebuild_st:
-	st = kmalloc(sizeof(*st), GFP_KERNEL | __GFP_NOWARN);
+	st = kmalloc_obj(*st, GFP_KERNEL | __GFP_NOWARN);
 	if (!st)
 		return -ENOMEM;
 
@@ -499,7 +499,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 			  resource_size_t size,
 			  unsigned int flags)
 {
-	unsigned long shmem_flags = VM_NORESERVE;
+	const vma_flags_t shmem_flags = mk_vma_flags(VMA_NORESERVE_BIT);
 	struct vfsmount *huge_mnt;
 	struct file *filp;
 

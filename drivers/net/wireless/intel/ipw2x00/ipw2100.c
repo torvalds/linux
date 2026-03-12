@@ -1885,9 +1885,8 @@ static int ipw2100_wdev_init(struct net_device *dev)
 
 		bg_band->band = NL80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels = kcalloc(geo->bg_channels,
-					    sizeof(struct ieee80211_channel),
-					    GFP_KERNEL);
+		bg_band->channels = kzalloc_objs(struct ieee80211_channel,
+						 geo->bg_channels);
 		if (!bg_band->channels) {
 			ipw2100_down(priv);
 			return -ENOMEM;
@@ -3413,9 +3412,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 	dma_addr_t p;
 
 	priv->msg_buffers =
-	    kmalloc_array(IPW_COMMAND_POOL_SIZE,
-			  sizeof(struct ipw2100_tx_packet),
-			  GFP_KERNEL);
+	    kmalloc_objs(struct ipw2100_tx_packet, IPW_COMMAND_POOL_SIZE);
 	if (!priv->msg_buffers)
 		return -ENOMEM;
 
@@ -4410,9 +4407,8 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 		return err;
 	}
 
-	priv->tx_buffers = kmalloc_array(TX_PENDED_QUEUE_LENGTH,
-					 sizeof(struct ipw2100_tx_packet),
-					 GFP_KERNEL);
+	priv->tx_buffers = kmalloc_objs(struct ipw2100_tx_packet,
+					TX_PENDED_QUEUE_LENGTH);
 	if (!priv->tx_buffers) {
 		bd_queue_free(priv, &priv->tx_queue);
 		return -ENOMEM;
@@ -4555,9 +4551,8 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 	/*
 	 * allocate packets
 	 */
-	priv->rx_buffers = kmalloc_array(RX_QUEUE_LENGTH,
-					 sizeof(struct ipw2100_rx_packet),
-					 GFP_KERNEL);
+	priv->rx_buffers = kmalloc_objs(struct ipw2100_rx_packet,
+					RX_QUEUE_LENGTH);
 	if (!priv->rx_buffers) {
 		IPW_DEBUG_INFO("can't allocate rx packet buffer table\n");
 

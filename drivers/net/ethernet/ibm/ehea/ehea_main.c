@@ -173,7 +173,7 @@ static void ehea_update_firmware_handles(void)
 			 num_portres * EHEA_NUM_PORTRES_FW_HANDLES;
 
 	if (num_fw_handles) {
-		arr = kcalloc(num_fw_handles, sizeof(*arr), GFP_KERNEL);
+		arr = kzalloc_objs(*arr, num_fw_handles);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -256,7 +256,7 @@ static void ehea_update_bcmc_registrations(void)
 		}
 
 	if (num_registrations) {
-		arr = kcalloc(num_registrations, sizeof(*arr), GFP_ATOMIC);
+		arr = kzalloc_objs(*arr, num_registrations, GFP_ATOMIC);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -1487,7 +1487,7 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 			pr->send_cq->attr.act_nr_of_cqes,
 			pr->recv_cq->attr.act_nr_of_cqes);
 
-	init_attr = kzalloc(sizeof(*init_attr), GFP_KERNEL);
+	init_attr = kzalloc_obj(*init_attr);
 	if (!init_attr) {
 		ret = -ENOMEM;
 		pr_err("no mem for ehea_qp_init_attr\n");
@@ -1899,7 +1899,7 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 	struct ehea_mc_list *ehea_mcl_entry;
 	u64 hret;
 
-	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
+	ehea_mcl_entry = kzalloc_obj(*ehea_mcl_entry, GFP_ATOMIC);
 	if (!ehea_mcl_entry)
 		return;
 
@@ -2968,7 +2968,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	port->msg_enable = netif_msg_init(msg_level, EHEA_MSG_DEFAULT);
 
-	port->mc_list = kzalloc(sizeof(struct ehea_mc_list), GFP_KERNEL);
+	port->mc_list = kzalloc_obj(struct ehea_mc_list);
 	if (!port->mc_list) {
 		ret = -ENOMEM;
 		goto out_free_ethdev;

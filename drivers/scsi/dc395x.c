@@ -873,7 +873,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
  *        and is expected to be held on return.
  *
  */
-static int dc395x_queue_command_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status dc395x_queue_command_lck(struct scsi_cmnd *cmd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct DeviceCtlBlk *dcb;
@@ -2990,7 +2990,7 @@ static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
 	u8 period_index = eeprom->target[target].period & 0x07;
 	struct DeviceCtlBlk *dcb;
 
-	dcb = kmalloc(sizeof(struct DeviceCtlBlk), GFP_ATOMIC);
+	dcb = kmalloc_obj(struct DeviceCtlBlk, GFP_ATOMIC);
 	if (!dcb)
 		return NULL;
 	dcb->acb = NULL;

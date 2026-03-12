@@ -611,7 +611,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	struct ath_common *common;
 	int i, ret = 0, csz = 0;
 
-	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
+	ah = kzalloc_obj(struct ath_hw);
 	if (!ah)
 		return -ENOMEM;
 

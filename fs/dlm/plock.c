@@ -102,7 +102,7 @@ static int do_lock_cancel(const struct dlm_plock_info *orig_info)
 	struct plock_op *op;
 	int rv;
 
-	op = kzalloc(sizeof(*op), GFP_NOFS);
+	op = kzalloc_obj(*op, GFP_NOFS);
 	if (!op)
 		return -ENOMEM;
 
@@ -131,7 +131,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	op = kzalloc(sizeof(*op), GFP_NOFS);
+	op = kzalloc_obj(*op, GFP_NOFS);
 	if (!op) {
 		rv = -ENOMEM;
 		goto out;
@@ -148,7 +148,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	op->info.owner = (__u64)(long) fl->c.flc_owner;
 	/* async handling */
 	if (fl->fl_lmops && fl->fl_lmops->lm_grant) {
-		op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+		op_data = kzalloc_obj(*op_data, GFP_NOFS);
 		if (!op_data) {
 			dlm_release_plock_op(op);
 			rv = -ENOMEM;
@@ -297,7 +297,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	op = kzalloc(sizeof(*op), GFP_NOFS);
+	op = kzalloc_obj(*op, GFP_NOFS);
 	if (!op) {
 		rv = -ENOMEM;
 		goto out;
@@ -430,7 +430,7 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	op = kzalloc(sizeof(*op), GFP_NOFS);
+	op = kzalloc_obj(*op, GFP_NOFS);
 	if (!op) {
 		rv = -ENOMEM;
 		goto out;

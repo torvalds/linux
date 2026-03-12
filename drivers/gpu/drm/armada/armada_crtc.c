@@ -921,7 +921,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	dcrtc = kzalloc(sizeof(*dcrtc), GFP_KERNEL);
+	dcrtc = kzalloc_obj(*dcrtc);
 	if (!dcrtc) {
 		DRM_ERROR("failed to allocate Armada crtc\n");
 		return -ENOMEM;
@@ -970,7 +970,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 	dcrtc->crtc.port = port;
 
-	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
+	primary = kzalloc_obj(*primary);
 	if (!primary) {
 		ret = -ENOMEM;
 		goto err_crtc;

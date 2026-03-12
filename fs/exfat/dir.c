@@ -7,6 +7,7 @@
 #include <linux/compat.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
+#include <linux/filelock.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -298,6 +299,7 @@ const struct file_operations exfat_dir_operations = {
 	.compat_ioctl = exfat_compat_ioctl,
 #endif
 	.fsync		= exfat_file_fsync,
+	.setlease	= generic_setlease,
 };
 
 int exfat_alloc_new_dir(struct inode *inode, struct exfat_chain *clu)
@@ -800,7 +802,7 @@ static int __exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 
 	num_bh = EXFAT_B_TO_BLK_ROUND_UP(off + num_entries * DENTRY_SIZE, sb);
 	if (num_bh > ARRAY_SIZE(es->__bh)) {
-		es->bh = kmalloc_array(num_bh, sizeof(*es->bh), GFP_NOFS);
+		es->bh = kmalloc_objs(*es->bh, num_bh, GFP_NOFS);
 		if (!es->bh) {
 			brelse(bh);
 			return -ENOMEM;

@@ -78,7 +78,7 @@ int rmi_register_transport_device(struct rmi_transport_dev *xport)
 	struct rmi_device *rmi_dev;
 	int error;
 
-	rmi_dev = kzalloc(sizeof(struct rmi_device), GFP_KERNEL);
+	rmi_dev = kzalloc_obj(struct rmi_device);
 	if (!rmi_dev)
 		return -ENOMEM;
 

@@ -141,7 +141,7 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 	struct usb_ctrlrequest *dr;
 	int ret;
 
-	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+	dr = kmalloc_obj(struct usb_ctrlrequest, GFP_NOIO);
 	if (!dr)
 		return -ENOMEM;
 
@@ -526,7 +526,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	}
 
 	/* initialize all the urbs we'll use */
-	io->urbs = kmalloc_array(io->entries, sizeof(*io->urbs), mem_flags);
+	io->urbs = kmalloc_objs(*io->urbs, io->entries, mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
@@ -1058,7 +1058,7 @@ struct usb_device_descriptor *usb_get_device_descriptor(struct usb_device *udev)
 	struct usb_device_descriptor *desc;
 	int ret;
 
-	desc = kmalloc(sizeof(*desc), GFP_NOIO);
+	desc = kmalloc_obj(*desc, GFP_NOIO);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
@@ -2028,15 +2028,13 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	n = nintf = 0;
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
-		new_interfaces = kmalloc_array(nintf, sizeof(*new_interfaces),
-					       GFP_NOIO);
+		new_interfaces = kmalloc_objs(*new_interfaces, nintf, GFP_NOIO);
 		if (!new_interfaces)
 			return -ENOMEM;
 
 		for (; n < nintf; ++n) {
-			new_interfaces[n] = kzalloc(
-					sizeof(struct usb_interface),
-					GFP_NOIO);
+			new_interfaces[n] = kzalloc_obj(struct usb_interface,
+							GFP_NOIO);
 			if (!new_interfaces[n]) {
 				ret = -ENOMEM;
 free_interfaces:
@@ -2289,7 +2287,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 {
 	struct set_config_request *req;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	req = kmalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 	req->udev = udev;

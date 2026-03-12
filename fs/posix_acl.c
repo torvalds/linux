@@ -204,7 +204,7 @@ posix_acl_alloc(unsigned int count, gfp_t flags)
 {
 	struct posix_acl *acl;
 
-	acl = kmalloc(struct_size(acl, a_entries, count), flags);
+	acl = kmalloc_flex(*acl, a_entries, count, flags);
 	if (acl)
 		posix_acl_init(acl, count);
 	return acl;
@@ -829,19 +829,19 @@ EXPORT_SYMBOL (posix_acl_from_xattr);
 /*
  * Convert from in-memory to extended attribute representation.
  */
-int
+void *
 posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
-		   void *buffer, size_t size)
+		   size_t *sizep, gfp_t gfp)
 {
-	struct posix_acl_xattr_header *ext_acl = buffer;
+	struct posix_acl_xattr_header *ext_acl;
 	struct posix_acl_xattr_entry *ext_entry;
-	int real_size, n;
+	size_t size;
+	int n;
 
-	real_size = posix_acl_xattr_size(acl->a_count);
-	if (!buffer)
-		return real_size;
-	if (real_size > size)
-		return -ERANGE;
+	size = posix_acl_xattr_size(acl->a_count);
+	ext_acl = kmalloc(size, gfp);
+	if (!ext_acl)
+		return NULL;
 
 	ext_entry = (void *)(ext_acl + 1);
 	ext_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
@@ -864,7 +864,8 @@ posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 			break;
 		}
 	}
-	return real_size;
+	*sizep = size;
+	return ext_acl;
 }
 EXPORT_SYMBOL (posix_acl_to_xattr);
 

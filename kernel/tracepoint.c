@@ -34,8 +34,12 @@ enum tp_transition_sync {
 
 struct tp_transition_snapshot {
 	unsigned long rcu;
+	unsigned long srcu_gp;
 	bool ongoing;
 };
+
+DEFINE_SRCU_FAST(tracepoint_srcu);
+EXPORT_SYMBOL_GPL(tracepoint_srcu);
 
 /* Protected by tracepoints_mutex */
 static struct tp_transition_snapshot tp_transition_snapshot[_NR_TP_TRANSITION_SYNC];
@@ -46,6 +50,7 @@ static void tp_rcu_get_state(enum tp_transition_sync sync)
 
 	/* Keep the latest get_state snapshot. */
 	snapshot->rcu = get_state_synchronize_rcu();
+	snapshot->srcu_gp = start_poll_synchronize_srcu(&tracepoint_srcu);
 	snapshot->ongoing = true;
 }
 
@@ -56,6 +61,8 @@ static void tp_rcu_cond_sync(enum tp_transition_sync sync)
 	if (!snapshot->ongoing)
 		return;
 	cond_synchronize_rcu(snapshot->rcu);
+	if (!poll_state_synchronize_srcu(&tracepoint_srcu, snapshot->srcu_gp))
+		synchronize_srcu(&tracepoint_srcu);
 	snapshot->ongoing = false;
 }
 
@@ -96,8 +103,7 @@ static void tp_stub_func(void)
 
 static inline void *allocate_probes(int count)
 {
-	struct tp_probes *p  = kmalloc(struct_size(p, probes, count),
-				       GFP_KERNEL);
+	struct tp_probes *p  = kmalloc_flex(*p, probes, count);
 	return p == NULL ? NULL : p->probes;
 }
 
@@ -112,10 +118,13 @@ static inline void release_probes(struct tracepoint *tp, struct tracepoint_func 
 		struct tp_probes *tp_probes = container_of(old,
 			struct tp_probes, probes[0]);
 
-		if (tracepoint_is_faultable(tp))
-			call_rcu_tasks_trace(&tp_probes->rcu, rcu_free_old_probes);
-		else
-			call_rcu(&tp_probes->rcu, rcu_free_old_probes);
+		if (tracepoint_is_faultable(tp)) {
+			call_rcu_tasks_trace(&tp_probes->rcu,
+					     rcu_free_old_probes);
+		} else {
+			call_srcu(&tracepoint_srcu, &tp_probes->rcu,
+				  rcu_free_old_probes);
+		}
 	}
 }
 
@@ -605,7 +614,7 @@ static int tracepoint_module_coming(struct module *mod)
 	if (trace_module_has_bad_taint(mod))
 		return 0;
 
-	tp_mod = kmalloc(sizeof(struct tp_module), GFP_KERNEL);
+	tp_mod = kmalloc_obj(struct tp_module);
 	if (!tp_mod)
 		return -ENOMEM;
 	tp_mod->mod = mod;

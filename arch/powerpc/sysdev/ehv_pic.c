@@ -263,7 +263,7 @@ void __init ehv_pic_init(void)
 		return;
 	}
 
-	ehv_pic = kzalloc(sizeof(struct ehv_pic), GFP_KERNEL);
+	ehv_pic = kzalloc_obj(struct ehv_pic);
 	if (!ehv_pic) {
 		of_node_put(np);
 		return;

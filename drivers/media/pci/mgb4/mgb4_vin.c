@@ -32,7 +32,8 @@
 #include "mgb4_vin.h"
 
 ATTRIBUTE_GROUPS(mgb4_fpdl3_in);
-ATTRIBUTE_GROUPS(mgb4_gmsl_in);
+ATTRIBUTE_GROUPS(mgb4_gmsl3_in);
+ATTRIBUTE_GROUPS(mgb4_gmsl1_in);
 
 static const struct mgb4_vin_config vin_cfg[] = {
 	{0, 0, 0, 6, {0x10, 0x00, 0x04, 0x08, 0x1C, 0x14, 0x18, 0x20, 0x24, 0x28, 0xE8}},
@@ -44,9 +45,19 @@ static const struct i2c_board_info fpdl3_deser_info[] = {
 	{I2C_BOARD_INFO("deserializer2", 0x36)},
 };
 
-static const struct i2c_board_info gmsl_deser_info[] = {
+static const struct i2c_board_info gmsl3_deser_info[] = {
 	{I2C_BOARD_INFO("deserializer1", 0x4C)},
 	{I2C_BOARD_INFO("deserializer2", 0x2A)},
+};
+
+static const struct i2c_board_info gmsl3c_deser_info[] = {
+	{I2C_BOARD_INFO("deserializer1", 0x6A)},
+	{I2C_BOARD_INFO("deserializer2", 0x6C)},
+};
+
+static const struct i2c_board_info gmsl1_deser_info[] = {
+	{I2C_BOARD_INFO("deserializer1", 0x2C)},
+	{I2C_BOARD_INFO("deserializer2", 0x6C)},
 };
 
 static const struct mgb4_i2c_kv fpdl3_i2c[] = {
@@ -54,11 +65,21 @@ static const struct mgb4_i2c_kv fpdl3_i2c[] = {
 	{0x49, 0xFF, 0x00}, {0x34, 0xFF, 0x00}, {0x23, 0xFF, 0x00}
 };
 
-static const struct mgb4_i2c_kv gmsl_i2c[] = {
+static const struct mgb4_i2c_kv gmsl3_i2c[] = {
 	{0x01, 0x03, 0x03}, {0x300, 0x0C, 0x0C}, {0x03, 0xC0, 0xC0},
 	{0x1CE, 0x0E, 0x0E}, {0x11, 0x05, 0x00}, {0x05, 0xC0, 0x40},
 	{0x307, 0x0F, 0x00}, {0xA0, 0x03, 0x00}, {0x3E0, 0x07, 0x07},
 	{0x308, 0x01, 0x01}, {0x10, 0x20, 0x20}, {0x300, 0x40, 0x40}
+};
+
+static const struct mgb4_i2c_kv gmsl3c_i2c[] = {
+	{0x01, 0x03, 0x02}, {0x300, 0x0C, 0x08}, {0x03, 0xC0, 0x00},
+	{0x1CE, 0x0E, 0x0E}, {0x11, 0x05, 0x05}, {0x05, 0xC0, 0x40},
+	{0x307, 0x0F, 0x00}, {0xA0, 0x03, 0x00}, {0x3E0, 0x07, 0x00},
+	{0x308, 0x01, 0x00}, {0x10, 0x20, 0x20}, {0x300, 0x40, 0x40}
+};
+
+static const struct mgb4_i2c_kv gmsl1_i2c[] = {
 };
 
 static const struct v4l2_dv_timings_cap video_timings_cap = {
@@ -796,22 +817,36 @@ static irqreturn_t err_handler(int irq, void *ctx)
 
 static int deser_init(struct mgb4_vin_dev *vindev, int id)
 {
-	int rv, addr_size;
-	size_t values_count;
-	const struct mgb4_i2c_kv *values;
-	const struct i2c_board_info *info;
+	int rv, addr_size = 0;
+	size_t count = 0;
+	const struct mgb4_i2c_kv *values = NULL;
+	const struct i2c_board_info *info = NULL;
 	struct device *dev = &vindev->mgbdev->pdev->dev;
 
-	if (MGB4_IS_GMSL(vindev->mgbdev)) {
-		info = &gmsl_deser_info[id];
-		addr_size = 16;
-		values = gmsl_i2c;
-		values_count = ARRAY_SIZE(gmsl_i2c);
-	} else {
+	if (MGB4_IS_GMSL3(vindev->mgbdev)) {
+		if (MGB4_IS_GMSL3C(vindev->mgbdev)) {
+			info = &gmsl3c_deser_info[id];
+			addr_size = 16;
+			values = gmsl3c_i2c;
+			count = ARRAY_SIZE(gmsl3c_i2c);
+		} else {
+			info = &gmsl3_deser_info[id];
+			addr_size = 16;
+			values = gmsl3_i2c;
+			count = ARRAY_SIZE(gmsl3_i2c);
+		}
+	} else if (MGB4_IS_FPDL3(vindev->mgbdev)) {
 		info = &fpdl3_deser_info[id];
 		addr_size = 8;
 		values = fpdl3_i2c;
-		values_count = ARRAY_SIZE(fpdl3_i2c);
+		count = ARRAY_SIZE(fpdl3_i2c);
+	} else if (MGB4_IS_GMSL1(vindev->mgbdev)) {
+		info = &gmsl1_deser_info[id];
+		addr_size = 8;
+		values = gmsl1_i2c;
+		count = ARRAY_SIZE(gmsl1_i2c);
+	} else {
+		return -EINVAL;
 	}
 
 	rv = mgb4_i2c_init(&vindev->deser, vindev->mgbdev->i2c_adap, info,
@@ -820,7 +855,7 @@ static int deser_init(struct mgb4_vin_dev *vindev, int id)
 		dev_err(dev, "failed to create deserializer\n");
 		return rv;
 	}
-	rv = mgb4_i2c_configure(&vindev->deser, values, values_count);
+	rv = mgb4_i2c_configure(&vindev->deser, values, count);
 	if (rv < 0) {
 		dev_err(dev, "failed to configure deserializer\n");
 		goto err_i2c_dev;
@@ -838,11 +873,12 @@ static void fpga_init(struct mgb4_vin_dev *vindev)
 {
 	struct mgb4_regs *video = &vindev->mgbdev->video;
 	const struct mgb4_vin_regs *regs = &vindev->config->regs;
+	int dp = MGB4_IS_GMSL1(vindev->mgbdev) ? 0 : 1;
 
 	mgb4_write_reg(video, regs->config, 0x00000001);
 	mgb4_write_reg(video, regs->sync, 0x03E80002);
 	mgb4_write_reg(video, regs->padding, 0x00000000);
-	mgb4_write_reg(video, regs->config, 1U << 9);
+	mgb4_write_reg(video, regs->config, dp << 9);
 }
 
 static void create_debugfs(struct mgb4_vin_dev *vindev)
@@ -890,16 +926,27 @@ static void create_debugfs(struct mgb4_vin_dev *vindev)
 #endif
 }
 
+static const struct attribute_group **module_groups(struct mgb4_dev *mgbdev)
+{
+	if (MGB4_IS_FPDL3(mgbdev))
+		return mgb4_fpdl3_in_groups;
+	else if (MGB4_IS_GMSL3(mgbdev))
+		return mgb4_gmsl3_in_groups;
+	else if (MGB4_IS_GMSL1(mgbdev))
+		return mgb4_gmsl1_in_groups;
+	else
+		return NULL;
+}
+
 struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 {
 	int rv;
-	const struct attribute_group **groups;
 	struct mgb4_vin_dev *vindev;
 	struct pci_dev *pdev = mgbdev->pdev;
 	struct device *dev = &pdev->dev;
 	int vin_irq, err_irq;
 
-	vindev = kzalloc(sizeof(*vindev), GFP_KERNEL);
+	vindev = kzalloc_obj(*vindev);
 	if (!vindev)
 		return NULL;
 
@@ -914,14 +961,13 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 	INIT_WORK(&vindev->dma_work, dma_transfer);
 	INIT_WORK(&vindev->err_work, signal_change);
 
-	/* IRQ callback */
+	/* IRQ callbacks */
 	vin_irq = xdma_get_user_irq(mgbdev->xdev, vindev->config->vin_irq);
 	rv = request_irq(vin_irq, vin_handler, 0, "mgb4-vin", vindev);
 	if (rv) {
 		dev_err(dev, "failed to register vin irq handler\n");
 		goto err_alloc;
 	}
-	/* Error IRQ callback */
 	err_irq = xdma_get_user_irq(mgbdev->xdev, vindev->config->err_irq);
 	rv = request_irq(err_irq, err_handler, 0, "mgb4-err", vindev);
 	if (rv) {
@@ -986,9 +1032,7 @@ struct mgb4_vin_dev *mgb4_vin_create(struct mgb4_dev *mgbdev, int id)
 	}
 
 	/* Module sysfs attributes */
-	groups = MGB4_IS_GMSL(mgbdev)
-	  ? mgb4_gmsl_in_groups : mgb4_fpdl3_in_groups;
-	rv = device_add_groups(&vindev->vdev.dev, groups);
+	rv = device_add_groups(&vindev->vdev.dev, module_groups(mgbdev));
 	if (rv) {
 		dev_err(dev, "failed to create sysfs attributes\n");
 		goto err_video_dev;
@@ -1014,7 +1058,6 @@ err_alloc:
 
 void mgb4_vin_free(struct mgb4_vin_dev *vindev)
 {
-	const struct attribute_group **groups;
 	int vin_irq = xdma_get_user_irq(vindev->mgbdev->xdev,
 					vindev->config->vin_irq);
 	int err_irq = xdma_get_user_irq(vindev->mgbdev->xdev,
@@ -1025,9 +1068,7 @@ void mgb4_vin_free(struct mgb4_vin_dev *vindev)
 	free_irq(vin_irq, vindev);
 	free_irq(err_irq, vindev);
 
-	groups = MGB4_IS_GMSL(vindev->mgbdev)
-	  ? mgb4_gmsl_in_groups : mgb4_fpdl3_in_groups;
-	device_remove_groups(&vindev->vdev.dev, groups);
+	device_remove_groups(&vindev->vdev.dev, module_groups(vindev->mgbdev));
 
 	mgb4_i2c_free(&vindev->deser);
 	video_unregister_device(&vindev->vdev);

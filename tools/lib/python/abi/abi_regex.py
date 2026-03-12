@@ -16,10 +16,22 @@ from abi.abi_parser import AbiParser
 from abi.helpers import AbiDebug
 
 class AbiRegex(AbiParser):
-    """Extends AbiParser to search ABI nodes with regular expressions"""
+    """
+    Extends AbiParser to search ABI nodes with regular expressions.
 
-    # Escape only ASCII visible characters
+    There some optimizations here to allow a quick symbol search:
+    instead of trying to place all symbols altogether an doing linear
+    search which is very time consuming, create a tree with one depth,
+    grouping similar symbols altogether.
+
+    Yet, sometimes a full search will be needed, so we have a special branch
+    on such group tree where other symbols are placed.
+    """
+
+    #: Escape only ASCII visible characters.
     escape_symbols = r"([\x21-\x29\x2b-\x2d\x3a-\x40\x5c\x60\x7b-\x7e])"
+
+    #: Special group for other nodes.
     leave_others = "others"
 
     # Tuples with regular expressions to be compiled and replacement data
@@ -88,13 +100,15 @@ class AbiRegex(AbiParser):
         # Recover plus characters
         (re.compile(r"\xf7"), "+"),
     ]
+
+    #: Regex to check if the symbol name has a number on it.
     re_has_num = re.compile(r"\\d")
 
-    # Symbol name after escape_chars that are considered a devnode basename
+    #: Symbol name after escape_chars that are considered a devnode basename.
     re_symbol_name =  re.compile(r"(\w|\\[\.\-\:])+$")
 
-    # List of popular group names to be skipped to minimize regex group size
-    # Use AbiDebug.SUBGROUP_SIZE to detect those
+    #: List of popular group names to be skipped to minimize regex group size
+    #: Use AbiDebug.SUBGROUP_SIZE to detect those.
     skip_names = set(["devices", "hwmon"])
 
     def regex_append(self, what, new):
@@ -148,7 +162,7 @@ class AbiRegex(AbiParser):
     def get_regexes(self, what):
         """
         Given an ABI devnode, return a list of all regular expressions that
-        may match it, based on the sub-groups created by regex_append()
+        may match it, based on the sub-groups created by regex_append().
         """
 
         re_list = []

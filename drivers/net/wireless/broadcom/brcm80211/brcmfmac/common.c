@@ -132,8 +132,7 @@ static int brcmf_c_download_blob(struct brcmf_if *ifp,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	chunk_buf = kzalloc(struct_size(chunk_buf, data, MAX_CHUNK_LEN),
-			    GFP_KERNEL);
+	chunk_buf = kzalloc_flex(*chunk_buf, data, MAX_CHUNK_LEN);
 	if (!chunk_buf) {
 		err = -ENOMEM;
 		return -ENOMEM;
@@ -521,7 +520,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 
 	brcmf_dbg(INFO, "Enter, bus=%d, chip=%d, rev=%d\n", bus_type, chip,
 		  chiprev);
-	settings = kzalloc(sizeof(*settings), GFP_ATOMIC);
+	settings = kzalloc_obj(*settings, GFP_ATOMIC);
 	if (!settings)
 		return NULL;
 

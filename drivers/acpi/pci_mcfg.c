@@ -304,7 +304,7 @@ static __init int pci_mcfg_parse(struct acpi_table_header *header)
 	mcfg = (struct acpi_table_mcfg *)header;
 	mptr = (struct acpi_mcfg_allocation *) &mcfg[1];
 
-	arr = kcalloc(n, sizeof(*arr), GFP_KERNEL);
+	arr = kzalloc_objs(*arr, n);
 	if (!arr)
 		return -ENOMEM;
 

@@ -531,7 +531,7 @@ int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
 
 	if (!linecards)
 		return 0;
-	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item)
 		return -ENOMEM;
 	item->event_ops = ops;
@@ -1192,7 +1192,7 @@ mlxsw_linecard_status_listener_func(const struct mlxsw_reg_info *reg,
 	struct mlxsw_linecard_status_event *event;
 	struct mlxsw_core *mlxsw_core = priv;
 
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	event = kmalloc_obj(*event, GFP_ATOMIC);
 	if (!event)
 		return;
 	event->mlxsw_core = mlxsw_core;
@@ -1225,7 +1225,7 @@ mlxsw_linecard_bct_listener_func(const struct mlxsw_reg_info *reg,
 	struct mlxsw_linecard_bct_event *event;
 	struct mlxsw_core *mlxsw_core = priv;
 
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
+	event = kmalloc_obj(*event, GFP_ATOMIC);
 	if (!event)
 		return;
 	event->mlxsw_core = mlxsw_core;
@@ -1446,7 +1446,7 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 		return 0;
 	}
 
-	types_info = kzalloc(sizeof(*types_info), GFP_KERNEL);
+	types_info = kzalloc_obj(*types_info);
 	if (!types_info) {
 		release_firmware(firmware);
 		return -ENOMEM;
@@ -1469,9 +1469,8 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 		goto err_type_file_file_validate;
 	}
 
-	types_info->ini_files = kmalloc_array(types_info->count,
-					      sizeof(struct mlxsw_linecard_ini_file *),
-					      GFP_KERNEL);
+	types_info->ini_files = kmalloc_objs(struct mlxsw_linecard_ini_file *,
+					     types_info->count);
 	if (!types_info->ini_files) {
 		err = -ENOMEM;
 		goto err_ini_files_alloc;

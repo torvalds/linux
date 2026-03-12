@@ -315,7 +315,7 @@ struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 
 	reg = 0;
 
-	priv = kzalloc(sizeof(struct mc44s803_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct mc44s803_priv);
 	if (priv == NULL)
 		return NULL;
 

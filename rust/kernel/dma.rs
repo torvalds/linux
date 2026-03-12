@@ -27,8 +27,9 @@ pub type DmaAddress = bindings::dma_addr_t;
 /// Trait to be implemented by DMA capable bus devices.
 ///
 /// The [`dma::Device`](Device) trait should be implemented by bus specific device representations,
-/// where the underlying bus is DMA capable, such as [`pci::Device`](::kernel::pci::Device) or
-/// [`platform::Device`](::kernel::platform::Device).
+/// where the underlying bus is DMA capable, such as:
+#[cfg_attr(CONFIG_PCI, doc = "* [`pci::Device`](kernel::pci::Device)")]
+/// * [`platform::Device`](::kernel::platform::Device)
 pub trait Device: AsRef<device::Device<Core>> {
     /// Set up the device's DMA streaming addressing capabilities.
     ///
@@ -83,6 +84,23 @@ pub trait Device: AsRef<device::Device<Core>> {
         to_result(unsafe {
             bindings::dma_set_mask_and_coherent(self.as_ref().as_raw(), mask.value())
         })
+    }
+
+    /// Set the maximum size of a single DMA segment the device may request.
+    ///
+    /// This method is usually called once from `probe()` as soon as the device capabilities are
+    /// known.
+    ///
+    /// # Safety
+    ///
+    /// This method must not be called concurrently with any DMA allocation or mapping primitives,
+    /// such as [`CoherentAllocation::alloc_attrs`].
+    unsafe fn dma_set_max_seg_size(&self, size: u32) {
+        // SAFETY:
+        // - By the type invariant of `device::Device`, `self.as_ref().as_raw()` is valid.
+        // - The safety requirement of this function guarantees that there are no concurrent calls
+        //   to DMA allocation and mapping primitives using this parameter.
+        unsafe { bindings::dma_set_max_seg_size(self.as_ref().as_raw(), size) }
     }
 }
 
@@ -532,8 +550,6 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     ///
     /// # Safety
     ///
-    /// * Callers must ensure that the device does not read/write to/from memory while the returned
-    ///   slice is live.
     /// * Callers must ensure that this call does not race with a read or write to the same region
     ///   that overlaps with this write.
     ///

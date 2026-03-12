@@ -53,7 +53,7 @@ static void *libipw_ccmp_init(int key_idx)
 {
 	struct libipw_ccmp_data *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc_obj(*priv, GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
 	priv->key_idx = key_idx;

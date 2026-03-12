@@ -527,7 +527,7 @@ static int nct6694_canfd_start(struct net_device *ndev)
 	u32 en_tdc;
 	int ret;
 
-	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+	setting = kzalloc_obj(*setting);
 	if (!setting)
 		return -ENOMEM;
 
@@ -596,7 +596,7 @@ static void nct6694_canfd_stop(struct net_device *ndev)
 	 * mode allows the device to monitor bus activity without actively
 	 * participating in communication.
 	 */
-	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+	setting = kzalloc_obj(*setting);
 	if (!setting)
 		return;
 
@@ -707,7 +707,7 @@ static int nct6694_canfd_get_clock(struct nct6694_canfd_priv *priv)
 	};
 	int ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

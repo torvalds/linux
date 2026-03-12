@@ -277,7 +277,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
+	fc = kzalloc_obj(*fc);
 	if (!fc) {
 		ti->error = "Cannot allocate context";
 		return -ENOMEM;

@@ -977,7 +977,7 @@ static int hclgevf_update_mac_list(struct hnae3_handle *handle,
 		return -ENOENT;
 	}
 
-	mac_node = kzalloc(sizeof(*mac_node), GFP_ATOMIC);
+	mac_node = kzalloc_obj(*mac_node, GFP_ATOMIC);
 	if (!mac_node) {
 		spin_unlock_bh(&hdev->mac_table.mac_list_lock);
 		return -ENOMEM;
@@ -1156,7 +1156,7 @@ static void hclgevf_sync_mac_list(struct hclgevf_dev *hdev,
 			list_move_tail(&mac_node->node, &tmp_del_list);
 			break;
 		case HCLGEVF_MAC_TO_ADD:
-			new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
+			new_node = kzalloc_obj(*new_node, GFP_ATOMIC);
 			if (!new_node)
 				goto stop_traverse;
 

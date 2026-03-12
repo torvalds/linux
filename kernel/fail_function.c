@@ -57,7 +57,7 @@ static struct fei_attr *fei_attr_new(const char *sym, unsigned long addr)
 {
 	struct fei_attr *attr;
 
-	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_obj(*attr);
 	if (attr) {
 		attr->kp.symbol_name = kstrdup(sym, GFP_KERNEL);
 		if (!attr->kp.symbol_name) {

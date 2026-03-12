@@ -526,7 +526,7 @@ struct dvb_frontend *fc0013_attach(struct dvb_frontend *fe,
 {
 	struct fc0013_priv *priv = NULL;
 
-	priv = kzalloc(sizeof(struct fc0013_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct fc0013_priv);
 	if (priv == NULL)
 		return NULL;
 

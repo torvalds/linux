@@ -104,8 +104,6 @@ void ksys_sync(void)
 	iterate_supers(sync_fs_one_sb, &wait);
 	sync_bdevs(false);
 	sync_bdevs(true);
-	if (unlikely(laptop_mode))
-		laptop_sync_completion();
 }
 
 SYSCALL_DEFINE0(sync)
@@ -137,7 +135,7 @@ void emergency_sync(void)
 {
 	struct work_struct *work;
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (work) {
 		INIT_WORK(work, do_sync_work);
 		schedule_work(work);
@@ -183,8 +181,8 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!file->f_op->fsync)
 		return -EINVAL;
-	if (!datasync && (inode_state_read_once(inode) & I_DIRTY_TIME))
-		mark_inode_dirty_sync(inode);
+	if (!datasync)
+		sync_lazytime(inode);
 	return file->f_op->fsync(file, start, end, datasync);
 }
 EXPORT_SYMBOL(vfs_fsync_range);

@@ -39,6 +39,8 @@
 #define COMMAND_COPY				BIT(5)
 #define COMMAND_ENABLE_DOORBELL			BIT(6)
 #define COMMAND_DISABLE_DOORBELL		BIT(7)
+#define COMMAND_BAR_SUBRANGE_SETUP		BIT(8)
+#define COMMAND_BAR_SUBRANGE_CLEAR		BIT(9)
 
 #define PCI_ENDPOINT_TEST_STATUS		0x8
 #define STATUS_READ_SUCCESS			BIT(0)
@@ -55,6 +57,10 @@
 #define STATUS_DOORBELL_ENABLE_FAIL		BIT(11)
 #define STATUS_DOORBELL_DISABLE_SUCCESS		BIT(12)
 #define STATUS_DOORBELL_DISABLE_FAIL		BIT(13)
+#define STATUS_BAR_SUBRANGE_SETUP_SUCCESS	BIT(14)
+#define STATUS_BAR_SUBRANGE_SETUP_FAIL		BIT(15)
+#define STATUS_BAR_SUBRANGE_CLEAR_SUCCESS	BIT(16)
+#define STATUS_BAR_SUBRANGE_CLEAR_FAIL		BIT(17)
 
 #define PCI_ENDPOINT_TEST_LOWER_SRC_ADDR	0x0c
 #define PCI_ENDPOINT_TEST_UPPER_SRC_ADDR	0x10
@@ -77,6 +83,7 @@
 #define CAP_MSI					BIT(1)
 #define CAP_MSIX				BIT(2)
 #define CAP_INTX				BIT(3)
+#define CAP_SUBRANGE_MAPPING			BIT(4)
 
 #define PCI_ENDPOINT_TEST_DB_BAR		0x34
 #define PCI_ENDPOINT_TEST_DB_OFFSET		0x38
@@ -99,6 +106,8 @@
 #define PCI_DEVICE_ID_RENESAS_R8A779F0		0x0031
 
 #define PCI_DEVICE_ID_ROCKCHIP_RK3588		0x3588
+
+#define PCI_ENDPOINT_TEST_BAR_SUBRANGE_NSUB	2
 
 static DEFINE_IDA(pci_endpoint_test_ida);
 
@@ -412,6 +421,193 @@ static int pci_endpoint_test_bars(struct pci_endpoint_test *test)
 	}
 
 	return 0;
+}
+
+static u8 pci_endpoint_test_subrange_sig_byte(enum pci_barno barno,
+					      unsigned int subno)
+{
+	return 0x50 + (barno * 8) + subno;
+}
+
+static u8 pci_endpoint_test_subrange_test_byte(enum pci_barno barno,
+					       unsigned int subno)
+{
+	return 0xa0 + (barno * 8) + subno;
+}
+
+static int pci_endpoint_test_bar_subrange_cmd(struct pci_endpoint_test *test,
+					      enum pci_barno barno, u32 command,
+					      u32 ok_bit, u32 fail_bit)
+{
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+	int irq_type = test->irq_type;
+	u32 status;
+
+	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
+	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
+		dev_err(dev, "Invalid IRQ type\n");
+		return -EINVAL;
+	}
+
+	reinit_completion(&test->irq_raised);
+
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_STATUS, 0);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE, irq_type);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 1);
+	/* Reuse SIZE as a command parameter: bar number. */
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_SIZE, barno);
+	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND, command);
+
+	if (!wait_for_completion_timeout(&test->irq_raised,
+					 msecs_to_jiffies(1000)))
+		return -ETIMEDOUT;
+
+	status = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
+	if (status & fail_bit)
+		return -EIO;
+
+	if (!(status & ok_bit))
+		return -EIO;
+
+	return 0;
+}
+
+static int pci_endpoint_test_bar_subrange_setup(struct pci_endpoint_test *test,
+						enum pci_barno barno)
+{
+	return pci_endpoint_test_bar_subrange_cmd(test, barno,
+			COMMAND_BAR_SUBRANGE_SETUP,
+			STATUS_BAR_SUBRANGE_SETUP_SUCCESS,
+			STATUS_BAR_SUBRANGE_SETUP_FAIL);
+}
+
+static int pci_endpoint_test_bar_subrange_clear(struct pci_endpoint_test *test,
+						enum pci_barno barno)
+{
+	return pci_endpoint_test_bar_subrange_cmd(test, barno,
+			COMMAND_BAR_SUBRANGE_CLEAR,
+			STATUS_BAR_SUBRANGE_CLEAR_SUCCESS,
+			STATUS_BAR_SUBRANGE_CLEAR_FAIL);
+}
+
+static int pci_endpoint_test_bar_subrange(struct pci_endpoint_test *test,
+					  enum pci_barno barno)
+{
+	u32 nsub = PCI_ENDPOINT_TEST_BAR_SUBRANGE_NSUB;
+	struct device *dev = &test->pdev->dev;
+	size_t sub_size, buf_size;
+	resource_size_t bar_size;
+	void __iomem *bar_addr;
+	void *read_buf = NULL;
+	int ret, clear_ret;
+	size_t off, chunk;
+	u32 i, exp, val;
+	u8 pattern;
+
+	if (!(test->ep_caps & CAP_SUBRANGE_MAPPING))
+		return -EOPNOTSUPP;
+
+	/*
+	 * The test register BAR is not safe to reprogram and write/read
+	 * over its full size. BAR_TEST already special-cases it to a tiny
+	 * range. For subrange mapping tests, let's simply skip it.
+	 */
+	if (barno == test->test_reg_bar)
+		return -EBUSY;
+
+	bar_size = pci_resource_len(test->pdev, barno);
+	if (!bar_size)
+		return -ENODATA;
+
+	bar_addr = test->bar[barno];
+	if (!bar_addr)
+		return -ENOMEM;
+
+	ret = pci_endpoint_test_bar_subrange_setup(test, barno);
+	if (ret)
+		return ret;
+
+	if (bar_size % nsub || bar_size / nsub > SIZE_MAX) {
+		ret = -EINVAL;
+		goto out_clear;
+	}
+
+	sub_size = bar_size / nsub;
+	if (sub_size < sizeof(u32)) {
+		ret = -ENOSPC;
+		goto out_clear;
+	}
+
+	/* Limit the temporary buffer size */
+	buf_size = min_t(size_t, sub_size, SZ_1M);
+
+	read_buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!read_buf) {
+		ret = -ENOMEM;
+		goto out_clear;
+	}
+
+	/*
+	 * Step 1: verify EP-provided signature per subrange. This detects
+	 * whether the EP actually applied the submap order.
+	 */
+	for (i = 0; i < nsub; i++) {
+		exp = (u32)pci_endpoint_test_subrange_sig_byte(barno, i) *
+			0x01010101U;
+		val = ioread32(bar_addr + (i * sub_size));
+		if (val != exp) {
+			dev_err(dev,
+				"BAR%d subrange%u signature mismatch @%#zx: exp %#08x got %#08x\n",
+				barno, i, (size_t)i * sub_size, exp, val);
+			ret = -EIO;
+			goto out_clear;
+		}
+		val = ioread32(bar_addr + (i * sub_size) + sub_size - sizeof(u32));
+		if (val != exp) {
+			dev_err(dev,
+				"BAR%d subrange%u signature mismatch @%#zx: exp %#08x got %#08x\n",
+				barno, i,
+				((size_t)i * sub_size) + sub_size - sizeof(u32),
+				exp, val);
+			ret = -EIO;
+			goto out_clear;
+		}
+	}
+
+	/* Step 2: write unique pattern per subrange (write all first). */
+	for (i = 0; i < nsub; i++) {
+		pattern = pci_endpoint_test_subrange_test_byte(barno, i);
+		memset_io(bar_addr + (i * sub_size), pattern, sub_size);
+	}
+
+	/* Step 3: read back and verify (read all after all writes). */
+	for (i = 0; i < nsub; i++) {
+		pattern = pci_endpoint_test_subrange_test_byte(barno, i);
+		for (off = 0; off < sub_size; off += chunk) {
+			void *bad;
+
+			chunk = min_t(size_t, buf_size, sub_size - off);
+			memcpy_fromio(read_buf, bar_addr + (i * sub_size) + off,
+				      chunk);
+			bad = memchr_inv(read_buf, pattern, chunk);
+			if (bad) {
+				size_t bad_off = (u8 *)bad - (u8 *)read_buf;
+
+				dev_err(dev,
+					"BAR%d subrange%u data mismatch @%#zx (pattern %#02x)\n",
+					barno, i, (size_t)i * sub_size + off + bad_off,
+					pattern);
+				ret = -EIO;
+				goto out_clear;
+			}
+		}
+	}
+
+out_clear:
+	kfree(read_buf);
+	clear_ret = pci_endpoint_test_bar_subrange_clear(test, barno);
+	return ret ?: clear_ret;
 }
 
 static int pci_endpoint_test_intx_irq(struct pci_endpoint_test *test)
@@ -936,12 +1132,17 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case PCITEST_BAR:
+	case PCITEST_BAR_SUBRANGE:
 		bar = arg;
 		if (bar <= NO_BAR || bar > BAR_5)
 			goto ret;
 		if (is_am654_pci_dev(pdev) && bar == BAR_0)
 			goto ret;
-		ret = pci_endpoint_test_bar(test, bar);
+
+		if (cmd == PCITEST_BAR)
+			ret = pci_endpoint_test_bar(test, bar);
+		else
+			ret = pci_endpoint_test_bar_subrange(test, bar);
 		break;
 	case PCITEST_BARS:
 		ret = pci_endpoint_test_bars(test);

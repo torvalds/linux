@@ -223,7 +223,7 @@ nv50_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, u32 pgd_addr, struct nvkm_bar **pbar)
 {
 	struct nv50_bar *bar;
-	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
+	if (!(bar = kzalloc_obj(*bar)))
 		return -ENOMEM;
 	nvkm_bar_ctor(func, device, type, inst, &bar->base);
 	bar->pgd_addr = pgd_addr;

@@ -31,10 +31,3 @@ USB support
 
     usb-help
     text_files
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

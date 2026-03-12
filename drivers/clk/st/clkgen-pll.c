@@ -656,7 +656,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -716,7 +716,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 
 	flags = pll_flags | CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -725,7 +725,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	gate->bit_idx = pll_data->odf_gate[odf].shift;
 	gate->lock = odf_lock;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div) {
 		kfree(gate);
 		return ERR_PTR(-ENOMEM);
@@ -783,13 +783,12 @@ static void __init clkgen_c32_pll_setup(struct device_node *np,
 
 	num_odfs = datac->data->num_odfs;
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data)
 		return;
 
 	clk_data->clk_num = num_odfs;
-	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
-				 GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num);
 
 	if (!clk_data->clks)
 		goto err;

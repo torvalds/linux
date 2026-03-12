@@ -32,12 +32,14 @@
 #define QL_VND_GET_PRIV_STATS_EX	0x1A
 #define QL_VND_SS_GET_FLASH_IMAGE_STATUS	0x1E
 #define QL_VND_EDIF_MGMT                0X1F
+#define QL_VND_GET_DRV_ATTR		0x22
 #define QL_VND_MANAGE_HOST_STATS	0x23
 #define QL_VND_GET_HOST_STATS		0x24
 #define QL_VND_GET_TGT_STATS		0x25
 #define QL_VND_MANAGE_HOST_PORT		0x26
 #define QL_VND_MBX_PASSTHRU		0x2B
 #define QL_VND_DPORT_DIAGNOSTICS_V2	0x2C
+#define QL_VND_IMG_SET_VALID	0x30
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -50,6 +52,8 @@
 #define EXT_STATUS_BUFFER_TOO_SMALL	16
 #define EXT_STATUS_NO_MEMORY		17
 #define EXT_STATUS_DEVICE_OFFLINE	22
+#define EXT_STATUS_IMG_SET_VALID_ERR	47
+#define EXT_STATUS_IMG_SET_CONFIG_ERR	48
 
 /*
  * To support bidirectional iocb
@@ -316,6 +320,14 @@ struct qla_active_regions {
 	uint8_t npiv_config_2_3;
 	uint8_t nvme_params;
 	uint8_t reserved[31];
+} __packed;
+
+struct qla_drv_attr {
+        uint32_t        attributes;
+        u32             ext_attributes;
+#define QLA_IMG_SET_VALID_SUPPORT       BIT_4
+        u32             status_flags;
+        uint8_t         reserved[20];
 } __packed;
 
 #include "qla_edif_bsg.h"

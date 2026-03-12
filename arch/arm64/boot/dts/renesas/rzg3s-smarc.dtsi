@@ -155,6 +155,12 @@
 	status = "okay";
 };
 
+&pcie {
+	pinctrl-0 = <&pcie_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &phyrst {
 	status = "okay";
 };
@@ -184,6 +190,11 @@
 		gpios = <RZG2L_GPIO(0, 3) GPIO_ACTIVE_LOW>;
 		input;
 		line-name = "key-3-gpio-irq";
+	};
+
+	pcie_pins: pcie {
+		pinmux = <RZG2L_PORT_PINMUX(13, 2, 2)>, /* PCIE_RST_OUT_B */
+			 <RZG2L_PORT_PINMUX(13, 3, 2)>; /* PCIE_CLKREQ_B */
 	};
 
 	scif0_pins: scif0 {

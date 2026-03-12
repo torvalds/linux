@@ -373,6 +373,10 @@ fore200e_shutdown(struct fore200e* fore200e)
 	fallthrough;
     case FORE200E_STATE_IRQ:
 	free_irq(fore200e->irq, fore200e->atm_dev);
+#ifdef FORE200E_USE_TASKLET
+	tasklet_kill(&fore200e->tx_tasklet);
+	tasklet_kill(&fore200e->rx_tasklet);
+#endif
 
 	fallthrough;
     case FORE200E_STATE_ALLOC_BUF:
@@ -1327,7 +1331,7 @@ fore200e_open(struct atm_vcc *vcc)
 
     spin_unlock_irqrestore(&fore200e->q_lock, flags);
 
-    fore200e_vcc = kzalloc(sizeof(struct fore200e_vcc), GFP_ATOMIC);
+    fore200e_vcc = kzalloc_obj(struct fore200e_vcc, GFP_ATOMIC);
     if (fore200e_vcc == NULL) {
 	vc_map->vcc = NULL;
 	return -ENOMEM;
@@ -1672,7 +1676,7 @@ fore200e_getstats(struct fore200e* fore200e)
     u32                     stats_dma_addr;
 
     if (fore200e->stats == NULL) {
-	fore200e->stats = kzalloc(sizeof(struct stats), GFP_KERNEL);
+	fore200e->stats = kzalloc_obj(struct stats);
 	if (fore200e->stats == NULL)
 	    return -ENOMEM;
     }
@@ -1951,7 +1955,7 @@ static int fore200e_irq_request(struct fore200e *fore200e)
 
 static int fore200e_get_esi(struct fore200e *fore200e)
 {
-    struct prom_data* prom = kzalloc(sizeof(struct prom_data), GFP_KERNEL);
+    struct prom_data* prom = kzalloc_obj(struct prom_data);
     int ok, i;
 
     if (!prom)
@@ -1996,8 +2000,7 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
 	    DPRINTK(2, "rx buffers %d / %d are being allocated\n", scheme, magn);
 
 	    /* allocate the array of receive buffers */
-	    buffer = bsq->buffer = kcalloc(nbr, sizeof(struct buffer),
-                                           GFP_KERNEL);
+	    buffer = bsq->buffer = kzalloc_objs(struct buffer, nbr);
 
 	    if (buffer == NULL)
 		return -ENOMEM;
@@ -2525,7 +2528,7 @@ static int fore200e_sba_probe(struct platform_device *op)
 	static int index = 0;
 	int err;
 
-	fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
+	fore200e = kzalloc_obj(struct fore200e);
 	if (!fore200e)
 		return -ENOMEM;
 
@@ -2593,7 +2596,7 @@ static int fore200e_pca_detect(struct pci_dev *pci_dev,
 	goto out;
     }
     
-    fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
+    fore200e = kzalloc_obj(struct fore200e);
     if (fore200e == NULL) {
 	err = -ENOMEM;
 	goto out_disable;

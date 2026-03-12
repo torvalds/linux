@@ -28,7 +28,7 @@ struct workspace {
 
 static void *zstd_init(struct squashfs_sb_info *msblk, void *buff)
 {
-	struct workspace *wksp = kmalloc(sizeof(*wksp), GFP_KERNEL);
+	struct workspace *wksp = kmalloc_obj(*wksp);
 
 	if (wksp == NULL)
 		goto failed;

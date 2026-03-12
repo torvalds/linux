@@ -6,6 +6,44 @@
 #define CEPHX_GET_PRINCIPAL_SESSION_KEY 0x0200
 #define CEPHX_GET_ROTATING_KEY          0x0400
 
+/* Client <-> AuthMonitor */
+/*
+ * The AUTH session's connection secret: encrypted with the AUTH
+ * ticket session key
+ */
+#define CEPHX_KEY_USAGE_AUTH_CONNECTION_SECRET	0x03
+/*
+ * The ticket's blob for the client ("blob for me", contains the
+ * session key): encrypted with the client's secret key in case of
+ * the AUTH ticket and the AUTH ticket session key in case of other
+ * service tickets
+ */
+#define CEPHX_KEY_USAGE_TICKET_SESSION_KEY	0x04
+/*
+ * The ticket's blob for the service (ceph_x_ticket_blob): possibly
+ * encrypted with the old AUTH ticket session key in case of the AUTH
+ * ticket and not encrypted in case of other service tickets
+ */
+#define CEPHX_KEY_USAGE_TICKET_BLOB		0x05
+
+/* Client <-> Service */
+/*
+ * The client's authorization request (ceph_x_authorize_b):
+ * encrypted with the service ticket session key
+ */
+#define CEPHX_KEY_USAGE_AUTHORIZE		0x10
+/*
+ * The service's challenge (ceph_x_authorize_challenge):
+ * encrypted with the service ticket session key
+ */
+#define CEPHX_KEY_USAGE_AUTHORIZE_CHALLENGE	0x11
+/*
+ * The service's final reply (ceph_x_authorize_reply + the service
+ * session's connection secret): encrypted with the service ticket
+ * session key
+ */
+#define CEPHX_KEY_USAGE_AUTHORIZE_REPLY		0x12
+
 /* common bits */
 struct ceph_x_ticket_blob {
 	__u8 struct_v;

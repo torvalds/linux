@@ -60,7 +60,7 @@ struct xilinx_rng {
 	void __iomem *rng_base;
 	struct device *dev;
 	unsigned char *scratchpadbuf;
-	struct crypto_aes_ctx *aesctx;
+	struct aes_enckey *aeskey;
 	struct mutex lock;	/* Protect access to TRNG device */
 	struct hwrng trng;
 };
@@ -198,7 +198,7 @@ static int xtrng_reseed_internal(struct xilinx_rng *rng)
 	ret = xtrng_collect_random_data(rng, entropy, TRNG_SEED_LEN_BYTES, true);
 	if (ret != TRNG_SEED_LEN_BYTES)
 		return -EINVAL;
-	ret = crypto_drbg_ctr_df(rng->aesctx, rng->scratchpadbuf,
+	ret = crypto_drbg_ctr_df(rng->aeskey, rng->scratchpadbuf,
 				 TRNG_SEED_LEN_BYTES, &seedlist, AES_BLOCK_SIZE,
 				 TRNG_SEED_LEN_BYTES);
 	if (ret)
@@ -349,8 +349,8 @@ static int xtrng_probe(struct platform_device *pdev)
 		return PTR_ERR(rng->rng_base);
 	}
 
-	rng->aesctx = devm_kzalloc(&pdev->dev, sizeof(*rng->aesctx), GFP_KERNEL);
-	if (!rng->aesctx)
+	rng->aeskey = devm_kzalloc(&pdev->dev, sizeof(*rng->aeskey), GFP_KERNEL);
+	if (!rng->aeskey)
 		return -ENOMEM;
 
 	sb_size = crypto_drbg_ctr_df_datalen(TRNG_SEED_LEN_BYTES, AES_BLOCK_SIZE);

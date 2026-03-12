@@ -268,6 +268,9 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper, damage_work);
 
+	if (helper->info->state != FBINFO_STATE_RUNNING)
+		return;
+
 	drm_fb_helper_fb_dirty(helper);
 }
 
@@ -340,18 +343,6 @@ EXPORT_SYMBOL(drm_fb_helper_unprepare);
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper)
 {
-	int ret;
-
-	/*
-	 * If this is not the generic fbdev client, initialize a drm_client
-	 * without callbacks so we can use the modesets.
-	 */
-	if (!fb_helper->client.funcs) {
-		ret = drm_client_init(dev, &fb_helper->client, "drm_fb_helper", NULL);
-		if (ret)
-			return ret;
-	}
-
 	dev->fb_helper = fb_helper;
 
 	return 0;
@@ -434,9 +425,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	cancel_work_sync(&fb_helper->damage_work);
 
 	drm_fb_helper_release_info(fb_helper);
-
-	if (!fb_helper->client.funcs)
-		drm_client_release(&fb_helper->client);
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
@@ -627,6 +615,13 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 	if (suspend) {
 		if (fb_helper->info->state != FBINFO_STATE_RUNNING)
 			return;
+
+		/*
+		 * Cancel pending damage work. During GPU reset, VBlank
+		 * interrupts are disabled and drm_fb_helper_fb_dirty()
+		 * would wait for VBlank timeout otherwise.
+		 */
+		cancel_work_sync(&fb_helper->damage_work);
 
 		console_lock();
 

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/cznic,turris-mox-rwtm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CZ.NIC Turris Mox rWTM firmware
+
+maintainers:
+  - Marek Behún <kabel@kernel.org>
+
+description:
+  This device tree node should be used on Turris Mox, or potentially another
+  A3700 compatible device running the Mox's rWTM firmware in the secure
+  processor (for example it is possible to flash this firmware into
+  EspressoBin).
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: marvell,armada-3700-rwtm-firmware
+          - const: cznic,turris-mox-rwtm
+      - const: marvell,armada-3700-rwtm-firmware
+
+  mboxes:
+    maxItems: 1
+
+required:
+  - compatible
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    turris-mox-rwtm {
+        compatible = "marvell,armada-3700-rwtm-firmware", "cznic,turris-mox-rwtm";
+        mboxes = <&rwtm 0>;
+    };

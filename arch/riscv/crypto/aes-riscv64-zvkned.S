@@ -56,33 +56,6 @@
 #define LEN		a3
 #define IVP		a4
 
-.macro	__aes_crypt_zvkned	enc, keylen
-	vle32.v		v16, (INP)
-	aes_crypt	v16, \enc, \keylen
-	vse32.v		v16, (OUTP)
-	ret
-.endm
-
-.macro	aes_crypt_zvkned	enc
-	aes_begin	KEYP, 128f, 192f
-	__aes_crypt_zvkned	\enc, 256
-128:
-	__aes_crypt_zvkned	\enc, 128
-192:
-	__aes_crypt_zvkned	\enc, 192
-.endm
-
-// void aes_encrypt_zvkned(const struct crypto_aes_ctx *key,
-//			   const u8 in[16], u8 out[16]);
-SYM_FUNC_START(aes_encrypt_zvkned)
-	aes_crypt_zvkned	1
-SYM_FUNC_END(aes_encrypt_zvkned)
-
-// Same prototype and calling convention as the encryption function
-SYM_FUNC_START(aes_decrypt_zvkned)
-	aes_crypt_zvkned	0
-SYM_FUNC_END(aes_decrypt_zvkned)
-
 .macro	__aes_ecb_crypt	enc, keylen
 	srli		t0, LEN, 2
 	// t0 is the remaining length in 32-bit words.  It's a multiple of 4.

@@ -99,6 +99,19 @@ int ns_get_path(struct path *path, struct task_struct *task,
 	return ns_get_path_cb(path, ns_get_path_task, &args);
 }
 
+struct file *open_namespace_file(struct ns_common *ns)
+{
+	struct path path __free(path_put) = {};
+	int err;
+
+	/* call first to consume reference */
+	err = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return dentry_open(&path, O_RDONLY, current_cred());
+}
+
 /**
  * open_namespace - open a namespace
  * @ns: the namespace to open
@@ -186,6 +199,17 @@ static bool nsfs_ioctl_valid(unsigned int cmd)
 	return false;
 }
 
+static bool may_use_nsfs_ioctl(unsigned int cmd)
+{
+	switch (_IOC_NR(cmd)) {
+	case _IOC_NR(NS_MNT_GET_NEXT):
+		fallthrough;
+	case _IOC_NR(NS_MNT_GET_PREV):
+		return may_see_all_namespaces();
+	}
+	return true;
+}
+
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
@@ -201,6 +225,8 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 
 	if (!nsfs_ioctl_valid(ioctl))
 		return -ENOIOCTLCMD;
+	if (!may_use_nsfs_ioctl(ioctl))
+		return -EPERM;
 
 	ns = get_proc_ns(file_inode(filp));
 	switch (ioctl) {
@@ -601,7 +627,7 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	if (owning_ns && !ns_capable(owning_ns, CAP_SYS_ADMIN)) {
+	if (owning_ns && !may_see_all_namespaces()) {
 		ns->ops->put(ns);
 		return ERR_PTR(-EPERM);
 	}

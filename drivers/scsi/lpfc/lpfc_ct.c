@@ -165,7 +165,7 @@ lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
 	u32 tmo;
 
 	/* fill in BDEs for command */
-	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	mp = kmalloc_obj(*mp);
 	if (!mp) {
 		rc = 1;
 		goto ct_exit;
@@ -178,7 +178,7 @@ lpfc_ct_reject_event(struct lpfc_nodelist *ndlp,
 	}
 
 	/* Allocate buffer for Buffer ptr list */
-	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	bmp = kmalloc_obj(*bmp);
 	if (!bmp) {
 		rc = 3;
 		goto ct_free_mpvirt;
@@ -498,7 +498,7 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, __be16 cmdcode, struct ulp_bde64 *bpl,
 
 	while (size) {
 		/* Allocate buffer for rsp payload */
-		mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+		mp = kmalloc_obj(struct lpfc_dmabuf);
 		if (!mp) {
 			if (mlist)
 				lpfc_free_ct_rsp(phba, mlist);
@@ -1924,7 +1924,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	mp = kmalloc_obj(struct lpfc_dmabuf);
 	if (!mp) {
 		rc=2;
 		goto ns_cmd_exit;
@@ -1938,7 +1938,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	}
 
 	/* Allocate buffer for Buffer ptr list */
-	bmp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	bmp = kmalloc_obj(struct lpfc_dmabuf);
 	if (!bmp) {
 		rc=4;
 		goto ns_cmd_free_mpvirt;
@@ -3220,7 +3220,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
-	rq = kmalloc(sizeof(*rq), GFP_KERNEL);
+	rq = kmalloc_obj(*rq);
 	if (!rq)
 		goto fdmi_cmd_exit;
 
@@ -3229,7 +3229,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		goto fdmi_cmd_free_rq;
 
 	/* Allocate buffer for Buffer ptr list */
-	rsp = kmalloc(sizeof(*rsp), GFP_KERNEL);
+	rsp = kmalloc_obj(*rsp);
 	if (!rsp)
 		goto fdmi_cmd_free_rqvirt;
 
@@ -3716,7 +3716,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 
 	/* fill in BDEs for command */
 	/* Allocate buffer for command payload */
-	mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+	mp = kmalloc_obj(*mp);
 	if (!mp)
 		goto vmid_free_mp_exit;
 
@@ -3725,7 +3725,7 @@ lpfc_vmid_cmd(struct lpfc_vport *vport,
 		goto vmid_free_mp_virt_exit;
 
 	/* Allocate buffer for Buffer ptr list */
-	bmp = kmalloc(sizeof(*bmp), GFP_KERNEL);
+	bmp = kmalloc_obj(*bmp);
 	if (!bmp)
 		goto vmid_free_bmp_exit;
 

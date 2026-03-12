@@ -747,7 +747,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			ret = -EINVAL;
 			goto out_err1;
 		}
-		clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
+		clips = kzalloc_objs(*clips, num_clips);
 		if (!clips) {
 			ret = -ENOMEM;
 			goto out_err1;

@@ -951,13 +951,13 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		vma = eb_lookup_vma(eb, eb->exec[i].handle);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
-			goto err;
+			return err;
 		}
 
 		err = eb_validate_vma(eb, &eb->exec[i], vma);
 		if (unlikely(err)) {
 			i915_vma_put(vma);
-			goto err;
+			return err;
 		}
 
 		err = eb_add_vma(eb, &current_batch, i, vma);
@@ -966,19 +966,8 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		if (i915_gem_object_is_userptr(vma->obj)) {
 			err = i915_gem_object_userptr_submit_init(vma->obj);
-			if (err) {
-				if (i + 1 < eb->buffer_count) {
-					/*
-					 * Execbuffer code expects last vma entry to be NULL,
-					 * since we already initialized this entry,
-					 * set the next value to NULL or we mess up
-					 * cleanup handling.
-					 */
-					eb->vma[i + 1].vma = NULL;
-				}
-
+			if (err)
 				return err;
-			}
 
 			eb->vma[i].flags |= __EXEC_OBJECT_USERPTR_INIT;
 			eb->args->flags |= __EXEC_USERPTR_USED;
@@ -986,10 +975,6 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 	}
 
 	return 0;
-
-err:
-	eb->vma[i].vma = NULL;
-	return err;
 }
 
 static int eb_lock_vmas(struct i915_execbuffer *eb)
@@ -2021,7 +2006,7 @@ static int eb_capture_stage(struct i915_execbuffer *eb)
 		for_each_batch_create_order(eb, j) {
 			struct i915_capture_list *capture;
 
-			capture = kmalloc(sizeof(*capture), GFP_KERNEL);
+			capture = kmalloc_obj(*capture);
 			if (!capture)
 				continue;
 
@@ -3205,7 +3190,7 @@ eb_composite_fence_create(struct i915_execbuffer *eb, int out_fence_fd)
 
 	GEM_BUG_ON(!intel_context_is_parent(eb->context));
 
-	fences = kmalloc_array(eb->num_batches, sizeof(*fences), GFP_KERNEL);
+	fences = kmalloc_objs(*fences, eb->num_batches);
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
 
@@ -3375,7 +3360,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 
 	eb.exec = exec;
 	eb.vma = (struct eb_vma *)(exec + args->buffer_count + 1);
-	eb.vma[0].vma = NULL;
+	memset(eb.vma, 0, (args->buffer_count + 1) * sizeof(struct eb_vma));
+
 	eb.batch_pool = NULL;
 
 	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
@@ -3584,7 +3570,18 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		return err;
 
-	/* Allocate extra slots for use by the command parser */
+	/*
+	 * Allocate extra slots for use by the command parser.
+	 *
+	 * Note that this allocation handles two different arrays (the
+	 * exec2_list array, and the eventual eb.vma array introduced in
+	 * i915_gem_do_execbuffer()), that reside in virtually contiguous
+	 * memory. Also note that the allocation intentionally doesn't fill the
+	 * area with zeros, because the exec2_list part doesn't need to be, as
+	 * it's immediately overwritten by user data a few lines below.
+	 * However, the eb.vma part is explicitly zeroed later in
+	 * i915_gem_do_execbuffer().
+	 */
 	exec2_list = kvmalloc_array(count + 2, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec2_list == NULL) {

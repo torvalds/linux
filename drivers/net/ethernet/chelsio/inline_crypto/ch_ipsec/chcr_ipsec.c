@@ -104,7 +104,7 @@ static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop)
 
 	pr_info_once("%s - version %s\n", CHIPSEC_DRV_DESC,
 		     CHIPSEC_DRV_VERSION);
-	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	u_ctx = kzalloc_obj(*u_ctx);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;
@@ -170,7 +170,7 @@ static int ch_ipsec_setkey(struct xfrm_state *x,
 	unsigned char *key = x->aead->alg_key;
 	int ck_size, key_ctx_size = 0;
 	unsigned char ghash_h[AEAD_H_SIZE];
-	struct crypto_aes_ctx aes;
+	struct aes_enckey aes;
 	int ret = 0;
 
 	if (keylen > 3) {
@@ -204,7 +204,7 @@ static int ch_ipsec_setkey(struct xfrm_state *x,
 	/* Calculate the H = CIPH(K, 0 repeated 16 times).
 	 * It will go in key context
 	 */
-	ret = aes_expandkey(&aes, key, keylen);
+	ret = aes_prepareenckey(&aes, key, keylen);
 	if (ret) {
 		sa_entry->enckey_len = 0;
 		goto out;
@@ -295,7 +295,7 @@ static int ch_ipsec_xfrm_add_state(struct net_device *dev,
 		return -ENODEV;
 	}
 
-	sa_entry = kzalloc(sizeof(*sa_entry), GFP_KERNEL);
+	sa_entry = kzalloc_obj(*sa_entry);
 	if (!sa_entry) {
 		res = -ENOMEM;
 		module_put(THIS_MODULE);

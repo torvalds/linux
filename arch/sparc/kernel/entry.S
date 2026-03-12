@@ -907,6 +907,21 @@ flush_patch_four:
 	jmpl	%l1 + %lo(sparc_vfork), %g0
 	 add	%sp, STACKFRAME_SZ, %o0
 
+	.globl	__sys_clone3, flush_patch_five
+__sys_clone3:
+	mov	%o7, %l5
+flush_patch_five:
+	FLUSH_ALL_KERNEL_WINDOWS;
+	ld	[%curptr + TI_TASK], %o4
+	rd	%psr, %g4
+	WRITE_PAUSE
+	rd	%wim, %g5
+	WRITE_PAUSE
+	std	%g4, [%o4 + AOFF_task_thread + AOFF_thread_fork_kpsr]
+	add	%sp, STACKFRAME_SZ, %o0
+	call	sparc_clone3
+	 mov	%l5, %o7
+
         .align  4
 linux_sparc_ni_syscall:
 	sethi   %hi(sys_ni_syscall), %l7

@@ -55,7 +55,7 @@ nvkm_fsp_new_(const struct nvkm_fsp_func *func,
 {
 	struct nvkm_fsp *fsp;
 
-	fsp = *pfsp = kzalloc(sizeof(*fsp), GFP_KERNEL);
+	fsp = *pfsp = kzalloc_obj(*fsp);
 	if (!fsp)
 		return -ENOMEM;
 
