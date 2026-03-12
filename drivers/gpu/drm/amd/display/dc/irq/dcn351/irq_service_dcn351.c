@@ -163,7 +163,7 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 	REG_STRUCT[base + reg_num].enable_value[0] = \
 		block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK,\
 	REG_STRUCT[base + reg_num].enable_value[1] = \
-		~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK, \
+		(uint32_t)~block ## reg_num ## _ ## reg1 ## __ ## mask1 ## _MASK, \
 	REG_STRUCT[base + reg_num].ack_reg = SRI(reg2, block, reg_num),\
 	REG_STRUCT[base + reg_num].ack_mask = \
 		block ## reg_num ## _ ## reg2 ## __ ## mask2 ## _MASK,\
@@ -177,7 +177,7 @@ static struct irq_source_info_funcs vline0_irq_info_funcs = {
 	REG_STRUCT[base].enable_value[0] = \
 		reg1 ## __ ## mask1 ## _MASK,\
 	REG_STRUCT[base].enable_value[1] = \
-		~reg1 ## __ ## mask1 ## _MASK, \
+		(uint32_t)~reg1 ## __ ## mask1 ## _MASK, \
 	REG_STRUCT[base].ack_reg = SRI_DMUB(reg2),\
 	REG_STRUCT[base].ack_mask = \
 		reg2 ## __ ## mask2 ## _MASK,\

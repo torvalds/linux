@@ -5240,7 +5240,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return 64;
 	default:
 		ASSERT_CRITICAL(false);
-		return -1;
+		return UINT_MAX;
 	}
 }
 static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)

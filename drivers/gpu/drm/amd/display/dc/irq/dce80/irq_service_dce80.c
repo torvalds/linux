@@ -68,7 +68,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		.enable_mask = DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK,\
 		.enable_value = {\
 			DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK,\
-			~DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK\
+			(uint32_t)~DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK\
 		},\
 		.ack_reg = mmDC_HPD ## reg_num ## _INT_CONTROL,\
 		.ack_mask = DC_HPD1_INT_CONTROL__DC_HPD1_INT_ACK_MASK,\
@@ -83,7 +83,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		.enable_mask = DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_EN_MASK,\
 		.enable_value = {\
 				DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_EN_MASK,\
-			~DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_EN_MASK },\
+			(uint32_t)~DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_EN_MASK },\
 		.ack_reg = mmDC_HPD ## reg_num ## _INT_CONTROL,\
 		.ack_mask = DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_ACK_MASK,\
 		.ack_value = DC_HPD1_INT_CONTROL__DC_HPD1_RX_INT_ACK_MASK,\
@@ -98,7 +98,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK,\
 		.enable_value = {\
 			GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK,\
-			~GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK},\
+			(uint32_t)~GRPH_INTERRUPT_CONTROL__GRPH_PFLIP_INT_MASK_MASK},\
 		.ack_reg = mmDCP ## reg_num ## _GRPH_INTERRUPT_STATUS,\
 		.ack_mask = GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_CLEAR_MASK,\
 		.ack_value = GRPH_INTERRUPT_STATUS__GRPH_PFLIP_INT_CLEAR_MASK,\
@@ -113,7 +113,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		CRTC_INTERRUPT_CONTROL__CRTC_V_UPDATE_INT_MSK_MASK,\
 		.enable_value = {\
 			CRTC_INTERRUPT_CONTROL__CRTC_V_UPDATE_INT_MSK_MASK,\
-			~CRTC_INTERRUPT_CONTROL__CRTC_V_UPDATE_INT_MSK_MASK},\
+			(uint32_t)~CRTC_INTERRUPT_CONTROL__CRTC_V_UPDATE_INT_MSK_MASK},\
 		.ack_reg = mmCRTC ## reg_num ## _CRTC_V_UPDATE_INT_STATUS,\
 		.ack_mask =\
 		CRTC_V_UPDATE_INT_STATUS__CRTC_V_UPDATE_INT_CLEAR_MASK,\
@@ -129,7 +129,7 @@ static struct irq_source_info_funcs vupdate_irq_info_funcs = {
 		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
 		.enable_value = {\
 			CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK,\
-			~CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK},\
+			(uint32_t)~CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_INT_ENABLE_MASK},\
 		.ack_reg = mmCRTC ## reg_num ## _CRTC_VERTICAL_INTERRUPT0_CONTROL,\
 		.ack_mask =\
 		CRTC_VERTICAL_INTERRUPT0_CONTROL__CRTC_VERTICAL_INTERRUPT0_CLEAR_MASK,\

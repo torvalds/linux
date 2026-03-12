@@ -1218,7 +1218,7 @@ static bool dcn302_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->pipe_count = pool->res_cap->num_timing_generator;
 	pool->mpcc_count = pool->res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;

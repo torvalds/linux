@@ -610,7 +610,7 @@ static uint32_t dce112_get_pix_clk_dividers(
 			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
-		return -1;
+		return (uint32_t)-1;
 	}
 
 	memset(pll_settings, 0, sizeof(*pll_settings));
@@ -621,7 +621,7 @@ static uint32_t dce112_get_pix_clk_dividers(
 		pll_settings->calculated_pix_clk_100hz = clk_src->ext_clk_khz * 10;
 		pll_settings->actual_pix_clk_100hz =
 					pix_clk_params->requested_pix_clk_100hz;
-		return -1;
+		return (uint32_t)-1;
 	}
 
 	dce112_get_pix_clk_dividers_helper(clk_src,
@@ -1376,7 +1376,7 @@ static uint32_t dcn3_get_pix_clk_dividers(
 			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
-		return -1;
+		return UINT_MAX;
 	}
 
 	memset(pll_settings, 0, sizeof(*pll_settings));
