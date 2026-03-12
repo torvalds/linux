@@ -27,6 +27,7 @@
 #include <asm/debug.h>
 #include <asm/interrupt.h>
 #include <asm/kexec_ranges.h>
+#include <asm/crashdump-ppc64.h>
 
 /*
  * The primary CPU waits a while for all secondary CPUs to enter. This is to
@@ -399,7 +400,68 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 		ppc_md.kexec_cpu_down(1, 0);
 }
 
+#ifdef CONFIG_CRASH_DUMP
+/**
+ * sync_backup_region_phdr - synchronize backup region offset between
+ *			    kexec image and ELF core header.
+ * @image: Kexec image.
+ * @ehdr: ELF core header.
+ * @phdr_to_kimage: If true, read the offset from the ELF program header
+ *		    and update the kimage backup region. If false, update
+ *		    the ELF program header offset from the kimage backup
+ *		    region.
+ *
+ * Note: During kexec_load, this is called with phdr_to_kimage = true. For
+ * kexec_file_load and ELF core header recreation during memory hotplug
+ * events, it is called with phdr_to_kimage = false.
+ *
+ * Returns nothing.
+ */
+void sync_backup_region_phdr(struct kimage *image, Elf64_Ehdr *ehdr, bool phdr_to_kimage)
+{
+	Elf64_Phdr *phdr;
+	unsigned int i;
+
+	phdr = (Elf64_Phdr *)(ehdr + 1);
+	for (i = 0; i < ehdr->e_phnum; i++, phdr++) {
+		if (phdr->p_paddr == BACKUP_SRC_START) {
+			if (phdr_to_kimage)
+				image->arch.backup_start = phdr->p_offset;
+			else
+				phdr->p_offset = image->arch.backup_start;
+
+			kexec_dprintk("Backup region offset updated to 0x%lx\n",
+				      image->arch.backup_start);
+			return;
+		}
+	}
+}
+#endif /* CONFIG_CRASH_DUMP */
+
 #ifdef CONFIG_CRASH_HOTPLUG
+
+int machine_kexec_post_load(struct kimage *image)
+{
+	int i;
+	unsigned long mem;
+	unsigned char *ptr;
+
+	if (image->type != KEXEC_TYPE_CRASH)
+		return 0;
+
+	if (image->file_mode)
+		return 0;
+
+	for (i = 0; i < image->nr_segments; i++) {
+		mem = image->segment[i].mem;
+		ptr = (char *)__va(mem);
+
+		if (ptr && memcmp(ptr, ELFMAG, SELFMAG) == 0)
+			sync_backup_region_phdr(image, (Elf64_Ehdr *) ptr, true);
+	}
+	return 0;
+}
+
 #undef pr_fmt
 #define pr_fmt(fmt) "crash hp: " fmt
 
@@ -473,6 +535,8 @@ static void update_crash_elfcorehdr(struct kimage *image, struct memory_notify *
 		pr_err("Updated crash elfcorehdr elfsz %lu > memsz %lu", elfsz, memsz);
 		goto out;
 	}
+
+	sync_backup_region_phdr(image, (Elf64_Ehdr *) elfbuf, false);
 
 	ptr = __va(mem);
 	if (ptr) {
