@@ -760,10 +760,61 @@ __bpf_kfunc struct sock *bpf_kfunc_call_test3(struct sock *sk)
 
 __bpf_kfunc long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
 {
-	/* Provoke the compiler to assume that the caller has sign-extended a,
+	/*
+	 * Make val as volatile to avoid compiler optimizations.
+	 * Verify that negative signed values remain negative after
+	 * sign-extension (JIT must sign-extend, not zero-extend).
+	 */
+	volatile long val;
+
+	/* val will be positive, if JIT does zero-extension instead of sign-extension */
+	val = a;
+	if (val >= 0)
+		return 1;
+
+	val = b;
+	if (val >= 0)
+		return 2;
+
+	val = c;
+	if (val >= 0)
+		return 3;
+
+	/*
+	 * Provoke the compiler to assume that the caller has sign-extended a,
 	 * b and c on platforms where this is required (e.g. s390x).
 	 */
 	return (long)a + (long)b + (long)c + d;
+}
+
+__bpf_kfunc int bpf_kfunc_call_test5(u8 a, u16 b, u32 c)
+{
+	/*
+	 * Make val as volatile to avoid compiler optimizations on the below checks
+	 * In C, assigning u8/u16/u32 to long performs zero-extension.
+	 */
+	volatile long val = a;
+
+	/* Check zero-extension */
+	if (val != (unsigned long)a)
+		return 1;
+	/* Check no sign-extension */
+	if (val < 0)
+		return 2;
+
+	val = b;
+	if (val != (unsigned long)b)
+		return 3;
+	if (val < 0)
+		return 4;
+
+	val = c;
+	if (val != (unsigned long)c)
+		return 5;
+	if (val < 0)
+		return 6;
+
+	return 0;
 }
 
 static struct prog_test_ref_kfunc prog_test_struct = {
@@ -1228,6 +1279,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test3)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test4)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test5)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_pass1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail1)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
