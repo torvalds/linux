@@ -4595,7 +4595,20 @@ static int xe3plpd_pll_get_freq(struct intel_display *display,
 	return intel_lt_phy_calc_port_clock(display, &dpll_hw_state->ltpll);
 }
 
+static void xe3plpd_pll_enable(struct intel_display *display,
+			       struct intel_dpll *pll,
+			       const struct intel_dpll_hw_state *dpll_hw_state)
+{
+	struct intel_encoder *encoder = get_intel_encoder(display, pll);
+
+	if (drm_WARN_ON(display->drm, !encoder))
+		return;
+
+	intel_xe3plpd_pll_enable(encoder, pll, dpll_hw_state);
+}
+
 static const struct intel_dpll_funcs xe3plpd_pll_funcs = {
+	.enable = xe3plpd_pll_enable,
 	.get_hw_state = xe3plpd_pll_get_hw_state,
 	.get_freq = xe3plpd_pll_get_freq,
 };

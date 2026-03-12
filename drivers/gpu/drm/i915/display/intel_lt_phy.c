@@ -1901,9 +1901,11 @@ intel_lt_phy_enable_disable_tx(struct intel_encoder *encoder,
 }
 
 void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
-			     const struct intel_crtc_state *crtc_state)
+			     struct intel_dpll *pll,
+			     const struct intel_dpll_hw_state *dpll_hw_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	int port_clock = intel_lt_phy_calc_port_clock(display, &dpll_hw_state->ltpll);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool lane_reversal = dig_port->lane_reversal;
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
@@ -1919,11 +1921,11 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	wakeref = intel_lt_phy_transaction_begin(encoder);
 
 	/* 1. Enable MacCLK at default 162 MHz frequency. */
-	intel_lt_phy_lane_reset(encoder, crtc_state->lane_count);
+	intel_lt_phy_lane_reset(encoder, dpll_hw_state->ltpll.lane_count);
 
 	/* 2. Program PORT_CLOCK_CTL register to configure clock muxes, gating, and SSC. */
-	intel_lt_phy_program_port_clock_ctl(encoder, &crtc_state->dpll_hw_state.ltpll,
-					    crtc_state->port_clock, lane_reversal);
+	intel_lt_phy_program_port_clock_ctl(encoder, &dpll_hw_state->ltpll,
+					    port_clock, lane_reversal);
 
 	/* 3. Change owned PHY lanes power to Ready state. */
 	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
@@ -1933,13 +1935,12 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	 * 4. Read the PHY message bus VDR register PHY_VDR_0_Config check enabled PLL type,
 	 * encoded rate and encoded mode.
 	 */
-	if (intel_lt_phy_config_changed(encoder, &crtc_state->dpll_hw_state.ltpll,
-					crtc_state->port_clock)) {
+	if (intel_lt_phy_config_changed(encoder, &dpll_hw_state->ltpll, port_clock)) {
 		/*
 		 * 5. Program the PHY internal PLL registers over PHY message bus for the desired
 		 * frequency and protocol type
 		 */
-		intel_lt_phy_program_pll(encoder, &crtc_state->dpll_hw_state.ltpll);
+		intel_lt_phy_program_pll(encoder, &dpll_hw_state->ltpll);
 
 		/* 6. Use the P2P transaction flow */
 		/*
@@ -1971,8 +1972,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * Change. We handle this step in bxt_set_cdclk().
 		 */
 		/* 10. Program DDI_CLK_VALFREQ to match intended DDI clock frequency. */
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
-			       crtc_state->port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
 
 		/* 11. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 1. */
 		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
@@ -2019,7 +2019,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     lane_phy_pulse_status,
 			     lane_phy_pulse_status);
 	} else {
-		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), crtc_state->port_clock);
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), port_clock);
 	}
 
 	/*
@@ -2030,7 +2030,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
 					       XELPDP_P0_STATE_ACTIVE);
 
-	intel_lt_phy_enable_disable_tx(encoder, &crtc_state->dpll_hw_state.ltpll);
+	intel_lt_phy_enable_disable_tx(encoder, &dpll_hw_state->ltpll);
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
 
@@ -2288,14 +2288,10 @@ void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
 }
 
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+			      struct intel_dpll *pll,
+			      const struct intel_dpll_hw_state *dpll_hw_state)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-
-	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
-	else
-		intel_lt_phy_pll_enable(encoder, crtc_state);
+	intel_lt_phy_pll_enable(encoder, pll, dpll_hw_state);
 }
 
 void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
