@@ -8570,10 +8570,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 	struct perf_domain *pd;
 	struct energy_env eenv;
 
-	rcu_read_lock();
 	pd = rcu_dereference_all(rd->pd);
 	if (!pd)
-		goto unlock;
+		return target;
 
 	/*
 	 * Energy-aware wake-up happens on the lowest sched_domain starting
@@ -8583,13 +8582,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 	while (sd && !cpumask_test_cpu(prev_cpu, sched_domain_span(sd)))
 		sd = sd->parent;
 	if (!sd)
-		goto unlock;
+		return target;
 
 	target = prev_cpu;
 
 	sync_entity_load_avg(&p->se);
 	if (!task_util_est(p) && p_util_min == 0)
-		goto unlock;
+		return target;
 
 	eenv_task_busy_time(&eenv, p, prev_cpu);
 
@@ -8684,7 +8683,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 						    prev_cpu);
 			/* CPU utilization has changed */
 			if (prev_delta < base_energy)
-				goto unlock;
+				return target;
 			prev_delta -= base_energy;
 			prev_actual_cap = cpu_actual_cap;
 			best_delta = min(best_delta, prev_delta);
@@ -8708,7 +8707,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 						   max_spare_cap_cpu);
 			/* CPU utilization has changed */
 			if (cur_delta < base_energy)
-				goto unlock;
+				return target;
 			cur_delta -= base_energy;
 
 			/*
@@ -8725,17 +8724,11 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 			best_actual_cap = cpu_actual_cap;
 		}
 	}
-	rcu_read_unlock();
 
 	if ((best_fits > prev_fits) ||
 	    ((best_fits > 0) && (best_delta < prev_delta)) ||
 	    ((best_fits < 0) && (best_actual_cap > prev_actual_cap)))
 		target = best_energy_cpu;
-
-	return target;
-
-unlock:
-	rcu_read_unlock();
 
 	return target;
 }
@@ -8782,7 +8775,6 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
 		want_affine = !wake_wide(p) && cpumask_test_cpu(cpu, p->cpus_ptr);
 	}
 
-	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
 		/*
 		 * If both 'cpu' and 'prev_cpu' are part of this domain,
@@ -8808,14 +8800,13 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int wake_flags)
 			break;
 	}
 
-	if (unlikely(sd)) {
-		/* Slow path */
-		new_cpu = sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
-	} else if (wake_flags & WF_TTWU) { /* XXX always ? */
-		/* Fast path */
-		new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
-	}
-	rcu_read_unlock();
+	/* Slow path */
+	if (unlikely(sd))
+		return sched_balance_find_dst_cpu(sd, p, cpu, prev_cpu, sd_flag);
+
+	/* Fast path */
+	if (wake_flags & WF_TTWU)
+		return select_idle_sibling(p, prev_cpu, new_cpu);
 
 	return new_cpu;
 }
