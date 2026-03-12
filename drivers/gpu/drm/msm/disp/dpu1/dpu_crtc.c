@@ -1321,7 +1321,7 @@ static bool dpu_crtc_needs_dirtyfb(struct drm_crtc_state *cstate)
 	return false;
 }
 
-static int dpu_crtc_reassign_planes(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state)
+static int dpu_crtc_assign_planes(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state)
 {
 	int total_planes = crtc->dev->mode_config.num_total_plane;
 	struct drm_atomic_state *state = crtc_state->state;
@@ -1333,8 +1333,6 @@ static int dpu_crtc_reassign_planes(struct drm_crtc *crtc, struct drm_crtc_state
 	global_state = dpu_kms_get_global_state(crtc_state->state);
 	if (IS_ERR(global_state))
 		return PTR_ERR(global_state);
-
-	dpu_rm_release_all_sspp(global_state, crtc);
 
 	if (!crtc_state->enable)
 		return 0;
@@ -1360,6 +1358,19 @@ static int dpu_crtc_reassign_planes(struct drm_crtc *crtc, struct drm_crtc_state
 done:
 	kfree(states);
 	return ret;
+}
+
+static int dpu_crtc_reassign_planes(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state)
+{
+	struct dpu_global_state *global_state;
+
+	global_state = dpu_kms_get_global_state(crtc_state->state);
+	if (IS_ERR(global_state))
+		return PTR_ERR(global_state);
+
+	dpu_rm_release_all_sspp(global_state, crtc);
+
+	return dpu_crtc_assign_planes(crtc, crtc_state);
 }
 
 #define MAX_CHANNELS_PER_CRTC PIPES_PER_PLANE
@@ -1531,9 +1542,11 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 			return rc;
 	}
 
-	if (dpu_use_virtual_planes &&
-	    (crtc_state->planes_changed || crtc_state->zpos_changed)) {
-		rc = dpu_crtc_reassign_planes(crtc, crtc_state);
+	if (crtc_state->planes_changed || crtc_state->zpos_changed) {
+		if (dpu_use_virtual_planes)
+			rc = dpu_crtc_reassign_planes(crtc, crtc_state);
+		else
+			rc = dpu_crtc_assign_planes(crtc, crtc_state);
 		if (rc < 0)
 			return rc;
 	}
