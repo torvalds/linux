@@ -7,6 +7,7 @@
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
+#include <uapi/linux/sched.h>
 
 struct cgroup_namespace;
 struct dentry;
@@ -184,15 +185,38 @@ struct ns_common {
 		struct user_namespace *:   (IS_ENABLED(CONFIG_USER_NS) ? &userns_operations   : NULL), \
 		struct uts_namespace *:    (IS_ENABLED(CONFIG_UTS_NS)  ? &utsns_operations    : NULL))
 
-#define ns_common_type(__ns)                                \
-	_Generic((__ns),                                    \
-		struct cgroup_namespace *: CLONE_NEWCGROUP, \
-		struct ipc_namespace *:    CLONE_NEWIPC,    \
-		struct mnt_namespace *:    CLONE_NEWNS,     \
-		struct net *:              CLONE_NEWNET,    \
-		struct pid_namespace *:    CLONE_NEWPID,    \
-		struct time_namespace *:   CLONE_NEWTIME,   \
-		struct user_namespace *:   CLONE_NEWUSER,   \
-		struct uts_namespace *:    CLONE_NEWUTS)
+/*
+ * FOR_EACH_NS_TYPE - Canonical list of namespace types
+ *
+ * Enumerates all (struct type, CLONE_NEW* flag) pairs.  This is the
+ * single source of truth used to derive ns_common_type() and
+ * CLONE_NS_ALL.  When adding a new namespace type, add a single entry
+ * here; all consumers update automatically.
+ *
+ * @X: Callback macro taking (struct_name, clone_flag) as arguments.
+ */
+#define FOR_EACH_NS_TYPE(X)                  \
+	X(cgroup_namespace, CLONE_NEWCGROUP) \
+	X(ipc_namespace, CLONE_NEWIPC)       \
+	X(mnt_namespace, CLONE_NEWNS)        \
+	X(net, CLONE_NEWNET)                 \
+	X(pid_namespace, CLONE_NEWPID)       \
+	X(time_namespace, CLONE_NEWTIME)     \
+	X(user_namespace, CLONE_NEWUSER)     \
+	X(uts_namespace, CLONE_NEWUTS)
+
+/* Bitmask of all known CLONE_NEW* flags. */
+#define _NS_TYPE_FLAG_OR(struct_name, flag) | (flag)
+#define CLONE_NS_ALL                        (0 FOR_EACH_NS_TYPE(_NS_TYPE_FLAG_OR))
+
+/*
+ * ns_common_type - Map a namespace struct pointer to its CLONE_NEW* flag
+ *
+ * Uses a leading-comma pattern so the FOR_EACH_NS_TYPE expansion
+ * produces ", struct foo *: FLAG" entries without a trailing comma.
+ */
+#define _NS_TYPE_ASSOC(struct_name, flag) , struct struct_name *: (flag)
+
+#define ns_common_type(__ns) _Generic((__ns)FOR_EACH_NS_TYPE(_NS_TYPE_ASSOC))
 
 #endif /* _LINUX_NS_COMMON_TYPES_H */
