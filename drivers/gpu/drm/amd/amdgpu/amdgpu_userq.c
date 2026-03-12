@@ -623,13 +623,14 @@ amdgpu_userq_destroy(struct amdgpu_userq_mgr *uq_mgr, struct amdgpu_usermode_que
 	int r = 0;
 
 	cancel_delayed_work_sync(&uq_mgr->resume_work);
-	mutex_lock(&uq_mgr->userq_mutex);
-	amdgpu_userq_wait_for_last_fence(queue);
+
 	/* Cancel any pending hang detection work and cleanup */
-	if (queue->hang_detect_fence) {
-		cancel_delayed_work_sync(&queue->hang_detect_work);
-		queue->hang_detect_fence = NULL;
-	}
+	cancel_delayed_work_sync(&queue->hang_detect_work);
+
+	mutex_lock(&uq_mgr->userq_mutex);
+	queue->hang_detect_fence = NULL;
+	amdgpu_userq_wait_for_last_fence(queue);
+
 	r = amdgpu_bo_reserve(queue->db_obj.obj, true);
 	if (!r) {
 		amdgpu_bo_unpin(queue->db_obj.obj);
