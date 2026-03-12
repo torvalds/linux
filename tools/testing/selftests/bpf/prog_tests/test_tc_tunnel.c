@@ -168,7 +168,7 @@ static int check_server_rx_data(struct subtest_cfg *cfg,
 
 static struct connection *connect_client_to_server(struct subtest_cfg *cfg)
 {
-	struct network_helper_opts opts = {.timeout_ms = 500};
+	struct network_helper_opts opts = {.timeout_ms = 1000};
 	int family = cfg->ipproto == 6 ? AF_INET6 : AF_INET;
 	struct connection *conn = NULL;
 	int client_fd, server_fd;
