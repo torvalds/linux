@@ -571,7 +571,12 @@ hfsplus_btree_lock_class(struct hfs_btree *tree)
 static inline
 bool is_bnode_offset_valid(struct hfs_bnode *node, u32 off)
 {
-	bool is_valid = off < node->tree->node_size;
+	bool is_valid;
+
+	if (!node || !node->tree)
+		return false;
+
+	is_valid = off < node->tree->node_size;
 
 	if (!is_valid) {
 		pr_err("requested invalid offset: "

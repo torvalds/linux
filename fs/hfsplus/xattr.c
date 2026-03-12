@@ -562,10 +562,10 @@ ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
 
 	res = hfsplus_find_attr(inode->i_sb, inode->i_ino, name, &fd);
 	if (res) {
-		if (res == -ENOENT)
+		if (res == -ENOENT || res == -ENODATA)
 			res = -ENODATA;
 		else
-			pr_err("xattr searching failed\n");
+			pr_err("xattr search failed\n");
 		goto out;
 	}
 
@@ -757,7 +757,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	err = hfsplus_find_attr(inode->i_sb, inode->i_ino, NULL, &fd);
 	if (err) {
-		if (err == -ENOENT) {
+		if (err == -ENOENT || err == -ENODATA) {
 			res = 0;
 			goto end_listxattr;
 		} else {

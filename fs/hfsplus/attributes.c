@@ -153,14 +153,22 @@ int hfsplus_find_attr(struct super_block *sb, u32 cnid,
 		if (err)
 			goto failed_find_attr;
 		err = hfs_brec_find(fd, hfs_find_rec_by_key);
-		if (err)
+		if (err == -ENOENT) {
+			/* file exists but xattr is absent */
+			err = -ENODATA;
+			goto failed_find_attr;
+		} else if (err)
 			goto failed_find_attr;
 	} else {
 		err = hfsplus_attr_build_key(sb, fd->search_key, cnid, NULL);
 		if (err)
 			goto failed_find_attr;
 		err = hfs_brec_find(fd, hfs_find_1st_rec_by_cnid);
-		if (err)
+		if (err == -ENOENT) {
+			/* file exists but xattr is absent */
+			err = -ENODATA;
+			goto failed_find_attr;
+		} else if (err)
 			goto failed_find_attr;
 	}
 
@@ -173,6 +181,9 @@ int hfsplus_attr_exists(struct inode *inode, const char *name)
 	int err = 0;
 	struct super_block *sb = inode->i_sb;
 	struct hfs_find_data fd;
+
+	hfs_dbg("name %s, ino %ld\n",
+		name ? name : NULL, inode->i_ino);
 
 	if (!HFSPLUS_SB(sb)->attr_tree)
 		return 0;
@@ -293,15 +304,16 @@ failed_init_create_attr:
 static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
 					struct hfs_find_data *fd)
 {
-	int err = 0;
+	int err;
 	__be32 found_cnid, record_type;
 
+	found_cnid = U32_MAX;
 	hfs_bnode_read(fd->bnode, &found_cnid,
 			fd->keyoffset +
 			offsetof(struct hfsplus_attr_key, cnid),
 			sizeof(__be32));
 	if (cnid != be32_to_cpu(found_cnid))
-		return -ENOENT;
+		return -ENODATA;
 
 	hfs_bnode_read(fd->bnode, &record_type,
 			fd->entryoffset, sizeof(record_type));
@@ -330,7 +342,7 @@ static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
 	hfsplus_mark_inode_dirty(HFSPLUS_ATTR_TREE_I(inode->i_sb),
 				 HFSPLUS_I_ATTR_DIRTY);
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
-	return err;
+	return 0;
 }
 
 static
@@ -354,7 +366,10 @@ int hfsplus_delete_attr_nolock(struct inode *inode, const char *name,
 	}
 
 	err = hfs_brec_find(fd, hfs_find_rec_by_key);
-	if (err)
+	if (err == -ENOENT) {
+		/* file exists but xattr is absent */
+		return -ENODATA;
+	} else if (err)
 		return err;
 
 	err = __hfsplus_delete_attr(inode, inode->i_ino, fd);
@@ -414,9 +429,14 @@ int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
 
 	for (;;) {
 		err = hfsplus_find_attr(dir->i_sb, cnid, NULL, &fd);
-		if (err) {
-			if (err != -ENOENT)
-				pr_err("xattr search failed\n");
+		if (err == -ENOENT || err == -ENODATA) {
+			/*
+			 * xattr has not been found
+			 */
+			err = -ENODATA;
+			goto end_delete_all;
+		} else if (err) {
+			pr_err("xattr search failed\n");
 			goto end_delete_all;
 		}
 
