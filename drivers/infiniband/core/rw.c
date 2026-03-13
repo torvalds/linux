@@ -608,14 +608,29 @@ int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 	if (rdma_rw_io_needs_mr(qp->device, port_num, dir, sg_cnt)) {
 		ret = rdma_rw_init_mr_wrs(ctx, qp, port_num, sg, sg_cnt,
 				sg_offset, remote_addr, rkey, dir);
-	} else if (sg_cnt > 1) {
-		ret = rdma_rw_init_map_wrs(ctx, qp, sg, sg_cnt, sg_offset,
-				remote_addr, rkey, dir);
-	} else {
-		ret = rdma_rw_init_single_wr(ctx, qp, sg, sg_offset,
-				remote_addr, rkey, dir);
+		/*
+		 * If MR init succeeded or failed for a reason other
+		 * than pool exhaustion, that result is final.
+		 *
+		 * Pool exhaustion (-EAGAIN) from the max_sgl_rd
+		 * optimization is recoverable: fall back to
+		 * direct SGE posting. iWARP and force_mr require
+		 * MRs unconditionally, so -EAGAIN is terminal.
+		 */
+		if (ret != -EAGAIN ||
+		    rdma_protocol_iwarp(qp->device, port_num) ||
+		    unlikely(rdma_rw_force_mr))
+			goto out;
 	}
 
+	if (sg_cnt > 1)
+		ret = rdma_rw_init_map_wrs(ctx, qp, sg, sg_cnt, sg_offset,
+				remote_addr, rkey, dir);
+	else
+		ret = rdma_rw_init_single_wr(ctx, qp, sg, sg_offset,
+				remote_addr, rkey, dir);
+
+out:
 	if (ret < 0)
 		goto out_unmap_sg;
 	return ret;
