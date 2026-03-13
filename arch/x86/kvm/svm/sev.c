@@ -678,11 +678,9 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 				    unsigned int flags)
 {
 	struct kvm_sev_info *sev = to_kvm_sev_info(kvm);
-	unsigned long npages, size;
-	int npinned;
-	unsigned long total_npages, lock_limit;
+	unsigned long npages, total_npages, lock_limit;
 	struct page **pages;
-	int ret;
+	int npinned, ret;
 
 	lockdep_assert_held(&kvm->lock);
 
@@ -709,13 +707,13 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/* Avoid using vmalloc for smaller buffers. */
-	size = npages * sizeof(struct page *);
-	if (size > PAGE_SIZE)
-		pages = __vmalloc(size, GFP_KERNEL_ACCOUNT);
-	else
-		pages = kmalloc(size, GFP_KERNEL_ACCOUNT);
-
+	/*
+	 * Don't WARN if the kernel (rightly) thinks the total size is absurd,
+	 * i.e. rely on the kernel to reject outrageous range sizes.  The above
+	 * check on the number of pages is purely to avoid truncation as
+	 * pin_user_pages_fast() takes the number of pages as a 32-bit int.
+	 */
+	pages = kvzalloc_objs(*pages, npages, GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
