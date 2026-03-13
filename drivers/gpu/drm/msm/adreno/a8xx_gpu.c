@@ -310,11 +310,21 @@ static void a8xx_set_ubwc_config(struct msm_gpu *gpu)
 	hbb = cfg->highest_bank_bit - 13;
 	hbb_hi = hbb >> 2;
 	hbb_lo = hbb & 3;
-	a8xx_write_pipe(gpu, PIPE_BV, REG_A8XX_GRAS_NC_MODE_CNTL, hbb << 5);
-	a8xx_write_pipe(gpu, PIPE_BR, REG_A8XX_GRAS_NC_MODE_CNTL, hbb << 5);
+
+	a8xx_write_pipe(gpu, PIPE_BV, REG_A8XX_GRAS_NC_MODE_CNTL,
+			hbb << 5 |
+			level3_swizzling_dis << 4 |
+			level2_swizzling_dis << 3);
+
+	a8xx_write_pipe(gpu, PIPE_BR, REG_A8XX_GRAS_NC_MODE_CNTL,
+			hbb << 5 |
+			level3_swizzling_dis << 4 |
+			level2_swizzling_dis << 3);
 
 	a8xx_write_pipe(gpu, PIPE_BR, REG_A8XX_RB_CCU_NC_MODE_CNTL,
 			yuvnotcomptofc << 6 |
+			level3_swizzling_dis << 5 |
+			level2_swizzling_dis << 4 |
 			hbb_hi << 3 |
 			hbb_lo << 1);
 
