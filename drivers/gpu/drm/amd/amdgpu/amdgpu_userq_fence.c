@@ -597,11 +597,11 @@ exec_fini:
 put_gobj_write:
 	for (i = 0; i < num_write_bo_handles; i++)
 		drm_gem_object_put(gobj_write[i]);
-	kfree(gobj_write);
+	kvfree(gobj_write);
 put_gobj_read:
 	for (i = 0; i < num_read_bo_handles; i++)
 		drm_gem_object_put(gobj_read[i]);
-	kfree(gobj_read);
+	kvfree(gobj_read);
 free_syncobj:
 	while (entry-- > 0)
 		if (syncobj[entry])
