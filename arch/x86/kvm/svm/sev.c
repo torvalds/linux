@@ -680,7 +680,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	struct kvm_sev_info *sev = to_kvm_sev_info(kvm);
 	unsigned long npages, size;
 	int npinned;
-	unsigned long locked, lock_limit;
+	unsigned long total_npages, lock_limit;
 	struct page **pages;
 	unsigned long first, last;
 	int ret;
@@ -701,10 +701,14 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	if (npages > INT_MAX)
 		return ERR_PTR(-EINVAL);
 
-	locked = sev->pages_locked + npages;
+	total_npages = sev->pages_locked + npages;
+	if (total_npages > totalram_pages())
+		return ERR_PTR(-EINVAL);
+
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
-		pr_err("SEV: %lu locked pages exceed the lock limit of %lu.\n", locked, lock_limit);
+	if (total_npages > lock_limit && !capable(CAP_IPC_LOCK)) {
+		pr_err("SEV: %lu total pages would exceed the lock limit of %lu.\n",
+		       total_npages, lock_limit);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -727,7 +731,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	}
 
 	*n = npages;
-	sev->pages_locked = locked;
+	sev->pages_locked = total_npages;
 
 	return pages;
 
