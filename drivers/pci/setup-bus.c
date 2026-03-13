@@ -434,6 +434,10 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		dev = add_res->dev;
 		idx = pci_resource_num(dev, res);
 
+		/* Skip this resource if not found in head list */
+		if (!res_to_dev_res(head, res))
+			continue;
+
 		/*
 		 * Skip resource that failed the earlier assignment and is
 		 * not optional as it would just fail again.
@@ -441,10 +445,6 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!resource_assigned(res) && resource_size(res) &&
 		    !pci_resource_is_optional(dev, idx))
 			goto out;
-
-		/* Skip this resource if not found in head list */
-		if (!res_to_dev_res(head, res))
-			continue;
 
 		res_name = pci_resource_name(dev, idx);
 		add_size = add_res->add_size;
