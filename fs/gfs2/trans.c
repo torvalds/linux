@@ -176,7 +176,6 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 	INIT_LIST_HEAD(&bd->bd_list);
 	INIT_LIST_HEAD(&bd->bd_ail_st_list);
 	INIT_LIST_HEAD(&bd->bd_ail_gl_list);
-	bh->b_private = bd;
 	return bd;
 }
 
@@ -210,12 +209,15 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 	if (bd == NULL) {
 		spin_unlock(&sdp->sd_log_lock);
 		unlock_buffer(bh);
-		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh);
-		else
-			bd = bh->b_private;
+		bd = gfs2_alloc_bufdata(gl, bh);
 		lock_buffer(bh);
 		spin_lock(&sdp->sd_log_lock);
+		if (bh->b_private) {
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
+			bd = bh->b_private;
+		} else {
+			bh->b_private = bd;
+		}
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
 	set_bit(TR_TOUCHED, &tr->tr_flags);
@@ -271,14 +273,15 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	if (bd == NULL) {
 		spin_unlock(&sdp->sd_log_lock);
 		unlock_buffer(bh);
-		folio_lock(bh->b_folio);
-		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh);
-		else
-			bd = bh->b_private;
-		folio_unlock(bh->b_folio);
+		bd = gfs2_alloc_bufdata(gl, bh);
 		lock_buffer(bh);
 		spin_lock(&sdp->sd_log_lock);
+		if (bh->b_private) {
+			kmem_cache_free(gfs2_bufdata_cachep, bd);
+			bd = bh->b_private;
+		} else {
+			bh->b_private = bd;
+		}
 	}
 	gfs2_assert(sdp, bd->bd_gl == gl);
 	set_bit(TR_TOUCHED, &tr->tr_flags);
