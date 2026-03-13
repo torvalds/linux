@@ -33,7 +33,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd0>, <&scmi_perf 0>;
@@ -49,7 +49,7 @@
 
 		cpu1: cpu@100 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd1>, <&scmi_perf 0>;
@@ -59,7 +59,7 @@
 
 		cpu2: cpu@200 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd2>, <&scmi_perf 0>;
@@ -69,7 +69,7 @@
 
 		cpu3: cpu@300 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd3>, <&scmi_perf 0>;
@@ -79,7 +79,7 @@
 
 		cpu4: cpu@400 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x400>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd4>, <&scmi_perf 0>;
@@ -89,7 +89,7 @@
 
 		cpu5: cpu@500 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-2";
 			reg = <0x0 0x500>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd5>, <&scmi_perf 0>;
@@ -99,7 +99,7 @@
 
 		cpu6: cpu@10000 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10000>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd6>, <&scmi_perf 1>;
@@ -115,7 +115,7 @@
 
 		cpu7: cpu@10100 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10100>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd7>, <&scmi_perf 1>;
@@ -125,7 +125,7 @@
 
 		cpu8: cpu@10200 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10200>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd8>, <&scmi_perf 1>;
@@ -135,7 +135,7 @@
 
 		cpu9: cpu@10300 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10300>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd9>, <&scmi_perf 1>;
@@ -145,7 +145,7 @@
 
 		cpu10: cpu@10400 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10400>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd10>, <&scmi_perf 1>;
@@ -155,7 +155,7 @@
 
 		cpu11: cpu@10500 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x10500>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd11>, <&scmi_perf 1>;
@@ -165,7 +165,7 @@
 
 		cpu12: cpu@20000 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20000>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd12>, <&scmi_perf 2>;
@@ -181,7 +181,7 @@
 
 		cpu13: cpu@20100 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20100>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd13>, <&scmi_perf 2>;
@@ -191,7 +191,7 @@
 
 		cpu14: cpu@20200 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20200>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd14>, <&scmi_perf 2>;
@@ -201,7 +201,7 @@
 
 		cpu15: cpu@20300 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20300>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd15>, <&scmi_perf 2>;
@@ -211,7 +211,7 @@
 
 		cpu16: cpu@20400 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20400>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd16>, <&scmi_perf 2>;
@@ -221,7 +221,7 @@
 
 		cpu17: cpu@20500 {
 			device_type = "cpu";
-			compatible = "qcom,oryon";
+			compatible = "qcom,oryon-2-1";
 			reg = <0x0 0x20500>;
 			enable-method = "psci";
 			power-domains = <&cpu_pd17>, <&scmi_perf 2>;
