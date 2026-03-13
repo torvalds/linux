@@ -50,6 +50,7 @@ struct sifive_fu540_macb_mgmt {
 
 #define MACB_RX_BUFFER_SIZE	128
 #define RX_BUFFER_MULTIPLE	64  /* bytes */
+#define RX_BUFFER_MAX		(0xFF * RX_BUFFER_MULTIPLE) /* 16320 bytes */
 
 #define DEFAULT_RX_RING_SIZE	512 /* must be power of 2 */
 #define MIN_RX_RING_SIZE	64
@@ -2601,7 +2602,7 @@ static void macb_init_rx_buffer_size(struct macb *bp, size_t size)
 	if (!macb_is_gem(bp)) {
 		bp->rx_buffer_size = MACB_RX_BUFFER_SIZE;
 	} else {
-		bp->rx_buffer_size = size;
+		bp->rx_buffer_size = MIN(size, RX_BUFFER_MAX);
 
 		if (bp->rx_buffer_size % RX_BUFFER_MULTIPLE) {
 			netdev_dbg(bp->dev,
@@ -5791,7 +5792,8 @@ static int macb_probe(struct platform_device *pdev)
 	/* MTU range: 68 - 1518 or 10240 */
 	dev->min_mtu = GEM_MTU_MIN_SIZE;
 	if ((bp->caps & MACB_CAPS_JUMBO) && bp->jumbo_max_len)
-		dev->max_mtu = bp->jumbo_max_len - ETH_HLEN - ETH_FCS_LEN;
+		dev->max_mtu = MIN(bp->jumbo_max_len, RX_BUFFER_MAX) -
+				ETH_HLEN - ETH_FCS_LEN;
 	else
 		dev->max_mtu = 1536 - ETH_HLEN - ETH_FCS_LEN;
 
