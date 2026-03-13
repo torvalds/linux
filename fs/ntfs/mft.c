@@ -2459,7 +2459,7 @@ mft_rec_already_initialized:
 			m->flags &= cpu_to_le16(
 					~le16_to_cpu(MFT_RECORD_IN_USE));
 			/* Make sure the mft record is written out to disk. */
-			   ntfs_mft_mark_dirty(folio);
+			ntfs_mft_mark_dirty(folio);
 			folio_unlock(folio);
 			kunmap_local(m);
 			folio_put(folio);

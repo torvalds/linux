@@ -2007,43 +2007,43 @@ struct index_entry *ntfs_index_walk_down(struct index_entry *ie, struct ntfs_ind
 static struct index_entry *ntfs_index_walk_up(struct index_entry *ie,
 		struct ntfs_index_context *ictx)
 {
-	struct index_entry *entry;
+	struct index_entry *entry = ie;
 	s64 vcn;
 
-	entry = ie;
-	if (ictx->pindex > 0) {
-		do {
-			ictx->pindex--;
-			if (!ictx->pindex) {
-				/* we have reached the root */
-				kfree(ictx->ib);
-				ictx->ib = NULL;
-				ictx->is_in_root = true;
-				/* a new search context is to be allocated */
-				if (ictx->actx)
-					ntfs_attr_put_search_ctx(ictx->actx);
-				ictx->ir = ntfs_ir_lookup(ictx->idx_ni, ictx->name,
-						ictx->name_len, &ictx->actx);
-				if (ictx->ir)
-					entry = ntfs_ie_get_by_pos(&ictx->ir->index,
-							ictx->parent_pos[ictx->pindex]);
-				else
-					entry = NULL;
-			} else {
-					/* up into non-root node */
-				vcn = ictx->parent_vcn[ictx->pindex];
-				if (!ntfs_ib_read(ictx, vcn, ictx->ib)) {
-					entry = ntfs_ie_get_by_pos(&ictx->ib->index,
-							ictx->parent_pos[ictx->pindex]);
-				} else
-					entry = NULL;
-			}
-		ictx->entry = entry;
-		} while (entry && (ictx->pindex > 0) &&
-				(entry->flags & INDEX_ENTRY_END));
-	} else
-		entry = NULL;
+	if (ictx->pindex <= 0)
+		return NULL;
 
+	do {
+		ictx->pindex--;
+		if (!ictx->pindex) {
+			/* we have reached the root */
+			kfree(ictx->ib);
+			ictx->ib = NULL;
+			ictx->is_in_root = true;
+			/* a new search context is to be allocated */
+			if (ictx->actx)
+				ntfs_attr_put_search_ctx(ictx->actx);
+			ictx->ir = ntfs_ir_lookup(ictx->idx_ni, ictx->name,
+						  ictx->name_len, &ictx->actx);
+			if (ictx->ir)
+				entry = ntfs_ie_get_by_pos(
+					&ictx->ir->index,
+					ictx->parent_pos[ictx->pindex]);
+			else
+				entry = NULL;
+		} else {
+			/* up into non-root node */
+			vcn = ictx->parent_vcn[ictx->pindex];
+			if (!ntfs_ib_read(ictx, vcn, ictx->ib)) {
+				entry = ntfs_ie_get_by_pos(
+					&ictx->ib->index,
+					ictx->parent_pos[ictx->pindex]);
+			} else
+				entry = NULL;
+		}
+		ictx->entry = entry;
+	} while (entry && (ictx->pindex > 0) &&
+		 (entry->flags & INDEX_ENTRY_END));
 	return entry;
 }
 
