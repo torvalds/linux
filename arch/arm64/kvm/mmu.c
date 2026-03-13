@@ -1650,6 +1650,7 @@ struct kvm_s2_fault_vma_info {
 	unsigned long	mmu_seq;
 	long		vma_pagesize;
 	vm_flags_t	vm_flags;
+	unsigned long	max_map_size;
 	struct page	*page;
 	kvm_pfn_t	pfn;
 	gfn_t		gfn;
@@ -1659,14 +1660,18 @@ struct kvm_s2_fault_vma_info {
 };
 
 static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
-				     struct vm_area_struct *vma, bool *force_pte)
+				     struct kvm_s2_fault_vma_info *s2vi,
+				     struct vm_area_struct *vma)
 {
 	short vma_shift;
 
-	if (*force_pte)
+	if (memslot_is_logging(s2fd->memslot)) {
+		s2vi->max_map_size = PAGE_SIZE;
 		vma_shift = PAGE_SHIFT;
-	else
+	} else {
+		s2vi->max_map_size = PUD_SIZE;
 		vma_shift = get_vma_page_shift(vma, s2fd->hva);
+	}
 
 	switch (vma_shift) {
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -1684,7 +1689,7 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 		fallthrough;
 	case CONT_PTE_SHIFT:
 		vma_shift = PAGE_SHIFT;
-		*force_pte = true;
+		s2vi->max_map_size = PAGE_SIZE;
 		fallthrough;
 	case PAGE_SHIFT:
 		break;
@@ -1695,7 +1700,7 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 	if (s2fd->nested) {
 		unsigned long max_map_size;
 
-		max_map_size = *force_pte ? PAGE_SIZE : PUD_SIZE;
+		max_map_size = min(s2vi->max_map_size, PUD_SIZE);
 
 		/*
 		 * If we're about to create a shadow stage 2 entry, then we
@@ -1713,7 +1718,7 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 		else if (max_map_size >= PAGE_SIZE && max_map_size < PMD_SIZE)
 			max_map_size = PAGE_SIZE;
 
-		*force_pte = (max_map_size == PAGE_SIZE);
+		s2vi->max_map_size = max_map_size;
 		vma_shift = min_t(short, vma_shift, __ffs(max_map_size));
 	}
 
@@ -1722,7 +1727,6 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 
 struct kvm_s2_fault {
 	bool s2_force_noncacheable;
-	bool force_pte;
 	enum kvm_pgtable_prot prot;
 };
 
@@ -1746,7 +1750,7 @@ static int kvm_s2_fault_get_vma_info(const struct kvm_s2_fault_desc *s2fd,
 		return -EFAULT;
 	}
 
-	s2vi->vma_pagesize = BIT(kvm_s2_resolve_vma_size(s2fd, vma, &fault->force_pte));
+	s2vi->vma_pagesize = BIT(kvm_s2_resolve_vma_size(s2fd, s2vi, vma));
 
 	/*
 	 * Both the canonical IPA and fault IPA must be aligned to the
@@ -1931,7 +1935,7 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 	 * backed by a THP and thus use block mapping if possible.
 	 */
 	if (mapping_size == PAGE_SIZE &&
-	    !(fault->force_pte || fault->s2_force_noncacheable)) {
+	    !(s2vi->max_map_size == PAGE_SIZE || fault->s2_force_noncacheable)) {
 		if (perm_fault_granule > PAGE_SIZE) {
 			mapping_size = perm_fault_granule;
 		} else {
@@ -1992,7 +1996,6 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 	bool perm_fault = kvm_vcpu_trap_is_permission_fault(s2fd->vcpu);
 	struct kvm_s2_fault_vma_info s2vi = {};
 	struct kvm_s2_fault fault = {
-		.force_pte = memslot_is_logging(s2fd->memslot),
 		.prot = KVM_PGTABLE_PROT_R,
 	};
 	void *memcache;
