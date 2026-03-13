@@ -55,7 +55,7 @@ struct tb_dma_port {
 	struct tb_switch *sw;
 	u8 port;
 	u32 base;
-	u8 *buf;
+	u8 buf[];
 };
 
 /*
@@ -209,15 +209,9 @@ struct tb_dma_port *dma_port_alloc(struct tb_switch *sw)
 	if (port < 0)
 		return NULL;
 
-	dma = kzalloc_obj(*dma);
+	dma = kzalloc_flex(*dma, buf, MAIL_DATA_DWORDS);
 	if (!dma)
 		return NULL;
-
-	dma->buf = kmalloc_array(MAIL_DATA_DWORDS, sizeof(u32), GFP_KERNEL);
-	if (!dma->buf) {
-		kfree(dma);
-		return NULL;
-	}
 
 	dma->sw = sw;
 	dma->port = port;
@@ -232,10 +226,7 @@ struct tb_dma_port *dma_port_alloc(struct tb_switch *sw)
  */
 void dma_port_free(struct tb_dma_port *dma)
 {
-	if (dma) {
-		kfree(dma->buf);
-		kfree(dma);
-	}
+	kfree(dma);
 }
 
 static int dma_port_wait_for_completion(struct tb_dma_port *dma,
