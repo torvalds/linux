@@ -338,41 +338,6 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	return 0;
 }
 
-void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
-{
-	struct address_space *mapping = bh->b_folio->mapping;
-	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
-	struct gfs2_bufdata *bd = bh->b_private;
-	struct gfs2_trans *tr = current->journal_info;
-	int was_pinned = 0;
-
-	if (test_clear_buffer_pinned(bh)) {
-		trace_gfs2_pin(bd, 0);
-		atomic_dec(&sdp->sd_log_pinned);
-		list_del_init(&bd->bd_list);
-		if (meta == REMOVE_META)
-			tr->tr_num_buf_rm++;
-		else
-			tr->tr_num_databuf_rm++;
-		set_bit(TR_TOUCHED, &tr->tr_flags);
-		was_pinned = 1;
-		brelse(bh);
-	}
-	if (bd) {
-		if (bd->bd_tr) {
-			gfs2_trans_add_revoke(sdp, bd);
-		} else if (was_pinned) {
-			bh->b_private = NULL;
-			kmem_cache_free(gfs2_bufdata_cachep, bd);
-		} else if (!list_empty(&bd->bd_ail_st_list) &&
-					!list_empty(&bd->bd_ail_gl_list)) {
-			gfs2_remove_from_ail(bd);
-		}
-	}
-	clear_buffer_dirty(bh);
-	clear_buffer_uptodate(bh);
-}
-
 /**
  * gfs2_ail1_wipe - remove deleted/freed buffers from the ail1 list
  * @sdp: superblock

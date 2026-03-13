@@ -37,7 +37,6 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 
 void gfs2_ordered_del_inode(struct gfs2_inode *ip);
 unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
-void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 bool gfs2_log_is_empty(struct gfs2_sbd *sdp);
 void gfs2_log_release_revokes(struct gfs2_sbd *sdp, unsigned int revokes);
 void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
@@ -48,6 +47,7 @@ void gfs2_log_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
 void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 			   u64 seq, u32 tail, u32 lblock, u32 flags,
 			   blk_opf_t op_flags);
+void gfs2_remove_from_journal(struct buffer_head *bh, int meta);
 void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 		    u32 type);
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
