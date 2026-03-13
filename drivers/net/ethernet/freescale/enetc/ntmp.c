@@ -227,7 +227,7 @@ static const char *ntmp_table_name(int tbl_id)
 		return "RSS Table";
 	default:
 		return "Unknown Table";
-	};
+	}
 }
 
 static int ntmp_delete_entry_by_id(struct ntmp_user *user, int tbl_id,
