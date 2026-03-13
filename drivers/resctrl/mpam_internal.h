@@ -342,6 +342,7 @@ struct mpam_resctrl_dom {
 struct mpam_resctrl_res {
 	struct mpam_class	*class;
 	struct rdt_resource	resctrl_res;
+	bool			cdp_enabled;
 };
 
 static inline int mpam_alloc_csu_mon(struct mpam_class *class)
