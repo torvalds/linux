@@ -481,6 +481,8 @@ void kernfs_put_active(struct kernfs_node *kn)
 /**
  * kernfs_drain - drain kernfs_node
  * @kn: kernfs_node to drain
+ * @drop_supers: Set to true if this function is called with the
+ *               kernfs_supers_rwsem locked.
  *
  * Drain existing usages and nuke all existing mmaps of @kn.  Multiple
  * removers may invoke this function concurrently on @kn and all will
