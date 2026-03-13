@@ -2711,9 +2711,6 @@ int sev_mem_enc_register_region(struct kvm *kvm,
 	if (is_mirroring_enc_context(kvm))
 		return -EINVAL;
 
-	if (range->addr > ULONG_MAX || range->size > ULONG_MAX)
-		return -EINVAL;
-
 	region = kzalloc_obj(*region, GFP_KERNEL_ACCOUNT);
 	if (!region)
 		return -ENOMEM;
