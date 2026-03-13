@@ -417,12 +417,12 @@ extern bool parameqn(const char *name1, const char *name2, size_t n);
 typedef int (*parse_unknown_fn)(char *param, char *val, const char *doing, void *arg);
 
 /* Called on module insert or kernel boot */
-extern char *parse_args(const char *name,
+extern char *parse_args(const char *doing,
 		      char *args,
 		      const struct kernel_param *params,
-		      unsigned num,
-		      s16 level_min,
-		      s16 level_max,
+		      unsigned int num,
+		      s16 min_level,
+		      s16 max_level,
 		      void *arg, parse_unknown_fn unknown);
 
 /* Called by module remove. */

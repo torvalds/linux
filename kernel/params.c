@@ -161,7 +161,7 @@ static int parse_one(char *param,
 char *parse_args(const char *doing,
 		 char *args,
 		 const struct kernel_param *params,
-		 unsigned num,
+		 unsigned int num,
 		 s16 min_level,
 		 s16 max_level,
 		 void *arg, parse_unknown_fn unknown)
