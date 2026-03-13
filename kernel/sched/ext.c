@@ -7530,8 +7530,13 @@ void __init init_sched_ext_class(void)
 /********************************************************************************
  * Helpers that can be called from the BPF scheduler.
  */
+static bool scx_vet_enq_flags(struct scx_sched *sch, u64 dsq_id, u64 enq_flags)
+{
+	return true;
+}
+
 static bool scx_dsq_insert_preamble(struct scx_sched *sch, struct task_struct *p,
-				    u64 enq_flags)
+				    u64 dsq_id, u64 enq_flags)
 {
 	if (!scx_kf_allowed(sch, SCX_KF_ENQUEUE | SCX_KF_DISPATCH))
 		return false;
@@ -7553,6 +7558,9 @@ static bool scx_dsq_insert_preamble(struct scx_sched *sch, struct task_struct *p
 		__scx_add_event(sch, SCX_EV_INSERT_NOT_OWNED, 1);
 		return false;
 	}
+
+	if (!scx_vet_enq_flags(sch, dsq_id, enq_flags))
+		return false;
 
 	return true;
 }
@@ -7635,7 +7643,7 @@ __bpf_kfunc bool scx_bpf_dsq_insert___v2(struct task_struct *p, u64 dsq_id,
 	if (unlikely(!sch))
 		return false;
 
-	if (!scx_dsq_insert_preamble(sch, p, enq_flags))
+	if (!scx_dsq_insert_preamble(sch, p, dsq_id, enq_flags))
 		return false;
 
 	if (slice)
@@ -7661,7 +7669,7 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id,
 static bool scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
 				 u64 dsq_id, u64 slice, u64 vtime, u64 enq_flags)
 {
-	if (!scx_dsq_insert_preamble(sch, p, enq_flags))
+	if (!scx_dsq_insert_preamble(sch, p, dsq_id, enq_flags))
 		return false;
 
 	if (slice)
@@ -7786,6 +7794,9 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 
 	if (!scx_kf_allowed_if_unlocked() &&
 	    !scx_kf_allowed(sch, SCX_KF_DISPATCH))
+		return false;
+
+	if (!scx_vet_enq_flags(sch, dsq_id, enq_flags))
 		return false;
 
 	/*
