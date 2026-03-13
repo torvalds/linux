@@ -119,6 +119,8 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 		pr_debug("readdir() left off=%d\n", ino);
 		goto inside;
 	}
+	if (hash_pos >= AFFS_SB(sb)->s_hashsize)
+		goto done;
 
 	ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
 	for (i = 0; ino && i < chain_pos; i++) {
