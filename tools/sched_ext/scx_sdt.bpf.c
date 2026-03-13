@@ -643,7 +643,7 @@ void BPF_STRUCT_OPS(sdt_enqueue, struct task_struct *p, u64 enq_flags)
 
 void BPF_STRUCT_OPS(sdt_dispatch, s32 cpu, struct task_struct *prev)
 {
-	scx_bpf_dsq_move_to_local(SHARED_DSQ);
+	scx_bpf_dsq_move_to_local(SHARED_DSQ, 0);
 }
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(sdt_init_task, struct task_struct *p,
