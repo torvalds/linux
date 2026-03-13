@@ -2767,9 +2767,9 @@ static void deduce_bounds_64_from_32(struct bpf_reg_state *reg)
 
 static void __reg_deduce_bounds(struct bpf_reg_state *reg)
 {
+	deduce_bounds_64_from_64(reg);
 	deduce_bounds_32_from_64(reg);
 	deduce_bounds_32_from_32(reg);
-	deduce_bounds_64_from_64(reg);
 	deduce_bounds_64_from_32(reg);
 }
 
@@ -2791,7 +2791,6 @@ static void reg_bounds_sync(struct bpf_reg_state *reg)
 	/* We might have learned new bounds from the var_off. */
 	__update_reg_bounds(reg);
 	/* We might have learned something about the sign bit. */
-	__reg_deduce_bounds(reg);
 	__reg_deduce_bounds(reg);
 	__reg_deduce_bounds(reg);
 	/* We might have learned some bits from the bounds. */
