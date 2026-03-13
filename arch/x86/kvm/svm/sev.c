@@ -682,7 +682,6 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	int npinned;
 	unsigned long total_npages, lock_limit;
 	struct page **pages;
-	unsigned long first, last;
 	int ret;
 
 	lockdep_assert_held(&kvm->lock);
@@ -692,12 +691,10 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 
 	/*
 	 * Calculate the number of pages that need to be pinned to cover the
-	 * entire range.  Note!  This isn't simply ulen >> PAGE_SHIFT, as KVM
+	 * entire range.  Note!  This isn't simply PFN_DOWN(ulen), as KVM
 	 * doesn't require the incoming address+size to be page aligned!
 	 */
-	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
-	last = ((uaddr + ulen - 1) & PAGE_MASK) >> PAGE_SHIFT;
-	npages = (last - first + 1);
+	npages = PFN_DOWN(uaddr + ulen - 1) - PFN_DOWN(uaddr) + 1;
 	if (npages > INT_MAX)
 		return ERR_PTR(-EINVAL);
 
