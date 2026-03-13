@@ -1534,6 +1534,35 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "GZ302EA"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 28,
+				.ppt_pl1_spl_def = 60,
+				.ppt_pl1_spl_max = 80,
+				.ppt_pl2_sppt_min = 32,
+				.ppt_pl2_sppt_def = 75,
+				.ppt_pl2_sppt_max = 92,
+				.ppt_pl3_fppt_min = 45,
+				.ppt_pl3_fppt_def = 86,
+				.ppt_pl3_fppt_max = 93,
+			},
+			.dc_data = &(struct power_limits) {
+				.ppt_pl1_spl_min = 28,
+				.ppt_pl1_spl_def = 45,
+				.ppt_pl1_spl_max = 80,
+				.ppt_pl2_sppt_min = 32,
+				.ppt_pl2_sppt_def = 52,
+				.ppt_pl2_sppt_max = 92,
+				.ppt_pl3_fppt_min = 45,
+				.ppt_pl3_fppt_def = 71,
+				.ppt_pl3_fppt_max = 93,
+			},
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "G513I"),
 		},
 		.driver_data = &(struct power_data) {
