@@ -77,7 +77,6 @@ enum rapl_primitives {
 	PSYS_TIME_WINDOW1,
 	PSYS_TIME_WINDOW2,
 	/* below are not raw primitive data */
-	AVERAGE_POWER,
 	NR_RAPL_PRIMITIVES,
 };
 

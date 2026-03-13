@@ -90,7 +90,6 @@
 #define TPMI_INFO_MAX_TIME_WIN_MASK	GENMASK_ULL(60, 54)
 
 /* Non HW constants */
-#define RAPL_PRIMITIVE_DERIVED		BIT(1)	/* not from raw data */
 #define RAPL_PRIMITIVE_DUMMY		BIT(2)
 
 #define ENERGY_UNIT_SCALE		1000	/* scale from driver unit to powercap unit */
@@ -703,9 +702,6 @@ static struct rapl_primitive_info rpi_msr[NR_RAPL_PRIMITIVES] = {
 						      19, RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
 	[PSYS_TIME_WINDOW2]	= PRIMITIVE_INFO_INIT(PSYS_TIME_WINDOW2, PSYS_TIME_WINDOW2_MASK,
 						      51, RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	/* non-hardware */
-	[AVERAGE_POWER]		= PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0, POWER_UNIT,
-						      RAPL_PRIMITIVE_DERIVED),
 };
 
 /* RAPL primitives for TPMI I/F */
@@ -745,9 +741,6 @@ static struct rapl_primitive_info rpi_tpmi[NR_RAPL_PRIMITIVES] = {
 						      54, RAPL_DOMAIN_REG_INFO, TIME_UNIT, 0),
 	[THROTTLED_TIME]	= PRIMITIVE_INFO_INIT(THROTTLED_TIME, PERF_STATUS_THROTTLE_TIME_MASK,
 						      0, RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
-	/* non-hardware */
-	[AVERAGE_POWER]		= PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0, POWER_UNIT,
-						      RAPL_PRIMITIVE_DERIVED),
 };
 
 static struct rapl_primitive_info *get_rpi(struct rapl_package *rp, int prim)
@@ -840,12 +833,6 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	ra.reg = rd->regs[rpi->id];
 	if (!ra.reg.val)
 		return -EINVAL;
-
-	/* non-hardware data are collected by the polling thread */
-	if (rpi->flag & RAPL_PRIMITIVE_DERIVED) {
-		*data = rd->rdd.primitives[prim];
-		return 0;
-	}
 
 	ra.mask = rpi->mask;
 
