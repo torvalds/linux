@@ -1218,8 +1218,10 @@ static void schedule_deferred_locked(struct rq *rq)
 }
 
 static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
-			       u64 reenq_flags)
+			       u64 reenq_flags, struct rq *locked_rq)
 {
+	struct rq *rq;
+
 	/*
 	 * Allowing reenqueues doesn't make sense while bypassing. This also
 	 * blocks from new reenqueues to be scheduled on dead scheds.
@@ -1228,7 +1230,8 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 		return;
 
 	if (dsq->id == SCX_DSQ_LOCAL) {
-		struct rq *rq = container_of(dsq, struct rq, scx.local_dsq);
+		rq = container_of(dsq, struct rq, scx.local_dsq);
+
 		struct scx_sched_pcpu *sch_pcpu = per_cpu_ptr(sch->pcpu, cpu_of(rq));
 		struct scx_deferred_reenq_local *drl = &sch_pcpu->deferred_reenq_local;
 
@@ -1247,10 +1250,9 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 				list_move_tail(&drl->node, &rq->scx.deferred_reenq_locals);
 			WRITE_ONCE(drl->flags, drl->flags | reenq_flags);
 		}
-
-		schedule_deferred(rq);
 	} else if (!(dsq->id & SCX_DSQ_FLAG_BUILTIN)) {
-		struct rq *rq = this_rq();
+		rq = this_rq();
+
 		struct scx_dsq_pcpu *dsq_pcpu = per_cpu_ptr(dsq->pcpu, cpu_of(rq));
 		struct scx_deferred_reenq_user *dru = &dsq_pcpu->deferred_reenq_user;
 
@@ -1269,11 +1271,15 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 				list_move_tail(&dru->node, &rq->scx.deferred_reenq_users);
 			WRITE_ONCE(dru->flags, dru->flags | reenq_flags);
 		}
-
-		schedule_deferred(rq);
 	} else {
 		scx_error(sch, "DSQ 0x%llx not allowed for reenq", dsq->id);
+		return;
 	}
+
+	if (rq == locked_rq)
+		schedule_deferred_locked(rq);
+	else
+		schedule_deferred(rq);
 }
 
 static void schedule_reenq_local(struct rq *rq, u64 reenq_flags)
@@ -1283,7 +1289,7 @@ static void schedule_reenq_local(struct rq *rq, u64 reenq_flags)
 	if (WARN_ON_ONCE(!root))
 		return;
 
-	schedule_dsq_reenq(root, &rq->scx.local_dsq, reenq_flags);
+	schedule_dsq_reenq(root, &rq->scx.local_dsq, reenq_flags, rq);
 }
 
 /**
@@ -8845,7 +8851,7 @@ __bpf_kfunc void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags,
 		reenq_flags |= SCX_REENQ_ANY;
 
 	dsq = find_dsq_for_dispatch(sch, this_rq(), dsq_id, smp_processor_id());
-	schedule_dsq_reenq(sch, dsq, reenq_flags);
+	schedule_dsq_reenq(sch, dsq, reenq_flags, scx_locked_rq());
 }
 
 /**
