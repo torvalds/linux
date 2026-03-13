@@ -317,6 +317,7 @@ static const struct dev_pm_ops class_pm_ops = {
 
 static const struct sdw_device_id class_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x4245, 0),
+	SDW_SLAVE_ENTRY(0x01FA, 0x4249, 0),
 	SDW_SLAVE_ENTRY(0x01FA, 0x4747, 0),
 	{}
 };
