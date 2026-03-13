@@ -33,11 +33,8 @@ properties:
     maxItems: 1
 
   reset-gpios: true
-
   backlight: true
-
   rotation: true
-
   port: true
 
   vcc-supply:

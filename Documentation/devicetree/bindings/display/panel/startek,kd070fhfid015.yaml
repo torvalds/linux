@@ -16,8 +16,6 @@ properties:
   compatible:
     const: startek,kd070fhfid015
 
-  enable-gpios: true
-
   iovcc-supply:
     description: Reference to the regulator powering the panel IO pins.
 
@@ -25,11 +23,10 @@ properties:
     maxItems: 1
     description: DSI virtual channel
 
-  reset-gpios: true
-
+  enable-gpios: true
   port: true
-
   power-supply: true
+  reset-gpios: true
 
 required:
   - compatible

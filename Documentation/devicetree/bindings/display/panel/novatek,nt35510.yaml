@@ -28,13 +28,14 @@ properties:
   reg:
     maxItems: 1
 
-  reset-gpios: true
   vdd-supply:
     description: regulator that supplies the vdd voltage
   vddi-supply:
     description: regulator that supplies the vddi voltage
+
   backlight: true
   port: true
+  reset-gpios: true
 
 required:
   - compatible
