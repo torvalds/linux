@@ -1566,7 +1566,8 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
-	if (acpi_notifier_call_chain(device, event, 0))
+	if (acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+				     event, 0))
 		/* Something vetoed the keypress. */
 		keycode = 0;
 
@@ -1607,7 +1608,8 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 		if (video_device->backlight)
 			backlight_force_update(video_device->backlight,
 					       BACKLIGHT_UPDATE_HOTKEY);
-		acpi_notifier_call_chain(device, event, 0);
+		acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+					 event, 0);
 		return;
 	}
 
@@ -1640,7 +1642,8 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	if (keycode)
 		may_report_brightness_keys = true;
 
-	acpi_notifier_call_chain(device, event, 0);
+	acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+				 event, 0);
 
 	if (keycode && (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);

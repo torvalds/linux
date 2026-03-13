@@ -133,7 +133,8 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 		acpi_bus_generate_netlink_event(adev->pnp.device_class,
 						  dev_name(&adev->dev), event,
 						  (u32) ac->state);
-		acpi_notifier_call_chain(adev, event, (u32) ac->state);
+		acpi_notifier_call_chain(ACPI_AC_CLASS, acpi_device_bid(adev),
+					 event, ac->state);
 		power_supply_changed(ac->charger);
 	}
 }
