@@ -1978,14 +1978,13 @@ static bool acpi_video_bus_dev_is_duplicate(struct device *dev)
 	return device_for_each_child(dev->parent, dev, duplicate_dev_check);
 }
 
-static int instance;
-
 static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 				const struct auxiliary_device_id *id_unused)
 {
 	struct acpi_device *device = ACPI_COMPANION(&aux_dev->dev);
 	static DEFINE_MUTEX(probe_lock);
 	struct acpi_video_bus *video;
+	static int instance;
 	bool auto_detect;
 	int error;
 
@@ -2005,16 +2004,15 @@ static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 	if (!video)
 		return -ENOMEM;
 
-	/* a hack to fix the duplicate name "VID" problem on T61 */
-	if (!strcmp(device->pnp.bus_id, "VID")) {
+	/*
+	 * A hack to fix the duplicate name "VID" problem on T61 and the
+	 * duplicate name "VGA" problem on Pa 3553.
+	 */
+	if (!strcmp(device->pnp.bus_id, "VID") ||
+	    !strcmp(device->pnp.bus_id, "VGA")) {
 		if (instance)
 			device->pnp.bus_id[3] = '0' + instance;
-		instance++;
-	}
-	/* a hack to fix the duplicate name "VGA" problem on Pa 3553 */
-	if (!strcmp(device->pnp.bus_id, "VGA")) {
-		if (instance)
-			device->pnp.bus_id[3] = '0' + instance;
+
 		instance++;
 	}
 
