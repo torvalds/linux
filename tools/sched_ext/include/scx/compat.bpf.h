@@ -405,6 +405,11 @@ static inline void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags)
 }
 
 /*
+ * v7.1: %SCX_ENQ_IMMED.
+ */
+#define SCX_ENQ_IMMED	__COMPAT_ENUM_OR_ZERO(enum scx_enq_flags, SCX_ENQ_IMMED)
+
+/*
  * Define sched_ext_ops. This may be expanded to define multiple variants for
  * backward compatibility. See compat.h::SCX_OPS_LOAD/ATTACH().
  */

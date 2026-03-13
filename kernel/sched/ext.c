@@ -406,6 +406,62 @@ static bool bypass_dsp_enabled(struct scx_sched *sch)
 	return unlikely(atomic_read(&sch->bypass_dsp_enable_depth));
 }
 
+/**
+ * rq_is_open - Is the rq available for immediate execution of an SCX task?
+ * @rq: rq to test
+ * @enq_flags: optional %SCX_ENQ_* of the task being enqueued
+ *
+ * Returns %true if @rq is currently open for executing an SCX task. After a
+ * %false return, @rq is guaranteed to invoke SCX dispatch path at least once
+ * before going to idle and not inserting a task into @rq's local DSQ after a
+ * %false return doesn't cause @rq to stall.
+ */
+static bool rq_is_open(struct rq *rq, u64 enq_flags)
+{
+	lockdep_assert_rq_held(rq);
+
+	/*
+	 * A higher-priority class task is either running or in the process of
+	 * waking up on @rq.
+	 */
+	if (sched_class_above(rq->next_class, &ext_sched_class))
+		return false;
+
+	/*
+	 * @rq is either in transition to or in idle and there is no
+	 * higher-priority class task waking up on it.
+	 */
+	if (sched_class_above(&ext_sched_class, rq->next_class))
+		return true;
+
+	/*
+	 * @rq is either picking, in transition to, or running an SCX task.
+	 */
+
+	/*
+	 * If we're in the dispatch path holding rq lock, $curr may or may not
+	 * be ready depending on whether the on-going dispatch decides to extend
+	 * $curr's slice. We say yes here and resolve it at the end of dispatch.
+	 * See balance_one().
+	 */
+	if (rq->scx.flags & SCX_RQ_IN_BALANCE)
+		return true;
+
+	/*
+	 * %SCX_ENQ_PREEMPT clears $curr's slice if on SCX and kicks dispatch,
+	 * so allow it to avoid spuriously triggering reenq on a combined
+	 * PREEMPT|IMMED insertion.
+	 */
+	if (enq_flags & SCX_ENQ_PREEMPT)
+		return true;
+
+	/*
+	 * @rq is either in transition to or running an SCX task and can't go
+	 * idle without another SCX dispatch cycle.
+	 */
+	return false;
+}
+
 /*
  * scx_kf_mask enforcement. Some kfuncs can only be called from specific SCX
  * ops. When invoking SCX ops, SCX_CALL_OP[_RET]() should be used to indicate
@@ -1220,6 +1276,16 @@ static void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq
 	}
 }
 
+static void schedule_reenq_local(struct rq *rq, u64 reenq_flags)
+{
+	struct scx_sched *root = rcu_dereference_sched(scx_root);
+
+	if (WARN_ON_ONCE(!root))
+		return;
+
+	schedule_dsq_reenq(root, &rq->scx.local_dsq, reenq_flags);
+}
+
 /**
  * touch_core_sched - Update timestamp used for core-sched task ordering
  * @rq: rq to read clock from, must be locked
@@ -1296,10 +1362,58 @@ static bool scx_dsq_priq_less(struct rb_node *node_a,
 	return time_before64(a->scx.dsq_vtime, b->scx.dsq_vtime);
 }
 
-static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
+static void dsq_inc_nr(struct scx_dispatch_q *dsq, struct task_struct *p, u64 enq_flags)
 {
 	/* scx_bpf_dsq_nr_queued() reads ->nr without locking, use WRITE_ONCE() */
-	WRITE_ONCE(dsq->nr, dsq->nr + delta);
+	WRITE_ONCE(dsq->nr, dsq->nr + 1);
+
+	/*
+	 * Once @p reaches a local DSQ, it can only leave it by being dispatched
+	 * to the CPU or dequeued. In both cases, the only way @p can go back to
+	 * the BPF sched is through enqueueing. If being inserted into a local
+	 * DSQ with IMMED, persist the state until the next enqueueing event in
+	 * do_enqueue_task() so that we can maintain IMMED protection through
+	 * e.g. SAVE/RESTORE cycles and slice extensions.
+	 */
+	if (enq_flags & SCX_ENQ_IMMED) {
+		if (unlikely(dsq->id != SCX_DSQ_LOCAL)) {
+			WARN_ON_ONCE(!(enq_flags & SCX_ENQ_GDSQ_FALLBACK));
+			return;
+		}
+		p->scx.flags |= SCX_TASK_IMMED;
+	}
+
+	if (p->scx.flags & SCX_TASK_IMMED) {
+		struct rq *rq = container_of(dsq, struct rq, scx.local_dsq);
+
+		if (WARN_ON_ONCE(dsq->id != SCX_DSQ_LOCAL))
+			return;
+
+		rq->scx.nr_immed++;
+
+		/*
+		 * If @rq already had other tasks or the current task is not
+		 * done yet, @p can't go on the CPU immediately. Re-enqueue.
+		 */
+		if (unlikely(dsq->nr > 1 || !rq_is_open(rq, enq_flags)))
+			schedule_reenq_local(rq, 0);
+	}
+}
+
+static void dsq_dec_nr(struct scx_dispatch_q *dsq, struct task_struct *p)
+{
+	/* see dsq_inc_nr() */
+	WRITE_ONCE(dsq->nr, dsq->nr - 1);
+
+	if (p->scx.flags & SCX_TASK_IMMED) {
+		struct rq *rq = container_of(dsq, struct rq, scx.local_dsq);
+
+		if (WARN_ON_ONCE(dsq->id != SCX_DSQ_LOCAL) ||
+		    WARN_ON_ONCE(rq->scx.nr_immed <= 0))
+			return;
+
+		rq->scx.nr_immed--;
+	}
 }
 
 static void refill_task_slice_dfl(struct scx_sched *sch, struct task_struct *p)
@@ -1458,7 +1572,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct rq *rq,
 	WRITE_ONCE(dsq->seq, dsq->seq + 1);
 	p->scx.dsq_seq = dsq->seq;
 
-	dsq_mod_nr(dsq, 1);
+	dsq_inc_nr(dsq, p, enq_flags);
 	p->scx.dsq = dsq;
 
 	/*
@@ -1512,7 +1626,7 @@ static void task_unlink_from_dsq(struct task_struct *p,
 	}
 
 	list_del_init(&p->scx.dsq_list.node);
-	dsq_mod_nr(dsq, -1);
+	dsq_dec_nr(dsq, p);
 
 	if (!(dsq->id & SCX_DSQ_FLAG_BUILTIN) && dsq->first_task == p) {
 		struct task_struct *first_task;
@@ -1723,9 +1837,17 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 
 	WARN_ON_ONCE(!(p->scx.flags & SCX_TASK_QUEUED));
 
-	/* rq migration */
+	/* internal movements - rq migration / RESTORE */
 	if (sticky_cpu == cpu_of(rq))
 		goto local_norefill;
+
+	/*
+	 * Clear persistent TASK_IMMED for fresh enqueues, see dsq_inc_nr().
+	 * Note that exiting and migration-disabled tasks that skip
+	 * ops.enqueue() below will lose IMMED protection unless
+	 * %SCX_OPS_ENQ_EXITING / %SCX_OPS_ENQ_MIGRATION_DISABLED are set.
+	 */
+	p->scx.flags &= ~SCX_TASK_IMMED;
 
 	/*
 	 * If !scx_rq_online(), we already told the BPF scheduler that the CPU
@@ -2032,6 +2154,30 @@ static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
 		return false;
 }
 
+static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p, int wake_flags)
+{
+	/*
+	 * Preemption between SCX tasks is implemented by resetting the victim
+	 * task's slice to 0 and triggering reschedule on the target CPU.
+	 * Nothing to do.
+	 */
+	if (p->sched_class == &ext_sched_class)
+		return;
+
+	/*
+	 * Getting preempted by a higher-priority class. Reenqueue IMMED tasks.
+	 * This captures all preemption cases including:
+	 *
+	 * - A SCX task is currently running.
+	 *
+	 * - @rq is waking from idle due to a SCX task waking to it.
+	 *
+	 * - A higher-priority wakes up while SCX dispatch is in progress.
+	 */
+	if (rq->scx.nr_immed)
+		schedule_reenq_local(rq, 0);
+}
+
 static void move_local_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
 					 struct scx_dispatch_q *src_dsq,
 					 struct rq *dst_rq)
@@ -2049,7 +2195,7 @@ static void move_local_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
 	else
 		list_add_tail(&p->scx.dsq_list.node, &dst_dsq->list);
 
-	dsq_mod_nr(dst_dsq, 1);
+	dsq_inc_nr(dst_dsq, p, enq_flags);
 	p->scx.dsq = dst_dsq;
 
 	local_dsq_post_enq(dst_dsq, p, enq_flags);
@@ -2257,6 +2403,7 @@ static struct rq *move_task_between_dsqs(struct scx_sched *sch,
 		    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
 			dst_dsq = find_global_dsq(sch, task_cpu(p));
 			dst_rq = src_rq;
+			enq_flags |= SCX_ENQ_GDSQ_FALLBACK;
 		}
 	} else {
 		/* no need to migrate if destination is a non-local DSQ */
@@ -2385,7 +2532,7 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
 	if (src_rq != dst_rq &&
 	    unlikely(!task_can_run_on_remote_rq(sch, p, dst_rq, true))) {
 		dispatch_enqueue(sch, rq, find_global_dsq(sch, task_cpu(p)), p,
-				 enq_flags | SCX_ENQ_CLEAR_OPSS);
+				 enq_flags | SCX_ENQ_CLEAR_OPSS | SCX_ENQ_GDSQ_FALLBACK);
 		return;
 	}
 
@@ -2738,6 +2885,19 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 	return false;
 
 has_tasks:
+	/*
+	 * @rq may have extra IMMED tasks without reenq scheduled:
+	 *
+	 * - rq_is_open() can't reliably tell when and how slice is going to be
+	 *   modified for $curr and allows IMMED tasks to be queued while
+	 *   dispatch is in progress.
+	 *
+	 * - A non-IMMED HEAD task can get queued in front of an IMMED task
+	 *   between the IMMED queueing and the subsequent scheduling event.
+	 */
+	if (unlikely(rq->scx.local_dsq.nr > 1 && rq->scx.nr_immed))
+		schedule_reenq_local(rq, 0);
+
 	rq->scx.flags &= ~SCX_RQ_IN_BALANCE;
 	return true;
 }
@@ -2859,11 +3019,17 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * If @p has slice left and is being put, @p is getting
 		 * preempted by a higher priority scheduler class or core-sched
 		 * forcing a different task. Leave it at the head of the local
-		 * DSQ.
+		 * DSQ unless it was an IMMED task. IMMED tasks should not
+		 * linger on a busy CPU, reenqueue them to the BPF scheduler.
 		 */
 		if (p->scx.slice && !scx_bypassing(sch, cpu_of(rq))) {
-			dispatch_enqueue(sch, rq, &rq->scx.local_dsq, p,
-					 SCX_ENQ_HEAD);
+			if (p->scx.flags & SCX_TASK_IMMED) {
+				p->scx.flags |= SCX_TASK_REENQ_PREEMPTED;
+				do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
+				p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
+			} else {
+				dispatch_enqueue(sch, rq, &rq->scx.local_dsq, p, SCX_ENQ_HEAD);
+			}
 			goto switch_class;
 		}
 
@@ -3682,8 +3848,6 @@ static void switched_from_scx(struct rq *rq, struct task_struct *p)
 	scx_disable_task(scx_task_sched(p), p);
 }
 
-static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p, int wake_flags) {}
-
 static void switched_to_scx(struct rq *rq, struct task_struct *p) {}
 
 int scx_check_setscheduler(struct task_struct *p, int policy)
@@ -3725,9 +3889,45 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 	}
 }
 
+/*
+ * Determine whether @p should be reenqueued from a local DSQ.
+ *
+ * @reenq_flags is mutable and accumulates state across the DSQ walk:
+ *
+ * - %SCX_REENQ_TSR_NOT_FIRST: Set after the first task is visited. "First"
+ *   tracks position in the DSQ list, not among IMMED tasks. A non-IMMED task at
+ *   the head consumes the first slot.
+ *
+ * - %SCX_REENQ_TSR_RQ_OPEN: Set by reenq_local() before the walk if
+ *   rq_is_open() is true.
+ *
+ * An IMMED task is kept (returns %false) only if it's the first task in the DSQ
+ * AND the current task is done — i.e. it will execute immediately. All other
+ * IMMED tasks are reenqueued. This means if a non-IMMED task sits at the head,
+ * every IMMED task behind it gets reenqueued.
+ *
+ * Reenqueued tasks go through ops.enqueue() with %SCX_ENQ_REENQ |
+ * %SCX_TASK_REENQ_IMMED. If the BPF scheduler dispatches back to the same local
+ * DSQ with %SCX_ENQ_IMMED while the CPU is still unavailable, this triggers
+ * another reenq cycle. Repetitions are bounded by %SCX_REENQ_LOCAL_MAX_REPEAT
+ * in process_deferred_reenq_locals().
+ */
 static bool local_task_should_reenq(struct task_struct *p, u64 *reenq_flags, u32 *reason)
 {
+	bool first;
+
+	first = !(*reenq_flags & SCX_REENQ_TSR_NOT_FIRST);
+	*reenq_flags |= SCX_REENQ_TSR_NOT_FIRST;
+
 	*reason = SCX_TASK_REENQ_KFUNC;
+
+	if ((p->scx.flags & SCX_TASK_IMMED) &&
+	    (!first || !(*reenq_flags & SCX_REENQ_TSR_RQ_OPEN))) {
+		__scx_add_event(scx_task_sched(p), SCX_EV_REENQ_IMMED, 1);
+		*reason = SCX_TASK_REENQ_IMMED;
+		return true;
+	}
+
 	return *reenq_flags & SCX_REENQ_ANY;
 }
 
@@ -3738,6 +3938,11 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 	struct task_struct *p, *n;
 
 	lockdep_assert_rq_held(rq);
+
+	if (WARN_ON_ONCE(reenq_flags & __SCX_REENQ_TSR_MASK))
+		reenq_flags &= ~__SCX_REENQ_TSR_MASK;
+	if (rq_is_open(rq, 0))
+		reenq_flags |= SCX_REENQ_TSR_RQ_OPEN;
 
 	/*
 	 * The BPF scheduler may choose to dispatch tasks back to
@@ -3792,11 +3997,14 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 
 static void process_deferred_reenq_locals(struct rq *rq)
 {
+	u64 seq = ++rq->scx.deferred_reenq_locals_seq;
+
 	lockdep_assert_rq_held(rq);
 
 	while (true) {
 		struct scx_sched *sch;
 		u64 reenq_flags;
+		bool skip = false;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 			struct scx_deferred_reenq_local *drl =
@@ -3811,15 +4019,31 @@ static void process_deferred_reenq_locals(struct rq *rq)
 			sch_pcpu = container_of(drl, struct scx_sched_pcpu,
 						deferred_reenq_local);
 			sch = sch_pcpu->sch;
+
 			reenq_flags = drl->flags;
 			WRITE_ONCE(drl->flags, 0);
 			list_del_init(&drl->node);
+
+			if (likely(drl->seq != seq)) {
+				drl->seq = seq;
+				drl->cnt = 0;
+			} else {
+				if (unlikely(++drl->cnt > SCX_REENQ_LOCAL_MAX_REPEAT)) {
+					scx_error(sch, "SCX_ENQ_REENQ on SCX_DSQ_LOCAL repeated %u times",
+						  drl->cnt);
+					skip = true;
+				}
+
+				__scx_add_event(sch, SCX_EV_REENQ_LOCAL_REPEAT, 1);
+			}
 		}
 
-		/* see schedule_dsq_reenq() */
-		smp_mb();
+		if (!skip) {
+			/* see schedule_dsq_reenq() */
+			smp_mb();
 
-		reenq_local(sch, rq, reenq_flags);
+			reenq_local(sch, rq, reenq_flags);
+		}
 	}
 }
 
@@ -4208,10 +4432,6 @@ static void scx_cgroup_unlock(void) {}
 /*
  * Omitted operations:
  *
- * - wakeup_preempt: NOOP as it isn't useful in the wakeup path because the task
- *   isn't tied to the CPU at that point. Preemption is implemented by resetting
- *   the victim task's slice to 0 and triggering reschedule on the target CPU.
- *
  * - migrate_task_rq: Unnecessary as task to cpu mapping is transient.
  *
  * - task_fork/dead: We need fork/dead notifications for all tasks regardless of
@@ -4580,6 +4800,8 @@ static ssize_t scx_attr_events_show(struct kobject *kobj,
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_EXITING);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_REENQ_IMMED);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_REENQ_LOCAL_REPEAT);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_REFILL_SLICE_DFL);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DURATION);
 	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DISPATCH);
@@ -6019,6 +6241,8 @@ static void scx_dump_state(struct scx_sched *sch, struct scx_exit_info *ei,
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_EXITING);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
+	scx_dump_event(s, &events, SCX_EV_REENQ_IMMED);
+	scx_dump_event(s, &events, SCX_EV_REENQ_LOCAL_REPEAT);
 	scx_dump_event(s, &events, SCX_EV_REFILL_SLICE_DFL);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_DURATION);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_DISPATCH);
@@ -7532,6 +7756,13 @@ void __init init_sched_ext_class(void)
  */
 static bool scx_vet_enq_flags(struct scx_sched *sch, u64 dsq_id, u64 enq_flags)
 {
+	if ((enq_flags & SCX_ENQ_IMMED) &&
+	    unlikely(dsq_id != SCX_DSQ_LOCAL &&
+		     (dsq_id & SCX_DSQ_LOCAL_ON) != SCX_DSQ_LOCAL_ON)) {
+		scx_error(sch, "SCX_ENQ_IMMED on a non-local DSQ 0x%llx", dsq_id);
+		return false;
+	}
+
 	return true;
 }
 
@@ -9101,6 +9332,8 @@ static void scx_read_events(struct scx_sched *sch, struct scx_event_stats *event
 		scx_agg_event(events, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
 		scx_agg_event(events, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
 		scx_agg_event(events, e_cpu, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
+		scx_agg_event(events, e_cpu, SCX_EV_REENQ_IMMED);
+		scx_agg_event(events, e_cpu, SCX_EV_REENQ_LOCAL_REPEAT);
 		scx_agg_event(events, e_cpu, SCX_EV_REFILL_SLICE_DFL);
 		scx_agg_event(events, e_cpu, SCX_EV_BYPASS_DURATION);
 		scx_agg_event(events, e_cpu, SCX_EV_BYPASS_DISPATCH);

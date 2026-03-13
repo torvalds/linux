@@ -100,6 +100,7 @@ enum scx_ent_flags {
 	SCX_TASK_RESET_RUNNABLE_AT = 1 << 2, /* runnable_at should be reset */
 	SCX_TASK_DEQD_FOR_SLEEP	= 1 << 3, /* last dequeue was for SLEEP */
 	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
+	SCX_TASK_IMMED		= 1 << 5, /* task is on local DSQ with %SCX_ENQ_IMMED */
 
 	/*
 	 * Bits 8 and 9 are used to carry task state:
@@ -125,6 +126,8 @@ enum scx_ent_flags {
 	 *
 	 * NONE		not being reenqueued
 	 * KFUNC	reenqueued by scx_bpf_dsq_reenq() and friends
+	 * IMMED	reenqueued due to failed ENQ_IMMED
+	 * PREEMPTED	preempted while running
 	 */
 	SCX_TASK_REENQ_REASON_SHIFT = 12,
 	SCX_TASK_REENQ_REASON_BITS = 2,
@@ -132,6 +135,8 @@ enum scx_ent_flags {
 
 	SCX_TASK_REENQ_NONE	= 0 << SCX_TASK_REENQ_REASON_SHIFT,
 	SCX_TASK_REENQ_KFUNC	= 1 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_IMMED	= 2 << SCX_TASK_REENQ_REASON_SHIFT,
+	SCX_TASK_REENQ_PREEMPTED = 3 << SCX_TASK_REENQ_REASON_SHIFT,
 
 	/* iteration cursor, not a task */
 	SCX_TASK_CURSOR		= 1 << 31,
