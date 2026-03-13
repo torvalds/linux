@@ -76,7 +76,7 @@ static int xts_setkey(struct crypto_skcipher *parent, const u8 *key,
 /*
  * We compute the tweak masks twice (both before and after the ECB encryption or
  * decryption) to avoid having to allocate a temporary buffer and/or make
- * mutliple calls to the 'ecb(..)' instance, which usually would be slower than
+ * multiple calls to the 'ecb(..)' instance, which usually would be slower than
  * just doing the gf128mul_x_ble() calls again.
  */
 static int xts_xor_tweak(struct skcipher_request *req, bool second_pass,

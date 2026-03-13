@@ -2828,7 +2828,7 @@ static int __init tcrypt_mod_init(void)
 		pr_debug("all tests passed\n");
 	}
 
-	/* We intentionaly return -EAGAIN to prevent keeping the module,
+	/* We intentionally return -EAGAIN to prevent keeping the module,
 	 * unless we're running in fips mode. It does all its work from
 	 * init() and doesn't offer any runtime functionality, but in
 	 * the fips case, checking for a successful load is helpful.
