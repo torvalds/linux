@@ -22,7 +22,6 @@
 #include <acpi/battery.h>
 
 #define ACPI_AC_CLASS			"ac_adapter"
-#define ACPI_AC_DEVICE_NAME		"AC Adapter"
 #define ACPI_AC_FILE_STATE		"state"
 #define ACPI_AC_NOTIFY_STATUS		0x80
 #define ACPI_AC_STATUS_OFFLINE		0x00
@@ -203,7 +202,6 @@ static int acpi_ac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ac->device = adev;
-	strscpy(acpi_device_name(adev), ACPI_AC_DEVICE_NAME);
 	strscpy(acpi_device_class(adev), ACPI_AC_CLASS);
 
 	platform_set_drvdata(pdev, ac);
@@ -226,8 +224,8 @@ static int acpi_ac_probe(struct platform_device *pdev)
 		goto err_release_ac;
 	}
 
-	pr_info("%s [%s] (%s-line)\n", acpi_device_name(adev),
-		acpi_device_bid(adev), str_on_off(ac->state));
+	pr_info("AC Adapter [%s] (%s-line)\n", acpi_device_bid(adev),
+		str_on_off(ac->state));
 
 	ac->battery_nb.notifier_call = acpi_ac_battery_notify;
 	register_acpi_notifier(&ac->battery_nb);

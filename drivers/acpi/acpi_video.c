@@ -30,9 +30,6 @@
 #include <linux/uaccess.h>
 #include <linux/string_choices.h>
 
-#define ACPI_VIDEO_BUS_NAME		"Video Bus"
-#define ACPI_VIDEO_DEVICE_NAME		"Video Device"
-
 #define MAX_NAME_LEN	20
 
 MODULE_AUTHOR("Bruno Ducrot");
@@ -1144,7 +1141,6 @@ static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 		return -ENOMEM;
 	}
 
-	strscpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
 
 	data->device_id = device_id;
@@ -1882,7 +1878,7 @@ static int acpi_video_bus_add_notify_handler(struct acpi_video_bus *video,
 	snprintf(video->phys, sizeof(video->phys),
 			"%s/video/input0", acpi_device_hid(video->device));
 
-	input->name = acpi_device_name(video->device);
+	input->name = "Video Bus";
 	input->phys = video->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = 0x06;
@@ -2019,7 +2015,6 @@ static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 	auxiliary_set_drvdata(aux_dev, video);
 
 	video->device = device;
-	strscpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
 	strscpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
 	device->driver_data = video;
 
@@ -2041,11 +2036,10 @@ static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 	 */
 	acpi_device_fix_up_power_children(device);
 
-	pr_info("%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
-	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
-	       str_yes_no(video->flags.multihead),
-	       str_yes_no(video->flags.rom),
-	       str_yes_no(video->flags.post));
+	pr_info("Video Device [%s] (multi-head: %s  rom: %s  post: %s)\n",
+		acpi_device_bid(device), str_yes_no(video->flags.multihead),
+		str_yes_no(video->flags.rom), str_yes_no(video->flags.post));
+
 	mutex_lock(&video_list_lock);
 	list_add_tail(&video->entry, &video_bus_head);
 	mutex_unlock(&video_list_lock);

@@ -19,7 +19,6 @@
 #include "internal.h"
 
 #define ACPI_SMB_HC_CLASS	"smbus_host_ctl"
-#define ACPI_SMB_HC_DEVICE_NAME	"ACPI SMBus HC"
 
 struct acpi_smb_hc {
 	struct acpi_ec *ec;
@@ -251,7 +250,6 @@ static int acpi_smbus_hc_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	strscpy(acpi_device_name(device), ACPI_SMB_HC_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_SMB_HC_CLASS);
 
 	hc = kzalloc_obj(struct acpi_smb_hc);

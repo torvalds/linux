@@ -35,7 +35,6 @@
 #include "internal.h"
 
 #define ACPI_THERMAL_CLASS		"thermal_zone"
-#define ACPI_THERMAL_DEVICE_NAME	"Thermal Zone"
 #define ACPI_THERMAL_NOTIFY_TEMPERATURE	0x80
 #define ACPI_THERMAL_NOTIFY_THRESHOLDS	0x81
 #define ACPI_THERMAL_NOTIFY_DEVICES	0x82
@@ -800,7 +799,6 @@ static int acpi_thermal_probe(struct platform_device *pdev)
 
 	tz->device = device;
 	strscpy(tz->name, device->pnp.bus_id);
-	strscpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
 
 	acpi_thermal_aml_dependency_fix(tz);
@@ -879,8 +877,8 @@ static int acpi_thermal_probe(struct platform_device *pdev)
 	mutex_init(&tz->thermal_check_lock);
 	INIT_WORK(&tz->thermal_check_work, acpi_thermal_check_fn);
 
-	pr_info("%s [%s] (%ld C)\n", acpi_device_name(device),
-		acpi_device_bid(device), deci_kelvin_to_celsius(tz->temp_dk));
+	pr_info("Thermal Zone [%s] (%ld C)\n", acpi_device_bid(device),
+		deci_kelvin_to_celsius(tz->temp_dk));
 
 	result = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
 						 acpi_thermal_notify, tz);

@@ -648,7 +648,6 @@ static int acpi_sbs_probe(struct platform_device *pdev)
 
 	sbs->hc = dev_get_drvdata(pdev->dev.parent);
 	sbs->device = device;
-	strscpy(acpi_device_name(device), ACPI_SBS_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_SBS_CLASS);
 
 	result = acpi_charger_add(sbs);

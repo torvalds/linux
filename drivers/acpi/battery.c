@@ -33,8 +33,6 @@
 #define ACPI_BATTERY_CAPACITY_VALID(capacity) \
 	((capacity) != 0 && (capacity) != ACPI_BATTERY_VALUE_UNKNOWN)
 
-#define ACPI_BATTERY_DEVICE_NAME	"Battery"
-
 /* Battery power unit: 0 means mW, 1 means mA */
 #define ACPI_BATTERY_POWER_UNIT_MA	1
 
@@ -1229,7 +1227,6 @@ static int acpi_battery_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, battery);
 
 	battery->device = device;
-	strscpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 
 	result = devm_mutex_init(&pdev->dev, &battery->update_lock);
