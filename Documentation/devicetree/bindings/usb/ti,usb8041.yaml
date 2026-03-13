@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: usb-device.yaml#
+  - $ref: usb-hub.yaml#
 
 properties:
   compatible:
@@ -30,17 +31,20 @@ properties:
     description:
       VDD power supply to the hub
 
-  peer-hub:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      phandle to the peer hub on the controller.
+  peer-hub: true
+
+patternProperties:
+  '^.*@[1-9a-f][0-9a-f]*$':
+    description: The hard wired USB devices
+    type: object
+    $ref: /schemas/usb/usb-device.yaml
+    additionalProperties: true
 
 required:
   - compatible
   - reg
-  - peer-hub
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -56,7 +60,14 @@ examples:
             compatible = "usb451,8142";
             reg = <1>;
             peer-hub = <&hub_3_0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
             reset-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+
+            hub@1 {
+              compatible = "usb123,4567";
+              reg = <1>;
+            };
         };
 
         /* 3.0 hub on port 2 */
