@@ -30,7 +30,8 @@ except ModuleNotFoundError as e:
 __all__ = [
     "NlError", "NlPolicy", "Netlink", "YnlFamily", "SPEC_PATH",
     "EthtoolFamily", "RtnlFamily", "RtnlAddrFamily",
-    "NetdevFamily", "NetshaperFamily", "DevlinkFamily", "PSPFamily",
+    "NetdevFamily", "NetshaperFamily", "NlctrlFamily", "DevlinkFamily",
+    "PSPFamily",
 ]
 
 #
@@ -62,6 +63,13 @@ class NetshaperFamily(YnlFamily):
     def __init__(self, recv_size=0):
         super().__init__((SPEC_PATH / Path('net_shaper.yaml')).as_posix(),
                          schema='', recv_size=recv_size)
+
+
+class NlctrlFamily(YnlFamily):
+    def __init__(self, recv_size=0):
+        super().__init__((SPEC_PATH / Path('nlctrl.yaml')).as_posix(),
+                         schema='', recv_size=recv_size)
+
 
 class DevlinkFamily(YnlFamily):
     def __init__(self, recv_size=0):

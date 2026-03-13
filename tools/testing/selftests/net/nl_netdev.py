@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
-import time
+"""
+Tests for the netdev netlink family.
+"""
+
+import errno
 from os import system
-from lib.py import ksft_run, ksft_exit, ksft_pr
-from lib.py import ksft_eq, ksft_ge, ksft_ne, ksft_busy_wait
-from lib.py import NetdevFamily, NetdevSimDev, ip
+from lib.py import ksft_run, ksft_exit
+from lib.py import ksft_eq, ksft_ge, ksft_ne, ksft_raises, ksft_busy_wait
+from lib.py import NetdevFamily, NetdevSimDev, NlError, ip
 
 
 def empty_check(nf) -> None:
@@ -17,6 +21,15 @@ def lo_check(nf) -> None:
     lo_info = nf.dev_get({"ifindex": 1})
     ksft_eq(len(lo_info['xdp-features']), 0)
     ksft_eq(len(lo_info['xdp-rx-metadata-features']), 0)
+
+
+def dev_dump_reject_attr(nf) -> None:
+    """Test that dev-get dump rejects attributes (no dump request policy)."""
+    with ksft_raises(NlError) as cm:
+        nf.dev_get({'ifindex': 1}, dump=True)
+    ksft_eq(cm.exception.nl_msg.error, -errno.EINVAL)
+    ksft_eq(cm.exception.nl_msg.extack['msg'], 'Unknown attribute type')
+    ksft_eq(cm.exception.nl_msg.extack['bad-attr'], '.ifindex')
 
 
 def napi_list_check(nf) -> None:
@@ -243,9 +256,16 @@ def page_pool_check(nf) -> None:
 
 
 def main() -> None:
+    """ Ksft boiler plate main """
     nf = NetdevFamily()
-    ksft_run([empty_check, lo_check, page_pool_check, napi_list_check,
-              dev_set_threaded, napi_set_threaded, nsim_rxq_reset_down],
+    ksft_run([empty_check,
+              lo_check,
+              dev_dump_reject_attr,
+              napi_list_check,
+              napi_set_threaded,
+              dev_set_threaded,
+              nsim_rxq_reset_down,
+              page_pool_check],
              args=(nf, ))
     ksft_exit()
 
