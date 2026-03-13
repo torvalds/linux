@@ -533,6 +533,7 @@ struct airoha_qdma {
 
 struct airoha_gdm_port {
 	struct airoha_qdma *qdma;
+	struct airoha_eth *eth;
 	struct net_device *dev;
 	int id;
 
