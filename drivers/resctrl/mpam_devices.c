@@ -29,8 +29,6 @@
 
 #include "mpam_internal.h"
 
-DEFINE_STATIC_KEY_FALSE(mpam_enabled); /* This moves to arch code */
-
 /*
  * mpam_list_lock protects the SRCU lists when writing. Once the
  * mpam_enabled key is enabled these lists are read-only,

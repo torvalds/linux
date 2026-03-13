@@ -2039,6 +2039,8 @@ config ARM64_MPAM
 
 	  MPAM is exposed to user-space via the resctrl pseudo filesystem.
 
+	  This option enables the extra context switch code.
+
 endmenu # "ARMv8.4 architectural features"
 
 menu "ARMv8.5 architectural features"

@@ -16,11 +16,11 @@
 #include <linux/srcu.h>
 #include <linux/types.h>
 
+#include <asm/mpam.h>
+
 #define MPAM_MSC_MAX_NUM_RIS	16
 
 struct platform_device;
-
-DECLARE_STATIC_KEY_FALSE(mpam_enabled);
 
 #ifdef CONFIG_MPAM_KUNIT_TEST
 #define PACKED_FOR_KUNIT __packed
