@@ -1081,7 +1081,7 @@ static void dw_pcie_program_presets(struct dw_pcie_rp *pp, enum pci_bus_speed sp
 static void dw_pcie_config_presets(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	enum pci_bus_speed speed = pcie_link_speed[pci->max_link_speed];
+	enum pci_bus_speed speed = pcie_get_link_speed(pci->max_link_speed);
 
 	/*
 	 * Lane equalization settings need to be applied for all data rates the

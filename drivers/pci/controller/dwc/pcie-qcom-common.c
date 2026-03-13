@@ -22,7 +22,7 @@ void qcom_pcie_common_set_equalization(struct dw_pcie *pci)
 	 * applied.
 	 */
 
-	for (speed = PCIE_SPEED_8_0GT; speed <= pcie_link_speed[pci->max_link_speed]; speed++) {
+	for (speed = PCIE_SPEED_8_0GT; speed <= pcie_get_link_speed(pci->max_link_speed); speed++) {
 		if (speed > PCIE_SPEED_32_0GT) {
 			dev_warn(dev, "Skipped equalization settings for unsupported data rate\n");
 			break;

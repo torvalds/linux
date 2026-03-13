@@ -170,7 +170,7 @@
 #define QCOM_PCIE_CRC8_POLYNOMIAL		(BIT(2) | BIT(1) | BIT(0))
 
 #define QCOM_PCIE_LINK_SPEED_TO_BW(speed) \
-		Mbps_to_icc(PCIE_SPEED2MBS_ENC(pcie_link_speed[speed]))
+		Mbps_to_icc(PCIE_SPEED2MBS_ENC(pcie_get_link_speed(speed)))
 
 struct qcom_pcie_resources_1_0_0 {
 	struct clk_bulk_data *clks;
@@ -320,7 +320,7 @@ static int qcom_pcie_start_link(struct dw_pcie *pci)
 
 	qcom_pcie_common_set_equalization(pci);
 
-	if (pcie_link_speed[pci->max_link_speed] == PCIE_SPEED_16_0GT)
+	if (pcie_get_link_speed(pci->max_link_speed) == PCIE_SPEED_16_0GT)
 		qcom_pcie_common_set_16gt_lane_margining(pci);
 
 	/* Enable Link Training state machine */
@@ -1579,7 +1579,7 @@ static void qcom_pcie_icc_opp_update(struct qcom_pcie *pcie)
 				ret);
 		}
 	} else if (pcie->use_pm_opp) {
-		freq_mbps = pcie_dev_speed_mbps(pcie_link_speed[speed]);
+		freq_mbps = pcie_dev_speed_mbps(pcie_get_link_speed(speed));
 		if (freq_mbps < 0)
 			return;
 
