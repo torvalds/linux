@@ -5780,7 +5780,7 @@ static int check_next_block_uptodate(struct btrfs_trans_handle *trans,
 
 	generation = btrfs_node_ptr_generation(path->nodes[level], path->slots[level]);
 
-	if (btrfs_buffer_uptodate(next, generation, false))
+	if (btrfs_buffer_uptodate(next, generation, false, NULL))
 		return 0;
 
 	check.level = level - 1;

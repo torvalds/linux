@@ -3901,8 +3901,17 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
 
-	if (extent_buffer_uptodate(eb))
+	if (extent_buffer_uptodate(eb)) {
+		int ret;
+
+		ret = btrfs_buffer_uptodate(eb, 0, true, check);
+		if (unlikely(ret <= 0)) {
+			if (ret == 0)
+				ret = -EIO;
+			return ret;
+		}
 		return 0;
+	}
 
 	/*
 	 * We could have had EXTENT_BUFFER_UPTODATE cleared by the write
@@ -3923,7 +3932,15 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	 * will now be set, and we shouldn't read it in again.
 	 */
 	if (unlikely(extent_buffer_uptodate(eb))) {
+		int ret;
+
 		clear_extent_buffer_reading(eb);
+		ret = btrfs_buffer_uptodate(eb, 0, true, check);
+		if (unlikely(ret <= 0)) {
+			if (ret == 0)
+				ret = -EIO;
+			return ret;
+		}
 		return 0;
 	}
 
@@ -4636,7 +4653,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(eb))
 		return;
 
-	if (btrfs_buffer_uptodate(eb, gen, true)) {
+	if (btrfs_buffer_uptodate(eb, gen, true, NULL)) {
 		free_extent_buffer(eb);
 		return;
 	}
