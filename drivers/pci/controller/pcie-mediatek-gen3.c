@@ -1150,7 +1150,7 @@ static int mtk_pcie_setup(struct mtk_gen3_pcie *pcie)
 		return err;
 
 	err = of_pci_get_max_link_speed(pcie->dev->of_node);
-	if (err) {
+	if (pcie_get_link_speed(err) != PCI_SPEED_UNKNOWN) {
 		/* Get the maximum speed supported by the controller */
 		max_speed = mtk_pcie_get_controller_max_link_speed(pcie);
 
