@@ -1612,6 +1612,9 @@ static int mpam_cpu_online(unsigned int cpu)
 			mpam_reprogram_msc(msc);
 	}
 
+	if (mpam_is_enabled())
+		return mpam_resctrl_online_cpu(cpu);
+
 	return 0;
 }
 
@@ -1654,6 +1657,9 @@ static int mpam_discovery_cpu_online(unsigned int cpu)
 static int mpam_cpu_offline(unsigned int cpu)
 {
 	struct mpam_msc *msc;
+
+	if (mpam_is_enabled())
+		mpam_resctrl_offline_cpu(cpu);
 
 	guard(srcu)(&mpam_srcu);
 	list_for_each_entry_srcu(msc, &mpam_all_msc, all_msc_list,
@@ -2499,6 +2505,12 @@ static void mpam_enable_once(void)
 	} while (0);
 	mutex_unlock(&mpam_list_lock);
 	cpus_read_unlock();
+
+	if (!err) {
+		err = mpam_resctrl_setup();
+		if (err)
+			pr_err("Failed to initialise resctrl: %d\n", err);
+	}
 
 	if (err) {
 		mpam_disable_reason = "Failed to enable.";
