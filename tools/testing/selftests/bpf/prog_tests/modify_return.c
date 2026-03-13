@@ -5,6 +5,7 @@
  */
 
 #include <test_progs.h>
+#include <unistd.h>
 #include "modify_return.skel.h"
 
 #define LOWER(x) ((x) & 0xffff)
@@ -23,11 +24,13 @@ static void run_test(__u32 input_retval, __u16 want_side_effect, __s16 want_ret)
 	if (!ASSERT_OK_PTR(skel, "skel_load"))
 		goto cleanup;
 
+	skel->bss->input_retval = input_retval;
+	skel->bss->test_pid = getpid();
+
 	err = modify_return__attach(skel);
 	if (!ASSERT_OK(err, "modify_return__attach failed"))
 		goto cleanup;
 
-	skel->bss->input_retval = input_retval;
 	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
@@ -49,8 +52,7 @@ cleanup:
 	modify_return__destroy(skel);
 }
 
-/* TODO: conflict with get_func_ip_test */
-void serial_test_modify_return(void)
+void test_modify_return(void)
 {
 	run_test(0 /* input_retval */,
 		 2 /* want_side_effect */,
