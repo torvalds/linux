@@ -364,10 +364,6 @@ static int physmap_flash_of_init(struct platform_device *dev)
 		info->maps[i].bankwidth = bankwidth;
 		info->maps[i].device_node = dp;
 
-		err = of_flash_probe_bt1_rom(dev, dp, &info->maps[i]);
-		if (err)
-			return err;
-
 		err = of_flash_probe_gemini(dev, dp, &info->maps[i]);
 		if (err)
 			return err;
