@@ -3725,13 +3725,10 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 	}
 }
 
-static bool task_should_reenq(struct task_struct *p, u64 reenq_flags, u32 *reason)
+static bool local_task_should_reenq(struct task_struct *p, u64 *reenq_flags, u32 *reason)
 {
 	*reason = SCX_TASK_REENQ_KFUNC;
-
-	if (reenq_flags & SCX_REENQ_ANY)
-		return true;
-	return false;
+	return *reenq_flags & SCX_REENQ_ANY;
 }
 
 static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
@@ -3769,7 +3766,7 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 		if (!scx_is_descendant(task_sch, sch))
 			continue;
 
-		if (!task_should_reenq(p, reenq_flags, &reason))
+		if (!local_task_should_reenq(p, &reenq_flags, &reason))
 			continue;
 
 		dispatch_dequeue(rq, p);
@@ -3826,6 +3823,12 @@ static void process_deferred_reenq_locals(struct rq *rq)
 	}
 }
 
+static bool user_task_should_reenq(struct task_struct *p, u64 reenq_flags, u32 *reason)
+{
+	*reason = SCX_TASK_REENQ_KFUNC;
+	return reenq_flags & SCX_REENQ_ANY;
+}
+
 static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flags)
 {
 	struct rq *locked_rq = rq;
@@ -3846,7 +3849,7 @@ static void reenq_user(struct rq *rq, struct scx_dispatch_q *dsq, u64 reenq_flag
 		if (!p)
 			break;
 
-		if (!task_should_reenq(p, reenq_flags, &reason))
+		if (!user_task_should_reenq(p, reenq_flags, &reason))
 			continue;
 
 		task_rq = task_rq(p);
