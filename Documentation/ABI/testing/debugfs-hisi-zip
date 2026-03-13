@@ -36,6 +36,13 @@ Description:	The <bdf> is related the function for PF and VF.
 		1/1000~1000/1000 of total QoS. The driver reading alg_qos to
 		get related QoS in the host and VM, Such as "cat alg_qos".
 
+What:		/sys/kernel/debug/hisi_zip/<bdf>/dev_usage
+Date:		Mar 2026
+Contact:	linux-crypto@vger.kernel.org
+Description:	Query the real-time bandwidth usage of device.
+		Returns the bandwidth usage of each channel on the device.
+		The returned number is in percentage.
+
 What:		/sys/kernel/debug/hisi_zip/<bdf>/qm/regs
 Date:		Nov 2018
 Contact:	linux-crypto@vger.kernel.org

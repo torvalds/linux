@@ -1040,6 +1040,57 @@ void hisi_qm_show_last_dfx_regs(struct hisi_qm *qm)
 	}
 }
 
+static int qm_usage_percent(struct hisi_qm *qm, int chan_num)
+{
+	u32 val, used_bw, total_bw;
+
+	val = readl(qm->io_base + QM_CHANNEL_USAGE_OFFSET +
+				chan_num * QM_CHANNEL_ADDR_INTRVL);
+	used_bw = lower_16_bits(val);
+	total_bw = upper_16_bits(val);
+	if (!total_bw)
+		return -EIO;
+
+	if (total_bw <= used_bw)
+		return QM_MAX_DEV_USAGE;
+
+	return (used_bw * QM_DEV_USAGE_RATE) / total_bw;
+}
+
+static int qm_usage_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+	bool dev_is_active = true;
+	int i, ret;
+
+	/* If device is in suspended, usage is 0. */
+	ret = hisi_qm_get_dfx_access(qm);
+	if (ret == -EAGAIN) {
+		dev_is_active = false;
+	} else if (ret) {
+		dev_err(&qm->pdev->dev, "failed to get dfx access for usage_show!\n");
+		return ret;
+	}
+
+	ret = 0;
+	for (i = 0; i < qm->channel_data.channel_num; i++) {
+		if (dev_is_active) {
+			ret = qm_usage_percent(qm, i);
+			if (ret < 0) {
+				hisi_qm_put_dfx_access(qm);
+				return ret;
+			}
+		}
+		seq_printf(s, "%s: %d\n", qm->channel_data.channel_name[i], ret);
+	}
+
+	if (dev_is_active)
+		hisi_qm_put_dfx_access(qm);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(qm_usage);
+
 static int qm_diff_regs_show(struct seq_file *s, void *unused)
 {
 	struct hisi_qm *qm = s->private;
@@ -1158,6 +1209,9 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 	if (qm_regs)
 		debugfs_create_file("diff_regs", 0444, qm->debug.qm_d,
 					qm, &qm_diff_regs_fops);
+
+	if (qm->ver >= QM_HW_V5)
+		debugfs_create_file("dev_usage", 0444, qm->debug.debug_root, qm, &qm_usage_fops);
 
 	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
