@@ -85,8 +85,8 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	acpi_bus_generate_netlink_event(ACPI_PROCESSOR_CLASS,
-					dev_name(&device->dev), event, ev_data);
+	acpi_bus_generate_netlink_event("processor", dev_name(&device->dev),
+					event, ev_data);
 }
 
 static int __acpi_processor_start(struct acpi_device *device);

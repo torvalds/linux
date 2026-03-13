@@ -14,7 +14,6 @@
 
 #include <asm/acpi.h>
 
-#define ACPI_PROCESSOR_CLASS		"processor"
 #define ACPI_PROCESSOR_DEVICE_HID	"ACPI0007"
 #define ACPI_PROCESSOR_CONTAINER_HID	"ACPI0010"
 

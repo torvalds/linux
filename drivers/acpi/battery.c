@@ -1228,7 +1228,6 @@ static int acpi_battery_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, battery);
 
 	battery->device = device;
-	strscpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 
 	result = devm_mutex_init(&pdev->dev, &battery->update_lock);
 	if (result)

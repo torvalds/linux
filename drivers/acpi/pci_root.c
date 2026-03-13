@@ -24,7 +24,6 @@
 #include <linux/platform_data/x86/apple.h>
 #include "internal.h"
 
-#define ACPI_PCI_ROOT_CLASS		"pci_bridge"
 static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
@@ -688,7 +687,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 
 	root->device = device;
 	root->segment = segment & 0xFFFF;
-	strscpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
 	if (hotadd && dmar_device_add(handle)) {

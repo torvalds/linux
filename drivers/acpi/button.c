@@ -697,6 +697,8 @@ static void acpi_button_remove(struct platform_device *pdev)
 	acpi_button_remove_fs(button);
 	input_unregister_device(button->input);
 	kfree(button);
+
+	memset(acpi_device_class(adev), 0, sizeof(acpi_device_class));
 }
 
 static int param_set_lid_init_state(const char *val,

@@ -799,7 +799,6 @@ static int acpi_thermal_probe(struct platform_device *pdev)
 
 	tz->device = device;
 	strscpy(tz->name, device->pnp.bus_id);
-	strscpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
 
 	acpi_thermal_aml_dependency_fix(tz);
 

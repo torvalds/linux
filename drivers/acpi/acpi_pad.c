@@ -23,7 +23,6 @@
 #include <asm/mwait.h>
 #include <xen/xen.h>
 
-#define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
 
 #define ACPI_PROCESSOR_AGGREGATOR_STATUS_SUCCESS	0
@@ -413,7 +412,7 @@ static void acpi_pad_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_PROCESSOR_AGGREGATOR_NOTIFY:
 		acpi_pad_handle_notify(handle);
-		acpi_bus_generate_netlink_event(ACPI_PROCESSOR_AGGREGATOR_CLASS,
+		acpi_bus_generate_netlink_event("acpi_pad",
 						dev_name(&adev->dev), event, 0);
 		break;
 	default:
@@ -425,8 +424,6 @@ static void acpi_pad_notify(acpi_handle handle, u32 event, void *data)
 static int acpi_pad_probe(struct platform_device *pdev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
-
-	strscpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
 	return acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
 					       acpi_pad_notify, adev);

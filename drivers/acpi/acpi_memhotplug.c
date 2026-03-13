@@ -18,7 +18,6 @@
 
 #include "internal.h"
 
-#define ACPI_MEMORY_DEVICE_CLASS		"memory"
 #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
 
 static const struct acpi_device_id memory_device_ids[] = {
@@ -296,7 +295,6 @@ static int acpi_memory_device_add(struct acpi_device *device,
 	INIT_LIST_HEAD(&mem_device->res_list);
 	mem_device->device = device;
 	mem_device->mgid = -1;
-	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
 	device->driver_data = mem_device;
 
 	/* Get the range from the _CRS */
