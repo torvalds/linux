@@ -1792,6 +1792,7 @@ static struct resource_funcs dcn42_res_pool_funcs = {
 	.build_pipe_pix_clk_params = dcn42_build_pipe_pix_clk_params,
 	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe,
 	.get_max_hw_cursor_size = dcn42_get_max_hw_cursor_size,
+	.get_default_tiling_info = dcn10_get_default_tiling_info
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
