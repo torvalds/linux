@@ -21,7 +21,6 @@
 #include <linux/acpi.h>
 #include <acpi/battery.h>
 
-#define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_AC_FILE_STATE		"state"
 #define ACPI_AC_NOTIFY_STATUS		0x80
 #define ACPI_AC_STATUS_OFFLINE		0x00
