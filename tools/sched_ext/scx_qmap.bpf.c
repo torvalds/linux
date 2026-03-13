@@ -11,8 +11,6 @@
  *
  * - BPF-side queueing using PIDs.
  * - Sleepable per-task storage allocation using ops.prep_enable().
- * - Using ops.cpu_release() to handle a higher priority scheduling class taking
- *   the CPU away.
  * - Core-sched support.
  *
  * This scheduler is primarily for demonstration and testing of sched_ext
@@ -47,6 +45,8 @@ const volatile bool print_msgs;
 const volatile u64 sub_cgroup_id;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
+const volatile bool always_enq_immed;
+const volatile u32 immed_stress_nth;
 
 u64 nr_highpri_queued;
 u32 test_error_cnt;
@@ -144,8 +144,10 @@ static s32 pick_direct_dispatch_cpu(struct task_struct *p, s32 prev_cpu)
 {
 	s32 cpu;
 
-	if (p->nr_cpus_allowed == 1 ||
-	    scx_bpf_test_and_clear_cpu_idle(prev_cpu))
+	if (!always_enq_immed && p->nr_cpus_allowed == 1)
+		return prev_cpu;
+
+	if (scx_bpf_test_and_clear_cpu_idle(prev_cpu))
 		return prev_cpu;
 
 	cpu = scx_bpf_pick_idle_cpu(p->cpus_ptr, 0);
@@ -237,6 +239,22 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	 * core-sched ordering. Also, take a look at the end of qmap_dispatch().
 	 */
 	tctx->core_sched_seq = core_sched_tail_seqs[idx]++;
+
+	/*
+	 * IMMED stress testing: Every immed_stress_nth'th enqueue, dispatch
+	 * directly to prev_cpu's local DSQ even when busy to force dsq->nr > 1
+	 * and exercise the kernel IMMED reenqueue trigger paths.
+	 */
+	if (immed_stress_nth && !(enq_flags & SCX_ENQ_REENQ)) {
+		static u32 immed_stress_cnt;
+
+		if (!(++immed_stress_cnt % immed_stress_nth)) {
+			tctx->force_local = false;
+			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | scx_bpf_task_cpu(p),
+					   slice_ns, enq_flags);
+			return;
+		}
+	}
 
 	/*
 	 * If qmap_select_cpu() is telling us to or this is the last runnable
@@ -558,40 +576,11 @@ bool BPF_STRUCT_OPS(qmap_core_sched_before,
 	return task_qdist(a) > task_qdist(b);
 }
 
-SEC("tp_btf/sched_switch")
-int BPF_PROG(qmap_sched_switch, bool preempt, struct task_struct *prev,
-	     struct task_struct *next, unsigned long prev_state)
-{
-	if (!__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
-		return 0;
-
-	/*
-	 * If @cpu is taken by a higher priority scheduling class, it is no
-	 * longer available for executing sched_ext tasks. As we don't want the
-	 * tasks in @cpu's local dsq to sit there until @cpu becomes available
-	 * again, re-enqueue them into the global dsq. See %SCX_ENQ_REENQ
-	 * handling in qmap_enqueue().
-	 */
-	switch (next->policy) {
-	case 1: /* SCHED_FIFO */
-	case 2: /* SCHED_RR */
-	case 6: /* SCHED_DEADLINE */
-		scx_bpf_reenqueue_local();
-
-		/* trigger re-enqueue on CPU0 just to exercise LOCAL_ON */
-		if (__COMPAT_has_generic_reenq())
-			scx_bpf_dsq_reenq(SCX_DSQ_LOCAL_ON | 0, 0);
-	}
-
-	return 0;
-}
-
-void BPF_STRUCT_OPS(qmap_cpu_release, s32 cpu, struct scx_cpu_release_args *args)
-{
-	/* see qmap_sched_switch() to learn how to do this on newer kernels */
-	if (!__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
-		scx_bpf_reenqueue_local();
-}
+/*
+ * sched_switch tracepoint and cpu_release handlers are no longer needed.
+ * With SCX_OPS_ALWAYS_ENQ_IMMED, wakeup_preempt_scx() reenqueues IMMED
+ * tasks when a higher-priority scheduling class takes the CPU.
+ */
 
 s32 BPF_STRUCT_OPS(qmap_init_task, struct task_struct *p,
 		   struct scx_init_task_args *args)
@@ -999,7 +988,6 @@ SCX_OPS_DEFINE(qmap_ops,
 	       .dispatch		= (void *)qmap_dispatch,
 	       .tick			= (void *)qmap_tick,
 	       .core_sched_before	= (void *)qmap_core_sched_before,
-	       .cpu_release		= (void *)qmap_cpu_release,
 	       .init_task		= (void *)qmap_init_task,
 	       .dump			= (void *)qmap_dump,
 	       .dump_cpu		= (void *)qmap_dump_cpu,
