@@ -82,6 +82,18 @@ int resctrl_arch_set_cdp_enabled(enum resctrl_res_level rid, bool enable)
 	u32 partid_i = RESCTRL_RESERVED_CLOSID, partid_d = RESCTRL_RESERVED_CLOSID;
 	int cpu;
 
+	if (!IS_ENABLED(CONFIG_EXPERT) && enable) {
+		/*
+		 * If the resctrl fs is mounted more than once, sequentially,
+		 * then CDP can lead to the use of out of range PARTIDs.
+		 */
+		pr_warn("CDP not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (enable)
+		pr_warn("CDP is an expert feature and may cause MPAM to malfunction.\n");
+
 	/*
 	 * resctrl_arch_set_cdp_enabled() is only called with enable set to
 	 * false on error and unmount.
