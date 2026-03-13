@@ -141,6 +141,16 @@ xfs_healthmon_detach(
 	hm->mount_cookie = DETACHED_MOUNT_COOKIE;
 	spin_unlock(&xfs_healthmon_lock);
 
+	/*
+	 * Wake up any readers that might remain.  This can happen if unmount
+	 * races with the healthmon fd owner entering ->read_iter, having
+	 * already emptied the event queue.
+	 *
+	 * In the ->release case there shouldn't be any readers because the
+	 * only users of the waiter are read and poll.
+	 */
+	wake_up_all(&hm->wait);
+
 	trace_xfs_healthmon_detach(hm);
 	xfs_healthmon_put(hm);
 }
@@ -1027,13 +1037,6 @@ xfs_healthmon_release(
 	 * process can create another health monitor file.
 	 */
 	xfs_healthmon_detach(hm);
-
-	/*
-	 * Wake up any readers that might be left.  There shouldn't be any
-	 * because the only users of the waiter are read and poll.
-	 */
-	wake_up_all(&hm->wait);
-
 	xfs_healthmon_put(hm);
 	return 0;
 }
