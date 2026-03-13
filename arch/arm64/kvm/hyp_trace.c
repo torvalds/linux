@@ -424,17 +424,16 @@ int __init kvm_hyp_trace_init(void)
 	if (is_kernel_in_hyp_mode())
 		return 0;
 
-#ifdef CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND
 	for_each_possible_cpu(cpu) {
 		const struct arch_timer_erratum_workaround *wa =
 			per_cpu(timer_unstable_counter_workaround, cpu);
 
-		if (wa && wa->read_cntvct_el0) {
+		if (IS_ENABLED(CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND) &&
+		    wa && wa->read_cntvct_el0) {
 			pr_warn("hyp trace can't handle CNTVCT workaround '%s'\n", wa->desc);
 			return -EOPNOTSUPP;
 		}
 	}
-#endif
 
 	hyp_trace_init_events();
 
