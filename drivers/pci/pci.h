@@ -108,6 +108,8 @@ struct pcie_tlp_log;
 				 PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE)
 
 extern const unsigned char pcie_link_speed[];
+unsigned char pcie_get_link_speed(unsigned int speed);
+
 extern bool pci_early_dump;
 
 extern struct mutex pci_rescan_remove_lock;
