@@ -3634,6 +3634,9 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		case NL80211_CHAN_HT20:
 		case NL80211_CHAN_HT40PLUS:
 		case NL80211_CHAN_HT40MINUS:
+			if (chandef->chan->band == NL80211_BAND_60GHZ ||
+			    chandef->chan->band == NL80211_BAND_S1GHZ)
+				return -EINVAL;
 			cfg80211_chandef_create(chandef, chandef->chan,
 						chantype);
 			/* user input for center_freq is incorrect */
