@@ -313,11 +313,11 @@ def main():
     if args.policy:
         if args.do:
             pol = ynl.get_policy(args.do, 'do')
-            output(pol.attrs if pol else None)
+            output(pol.to_dict() if pol else None)
             args.do = None
         if args.dump:
             pol = ynl.get_policy(args.dump, 'dump')
-            output(pol.attrs if pol else None)
+            output(pol.to_dict() if pol else None)
             args.dump = None
 
     if args.ntf:

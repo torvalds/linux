@@ -68,39 +68,35 @@ def getpolicy_dump(_ctrl) -> None:
     # dev-get: do has a real policy with ifindex, dump has no policy
     # (only the reject-all policy with maxattr=0)
     pol = ndev.get_policy('dev-get', 'do')
-    ksft_in('ifindex', pol.attrs,
-            comment="dev-get do policy should have ifindex")
-    ksft_eq(pol.attrs.get('ifindex', {}).get('type'), 'u32')
+    ksft_in('ifindex', pol, comment="dev-get do policy should have ifindex")
+    ksft_eq(pol['ifindex'].type, 'u32')
 
     pol_dump = ndev.get_policy('dev-get', 'dump')
-    ksft_eq(len(pol_dump.attrs), 0,
-            comment="dev-get should not accept any attrs")
+    ksft_eq(len(pol_dump), 0, comment="dev-get should not accept any attrs")
 
     # napi-get: both do and dump have real policies
     pol_do = ndev.get_policy('napi-get', 'do')
-    ksft_ge(len(pol_do.attrs), 1)
+    ksft_ge(len(pol_do), 1)
 
     pol_dump = ndev.get_policy('napi-get', 'dump')
-    ksft_ge(len(pol_dump.attrs), 1)
+    ksft_ge(len(pol_dump), 1)
 
     # -- ethtool (full ops) --
     et = EthtoolFamily()
 
     # strset-get (has both do and dump, full ops share policy)
     pol_do = et.get_policy('strset-get', 'do')
-    ksft_ge(len(pol_do.attrs), 1, comment="strset-get should have a do policy")
+    ksft_ge(len(pol_do), 1, comment="strset-get should have a do policy")
 
     pol_dump = et.get_policy('strset-get', 'dump')
-    ksft_ge(len(pol_dump.attrs), 1,
-            comment="strset-get should have a dump policy")
+    ksft_ge(len(pol_dump), 1, comment="strset-get should have a dump policy")
 
     # Same policy means same attribute names
-    ksft_eq(set(pol_do.attrs.keys()), set(pol_dump.attrs.keys()))
+    ksft_eq(set(pol_do.keys()), set(pol_dump.keys()))
 
     # linkinfo-set is do-only (SET command), no dump
     pol_do = et.get_policy('linkinfo-set', 'do')
-    ksft_ge(len(pol_do.attrs), 1,
-            comment="linkinfo-set should have a do policy")
+    ksft_ge(len(pol_do), 1, comment="linkinfo-set should have a do policy")
 
     pol_dump = et.get_policy('linkinfo-set', 'dump')
     ksft_eq(pol_dump, None,
@@ -113,9 +109,9 @@ def getpolicy_by_op(_ctrl) -> None:
 
     # dev-get do policy should have named attributes from the spec
     pol = ndev.get_policy('dev-get', 'do')
-    ksft_ge(len(pol.attrs), 1)
+    ksft_ge(len(pol), 1)
     # All attr names should be resolved (no 'attr-N' fallbacks)
-    for name in pol.attrs:
+    for name in pol:
         ksft_true(not name.startswith('attr-'),
                   comment=f"unresolved attr name: {name}")
 
