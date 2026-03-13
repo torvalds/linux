@@ -679,6 +679,12 @@ static const struct mpam_quirk mpam_quirks[] = {
 		.iidr_mask  = MPAM_IIDR_MATCH_ONE,
 		.workaround = T241_SCRUB_SHADOW_REGS,
 	},
+	{
+		/* NVIDIA t241 erratum T241-MPAM-4 */
+		.iidr       = MPAM_IIDR_NVIDIA_T241,
+		.iidr_mask  = MPAM_IIDR_MATCH_ONE,
+		.workaround = T241_FORCE_MBW_MIN_TO_ONE,
+	},
 	{ NULL } /* Sentinel */
 };
 
@@ -1464,6 +1470,37 @@ static void mpam_quirk_post_config_change(struct mpam_msc_ris *ris, u16 partid,
 		mpam_apply_t241_erratum(ris, partid);
 }
 
+static u16 mpam_wa_t241_force_mbw_min_to_one(struct mpam_props *props)
+{
+	u16 max_hw_value, min_hw_granule, res0_bits;
+
+	res0_bits = 16 - props->bwa_wd;
+	max_hw_value = ((1 << props->bwa_wd) - 1) << res0_bits;
+	min_hw_granule = ~max_hw_value;
+
+	return min_hw_granule + 1;
+}
+
+static u16 mpam_wa_t241_calc_min_from_max(struct mpam_props *props,
+					  struct mpam_config *cfg)
+{
+	u16 val = 0;
+	u16 max;
+	u16 delta = ((5 * MPAMCFG_MBW_MAX_MAX) / 100) - 1;
+
+	if (mpam_has_feature(mpam_feat_mbw_max, cfg)) {
+		max = cfg->mbw_max;
+	} else {
+		/* Resetting. Hence, use the ris specific default. */
+		max = GENMASK(15, 16 - props->bwa_wd);
+	}
+
+	if (max > delta)
+		val = max - delta;
+
+	return val;
+}
+
 /* Called via IPI. Call while holding an SRCU reference */
 static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 				      struct mpam_config *cfg)
@@ -1504,9 +1541,18 @@ static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 			mpam_write_partsel_reg(msc, MBW_PBM, cfg->mbw_pbm);
 	}
 
-	if (mpam_has_feature(mpam_feat_mbw_min, rprops) &&
-	    mpam_has_feature(mpam_feat_mbw_min, cfg))
-		mpam_write_partsel_reg(msc, MBW_MIN, 0);
+	if (mpam_has_feature(mpam_feat_mbw_min, rprops)) {
+		u16 val = 0;
+
+		if (mpam_has_quirk(T241_FORCE_MBW_MIN_TO_ONE, msc)) {
+			u16 min = mpam_wa_t241_force_mbw_min_to_one(rprops);
+
+			val = mpam_wa_t241_calc_min_from_max(rprops, cfg);
+			val = max(val, min);
+		}
+
+		mpam_write_partsel_reg(msc, MBW_MIN, val);
+	}
 
 	if (mpam_has_feature(mpam_feat_mbw_max, rprops)) {
 		if (mpam_has_feature(mpam_feat_mbw_max, cfg))
@@ -2288,6 +2334,9 @@ static void mpam_enable_merge_class_features(struct mpam_component *comp)
 
 	list_for_each_entry(vmsc, &comp->vmsc, comp_list)
 		__class_props_mismatch(class, vmsc);
+
+	if (mpam_has_quirk(T241_FORCE_MBW_MIN_TO_ONE, class))
+		mpam_clear_feature(mpam_feat_mbw_min, &class->props);
 }
 
 /*
