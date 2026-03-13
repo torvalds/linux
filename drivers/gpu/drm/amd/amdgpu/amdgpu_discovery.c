@@ -296,13 +296,17 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 	if (vram_size)
 		adev->discovery.offset = (vram_size << 20) - DISCOVERY_TMR_OFFSET;
 
-	if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
-		adev->discovery.offset =
-			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
-		adev->discovery.size =
-			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
-		if (!adev->discovery.offset || !adev->discovery.size)
-			return -EINVAL;
+	if (amdgpu_sriov_vf(adev)) {
+		if (adev->virt.is_dynamic_crit_regn_enabled) {
+			adev->discovery.offset =
+				adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
+			adev->discovery.size =
+				adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
+			if (!adev->discovery.offset || !adev->discovery.size)
+				return -EINVAL;
+		} else {
+			goto out;
+		}
 	} else {
 		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
 		if (tmr_size) {
@@ -322,7 +326,7 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 			adev->discovery.offset = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
 		}
 	}
-
+out:
 	adev->discovery.bin = kzalloc(adev->discovery.size, GFP_KERNEL);
 	if (!adev->discovery.bin)
 		return -ENOMEM;
