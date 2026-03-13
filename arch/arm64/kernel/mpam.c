@@ -28,6 +28,10 @@ static int mpam_pm_notifier(struct notifier_block *self,
 		 */
 		regval = READ_ONCE(per_cpu(arm64_mpam_current, cpu));
 		write_sysreg_s(regval | MPAM1_EL1_MPAMEN, SYS_MPAM1_EL1);
+		if (system_supports_sme()) {
+			write_sysreg_s(regval & (MPAMSM_EL1_PARTID_D | MPAMSM_EL1_PMG_D),
+				       SYS_MPAMSM_EL1);
+		}
 		isb();
 
 		write_sysreg_s(regval, SYS_MPAM0_EL1);

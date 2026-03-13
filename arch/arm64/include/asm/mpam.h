@@ -53,6 +53,8 @@ static inline void mpam_thread_switch(struct task_struct *tsk)
 		return;
 
 	write_sysreg_s(regval | MPAM1_EL1_MPAMEN, SYS_MPAM1_EL1);
+	if (system_supports_sme())
+		write_sysreg_s(regval & (MPAMSM_EL1_PARTID_D | MPAMSM_EL1_PMG_D), SYS_MPAMSM_EL1);
 	isb();
 
 	/* Synchronising the EL0 write is left until the ERET to EL0 */
