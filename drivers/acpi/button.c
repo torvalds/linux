@@ -468,7 +468,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 	input_report_key(input, keycode, 0);
 	input_sync(input);
 
-	acpi_bus_generate_netlink_event(device->pnp.device_class,
+	acpi_bus_generate_netlink_event(acpi_device_class(device),
 					dev_name(&device->dev),
 					event, ++button->pushed);
 }

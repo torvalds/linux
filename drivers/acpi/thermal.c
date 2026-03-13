@@ -340,7 +340,7 @@ static void acpi_thermal_trips_update(struct acpi_thermal *tz, u32 event)
 	thermal_zone_for_each_trip(tz->thermal_zone,
 				   acpi_thermal_adjust_trip, &atd);
 	acpi_queue_thermal_check(tz);
-	acpi_bus_generate_netlink_event(adev->pnp.device_class,
+	acpi_bus_generate_netlink_event(ACPI_THERMAL_CLASS,
 					dev_name(&adev->dev), event, 0);
 }
 
@@ -542,7 +542,7 @@ static void acpi_thermal_zone_device_hot(struct thermal_zone_device *thermal)
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
 
-	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
+	acpi_bus_generate_netlink_event(ACPI_THERMAL_CLASS,
 					dev_name(&tz->device->dev),
 					ACPI_THERMAL_NOTIFY_HOT, 1);
 }
@@ -551,7 +551,7 @@ static void acpi_thermal_zone_device_critical(struct thermal_zone_device *therma
 {
 	struct acpi_thermal *tz = thermal_zone_device_priv(thermal);
 
-	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
+	acpi_bus_generate_netlink_event(ACPI_THERMAL_CLASS,
 					dev_name(&tz->device->dev),
 					ACPI_THERMAL_NOTIFY_CRITICAL, 1);
 

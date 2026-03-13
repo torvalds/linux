@@ -1078,7 +1078,7 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
 	acpi_battery_update(battery, false);
-	acpi_bus_generate_netlink_event(device->pnp.device_class,
+	acpi_bus_generate_netlink_event(ACPI_BATTERY_CLASS,
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));
 	acpi_notifier_call_chain(ACPI_BATTERY_CLASS, acpi_device_bid(device),
