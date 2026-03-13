@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2025 Josua Mayer <josua@solid-run.com>
+ *
+ * Overlay for enabling HummingBoard IIoT LVDS connector
+ * with Winstar WF70A8SYJHLNGA panel.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	lvds_backlight: lvds-backlight {
+		compatible = "gpio-backlight";
+		gpios = <&tca6408_u37 3 GPIO_ACTIVE_LOW>;
+	};
+
+	panel-lvds {
+		compatible = "winstar,wf70a8syjhlnga", "panel-lvds";
+		backlight = <&lvds_backlight>;
+		data-mapping = "vesa-24";
+		enable-gpios = <&tca6408_u37 2 GPIO_ACTIVE_HIGH>;
+		height-mm = <86>;
+		power-supply = <&reg_dsi_panel>;
+		reset-gpios = <&tca6408_u37 1 GPIO_ACTIVE_HIGH>;
+		width-mm = <154>;
+
+		panel-timing {
+			/*
+			 * Note: NXP BSP hard-codes 74MHz clock in ldb driver:
+			 * drivers/gpu/drm/imx/imx8mp-ldb.c
+			 * SolidRun BSP carries patch.
+			 */
+			clock-frequency = <49500000>;
+			de-active = <1>;
+			hactive = <1024>;
+			hback-porch = <144>;
+			hfront-porch = <40>;
+			hsync-active = <0>;
+			hsync-len = <104>;
+			vactive = <600>;
+			vback-porch = <11>;
+			vfront-porch = <3>;
+			vsync-active = <1>;
+			vsync-len = <10>;
+		};
+
+		port {
+			panel_from_lvds: endpoint {
+				remote-endpoint = <&ldb_lvds_ch0>;
+			};
+		};
+	};
+};
+
+&i2c_lvds {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen@41 {
+		compatible = "ilitek,ili2130";
+		reg = <0x41>;
+		interrupts-extended = <&tca6416_u21 13 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tca6408_u37 6 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&ldb_lvds_ch0 {
+	remote-endpoint = <&panel_from_lvds>;
+};
+
+&lvds_bridge {
+	status = "okay";
+};
+
+&tca6408_u37 {
+	lvds-lr-hog {
+		gpios = <4 GPIO_ACTIVE_HIGH>;
+		gpio-hog;
+		line-name = "lvds-l/r";
+		output-high;
+	};
+
+	lvds-ud-hog {
+		gpios = <5 GPIO_ACTIVE_HIGH>;
+		gpio-hog;
+		line-name = "lvds-u/d";
+		output-high;
+	};
+};
