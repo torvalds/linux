@@ -1761,7 +1761,7 @@ static int load_attribute_list_mount(struct ntfs_volume *vol,
 		/* The attribute list cannot be sparse. */
 		if (lcn < 0) {
 			ntfs_error(sb, "ntfs_rl_vcn_to_lcn() failed. Cannot read attribute list.");
-			goto err_out;
+			return -EIO;
 		}
 
 		rl_byte_off = ntfs_cluster_to_bytes(vol, lcn);
@@ -1774,7 +1774,7 @@ static int load_attribute_list_mount(struct ntfs_volume *vol,
 				   round_up(rl_byte_len, SECTOR_SIZE));
 		if (err) {
 			ntfs_error(sb, "Cannot read attribute list.");
-			goto err_out;
+			return -EIO;
 		}
 
 		if (al + rl_byte_len >= al_end) {
@@ -1792,11 +1792,6 @@ initialize:
 	}
 done:
 	return err;
-	/* Real overflow! */
-	ntfs_error(sb, "Attribute list buffer overflow. Read attribute list is truncated.");
-err_out:
-	err = -EIO;
-	goto done;
 }
 
 /*
