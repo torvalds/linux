@@ -3056,6 +3056,8 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_OD_SCLK; break;
 	case OD_MCLK:
 		clk_type = SMU_OD_MCLK; break;
+	case OD_FCLK:
+		clk_type = SMU_OD_FCLK; break;
 	case OD_VDDC_CURVE:
 		clk_type = SMU_OD_VDDC_CURVE; break;
 	case OD_RANGE:
