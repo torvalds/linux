@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0
+
+// Check fix in 795a7dfbc3d9 ("net: tcp: accept old ack during closing")
+
+// Set up config.
+`./defaults.sh`
+
+// Initialize a server socket.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S  0:0(0) win 65535 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   *  > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < .  1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+   +0 shutdown(4, SHUT_WR) = 0
+   *  > F. 1:1(0) ack 1
+
+// We expect to receive one ACK.
+// But what happens if a FIN was already in transmt and received out-of-order ?
+
+   +0 < .  2:2(0) ack 2 win 257
+
+// This FIN packet was sent before the prior ACK (see ack 1).
+   +0 < F. 1:1(0) ack 1 win 257
+
+// Even if the FIN is received out-of-order, we should ACK it.
+
+   *  > .  2:2(0) ack 2
