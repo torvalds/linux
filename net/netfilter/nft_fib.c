@@ -19,7 +19,7 @@
 			NFTA_FIB_F_PRESENT)
 
 const struct nla_policy nft_fib_policy[NFTA_FIB_MAX + 1] = {
-	[NFTA_FIB_DREG]		= { .type = NLA_U32 },
+	[NFTA_FIB_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_FIB_RESULT]	= { .type = NLA_U32 },
 	[NFTA_FIB_FLAGS]	=
 		NLA_POLICY_MASK(NLA_BE32, NFTA_FIB_F_ALL),

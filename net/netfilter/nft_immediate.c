@@ -25,7 +25,7 @@ void nft_immediate_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_immediate_policy[NFTA_IMMEDIATE_MAX + 1] = {
-	[NFTA_IMMEDIATE_DREG]	= { .type = NLA_U32 },
+	[NFTA_IMMEDIATE_DREG]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_IMMEDIATE_DATA]	= { .type = NLA_NESTED },
 };
 

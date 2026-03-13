@@ -46,6 +46,10 @@ enum nft_registers {
 };
 #define NFT_REG_MAX	(__NFT_REG_MAX - 1)
 
+#ifdef __KERNEL__
+#define NFT_REG32_MAX	NFT_REG32_15
+#endif
+
 #define NFT_REG_SIZE	16
 #define NFT_REG32_SIZE	4
 #define NFT_REG32_COUNT	(NFT_REG32_15 - NFT_REG32_00 + 1)

@@ -64,7 +64,7 @@ mismatch:
 }
 
 static const struct nla_policy nft_cmp_policy[NFTA_CMP_MAX + 1] = {
-	[NFTA_CMP_SREG]		= { .type = NLA_U32 },
+	[NFTA_CMP_SREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_CMP_OP]		= { .type = NLA_U32 },
 	[NFTA_CMP_DATA]		= { .type = NLA_NESTED },
 };
