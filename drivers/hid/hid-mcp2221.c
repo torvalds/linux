@@ -26,7 +26,7 @@ static bool gpio_mode_enforce;
 
 module_param(gpio_mode_enforce, bool, 0644);
 MODULE_PARM_DESC(gpio_mode_enforce,
-	 "Enfore GPIO mode for GP0 thru GP3 (default: false, will be used for IIO)");
+	 "Enforce GPIO mode for GP0 thru GP3 (default: false, will be used for IIO)");
 
 /* Commands codes in a raw output report */
 enum {
