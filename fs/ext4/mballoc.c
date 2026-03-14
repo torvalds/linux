@@ -4088,7 +4088,7 @@ void ext4_exit_mballoc(void)
 
 #define EXT4_MB_BITMAP_MARKED_CHECK 0x0001
 #define EXT4_MB_SYNC_UPDATE 0x0002
-static int
+int
 ext4_mb_mark_context(handle_t *handle, struct super_block *sb, bool state,
 		     ext4_group_t group, ext4_grpblk_t blkoff,
 		     ext4_grpblk_t len, int flags, ext4_grpblk_t *ret_changed)
@@ -7192,6 +7192,102 @@ out_unload:
 	return error;
 }
 
-#ifdef CONFIG_EXT4_KUNIT_TESTS
-#include "mballoc-test.c"
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+void mb_clear_bits_test(void *bm, int cur, int len)
+{
+	 mb_clear_bits(bm, cur, len);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_clear_bits_test);
+
+ext4_fsblk_t
+ext4_mb_new_blocks_simple_test(struct ext4_allocation_request *ar,
+			       int *errp)
+{
+	return ext4_mb_new_blocks_simple(ar, errp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_new_blocks_simple_test);
+
+int mb_find_next_zero_bit_test(void *addr, int max, int start)
+{
+	return mb_find_next_zero_bit(addr, max, start);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_find_next_zero_bit_test);
+
+int mb_find_next_bit_test(void *addr, int max, int start)
+{
+	return mb_find_next_bit(addr, max, start);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_find_next_bit_test);
+
+void mb_clear_bit_test(int bit, void *addr)
+{
+	mb_clear_bit(bit, addr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_clear_bit_test);
+
+int mb_test_bit_test(int bit, void *addr)
+{
+	return mb_test_bit(bit, addr);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_test_bit_test);
+
+int ext4_mb_mark_diskspace_used_test(struct ext4_allocation_context *ac,
+				     handle_t *handle)
+{
+	return ext4_mb_mark_diskspace_used(ac, handle);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_diskspace_used_test);
+
+int mb_mark_used_test(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
+{
+	return mb_mark_used(e4b, ex);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_mark_used_test);
+
+void ext4_mb_generate_buddy_test(struct super_block *sb, void *buddy,
+				 void *bitmap, ext4_group_t group,
+				 struct ext4_group_info *grp)
+{
+	ext4_mb_generate_buddy(sb, buddy, bitmap, group, grp);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_generate_buddy_test);
+
+int ext4_mb_load_buddy_test(struct super_block *sb, ext4_group_t group,
+			    struct ext4_buddy *e4b)
+{
+	return ext4_mb_load_buddy(sb, group, e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_load_buddy_test);
+
+void ext4_mb_unload_buddy_test(struct ext4_buddy *e4b)
+{
+	ext4_mb_unload_buddy(e4b);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_unload_buddy_test);
+
+void mb_free_blocks_test(struct inode *inode, struct ext4_buddy *e4b,
+			 int first, int count)
+{
+	mb_free_blocks(inode, e4b, first, count);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_free_blocks_test);
+
+void ext4_free_blocks_simple_test(struct inode *inode, ext4_fsblk_t block,
+				  unsigned long count)
+{
+	return ext4_free_blocks_simple(inode, block, count);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_blocks_simple_test);
+
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_wait_block_bitmap);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_init);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_desc);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_count_free_clusters);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_get_group_info);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_free_group_clusters_set);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_release);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_read_block_bitmap_nowait);
+EXPORT_SYMBOL_FOR_EXT4_TEST(mb_set_bits);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_fc_init_inode);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_mb_mark_context);
 #endif
