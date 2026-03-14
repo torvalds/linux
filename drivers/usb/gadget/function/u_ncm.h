@@ -15,13 +15,11 @@
 
 #include <linux/usb/composite.h>
 
-#include "u_ether.h"
-
 struct f_ncm_opts {
 	struct usb_function_instance	func_inst;
 	struct net_device		*net;
+	int				bind_count;
 
-	struct gether_opts		net_opts;
 	struct config_group		*ncm_interf_group;
 	struct usb_os_desc		ncm_os_desc;
 	char				ncm_ext_compat_id[16];
