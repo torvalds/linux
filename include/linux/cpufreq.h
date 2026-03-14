@@ -232,7 +232,7 @@ static inline bool policy_is_inactive(struct cpufreq_policy *policy)
 
 static inline bool policy_is_shared(struct cpufreq_policy *policy)
 {
-	return cpumask_weight(policy->cpus) > 1;
+	return cpumask_nth(1, policy->cpus) < nr_cpumask_bits;
 }
 
 #ifdef CONFIG_CPU_FREQ
