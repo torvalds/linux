@@ -36,7 +36,7 @@
 
   +0 read(4, ..., 100000) = 4000
 
-// If queue is empty, accept a packet even if its end_seq is above wup + rcv_wnd
+// If queue is empty, accept a packet even if its end_seq is above rcv_mwnd_seq
   +0 < P. 4001:54001(50000) ack 1 win 257
    * > .  1:1(0) ack 54001 win 0
 

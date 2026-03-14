@@ -121,6 +121,7 @@ u64                           delivered_mstamp        read_write                
 u32                           rate_delivered                              read_mostly         tcp_rate_gen
 u32                           rate_interval_us                            read_mostly         rate_delivered,rate_app_limited
 u32                           rcv_wnd                 read_write          read_mostly         tcp_select_window,tcp_receive_window,tcp_fast_path_check
+u32                           rcv_mwnd_seq            read_write                              tcp_select_window
 u32                           write_seq               read_write                              tcp_rate_check_app_limited,tcp_write_queue_empty,tcp_skb_entail,forced_push,tcp_mark_push
 u32                           notsent_lowat           read_mostly                             tcp_stream_memory_free
 u32                           pushed_seq              read_write                              tcp_mark_push,forced_push
