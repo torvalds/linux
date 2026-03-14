@@ -526,7 +526,7 @@ void intel_hfi_offline(unsigned int cpu)
 	mutex_lock(&hfi_instance_lock);
 	cpumask_clear_cpu(cpu, hfi_instance->cpus);
 
-	if (!cpumask_weight(hfi_instance->cpus))
+	if (cpumask_empty(hfi_instance->cpus))
 		hfi_disable();
 
 	mutex_unlock(&hfi_instance_lock);
