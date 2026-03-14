@@ -184,9 +184,9 @@ static int ext4_ext_get_access(handle_t *handle, struct inode *inode,
  *  - ENOMEM
  *  - EIO
  */
-static int __ext4_ext_dirty(const char *where, unsigned int line,
-			    handle_t *handle, struct inode *inode,
-			    struct ext4_ext_path *path)
+int __ext4_ext_dirty(const char *where, unsigned int line,
+		     handle_t *handle, struct inode *inode,
+		     struct ext4_ext_path *path)
 {
 	int err;
 
@@ -3159,7 +3159,7 @@ static void ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
 }
 
 /* FIXME!! we need to try to merge to left or right after zero-out  */
-static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
+int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 {
 	ext4_fsblk_t ee_pblock;
 	unsigned int ee_len;
@@ -6257,6 +6257,33 @@ out:
 	return 0;
 }
 
-#ifdef CONFIG_EXT4_KUNIT_TESTS
-#include "extents-test.c"
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+int ext4_ext_space_root_idx_test(struct inode *inode, int check)
+{
+	return ext4_ext_space_root_idx(inode, check);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_space_root_idx_test);
+
+struct ext4_ext_path *ext4_split_convert_extents_test(handle_t *handle,
+			struct inode *inode, struct ext4_map_blocks *map,
+			struct ext4_ext_path *path, int flags,
+			unsigned int *allocated)
+{
+	return ext4_split_convert_extents(handle, inode, map, path,
+					  flags, allocated);
+}
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_split_convert_extents_test);
+
+EXPORT_SYMBOL_FOR_EXT4_TEST(__ext4_ext_dirty);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_zeroout);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_register_shrinker);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_unregister_shrinker);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_create_blocks);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_init_tree);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_lookup_extent);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_es_insert_extent);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_ext_insert_extent);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_find_extent);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_issue_zeroout);
+EXPORT_SYMBOL_FOR_EXT4_TEST(ext4_map_query_blocks);
 #endif
