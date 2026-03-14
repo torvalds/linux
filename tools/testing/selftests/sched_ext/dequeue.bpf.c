@@ -342,7 +342,7 @@ void BPF_STRUCT_OPS(dequeue_dispatch, s32 cpu, struct task_struct *prev)
 
 		bpf_task_release(p);
 	} else {
-		scx_bpf_dsq_move_to_local(SHARED_DSQ);
+		scx_bpf_dsq_move_to_local(SHARED_DSQ, 0);
 	}
 }
 

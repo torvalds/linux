@@ -53,7 +53,7 @@ ddsp:
 
 void BPF_STRUCT_OPS(select_cpu_vtime_dispatch, s32 cpu, struct task_struct *p)
 {
-	if (scx_bpf_dsq_move_to_local(VTIME_DSQ))
+	if (scx_bpf_dsq_move_to_local(VTIME_DSQ, 0))
 		consumed = true;
 }
 
