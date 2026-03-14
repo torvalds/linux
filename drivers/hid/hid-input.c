@@ -526,13 +526,13 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	if (quirks & HID_BATTERY_QUIRK_IGNORE)
 		return 0;
 
-	psy_desc = kzalloc_obj(*psy_desc);
+	psy_desc = devm_kzalloc(&dev->dev, sizeof(*psy_desc), GFP_KERNEL);
 	if (!psy_desc)
 		return -ENOMEM;
 
-	psy_desc->name = kasprintf(GFP_KERNEL, "hid-%s-battery",
-				   strlen(dev->uniq) ?
-					dev->uniq : dev_name(&dev->dev));
+	psy_desc->name = devm_kasprintf(&dev->dev, GFP_KERNEL, "hid-%s-battery",
+					strlen(dev->uniq) ?
+						dev->uniq : dev_name(&dev->dev));
 	if (!psy_desc->name) {
 		error = -ENOMEM;
 		goto err_free_mem;
@@ -574,7 +574,7 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 
 	dev->battery_present = (quirks & HID_BATTERY_QUIRK_DYNAMIC) ? false : true;
 
-	dev->battery = power_supply_register(&dev->dev, psy_desc, &psy_cfg);
+	dev->battery = devm_power_supply_register(&dev->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(dev->battery)) {
 		error = PTR_ERR(dev->battery);
 		hid_warn(dev, "can't register power supply: %d\n", error);
@@ -585,25 +585,11 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	return 0;
 
 err_free_name:
-	kfree(psy_desc->name);
+	devm_kfree(&dev->dev, psy_desc->name);
 err_free_mem:
-	kfree(psy_desc);
+	devm_kfree(&dev->dev, psy_desc);
 	dev->battery = NULL;
 	return error;
-}
-
-static void hidinput_cleanup_battery(struct hid_device *dev)
-{
-	const struct power_supply_desc *psy_desc;
-
-	if (!dev->battery)
-		return;
-
-	psy_desc = dev->battery->desc;
-	power_supply_unregister(dev->battery);
-	kfree(psy_desc->name);
-	kfree(psy_desc);
-	dev->battery = NULL;
 }
 
 static bool hidinput_update_battery_charge_status(struct hid_device *dev,
@@ -658,10 +644,6 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 				  struct hid_field *field, bool is_percentage)
 {
 	return 0;
-}
-
-static void hidinput_cleanup_battery(struct hid_device *dev)
-{
 }
 
 static void hidinput_update_battery(struct hid_device *dev, unsigned int usage,
@@ -2392,8 +2374,6 @@ EXPORT_SYMBOL_GPL(hidinput_connect);
 void hidinput_disconnect(struct hid_device *hid)
 {
 	struct hid_input *hidinput, *next;
-
-	hidinput_cleanup_battery(hid);
 
 	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		list_del(&hidinput->list);
