@@ -197,6 +197,26 @@ pub trait IoLoc<T> {
     fn offset(self) -> usize;
 }
 
+/// Implements [`IoLoc<$ty>`] for [`usize`], allowing [`usize`] to be used as a parameter of
+/// [`Io::read`] and [`Io::write`].
+macro_rules! impl_usize_ioloc {
+    ($($ty:ty),*) => {
+        $(
+            impl IoLoc<$ty> for usize {
+                type IoType = $ty;
+
+                #[inline(always)]
+                fn offset(self) -> usize {
+                    self
+                }
+            }
+        )*
+    }
+}
+
+// Provide the ability to read any primitive type from a [`usize`].
+impl_usize_ioloc!(u8, u16, u32, u64);
+
 /// Types implementing this trait (e.g. MMIO BARs or PCI config regions)
 /// can perform I/O operations on regions of memory.
 ///
@@ -241,10 +261,7 @@ pub trait Io {
     where
         Self: IoCapable<u8>,
     {
-        let address = self.io_addr::<u8>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        Ok(unsafe { self.io_read(address) })
+        self.try_read(offset)
     }
 
     /// Fallible 16-bit read with runtime bounds check.
@@ -253,10 +270,7 @@ pub trait Io {
     where
         Self: IoCapable<u16>,
     {
-        let address = self.io_addr::<u16>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        Ok(unsafe { self.io_read(address) })
+        self.try_read(offset)
     }
 
     /// Fallible 32-bit read with runtime bounds check.
@@ -265,10 +279,7 @@ pub trait Io {
     where
         Self: IoCapable<u32>,
     {
-        let address = self.io_addr::<u32>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        Ok(unsafe { self.io_read(address) })
+        self.try_read(offset)
     }
 
     /// Fallible 64-bit read with runtime bounds check.
@@ -277,10 +288,7 @@ pub trait Io {
     where
         Self: IoCapable<u64>,
     {
-        let address = self.io_addr::<u64>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        Ok(unsafe { self.io_read(address) })
+        self.try_read(offset)
     }
 
     /// Fallible 8-bit write with runtime bounds check.
@@ -289,11 +297,7 @@ pub trait Io {
     where
         Self: IoCapable<u8>,
     {
-        let address = self.io_addr::<u8>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        unsafe { self.io_write(value, address) };
-        Ok(())
+        self.try_write(offset, value)
     }
 
     /// Fallible 16-bit write with runtime bounds check.
@@ -302,11 +306,7 @@ pub trait Io {
     where
         Self: IoCapable<u16>,
     {
-        let address = self.io_addr::<u16>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        unsafe { self.io_write(value, address) };
-        Ok(())
+        self.try_write(offset, value)
     }
 
     /// Fallible 32-bit write with runtime bounds check.
@@ -315,11 +315,7 @@ pub trait Io {
     where
         Self: IoCapable<u32>,
     {
-        let address = self.io_addr::<u32>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        unsafe { self.io_write(value, address) };
-        Ok(())
+        self.try_write(offset, value)
     }
 
     /// Fallible 64-bit write with runtime bounds check.
@@ -328,11 +324,7 @@ pub trait Io {
     where
         Self: IoCapable<u64>,
     {
-        let address = self.io_addr::<u64>(offset)?;
-
-        // SAFETY: `address` has been validated by `io_addr`.
-        unsafe { self.io_write(value, address) };
-        Ok(())
+        self.try_write(offset, value)
     }
 
     /// Infallible 8-bit read with compile-time bounds check.
@@ -341,10 +333,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u8>,
     {
-        let address = self.io_addr_assert::<u8>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_read(address) }
+        self.read(offset)
     }
 
     /// Infallible 16-bit read with compile-time bounds check.
@@ -353,10 +342,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u16>,
     {
-        let address = self.io_addr_assert::<u16>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_read(address) }
+        self.read(offset)
     }
 
     /// Infallible 32-bit read with compile-time bounds check.
@@ -365,10 +351,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u32>,
     {
-        let address = self.io_addr_assert::<u32>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_read(address) }
+        self.read(offset)
     }
 
     /// Infallible 64-bit read with compile-time bounds check.
@@ -377,10 +360,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u64>,
     {
-        let address = self.io_addr_assert::<u64>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_read(address) }
+        self.read(offset)
     }
 
     /// Infallible 8-bit write with compile-time bounds check.
@@ -389,10 +369,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u8>,
     {
-        let address = self.io_addr_assert::<u8>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_write(value, address) }
+        self.write(offset, value)
     }
 
     /// Infallible 16-bit write with compile-time bounds check.
@@ -401,10 +378,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u16>,
     {
-        let address = self.io_addr_assert::<u16>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_write(value, address) }
+        self.write(offset, value)
     }
 
     /// Infallible 32-bit write with compile-time bounds check.
@@ -413,10 +387,7 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u32>,
     {
-        let address = self.io_addr_assert::<u32>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_write(value, address) }
+        self.write(offset, value)
     }
 
     /// Infallible 64-bit write with compile-time bounds check.
@@ -425,13 +396,31 @@ pub trait Io {
     where
         Self: IoKnownSize + IoCapable<u64>,
     {
-        let address = self.io_addr_assert::<u64>(offset);
-
-        // SAFETY: `address` has been validated by `io_addr_assert`.
-        unsafe { self.io_write(value, address) }
+        self.write(offset, value)
     }
 
     /// Generic fallible read with runtime bounds check.
+    ///
+    /// # Examples
+    ///
+    /// Read a primitive type from an I/O address:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_reads(io: &Mmio) -> Result {
+    ///     // 32-bit read from address `0x10`.
+    ///     let v: u32 = io.try_read(0x10)?;
+    ///
+    ///     // 8-bit read from address `0xfff`.
+    ///     let v: u8 = io.try_read(0xfff)?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     #[inline(always)]
     fn try_read<T, L>(&self, location: L) -> Result<T>
     where
@@ -445,6 +434,27 @@ pub trait Io {
     }
 
     /// Generic fallible write with runtime bounds check.
+    ///
+    /// # Examples
+    ///
+    /// Write a primitive type to an I/O address:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_writes(io: &Mmio) -> Result {
+    ///     // 32-bit write of value `1` at address `0x10`.
+    ///     io.try_write(0x10, 1u32)?;
+    ///
+    ///     // 8-bit write of value `0xff` at address `0xfff`.
+    ///     io.try_write(0xfff, 0xffu8)?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     #[inline(always)]
     fn try_write<T, L>(&self, location: L, value: T) -> Result
     where
@@ -464,6 +474,23 @@ pub trait Io {
     ///
     /// Note: this does not perform any synchronization. The caller is responsible for ensuring
     /// exclusive access if required.
+    ///
+    /// # Examples
+    ///
+    /// Read the u32 value at address `0x10`, increment it, and store the updated value back:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_update(io: &Mmio<0x1000>) -> Result {
+    ///     io.try_update(0x10, |v: u32| {
+    ///         v + 1
+    ///     })
+    /// }
+    /// ```
     #[inline(always)]
     fn try_update<T, L, F>(&self, location: L, f: F) -> Result
     where
@@ -484,6 +511,25 @@ pub trait Io {
     }
 
     /// Generic infallible read with compile-time bounds check.
+    ///
+    /// # Examples
+    ///
+    /// Read a primitive type from an I/O address:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_reads(io: &Mmio<0x1000>) {
+    ///     // 32-bit read from address `0x10`.
+    ///     let v: u32 = io.read(0x10);
+    ///
+    ///     // 8-bit read from the top of the I/O space.
+    ///     let v: u8 = io.read(0xfff);
+    /// }
+    /// ```
     #[inline(always)]
     fn read<T, L>(&self, location: L) -> T
     where
@@ -497,6 +543,25 @@ pub trait Io {
     }
 
     /// Generic infallible write with compile-time bounds check.
+    ///
+    /// # Examples
+    ///
+    /// Write a primitive type to an I/O address:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_writes(io: &Mmio<0x1000>) {
+    ///     // 32-bit write of value `1` at address `0x10`.
+    ///     io.write(0x10, 1u32);
+    ///
+    ///     // 8-bit write of value `0xff` at the top of the I/O space.
+    ///     io.write(0xfff, 0xffu8);
+    /// }
+    /// ```
     #[inline(always)]
     fn write<T, L>(&self, location: L, value: T)
     where
@@ -514,6 +579,23 @@ pub trait Io {
     ///
     /// Note: this does not perform any synchronization. The caller is responsible for ensuring
     /// exclusive access if required.
+    ///
+    /// # Examples
+    ///
+    /// Read the u32 value at address `0x10`, increment it, and store the updated value back:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// fn do_update(io: &Mmio<0x1000>) {
+    ///     io.update(0x10, |v: u32| {
+    ///         v + 1
+    ///     })
+    /// }
+    /// ```
     #[inline(always)]
     fn update<T, L, F>(&self, location: L, f: F)
     where
