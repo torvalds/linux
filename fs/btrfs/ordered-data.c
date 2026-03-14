@@ -253,10 +253,15 @@ static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
 	spin_lock(&inode->ordered_tree_lock);
 	node = tree_insert(&inode->ordered_tree, entry->file_offset,
 			   &entry->rb_node);
-	if (unlikely(node))
+	if (unlikely(node)) {
+		struct btrfs_ordered_extent *exist =
+			rb_entry(node, struct btrfs_ordered_extent, rb_node);
+
 		btrfs_panic(fs_info, -EEXIST,
-				"inconsistency in ordered tree at offset %llu",
-				entry->file_offset);
+"overlapping ordered extents, existing oe file_offset %llu num_bytes %llu flags 0x%lx, new oe file_offset %llu num_bytes %llu flags 0x%lx",
+			    exist->file_offset, exist->num_bytes, exist->flags,
+			    entry->file_offset, entry->num_bytes, entry->flags);
+	}
 	spin_unlock(&inode->ordered_tree_lock);
 
 	spin_lock(&root->ordered_extent_lock);
