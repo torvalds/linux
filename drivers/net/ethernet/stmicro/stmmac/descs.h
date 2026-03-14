@@ -173,6 +173,8 @@ struct dma_edesc {
 	struct dma_desc basic;
 };
 
+#define dma_desc_to_edesc(x) container_of(x, struct dma_edesc, basic)
+
 /* Transmit checksum insertion control */
 #define	TX_CIC_FULL	3	/* Include IP header and pseudoheader */
 
