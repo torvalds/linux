@@ -216,6 +216,11 @@ static inline void cmos_write_bank2(unsigned char val, unsigned char addr)
 
 /*----------------------------------------------------------------*/
 
+static bool cmos_no_alarm(struct cmos_rtc *cmos)
+{
+	return !is_valid_irq(cmos->irq) && !cmos_use_acpi_alarm();
+}
+
 static int cmos_read_time(struct device *dev, struct rtc_time *t)
 {
 	int ret;
@@ -287,7 +292,7 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	};
 
 	/* This not only a rtc_op, but also called directly */
-	if (!is_valid_irq(cmos->irq))
+	if (cmos_no_alarm(cmos))
 		return -ETIMEDOUT;
 
 	/* Basic alarms only support hour, minute, and seconds fields.
@@ -520,7 +525,7 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	int ret;
 
 	/* This not only a rtc_op, but also called directly */
-	if (!is_valid_irq(cmos->irq))
+	if (cmos_no_alarm(cmos))
 		return -EIO;
 
 	ret = cmos_validate_alarm(dev, t);
@@ -1096,7 +1101,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			dev_dbg(dev, "IRQ %d is already in use\n", rtc_irq);
 			goto cleanup1;
 		}
-	} else {
+	} else if (!cmos_use_acpi_alarm()) {
 		clear_bit(RTC_FEATURE_ALARM, cmos_rtc.rtc->features);
 	}
 
@@ -1121,7 +1126,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		acpi_rtc_event_setup(dev);
 
 	dev_info(dev, "%s%s, %d bytes nvram%s\n",
-		 !is_valid_irq(rtc_irq) ? "no alarms" :
+		 cmos_no_alarm(&cmos_rtc) ? "no alarms" :
 		 cmos_rtc.mon_alrm ? "alarms up to one year" :
 		 cmos_rtc.day_alrm ? "alarms up to one month" :
 		 "alarms up to one day",
@@ -1147,7 +1152,7 @@ cleanup0:
 static void cmos_do_shutdown(int rtc_irq)
 {
 	spin_lock_irq(&rtc_lock);
-	if (is_valid_irq(rtc_irq))
+	if (!cmos_no_alarm(&cmos_rtc))
 		cmos_irq_disable(&cmos_rtc, RTC_IRQMASK);
 	spin_unlock_irq(&rtc_lock);
 }
