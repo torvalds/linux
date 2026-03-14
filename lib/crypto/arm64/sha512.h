@@ -18,8 +18,7 @@ asmlinkage size_t __sha512_ce_transform(struct sha512_block_state *state,
 static void sha512_blocks(struct sha512_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_sha512_insns) &&
+	if (static_branch_likely(&have_sha512_insns) &&
 	    likely(may_use_simd())) {
 		do {
 			size_t rem;
@@ -35,11 +34,9 @@ static void sha512_blocks(struct sha512_block_state *state,
 	}
 }
 
-#ifdef CONFIG_KERNEL_MODE_NEON
 #define sha512_mod_init_arch sha512_mod_init_arch
 static void sha512_mod_init_arch(void)
 {
 	if (cpu_have_named_feature(SHA512))
 		static_branch_enable(&have_sha512_insns);
 }
-#endif /* CONFIG_KERNEL_MODE_NEON */

@@ -23,13 +23,10 @@ ifeq ($(CONFIG_CRYPTO_LIB_AES_ARCH),y)
 CFLAGS_aes.o += -I$(src)/$(SRCARCH)
 
 libaes-$(CONFIG_ARM) += arm/aes-cipher-core.o
-
-ifeq ($(CONFIG_ARM64),y)
-libaes-y += arm64/aes-cipher-core.o
-libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o \
-				     arm64/aes-ce.o \
-				     arm64/aes-neon.o
-endif
+libaes-$(CONFIG_ARM64) += arm64/aes-cipher-core.o \
+			  arm64/aes-ce-core.o \
+			  arm64/aes-ce.o \
+			  arm64/aes-neon.o
 
 ifeq ($(CONFIG_PPC),y)
 ifeq ($(CONFIG_SPE),y)
@@ -299,10 +296,9 @@ AFLAGS_arm/sha256-core.o += $(aflags-thumb2-y)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
-libsha256-y += arm64/sha256-core.o
+libsha256-y += arm64/sha256-ce.o arm64/sha256-core.o
 $(obj)/arm64/sha256-core.S: $(src)/arm64/sha2-armv8.pl
 	$(call cmd,perlasm_with_args)
-libsha256-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha256-ce.o
 endif
 
 libsha256-$(CONFIG_PPC) += powerpc/sha256-spe-asm.o
@@ -329,10 +325,9 @@ AFLAGS_arm/sha512-core.o += $(aflags-thumb2-y)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
-libsha512-y += arm64/sha512-core.o
+libsha512-y += arm64/sha512-ce-core.o arm64/sha512-core.o
 $(obj)/arm64/sha512-core.S: $(src)/arm64/sha2-armv8.pl
 	$(call cmd,perlasm_with_args)
-libsha512-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha512-ce-core.o
 endif
 
 libsha512-$(CONFIG_RISCV) += riscv/sha512-riscv64-zvknhb-zvkb.o

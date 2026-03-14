@@ -20,8 +20,7 @@ asmlinkage size_t __sha256_ce_transform(struct sha256_block_state *state,
 static void sha256_blocks(struct sha256_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_neon) && likely(may_use_simd())) {
+	if (static_branch_likely(&have_neon) && likely(may_use_simd())) {
 		if (static_branch_likely(&have_ce)) {
 			do {
 				size_t rem;
@@ -61,8 +60,7 @@ static bool sha256_finup_2x_arch(const struct __sha256_ctx *ctx,
 	 * Further limit len to 65536 to avoid spending too long with preemption
 	 * disabled.  (Of course, in practice len is nearly always 4096 anyway.)
 	 */
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_ce) && len >= SHA256_BLOCK_SIZE &&
+	if (static_branch_likely(&have_ce) && len >= SHA256_BLOCK_SIZE &&
 	    len <= 65536 && likely(may_use_simd())) {
 		scoped_ksimd()
 			sha256_ce_finup2x(ctx, data1, data2, len, out1, out2);
@@ -78,7 +76,6 @@ static bool sha256_finup_2x_is_optimized_arch(void)
 	return static_key_enabled(&have_ce);
 }
 
-#ifdef CONFIG_KERNEL_MODE_NEON
 #define sha256_mod_init_arch sha256_mod_init_arch
 static void sha256_mod_init_arch(void)
 {
@@ -88,4 +85,3 @@ static void sha256_mod_init_arch(void)
 			static_branch_enable(&have_ce);
 	}
 }
-#endif /* CONFIG_KERNEL_MODE_NEON */
