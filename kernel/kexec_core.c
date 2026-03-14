@@ -47,7 +47,6 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 
-#include <crypto/hash.h>
 #include "kexec_internal.h"
 
 atomic_t __kexec_lock = ATOMIC_INIT(0);
