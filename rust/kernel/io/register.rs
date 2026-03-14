@@ -80,10 +80,10 @@
 //!     .with_const_minor_revision::<10>()
 //!     // Runtime value.
 //!     .with_vendor_id(obtain_vendor_id());
-//! io.write((), new_boot0);
+//! io.write_reg(new_boot0);
 //!
 //! // Or, build a new value from zero and write it:
-//! io.write((), BOOT_0::zeroed()
+//! io.write_reg(BOOT_0::zeroed()
 //!     .with_const_major_revision::<3>()
 //!     .with_const_minor_revision::<10>()
 //!     .with_vendor_id(obtain_vendor_id())
@@ -382,6 +382,34 @@ where
     }
 }
 
+/// Trait implemented by items that contain both a register value and the absolute I/O location at
+/// which to write it.
+///
+/// Implementors can be used with [`Io::write_reg`](super::Io::write_reg).
+pub trait LocatedRegister {
+    /// Register value to write.
+    type Value: Register;
+    /// Full location information at which to write the value.
+    type Location: IoLoc<Self::Value>;
+
+    /// Consumes `self` and returns a `(location, value)` tuple describing a valid I/O write
+    /// operation.
+    fn into_io_op(self) -> (Self::Location, Self::Value);
+}
+
+impl<T> LocatedRegister for T
+where
+    T: FixedRegister,
+{
+    type Location = FixedRegisterLoc<Self::Value>;
+    type Value = T;
+
+    #[inline(always)]
+    fn into_io_op(self) -> (FixedRegisterLoc<T>, T) {
+        (FixedRegisterLoc::new(), self)
+    }
+}
+
 /// Defines a dedicated type for a register, including getter and setter methods for its fields and
 /// methods to read and write it from an [`Io`](kernel::io::Io) region.
 ///
@@ -436,6 +464,9 @@ where
 /// // The location of fixed offset registers is already contained in their type. Thus, the
 /// // `location` argument of `Io::write` is technically redundant and can be replaced by `()`.
 /// io.write((), val2);
+///
+/// // Or, the single-argument `Io::write_reg` can be used.
+/// io.write_reg(val2);
 /// # }
 ///
 /// ```

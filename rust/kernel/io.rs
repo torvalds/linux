@@ -17,6 +17,8 @@ pub mod resource;
 pub use crate::register;
 pub use resource::Resource;
 
+use register::LocatedRegister;
+
 /// Physical address type.
 ///
 /// This is a type alias to either `u32` or `u64` depending on the config option
@@ -473,6 +475,49 @@ pub trait Io {
         Ok(())
     }
 
+    /// Generic fallible write of a fully-located register value.
+    ///
+    /// # Examples
+    ///
+    /// Tuples carrying a location and a value can be used with this method:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     register,
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// register! {
+    ///     VERSION(u32) @ 0x100 {
+    ///         15:8 major;
+    ///         7:0  minor;
+    ///     }
+    /// }
+    ///
+    /// impl VERSION {
+    ///     fn new(major: u8, minor: u8) -> Self {
+    ///         VERSION::zeroed().with_major(major).with_minor(minor)
+    ///     }
+    /// }
+    ///
+    /// fn do_write_reg(io: &Mmio) -> Result {
+    ///
+    ///     io.try_write_reg(VERSION::new(1, 0))
+    /// }
+    /// ```
+    #[inline(always)]
+    fn try_write_reg<T, L, V>(&self, value: V) -> Result
+    where
+        L: IoLoc<T>,
+        V: LocatedRegister<Location = L, Value = T>,
+        Self: IoCapable<L::IoType>,
+    {
+        let (location, value) = value.into_io_op();
+
+        self.try_write(location, value)
+    }
+
     /// Generic fallible update with runtime bounds check.
     ///
     /// Note: this does not perform any synchronization. The caller is responsible for ensuring
@@ -576,6 +621,48 @@ pub trait Io {
 
         // SAFETY: `address` has been validated by `io_addr_assert`.
         unsafe { self.io_write(io_value, address) }
+    }
+
+    /// Generic infallible write of a fully-located register value.
+    ///
+    /// # Examples
+    ///
+    /// Tuples carrying a location and a value can be used with this method:
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     register,
+    ///     Io,
+    ///     Mmio,
+    /// };
+    ///
+    /// register! {
+    ///     VERSION(u32) @ 0x100 {
+    ///         15:8 major;
+    ///         7:0  minor;
+    ///     }
+    /// }
+    ///
+    /// impl VERSION {
+    ///     fn new(major: u8, minor: u8) -> Self {
+    ///         VERSION::zeroed().with_major(major).with_minor(minor)
+    ///     }
+    /// }
+    ///
+    /// fn do_write_reg(io: &Mmio<0x1000>) {
+    ///     io.write_reg(VERSION::new(1, 0));
+    /// }
+    /// ```
+    #[inline(always)]
+    fn write_reg<T, L, V>(&self, value: V)
+    where
+        L: IoLoc<T>,
+        V: LocatedRegister<Location = L, Value = T>,
+        Self: IoKnownSize + IoCapable<L::IoType>,
+    {
+        let (location, value) = value.into_io_op();
+
+        self.write(location, value)
     }
 
     /// Generic infallible update with compile-time bounds check.
