@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/rbtree.h>
+#include <linux/rbtree_augmented.h>
 
 /**
  * GPU_BUDDY_RANGE_ALLOCATION - Allocate within a specific address range
@@ -128,6 +129,7 @@ struct gpu_buddy_block {
 	};
 /* private: */
 	struct list_head tmp_link;
+	unsigned int subtree_max_alignment;
 };
 
 /* Order-zero must be at least SZ_4K */

@@ -1363,6 +1363,18 @@ static void anx7625_configure_hpd(struct anx7625_data *ctx)
 	anx7625_hpd_timer_config(ctx);
 }
 
+static bool anx7625_need_pd(struct anx7625_data *ctx)
+{
+	struct fwnode_handle *fwnode;
+
+	fwnode = device_get_named_child_node(ctx->dev, "connector");
+	if (!fwnode)
+		return false;
+
+	fwnode_handle_put(fwnode);
+	return true;
+}
+
 static int anx7625_ocm_loading_check(struct anx7625_data *ctx)
 {
 	int ret;
@@ -1378,7 +1390,7 @@ static int anx7625_ocm_loading_check(struct anx7625_data *ctx)
 	if ((ret & FLASH_LOAD_STA_CHK) != FLASH_LOAD_STA_CHK)
 		return -ENODEV;
 
-	if (!ctx->typec_port)
+	if (!anx7625_need_pd(ctx))
 		anx7625_disable_pd_protocol(ctx);
 	anx7625_configure_hpd(ctx);
 
@@ -1483,7 +1495,6 @@ static void anx7625_start_dp_work(struct anx7625_data *ctx)
 	DRM_DEV_DEBUG_DRIVER(dev, "Secure OCM version=%02x\n", ret);
 }
 
-#if IS_REACHABLE(CONFIG_TYPEC)
 static u8 anx7625_checksum(u8 *buf, u8 len)
 {
 	u8 ret = 0;
@@ -1567,6 +1578,9 @@ static void anx7625_typec_set_status(struct anx7625_data *ctx,
 				     unsigned int intr_status,
 				     unsigned int intr_vector)
 {
+	if (!ctx->typec_port)
+		return;
+
 	if (intr_vector & CC_STATUS)
 		anx7625_typec_set_orientation(ctx);
 	if (intr_vector & DATA_ROLE_STATUS) {
@@ -1635,22 +1649,6 @@ static void anx7625_typec_unregister(struct anx7625_data *ctx)
 	usb_role_switch_put(ctx->role_sw);
 	typec_unregister_port(ctx->typec_port);
 }
-#else
-static void anx7625_typec_set_status(struct anx7625_data *ctx,
-				     unsigned int intr_status,
-				     unsigned int intr_vector)
-{
-}
-
-static int anx7625_typec_register(struct anx7625_data *ctx)
-{
-	return 0;
-}
-
-static void anx7625_typec_unregister(struct anx7625_data *ctx)
-{
-}
-#endif
 
 static int anx7625_read_hpd_status_p0(struct anx7625_data *ctx)
 {
@@ -2924,12 +2922,7 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 	}
 
 	if (!platform->pdata.low_power_mode) {
-		struct fwnode_handle *fwnode;
-
-		fwnode = device_get_named_child_node(dev, "connector");
-		if (fwnode)
-			fwnode_handle_put(fwnode);
-		else
+		if (!anx7625_need_pd(platform))
 			anx7625_disable_pd_protocol(platform);
 
 		anx7625_configure_hpd(platform);

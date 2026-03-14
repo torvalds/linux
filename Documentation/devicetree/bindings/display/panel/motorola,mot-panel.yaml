@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/motorola,mot-panel.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atrix 4G and Droid X2 DSI Display Panel
+
+maintainers:
+  - Svyatoslav Ryhel <clamor95@gmail.com>
+
+description:
+  Atrix 4G and Droid X2 use the same 540x960 DSI video mode panel. Exact
+  panel vendor and model are unknown hence generic compatible based on the
+  board name "Mot" is used.
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: motorola,mot-panel
+
+  reg:
+    maxItems: 1
+
+  vdd-supply:
+    description: Regulator for main power supply.
+
+  vddio-supply:
+    description: Regulator for 1.8V IO power supply.
+
+  backlight: true
+  reset-gpios: true
+  port: true
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "motorola,mot-panel";
+            reg = <0>;
+
+            reset-gpios = <&gpio 35 GPIO_ACTIVE_LOW>;
+
+            vdd-supply = <&vdd_5v0_panel>;
+            vddio-supply = <&vdd_1v8_vio>;
+
+            backlight = <&backlight>;
+
+            port {
+                panel_in: endpoint {
+                    remote-endpoint = <&dsi_out>;
+                };
+            };
+        };
+    };
+...

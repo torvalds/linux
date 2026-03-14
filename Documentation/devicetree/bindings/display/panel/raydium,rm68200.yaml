@@ -33,12 +33,12 @@ properties:
   reset-gpios:
     maxItems: 1
 
-additionalProperties: false
-
 required:
   - compatible
   - power-supply
   - reg
+
+additionalProperties: false
 
 examples:
   - |
