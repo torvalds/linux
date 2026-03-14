@@ -6444,13 +6444,17 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 
 #ifdef CONFIG_EXT_SUB_SCHED
 	char *buf = kzalloc(PATH_MAX, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		ret = -ENOMEM;
 		goto err_stop_helper;
+	}
 	cgroup_path(cgrp, buf, PATH_MAX);
 	sch->cgrp_path = kstrdup(buf, GFP_KERNEL);
 	kfree(buf);
-	if (!sch->cgrp_path)
+	if (!sch->cgrp_path) {
+		ret = -ENOMEM;
 		goto err_stop_helper;
+	}
 
 	sch->cgrp = cgrp;
 	INIT_LIST_HEAD(&sch->children);
