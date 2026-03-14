@@ -2242,7 +2242,7 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	struct io_ring_ctx *ctx = file->private_data;
 	__poll_t mask = 0;
 
-	if (unlikely(!(ctx->int_flags & IO_RING_F_POLL_ACTIVATED)))
+	if (unlikely(!(data_race(ctx->int_flags) & IO_RING_F_POLL_ACTIVATED)))
 		io_activate_pollwq(ctx);
 	/*
 	 * provides mb() which pairs with barrier from wq_has_sleeper

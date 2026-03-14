@@ -470,11 +470,12 @@ static inline void io_req_complete_defer(struct io_kiocb *req)
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
+#define SHOULD_FLUSH_MASK	(IO_RING_F_OFF_TIMEOUT_USED | \
+				 IO_RING_F_HAS_EVFD | IO_RING_F_POLL_ACTIVATED)
+
 static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
-	if (unlikely(ctx->int_flags & (IO_RING_F_OFF_TIMEOUT_USED |
-				       IO_RING_F_HAS_EVFD |
-				       IO_RING_F_POLL_ACTIVATED)))
+	if (unlikely(data_race(ctx->int_flags) & SHOULD_FLUSH_MASK))
 		__io_commit_cqring_flush(ctx);
 }
 

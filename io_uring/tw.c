@@ -222,7 +222,7 @@ void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 
 	if (!head) {
 		io_ctx_mark_taskrun(ctx);
-		if (ctx->int_flags & IO_RING_F_HAS_EVFD)
+		if (data_race(ctx->int_flags) & IO_RING_F_HAS_EVFD)
 			io_eventfd_signal(ctx, false);
 	}
 
