@@ -184,9 +184,9 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		return ret;
 	}
 	if (ctx->restrictions.op_registered)
-		ctx->op_restricted = 1;
+		ctx->int_flags |= IO_RING_F_OP_RESTRICTED;
 	if (ctx->restrictions.reg_registered)
-		ctx->reg_restricted = 1;
+		ctx->int_flags |= IO_RING_F_REG_RESTRICTED;
 	return 0;
 }
 
@@ -384,7 +384,7 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 	for (i = 0; i < ARRAY_SIZE(new_count); i++)
 		if (new_count[i])
 			ctx->iowq_limits[i] = new_count[i];
-	ctx->iowq_limits_set = true;
+	ctx->int_flags |= IO_RING_F_IOWQ_LIMITS_SET;
 
 	if (tctx && tctx->io_wq) {
 		ret = io_wq_max_workers(tctx->io_wq, new_count);
@@ -725,7 +725,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (ctx->submitter_task && ctx->submitter_task != current)
 		return -EEXIST;
 
-	if (ctx->reg_restricted && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
+	if ((ctx->int_flags & IO_RING_F_REG_RESTRICTED) && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
 		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;

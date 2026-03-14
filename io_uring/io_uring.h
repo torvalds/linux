@@ -211,7 +211,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		lockdep_assert_held(&ctx->uring_lock);
-	} else if (!ctx->task_complete) {
+	} else if (!(ctx->int_flags & IO_RING_F_TASK_COMPLETE)) {
 		lockdep_assert_held(&ctx->completion_lock);
 	} else if (ctx->submitter_task) {
 		/*
@@ -228,7 +228,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 
 static inline bool io_is_compat(struct io_ring_ctx *ctx)
 {
-	return IS_ENABLED(CONFIG_COMPAT) && unlikely(ctx->compat);
+	return IS_ENABLED(CONFIG_COMPAT) && unlikely(ctx->int_flags & IO_RING_F_COMPAT);
 }
 
 static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
@@ -472,8 +472,9 @@ static inline void io_req_complete_defer(struct io_kiocb *req)
 
 static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
 {
-	if (unlikely(ctx->off_timeout_used ||
-		     ctx->has_evfd || ctx->poll_activated))
+	if (unlikely(ctx->int_flags & (IO_RING_F_OFF_TIMEOUT_USED |
+				       IO_RING_F_HAS_EVFD |
+				       IO_RING_F_POLL_ACTIVATED)))
 		__io_commit_cqring_flush(ctx);
 }
 

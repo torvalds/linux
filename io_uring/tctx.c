@@ -121,7 +121,7 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 			return ret;
 
 		tctx = current->io_uring;
-		if (ctx->iowq_limits_set) {
+		if (ctx->int_flags & IO_RING_F_IOWQ_LIMITS_SET) {
 			unsigned int limits[2] = { ctx->iowq_limits[0],
 						   ctx->iowq_limits[1], };
 

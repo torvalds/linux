@@ -566,8 +566,8 @@ static int __io_timeout_prep(struct io_kiocb *req,
 
 	INIT_LIST_HEAD(&timeout->list);
 	timeout->off = off;
-	if (unlikely(off && !req->ctx->off_timeout_used))
-		req->ctx->off_timeout_used = true;
+	if (unlikely(off && !(req->ctx->int_flags & IO_RING_F_OFF_TIMEOUT_USED)))
+		req->ctx->int_flags |= IO_RING_F_OFF_TIMEOUT_USED;
 	/*
 	 * for multishot reqs w/ fixed nr of repeats, repeats tracks the
 	 * remaining nr
