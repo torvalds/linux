@@ -1101,3 +1101,24 @@ where
         unsafe { Self::__new(T::from(value)) }
     }
 }
+
+impl<T> Bounded<T, 1>
+where
+    T: Integer + Zeroable,
+{
+    /// Converts this [`Bounded`] into a [`bool`].
+    ///
+    /// This is a shorter way of writing `bool::from(self)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::num::Bounded;
+    ///
+    /// assert_eq!(Bounded::<u8, 1>::new::<0>().into_bool(), false);
+    /// assert_eq!(Bounded::<u8, 1>::new::<1>().into_bool(), true);
+    /// ```
+    pub fn into_bool(self) -> bool {
+        self.into()
+    }
+}
