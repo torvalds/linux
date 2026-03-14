@@ -370,7 +370,7 @@ bool __rwsem_del_waiter(struct rw_semaphore *sem, struct rwsem_waiter *waiter)
 {
 	if (list_empty(&waiter->list)) {
 		sem->first_waiter = NULL;
-		return true;
+		return false;
 	}
 
 	if (sem->first_waiter == waiter) {
@@ -379,7 +379,7 @@ bool __rwsem_del_waiter(struct rw_semaphore *sem, struct rwsem_waiter *waiter)
 	}
 	list_del(&waiter->list);
 
-	return false;
+	return true;
 }
 
 /*
