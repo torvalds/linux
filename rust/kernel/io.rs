@@ -173,6 +173,30 @@ pub trait IoCapable<T> {
     unsafe fn io_write(&self, value: T, address: usize);
 }
 
+/// Describes a given I/O location: its offset, width, and type to convert the raw value from and
+/// into.
+///
+/// This trait is the key abstraction allowing [`Io::read`], [`Io::write`], and [`Io::update`] (and
+/// their fallible [`try_read`](Io::try_read), [`try_write`](Io::try_write) and
+/// [`try_update`](Io::try_update) counterparts) to work uniformly with both raw [`usize`] offsets
+/// (for primitive types like [`u32`]) and typed ones.
+///
+/// An `IoLoc<T>` carries three pieces of information:
+///
+/// - The offset to access (returned by [`IoLoc::offset`]),
+/// - The width of the access (determined by [`IoLoc::IoType`]),
+/// - The type `T` in which the raw data is returned or provided.
+///
+/// `T` and `IoLoc::IoType` may differ: for instance, a typed register has `T` = the register type
+/// with its bitfields, and `IoType` = its backing primitive (e.g. `u32`).
+pub trait IoLoc<T> {
+    /// Size ([`u8`], [`u16`], etc) of the I/O performed on the returned [`offset`](IoLoc::offset).
+    type IoType: Into<T> + From<T>;
+
+    /// Consumes `self` and returns the offset of this location.
+    fn offset(self) -> usize;
+}
+
 /// Types implementing this trait (e.g. MMIO BARs or PCI config regions)
 /// can perform I/O operations on regions of memory.
 ///
@@ -405,6 +429,106 @@ pub trait Io {
 
         // SAFETY: `address` has been validated by `io_addr_assert`.
         unsafe { self.io_write(value, address) }
+    }
+
+    /// Generic fallible read with runtime bounds check.
+    #[inline(always)]
+    fn try_read<T, L>(&self, location: L) -> Result<T>
+    where
+        L: IoLoc<T>,
+        Self: IoCapable<L::IoType>,
+    {
+        let address = self.io_addr::<L::IoType>(location.offset())?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        Ok(unsafe { self.io_read(address) }.into())
+    }
+
+    /// Generic fallible write with runtime bounds check.
+    #[inline(always)]
+    fn try_write<T, L>(&self, location: L, value: T) -> Result
+    where
+        L: IoLoc<T>,
+        Self: IoCapable<L::IoType>,
+    {
+        let address = self.io_addr::<L::IoType>(location.offset())?;
+        let io_value = value.into();
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(io_value, address) }
+
+        Ok(())
+    }
+
+    /// Generic fallible update with runtime bounds check.
+    ///
+    /// Note: this does not perform any synchronization. The caller is responsible for ensuring
+    /// exclusive access if required.
+    #[inline(always)]
+    fn try_update<T, L, F>(&self, location: L, f: F) -> Result
+    where
+        L: IoLoc<T>,
+        Self: IoCapable<L::IoType>,
+        F: FnOnce(T) -> T,
+    {
+        let address = self.io_addr::<L::IoType>(location.offset())?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        let value: T = unsafe { self.io_read(address) }.into();
+        let io_value = f(value).into();
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(io_value, address) }
+
+        Ok(())
+    }
+
+    /// Generic infallible read with compile-time bounds check.
+    #[inline(always)]
+    fn read<T, L>(&self, location: L) -> T
+    where
+        L: IoLoc<T>,
+        Self: IoKnownSize + IoCapable<L::IoType>,
+    {
+        let address = self.io_addr_assert::<L::IoType>(location.offset());
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_read(address) }.into()
+    }
+
+    /// Generic infallible write with compile-time bounds check.
+    #[inline(always)]
+    fn write<T, L>(&self, location: L, value: T)
+    where
+        L: IoLoc<T>,
+        Self: IoKnownSize + IoCapable<L::IoType>,
+    {
+        let address = self.io_addr_assert::<L::IoType>(location.offset());
+        let io_value = value.into();
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(io_value, address) }
+    }
+
+    /// Generic infallible update with compile-time bounds check.
+    ///
+    /// Note: this does not perform any synchronization. The caller is responsible for ensuring
+    /// exclusive access if required.
+    #[inline(always)]
+    fn update<T, L, F>(&self, location: L, f: F)
+    where
+        L: IoLoc<T>,
+        Self: IoKnownSize + IoCapable<L::IoType> + Sized,
+        F: FnOnce(T) -> T,
+    {
+        let address = self.io_addr_assert::<L::IoType>(location.offset());
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        let value: T = unsafe { self.io_read(address) }.into();
+        let io_value = f(value).into();
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(io_value, address) }
     }
 }
 
