@@ -760,6 +760,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = false,
 	.ignore_pg = true,
 	.disable_stutter_for_wm_program = true,
+	.min_deep_sleep_dcfclk_khz = 8000,
 };
 
 static const struct dc_check_config config_defaults = {

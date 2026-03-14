@@ -1215,6 +1215,7 @@ struct dc_debug_options {
 	bool enable_dmu_recovery;
 	unsigned int force_vmin_threshold;
 	bool enable_otg_frame_sync_pwa;
+	unsigned int min_deep_sleep_dcfclk_khz;
 };
 
 

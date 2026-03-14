@@ -291,6 +291,11 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (should_set_clock(safe_to_lower,
 			new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
 		clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
+
+		/* Clamp the requested clock to PMFW based on DCN limit. */
+		if (dc->debug.min_deep_sleep_dcfclk_khz > 0 && clk_mgr_base->clks.dcfclk_deep_sleep_khz < dc->debug.min_deep_sleep_dcfclk_khz)
+			clk_mgr_base->clks.dcfclk_deep_sleep_khz = dc->debug.min_deep_sleep_dcfclk_khz;
+
 		dcn42_smu_set_min_deep_sleep_dcfclk(clk_mgr, clk_mgr_base->clks.dcfclk_deep_sleep_khz);
 	}
 
