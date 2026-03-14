@@ -379,6 +379,9 @@ where
 
     /// Returns the wrapped value as the backing type.
     ///
+    /// This is similar to the [`Deref`] implementation, but doesn't enforce the size invariant of
+    /// the [`Bounded`], which might produce slightly less optimal code.
+    ///
     /// # Examples
     ///
     /// ```
@@ -387,8 +390,8 @@ where
     /// let v = Bounded::<u32, 4>::new::<7>();
     /// assert_eq!(v.get(), 7u32);
     /// ```
-    pub fn get(self) -> T {
-        *self.deref()
+    pub const fn get(self) -> T {
+        self.0
     }
 
     /// Increases the number of bits usable for `self`.
