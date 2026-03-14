@@ -648,6 +648,7 @@ enum hid_battery_status {
  * @avoid_query: if true, avoid querying battery (e.g., for stylus)
  * @present: if true, battery is present (may be dynamic)
  * @ratelimit_time: rate limiting for battery reports
+ * @list: list node for linking into hid_device's battery list
  */
 struct hid_battery {
 	struct hid_device *dev;
@@ -662,6 +663,7 @@ struct hid_battery {
 	bool avoid_query;
 	bool present;
 	ktime_t ratelimit_time;
+	struct list_head list;
 };
 
 struct hid_driver;
@@ -700,9 +702,10 @@ struct hid_device {
 #ifdef CONFIG_HID_BATTERY_STRENGTH
 	/*
 	 * Power supply information for HID devices which report
-	 * battery strength. battery is non-NULL if successfully registered.
+	 * battery strength. Each battery is tracked separately in the
+	 * batteries list.
 	 */
-	struct hid_battery *battery;
+	struct list_head batteries;
 #endif
 
 	unsigned long status;						/* see STAT flags above */
@@ -766,7 +769,9 @@ static inline void hid_set_drvdata(struct hid_device *hdev, void *data)
 #ifdef CONFIG_HID_BATTERY_STRENGTH
 static inline struct hid_battery *hid_get_battery(struct hid_device *hdev)
 {
-	return hdev->battery;
+	if (list_empty(&hdev->batteries))
+		return NULL;
+	return list_first_entry(&hdev->batteries, struct hid_battery, list);
 }
 #endif
 
