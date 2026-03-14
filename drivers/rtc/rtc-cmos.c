@@ -817,6 +817,9 @@ static void rtc_wake_off(struct device *dev)
 #ifdef CONFIG_X86
 static void use_acpi_alarm_quirks(void)
 {
+	if (acpi_gbl_FADT.flags & ACPI_FADT_FIXED_RTC)
+		return;
+
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		if (dmi_get_bios_year() < 2015)
@@ -830,8 +833,6 @@ static void use_acpi_alarm_quirks(void)
 	default:
 		return;
 	}
-	if (!is_hpet_enabled())
-		return;
 
 	use_acpi_alarm = true;
 }
