@@ -17,4 +17,4 @@ enum exit_test_case {
 	NUM_EXITS,
 };
 
-#endif  // # __EXIT_TEST_H__
+#endif  // __EXIT_TEST_H__
