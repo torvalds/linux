@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <net/ip.h>
+#include <net/ip6_checksum.h>
 #include <net/udp.h>
-#include <net/udplite.h>
 #include <asm/checksum.h>
 
 #ifndef _HAVE_ARCH_IPV6_CSUM

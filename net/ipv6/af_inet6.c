@@ -43,7 +43,6 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
-#include <net/udplite.h>
 #include <net/tcp.h>
 #include <net/ping.h>
 #include <net/protocol.h>
@@ -636,8 +635,6 @@ int inet6_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 EXPORT_SYMBOL_GPL(inet6_compat_ioctl);
 #endif /* CONFIG_COMPAT */
 
-INDIRECT_CALLABLE_DECLARE(int udpv6_sendmsg(struct sock *, struct msghdr *,
-					    size_t));
 int inet6_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;
@@ -652,8 +649,6 @@ int inet6_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 			       sk, msg, size);
 }
 
-INDIRECT_CALLABLE_DECLARE(int udpv6_recvmsg(struct sock *, struct msghdr *,
-					    size_t, int));
 int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		  int flags)
 {
@@ -891,9 +886,7 @@ static int __net_init ipv6_init_mibs(struct net *net)
 	net->mib.udp_stats_in6 = alloc_percpu(struct udp_mib);
 	if (!net->mib.udp_stats_in6)
 		return -ENOMEM;
-	net->mib.udplite_stats_in6 = alloc_percpu(struct udp_mib);
-	if (!net->mib.udplite_stats_in6)
-		goto err_udplite_mib;
+
 	net->mib.ipv6_statistics = alloc_percpu(struct ipstats_mib);
 	if (!net->mib.ipv6_statistics)
 		goto err_ip_mib;
@@ -904,10 +897,10 @@ static int __net_init ipv6_init_mibs(struct net *net)
 		u64_stats_init(&af_inet6_stats->syncp);
 	}
 
-
 	net->mib.icmpv6_statistics = alloc_percpu(struct icmpv6_mib);
 	if (!net->mib.icmpv6_statistics)
 		goto err_icmp_mib;
+
 	net->mib.icmpv6msg_statistics = kzalloc_obj(struct icmpv6msg_mib);
 	if (!net->mib.icmpv6msg_statistics)
 		goto err_icmpmsg_mib;
@@ -918,8 +911,6 @@ err_icmpmsg_mib:
 err_icmp_mib:
 	free_percpu(net->mib.ipv6_statistics);
 err_ip_mib:
-	free_percpu(net->mib.udplite_stats_in6);
-err_udplite_mib:
 	free_percpu(net->mib.udp_stats_in6);
 	return -ENOMEM;
 }
@@ -927,7 +918,6 @@ err_udplite_mib:
 static void ipv6_cleanup_mibs(struct net *net)
 {
 	free_percpu(net->mib.udp_stats_in6);
-	free_percpu(net->mib.udplite_stats_in6);
 	free_percpu(net->mib.ipv6_statistics);
 	free_percpu(net->mib.icmpv6_statistics);
 	kfree(net->mib.icmpv6msg_statistics);
@@ -1080,13 +1070,9 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_tcp_proto;
 
-	err = proto_register(&udplitev6_prot, 1);
-	if (err)
-		goto out_unregister_udp_proto;
-
 	err = proto_register(&rawv6_prot, 1);
 	if (err)
-		goto out_unregister_udplite_proto;
+		goto out_unregister_udp_proto;
 
 	err = proto_register(&pingv6_prot, 1);
 	if (err)
@@ -1137,8 +1123,6 @@ static int __init inet6_init(void)
 	err = -ENOMEM;
 	if (raw6_proc_init())
 		goto proc_raw6_fail;
-	if (udplite6_proc_init())
-		goto proc_udplite6_fail;
 	if (ipv6_misc_proc_init())
 		goto proc_misc6_fail;
 	if (if6_proc_init())
@@ -1173,10 +1157,6 @@ static int __init inet6_init(void)
 	err = udpv6_init();
 	if (err)
 		goto udpv6_fail;
-
-	err = udplitev6_init();
-	if (err)
-		goto udplitev6_fail;
 
 	err = udpv6_offload_init();
 	if (err)
@@ -1248,8 +1228,6 @@ ipv6_packet_fail:
 tcpv6_fail:
 	udpv6_offload_exit();
 udpv6_offload_fail:
-	udplitev6_exit();
-udplitev6_fail:
 	udpv6_exit();
 udpv6_fail:
 	ipv6_frag_exit();
@@ -1271,8 +1249,6 @@ ip6_route_fail:
 proc_if6_fail:
 	ipv6_misc_proc_exit();
 proc_misc6_fail:
-	udplite6_proc_exit();
-proc_udplite6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
 #endif
@@ -1296,8 +1272,6 @@ out_unregister_ping_proto:
 	proto_unregister(&pingv6_prot);
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
-out_unregister_udplite_proto:
-	proto_unregister(&udplitev6_prot);
 out_unregister_udp_proto:
 	proto_unregister(&udpv6_prot);
 out_unregister_tcp_proto:

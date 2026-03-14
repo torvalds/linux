@@ -83,10 +83,9 @@ struct ipv6_bpf_stub {
 	int (*inet6_bind)(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
 			  u32 flags);
 	struct sock *(*udp6_lib_lookup)(const struct net *net,
-				     const struct in6_addr *saddr, __be16 sport,
-				     const struct in6_addr *daddr, __be16 dport,
-				     int dif, int sdif, struct udp_table *tbl,
-				     struct sk_buff *skb);
+					const struct in6_addr *saddr, __be16 sport,
+					const struct in6_addr *daddr, __be16 dport,
+					int dif, int sdif, struct sk_buff *skb);
 	int (*ipv6_setsockopt)(struct sock *sk, int level, int optname,
 			       sockptr_t optval, unsigned int optlen);
 	int (*ipv6_getsockopt)(struct sock *sk, int level, int optname,
