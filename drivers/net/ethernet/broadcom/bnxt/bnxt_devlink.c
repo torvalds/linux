@@ -440,13 +440,13 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 					   "reload is unsupported while VFs are allocated or being configured");
 			netdev_unlock(bp->dev);
 			rtnl_unlock();
-			bnxt_ulp_start(bp, 0);
+			bnxt_ulp_start(bp);
 			return -EOPNOTSUPP;
 		}
 		if (bp->dev->reg_state == NETREG_UNREGISTERED) {
 			netdev_unlock(bp->dev);
 			rtnl_unlock();
-			bnxt_ulp_start(bp, 0);
+			bnxt_ulp_start(bp);
 			return -ENODEV;
 		}
 		if (netif_running(bp->dev))
@@ -578,8 +578,8 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 	}
 	netdev_unlock(bp->dev);
 	rtnl_unlock();
-	if (action == DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
-		bnxt_ulp_start(bp, rc);
+	if (!rc && action == DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
+		bnxt_ulp_start(bp);
 	return rc;
 }
 
