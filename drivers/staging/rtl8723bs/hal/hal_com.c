@@ -616,6 +616,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FUNC_SET:
 		if (*((u32 *)val) == DYNAMIC_ALL_FUNC_ENABLE) {
 			struct dm_priv *dm = &hal_data->dmpriv;
+
 			dm->DMFlag = dm->InitDMFlag;
 			odm->SupportAbility = dm->InitODMFlag;
 		} else {
@@ -727,6 +728,7 @@ void SetHalODMVar(
 	case HAL_ODM_STA_INFO:
 		{
 			struct sta_info *psta = pValue1;
+
 			if (bSet) {
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, psta);
 			} else {

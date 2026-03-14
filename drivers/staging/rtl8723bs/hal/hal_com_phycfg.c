@@ -424,6 +424,7 @@ void PHY_SetTxPowerIndexByRateSection(
 
 	if (RateSection == CCK) {
 		u8 cckRates[]   = {MGN_1M, MGN_2M, MGN_5_5M, MGN_11M};
+
 		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
 					     pHalData->CurrentChannelBW,
 					     Channel, cckRates,
@@ -431,6 +432,7 @@ void PHY_SetTxPowerIndexByRateSection(
 
 	} else if (RateSection == OFDM) {
 		u8 ofdmRates[]  = {MGN_6M, MGN_9M, MGN_12M, MGN_18M, MGN_24M, MGN_36M, MGN_48M, MGN_54M};
+
 		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
 					       pHalData->CurrentChannelBW,
 					       Channel, ofdmRates,
@@ -438,6 +440,7 @@ void PHY_SetTxPowerIndexByRateSection(
 
 	} else if (RateSection == HT_MCS0_MCS7) {
 		u8 htRates1T[]  = {MGN_MCS0, MGN_MCS1, MGN_MCS2, MGN_MCS3, MGN_MCS4, MGN_MCS5, MGN_MCS6, MGN_MCS7};
+
 		PHY_SetTxPowerIndexByRateArray(padapter, RFPath,
 					       pHalData->CurrentChannelBW,
 					       Channel, htRates1T,
@@ -501,6 +504,7 @@ s8 PHY_GetTxPowerTrackingOffset(struct adapter *padapter, u8 RFPath, u8 Rate)
 u8 PHY_GetRateIndexOfTxPowerByRate(u8 Rate)
 {
 	u8 index = 0;
+
 	switch (Rate) {
 	case MGN_1M:
 		index = 0;
@@ -857,6 +861,7 @@ void PHY_SetTxPowerLimit(
 void Hal_ChannelPlanToRegulation(struct adapter *Adapter, u16 ChannelPlan)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
+
 	pHalData->Regulation2_4G = TXPWR_LMT_WW;
 
 	switch (ChannelPlan) {
