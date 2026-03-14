@@ -362,6 +362,14 @@ static inline u32 stmmac_tx_avail(struct stmmac_priv *priv, u32 queue)
 			  priv->dma_conf.dma_tx_size);
 }
 
+static size_t stmmac_get_rx_desc_size(struct stmmac_priv *priv)
+{
+	if (priv->extend_desc)
+		return sizeof(struct dma_extended_desc);
+	else
+		return sizeof(struct dma_desc);
+}
+
 static struct dma_desc *stmmac_get_rx_desc(struct stmmac_priv *priv,
 					   struct stmmac_rx_queue *rx_q,
 					   unsigned int index)
@@ -1432,10 +1440,7 @@ static void stmmac_display_rx_rings(struct stmmac_priv *priv,
 		pr_info("\tRX Queue %u rings\n", queue);
 
 		head_rx = stmmac_get_rx_desc(priv, rx_q, 0);
-		if (priv->extend_desc)
-			desc_size = sizeof(struct dma_extended_desc);
-		else
-			desc_size = sizeof(struct dma_desc);
+		desc_size = stmmac_get_rx_desc_size(priv);
 
 		/* Display RX ring */
 		stmmac_display_ring(priv, head_rx, dma_conf->dma_rx_size, true,
@@ -5436,11 +5441,7 @@ static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 		void *rx_head = stmmac_get_rx_desc(priv, rx_q, 0);
 
 		netdev_dbg(priv->dev, "%s: descriptor ring:\n", __func__);
-		if (priv->extend_desc) {
-			desc_size = sizeof(struct dma_extended_desc);
-		} else {
-			desc_size = sizeof(struct dma_desc);
-		}
+		desc_size = stmmac_get_rx_desc_size(priv);
 
 		stmmac_display_ring(priv, rx_head, priv->dma_conf.dma_rx_size, true,
 				    rx_q->dma_rx_phy, desc_size);
@@ -5628,10 +5629,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 		void *rx_head = stmmac_get_rx_desc(priv, rx_q, 0);
 
 		netdev_dbg(priv->dev, "%s: descriptor ring:\n", __func__);
-		if (priv->extend_desc)
-			desc_size = sizeof(struct dma_extended_desc);
-		else
-			desc_size = sizeof(struct dma_desc);
+		desc_size = stmmac_get_rx_desc_size(priv);
 
 		stmmac_display_ring(priv, rx_head, priv->dma_conf.dma_rx_size, true,
 				    rx_q->dma_rx_phy, desc_size);
