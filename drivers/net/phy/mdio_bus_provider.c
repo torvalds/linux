@@ -28,6 +28,281 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
+#include "phylib-internal.h"
+
+/**
+ * mdiobus_release - mii_bus device release callback
+ * @d: the target struct device that contains the mii_bus
+ *
+ * Description: called when the last reference to an mii_bus is
+ * dropped, to free the underlying memory.
+ */
+static void mdiobus_release(struct device *d)
+{
+	struct mii_bus *bus = to_mii_bus(d);
+
+	WARN(bus->state != MDIOBUS_RELEASED &&
+	     /* for compatibility with error handling in drivers */
+	     bus->state != MDIOBUS_ALLOCATED,
+	     "%s: not in RELEASED or ALLOCATED state\n",
+	     bus->id);
+
+	if (bus->state == MDIOBUS_RELEASED)
+		fwnode_handle_put(dev_fwnode(d));
+
+	kfree(bus);
+}
+
+struct mdio_bus_stat_attr {
+	struct device_attribute attr;
+	int address;
+	unsigned int field_offset;
+};
+
+static struct mdio_bus_stat_attr *to_sattr(struct device_attribute *attr)
+{
+	return container_of(attr, struct mdio_bus_stat_attr, attr);
+}
+
+static u64 mdio_bus_get_stat(struct mdio_bus_stats *s, unsigned int offset)
+{
+	const u64_stats_t *stats = (const void *)s + offset;
+	unsigned int start;
+	u64 val = 0;
+
+	do {
+		start = u64_stats_fetch_begin(&s->syncp);
+		val = u64_stats_read(stats);
+	} while (u64_stats_fetch_retry(&s->syncp, start));
+
+	return val;
+}
+
+static ssize_t mdio_bus_stat_field_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct mdio_bus_stat_attr *sattr = to_sattr(attr);
+	struct mii_bus *bus = to_mii_bus(dev);
+	u64 val = 0;
+
+	if (sattr->address < 0) {
+		/* get global stats */
+		for (int i = 0; i < PHY_MAX_ADDR; i++)
+			val += mdio_bus_get_stat(&bus->stats[i],
+						 sattr->field_offset);
+	} else {
+		val = mdio_bus_get_stat(&bus->stats[sattr->address],
+					sattr->field_offset);
+	}
+
+	return sysfs_emit(buf, "%llu\n", val);
+}
+
+static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct mdio_bus_stat_attr *sattr = to_sattr(attr);
+	struct mdio_device *mdiodev = to_mdio_device(dev);
+	struct mii_bus *bus = mdiodev->bus;
+	int addr = mdiodev->addr;
+	u64 val;
+
+	val = mdio_bus_get_stat(&bus->stats[addr], sattr->field_offset);
+
+	return sysfs_emit(buf, "%llu\n", val);
+}
+
+#define MDIO_BUS_STATS_ATTR(field)					\
+static const struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {	\
+	.attr = __ATTR(field, 0444, mdio_bus_stat_field_show, NULL),	\
+	.address = -1,							\
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
+};									\
+static const struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = { \
+	.attr = __ATTR(field, 0444, mdio_bus_device_stat_field_show, NULL), \
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
+}
+
+MDIO_BUS_STATS_ATTR(transfers);
+MDIO_BUS_STATS_ATTR(errors);
+MDIO_BUS_STATS_ATTR(writes);
+MDIO_BUS_STATS_ATTR(reads);
+
+#define MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr, file)		\
+static const struct mdio_bus_stat_attr					\
+dev_attr_mdio_bus_addr_##field##_##addr = {				\
+	.attr = { .attr = { .name = file, .mode = 0444 },		\
+		     .show = mdio_bus_stat_field_show,			\
+	},								\
+	.address = addr,						\
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
+}
+
+#define MDIO_BUS_STATS_ADDR_ATTR(field, addr)				\
+	MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr,			\
+				 __stringify(field) "_" __stringify(addr))
+
+#define MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(addr)			\
+	MDIO_BUS_STATS_ADDR_ATTR(transfers, addr);			\
+	MDIO_BUS_STATS_ADDR_ATTR(errors, addr);				\
+	MDIO_BUS_STATS_ADDR_ATTR(writes, addr);				\
+	MDIO_BUS_STATS_ADDR_ATTR(reads, addr)				\
+
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(0);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(1);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(2);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(3);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(4);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(5);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(6);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(7);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(8);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(9);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(10);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(11);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(12);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(13);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(14);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(15);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(16);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(17);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(18);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(19);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(20);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(21);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(22);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(23);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(24);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(25);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(26);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(27);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(28);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(29);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(30);
+MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(31);
+
+#define MDIO_BUS_STATS_ADDR_ATTR_GROUP(addr)				\
+	&(dev_attr_mdio_bus_addr_transfers_##addr).attr.attr,		\
+	&(dev_attr_mdio_bus_addr_errors_##addr).attr.attr,		\
+	&(dev_attr_mdio_bus_addr_writes_##addr).attr.attr,		\
+	&(dev_attr_mdio_bus_addr_reads_##addr).attr.attr			\
+
+static const struct attribute *const mdio_bus_statistics_attrs[] = {
+	&dev_attr_mdio_bus_transfers.attr.attr,
+	&dev_attr_mdio_bus_errors.attr.attr,
+	&dev_attr_mdio_bus_writes.attr.attr,
+	&dev_attr_mdio_bus_reads.attr.attr,
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(0),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(1),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(2),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(3),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(4),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(5),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(6),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(7),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(8),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(9),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(10),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(11),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(12),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(13),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(14),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(15),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(16),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(17),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(18),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(19),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(20),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(21),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(22),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(23),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(24),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(25),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(26),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(27),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(28),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(29),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(30),
+	MDIO_BUS_STATS_ADDR_ATTR_GROUP(31),
+	NULL,
+};
+
+static const struct attribute_group mdio_bus_statistics_group = {
+	.name		= "statistics",
+	.attrs_const	= mdio_bus_statistics_attrs,
+};
+__ATTRIBUTE_GROUPS(mdio_bus_statistics);
+
+const struct class mdio_bus_class = {
+	.name		= "mdio_bus",
+	.dev_release	= mdiobus_release,
+	.dev_groups	= mdio_bus_statistics_groups,
+};
+
+/**
+ * mdio_bus_match - determine if given MDIO driver supports the given
+ *		    MDIO device
+ * @dev: target MDIO device
+ * @drv: given MDIO driver
+ *
+ * Return: 1 if the driver supports the device, 0 otherwise
+ *
+ * Description: This may require calling the devices own match function,
+ *   since different classes of MDIO devices have different match criteria.
+ */
+static int mdio_bus_match(struct device *dev, const struct device_driver *drv)
+{
+	const struct mdio_driver *mdiodrv = to_mdio_driver(drv);
+	struct mdio_device *mdio = to_mdio_device(dev);
+
+	/* Both the driver and device must type-match */
+	if (!(mdiodrv->mdiodrv.flags & MDIO_DEVICE_IS_PHY) !=
+	    !(mdio->flags & MDIO_DEVICE_FLAG_PHY))
+		return 0;
+
+	if (of_driver_match_device(dev, drv))
+		return 1;
+
+	if (mdio->bus_match)
+		return mdio->bus_match(dev, drv);
+
+	return 0;
+}
+
+static int mdio_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	int rc;
+
+	/* Some devices have extra OF data and an OF-style MODALIAS */
+	rc = of_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
+
+	return 0;
+}
+
+static const struct attribute *const mdio_bus_device_statistics_attrs[] = {
+	&dev_attr_mdio_bus_device_transfers.attr.attr,
+	&dev_attr_mdio_bus_device_errors.attr.attr,
+	&dev_attr_mdio_bus_device_writes.attr.attr,
+	&dev_attr_mdio_bus_device_reads.attr.attr,
+	NULL,
+};
+
+static const struct attribute_group mdio_bus_device_statistics_group = {
+	.name		= "statistics",
+	.attrs_const	= mdio_bus_device_statistics_attrs,
+};
+__ATTRIBUTE_GROUPS(mdio_bus_device_statistics);
+
+const struct bus_type mdio_bus_type = {
+	.name		= "mdio_bus",
+	.dev_groups	= mdio_bus_device_statistics_groups,
+	.match		= mdio_bus_match,
+	.uevent		= mdio_uevent,
+};
 
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
@@ -440,3 +715,47 @@ void mdiobus_free(struct mii_bus *bus)
 	put_device(&bus->dev);
 }
 EXPORT_SYMBOL(mdiobus_free);
+
+/**
+ * mdio_find_bus - Given the name of a mdiobus, find the mii_bus.
+ * @mdio_name: The name of a mdiobus.
+ *
+ * Return: a reference to the mii_bus, or NULL if none found. The
+ * embedded struct device will have its reference count incremented,
+ * and this must be put_deviced'ed once the bus is finished with.
+ */
+struct mii_bus *mdio_find_bus(const char *mdio_name)
+{
+	struct device *d;
+
+	d = class_find_device_by_name(&mdio_bus_class, mdio_name);
+	return d ? to_mii_bus(d) : NULL;
+}
+EXPORT_SYMBOL(mdio_find_bus);
+
+#if IS_ENABLED(CONFIG_OF_MDIO)
+/**
+ * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
+ * @mdio_bus_np: Pointer to the mii_bus.
+ *
+ * Return: a reference to the mii_bus, or NULL if none found. The
+ * embedded struct device will have its reference count incremented,
+ * and this must be put once the bus is finished with.
+ *
+ * Because the association of a device_node and mii_bus is made via
+ * of_mdiobus_register(), the mii_bus cannot be found before it is
+ * registered with of_mdiobus_register().
+ *
+ */
+struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
+{
+	struct device *d;
+
+	if (!mdio_bus_np)
+		return NULL;
+
+	d = class_find_device_by_of_node(&mdio_bus_class, mdio_bus_np);
+	return d ? to_mii_bus(d) : NULL;
+}
+EXPORT_SYMBOL(of_mdio_find_bus);
+#endif

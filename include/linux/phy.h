@@ -2446,9 +2446,6 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
 
 struct phy_port *phy_get_sfp_port(struct phy_device *phydev);
 
-extern const struct bus_type mdio_bus_type;
-extern const struct class mdio_bus_class;
-
 /**
  * phy_module_driver() - Helper macro for registering PHY drivers
  * @__phy_drivers: array of PHY drivers to register
