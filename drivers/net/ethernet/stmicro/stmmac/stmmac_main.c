@@ -362,6 +362,16 @@ static inline u32 stmmac_tx_avail(struct stmmac_priv *priv, u32 queue)
 			  priv->dma_conf.dma_tx_size);
 }
 
+static struct dma_desc *stmmac_get_rx_desc(struct stmmac_priv *priv,
+					   struct stmmac_rx_queue *rx_q,
+					   unsigned int index)
+{
+	if (priv->extend_desc)
+		return &rx_q->dma_erx[index].basic;
+	else
+		return &rx_q->dma_rx[index];
+}
+
 /**
  * stmmac_rx_dirty - Get RX queue dirty
  * @priv: driver private structure
@@ -1421,13 +1431,11 @@ static void stmmac_display_rx_rings(struct stmmac_priv *priv,
 
 		pr_info("\tRX Queue %u rings\n", queue);
 
-		if (priv->extend_desc) {
-			head_rx = (void *)rx_q->dma_erx;
+		head_rx = stmmac_get_rx_desc(priv, rx_q, 0);
+		if (priv->extend_desc)
 			desc_size = sizeof(struct dma_extended_desc);
-		} else {
-			head_rx = (void *)rx_q->dma_rx;
+		else
 			desc_size = sizeof(struct dma_desc);
-		}
 
 		/* Display RX ring */
 		stmmac_display_ring(priv, head_rx, dma_conf->dma_rx_size, true,
@@ -1519,10 +1527,7 @@ static void stmmac_clear_rx_descriptors(struct stmmac_priv *priv,
 
 	/* Clear the RX descriptors */
 	for (i = 0; i < dma_conf->dma_rx_size; i++) {
-		if (priv->extend_desc)
-			desc = &rx_q->dma_erx[i].basic;
-		else
-			desc = &rx_q->dma_rx[i];
+		desc = stmmac_get_rx_desc(priv, rx_q, i);
 
 		stmmac_init_rx_desc(priv, desc, priv->use_riwt, priv->mode,
 				    (i == dma_conf->dma_rx_size - 1),
@@ -1731,10 +1736,7 @@ static int stmmac_alloc_rx_buffers(struct stmmac_priv *priv,
 		struct dma_desc *p;
 		int ret;
 
-		if (priv->extend_desc)
-			p = &((rx_q->dma_erx + i)->basic);
-		else
-			p = rx_q->dma_rx + i;
+		p = stmmac_get_rx_desc(priv, rx_q, i);
 
 		ret = stmmac_init_rx_buffers(priv, dma_conf, p, i, flags,
 					     queue);
@@ -1789,10 +1791,7 @@ static int stmmac_alloc_rx_buffers_zc(struct stmmac_priv *priv,
 		dma_addr_t dma_addr;
 		struct dma_desc *p;
 
-		if (priv->extend_desc)
-			p = (struct dma_desc *)(rx_q->dma_erx + i);
-		else
-			p = rx_q->dma_rx + i;
+		p = stmmac_get_rx_desc(priv, rx_q, i);
 
 		buf = &rx_q->buf_pool[i];
 
@@ -4978,10 +4977,7 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv, u32 queue)
 		struct dma_desc *p;
 		bool use_rx_wd;
 
-		if (priv->extend_desc)
-			p = (struct dma_desc *)(rx_q->dma_erx + entry);
-		else
-			p = rx_q->dma_rx + entry;
+		p = stmmac_get_rx_desc(priv, rx_q, entry);
 
 		if (!buf->page) {
 			buf->page = page_pool_alloc_pages(rx_q->page_pool, gfp);
@@ -5379,10 +5375,7 @@ static bool stmmac_rx_refill_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 			}
 		}
 
-		if (priv->extend_desc)
-			rx_desc = (struct dma_desc *)(rx_q->dma_erx + entry);
-		else
-			rx_desc = rx_q->dma_rx + entry;
+		rx_desc = stmmac_get_rx_desc(priv, rx_q, entry);
 
 		dma_addr = xsk_buff_xdp_get_dma(buf->xdp);
 		stmmac_set_desc_addr(priv, rx_desc, dma_addr);
@@ -5440,14 +5433,12 @@ static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 	int status = 0;
 
 	if (netif_msg_rx_status(priv)) {
-		void *rx_head;
+		void *rx_head = stmmac_get_rx_desc(priv, rx_q, 0);
 
 		netdev_dbg(priv->dev, "%s: descriptor ring:\n", __func__);
 		if (priv->extend_desc) {
-			rx_head = (void *)rx_q->dma_erx;
 			desc_size = sizeof(struct dma_extended_desc);
 		} else {
-			rx_head = (void *)rx_q->dma_rx;
 			desc_size = sizeof(struct dma_desc);
 		}
 
@@ -5485,10 +5476,7 @@ read_again:
 			dirty = 0;
 		}
 
-		if (priv->extend_desc)
-			p = (struct dma_desc *)(rx_q->dma_erx + entry);
-		else
-			p = rx_q->dma_rx + entry;
+		p = stmmac_get_rx_desc(priv, rx_q, entry);
 
 		/* read the status of the incoming frame */
 		status = stmmac_rx_status(priv, &priv->xstats, p);
@@ -5501,10 +5489,7 @@ read_again:
 						priv->dma_conf.dma_rx_size);
 		next_entry = rx_q->cur_rx;
 
-		if (priv->extend_desc)
-			np = (struct dma_desc *)(rx_q->dma_erx + next_entry);
-		else
-			np = rx_q->dma_rx + next_entry;
+		np = stmmac_get_rx_desc(priv, rx_q, next_entry);
 
 		prefetch(np);
 
@@ -5640,16 +5625,13 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	limit = min(priv->dma_conf.dma_rx_size - 1, (unsigned int)limit);
 
 	if (netif_msg_rx_status(priv)) {
-		void *rx_head;
+		void *rx_head = stmmac_get_rx_desc(priv, rx_q, 0);
 
 		netdev_dbg(priv->dev, "%s: descriptor ring:\n", __func__);
-		if (priv->extend_desc) {
-			rx_head = (void *)rx_q->dma_erx;
+		if (priv->extend_desc)
 			desc_size = sizeof(struct dma_extended_desc);
-		} else {
-			rx_head = (void *)rx_q->dma_rx;
+		else
 			desc_size = sizeof(struct dma_desc);
-		}
 
 		stmmac_display_ring(priv, rx_head, priv->dma_conf.dma_rx_size, true,
 				    rx_q->dma_rx_phy, desc_size);
@@ -5682,10 +5664,7 @@ read_again:
 		entry = next_entry;
 		buf = &rx_q->buf_pool[entry];
 
-		if (priv->extend_desc)
-			p = (struct dma_desc *)(rx_q->dma_erx + entry);
-		else
-			p = rx_q->dma_rx + entry;
+		p = stmmac_get_rx_desc(priv, rx_q, entry);
 
 		/* read the status of the incoming frame */
 		status = stmmac_rx_status(priv, &priv->xstats, p);
@@ -5697,10 +5676,7 @@ read_again:
 						priv->dma_conf.dma_rx_size);
 		next_entry = rx_q->cur_rx;
 
-		if (priv->extend_desc)
-			np = (struct dma_desc *)(rx_q->dma_erx + next_entry);
-		else
-			np = rx_q->dma_rx + next_entry;
+		np = stmmac_get_rx_desc(priv, rx_q, next_entry);
 
 		prefetch(np);
 
