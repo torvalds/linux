@@ -1541,25 +1541,27 @@ static int topup_mmu_memcache(struct kvm_vcpu *vcpu, void *memcache)
  * TLB invalidation from the guest and used to limit the invalidation scope if a
  * TTL hint or a range isn't provided.
  */
-static void adjust_nested_fault_perms(struct kvm_s2_trans *nested,
-				      enum kvm_pgtable_prot *prot,
-				      bool *writable)
+static enum kvm_pgtable_prot adjust_nested_fault_perms(struct kvm_s2_trans *nested,
+						       enum kvm_pgtable_prot prot)
 {
-	*writable &= kvm_s2_trans_writable(nested);
+	if (!kvm_s2_trans_writable(nested))
+		prot &= ~KVM_PGTABLE_PROT_W;
 	if (!kvm_s2_trans_readable(nested))
-		*prot &= ~KVM_PGTABLE_PROT_R;
+		prot &= ~KVM_PGTABLE_PROT_R;
 
-	*prot |= kvm_encode_nested_level(nested);
+	return prot | kvm_encode_nested_level(nested);
 }
 
-static void adjust_nested_exec_perms(struct kvm *kvm,
-				     struct kvm_s2_trans *nested,
-				     enum kvm_pgtable_prot *prot)
+static enum kvm_pgtable_prot adjust_nested_exec_perms(struct kvm *kvm,
+						      struct kvm_s2_trans *nested,
+						      enum kvm_pgtable_prot prot)
 {
 	if (!kvm_s2_trans_exec_el0(kvm, nested))
-		*prot &= ~KVM_PGTABLE_PROT_UX;
+		prot &= ~KVM_PGTABLE_PROT_UX;
 	if (!kvm_s2_trans_exec_el1(kvm, nested))
-		*prot &= ~KVM_PGTABLE_PROT_PX;
+		prot &= ~KVM_PGTABLE_PROT_PX;
+
+	return prot;
 }
 
 struct kvm_s2_fault_desc {
@@ -1574,7 +1576,7 @@ static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		      struct kvm_s2_trans *nested,
 		      struct kvm_memory_slot *memslot, bool is_perm)
 {
-	bool write_fault, exec_fault, writable;
+	bool write_fault, exec_fault;
 	enum kvm_pgtable_walk_flags flags = KVM_PGTABLE_WALK_SHARED;
 	enum kvm_pgtable_prot prot = KVM_PGTABLE_PROT_R;
 	struct kvm_pgtable *pgt = vcpu->arch.hw_mmu->pgt;
@@ -1612,19 +1614,17 @@ static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return ret;
 	}
 
-	writable = !(memslot->flags & KVM_MEM_READONLY);
+	if (!(memslot->flags & KVM_MEM_READONLY))
+		prot |= KVM_PGTABLE_PROT_W;
 
 	if (nested)
-		adjust_nested_fault_perms(nested, &prot, &writable);
-
-	if (writable)
-		prot |= KVM_PGTABLE_PROT_W;
+		prot = adjust_nested_fault_perms(nested, prot);
 
 	if (exec_fault || cpus_have_final_cap(ARM64_HAS_CACHE_DIC))
 		prot |= KVM_PGTABLE_PROT_X;
 
 	if (nested)
-		adjust_nested_exec_perms(kvm, nested, &prot);
+		prot = adjust_nested_exec_perms(kvm, nested, prot);
 
 	kvm_fault_lock(kvm);
 	if (mmu_invalidate_retry(kvm, mmu_seq)) {
@@ -1637,10 +1637,10 @@ static int gmem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 						 memcache, flags);
 
 out_unlock:
-	kvm_release_faultin_page(kvm, page, !!ret, writable);
+	kvm_release_faultin_page(kvm, page, !!ret, prot & KVM_PGTABLE_PROT_W);
 	kvm_fault_unlock(kvm);
 
-	if (writable && !ret)
+	if ((prot & KVM_PGTABLE_PROT_W) && !ret)
 		mark_page_dirty_in_slot(kvm, memslot, gfn);
 
 	return ret != -EAGAIN ? ret : 0;
@@ -1854,16 +1854,6 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 				     enum kvm_pgtable_prot *prot)
 {
 	struct kvm *kvm = s2fd->vcpu->kvm;
-	bool writable = s2vi->map_writable;
-
-	if (!s2vi->device && memslot_is_logging(s2fd->memslot) &&
-	    !kvm_is_write_fault(s2fd->vcpu)) {
-		/*
-		 * Only actually map the page as writable if this was a write
-		 * fault.
-		 */
-		writable = false;
-	}
 
 	if (kvm_vcpu_trap_is_exec_fault(s2fd->vcpu) && s2vi->map_non_cacheable)
 		return -ENOEXEC;
@@ -1881,11 +1871,13 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 
 	*prot = KVM_PGTABLE_PROT_R;
 
-	if (s2fd->nested)
-		adjust_nested_fault_perms(s2fd->nested, prot, &writable);
-
-	if (writable)
+	if (s2vi->map_writable && (s2vi->device ||
+				   !memslot_is_logging(s2fd->memslot) ||
+				   kvm_is_write_fault(s2fd->vcpu)))
 		*prot |= KVM_PGTABLE_PROT_W;
+
+	if (s2fd->nested)
+		*prot = adjust_nested_fault_perms(s2fd->nested, *prot);
 
 	if (kvm_vcpu_trap_is_exec_fault(s2fd->vcpu))
 		*prot |= KVM_PGTABLE_PROT_X;
@@ -1897,7 +1889,7 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 		*prot |= KVM_PGTABLE_PROT_X;
 
 	if (s2fd->nested)
-		adjust_nested_exec_perms(kvm, s2fd->nested, prot);
+		*prot = adjust_nested_exec_perms(kvm, s2fd->nested, *prot);
 
 	if (!kvm_s2_fault_is_perm(s2fd) && !s2vi->map_non_cacheable && kvm_has_mte(kvm)) {
 		/* Check the VMM hasn't introduced a new disallowed VMA */
