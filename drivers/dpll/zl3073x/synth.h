@@ -5,6 +5,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/math64.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 
 #include "regs.h"
@@ -20,20 +21,19 @@ struct zl3073x_dev;
  * @ctrl: synth control
  */
 struct zl3073x_synth {
-	u32	freq_mult;
-	u16	freq_base;
-	u16	freq_m;
-	u16	freq_n;
-	u8	ctrl;
+	struct_group(inv, /* Invariants */
+		u32	freq_mult;
+		u16	freq_base;
+		u16	freq_m;
+		u16	freq_n;
+		u8	ctrl;
+	);
 };
 
 int zl3073x_synth_state_fetch(struct zl3073x_dev *zldev, u8 synth_id);
 
 const struct zl3073x_synth *zl3073x_synth_state_get(struct zl3073x_dev *zldev,
 						    u8 synth_id);
-
-int zl3073x_synth_state_set(struct zl3073x_dev *zldev, u8 synth_id,
-			    const struct zl3073x_synth *synth);
 
 /**
  * zl3073x_synth_dpll_get - get DPLL ID the synth is driven by
