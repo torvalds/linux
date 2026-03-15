@@ -244,71 +244,26 @@ zl3073x_dpll_input_pin_frequency_set(const struct dpll_pin *dpll_pin,
 }
 
 /**
- * zl3073x_dpll_selected_ref_get - get currently selected reference
- * @zldpll: pointer to zl3073x_dpll
- * @ref: place to store selected reference
- *
- * Check for currently selected reference the DPLL should be locked to
- * and stores its index to given @ref.
- *
- * Return: 0 on success, <0 on error
- */
-static int
-zl3073x_dpll_selected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
-{
-	const struct zl3073x_chan *chan;
-
-	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
-
-	switch (zl3073x_chan_mode_get(chan)) {
-	case ZL_DPLL_MODE_REFSEL_MODE_AUTO:
-		/* Return the reference only if the DPLL is locked to it */
-		if (zl3073x_chan_refsel_state_get(chan) ==
-		    ZL_DPLL_REFSEL_STATUS_STATE_LOCK)
-			*ref = zl3073x_chan_refsel_ref_get(chan);
-		else
-			*ref = ZL3073X_DPLL_REF_NONE;
-		break;
-	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
-		/* For manual mode return stored value */
-		*ref = zl3073x_chan_ref_get(chan);
-		break;
-	default:
-		/* For other modes like NCO, freerun... there is no input ref */
-		*ref = ZL3073X_DPLL_REF_NONE;
-		break;
-	}
-
-	return 0;
-}
-
-/**
  * zl3073x_dpll_connected_ref_get - get currently connected reference
  * @zldpll: pointer to zl3073x_dpll
- * @ref: place to store selected reference
  *
- * Looks for currently connected the DPLL is locked to and stores its index
- * to given @ref.
+ * Looks for currently connected reference the DPLL is locked to.
  *
- * Return: 0 on success, <0 on error
+ * Return: reference index if locked, ZL3073X_DPLL_REF_NONE otherwise
  */
-static int
-zl3073x_dpll_connected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
+static u8
+zl3073x_dpll_connected_ref_get(struct zl3073x_dpll *zldpll)
 {
-	struct zl3073x_dev *zldev = zldpll->dev;
-	int rc;
+	const struct zl3073x_chan *chan = zl3073x_chan_state_get(zldpll->dev,
+								 zldpll->id);
+	u8 state;
 
-	/* Get currently selected input reference */
-	rc = zl3073x_dpll_selected_ref_get(zldpll, ref);
-	if (rc)
-		return rc;
+	/* A reference is connected only when the DPLL is locked to it */
+	state = zl3073x_chan_refsel_state_get(chan);
+	if (state == ZL_DPLL_REFSEL_STATUS_STATE_LOCK)
+		return zl3073x_chan_refsel_ref_get(chan);
 
-	/* If the monitor indicates an error nothing is connected */
-	if (ZL3073X_DPLL_REF_IS_VALID(*ref) &&
-	    !zl3073x_dev_ref_is_status_ok(zldev, *ref))
-		*ref = ZL3073X_DPLL_REF_NONE;
-
-	return 0;
+	return ZL3073X_DPLL_REF_NONE;
 }
 
 static int
@@ -324,12 +279,9 @@ zl3073x_dpll_input_pin_phase_offset_get(const struct dpll_pin *dpll_pin,
 	const struct zl3073x_ref *ref;
 	u8 conn_id, ref_id;
 	s64 ref_phase;
-	int rc;
 
 	/* Get currently connected reference */
-	rc = zl3073x_dpll_connected_ref_get(zldpll, &conn_id);
-	if (rc)
-		return rc;
+	conn_id = zl3073x_dpll_connected_ref_get(zldpll);
 
 	/* Report phase offset only for currently connected pin if the phase
 	 * monitor feature is disabled and only if the input pin signal is
@@ -367,7 +319,7 @@ zl3073x_dpll_input_pin_phase_offset_get(const struct dpll_pin *dpll_pin,
 
 	*phase_offset = ref_phase * DPLL_PHASE_OFFSET_DIVIDER;
 
-	return rc;
+	return 0;
 }
 
 static int
@@ -447,18 +399,13 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
 	const struct zl3073x_chan *chan;
-	u8 ref, ref_conn;
-	int rc;
+	u8 ref;
 
 	chan = zl3073x_chan_state_get(zldev, zldpll->id);
 	ref = zl3073x_input_pin_ref_get(pin->id);
 
-	/* Get currently connected reference */
-	rc = zl3073x_dpll_connected_ref_get(zldpll, &ref_conn);
-	if (rc)
-		return rc;
-
-	if (ref == ref_conn) {
+	/* Check if the pin reference is connected */
+	if (ref == zl3073x_dpll_connected_ref_get(zldpll)) {
 		*state = DPLL_PIN_STATE_CONNECTED;
 		return 0;
 	}
@@ -1087,13 +1034,8 @@ zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
 	u8 hw_mode, ref;
 	int rc;
 
-	rc = zl3073x_dpll_selected_ref_get(zldpll, &ref);
-	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack, "failed to get selected reference");
-		return rc;
-	}
-
 	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	ref = zl3073x_chan_refsel_ref_get(&chan);
 
 	if (mode == DPLL_MODE_MANUAL) {
 		/* We are switching from automatic to manual mode:
