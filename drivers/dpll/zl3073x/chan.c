@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/cleanup.h>
 #include <linux/dev_printk.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -33,15 +34,15 @@ int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index)
  * @zldev: pointer to zl3073x_dev structure
  * @index: DPLL channel index to fetch state for
  *
- * Reads the mode_refsel register for the given DPLL channel and stores
- * the raw value for later use.
+ * Reads the mode_refsel register and reference priority registers for
+ * the given DPLL channel and stores the raw values for later use.
  *
  * Return: 0 on success, <0 on error
  */
 int zl3073x_chan_state_fetch(struct zl3073x_dev *zldev, u8 index)
 {
 	struct zl3073x_chan *chan = &zldev->chan[index];
-	int rc;
+	int rc, i;
 
 	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MODE_REFSEL(index),
 			     &chan->mode_refsel);
@@ -61,6 +62,22 @@ int zl3073x_chan_state_fetch(struct zl3073x_dev *zldev, u8 index)
 		zl3073x_chan_is_ho_ready(chan) ? 1 : 0,
 		zl3073x_chan_refsel_state_get(chan),
 		zl3073x_chan_refsel_ref_get(chan));
+
+	guard(mutex)(&zldev->multiop_lock);
+
+	/* Read DPLL configuration from mailbox */
+	rc = zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_RD,
+			   ZL_REG_DPLL_MB_MASK, BIT(index));
+	if (rc)
+		return rc;
+
+	/* Read reference priority registers */
+	for (i = 0; i < ARRAY_SIZE(chan->ref_prio); i++) {
+		rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_REF_PRIO(i),
+				     &chan->ref_prio[i]);
+		if (rc)
+			return rc;
+	}
 
 	return 0;
 }
@@ -85,7 +102,9 @@ const struct zl3073x_chan *zl3073x_chan_state_get(struct zl3073x_dev *zldev,
  * @chan: desired channel state
  *
  * Skips the HW write if the configuration is unchanged, and otherwise
- * writes the mode_refsel register to hardware.
+ * writes only the changed registers to hardware. The mode_refsel register
+ * is written directly, while the reference priority registers are written
+ * via the DPLL mailbox interface.
  *
  * Return: 0 on success, <0 on HW error
  */
@@ -93,14 +112,49 @@ int zl3073x_chan_state_set(struct zl3073x_dev *zldev, u8 index,
 			   const struct zl3073x_chan *chan)
 {
 	struct zl3073x_chan *dchan = &zldev->chan[index];
-	int rc;
+	int rc, i;
 
 	/* Skip HW write if configuration hasn't changed */
 	if (!memcmp(&dchan->cfg, &chan->cfg, sizeof(chan->cfg)))
 		return 0;
 
-	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MODE_REFSEL(index),
-			      chan->mode_refsel);
+	/* Direct register write for mode_refsel */
+	if (dchan->mode_refsel != chan->mode_refsel) {
+		rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MODE_REFSEL(index),
+				      chan->mode_refsel);
+		if (rc)
+			return rc;
+		dchan->mode_refsel = chan->mode_refsel;
+	}
+
+	/* Mailbox write for ref_prio if changed */
+	if (!memcmp(dchan->ref_prio, chan->ref_prio, sizeof(chan->ref_prio))) {
+		dchan->cfg = chan->cfg;
+		return 0;
+	}
+
+	guard(mutex)(&zldev->multiop_lock);
+
+	/* Read DPLL configuration into mailbox */
+	rc = zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_RD,
+			   ZL_REG_DPLL_MB_MASK, BIT(index));
+	if (rc)
+		return rc;
+
+	/* Update changed ref_prio registers */
+	for (i = 0; i < ARRAY_SIZE(chan->ref_prio); i++) {
+		if (dchan->ref_prio[i] != chan->ref_prio[i]) {
+			rc = zl3073x_write_u8(zldev,
+					      ZL_REG_DPLL_REF_PRIO(i),
+					      chan->ref_prio[i]);
+			if (rc)
+				return rc;
+		}
+	}
+
+	/* Commit DPLL configuration */
+	rc = zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_WR,
+			   ZL_REG_DPLL_MB_MASK, BIT(index));
 	if (rc)
 		return rc;
 

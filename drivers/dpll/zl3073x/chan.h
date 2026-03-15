@@ -14,12 +14,14 @@ struct zl3073x_dev;
 /**
  * struct zl3073x_chan - DPLL channel state
  * @mode_refsel: mode and reference selection register value
+ * @ref_prio: reference priority registers (4 bits per ref, P/N packed)
  * @mon_status: monitor status register value
  * @refsel_status: reference selection status register value
  */
 struct zl3073x_chan {
 	struct_group(cfg,
 		u8	mode_refsel;
+		u8	ref_prio[ZL3073X_NUM_REFS / 2];
 	);
 	struct_group(stat,
 		u8	mon_status;
@@ -77,6 +79,57 @@ static inline void zl3073x_chan_ref_set(struct zl3073x_chan *chan, u8 ref)
 {
 	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_REF;
 	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+}
+
+/**
+ * zl3073x_chan_ref_prio_get - get reference priority
+ * @chan: pointer to channel state
+ * @ref: input reference index
+ *
+ * Return: priority of the given reference <0, 15>
+ */
+static inline u8
+zl3073x_chan_ref_prio_get(const struct zl3073x_chan *chan, u8 ref)
+{
+	u8 val = chan->ref_prio[ref / 2];
+
+	if (!(ref & 1))
+		return FIELD_GET(ZL_DPLL_REF_PRIO_REF_P, val);
+	else
+		return FIELD_GET(ZL_DPLL_REF_PRIO_REF_N, val);
+}
+
+/**
+ * zl3073x_chan_ref_prio_set - set reference priority
+ * @chan: pointer to channel state
+ * @ref: input reference index
+ * @prio: priority to set
+ */
+static inline void
+zl3073x_chan_ref_prio_set(struct zl3073x_chan *chan, u8 ref, u8 prio)
+{
+	u8 *val = &chan->ref_prio[ref / 2];
+
+	if (!(ref & 1)) {
+		*val &= ~ZL_DPLL_REF_PRIO_REF_P;
+		*val |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_P, prio);
+	} else {
+		*val &= ~ZL_DPLL_REF_PRIO_REF_N;
+		*val |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_N, prio);
+	}
+}
+
+/**
+ * zl3073x_chan_ref_is_selectable - check if reference is selectable
+ * @chan: pointer to channel state
+ * @ref: input reference index
+ *
+ * Return: true if the reference priority is not NONE, false otherwise
+ */
+static inline bool
+zl3073x_chan_ref_is_selectable(const struct zl3073x_chan *chan, u8 ref)
+{
+	return zl3073x_chan_ref_prio_get(chan, ref) != ZL_DPLL_REF_PRIO_NONE;
 }
 
 /**

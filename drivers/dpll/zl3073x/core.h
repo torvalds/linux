@@ -19,17 +19,6 @@ struct device;
 struct regmap;
 struct zl3073x_dpll;
 
-/*
- * Hardware limits for ZL3073x chip family
- */
-#define ZL3073X_MAX_CHANNELS	5
-#define ZL3073X_NUM_REFS	10
-#define ZL3073X_NUM_OUTS	10
-#define ZL3073X_NUM_SYNTHS	5
-#define ZL3073X_NUM_INPUT_PINS	ZL3073X_NUM_REFS
-#define ZL3073X_NUM_OUTPUT_PINS	(ZL3073X_NUM_OUTS * 2)
-#define ZL3073X_NUM_PINS	(ZL3073X_NUM_INPUT_PINS + \
-				 ZL3073X_NUM_OUTPUT_PINS)
 
 enum zl3073x_flags {
 	ZL3073X_FLAG_REF_PHASE_COMP_32_BIT,

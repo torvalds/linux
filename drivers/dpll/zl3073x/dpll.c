@@ -34,7 +34,6 @@
  * @dir: pin direction
  * @id: pin id
  * @prio: pin priority <0, 14>
- * @selectable: pin is selectable in automatic mode
  * @esync_control: embedded sync is controllable
  * @phase_gran: phase adjustment granularity
  * @pin_state: last saved pin state
@@ -50,7 +49,6 @@ struct zl3073x_dpll_pin {
 	enum dpll_pin_direction	dir;
 	u8			id;
 	u8			prio;
-	bool			selectable;
 	bool			esync_control;
 	s32			phase_gran;
 	enum dpll_pin_state	pin_state;
@@ -285,71 +283,6 @@ zl3073x_dpll_selected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 }
 
 /**
- * zl3073x_dpll_selected_ref_set - select reference in manual mode
- * @zldpll: pointer to zl3073x_dpll
- * @ref: input reference to be selected
- *
- * Selects the given reference for the DPLL channel it should be
- * locked to.
- *
- * Return: 0 on success, <0 on error
- */
-static int
-zl3073x_dpll_selected_ref_set(struct zl3073x_dpll *zldpll, u8 ref)
-{
-	struct zl3073x_dev *zldev = zldpll->dev;
-	struct zl3073x_chan chan;
-	u8 mode;
-
-	chan = *zl3073x_chan_state_get(zldev, zldpll->id);
-	mode = zl3073x_chan_mode_get(&chan);
-
-	switch (mode) {
-	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
-		/* Manual mode with ref selected */
-		if (ref == ZL3073X_DPLL_REF_NONE) {
-			switch (zldpll->lock_status) {
-			case DPLL_LOCK_STATUS_LOCKED_HO_ACQ:
-			case DPLL_LOCK_STATUS_HOLDOVER:
-				/* Switch to forced holdover */
-				mode = ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER;
-				break;
-			default:
-				/* Switch to freerun */
-				mode = ZL_DPLL_MODE_REFSEL_MODE_FREERUN;
-				break;
-			}
-			/* Keep selected reference */
-			ref = zl3073x_chan_ref_get(&chan);
-		} else if (ref == zl3073x_chan_ref_get(&chan)) {
-			/* No register update - same mode and same ref */
-			return 0;
-		}
-		break;
-	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
-	case ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER:
-		/* Manual mode without no ref */
-		if (ref == ZL3073X_DPLL_REF_NONE)
-			/* No register update - keep current mode */
-			return 0;
-
-		/* Switch to reflock mode and update ref selection */
-		mode = ZL_DPLL_MODE_REFSEL_MODE_REFLOCK;
-		break;
-	default:
-		/* For other modes like automatic or NCO ref cannot be selected
-		 * manually
-		 */
-		return -EOPNOTSUPP;
-	}
-
-	zl3073x_chan_mode_set(&chan, mode);
-	zl3073x_chan_ref_set(&chan, ref);
-
-	return zl3073x_chan_state_set(zldev, zldpll->id, &chan);
-}
-
-/**
  * zl3073x_dpll_connected_ref_get - get currently connected reference
  * @zldpll: pointer to zl3073x_dpll
  * @ref: place to store selected reference
@@ -498,98 +431,6 @@ zl3073x_dpll_input_pin_phase_adjust_set(const struct dpll_pin *dpll_pin,
 }
 
 /**
- * zl3073x_dpll_ref_prio_get - get priority for given input pin
- * @pin: pointer to pin
- * @prio: place to store priority
- *
- * Reads current priority for the given input pin and stores the value
- * to @prio.
- *
- * Return: 0 on success, <0 on error
- */
-static int
-zl3073x_dpll_ref_prio_get(struct zl3073x_dpll_pin *pin, u8 *prio)
-{
-	struct zl3073x_dpll *zldpll = pin->dpll;
-	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 ref, ref_prio;
-	int rc;
-
-	guard(mutex)(&zldev->multiop_lock);
-
-	/* Read DPLL configuration */
-	rc = zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_RD,
-			   ZL_REG_DPLL_MB_MASK, BIT(zldpll->id));
-	if (rc)
-		return rc;
-
-	/* Read reference priority - one value for P&N pins (4 bits/pin) */
-	ref = zl3073x_input_pin_ref_get(pin->id);
-	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_REF_PRIO(ref / 2),
-			     &ref_prio);
-	if (rc)
-		return rc;
-
-	/* Select nibble according pin type */
-	if (zl3073x_dpll_is_p_pin(pin))
-		*prio = FIELD_GET(ZL_DPLL_REF_PRIO_REF_P, ref_prio);
-	else
-		*prio = FIELD_GET(ZL_DPLL_REF_PRIO_REF_N, ref_prio);
-
-	return rc;
-}
-
-/**
- * zl3073x_dpll_ref_prio_set - set priority for given input pin
- * @pin: pointer to pin
- * @prio: place to store priority
- *
- * Sets priority for the given input pin.
- *
- * Return: 0 on success, <0 on error
- */
-static int
-zl3073x_dpll_ref_prio_set(struct zl3073x_dpll_pin *pin, u8 prio)
-{
-	struct zl3073x_dpll *zldpll = pin->dpll;
-	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 ref, ref_prio;
-	int rc;
-
-	guard(mutex)(&zldev->multiop_lock);
-
-	/* Read DPLL configuration into mailbox */
-	rc = zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_RD,
-			   ZL_REG_DPLL_MB_MASK, BIT(zldpll->id));
-	if (rc)
-		return rc;
-
-	/* Read reference priority - one value shared between P&N pins */
-	ref = zl3073x_input_pin_ref_get(pin->id);
-	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_REF_PRIO(ref / 2), &ref_prio);
-	if (rc)
-		return rc;
-
-	/* Update nibble according pin type */
-	if (zl3073x_dpll_is_p_pin(pin)) {
-		ref_prio &= ~ZL_DPLL_REF_PRIO_REF_P;
-		ref_prio |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_P, prio);
-	} else {
-		ref_prio &= ~ZL_DPLL_REF_PRIO_REF_N;
-		ref_prio |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_N, prio);
-	}
-
-	/* Update reference priority */
-	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_REF_PRIO(ref / 2), ref_prio);
-	if (rc)
-		return rc;
-
-	/* Commit configuration */
-	return zl3073x_mb_op(zldev, ZL_REG_DPLL_MB_SEM, ZL_DPLL_MB_SEM_WR,
-			     ZL_REG_DPLL_MB_MASK, BIT(zldpll->id));
-}
-
-/**
  * zl3073x_dpll_ref_state_get - get status for given input pin
  * @pin: pointer to pin
  * @state: place to store status
@@ -627,7 +468,8 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 	 * pin as selectable.
 	 */
 	if (zl3073x_chan_mode_get(chan) == ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
-	    zl3073x_dev_ref_is_status_ok(zldev, ref) && pin->selectable) {
+	    zl3073x_dev_ref_is_status_ok(zldev, ref) &&
+	    zl3073x_chan_ref_is_selectable(chan, ref)) {
 		*state = DPLL_PIN_STATE_SELECTABLE;
 		return 0;
 	}
@@ -661,71 +503,81 @@ zl3073x_dpll_input_pin_state_on_dpll_set(const struct dpll_pin *dpll_pin,
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dpll_pin *pin = pin_priv;
-	const struct zl3073x_chan *chan;
-	u8 new_ref;
+	struct zl3073x_chan chan;
+	u8 mode, ref;
 	int rc;
 
-	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	ref = zl3073x_input_pin_ref_get(pin->id);
+	mode = zl3073x_chan_mode_get(&chan);
 
-	switch (zl3073x_chan_mode_get(chan)) {
+	switch (mode) {
 	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
+		if (state == DPLL_PIN_STATE_CONNECTED) {
+			/* Choose the pin as new selected reference */
+			zl3073x_chan_ref_set(&chan, ref);
+		} else if (state == DPLL_PIN_STATE_DISCONNECTED) {
+			/* Choose new mode based on lock status */
+			switch (zldpll->lock_status) {
+			case DPLL_LOCK_STATUS_LOCKED_HO_ACQ:
+			case DPLL_LOCK_STATUS_HOLDOVER:
+				mode = ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER;
+				break;
+			default:
+				mode = ZL_DPLL_MODE_REFSEL_MODE_FREERUN;
+				break;
+			}
+			zl3073x_chan_mode_set(&chan, mode);
+		} else {
+			goto invalid_state;
+		}
+		break;
 	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
 	case ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER:
 		if (state == DPLL_PIN_STATE_CONNECTED) {
 			/* Choose the pin as new selected reference */
-			new_ref = zl3073x_input_pin_ref_get(pin->id);
-		} else if (state == DPLL_PIN_STATE_DISCONNECTED) {
-			/* No reference */
-			new_ref = ZL3073X_DPLL_REF_NONE;
-		} else {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Invalid pin state for manual mode");
-			return -EINVAL;
+			zl3073x_chan_ref_set(&chan, ref);
+			/* Switch to reflock mode */
+			zl3073x_chan_mode_set(&chan,
+					      ZL_DPLL_MODE_REFSEL_MODE_REFLOCK);
+		} else if (state != DPLL_PIN_STATE_DISCONNECTED) {
+			goto invalid_state;
 		}
-
-		rc = zl3073x_dpll_selected_ref_set(zldpll, new_ref);
 		break;
-
 	case ZL_DPLL_MODE_REFSEL_MODE_AUTO:
 		if (state == DPLL_PIN_STATE_SELECTABLE) {
-			if (pin->selectable)
+			if (zl3073x_chan_ref_is_selectable(&chan, ref))
 				return 0; /* Pin is already selectable */
 
 			/* Restore pin priority in HW */
-			rc = zl3073x_dpll_ref_prio_set(pin, pin->prio);
-			if (rc)
-				return rc;
-
-			/* Mark pin as selectable */
-			pin->selectable = true;
+			zl3073x_chan_ref_prio_set(&chan, ref, pin->prio);
 		} else if (state == DPLL_PIN_STATE_DISCONNECTED) {
-			if (!pin->selectable)
+			if (!zl3073x_chan_ref_is_selectable(&chan, ref))
 				return 0; /* Pin is already disconnected */
 
 			/* Set pin priority to none in HW */
-			rc = zl3073x_dpll_ref_prio_set(pin,
-						       ZL_DPLL_REF_PRIO_NONE);
-			if (rc)
-				return rc;
-
-			/* Mark pin as non-selectable */
-			pin->selectable = false;
+			zl3073x_chan_ref_prio_set(&chan, ref,
+						  ZL_DPLL_REF_PRIO_NONE);
 		} else {
-			NL_SET_ERR_MSG(extack,
-				       "Invalid pin state for automatic mode");
-			return -EINVAL;
+			goto invalid_state;
 		}
 		break;
-
 	default:
 		/* In other modes we cannot change input reference */
 		NL_SET_ERR_MSG(extack,
 			       "Pin state cannot be changed in current mode");
-		rc = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 	}
 
-	return rc;
+	/* Commit DPLL channel changes */
+	rc = zl3073x_chan_state_set(zldpll->dev, zldpll->id, &chan);
+	if (rc)
+		return rc;
+
+	return 0;
+invalid_state:
+	NL_SET_ERR_MSG_MOD(extack, "Invalid pin state for this device mode");
+	return -EINVAL;
 }
 
 static int
@@ -745,15 +597,21 @@ zl3073x_dpll_input_pin_prio_set(const struct dpll_pin *dpll_pin, void *pin_priv,
 				const struct dpll_device *dpll, void *dpll_priv,
 				u32 prio, struct netlink_ext_ack *extack)
 {
+	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dpll_pin *pin = pin_priv;
+	struct zl3073x_chan chan;
+	u8 ref;
 	int rc;
 
 	if (prio > ZL_DPLL_REF_PRIO_MAX)
 		return -EINVAL;
 
 	/* If the pin is selectable then update HW registers */
-	if (pin->selectable) {
-		rc = zl3073x_dpll_ref_prio_set(pin, prio);
+	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	ref = zl3073x_input_pin_ref_get(pin->id);
+	if (zl3073x_chan_ref_is_selectable(&chan, ref)) {
+		zl3073x_chan_ref_prio_set(&chan, ref, prio);
+		rc = zl3073x_chan_state_set(zldpll->dev, zldpll->id, &chan);
 		if (rc)
 			return rc;
 	}
@@ -1235,6 +1093,8 @@ zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
 		return rc;
 	}
 
+	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+
 	if (mode == DPLL_MODE_MANUAL) {
 		/* We are switching from automatic to manual mode:
 		 * - if we have a valid reference selected during auto mode then
@@ -1256,25 +1116,21 @@ zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
 		 *   it is selectable after switch to automatic mode
 		 * - switch to automatic mode
 		 */
-		struct zl3073x_dpll_pin *pin;
+		if (ZL3073X_DPLL_REF_IS_VALID(ref) &&
+		    !zl3073x_chan_ref_is_selectable(&chan, ref)) {
+			struct zl3073x_dpll_pin *pin;
 
-		pin = zl3073x_dpll_pin_get_by_ref(zldpll, ref);
-		if (pin && !pin->selectable) {
-			/* Restore pin priority in HW */
-			rc = zl3073x_dpll_ref_prio_set(pin, pin->prio);
-			if (rc) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "failed to restore pin priority");
-				return rc;
+			pin = zl3073x_dpll_pin_get_by_ref(zldpll, ref);
+			if (pin) {
+				/* Restore pin priority in HW */
+				zl3073x_chan_ref_prio_set(&chan, ref,
+							  pin->prio);
 			}
-
-			pin->selectable = true;
 		}
 
 		hw_mode = ZL_DPLL_MODE_REFSEL_MODE_AUTO;
 	}
 
-	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
 	zl3073x_chan_mode_set(&chan, hw_mode);
 	if (ZL3073X_DPLL_REF_IS_VALID(ref))
 		zl3073x_chan_ref_set(&chan, ref);
@@ -1426,18 +1282,16 @@ zl3073x_dpll_pin_register(struct zl3073x_dpll_pin *pin, u32 index)
 	pin->phase_gran = props->dpll_props.phase_gran;
 
 	if (zl3073x_dpll_is_input_pin(pin)) {
-		rc = zl3073x_dpll_ref_prio_get(pin, &pin->prio);
-		if (rc)
-			goto err_prio_get;
+		const struct zl3073x_chan *chan;
+		u8 ref;
 
-		if (pin->prio == ZL_DPLL_REF_PRIO_NONE) {
-			/* Clamp prio to max value & mark pin non-selectable */
+		chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+		ref = zl3073x_input_pin_ref_get(pin->id);
+		pin->prio = zl3073x_chan_ref_prio_get(chan, ref);
+
+		if (pin->prio == ZL_DPLL_REF_PRIO_NONE)
+			/* Clamp prio to max value */
 			pin->prio = ZL_DPLL_REF_PRIO_MAX;
-			pin->selectable = false;
-		} else {
-			/* Mark pin as selectable */
-			pin->selectable = true;
-		}
 	}
 
 	/* Create or get existing DPLL pin */
@@ -1466,7 +1320,6 @@ zl3073x_dpll_pin_register(struct zl3073x_dpll_pin *pin, u32 index)
 
 err_register:
 	dpll_pin_put(pin->dpll_pin, &pin->tracker);
-err_prio_get:
 	pin->dpll_pin = NULL;
 err_pin_get:
 	zl3073x_pin_props_put(props);
