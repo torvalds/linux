@@ -258,7 +258,7 @@ def bpftrace(expr, json=None, ns=None, host=None, timeout=None):
         cmd_arr += ['-f', 'json', '-q']
     if timeout:
         expr += ' interval:s:' + str(timeout) + ' { exit(); }'
-        timeout += 5
+        timeout += 20
     cmd_arr += ['-e', expr]
     cmd_obj = cmd(cmd_arr, ns=ns, host=host, shell=False, timeout=timeout)
     if json:
