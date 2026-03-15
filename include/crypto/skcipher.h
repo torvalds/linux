@@ -145,6 +145,7 @@ struct skcipher_alg_common SKCIPHER_ALG_COMMON;
  * 	      considerably more efficient if it can operate on multiple chunks
  * 	      in parallel. Should be a multiple of chunksize.
  * @co: see struct skcipher_alg_common
+ * @SKCIPHER_ALG_COMMON: see struct skcipher_alg_common
  *
  * All fields except @ivsize are mandatory and must be filled.
  */
