@@ -52,6 +52,21 @@ zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult)
 }
 
 /**
+ * zl3073x_ref_state_update - update input reference status from HW
+ * @zldev: pointer to zl3073x_dev structure
+ * @index: input reference index
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_ref_state_update(struct zl3073x_dev *zldev, u8 index)
+{
+	struct zl3073x_ref *ref = &zldev->ref[index];
+
+	return zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(index),
+			       &ref->mon_status);
+}
+
+/**
  * zl3073x_ref_state_fetch - fetch input reference state from hardware
  * @zldev: pointer to zl3073x_dev structure
  * @index: input reference index to fetch state for
@@ -78,6 +93,11 @@ int zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
 
 		return 0; /* Finish - no non-shared items for now */
 	}
+
+	/* Read reference status */
+	rc = zl3073x_ref_state_update(zldev, index);
+	if (rc)
+		return rc;
 
 	guard(mutex)(&zldev->multiop_lock);
 

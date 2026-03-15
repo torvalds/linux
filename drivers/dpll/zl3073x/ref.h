@@ -52,6 +52,8 @@ const struct zl3073x_ref *zl3073x_ref_state_get(struct zl3073x_dev *zldev,
 int zl3073x_ref_state_set(struct zl3073x_dev *zldev, u8 index,
 			  const struct zl3073x_ref *ref);
 
+int zl3073x_ref_state_update(struct zl3073x_dev *zldev, u8 index);
+
 int zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult);
 
 /**
