@@ -133,10 +133,12 @@ struct rseq_data { };
  * @active:	MM CID is active for the task
  * @cid:	The CID associated to the task either permanently or
  *		borrowed from the CPU
+ * @node:	Queued in the per MM MMCID list
  */
 struct sched_mm_cid {
 	unsigned int		active;
 	unsigned int		cid;
+	struct hlist_node	node;
 };
 
 /**
@@ -157,6 +159,7 @@ struct mm_cid_pcpu {
  * @work:		Regular work to handle the affinity mode change case
  * @lock:		Spinlock to protect against affinity setting which can't take @mutex
  * @mutex:		Mutex to serialize forks and exits related to this mm
+ * @user_list:		List of the MM CID users of a MM
  * @nr_cpus_allowed:	The number of CPUs in the per MM allowed CPUs map. The map
  *			is growth only.
  * @users:		The number of tasks sharing this MM. Separate from mm::mm_users
@@ -177,13 +180,14 @@ struct mm_mm_cid {
 
 	raw_spinlock_t		lock;
 	struct mutex		mutex;
+	struct hlist_head	user_list;
 
 	/* Low frequency modified */
 	unsigned int		nr_cpus_allowed;
 	unsigned int		users;
 	unsigned int		pcpu_thrs;
 	unsigned int		update_deferred;
-}____cacheline_aligned_in_smp;
+} ____cacheline_aligned;
 #else /* CONFIG_SCHED_MM_CID */
 struct mm_mm_cid { };
 struct sched_mm_cid { };
