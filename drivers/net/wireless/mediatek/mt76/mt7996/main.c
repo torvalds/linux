@@ -367,12 +367,16 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, &it);
 
-	if (vif->txq && !mlink->wcid->offchannel &&
-	    mvif->mt76.deflink_id == IEEE80211_LINK_UNSPECIFIED) {
-		struct mt76_txq *mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+	if (!mlink->wcid->offchannel) {
+		if (vif->txq &&
+		    mvif->mt76.deflink_id == IEEE80211_LINK_UNSPECIFIED) {
+			struct mt76_txq *mtxq;
 
-		mvif->mt76.deflink_id = link_conf->link_id;
-		mtxq->wcid = idx;
+			mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+			mvif->mt76.deflink_id = link_conf->link_id;
+			mtxq->wcid = idx;
+		}
+		mvif->mt76.valid_links |= BIT(link_conf->link_id);
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
@@ -419,28 +423,30 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
-	if (vif->txq && !mlink->wcid->offchannel &&
-	    mvif->mt76.deflink_id == link_id) {
-		struct ieee80211_bss_conf *iter;
-		struct mt76_txq *mtxq;
+	if (!mlink->wcid->offchannel) {
+		if (vif->txq && mvif->mt76.deflink_id == link_id) {
+			struct ieee80211_bss_conf *iter;
+			struct mt76_txq *mtxq;
 
-		mvif->mt76.deflink_id = IEEE80211_LINK_UNSPECIFIED;
-		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		/* Primary link will be removed, look for a new one */
-		for_each_vif_active_link(vif, iter, link_id) {
-			struct mt7996_vif_link *link;
+			mvif->mt76.deflink_id = IEEE80211_LINK_UNSPECIFIED;
+			mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+			/* Primary link will be removed, look for a new one */
+			for_each_vif_active_link(vif, iter, link_id) {
+				struct mt7996_vif_link *link;
 
-			if (link_id == msta_link->wcid.link_id)
-				continue;
+				if (link_id == msta_link->wcid.link_id)
+					continue;
 
-			link = mt7996_vif_link(dev, vif, link_id);
-			if (!link)
-				continue;
+				link = mt7996_vif_link(dev, vif, link_id);
+				if (!link)
+					continue;
 
-			mtxq->wcid = link->msta_link.wcid.idx;
-			mvif->mt76.deflink_id = link_id;
-			break;
+				mtxq->wcid = link->msta_link.wcid.idx;
+				mvif->mt76.deflink_id = link_id;
+				break;
+			}
 		}
+		mvif->mt76.valid_links &= ~BIT(link_id);
 	}
 
 	dev->mt76.vif_mask &= ~BIT_ULL(mlink->idx);
