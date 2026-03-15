@@ -14,10 +14,16 @@ struct zl3073x_dev;
 /**
  * struct zl3073x_chan - DPLL channel state
  * @mode_refsel: mode and reference selection register value
+ * @mon_status: monitor status register value
+ * @refsel_status: reference selection status register value
  */
 struct zl3073x_chan {
 	struct_group(cfg,
 		u8	mode_refsel;
+	);
+	struct_group(stat,
+		u8	mon_status;
+		u8	refsel_status;
 	);
 };
 
@@ -26,6 +32,8 @@ const struct zl3073x_chan *zl3073x_chan_state_get(struct zl3073x_dev *zldev,
 						 u8 index);
 int zl3073x_chan_state_set(struct zl3073x_dev *zldev, u8 index,
 			   const struct zl3073x_chan *chan);
+
+int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index);
 
 /**
  * zl3073x_chan_mode_get - get DPLL channel operating mode
@@ -69,6 +77,50 @@ static inline void zl3073x_chan_ref_set(struct zl3073x_chan *chan, u8 ref)
 {
 	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_REF;
 	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+}
+
+/**
+ * zl3073x_chan_lock_state_get - get DPLL channel lock state
+ * @chan: pointer to channel state
+ *
+ * Return: lock state of the given DPLL channel
+ */
+static inline u8 zl3073x_chan_lock_state_get(const struct zl3073x_chan *chan)
+{
+	return FIELD_GET(ZL_DPLL_MON_STATUS_STATE, chan->mon_status);
+}
+
+/**
+ * zl3073x_chan_is_ho_ready - check if holdover is ready
+ * @chan: pointer to channel state
+ *
+ * Return: true if holdover is ready, false otherwise
+ */
+static inline bool zl3073x_chan_is_ho_ready(const struct zl3073x_chan *chan)
+{
+	return !!FIELD_GET(ZL_DPLL_MON_STATUS_HO_READY, chan->mon_status);
+}
+
+/**
+ * zl3073x_chan_refsel_state_get - get reference selection state
+ * @chan: pointer to channel state
+ *
+ * Return: reference selection state of the given DPLL channel
+ */
+static inline u8 zl3073x_chan_refsel_state_get(const struct zl3073x_chan *chan)
+{
+	return FIELD_GET(ZL_DPLL_REFSEL_STATUS_STATE, chan->refsel_status);
+}
+
+/**
+ * zl3073x_chan_refsel_ref_get - get currently selected reference in auto mode
+ * @chan: pointer to channel state
+ *
+ * Return: reference selected by the DPLL in automatic mode
+ */
+static inline u8 zl3073x_chan_refsel_ref_get(const struct zl3073x_chan *chan)
+{
+	return FIELD_GET(ZL_DPLL_REFSEL_STATUS_REFSEL, chan->refsel_status);
 }
 
 #endif /* _ZL3073X_CHAN_H */

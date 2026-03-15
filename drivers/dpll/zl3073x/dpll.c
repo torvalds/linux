@@ -258,28 +258,16 @@ zl3073x_dpll_input_pin_frequency_set(const struct dpll_pin *dpll_pin,
 static int
 zl3073x_dpll_selected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 {
-	struct zl3073x_dev *zldev = zldpll->dev;
 	const struct zl3073x_chan *chan;
-	u8 state, value;
-	int rc;
 
-	chan = zl3073x_chan_state_get(zldev, zldpll->id);
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
 
 	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_AUTO:
-		/* For automatic mode read refsel_status register */
-		rc = zl3073x_read_u8(zldev,
-				     ZL_REG_DPLL_REFSEL_STATUS(zldpll->id),
-				     &value);
-		if (rc)
-			return rc;
-
-		/* Extract reference state */
-		state = FIELD_GET(ZL_DPLL_REFSEL_STATUS_STATE, value);
-
 		/* Return the reference only if the DPLL is locked to it */
-		if (state == ZL_DPLL_REFSEL_STATUS_STATE_LOCK)
-			*ref = FIELD_GET(ZL_DPLL_REFSEL_STATUS_REFSEL, value);
+		if (zl3073x_chan_refsel_state_get(chan) ==
+		    ZL_DPLL_REFSEL_STATUS_STATE_LOCK)
+			*ref = zl3073x_chan_refsel_ref_get(chan);
 		else
 			*ref = ZL3073X_DPLL_REF_NONE;
 		break;
@@ -1089,12 +1077,9 @@ zl3073x_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 			     struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
-	struct zl3073x_dev *zldev = zldpll->dev;
 	const struct zl3073x_chan *chan;
-	u8 mon_status, state;
-	int rc;
 
-	chan = zl3073x_chan_state_get(zldev, zldpll->id);
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
 
 	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
@@ -1107,16 +1092,9 @@ zl3073x_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 		break;
 	}
 
-	/* Read DPLL monitor status */
-	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MON_STATUS(zldpll->id),
-			     &mon_status);
-	if (rc)
-		return rc;
-	state = FIELD_GET(ZL_DPLL_MON_STATUS_STATE, mon_status);
-
-	switch (state) {
+	switch (zl3073x_chan_lock_state_get(chan)) {
 	case ZL_DPLL_MON_STATUS_STATE_LOCK:
-		if (FIELD_GET(ZL_DPLL_MON_STATUS_HO_READY, mon_status))
+		if (zl3073x_chan_is_ho_ready(chan))
 			*status = DPLL_LOCK_STATUS_LOCKED_HO_ACQ;
 		else
 			*status = DPLL_LOCK_STATUS_LOCKED;
@@ -1126,8 +1104,9 @@ zl3073x_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 		*status = DPLL_LOCK_STATUS_HOLDOVER;
 		break;
 	default:
-		dev_warn(zldev->dev, "Unknown DPLL monitor status: 0x%02x\n",
-			 mon_status);
+		dev_warn(zldpll->dev->dev,
+			 "Unknown DPLL monitor status: 0x%02x\n",
+			 chan->mon_status);
 		*status = DPLL_LOCK_STATUS_UNLOCKED;
 		break;
 	}

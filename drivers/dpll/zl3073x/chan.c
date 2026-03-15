@@ -8,6 +8,27 @@
 #include "core.h"
 
 /**
+ * zl3073x_chan_state_update - update DPLL channel status from HW
+ * @zldev: pointer to zl3073x_dev structure
+ * @index: DPLL channel index
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index)
+{
+	struct zl3073x_chan *chan = &zldev->chan[index];
+	int rc;
+
+	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MON_STATUS(index),
+			     &chan->mon_status);
+	if (rc)
+		return rc;
+
+	return zl3073x_read_u8(zldev, ZL_REG_DPLL_REFSEL_STATUS(index),
+			       &chan->refsel_status);
+}
+
+/**
  * zl3073x_chan_state_fetch - fetch DPLL channel state from hardware
  * @zldev: pointer to zl3073x_dev structure
  * @index: DPLL channel index to fetch state for
@@ -29,6 +50,17 @@ int zl3073x_chan_state_fetch(struct zl3073x_dev *zldev, u8 index)
 
 	dev_dbg(zldev->dev, "DPLL%u mode: %u, ref: %u\n", index,
 		zl3073x_chan_mode_get(chan), zl3073x_chan_ref_get(chan));
+
+	rc = zl3073x_chan_state_update(zldev, index);
+	if (rc)
+		return rc;
+
+	dev_dbg(zldev->dev,
+		"DPLL%u lock_state: %u, ho: %u, sel_state: %u, sel_ref: %u\n",
+		index, zl3073x_chan_lock_state_get(chan),
+		zl3073x_chan_is_ho_ready(chan) ? 1 : 0,
+		zl3073x_chan_refsel_state_get(chan),
+		zl3073x_chan_refsel_ref_get(chan));
 
 	return 0;
 }
