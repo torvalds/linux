@@ -158,8 +158,6 @@ void mt76_unassign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct mt76_chanctx *ctx = (struct mt76_chanctx *)conf->drv_priv;
 	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
-	struct mt76_vif_data *mvif = mlink->mvif;
-	int link_id = link_conf->link_id;
 	struct mt76_phy *phy = ctx->phy;
 	struct mt76_dev *dev = phy->dev;
 
@@ -176,15 +174,8 @@ void mt76_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	if (!mlink)
 		goto out;
 
-	if (mlink != (struct mt76_vif_link *)vif->drv_priv)
-		rcu_assign_pointer(mvif->link[link_id], NULL);
-
 	dev->drv->vif_link_remove(phy, vif, link_conf, mlink);
 	mlink->ctx = NULL;
-
-	if (mlink != (struct mt76_vif_link *)vif->drv_priv)
-		kfree_rcu(mlink, rcu_head);
-
 out:
 	mutex_unlock(&dev->mutex);
 }
