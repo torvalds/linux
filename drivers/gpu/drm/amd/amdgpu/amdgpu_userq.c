@@ -156,7 +156,7 @@ static void amdgpu_userq_hang_detect_work(struct work_struct *work)
 	struct dma_fence *fence;
 	struct amdgpu_userq_mgr *uq_mgr;
 
-	if (!queue || !queue->userq_mgr)
+	if (!queue->userq_mgr)
 		return;
 
 	uq_mgr = queue->userq_mgr;
