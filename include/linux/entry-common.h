@@ -48,6 +48,7 @@
 
 /**
  * arch_ptrace_report_syscall_entry - Architecture specific ptrace_report_syscall_entry() wrapper
+ * @regs: Pointer to the register state at syscall entry
  *
  * Invoked from syscall_trace_enter() to wrap ptrace_report_syscall_entry().
  *
@@ -205,6 +206,8 @@ static __always_inline bool report_single_step(unsigned long work)
 
 /**
  * arch_ptrace_report_syscall_exit - Architecture specific ptrace_report_syscall_exit()
+ * @regs: Pointer to the register state at syscall exit
+ * @step: Indicates a single-step exit rather than a normal syscall exit
  *
  * This allows architecture specific ptrace_report_syscall_exit()
  * implementations. If not defined by the architecture this falls back to
