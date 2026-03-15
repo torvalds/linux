@@ -3904,7 +3904,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	if (extent_buffer_uptodate(eb)) {
 		int ret;
 
-		ret = btrfs_buffer_uptodate(eb, 0, true, check);
+		ret = btrfs_buffer_uptodate(eb, 0, check);
 		if (unlikely(ret <= 0)) {
 			if (ret == 0)
 				ret = -EIO;
@@ -3935,7 +3935,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 		int ret;
 
 		clear_extent_buffer_reading(eb);
-		ret = btrfs_buffer_uptodate(eb, 0, true, check);
+		ret = btrfs_buffer_uptodate(eb, 0, check);
 		if (unlikely(ret <= 0)) {
 			if (ret == 0)
 				ret = -EIO;
@@ -4653,7 +4653,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(eb))
 		return;
 
-	if (btrfs_buffer_uptodate(eb, gen, true, NULL)) {
+	if (btrfs_buffer_uptodate(eb, gen, NULL)) {
 		free_extent_buffer(eb);
 		return;
 	}

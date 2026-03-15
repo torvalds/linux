@@ -109,7 +109,7 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
  * detect blocks that either didn't get written at all or got written
  * in the wrong place.
  */
-int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, bool atomic,
+int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid,
 			  const struct btrfs_tree_parent_check *check)
 {
 	if (!extent_buffer_uptodate(eb))
@@ -124,9 +124,6 @@ int btrfs_buffer_uptodate(struct extent_buffer *eb, u64 parent_transid, bool ato
 			return -EUCLEAN;
 		return 1;
 	}
-
-	if (atomic)
-		return -EAGAIN;
 
 	if (btrfs_header_generation(eb) != parent_transid) {
 		btrfs_err_rl(eb->fs_info,
@@ -1001,7 +998,7 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 		goto fail;
 	}
 
-	ret = btrfs_buffer_uptodate(root->node, generation, false, &check);
+	ret = btrfs_buffer_uptodate(root->node, generation, &check);
 	if (unlikely(ret <= 0)) {
 		if (ret == 0)
 			ret = -EIO;
