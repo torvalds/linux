@@ -396,16 +396,20 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta_link *msta_link = &link->msta_link;
+	unsigned int link_id = msta_link->wcid.link_id;
 	struct mt7996_phy *phy = mphy->priv;
 	struct mt7996_dev *dev = phy->dev;
 	struct mt7996_key_iter_data it = {
 		.cmd = SET_KEY,
-		.link_id = link_conf->link_id,
+		.link_id = link_id,
 	};
 	int idx = msta_link->wcid.idx;
 
 	if (!mlink->wcid->offchannel)
 		ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, &it);
+
+	if (!link_conf)
+		link_conf = &vif->bss_conf;
 
 	mt7996_mcu_add_sta(dev, link_conf, NULL, link, NULL,
 			   CONN_STATE_DISCONNECT, false);
@@ -416,10 +420,9 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
 	if (vif->txq && !mlink->wcid->offchannel &&
-	    mvif->mt76.deflink_id == link_conf->link_id) {
+	    mvif->mt76.deflink_id == link_id) {
 		struct ieee80211_bss_conf *iter;
 		struct mt76_txq *mtxq;
-		unsigned int link_id;
 
 		mvif->mt76.deflink_id = IEEE80211_LINK_UNSPECIFIED;
 		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
@@ -427,7 +430,7 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		for_each_vif_active_link(vif, iter, link_id) {
 			struct mt7996_vif_link *link;
 
-			if (link_id == link_conf->link_id)
+			if (link_id == msta_link->wcid.link_id)
 				continue;
 
 			link = mt7996_vif_link(dev, vif, link_id);
