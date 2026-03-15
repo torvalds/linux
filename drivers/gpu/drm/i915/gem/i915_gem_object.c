@@ -372,12 +372,12 @@ void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 	 * and ttm_bo_cleanup_memtype_use() shouldn't be invoked for
 	 * dma-buf, so it's safe to take the lock.
 	 */
-	if (obj->base.import_attach)
+	if (drm_gem_is_imported(&obj->base))
 		i915_gem_object_lock(obj, NULL);
 
 	__i915_gem_object_put_pages(obj);
 
-	if (obj->base.import_attach)
+	if (drm_gem_is_imported(&obj->base))
 		i915_gem_object_unlock(obj);
 
 	GEM_BUG_ON(i915_gem_object_has_pages(obj));
@@ -391,7 +391,7 @@ void __i915_gem_free_object(struct drm_i915_gem_object *obj)
 
 	bitmap_free(obj->bit_17);
 
-	if (obj->base.import_attach)
+	if (drm_gem_is_imported(&obj->base))
 		drm_prime_gem_destroy(&obj->base, NULL);
 
 	drm_gem_free_mmap_offset(&obj->base);
