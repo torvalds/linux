@@ -776,6 +776,12 @@ int mt7996_mcu_get_all_sta_info(struct mt7996_phy *phy, u16 tag);
 int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 int mt7996_mcu_set_sniffer_mode(struct mt7996_phy *phy, bool enabled);
 int mt7996_mcu_set_dup_wtbl(struct mt7996_dev *dev);
+int mt7996_mcu_mld_reconf_stop_link(struct mt7996_dev *dev,
+				    struct ieee80211_vif *vif,
+				    u16 removed_links);
+int mt7996_mcu_mld_link_oper(struct mt7996_dev *dev,
+			     struct ieee80211_bss_conf *link_conf,
+			     struct mt7996_vif_link *link, bool add);
 
 static inline bool mt7996_has_hwrro(struct mt7996_dev *dev)
 {

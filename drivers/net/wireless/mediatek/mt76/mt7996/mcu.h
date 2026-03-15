@@ -524,6 +524,18 @@ struct bss_prot_tlv {
 	__le32 prot_mode;
 } __packed;
 
+struct bss_mld_link_op_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 group_mld_id;
+	u8 own_mld_id;
+	u8 mac_addr[ETH_ALEN];
+	u8 remap_idx;
+	u8 link_operation;
+	u8 link_id;
+	u8 rsv[2];
+} __packed;
+
 struct sta_rec_ht_uni {
 	__le16 tag;
 	__le16 len;
@@ -696,6 +708,28 @@ struct mld_setup_link {
 	u8 bss_idx;
 	u8 __rsv;
 } __packed;
+
+struct mld_req_hdr {
+	u8 ver;
+	u8 mld_addr[ETH_ALEN];
+	u8 mld_idx;
+	u8 flag;
+	u8 rsv[3];
+	u8 buf[];
+} __packed;
+
+struct mld_reconf_stop_link {
+	__le16 tag;
+	__le16 len;
+	__le16 link_bitmap;
+	u8 rsv[2];
+	u8 bss_idx[16];
+} __packed;
+
+enum {
+	UNI_CMD_MLD_RECONF_AP_REM_TIMER = 0x03,
+	UNI_CMD_MLD_RECONF_STOP_LINK = 0x04,
+};
 
 struct hdr_trans_en {
 	__le16 tag;

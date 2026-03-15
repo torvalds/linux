@@ -2583,6 +2583,72 @@ mt7996_mcu_add_group(struct mt7996_dev *dev, struct mt7996_vif_link *link,
 				 sizeof(req), true);
 }
 
+int mt7996_mcu_mld_reconf_stop_link(struct mt7996_dev *dev,
+				    struct ieee80211_vif *vif,
+				    u16 removed_links)
+{
+	unsigned long rem_links = removed_links;
+	struct mld_reconf_stop_link *sl;
+	struct mld_req_hdr hdr = {};
+	unsigned int link_id;
+	struct sk_buff *skb;
+	struct tlv *tlv;
+
+	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(hdr) + sizeof(*sl));
+	if (!skb)
+		return -ENOMEM;
+
+	memcpy(hdr.mld_addr, vif->addr, ETH_ALEN);
+	skb_put_data(skb, &hdr, sizeof(hdr));
+
+	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_CMD_MLD_RECONF_STOP_LINK,
+				     sizeof(*sl));
+	sl = (struct mld_reconf_stop_link *)tlv;
+	sl->link_bitmap = cpu_to_le16(removed_links);
+
+	for_each_set_bit(link_id, &rem_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct mt7996_vif_link *link;
+
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		sl->bss_idx[link_id] = link->mt76.idx;
+	}
+
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb, MCU_WM_UNI_CMD(MLD),
+				     true);
+}
+
+int mt7996_mcu_mld_link_oper(struct mt7996_dev *dev,
+			     struct ieee80211_bss_conf *link_conf,
+			     struct mt7996_vif_link *link, bool add)
+{
+	struct ieee80211_vif *vif = link_conf->vif;
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct bss_mld_link_op_tlv *mld_op;
+	struct sk_buff *skb;
+	struct tlv *tlv;
+
+	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &link->mt76,
+					 MT7996_BSS_UPDATE_MAX_SIZE);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	tlv = mt7996_mcu_add_uni_tlv(skb, UNI_BSS_INFO_MLD_LINK_OP,
+				     sizeof(*mld_op));
+	mld_op = (struct bss_mld_link_op_tlv *)tlv;
+	mld_op->link_operation = add;
+	mld_op->own_mld_id = link->mld_idx;
+	mld_op->link_id = link_conf->link_id;
+	mld_op->group_mld_id = add ? mvif->mld_group_idx : 0xff;
+	mld_op->remap_idx = add ? mvif->mld_remap_idx : 0xff;
+	memcpy(mld_op->mac_addr, vif->addr, ETH_ALEN);
+
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_WMWA_UNI_CMD(BSS_INFO_UPDATE), true);
+}
+
 static void
 mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 			     struct ieee80211_vif *vif,

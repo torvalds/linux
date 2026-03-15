@@ -307,8 +307,12 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	int mld_idx, idx, ret;
 
 	if ((mvif->mt76.valid_links & BIT(link_conf->link_id)) &&
-	    !mlink->offchannel)
+	    !mlink->offchannel) {
+		if (vif->type == NL80211_IFTYPE_AP)
+			return mt7996_mcu_mld_link_oper(dev, link_conf, link,
+							true);
 		return 0;
+	}
 
 	mlink->idx = __ffs64(~dev->mt76.vif_mask);
 	if (mlink->idx >= mt7996_max_interface_num(dev))
@@ -453,6 +457,7 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta_link *msta_link = &link->msta_link;
+	unsigned int link_id = msta_link->wcid.link_id;
 	struct mt7996_phy *phy = mphy->priv;
 
 	/* Hw requires to destroy active links tearing down the interface, so
@@ -460,26 +465,33 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	 */
 	if (mlink->wcid->offchannel) {
 		mt7996_vif_link_destroy(phy, link, vif, link_conf);
-	} else if (vif->txq &&
-		   mvif->mt76.deflink_id == msta_link->wcid.link_id) {
-		struct ieee80211_bss_conf *iter;
-		struct mt76_txq *mtxq;
-		unsigned int link_id;
+	} else {
+		if (vif->type == NL80211_IFTYPE_AP) {
+			mt7996_mcu_mld_reconf_stop_link(phy->dev, vif,
+							BIT(link_id));
+			mt7996_mcu_mld_link_oper(phy->dev, link_conf, link,
+						 false);
+		}
 
-		mvif->mt76.deflink_id = IEEE80211_LINK_UNSPECIFIED;
-		mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-		/* Primary link will be removed, look for a new one */
-		for_each_vif_active_link(vif, iter, link_id) {
-			if (link_id == msta_link->wcid.link_id)
-				continue;
+		if (vif->txq && mvif->mt76.deflink_id == link_id) {
+			struct ieee80211_bss_conf *iter;
+			struct mt76_txq *mtxq;
 
-			link = mt7996_vif_link(phy->dev, vif, link_id);
-			if (!link)
-				continue;
+			mvif->mt76.deflink_id = IEEE80211_LINK_UNSPECIFIED;
+			mtxq = (struct mt76_txq *)vif->txq->drv_priv;
+			/* Primary link will be removed, look for a new one */
+			for_each_vif_active_link(vif, iter, link_id) {
+				if (link_id == msta_link->wcid.link_id)
+					continue;
 
-			mtxq->wcid = link->msta_link.wcid.idx;
-			mvif->mt76.deflink_id = link_id;
-			break;
+				link = mt7996_vif_link(phy->dev, vif, link_id);
+				if (!link)
+					continue;
+
+				mtxq->wcid = link->msta_link.wcid.idx;
+				mvif->mt76.deflink_id = link_id;
+				break;
+			}
 		}
 	}
 }
