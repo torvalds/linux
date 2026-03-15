@@ -248,7 +248,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	struct em_perf_state *ps;
 	int i;
 
-	WARN_ONCE(!rcu_read_lock_held(), "EM: rcu read lock needed\n");
+	lockdep_assert(rcu_read_lock_any_held());
 
 	if (!sum_util)
 		return 0;
@@ -267,7 +267,7 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * Find the lowest performance state of the Energy Model above the
 	 * requested performance.
 	 */
-	em_table = rcu_dereference(pd->em_table);
+	em_table = rcu_dereference_all(pd->em_table);
 	i = em_pd_get_efficient_state(em_table->state, pd, max_util);
 	ps = &em_table->state[i];
 
