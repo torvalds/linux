@@ -2372,26 +2372,8 @@ mt7996_mac_reset_sta_iter(void *data, struct ieee80211_sta *sta)
 	struct mt7996_dev *dev = data;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(msta->link); i++) {
-		struct mt7996_sta_link *msta_link = NULL;
-		struct mt7996_phy *phy;
-
-		msta_link = rcu_replace_pointer(msta->link[i], msta_link,
-						lockdep_is_held(&dev->mt76.mutex));
-		if (!msta_link)
-			continue;
-
-		mt7996_mac_sta_deinit_link(dev, msta_link);
-		phy = __mt7996_phy(dev, msta_link->wcid.phy_idx);
-		if (phy)
-			phy->mt76->num_sta--;
-
-		if (msta_link != &msta->deflink)
-			kfree_rcu(msta_link, rcu_head);
-	}
-
-	msta->deflink_id = IEEE80211_LINK_UNSPECIFIED;
-	msta->seclink_id = msta->deflink_id;
+	for (i = 0; i < ARRAY_SIZE(msta->link); i++)
+		mt7996_mac_sta_remove_link(dev, sta, i, true);
 }
 
 static void
