@@ -9,7 +9,7 @@
 #include <linux/bug.h>
 #include <linux/cache.h>
 
-/**
+/*
  * List of possible attributes associated with a DMA mapping. The semantics
  * of each attribute should be defined in Documentation/core-api/dma-attributes.rst.
  */
