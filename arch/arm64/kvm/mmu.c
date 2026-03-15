@@ -1727,10 +1727,6 @@ static short kvm_s2_resolve_vma_size(const struct kvm_s2_fault_desc *s2fd,
 	return vma_shift;
 }
 
-struct kvm_s2_fault {
-	enum kvm_pgtable_prot prot;
-};
-
 static bool kvm_s2_fault_is_perm(const struct kvm_s2_fault_desc *s2fd)
 {
 	return kvm_vcpu_trap_is_permission_fault(s2fd->vcpu);
@@ -1854,8 +1850,8 @@ static int kvm_s2_fault_pin_pfn(const struct kvm_s2_fault_desc *s2fd,
 }
 
 static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
-				     struct kvm_s2_fault *fault,
-				     const struct kvm_s2_fault_vma_info *s2vi)
+				     const struct kvm_s2_fault_vma_info *s2vi,
+				     enum kvm_pgtable_prot *prot)
 {
 	struct kvm *kvm = s2fd->vcpu->kvm;
 	bool writable = s2vi->map_writable;
@@ -1883,23 +1879,25 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 		return 1;
 	}
 
+	*prot = KVM_PGTABLE_PROT_R;
+
 	if (s2fd->nested)
-		adjust_nested_fault_perms(s2fd->nested, &fault->prot, &writable);
+		adjust_nested_fault_perms(s2fd->nested, prot, &writable);
 
 	if (writable)
-		fault->prot |= KVM_PGTABLE_PROT_W;
+		*prot |= KVM_PGTABLE_PROT_W;
 
 	if (kvm_vcpu_trap_is_exec_fault(s2fd->vcpu))
-		fault->prot |= KVM_PGTABLE_PROT_X;
+		*prot |= KVM_PGTABLE_PROT_X;
 
 	if (s2vi->map_non_cacheable)
-		fault->prot |= (s2vi->vm_flags & VM_ALLOW_ANY_UNCACHED) ?
-			       KVM_PGTABLE_PROT_NORMAL_NC : KVM_PGTABLE_PROT_DEVICE;
+		*prot |= (s2vi->vm_flags & VM_ALLOW_ANY_UNCACHED) ?
+			KVM_PGTABLE_PROT_NORMAL_NC : KVM_PGTABLE_PROT_DEVICE;
 	else if (cpus_have_final_cap(ARM64_HAS_CACHE_DIC))
-		fault->prot |= KVM_PGTABLE_PROT_X;
+		*prot |= KVM_PGTABLE_PROT_X;
 
 	if (s2fd->nested)
-		adjust_nested_exec_perms(kvm, s2fd->nested, &fault->prot);
+		adjust_nested_exec_perms(kvm, s2fd->nested, prot);
 
 	if (!kvm_s2_fault_is_perm(s2fd) && !s2vi->map_non_cacheable && kvm_has_mte(kvm)) {
 		/* Check the VMM hasn't introduced a new disallowed VMA */
@@ -1911,11 +1909,12 @@ static int kvm_s2_fault_compute_prot(const struct kvm_s2_fault_desc *s2fd,
 }
 
 static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
-			    struct kvm_s2_fault *fault,
-			    const struct kvm_s2_fault_vma_info *s2vi, void *memcache)
+			    const struct kvm_s2_fault_vma_info *s2vi,
+			    enum kvm_pgtable_prot prot,
+			    void *memcache)
 {
 	enum kvm_pgtable_walk_flags flags = KVM_PGTABLE_WALK_SHARED;
-	bool writable = fault->prot & KVM_PGTABLE_PROT_W;
+	bool writable = prot & KVM_PGTABLE_PROT_W;
 	struct kvm *kvm = s2fd->vcpu->kvm;
 	struct kvm_pgtable *pgt;
 	long perm_fault_granule;
@@ -1968,12 +1967,12 @@ static int kvm_s2_fault_map(const struct kvm_s2_fault_desc *s2fd,
 		 * Drop the SW bits in favour of those stored in the
 		 * PTE, which will be preserved.
 		 */
-		fault->prot &= ~KVM_NV_GUEST_MAP_SZ;
+		prot &= ~KVM_NV_GUEST_MAP_SZ;
 		ret = KVM_PGT_FN(kvm_pgtable_stage2_relax_perms)(pgt, gfn_to_gpa(gfn),
-								 fault->prot, flags);
+								 prot, flags);
 	} else {
 		ret = KVM_PGT_FN(kvm_pgtable_stage2_map)(pgt, gfn_to_gpa(gfn), mapping_size,
-							 __pfn_to_phys(pfn), fault->prot,
+							 __pfn_to_phys(pfn), prot,
 							 memcache, flags);
 	}
 
@@ -2001,9 +2000,7 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 {
 	bool perm_fault = kvm_vcpu_trap_is_permission_fault(s2fd->vcpu);
 	struct kvm_s2_fault_vma_info s2vi = {};
-	struct kvm_s2_fault fault = {
-		.prot = KVM_PGTABLE_PROT_R,
-	};
+	enum kvm_pgtable_prot prot;
 	void *memcache;
 	int ret;
 
@@ -2029,13 +2026,13 @@ static int user_mem_abort(const struct kvm_s2_fault_desc *s2fd)
 	if (ret != 1)
 		return ret;
 
-	ret = kvm_s2_fault_compute_prot(s2fd, &fault, &s2vi);
+	ret = kvm_s2_fault_compute_prot(s2fd, &s2vi, &prot);
 	if (ret) {
 		kvm_release_page_unused(s2vi.page);
 		return ret;
 	}
 
-	return kvm_s2_fault_map(s2fd, &fault, &s2vi, memcache);
+	return kvm_s2_fault_map(s2fd, &s2vi, prot, memcache);
 }
 
 /* Resolve the access fault by making the page young again. */
