@@ -3576,10 +3576,28 @@ struct page_pool_bh {
 };
 DECLARE_PER_CPU(struct page_pool_bh, system_page_pool);
 
+#define XMIT_RECURSION_LIMIT	8
+
 #ifndef CONFIG_PREEMPT_RT
 static inline int dev_recursion_level(void)
 {
 	return this_cpu_read(softnet_data.xmit.recursion);
+}
+
+static inline bool dev_xmit_recursion(void)
+{
+	return unlikely(__this_cpu_read(softnet_data.xmit.recursion) >
+			XMIT_RECURSION_LIMIT);
+}
+
+static inline void dev_xmit_recursion_inc(void)
+{
+	__this_cpu_inc(softnet_data.xmit.recursion);
+}
+
+static inline void dev_xmit_recursion_dec(void)
+{
+	__this_cpu_dec(softnet_data.xmit.recursion);
 }
 #else
 static inline int dev_recursion_level(void)
@@ -3587,6 +3605,20 @@ static inline int dev_recursion_level(void)
 	return current->net_xmit.recursion;
 }
 
+static inline bool dev_xmit_recursion(void)
+{
+	return unlikely(current->net_xmit.recursion > XMIT_RECURSION_LIMIT);
+}
+
+static inline void dev_xmit_recursion_inc(void)
+{
+	current->net_xmit.recursion++;
+}
+
+static inline void dev_xmit_recursion_dec(void)
+{
+	current->net_xmit.recursion--;
+}
 #endif
 
 void __netif_schedule(struct Qdisc *q);
@@ -4711,7 +4743,7 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
 {
 	spin_lock(&txq->_xmit_lock);
-	/* Pairs with READ_ONCE() in __dev_queue_xmit() */
+	/* Pairs with READ_ONCE() in netif_tx_owned() */
 	WRITE_ONCE(txq->xmit_lock_owner, cpu);
 }
 
@@ -4729,7 +4761,7 @@ static inline void __netif_tx_release(struct netdev_queue *txq)
 static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
 {
 	spin_lock_bh(&txq->_xmit_lock);
-	/* Pairs with READ_ONCE() in __dev_queue_xmit() */
+	/* Pairs with READ_ONCE() in netif_tx_owned() */
 	WRITE_ONCE(txq->xmit_lock_owner, smp_processor_id());
 }
 
@@ -4738,7 +4770,7 @@ static inline bool __netif_tx_trylock(struct netdev_queue *txq)
 	bool ok = spin_trylock(&txq->_xmit_lock);
 
 	if (likely(ok)) {
-		/* Pairs with READ_ONCE() in __dev_queue_xmit() */
+		/* Pairs with READ_ONCE() in netif_tx_owned() */
 		WRITE_ONCE(txq->xmit_lock_owner, smp_processor_id());
 	}
 	return ok;
@@ -4746,14 +4778,14 @@ static inline bool __netif_tx_trylock(struct netdev_queue *txq)
 
 static inline void __netif_tx_unlock(struct netdev_queue *txq)
 {
-	/* Pairs with READ_ONCE() in __dev_queue_xmit() */
+	/* Pairs with READ_ONCE() in netif_tx_owned() */
 	WRITE_ONCE(txq->xmit_lock_owner, -1);
 	spin_unlock(&txq->_xmit_lock);
 }
 
 static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 {
-	/* Pairs with READ_ONCE() in __dev_queue_xmit() */
+	/* Pairs with READ_ONCE() in netif_tx_owned() */
 	WRITE_ONCE(txq->xmit_lock_owner, -1);
 	spin_unlock_bh(&txq->_xmit_lock);
 }
@@ -4845,6 +4877,23 @@ static inline void netif_tx_disable(struct net_device *dev)
 	spin_unlock(&dev->tx_global_lock);
 	local_bh_enable();
 }
+
+#ifndef CONFIG_PREEMPT_RT
+static inline bool netif_tx_owned(struct netdev_queue *txq, unsigned int cpu)
+{
+	/* Other cpus might concurrently change txq->xmit_lock_owner
+	 * to -1 or to their cpu id, but not to our id.
+	 */
+	return READ_ONCE(txq->xmit_lock_owner) == cpu;
+}
+
+#else
+static inline bool netif_tx_owned(struct netdev_queue *txq, unsigned int cpu)
+{
+	return rt_mutex_owner(&txq->_xmit_lock.lock) == current;
+}
+
+#endif
 
 static inline void netif_addr_lock(struct net_device *dev)
 {

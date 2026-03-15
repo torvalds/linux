@@ -4399,6 +4399,8 @@ static int move_existing_remaps(struct btrfs_fs_info *fs_info,
 
 				leaf = path->nodes[0];
 			}
+
+			btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 		}
 
 		remap = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
@@ -4723,6 +4725,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 	ret = btrfs_remove_dev_extents(trans, chunk_map);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -4732,6 +4735,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 		if (unlikely(ret)) {
 			mutex_unlock(&trans->fs_info->chunk_mutex);
 			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
 			return ret;
 		}
 	}
@@ -4750,6 +4754,7 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 	ret = remove_chunk_stripes(trans, chunk_map, path);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
 		return ret;
 	}
 
@@ -5982,6 +5987,9 @@ static int remove_range_from_remap_tree(struct btrfs_trans_handle *trans,
 		struct btrfs_block_group *dest_bg;
 
 		dest_bg = btrfs_lookup_block_group(fs_info, new_addr);
+		if (unlikely(!dest_bg))
+			return -EUCLEAN;
+
 		adjust_block_group_remap_bytes(trans, dest_bg, -overlap_length);
 		btrfs_put_block_group(dest_bg);
 		ret = btrfs_add_to_free_space_tree(trans,

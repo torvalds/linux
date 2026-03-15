@@ -124,7 +124,11 @@ int cmd_set(int argc, char **argv)
 	}
 
 	if (params.turbo_boost) {
-		ret = cpupower_set_turbo_boost(turbo_boost);
+		if (cpupower_cpu_info.vendor == X86_VENDOR_INTEL)
+			ret = cpupower_set_intel_turbo_boost(turbo_boost);
+		else
+			ret = cpupower_set_generic_turbo_boost(turbo_boost);
+
 		if (ret)
 			fprintf(stderr, "Error setting turbo-boost\n");
 	}

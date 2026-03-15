@@ -262,7 +262,7 @@ retry:
 		if (!atomic_compare_exchange_strong(&tld_meta_p->cnt, &cnt, cnt + 1))
 			goto retry;
 
-		strncpy(tld_meta_p->metadata[i].name, name, TLD_NAME_LEN);
+		strscpy(tld_meta_p->metadata[i].name, name);
 		atomic_store(&tld_meta_p->metadata[i].size, size);
 		return (tld_key_t){(__s16)off};
 	}

@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) "ACPI: video: " fmt
 
+#include <linux/auxiliary_bus.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -21,7 +22,6 @@
 #include <linux/sort.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
 #include <linux/suspend.h>
@@ -77,8 +77,9 @@ static int register_count;
 static DEFINE_MUTEX(register_count_mutex);
 static DEFINE_MUTEX(video_list_lock);
 static LIST_HEAD(video_bus_head);
-static int acpi_video_bus_probe(struct platform_device *pdev);
-static void acpi_video_bus_remove(struct platform_device *pdev);
+static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
+				const struct auxiliary_device_id *id);
+static void acpi_video_bus_remove(struct auxiliary_device *aux);
 static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data);
 
 /*
@@ -93,19 +94,16 @@ enum acpi_video_level_idx {
 	ACPI_VIDEO_FIRST_LEVEL,		/* actual supported levels begin here */
 };
 
-static const struct acpi_device_id video_device_ids[] = {
-	{ACPI_VIDEO_HID, 0},
-	{"", 0},
+static const struct auxiliary_device_id video_bus_auxiliary_id_table[] = {
+	{ .name = "acpi.video_bus" },
+	{},
 };
-MODULE_DEVICE_TABLE(acpi, video_device_ids);
+MODULE_DEVICE_TABLE(auxiliary, video_bus_auxiliary_id_table);
 
-static struct platform_driver acpi_video_bus = {
+static struct auxiliary_driver acpi_video_bus = {
 	.probe = acpi_video_bus_probe,
 	.remove = acpi_video_bus_remove,
-	.driver = {
-		.name = "acpi-video",
-		.acpi_match_table = video_device_ids,
-	},
+	.id_table = video_bus_auxiliary_id_table,
 };
 
 struct acpi_video_bus_flags {
@@ -1885,7 +1883,7 @@ static void acpi_video_dev_add_notify_handler(struct acpi_video_device *device)
 }
 
 static int acpi_video_bus_add_notify_handler(struct acpi_video_bus *video,
-					     struct platform_device *pdev)
+					     struct device *parent)
 {
 	struct input_dev *input;
 	struct acpi_video_device *dev;
@@ -1908,7 +1906,7 @@ static int acpi_video_bus_add_notify_handler(struct acpi_video_bus *video,
 	input->phys = video->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = 0x06;
-	input->dev.parent = &pdev->dev;
+	input->dev.parent = parent;
 	input->evbit[0] = BIT(EV_KEY);
 	set_bit(KEY_SWITCHVIDEOMODE, input->keybit);
 	set_bit(KEY_VIDEO_NEXT, input->keybit);
@@ -1980,9 +1978,10 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 
 static int instance;
 
-static int acpi_video_bus_probe(struct platform_device *pdev)
+static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
+				const struct auxiliary_device_id *id_unused)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device = ACPI_COMPANION(&aux_dev->dev);
 	struct acpi_video_bus *video;
 	bool auto_detect;
 	int error;
@@ -2019,7 +2018,7 @@ static int acpi_video_bus_probe(struct platform_device *pdev)
 		instance++;
 	}
 
-	platform_set_drvdata(pdev, video);
+	auxiliary_set_drvdata(aux_dev, video);
 
 	video->device = device;
 	strscpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
@@ -2068,7 +2067,7 @@ static int acpi_video_bus_probe(struct platform_device *pdev)
 	    !auto_detect)
 		acpi_video_bus_register_backlight(video);
 
-	error = acpi_video_bus_add_notify_handler(video, pdev);
+	error = acpi_video_bus_add_notify_handler(video, &aux_dev->dev);
 	if (error)
 		goto err_del;
 
@@ -2096,10 +2095,10 @@ err_free_video:
 	return error;
 }
 
-static void acpi_video_bus_remove(struct platform_device *pdev)
+static void acpi_video_bus_remove(struct auxiliary_device *aux_dev)
 {
-	struct acpi_video_bus *video = platform_get_drvdata(pdev);
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_video_bus *video = auxiliary_get_drvdata(aux_dev);
+	struct acpi_device *device = ACPI_COMPANION(&aux_dev->dev);
 
 	acpi_dev_remove_notify_handler(device, ACPI_DEVICE_NOTIFY,
 				       acpi_video_bus_notify);
@@ -2163,7 +2162,7 @@ int acpi_video_register(void)
 
 	dmi_check_system(video_dmi_table);
 
-	ret = platform_driver_register(&acpi_video_bus);
+	ret = auxiliary_driver_register(&acpi_video_bus);
 	if (ret)
 		goto leave;
 
@@ -2183,7 +2182,7 @@ void acpi_video_unregister(void)
 {
 	mutex_lock(&register_count_mutex);
 	if (register_count) {
-		platform_driver_unregister(&acpi_video_bus);
+		auxiliary_driver_unregister(&acpi_video_bus);
 		register_count = 0;
 		may_report_brightness_keys = false;
 	}

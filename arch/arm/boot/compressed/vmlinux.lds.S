@@ -21,6 +21,7 @@ SECTIONS
     COMMON_DISCARDS
     *(.ARM.exidx*)
     *(.ARM.extab*)
+    *(.modinfo)
     *(.note.*)
     *(.rel.*)
     *(.printk_index)

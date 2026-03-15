@@ -333,11 +333,13 @@ static int netc_get_phy_addr(struct device_node *np)
 
 	mdio_node = of_get_child_by_name(np, "mdio");
 	if (!mdio_node)
-		return 0;
+		return -ENODEV;
 
 	phy_node = of_get_next_child(mdio_node, NULL);
-	if (!phy_node)
+	if (!phy_node) {
+		err = -ENODEV;
 		goto of_put_mdio_node;
+	}
 
 	err = of_property_read_u32(phy_node, "reg", &addr);
 	if (err)
@@ -423,6 +425,9 @@ static int imx95_enetc_mdio_phyaddr_config(struct platform_device *pdev)
 
 			addr = netc_get_phy_addr(gchild);
 			if (addr < 0) {
+				if (addr == -ENODEV)
+					continue;
+
 				dev_err(dev, "Failed to get PHY address\n");
 				return addr;
 			}
@@ -432,12 +437,6 @@ static int imx95_enetc_mdio_phyaddr_config(struct platform_device *pdev)
 					"Find same PHY address in EMDIO and ENETC node\n");
 				return -EINVAL;
 			}
-
-			/* The default value of LaBCR[MDIO_PHYAD_PRTAD ] is
-			 * 0, so no need to set the register.
-			 */
-			if (!addr)
-				continue;
 
 			switch (bus_devfn) {
 			case IMX95_ENETC0_BUS_DEVFN:
@@ -578,15 +577,12 @@ static int imx94_enetc_mdio_phyaddr_config(struct netc_blk_ctrl *priv,
 
 	addr = netc_get_phy_addr(np);
 	if (addr < 0) {
+		if (addr == -ENODEV)
+			return 0;
+
 		dev_err(dev, "Failed to get PHY address\n");
 		return addr;
 	}
-
-	/* The default value of LaBCR[MDIO_PHYAD_PRTAD] is 0,
-	 * so no need to set the register.
-	 */
-	if (!addr)
-		return 0;
 
 	if (phy_mask & BIT(addr)) {
 		dev_err(dev,

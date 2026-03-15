@@ -181,7 +181,7 @@ void rdma_destroy_id(struct rdma_cm_id *id);
  *
  * It needs to be called before the RDMA identifier is bound
  * to an device, which mean it should be called before
- * rdma_bind_addr(), rdma_bind_addr() and rdma_listen().
+ * rdma_bind_addr(), rdma_resolve_addr() and rdma_listen().
  */
 int rdma_restrict_node_type(struct rdma_cm_id *id, u8 node_type);
 

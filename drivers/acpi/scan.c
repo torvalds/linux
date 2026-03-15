@@ -6,6 +6,7 @@
 #define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/async.h>
+#include <linux/auxiliary_bus.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -2192,6 +2193,44 @@ static acpi_status acpi_bus_check_add_2(acpi_handle handle, u32 lvl_not_used,
 	return acpi_bus_check_add(handle, false, (struct acpi_device **)ret_p);
 }
 
+static void acpi_video_bus_device_release(struct device *dev)
+{
+	struct auxiliary_device *aux_dev = to_auxiliary_dev(dev);
+
+	kfree(aux_dev);
+}
+
+static void acpi_create_video_bus_device(struct acpi_device *adev,
+					 struct acpi_device *parent)
+{
+	struct auxiliary_device *aux_dev;
+	static unsigned int aux_dev_id;
+
+	aux_dev = kzalloc_obj(*aux_dev);
+	if (!aux_dev)
+		return;
+
+	aux_dev->id = aux_dev_id++;
+	aux_dev->name = "video_bus";
+	aux_dev->dev.parent = acpi_get_first_physical_node(parent);
+	if (!aux_dev->dev.parent)
+		goto err;
+
+	aux_dev->dev.release = acpi_video_bus_device_release;
+
+	if (auxiliary_device_init(aux_dev))
+		goto err;
+
+	ACPI_COMPANION_SET(&aux_dev->dev, adev);
+	if (__auxiliary_device_add(aux_dev, "acpi"))
+		auxiliary_device_uninit(aux_dev);
+
+	return;
+
+err:
+	kfree(aux_dev);
+}
+
 struct acpi_scan_system_dev {
 	struct list_head node;
 	struct acpi_device *adev;
@@ -2229,6 +2268,12 @@ static void acpi_default_enumeration(struct acpi_device *device)
 			sd->adev = device;
 			list_add_tail(&sd->node, &acpi_scan_system_dev_list);
 		}
+	} else if (device->pnp.type.backlight) {
+		struct acpi_device *parent;
+
+		parent = acpi_dev_parent(device);
+		if (parent)
+			acpi_create_video_bus_device(device, parent);
 	} else {
 		/* For a regular device object, create a platform device. */
 		acpi_create_platform_device(device, NULL);
