@@ -230,7 +230,7 @@ static inline int get_count_order_long(unsigned long l)
 
 /**
  * parity8 - get the parity of an u8 value
- * @value: the value to be examined
+ * @val: the value to be examined
  *
  * Determine the parity of the u8 argument.
  *
