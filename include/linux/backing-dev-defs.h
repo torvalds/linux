@@ -237,7 +237,7 @@ static inline void wb_get(struct bdi_writeback *wb)
 }
 
 /**
- * wb_put - decrement a wb's refcount
+ * wb_put_many - decrement a wb's refcount
  * @wb: bdi_writeback to put
  * @nr: number of references to put
  */
