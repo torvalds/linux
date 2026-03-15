@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "chan.h"
 #include "out.h"
 #include "ref.h"
 #include "regs.h"
@@ -61,6 +62,7 @@ struct zl3073x_chip_info {
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
+ * @chan: array of DPLL channels' state
  * @dplls: list of DPLLs
  * @kworker: thread for periodic work
  * @work: periodic work
@@ -77,6 +79,7 @@ struct zl3073x_dev {
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
 	struct zl3073x_out	out[ZL3073X_NUM_OUTS];
 	struct zl3073x_synth	synth[ZL3073X_NUM_SYNTHS];
+	struct zl3073x_chan	chan[ZL3073X_MAX_CHANNELS];
 
 	/* DPLL channels */
 	struct list_head	dplls;

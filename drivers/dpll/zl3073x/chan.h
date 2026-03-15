@@ -1,0 +1,74 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#ifndef _ZL3073X_CHAN_H
+#define _ZL3073X_CHAN_H
+
+#include <linux/bitfield.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+
+#include "regs.h"
+
+struct zl3073x_dev;
+
+/**
+ * struct zl3073x_chan - DPLL channel state
+ * @mode_refsel: mode and reference selection register value
+ */
+struct zl3073x_chan {
+	struct_group(cfg,
+		u8	mode_refsel;
+	);
+};
+
+int zl3073x_chan_state_fetch(struct zl3073x_dev *zldev, u8 index);
+const struct zl3073x_chan *zl3073x_chan_state_get(struct zl3073x_dev *zldev,
+						 u8 index);
+int zl3073x_chan_state_set(struct zl3073x_dev *zldev, u8 index,
+			   const struct zl3073x_chan *chan);
+
+/**
+ * zl3073x_chan_mode_get - get DPLL channel operating mode
+ * @chan: pointer to channel state
+ *
+ * Return: reference selection mode of the given DPLL channel
+ */
+static inline u8 zl3073x_chan_mode_get(const struct zl3073x_chan *chan)
+{
+	return FIELD_GET(ZL_DPLL_MODE_REFSEL_MODE, chan->mode_refsel);
+}
+
+/**
+ * zl3073x_chan_ref_get - get manually selected reference
+ * @chan: pointer to channel state
+ *
+ * Return: reference selected in forced reference lock mode
+ */
+static inline u8 zl3073x_chan_ref_get(const struct zl3073x_chan *chan)
+{
+	return FIELD_GET(ZL_DPLL_MODE_REFSEL_REF, chan->mode_refsel);
+}
+
+/**
+ * zl3073x_chan_mode_set - set DPLL channel operating mode
+ * @chan: pointer to channel state
+ * @mode: mode to set
+ */
+static inline void zl3073x_chan_mode_set(struct zl3073x_chan *chan, u8 mode)
+{
+	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_MODE;
+	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_MODE, mode);
+}
+
+/**
+ * zl3073x_chan_ref_set - set manually selected reference
+ * @chan: pointer to channel state
+ * @ref: reference to set
+ */
+static inline void zl3073x_chan_ref_set(struct zl3073x_chan *chan, u8 ref)
+{
+	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_REF;
+	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+}
+
+#endif /* _ZL3073X_CHAN_H */

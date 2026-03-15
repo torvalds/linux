@@ -259,10 +259,13 @@ static int
 zl3073x_dpll_selected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 {
 	struct zl3073x_dev *zldev = zldpll->dev;
+	const struct zl3073x_chan *chan;
 	u8 state, value;
 	int rc;
 
-	switch (zldpll->refsel_mode) {
+	chan = zl3073x_chan_state_get(zldev, zldpll->id);
+
+	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_AUTO:
 		/* For automatic mode read refsel_status register */
 		rc = zl3073x_read_u8(zldev,
@@ -282,7 +285,7 @@ zl3073x_dpll_selected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 		break;
 	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
 		/* For manual mode return stored value */
-		*ref = zldpll->forced_ref;
+		*ref = zl3073x_chan_ref_get(chan);
 		break;
 	default:
 		/* For other modes like NCO, freerun... there is no input ref */
@@ -307,10 +310,11 @@ static int
 zl3073x_dpll_selected_ref_set(struct zl3073x_dpll *zldpll, u8 ref)
 {
 	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 mode, mode_refsel;
-	int rc;
+	struct zl3073x_chan chan;
+	u8 mode;
 
-	mode = zldpll->refsel_mode;
+	chan = *zl3073x_chan_state_get(zldev, zldpll->id);
+	mode = zl3073x_chan_mode_get(&chan);
 
 	switch (mode) {
 	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
@@ -328,8 +332,8 @@ zl3073x_dpll_selected_ref_set(struct zl3073x_dpll *zldpll, u8 ref)
 				break;
 			}
 			/* Keep selected reference */
-			ref = zldpll->forced_ref;
-		} else if (ref == zldpll->forced_ref) {
+			ref = zl3073x_chan_ref_get(&chan);
+		} else if (ref == zl3073x_chan_ref_get(&chan)) {
 			/* No register update - same mode and same ref */
 			return 0;
 		}
@@ -351,21 +355,10 @@ zl3073x_dpll_selected_ref_set(struct zl3073x_dpll *zldpll, u8 ref)
 		return -EOPNOTSUPP;
 	}
 
-	/* Build mode_refsel value */
-	mode_refsel = FIELD_PREP(ZL_DPLL_MODE_REFSEL_MODE, mode) |
-		      FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+	zl3073x_chan_mode_set(&chan, mode);
+	zl3073x_chan_ref_set(&chan, ref);
 
-	/* Update dpll_mode_refsel register */
-	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MODE_REFSEL(zldpll->id),
-			      mode_refsel);
-	if (rc)
-		return rc;
-
-	/* Store new mode and forced reference */
-	zldpll->refsel_mode = mode;
-	zldpll->forced_ref = ref;
-
-	return rc;
+	return zl3073x_chan_state_set(zldev, zldpll->id, &chan);
 }
 
 /**
@@ -624,9 +617,11 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 {
 	struct zl3073x_dpll *zldpll = pin->dpll;
 	struct zl3073x_dev *zldev = zldpll->dev;
+	const struct zl3073x_chan *chan;
 	u8 ref, ref_conn;
 	int rc;
 
+	chan = zl3073x_chan_state_get(zldev, zldpll->id);
 	ref = zl3073x_input_pin_ref_get(pin->id);
 
 	/* Get currently connected reference */
@@ -643,7 +638,7 @@ zl3073x_dpll_ref_state_get(struct zl3073x_dpll_pin *pin,
 	 * selectable and its monitor does not report any error then report
 	 * pin as selectable.
 	 */
-	if (zldpll->refsel_mode == ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
+	if (zl3073x_chan_mode_get(chan) == ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
 	    zl3073x_dev_ref_is_status_ok(zldev, ref) && pin->selectable) {
 		*state = DPLL_PIN_STATE_SELECTABLE;
 		return 0;
@@ -678,10 +673,13 @@ zl3073x_dpll_input_pin_state_on_dpll_set(const struct dpll_pin *dpll_pin,
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dpll_pin *pin = pin_priv;
+	const struct zl3073x_chan *chan;
 	u8 new_ref;
 	int rc;
 
-	switch (zldpll->refsel_mode) {
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+
+	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_REFLOCK:
 	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
 	case ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER:
@@ -1092,10 +1090,13 @@ zl3073x_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
 	struct zl3073x_dev *zldev = zldpll->dev;
+	const struct zl3073x_chan *chan;
 	u8 mon_status, state;
 	int rc;
 
-	switch (zldpll->refsel_mode) {
+	chan = zl3073x_chan_state_get(zldev, zldpll->id);
+
+	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
 	case ZL_DPLL_MODE_REFSEL_MODE_NCO:
 		/* In FREERUN and NCO modes the DPLL is always unlocked */
@@ -1140,13 +1141,16 @@ zl3073x_dpll_supported_modes_get(const struct dpll_device *dpll,
 				 struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
+	const struct zl3073x_chan *chan;
+
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
 
 	/* We support switching between automatic and manual mode, except in
 	 * a case where the DPLL channel is configured to run in NCO mode.
 	 * In this case, report only the manual mode to which the NCO is mapped
 	 * as the only supported one.
 	 */
-	if (zldpll->refsel_mode != ZL_DPLL_MODE_REFSEL_MODE_NCO)
+	if (zl3073x_chan_mode_get(chan) != ZL_DPLL_MODE_REFSEL_MODE_NCO)
 		__set_bit(DPLL_MODE_AUTOMATIC, modes);
 
 	__set_bit(DPLL_MODE_MANUAL, modes);
@@ -1159,8 +1163,11 @@ zl3073x_dpll_mode_get(const struct dpll_device *dpll, void *dpll_priv,
 		      enum dpll_mode *mode, struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
+	const struct zl3073x_chan *chan;
 
-	switch (zldpll->refsel_mode) {
+	chan = zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+
+	switch (zl3073x_chan_mode_get(chan)) {
 	case ZL_DPLL_MODE_REFSEL_MODE_FREERUN:
 	case ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER:
 	case ZL_DPLL_MODE_REFSEL_MODE_NCO:
@@ -1239,7 +1246,8 @@ zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
 		      enum dpll_mode mode, struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
-	u8 hw_mode, mode_refsel, ref;
+	struct zl3073x_chan chan;
+	u8 hw_mode, ref;
 	int rc;
 
 	rc = zl3073x_dpll_selected_ref_get(zldpll, &ref);
@@ -1287,25 +1295,17 @@ zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
 		hw_mode = ZL_DPLL_MODE_REFSEL_MODE_AUTO;
 	}
 
-	/* Build mode_refsel value */
-	mode_refsel = FIELD_PREP(ZL_DPLL_MODE_REFSEL_MODE, hw_mode);
-
+	chan = *zl3073x_chan_state_get(zldpll->dev, zldpll->id);
+	zl3073x_chan_mode_set(&chan, hw_mode);
 	if (ZL3073X_DPLL_REF_IS_VALID(ref))
-		mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+		zl3073x_chan_ref_set(&chan, ref);
 
-	/* Update dpll_mode_refsel register */
-	rc = zl3073x_write_u8(zldpll->dev, ZL_REG_DPLL_MODE_REFSEL(zldpll->id),
-			      mode_refsel);
+	rc = zl3073x_chan_state_set(zldpll->dev, zldpll->id, &chan);
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "failed to set reference selection mode");
 		return rc;
 	}
-
-	zldpll->refsel_mode = hw_mode;
-
-	if (ZL3073X_DPLL_REF_IS_VALID(ref))
-		zldpll->forced_ref = ref;
 
 	return 0;
 }
@@ -1559,15 +1559,18 @@ zl3073x_dpll_pin_is_registrable(struct zl3073x_dpll *zldpll,
 				enum dpll_pin_direction dir, u8 index)
 {
 	struct zl3073x_dev *zldev = zldpll->dev;
+	const struct zl3073x_chan *chan;
 	bool is_diff, is_enabled;
 	const char *name;
+
+	chan = zl3073x_chan_state_get(zldev, zldpll->id);
 
 	if (dir == DPLL_PIN_DIRECTION_INPUT) {
 		u8 ref_id = zl3073x_input_pin_ref_get(index);
 		const struct zl3073x_ref *ref;
 
 		/* Skip the pin if the DPLL is running in NCO mode */
-		if (zldpll->refsel_mode == ZL_DPLL_MODE_REFSEL_MODE_NCO)
+		if (zl3073x_chan_mode_get(chan) == ZL_DPLL_MODE_REFSEL_MODE_NCO)
 			return false;
 
 		name = "REF";
@@ -1675,20 +1678,7 @@ static int
 zl3073x_dpll_device_register(struct zl3073x_dpll *zldpll)
 {
 	struct zl3073x_dev *zldev = zldpll->dev;
-	u8 dpll_mode_refsel;
 	int rc;
-
-	/* Read DPLL mode and forcibly selected reference */
-	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MODE_REFSEL(zldpll->id),
-			     &dpll_mode_refsel);
-	if (rc)
-		return rc;
-
-	/* Extract mode and selected input reference */
-	zldpll->refsel_mode = FIELD_GET(ZL_DPLL_MODE_REFSEL_MODE,
-					dpll_mode_refsel);
-	zldpll->forced_ref = FIELD_GET(ZL_DPLL_MODE_REFSEL_REF,
-				       dpll_mode_refsel);
 
 	zldpll->ops = zl3073x_dpll_device_ops;
 	if (zldev->info->flags & ZL3073X_FLAG_DIE_TEMP)
@@ -1844,8 +1834,10 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 	struct zl3073x_dev *zldev = zldpll->dev;
 	enum dpll_lock_status lock_status;
 	struct device *dev = zldev->dev;
+	const struct zl3073x_chan *chan;
 	struct zl3073x_dpll_pin *pin;
 	int rc;
+	u8 mode;
 
 	zldpll->check_count++;
 
@@ -1867,8 +1859,10 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 	/* Input pin monitoring does make sense only in automatic
 	 * or forced reference modes.
 	 */
-	if (zldpll->refsel_mode != ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
-	    zldpll->refsel_mode != ZL_DPLL_MODE_REFSEL_MODE_REFLOCK)
+	chan = zl3073x_chan_state_get(zldev, zldpll->id);
+	mode = zl3073x_chan_mode_get(chan);
+	if (mode != ZL_DPLL_MODE_REFSEL_MODE_AUTO &&
+	    mode != ZL_DPLL_MODE_REFSEL_MODE_REFLOCK)
 		return;
 
 	/* Update phase offset latch registers for this DPLL if the phase
