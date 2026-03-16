@@ -70,6 +70,7 @@ struct xe_graphics_desc {
 	u8 num_geometry_xecore_fuse_regs;
 	u8 num_compute_xecore_fuse_regs;
 
+	u8 has_access_counter:1;
 	u8 has_asid:1;
 	u8 has_atomic_enable_pte_bit:1;
 	u8 has_indirect_ring_state:1;
