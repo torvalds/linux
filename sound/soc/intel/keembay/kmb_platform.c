@@ -388,7 +388,7 @@ static snd_pcm_uframes_t kmb_pcm_pointer(struct snd_soc_component *component,
 
 static const struct snd_soc_component_driver kmb_component = {
 	.name			= "kmb",
-	.pcm_construct		= kmb_platform_pcm_new,
+	.pcm_new		= kmb_platform_pcm_new,
 	.open			= kmb_pcm_open,
 	.trigger		= kmb_pcm_trigger,
 	.pointer		= kmb_pcm_pointer,

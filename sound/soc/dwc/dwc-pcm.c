@@ -253,7 +253,7 @@ static const struct snd_soc_component_driver dw_pcm_component = {
 	.hw_params	= dw_pcm_hw_params,
 	.trigger	= dw_pcm_trigger,
 	.pointer	= dw_pcm_pointer,
-	.pcm_construct	= dw_pcm_new,
+	.pcm_new	= dw_pcm_new,
 };
 
 int dw_pcm_register(struct platform_device *pdev)

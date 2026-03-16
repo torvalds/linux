@@ -307,7 +307,7 @@ static const struct snd_soc_component_driver mpc5200_audio_dma_component = {
 	.close		= psc_dma_close,
 	.pointer	= psc_dma_pointer,
 	.trigger	= psc_dma_trigger,
-	.pcm_construct	= psc_dma_new,
+	.pcm_new	= psc_dma_new,
 };
 
 int mpc5200_audio_dma_create(struct platform_device *op)

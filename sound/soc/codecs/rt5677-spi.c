@@ -404,7 +404,7 @@ static const struct snd_soc_component_driver rt5677_spi_dai_component = {
 	.hw_free		= rt5677_spi_hw_free,
 	.prepare		= rt5677_spi_prepare,
 	.pointer		= rt5677_spi_pcm_pointer,
-	.pcm_construct		= rt5677_spi_pcm_new,
+	.pcm_new		= rt5677_spi_pcm_new,
 	.legacy_dai_naming	= 1,
 };
 

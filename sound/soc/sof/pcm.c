@@ -651,7 +651,7 @@ static int sof_pcm_new(struct snd_soc_component *component,
 		return 0;
 	}
 
-	dev_dbg(spcm->scomp->dev, "pcm%u (%s): Entry: pcm_construct\n",
+	dev_dbg(spcm->scomp->dev, "pcm%u (%s): Entry: pcm_new\n",
 		le32_to_cpu(spcm->pcm.pcm_id), spcm->pcm.pcm_name);
 
 	/* do we need to pre-allocate playback audio buffer pages */
@@ -850,7 +850,7 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->compress_ops = &sof_compressed_ops;
 #endif
 
-	pd->pcm_construct = sof_pcm_new;
+	pd->pcm_new = sof_pcm_new;
 	pd->ignore_machine = drv_name;
 	pd->be_pcm_base = SOF_BE_PCM_BASE;
 	pd->use_dai_pcm_id = true;

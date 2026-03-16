@@ -481,7 +481,7 @@ static const struct snd_soc_component_driver xtfpga_i2s_component = {
 	.hw_params		= xtfpga_pcm_hw_params,
 	.trigger		= xtfpga_pcm_trigger,
 	.pointer		= xtfpga_pcm_pointer,
-	.pcm_construct		= xtfpga_pcm_new,
+	.pcm_new		= xtfpga_pcm_new,
 	.legacy_dai_naming	= 1,
 };
 
