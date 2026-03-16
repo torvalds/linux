@@ -163,3 +163,19 @@ data corruption.
 
 All mappings that share a cache line must set this attribute to suppress DMA
 debug warnings about overlapping mappings.
+
+DMA_ATTR_REQUIRE_COHERENT
+-------------------------
+
+DMA mapping requests with the DMA_ATTR_REQUIRE_COHERENT fail on any
+system where SWIOTLB or cache management is required. This should only
+be used to support uAPI designs that require continuous HW DMA
+coherence with userspace processes, for example RDMA and DRM. At a
+minimum the memory being mapped must be userspace memory from
+pin_user_pages() or similar.
+
+Drivers should consider using dma_mmap_pages() instead of this
+interface when building their uAPIs, when possible.
+
+It must never be used in an in-kernel driver that only works with
+kernel memory.
