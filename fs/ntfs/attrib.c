@@ -946,6 +946,7 @@ static int ntfs_external_attr_find(const __le32 type,
 	struct attr_record *a;
 	__le16 *al_name;
 	u32 al_name_len;
+	u32 attr_len, mft_free_len;
 	bool is_first_search = false;
 	int err = 0;
 	static const char *es = " Unmount and run chkdsk.";
@@ -1209,13 +1210,23 @@ is_enumeration:
 		 * with the same meanings as above.
 		 */
 do_next_attr_loop:
-		if ((u8 *)a < (u8 *)ctx->mrec || (u8 *)a > (u8 *)ctx->mrec +
-				le32_to_cpu(ctx->mrec->bytes_allocated))
+		if ((u8 *)a < (u8 *)ctx->mrec ||
+		    (u8 *)a >= (u8 *)ctx->mrec + le32_to_cpu(ctx->mrec->bytes_allocated) ||
+		    (u8 *)a >= (u8 *)ctx->mrec + le32_to_cpu(ctx->mrec->bytes_in_use))
 			break;
-		if (a->type == AT_END)
+
+		mft_free_len = le32_to_cpu(ctx->mrec->bytes_in_use) -
+			       ((u8 *)a - (u8 *)ctx->mrec);
+		if (mft_free_len >= sizeof(a->type) && a->type == AT_END)
 			continue;
-		if (!a->length)
+
+		attr_len = le32_to_cpu(a->length);
+		if (!attr_len ||
+		    attr_len < offsetof(struct attr_record, data.resident.reserved) +
+		    sizeof(a->data.resident.reserved) ||
+		    attr_len > mft_free_len)
 			break;
+
 		if (al_entry->instance != a->instance)
 			goto do_next_attr;
 		/*
@@ -1225,27 +1236,67 @@ do_next_attr_loop:
 		 */
 		if (al_entry->type != a->type)
 			break;
+		if (a->name_length && ((le16_to_cpu(a->name_offset) +
+			       a->name_length * sizeof(__le16)) > attr_len))
+			break;
 		if (!ntfs_are_names_equal((__le16 *)((u8 *)a +
 				le16_to_cpu(a->name_offset)), a->name_length,
 				al_name, al_name_len, CASE_SENSITIVE,
 				vol->upcase, vol->upcase_len))
 			break;
+
 		ctx->attr = a;
+
+		if (a->non_resident) {
+			u32 min_len;
+			u16 mp_offset;
+
+			min_len = offsetof(struct attr_record,
+					   data.non_resident.initialized_size) +
+				  sizeof(a->data.non_resident.initialized_size);
+
+			if (le32_to_cpu(a->length) < min_len)
+				break;
+
+			mp_offset =
+				le16_to_cpu(a->data.non_resident.mapping_pairs_offset);
+			if (mp_offset < min_len || mp_offset > attr_len)
+				break;
+		}
+
 		/*
 		 * If no @val specified or @val specified and it matches, we
 		 * have found it!
 		 */
-		if ((type == AT_UNUSED) || !val || (!a->non_resident && le32_to_cpu(
-				a->data.resident.value_length) == val_len &&
-				!memcmp((u8 *)a +
-				le16_to_cpu(a->data.resident.value_offset),
-				val, val_len))) {
-			ntfs_debug("Done, found.");
-			return 0;
+		if ((type == AT_UNUSED) || !val)
+			goto attr_found;
+		if (!a->non_resident) {
+			u32 value_length = le32_to_cpu(a->data.resident.value_length);
+			u16 value_offset = le16_to_cpu(a->data.resident.value_offset);
+
+			if (attr_len < offsetof(struct attr_record, data.resident.reserved) +
+					sizeof(a->data.resident.reserved))
+				break;
+			if (value_length > attr_len || value_offset > attr_len - value_length)
+				break;
+
+			value_length = ntfs_resident_attr_min_value_length(a->type);
+			if (value_length && le32_to_cpu(a->data.resident.value_length) <
+			    value_length) {
+				pr_err("Too small resident attribute value in MFT record %lld, type %#x\n",
+				       (long long)ctx->ntfs_ino->mft_no, a->type);
+				break;
+			}
+			if (value_length == val_len &&
+			    !memcmp((u8 *)a + value_offset, val, val_len)) {
+attr_found:
+				ntfs_debug("Done, found.");
+				return 0;
+			}
 		}
 do_next_attr:
 		/* Proceed to the next attribute in the current mft record. */
-		a = (struct attr_record *)((u8 *)a + le32_to_cpu(a->length));
+		a = (struct attr_record *)((u8 *)a + attr_len);
 		goto do_next_attr_loop;
 	}
 
@@ -1260,9 +1311,13 @@ corrupt:
 	}
 
 	if (!err) {
+		u64 mft_no = ctx->al_entry ? MREF_LE(ctx->al_entry->mft_reference) : 0;
+		u32 type = ctx->al_entry ? le32_to_cpu(ctx->al_entry->type) : 0;
+
 		ntfs_error(vol->sb,
-			"Base inode 0x%llx contains corrupt attribute list attribute.%s",
-			base_ni->mft_no, es);
+			"Base inode 0x%llx contains corrupt attribute, mft %#llx, type %#x. %s",
+			(long long)base_ni->mft_no, (long long)mft_no, type,
+			"Unmount and run chkdsk.");
 		err = -EIO;
 	}
 
