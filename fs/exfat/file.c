@@ -34,6 +34,7 @@ static int exfat_cont_expand(struct inode *inode, loff_t size)
 		return ret;
 
 	num_clusters = EXFAT_B_TO_CLU(exfat_ondisk_size(inode), sbi);
+	/* integer overflow is already checked in inode_newsize_ok(). */
 	new_num_clusters = EXFAT_B_TO_CLU_ROUND_UP(size, sbi);
 
 	if (new_num_clusters == num_clusters)

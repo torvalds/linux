@@ -25,6 +25,7 @@
 #define EXFAT_FIRST_CLUSTER	2
 #define EXFAT_DATA_CLUSTER_COUNT(sbi)	\
 	((sbi)->num_clusters - EXFAT_RESERVED_CLUSTERS)
+#define EXFAT_MAX_NUM_CLUSTER		(0xFFFFFFF5)
 
 /* AllocationPossible and NoFatChain field in GeneralSecondaryFlags Field */
 #define ALLOC_POSSIBLE		0x01
