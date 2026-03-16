@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <asm/param.h>
+#include <linux/crc32.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -39,7 +40,6 @@
 #include "qed_sriov.h"
 
 #define QED_MAX_SGES_NUM 16
-#define CRC32_POLY 0x1edc6f41
 
 struct qed_l2_info {
 	u32 queues;
@@ -1412,50 +1412,19 @@ int qed_sp_eth_filter_ucast(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-/*******************************************************************************
- * Description:
- *         Calculates crc 32 on a buffer
- *         Note: crc32_length MUST be aligned to 8
- * Return:
- ******************************************************************************/
-static u32 qed_calc_crc32c(u8 *crc32_packet,
-			   u32 crc32_length, u32 crc32_seed, u8 complement)
-{
-	u32 byte = 0, bit = 0, crc32_result = crc32_seed;
-	u8 msb = 0, current_byte = 0;
-
-	if ((!crc32_packet) ||
-	    (crc32_length == 0) ||
-	    ((crc32_length % 8) != 0))
-		return crc32_result;
-	for (byte = 0; byte < crc32_length; byte++) {
-		current_byte = crc32_packet[byte];
-		for (bit = 0; bit < 8; bit++) {
-			msb = (u8)(crc32_result >> 31);
-			crc32_result = crc32_result << 1;
-			if (msb != (0x1 & (current_byte >> bit))) {
-				crc32_result = crc32_result ^ CRC32_POLY;
-				crc32_result |= 1; /*crc32_result[0] = 1;*/
-			}
-		}
-	}
-	return crc32_result;
-}
-
-static u32 qed_crc32c_le(u32 seed, u8 *mac, u32 len)
-{
-	u32 packet_buf[2] = { 0 };
-
-	memcpy((u8 *)(&packet_buf[0]), &mac[0], 6);
-	return qed_calc_crc32c((u8 *)packet_buf, 8, seed, 0);
-}
-
 u8 qed_mcast_bin_from_mac(u8 *mac)
 {
-	u32 crc = qed_crc32c_le(ETH_MULTICAST_BIN_FROM_MAC_SEED,
-				mac, ETH_ALEN);
+	u8 padded_mac[8] = {};
+	u32 crc;
 
-	return crc & 0xff;
+	memcpy(padded_mac, mac, ETH_ALEN);
+	/*
+	 * This uses the standard CRC-32C, but with the input and output CRCs
+	 * bit-reflected and the bit-reflected output CRC truncated to 8 bits.
+	 */
+	crc = crc32c(bitrev32(ETH_MULTICAST_BIN_FROM_MAC_SEED), padded_mac,
+		     sizeof(padded_mac));
+	return bitrev8(crc >> 24);
 }
 
 static int
