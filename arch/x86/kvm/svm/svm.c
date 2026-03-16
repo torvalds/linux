@@ -2236,54 +2236,28 @@ static int vmrun_interception(struct kvm_vcpu *vcpu)
 	return nested_svm_vmrun(vcpu);
 }
 
-enum {
-	NONE_SVM_INSTR,
-	SVM_INSTR_VMRUN,
-	SVM_INSTR_VMLOAD,
-	SVM_INSTR_VMSAVE,
-};
-
-/* Return NONE_SVM_INSTR if not SVM instrs, otherwise return decode result */
-static int svm_instr_opcode(struct kvm_vcpu *vcpu)
+/* Return 0 if not SVM instr, otherwise return associated exit_code */
+static u64 svm_get_decoded_instr_exit_code(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
 
 	if (ctxt->b != 0x1 || ctxt->opcode_len != 2)
-		return NONE_SVM_INSTR;
+		return 0;
+
+	BUILD_BUG_ON(!SVM_EXIT_VMRUN || !SVM_EXIT_VMLOAD || !SVM_EXIT_VMSAVE);
 
 	switch (ctxt->modrm) {
 	case 0xd8: /* VMRUN */
-		return SVM_INSTR_VMRUN;
+		return SVM_EXIT_VMRUN;
 	case 0xda: /* VMLOAD */
-		return SVM_INSTR_VMLOAD;
+		return SVM_EXIT_VMLOAD;
 	case 0xdb: /* VMSAVE */
-		return SVM_INSTR_VMSAVE;
+		return SVM_EXIT_VMSAVE;
 	default:
 		break;
 	}
 
-	return NONE_SVM_INSTR;
-}
-
-static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
-{
-	const int guest_mode_exit_codes[] = {
-		[SVM_INSTR_VMRUN] = SVM_EXIT_VMRUN,
-		[SVM_INSTR_VMLOAD] = SVM_EXIT_VMLOAD,
-		[SVM_INSTR_VMSAVE] = SVM_EXIT_VMSAVE,
-	};
-	int (*const svm_instr_handlers[])(struct kvm_vcpu *vcpu) = {
-		[SVM_INSTR_VMRUN] = vmrun_interception,
-		[SVM_INSTR_VMLOAD] = vmload_interception,
-		[SVM_INSTR_VMSAVE] = vmsave_interception,
-	};
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (is_guest_mode(vcpu)) {
-		nested_svm_simple_vmexit(svm, guest_mode_exit_codes[opcode]);
-		return 1;
-	}
-	return svm_instr_handlers[opcode](vcpu);
+	return 0;
 }
 
 /*
@@ -2298,7 +2272,7 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 error_code = svm->vmcb->control.exit_info_1;
-	int opcode;
+	u64 svm_exit_code;
 
 	/* Both #GP cases have zero error_code */
 	if (error_code)
@@ -2308,26 +2282,27 @@ static int gp_interception(struct kvm_vcpu *vcpu)
 	if (x86_decode_emulated_instruction(vcpu, 0, NULL, 0) != EMULATION_OK)
 		goto reinject;
 
-	opcode = svm_instr_opcode(vcpu);
-
-	if (opcode == NONE_SVM_INSTR) {
-		if (!enable_vmware_backdoor)
-			goto reinject;
-
-		/*
-		 * VMware backdoor emulation on #GP interception only handles
-		 * IN{S}, OUT{S}, and RDPMC.
-		 */
-		if (!is_guest_mode(vcpu))
-			return kvm_emulate_instruction(vcpu,
-				EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
-	} else {
+	svm_exit_code = svm_get_decoded_instr_exit_code(vcpu);
+	if (svm_exit_code) {
 		/* All SVM instructions expect page aligned RAX */
 		if (svm->vmcb->save.rax & ~PAGE_MASK)
 			goto reinject;
 
-		return emulate_svm_instr(vcpu, opcode);
+		if (!is_guest_mode(vcpu))
+			return svm_invoke_exit_handler(vcpu, svm_exit_code);
+
+		nested_svm_simple_vmexit(svm, svm_exit_code);
+		return 1;
 	}
+
+	/*
+	 * VMware backdoor emulation on #GP interception only handles
+	 * IN{S}, OUT{S}, and RDPMC, and only for L1.
+	 */
+	if (!enable_vmware_backdoor || is_guest_mode(vcpu))
+		goto reinject;
+
+	return kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
 
 reinject:
 	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
