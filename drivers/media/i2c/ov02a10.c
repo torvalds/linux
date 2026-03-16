@@ -998,6 +998,6 @@ static struct i2c_driver ov02a10_i2c_driver = {
 };
 module_i2c_driver(ov02a10_i2c_driver);
 
-MODULE_AUTHOR("Dongchun Zhu <dongchun.zhu@mediatek.com>");
+MODULE_AUTHOR("Dongchun Zhu");
 MODULE_DESCRIPTION("OmniVision OV02A10 sensor driver");
 MODULE_LICENSE("GPL v2");
