@@ -287,6 +287,7 @@ struct intel_display_runtime_info {
 		u16 step; /* hardware */
 	} ip;
 	int step; /* symbolic */
+	char step_name[3]; /* empty string if not applicable */
 
 	u32 rawclk_freq;
 
