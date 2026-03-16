@@ -34,6 +34,8 @@ struct bio_alloc_cache {
 	unsigned int		nr_irq;
 };
 
+#define BIO_INLINE_VECS 4
+
 static struct biovec_slab {
 	int nr_vecs;
 	char *name;
@@ -159,7 +161,8 @@ out:
 	mutex_unlock(&bio_slab_lock);
 }
 
-void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs)
+static void bvec_free(struct mempool *pool, struct bio_vec *bv,
+		      unsigned short nr_vecs)
 {
 	BUG_ON(nr_vecs > BIO_MAX_VECS);
 
@@ -179,7 +182,7 @@ static inline gfp_t bvec_alloc_gfp(gfp_t gfp)
 		__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
 }
 
-struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
+static struct bio_vec *bvec_alloc(struct mempool *pool, unsigned short *nr_vecs,
 		gfp_t gfp_mask)
 {
 	struct biovec_slab *bvs = biovec_slab(*nr_vecs);

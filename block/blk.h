@@ -108,11 +108,6 @@ static inline void blk_wait_io(struct completion *done)
 struct block_device *blkdev_get_no_open(dev_t dev, bool autoload);
 void blkdev_put_no_open(struct block_device *bdev);
 
-#define BIO_INLINE_VECS 4
-struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
-		gfp_t gfp_mask);
-void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs);
-
 bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
 		struct page *page, unsigned len, unsigned offset);
 
