@@ -196,13 +196,13 @@ static int xsk_rcv_zc(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 		goto err;
 	}
 
-	__xsk_rcv_zc(xs, xskb, len, contd);
+	__xsk_rcv_zc_safe(xs, xskb, len, contd);
 	xskb_list = &xskb->pool->xskb_list;
 	list_for_each_entry_safe(pos, tmp, xskb_list, list_node) {
 		if (list_is_singular(xskb_list))
 			contd = 0;
 		len = pos->xdp.data_end - pos->xdp.data;
-		__xsk_rcv_zc(xs, pos, len, contd);
+		__xsk_rcv_zc_safe(xs, pos, len, contd);
 		list_del_init(&pos->list_node);
 	}
 
