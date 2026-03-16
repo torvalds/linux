@@ -140,11 +140,13 @@ always-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/
 target-libc = $(filter $(uses-libc), $*.h)
 target-can-compile = $(filter-out $(no-header-test), $*.h)
 
+hdrtest-flags = -fsyntax-only -Werror \
+		-nostdinc $(if $(target-libc), -I $(srctree)/usr/dummy-include)
+
 # Include the header twice to detect missing include guard.
 quiet_cmd_hdrtest = HDRTEST $<
       cmd_hdrtest = \
-		$(CC) $(c_flags) -fsyntax-only -Werror -x c /dev/null \
-			-nostdinc $(if $(target-libc), -I $(srctree)/usr/dummy-include) \
+		$(CC) $(c_flags) $(hdrtest-flags) -x c /dev/null \
 			$(if $(target-can-compile), -include $< -include $<); \
 		$(PERL) $(src)/headers_check.pl $(obj) $<; \
 		touch $@
