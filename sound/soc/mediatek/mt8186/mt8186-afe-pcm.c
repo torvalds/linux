@@ -2773,7 +2773,7 @@ static int mt8186_afe_component_probe(struct snd_soc_component *component)
 
 static const struct snd_soc_component_driver mt8186_afe_component = {
 	.name = AFE_PCM_NAME,
-	.pcm_construct = mtk_afe_pcm_new,
+	.pcm_new = mtk_afe_pcm_new,
 	.pointer = mtk_afe_pcm_pointer,
 	.probe = mt8186_afe_component_probe,
 };
