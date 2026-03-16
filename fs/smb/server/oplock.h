@@ -69,8 +69,9 @@ struct oplock_info {
 	struct lease		*o_lease;
 	struct list_head        op_entry;
 	struct list_head        lease_entry;
-	wait_queue_head_t oplock_q; /* Other server threads */
-	wait_queue_head_t oplock_brk; /* oplock breaking wait */
+	wait_queue_head_t	oplock_q; /* Other server threads */
+	wait_queue_head_t	oplock_brk; /* oplock breaking wait */
+	struct rcu_head		rcu;
 };
 
 struct lease_break_info {

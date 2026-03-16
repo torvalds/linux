@@ -522,11 +522,10 @@ static int __maybe_unused sky1_pinctrl_resume(struct device *dev)
 	return pinctrl_force_default(spctl->pctl);
 }
 
-const struct dev_pm_ops sky1_pinctrl_pm_ops = {
+static const struct dev_pm_ops sky1_pinctrl_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(sky1_pinctrl_suspend,
 					sky1_pinctrl_resume)
 };
-EXPORT_SYMBOL_GPL(sky1_pinctrl_pm_ops);
 
 static int sky1_pinctrl_probe(struct platform_device *pdev)
 {

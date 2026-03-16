@@ -993,10 +993,8 @@ F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.yaml
 F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
-M:	Shay Agroskin <shayagr@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
-R:	David Arinzon <darinzon@amazon.com>
-R:	Saeed Bishara <saeedb@amazon.com>
+M:	David Arinzon <darinzon@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
@@ -1292,7 +1290,6 @@ F:	include/trace/events/amdxdna.h
 F:	include/uapi/drm/amdxdna_accel.h
 
 AMD XGBE DRIVER
-M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 M:	Raju Rangoju <Raju.Rangoju@amd.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -4618,7 +4615,6 @@ F:	drivers/bluetooth/
 
 BLUETOOTH SUBSYSTEM
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	Johan Hedberg <johan.hedberg@gmail.com>
 M:	Luiz Augusto von Dentz <luiz.dentz@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 S:	Supported
@@ -6213,20 +6209,20 @@ F:	drivers/scsi/fnic/
 
 CISCO SCSI HBA DRIVER
 M:	Karan Tilak Kumar <kartilak@cisco.com>
+M:	Narsimhulu Musini <nmusini@cisco.com>
 M:	Sesidhar Baddela <sebaddel@cisco.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/snic/
 
 CISCO VIC ETHERNET NIC DRIVER
-M:	Christian Benvenuti <benve@cisco.com>
 M:	Satish Kharat <satishkh@cisco.com>
 S:	Maintained
 F:	drivers/net/ethernet/cisco/enic/
 
 CISCO VIC LOW LATENCY NIC DRIVER
-M:	Christian Benvenuti <benve@cisco.com>
 M:	Nelson Escobar <neescoba@cisco.com>
+M:	Satish Kharat <satishkh@cisco.com>
 S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
@@ -6280,7 +6276,7 @@ S:	Maintained
 F:	include/linux/clk.h
 
 CLOCKSOURCE, CLOCKEVENT DRIVERS
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -6669,7 +6665,7 @@ F:	rust/kernel/cpu.rs
 
 CPU IDLE TIME MANAGEMENT FRAMEWORK
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 R:	Christian Loehle <christian.loehle@arm.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -6699,7 +6695,7 @@ F:	arch/x86/kernel/msr.c
 
 CPUIDLE DRIVER - ARM BIG LITTLE
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -6707,7 +6703,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	drivers/cpuidle/cpuidle-big_little.c
 
 CPUIDLE DRIVER - ARM EXYNOS
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Kukjin Kim <kgene@kernel.org>
 R:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-pm@vger.kernel.org
@@ -8630,9 +8626,8 @@ F:	drivers/gpu/drm/lima/
 F:	include/uapi/drm/lima_drm.h
 
 DRM DRIVERS FOR LOONGSON
-M:	Sui Jingfeng <suijingfeng@loongson.cn>
 L:	dri-devel@lists.freedesktop.org
-S:	Supported
+S:	Orphan
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/loongson/
 
@@ -10172,8 +10167,8 @@ F:	drivers/i2c/busses/i2c-cpm.c
 
 FREESCALE IMX / MXC FEC DRIVER
 M:	Wei Fang <wei.fang@nxp.com>
+R:	Frank Li <frank.li@nxp.com>
 R:	Shenwei Wang <shenwei.wang@nxp.com>
-R:	Clark Wang <xiaoning.wang@nxp.com>
 L:	imx@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -10485,7 +10480,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
 F:	Documentation/trace/ftrace*
 F:	arch/*/*/*/*ftrace*
 F:	arch/*/*/*ftrace*
-F:	include/*/ftrace.h
+F:	include/*/*ftrace*
 F:	kernel/trace/fgraph.c
 F:	kernel/trace/ftrace*
 F:	samples/ftrace
@@ -12217,7 +12212,6 @@ IBM Power SRIOV Virtual NIC Device Driver
 M:	Haren Myneni <haren@linux.ibm.com>
 M:	Rick Lindsley <ricklind@linux.ibm.com>
 R:	Nick Child <nnac123@linux.ibm.com>
-R:	Thomas Falcon <tlfalcon@linux.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ibm/ibmvnic.*
@@ -13943,7 +13937,7 @@ F:	fs/smb/server/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendan.higgins@linux.dev>
-M:	David Gow <davidgow@google.com>
+M:	David Gow <david@davidgow.net>
 R:	Rae Moar <raemoar63@gmail.com>
 L:	linux-kselftest@vger.kernel.org
 L:	kunit-dev@googlegroups.com
@@ -14412,9 +14406,9 @@ LANTIQ PEF2256 DRIVER
 M:	Herve Codina <herve.codina@bootlin.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/lantiq,pef2256.yaml
-F:	drivers/net/wan/framer/pef2256/
+F:	drivers/net/wan/framer/
 F:	drivers/pinctrl/pinctrl-pef2256.c
-F:	include/linux/framer/pef2256.h
+F:	include/linux/framer/
 
 LASI 53c700 driver for PARISC
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
@@ -14763,7 +14757,7 @@ F:	drivers/misc/lis3lv02d/
 F:	drivers/platform/x86/hp/hp_accel.c
 
 LIST KUNIT TEST
-M:	David Gow <davidgow@google.com>
+M:	David Gow <david@davidgow.net>
 L:	linux-kselftest@vger.kernel.org
 L:	kunit-dev@googlegroups.com
 S:	Maintained
@@ -15376,10 +15370,8 @@ F:	drivers/crypto/marvell/
 F:	include/linux/soc/marvell/octeontx2/
 
 MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
-M:	Mirko Lindner <mlindner@marvell.com>
-M:	Stephen Hemminger <stephen@networkplumber.org>
 L:	netdev@vger.kernel.org
-S:	Odd fixes
+S:	Orphan
 F:	drivers/net/ethernet/marvell/sk*
 
 MARVELL LIBERTAS WIRELESS DRIVER
@@ -15476,7 +15468,6 @@ MARVELL OCTEONTX2 RVU ADMIN FUNCTION DRIVER
 M:	Sunil Goutham <sgoutham@marvell.com>
 M:	Linu Cherian <lcherian@marvell.com>
 M:	Geetha sowjanya <gakula@marvell.com>
-M:	Jerin Jacob <jerinj@marvell.com>
 M:	hariprasad <hkelam@marvell.com>
 M:	Subbaraya Sundeep <sbhatta@marvell.com>
 L:	netdev@vger.kernel.org
@@ -15491,7 +15482,7 @@ S:	Supported
 F:	drivers/perf/marvell_pem_pmu.c
 
 MARVELL PRESTERA ETHERNET SWITCH DRIVER
-M:	Taras Chornyi <taras.chornyi@plvision.eu>
+M:	Elad Nachman <enachman@marvell.com>
 S:	Supported
 W:	https://github.com/Marvell-switching/switchdev-prestera
 F:	drivers/net/ethernet/marvell/prestera/
@@ -16165,7 +16156,6 @@ F:	drivers/dma/mediatek/
 
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@nbd.name>
-M:	Sean Wang <sean.wang@mediatek.com>
 M:	Lorenzo Bianconi <lorenzo@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -16358,8 +16348,6 @@ F:	include/soc/mediatek/smi.h
 MEDIATEK SWITCH DRIVER
 M:	Chester A. Unal <chester.a.unal@arinc9.com>
 M:	Daniel Golle <daniel@makrotopia.org>
-M:	DENG Qingfang <dqfext@gmail.com>
-M:	Sean Wang <sean.wang@mediatek.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/dsa/mt7530-mdio.c
@@ -16369,7 +16357,6 @@ F:	net/dsa/tag_mtk.c
 
 MEDIATEK T7XX 5G WWAN MODEM DRIVER
 M:	Chandrashekar Devegowda <chandrashekar.devegowda@intel.com>
-R:	Chiranjeevi Rapolu <chiranjeevi.rapolu@linux.intel.com>
 R:	Liu Haijun <haijun.liu@mediatek.com>
 R:	Ricardo Martinez <ricardo.martinez@linux.intel.com>
 L:	netdev@vger.kernel.org
@@ -16654,9 +16641,9 @@ F:	mm/balloon.c
 MEMORY MANAGEMENT - CORE
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Mike Rapoport <rppt@kernel.org>
 R:	Suren Baghdasaryan <surenb@google.com>
 R:	Michal Hocko <mhocko@suse.com>
@@ -16784,9 +16771,9 @@ F:	mm/workingset.c
 MEMORY MANAGEMENT - MISC
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Mike Rapoport <rppt@kernel.org>
 R:	Suren Baghdasaryan <surenb@google.com>
 R:	Michal Hocko <mhocko@suse.com>
@@ -16841,7 +16828,7 @@ F:	mm/oom_kill.c
 
 MEMORY MANAGEMENT - PAGE ALLOCATOR
 M:	Andrew Morton <akpm@linux-foundation.org>
-M:	Vlastimil Babka <vbabka@suse.cz>
+M:	Vlastimil Babka <vbabka@kernel.org>
 R:	Suren Baghdasaryan <surenb@google.com>
 R:	Michal Hocko <mhocko@suse.com>
 R:	Brendan Jackman <jackmanb@google.com>
@@ -16875,7 +16862,7 @@ R:	David Hildenbrand <david@kernel.org>
 R:	Michal Hocko <mhocko@kernel.org>
 R:	Qi Zheng <zhengqi.arch@bytedance.com>
 R:	Shakeel Butt <shakeel.butt@linux.dev>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Lorenzo Stoakes <ljs@kernel.org>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/vmscan.c
@@ -16884,10 +16871,10 @@ F:	mm/workingset.c
 MEMORY MANAGEMENT - RMAP (REVERSE MAPPING)
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
-M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+M:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Rik van Riel <riel@surriel.com>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Harry Yoo <harry.yoo@oracle.com>
 R:	Jann Horn <jannh@google.com>
 L:	linux-mm@kvack.org
@@ -16929,7 +16916,7 @@ F:	mm/swapfile.c
 MEMORY MANAGEMENT - THP (TRANSPARENT HUGE PAGE)
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	David Hildenbrand <david@kernel.org>
-M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+M:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Zi Yan <ziy@nvidia.com>
 R:	Baolin Wang <baolin.wang@linux.alibaba.com>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
@@ -16969,7 +16956,7 @@ F:	tools/testing/selftests/mm/uffd-*.[ch]
 
 MEMORY MANAGEMENT - RUST
 M:	Alice Ryhl <aliceryhl@google.com>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
 L:	linux-mm@kvack.org
 L:	rust-for-linux@vger.kernel.org
@@ -16985,8 +16972,8 @@ F:	rust/kernel/page.rs
 MEMORY MAPPING
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Liam R. Howlett <Liam.Howlett@oracle.com>
-M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+M:	Lorenzo Stoakes <ljs@kernel.org>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Jann Horn <jannh@google.com>
 R:	Pedro Falcato <pfalcato@suse.de>
 L:	linux-mm@kvack.org
@@ -17015,8 +17002,8 @@ MEMORY MAPPING - LOCKING
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Suren Baghdasaryan <surenb@google.com>
 M:	Liam R. Howlett <Liam.Howlett@oracle.com>
-M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+M:	Lorenzo Stoakes <ljs@kernel.org>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Shakeel Butt <shakeel.butt@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -17030,9 +17017,9 @@ F:	mm/mmap_lock.c
 MEMORY MAPPING - MADVISE (MEMORY ADVICE)
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Liam R. Howlett <Liam.Howlett@oracle.com>
-M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+M:	Lorenzo Stoakes <ljs@kernel.org>
 M:	David Hildenbrand <david@kernel.org>
-R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Jann Horn <jannh@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -19227,8 +19214,6 @@ F:	tools/objtool/
 
 OCELOT ETHERNET SWITCH DRIVER
 M:	Vladimir Oltean <vladimir.oltean@nxp.com>
-M:	Claudiu Manoil <claudiu.manoil@nxp.com>
-M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
 M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -19814,7 +19799,6 @@ F:	arch/*/boot/dts/
 F:	include/dt-bindings/
 
 OPENCOMPUTE PTP CLOCK DRIVER
-M:	Jonathan Lemon <jonathan.lemon@gmail.com>
 M:	Vadim Fedorenko <vadim.fedorenko@linux.dev>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -20122,9 +20106,8 @@ F:	Documentation/devicetree/bindings/pci/marvell,armada-3700-pcie.yaml
 F:	drivers/pci/controller/pci-aardvark.c
 
 PCI DRIVER FOR ALTERA PCIE IP
-M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/devicetree/bindings/pci/altr,pcie-root-port.yaml
 F:	drivers/pci/controller/pcie-altera.c
 
@@ -20369,9 +20352,8 @@ S:	Supported
 F:	Documentation/PCI/pci-error-recovery.rst
 
 PCI MSI DRIVER FOR ALTERA MSI IP
-M:	Joyce Ooi <joyce.ooi@intel.com>
 L:	linux-pci@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/devicetree/bindings/interrupt-controller/altr,msi-controller.yaml
 F:	drivers/pci/controller/pcie-altera-msi.c
 
@@ -20509,7 +20491,7 @@ F:	Documentation/devicetree/bindings/pci/hisilicon,kirin-pcie.yaml
 F:	drivers/pci/controller/dwc/pcie-kirin.c
 
 PCIE DRIVER FOR HISILICON STB
-M:	Shawn Guo <shawn.guo@linaro.org>
+M:	Shawn Guo <shawnguo@kernel.org>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/hisilicon-histb-pcie.txt
@@ -21458,9 +21440,8 @@ S:	Supported
 F:	drivers/scsi/qedi/
 
 QLOGIC QL4xxx ETHERNET DRIVER
-M:	Manish Chopra <manishc@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/qlogic/qed/
 F:	drivers/net/ethernet/qlogic/qede/
 F:	include/linux/qed/
@@ -21695,7 +21676,7 @@ S:	Maintained
 F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
-M:	Vinod Koul <vkoul@kernel.org>
+M:	Mohd Ayaan Anwar <mohd.anwar@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -21955,7 +21936,7 @@ F:	drivers/media/radio/radio-tea5777.c
 
 RADOS BLOCK DEVICE (RBD)
 M:	Ilya Dryomov <idryomov@gmail.com>
-R:	Dongsheng Yang <dongsheng.yang@easystack.cn>
+R:	Dongsheng Yang <dongsheng.yang@linux.dev>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
@@ -22283,6 +22264,16 @@ REDPINE WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
 F:	drivers/net/wireless/rsi/
+
+RELAY
+M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Jens Axboe <axboe@kernel.dk>
+M:	Jason Xing <kernelxing@tencent.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/filesystems/relay.rst
+F:	include/linux/relay.h
+F:	kernel/relay.c
 
 REGISTER MAP ABSTRACTION
 M:	Mark Brown <broonie@kernel.org>
@@ -23173,8 +23164,8 @@ K:	\b(?i:rust)\b
 
 RUST [ALLOC]
 M:	Danilo Krummrich <dakr@kernel.org>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
-R:	Vlastimil Babka <vbabka@suse.cz>
+R:	Lorenzo Stoakes <ljs@kernel.org>
+R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Liam R. Howlett <Liam.Howlett@oracle.com>
 R:	Uladzislau Rezki <urezki@gmail.com>
 L:	rust-for-linux@vger.kernel.org
@@ -24337,7 +24328,6 @@ F:	Documentation/devicetree/bindings/interrupt-controller/kontron,sl28cpld-intc.
 F:	Documentation/devicetree/bindings/pwm/kontron,sl28cpld-pwm.yaml
 F:	Documentation/devicetree/bindings/watchdog/kontron,sl28cpld-wdt.yaml
 F:	drivers/gpio/gpio-sl28cpld.c
-F:	drivers/hwmon/sa67mcu-hwmon.c
 F:	drivers/hwmon/sl28cpld-hwmon.c
 F:	drivers/irqchip/irq-sl28cpld.c
 F:	drivers/pwm/pwm-sl28cpld.c
@@ -24350,12 +24340,13 @@ F:	Documentation/devicetree/bindings/nvmem/layouts/kontron,sl28-vpd.yaml
 F:	drivers/nvmem/layouts/sl28vpd.c
 
 SLAB ALLOCATOR
-M:	Vlastimil Babka <vbabka@suse.cz>
+M:	Vlastimil Babka <vbabka@kernel.org>
+M:	Harry Yoo <harry.yoo@oracle.com>
 M:	Andrew Morton <akpm@linux-foundation.org>
+R:	Hao Li <hao.li@linux.dev>
 R:	Christoph Lameter <cl@gentwo.org>
 R:	David Rientjes <rientjes@google.com>
 R:	Roman Gushchin <roman.gushchin@linux.dev>
-R:	Harry Yoo <harry.yoo@oracle.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vbabka/slab.git
@@ -25766,6 +25757,7 @@ F:	include/net/pkt_cls.h
 F:	include/net/pkt_sched.h
 F:	include/net/sch_priv.h
 F:	include/net/tc_act/
+F:	include/net/tc_wrapper.h
 F:	include/uapi/linux/pkt_cls.h
 F:	include/uapi/linux/pkt_sched.h
 F:	include/uapi/linux/tc_act/
@@ -26217,7 +26209,7 @@ F:	drivers/media/radio/radio-raremono.c
 
 THERMAL
 M:	Rafael J. Wysocki <rafael@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 R:	Zhang Rui <rui.zhang@intel.com>
 R:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
@@ -26247,7 +26239,7 @@ F:	drivers/thermal/amlogic_thermal.c
 
 THERMAL/CPU_COOLING
 M:	Amit Daniel Kachhap <amit.kachhap@gmail.com>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 R:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
@@ -29186,7 +29178,7 @@ K:	zstd
 
 ZSWAP COMPRESSED SWAP CACHING
 M:	Johannes Weiner <hannes@cmpxchg.org>
-M:	Yosry Ahmed <yosry.ahmed@linux.dev>
+M:	Yosry Ahmed <yosry@kernel.org>
 M:	Nhat Pham <nphamcs@gmail.com>
 R:	Chengming Zhou <chengming.zhou@linux.dev>
 L:	linux-mm@kvack.org

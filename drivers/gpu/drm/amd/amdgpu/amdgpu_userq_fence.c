@@ -35,6 +35,8 @@
 static const struct dma_fence_ops amdgpu_userq_fence_ops;
 static struct kmem_cache *amdgpu_userq_fence_slab;
 
+#define AMDGPU_USERQ_MAX_HANDLES	(1U << 16)
+
 int amdgpu_userq_fence_slab_init(void)
 {
 	amdgpu_userq_fence_slab = kmem_cache_create("amdgpu_userq_fence",
@@ -464,7 +466,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	struct drm_amdgpu_userq_signal *args = data;
 	struct drm_gem_object **gobj_write = NULL;
 	struct drm_gem_object **gobj_read = NULL;
-	struct amdgpu_usermode_queue *queue;
+	struct amdgpu_usermode_queue *queue = NULL;
 	struct amdgpu_userq_fence *userq_fence;
 	struct drm_syncobj **syncobj = NULL;
 	u32 *bo_handles_write, num_write_bo_handles;
@@ -477,6 +479,11 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 
 	if (!amdgpu_userq_enabled(dev))
 		return -ENOTSUPP;
+
+	if (args->num_syncobj_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	    args->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	    args->num_bo_read_handles > AMDGPU_USERQ_MAX_HANDLES)
+		return -EINVAL;
 
 	num_syncobj_handles = args->num_syncobj_handles;
 	syncobj_handles = memdup_user(u64_to_user_ptr(args->syncobj_handles),
@@ -546,7 +553,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	}
 
 	/* Retrieve the user queue */
-	queue = xa_load(&userq_mgr->userq_xa, args->queue_id);
+	queue = amdgpu_userq_get(userq_mgr, args->queue_id);
 	if (!queue) {
 		r = -ENOENT;
 		goto put_gobj_write;
@@ -641,6 +648,9 @@ free_syncobj:
 free_syncobj_handles:
 	kfree(syncobj_handles);
 
+	if (queue)
+		amdgpu_userq_put(queue);
+
 	return r;
 }
 
@@ -653,7 +663,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	struct drm_amdgpu_userq_wait *wait_info = data;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
-	struct amdgpu_usermode_queue *waitq;
+	struct amdgpu_usermode_queue *waitq = NULL;
 	struct drm_gem_object **gobj_write;
 	struct drm_gem_object **gobj_read;
 	struct dma_fence **fences = NULL;
@@ -663,6 +673,11 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 
 	if (!amdgpu_userq_enabled(dev))
 		return -ENOTSUPP;
+
+	if (wait_info->num_syncobj_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	    wait_info->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	    wait_info->num_bo_read_handles > AMDGPU_USERQ_MAX_HANDLES)
+		return -EINVAL;
 
 	num_read_bo_handles = wait_info->num_bo_read_handles;
 	bo_handles_read = memdup_user(u64_to_user_ptr(wait_info->bo_read_handles),
@@ -833,7 +848,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 
 			dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
 						DMA_RESV_USAGE_READ, fence) {
-				if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+				if (num_fences >= wait_info->num_fences) {
 					r = -EINVAL;
 					goto free_fences;
 				}
@@ -850,7 +865,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 
 			dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
 						DMA_RESV_USAGE_WRITE, fence) {
-				if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+				if (num_fences >= wait_info->num_fences) {
 					r = -EINVAL;
 					goto free_fences;
 				}
@@ -874,8 +889,9 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 					goto free_fences;
 
 				dma_fence_unwrap_for_each(f, &iter, fence) {
-					if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+					if (num_fences >= wait_info->num_fences) {
 						r = -EINVAL;
+						dma_fence_put(fence);
 						goto free_fences;
 					}
 
@@ -898,8 +914,9 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			if (r)
 				goto free_fences;
 
-			if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+			if (num_fences >= wait_info->num_fences) {
 				r = -EINVAL;
+				dma_fence_put(fence);
 				goto free_fences;
 			}
 
@@ -912,7 +929,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		 */
 		num_fences = dma_fence_dedup_array(fences, num_fences);
 
-		waitq = xa_load(&userq_mgr->userq_xa, wait_info->waitq_id);
+		waitq = amdgpu_userq_get(userq_mgr, wait_info->waitq_id);
 		if (!waitq) {
 			r = -EINVAL;
 			goto free_fences;
@@ -969,32 +986,14 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			r = -EFAULT;
 			goto free_fences;
 		}
-
-		kfree(fences);
-		kfree(fence_info);
 	}
 
-	drm_exec_fini(&exec);
-	for (i = 0; i < num_read_bo_handles; i++)
-		drm_gem_object_put(gobj_read[i]);
-	kfree(gobj_read);
-
-	for (i = 0; i < num_write_bo_handles; i++)
-		drm_gem_object_put(gobj_write[i]);
-	kfree(gobj_write);
-
-	kfree(timeline_points);
-	kfree(timeline_handles);
-	kfree(syncobj_handles);
-	kfree(bo_handles_write);
-	kfree(bo_handles_read);
-
-	return 0;
-
 free_fences:
-	while (num_fences-- > 0)
-		dma_fence_put(fences[num_fences]);
-	kfree(fences);
+	if (fences) {
+		while (num_fences-- > 0)
+			dma_fence_put(fences[num_fences]);
+		kfree(fences);
+	}
 free_fence_info:
 	kfree(fence_info);
 exec_fini:
@@ -1017,6 +1016,9 @@ free_bo_handles_write:
 	kfree(bo_handles_write);
 free_bo_handles_read:
 	kfree(bo_handles_read);
+
+	if (waitq)
+		amdgpu_userq_put(waitq);
 
 	return r;
 }

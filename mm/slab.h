@@ -59,7 +59,7 @@ struct freelist_counters {
 					 * to save memory. In case ->stride field is not available,
 					 * such optimizations are disabled.
 					 */
-					unsigned short stride;
+					unsigned int stride;
 #endif
 				};
 			};
@@ -290,14 +290,14 @@ static inline void *nearest_obj(struct kmem_cache *cache,
 
 /* Determine object index from a given position */
 static inline unsigned int __obj_to_index(const struct kmem_cache *cache,
-					  void *addr, void *obj)
+					  void *addr, const void *obj)
 {
 	return reciprocal_divide(kasan_reset_tag(obj) - addr,
 				 cache->reciprocal_size);
 }
 
 static inline unsigned int obj_to_index(const struct kmem_cache *cache,
-					const struct slab *slab, void *obj)
+					const struct slab *slab, const void *obj)
 {
 	if (is_kfence_address(obj))
 		return 0;
@@ -559,20 +559,20 @@ static inline void put_slab_obj_exts(unsigned long obj_exts)
 }
 
 #ifdef CONFIG_64BIT
-static inline void slab_set_stride(struct slab *slab, unsigned short stride)
+static inline void slab_set_stride(struct slab *slab, unsigned int stride)
 {
 	slab->stride = stride;
 }
-static inline unsigned short slab_get_stride(struct slab *slab)
+static inline unsigned int slab_get_stride(struct slab *slab)
 {
 	return slab->stride;
 }
 #else
-static inline void slab_set_stride(struct slab *slab, unsigned short stride)
+static inline void slab_set_stride(struct slab *slab, unsigned int stride)
 {
 	VM_WARN_ON_ONCE(stride != sizeof(struct slabobj_ext));
 }
-static inline unsigned short slab_get_stride(struct slab *slab)
+static inline unsigned int slab_get_stride(struct slab *slab)
 {
 	return sizeof(struct slabobj_ext);
 }

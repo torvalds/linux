@@ -148,7 +148,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_v3_cpu_if *cpuif = &vgic_cpu->vgic_v3;
 	u32 eoicount = FIELD_GET(ICH_HCR_EL2_EOIcount, cpuif->vgic_hcr);
-	struct vgic_irq *irq;
+	struct vgic_irq *irq = *host_data_ptr(last_lr_irq);
 
 	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
@@ -158,12 +158,12 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 	/*
 	 * EOIMode=0: use EOIcount to emulate deactivation. We are
 	 * guaranteed to deactivate in reverse order of the activation, so
-	 * just pick one active interrupt after the other in the ap_list,
-	 * and replay the deactivation as if the CPU was doing it. We also
-	 * rely on priority drop to have taken place, and the list to be
-	 * sorted by priority.
+	 * just pick one active interrupt after the other in the tail part
+	 * of the ap_list, past the LRs, and replay the deactivation as if
+	 * the CPU was doing it. We also rely on priority drop to have taken
+	 * place, and the list to be sorted by priority.
 	 */
-	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
+	list_for_each_entry_continue(irq, &vgic_cpu->ap_list_head, ap_list) {
 		u64 lr;
 
 		/*

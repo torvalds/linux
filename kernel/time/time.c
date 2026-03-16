@@ -365,20 +365,16 @@ SYSCALL_DEFINE1(adjtimex_time32, struct old_timex32 __user *, utp)
 }
 #endif
 
+#if HZ > MSEC_PER_SEC || (MSEC_PER_SEC % HZ)
 /**
  * jiffies_to_msecs - Convert jiffies to milliseconds
  * @j: jiffies value
- *
- * Avoid unnecessary multiplications/divisions in the
- * two most common HZ cases.
  *
  * Return: milliseconds value
  */
 unsigned int jiffies_to_msecs(const unsigned long j)
 {
-#if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
-	return (MSEC_PER_SEC / HZ) * j;
-#elif HZ > MSEC_PER_SEC && !(HZ % MSEC_PER_SEC)
+#if HZ > MSEC_PER_SEC && !(HZ % MSEC_PER_SEC)
 	return (j + (HZ / MSEC_PER_SEC) - 1)/(HZ / MSEC_PER_SEC);
 #else
 # if BITS_PER_LONG == 32
@@ -390,7 +386,9 @@ unsigned int jiffies_to_msecs(const unsigned long j)
 #endif
 }
 EXPORT_SYMBOL(jiffies_to_msecs);
+#endif
 
+#if (USEC_PER_SEC % HZ)
 /**
  * jiffies_to_usecs - Convert jiffies to microseconds
  * @j: jiffies value
@@ -405,17 +403,14 @@ unsigned int jiffies_to_usecs(const unsigned long j)
 	 */
 	BUILD_BUG_ON(HZ > USEC_PER_SEC);
 
-#if !(USEC_PER_SEC % HZ)
-	return (USEC_PER_SEC / HZ) * j;
-#else
-# if BITS_PER_LONG == 32
+#if BITS_PER_LONG == 32
 	return (HZ_TO_USEC_MUL32 * j) >> HZ_TO_USEC_SHR32;
-# else
+#else
 	return (j * HZ_TO_USEC_NUM) / HZ_TO_USEC_DEN;
-# endif
 #endif
 }
 EXPORT_SYMBOL(jiffies_to_usecs);
+#endif
 
 /**
  * mktime64 - Converts date to seconds.
@@ -702,7 +697,7 @@ EXPORT_SYMBOL(clock_t_to_jiffies);
  *
  * Return: jiffies_64 value converted to 64-bit "clock_t" (CLOCKS_PER_SEC)
  */
-u64 jiffies_64_to_clock_t(u64 x)
+notrace u64 jiffies_64_to_clock_t(u64 x)
 {
 #if (TICK_NSEC % (NSEC_PER_SEC / USER_HZ)) == 0
 # if HZ < USER_HZ

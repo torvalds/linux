@@ -410,6 +410,8 @@ static dma_addr_t dma_4v_map_phys(struct device *dev, phys_addr_t phys,
 
 	iommu_batch_start(dev, prot, entry);
 
+	phys &= IO_PAGE_MASK;
+
 	for (i = 0; i < npages; i++, phys += IO_PAGE_SIZE) {
 		long err = iommu_batch_add(phys, mask);
 		if (unlikely(err < 0L))

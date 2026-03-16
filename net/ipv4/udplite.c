@@ -20,10 +20,9 @@ EXPORT_SYMBOL(udplite_table);
 /* Designate sk as UDP-Lite socket */
 static int udplite_sk_init(struct sock *sk)
 {
-	udp_init_sock(sk);
 	pr_warn_once("UDP-Lite is deprecated and scheduled to be removed in 2025, "
 		     "please contact the netdev mailing list\n");
-	return 0;
+	return udp_init_sock(sk);
 }
 
 static int udplite_rcv(struct sk_buff *skb)
