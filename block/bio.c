@@ -161,17 +161,6 @@ out:
 	mutex_unlock(&bio_slab_lock);
 }
 
-static void bvec_free(struct mempool *pool, struct bio_vec *bv,
-		      unsigned short nr_vecs)
-{
-	BUG_ON(nr_vecs > BIO_MAX_VECS);
-
-	if (nr_vecs == BIO_MAX_VECS)
-		mempool_free(bv, pool);
-	else if (nr_vecs > BIO_INLINE_VECS)
-		kmem_cache_free(biovec_slab(nr_vecs)->slab, bv);
-}
-
 /*
  * Make the first allocation restricted and don't dump info on allocation
  * failures, since we'll fall back to the mempool in case of failure.
@@ -203,9 +192,14 @@ static void bio_free(struct bio *bio)
 	void *p = bio;
 
 	WARN_ON_ONCE(!bs);
+	WARN_ON_ONCE(bio->bi_max_vecs > BIO_MAX_VECS);
 
 	bio_uninit(bio);
-	bvec_free(&bs->bvec_pool, bio->bi_io_vec, bio->bi_max_vecs);
+	if (bio->bi_max_vecs == BIO_MAX_VECS)
+		mempool_free(bio->bi_io_vec, &bs->bvec_pool);
+	else if (bio->bi_max_vecs > BIO_INLINE_VECS)
+		kmem_cache_free(biovec_slab(bio->bi_max_vecs)->slab,
+				bio->bi_io_vec);
 	mempool_free(p - bs->front_pad, &bs->bio_pool);
 }
 
@@ -561,7 +555,7 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 
 		/*
 		 * Upgrade nr_vecs to take full advantage of the allocation.
-		 * We also rely on this in bvec_free().
+		 * We also rely on this in bio_free().
 		 */
 		nr_vecs = bvs->nr_vecs;
 		bvecs = kmem_cache_alloc(bvs->slab, gfp);
