@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Copyright 2025 Mobileye Vision Technologies Ltd.
+ */
+
+/dts-v1/;
+
+#include "eyeq6lplus.dtsi"
+
+/ {
+	compatible = "mobileye,eyeq6lplus-epm6", "mobileye,eyeq6lplus";
+	model = "Mobileye EyeQ6Lplus Evaluation board";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:921600n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x1 0x00000000 0x0 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* These reserved memory regions are also defined in bootmanager
+		 * for configuring inbound translation for BARS, don't change
+		 * these without syncing with bootmanager
+		 */
+		mhm_reserved_0: the-mhm-reserved-0 {
+			reg = <0x1 0x00000000 0x0 0x0000800>;
+		};
+		bm_logs_reserved: bm-logs-reserved {
+			reg = <0x1 0x0000800 0x0 0x000f800>;
+		};
+		shmem0_reserved: shmem@804000000 {
+			reg = <0x1 0x04000000 0x0 0x1000000>;
+		};
+		shmem1_reserved: shmem@805000000 {
+			reg = <0x1 0x05000000 0x0 0x1000000>;
+		};
+		mini_coredump0_reserved: mini-coredump0@806200000 {
+			reg = <0x1 0x06200000 0x0 0x100000>;
+		};
+		mailbox_reserved: mailbox-reserved {
+			reg = <0x1 0x06300000 0x0 0x000300>;
+		};
+		sys_logs_reserved: sys-logs-reserved {
+			reg = <0x1 0x10000000 0x0 0x800000>;
+		};
+		csl_policy_logs_reserved: csl-policy-logs-reserved {
+			reg = <0x1 0x10800000 0x0 0x10000>;
+		};
+	};
+};
+
+&ospi {
+	status = "okay";
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+		cdns,read-delay = <0>;
+		cdns,tshsl-ns = <400>;
+		cdns,tsd2d-ns = <120>;
+		cdns,tchsh-ns = <40>;
+		cdns,tslch-ns = <20>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <8>;
+	};
+};
+
+&spi0 {
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&spi1 {
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};

@@ -3,3 +3,4 @@
 
 dtb-$(CONFIG_MACH_EYEQ5)		+= eyeq5-epm5.dtb
 dtb-$(CONFIG_MACH_EYEQ6H)		+= eyeq6h-epm6.dtb
+dtb-$(CONFIG_MACH_EYEQ6LPLUS)		+= eyeq6lplus-epm6.dtb
