@@ -18,7 +18,7 @@ struct blk_crypto_kobj {
 struct blk_crypto_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct blk_crypto_profile *profile,
-			struct blk_crypto_attr *attr, char *page);
+			const struct blk_crypto_attr *attr, char *page);
 };
 
 static struct blk_crypto_profile *kobj_to_crypto_profile(struct kobject *kobj)
@@ -26,39 +26,39 @@ static struct blk_crypto_profile *kobj_to_crypto_profile(struct kobject *kobj)
 	return container_of(kobj, struct blk_crypto_kobj, kobj)->profile;
 }
 
-static struct blk_crypto_attr *attr_to_crypto_attr(struct attribute *attr)
+static const struct blk_crypto_attr *attr_to_crypto_attr(const struct attribute *attr)
 {
-	return container_of(attr, struct blk_crypto_attr, attr);
+	return container_of_const(attr, struct blk_crypto_attr, attr);
 }
 
 static ssize_t hw_wrapped_keys_show(struct blk_crypto_profile *profile,
-				    struct blk_crypto_attr *attr, char *page)
+				    const struct blk_crypto_attr *attr, char *page)
 {
 	/* Always show supported, since the file doesn't exist otherwise. */
 	return sysfs_emit(page, "supported\n");
 }
 
 static ssize_t max_dun_bits_show(struct blk_crypto_profile *profile,
-				 struct blk_crypto_attr *attr, char *page)
+				 const struct blk_crypto_attr *attr, char *page)
 {
 	return sysfs_emit(page, "%u\n", 8 * profile->max_dun_bytes_supported);
 }
 
 static ssize_t num_keyslots_show(struct blk_crypto_profile *profile,
-				 struct blk_crypto_attr *attr, char *page)
+				 const struct blk_crypto_attr *attr, char *page)
 {
 	return sysfs_emit(page, "%u\n", profile->num_slots);
 }
 
 static ssize_t raw_keys_show(struct blk_crypto_profile *profile,
-			     struct blk_crypto_attr *attr, char *page)
+			     const struct blk_crypto_attr *attr, char *page)
 {
 	/* Always show supported, since the file doesn't exist otherwise. */
 	return sysfs_emit(page, "supported\n");
 }
 
 #define BLK_CRYPTO_RO_ATTR(_name) \
-	static struct blk_crypto_attr _name##_attr = __ATTR_RO(_name)
+	static const struct blk_crypto_attr _name##_attr = __ATTR_RO(_name)
 
 BLK_CRYPTO_RO_ATTR(hw_wrapped_keys);
 BLK_CRYPTO_RO_ATTR(max_dun_bits);
@@ -66,10 +66,10 @@ BLK_CRYPTO_RO_ATTR(num_keyslots);
 BLK_CRYPTO_RO_ATTR(raw_keys);
 
 static umode_t blk_crypto_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
+				     const struct attribute *attr, int n)
 {
 	struct blk_crypto_profile *profile = kobj_to_crypto_profile(kobj);
-	struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
+	const struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
 
 	if (a == &hw_wrapped_keys_attr &&
 	    !(profile->key_types_supported & BLK_CRYPTO_KEY_TYPE_HW_WRAPPED))
@@ -81,7 +81,7 @@ static umode_t blk_crypto_is_visible(struct kobject *kobj,
 	return 0444;
 }
 
-static struct attribute *blk_crypto_attrs[] = {
+static const struct attribute *const blk_crypto_attrs[] = {
 	&hw_wrapped_keys_attr.attr,
 	&max_dun_bits_attr.attr,
 	&num_keyslots_attr.attr,
@@ -90,8 +90,8 @@ static struct attribute *blk_crypto_attrs[] = {
 };
 
 static const struct attribute_group blk_crypto_attr_group = {
-	.attrs = blk_crypto_attrs,
-	.is_visible = blk_crypto_is_visible,
+	.attrs_const = blk_crypto_attrs,
+	.is_visible_const = blk_crypto_is_visible,
 };
 
 /*
@@ -99,13 +99,13 @@ static const struct attribute_group blk_crypto_attr_group = {
  * modes, these are initialized at boot time by blk_crypto_sysfs_init().
  */
 static struct blk_crypto_attr __blk_crypto_mode_attrs[BLK_ENCRYPTION_MODE_MAX];
-static struct attribute *blk_crypto_mode_attrs[BLK_ENCRYPTION_MODE_MAX + 1];
+static const struct attribute *blk_crypto_mode_attrs[BLK_ENCRYPTION_MODE_MAX + 1];
 
 static umode_t blk_crypto_mode_is_visible(struct kobject *kobj,
-					  struct attribute *attr, int n)
+					  const struct attribute *attr, int n)
 {
 	struct blk_crypto_profile *profile = kobj_to_crypto_profile(kobj);
-	struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
+	const struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
 	int mode_num = a - __blk_crypto_mode_attrs;
 
 	if (profile->modes_supported[mode_num])
@@ -114,7 +114,7 @@ static umode_t blk_crypto_mode_is_visible(struct kobject *kobj,
 }
 
 static ssize_t blk_crypto_mode_show(struct blk_crypto_profile *profile,
-				    struct blk_crypto_attr *attr, char *page)
+				    const struct blk_crypto_attr *attr, char *page)
 {
 	int mode_num = attr - __blk_crypto_mode_attrs;
 
@@ -123,8 +123,8 @@ static ssize_t blk_crypto_mode_show(struct blk_crypto_profile *profile,
 
 static const struct attribute_group blk_crypto_modes_attr_group = {
 	.name = "modes",
-	.attrs = blk_crypto_mode_attrs,
-	.is_visible = blk_crypto_mode_is_visible,
+	.attrs_const = blk_crypto_mode_attrs,
+	.is_visible_const = blk_crypto_mode_is_visible,
 };
 
 static const struct attribute_group *blk_crypto_attr_groups[] = {
@@ -137,7 +137,7 @@ static ssize_t blk_crypto_attr_show(struct kobject *kobj,
 				    struct attribute *attr, char *page)
 {
 	struct blk_crypto_profile *profile = kobj_to_crypto_profile(kobj);
-	struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
+	const struct blk_crypto_attr *a = attr_to_crypto_attr(attr);
 
 	return a->show(profile, a, page);
 }
