@@ -10,7 +10,7 @@
 #ifndef __LINUX_CDNS3_GADGET_EXPORT
 #define __LINUX_CDNS3_GADGET_EXPORT
 
-#if IS_ENABLED(CONFIG_USB_CDNSP_GADGET)
+#if defined(CONFIG_USB_CDNSP_GADGET) && IS_REACHABLE(CONFIG_USB_CDNSP)
 
 int cdnsp_gadget_init(struct cdns *cdns);
 #else
@@ -22,7 +22,7 @@ static inline int cdnsp_gadget_init(struct cdns *cdns)
 
 #endif /* CONFIG_USB_CDNSP_GADGET */
 
-#if IS_ENABLED(CONFIG_USB_CDNS3_GADGET)
+#if defined(CONFIG_USB_CDNS3_GADGET) && IS_REACHABLE(CONFIG_USB_CDNS3)
 
 int cdns3_gadget_init(struct cdns *cdns);
 #else

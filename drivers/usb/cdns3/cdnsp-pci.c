@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Cadence PCI Glue driver.
+ * Cadence USBSSP PCI Glue driver.
  *
  * Copyright (C) 2019 Cadence.
  *
@@ -16,7 +16,19 @@
 #include <linux/pci.h>
 
 #include "core.h"
-#include "gadget-export.h"
+
+struct cdnsp_wrap {
+	struct platform_device *plat_dev;
+	struct resource dev_res[6];
+	int devfn;
+};
+
+#define RES_IRQ_HOST_ID		0
+#define RES_IRQ_PERIPHERAL_ID	1
+#define RES_IRQ_OTG_ID		2
+#define RES_HOST_ID		3
+#define RES_DEV_ID		4
+#define RES_DRD_ID		5
 
 #define PCI_BAR_HOST		0
 #define PCI_BAR_OTG		0
@@ -26,16 +38,16 @@
 #define PCI_DEV_FN_OTG		1
 
 #define PCI_DRIVER_NAME		"cdns-pci-usbssp"
-#define PLAT_DRIVER_NAME	"cdns-usbssp"
+#define PLAT_DRIVER_NAME	"cdns-usb3"
 
-#define CHICKEN_APB_TIMEOUT_VALUE       0x1C20
+#define CHICKEN_APB_TIMEOUT_VALUE	0x1C20
 
 static struct pci_dev *cdnsp_get_second_fun(struct pci_dev *pdev)
 {
 	/*
 	 * Gets the second function.
-	 * Platform has two function. The fist keeps resources for
-	 * Host/Device while the secon keeps resources for DRD/OTG.
+	 * Platform has two function. The first keeps resources for
+	 * Host/Device while the second keeps resources for DRD/OTG.
 	 */
 	if (pdev->device == PCI_DEVICE_ID_CDNS_USBSSP)
 		return pci_get_device(pdev->vendor, PCI_DEVICE_ID_CDNS_USBSS, NULL);
@@ -48,11 +60,12 @@ static struct pci_dev *cdnsp_get_second_fun(struct pci_dev *pdev)
 static int cdnsp_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
-	struct device *dev = &pdev->dev;
-	struct pci_dev *func;
+	struct platform_device_info plat_info;
+	static struct cdns3_platform_data pdata;
+	struct cdnsp_wrap *wrap;
 	struct resource *res;
-	struct cdns *cdnsp;
-	int ret;
+	struct pci_dev *func;
+	int ret = 0;
 
 	/*
 	 * For GADGET/HOST PCI (devfn) function number is 0,
@@ -79,145 +92,104 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
+
 	if (pci_is_enabled(func)) {
-		cdnsp = pci_get_drvdata(func);
+		wrap = pci_get_drvdata(func);
 	} else {
-		cdnsp = kzalloc_obj(*cdnsp);
-		if (!cdnsp) {
+		wrap = kzalloc_obj(*wrap);
+		if (!wrap) {
 			ret = -ENOMEM;
 			goto put_pci;
 		}
 	}
 
-	/* For GADGET device function number is 0. */
-	if (pdev->devfn == 0) {
-		resource_size_t rsrc_start, rsrc_len;
+	res = wrap->dev_res;
 
-		/* Function 0: host(BAR_0) + device(BAR_1).*/
-		dev_dbg(dev, "Initialize resources\n");
-		rsrc_start = pci_resource_start(pdev, PCI_BAR_DEV);
-		rsrc_len = pci_resource_len(pdev, PCI_BAR_DEV);
-		res = devm_request_mem_region(dev, rsrc_start, rsrc_len, "dev");
-		if (!res) {
-			dev_dbg(dev, "controller already in use\n");
-			ret = -EBUSY;
-			goto free_cdnsp;
-		}
+	if (pdev->devfn == PCI_DEV_FN_HOST_DEVICE) {
+		/* Function 0: host(BAR_0) + device(BAR_2). */
+		dev_dbg(&pdev->dev, "Initialize Device resources\n");
+		res[RES_DEV_ID].start = pci_resource_start(pdev, PCI_BAR_DEV);
+		res[RES_DEV_ID].end = pci_resource_end(pdev, PCI_BAR_DEV);
+		res[RES_DEV_ID].name = "dev";
+		res[RES_DEV_ID].flags = IORESOURCE_MEM;
+		dev_dbg(&pdev->dev, "USBSSP-DEV physical base addr: %pa\n",
+			&res[RES_DEV_ID].start);
 
-		cdnsp->dev_regs = devm_ioremap(dev, rsrc_start, rsrc_len);
-		if (!cdnsp->dev_regs) {
-			dev_dbg(dev, "error mapping memory\n");
-			ret = -EFAULT;
-			goto free_cdnsp;
-		}
+		res[RES_HOST_ID].start = pci_resource_start(pdev, PCI_BAR_HOST);
+		res[RES_HOST_ID].end = pci_resource_end(pdev, PCI_BAR_HOST);
+		res[RES_HOST_ID].name = "xhci";
+		res[RES_HOST_ID].flags = IORESOURCE_MEM;
+		dev_dbg(&pdev->dev, "USBSSP-XHCI physical base addr: %pa\n",
+			&res[RES_HOST_ID].start);
 
-		cdnsp->dev_irq = pdev->irq;
-		dev_dbg(dev, "USBSS-DEV physical base addr: %pa\n",
-			&rsrc_start);
+		/* Interrupt for XHCI */
+		wrap->dev_res[RES_IRQ_HOST_ID].start = pdev->irq;
+		wrap->dev_res[RES_IRQ_HOST_ID].name = "host";
+		wrap->dev_res[RES_IRQ_HOST_ID].flags = IORESOURCE_IRQ;
 
-		res = &cdnsp->xhci_res[0];
-		res->start = pci_resource_start(pdev, PCI_BAR_HOST);
-		res->end = pci_resource_end(pdev, PCI_BAR_HOST);
-		res->name = "xhci";
-		res->flags = IORESOURCE_MEM;
-		dev_dbg(dev, "USBSS-XHCI physical base addr: %pa\n",
-			&res->start);
-
-		/* Interrupt for XHCI, */
-		res = &cdnsp->xhci_res[1];
-		res->start = pdev->irq;
-		res->name = "host";
-		res->flags = IORESOURCE_IRQ;
+		/* Interrupt for device. It's the same as for HOST. */
+		wrap->dev_res[RES_IRQ_PERIPHERAL_ID].start = pdev->irq;
+		wrap->dev_res[RES_IRQ_PERIPHERAL_ID].name = "peripheral";
+		wrap->dev_res[RES_IRQ_PERIPHERAL_ID].flags = IORESOURCE_IRQ;
 	} else {
-		res = &cdnsp->otg_res;
-		res->start = pci_resource_start(pdev, PCI_BAR_OTG);
-		res->end =   pci_resource_end(pdev, PCI_BAR_OTG);
-		res->name = "otg";
-		res->flags = IORESOURCE_MEM;
-		dev_dbg(dev, "CDNSP-DRD physical base addr: %pa\n",
-			&res->start);
+		res[RES_DRD_ID].start = pci_resource_start(pdev, PCI_BAR_OTG);
+		res[RES_DRD_ID].end = pci_resource_end(pdev, PCI_BAR_OTG);
+		res[RES_DRD_ID].name = "otg";
+		res[RES_DRD_ID].flags = IORESOURCE_MEM;
+		dev_dbg(&pdev->dev, "CDNSP-DRD physical base addr: %pa\n",
+			&res[RES_DRD_ID].start);
 
 		/* Interrupt for OTG/DRD. */
-		cdnsp->otg_irq = pdev->irq;
+		wrap->dev_res[RES_IRQ_OTG_ID].start = pdev->irq;
+		wrap->dev_res[RES_IRQ_OTG_ID].name = "otg";
+		wrap->dev_res[RES_IRQ_OTG_ID].flags = IORESOURCE_IRQ;
 	}
-
-	/*
-	 * Cadence PCI based platform require some longer timeout for APB
-	 * to fixes domain clock synchronization issue after resuming
-	 * controller from L1 state.
-	 */
-	cdnsp->override_apb_timeout = CHICKEN_APB_TIMEOUT_VALUE;
-	pci_set_drvdata(pdev, cdnsp);
 
 	if (pci_is_enabled(func)) {
-		cdnsp->dev = dev;
-		cdnsp->gadget_init = cdnsp_gadget_init;
-
-		ret = cdns_init(cdnsp);
-		if (ret)
-			goto free_cdnsp;
+		/* set up platform device info */
+		pdata.override_apb_timeout = CHICKEN_APB_TIMEOUT_VALUE;
+		memset(&plat_info, 0, sizeof(plat_info));
+		plat_info.parent = &pdev->dev;
+		plat_info.fwnode = pdev->dev.fwnode;
+		plat_info.name = PLAT_DRIVER_NAME;
+		plat_info.id = pdev->devfn;
+		plat_info.res = wrap->dev_res;
+		plat_info.num_res = ARRAY_SIZE(wrap->dev_res);
+		plat_info.dma_mask = pdev->dma_mask;
+		plat_info.data = &pdata;
+		plat_info.size_data = sizeof(pdata);
+		wrap->devfn = pdev->devfn;
+		/* register platform device */
+		wrap->plat_dev = platform_device_register_full(&plat_info);
+		if (IS_ERR(wrap->plat_dev)) {
+			ret = PTR_ERR(wrap->plat_dev);
+			kfree(wrap);
+			goto put_pci;
+		}
 	}
 
-	device_wakeup_enable(&pdev->dev);
-	if (pci_dev_run_wake(pdev))
-		pm_runtime_put_noidle(&pdev->dev);
-
-	return 0;
-
-free_cdnsp:
-	if (!pci_is_enabled(func))
-		kfree(cdnsp);
-
+	pci_set_drvdata(pdev, wrap);
 put_pci:
 	pci_dev_put(func);
-
 	return ret;
 }
 
 static void cdnsp_pci_remove(struct pci_dev *pdev)
 {
-	struct cdns *cdnsp;
+	struct cdnsp_wrap *wrap;
 	struct pci_dev *func;
 
 	func = cdnsp_get_second_fun(pdev);
-	cdnsp = (struct cdns *)pci_get_drvdata(pdev);
+	wrap = pci_get_drvdata(pdev);
 
-	if (pci_dev_run_wake(pdev))
-		pm_runtime_get_noresume(&pdev->dev);
+	if (wrap->devfn == pdev->devfn)
+		platform_device_unregister(wrap->plat_dev);
 
-	if (pci_is_enabled(func)) {
-		cdns_remove(cdnsp);
-	} else {
-		kfree(cdnsp);
-	}
+	if (!pci_is_enabled(func))
+		kfree(wrap);
 
 	pci_dev_put(func);
 }
-
-static int __maybe_unused cdnsp_pci_suspend(struct device *dev)
-{
-	struct cdns *cdns = dev_get_drvdata(dev);
-
-	return cdns_suspend(cdns);
-}
-
-static int __maybe_unused cdnsp_pci_resume(struct device *dev)
-{
-	struct cdns *cdns = dev_get_drvdata(dev);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&cdns->lock, flags);
-	ret = cdns_resume(cdns);
-	spin_unlock_irqrestore(&cdns->lock, flags);
-	cdns_set_active(cdns, 1);
-
-	return ret;
-}
-
-static const struct dev_pm_ops cdnsp_pci_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cdnsp_pci_suspend, cdnsp_pci_resume)
-};
 
 static const struct pci_device_id cdnsp_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USBSSP),
@@ -230,13 +202,10 @@ static const struct pci_device_id cdnsp_pci_ids[] = {
 };
 
 static struct pci_driver cdnsp_pci_driver = {
-	.name = "cdnsp-pci",
+	.name = PCI_DRIVER_NAME,
 	.id_table = cdnsp_pci_ids,
 	.probe = cdnsp_pci_probe,
 	.remove = cdnsp_pci_remove,
-	.driver = {
-		.pm = &cdnsp_pci_pm_ops,
-	}
 };
 
 module_pci_driver(cdnsp_pci_driver);
@@ -245,4 +214,4 @@ MODULE_DEVICE_TABLE(pci, cdnsp_pci_ids);
 MODULE_ALIAS("pci:cdnsp");
 MODULE_AUTHOR("Pawel Laszczak <pawell@cadence.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Cadence CDNSP PCI driver");
+MODULE_DESCRIPTION("Cadence CDNSP PCI wrapper");

@@ -3508,3 +3508,7 @@ int cdns3_gadget_init(struct cdns *cdns)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cdns3_gadget_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Cadence USBSS DRD Driver - gadget");
