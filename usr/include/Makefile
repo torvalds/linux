@@ -7,6 +7,7 @@
 # -std=c90 (equivalent to -ansi) catches the violation of those.
 # We cannot go as far as adding -Wpedantic since it emits too many warnings.
 UAPI_CFLAGS := -std=c90 -Werror=implicit-function-declaration
+UAPI_ARCH := $(or $(HEADER_ARCH),$(SRCARCH))
 
 override c_flags = $(KBUILD_USERCFLAGS) $(UAPI_CFLAGS) -Wp,-MMD,$(depfile)
 
@@ -48,11 +49,11 @@ no-header-test += xen/privcmd.h
 
 # More headers are broken in some architectures
 
-ifneq ($(filter arc openrisc xtensa nios2, $(SRCARCH)),)
+ifneq ($(filter arc openrisc xtensa nios2, $(UAPI_ARCH)),)
 no-header-test += linux/bpf_perf_event.h
 endif
 
-ifeq ($(SRCARCH),sparc)
+ifeq ($(UAPI_ARCH),sparc)
 no-header-test += asm/uctx.h
 no-header-test += asm/fbio.h
 endif
@@ -122,15 +123,15 @@ uses-libc += linux/wireless.h
 uses-libc += regulator/regulator.h
 uses-libc += scsi/fc/fc_els.h
 
-ifeq ($(SRCARCH),hexagon)
+ifeq ($(UAPI_ARCH),hexagon)
 uses-libc += asm/sigcontext.h
 endif
 
-ifeq ($(SRCARCH),nios2)
+ifeq ($(UAPI_ARCH),nios2)
 uses-libc += asm/ptrace.h
 endif
 
-ifeq ($(SRCARCH),s390)
+ifeq ($(UAPI_ARCH),s390)
 uses-libc += asm/chpid.h
 uses-libc += asm/chsc.h
 endif
