@@ -1547,17 +1547,6 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 	if (DISPLAY_VER(display) < 11)
 		return 0;
 
-	/*
-	 * Destroy all old plane links and make the Y plane invisible
-	 * in the crtc_state->active_planes mask.
-	 */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe != crtc->pipe)
-			continue;
-
-		unlink_nv12_plane(crtc_state, plane_state);
-	}
-
 	if (!crtc_state->nv12_planes)
 		return 0;
 
