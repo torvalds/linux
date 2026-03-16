@@ -610,6 +610,34 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 }
 
 static bool
+check_if_vesa_backlight_possible(struct intel_dp *intel_dp)
+{
+	int ret;
+	u8 bit_min, bit_max;
+
+	if (!(intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP))
+		return true;
+
+	ret = drm_dp_dpcd_read_byte(&intel_dp->aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN, &bit_min);
+	if (ret < 0)
+		return false;
+
+	bit_min &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+	if (bit_min < 1)
+		return false;
+
+	ret = drm_dp_dpcd_read_byte(&intel_dp->aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MAX, &bit_max);
+	if (ret < 0)
+		return false;
+
+	bit_max &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+	if (bit_max < bit_min)
+		return false;
+
+	return true;
+}
+
+static bool
 intel_dp_aux_supports_vesa_backlight(struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
@@ -625,12 +653,14 @@ intel_dp_aux_supports_vesa_backlight(struct intel_connector *connector)
 		return true;
 	}
 
-	if (drm_edp_backlight_supported(intel_dp->edp_dpcd)) {
+	if (drm_edp_backlight_supported(intel_dp->edp_dpcd) &&
+	    check_if_vesa_backlight_possible(intel_dp)) {
 		drm_dbg_kms(display->drm,
 			    "[CONNECTOR:%d:%s] AUX Backlight Control Supported!\n",
 			    connector->base.base.id, connector->base.name);
 		return true;
 	}
+
 	return false;
 }
 
