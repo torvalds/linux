@@ -296,7 +296,7 @@ static const struct snd_soc_component_driver alchemy_pcm_soc_component = {
 	.hw_free	= alchemy_pcm_hw_free,
 	.trigger	= alchemy_pcm_trigger,
 	.pointer	= alchemy_pcm_pointer,
-	.pcm_construct	= alchemy_pcm_new,
+	.pcm_new	= alchemy_pcm_new,
 };
 
 static int alchemy_pcm_drvprobe(struct platform_device *pdev)
