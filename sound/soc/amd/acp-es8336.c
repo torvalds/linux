@@ -11,7 +11,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include <linux/gpio.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/gpio/consumer.h>

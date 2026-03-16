@@ -109,6 +109,9 @@ int __init smb2_init_maperror(void)
 }
 
 #if IS_ENABLED(CONFIG_SMB_KUNIT_TESTS)
+#define EXPORT_SYMBOL_FOR_SMB_TEST(sym) \
+	EXPORT_SYMBOL_FOR_MODULES(sym, "smb2maperror_test")
+
 /* Previous prototype for eliminating the build warning. */
 const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status);
 
@@ -116,11 +119,11 @@ const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status)
 {
 	return smb2_get_err_map(smb2_status);
 }
-EXPORT_SYMBOL_GPL(smb2_get_err_map_test);
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_get_err_map_test);
 
 const struct status_to_posix_error *smb2_error_map_table_test = smb2_error_map_table;
-EXPORT_SYMBOL_GPL(smb2_error_map_table_test);
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_error_map_table_test);
 
 unsigned int smb2_error_map_num = ARRAY_SIZE(smb2_error_map_table);
-EXPORT_SYMBOL_GPL(smb2_error_map_num);
+EXPORT_SYMBOL_FOR_SMB_TEST(smb2_error_map_num);
 #endif

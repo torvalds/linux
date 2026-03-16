@@ -1489,7 +1489,7 @@ struct smb_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 	struct cifsFileInfo *open_file = NULL;
 
 	if (inode)
-		open_file = find_readable_file(CIFS_I(inode), true);
+		open_file = find_readable_file(CIFS_I(inode), FIND_FSUID_ONLY);
 	if (!open_file)
 		return get_cifs_acl_by_path(cifs_sb, path, pacllen, info);
 

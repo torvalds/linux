@@ -776,7 +776,10 @@ do {									\
 #define SYNTHESIZED_F(name)					\
 ({								\
 	kvm_cpu_cap_synthesized |= feature_bit(name);		\
-	F(name);						\
+								\
+	BUILD_BUG_ON(X86_FEATURE_##name >= MAX_CPU_FEATURES);	\
+	if (boot_cpu_has(X86_FEATURE_##name))			\
+		F(name);					\
 })
 
 /*

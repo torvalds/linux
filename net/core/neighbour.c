@@ -820,7 +820,8 @@ int pneigh_create(struct neigh_table *tbl, struct net *net,
 update:
 	WRITE_ONCE(n->flags, flags);
 	n->permanent = permanent;
-	WRITE_ONCE(n->protocol, protocol);
+	if (protocol)
+		WRITE_ONCE(n->protocol, protocol);
 out:
 	mutex_unlock(&tbl->phash_lock);
 	return err;

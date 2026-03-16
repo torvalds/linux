@@ -1504,8 +1504,6 @@ int __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 			fail = true;
 		}
 
-		isb();
-
 		if (!fail)
 			par = read_sysreg_par();
 
