@@ -729,6 +729,10 @@ static inline void __snd_pcm_set_state(struct snd_pcm_runtime *runtime,
 	runtime->status->state = state; /* copy for mmap */
 }
 
+void snd_pcm_set_state(struct snd_pcm_substream *substream,
+		       snd_pcm_state_t state);
+snd_pcm_state_t snd_pcm_get_state(struct snd_pcm_substream *substream);
+
 /**
  * bytes_to_samples - Unit conversion of the size from bytes to samples
  * @runtime: PCM runtime instance
