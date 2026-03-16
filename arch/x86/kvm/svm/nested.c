@@ -1111,10 +1111,8 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 
 	ret = nested_svm_copy_vmcb12_to_cache(vcpu, vmcb12_gpa);
 	if (ret) {
-		if (ret == -EFAULT) {
-			kvm_inject_gp(vcpu, 0);
-			return 1;
-		}
+		if (ret == -EFAULT)
+			return kvm_handle_memory_failure(vcpu, X86EMUL_IO_NEEDED, NULL);
 
 		/* Advance RIP past VMRUN as part of the nested #VMEXIT. */
 		return kvm_skip_emulated_instruction(vcpu);

@@ -2204,10 +2204,8 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 		return 1;
 	}
 
-	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map)) {
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
+	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map))
+		return kvm_handle_memory_failure(vcpu, X86EMUL_IO_NEEDED, NULL);
 
 	vmcb12 = map.hva;
 
