@@ -141,7 +141,7 @@ struct vfio_info_cap_header {
  *
  * Retrieve information about the group.  Fills in provided
  * struct vfio_group_info.  Caller sets argsz.
- * Return: 0 on succes, -errno on failure.
+ * Return: 0 on success, -errno on failure.
  * Availability: Always
  */
 struct vfio_group_status {
