@@ -6365,7 +6365,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 	s32 level = parent ? parent->level + 1 : 0;
 	s32 node, cpu, ret, bypass_fail_cpu = nr_cpu_ids;
 
-	sch = kzalloc_flex(*sch, ancestors, level);
+	sch = kzalloc_flex(*sch, ancestors, level + 1);
 	if (!sch) {
 		ret = -ENOMEM;
 		goto err_put_cgrp;
