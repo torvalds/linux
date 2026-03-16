@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+// Test maximum advertised window limit when rcv_nxt advances past
+// rcv_mwnd_seq. The "usable window" must be properly clamped to zero
+// rather than becoming negative.
 
 --mss=1000
 
@@ -17,10 +20,15 @@
 
    +0 accept(3, ..., ...) = 4
 
-// A too big packet is accepted if the receive queue is empty
+// A too big packet is accepted if the receive queue is empty. It
+// does not trigger an immediate ACK.
    +0 < P. 1:20001(20000) ack 1 win 257
+   +0 %{ assert tcpi_bytes_received == 20000, tcpi_bytes_received; }%
+
 // Send a RST immediately so that there is no rcv_wup/rcv_mwnd_seq update yet
    +0 < R. 20001:20001(0) ack 1 win 257
 
-  +.1 %{ assert tcpi_state == TCP_CLOSE, tcpi_state }%
-
+// Verify that the RST was accepted. Indirectly this also verifies that no
+// immediate ACK was sent for the data packet above.
+   +0 < . 20001:20001(0) ack 1 win 257
+   +0 > R 1:1(0)
