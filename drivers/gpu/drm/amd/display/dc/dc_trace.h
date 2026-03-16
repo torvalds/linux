@@ -23,8 +23,8 @@
 
 #include "amdgpu_dm_trace.h"
 
-#define TRACE_DC_PIPE_STATE(pipe_ctx, index, max_pipes) \
-	for (index = 0; index < max_pipes; ++index) { \
+#define TRACE_DC_PIPE_STATE(pipe_ctx, max_pipes) \
+	for (int index = 0; index < max_pipes; ++index) { \
 		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[index]; \
 		if (pipe_ctx->plane_state) \
 			trace_amdgpu_dm_dc_pipe_state(pipe_ctx->pipe_idx, pipe_ctx->plane_state, \

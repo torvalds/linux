@@ -118,9 +118,7 @@ void mpc1_assert_idle_mpcc(struct mpc *mpc, int id)
 
 struct mpcc *mpc1_get_mpcc(struct mpc *mpc, int mpcc_id)
 {
-	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
-
-	ASSERT(mpcc_id < mpc10->num_mpcc);
+	ASSERT(mpcc_id < TO_DCN10_MPC(mpc)->num_mpcc);
 	return &(mpc->mpcc_array[mpcc_id]);
 }
 

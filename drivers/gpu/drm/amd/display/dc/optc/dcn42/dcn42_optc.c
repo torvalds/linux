@@ -6,11 +6,13 @@
 #include "dcn30/dcn30_optc.h"
 #include "dcn31/dcn31_optc.h"
 #include "dcn32/dcn32_optc.h"
+#include "dcn35/dcn35_optc.h"
 #include "dcn401/dcn401_optc.h"
 #include "reg_helper.h"
 #include "dc.h"
 #include "dcn_calc_math.h"
 #include "dc_dmub_srv.h"
+#include "dc_trace.h"
 
 #define REG(reg)\
 	optc1->tg_regs->reg
@@ -108,6 +110,89 @@ void  optc42_disable_pwa(struct timing_generator *optc)
 	REG_UPDATE(OTG_PWA_FRAME_SYNC_CONTROL,
 			OTG_PWA_FRAME_SYNC_EN, 0);
 }
+void optc42_clear_optc_underflow(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
+	REG_UPDATE(OPTC_RSMU_UNDERFLOW, OPTC_RSMU_UNDERFLOW_CLEAR, 1);
+}
+bool optc42_is_optc_underflow_occurred(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t underflow_occurred = 0, rsmu_underflow_occurred = 0;
+
+	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
+			OPTC_UNDERFLOW_OCCURRED_STATUS,
+			&underflow_occurred);
+
+	REG_GET(OPTC_RSMU_UNDERFLOW,
+			OPTC_RSMU_UNDERFLOW_OCCURRED_STATUS,
+			&rsmu_underflow_occurred);
+	return (underflow_occurred == 1 || rsmu_underflow_occurred);
+}
+/* disable_crtc */
+bool optc42_disable_crtc(struct timing_generator *optc)
+{
+	optc401_disable_crtc(optc);
+	optc42_clear_optc_underflow(optc);
+
+	return true;
+}
+static void optc42_set_timing_double_buffer(struct timing_generator *optc, bool enable)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t mode = enable ? 2 : 0;
+	/* actually we have 4 modes now, use as the same as previous dcn3x
+	 * 00	OTG_DOUBLE_BUFFER_CONTROL_OTG_DRR_TIMING_DBUF_UPDATE_MODE_0	Double buffer update occurs at any time in a frame.
+	 * 01	OTG_DOUBLE_BUFFER_CONTROL_OTG_DRR_TIMING_DBUF_UPDATE_MODE_1	Double buffer update occurs at OTG start of frame.
+	 * 02	OTG_DOUBLE_BUFFER_CONTROL_OTG_DRR_TIMING_DBUF_UPDATE_MODE_2	Double buffer occurs DP start of frame.
+	 * 03	OTG_DOUBLE_BUFFER_CONTROL_OTG_DRR_TIMING_DBUF_UPDATE_MODE_3	Reserved.
+	 */
+
+	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+		   OTG_DRR_TIMING_DBUF_UPDATE_MODE, mode);
+}
+void optc42_tg_init(struct timing_generator *optc)
+{
+	optc42_set_timing_double_buffer(optc, true);
+	optc42_clear_optc_underflow(optc);
+}
+
+void optc42_lock_doublebuffer_enable(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t v_blank_start = 0;
+	uint32_t v_blank_end = 0;
+	uint32_t h_blank_start = 0;
+	uint32_t h_blank_end = 0;
+
+	REG_GET_2(OTG_V_BLANK_START_END,
+		OTG_V_BLANK_START, &v_blank_start,
+		OTG_V_BLANK_END, &v_blank_end);
+	REG_GET_2(OTG_H_BLANK_START_END,
+		OTG_H_BLANK_START, &h_blank_start,
+		OTG_H_BLANK_END, &h_blank_end);
+
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+		MASTER_UPDATE_LOCK_DB_START_Y, v_blank_start,
+		MASTER_UPDATE_LOCK_DB_END_Y, v_blank_start);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL4,
+		DIG_UPDATE_POSITION_X, 20,
+		DIG_UPDATE_POSITION_Y, v_blank_start);
+	REG_UPDATE_3(OTG_GLOBAL_CONTROL0,
+		MASTER_UPDATE_LOCK_DB_START_X, h_blank_start - 200 - 1,
+		MASTER_UPDATE_LOCK_DB_END_X, h_blank_end,
+		MASTER_UPDATE_LOCK_DB_EN, 1);
+	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 1);
+
+	REG_SET_3(OTG_VUPDATE_KEEPOUT, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET, 0,
+		MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET, 100,
+		OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN, 1);
+
+	TRACE_OPTC_LOCK_UNLOCK_STATE(optc1, optc->inst, true);
+}
 
 static struct timing_generator_funcs dcn42_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
@@ -117,7 +202,7 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.setup_vertical_interrupt2 = optc1_setup_vertical_interrupt2,
 		.program_global_sync = optc401_program_global_sync,
 		.enable_crtc = optc401_enable_crtc,
-		.disable_crtc = optc401_disable_crtc,
+		.disable_crtc = optc42_disable_crtc,
 		.phantom_crtc_post_enable = optc401_phantom_crtc_post_enable,
 		.disable_phantom_crtc = optc401_disable_phantom_otg,
 		/* used by enable_timing_synchronization. Not need for FPGA */
@@ -138,7 +223,7 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.disable_reset_trigger = optc1_disable_reset_trigger,
 		.lock = optc3_lock,
 		.unlock = optc1_unlock,
-		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
+		.lock_doublebuffer_enable = optc42_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_drr = optc401_set_drr,
@@ -147,13 +232,13 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.set_static_screen_control = optc1_set_static_screen_control,
 		.program_stereo = optc1_program_stereo,
 		.is_stereo_left_eye = optc1_is_stereo_left_eye,
-		.tg_init = optc3_tg_init,
+		.tg_init = optc42_tg_init,
 		.is_tg_enabled = optc1_is_tg_enabled,
-		.is_optc_underflow_occurred = optc1_is_optc_underflow_occurred,
-		.clear_optc_underflow = optc1_clear_optc_underflow,
+		.is_optc_underflow_occurred = optc42_is_optc_underflow_occurred,
+		.clear_optc_underflow = optc42_clear_optc_underflow,
 		.setup_global_swap_lock = NULL,
 		.get_crc = optc42_get_crc,
-		.configure_crc = optc1_configure_crc,
+		.configure_crc = optc35_configure_crc,
 		.set_dsc_config = optc3_set_dsc_config,
 		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = NULL,
@@ -162,6 +247,7 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.wait_odm_doublebuffer_pending_clear = optc32_wait_odm_doublebuffer_pending_clear,
 		.set_h_timing_div_manual_mode = optc401_set_h_timing_div_manual_mode,
 		.get_optc_source = optc2_get_optc_source,
+		.wait_otg_disable = optc35_wait_otg_disable,
 		.set_out_mux = optc401_set_out_mux,
 		.set_drr_trigger_window = optc3_set_drr_trigger_window,
 		.set_vtotal_change_limit = optc3_set_vtotal_change_limit,
@@ -171,6 +257,8 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.init_odm = optc3_init_odm,
+		.set_long_vtotal = optc35_set_long_vtotal,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
 		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
@@ -178,6 +266,7 @@ static struct timing_generator_funcs dcn42_tg_funcs = {
 		.set_vupdate_keepout = optc401_set_vupdate_keepout,
 		.wait_update_lock_status = optc401_wait_update_lock_status,
 		.optc_read_reg_state = optc31_read_reg_state,
+		.read_otg_state = optc31_read_otg_state,
 		.enable_otg_pwa = optc42_enable_pwa,
 		.disable_otg_pwa = optc42_disable_pwa,
 };
@@ -194,5 +283,9 @@ void dcn42_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
+	optc1->max_frame_count = 0xFFFFFF;
+
+	dcn35_timing_generator_set_fgcg(
+		optc1, CTX->dc->debug.enable_fine_grain_clock_gating.bits.optc);
 }
 

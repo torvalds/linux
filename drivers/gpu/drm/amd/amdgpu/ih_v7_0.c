@@ -289,6 +289,13 @@ static uint32_t ih_v7_0_setup_retry_doorbell(u32 doorbell_index)
 	return val;
 }
 
+#define regIH_RING1_CLIENT_CFG_INDEX_V7_1             0x122
+#define regIH_RING1_CLIENT_CFG_INDEX_V7_1_BASE_IDX    0
+#define regIH_RING1_CLIENT_CFG_DATA_V7_1              0x123
+#define regIH_RING1_CLIENT_CFG_DATA_V7_1_BASE_IDX     0
+#define regIH_CHICKEN_V7_1                            0x129
+#define regIH_CHICKEN_V7_1_BASE_IDX                   0
+
 /**
  * ih_v7_0_irq_init - init and enable the interrupt ring
  *
@@ -307,6 +314,7 @@ static int ih_v7_0_irq_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int ret;
 	int i;
+	u32 reg_addr;
 
 	/* disable irqs */
 	ret = ih_v7_0_toggle_interrupts(adev, false);
@@ -318,10 +326,15 @@ static int ih_v7_0_irq_init(struct amdgpu_device *adev)
 	if (unlikely((adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) ||
 		     (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO))) {
 		if (ih[0]->use_bus_addr) {
-			ih_chicken = RREG32_SOC15(OSSSYS, 0, regIH_CHICKEN);
+			if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(7, 1, 0))
+				reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_CHICKEN_V7_1);
+			else
+				reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_CHICKEN);
+			ih_chicken = RREG32(reg_addr);
+			/* The reg fields definitions are identical in ih v7_0 and ih v7_1 */
 			ih_chicken = REG_SET_FIELD(ih_chicken,
 					IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
-			WREG32_SOC15(OSSSYS, 0, regIH_CHICKEN, ih_chicken);
+			WREG32(reg_addr, ih_chicken);
 		}
 	}
 
@@ -358,17 +371,26 @@ static int ih_v7_0_irq_init(struct amdgpu_device *adev)
 
 	/* Redirect the interrupts to IH RB1 for dGPU */
 	if (adev->irq.ih1.ring_size) {
-		tmp = RREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX);
+		if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(7, 1, 0))
+			reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX_V7_1);
+		else
+			reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX);
+		tmp = RREG32(reg_addr);
+		/* The reg fields definitions are identical in ih v7_0 and ih v7_1 */
 		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_INDEX, INDEX, 0);
-		WREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_INDEX, tmp);
+		WREG32(reg_addr, tmp);
 
-		tmp = RREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA);
+		if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(7, 1, 0))
+			reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA_V7_1);
+		else
+			reg_addr = SOC15_REG_OFFSET(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA);
+		tmp = RREG32(reg_addr);
+		/* The reg fields definitions are identical in ih v7_0 and ih v7_1 */
 		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA, CLIENT_ID, 0xa);
 		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA, SOURCE_ID, 0x0);
 		tmp = REG_SET_FIELD(tmp, IH_RING1_CLIENT_CFG_DATA,
 				    SOURCE_ID_MATCH_ENABLE, 0x1);
-
-		WREG32_SOC15(OSSSYS, 0, regIH_RING1_CLIENT_CFG_DATA, tmp);
+		WREG32(reg_addr, tmp);
 	}
 
 	pci_set_master(adev->pdev);

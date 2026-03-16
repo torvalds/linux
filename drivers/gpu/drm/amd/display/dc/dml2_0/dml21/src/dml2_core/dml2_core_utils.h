@@ -22,6 +22,8 @@ void dml2_core_utils_pipe_plane_mapping(const struct core_display_cfg_support_in
 bool dml2_core_utils_is_phantom_pipe(const struct dml2_plane_parameters *plane_cfg);
 unsigned int dml2_core_utils_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel);
 bool dml2_core_utils_get_segment_horizontal_contiguous(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel);
+unsigned int dml2_core_utils_get_tile_block_size_bytes_backcompat(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel);
+bool dml2_core_utils_get_segment_horizontal_contiguous_backcompat(enum dml2_swizzle_mode sw_mode, unsigned int byte_per_pixel);
 bool dml2_core_utils_is_vertical_rotation(enum dml2_rotation_angle Scan);
 bool dml2_core_utils_is_linear(enum dml2_swizzle_mode sw_mode);
 int unsigned dml2_core_utils_get_gfx_version(enum dml2_swizzle_mode sw_mode);

@@ -357,7 +357,7 @@ static bool enough_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *st
  */
 static bool subvp_subvp_schedulable(struct dml2_context *ctx, struct dc_state *context)
 {
-	struct pipe_ctx *subvp_pipes[2];
+	struct pipe_ctx *subvp_pipes[2] = { NULL, NULL };
 	struct dc_stream_state *phantom = NULL;
 	uint32_t microschedule_lines = 0;
 	uint32_t index = 0;
@@ -368,6 +368,9 @@ static bool subvp_subvp_schedulable(struct dml2_context *ctx, struct dc_state *c
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		uint32_t time_us = 0;
+
+		if (pipe == NULL || pipe->stream == NULL)
+			continue;
 
 		/* Loop to calculate the maximum microschedule time between the two SubVP pipes,
 		 * and also to store the two main SubVP pipe pointers in subvp_pipes[2].
@@ -386,14 +389,19 @@ static bool subvp_subvp_schedulable(struct dml2_context *ctx, struct dc_state *c
 			if (time_us > max_microschedule_us)
 				max_microschedule_us = time_us;
 
-			subvp_pipes[index] = pipe;
-			index++;
+			if (index < 2)
+				subvp_pipes[index++] = pipe;
 
 			// Maximum 2 SubVP pipes
 			if (index == 2)
 				break;
 		}
 	}
+
+	/* Minimal guard to avoid C6001 before subvp_pipes[0]/[1] dereference */
+	if (index < 2 || !subvp_pipes[0] || !subvp_pipes[1])
+		return false;
+
 	vactive1_us = ((subvp_pipes[0]->stream->timing.v_addressable * subvp_pipes[0]->stream->timing.h_total) /
 			(double)(subvp_pipes[0]->stream->timing.pix_clk_100hz * 100)) * 1000000;
 	vactive2_us = ((subvp_pipes[1]->stream->timing.v_addressable * subvp_pipes[1]->stream->timing.h_total) /
@@ -459,6 +467,11 @@ bool dml2_svp_drr_schedulable(struct dml2_context *ctx, struct dc_state *context
 			break;
 	}
 
+	if (pipe == NULL || pipe->stream == NULL) {
+		// Defensive: should never happen, try to catch in debug
+		ASSERT(0);
+		return false;
+	}
 	phantom_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(context, pipe->stream);
 	main_timing = &pipe->stream->timing;
 	phantom_timing = &phantom_stream->timing;
@@ -549,6 +562,13 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 		if (!subvp_pipe && pipe_mall_type == SUBVP_MAIN)
 			subvp_pipe = pipe;
 	}
+
+	if (subvp_pipe == NULL) {
+		// Defensive: should never happen, catch in debug
+		ASSERT(0);
+		return false;
+	}
+
 	// Use ignore_msa_timing_param flag to identify as DRR
 	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param) {
 		// SUBVP + DRR case
@@ -753,6 +773,12 @@ static void enable_phantom_plane(struct dml2_context *ctx,
 				return;
 		}
 
+		/* Minimal NULL guard for C6011 */
+		if (!phantom_plane) {
+			ASSERT(0);
+			continue;
+		}
+
 		memcpy(&phantom_plane->address, &curr_pipe->plane_state->address, sizeof(phantom_plane->address));
 		memcpy(&phantom_plane->scaling_quality, &curr_pipe->plane_state->scaling_quality,
 				sizeof(phantom_plane->scaling_quality));
@@ -880,6 +906,11 @@ bool dml2_svp_add_phantom_pipe_to_dc_state(struct dml2_context *ctx, struct dc_s
 	if (ctx->config.svp_pstate.force_disable_subvp)
 		return false;
 
+	if (!state) {
+		ASSERT(0);
+		return false;
+	}
+
 	if (!all_pipes_have_stream_and_plane(ctx, state))
 		return false;
 
@@ -898,6 +929,10 @@ bool dml2_svp_add_phantom_pipe_to_dc_state(struct dml2_context *ctx, struct dc_s
 	}
 
 	if (enough_pipes_for_subvp(ctx, state) && assign_subvp_pipe(ctx, state, &dc_pipe_idx)) {
+		if (state->res_ctx.pipe_ctx[dc_pipe_idx].stream == NULL) {
+			ASSERT(0);
+			return false;
+		}
 		dml_pipe_idx = dml2_helper_find_dml_pipe_idx_by_stream_id(ctx, state->res_ctx.pipe_ctx[dc_pipe_idx].stream->stream_id);
 		svp_height = mode_support_info->SubViewportLinesNeededInMALL[dml_pipe_idx];
 		vstartup = dml_get_vstartup_calculated(&ctx->v20.dml_core_ctx, dml_pipe_idx);

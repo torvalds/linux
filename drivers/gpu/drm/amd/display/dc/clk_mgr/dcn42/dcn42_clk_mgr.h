@@ -59,7 +59,6 @@ void dcn42_clk_mgr_construct(struct dc_context *ctx,
 
 void dcn42_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int);
 
-/* Exposed for dcn42b reuse */
 void dcn42_init_single_clock(unsigned int *entry_0,
 			      uint32_t *smu_entry_0,
 			      uint8_t num_levels);
@@ -76,4 +75,5 @@ int dcn42_get_active_display_cnt_wa(struct dc *dc, struct dc_state *context, int
 void dcn42_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr, struct dc_state *context, bool safe_to_lower);
 void dcn42_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr, struct dc_state *context, int ref_dtbclk_khz);
 bool dcn42_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base);
+bool dcn42_has_active_display(struct dc *dc, const struct dc_state *context);
 #endif //__DCN42_CLK_MGR_H__

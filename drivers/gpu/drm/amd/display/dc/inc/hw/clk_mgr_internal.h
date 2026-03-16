@@ -243,7 +243,23 @@ enum dentist_divider_range {
 	CLK_SR_DCN42(CLK8_CLK3_DS_CNTL), \
 	CLK_SR_DCN42(CLK8_CLK4_DS_CNTL)
 
-#define CLK_COMMON_MASK_SH_LIST_DCN42(mask_sh) 0
+#define CLK_COMMON_MASK_SH_LIST_DCN42(mask_sh) \
+	CLK_SF(CLK8_CLK_TICK_CNT_CONFIG_REG, TIMER_THRESHOLD, mask_sh), \
+	CLK_SF(CLK8_CLK0_BYPASS_CNTL, CLK0_BYPASS_SEL, mask_sh), \
+	CLK_SF(CLK8_CLK1_BYPASS_CNTL, CLK1_BYPASS_SEL, mask_sh), \
+	CLK_SF(CLK8_CLK2_BYPASS_CNTL, CLK2_BYPASS_SEL, mask_sh), \
+	CLK_SF(CLK8_CLK3_BYPASS_CNTL, CLK3_BYPASS_SEL, mask_sh), \
+	CLK_SF(CLK8_CLK4_BYPASS_CNTL, CLK4_BYPASS_SEL, mask_sh), \
+	CLK_SF(CLK8_CLK0_DS_CNTL, CLK0_DS_DIV_ID, mask_sh), \
+	CLK_SF(CLK8_CLK1_DS_CNTL, CLK1_DS_DIV_ID, mask_sh), \
+	CLK_SF(CLK8_CLK2_DS_CNTL, CLK2_DS_DIV_ID, mask_sh), \
+	CLK_SF(CLK8_CLK3_DS_CNTL, CLK3_DS_DIV_ID, mask_sh), \
+	CLK_SF(CLK8_CLK4_DS_CNTL, CLK4_DS_DIV_ID, mask_sh), \
+	CLK_SF(CLK8_CLK0_DS_CNTL, CLK0_ALLOW_DS, mask_sh), \
+	CLK_SF(CLK8_CLK1_DS_CNTL, CLK1_ALLOW_DS, mask_sh), \
+	CLK_SF(CLK8_CLK2_DS_CNTL, CLK2_ALLOW_DS, mask_sh), \
+	CLK_SF(CLK8_CLK3_DS_CNTL, CLK3_ALLOW_DS, mask_sh), \
+	CLK_SF(CLK8_CLK4_DS_CNTL, CLK4_ALLOW_DS, mask_sh), \
 
 
 
@@ -258,6 +274,42 @@ enum dentist_divider_range {
 	type DENTIST_DPPCLK_CHG_DONE; \
 	type FbMult_int; \
 	type FbMult_frac;
+
+#define CLK42_REG_LIST(clkip_num, type) \
+	type CLK ## clkip_num ## _CLK_TICK_CNT_CONFIG_REG; \
+	type CLK ## clkip_num ## _CLK0_CURRENT_CNT; \
+	type CLK ## clkip_num ## _CLK1_CURRENT_CNT; \
+	type CLK ## clkip_num ## _CLK2_CURRENT_CNT; \
+	type CLK ## clkip_num ## _CLK3_CURRENT_CNT; \
+	type CLK ## clkip_num ## _CLK4_CURRENT_CNT; \
+	type CLK ## clkip_num ## _CLK0_BYPASS_CNTL; \
+	type CLK ## clkip_num ## _CLK1_BYPASS_CNTL; \
+	type CLK ## clkip_num ## _CLK2_BYPASS_CNTL; \
+	type CLK ## clkip_num ## _CLK3_BYPASS_CNTL; \
+	type CLK ## clkip_num ## _CLK4_BYPASS_CNTL; \
+	type CLK ## clkip_num ## _CLK0_DS_CNTL; \
+	type CLK ## clkip_num ## _CLK1_DS_CNTL; \
+	type CLK ## clkip_num ## _CLK2_DS_CNTL; \
+	type CLK ## clkip_num ## _CLK3_DS_CNTL; \
+	type CLK ## clkip_num ## _CLK4_DS_CNTL;
+
+#define CLK42_REG_FIELD_LIST(type) \
+	type TIMER_THRESHOLD; \
+	type CLK0_BYPASS_SEL; \
+	type CLK1_BYPASS_SEL; \
+	type CLK2_BYPASS_SEL; \
+	type CLK3_BYPASS_SEL; \
+	type CLK4_BYPASS_SEL; \
+	type CLK0_DS_DIV_ID; \
+	type CLK1_DS_DIV_ID; \
+	type CLK2_DS_DIV_ID; \
+	type CLK3_DS_DIV_ID; \
+	type CLK4_DS_DIV_ID; \
+	type CLK0_ALLOW_DS; \
+	type CLK1_ALLOW_DS; \
+	type CLK2_ALLOW_DS; \
+	type CLK3_ALLOW_DS; \
+	type CLK4_ALLOW_DS;
 
 /*
  ***************************************************************************************
@@ -322,32 +374,19 @@ struct clk_mgr_registers {
 	uint32_t CLK1_CLK5_ALLOW_DS;
 	uint32_t CLK5_spll_field_8;
 	uint32_t CLK6_spll_field_8;
-	uint32_t CLK8_CLK0_CURRENT_CNT;
-	uint32_t CLK8_CLK1_CURRENT_CNT;
-	uint32_t CLK8_CLK2_CURRENT_CNT;
-	uint32_t CLK8_CLK3_CURRENT_CNT;
-	uint32_t CLK8_CLK4_CURRENT_CNT;
-	uint32_t CLK8_CLK0_DS_CNTL;
-	uint32_t CLK8_CLK1_DS_CNTL;
-	uint32_t CLK8_CLK2_DS_CNTL;
-	uint32_t CLK8_CLK3_DS_CNTL;
-	uint32_t CLK8_CLK4_DS_CNTL;
-	uint32_t CLK8_CLK0_BYPASS_CNTL;
-	uint32_t CLK8_CLK1_BYPASS_CNTL;
-	uint32_t CLK8_CLK2_BYPASS_CNTL;
-	uint32_t CLK8_CLK3_BYPASS_CNTL;
-	uint32_t CLK8_CLK4_BYPASS_CNTL;
-	uint32_t CLK8_CLK_TICK_CNT_CONFIG_REG;
+	CLK42_REG_LIST(8, uint32_t)
 };
 
 struct clk_mgr_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
 	CLK20_REG_FIELD_LIST(uint8_t)
+	CLK42_REG_FIELD_LIST(uint8_t)
 };
 
 struct clk_mgr_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
 	CLK20_REG_FIELD_LIST(uint32_t)
+	CLK42_REG_FIELD_LIST(uint32_t)
 };
 
 enum clock_type {

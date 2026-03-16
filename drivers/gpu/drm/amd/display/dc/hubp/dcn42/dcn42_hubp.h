@@ -56,11 +56,11 @@ bool hubp42_construct(
 	const struct dcn_hubp2_shift *hubp_shift,
 	const struct dcn_hubp2_mask *hubp_mask);
 
-void hubp42_program_3dlut_fl_crossbar(
-	struct hubp *hubp,
-	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_r,
-	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_g,
-	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_b);
+void hubp42_program_3dlut_fl_crossbar(struct hubp *hubp,
+		const enum dc_cm_lut_pixel_format format);
+
+void hubp42_program_3dlut_fl_config(struct hubp *hubp,
+		const struct dc_3dlut_dma *config);
 
 void hubp42_read_state(struct hubp *hubp);
 
@@ -69,11 +69,5 @@ void hubp42_setup(
 	    struct dml2_dchub_per_pipe_register_set *pipe_regs,
 		union dml2_global_sync_programming *pipe_global_sync,
 		struct dc_crtc_timing *timing);
-
-void hubp42_program_deadline(
-		struct hubp *hubp,
-		struct dml2_display_dlg_regs *dlg_attr,
-		struct dml2_display_ttu_regs *ttu_attr);
-
 
 #endif /* __DC_HUBP_DCN42_H__ */

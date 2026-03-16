@@ -57,7 +57,7 @@ static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_end = AMDGPU_SOC_V1_0_DOORBELL_USERQUEUE_END;
 	adev->doorbell_index.xcc_doorbell_range = AMDGPU_SOC_V1_0_DOORBELL_XCC_RANGE;
 
-	adev->doorbell_index.sdma_doorbell_range = 20;
+	adev->doorbell_index.sdma_doorbell_range = 14;
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		adev->doorbell_index.sdma_engine[i] =
 			AMDGPU_SOC_V1_0_DOORBELL_sDMA_ENGINE_START +
@@ -214,23 +214,35 @@ static bool soc_v1_0_need_full_reset(struct amdgpu_device *adev)
 
 static bool soc_v1_0_need_reset_on_init(struct amdgpu_device *adev)
 {
-	u32 sol_reg;
-
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	/* Check sOS sign of life register to confirm sys driver and sOS
-	 * are already been loaded.
-	 */
-	sol_reg = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_81);
-	if (sol_reg)
-		return true;
 
 	return false;
 }
 
+static enum amd_reset_method
+soc_v1_0_asic_reset_method(struct amdgpu_device *adev)
+{
+	if ((adev->gmc.xgmi.supported && adev->gmc.xgmi.connected_to_cpu) ||
+	    (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 8))) {
+		if (amdgpu_reset_method != -1)
+			dev_warn_once(adev->dev, "Reset override isn't supported, using Mode2 instead.\n");
+
+		return AMD_RESET_METHOD_MODE2;
+	}
+
+	return amdgpu_reset_method;
+}
+
 static int soc_v1_0_asic_reset(struct amdgpu_device *adev)
 {
+	switch (soc_v1_0_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_MODE2:
+		dev_info(adev->dev, "MODE2 reset\n");
+		return amdgpu_dpm_mode2_reset(adev);
+	default:
+		dev_info(adev->dev, "Invalid reset method Not supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -244,6 +256,7 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.need_reset_on_init = &soc_v1_0_need_reset_on_init,
 	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
 	.reset = soc_v1_0_asic_reset,
+	.reset_method = &soc_v1_0_asic_reset_method,
 };
 
 static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
@@ -268,7 +281,8 @@ static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 1, 0):
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
@@ -809,7 +823,7 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 {
 	int ret, i;
 	int xcc_inst_per_aid = 4;
-	uint16_t xcc_mask;
+	uint16_t xcc_mask, sdma_mask = 0;
 
 	xcc_mask = adev->gfx.xcc_mask;
 	adev->aid_mask = 0;
@@ -819,10 +833,12 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 	}
 
 	adev->sdma.num_inst_per_xcc = 2;
-	adev->sdma.num_instances =
-		NUM_XCC(adev->gfx.xcc_mask) * adev->sdma.num_inst_per_xcc;
-	adev->sdma.sdma_mask =
-		GENMASK(adev->sdma.num_instances - 1, 0);
+	for_each_inst(i, adev->gfx.xcc_mask)
+		sdma_mask |=
+			GENMASK(adev->sdma.num_inst_per_xcc - 1, 0) <<
+			(i * adev->sdma.num_inst_per_xcc);
+	adev->sdma.sdma_mask = sdma_mask;
+	adev->sdma.num_instances = NUM_XCC(adev->sdma.sdma_mask);
 
 	ret = soc_v1_0_xcp_mgr_init(adev);
 	if (ret)
