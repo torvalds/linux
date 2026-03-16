@@ -2664,9 +2664,6 @@ static int iptfs_clone_state(struct xfrm_state *x, struct xfrm_state *orig)
 	if (!xtfs)
 		return -ENOMEM;
 
-	x->mode_data = xtfs;
-	xtfs->x = x;
-
 	xtfs->ra_newskb = NULL;
 	if (xtfs->cfg.reorder_win_size) {
 		xtfs->w_saved = kcalloc(xtfs->cfg.reorder_win_size,
@@ -2676,6 +2673,9 @@ static int iptfs_clone_state(struct xfrm_state *x, struct xfrm_state *orig)
 			return -ENOMEM;
 		}
 	}
+
+	x->mode_data = xtfs;
+	xtfs->x = x;
 
 	return 0;
 }
