@@ -860,7 +860,7 @@ static int fsl_soc_dma_probe(struct platform_device *pdev)
 	dma->dai.hw_params = fsl_dma_hw_params;
 	dma->dai.hw_free = fsl_dma_hw_free;
 	dma->dai.pointer = fsl_dma_pointer;
-	dma->dai.pcm_construct = fsl_dma_new;
+	dma->dai.pcm_new = fsl_dma_new;
 
 	/* Store the SSI-specific information that we need */
 	dma->ssi_stx_phys = res.start + REG_SSI_STX0;
