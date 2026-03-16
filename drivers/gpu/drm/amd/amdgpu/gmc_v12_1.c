@@ -527,10 +527,11 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 	unsigned int mtype, mtype_local, mtype_remote;
 	bool snoop = false;
 	bool is_local = false;
+	bool is_aid_a1;
 
 	switch (gc_ip_version) {
 	case IP_VERSION(12, 1, 0):
-		bool is_aid_a1 = (adev->rev_id & 0x10);
+		is_aid_a1 = (adev->rev_id & 0x10);
 
 		mtype_local = is_aid_a1 ? MTYPE_RW : MTYPE_NC;
 		mtype_remote = is_aid_a1 ? MTYPE_NC : MTYPE_UC;
