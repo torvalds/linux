@@ -877,13 +877,13 @@ process_node:
 		}
 	}
 out:
+	spin_unlock(&tree->lock);
 	/* This state is no longer useful, clear it and free it up. */
 	if (cached_state && *cached_state) {
 		state = *cached_state;
 		*cached_state = NULL;
 		btrfs_free_extent_state(state);
 	}
-	spin_unlock(&tree->lock);
 }
 
 static void cache_state_if_flags(struct extent_state *state,
