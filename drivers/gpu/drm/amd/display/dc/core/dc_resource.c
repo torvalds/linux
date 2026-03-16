@@ -749,10 +749,10 @@ struct clock_source *resource_find_used_clk_src_for_sharing(
 	return NULL;
 }
 
-static enum pixel_format convert_pixel_format_to_dalsurface(
+static enum dc_pixel_format convert_pixel_format_to_dalsurface(
 		enum surface_pixel_format surface_pixel_format)
 {
-	enum pixel_format dal_pixel_format = PIXEL_FORMAT_UNKNOWN;
+	enum dc_pixel_format dal_pixel_format = PIXEL_FORMAT_UNKNOWN;
 
 	switch (surface_pixel_format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:

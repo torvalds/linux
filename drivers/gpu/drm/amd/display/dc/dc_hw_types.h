@@ -218,7 +218,7 @@ enum surface_pixel_format {
 
 
 /* Pixel format */
-enum pixel_format {
+enum dc_pixel_format {
 	/*graph*/
 	PIXEL_FORMAT_UNINITIALIZED,
 	PIXEL_FORMAT_INDEX8,
