@@ -6353,6 +6353,10 @@ static struct scx_sched_pnode *alloc_pnode(struct scx_sched *sch, int node)
 	return pnode;
 }
 
+/*
+ * Allocate and initialize a new scx_sched. @cgrp's reference is always
+ * consumed whether the function succeeds or fails.
+ */
 static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 						 struct cgroup *cgrp,
 						 struct scx_sched *parent)
@@ -6362,8 +6366,10 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 	s32 node, cpu, ret, bypass_fail_cpu = nr_cpu_ids;
 
 	sch = kzalloc_flex(*sch, ancestors, level);
-	if (!sch)
-		return ERR_PTR(-ENOMEM);
+	if (!sch) {
+		ret = -ENOMEM;
+		goto err_put_cgrp;
+	}
 
 	sch->exit_info = alloc_exit_info(ops->exit_dump_len);
 	if (!sch->exit_info) {
@@ -6468,8 +6474,8 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 		ret = kobject_init_and_add(&sch->kobj, &scx_ktype, NULL, "root");
 
 	if (ret < 0) {
-		kfree(sch->cgrp_path);
-		goto err_stop_helper;
+		kobject_put(&sch->kobj);
+		return ERR_PTR(ret);
 	}
 
 	if (ops->sub_attach) {
@@ -6479,11 +6485,12 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops,
 			return ERR_PTR(-ENOMEM);
 		}
 	}
-
 #else	/* CONFIG_EXT_SUB_SCHED */
 	ret = kobject_init_and_add(&sch->kobj, &scx_ktype, NULL, "root");
-	if (ret < 0)
-		goto err_stop_helper;
+	if (ret < 0) {
+		kobject_put(&sch->kobj);
+		return ERR_PTR(ret);
+	}
 #endif	/* CONFIG_EXT_SUB_SCHED */
 	return sch;
 
@@ -6506,6 +6513,8 @@ err_free_ei:
 	free_exit_info(sch->exit_info);
 err_free_sch:
 	kfree(sch);
+err_put_cgrp:
+	cgroup_put(cgrp);
 	return ERR_PTR(ret);
 }
 
@@ -6577,6 +6586,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 {
 	struct scx_enable_cmd *cmd = container_of(work, struct scx_enable_cmd, work);
 	struct sched_ext_ops *ops = cmd->ops;
+	struct cgroup *cgrp = root_cgroup();
 	struct scx_sched *sch;
 	struct scx_task_iter sti;
 	struct task_struct *p;
@@ -6593,7 +6603,8 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	if (ret)
 		goto err_unlock;
 
-	sch = scx_alloc_and_add_sched(ops, root_cgroup(), NULL);
+	cgroup_get(cgrp);
+	sch = scx_alloc_and_add_sched(ops, cgrp, NULL);
 	if (IS_ERR(sch)) {
 		ret = PTR_ERR(sch);
 		goto err_free_ksyncs;
@@ -6887,11 +6898,12 @@ static void scx_sub_enable_workfn(struct kthread_work *work)
 	kobject_get(&parent->kobj);
 	raw_spin_unlock_irq(&scx_sched_lock);
 
+	/* scx_alloc_and_add_sched() consumes @cgrp whether it succeeds or not */
 	sch = scx_alloc_and_add_sched(ops, cgrp, parent);
 	kobject_put(&parent->kobj);
 	if (IS_ERR(sch)) {
 		ret = PTR_ERR(sch);
-		goto out_put_cgrp;
+		goto out_unlock;
 	}
 
 	ret = scx_link_sched(sch);
