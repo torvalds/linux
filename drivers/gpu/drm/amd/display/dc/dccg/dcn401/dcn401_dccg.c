@@ -526,10 +526,6 @@ static void dccg401_enable_dpstreamclk(struct dccg *dccg, int otg_inst, int dp_h
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
-		REG_UPDATE_2(DCCG_GATE_DISABLE_CNTL3,
-			DPSTREAMCLK_GATE_DISABLE, 1,
-			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
 }
 
 void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
