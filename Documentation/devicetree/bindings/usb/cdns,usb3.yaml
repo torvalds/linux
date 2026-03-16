@@ -4,10 +4,16 @@
 $id: http://devicetree.org/schemas/usb/cdns,usb3.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Cadence USBSS-DRD controller
+title: Cadence USBSS and USBSSP DRD controller
 
 maintainers:
   - Pawel Laszczak <pawell@cadence.com>
+
+description:
+  Cadence USB dual-role controller. Covers USBSS (SuperSpeed, USB 3.0) and
+  USBSSP (SuperSpeed Plus, USB 3.1 gen2x1). Both variants share the same
+  DRD/OTG register interface, so the driver auto-detects the controller
+  version at runtime.
 
 properties:
   compatible:
@@ -49,7 +55,7 @@ properties:
       cdns3 to type C connector.
 
   maximum-speed:
-    enum: [super-speed, high-speed, full-speed]
+    enum: [super-speed-plus, super-speed, high-speed, full-speed]
 
   phys:
     minItems: 1
