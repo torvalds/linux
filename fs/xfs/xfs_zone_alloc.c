@@ -693,7 +693,7 @@ xfs_select_zone_nowait(
 		goto out_unlock;
 
 	/*
-	 * Try to find an zone that is an ok match to colocate data with.
+	 * Try to find a zone that is an ok match to colocate data with.
 	 */
 	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_OK);
 	if (oz)
