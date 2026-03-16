@@ -23,6 +23,7 @@ properties:
           - const: sophgo,sg2044-dwcmshc
           - const: sophgo,sg2042-dwcmshc
       - enum:
+          - hpe,gsc-dwcmshc
           - rockchip,rk3568-dwcmshc
           - rockchip,rk3588-dwcmshc
           - snps,dwcmshc-sdhci
@@ -79,6 +80,17 @@ properties:
     description: Specifies the drive impedance in Ohm.
     enum: [33, 40, 50, 66, 100]
 
+  hpe,gxp-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to HPE GXP SoC system register block (syscon)
+          - description: offset of the MSHCCS register within the syscon block
+    description:
+      Phandle to the HPE GXP SoC system register block (syscon) and
+      offset of the MSHCCS register used to configure clock
+      synchronisation for HS200 tuning.
+
 required:
   - compatible
   - reg
@@ -88,6 +100,26 @@ required:
 
 allOf:
   - $ref: mmc-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: hpe,gsc-dwcmshc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: core clock
+        clock-names:
+          items:
+            - const: core
+      required:
+        - hpe,gxp-sysreg
+    else:
+      properties:
+        hpe,gxp-sysreg: false
 
   - if:
       properties:
