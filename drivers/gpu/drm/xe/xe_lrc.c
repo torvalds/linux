@@ -1918,17 +1918,17 @@ static int dump_mi_command(struct drm_printer *p,
 		while (num_noop < remaining_dw &&
 		       (*(++dw) & REG_GENMASK(31, 23)) == MI_NOOP)
 			num_noop++;
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_NOOP (%d dwords)\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_NOOP (%d dwords)\n",
 			   dw - num_noop - start, inst_header, num_noop);
 		return num_noop;
 
 	case MI_TOPOLOGY_FILTER:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_TOPOLOGY_FILTER\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_TOPOLOGY_FILTER\n",
 			   dw - start, inst_header);
 		return 1;
 
 	case MI_BATCH_BUFFER_END:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_BATCH_BUFFER_END\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_BATCH_BUFFER_END\n",
 			   dw - start, inst_header);
 		/* Return 'remaining_dw' to consume the rest of the LRC */
 		return remaining_dw;
@@ -1943,35 +1943,35 @@ static int dump_mi_command(struct drm_printer *p,
 
 	switch (inst_header & MI_OPCODE) {
 	case MI_LOAD_REGISTER_IMM:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_LOAD_REGISTER_IMM: %d regs\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_LOAD_REGISTER_IMM: %d regs\n",
 			   dw - start, inst_header, (numdw - 1) / 2);
 		for (int i = 1; i < numdw; i += 2)
-			drm_printf(p, "LRC[%#5lx]  =  - %#6x = %#010x\n",
+			drm_printf(p, "LRC[%#5tx]  =  - %#6x = %#010x\n",
 				   &dw[i] - start, dw[i], dw[i + 1]);
 		return numdw;
 
 	case MI_LOAD_REGISTER_MEM & MI_OPCODE:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_LOAD_REGISTER_MEM: %s%s\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_LOAD_REGISTER_MEM: %s%s\n",
 			   dw - start, inst_header,
 			   dw[0] & MI_LRI_LRM_CS_MMIO ? "CS_MMIO " : "",
 			   dw[0] & MI_LRM_USE_GGTT ? "USE_GGTT " : "");
 		if (numdw == 4)
-			drm_printf(p, "LRC[%#5lx]  =  - %#6x = %#010llx\n",
+			drm_printf(p, "LRC[%#5tx]  =  - %#6x = %#010llx\n",
 				   dw - start,
 				   dw[1], ((u64)(dw[3]) << 32 | (u64)(dw[2])));
 		else
-			drm_printf(p, "LRC[%#5lx]  =  - %*ph (%s)\n",
+			drm_printf(p, "LRC[%#5tx]  =  - %*ph (%s)\n",
 				   dw - start, (int)sizeof(u32) * (numdw - 1),
 				   dw + 1, numdw < 4 ? "truncated" : "malformed");
 		return numdw;
 
 	case MI_FORCE_WAKEUP:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] MI_FORCE_WAKEUP\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] MI_FORCE_WAKEUP\n",
 			   dw - start, inst_header);
 		return numdw;
 
 	default:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] unknown MI opcode %#x, likely %d dwords\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] unknown MI opcode %#x, likely %d dwords\n",
 			   dw - start, inst_header, opcode, numdw);
 		return numdw;
 	}
@@ -1998,12 +1998,12 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	switch (*dw & GFXPIPE_MATCH_MASK) {
 #define MATCH(cmd) \
 	case cmd: \
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] " #cmd " (%d dwords)\n", \
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] " #cmd " (%d dwords)\n", \
 			   dw - start, *dw, numdw); \
 		return numdw
 #define MATCH3D(cmd) \
 	case CMD_##cmd: \
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] " #cmd " (%d dwords)\n", \
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] " #cmd " (%d dwords)\n", \
 			   dw - start, *dw, numdw); \
 		return numdw
 
@@ -2136,7 +2136,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_SLICE_TABLE_STATE_POINTER_2);
 
 	default:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] unknown GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] unknown GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
 			   dw - start, *dw, pipeline, opcode, subopcode, numdw);
 		return numdw;
 	}
@@ -2162,7 +2162,7 @@ static int dump_gfx_state_command(struct drm_printer *p,
 	MATCH(STATE_WRITE_INLINE);
 
 	default:
-		drm_printf(p, "LRC[%#5lx]  =  [%#010x] unknown GFX_STATE command (opcode=%#x), likely %d dwords\n",
+		drm_printf(p, "LRC[%#5tx]  =  [%#010x] unknown GFX_STATE command (opcode=%#x), likely %d dwords\n",
 			   dw - start, *dw, opcode, numdw);
 		return numdw;
 	}
@@ -2197,7 +2197,7 @@ void xe_lrc_dump_default(struct drm_printer *p,
 			num_dw = dump_gfx_state_command(p, gt, start, dw, remaining_dw);
 		} else {
 			num_dw = min(instr_dw(*dw), remaining_dw);
-			drm_printf(p, "LRC[%#5lx]  =  [%#10x] Unknown instruction of type %#x, likely %d dwords\n",
+			drm_printf(p, "LRC[%#5tx]  =  [%#10x] Unknown instruction of type %#x, likely %d dwords\n",
 				   dw - start,
 				   *dw, REG_FIELD_GET(XE_INSTR_CMD_TYPE, *dw),
 				   num_dw);
