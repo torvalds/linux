@@ -90,9 +90,14 @@ xfs_zoned_show_stats(
 	seq_printf(m, "\tRT GC required: %d\n",
 		xfs_zoned_need_gc(mp));
 
+	seq_printf(m, "\ttotal number of zones: %u\n",
+		mp->m_sb.sb_rgcount);
 	seq_printf(m, "\tfree zones: %d\n", atomic_read(&zi->zi_nr_free_zones));
-	seq_puts(m, "\topen zones:\n");
+
 	spin_lock(&zi->zi_open_zones_lock);
+	seq_printf(m, "\tnumber of open zones: %u / %u\n",
+		zi->zi_nr_open_zones, mp->m_max_open_zones);
+	seq_puts(m, "\topen zones:\n");
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry)
 		xfs_show_open_zone(m, oz);
 	if (zi->zi_open_gc_zone) {
