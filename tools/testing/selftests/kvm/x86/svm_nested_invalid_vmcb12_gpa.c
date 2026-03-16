@@ -6,6 +6,8 @@
 #include "vmx.h"
 #include "svm_util.h"
 #include "kselftest.h"
+#include "kvm_test_harness.h"
+#include "test_util.h"
 
 
 #define L2_GUEST_STACK_SIZE 64
@@ -13,86 +15,162 @@
 #define SYNC_GP 101
 #define SYNC_L2_STARTED 102
 
-u64 valid_vmcb12_gpa;
-int gp_triggered;
+static unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 
 static void guest_gp_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT(!gp_triggered);
 	GUEST_SYNC(SYNC_GP);
-	gp_triggered = 1;
-	regs->rax = valid_vmcb12_gpa;
 }
 
-static void l2_guest_code(void)
+static void l2_code(void)
 {
 	GUEST_SYNC(SYNC_L2_STARTED);
 	vmcall();
 }
 
-static void l1_guest_code(struct svm_test_data *svm, u64 invalid_vmcb12_gpa)
+static void l1_vmrun(struct svm_test_data *svm, u64 gpa)
 {
-	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
+	generic_svm_setup(svm, l2_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
-	generic_svm_setup(svm, l2_guest_code,
-			  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+	asm volatile ("vmrun %[gpa]" : : [gpa] "a" (gpa) : "memory");
+}
 
-	valid_vmcb12_gpa = svm->vmcb_gpa;
+static void l1_vmload(struct svm_test_data *svm, u64 gpa)
+{
+	generic_svm_setup(svm, l2_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
-	run_guest(svm->vmcb, invalid_vmcb12_gpa); /* #GP */
+	asm volatile ("vmload %[gpa]" : : [gpa] "a" (gpa) : "memory");
+}
 
-	/* GP handler should jump here */
+static void l1_vmsave(struct svm_test_data *svm, u64 gpa)
+{
+	generic_svm_setup(svm, l2_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+
+	asm volatile ("vmsave %[gpa]" : : [gpa] "a" (gpa) : "memory");
+}
+
+static void l1_vmexit(struct svm_test_data *svm, u64 gpa)
+{
+	generic_svm_setup(svm, l2_code, &l2_guest_stack[L2_GUEST_STACK_SIZE]);
+
+	run_guest(svm->vmcb, svm->vmcb_gpa);
 	GUEST_ASSERT(svm->vmcb->control.exit_code == SVM_EXIT_VMMCALL);
 	GUEST_DONE();
 }
 
-int main(int argc, char *argv[])
+static u64 unmappable_gpa(struct kvm_vcpu *vcpu)
 {
-	struct kvm_x86_state *state;
+	struct userspace_mem_region *region;
+	u64 region_gpa_end, vm_gpa_end = 0;
+	int i;
+
+	hash_for_each(vcpu->vm->regions.slot_hash, i, region, slot_node) {
+		region_gpa_end = region->region.guest_phys_addr + region->region.memory_size;
+		vm_gpa_end = max(vm_gpa_end, region_gpa_end);
+	}
+
+	return vm_gpa_end;
+}
+
+static void test_invalid_vmcb12(struct kvm_vcpu *vcpu)
+{
 	vm_vaddr_t nested_gva = 0;
-	struct kvm_vcpu *vcpu;
-	uint32_t maxphyaddr;
-	u64 max_legal_gpa;
-	struct kvm_vm *vm;
 	struct ucall uc;
 
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
-	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 	vm_install_exception_handler(vcpu->vm, GP_VECTOR, guest_gp_handler);
-
-	/*
-	 * Find the max legal GPA that is not backed by a memslot (i.e. cannot
-	 * be mapped by KVM).
-	 */
-	maxphyaddr = kvm_cpuid_property(vcpu->cpuid, X86_PROPERTY_MAX_PHY_ADDR);
-	max_legal_gpa = BIT_ULL(maxphyaddr) - PAGE_SIZE;
-	vcpu_alloc_svm(vm, &nested_gva);
-	vcpu_args_set(vcpu, 2, nested_gva, max_legal_gpa);
-
-	/* VMRUN with max_legal_gpa, KVM injects a #GP */
+	vcpu_alloc_svm(vcpu->vm, &nested_gva);
+	vcpu_args_set(vcpu, 2, nested_gva, -1ULL);
 	vcpu_run(vcpu);
+
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	TEST_ASSERT_EQ(get_ucall(vcpu, &uc), UCALL_SYNC);
 	TEST_ASSERT_EQ(uc.args[1], SYNC_GP);
+}
+
+static void test_unmappable_vmcb12(struct kvm_vcpu *vcpu)
+{
+	vm_vaddr_t nested_gva = 0;
+
+	vcpu_alloc_svm(vcpu->vm, &nested_gva);
+	vcpu_args_set(vcpu, 2, nested_gva, unmappable_gpa(vcpu));
+	vcpu_run(vcpu);
+
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
+	TEST_ASSERT_EQ(vcpu->run->emulation_failure.suberror, KVM_INTERNAL_ERROR_EMULATION);
+}
+
+static void test_unmappable_vmcb12_vmexit(struct kvm_vcpu *vcpu)
+{
+	struct kvm_x86_state *state;
+	vm_vaddr_t nested_gva = 0;
+	struct ucall uc;
 
 	/*
-	 * Enter L2 (with a legit vmcb12 GPA), then overwrite vmcb12 GPA with
-	 * max_legal_gpa. KVM will fail to map vmcb12 on nested VM-Exit and
+	 * Enter L2 (with a legit vmcb12 GPA), then overwrite vmcb12 GPA with an
+	 * unmappable GPA. KVM will fail to map vmcb12 on nested VM-Exit and
 	 * cause a shutdown.
 	 */
+	vcpu_alloc_svm(vcpu->vm, &nested_gva);
+	vcpu_args_set(vcpu, 2, nested_gva, unmappable_gpa(vcpu));
 	vcpu_run(vcpu);
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	TEST_ASSERT_EQ(get_ucall(vcpu, &uc), UCALL_SYNC);
 	TEST_ASSERT_EQ(uc.args[1], SYNC_L2_STARTED);
 
 	state = vcpu_save_state(vcpu);
-	state->nested.hdr.svm.vmcb_pa = max_legal_gpa;
+	state->nested.hdr.svm.vmcb_pa = unmappable_gpa(vcpu);
 	vcpu_load_state(vcpu, state);
 	vcpu_run(vcpu);
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SHUTDOWN);
 
 	kvm_x86_state_cleanup(state);
-	kvm_vm_free(vm);
-	return 0;
+}
+
+KVM_ONE_VCPU_TEST_SUITE(vmcb12_gpa);
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmrun_invalid, l1_vmrun)
+{
+	test_invalid_vmcb12(vcpu);
+}
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmload_invalid, l1_vmload)
+{
+	test_invalid_vmcb12(vcpu);
+}
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmsave_invalid, l1_vmsave)
+{
+	test_invalid_vmcb12(vcpu);
+}
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmrun_unmappable, l1_vmrun)
+{
+	test_unmappable_vmcb12(vcpu);
+}
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmload_unmappable, l1_vmload)
+{
+	test_unmappable_vmcb12(vcpu);
+}
+
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmsave_unmappable, l1_vmsave)
+{
+	test_unmappable_vmcb12(vcpu);
+}
+
+/*
+ * Invalid vmcb12_gpa cannot be test for #VMEXIT as KVM_SET_NESTED_STATE will
+ * reject it.
+ */
+KVM_ONE_VCPU_TEST(vmcb12_gpa, vmexit_unmappable, l1_vmexit)
+{
+	test_unmappable_vmcb12_vmexit(vcpu);
+}
+
+int main(int argc, char *argv[])
+{
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
+
+	return test_harness_run(argc, argv);
 }
