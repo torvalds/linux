@@ -385,8 +385,9 @@ static int dwc3_google_probe(struct platform_device *pdev)
 						     "google,usb-cfg-csr",
 						     ARRAY_SIZE(args), args);
 	if (IS_ERR(google->usb_cfg_regmap)) {
-		return dev_err_probe(dev, PTR_ERR(google->usb_cfg_regmap),
-				     "invalid usb cfg csr\n");
+		ret = dev_err_probe(dev, PTR_ERR(google->usb_cfg_regmap),
+				    "invalid usb cfg csr\n");
+		goto err_deinit_pdom;
 	}
 
 	google->host_cfg_offset = args[0];
