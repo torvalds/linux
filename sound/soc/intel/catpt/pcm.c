@@ -603,8 +603,8 @@ static const struct snd_pcm_hardware catpt_pcm_hardware = {
 	.buffer_bytes_max	= CATPT_BUFFER_MAX_SIZE,
 };
 
-static int catpt_component_pcm_construct(struct snd_soc_component *component,
-					 struct snd_soc_pcm_runtime *rtm)
+static int catpt_component_pcm_new(struct snd_soc_component *component,
+				   struct snd_soc_pcm_runtime *rtm)
 {
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 
@@ -1056,7 +1056,7 @@ static const struct snd_soc_dapm_route component_routes[] = {
 static const struct snd_soc_component_driver catpt_comp_driver = {
 	.name = "catpt-platform",
 
-	.pcm_construct = catpt_component_pcm_construct,
+	.pcm_new = catpt_component_pcm_new,
 	.open = catpt_component_open,
 	.pointer = catpt_component_pointer,
 
