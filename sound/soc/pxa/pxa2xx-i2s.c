@@ -356,7 +356,7 @@ static struct snd_soc_dai_driver pxa_i2s_dai = {
 
 static const struct snd_soc_component_driver pxa_i2s_component = {
 	.name			= "pxa-i2s",
-	.pcm_construct		= pxa2xx_soc_pcm_new,
+	.pcm_new		= pxa2xx_soc_pcm_new,
 	.open			= pxa2xx_soc_pcm_open,
 	.close			= pxa2xx_soc_pcm_close,
 	.hw_params		= pxa2xx_soc_pcm_hw_params,
