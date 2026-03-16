@@ -4412,11 +4412,8 @@ bool check_dtpage(dtpage_t *p)
 		}
 	} else {
 		int fsi;
-		/* When there are free slots, freelist must be a valid slot index in
-		 * 1~DTROOTMAXSLOT-1(since slot[0] is occupied by the header).
-		 */
-		if (unlikely(p->header.freelist < 1 ||
-					p->header.freelist >= DTPAGEMAXSLOT)) {
+
+		if (unlikely(p->header.freelist < 1)) {
 			jfs_err("Bad freelist:%d in dtpage\n", p->header.freelist);
 			return false;
 		}
