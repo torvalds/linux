@@ -398,9 +398,30 @@ enum pd_apdo_type {
 #define PDO_SPR_AVS_APDO_15V_TO_20V_MAX_CURR	GENMASK(9, 0)	/* 10mA unit */
 
 /* SPR AVS has two different current ranges 9V - 15V, 15V - 20V */
-#define SPR_AVS_TIER1_MIN_VOLT_MV		9000
-#define SPR_AVS_TIER1_MAX_VOLT_MV		15000
-#define SPR_AVS_TIER2_MAX_VOLT_MV		20000
+#define SPR_AVS_TIER1_MIN_VOLT_MV              9000
+#define SPR_AVS_TIER1_MAX_VOLT_MV              15000
+#define SPR_AVS_TIER2_MAX_VOLT_MV              20000
+
+#define SPR_AVS_AVS_SMALL_STEP_V	1
+/* vAvsStep - 100mv */
+#define SPR_AVS_VOLT_MV_STEP		100
+/* SPR AVS RDO Operating Current is in 50mA step */
+#define RDO_SPR_AVS_CURR_MA_STEP	50
+/* SPR AVS RDO Output voltage is in 25mV step */
+#define RDO_SPR_AVS_OUT_VOLT_MV_STEP	25
+
+#define RDO_SPR_AVS_VOLT	GENMASK(20, 9)
+#define RDO_SPR_AVS_CURR	GENMASK(6, 0)
+
+#define RDO_SPR_AVS_OUT_VOLT(mv)					\
+	FIELD_PREP(RDO_SPR_AVS_VOLT, ((mv) / RDO_SPR_AVS_OUT_VOLT_MV_STEP))
+
+#define RDO_SPR_AVS_OP_CURR(ma)						\
+	FIELD_PREP(RDO_SPR_AVS_CURR, ((ma) / RDO_SPR_AVS_CURR_MA_STEP))
+
+#define RDO_AVS(idx, out_mv, op_ma, flags)				\
+	(RDO_OBJ(idx) | (flags) |					\
+	 RDO_SPR_AVS_OUT_VOLT(out_mv) | RDO_SPR_AVS_OP_CURR(op_ma))
 
 static inline enum pd_pdo_type pdo_type(u32 pdo)
 {
@@ -659,6 +680,11 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define PD_N_HARD_RESET_COUNT	2
 
 #define PD_P_SNK_STDBY_MW	2500	/* 2500 mW */
+
+#define PD_I_SNK_STBY_MA		500	/* 500 mA */
+
+#define PD_T_AVS_SRC_TRANS_SMALL	50	/* 50 ms */
+#define PD_T_AVS_SRC_TRANS_LARGE	700	/* 700 ms */
 
 #if IS_ENABLED(CONFIG_TYPEC)
 
