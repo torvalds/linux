@@ -675,7 +675,8 @@ Description:
 
 		Valid values:
 			      "Unknown", "SDP", "DCP", "CDP", "ACA", "C", "PD",
-			      "PD_DRP", "PD_PPS", "BrickID"
+			      "PD_DRP", "PD_PPS", "BrickID", "PD_SPR_AVS",
+			      "PD_PPS_SPR_AVS"
 
 **Device Specific Properties**
 
