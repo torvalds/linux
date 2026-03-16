@@ -30,17 +30,17 @@ struct blk_ia_range_sysfs_entry {
 	ssize_t (*show)(struct blk_independent_access_range *iar, char *buf);
 };
 
-static struct blk_ia_range_sysfs_entry blk_ia_range_sector_entry = {
+static const struct blk_ia_range_sysfs_entry blk_ia_range_sector_entry = {
 	.attr = { .name = "sector", .mode = 0444 },
 	.show = blk_ia_range_sector_show,
 };
 
-static struct blk_ia_range_sysfs_entry blk_ia_range_nr_sectors_entry = {
+static const struct blk_ia_range_sysfs_entry blk_ia_range_nr_sectors_entry = {
 	.attr = { .name = "nr_sectors", .mode = 0444 },
 	.show = blk_ia_range_nr_sectors_show,
 };
 
-static struct attribute *blk_ia_range_attrs[] = {
+static const struct attribute *const blk_ia_range_attrs[] = {
 	&blk_ia_range_sector_entry.attr,
 	&blk_ia_range_nr_sectors_entry.attr,
 	NULL,
