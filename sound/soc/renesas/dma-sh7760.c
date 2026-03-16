@@ -310,7 +310,7 @@ static const struct snd_soc_component_driver sh7760_soc_component = {
 	.prepare	= camelot_prepare,
 	.trigger	= camelot_trigger,
 	.pointer	= camelot_pos,
-	.pcm_construct	= camelot_pcm_new,
+	.pcm_new	= camelot_pcm_new,
 };
 
 static int sh7760_soc_platform_probe(struct platform_device *pdev)

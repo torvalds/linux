@@ -546,8 +546,8 @@ const struct snd_soc_component_driver siu_component = {
 	.prepare		= siu_pcm_prepare,
 	.trigger		= siu_pcm_trigger,
 	.pointer		= siu_pcm_pointer_dma,
-	.pcm_construct		= siu_pcm_new,
-	.pcm_destruct		= siu_pcm_free,
+	.pcm_new		= siu_pcm_new,
+	.pcm_free		= siu_pcm_free,
 	.legacy_dai_naming	= 1,
 };
 EXPORT_SYMBOL_GPL(siu_component);
