@@ -87,6 +87,7 @@ void a8xx_gpu_get_slice_info(struct msm_gpu *gpu)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 	const struct a6xx_info *info = adreno_gpu->info->a6xx;
+	struct device *dev = &gpu->pdev->dev;
 	u32 slice_mask;
 
 	if (adreno_gpu->info->family < ADRENO_8XX_GEN1)
@@ -110,6 +111,15 @@ void a8xx_gpu_get_slice_info(struct msm_gpu *gpu)
 
 	/* Chip ID depends on the number of slices available. So update it */
 	adreno_gpu->chip_id |= FIELD_PREP(GENMASK(7, 4), hweight32(slice_mask));
+
+	/* Update the gpu-name to reflect the slice config: */
+	const char *name = devm_kasprintf(dev, GFP_KERNEL,
+			"%"ADRENO_CHIPID_FMT,
+			ADRENO_CHIPID_ARGS(adreno_gpu->chip_id));
+	if (name) {
+		devm_kfree(dev, adreno_gpu->base.name);
+		adreno_gpu->base.name = name;
+	}
 }
 
 static u32 a8xx_get_first_slice(struct a6xx_gpu *a6xx_gpu)
