@@ -7050,6 +7050,13 @@ static void scx_sub_enable_workfn(struct kthread_work *work)
 	ret = 0;
 	goto out_unlock;
 
+out_put_cgrp:
+	cgroup_put(cgrp);
+out_unlock:
+	mutex_unlock(&scx_enable_mutex);
+	cmd->ret = ret;
+	return;
+
 abort:
 	put_task_struct(p);
 	scx_task_iter_stop(&sti);
@@ -7063,15 +7070,6 @@ abort:
 		}
 	}
 	scx_task_iter_stop(&sti);
-	scx_cgroup_unlock();
-	percpu_up_write(&scx_fork_rwsem);
-out_put_cgrp:
-	cgroup_put(cgrp);
-out_unlock:
-	mutex_unlock(&scx_enable_mutex);
-	cmd->ret = ret;
-	return;
-
 err_unlock_and_disable:
 	/* we'll soon enter disable path, keep bypass on */
 	scx_cgroup_unlock();
