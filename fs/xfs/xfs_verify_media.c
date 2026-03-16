@@ -183,10 +183,9 @@ xfs_verify_iosize(
 			min_not_zero(SZ_1M, me->me_max_io_size);
 
 	BUILD_BUG_ON(BBSHIFT != SECTOR_SHIFT);
-	ASSERT(BBTOB(bbcount) >= bdev_logical_block_size(btp->bt_bdev));
+	ASSERT(BBTOB(bbcount) >= btp->bt_logical_sectorsize);
 
-	return clamp(iosize, bdev_logical_block_size(btp->bt_bdev),
-			BBTOB(bbcount));
+	return clamp(iosize, btp->bt_logical_sectorsize, BBTOB(bbcount));
 }
 
 /* Allocate as much memory as we can get for verification buffer. */
@@ -218,8 +217,8 @@ xfs_verify_media_error(
 	unsigned int		bio_bbcount,
 	blk_status_t		bio_status)
 {
-	trace_xfs_verify_media_error(mp, me, btp->bt_bdev->bd_dev, daddr,
-			bio_bbcount, bio_status);
+	trace_xfs_verify_media_error(mp, me, btp->bt_dev, daddr, bio_bbcount,
+			bio_status);
 
 	/*
 	 * Pass any error, I/O or otherwise, up to the caller if we didn't
@@ -280,7 +279,7 @@ xfs_verify_media(
 		btp = mp->m_ddev_targp;
 		break;
 	case XFS_DEV_LOG:
-		if (mp->m_logdev_targp->bt_bdev != mp->m_ddev_targp->bt_bdev)
+		if (mp->m_logdev_targp != mp->m_ddev_targp)
 			btp = mp->m_logdev_targp;
 		break;
 	case XFS_DEV_RT:
@@ -299,7 +298,7 @@ xfs_verify_media(
 
 	/* start and end have to be aligned to the lba size */
 	if (!IS_ALIGNED(BBTOB(me->me_start_daddr | me->me_end_daddr),
-			bdev_logical_block_size(btp->bt_bdev)))
+			btp->bt_logical_sectorsize))
 		return -EINVAL;
 
 	/*
@@ -331,8 +330,7 @@ xfs_verify_media(
 	if (!folio)
 		return -ENOMEM;
 
-	trace_xfs_verify_media(mp, me, btp->bt_bdev->bd_dev, daddr, bbcount,
-			folio);
+	trace_xfs_verify_media(mp, me, btp->bt_dev, daddr, bbcount, folio);
 
 	bio = bio_alloc(btp->bt_bdev, 1, REQ_OP_READ, GFP_KERNEL);
 	if (!bio) {
@@ -400,7 +398,7 @@ out_folio:
 	 * an operational error.
 	 */
 	me->me_start_daddr = daddr;
-	trace_xfs_verify_media_end(mp, me, btp->bt_bdev->bd_dev);
+	trace_xfs_verify_media_end(mp, me, btp->bt_dev);
 	return 0;
 }
 
