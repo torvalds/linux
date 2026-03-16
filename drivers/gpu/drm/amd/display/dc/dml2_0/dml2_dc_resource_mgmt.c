@@ -35,7 +35,7 @@
 #define MAX_MPCC_FACTOR 4
 
 struct dc_plane_pipe_pool {
-	int pipes_assigned_to_plane[MAX_ODM_FACTOR][MAX_MPCC_FACTOR];
+	unsigned int pipes_assigned_to_plane[MAX_ODM_FACTOR][MAX_MPCC_FACTOR];
 	bool pipe_used[MAX_ODM_FACTOR][MAX_MPCC_FACTOR];
 	int num_pipes_assigned_to_plane_for_mpcc_combine;
 	int num_pipes_assigned_to_plane_for_odm_combine;
@@ -340,8 +340,8 @@ static bool is_pipe_in_candidate_array(const unsigned int pipe_idx,
 static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 	struct dc_state *state, // The state we want to find a free mapping in
 	unsigned int stream_id, // The stream we want this pipe to drive
-	int *assigned_pipes,
-	int *assigned_pipe_count,
+	unsigned int *assigned_pipes,
+	unsigned int *assigned_pipe_count,
 	int pipes_needed,
 	const struct dc_state *existing_state) // The state (optional) that we want to minimize remapping relative to
 {
@@ -406,8 +406,8 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 static bool find_more_free_pipes(struct dml2_context *ctx,
 	struct dc_state *state, // The state we want to find a free mapping in
 	unsigned int stream_id, // The stream we want this pipe to drive
-	int *assigned_pipes,
-	int *assigned_pipe_count,
+	unsigned int *assigned_pipes,
+	unsigned int *assigned_pipe_count,
 	int pipes_needed,
 	const struct dc_state *existing_state) // The state (optional) that we want to minimize remapping relative to
 {
