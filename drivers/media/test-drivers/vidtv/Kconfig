@@ -2,6 +2,7 @@
 config DVB_VIDTV
 	tristate "Virtual DVB Driver (vidtv)"
 	depends on DVB_CORE && MEDIA_SUPPORT && I2C
+	select CRC32
 	help
 	  The virtual DVB test driver serves as a reference DVB driver and helps
 	  validate the existing APIs in the media subsystem. It can also aid developers
