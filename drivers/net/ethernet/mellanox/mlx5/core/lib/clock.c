@@ -1301,6 +1301,24 @@ static void mlx5_init_timer_max_freq_adjustment(struct mlx5_core_dev *mdev)
 			min(S32_MAX, 1 << log_max_freq_adjustment);
 }
 
+static void mlx5_init_crosststamp(struct mlx5_core_dev *mdev,
+				  bool expose_cycles, struct mlx5_clock *clock)
+{
+#if defined(CONFIG_X86)
+	if (!boot_cpu_has(X86_FEATURE_ART))
+		return;
+
+	if (!MLX5_CAP_MCAM_REG3(mdev, mtptm) ||
+	    !MLX5_CAP_MCAM_REG3(mdev, mtctr))
+		return;
+
+	clock->ptp_info.getcrosststamp = mlx5_ptp_getcrosststamp;
+	if (expose_cycles)
+		clock->ptp_info.getcrosscycles = mlx5_ptp_getcrosscycles;
+
+#endif /* CONFIG_X86 */
+}
+
 static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = mdev->clock;
@@ -1315,15 +1333,7 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 	expose_cycles = !MLX5_CAP_GEN(mdev, disciplined_fr_counter) ||
 			!mlx5_real_time_mode(mdev);
 
-#ifdef CONFIG_X86
-	if (MLX5_CAP_MCAM_REG3(mdev, mtptm) &&
-	    MLX5_CAP_MCAM_REG3(mdev, mtctr) && boot_cpu_has(X86_FEATURE_ART)) {
-		clock->ptp_info.getcrosststamp = mlx5_ptp_getcrosststamp;
-		if (expose_cycles)
-			clock->ptp_info.getcrosscycles =
-				mlx5_ptp_getcrosscycles;
-	}
-#endif /* CONFIG_X86 */
+	mlx5_init_crosststamp(mdev, expose_cycles, clock);
 
 	if (expose_cycles)
 		clock->ptp_info.getcyclesx64 = mlx5_ptp_getcyclesx;
