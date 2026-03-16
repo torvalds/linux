@@ -8,7 +8,7 @@
 # We cannot go as far as adding -Wpedantic since it emits too many warnings.
 UAPI_CFLAGS := -std=c90 -Werror=implicit-function-declaration
 
-override c_flags = $(KBUILD_USERCFLAGS) $(UAPI_CFLAGS) -Wp,-MMD,$(depfile) -I $(obj)
+override c_flags = $(KBUILD_USERCFLAGS) $(UAPI_CFLAGS) -Wp,-MMD,$(depfile)
 
 # The following are excluded for now because they fail to build.
 #
@@ -141,7 +141,7 @@ target-libc = $(filter $(uses-libc), $*.h)
 target-can-compile = $(filter-out $(no-header-test), $*.h)
 
 hdrtest-flags = -fsyntax-only -Werror \
-		-nostdinc $(if $(target-libc), -I $(srctree)/usr/dummy-include)
+		-nostdinc -I $(obj) $(if $(target-libc), -I $(srctree)/usr/dummy-include)
 
 # Include the header twice to detect missing include guard.
 quiet_cmd_hdrtest = HDRTEST $<
