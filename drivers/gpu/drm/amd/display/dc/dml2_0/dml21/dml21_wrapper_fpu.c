@@ -297,7 +297,8 @@ void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context
 		memset(mcache_config, 0, sizeof(struct dml2_plane_mcache_configuration_descriptor));
 		mcache_config->plane_descriptor = pln_prog->plane_descriptor;
 		mcache_config->mcache_allocation = &context->bw_ctx.bw.dcn.mcache_allocations[dml_prog_idx];
-		mcache_config->num_pipes = pln_prog->num_dpps_required;
+		ASSERT(pln_prog->num_dpps_required <= 0x7F);
+		mcache_config->num_pipes = (char)pln_prog->num_dpps_required;
 		l->build_mcache_programming_params.num_configurations++;
 
 		if (pln_prog->num_dpps_required == 0) {
@@ -324,7 +325,8 @@ void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context
 			memset(mcache_config, 0, sizeof(struct dml2_plane_mcache_configuration_descriptor));
 			mcache_config->plane_descriptor = pln_prog->plane_descriptor;
 			mcache_config->mcache_allocation = &context->bw_ctx.bw.dcn.mcache_allocations[dml_phantom_prog_idx];
-			mcache_config->num_pipes = pln_prog->num_dpps_required;
+			ASSERT(pln_prog->num_dpps_required <= 0x7F);
+			mcache_config->num_pipes = (char)pln_prog->num_dpps_required;
 			l->build_mcache_programming_params.num_configurations++;
 
 			for (dc_pipe_index = 0; dc_pipe_index < num_pipes; dc_pipe_index++) {

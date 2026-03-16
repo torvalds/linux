@@ -765,7 +765,7 @@ static void populate_dml_timing_cfg_from_stream_state(struct dml_timing_cfg_st *
 		out->PixelClock[location] *= 2;
 	out->HTotal[location] = in->timing.h_total;
 	out->VTotal[location] = in->timing.v_total;
-	out->Interlace[location] = in->timing.flags.INTERLACE;
+	out->Interlace[location] = (in->timing.flags.INTERLACE != 0);
 	hblank_start = in->timing.h_total - in->timing.h_front_porch;
 	out->HBlankEnd[location] = hblank_start
 					- in->timing.h_addressable

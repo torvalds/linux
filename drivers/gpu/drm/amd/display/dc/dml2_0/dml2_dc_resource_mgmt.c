@@ -366,7 +366,8 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 		if (!is_plane_using_pipe(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = preferred_pipe_candidates[i];
+			ASSERT(preferred_pipe_candidates[i] <= 0xFF);
+			pipe->pipe_idx = (uint8_t)preferred_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -382,7 +383,8 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 		if (!is_plane_using_pipe(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = i;
+			ASSERT(i >= 0 && i <= 0xFF);
+			pipe->pipe_idx = (uint8_t)i;
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -393,7 +395,8 @@ static bool find_more_pipes_for_stream(struct dml2_context *ctx,
 		if (!is_plane_using_pipe(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = last_resort_pipe_candidates[i];
+			ASSERT(last_resort_pipe_candidates[i] <= 0xFF);
+			pipe->pipe_idx = (uint8_t)last_resort_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -432,7 +435,8 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 		if (is_pipe_free(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = preferred_pipe_candidates[i];
+			ASSERT(preferred_pipe_candidates[i] <= 0xFF);
+			pipe->pipe_idx = (uint8_t)preferred_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -448,7 +452,8 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 		if (is_pipe_free(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = i;
+			ASSERT(i >= 0 && i <= 0xFF);
+			pipe->pipe_idx = (uint8_t)i;
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}
@@ -459,7 +464,8 @@ static bool find_more_free_pipes(struct dml2_context *ctx,
 		if (is_pipe_free(pipe)) {
 			pipes_needed--;
 			// TODO: This doens't make sense really, pipe_idx should always be valid
-			pipe->pipe_idx = last_resort_pipe_candidates[i];
+			ASSERT(last_resort_pipe_candidates[i] <= 0xFF);
+			pipe->pipe_idx = (uint8_t)last_resort_pipe_candidates[i];
 			assigned_pipes[(*assigned_pipe_count)++] = pipe->pipe_idx;
 		}
 	}

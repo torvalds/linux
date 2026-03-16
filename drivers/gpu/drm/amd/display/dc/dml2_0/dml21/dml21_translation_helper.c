@@ -90,7 +90,8 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 		struct pipe_ctx *pipe_ctx,
 		struct dml2_context *dml_ctx)
 {
-	unsigned int hblank_start, vblank_start, min_hardware_refresh_in_uhz;
+	unsigned int hblank_start, vblank_start;
+	uint64_t min_hardware_refresh_in_uhz;
 	uint32_t pix_clk_100hz;
 
 	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
@@ -105,7 +106,7 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	timing->h_total = stream->timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
 	timing->v_total = stream->timing.v_total;
 	timing->h_sync_width = stream->timing.h_sync_width;
-	timing->interlaced = stream->timing.flags.INTERLACE;
+	timing->interlaced = (stream->timing.flags.INTERLACE != 0);
 
 	hblank_start = stream->timing.h_total - stream->timing.h_front_porch;
 
@@ -137,7 +138,11 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 				(timing->h_total * (long long)calc_max_hardware_v_total(stream)));
 	}
 
-	timing->drr_config.min_refresh_uhz = max(stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
+	{
+		uint64_t min_refresh = max((uint64_t)stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
+		ASSERT(min_refresh <= ULONG_MAX);
+		timing->drr_config.min_refresh_uhz = (unsigned long)min_refresh;
+	}
 
 	if (dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase &&
 			stream->ctx->dc->config.enable_fpo_flicker_detection == 1)
@@ -697,7 +702,7 @@ unsigned int map_plane_to_dml21_display_cfg(const struct dml2_context *dml_ctx, 
 
 	if (!dml21_wrapper_get_plane_id(context, stream_id, plane, &plane_id)) {
 		ASSERT(false);
-		return -1;
+		return UINT_MAX;
 	}
 
 	for (i = 0; i < __DML2_WRAPPER_MAX_STREAMS_PLANES__; i++) {

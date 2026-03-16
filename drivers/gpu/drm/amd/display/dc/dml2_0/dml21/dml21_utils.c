@@ -420,8 +420,12 @@ static unsigned int dml21_build_fams2_stream_programming_v2(const struct dc *dc,
 			type = static_base_state->stream_v1.base.type;
 
 			/* get information from context */
-			static_base_state->stream_v1.base.num_planes = context->stream_status[dc_stream_idx].plane_count;
-			static_base_state->stream_v1.base.otg_inst = context->stream_status[dc_stream_idx].primary_otg_inst;
+			ASSERT(context->stream_status[dc_stream_idx].plane_count >= 0 &&
+					context->stream_status[dc_stream_idx].plane_count <= 0xFF);
+			ASSERT(context->stream_status[dc_stream_idx].primary_otg_inst >= 0 &&
+					context->stream_status[dc_stream_idx].primary_otg_inst <= 0xFF);
+			static_base_state->stream_v1.base.num_planes = (uint8_t)context->stream_status[dc_stream_idx].plane_count;
+			static_base_state->stream_v1.base.otg_inst = (uint8_t)context->stream_status[dc_stream_idx].primary_otg_inst;
 
 			/* populate pipe masks for planes */
 			for (dc_plane_idx = 0; dc_plane_idx < context->stream_status[dc_stream_idx].plane_count; dc_plane_idx++) {
@@ -458,7 +462,9 @@ static unsigned int dml21_build_fams2_stream_programming_v2(const struct dc *dc,
 			switch (dc->debug.fams_version.minor) {
 			case 1:
 			default:
-				static_sub_state->stream_v1.sub_state.subvp.phantom_otg_inst = phantom_status->primary_otg_inst;
+				ASSERT(phantom_status->primary_otg_inst >= 0 &&
+						phantom_status->primary_otg_inst <= 0xFF);
+				static_sub_state->stream_v1.sub_state.subvp.phantom_otg_inst = (uint8_t)phantom_status->primary_otg_inst;
 
 				/* populate pipe masks for phantom planes */
 				for (dc_plane_idx = 0; dc_plane_idx < phantom_status->plane_count; dc_plane_idx++) {
@@ -516,7 +522,8 @@ void dml21_build_fams2_programming(const struct dc *dc,
 		context->bw_ctx.bw.dcn.fams2_global_config.num_streams = num_fams2_streams;
 	}
 
-	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
+	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching =
+			(context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable != 0);
 }
 
 bool dml21_is_plane1_enabled(enum dml2_source_format_class source_format)

@@ -555,7 +555,8 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 
 		if (!found && pipe_mall_type == SUBVP_NONE) {
 			// Found pipe which is not SubVP or Phantom (i.e. the VBLANK pipe).
-			vblank_index = i;
+			ASSERT(i <= 0xFF);
+			vblank_index = (uint8_t)i;
 			found = true;
 		}
 
