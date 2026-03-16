@@ -5843,7 +5843,7 @@ static int nl80211_parse_tx_bitrate_mask(struct genl_info *info,
 	 */
 	BUILD_BUG_ON(NL80211_MAX_SUPP_HT_RATES > IEEE80211_HT_MCS_MASK_LEN * 8);
 	nla_for_each_nested(tx_rates, attrs[attr], rem) {
-		enum nl80211_band band = nla_type(tx_rates);
+		int band = nla_type(tx_rates);
 		int err;
 
 		if (band < 0 || band >= NUM_NL80211_BANDS)
@@ -10705,7 +10705,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		nla_for_each_nested(attr,
 				    info->attrs[NL80211_ATTR_SCAN_SUPP_RATES],
 				    tmp) {
-			enum nl80211_band band = nla_type(attr);
+			int band = nla_type(attr);
 
 			if (band < 0 || band >= NUM_NL80211_BANDS) {
 				err = -EINVAL;
