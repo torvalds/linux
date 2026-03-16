@@ -1034,8 +1034,8 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 static void dmub_srv_update_reg_inbox0_status(struct dmub_srv *dmub)
 {
 	if (dmub->reg_inbox0.is_pending) {
-		dmub->reg_inbox0.is_pending = dmub->hw_funcs.read_reg_inbox0_rsp_int_status &&
-				!dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
+		dmub->reg_inbox0.is_pending = (dmub->hw_funcs.read_reg_inbox0_rsp_int_status &&
+				!dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub)) != 0;
 
 		if (!dmub->reg_inbox0.is_pending) {
 			/* ack the rsp interrupt */
@@ -1320,7 +1320,7 @@ void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_t
 
 enum dmub_status dmub_srv_reg_cmd_execute(struct dmub_srv *dmub, union dmub_rb_cmd *cmd)
 {
-	uint32_t num_pending = 0;
+	uint64_t num_pending = 0;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
@@ -1348,7 +1348,7 @@ enum dmub_status dmub_srv_reg_cmd_execute(struct dmub_srv *dmub, union dmub_rb_c
 
 	dmub->reg_inbox0.num_submitted++;
 	dmub->reg_inbox0.is_pending = true;
-	dmub->reg_inbox0.is_multi_pending = cmd->cmd_common.header.multi_cmd_pending;
+	dmub->reg_inbox0.is_multi_pending = cmd->cmd_common.header.multi_cmd_pending != 0;
 
 	return DMUB_STATUS_OK;
 }

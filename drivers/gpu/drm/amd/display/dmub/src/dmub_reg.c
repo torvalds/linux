@@ -57,8 +57,9 @@ static void set_reg_field_values(struct dmub_reg_value_masks *field_value_mask,
 		mask = va_arg(ap, uint32_t);
 		field_value = va_arg(ap, uint32_t);
 
+		ASSERT(shift <= 0xFF);
 		set_reg_field_value_masks(field_value_mask, field_value, mask,
-					  shift);
+					  (uint8_t)shift);
 		i++;
 	}
 }
