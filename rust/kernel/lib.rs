@@ -38,6 +38,7 @@
 #![feature(const_option)]
 #![feature(const_ptr_write)]
 #![feature(const_refs_to_cell)]
+#![feature(const_refs_to_static)]
 //
 // Stable since Rust 1.84.0.
 #![feature(strict_provenance)]
