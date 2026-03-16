@@ -1037,11 +1037,6 @@ int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd)
 	int i;
 
 	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->pcm_construct) {
-			ret = component->driver->pcm_construct(component, rtd);
-			if (ret < 0)
-				return soc_component_ret(component, ret);
-		}
 		if (component->driver->pcm_new) {
 			ret = component->driver->pcm_new(component, rtd);
 			if (ret < 0)
@@ -1060,12 +1055,9 @@ void snd_soc_pcm_component_free(struct snd_soc_pcm_runtime *rtd)
 	if (!rtd->pcm)
 		return;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->pcm_destruct)
-			component->driver->pcm_destruct(component, rtd->pcm);
+	for_each_rtd_components(rtd, i, component)
 		if (component->driver->pcm_free)
 			component->driver->pcm_free(component, rtd->pcm);
-	}
 }
 
 int snd_soc_pcm_component_prepare(struct snd_pcm_substream *substream)
