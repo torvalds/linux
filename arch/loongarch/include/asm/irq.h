@@ -48,7 +48,6 @@ void spurious_interrupt(void);
  */
 #define NR_VECTORS		256
 #define NR_LEGACY_VECTORS	16
-#define IRQ_MATRIX_BITS		NR_VECTORS
 
 #define AVEC_IRQ_SHIFT		4
 #define AVEC_IRQ_BIT		8

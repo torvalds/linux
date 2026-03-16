@@ -39,7 +39,7 @@ struct irq_matrix {
 
 /**
  * irq_alloc_matrix - Allocate a irq_matrix structure and initialize it
- * @matrix_bits:	Number of matrix bits must be <= IRQ_MATRIX_BITS
+ * @matrix_bits:	Number of matrix bits
  * @alloc_start:	From which bit the allocation search starts
  * @alloc_end:		At which bit the allocation search ends, i.e first
  *			invalid bit
