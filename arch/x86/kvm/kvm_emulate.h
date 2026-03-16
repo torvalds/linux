@@ -245,6 +245,8 @@ struct x86_emulate_ops {
 
 	bool (*is_canonical_addr)(struct x86_emulate_ctxt *ctxt, gva_t addr,
 				  unsigned int flags);
+
+	bool (*page_address_valid)(struct x86_emulate_ctxt *ctxt, gpa_t gpa);
 };
 
 /* Type, address-of, and value of an instruction's operand. */
