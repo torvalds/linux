@@ -432,6 +432,11 @@ enum rtw_wow_flags {
 	RTW_WOW_FLAG_MAX,
 };
 
+enum rtw_quirk_dis_caps {
+	QUIRK_DIS_CAP_PCI_ASPM,
+	QUIRK_DIS_CAP_LPS_DEEP,
+};
+
 /* the power index is represented by differences, which cck-1s & ht40-1s are
  * the base values, so for 1s's differences, there are only ht20 & ofdm
  */
