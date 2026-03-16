@@ -169,9 +169,10 @@ config MODVERSIONS
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
 
+if MODVERSIONS
+
 choice
 	prompt "Module versioning implementation"
-	depends on MODVERSIONS
 	help
 	  Select the tool used to calculate symbol versions for modules.
 
@@ -206,7 +207,7 @@ endchoice
 
 config ASM_MODVERSIONS
 	bool
-	default HAVE_ASM_MODVERSIONS && MODVERSIONS
+	default HAVE_ASM_MODVERSIONS
 	help
 	  This enables module versioning for exported symbols also from
 	  assembly. This can be enabled only when the target architecture
@@ -214,7 +215,6 @@ config ASM_MODVERSIONS
 
 config EXTENDED_MODVERSIONS
 	bool "Extended Module Versioning Support"
-	depends on MODVERSIONS
 	help
 	  This enables extended MODVERSIONs support, allowing long symbol
 	  names to be versioned.
@@ -224,7 +224,6 @@ config EXTENDED_MODVERSIONS
 
 config BASIC_MODVERSIONS
 	bool "Basic Module Versioning Support"
-	depends on MODVERSIONS
 	default y
 	help
 	  This enables basic MODVERSIONS support, allowing older tools or
@@ -236,6 +235,8 @@ config BASIC_MODVERSIONS
 
 	  This is enabled by default when MODVERSIONS are enabled.
 	  If unsure, say Y.
+
+endif # MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"
@@ -277,10 +278,11 @@ config MODULE_SIG_FORCE
 	  Reject unsigned modules or signed modules for which we don't have a
 	  key.  Without this, such modules will simply taint the kernel.
 
+if MODULE_SIG || IMA_APPRAISE_MODSIG
+
 config MODULE_SIG_ALL
 	bool "Automatically sign all modules"
 	default y
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	help
 	  Sign all modules during make modules_install. Without this option,
 	  modules must be signed manually, using the scripts/sign-file tool.
@@ -290,7 +292,6 @@ comment "Do not forget to sign required modules with scripts/sign-file"
 
 choice
 	prompt "Hash algorithm to sign modules"
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	default MODULE_SIG_SHA512
 	help
 	  This determines which sort of hashing algorithm will be used during
@@ -327,13 +328,14 @@ endchoice
 
 config MODULE_SIG_HASH
 	string
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
 	default "sha256" if MODULE_SIG_SHA256
 	default "sha384" if MODULE_SIG_SHA384
 	default "sha512" if MODULE_SIG_SHA512
 	default "sha3-256" if MODULE_SIG_SHA3_256
 	default "sha3-384" if MODULE_SIG_SHA3_384
 	default "sha3-512" if MODULE_SIG_SHA3_512
+
+endif # MODULE_SIG || IMA_APPRAISE_MODSIG
 
 config MODULE_COMPRESS
 	bool "Module compression"
@@ -350,9 +352,10 @@ config MODULE_COMPRESS
 
 	  If unsure, say N.
 
+if MODULE_COMPRESS
+
 choice
 	prompt "Module compression type"
-	depends on MODULE_COMPRESS
 	help
 	  Choose the supported algorithm for module compression.
 
@@ -379,7 +382,6 @@ endchoice
 config MODULE_COMPRESS_ALL
 	bool "Automatically compress all modules"
 	default y
-	depends on MODULE_COMPRESS
 	help
 	  Compress all modules during 'make modules_install'.
 
@@ -389,7 +391,6 @@ config MODULE_COMPRESS_ALL
 
 config MODULE_DECOMPRESS
 	bool "Support in-kernel module decompression"
-	depends on MODULE_COMPRESS
 	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
 	select XZ_DEC if MODULE_COMPRESS_XZ
 	select ZSTD_DECOMPRESS if MODULE_COMPRESS_ZSTD
@@ -399,6 +400,8 @@ config MODULE_DECOMPRESS
 	  load pinning security policy is enabled.
 
 	  If unsure, say N.
+
+endif # MODULE_COMPRESS
 
 config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	bool "Allow loading of modules with missing namespace imports"

@@ -515,32 +515,11 @@ static inline bool __must_check ns_requested(const struct klistns *kls,
 static inline bool __must_check may_list_ns(const struct klistns *kls,
 					    struct ns_common *ns)
 {
-	if (kls->user_ns) {
-		if (kls->userns_capable)
-			return true;
-	} else {
-		struct ns_common *owner;
-		struct user_namespace *user_ns;
-
-		owner = ns_owner(ns);
-		if (owner)
-			user_ns = to_user_ns(owner);
-		else
-			user_ns = &init_user_ns;
-		if (ns_capable_noaudit(user_ns, CAP_SYS_ADMIN))
-			return true;
-	}
-
+	if (kls->user_ns && kls->userns_capable)
+		return true;
 	if (is_current_namespace(ns))
 		return true;
-
-	if (ns->ns_type != CLONE_NEWUSER)
-		return false;
-
-	if (ns_capable_noaudit(to_user_ns(ns), CAP_SYS_ADMIN))
-		return true;
-
-	return false;
+	return may_see_all_namespaces();
 }
 
 static inline void ns_put(struct ns_common *ns)
@@ -600,7 +579,7 @@ static ssize_t do_listns_userns(struct klistns *kls)
 
 	ret = 0;
 	head = &to_ns_common(kls->user_ns)->ns_owner_root.ns_list_head;
-	kls->userns_capable = ns_capable_noaudit(kls->user_ns, CAP_SYS_ADMIN);
+	kls->userns_capable = may_see_all_namespaces();
 
 	rcu_read_lock();
 

@@ -570,7 +570,7 @@ static int create_tap(const char *ifname)
 	};
 	int fd, ret;
 
-	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	strscpy(ifr.ifr_name, ifname);
 
 	fd = open("/dev/net/tun", O_RDWR);
 	if (fd < 0)
@@ -599,7 +599,7 @@ static int ifup(const char *ifname)
 	struct ifreq ifr = {};
 	int sk, ret;
 
-	strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+	strscpy(ifr.ifr_name, ifname);
 
 	sk = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sk < 0)

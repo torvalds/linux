@@ -42,7 +42,7 @@
  * both the type-agnostic benefits of the macros while also being able to
  * enforce that the return value is, in fact, checked.
  */
-static inline bool __must_check __must_check_overflow(bool overflow)
+static __always_inline bool __must_check __must_check_overflow(bool overflow)
 {
 	return unlikely(overflow);
 }
@@ -327,7 +327,7 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
+static __always_inline size_t __must_check size_mul(size_t factor1, size_t factor2)
 {
 	size_t bytes;
 
@@ -346,7 +346,7 @@ static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_add(size_t addend1, size_t addend2)
+static __always_inline size_t __must_check size_add(size_t addend1, size_t addend2)
 {
 	size_t bytes;
 
@@ -367,7 +367,7 @@ static inline size_t __must_check size_add(size_t addend1, size_t addend2)
  * argument may be SIZE_MAX (or the result with be forced to SIZE_MAX).
  * The lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
+static __always_inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 {
 	size_t bytes;
 

@@ -151,6 +151,7 @@ struct tasdevice {
 	struct bulk_reg_val *cali_data_backup;
 	struct bulk_reg_val alp_cali_bckp;
 	struct tasdevice_fw *cali_data_fmw;
+	void *cali_specific;
 	unsigned int dev_addr;
 	unsigned int err_code;
 	unsigned char cur_book;

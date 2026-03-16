@@ -25,6 +25,8 @@ extern int ibt_selftest_noendbr(void);
 void handle_invalid_op(struct pt_regs *regs);
 #endif
 
+noinstr bool handle_bug(struct pt_regs *regs);
+
 static inline int get_si_code(unsigned long condition)
 {
 	if (condition & DR_STEP)

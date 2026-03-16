@@ -748,14 +748,14 @@ static bool gpio_shared_entry_is_really_shared(struct gpio_shared_entry *entry)
 static void gpio_shared_free_exclusive(void)
 {
 	struct gpio_shared_entry *entry, *epos;
+	struct gpio_shared_ref *ref, *rpos;
 
 	list_for_each_entry_safe(entry, epos, &gpio_shared_list, list) {
 		if (gpio_shared_entry_is_really_shared(entry))
 			continue;
 
-		gpio_shared_drop_ref(list_first_entry(&entry->refs,
-						      struct gpio_shared_ref,
-						      list));
+		list_for_each_entry_safe(ref, rpos, &entry->refs, list)
+			gpio_shared_drop_ref(ref);
 		gpio_shared_drop_entry(entry);
 	}
 }

@@ -363,4 +363,68 @@ void alu32_negative_offset(void)
 	__sink(path[0]);
 }
 
+void dummy_calls(void)
+{
+	bpf_iter_num_new(0, 0, 0);
+	bpf_iter_num_next(0);
+	bpf_iter_num_destroy(0);
+}
+
+SEC("socket")
+__success
+__flag(BPF_F_TEST_STATE_FREQ)
+int spurious_precision_marks(void *ctx)
+{
+	struct bpf_iter_num iter;
+
+	asm volatile(
+		"r1 = %[iter];"
+		"r2 = 0;"
+		"r3 = 10;"
+		"call %[bpf_iter_num_new];"
+	"1:"
+		"r1 = %[iter];"
+		"call %[bpf_iter_num_next];"
+		"if r0 == 0 goto 4f;"
+		"r7 = *(u32 *)(r0 + 0);"
+		"r8 = *(u32 *)(r0 + 0);"
+		/* This jump can't be predicted and does not change r7 or r8 state. */
+		"if r7 > r8 goto 2f;"
+		/* Branch explored first ties r2 and r7 as having the same id. */
+		"r2 = r7;"
+		"goto 3f;"
+	"2:"
+		/* Branch explored second does not tie r2 and r7 but has a function call. */
+		"call %[bpf_get_prandom_u32];"
+	"3:"
+		/*
+		 * A checkpoint.
+		 * When first branch is explored, this would inject linked registers
+		 * r2 and r7 into the jump history.
+		 * When second branch is explored, this would be a cache hit point,
+		 * triggering propagate_precision().
+		 */
+		"if r7 <= 42 goto +0;"
+		/*
+		 * Mark r7 as precise using an if condition that is always true.
+		 * When reached via the second branch, this triggered a bug in the backtrack_insn()
+		 * because r2 (tied to r7) was propagated as precise to a call.
+		 */
+		"if r7 <= 0xffffFFFF goto +0;"
+		"goto 1b;"
+	"4:"
+		"r1 = %[iter];"
+		"call %[bpf_iter_num_destroy];"
+		:
+		: __imm_ptr(iter),
+		  __imm(bpf_iter_num_new),
+		  __imm(bpf_iter_num_next),
+		  __imm(bpf_iter_num_destroy),
+		  __imm(bpf_get_prandom_u32)
+		: __clobber_common, "r7", "r8"
+	);
+
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
