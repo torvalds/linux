@@ -20,12 +20,15 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mdio-bitbang.h>
-#include <linux/mdio-gpio.h>
 #include <linux/module.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_data/mdio-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+
+#define MDIO_GPIO_MDC	0
+#define MDIO_GPIO_MDIO	1
+#define MDIO_GPIO_MDO	2
 
 struct mdio_gpio_info {
 	struct mdiobb_ctrl ctrl;
