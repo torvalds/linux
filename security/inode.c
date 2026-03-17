@@ -30,7 +30,7 @@ static int mount_count;
 static void securityfs_free_inode(struct inode *inode)
 {
 	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
+		kfree_const(inode->i_link);
 	free_inode_nonrcu(inode);
 }
 
@@ -258,17 +258,17 @@ struct dentry *securityfs_create_symlink(const char *name,
 					 const struct inode_operations *iops)
 {
 	struct dentry *dent;
-	char *link = NULL;
+	const char *link = NULL;
 
 	if (target) {
-		link = kstrdup(target, GFP_KERNEL);
+		link = kstrdup_const(target, GFP_KERNEL);
 		if (!link)
 			return ERR_PTR(-ENOMEM);
 	}
 	dent = securityfs_create_dentry(name, S_IFLNK | 0444, parent,
-					link, NULL, iops);
+					(void *)link, NULL, iops);
 	if (IS_ERR(dent))
-		kfree(link);
+		kfree_const(link);
 
 	return dent;
 }
