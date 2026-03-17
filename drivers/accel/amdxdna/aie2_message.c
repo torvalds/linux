@@ -1185,3 +1185,44 @@ int aie2_config_debug_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *
 
 	return xdna_mailbox_send_msg(chann, &msg, TX_TIMEOUT);
 }
+
+int aie2_query_app_health(struct amdxdna_dev_hdl *ndev, u32 context_id,
+			  struct app_health_report *report)
+{
+	DECLARE_AIE2_MSG(get_app_health, MSG_OP_GET_APP_HEALTH);
+	struct amdxdna_dev *xdna = ndev->xdna;
+	struct app_health_report *buf;
+	dma_addr_t dma_addr;
+	u32 buf_size;
+	int ret;
+
+	if (!AIE2_FEATURE_ON(ndev, AIE2_APP_HEALTH)) {
+		XDNA_DBG(xdna, "App health feature not supported");
+		return -EOPNOTSUPP;
+	}
+
+	buf_size = sizeof(*report);
+	buf = aie2_alloc_msg_buffer(ndev, &buf_size, &dma_addr);
+	if (IS_ERR(buf)) {
+		XDNA_ERR(xdna, "Failed to allocate buffer for app health");
+		return PTR_ERR(buf);
+	}
+
+	req.buf_addr = dma_addr;
+	req.context_id = context_id;
+	req.buf_size = buf_size;
+
+	drm_clflush_virt_range(buf, sizeof(*report));
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret) {
+		XDNA_ERR(xdna, "Get app health failed, ret %d status 0x%x", ret, resp.status);
+		goto free_buf;
+	}
+
+	/* Copy the report to caller's buffer */
+	memcpy(report, buf, sizeof(*report));
+
+free_buf:
+	aie2_free_msg_buffer(ndev, buf_size, buf, dma_addr);
+	return ret;
+}
