@@ -47,7 +47,6 @@ struct mlx5e_flow_steering {
 	bool				state_destroy;
 	bool				vlan_strip_disable;
 	struct mlx5_core_dev		*mdev;
-	struct net_device		*netdev;
 	struct mlx5_flow_namespace      *ns;
 	struct mlx5_flow_namespace      *egress_ns;
 #ifdef CONFIG_MLX5_EN_RXNFC
