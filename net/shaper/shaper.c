@@ -36,24 +36,6 @@ static struct net_shaper_binding *net_shaper_binding_from_ctx(void *ctx)
 	return &((struct net_shaper_nl_ctx *)ctx)->binding;
 }
 
-static void net_shaper_lock(struct net_shaper_binding *binding)
-{
-	switch (binding->type) {
-	case NET_SHAPER_BINDING_TYPE_NETDEV:
-		netdev_lock(binding->netdev);
-		break;
-	}
-}
-
-static void net_shaper_unlock(struct net_shaper_binding *binding)
-{
-	switch (binding->type) {
-	case NET_SHAPER_BINDING_TYPE_NETDEV:
-		netdev_unlock(binding->netdev);
-		break;
-	}
-}
-
 static struct net_shaper_hierarchy *
 net_shaper_hierarchy(struct net_shaper_binding *binding)
 {
@@ -219,10 +201,47 @@ static int net_shaper_ctx_setup(const struct genl_info *info, int type,
 	return 0;
 }
 
+/* Like net_shaper_ctx_setup(), but for "write" handlers (never for dumps!)
+ * Acquires the lock protecting the hierarchy (instance lock for netdev).
+ */
+static int net_shaper_ctx_setup_lock(const struct genl_info *info, int type,
+				     struct net_shaper_nl_ctx *ctx)
+{
+	struct net *ns = genl_info_net(info);
+	struct net_device *dev;
+	int ifindex;
+
+	if (GENL_REQ_ATTR_CHECK(info, type))
+		return -EINVAL;
+
+	ifindex = nla_get_u32(info->attrs[type]);
+	dev = netdev_get_by_index_lock(ns, ifindex);
+	if (!dev) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[type]);
+		return -ENOENT;
+	}
+
+	if (!dev->netdev_ops->net_shaper_ops) {
+		NL_SET_BAD_ATTR(info->extack, info->attrs[type]);
+		netdev_unlock(dev);
+		return -EOPNOTSUPP;
+	}
+
+	ctx->binding.type = NET_SHAPER_BINDING_TYPE_NETDEV;
+	ctx->binding.netdev = dev;
+	return 0;
+}
+
 static void net_shaper_ctx_cleanup(struct net_shaper_nl_ctx *ctx)
 {
 	if (ctx->binding.type == NET_SHAPER_BINDING_TYPE_NETDEV)
 		netdev_put(ctx->binding.netdev, &ctx->dev_tracker);
+}
+
+static void net_shaper_ctx_cleanup_unlock(struct net_shaper_nl_ctx *ctx)
+{
+	if (ctx->binding.type == NET_SHAPER_BINDING_TYPE_NETDEV)
+		netdev_unlock(ctx->binding.netdev);
 }
 
 static u32 net_shaper_handle_to_index(const struct net_shaper_handle *handle)
@@ -278,7 +297,7 @@ net_shaper_lookup(struct net_shaper_binding *binding,
 }
 
 /* Allocate on demand the per device shaper's hierarchy container.
- * Called under the net shaper lock
+ * Called under the lock protecting the hierarchy (instance lock for netdev)
  */
 static struct net_shaper_hierarchy *
 net_shaper_hierarchy_setup(struct net_shaper_binding *binding)
@@ -697,6 +716,22 @@ void net_shaper_nl_post_doit(const struct genl_split_ops *ops,
 	net_shaper_generic_post(info);
 }
 
+int net_shaper_nl_pre_doit_write(const struct genl_split_ops *ops,
+				struct sk_buff *skb, struct genl_info *info)
+{
+	struct net_shaper_nl_ctx *ctx = (struct net_shaper_nl_ctx *)info->ctx;
+
+	BUILD_BUG_ON(sizeof(*ctx) > sizeof(info->ctx));
+
+	return net_shaper_ctx_setup_lock(info, NET_SHAPER_A_IFINDEX, ctx);
+}
+
+void net_shaper_nl_post_doit_write(const struct genl_split_ops *ops,
+				   struct sk_buff *skb, struct genl_info *info)
+{
+	net_shaper_ctx_cleanup_unlock((struct net_shaper_nl_ctx *)info->ctx);
+}
+
 int net_shaper_nl_pre_dumpit(struct netlink_callback *cb)
 {
 	struct net_shaper_nl_ctx *ctx = (struct net_shaper_nl_ctx *)cb->ctx;
@@ -824,45 +859,38 @@ int net_shaper_nl_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	binding = net_shaper_binding_from_ctx(info->ctx);
 
-	net_shaper_lock(binding);
 	ret = net_shaper_parse_info(binding, info->attrs, info, &shaper,
 				    &exists);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	if (!exists)
 		net_shaper_default_parent(&shaper.handle, &shaper.parent);
 
 	hierarchy = net_shaper_hierarchy_setup(binding);
-	if (!hierarchy) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	if (!hierarchy)
+		return -ENOMEM;
 
 	/* The 'set' operation can't create node-scope shapers. */
 	handle = shaper.handle;
 	if (handle.scope == NET_SHAPER_SCOPE_NODE &&
-	    !net_shaper_lookup(binding, &handle)) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	    !net_shaper_lookup(binding, &handle))
+		return -ENOENT;
 
 	ret = net_shaper_pre_insert(binding, &handle, info->extack);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	ops = net_shaper_ops(binding);
 	ret = ops->set(binding, &shaper, info->extack);
 	if (ret) {
 		net_shaper_rollback(binding);
-		goto unlock;
+		return ret;
 	}
 
 	net_shaper_commit(binding, 1, &shaper);
 
-unlock:
-	net_shaper_unlock(binding);
-	return ret;
+	return 0;
 }
 
 static int __net_shaper_delete(struct net_shaper_binding *binding,
@@ -1090,35 +1118,26 @@ int net_shaper_nl_delete_doit(struct sk_buff *skb, struct genl_info *info)
 
 	binding = net_shaper_binding_from_ctx(info->ctx);
 
-	net_shaper_lock(binding);
 	ret = net_shaper_parse_handle(info->attrs[NET_SHAPER_A_HANDLE], info,
 				      &handle);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	hierarchy = net_shaper_hierarchy(binding);
-	if (!hierarchy) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!hierarchy)
+		return -ENOENT;
 
 	shaper = net_shaper_lookup(binding, &handle);
-	if (!shaper) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!shaper)
+		return -ENOENT;
 
 	if (handle.scope == NET_SHAPER_SCOPE_NODE) {
 		ret = net_shaper_pre_del_node(binding, shaper, info->extack);
 		if (ret)
-			goto unlock;
+			return ret;
 	}
 
-	ret = __net_shaper_delete(binding, shaper, info->extack);
-
-unlock:
-	net_shaper_unlock(binding);
-	return ret;
+	return __net_shaper_delete(binding, shaper, info->extack);
 }
 
 static int net_shaper_group_send_reply(struct net_shaper_binding *binding,
@@ -1167,21 +1186,17 @@ int net_shaper_nl_group_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!net_shaper_ops(binding)->group)
 		return -EOPNOTSUPP;
 
-	net_shaper_lock(binding);
 	leaves_count = net_shaper_list_len(info, NET_SHAPER_A_LEAVES);
 	if (!leaves_count) {
 		NL_SET_BAD_ATTR(info->extack,
 				info->attrs[NET_SHAPER_A_LEAVES]);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	leaves = kcalloc(leaves_count, sizeof(struct net_shaper) +
 			 sizeof(struct net_shaper *), GFP_KERNEL);
-	if (!leaves) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	if (!leaves)
+		return -ENOMEM;
 	old_nodes = (void *)&leaves[leaves_count];
 
 	ret = net_shaper_parse_node(binding, info->attrs, info, &node);
@@ -1258,9 +1273,6 @@ int net_shaper_nl_group_doit(struct sk_buff *skb, struct genl_info *info)
 
 free_leaves:
 	kfree(leaves);
-
-unlock:
-	net_shaper_unlock(binding);
 	return ret;
 
 free_msg:
@@ -1370,14 +1382,12 @@ static void net_shaper_flush(struct net_shaper_binding *binding)
 	if (!hierarchy)
 		return;
 
-	net_shaper_lock(binding);
 	xa_lock(&hierarchy->shapers);
 	xa_for_each(&hierarchy->shapers, index, cur) {
 		__xa_erase(&hierarchy->shapers, index);
 		kfree(cur);
 	}
 	xa_unlock(&hierarchy->shapers);
-	net_shaper_unlock(binding);
 
 	kfree(hierarchy);
 }
