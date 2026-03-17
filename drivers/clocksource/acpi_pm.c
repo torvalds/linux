@@ -98,7 +98,7 @@ static struct clocksource clocksource_acpi_pm = {
 	.rating		= 200,
 	.read		= acpi_pm_read,
 	.mask		= (u64)ACPI_PM_MASK,
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_CALIBRATED,
 	.suspend	= acpi_pm_suspend,
 	.resume		= acpi_pm_resume,
 };
@@ -243,8 +243,6 @@ static int __init init_acpi_pm_clocksource(void)
 		return -ENODEV;
 	}
 
-	if (tsc_clocksource_watchdog_disabled())
-		clocksource_acpi_pm.flags |= CLOCK_SOURCE_MUST_VERIFY;
 	return clocksource_register_hz(&clocksource_acpi_pm, PMTMR_TICKS_PER_SEC);
 }
 
