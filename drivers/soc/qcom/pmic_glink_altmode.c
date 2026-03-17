@@ -62,6 +62,9 @@ struct usbc_notify {
 	u8 orientation;
 	u8 mux_ctrl;
 #define MUX_CTRL_STATE_NO_CONN			0
+#define MUX_CTRL_STATE_USB3_ONLY		1
+#define MUX_CTRL_STATE_DP4LN			2
+#define MUX_CTRL_STATE_USB3_DP			3
 #define MUX_CTRL_STATE_TUNNELING		4
 
 	u8 res;
@@ -350,9 +353,12 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 
 	typec_switch_set(alt_port->typec_switch, alt_port->orientation);
 
-	if (alt_port->svid == USB_TYPEC_TBT_SID) {
-		pmic_glink_altmode_enable_tbt(altmode, alt_port);
-	} else if (alt_port->svid == USB_TYPEC_DP_SID) {
+	/*
+	 * MUX_CTRL_STATE_DP4LN/USB3_DP may only be set if SVID=DP, but we need
+	 * to special-case the SVID=DP && mux_ctrl=NO_CONN case to deliver a
+	 * HPD notification
+	 */
+	if (alt_port->svid == USB_TYPEC_DP_SID) {
 		if (alt_port->mux_ctrl == MUX_CTRL_STATE_NO_CONN) {
 			pmic_glink_altmode_safe(altmode, alt_port);
 		} else {
@@ -369,11 +375,18 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 
 		drm_aux_hpd_bridge_notify(&alt_port->bridge->dev, conn_status);
 	} else if (alt_port->mux_ctrl == MUX_CTRL_STATE_TUNNELING) {
-		pmic_glink_altmode_enable_usb4(altmode, alt_port);
+		if (alt_port->svid == USB_TYPEC_TBT_SID)
+			pmic_glink_altmode_enable_tbt(altmode, alt_port);
+		else
+			pmic_glink_altmode_enable_usb4(altmode, alt_port);
+	} else if (alt_port->mux_ctrl == MUX_CTRL_STATE_USB3_ONLY) {
+		pmic_glink_altmode_enable_usb(altmode, alt_port);
 	} else if (alt_port->mux_ctrl == MUX_CTRL_STATE_NO_CONN) {
 		pmic_glink_altmode_safe(altmode, alt_port);
 	} else {
-		pmic_glink_altmode_enable_usb(altmode, alt_port);
+		dev_err(altmode->dev, "Got unknown mux_ctrl: %u on port %u, forcing safe mode\n",
+			alt_port->mux_ctrl, alt_port->index);
+		pmic_glink_altmode_safe(altmode, alt_port);
 	}
 
 	pmic_glink_altmode_request(altmode, ALTMODE_PAN_ACK, alt_port->index);
