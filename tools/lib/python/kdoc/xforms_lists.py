@@ -4,7 +4,8 @@
 
 import re
 
-from kdoc.kdoc_re import KernRe, NestedMatch
+from kdoc.kdoc_re import KernRe
+from kdoc.c_lex import CMatch
 
 struct_args_pattern = r'([^,)]+)'
 
@@ -60,7 +61,7 @@ class CTransforms:
         #
         # As it doesn't properly match the end parenthesis on some cases.
         #
-        # So, a better solution was crafted: there's now a NestedMatch
+        # So, a better solution was crafted: there's now a CMatch
         # class that ensures that delimiters after a search are properly
         # matched. So, the implementation to drop STRUCT_GROUP() will be
         # handled in separate.
@@ -72,9 +73,9 @@ class CTransforms:
         #
         # Replace macros
         #
-        # TODO: use NestedMatch for FOO($1, $2, ...) matches
+        # TODO: use CMatch for FOO($1, $2, ...) matches
         #
-        # it is better to also move those to the NestedMatch logic,
+        # it is better to also move those to the CMatch logic,
         # to ensure that parentheses will be properly matched.
         #
         (KernRe(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S),
@@ -95,17 +96,17 @@ class CTransforms:
         (KernRe(r'DEFINE_DMA_UNMAP_LEN\s*\(' + struct_args_pattern + r'\)', re.S), r'__u32 \1'),
         (KernRe(r'VIRTIO_DECLARE_FEATURES\(([\w_]+)\)'), r'union { u64 \1; u64 \1_array[VIRTIO_FEATURES_U64S]; }'),
 
-        (NestedMatch(r"__cond_acquires\s*\("), ""),
-        (NestedMatch(r"__cond_releases\s*\("), ""),
-        (NestedMatch(r"__acquires\s*\("), ""),
-        (NestedMatch(r"__releases\s*\("), ""),
-        (NestedMatch(r"__must_hold\s*\("), ""),
-        (NestedMatch(r"__must_not_hold\s*\("), ""),
-        (NestedMatch(r"__must_hold_shared\s*\("), ""),
-        (NestedMatch(r"__cond_acquires_shared\s*\("), ""),
-        (NestedMatch(r"__acquires_shared\s*\("), ""),
-        (NestedMatch(r"__releases_shared\s*\("), ""),
-        (NestedMatch(r'\bSTRUCT_GROUP\('), r'\0'),
+        (CMatch(r"__cond_acquires"), ""),
+        (CMatch(r"__cond_releases"), ""),
+        (CMatch(r"__acquires"), ""),
+        (CMatch(r"__releases"), ""),
+        (CMatch(r"__must_hold"), ""),
+        (CMatch(r"__must_not_hold"), ""),
+        (CMatch(r"__must_hold_shared"), ""),
+        (CMatch(r"__cond_acquires_shared"), ""),
+        (CMatch(r"__acquires_shared"), ""),
+        (CMatch(r"__releases_shared"), ""),
+        (CMatch(r"STRUCT_GROUP"), r'\0'),
     ]
 
     #: Transforms for function prototypes.
