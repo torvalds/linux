@@ -641,6 +641,11 @@ int user_proactive_reclaim(char *buf,
 pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
 
 /*
+ * in mm/khugepaged.c
+ */
+void set_recommended_min_free_kbytes(void);
+
+/*
  * in mm/page_alloc.c
  */
 #define K(x) ((x) << (PAGE_SHIFT-10))
