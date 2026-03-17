@@ -217,7 +217,7 @@ mmhub_v3_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 					      uint32_t status)
 {
 	uint32_t cid, rw;
-	const char *mmhub_cid = NULL;
+	const char *mmhub_cid;
 
 	cid = REG_GET_FIELD(status,
 			    MMVM_L2_PROTECTION_FAULT_STATUS, CID);
@@ -227,29 +227,10 @@ mmhub_v3_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	dev_err(adev->dev,
 		"MMVM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
 		status);
-
-	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
-	case IP_VERSION(3, 3, 0):
-	case IP_VERSION(3, 3, 2):
-		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_3) ?
-			    mmhub_client_ids_v3_3[cid][rw] :
-			    cid == 0x140 ? "UMSCH" : NULL;
-		break;
-	case IP_VERSION(3, 3, 1):
-		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_3_1) ?
-			    mmhub_client_ids_v3_3_1[cid][rw] :
-			    cid == 0x140 ? "UMSCH" : NULL;
-		break;
-	case IP_VERSION(3, 4, 0):
-		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_4) ?
-			mmhub_client_ids_v3_4[cid][rw] :
-		cid == 0x140 ? "UMSCH" : NULL;
-		break;
-	default:
-		mmhub_cid = NULL;
-		break;
-	}
-
+	if (cid == 0x140)
+		mmhub_cid = "UMSCH";
+	else
+		mmhub_cid = amdgpu_mmhub_client_name(&adev->mmhub, cid, rw);
 	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 		mmhub_cid ? mmhub_cid : "unknown", cid);
 	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
@@ -640,6 +621,30 @@ static const struct amdgpu_vmhub_funcs mmhub_v3_3_vmhub_funcs = {
 	.get_invalidate_req = mmhub_v3_3_get_invalidate_req,
 };
 
+static void mmhub_v3_3_init_client_info(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
+	case IP_VERSION(3, 3, 0):
+	case IP_VERSION(3, 3, 2):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_v3_3,
+					     ARRAY_SIZE(mmhub_client_ids_v3_3));
+		break;
+	case IP_VERSION(3, 3, 1):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_v3_3_1,
+					     ARRAY_SIZE(mmhub_client_ids_v3_3_1));
+		break;
+	case IP_VERSION(3, 4, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_v3_4,
+					     ARRAY_SIZE(mmhub_client_ids_v3_4));
+		break;
+	default:
+		break;
+	}
+}
+
 static void mmhub_v3_3_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
@@ -680,6 +685,8 @@ static void mmhub_v3_3_init(struct amdgpu_device *adev)
 		MMVM_CONTEXT1_CNTL__EXECUTE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK;
 
 	hub->vmhub_funcs = &mmhub_v3_3_vmhub_funcs;
+
+	mmhub_v3_3_init_client_info(adev);
 }
 
 static u64 mmhub_v3_3_get_fb_location(struct amdgpu_device *adev)
