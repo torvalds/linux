@@ -78,7 +78,10 @@ static int m88ds3103b_dt_write(struct m88ds3103_dev *dev, int reg, int data)
 		.addr = dev->dt_addr, .flags = 0, .buf = buf, .len = 2
 	};
 
-	m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
+	if (dev->chip_id == M88DS3103C_CHIP_ID)
+		m88ds3103_update_bits(dev, 0x04, 0x10, 0x00);
+	else
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
 
 	val = 0x11;
 	ret = regmap_write(dev->regmap, 0x03, val);
@@ -90,10 +93,18 @@ static int m88ds3103b_dt_write(struct m88ds3103_dev *dev, int reg, int data)
 		dev_err(&client->dev, "0x%02x (ret=%i, reg=0x%02x, value=0x%02x)\n",
 			dev->dt_addr, ret, reg, data);
 
-		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+		if (dev->chip_id == M88DS3103C_CHIP_ID)
+			m88ds3103_update_bits(dev, 0x04, 0x10, 0x10);
+		else
+			m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
 		return -EREMOTEIO;
 	}
-	m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
+	if (dev->chip_id == M88DS3103C_CHIP_ID)
+		m88ds3103_update_bits(dev, 0x04, 0x10, 0x10);
+	else
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
 
 	dev_dbg(&client->dev, "0x%02x reg 0x%02x, value 0x%02x\n",
 		dev->dt_addr, reg, data);
@@ -127,9 +138,14 @@ static int m88ds3103b_dt_read(struct m88ds3103_dev *dev, u8 reg)
 		}
 	};
 
-	m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
+	if (dev->chip_id == M88DS3103C_CHIP_ID) {
+		m88ds3103_update_bits(dev, 0x04, 0x10, 0x00);
+		val = 0x11;
+	} else {
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x00);
+		val = 0x12;
+	}
 
-	val = 0x12;
 	ret = regmap_write(dev->regmap, 0x03, val);
 	if (ret)
 		dev_dbg(&client->dev, "fail=%d\n", ret);
@@ -139,10 +155,18 @@ static int m88ds3103b_dt_read(struct m88ds3103_dev *dev, u8 reg)
 		dev_err(&client->dev, "0x%02x (ret=%d, reg=0x%02x)\n",
 			dev->dt_addr, ret, reg);
 
-		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+		if (dev->chip_id == M88DS3103C_CHIP_ID)
+			m88ds3103_update_bits(dev, 0x04, 0x10, 0x10);
+		else
+			m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
 		return -EREMOTEIO;
 	}
-	m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+
+	if (dev->chip_id == M88DS3103C_CHIP_ID)
+		m88ds3103_update_bits(dev, 0x04, 0x10, 0x10);
+	else
+		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
 
 	dev_dbg(&client->dev, "0x%02x reg 0x%02x, value 0x%02x\n",
 		dev->dt_addr, reg, b1[0]);
@@ -185,14 +209,25 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 
 	switch (c->delivery_system) {
 	case SYS_DVBS:
-		ret = regmap_read(dev->regmap, 0xd1, &utmp);
-		if (ret)
-			goto err;
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+			ret = regmap_read(dev->regmap, 0x0d, &utmp);
+			if (ret)
+				goto err;
 
-		if ((utmp & 0x07) == 0x07)
-			*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
-					FE_HAS_VITERBI | FE_HAS_SYNC |
-					FE_HAS_LOCK;
+			if ((utmp & 0xf7) == 0xf7)
+				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+					  FE_HAS_VITERBI | FE_HAS_SYNC |
+					  FE_HAS_LOCK;
+		} else {
+			ret = regmap_read(dev->regmap, 0xd1, &utmp);
+			if (ret)
+				goto err;
+
+			if ((utmp & 0x07) == 0x07)
+				*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
+					  FE_HAS_VITERBI | FE_HAS_SYNC |
+					  FE_HAS_LOCK;
+		}
 		break;
 	case SYS_DVBS2:
 		ret = regmap_read(dev->regmap, 0x0d, &utmp);
@@ -201,8 +236,8 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 
 		if ((utmp & 0x8f) == 0x8f)
 			*status = FE_HAS_SIGNAL | FE_HAS_CARRIER |
-					FE_HAS_VITERBI | FE_HAS_SYNC |
-					FE_HAS_LOCK;
+				  FE_HAS_VITERBI | FE_HAS_SYNC |
+				  FE_HAS_LOCK;
 		break;
 	default:
 		dev_dbg(&client->dev, "invalid delivery_system\n");
@@ -371,6 +406,7 @@ static int m88ds3103_read_status(struct dvb_frontend *fe,
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -428,8 +464,10 @@ static int m88ds3103b_select_mclk(struct m88ds3103_dev *dev)
 
 	reg15 = m88ds3103b_dt_read(dev, 0x15);
 
-	m88ds3103b_dt_write(dev, 0x05, 0x40);
-	m88ds3103b_dt_write(dev, 0x11, 0x08);
+	if (dev->chiptype != M88DS3103_CHIPTYPE_3103C) {
+		m88ds3103b_dt_write(dev, 0x05, 0x40);
+		m88ds3103b_dt_write(dev, 0x11, 0x08);
+	}
 
 	if (big_symbol)
 		reg15 |= 0x02;
@@ -441,8 +479,10 @@ static int m88ds3103b_select_mclk(struct m88ds3103_dev *dev)
 
 	usleep_range(5000, 5500);
 
-	m88ds3103b_dt_write(dev, 0x05, 0x00);
-	m88ds3103b_dt_write(dev, 0x11, (u8)(big_symbol ? 0x0E : 0x0A));
+	if (dev->chiptype != M88DS3103_CHIPTYPE_3103C) {
+		m88ds3103b_dt_write(dev, 0x05, 0x00);
+		m88ds3103b_dt_write(dev, 0x11, (u8)(big_symbol ? 0x0E : 0x0A));
+	}
 
 	usleep_range(5000, 5500);
 
@@ -583,12 +623,6 @@ static int m88ds3103b_set_mclk(struct m88ds3103_dev *dev, u32 mclk_khz)
 
 	sm = N - 1;
 
-	/* Write to registers */
-	//reg15 &= 0x01;
-	//reg15 |= (pll_div_fb >> 8) & 0x01;
-
-	//reg16 = pll_div_fb & 0xFF;
-
 	reg1D &= ~0x03;
 	reg1D |= sm;
 	reg1D |= 0x80;
@@ -596,8 +630,11 @@ static int m88ds3103b_set_mclk(struct m88ds3103_dev *dev, u32 mclk_khz)
 	reg1E = ((f3 << 4) + f2) & 0xFF;
 	reg1F = ((f1 << 4) + f0) & 0xFF;
 
-	m88ds3103b_dt_write(dev, 0x05, 0x40);
-	m88ds3103b_dt_write(dev, 0x11, 0x08);
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		m88ds3103b_dt_write(dev, 0x05, 0x40);
+		m88ds3103b_dt_write(dev, 0x11, 0x08);
+	}
+
 	m88ds3103b_dt_write(dev, 0x1D, reg1D);
 	m88ds3103b_dt_write(dev, 0x1E, reg1E);
 	m88ds3103b_dt_write(dev, 0x1F, reg1F);
@@ -607,10 +644,84 @@ static int m88ds3103b_set_mclk(struct m88ds3103_dev *dev, u32 mclk_khz)
 
 	usleep_range(5000, 5500);
 
-	m88ds3103b_dt_write(dev, 0x05, 0x00);
-	m88ds3103b_dt_write(dev, 0x11, 0x0A);
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		m88ds3103b_dt_write(dev, 0x05, 0x00);
+		m88ds3103b_dt_write(dev, 0x11, 0x0A);
+	}
 
 	usleep_range(5000, 5500);
+
+	return 0;
+}
+
+static int mt_fe_dmd_ds3103c_set_ts_out_mode(struct dvb_frontend *fe, enum m88ds3103_ts_mode mode)
+{
+	struct m88ds3103_dev *dev = fe->demodulator_priv;
+
+	unsigned int tmp, val = 0;
+
+	regmap_read(dev->regmap, 0x0b, &val);
+	val &= ~0x01;
+	regmap_write(dev->regmap, 0x0b, val);
+
+	regmap_read(dev->regmap, 0xfd, &tmp);
+	if (mode == M88DS3103_TS_PARALLEL) {
+		tmp &= ~0x01;
+		tmp &= ~0x04;
+
+		regmap_write(dev->regmap, 0xfa, 0x01);
+		regmap_write(dev->regmap, 0xf1, 0x60);
+		regmap_write(dev->regmap, 0xfa, 0x00);
+	} else if (mode == M88DS3103_TS_SERIAL) {
+		tmp &= ~0x01;
+		tmp |= 0x04;
+	} else {
+		tmp |= 0x01;
+		tmp &= ~0x04;
+
+		regmap_write(dev->regmap, 0xfa, 0x01);
+		regmap_write(dev->regmap, 0xf1, 0x60);
+		regmap_write(dev->regmap, 0xfa, 0x00);
+	}
+
+	if (dev->cfg->ts_clk_pol) {
+		tmp &= ~0xf8;
+		tmp |= 0x02;
+	} else {
+		tmp &= ~0xb8;
+		tmp |= 0x42;
+	}
+
+	tmp |= 0x80;
+	regmap_write(dev->regmap, 0xfd, tmp);
+
+	val = 0;
+	if (mode != M88DS3103_TS_SERIAL) {
+		tmp = M88DS3103_TS_CI;
+
+		val |= tmp & 0x03;
+		val |= (tmp << 2) & 0x0C;
+		val |= (tmp << 4) & 0x30;
+		val |= (tmp << 6) & 0xC0;
+	} else {
+		val = 0x00;
+	}
+
+	regmap_write(dev->regmap, 0x0a, val);
+
+	regmap_read(dev->regmap, 0x0b, &tmp);
+
+	tmp &= ~0x20;
+	tmp |= 0x01;
+
+	regmap_write(dev->regmap, 0x0b, tmp);
+
+	regmap_read(dev->regmap, 0x0c, &tmp);
+
+	regmap_write(dev->regmap, 0xf4, 0x01);
+
+	tmp &= ~0x80;
+	regmap_write(dev->regmap, 0x0c, tmp);
 
 	return 0;
 }
@@ -627,6 +738,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	u16 u16tmp;
 	u32 tuner_frequency_khz, target_mclk, u32tmp;
 	s32 s32tmp;
+	unsigned int utmp;
 	static const struct reg_sequence reset_buf[] = {
 		{0x07, 0x80}, {0x07, 0x00}
 	};
@@ -646,9 +758,14 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	/* Clear TS */
+	ret = regmap_write(dev->regmap, 0xf5, 0x00);
+
 	/* Disable demod clock path */
-	if (dev->chip_id == M88RS6000_CHIP_ID) {
-		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+	if (dev->chip_id == M88RS6000_CHIP_ID ||
+	    dev->chip_id == M88DS3103C_CHIP_ID) {
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+		    dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
 			ret = regmap_read(dev->regmap, 0xb2, &u32tmp);
 			if (ret)
 				goto err;
@@ -688,7 +805,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* set M88RS6000/DS3103B demod main mclk and ts mclk from tuner die */
-	if (dev->chip_id == M88RS6000_CHIP_ID) {
+	if (dev->chip_id == M88RS6000_CHIP_ID ||
+	    dev->chip_id == M88DS3103C_CHIP_ID) {
 		if (c->symbol_rate > 45010000)
 			dev->mclk = 110250000;
 		else
@@ -699,7 +817,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		else
 			target_mclk = 144000000;
 
-		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+		    dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
 			m88ds3103b_select_mclk(dev);
 			m88ds3103b_set_mclk(dev, target_mclk / 1000);
 		}
@@ -772,6 +891,9 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		if (dev->chip_id == M88RS6000_CHIP_ID) {
 			len = ARRAY_SIZE(m88rs6000_dvbs_init_reg_vals);
 			init = m88rs6000_dvbs_init_reg_vals;
+		} else if (dev->chip_id == M88DS3103C_CHIP_ID) {
+			len = ARRAY_SIZE(m88ds3103c_dvbs_init_reg_vals);
+			init = m88ds3103c_dvbs_init_reg_vals;
 		} else {
 			len = ARRAY_SIZE(m88ds3103_dvbs_init_reg_vals);
 			init = m88ds3103_dvbs_init_reg_vals;
@@ -781,6 +903,9 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		if (dev->chip_id == M88RS6000_CHIP_ID) {
 			len = ARRAY_SIZE(m88rs6000_dvbs2_init_reg_vals);
 			init = m88rs6000_dvbs2_init_reg_vals;
+		} else if (dev->chip_id == M88DS3103C_CHIP_ID) {
+			len = ARRAY_SIZE(m88ds3103c_dvbs_init_reg_vals);
+			init = m88ds3103c_dvbs_init_reg_vals;
 		} else {
 			len = ARRAY_SIZE(m88ds3103_dvbs2_init_reg_vals);
 			init = m88ds3103_dvbs2_init_reg_vals;
@@ -799,7 +924,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (dev->chip_id == M88RS6000_CHIP_ID) {
+	if (dev->chip_id == M88RS6000_CHIP_ID ||
+	    dev->chip_id == M88DS3103C_CHIP_ID) {
 		if (c->delivery_system == SYS_DVBS2 &&
 		    c->symbol_rate <= 5000000) {
 			ret = regmap_write(dev->regmap, 0xc0, 0x04);
@@ -812,11 +938,14 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			if (ret)
 				goto err;
 		}
-		ret = m88ds3103_update_bits(dev, 0x9d, 0x08, 0x08);
-		if (ret)
-			goto err;
+		if (dev->chip_id != M88DS3103C_CHIP_ID) {
+			ret = m88ds3103_update_bits(dev, 0x9d, 0x08, 0x08);
+			if (ret)
+				goto err;
+		}
 
-		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+		    dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
 			buf[0] = m88ds3103b_dt_read(dev, 0x15);
 			buf[1] = m88ds3103b_dt_read(dev, 0x16);
 
@@ -838,15 +967,22 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			m88ds3103b_dt_write(dev, 0x16, buf[1]);
 
 			regmap_read(dev->regmap, 0x30, &u32tmp);
-			u32tmp &= ~0x80;
-			regmap_write(dev->regmap, 0x30, u32tmp & 0xff);
+			if (dev->chip_id == M88DS3103C_CHIP_ID) {
+				regmap_write(dev->regmap, 0x30, dev->config.agc_inv ? 0x18 : 0x08);
+			} else {
+				u32tmp &= ~0x80;
+				regmap_write(dev->regmap, 0x30, u32tmp & 0xff);
+			}
 		}
 
-		ret = regmap_write(dev->regmap, 0xf1, 0x01);
-		if (ret)
-			goto err;
+		if (dev->chip_id != M88DS3103C_CHIP_ID) {
+			ret = regmap_write(dev->regmap, 0xf1, 0x01);
+			if (ret)
+				goto err;
+		}
 
-		if (dev->chiptype != M88DS3103_CHIPTYPE_3103B) {
+		if (dev->chiptype != M88DS3103_CHIPTYPE_3103B &&
+		    dev->chiptype != M88DS3103_CHIPTYPE_3103C) {
 			ret = m88ds3103_update_bits(dev, 0x30, 0x80, 0x80);
 			if (ret)
 				goto err;
@@ -864,7 +1000,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 		break;
 	case M88DS3103_TS_PARALLEL:
 		u8tmp = 0x02;
-		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+		    dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
 			u8tmp = 0x01;
 			u8tmp1 = 0x01;
 		}
@@ -881,10 +1018,12 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (dev->cfg->ts_clk_pol)
 		u8tmp |= 0x40;
 
-	/* TS mode */
-	ret = regmap_write(dev->regmap, 0xfd, u8tmp);
-	if (ret)
-		goto err;
+	if (dev->chiptype != M88DS3103_CHIPTYPE_3103C) {
+		/* TS mode */
+		ret = regmap_write(dev->regmap, 0xfd, u8tmp);
+		if (ret)
+			goto err;
+	}
 
 	switch (dev->cfg->ts_mode) {
 	case M88DS3103_TS_SERIAL:
@@ -918,7 +1057,12 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	ret = regmap_update_bits(dev->regmap, 0xfe, 0x0f, u8tmp);
 	if (ret)
 		goto err;
-	u8tmp = ((u8tmp1 & 0x03) << 6) | u8tmp2 >> 0;
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C)
+		u8tmp = 0xcb;
+	else
+		u8tmp = ((u8tmp1 & 0x03) << 6) | u8tmp2 >> 0;
+
 	ret = regmap_write(dev->regmap, 0xea, u8tmp);
 	if (ret)
 		goto err;
@@ -930,7 +1074,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	else
 		u8tmp = 0x06;
 
-	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+	    dev->chiptype == M88DS3103_CHIPTYPE_3103C)
 		m88ds3103b_set_mclk(dev, target_mclk / 1000);
 
 	ret = regmap_write(dev->regmap, 0xc3, 0x08);
@@ -949,9 +1094,15 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	u16tmp = DIV_ROUND_CLOSEST_ULL((u64)c->symbol_rate * 0x10000, dev->mclk);
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C)
+		u16tmp = DIV_ROUND_CLOSEST_ULL((((u64)c->symbol_rate << 15) + dev->mclk / 4),
+					       (dev->mclk / 2));
+	else
+		u16tmp = DIV_ROUND_CLOSEST_ULL((u64)c->symbol_rate * 0x10000, dev->mclk);
+
 	buf[0] = (u16tmp >> 0) & 0xff;
 	buf[1] = (u16tmp >> 8) & 0xff;
+
 	ret = regmap_bulk_write(dev->regmap, 0x61, buf, 2);
 	if (ret)
 		goto err;
@@ -960,7 +1111,15 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	ret = m88ds3103_update_bits(dev, 0x30, 0x10, dev->cfg->agc_inv << 4);
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+		ret = m88ds3103_update_bits(dev, 0x30, 0x08, dev->cfg->agc_inv << 3);
+	} else if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+		ret = m88ds3103_update_bits(dev, 0x08, 0x43, 0x43);
+
+		ret = m88ds3103_update_bits(dev, 0x30, 0x18, dev->cfg->agc_inv ? 0x18 : 0x08);
+	} else {
+		ret = m88ds3103_update_bits(dev, 0x30, 0x10, dev->cfg->agc_inv << 4);
+	}
 	if (ret)
 		goto err;
 
@@ -974,10 +1133,37 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 				(c->delivery_system == SYS_DVBS) ? 0x10 : 0x0);
 		if (ret)
 			goto err;
+	}
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+		ret = m88ds3103_update_bits(dev, 0x76, 0x80, 0x00);
+		if (ret)
+			goto err;
+
+		ret = m88ds3103_update_bits(dev, 0x22, 0x01, 0x01);
+		ret = m88ds3103_update_bits(dev, 0x23, 0x01, 0x00);
+		ret = m88ds3103_update_bits(dev, 0x24, 0x01, 0x00);
 
 		ret = m88ds3103_update_bits(dev, 0xc9, 0x08, 0x08);
 		if (ret)
 			goto err;
+
+		ret = regmap_read(dev->regmap, 0x08, &utmp);
+		if (ret)
+			goto err;
+
+		if (c->delivery_system == SYS_DVBS) {
+			utmp = (utmp & 0xfb) | 0x40;
+			regmap_write(dev->regmap, 0x08, utmp);
+			regmap_write(dev->regmap, 0xe0, 0xf8);
+		} else if (c->delivery_system == SYS_DVBS2) {
+			utmp = utmp | 0x44;
+			regmap_write(dev->regmap, 0x08, utmp);
+		} else {
+			utmp = utmp & 0xbb;
+			regmap_write(dev->regmap, 0x08, utmp);
+			regmap_write(dev->regmap, 0xe0, 0xf8);
+		}
 	}
 
 	dev_dbg(&client->dev, "carrier offset=%d\n",
@@ -986,8 +1172,12 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	/* Use 32-bit calc as there is no s64 version of DIV_ROUND_CLOSEST() */
 	s32tmp = 0x10000 * (tuner_frequency_khz - c->frequency);
 	s32tmp = DIV_ROUND_CLOSEST(s32tmp, dev->mclk / 1000);
+
+	usleep_range(1000, 1200);
+
 	buf[0] = (s32tmp >> 0) & 0xff;
 	buf[1] = (s32tmp >> 8) & 0xff;
+
 	ret = regmap_bulk_write(dev->regmap, 0x5e, buf, 2);
 	if (ret)
 		goto err;
@@ -1012,6 +1202,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1031,13 +1222,65 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	dev->warm = false;
 
 	/* wake up device from sleep */
-	ret = m88ds3103_update_bits(dev, 0x08, 0x01, 0x01);
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+		ret = m88ds3103_update_bits(dev, 0x0b, 0x90, 0x80);	/* set dt_addr */
+
+		m88ds3103b_dt_write(dev, 0x04, 0x01);	/* reset */
+		m88ds3103b_dt_write(dev, 0x04, 0x00);
+		usleep_range(800, 1200);
+
+		ret = m88ds3103_update_bits(dev, 0x04, 0x01, 0x00);
+		if (ret)
+			goto err;
+
+		m88ds3103b_dt_write(dev, 0x10, 0x01);	/* wakeup */
+		m88ds3103b_dt_write(dev, 0x11, 0x01);	/* wakeup */
+
+		ret = m88ds3103_update_bits(dev, 0x08, 0x01, 0x01);
+		if (ret)
+			goto err;
+
+		ret = m88ds3103_update_bits(dev, 0x0b, 0x01, 0x01);
+		if (ret)
+			goto err;
+		/* global reset, global diseqc reset, global fec reset */
+		ret = regmap_write(dev->regmap, 0x07, 0x80);
+		if (ret)
+			goto err;
+		ret = regmap_write(dev->regmap, 0x07, 0x00);
+		if (ret)
+			goto err;
+		usleep_range(800, 1200);
+
+		ret = m88ds3103_update_bits(dev, 0x08, 0x01, 0x01);
+		if (ret)
+			goto err;
+	} else {
+		ret = m88ds3103_update_bits(dev, 0x08, 0x01, 0x01);
+		if (ret)
+			goto err;
+		ret = m88ds3103_update_bits(dev, 0x04, 0x01, 0x00);
+		if (ret)
+			goto err;
+		ret = m88ds3103_update_bits(dev, 0x23, 0x10, 0x00);
+		if (ret)
+			goto err;
+	}
+
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+		m88ds3103b_dt_write(dev, 0x10, 0x01);	/* wakeup */
+		m88ds3103b_dt_write(dev, 0x11, 0x01);	/* wakeup */
+		m88ds3103b_dt_write(dev, 0x24, 0x04);
+		m88ds3103b_dt_write(dev, 0x84, 0x04);
+		m88ds3103b_dt_write(dev, 0x15, 0x6c);
+		usleep_range(800, 1200);
+	}
+
+	/* global reset, global diseqc reset, global fec reset */
+	ret = regmap_write(dev->regmap, 0x07, 0xe0);
 	if (ret)
 		goto err;
-	ret = m88ds3103_update_bits(dev, 0x04, 0x01, 0x00);
-	if (ret)
-		goto err;
-	ret = m88ds3103_update_bits(dev, 0x23, 0x10, 0x00);
+	ret = regmap_write(dev->regmap, 0x07, 0x00);
 	if (ret)
 		goto err;
 
@@ -1051,20 +1294,14 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	if (utmp)
 		goto warm;
 
-	/* global reset, global diseqc reset, global fec reset */
-	ret = regmap_write(dev->regmap, 0x07, 0xe0);
-	if (ret)
-		goto err;
-	ret = regmap_write(dev->regmap, 0x07, 0x00);
-	if (ret)
-		goto err;
-
 	/* cold state - try to download firmware */
 	dev_info(&client->dev, "found a '%s' in cold state\n",
 		 dev->fe.ops.info.name);
 
 	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
 		name = M88DS3103B_FIRMWARE;
+	else if (dev->chiptype == M88DS3103_CHIPTYPE_3103C)
+		name = M88DS3103C_FIRMWARE;
 	else if (dev->chip_id == M88RS6000_CHIP_ID)
 		name = M88RS6000_FIRMWARE;
 	else
@@ -1116,6 +1353,18 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	dev_info(&client->dev, "firmware version: %X.%X\n",
 		 (utmp >> 4) & 0xf, (utmp >> 0 & 0xf));
 
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
+		mt_fe_dmd_ds3103c_set_ts_out_mode(fe, dev->cfg->ts_mode);
+
+		ret = m88ds3103_update_bits(dev, 0x4d, 0x02, dev->cfg->spec_inv << 1);
+		if (ret)
+			goto err;
+
+		ret = m88ds3103_update_bits(dev, 0x30, 0x10, dev->cfg->agc_inv ? 0x10 : 0x00);
+		if (ret)
+			goto err;
+	}
+
 	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
 		m88ds3103b_dt_write(dev, 0x21, 0x92);
 		m88ds3103b_dt_write(dev, 0x15, 0x6C);
@@ -1139,6 +1388,7 @@ err_release_firmware:
 	release_firmware(firmware);
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1157,6 +1407,8 @@ static int m88ds3103_sleep(struct dvb_frontend *fe)
 	/* TS Hi-Z */
 	if (dev->chip_id == M88RS6000_CHIP_ID)
 		utmp = 0x29;
+	else if (dev->chip_id == M88DS3103C_CHIP_ID)
+		utmp = 0x0b;
 	else
 		utmp = 0x27;
 	ret = m88ds3103_update_bits(dev, utmp, 0x01, 0x00);
@@ -1167,6 +1419,17 @@ static int m88ds3103_sleep(struct dvb_frontend *fe)
 	ret = m88ds3103_update_bits(dev, 0x08, 0x01, 0x00);
 	if (ret)
 		goto err;
+
+	/* Internal tuner sleep */
+	if (dev->chip_id == M88DS3103C_CHIP_ID) {
+		ret = m88ds3103b_dt_write(dev, 0x10, 0x00);
+		if (ret)
+			goto err;
+		ret = m88ds3103b_dt_write(dev, 0x11, 0x00);
+		if (ret)
+			goto err;
+	}
+
 	ret = m88ds3103_update_bits(dev, 0x04, 0x01, 0x01);
 	if (ret)
 		goto err;
@@ -1177,6 +1440,7 @@ static int m88ds3103_sleep(struct dvb_frontend *fe)
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1341,11 +1605,13 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
+//	dev_dbg(&client->dev, "%s()  0x%X  |  0x%X\n", __func__, buf[0], buf[1]);
 	c->symbol_rate = DIV_ROUND_CLOSEST_ULL((u64)(buf[1] << 8 | buf[0] << 0) * dev->mclk, 0x10000);
 
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1378,7 +1644,8 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	int ret;
 	unsigned int utmp, tone, reg_a1_mask;
 
-	dev_dbg(&client->dev, "fe_sec_tone_mode=%d\n", fe_sec_tone_mode);
+	dev_dbg(&client->dev, "fe_sec_tone_mode=%s\n",
+		fe_sec_tone_mode == SEC_TONE_ON ? "ON" : "OFF");
 
 	if (!dev->warm) {
 		ret = -EAGAIN;
@@ -1413,6 +1680,7 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1463,6 +1731,7 @@ static int m88ds3103_set_voltage(struct dvb_frontend *fe,
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1542,6 +1811,7 @@ static int m88ds3103_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1621,6 +1891,7 @@ static int m88ds3103_diseqc_send_burst(struct dvb_frontend *fe,
 	return 0;
 err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
+
 	return ret;
 }
 
@@ -1818,6 +2089,7 @@ static int m88ds3103_probe(struct i2c_client *client)
 	switch (dev->chip_id) {
 	case M88RS6000_CHIP_ID:
 	case M88DS3103_CHIP_ID:
+	case M88DS3103C_CHIP_ID:
 		break;
 	default:
 		ret = -ENODEV;
@@ -1847,7 +2119,8 @@ static int m88ds3103_probe(struct i2c_client *client)
 
 	/* 0x29 register is defined differently for m88rs6000. */
 	/* set internal tuner address to 0x21 */
-	if (dev->chip_id == M88RS6000_CHIP_ID)
+	if (dev->chip_id == M88RS6000_CHIP_ID ||
+	    dev->chip_id == M88DS3103C_CHIP_ID)
 		utmp = 0x00;
 
 	ret = regmap_write(dev->regmap, 0x29, utmp);
@@ -1882,6 +2155,9 @@ static int m88ds3103_probe(struct i2c_client *client)
 	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B)
 		strscpy(dev->fe.ops.info.name, "Montage Technology M88DS3103B",
 			sizeof(dev->fe.ops.info.name));
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103C)
+		strscpy(dev->fe.ops.info.name, "Montage Technology M88DS3103C",
+			sizeof(dev->fe.ops.info.name));
 	else if (dev->chip_id == M88RS6000_CHIP_ID)
 		strscpy(dev->fe.ops.info.name, "Montage Technology M88RS6000",
 			sizeof(dev->fe.ops.info.name));
@@ -1894,15 +2170,22 @@ static int m88ds3103_probe(struct i2c_client *client)
 	pdata->get_dvb_frontend = m88ds3103_get_dvb_frontend;
 	pdata->get_i2c_adapter = m88ds3103_get_i2c_adapter;
 
-	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B) {
+	if (dev->chiptype == M88DS3103_CHIPTYPE_3103B ||
+	    dev->chiptype == M88DS3103_CHIPTYPE_3103C) {
 		/* enable i2c repeater for tuner */
-		m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
+		if (dev->chip_id == M88DS3103C_CHIP_ID)
+			m88ds3103_update_bits(dev, 0x04, 0x10, 0x10);
+		else
+			m88ds3103_update_bits(dev, 0x11, 0x01, 0x01);
 
 		/* get frontend address */
 		ret = regmap_read(dev->regmap, 0x29, &utmp);
 		if (ret)
 			goto err_del_adapters;
+
 		dev->dt_addr = ((utmp & 0x80) == 0) ? 0x42 >> 1 : 0x40 >> 1;
+		if (dev->chiptype == M88DS3103_CHIPTYPE_3103C)
+			dev->dt_addr = 0x5c >> 1;
 		dev_dbg(&client->dev, "dt addr is 0x%02x\n", dev->dt_addr);
 
 		dev->dt_client = i2c_new_dummy_device(client->adapter,
@@ -1941,6 +2224,7 @@ static const struct i2c_device_id m88ds3103_id_table[] = {
 	{"m88ds3103",  M88DS3103_CHIPTYPE_3103},
 	{"m88rs6000",  M88DS3103_CHIPTYPE_RS6000},
 	{"m88ds3103b", M88DS3103_CHIPTYPE_3103B},
+	{"m88ds3103c", M88DS3103_CHIPTYPE_3103C},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, m88ds3103_id_table);
