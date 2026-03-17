@@ -1621,8 +1621,7 @@ static void hccs_remove_topo_dirs(struct hccs_dev *hdev)
 	hccs_remove_misc_sysfs(hdev);
 }
 
-static int hccs_create_hccs_dir(struct hccs_dev *hdev,
-				struct hccs_die_info *die,
+static int hccs_create_hccs_dir(struct hccs_die_info *die,
 				struct hccs_port_info *port)
 {
 	int ret;
@@ -1654,7 +1653,7 @@ static int hccs_create_die_dir(struct hccs_dev *hdev,
 
 	for (i = 0; i < die->port_num; i++) {
 		port = &die->ports[i];
-		ret = hccs_create_hccs_dir(hdev, die, port);
+		ret = hccs_create_hccs_dir(die, port);
 		if (ret) {
 			dev_err(hdev->dev, "create hccs%u dir failed.\n",
 				port->port_id);
