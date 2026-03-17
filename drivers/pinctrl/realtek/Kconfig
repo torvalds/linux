@@ -22,3 +22,17 @@ config PINCTRL_RTD1315E
 	tristate "Realtek DHC 1315E pin controller driver"
 	depends on PINCTRL_RTD
 	default y
+
+config PINCTRL_RTD1625
+	tristate "Realtek DHC 1625 pin controller driver"
+	depends on PINCTRL_RTD
+	default y
+	help
+	  This driver enables support for the pin controller on the Realtek
+	  RTD1625 SoCs.
+
+	  It implements pin multiplexing for function selection and GPIO enabling.
+	  It also utilizes the generic pin configuration interface to manage
+	  electrical properties for both individual pins and pin groups.
+
+	  Say Y here to enable the pinctrl driver for RTD1625 SoCs

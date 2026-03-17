@@ -98,6 +98,40 @@ struct rtd_pin_reg_list {
 		.curr_type = _curr_type, \
 	}
 
+#define RTK_PIN_CONFIG_V2(_name, _reg_off, _base_bit, _pud_en_off, \
+			  _pud_sel_off, _curr_off, _smt_off, _pow_off, _input_volt_off, \
+			  _curr_type) \
+	{ \
+		.name = # _name, \
+		.reg_offset = _reg_off, \
+		.base_bit = _base_bit, \
+		.pud_en_offset = _pud_en_off, \
+		.pud_sel_offset = _pud_sel_off, \
+		.curr_offset = _curr_off, \
+		.smt_offset = _smt_off, \
+		.power_offset = _pow_off, \
+		.input_volt_offset = _input_volt_off, \
+		.curr_type = _curr_type, \
+	}
+
+#define RTK_PIN_CONFIG_I2C(_name, _reg_off, _base_bit, _pud_en_off, \
+			   _pud_sel_off, _curr_off, _smt_off, _hvil_off, _sr_off, _pow_off, \
+			   _input_volt_off, _curr_type) \
+	{ \
+		.name = # _name, \
+		.reg_offset = _reg_off, \
+		.base_bit = _base_bit, \
+		.pud_en_offset = _pud_en_off, \
+		.pud_sel_offset = _pud_sel_off, \
+		.curr_offset = _curr_off, \
+		.smt_offset = _smt_off, \
+		.hvil_offset = _hvil_off, \
+		.slew_rate_offset = _sr_off, \
+		.power_offset = _pow_off, \
+		.input_volt_offset = _input_volt_off, \
+		.curr_type = _curr_type, \
+	}
+
 #define RTK_PIN_SCONFIG(_name, _reg_off, _d_offset, _d_mask, \
 			_n_offset, _n_mask, _p_offset, _p_mask) \
 	{ \
