@@ -10,12 +10,14 @@
 #include <linux/kvm_host.h>
 #include <linux/seq_file.h>
 
+#include <asm/cpufeature.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_pgtable.h>
 #include <asm/ptdump.h>
 
 #define MARKERS_LEN		2
 #define KVM_PGTABLE_MAX_LEVELS	(KVM_PGTABLE_LAST_LEVEL + 1)
+#define S2FNAMESZ		sizeof("0x0123456789abcdef-0x0123456789abcdef-s2-disabled")
 
 struct kvm_ptdump_guest_state {
 	struct kvm_s2_mmu	*mmu;
@@ -277,6 +279,28 @@ static const struct file_operations kvm_pgtable_levels_fops = {
 	.release	= kvm_pgtable_debugfs_close,
 };
 
+void kvm_nested_s2_ptdump_create_debugfs(struct kvm_s2_mmu *mmu)
+{
+	struct dentry *dent;
+	char file_name[S2FNAMESZ];
+
+	snprintf(file_name, sizeof(file_name), "0x%016llx-0x%016llx-s2-%sabled",
+		 mmu->tlb_vttbr,
+		 mmu->tlb_vtcr,
+		 mmu->nested_stage2_enabled ? "en" : "dis");
+
+	dent = debugfs_create_file(file_name, 0400,
+				   mmu->arch->debugfs_nv_dentry, mmu,
+				   &kvm_ptdump_guest_fops);
+
+	mmu->shadow_pt_debugfs_dentry = dent;
+}
+
+void kvm_nested_s2_ptdump_remove_debugfs(struct kvm_s2_mmu *mmu)
+{
+	debugfs_remove(mmu->shadow_pt_debugfs_dentry);
+}
+
 void kvm_s2_ptdump_create_debugfs(struct kvm *kvm)
 {
 	debugfs_create_file("stage2_page_tables", 0400, kvm->debugfs_dentry,
@@ -285,4 +309,6 @@ void kvm_s2_ptdump_create_debugfs(struct kvm *kvm)
 			    &kvm->arch.mmu, &kvm_pgtable_range_fops);
 	debugfs_create_file("stage2_levels", 0400, kvm->debugfs_dentry,
 			    &kvm->arch.mmu, &kvm_pgtable_levels_fops);
+	if (cpus_have_final_cap(ARM64_HAS_NESTED_VIRT))
+		kvm->arch.debugfs_nv_dentry = debugfs_create_dir("nested", kvm->debugfs_dentry);
 }
