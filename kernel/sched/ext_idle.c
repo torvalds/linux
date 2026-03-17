@@ -368,7 +368,7 @@ void scx_idle_update_selcpu_topology(struct sched_ext_ops *ops)
 
 	/*
 	 * Enable NUMA optimization only when there are multiple NUMA domains
-	 * among the online CPUs and the NUMA domains don't perfectly overlaps
+	 * among the online CPUs and the NUMA domains don't perfectly overlap
 	 * with the LLC domains.
 	 *
 	 * If all CPUs belong to the same NUMA node and the same LLC domain,

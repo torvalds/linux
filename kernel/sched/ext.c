@@ -73,8 +73,8 @@ static struct scx_sched *scx_enabling_sub_sched;
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
 /*
- * A monotically increasing sequence number that is incremented every time a
- * scheduler is enabled. This can be used by to check if any custom sched_ext
+ * A monotonically increasing sequence number that is incremented every time a
+ * scheduler is enabled. This can be used to check if any custom sched_ext
  * scheduler has ever been used in the system.
  */
 static atomic_long_t scx_enable_seq = ATOMIC_LONG_INIT(0);
@@ -4956,7 +4956,7 @@ void scx_softlockup(u32 dur_s)
  * a good state before taking more drastic actions.
  *
  * Returns %true if sched_ext is enabled and abort was initiated, which may
- * resolve the reported hardlockdup. %false if sched_ext is not enabled or
+ * resolve the reported hardlockup. %false if sched_ext is not enabled or
  * someone else already initiated abort.
  */
 bool scx_hardlockup(int cpu)

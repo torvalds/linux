@@ -18,7 +18,7 @@
  * 100/(100+100) == 1/2. At its parent level, A is competing against D and A's
  * share in that competition is 100/(200+100) == 1/3. B's eventual share in the
  * system can be calculated by multiplying the two shares, 1/2 * 1/3 == 1/6. C's
- * eventual shaer is the same at 1/6. D is only competing at the top level and
+ * eventual share is the same at 1/6. D is only competing at the top level and
  * its share is 200/(100+200) == 2/3.
  *
  * So, instead of hierarchically scheduling level-by-level, we can consider it
