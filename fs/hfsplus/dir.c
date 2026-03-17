@@ -603,11 +603,22 @@ static int hfsplus_rename(struct mnt_idmap *idmap,
 				 old_dir, &old_dentry->d_name,
 				 new_dir, &new_dentry->d_name);
 	if (!res) {
+		struct inode *inode = d_inode(old_dentry);
+
 		new_dentry->d_fsdata = old_dentry->d_fsdata;
 
+		inode_set_ctime_current(inode);
+		mark_inode_dirty(inode);
+
 		res = hfsplus_cat_write_inode(old_dir);
-		if (!res)
-			res = hfsplus_cat_write_inode(new_dir);
+		if (res)
+			return res;
+
+		res = hfsplus_cat_write_inode(new_dir);
+		if (res)
+			return res;
+
+		res = hfsplus_cat_write_inode(inode);
 	}
 	return res;
 }
