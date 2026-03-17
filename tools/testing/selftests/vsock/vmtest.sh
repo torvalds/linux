@@ -415,6 +415,19 @@ terminate_pids() {
 	done
 }
 
+vng_dry_run() {
+	# WORKAROUND: use setsid to work around a virtme-ng bug where vng hangs
+	# when called from a background process group (e.g., under make
+	# kselftest). vng save/restores terminal settings using tcsetattr(),
+	# which is not allowed for background process groups because the
+	# controlling terminal is owned by the foreground process group. vng is
+	# stopped with SIGTTOU and hangs until kselftest's timer expires.
+	# setsid works around this by launching vng in a new session that has
+	# no controlling terminal, so tcsetattr() succeeds.
+
+	setsid -w vng --run "$@" --dry-run &>/dev/null
+}
+
 vm_start() {
 	local pidfile=$1
 	local ns=$2
@@ -441,6 +454,12 @@ vm_start() {
 
 	if [[ "${BUILD}" -eq 1 ]]; then
 		kernel_opt="${KERNEL_CHECKOUT}"
+	elif vng_dry_run; then
+		kernel_opt=""
+	elif vng_dry_run "${KERNEL_CHECKOUT}"; then
+		kernel_opt="${KERNEL_CHECKOUT}"
+	else
+		die "No suitable kernel found"
 	fi
 
 	if [[ "${ns}" != "init_ns" ]]; then
