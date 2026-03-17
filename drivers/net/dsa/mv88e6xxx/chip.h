@@ -135,12 +135,14 @@ struct mv88e6xxx_info {
 	unsigned int num_ports;
 	unsigned int num_internal_phys;
 	unsigned int num_gpio;
+	unsigned int num_tcam_entries;
 	unsigned int max_vid;
 	unsigned int max_sid;
 	unsigned int port_base_addr;
 	unsigned int phy_base_addr;
 	unsigned int global1_addr;
 	unsigned int global2_addr;
+	unsigned int tcam_addr;
 	unsigned int age_time_coeff;
 	unsigned int g1_irqs;
 	unsigned int g2_irqs;
@@ -210,6 +212,7 @@ struct mv88e6xxx_avb_ops;
 struct mv88e6xxx_ptp_ops;
 struct mv88e6xxx_pcs_ops;
 struct mv88e6xxx_cc_coeffs;
+struct mv88e6xxx_tcam_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -339,6 +342,10 @@ struct mv88e6xxx_hw_stat {
 	int type;
 };
 
+struct mv88e6xxx_tcam {
+	struct list_head entries;
+};
+
 struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
 
@@ -444,6 +451,35 @@ struct mv88e6xxx_chip {
 
 	/* FID map */
 	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
+
+	/* TCAM entries */
+	struct mv88e6xxx_tcam tcam;
+};
+
+#define TCAM_MATCH_SIZE 96
+
+struct mv88e6xxx_tcam_key {
+	u16 spv;
+	u16 spv_mask;
+
+	u8 frame_data[TCAM_MATCH_SIZE];
+	u8 frame_mask[TCAM_MATCH_SIZE];
+};
+
+struct mv88e6xxx_tcam_action {
+	u8 dpv_mode;
+	u16 dpv;
+};
+
+struct mv88e6xxx_tcam_entry {
+	struct list_head list;
+	unsigned long cookie;
+	u32 prio;
+	u8 hw_idx;
+
+	struct mv88e6xxx_tcam_key key;
+	struct mv88e6xxx_tcam_action action;
+
 };
 
 struct mv88e6xxx_bus_ops {
@@ -678,6 +714,11 @@ struct mv88e6xxx_ops {
 
 	/* Max Frame Size */
 	int (*set_max_frame_size)(struct mv88e6xxx_chip *chip, int mtu);
+
+	int (*port_enable_tcam)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Ternary Content Addressable Memory operations */
+	const struct mv88e6xxx_tcam_ops *tcam_ops;
 };
 
 struct mv88e6xxx_irq_ops {
@@ -752,6 +793,12 @@ struct mv88e6xxx_pcs_ops {
 
 };
 
+struct mv88e6xxx_tcam_ops {
+	int (*entry_add)(struct mv88e6xxx_chip *chip,
+			 struct mv88e6xxx_tcam_entry *entry, u8 idx);
+	int (*flush_tcam)(struct mv88e6xxx_chip *chip);
+};
+
 static inline bool mv88e6xxx_has_stu(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->max_sid > 0 &&
@@ -767,6 +814,11 @@ static inline bool mv88e6xxx_has_pvt(struct mv88e6xxx_chip *chip)
 static inline bool mv88e6xxx_has_lag(struct mv88e6xxx_chip *chip)
 {
 	return !!chip->info->global2_addr;
+}
+
+static inline bool mv88e6xxx_has_tcam(struct mv88e6xxx_chip *chip)
+{
+	return !!chip->info->tcam_addr;
 }
 
 static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
