@@ -4551,8 +4551,7 @@ void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)
 				  BTRFS_QGROUP_RSV_META_PERTRANS);
 }
 
-void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
-			      enum btrfs_qgroup_rsv_type type)
+void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root, int num_bytes)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
@@ -4565,10 +4564,13 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	 * which can lead to underflow.
 	 * Here ensure we will only free what we really have reserved.
 	 */
-	num_bytes = sub_root_meta_rsv(root, num_bytes, type);
+	num_bytes = sub_root_meta_rsv(root, num_bytes,
+				      BTRFS_QGROUP_RSV_META_PREALLOC);
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	trace_btrfs_qgroup_meta_reserve(root, -(s64)num_bytes, type);
-	btrfs_qgroup_free_refroot(fs_info, btrfs_root_id(root), num_bytes, type);
+	trace_btrfs_qgroup_meta_reserve(root, -(s64)num_bytes,
+					BTRFS_QGROUP_RSV_META_PREALLOC);
+	btrfs_qgroup_free_refroot(fs_info, btrfs_root_id(root), num_bytes,
+				  BTRFS_QGROUP_RSV_META_PREALLOC);
 }
 
 static void qgroup_convert_meta(struct btrfs_fs_info *fs_info, u64 ref_root,

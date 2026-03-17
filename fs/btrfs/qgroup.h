@@ -407,16 +407,8 @@ static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
 					   enforce, noflush);
 }
 
-void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
-			     enum btrfs_qgroup_rsv_type type);
-
 /* Pre-allocated meta reservation can be freed at need */
-static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PREALLOC);
-}
+void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root, int num_bytes);
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
