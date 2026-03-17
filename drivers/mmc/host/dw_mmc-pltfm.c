@@ -59,12 +59,13 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_register);
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 {
 	struct device_node *np = host->dev->of_node;
+	struct mmc_clk_phase phase;
 	struct regmap *sys_mgr_base_addr;
-	u32 clk_phase[2] = {0}, reg_offset, reg_shift;
-	int i, rc, hs_timing;
+	u32 reg_offset, reg_shift;
+	int hs_timing;
 
-	rc = of_property_read_variable_u32_array(np, "clk-phase-sd-hs", &clk_phase[0], 2, 0);
-	if (rc < 0)
+	phase = host->phase_map.phase[MMC_TIMING_SD_HS];
+	if (!phase.valid)
 		return 0;
 
 	sys_mgr_base_addr = altr_sysmgr_regmap_lookup_by_phandle(np, "altr,sysmgr-syscon");
@@ -76,10 +77,10 @@ static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 	of_property_read_u32_index(np, "altr,sysmgr-syscon", 1, &reg_offset);
 	of_property_read_u32_index(np, "altr,sysmgr-syscon", 2, &reg_shift);
 
-	for (i = 0; i < ARRAY_SIZE(clk_phase); i++)
-		clk_phase[i] /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
+	phase.in_deg /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
+	phase.out_deg /= SOCFPGA_DW_MMC_CLK_PHASE_STEP;
 
-	hs_timing = SYSMGR_SDMMC_CTRL_SET(clk_phase[0], clk_phase[1], reg_shift);
+	hs_timing = SYSMGR_SDMMC_CTRL_SET(phase.in_deg, phase.out_deg, reg_shift);
 	regmap_write(sys_mgr_base_addr, reg_offset, hs_timing);
 
 	return 0;
