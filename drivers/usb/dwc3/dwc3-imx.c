@@ -288,6 +288,9 @@ static void dwc3_imx_remove(struct platform_device *pdev)
 
 static void dwc3_imx_suspend(struct dwc3_imx *dwc_imx, pm_message_t msg)
 {
+	if (dwc_imx->pm_suspended)
+		return;
+
 	if (PMSG_IS_AUTO(msg) || device_may_wakeup(dwc_imx->dev))
 		dwc3_imx_wakeup_enable(dwc_imx, msg);
 
@@ -298,6 +301,9 @@ static void dwc3_imx_suspend(struct dwc3_imx *dwc_imx, pm_message_t msg)
 static void dwc3_imx_resume(struct dwc3_imx *dwc_imx, pm_message_t msg)
 {
 	struct dwc3	*dwc = &dwc_imx->dwc;
+
+	if (!dwc_imx->pm_suspended)
+		return;
 
 	dwc_imx->pm_suspended = false;
 	if (!dwc_imx->wakeup_pending)
