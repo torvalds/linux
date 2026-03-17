@@ -392,8 +392,6 @@ int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len, u64
 int btrfs_qgroup_free_data(struct btrfs_inode *inode,
 			   struct extent_changeset *reserved, u64 start,
 			   u64 len, u64 *freed);
-int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-			      enum btrfs_qgroup_rsv_type type, bool enforce);
 int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root, int num_bytes,
 				       bool enforce, bool noflush);
 /* Pre-allocated meta reservation can be freed at need */
