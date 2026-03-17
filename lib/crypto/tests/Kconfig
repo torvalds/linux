@@ -3,7 +3,7 @@
 config CRYPTO_LIB_AES_CBC_MACS_KUNIT_TEST
 	tristate "KUnit tests for AES-CMAC, AES-XCBC-MAC, and AES-CBC-MAC" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_AES_CBC_MACS
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the AES-CMAC, AES-XCBC-MAC, and AES-CBC-MAC message
@@ -12,7 +12,7 @@ config CRYPTO_LIB_AES_CBC_MACS_KUNIT_TEST
 config CRYPTO_LIB_BLAKE2B_KUNIT_TEST
 	tristate "KUnit tests for BLAKE2b" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_BLAKE2B
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the BLAKE2b cryptographic hash function.
@@ -20,7 +20,7 @@ config CRYPTO_LIB_BLAKE2B_KUNIT_TEST
 config CRYPTO_LIB_BLAKE2S_KUNIT_TEST
 	tristate "KUnit tests for BLAKE2s" if !KUNIT_ALL_TESTS
 	depends on KUNIT
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	# No need to depend on CRYPTO_LIB_BLAKE2S here, as that option doesn't
 	# exist; the BLAKE2s code is always built-in for the /dev/random driver.
@@ -30,7 +30,7 @@ config CRYPTO_LIB_BLAKE2S_KUNIT_TEST
 config CRYPTO_LIB_CURVE25519_KUNIT_TEST
 	tristate "KUnit tests for Curve25519" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_CURVE25519
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the Curve25519 Diffie-Hellman function.
@@ -38,7 +38,7 @@ config CRYPTO_LIB_CURVE25519_KUNIT_TEST
 config CRYPTO_LIB_MD5_KUNIT_TEST
 	tristate "KUnit tests for MD5" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_MD5
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the MD5 cryptographic hash function and its
@@ -47,7 +47,7 @@ config CRYPTO_LIB_MD5_KUNIT_TEST
 config CRYPTO_LIB_MLDSA_KUNIT_TEST
 	tristate "KUnit tests for ML-DSA" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_MLDSA
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the ML-DSA digital signature algorithm.
@@ -55,14 +55,14 @@ config CRYPTO_LIB_MLDSA_KUNIT_TEST
 config CRYPTO_LIB_NH_KUNIT_TEST
 	tristate "KUnit tests for NH" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_NH
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	help
 	  KUnit tests for the NH almost-universal hash function.
 
 config CRYPTO_LIB_POLY1305_KUNIT_TEST
 	tristate "KUnit tests for Poly1305" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_POLY1305
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the Poly1305 library functions.
@@ -70,7 +70,7 @@ config CRYPTO_LIB_POLY1305_KUNIT_TEST
 config CRYPTO_LIB_POLYVAL_KUNIT_TEST
 	tristate "KUnit tests for POLYVAL" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_POLYVAL
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the POLYVAL library functions.
@@ -78,7 +78,7 @@ config CRYPTO_LIB_POLYVAL_KUNIT_TEST
 config CRYPTO_LIB_SHA1_KUNIT_TEST
 	tristate "KUnit tests for SHA-1" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_SHA1
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the SHA-1 cryptographic hash function and its
@@ -89,7 +89,7 @@ config CRYPTO_LIB_SHA1_KUNIT_TEST
 config CRYPTO_LIB_SHA256_KUNIT_TEST
 	tristate "KUnit tests for SHA-224 and SHA-256" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_SHA256
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the SHA-224 and SHA-256 cryptographic hash functions
@@ -100,7 +100,7 @@ config CRYPTO_LIB_SHA256_KUNIT_TEST
 config CRYPTO_LIB_SHA512_KUNIT_TEST
 	tristate "KUnit tests for SHA-384 and SHA-512" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_SHA512
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the SHA-384 and SHA-512 cryptographic hash functions
@@ -109,7 +109,7 @@ config CRYPTO_LIB_SHA512_KUNIT_TEST
 config CRYPTO_LIB_SHA3_KUNIT_TEST
 	tristate "KUnit tests for SHA-3" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_SHA3
-	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	default KUNIT_ALL_TESTS
 	select CRYPTO_LIB_BENCHMARK_VISIBLE
 	help
 	  KUnit tests for the SHA3 cryptographic hash and XOF functions,
