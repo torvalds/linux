@@ -514,6 +514,7 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 	loff_t length = iomap_length(iter);
 	struct folio *folio = ctx->cur_folio;
 	size_t folio_len = folio_size(folio);
+	struct iomap_folio_state *ifs;
 	size_t poff, plen;
 	loff_t pos_diff;
 	int ret;
@@ -525,7 +526,7 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 		return iomap_iter_advance(iter, length);
 	}
 
-	ifs_alloc(iter->inode, folio, iter->flags);
+	ifs = ifs_alloc(iter->inode, folio, iter->flags);
 
 	length = min_t(loff_t, length, folio_len - offset_in_folio(folio, pos));
 	while (length) {
@@ -560,11 +561,15 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 
 			*bytes_submitted += plen;
 			/*
-			 * If the entire folio has been read in by the IO
-			 * helper, then the helper owns the folio and will end
-			 * the read on it.
+			 * Hand off folio ownership to the IO helper when:
+			 * 1) The entire folio has been submitted for IO, or
+			 * 2) There is no ifs attached to the folio
+			 *
+			 * Case (2) occurs when 1 << i_blkbits matches the folio
+			 * size but the underlying filesystem or block device
+			 * uses a smaller granularity for IO.
 			 */
-			if (*bytes_submitted == folio_len)
+			if (*bytes_submitted == folio_len || !ifs)
 				ctx->cur_folio = NULL;
 		}
 
