@@ -961,7 +961,7 @@ static ssize_t link_fsm_show(struct kobject *kobj,
 	struct hccs_link_status link_status = {0};
 	const struct {
 		u8 link_fsm;
-		char *str;
+		const char *str;
 	} link_fsm_map[] = {
 		{HCCS_PORT_RESET, "reset"},
 		{HCCS_PORT_SETUP, "setup"},
