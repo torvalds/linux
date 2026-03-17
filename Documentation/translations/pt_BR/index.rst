@@ -66,6 +66,7 @@ kernel e sobre como ver seu trabalho integrado.
 .. toctree::
    :maxdepth: 1
 
+   Introdução <process/1.Intro>
    Como começar <process/howto>
    Requisitos mínimos <process/changes>
    Manuais dos mantenedores <process/maintainer-handbooks>
