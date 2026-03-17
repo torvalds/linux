@@ -179,7 +179,8 @@ static ssize_t mlx5vf_save_read(struct file *filp, char __user *buf, size_t len,
 				!list_empty(&migf->buf_list) ||
 				migf->state == MLX5_MIGF_STATE_ERROR ||
 				migf->state == MLX5_MIGF_STATE_PRE_COPY_ERROR ||
-				migf->state == MLX5_MIGF_STATE_PRE_COPY ||
+				(migf->state == MLX5_MIGF_STATE_PRE_COPY &&
+				 !migf->inflight_save) ||
 				migf->state == MLX5_MIGF_STATE_COMPLETE))
 			return -ERESTARTSYS;
 	}

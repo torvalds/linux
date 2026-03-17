@@ -606,6 +606,8 @@ static void
 mlx5vf_save_callback_complete(struct mlx5_vf_migration_file *migf,
 			      struct mlx5vf_async_data *async_data)
 {
+	migf->inflight_save = 0;
+	wake_up_interruptible(&migf->poll_wait);
 	kvfree(async_data->out);
 	complete(&migf->save_comp);
 	fput(migf->filp);
@@ -809,6 +811,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 	async_data->header_buf = header_buf;
 	get_file(migf->filp);
+	migf->inflight_save = 1;
 	err = mlx5_cmd_exec_cb(&migf->async_ctx, in, sizeof(in),
 			       async_data->out,
 			       out_size, mlx5vf_save_callback,
@@ -819,6 +822,8 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	return 0;
 
 err_exec:
+	migf->inflight_save = 0;
+	wake_up_interruptible(&migf->poll_wait);
 	if (header_buf)
 		mlx5vf_put_data_buffer(header_buf);
 	fput(migf->filp);

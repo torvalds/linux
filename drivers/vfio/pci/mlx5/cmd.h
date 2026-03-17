@@ -111,6 +111,7 @@ struct mlx5_vf_migration_file {
 	struct completion save_comp;
 	struct mlx5_async_ctx async_ctx;
 	struct mlx5vf_async_data async_data;
+	u8 inflight_save:1;
 };
 
 struct mlx5_vhca_cq_buf {
