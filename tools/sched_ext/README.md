@@ -58,14 +58,8 @@ CONFIG_SCHED_CLASS_EXT=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_JIT=y
 CONFIG_DEBUG_INFO_BTF=y
-```
-
-It's also recommended that you also include the following Kconfig options:
-
-```
 CONFIG_BPF_JIT_ALWAYS_ON=y
 CONFIG_BPF_JIT_DEFAULT_ON=y
-CONFIG_PAHOLE_HAS_BTF_TAG=y
 ```
 
 There is a `Kconfig` file in this directory whose contents you can append to

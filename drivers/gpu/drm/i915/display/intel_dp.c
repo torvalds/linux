@@ -4577,6 +4577,7 @@ static bool
 intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	int ret;
 
 	/* this function is meant to be called only once */
 	drm_WARN_ON(display->drm, intel_dp->dpcd[DP_DPCD_REV] != 0);
@@ -4615,6 +4616,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	 * available (such as HDR backlight controls)
 	 */
 	intel_dp_init_source_oui(intel_dp);
+
+	/* Read the ALPM DPCD caps */
+	ret = drm_dp_dpcd_read_byte(&intel_dp->aux, DP_RECEIVER_ALPM_CAP,
+				    &intel_dp->alpm_dpcd);
+	if (ret < 0)
+		return false;
 
 	/*
 	 * This has to be called after intel_dp->edp_dpcd is filled, PSR checks

@@ -245,10 +245,13 @@ static int calc_sizes(struct drm_device *ddev,
 			((st->ifm.stride_kernel >> 1) & 0x1) + 1;
 		u32 stride_x = ((st->ifm.stride_kernel >> 5) & 0x2) +
 			(st->ifm.stride_kernel & 0x1) + 1;
-		u32 ifm_height = st->ofm.height[2] * stride_y +
+		s32 ifm_height = st->ofm.height[2] * stride_y +
 			st->ifm.height[2] - (st->ifm.pad_top + st->ifm.pad_bottom);
-		u32 ifm_width  = st->ofm.width * stride_x +
+		s32 ifm_width = st->ofm.width * stride_x +
 			st->ifm.width - (st->ifm.pad_left + st->ifm.pad_right);
+
+		if (ifm_height < 0 || ifm_width < 0)
+			return -EINVAL;
 
 		len = feat_matrix_length(info, &st->ifm, ifm_width,
 					 ifm_height, st->ifm.depth);
@@ -417,7 +420,10 @@ static int ethosu_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 				return ret;
 			break;
 		case NPU_OP_ELEMENTWISE:
-			use_ifm2 = !((st.ifm2.broadcast == 8) || (param == 5) ||
+			use_scale = ethosu_is_u65(edev) ?
+				    (st.ifm2.broadcast & 0x80) :
+				    (st.ifm2.broadcast == 8);
+			use_ifm2 = !(use_scale || (param == 5) ||
 				(param == 6) || (param == 7) || (param == 0x24));
 			use_ifm = st.ifm.broadcast != 8;
 			ret = calc_sizes_elemwise(ddev, info, cmd, &st, use_ifm, use_ifm2);
