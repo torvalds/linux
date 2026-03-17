@@ -1010,9 +1010,7 @@ static bool combine_lpi_states(struct acpi_lpi_state *local,
 	result->arch_flags = parent->arch_flags;
 	result->index = parent->index;
 
-	strscpy(result->desc, local->desc, ACPI_CX_DESC_LEN);
-	strlcat(result->desc, "+", ACPI_CX_DESC_LEN);
-	strlcat(result->desc, parent->desc, ACPI_CX_DESC_LEN);
+	scnprintf(result->desc, ACPI_CX_DESC_LEN, "%s+%s", local->desc, parent->desc);
 	return true;
 }
 
