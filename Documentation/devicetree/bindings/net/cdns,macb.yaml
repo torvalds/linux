@@ -70,6 +70,14 @@ properties:
               - microchip,sama7d65-gem   # Microchip SAMA7D65 gigabit ethernet interface
           - const: microchip,sama7g5-gem # Microchip SAMA7G5 gigabit ethernet interface
 
+      - items:
+          - const: microchip,pic64hpsc-gem # Microchip PIC64-HPSC
+          - const: cdns,gem
+      - items:
+          - const: microchip,pic64hx-gem   # Microchip PIC64HX
+          - const: microchip,pic64hpsc-gem # Microchip PIC64-HPSC
+          - const: cdns,gem
+
   reg:
     minItems: 1
     items:
@@ -195,6 +203,17 @@ allOf:
     then:
       required:
         - phys
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,pic64hpsc-gem
+    then:
+      patternProperties:
+        "^ethernet-phy@[0-9a-f]$": false
+      properties:
+        mdio: false
 
 unevaluatedProperties: false
 
