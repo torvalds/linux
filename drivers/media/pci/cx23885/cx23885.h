@@ -404,6 +404,7 @@ struct cx23885_dev {
 	unsigned char              radio_addr;
 	struct v4l2_subdev	   *sd_cx25840;
 	struct work_struct	   cx25840_work;
+	unsigned int		   disable_analog;
 
 	/* Infrared */
 	struct v4l2_subdev         *sd_ir;

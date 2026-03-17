@@ -2443,6 +2443,9 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_VIEWCAST_460E:
 	case CX23885_BOARD_AVERMEDIA_CE310B:
 	case CX23885_BOARD_AVERMEDIA_H789C:
+		if (dev->disable_analog)
+			break;
+
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
