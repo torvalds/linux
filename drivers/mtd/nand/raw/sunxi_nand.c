@@ -1756,7 +1756,11 @@ static int sunxi_nand_ooblayout_free(struct mtd_info *mtd, int section,
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct nand_ecc_ctrl *ecc = &nand->ecc;
 
-	if (section > ecc->steps)
+	/*
+	 * The controller does not provide access to OOB bytes
+	 * past the end of the ECC data.
+	 */
+	if (section >= ecc->steps)
 		return -ERANGE;
 
 	/*
@@ -1764,26 +1768,15 @@ static int sunxi_nand_ooblayout_free(struct mtd_info *mtd, int section,
 	 * only have USER_DATA_SZ - 2 bytes available in the first user data
 	 * section.
 	 */
-	if (!section && ecc->engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST) {
+	if (section == 0) {
 		oobregion->offset = 2;
 		oobregion->length = USER_DATA_SZ - 2;
 
 		return 0;
 	}
 
-	/*
-	 * The controller does not provide access to OOB bytes
-	 * past the end of the ECC data.
-	 */
-	if (section == ecc->steps && ecc->engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST)
-		return -ERANGE;
-
 	oobregion->offset = section * (ecc->bytes + USER_DATA_SZ);
-
-	if (section < ecc->steps)
-		oobregion->length = USER_DATA_SZ;
-	else
-		oobregion->length = mtd->oobsize - oobregion->offset;
+	oobregion->length = USER_DATA_SZ;
 
 	return 0;
 }
