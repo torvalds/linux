@@ -162,6 +162,11 @@ properties:
       this affects the expected delay in ps before latching a value to
       an output pin.
 
+  input-threshold-voltage-microvolt:
+    description: Specifies the input voltage level of the pin in microvolts.
+      This defines the reference for  VIH (Input High Voltage) and VIL
+      (Input Low Voltage) thresholds for proper signal detection.
+
 allOf:
   - if:
       required:
@@ -177,6 +182,7 @@ allOf:
     then:
       properties:
         input-enable: false
+        input-threshold-voltage-microvolt: false
 
   - if:
       required:
