@@ -118,6 +118,7 @@ int quickspi_hid_probe(struct quickspi_device *qsdev)
 	hid->product = le16_to_cpu(qsdev->dev_desc.product_id);
 	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "quickspi-hid",
 		 hid->vendor, hid->product);
+	strscpy(hid->phys, dev_name(qsdev->dev), sizeof(hid->phys));
 
 	ret = hid_add_device(hid);
 	if (ret) {
