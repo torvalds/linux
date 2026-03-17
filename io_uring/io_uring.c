@@ -1073,12 +1073,14 @@ void io_queue_next(struct io_kiocb *req)
 
 static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
+	struct io_ring_ctx *ctx = req->ctx;
+
 	if (req->file_node) {
-		io_put_rsrc_node(req->ctx, req->file_node);
+		io_put_rsrc_node(ctx, req->file_node);
 		req->file_node = NULL;
 	}
 	if (req->flags & REQ_F_BUF_NODE)
-		io_put_rsrc_node(req->ctx, req->buf_node);
+		io_put_rsrc_node(ctx, req->buf_node);
 }
 
 static void io_free_batch_list(struct io_ring_ctx *ctx,
