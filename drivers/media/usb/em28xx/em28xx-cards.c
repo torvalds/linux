@@ -2623,6 +2623,23 @@ const struct em28xx_board em28xx_boards[] = {
 			.gpio     = mygica_utv3_tuner_audio_gpio,
 		} },
 	},
+	[EM2828X_BOARD_HAUPPAUGE_USB_LIVE2] = {
+		.name         = "Hauppauge USB Live2",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.has_dvb      = 0,
+		.decoder      = EM28XX_BUILTIN,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2770,6 +2787,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595 },
 	{ USB_DEVICE(0x2040, 0x846d),
 			.driver_info = EM2874_BOARD_HAUPPAUGE_USB_QUADHD },
+	{ USB_DEVICE(0x2040, 0xc220),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_USB_LIVE2 },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -3260,6 +3279,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
 	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
 	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595:
+	case EM2828X_BOARD_HAUPPAUGE_USB_LIVE2:
 	{
 		struct tveeprom tv;
 

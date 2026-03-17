@@ -144,6 +144,7 @@
 #define EM2860_BOARD_MYGICA_IGRABBER              105
 #define EM2874_BOARD_HAUPPAUGE_USB_QUADHD         106
 #define EM2860_BOARD_MYGICA_UTV3                  107
+#define EM2828X_BOARD_HAUPPAUGE_USB_LIVE2         108
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
