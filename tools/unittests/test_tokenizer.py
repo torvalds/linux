@@ -15,8 +15,9 @@ from unittest.mock import MagicMock
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(SRC_DIR, "../lib/python"))
 
-from kdoc.kdoc_parser import trim_private_members
+from kdoc.c_lex import CTokenizer
 from unittest_helper import run_unittest
+
 
 #
 # List of tests.
@@ -24,11 +25,33 @@ from unittest_helper import run_unittest
 # The code will dynamically generate one test for each key on this dictionary.
 #
 
+def make_private_test(name, data):
+    """
+    Create a test named ``name`` using parameters given by ``data`` dict.
+    """
+
+    def test(self):
+        """In-lined lambda-like function to run the test"""
+        tokens = CTokenizer(data["source"])
+        result = str(tokens)
+
+        #
+        # Avoid whitespace false positives
+        #
+        result = re.sub(r"\s++", " ", result).strip()
+        expected = re.sub(r"\s++", " ", data["trimmed"]).strip()
+
+        msg = f"failed when parsing this source:\n{data['source']}"
+        self.assertEqual(result, expected, msg=msg)
+
+    return test
+
 #: Tests to check if CTokenizer is handling properly public/private comments.
 TESTS_PRIVATE = {
     #
     # Simplest case: no private. Ensure that trimming won't affect struct
     #
+    "__run__": make_private_test,
     "no private": {
         "source": """
             struct foo {
@@ -288,41 +311,45 @@ TESTS_PRIVATE = {
     },
 }
 
+#: Dict containing all test groups fror CTokenizer
+TESTS = {
+    "TestPublicPrivate": TESTS_PRIVATE,
+}
 
-class TestPublicPrivate(unittest.TestCase):
+def setUp(self):
+    self.maxDiff = None
+
+def build_test_class(group_name, table):
     """
-    Main test class. Populated dynamically at runtime.
+    Dynamically creates a class instance using type() as a generator
+    for a new class derivated from unittest.TestCase.
+
+    We're opting to do it inside a function to avoid the risk of
+    changing the globals() dictionary.
     """
 
-    def setUp(self):
-        self.maxDiff = None
+    class_dict = {
+        "setUp": setUp
+    }
 
-    def add_test(cls, name, source, trimmed):
-        """
-        Dynamically add a test to the class
-        """
-        def test(cls):
-            result = trim_private_members(source)
+    run = table["__run__"]
 
-            result = re.sub(r"\s++", " ", result).strip()
-            expected = re.sub(r"\s++", " ", trimmed).strip()
+    for test_name, data in table.items():
+        if test_name == "__run__":
+            continue
 
-            msg = f"failed when parsing this source:\n" + source
+        class_dict[f"test_{test_name}"] = run(test_name, data)
 
-            cls.assertEqual(result, expected, msg=msg)
+    cls = type(group_name, (unittest.TestCase,), class_dict)
 
-        test.__name__ = f'test {name}'
-
-        setattr(TestPublicPrivate, test.__name__, test)
-
+    return cls.__name__, cls
 
 #
-# Populate TestPublicPrivate class
+# Create classes and add them to the global dictionary
 #
-test_class = TestPublicPrivate()
-for name, test in TESTS_PRIVATE.items():
-    test_class.add_test(name, test["source"], test["trimmed"])
-
+for group, table in TESTS.items():
+    t = build_test_class(group, table)
+    globals()[t[0]] = t[1]
 
 #
 # main
