@@ -96,7 +96,7 @@ NODE_CANCEL_ADDING_FIRST_MEMORY
  Generated if NODE_ADDING_FIRST_MEMORY fails.
 
 NODE_ADDED_FIRST_MEMORY
- Generated when memory has become available fo this node for the first time.
+ Generated when memory has become available for this node for the first time.
 
 NODE_REMOVING_LAST_MEMORY
  Generated when the last memory available to this node is about to be offlined.
