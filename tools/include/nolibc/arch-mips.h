@@ -39,11 +39,19 @@
  *   - stack is 16-byte aligned
  */
 
+#if !defined(__mips_isa_rev) || __mips_isa_rev < 6
+#define _NOLIBC_SYSCALL_CLOBBER_HI_LO "hi", "lo"
+#else
+#define _NOLIBC_SYSCALL_CLOBBER_HI_LO "$0"
+#endif
+
 #if defined(_ABIO32)
 
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
-	"memory", "cc", "at", "v1", "hi", "lo", \
-	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"
+	"memory", "cc", "at", "v1", \
+	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", \
+	_NOLIBC_SYSCALL_CLOBBER_HI_LO
+
 #define _NOLIBC_SYSCALL_STACK_RESERVE "addiu $sp, $sp, -32\n"
 #define _NOLIBC_SYSCALL_STACK_UNRESERVE "addiu $sp, $sp, 32\n"
 
@@ -52,7 +60,8 @@
 /* binutils, GCC and clang disagree about register aliases, use numbers instead. */
 #define _NOLIBC_SYSCALL_CLOBBERLIST \
 	"memory", "cc", "at", "v1", \
-	"10", "11", "12", "13", "14", "15", "24", "25"
+	"10", "11", "12", "13", "14", "15", "24", "25", \
+	_NOLIBC_SYSCALL_CLOBBER_HI_LO
 
 #define _NOLIBC_SYSCALL_STACK_RESERVE
 #define _NOLIBC_SYSCALL_STACK_UNRESERVE
