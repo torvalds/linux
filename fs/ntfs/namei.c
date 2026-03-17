@@ -274,7 +274,6 @@ handle_name:
 			}
 			do {
 				struct attr_record *a;
-				u32 val_len;
 
 				err = ntfs_attr_lookup(AT_FILE_NAME, NULL, 0, 0, 0,
 						NULL, 0, ctx);
@@ -289,15 +288,8 @@ handle_name:
 				a = ctx->attr;
 				if (a->non_resident || a->flags)
 					goto eio_err_out;
-				val_len = le32_to_cpu(a->data.resident.value_length);
-				if (le16_to_cpu(a->data.resident.value_offset) +
-						val_len > le32_to_cpu(a->length))
-					goto eio_err_out;
 				fn = (struct file_name_attr *)((u8 *)ctx->attr + le16_to_cpu(
 							ctx->attr->data.resident.value_offset));
-				if ((u32)(fn->file_name_length * sizeof(__le16) +
-							sizeof(struct file_name_attr)) > val_len)
-					goto eio_err_out;
 			} while (fn->file_name_type != FILE_NAME_WIN32);
 
 			/* Convert the found WIN32 name to current NLS code page. */

@@ -1512,7 +1512,6 @@ iput_volume_failed:
 
 	if (ntfs_attr_lookup(AT_VOLUME_INFORMATION, NULL, 0, 0, 0, NULL, 0,
 			ctx) || ctx->attr->non_resident || ctx->attr->flags) {
-err_put_vol:
 		ntfs_attr_put_search_ctx(ctx);
 get_ctx_vol_failed:
 		unmap_mft_record(NTFS_I(vol->vol_ino));
@@ -1520,11 +1519,6 @@ get_ctx_vol_failed:
 	}
 	vi = (struct volume_information *)((char *)ctx->attr +
 			le16_to_cpu(ctx->attr->data.resident.value_offset));
-	/* Some bounds checks. */
-	if ((u8 *)vi < (u8 *)ctx->attr || (u8 *)vi +
-			le32_to_cpu(ctx->attr->data.resident.value_length) >
-			(u8 *)ctx->attr + le32_to_cpu(ctx->attr->length))
-		goto err_put_vol;
 	/* Copy the volume flags and version to the struct ntfs_volume structure. */
 	vol->vol_flags = vi->flags;
 	vol->major_ver = vi->major_ver;

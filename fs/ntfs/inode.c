@@ -757,12 +757,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	}
 	a = ctx->attr;
 	/* Get the standard information attribute value. */
-	if ((u8 *)a + le16_to_cpu(a->data.resident.value_offset)
-			+ le32_to_cpu(a->data.resident.value_length) >
-			(u8 *)ctx->mrec + vol->mft_record_size) {
-		ntfs_error(vi->i_sb, "Corrupt standard information attribute in inode.");
-		goto unm_err_out;
-	}
 	si = (struct standard_information *)((u8 *)a +
 			le16_to_cpu(a->data.resident.value_offset));
 
@@ -849,13 +843,6 @@ static int ntfs_read_locked_inode(struct inode *vi)
 				goto unm_err_out;
 			}
 		} else /* if (!a->non_resident) */ {
-			if ((u8 *)a + le16_to_cpu(a->data.resident.value_offset)
-					+ le32_to_cpu(
-					a->data.resident.value_length) >
-					(u8 *)ctx->mrec + vol->mft_record_size) {
-				ntfs_error(vi->i_sb, "Corrupt attribute list in inode.");
-				goto unm_err_out;
-			}
 			/* Now copy the attribute list. */
 			memcpy(ni->attr_list, (u8 *)a + le16_to_cpu(
 					a->data.resident.value_offset),
@@ -954,10 +941,6 @@ view_index_meta:
 		ir = (struct index_root *)((u8 *)a +
 				le16_to_cpu(a->data.resident.value_offset));
 		ir_end = (u8 *)ir + le32_to_cpu(a->data.resident.value_length);
-		if (ir_end > (u8 *)ctx->mrec + vol->mft_record_size) {
-			ntfs_error(vi->i_sb, "$INDEX_ROOT attribute is corrupt.");
-			goto unm_err_out;
-		}
 		index_end = (u8 *)&ir->index +
 				le32_to_cpu(ir->index.index_length);
 		if (index_end > ir_end) {
@@ -1552,10 +1535,6 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 
 	ir = (struct index_root *)((u8 *)a + le16_to_cpu(a->data.resident.value_offset));
 	ir_end = (u8 *)ir + le32_to_cpu(a->data.resident.value_length);
-	if (ir_end > (u8 *)ctx->mrec + vol->mft_record_size) {
-		ntfs_error(vi->i_sb, "$INDEX_ROOT attribute is corrupt.");
-		goto unm_err_out;
-	}
 	index_end = (u8 *)&ir->index + le32_to_cpu(ir->index.index_length);
 	if (index_end > ir_end) {
 		ntfs_error(vi->i_sb, "Index is corrupt.");
@@ -1999,13 +1978,6 @@ int ntfs_read_inode_mount(struct inode *vi)
 				goto put_err_out;
 			}
 		} else /* if (!ctx.attr->non_resident) */ {
-			if ((u8 *)a + le16_to_cpu(
-					a->data.resident.value_offset) +
-					le32_to_cpu(a->data.resident.value_length) >
-					(u8 *)ctx->mrec + vol->mft_record_size) {
-				ntfs_error(sb, "Corrupt attribute list attribute.");
-				goto put_err_out;
-			}
 			/* Now copy the attribute list. */
 			memcpy(ni->attr_list, (u8 *)a + le16_to_cpu(
 					a->data.resident.value_offset),
