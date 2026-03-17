@@ -578,6 +578,14 @@ bool unwind_next_frame(struct unwind_state *state)
 		}
 		break;
 
+	case ORC_REG_AX:
+		if (!get_reg(state, offsetof(struct pt_regs, ax), &sp)) {
+			orc_warn_current("missing AX value at %pB\n",
+					 (void *)state->ip);
+			goto err;
+		}
+		break;
+
 	default:
 		orc_warn("unknown SP base reg %d at %pB\n",
 			 orc->sp_reg, (void *)state->ip);

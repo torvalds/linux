@@ -37,6 +37,7 @@
 #define ORC_REG_R13			7
 #define ORC_REG_BP_INDIRECT		8
 #define ORC_REG_SP_INDIRECT		9
+#define ORC_REG_AX			10
 #define ORC_REG_MAX			15
 
 #define ORC_TYPE_UNDEFINED		0

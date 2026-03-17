@@ -70,6 +70,9 @@ int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi, struct instruct
 	case CFI_DX:
 		orc->sp_reg = ORC_REG_DX;
 		break;
+	case CFI_AX:
+		orc->sp_reg = ORC_REG_AX;
+		break;
 	default:
 		ERROR_INSN(insn, "unknown CFA base reg %d", cfi->cfa.base);
 		return -1;
@@ -138,6 +141,8 @@ static const char *reg_name(unsigned int reg)
 		return "bp(ind)";
 	case ORC_REG_SP_INDIRECT:
 		return "sp(ind)";
+	case ORC_REG_AX:
+		return "ax";
 	default:
 		return "?";
 	}
