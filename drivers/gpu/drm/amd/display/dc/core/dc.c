@@ -1563,8 +1563,7 @@ static void detect_edp_presence(struct dc *dc)
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
 	enum dc_connection_type type;
-	int i;
-	int edp_num;
+	unsigned int i, edp_num;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
 	if (!edp_num)
@@ -6264,8 +6263,7 @@ void dc_disable_accelerated_mode(struct dc *dc)
  */
 void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable)
 {
-	int i;
-	int edp_num;
+	unsigned int i, edp_num;
 	struct pipe_ctx *pipe = NULL;
 	struct dc_link *link = stream->sink->link;
 	struct dc_link *edp_links[MAX_NUM_EDP];
@@ -6319,8 +6317,7 @@ bool dc_abm_save_restore(
 		struct dc_stream_state *stream,
 		struct abm_save_restore *pData)
 {
-	int i;
-	int edp_num;
+	unsigned int i, edp_num;
 	struct pipe_ctx *pipe = NULL;
 	struct dc_link *link = stream->sink->link;
 	struct dc_link *edp_links[MAX_NUM_EDP];

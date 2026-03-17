@@ -1986,7 +1986,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct dce_hwseq *hws = dc->hwseq;
 	int edp_with_sink_num;
-	int edp_num;
+	unsigned int edp_num;
 	int edp_stream_num;
 	int i;
 	bool can_apply_edp_fast_boot = false;

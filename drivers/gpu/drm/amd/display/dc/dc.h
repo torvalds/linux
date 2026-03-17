@@ -2062,7 +2062,7 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 /* Return an array of link pointers to edp links. */
 void dc_get_edp_links(const struct dc *dc,
 		struct dc_link **edp_links,
-		int *edp_num);
+		unsigned int *edp_num);
 
 void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 				 bool powerOn);

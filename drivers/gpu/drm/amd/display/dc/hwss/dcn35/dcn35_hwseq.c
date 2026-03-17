@@ -520,7 +520,7 @@ void dcn35_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	int i = 0;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -921,7 +921,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
 	int i = 0, j = 0;
-	int edp_num = 0;
+	unsigned int edp_num = 0;
 	struct dc_link *edp_links[MAX_NUM_EDP] = { NULL };
 
 	memset(update_state, 0, sizeof(struct pg_block_update));

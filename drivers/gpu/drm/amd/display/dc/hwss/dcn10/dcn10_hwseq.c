@@ -1904,7 +1904,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	int i = 0;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
