@@ -16,6 +16,8 @@ Other errors are logged via log instance.
 import logging
 import re
 
+from copy import copy
+
 from .kdoc_re import KernRe
 
 log = logging.getLogger(__name__)
@@ -284,6 +286,172 @@ class CTokenizer():
         return out
 
 
+class CTokenArgs:
+    """
+    Ancillary class to help using backrefs from sub matches.
+
+    If the highest backref contain a "+" at the last element,
+    the logic will be greedy, picking all other delims.
+
+    This is needed to parse struct_group macros with end with ``MEMBERS...``.
+    """
+    def __init__(self, sub_str):
+        self.sub_groups = set()
+        self.max_group = -1
+        self.greedy = None
+
+        for m in KernRe(r'\\(\d+)([+]?)').finditer(sub_str):
+            group = int(m.group(1))
+            if m.group(2) == "+":
+                if self.greedy and self.greedy != group:
+                    raise ValueError("There are multiple greedy patterns!")
+                self.greedy = group
+
+            self.sub_groups.add(group)
+            self.max_group = max(self.max_group, group)
+
+        if self.greedy:
+            if self.greedy != self.max_group:
+                raise ValueError("Greedy pattern is not the last one!")
+
+            sub_str = KernRe(r'(\\\d+)[+]').sub(r"\1", sub_str)
+
+        self.sub_str = sub_str
+        self.sub_tokeninzer = CTokenizer(sub_str)
+
+    def groups(self, new_tokenizer):
+        """
+        Create replacement arguments for backrefs like:
+
+        ``\0``, ``\1``, ``\2``, ...``\n``
+
+        It also accepts a ``+`` character to the highest backref. When used,
+        it means in practice to ignore delimins after it, being greedy.
+
+        The logic is smart enough to only go up to the maximum required
+        argument, even if there are more.
+
+        If there is a backref for an argument above the limit, it will
+        raise an exception. Please notice that, on C, square brackets
+        don't have any separator on it. Trying to use ``\1``..``\n`` for
+        brackets also raise an exception.
+        """
+
+        level = (0, 0, 0)
+
+        if self.max_group < 0:
+            return level, []
+
+        tokens = new_tokenizer.tokens
+
+        #
+        # Fill \0 with the full token contents
+        #
+        groups_list = [ [] ]
+
+        if 0 in self.sub_groups:
+            inner_level = 0
+
+            for i in range(0, len(tokens)):
+                tok = tokens[i]
+
+                if tok.kind == CToken.BEGIN:
+                    inner_level += 1
+
+                    #
+                    # Discard first begin
+                    #
+                    if not groups_list[0]:
+                        continue
+                elif tok.kind == CToken.END:
+                    inner_level -= 1
+                    if inner_level < 0:
+                        break
+
+                if inner_level:
+                    groups_list[0].append(tok)
+
+        if not self.max_group:
+            return level, groups_list
+
+        delim = None
+
+        #
+        # Ignore everything before BEGIN. The value of begin gives the
+        # delimiter to be used for the matches
+        #
+        for i in range(0, len(tokens)):
+            tok = tokens[i]
+            if tok.kind == CToken.BEGIN:
+                if tok.value == "{":
+                    delim = ";"
+                elif tok.value == "(":
+                    delim = ","
+                else:
+                    self.log.error(fr"Can't handle \1..\n on {sub_str}")
+
+                level = tok.level
+                break
+
+        pos = 1
+        groups_list.append([])
+
+        inner_level = 0
+        for i in range(i + 1, len(tokens)):
+            tok = tokens[i]
+
+            if tok.kind == CToken.BEGIN:
+                inner_level += 1
+            if tok.kind == CToken.END:
+                inner_level -= 1
+                if inner_level < 0:
+                    break
+
+            if tok.kind in [CToken.PUNC, CToken.ENDSTMT] and delim == tok.value:
+                pos += 1
+                if self.greedy and pos > self.max_group:
+                    pos -= 1
+                else:
+                    groups_list.append([])
+
+                    if pos > self.max_group:
+                        break
+
+                    continue
+
+            groups_list[pos].append(tok)
+
+        if pos < self.max_group:
+            log.error(fr"{self.sub_str} groups are up to {pos} instead of {self.max_group}")
+
+        return level, groups_list
+
+    def tokens(self, new_tokenizer):
+        level, groups = self.groups(new_tokenizer)
+
+        new = CTokenizer()
+
+        for tok in self.sub_tokeninzer.tokens:
+            if tok.kind == CToken.BACKREF:
+                group = int(tok.value[1:])
+
+                for group_tok in groups[group]:
+                    new_tok = copy(group_tok)
+
+                    new_level = [0, 0, 0]
+
+                    for i in range(0, len(level)):
+                        new_level[i] = new_tok.level[i] + level[i]
+
+                    new_tok.level = tuple(new_level)
+
+                    new.tokens += [ new_tok ]
+            else:
+                new.tokens += [ tok ]
+
+        return new.tokens
+
+
 class CMatch:
     """
     Finding nested delimiters is hard with regular expressions. It is
@@ -309,10 +477,10 @@ class CMatch:
     will ignore the search string.
     """
 
-    # TODO: add a sub method
 
-    def __init__(self, regex):
-        self.regex = KernRe(regex)
+    def __init__(self, regex, delim="("):
+        self.regex = KernRe("^" + regex + r"\b")
+        self.start_delim = delim
 
     def _search(self, tokenizer):
         """
@@ -335,7 +503,6 @@ class CMatch:
         """
 
         start = None
-        offset = -1
         started = False
 
         import sys
@@ -351,15 +518,24 @@ class CMatch:
 
                 continue
 
-            if not started and tok.kind == CToken.BEGIN:
-                started = True
-                continue
+            if not started:
+                if tok.kind == CToken.SPACE:
+                    continue
+
+                if tok.kind == CToken.BEGIN and tok.value == self.start_delim:
+                    started = True
+                    continue
+
+                # Name only token without BEGIN/END
+                if i > start:
+                    i -= 1
+                yield start, i
+                start = None
 
             if tok.kind == CToken.END and tok.level == stack[-1][1]:
                 start, level = stack.pop()
-                offset = i
 
-                yield CTokenizer(tokenizer.tokens[start:offset + 1])
+                yield start, i
                 start = None
 
         #
@@ -367,9 +543,12 @@ class CMatch:
         # This is meant to solve cases where the caller logic might be
         # picking an incomplete block.
         #
-        if start and offset < 0:
-            print("WARNING: can't find an end", file=sys.stderr)
-            yield CTokenizer(tokenizer.tokens[start:])
+        if start and stack:
+            if started:
+                s = str(tokenizer)
+                log.warning(f"can't find a final end at {s}")
+
+            yield start, len(tokenizer.tokens)
 
     def search(self, source):
         """
@@ -386,8 +565,75 @@ class CMatch:
             tokenizer = CTokenizer(source)
             is_token = False
 
-        for new_tokenizer in self._search(tokenizer):
+        for start, end in self._search(tokenizer):
+            new_tokenizer = CTokenizer(tokenizer.tokens[start:end + 1])
+
             if is_token:
                 yield new_tokenizer
             else:
                 yield str(new_tokenizer)
+
+    def sub(self, sub_str, source, count=0):
+        """
+        This is similar to re.sub:
+
+        It matches a regex that it is followed by a delimiter,
+        replacing occurrences only if all delimiters are paired.
+
+        if the sub argument contains::
+
+            r'\0'
+
+        it will work just like re: it places there the matched paired data
+        with the delimiter stripped.
+
+        If count is different than zero, it will replace at most count
+        items.
+        """
+        if isinstance(source, CTokenizer):
+            is_token = True
+            tokenizer = source
+        else:
+            is_token = False
+            tokenizer = CTokenizer(source)
+
+        # Detect if sub_str contains sub arguments
+
+        args_match = CTokenArgs(sub_str)
+
+        new_tokenizer = CTokenizer()
+        pos = 0
+        n = 0
+
+        #
+        # NOTE: the code below doesn't consider overlays at sub.
+        # We may need to add some extra unit tests to check if those
+        # would cause problems. When replacing by "", this should not
+        # be a problem, but other transformations could be problematic
+        #
+        for start, end in self._search(tokenizer):
+            new_tokenizer.tokens += tokenizer.tokens[pos:start]
+
+            new = CTokenizer(tokenizer.tokens[start:end + 1])
+
+            new_tokenizer.tokens += args_match.tokens(new)
+
+            pos = end + 1
+
+            n += 1
+            if count and n >= count:
+                break
+
+        new_tokenizer.tokens += tokenizer.tokens[pos:]
+
+        if not is_token:
+            return str(new_tokenizer)
+
+        return new_tokenizer
+
+    def __repr__(self):
+        """
+        Returns a displayable version of the class init.
+        """
+
+        return f'CMatch("{self.regex.regex.pattern}")'
