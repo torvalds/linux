@@ -133,6 +133,7 @@ static bool test_valid(const struct scx_test *test)
 int main(int argc, char **argv)
 {
 	const char *filter = NULL;
+	const char *failed_tests[MAX_SCX_TESTS];
 	unsigned testnum = 0, i;
 	unsigned passed = 0, skipped = 0, failed = 0;
 	int opt;
@@ -201,7 +202,7 @@ int main(int argc, char **argv)
 			skipped++;
 			break;
 		case SCX_TEST_FAIL:
-			failed++;
+			failed_tests[failed++] = test->name;
 			break;
 		}
 	}
@@ -210,6 +211,11 @@ int main(int argc, char **argv)
 	printf("PASSED:  %u\n", passed);
 	printf("SKIPPED: %u\n", skipped);
 	printf("FAILED:  %u\n", failed);
+	if (failed > 0) {
+		printf("\nFailed tests:\n");
+		for (i = 0; i < failed; i++)
+			printf("  - %s\n", failed_tests[i]);
+	}
 
 	return 0;
 }
