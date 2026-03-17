@@ -15,6 +15,8 @@
 #define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
 #define PCI_DEVICE_ID_INTEL_THC_WCL_DEVICE_ID_I2C_PORT1 	0x4D48
 #define PCI_DEVICE_ID_INTEL_THC_WCL_DEVICE_ID_I2C_PORT2 	0x4D4A
+#define PCI_DEVICE_ID_INTEL_THC_NVL_H_DEVICE_ID_I2C_PORT1	0xD348
+#define PCI_DEVICE_ID_INTEL_THC_NVL_H_DEVICE_ID_I2C_PORT2	0xD34A
 
 /* Packet size value, the unit is 16 bytes */
 #define MAX_PACKET_SIZE_VALUE_LNL			256
@@ -40,6 +42,8 @@
 
 /* PTL Max packet size detection capability is 255 Bytes */
 #define MAX_RX_DETECT_SIZE_PTL			255
+/* NVL Max packet size detection capability is 64K Bytes */
+#define MAX_RX_DETECT_SIZE_NVL			65535
 /* Max interrupt delay capability is 2.56ms */
 #define MAX_RX_INTERRUPT_DELAY			256
 

@@ -26,6 +26,11 @@ static struct quicki2c_ddata ptl_ddata = {
 	.max_interrupt_delay = MAX_RX_INTERRUPT_DELAY,
 };
 
+static struct quicki2c_ddata nvl_ddata = {
+	.max_detect_size = MAX_RX_DETECT_SIZE_NVL,
+	.max_interrupt_delay = MAX_RX_INTERRUPT_DELAY,
+};
+
 /* THC QuickI2C ACPI method to get device properties */
 /* HIDI2C device method */
 static guid_t i2c_hid_guid =
@@ -1032,6 +1037,8 @@ static const struct pci_device_id quicki2c_pci_tbl[] = {
 	{ PCI_DEVICE_DATA(INTEL, THC_PTL_U_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
 	{ PCI_DEVICE_DATA(INTEL, THC_WCL_DEVICE_ID_I2C_PORT1, &ptl_ddata) },
 	{ PCI_DEVICE_DATA(INTEL, THC_WCL_DEVICE_ID_I2C_PORT2, &ptl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_NVL_H_DEVICE_ID_I2C_PORT1, &nvl_ddata) },
+	{ PCI_DEVICE_DATA(INTEL, THC_NVL_H_DEVICE_ID_I2C_PORT2, &nvl_ddata) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, quicki2c_pci_tbl);
