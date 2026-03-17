@@ -1057,10 +1057,6 @@ int smu_cmn_check_fw_version(struct smu_context *smu)
 		      smu->smc_driver_if_version, if_version,
 		      smu_program, smu_version, smu_major, smu_minor, smu_debug);
 
-	if (smu->smc_driver_if_version != SMU_IGNORE_IF_VERSION &&
-	    if_version != smu->smc_driver_if_version)
-		dev_info(adev->dev, "SMU driver if version not matched\n");
-
 	return 0;
 }
 
