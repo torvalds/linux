@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Looongson-2 Chain Multi-Channel DMA Controller driver
+ * Loongson-2 Chain Multi-Channel DMA Controller driver
  *
  * Copyright (C) 2024-2026 Loongson Technology Corporation Limited
  */
@@ -725,6 +725,6 @@ static struct platform_driver loongson2_cmc_dma_driver = {
 };
 module_platform_driver(loongson2_cmc_dma_driver);
 
-MODULE_DESCRIPTION("Looongson-2 Chain Multi-Channel DMA Controller driver");
+MODULE_DESCRIPTION("Loongson-2 Chain Multi-Channel DMA Controller driver");
 MODULE_AUTHOR("Loongson Technology Corporation Limited");
 MODULE_LICENSE("GPL");
