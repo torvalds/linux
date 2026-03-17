@@ -273,20 +273,121 @@ class CTokenizer():
 
                 # Do some cleanups before ";"
 
-                if (tok.kind == CToken.SPACE and
-                    next_tok.kind == CToken.PUNC and
-                    next_tok.value == ";"):
-
+                if tok.kind == CToken.SPACE and next_tok.kind == CToken.ENDSTMT:
                     continue
 
-                if (tok.kind == CToken.PUNC and
-                    next_tok.kind == CToken.PUNC and
-                    tok.value == ";" and
-                    next_tok.kind == CToken.PUNC and
-                    next_tok.value == ";"):
-
+                if tok.kind == CToken.ENDSTMT and next_tok.kind == tok.kind:
                     continue
 
             out += str(tok.value)
 
         return out
+
+
+class CMatch:
+    """
+    Finding nested delimiters is hard with regular expressions. It is
+    even harder on Python with its normal re module, as there are several
+    advanced regular expressions that are missing.
+
+    This is the case of this pattern::
+
+            '\\bSTRUCT_GROUP(\\(((?:(?>[^)(]+)|(?1))*)\\))[^;]*;'
+
+    which is used to properly match open/close parentheses of the
+    string search STRUCT_GROUP(),
+
+    Add a class that counts pairs of delimiters, using it to match and
+    replace nested expressions.
+
+    The original approach was suggested by:
+
+        https://stackoverflow.com/questions/5454322/python-how-to-match-nested-parentheses-with-regex
+
+    Although I re-implemented it to make it more generic and match 3 types
+    of delimiters. The logic checks if delimiters are paired. If not, it
+    will ignore the search string.
+    """
+
+    # TODO: add a sub method
+
+    def __init__(self, regex):
+        self.regex = KernRe(regex)
+
+    def _search(self, tokenizer):
+        """
+        Finds paired blocks for a regex that ends with a delimiter.
+
+        The suggestion of using finditer to match pairs came from:
+        https://stackoverflow.com/questions/5454322/python-how-to-match-nested-parentheses-with-regex
+        but I ended using a different implementation to align all three types
+        of delimiters and seek for an initial regular expression.
+
+        The algorithm seeks for open/close paired delimiters and places them
+        into a stack, yielding a start/stop position of each match when the
+        stack is zeroed.
+
+        The algorithm should work fine for properly paired lines, but will
+        silently ignore end delimiters that precede a start delimiter.
+        This should be OK for kernel-doc parser, as unaligned delimiters
+        would cause compilation errors. So, we don't need to raise exceptions
+        to cover such issues.
+        """
+
+        start = None
+        offset = -1
+        started = False
+
+        import sys
+
+        stack = []
+
+        for i, tok in enumerate(tokenizer.tokens):
+            if start is None:
+                if tok.kind == CToken.NAME and self.regex.match(tok.value):
+                    start = i
+                    stack.append((start, tok.level))
+                    started = False
+
+                continue
+
+            if not started and tok.kind == CToken.BEGIN:
+                started = True
+                continue
+
+            if tok.kind == CToken.END and tok.level == stack[-1][1]:
+                start, level = stack.pop()
+                offset = i
+
+                yield CTokenizer(tokenizer.tokens[start:offset + 1])
+                start = None
+
+        #
+        # If an END zeroing levels is not there, return remaining stuff
+        # This is meant to solve cases where the caller logic might be
+        # picking an incomplete block.
+        #
+        if start and offset < 0:
+            print("WARNING: can't find an end", file=sys.stderr)
+            yield CTokenizer(tokenizer.tokens[start:])
+
+    def search(self, source):
+        """
+        This is similar to re.search:
+
+        It matches a regex that it is followed by a delimiter,
+        returning occurrences only if all delimiters are paired.
+        """
+
+        if isinstance(source, CTokenizer):
+            tokenizer = source
+            is_token = True
+        else:
+            tokenizer = CTokenizer(source)
+            is_token = False
+
+        for new_tokenizer in self._search(tokenizer):
+            if is_token:
+                yield new_tokenizer
+            else:
+                yield str(new_tokenizer)
