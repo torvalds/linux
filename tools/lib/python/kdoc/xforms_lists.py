@@ -32,52 +32,6 @@ class CTransforms:
         (KernRe(r'\s*____cacheline_aligned_in_smp', re.S), ' '),
         (KernRe(r'\s*____cacheline_aligned', re.S), ' '),
         (KernRe(r'\s*__cacheline_group_(begin|end)\([^\)]+\);'), ''),
-        #
-        # Unwrap struct_group macros based on this definition:
-        # __struct_group(TAG, NAME, ATTRS, MEMBERS...)
-        # which has variants like: struct_group(NAME, MEMBERS...)
-        # Only MEMBERS arguments require documentation.
-        #
-        # Parsing them happens on two steps:
-        #
-        # 1. drop struct group arguments that aren't at MEMBERS,
-        #    storing them as STRUCT_GROUP(MEMBERS)
-        #
-        # 2. remove STRUCT_GROUP() ancillary macro.
-        #
-        # The original logic used to remove STRUCT_GROUP() using an
-        # advanced regex:
-        #
-        #   \bSTRUCT_GROUP(\(((?:(?>[^)(]+)|(?1))*)\))[^;]*;
-        #
-        # with two patterns that are incompatible with
-        # Python re module, as it has:
-        #
-        #   - a recursive pattern: (?1)
-        #   - an atomic grouping: (?>...)
-        #
-        # I tried a simpler version: but it didn't work either:
-        #   \bSTRUCT_GROUP\(([^\)]+)\)[^;]*;
-        #
-        # As it doesn't properly match the end parenthesis on some cases.
-        #
-        # So, a better solution was crafted: there's now a CMatch
-        # class that ensures that delimiters after a search are properly
-        # matched. So, the implementation to drop STRUCT_GROUP() will be
-        # handled in separate.
-        #
-        (KernRe(r'\bstruct_group\s*\(([^,]*,)', re.S), r'STRUCT_GROUP('),
-        (KernRe(r'\bstruct_group_attr\s*\(([^,]*,){2}', re.S), r'STRUCT_GROUP('),
-        (KernRe(r'\bstruct_group_tagged\s*\(([^,]*),([^,]*),', re.S), r'struct \1 \2; STRUCT_GROUP('),
-        (KernRe(r'\b__struct_group\s*\(([^,]*,){3}', re.S), r'STRUCT_GROUP('),
-        #
-        # Replace macros
-        #
-        # TODO: use CMatch for FOO($1, $2, ...) matches
-        #
-        # it is better to also move those to the CMatch logic,
-        # to ensure that parentheses will be properly matched.
-        #
         (KernRe(r'__ETHTOOL_DECLARE_LINK_MODE_MASK\s*\(([^\)]+)\)', re.S),
         r'DECLARE_BITMAP(\1, __ETHTOOL_LINK_MODE_MASK_NBITS)'),
         (KernRe(r'DECLARE_PHY_INTERFACE_MASK\s*\(([^\)]+)\)', re.S),
@@ -106,7 +60,12 @@ class CTransforms:
         (CMatch(r"__cond_acquires_shared"), ""),
         (CMatch(r"__acquires_shared"), ""),
         (CMatch(r"__releases_shared"), ""),
-        (CMatch(r"STRUCT_GROUP"), r'\0'),
+
+        (CMatch('struct_group'), r'\2'),
+        (CMatch('struct_group_attr'), r'\3'),
+        (CMatch('struct_group_tagged'), r'struct \1 \2; \3'),
+        (CMatch('__struct_group'), r'\4'),
+
     ]
 
     #: Transforms for function prototypes.
