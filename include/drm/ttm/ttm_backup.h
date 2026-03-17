@@ -56,7 +56,7 @@ ttm_backup_page_ptr_to_handle(const struct page *page)
 void ttm_backup_drop(struct file *backup, pgoff_t handle);
 
 int ttm_backup_copy_page(struct file *backup, struct page *dst,
-			 pgoff_t handle, bool intr);
+			 pgoff_t handle, bool intr, gfp_t additional_gfp);
 
 s64
 ttm_backup_backup_page(struct file *backup, struct page *page,

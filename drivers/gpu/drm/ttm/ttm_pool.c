@@ -530,6 +530,8 @@ static int ttm_pool_restore_commit(struct ttm_pool_tt_restore *restore,
 		p = first_page[i];
 		if (ttm_backup_page_ptr_is_handle(p)) {
 			unsigned long handle = ttm_backup_page_ptr_to_handle(p);
+			gfp_t additional_gfp = ctx->gfp_retry_mayfail ?
+				__GFP_RETRY_MAYFAIL | __GFP_NOWARN : 0;
 
 			if (IS_ENABLED(CONFIG_FAULT_INJECTION) && ctx->interruptible &&
 			    should_fail(&backup_fault_inject, 1)) {
@@ -543,7 +545,8 @@ static int ttm_pool_restore_commit(struct ttm_pool_tt_restore *restore,
 			}
 
 			ret = ttm_backup_copy_page(backup, restore->alloced_page + i,
-						   handle, ctx->interruptible);
+						   handle, ctx->interruptible,
+						   additional_gfp);
 			if (ret)
 				break;
 
