@@ -5,8 +5,8 @@
 
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_print.h>
+#include <drm/intel/intel_pcode_regs.h>
 
-#include "i915_reg.h"
 #include "intel_bw.h"
 #include "intel_crtc.h"
 #include "intel_display_core.h"
@@ -15,7 +15,7 @@
 #include "intel_display_utils.h"
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
-#include "intel_pcode.h"
+#include "intel_parent.h"
 #include "intel_uncore.h"
 #include "skl_watermark.h"
 
@@ -114,9 +114,9 @@ static int icl_pcode_read_qgv_point_info(struct intel_display *display,
 	u16 dclk;
 	int ret;
 
-	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			       ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
-			       &val, &val2);
+	ret = intel_parent_pcode_read(display, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+				      ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
+				      &val, &val2);
 	if (ret)
 		return ret;
 
@@ -141,8 +141,8 @@ static int adls_pcode_read_psf_gv_point_info(struct intel_display *display,
 	int ret;
 	int i;
 
-	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			       ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
+	ret = intel_parent_pcode_read(display, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+				      ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -189,11 +189,11 @@ static int icl_pcode_restrict_qgv_points(struct intel_display *display,
 		return 0;
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = intel_pcode_request(display->drm, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
-				  points_mask,
-				  ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
-				  ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
-				  1);
+	ret = intel_parent_pcode_request(display, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+					 points_mask,
+					 ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
+					 ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
+					 1);
 
 	if (ret < 0) {
 		drm_err(display->drm,

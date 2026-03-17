@@ -3,10 +3,12 @@
  * Copyright 2023, Intel Corporation.
  */
 
-#include "intel_dsb_buffer.h"
+#include <drm/intel/display_parent_interface.h>
+
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
+#include "xe_dsb_buffer.h"
 
 struct intel_dsb_buffer {
 	u32 *cmd_buf;
@@ -14,29 +16,29 @@ struct intel_dsb_buffer {
 	size_t buf_size;
 };
 
-u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
+static u32 xe_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
 {
 	return xe_bo_ggtt_addr(dsb_buf->bo);
 }
 
-void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
+static void xe_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
 {
 	iosys_map_wr(&dsb_buf->bo->vmap, idx * 4, u32, val);
 }
 
-u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
+static u32 xe_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
 {
 	return iosys_map_rd(&dsb_buf->bo->vmap, idx * 4, u32);
 }
 
-void intel_dsb_buffer_memset(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
+static void xe_dsb_buffer_fill(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
 {
 	WARN_ON(idx > (dsb_buf->buf_size - size) / sizeof(*dsb_buf->cmd_buf));
 
 	iosys_map_memset(&dsb_buf->bo->vmap, idx * 4, val, size);
 }
 
-struct intel_dsb_buffer *intel_dsb_buffer_create(struct drm_device *drm, size_t size)
+static struct intel_dsb_buffer *xe_dsb_buffer_create(struct drm_device *drm, size_t size)
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct intel_dsb_buffer *dsb_buf;
@@ -69,13 +71,13 @@ err_pin_map:
 	return ERR_PTR(ret);
 }
 
-void intel_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
+static void xe_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
 {
 	xe_bo_unpin_map_no_vm(dsb_buf->bo);
 	kfree(dsb_buf);
 }
 
-void intel_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
+static void xe_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
 {
 	struct xe_device *xe = dsb_buf->bo->tile->xe;
 
@@ -86,3 +88,13 @@ void intel_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
 	xe_device_wmb(xe);
 	xe_device_l2_flush(xe);
 }
+
+const struct intel_display_dsb_interface xe_display_dsb_interface = {
+	.ggtt_offset = xe_dsb_buffer_ggtt_offset,
+	.write = xe_dsb_buffer_write,
+	.read = xe_dsb_buffer_read,
+	.fill = xe_dsb_buffer_fill,
+	.create = xe_dsb_buffer_create,
+	.cleanup = xe_dsb_buffer_cleanup,
+	.flush_map = xe_dsb_buffer_flush_map,
+};

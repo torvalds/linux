@@ -19,5 +19,6 @@ struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size
 void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj);
 int intel_fbdev_fb_fill_info(struct drm_device *drm, struct fb_info *info,
 			     struct drm_gem_object *obj, struct i915_vma *vma);
+bool intel_fbdev_fb_prefer_stolen(struct drm_device *drm, unsigned int size);
 
 #endif

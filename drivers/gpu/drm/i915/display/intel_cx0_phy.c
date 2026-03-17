@@ -18,6 +18,7 @@
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
 #include "intel_dp.h"
+#include "intel_dpll.h"
 #include "intel_hdmi.h"
 #include "intel_lt_phy.h"
 #include "intel_panel.h"
@@ -127,8 +128,8 @@ static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, struct 
 	intel_display_power_put(display, POWER_DOMAIN_DC_OFF, wakeref);
 }
 
-void intel_clear_response_ready_flag(struct intel_encoder *encoder,
-				     int lane)
+void intel_cx0_clear_response_ready_flag(struct intel_encoder *encoder,
+					 int lane)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
@@ -155,7 +156,7 @@ void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
 		return;
 	}
 
-	intel_clear_response_ready_flag(encoder, lane);
+	intel_cx0_clear_response_ready_flag(encoder, lane);
 }
 
 int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
@@ -222,6 +223,8 @@ static int __intel_cx0_read_once(struct intel_encoder *encoder,
 		return -ETIMEDOUT;
 	}
 
+	intel_cx0_clear_response_ready_flag(encoder, lane);
+
 	intel_de_write(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 		       XELPDP_PORT_M2P_TRANSACTION_PENDING |
 		       XELPDP_PORT_M2P_COMMAND_READ |
@@ -231,7 +234,7 @@ static int __intel_cx0_read_once(struct intel_encoder *encoder,
 	if (ack < 0)
 		return ack;
 
-	intel_clear_response_ready_flag(encoder, lane);
+	intel_cx0_clear_response_ready_flag(encoder, lane);
 
 	/*
 	 * FIXME: Workaround to let HW to settle
@@ -293,6 +296,8 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 		return -ETIMEDOUT;
 	}
 
+	intel_cx0_clear_response_ready_flag(encoder, lane);
+
 	intel_de_write(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 		       XELPDP_PORT_M2P_TRANSACTION_PENDING |
 		       (committed ? XELPDP_PORT_M2P_COMMAND_WRITE_COMMITTED :
@@ -321,7 +326,7 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 		return -EINVAL;
 	}
 
-	intel_clear_response_ready_flag(encoder, lane);
+	intel_cx0_clear_response_ready_flag(encoder, lane);
 
 	/*
 	 * FIXME: Workaround to let HW to settle
@@ -547,7 +552,6 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
  */
 
 static const struct intel_c10pll_state mtl_c10_dp_rbr = {
-	.clock = 162000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0xB4,
@@ -573,7 +577,6 @@ static const struct intel_c10pll_state mtl_c10_dp_rbr = {
 };
 
 static const struct intel_c10pll_state mtl_c10_edp_r216 = {
-	.clock = 216000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0x4,
@@ -599,7 +602,6 @@ static const struct intel_c10pll_state mtl_c10_edp_r216 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_edp_r243 = {
-	.clock = 243000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0x34,
@@ -625,7 +627,6 @@ static const struct intel_c10pll_state mtl_c10_edp_r243 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_dp_hbr1 = {
-	.clock = 270000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0xF4,
@@ -651,7 +652,6 @@ static const struct intel_c10pll_state mtl_c10_dp_hbr1 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_edp_r324 = {
-	.clock = 324000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0xB4,
@@ -677,7 +677,6 @@ static const struct intel_c10pll_state mtl_c10_edp_r324 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_edp_r432 = {
-	.clock = 432000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0x4,
@@ -703,7 +702,6 @@ static const struct intel_c10pll_state mtl_c10_edp_r432 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_dp_hbr2 = {
-	.clock = 540000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0xF4,
@@ -729,7 +727,6 @@ static const struct intel_c10pll_state mtl_c10_dp_hbr2 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_edp_r675 = {
-	.clock = 675000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0xB4,
@@ -755,7 +752,6 @@ static const struct intel_c10pll_state mtl_c10_edp_r675 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_dp_hbr3 = {
-	.clock = 810000,
 	.tx = 0x10,
 	.cmn = 0x21,
 	.pll[0] = 0x34,
@@ -780,30 +776,62 @@ static const struct intel_c10pll_state mtl_c10_dp_hbr3 = {
 	.pll[19] = 0x23,
 };
 
-static const struct intel_c10pll_state * const mtl_c10_dp_tables[] = {
-	&mtl_c10_dp_rbr,
-	&mtl_c10_dp_hbr1,
-	&mtl_c10_dp_hbr2,
-	&mtl_c10_dp_hbr3,
-	NULL,
+struct intel_cx0pll_params {
+	const char *name;
+	bool is_c10;
+	bool is_hdmi;
+	int clock_rate;
+	union {
+		const struct intel_c10pll_state *c10;
+		const struct intel_c20pll_state *c20;
+	};
 };
 
-static const struct intel_c10pll_state * const mtl_c10_edp_tables[] = {
-	&mtl_c10_dp_rbr,
-	&mtl_c10_edp_r216,
-	&mtl_c10_edp_r243,
-	&mtl_c10_dp_hbr1,
-	&mtl_c10_edp_r324,
-	&mtl_c10_edp_r432,
-	&mtl_c10_dp_hbr2,
-	&mtl_c10_edp_r675,
-	&mtl_c10_dp_hbr3,
-	NULL,
+#define __C10PLL_PARAMS(__is_hdmi, __clock_rate, __state) { \
+	.name = __stringify(__state), \
+	.is_c10 = true, \
+	.is_hdmi = __is_hdmi, \
+	.clock_rate = __clock_rate, \
+	.c10 = &__state, \
+}
+
+#define __C20PLL_PARAMS(__is_hdmi, __clock_rate, __state)    { \
+	.name = __stringify(__state), \
+	.is_c10 = false, \
+	.is_hdmi = __is_hdmi, \
+	.clock_rate = __clock_rate, \
+	.c20 = &__state, \
+}
+
+#define C10PLL_HDMI_PARAMS(__clock_rate, __state)       __C10PLL_PARAMS(true, __clock_rate, __state)
+#define C10PLL_DP_PARAMS(__clock_rate, __state)         __C10PLL_PARAMS(false, __clock_rate, __state)
+
+#define C20PLL_HDMI_PARAMS(__clock_rate, __state)       __C20PLL_PARAMS(true, __clock_rate, __state)
+#define C20PLL_DP_PARAMS(__clock_rate, __state)         __C20PLL_PARAMS(false, __clock_rate, __state)
+
+static const struct intel_cx0pll_params mtl_c10_dp_tables[] = {
+	C10PLL_DP_PARAMS(162000, mtl_c10_dp_rbr),
+	C10PLL_DP_PARAMS(270000, mtl_c10_dp_hbr1),
+	C10PLL_DP_PARAMS(540000, mtl_c10_dp_hbr2),
+	C10PLL_DP_PARAMS(810000, mtl_c10_dp_hbr3),
+	{}
+};
+
+static const struct intel_cx0pll_params mtl_c10_edp_tables[] = {
+	C10PLL_DP_PARAMS(162000, mtl_c10_dp_rbr),
+	C10PLL_DP_PARAMS(216000, mtl_c10_edp_r216),
+	C10PLL_DP_PARAMS(243000, mtl_c10_edp_r243),
+	C10PLL_DP_PARAMS(270000, mtl_c10_dp_hbr1),
+	C10PLL_DP_PARAMS(324000, mtl_c10_edp_r324),
+	C10PLL_DP_PARAMS(432000, mtl_c10_edp_r432),
+	C10PLL_DP_PARAMS(540000, mtl_c10_dp_hbr2),
+	C10PLL_DP_PARAMS(675000, mtl_c10_edp_r675),
+	C10PLL_DP_PARAMS(810000, mtl_c10_dp_hbr3),
+	{}
 };
 
 /* C20 basic DP 1.4 tables */
 static const struct intel_c20pll_state mtl_c20_dp_rbr = {
-	.clock = 162000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x5800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -828,7 +856,6 @@ static const struct intel_c20pll_state mtl_c20_dp_rbr = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr1 = {
-	.clock = 270000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -853,7 +880,6 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr1 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr2 = {
-	.clock = 540000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -878,7 +904,6 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr2 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr3 = {
-	.clock = 810000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -904,7 +929,6 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr3 = {
 
 /* C20 basic DP 2.0 tables */
 static const struct intel_c20pll_state mtl_c20_dp_uhbr10 = {
-	.clock = 1000000, /* 10 Gbps */
 	.tx = {	0xbe21, /* tx cfg0 */
 		0xe800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -928,7 +952,6 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr10 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_uhbr13_5 = {
-	.clock = 1350000, /* 13.5 Gbps */
 	.tx = {	0xbea0, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -953,7 +976,6 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr13_5 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_uhbr20 = {
-	.clock = 2000000, /* 20 Gbps */
 	.tx = {	0xbe20, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -976,15 +998,15 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr20 = {
 		},
 };
 
-static const struct intel_c20pll_state * const mtl_c20_dp_tables[] = {
-	&mtl_c20_dp_rbr,
-	&mtl_c20_dp_hbr1,
-	&mtl_c20_dp_hbr2,
-	&mtl_c20_dp_hbr3,
-	&mtl_c20_dp_uhbr10,
-	&mtl_c20_dp_uhbr13_5,
-	&mtl_c20_dp_uhbr20,
-	NULL,
+static const struct intel_cx0pll_params mtl_c20_dp_tables[] = {
+	C20PLL_DP_PARAMS(162000, mtl_c20_dp_rbr),
+	C20PLL_DP_PARAMS(270000, mtl_c20_dp_hbr1),
+	C20PLL_DP_PARAMS(540000, mtl_c20_dp_hbr2),
+	C20PLL_DP_PARAMS(810000, mtl_c20_dp_hbr3),
+	C20PLL_DP_PARAMS(1000000, mtl_c20_dp_uhbr10),
+	C20PLL_DP_PARAMS(1350000, mtl_c20_dp_uhbr13_5),
+	C20PLL_DP_PARAMS(2000000, mtl_c20_dp_uhbr20),
+	{}
 };
 
 /*
@@ -992,7 +1014,6 @@ static const struct intel_c20pll_state * const mtl_c20_dp_tables[] = {
  */
 
 static const struct intel_c20pll_state xe2hpd_c20_edp_r216 = {
-	.clock = 216000,
 	.tx = { 0xbe88,
 		0x4800,
 		0x0000,
@@ -1017,7 +1038,6 @@ static const struct intel_c20pll_state xe2hpd_c20_edp_r216 = {
 };
 
 static const struct intel_c20pll_state xe2hpd_c20_edp_r243 = {
-	.clock = 243000,
 	.tx = { 0xbe88,
 		0x4800,
 		0x0000,
@@ -1042,7 +1062,6 @@ static const struct intel_c20pll_state xe2hpd_c20_edp_r243 = {
 };
 
 static const struct intel_c20pll_state xe2hpd_c20_edp_r324 = {
-	.clock = 324000,
 	.tx = { 0xbe88,
 		0x4800,
 		0x0000,
@@ -1067,7 +1086,6 @@ static const struct intel_c20pll_state xe2hpd_c20_edp_r324 = {
 };
 
 static const struct intel_c20pll_state xe2hpd_c20_edp_r432 = {
-	.clock = 432000,
 	.tx = { 0xbe88,
 		0x4800,
 		0x0000,
@@ -1092,7 +1110,6 @@ static const struct intel_c20pll_state xe2hpd_c20_edp_r432 = {
 };
 
 static const struct intel_c20pll_state xe2hpd_c20_edp_r675 = {
-	.clock = 675000,
 	.tx = { 0xbe88,
 		0x4800,
 		0x0000,
@@ -1116,21 +1133,20 @@ static const struct intel_c20pll_state xe2hpd_c20_edp_r675 = {
 		  },
 };
 
-static const struct intel_c20pll_state * const xe2hpd_c20_edp_tables[] = {
-	&mtl_c20_dp_rbr,
-	&xe2hpd_c20_edp_r216,
-	&xe2hpd_c20_edp_r243,
-	&mtl_c20_dp_hbr1,
-	&xe2hpd_c20_edp_r324,
-	&xe2hpd_c20_edp_r432,
-	&mtl_c20_dp_hbr2,
-	&xe2hpd_c20_edp_r675,
-	&mtl_c20_dp_hbr3,
-	NULL,
+static const struct intel_cx0pll_params xe2hpd_c20_edp_tables[] = {
+	C20PLL_DP_PARAMS(162000, mtl_c20_dp_rbr),
+	C20PLL_DP_PARAMS(216000, xe2hpd_c20_edp_r216),
+	C20PLL_DP_PARAMS(243000, xe2hpd_c20_edp_r243),
+	C20PLL_DP_PARAMS(270000, mtl_c20_dp_hbr1),
+	C20PLL_DP_PARAMS(324000, xe2hpd_c20_edp_r324),
+	C20PLL_DP_PARAMS(432000, xe2hpd_c20_edp_r432),
+	C20PLL_DP_PARAMS(540000, mtl_c20_dp_hbr2),
+	C20PLL_DP_PARAMS(675000, xe2hpd_c20_edp_r675),
+	C20PLL_DP_PARAMS(810000, mtl_c20_dp_hbr3),
+	{}
 };
 
 static const struct intel_c20pll_state xe2hpd_c20_dp_uhbr13_5 = {
-	.clock = 1350000, /* 13.5 Gbps */
 	.tx = {	0xbea0, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -1154,30 +1170,30 @@ static const struct intel_c20pll_state xe2hpd_c20_dp_uhbr13_5 = {
 		},
 };
 
-static const struct intel_c20pll_state * const xe2hpd_c20_dp_tables[] = {
-	&mtl_c20_dp_rbr,
-	&mtl_c20_dp_hbr1,
-	&mtl_c20_dp_hbr2,
-	&mtl_c20_dp_hbr3,
-	&mtl_c20_dp_uhbr10,
-	&xe2hpd_c20_dp_uhbr13_5,
-	NULL,
+static const struct intel_cx0pll_params xe2hpd_c20_dp_tables[] = {
+	C20PLL_DP_PARAMS(162000, mtl_c20_dp_rbr),
+	C20PLL_DP_PARAMS(270000, mtl_c20_dp_hbr1),
+	C20PLL_DP_PARAMS(540000, mtl_c20_dp_hbr2),
+	C20PLL_DP_PARAMS(810000, mtl_c20_dp_hbr3),
+	C20PLL_DP_PARAMS(1000000, mtl_c20_dp_uhbr10),
+	C20PLL_DP_PARAMS(1350000, xe2hpd_c20_dp_uhbr13_5),
+	{}
 };
 
-static const struct intel_c20pll_state * const xe3lpd_c20_dp_edp_tables[] = {
-	&mtl_c20_dp_rbr,
-	&xe2hpd_c20_edp_r216,
-	&xe2hpd_c20_edp_r243,
-	&mtl_c20_dp_hbr1,
-	&xe2hpd_c20_edp_r324,
-	&xe2hpd_c20_edp_r432,
-	&mtl_c20_dp_hbr2,
-	&xe2hpd_c20_edp_r675,
-	&mtl_c20_dp_hbr3,
-	&mtl_c20_dp_uhbr10,
-	&xe2hpd_c20_dp_uhbr13_5,
-	&mtl_c20_dp_uhbr20,
-	NULL,
+static const struct intel_cx0pll_params xe3lpd_c20_dp_edp_tables[] = {
+	C20PLL_DP_PARAMS(162000, mtl_c20_dp_rbr),
+	C20PLL_DP_PARAMS(216000, xe2hpd_c20_edp_r216),
+	C20PLL_DP_PARAMS(243000, xe2hpd_c20_edp_r243),
+	C20PLL_DP_PARAMS(270000, mtl_c20_dp_hbr1),
+	C20PLL_DP_PARAMS(324000, xe2hpd_c20_edp_r324),
+	C20PLL_DP_PARAMS(432000, xe2hpd_c20_edp_r432),
+	C20PLL_DP_PARAMS(540000, mtl_c20_dp_hbr2),
+	C20PLL_DP_PARAMS(675000, xe2hpd_c20_edp_r675),
+	C20PLL_DP_PARAMS(810000, mtl_c20_dp_hbr3),
+	C20PLL_DP_PARAMS(1000000, mtl_c20_dp_uhbr10),
+	C20PLL_DP_PARAMS(1350000, xe2hpd_c20_dp_uhbr13_5),
+	C20PLL_DP_PARAMS(2000000, mtl_c20_dp_uhbr20),
+	{}
 };
 
 /*
@@ -1185,7 +1201,6 @@ static const struct intel_c20pll_state * const xe3lpd_c20_dp_edp_tables[] = {
  */
 
 static const struct intel_c10pll_state mtl_c10_hdmi_25_2 = {
-	.clock = 25200,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x4,
@@ -1211,7 +1226,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_25_2 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_27_0 = {
-	.clock = 27000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34,
@@ -1237,7 +1251,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_27_0 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_74_25 = {
-	.clock = 74250,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4,
@@ -1263,7 +1276,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_74_25 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_148_5 = {
-	.clock = 148500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4,
@@ -1289,7 +1301,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_148_5 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_594 = {
-	.clock = 594000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4,
@@ -1316,7 +1327,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_594 = {
 
 /* Precomputed C10 HDMI PLL tables */
 static const struct intel_c10pll_state mtl_c10_hdmi_27027 = {
-	.clock = 27027,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xC0, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1326,7 +1336,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_27027 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_28320 = {
-	.clock = 28320,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x04, .pll[1] = 0x00, .pll[2] = 0xCC, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1336,7 +1345,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_28320 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_30240 = {
-	.clock = 30240,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x04, .pll[1] = 0x00, .pll[2] = 0xDC, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1346,7 +1354,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_30240 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_31500 = {
-	.clock = 31500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x62, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1356,7 +1363,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_31500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_36000 = {
-	.clock = 36000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xC4, .pll[1] = 0x00, .pll[2] = 0x76, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1366,7 +1372,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_36000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_40000 = {
-	.clock = 40000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x86, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1376,7 +1381,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_40000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_49500 = {
-	.clock = 49500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x74, .pll[1] = 0x00, .pll[2] = 0xAE, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1386,7 +1390,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_49500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_50000 = {
-	.clock = 50000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x74, .pll[1] = 0x00, .pll[2] = 0xB0, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1396,7 +1399,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_50000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_57284 = {
-	.clock = 57284,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xCE, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1406,7 +1408,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_57284 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_58000 = {
-	.clock = 58000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xD0, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1416,7 +1417,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_58000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_65000 = {
-	.clock = 65000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x66, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1426,7 +1426,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_65000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_71000 = {
-	.clock = 71000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x72, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1436,7 +1435,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_71000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_74176 = {
-	.clock = 74176,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1446,7 +1444,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_74176 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_75000 = {
-	.clock = 75000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7C, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1456,7 +1453,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_75000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_78750 = {
-	.clock = 78750,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x84, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1466,7 +1462,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_78750 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_85500 = {
-	.clock = 85500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x92, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1476,7 +1471,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_85500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_88750 = {
-	.clock = 88750,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x74, .pll[1] = 0x00, .pll[2] = 0x98, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1486,7 +1480,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_88750 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_106500 = {
-	.clock = 106500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xBC, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1496,7 +1489,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_106500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_108000 = {
-	.clock = 108000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xC0, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1506,7 +1498,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_108000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_115500 = {
-	.clock = 115500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xD0, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1516,7 +1507,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_115500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_119000 = {
-	.clock = 119000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xD6, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1526,7 +1516,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_119000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_135000 = {
-	.clock = 135000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x6C, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1536,7 +1525,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_135000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_138500 = {
-	.clock = 138500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x70, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1546,7 +1534,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_138500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_147160 = {
-	.clock = 147160,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x78, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1556,7 +1543,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_147160 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_148352 = {
-	.clock = 148352,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1566,7 +1552,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_148352 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_154000 = {
-	.clock = 154000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x80, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1576,7 +1561,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_154000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_162000 = {
-	.clock = 162000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x88, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1586,7 +1570,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_162000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_167000 = {
-	.clock = 167000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x8C, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1596,7 +1579,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_167000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_197802 = {
-	.clock = 197802,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x74, .pll[1] = 0x00, .pll[2] = 0xAE, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1606,7 +1588,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_197802 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_198000 = {
-	.clock = 198000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x74, .pll[1] = 0x00, .pll[2] = 0xAE, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1616,7 +1597,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_198000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_209800 = {
-	.clock = 209800,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xBA, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1626,7 +1606,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_209800 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_241500 = {
-	.clock = 241500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xDA, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1636,7 +1615,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_241500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_262750 = {
-	.clock = 262750,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x68, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1646,7 +1624,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_262750 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_268500 = {
-	.clock = 268500,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x6A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1656,7 +1633,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_268500 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_296703 = {
-	.clock = 296703,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1666,7 +1642,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_296703 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_297000 = {
-	.clock = 297000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1676,7 +1651,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_297000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_319750 = {
-	.clock = 319750,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xB4, .pll[1] = 0x00, .pll[2] = 0x86, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1686,7 +1660,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_319750 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_497750 = {
-	.clock = 497750,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0x34, .pll[1] = 0x00, .pll[2] = 0xE2, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1696,7 +1669,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_497750 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_592000 = {
-	.clock = 592000,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1706,7 +1678,6 @@ static const struct intel_c10pll_state mtl_c10_hdmi_592000 = {
 };
 
 static const struct intel_c10pll_state mtl_c10_hdmi_593407 = {
-	.clock = 593407,
 	.tx = 0x10,
 	.cmn = 0x1,
 	.pll[0] = 0xF4, .pll[1] = 0x00, .pll[2] = 0x7A, .pll[3] = 0x00, .pll[4] = 0x00,
@@ -1715,82 +1686,56 @@ static const struct intel_c10pll_state mtl_c10_hdmi_593407 = {
 	.pll[15] = 0x08, .pll[16] = 0x08, .pll[17] = 0x8F, .pll[18] = 0x84, .pll[19] = 0x23,
 };
 
-static const struct intel_c10pll_state * const mtl_c10_hdmi_tables[] = {
-	&mtl_c10_hdmi_25_2, /* Consolidated Table */
-	&mtl_c10_hdmi_27_0, /* Consolidated Table */
-	&mtl_c10_hdmi_27027,
-	&mtl_c10_hdmi_28320,
-	&mtl_c10_hdmi_30240,
-	&mtl_c10_hdmi_31500,
-	&mtl_c10_hdmi_36000,
-	&mtl_c10_hdmi_40000,
-	&mtl_c10_hdmi_49500,
-	&mtl_c10_hdmi_50000,
-	&mtl_c10_hdmi_57284,
-	&mtl_c10_hdmi_58000,
-	&mtl_c10_hdmi_65000,
-	&mtl_c10_hdmi_71000,
-	&mtl_c10_hdmi_74176,
-	&mtl_c10_hdmi_74_25, /* Consolidated Table */
-	&mtl_c10_hdmi_75000,
-	&mtl_c10_hdmi_78750,
-	&mtl_c10_hdmi_85500,
-	&mtl_c10_hdmi_88750,
-	&mtl_c10_hdmi_106500,
-	&mtl_c10_hdmi_108000,
-	&mtl_c10_hdmi_115500,
-	&mtl_c10_hdmi_119000,
-	&mtl_c10_hdmi_135000,
-	&mtl_c10_hdmi_138500,
-	&mtl_c10_hdmi_147160,
-	&mtl_c10_hdmi_148352,
-	&mtl_c10_hdmi_148_5, /* Consolidated Table */
-	&mtl_c10_hdmi_154000,
-	&mtl_c10_hdmi_162000,
-	&mtl_c10_hdmi_167000,
-	&mtl_c10_hdmi_197802,
-	&mtl_c10_hdmi_198000,
-	&mtl_c10_hdmi_209800,
-	&mtl_c10_hdmi_241500,
-	&mtl_c10_hdmi_262750,
-	&mtl_c10_hdmi_268500,
-	&mtl_c10_hdmi_296703,
-	&mtl_c10_hdmi_297000,
-	&mtl_c10_hdmi_319750,
-	&mtl_c10_hdmi_497750,
-	&mtl_c10_hdmi_592000,
-	&mtl_c10_hdmi_593407,
-	&mtl_c10_hdmi_594, /* Consolidated Table */
-	NULL,
-};
-
-static const struct intel_c20pll_state mtl_c20_hdmi_25_175 = {
-	.clock = 25175,
-	.tx = {  0xbe88, /* tx cfg0 */
-		  0x9800, /* tx cfg1 */
-		  0x0000, /* tx cfg2 */
-		},
-	.cmn = { 0x0500, /* cmn cfg0*/
-		  0x0005, /* cmn cfg1 */
-		  0x0000, /* cmn cfg2 */
-		  0x0000, /* cmn cfg3 */
-		},
-	.mpllb = { 0xa0d2,	/* mpllb cfg0 */
-		   0x7d80,	/* mpllb cfg1 */
-		   0x0906,	/* mpllb cfg2 */
-		   0xbe40,	/* mpllb cfg3 */
-		   0x0000,	/* mpllb cfg4 */
-		   0x0000,	/* mpllb cfg5 */
-		   0x0200,	/* mpllb cfg6 */
-		   0x0001,	/* mpllb cfg7 */
-		   0x0000,	/* mpllb cfg8 */
-		   0x0000,	/* mpllb cfg9 */
-		   0x0001,	/* mpllb cfg10 */
-		},
+static const struct intel_cx0pll_params mtl_c10_hdmi_tables[] = {
+	C10PLL_HDMI_PARAMS(25200, mtl_c10_hdmi_25_2), /* Consolidated Table */
+	C10PLL_HDMI_PARAMS(27000, mtl_c10_hdmi_27_0), /* Consolidated Table */
+	C10PLL_HDMI_PARAMS(27027, mtl_c10_hdmi_27027),
+	C10PLL_HDMI_PARAMS(28320, mtl_c10_hdmi_28320),
+	C10PLL_HDMI_PARAMS(30240, mtl_c10_hdmi_30240),
+	C10PLL_HDMI_PARAMS(31500, mtl_c10_hdmi_31500),
+	C10PLL_HDMI_PARAMS(36000, mtl_c10_hdmi_36000),
+	C10PLL_HDMI_PARAMS(40000, mtl_c10_hdmi_40000),
+	C10PLL_HDMI_PARAMS(49500, mtl_c10_hdmi_49500),
+	C10PLL_HDMI_PARAMS(50000, mtl_c10_hdmi_50000),
+	C10PLL_HDMI_PARAMS(57284, mtl_c10_hdmi_57284),
+	C10PLL_HDMI_PARAMS(58000, mtl_c10_hdmi_58000),
+	C10PLL_HDMI_PARAMS(65000, mtl_c10_hdmi_65000),
+	C10PLL_HDMI_PARAMS(71000, mtl_c10_hdmi_71000),
+	C10PLL_HDMI_PARAMS(74176, mtl_c10_hdmi_74176),
+	C10PLL_HDMI_PARAMS(74250, mtl_c10_hdmi_74_25), /* Consolidated Table */
+	C10PLL_HDMI_PARAMS(75000, mtl_c10_hdmi_75000),
+	C10PLL_HDMI_PARAMS(78750, mtl_c10_hdmi_78750),
+	C10PLL_HDMI_PARAMS(85500, mtl_c10_hdmi_85500),
+	C10PLL_HDMI_PARAMS(88750, mtl_c10_hdmi_88750),
+	C10PLL_HDMI_PARAMS(106500, mtl_c10_hdmi_106500),
+	C10PLL_HDMI_PARAMS(108000, mtl_c10_hdmi_108000),
+	C10PLL_HDMI_PARAMS(115500, mtl_c10_hdmi_115500),
+	C10PLL_HDMI_PARAMS(119000, mtl_c10_hdmi_119000),
+	C10PLL_HDMI_PARAMS(135000, mtl_c10_hdmi_135000),
+	C10PLL_HDMI_PARAMS(138500, mtl_c10_hdmi_138500),
+	C10PLL_HDMI_PARAMS(147160, mtl_c10_hdmi_147160),
+	C10PLL_HDMI_PARAMS(148352, mtl_c10_hdmi_148352),
+	C10PLL_HDMI_PARAMS(148500, mtl_c10_hdmi_148_5), /* Consolidated Table */
+	C10PLL_HDMI_PARAMS(154000, mtl_c10_hdmi_154000),
+	C10PLL_HDMI_PARAMS(162000, mtl_c10_hdmi_162000),
+	C10PLL_HDMI_PARAMS(167000, mtl_c10_hdmi_167000),
+	C10PLL_HDMI_PARAMS(197802, mtl_c10_hdmi_197802),
+	C10PLL_HDMI_PARAMS(198000, mtl_c10_hdmi_198000),
+	C10PLL_HDMI_PARAMS(209800, mtl_c10_hdmi_209800),
+	C10PLL_HDMI_PARAMS(241500, mtl_c10_hdmi_241500),
+	C10PLL_HDMI_PARAMS(262750, mtl_c10_hdmi_262750),
+	C10PLL_HDMI_PARAMS(268500, mtl_c10_hdmi_268500),
+	C10PLL_HDMI_PARAMS(296703, mtl_c10_hdmi_296703),
+	C10PLL_HDMI_PARAMS(297000, mtl_c10_hdmi_297000),
+	C10PLL_HDMI_PARAMS(319750, mtl_c10_hdmi_319750),
+	C10PLL_HDMI_PARAMS(497750, mtl_c10_hdmi_497750),
+	C10PLL_HDMI_PARAMS(592000, mtl_c10_hdmi_592000),
+	C10PLL_HDMI_PARAMS(593407, mtl_c10_hdmi_593407),
+	C10PLL_HDMI_PARAMS(594000, mtl_c10_hdmi_594), /* Consolidated Table */
+	{}
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_27_0 = {
-	.clock = 27000,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1815,7 +1760,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_27_0 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_74_25 = {
-	.clock = 74250,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1840,7 +1784,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_74_25 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_148_5 = {
-	.clock = 148500,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1865,7 +1808,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_148_5 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_594 = {
-	.clock = 594000,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1890,7 +1832,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_594 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_300 = {
-	.clock = 3000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x8800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1915,7 +1856,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_300 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_600 = {
-	.clock = 6000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x8800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1940,7 +1880,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_600 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_800 = {
-	.clock = 8000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x8800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1965,7 +1904,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_800 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_1000 = {
-	.clock = 10000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x8800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1990,7 +1928,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_1000 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_1200 = {
-	.clock = 12000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x8800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -2014,21 +1951,20 @@ static const struct intel_c20pll_state mtl_c20_hdmi_1200 = {
 		},
 };
 
-static const struct intel_c20pll_state * const mtl_c20_hdmi_tables[] = {
-	&mtl_c20_hdmi_25_175,
-	&mtl_c20_hdmi_27_0,
-	&mtl_c20_hdmi_74_25,
-	&mtl_c20_hdmi_148_5,
-	&mtl_c20_hdmi_594,
-	&mtl_c20_hdmi_300,
-	&mtl_c20_hdmi_600,
-	&mtl_c20_hdmi_800,
-	&mtl_c20_hdmi_1000,
-	&mtl_c20_hdmi_1200,
-	NULL,
+static const struct intel_cx0pll_params mtl_c20_hdmi_tables[] = {
+	C20PLL_HDMI_PARAMS(27000, mtl_c20_hdmi_27_0),
+	C20PLL_HDMI_PARAMS(74250, mtl_c20_hdmi_74_25),
+	C20PLL_HDMI_PARAMS(148500, mtl_c20_hdmi_148_5),
+	C20PLL_HDMI_PARAMS(594000, mtl_c20_hdmi_594),
+	C20PLL_HDMI_PARAMS(300000, mtl_c20_hdmi_300),
+	C20PLL_HDMI_PARAMS(600000, mtl_c20_hdmi_600),
+	C20PLL_HDMI_PARAMS(800000, mtl_c20_hdmi_800),
+	C20PLL_HDMI_PARAMS(1000000, mtl_c20_hdmi_1000),
+	C20PLL_HDMI_PARAMS(1200000, mtl_c20_hdmi_1200),
+	{}
 };
 
-static const struct intel_c10pll_state * const *
+static const struct intel_cx0pll_params *
 intel_c10pll_tables_get(const struct intel_crtc_state *crtc_state,
 			struct intel_encoder *encoder)
 {
@@ -2103,21 +2039,99 @@ static bool cx0pll_state_is_dp(const struct intel_cx0pll_state *pll_state)
 	return c20pll_state_is_dp(&pll_state->c20);
 }
 
+static int intel_c10pll_calc_port_clock(const struct intel_c10pll_state *pll_state)
+{
+	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
+	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
+	int tmpclk = 0;
+
+	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
+		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
+		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
+		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
+	}
+
+	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
+		      pll_state->pll[2]) / 2 + 16;
+
+	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
+	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
+
+	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
+				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
+				     10 << (tx_clk_div + 16));
+	tmpclk *= (hdmi_div ? 2 : 1);
+
+	return tmpclk;
+}
+
+static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)
+{
+	return state->tx[0] & C20_PHY_USE_MPLLB;
+}
+
+static int intel_c20pll_calc_port_clock(const struct intel_c20pll_state *pll_state)
+{
+	unsigned int frac, frac_en, frac_quot, frac_rem, frac_den;
+	unsigned int multiplier, refclk = 38400;
+	unsigned int tx_clk_div;
+	unsigned int ref_clk_mpllb_div;
+	unsigned int fb_clk_div4_en;
+	unsigned int ref, vco;
+	unsigned int tx_rate_mult;
+	unsigned int tx_rate = REG_FIELD_GET(C20_PHY_TX_RATE, pll_state->tx[0]);
+
+	if (intel_c20phy_use_mpllb(pll_state)) {
+		tx_rate_mult = 1;
+		frac_en = REG_FIELD_GET(C20_MPLLB_FRACEN, pll_state->mpllb[6]);
+		frac_quot = pll_state->mpllb[8];
+		frac_rem =  pll_state->mpllb[9];
+		frac_den =  pll_state->mpllb[7];
+		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mpllb[0]);
+		tx_clk_div = REG_FIELD_GET(C20_MPLLB_TX_CLK_DIV_MASK, pll_state->mpllb[0]);
+		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mpllb[6]);
+		fb_clk_div4_en = 0;
+	} else {
+		tx_rate_mult = 2;
+		frac_en = REG_FIELD_GET(C20_MPLLA_FRACEN, pll_state->mplla[6]);
+		frac_quot = pll_state->mplla[8];
+		frac_rem =  pll_state->mplla[9];
+		frac_den =  pll_state->mplla[7];
+		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mplla[0]);
+		tx_clk_div = REG_FIELD_GET(C20_MPLLA_TX_CLK_DIV_MASK, pll_state->mplla[1]);
+		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mplla[6]);
+		fb_clk_div4_en = REG_FIELD_GET(C20_FB_CLK_DIV4_EN, pll_state->mplla[0]);
+	}
+
+	if (frac_en)
+		frac = frac_quot + DIV_ROUND_CLOSEST(frac_rem, frac_den);
+	else
+		frac = 0;
+
+	ref = DIV_ROUND_CLOSEST(refclk * (1 << (1 + fb_clk_div4_en)), 1 << ref_clk_mpllb_div);
+	vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(ref, (multiplier << (17 - 2)) + frac) >> 17, 10);
+
+	return vco << tx_rate_mult >> tx_clk_div >> tx_rate;
+}
+
 /*
  * TODO: Convert the following to align with intel_c20pll_find_table() and
  * intel_c20pll_calc_state_from_table().
  */
 static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
-					      const struct intel_c10pll_state * const *tables,
+					      const struct intel_cx0pll_params *tables,
 					      bool is_dp, int port_clock, int lane_count,
 					      struct intel_cx0pll_state *pll_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	int i;
 
-	for (i = 0; tables[i]; i++) {
-		if (port_clock == tables[i]->clock) {
-			pll_state->c10 = *tables[i];
+	for (i = 0; tables[i].name; i++) {
+		int clock = intel_c10pll_calc_port_clock(tables[i].c10);
+
+		drm_WARN_ON(display->drm, !intel_dpll_clock_matches(clock, tables[i].clock_rate));
+		if (intel_dpll_clock_matches(port_clock, clock)) {
+			pll_state->c10 = *tables[i].c10;
 			intel_cx0pll_update_ssc(encoder, pll_state, is_dp);
 			intel_c10pll_update_pll(encoder, pll_state);
 
@@ -2139,7 +2153,7 @@ static int intel_c10pll_calc_state(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
-	const struct intel_c10pll_state * const *tables;
+	const struct intel_cx0pll_params *tables;
 	int err;
 
 	tables = intel_c10pll_tables_get(crtc_state, encoder);
@@ -2164,33 +2178,6 @@ static int intel_c10pll_calc_state(const struct intel_crtc_state *crtc_state,
 	drm_WARN_ON(display->drm, is_dp != c10pll_state_is_dp(&hw_state->cx0pll.c10));
 
 	return 0;
-}
-
-static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c10pll_state *pll_state)
-{
-	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
-	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
-	int tmpclk = 0;
-
-	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
-		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
-		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
-		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
-	}
-
-	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
-		      pll_state->pll[2]) / 2 + 16;
-
-	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
-	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
-
-	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
-				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
-				     10 << (tx_clk_div + 16));
-	tmpclk *= (hdmi_div ? 2 : 1);
-
-	return tmpclk;
 }
 
 static int readout_enabled_lane_count(struct intel_encoder *encoder)
@@ -2275,8 +2262,6 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 
-	pll_state->clock = intel_c10pll_calc_port_clock(encoder, pll_state);
-
 	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, true);
 
 	if (cx0pll_state->ssc_enabled != intel_c10pll_ssc_enabled(pll_state))
@@ -2321,8 +2306,7 @@ static void intel_c10pll_dump_hw_state(struct drm_printer *p,
 	unsigned int multiplier, tx_clk_div;
 
 	fracen = hw_state->pll[0] & C10_PLL0_FRACEN;
-	drm_printf(p, "c10pll_hw_state: clock: %d, fracen: %s, ",
-		   hw_state->clock, str_yes_no(fracen));
+	drm_printf(p, "c10pll_hw_state: fracen: %s, ", str_yes_no(fracen));
 
 	if (fracen) {
 		frac_quot = hw_state->pll[12] << 8 | hw_state->pll[11];
@@ -2364,9 +2348,8 @@ static bool is_arrowlake_s_by_host_bridge(void)
 	return pdev && IS_ARROWLAKE_S_BY_HOST_BRIDGE_ID(host_bridge_pci_dev_id);
 }
 
-static u16 intel_c20_hdmi_tmds_tx_cgf_1(const struct intel_crtc_state *crtc_state)
+static u16 intel_c20_hdmi_tmds_tx_cgf_1(struct intel_display *display)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
 	u16 tx_misc;
 	u16 tx_dcc_cal_dac_ctrl_range = 8;
 	u16 tx_term_ctrl = 2;
@@ -2388,7 +2371,8 @@ static u16 intel_c20_hdmi_tmds_tx_cgf_1(const struct intel_crtc_state *crtc_stat
 		C20_PHY_TX_DCC_BYPASS | C20_PHY_TX_TERM_CTL(tx_term_ctrl));
 }
 
-static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_state,
+static int intel_c20_compute_hdmi_tmds_pll(struct intel_display *display,
+					   int port_clock,
 					   struct intel_c20pll_state *pll_state)
 {
 	u64 datarate;
@@ -2402,10 +2386,10 @@ static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_s
 	u8  mpllb_ana_freq_vco;
 	u8  mpll_div_multiplier;
 
-	if (crtc_state->port_clock < 25175 || crtc_state->port_clock > 600000)
+	if (port_clock < 25175 || port_clock > 600000)
 		return -EINVAL;
 
-	datarate = ((u64)crtc_state->port_clock * 1000) * 10;
+	datarate = ((u64)port_clock * 1000) * 10;
 	mpll_tx_clk_div = ilog2(div64_u64((u64)CLOCK_9999MHZ, (u64)datarate));
 	vco_freq_shift = ilog2(div64_u64((u64)CLOCK_4999MHZ * (u64)256, (u64)datarate));
 	vco_freq = (datarate << vco_freq_shift) >> 8;
@@ -2427,9 +2411,8 @@ static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_s
 	else
 		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_0;
 
-	pll_state->clock	= crtc_state->port_clock;
 	pll_state->tx[0]	= 0xbe88;
-	pll_state->tx[1]	= intel_c20_hdmi_tmds_tx_cgf_1(crtc_state);
+	pll_state->tx[1]	= intel_c20_hdmi_tmds_tx_cgf_1(display);
 	pll_state->tx[2]	= 0x0000;
 	pll_state->cmn[0]	= 0x0500;
 	pll_state->cmn[1]	= 0x0005;
@@ -2457,7 +2440,7 @@ static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_s
 	return 0;
 }
 
-static const struct intel_c20pll_state * const *
+static const struct intel_cx0pll_params *
 intel_c20_pll_tables_get(const struct intel_crtc_state *crtc_state,
 			 struct intel_encoder *encoder)
 {
@@ -2625,20 +2608,25 @@ static void intel_c20_program_vdr_params(struct intel_encoder *encoder,
 		      MB_WRITE_COMMITTED);
 }
 
-static const struct intel_c20pll_state *
+static const struct intel_cx0pll_params *
 intel_c20_pll_find_table(const struct intel_crtc_state *crtc_state,
 			 struct intel_encoder *encoder)
 {
-	const struct intel_c20pll_state * const *tables;
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct intel_cx0pll_params *tables;
 	int i;
 
 	tables = intel_c20_pll_tables_get(crtc_state, encoder);
 	if (!tables)
 		return NULL;
 
-	for (i = 0; tables[i]; i++)
-		if (crtc_state->port_clock == tables[i]->clock)
-			return tables[i];
+	for (i = 0; tables[i].name; i++) {
+		int clock = intel_c20pll_calc_port_clock(tables[i].c20);
+
+		drm_WARN_ON(display->drm, !intel_dpll_clock_matches(clock, tables[i].clock_rate));
+		if (intel_dpll_clock_matches(crtc_state->port_clock, clock))
+			return &tables[i];
+	}
 
 	return NULL;
 }
@@ -2647,13 +2635,13 @@ static int intel_c20pll_calc_state_from_table(const struct intel_crtc_state *crt
 					      struct intel_encoder *encoder,
 					      struct intel_cx0pll_state *pll_state)
 {
-	const struct intel_c20pll_state *table;
+	const struct intel_cx0pll_params *table;
 
 	table = intel_c20_pll_find_table(crtc_state, encoder);
 	if (!table)
 		return -EINVAL;
 
-	pll_state->c20 = *table;
+	pll_state->c20 = *table->c20;
 
 	intel_cx0pll_update_ssc(encoder, pll_state, intel_crtc_has_dp_encoder(crtc_state));
 
@@ -2681,7 +2669,8 @@ static int intel_c20pll_calc_state(const struct intel_crtc_state *crtc_state,
 
 	/* TODO: Update SSC state for HDMI as well */
 	if (!is_dp && err)
-		err = intel_c20_compute_hdmi_tmds_pll(crtc_state, &hw_state->cx0pll.c20);
+		err = intel_c20_compute_hdmi_tmds_pll(display, crtc_state->port_clock,
+						      &hw_state->cx0pll.c20);
 
 	if (err)
 		return err;
@@ -2703,56 +2692,6 @@ int intel_cx0pll_calc_state(const struct intel_crtc_state *crtc_state,
 	if (intel_encoder_is_c10phy(encoder))
 		return intel_c10pll_calc_state(crtc_state, encoder, hw_state);
 	return intel_c20pll_calc_state(crtc_state, encoder, hw_state);
-}
-
-static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)
-{
-	return state->tx[0] & C20_PHY_USE_MPLLB;
-}
-
-static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c20pll_state *pll_state)
-{
-	unsigned int frac, frac_en, frac_quot, frac_rem, frac_den;
-	unsigned int multiplier, refclk = 38400;
-	unsigned int tx_clk_div;
-	unsigned int ref_clk_mpllb_div;
-	unsigned int fb_clk_div4_en;
-	unsigned int ref, vco;
-	unsigned int tx_rate_mult;
-	unsigned int tx_rate = REG_FIELD_GET(C20_PHY_TX_RATE, pll_state->tx[0]);
-
-	if (intel_c20phy_use_mpllb(pll_state)) {
-		tx_rate_mult = 1;
-		frac_en = REG_FIELD_GET(C20_MPLLB_FRACEN, pll_state->mpllb[6]);
-		frac_quot = pll_state->mpllb[8];
-		frac_rem =  pll_state->mpllb[9];
-		frac_den =  pll_state->mpllb[7];
-		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mpllb[0]);
-		tx_clk_div = REG_FIELD_GET(C20_MPLLB_TX_CLK_DIV_MASK, pll_state->mpllb[0]);
-		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mpllb[6]);
-		fb_clk_div4_en = 0;
-	} else {
-		tx_rate_mult = 2;
-		frac_en = REG_FIELD_GET(C20_MPLLA_FRACEN, pll_state->mplla[6]);
-		frac_quot = pll_state->mplla[8];
-		frac_rem =  pll_state->mplla[9];
-		frac_den =  pll_state->mplla[7];
-		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mplla[0]);
-		tx_clk_div = REG_FIELD_GET(C20_MPLLA_TX_CLK_DIV_MASK, pll_state->mplla[1]);
-		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mplla[6]);
-		fb_clk_div4_en = REG_FIELD_GET(C20_FB_CLK_DIV4_EN, pll_state->mplla[0]);
-	}
-
-	if (frac_en)
-		frac = frac_quot + DIV_ROUND_CLOSEST(frac_rem, frac_den);
-	else
-		frac = 0;
-
-	ref = DIV_ROUND_CLOSEST(refclk * (1 << (1 + fb_clk_div4_en)), 1 << ref_clk_mpllb_div);
-	vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(ref, (multiplier << (17 - 2)) + frac) >> 17, 10);
-
-	return vco << tx_rate_mult >> tx_clk_div >> tx_rate;
 }
 
 static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
@@ -2823,8 +2762,6 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 		}
 	}
 
-	pll_state->clock = intel_c20pll_calc_port_clock(encoder, pll_state);
-
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 
 	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, intel_c20phy_use_mpllb(pll_state));
@@ -2835,7 +2772,7 @@ static void intel_c20pll_dump_hw_state(struct drm_printer *p,
 {
 	int i;
 
-	drm_printf(p, "c20pll_hw_state: clock: %d\n", hw_state->clock);
+	drm_printf(p, "c20pll_hw_state:\n");
 	drm_printf(p,
 		   "tx[0] = 0x%.4x, tx[1] = 0x%.4x, tx[2] = 0x%.4x\n",
 		   hw_state->tx[0], hw_state->tx[1], hw_state->tx[2]);
@@ -2971,6 +2908,12 @@ static void intel_c20_pll_program(struct intel_display *display,
 		      MB_WRITE_COMMITTED);
 }
 
+static bool is_mplla_clock_rate(int clock)
+{
+	return intel_dpll_clock_matches(clock, 1000000) ||
+	       intel_dpll_clock_matches(clock, 2000000);
+}
+
 static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 					 const struct intel_cx0pll_state *pll_state,
 					 int port_clock,
@@ -2996,7 +2939,7 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 
 	/* TODO: HDMI FRL */
 	/* DP2.0 10G and 20G rates enable MPLLA*/
-	if (port_clock == 1000000 || port_clock == 2000000)
+	if (is_mplla_clock_rate(port_clock))
 		val |= pll_state->ssc_enabled ? XELPDP_SSC_ENABLE_PLLA : 0;
 	else
 		val |= pll_state->ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
@@ -3223,7 +3166,6 @@ static u32 intel_cx0_get_pclk_pll_ack(u8 lane_mask)
 static void intel_cx0pll_enable(struct intel_encoder *encoder,
 				const struct intel_cx0pll_state *pll_state)
 {
-	int port_clock = pll_state->use_c10 ? pll_state->c10.clock : pll_state->c20.clock;
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -3231,6 +3173,12 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	u8 maxpclk_lane = lane_reversal ? INTEL_CX0_LANE1 :
 					  INTEL_CX0_LANE0;
 	struct ref_tracker *wakeref = intel_cx0_phy_transaction_begin(encoder);
+	int port_clock;
+
+	if (pll_state->use_c10)
+		port_clock = intel_c10pll_calc_port_clock(&pll_state->c10);
+	else
+		port_clock = intel_c20pll_calc_port_clock(&pll_state->c20);
 
 	/*
 	 * Lane reversal is never used in DP-alt mode, in that case the
@@ -3730,9 +3678,9 @@ int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_cx0pll_state *pll_state)
 {
 	if (intel_encoder_is_c10phy(encoder))
-		return intel_c10pll_calc_port_clock(encoder, &pll_state->c10);
+		return intel_c10pll_calc_port_clock(&pll_state->c10);
 
-	return intel_c20pll_calc_port_clock(encoder, &pll_state->c20);
+	return intel_c20pll_calc_port_clock(&pll_state->c20);
 }
 
 /*
@@ -3785,4 +3733,125 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 		intel_cx0pll_enable(encoder, &pll_state);
 		intel_cx0pll_disable(encoder);
 	}
+}
+
+static void intel_c10pll_verify_clock(struct intel_display *display,
+				      int precomputed_clock,
+				      const char *pll_state_name,
+				      const struct intel_c10pll_state *pll_state,
+				      bool is_precomputed_state)
+{
+	struct drm_printer p;
+	int clock;
+
+	clock = intel_c10pll_calc_port_clock(pll_state);
+
+	if (intel_dpll_clock_matches(clock, precomputed_clock))
+		return;
+
+	drm_warn(display->drm,
+		 "PLL state %s (%s): clock difference too high: computed %d, pre-computed %d\n",
+		 pll_state_name,
+		 is_precomputed_state ? "precomputed" : "computed",
+		 clock, precomputed_clock);
+
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	p = drm_dbg_printer(display->drm, DRM_UT_KMS, NULL);
+
+	drm_printf(&p, "PLL state %s (%s):\n",
+		   pll_state_name,
+		   is_precomputed_state ? "precomputed" : "computed");
+	intel_c10pll_dump_hw_state(&p, pll_state);
+}
+
+static void intel_c10pll_verify_params(struct intel_display *display,
+				       const struct intel_cx0pll_params *pll_params)
+{
+	struct intel_c10pll_state pll_state;
+
+	intel_c10pll_verify_clock(display, pll_params->clock_rate, pll_params->name, pll_params->c10, true);
+
+	if (!pll_params->is_hdmi)
+		return;
+
+	intel_snps_hdmi_pll_compute_c10pll(&pll_state, pll_params->clock_rate);
+
+	intel_c10pll_verify_clock(display, pll_params->clock_rate, pll_params->name, &pll_state, false);
+}
+
+static void intel_c20pll_verify_clock(struct intel_display *display,
+				      int precomputed_clock,
+				      const char *pll_state_name,
+				      const struct intel_c20pll_state *pll_state,
+				      bool is_precomputed_state)
+{
+	struct drm_printer p;
+	int clock;
+
+	clock = intel_c20pll_calc_port_clock(pll_state);
+
+	if (intel_dpll_clock_matches(clock, precomputed_clock))
+		return;
+
+	drm_warn(display->drm,
+		 "PLL state %s (%s): clock difference too high: computed %d, pre-computed %d\n",
+		 pll_state_name,
+		 is_precomputed_state ? "precomputed" : "computed",
+		 clock, precomputed_clock);
+
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	p = drm_dbg_printer(display->drm, DRM_UT_KMS, NULL);
+
+	drm_printf(&p, "PLL state %s (%s):\n",
+		   pll_state_name,
+		   is_precomputed_state ? "precomputed" : "computed");
+	intel_c20pll_dump_hw_state(&p, pll_state);
+}
+
+static void intel_c20pll_verify_params(struct intel_display *display,
+				       const struct intel_cx0pll_params *pll_params)
+{
+	struct intel_c20pll_state pll_state;
+
+	intel_c20pll_verify_clock(display, pll_params->clock_rate, pll_params->name, pll_params->c20, true);
+
+	if (!pll_params->is_hdmi)
+		return;
+
+	if (intel_c20_compute_hdmi_tmds_pll(display, pll_params->clock_rate, &pll_state) != 0)
+		return;
+
+	intel_c20pll_verify_clock(display, pll_params->clock_rate, pll_params->name, &pll_state, false);
+}
+
+static void intel_cx0pll_verify_tables(struct intel_display *display,
+				       const struct intel_cx0pll_params *tables)
+{
+	int i;
+
+	for (i = 0; tables[i].name; i++) {
+		if (tables[i].is_c10)
+			intel_c10pll_verify_params(display, &tables[i]);
+		else
+			intel_c20pll_verify_params(display, &tables[i]);
+	}
+}
+
+void intel_cx0pll_verify_plls(struct intel_display *display)
+{
+	/* C10 */
+	intel_cx0pll_verify_tables(display, mtl_c10_edp_tables);
+	intel_cx0pll_verify_tables(display, mtl_c10_dp_tables);
+	intel_cx0pll_verify_tables(display, mtl_c10_hdmi_tables);
+
+	/* C20 */
+	intel_cx0pll_verify_tables(display, xe2hpd_c20_edp_tables);
+	intel_cx0pll_verify_tables(display, mtl_c20_dp_tables);
+	intel_cx0pll_verify_tables(display, xe2hpd_c20_dp_tables);
+	intel_cx0pll_verify_tables(display, xe3lpd_c20_dp_edp_tables);
+	intel_cx0pll_verify_tables(display, mtl_c20_hdmi_tables);
 }

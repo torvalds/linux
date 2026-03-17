@@ -1,31 +1,28 @@
-/* SPDX-License-Identifier: MIT */
-/*
- * Copyright © 2021 Intel Corporation
- */
+// SPDX-License-Identifier: MIT
+/* Copyright © 2024 Intel Corporation */
 
-#include <drm/drm_modeset_helper.h>
-#include <drm/ttm/ttm_bo.h>
+#include <drm/drm_gem.h>
+#include <drm/intel/display_parent_interface.h>
 
-#include "intel_display_types.h"
 #include "intel_fb.h"
-#include "intel_fb_bo.h"
 #include "xe_bo.h"
+#include "xe_display_bo.h"
+#include "xe_pxp.h"
 
-void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
+static bool xe_display_bo_is_protected(struct drm_gem_object *obj)
+{
+	return xe_bo_is_protected(gem_to_xe_bo(obj));
+}
+
+static int xe_display_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, int size)
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 
-	if (bo->flags & XE_BO_FLAG_PINNED) {
-		/* Unpin our kernel fb first */
-		xe_bo_lock(bo, false);
-		xe_bo_unpin(bo);
-		xe_bo_unlock(bo);
-	}
-	xe_bo_put(bo);
+	return xe_bo_read(bo, offset, dst, size);
 }
 
-int intel_fb_bo_framebuffer_init(struct drm_gem_object *obj,
-				 struct drm_mode_fb_cmd2 *mode_cmd)
+static int xe_display_bo_framebuffer_init(struct drm_gem_object *obj,
+					  struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_device *xe = to_xe_device(bo->ttm.base.dev);
@@ -67,9 +64,23 @@ err:
 	return ret;
 }
 
-struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_device *drm,
-						   struct drm_file *filp,
-						   const struct drm_mode_fb_cmd2 *mode_cmd)
+static void xe_display_bo_framebuffer_fini(struct drm_gem_object *obj)
+{
+	struct xe_bo *bo = gem_to_xe_bo(obj);
+
+	if (bo->flags & XE_BO_FLAG_PINNED) {
+		/* Unpin our kernel fb first */
+		xe_bo_lock(bo, false);
+		xe_bo_unpin(bo);
+		xe_bo_unlock(bo);
+	}
+	xe_bo_put(bo);
+}
+
+static struct drm_gem_object *
+xe_display_bo_framebuffer_lookup(struct drm_device *drm,
+				 struct drm_file *filp,
+				 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct xe_bo *bo;
@@ -89,3 +100,13 @@ struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_device *drm,
 
 	return gem;
 }
+
+const struct intel_display_bo_interface xe_display_bo_interface = {
+	.is_protected = xe_display_bo_is_protected,
+	.key_check = xe_pxp_obj_key_check,
+	.fb_mmap = drm_gem_prime_mmap,
+	.read_from_page = xe_display_bo_read_from_page,
+	.framebuffer_init = xe_display_bo_framebuffer_init,
+	.framebuffer_fini = xe_display_bo_framebuffer_fini,
+	.framebuffer_lookup = xe_display_bo_framebuffer_lookup,
+};

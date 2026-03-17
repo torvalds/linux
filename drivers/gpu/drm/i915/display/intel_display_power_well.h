@@ -103,8 +103,6 @@ struct i915_power_well_desc {
 	 * the well enabled.
 	 */
 	u16 fixed_enable_delay:1;
-	/* The pw is backing the VGA functionality */
-	u16 has_vga:1;
 	u16 has_fuses:1;
 	/*
 	 * The pw is for an ICL+ TypeC PHY port in

@@ -7,10 +7,9 @@
 
 #include <drm/drm_device.h>
 
-#include "i915_reg.h"
-
 #include "intel_rom.h"
 #include "intel_uncore.h"
+#include "intel_oprom_regs.h"
 
 struct intel_rom {
 	/* for PCI ROM */

@@ -46,6 +46,7 @@
 #define VGA_MIS_R   	0x3CC	/* Misc Output Read Register */
 #define VGA_MIS_W   	0x3C2	/* Misc Output Write Register */
 #define VGA_FTC_R	0x3CA	/* Feature Control Read Register */
+#define VGA_IS0_R	0x3C2	/* Input Status Register 0 */
 #define VGA_IS1_RC  	0x3DA	/* Input Status Register 1 - color emulation */
 #define VGA_IS1_RM  	0x3BA	/* Input Status Register 1 - mono emulation */
 #define VGA_PEL_D   	0x3C9	/* PEL Data Register */

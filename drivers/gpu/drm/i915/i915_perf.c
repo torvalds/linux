@@ -2635,10 +2635,9 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream,
 		{
 			RING_CONTEXT_CONTROL(ce->engine->mmio_base),
 			CTX_CONTEXT_CONTROL,
-			_MASKED_FIELD(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE,
-				      active ?
-				      GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE :
-				      0)
+			active ?
+			REG_MASKED_FIELD_ENABLE(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE) :
+			REG_MASKED_FIELD_DISABLE(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE),
 		},
 	};
 
@@ -2827,8 +2826,8 @@ gen8_enable_metric_set(struct i915_perf_stream *stream,
 	 */
 	if (IS_GRAPHICS_VER(stream->perf->i915, 9, 11)) {
 		intel_uncore_write(uncore, GEN8_OA_DEBUG,
-				   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
-						      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
+				   REG_MASKED_FIELD_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
+							   GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
 	}
 
 	/*
@@ -2847,9 +2846,10 @@ gen8_enable_metric_set(struct i915_perf_stream *stream,
 
 static u32 oag_report_ctx_switches(const struct i915_perf_stream *stream)
 {
-	return _MASKED_FIELD(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS,
-			     (stream->sample_flags & SAMPLE_OA_REPORT) ?
-			     0 : GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	if (stream->sample_flags & SAMPLE_OA_REPORT)
+		return REG_MASKED_FIELD_DISABLE(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	else
+		return REG_MASKED_FIELD_ENABLE(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
 static int
@@ -2870,15 +2870,15 @@ gen12_enable_metric_set(struct i915_perf_stream *stream,
 	 */
 	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
-					     _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
+					     REG_MASKED_FIELD_ENABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
-				   _MASKED_BIT_ENABLE(GEN12_DISABLE_DOP_GATING));
+				   REG_MASKED_FIELD_ENABLE(GEN12_DISABLE_DOP_GATING));
 	}
 
 	intel_uncore_write(uncore, __oa_regs(stream)->oa_debug,
 			   /* Disable clk ratio reports, like previous Gens. */
-			   _MASKED_BIT_ENABLE(GEN12_OAG_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
-					      GEN12_OAG_OA_DEBUG_INCLUDE_CLK_RATIO) |
+			   REG_MASKED_FIELD_ENABLE(GEN12_OAG_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
+						   GEN12_OAG_OA_DEBUG_INCLUDE_CLK_RATIO) |
 			   /*
 			    * If the user didn't require OA reports, instruct
 			    * the hardware not to emit ctx switch reports.
@@ -2949,9 +2949,9 @@ static void gen12_disable_metric_set(struct i915_perf_stream *stream)
 	 */
 	if (IS_DG2(i915)) {
 		intel_gt_mcr_multicast_write(uncore->gt, GEN8_ROW_CHICKEN,
-					     _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
+					     REG_MASKED_FIELD_DISABLE(STALL_DOP_GATING_DISABLE));
 		intel_uncore_write(uncore, GEN7_ROW_CHICKEN2,
-				   _MASKED_BIT_DISABLE(GEN12_DISABLE_DOP_GATING));
+				   REG_MASKED_FIELD_DISABLE(GEN12_DISABLE_DOP_GATING));
 	}
 
 	/* disable the context save/restore or OAR counters */
@@ -4475,7 +4475,7 @@ static u32 mask_reg_value(u32 reg, u32 val)
 	 * programmed by userspace doesn't change this.
 	 */
 	if (REG_EQUAL(reg, HALF_SLICE_CHICKEN2))
-		val = val & ~_MASKED_BIT_ENABLE(GEN8_ST_PO_DISABLE);
+		val = val & ~REG_MASKED_FIELD_ENABLE(GEN8_ST_PO_DISABLE);
 
 	/*
 	 * WAIT_FOR_RC6_EXIT has only one bit fulfilling the function
@@ -4483,7 +4483,7 @@ static u32 mask_reg_value(u32 reg, u32 val)
 	 * configs.
 	 */
 	if (REG_EQUAL(reg, WAIT_FOR_RC6_EXIT))
-		val = val & ~_MASKED_BIT_ENABLE(HSW_WAIT_FOR_RC6_EXIT_ENABLE);
+		val = val & ~REG_MASKED_FIELD_ENABLE(HSW_WAIT_FOR_RC6_EXIT_ENABLE);
 
 	return val;
 }

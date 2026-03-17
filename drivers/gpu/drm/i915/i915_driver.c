@@ -48,6 +48,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/intel/display_member.h>
 #include <drm/intel/display_parent_interface.h>
+#include <drm/intel/intel_pcode_regs.h>
 
 #include "display/i9xx_display_sr.h"
 #include "display/intel_bw.h"
@@ -77,6 +78,7 @@
 #include "gem/i915_gem_dmabuf.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_object_frontbuffer.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
@@ -88,11 +90,14 @@
 #include "pxp/intel_pxp_debugfs.h"
 #include "pxp/intel_pxp_pm.h"
 
+#include "i915_bo.h"
 #include "i915_debugfs.h"
 #include "i915_display_pc8.h"
+#include "i915_dpt.h"
 #include "i915_driver.h"
 #include "i915_drm_client.h"
 #include "i915_drv.h"
+#include "i915_dsb_buffer.h"
 #include "i915_edram.h"
 #include "i915_file_private.h"
 #include "i915_getparam.h"
@@ -104,6 +109,7 @@
 #include "i915_ioctl.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
+#include "i915_overlay.h"
 #include "i915_panic.h"
 #include "i915_perf.h"
 #include "i915_query.h"
@@ -147,10 +153,11 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	/*
 	 * The unordered i915 workqueue should be used for all work
 	 * scheduling that do not require running in order, which used
-	 * to be scheduled on the system_wq before moving to a driver
+	 * to be scheduled on the system_percpu_wq before moving to a driver
 	 * instance due deprecation of flush_scheduled_work().
 	 */
-	dev_priv->unordered_wq = alloc_workqueue("i915-unordered", 0, 0);
+	dev_priv->unordered_wq = alloc_workqueue("i915-unordered", WQ_PERCPU,
+						 0);
 	if (dev_priv->unordered_wq == NULL)
 		goto out_free_wq;
 
@@ -556,10 +563,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 			drm_dbg(&dev_priv->drm, "can't enable MSI");
 	}
 
-	ret = intel_gvt_init(dev_priv);
-	if (ret)
-		goto err_msi;
-
 	intel_opregion_setup(display);
 
 	ret = i915_pcode_init(dev_priv);
@@ -580,7 +583,6 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 err_opregion:
 	intel_opregion_cleanup(display);
-err_msi:
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 err_mem_regions:
@@ -764,14 +766,21 @@ static bool vgpu_active(struct drm_device *drm)
 }
 
 static const struct intel_display_parent_interface parent = {
+	.bo = &i915_display_bo_interface,
+	.dpt = &i915_display_dpt_interface,
+	.dsb = &i915_display_dsb_interface,
+	.frontbuffer = &i915_display_frontbuffer_interface,
 	.hdcp = &i915_display_hdcp_interface,
 	.initial_plane = &i915_display_initial_plane_interface,
 	.irq = &i915_display_irq_interface,
+	.overlay = &i915_display_overlay_interface,
 	.panic = &i915_display_panic_interface,
 	.pc8 = &i915_display_pc8_interface,
+	.pcode = &i915_display_pcode_interface,
 	.rpm = &i915_display_rpm_interface,
 	.rps = &i915_display_rps_interface,
 	.stolen = &i915_display_stolen_interface,
+	.vma = &i915_display_vma_interface,
 
 	.fence_priority_display = fence_priority_display,
 	.has_auxccs = has_auxccs,
@@ -868,9 +877,13 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
+	ret = intel_gvt_init(i915);
+	if (ret)
+		goto out_cleanup_hw;
+
 	ret = intel_display_driver_probe_noirq(display);
 	if (ret < 0)
-		goto out_cleanup_hw;
+		goto out_cleanup_gvt;
 
 	ret = intel_irq_install(i915);
 	if (ret)
@@ -919,6 +932,8 @@ out_cleanup_irq:
 	intel_irq_uninstall(i915);
 out_cleanup_modeset:
 	intel_display_driver_remove_nogem(display);
+out_cleanup_gvt:
+	intel_gvt_driver_remove(i915);
 out_cleanup_hw:
 	i915_driver_hw_remove(i915);
 	intel_memory_regions_driver_release(i915);
@@ -926,7 +941,6 @@ out_cleanup_hw:
 	i915_gem_drain_freed_objects(i915);
 	i915_ggtt_driver_late_release(i915);
 out_cleanup_mmio:
-	intel_gvt_driver_remove(i915);
 	i915_driver_mmio_release(i915);
 out_runtime_pm_put:
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);

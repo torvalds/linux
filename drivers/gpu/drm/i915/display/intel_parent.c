@@ -23,6 +23,55 @@
 #include "intel_display_core.h"
 #include "intel_parent.h"
 
+/* dpt */
+struct intel_dpt *intel_parent_dpt_create(struct intel_display *display,
+					  struct drm_gem_object *obj, size_t size)
+{
+	if (display->parent->dpt)
+		return display->parent->dpt->create(obj, size);
+
+	return NULL;
+}
+
+void intel_parent_dpt_destroy(struct intel_display *display, struct intel_dpt *dpt)
+{
+	if (display->parent->dpt)
+		display->parent->dpt->destroy(dpt);
+}
+
+void intel_parent_dpt_suspend(struct intel_display *display, struct intel_dpt *dpt)
+{
+	if (display->parent->dpt)
+		display->parent->dpt->suspend(dpt);
+}
+
+void intel_parent_dpt_resume(struct intel_display *display, struct intel_dpt *dpt)
+{
+	if (display->parent->dpt)
+		display->parent->dpt->resume(dpt);
+}
+
+/* frontbuffer */
+struct intel_frontbuffer *intel_parent_frontbuffer_get(struct intel_display *display, struct drm_gem_object *obj)
+{
+	return display->parent->frontbuffer->get(obj);
+}
+
+void intel_parent_frontbuffer_ref(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->ref(front);
+}
+
+void intel_parent_frontbuffer_put(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->put(front);
+}
+
+void intel_parent_frontbuffer_flush_for_display(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->flush_for_display(front);
+}
+
 /* hdcp */
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
 				       struct intel_hdcp_gsc_context *gsc_context,
@@ -59,6 +108,82 @@ void intel_parent_irq_synchronize(struct intel_display *display)
 	display->parent->irq->synchronize(display->drm);
 }
 
+/* overlay */
+bool intel_parent_overlay_is_active(struct intel_display *display)
+{
+	return display->parent->overlay->is_active(display->drm);
+}
+
+int intel_parent_overlay_on(struct intel_display *display,
+			    u32 frontbuffer_bits)
+{
+	return display->parent->overlay->overlay_on(display->drm,
+						    frontbuffer_bits);
+}
+
+int intel_parent_overlay_continue(struct intel_display *display,
+				  struct i915_vma *vma,
+				  bool load_polyphase_filter)
+{
+	return display->parent->overlay->overlay_continue(display->drm, vma,
+							  load_polyphase_filter);
+}
+
+int intel_parent_overlay_off(struct intel_display *display)
+{
+	return display->parent->overlay->overlay_off(display->drm);
+}
+
+int intel_parent_overlay_recover_from_interrupt(struct intel_display *display)
+{
+	return display->parent->overlay->recover_from_interrupt(display->drm);
+}
+
+int intel_parent_overlay_release_old_vid(struct intel_display *display)
+{
+	return display->parent->overlay->release_old_vid(display->drm);
+}
+
+void intel_parent_overlay_reset(struct intel_display *display)
+{
+	display->parent->overlay->reset(display->drm);
+}
+
+struct i915_vma *intel_parent_overlay_pin_fb(struct intel_display *display,
+					     struct drm_gem_object *obj,
+					     u32 *offset)
+{
+	return display->parent->overlay->pin_fb(display->drm, obj, offset);
+}
+
+void intel_parent_overlay_unpin_fb(struct intel_display *display,
+				   struct i915_vma *vma)
+{
+	return display->parent->overlay->unpin_fb(display->drm, vma);
+}
+
+struct drm_gem_object *intel_parent_overlay_obj_lookup(struct intel_display *display,
+						       struct drm_file *filp,
+						       u32 handle)
+{
+	return display->parent->overlay->obj_lookup(display->drm,
+						    filp, handle);
+}
+
+void __iomem *intel_parent_overlay_setup(struct intel_display *display,
+					 bool needs_physical)
+{
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->overlay))
+		return ERR_PTR(-ENODEV);
+
+	return display->parent->overlay->setup(display->drm, needs_physical);
+}
+
+void intel_parent_overlay_cleanup(struct intel_display *display)
+{
+	display->parent->overlay->cleanup(display->drm);
+}
+
 /* panic */
 struct intel_panic *intel_parent_panic_alloc(struct intel_display *display)
 {
@@ -90,6 +215,28 @@ void intel_parent_pc8_unblock(struct intel_display *display)
 		return;
 
 	display->parent->pc8->unblock(display->drm);
+}
+
+/* pcode */
+int intel_parent_pcode_read(struct intel_display *display, u32 mbox, u32 *val, u32 *val1)
+{
+	return display->parent->pcode->read(display->drm, mbox, val, val1);
+}
+
+int intel_parent_pcode_write_timeout(struct intel_display *display, u32 mbox, u32 val, int timeout_ms)
+{
+	return display->parent->pcode->write(display->drm, mbox, val, timeout_ms);
+}
+
+int intel_parent_pcode_write(struct intel_display *display, u32 mbox, u32 val)
+{
+	return intel_parent_pcode_write_timeout(display, mbox, val, 1);
+}
+
+int intel_parent_pcode_request(struct intel_display *display, u32 mbox, u32 request,
+			       u32 reply_mask, u32 reply, int timeout_base_ms)
+{
+	return display->parent->pcode->request(display->drm, mbox, request, reply_mask, reply, timeout_base_ms);
 }
 
 /* rps */
@@ -189,6 +336,15 @@ struct intel_stolen_node *intel_parent_stolen_node_alloc(struct intel_display *d
 void intel_parent_stolen_node_free(struct intel_display *display, const struct intel_stolen_node *node)
 {
 	display->parent->stolen->node_free(node);
+}
+
+/* vma */
+int intel_parent_vma_fence_id(struct intel_display *display, const struct i915_vma *vma)
+{
+	if (!display->parent->vma)
+		return -1;
+
+	return display->parent->vma->fence_id(vma);
 }
 
 /* generic */

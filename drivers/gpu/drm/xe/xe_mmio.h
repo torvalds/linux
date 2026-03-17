@@ -17,6 +17,7 @@ int xe_mmio_probe_tiles(struct xe_device *xe);
 void xe_mmio_init(struct xe_mmio *mmio, struct xe_tile *tile, void __iomem *ptr, u32 size);
 
 u8 xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg);
+void xe_mmio_write8(struct xe_mmio *mmio, struct xe_reg reg, u8 val);
 u16 xe_mmio_read16(struct xe_mmio *mmio, struct xe_reg reg);
 void xe_mmio_write32(struct xe_mmio *mmio, struct xe_reg reg, u32 val);
 u32 xe_mmio_read32(struct xe_mmio *mmio, struct xe_reg reg);

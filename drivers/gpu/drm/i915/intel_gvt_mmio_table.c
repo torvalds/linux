@@ -3,6 +3,11 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include <drm/intel/intel_pcode_regs.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
+
+#include <drm/intel/intel_gmd_interrupt_regs.h>
+
 #include "display/bxt_dpio_phy_regs.h"
 #include "display/i9xx_plane_regs.h"
 #include "display/i9xx_wm_regs.h"
@@ -11,12 +16,12 @@
 #include "display/intel_color_regs.h"
 #include "display/intel_crt_regs.h"
 #include "display/intel_cursor_regs.h"
-#include "display/intel_display_core.h"
+#include "display/intel_display_limits.h"
 #include "display/intel_display_regs.h"
-#include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
 #include "display/intel_dpio_phy.h"
+#include "display/intel_fbc.h"
 #include "display/intel_fbc_regs.h"
 #include "display/intel_fdi_regs.h"
 #include "display/intel_lvds_regs.h"
@@ -32,6 +37,7 @@
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
 
+#include "gvt/display_helpers.h"
 #include "gvt/reg.h"
 
 #include "i915_drv.h"
