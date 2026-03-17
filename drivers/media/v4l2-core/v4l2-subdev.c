@@ -2549,14 +2549,13 @@ int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
 					   unsigned int pad,
 					   struct v4l2_mbus_frame_desc *fd)
 {
-	const struct media_pad *pads = sd->entity.pads;
 	struct media_pad *local_sink_pad;
 	struct v4l2_subdev_route *route;
 	struct v4l2_subdev_state *state;
 	struct device *dev = sd->dev;
 	int ret = 0;
 
-	if (WARN_ON(!(pads[pad].flags & MEDIA_PAD_FL_SOURCE)))
+	if (WARN_ON(!(sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE)))
 		return -EINVAL;
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
@@ -2577,7 +2576,6 @@ int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
 			struct v4l2_mbus_frame_desc_entry *source_entry = NULL;
 			struct media_pad *remote_source_pad;
 			struct v4l2_subdev *remote_sd;
-			unsigned int i;
 
 			if (route->source_pad != pad ||
 			    route->sink_pad != local_sink_pad->index)
@@ -2622,7 +2620,7 @@ int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
 				}
 			}
 
-			for (i = 0; i < source_fd.num_entries; i++) {
+			for (unsigned int i = 0; i < source_fd.num_entries; i++) {
 				if (source_fd.entry[i].stream == route->sink_stream) {
 					source_entry = &source_fd.entry[i];
 					break;
@@ -2630,7 +2628,7 @@ int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
 			}
 
 			if (!source_entry) {
-				dev_dbg(sd->dev,
+				dev_dbg(dev,
 					"Failed to find stream %u from source frame desc\n",
 					route->sink_stream);
 				ret = -EPIPE;
@@ -2638,7 +2636,7 @@ int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
 			}
 
 			if (fd->num_entries >= V4L2_FRAME_DESC_ENTRY_MAX) {
-				dev_dbg(sd->dev, "Frame desc entry limit reached\n");
+				dev_dbg(dev, "Frame desc entry limit reached\n");
 				ret = -ENOSPC;
 				goto out_unlock;
 			}
