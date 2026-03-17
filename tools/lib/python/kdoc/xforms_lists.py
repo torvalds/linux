@@ -5,7 +5,7 @@
 import re
 
 from kdoc.kdoc_re import KernRe
-from kdoc.c_lex import CMatch
+from kdoc.c_lex import CMatch, CTokenizer
 
 struct_args_pattern = r'([^,)]+)'
 
@@ -15,6 +15,12 @@ class CTransforms:
     structure member prefixes, and macro invocations and variables
     into something we can parse and generate kdoc for.
     """
+
+    #
+    # NOTE:
+    #      Due to performance reasons, place CMatch rules before KernRe,
+    #      as this avoids running the C parser every time.
+    #
 
     #: Transforms for structs and unions.
     struct_xforms = [
@@ -124,13 +130,25 @@ class CTransforms:
         "var": var_xforms,
     }
 
-    def apply(self, xforms_type, text):
+    def apply(self, xforms_type, source):
         """
-        Apply a set of transforms to a block of text.
+        Apply a set of transforms to a block of source.
+
+        As tokenizer is used here, this function also remove comments
+        at the end.
         """
         if xforms_type not in self.xforms:
-            return text
+            return source
+
+        if isinstance(source, str):
+            source = CTokenizer(source)
 
         for search, subst in self.xforms[xforms_type]:
-            text = search.sub(subst, text)
-        return text
+            #
+            # KernRe only accept strings.
+            #
+            if isinstance(search, KernRe):
+                source = str(source)
+
+            source = search.sub(subst, source)
+        return str(source)

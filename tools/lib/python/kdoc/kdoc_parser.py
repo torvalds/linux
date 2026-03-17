@@ -737,7 +737,6 @@ class KernelDoc:
         #
         # Go through the list of members applying all of our transformations.
         #
-        members = trim_private_members(members)
         members = self.xforms.apply("struct", members)
 
         #
