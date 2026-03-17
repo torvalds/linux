@@ -1026,6 +1026,8 @@ int bio_add_page(struct bio *bio, struct page *page,
 {
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return 0;
+	if (WARN_ON_ONCE(len == 0))
+		return 0;
 	if (bio->bi_iter.bi_size > BIO_MAX_SIZE - len)
 		return 0;
 
