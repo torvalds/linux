@@ -387,14 +387,14 @@ static const struct em28xx_reg_seq c3tech_digital_duo_digital[] = {
  * GPIO 7 = P07_LED (green LED)
  */
 static const struct em28xx_reg_seq pctv_461e[] = {
-	{EM2874_R80_GPIO_P0_CTRL,      0x7f, 0xff,    0},
-	{0x0d,                 0xff, 0xff,    0},
-	{EM2874_R80_GPIO_P0_CTRL,      0x3f, 0xff,  100}, /* reset demod */
-	{EM2874_R80_GPIO_P0_CTRL,      0x7f, 0xff,  200}, /* reset demod */
-	{0x0d,                 0x42, 0xff,    0},
-	{EM2874_R80_GPIO_P0_CTRL,      0xeb, 0xff,    0},
-	{EM2874_R5F_TS_ENABLE, 0x84, 0x84,    0}, /* parallel? | null discard */
-	{                  -1,   -1,   -1,   -1},
+	{EM2874_R80_GPIO_P0_CTRL,	0x7f,	0xff,	0},
+	{0x0d,				0xff,	0xff,	0},
+	{EM2874_R80_GPIO_P0_CTRL,	0x3f,	0xff,	100}, /* reset demod */
+	{EM2874_R80_GPIO_P0_CTRL,	0x7f,	0xff,	200}, /* reset demod */
+	{0x0d,				0x42,	0xff,	0},
+	{EM2874_R80_GPIO_P0_CTRL,	0xeb,	0xff,	0},
+	{EM2874_R5F_TS_ENABLE,		0x84,	0x84,	0}, /* parallel? | null discard */
+	{-1,				-1,	-1,	-1},
 };
 
 #if 0
@@ -2497,6 +2497,20 @@ const struct em28xx_board em28xx_boards[] = {
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 	/*
+	 * 2013:x462 PCTV DVB-S2 Stick (461e_v3)
+	 * Empia EM28178, Montage M88DS3103c, Montage M88TS2022, Allegro A8293
+	 */
+	[EM28178_BOARD_PCTV_461E_V3] = {
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
+				 EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (461e v3)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_461e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
+	/*
 	 * 2013:025f PCTV tripleStick (292e).
 	 * Empia EM28178, Silicon Labs Si2168, Silicon Labs Si2157
 	 */
@@ -3012,6 +3026,10 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
 	{ USB_DEVICE(0x2013, 0x0259),
 			.driver_info = EM28178_BOARD_PCTV_461E_V2 },
+	{ USB_DEVICE(0x2013, 0x0462),
+			.driver_info = EM28178_BOARD_PCTV_461E_V3 },
+	{ USB_DEVICE(0x2013, 0x8462), /* Bulk transport 461e v3 */
+			.driver_info = EM28178_BOARD_PCTV_461E_V3 },
 	{ USB_DEVICE(0x2013, 0x025f),
 			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ USB_DEVICE(0x2013, 0x0264), /* Hauppauge WinTV-soloHD 292e SE */

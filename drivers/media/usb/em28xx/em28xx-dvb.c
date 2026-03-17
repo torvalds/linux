@@ -1237,7 +1237,7 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 	return 0;
 }
 
-static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
+static int em28178_dvb_init_pctv_461e_vX(struct em28xx *dev, int version)
 {
 	struct em28xx_dvb *dvb = dev->dvb;
 	struct i2c_adapter *i2c_adapter;
@@ -1254,9 +1254,19 @@ static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
 	m88ds3103_pdata.agc = 0x99;
 	m88ds3103_pdata.agc_inv = 0;
 	m88ds3103_pdata.spec_inv = 0;
-	dvb->i2c_client_demod[0] = dvb_module_probe("m88ds3103", "m88ds3103b",
-						 &dev->i2c_adap[dev->def_i2c_bus],
-						 0x6a, &m88ds3103_pdata);
+
+	if (version == 2) {
+		dvb->i2c_client_demod[0] = dvb_module_probe("m88ds3103", "m88ds3103b",
+							    &dev->i2c_adap[dev->def_i2c_bus],
+							    0x6a, &m88ds3103_pdata);
+	} else {
+		m88ds3103_pdata.lnb_hv_pol = 1;
+		m88ds3103_pdata.lnb_en_pol = 1;
+
+		dvb->i2c_client_demod[0] = dvb_module_probe("m88ds3103", "m88ds3103c",
+							    &dev->i2c_adap[dev->def_i2c_bus],
+							    0x6a, &m88ds3103_pdata);
+	}
 
 	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
@@ -2144,7 +2154,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			goto out_free;
 		break;
 	case EM28178_BOARD_PCTV_461E_V2:
-		result = em28178_dvb_init_pctv_461e_v2(dev);
+		result = em28178_dvb_init_pctv_461e_vX(dev, 2);
+		if (result)
+			goto out_free;
+		break;
+	case EM28178_BOARD_PCTV_461E_V3:
+		result = em28178_dvb_init_pctv_461e_vX(dev, 3);
 		if (result)
 			goto out_free;
 		break;
