@@ -145,13 +145,9 @@ static void disable_dpia_link_output(struct dc_link *link,
 }
 
 static const struct link_hwss dpia_link_hwss = {
-	.setup_stream_encoder = setup_dio_stream_encoder,
-	.reset_stream_encoder = reset_dio_stream_encoder,
-	.setup_stream_attribute = setup_dio_stream_attribute,
-	.disable_link_output = disable_dpia_link_output,
-	.setup_audio_output = setup_dio_audio_output,
-	.enable_audio_packet = enable_dio_audio_packet,
-	.disable_audio_packet = disable_dio_audio_packet,
+	/* Ensure initialization order matches the declaration in link_hwss.h
+     * for strict compiler compliance and consistency across HWSS implementations
+     */
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dpia_link_output,
@@ -159,6 +155,14 @@ static const struct link_hwss dpia_link_hwss = {
 		.set_dp_lane_settings = set_dio_dpia_lane_settings,
 		.update_stream_allocation_table = update_dpia_stream_allocation_table,
 	},
+
+	.setup_stream_encoder = setup_dio_stream_encoder,
+	.reset_stream_encoder = reset_dio_stream_encoder,
+	.setup_stream_attribute = setup_dio_stream_attribute,
+	.disable_link_output = disable_dpia_link_output,
+	.setup_audio_output = setup_dio_audio_output,
+	.enable_audio_packet = enable_dio_audio_packet,
+	.disable_audio_packet = disable_dio_audio_packet,
 };
 
 bool can_use_dpia_link_hwss(const struct dc_link *link,
