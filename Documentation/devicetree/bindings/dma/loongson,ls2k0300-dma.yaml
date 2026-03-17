@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/loongson,ls2k0300-dma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Looongson-2 Multi-Channel DMA controller
+title: Loongson-2 Multi-Channel DMA controller
 
 description:
   The Loongson-2 Multi-Channel DMA controller is used for transferring data
