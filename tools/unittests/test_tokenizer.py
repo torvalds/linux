@@ -15,15 +15,118 @@ from unittest.mock import MagicMock
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(SRC_DIR, "../lib/python"))
 
-from kdoc.c_lex import CTokenizer
+from kdoc.c_lex import CToken, CTokenizer
 from unittest_helper import run_unittest
-
 
 #
 # List of tests.
 #
 # The code will dynamically generate one test for each key on this dictionary.
 #
+def tokens_to_list(tokens):
+    tuples = []
+
+    for tok in tokens:
+        if tok.kind == CToken.SPACE:
+            continue
+
+        tuples += [(tok.kind, tok.value, tok.level)]
+
+    return tuples
+
+
+def make_tokenizer_test(name, data):
+    """
+    Create a test named ``name`` using parameters given by ``data`` dict.
+    """
+
+    def test(self):
+        """In-lined lambda-like function to run the test"""
+
+        #
+        # Check if logger is working
+        #
+        if "log_level" in data:
+            with self.assertLogs('kdoc.c_lex', level='ERROR') as cm:
+                tokenizer = CTokenizer(data["source"])
+
+            return
+
+        #
+        # Check if tokenizer is producing expected results
+        #
+        tokens = CTokenizer(data["source"]).tokens
+
+        result = tokens_to_list(tokens)
+        expected = tokens_to_list(data["expected"])
+
+        self.assertEqual(result, expected, msg=f"{name}")
+
+    return test
+
+#: Tokenizer tests.
+TESTS_TOKENIZER = {
+    "__run__": make_tokenizer_test,
+
+    "basic_tokens": {
+        "source": """
+            int a; // comment
+            float b = 1.23;
+        """,
+        "expected": [
+            CToken(CToken.NAME, "int"),
+            CToken(CToken.NAME, "a"),
+            CToken(CToken.ENDSTMT, ";"),
+            CToken(CToken.COMMENT, "// comment"),
+            CToken(CToken.NAME, "float"),
+            CToken(CToken.NAME, "b"),
+            CToken(CToken.OP, "="),
+            CToken(CToken.NUMBER, "1.23"),
+            CToken(CToken.ENDSTMT, ";"),
+        ],
+    },
+
+    "depth_counters": {
+        "source": """
+            struct X {
+                int arr[10];
+                func(a[0], (b + c));
+            }
+        """,
+        "expected": [
+            CToken(CToken.STRUCT, "struct"),
+            CToken(CToken.NAME, "X"),
+            CToken(CToken.BEGIN, "{", brace_level=1),
+
+            CToken(CToken.NAME, "int", brace_level=1),
+            CToken(CToken.NAME, "arr", brace_level=1),
+            CToken(CToken.BEGIN, "[", brace_level=1, bracket_level=1),
+            CToken(CToken.NUMBER, "10", brace_level=1, bracket_level=1),
+            CToken(CToken.END, "]", brace_level=1),
+            CToken(CToken.ENDSTMT, ";", brace_level=1),
+            CToken(CToken.NAME, "func", brace_level=1),
+            CToken(CToken.BEGIN, "(", brace_level=1, paren_level=1),
+            CToken(CToken.NAME, "a", brace_level=1, paren_level=1),
+            CToken(CToken.BEGIN, "[", brace_level=1, paren_level=1, bracket_level=1),
+            CToken(CToken.NUMBER, "0", brace_level=1, paren_level=1, bracket_level=1),
+            CToken(CToken.END, "]", brace_level=1, paren_level=1),
+            CToken(CToken.PUNC, ",", brace_level=1, paren_level=1),
+            CToken(CToken.BEGIN, "(", brace_level=1, paren_level=2),
+            CToken(CToken.NAME, "b", brace_level=1, paren_level=2),
+            CToken(CToken.OP, "+", brace_level=1, paren_level=2),
+            CToken(CToken.NAME, "c", brace_level=1, paren_level=2),
+            CToken(CToken.END, ")", brace_level=1, paren_level=1),
+            CToken(CToken.END, ")", brace_level=1),
+            CToken(CToken.ENDSTMT, ";", brace_level=1),
+            CToken(CToken.END, "}"),
+        ],
+    },
+
+    "mismatch_error": {
+        "source": "int a$ = 5;",          # $ is illegal
+        "log_level": "ERROR",
+    },
+}
 
 def make_private_test(name, data):
     """
@@ -314,6 +417,7 @@ TESTS_PRIVATE = {
 #: Dict containing all test groups fror CTokenizer
 TESTS = {
     "TestPublicPrivate": TESTS_PRIVATE,
+    "TestTokenizer": TESTS_TOKENIZER,
 }
 
 def setUp(self):
