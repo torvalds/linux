@@ -900,7 +900,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 		 * We have a union of meta fields with wpq used for buffered-io
 		 * in io_async_rw, so fail it here.
 		 */
-		if (!(req->file->f_flags & O_DIRECT))
+		if (!(file->f_flags & O_DIRECT))
 			return -EOPNOTSUPP;
 		kiocb->ki_flags |= IOCB_HAS_METADATA;
 		kiocb->private = &io->meta;
