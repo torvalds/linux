@@ -130,6 +130,7 @@ static int kvm_riscv_vcpu_vreg_addr(struct kvm_vcpu *vcpu,
 	} else if (reg_num <= KVM_REG_RISCV_VECTOR_REG(31)) {
 		if (reg_size != vlenb)
 			return -EINVAL;
+		WARN_ON(!cntx->vector.datap);
 		*reg_addr = cntx->vector.datap +
 			    (reg_num - KVM_REG_RISCV_VECTOR_REG(0)) * vlenb;
 	} else {
