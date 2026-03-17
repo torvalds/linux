@@ -13,7 +13,7 @@ import sys
 import re
 from pprint import pformat
 
-from kdoc.c_lex import CTokenizer
+from kdoc.c_lex import CTokenizer, tokenizer_set_log
 from kdoc.kdoc_re import KernRe
 from kdoc.kdoc_item import KdocItem
 
@@ -252,6 +252,8 @@ class KernelDoc:
         self.fname = fname
         self.config = config
         self.xforms = xforms
+
+        tokenizer_set_log(self.config.log, f"{self.fname}: CMatch: ")
 
         # Initial state for the state machines
         self.state = state.NORMAL

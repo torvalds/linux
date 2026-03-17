@@ -22,6 +22,22 @@ from .kdoc_re import KernRe
 
 log = logging.getLogger(__name__)
 
+def tokenizer_set_log(logger, prefix = ""):
+    """
+    Replace the module‑level logger with a LoggerAdapter that
+    prepends *prefix* to every message.
+    """
+    global log
+
+    class PrefixAdapter(logging.LoggerAdapter):
+        """
+        Ancillary class to set prefix on all message logs.
+        """
+        def process(self, msg, kwargs):
+            return f"{prefix}{msg}", kwargs
+
+    # Wrap the provided logger in our adapter
+    log = PrefixAdapter(logger, {"prefix": prefix})
 
 class CToken():
     """
