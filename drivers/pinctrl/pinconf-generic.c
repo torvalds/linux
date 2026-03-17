@@ -312,20 +312,19 @@ int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 				    unsigned int **pid, unsigned int **pmux,
 				    unsigned int *npins)
 {
+	struct fwnode_handle *fwnode = of_fwnode_handle(np);
 	unsigned int *pid_t;
 	unsigned int *pmux_t;
-	struct property *prop;
 	unsigned int npins_t, i;
-	u32 value;
 	int ret;
 
-	prop = of_find_property(np, "pinmux", NULL);
-	if (!prop) {
+	ret = fwnode_property_count_u32(fwnode, "pinmux");
+	if (ret < 0) {
 		dev_info(dev, "Missing pinmux property\n");
-		return -ENOENT;
+		return ret;
 	}
 
-	npins_t = prop->length / sizeof(u32);
+	npins_t = ret;
 	if (npins_t == 0) {
 		dev_info(dev, "pinmux property doesn't have entries\n");
 		return -ENODATA;
@@ -342,14 +341,16 @@ int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 		dev_err(dev, "kalloc memory fail\n");
 		return -ENOMEM;
 	}
+
+	ret = fwnode_property_read_u32_array(fwnode, "pinmux", pmux_t, npins_t);
+	if (ret) {
+		dev_err(dev, "get pinmux value fail\n");
+		goto exit;
+	}
+
 	for (i = 0; i < npins_t; i++) {
-		ret = of_property_read_u32_index(np, "pinmux", i, &value);
-		if (ret) {
-			dev_err(dev, "get pinmux value fail\n");
-			goto exit;
-		}
-		pmux_t[i] = value & 0xff;
-		pid_t[i] = (value >> 8) & 0xffffff;
+		pid_t[i] = pmux_t[i] >> 8;
+		pmux_t[i] = pmux_t[i] & 0xff;
 	}
 	*pid = pid_t;
 	*pmux = pmux_t;
