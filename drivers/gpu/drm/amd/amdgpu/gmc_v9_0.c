@@ -660,42 +660,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			gfxhub_client_ids[cid],
 			cid);
 	} else {
-		switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
-		case IP_VERSION(9, 0, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega10) ?
-				mmhub_client_ids_vega10[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 3, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega12) ?
-				mmhub_client_ids_vega12[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 4, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_vega20) ?
-				mmhub_client_ids_vega20[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 4, 1):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_arcturus) ?
-				mmhub_client_ids_arcturus[cid][rw] : NULL;
-			break;
-		case IP_VERSION(9, 1, 0):
-		case IP_VERSION(9, 2, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_raven) ?
-				mmhub_client_ids_raven[cid][rw] : NULL;
-			break;
-		case IP_VERSION(1, 5, 0):
-		case IP_VERSION(2, 4, 0):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_renoir) ?
-				mmhub_client_ids_renoir[cid][rw] : NULL;
-			break;
-		case IP_VERSION(1, 8, 0):
-		case IP_VERSION(9, 4, 2):
-			mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_aldebaran) ?
-				mmhub_client_ids_aldebaran[cid][rw] : NULL;
-			break;
-		default:
-			mmhub_cid = NULL;
-			break;
-		}
+		mmhub_cid = amdgpu_mmhub_client_name(&adev->mmhub, cid, rw);
 		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 			mmhub_cid ? mmhub_cid : "unknown", cid);
 	}
@@ -1435,6 +1400,52 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 	}
 }
 
+static void gmc_v9_0_init_mmhub_client_info(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
+	case IP_VERSION(9, 0, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega10,
+					     ARRAY_SIZE(mmhub_client_ids_vega10));
+		break;
+	case IP_VERSION(9, 3, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega12,
+					     ARRAY_SIZE(mmhub_client_ids_vega12));
+		break;
+	case IP_VERSION(9, 4, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_vega20,
+					     ARRAY_SIZE(mmhub_client_ids_vega20));
+		break;
+	case IP_VERSION(9, 4, 1):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_arcturus,
+					     ARRAY_SIZE(mmhub_client_ids_arcturus));
+		break;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_raven,
+					     ARRAY_SIZE(mmhub_client_ids_raven));
+		break;
+	case IP_VERSION(1, 5, 0):
+	case IP_VERSION(2, 4, 0):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_renoir,
+					     ARRAY_SIZE(mmhub_client_ids_renoir));
+		break;
+	case IP_VERSION(1, 8, 0):
+	case IP_VERSION(9, 4, 2):
+		amdgpu_mmhub_init_client_info(&adev->mmhub,
+					     mmhub_client_ids_aldebaran,
+					     ARRAY_SIZE(mmhub_client_ids_aldebaran));
+		break;
+	default:
+		break;
+	}
+}
+
 static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
@@ -1452,6 +1463,8 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 		adev->mmhub.funcs = &mmhub_v1_0_funcs;
 		break;
 	}
+
+	gmc_v9_0_init_mmhub_client_info(adev);
 }
 
 static void gmc_v9_0_set_mmhub_ras_funcs(struct amdgpu_device *adev)
