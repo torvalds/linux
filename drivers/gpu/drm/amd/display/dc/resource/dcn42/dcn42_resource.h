@@ -481,6 +481,8 @@
 		SRI_ARR(OPTC_INPUT_CLOCK_CONTROL, ODM, inst),                            \
 		SRI_ARR(OPTC_DATA_SOURCE_SELECT, ODM, inst),                             \
 		SRI_ARR(OPTC_INPUT_GLOBAL_CONTROL, ODM, inst),                           \
+		SRI_ARR(OPTC_RSMU_UNDERFLOW, ODM, inst),                                 \
+		SRI_ARR(OPTC_UNDERFLOW_THRESHOLD, ODM, inst),                            \
 		SRI_ARR(CONTROL, VTG, inst), \
 		SRI_ARR(OTG_VERT_SYNC_CONTROL, OTG, inst),  \
 		SRI_ARR(OTG_GSL_CONTROL, OTG, inst), \

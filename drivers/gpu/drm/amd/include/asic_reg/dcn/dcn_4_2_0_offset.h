@@ -9036,6 +9036,8 @@
 // base address: 0x40
 #define regODM1_OPTC_INPUT_GLOBAL_CONTROL                                                               0x1ada
 #define regODM1_OPTC_INPUT_GLOBAL_CONTROL_BASE_IDX                                                      2
+#define regODM1_OPTC_RSMU_UNDERFLOW                                                                     0x1adb
+#define regODM1_OPTC_RSMU_UNDERFLOW_BASE_IDX                                                            2
 #define regODM1_OPTC_UNDERFLOW_THRESHOLD                                                                0x1adc
 #define regODM1_OPTC_UNDERFLOW_THRESHOLD_BASE_IDX                                                       2
 #define regODM1_OPTC_DATA_SOURCE_SELECT                                                                 0x1add
@@ -9060,6 +9062,8 @@
 // base address: 0x80
 #define regODM2_OPTC_INPUT_GLOBAL_CONTROL                                                               0x1aea
 #define regODM2_OPTC_INPUT_GLOBAL_CONTROL_BASE_IDX                                                      2
+#define regODM2_OPTC_RSMU_UNDERFLOW                                                                     0x1aeb
+#define regODM2_OPTC_RSMU_UNDERFLOW_BASE_IDX                                                            2
 #define regODM2_OPTC_UNDERFLOW_THRESHOLD                                                                0x1aec
 #define regODM2_OPTC_UNDERFLOW_THRESHOLD_BASE_IDX                                                       2
 #define regODM2_OPTC_DATA_SOURCE_SELECT                                                                 0x1aed
@@ -9084,6 +9088,8 @@
 // base address: 0xc0
 #define regODM3_OPTC_INPUT_GLOBAL_CONTROL                                                               0x1afa
 #define regODM3_OPTC_INPUT_GLOBAL_CONTROL_BASE_IDX                                                      2
+#define regODM3_OPTC_RSMU_UNDERFLOW                                                                     0x1afb
+#define regODM3_OPTC_RSMU_UNDERFLOW_BASE_IDX                                                            2
 #define regODM3_OPTC_UNDERFLOW_THRESHOLD                                                                0x1afc
 #define regODM3_OPTC_UNDERFLOW_THRESHOLD_BASE_IDX                                                       2
 #define regODM3_OPTC_DATA_SOURCE_SELECT                                                                 0x1afd
