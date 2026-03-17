@@ -397,14 +397,7 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 				enum btrfs_qgroup_rsv_type type, bool enforce,
 				bool noflush);
-/* Reserve metadata space for pertrans and prealloc type */
-static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
-				int num_bytes, bool enforce)
-{
-	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-					   BTRFS_QGROUP_RSV_META_PERTRANS,
-					   enforce, false);
-}
+
 static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
 						     int num_bytes, bool enforce,
 						     bool noflush)
@@ -416,14 +409,6 @@ static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
 
 void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 			     enum btrfs_qgroup_rsv_type type);
-
-/* Free per-transaction meta reservation for error handling */
-static inline void btrfs_qgroup_free_meta_pertrans(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PERTRANS);
-}
 
 /* Pre-allocated meta reservation can be freed at need */
 static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
