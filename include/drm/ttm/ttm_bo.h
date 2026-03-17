@@ -167,24 +167,34 @@ struct ttm_bo_kmap_obj {
 /**
  * struct ttm_operation_ctx
  *
- * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
- * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
- * BOs share the same reservation object.
- * faults. Should only be used by TTM internally.
- * @resv: Reservation object to allow reserved evictions with.
- * @bytes_moved: Statistics on how many bytes have been moved.
- *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
  */
 struct ttm_operation_ctx {
+	/** @interruptible: Sleep interruptible if sleeping. */
 	bool interruptible;
+	/** @no_wait_gpu: Return immediately if the GPU is busy. */
 	bool no_wait_gpu;
+	/**
+	 * @gfp_retry_mayfail: Use __GFP_RETRY_MAYFAIL | __GFP_NOWARN
+	 * when allocation pages. This is to avoid invoking the OOM
+	 * killer when populating a buffer object, in order to
+	 * forward the error for it to be dealt with.
+	 */
 	bool gfp_retry_mayfail;
+	/**
+	 * @allow_res_evict: Allow eviction of reserved BOs. Can be used
+	 * when multiple BOs share the same reservation object @resv.
+	 */
 	bool allow_res_evict;
+	/**
+	 * @resv: Reservation object to be used together with
+	 * @allow_res_evict.
+	 */
 	struct dma_resv *resv;
+	/**
+	 * @bytes_moved: Statistics on how many bytes have been moved.
+	 */
 	uint64_t bytes_moved;
 };
 
