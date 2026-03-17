@@ -857,6 +857,12 @@ attribute-sets:
         name: tx-profile
         type: nest
         nested-attributes: profile
+      -
+        name: rx-cqe-frames
+        type: u32
+      -
+        name: rx-cqe-nsecs
+        type: u32
 
   -
     name: pause-stat
@@ -2253,6 +2259,8 @@ operations:
             - tx-aggr-time-usecs
             - rx-profile
             - tx-profile
+            - rx-cqe-frames
+            - rx-cqe-nsecs
       dump: *coalesce-get-op
     -
       name: coalesce-set
