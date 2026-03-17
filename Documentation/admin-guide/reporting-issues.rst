@@ -244,42 +244,37 @@ The reference section below explains each of these steps in more detail.
 Reference section: Reporting issues to the kernel maintainers
 =============================================================
 
-The detailed guides above outline all the major steps in brief fashion, which
-should be enough for most people. But sometimes there are situations where even
-experienced users might wonder how to actually do one of those steps. That's
-what this section is for, as it will provide a lot more details on each of the
-above steps. Consider this as reference documentation: it's possible to read it
-from top to bottom. But it's mainly meant to skim over and a place to look up
-details how to actually perform those steps.
+The step-by-step guide above outlines all the major steps in brief fashion,
+which usually covers everything required. But even experienced users will
+sometimes wonder how to actually realize some of those steps or why they are
+needed; there are also corner cases the guide ignores for readability. That is
+what the entries in this reference section are for, which provide additional
+information for each of the steps in the guide.
 
-A few words of general advice before digging into the details:
+A few words of general advice:
 
- * The Linux kernel developers are well aware this process is complicated and
-   demands more than other FLOSS projects. We'd love to make it simpler. But
-   that would require work in various places as well as some infrastructure,
-   which would need constant maintenance; nobody has stepped up to do that
-   work, so that's just how things are for now.
+* The Linux developers are well aware that reporting bugs to them is more
+  complicated and demanding than in other FLOSS projects. Some of it is because
+  the kernel is different, among others due to its mail-driven development
+  process and because it consists mostly of drivers. Some of it is because
+  improving things would require work in several technical areas and people
+  triaging bugs –– and nobody has stepped up to do or fund that work.
 
- * A warranty or support contract with some vendor doesn't entitle you to
-   request fixes from developers in the upstream Linux kernel community: such
-   contracts are completely outside the scope of the Linux kernel, its
-   development community, and this document. That's why you can't demand
-   anything such a contract guarantees in this context, not even if the
-   developer handling the issue works for the vendor in question. If you want
-   to claim your rights, use the vendor's support channel instead. When doing
-   so, you might want to mention you'd like to see the issue fixed in the
-   upstream Linux kernel; motivate them by saying it's the only way to ensure
-   the fix in the end will get incorporated in all Linux distributions.
+* A warranty or support contract with some vendor doesn't entitle you to
+  request fixes from the upstream Linux developers: Such contracts are
+  completely outside the scope of the upstream Linux kernel, its development
+  community, and this document -- even if those handling the issue work for the
+  vendor who issued the contract. If you want to claim your rights, use the
+  vendor's support channel.
 
- * If you never reported an issue to a FLOSS project before you should consider
-   reading `How to Report Bugs Effectively
-   <https://www.chiark.greenend.org.uk/~sgtatham/bugs.html>`_, `How To Ask
-   Questions The Smart Way
-   <http://www.catb.org/esr/faqs/smart-questions.html>`_, and `How to ask good
-   questions <https://jvns.ca/blog/good-questions/>`_.
+* If you never reported an issue to a FLOSS project before, consider skimming
+  guides like `How to ask good questions
+  <https://jvns.ca/blog/good-questions/>`_, `How To Ask Questions The Smart Way
+  <http://www.catb.org/esr/faqs/smart-questions.html>`_, and `How to Report
+  Bugs Effectively <https://www.chiark.greenend.org.uk/~sgtatham/bugs.html>`_,.
 
-With that off the table, find below the details on how to properly report
-issues to the Linux kernel developers.
+With that off the table, find below details for the steps from the detailed
+guide on reporting issues to the Linux kernel developers.
 
 
 Make sure you're using the upstream Linux kernel
