@@ -190,7 +190,7 @@ struct worker_pool {
 	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* L: flags */
 
-	unsigned long		watchdog_ts;	/* L: watchdog timestamp */
+	unsigned long		last_progress_ts;	/* L: last forward progress timestamp */
 	bool			cpu_stall;	/* WD: stalled cpu bound pool */
 
 	/*
@@ -1697,7 +1697,7 @@ static void __pwq_activate_work(struct pool_workqueue *pwq,
 	WARN_ON_ONCE(!(*wdb & WORK_STRUCT_INACTIVE));
 	trace_workqueue_activate_work(work);
 	if (list_empty(&pwq->pool->worklist))
-		pwq->pool->watchdog_ts = jiffies;
+		pwq->pool->last_progress_ts = jiffies;
 	move_linked_works(work, &pwq->pool->worklist, NULL);
 	__clear_bit(WORK_STRUCT_INACTIVE_BIT, wdb);
 }
@@ -2348,7 +2348,7 @@ retry:
 	 */
 	if (list_empty(&pwq->inactive_works) && pwq_tryinc_nr_active(pwq, false)) {
 		if (list_empty(&pool->worklist))
-			pool->watchdog_ts = jiffies;
+			pool->last_progress_ts = jiffies;
 
 		trace_workqueue_activate_work(work);
 		insert_work(pwq, work, &pool->worklist, work_flags);
@@ -3204,6 +3204,7 @@ __acquires(&pool->lock)
 	worker->current_pwq = pwq;
 	if (worker->task)
 		worker->current_at = worker->task->se.sum_exec_runtime;
+	worker->current_start = jiffies;
 	work_data = *work_data_bits(work);
 	worker->current_color = get_work_color(work_data);
 
@@ -3352,7 +3353,7 @@ static void process_scheduled_works(struct worker *worker)
 	while ((work = list_first_entry_or_null(&worker->scheduled,
 						struct work_struct, entry))) {
 		if (first) {
-			worker->pool->watchdog_ts = jiffies;
+			worker->pool->last_progress_ts = jiffies;
 			first = false;
 		}
 		process_one_work(worker, work);
@@ -4850,7 +4851,7 @@ static int init_worker_pool(struct worker_pool *pool)
 	pool->cpu = -1;
 	pool->node = NUMA_NO_NODE;
 	pool->flags |= POOL_DISASSOCIATED;
-	pool->watchdog_ts = jiffies;
+	pool->last_progress_ts = jiffies;
 	INIT_LIST_HEAD(&pool->worklist);
 	INIT_LIST_HEAD(&pool->idle_list);
 	hash_init(pool->busy_hash);
@@ -6274,7 +6275,7 @@ static void pr_cont_worker_id(struct worker *worker)
 {
 	struct worker_pool *pool = worker->pool;
 
-	if (pool->flags & WQ_BH)
+	if (pool->flags & POOL_BH)
 		pr_cont("bh%s",
 			pool->attrs->nice == HIGHPRI_NICE_LEVEL ? "-hi" : "");
 	else
@@ -6359,6 +6360,8 @@ static void show_pwq(struct pool_workqueue *pwq)
 			pr_cont(" %s", comma ? "," : "");
 			pr_cont_worker_id(worker);
 			pr_cont(":%ps", worker->current_func);
+			pr_cont(" for %us",
+				jiffies_to_msecs(jiffies - worker->current_start) / 1000);
 			list_for_each_entry(work, &worker->scheduled, entry)
 				pr_cont_work(false, work, &pcws);
 			pr_cont_work_flush(comma, (work_func_t)-1L, &pcws);
@@ -6462,7 +6465,7 @@ static void show_one_worker_pool(struct worker_pool *pool)
 
 	/* How long the first pending work is waiting for a worker. */
 	if (!list_empty(&pool->worklist))
-		hung = jiffies_to_msecs(jiffies - pool->watchdog_ts) / 1000;
+		hung = jiffies_to_msecs(jiffies - pool->last_progress_ts) / 1000;
 
 	/*
 	 * Defer printing to avoid deadlocks in console drivers that
@@ -7580,11 +7583,11 @@ MODULE_PARM_DESC(panic_on_stall_time, "Panic if stall exceeds this many seconds 
 
 /*
  * Show workers that might prevent the processing of pending work items.
- * The only candidates are CPU-bound workers in the running state.
- * Pending work items should be handled by another idle worker
- * in all other situations.
+ * A busy worker that is not running on the CPU (e.g. sleeping in
+ * wait_event_idle() with PF_WQ_WORKER cleared) can stall the pool just as
+ * effectively as a CPU-bound one, so dump every in-flight worker.
  */
-static void show_cpu_pool_hog(struct worker_pool *pool)
+static void show_cpu_pool_busy_workers(struct worker_pool *pool)
 {
 	struct worker *worker;
 	unsigned long irq_flags;
@@ -7593,36 +7596,34 @@ static void show_cpu_pool_hog(struct worker_pool *pool)
 	raw_spin_lock_irqsave(&pool->lock, irq_flags);
 
 	hash_for_each(pool->busy_hash, bkt, worker, hentry) {
-		if (task_is_running(worker->task)) {
-			/*
-			 * Defer printing to avoid deadlocks in console
-			 * drivers that queue work while holding locks
-			 * also taken in their write paths.
-			 */
-			printk_deferred_enter();
+		/*
+		 * Defer printing to avoid deadlocks in console
+		 * drivers that queue work while holding locks
+		 * also taken in their write paths.
+		 */
+		printk_deferred_enter();
 
-			pr_info("pool %d:\n", pool->id);
-			sched_show_task(worker->task);
+		pr_info("pool %d:\n", pool->id);
+		sched_show_task(worker->task);
 
-			printk_deferred_exit();
-		}
+		printk_deferred_exit();
 	}
 
 	raw_spin_unlock_irqrestore(&pool->lock, irq_flags);
 }
 
-static void show_cpu_pools_hogs(void)
+static void show_cpu_pools_busy_workers(void)
 {
 	struct worker_pool *pool;
 	int pi;
 
-	pr_info("Showing backtraces of running workers in stalled CPU-bound worker pools:\n");
+	pr_info("Showing backtraces of busy workers in stalled worker pools:\n");
 
 	rcu_read_lock();
 
 	for_each_pool(pool, pi) {
 		if (pool->cpu_stall)
-			show_cpu_pool_hog(pool);
+			show_cpu_pool_busy_workers(pool);
 
 	}
 
@@ -7691,7 +7692,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 			touched = READ_ONCE(per_cpu(wq_watchdog_touched_cpu, pool->cpu));
 		else
 			touched = READ_ONCE(wq_watchdog_touched);
-		pool_ts = READ_ONCE(pool->watchdog_ts);
+		pool_ts = READ_ONCE(pool->last_progress_ts);
 
 		if (time_after(pool_ts, touched))
 			ts = pool_ts;
@@ -7719,7 +7720,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		show_all_workqueues();
 
 	if (cpu_pool_stall)
-		show_cpu_pools_hogs();
+		show_cpu_pools_busy_workers();
 
 	if (lockup_detected)
 		panic_on_wq_watchdog(max_stall_time);

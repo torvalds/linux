@@ -3594,7 +3594,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		}
 	}
 
-	btrfs_zoned_reserve_data_reloc_bg(fs_info);
 	btrfs_free_zone_cache(fs_info);
 
 	btrfs_check_active_zone_reservation(fs_info);
@@ -3621,6 +3620,12 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		ret = PTR_ERR(fs_info->transaction_kthread);
 		goto fail_cleaner;
 	}
+
+	/*
+	 * Starts a transaction, must be called after the transaction kthread
+	 * is initialized.
+	 */
+	btrfs_zoned_reserve_data_reloc_bg(fs_info);
 
 	ret = btrfs_read_qgroup_config(fs_info);
 	if (ret)
