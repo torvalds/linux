@@ -3633,6 +3633,11 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			}
 			/* NOTE: the em2820 is used in webcams, too ! */
 			break;
+		case CHIP_ID_EM2828X:
+			chip_name = "em2828X";
+			dev->wait_after_write = 0;
+			dev->eeprom_addrwidth_16bit = 1;
+			break;
 		case CHIP_ID_EM2840:
 			chip_name = "em2840";
 			break;
@@ -3791,6 +3796,7 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 	 *  0x84	bulk		=> analog or digital**
 	 *  0x85	isoc		=> digital TS2
 	 *  0x85	bulk		=> digital TS2
+	 *  0x8a	isoc		=> digital video
 	 * (*: audio should always be isoc)
 	 * (**: analog, if ep 0x82 is isoc, otherwise digital)
 	 *
@@ -3814,6 +3820,8 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 	/* Only inspect input endpoints */
 
 	switch (e->bEndpointAddress) {
+	case 0x81:	/* unknown function */
+		return;
 	case 0x82:
 		*has_video = true;
 		if (usb_endpoint_xfer_isoc(e)) {
@@ -3831,7 +3839,10 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 				"error: skipping audio endpoint 0x83, because it uses bulk transfers !\n");
 		return;
 	case 0x84:
-		if (*has_video && (usb_endpoint_xfer_bulk(e))) {
+		if (*has_dvb && (usb_endpoint_xfer_bulk(e))) {
+			*has_dvb = true;
+			dev->dvb_ep_bulk = e->bEndpointAddress;
+		} else if (*has_video && (usb_endpoint_xfer_bulk(e))) {
 			dev->analog_ep_bulk = e->bEndpointAddress;
 		} else {
 			if (usb_endpoint_xfer_isoc(e)) {
@@ -3865,7 +3876,17 @@ static void em28xx_check_usb_descriptor(struct em28xx *dev,
 			dev->dvb_ep_bulk_ts2 = e->bEndpointAddress;
 		}
 		return;
-	}
+	case 0x8a:
+		*has_video = true;
+		*has_dvb = true;
+		if (usb_endpoint_xfer_isoc(e)) {
+			dev->analog_ep_isoc = e->bEndpointAddress;
+			dev->alt_max_pkt_size_isoc[alt] = size;
+		} else if (usb_endpoint_xfer_bulk(e)) {
+			dev->analog_ep_bulk = e->bEndpointAddress;
+		}
+		return;
+	};
 }
 
 /*
@@ -4047,6 +4068,8 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 			try_bulk = 1;
 		else
 			try_bulk = 0;
+	} else if (dev->board.decoder == EM28XX_BUILTIN && dev->analog_xfer_mode) {
+		try_bulk = 1;
 	} else {
 		try_bulk = usb_xfer_mode > 0;
 	}

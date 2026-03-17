@@ -499,7 +499,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	if (dev->chip_id == CHIP_ID_EM2870 ||
 	    dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM28174 ||
-	    dev->chip_id == CHIP_ID_EM28178) {
+	    dev->chip_id == CHIP_ID_EM28178 ||
+	    dev->chip_id == CHIP_ID_EM2828X) {
 		/* Digital only device - don't load any alsa module */
 		dev->int_audio_type = EM28XX_INT_AUDIO_NONE;
 		dev->usb_audio_type = EM28XX_USB_AUDIO_NONE;
@@ -619,6 +620,65 @@ const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
 }
 EXPORT_SYMBOL_GPL(em28xx_find_led);
 
+void em2828X_decoder_vmux(struct em28xx *dev, unsigned int vin)
+{
+	switch (vin) {
+	case EM2828X_TELEVISION:
+		dev_dbg(&dev->intf->dev, "EM2828X_TELEVISION\n");
+		break;
+	case EM2828X_COMPOSITE:
+		dev_dbg(&dev->intf->dev, "EM2828X_COMPOSITE\n");
+		break;
+	default:
+		dev_dbg(&dev->intf->dev, "EM2828X_SVIDEO\n");
+		break;
+	};
+
+	em28xx_write_reg(dev, 0x24, 0x00);
+	em28xx_write_reg(dev, 0x25, 0x02);
+	em28xx_write_reg(dev, 0x2E, 0x00);
+
+	if (vin == EM2828X_TELEVISION) {
+		em28xx_write_reg(dev, 0x7A0B, 0xfc);
+		em28xx_write_reg(dev, 0xB6, 0x8F);
+		em28xx_write_reg(dev, 0xB8, 0x01);
+	} else {
+		em28xx_write_reg(dev, 0x7A0B, 0x00);
+		em28xx_write_reg(dev, 0xB6, 0x8F);
+		em28xx_write_reg(dev, 0xB8, 0x00);
+	}
+
+	em28xx_write_reg(dev, 0x7A1C, 0x1E);
+	em28xx_write_reg(dev, 0x7A1D, 0x99);
+	em28xx_write_reg(dev, 0x7A1E, 0x99);
+	em28xx_write_reg(dev, 0x7A1F, 0x9A);
+	em28xx_write_reg(dev, 0x7A20, 0x3d);
+	em28xx_write_reg(dev, 0x7A21, 0x3e);
+	em28xx_write_reg(dev, 0x7A29, 0x00);
+	em28xx_write_reg(dev, 0x7A2F, 0x52);
+	em28xx_write_reg(dev, 0x7A40, 0x05);
+	em28xx_write_reg(dev, 0x7A51, 0x00);
+	em28xx_write_reg(dev, 0x7AC1, 0x1B);
+
+	if (vin == EM2828X_COMPOSITE || vin == EM2828X_TELEVISION) {
+		em28xx_write_reg(dev, 0x38, 0x01);
+		em28xx_write_reg(dev, 0xB1, 0x70);
+		em28xx_write_reg(dev, 0xB3, 0x00);
+		em28xx_write_reg(dev, 0xB5, 0x00);
+		em28xx_write_reg(dev, 0x7A02, 0x4f);
+	} else {	/* EM2828X_SVIDEO */
+		em28xx_write_reg(dev, 0x38, 0x00);
+		em28xx_write_reg(dev, 0xB1, 0x60);
+		em28xx_write_reg(dev, 0xB3, 0x10);
+		em28xx_write_reg(dev, 0xB5, 0x10);
+		em28xx_write_reg(dev, 0x7A02, 0x4e);
+	}
+
+	em28xx_write_reg(dev, 0x7A3F, 0x01);
+	em28xx_write_reg(dev, 0x7A3F, 0x00);
+}
+EXPORT_SYMBOL_GPL(em2828X_decoder_vmux);
+
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
@@ -646,12 +706,16 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 			rc = em28xx_write_reg_bits(dev,
 						   EM2874_R5F_TS_ENABLE,
 						   start ? EM2874_TS1_CAPTURE_ENABLE : 0x00,
-						   EM2874_TS1_CAPTURE_ENABLE | EM2874_TS1_FILTER_ENABLE | EM2874_TS1_NULL_DISCARD);
+						   EM2874_TS1_CAPTURE_ENABLE |
+						   EM2874_TS1_FILTER_ENABLE |
+						   EM2874_TS1_NULL_DISCARD);
 		else
 			rc = em28xx_write_reg_bits(dev,
 						   EM2874_R5F_TS_ENABLE,
 						   start ? EM2874_TS2_CAPTURE_ENABLE : 0x00,
-						   EM2874_TS2_CAPTURE_ENABLE | EM2874_TS2_FILTER_ENABLE | EM2874_TS2_NULL_DISCARD);
+						   EM2874_TS2_CAPTURE_ENABLE |
+						   EM2874_TS2_FILTER_ENABLE |
+						   EM2874_TS2_NULL_DISCARD);
 	} else {
 		/* FIXME: which is the best order? */
 		/* video registers are sampled by VREF */
@@ -664,26 +728,93 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 			if (dev->is_webcam)
 				rc = em28xx_write_reg(dev, 0x13, 0x0c);
 
-			/* Enable video capture */
-			rc = em28xx_write_reg(dev, 0x48, 0x00);
-			if (rc < 0)
-				return rc;
+			if (dev->mode == EM28XX_ANALOG_MODE) {
+				/* Enable video capture */
+				rc = em28xx_write_reg(dev, 0x48, 0x00);
+				if (rc < 0)
+					return rc;
 
-			if (dev->mode == EM28XX_ANALOG_MODE)
 				rc = em28xx_write_reg(dev,
 						      EM28XX_R12_VINENABLE,
 						      0x67);
-			else
-				rc = em28xx_write_reg(dev,
-						      EM28XX_R12_VINENABLE,
-						      0x37);
+
+			} else if (dev->chip_id == CHIP_ID_EM2828X) {
+				/* The Transport Stream Enable Register moved in em2874 */
+				if (dev->dvb_xfer_bulk) {
+					/* Max Tx Size = 188 * 256 = 48128 - LCM(188,512) * 2 */
+					em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+							 EM2874_R5D_TS1_PKT_SIZE :
+							 EM2874_R5E_TS2_PKT_SIZE,
+							 0xff);
+				} else {
+					/* ISOC Maximum Transfer Size = 188 * 5 */
+					em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+							 EM2874_R5D_TS1_PKT_SIZE :
+							 EM2874_R5E_TS2_PKT_SIZE,
+							 dev->dvb_max_pkt_size_isoc / 188);
+				}
+
+				if (dev->ts == PRIMARY_TS)
+					rc = em28xx_write_reg_bits(dev,
+							EM2874_R5F_TS_ENABLE,
+							start ? EM2874_TS1_CAPTURE_ENABLE : 0x00,
+							EM2874_TS1_CAPTURE_ENABLE |
+							EM2874_TS1_FILTER_ENABLE |
+							EM2874_TS1_NULL_DISCARD);
+				else
+					rc = em28xx_write_reg_bits(dev,
+							EM2874_R5F_TS_ENABLE,
+							start ? EM2874_TS2_CAPTURE_ENABLE : 0x00,
+							EM2874_TS2_CAPTURE_ENABLE |
+							EM2874_TS2_FILTER_ENABLE |
+							EM2874_TS2_NULL_DISCARD);
+			} else {
+				/* Enable video capture */
+				rc = em28xx_write_reg(dev, 0x48, 0x00);
+				if (rc < 0)
+					return rc;
+				rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
+			}
+
 			if (rc < 0)
 				return rc;
 
 			usleep_range(10000, 11000);
 		} else {
-			/* disable video capture */
-			rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
+			if (dev->mode == EM28XX_DIGITAL_MODE && dev->chip_id == CHIP_ID_EM2828X) {
+				/* The Transport Stream Enable Register moved in em2874 */
+				if (dev->dvb_xfer_bulk) {
+					/* Max Tx Size = 188 * 256 = 48128 - LCM(188,512) * 2 */
+					em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+							 EM2874_R5D_TS1_PKT_SIZE :
+							 EM2874_R5E_TS2_PKT_SIZE,
+							 0xff);
+				} else {
+					/* ISOC Maximum Transfer Size = 188 * 5 */
+					em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
+							 EM2874_R5D_TS1_PKT_SIZE :
+							 EM2874_R5E_TS2_PKT_SIZE,
+							 dev->dvb_max_pkt_size_isoc / 188);
+				}
+
+				if (dev->ts == PRIMARY_TS)
+					rc = em28xx_write_reg_bits(dev,
+							EM2874_R5F_TS_ENABLE,
+							start ? EM2874_TS1_CAPTURE_ENABLE : 0x00,
+							EM2874_TS1_CAPTURE_ENABLE |
+							EM2874_TS1_FILTER_ENABLE |
+							EM2874_TS1_NULL_DISCARD);
+				else
+					rc = em28xx_write_reg_bits(dev,
+							EM2874_R5F_TS_ENABLE,
+							start ? EM2874_TS2_CAPTURE_ENABLE : 0x00,
+							EM2874_TS2_CAPTURE_ENABLE |
+							EM2874_TS2_FILTER_ENABLE |
+							EM2874_TS2_NULL_DISCARD);
+			}  else {
+				/* disable video capture */
+				rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
+			}
 		}
 	}
 

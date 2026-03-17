@@ -296,6 +296,21 @@ static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 		return em28xx_set_mode(dev, EM28XX_SUSPEND);
 }
 
+static int em28xx_set_analog_freq(struct em28xx *dev, u32 freq)
+{
+	const struct dvb_tuner_ops *dops = &dev->dvb->fe[0]->ops.tuner_ops;
+
+	if (dops->set_analog_params) {
+		struct analog_parameters params;
+
+		params.frequency = freq;
+		params.std = dev->v4l2->norm;
+		params.mode = 0;
+
+		dops->set_analog_params(dev->dvb->fe[0], &params);
+	}
+	return 0;
+}
 /* ------------------------------------------------------------------ */
 
 static struct lgdt330x_config em2880_lgdt3303_dev = {

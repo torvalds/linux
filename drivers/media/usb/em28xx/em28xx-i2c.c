@@ -864,6 +864,8 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 		 le16_to_cpu(dev_config->string2),
 		 le16_to_cpu(dev_config->string3));
 
+	dev->analog_xfer_mode = data[67] & 0x01;
+
 	return 0;
 
 error:

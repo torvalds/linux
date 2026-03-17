@@ -425,7 +425,13 @@ enum em28xx_decoder {
 	EM28XX_NODECODER = 0,
 	EM28XX_TVP5150,
 	EM28XX_SAA711X,
+	EM28XX_BUILTIN,
 };
+
+/* Built in decoder capture options */
+#define EM2828X_COMPOSITE	0
+#define EM2828X_SVIDEO		1
+#define EM2828X_TELEVISION	2
 
 enum em28xx_sensor {
 	EM28XX_NOSENSOR = 0,
@@ -467,6 +473,12 @@ struct em28xx_button {
 	u8 reg_clearing;
 	u8 mask;
 	bool inverted;
+};
+
+enum em2828x_media_pads {
+	EM2828X_PAD_INPUT,
+	EM2828X_PAD_VID_OUT,
+	EM2828X_NUM_PADS
 };
 
 struct em28xx_board {
@@ -593,6 +605,7 @@ struct em28xx_v4l2 {
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad video_pad, vbi_pad;
+	struct media_pad decoder_pads[EM2828X_NUM_PADS];
 	struct media_entity *decoder;
 #endif
 };
@@ -752,6 +765,8 @@ struct em28xx {
 				     char *buf, int len);
 	int (*em28xx_read_reg_req)(struct em28xx *dev, u8 req, u16 reg);
 
+	int (*em28xx_set_analog_freq)(struct em28xx *dev, u32 freq);
+
 	enum em28xx_mode mode;
 
 	// Button state polling
@@ -763,6 +778,7 @@ struct em28xx {
 	// Snapshot button input device
 	char snapshot_button_path[30];	// path of the input dev
 	struct input_dev *sbutton_input_dev;
+	int analog_xfer_mode;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *media_dev;
@@ -810,6 +826,8 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
 
 int em28xx_audio_analog_set(struct em28xx *dev);
 int em28xx_audio_setup(struct em28xx *dev);
+
+void em2828X_decoder_vmux(struct em28xx *dev, unsigned int vin);
 
 const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
 					 enum em28xx_led_role role);
