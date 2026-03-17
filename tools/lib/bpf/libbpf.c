@@ -9802,6 +9802,84 @@ __u32 bpf_program__line_info_cnt(const struct bpf_program *prog)
 	return prog->line_info_cnt;
 }
 
+int bpf_program__clone(struct bpf_program *prog, const struct bpf_prog_load_opts *opts)
+{
+	LIBBPF_OPTS(bpf_prog_load_opts, attr);
+	struct bpf_object *obj;
+	int err, fd;
+
+	if (!prog)
+		return libbpf_err(-EINVAL);
+
+	if (!OPTS_VALID(opts, bpf_prog_load_opts))
+		return libbpf_err(-EINVAL);
+
+	obj = prog->obj;
+	if (obj->state < OBJ_PREPARED)
+		return libbpf_err(-EINVAL);
+
+	/*
+	 * Caller-provided opts take priority; fall back to
+	 * prog/object defaults when the caller leaves them zero.
+	 */
+	attr.attach_prog_fd = OPTS_GET(opts, attach_prog_fd, 0) ?: prog->attach_prog_fd;
+	attr.prog_flags = OPTS_GET(opts, prog_flags, 0) ?: prog->prog_flags;
+	attr.prog_ifindex = OPTS_GET(opts, prog_ifindex, 0) ?: prog->prog_ifindex;
+	attr.kern_version = OPTS_GET(opts, kern_version, 0) ?: obj->kern_version;
+	attr.fd_array = OPTS_GET(opts, fd_array, NULL) ?: obj->fd_array;
+	attr.fd_array_cnt = OPTS_GET(opts, fd_array_cnt, 0) ?: obj->fd_array_cnt;
+	attr.token_fd = OPTS_GET(opts, token_fd, 0) ?: obj->token_fd;
+	if (attr.token_fd)
+		attr.prog_flags |= BPF_F_TOKEN_FD;
+
+	/* BTF func/line info */
+	if (obj->btf && btf__fd(obj->btf) >= 0) {
+		attr.prog_btf_fd = OPTS_GET(opts, prog_btf_fd, 0) ?: btf__fd(obj->btf);
+		attr.func_info = OPTS_GET(opts, func_info, NULL) ?: prog->func_info;
+		attr.func_info_cnt = OPTS_GET(opts, func_info_cnt, 0) ?: prog->func_info_cnt;
+		attr.func_info_rec_size =
+			OPTS_GET(opts, func_info_rec_size, 0) ?: prog->func_info_rec_size;
+		attr.line_info = OPTS_GET(opts, line_info, NULL) ?: prog->line_info;
+		attr.line_info_cnt = OPTS_GET(opts, line_info_cnt, 0) ?: prog->line_info_cnt;
+		attr.line_info_rec_size =
+			OPTS_GET(opts, line_info_rec_size, 0) ?: prog->line_info_rec_size;
+	}
+
+	attr.log_buf = OPTS_GET(opts, log_buf, NULL);
+	attr.log_size = OPTS_GET(opts, log_size, 0);
+	attr.log_level = OPTS_GET(opts, log_level, 0);
+
+	/*
+	 * Fields below may be mutated by prog_prepare_load_fn:
+	 * Seed them from prog/obj defaults here;
+	 * Later override with caller-provided opts.
+	 */
+	attr.expected_attach_type = prog->expected_attach_type;
+	attr.attach_btf_id = prog->attach_btf_id;
+	attr.attach_btf_obj_fd = prog->attach_btf_obj_fd;
+
+	if (prog->sec_def && prog->sec_def->prog_prepare_load_fn) {
+		err = prog->sec_def->prog_prepare_load_fn(prog, &attr, prog->sec_def->cookie);
+		if (err)
+			return libbpf_err(err);
+	}
+
+	/* Re-apply caller overrides for output fields */
+	if (OPTS_GET(opts, expected_attach_type, 0))
+		attr.expected_attach_type =
+			OPTS_GET(opts, expected_attach_type, 0);
+	if (OPTS_GET(opts, attach_btf_id, 0))
+		attr.attach_btf_id = OPTS_GET(opts, attach_btf_id, 0);
+	if (OPTS_GET(opts, attach_btf_obj_fd, 0))
+		attr.attach_btf_obj_fd =
+			OPTS_GET(opts, attach_btf_obj_fd, 0);
+
+	fd = bpf_prog_load(prog->type, prog->name, obj->license, prog->insns, prog->insns_cnt,
+			   &attr);
+
+	return libbpf_err(fd);
+}
+
 #define SEC_DEF(sec_pfx, ptype, atype, flags, ...) {			    \
 	.sec = (char *)sec_pfx,						    \
 	.prog_type = BPF_PROG_TYPE_##ptype,				    \
