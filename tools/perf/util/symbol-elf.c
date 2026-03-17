@@ -372,10 +372,8 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_entry_size = 12;
 		return true;
 	case EM_AARCH64:
-		*plt_header_size = 32;
-		*plt_entry_size = 16;
-		return true;
 	case EM_LOONGARCH:
+	case EM_RISCV:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
 		return true;
