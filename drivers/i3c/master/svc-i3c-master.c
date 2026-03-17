@@ -1268,7 +1268,7 @@ static int svc_i3c_master_do_daa(struct i3c_master_controller *m)
 	/* Configure IBI auto-rules */
 	ret = svc_i3c_update_ibirules(master);
 	if (ret)
-		dev_err(master->dev, "Cannot handle such a list of devices");
+		dev_err(master->dev, "Cannot handle such a list of devices\n");
 
 rpm_out:
 	pm_runtime_put_autosuspend(master->dev);
