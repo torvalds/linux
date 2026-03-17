@@ -1724,19 +1724,25 @@ int v4l2_subdev_s_stream_helper(struct v4l2_subdev *sd, int enable);
 
 /**
  * v4l2_subdev_get_frame_desc_passthrough() - Helper to implement the subdev
- *	v4l2_get_frame_desc operation in simple passthrough cases
+ *	get_frame_desc operation in simple passthrough cases
  * @sd: The subdevice
  * @pad: The source pad index
  * @fd: The mbus frame desc
  *
- * Subdevice drivers that only pass through the streams can use this helper
- * to implement the &v4l2_subdev_pad_ops.v4l2_get_frame_desc operation.
+ * This helper implements get_frame_desc operation for subdevices that pass
+ * streams through without modification. It can be assigned directly as the
+ * .get_frame_desc callback in &v4l2_subdev_pad_ops.
  *
- * The helper will call get_frame_desc on the subdevice's sources, create a new
- * frame desc which contains only the streams on the given source pad. The data
- * for each frame desc entry is copied directly from the data provided from the
- * calls to the subdevice's sources, with the exception of the 'stream' field
- * which is set according to the subdevice's routing table.
+ * The helper iterates over the subdevice's sink pads, calls get_frame_desc on
+ * the remote subdevice connected to each sink pad, and collects the frame desc
+ * entries for streams that are routed to the given source pad according to the
+ * subdevice's routing table. Each entry is copied as-is from the upstream
+ * source, with the exception of the 'stream' field which is remapped to the
+ * source stream ID from the routing table.
+ *
+ * The frame desc type is taken from the first upstream source. If multiple
+ * sink pads are involved and the upstream sources report different frame desc
+ * types, -EPIPE is returned.
  *
  * Return: 0 on success, or a negative error code otherwise.
  */
