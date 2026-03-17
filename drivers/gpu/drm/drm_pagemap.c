@@ -480,18 +480,8 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		.start		= start,
 		.end		= end,
 		.pgmap_owner	= pagemap->owner,
-		/*
-		 * FIXME: MIGRATE_VMA_SELECT_DEVICE_PRIVATE intermittently
-		 * causes 'xe_exec_system_allocator --r *race*no*' to trigger aa
-		 * engine reset and a hard hang due to getting stuck on a folio
-		 * lock. This should work and needs to be root-caused. The only
-		 * downside of not selecting MIGRATE_VMA_SELECT_DEVICE_PRIVATE
-		 * is that device-to-device migrations won’t work; instead,
-		 * memory will bounce through system memory. This path should be
-		 * rare and only occur when the madvise attributes of memory are
-		 * changed or atomics are being used.
-		 */
-		.flags		= MIGRATE_VMA_SELECT_SYSTEM | MIGRATE_VMA_SELECT_DEVICE_COHERENT,
+		.flags		= MIGRATE_VMA_SELECT_SYSTEM | MIGRATE_VMA_SELECT_DEVICE_COHERENT |
+		MIGRATE_VMA_SELECT_DEVICE_PRIVATE,
 	};
 	unsigned long i, npages = npages_in_range(start, end);
 	unsigned long own_pages = 0, migrated_pages = 0;

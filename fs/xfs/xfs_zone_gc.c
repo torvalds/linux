@@ -96,7 +96,6 @@ struct xfs_gc_bio {
 	 */
 	xfs_fsblock_t			old_startblock;
 	xfs_daddr_t			new_daddr;
-	struct xfs_zone_scratch		*scratch;
 
 	/* Are we writing to a sequential write required zone? */
 	bool				is_seq;
@@ -779,7 +778,6 @@ xfs_zone_gc_split_write(
 	ihold(VFS_I(chunk->ip));
 	split_chunk->ip = chunk->ip;
 	split_chunk->is_seq = chunk->is_seq;
-	split_chunk->scratch = chunk->scratch;
 	split_chunk->offset = chunk->offset;
 	split_chunk->len = split_len;
 	split_chunk->old_startblock = chunk->old_startblock;

@@ -1103,7 +1103,7 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 	}
 
 	/* seq records the order tasks are queued, used by BPF DSQ iterator */
-	dsq->seq++;
+	WRITE_ONCE(dsq->seq, dsq->seq + 1);
 	p->scx.dsq_seq = dsq->seq;
 
 	dsq_mod_nr(dsq, 1);
@@ -1470,15 +1470,14 @@ static void clr_task_runnable(struct task_struct *p, bool reset_runnable_at)
 		p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
 }
 
-static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags)
+static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int core_enq_flags)
 {
 	struct scx_sched *sch = scx_root;
 	int sticky_cpu = p->scx.sticky_cpu;
+	u64 enq_flags = core_enq_flags | rq->scx.extra_enq_flags;
 
 	if (enq_flags & ENQUEUE_WAKEUP)
 		rq->scx.flags |= SCX_RQ_IN_WAKEUP;
-
-	enq_flags |= rq->scx.extra_enq_flags;
 
 	if (sticky_cpu >= 0)
 		p->scx.sticky_cpu = -1;
@@ -3908,8 +3907,8 @@ static u32 bypass_lb_cpu(struct scx_sched *sch, struct rq *rq,
 	 * consider offloading iff the total queued duration is over the
 	 * threshold.
 	 */
-	min_delta_us = scx_bypass_lb_intv_us / SCX_BYPASS_LB_MIN_DELTA_DIV;
-	if (delta < DIV_ROUND_UP(min_delta_us, scx_slice_bypass_us))
+	min_delta_us = READ_ONCE(scx_bypass_lb_intv_us) / SCX_BYPASS_LB_MIN_DELTA_DIV;
+	if (delta < DIV_ROUND_UP(min_delta_us, READ_ONCE(scx_slice_bypass_us)))
 		return 0;
 
 	raw_spin_rq_lock_irq(rq);
@@ -4137,7 +4136,7 @@ static void scx_bypass(bool bypass)
 		WARN_ON_ONCE(scx_bypass_depth <= 0);
 		if (scx_bypass_depth != 1)
 			goto unlock;
-		WRITE_ONCE(scx_slice_dfl, scx_slice_bypass_us * NSEC_PER_USEC);
+		WRITE_ONCE(scx_slice_dfl, READ_ONCE(scx_slice_bypass_us) * NSEC_PER_USEC);
 		bypass_timestamp = ktime_get_ns();
 		if (sch)
 			scx_add_event(sch, SCX_EV_BYPASS_ACTIVATE, 1);
@@ -5259,13 +5258,14 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (!READ_ONCE(helper)) {
 		mutex_lock(&helper_mutex);
 		if (!helper) {
-			helper = kthread_run_worker(0, "scx_enable_helper");
-			if (IS_ERR_OR_NULL(helper)) {
-				helper = NULL;
+			struct kthread_worker *w =
+				kthread_run_worker(0, "scx_enable_helper");
+			if (IS_ERR_OR_NULL(w)) {
 				mutex_unlock(&helper_mutex);
 				return -ENOMEM;
 			}
-			sched_set_fifo(helper->task);
+			sched_set_fifo(w->task);
+			WRITE_ONCE(helper, w);
 		}
 		mutex_unlock(&helper_mutex);
 	}

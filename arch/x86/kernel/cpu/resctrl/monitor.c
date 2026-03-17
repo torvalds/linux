@@ -364,7 +364,7 @@ void arch_mon_domain_online(struct rdt_resource *r, struct rdt_l3_mon_domain *d)
 		msr_clear_bit(MSR_RMID_SNC_CONFIG, 0);
 }
 
-/* CPU models that support MSR_RMID_SNC_CONFIG */
+/* CPU models that support SNC and MSR_RMID_SNC_CONFIG */
 static const struct x86_cpu_id snc_cpu_ids[] __initconst = {
 	X86_MATCH_VFM(INTEL_ICELAKE_X, 0),
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X, 0),
@@ -375,40 +375,14 @@ static const struct x86_cpu_id snc_cpu_ids[] __initconst = {
 	{}
 };
 
-/*
- * There isn't a simple hardware bit that indicates whether a CPU is running
- * in Sub-NUMA Cluster (SNC) mode. Infer the state by comparing the
- * number of CPUs sharing the L3 cache with CPU0 to the number of CPUs in
- * the same NUMA node as CPU0.
- * It is not possible to accurately determine SNC state if the system is
- * booted with a maxcpus=N parameter. That distorts the ratio of SNC nodes
- * to L3 caches. It will be OK if system is booted with hyperthreading
- * disabled (since this doesn't affect the ratio).
- */
 static __init int snc_get_config(void)
 {
-	struct cacheinfo *ci = get_cpu_cacheinfo_level(0, RESCTRL_L3_CACHE);
-	const cpumask_t *node0_cpumask;
-	int cpus_per_node, cpus_per_l3;
-	int ret;
+	int ret = topology_num_nodes_per_package();
 
-	if (!x86_match_cpu(snc_cpu_ids) || !ci)
+	if (ret > 1 && !x86_match_cpu(snc_cpu_ids)) {
+		pr_warn("CoD enabled system? Resctrl not supported\n");
 		return 1;
-
-	cpus_read_lock();
-	if (num_online_cpus() != num_present_cpus())
-		pr_warn("Some CPUs offline, SNC detection may be incorrect\n");
-	cpus_read_unlock();
-
-	node0_cpumask = cpumask_of_node(cpu_to_node(0));
-
-	cpus_per_node = cpumask_weight(node0_cpumask);
-	cpus_per_l3 = cpumask_weight(&ci->shared_cpu_map);
-
-	if (!cpus_per_node || !cpus_per_l3)
-		return 1;
-
-	ret = cpus_per_l3 / cpus_per_node;
+	}
 
 	/* sanity check: Only valid results are 1, 2, 3, 4, 6 */
 	switch (ret) {
