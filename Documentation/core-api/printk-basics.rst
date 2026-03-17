@@ -103,6 +103,42 @@ For debugging purposes there are also two conditionally-compiled macros:
 pr_debug() and pr_devel(), which are compiled-out unless ``DEBUG`` (or
 also ``CONFIG_DYNAMIC_DEBUG`` in the case of pr_debug()) is defined.
 
+Avoiding lockups from excessive printk() use
+============================================
+
+.. note::
+
+   This section is relevant only for legacy console drivers (those not
+   using the nbcon API) and !PREEMPT_RT kernels. Once all console drivers
+   are updated to nbcon, this documentation can be removed.
+
+Using ``printk()`` in hot paths (such as interrupt handlers, timer
+callbacks, or high-frequency network receive routines) with legacy
+consoles (e.g., ``console=ttyS0``) may cause lockups. Legacy consoles
+synchronously acquire ``console_sem`` and block while flushing messages,
+potentially disabling interrupts long enough to trigger hard or soft
+lockup detectors.
+
+To avoid this:
+
+- Use rate-limited variants (e.g., ``pr_*_ratelimited()``) or one-time
+  macros (e.g., ``pr_*_once()``) to reduce message frequency.
+- Assign lower log levels (e.g., ``KERN_DEBUG``) to non-essential messages
+  and filter console output via ``console_loglevel``.
+- Use ``printk_deferred()`` to log messages immediately to the ringbuffer
+  and defer console printing. This is a workaround for legacy consoles.
+- Port legacy console drivers to the non-blocking ``nbcon`` API (indicated
+  by ``CON_NBCON``). This is the preferred solution, as nbcon consoles
+  offload message printing to a dedicated kernel thread.
+
+For temporary debugging, ``trace_printk()`` can be used, but it must not
+appear in mainline code. See ``Documentation/trace/debugging.rst`` for
+more information.
+
+If more permanent output is needed in a hot path, trace events can be used.
+See ``Documentation/trace/events.rst`` and
+``samples/trace_events/trace-events-sample.[ch]``.
+
 
 Function reference
 ==================
