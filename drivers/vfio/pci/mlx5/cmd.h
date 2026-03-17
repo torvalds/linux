@@ -62,6 +62,7 @@ struct mlx5_vhca_data_buffer {
 	u32 *mkey_in;
 	enum dma_data_direction dma_dir;
 	u8 stop_copy_chunk_num;
+	bool pre_copy_init_bytes_chunk;
 	struct list_head buf_elm;
 	struct mlx5_vf_migration_file *migf;
 };
@@ -97,6 +98,7 @@ struct mlx5_vf_migration_file {
 	u32 record_tag;
 	u64 stop_copy_prep_size;
 	u64 pre_copy_initial_bytes;
+	u64 pre_copy_initial_bytes_start;
 	size_t next_required_umem_size;
 	u8 num_ready_chunks;
 	/* Upon chunk mode preserve another set of buffers for stop_copy phase */
@@ -175,6 +177,7 @@ struct mlx5vf_pci_core_device {
 	u8 mdev_detach:1;
 	u8 log_active:1;
 	u8 chunk_mode:1;
+	u8 mig_state_cap:1;
 	struct completion tracker_comp;
 	/* protect migration state */
 	struct mutex state_mutex;
@@ -199,7 +202,7 @@ int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);
 int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 					  size_t *state_size, u64 *total_size,
-					  u8 query_flags);
+					  u8 *migration_state, u8 query_flags);
 void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 			       const struct vfio_migration_ops *mig_ops,
 			       const struct vfio_log_ops *log_ops);

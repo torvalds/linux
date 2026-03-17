@@ -87,7 +87,7 @@ int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod)
 
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 					  size_t *state_size, u64 *total_size,
-					  u8 query_flags)
+					  u8 *mig_state, u8 query_flags)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vhca_migration_state_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_vhca_migration_state_in)] = {};
@@ -151,6 +151,10 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 		*total_size = mvdev->chunk_mode ?
 			MLX5_GET64(query_vhca_migration_state_out, out,
 				   remaining_total_size) : *state_size;
+
+	if (mig_state && mvdev->mig_state_cap)
+		*mig_state = MLX5_GET(query_vhca_migration_state_out, out,
+				      migration_state);
 
 	return 0;
 }
@@ -276,6 +280,9 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 
 	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_in_chunks))
 		mvdev->chunk_mode = 1;
+
+	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_state))
+		mvdev->mig_state_cap = 1;
 
 end:
 	mlx5_vf_put_core_dev(mvdev->mdev);
@@ -555,6 +562,7 @@ void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf)
 {
 	spin_lock_irq(&buf->migf->list_lock);
 	buf->stop_copy_chunk_num = 0;
+	buf->pre_copy_init_bytes_chunk = false;
 	list_add_tail(&buf->buf_elm, &buf->migf->avail_list);
 	spin_unlock_irq(&buf->migf->list_lock);
 }
@@ -689,7 +697,8 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 				!next_required_umem_size;
 		if (async_data->header_buf) {
 			status = add_buf_header(async_data->header_buf, image_size,
-						initial_pre_copy);
+						initial_pre_copy ||
+						async_data->buf->pre_copy_init_bytes_chunk);
 			if (status)
 				goto err;
 		}
@@ -708,9 +717,12 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 			}
 		}
 		spin_unlock_irqrestore(&migf->list_lock, flags);
-		if (initial_pre_copy) {
+		if (initial_pre_copy || async_data->buf->pre_copy_init_bytes_chunk) {
 			migf->pre_copy_initial_bytes += image_size;
-			migf->state = MLX5_MIGF_STATE_PRE_COPY;
+			if (initial_pre_copy)
+				migf->state = MLX5_MIGF_STATE_PRE_COPY;
+			if (async_data->buf->pre_copy_init_bytes_chunk)
+				async_data->buf->pre_copy_init_bytes_chunk = false;
 		}
 		if (stop_copy_last_chunk)
 			migf->state = MLX5_MIGF_STATE_COMPLETE;
