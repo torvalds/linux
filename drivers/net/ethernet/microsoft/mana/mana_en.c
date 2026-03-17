@@ -1365,6 +1365,7 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 			     sizeof(resp));
 
 	req->hdr.req.msg_version = GDMA_MESSAGE_V2;
+	req->hdr.resp.msg_version = GDMA_MESSAGE_V2;
 
 	req->vport = apc->port_handle;
 	req->num_indir_entries = apc->indir_table_sz;
@@ -1376,7 +1377,9 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	req->update_hashkey = update_key;
 	req->update_indir_tab = update_tab;
 	req->default_rxobj = apc->default_rxobj;
-	req->cqe_coalescing_enable = 0;
+
+	if (rx != TRI_STATE_FALSE)
+		req->cqe_coalescing_enable = apc->cqe_coalescing_enable;
 
 	if (update_key)
 		memcpy(&req->hashkey, apc->hashkey, MANA_HASH_KEY_SIZE);
@@ -1405,7 +1408,12 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 		netdev_err(ndev, "vPort RX configuration failed: 0x%x\n",
 			   resp.hdr.status);
 		err = -EPROTO;
+		goto out;
 	}
+
+	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2)
+		apc->cqe_coalescing_timeout_ns =
+			resp.cqe_coalescing_timeout_ns;
 
 	netdev_info(ndev, "Configured steering vPort %llu entries %u\n",
 		    apc->port_handle, apc->indir_table_sz);
@@ -1915,11 +1923,12 @@ static struct sk_buff *mana_build_skb(struct mana_rxq *rxq, void *buf_va,
 }
 
 static void mana_rx_skb(void *buf_va, bool from_pool,
-			struct mana_rxcomp_oob *cqe, struct mana_rxq *rxq)
+			struct mana_rxcomp_oob *cqe, struct mana_rxq *rxq,
+			int i)
 {
 	struct mana_stats_rx *rx_stats = &rxq->stats;
 	struct net_device *ndev = rxq->ndev;
-	uint pkt_len = cqe->ppi[0].pkt_len;
+	uint pkt_len = cqe->ppi[i].pkt_len;
 	u16 rxq_idx = rxq->rxq_idx;
 	struct napi_struct *napi;
 	struct xdp_buff xdp = {};
@@ -1963,7 +1972,7 @@ static void mana_rx_skb(void *buf_va, bool from_pool,
 	}
 
 	if (cqe->rx_hashtype != 0 && (ndev->features & NETIF_F_RXHASH)) {
-		hash_value = cqe->ppi[0].pkt_hash;
+		hash_value = cqe->ppi[i].pkt_hash;
 
 		if (cqe->rx_hashtype & MANA_HASH_L4)
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L4);
@@ -2098,9 +2107,11 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	struct mana_recv_buf_oob *rxbuf_oob;
 	struct mana_port_context *apc;
 	struct device *dev = gc->dev;
+	bool coalesced = false;
 	void *old_buf = NULL;
 	u32 curr, pktlen;
 	bool old_fp;
+	int i;
 
 	apc = netdev_priv(ndev);
 
@@ -2112,12 +2123,15 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		++ndev->stats.rx_dropped;
 		rxbuf_oob = &rxq->rx_oobs[rxq->buf_index];
 		netdev_warn_once(ndev, "Dropped a truncated packet\n");
-		goto drop;
+
+		mana_move_wq_tail(rxq->gdma_rq,
+				  rxbuf_oob->wqe_inf.wqe_size_in_bu);
+		mana_post_pkt_rxq(rxq);
+		return;
 
 	case CQE_RX_COALESCED_4:
-		netdev_err(ndev, "RX coalescing is unsupported\n");
-		apc->eth_stats.rx_coalesced_err++;
-		return;
+		coalesced = true;
+		break;
 
 	case CQE_RX_OBJECT_FENCE:
 		complete(&rxq->fence_event);
@@ -2130,30 +2144,37 @@ static void mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 		return;
 	}
 
-	pktlen = oob->ppi[0].pkt_len;
+	for (i = 0; i < MANA_RXCOMP_OOB_NUM_PPI; i++) {
+		old_buf = NULL;
+		pktlen = oob->ppi[i].pkt_len;
+		if (pktlen == 0) {
+			if (i == 0)
+				netdev_err_once(
+					ndev,
+					"RX pkt len=0, rq=%u, cq=%u, rxobj=0x%llx\n",
+					rxq->gdma_id, cq->gdma_id, rxq->rxobj);
+			break;
+		}
 
-	if (pktlen == 0) {
-		/* data packets should never have packetlength of zero */
-		netdev_err(ndev, "RX pkt len=0, rq=%u, cq=%u, rxobj=0x%llx\n",
-			   rxq->gdma_id, cq->gdma_id, rxq->rxobj);
-		return;
+		curr = rxq->buf_index;
+		rxbuf_oob = &rxq->rx_oobs[curr];
+		WARN_ON_ONCE(rxbuf_oob->wqe_inf.wqe_size_in_bu != 1);
+
+		mana_refill_rx_oob(dev, rxq, rxbuf_oob, &old_buf, &old_fp);
+
+		/* Unsuccessful refill will have old_buf == NULL.
+		 * In this case, mana_rx_skb() will drop the packet.
+		 */
+		mana_rx_skb(old_buf, old_fp, oob, rxq, i);
+
+		mana_move_wq_tail(rxq->gdma_rq,
+				  rxbuf_oob->wqe_inf.wqe_size_in_bu);
+
+		mana_post_pkt_rxq(rxq);
+
+		if (!coalesced)
+			break;
 	}
-
-	curr = rxq->buf_index;
-	rxbuf_oob = &rxq->rx_oobs[curr];
-	WARN_ON_ONCE(rxbuf_oob->wqe_inf.wqe_size_in_bu != 1);
-
-	mana_refill_rx_oob(dev, rxq, rxbuf_oob, &old_buf, &old_fp);
-
-	/* Unsuccessful refill will have old_buf == NULL.
-	 * In this case, mana_rx_skb() will drop the packet.
-	 */
-	mana_rx_skb(old_buf, old_fp, oob, rxq);
-
-drop:
-	mana_move_wq_tail(rxq->gdma_rq, rxbuf_oob->wqe_inf.wqe_size_in_bu);
-
-	mana_post_pkt_rxq(rxq);
 }
 
 static void mana_poll_rx_cq(struct mana_cq *cq)
@@ -3332,6 +3353,7 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	apc->port_handle = INVALID_MANA_HANDLE;
 	apc->pf_filter_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
+	apc->cqe_coalescing_enable = 0;
 
 	mutex_init(&apc->vport_mutex);
 	apc->vport_use_count = 0;

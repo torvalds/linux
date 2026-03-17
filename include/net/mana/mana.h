@@ -378,7 +378,6 @@ struct mana_ethtool_stats {
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
 	u64 tx_linear_pkt_cnt;
-	u64 rx_coalesced_err;
 	u64 rx_cqe_unknown_type;
 };
 
@@ -556,6 +555,9 @@ struct mana_port_context {
 
 	bool port_is_up;
 	bool port_st_save; /* Saved port state */
+
+	u8 cqe_coalescing_enable;
+	u32 cqe_coalescing_timeout_ns;
 
 	struct mana_ethtool_stats eth_stats;
 
@@ -902,6 +904,10 @@ struct mana_cfg_rx_steer_req_v2 {
 
 struct mana_cfg_rx_steer_resp {
 	struct gdma_resp_hdr hdr;
+
+	/* V2 */
+	u32 cqe_coalescing_timeout_ns;
+	u32 reserved1;
 }; /* HW DATA */
 
 /* Register HW vPort */
