@@ -2345,15 +2345,15 @@ int spi_nor_hwcaps_pp2cmd(u32 hwcaps)
 }
 
 /**
- * spi_nor_spimem_check_op - check if the operation is supported
- *                           by controller
+ * spi_nor_spimem_check_read_pp_op - check if a read or a page program operation is
+ *                                   supported by controller
  *@nor:        pointer to a 'struct spi_nor'
  *@op:         pointer to op template to be checked
  *
  * Returns 0 if operation is supported, -EOPNOTSUPP otherwise.
  */
-static int spi_nor_spimem_check_op(struct spi_nor *nor,
-				   struct spi_mem_op *op)
+static int spi_nor_spimem_check_read_pp_op(struct spi_nor *nor,
+					   struct spi_mem_op *op)
 {
 	/*
 	 * First test with 4 address bytes. The opcode itself might
@@ -2396,7 +2396,7 @@ static int spi_nor_spimem_check_readop(struct spi_nor *nor,
 	if (spi_nor_protocol_is_dtr(nor->read_proto))
 		op.dummy.nbytes *= 2;
 
-	return spi_nor_spimem_check_op(nor, &op);
+	return spi_nor_spimem_check_read_pp_op(nor, &op);
 }
 
 /**
@@ -2414,7 +2414,7 @@ static int spi_nor_spimem_check_pp(struct spi_nor *nor,
 
 	spi_nor_spimem_setup_op(nor, &op, pp->proto);
 
-	return spi_nor_spimem_check_op(nor, &op);
+	return spi_nor_spimem_check_read_pp_op(nor, &op);
 }
 
 /**
