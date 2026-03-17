@@ -377,12 +377,13 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 				    unsigned long **configs,
 				    unsigned int *nconfigs)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(np);
 	unsigned long *cfg;
 	unsigned int max_cfg, ncfg = 0;
+	struct fwnode_handle *fwnode;
 	int ret;
 
-	if (!np)
+	fwnode = of_fwnode_handle(np);
+	if (!fwnode)
 		return -EINVAL;
 
 	/* allocate a temporary array big enough to hold one of each option */
