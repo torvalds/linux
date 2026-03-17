@@ -726,7 +726,7 @@ static int __ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 		gfp_flags |= __GFP_ZERO;
 
 	if (ctx->gfp_retry_mayfail)
-		gfp_flags |= __GFP_RETRY_MAYFAIL;
+		gfp_flags |= __GFP_RETRY_MAYFAIL | __GFP_NOWARN;
 
 	if (ttm_pool_uses_dma32(pool))
 		gfp_flags |= GFP_DMA32;
