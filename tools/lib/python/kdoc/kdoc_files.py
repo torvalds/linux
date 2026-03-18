@@ -269,6 +269,7 @@ class KernelFiles():
         # Initialize variables that are internal to KernelFiles
 
         self.out_style = out_style
+        self.out_style.set_config(self.config)
 
         self.errors = 0
         self.results = {}
@@ -311,8 +312,6 @@ class KernelFiles():
         returning kernel-doc markups on each interaction.
         """
 
-        self.out_style.set_config(self.config)
-
         if not filenames:
             filenames = sorted(self.results.keys())
 
@@ -336,25 +335,12 @@ class KernelFiles():
                                       function_table, enable_lineno,
                                       no_doc_sections)
 
-            msg = ""
             if fname not in self.results:
                 self.config.log.warning("No kernel-doc for file %s", fname)
                 continue
 
             symbols = self.results[fname]
-            self.out_style.set_symbols(symbols)
 
-            for arg in symbols:
-                m = self.out_msg(fname, arg.name, arg)
-
-                if m is None:
-                    ln = arg.get("ln", 0)
-                    dtype = arg.get('type', "")
-
-                    self.config.log.warning("%s:%d Can't handle %s",
-                                            fname, ln, dtype)
-                else:
-                    msg += m
-
+            msg = self.out_style.output_symbols(fname, symbols)
             if msg:
                 yield fname, msg

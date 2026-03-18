@@ -222,6 +222,27 @@ class OutputFormat:
 
         return None
 
+    def output_symbols(self, fname, symbols):
+        """
+        Handles a set of KdocItem symbols.
+        """
+        self.set_symbols(symbols)
+
+        msg = ""
+        for arg in symbols:
+            m = self.msg(fname, arg.name, arg)
+
+            if m is None:
+                ln = arg.get("ln", 0)
+                dtype = arg.get('type', "")
+
+                self.config.log.warning("%s:%d Can't handle %s",
+                                        fname, ln, dtype)
+            else:
+                msg += m
+
+        return msg
+
     # Virtual methods to be overridden by inherited classes
     # At the base class, those do nothing.
     def set_symbols(self, symbols):
