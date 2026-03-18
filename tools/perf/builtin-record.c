@@ -55,6 +55,7 @@
 #include "asm/bug.h"
 #include "perf.h"
 #include "cputopo.h"
+#include "dwarf-regs.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -2995,7 +2996,9 @@ static int record_callchain_opt(const struct option *opt,
 		return 0;
 	}
 
-	return record_opts__parse_callchain(opt->value, &callchain_param, "fp", unset);
+	return record_opts__parse_callchain(opt->value, &callchain_param,
+					    EM_HOST != EM_S390 ? "fp" : "dwarf",
+					    unset);
 }
 
 
@@ -4095,8 +4098,11 @@ int cmd_record(int argc, const char **argv)
 
 	perf_debuginfod_setup(&record.debuginfod);
 
-	/* Make system wide (-a) the default target. */
-	if (!argc && target__none(&rec->opts.target))
+	/*
+	 * Use system wide (-a) for the default target (ie. when no
+	 * workload). User ID filtering also implies system-wide.
+	 */
+	if ((!argc && target__none(&rec->opts.target)) || rec->uid_str)
 		rec->opts.target.system_wide = true;
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
@@ -4274,7 +4280,8 @@ int cmd_record(int argc, const char **argv)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->core.nr_entries == 0) {
-		struct evlist *def_evlist = evlist__new_default();
+		struct evlist *def_evlist = evlist__new_default(&rec->opts.target,
+								callchain_param.enabled);
 
 		if (!def_evlist)
 			goto out;
@@ -4303,9 +4310,6 @@ int cmd_record(int argc, const char **argv)
 		err = parse_uid_filter(rec->evlist, uid);
 		if (err)
 			goto out;
-
-		/* User ID filtering implies system wide. */
-		rec->opts.target.system_wide = true;
 	}
 
 	/* Enable ignoring missing threads when -p option is defined. */

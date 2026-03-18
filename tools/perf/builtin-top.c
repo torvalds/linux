@@ -56,6 +56,7 @@
 #include "util/debug.h"
 #include "util/ordered-events.h"
 #include "util/pfm.h"
+#include "dwarf-regs.h"
 
 #include <assert.h>
 #include <elf.h>
@@ -1420,7 +1421,7 @@ callchain_opt(const struct option *opt, const char *arg __maybe_unused, int unse
 		return 0;
 	}
 
-	return parse_callchain_opt(opt, "fp", unset);
+	return parse_callchain_opt(opt, EM_HOST != EM_S390 ? "fp" : "dwarf", unset);
 }
 
 
@@ -1705,8 +1706,17 @@ int cmd_top(int argc, const char **argv)
 	if (annotate_check_args() < 0)
 		goto out_delete_evlist;
 
+	status = target__validate(target);
+	if (status) {
+		target__strerror(target, status, errbuf, BUFSIZ);
+		ui__warning("%s\n", errbuf);
+	}
+
+	if (target__none(target))
+		target->system_wide = true;
+
 	if (!top.evlist->core.nr_entries) {
-		struct evlist *def_evlist = evlist__new_default();
+		struct evlist *def_evlist = evlist__new_default(target, callchain_param.enabled);
 
 		if (!def_evlist)
 			goto out_delete_evlist;
@@ -1799,12 +1809,6 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	status = target__validate(target);
-	if (status) {
-		target__strerror(target, status, errbuf, BUFSIZ);
-		ui__warning("%s\n", errbuf);
-	}
-
 	if (top.uid_str) {
 		uid_t uid = parse_uid(top.uid_str);
 
@@ -1817,9 +1821,6 @@ int cmd_top(int argc, const char **argv)
 		if (status)
 			goto out_delete_evlist;
 	}
-
-	if (target__none(target))
-		target->system_wide = true;
 
 	if (evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
