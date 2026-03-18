@@ -9,11 +9,13 @@
 
 struct addr_location;
 struct evsel;
+struct hist_entry;
+struct hists;
 struct ip_callchain;
 struct map;
 struct perf_sample;
+struct record_opts;
 struct thread;
-struct hists;
 
 #define HELP_PAD "\t\t\t\t"
 
@@ -236,14 +238,6 @@ struct callchain_cursor *get_tls_callchain_cursor(void);
 
 int callchain_cursor__copy(struct callchain_cursor *dst,
 			   struct callchain_cursor *src);
-
-struct option;
-struct hist_entry;
-
-int record_parse_callchain_opt(const struct option *opt, const char *arg, int unset);
-int record_callchain_opt(const struct option *opt, const char *arg, int unset);
-
-struct record_opts;
 
 int record_opts__parse_callchain(struct record_opts *record,
 				 struct callchain_param *callchain,
