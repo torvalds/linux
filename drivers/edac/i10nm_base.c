@@ -580,6 +580,10 @@ static bool i10nm_mc_decode_available(struct mce *mce)
 		if (bank < 13 || bank > 20)
 			return false;
 		break;
+	case GNR:
+		if (bank < 13 || bank > 24)
+			return false;
+		break;
 	default:
 		return false;
 	}
@@ -636,6 +640,16 @@ static bool i10nm_mc_decode(struct decoded_addr *res)
 		res->bank_group  |= GET_BITFIELD(m->misc, 41, 41) << 2;
 		res->rank         = GET_BITFIELD(m->misc, 57, 57);
 		res->dimm         = GET_BITFIELD(m->misc, 58, 58);
+		break;
+	case GNR:
+		res->imc          = m->bank - 13;
+		res->channel      = 0;
+		res->column       = GET_BITFIELD(m->misc, 9, 18) << 2;
+		res->row          = GET_BITFIELD(m->misc, 19, 36);
+		res->bank_group   = GET_BITFIELD(m->misc, 39, 41);
+		res->bank_address = GET_BITFIELD(m->misc, 37, 38);
+		res->rank         = GET_BITFIELD(m->misc, 55, 56);
+		res->dimm         = GET_BITFIELD(m->misc, 57, 57);
 		break;
 	default:
 		return false;
