@@ -103,6 +103,7 @@ struct dw_edma_chip {
 	enum dw_edma_map_format	mf;
 
 	struct dw_edma		*dw;
+	bool			cfg_non_ll;
 };
 
 /* Export to the platform drivers */
