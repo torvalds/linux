@@ -22,7 +22,6 @@
 #include "tool.h"
 #include "cpumap.h"
 #include "metricgroup.h"
-#include "stat.h"
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
