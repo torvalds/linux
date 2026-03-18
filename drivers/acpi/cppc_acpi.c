@@ -1394,45 +1394,66 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 		}
 	}
 
-	cpc_read(cpunum, highest_reg, &high);
+	ret = cpc_read(cpunum, highest_reg, &high);
+	if (ret)
+		goto out_err;
 	perf_caps->highest_perf = high;
 
-	cpc_read(cpunum, lowest_reg, &low);
+	ret = cpc_read(cpunum, lowest_reg, &low);
+	if (ret)
+		goto out_err;
 	perf_caps->lowest_perf = low;
 
-	cpc_read(cpunum, nominal_reg, &nom);
+	ret = cpc_read(cpunum, nominal_reg, &nom);
+	if (ret)
+		goto out_err;
 	perf_caps->nominal_perf = nom;
 
 	/*
 	 * If reference perf register is not supported then we should
 	 * use the nominal perf value
 	 */
-	if (CPC_SUPPORTED(reference_reg))
-		cpc_read(cpunum, reference_reg, &ref);
-	else
+	if (CPC_SUPPORTED(reference_reg)) {
+		ret = cpc_read(cpunum, reference_reg, &ref);
+		if (ret)
+			goto out_err;
+	} else {
 		ref = nom;
+	}
 	perf_caps->reference_perf = ref;
 
 	if (guaranteed_reg->type != ACPI_TYPE_BUFFER  ||
 	    IS_NULL_REG(&guaranteed_reg->cpc_entry.reg)) {
 		perf_caps->guaranteed_perf = 0;
 	} else {
-		cpc_read(cpunum, guaranteed_reg, &guaranteed);
+		ret = cpc_read(cpunum, guaranteed_reg, &guaranteed);
+		if (ret)
+			goto out_err;
 		perf_caps->guaranteed_perf = guaranteed;
 	}
 
-	cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
+	ret = cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
+	if (ret)
+		goto out_err;
 	perf_caps->lowest_nonlinear_perf = min_nonlinear;
 
-	if (!high || !low || !nom || !ref || !min_nonlinear)
+	if (!high || !low || !nom || !ref || !min_nonlinear) {
 		ret = -EFAULT;
+		goto out_err;
+	}
 
 	/* Read optional lowest and nominal frequencies if present */
-	if (CPC_SUPPORTED(low_freq_reg))
-		cpc_read(cpunum, low_freq_reg, &low_f);
+	if (CPC_SUPPORTED(low_freq_reg)) {
+		ret = cpc_read(cpunum, low_freq_reg, &low_f);
+		if (ret)
+			goto out_err;
+	}
 
-	if (CPC_SUPPORTED(nom_freq_reg))
-		cpc_read(cpunum, nom_freq_reg, &nom_f);
+	if (CPC_SUPPORTED(nom_freq_reg)) {
+		ret = cpc_read(cpunum, nom_freq_reg, &nom_f);
+		if (ret)
+			goto out_err;
+	}
 
 	perf_caps->lowest_freq = low_f;
 	perf_caps->nominal_freq = nom_f;
@@ -1526,16 +1547,25 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 		}
 	}
 
-	cpc_read(cpunum, delivered_reg, &delivered);
-	cpc_read(cpunum, reference_reg, &reference);
+	ret = cpc_read(cpunum, delivered_reg, &delivered);
+	if (ret)
+		goto out_err;
+
+	ret = cpc_read(cpunum, reference_reg, &reference);
+	if (ret)
+		goto out_err;
+
 	/*
 	 * Per spec, if ctr_wrap_time optional register is unsupported, then the
 	 * performance counters are assumed to never wrap during the lifetime of
 	 * platform
 	 */
 	ctr_wrap_time = (u64)(~((u64)0));
-	if (CPC_SUPPORTED(ctr_wrap_reg))
-		cpc_read(cpunum, ctr_wrap_reg, &ctr_wrap_time);
+	if (CPC_SUPPORTED(ctr_wrap_reg)) {
+		ret = cpc_read(cpunum, ctr_wrap_reg, &ctr_wrap_time);
+		if (ret)
+			goto out_err;
+	}
 
 	if (!delivered || !reference) {
 		ret = -EFAULT;
@@ -1811,24 +1841,39 @@ int cppc_get_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	}
 
 	/* Read optional elements if present */
-	if (CPC_SUPPORTED(max_perf_reg))
-		cpc_read(cpu, max_perf_reg, &max);
+	if (CPC_SUPPORTED(max_perf_reg)) {
+		ret = cpc_read(cpu, max_perf_reg, &max);
+		if (ret)
+			goto out_err;
+	}
 	perf_ctrls->max_perf = max;
 
-	if (CPC_SUPPORTED(min_perf_reg))
-		cpc_read(cpu, min_perf_reg, &min);
+	if (CPC_SUPPORTED(min_perf_reg)) {
+		ret = cpc_read(cpu, min_perf_reg, &min);
+		if (ret)
+			goto out_err;
+	}
 	perf_ctrls->min_perf = min;
 
-	if (CPC_SUPPORTED(desired_perf_reg))
-		cpc_read(cpu, desired_perf_reg, &desired_perf);
+	if (CPC_SUPPORTED(desired_perf_reg)) {
+		ret = cpc_read(cpu, desired_perf_reg, &desired_perf);
+		if (ret)
+			goto out_err;
+	}
 	perf_ctrls->desired_perf = desired_perf;
 
-	if (CPC_SUPPORTED(energy_perf_reg))
-		cpc_read(cpu, energy_perf_reg, &energy_perf);
+	if (CPC_SUPPORTED(energy_perf_reg)) {
+		ret = cpc_read(cpu, energy_perf_reg, &energy_perf);
+		if (ret)
+			goto out_err;
+	}
 	perf_ctrls->energy_perf = energy_perf;
 
-	if (CPC_SUPPORTED(auto_sel_reg))
-		cpc_read(cpu, auto_sel_reg, &auto_sel);
+	if (CPC_SUPPORTED(auto_sel_reg)) {
+		ret = cpc_read(cpu, auto_sel_reg, &auto_sel);
+		if (ret)
+			goto out_err;
+	}
 	perf_ctrls->auto_sel = (bool)auto_sel;
 
 out_err:
