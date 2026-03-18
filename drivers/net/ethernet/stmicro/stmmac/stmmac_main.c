@@ -4684,12 +4684,12 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int first_entry, tx_packets;
 	int gso = skb_shinfo(skb)->gso_type;
 	struct stmmac_txq_stats *txq_stats;
+	struct dma_desc *desc, *first_desc;
 	struct dma_edesc *tbs_desc = NULL;
-	struct dma_desc *desc, *first;
 	struct stmmac_tx_queue *tx_q;
 	int i, csum_insertion = 0;
 	int entry, first_tx;
-	dma_addr_t des;
+	dma_addr_t dma_addr;
 	u32 sdu_len;
 
 	tx_q = &priv->dma_conf.tx_queue[queue];
@@ -4756,10 +4756,10 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	desc = stmmac_get_tx_desc(priv, tx_q, entry);
-	first = desc;
+	first_desc = desc;
 
 	if (has_vlan)
-		stmmac_set_desc_vlan(priv, first, STMMAC_VLAN_INSERT);
+		stmmac_set_desc_vlan(priv, first_desc, STMMAC_VLAN_INSERT);
 
 	enh_desc = priv->plat->enh_desc;
 	/* To program the descriptors according to the size of the frame */
@@ -4774,7 +4774,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	for (i = 0; i < nfrags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		int len = skb_frag_size(frag);
+		unsigned int frag_size = skb_frag_size(frag);
 		bool last_segment = (i == (nfrags - 1));
 
 		entry = STMMAC_GET_ENTRY(entry, priv->dma_conf.dma_tx_size);
@@ -4782,16 +4782,17 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		desc = stmmac_get_tx_desc(priv, tx_q, entry);
 
-		des = skb_frag_dma_map(priv->device, frag, 0, len,
-				       DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, des))
+		dma_addr = skb_frag_dma_map(priv->device, frag, 0, frag_size,
+					    DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->device, dma_addr))
 			goto dma_map_err; /* should reuse desc w/o issues */
 
-		stmmac_set_tx_skb_dma_entry(tx_q, entry, des, len, true);
-		stmmac_set_desc_addr(priv, desc, des);
+		stmmac_set_tx_skb_dma_entry(tx_q, entry, dma_addr, frag_size,
+					    true);
+		stmmac_set_desc_addr(priv, desc, dma_addr);
 
 		/* Prepare the descriptor and set the own bit too */
-		stmmac_prepare_tx_desc(priv, desc, 0, len, csum_insertion,
+		stmmac_prepare_tx_desc(priv, desc, 0, frag_size, csum_insertion,
 				       priv->descriptor_mode, 1, last_segment,
 				       skb->len);
 	}
@@ -4839,7 +4840,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		netdev_dbg(priv->dev,
 			   "%s: curr=%d dirty=%d f=%d, e=%d, first=%p, nfrags=%d",
 			   __func__, tx_q->cur_tx, tx_q->dirty_tx, first_entry,
-			   entry, first, nfrags);
+			   entry, first_desc, nfrags);
 
 		netdev_dbg(priv->dev, ">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb->len);
@@ -4858,7 +4859,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	u64_stats_update_end(&txq_stats->q_syncp);
 
 	if (priv->sarc_type)
-		stmmac_set_desc_sarc(priv, first, priv->sarc_type);
+		stmmac_set_desc_sarc(priv, first_desc, priv->sarc_type);
 
 	/* Ready to fill the first descriptor and set the OWN bit w/o any
 	 * problems because all the descriptors are actually ready to be
@@ -4867,15 +4868,15 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(!is_jumbo)) {
 		bool last_segment = (nfrags == 0);
 
-		des = dma_map_single(priv->device, skb->data,
-				     nopaged_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, des))
+		dma_addr = dma_map_single(priv->device, skb->data,
+					  nopaged_len, DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->device, dma_addr))
 			goto dma_map_err;
 
-		stmmac_set_tx_skb_dma_entry(tx_q, first_entry, des, nopaged_len,
-					    false);
+		stmmac_set_tx_skb_dma_entry(tx_q, first_entry, dma_addr,
+					    nopaged_len, false);
 
-		stmmac_set_desc_addr(priv, first, des);
+		stmmac_set_desc_addr(priv, first_desc, dma_addr);
 
 		if (last_segment)
 			stmmac_set_tx_dma_last_segment(tx_q, first_entry);
@@ -4884,11 +4885,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			     priv->hwts_tx_en)) {
 			/* declare that device is doing timestamping */
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-			stmmac_enable_tx_timestamp(priv, first);
+			stmmac_enable_tx_timestamp(priv, first_desc);
 		}
 
 		/* Prepare the first descriptor setting the OWN bit too */
-		stmmac_prepare_tx_desc(priv, first, 1, nopaged_len,
+		stmmac_prepare_tx_desc(priv, first_desc, 1, nopaged_len,
 				       csum_insertion, priv->descriptor_mode,
 				       0, last_segment, skb->len);
 	}
@@ -4900,7 +4901,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		stmmac_set_desc_tbs(priv, tbs_desc, ts.tv_sec, ts.tv_nsec);
 	}
 
-	stmmac_set_tx_owner(priv, first);
+	stmmac_set_tx_owner(priv, first_desc);
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
 
