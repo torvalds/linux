@@ -89,7 +89,6 @@ struct stmmac_mdio_bus_data {
 	int *irqs;
 	int probed_phy_irq;
 	bool needs_reset;
-	bool default_an_inband;
 };
 
 struct stmmac_dma_cfg {
@@ -250,6 +249,7 @@ struct plat_stmmacenet_data {
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_safety_feature_cfg *safety_feat_cfg;
 	int clk_csr;
+	bool default_an_inband;
 	bool enh_desc;
 	bool tx_coe;
 	bool bugged_jumbo;

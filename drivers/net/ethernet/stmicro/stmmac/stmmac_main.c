@@ -1390,7 +1390,6 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static int stmmac_phylink_setup(struct stmmac_priv *priv)
 {
-	struct stmmac_mdio_bus_data *mdio_bus_data;
 	struct phylink_config *config;
 	struct phylink_pcs *pcs;
 	struct phylink *phylink;
@@ -1415,9 +1414,7 @@ static int stmmac_phylink_setup(struct stmmac_priv *priv)
 	priv->tx_lpi_clk_stop = priv->plat->flags &
 				STMMAC_FLAG_EN_TX_LPI_CLOCKGATING;
 
-	mdio_bus_data = priv->plat->mdio_bus_data;
-	if (mdio_bus_data)
-		config->default_an_inband = mdio_bus_data->default_an_inband;
+	config->default_an_inband = priv->plat->default_an_inband;
 
 	/* Get the PHY interface modes (at the PHY end of the link) that
 	 * are supported by the platform.
