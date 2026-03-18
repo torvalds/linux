@@ -31,7 +31,7 @@ static int timer_cb(void *map, int *key, struct bpf_timer *timer)
 }
 
 SEC("fentry/bpf_fentry_test1")
-__failure __msg("helper call might sleep in a non-sleepable prog")
+__failure __msg("sleepable helper bpf_copy_from_user#{{[0-9]+}} in non-sleepable prog")
 int timer_non_sleepable_prog(void *ctx)
 {
 	struct timer_elem *val;
@@ -47,7 +47,7 @@ int timer_non_sleepable_prog(void *ctx)
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("helper call might sleep in a non-sleepable prog")
+__failure __msg("sleepable helper bpf_copy_from_user#{{[0-9]+}} in non-sleepable prog")
 int timer_sleepable_prog(void *ctx)
 {
 	struct timer_elem *val;
