@@ -1112,12 +1112,15 @@ int thc_port_select(struct thc_device *dev, enum thc_port_type port_type)
 EXPORT_SYMBOL_NS_GPL(thc_port_select, "INTEL_THC");
 
 #define THC_SPI_FREQUENCY_7M	7812500
+#define THC_SPI_FREQUENCY_10M	10416700
 #define THC_SPI_FREQUENCY_15M	15625000
 #define THC_SPI_FREQUENCY_17M	17857100
 #define THC_SPI_FREQUENCY_20M	20833000
 #define THC_SPI_FREQUENCY_25M	25000000
 #define THC_SPI_FREQUENCY_31M	31250000
+#define THC_SPI_FREQUENCY_35M	35714200
 #define THC_SPI_FREQUENCY_41M	41666700
+#define THC_SPI_FREQUENCY_50M	50000000
 
 #define THC_SPI_LOW_FREQUENCY	THC_SPI_FREQUENCY_17M
 
@@ -1125,21 +1128,27 @@ static u8 thc_get_spi_freq_div_val(struct thc_device *dev, u32 spi_freq_val)
 {
 	static const int frequency[] = {
 		THC_SPI_FREQUENCY_7M,
+		THC_SPI_FREQUENCY_10M,
 		THC_SPI_FREQUENCY_15M,
 		THC_SPI_FREQUENCY_17M,
 		THC_SPI_FREQUENCY_20M,
 		THC_SPI_FREQUENCY_25M,
 		THC_SPI_FREQUENCY_31M,
+		THC_SPI_FREQUENCY_35M,
 		THC_SPI_FREQUENCY_41M,
+		THC_SPI_FREQUENCY_50M,
 	};
 	static const u8 frequency_div[] = {
 		THC_SPI_FRQ_DIV_2,
+		THC_SPI_FRQ_DIV_1,
 		THC_SPI_FRQ_DIV_1,
 		THC_SPI_FRQ_DIV_7,
 		THC_SPI_FRQ_DIV_6,
 		THC_SPI_FRQ_DIV_5,
 		THC_SPI_FRQ_DIV_4,
 		THC_SPI_FRQ_DIV_3,
+		THC_SPI_FRQ_DIV_3,
+		THC_SPI_FRQ_DIV_2,
 	};
 	int size = ARRAY_SIZE(frequency);
 	u32 closest_freq;
@@ -1189,6 +1198,25 @@ int thc_spi_read_config(struct thc_device *dev, u32 spi_freq_val,
 
 	if (spi_freq_val < THC_SPI_LOW_FREQUENCY)
 		is_low_freq = true;
+
+	/* 10M, 35M and 50M CLK need 1.5, 3.5 and 2.5 half divider */
+	if ((freq_div == THC_SPI_FRQ_DIV_2 && spi_freq_val >=  THC_SPI_FREQUENCY_50M) ||
+		(freq_div == THC_SPI_FRQ_DIV_3 && spi_freq_val <  THC_SPI_FREQUENCY_41M) ||
+		(freq_div == THC_SPI_FRQ_DIV_1 && spi_freq_val <  THC_SPI_FREQUENCY_15M)) {
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_DUTYC_CFG_OFFSET,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCRF_HALF_DIV_EN,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCRF_HALF_DIV_EN);
+
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPARE_REG_OFFSET,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE);
+	} else {
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_DUTYC_CFG_OFFSET,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCRF_HALF_DIV_EN, 0);
+
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPARE_REG_OFFSET,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE, 0);
+	}
 
 	cfg = FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TCRF, freq_div) |
 	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TRMODE, io_mode) |
@@ -1242,6 +1270,25 @@ int thc_spi_write_config(struct thc_device *dev, u32 spi_freq_val,
 
 	if (spi_freq_val < THC_SPI_LOW_FREQUENCY)
 		is_low_freq = true;
+
+	/* 10M, 35M and 50M CLK need 1.5, 3.5 and 2.5 half divider */
+	if ((freq_div == THC_SPI_FRQ_DIV_2 && spi_freq_val >=  THC_SPI_FREQUENCY_50M) ||
+		(freq_div == THC_SPI_FRQ_DIV_3 && spi_freq_val <  THC_SPI_FREQUENCY_41M) ||
+		(freq_div == THC_SPI_FRQ_DIV_1 && spi_freq_val <  THC_SPI_FREQUENCY_15M)) {
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_DUTYC_CFG_OFFSET,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCWF_HALF_DIV_EN,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCWF_HALF_DIV_EN);
+
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPARE_REG_OFFSET,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE);
+	} else {
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPI_DUTYC_CFG_OFFSET,
+				  THC_M_PRT_SPI_DUTYC_CFG_SPI_TCWF_HALF_DIV_EN, 0);
+
+		regmap_write_bits(dev->thc_regmap, THC_M_PRT_SPARE_REG_OFFSET,
+				  THC_M_PRT_SPARE_REG_SPI_CLK_INV_ENABLE, 0);
+	}
 
 	cfg = FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TCWF, freq_div) |
 	      FIELD_PREP(THC_M_PRT_SPI_CFG_SPI_TWMODE, io_mode) |
