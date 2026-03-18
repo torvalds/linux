@@ -186,6 +186,32 @@ static struct page *hfs_bmap_get_map_page(struct hfs_bnode *node, struct hfs_bma
 }
 
 /**
+ * hfs_bmap_test_bit - test a bit in the b-tree map
+ * @node: the b-tree node containing the map record
+ * @node_bit_idx: the relative bit index within the node's map record
+ *
+ * Returns true if set, false if clear or on failure.
+ */
+static bool hfs_bmap_test_bit(struct hfs_bnode *node, u32 node_bit_idx)
+{
+	struct hfs_bmap_ctx ctx;
+	struct page *page;
+	u8 *bmap, byte, mask;
+
+	page = hfs_bmap_get_map_page(node, &ctx, node_bit_idx / BITS_PER_BYTE);
+	if (IS_ERR(page))
+		return false;
+
+	bmap = kmap_local_page(page);
+	byte = bmap[ctx.off];
+	kunmap_local(bmap);
+
+	mask = 1 << (7 - (node_bit_idx % BITS_PER_BYTE));
+	return (byte & mask) != 0;
+}
+
+
+/**
  * hfs_bmap_clear_bit - clear a bit in the b-tree map
  * @node: the b-tree node containing the map record
  * @node_bit_idx: the relative bit index within the node's map record
@@ -218,12 +244,32 @@ static int hfs_bmap_clear_bit(struct hfs_bnode *node, u32 node_bit_idx)
 	return 0;
 }
 
+#define HFS_EXTENT_TREE_NAME  "Extents Overflow File"
+#define HFS_CATALOG_TREE_NAME "Catalog File"
+#define HFS_ATTR_TREE_NAME    "Attributes File"
+#define HFS_UNKNOWN_TREE_NAME "Unknown B-tree"
+
+static const char *hfs_btree_name(u32 cnid)
+{
+	switch (cnid) {
+	case HFSPLUS_EXT_CNID:
+		return HFS_EXTENT_TREE_NAME;
+	case HFSPLUS_CAT_CNID:
+		return HFS_CATALOG_TREE_NAME;
+	case HFSPLUS_ATTR_CNID:
+		return HFS_ATTR_TREE_NAME;
+	default:
+		return HFS_UNKNOWN_TREE_NAME;
+	}
+}
+
 /* Get a reference to a B*Tree and do some initial checks */
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 {
 	struct hfs_btree *tree;
 	struct hfs_btree_header_rec *head;
 	struct address_space *mapping;
+	struct hfs_bnode *node;
 	struct inode *inode;
 	struct page *page;
 	unsigned int size;
@@ -331,6 +377,20 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 
 	kunmap_local(head);
 	put_page(page);
+
+	node = hfs_bnode_find(tree, HFSPLUS_TREE_HEAD);
+	if (IS_ERR(node))
+		goto free_inode;
+
+	if (!hfs_bmap_test_bit(node, 0)) {
+		pr_warn("(%s): %s (cnid 0x%x) map record invalid or bitmap corruption detected, forcing read-only.\n",
+				sb->s_id, hfs_btree_name(id), id);
+		pr_warn("Run fsck.hfsplus to repair.\n");
+		sb->s_flags |= SB_RDONLY;
+	}
+
+	hfs_bnode_put(node);
+
 	return tree;
 
  fail_page:
