@@ -1789,7 +1789,7 @@ static bool ublk_batch_prep_dispatch(struct ublk_queue *ubq,
  * Filter out UBLK_BATCH_IO_UNUSED_TAG entries from tag_buf.
  * Returns the new length after filtering.
  */
-static unsigned int ublk_filter_unused_tags(unsigned short *tag_buf,
+static noinline unsigned int ublk_filter_unused_tags(unsigned short *tag_buf,
 					    unsigned int len)
 {
 	unsigned int i, j;
@@ -1803,6 +1803,41 @@ static unsigned int ublk_filter_unused_tags(unsigned short *tag_buf,
 	}
 
 	return j;
+}
+
+static noinline void ublk_batch_dispatch_fail(struct ublk_queue *ubq,
+		const struct ublk_batch_io_data *data,
+		unsigned short *tag_buf, size_t len, int ret)
+{
+	int i, res;
+
+	/*
+	 * Undo prep state for all IOs since userspace never received them.
+	 * This restores IOs to pre-prepared state so they can be cleanly
+	 * re-prepared when tags are pulled from FIFO again.
+	 */
+	for (i = 0; i < len; i++) {
+		struct ublk_io *io = &ubq->ios[tag_buf[i]];
+		int index = -1;
+
+		ublk_io_lock(io);
+		if (io->flags & UBLK_IO_FLAG_AUTO_BUF_REG)
+			index = io->buf.auto_reg.index;
+		io->flags &= ~(UBLK_IO_FLAG_OWNED_BY_SRV | UBLK_IO_FLAG_AUTO_BUF_REG);
+		io->flags |= UBLK_IO_FLAG_ACTIVE;
+		ublk_io_unlock(io);
+
+		if (index != -1)
+			io_buffer_unregister_bvec(data->cmd, index,
+					data->issue_flags);
+	}
+
+	res = kfifo_in_spinlocked_noirqsave(&ubq->evts_fifo,
+		tag_buf, len, &ubq->evts_lock);
+
+	pr_warn_ratelimited("%s: copy tags or post CQE failure, move back "
+			"tags(%d %zu) ret %d\n", __func__, res, len,
+			ret);
 }
 
 #define MAX_NR_TAG 128
@@ -1848,37 +1883,8 @@ static int __ublk_batch_dispatch(struct ublk_queue *ubq,
 
 	sel.val = ublk_batch_copy_io_tags(fcmd, sel.addr, tag_buf, len * tag_sz);
 	ret = ublk_batch_fetch_post_cqe(fcmd, &sel, data->issue_flags);
-	if (unlikely(ret < 0)) {
-		int i, res;
-
-		/*
-		 * Undo prep state for all IOs since userspace never received them.
-		 * This restores IOs to pre-prepared state so they can be cleanly
-		 * re-prepared when tags are pulled from FIFO again.
-		 */
-		for (i = 0; i < len; i++) {
-			struct ublk_io *io = &ubq->ios[tag_buf[i]];
-			int index = -1;
-
-			ublk_io_lock(io);
-			if (io->flags & UBLK_IO_FLAG_AUTO_BUF_REG)
-				index = io->buf.auto_reg.index;
-			io->flags &= ~(UBLK_IO_FLAG_OWNED_BY_SRV | UBLK_IO_FLAG_AUTO_BUF_REG);
-			io->flags |= UBLK_IO_FLAG_ACTIVE;
-			ublk_io_unlock(io);
-
-			if (index != -1)
-				io_buffer_unregister_bvec(data->cmd, index,
-						data->issue_flags);
-		}
-
-		res = kfifo_in_spinlocked_noirqsave(&ubq->evts_fifo,
-			tag_buf, len, &ubq->evts_lock);
-
-		pr_warn_ratelimited("%s: copy tags or post CQE failure, move back "
-				"tags(%d %zu) ret %d\n", __func__, res, len,
-				ret);
-	}
+	if (unlikely(ret < 0))
+		ublk_batch_dispatch_fail(ubq, data, tag_buf, len, ret);
 	return ret;
 }
 
