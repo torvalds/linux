@@ -1116,7 +1116,7 @@ static void build_mod8_tables(struct bch_control *bch, const uint32_t *g)
 		for (b = 0; b < 4; b++) {
 			/* we want to compute (p(X).X^(8*b+deg(g))) mod g(X) */
 			tab = bch->mod8_tab + (b*256+i)*l;
-			data = i << (8*b);
+			data = (unsigned int)i << (8*b);
 			while (data) {
 				d = deg(data);
 				/* subtract X^d.g(X) from p(X).X^(8*b+deg(g)) */
