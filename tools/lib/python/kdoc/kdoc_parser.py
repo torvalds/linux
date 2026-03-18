@@ -140,7 +140,7 @@ class KernelEntry:
         self.parametertypes = {}
         self.parameterdesc_start_lines = {}
 
-        self.section_start_lines = {}
+        self.sections_start_lines = {}
         self.sections = {}
 
         self.anon_struct_union = False
@@ -220,7 +220,7 @@ class KernelEntry:
                 self.sections[name] += '\n' + contents
             else:
                 self.sections[name] = contents
-                self.section_start_lines[name] = self.new_start_line
+                self.sections_start_lines[name] = self.new_start_line
                 self.new_start_line = 0
 
 #        self.config.log.debug("Section: %s : %s", name, pformat(vars(self)))
@@ -316,7 +316,7 @@ class KernelDoc:
         for section in ["Description", "Return"]:
             if section in sections and not sections[section].rstrip():
                 del sections[section]
-        item.set_sections(sections, self.entry.section_start_lines)
+        item.set_sections(sections, self.entry.sections_start_lines)
         item.set_params(self.entry.parameterlist, self.entry.parameterdescs,
                         self.entry.parametertypes,
                         self.entry.parameterdesc_start_lines)
