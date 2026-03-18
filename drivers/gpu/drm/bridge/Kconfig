@@ -194,6 +194,7 @@ config DRM_LONTIUM_LT9611UXC
 config DRM_LONTIUM_LT8713SX
 	tristate "Lontium LT8713SX DP MST bridge"
 	depends on OF
+	select CRC8
 	select REGMAP_I2C
 	help
 	  Driver for Lontium LT8713SX DP MST bridge
