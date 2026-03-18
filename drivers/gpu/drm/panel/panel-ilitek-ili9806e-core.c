@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
@@ -20,13 +21,9 @@ struct ili9806e {
 	void *transport;
 	struct drm_panel panel;
 
+	unsigned int num_supplies;
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
-};
-
-static const char * const regulator_names[] = {
-	"vdd",
-	"vccio",
 };
 
 void *ili9806e_get_transport(struct drm_panel *panel)
@@ -44,7 +41,7 @@ int ili9806e_power_on(struct device *dev)
 
 	gpiod_set_value(ctx->reset_gpio, 1);
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	ret = regulator_bulk_enable(ctx->num_supplies, ctx->supplies);
 	if (ret) {
 		dev_err(dev, "regulator bulk enable failed: %d\n", ret);
 		return ret;
@@ -65,7 +62,7 @@ int ili9806e_power_off(struct device *dev)
 
 	gpiod_set_value(ctx->reset_gpio, 1);
 
-	ret = regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	ret = regulator_bulk_disable(ctx->num_supplies, ctx->supplies);
 	if (ret)
 		dev_err(dev, "regulator bulk disable failed: %d\n", ret);
 
@@ -78,7 +75,8 @@ int ili9806e_probe(struct device *dev, void *transport,
 		  int connector_type)
 {
 	struct ili9806e *ctx;
-	int i, ret;
+	bool set_prepare_prev_first = false;
+	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(struct ili9806e), GFP_KERNEL);
 	if (!ctx)
@@ -87,11 +85,16 @@ int ili9806e_probe(struct device *dev, void *transport,
 	dev_set_drvdata(dev, ctx);
 	ctx->transport = transport;
 
-	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++)
-		ctx->supplies[i].supply = regulator_names[i];
+	ctx->supplies[ctx->num_supplies++].supply = "vdd";
+	if (of_device_is_compatible(dev->of_node,
+				    "densitron,dmt028vghmcmi-1d") ||
+	    of_device_is_compatible(dev->of_node,
+				    "ortustech,com35h3p70ulc")) {
+		ctx->supplies[ctx->num_supplies++].supply = "vccio";
+		set_prepare_prev_first = true;
+	}
 
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ctx->supplies),
-				      ctx->supplies);
+	ret = devm_regulator_bulk_get(dev, ctx->num_supplies, ctx->supplies);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get regulators\n");
 
@@ -106,7 +109,9 @@ int ili9806e_probe(struct device *dev, void *transport,
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get backlight\n");
 
-	ctx->panel.prepare_prev_first = true;
+	if (set_prepare_prev_first)
+		ctx->panel.prepare_prev_first = true;
+
 	drm_panel_add(&ctx->panel);
 
 	return 0;

@@ -281,6 +281,18 @@ config DRM_PANEL_ILITEK_ILI9806E_DSI
 	  Say Y if you want to enable support for panels based on the
 	  Ilitek ILI9806E controller using DSI.
 
+config DRM_PANEL_ILITEK_ILI9806E_SPI
+	tristate "Ilitek ILI9806E-based RGB SPI panel"
+	depends on OF
+	depends on SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_MIPI_DBI
+	select VIDEOMODE_HELPERS
+	select DRM_PANEL_ILITEK_ILI9806E_CORE
+	help
+	  Say Y if you want to enable support for panels based on the
+	  Ilitek ILI9806E controller using SPI.
+
 config DRM_PANEL_ILITEK_ILI9881C
 	tristate "Ilitek ILI9881C-based panels"
 	depends on OF
