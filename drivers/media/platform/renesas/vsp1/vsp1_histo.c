@@ -168,7 +168,10 @@ static int histo_enum_mbus_code(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad == HISTO_PAD_SOURCE) {
-		code->code = MEDIA_BUS_FMT_FIXED;
+		if (code->index > 0)
+			return -EINVAL;
+
+		code->code = MEDIA_BUS_FMT_METADATA_FIXED;
 		return 0;
 	}
 
