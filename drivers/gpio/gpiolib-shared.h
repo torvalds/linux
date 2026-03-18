@@ -14,14 +14,14 @@ struct device;
 
 #if IS_ENABLED(CONFIG_GPIO_SHARED)
 
-int gpio_device_setup_shared(struct gpio_device *gdev);
+int gpiochip_setup_shared(struct gpio_chip *gc);
 void gpio_device_teardown_shared(struct gpio_device *gdev);
 int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 				 unsigned long lflags);
 
 #else
 
-static inline int gpio_device_setup_shared(struct gpio_device *gdev)
+static inline int gpiochip_setup_shared(struct gpio_chip *gc)
 {
 	return 0;
 }

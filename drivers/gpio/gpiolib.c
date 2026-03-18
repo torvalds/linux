@@ -1211,7 +1211,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_irqchip_mask;
 
-	ret = gpio_device_setup_shared(gdev);
+	ret = gpiochip_setup_shared(gc);
 	if (ret)
 		goto err_remove_irqchip;
 
