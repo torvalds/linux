@@ -66,13 +66,6 @@ static const struct onboard_dev_pdata ti_tusb8020b_data = {
 	.is_hub = true,
 };
 
-static const struct onboard_dev_pdata ti_tusb8041_data = {
-	.reset_us = 3000,
-	.num_supplies = 1,
-	.supply_names = { "vdd" },
-	.is_hub = true,
-};
-
 static const struct onboard_dev_pdata bison_intcamera_data = {
 	.reset_us = 1000,
 	.num_supplies = 1,
@@ -91,13 +84,6 @@ static const struct onboard_dev_pdata cypress_hx3_data = {
 	.reset_us = 10000,
 	.num_supplies = 2,
 	.supply_names = { "vdd", "vdd2" },
-	.is_hub = true,
-};
-
-static const struct onboard_dev_pdata cypress_hx2vl_data = {
-	.reset_us = 1,
-	.num_supplies = 1,
-	.supply_names = { "vdd" },
 	.is_hub = true,
 };
 
@@ -150,13 +136,13 @@ static const struct of_device_id onboard_dev_match[] = {
 	{ .compatible = "usb424,5744", .data = &microchip_usb5744_data, },
 	{ .compatible = "usb451,8025", .data = &ti_tusb8020b_data, },
 	{ .compatible = "usb451,8027", .data = &ti_tusb8020b_data, },
-	{ .compatible = "usb451,8140", .data = &ti_tusb8041_data, },
-	{ .compatible = "usb451,8142", .data = &ti_tusb8041_data, },
-	{ .compatible = "usb451,8440", .data = &ti_tusb8041_data, },
-	{ .compatible = "usb451,8442", .data = &ti_tusb8041_data, },
+	{ .compatible = "usb451,8140", .data = &ti_tusb8020b_data, },
+	{ .compatible = "usb451,8142", .data = &ti_tusb8020b_data, },
+	{ .compatible = "usb451,8440", .data = &ti_tusb8020b_data, },
+	{ .compatible = "usb451,8442", .data = &ti_tusb8020b_data, },
 	{ .compatible = "usb4b4,6504", .data = &cypress_hx3_data, },
 	{ .compatible = "usb4b4,6506", .data = &cypress_hx3_data, },
-	{ .compatible = "usb4b4,6570", .data = &cypress_hx2vl_data, },
+	{ .compatible = "usb4b4,6570", .data = &microchip_usb424_data, },
 	{ .compatible = "usb5e3,608", .data = &genesys_gl850g_data, },
 	{ .compatible = "usb5e3,610", .data = &genesys_gl852g_data, },
 	{ .compatible = "usb5e3,620", .data = &genesys_gl852g_data, },
