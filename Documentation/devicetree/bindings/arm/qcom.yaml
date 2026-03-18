@@ -68,6 +68,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,mahua-crd
+          - const: qcom,mahua
+
+      - items:
+          - enum:
               - fairphone,fp6
           - const: qcom,milos
 
