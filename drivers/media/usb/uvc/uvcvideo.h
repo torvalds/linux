@@ -331,6 +331,7 @@ struct uvc_buffer {
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
 
 struct uvc_video_queue {
+	struct uvc_streaming *stream;
 	struct video_device vdev;
 	struct vb2_queue queue;
 	struct mutex mutex;			/*
@@ -692,7 +693,8 @@ do {									\
 struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id);
 
 /* Video buffers queue management. */
-int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type);
+int uvc_queue_init(struct uvc_streaming *stream, struct uvc_video_queue *queue,
+		   enum v4l2_buf_type type);
 void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 					 struct uvc_buffer *buf);
@@ -701,14 +703,6 @@ void uvc_queue_buffer_release(struct uvc_buffer *buf);
 static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 {
 	return vb2_is_streaming(&queue->queue);
-}
-
-static inline struct uvc_streaming *
-uvc_queue_to_stream(struct uvc_video_queue *queue, unsigned int type)
-{
-	if (type == V4L2_BUF_TYPE_META_CAPTURE)
-		return container_of(queue, struct uvc_streaming, meta.queue);
-	return container_of(queue, struct uvc_streaming, queue);
 }
 
 /* V4L2 interface */

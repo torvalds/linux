@@ -2033,7 +2033,7 @@ int uvc_register_video_device(struct uvc_device *dev,
 	int ret;
 
 	/* Initialize the video buffers queue. */
-	ret = uvc_queue_init(queue, type);
+	ret = uvc_queue_init(stream, queue, type);
 	if (ret)
 		return ret;
 
