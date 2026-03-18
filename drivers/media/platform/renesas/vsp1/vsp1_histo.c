@@ -183,7 +183,7 @@ static int histo_enum_frame_size(struct v4l2_subdev *subdev,
 				 struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->pad != HISTO_PAD_SINK)
-		return -EINVAL;
+		return -ENOTTY;
 
 	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse);
 }
