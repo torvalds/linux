@@ -10,7 +10,7 @@ import glob
 import re
 
 from lib.py import ksft_run, ksft_exit, ksft_pr
-from lib.py import ksft_eq, ksft_ge
+from lib.py import ksft_eq, ksft_ge, ksft_variants
 from lib.py import NetDrvEpEnv, NetdevFamily
 from lib.py import KsftSkipEx
 from lib.py import bkg, cmd, defer, ethtool, ip
@@ -78,7 +78,8 @@ def _setup_isolated_queue(cfg):
     return test_queue
 
 
-def _run_gro_test(cfg, test_name, num_flows=None, ignore_fail=False):
+def _run_gro_test(cfg, test_name, num_flows=None, ignore_fail=False,
+                  order_check=False):
     """Run gro binary with given test and return output."""
     if not hasattr(cfg, "bin_remote"):
         cfg.bin_local = cfg.net_lib_dir / "gro"
@@ -98,6 +99,8 @@ def _run_gro_test(cfg, test_name, num_flows=None, ignore_fail=False):
     ]
     if num_flows:
         base_args.append(f"--num-flows {num_flows}")
+    if order_check:
+        base_args.append("--order-check")
 
     args = " ".join(base_args)
 
@@ -257,13 +260,33 @@ def test_gro_stats_full(cfg):
                      expect_wire=gro_coalesced * 2)
 
 
+@ksft_variants([4, 32, 512])
+def test_gro_order(cfg, num_flows):
+    """
+    Test that HW GRO preserves packet ordering between flows.
+
+    Packets may get delayed until the aggregate is released,
+    but reordering between aggregates and packet terminating
+    the aggregate and normal packets should not happen.
+
+    Note that this test is stricter than truly required.
+    Reordering packets between flows should not cause issues.
+    This test will also fail if traffic is run over an ECMP fabric.
+    """
+    _setup_hw_gro(cfg)
+    _setup_isolated_queue(cfg)
+
+    _run_gro_test(cfg, "capacity", num_flows=num_flows, order_check=True)
+
+
 def main() -> None:
     """ Ksft boiler plate main """
 
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.netnl = NetdevFamily()
         ksft_run([test_gro_stats_single,
-                  test_gro_stats_full], args=(cfg,))
+                  test_gro_stats_full,
+                  test_gro_order], args=(cfg,))
     ksft_exit()
 
 

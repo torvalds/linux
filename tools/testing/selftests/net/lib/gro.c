@@ -131,6 +131,7 @@ static int ethhdr_proto = -1;
 static bool ipip;
 static uint64_t txtime_ns;
 static int num_flows = 4;
+static bool order_check;
 
 #define CAPACITY_PAYLOAD_LEN 200
 
@@ -1136,6 +1137,7 @@ static void check_capacity_pkts(int fd)
 	static char buffer[IP_MAXPACKET + ETH_HLEN + 1];
 	struct iphdr *iph = (struct iphdr *)(buffer + ETH_HLEN);
 	struct ipv6hdr *ip6h = (struct ipv6hdr *)(buffer + ETH_HLEN);
+	int num_pkt = 0, num_coal = 0, pkt_idx;
 	const char *fail_reason = NULL;
 	int flow_order[num_flows * 2];
 	int coalesced[num_flows];
@@ -1144,8 +1146,6 @@ static void check_capacity_pkts(int fd)
 	int total_data = 0;
 	int pkt_size = -1;
 	int data_len = 0;
-	int num_pkt = 0;
-	int num_coal = 0;
 	int flow_id;
 	int sport;
 
@@ -1201,6 +1201,34 @@ static void check_capacity_pkts(int fd)
 
 		num_pkt++;
 		total_data += data_len;
+	}
+
+	/* Check flow ordering. We expect to see all non-coalesced first segs
+	 * then interleaved coalesced and non-coalesced second frames.
+	 */
+	pkt_idx = 0;
+	for (flow_id = 0; order_check && flow_id < num_flows; flow_id++) {
+		bool coaled = coalesced[flow_id] > CAPACITY_PAYLOAD_LEN;
+
+		if (coaled)
+			continue;
+
+		if (flow_order[pkt_idx] != flow_id) {
+			vlog("Flow order mismatch (non-coalesced) at position %d: expected flow %d, got flow %d\n",
+			     pkt_idx, flow_id, flow_order[pkt_idx]);
+			fail_reason = fail_reason ?: "bad packet order (1)";
+		}
+		pkt_idx++;
+	}
+	for (flow_id = 0; order_check && flow_id < num_flows; flow_id++) {
+		bool coaled = coalesced[flow_id] > CAPACITY_PAYLOAD_LEN;
+
+		if (flow_order[pkt_idx] != flow_id) {
+			vlog("Flow order mismatch at position %d: expected flow %d, got flow %d, coalesced: %d\n",
+			     pkt_idx, flow_id, flow_order[pkt_idx], coaled);
+			fail_reason = fail_reason ?: "bad packet order (2)";
+		}
+		pkt_idx++;
 	}
 
 	if (!fail_reason) {
@@ -1622,12 +1650,13 @@ static void parse_args(int argc, char **argv)
 		{ "saddr", required_argument, NULL, 's' },
 		{ "smac", required_argument, NULL, 'S' },
 		{ "test", required_argument, NULL, 't' },
+		{ "order-check", no_argument, NULL, 'o' },
 		{ "verbose", no_argument, NULL, 'v' },
 		{ 0, 0, 0, 0 }
 	};
 	int c;
 
-	while ((c = getopt_long(argc, argv, "46d:D:ei:n:rs:S:t:v", opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "46d:D:ei:n:rs:S:t:ov", opts, NULL)) != -1) {
 		switch (c) {
 		case '4':
 			proto = PF_INET;
@@ -1665,6 +1694,9 @@ static void parse_args(int argc, char **argv)
 			break;
 		case 't':
 			testname = optarg;
+			break;
+		case 'o':
+			order_check = true;
 			break;
 		case 'v':
 			verbose = true;
