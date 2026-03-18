@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -127,6 +127,14 @@ static int firewall_irq_counter_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int engine_reset_counter_show(struct seq_file *s, void *v)
+{
+	struct ivpu_device *vdev = seq_to_ivpu(s);
+
+	seq_printf(s, "%d\n", atomic_read(&vdev->pm->engine_reset_counter));
+	return 0;
+}
+
 static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"bo_list", bo_list_show, 0},
 	{"fw_name", fw_name_show, 0},
@@ -137,6 +145,7 @@ static const struct drm_debugfs_info vdev_debugfs_list[] = {
 	{"reset_counter", reset_counter_show, 0},
 	{"reset_pending", reset_pending_show, 0},
 	{"firewall_irq_counter", firewall_irq_counter_show, 0},
+	{"engine_reset_counter", engine_reset_counter_show, 0},
 };
 
 static int dvfs_mode_get(void *data, u64 *dvfs_mode)
@@ -352,8 +361,9 @@ static const struct file_operations ivpu_force_recovery_fops = {
 static int ivpu_reset_engine_fn(void *data, u64 val)
 {
 	struct ivpu_device *vdev = (struct ivpu_device *)data;
+	struct vpu_jsm_msg resp;
 
-	return ivpu_jsm_reset_engine(vdev, (u32)val);
+	return ivpu_jsm_reset_engine(vdev, (u32)val, &resp);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(ivpu_reset_engine_fops, NULL, ivpu_reset_engine_fn, "0x%02llx\n");
