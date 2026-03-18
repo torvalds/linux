@@ -2677,7 +2677,8 @@ enum nl80211_commands {
  *      a flow is assigned on each round of the DRR scheduler.
  * @NL80211_ATTR_HE_CAPABILITY: HE Capability information element (from
  *	association request when used with NL80211_CMD_NEW_STATION). Can be set
- *	only if %NL80211_STA_FLAG_WME is set.
+ *	only if %NL80211_STA_FLAG_WME is set (except for NAN, which uses WME
+ *	anyway).
  *
  * @NL80211_ATTR_FTM_RESPONDER: nested attribute which user-space can include
  *	in %NL80211_CMD_START_AP or %NL80211_CMD_SET_BEACON for fine timing
@@ -3057,6 +3058,9 @@ enum nl80211_commands {
  *	%NL80211_CMD_NAN_SCHED_UPDATE_DONE to indicate that the deferred
  *	schedule update completed successfully. If this flag is not present,
  *	the update failed.
+ * @NL80211_ATTR_NAN_NMI_MAC: The address of the NMI station to which this NDI
+ *	station belongs. Used with %NL80211_CMD_NEW_STATION when adding an NDI
+ *	station.
  *
  * @NL80211_ATTR_INCUMBENT_SIGNAL_INTERFERENCE_BITMAP: u32 attribute specifying
  *	the signal interference bitmap detected on the operating bandwidth for
@@ -3655,6 +3659,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_NAN_AVAIL_BLOB,
 	NL80211_ATTR_NAN_SCHED_DEFERRED,
 	NL80211_ATTR_NAN_SCHED_UPDATE_SUCCESS,
+
+	NL80211_ATTR_NAN_NMI_MAC,
 
 	/* add attributes here, update the policy in nl80211.c */
 
