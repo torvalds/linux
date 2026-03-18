@@ -48,7 +48,6 @@
 #include <linux/swap_cgroup.h>
 #include "swap_table.h"
 #include "internal.h"
-#include "swap_table.h"
 #include "swap.h"
 
 static void swap_range_alloc(struct swap_info_struct *si,
