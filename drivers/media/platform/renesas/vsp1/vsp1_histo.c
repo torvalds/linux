@@ -350,17 +350,68 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
-	if (fmt->pad == HISTO_PAD_SOURCE) {
-		fmt->format.code = MEDIA_BUS_FMT_FIXED;
-		fmt->format.width = 0;
-		fmt->format.height = 0;
-		fmt->format.field = V4L2_FIELD_NONE;
-		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_state *state;
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *selection;
+	unsigned int i;
 
-		return 0;
+	state = vsp1_entity_get_state(entity, sd_state, fmt->which);
+	if (!state)
+		return -EINVAL;
+
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
+
+	guard(mutex)(&entity->lock);
+
+	if (fmt->pad == HISTO_PAD_SINK) {
+		/*
+		 * Default to the first media bus code if the requested format
+		 * is not supported.
+		 */
+		for (i = 0; i < entity->num_codes; ++i) {
+			if (fmt->format.code == entity->codes[i])
+				break;
+		}
+
+		format->code = i < entity->num_codes
+			     ? entity->codes[i] : entity->codes[0];
+		format->width = clamp_t(unsigned int, fmt->format.width,
+					entity->min_width, entity->max_width);
+		format->height = clamp_t(unsigned int, fmt->format.height,
+					 entity->min_height, entity->max_height);
+		format->field = V4L2_FIELD_NONE;
+
+		format->colorspace = fmt->format.colorspace;
+		format->xfer_func = fmt->format.xfer_func;
+		format->ycbcr_enc = fmt->format.ycbcr_enc;
+		format->quantization = fmt->format.quantization;
+
+		vsp1_entity_adjust_color_space(format);
+
+		/* Reset the crop and compose rectangles. */
+		selection = v4l2_subdev_state_get_crop(state, fmt->pad);
+		selection->left = 0;
+		selection->top = 0;
+		selection->width = format->width;
+		selection->height = format->height;
+
+		selection = v4l2_subdev_state_get_compose(state, fmt->pad);
+		selection->left = 0;
+		selection->top = 0;
+		selection->width = format->width;
+		selection->height = format->height;
+	} else {
+		format->code = MEDIA_BUS_FMT_METADATA_FIXED;
+		format->width = 0;
+		format->height = 0;
+		format->field = V4L2_FIELD_NONE;
+		format->colorspace = V4L2_COLORSPACE_RAW;
 	}
 
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt);
+	fmt->format = *format;
+
+	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops histo_pad_ops = {
