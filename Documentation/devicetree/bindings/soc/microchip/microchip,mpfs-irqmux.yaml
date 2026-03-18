@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/microchip/microchip,mpfs-irqmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip Polarfire SoC GPIO Interrupt Mux
+
+maintainers:
+  - Conor Dooley <conor.dooley@microchip.com>
+
+description: |
+  There are 3 GPIO controllers on this SoC, of which:
+  - GPIO controller 0 has 14 GPIOs
+  - GPIO controller 1 has 24 GPIOs
+  - GPIO controller 2 has 32 GPIOs
+
+  All GPIOs are capable of generating interrupts, for a total of 70.
+  There are only 41 IRQs available however, so a configurable mux is used to
+  ensure all GPIOs can be used for interrupt generation.
+  38 of the 41 interrupts are in what the documentation calls "direct mode",
+  as they provide an exclusive connection from a GPIO to the PLIC.
+  Lines 18 to 23 on GPIO controller 1 are always in "direct mode".
+  The 3 remaining interrupts are used to mux the interrupts which do not have
+  a exclusive connection, one for each GPIO controller.
+
+properties:
+  compatible:
+    const: microchip,mpfs-irqmux
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 0
+
+  "#interrupt-cells":
+    const: 1
+
+  interrupt-map-mask:
+    items:
+      - const: 0x7f
+
+  interrupt-map:
+    description: |
+      Specifies the mapping from GPIO interrupt lines to plic interrupts.
+
+      The child interrupt number set in arrays items is computed using the
+      following formula:
+          gpio_bank * 32 + gpio_number
+      with:
+        - gpio_bank: The GPIO bank number
+            - 0 for GPIO0,
+            - 1 for GPIO1,
+            - 2 for GPIO2
+        - gpio_number: Number of the gpio in the bank (0..31)
+    maxItems: 70
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#interrupt-cells"
+  - interrupt-map-mask
+  - interrupt-map
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@54 {
+        compatible = "microchip,mpfs-irqmux";
+        reg = <0x54 0x4>;
+        #address-cells = <0>;
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0x7f>;
+        interrupt-map = <0 &plic 13>, <1 &plic 14>, <2 &plic 15>,
+                        <3 &plic 16>, <4 &plic 17>, <5 &plic 18>,
+                        <6 &plic 19>, <7 &plic 20>, <8 &plic 21>,
+                        <9 &plic 22>, <10 &plic 23>, <11 &plic 24>,
+                        <12 &plic 25>, <13 &plic 26>,
+
+                        <32 &plic 27>, <33 &plic 28>, <34 &plic 29>,
+                        <35 &plic 30>, <36 &plic 31>, <37 &plic 32>,
+                        <38 &plic 33>, <39 &plic 34>, <40 &plic 35>,
+                        <41 &plic 36>, <42 &plic 37>, <43 &plic 38>,
+                        <44 &plic 39>, <45 &plic 40>, <46 &plic 41>,
+                        <47 &plic 42>, <48 &plic 43>, <49 &plic 44>,
+                        <50 &plic 45>, <51 &plic 46>, <52 &plic 47>,
+                        <53 &plic 48>, <54 &plic 49>, <55 &plic 50>,
+
+                        <64 &plic 53>, <65 &plic 53>, <66 &plic 53>,
+                        <67 &plic 53>, <68 &plic 53>, <69 &plic 53>,
+                        <70 &plic 53>, <71 &plic 53>, <72 &plic 53>,
+                        <73 &plic 53>, <74 &plic 53>, <75 &plic 53>,
+                        <76 &plic 53>, <77 &plic 53>, <78 &plic 53>,
+                        <79 &plic 53>, <80 &plic 53>, <81 &plic 53>,
+                        <82 &plic 53>, <83 &plic 53>, <84 &plic 53>,
+                        <85 &plic 53>, <86 &plic 53>, <87 &plic 53>,
+                        <88 &plic 53>, <89 &plic 53>, <90 &plic 53>,
+                        <91 &plic 53>, <92 &plic 53>, <93 &plic 53>,
+                        <94 &plic 53>, <95 &plic 53>;
+    };
