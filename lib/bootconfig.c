@@ -803,7 +803,8 @@ static int __init xbc_close_brace(char **k, char *n)
 
 static int __init xbc_verify_tree(void)
 {
-	int i, depth, len, wlen;
+	int i, depth;
+	size_t len, wlen;
 	struct xbc_node *n, *m;
 
 	/* Brace closing */
