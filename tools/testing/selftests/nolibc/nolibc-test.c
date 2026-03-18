@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
@@ -710,6 +711,37 @@ static void constructor2(int argc, char **argv, char **envp)
 		constructor_test_value |= 1 << 1;
 }
 
+int test_program_invocation_name(void)
+{
+	char buf[100];
+	char *dirsep;
+	ssize_t r;
+	int fd;
+
+	fd = open("/proc/self/cmdline", O_RDONLY);
+	if (fd == -1)
+		return 1;
+
+	r = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (r < 1 || r == sizeof(buf))
+		return 1;
+
+	buf[r - 1] = '\0';
+
+	if (strcmp(program_invocation_name, buf) != 0)
+		return 1;
+
+	dirsep = strrchr(buf, '/');
+	if (!dirsep || dirsep[1] == '\0')
+		return 1;
+
+	if (strcmp(program_invocation_short_name, dirsep + 1) != 0)
+		return 1;
+
+	return 0;
+}
+
 int run_startup(int min, int max)
 {
 	int test;
@@ -724,6 +756,7 @@ int run_startup(int min, int max)
 #ifdef NOLIBC
 	test_auxv = _auxv;
 #endif
+	bool proc = access("/proc", R_OK) == 0;
 
 	for (test = min; test >= 0 && test <= max; test++) {
 		int llen = 0; /* line length */
@@ -749,6 +782,7 @@ int run_startup(int min, int max)
 		CASE_TEST(constructor);      EXPECT_EQ(is_nolibc, constructor_test_value, 0x3); break;
 		CASE_TEST(linkage_errno);    EXPECT_PTREQ(1, linkage_test_errno_addr(), &errno); break;
 		CASE_TEST(linkage_constr);   EXPECT_EQ(1, linkage_test_constructor_test_value, 0x3); break;
+		CASE_TEST(prog_name);        EXPECT_ZR(proc, test_program_invocation_name()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
