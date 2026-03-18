@@ -38,21 +38,21 @@ struct dma_edesc;
 /* Descriptors helpers */
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
-	void (*init_rx_desc)(struct dma_desc *p, int disable_rx_ic, int mode,
-			int end, int bfsize);
+	void (*init_rx_desc)(struct dma_desc *p, int disable_rx_ic,
+			     u8 descriptor_mode, int end, int bfsize);
 	/* DMA TX descriptor ring initialization */
-	void (*init_tx_desc)(struct dma_desc *p, int mode, int end);
+	void (*init_tx_desc)(struct dma_desc *p, u8 descriptor_mode, int end);
 	/* Invoked by the xmit function to prepare the tx descriptor */
 	void (*prepare_tx_desc)(struct dma_desc *p, int is_fs, int len,
-			bool csum_flag, int mode, bool tx_own, bool ls,
-			unsigned int tot_pkt_len);
+			bool csum_flag, u8 descriptor_mode, bool tx_own,
+			bool ls, unsigned int tot_pkt_len);
 	void (*prepare_tso_tx_desc)(struct dma_desc *p, int is_fs, int len1,
 			int len2, bool tx_own, bool ls, unsigned int tcphdrlen,
 			unsigned int tcppayloadlen);
 	/* Set/get the owner of the descriptor */
 	void (*set_tx_owner)(struct dma_desc *p);
 	/* Clean the tx descriptor as soon as the tx irq is received */
-	void (*release_tx_desc)(struct dma_desc *p, int mode);
+	void (*release_tx_desc)(struct dma_desc *p, u8 descriptor_mode);
 	/* Clear interrupt on tx frame completion. When this bit is
 	 * set an interrupt happens as soon as the frame is transmitted */
 	void (*set_tx_ic)(struct dma_desc *p);

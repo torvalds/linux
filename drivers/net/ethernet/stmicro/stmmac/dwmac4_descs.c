@@ -289,12 +289,13 @@ exit:
 }
 
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
-				   int mode, int end, int bfsize)
+				   u8 descriptor_mode, int end, int bfsize)
 {
 	dwmac4_set_rx_owner(p, disable_rx_ic);
 }
 
-static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
+static void dwmac4_rd_init_tx_desc(struct dma_desc *p, u8 descriptor_mode,
+				   int end)
 {
 	p->des0 = 0;
 	p->des1 = 0;
@@ -303,8 +304,9 @@ static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
 }
 
 static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
-				      bool csum_flag, int mode, bool tx_own,
-				      bool ls, unsigned int tot_pkt_len)
+				      bool csum_flag, u8 descriptor_mode,
+				      bool tx_own, bool ls,
+				      unsigned int tot_pkt_len)
 {
 	u32 tdes3 = le32_to_cpu(p->des3);
 
@@ -381,7 +383,7 @@ static void dwmac4_rd_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 	p->des3 = cpu_to_le32(tdes3);
 }
 
-static void dwmac4_release_tx_desc(struct dma_desc *p, int mode)
+static void dwmac4_release_tx_desc(struct dma_desc *p, u8 descriptor_mode)
 {
 	p->des0 = 0;
 	p->des1 = 0;
