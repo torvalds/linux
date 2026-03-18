@@ -309,7 +309,7 @@ config PCIE_QCOM
 	select CRC8
 	select PCIE_QCOM_COMMON
 	select PCI_HOST_COMMON
-	select PCI_PWRCTRL_SLOT
+	select PCI_PWRCTRL_GENERIC
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
 	  PCIe controller uses the DesignWare core plus Qualcomm-specific
@@ -431,7 +431,7 @@ config PCIE_SPACEMIT_K1
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on HAS_IOMEM
 	select PCIE_DW_HOST
-	select PCI_PWRCTRL_SLOT
+	select PCI_PWRCTRL_GENERIC
 	default ARCH_SPACEMIT
 	help
 	  Enables support for the DesignWare based PCIe controller in
