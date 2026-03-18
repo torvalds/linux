@@ -4,6 +4,7 @@
 #define _ZL3073X_OUT_H
 
 #include <linux/bitfield.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 
 #include "regs.h"
@@ -17,17 +18,21 @@ struct zl3073x_dev;
  * @esync_n_period: embedded sync or n-pin period (for n-div formats)
  * @esync_n_width: embedded sync or n-pin pulse width
  * @phase_comp: phase compensation
- * @ctrl: output control
  * @mode: output mode
+ * @ctrl: output control
  */
 struct zl3073x_out {
-	u32	div;
-	u32	width;
-	u32	esync_n_period;
-	u32	esync_n_width;
-	s32	phase_comp;
-	u8	ctrl;
-	u8	mode;
+	struct_group(cfg, /* Config */
+		u32	div;
+		u32	width;
+		u32	esync_n_period;
+		u32	esync_n_width;
+		s32	phase_comp;
+		u8	mode;
+	);
+	struct_group(inv, /* Invariants */
+		u8	ctrl;
+	);
 };
 
 int zl3073x_out_state_fetch(struct zl3073x_dev *zldev, u8 index);

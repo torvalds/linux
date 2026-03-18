@@ -52,6 +52,21 @@ zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult)
 }
 
 /**
+ * zl3073x_ref_state_update - update input reference status from HW
+ * @zldev: pointer to zl3073x_dev structure
+ * @index: input reference index
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_ref_state_update(struct zl3073x_dev *zldev, u8 index)
+{
+	struct zl3073x_ref *ref = &zldev->ref[index];
+
+	return zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(index),
+			       &ref->mon_status);
+}
+
+/**
  * zl3073x_ref_state_fetch - fetch input reference state from hardware
  * @zldev: pointer to zl3073x_dev structure
  * @index: input reference index to fetch state for
@@ -73,17 +88,16 @@ int zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
 		struct zl3073x_ref *p_ref = ref - 1; /* P-pin counterpart*/
 
 		/* Copy the shared items from the P-pin */
-		ref->config = p_ref->config;
-		ref->esync_n_div = p_ref->esync_n_div;
-		ref->freq_base = p_ref->freq_base;
-		ref->freq_mult = p_ref->freq_mult;
-		ref->freq_ratio_m = p_ref->freq_ratio_m;
-		ref->freq_ratio_n = p_ref->freq_ratio_n;
-		ref->phase_comp = p_ref->phase_comp;
-		ref->sync_ctrl = p_ref->sync_ctrl;
+		ref->cfg = p_ref->cfg;
+		ref->inv = p_ref->inv;
 
 		return 0; /* Finish - no non-shared items for now */
 	}
+
+	/* Read reference status */
+	rc = zl3073x_ref_state_update(zldev, index);
+	if (rc)
+		return rc;
 
 	guard(mutex)(&zldev->multiop_lock);
 
@@ -154,11 +168,31 @@ zl3073x_ref_state_get(struct zl3073x_dev *zldev, u8 index)
 	return &zldev->ref[index];
 }
 
+/**
+ * zl3073x_ref_state_set - commit input reference state changes to hardware
+ * @zldev: pointer to zl3073x_dev structure
+ * @index: input reference index to set state for
+ * @ref: desired reference state
+ *
+ * Validates that invariant fields have not been modified, skips the HW
+ * write if the mutable configuration is unchanged, and otherwise writes
+ * only the changed cfg fields to hardware via the mailbox interface.
+ *
+ * Return: 0 on success, -EINVAL if invariants changed, <0 on HW error
+ */
 int zl3073x_ref_state_set(struct zl3073x_dev *zldev, u8 index,
 			  const struct zl3073x_ref *ref)
 {
 	struct zl3073x_ref *dref = &zldev->ref[index];
 	int rc;
+
+	/* Reject attempts to change invariant fields (set at init only) */
+	if (WARN_ON(memcmp(&dref->inv, &ref->inv, sizeof(ref->inv))))
+		return -EINVAL;
+
+	/* Skip HW write if configuration hasn't changed */
+	if (!memcmp(&dref->cfg, &ref->cfg, sizeof(ref->cfg)))
+		return 0;
 
 	guard(mutex)(&zldev->multiop_lock);
 
@@ -207,13 +241,7 @@ int zl3073x_ref_state_set(struct zl3073x_dev *zldev, u8 index,
 		return rc;
 
 	/* After successful commit store new state */
-	dref->freq_base = ref->freq_base;
-	dref->freq_mult = ref->freq_mult;
-	dref->freq_ratio_m = ref->freq_ratio_m;
-	dref->freq_ratio_n = ref->freq_ratio_n;
-	dref->esync_n_div = ref->esync_n_div;
-	dref->sync_ctrl = ref->sync_ctrl;
-	dref->phase_comp = ref->phase_comp;
+	dref->cfg = ref->cfg;
 
 	return 0;
 }

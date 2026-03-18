@@ -539,20 +539,43 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 		}
 	}
 
+	for (i = 0; i < zldev->info->num_channels; i++) {
+		rc = zl3073x_chan_state_fetch(zldev, i);
+		if (rc) {
+			dev_err(zldev->dev,
+				"Failed to fetch channel state: %pe\n",
+				ERR_PTR(rc));
+			return rc;
+		}
+	}
+
 	return rc;
 }
 
 static void
-zl3073x_dev_ref_status_update(struct zl3073x_dev *zldev)
+zl3073x_dev_ref_states_update(struct zl3073x_dev *zldev)
 {
 	int i, rc;
 
 	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
-		rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(i),
-				     &zldev->ref[i].mon_status);
+		rc = zl3073x_ref_state_update(zldev, i);
 		if (rc)
 			dev_warn(zldev->dev,
 				 "Failed to get REF%u status: %pe\n", i,
+				 ERR_PTR(rc));
+	}
+}
+
+static void
+zl3073x_dev_chan_states_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	for (i = 0; i < zldev->info->num_channels; i++) {
+		rc = zl3073x_chan_state_update(zldev, i);
+		if (rc)
+			dev_warn(zldev->dev,
+				 "Failed to get DPLL%u state: %pe\n", i,
 				 ERR_PTR(rc));
 	}
 }
@@ -679,8 +702,11 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 	struct zl3073x_dpll *zldpll;
 	int rc;
 
-	/* Update input references status */
-	zl3073x_dev_ref_status_update(zldev);
+	/* Update input references' states */
+	zl3073x_dev_ref_states_update(zldev);
+
+	/* Update DPLL channels' states */
+	zl3073x_dev_chan_states_update(zldev);
 
 	/* Update DPLL-to-connected-ref phase offsets registers */
 	rc = zl3073x_ref_phase_offsets_update(zldev, -1);

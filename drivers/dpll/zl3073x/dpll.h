@@ -13,8 +13,6 @@
  * @list: this DPLL list entry
  * @dev: pointer to multi-function parent device
  * @id: DPLL index
- * @refsel_mode: reference selection mode
- * @forced_ref: selected reference in forced reference lock mode
  * @check_count: periodic check counter
  * @phase_monitor: is phase offset monitor enabled
  * @ops: DPLL device operations for this instance
@@ -28,8 +26,6 @@ struct zl3073x_dpll {
 	struct list_head		list;
 	struct zl3073x_dev		*dev;
 	u8				id;
-	u8				refsel_mode;
-	u8				forced_ref;
 	u8				check_count;
 	bool				phase_monitor;
 	struct dpll_device_ops		ops;
