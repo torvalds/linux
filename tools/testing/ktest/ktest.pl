@@ -1635,6 +1635,11 @@ sub dodie {
 	print " See $opt{LOG_FILE} for more info.\n";
     }
 
+    # Fatal paths bypass fail(), so STORE_FAILURES needs to be handled here.
+    if (defined($store_failures)) {
+	save_logs("fail", $store_failures);
+    }
+
     if ($email_on_error) {
 	my $name = get_test_name;
 	my $log_file;
