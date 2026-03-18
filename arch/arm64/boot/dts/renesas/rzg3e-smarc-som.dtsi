@@ -43,6 +43,12 @@
 		reg = <0x0 0x48000000 0x0 0xf8000000>;
 	};
 
+	pcie_refclk: pcie-ref-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
@@ -172,6 +178,11 @@
 		txd2-skew-psec = <0>;
 		txd3-skew-psec = <0>;
 	};
+};
+
+&pcie_port0 {
+	clocks = <&pcie_refclk>;
+	clock-names = "ref";
 };
 
 &pinctrl {
