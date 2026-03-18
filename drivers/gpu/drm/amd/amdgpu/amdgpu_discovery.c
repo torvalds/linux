@@ -1394,6 +1394,9 @@ static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev)
 	struct list_head *el, *tmp;
 	struct kset *die_kset;
 
+	if (!ip_top)
+		return;
+
 	die_kset = &ip_top->die_kset;
 	spin_lock(&die_kset->list_lock);
 	list_for_each_prev_safe(el, tmp, &die_kset->list) {
@@ -1418,9 +1421,15 @@ void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p)
 	struct ip_hw_instance *ip_inst;
 	int i = 0, j;
 
+	drm_printf(p, "\nHW IP Discovery\n");
+
+	if (!ip_top) {
+		drm_printf(p, "ip discovery topology unavailable\n");
+		return;
+	}
+
 	die_kset = &ip_top->die_kset;
 
-	drm_printf(p, "\nHW IP Discovery\n");
 	spin_lock(&die_kset->list_lock);
 	list_for_each(el_die, &die_kset->list) {
 		drm_printf(p, "die %d\n", i++);
