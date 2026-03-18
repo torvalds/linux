@@ -482,4 +482,6 @@ amdgpu_gmc_query_memory_partition(struct amdgpu_device *adev);
 int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev);
 void amdgpu_gmc_init_sw_mem_ranges(struct amdgpu_device *adev,
 				   struct amdgpu_mem_partition_info *mem_ranges);
+int amdgpu_gmc_get_vram_info(struct amdgpu_device *adev,
+		int *vram_width, int *vram_type, int *vram_vendor);
 #endif
