@@ -59,24 +59,16 @@ static const struct v4l2_ctrl_ops brx_ctrl_ops = {
  * V4L2 Subdevice Operations
  */
 
+static const unsigned int brx_codes[] = {
+	MEDIA_BUS_FMT_ARGB8888_1X32,
+	MEDIA_BUS_FMT_AYUV8_1X32,
+};
+
 /*
  * The BRx can't perform format conversion, all sink and source formats must be
  * identical. We pick the format on the first sink pad (pad 0) and propagate it
  * to all other pads.
  */
-
-static int brx_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	static const unsigned int codes[] = {
-		MEDIA_BUS_FMT_ARGB8888_1X32,
-		MEDIA_BUS_FMT_AYUV8_1X32,
-	};
-
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, codes,
-					  ARRAY_SIZE(codes));
-}
 
 static int brx_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
@@ -262,7 +254,7 @@ done:
 }
 
 static const struct v4l2_subdev_pad_ops brx_pad_ops = {
-	.enum_mbus_code = brx_enum_mbus_code,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
 	.enum_frame_size = brx_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = brx_set_format,
@@ -416,6 +408,8 @@ struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
 	brx->base = type == VSP1_ENTITY_BRU ? VI6_BRU_BASE : VI6_BRS_BASE;
 	brx->entity.ops = &brx_entity_ops;
 	brx->entity.type = type;
+	brx->entity.codes = brx_codes;
+	brx->entity.num_codes = ARRAY_SIZE(brx_codes);
 
 	if (type == VSP1_ENTITY_BRU) {
 		num_pads = vsp1->info->num_bru_inputs + 1;

@@ -36,14 +36,6 @@ static const unsigned int iif_codes[] = {
 	MEDIA_BUS_FMT_METADATA_FIXED
 };
 
-static int iif_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, iif_codes,
-					  ARRAY_SIZE(iif_codes));
-}
-
 static int iif_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
@@ -57,14 +49,13 @@ static int iif_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, iif_codes,
-					  ARRAY_SIZE(iif_codes),
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
 					  IIF_MIN_WIDTH, IIF_MIN_HEIGHT,
 					  IIF_MAX_WIDTH, IIF_MAX_HEIGHT);
 }
 
 static const struct v4l2_subdev_pad_ops iif_pad_ops = {
-	.enum_mbus_code = iif_enum_mbus_code,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
 	.enum_frame_size = iif_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = iif_set_format,
@@ -106,6 +97,8 @@ struct vsp1_iif *vsp1_iif_create(struct vsp1_device *vsp1)
 
 	iif->entity.ops = &iif_entity_ops;
 	iif->entity.type = VSP1_ENTITY_IIF;
+	iif->entity.codes = iif_codes;
+	iif->entity.num_codes = ARRAY_SIZE(iif_codes);
 
 	/*
 	 * The IIF is never exposed to userspace, but media entity registration

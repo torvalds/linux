@@ -181,8 +181,6 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
  * @subdev: V4L2 subdevice
  * @sd_state: V4L2 subdev state
  * @code: Media bus code enumeration
- * @codes: Array of supported media bus codes
- * @ncodes: Number of supported media bus codes
  *
  * This function implements the subdev enum_mbus_code pad operation for entities
  * that do not support format conversion. It enumerates the given supported
@@ -191,16 +189,15 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
  */
 int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_mbus_code_enum *code,
-			       const unsigned int *codes, unsigned int ncodes)
+			       struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
 
 	if (code->pad == 0) {
-		if (code->index >= ncodes)
+		if (code->index >= entity->num_codes)
 			return -EINVAL;
 
-		code->code = codes[code->index];
+		code->code = entity->codes[code->index];
 	} else {
 		struct v4l2_subdev_state *state;
 		struct v4l2_mbus_framefmt *format;
@@ -290,15 +287,13 @@ done:
  * @subdev: V4L2 subdevice
  * @sd_state: V4L2 subdev state
  * @fmt: V4L2 subdev format
- * @codes: Array of supported media bus codes
- * @ncodes: Number of supported media bus codes
  * @min_width: Minimum image width
  * @min_height: Minimum image height
  * @max_width: Maximum image width
  * @max_height: Maximum image height
  *
  * This function implements the subdev set_fmt pad operation for entities that
- * do not support scaling or cropping. It defaults to the first supplied media
+ * do not support scaling or cropping. It defaults to the first supported media
  * bus code if the requested code isn't supported, clamps the size to the
  * supplied minimum and maximum, and propagates the sink pad format to the
  * source pad.
@@ -306,7 +301,6 @@ done:
 int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt,
-			       const unsigned int *codes, unsigned int ncodes,
 			       unsigned int min_width, unsigned int min_height,
 			       unsigned int max_width, unsigned int max_height)
 {
@@ -337,12 +331,13 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	 * Default to the first media bus code if the requested format is not
 	 * supported.
 	 */
-	for (i = 0; i < ncodes; ++i) {
-		if (fmt->format.code == codes[i])
+	for (i = 0; i < entity->num_codes; ++i) {
+		if (fmt->format.code == entity->codes[i])
 			break;
 	}
 
-	format->code = i < ncodes ? codes[i] : codes[0];
+	format->code = i < entity->num_codes
+		     ? entity->codes[i] : entity->codes[0];
 	format->width = clamp_t(unsigned int, fmt->format.width,
 				min_width, max_width);
 	format->height = clamp_t(unsigned int, fmt->format.height,

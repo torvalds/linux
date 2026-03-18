@@ -21,20 +21,20 @@
  * V4L2 Subdevice Operations
  */
 
+static const unsigned int rwpf_codes[] = {
+	MEDIA_BUS_FMT_ARGB8888_1X32,
+	MEDIA_BUS_FMT_AHSV8888_1X32,
+	MEDIA_BUS_FMT_AYUV8_1X32,
+};
+
 static int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
 {
-	static const unsigned int codes[] = {
-		MEDIA_BUS_FMT_ARGB8888_1X32,
-		MEDIA_BUS_FMT_AHSV8888_1X32,
-		MEDIA_BUS_FMT_AYUV8_1X32,
-	};
-
-	if (code->index >= ARRAY_SIZE(codes))
+	if (code->index >= ARRAY_SIZE(rwpf_codes))
 		return -EINVAL;
 
-	code->code = codes[code->index];
+	code->code = rwpf_codes[code->index];
 
 	if (code->pad == RWPF_PAD_SOURCE &&
 	    code->code == MEDIA_BUS_FMT_AYUV8_1X32)
@@ -51,9 +51,8 @@ static int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 
 	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   RWPF_MIN_WIDTH,
-					   RWPF_MIN_HEIGHT, rwpf->max_width,
-					   rwpf->max_height);
+					   RWPF_MIN_WIDTH, RWPF_MIN_HEIGHT,
+					   rwpf->max_width, rwpf->max_height);
 }
 
 static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
@@ -311,6 +310,9 @@ static const struct v4l2_ctrl_ops vsp1_rwpf_ctrl_ops = {
 
 int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf, unsigned int ncontrols)
 {
+	rwpf->entity.codes = rwpf_codes;
+	rwpf->entity.num_codes = ARRAY_SIZE(rwpf_codes);
+
 	v4l2_ctrl_handler_init(&rwpf->ctrls, ncontrols + 1);
 	v4l2_ctrl_new_std(&rwpf->ctrls, &vsp1_rwpf_ctrl_ops,
 			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);

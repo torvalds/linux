@@ -122,30 +122,20 @@ static const unsigned int clu_codes[] = {
 	MEDIA_BUS_FMT_AYUV8_1X32,
 };
 
-static int clu_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, clu_codes,
-					  ARRAY_SIZE(clu_codes));
-}
-
 static int clu_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   CLU_MIN_SIZE,
-					   CLU_MIN_SIZE, CLU_MAX_SIZE,
-					   CLU_MAX_SIZE);
+					   CLU_MIN_SIZE, CLU_MIN_SIZE,
+					   CLU_MAX_SIZE, CLU_MAX_SIZE);
 }
 
 static int clu_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, clu_codes,
-					  ARRAY_SIZE(clu_codes),
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
 					  CLU_MIN_SIZE, CLU_MIN_SIZE,
 					  CLU_MAX_SIZE, CLU_MAX_SIZE);
 }
@@ -155,7 +145,7 @@ static int clu_set_format(struct v4l2_subdev *subdev,
  */
 
 static const struct v4l2_subdev_pad_ops clu_pad_ops = {
-	.enum_mbus_code = clu_enum_mbus_code,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
 	.enum_frame_size = clu_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = clu_set_format,
@@ -247,6 +237,8 @@ struct vsp1_clu *vsp1_clu_create(struct vsp1_device *vsp1)
 
 	clu->entity.ops = &clu_entity_ops;
 	clu->entity.type = VSP1_ENTITY_CLU;
+	clu->entity.codes = clu_codes;
+	clu->entity.num_codes = ARRAY_SIZE(clu_codes);
 
 	ret = vsp1_entity_init(vsp1, &clu->entity, "clu", 2, &clu_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_LUT);

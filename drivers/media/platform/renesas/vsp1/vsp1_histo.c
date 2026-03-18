@@ -167,16 +167,12 @@ static int histo_enum_mbus_code(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-
 	if (code->pad == HISTO_PAD_SOURCE) {
 		code->code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code,
-					  histo->formats,
-					  histo->num_formats);
+	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code);
 }
 
 static int histo_enum_frame_size(struct v4l2_subdev *subdev,
@@ -187,9 +183,8 @@ static int histo_enum_frame_size(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   HISTO_MIN_SIZE,
-					   HISTO_MIN_SIZE, HISTO_MAX_SIZE,
-					   HISTO_MAX_SIZE);
+					   HISTO_MIN_SIZE, HISTO_MIN_SIZE,
+					   HISTO_MAX_SIZE, HISTO_MAX_SIZE);
 }
 
 static int histo_get_selection(struct v4l2_subdev *subdev,
@@ -354,8 +349,6 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
-	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-
 	if (fmt->pad == HISTO_PAD_SOURCE) {
 		fmt->format.code = MEDIA_BUS_FMT_FIXED;
 		fmt->format.width = 0;
@@ -367,7 +360,6 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 	}
 
 	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
-					  histo->formats, histo->num_formats,
 					  HISTO_MIN_SIZE, HISTO_MIN_SIZE,
 					  HISTO_MAX_SIZE, HISTO_MAX_SIZE);
 }
@@ -490,8 +482,6 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 {
 	int ret;
 
-	histo->formats = formats;
-	histo->num_formats = num_formats;
 	histo->data_size = data_size;
 	histo->meta_format = meta_format;
 
@@ -506,6 +496,8 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	/* Initialize the VSP entity... */
 	histo->entity.ops = ops;
 	histo->entity.type = type;
+	histo->entity.codes = formats;
+	histo->entity.num_codes = num_formats;
 
 	ret = vsp1_entity_init(vsp1, &histo->entity, name, 2, &histo_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_STATISTICS);

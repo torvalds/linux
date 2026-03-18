@@ -106,18 +106,10 @@ static const struct v4l2_ctrl_config sru_intensity_control = {
  * V4L2 Subdevice Operations
  */
 
-static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	static const unsigned int codes[] = {
-		MEDIA_BUS_FMT_ARGB8888_1X32,
-		MEDIA_BUS_FMT_AYUV8_1X32,
-	};
-
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, codes,
-					  ARRAY_SIZE(codes));
-}
+static const unsigned int sru_codes[] = {
+	MEDIA_BUS_FMT_ARGB8888_1X32,
+	MEDIA_BUS_FMT_AYUV8_1X32,
+};
 
 static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
@@ -257,7 +249,7 @@ done:
 }
 
 static const struct v4l2_subdev_pad_ops sru_pad_ops = {
-	.enum_mbus_code = sru_enum_mbus_code,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
 	.enum_frame_size = sru_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = sru_set_format,
@@ -370,6 +362,8 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 
 	sru->entity.ops = &sru_entity_ops;
 	sru->entity.type = VSP1_ENTITY_SRU;
+	sru->entity.codes = sru_codes;
+	sru->entity.num_codes = ARRAY_SIZE(sru_codes);
 
 	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_SCALER);

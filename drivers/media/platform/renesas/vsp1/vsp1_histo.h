@@ -36,8 +36,6 @@ struct vsp1_histogram {
 	struct video_device video;
 	struct media_pad pad;
 
-	const u32 *formats;
-	unsigned int num_formats;
 	size_t data_size;
 	u32 meta_format;
 

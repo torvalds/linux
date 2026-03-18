@@ -98,30 +98,20 @@ static const unsigned int lut_codes[] = {
 	MEDIA_BUS_FMT_AYUV8_1X32,
 };
 
-static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_mbus_code_enum *code)
-{
-	return vsp1_subdev_enum_mbus_code(subdev, sd_state, code, lut_codes,
-					  ARRAY_SIZE(lut_codes));
-}
-
 static int lut_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   LUT_MIN_SIZE,
-					   LUT_MIN_SIZE, LUT_MAX_SIZE,
-					   LUT_MAX_SIZE);
+					   LUT_MIN_SIZE, LUT_MIN_SIZE,
+					   LUT_MAX_SIZE, LUT_MAX_SIZE);
 }
 
 static int lut_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *fmt)
 {
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt, lut_codes,
-					  ARRAY_SIZE(lut_codes),
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
 					  LUT_MIN_SIZE, LUT_MIN_SIZE,
 					  LUT_MAX_SIZE, LUT_MAX_SIZE);
 }
@@ -131,7 +121,7 @@ static int lut_set_format(struct v4l2_subdev *subdev,
  */
 
 static const struct v4l2_subdev_pad_ops lut_pad_ops = {
-	.enum_mbus_code = lut_enum_mbus_code,
+	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
 	.enum_frame_size = lut_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = lut_set_format,
@@ -208,6 +198,8 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 
 	lut->entity.ops = &lut_entity_ops;
 	lut->entity.type = VSP1_ENTITY_LUT;
+	lut->entity.codes = lut_codes;
+	lut->entity.num_codes = ARRAY_SIZE(lut_codes);
 
 	ret = vsp1_entity_init(vsp1, &lut->entity, "lut", 2, &lut_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_LUT);
