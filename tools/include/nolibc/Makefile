@@ -30,6 +30,7 @@ all_files := \
 		ctype.h \
 		dirent.h \
 		elf.h \
+		err.h \
 		errno.h \
 		fcntl.h \
 		getopt.h \

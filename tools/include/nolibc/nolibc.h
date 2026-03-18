@@ -130,6 +130,7 @@
 #include "getopt.h"
 #include "poll.h"
 #include "math.h"
+#include "err.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC
