@@ -7119,7 +7119,7 @@ static void ieee80211_ml_reconf_work(struct wiphy *wiphy,
 
 		for_each_set_bit(link_id, &removed_links,
 				 IEEE80211_MLD_MAX_NUM_LINKS)
-			ieee80211_sta_free_link(sta, link_id);
+			ieee80211_sta_remove_link(sta, link_id);
 	}
 
 	new_dormant_links = sdata->vif.dormant_links & ~sdata->u.mgd.removed_links;
