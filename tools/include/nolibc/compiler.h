@@ -47,6 +47,12 @@
 #  define __nolibc_fallthrough do { } while (0)
 #endif /* __nolibc_has_attribute(fallthrough) */
 
+#if defined(__STDC_VERSION__)
+#  define __nolibc_stdc_version __STDC_VERSION__
+#else
+#  define __nolibc_stdc_version 0
+#endif
+
 #define __nolibc_version(_major, _minor, _patch) ((_major) * 10000 + (_minor) * 100 + (_patch))
 
 #ifdef __GNUC__
@@ -63,7 +69,7 @@
 #  define __nolibc_clang_version 0
 #endif /* __clang__ */
 
-#if __STDC_VERSION__ >= 201112L || \
+#if __nolibc_stdc_version >= 201112L || \
 	__nolibc_gnuc_version >= __nolibc_version(4, 6, 0) || \
 	__nolibc_clang_version >= __nolibc_version(3, 0, 0)
 #  define __nolibc_static_assert(_t) _Static_assert(_t, "")
