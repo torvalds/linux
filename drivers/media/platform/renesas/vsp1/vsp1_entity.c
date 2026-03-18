@@ -7,8 +7,10 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
+#include <linux/mutex.h>
 
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
@@ -238,42 +240,51 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
-	struct v4l2_subdev_state *state;
-	struct v4l2_mbus_framefmt *format;
-	int ret = 0;
 
-	state = vsp1_entity_get_state(entity, sd_state, fse->which);
-	if (!state)
+	if (fse->index)
 		return -EINVAL;
 
-	format = v4l2_subdev_state_get_format(state, fse->pad);
-
-	mutex_lock(&entity->lock);
-
-	if (fse->index || fse->code != format->code) {
-		ret = -EINVAL;
-		goto done;
-	}
-
 	if (fse->pad == 0) {
+		unsigned int i;
+
+		for (i = 0; i < entity->num_codes; ++i) {
+			if (fse->code == entity->codes[i])
+				break;
+		}
+
+		if (i == entity->num_codes)
+			return -EINVAL;
+
 		fse->min_width = entity->min_width;
 		fse->max_width = entity->max_width;
 		fse->min_height = entity->min_height;
 		fse->max_height = entity->max_height;
 	} else {
+		struct v4l2_subdev_state *state;
+		struct v4l2_mbus_framefmt *format;
+
+		state = vsp1_entity_get_state(entity, sd_state, fse->which);
+		if (!state)
+			return -EINVAL;
+
 		/*
-		 * The size on the source pad are fixed and always identical to
-		 * the size on the sink pad.
+		 * The media bus code and size on the source pad are fixed and
+		 * always identical to the sink pad.
 		 */
+		format = v4l2_subdev_state_get_format(state, 0);
+
+		guard(mutex)(&entity->lock);
+
+		if (fse->code != format->code)
+			return -EINVAL;
+
 		fse->min_width = format->width;
 		fse->max_width = format->width;
 		fse->min_height = format->height;
 		fse->max_height = format->height;
 	}
 
-done:
-	mutex_unlock(&entity->lock);
-	return ret;
+	return 0;
 }
 
 /*

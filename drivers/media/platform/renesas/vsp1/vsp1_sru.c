@@ -7,8 +7,10 @@
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -116,29 +118,25 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_sru *sru = to_sru(subdev);
-	struct v4l2_subdev_state *state;
-	struct v4l2_mbus_framefmt *format;
-	int ret = 0;
+	int ret;
 
-	state = vsp1_entity_get_state(&sru->entity, sd_state, fse->which);
-	if (!state)
-		return -EINVAL;
+	ret = vsp1_subdev_enum_frame_size(subdev, sd_state, fse);
+	if (ret)
+		return ret;
 
-	format = v4l2_subdev_state_get_format(state, SRU_PAD_SINK);
+	if (fse->pad == SRU_PAD_SOURCE) {
+		struct v4l2_subdev_state *state;
+		struct v4l2_mbus_framefmt *format;
 
-	mutex_lock(&sru->entity.lock);
+		state = vsp1_entity_get_state(&sru->entity, sd_state,
+					      fse->which);
+		if (!state)
+			return -EINVAL;
 
-	if (fse->index || fse->code != format->code) {
-		ret = -EINVAL;
-		goto done;
-	}
+		format = v4l2_subdev_state_get_format(state, SRU_PAD_SINK);
 
-	if (fse->pad == SRU_PAD_SINK) {
-		fse->min_width = SRU_MIN_SIZE;
-		fse->max_width = SRU_MAX_SIZE;
-		fse->min_height = SRU_MIN_SIZE;
-		fse->max_height = SRU_MAX_SIZE;
-	} else {
+		guard(mutex)(&sru->entity.lock);
+
 		fse->min_width = format->width;
 		fse->min_height = format->height;
 		if (format->width <= SRU_MAX_SIZE / 2 &&
@@ -151,9 +149,7 @@ static int sru_enum_frame_size(struct v4l2_subdev *subdev,
 		}
 	}
 
-done:
-	mutex_unlock(&sru->entity.lock);
-	return ret;
+	return 0;
 }
 
 static void sru_try_format(struct vsp1_sru *sru,
