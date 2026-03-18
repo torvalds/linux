@@ -4176,6 +4176,54 @@ struct cfg80211_nan_local_sched {
 };
 
 /**
+ * struct cfg80211_nan_peer_map - NAN peer schedule map
+ *
+ * This struct defines a single NAN peer schedule map
+ *
+ * @map_id: map ID of this schedule map
+ * @schedule: a mapping of time slots to chandef indexes in the schedule's
+ *	@nan_channels. Each slot lasts 16TUs. An unscheduled slot will be
+ *	set to %NL80211_NAN_SCHED_NOT_AVAIL_SLOT.
+ */
+struct cfg80211_nan_peer_map {
+	u8 map_id;
+	u8 schedule[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+};
+
+#define CFG80211_NAN_MAX_PEER_MAPS 2
+#define CFG80211_NAN_INVALID_MAP_ID 0xff
+
+/**
+ * struct cfg80211_nan_peer_sched - NAN peer schedule
+ *
+ * This struct defines NAN peer schedule parameters for a peer.
+ *
+ * @peer_addr: MAC address of the peer (NMI address)
+ * @seq_id: sequence ID of the peer schedule.
+ * @committed_dw: committed DW as published by the peer.
+ *	See %NL80211_ATTR_NAN_COMMITTED_DW
+ * @max_chan_switch: maximum channel switch time in microseconds as published
+ *	by the peer. See %NL80211_ATTR_NAN_MAX_CHAN_SWITCH_TIME.
+ * @init_ulw: initial ULWs as published by the peer.
+ * @ulw_size: number of bytes in @init_ulw.
+ * @n_channels: number of channel definitions in @nan_channels.
+ * @nan_channels: array of NAN channel definitions for this schedule.
+ * @maps: array of peer schedule maps. Unused entries have
+ *	map_id = %CFG80211_NAN_INVALID_MAP_ID.
+ */
+struct cfg80211_nan_peer_sched {
+	const u8 *peer_addr;
+	u8 seq_id;
+	u16 committed_dw;
+	u16 max_chan_switch;
+	const u8 *init_ulw;
+	u16 ulw_size;
+	u8 n_channels;
+	struct cfg80211_nan_channel *nan_channels;
+	struct cfg80211_nan_peer_map maps[CFG80211_NAN_MAX_PEER_MAPS];
+};
+
+/**
  * enum cfg80211_nan_conf_changes - indicates changed fields in NAN
  * configuration
  *
@@ -4961,6 +5009,13 @@ struct mgmt_frame_regs {
  *	radio should operate on. If the chandef of a NAN channel is not
  *	changed, the channel entry must also remain unchanged. It is the
  *	driver's responsibility to verify this.
+ * @nan_set_peer_sched: configure the peer schedule for NAN. The schedule
+ *	consists of an array of %cfg80211_nan_channel and the schedule itself,
+ *	in which each entry maps each time slot to a channel on which the
+ *	radio should operate on. In addition, it contains more peer's schedule
+ *	information such as committed DW, etc. When updating an existing peer
+ *	schedule, the full new schedule is provided - partial updates are not
+ *	supported, and the new schedule completely replaces the previous one.
  *
  * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
  *
@@ -5341,6 +5396,9 @@ struct cfg80211_ops {
 	int	(*nan_set_local_sched)(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       struct cfg80211_nan_local_sched *sched);
+	int	(*nan_set_peer_sched)(struct wiphy *wiphy,
+				      struct wireless_dev *wdev,
+				      struct cfg80211_nan_peer_sched *sched);
 	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    const bool enabled);

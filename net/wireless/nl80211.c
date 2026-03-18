@@ -367,6 +367,63 @@ static int validate_nan_avail_blob(const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_nan_ulw(const struct nlattr *attr,
+			    struct netlink_ext_ack *extack)
+{
+	const u8 *data = nla_data(attr);
+	unsigned int len = nla_len(attr);
+	unsigned int pos = 0;
+
+	while (pos < len) {
+		u16 attr_len;
+
+		/* Need at least: Attr ID (1) + Length (2) */
+		if (pos + 3 > len) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "ULW: Incomplete header (need 3 bytes, have %u)",
+					   len - pos);
+			return -EINVAL;
+		}
+
+		if (data[pos] != 0x17) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "ULW: Invalid Attribute ID 0x%02x (expected 0x17)",
+					   data[pos]);
+			return -EINVAL;
+		}
+		pos++;
+
+		/* Length is in little-endian format */
+		attr_len = get_unaligned_le16(&data[pos]);
+		pos += 2;
+
+		/*
+		 * Check if length is one of the valid values: 16 (no
+		 * channel/band entry included), 18 (band entry included),
+		 * 21 (channel entry included without Auxiliary channel bitmap),
+		 * or 23 (channel entry included with Auxiliary channel bitmap).
+		 */
+		if (attr_len != 16 && attr_len != 18 && attr_len != 21 &&
+		    attr_len != 23) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "ULW: Invalid length %u (must be 16, 18, 21, or 23)",
+					   attr_len);
+			return -EINVAL;
+		}
+
+		if (pos + attr_len > len) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "ULW: Length field (%u) exceeds remaining data (%u)",
+					   attr_len, len - pos);
+			return -EINVAL;
+		}
+
+		pos += attr_len;
+	}
+
+	return 0;
+}
+
 static int validate_uhr_capa(const struct nlattr *attr,
 			     struct netlink_ext_ack *extack)
 {
@@ -587,6 +644,13 @@ nl80211_nan_band_conf_policy[NL80211_NAN_BAND_CONF_ATTR_MAX + 1] = {
 	[NL80211_NAN_BAND_CONF_RSSI_MIDDLE] = NLA_POLICY_MIN(NLA_S8, -74),
 	[NL80211_NAN_BAND_CONF_WAKE_DW] = NLA_POLICY_MAX(NLA_U8, 5),
 	[NL80211_NAN_BAND_CONF_DISABLE_SCAN] = { .type = NLA_FLAG },
+};
+
+static const struct nla_policy
+nl80211_nan_peer_map_policy[NL80211_NAN_PEER_MAP_ATTR_MAX + 1] = {
+	[NL80211_NAN_PEER_MAP_ATTR_MAP_ID] = NLA_POLICY_MAX(NLA_U8, 15),
+	[NL80211_NAN_PEER_MAP_ATTR_TIME_SLOTS] =
+		NLA_POLICY_EXACT_LEN(CFG80211_NAN_SCHED_NUM_TIME_SLOTS),
 };
 
 static const struct nla_policy
@@ -1005,6 +1069,13 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_nan_avail_blob),
 	[NL80211_ATTR_NAN_SCHED_DEFERRED] = { .type = NLA_FLAG },
 	[NL80211_ATTR_NAN_NMI_MAC] = NLA_POLICY_ETH_ADDR,
+	[NL80211_ATTR_NAN_ULW] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_nan_ulw),
+	[NL80211_ATTR_NAN_COMMITTED_DW] = { .type = NLA_U16 },
+	[NL80211_ATTR_NAN_SEQ_ID] = { .type = NLA_U8 },
+	[NL80211_ATTR_NAN_MAX_CHAN_SWITCH_TIME] = { .type = NLA_U16 },
+	[NL80211_ATTR_NAN_PEER_MAPS] =
+		NLA_POLICY_NESTED_ARRAY(nl80211_nan_peer_map_policy),
 };
 
 /* policy for the key attributes */
@@ -16659,8 +16730,8 @@ EXPORT_SYMBOL(cfg80211_nan_sched_update_done);
 static int nl80211_parse_nan_channel(struct cfg80211_registered_device *rdev,
 				     struct nlattr *channel,
 				     struct genl_info *info,
-				     struct cfg80211_nan_local_sched *sched,
-				     u8 index)
+				     struct cfg80211_nan_channel *nan_channels,
+				     u8 index, bool local)
 {
 	struct nlattr **channel_parsed __free(kfree) = NULL;
 	struct cfg80211_chan_def chandef;
@@ -16695,38 +16766,302 @@ static int nl80211_parse_nan_channel(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
-	for (int i = 0; i < index; i++) {
-		if (cfg80211_chandef_compatible(&sched->nan_channels[i].chandef,
-						&chandef)) {
-			NL_SET_ERR_MSG_ATTR(info->extack, channel,
-					    "Channels in NAN schedule must be mutually incompatible");
-			return -EINVAL;
+	if (local) {
+		for (int i = 0; i < index; i++) {
+			if (cfg80211_chandef_compatible(&nan_channels[i].chandef,
+							&chandef)) {
+				NL_SET_ERR_MSG_ATTR(info->extack, channel,
+						    "Channels in NAN schedule must be mutually incompatible");
+				return -EINVAL;
+			}
 		}
 	}
 
-	if (!channel_parsed[NL80211_ATTR_NAN_CHANNEL_ENTRY])
+	if (!channel_parsed[NL80211_ATTR_NAN_CHANNEL_ENTRY]) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Missing NAN channel entry attribute");
 		return -EINVAL;
+	}
 
-	sched->nan_channels[index].channel_entry =
+	nan_channels[index].channel_entry =
 		nla_data(channel_parsed[NL80211_ATTR_NAN_CHANNEL_ENTRY]);
 
-	if (!channel_parsed[NL80211_ATTR_NAN_RX_NSS])
+	if (!channel_parsed[NL80211_ATTR_NAN_RX_NSS]) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Missing NAN RX NSS attribute");
 		return -EINVAL;
+	}
 
-	sched->nan_channels[index].rx_nss =
+	nan_channels[index].rx_nss =
 		nla_get_u8(channel_parsed[NL80211_ATTR_NAN_RX_NSS]);
 
 	n_rx_nss = u8_get_bits(rdev->wiphy.nan_capa.n_antennas, 0x03);
-	if (sched->nan_channels[index].rx_nss > n_rx_nss ||
-	    !sched->nan_channels[index].rx_nss) {
+	if ((local && nan_channels[index].rx_nss > n_rx_nss) ||
+	    !nan_channels[index].rx_nss) {
 		NL_SET_ERR_MSG_ATTR(info->extack, channel,
 				    "Invalid RX NSS in NAN channel definition");
 		return -EINVAL;
 	}
 
-	sched->nan_channels[index].chandef = chandef;
+	nan_channels[index].chandef = chandef;
 
 	return 0;
+}
+
+static int
+nl80211_parse_nan_schedule(struct genl_info *info, struct nlattr *slots_attr,
+			   u8 schedule[CFG80211_NAN_SCHED_NUM_TIME_SLOTS],
+			   u8 n_channels)
+{
+	if (WARN_ON(nla_len(slots_attr) != CFG80211_NAN_SCHED_NUM_TIME_SLOTS))
+		return -EINVAL;
+
+	memcpy(schedule, nla_data(slots_attr), nla_len(slots_attr));
+
+	for (int slot = 0; slot < CFG80211_NAN_SCHED_NUM_TIME_SLOTS; slot++) {
+		if (schedule[slot] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT &&
+		    schedule[slot] >= n_channels) {
+			NL_SET_ERR_MSG_FMT(info->extack,
+					   "Invalid time slot: slot %d refers to channel index %d, n_channels=%d",
+					   slot, schedule[slot], n_channels);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int
+nl80211_parse_nan_peer_map(struct genl_info *info, struct nlattr *map_attr,
+			   struct cfg80211_nan_peer_map *map, u8 n_channels)
+{
+	struct nlattr *tb[NL80211_NAN_PEER_MAP_ATTR_MAX + 1];
+	int ret;
+
+	ret = nla_parse_nested(tb, NL80211_NAN_PEER_MAP_ATTR_MAX, map_attr,
+			       nl80211_nan_peer_map_policy, info->extack);
+	if (ret)
+		return ret;
+
+	if (!tb[NL80211_NAN_PEER_MAP_ATTR_MAP_ID] ||
+	    !tb[NL80211_NAN_PEER_MAP_ATTR_TIME_SLOTS]) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Missing required peer map attributes");
+		return -EINVAL;
+	}
+
+	map->map_id = nla_get_u8(tb[NL80211_NAN_PEER_MAP_ATTR_MAP_ID]);
+
+	/* Parse schedule */
+	return nl80211_parse_nan_schedule(info,
+					  tb[NL80211_NAN_PEER_MAP_ATTR_TIME_SLOTS],
+					  map->schedule, n_channels);
+}
+
+static int nl80211_nan_validate_map_pair(struct wiphy *wiphy,
+					 struct genl_info *info,
+					 const struct cfg80211_nan_peer_map *map1,
+					 const struct cfg80211_nan_peer_map *map2,
+					 struct cfg80211_nan_channel *nan_channels)
+{
+	/* Check for duplicate map_id */
+	if (map1->map_id == map2->map_id) {
+		NL_SET_ERR_MSG_FMT(info->extack, "Duplicate map_id %u",
+				   map1->map_id);
+		return -EINVAL;
+	}
+
+	/* Check for compatible channels between maps */
+	for (int i = 0; i < ARRAY_SIZE(map1->schedule); i++) {
+		if (map1->schedule[i] == NL80211_NAN_SCHED_NOT_AVAIL_SLOT)
+			continue;
+
+		for (int j = 0; j < ARRAY_SIZE(map2->schedule); j++) {
+			u8 ch1 = map1->schedule[i];
+			u8 ch2 = map2->schedule[j];
+
+			if (ch2 == NL80211_NAN_SCHED_NOT_AVAIL_SLOT)
+				continue;
+
+			if (cfg80211_chandef_compatible(&nan_channels[ch1].chandef,
+							&nan_channels[ch2].chandef)) {
+				NL_SET_ERR_MSG_FMT(info->extack,
+						   "Maps %u and %u have compatible channels %d and %d",
+						   map1->map_id, map2->map_id,
+						   ch1, ch2);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/*
+	 * Check for conflicting time slots between maps.
+	 * Only check for single-radio devices (n_radio <= 1) which cannot
+	 * operate on multiple channels simultaneously.
+	 */
+	if (wiphy->n_radio > 1)
+		return 0;
+
+	for (int i = 0; i < ARRAY_SIZE(map1->schedule); i++) {
+		if (map1->schedule[i] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT &&
+		    map2->schedule[i] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT) {
+			NL_SET_ERR_MSG_FMT(info->extack,
+					   "Maps %u and %u both schedule slot %d",
+					   map1->map_id, map2->map_id, i);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int nl80211_nan_set_peer_sched(struct sk_buff *skb,
+				      struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct cfg80211_nan_channel *nan_channels __free(kfree) = NULL;
+	struct cfg80211_nan_peer_sched sched = {};
+	struct wireless_dev *wdev = info->user_ptr[1];
+	struct nlattr *map_attr, *channel;
+	int ret, n_maps = 0, n_channels = 0, i = 0, rem;
+
+	if (wdev->iftype != NL80211_IFTYPE_NAN)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_MAC] ||
+	    !info->attrs[NL80211_ATTR_NAN_COMMITTED_DW]) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Required NAN peer schedule attributes are missing");
+		return -EINVAL;
+	}
+
+	/* First count how many channel attributes we got */
+	nlmsg_for_each_attr_type(channel, NL80211_ATTR_NAN_CHANNEL,
+				 info->nlhdr, GENL_HDRLEN, rem)
+		n_channels++;
+
+	if (!((info->attrs[NL80211_ATTR_NAN_SEQ_ID] &&
+	       info->attrs[NL80211_ATTR_NAN_PEER_MAPS] && n_channels) ||
+	      ((!info->attrs[NL80211_ATTR_NAN_SEQ_ID] &&
+		!info->attrs[NL80211_ATTR_NAN_PEER_MAPS] && !n_channels)))) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Either provide all of: seq id, channels and maps, or none");
+		return -EINVAL;
+	}
+
+	/*
+	 * Limit the number of peer channels to:
+	 * local_channels * 4 (possible BWs) * 2 (possible NSS values)
+	 */
+	if (n_channels && n_channels > wdev->u.nan.n_channels * 4 * 2) {
+		NL_SET_ERR_MSG_FMT(info->extack,
+				   "Too many peer channels: %d (max %d)",
+				   n_channels,
+				   wdev->u.nan.n_channels * 4 * 2);
+		return -EINVAL;
+	}
+
+	if (n_channels) {
+		nan_channels = kcalloc(n_channels, sizeof(*nan_channels),
+				       GFP_KERNEL);
+		if (!nan_channels)
+			return -ENOMEM;
+	}
+
+	/* Parse peer channels */
+	nlmsg_for_each_attr_type(channel, NL80211_ATTR_NAN_CHANNEL,
+				 info->nlhdr, GENL_HDRLEN, rem) {
+		bool compatible = false;
+
+		ret = nl80211_parse_nan_channel(rdev, channel, info,
+						nan_channels, i, false);
+		if (ret)
+			return ret;
+
+		/* Verify channel is compatible with at least one local channel */
+		for (int j = 0; j < wdev->u.nan.n_channels; j++) {
+			if (cfg80211_chandef_compatible(&nan_channels[i].chandef,
+							&wdev->u.nan.chandefs[j])) {
+				compatible = true;
+				break;
+			}
+		}
+		if (!compatible) {
+			NL_SET_ERR_MSG_FMT(info->extack,
+					   "Channel %d not compatible with any local channel",
+					   i);
+			return -EINVAL;
+		}
+		i++;
+	}
+
+	sched.n_channels = n_channels;
+	sched.nan_channels = nan_channels;
+	sched.peer_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	sched.seq_id = nla_get_u8_default(info->attrs[NL80211_ATTR_NAN_SEQ_ID], 0);
+	sched.committed_dw = nla_get_u16(info->attrs[NL80211_ATTR_NAN_COMMITTED_DW]);
+	sched.max_chan_switch =
+		nla_get_u16_default(info->attrs[NL80211_ATTR_NAN_MAX_CHAN_SWITCH_TIME], 0);
+
+	if (info->attrs[NL80211_ATTR_NAN_ULW]) {
+		sched.ulw_size = nla_len(info->attrs[NL80211_ATTR_NAN_ULW]);
+		sched.init_ulw = nla_data(info->attrs[NL80211_ATTR_NAN_ULW]);
+	}
+
+	/* Initialize all maps as invalid */
+	for (int j = 0; j < ARRAY_SIZE(sched.maps); j++)
+		sched.maps[j].map_id = CFG80211_NAN_INVALID_MAP_ID;
+
+	if (info->attrs[NL80211_ATTR_NAN_PEER_MAPS]) {
+		/* Parse each map */
+		nla_for_each_nested(map_attr, info->attrs[NL80211_ATTR_NAN_PEER_MAPS],
+				    rem) {
+			if (n_maps >= ARRAY_SIZE(sched.maps)) {
+				NL_SET_ERR_MSG(info->extack, "Too many peer maps");
+				return -EINVAL;
+			}
+
+			ret = nl80211_parse_nan_peer_map(info, map_attr,
+							 &sched.maps[n_maps],
+							 n_channels);
+			if (ret)
+				return ret;
+
+			/* Validate against previous maps */
+			for (int j = 0; j < n_maps; j++) {
+				ret = nl80211_nan_validate_map_pair(&rdev->wiphy, info,
+								    &sched.maps[j],
+								    &sched.maps[n_maps],
+								    nan_channels);
+				if (ret)
+					return ret;
+			}
+
+			n_maps++;
+		}
+	}
+
+	/* Verify each channel is scheduled at least once */
+	for (int ch = 0; ch < n_channels; ch++) {
+		bool scheduled = false;
+
+		for (int m = 0; m < n_maps && !scheduled; m++) {
+			for (int s = 0; s < ARRAY_SIZE(sched.maps[m].schedule); s++) {
+				if (sched.maps[m].schedule[s] == ch) {
+					scheduled = true;
+					break;
+				}
+			}
+		}
+		if (!scheduled) {
+			NL_SET_ERR_MSG_FMT(info->extack,
+					   "Channel %d is not scheduled in any map",
+					   ch);
+			return -EINVAL;
+		}
+	}
+
+	return rdev_nan_set_peer_sched(rdev, wdev, &sched);
 }
 
 static bool nl80211_nan_is_sched_empty(struct cfg80211_nan_local_sched *sched)
@@ -16748,7 +17083,7 @@ static int nl80211_nan_set_local_sched(struct sk_buff *skb,
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct cfg80211_nan_local_sched *sched __free(kfree) = NULL;
 	struct wireless_dev *wdev = info->user_ptr[1];
-	int rem, i = 0, n_channels = 0;
+	int rem, i = 0, n_channels = 0, ret;
 	struct nlattr *channel;
 	bool sched_empty;
 
@@ -16775,26 +17110,20 @@ static int nl80211_nan_set_local_sched(struct sk_buff *skb,
 
 	nlmsg_for_each_attr_type(channel, NL80211_ATTR_NAN_CHANNEL,
 				 info->nlhdr, GENL_HDRLEN, rem) {
-		int ret = nl80211_parse_nan_channel(rdev, channel, info, sched,
-						    i);
+		ret = nl80211_parse_nan_channel(rdev, channel, info,
+						sched->nan_channels, i, true);
 
 		if (ret)
 			return ret;
 		i++;
 	}
 
-	memcpy(sched->schedule,
-	       nla_data(info->attrs[NL80211_ATTR_NAN_TIME_SLOTS]),
-	       nla_len(info->attrs[NL80211_ATTR_NAN_TIME_SLOTS]));
-
-	for (int slot = 0; slot < ARRAY_SIZE(sched->schedule); slot++) {
-		if (sched->schedule[slot] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT &&
-		    sched->schedule[slot] >= sched->n_channels) {
-			NL_SET_ERR_MSG(info->extack,
-				       "Invalid time slot in NAN schedule");
-			return -EINVAL;
-		}
-	}
+	/* Parse and validate schedule */
+	ret = nl80211_parse_nan_schedule(info,
+					 info->attrs[NL80211_ATTR_NAN_TIME_SLOTS],
+					 sched->schedule, sched->n_channels);
+	if (ret)
+		return ret;
 
 	sched_empty = nl80211_nan_is_sched_empty(sched);
 
@@ -19643,6 +19972,12 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 	{
 		.cmd = NL80211_CMD_NAN_SET_LOCAL_SCHED,
 		.doit = nl80211_nan_set_local_sched,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP),
+	},
+	{
+		.cmd = NL80211_CMD_NAN_SET_PEER_SCHED,
+		.doit = nl80211_nan_set_peer_sched,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP),
 	},
