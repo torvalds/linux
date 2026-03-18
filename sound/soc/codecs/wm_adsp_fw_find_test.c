@@ -262,7 +262,8 @@ static void wm_adsp_fw_find_test_case_exit(struct kunit *test)
 	 * dummies not allocated by the real request_firmware() call they
 	 * must not be passed to release_firmware().
 	 */
-	wm_adsp_release_firmware_files(&priv->found_fw);
+	kfree(priv->found_fw.wmfw.filename);
+	kfree(priv->found_fw.coeff.filename);
 }
 
 static void wm_adsp_fw_find_test_param_desc(const struct wm_adsp_fw_find_test_params *param,
