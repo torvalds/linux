@@ -323,7 +323,10 @@ struct stmmac_priv {
 	bool extend_desc;
 	/* chain_mode: requested descriptor mode */
 	bool chain_mode;
-	unsigned int mode;
+	/* descriptor_mode: actual descriptor mode,
+	 * see STMMAC_CHAIN_MODE or STMMAC_RING_MODE
+	 */
+	u8 descriptor_mode;
 	struct kernel_hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
