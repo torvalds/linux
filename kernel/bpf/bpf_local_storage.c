@@ -497,6 +497,14 @@ static void bpf_selem_unlink_nofail(struct bpf_local_storage_elem *selem,
 			}
 			raw_res_spin_unlock_irqrestore(&local_storage->lock, flags);
 		}
+		/*
+		 * Highly unlikely scenario: memory leak
+		 *
+		 * When destroy() fails to acqurire local_storage->lock and initializes
+		 * selem->local_storage to NULL before any racing map_free() sees the same
+		 * selem, no one will free the local storage.
+		 */
+		WARN_ON_ONCE(err && !in_map_free);
 		if (!err || !in_map_free)
 			RCU_INIT_POINTER(selem->local_storage, NULL);
 	}
