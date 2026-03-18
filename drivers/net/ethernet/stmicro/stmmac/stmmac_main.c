@@ -1885,6 +1885,7 @@ static int __init_dma_rx_desc_rings(struct stmmac_priv *priv,
 				    u32 queue, gfp_t flags)
 {
 	struct stmmac_rx_queue *rx_q = &dma_conf->rx_queue[queue];
+	void *des;
 	int ret;
 
 	netif_dbg(priv, probe, priv->dev,
@@ -1928,13 +1929,12 @@ static int __init_dma_rx_desc_rings(struct stmmac_priv *priv,
 	/* Setup the chained descriptor addresses */
 	if (priv->descriptor_mode == STMMAC_CHAIN_MODE) {
 		if (priv->extend_desc)
-			stmmac_mode_init(priv, rx_q->dma_erx,
-					 rx_q->dma_rx_phy,
-					 dma_conf->dma_rx_size, 1);
+			des = rx_q->dma_erx;
 		else
-			stmmac_mode_init(priv, rx_q->dma_rx,
-					 rx_q->dma_rx_phy,
-					 dma_conf->dma_rx_size, 0);
+			des = rx_q->dma_rx;
+
+		stmmac_mode_init(priv, des, rx_q->dma_rx_phy,
+				 dma_conf->dma_rx_size, priv->extend_desc);
 	}
 
 	return 0;
@@ -2148,6 +2148,8 @@ static void __free_dma_rx_desc_resources(struct stmmac_priv *priv,
 					 u32 queue)
 {
 	struct stmmac_rx_queue *rx_q = &dma_conf->rx_queue[queue];
+	size_t size;
+	void *addr;
 
 	/* Release the DMA RX socket buffers */
 	if (rx_q->xsk_pool)
@@ -2159,14 +2161,14 @@ static void __free_dma_rx_desc_resources(struct stmmac_priv *priv,
 	rx_q->xsk_pool = NULL;
 
 	/* Free DMA regions of consistent memory previously allocated */
-	if (!priv->extend_desc)
-		dma_free_coherent(priv->device, dma_conf->dma_rx_size *
-				  sizeof(struct dma_desc),
-				  rx_q->dma_rx, rx_q->dma_rx_phy);
+	if (priv->extend_desc)
+		addr = rx_q->dma_erx;
 	else
-		dma_free_coherent(priv->device, dma_conf->dma_rx_size *
-				  sizeof(struct dma_extended_desc),
-				  rx_q->dma_erx, rx_q->dma_rx_phy);
+		addr = rx_q->dma_rx;
+
+	size = stmmac_get_rx_desc_size(priv) * dma_conf->dma_rx_size;
+
+	dma_free_coherent(priv->device, size, addr, rx_q->dma_rx_phy);
 
 	if (xdp_rxq_info_is_reg(&rx_q->xdp_rxq))
 		xdp_rxq_info_unreg(&rx_q->xdp_rxq);
@@ -2251,6 +2253,8 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 	struct page_pool_params pp_params = { 0 };
 	unsigned int dma_buf_sz_pad, num_pages;
 	unsigned int napi_id;
+	size_t size;
+	void *addr;
 	int ret;
 
 	dma_buf_sz_pad = stmmac_rx_offset(priv) + dma_conf->dma_buf_sz +
@@ -2286,24 +2290,17 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 	if (!rx_q->buf_pool)
 		return -ENOMEM;
 
-	if (priv->extend_desc) {
-		rx_q->dma_erx = dma_alloc_coherent(priv->device,
-						   dma_conf->dma_rx_size *
-						   sizeof(struct dma_extended_desc),
-						   &rx_q->dma_rx_phy,
-						   GFP_KERNEL);
-		if (!rx_q->dma_erx)
-			return -ENOMEM;
+	size = stmmac_get_rx_desc_size(priv) * dma_conf->dma_rx_size;
 
-	} else {
-		rx_q->dma_rx = dma_alloc_coherent(priv->device,
-						  dma_conf->dma_rx_size *
-						  sizeof(struct dma_desc),
-						  &rx_q->dma_rx_phy,
-						  GFP_KERNEL);
-		if (!rx_q->dma_rx)
-			return -ENOMEM;
-	}
+	addr = dma_alloc_coherent(priv->device, size, &rx_q->dma_rx_phy,
+				  GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+
+	if (priv->extend_desc)
+		rx_q->dma_erx = addr;
+	else
+		rx_q->dma_rx = addr;
 
 	if (stmmac_xdp_is_enabled(priv) &&
 	    test_bit(queue, priv->af_xdp_zc_qps))
