@@ -16,6 +16,7 @@ import re
 from kdoc.kdoc_parser import KernelDoc
 from kdoc.xforms_lists import CTransforms
 from kdoc.kdoc_output import OutputFormat
+from kdoc.kdoc_yaml_file import KDocTestFile
 
 
 class GlobSourceFiles:
@@ -152,6 +153,12 @@ class KernelFiles():
 
         If not specified, defaults to use: ``logging.getLogger("kernel-doc")``
 
+    ``yaml_file``
+        If defined, stores the output inside a YAML file.
+
+    ``yaml_content``
+        Defines what will be inside the YAML file.
+
     Note:
         There are two type of parsers defined here:
 
@@ -181,7 +188,12 @@ class KernelFiles():
         if fname in self.files:
             return
 
-        doc = KernelDoc(self.config, fname, self.xforms)
+        if self.test_file:
+            store_src = True
+        else:
+            store_src = False
+
+        doc = KernelDoc(self.config, fname, self.xforms, store_src=store_src)
         export_table, entries = doc.parse_kdoc()
 
         self.export_table[fname] = export_table
@@ -190,6 +202,10 @@ class KernelFiles():
         self.export_files.add(fname)      # parse_kdoc() already check exports
 
         self.results[fname] = entries
+
+        source = doc.get_source()
+        if source:
+            self.source[fname] = source
 
     def process_export_file(self, fname):
         """
@@ -220,7 +236,7 @@ class KernelFiles():
     def __init__(self, verbose=False, out_style=None, xforms=None,
                  werror=False, wreturn=False, wshort_desc=False,
                  wcontents_before_sections=False,
-                 logger=None):
+                 yaml_file=None, yaml_content=None, logger=None):
         """
         Initialize startup variables and parse all files.
         """
@@ -259,6 +275,11 @@ class KernelFiles():
         # Override log warning, as we want to count errors
         self.config.warning = self.warning
 
+        if yaml_file:
+            self.test_file = KDocTestFile(self.config, yaml_file, yaml_content)
+        else:
+            self.test_file = None
+
         if xforms:
             self.xforms = xforms
         else:
@@ -273,6 +294,7 @@ class KernelFiles():
 
         self.errors = 0
         self.results = {}
+        self.source = {}
 
         self.files = set()
         self.export_files = set()
@@ -331,16 +353,29 @@ class KernelFiles():
                 for s in symbol:
                     function_table.add(s)
 
-            self.out_style.set_filter(export, internal, symbol, nosymbol,
-                                      function_table, enable_lineno,
-                                      no_doc_sections)
-
             if fname not in self.results:
                 self.config.log.warning("No kernel-doc for file %s", fname)
                 continue
 
             symbols = self.results[fname]
 
+            if self.test_file:
+                self.test_file.set_filter(export, internal, symbol, nosymbol,
+                                          function_table, enable_lineno,
+                                          no_doc_sections)
+
+                self.test_file.output_symbols(fname, symbols,
+                                              self.source.get(fname))
+
+                continue
+
+            self.out_style.set_filter(export, internal, symbol, nosymbol,
+                                      function_table, enable_lineno,
+                                      no_doc_sections)
+
             msg = self.out_style.output_symbols(fname, symbols)
             if msg:
                 yield fname, msg
+
+        if self.test_file:
+            self.test_file.write()
