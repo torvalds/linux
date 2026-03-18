@@ -8250,6 +8250,36 @@ int btrfs_run_dev_stats(struct btrfs_trans_handle *trans)
 	struct btrfs_device *device;
 	int stats_cnt;
 	int ret = 0;
+	bool need_update_dev_stats = false;
+
+	/*
+	 * Do an initial pass using RCU to see if we need to update any dev
+	 * stats item. This is to avoid taking the device_list_mutex which is
+	 * acquired by the fitrim operation and can take a while since it does
+	 * discard operations while holding that mutex. Most of the time, if
+	 * we are on a healthy filesystem, we don't have new stat updates, so
+	 * this avoids blocking on that mutex, which is specially important
+	 * because we are called during the critical section of a transaction
+	 * commit, therefore blocking new transactions from starting while
+	 * discard is running.
+	 *
+	 * Also note that adding/removing devices also requires starting a
+	 * transaction, and since we are called from the critical section of a
+	 * transaction commit, no one can be concurrently adding or removing a
+	 * device.
+	 */
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
+		if (device->dev_stats_valid &&
+		    atomic_read(&device->dev_stats_ccnt) != 0) {
+			need_update_dev_stats = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (!need_update_dev_stats)
+		return 0;
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
