@@ -14276,34 +14276,24 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				}
 			}));
 		}
-	} else if (sleepable && env->cur_state->active_rcu_locks) {
-		verbose(env, "kernel func %s is sleepable within rcu_read_lock region\n", func_name);
+	} else if (preempt_disable) {
+		env->cur_state->active_preempt_locks++;
+	} else if (preempt_enable) {
+		if (env->cur_state->active_preempt_locks == 0) {
+			verbose(env, "unmatched attempt to enable preemption (kernel function %s)\n", func_name);
+			return -EINVAL;
+		}
+		env->cur_state->active_preempt_locks--;
+	}
+
+	if (sleepable && !in_sleepable_context(env)) {
+		verbose(env, "kernel func %s is sleepable within %s\n",
+			func_name, non_sleepable_context_description(env));
 		return -EACCES;
 	}
 
 	if (in_rbtree_lock_required_cb(env) && (rcu_lock || rcu_unlock)) {
 		verbose(env, "Calling bpf_rcu_read_{lock,unlock} in unnecessary rbtree callback\n");
-		return -EACCES;
-	}
-
-	if (env->cur_state->active_preempt_locks) {
-		if (preempt_disable) {
-			env->cur_state->active_preempt_locks++;
-		} else if (preempt_enable) {
-			env->cur_state->active_preempt_locks--;
-		} else if (sleepable) {
-			verbose(env, "kernel func %s is sleepable within non-preemptible region\n", func_name);
-			return -EACCES;
-		}
-	} else if (preempt_disable) {
-		env->cur_state->active_preempt_locks++;
-	} else if (preempt_enable) {
-		verbose(env, "unmatched attempt to enable preemption (kernel function %s)\n", func_name);
-		return -EINVAL;
-	}
-
-	if (env->cur_state->active_irq_id && sleepable) {
-		verbose(env, "kernel func %s is sleepable within IRQ-disabled region\n", func_name);
 		return -EACCES;
 	}
 
