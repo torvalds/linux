@@ -1402,6 +1402,10 @@
  *	completely replace the previous one.
  *	The peer schedule is automatically removed when the NMI station is
  *	removed.
+ * @NL80211_CMD_NAN_ULW_UPDATE: Notification from the driver to user space
+ *	with the updated ULW blob of the device. User space can use this blob
+ *	to attach to frames sent to peers. This notification contains
+ *	%NL80211_ATTR_NAN_ULW with the ULW blob.
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1673,6 +1677,7 @@ enum nl80211_commands {
 
 	NL80211_CMD_NAN_SET_PEER_SCHED,
 
+	NL80211_CMD_NAN_ULW_UPDATE,
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
