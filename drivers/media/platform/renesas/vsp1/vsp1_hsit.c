@@ -9,6 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/gfp.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -53,6 +54,56 @@ static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
 		code->code = MEDIA_BUS_FMT_ARGB8888_1X32;
 	else
 		code->code = MEDIA_BUS_FMT_AHSV8888_1X32;
+
+	return 0;
+}
+
+static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct vsp1_hsit *hsit = to_hsit(subdev);
+	u32 code;
+
+	if (fse->index)
+		return -EINVAL;
+
+	if ((fse->pad == HSIT_PAD_SINK && !hsit->inverse) |
+	    (fse->pad == HSIT_PAD_SOURCE && hsit->inverse))
+		code = MEDIA_BUS_FMT_ARGB8888_1X32;
+	else
+		code = MEDIA_BUS_FMT_AHSV8888_1X32;
+
+	if (fse->code != code)
+		return -EINVAL;
+
+	if (fse->pad == 0) {
+		fse->min_width = entity->min_width;
+		fse->max_width = entity->max_width;
+		fse->min_height = entity->min_height;
+		fse->max_height = entity->max_height;
+	} else {
+		struct v4l2_subdev_state *state;
+		struct v4l2_mbus_framefmt *format;
+
+		state = vsp1_entity_get_state(entity, sd_state, fse->which);
+		if (!state)
+			return -EINVAL;
+
+		/*
+		 * The size on the source pad is fixed and always identical to
+		 * the sink pad.
+		 */
+		format = v4l2_subdev_state_get_format(state, HSIT_PAD_SINK);
+
+		guard(mutex)(&entity->lock);
+
+		fse->min_width = format->width;
+		fse->max_width = format->width;
+		fse->min_height = format->height;
+		fse->max_height = format->height;
+	}
 
 	return 0;
 }
@@ -117,7 +168,7 @@ done:
 
 static const struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.enum_mbus_code = hsit_enum_mbus_code,
-	.enum_frame_size = vsp1_subdev_enum_frame_size,
+	.enum_frame_size = hsit_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = hsit_set_format,
 };
