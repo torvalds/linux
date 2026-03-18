@@ -318,6 +318,9 @@ void cfg80211_cqm_rssi_notify_work(struct wiphy *wiphy,
 
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev);
 
+void cfg80211_close_dependents(struct cfg80211_registered_device *rdev,
+			       struct wireless_dev *wdev);
+
 /* free object */
 void cfg80211_dev_free(struct cfg80211_registered_device *rdev);
 
@@ -540,6 +543,9 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
+
+void cfg80211_leave_locked(struct cfg80211_registered_device *rdev,
+			   struct wireless_dev *wdev, int link_id);
 
 void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		    struct wireless_dev *wdev,

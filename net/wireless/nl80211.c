@@ -1764,6 +1764,7 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 			return 0;
 		return -ENOLINK;
 	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
 		if (wiphy_ext_feature_isset(wdev->wiphy,
 					    NL80211_EXT_FEATURE_SECURE_NAN))
 			return 0;
@@ -4920,6 +4921,8 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 		info->user_ptr[1] = NULL;
 	else
 		dev_close(wdev->netdev);
+
+	cfg80211_close_dependents(rdev, wdev);
 
 	mutex_lock(&rdev->wiphy.mtx);
 
@@ -15964,6 +15967,10 @@ static int nl80211_stop_nan(struct sk_buff *skb, struct genl_info *info)
 	if (wdev->iftype != NL80211_IFTYPE_NAN)
 		return -EOPNOTSUPP;
 
+	cfg80211_close_dependents(rdev, wdev);
+
+	guard(wiphy)(&rdev->wiphy);
+
 	cfg80211_stop_nan(rdev, wdev);
 
 	return 0;
@@ -18356,7 +18363,11 @@ nl80211_epcs_cfg(struct sk_buff *skb, struct genl_info *info)
 		 NL80211_FLAG_NEED_RTNL)		\
 	SELECTOR(__sel, WIPHY_CLEAR,			\
 		 NL80211_FLAG_NEED_WIPHY |		\
-		 NL80211_FLAG_CLEAR_SKB)
+		 NL80211_FLAG_CLEAR_SKB)		\
+	SELECTOR(__sel, WDEV_UP_RTNL_NOMTX,		\
+		 NL80211_FLAG_NEED_WDEV_UP |		\
+		 NL80211_FLAG_NO_WIPHY_MTX |		\
+		 NL80211_FLAG_NEED_RTNL)
 
 enum nl80211_internal_flags_selector {
 #define SELECTOR(_, name, value)	NL80211_IFL_SEL_##name,
@@ -19193,6 +19204,7 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.doit = nl80211_stop_nan,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP |
+					 NL80211_FLAG_NO_WIPHY_MTX |
 					 NL80211_FLAG_NEED_RTNL),
 	},
 	{

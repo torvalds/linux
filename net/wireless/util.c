@@ -1144,8 +1144,15 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 					       ev->ij.channel);
 			break;
 		case EVENT_STOPPED:
-			cfg80211_leave(wiphy_to_rdev(wdev->wiphy), wdev,
-				       ev->link_id);
+			/*
+			 * for NAN interfaces cfg80211_leave must be called but
+			 * locking here doesn't allow this.
+			 */
+			if (WARN_ON(wdev->iftype == NL80211_IFTYPE_NAN))
+				break;
+
+			cfg80211_leave_locked(wiphy_to_rdev(wdev->wiphy), wdev,
+					      ev->link_id);
 			break;
 		case EVENT_PORT_AUTHORIZED:
 			__cfg80211_port_authorized(wdev, ev->pa.peer_addr,
@@ -1184,6 +1191,13 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	if (otype == NL80211_IFTYPE_AP_VLAN)
 		return -EOPNOTSUPP;
 
+	/*
+	 * for NAN interfaces cfg80211_leave must be called for leaving,
+	 * but locking here doesn't allow this.
+	 */
+	if (otype == NL80211_IFTYPE_NAN)
+		return -EOPNOTSUPP;
+
 	/* cannot change into P2P device or NAN */
 	if (ntype == NL80211_IFTYPE_P2P_DEVICE ||
 	    ntype == NL80211_IFTYPE_NAN)
@@ -1204,7 +1218,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		dev->ieee80211_ptr->use_4addr = false;
 		rdev_set_qos_map(rdev, dev, NULL);
 
-		cfg80211_leave(rdev, dev->ieee80211_ptr, -1);
+		cfg80211_leave_locked(rdev, dev->ieee80211_ptr, -1);
 
 		cfg80211_process_rdev_events(rdev);
 		cfg80211_mlme_purge_registrations(dev->ieee80211_ptr);
@@ -1232,6 +1246,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_OCB:
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_NAN_DATA:
 			dev->priv_flags |= IFF_DONT_BRIDGE;
 			break;
 		case NL80211_IFTYPE_P2P_GO:
