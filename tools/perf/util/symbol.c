@@ -26,7 +26,6 @@
 #include "demangle-rust-v0.h"
 #include "dso.h"
 #include "util.h" // lsdir()
-#include "debug.h"
 #include "event.h"
 #include "machine.h"
 #include "map.h"
