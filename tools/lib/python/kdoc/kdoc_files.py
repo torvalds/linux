@@ -9,7 +9,6 @@ Classes for navigating through the files that kernel-doc needs to handle
 to generate documentation.
 """
 
-import argparse
 import logging
 import os
 import re
@@ -86,6 +85,28 @@ class GlobSourceFiles:
             elif file_not_found_cb:
                 file_not_found_cb(fname)
 
+
+class KdocConfig():
+    """
+    Stores all configuration attributes that kdoc_parser and kdoc_output
+    needs.
+    """
+    def __init__(self, verbose=False, werror=False, wreturn=False,
+                 wshort_desc=False, wcontents_before_sections=False,
+                 logger=None):
+
+        self.verbose = verbose
+        self.werror = werror
+        self.wreturn = wreturn
+        self.wshort_desc =  wshort_desc
+        self.wcontents_before_sections = wcontents_before_sections
+
+        if logger:
+            self.log = logger
+        else:
+            self.log = logging.getLogger(__file__)
+
+        self.warning = self.log.warning
 
 class KernelFiles():
     """
@@ -224,28 +245,24 @@ class KernelFiles():
             if kdoc_werror:
                 werror = kdoc_werror
 
+        if not logger:
+           logger = logging.getLogger("kernel-doc")
+        else:
+            logger = logger
+
         # Some variables are global to the parser logic as a whole as they are
         # used to send control configuration to KernelDoc class. As such,
         # those variables are read-only inside the KernelDoc.
-        self.config = argparse.Namespace
+        self.config = KdocConfig(verbose, werror, wreturn, wshort_desc,
+                                 wcontents_before_sections, logger)
 
-        self.config.verbose = verbose
-        self.config.werror = werror
-        self.config.wreturn = wreturn
-        self.config.wshort_desc = wshort_desc
-        self.config.wcontents_before_sections = wcontents_before_sections
+        # Override log warning, as we want to count errors
+        self.config.warning = self.warning
 
         if xforms:
             self.xforms = xforms
         else:
             self.xforms = CTransforms()
-
-        if not logger:
-            self.config.log = logging.getLogger("kernel-doc")
-        else:
-            self.config.log = logger
-
-        self.config.warning = self.warning
 
         self.config.src_tree = os.environ.get("SRCTREE", None)
 
