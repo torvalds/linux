@@ -175,8 +175,14 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 				goto out;
 		}
 
-		ret = mxl862xx_reg_write(priv, MXL862XX_MMD_REG_DATA_FIRST + off,
-					 le16_to_cpu(data[i]));
+		if ((i * 2 + 1) == size)
+			ret = mxl862xx_reg_write(priv,
+						 MXL862XX_MMD_REG_DATA_FIRST + off,
+						 *(u8 *)&data[i]);
+		else
+			ret = mxl862xx_reg_write(priv,
+						 MXL862XX_MMD_REG_DATA_FIRST + off,
+						 le16_to_cpu(data[i]));
 		if (ret < 0)
 			goto out;
 	}
