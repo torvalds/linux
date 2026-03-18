@@ -4363,6 +4363,24 @@ TRACE_EVENT(cfg80211_nan_ulw_update,
 		  __print_array(__get_dynamic_array(ulw),
 				__get_dynamic_array_len(ulw), 1))
 );
+
+TRACE_EVENT(cfg80211_nan_channel_evac,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 const struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, wdev, chandef),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		WIPHY_ENTRY
+		CHAN_DEF_ENTRY
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		WIPHY_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef);
+	),
+	TP_printk(WDEV_PR_FMT ", " WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WDEV_PR_ARG, WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

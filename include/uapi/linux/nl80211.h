@@ -1406,6 +1406,15 @@
  *	with the updated ULW blob of the device. User space can use this blob
  *	to attach to frames sent to peers. This notification contains
  *	%NL80211_ATTR_NAN_ULW with the ULW blob.
+ * @NL80211_CMD_NAN_CHANNEL_EVAC: Notification to indicate that a NAN
+ *	channel has been evacuated due to resource conflicts with other
+ *	interfaces. This can happen when another interface sharing the channel
+ *	resource with NAN needs to move to a different channel (e.g., channel
+ *	switch or link switch on a BSS interface).
+ *	The notification contains %NL80211_ATTR_NAN_CHANNEL attribute
+ *	identifying the evacuated channel.
+ *	User space may reconfigure the local schedule in response to this
+ *	notification.
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1678,6 +1687,9 @@ enum nl80211_commands {
 	NL80211_CMD_NAN_SET_PEER_SCHED,
 
 	NL80211_CMD_NAN_ULW_UPDATE,
+
+	NL80211_CMD_NAN_CHANNEL_EVAC,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -3040,20 +3052,23 @@ enum nl80211_commands {
  *	Currently only supported in mac80211 drivers.
  * @NL80211_ATTR_NAN_CHANNEL: This is a nested attribute. There can be multiple
  *	attributes of this type, each one represents a channel definition and
- *	consists of top-level attributes like %NL80211_ATTR_WIPHY_FREQ. Must
- *	contain %NL80211_ATTR_NAN_CHANNEL_ENTRY and
- *	%NL80211_ATTR_NAN_RX_NSS.
- *	This attribute is used with %NL80211_CMD_NAN_SET_LOCAL_SCHED to specify
+ *	consists of top-level attributes like %NL80211_ATTR_WIPHY_FREQ.
+ *	When used with %NL80211_CMD_NAN_SET_LOCAL_SCHED, it specifies
  *	the channel definitions on which the radio needs to operate during
  *	specific time slots. All of the channel definitions should be mutually
- *	incompatible.
- *	This is also used with %NL80211_CMD_NAN_SET_PEER_SCHED to configure the
+ *	incompatible. With this command, %NL80211_ATTR_NAN_CHANNEL_ENTRY and
+ *	%NL80211_ATTR_NAN_RX_NSS are mandatory.
+ *	When used with %NL80211_CMD_NAN_SET_PEER_SCHED, it configures the
  *	peer NAN channels. In that case, the channel definitions can be
  *	compatible to each other, or even identical just with different RX NSS.
+ *	With this command, %NL80211_ATTR_NAN_CHANNEL_ENTRY and
+ *	%NL80211_ATTR_NAN_RX_NSS are mandatory.
  *	The number of channels should fit the current configuration of channels
  *	and the possible interface combinations.
  *	If an existing NAN channel is changed but the chandef isn't, the
  *	channel entry must also remain unchanged.
+ *	When used with %NL80211_CMD_NAN_CHANNEL_EVAC, this identifies the
+ *	channels that were evacuated.
  * @NL80211_ATTR_NAN_CHANNEL_ENTRY: a byte array of 6 bytes. contains the
  *	Channel Entry as defined in Wi-Fi Aware (TM) 4.0 specification Table
  *	100 (Channel Entry format for the NAN Availability attribute).

@@ -10588,6 +10588,25 @@ void cfg80211_nan_cluster_joined(struct wireless_dev *wdev,
 void cfg80211_nan_ulw_update(struct wireless_dev *wdev,
 			     const u8 *ulw, size_t ulw_len, gfp_t gfp);
 
+/**
+ * cfg80211_nan_channel_evac - Notify user space about NAN channel evacuation
+ * @wdev: Pointer to the wireless device structure
+ * @chandef: Pointer to the channel definition of the NAN channel that was
+ *	evacuated
+ * @gfp: Memory allocation flags
+ *
+ * This function is used by drivers to notify user space when a NAN
+ * channel has been evacuated (i.e. ULWed) due to channel resource conflicts
+ * with other interfaces.
+ * This can happen when another interface sharing the channel resource with NAN
+ * needs to move to a different channel (e.g. due to channel switch or link
+ * switch). User space may reconfigure the local schedule to exclude the
+ * evacuated channel.
+ */
+void cfg80211_nan_channel_evac(struct wireless_dev *wdev,
+			       const struct cfg80211_chan_def *chandef,
+			       gfp_t gfp);
+
 #ifdef CONFIG_CFG80211_DEBUGFS
 /**
  * wiphy_locked_debugfs_read - do a locked read in debugfs
