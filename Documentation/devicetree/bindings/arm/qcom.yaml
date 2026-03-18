@@ -63,6 +63,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,eliza-mtp
+          - const: qcom,eliza
+
+      - items:
+          - enum:
               - qcom,glymur-crd
           - const: qcom,glymur
 
