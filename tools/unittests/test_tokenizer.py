@@ -46,9 +46,16 @@ def make_tokenizer_test(name, data):
         #
         # Check if logger is working
         #
-        if "log_level" in data:
-            with self.assertLogs('kdoc.c_lex', level='ERROR') as cm:
+        if "log_msg" in data:
+            with self.assertLogs() as cm:
                 tokenizer = CTokenizer(data["source"])
+
+                msg_found = False
+                for result in cm.output:
+                    if data["log_msg"] in result:
+                        msg_found = True
+
+                self.assertTrue(msg_found, f"Missing log {data['log_msg']}")
 
             return
 
@@ -124,7 +131,7 @@ TESTS_TOKENIZER = {
 
     "mismatch_error": {
         "source": "int a$ = 5;",          # $ is illegal
-        "log_level": "ERROR",
+        "log_msg": "Unexpected token",
     },
 }
 
