@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright(c) 2026: Mauro Carvalho Chehab <mchehab@kernel.org>.
+
+# KDoc Test File Schema
+
+# This schema contains objects and properties needed to run kernel-doc
+# self-tests.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+
+tests:
+  type: array
+  minItems: 1
+  description: |
+    A list of kernel-doc tests.
+
+  properties:
+    type: object
+    properties:
+      name:
+        type: string
+        description: |
+          Test name. Should be an unique identifier within the schema.
+          Don't prepend it with "test", as the dynamic test creation will
+          do it.
+
+      description:
+        type: string
+        description: |
+          Test description
+
+      source:
+        type: string
+        description: |
+          C source code that should be parsed by kernel-doc.
+
+      fname:
+        type: string
+        description: |
+          The filename that contains the element.
+          When placing real testcases, please use here the name of
+          the C file (or header) from where the source code was picked.
+
+      exports:
+        type: array
+        items: { type: string }
+        description: |
+          A list of export identifiers that are expected when parsing source.
+
+      expected:
+        type: array
+        minItems: 1
+        description: |
+          A list of expected values. This list consists on objects to check
+          both kdoc_parser and/or kdoc_output objects.
+
+        items:
+          type: object
+          properties:
+            #
+            #  kdoc_item
+            #
+            kdoc_item:
+              type: object
+              description: |
+                Object expected to represent the C source code after parsed
+                by tools/lib/python/kdoc/kdoc_parser.py KernelDoc class.
+                See tools/lib/python/kdoc/kdoc_item.py for its contents.
+
+              properties:
+                name:
+                  type: string
+                  description: |
+                    The name of the identifier (function name, struct name, etc).
+                type:
+                  type: string
+                  description: |
+                    Type of the object, as filled by kdoc_parser. can be:
+                    - enum
+                    - typedef
+                    - union
+                    - struct
+                    - var
+                    - function
+                declaration_start_line:
+                  type: integer
+                  description: |
+                    The line number where the kernel-doc markup started.
+                    The first line of the code is line number 1.
+                sections:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    Sections inside the kernel-doc markups:
+                    - "description"
+                    - "return"
+                    - any other part of the markup that starts with "something:"
+                sections_start_lines:
+                  type: object
+                  additionalProperties: { type: integer }
+                  description: |
+                    a list of section names and the starting line of it.
+                parameterlist:
+                  type: array
+                  items: { type: string }
+                  description: |
+                    Ordered list of parameter names.
+
+                parameterdesc_start_lines:
+                  type: object
+                  additionalProperties: { type: integer }
+                  description: |
+                    Mapping from parameter name to the line where its
+                    description starts.
+                parameterdescs:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    Mapping from parameter name to its description.
+
+                parametertypes:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    Mapping from parameter name to its type.
+
+                other_stuff:
+                  type: object
+                  additionalProperties: {}
+                  description: |
+                    Extra properties that will be stored at the item.
+                    Should match what kdoc_output expects.
+
+              required:
+                - name
+                - type
+                - declaration_start_line
+
+            rst:
+              type: string
+              description: |
+                The expected output for RestOutput class.
+
+            man:
+              type: string
+              description: |
+                The expected output for ManOutput class.
+
+        anyOf:
+          required: kdoc_item
+          required: source
+
+    required:
+      - name
+      - fname
+      - expected
