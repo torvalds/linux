@@ -359,6 +359,60 @@
 			#reset-cells = <1>;
 		};
 
+		usbphy2: phy@c0a30000 {
+			compatible = "spacemit,k1-usb2-phy";
+			reg = <0x0 0xc0a30000 0x0 0x200>;
+			clocks = <&syscon_apmu CLK_USB30>;
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		combo_phy: phy@c0b10000 {
+			compatible = "spacemit,k1-combo-phy";
+			reg = <0x0 0xc0b10000 0x0 0x1000>;
+			clocks = <&vctcxo_24m>,
+				 <&syscon_apmu CLK_PCIE0_DBI>,
+				 <&syscon_apmu CLK_PCIE0_MASTER>,
+				 <&syscon_apmu CLK_PCIE0_SLAVE>;
+			clock-names = "refclk",
+				      "dbi",
+				      "mstr",
+				      "slv";
+			resets = <&syscon_apmu RESET_PCIE0_GLOBAL>,
+				 <&syscon_apmu RESET_PCIE0_DBI>,
+				 <&syscon_apmu RESET_PCIE0_MASTER>,
+				 <&syscon_apmu RESET_PCIE0_SLAVE>;
+			reset-names = "phy",
+				      "dbi",
+				      "mstr",
+				      "slv";
+			#phy-cells = <1>;
+			spacemit,apmu = <&syscon_apmu>;
+			status = "disabled";
+		};
+
+		pcie1_phy: phy@c0c10000 {
+			compatible = "spacemit,k1-pcie-phy";
+			reg = <0x0 0xc0c10000 0x0 0x1000>;
+			clocks = <&vctcxo_24m>;
+			clock-names = "refclk";
+			resets = <&syscon_apmu RESET_PCIE1_GLOBAL>;
+			reset-names = "phy";
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		pcie2_phy: phy@c0d10000 {
+			compatible = "spacemit,k1-pcie-phy";
+			reg = <0x0 0xc0d10000 0x0 0x1000>;
+			clocks = <&vctcxo_24m>;
+			clock-names = "refclk";
+			resets = <&syscon_apmu RESET_PCIE2_GLOBAL>;
+			reset-names = "phy";
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@d4010800 {
 			compatible = "spacemit,k1-i2c";
 			reg = <0x0 0xd4010800 0x0 0x38>;
@@ -426,60 +480,6 @@
 			clock-frequency = <400000>;
 			resets = <&syscon_apbc RESET_TWSI5>;
 			interrupts = <41>;
-			status = "disabled";
-		};
-
-		usbphy2: phy@c0a30000 {
-			compatible = "spacemit,k1-usb2-phy";
-			reg = <0x0 0xc0a30000 0x0 0x200>;
-			clocks = <&syscon_apmu CLK_USB30>;
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
-		combo_phy: phy@c0b10000 {
-			compatible = "spacemit,k1-combo-phy";
-			reg = <0x0 0xc0b10000 0x0 0x1000>;
-			clocks = <&vctcxo_24m>,
-				 <&syscon_apmu CLK_PCIE0_DBI>,
-				 <&syscon_apmu CLK_PCIE0_MASTER>,
-				 <&syscon_apmu CLK_PCIE0_SLAVE>;
-			clock-names = "refclk",
-				      "dbi",
-				      "mstr",
-				      "slv";
-			resets = <&syscon_apmu RESET_PCIE0_GLOBAL>,
-				 <&syscon_apmu RESET_PCIE0_DBI>,
-				 <&syscon_apmu RESET_PCIE0_MASTER>,
-				 <&syscon_apmu RESET_PCIE0_SLAVE>;
-			reset-names = "phy",
-				      "dbi",
-				      "mstr",
-				      "slv";
-			#phy-cells = <1>;
-			spacemit,apmu = <&syscon_apmu>;
-			status = "disabled";
-		};
-
-		pcie1_phy: phy@c0c10000 {
-			compatible = "spacemit,k1-pcie-phy";
-			reg = <0x0 0xc0c10000 0x0 0x1000>;
-			clocks = <&vctcxo_24m>;
-			clock-names = "refclk";
-			resets = <&syscon_apmu RESET_PCIE1_GLOBAL>;
-			reset-names = "phy";
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
-		pcie2_phy: phy@c0d10000 {
-			compatible = "spacemit,k1-pcie-phy";
-			reg = <0x0 0xc0d10000 0x0 0x1000>;
-			clocks = <&vctcxo_24m>;
-			clock-names = "refclk";
-			resets = <&syscon_apmu RESET_PCIE2_GLOBAL>;
-			reset-names = "phy";
-			#phy-cells = <0>;
 			status = "disabled";
 		};
 
