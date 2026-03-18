@@ -4050,6 +4050,54 @@ struct cfg80211_nan_conf {
 	u16 vendor_elems_len;
 };
 
+#define CFG80211_NAN_SCHED_NUM_TIME_SLOTS 32
+
+/**
+ * struct cfg80211_nan_channel - NAN channel configuration
+ *
+ * This struct defines a NAN channel configuration
+ *
+ * @chandef: the channel definition
+ * @channel_entry: pointer to the Channel Entry blob as defined in Wi-Fi Aware
+ *	(TM) 4.0 specification Table 100 (Channel Entry format for the NAN
+ *	Availability attribute).
+ * @rx_nss: number of spatial streams supported on this channel
+ */
+struct cfg80211_nan_channel {
+	struct cfg80211_chan_def chandef;
+	const u8 *channel_entry;
+	u8 rx_nss;
+};
+
+/**
+ * struct cfg80211_nan_local_sched - NAN local schedule
+ *
+ * This struct defines NAN local schedule parameters
+ *
+ * @schedule: a mapping of time slots to chandef indexes in %nan_channels.
+ *	An unscheduled slot will be set to %NL80211_NAN_SCHED_NOT_AVAIL_SLOT.
+ * @n_channels: number of channel definitions in %nan_channels.
+ * @nan_avail_blob: pointer to NAN Availability attribute blob.
+ *	See %NL80211_ATTR_NAN_AVAIL_BLOB for more details.
+ * @nan_avail_blob_len: length of the @nan_avail_blob in bytes.
+ * @deferred: if true, the command containing this schedule configuration is a
+ *	request from the device to perform an announced schedule update. This
+ *	means that it needs to send the updated NAN availability to the peers,
+ *	and do the actual switch on the right time (i.e. at the end of the slot
+ *	after the slot in which the updated NAN Availability was sent).
+ *	See %NL80211_ATTR_NAN_SCHED_DEFERRED for more details.
+ *	If false, the schedule is applied immediately.
+ * @nan_channels: array of NAN channel definitions that can be scheduled.
+ */
+struct cfg80211_nan_local_sched {
+	u8 schedule[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+	u8 n_channels;
+	const u8 *nan_avail_blob;
+	u16 nan_avail_blob_len;
+	bool deferred;
+	struct cfg80211_nan_channel nan_channels[] __counted_by(n_channels);
+};
+
 /**
  * enum cfg80211_nan_conf_changes - indicates changed fields in NAN
  * configuration
@@ -4830,6 +4878,12 @@ struct mgmt_frame_regs {
  * @nan_change_conf: changes NAN configuration. The changed parameters must
  *	be specified in @changes (using &enum cfg80211_nan_conf_changes);
  *	All other parameters must be ignored.
+ * @nan_set_local_sched: configure the local schedule for NAN. The schedule
+ *	consists of an array of %cfg80211_nan_channel and the schedule itself,
+ *	in which each entry maps each time slot to the channel on which the
+ *	radio should operate on. If the chandef of a NAN channel is not
+ *	changed, the channel entry must also remain unchanged. It is the
+ *	driver's responsibility to verify this.
  *
  * @set_multicast_to_unicast: configure multicast to unicast conversion for BSS
  *
@@ -5207,7 +5261,9 @@ struct cfg80211_ops {
 				   struct wireless_dev *wdev,
 				   struct cfg80211_nan_conf *conf,
 				   u32 changes);
-
+	int	(*nan_set_local_sched)(struct wiphy *wiphy,
+				       struct wireless_dev *wdev,
+				       struct cfg80211_nan_local_sched *sched);
 	int	(*set_multicast_to_unicast)(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    const bool enabled);
@@ -6859,6 +6915,9 @@ struct wireless_dev {
 		} ocb;
 		struct {
 			u8 cluster_id[ETH_ALEN] __aligned(2);
+			u8 n_channels;
+			struct cfg80211_chan_def *chandefs;
+			bool sched_update_pending;
 		} nan;
 	} u;
 
@@ -10015,6 +10074,18 @@ void cfg80211_nan_func_terminated(struct wireless_dev *wdev,
 				  u8 inst_id,
 				  enum nl80211_nan_func_term_reason reason,
 				  u64 cookie, gfp_t gfp);
+
+/**
+ * cfg80211_nan_sched_update_done - notify deferred schedule update completion
+ * @wdev: the wireless device reporting the event
+ * @success: whether or not the schedule update was successful
+ * @gfp: allocation flags
+ *
+ * This function notifies user space that a deferred local NAN schedule update
+ * (requested with %NL80211_ATTR_NAN_SCHED_DEFERRED) has been completed.
+ */
+void cfg80211_nan_sched_update_done(struct wireless_dev *wdev, bool success,
+				    gfp_t gfp);
 
 /* ethtool helper */
 void cfg80211_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info);

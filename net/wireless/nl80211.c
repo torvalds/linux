@@ -333,6 +333,40 @@ static int validate_nan_cluster_id(const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_nan_avail_blob(const struct nlattr *attr,
+				   struct netlink_ext_ack *extack)
+{
+	const u8 *data = nla_data(attr);
+	unsigned int len = nla_len(attr);
+	u16 attr_len;
+
+	/* Need at least: Attr ID (1) + Length (2) */
+	if (len < 3) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "NAN Availability: Too short (need at least 3 bytes, have %u)",
+				   len);
+		return -EINVAL;
+	}
+
+	if (data[0] != 0x12) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "NAN Availability: Invalid Attribute ID 0x%02x (expected 0x12)",
+				   data[0]);
+		return -EINVAL;
+	}
+
+	attr_len = get_unaligned_le16(&data[1]);
+
+	if (attr_len != len - 3) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "NAN Availability: Length field (%u) doesn't match data length (%u)",
+				   attr_len, len - 3);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int validate_uhr_capa(const struct nlattr *attr,
 			     struct netlink_ext_ack *extack)
 {
@@ -962,6 +996,14 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_DISABLE_UHR] = { .type = NLA_FLAG },
 	[NL80211_ATTR_UHR_OPERATION] =
 		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_uhr_operation),
+	[NL80211_ATTR_NAN_CHANNEL] = NLA_POLICY_NESTED(nl80211_policy),
+	[NL80211_ATTR_NAN_CHANNEL_ENTRY] = NLA_POLICY_EXACT_LEN(6),
+	[NL80211_ATTR_NAN_RX_NSS] = { .type = NLA_U8 },
+	[NL80211_ATTR_NAN_TIME_SLOTS] =
+		NLA_POLICY_EXACT_LEN(CFG80211_NAN_SCHED_NUM_TIME_SLOTS),
+	[NL80211_ATTR_NAN_AVAIL_BLOB] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_nan_avail_blob),
+	[NL80211_ATTR_NAN_SCHED_DEFERRED] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -16421,6 +16463,224 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(cfg80211_nan_func_terminated);
 
+void cfg80211_nan_sched_update_done(struct wireless_dev *wdev, bool success,
+				    gfp_t gfp)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	struct sk_buff *msg;
+	void *hdr;
+
+	trace_cfg80211_nan_sched_update_done(wiphy, wdev, success);
+
+	/* Can happen if we stopped NAN */
+	if (!wdev->u.nan.sched_update_pending)
+		return;
+
+	wdev->u.nan.sched_update_pending = false;
+
+	if (!wdev->owner_nlportid)
+		return;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_NAN_SCHED_UPDATE_DONE);
+	if (!hdr)
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
+	    nla_put_u64_64bit(msg, NL80211_ATTR_WDEV, wdev_id(wdev),
+			      NL80211_ATTR_PAD) ||
+	    (success &&
+	     nla_put_flag(msg, NL80211_ATTR_NAN_SCHED_UPDATE_SUCCESS)))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_unicast(wiphy_net(wiphy), msg, wdev->owner_nlportid);
+
+	return;
+
+nla_put_failure:
+	nlmsg_free(msg);
+}
+EXPORT_SYMBOL(cfg80211_nan_sched_update_done);
+
+static int nl80211_parse_nan_channel(struct cfg80211_registered_device *rdev,
+				     struct nlattr *channel,
+				     struct genl_info *info,
+				     struct cfg80211_nan_local_sched *sched,
+				     u8 index)
+{
+	struct nlattr **channel_parsed __free(kfree) = NULL;
+	struct cfg80211_chan_def chandef;
+	u8 n_rx_nss;
+	int ret;
+
+	channel_parsed = kcalloc(NL80211_ATTR_MAX + 1, sizeof(*channel_parsed),
+				 GFP_KERNEL);
+	if (!channel_parsed)
+		return -ENOMEM;
+
+	ret = nla_parse_nested(channel_parsed, NL80211_ATTR_MAX, channel, NULL,
+			       info->extack);
+	if (ret)
+		return ret;
+
+	ret = nl80211_parse_chandef(rdev, info->extack, channel_parsed,
+				    &chandef);
+	if (ret)
+		return ret;
+
+	if (chandef.chan->band == NL80211_BAND_6GHZ) {
+		NL_SET_ERR_MSG(info->extack,
+			       "6 GHz band is not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &chandef,
+				     NL80211_IFTYPE_NAN)) {
+		NL_SET_ERR_MSG_ATTR(info->extack, channel,
+				    "Channel in NAN schedule is not allowed for NAN operation");
+		return -EINVAL;
+	}
+
+	for (int i = 0; i < index; i++) {
+		if (cfg80211_chandef_compatible(&sched->nan_channels[i].chandef,
+						&chandef)) {
+			NL_SET_ERR_MSG_ATTR(info->extack, channel,
+					    "Channels in NAN schedule must be mutually incompatible");
+			return -EINVAL;
+		}
+	}
+
+	if (!channel_parsed[NL80211_ATTR_NAN_CHANNEL_ENTRY])
+		return -EINVAL;
+
+	sched->nan_channels[index].channel_entry =
+		nla_data(channel_parsed[NL80211_ATTR_NAN_CHANNEL_ENTRY]);
+
+	if (!channel_parsed[NL80211_ATTR_NAN_RX_NSS])
+		return -EINVAL;
+
+	sched->nan_channels[index].rx_nss =
+		nla_get_u8(channel_parsed[NL80211_ATTR_NAN_RX_NSS]);
+
+	n_rx_nss = u8_get_bits(rdev->wiphy.nan_capa.n_antennas, 0x03);
+	if (sched->nan_channels[index].rx_nss > n_rx_nss ||
+	    !sched->nan_channels[index].rx_nss) {
+		NL_SET_ERR_MSG_ATTR(info->extack, channel,
+				    "Invalid RX NSS in NAN channel definition");
+		return -EINVAL;
+	}
+
+	sched->nan_channels[index].chandef = chandef;
+
+	return 0;
+}
+
+static bool nl80211_nan_is_sched_empty(struct cfg80211_nan_local_sched *sched)
+{
+	if (!sched->n_channels)
+		return true;
+
+	for (int i = 0; i < ARRAY_SIZE(sched->schedule); i++) {
+		if (sched->schedule[i] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT)
+			return false;
+	}
+
+	return true;
+}
+
+static int nl80211_nan_set_local_sched(struct sk_buff *skb,
+				       struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct cfg80211_nan_local_sched *sched __free(kfree) = NULL;
+	struct wireless_dev *wdev = info->user_ptr[1];
+	int rem, i = 0, n_channels = 0;
+	struct nlattr *channel;
+	bool sched_empty;
+
+	if (wdev->iftype != NL80211_IFTYPE_NAN)
+		return -EOPNOTSUPP;
+
+	if (!wdev_running(wdev))
+		return -ENOTCONN;
+
+	if (!info->attrs[NL80211_ATTR_NAN_TIME_SLOTS])
+		return -EINVAL;
+
+	/* First count how many channel attributes we got */
+	nlmsg_for_each_attr_type(channel, NL80211_ATTR_NAN_CHANNEL,
+				 info->nlhdr, GENL_HDRLEN, rem)
+		n_channels++;
+
+	sched = kzalloc(struct_size(sched, nan_channels, n_channels),
+			GFP_KERNEL);
+	if (!sched)
+		return -ENOMEM;
+
+	sched->n_channels = n_channels;
+
+	nlmsg_for_each_attr_type(channel, NL80211_ATTR_NAN_CHANNEL,
+				 info->nlhdr, GENL_HDRLEN, rem) {
+		int ret = nl80211_parse_nan_channel(rdev, channel, info, sched,
+						    i);
+
+		if (ret)
+			return ret;
+		i++;
+	}
+
+	memcpy(sched->schedule,
+	       nla_data(info->attrs[NL80211_ATTR_NAN_TIME_SLOTS]),
+	       nla_len(info->attrs[NL80211_ATTR_NAN_TIME_SLOTS]));
+
+	for (int slot = 0; slot < ARRAY_SIZE(sched->schedule); slot++) {
+		if (sched->schedule[slot] != NL80211_NAN_SCHED_NOT_AVAIL_SLOT &&
+		    sched->schedule[slot] >= sched->n_channels) {
+			NL_SET_ERR_MSG(info->extack,
+				       "Invalid time slot in NAN schedule");
+			return -EINVAL;
+		}
+	}
+
+	sched_empty = nl80211_nan_is_sched_empty(sched);
+
+	sched->deferred =
+		nla_get_flag(info->attrs[NL80211_ATTR_NAN_SCHED_DEFERRED]);
+
+	if (sched_empty) {
+		if (sched->deferred) {
+			NL_SET_ERR_MSG(info->extack,
+				       "Schedule cannot be deferred if all time slots are unavailable");
+			return -EINVAL;
+		}
+
+		if (info->attrs[NL80211_ATTR_NAN_AVAIL_BLOB]) {
+			NL_SET_ERR_MSG(info->extack,
+				       "NAN Availability blob must be empty if all time slots are unavailable");
+			return -EINVAL;
+		}
+	} else {
+		if (!info->attrs[NL80211_ATTR_NAN_AVAIL_BLOB]) {
+			NL_SET_ERR_MSG(info->extack,
+				       "NAN Availability blob attribute is required");
+			return -EINVAL;
+		}
+
+		sched->nan_avail_blob =
+			nla_data(info->attrs[NL80211_ATTR_NAN_AVAIL_BLOB]);
+		sched->nan_avail_blob_len =
+			nla_len(info->attrs[NL80211_ATTR_NAN_AVAIL_BLOB]);
+	}
+
+	return cfg80211_nan_set_local_schedule(rdev, wdev, sched);
+}
+
 static int nl80211_get_protocol_features(struct sk_buff *skb,
 					 struct genl_info *info)
 {
@@ -19226,6 +19486,12 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 		.doit = nl80211_epcs_cfg,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
+	},
+	{
+		.cmd = NL80211_CMD_NAN_SET_LOCAL_SCHED,
+		.doit = nl80211_nan_set_local_sched,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_WDEV_UP),
 	},
 };
 
