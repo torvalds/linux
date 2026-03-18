@@ -412,9 +412,9 @@ const char * __init xbc_node_find_next_key_value(struct xbc_node *root,
 
 static int __init xbc_init_node(struct xbc_node *node, char *data, uint16_t flag)
 {
-	unsigned long offset = data - xbc_data;
+	long offset = data - xbc_data;
 
-	if (WARN_ON(offset >= XBC_DATA_MAX))
+	if (WARN_ON(offset < 0 || offset >= XBC_DATA_MAX))
 		return -EINVAL;
 
 	node->data = (uint16_t)offset | flag;
