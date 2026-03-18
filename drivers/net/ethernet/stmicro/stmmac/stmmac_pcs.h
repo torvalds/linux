@@ -41,6 +41,7 @@ struct stmmac_pcs {
 	u32 rgsmii_status_mask;
 	u32 int_mask;
 	struct phylink_pcs pcs;
+	bool support_tbi_rtbi;
 };
 
 static inline struct stmmac_pcs *
