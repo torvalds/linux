@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2026: Mauro Carvalho Chehab <mchehab@kernel.org>
+
+# Test cases for the dynamic tests.
+# Useful to test if kernel-doc classes are doing what it is expected.
+#
+
+tests:
+- name: func1
+  fname: mock_functions.c
+  description: "Simplest function test: do nothing, just rst output"
+
+  source: |
+    /**
+      * func1 - Not exported function
+      * @arg1: @arg1 does nothing
+      *
+      * Does nothing
+      *
+      * return:
+      *    always return 0.
+      */
+    int func1(char *arg1) { return 0; };
+
+
+  expected:
+  - rst: |
+    .. c:function:: int func1 (char *arg1)
+
+      Not exported function
+
+    .. container:: kernelindent
+
+      **Parameters**
+
+      ``char *arg1``
+        **arg1** does nothing
+
+      **Description**
+
+      Does nothing
+
+      **Return**
+
+      always return 0.
+
+    # TODO: how to handle timestamps at .TH?
+    man: |
+      .TH "func1" 9 "February 2026"  "" "Kernel API Manual"
+      .SH NAME
+      func1 \- Not exported function
+      .SH SYNOPSIS
+      .B "int" func1
+      .BI "(char *arg1 "  ");"
+      .SH ARGUMENTS
+      .IP "arg1" 12
+      \fIarg1\fP does nothing
+      .SH "DESCRIPTION"
+      Does nothing
+      .SH "RETURN"
+      always return 0.
+      .SH "SEE ALSO"
+      .PP
+      Kernel file \fBmock_functions.c\fR
+
+- name: func2
+  fname: func2.c
+  description: Simple test with exports
+
+  source: |
+    /**
+      * func2() - Exported function
+      * @arg1: @arg1 does nothing
+      *
+      * Does nothing
+      *
+      * return:
+      *    always return 0.
+      */
+    int func2(char *arg1) { return 0; };
+    EXPORT_SYMBOL(func2);
+
+  exports: func2
+  expected:
+  - kdoc_item:
+      name: func2
+      type: function
+      declaration_start_line: 1
+
+      sections:
+        Description: |
+          Does nothing
+
+        Return: |
+          always return 0.
+
+      sections_start_lines:
+        Description: 3
+        Return: 6
+
+      parameterdescs:
+        arg1: |
+          @arg1 does nothing
+      parameterlist:
+        - arg1
+      parameterdesc_start_lines:
+        arg1: 2
+      parametertypes:
+        arg1: char *arg1
+
+      other_stuff:
+        func_macro: false
+        functiontype: int
+        purpose: "Exported function"
+        typedef: false
+
+    rst: |
+      .. c:function:: int func2 (char *arg1)
+
+        Exported function
+
+      .. container:: kernelindent
+
+        **Parameters**
+
+        ``char *arg1``
+          **arg1** does nothing
+
+        **Description**
+
+        Does nothing
+
+        **Return**
+
+        always return 0.
+
+    # TODO: how to handle timestamps at .TH?
+    man: |
+      .TH "func2" 9 "February 2026"  "" "Kernel API Manual"
+      .SH NAME
+      func2 \- Exported function
+      .SH SYNOPSIS
+      .B "int" func2
+      .BI "(char *arg1 "  ");"
+      .SH ARGUMENTS
+      .IP "arg1" 12
+      \fIarg1\fP does nothing
+      .SH "DESCRIPTION"
+      Does nothing
+      .SH "RETURN"
+      always return 0.
+      .SH "SEE ALSO"
+      .PP
+      Kernel file \fBfunc2.c\fR
