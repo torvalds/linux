@@ -252,6 +252,7 @@ static const struct v4l2_subdev_pad_ops sru_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops sru_ops = {
+	.core	= &vsp1_entity_core_ops,
 	.pad    = &sru_pad_ops,
 };
 

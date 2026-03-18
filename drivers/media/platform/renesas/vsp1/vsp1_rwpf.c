@@ -357,6 +357,7 @@ static const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
 };
 
 const struct v4l2_subdev_ops vsp1_rwpf_subdev_ops = {
+	.core	= &vsp1_entity_core_ops,
 	.pad    = &vsp1_rwpf_pad_ops,
 };
 

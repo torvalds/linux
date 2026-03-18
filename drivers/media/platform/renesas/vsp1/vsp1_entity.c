@@ -14,6 +14,7 @@
 
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
@@ -396,6 +397,11 @@ static const struct v4l2_subdev_internal_ops vsp1_entity_internal_ops = {
 	.init_state = vsp1_entity_init_state,
 };
 
+const struct v4l2_subdev_core_ops vsp1_entity_core_ops = {
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 /* -----------------------------------------------------------------------------
  * Media Operations
  */
@@ -638,6 +644,9 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+
+	if (ops->core == &vsp1_entity_core_ops)
+		subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS;
 
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), name);

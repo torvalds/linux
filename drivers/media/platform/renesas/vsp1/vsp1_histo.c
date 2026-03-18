@@ -424,6 +424,7 @@ static const struct v4l2_subdev_pad_ops histo_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops histo_ops = {
+	.core	= &vsp1_entity_core_ops,
 	.pad    = &histo_pad_ops,
 };
 

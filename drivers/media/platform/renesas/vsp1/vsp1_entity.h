@@ -143,6 +143,8 @@ static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct vsp1_entity, subdev);
 }
 
+extern const struct v4l2_subdev_core_ops vsp1_entity_core_ops;
+
 int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 		     const char *name, unsigned int num_pads,
 		     const struct v4l2_subdev_ops *ops, u32 function);
