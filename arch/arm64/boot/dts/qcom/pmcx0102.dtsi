@@ -46,7 +46,7 @@
 			};
 		};
 
-		pmcx0102-d0-thermal {
+		pmcx0102_d0_thermal: pmcx0102-d0-thermal {
 			polling-delay-passive = <100>;
 			thermal-sensors = <&pmcx0102_d_e0_temp_alarm>;
 

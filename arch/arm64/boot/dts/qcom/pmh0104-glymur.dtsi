@@ -8,7 +8,7 @@
 
 /{
 	thermal_zones {
-		pmh0104-i0-thermal {
+		pmh0104_i0_thermal: pmh0104-i0-thermal {
 			polling-delay-passive = <100>;
 			thermal-sensors = <&pmh0104_i_e0_temp_alarm>;
 
@@ -27,7 +27,7 @@
 			};
 		};
 
-		pmh0104-j0-thermal {
+		pmh0104_j0_thermal: pmh0104-j0-thermal {
 			polling-delay-passive = <100>;
 			thermal-sensors = <&pmh0104_j_e0_temp_alarm>;
 
