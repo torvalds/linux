@@ -1435,6 +1435,13 @@ config HID_KUNIT_TEST
 
 	  If in doubt, say "N".
 
+config HID_HUAWEI
+	tristate "Huawei HID devices support"
+	depends on USB_HID
+	help
+	  Support for huawei cd30 keyboard or other hid devices
+	  that need fix-ups to work properly.
+
 endmenu
 
 source "drivers/hid/bpf/Kconfig"
