@@ -6,7 +6,10 @@ use core::convert::Infallible;
 
 use kernel::prelude::*;
 
-use super::CommandToGsp;
+use super::{
+    CommandToGsp,
+    NoReply, //
+};
 
 use crate::{
     gsp::fw::{
@@ -63,6 +66,7 @@ impl<'a> ContinuationRecord<'a> {
 impl<'a> CommandToGsp for ContinuationRecord<'a> {
     const FUNCTION: MsgFunction = MsgFunction::ContinuationRecord;
     type Command = ();
+    type Reply = NoReply;
     type InitError = Infallible;
 
     fn init(&self) -> impl Init<Self::Command, Self::InitError> {
@@ -144,6 +148,7 @@ impl<C: CommandToGsp> SplitCommand<C> {
 impl<C: CommandToGsp> CommandToGsp for SplitCommand<C> {
     const FUNCTION: MsgFunction = C::FUNCTION;
     type Command = C::Command;
+    type Reply = C::Reply;
     type InitError = C::InitError;
 
     fn init(&self) -> impl Init<Self::Command, Self::InitError> {
@@ -206,6 +211,7 @@ mod tests {
     impl CommandToGsp for TestPayload {
         const FUNCTION: MsgFunction = MsgFunction::Nop;
         type Command = TestHeader;
+        type Reply = NoReply;
         type InitError = Infallible;
 
         fn init(&self) -> impl Init<Self::Command, Self::InitError> {
