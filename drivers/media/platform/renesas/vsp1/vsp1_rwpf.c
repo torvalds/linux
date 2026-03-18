@@ -18,25 +18,93 @@
  * V4L2 Subdevice Operations
  */
 
+/* Keep HSV last. */
 static const unsigned int rwpf_codes[] = {
+	MEDIA_BUS_FMT_AYUV8_1X32,
 	MEDIA_BUS_FMT_ARGB8888_1X32,
 	MEDIA_BUS_FMT_AHSV8888_1X32,
-	MEDIA_BUS_FMT_AYUV8_1X32,
 };
 
 static int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= ARRAY_SIZE(rwpf_codes))
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_state *state;
+	struct v4l2_mbus_framefmt *format;
+
+	if (code->pad == RWPF_PAD_SINK)
+		return vsp1_subdev_enum_mbus_code(subdev, sd_state, code);
+
+	state = vsp1_entity_get_state(entity, sd_state, code->which);
+	if (!state)
 		return -EINVAL;
 
-	code->code = rwpf_codes[code->index];
+	format = v4l2_subdev_state_get_format(state, RWPF_PAD_SINK);
 
-	if (code->pad == RWPF_PAD_SOURCE &&
-	    code->code == MEDIA_BUS_FMT_AYUV8_1X32)
+	guard(mutex)(&entity->lock);
+
+	/*
+	 * The RWPF supports conversion between RGB and YUV formats, but HSV
+	 * formats can't be converted.
+	 */
+	if (format->code == MEDIA_BUS_FMT_AHSV8888_1X32) {
+		if (code->index)
+			return -EINVAL;
+
+		code->code = MEDIA_BUS_FMT_AHSV8888_1X32;
+	} else {
+		if (code->index >= ARRAY_SIZE(rwpf_codes) - 1)
+			return -EINVAL;
+
+		code->code = rwpf_codes[code->index];
+	}
+
+	if (code->code == MEDIA_BUS_FMT_AYUV8_1X32)
 		code->flags = V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
 			    | V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION;
+
+	return 0;
+}
+
+static int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct vsp1_entity *entity = to_vsp1_entity(subdev);
+	struct v4l2_subdev_state *state;
+	struct v4l2_mbus_framefmt *format;
+
+	if (fse->pad == RWPF_PAD_SINK)
+		return vsp1_subdev_enum_frame_size(subdev, sd_state, fse);
+
+	if (fse->index)
+		return -EINVAL;
+
+	state = vsp1_entity_get_state(entity, sd_state, fse->which);
+	if (!state)
+		return -EINVAL;
+
+	format = v4l2_subdev_state_get_format(state, RWPF_PAD_SINK);
+
+	guard(mutex)(&entity->lock);
+
+	/*
+	 * The RWPF supports conversion between RGB and YUV formats, but
+	 * HSV formats can't be converted.
+	 */
+	if ((format->code == MEDIA_BUS_FMT_AHSV8888_1X32) !=
+	    (fse->code == MEDIA_BUS_FMT_AHSV8888_1X32))
+		return -EINVAL;
+
+	/*
+	 * The size on the source pad is fixed and always identical to
+	 * the sink pad.
+	 */
+	fse->min_width = format->width;
+	fse->max_width = format->width;
+	fse->min_height = format->height;
+	fse->max_height = format->height;
 
 	return 0;
 }
@@ -281,7 +349,7 @@ done:
 
 static const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
 	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
-	.enum_frame_size = vsp1_subdev_enum_frame_size,
+	.enum_frame_size = vsp1_rwpf_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = vsp1_rwpf_set_format,
 	.get_selection = vsp1_rwpf_get_selection,
