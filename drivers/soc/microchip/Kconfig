@@ -1,3 +1,14 @@
+config POLARFIRE_SOC_IRQ_MUX
+	bool "Microchip PolarFire SoC's GPIO IRQ Mux"
+	depends on ARCH_MICROCHIP
+	select REGMAP
+	select REGMAP_MMIO
+	default y
+	help
+	  Support for the interrupt mux on Polarfire SoC. It sits between
+	  the GPIO controllers and the PLIC, as only 41 interrupts are shared
+	  between 3 GPIO controllers with a total of 70 interrupts.
+
 config POLARFIRE_SOC_SYS_CTRL
 	tristate "Microchip PolarFire SoC (MPFS) system controller support"
 	depends on POLARFIRE_SOC_MAILBOX
