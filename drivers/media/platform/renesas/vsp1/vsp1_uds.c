@@ -404,6 +404,10 @@ struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index)
 	uds->entity.index = index;
 	uds->entity.codes = uds_codes;
 	uds->entity.num_codes = ARRAY_SIZE(uds_codes);
+	uds->entity.min_width = UDS_MIN_SIZE;
+	uds->entity.max_width = UDS_MAX_SIZE;
+	uds->entity.min_height = UDS_MIN_SIZE;
+	uds->entity.max_height = UDS_MAX_SIZE;
 
 	sprintf(name, "uds.%u", index);
 	ret = vsp1_entity_init(vsp1, &uds->entity, name, 2, &uds_ops,

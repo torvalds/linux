@@ -227,10 +227,6 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
  * @subdev: V4L2 subdevice
  * @sd_state: V4L2 subdev state
  * @fse: Frame size enumeration
- * @min_width: Minimum image width
- * @min_height: Minimum image height
- * @max_width: Maximum image width
- * @max_height: Maximum image height
  *
  * This function implements the subdev enum_frame_size pad operation for
  * entities that do not support scaling or cropping. It reports the given
@@ -239,9 +235,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
  */
 int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_frame_size_enum *fse,
-				unsigned int min_width, unsigned int min_height,
-				unsigned int max_width, unsigned int max_height)
+				struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
 	struct v4l2_subdev_state *state;
@@ -262,10 +256,10 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 	}
 
 	if (fse->pad == 0) {
-		fse->min_width = min_width;
-		fse->max_width = max_width;
-		fse->min_height = min_height;
-		fse->max_height = max_height;
+		fse->min_width = entity->min_width;
+		fse->max_width = entity->max_width;
+		fse->min_height = entity->min_height;
+		fse->max_height = entity->max_height;
 	} else {
 		/*
 		 * The size on the source pad are fixed and always identical to
@@ -287,22 +281,15 @@ done:
  * @subdev: V4L2 subdevice
  * @sd_state: V4L2 subdev state
  * @fmt: V4L2 subdev format
- * @min_width: Minimum image width
- * @min_height: Minimum image height
- * @max_width: Maximum image width
- * @max_height: Maximum image height
  *
  * This function implements the subdev set_fmt pad operation for entities that
  * do not support scaling or cropping. It defaults to the first supported media
  * bus code if the requested code isn't supported, clamps the size to the
- * supplied minimum and maximum, and propagates the sink pad format to the
- * source pad.
+ * entity's limits, and propagates the sink pad format to the source pad.
  */
 int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_format *fmt,
-			       unsigned int min_width, unsigned int min_height,
-			       unsigned int max_width, unsigned int max_height)
+			       struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
 	struct v4l2_subdev_state *state;
@@ -339,9 +326,9 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	format->code = i < entity->num_codes
 		     ? entity->codes[i] : entity->codes[0];
 	format->width = clamp_t(unsigned int, fmt->format.width,
-				min_width, max_width);
+				entity->min_width, entity->max_width);
 	format->height = clamp_t(unsigned int, fmt->format.height,
-				 min_height, max_height);
+				 entity->min_height, entity->max_height);
 	format->field = V4L2_FIELD_NONE;
 
 	format->colorspace = fmt->format.colorspace;

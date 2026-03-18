@@ -39,29 +39,11 @@ static const unsigned int lif_codes[] = {
 	MEDIA_BUS_FMT_AYUV8_1X32,
 };
 
-static int lif_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_frame_size_enum *fse)
-{
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   LIF_MIN_SIZE, LIF_MIN_SIZE,
-					   LIF_MAX_SIZE, LIF_MAX_SIZE);
-}
-
-static int lif_set_format(struct v4l2_subdev *subdev,
-			  struct v4l2_subdev_state *sd_state,
-			  struct v4l2_subdev_format *fmt)
-{
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
-					  LIF_MIN_SIZE, LIF_MIN_SIZE,
-					  LIF_MAX_SIZE, LIF_MAX_SIZE);
-}
-
 static const struct v4l2_subdev_pad_ops lif_pad_ops = {
 	.enum_mbus_code = vsp1_subdev_enum_mbus_code,
-	.enum_frame_size = lif_enum_frame_size,
+	.enum_frame_size = vsp1_subdev_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
-	.set_fmt = lif_set_format,
+	.set_fmt = vsp1_subdev_set_pad_format,
 };
 
 static const struct v4l2_subdev_ops lif_ops = {
@@ -154,6 +136,10 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1, unsigned int index)
 	lif->entity.index = index;
 	lif->entity.codes = lif_codes;
 	lif->entity.num_codes = ARRAY_SIZE(lif_codes);
+	lif->entity.min_width = LIF_MIN_SIZE;
+	lif->entity.min_height = LIF_MIN_SIZE;
+	lif->entity.max_width = LIF_MAX_SIZE;
+	lif->entity.max_height = LIF_MAX_SIZE;
 
 	/*
 	 * The LIF is never exposed to userspace, but media entity registration

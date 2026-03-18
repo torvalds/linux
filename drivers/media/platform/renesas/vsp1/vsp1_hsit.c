@@ -57,15 +57,6 @@ static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
-				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_frame_size_enum *fse)
-{
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   HSIT_MIN_SIZE, HSIT_MIN_SIZE,
-					   HSIT_MAX_SIZE, HSIT_MAX_SIZE);
-}
-
 static int hsit_set_format(struct v4l2_subdev *subdev,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *fmt)
@@ -126,7 +117,7 @@ done:
 
 static const struct v4l2_subdev_pad_ops hsit_pad_ops = {
 	.enum_mbus_code = hsit_enum_mbus_code,
-	.enum_frame_size = hsit_enum_frame_size,
+	.enum_frame_size = vsp1_subdev_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = hsit_set_format,
 };
@@ -181,6 +172,10 @@ struct vsp1_hsit *vsp1_hsit_create(struct vsp1_device *vsp1, bool inverse)
 
 	hsit->entity.codes = hsit_codes;
 	hsit->entity.num_codes = ARRAY_SIZE(hsit_codes);
+	hsit->entity.min_width = HSIT_MIN_SIZE;
+	hsit->entity.min_height = HSIT_MIN_SIZE;
+	hsit->entity.max_width = HSIT_MAX_SIZE;
+	hsit->entity.max_height = HSIT_MAX_SIZE;
 
 	ret = vsp1_entity_init(vsp1, &hsit->entity, inverse ? "hsi" : "hst",
 			       2, &hsit_ops,

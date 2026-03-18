@@ -14,9 +14,6 @@
 #include "vsp1_rwpf.h"
 #include "vsp1_video.h"
 
-#define RWPF_MIN_WIDTH				1
-#define RWPF_MIN_HEIGHT				1
-
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Operations
  */
@@ -42,17 +39,6 @@ static int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 			    | V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION;
 
 	return 0;
-}
-
-static int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_state *sd_state,
-				     struct v4l2_subdev_frame_size_enum *fse)
-{
-	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
-
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   RWPF_MIN_WIDTH, RWPF_MIN_HEIGHT,
-					   rwpf->max_width, rwpf->max_height);
 }
 
 static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
@@ -125,9 +111,9 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 
 	format->code = fmt->format.code;
 	format->width = clamp_t(unsigned int, fmt->format.width,
-				RWPF_MIN_WIDTH, rwpf->max_width);
+				RWPF_MIN_WIDTH, rwpf->entity.max_width);
 	format->height = clamp_t(unsigned int, fmt->format.height,
-				 RWPF_MIN_HEIGHT, rwpf->max_height);
+				 RWPF_MIN_HEIGHT, rwpf->entity.max_height);
 	format->field = V4L2_FIELD_NONE;
 
 	format->colorspace = fmt->format.colorspace;
@@ -275,7 +261,7 @@ done:
 
 static const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
 	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
-	.enum_frame_size = vsp1_rwpf_enum_frame_size,
+	.enum_frame_size = vsp1_subdev_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = vsp1_rwpf_set_format,
 	.get_selection = vsp1_rwpf_get_selection,

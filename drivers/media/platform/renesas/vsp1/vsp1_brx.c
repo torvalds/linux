@@ -410,6 +410,10 @@ struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
 	brx->entity.type = type;
 	brx->entity.codes = brx_codes;
 	brx->entity.num_codes = ARRAY_SIZE(brx_codes);
+	brx->entity.min_width = BRX_MIN_SIZE;
+	brx->entity.max_width = BRX_MAX_SIZE;
+	brx->entity.min_height = BRX_MIN_SIZE;
+	brx->entity.max_height = BRX_MAX_SIZE;
 
 	if (type == VSP1_ENTITY_BRU) {
 		num_pads = vsp1->info->num_bru_inputs + 1;

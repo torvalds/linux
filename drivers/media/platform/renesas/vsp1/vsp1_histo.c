@@ -182,9 +182,7 @@ static int histo_enum_frame_size(struct v4l2_subdev *subdev,
 	if (fse->pad != HISTO_PAD_SINK)
 		return -EINVAL;
 
-	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse,
-					   HISTO_MIN_SIZE, HISTO_MIN_SIZE,
-					   HISTO_MAX_SIZE, HISTO_MAX_SIZE);
+	return vsp1_subdev_enum_frame_size(subdev, sd_state, fse);
 }
 
 static int histo_get_selection(struct v4l2_subdev *subdev,
@@ -359,9 +357,7 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 		return 0;
 	}
 
-	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
-					  HISTO_MIN_SIZE, HISTO_MIN_SIZE,
-					  HISTO_MAX_SIZE, HISTO_MAX_SIZE);
+	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt);
 }
 
 static const struct v4l2_subdev_pad_ops histo_pad_ops = {
@@ -498,6 +494,10 @@ int vsp1_histogram_init(struct vsp1_device *vsp1, struct vsp1_histogram *histo,
 	histo->entity.type = type;
 	histo->entity.codes = formats;
 	histo->entity.num_codes = num_formats;
+	histo->entity.min_width = HISTO_MIN_SIZE;
+	histo->entity.min_height = HISTO_MIN_SIZE;
+	histo->entity.max_width = HISTO_MAX_SIZE;
+	histo->entity.max_height = HISTO_MAX_SIZE;
 
 	ret = vsp1_entity_init(vsp1, &histo->entity, name, 2, &histo_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_STATISTICS);

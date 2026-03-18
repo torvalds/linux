@@ -364,6 +364,10 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 	sru->entity.type = VSP1_ENTITY_SRU;
 	sru->entity.codes = sru_codes;
 	sru->entity.num_codes = ARRAY_SIZE(sru_codes);
+	sru->entity.min_width = SRU_MIN_SIZE;
+	sru->entity.max_width = SRU_MAX_SIZE;
+	sru->entity.min_height = SRU_MIN_SIZE;
+	sru->entity.max_height = SRU_MAX_SIZE;
 
 	ret = vsp1_entity_init(vsp1, &sru->entity, "sru", 2, &sru_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_SCALER);
