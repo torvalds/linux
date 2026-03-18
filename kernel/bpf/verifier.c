@@ -210,6 +210,8 @@ static bool in_rbtree_lock_required_cb(struct bpf_verifier_env *env);
 static int ref_set_non_owning(struct bpf_verifier_env *env,
 			      struct bpf_reg_state *reg);
 static bool is_trusted_reg(const struct bpf_reg_state *reg);
+static inline bool in_sleepable_context(struct bpf_verifier_env *env);
+static const char *non_sleepable_context_description(struct bpf_verifier_env *env);
 
 static bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
 {
@@ -10948,12 +10950,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			return -EINVAL;
 		}
 
-		if (env->subprog_info[subprog].might_sleep &&
-		    (env->cur_state->active_rcu_locks || env->cur_state->active_preempt_locks ||
-		     env->cur_state->active_irq_id || !in_sleepable(env))) {
-			verbose(env, "global functions that may sleep are not allowed in non-sleepable context,\n"
-				     "i.e., in a RCU/IRQ/preempt-disabled section, or in\n"
-				     "a non-sleepable BPF program context\n");
+		if (env->subprog_info[subprog].might_sleep && !in_sleepable_context(env)) {
+			verbose(env, "sleepable global function %s() called in %s\n",
+				sub_name, non_sleepable_context_description(env));
 			return -EINVAL;
 		}
 
