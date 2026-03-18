@@ -14207,6 +14207,7 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_P2P_DEVICE:
 		break;
 	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
 		if (!wiphy_ext_feature_isset(wdev->wiphy,
 					     NL80211_EXT_FEATURE_SECURE_NAN) &&
 		    !(wdev->wiphy->nan_capa.flags &
@@ -14270,6 +14271,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	case NL80211_IFTYPE_P2P_GO:
 		break;
 	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_NAN_DATA:
 		if (!wiphy_ext_feature_isset(wdev->wiphy,
 					     NL80211_EXT_FEATURE_SECURE_NAN) &&
 		    !(wdev->wiphy->nan_capa.flags &
