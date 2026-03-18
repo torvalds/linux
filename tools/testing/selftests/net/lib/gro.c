@@ -63,6 +63,7 @@
 #include <linux/filter.h>
 #include <linux/if_packet.h>
 #include <linux/ipv6.h>
+#include <linux/net_tstamp.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -74,6 +75,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "kselftest.h"
@@ -123,6 +125,9 @@ static int tcp_offset = -1;
 static int total_hdr_len = -1;
 static int ethhdr_proto = -1;
 static bool ipip;
+static uint64_t txtime_ns;
+
+#define TXTIME_DELAY_MS 5
 
 static void vlog(const char *fmt, ...)
 {
@@ -330,13 +335,37 @@ static void fill_transportlayer(void *buf, int seq_offset, int ack_offset,
 
 static void write_packet(int fd, char *buf, int len, struct sockaddr_ll *daddr)
 {
+	char control[CMSG_SPACE(sizeof(uint64_t))];
+	struct msghdr msg = {};
+	struct iovec iov = {};
+	struct cmsghdr *cm;
 	int ret = -1;
 
-	ret = sendto(fd, buf, len, 0, (struct sockaddr *)daddr, sizeof(*daddr));
+	iov.iov_base = buf;
+	iov.iov_len = len;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_name = daddr;
+	msg.msg_namelen = sizeof(*daddr);
+
+	if (txtime_ns) {
+		memset(control, 0, sizeof(control));
+		msg.msg_control = control;
+		msg.msg_controllen = sizeof(control);
+
+		cm = CMSG_FIRSTHDR(&msg);
+		cm->cmsg_level = SOL_SOCKET;
+		cm->cmsg_type = SCM_TXTIME;
+		cm->cmsg_len = CMSG_LEN(sizeof(uint64_t));
+		memcpy(CMSG_DATA(cm), &txtime_ns, sizeof(txtime_ns));
+	}
+
+	ret = sendmsg(fd, &msg, 0);
 	if (ret == -1)
-		error(1, errno, "sendto failure");
+		error(1, errno, "sendmsg failure");
 	if (ret != len)
-		error(1, errno, "sendto wrong length");
+		error(1, 0, "sendmsg wrong length: %d vs %d", ret, len);
 }
 
 static void create_packet(void *buf, int seq_offset, int ack_offset,
@@ -1058,6 +1087,7 @@ static void check_recv_pkts(int fd, int *correct_payload,
 
 static void gro_sender(void)
 {
+	int bufsize = 4 * 1024 * 1024; /* 4 MB */
 	const int fin_delay_us = 100 * 1000;
 	static char fin_pkt[MAX_HDR_LEN];
 	struct sockaddr_ll daddr = {};
@@ -1066,6 +1096,27 @@ static void gro_sender(void)
 	txfd = socket(PF_PACKET, SOCK_RAW, IPPROTO_RAW);
 	if (txfd < 0)
 		error(1, errno, "socket creation");
+
+	if (setsockopt(txfd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize)))
+		error(1, errno, "cannot set sndbuf size, setsockopt failed");
+
+	/* Enable SO_TXTIME unless test case generates more than one flow
+	 * SO_TXTIME could result in qdisc layer sorting the packets at sender.
+	 */
+	if (true) {
+		struct sock_txtime so_txtime = { .clockid = CLOCK_MONOTONIC, };
+		struct timespec ts;
+
+		if (setsockopt(txfd, SOL_SOCKET, SO_TXTIME,
+			       &so_txtime, sizeof(so_txtime)))
+			error(1, errno, "setsockopt SO_TXTIME");
+
+		if (clock_gettime(CLOCK_MONOTONIC, &ts))
+			error(1, errno, "clock_gettime");
+
+		txtime_ns = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+		txtime_ns += TXTIME_DELAY_MS * 1000000ULL;
+	}
 
 	memset(&daddr, 0, sizeof(daddr));
 	daddr.sll_ifindex = if_nametoindex(ifname);
