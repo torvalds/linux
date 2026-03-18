@@ -3587,7 +3587,7 @@ int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset, bool v
 
 	/* step one, relocate all the extents inside this chunk */
 	btrfs_scrub_pause(fs_info);
-	ret = btrfs_relocate_block_group(fs_info, chunk_offset, true);
+	ret = btrfs_relocate_block_group(fs_info, chunk_offset, verbose);
 	btrfs_scrub_continue(fs_info);
 	if (ret) {
 		/*
