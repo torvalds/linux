@@ -66,8 +66,8 @@ static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_crtc_state *crtc_state,
 				struct drm_plane_state *plane_state)
 {
-	struct st7735r_device *priv = to_st7735r_device(pipe->crtc.dev);
-	struct mipi_dbi_dev *dbidev = &priv->dbidev;
+	struct st7735r_device *st7735r = to_st7735r_device(pipe->crtc.dev);
+	struct mipi_dbi_dev *dbidev = &st7735r->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret, idx;
 	u8 addr_mode;
@@ -113,7 +113,7 @@ static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
 		break;
 	}
 
-	if (priv->cfg->rgb)
+	if (st7735r->cfg->rgb)
 		addr_mode |= ST7735R_RGB;
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
@@ -188,7 +188,7 @@ static int st7735r_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct st7735r_cfg *cfg;
 	struct mipi_dbi_dev *dbidev;
-	struct st7735r_device *priv;
+	struct st7735r_device *st7735r;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
@@ -199,13 +199,12 @@ static int st7735r_probe(struct spi_device *spi)
 	if (!cfg)
 		cfg = (void *)spi_get_device_id(spi)->driver_data;
 
-	priv = devm_drm_dev_alloc(dev, &st7735r_driver,
-				  struct st7735r_device, dbidev.drm);
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
+	st7735r = devm_drm_dev_alloc(dev, &st7735r_driver, struct st7735r_device, dbidev.drm);
+	if (IS_ERR(st7735r))
+		return PTR_ERR(st7735r);
 
-	dbidev = &priv->dbidev;
-	priv->cfg = cfg;
+	dbidev = &st7735r->dbidev;
+	st7735r->cfg = cfg;
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
