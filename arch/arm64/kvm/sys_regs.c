@@ -681,6 +681,28 @@ static bool access_gic_dir(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_gicv5_idr0(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			      const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		return undef_access(vcpu, p, r);
+
+	/*
+	 * Expose KVM's priority- and ID-bits to the guest, but not GCIE_LEGACY.
+	 *
+	 * Note: for GICv5 the mimic the way that the num_pri_bits and
+	 * num_id_bits fields are used with GICv3:
+	 * - num_pri_bits stores the actual number of priority bits, whereas the
+	 *   register field stores num_pri_bits - 1.
+	 * - num_id_bits stores the raw field value, which is 0b0000 for 16 bits
+	 *   and 0b0001 for 24 bits.
+	 */
+	p->regval = FIELD_PREP(ICC_IDR0_EL1_PRI_BITS, vcpu->arch.vgic_cpu.num_pri_bits - 1) |
+		    FIELD_PREP(ICC_IDR0_EL1_ID_BITS, vcpu->arch.vgic_cpu.num_id_bits);
+
+	return true;
+}
+
 static bool access_gicv5_iaffid(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 				const struct sys_reg_desc *r)
 {
@@ -3420,6 +3442,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ICC_AP1R1_EL1), undef_access },
 	{ SYS_DESC(SYS_ICC_AP1R2_EL1), undef_access },
 	{ SYS_DESC(SYS_ICC_AP1R3_EL1), undef_access },
+	{ SYS_DESC(SYS_ICC_IDR0_EL1), access_gicv5_idr0 },
 	{ SYS_DESC(SYS_ICC_IAFFIDR_EL1), access_gicv5_iaffid },
 	{ SYS_DESC(SYS_ICC_DIR_EL1), access_gic_dir },
 	{ SYS_DESC(SYS_ICC_RPR_EL1), undef_access },

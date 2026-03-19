@@ -1688,8 +1688,15 @@ static void __compute_ich_hfgrtr(struct kvm_vcpu *vcpu)
 {
 	__compute_fgt(vcpu, ICH_HFGRTR_EL2);
 
-	/* ICC_IAFFIDR_EL1 *always* needs to be trapped when running a guest */
-	*vcpu_fgt(vcpu, ICH_HFGRTR_EL2) &= ~ICH_HFGRTR_EL2_ICC_IAFFIDR_EL1;
+	/*
+	 * ICC_IAFFIDR_EL1 *always* needs to be trapped when running a guest.
+	 *
+	 * We also trap accesses to ICC_IDR0_EL1 to allow us to completely hide
+	 * FEAT_GCIE_LEGACY from the guest, and to (potentially) present fewer
+	 * ID bits than the host supports.
+	 */
+	*vcpu_fgt(vcpu, ICH_HFGRTR_EL2) &= ~(ICH_HFGRTR_EL2_ICC_IAFFIDR_EL1 |
+					     ICH_HFGRTR_EL2_ICC_IDRn_EL1);
 }
 
 void kvm_vcpu_load_fgt(struct kvm_vcpu *vcpu)
