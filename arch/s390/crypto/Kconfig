@@ -2,16 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (s390)"
 
-config CRYPTO_GHASH_S390
-	tristate "Hash functions: GHASH"
-	select CRYPTO_HASH
-	help
-	  GCM GHASH hash function (NIST SP800-38D)
-
-	  Architecture: s390
-
-	  It is available as of z196.
-
 config CRYPTO_AES_S390
 	tristate "Ciphers: AES, modes: ECB, CBC, CTR, XTS, GCM"
 	select CRYPTO_SKCIPHER

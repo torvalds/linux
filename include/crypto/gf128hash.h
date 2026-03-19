@@ -44,7 +44,8 @@ struct ghash_key {
 #if defined(CONFIG_CRYPTO_LIB_GF128HASH_ARCH) && defined(CONFIG_PPC64)
 	/** @htable: GHASH key format used by the POWER8 assembly code */
 	u64 htable[4][2];
-#elif defined(CONFIG_CRYPTO_LIB_GF128HASH_ARCH) && defined(CONFIG_RISCV)
+#elif defined(CONFIG_CRYPTO_LIB_GF128HASH_ARCH) && \
+	(defined(CONFIG_RISCV) || defined(CONFIG_S390))
 	/** @h_raw: The hash key H, in GHASH format */
 	u8 h_raw[GHASH_BLOCK_SIZE];
 #endif
