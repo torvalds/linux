@@ -499,7 +499,7 @@ void vcpu_set_ich_hcr(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *vgic_v3 = &vcpu->arch.vgic_cpu.vgic_v3;
 
-	if (!vgic_is_v3(vcpu->kvm))
+	if (!vgic_host_has_gicv3())
 		return;
 
 	/* Hide GICv3 sysreg if necessary */
