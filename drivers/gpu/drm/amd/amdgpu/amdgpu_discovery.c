@@ -1421,14 +1421,12 @@ void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p)
 	struct ip_hw_instance *ip_inst;
 	int i = 0, j;
 
-	drm_printf(p, "\nHW IP Discovery\n");
-
-	if (!ip_top) {
-		drm_printf(p, "ip discovery topology unavailable\n");
+	if (!ip_top)
 		return;
-	}
 
 	die_kset = &ip_top->die_kset;
+
+	drm_printf(p, "\nHW IP Discovery\n");
 
 	spin_lock(&die_kset->list_lock);
 	list_for_each(el_die, &die_kset->list) {
