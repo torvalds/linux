@@ -31,7 +31,6 @@
 #define IWL_SGOM_MAP_SIZE		339
 #define IWL_UATS_MAP_SIZE		339
 
-#define IWL_UEFI_WGDS_REVISION		3
 #define IWL_UEFI_MIN_WTAS_REVISION	1
 #define IWL_UEFI_MAX_WTAS_REVISION	2
 #define IWL_UEFI_SPLC_REVISION		0
@@ -82,6 +81,7 @@ struct uefi_cnv_common_step_data {
 #define UEFI_SAR_MAX_CHAINS_PER_PROFILE	4
 
 #define UEFI_GEO_NUM_BANDS_REV3		3
+#define UEFI_GEO_NUM_BANDS_REV4		4
 
 /*
  * struct uefi_cnv_var_wrds - WRDS table as defined in UEFI
@@ -150,7 +150,8 @@ struct uefi_cnv_var_ewrd {
  * @vals: a per-profile table of the offsets to add to SAR values. This is an
  *	array of profiles, each profile is an array of
  *	&struct iwl_geo_profile_band, one for each subband.
- *	There are %UEFI_GEO_NUM_BANDS_REV3 subbands.
+ *	There are %UEFI_GEO_NUM_BANDS_REV3 or %UEFI_GEO_NUM_BANDS_REV4 subbands
+ *	depending on the revision.
  */
 struct uefi_cnv_var_wgds {
 	u8 revision;
@@ -163,9 +164,15 @@ struct uefi_cnv_var_wgds {
  */
 #define UEFI_WGDS_PROFILE_SIZE_REV3 (sizeof(u8) * 3 * UEFI_GEO_NUM_BANDS_REV3)
 
+#define UEFI_WGDS_PROFILE_SIZE_REV4 (sizeof(u8) * 3 * UEFI_GEO_NUM_BANDS_REV4)
+
 #define UEFI_WGDS_TABLE_SIZE_REV3				\
 	(offsetof(struct uefi_cnv_var_wgds, vals) +		\
 	 UEFI_WGDS_PROFILE_SIZE_REV3 * BIOS_GEO_MAX_PROFILE_NUM)
+
+#define UEFI_WGDS_TABLE_SIZE_REV4				\
+	(offsetof(struct uefi_cnv_var_wgds, vals) +		\
+	 UEFI_WGDS_PROFILE_SIZE_REV4 * BIOS_GEO_MAX_PROFILE_NUM)
 
 /*
  * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
