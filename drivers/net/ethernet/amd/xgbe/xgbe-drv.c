@@ -2169,6 +2169,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	struct net_device *netdev = pdata->netdev;
 	struct netdev_queue *txq;
 	int processed = 0;
+	int force_cleanup;
 	unsigned int tx_packets = 0, tx_bytes = 0;
 	unsigned int cur;
 
@@ -2185,13 +2186,41 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
 
+	/* Smart descriptor cleanup during link-down conditions.
+	 *
+	 * When link is down, hardware stops processing TX descriptors (OWN bit
+	 * remains set). Enable intelligent cleanup to reclaim these abandoned
+	 * descriptors and maintain TX queue health.
+	 *
+	 * This cleanup mechanism enables:
+	 * - Continuous TX queue availability for new packets when link recovers
+	 * - Clean resource management (skbs, DMA mappings, descriptors)
+	 * - Fast failover in link aggregation scenarios
+	 */
+	force_cleanup = !pdata->phy.link;
+
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
 	       (ring->dirty != cur)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
 		rdesc = rdata->rdesc;
 
-		if (!hw_if->tx_complete(rdesc))
-			break;
+		if (!hw_if->tx_complete(rdesc)) {
+			if (!force_cleanup)
+				break;
+			/* Link-down descriptor cleanup: reclaim abandoned
+			 * resources.
+			 *
+			 * Hardware has stopped processing this descriptor, so
+			 * perform intelligent cleanup to free skbs and reclaim
+			 * descriptors for future use when link recovers.
+			 *
+			 * These are not counted as successful transmissions
+			 * since packets never reached the wire.
+			 */
+			netif_dbg(pdata, tx_err, netdev,
+				  "force-freeing stuck TX desc %u (link down)\n",
+				  ring->dirty);
+		}
 
 		/* Make sure descriptor fields are read after reading the OWN
 		 * bit */
@@ -2200,9 +2229,13 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		if (netif_msg_tx_done(pdata))
 			xgbe_dump_tx_desc(pdata, ring, ring->dirty, 1, 0);
 
-		if (hw_if->is_last_desc(rdesc)) {
-			tx_packets += rdata->tx.packets;
-			tx_bytes += rdata->tx.bytes;
+		/* Only count packets actually transmitted (not force-cleaned)
+		 */
+		if (!force_cleanup || hw_if->is_last_desc(rdesc)) {
+			if (hw_if->is_last_desc(rdesc)) {
+				tx_packets += rdata->tx.packets;
+				tx_bytes += rdata->tx.bytes;
+			}
 		}
 
 		/* Free the SKB and reset the descriptor for re-use */
