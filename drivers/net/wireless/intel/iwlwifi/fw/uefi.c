@@ -593,10 +593,11 @@ out:
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_wgds *data;
-	int i, ret = 0;
+	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WGDS_NAME,
-					      "WGDS", sizeof(*data), NULL);
+					      "WGDS", UEFI_WGDS_TABLE_SIZE_REV3,
+					      NULL);
 	if (IS_ERR(data))
 		return -EINVAL;
 
@@ -615,10 +616,32 @@ int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 		goto out;
 	}
 
+	if (WARN_ON(BIOS_GEO_MAX_PROFILE_NUM >
+		    ARRAY_SIZE(fwrt->geo_profiles) ||
+		    UEFI_GEO_NUM_BANDS_REV3 >
+		    ARRAY_SIZE(fwrt->geo_profiles[0].bands) ||
+		    BIOS_GEO_NUM_CHAINS >
+		    ARRAY_SIZE(fwrt->geo_profiles[0].bands[0].chains))) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	fwrt->geo_rev = data->revision;
-	for (i = 0; i < data->num_profiles; i++)
-		memcpy(&fwrt->geo_profiles[i], &data->geo_profiles[i],
-		       sizeof(struct iwl_geo_profile));
+	for (int prof = 0; prof < data->num_profiles; prof++) {
+		const u8 *val = &data->vals[UEFI_WGDS_PROFILE_SIZE_REV3 * prof];
+		struct iwl_geo_profile *geo_prof = &fwrt->geo_profiles[prof];
+
+		for (int subband = 0;
+		     subband < UEFI_GEO_NUM_BANDS_REV3;
+		     subband++) {
+			geo_prof->bands[subband].max = *val++;
+
+			for (int chain = 0;
+			     chain < BIOS_GEO_NUM_CHAINS;
+			     chain++)
+				geo_prof->bands[subband].chains[chain] = *val++;
+		}
+	}
 
 	fwrt->geo_num_profiles = data->num_profiles;
 	fwrt->geo_enabled = true;
