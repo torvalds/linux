@@ -55,7 +55,7 @@ void abort(void);
 __attribute__((weak,unused,noreturn,section(".text.nolibc_abort")))
 void abort(void)
 {
-	sys_kill(sys_getpid(), SIGABRT);
+	_sys_kill(_sys_getpid(), SIGABRT);
 	for (;;);
 }
 

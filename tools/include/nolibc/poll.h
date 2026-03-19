@@ -21,7 +21,7 @@
  */
 
 static __attribute__((unused))
-int sys_poll(struct pollfd *fds, int nfds, int timeout)
+int _sys_poll(struct pollfd *fds, int nfds, int timeout)
 {
 #if defined(__NR_ppoll_time64)
 	struct __kernel_timespec t;
@@ -45,7 +45,7 @@ int sys_poll(struct pollfd *fds, int nfds, int timeout)
 static __attribute__((unused))
 int poll(struct pollfd *fds, int nfds, int timeout)
 {
-	return __sysret(sys_poll(fds, nfds, timeout));
+	return __sysret(_sys_poll(fds, nfds, timeout));
 }
 
 #endif /* _NOLIBC_POLL_H */

@@ -19,7 +19,7 @@
  * long ptrace(int op, pid_t pid, void *addr, void *data);
  */
 static __attribute__((unused))
-long sys_ptrace(int op, pid_t pid, void *addr, void *data)
+long _sys_ptrace(int op, pid_t pid, void *addr, void *data)
 {
 	return __nolibc_syscall4(__NR_ptrace, op, pid, addr, data);
 }
@@ -27,7 +27,7 @@ long sys_ptrace(int op, pid_t pid, void *addr, void *data)
 static __attribute__((unused))
 ssize_t ptrace(int op, pid_t pid, void *addr, void *data)
 {
-	return __sysret(sys_ptrace(op, pid, addr, data));
+	return __sysret(_sys_ptrace(op, pid, addr, data));
 }
 
 #endif /* _NOLIBC_SYS_PTRACE_H */

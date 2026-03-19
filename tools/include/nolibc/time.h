@@ -33,7 +33,7 @@
  */
 
 static __attribute__((unused))
-int sys_clock_getres(clockid_t clockid, struct timespec *res)
+int _sys_clock_getres(clockid_t clockid, struct timespec *res)
 {
 #if defined(__NR_clock_getres_time64)
 	__nolibc_assert_time64_type(res->tv_sec);
@@ -47,11 +47,11 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 static __attribute__((unused))
 int clock_getres(clockid_t clockid, struct timespec *res)
 {
-	return __sysret(sys_clock_getres(clockid, res));
+	return __sysret(_sys_clock_getres(clockid, res));
 }
 
 static __attribute__((unused))
-int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
+int _sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_gettime64)
 	__nolibc_assert_time64_type(tp->tv_sec);
@@ -65,11 +65,11 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 static __attribute__((unused))
 int clock_gettime(clockid_t clockid, struct timespec *tp)
 {
-	return __sysret(sys_clock_gettime(clockid, tp));
+	return __sysret(_sys_clock_gettime(clockid, tp));
 }
 
 static __attribute__((unused))
-int sys_clock_settime(clockid_t clockid, struct timespec *tp)
+int _sys_clock_settime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_settime64)
 	__nolibc_assert_time64_type(tp->tv_sec);
@@ -83,12 +83,12 @@ int sys_clock_settime(clockid_t clockid, struct timespec *tp)
 static __attribute__((unused))
 int clock_settime(clockid_t clockid, struct timespec *tp)
 {
-	return __sysret(sys_clock_settime(clockid, tp));
+	return __sysret(_sys_clock_settime(clockid, tp));
 }
 
 static __attribute__((unused))
-int sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
-			struct timespec *rmtp)
+int _sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
+			 struct timespec *rmtp)
 {
 #if defined(__NR_clock_nanosleep_time64)
 	__nolibc_assert_time64_type(rqtp->tv_sec);
@@ -104,7 +104,7 @@ int clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
 		    struct timespec *rmtp)
 {
 	/* Directly return a positive error number */
-	return -sys_clock_nanosleep(clockid, flags, rqtp, rmtp);
+	return -_sys_clock_nanosleep(clockid, flags, rqtp, rmtp);
 }
 
 static __inline__
@@ -116,7 +116,7 @@ double difftime(time_t time1, time_t time2)
 static __inline__
 int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
 {
-	return __sysret(sys_clock_nanosleep(CLOCK_REALTIME, 0, rqtp, rmtp));
+	return __sysret(_sys_clock_nanosleep(CLOCK_REALTIME, 0, rqtp, rmtp));
 }
 
 
@@ -126,7 +126,7 @@ time_t time(time_t *tptr)
 	struct timeval tv;
 
 	/* note, cannot fail here */
-	sys_gettimeofday(&tv, NULL);
+	_sys_gettimeofday(&tv, NULL);
 
 	if (tptr)
 		*tptr = tv.tv_sec;
@@ -141,7 +141,7 @@ time_t time(time_t *tptr)
  */
 
 static __attribute__((unused))
-int sys_timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
+int _sys_timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 {
 	return __nolibc_syscall3(__NR_timer_create, clockid, evp, timerid);
 }
@@ -149,11 +149,11 @@ int sys_timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 static __attribute__((unused))
 int timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 {
-	return __sysret(sys_timer_create(clockid, evp, timerid));
+	return __sysret(_sys_timer_create(clockid, evp, timerid));
 }
 
 static __attribute__((unused))
-int sys_timer_delete(timer_t timerid)
+int _sys_timer_delete(timer_t timerid)
 {
 	return __nolibc_syscall1(__NR_timer_delete, timerid);
 }
@@ -161,11 +161,11 @@ int sys_timer_delete(timer_t timerid)
 static __attribute__((unused))
 int timer_delete(timer_t timerid)
 {
-	return __sysret(sys_timer_delete(timerid));
+	return __sysret(_sys_timer_delete(timerid));
 }
 
 static __attribute__((unused))
-int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
+int _sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 {
 #if defined(__NR_timer_gettime64)
 	__nolibc_assert_time64_type(curr_value->it_value.tv_sec);
@@ -179,12 +179,12 @@ int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 static __attribute__((unused))
 int timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 {
-	return __sysret(sys_timer_gettime(timerid, curr_value));
+	return __sysret(_sys_timer_gettime(timerid, curr_value));
 }
 
 static __attribute__((unused))
-int sys_timer_settime(timer_t timerid, int flags,
-		      const struct itimerspec *new_value, struct itimerspec *old_value)
+int _sys_timer_settime(timer_t timerid, int flags,
+		       const struct itimerspec *new_value, struct itimerspec *old_value)
 {
 #if defined(__NR_timer_settime64)
 	__nolibc_assert_time64_type(new_value->it_value.tv_sec);
@@ -199,7 +199,7 @@ static __attribute__((unused))
 int timer_settime(timer_t timerid, int flags,
 		  const struct itimerspec *new_value, struct itimerspec *old_value)
 {
-	return __sysret(sys_timer_settime(timerid, flags, new_value, old_value));
+	return __sysret(_sys_timer_settime(timerid, flags, new_value, old_value));
 }
 
 #endif /* _NOLIBC_TIME_H */

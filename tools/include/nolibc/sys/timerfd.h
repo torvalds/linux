@@ -17,7 +17,7 @@
 
 
 static __attribute__((unused))
-int sys_timerfd_create(int clockid, int flags)
+int _sys_timerfd_create(int clockid, int flags)
 {
 	return __nolibc_syscall2(__NR_timerfd_create, clockid, flags);
 }
@@ -25,12 +25,12 @@ int sys_timerfd_create(int clockid, int flags)
 static __attribute__((unused))
 int timerfd_create(int clockid, int flags)
 {
-	return __sysret(sys_timerfd_create(clockid, flags));
+	return __sysret(_sys_timerfd_create(clockid, flags));
 }
 
 
 static __attribute__((unused))
-int sys_timerfd_gettime(int fd, struct itimerspec *curr_value)
+int _sys_timerfd_gettime(int fd, struct itimerspec *curr_value)
 {
 #if defined(__NR_timerfd_gettime64)
 	__nolibc_assert_time64_type(curr_value->it_value.tv_sec);
@@ -44,13 +44,13 @@ int sys_timerfd_gettime(int fd, struct itimerspec *curr_value)
 static __attribute__((unused))
 int timerfd_gettime(int fd, struct itimerspec *curr_value)
 {
-	return __sysret(sys_timerfd_gettime(fd, curr_value));
+	return __sysret(_sys_timerfd_gettime(fd, curr_value));
 }
 
 
 static __attribute__((unused))
-int sys_timerfd_settime(int fd, int flags,
-			const struct itimerspec *new_value, struct itimerspec *old_value)
+int _sys_timerfd_settime(int fd, int flags,
+			 const struct itimerspec *new_value, struct itimerspec *old_value)
 {
 #if defined(__NR_timerfd_settime64)
 	__nolibc_assert_time64_type(new_value->it_value.tv_sec);
@@ -65,7 +65,7 @@ static __attribute__((unused))
 int timerfd_settime(int fd, int flags,
 		    const struct itimerspec *new_value, struct itimerspec *old_value)
 {
-	return __sysret(sys_timerfd_settime(fd, flags, new_value, old_value));
+	return __sysret(_sys_timerfd_settime(fd, flags, new_value, old_value));
 }
 
 #endif /* _NOLIBC_SYS_TIMERFD_H */

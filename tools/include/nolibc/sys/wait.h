@@ -21,7 +21,7 @@
  */
 
 static __attribute__((unused))
-int sys_waitid(int which, pid_t pid, siginfo_t *infop, int options, struct rusage *rusage)
+int _sys_waitid(int which, pid_t pid, siginfo_t *infop, int options, struct rusage *rusage)
 {
 	return __nolibc_syscall5(__NR_waitid, which, pid, infop, options, rusage);
 }
@@ -29,7 +29,7 @@ int sys_waitid(int which, pid_t pid, siginfo_t *infop, int options, struct rusag
 static __attribute__((unused))
 int waitid(int which, pid_t pid, siginfo_t *infop, int options)
 {
-	return __sysret(sys_waitid(which, pid, infop, options, NULL));
+	return __sysret(_sys_waitid(which, pid, infop, options, NULL));
 }
 
 

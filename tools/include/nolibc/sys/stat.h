@@ -23,7 +23,7 @@
  */
 
 static __attribute__((unused))
-int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
+int _sys_statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
 {
 #ifdef __NR_statx
 	return __nolibc_syscall5(__NR_statx, fd, path, flags, mask, buf);
@@ -35,7 +35,7 @@ int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct sta
 static __attribute__((unused))
 int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
 {
-	return __sysret(sys_statx(fd, path, flags, mask, buf));
+	return __sysret(_sys_statx(fd, path, flags, mask, buf));
 }
 
 
@@ -45,7 +45,7 @@ int fstatat(int fd, const char *path, struct stat *buf, int flag)
 	struct statx statx;
 	long ret;
 
-	ret = __sysret(sys_statx(fd, path, flag | AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
+	ret = __sysret(_sys_statx(fd, path, flag | AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
 	if (ret == -1)
 		return ret;
 

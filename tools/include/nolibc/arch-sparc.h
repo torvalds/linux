@@ -175,7 +175,7 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 static pid_t getpid(void);
 
 static __attribute__((unused))
-pid_t sys_fork(void)
+pid_t _sys_fork(void)
 {
 	pid_t parent, ret;
 
@@ -188,10 +188,10 @@ pid_t sys_fork(void)
 	else
 		return ret;
 }
-#define sys_fork sys_fork
+#define _sys_fork _sys_fork
 
 static __attribute__((unused))
-pid_t sys_vfork(void)
+pid_t _sys_vfork(void)
 {
 	pid_t parent, ret;
 
@@ -204,6 +204,6 @@ pid_t sys_vfork(void)
 	else
 		return ret;
 }
-#define sys_vfork sys_vfork
+#define _sys_vfork _sys_vfork
 
 #endif /* _NOLIBC_ARCH_SPARC_H */

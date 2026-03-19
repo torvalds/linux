@@ -167,8 +167,8 @@ struct s390_mmap_arg_struct {
 };
 
 static __attribute__((unused))
-void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
-	       off_t offset)
+void *_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
+		off_t offset)
 {
 	struct s390_mmap_arg_struct args = {
 		.addr = (unsigned long)addr,
@@ -181,20 +181,20 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 
 	return (void *)__nolibc_syscall1(__NR_mmap, &args);
 }
-#define sys_mmap sys_mmap
+#define _sys_mmap _sys_mmap
 
 static __attribute__((unused))
-pid_t sys_fork(void)
+pid_t _sys_fork(void)
 {
 	return __nolibc_syscall5(__NR_clone, 0, SIGCHLD, 0, 0, 0);
 }
-#define sys_fork sys_fork
+#define _sys_fork _sys_fork
 
 static __attribute__((unused))
-pid_t sys_vfork(void)
+pid_t _sys_vfork(void)
 {
 	return __nolibc_syscall5(__NR_clone, 0, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0);
 }
-#define sys_vfork sys_vfork
+#define _sys_vfork _sys_vfork
 
 #endif /* _NOLIBC_ARCH_S390_H */

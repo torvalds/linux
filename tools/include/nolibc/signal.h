@@ -20,7 +20,7 @@ int raise(int signal);
 __attribute__((weak,unused,section(".text.nolibc_raise")))
 int raise(int signal)
 {
-	return sys_kill(sys_getpid(), signal);
+	return _sys_kill(_sys_getpid(), signal);
 }
 
 #endif /* _NOLIBC_SIGNAL_H */
