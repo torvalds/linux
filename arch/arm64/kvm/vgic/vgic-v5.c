@@ -39,24 +39,14 @@ static void vgic_v5_get_implemented_ppis(void)
 
 /*
  * Probe for a vGICv5 compatible interrupt controller, returning 0 on success.
- * Currently only supports GICv3-based VMs on a GICv5 host, and hence only
- * registers a VGIC_V3 device.
  */
 int vgic_v5_probe(const struct gic_kvm_info *info)
 {
+	bool v5_registered = false;
 	u64 ich_vtr_el2;
 	int ret;
 
-	vgic_v5_get_implemented_ppis();
-
-	if (!cpus_have_final_cap(ARM64_HAS_GICV5_LEGACY))
-		return -ENODEV;
-
 	kvm_vgic_global_state.type = VGIC_V5;
-	kvm_vgic_global_state.has_gcie_v3_compat = true;
-
-	/* We only support v3 compat mode - use vGICv3 limits */
-	kvm_vgic_global_state.max_gic_vcpus = VGIC_V3_MAX_CPUS;
 
 	kvm_vgic_global_state.vcpu_base = 0;
 	kvm_vgic_global_state.vctrl_base = NULL;
@@ -64,6 +54,38 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.has_gicv4 = false;
 	kvm_vgic_global_state.has_gicv4_1 = false;
 
+	/*
+	 * GICv5 is currently not supported in Protected mode. Skip the
+	 * registration of GICv5 completely to make sure no guests can create a
+	 * GICv5-based guest.
+	 */
+	if (is_protected_kvm_enabled()) {
+		kvm_info("GICv5-based guests are not supported with pKVM\n");
+		goto skip_v5;
+	}
+
+	kvm_vgic_global_state.max_gic_vcpus = VGIC_V5_MAX_CPUS;
+
+	vgic_v5_get_implemented_ppis();
+
+	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V5);
+	if (ret) {
+		kvm_err("Cannot register GICv5 KVM device.\n");
+		goto skip_v5;
+	}
+
+	v5_registered = true;
+	kvm_info("GCIE system register CPU interface\n");
+
+skip_v5:
+	/* If we don't support the GICv3 compat mode we're done. */
+	if (!cpus_have_final_cap(ARM64_HAS_GICV5_LEGACY)) {
+		if (!v5_registered)
+			return -ENODEV;
+		return 0;
+	}
+
+	kvm_vgic_global_state.has_gcie_v3_compat = true;
 	ich_vtr_el2 =  kvm_call_hyp_ret(__vgic_v3_get_gic_config);
 	kvm_vgic_global_state.ich_vtr_el2 = (u32)ich_vtr_el2;
 
@@ -78,6 +100,10 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 		kvm_err("Cannot register GICv3-legacy KVM device.\n");
 		return ret;
 	}
+
+	/* We potentially limit the max VCPUs further than we need to here */
+	kvm_vgic_global_state.max_gic_vcpus = min(VGIC_V3_MAX_CPUS,
+						  VGIC_V5_MAX_CPUS);
 
 	static_branch_enable(&kvm_vgic_global_state.gicv3_cpuif);
 	kvm_info("GCIE legacy system register CPU interface\n");
