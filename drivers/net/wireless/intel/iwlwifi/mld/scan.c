@@ -47,8 +47,6 @@
 /* adaptive dwell number of APs override mask for social channels */
 #define IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS_BIT BIT(21)
 
-#define SCAN_TIMEOUT_MSEC (30000 * HZ)
-
 /* minimal number of 2GHz and 5GHz channels in the regular scan request */
 #define IWL_MLD_6GHZ_PASSIVE_SCAN_MIN_CHANS 4
 
