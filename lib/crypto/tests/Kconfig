@@ -35,6 +35,14 @@ config CRYPTO_LIB_CURVE25519_KUNIT_TEST
 	help
 	  KUnit tests for the Curve25519 Diffie-Hellman function.
 
+config CRYPTO_LIB_GHASH_KUNIT_TEST
+	tristate "KUnit tests for GHASH" if !KUNIT_ALL_TESTS
+	depends on KUNIT && CRYPTO_LIB_GF128HASH
+	default KUNIT_ALL_TESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	help
+	  KUnit tests for the GHASH library functions.
+
 config CRYPTO_LIB_MD5_KUNIT_TEST
 	tristate "KUnit tests for MD5" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CRYPTO_LIB_MD5

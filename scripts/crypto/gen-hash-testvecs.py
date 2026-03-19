@@ -68,6 +68,52 @@ class Poly1305:
         m = (self.h + self.s) % 2**128
         return m.to_bytes(16, byteorder='little')
 
+GHASH_POLY = sum((1 << i) for i in [128, 7, 2, 1, 0])
+GHASH_BLOCK_SIZE = 16
+
+# A straightforward, unoptimized implementation of GHASH.
+class Ghash:
+
+    @staticmethod
+    def reflect_bits_in_bytes(v):
+        res = 0
+        for offs in range(0, 128, 8):
+            for bit in range(8):
+                if (v & (1 << (offs + bit))) != 0:
+                    res ^= 1 << (offs + 7 - bit)
+        return res
+
+    @staticmethod
+    def bytes_to_poly(data):
+        return Ghash.reflect_bits_in_bytes(int.from_bytes(data, byteorder='little'))
+
+    @staticmethod
+    def poly_to_bytes(poly):
+        return Ghash.reflect_bits_in_bytes(poly).to_bytes(16, byteorder='little')
+
+    def __init__(self, key):
+        assert len(key) == 16
+        self.h = Ghash.bytes_to_poly(key)
+        self.acc = 0
+
+    # Note: this supports partial blocks only at the end.
+    def update(self, data):
+        for i in range(0, len(data), 16):
+            # acc += block
+            self.acc ^= Ghash.bytes_to_poly(data[i:i+16])
+            # acc = (acc * h) mod GHASH_POLY
+            product = 0
+            for j in range(127, -1, -1):
+                if (self.h & (1 << j)) != 0:
+                    product ^= self.acc << j
+                if (product & (1 << (128 + j))) != 0:
+                    product ^= GHASH_POLY << j
+            self.acc = product
+        return self
+
+    def digest(self):
+        return Ghash.poly_to_bytes(self.acc)
+
 POLYVAL_POLY = sum((1 << i) for i in [128, 127, 126, 121, 0])
 POLYVAL_BLOCK_SIZE = 16
 
@@ -103,6 +149,8 @@ def hash_init(alg):
     # unkeyed hash functions to work on them.
     if alg == 'aes-cmac':
         return AesCmac(rand_bytes(AES_256_KEY_SIZE))
+    if alg == 'ghash':
+        return Ghash(rand_bytes(GHASH_BLOCK_SIZE))
     if alg == 'poly1305':
         return Poly1305(rand_bytes(POLY1305_KEY_SIZE))
     if alg == 'polyval':
@@ -257,6 +305,15 @@ def gen_additional_poly1305_testvecs():
             'poly1305_allones_macofmacs[POLY1305_DIGEST_SIZE]',
             Poly1305(key).update(data).digest())
 
+def gen_additional_ghash_testvecs():
+    key = b'\xff' * GHASH_BLOCK_SIZE
+    hashes = b''
+    for data_len in range(0, 4097, 16):
+        hashes += Ghash(key).update(b'\xff' * data_len).digest()
+    print_static_u8_array_definition(
+            'ghash_allones_hashofhashes[GHASH_DIGEST_SIZE]',
+            Ghash(key).update(hashes).digest())
+
 def gen_additional_polyval_testvecs():
     key = b'\xff' * POLYVAL_BLOCK_SIZE
     hashes = b''
@@ -268,7 +325,8 @@ def gen_additional_polyval_testvecs():
 
 if len(sys.argv) != 2:
     sys.stderr.write('Usage: gen-hash-testvecs.py ALGORITHM\n')
-    sys.stderr.write('ALGORITHM may be any supported by Python hashlib; or poly1305, polyval, or sha3.\n')
+    sys.stderr.write('ALGORITHM may be any supported by Python hashlib;\n')
+    sys.stderr.write('  or aes-cmac, ghash, nh, poly1305, polyval, or sha3.\n')
     sys.stderr.write('Example: gen-hash-testvecs.py sha512\n')
     sys.exit(1)
 
@@ -280,6 +338,9 @@ if alg == 'aes-cmac':
 elif alg.startswith('blake2'):
     gen_unkeyed_testvecs(alg)
     gen_additional_blake2_testvecs(alg)
+elif alg == 'ghash':
+    gen_unkeyed_testvecs(alg)
+    gen_additional_ghash_testvecs()
 elif alg == 'nh':
     gen_nh_testvecs()
 elif alg == 'poly1305':
