@@ -93,6 +93,55 @@ scheduler has been loaded):
     # cat /sys/kernel/sched_ext/enable_seq
     1
 
+Each running scheduler also exposes a per-scheduler ``events`` file under
+``/sys/kernel/sched_ext/<scheduler-name>/events`` that tracks diagnostic
+counters. Each counter occupies one ``name value`` line:
+
+.. code-block:: none
+
+    # cat /sys/kernel/sched_ext/simple/events
+    SCX_EV_SELECT_CPU_FALLBACK 0
+    SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE 0
+    SCX_EV_DISPATCH_KEEP_LAST 123
+    SCX_EV_ENQ_SKIP_EXITING 0
+    SCX_EV_ENQ_SKIP_MIGRATION_DISABLED 0
+    SCX_EV_REENQ_IMMED 0
+    SCX_EV_REENQ_LOCAL_REPEAT 0
+    SCX_EV_REFILL_SLICE_DFL 456789
+    SCX_EV_BYPASS_DURATION 0
+    SCX_EV_BYPASS_DISPATCH 0
+    SCX_EV_BYPASS_ACTIVATE 0
+    SCX_EV_INSERT_NOT_OWNED 0
+    SCX_EV_SUB_BYPASS_DISPATCH 0
+
+The counters are described in ``kernel/sched/ext_internal.h``; briefly:
+
+* ``SCX_EV_SELECT_CPU_FALLBACK``: ops.select_cpu() returned a CPU unusable by
+  the task and the core scheduler silently picked a fallback CPU.
+* ``SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE``: a local-DSQ dispatch was redirected
+  to the global DSQ because the target CPU went offline.
+* ``SCX_EV_DISPATCH_KEEP_LAST``: a task continued running because no other
+  task was available (only when ``SCX_OPS_ENQ_LAST`` is not set).
+* ``SCX_EV_ENQ_SKIP_EXITING``: an exiting task was dispatched to the local DSQ
+  directly, bypassing ops.enqueue() (only when ``SCX_OPS_ENQ_EXITING`` is not set).
+* ``SCX_EV_ENQ_SKIP_MIGRATION_DISABLED``: a migration-disabled task was
+  dispatched to its local DSQ directly (only when
+  ``SCX_OPS_ENQ_MIGRATION_DISABLED`` is not set).
+* ``SCX_EV_REENQ_IMMED``: a task dispatched with ``SCX_ENQ_IMMED`` was
+  re-enqueued because the target CPU was not available for immediate execution.
+* ``SCX_EV_REENQ_LOCAL_REPEAT``: a reenqueue of the local DSQ triggered
+  another reenqueue; recurring counts indicate incorrect ``SCX_ENQ_REENQ``
+  handling in the BPF scheduler.
+* ``SCX_EV_REFILL_SLICE_DFL``: a task's time slice was refilled with the
+  default value (``SCX_SLICE_DFL``).
+* ``SCX_EV_BYPASS_DURATION``: total nanoseconds spent in bypass mode.
+* ``SCX_EV_BYPASS_DISPATCH``: number of tasks dispatched while in bypass mode.
+* ``SCX_EV_BYPASS_ACTIVATE``: number of times bypass mode was activated.
+* ``SCX_EV_INSERT_NOT_OWNED``: attempted to insert a task not owned by this
+  scheduler into a DSQ; such attempts are silently ignored.
+* ``SCX_EV_SUB_BYPASS_DISPATCH``: tasks dispatched from sub-scheduler bypass
+  DSQs (only relevant with ``CONFIG_EXT_SUB_SCHED``).
+
 ``tools/sched_ext/scx_show_state.py`` is a drgn script which shows more
 detailed information:
 
@@ -440,6 +489,25 @@ Where to Look
   * ``scx_userland[.bpf].c``: A minimal scheduler demonstrating user space
     scheduling. Tasks with CPU affinity are direct-dispatched in FIFO order;
     all others are scheduled in user space by a simple vruntime scheduler.
+
+Module Parameters
+=================
+
+sched_ext exposes two module parameters under the ``sched_ext.`` prefix that
+control bypass-mode behaviour. These knobs are primarily for debugging; there
+is usually no reason to change them during normal operation. They can be read
+and written at runtime (mode 0600) via
+``/sys/module/sched_ext/parameters/``.
+
+``sched_ext.slice_bypass_us`` (default: 5000 µs)
+    The time slice assigned to all tasks when the scheduler is in bypass mode,
+    i.e. during BPF scheduler load, unload, and error recovery. Valid range is
+    100 µs to 100 ms.
+
+``sched_ext.bypass_lb_intv_us`` (default: 500000 µs)
+    The interval at which the bypass-mode load balancer redistributes tasks
+    across CPUs. Set to 0 to disable load balancing during bypass mode. Valid
+    range is 0 to 10 s.
 
 ABI Instability
 ===============
