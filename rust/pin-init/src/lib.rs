@@ -1615,13 +1615,6 @@ impl_zeroable! {
     // SAFETY: `T: Zeroable` and `UnsafeCell` is `repr(transparent)`.
     {<T: ?Sized + Zeroable>} UnsafeCell<T>,
 
-    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
-    // <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
-    Option<NonZeroU8>, Option<NonZeroU16>, Option<NonZeroU32>, Option<NonZeroU64>,
-    Option<NonZeroU128>, Option<NonZeroUsize>,
-    Option<NonZeroI8>, Option<NonZeroI16>, Option<NonZeroI32>, Option<NonZeroI64>,
-    Option<NonZeroI128>, Option<NonZeroIsize>,
-
     // SAFETY: `null` pointer is valid.
     //
     // We cannot use `T: ?Sized`, since the VTABLE pointer part of fat pointers is not allowed to be
@@ -1680,6 +1673,20 @@ macro_rules! impl_fn_zeroable_option {
 }
 
 impl_fn_zeroable_option!(["Rust", "C"] { A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U });
+
+macro_rules! impl_non_zero_int_zeroable_option {
+    ($($int:ty),* $(,)?) => {
+        // SAFETY: Safety comment written in the macro invocation.
+        $(unsafe impl ZeroableOption for $int {})*
+    };
+}
+
+impl_non_zero_int_zeroable_option! {
+    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
+    // <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize,
+}
 
 /// This trait allows creating an instance of `Self` which contains exactly one
 /// [structurally pinned value](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning).
