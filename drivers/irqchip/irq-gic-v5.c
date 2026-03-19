@@ -511,6 +511,23 @@ static bool gicv5_ppi_irq_is_level(irq_hw_number_t hwirq)
 	return !!(read_ppi_sysreg_s(hwirq, PPI_HM) & bit);
 }
 
+static int gicv5_ppi_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	/*
+	 * GICv5's PPIs do not have a configurable trigger or handling
+	 * mode. Check that the attempt to set a type matches what the
+	 * hardware reports in the HMR, and error on a mismatch.
+	 */
+
+	if (type & IRQ_TYPE_EDGE_BOTH && gicv5_ppi_irq_is_level(d->hwirq))
+		return -EINVAL;
+
+	if (type & IRQ_TYPE_LEVEL_MASK && !gicv5_ppi_irq_is_level(d->hwirq))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int gicv5_ppi_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 {
 	if (vcpu)
@@ -526,6 +543,7 @@ static const struct irq_chip gicv5_ppi_irq_chip = {
 	.irq_mask		= gicv5_ppi_irq_mask,
 	.irq_unmask		= gicv5_ppi_irq_unmask,
 	.irq_eoi		= gicv5_ppi_irq_eoi,
+	.irq_set_type		= gicv5_ppi_irq_set_type,
 	.irq_get_irqchip_state	= gicv5_ppi_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gicv5_ppi_irq_set_irqchip_state,
 	.irq_set_vcpu_affinity	= gicv5_ppi_irq_set_vcpu_affinity,
