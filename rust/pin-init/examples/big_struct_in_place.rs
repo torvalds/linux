@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
+
 use pin_init::*;
 
 // Struct with size over 1GiB
