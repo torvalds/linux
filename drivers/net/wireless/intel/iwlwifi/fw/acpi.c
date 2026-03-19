@@ -535,7 +535,23 @@ int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* start by trying to read revision 2 */
+	/* start by trying to read revision 3 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDS_WIFI_DATA_SIZE_REV3,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 3) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+
+		goto read_table;
+	}
+
+	/* then try revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WRDS_WIFI_DATA_SIZE_REV2,
 					 &tbl_rev);
@@ -588,6 +604,13 @@ int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 
 read_table:
 	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	if (WARN_ON(num_chains * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
 		ret = -EINVAL;
 		goto out_free;
 	}
