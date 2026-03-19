@@ -116,6 +116,9 @@ bool ras_core_gpu_in_reset(struct ras_core_context *ras_core)
 {
 	uint32_t status = 0;
 
+	if (!ras_core)
+		return false;
+
 	if (ras_core->sys_fn &&
 		ras_core->sys_fn->check_gpu_status)
 		ras_core->sys_fn->check_gpu_status(ras_core, &status);
@@ -126,6 +129,9 @@ bool ras_core_gpu_in_reset(struct ras_core_context *ras_core)
 bool ras_core_gpu_is_vf(struct ras_core_context *ras_core)
 {
 	uint32_t status = 0;
+
+	if (!ras_core)
+		return false;
 
 	if (ras_core->sys_fn &&
 		ras_core->sys_fn->check_gpu_status)
@@ -479,6 +485,9 @@ int ras_core_handle_fatal_error(struct ras_core_context *ras_core)
 
 uint32_t ras_core_get_curr_nps_mode(struct ras_core_context *ras_core)
 {
+	if (!ras_core)
+		return 0;
+
 	if (ras_core->ras_nbio.ip_func &&
 	    ras_core->ras_nbio.ip_func->get_memory_partition_mode)
 		return ras_core->ras_nbio.ip_func->get_memory_partition_mode(ras_core);
@@ -562,6 +571,8 @@ bool ras_core_ras_interrupt_detected(struct ras_core_context *ras_core)
 int ras_core_get_gpu_mem(struct ras_core_context *ras_core,
 	enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem)
 {
+	if (!ras_core || !gpu_mem)
+		return -EINVAL;
 	if (ras_core->sys_fn && ras_core->sys_fn->get_gpu_mem)
 		return ras_core->sys_fn->get_gpu_mem(ras_core, mem_type, gpu_mem);
 
@@ -572,6 +583,8 @@ int ras_core_get_gpu_mem(struct ras_core_context *ras_core,
 int ras_core_put_gpu_mem(struct ras_core_context *ras_core,
 	enum gpu_mem_type mem_type, struct gpu_mem_block *gpu_mem)
 {
+	if (!ras_core || !gpu_mem)
+		return -EINVAL;
 	if (ras_core->sys_fn && ras_core->sys_fn->put_gpu_mem)
 		return ras_core->sys_fn->put_gpu_mem(ras_core, mem_type, gpu_mem);
 
