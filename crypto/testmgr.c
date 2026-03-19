@@ -4965,7 +4965,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 #endif /* CONFIG_CRYPTO_DH_RFC7919_GROUPS */
 		.alg = "gcm(aes)",
-		.generic_driver = "gcm_base(ctr(aes-lib),ghash-generic)",
+		.generic_driver = "gcm_base(ctr(aes-lib),ghash-lib)",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -4973,14 +4973,14 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "gcm(aria)",
-		.generic_driver = "gcm_base(ctr(aria-generic),ghash-generic)",
+		.generic_driver = "gcm_base(ctr(aria-generic),ghash-lib)",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = __VECS(aria_gcm_tv_template)
 		}
 	}, {
 		.alg = "gcm(sm4)",
-		.generic_driver = "gcm_base(ctr(sm4-generic),ghash-generic)",
+		.generic_driver = "gcm_base(ctr(sm4-generic),ghash-lib)",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = __VECS(sm4_gcm_tv_template)
@@ -5314,7 +5314,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "rfc4106(gcm(aes))",
-		.generic_driver = "rfc4106(gcm_base(ctr(aes-lib),ghash-generic))",
+		.generic_driver = "rfc4106(gcm_base(ctr(aes-lib),ghash-lib))",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
 		.suite = {
@@ -5338,7 +5338,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "rfc4543(gcm(aes))",
-		.generic_driver = "rfc4543(gcm_base(ctr(aes-lib),ghash-generic))",
+		.generic_driver = "rfc4543(gcm_base(ctr(aes-lib),ghash-lib))",
 		.test = alg_test_aead,
 		.suite = {
 			.aead = {

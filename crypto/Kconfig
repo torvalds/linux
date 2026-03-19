@@ -794,7 +794,7 @@ config CRYPTO_GCM
 	tristate "GCM (Galois/Counter Mode) and GMAC (GCM MAC)"
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
-	select CRYPTO_GHASH
+	select CRYPTO_LIB_GF128HASH
 	select CRYPTO_MANAGER
 	help
 	  GCM (Galois/Counter Mode) authenticated encryption mode and GMAC

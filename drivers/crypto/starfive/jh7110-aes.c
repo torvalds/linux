@@ -1008,7 +1008,7 @@ static int starfive_aes_ccm_init_tfm(struct crypto_aead *tfm)
 
 static int starfive_aes_gcm_init_tfm(struct crypto_aead *tfm)
 {
-	return starfive_aes_aead_init_tfm(tfm, "gcm_base(ctr(aes-lib),ghash-generic)");
+	return starfive_aes_aead_init_tfm(tfm, "gcm_base(ctr(aes-lib),ghash-lib)");
 }
 
 static struct skcipher_engine_alg skcipher_algs[] = {
