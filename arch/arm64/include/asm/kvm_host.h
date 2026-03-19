@@ -800,6 +800,22 @@ struct kvm_host_data {
 
 	/* Last vgic_irq part of the AP list recorded in an LR */
 	struct vgic_irq *last_lr_irq;
+
+	/* PPI state tracking for GICv5-based guests */
+	struct {
+		/*
+		 * For tracking the PPI pending state, we need both the entry
+		 * state and exit state to correctly detect edges as it is
+		 * possible that an interrupt has been injected in software in
+		 * the interim.
+		 */
+		DECLARE_BITMAP(pendr_entry, VGIC_V5_NR_PRIVATE_IRQS);
+		DECLARE_BITMAP(pendr_exit, VGIC_V5_NR_PRIVATE_IRQS);
+
+		/* The saved state of the regs when leaving the guest */
+		DECLARE_BITMAP(activer_exit, VGIC_V5_NR_PRIVATE_IRQS);
+		DECLARE_BITMAP(enabler_exit, VGIC_V5_NR_PRIVATE_IRQS);
+	} vgic_v5_ppi_state;
 };
 
 struct kvm_host_psci_config {

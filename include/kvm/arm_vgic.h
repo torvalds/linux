@@ -428,6 +428,27 @@ struct vgic_v3_cpu_if {
 	unsigned int used_lrs;
 };
 
+struct vgic_v5_cpu_if {
+	u64	vgic_apr;
+	u64	vgic_vmcr;
+
+	/* PPI register state */
+	DECLARE_BITMAP(vgic_ppi_dvir, VGIC_V5_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(vgic_ppi_activer, VGIC_V5_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(vgic_ppi_enabler, VGIC_V5_NR_PRIVATE_IRQS);
+	/* We have one byte (of which 5 bits are used) per PPI for priority */
+	u64	vgic_ppi_priorityr[VGIC_V5_NR_PRIVATE_IRQS / 8];
+
+	/*
+	 * The ICSR is re-used across host and guest, and hence it needs to be
+	 * saved/restored. Only one copy is required as the host should block
+	 * preemption between executing GIC CDRCFG and acccessing the
+	 * ICC_ICSR_EL1. A guest, of course, can never guarantee this, and hence
+	 * it is the hyp's responsibility to keep the state constistent.
+	 */
+	u64	vgic_icsr;
+};
+
 /* What PPI capabilities does a GICv5 host have */
 struct vgic_v5_ppi_caps {
 	DECLARE_BITMAP(impl_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
@@ -438,6 +459,7 @@ struct vgic_cpu {
 	union {
 		struct vgic_v2_cpu_if	vgic_v2;
 		struct vgic_v3_cpu_if	vgic_v3;
+		struct vgic_v5_cpu_if	vgic_v5;
 	};
 
 	struct vgic_irq *private_irqs;
