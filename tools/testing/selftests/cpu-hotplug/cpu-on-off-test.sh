@@ -24,7 +24,7 @@ prerequisite()
 		exit $ksft_skip
 	fi
 
-	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
+	if ! ls $SYSFS/devices/system/cpu/cpu*/online > /dev/null 2>&1; then
 		echo $msg cpu hotplug is not supported >&2
 		exit $ksft_skip
 	fi
