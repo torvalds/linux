@@ -101,7 +101,7 @@ struct lpspi_config {
 	u8 bpw;
 	u8 chip_select;
 	u8 prescale;
-	u16 mode;
+	u32 mode;
 	u32 speed_hz;
 	u32 effective_speed_hz;
 };
