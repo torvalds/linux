@@ -173,6 +173,15 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	if (type == KVM_DEV_TYPE_ARM_VGIC_V3)
 		kvm->arch.vgic.nassgicap = system_supports_direct_sgis();
 
+	/*
+	 * We now know that we have a GICv5. The Arch Timer PPI interrupts may
+	 * have been initialised at this stage, but will have done so assuming
+	 * that we have an older GIC, meaning that the IntIDs won't be
+	 * correct. We init them again, and this time they will be correct.
+	 */
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V5)
+		kvm_timer_init_vm(kvm);
+
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
 	kvm_unlock_all_vcpus(kvm);
