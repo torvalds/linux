@@ -69,6 +69,9 @@ int ras_core_convert_timestamp_to_time(struct ras_core_context *ras_core,
 	int seconds_per_minute = 60;
 	int days, remaining_seconds;
 
+	if (!tm)
+		return -EINVAL;
+
 	days = div64_u64_rem(timestamp, seconds_per_day, &remainder);
 	/* remainder will always be less than seconds_per_day. */
 	remaining_seconds = remainder;
@@ -276,6 +279,9 @@ struct ras_core_context *ras_core_create(struct ras_core_config *init_config)
 {
 	struct ras_core_context *ras_core;
 	struct ras_core_config *config;
+
+	if (!init_config)
+		return NULL;
 
 	ras_core = kzalloc_obj(*ras_core);
 	if (!ras_core)
@@ -638,6 +644,9 @@ int ras_core_event_notify(struct ras_core_context *ras_core,
 int ras_core_get_device_system_info(struct ras_core_context *ras_core,
 		struct device_system_info *dev_info)
 {
+	if (!dev_info)
+		return -EINVAL;
+
 	if (ras_core && ras_core->sys_fn &&
 		ras_core->sys_fn->get_device_system_info)
 		return ras_core->sys_fn->get_device_system_info(ras_core, dev_info);
