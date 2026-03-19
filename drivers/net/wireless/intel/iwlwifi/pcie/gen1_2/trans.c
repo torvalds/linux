@@ -3197,7 +3197,7 @@ static ssize_t iwl_dbgfs_reset_write(struct file *file,
 		if (!test_bit(STATUS_DEVICE_ENABLED, &trans->status))
 			return -EINVAL;
 		if (mode == IWL_RESET_MODE_TOP_RESET) {
-			if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_SC)
+			if (!iwl_trans_is_top_reset_supported(trans))
 				return -EINVAL;
 			trans->request_top_reset = 1;
 		}
