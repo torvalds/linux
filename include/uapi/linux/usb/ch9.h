@@ -102,6 +102,8 @@
 #define USB_REQ_LOOPBACK_DATA_WRITE	0x15
 #define USB_REQ_LOOPBACK_DATA_READ	0x16
 #define USB_REQ_SET_INTERFACE_DS	0x17
+#define USB_REQ_AUTH_IN			0x18
+#define USB_REQ_AUTH_OUT		0x19
 
 /* specific requests for USB Power Delivery */
 #define USB_REQ_GET_PARTNER_PDO		20
@@ -1144,6 +1146,17 @@ struct usb_ptm_cap_descriptor {
  * (SSAC) specified in bmAttributes[4:0]. SSAC is zero-based
  */
 #define USB_DT_USB_SSP_CAP_SIZE(ssac)	(12 + (ssac + 1) * 4)
+
+/*-------------------------------------------------------------------------*/
+
+struct usb_authentication_capability_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType; /* set to USB_DT_DEVICE_CAPABILITY */
+	__u8  bmAttributes;
+
+	__u8  bcdProtocolVersion;
+	__u8  bcdCapability;
+} __attribute__((packed));
 
 /*-------------------------------------------------------------------------*/
 
