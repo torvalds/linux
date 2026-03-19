@@ -912,7 +912,7 @@ impl MessageQueueInitArguments {
     #[allow(non_snake_case)]
     fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
         init!(MessageQueueInitArguments {
-            sharedMemPhysAddr: cmdq.dma_handle(),
+            sharedMemPhysAddr: cmdq.dma_handle,
             pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),
             cmdQueueOffset: num::usize_as_u64(Cmdq::CMDQ_OFFSET),
             statQueueOffset: num::usize_as_u64(Cmdq::STATQ_OFFSET),

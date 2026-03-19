@@ -30,6 +30,8 @@ use continuation::{
     SplitState, //
 };
 
+use pin_init::pin_init_scope;
+
 use crate::{
     driver::Bar0,
     gsp::{
@@ -452,6 +454,8 @@ pub(crate) struct Cmdq {
     /// Inner mutex-protected state.
     #[pin]
     inner: Mutex<CmdqInner>,
+    /// DMA handle of the command queue's shared memory region.
+    pub(super) dma_handle: DmaAddress,
 }
 
 impl Cmdq {
@@ -476,12 +480,17 @@ impl Cmdq {
 
     /// Creates a new command queue for `dev`.
     pub(crate) fn new(dev: &device::Device<device::Bound>) -> impl PinInit<Self, Error> + '_ {
-        try_pin_init!(Self {
-            inner <- new_mutex!(CmdqInner {
-                dev: dev.into(),
-                gsp_mem: DmaGspMem::new(dev)?,
-                seq: 0,
-            }),
+        pin_init_scope(move || {
+            let gsp_mem = DmaGspMem::new(dev)?;
+
+            Ok(try_pin_init!(Self {
+                dma_handle: gsp_mem.0.dma_handle(),
+                inner <- new_mutex!(CmdqInner {
+                    dev: dev.into(),
+                    gsp_mem,
+                    seq: 0,
+                }),
+            }))
         })
     }
 
@@ -566,11 +575,6 @@ impl Cmdq {
         Error: From<M::InitError>,
     {
         self.inner.lock().receive_msg(timeout)
-    }
-
-    /// Returns the DMA handle of the command queue's shared memory region.
-    pub(crate) fn dma_handle(&self) -> DmaAddress {
-        self.inner.lock().gsp_mem.0.dma_handle()
     }
 }
 
