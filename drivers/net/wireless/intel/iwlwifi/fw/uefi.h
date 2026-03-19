@@ -31,8 +31,6 @@
 #define IWL_SGOM_MAP_SIZE		339
 #define IWL_UATS_MAP_SIZE		339
 
-#define IWL_UEFI_WRDS_REVISION		2
-#define IWL_UEFI_EWRD_REVISION		2
 #define IWL_UEFI_WGDS_REVISION		3
 #define IWL_UEFI_MIN_WTAS_REVISION	1
 #define IWL_UEFI_MAX_WTAS_REVISION	2
@@ -74,55 +72,73 @@ struct uefi_cnv_common_step_data {
 	u8 radio2;
 } __packed;
 
-#define UEFI_SAR_MAX_SUB_BANDS_NUM	11
 #define UEFI_PPAG_SUB_BANDS_NUM_REV4	11
 #define UEFI_PPAG_SUB_BANDS_NUM_REV5	12
 #define UEFI_PPAG_NUM_CHAINS		2
+
+#define UEFI_SAR_SUB_BANDS_NUM_REV2	11
+#define UEFI_SAR_SUB_BANDS_NUM_REV3	12
+
 #define UEFI_SAR_MAX_CHAINS_PER_PROFILE	4
-
-/*
- * struct uefi_sar_profile_chain - per-chain values of a SAR profile
- * @subbands: the SAR value for each subband
- */
-struct uefi_sar_profile_chain {
-	u8 subbands[UEFI_SAR_MAX_SUB_BANDS_NUM];
-};
-
-/*
- * struct uefi_sar_profile - a SAR profile as defined in UEFI
- *
- * @chains: a per-chain table of SAR values
- */
-struct uefi_sar_profile {
-	struct uefi_sar_profile_chain chains[UEFI_SAR_MAX_CHAINS_PER_PROFILE];
-} __packed;
 
 /*
  * struct uefi_cnv_var_wrds - WRDS table as defined in UEFI
  *
  * @revision: the revision of the table
  * @mode: is WRDS enbaled/disabled
- * @sar_profile: sar profile #1
+ * @vals: values for sar profile #1 as an array:
+ *	vals[chain * num_of_subbands + subband] will return the right value.
+ *	num_of_subbands depends on the revision. For revision 3, it is
+ *	%UEFI_SAR_SUB_BANDS_NUM_REV3, for earlier revision, it is
+ *	%UEFI_SAR_SUB_BANDS_NUM_REV2.
+ *	The max number of chains is currently 2
  */
 struct uefi_cnv_var_wrds {
 	u8 revision;
 	u32 mode;
-	struct uefi_sar_profile sar_profile;
+	u8 vals[];
 } __packed;
+
+#define UEFI_SAR_PROFILE_SIZE_REV2			\
+	(sizeof(u8) * UEFI_SAR_MAX_CHAINS_PER_PROFILE *	\
+	 UEFI_SAR_SUB_BANDS_NUM_REV2)
+
+#define UEFI_SAR_PROFILE_SIZE_REV3			\
+	(sizeof(u8) * UEFI_SAR_MAX_CHAINS_PER_PROFILE *	\
+	 UEFI_SAR_SUB_BANDS_NUM_REV3)
+
+#define UEFI_SAR_WRDS_TABLE_SIZE_REV2			\
+	(offsetof(struct uefi_cnv_var_wrds, vals) +	\
+	 UEFI_SAR_PROFILE_SIZE_REV2)
+
+#define UEFI_SAR_WRDS_TABLE_SIZE_REV3			\
+	(offsetof(struct uefi_cnv_var_wrds, vals) +	\
+	 UEFI_SAR_PROFILE_SIZE_REV3)
 
 /*
  * struct uefi_cnv_var_ewrd - EWRD table as defined in UEFI
  * @revision: the revision of the table
  * @mode: is WRDS enbaled/disabled
  * @num_profiles: how many additional profiles we have in this table (0-3)
- * @sar_profiles: the additional SAR profiles (#2-#4)
+ * @vals: the additional SAR profiles (#2-#4) as an array of SAR profiles.
+ *	A SAR profile is defined the &struct uefi_cnv_var_wrds::vals. The size
+ *	of each profile depends on the number of subbands which depends on the
+ *	revision. This is explained in &struct uefi_cnv_var_wrds.
  */
 struct uefi_cnv_var_ewrd {
 	u8 revision;
 	u32 mode;
 	u32 num_profiles;
-	struct uefi_sar_profile sar_profiles[BIOS_SAR_MAX_PROFILE_NUM - 1];
+	u8 vals[];
 } __packed;
+
+#define UEFI_SAR_EWRD_TABLE_SIZE_REV2				\
+	(offsetof(struct uefi_cnv_var_ewrd, vals) +		\
+	 UEFI_SAR_PROFILE_SIZE_REV2 * (BIOS_SAR_MAX_PROFILE_NUM - 1))
+
+#define UEFI_SAR_EWRD_TABLE_SIZE_REV3				\
+	(offsetof(struct uefi_cnv_var_ewrd, vals) +		\
+	 UEFI_SAR_PROFILE_SIZE_REV3 * (BIOS_SAR_MAX_PROFILE_NUM - 1))
 
 /*
  * struct uefi_cnv_var_wgds - WGDS table as defined in UEFI

@@ -21,7 +21,7 @@
  */
 #define BIOS_SAR_MAX_CHAINS_PER_PROFILE 4
 #define BIOS_SAR_NUM_CHAINS             2
-#define BIOS_SAR_MAX_SUB_BANDS_NUM      11
+#define BIOS_SAR_MAX_SUB_BANDS_NUM      12
 #define BIOS_PPAG_MAX_SUB_BANDS_NUM     12
 
 #define BIOS_GEO_NUM_CHAINS		2

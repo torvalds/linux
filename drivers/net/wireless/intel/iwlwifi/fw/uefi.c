@@ -460,11 +460,30 @@ out:
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uneb_table);
 
 static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
-				     struct uefi_sar_profile *uefi_sar_prof,
-				     u8 prof_index, bool enabled)
+				     const u8 *vals, u8 prof_index,
+				     u8 num_subbands, bool enabled)
 {
-	memcpy(&fwrt->sar_profiles[prof_index].chains, uefi_sar_prof,
-	       sizeof(struct uefi_sar_profile));
+	struct iwl_sar_profile *sar_prof = &fwrt->sar_profiles[prof_index];
+
+	/*
+	 * Make sure fwrt has enough room to hold the data
+	 * coming from the UEFI table
+	 */
+	if (WARN_ON(ARRAY_SIZE(sar_prof->chains) *
+		    ARRAY_SIZE(sar_prof->chains[0].subbands)  <
+		    UEFI_SAR_MAX_CHAINS_PER_PROFILE * num_subbands))
+		return;
+
+	BUILD_BUG_ON(ARRAY_SIZE(sar_prof->chains) !=
+		     UEFI_SAR_MAX_CHAINS_PER_PROFILE);
+
+	for (int chain = 0;
+	     chain < UEFI_SAR_MAX_CHAINS_PER_PROFILE;
+	     chain++) {
+		for (int subband = 0; subband < num_subbands; subband++)
+			sar_prof->chains[chain].subbands[subband] =
+				vals[chain * num_subbands + subband];
+	}
 
 	fwrt->sar_profiles[prof_index].enabled = enabled & IWL_SAR_ENABLE_MSK;
 }
@@ -472,24 +491,46 @@ static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_wrds *data;
+	unsigned long size;
+	unsigned long expected_size;
+	int num_subbands;
 	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDS_NAME,
-					      "WRDS", sizeof(*data), NULL);
+					      "WRDS",
+					      UEFI_SAR_WRDS_TABLE_SIZE_REV2,
+					      &size);
+
 	if (IS_ERR(data))
 		return -EINVAL;
 
-	if (data->revision != IWL_UEFI_WRDS_REVISION) {
-		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDS revision:%d\n",
+	switch (data->revision) {
+	case 2:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		break;
+	case 3:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI WRDS revision:%d\n",
 				data->revision);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (size != expected_size) {
+		ret = -EINVAL;
 		goto out;
 	}
 
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	iwl_uefi_set_sar_profile(fwrt, &data->sar_profile, 0, data->mode);
+	iwl_uefi_set_sar_profile(fwrt, data->vals, 0,
+				 num_subbands, data->mode);
 out:
 	kfree(data);
 	return ret;
@@ -498,21 +539,40 @@ out:
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_ewrd *data;
+	unsigned long expected_size;
 	int i, ret = 0;
+	unsigned long size;
+	int num_subbands;
+	int profile_size;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_EWRD_NAME,
-					      "EWRD", sizeof(*data), NULL);
+					      "EWRD",
+					      UEFI_SAR_EWRD_TABLE_SIZE_REV2,
+					      &size);
 	if (IS_ERR(data))
 		return -EINVAL;
 
-	if (data->revision != IWL_UEFI_EWRD_REVISION) {
-		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI EWRD revision:%d\n",
+	switch (data->revision) {
+	case 2:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV2;
+		break;
+	case 3:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV3;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI EWRD revision:%d\n",
 				data->revision);
+		ret = -EINVAL;
 		goto out;
 	}
 
-	if (data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
+	if (size != expected_size ||
+	    data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -522,8 +582,8 @@ int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
 		 */
-		iwl_uefi_set_sar_profile(fwrt, &data->sar_profiles[i], i + 1,
-					 data->mode);
+		iwl_uefi_set_sar_profile(fwrt, &data->vals[i * profile_size],
+					 i + 1, num_subbands, data->mode);
 
 out:
 	kfree(data);
