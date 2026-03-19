@@ -50,12 +50,13 @@
 #define ACCUMULATOR	a0
 #define KEY		a1
 #define DATA		a2
-#define LEN		a3
+#define NBLOCKS		a3
 
-// void ghash_zvkg(be128 *accumulator, const be128 *key, const u8 *data,
-//		   size_t len);
+// void ghash_zvkg(u8 accumulator[GHASH_BLOCK_SIZE],
+//		   const u8 key[GHASH_BLOCK_SIZE],
+//		   const u8 *data, size_t nblocks);
 //
-// |len| must be nonzero and a multiple of 16 (GHASH_BLOCK_SIZE).
+// |nblocks| must be nonzero.
 SYM_FUNC_START(ghash_zvkg)
 	vsetivli	zero, 4, e32, m1, ta, ma
 	vle32.v		v1, (ACCUMULATOR)
@@ -64,8 +65,8 @@ SYM_FUNC_START(ghash_zvkg)
 	vle32.v		v3, (DATA)
 	vghsh.vv	v1, v2, v3
 	addi		DATA, DATA, 16
-	addi		LEN, LEN, -16
-	bnez		LEN, .Lnext_block
+	addi		NBLOCKS, NBLOCKS, -1
+	bnez		NBLOCKS, .Lnext_block
 
 	vse32.v		v1, (ACCUMULATOR)
 	ret
