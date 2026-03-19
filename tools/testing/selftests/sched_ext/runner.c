@@ -217,7 +217,7 @@ int main(int argc, char **argv)
 			printf("  - %s\n", failed_tests[i]);
 	}
 
-	return 0;
+	return failed > 0 ? 1 : 0;
 }
 
 void scx_test_register(struct scx_test *test)
