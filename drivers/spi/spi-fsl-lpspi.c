@@ -262,9 +262,7 @@ static void fsl_lpspi_write_tx_fifo(struct fsl_lpspi_data *fsl_lpspi)
 
 	txfifo_cnt = readl(fsl_lpspi->base + IMX7ULP_FSR) & 0xff;
 
-	while (txfifo_cnt < fsl_lpspi->txfifosize) {
-		if (!fsl_lpspi->remain)
-			break;
+	while (txfifo_cnt < fsl_lpspi->txfifosize && fsl_lpspi->remain) {
 		fsl_lpspi->tx(fsl_lpspi);
 		txfifo_cnt++;
 	}
