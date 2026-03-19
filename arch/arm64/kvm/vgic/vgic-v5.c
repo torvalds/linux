@@ -188,8 +188,24 @@ out_unlock_fail:
 	return false;
 }
 
+/*
+ * Sets/clears the corresponding bit in the ICH_PPI_DVIR register.
+ */
+static void vgic_v5_set_ppi_dvi(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
+				bool dvi)
+{
+	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
+	u32 ppi;
+
+	lockdep_assert_held(&irq->irq_lock);
+
+	ppi = vgic_v5_get_hwirq_id(irq->intid);
+	__assign_bit(ppi, cpu_if->vgic_ppi_dvir, dvi);
+}
+
 static struct irq_ops vgic_v5_ppi_irq_ops = {
 	.queue_irq_unlock = vgic_v5_ppi_queue_irq_unlock,
+	.set_direct_injection = vgic_v5_set_ppi_dvi,
 };
 
 void vgic_v5_set_ppi_ops(struct kvm_vcpu *vcpu, u32 vintid)
