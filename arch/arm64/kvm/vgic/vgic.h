@@ -454,11 +454,6 @@ void vgic_v3_put_nested(struct kvm_vcpu *vcpu);
 void vgic_v3_handle_nested_maint_irq(struct kvm_vcpu *vcpu);
 void vgic_v3_nested_update_mi(struct kvm_vcpu *vcpu);
 
-static inline bool vgic_is_v3(struct kvm *kvm)
-{
-	return kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3;
-}
-
 static inline bool vgic_host_has_gicv3(void)
 {
 	/*

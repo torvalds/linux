@@ -1603,7 +1603,7 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	if (get_user(irq, uaddr))
 		return -EFAULT;
 
-	if (!(irq_is_ppi(irq)))
+	if (!(irq_is_ppi(vcpu->kvm, irq)))
 		return -EINVAL;
 
 	mutex_lock(&vcpu->kvm->arch.config_lock);
