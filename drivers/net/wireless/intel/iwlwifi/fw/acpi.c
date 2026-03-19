@@ -648,7 +648,22 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* start by trying to read revision 2 */
+	/* start by trying to read revision 3 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_EWRD_WIFI_DATA_SIZE_REV3,
+					 &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev != 3) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV3;
+
+		goto read_table;
+	}
+
+	/* then try revision 2 */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_EWRD_WIFI_DATA_SIZE_REV2,
 					 &tbl_rev);
@@ -703,6 +718,13 @@ read_table:
 		goto out_free;
 	}
 
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	enabled = !!(wifi_pkg->package.elements[1].integer.value);
 	n_profiles = wifi_pkg->package.elements[2].integer.value;
 
@@ -744,6 +766,13 @@ read_table:
 	/* non-cdb table revisions */
 	if (tbl_rev < 2)
 		goto set_enabled;
+
+	if (WARN_ON(ACPI_SAR_NUM_CHAINS_REV0 * 2 * num_sub_bands >
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains) *
+		    ARRAY_SIZE(fwrt->sar_profiles[0].chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
 
 	/* parse cdb chains for all profiles */
 	for (i = 0; i < n_profiles; i++) {
