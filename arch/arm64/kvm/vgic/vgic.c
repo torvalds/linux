@@ -553,10 +553,27 @@ int kvm_vgic_inject_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+void kvm_vgic_set_irq_ops(struct kvm_vcpu *vcpu, u32 vintid,
+			  struct irq_ops *ops)
+{
+	struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, vintid);
+
+	BUG_ON(!irq);
+
+	scoped_guard(raw_spinlock_irqsave, &irq->irq_lock)
+		irq->ops = ops;
+
+	vgic_put_irq(vcpu->kvm, irq);
+}
+
+void kvm_vgic_clear_irq_ops(struct kvm_vcpu *vcpu, u32 vintid)
+{
+	kvm_vgic_set_irq_ops(vcpu, vintid, NULL);
+}
+
 /* @irq->irq_lock must be held */
 static int kvm_vgic_map_irq(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
-			    unsigned int host_irq,
-			    struct irq_ops *ops)
+			    unsigned int host_irq)
 {
 	struct irq_desc *desc;
 	struct irq_data *data;
@@ -576,7 +593,6 @@ static int kvm_vgic_map_irq(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	irq->hw = true;
 	irq->host_irq = host_irq;
 	irq->hwintid = data->hwirq;
-	irq->ops = ops;
 	return 0;
 }
 
@@ -585,11 +601,10 @@ static inline void kvm_vgic_unmap_irq(struct vgic_irq *irq)
 {
 	irq->hw = false;
 	irq->hwintid = 0;
-	irq->ops = NULL;
 }
 
 int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
-			  u32 vintid, struct irq_ops *ops)
+			  u32 vintid)
 {
 	struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, vintid);
 	unsigned long flags;
@@ -598,7 +613,7 @@ int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
 	BUG_ON(!irq);
 
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
-	ret = kvm_vgic_map_irq(vcpu, irq, host_irq, ops);
+	ret = kvm_vgic_map_irq(vcpu, irq, host_irq);
 	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 	vgic_put_irq(vcpu->kvm, irq);
 

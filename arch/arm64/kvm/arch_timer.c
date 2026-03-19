@@ -740,13 +740,11 @@ static void kvm_timer_vcpu_load_nested_switch(struct kvm_vcpu *vcpu,
 
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map->direct_vtimer->host_timer_irq,
-					    timer_irq(map->direct_vtimer),
-					    &arch_timer_irq_ops);
+					    timer_irq(map->direct_vtimer));
 		WARN_ON_ONCE(ret);
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map->direct_ptimer->host_timer_irq,
-					    timer_irq(map->direct_ptimer),
-					    &arch_timer_irq_ops);
+					    timer_irq(map->direct_ptimer));
 		WARN_ON_ONCE(ret);
 	}
 }
@@ -1543,6 +1541,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
 	struct timer_map map;
+	struct irq_ops *ops;
 	int ret;
 
 	if (timer->enabled)
@@ -1563,20 +1562,21 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 
 	get_timer_map(vcpu, &map);
 
+	ops = &arch_timer_irq_ops;
+
+	for (int i = 0; i < nr_timers(vcpu); i++)
+		kvm_vgic_set_irq_ops(vcpu, timer_irq(vcpu_get_timer(vcpu, i)), ops);
+
 	ret = kvm_vgic_map_phys_irq(vcpu,
 				    map.direct_vtimer->host_timer_irq,
-				    timer_irq(map.direct_vtimer),
-				    &arch_timer_irq_ops);
+				    timer_irq(map.direct_vtimer));
 	if (ret)
 		return ret;
 
-	if (map.direct_ptimer) {
+	if (map.direct_ptimer)
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map.direct_ptimer->host_timer_irq,
-					    timer_irq(map.direct_ptimer),
-					    &arch_timer_irq_ops);
-	}
-
+					    timer_irq(map.direct_ptimer));
 	if (ret)
 		return ret;
 
