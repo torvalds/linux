@@ -30,30 +30,30 @@ MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
 
 #define RFC4106_NONCE_SIZE	4
 
-struct ghash_key {
+struct arm_ghash_key {
 	be128			k;
-	u64			h[][2];
+	u64			h[4][2];
 };
 
 struct gcm_aes_ctx {
 	struct aes_enckey	aes_key;
 	u8			nonce[RFC4106_NONCE_SIZE];
-	struct ghash_key	ghash_key;
+	struct arm_ghash_key	ghash_key;
 };
 
 asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
-				       u64 const h[][2], const char *head);
+				       u64 const h[4][2], const char *head);
 
 asmlinkage void pmull_gcm_encrypt(int bytes, u8 dst[], const u8 src[],
-				  u64 const h[][2], u64 dg[], u8 ctr[],
+				  u64 const h[4][2], u64 dg[], u8 ctr[],
 				  u32 const rk[], int rounds, u8 tag[]);
 asmlinkage int pmull_gcm_decrypt(int bytes, u8 dst[], const u8 src[],
-				 u64 const h[][2], u64 dg[], u8 ctr[],
+				 u64 const h[4][2], u64 dg[], u8 ctr[],
 				 u32 const rk[], int rounds, const u8 l[],
 				 const u8 tag[], u64 authsize);
 
 static void ghash_do_simd_update(int blocks, u64 dg[], const char *src,
-				 struct ghash_key *key, const char *head)
+				 struct arm_ghash_key *key, const char *head)
 {
 	scoped_ksimd()
 		pmull_ghash_update_p64(blocks, dg, src, key->h, head);
@@ -363,8 +363,7 @@ static struct aead_alg gcm_aes_algs[] = {{
 	.base.cra_driver_name	= "gcm-aes-ce",
 	.base.cra_priority	= 300,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx) +
-				  4 * sizeof(u64[2]),
+	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx),
 	.base.cra_module	= THIS_MODULE,
 }, {
 	.ivsize			= GCM_RFC4106_IV_SIZE,
@@ -379,8 +378,7 @@ static struct aead_alg gcm_aes_algs[] = {{
 	.base.cra_driver_name	= "rfc4106-gcm-aes-ce",
 	.base.cra_priority	= 300,
 	.base.cra_blocksize	= 1,
-	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx) +
-				  4 * sizeof(u64[2]),
+	.base.cra_ctxsize	= sizeof(struct gcm_aes_ctx),
 	.base.cra_module	= THIS_MODULE,
 }};
 

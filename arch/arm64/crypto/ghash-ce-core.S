@@ -64,7 +64,7 @@
 
 	/*
 	 * void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
-	 *			       u64 const h[][2], const char *head)
+	 *			       u64 const h[4][2], const char *head)
 	 */
 SYM_FUNC_START(pmull_ghash_update_p64)
 	ld1		{SHASH.2d}, [x3]
@@ -413,18 +413,19 @@ CPU_LE(	rev		w8, w8		)
 	.endm
 
 	/*
-	 * void pmull_gcm_encrypt(int blocks, u8 dst[], const u8 src[],
-	 *			  struct ghash_key const *k, u64 dg[], u8 ctr[],
-	 *			  int rounds, u8 tag)
+	 * void pmull_gcm_encrypt(int bytes, u8 dst[], const u8 src[],
+	 *			  u64 const h[4][2], u64 dg[], u8 ctr[],
+	 *			  u32 const rk[], int rounds, u8 tag[])
 	 */
 SYM_FUNC_START(pmull_gcm_encrypt)
 	pmull_gcm_do_crypt	1
 SYM_FUNC_END(pmull_gcm_encrypt)
 
 	/*
-	 * void pmull_gcm_decrypt(int blocks, u8 dst[], const u8 src[],
-	 *			  struct ghash_key const *k, u64 dg[], u8 ctr[],
-	 *			  int rounds, u8 tag)
+	 * int pmull_gcm_decrypt(int bytes, u8 dst[], const u8 src[],
+	 *			 u64 const h[4][2], u64 dg[], u8 ctr[],
+	 *			 u32 const rk[], int rounds, const u8 l[],
+	 *			 const u8 tag[], u64 authsize)
 	 */
 SYM_FUNC_START(pmull_gcm_decrypt)
 	pmull_gcm_do_crypt	0
