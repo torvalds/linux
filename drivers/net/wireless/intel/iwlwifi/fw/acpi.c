@@ -916,6 +916,22 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
+	/* try to read ppag table rev 5 */
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_PPAG_WIFI_DATA_SIZE_V3, &tbl_rev);
+	if (!IS_ERR(wifi_pkg)) {
+		if (tbl_rev == 5) {
+			num_sub_bands = IWL_NUM_SUB_BANDS_V3;
+			IWL_DEBUG_RADIO(fwrt,
+					"Reading PPAG table (tbl_rev=%d)\n",
+					tbl_rev);
+			goto read_table;
+		} else {
+			ret = -EINVAL;
+			goto out_free;
+		}
+	}
+
 	/* try to read ppag table rev 1 to 4 (all have the same data size) */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 				ACPI_PPAG_WIFI_DATA_SIZE_V2, &tbl_rev);

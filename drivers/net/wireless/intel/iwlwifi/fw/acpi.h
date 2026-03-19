@@ -8,11 +8,6 @@
 
 #include <linux/acpi.h>
 #include "fw/regulatory.h"
-#include "fw/api/commands.h"
-#include "fw/api/power.h"
-#include "fw/api/phy.h"
-#include "fw/api/nvm-reg.h"
-#include "fw/api/config.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
 
@@ -97,10 +92,17 @@
 #define ACPI_WTAS_WIFI_DATA_SIZE	(3 + IWL_WTAS_BLACK_LIST_MAX)
 
 #define ACPI_PPAG_NUM_CHAINS		2
+#define ACPI_PPAG_NUM_BANDS_V1		5
+#define ACPI_PPAG_NUM_BANDS_V2		11
+#define ACPI_PPAG_NUM_BANDS_V3		12
 #define ACPI_PPAG_WIFI_DATA_SIZE_V1	((ACPI_PPAG_NUM_CHAINS * \
-					  IWL_NUM_SUB_BANDS_V1) + 2)
+					  ACPI_PPAG_NUM_BANDS_V1) + 2)
 #define ACPI_PPAG_WIFI_DATA_SIZE_V2	((ACPI_PPAG_NUM_CHAINS * \
-					  IWL_NUM_SUB_BANDS_V2) + 2)
+					  ACPI_PPAG_NUM_BANDS_V2) + 2)
+
+/* used for ACPI PPAG table rev 5 */
+#define ACPI_PPAG_WIFI_DATA_SIZE_V3	((ACPI_PPAG_NUM_CHAINS * \
+					  ACPI_PPAG_NUM_BANDS_V3) + 2)
 
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 #define IWL_REDUCE_POWER_FLAGS_POS	1
