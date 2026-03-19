@@ -1356,7 +1356,7 @@ skl_check_wm_level(struct skl_wm_level *wm, const struct skl_ddb_entry *ddb)
 }
 
 static void
-skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
+skl_check_wm_level_nv12(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
 			const struct skl_ddb_entry *ddb_y, const struct skl_ddb_entry *ddb)
 {
 	if (wm->min_ddb_alloc > skl_ddb_entry_size(ddb_y) ||
@@ -1555,7 +1555,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 			if (DISPLAY_VER(display) < 11 &&
 			    crtc_state->nv12_planes & BIT(plane_id))
-				skl_check_nv12_wm_level(&wm->wm[level],
+				skl_check_wm_level_nv12(&wm->wm[level],
 							&wm->uv_wm[level],
 							ddb_y, ddb);
 			else
