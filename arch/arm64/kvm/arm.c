@@ -2529,6 +2529,9 @@ static void kvm_hyp_init_symbols(void)
 	kvm_nvhe_sym(hfgitr2_masks) = hfgitr2_masks;
 	kvm_nvhe_sym(hdfgrtr2_masks)= hdfgrtr2_masks;
 	kvm_nvhe_sym(hdfgwtr2_masks)= hdfgwtr2_masks;
+	kvm_nvhe_sym(ich_hfgrtr_masks) = ich_hfgrtr_masks;
+	kvm_nvhe_sym(ich_hfgwtr_masks) = ich_hfgwtr_masks;
+	kvm_nvhe_sym(ich_hfgitr_masks) = ich_hfgitr_masks;
 
 	/*
 	 * Flush entire BSS since part of its data containing init symbols is read
