@@ -398,7 +398,11 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 
 static void kvm_vgic_vcpu_reset(struct kvm_vcpu *vcpu)
 {
-	if (kvm_vgic_global_state.type == VGIC_V2)
+	const struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V5)
+		vgic_v5_reset(vcpu);
+	else if (kvm_vgic_global_state.type == VGIC_V2)
 		vgic_v2_reset(vcpu);
 	else
 		vgic_v3_reset(vcpu);

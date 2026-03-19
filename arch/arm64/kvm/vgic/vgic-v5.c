@@ -87,6 +87,21 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 	return 0;
 }
 
+void vgic_v5_reset(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * We always present 16-bits of ID space to the guest, irrespective of
+	 * the host allowing more.
+	 */
+	vcpu->arch.vgic_cpu.num_id_bits = ICC_IDR0_EL1_ID_BITS_16BITS;
+
+	/*
+	 * The GICv5 architeture only supports 5-bits of priority in the
+	 * CPUIF (but potentially fewer in the IRS).
+	 */
+	vcpu->arch.vgic_cpu.num_pri_bits = 5;
+}
+
 int vgic_v5_init(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
