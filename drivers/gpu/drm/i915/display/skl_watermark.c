@@ -1356,14 +1356,13 @@ skl_check_wm_level(struct skl_wm_level *wm, const struct skl_ddb_entry *ddb)
 }
 
 static void
-skl_check_wm_level_nv12(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
-			const struct skl_ddb_entry *ddb_y, const struct skl_ddb_entry *ddb)
+skl_check_wm_level_nv12(struct skl_wm_level *wm,
+			const struct skl_ddb_entry *ddb_y,
+			const struct skl_ddb_entry *ddb)
 {
 	if (wm->min_ddb_alloc > skl_ddb_entry_size(ddb_y) ||
-	    uv_wm->min_ddb_alloc > skl_ddb_entry_size(ddb)) {
+	    wm->min_ddb_alloc_uv > skl_ddb_entry_size(ddb))
 		memset(wm, 0, sizeof(*wm));
-		memset(uv_wm, 0, sizeof(*uv_wm));
-	}
 }
 
 static bool skl_need_wm_copy_wa(struct intel_display *display, int level,
@@ -1427,11 +1426,10 @@ static void
 skl_allocate_plane_ddb_nv12(struct skl_plane_ddb_iter *iter,
 			    const struct skl_wm_level *wm,
 			    struct skl_ddb_entry *ddb_y, u64 data_rate_y,
-			    const struct skl_wm_level *uv_wm,
 			    struct skl_ddb_entry *ddb, u64 data_rate)
 {
 	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc, ddb_y, data_rate_y);
-	_skl_allocate_plane_ddb(iter, uv_wm->min_ddb_alloc, ddb, data_rate);
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc_uv, ddb, data_rate);
 }
 
 static int
@@ -1499,7 +1497,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			}
 
 			blocks += wm->wm[level].min_ddb_alloc;
-			blocks += wm->uv_wm[level].min_ddb_alloc;
+			blocks += wm->wm[level].min_ddb_alloc_uv;
 		}
 
 		if (blocks <= iter.size) {
@@ -1543,7 +1541,6 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		    crtc_state->nv12_planes & BIT(plane_id))
 			skl_allocate_plane_ddb_nv12(&iter, &wm->wm[level],
 						    ddb_y, crtc_state->rel_data_rate_y[plane_id],
-						    &wm->uv_wm[level],
 						    ddb, crtc_state->rel_data_rate[plane_id]);
 		else
 			skl_allocate_plane_ddb(&iter, &wm->wm[level],
@@ -1573,9 +1570,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 			if (DISPLAY_VER(display) < 11 &&
 			    crtc_state->nv12_planes & BIT(plane_id))
-				skl_check_wm_level_nv12(&wm->wm[level],
-							&wm->uv_wm[level],
-							ddb_y, ddb);
+				skl_check_wm_level_nv12(&wm->wm[level], ddb_y, ddb);
 			else
 				skl_check_wm_level(&wm->wm[level], ddb);
 
@@ -2084,9 +2079,11 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 				 const struct intel_plane_state *plane_state,
 				 struct intel_plane *plane)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane->id];
+	struct skl_wm_level uv_wm[ARRAY_SIZE(wm->wm)] = {};
 	struct skl_wm_params wm_params;
-	int ret;
+	int ret, level;
 
 	/* uv plane watermarks must also be validated for NV12/Planar */
 	ret = skl_compute_plane_wm_params(crtc_state, plane_state,
@@ -2094,7 +2091,14 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	skl_compute_wm_levels(crtc_state, plane, &wm_params, wm->uv_wm);
+	skl_compute_wm_levels(crtc_state, plane, &wm_params, uv_wm);
+
+	/*
+	 * Only keep the min_ddb_alloc for UV as
+	 * the hardware needs nothing else.
+	 */
+	for (level = 0; level < display->wm.num_levels; level++)
+		wm->wm[level].min_ddb_alloc_uv = uv_wm[level].min_ddb_alloc;
 
 	return 0;
 }
@@ -2317,7 +2321,6 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 			 * thing as bad via min_ddb_alloc=U16_MAX?
 			 */
 			wm->wm[level].enable = false;
-			wm->uv_wm[level].enable = false;
 		}
 	}
 
@@ -2388,11 +2391,6 @@ static bool skl_plane_wm_equals(struct intel_display *display,
 	int level;
 
 	for (level = 0; level < display->wm.num_levels; level++) {
-		/*
-		 * We don't check uv_wm as the hardware doesn't actually
-		 * use it. It only gets used for calculating the required
-		 * ddb allocation.
-		 */
 		if (!skl_wm_level_equals(&wm1->wm[level], &wm2->wm[level]))
 			return false;
 	}
@@ -2753,11 +2751,6 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 	int level;
 
 	for (level = 0; level < display->wm.num_levels; level++) {
-		/*
-		 * We don't check uv_wm as the hardware doesn't actually
-		 * use it. It only gets used for calculating the required
-		 * ddb allocation.
-		 */
 		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, plane->id, level),
 					 skl_plane_wm_level(new_pipe_wm, plane->id, level)))
 			return false;
