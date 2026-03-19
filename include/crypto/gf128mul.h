@@ -215,25 +215,14 @@ static inline void gf128mul_x_ble(le128 *r, const le128 *x)
 	r->b = cpu_to_le64((b << 1) ^ _tt);
 }
 
-/* 4k table optimization */
-
-struct gf128mul_4k {
-	be128 t[256];
-};
-
-struct gf128mul_4k *gf128mul_init_4k_lle(const be128 *g);
-void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t);
 void gf128mul_x8_ble(le128 *r, const le128 *x);
-static inline void gf128mul_free_4k(struct gf128mul_4k *t)
-{
-	kfree_sensitive(t);
-}
-
 
 /* 64k table optimization, implemented for bbe */
 
 struct gf128mul_64k {
-	struct gf128mul_4k *t[16];
+	struct {
+		be128 t[256];
+	} *t[16];
 };
 
 /* First initialize with the constant factor with which you
