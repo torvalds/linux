@@ -461,6 +461,7 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
 
 	if ((pgm == 0 && fw_ver >= 0x00558200) ||
+	    (pgm == 4 && fw_ver >= 0x04557100) ||
 	    (pgm == 7 && fw_ver >= 0x07551400))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
 }
