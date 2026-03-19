@@ -519,10 +519,7 @@ static int fsl_lpspi_prepare_message(struct spi_controller *controller,
 	fsl_lpspi->usedma = false;
 	ret = fsl_lpspi_setup_transfer(controller, spi, t);
 
-	if (fsl_lpspi_can_dma(controller, spi, t))
-		fsl_lpspi->usedma = true;
-	else
-		fsl_lpspi->usedma = false;
+	fsl_lpspi->usedma = fsl_lpspi_can_dma(controller, spi, t);
 
 	if (ret < 0)
 		return ret;
@@ -796,10 +793,7 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 					spi_controller_get_devdata(controller);
 	int ret;
 
-	if (fsl_lpspi_can_dma(controller, spi, t))
-		fsl_lpspi->usedma = true;
-	else
-		fsl_lpspi->usedma = false;
+	fsl_lpspi->usedma = fsl_lpspi_can_dma(controller, spi, t);
 
 	ret = fsl_lpspi_setup_transfer(controller, spi, t);
 	if (ret < 0)
