@@ -813,6 +813,12 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 		u8 min_profiles;
 	} rev_data[] = {
 		{
+			.revisions = BIT(4),
+			.bands = ACPI_GEO_NUM_BANDS_REV4,
+			.profiles = ACPI_NUM_GEO_PROFILES_REV3,
+			.min_profiles = BIOS_GEO_MIN_PROFILE_NUM,
+		},
+		{
 			.revisions = BIT(3),
 			.bands = ACPI_GEO_NUM_BANDS_REV2,
 			.profiles = ACPI_NUM_GEO_PROFILES_REV3,
