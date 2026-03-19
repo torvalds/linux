@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/irq_work.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -75,6 +76,7 @@ static bool __read_mostly srcu_init_done;
 static void srcu_invoke_callbacks(struct work_struct *work);
 static void srcu_reschedule(struct srcu_struct *ssp, unsigned long delay);
 static void process_srcu(struct work_struct *work);
+static void srcu_irq_work(struct irq_work *work);
 static void srcu_delay_timer(struct timer_list *t);
 
 /*
@@ -216,6 +218,7 @@ static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 	mutex_init(&ssp->srcu_sup->srcu_barrier_mutex);
 	atomic_set(&ssp->srcu_sup->srcu_barrier_cpu_cnt, 0);
 	INIT_DELAYED_WORK(&ssp->srcu_sup->work, process_srcu);
+	init_irq_work(&ssp->srcu_sup->irq_work, srcu_irq_work);
 	ssp->srcu_sup->sda_is_static = is_static;
 	if (!is_static) {
 		ssp->sda = alloc_percpu(struct srcu_data);
@@ -716,6 +719,8 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 		return; /* Just leak it! */
 	if (WARN_ON(srcu_readers_active(ssp)))
 		return; /* Just leak it! */
+	/* Wait for irq_work to finish first as it may queue a new work. */
+	irq_work_sync(&sup->irq_work);
 	flush_delayed_work(&sup->work);
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
@@ -1121,9 +1126,13 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
 		// it isn't.  And it does not have to be.  After all, it
 		// can only be executed during early boot when there is only
 		// the one boot CPU running with interrupts still disabled.
+		//
+		// Use an irq_work here to avoid acquiring runqueue lock with
+		// srcu rcu_node::lock held. BPF instrument could introduce the
+		// opposite dependency, hence we need to break the possible
+		// locking dependency here.
 		if (likely(srcu_init_done))
-			queue_delayed_work(rcu_gp_wq, &sup->work,
-					   !!srcu_get_delay(ssp));
+			irq_work_queue(&sup->irq_work);
 		else if (list_empty(&sup->work.work.entry))
 			list_add(&sup->work.work.entry, &srcu_boot_list);
 	}
@@ -1980,6 +1989,23 @@ static void process_srcu(struct work_struct *work)
 		}
 	}
 	srcu_reschedule(ssp, curdelay);
+}
+
+static void srcu_irq_work(struct irq_work *work)
+{
+	struct srcu_struct *ssp;
+	struct srcu_usage *sup;
+	unsigned long delay;
+	unsigned long flags;
+
+	sup = container_of(work, struct srcu_usage, irq_work);
+	ssp = sup->srcu_ssp;
+
+	raw_spin_lock_irqsave_rcu_node(ssp->srcu_sup, flags);
+	delay = srcu_get_delay(ssp);
+	raw_spin_unlock_irqrestore_rcu_node(ssp->srcu_sup, flags);
+
+	queue_delayed_work(rcu_gp_wq, &sup->work, !!delay);
 }
 
 void srcutorture_get_gp_data(struct srcu_struct *ssp, int *flags,
