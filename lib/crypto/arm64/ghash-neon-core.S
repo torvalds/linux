@@ -6,7 +6,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 	SHASH		.req	v0
@@ -179,25 +178,20 @@
 	.endm
 
 	/*
-	 * void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
-	 *			      u64 const h[][2], const char *head)
+	 * void pmull_ghash_update_p8(size_t blocks, struct polyval_elem *dg,
+	 *			      const u8 *src,
+	 *			      const struct polyval_elem *h)
 	 */
-SYM_TYPED_FUNC_START(pmull_ghash_update_p8)
+SYM_FUNC_START(pmull_ghash_update_p8)
 	ld1		{SHASH.2d}, [x3]
 	ld1		{XL.2d}, [x1]
 
 	__pmull_pre_p8
 
-	/* do the head block first, if supplied */
-	cbz		x4, 0f
-	ld1		{T1.2d}, [x4]
-	mov		x4, xzr
-	b		3f
-
 0:	ld1		{T1.2d}, [x2], #16
-	sub		w0, w0, #1
+	sub		x0, x0, #1
 
-3:	/* multiply XL by SHASH in GF(2^128) */
+	/* multiply XL by SHASH in GF(2^128) */
 CPU_LE(	rev64		T1.16b, T1.16b	)
 
 	ext		T2.16b, XL.16b, XL.16b, #8
@@ -219,7 +213,7 @@ CPU_LE(	rev64		T1.16b, T1.16b	)
 	eor		T2.16b, T2.16b, XH.16b
 	eor		XL.16b, XL.16b, T2.16b
 
-	cbnz		w0, 0b
+	cbnz		x0, 0b
 
 	st1		{XL.2d}, [x1]
 	ret

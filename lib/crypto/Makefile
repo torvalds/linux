@@ -159,7 +159,8 @@ libgf128hash-y := gf128hash.o
 ifeq ($(CONFIG_CRYPTO_LIB_GF128HASH_ARCH),y)
 CFLAGS_gf128hash.o += -I$(src)/$(SRCARCH)
 libgf128hash-$(CONFIG_ARM) += arm/ghash-neon-core.o
-libgf128hash-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
+libgf128hash-$(CONFIG_ARM64) += arm64/ghash-neon-core.o \
+				arm64/polyval-ce-core.o
 libgf128hash-$(CONFIG_X86) += x86/polyval-pclmul-avx.o
 endif
 
