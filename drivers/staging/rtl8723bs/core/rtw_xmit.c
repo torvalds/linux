@@ -1196,12 +1196,13 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	ori_len = BIP_AAD_SIZE + pattrib->pktlen;
-	tmp_buf = BIP_AAD = kzalloc(ori_len, GFP_ATOMIC);
-	subtype = GetFrameSubType(pframe); /* bit(7)~bit(2) */
+	BIP_AAD = kzalloc(ori_len, GFP_ATOMIC);
 
 	if (!BIP_AAD)
 		return _FAIL;
 
+	tmp_buf = BIP_AAD;
+	subtype = GetFrameSubType(pframe); /* bit(7)~bit(2) */
 	spin_lock_bh(&padapter->security_key_mutex);
 
 	/* only support station mode */
