@@ -46,14 +46,14 @@
     },
     {
         "BriefDescription": "Max front or backend stalls per instruction",
-        "MetricExpr": "max(stalled\\-cycles\\-frontend, stalled\\-cycles\\-backend) / instructions",
+        "MetricExpr": "(max(stalled\\-cycles\\-frontend, stalled\\-cycles\\-backend) / instructions) if (has_event(stalled\\-cycles\\-frontend) & has_event(stalled\\-cycles\\-backend)) else ((stalled\\-cycles\\-frontend / instructions) if has_event(stalled\\-cycles\\-frontend) else ((stalled\\-cycles\\-backend / instructions) if has_event(stalled\\-cycles\\-backend) else 0))",
         "MetricGroup": "Default",
         "MetricName": "stalled_cycles_per_instruction",
         "DefaultShowEvents": "1"
     },
     {
         "BriefDescription": "Frontend stalls per cycle",
-        "MetricExpr": "stalled\\-cycles\\-frontend / cpu\\-cycles",
+        "MetricExpr": "(stalled\\-cycles\\-frontend / cpu\\-cycles) if has_event(stalled\\-cycles\\-frontend) else 0",
         "MetricGroup": "Default",
         "MetricName": "frontend_cycles_idle",
         "MetricThreshold": "frontend_cycles_idle > 0.1",
@@ -61,7 +61,7 @@
     },
     {
         "BriefDescription": "Backend stalls per cycle",
-        "MetricExpr": "stalled\\-cycles\\-backend / cpu\\-cycles",
+        "MetricExpr": "(stalled\\-cycles\\-backend / cpu\\-cycles) if has_event(stalled\\-cycles\\-backend) else 0",
         "MetricGroup": "Default",
         "MetricName": "backend_cycles_idle",
         "MetricThreshold": "backend_cycles_idle > 0.2",
