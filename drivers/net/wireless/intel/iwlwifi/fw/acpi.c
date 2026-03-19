@@ -865,6 +865,18 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 			num_bands = rev_data[idx].bands;
 			num_profiles = rev_data[idx].profiles;
 
+			if (WARN_ON(num_profiles >
+				    ARRAY_SIZE(fwrt->geo_profiles))) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
+			if (WARN_ON(num_bands >
+				    ARRAY_SIZE(fwrt->geo_profiles[0].bands))) {
+				ret = -EINVAL;
+				goto out_free;
+			}
+
 			if (rev_data[idx].min_profiles) {
 				/* read header that says # of profiles */
 				union acpi_object *entry;
@@ -904,18 +916,20 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 
 read_table:
 	fwrt->geo_rev = tbl_rev;
+
 	for (i = 0; i < num_profiles; i++) {
-		for (j = 0; j < BIOS_GEO_MAX_NUM_BANDS; j++) {
+		struct iwl_geo_profile *prof = &fwrt->geo_profiles[i];
+
+		for (j = 0; j < ARRAY_SIZE(prof->bands); j++) {
 			union acpi_object *entry;
 
 			/*
-			 * num_bands is either 2 or 3, if it's only 2 then
-			 * fill the third band (6 GHz) with the values from
-			 * 5 GHz (second band)
+			 * num_bands is either 2 or 3 or 4, if it's lower
+			 * than 4, fill the third band (6 GHz) with the values
+			 * from 5 GHz (second band)
 			 */
 			if (j >= num_bands) {
-				fwrt->geo_profiles[i].bands[j].max =
-					fwrt->geo_profiles[i].bands[1].max;
+				prof->bands[j].max = prof->bands[1].max;
 			} else {
 				entry = &wifi_pkg->package.elements[entry_idx];
 				entry_idx++;
@@ -925,15 +939,17 @@ read_table:
 					goto out_free;
 				}
 
-				fwrt->geo_profiles[i].bands[j].max =
+				prof->bands[j].max =
 					entry->integer.value;
 			}
 
-			for (k = 0; k < BIOS_GEO_NUM_CHAINS; k++) {
+			for (k = 0;
+			     k < ARRAY_SIZE(prof->bands[0].chains);
+			     k++) {
 				/* same here as above */
 				if (j >= num_bands) {
-					fwrt->geo_profiles[i].bands[j].chains[k] =
-						fwrt->geo_profiles[i].bands[1].chains[k];
+					prof->bands[j].chains[k] =
+						prof->bands[1].chains[k];
 				} else {
 					entry = &wifi_pkg->package.elements[entry_idx];
 					entry_idx++;
@@ -943,7 +959,7 @@ read_table:
 						goto out_free;
 					}
 
-					fwrt->geo_profiles[i].bands[j].chains[k] =
+					prof->bands[j].chains[k] =
 						entry->integer.value;
 				}
 			}
