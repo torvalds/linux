@@ -145,3 +145,43 @@
 		};
 	};
 };
+
+&nandcs {
+	partitions {
+		compatible = "linksys,ns-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x0000000 0x0080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "nvram";
+			reg = <0x080000 0x0100000>;
+		};
+
+		partition@180000 {
+			label = "devinfo";
+			reg = <0x0180000 0x080000>;
+			read-only;
+		};
+
+		partition@200000 {
+			reg = <0x0200000 0x02800000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
+		};
+
+		partition@2a00000 {
+			reg = <0x02a00000 0x02800000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
+		};
+
+		partition@5200000 {
+			label = "system";
+			reg = <0x05200000 0x02e00000>;
+		};
+	};
+};
