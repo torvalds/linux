@@ -1467,6 +1467,62 @@ static void __init test_bitmap_write_perf(void)
 	pr_info("%s:\t\t%llu\n", __func__, time);
 }
 
+/*
+ * nbits == 0 is most commonly not a valid case. Bitmap users should revisit
+ * the caller logic. Bitmap API doesn't provide any guarantees on returned
+ * value. The pointers are not dereferenced. The return value is intentionally
+ * ignored.
+ */
+static void __init test_zero_nbits(void)
+{
+	static volatile __always_used unsigned long ret __initdata;
+
+	bitmap_clear(NULL, 0, 0);
+	bitmap_complement(NULL, NULL, 0);
+	bitmap_copy(NULL, NULL, 0);
+	bitmap_copy_clear_tail(NULL, NULL, 0);
+	bitmap_fill(NULL, 0);
+	bitmap_from_arr32(NULL, NULL, 0);
+	bitmap_from_arr64(NULL, NULL, 0);
+	bitmap_or(NULL, NULL, NULL, 0);
+	bitmap_set(NULL, 0, 0);
+	bitmap_shift_left(NULL, NULL, 0, 0);
+	bitmap_shift_right(NULL, NULL, 0, 0);
+	bitmap_to_arr32(NULL, NULL, 0);
+	bitmap_to_arr64(NULL, NULL, 0);
+	bitmap_write(NULL, 0, 0, 0);
+	bitmap_xor(NULL, NULL, NULL, 0);
+	bitmap_zero(NULL, 0);
+
+	ret = bitmap_and(NULL, NULL, NULL, 0);
+	ret = bitmap_empty(NULL, 0);
+	ret = bitmap_equal(NULL, NULL, 0);
+	ret = bitmap_full(NULL, 0);
+	ret = bitmap_or_equal(NULL, NULL, NULL, 0);
+	ret = bitmap_read(NULL, 0, 0);
+	ret = bitmap_subset(NULL, NULL, 0);
+	ret = bitmap_weight(NULL, 0);
+	ret = bitmap_weight_and(NULL, NULL, 0);
+	ret = bitmap_weight_andnot(NULL, NULL, 0);
+	ret = bitmap_weight_from(NULL, 0, 0);
+	ret = bitmap_weighted_or(NULL, NULL, NULL, 0);
+
+	ret = find_first_and_and_bit(NULL, NULL, NULL, 0);
+	ret = find_first_and_bit(NULL, NULL, 0);
+	ret = find_first_andnot_bit(NULL, NULL, 0);
+	ret = find_first_bit(NULL, 0);
+	ret = find_first_zero_bit(NULL, 0);
+	ret = find_last_bit(NULL, 0);
+	ret = find_next_and_bit(NULL, NULL, 0, 0);
+	ret = find_next_andnot_bit(NULL, NULL, 0, 0);
+	ret = find_next_bit(NULL, 0, 0);
+	ret = find_next_clump8(NULL, NULL, 0, 0);
+	ret = find_next_zero_bit(NULL, 0, 0);
+	ret = find_nth_and_bit(NULL, NULL, 0, 0);
+	ret = find_nth_bit(NULL, 0, 0);
+	ret = find_random_bit(NULL, 0);
+}
+
 #undef TEST_BIT_LEN
 
 static void __init selftest(void)
@@ -1490,6 +1546,7 @@ static void __init selftest(void)
 	test_bitmap_read_perf();
 	test_bitmap_weight();
 	test_bitmap_write_perf();
+	test_zero_nbits();
 
 	test_find_nth_bit();
 	test_for_each_set_bit();
