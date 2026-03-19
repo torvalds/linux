@@ -122,6 +122,37 @@ int vgic_v5_finalize_ppi_state(struct kvm *kvm)
 	return 0;
 }
 
+static u32 vgic_v5_get_effective_priority_mask(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
+	u32 highest_ap, priority_mask;
+
+	/*
+	 * If the guest's CPU has not opted to receive interrupts, then the
+	 * effective running priority is the highest priority. Just return 0
+	 * (the highest priority).
+	 */
+	if (!FIELD_GET(FEAT_GCIE_ICH_VMCR_EL2_EN, cpu_if->vgic_vmcr))
+		return 0;
+
+	/*
+	 * Counting the number of trailing zeros gives the current active
+	 * priority. Explicitly use the 32-bit version here as we have 32
+	 * priorities. 32 then means that there are no active priorities.
+	 */
+	highest_ap = cpu_if->vgic_apr ? __builtin_ctz(cpu_if->vgic_apr) : 32;
+
+	/*
+	 * An interrupt is of sufficient priority if it is equal to or
+	 * greater than the priority mask. Add 1 to the priority mask
+	 * (i.e., lower priority) to match the APR logic before taking
+	 * the min. This gives us the lowest priority that is masked.
+	 */
+	priority_mask = FIELD_GET(FEAT_GCIE_ICH_VMCR_EL2_VPMR, cpu_if->vgic_vmcr);
+
+	return min(highest_ap, priority_mask + 1);
+}
+
 /*
  * For GICv5, the PPIs are mostly directly managed by the hardware. We (the
  * hypervisor) handle the pending, active, enable state save/restore, but don't
@@ -164,6 +195,84 @@ static struct irq_ops vgic_v5_ppi_irq_ops = {
 void vgic_v5_set_ppi_ops(struct kvm_vcpu *vcpu, u32 vintid)
 {
 	kvm_vgic_set_irq_ops(vcpu, vintid, &vgic_v5_ppi_irq_ops);
+}
+
+/*
+ * Sync back the PPI priorities to the vgic_irq shadow state for any interrupts
+ * exposed to the guest (skipping all others).
+ */
+static void vgic_v5_sync_ppi_priorities(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
+	u64 priorityr;
+	int i;
+
+	/*
+	 * We have up to 16 PPI Priority regs, but only have a few interrupts
+	 * that the guest is allowed to use. Limit our sync of PPI priorities to
+	 * those actually exposed to the guest by first iterating over the mask
+	 * of exposed PPIs.
+	 */
+	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS) {
+		u32 intid = vgic_v5_make_ppi(i);
+		struct vgic_irq *irq;
+		int pri_idx, pri_reg, pri_bit;
+		u8 priority;
+
+		/*
+		 * Determine which priority register and the field within it to
+		 * extract.
+		 */
+		pri_reg = i / 8;
+		pri_idx = i % 8;
+		pri_bit = pri_idx * 8;
+
+		priorityr = cpu_if->vgic_ppi_priorityr[pri_reg];
+		priority = field_get(GENMASK(pri_bit + 4, pri_bit), priorityr);
+
+		irq = vgic_get_vcpu_irq(vcpu, intid);
+
+		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock)
+			irq->priority = priority;
+
+		vgic_put_irq(vcpu->kvm, irq);
+	}
+}
+
+bool vgic_v5_has_pending_ppi(struct kvm_vcpu *vcpu)
+{
+	unsigned int priority_mask;
+	int i;
+
+	priority_mask = vgic_v5_get_effective_priority_mask(vcpu);
+
+	/*
+	 * If the combined priority mask is 0, nothing can be signalled! In the
+	 * case where the guest has disabled interrupt delivery for the vcpu
+	 * (via ICV_CR0_EL1.EN->ICH_VMCR_EL2.EN), we calculate the priority mask
+	 * as 0 too (the highest possible priority).
+	 */
+	if (!priority_mask)
+		return false;
+
+	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS) {
+		u32 intid = vgic_v5_make_ppi(i);
+		bool has_pending = false;
+		struct vgic_irq *irq;
+
+		irq = vgic_get_vcpu_irq(vcpu, intid);
+
+		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock)
+			has_pending = (irq->enabled && irq_is_pending(irq) &&
+				       irq->priority <= priority_mask);
+
+		vgic_put_irq(vcpu->kvm, irq);
+
+		if (has_pending)
+			return true;
+	}
+
+	return false;
 }
 
 /*
@@ -293,6 +402,10 @@ void vgic_v5_put(struct kvm_vcpu *vcpu)
 	kvm_call_hyp(__vgic_v5_save_apr, cpu_if);
 
 	cpu_if->gicv5_vpe.resident = false;
+
+	/* The shadow priority is only updated on entering WFI */
+	if (vcpu_get_flag(vcpu, IN_WFI))
+		vgic_v5_sync_ppi_priorities(vcpu);
 }
 
 void vgic_v5_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
