@@ -197,10 +197,11 @@ static ssize_t devid_write(struct file *filp, const char __user *ubuf,
 static int devid_show(struct seq_file *m, void *unused)
 {
 	u16 devid;
+	int sbdf_shadow = sbdf;
 
-	if (sbdf >= 0) {
-		devid = PCI_SBDF_TO_DEVID(sbdf);
-		seq_printf(m, "%04x:%02x:%02x.%x\n", PCI_SBDF_TO_SEGID(sbdf),
+	if (sbdf_shadow >= 0) {
+		devid = PCI_SBDF_TO_DEVID(sbdf_shadow);
+		seq_printf(m, "%04x:%02x:%02x.%x\n", PCI_SBDF_TO_SEGID(sbdf_shadow),
 			   PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid));
 	} else
 		seq_puts(m, "No or Invalid input provided\n");
@@ -237,13 +238,14 @@ static int iommu_devtbl_show(struct seq_file *m, void *unused)
 {
 	struct amd_iommu_pci_seg *pci_seg;
 	u16 seg, devid;
+	int sbdf_shadow = sbdf;
 
-	if (sbdf < 0) {
+	if (sbdf_shadow < 0) {
 		seq_puts(m, "Enter a valid device ID to 'devid' file\n");
 		return 0;
 	}
-	seg = PCI_SBDF_TO_SEGID(sbdf);
-	devid = PCI_SBDF_TO_DEVID(sbdf);
+	seg = PCI_SBDF_TO_SEGID(sbdf_shadow);
+	devid = PCI_SBDF_TO_DEVID(sbdf_shadow);
 
 	for_each_pci_segment(pci_seg) {
 		if (pci_seg->id != seg)
@@ -336,19 +338,20 @@ static int iommu_irqtbl_show(struct seq_file *m, void *unused)
 {
 	struct amd_iommu_pci_seg *pci_seg;
 	u16 devid, seg;
+	int sbdf_shadow = sbdf;
 
 	if (!irq_remapping_enabled) {
 		seq_puts(m, "Interrupt remapping is disabled\n");
 		return 0;
 	}
 
-	if (sbdf < 0) {
+	if (sbdf_shadow < 0) {
 		seq_puts(m, "Enter a valid device ID to 'devid' file\n");
 		return 0;
 	}
 
-	seg = PCI_SBDF_TO_SEGID(sbdf);
-	devid = PCI_SBDF_TO_DEVID(sbdf);
+	seg = PCI_SBDF_TO_SEGID(sbdf_shadow);
+	devid = PCI_SBDF_TO_DEVID(sbdf_shadow);
 
 	for_each_pci_segment(pci_seg) {
 		if (pci_seg->id != seg)
