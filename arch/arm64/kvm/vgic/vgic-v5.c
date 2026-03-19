@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2025, 2026 Arm Ltd.
+ */
 
 #include <kvm/arm_vgic.h>
 #include <linux/irqchip/arm-vgic-info.h>
