@@ -4101,6 +4101,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = __VECS(hmac_md5_ecb_cipher_null_tv_template)
 		}
 	}, {
+		.alg = "authenc(hmac(md5),rfc3686(ctr(aes)))",
+		.generic_driver = "authenc(hmac-md5-lib,rfc3686(ctr(aes-lib)))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(hmac_md5_aes_ctr_rfc3686_tv_temp)
+		}
+	}, {
 		.alg = "authenc(hmac(sha1),cbc(aes))",
 		.generic_driver = "authenc(hmac-sha1-lib,cbc(aes-lib))",
 		.test = alg_test_aead,
