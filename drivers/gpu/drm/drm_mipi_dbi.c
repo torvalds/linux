@@ -14,6 +14,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
@@ -22,12 +23,9 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_print.h>
-#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <video/mipi_display.h>
 
@@ -317,6 +315,24 @@ err_msg:
 }
 
 /**
+ * drm_mipi_dbi_crtc_helper_mode_valid - MIPI DBI mode-valid helper
+ * @crtc: The CRTC
+ * @mode: The mode to test
+ *
+ * This function validates a given display mode against the MIPI DBI's hardware
+ * display. Drivers can use this as their struct &drm_crtc_helper_funcs.mode_valid
+ * callback.
+ */
+enum drm_mode_status drm_mipi_dbi_crtc_helper_mode_valid(struct drm_crtc *crtc,
+							 const struct drm_display_mode *mode)
+{
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(crtc->dev);
+
+	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &dbidev->mode);
+}
+EXPORT_SYMBOL(drm_mipi_dbi_crtc_helper_mode_valid);
+
+/**
  * mipi_dbi_pipe_mode_valid - MIPI DBI mode-valid helper
  * @pipe: Simple display pipe
  * @mode: The mode to test
@@ -328,11 +344,74 @@ err_msg:
 enum drm_mode_status mipi_dbi_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 					      const struct drm_display_mode *mode)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-
-	return drm_crtc_helper_mode_valid_fixed(&pipe->crtc, mode, &dbidev->mode);
+	return drm_mipi_dbi_crtc_helper_mode_valid(&pipe->crtc, mode);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
+
+/**
+ * drm_mipi_dbi_plane_helper_atomic_check - MIPI DBI plane check helper
+ * @plane: Plane to check
+ * @state: Atomic state
+ *
+ * This function performs the default checks on the primary plane
+ * of a MIPI DBI device. Drivers can use this as their
+ * struct &drm_crtc_helper_funcs.atomic_check callback.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drm_mipi_dbi_plane_helper_atomic_check(struct drm_plane *plane,
+					   struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc_state *new_crtc_state = NULL;
+	int ret;
+
+	if (new_plane_state->crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mipi_dbi_plane_helper_atomic_check);
+
+/**
+ * drm_mipi_dbi_plane_helper_atomic_update - Display update helper
+ * @plane: Plane
+ * @state: Atomic state
+ *
+ * This function handles framebuffer flushing and vblank events. Drivers can use
+ * this as their struct &drm_plane_helper_funcs.atomic_update callback.
+ */
+void drm_mipi_dbi_plane_helper_atomic_update(struct drm_plane *plane,
+					     struct drm_atomic_state *state)
+{
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_rect rect;
+	int idx;
+
+	if (!fb)
+		return;
+
+	if (drm_dev_enter(plane->dev, &idx)) {
+		if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
+			mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+					  &shadow_plane_state->fmtcnv_state);
+		drm_dev_exit(idx);
+	}
+}
+EXPORT_SYMBOL(drm_mipi_dbi_plane_helper_atomic_update);
 
 /**
  * mipi_dbi_pipe_update - Display pipe update helper
@@ -345,26 +424,7 @@ EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect rect;
-	int idx;
-
-	if (!pipe->crtc.state->active)
-		return;
-
-	if (WARN_ON(!fb))
-		return;
-
-	if (!drm_dev_enter(fb->dev, &idx))
-		return;
-
-	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
-				  &shadow_plane_state->fmtcnv_state);
-
-	drm_dev_exit(idx);
+	return drm_mipi_dbi_plane_helper_atomic_update(&pipe->plane, old_state->state);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
@@ -394,18 +454,48 @@ static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
 }
 
 /**
- * mipi_dbi_pipe_disable - MIPI DBI pipe disable helper
- * @pipe: Display pipe
+ * drm_mipi_dbi_crtc_helper_atomic_check - MIPI DBI CRTC check helper
+ * @crtc: CRTC to check
+ * @state: Atomic state
+ *
+ * This function performs the default checks on the CRTC of a MIPI DBI
+ * device and ensures that the primary plane as been set up correctly.
+ * Drivers can use this as their struct &drm_crtc_helper_funcs.atomic_check
+ * callback.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drm_mipi_dbi_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int ret;
+
+	if (!crtc_state->enable)
+		goto out;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+	if (ret)
+		return ret;
+
+out:
+	return drm_atomic_add_affected_planes(state, crtc);
+}
+EXPORT_SYMBOL(drm_mipi_dbi_crtc_helper_atomic_check);
+
+/**
+ * drm_mipi_dbi_crtc_helper_atomic_disable - MIPI DBI CRTC disable helper
+ * @crtc: CRTC to disable
+ * @state: Atomic state
  *
  * This function disables backlight if present, if not the display memory is
  * blanked. The regulator is disabled if in use. Drivers can use this as their
- * &drm_simple_display_pipe_funcs->disable callback.
+ * struct &drm_crtc_helper_funcs.atomic_disable callback.
  */
-void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
+void drm_mipi_dbi_crtc_helper_atomic_disable(struct drm_crtc *crtc,
+					     struct drm_atomic_state *state)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-
-	DRM_DEBUG_KMS("\n");
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(crtc->dev);
 
 	if (dbidev->backlight)
 		backlight_disable(dbidev->backlight);
@@ -416,6 +506,20 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 		regulator_disable(dbidev->regulator);
 	if (dbidev->io_regulator)
 		regulator_disable(dbidev->io_regulator);
+}
+EXPORT_SYMBOL(drm_mipi_dbi_crtc_helper_atomic_disable);
+
+/**
+ * mipi_dbi_pipe_disable - MIPI DBI pipe disable helper
+ * @pipe: Display pipe
+ *
+ * This function disables backlight if present, if not the display memory is
+ * blanked. The regulator is disabled if in use. Drivers can use this as their
+ * &drm_simple_display_pipe_funcs->disable callback.
+ */
+void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
+{
+	drm_mipi_dbi_crtc_helper_atomic_disable(&pipe->crtc, pipe->crtc.state->state);
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
@@ -503,23 +607,32 @@ void mipi_dbi_pipe_destroy_plane_state(struct drm_simple_display_pipe *pipe,
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_destroy_plane_state);
 
-static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
+/**
+ * drm_mipi_dbi_connector_helper_get_modes - Duplicates the MIPI DBI mode for the connector
+ * @connector: The connector
+ *
+ * Sets the connecto rmodes from the MIPI DBI mode. Drivers can use this as their
+ * &drm_connector_helper_funcs->get_mods callback. See drm_gem_destroy_shadow_plane_state()
+ * for additional details.
+ *
+ * Returns:
+ * The number of created modes.
+ */
+int drm_mipi_dbi_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(connector->dev);
 
 	return drm_connector_helper_get_modes_fixed(connector, &dbidev->mode);
 }
+EXPORT_SYMBOL(drm_mipi_dbi_connector_helper_get_modes);
 
 static const struct drm_connector_helper_funcs mipi_dbi_connector_hfuncs = {
-	.get_modes = mipi_dbi_connector_get_modes,
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
 };
 
 static const struct drm_connector_funcs mipi_dbi_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
 	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int mipi_dbi_rotate_mode(struct drm_display_mode *mode,
@@ -540,18 +653,15 @@ static int mipi_dbi_rotate_mode(struct drm_display_mode *mode,
 }
 
 static const struct drm_mode_config_helper_funcs mipi_dbi_mode_config_helper_funcs = {
-	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
 };
 
 static const struct drm_mode_config_funcs mipi_dbi_mode_config_funcs = {
-	.fb_create = drm_gem_fb_create_with_dirty,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 static const uint32_t mipi_dbi_formats[] = {
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_XRGB8888,
+	DRM_MIPI_DBI_PLANE_FORMATS,
 };
 
 /**
@@ -637,8 +747,7 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 				   unsigned int rotation, size_t tx_buf_size)
 {
 	static const uint64_t modifiers[] = {
-		DRM_FORMAT_MOD_LINEAR,
-		DRM_FORMAT_MOD_INVALID
+		DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
 	};
 	struct drm_device *drm = &dbidev->drm;
 	int ret;
