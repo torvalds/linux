@@ -155,7 +155,8 @@ static void waveshare_enable(struct drm_simple_display_pipe *pipe,
 	}
 	addr_mode |= ILI9486_MADCTL_BGR;
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+
+	backlight_enable(dbidev->backlight);
  out_exit:
 	drm_dev_exit(idx);
 }

@@ -368,44 +368,6 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_update);
 
-/**
- * mipi_dbi_enable_flush - MIPI DBI enable helper
- * @dbidev: MIPI DBI device structure
- * @crtc_state: CRTC state
- * @plane_state: Plane state
- *
- * Flushes the whole framebuffer and enables the backlight. Drivers can use this
- * in their &drm_simple_display_pipe_funcs->enable callback.
- *
- * Note: Drivers which don't use mipi_dbi_pipe_update() because they have custom
- * framebuffer flushing, can't use this function since they both use the same
- * flushing code.
- */
-void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
-			   struct drm_crtc_state *crtc_state,
-			   struct drm_plane_state *plane_state)
-{
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_rect rect = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
-	int idx;
-
-	if (!drm_dev_enter(&dbidev->drm, &idx))
-		return;
-
-	mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
-			  &shadow_plane_state->fmtcnv_state);
-	backlight_enable(dbidev->backlight);
-
-	drm_dev_exit(idx);
-}
-EXPORT_SYMBOL(mipi_dbi_enable_flush);
-
 static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
 {
 	struct drm_device *drm = &dbidev->drm;
@@ -577,6 +539,10 @@ static int mipi_dbi_rotate_mode(struct drm_display_mode *mode,
 	}
 }
 
+static const struct drm_mode_config_helper_funcs mipi_dbi_mode_config_helper_funcs = {
+	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+};
+
 static const struct drm_mode_config_funcs mipi_dbi_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
 	.atomic_check = drm_atomic_helper_check,
@@ -660,6 +626,8 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 	drm->mode_config.max_width = dbidev->mode.hdisplay;
 	drm->mode_config.min_height = dbidev->mode.vdisplay;
 	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.helper_private = &mipi_dbi_mode_config_helper_funcs;
+
 	dbidev->rotation = rotation;
 	dbidev->pixel_format = formats[0];
 	if (formats[0] == DRM_FORMAT_RGB888)

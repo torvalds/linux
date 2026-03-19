@@ -184,16 +184,8 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
 	struct device *dev = pipe->crtc.dev->dev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
-	struct drm_rect rect = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
 	int ret, idx;
 	u8 am_id;
 
@@ -283,9 +275,6 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 	msleep(50);
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
-
-	ili9225_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
-			 &shadow_plane_state->fmtcnv_state);
 
 out_exit:
 	drm_dev_exit(idx);
