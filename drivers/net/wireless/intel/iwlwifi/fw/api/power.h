@@ -426,19 +426,32 @@ struct iwl_dev_tx_power_cmd_v10 {
 	__le32 flags;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_10 */
 
+struct iwl_dev_tx_power_cmd_v11 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES_V2][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V3];
+	u8 per_chain_restriction_changed;
+	u8 reserved;
+	__le32 timer_period;
+	__le32 flags;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_11 */
+
 /*
  * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
  * @common: common part of the command
  * @v9: version 9 part of the command
  * @v10: version 10 part of the command
+ * @v11: version 11 part of the command
  */
 struct iwl_dev_tx_power_cmd {
 	struct iwl_dev_tx_power_common common;
 	union {
 		struct iwl_dev_tx_power_cmd_v9 v9;
 		struct iwl_dev_tx_power_cmd_v10 v10;
+		struct iwl_dev_tx_power_cmd_v11 v11;
 	};
-} __packed; /* TX_REDUCED_POWER_API_S_VER_9_VER10 */
+} __packed; /* TX_REDUCED_POWER_API_S_VER_9
+	     * TX_REDUCED_POWER_API_S_VER_10
+	     * TX_REDUCED_POWER_API_S_VER_11
+	     */
 
 #define IWL_NUM_GEO_PROFILES		3
 #define IWL_NUM_GEO_PROFILES_V3		8

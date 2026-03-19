@@ -95,23 +95,43 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 
 int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
 {
-	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
-		.v10.flags = cpu_to_le32(mld->fwrt.reduced_power_flags),
 	};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, REDUCE_TX_POWER_CMD, 10);
+	int num_subbands;
+	int cmd_size;
 	int ret;
 
+	switch (cmd_ver) {
+	case 10:
+		cmd.v10.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
+		cmd_size = sizeof(cmd.common) + sizeof(cmd.v10);
+		num_subbands = IWL_NUM_SUB_BANDS_V2;
+		break;
+	case 11:
+		cmd.v11.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
+		cmd_size = sizeof(cmd.common) + sizeof(cmd.v11);
+		num_subbands = IWL_NUM_SUB_BANDS_V3;
+		break;
+	default:
+		WARN_ONCE(1, "Bad version for REDUCE_TX_POWER_CMD: %d\n",
+			  cmd_ver);
+		return -EOPNOTSUPP;
+	}
+
 	/* TODO: CDB - support IWL_NUM_CHAIN_TABLES_V2 */
-	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v10.per_chain[0][0][0],
-				   IWL_NUM_CHAIN_TABLES, IWL_NUM_SUB_BANDS_V2,
+	/* v10 and v11 have the same position for per_chain */
+	BUILD_BUG_ON(offsetof(typeof(cmd), v11.per_chain) !=
+		     offsetof(typeof(cmd), v10.per_chain));
+	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v11.per_chain[0][0][0],
+				   IWL_NUM_CHAIN_TABLES, num_subbands,
 				   prof_a, prof_b);
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)
 		return ret;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd,
-				    sizeof(cmd.common) + sizeof(cmd.v10));
+	return iwl_mld_send_cmd_pdu(mld, REDUCE_TX_POWER_CMD, &cmd, cmd_size);
 }
 
 int iwl_mld_init_sar(struct iwl_mld *mld)
