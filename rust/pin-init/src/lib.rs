@@ -172,7 +172,6 @@
 //! # #![feature(extern_types)]
 //! use pin_init::{pin_data, pinned_drop, PinInit, PinnedDrop, pin_init_from_closure};
 //! use core::{
-//!     ptr::addr_of_mut,
 //!     marker::PhantomPinned,
 //!     cell::UnsafeCell,
 //!     pin::Pin,
@@ -211,7 +210,7 @@
 //!         unsafe {
 //!             pin_init_from_closure(move |slot: *mut Self| {
 //!                 // `slot` contains uninit memory, avoid creating a reference.
-//!                 let foo = addr_of_mut!((*slot).foo);
+//!                 let foo = &raw mut (*slot).foo;
 //!                 let foo = UnsafeCell::raw_get(foo).cast::<bindings::foo>();
 //!
 //!                 // Initialize the `foo`
@@ -265,6 +264,7 @@
 //! [Rust-for-Linux]: https://rust-for-linux.com/
 
 #![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
+#![cfg_attr(USE_RUSTC_FEATURES, feature(raw_ref_op))]
 #![cfg_attr(
     all(any(feature = "alloc", feature = "std"), USE_RUSTC_FEATURES),
     feature(new_uninit)
@@ -754,7 +754,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// ```rust
 /// # use pin_init::*;
-/// # use core::{ptr::addr_of_mut, marker::PhantomPinned};
+/// # use core::marker::PhantomPinned;
 /// #[pin_data]
 /// #[derive(Zeroable)]
 /// struct Buf {
@@ -768,7 +768,7 @@ macro_rules! stack_try_pin_init {
 /// let init = pin_init!(&this in Buf {
 ///     buf: [0; 64],
 ///     // SAFETY: TODO.
-///     ptr: unsafe { addr_of_mut!((*this.as_ptr()).buf).cast() },
+///     ptr: unsafe { (&raw mut (*this.as_ptr()).buf).cast() },
 ///     pin: PhantomPinned,
 /// });
 /// let init = pin_init!(Buf {
