@@ -63,7 +63,6 @@ static void skl_sagv_disable(struct intel_display *display);
 struct skl_wm_params {
 	bool x_tiled, y_tiled;
 	bool rc_surface;
-	bool is_planar;
 	u32 width;
 	u8 cpp;
 	u32 plane_pixel_rate;
@@ -1675,10 +1674,9 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->y_tiled = modifier != I915_FORMAT_MOD_X_TILED &&
 		intel_fb_is_tiled_modifier(modifier);
 	wp->rc_surface = intel_fb_is_ccs_modifier(modifier);
-	wp->is_planar = intel_format_info_is_yuv_semiplanar(format, modifier);
 
 	wp->width = width;
-	if (color_plane == 1 && wp->is_planar)
+	if (color_plane == 1 && intel_format_info_is_yuv_semiplanar(format, modifier))
 		wp->width /= 2;
 
 	wp->cpp = format->cpp[color_plane];
@@ -2072,8 +2070,6 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane->id];
 	struct skl_wm_params wm_params;
 	int ret;
-
-	wm->is_planar = true;
 
 	/* uv plane watermarks must also be validated for NV12/Planar */
 	ret = skl_compute_plane_wm_params(crtc_state, plane_state,
