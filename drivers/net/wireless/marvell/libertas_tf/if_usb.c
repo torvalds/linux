@@ -223,7 +223,6 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!priv)
 		goto dealloc;
 
-	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
 
 	return 0;
@@ -258,7 +257,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	kfree(cardp);
 
 	usb_set_intfdata(intf, NULL);
-	usb_put_dev(interface_to_usbdev(intf));
 
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }

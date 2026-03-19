@@ -108,7 +108,7 @@ static void
 ieee80211_send_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
 				 struct ieee80211_mgmt *req, int opt_len)
 {
-	int len = offsetofend(struct ieee80211_mgmt, u.action.u.eml_omn);
+	int len = IEEE80211_MIN_ACTION_SIZE(eml_omn);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
@@ -127,16 +127,15 @@ ieee80211_send_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
-	mgmt->u.action.u.eml_omn.action_code =
-		WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF;
-	mgmt->u.action.u.eml_omn.dialog_token =
-		req->u.action.u.eml_omn.dialog_token;
-	mgmt->u.action.u.eml_omn.control = req->u.action.u.eml_omn.control &
+	mgmt->u.action.action_code = WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF;
+	mgmt->u.action.eml_omn.dialog_token =
+		req->u.action.eml_omn.dialog_token;
+	mgmt->u.action.eml_omn.control = req->u.action.eml_omn.control &
 		~(IEEE80211_EML_CTRL_EMLSR_PARAM_UPDATE |
 		  IEEE80211_EML_CTRL_INDEV_COEX_ACT);
 	/* Copy optional fields from the received notification frame */
-	memcpy(mgmt->u.action.u.eml_omn.variable,
-	       req->u.action.u.eml_omn.variable, opt_len);
+	memcpy(mgmt->u.action.eml_omn.variable,
+	       req->u.action.eml_omn.variable, opt_len);
 
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -144,14 +143,14 @@ ieee80211_send_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
 void ieee80211_rx_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb)
 {
-	int len = offsetofend(struct ieee80211_mgmt, u.action.u.eml_omn);
+	int len = IEEE80211_MIN_ACTION_SIZE(eml_omn);
 	enum nl80211_iftype type = ieee80211_vif_type_p2p(&sdata->vif);
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	const struct wiphy_iftype_ext_capab *ift_ext_capa;
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_local *local = sdata->local;
-	u8 control = mgmt->u.action.u.eml_omn.control;
-	u8 *ptr = mgmt->u.action.u.eml_omn.variable;
+	u8 control = mgmt->u.action.eml_omn.control;
+	u8 *ptr = mgmt->u.action.eml_omn.variable;
 	struct ieee80211_eml_params eml_params = {
 		.link_id = status->link_id,
 		.control = control,

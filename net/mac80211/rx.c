@@ -274,7 +274,7 @@ static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
 	if (!sdata)
 		return;
 
-	BUILD_BUG_ON(sizeof(action) != IEEE80211_MIN_ACTION_SIZE + 1);
+	BUILD_BUG_ON(sizeof(action) != IEEE80211_MIN_ACTION_SIZE(action_code));
 
 	if (skb->len < rtap_space + sizeof(action) +
 		       VHT_MUMIMO_GROUPS_DATA_LEN)
@@ -1162,7 +1162,7 @@ static ieee80211_rx_result ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			u8 category;
 
 			/* make sure category field is present */
-			if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE)
+			if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE(category))
 				return RX_DROP_U_RUNT_ACTION;
 
 			mgmt = (struct ieee80211_mgmt *)hdr;
@@ -1475,7 +1475,9 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 		    !test_and_set_bit(tid, rx->sta->ampdu_mlme.unexpected_agg))
 			ieee80211_send_delba(rx->sdata, rx->sta->sta.addr, tid,
 					     WLAN_BACK_RECIPIENT,
-					     WLAN_REASON_QSTA_REQUIRE_SETUP);
+					     WLAN_REASON_QSTA_REQUIRE_SETUP,
+					     ieee80211_s1g_use_ndp_ba(rx->sdata,
+								      rx->sta));
 		goto dont_reorder;
 	}
 
@@ -3372,7 +3374,9 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx, struct sk_buff_head *frames)
 		    !test_and_set_bit(tid, rx->sta->ampdu_mlme.unexpected_agg))
 			ieee80211_send_delba(rx->sdata, rx->sta->sta.addr, tid,
 					     WLAN_BACK_RECIPIENT,
-					     WLAN_REASON_QSTA_REQUIRE_SETUP);
+					     WLAN_REASON_QSTA_REQUIRE_SETUP,
+					     ieee80211_s1g_use_ndp_ba(rx->sdata,
+								      rx->sta));
 
 		tid_agg_rx = rcu_dereference(rx->sta->ampdu_mlme.tid_rx[tid]);
 		if (!tid_agg_rx)
@@ -3422,7 +3426,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (len < 24 + 1 + sizeof(resp->u.action.u.sa_query)) {
+	if (len < IEEE80211_MIN_ACTION_SIZE(sa_query)) {
 		/* Too short SA Query request frame */
 		return;
 	}
@@ -3432,17 +3436,16 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	resp = skb_put_zero(skb, 24);
+	resp = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(sa_query));
 	memcpy(resp->da, sdata->vif.cfg.ap_addr, ETH_ALEN);
 	memcpy(resp->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(resp->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
 	resp->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
-	skb_put(skb, 1 + sizeof(resp->u.action.u.sa_query));
 	resp->u.action.category = WLAN_CATEGORY_SA_QUERY;
-	resp->u.action.u.sa_query.action = WLAN_ACTION_SA_QUERY_RESPONSE;
-	memcpy(resp->u.action.u.sa_query.trans_id,
-	       mgmt->u.action.u.sa_query.trans_id,
+	resp->u.action.action_code = WLAN_ACTION_SA_QUERY_RESPONSE;
+	memcpy(resp->u.action.sa_query.trans_id,
+	       mgmt->u.action.sa_query.trans_id,
 	       WLAN_SA_QUERY_TR_ID_LEN);
 
 	ieee80211_tx_skb(sdata, skb);
@@ -3516,7 +3519,7 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 
 	/* drop too small action frames */
 	if (ieee80211_is_action(mgmt->frame_control) &&
-	    rx->skb->len < IEEE80211_MIN_ACTION_SIZE)
+	    rx->skb->len < IEEE80211_MIN_ACTION_SIZE(category))
 		return RX_DROP_U_RUNT_ACTION;
 
 	/* Drop non-broadcast Beacon frames */
@@ -3565,29 +3568,28 @@ ieee80211_process_rx_twt_action(struct ieee80211_rx_data *rx)
 	if (!rx->sta)
 		return false;
 
-	switch (mgmt->u.action.u.s1g.action_code) {
+	switch (mgmt->u.action.action_code) {
 	case WLAN_S1G_TWT_SETUP: {
 		struct ieee80211_twt_setup *twt;
 
-		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE +
-				   1 + /* action code */
+		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE(action_code) +
 				   sizeof(struct ieee80211_twt_setup) +
 				   2 /* TWT req_type agrt */)
 			break;
 
-		twt = (void *)mgmt->u.action.u.s1g.variable;
+		twt = (void *)mgmt->u.action.s1g.variable;
 		if (twt->element_id != WLAN_EID_S1G_TWT)
 			break;
 
-		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE +
-				   4 + /* action code + token + tlv */
+		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE(action_code) +
+				   3 + /* token + tlv */
 				   twt->length)
 			break;
 
 		return true; /* queue the frame */
 	}
 	case WLAN_S1G_TWT_TEARDOWN:
-		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE + 2)
+		if (rx->skb->len < IEEE80211_MIN_ACTION_SIZE(action_code) + 1)
 			break;
 
 		return true; /* queue the frame */
@@ -3632,10 +3634,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 
 		/* verify action & smps_control/chanwidth are present */
-		if (len < IEEE80211_MIN_ACTION_SIZE + 2)
+		if (len < IEEE80211_MIN_ACTION_SIZE(ht_smps))
 			goto invalid;
 
-		switch (mgmt->u.action.u.ht_smps.action) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_HT_ACTION_SMPS: {
 			struct ieee80211_supported_band *sband;
 			enum ieee80211_smps_mode smps_mode;
@@ -3646,7 +3648,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				goto handled;
 
 			/* convert to HT capability */
-			switch (mgmt->u.action.u.ht_smps.smps_control) {
+			switch (mgmt->u.action.ht_smps.smps_control) {
 			case WLAN_HT_SMPS_CONTROL_DISABLED:
 				smps_mode = IEEE80211_SMPS_OFF;
 				break;
@@ -3679,7 +3681,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto handled;
 		}
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
-			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
+			u8 chanwidth = mgmt->u.action.ht_notify_cw.chanwidth;
 
 			if (chanwidth != IEEE80211_HT_CHANWIDTH_20MHZ &&
 			    chanwidth != IEEE80211_HT_CHANWIDTH_ANY)
@@ -3699,7 +3701,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		break;
 	case WLAN_CATEGORY_PUBLIC:
 	case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
-		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			goto invalid;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			break;
@@ -3707,11 +3709,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 		if (!ether_addr_equal(mgmt->bssid, sdata->deflink.u.mgd.bssid))
 			break;
-		if (mgmt->u.action.u.ext_chan_switch.action_code !=
+		if (mgmt->u.action.action_code !=
 				WLAN_PUB_ACTION_EXT_CHANSW_ANN)
 			break;
-		if (len < offsetof(struct ieee80211_mgmt,
-				   u.action.u.ext_chan_switch.variable))
+		if (len < IEEE80211_MIN_ACTION_SIZE(ext_chan_switch))
 			goto invalid;
 		goto queue;
 	case WLAN_CATEGORY_VHT:
@@ -3723,18 +3724,18 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 
 		/* verify action code is present */
-		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			goto invalid;
 
-		switch (mgmt->u.action.u.vht_opmode_notif.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_VHT_ACTION_OPMODE_NOTIF: {
 			/* verify opmode is present */
-			if (len < IEEE80211_MIN_ACTION_SIZE + 2)
+			if (len < IEEE80211_MIN_ACTION_SIZE(vht_opmode_notif))
 				goto invalid;
 			goto queue;
 		}
 		case WLAN_VHT_ACTION_GROUPID_MGMT: {
-			if (len < IEEE80211_MIN_ACTION_SIZE + 25)
+			if (len < IEEE80211_MIN_ACTION_SIZE(vht_group_notif))
 				goto invalid;
 			goto queue;
 		}
@@ -3751,23 +3752,23 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 
 		/* verify action_code is present */
-		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			break;
 
-		switch (mgmt->u.action.u.addba_req.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.addba_req)))
+		case WLAN_ACTION_NDP_ADDBA_REQ:
+			if (len < IEEE80211_MIN_ACTION_SIZE(addba_req))
 				goto invalid;
 			break;
 		case WLAN_ACTION_ADDBA_RESP:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.addba_resp)))
+		case WLAN_ACTION_NDP_ADDBA_RESP:
+			if (len < IEEE80211_MIN_ACTION_SIZE(addba_resp))
 				goto invalid;
 			break;
 		case WLAN_ACTION_DELBA:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.delba)))
+		case WLAN_ACTION_NDP_DELBA:
+			if (len < IEEE80211_MIN_ACTION_SIZE(delba))
 				goto invalid;
 			break;
 		default:
@@ -3777,16 +3778,15 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		goto queue;
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
 		/* verify action_code is present */
-		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			break;
 
-		switch (mgmt->u.action.u.measurement.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_ACTION_SPCT_MSR_REQ:
 			if (status->band != NL80211_BAND_5GHZ)
 				break;
 
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.measurement)))
+			if (len < IEEE80211_MIN_ACTION_SIZE(measurement))
 				break;
 
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -3796,8 +3796,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto handled;
 		case WLAN_ACTION_SPCT_CHL_SWITCH: {
 			u8 *bssid;
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.chan_switch)))
+			if (len < IEEE80211_MIN_ACTION_SIZE(chan_switch))
 				break;
 
 			if (sdata->vif.type != NL80211_IFTYPE_STATION &&
@@ -3822,11 +3821,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_SELF_PROTECTED:
-		if (len < (IEEE80211_MIN_ACTION_SIZE +
-			   sizeof(mgmt->u.action.u.self_prot.action_code)))
+		if (len < IEEE80211_MIN_ACTION_SIZE(self_prot))
 			break;
 
-		switch (mgmt->u.action.u.self_prot.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_SP_MESH_PEERING_OPEN:
 		case WLAN_SP_MESH_PEERING_CLOSE:
 		case WLAN_SP_MESH_PEERING_CONFIRM:
@@ -3844,8 +3842,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_MESH_ACTION:
-		if (len < (IEEE80211_MIN_ACTION_SIZE +
-			   sizeof(mgmt->u.action.u.mesh_action.action_code)))
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			break;
 
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
@@ -3855,11 +3852,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 		goto queue;
 	case WLAN_CATEGORY_S1G:
-		if (len < offsetofend(typeof(*mgmt),
-				      u.action.u.s1g.action_code))
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			break;
 
-		switch (mgmt->u.action.u.s1g.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_S1G_TWT_SETUP:
 		case WLAN_S1G_TWT_TEARDOWN:
 			if (ieee80211_process_rx_twt_action(rx))
@@ -3870,33 +3866,29 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_PROTECTED_EHT:
-		if (len < offsetofend(typeof(*mgmt),
-				      u.action.u.ttlm_req.action_code))
+		if (len < IEEE80211_MIN_ACTION_SIZE(action_code))
 			break;
 
-		switch (mgmt->u.action.u.ttlm_req.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.ttlm_req))
+			if (len < IEEE80211_MIN_ACTION_SIZE(ttlm_req))
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_TTLM_RES:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.ttlm_res))
+			if (len < IEEE80211_MIN_ACTION_SIZE(ttlm_res))
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.ttlm_tear_down))
+			if (len < IEEE80211_MIN_ACTION_SIZE(ttlm_tear_down))
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_RESP:
@@ -3906,34 +3898,29 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			/* The reconfiguration response action frame must
 			 * least one 'Status Duple' entry (3 octets)
 			 */
-			if (len <
-			    offsetofend(typeof(*mgmt),
-					u.action.u.ml_reconf_resp) + 3)
+			if (len < IEEE80211_MIN_ACTION_SIZE(ml_reconf_resp) + 3)
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_RESP:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.epcs) +
-			    IEEE80211_EPCS_ENA_RESP_BODY_LEN)
+			if (len < IEEE80211_MIN_ACTION_SIZE(epcs) +
+				  IEEE80211_EPCS_ENA_RESP_BODY_LEN)
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.epcs))
+			if (len < IEEE80211_MIN_ACTION_SIZE(epcs))
 				goto invalid;
 			goto queue;
 		case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
 			if (sdata->vif.type != NL80211_IFTYPE_AP)
 				break;
 
-			if (len < offsetofend(typeof(*mgmt),
-					      u.action.u.eml_omn))
+			if (len < IEEE80211_MIN_ACTION_SIZE(eml_omn))
 				goto invalid;
 			goto queue;
 		default:
@@ -4015,11 +4002,10 @@ ieee80211_rx_h_action_post_userspace(struct ieee80211_rx_data *rx)
 
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_SA_QUERY:
-		if (len < (IEEE80211_MIN_ACTION_SIZE +
-			   sizeof(mgmt->u.action.u.sa_query)))
+		if (len < IEEE80211_MIN_ACTION_SIZE(sa_query))
 			break;
 
-		switch (mgmt->u.action.u.sa_query.action) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_ACTION_SA_QUERY_REQUEST:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;

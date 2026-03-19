@@ -104,7 +104,7 @@ static bool ath12k_is_addba_resp_action_code(struct ieee80211_mgmt *mgmt)
 	if (mgmt->u.action.category != WLAN_CATEGORY_BACK)
 		return false;
 
-	if (mgmt->u.action.u.addba_resp.action_code != WLAN_ACTION_ADDBA_RESP)
+	if (mgmt->u.action.action_code != WLAN_ACTION_ADDBA_RESP)
 		return false;
 
 	return true;

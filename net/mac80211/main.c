@@ -1118,6 +1118,19 @@ ieee80211_ifcomb_check(const struct ieee80211_iface_combination *c, int n_comb)
 	return true;
 }
 
+static void ieee80211_create_default_chandef(struct cfg80211_chan_def *chandef,
+					     struct ieee80211_channel *chan)
+{
+	*chandef = (struct cfg80211_chan_def) {
+		.chan = chan,
+		.width = chan->band == NL80211_BAND_S1GHZ ?
+				 NL80211_CHAN_WIDTH_1 :
+				 NL80211_CHAN_WIDTH_20_NOHT,
+		.center_freq1 = chan->center_freq,
+		.freq1_offset = chan->freq_offset,
+	};
+}
+
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1261,9 +1274,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			/* if none found then use the first anyway */
 			if (i == sband->n_channels)
 				i = 0;
-			cfg80211_chandef_create(&dflt_chandef,
-						&sband->channels[i],
-						NL80211_CHAN_NO_HT);
+			ieee80211_create_default_chandef(&dflt_chandef,
+							 &sband->channels[i]);
 			/* init channel we're on */
 			local->monitor_chanreq.oper = dflt_chandef;
 			if (local->emulate_chanctx) {

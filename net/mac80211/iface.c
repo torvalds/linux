@@ -1579,16 +1579,19 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 
 		sta = sta_info_get_bss(sdata, mgmt->sa);
 		if (sta) {
-			switch (mgmt->u.action.u.addba_req.action_code) {
+			switch (mgmt->u.action.action_code) {
 			case WLAN_ACTION_ADDBA_REQ:
+			case WLAN_ACTION_NDP_ADDBA_REQ:
 				ieee80211_process_addba_request(local, sta,
 								mgmt, len);
 				break;
 			case WLAN_ACTION_ADDBA_RESP:
+			case WLAN_ACTION_NDP_ADDBA_RESP:
 				ieee80211_process_addba_resp(local, sta,
 							     mgmt, len);
 				break;
 			case WLAN_ACTION_DELBA:
+			case WLAN_ACTION_NDP_DELBA:
 				ieee80211_process_delba(sdata, sta,
 							mgmt, len);
 				break;
@@ -1599,9 +1602,9 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_HT) {
-		switch (mgmt->u.action.u.ht_smps.action) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
-			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
+			u8 chanwidth = mgmt->u.action.ht_notify_cw.chanwidth;
 			struct ieee80211_rx_status *status;
 			struct link_sta_info *link_sta;
 			struct sta_info *sta;
@@ -1628,7 +1631,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
-		switch (mgmt->u.action.u.vht_group_notif.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_VHT_ACTION_OPMODE_NOTIF: {
 			struct ieee80211_rx_status *status;
 			enum nl80211_band band;
@@ -1637,7 +1640,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 
 			status = IEEE80211_SKB_RXCB(skb);
 			band = status->band;
-			opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
+			opmode = mgmt->u.action.vht_opmode_notif.operating_mode;
 
 			sta = sta_info_get_bss(sdata, mgmt->sa);
 
@@ -1658,7 +1661,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_S1G) {
-		switch (mgmt->u.action.u.s1g.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_S1G_TWT_TEARDOWN:
 		case WLAN_S1G_TWT_SETUP:
 			ieee80211_s1g_rx_twt_action(sdata, skb);
@@ -1669,7 +1672,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_PROTECTED_EHT) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP) {
-			switch (mgmt->u.action.u.eml_omn.action_code) {
+			switch (mgmt->u.action.action_code) {
 			case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
 				ieee80211_rx_eml_op_mode_notif(sdata, skb);
 				break;
@@ -1677,7 +1680,7 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 				break;
 			}
 		} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			switch (mgmt->u.action.u.ttlm_req.action_code) {
+			switch (mgmt->u.action.action_code) {
 			case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
 				ieee80211_process_neg_ttlm_req(sdata, mgmt,
 							       skb->len);
@@ -1765,7 +1768,7 @@ static void ieee80211_iface_process_status(struct ieee80211_sub_if_data *sdata,
 
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_S1G) {
-		switch (mgmt->u.action.u.s1g.action_code) {
+		switch (mgmt->u.action.action_code) {
 		case WLAN_S1G_TWT_TEARDOWN:
 		case WLAN_S1G_TWT_SETUP:
 			ieee80211_s1g_status_twt_action(sdata, skb);
