@@ -75,6 +75,8 @@
 #define CFGR1_PCSPOL_MASK	GENMASK(11, 8)
 #define CFGR1_NOSTALL	BIT(3)
 #define CFGR1_HOST	BIT(0)
+#define FCR_RXWATER	GENMASK(18, 16)
+#define FCR_TXWATER	GENMASK(2, 0)
 #define FSR_TXCOUNT	(0xFF)
 #define RSR_RXEMPTY	BIT(1)
 #define TCR_CPOL	BIT(31)
@@ -319,17 +321,18 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
 
 static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 {
+	u8 watermark = fsl_lpspi->watermark >> 1;
 	u32 temp;
 
 	if (!fsl_lpspi->usedma)
-		temp = fsl_lpspi->watermark >> 1 |
-		       (fsl_lpspi->watermark >> 1) << 16;
+		temp = FIELD_PREP(FCR_TXWATER, watermark) |
+			FIELD_PREP(FCR_RXWATER, watermark);
 	else
-		temp = fsl_lpspi->watermark >> 1;
+		temp = FIELD_PREP(FCR_TXWATER, watermark);
 
 	writel(temp, fsl_lpspi->base + IMX7ULP_FCR);
 
-	dev_dbg(fsl_lpspi->dev, "FCR=0x%x\n", temp);
+	dev_dbg(fsl_lpspi->dev, "FCR=0x%08x\n", temp);
 }
 
 static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
