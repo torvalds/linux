@@ -1390,9 +1390,9 @@ struct skl_plane_ddb_iter {
 };
 
 static void
-skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
-		       const struct skl_wm_level *wm,
-		       struct skl_ddb_entry *ddb, u64 data_rate)
+_skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+			u16 min_ddb_alloc,
+			struct skl_ddb_entry *ddb, u64 data_rate)
 {
 	u16 size, extra = 0;
 
@@ -1409,10 +1409,29 @@ skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
 	 * to avoid skl_ddb_add_affected_planes() adding them to
 	 * the state when other planes change their allocations.
 	 */
-	size = wm->min_ddb_alloc + extra;
+	size = min_ddb_alloc + extra;
 	if (size)
 		iter->start = skl_ddb_entry_init(ddb, iter->start,
 						 iter->start + size);
+}
+
+static void
+skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+		       const struct skl_wm_level *wm,
+		       struct skl_ddb_entry *ddb, u64 data_rate)
+{
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc, ddb, data_rate);
+}
+
+static void
+skl_allocate_plane_ddb_nv12(struct skl_plane_ddb_iter *iter,
+			    const struct skl_wm_level *wm,
+			    struct skl_ddb_entry *ddb_y, u64 data_rate_y,
+			    const struct skl_wm_level *uv_wm,
+			    struct skl_ddb_entry *ddb, u64 data_rate)
+{
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc, ddb_y, data_rate_y);
+	_skl_allocate_plane_ddb(iter, uv_wm->min_ddb_alloc, ddb, data_rate);
 }
 
 static int
@@ -1521,15 +1540,14 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			continue;
 
 		if (DISPLAY_VER(display) < 11 &&
-		    crtc_state->nv12_planes & BIT(plane_id)) {
+		    crtc_state->nv12_planes & BIT(plane_id))
+			skl_allocate_plane_ddb_nv12(&iter, &wm->wm[level],
+						    ddb_y, crtc_state->rel_data_rate_y[plane_id],
+						    &wm->uv_wm[level],
+						    ddb, crtc_state->rel_data_rate[plane_id]);
+		else
 			skl_allocate_plane_ddb(&iter, &wm->wm[level],
-					       ddb_y, crtc_state->rel_data_rate_y[plane_id]);
-			skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
 					       ddb, crtc_state->rel_data_rate[plane_id]);
-		} else {
-			skl_allocate_plane_ddb(&iter, &wm->wm[level],
-					       ddb, crtc_state->rel_data_rate[plane_id]);
-		}
 
 		if (DISPLAY_VER(display) >= 30) {
 			*min_ddb = wm->wm[0].min_ddb_alloc;
