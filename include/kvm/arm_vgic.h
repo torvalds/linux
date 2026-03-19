@@ -350,6 +350,9 @@ struct vgic_v5_vm {
 	 */
 	DECLARE_BITMAP(vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
 
+	/* A mask of the PPIs that are exposed for userspace to drive. */
+	DECLARE_BITMAP(userspace_ppis, VGIC_V5_NR_PRIVATE_IRQS);
+
 	/*
 	 * The HMR itself is handled by the hardware, but we still need to have
 	 * a mask that we can use when merging in pending state (only the state

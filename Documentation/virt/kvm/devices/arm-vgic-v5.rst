@@ -25,6 +25,19 @@ Groups:
       request the initialization of the VGIC, no additional parameter in
       kvm_device_attr.addr. Must be called after all VCPUs have been created.
 
+   KVM_DEV_ARM_VGIC_USERPSPACE_PPIs
+      request the mask of userspace-drivable PPIs. Only a subset of the PPIs can
+      be directly driven from userspace with GICv5, and the returned mask
+      informs userspace of which it is allowed to drive via KVM_IRQ_LINE.
+
+      Userspace must allocate and point to __u64[2] of data in
+      kvm_device_attr.addr. When this call returns, the provided memory will be
+      populated with the userspace PPI mask. The lower __u64 contains the mask
+      for the lower 64 PPIS, with the remaining 64 being in the second __u64.
+
+      This is a read-only attribute, and cannot be set. Attempts to set it are
+      rejected.
+
   Errors:
 
     =======  ========================================================
