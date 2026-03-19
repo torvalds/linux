@@ -107,6 +107,7 @@ amdgpu_gem_update_timeline_node(struct drm_file *filp,
 	*chain = dma_fence_chain_alloc();
 	if (!*chain) {
 		drm_syncobj_put(*syncobj);
+		*syncobj = NULL;
 		return -ENOMEM;
 	}
 
@@ -980,6 +981,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 						      timeline_chain,
 						      fence,
 						      args->vm_timeline_point);
+				timeline_chain = NULL;
 			}
 		}
 		dma_fence_put(fence);
@@ -987,6 +989,9 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 error:
+	dma_fence_chain_free(timeline_chain);
+	if (timeline_syncobj)
+		drm_syncobj_put(timeline_syncobj);
 	drm_exec_fini(&exec);
 error_put_gobj:
 	drm_gem_object_put(gobj);
