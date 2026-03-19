@@ -842,18 +842,46 @@ vgic_find_mmio_region(const struct vgic_register_region *regions,
 
 void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
 {
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_set_vmcr(vcpu, vmcr);
-	else
+	const struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		vgic_v5_set_vmcr(vcpu, vmcr);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		vgic_v3_set_vmcr(vcpu, vmcr);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+			vgic_v3_set_vmcr(vcpu, vmcr);
+		else
+			vgic_v2_set_vmcr(vcpu, vmcr);
+		break;
+	default:
+		BUG();
+	}
 }
 
 void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr)
 {
-	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_get_vmcr(vcpu, vmcr);
-	else
+	const struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		vgic_v5_get_vmcr(vcpu, vmcr);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		vgic_v3_get_vmcr(vcpu, vmcr);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+			vgic_v3_get_vmcr(vcpu, vmcr);
+		else
+			vgic_v2_get_vmcr(vcpu, vmcr);
+		break;
+	default:
+		BUG();
+	}
 }
 
 /*

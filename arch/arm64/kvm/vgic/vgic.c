@@ -1017,7 +1017,10 @@ static inline bool can_access_vgic_from_kernel(void)
 
 static inline void vgic_save_state(struct kvm_vcpu *vcpu)
 {
-	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+	/* No switch statement here. See comment in vgic_restore_state() */
+	if (vgic_is_v5(vcpu->kvm))
+		vgic_v5_save_state(vcpu);
+	else if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 		vgic_v2_save_state(vcpu);
 	else
 		__vgic_v3_save_state(&vcpu->arch.vgic_cpu.vgic_v3);
@@ -1026,14 +1029,16 @@ static inline void vgic_save_state(struct kvm_vcpu *vcpu)
 /* Sync back the hardware VGIC state into our emulation after a guest's run. */
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
-	/* If nesting, emulate the HW effect from L0 to L1 */
-	if (vgic_state_is_nested(vcpu)) {
-		vgic_v3_sync_nested(vcpu);
-		return;
-	}
+	if (vgic_is_v3(vcpu->kvm)) {
+		/* If nesting, emulate the HW effect from L0 to L1 */
+		if (vgic_state_is_nested(vcpu)) {
+			vgic_v3_sync_nested(vcpu);
+			return;
+		}
 
-	if (vcpu_has_nv(vcpu))
-		vgic_v3_nested_update_mi(vcpu);
+		if (vcpu_has_nv(vcpu))
+			vgic_v3_nested_update_mi(vcpu);
+	}
 
 	if (can_access_vgic_from_kernel())
 		vgic_save_state(vcpu);
@@ -1055,7 +1060,18 @@ void kvm_vgic_process_async_update(struct kvm_vcpu *vcpu)
 
 static inline void vgic_restore_state(struct kvm_vcpu *vcpu)
 {
-	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+	/*
+	 * As nice as it would be to restructure this code into a switch
+	 * statement as can be found elsewhere, the logic quickly gets ugly.
+	 *
+	 * __vgic_v3_restore_state() is doing a lot of heavy lifting here. It is
+	 * required for GICv3-on-GICv3, GICv2-on-GICv3, GICv3-on-GICv5, and the
+	 * no-in-kernel-irqchip case on GICv3 hardware. Hence, adding a switch
+	 * here results in much more complex code.
+	 */
+	if (vgic_is_v5(vcpu->kvm))
+		vgic_v5_restore_state(vcpu);
+	else if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 		vgic_v2_restore_state(vcpu);
 	else
 		__vgic_v3_restore_state(&vcpu->arch.vgic_cpu.vgic_v3);
@@ -1109,30 +1125,58 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu)
 {
+	const struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
 	if (unlikely(!irqchip_in_kernel(vcpu->kvm) || !vgic_initialized(vcpu->kvm))) {
 		if (has_vhe() && static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 			__vgic_v3_activate_traps(&vcpu->arch.vgic_cpu.vgic_v3);
 		return;
 	}
 
-	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
-		vgic_v2_load(vcpu);
-	else
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		vgic_v5_load(vcpu);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		vgic_v3_load(vcpu);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+			vgic_v3_load(vcpu);
+		else
+			vgic_v2_load(vcpu);
+		break;
+	default:
+		BUG();
+	}
 }
 
 void kvm_vgic_put(struct kvm_vcpu *vcpu)
 {
+	const struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
 	if (unlikely(!irqchip_in_kernel(vcpu->kvm) || !vgic_initialized(vcpu->kvm))) {
 		if (has_vhe() && static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
 			__vgic_v3_deactivate_traps(&vcpu->arch.vgic_cpu.vgic_v3);
 		return;
 	}
 
-	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
-		vgic_v2_put(vcpu);
-	else
+	switch (dist->vgic_model) {
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		vgic_v5_put(vcpu);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
 		vgic_v3_put(vcpu);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+			vgic_v3_put(vcpu);
+		else
+			vgic_v2_put(vcpu);
+		break;
+	default:
+		BUG();
+	}
 }
 
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
