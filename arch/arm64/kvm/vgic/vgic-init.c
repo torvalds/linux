@@ -250,9 +250,65 @@ int kvm_vgic_vcpu_nv_init(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static void vgic_allocate_private_irq(struct kvm_vcpu *vcpu, int i, u32 type)
+{
+	struct vgic_irq *irq = &vcpu->arch.vgic_cpu.private_irqs[i];
+
+	INIT_LIST_HEAD(&irq->ap_list);
+	raw_spin_lock_init(&irq->irq_lock);
+	irq->vcpu = NULL;
+	irq->target_vcpu = vcpu;
+	refcount_set(&irq->refcount, 0);
+
+	irq->intid = i;
+	if (vgic_irq_is_sgi(i)) {
+		/* SGIs */
+		irq->enabled = 1;
+		irq->config = VGIC_CONFIG_EDGE;
+	} else {
+		/* PPIs */
+		irq->config = VGIC_CONFIG_LEVEL;
+	}
+
+	switch (type) {
+	case KVM_DEV_TYPE_ARM_VGIC_V3:
+		irq->group = 1;
+		irq->mpidr = kvm_vcpu_get_mpidr_aff(vcpu);
+		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V2:
+		irq->group = 0;
+		irq->targets = BIT(vcpu->vcpu_id);
+		break;
+	}
+}
+
+static void vgic_v5_allocate_private_irq(struct kvm_vcpu *vcpu, int i, u32 type)
+{
+	struct vgic_irq *irq = &vcpu->arch.vgic_cpu.private_irqs[i];
+	u32 intid = vgic_v5_make_ppi(i);
+
+	INIT_LIST_HEAD(&irq->ap_list);
+	raw_spin_lock_init(&irq->irq_lock);
+	irq->vcpu = NULL;
+	irq->target_vcpu = vcpu;
+	refcount_set(&irq->refcount, 0);
+
+	irq->intid = intid;
+
+	/* The only Edge architected PPI is the SW_PPI */
+	if (i == GICV5_ARCH_PPI_SW_PPI)
+		irq->config = VGIC_CONFIG_EDGE;
+	else
+		irq->config = VGIC_CONFIG_LEVEL;
+
+	/* Register the GICv5-specific PPI ops */
+	vgic_v5_set_ppi_ops(vcpu, intid);
+}
+
 static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	u32 num_private_irqs;
 	int i;
 
 	lockdep_assert_held(&vcpu->kvm->arch.config_lock);
@@ -260,8 +316,13 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 	if (vgic_cpu->private_irqs)
 		return 0;
 
+	if (vgic_is_v5(vcpu->kvm))
+		num_private_irqs = VGIC_V5_NR_PRIVATE_IRQS;
+	else
+		num_private_irqs = VGIC_NR_PRIVATE_IRQS;
+
 	vgic_cpu->private_irqs = kzalloc_objs(struct vgic_irq,
-					      VGIC_NR_PRIVATE_IRQS,
+					      num_private_irqs,
 					      GFP_KERNEL_ACCOUNT);
 
 	if (!vgic_cpu->private_irqs)
@@ -271,34 +332,11 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 	 * Enable and configure all SGIs to be edge-triggered and
 	 * configure all PPIs as level-triggered.
 	 */
-	for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-		struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
-
-		INIT_LIST_HEAD(&irq->ap_list);
-		raw_spin_lock_init(&irq->irq_lock);
-		irq->intid = i;
-		irq->vcpu = NULL;
-		irq->target_vcpu = vcpu;
-		refcount_set(&irq->refcount, 0);
-		if (vgic_irq_is_sgi(i)) {
-			/* SGIs */
-			irq->enabled = 1;
-			irq->config = VGIC_CONFIG_EDGE;
-		} else {
-			/* PPIs */
-			irq->config = VGIC_CONFIG_LEVEL;
-		}
-
-		switch (type) {
-		case KVM_DEV_TYPE_ARM_VGIC_V3:
-			irq->group = 1;
-			irq->mpidr = kvm_vcpu_get_mpidr_aff(vcpu);
-			break;
-		case KVM_DEV_TYPE_ARM_VGIC_V2:
-			irq->group = 0;
-			irq->targets = BIT(vcpu->vcpu_id);
-			break;
-		}
+	for (i = 0; i < num_private_irqs; i++) {
+		if (vgic_is_v5(vcpu->kvm))
+			vgic_v5_allocate_private_irq(vcpu, i, type);
+		else
+			vgic_allocate_private_irq(vcpu, i, type);
 	}
 
 	return 0;
