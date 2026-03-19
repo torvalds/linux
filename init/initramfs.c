@@ -212,7 +212,7 @@ static void __init parse_header(char *s)
 	hdr_csum = parsed[12];
 }
 
-/* FSM */
+/* Finite-state machine */
 
 static __initdata enum state {
 	Start,
