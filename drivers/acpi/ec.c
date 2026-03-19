@@ -35,9 +35,6 @@
 
 #include "internal.h"
 
-#define ACPI_EC_CLASS			"embedded_controller"
-#define ACPI_EC_DEVICE_NAME		"Embedded Controller"
-
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
 #define ACPI_EC_FLAG_IBF	0x02	/* Input buffer full */
@@ -1680,9 +1677,6 @@ static int acpi_ec_probe(struct platform_device *pdev)
 	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_ec *ec;
 	int ret;
-
-	strscpy(acpi_device_name(device), ACPI_EC_DEVICE_NAME);
-	strscpy(acpi_device_class(device), ACPI_EC_CLASS);
 
 	if (boot_ec && (boot_ec->handle == device->handle ||
 	    !strcmp(acpi_device_hid(device), ACPI_ECDT_HID))) {

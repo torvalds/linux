@@ -44,8 +44,6 @@ bool radeon_atpx_dgpu_req_power_for_displays(void);
 static inline bool radeon_atpx_dgpu_req_power_for_displays(void) { return false; }
 #endif
 
-#define ACPI_AC_CLASS           "ac_adapter"
-
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */

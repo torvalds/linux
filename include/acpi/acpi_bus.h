@@ -613,6 +613,8 @@ struct acpi_bus_event {
 	u32 data;
 };
 
+#define ACPI_AC_CLASS	"ac_adapter"
+
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
 void acpi_bus_private_data_handler(acpi_handle, void *);
@@ -625,7 +627,8 @@ int acpi_dev_install_notify_handler(struct acpi_device *adev,
 void acpi_dev_remove_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
 				    acpi_notify_handler handler);
-extern int acpi_notifier_call_chain(struct acpi_device *, u32, u32);
+extern int acpi_notifier_call_chain(const char *device_class,
+				    const char *bus_id, u32 type, u32 data);
 extern int register_acpi_notifier(struct notifier_block *);
 extern int unregister_acpi_notifier(struct notifier_block *);
 

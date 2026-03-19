@@ -30,9 +30,6 @@
 #include <linux/uaccess.h>
 #include <linux/string_choices.h>
 
-#define ACPI_VIDEO_BUS_NAME		"Video Bus"
-#define ACPI_VIDEO_DEVICE_NAME		"Video Device"
-
 #define MAX_NAME_LEN	20
 
 MODULE_AUTHOR("Bruno Ducrot");
@@ -1144,9 +1141,6 @@ static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 		return -ENOMEM;
 	}
 
-	strscpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
-	strscpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
-
 	data->device_id = device_id;
 	data->video = video;
 	data->dev = device;
@@ -1570,7 +1564,8 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
-	if (acpi_notifier_call_chain(device, event, 0))
+	if (acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+				     event, 0))
 		/* Something vetoed the keypress. */
 		keycode = 0;
 
@@ -1611,7 +1606,8 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 		if (video_device->backlight)
 			backlight_force_update(video_device->backlight,
 					       BACKLIGHT_UPDATE_HOTKEY);
-		acpi_notifier_call_chain(device, event, 0);
+		acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+					 event, 0);
 		return;
 	}
 
@@ -1644,7 +1640,8 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	if (keycode)
 		may_report_brightness_keys = true;
 
-	acpi_notifier_call_chain(device, event, 0);
+	acpi_notifier_call_chain(ACPI_VIDEO_CLASS, acpi_device_bid(device),
+				 event, 0);
 
 	if (keycode && (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS)) {
 		input_report_key(input, keycode, 1);
@@ -1679,26 +1676,6 @@ static int acpi_video_resume(struct notifier_block *nb,
 		return NOTIFY_OK;
 	}
 	return NOTIFY_DONE;
-}
-
-static acpi_status
-acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
-			void **return_value)
-{
-	struct acpi_device *device = context;
-	struct acpi_device *sibling;
-
-	if (handle == device->handle)
-		return AE_CTRL_TERMINATE;
-
-	sibling = acpi_fetch_acpi_dev(handle);
-	if (!sibling)
-		return AE_OK;
-
-	if (!strcmp(acpi_device_name(sibling), ACPI_VIDEO_BUS_NAME))
-			return AE_ALREADY_EXISTS;
-
-	return AE_OK;
 }
 
 static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
@@ -1902,7 +1879,7 @@ static int acpi_video_bus_add_notify_handler(struct acpi_video_bus *video,
 	snprintf(video->phys, sizeof(video->phys),
 			"%s/video/input0", acpi_device_hid(video->device));
 
-	input->name = acpi_device_name(video->device);
+	input->name = "Video Bus";
 	input->phys = video->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = 0x06;
@@ -1976,53 +1953,69 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 	return 0;
 }
 
-static int instance;
+static int duplicate_dev_check(struct device *sibling, void *data)
+{
+	struct acpi_video_bus *video;
+
+	if (sibling == data || !dev_is_auxiliary(sibling))
+		return 0;
+
+	guard(mutex)(&video_list_lock);
+
+	list_for_each_entry(video, &video_bus_head, entry) {
+		if (video == dev_get_drvdata(sibling))
+			return -EEXIST;
+	}
+
+	return 0;
+}
+
+static bool acpi_video_bus_dev_is_duplicate(struct device *dev)
+{
+	return device_for_each_child(dev->parent, dev, duplicate_dev_check);
+}
 
 static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 				const struct auxiliary_device_id *id_unused)
 {
 	struct acpi_device *device = ACPI_COMPANION(&aux_dev->dev);
+	static DEFINE_MUTEX(probe_lock);
 	struct acpi_video_bus *video;
+	static int instance;
 	bool auto_detect;
 	int error;
-	acpi_status status;
 
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
-				acpi_dev_parent(device)->handle, 1,
-				acpi_video_bus_match, NULL,
-				device, NULL);
-	if (status == AE_ALREADY_EXISTS) {
+	/* Probe one video bus device at a time in case there are duplicates. */
+	guard(mutex)(&probe_lock);
+
+	if (!allow_duplicates && acpi_video_bus_dev_is_duplicate(&aux_dev->dev)) {
 		pr_info(FW_BUG
 			"Duplicate ACPI video bus devices for the"
 			" same VGA controller, please try module "
 			"parameter \"video.allow_duplicates=1\""
 			"if the current driver doesn't work.\n");
-		if (!allow_duplicates)
-			return -ENODEV;
+		return -ENODEV;
 	}
 
 	video = kzalloc_obj(struct acpi_video_bus);
 	if (!video)
 		return -ENOMEM;
 
-	/* a hack to fix the duplicate name "VID" problem on T61 */
-	if (!strcmp(device->pnp.bus_id, "VID")) {
+	/*
+	 * A hack to fix the duplicate name "VID" problem on T61 and the
+	 * duplicate name "VGA" problem on Pa 3553.
+	 */
+	if (!strcmp(device->pnp.bus_id, "VID") ||
+	    !strcmp(device->pnp.bus_id, "VGA")) {
 		if (instance)
 			device->pnp.bus_id[3] = '0' + instance;
-		instance++;
-	}
-	/* a hack to fix the duplicate name "VGA" problem on Pa 3553 */
-	if (!strcmp(device->pnp.bus_id, "VGA")) {
-		if (instance)
-			device->pnp.bus_id[3] = '0' + instance;
+
 		instance++;
 	}
 
 	auxiliary_set_drvdata(aux_dev, video);
 
 	video->device = device;
-	strscpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
-	strscpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
 	device->driver_data = video;
 
 	acpi_video_bus_find_cap(video);
@@ -2043,11 +2036,10 @@ static int acpi_video_bus_probe(struct auxiliary_device *aux_dev,
 	 */
 	acpi_device_fix_up_power_children(device);
 
-	pr_info("%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
-	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
-	       str_yes_no(video->flags.multihead),
-	       str_yes_no(video->flags.rom),
-	       str_yes_no(video->flags.post));
+	pr_info("Video Device [%s] (multi-head: %s  rom: %s  post: %s)\n",
+		acpi_device_bid(device), str_yes_no(video->flags.multihead),
+		str_yes_no(video->flags.rom), str_yes_no(video->flags.post));
+
 	mutex_lock(&video_list_lock);
 	list_add_tail(&video->entry, &video_bus_head);
 	mutex_unlock(&video_list_lock);
