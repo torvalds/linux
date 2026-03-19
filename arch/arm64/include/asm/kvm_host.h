@@ -814,7 +814,6 @@ struct kvm_host_data {
 
 		/* The saved state of the regs when leaving the guest */
 		DECLARE_BITMAP(activer_exit, VGIC_V5_NR_PRIVATE_IRQS);
-		DECLARE_BITMAP(enabler_exit, VGIC_V5_NR_PRIVATE_IRQS);
 	} vgic_v5_ppi_state;
 };
 
