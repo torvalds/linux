@@ -17,6 +17,7 @@ asmlinkage void polyval_blocks_pmull(struct polyval_elem *acc,
 				     const struct polyval_key *key,
 				     const u8 *data, size_t nblocks);
 
+#define polyval_preparekey_arch polyval_preparekey_arch
 static void polyval_preparekey_arch(struct polyval_key *key,
 				    const u8 raw_key[POLYVAL_BLOCK_SIZE])
 {
@@ -40,6 +41,7 @@ static void polyval_preparekey_arch(struct polyval_key *key,
 	}
 }
 
+#define polyval_mul_arch polyval_mul_arch
 static void polyval_mul_arch(struct polyval_elem *acc,
 			     const struct polyval_key *key)
 {
@@ -51,6 +53,7 @@ static void polyval_mul_arch(struct polyval_elem *acc,
 	}
 }
 
+#define polyval_blocks_arch polyval_blocks_arch
 static void polyval_blocks_arch(struct polyval_elem *acc,
 				const struct polyval_key *key,
 				const u8 *data, size_t nblocks)

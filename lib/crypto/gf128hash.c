@@ -217,16 +217,20 @@ polyval_blocks_generic(struct polyval_elem *acc, const struct polyval_elem *key,
 	} while (--nblocks);
 }
 
-/* Include the arch-optimized implementation of POLYVAL, if one is available. */
 #ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 #include "gf128hash.h" /* $(SRCARCH)/gf128hash.h */
+#endif
+
 void polyval_preparekey(struct polyval_key *key,
 			const u8 raw_key[POLYVAL_BLOCK_SIZE])
 {
+#ifdef polyval_preparekey_arch
 	polyval_preparekey_arch(key, raw_key);
+#else
+	memcpy(key->h.bytes, raw_key, POLYVAL_BLOCK_SIZE);
+#endif
 }
 EXPORT_SYMBOL_GPL(polyval_preparekey);
-#endif /* Else, polyval_preparekey() is an inline function. */
 
 /*
  * polyval_mul_generic() and polyval_blocks_generic() take the key as a
@@ -238,8 +242,12 @@ EXPORT_SYMBOL_GPL(polyval_preparekey);
 
 static void polyval_mul(struct polyval_ctx *ctx)
 {
-#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
+#ifdef polyval_mul_arch
 	polyval_mul_arch(&ctx->acc, ctx->key);
+#elif defined(polyval_blocks_arch)
+	static const u8 zeroes[POLYVAL_BLOCK_SIZE];
+
+	polyval_blocks_arch(&ctx->acc, ctx->key, zeroes, 1);
 #else
 	polyval_mul_generic(&ctx->acc, &ctx->key->h);
 #endif
@@ -248,7 +256,7 @@ static void polyval_mul(struct polyval_ctx *ctx)
 static void polyval_blocks(struct polyval_ctx *ctx,
 			   const u8 *data, size_t nblocks)
 {
-#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
+#ifdef polyval_blocks_arch
 	polyval_blocks_arch(&ctx->acc, ctx->key, data, nblocks);
 #else
 	polyval_blocks_generic(&ctx->acc, &ctx->key->h, data, nblocks);

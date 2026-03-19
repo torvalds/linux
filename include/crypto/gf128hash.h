@@ -44,20 +44,14 @@ struct polyval_elem {
  * exponentiation repeats the POLYVAL dot operation, with its "extra" x^-128.
  */
 struct polyval_key {
-#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
-#ifdef CONFIG_ARM64
-	/** @h_powers: Powers of the hash key H^8 through H^1 */
-	struct polyval_elem h_powers[8];
-#elif defined(CONFIG_X86)
+#if defined(CONFIG_CRYPTO_LIB_GF128HASH_ARCH) && \
+	(defined(CONFIG_ARM64) || defined(CONFIG_X86))
 	/** @h_powers: Powers of the hash key H^8 through H^1 */
 	struct polyval_elem h_powers[8];
 #else
-#error "Unhandled arch"
-#endif
-#else /* CONFIG_CRYPTO_LIB_GF128HASH_ARCH */
 	/** @h: The hash key H */
 	struct polyval_elem h;
-#endif /* !CONFIG_CRYPTO_LIB_GF128HASH_ARCH */
+#endif
 };
 
 /**
@@ -84,18 +78,8 @@ struct polyval_ctx {
  *
  * Context: Any context.
  */
-#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 void polyval_preparekey(struct polyval_key *key,
 			const u8 raw_key[POLYVAL_BLOCK_SIZE]);
-
-#else
-static inline void polyval_preparekey(struct polyval_key *key,
-				      const u8 raw_key[POLYVAL_BLOCK_SIZE])
-{
-	/* Just a simple copy, so inline it. */
-	memcpy(key->h.bytes, raw_key, POLYVAL_BLOCK_SIZE);
-}
-#endif
 
 /**
  * polyval_init() - Initialize a POLYVAL context for a new message
