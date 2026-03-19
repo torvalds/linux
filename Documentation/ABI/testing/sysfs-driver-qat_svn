@@ -1,0 +1,114 @@
+What:		/sys/bus/pci/devices/<BDF>/qat_svn/
+Date:		June 2026
+KernelVersion:	7.1
+Contact:	qat-linux@intel.com
+Description:	Directory containing Security Version Number (SVN) attributes for
+		the Anti-Rollback (ARB) feature. The ARB feature prevents downloading
+		older firmware versions to the acceleration device.
+
+What:		/sys/bus/pci/devices/<BDF>/qat_svn/enforced_min
+Date:		June 2026
+KernelVersion:	7.1
+Contact:	qat-linux@intel.com
+Description:
+		(RO) Reports the minimum allowed firmware SVN.
+
+		Returns an integer greater than zero. Firmware with SVN lower than
+		this value is rejected.
+
+		A write to qat_svn/commit will update this value. The update is not
+		persistent across reboot; on reboot, this value is reset from
+		qat_svn/permanent_min.
+
+		Example usage::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/enforced_min
+			2
+
+		This attribute is available only on devices that support
+		Anti-Rollback.
+
+What:		/sys/bus/pci/devices/<BDF>/qat_svn/permanent_min
+Date:		June 2026
+KernelVersion:	7.1
+Contact:	qat-linux@intel.com
+Description:
+		(RO) Reports the persistent minimum SVN used to initialize
+		qat_svn/enforced_min on each reboot.
+
+		Returns an integer greater than zero. A write to qat_svn/commit
+		may update this value, depending on platform/BIOS settings.
+
+		Example usage::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/permanent_min
+			3
+
+		This attribute is available only on devices that support
+		Anti-Rollback.
+
+What:		/sys/bus/pci/devices/<BDF>/qat_svn/active
+Date:		June 2026
+KernelVersion:	7.1
+Contact:	qat-linux@intel.com
+Description:
+		(RO) Reports the SVN of the currently active firmware image.
+
+		Returns an integer greater than zero.
+
+		Example usage::
+
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/active
+			2
+
+		This attribute is available only on devices that support
+		Anti-Rollback.
+
+What:		/sys/bus/pci/devices/<BDF>/qat_svn/commit
+Date:		June 2026
+KernelVersion:	7.1
+Contact:	qat-linux@intel.com
+Description:
+		(WO) Commits the currently active SVN as the minimum allowed SVN.
+
+		Writing 1 sets qat_svn/enforced_min to the value of qat_svn/active,
+		preventing future firmware loads with lower SVN.
+
+		Depending on platform/BIOS settings, a commit may also update
+		qat_svn/permanent_min.
+
+		Note that on reboot, qat_svn/enforced_min reverts to
+		qat_svn/permanent_min.
+
+		It is advisable to use this attribute with caution, only when
+		it is necessary to set a new minimum SVN for the firmware.
+
+		Before committing the SVN update, it is crucial to check the
+		current values of qat_svn/active, qat_svn/enforced_min and
+		qat_svn/permanent_min. This verification helps ensure that the
+		commit operation aligns with the intended outcome.
+
+		While writing to the file, any value other than '1' will result
+		in an error and have no effect.
+
+		Example usage::
+
+			## Read current values
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/enforced_min
+			2
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/permanent_min
+			2
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/active
+			3
+
+			## Commit active SVN
+			# echo 1 > /sys/bus/pci/devices/<BDF>/qat_svn/commit
+
+			## Read updated values
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/enforced_min
+			3
+			# cat /sys/bus/pci/devices/<BDF>/qat_svn/permanent_min
+			3
+
+		This attribute is available only on devices that support
+		Anti-Rollback.

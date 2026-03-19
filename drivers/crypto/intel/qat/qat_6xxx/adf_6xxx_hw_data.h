@@ -53,6 +53,12 @@
 #define ADF_GEN6_ADMINMSGLR_OFFSET	0x500578
 #define ADF_GEN6_MAILBOX_BASE_OFFSET	0x600970
 
+/* Anti-rollback */
+#define ADF_GEN6_SVNCHECK_CSR_MSG	0x640004
+
+/* Fuse bits */
+#define ADF_GEN6_ANTI_RB_FUSE_BIT	BIT(24)
+
 /*
  * Watchdog timers
  * Timeout is in cycles. Clock speed may vary across products but this
