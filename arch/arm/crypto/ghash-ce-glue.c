@@ -36,7 +36,7 @@ MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
 
 struct ghash_key {
 	be128	k;
-	u64	h[][2];
+	u64	h[1][2];
 };
 
 struct gcm_key {
@@ -51,12 +51,10 @@ struct arm_ghash_desc_ctx {
 };
 
 asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
-				       u64 const h[][2], const char *head);
+				       u64 const h[4][2], const char *head);
 
 asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
-				      u64 const h[][2], const char *head);
-
-static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_p64);
+				      u64 const h[1][2], const char *head);
 
 static int ghash_init(struct shash_desc *desc)
 {
@@ -70,10 +68,7 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 			    struct ghash_key *key, const char *head)
 {
 	kernel_neon_begin();
-	if (static_branch_likely(&use_p64))
-		pmull_ghash_update_p64(blocks, dg, src, key->h, head);
-	else
-		pmull_ghash_update_p8(blocks, dg, src, key->h, head);
+	pmull_ghash_update_p8(blocks, dg, src, key->h, head);
 	kernel_neon_end();
 }
 
@@ -147,19 +142,6 @@ static int ghash_setkey(struct crypto_shash *tfm,
 	/* needed for the fallback */
 	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
 	ghash_reflect(key->h[0], &key->k);
-
-	if (static_branch_likely(&use_p64)) {
-		be128 h = key->k;
-
-		gf128mul_lle(&h, &key->k);
-		ghash_reflect(key->h[1], &h);
-
-		gf128mul_lle(&h, &key->k);
-		ghash_reflect(key->h[2], &h);
-
-		gf128mul_lle(&h, &key->k);
-		ghash_reflect(key->h[3], &h);
-	}
 	return 0;
 }
 
@@ -175,11 +157,11 @@ static struct shash_alg ghash_alg = {
 	.statesize		= sizeof(struct ghash_desc_ctx),
 
 	.base.cra_name		= "ghash",
-	.base.cra_driver_name	= "ghash-ce",
+	.base.cra_driver_name	= "ghash-neon",
 	.base.cra_priority	= 300,
 	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct ghash_key) + sizeof(u64[2]),
+	.base.cra_ctxsize	= sizeof(struct ghash_key),
 	.base.cra_module	= THIS_MODULE,
 };
 
@@ -571,8 +553,6 @@ static int __init ghash_ce_mod_init(void)
 					    ARRAY_SIZE(gcm_aes_algs));
 		if (err)
 			return err;
-		ghash_alg.base.cra_ctxsize += 3 * sizeof(u64[2]);
-		static_branch_enable(&use_p64);
 	}
 
 	err = crypto_register_shash(&ghash_alg);
