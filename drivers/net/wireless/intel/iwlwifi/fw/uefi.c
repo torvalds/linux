@@ -402,11 +402,11 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	if (uats_data->revision != 1)
 		return -EINVAL;
 
-	memcpy(fwrt->uats_table.mcc_to_ap_type_map,
+	memcpy(fwrt->ap_type_cmd.mcc_to_ap_type_map,
 	       uats_data->mcc_to_ap_type_map,
-	       sizeof(fwrt->uats_table.mcc_to_ap_type_map));
+	       sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_map));
 
-	fwrt->uats_valid = true;
+	fwrt->ap_type_cmd_valid = true;
 
 	return 0;
 }
@@ -428,6 +428,36 @@ void iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	kfree(data);
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
+
+void iwl_uefi_get_uneb_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_wlan_uneb_data *data;
+
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UNEB_NAME,
+					      "UNEB", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return;
+
+	if (data->revision != 1) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Cannot read UNEB table. rev is invalid\n");
+		goto out;
+	}
+
+	BUILD_BUG_ON(sizeof(data->mcc_to_ap_type_map) !=
+		     sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map));
+
+	memcpy(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map,
+	       data->mcc_to_ap_type_map,
+	       sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map));
+
+	fwrt->ap_type_cmd_valid = true;
+
+out:
+	kfree(data);
+}
+IWL_EXPORT_SYMBOL(iwl_uefi_get_uneb_table);
 
 static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
 				     struct uefi_sar_profile *uefi_sar_prof,

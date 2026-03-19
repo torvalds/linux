@@ -64,6 +64,7 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 	}
 
 	iwl_uefi_get_uats_table(mld->trans, &mld->fwrt);
+	iwl_uefi_get_uneb_table(mld->trans, &mld->fwrt);
 
 	iwl_bios_get_phy_filters(&mld->fwrt);
 }
@@ -352,21 +353,42 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 				ret);
 }
 
-void iwl_mld_init_uats(struct iwl_mld *mld)
+void iwl_mld_init_ap_type_tables(struct iwl_mld *mld)
 {
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
 			      MCC_ALLOWED_AP_TYPE_CMD),
-		.data[0] = &mld->fwrt.uats_table,
-		.len[0] =  sizeof(mld->fwrt.uats_table),
+		.data[0] = &mld->fwrt.ap_type_cmd,
+		.len[0] =  sizeof(mld->fwrt.ap_type_cmd),
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 
-	if (!mld->fwrt.uats_valid)
+	if (!mld->fwrt.ap_type_cmd_valid)
 		return;
 
-	ret = iwl_mld_send_cmd(mld, &cmd);
+	if (iwl_fw_lookup_cmd_ver(mld->fw, cmd.id, 1) == 1) {
+		struct iwl_mcc_allowed_ap_type_cmd_v1 *cmd_v1 =
+			kzalloc(sizeof(*cmd_v1), GFP_KERNEL);
+
+		if (!cmd_v1)
+			return;
+
+		BUILD_BUG_ON(sizeof(mld->fwrt.ap_type_cmd.mcc_to_ap_type_map) !=
+			     sizeof(cmd_v1->mcc_to_ap_type_map));
+
+		memcpy(cmd_v1->mcc_to_ap_type_map,
+		       mld->fwrt.ap_type_cmd.mcc_to_ap_type_map,
+		       sizeof(mld->fwrt.ap_type_cmd.mcc_to_ap_type_map));
+
+		cmd.data[0] = cmd_v1;
+		cmd.len[0] = sizeof(*cmd_v1);
+		ret = iwl_mld_send_cmd(mld, &cmd);
+		kfree(cmd_v1);
+	} else {
+		ret = iwl_mld_send_cmd(mld, &cmd);
+	}
+
 	if (ret)
 		IWL_ERR(mld, "failed to send MCC_ALLOWED_AP_TYPE_CMD (%d)\n",
 			ret);

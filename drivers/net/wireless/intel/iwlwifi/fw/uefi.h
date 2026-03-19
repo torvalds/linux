@@ -25,6 +25,7 @@
 #define IWL_UEFI_PUNCTURING_NAME	L"UefiCnvWlanPuncturing"
 #define IWL_UEFI_DSBR_NAME		L"UefiCnvCommonDSBR"
 #define IWL_UEFI_WPFC_NAME		L"WPFC"
+#define IWL_UEFI_UNEB_NAME		L"CnvUefiWlanUNEB"
 
 
 #define IWL_SGOM_MAP_SIZE		339
@@ -62,6 +63,9 @@ struct uefi_cnv_wlan_uats_data {
 	u8 revision;
 	u8 mcc_to_ap_type_map[IWL_UATS_MAP_SIZE - 1];
 } __packed;
+
+/* UNEB's layout is identical to UATS's */
+#define uefi_cnv_wlan_uneb_data uefi_cnv_wlan_uats_data
 
 struct uefi_cnv_common_step_data {
 	u8 revision;
@@ -274,6 +278,8 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
 void iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			     struct iwl_fw_runtime *fwrt);
+void iwl_uefi_get_uneb_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
 int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt);
@@ -370,6 +376,11 @@ void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwr
 
 static inline void
 iwl_uefi_get_uats_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt)
+{
+}
+
+static inline void
+iwl_uefi_get_uneb_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt)
 {
 }
 
