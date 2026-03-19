@@ -457,6 +457,7 @@ struct iwl_dev_tx_power_cmd {
 #define IWL_NUM_GEO_PROFILES_V3		8
 #define IWL_NUM_BANDS_PER_CHAIN_V1	2
 #define IWL_NUM_BANDS_PER_CHAIN_V2	3
+#define IWL_NUM_BANDS_PER_CHAIN_V6	4
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation
@@ -538,12 +539,25 @@ struct iwl_geo_tx_power_profiles_cmd_v5 {
 	__le32 table_revision;
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_5 */
 
+/**
+ * struct iwl_geo_tx_power_profiles_cmd_v6 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ * @bios_hdr: describes the revision and the source of the BIOS
+ */
+struct iwl_geo_tx_power_profiles_cmd_v6 {
+	__le32 ops;
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES_V3][IWL_NUM_BANDS_PER_CHAIN_V6];
+	struct iwl_bios_config_hdr bios_hdr;
+} __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_6 */
+
 union iwl_geo_tx_power_profiles_cmd {
 	struct iwl_geo_tx_power_profiles_cmd_v1 v1;
 	struct iwl_geo_tx_power_profiles_cmd_v2 v2;
 	struct iwl_geo_tx_power_profiles_cmd_v3 v3;
 	struct iwl_geo_tx_power_profiles_cmd_v4 v4;
 	struct iwl_geo_tx_power_profiles_cmd_v5 v5;
+	struct iwl_geo_tx_power_profiles_cmd_v6 v6;
 };
 
 /**

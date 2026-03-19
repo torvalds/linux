@@ -644,6 +644,7 @@ int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 	}
 
 	fwrt->geo_rev = data->revision;
+	fwrt->geo_bios_source = BIOS_SOURCE_UEFI;
 	profile_size = 3 * n_subbands;
 	for (int prof = 0; prof < data->num_profiles; prof++) {
 		const u8 *val = &data->vals[profile_size * prof];

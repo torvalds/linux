@@ -73,16 +73,36 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 {
 	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD);
 	/* Only set to South Korea if the table revision is 1 */
-	__le32 sk = cpu_to_le32(mld->fwrt.geo_rev == 1 ? 1 : 0);
+	u8 sk = mld->fwrt.geo_rev == 1 ? 1 : 0;
 	union iwl_geo_tx_power_profiles_cmd cmd = {
 		.v5.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
-		.v5.table_revision = sk,
 	};
+	u32 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0);
+	int n_subbands;
+	int cmd_size;
 	int ret;
 
-	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v5.table[0][0],
-				     ARRAY_SIZE(cmd.v5.table[0]),
-				     BIOS_GEO_MAX_PROFILE_NUM);
+	switch (cmd_ver) {
+	case 5:
+		n_subbands = ARRAY_SIZE(cmd.v5.table[0]);
+		cmd.v5.table_revision = cpu_to_le32(sk);
+		cmd_size = sizeof(cmd.v5);
+		break;
+	case 6:
+		n_subbands = ARRAY_SIZE(cmd.v6.table[0]);
+		cmd.v6.bios_hdr.table_revision = mld->fwrt.geo_rev;
+		cmd.v6.bios_hdr.table_source = mld->fwrt.geo_bios_source;
+		cmd_size = sizeof(cmd.v6);
+		break;
+	default:
+		WARN(false, "unsupported version: %d", cmd_ver);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(offsetof(typeof(cmd), v6.table) !=
+		     offsetof(typeof(cmd), v5.table));
+	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v6.table[0][0],
+				     n_subbands, BIOS_GEO_MAX_PROFILE_NUM);
 
 	/* It is a valid scenario to not support SAR, or miss wgds table,
 	 * but in that case there is no need to send the command.
@@ -90,7 +110,7 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 	if (ret)
 		return 0;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, sizeof(cmd.v5));
+	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, cmd_size);
 }
 
 int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
