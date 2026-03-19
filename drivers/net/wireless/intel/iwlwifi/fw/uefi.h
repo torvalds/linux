@@ -34,8 +34,6 @@
 #define IWL_UEFI_WRDS_REVISION		2
 #define IWL_UEFI_EWRD_REVISION		2
 #define IWL_UEFI_WGDS_REVISION		3
-#define IWL_UEFI_MIN_PPAG_REV		1
-#define IWL_UEFI_MAX_PPAG_REV		4
 #define IWL_UEFI_MIN_WTAS_REVISION	1
 #define IWL_UEFI_MAX_WTAS_REVISION	2
 #define IWL_UEFI_SPLC_REVISION		0
@@ -77,7 +75,9 @@ struct uefi_cnv_common_step_data {
 } __packed;
 
 #define UEFI_SAR_MAX_SUB_BANDS_NUM	11
-#define UEFI_PPAG_SUB_BANDS_NUM		11
+#define UEFI_PPAG_SUB_BANDS_NUM_REV4	11
+#define UEFI_PPAG_SUB_BANDS_NUM_REV5	12
+#define UEFI_PPAG_NUM_CHAINS		2
 #define UEFI_SAR_MAX_CHAINS_PER_PROFILE	4
 
 /*
@@ -143,7 +143,9 @@ struct uefi_cnv_var_wgds {
  * @ppag_modes: values from &enum iwl_ppag_flags
  * @vals: the PPAG values per chain and band as an array.
  *	vals[chain * num_of_subbands + subband] will return the right value.
- *	num_of_subbands is %UEFI_PPAG_SUB_BANDS_NUM.
+ *	num_of_subbands depends on the revision. For revision 5, it is
+ *	%UEFI_PPAG_SUB_BANDS_NUM_REV5, for earlier revision it is
+ *	%UEFI_PPAG_SUB_BANDS_NUM_REV4.
  *	the max number of chains is currently 2
  */
 struct uefi_cnv_var_ppag {
@@ -151,6 +153,13 @@ struct uefi_cnv_var_ppag {
 	u32 ppag_modes;
 	s8 vals[];
 } __packed;
+
+#define UEFI_PPAG_DATA_SIZE_V4				\
+	(offsetof(struct uefi_cnv_var_ppag, vals) +	\
+	sizeof(s8) * UEFI_PPAG_NUM_CHAINS * UEFI_PPAG_SUB_BANDS_NUM_REV4)
+#define UEFI_PPAG_DATA_SIZE_V5				\
+	(offsetof(struct uefi_cnv_var_ppag, vals) +	\
+	sizeof(s8) * UEFI_PPAG_NUM_CHAINS * UEFI_PPAG_SUB_BANDS_NUM_REV5)
 
 /* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
  * @revision: the revision of the table

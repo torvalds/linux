@@ -570,20 +570,52 @@ out:
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_ppag *data;
+	int n_subbands;
+	u32 valid_rev;
 	int ret = 0;
-	int data_sz = sizeof(*data) + sizeof(data->vals[0]) *
-		IWL_NUM_CHAIN_LIMITS * UEFI_PPAG_SUB_BANDS_NUM;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_PPAG_NAME,
-					      "PPAG", data_sz, NULL);
-	if (IS_ERR(data))
-		return -EINVAL;
+					      "PPAG", UEFI_PPAG_DATA_SIZE_V5,
+					      NULL);
+	if (!IS_ERR(data)) {
+		n_subbands = UEFI_PPAG_SUB_BANDS_NUM_REV5;
+		valid_rev = BIT(5);
 
-	if (data->revision < IWL_UEFI_MIN_PPAG_REV ||
-	    data->revision > IWL_UEFI_MAX_PPAG_REV) {
+		goto parse_table;
+	}
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans,
+					      IWL_UEFI_PPAG_NAME,
+					      "PPAG",
+					      UEFI_PPAG_DATA_SIZE_V4,
+					      NULL);
+	if (!IS_ERR(data)) {
+		n_subbands = UEFI_PPAG_SUB_BANDS_NUM_REV4;
+		/* revisions 1-4 have all the same size */
+		valid_rev = BIT(1) | BIT(2) | BIT(3) | BIT(4);
+
+		goto parse_table;
+	}
+
+	return -EINVAL;
+
+parse_table:
+	if (!(BIT(data->revision) & valid_rev)) {
 		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PPAG revision:%d\n",
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI PPAG revision:%d\n",
 				data->revision);
+		goto out;
+	}
+
+	/*
+	 * Make sure fwrt has enough room to hold
+	 * data coming from the UEFI table
+	 */
+	if (WARN_ON(ARRAY_SIZE(fwrt->ppag_chains) *
+		    ARRAY_SIZE(fwrt->ppag_chains[0].subbands)  <
+		    UEFI_PPAG_NUM_CHAINS * n_subbands)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -591,23 +623,13 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
 						   fwrt->ppag_bios_rev);
 
-	/*
-	 * Make sure fwrt has enough room to hold
-	 * data coming from the UEFI table
-	 */
-	BUILD_BUG_ON(ARRAY_SIZE(fwrt->ppag_chains) *
-		     ARRAY_SIZE(fwrt->ppag_chains[0].subbands) <
-		     IWL_NUM_CHAIN_LIMITS * UEFI_PPAG_SUB_BANDS_NUM);
-
-	for (int chain = 0; chain < IWL_NUM_CHAIN_LIMITS; chain++) {
-		for (int subband = 0;
-		     subband < UEFI_PPAG_SUB_BANDS_NUM;
-		     subband++)
+	for (int chain = 0; chain < UEFI_PPAG_NUM_CHAINS; chain++) {
+		for (int subband = 0; subband < n_subbands; subband++)
 			fwrt->ppag_chains[chain].subbands[subband] =
-				data->vals[chain * UEFI_PPAG_SUB_BANDS_NUM + subband];
+				data->vals[chain * n_subbands + subband];
 	}
 
-	iwl_bios_print_ppag(fwrt, UEFI_PPAG_SUB_BANDS_NUM);
+	iwl_bios_print_ppag(fwrt, n_subbands);
 	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);
