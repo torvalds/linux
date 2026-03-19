@@ -344,14 +344,4 @@ config CRYPTO_SM3_AVX_X86_64
 
 	  If unsure, say N.
 
-config CRYPTO_GHASH_CLMUL_NI_INTEL
-	tristate "Hash functions: GHASH (CLMUL-NI)"
-	depends on 64BIT
-	select CRYPTO_CRYPTD
-	help
-	  GCM GHASH hash function (NIST SP800-38D)
-
-	  Architecture: x86_64 using:
-	  - CLMUL-NI (carry-less multiplication new instructions)
-
 endmenu
