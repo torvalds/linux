@@ -264,12 +264,9 @@
 //! [`impl Init<T, E>`]: crate::Init
 //! [Rust-for-Linux]: https://rust-for-linux.com/
 
-#![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
+#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
 #![cfg_attr(
-    all(
-        any(feature = "alloc", feature = "std"),
-        not(RUSTC_NEW_UNINIT_IS_STABLE)
-    ),
+    all(any(feature = "alloc", feature = "std"), USE_RUSTC_FEATURES),
     feature(new_uninit)
 )]
 #![forbid(missing_docs, unsafe_op_in_unsafe_fn)]

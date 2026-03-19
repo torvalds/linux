@@ -118,7 +118,7 @@ syn-flags := \
     $(call cfgs-to-flags,$(syn-cfgs))
 
 pin_init_internal-cfgs := \
-    kernel
+    kernel USE_RUSTC_FEATURES
 
 pin_init_internal-flags := \
     --extern proc_macro2 \
@@ -127,7 +127,7 @@ pin_init_internal-flags := \
     $(call cfgs-to-flags,$(pin_init_internal-cfgs))
 
 pin_init-cfgs := \
-    kernel
+    kernel USE_RUSTC_FEATURES
 
 pin_init-flags := \
     --extern pin_init_internal \
