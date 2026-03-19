@@ -573,7 +573,7 @@ static int fsl_lpspi_wait_for_completion(struct spi_controller *controller)
 	return 0;
 }
 
-static int fsl_lpspi_reset(struct fsl_lpspi_data *fsl_lpspi)
+static void fsl_lpspi_reset(struct fsl_lpspi_data *fsl_lpspi)
 {
 	u32 temp;
 
@@ -588,8 +588,6 @@ static int fsl_lpspi_reset(struct fsl_lpspi_data *fsl_lpspi)
 
 	/* W1C for all flags in SR */
 	writel(SR_CLEAR_MASK, fsl_lpspi->base + IMX7ULP_SR);
-
-	return 0;
 }
 
 static void fsl_lpspi_dma_rx_callback(void *cookie)
