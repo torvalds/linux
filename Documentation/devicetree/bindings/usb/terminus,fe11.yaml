@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/terminus,fe11.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Terminus FE1.1/1.1S USB 2.0 Hub Controller
+
+maintainers:
+  - Yixun Lan <dlan@kernel.org>
+
+allOf:
+  - $ref: usb-hub.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb1a40,0101
+
+  reg: true
+
+  reset-gpios:
+    description:
+      GPIO controlling the RESET#.
+
+  vdd-supply:
+    description:
+      Regulator supply to the hub, one of 3.3V or 5V can be chosen.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@':
+        $ref: /schemas/graph.yaml#/properties/port
+
+        properties:
+          reg:
+            minimum: 1
+            maximum: 4
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    usb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hub@1 {
+            compatible = "usb1a40,0101";
+            reg = <1>;
+            reset-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+            vdd-supply = <&vcc_5v>;
+        };
+    };
