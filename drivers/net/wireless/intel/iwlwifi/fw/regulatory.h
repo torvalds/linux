@@ -190,10 +190,6 @@ int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			 int prof_a, int prof_b);
 
-int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
-			union iwl_ppag_table_cmd *cmd,
-			int *cmd_size);
-
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
 bool iwl_is_tas_approved(void);
