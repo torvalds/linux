@@ -2602,11 +2602,12 @@ static char enast(bool enable)
 }
 
 static noinline_for_stack void
-skl_print_plane_changes(struct intel_display *display,
-			struct intel_plane *plane,
-			const struct skl_plane_wm *old_wm,
-			const struct skl_plane_wm *new_wm)
+skl_print_plane_wm_changes(struct intel_plane *plane,
+			   const struct skl_plane_wm *old_wm,
+			   const struct skl_plane_wm *new_wm)
 {
+	struct intel_display *display = to_intel_display(plane);
+
 	drm_dbg_kms(display->drm,
 		    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
 		    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
@@ -2738,7 +2739,7 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			if (skl_plane_wm_equals(display, old_wm, new_wm))
 				continue;
 
-			skl_print_plane_changes(display, plane, old_wm, new_wm);
+			skl_print_plane_wm_changes(plane, old_wm, new_wm);
 		}
 	}
 }
