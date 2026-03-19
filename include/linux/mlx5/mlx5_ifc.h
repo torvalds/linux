@@ -1968,7 +1968,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         reserved_at_360[0x3];
 	u8         log_max_rq[0x5];
-	u8         reserved_at_368[0x3];
+	u8         ft_alias_sw_vhca_id[0x1];
+	u8         reserved_at_369[0x2];
 	u8         log_max_sq[0x5];
 	u8         reserved_at_370[0x3];
 	u8         log_max_tir[0x5];
@@ -6957,7 +6958,9 @@ struct mlx5_ifc_create_match_definer_out_bits {
 
 struct mlx5_ifc_alias_context_bits {
 	u8 vhca_id_to_be_accessed[0x10];
-	u8 reserved_at_10[0xd];
+	u8 reserved_at_10[0xb];
+	u8 vhca_id_type[0x1];
+	u8 reserved_at_1c[0x1];
 	u8 status[0x3];
 	u8 object_id_to_be_accessed[0x20];
 	u8 reserved_at_40[0x40];
