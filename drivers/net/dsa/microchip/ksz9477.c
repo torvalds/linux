@@ -224,14 +224,13 @@ static int ksz9477_pcs_read(struct mii_bus *bus, int phy, int mmd, int reg)
 				else
 					duplex = DUPLEX_HALF;
 
-				if (!p->phydev.link ||
-				    p->phydev.speed != speed ||
-				    p->phydev.duplex != duplex) {
+				if (!p->link || p->speed != speed ||
+				    p->duplex != duplex) {
 					u16 ctrl;
 
-					p->phydev.link = 1;
-					p->phydev.speed = speed;
-					p->phydev.duplex = duplex;
+					p->link = true;
+					p->speed = speed;
+					p->duplex = duplex;
 					port_sgmii_r(dev, port, mmd, MII_BMCR,
 						     &ctrl);
 					ctrl &= BMCR_ANENABLE;
@@ -241,10 +240,10 @@ static int ksz9477_pcs_read(struct mii_bus *bus, int phy, int mmd, int reg)
 						     ctrl);
 				}
 			} else {
-				p->phydev.link = 0;
+				p->link = false;
 			}
 		} else if (reg == MII_BMSR) {
-			p->phydev.link = !!(val & BMSR_LSTATUS);
+			p->link = !!(val & BMSR_LSTATUS);
 		}
 	}
 
@@ -557,7 +556,7 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 			val = 0x0700;
 			break;
 		case MII_STAT1000:
-			if (p->phydev.speed == SPEED_1000)
+			if (p->speed == SPEED_1000)
 				val = 0x3800;
 			else
 				val = 0;
