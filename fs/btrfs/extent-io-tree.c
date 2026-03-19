@@ -195,7 +195,10 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 		return 0;
 	if (!set && (state->state & bits) == 0)
 		return 0;
+
 	changeset->bytes_changed += state->end - state->start + 1;
+	if (!extent_changeset_tracks_ranges(changeset))
+		return 0;
 
 	ret = ulist_add(&changeset->range_changed, state->start, state->end, GFP_ATOMIC);
 	if (ret < 0)
