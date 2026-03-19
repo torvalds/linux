@@ -141,22 +141,21 @@
 	vshr.u64	XL, XL, #1
 	.endm
 
+	.macro		vrev64_if_be	a
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	vrev64.8	\a, \a
+#endif
+	.endm
+
 	.macro		ghash_update
 	vld1.64		{XL}, [r1]
-
-	/* do the head block first, if supplied */
-	ldr		ip, [sp]
-	teq		ip, #0
-	beq		0f
-	vld1.64		{T1}, [ip]
-	teq		r0, #0
-	b		3f
+	vrev64_if_be	XL
 
 0:
 	vld1.8		{T1}, [r2]!
 	subs		r0, r0, #1
 
-3:	/* multiply XL by SHASH in GF(2^128) */
+	/* multiply XL by SHASH in GF(2^128) */
 	vrev64.8	T1, T1
 
 	vext.8		IN1, T1, T1, #8
@@ -180,11 +179,13 @@
 	.endm
 
 	/*
-	 * void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
-	 *			      u64 const h[1][2], const char *head)
+	 * void pmull_ghash_update_p8(size_t blocks, struct polyval_elem *dg,
+	 *			      const u8 *src,
+	 *			      const struct polyval_elem *h)
 	 */
 ENTRY(pmull_ghash_update_p8)
 	vld1.64		{SHASH}, [r3]
+	vrev64_if_be	SHASH
 	veor		SHASH2_p8, SHASH_L, SHASH_H
 
 	vext.8		s1l, SHASH_L, SHASH_L, #1
@@ -201,6 +202,7 @@ ENTRY(pmull_ghash_update_p8)
 	vmov.i64	k48, #0xffffffffffff
 
 	ghash_update
+	vrev64_if_be	XL
 	vst1.64		{XL}, [r1]
 
 	bx		lr

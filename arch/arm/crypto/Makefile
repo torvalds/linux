@@ -10,4 +10,4 @@ obj-$(CONFIG_CRYPTO_GHASH_ARM_CE) += ghash-arm-ce.o
 
 aes-arm-bs-y	:= aes-neonbs-core.o aes-neonbs-glue.o
 aes-arm-ce-y	:= aes-ce-core.o aes-ce-glue.o
-ghash-arm-ce-y	:= ghash-ce-core.o ghash-ce-glue.o ghash-neon-core.o
+ghash-arm-ce-y	:= ghash-ce-core.o ghash-ce-glue.o
