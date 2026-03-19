@@ -32,6 +32,14 @@
 #define VGIC_MIN_LPI		8192
 #define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 
+/*
+ * GICv5 supports 128 PPIs, but only the first 64 are architected. We only
+ * support the timers and PMU in KVM, both of which are architected. Rather than
+ * handling twice the state, we instead opt to only support the architected set
+ * in KVM for now. At a future stage, this can be bumped up to 128, if required.
+ */
+#define VGIC_V5_NR_PRIVATE_IRQS	64
+
 #define is_v5_type(t, i)	(FIELD_GET(GICV5_HWIRQ_TYPE, (i)) == (t))
 
 #define __irq_is_sgi(t, i)						\
@@ -418,6 +426,11 @@ struct vgic_v3_cpu_if {
 	struct its_vpe	its_vpe;
 
 	unsigned int used_lrs;
+};
+
+/* What PPI capabilities does a GICv5 host have */
+struct vgic_v5_ppi_caps {
+	DECLARE_BITMAP(impl_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
 };
 
 struct vgic_cpu {
