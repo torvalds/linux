@@ -41,6 +41,10 @@ struct polyval_elem {
  * Use ghash_preparekey() to initialize this.
  */
 struct ghash_key {
+#if defined(CONFIG_CRYPTO_LIB_GF128HASH_ARCH) && defined(CONFIG_PPC64)
+	/** @htable: GHASH key format used by the POWER8 assembly code */
+	u64 htable[4][2];
+#endif
 	/** @h: The hash key H, in POLYVAL format */
 	struct polyval_elem h;
 };
