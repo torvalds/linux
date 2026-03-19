@@ -58,6 +58,14 @@
 	status = "okay";
 };
 
+&usb2 {
+	vcc-gpios = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3 {
+	vcc-gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
+};
+
 &srab {
 	status = "okay";
 
