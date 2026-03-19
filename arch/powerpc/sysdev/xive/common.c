@@ -551,7 +551,7 @@ static int xive_find_target_in_mask(const struct cpumask *mask,
 	int cpu, first, num, i;
 
 	/* Pick up a starting point CPU in the mask based on  fuzz */
-	num = min_t(int, cpumask_weight(mask), nr_cpu_ids);
+	num = cpumask_weight(mask);
 	first = fuzz % num;
 
 	/* Locate it */
