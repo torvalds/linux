@@ -131,9 +131,11 @@
 #define PHY_CNFG_PHY_PWRGOOD_MASK	BIT_MASK(1) /* bit [1] */
 #define PHY_CNFG_PAD_SP_MASK		GENMASK(19, 16) /* bits [19:16] */
 #define PHY_CNFG_PAD_SP			0x0c /* PMOS TX drive strength */
+#define PHY_CNFG_PAD_SP_k230		0x09 /* PMOS TX drive strength for k230 */
 #define PHY_CNFG_PAD_SP_SG2042		0x09 /* PMOS TX drive strength for SG2042 */
 #define PHY_CNFG_PAD_SN_MASK		GENMASK(23, 20) /* bits [23:20] */
 #define PHY_CNFG_PAD_SN			0x0c /* NMOS TX drive strength */
+#define PHY_CNFG_PAD_SN_k230		0x08 /* NMOS TX drive strength for k230 */
 #define PHY_CNFG_PAD_SN_SG2042		0x08 /* NMOS TX drive strength for SG2042 */
 
 /* PHY command/response pad settings */
@@ -156,14 +158,21 @@
 #define PHY_PAD_RXSEL_3V3		0x2 /* Receiver type select for 3.3V */
 
 #define PHY_PAD_WEAKPULL_MASK		GENMASK(4, 3) /* bits [4:3] */
+#define PHY_PAD_WEAKPULL_DISABLED	0x0 /* Weak pull up and pull down disabled */
 #define PHY_PAD_WEAKPULL_PULLUP		0x1 /* Weak pull up enabled */
 #define PHY_PAD_WEAKPULL_PULLDOWN	0x2 /* Weak pull down enabled */
 
 #define PHY_PAD_TXSLEW_CTRL_P_MASK	GENMASK(8, 5) /* bits [8:5] */
 #define PHY_PAD_TXSLEW_CTRL_P		0x3 /* Slew control for P-Type pad TX */
+#define PHY_PAD_TXSLEW_CTRL_P_k230	0x2 /* Slew control for P-Type pad TX for k230 */
 #define PHY_PAD_TXSLEW_CTRL_N_MASK	GENMASK(12, 9) /* bits [12:9] */
 #define PHY_PAD_TXSLEW_CTRL_N		0x3 /* Slew control for N-Type pad TX */
 #define PHY_PAD_TXSLEW_CTRL_N_SG2042	0x2 /* Slew control for N-Type pad TX for SG2042 */
+#define PHY_PAD_TXSLEW_CTRL_N_k230	0x2 /* Slew control for N-Type pad TX for k230 */
+
+/* PHY Common DelayLine config settings */
+#define PHY_COMMDL_CNFG			(DWC_MSHC_PTR_PHY_R + 0x1c)
+#define PHY_COMMDL_CNFG_DLSTEP_SEL	BIT(0) /* DelayLine outputs on PAD enabled */
 
 /* PHY CLK delay line settings */
 #define PHY_SDCLKDL_CNFG_R		(DWC_MSHC_PTR_PHY_R + 0x1d)
@@ -177,7 +186,10 @@
 #define PHY_SDCLKDL_DC_HS400		0x18 /* delay code for HS400 mode */
 
 #define PHY_SMPLDL_CNFG_R		(DWC_MSHC_PTR_PHY_R + 0x20)
+#define PHY_SMPLDL_CNFG_EXTDLY_EN	BIT(0)
 #define PHY_SMPLDL_CNFG_BYPASS_EN	BIT(1)
+#define PHY_SMPLDL_CNFG_INPSEL_MASK	GENMASK(3, 2) /* bits [3:2] */
+#define PHY_SMPLDL_CNFG_INPSEL		0x3 /* delay line input source */
 
 /* PHY drift_cclk_rx delay line configuration setting */
 #define PHY_ATDL_CNFG_R			(DWC_MSHC_PTR_PHY_R + 0x21)
@@ -227,8 +239,19 @@
 					 SDHCI_TRNS_BLK_CNT_EN | \
 					 SDHCI_TRNS_DMA)
 
+#define to_pltfm_data(priv, name) \
+	container_of((priv)->dwcmshc_pdata, struct name##_pltfm_data, dwcmshc_pdata)
+
 /* SMC call for BlueField-3 eMMC RST_N */
 #define BLUEFIELD_SMC_SET_EMMC_RST_N	0x82000007
+
+/* Canaan specific Registers */
+#define SD0_CTRL			0x00
+#define SD0_HOST_REG_VOL_STABLE		BIT(4)
+#define SD0_CARD_WRITE_PROT		BIT(6)
+#define SD1_CTRL			0x08
+#define SD1_HOST_REG_VOL_STABLE		BIT(0)
+#define SD1_CARD_WRITE_PROT		BIT(2)
 
 /* Eswin specific Registers */
 #define EIC7700_CARD_CLK_STABLE		BIT(28)
@@ -271,6 +294,11 @@ struct eic7700_priv {
 	unsigned int drive_impedance;
 };
 
+struct k230_priv  {
+	/* Canaan k230 specific */
+	struct regmap *hi_sys_regmap;
+};
+
 #define DWCMSHC_MAX_OTHER_CLKS 3
 
 struct dwcmshc_priv {
@@ -281,6 +309,7 @@ struct dwcmshc_priv {
 	int num_other_clks;
 	struct clk_bulk_data other_clks[DWCMSHC_MAX_OTHER_CLKS];
 
+	const struct dwcmshc_pltfm_data *dwcmshc_pdata;
 	void *priv; /* pointer to SoC private stuff */
 	u16 delay_line;
 	u16 flags;
@@ -291,6 +320,14 @@ struct dwcmshc_pltfm_data {
 	const struct cqhci_host_ops *cqhci_host_ops;
 	int (*init)(struct device *dev, struct sdhci_host *host, struct dwcmshc_priv *dwc_priv);
 	void (*postinit)(struct sdhci_host *host, struct dwcmshc_priv *dwc_priv);
+};
+
+struct k230_pltfm_data {
+	struct dwcmshc_pltfm_data dwcmshc_pdata;
+	bool is_emmc;
+	u32 ctrl_reg;
+	u32 vol_stable_bit;
+	u32 write_prot_bit;
 };
 
 static void dwcmshc_enable_card_clk(struct sdhci_host *host)
@@ -1779,6 +1816,181 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 	return 0;
 }
 
+static void dwcmshc_k230_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	u16 clk;
+
+	sdhci_set_clock(host, clock);
+
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	/*
+	 * It is necessary to enable SDHCI_PROG_CLOCK_MODE. This is a
+	 * vendor-specific quirk. If this is not done, the eMMC will be
+	 * unable to read or write.
+	 */
+	clk |= SDHCI_PROG_CLOCK_MODE;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+}
+
+static void sdhci_k230_config_phy_delay(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
+	u32 val;
+
+	sdhci_writeb(host, PHY_COMMDL_CNFG_DLSTEP_SEL, PHY_COMMDL_CNFG);
+	sdhci_writeb(host, 0x0, PHY_SDCLKDL_CNFG_R);
+	sdhci_writeb(host, PHY_SDCLKDL_DC_INITIAL, PHY_SDCLKDL_DC_R);
+
+	val = PHY_SMPLDL_CNFG_EXTDLY_EN;
+	val |= FIELD_PREP(PHY_SMPLDL_CNFG_INPSEL_MASK, PHY_SMPLDL_CNFG_INPSEL);
+	sdhci_writeb(host, val, PHY_SMPLDL_CNFG_R);
+
+	sdhci_writeb(host, FIELD_PREP(PHY_ATDL_CNFG_INPSEL_MASK, PHY_ATDL_CNFG_INPSEL),
+		     PHY_ATDL_CNFG_R);
+
+	val = sdhci_readl(host, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+	val |= AT_CTRL_TUNE_CLK_STOP_EN;
+	val |= FIELD_PREP(AT_CTRL_PRE_CHANGE_DLY_MASK, AT_CTRL_PRE_CHANGE_DLY);
+	val |= FIELD_PREP(AT_CTRL_POST_CHANGE_DLY_MASK, AT_CTRL_POST_CHANGE_DLY);
+	sdhci_writel(host, val, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_ATCTRL);
+	sdhci_writel(host, 0x0, dwc_priv->vendor_specific_area1 + DWCMSHC_AT_STAT);
+}
+
+static int dwcmshc_k230_phy_init(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
+	u32 rxsel;
+	u32 val;
+	u32 reg;
+	int ret;
+
+	/* reset phy */
+	sdhci_writew(host, 0, PHY_CNFG_R);
+
+	/* Disable the clock */
+	sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
+
+	rxsel = dwc_priv->flags & FLAG_IO_FIXED_1V8 ? PHY_PAD_RXSEL_1V8 : PHY_PAD_RXSEL_3V3;
+
+	val = rxsel;
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P_k230);
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N_k230);
+	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLUP);
+
+	sdhci_writew(host, val, PHY_CMDPAD_CNFG_R);
+	sdhci_writew(host, val, PHY_DATAPAD_CNFG_R);
+	sdhci_writew(host, val, PHY_RSTNPAD_CNFG_R);
+
+	val = rxsel;
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P_k230);
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N_k230);
+	sdhci_writew(host, val, PHY_CLKPAD_CNFG_R);
+
+	val = rxsel;
+	val |= FIELD_PREP(PHY_PAD_WEAKPULL_MASK, PHY_PAD_WEAKPULL_PULLDOWN);
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_P_MASK, PHY_PAD_TXSLEW_CTRL_P_k230);
+	val |= FIELD_PREP(PHY_PAD_TXSLEW_CTRL_N_MASK, PHY_PAD_TXSLEW_CTRL_N_k230);
+	sdhci_writew(host, val, PHY_STBPAD_CNFG_R);
+
+	sdhci_k230_config_phy_delay(host);
+
+	/* Wait max 150 ms */
+	ret = read_poll_timeout(sdhci_readl, reg,
+				(reg & FIELD_PREP(PHY_CNFG_PHY_PWRGOOD_MASK, 1)),
+				10, 150000, false, host, PHY_CNFG_R);
+	if (ret) {
+		dev_err(mmc_dev(host->mmc), "READ PHY PWRGOOD timeout!\n");
+		return -ETIMEDOUT;
+	}
+
+	reg = FIELD_PREP(PHY_CNFG_PAD_SN_MASK, PHY_CNFG_PAD_SN_k230) |
+	      FIELD_PREP(PHY_CNFG_PAD_SP_MASK, PHY_CNFG_PAD_SP_k230);
+	sdhci_writel(host, reg, PHY_CNFG_R);
+
+	/* de-assert the phy */
+	reg |= PHY_CNFG_RSTN_DEASSERT;
+	sdhci_writel(host, reg, PHY_CNFG_R);
+
+	return 0;
+}
+
+static void dwcmshc_k230_sdhci_reset(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *dwc_priv = sdhci_pltfm_priv(pltfm_host);
+	const struct k230_pltfm_data *k230_pdata = to_pltfm_data(dwc_priv, k230);
+	u8 emmc_ctrl;
+
+	dwcmshc_reset(host, mask);
+
+	if (mask != SDHCI_RESET_ALL)
+		return;
+
+	emmc_ctrl = sdhci_readw(host, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_CONTROL);
+	sdhci_writeb(host, emmc_ctrl, dwc_priv->vendor_specific_area1 + DWCMSHC_EMMC_CONTROL);
+
+	if (k230_pdata->is_emmc)
+		dwcmshc_k230_phy_init(host);
+	else
+		sdhci_writel(host, 0x0, dwc_priv->vendor_specific_area1 + DWCMSHC_HOST_CTRL3);
+}
+
+static int dwcmshc_k230_init(struct device *dev, struct sdhci_host *host,
+			     struct dwcmshc_priv *dwc_priv)
+{
+	const struct k230_pltfm_data *k230_pdata = to_pltfm_data(dwc_priv, k230);
+	static const char * const clk_ids[] = {"block", "timer", "axi"};
+	struct device_node *usb_phy_node;
+	struct k230_priv *k230_priv;
+	u32 data;
+	int ret;
+
+	k230_priv = devm_kzalloc(dev, sizeof(struct k230_priv), GFP_KERNEL);
+	if (!k230_priv)
+		return -ENOMEM;
+
+	dwc_priv->priv = k230_priv;
+
+	usb_phy_node = of_parse_phandle(dev->of_node, "canaan,usb-phy", 0);
+	if (!usb_phy_node)
+		return dev_err_probe(dev, -ENODEV, "Failed to find canaan,usb-phy phandle\n");
+
+	k230_priv->hi_sys_regmap = device_node_to_regmap(usb_phy_node);
+	of_node_put(usb_phy_node);
+
+	if (IS_ERR(k230_priv->hi_sys_regmap))
+		return dev_err_probe(dev, PTR_ERR(k230_priv->hi_sys_regmap),
+				     "Failed to get k230-usb-phy regmap\n");
+
+	ret = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
+					    ARRAY_SIZE(clk_ids), clk_ids);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get/enable k230 mmc other clocks\n");
+
+	if (k230_pdata->is_emmc) {
+		host->flags &= ~SDHCI_SIGNALING_330;
+		dwc_priv->flags |= FLAG_IO_FIXED_1V8;
+	} else {
+		host->mmc->caps |= MMC_CAP_SD_HIGHSPEED;
+		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
+	}
+
+	ret = regmap_read(k230_priv->hi_sys_regmap, k230_pdata->ctrl_reg, &data);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to read control reg 0x%x\n",
+				     k230_pdata->ctrl_reg);
+
+	data |= k230_pdata->write_prot_bit | k230_pdata->vol_stable_bit;
+	ret = regmap_write(k230_priv->hi_sys_regmap, k230_pdata->ctrl_reg, data);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to write control reg 0x%x\n",
+				     k230_pdata->ctrl_reg);
+
+	return 0;
+}
+
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -1864,6 +2076,15 @@ static const struct sdhci_ops sdhci_dwcmshc_eic7700_ops = {
 	.irq = dwcmshc_cqe_irq_handler,
 	.adma_write_desc = dwcmshc_adma_write_desc,
 	.platform_execute_tuning = sdhci_eic7700_executing_tuning,
+};
+
+static const struct sdhci_ops sdhci_dwcmshc_k230_ops = {
+	.set_clock = dwcmshc_k230_sdhci_set_clock,
+	.set_bus_width = sdhci_set_bus_width,
+	.set_uhs_signaling = dwcmshc_set_uhs_signaling,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.reset = dwcmshc_k230_sdhci_reset,
+	.adma_write_desc = dwcmshc_adma_write_desc,
 };
 
 static const struct dwcmshc_pltfm_data sdhci_dwcmshc_pdata = {
@@ -1955,6 +2176,36 @@ static const struct dwcmshc_pltfm_data sdhci_dwcmshc_eic7700_pdata = {
 			   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 	},
 	.init = eic7700_init,
+};
+
+static const struct k230_pltfm_data k230_emmc_data = {
+	.dwcmshc_pdata = {
+		.pdata = {
+			.ops = &sdhci_dwcmshc_k230_ops,
+			.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+				  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+		},
+		.init = dwcmshc_k230_init,
+	},
+	.is_emmc = true,
+	.ctrl_reg = SD0_CTRL,
+	.vol_stable_bit = SD0_HOST_REG_VOL_STABLE,
+	.write_prot_bit = SD0_CARD_WRITE_PROT,
+};
+
+static const struct k230_pltfm_data k230_sdio_data = {
+	.dwcmshc_pdata = {
+		.pdata = {
+			.ops = &sdhci_dwcmshc_k230_ops,
+			.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
+				  SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12,
+		},
+		.init = dwcmshc_k230_init,
+	},
+	.is_emmc = false,
+	.ctrl_reg = SD1_CTRL,
+	.vol_stable_bit = SD1_HOST_REG_VOL_STABLE,
+	.write_prot_bit = SD1_CARD_WRITE_PROT,
 };
 
 static const struct sdhci_ops sdhci_dwcmshc_hpe_ops = {
@@ -2049,6 +2300,14 @@ dsbl_cqe_caps:
 
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
+		.compatible = "canaan,k230-emmc",
+		.data = &k230_emmc_data.dwcmshc_pdata,
+	},
+	{
+		.compatible = "canaan,k230-sdio",
+		.data = &k230_sdio_data.dwcmshc_pdata,
+	},
+	{
 		.compatible = "rockchip,rk3588-dwcmshc",
 		.data = &sdhci_dwcmshc_rk35xx_pdata,
 	},
@@ -2134,6 +2393,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
+	priv->dwcmshc_pdata = pltfm_data;
 
 	if (dev->of_node) {
 		pltfm_host->clk = devm_clk_get(dev, "core");
