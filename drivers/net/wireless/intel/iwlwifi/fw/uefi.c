@@ -607,6 +607,7 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 				data->vals[chain * UEFI_PPAG_SUB_BANDS_NUM + subband];
 	}
 
+	iwl_bios_print_ppag(fwrt, UEFI_PPAG_SUB_BANDS_NUM);
 	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);

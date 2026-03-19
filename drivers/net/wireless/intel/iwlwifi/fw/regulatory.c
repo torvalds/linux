@@ -318,6 +318,27 @@ bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_is_ppag_approved);
 
+/* Print the PPAG table as read from BIOS */
+void iwl_bios_print_ppag(struct iwl_fw_runtime *fwrt, int n_subbands)
+{
+	int i, j;
+
+	IWL_DEBUG_RADIO(fwrt, "PPAG table as read from BIOS:\n");
+	IWL_DEBUG_RADIO(fwrt, "PPAG revision = %d\n", fwrt->ppag_bios_rev);
+	IWL_DEBUG_RADIO(fwrt, "PPAG flags = 0x%x\n", fwrt->ppag_flags);
+
+	if (WARN_ON_ONCE(n_subbands >
+			 ARRAY_SIZE(fwrt->ppag_chains[0].subbands)))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->ppag_chains); i++)
+		for (j = 0; j < n_subbands; j++)
+			IWL_DEBUG_RADIO(fwrt,
+					"ppag_chains[%d].subbands[%d] = %d\n",
+					i, j,
+					fwrt->ppag_chains[i].subbands[j]);
+}
+
 bool iwl_is_tas_approved(void)
 {
 	return dmi_check_system(dmi_tas_approved_list);

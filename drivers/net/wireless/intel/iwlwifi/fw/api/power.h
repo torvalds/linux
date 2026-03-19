@@ -269,6 +269,7 @@ enum iwl_dev_tx_power_cmd_mode {
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS_V1	5
 #define IWL_NUM_SUB_BANDS_V2	11
+#define IWL_NUM_SUB_BANDS_V3	12
 
 /**
  * struct iwl_dev_tx_power_common - Common part of the TX power reduction cmd
@@ -573,6 +574,7 @@ enum iwl_ppag_flags {
  * @v1: command version 1 structure.
  * @v5: command version 5 structure.
  * @v7: command version 7 structure.
+ * @v8: command version 8 structure.
  * @v1.flags: values from &enum iwl_ppag_flags
  * @v1.gain: table of antenna gain values per chain and sub-band
  * @v1.reserved: reserved
@@ -581,6 +583,8 @@ enum iwl_ppag_flags {
  * @v7.ppag_config_info: see @struct bios_value_u32
  * @v7.gain: table of antenna gain values per chain and sub-band
  * @v7.reserved: reserved
+ * @v8.ppag_config_info: see @struct bios_value_u32
+ * @v8.gain: table of antenna gain values per chain and sub-band
  */
 union iwl_ppag_table_cmd {
 	struct {
@@ -598,6 +602,10 @@ union iwl_ppag_table_cmd {
 		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
 		s8 reserved[2];
 	} __packed v7; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_7 */
+	struct {
+		struct bios_value_u32 ppag_config_info;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V3];
+	} __packed v8; /* PER_PLAT_ANTENNA_GAIN_CMD_API_S_VER_8 */
 } __packed;
 
 #define IWL_PPAG_CMD_V1_MASK (IWL_PPAG_ETSI_MASK | IWL_PPAG_CHINA_MASK)
