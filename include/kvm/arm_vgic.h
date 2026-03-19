@@ -189,6 +189,8 @@ enum vgic_irq_config {
 	VGIC_CONFIG_LEVEL
 };
 
+struct vgic_irq;
+
 /*
  * Per-irq ops overriding some common behavious.
  *
@@ -207,6 +209,12 @@ struct irq_ops {
 	 * peaking into the physical GIC.
 	 */
 	bool (*get_input_level)(int vintid);
+
+	/*
+	 * Function pointer to override the queuing of an IRQ.
+	 */
+	bool (*queue_irq_unlock)(struct kvm *kvm, struct vgic_irq *irq,
+				unsigned long flags) __releases(&irq->irq_lock);
 };
 
 struct vgic_irq {
