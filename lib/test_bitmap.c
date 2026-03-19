@@ -858,6 +858,7 @@ static void __init test_bitmap_weight(void)
 {
 	unsigned int bit, w1, w2, w;
 	DECLARE_BITMAP(b, 30);
+	DECLARE_BITMAP(b1, 128);
 
 	bitmap_parselist("all:1/2", b, 30);
 
@@ -877,6 +878,24 @@ static void __init test_bitmap_weight(void)
 		w2 = bitmap_weight_from(exp1, bit, EXP1_IN_BITS);
 		expect_eq_uint(w1 + w2, w);
 	}
+
+	/* Test out-of-range */
+	w = bitmap_weight_from(b, 31, 30);
+	expect_eq_uint(0, !!(w < 30));
+
+	/*
+	 * Test bitmap_weight() for correctness in case of some bits set between
+	 * nbits and end of the last word.
+	 */
+	bitmap_fill(b1, 128);
+
+	/* Inline */
+	expect_eq_uint(30, bitmap_weight(b1, 30));
+	expect_eq_uint(100, bitmap_weight(b1, 100));
+
+	/* Outline */
+	for (int i  = 1; i < 128; i++)
+		expect_eq_uint(i, bitmap_weight(b1, i));
 }
 
 static void __init test_for_each_clear_bit(void)
