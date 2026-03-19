@@ -87,6 +87,41 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 	return 0;
 }
 
+int vgic_v5_finalize_ppi_state(struct kvm *kvm)
+{
+	struct kvm_vcpu *vcpu0;
+	int i;
+
+	if (!vgic_is_v5(kvm))
+		return 0;
+
+	/* The PPI state for all VCPUs should be the same. Pick the first. */
+	vcpu0 = kvm_get_vcpu(kvm, 0);
+
+	bitmap_zero(kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
+	bitmap_zero(kvm->arch.vgic.gicv5_vm.vgic_ppi_hmr, VGIC_V5_NR_PRIVATE_IRQS);
+
+	for_each_set_bit(i, ppi_caps.impl_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS) {
+		const u32 intid = vgic_v5_make_ppi(i);
+		struct vgic_irq *irq;
+
+		irq = vgic_get_vcpu_irq(vcpu0, intid);
+
+		/* Expose PPIs with an owner or the SW_PPI, only */
+		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock) {
+			if (irq->owner || i == GICV5_ARCH_PPI_SW_PPI) {
+				__assign_bit(i, kvm->arch.vgic.gicv5_vm.vgic_ppi_mask, 1);
+				__assign_bit(i, kvm->arch.vgic.gicv5_vm.vgic_ppi_hmr,
+					     irq->config == VGIC_CONFIG_LEVEL);
+			}
+		}
+
+		vgic_put_irq(vcpu0->kvm, irq);
+	}
+
+	return 0;
+}
+
 void vgic_v5_load(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;

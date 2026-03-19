@@ -326,6 +326,23 @@ struct vgic_redist_region {
 	struct list_head list;
 };
 
+struct vgic_v5_vm {
+	/*
+	 * We only expose a subset of PPIs to the guest. This subset is a
+	 * combination of the PPIs that are actually implemented and what we
+	 * actually choose to expose.
+	 */
+	DECLARE_BITMAP(vgic_ppi_mask, VGIC_V5_NR_PRIVATE_IRQS);
+
+	/*
+	 * The HMR itself is handled by the hardware, but we still need to have
+	 * a mask that we can use when merging in pending state (only the state
+	 * of Edge PPIs is merged back in from the guest an the HMR provides a
+	 * convenient way to do that).
+	 */
+	DECLARE_BITMAP(vgic_ppi_hmr, VGIC_V5_NR_PRIVATE_IRQS);
+};
+
 struct vgic_dist {
 	bool			in_kernel;
 	bool			ready;
@@ -398,6 +415,11 @@ struct vgic_dist {
 	 * else.
 	 */
 	struct its_vm		its_vm;
+
+	/*
+	 * GICv5 per-VM data.
+	 */
+	struct vgic_v5_vm	gicv5_vm;
 };
 
 struct vgic_v2_cpu_if {
@@ -587,6 +609,8 @@ void kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int host_irq);
 int vgic_v4_load(struct kvm_vcpu *vcpu);
 void vgic_v4_commit(struct kvm_vcpu *vcpu);
 int vgic_v4_put(struct kvm_vcpu *vcpu);
+
+int vgic_v5_finalize_ppi_state(struct kvm *kvm);
 
 bool vgic_state_is_nested(struct kvm_vcpu *vcpu);
 
