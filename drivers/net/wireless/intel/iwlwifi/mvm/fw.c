@@ -908,7 +908,7 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 {
-	union iwl_geo_tx_power_profiles_cmd geo_tx_cmd;
+	union iwl_geo_tx_power_profiles_cmd geo_tx_cmd = {};
 	struct iwl_geo_tx_power_profiles_resp *resp;
 	u16 len;
 	int ret;
@@ -960,7 +960,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 {
 	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD);
-	union iwl_geo_tx_power_profiles_cmd cmd;
+	union iwl_geo_tx_power_profiles_cmd cmd = {};
 	u16 len;
 	u32 n_bands;
 	u32 n_profiles;
