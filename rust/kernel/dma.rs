@@ -6,12 +6,14 @@
 
 use crate::{
     bindings,
+    debugfs,
     device::{
         self,
         Bound,
         Core, //
     },
     error::to_result,
+    fs::file,
     prelude::*,
     ptr::KnownSize,
     sync::aref::ARef,
@@ -19,6 +21,7 @@ use crate::{
         AsBytes,
         FromBytes, //
     }, //
+    uaccess::UserSliceWriter,
 };
 use core::{
     ops::{
@@ -875,6 +878,37 @@ impl<T: KnownSize + ?Sized> Drop for Coherent<T> {
 // SAFETY: It is safe to send a `Coherent` to another thread if `T`
 // can be sent to another thread.
 unsafe impl<T: KnownSize + Send + ?Sized> Send for Coherent<T> {}
+
+// SAFETY: Sharing `&Coherent` across threads is safe if `T` is `Sync`, because all
+// methods that access the buffer contents (`field_read`, `field_write`, `as_slice`,
+// `as_slice_mut`) are `unsafe`, and callers are responsible for ensuring no data races occur.
+// The safe methods only return metadata or raw pointers whose use requires `unsafe`.
+unsafe impl<T: KnownSize + ?Sized + AsBytes + FromBytes + Sync> Sync for Coherent<T> {}
+
+impl debugfs::BinaryWriter for Coherent<[u8]> {
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        // If the offset is too large for a usize (e.g. on 32-bit platforms),
+        // then consider that as past EOF and just return 0 bytes.
+        let Ok(offset_val) = usize::try_from(*offset) else {
+            return Ok(0);
+        };
+
+        let count = self.size().saturating_sub(offset_val).min(writer.len());
+
+        writer.write_dma(self, offset_val, count)?;
+
+        *offset += count as i64;
+        Ok(count)
+    }
+}
 
 /// Reads a field of an item from an allocated region of structs.
 ///
