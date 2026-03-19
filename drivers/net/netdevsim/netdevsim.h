@@ -455,6 +455,9 @@ static inline void
 nsim_psp_handle_ext(struct sk_buff *skb, struct skb_ext *psp_ext) {}
 #endif
 
+int nsim_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		  void *type_data);
+
 struct nsim_bus_dev {
 	struct device dev;
 	struct list_head list;
