@@ -1758,6 +1758,7 @@ static u8 pmuver_to_perfmon(u8 pmuver)
 
 static u64 sanitise_id_aa64pfr0_el1(const struct kvm_vcpu *vcpu, u64 val);
 static u64 sanitise_id_aa64pfr1_el1(const struct kvm_vcpu *vcpu, u64 val);
+static u64 sanitise_id_aa64pfr2_el1(const struct kvm_vcpu *vcpu, u64 val);
 static u64 sanitise_id_aa64dfr0_el1(const struct kvm_vcpu *vcpu, u64 val);
 
 /* Read a sanitised cpufeature ID register by sys_reg_desc */
@@ -1783,10 +1784,7 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		val = sanitise_id_aa64pfr1_el1(vcpu, val);
 		break;
 	case SYS_ID_AA64PFR2_EL1:
-		val &= ID_AA64PFR2_EL1_FPMR |
-			(kvm_has_mte(vcpu->kvm) ?
-			 ID_AA64PFR2_EL1_MTEFAR | ID_AA64PFR2_EL1_MTESTOREONLY :
-			 0);
+		val = sanitise_id_aa64pfr2_el1(vcpu, val);
 		break;
 	case SYS_ID_AA64ISAR1_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
@@ -2027,6 +2025,23 @@ static u64 sanitise_id_aa64pfr1_el1(const struct kvm_vcpu *vcpu, u64 val)
 	return val;
 }
 
+static u64 sanitise_id_aa64pfr2_el1(const struct kvm_vcpu *vcpu, u64 val)
+{
+	val &= ID_AA64PFR2_EL1_FPMR |
+	       ID_AA64PFR2_EL1_MTEFAR |
+	       ID_AA64PFR2_EL1_MTESTOREONLY;
+
+	if (!kvm_has_mte(vcpu->kvm)) {
+		val &= ~ID_AA64PFR2_EL1_MTEFAR;
+		val &= ~ID_AA64PFR2_EL1_MTESTOREONLY;
+	}
+
+	if (vgic_host_has_gicv5())
+		val |= SYS_FIELD_PREP_ENUM(ID_AA64PFR2_EL1, GCIE, IMP);
+
+	return val;
+}
+
 static u64 sanitise_id_aa64dfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 {
 	val = ID_REG_LIMIT_FIELD_ENUM(val, ID_AA64DFR0_EL1, DebugVer, V8P8);
@@ -2213,6 +2228,12 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 		user_val |= hw_val & ID_AA64PFR1_EL1_MTE_frac_MASK;
 	}
 
+	return set_id_reg(vcpu, rd, user_val);
+}
+
+static int set_id_aa64pfr2_el1(struct kvm_vcpu *vcpu,
+			       const struct sys_reg_desc *rd, u64 user_val)
+{
 	return set_id_reg(vcpu, rd, user_val);
 }
 
@@ -3197,10 +3218,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 				       ID_AA64PFR1_EL1_RES0 |
 				       ID_AA64PFR1_EL1_MPAM_frac |
 				       ID_AA64PFR1_EL1_MTE)),
-	ID_WRITABLE(ID_AA64PFR2_EL1,
-		    ID_AA64PFR2_EL1_FPMR |
-		    ID_AA64PFR2_EL1_MTEFAR |
-		    ID_AA64PFR2_EL1_MTESTOREONLY),
+	ID_FILTERED(ID_AA64PFR2_EL1, id_aa64pfr2_el1,
+		    ~(ID_AA64PFR2_EL1_FPMR |
+		      ID_AA64PFR2_EL1_MTEFAR |
+		      ID_AA64PFR2_EL1_MTESTOREONLY |
+		      ID_AA64PFR2_EL1_GCIE)),
 	ID_UNALLOCATED(4,3),
 	ID_WRITABLE(ID_AA64ZFR0_EL1, ~ID_AA64ZFR0_EL1_RES0),
 	ID_HIDDEN(ID_AA64SMFR0_EL1),
@@ -5671,8 +5693,40 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 
 		val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1) & ~ID_AA64PFR0_EL1_GIC;
 		kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1, val);
+		val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR2_EL1) & ~ID_AA64PFR2_EL1_GCIE;
+		kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR2_EL1, val);
 		val = kvm_read_vm_id_reg(kvm, SYS_ID_PFR1_EL1) & ~ID_PFR1_EL1_GIC;
 		kvm_set_vm_id_reg(kvm, SYS_ID_PFR1_EL1, val);
+	} else {
+		/*
+		 * Certain userspace software - QEMU - samples the system
+		 * register state without creating an irqchip, then blindly
+		 * restores the state prior to running the final guest. This
+		 * means that it restores the virtualization & emulation
+		 * capabilities of the host system, rather than something that
+		 * reflects the final guest state. Moreover, it checks that the
+		 * state was "correctly" restored (i.e., verbatim), bailing if
+		 * it isn't, so masking off invalid state isn't an option.
+		 *
+		 * On GICv5 hardware that supports FEAT_GCIE_LEGACY we can run
+		 * both GICv3- and GICv5-based guests. Therefore, we initially
+		 * present both ID_AA64PFR0.GIC and ID_AA64PFR2.GCIE as IMP to
+		 * reflect that userspace can create EITHER a vGICv3 or a
+		 * vGICv5. This is an architecturally invalid combination, of
+		 * course. Once an in-kernel GIC is created, the sysreg state is
+		 * updated to reflect the actual, valid configuration.
+		 *
+		 * Setting both the GIC and GCIE features to IMP unsurprisingly
+		 * results in guests falling over, and hence we need to fix up
+		 * this mess in KVM. Before running for the first time we yet
+		 * again ensure that the GIC and GCIE fields accurately reflect
+		 * the actual hardware the guest should see.
+		 *
+		 * This hack allows legacy QEMU-based GICv3 guests to run
+		 * unmodified on compatible GICv5 hosts, and avoids the inverse
+		 * problem for GICv5-based guests in the future.
+		 */
+		kvm_vgic_finalize_idregs(kvm);
 	}
 
 	if (vcpu_has_nv(vcpu)) {
