@@ -2624,7 +2624,7 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 	struct intel_display *display = to_intel_display(plane);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
+		    "[PLANE:%d:%s]      level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
 		    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
 		    plane->base.base.id, plane->base.name,
 		    enast(old_wm->wm[0].enable), enast(old_wm->wm[1].enable),
@@ -2643,7 +2643,7 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 		    enast(new_wm->sagv.trans_wm.enable));
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
+		    "[PLANE:%d:%s]      lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
 		      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
 		    plane->base.base.id, plane->base.name,
 		    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].lines,
@@ -2670,7 +2670,7 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 		    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.lines);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    "[PLANE:%d:%s]     blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
 		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 		    plane->base.base.id, plane->base.name,
 		    old_wm->wm[0].blocks, old_wm->wm[1].blocks,
@@ -2689,7 +2689,7 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 		    new_wm->sagv.trans_wm.blocks);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    "[PLANE:%d:%s]    min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
 		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 		    plane->base.base.id, plane->base.name,
 		    old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
@@ -2706,6 +2706,28 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 		    new_wm->trans_wm.min_ddb_alloc,
 		    new_wm->sagv.wm0.min_ddb_alloc,
 		    new_wm->sagv.trans_wm.min_ddb_alloc);
+
+	if (DISPLAY_VER(display) >= 11)
+		return;
+
+	drm_dbg_kms(display->drm,
+		    "[PLANE:%d:%s] min_ddb_uv %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
+		    plane->base.base.id, plane->base.name,
+		    old_wm->wm[0].min_ddb_alloc_uv, old_wm->wm[1].min_ddb_alloc_uv,
+		    old_wm->wm[2].min_ddb_alloc_uv, old_wm->wm[3].min_ddb_alloc_uv,
+		    old_wm->wm[4].min_ddb_alloc_uv, old_wm->wm[5].min_ddb_alloc_uv,
+		    old_wm->wm[6].min_ddb_alloc_uv, old_wm->wm[7].min_ddb_alloc_uv,
+		    old_wm->trans_wm.min_ddb_alloc_uv,
+		    old_wm->sagv.wm0.min_ddb_alloc_uv,
+		    old_wm->sagv.trans_wm.min_ddb_alloc_uv,
+		    new_wm->wm[0].min_ddb_alloc_uv, new_wm->wm[1].min_ddb_alloc_uv,
+		    new_wm->wm[2].min_ddb_alloc_uv, new_wm->wm[3].min_ddb_alloc_uv,
+		    new_wm->wm[4].min_ddb_alloc_uv, new_wm->wm[5].min_ddb_alloc_uv,
+		    new_wm->wm[6].min_ddb_alloc_uv, new_wm->wm[7].min_ddb_alloc_uv,
+		    new_wm->trans_wm.min_ddb_alloc_uv,
+		    new_wm->sagv.wm0.min_ddb_alloc_uv,
+		    new_wm->sagv.trans_wm.min_ddb_alloc_uv);
 }
 
 static void
