@@ -555,6 +555,59 @@ static const uint32_t mipi_dbi_formats[] = {
 };
 
 /**
+ * drm_mipi_dbi_dev_init - MIPI DBI device initialization
+ * @dbidev: MIPI DBI device structure to initialize
+ * @mode: Hardware display mode
+ * @format: Hardware color format (DRM_FORMAT\_\*).
+ * @rotation: Initial rotation in degrees Counter Clock Wise
+ * @tx_buf_size: Allocate a transmit buffer of at least this size.
+ *
+ * Initializes a MIPI-DBI device. The minimum size of the transmit buffer
+ * in @tx_buf_size is optional. Pass 0 to allocate enough memory to transmit
+ * a single scanline of the display.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int drm_mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev, const struct drm_display_mode *mode,
+			  u32 format, unsigned int rotation, size_t tx_buf_size)
+{
+	struct drm_device *drm = &dbidev->drm;
+	int ret;
+
+	if (!dbidev->dbi.command)
+		return -EINVAL;
+
+	if (!tx_buf_size) {
+		const struct drm_format_info *info = drm_format_info(format);
+
+		tx_buf_size = drm_format_info_min_pitch(info, 0, mode->hdisplay) *
+			      mode->vdisplay;
+	}
+
+	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
+	if (!dbidev->tx_buf)
+		return -ENOMEM;
+
+	drm_mode_copy(&dbidev->mode, mode);
+	ret = mipi_dbi_rotate_mode(&dbidev->mode, rotation);
+	if (ret) {
+		drm_err(drm, "Illegal rotation value %u\n", rotation);
+		return -EINVAL;
+	}
+
+	dbidev->rotation = rotation;
+	drm_dbg(drm, "rotation = %u\n", rotation);
+
+	dbidev->pixel_format = format;
+	if (dbidev->pixel_format == DRM_FORMAT_RGB888)
+		dbidev->dbi.write_memory_bpw = 8;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mipi_dbi_dev_init);
+
+/**
  * mipi_dbi_dev_init_with_formats - MIPI DBI device initialization with custom formats
  * @dbidev: MIPI DBI device structure to initialize
  * @funcs: Display pipe functions
@@ -590,23 +643,13 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 	struct drm_device *drm = &dbidev->drm;
 	int ret;
 
-	if (!dbidev->dbi.command)
-		return -EINVAL;
+	ret = drm_mipi_dbi_dev_init(dbidev, mode, formats[0], rotation, tx_buf_size);
+	if (ret)
+		return ret;
 
 	ret = drmm_mode_config_init(drm);
 	if (ret)
 		return ret;
-
-	dbidev->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
-	if (!dbidev->tx_buf)
-		return -ENOMEM;
-
-	drm_mode_copy(&dbidev->mode, mode);
-	ret = mipi_dbi_rotate_mode(&dbidev->mode, rotation);
-	if (ret) {
-		DRM_ERROR("Illegal rotation value %u\n", rotation);
-		return -EINVAL;
-	}
 
 	drm_connector_helper_add(&dbidev->connector, &mipi_dbi_connector_hfuncs);
 	ret = drm_connector_init(drm, &dbidev->connector, &mipi_dbi_connector_funcs,
@@ -627,13 +670,6 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 	drm->mode_config.min_height = dbidev->mode.vdisplay;
 	drm->mode_config.max_height = dbidev->mode.vdisplay;
 	drm->mode_config.helper_private = &mipi_dbi_mode_config_helper_funcs;
-
-	dbidev->rotation = rotation;
-	dbidev->pixel_format = formats[0];
-	if (formats[0] == DRM_FORMAT_RGB888)
-		dbidev->dbi.write_memory_bpw = 8;
-
-	DRM_DEBUG_KMS("rotation = %u\n", rotation);
 
 	return 0;
 }
@@ -660,13 +696,11 @@ int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 		      const struct drm_simple_display_pipe_funcs *funcs,
 		      const struct drm_display_mode *mode, unsigned int rotation)
 {
-	size_t bufsize = (u32)mode->vdisplay * mode->hdisplay * sizeof(u16);
-
 	dbidev->drm.mode_config.preferred_depth = 16;
 
 	return mipi_dbi_dev_init_with_formats(dbidev, funcs, mipi_dbi_formats,
 					      ARRAY_SIZE(mipi_dbi_formats), mode,
-					      rotation, bufsize);
+					      rotation, 0);
 }
 EXPORT_SYMBOL(mipi_dbi_dev_init);
 
