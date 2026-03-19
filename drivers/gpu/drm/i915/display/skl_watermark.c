@@ -1391,9 +1391,8 @@ struct skl_plane_ddb_iter {
 
 static void
 skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
-		       struct skl_ddb_entry *ddb,
 		       const struct skl_wm_level *wm,
-		       u64 data_rate)
+		       struct skl_ddb_entry *ddb, u64 data_rate)
 {
 	u16 size, extra = 0;
 
@@ -1523,13 +1522,13 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 		if (DISPLAY_VER(display) < 11 &&
 		    crtc_state->nv12_planes & BIT(plane_id)) {
-			skl_allocate_plane_ddb(&iter, ddb_y, &wm->wm[level],
-					       crtc_state->rel_data_rate_y[plane_id]);
-			skl_allocate_plane_ddb(&iter, ddb, &wm->uv_wm[level],
-					       crtc_state->rel_data_rate[plane_id]);
+			skl_allocate_plane_ddb(&iter, &wm->wm[level],
+					       ddb_y, crtc_state->rel_data_rate_y[plane_id]);
+			skl_allocate_plane_ddb(&iter, &wm->uv_wm[level],
+					       ddb, crtc_state->rel_data_rate[plane_id]);
 		} else {
-			skl_allocate_plane_ddb(&iter, ddb, &wm->wm[level],
-					       crtc_state->rel_data_rate[plane_id]);
+			skl_allocate_plane_ddb(&iter, &wm->wm[level],
+					       ddb, crtc_state->rel_data_rate[plane_id]);
 		}
 
 		if (DISPLAY_VER(display) >= 30) {
