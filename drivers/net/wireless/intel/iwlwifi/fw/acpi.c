@@ -951,6 +951,15 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	goto out_free;
 
 read_table:
+	if (WARN_ON_ONCE(num_sub_bands >
+			 ARRAY_SIZE(fwrt->ppag_chains[0].subbands))) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	BUILD_BUG_ON(ACPI_PPAG_NUM_CHAINS >
+		     ARRAY_SIZE(fwrt->ppag_chains));
+
 	fwrt->ppag_bios_rev = tbl_rev;
 	flags = &wifi_pkg->package.elements[1];
 
@@ -967,7 +976,7 @@ read_table:
 	 * first sub-band (j=0) corresponds to Low-Band (2.4GHz), and the
 	 * following sub-bands to High-Band (5GHz).
 	 */
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
+	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {
 			union acpi_object *ent;
 
