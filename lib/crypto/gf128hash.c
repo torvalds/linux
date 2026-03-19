@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * POLYVAL library functions
+ * GF(2^128) polynomial hashing: GHASH and POLYVAL
  *
  * Copyright 2025 Google LLC
  */
 
-#include <crypto/polyval.h>
+#include <crypto/gf128hash.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -218,8 +218,8 @@ polyval_blocks_generic(struct polyval_elem *acc, const struct polyval_elem *key,
 }
 
 /* Include the arch-optimized implementation of POLYVAL, if one is available. */
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
-#include "polyval.h" /* $(SRCARCH)/polyval.h */
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
+#include "gf128hash.h" /* $(SRCARCH)/gf128hash.h */
 void polyval_preparekey(struct polyval_key *key,
 			const u8 raw_key[POLYVAL_BLOCK_SIZE])
 {
@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(polyval_preparekey);
 
 static void polyval_mul(struct polyval_ctx *ctx)
 {
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 	polyval_mul_arch(&ctx->acc, ctx->key);
 #else
 	polyval_mul_generic(&ctx->acc, &ctx->key->h);
@@ -248,7 +248,7 @@ static void polyval_mul(struct polyval_ctx *ctx)
 static void polyval_blocks(struct polyval_ctx *ctx,
 			   const u8 *data, size_t nblocks)
 {
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 	polyval_blocks_arch(&ctx->acc, ctx->key, data, nblocks);
 #else
 	polyval_blocks_generic(&ctx->acc, &ctx->key->h, data, nblocks);
@@ -289,19 +289,19 @@ void polyval_final(struct polyval_ctx *ctx, u8 out[POLYVAL_BLOCK_SIZE])
 }
 EXPORT_SYMBOL_GPL(polyval_final);
 
-#ifdef polyval_mod_init_arch
-static int __init polyval_mod_init(void)
+#ifdef gf128hash_mod_init_arch
+static int __init gf128hash_mod_init(void)
 {
-	polyval_mod_init_arch();
+	gf128hash_mod_init_arch();
 	return 0;
 }
-subsys_initcall(polyval_mod_init);
+subsys_initcall(gf128hash_mod_init);
 
-static void __exit polyval_mod_exit(void)
+static void __exit gf128hash_mod_exit(void)
 {
 }
-module_exit(polyval_mod_exit);
+module_exit(gf128hash_mod_exit);
 #endif
 
-MODULE_DESCRIPTION("POLYVAL almost-XOR-universal hash function");
+MODULE_DESCRIPTION("GF(2^128) polynomial hashing: GHASH and POLYVAL");
 MODULE_LICENSE("GPL");

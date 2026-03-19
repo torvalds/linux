@@ -72,8 +72,8 @@ static void polyval_blocks_arch(struct polyval_elem *acc,
 	}
 }
 
-#define polyval_mod_init_arch polyval_mod_init_arch
-static void polyval_mod_init_arch(void)
+#define gf128hash_mod_init_arch gf128hash_mod_init_arch
+static void gf128hash_mod_init_arch(void)
 {
 	if (cpu_have_named_feature(PMULL))
 		static_branch_enable(&have_pmull);

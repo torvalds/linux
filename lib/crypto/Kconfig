@@ -110,6 +110,18 @@ config CRYPTO_LIB_CURVE25519_GENERIC
 config CRYPTO_LIB_DES
 	tristate
 
+config CRYPTO_LIB_GF128HASH
+	tristate
+	help
+	  The GHASH and POLYVAL library functions.  Select this if your module
+	  uses any of the functions from <crypto/gf128hash.h>.
+
+config CRYPTO_LIB_GF128HASH_ARCH
+	bool
+	depends on CRYPTO_LIB_GF128HASH && !UML
+	default y if ARM64
+	default y if X86_64
+
 config CRYPTO_LIB_MD5
 	tristate
 	help
@@ -177,18 +189,6 @@ config CRYPTO_LIB_POLY1305_RSIZE
 	default 11 if X86_64
 	default 9 if ARM || ARM64
 	default 1
-
-config CRYPTO_LIB_POLYVAL
-	tristate
-	help
-	  The POLYVAL library functions.  Select this if your module uses any of
-	  the functions from <crypto/polyval.h>.
-
-config CRYPTO_LIB_POLYVAL_ARCH
-	bool
-	depends on CRYPTO_LIB_POLYVAL && !UML
-	default y if ARM64
-	default y if X86_64
 
 config CRYPTO_LIB_CHACHA20POLY1305
 	tristate

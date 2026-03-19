@@ -74,8 +74,8 @@ static void polyval_blocks_arch(struct polyval_elem *acc,
 	}
 }
 
-#define polyval_mod_init_arch polyval_mod_init_arch
-static void polyval_mod_init_arch(void)
+#define gf128hash_mod_init_arch gf128hash_mod_init_arch
+static void gf128hash_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_PCLMULQDQ) &&
 	    boot_cpu_has(X86_FEATURE_AVX))

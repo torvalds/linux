@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * POLYVAL library API
+ * GF(2^128) polynomial hashing: GHASH and POLYVAL
  *
  * Copyright 2025 Google LLC
  */
 
-#ifndef _CRYPTO_POLYVAL_H
-#define _CRYPTO_POLYVAL_H
+#ifndef _CRYPTO_GF128HASH_H
+#define _CRYPTO_GF128HASH_H
 
 #include <linux/string.h>
 #include <linux/types.h>
@@ -44,7 +44,7 @@ struct polyval_elem {
  * exponentiation repeats the POLYVAL dot operation, with its "extra" x^-128.
  */
 struct polyval_key {
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 #ifdef CONFIG_ARM64
 	/** @h_powers: Powers of the hash key H^8 through H^1 */
 	struct polyval_elem h_powers[8];
@@ -54,10 +54,10 @@ struct polyval_key {
 #else
 #error "Unhandled arch"
 #endif
-#else /* CONFIG_CRYPTO_LIB_POLYVAL_ARCH */
+#else /* CONFIG_CRYPTO_LIB_GF128HASH_ARCH */
 	/** @h: The hash key H */
 	struct polyval_elem h;
-#endif /* !CONFIG_CRYPTO_LIB_POLYVAL_ARCH */
+#endif /* !CONFIG_CRYPTO_LIB_GF128HASH_ARCH */
 };
 
 /**
@@ -84,7 +84,7 @@ struct polyval_ctx {
  *
  * Context: Any context.
  */
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
 void polyval_preparekey(struct polyval_key *key,
 			const u8 raw_key[POLYVAL_BLOCK_SIZE]);
 
@@ -187,4 +187,4 @@ static inline void polyval(const struct polyval_key *key,
 	polyval_final(&ctx, out);
 }
 
-#endif /* _CRYPTO_POLYVAL_H */
+#endif /* _CRYPTO_GF128HASH_H */

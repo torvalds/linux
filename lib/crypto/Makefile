@@ -154,6 +154,16 @@ libdes-y					:= des.o
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_GF128HASH) += libgf128hash.o
+libgf128hash-y := gf128hash.o
+ifeq ($(CONFIG_CRYPTO_LIB_GF128HASH_ARCH),y)
+CFLAGS_gf128hash.o += -I$(src)/$(SRCARCH)
+libgf128hash-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
+libgf128hash-$(CONFIG_X86) += x86/polyval-pclmul-avx.o
+endif
+
+################################################################################
+
 obj-$(CONFIG_CRYPTO_LIB_MD5) += libmd5.o
 libmd5-y := md5.o
 ifeq ($(CONFIG_CRYPTO_LIB_MD5_ARCH),y)
@@ -248,16 +258,6 @@ clean-files += arm/poly1305-core.S \
 	       mips/poly1305-core.S \
 	       riscv/poly1305-core.S \
 	       x86/poly1305-x86_64-cryptogams.S
-
-################################################################################
-
-obj-$(CONFIG_CRYPTO_LIB_POLYVAL) += libpolyval.o
-libpolyval-y := polyval.o
-ifeq ($(CONFIG_CRYPTO_LIB_POLYVAL_ARCH),y)
-CFLAGS_polyval.o += -I$(src)/$(SRCARCH)
-libpolyval-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
-libpolyval-$(CONFIG_X86) += x86/polyval-pclmul-avx.o
-endif
 
 ################################################################################
 
