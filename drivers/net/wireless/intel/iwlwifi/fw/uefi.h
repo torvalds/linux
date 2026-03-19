@@ -76,13 +76,24 @@ struct uefi_cnv_common_step_data {
 	u8 radio2;
 } __packed;
 
+#define UEFI_SAR_MAX_SUB_BANDS_NUM	11
+#define UEFI_SAR_MAX_CHAINS_PER_PROFILE	4
+
+/*
+ * struct uefi_sar_profile_chain - per-chain values of a SAR profile
+ * @subbands: the SAR value for each subband
+ */
+struct uefi_sar_profile_chain {
+	u8 subbands[UEFI_SAR_MAX_SUB_BANDS_NUM];
+};
+
 /*
  * struct uefi_sar_profile - a SAR profile as defined in UEFI
  *
  * @chains: a per-chain table of SAR values
  */
 struct uefi_sar_profile {
-	struct iwl_sar_profile_chain chains[BIOS_SAR_MAX_CHAINS_PER_PROFILE];
+	struct uefi_sar_profile_chain chains[UEFI_SAR_MAX_CHAINS_PER_PROFILE];
 } __packed;
 
 /*
@@ -126,6 +137,14 @@ struct uefi_cnv_var_wgds {
 } __packed;
 
 /*
+ * struct uefi_ppag_chain - PPAG table for a specific chain
+ * @subbands: the PPAG values for band
+ */
+struct uefi_ppag_chain {
+	s8 subbands[UEFI_SAR_MAX_SUB_BANDS_NUM];
+};
+
+/*
  * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
  * @revision: the revision of the table
  * @ppag_modes: values from &enum iwl_ppag_flags
@@ -134,7 +153,7 @@ struct uefi_cnv_var_wgds {
 struct uefi_cnv_var_ppag {
 	u8 revision;
 	u32 ppag_modes;
-	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
+	struct uefi_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 } __packed;
 
 /* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
