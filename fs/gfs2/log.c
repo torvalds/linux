@@ -983,38 +983,33 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 	}
 }
 
+static void gfs2_trans_drain_list(struct list_head *list)
+{
+	struct gfs2_bufdata *bd;
+
+	while (!list_empty(list)) {
+		bd = list_first_entry(list, struct gfs2_bufdata, bd_list);
+		list_del_init(&bd->bd_list);
+		if (!list_empty(&bd->bd_ail_st_list))
+			gfs2_remove_from_ail(bd);
+		kmem_cache_free(gfs2_bufdata_cachep, bd);
+	}
+}
+
 /**
- * trans_drain - drain the buf and databuf queue for a failed transaction
+ * gfs2_trans_drain - drain the buf and databuf queue for a failed transaction
  * @tr: the transaction to drain
  *
  * When this is called, we're taking an error exit for a log write that failed
  * but since we bypassed the after_commit functions, we need to remove the
  * items from the buf and databuf queue.
  */
-static void trans_drain(struct gfs2_trans *tr)
+static void gfs2_trans_drain(struct gfs2_trans *tr)
 {
-	struct gfs2_bufdata *bd;
-	struct list_head *head;
-
 	if (!tr)
 		return;
-
-	head = &tr->tr_buf;
-	while (!list_empty(head)) {
-		bd = list_first_entry(head, struct gfs2_bufdata, bd_list);
-		list_del_init(&bd->bd_list);
-		if (!list_empty(&bd->bd_ail_st_list))
-			gfs2_remove_from_ail(bd);
-		kmem_cache_free(gfs2_bufdata_cachep, bd);
-	}
-	head = &tr->tr_databuf;
-	while (!list_empty(head)) {
-		bd = list_first_entry(head, struct gfs2_bufdata, bd_list);
-		list_del_init(&bd->bd_list);
-		if (!list_empty(&bd->bd_ail_st_list))
-			gfs2_remove_from_ail(bd);
-		kmem_cache_free(gfs2_bufdata_cachep, bd);
-	}
+	gfs2_trans_drain_list(&tr->tr_buf);
+	gfs2_trans_drain_list(&tr->tr_databuf);
 }
 
 void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
@@ -1186,7 +1181,7 @@ out:
 	return;
 
 out_withdraw:
-	trans_drain(tr);
+	gfs2_trans_drain(tr);
 	/**
 	 * If the tr_list is empty, we're withdrawing during a log
 	 * flush that targets a transaction, but the transaction was
