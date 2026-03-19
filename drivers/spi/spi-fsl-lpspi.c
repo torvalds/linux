@@ -81,10 +81,14 @@
 #define RSR_RXEMPTY	BIT(1)
 #define TCR_CPOL	BIT(31)
 #define TCR_CPHA	BIT(30)
+#define TCR_MODE	GENMASK(31, 30)
+#define TCR_PRESCALE	GENMASK(29, 27)
+#define TCR_PCS		GENMASK(25, 24)
 #define TCR_CONT	BIT(21)
 #define TCR_CONTC	BIT(20)
 #define TCR_RXMSK	BIT(19)
 #define TCR_TXMSK	BIT(18)
+#define TCR_FRAMESZ	GENMASK(11, 0)
 
 #define SR_CLEAR_MASK	GENMASK(13, 8)
 
@@ -288,10 +292,10 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
 {
 	u32 temp = 0;
 
-	temp |= fsl_lpspi->config.bpw - 1;
-	temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
+	temp |= FIELD_PREP(TCR_FRAMESZ, fsl_lpspi->config.bpw - 1);
+	temp |= FIELD_PREP(TCR_PCS, fsl_lpspi->config.chip_select);
 	if (!fsl_lpspi->is_target) {
-		temp |= fsl_lpspi->config.prescale << 27;
+		temp |= FIELD_PREP(TCR_PRESCALE, fsl_lpspi->config.prescale);
 		/*
 		 * Set TCR_CONT will keep SS asserted after current transfer.
 		 * For the first transfer, clear TCR_CONTC to assert SS.
