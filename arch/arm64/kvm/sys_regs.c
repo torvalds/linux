@@ -2177,14 +2177,6 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	    (vcpu_has_nv(vcpu) && !FIELD_GET(ID_AA64PFR0_EL1_EL2, user_val)))
 		return -EINVAL;
 
-	/*
-	 * If we are running on a GICv5 host and support FEAT_GCIE_LEGACY, then
-	 * we support GICv3. Fail attempts to do anything but set that to IMP.
-	 */
-	if (vgic_is_v3_compat(vcpu->kvm) &&
-	    FIELD_GET(ID_AA64PFR0_EL1_GIC_MASK, user_val) != ID_AA64PFR0_EL1_GIC_IMP)
-		return -EINVAL;
-
 	return set_id_reg(vcpu, rd, user_val);
 }
 
