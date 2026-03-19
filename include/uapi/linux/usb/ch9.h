@@ -123,15 +123,17 @@
  * are at most sixteen features of each type.)  Hubs may also support a
  * new USB_REQ_TEST_AND_SET_FEATURE to put ports into L1 suspend.
  */
-#define USB_DEVICE_SELF_POWERED		0	/* (read only) */
-#define USB_DEVICE_REMOTE_WAKEUP	1	/* dev may initiate wakeup */
-#define USB_DEVICE_TEST_MODE		2	/* (wired high speed only) */
-#define USB_DEVICE_BATTERY		2	/* (wireless) */
-#define USB_DEVICE_B_HNP_ENABLE		3	/* (otg) dev may initiate HNP */
-#define USB_DEVICE_WUSB_DEVICE		3	/* (wireless)*/
-#define USB_DEVICE_A_HNP_SUPPORT	4	/* (otg) RH port supports HNP */
-#define USB_DEVICE_A_ALT_HNP_SUPPORT	5	/* (otg) other RH port does */
-#define USB_DEVICE_DEBUG_MODE		6	/* (special devices only) */
+#define USB_DEVICE_SELF_POWERED				0	/* (read only) */
+#define USB_DEVICE_REMOTE_WAKEUP			1	/* dev may initiate wakeup */
+#define USB_DEVICE_TEST_MODE				2	/* (wired high speed only) */
+#define USB_DEVICE_BATTERY				2	/* (wireless) */
+#define USB_DEVICE_B_HNP_ENABLE				3	/* (otg) dev may initiate HNP */
+#define USB_DEVICE_WUSB_DEVICE				3	/* (wireless)*/
+#define USB_DEVICE_A_HNP_SUPPORT			4	/* (otg) RH port supports HNP */
+#define USB_DEVICE_A_ALT_HNP_SUPPORT			5	/* (otg) other RH port does */
+#define USB_DEVICE_DEBUG_MODE				6	/* (special devices only) */
+
+#define USB_DEVICE_BULK_MAX_PACKET_UPDATE		8	/* (eUSB2v2) bump maxpacket to 1024 */
 
 /*
  * Test Mode Selectors
