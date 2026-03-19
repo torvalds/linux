@@ -608,12 +608,19 @@ static int kvm_vgic_map_irq(struct kvm_vcpu *vcpu, struct vgic_irq *irq,
 	irq->hw = true;
 	irq->host_irq = host_irq;
 	irq->hwintid = data->hwirq;
+
+	if (irq->ops && irq->ops->set_direct_injection)
+		irq->ops->set_direct_injection(vcpu, irq, true);
+
 	return 0;
 }
 
 /* @irq->irq_lock must be held */
 static inline void kvm_vgic_unmap_irq(struct vgic_irq *irq)
 {
+	if (irq->ops && irq->ops->set_direct_injection)
+		irq->ops->set_direct_injection(irq->target_vcpu, irq, false);
+
 	irq->hw = false;
 	irq->hwintid = 0;
 }

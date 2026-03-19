@@ -215,6 +215,13 @@ struct irq_ops {
 	 */
 	bool (*queue_irq_unlock)(struct kvm *kvm, struct vgic_irq *irq,
 				unsigned long flags) __releases(&irq->irq_lock);
+
+	/*
+	 * Callback function pointer to either enable or disable direct
+	 * injection for a mapped interrupt.
+	 */
+	void (*set_direct_injection)(struct kvm_vcpu *vcpu,
+				     struct vgic_irq *irq, bool direct);
 };
 
 struct vgic_irq {
