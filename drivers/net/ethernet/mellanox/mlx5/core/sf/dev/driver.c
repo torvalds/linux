@@ -37,7 +37,6 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 	mdev->device = &adev->dev;
 	mdev->pdev = sf_dev->parent_mdev->pdev;
 	mdev->bar_addr = sf_dev->bar_base_addr;
-	mdev->iseg_base = sf_dev->bar_base_addr;
 	mdev->coredev_type = MLX5_COREDEV_SF;
 	mdev->priv.parent_mdev = sf_dev->parent_mdev;
 	mdev->priv.adev_idx = adev->id;
@@ -53,7 +52,7 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto mdev_err;
 	}
 
-	mdev->iseg = ioremap(mdev->iseg_base, sizeof(*mdev->iseg));
+	mdev->iseg = ioremap(mdev->bar_addr, sizeof(*mdev->iseg));
 	if (!mdev->iseg) {
 		mlx5_core_warn(mdev, "remap error\n");
 		err = -ENOMEM;
