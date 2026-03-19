@@ -83,7 +83,7 @@ struct uefi_cnv_common_step_data {
 #define UEFI_GEO_NUM_BANDS_REV3		3
 #define UEFI_GEO_NUM_BANDS_REV4		4
 
-/*
+/**
  * struct uefi_cnv_var_wrds - WRDS table as defined in UEFI
  *
  * @revision: the revision of the table
@@ -117,7 +117,7 @@ struct uefi_cnv_var_wrds {
 	(offsetof(struct uefi_cnv_var_wrds, vals) +	\
 	 UEFI_SAR_PROFILE_SIZE_REV3)
 
-/*
+/**
  * struct uefi_cnv_var_ewrd - EWRD table as defined in UEFI
  * @revision: the revision of the table
  * @mode: is WRDS enbaled/disabled
@@ -142,7 +142,7 @@ struct uefi_cnv_var_ewrd {
 	(offsetof(struct uefi_cnv_var_ewrd, vals) +		\
 	 UEFI_SAR_PROFILE_SIZE_REV3 * (BIOS_SAR_MAX_PROFILE_NUM - 1))
 
-/*
+/**
  * struct uefi_cnv_var_wgds - WGDS table as defined in UEFI
  * @revision: the revision of the table
  * @num_profiles: the number of geo profiles we have in the table.
@@ -174,7 +174,7 @@ struct uefi_cnv_var_wgds {
 	(offsetof(struct uefi_cnv_var_wgds, vals) +		\
 	 UEFI_WGDS_PROFILE_SIZE_REV4 * BIOS_GEO_MAX_PROFILE_NUM)
 
-/*
+/**
  * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
  * @revision: the revision of the table
  * @ppag_modes: values from &enum iwl_ppag_flags
@@ -198,7 +198,8 @@ struct uefi_cnv_var_ppag {
 	(offsetof(struct uefi_cnv_var_ppag, vals) +	\
 	sizeof(s8) * UEFI_PPAG_NUM_CHAINS * UEFI_PPAG_SUB_BANDS_NUM_REV5)
 
-/* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
+/**
+ * struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
  * @revision: the revision of the table
  * @tas_selection: different options of TAS enablement.
  * @black_list_size: the number of defined entried in the black list
@@ -211,7 +212,8 @@ struct uefi_cnv_var_wtas {
 	u16 black_list[IWL_WTAS_BLACK_LIST_MAX];
 } __packed;
 
-/* struct uefi_cnv_var_splc - SPLC tabled as defined in UEFI
+/**
+ * struct uefi_cnv_var_splc - SPLC tabled as defined in UEFI
  * @revision: the revision of the table
  * @default_pwr_limit: The default maximum power per device
  */
@@ -220,7 +222,8 @@ struct uefi_cnv_var_splc {
 	u32 default_pwr_limit;
 } __packed;
 
-/* struct uefi_cnv_var_wrdd - WRDD table as defined in UEFI
+/**
+ * struct uefi_cnv_var_wrdd - WRDD table as defined in UEFI
  * @revision: the revision of the table
  * @mcc: country identifier as defined in ISO/IEC 3166-1 Alpha 2 code
  */
@@ -229,7 +232,8 @@ struct uefi_cnv_var_wrdd {
 	u32 mcc;
 } __packed;
 
-/* struct uefi_cnv_var_eckv - ECKV table as defined in UEFI
+/**
+ * struct uefi_cnv_var_eckv - ECKV table as defined in UEFI
  * @revision: the revision of the table
  * @ext_clock_valid: indicates if external 32KHz clock is valid
  */
@@ -240,7 +244,8 @@ struct uefi_cnv_var_eckv {
 
 #define UEFI_MAX_DSM_FUNCS 32
 
-/* struct uefi_cnv_var_general_cfg - DSM-like table as defined in UEFI
+/**
+ * struct uefi_cnv_var_general_cfg - DSM-like table as defined in UEFI
  * @revision: the revision of the table
  * @functions: payload of the different DSM functions
  */
@@ -250,7 +255,9 @@ struct uefi_cnv_var_general_cfg {
 } __packed;
 
 #define IWL_UEFI_WBEM_REV0_MASK (BIT(0) | BIT(1))
-/* struct uefi_cnv_wlan_wbem_data - Bandwidth enablement per MCC as defined
+
+/**
+ * struct uefi_cnv_wlan_wbem_data - Bandwidth enablement per MCC as defined
  *	in UEFI
  * @revision: the revision of the table
  * @wbem_320mhz_per_mcc: enablement of 320MHz bandwidth per MCC
