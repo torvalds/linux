@@ -284,8 +284,7 @@ static void fsl_lpspi_read_rx_fifo(struct fsl_lpspi_data *fsl_lpspi)
 		fsl_lpspi->rx(fsl_lpspi);
 }
 
-static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
-			      struct spi_device *spi)
+static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
 {
 	u32 temp = 0;
 
@@ -308,10 +307,10 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
 		}
 	}
 
-	if (spi->mode & SPI_CPOL)
+	if (fsl_lpspi->config.mode & SPI_CPOL)
 		temp |= TCR_CPOL;
 
-	if (spi->mode & SPI_CPHA)
+	if (fsl_lpspi->config.mode & SPI_CPHA)
 		temp |= TCR_CPHA;
 
 	writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
@@ -528,7 +527,7 @@ static int fsl_lpspi_prepare_message(struct spi_controller *controller,
 	if (ret < 0)
 		return ret;
 
-	fsl_lpspi_set_cmd(fsl_lpspi, spi);
+	fsl_lpspi_set_cmd(fsl_lpspi);
 
 	/* No IRQs */
 	writel(0, fsl_lpspi->base + IMX7ULP_IER);
@@ -808,7 +807,7 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 
 	t->effective_speed_hz = fsl_lpspi->config.effective_speed_hz;
 
-	fsl_lpspi_set_cmd(fsl_lpspi, spi);
+	fsl_lpspi_set_cmd(fsl_lpspi);
 	fsl_lpspi->is_first_byte = false;
 
 	if (fsl_lpspi->usedma)
