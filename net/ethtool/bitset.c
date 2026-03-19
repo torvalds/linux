@@ -2,8 +2,9 @@
 
 #include <linux/ethtool_netlink.h>
 #include <linux/bitmap.h>
-#include "netlink.h"
+
 #include "bitset.h"
+#include "netlink.h"
 
 /* Some bitmaps are internally represented as an array of unsigned long, some
  * as an array of u32 (some even as single u32 for now). To avoid the need of

@@ -2,8 +2,9 @@
 
 #include <linux/ethtool.h>
 #include <linux/sfp.h>
-#include "netlink.h"
+
 #include "common.h"
+#include "netlink.h"
 
 struct eeprom_req_info {
 	struct ethnl_req_info	base;

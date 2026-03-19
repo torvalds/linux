@@ -4,8 +4,8 @@
 #include <linux/phy.h>
 #include <linux/slab.h>
 
-#include "netlink.h"
 #include "common.h"
+#include "netlink.h"
 
 /* Channels A-D only; WORST and LINK are exclusive alternatives */
 #define PHY_MSE_CHANNEL_COUNT 4

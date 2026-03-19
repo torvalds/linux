@@ -2,8 +2,8 @@
 
 #include <net/netdev_lock.h>
 
-#include "netlink.h"
 #include "common.h"
+#include "netlink.h"
 
 struct rss_req_info {
 	struct ethnl_req_info		base;

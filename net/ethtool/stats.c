@@ -3,9 +3,9 @@
 #include <linux/phy.h>
 #include <linux/phylib_stubs.h>
 
-#include "netlink.h"
-#include "common.h"
 #include "bitset.h"
+#include "common.h"
+#include "netlink.h"
 
 struct stats_req_info {
 	struct ethnl_req_info		base;

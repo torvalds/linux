@@ -2,9 +2,9 @@
 
 #include <net/netdev_lock.h>
 
-#include "netlink.h"
-#include "common.h"
 #include "bitset.h"
+#include "common.h"
+#include "netlink.h"
 
 struct features_req_info {
 	struct ethnl_req_info	base;

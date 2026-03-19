@@ -2,8 +2,9 @@
 
 #include <linux/ethtool.h>
 #include <linux/phy.h>
-#include "netlink.h"
+
 #include "common.h"
+#include "netlink.h"
 
 struct strset_info {
 	bool per_dev;

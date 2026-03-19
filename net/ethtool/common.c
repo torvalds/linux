@@ -8,8 +8,8 @@
 #include <linux/phy_link_topology.h>
 #include <net/netdev_queues.h>
 
-#include "netlink.h"
 #include "common.h"
+#include "netlink.h"
 #include "../core/dev.h"
 
 

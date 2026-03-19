@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/dim.h>
-#include "netlink.h"
+
 #include "common.h"
+#include "netlink.h"
 
 struct coalesce_req_info {
 	struct ethnl_req_info		base;

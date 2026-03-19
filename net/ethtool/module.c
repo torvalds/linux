@@ -6,10 +6,10 @@
 #include <net/devlink.h>
 #include <net/netdev_lock.h>
 
-#include "netlink.h"
-#include "common.h"
 #include "bitset.h"
+#include "common.h"
 #include "module_fw.h"
+#include "netlink.h"
 
 struct module_req_info {
 	struct ethnl_req_info base;
