@@ -2601,6 +2601,21 @@ static char enast(bool enable)
 	return enable ? '*' : ' ';
 }
 
+static void
+skl_print_plane_ddb_changes(struct intel_plane *plane,
+			    const struct skl_ddb_entry *old,
+			    const struct skl_ddb_entry *new,
+			    const char *ddb_name)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	drm_dbg_kms(display->drm,
+		    "[PLANE:%d:%s] %5s (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
+		    plane->base.base.id, plane->base.name, ddb_name,
+		    old->start, old->end, new->start, new->end,
+		    skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+}
+
 static noinline_for_stack void
 skl_print_plane_wm_changes(struct intel_plane *plane,
 			   const struct skl_plane_wm *old_wm,
@@ -2722,11 +2737,8 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 
 			if (skl_ddb_entry_equal(old, new))
 				continue;
-			drm_dbg_kms(display->drm,
-				    "[PLANE:%d:%s] ddb (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
-				    plane->base.base.id, plane->base.name,
-				    old->start, old->end, new->start, new->end,
-				    skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+
+			skl_print_plane_ddb_changes(plane, old, new, "ddb");
 		}
 
 		for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
