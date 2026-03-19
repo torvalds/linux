@@ -4986,12 +4986,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = __VECS(sm4_gcm_tv_template)
 		}
 	}, {
-		.alg = "ghash",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(ghash_tv_template)
-		}
-	}, {
 		.alg = "hctr2(aes)",
 		.generic_driver = "hctr2_base(xctr(aes-lib),polyval-lib)",
 		.test = alg_test_skcipher,

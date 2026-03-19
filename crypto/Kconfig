@@ -888,13 +888,6 @@ config CRYPTO_CMAC
 	  CMAC (Cipher-based Message Authentication Code) authentication
 	  mode (NIST SP800-38B and IETF RFC4493)
 
-config CRYPTO_GHASH
-	tristate "GHASH"
-	select CRYPTO_HASH
-	select CRYPTO_LIB_GF128MUL
-	help
-	  GCM GHASH function (NIST SP800-38D)
-
 config CRYPTO_HMAC
 	tristate "HMAC (Keyed-Hash MAC)"
 	select CRYPTO_HASH
