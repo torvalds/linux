@@ -882,49 +882,7 @@ void dcn42_mpc_construct(struct dcn42_mpc *mpc401,
 	int num_mpcc,
 	int num_rmu);
 
-
-void mpc42_program_shaper_lutb_settings(
-	struct mpc *mpc,
-	const struct pwl_params *params,
-	uint32_t mpcc_id);
-void mpc42_program_shaper_luta_settings(
-		struct mpc *mpc,
-		const struct pwl_params *params,
-		uint32_t mpcc_id);
-void mpc42_configure_shaper_lut(
-		struct mpc *mpc,
-		bool is_ram_a,
-		uint32_t mpcc_id);
-void mpc42_power_on_shaper_3dlut(
-		struct mpc *mpc,
-		uint32_t mpcc_id,
-		bool power_on);
-void mpc42_program_3dlut_size(
-		struct mpc *mpc,
-		uint32_t width,
-		int mpcc_id);
-void mpc42_program_3dlut_fl_bias_scale(
-		struct mpc *mpc,
-		uint16_t bias,
-		uint16_t scale,
-		int mpcc_id);
-void mpc42_program_bit_depth(
-		struct mpc *mpc,
-		uint16_t bit_depth,
-		int mpcc_id);
-void mpc42_populate_lut(
-		struct mpc *mpc,
-		const union mcm_lut_params params,
-		bool lut_bank_a,
-		int mpcc_id);
-void mpc42_program_lut_read_write_control(
-		struct mpc *mpc,
-		const enum MCM_LUT_ID id,
-		bool lut_bank_a,
-		bool enabled,
-		int mpcc_id);
-
-bool mpc42_is_config_supported(uint32_t width);
+void mpc42_init_mpcc(struct mpcc *mpcc, int mpcc_inst);
 
 /* RMCM */
 void mpc42_program_rmcm_shaper_lut(
@@ -969,12 +927,12 @@ void mpc42_program_rmcm_lut_read_write_control(
 		int mpcc_id);
 void mpc42_program_lut_mode(
 		struct mpc *mpc,
-		const enum MCM_LUT_XABLE xable,
+		bool enable,
 		bool lut_bank_a,
 		int mpcc_id);
 void mpc42_program_rmcm_3dlut_size(
 		struct mpc *mpc,
-		uint32_t width,
+		const enum dc_cm_lut_size size,
 		int mpcc_id);
 void mpc42_program_rmcm_3dlut_fast_load_bias_scale(
 		struct mpc *mpc,
@@ -985,8 +943,6 @@ void mpc42_program_rmcm_bit_depth(
 		struct mpc *mpc,
 		uint16_t bit_depth,
 		int mpcc_id);
-
-bool mpc42_is_rmcm_config_supported(uint32_t width);
 
 void mpc42_set_fl_config(
 	struct mpc *mpc,

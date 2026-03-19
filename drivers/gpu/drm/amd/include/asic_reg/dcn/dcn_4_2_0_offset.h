@@ -9010,6 +9010,8 @@
 // base address: 0x0
 #define regODM0_OPTC_INPUT_GLOBAL_CONTROL                                                               0x1aca
 #define regODM0_OPTC_INPUT_GLOBAL_CONTROL_BASE_IDX                                                      2
+#define regODM0_OPTC_RSMU_UNDERFLOW                                                                     0x1acb
+#define regODM0_OPTC_RSMU_UNDERFLOW_BASE_IDX                                                            2
 #define regODM0_OPTC_UNDERFLOW_THRESHOLD                                                                0x1acc
 #define regODM0_OPTC_UNDERFLOW_THRESHOLD_BASE_IDX                                                       2
 #define regODM0_OPTC_DATA_SOURCE_SELECT                                                                 0x1acd

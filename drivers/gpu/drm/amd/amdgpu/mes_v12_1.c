@@ -1611,7 +1611,6 @@ static int mes_v12_1_sw_fini(struct amdgpu_ip_block *ip_block)
 			amdgpu_bo_free_kernel(&adev->mes.eop_gpu_obj[inst],
 					      &adev->mes.eop_gpu_addr[inst],
 					      NULL);
-			amdgpu_ucode_release(&adev->mes.fw[inst]);
 
 			if (adev->enable_uni_mes || pipe == AMDGPU_MES_SCHED_PIPE) {
 				amdgpu_bo_free_kernel(&adev->mes.ring[inst].mqd_obj,
@@ -1621,6 +1620,9 @@ static int mes_v12_1_sw_fini(struct amdgpu_ip_block *ip_block)
 			}
 		}
 	}
+
+	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++)
+		amdgpu_ucode_release(&adev->mes.fw[pipe]);
 
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		if (!adev->enable_uni_mes) {

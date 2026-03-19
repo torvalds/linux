@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #include <linux/dma-buf.h>
@@ -31,7 +31,7 @@ static inline void ivpu_dbg_bo(struct ivpu_device *vdev, struct ivpu_bo *bo, con
 		 "%6s: bo %8p size %9zu ctx %d vpu_addr %9llx pages %d sgt %d mmu_mapped %d wc %d imported %d\n",
 		 action, bo, ivpu_bo_size(bo), bo->ctx_id, bo->vpu_addr,
 		 (bool)bo->base.pages, (bool)bo->base.sgt, bo->mmu_mapped, bo->base.map_wc,
-		 (bool)drm_gem_is_imported(&bo->base.base));
+		 drm_gem_is_imported(&bo->base.base));
 }
 
 static inline int ivpu_bo_lock(struct ivpu_bo *bo)
@@ -48,7 +48,7 @@ static struct sg_table *ivpu_bo_map_attachment(struct ivpu_device *vdev, struct 
 {
 	struct sg_table *sgt;
 
-	drm_WARN_ON(&vdev->drm, !bo->base.base.import_attach);
+	drm_WARN_ON(&vdev->drm, !drm_gem_is_imported(&bo->base.base));
 
 	ivpu_bo_lock(bo);
 
@@ -81,7 +81,7 @@ int __must_check ivpu_bo_bind(struct ivpu_bo *bo)
 
 	ivpu_dbg_bo(vdev, bo, "bind");
 
-	if (bo->base.base.import_attach)
+	if (drm_gem_is_imported(&bo->base.base))
 		sgt = ivpu_bo_map_attachment(vdev, bo);
 	else
 		sgt = drm_gem_shmem_get_pages_sgt(&bo->base);
@@ -157,7 +157,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 	}
 
 	if (bo->base.sgt) {
-		if (bo->base.base.import_attach) {
+		if (drm_gem_is_imported(&bo->base.base)) {
 			dma_buf_unmap_attachment(bo->base.base.import_attach,
 						 bo->base.sgt, DMA_BIDIRECTIONAL);
 		} else {
@@ -195,7 +195,7 @@ struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t siz
 	if (size == 0 || !PAGE_ALIGNED(size))
 		return ERR_PTR(-EINVAL);
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

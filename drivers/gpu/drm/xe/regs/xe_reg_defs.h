@@ -6,11 +6,12 @@
 #ifndef _XE_REG_DEFS_H_
 #define _XE_REG_DEFS_H_
 
+#include <drm/intel/pick.h>
+#include <drm/intel/reg_bits.h>
+
 #include <linux/build_bug.h>
 #include <linux/log2.h>
 #include <linux/sizes.h>
-
-#include "compat-i915-headers/i915_reg_defs.h"
 
 /**
  * XE_REG_ADDR_MAX - The upper limit on MMIO register address

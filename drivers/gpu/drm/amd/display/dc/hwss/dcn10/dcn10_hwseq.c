@@ -60,9 +60,9 @@
 #include "dc_state_priv.h"
 
 #define DC_LOGGER \
-	dc_logger
-#define DC_LOGGER_INIT(logger) \
-	struct dal_logger *dc_logger = logger
+	dc_ctx->logger
+#define DC_LOGGER_INIT(ctx) \
+	struct dc_context *dc_ctx = ctx
 
 #define CTX \
 	hws->ctx
@@ -1009,7 +1009,7 @@ static void power_on_plane_resources(
 	struct dce_hwseq *hws,
 	int plane_id)
 {
-	DC_LOGGER_INIT(hws->ctx->logger);
+	DC_LOGGER_INIT(hws->ctx);
 
 	if (hws->funcs.dpp_root_clock_control)
 		hws->funcs.dpp_root_clock_control(hws, plane_id, true);
@@ -1286,7 +1286,7 @@ static void dcn10_reset_back_end_for_pipe(
 {
 	int i;
 	struct dc_link *link;
-	DC_LOGGER_INIT(dc->ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
 		return;
@@ -1422,12 +1422,10 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 		return;
 
 	if (!hubbub->funcs->verify_allow_pstate_change_high(hubbub)) {
-		int i = 0;
-
 		if (should_log_hw_state)
 			dcn10_log_hw_state(dc, NULL);
 
-		TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
+		TRACE_DC_PIPE_STATE(pipe_ctx, MAX_PIPES);
 		BREAK_TO_DEBUGGER();
 		if (dcn10_hw_wa_force_recovery(dc)) {
 			/*check again*/
@@ -1490,7 +1488,7 @@ void dcn10_plane_atomic_power_down(struct dc *dc,
 		struct hubp *hubp)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	DC_LOGGER_INIT(dc->ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
@@ -1554,7 +1552,7 @@ void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 void dcn10_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	DC_LOGGER_INIT(dc->ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;
@@ -2268,8 +2266,6 @@ static bool wait_for_reset_trigger_to_occur(
 {
 	bool rc = false;
 
-	DC_LOGGER_INIT(dc_ctx->logger);
-
 	/* To avoid endless loop we wait at most
 	 * frames_to_wait_on_triggered_reset frames for the reset to occur. */
 	const uint32_t frames_to_wait_on_triggered_reset = 10;
@@ -2384,7 +2380,6 @@ static uint8_t get_clock_divider(struct pipe_ctx *pipe,
 static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 				    struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	int i, master = -1, embedded = -1;
 	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
@@ -2397,7 +2392,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	uint32_t dp_ref_clk_100hz =
 		dc->res_pool->dp_clock_source->ctx->dc->clk_mgr->dprefclk_khz*10;
 
-	DC_LOGGER_INIT(dc_ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	hw_crtc_timing = kzalloc_objs(*hw_crtc_timing, MAX_PIPES);
 	if (!hw_crtc_timing)
@@ -2477,12 +2472,11 @@ void dcn10_enable_vblanks_synchronization(
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 	int i, width = 0, height = 0, master;
 
-	DC_LOGGER_INIT(dc_ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	for (i = 1; i < group_size; i++) {
 		opp = grouped_pipes[i]->stream_res.opp;
@@ -2543,12 +2537,11 @@ void dcn10_enable_timing_synchronization(
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 	int i, width = 0, height = 0;
 
-	DC_LOGGER_INIT(dc_ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
@@ -2624,10 +2617,9 @@ void dcn10_enable_per_frame_crtc_position_reset(
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	int i;
 
-	DC_LOGGER_INIT(dc_ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	DC_SYNC_INFO("Setting up\n");
 	for (i = 0; i < group_size; i++)

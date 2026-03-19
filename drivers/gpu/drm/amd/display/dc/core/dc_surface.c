@@ -139,6 +139,9 @@ const struct dc_plane_status *dc_plane_get_status(
 
 		if (pipe_ctx->plane_state && flags.bits.address)
 			pipe_ctx->plane_state->status.is_flip_pending = false;
+		if (pipe_ctx->plane_state && flags.bits.histogram)
+			memset(&pipe_ctx->plane_state->status.cm_hist, 0,
+				sizeof(pipe_ctx->plane_state->status.cm_hist));
 
 		break;
 	}
@@ -154,6 +157,12 @@ const struct dc_plane_status *dc_plane_get_status(
 
 		if (flags.bits.address)
 			dc->hwss.update_pending_status(pipe_ctx);
+		if (flags.bits.histogram) {
+			struct dpp *dpp = pipe_ctx->plane_res.dpp;
+
+			if (dpp && dpp->funcs->dpp_cm_hist_read)
+				dpp->funcs->dpp_cm_hist_read(dpp, &pipe_ctx->plane_state->status.cm_hist);
+		}
 	}
 
 	return plane_status;

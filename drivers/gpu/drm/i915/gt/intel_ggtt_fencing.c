@@ -6,6 +6,7 @@
 #include <linux/highmem.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
 
 #include "display/intel_display.h"
 #include "i915_drv.h"
@@ -915,15 +916,15 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	if (GRAPHICS_VER(i915) == 6)
 		intel_uncore_write(uncore,
 				   ARB_MODE,
-				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
+				   REG_MASKED_FIELD_ENABLE(ARB_MODE_SWIZZLE_SNB));
 	else if (GRAPHICS_VER(i915) == 7)
 		intel_uncore_write(uncore,
 				   ARB_MODE,
-				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
+				   REG_MASKED_FIELD_ENABLE(ARB_MODE_SWIZZLE_IVB));
 	else if (GRAPHICS_VER(i915) == 8)
 		intel_uncore_write(uncore,
 				   GAMTARBMODE,
-				   _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
+				   REG_MASKED_FIELD_ENABLE(ARB_MODE_SWIZZLE_BDW));
 	else
 		MISSING_CASE(GRAPHICS_VER(i915));
 }

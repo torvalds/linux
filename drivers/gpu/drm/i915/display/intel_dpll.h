@@ -48,5 +48,6 @@ void chv_crtc_clock_get(struct intel_crtc_state *crtc_state);
 
 void assert_pll_enabled(struct intel_display *display, enum pipe pipe);
 void assert_pll_disabled(struct intel_display *display, enum pipe pipe);
+bool intel_dpll_clock_matches(int clock1, int clock2);
 
 #endif

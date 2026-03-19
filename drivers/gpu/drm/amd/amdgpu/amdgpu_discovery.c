@@ -87,6 +87,7 @@
 #include "sdma_v7_1.h"
 #include "lsdma_v6_0.h"
 #include "lsdma_v7_0.h"
+#include "lsdma_v7_1.h"
 #include "vcn_v2_0.h"
 #include "jpeg_v2_0.h"
 #include "vcn_v3_0.h"
@@ -132,12 +133,17 @@ MODULE_FIRMWARE("amdgpu/picasso_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_ip_discovery.bin");
 
+/* Note: These registers are consistent across all the SOCs */
 #define mmIP_DISCOVERY_VERSION  0x16A00
 #define mmRCC_CONFIG_MEMSIZE	0xde3
 #define mmMP0_SMN_C2PMSG_33	0x16061
 #define mmMM_INDEX		0x0
 #define mmMM_INDEX_HI		0x6
 #define mmMM_DATA		0x1
+
+#define mmDRIVER_SCRATCH_0	0x94
+#define mmDRIVER_SCRATCH_1	0x95
+#define mmDRIVER_SCRATCH_2	0x96
 
 static const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
@@ -253,39 +259,12 @@ static int hw_id_map[MAX_HWIP] = {
 	[ATU_HWIP]	= ATU_HWID,
 };
 
-static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
+					 bool *is_tmr_in_sysmem)
 {
-	u64 tmr_offset, tmr_size, pos;
-	void *discv_regn;
-	int ret;
-
-	ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
-	if (ret)
-		return ret;
-
-	pos = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
-
-	/* This region is read-only and reserved from system use */
-	discv_regn = memremap(pos, adev->discovery.size, MEMREMAP_WC);
-	if (discv_regn) {
-		memcpy(binary, discv_regn, adev->discovery.size);
-		memunmap(discv_regn);
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-#define IP_DISCOVERY_V2		2
-#define IP_DISCOVERY_V4		4
-
-static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
-						 uint8_t *binary)
-{
-	bool sz_valid = true;
-	uint64_t vram_size;
-	int i, ret = 0;
-	u32 msg;
+	u64 vram_size, tmr_offset, tmr_size;
+	u32 msg, tmr_offset_lo, tmr_offset_hi;
+	int i, ret;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* It can take up to two second for IFWI init to complete on some dGPUs,
@@ -305,51 +284,98 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	}
 
 	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
-	if (!vram_size || vram_size == U32_MAX)
-		sz_valid = false;
+	if (vram_size == U32_MAX)
+		return -ENXIO;
+	else if (!vram_size)
+		*is_tmr_in_sysmem = true;
 	else
-		vram_size <<= 20;
+		*is_tmr_in_sysmem = false;
 
-	/*
-	 * If in VRAM, discovery TMR is marked for reservation. If it is in system mem,
-	 * then it is not required to be reserved.
-	 */
-	if (sz_valid) {
-		if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
-			/* For SRIOV VFs with dynamic critical region enabled,
-			 * we will get the IPD binary via below call.
-			 * If dynamic critical is disabled, fall through to normal seq.
-			 */
-			if (amdgpu_virt_get_dynamic_data_info(adev,
-						AMD_SRIOV_MSG_IPD_TABLE_ID, binary,
-						&adev->discovery.size)) {
-				dev_err(adev->dev,
-						"failed to read discovery info from dynamic critical region.");
-				ret = -EINVAL;
-				goto exit;
-			}
+	/* init the default tmr size and offset */
+	adev->discovery.size = DISCOVERY_TMR_SIZE;
+	if (vram_size)
+		adev->discovery.offset = (vram_size << 20) - DISCOVERY_TMR_OFFSET;
+
+	if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
+		adev->discovery.offset =
+			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
+		adev->discovery.size =
+			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
+		if (!adev->discovery.offset || !adev->discovery.size)
+			return -EINVAL;
+	} else {
+		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
+		if (tmr_size) {
+			/* It's preferred to transition to PSP mailbox reg interface
+			 * for both bare-metal and passthrough if available */
+			adev->discovery.size = (u32)tmr_size;
+			tmr_offset_lo = RREG32(mmDRIVER_SCRATCH_0);
+			tmr_offset_hi = RREG32(mmDRIVER_SCRATCH_1);
+			adev->discovery.offset = ((u64)le32_to_cpu(tmr_offset_hi) << 32 |
+						  le32_to_cpu(tmr_offset_lo));
+		} else if (!vram_size) {
+			/* fall back to apci approach to query tmr offset if vram_size is 0 */
+			ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
+			if (ret)
+				return ret;
+			adev->discovery.size = (u32)tmr_size;
+			adev->discovery.offset = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
+		}
+	}
+
+	adev->discovery.bin = kzalloc(adev->discovery.size, GFP_KERNEL);
+	if (!adev->discovery.bin)
+		return -ENOMEM;
+	adev->discovery.debugfs_blob.data = adev->discovery.bin;
+	adev->discovery.debugfs_blob.size = adev->discovery.size;
+
+	return 0;
+}
+
+static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+{
+	void *discv_regn;
+
+	/* This region is read-only and reserved from system use */
+	discv_regn = memremap(adev->discovery.offset, adev->discovery.size, MEMREMAP_WC);
+	if (discv_regn) {
+		memcpy(binary, discv_regn, adev->discovery.size);
+		memunmap(discv_regn);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+#define IP_DISCOVERY_V2		2
+#define IP_DISCOVERY_V4		4
+
+static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
+						 uint8_t *binary,
+						 bool is_tmr_in_sysmem)
+{
+	int ret = 0;
+
+	if (!is_tmr_in_sysmem) {
+		if (amdgpu_sriov_vf(adev) &&
+		    amdgpu_sriov_xgmi_connected_to_cpu(adev)) {
+			ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 		} else {
-			uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
-
-			amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
-					adev->discovery.size, false);
+			amdgpu_device_vram_access(adev, adev->discovery.offset,
+						  (uint32_t *)binary,
+						  adev->discovery.size, false);
 			adev->discovery.reserve_tmr = true;
 		}
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
 
-	if (ret)
-		dev_err(adev->dev,
-			"failed to read discovery info from memory, vram size read: %llx",
-			vram_size);
-exit:
 	return ret;
 }
 
 static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev,
-							uint8_t *binary,
-							const char *fw_name)
+						  uint8_t *binary,
+						  const char *fw_name)
 {
 	const struct firmware *fw;
 	int r;
@@ -431,14 +457,12 @@ static void amdgpu_discovery_harvest_config_quirk(struct amdgpu_device *adev)
 }
 
 static int amdgpu_discovery_verify_npsinfo(struct amdgpu_device *adev,
-					   struct binary_header *bhdr)
+					   struct table_info *info)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct table_info *info;
 	uint16_t checksum;
 	uint16_t offset;
 
-	info = &bhdr->table_list[NPS_INFO];
 	offset = le16_to_cpu(info->offset);
 	checksum = le16_to_cpu(info->checksum);
 
@@ -491,23 +515,125 @@ static const char *amdgpu_discovery_get_fw_name(struct amdgpu_device *adev)
 	}
 }
 
+static int amdgpu_discovery_get_table_info(struct amdgpu_device *adev,
+					   struct table_info **info,
+					   uint16_t table_id)
+{
+	struct binary_header *bhdr =
+		(struct binary_header *)adev->discovery.bin;
+	struct binary_header_v2 *bhdrv2;
+
+	switch (bhdr->version_major) {
+	case 2:
+		bhdrv2 = (struct binary_header_v2 *)adev->discovery.bin;
+		*info = &bhdrv2->table_list[table_id];
+		break;
+	case 1:
+		*info = &bhdr->table_list[table_id];
+		break;
+	default:
+		dev_err(adev->dev, "Invalid ip discovery table version\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
+					uint8_t *discovery_bin,
+					uint16_t table_id)
+{
+	int r, act_val, exp_val, table_size;
+	uint16_t offset, checksum;
+	struct table_info *info;
+	bool check_table = true;
+	char *table_name;
+
+	r = amdgpu_discovery_get_table_info(adev, &info, table_id);
+	if (r)
+		return r;
+	offset = le16_to_cpu(info->offset);
+	checksum = le16_to_cpu(info->checksum);
+
+	switch (table_id) {
+	case IP_DISCOVERY:
+		struct ip_discovery_header *ihdr =
+			(struct ip_discovery_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(ihdr->signature);
+		exp_val = DISCOVERY_TABLE_SIGNATURE;
+		table_size = le16_to_cpu(ihdr->size);
+		table_name = "data table";
+		break;
+	case GC:
+		struct gpu_info_header *ghdr =
+			(struct gpu_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(ghdr->table_id);
+		exp_val = GC_TABLE_ID;
+		table_size = le16_to_cpu(ghdr->size);
+		table_name = "gc table";
+		break;
+	case HARVEST_INFO:
+		struct harvest_info_header *hhdr =
+			(struct harvest_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(hhdr->signature);
+		exp_val = HARVEST_TABLE_SIGNATURE;
+		table_size = sizeof(struct harvest_table);
+		table_name = "harvest table";
+		break;
+	case VCN_INFO:
+		struct vcn_info_header *vhdr =
+			(struct vcn_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(vhdr->table_id);
+		exp_val = VCN_INFO_TABLE_ID;
+		table_size = le32_to_cpu(vhdr->size_bytes);
+		table_name = "vcn table";
+		break;
+	case MALL_INFO:
+		struct mall_info_header *mhdr =
+			(struct mall_info_header *)(discovery_bin + offset);
+		act_val = le32_to_cpu(mhdr->table_id);
+		exp_val = MALL_INFO_TABLE_ID;
+		table_size = le32_to_cpu(mhdr->size_bytes);
+		table_name = "mall table";
+		check_table = false;
+		break;
+	default:
+		dev_err(adev->dev, "invalid ip discovery table id %d specified\n", table_id);
+		check_table = false;
+		break;
+	}
+
+	if (check_table && offset) {
+		if (act_val != exp_val) {
+			dev_err(adev->dev, "invalid ip discovery %s signature\n", table_name);
+			return -EINVAL;
+		}
+
+		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
+						      table_size, checksum)) {
+			dev_err(adev->dev, "invalid ip discovery %s checksum\n", table_name);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
-	struct table_info *info;
 	struct binary_header *bhdr;
 	uint8_t *discovery_bin;
 	const char *fw_name;
 	uint16_t offset;
 	uint16_t size;
 	uint16_t checksum;
+	uint16_t table_id;
+	bool is_tmr_in_sysmem;
 	int r;
 
-	adev->discovery.bin = kzalloc(DISCOVERY_TMR_SIZE, GFP_KERNEL);
-	if (!adev->discovery.bin)
-		return -ENOMEM;
-	adev->discovery.size = DISCOVERY_TMR_SIZE;
-	adev->discovery.debugfs_blob.data = adev->discovery.bin;
-	adev->discovery.debugfs_blob.size = adev->discovery.size;
+	r = amdgpu_discovery_get_tmr_info(adev, &is_tmr_in_sysmem);
+	if (r)
+		return r;
 
 	discovery_bin = adev->discovery.bin;
 	/* Read from file if it is the preferred option */
@@ -520,7 +646,8 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 	} else {
 		drm_dbg(&adev->ddev, "use ip discovery information from memory");
-		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin);
+		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin,
+							  is_tmr_in_sysmem);
 		if (r)
 			goto out;
 	}
@@ -547,118 +674,10 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 		goto out;
 	}
 
-	info = &bhdr->table_list[IP_DISCOVERY];
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct ip_discovery_header *ihdr =
-			(struct ip_discovery_header *)(discovery_bin + offset);
-		if (le32_to_cpu(ihdr->signature) != DISCOVERY_TABLE_SIGNATURE) {
-			dev_err(adev->dev, "invalid ip discovery data table signature\n");
-			r = -EINVAL;
+	for (table_id = 0; table_id <= MALL_INFO; table_id++) {
+		r = amdgpu_discovery_table_check(adev, discovery_bin, table_id);
+		if (r)
 			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
-						      le16_to_cpu(ihdr->size),
-						      checksum)) {
-			dev_err(adev->dev, "invalid ip discovery data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	info = &bhdr->table_list[GC];
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct gpu_info_header *ghdr =
-			(struct gpu_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(ghdr->table_id) != GC_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery gc table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
-						      le32_to_cpu(ghdr->size),
-						      checksum)) {
-			dev_err(adev->dev, "invalid gc data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	info = &bhdr->table_list[HARVEST_INFO];
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct harvest_info_header *hhdr =
-			(struct harvest_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(hhdr->signature) != HARVEST_TABLE_SIGNATURE) {
-			dev_err(adev->dev, "invalid ip discovery harvest table signature\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    sizeof(struct harvest_table), checksum)) {
-			dev_err(adev->dev, "invalid harvest data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	info = &bhdr->table_list[VCN_INFO];
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (offset) {
-		struct vcn_info_header *vhdr =
-			(struct vcn_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(vhdr->table_id) != VCN_INFO_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery vcn table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    le32_to_cpu(vhdr->size_bytes), checksum)) {
-			dev_err(adev->dev, "invalid vcn data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
-	}
-
-	info = &bhdr->table_list[MALL_INFO];
-	offset = le16_to_cpu(info->offset);
-	checksum = le16_to_cpu(info->checksum);
-
-	if (0 && offset) {
-		struct mall_info_header *mhdr =
-			(struct mall_info_header *)(discovery_bin + offset);
-
-		if (le32_to_cpu(mhdr->table_id) != MALL_INFO_TABLE_ID) {
-			dev_err(adev->dev, "invalid ip discovery mall table id\n");
-			r = -EINVAL;
-			goto out;
-		}
-
-		if (!amdgpu_discovery_verify_checksum(adev,
-			    discovery_bin + offset,
-			    le32_to_cpu(mhdr->size_bytes), checksum)) {
-			dev_err(adev->dev, "invalid mall data table checksum\n");
-			r = -EINVAL;
-			goto out;
-		}
 	}
 
 	return 0;
@@ -770,14 +789,15 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 						     uint32_t *umc_harvest_count)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	struct harvest_table *harvest_info;
 	u16 offset;
 	int i;
-	uint32_t umc_harvest_config = 0;
+	u64 umc_harvest_config = 0;
 
-	bhdr = (struct binary_header *)discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[HARVEST_INFO].offset);
+	if (amdgpu_discovery_get_table_info(adev, &info, HARVEST_INFO))
+		return;
+	offset = le16_to_cpu(info->offset);
 
 	if (!offset) {
 		dev_err(adev->dev, "invalid harvest table offset\n");
@@ -830,7 +850,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 		}
 	}
 
-	adev->umc.active_mask = ((1 << adev->umc.node_inst_num) - 1) &
+	adev->umc.active_mask = ((1ULL << adev->umc.node_inst_num) - 1ULL) &
 				~umc_harvest_config;
 }
 
@@ -1195,13 +1215,8 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 					ip_hw_instance->num_instance);
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
-			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++) {
-				if (reg_base_64)
-					ip_hw_instance->base_addr[kk] =
-						lower_32_bits(le64_to_cpu(ip->base_address_64[kk])) & 0x3FFFFFFF;
-				else
-					ip_hw_instance->base_addr[kk] = ip->base_address[kk];
-			}
+			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++)
+				ip_hw_instance->base_addr[kk] = ip->base_address[kk];
 
 			kobject_init(&ip_hw_instance->kobj, &ip_hw_instance_ktype);
 			ip_hw_instance->kobj.kset = &ip_hw_id->hw_id_kset;
@@ -1224,7 +1239,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 {
 	struct ip_discovery_top *ip_top = adev->discovery.ip_top;
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
 	struct kset *die_kset = &ip_top->die_kset;
@@ -1232,10 +1247,12 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 	size_t ip_offset;
 	int ii, res;
 
-	bhdr = (struct binary_header *)discovery_bin;
+	res = amdgpu_discovery_get_table_info(adev, &info, IP_DISCOVERY);
+	if (res)
+		return res;
 	ihdr = (struct ip_discovery_header
 			*)(discovery_bin +
-			   le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
+			   le16_to_cpu(info->offset));
 	num_dies = le16_to_cpu(ihdr->num_dies);
 
 	DRM_DEBUG("number of dies: %d\n", num_dies);
@@ -1379,12 +1396,54 @@ static void amdgpu_discovery_sysfs_fini(struct amdgpu_device *adev)
 	kobject_put(&ip_top->kobj);
 }
 
+/* devcoredump support */
+void amdgpu_discovery_dump(struct amdgpu_device *adev, struct drm_printer *p)
+{
+	struct ip_discovery_top *ip_top = adev->discovery.ip_top;
+	struct ip_die_entry *ip_die_entry;
+	struct list_head *el_die, *el_hw_id, *el_hw_inst;
+	struct ip_hw_id *hw_id;
+	struct kset *die_kset;
+	struct ip_hw_instance *ip_inst;
+	int i = 0, j;
+
+	die_kset = &ip_top->die_kset;
+
+	drm_printf(p, "\nHW IP Discovery\n");
+	spin_lock(&die_kset->list_lock);
+	list_for_each(el_die, &die_kset->list) {
+		drm_printf(p, "die %d\n", i++);
+		ip_die_entry = to_ip_die_entry(list_to_kobj(el_die));
+
+		list_for_each(el_hw_id, &ip_die_entry->ip_kset.list) {
+			hw_id = to_ip_hw_id(list_to_kobj(el_hw_id));
+			drm_printf(p, "hw_id %d %s\n", hw_id->hw_id, hw_id_names[hw_id->hw_id]);
+
+			list_for_each(el_hw_inst, &hw_id->hw_id_kset.list) {
+				ip_inst = to_ip_hw_instance(list_to_kobj(el_hw_inst));
+				drm_printf(p, "\tinstance %d\n", ip_inst->num_instance);
+				drm_printf(p, "\tmajor %d\n", ip_inst->major);
+				drm_printf(p, "\tminor %d\n", ip_inst->minor);
+				drm_printf(p, "\trevision %d\n", ip_inst->revision);
+				drm_printf(p, "\tharvest 0x%01X\n", ip_inst->harvest);
+				drm_printf(p, "\tnum_base_addresses %d\n",
+					   ip_inst->num_base_addresses);
+				for (j = 0; j < ip_inst->num_base_addresses; j++)
+					drm_printf(p, "\tbase_addr[%d] 0x%08X\n",
+						   j, ip_inst->base_addr[j]);
+			}
+		}
+	}
+	spin_unlock(&die_kset->list_lock);
+}
+
+
 /* ================================================== */
 
 static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 {
 	uint8_t num_base_address, subrev, variant;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
 	uint8_t *discovery_bin;
@@ -1409,10 +1468,12 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	adev->sdma.sdma_mask = 0;
 	adev->vcn.inst_mask = 0;
 	adev->jpeg.inst_mask = 0;
-	bhdr = (struct binary_header *)discovery_bin;
+	r = amdgpu_discovery_get_table_info(adev, &info, IP_DISCOVERY);
+	if (r)
+		return r;
 	ihdr = (struct ip_discovery_header
 			*)(discovery_bin +
-			   le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset));
+			   le16_to_cpu(info->offset));
 	num_dies = le16_to_cpu(ihdr->num_dies);
 
 	DRM_DEBUG("number of dies: %d\n", num_dies);
@@ -1585,14 +1646,15 @@ static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
 	struct ip_discovery_header *ihdr;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	int vcn_harvest_count = 0;
 	int umc_harvest_count = 0;
-	uint16_t offset, ihdr_ver;
+	uint16_t ihdr_ver;
 
-	bhdr = (struct binary_header *)discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset);
-	ihdr = (struct ip_discovery_header *)(discovery_bin + offset);
+	if (amdgpu_discovery_get_table_info(adev, &info, IP_DISCOVERY))
+		return;
+	ihdr = (struct ip_discovery_header *)(discovery_bin +
+					      le16_to_cpu(info->offset));
 	ihdr_ver = le16_to_cpu(ihdr->version);
 	/*
 	 * Harvest table does not fit Navi1x and legacy GPUs,
@@ -1640,7 +1702,7 @@ union gc_info {
 static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	union gc_info *gc_info;
 	u16 offset;
 
@@ -1649,8 +1711,9 @@ static int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	bhdr = (struct binary_header *)discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[GC].offset);
+	if (amdgpu_discovery_get_table_info(adev, &info, GC))
+		return -EINVAL;
+	offset = le16_to_cpu(info->offset);
 
 	if (!offset)
 		return 0;
@@ -1749,7 +1812,7 @@ union mall_info {
 static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	union mall_info *mall_info;
 	u32 u, mall_size_per_umc, m_s_present, half_use;
 	u64 mall_size;
@@ -1760,8 +1823,9 @@ static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	bhdr = (struct binary_header *)discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[MALL_INFO].offset);
+	if (amdgpu_discovery_get_table_info(adev, &info, MALL_INFO))
+		return -EINVAL;
+	offset = le16_to_cpu(info->offset);
 
 	if (!offset)
 		return 0;
@@ -1806,7 +1870,7 @@ union vcn_info {
 static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	union vcn_info *vcn_info;
 	u16 offset;
 	int v;
@@ -1826,8 +1890,9 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	bhdr = (struct binary_header *)discovery_bin;
-	offset = le16_to_cpu(bhdr->table_list[VCN_INFO].offset);
+	if (amdgpu_discovery_get_table_info(adev, &info, VCN_INFO))
+		return -EINVAL;
+	offset = le16_to_cpu(info->offset);
 
 	if (!offset)
 		return 0;
@@ -1864,14 +1929,26 @@ static int amdgpu_discovery_refresh_nps_info(struct amdgpu_device *adev,
 	uint64_t vram_size, pos, offset;
 	struct nps_info_header *nhdr;
 	struct binary_header bhdr;
+	struct binary_header_v2 bhdrv2;
 	uint16_t checksum;
 
 	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 	pos = vram_size - DISCOVERY_TMR_OFFSET;
 	amdgpu_device_vram_access(adev, pos, &bhdr, sizeof(bhdr), false);
 
-	offset = le16_to_cpu(bhdr.table_list[NPS_INFO].offset);
-	checksum = le16_to_cpu(bhdr.table_list[NPS_INFO].checksum);
+	switch (bhdr.version_major) {
+	case 2:
+		amdgpu_device_vram_access(adev, pos, &bhdrv2, sizeof(bhdrv2), false);
+		offset = le16_to_cpu(bhdrv2.table_list[NPS_INFO].offset);
+		checksum = le16_to_cpu(bhdrv2.table_list[NPS_INFO].checksum);
+		break;
+	case 1:
+		offset = le16_to_cpu(bhdr.table_list[NPS_INFO].offset);
+		checksum = le16_to_cpu(bhdr.table_list[NPS_INFO].checksum);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	amdgpu_device_vram_access(adev, (pos + offset), nps_data,
 				  sizeof(*nps_data), false);
@@ -1894,7 +1971,7 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
 	struct amdgpu_gmc_memrange *mem_ranges;
-	struct binary_header *bhdr;
+	struct table_info *info;
 	union nps_info *nps_info;
 	union nps_info nps_data;
 	u16 offset;
@@ -1915,14 +1992,15 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 			return -EINVAL;
 		}
 
-		bhdr = (struct binary_header *)discovery_bin;
-		offset = le16_to_cpu(bhdr->table_list[NPS_INFO].offset);
+		if (amdgpu_discovery_get_table_info(adev, &info, NPS_INFO))
+			return -EINVAL;
+		offset = le16_to_cpu(info->offset);
 
 		if (!offset)
 			return -ENOENT;
 
 		/* If verification fails, return as if NPS table doesn't exist */
-		if (amdgpu_discovery_verify_npsinfo(adev, bhdr))
+		if (amdgpu_discovery_verify_npsinfo(adev, info))
 			return -ENOENT;
 
 		nps_info = (union nps_info *)(discovery_bin + offset);
@@ -3225,6 +3303,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(7, 0, 0):
 	case IP_VERSION(7, 0, 1):
 		adev->lsdma.funcs = &lsdma_v7_0_funcs;
+		break;
+	case IP_VERSION(7, 1, 0):
+		adev->lsdma.funcs = &lsdma_v7_1_funcs;
 		break;
 	default:
 		break;

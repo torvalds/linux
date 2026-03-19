@@ -159,9 +159,9 @@ struct amdgpu_mes {
 
 	int				hung_queue_db_array_size;
 	int				hung_queue_hqd_info_offset;
-	struct amdgpu_bo		*hung_queue_db_array_gpu_obj[AMDGPU_MAX_MES_PIPES];
-	uint64_t			hung_queue_db_array_gpu_addr[AMDGPU_MAX_MES_PIPES];
-	void				*hung_queue_db_array_cpu_addr[AMDGPU_MAX_MES_PIPES];
+	struct amdgpu_bo		*hung_queue_db_array_gpu_obj[AMDGPU_MAX_MES_INST_PIPES];
+	uint64_t			hung_queue_db_array_gpu_addr[AMDGPU_MAX_MES_INST_PIPES];
+	void				*hung_queue_db_array_cpu_addr[AMDGPU_MAX_MES_INST_PIPES];
 
 	/* cooperative dispatch */
 	bool                enable_coop_mode;

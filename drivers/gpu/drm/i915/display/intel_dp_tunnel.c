@@ -54,30 +54,19 @@ static int kbytes_to_mbits(int kbytes)
 	return DIV_ROUND_UP(kbytes * 8, 1000);
 }
 
-static int get_current_link_bw(struct intel_dp *intel_dp,
-			       bool *below_dprx_bw)
+static int get_current_link_bw(struct intel_dp *intel_dp)
 {
 	int rate = intel_dp_max_common_rate(intel_dp);
 	int lane_count = intel_dp_max_common_lane_count(intel_dp);
-	int bw;
 
-	bw = intel_dp_max_link_data_rate(intel_dp, rate, lane_count);
-	*below_dprx_bw = bw < drm_dp_max_dprx_data_rate(rate, lane_count);
-
-	return bw;
+	return intel_dp_max_link_data_rate(intel_dp, rate, lane_count);
 }
 
-static int update_tunnel_state(struct intel_dp *intel_dp)
+static int __update_tunnel_state(struct intel_dp *intel_dp, bool force_sink_update)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	bool old_bw_below_dprx;
-	bool new_bw_below_dprx;
-	int old_bw;
-	int new_bw;
 	int ret;
-
-	old_bw = get_current_link_bw(intel_dp, &old_bw_below_dprx);
 
 	ret = drm_dp_tunnel_update_state(intel_dp->tunnel);
 	if (ret < 0) {
@@ -90,18 +79,26 @@ static int update_tunnel_state(struct intel_dp *intel_dp)
 		return ret;
 	}
 
-	if (ret == 0 ||
-	    !drm_dp_tunnel_bw_alloc_is_enabled(intel_dp->tunnel))
+	if (!force_sink_update &&
+	    (ret == 0 || !drm_dp_tunnel_bw_alloc_is_enabled(intel_dp->tunnel)))
 		return 0;
 
 	intel_dp_update_sink_caps(intel_dp);
 
-	new_bw = get_current_link_bw(intel_dp, &new_bw_below_dprx);
+	return 0;
+}
+
+static bool has_tunnel_bw_changed(struct intel_dp *intel_dp, int old_bw)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	int new_bw;
+
+	new_bw = get_current_link_bw(intel_dp);
 
 	/* Suppress the notification if the mode list can't change due to bw. */
-	if (old_bw_below_dprx == new_bw_below_dprx &&
-	    !new_bw_below_dprx)
-		return 0;
+	if (old_bw == new_bw)
+		return false;
 
 	drm_dbg_kms(display->drm,
 		    "[DPTUN %s][ENCODER:%d:%s] Notify users about BW change: %d -> %d\n",
@@ -109,7 +106,29 @@ static int update_tunnel_state(struct intel_dp *intel_dp)
 		    encoder->base.base.id, encoder->base.name,
 		    kbytes_to_mbits(old_bw), kbytes_to_mbits(new_bw));
 
-	return 1;
+	return true;
+}
+
+/*
+ * Returns:
+ * - 0 in case of success - if there wasn't any change in the tunnel state
+ *   requiring a user notification
+ * - 1 in case of success - if there was a change in the tunnel state
+ *   requiring a user notification
+ * - Negative error code if updating the tunnel state failed
+ */
+static int update_tunnel_state(struct intel_dp *intel_dp)
+{
+	int old_bw;
+	int err;
+
+	old_bw = get_current_link_bw(intel_dp);
+
+	err = __update_tunnel_state(intel_dp, false);
+	if (err)
+		return err;
+
+	return has_tunnel_bw_changed(intel_dp, old_bw) ? 1 : 0;
 }
 
 /*
@@ -150,11 +169,9 @@ static int allocate_initial_tunnel_bw_for_pipes(struct intel_dp *intel_dp, u8 pi
 			    drm_dp_tunnel_name(intel_dp->tunnel),
 			    encoder->base.base.id, encoder->base.name,
 			    ERR_PTR(err));
-
-		return err;
 	}
 
-	return update_tunnel_state(intel_dp);
+	return err;
 }
 
 static int allocate_initial_tunnel_bw(struct intel_dp *intel_dp,
@@ -170,12 +187,23 @@ static int allocate_initial_tunnel_bw(struct intel_dp *intel_dp,
 	return allocate_initial_tunnel_bw_for_pipes(intel_dp, pipe_mask);
 }
 
+/*
+ * Returns:
+ * - 0 in case of success - after any tunnel detected and added to @intel_dp
+ * - 1 in case of success - after a tunnel detected and added to @intel_dp,
+ *   where the link BW via the tunnel changed in a way requiring a user
+ *   notification
+ * - Negative error code if the tunnel detection failed
+ */
 static int detect_new_tunnel(struct intel_dp *intel_dp, struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	struct drm_dp_tunnel *tunnel;
+	int old_bw;
 	int ret;
+
+	old_bw = get_current_link_bw(intel_dp);
 
 	tunnel = drm_dp_tunnel_detect(display->dp_tunnel_mgr,
 				      &intel_dp->aux);
@@ -200,10 +228,17 @@ static int detect_new_tunnel(struct intel_dp *intel_dp, struct drm_modeset_acqui
 	}
 
 	ret = allocate_initial_tunnel_bw(intel_dp, ctx);
-	if (ret < 0)
+	if (ret < 0) {
 		intel_dp_tunnel_destroy(intel_dp);
 
-	return ret;
+		return ret;
+	}
+
+	ret = __update_tunnel_state(intel_dp, true);
+	if (ret)
+		return ret;
+
+	return has_tunnel_bw_changed(intel_dp, old_bw) ? 1 : 0;
 }
 
 /**
@@ -221,9 +256,12 @@ static int detect_new_tunnel(struct intel_dp *intel_dp, struct drm_modeset_acqui
  * tunnel. If the tunnel's state change requires this - for instance the
  * tunnel's group ID has changed - the tunnel will be dropped and recreated.
  *
- * Return 0 in case of success - after any tunnel detected and added to
- * @intel_dp - 1 in case the BW on an already existing tunnel has changed in a
- * way that requires notifying user space.
+ * Returns:
+ * - 0 in case of success - after any tunnel detected and added to @intel_dp
+ * - 1 in case the link BW via the new or an already existing tunnel has changed
+ *   in a way that requires notifying user space
+ * - Negative error code, if creating a new tunnel or updating the tunnel
+ *   state failed
  */
 int intel_dp_tunnel_detect(struct intel_dp *intel_dp, struct drm_modeset_acquire_ctx *ctx)
 {

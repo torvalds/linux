@@ -61,6 +61,9 @@
 
 #define GMD_ID_GRAPHICS				_MMIO(0xd8c)
 #define GMD_ID_MEDIA				_MMIO(MTL_MEDIA_GSI_BASE + 0xd8c)
+#define   GMD_ID_ARCH_MASK			REG_GENMASK(31, 22)
+#define   GMD_ID_RELEASE_MASK			REG_GENMASK(21, 14)
+#define   GMD_ID_STEP				REG_GENMASK(5, 0)
 
 #define MCFG_MCR_SELECTOR			_MMIO(0xfd0)
 #define MTL_STEER_SEMAPHORE			_MMIO(0xfd0)
@@ -318,11 +321,9 @@
 #define _RING_FAULT_REG_VCS			0x4194
 #define _RING_FAULT_REG_BCS			0x4294
 #define _RING_FAULT_REG_VECS			0x4394
-#define RING_FAULT_REG(engine)			_MMIO(_PICK((engine)->class, \
-							    _RING_FAULT_REG_RCS, \
-							    _RING_FAULT_REG_VCS, \
-							    _RING_FAULT_REG_VECS, \
-							    _RING_FAULT_REG_BCS))
+#define RING_FAULT_REG(engine)			_MMIO(_PICK_EVEN((engine)->class, \
+								 _RING_FAULT_REG_RCS, \
+								 _RING_FAULT_REG_VCS))
 #define   RING_FAULT_VADDR_MASK			REG_GENMASK(31, 12) /* pre-bdw */
 #define   RING_FAULT_ENGINE_ID_MASK		REG_GENMASK(16, 12) /* bdw+ */
 #define   RING_FAULT_GTTSEL_MASK		REG_BIT(11) /* pre-bdw */

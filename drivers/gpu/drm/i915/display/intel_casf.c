@@ -3,7 +3,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_casf.h"
 #include "intel_casf_regs.h"
 #include "intel_de.h"
@@ -114,6 +113,12 @@ int intel_casf_compute_config(struct intel_crtc_state *crtc_state)
 		crtc_state->hw.casf_params.casf_enable = false;
 		crtc_state->hw.casf_params.strength = 0;
 		return 0;
+	}
+
+	/* CASF with joiner not supported in hardware */
+	if (crtc_state->joiner_pipes) {
+		drm_dbg_kms(display->drm, "CASF not supported with joiner\n");
+		return -EINVAL;
 	}
 
 	crtc_state->hw.casf_params.casf_enable = true;

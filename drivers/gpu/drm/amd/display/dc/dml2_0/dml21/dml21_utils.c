@@ -374,6 +374,7 @@ void dml21_handle_phantom_streams_planes(const struct dc *dc, struct dc_state *c
 		dml2_map_dc_pipes(dml_ctx, context, NULL, &dml_ctx->v21.dml_to_dc_pipe_mapping, dc->current_state);
 }
 
+
 static unsigned int dml21_build_fams2_stream_programming_v2(const struct dc *dc,
 		struct dc_state *context,
 		struct dml2_context *dml_ctx)

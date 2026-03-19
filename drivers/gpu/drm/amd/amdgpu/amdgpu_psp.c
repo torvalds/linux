@@ -3096,6 +3096,13 @@ static int psp_load_non_psp_fw(struct psp_context *psp)
 			 */
 			continue;
 
+		/* IMU ucode is part of IFWI and MP0 15.0.8 would load it */
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) ==
+		    IP_VERSION(15, 0, 8) &&
+		    (ucode->ucode_id == AMDGPU_UCODE_ID_IMU_I ||
+		    ucode->ucode_id == AMDGPU_UCODE_ID_IMU_D))
+			continue;
+
 		psp_print_fw_hdr(psp, ucode);
 
 		ret = psp_execute_ip_fw_load(psp, ucode);

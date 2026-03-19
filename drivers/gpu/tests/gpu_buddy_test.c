@@ -21,6 +21,170 @@ static inline u64 get_size(int order, u64 chunk_size)
 	return (1 << order) * chunk_size;
 }
 
+static void gpu_test_buddy_subtree_offset_alignment_stress(struct kunit *test)
+{
+	struct gpu_buddy_block *block;
+	struct rb_node *node = NULL;
+	const u64 mm_size = SZ_2M;
+	const u64 alignments[] = {
+		SZ_1M,
+		SZ_512K,
+		SZ_256K,
+		SZ_128K,
+		SZ_64K,
+		SZ_32K,
+		SZ_16K,
+		SZ_8K,
+	};
+	struct list_head allocated[ARRAY_SIZE(alignments)];
+	unsigned int i, max_subtree_align = 0;
+	int ret, tree, order;
+	struct gpu_buddy mm;
+
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, mm_size, SZ_4K),
+			       "buddy_init failed\n");
+
+	for (i = 0; i < ARRAY_SIZE(allocated); i++)
+		INIT_LIST_HEAD(&allocated[i]);
+
+	/*
+	 * Exercise subtree_max_alignment tracking by allocating blocks with descending
+	 * alignment constraints and freeing them in reverse order. This verifies that
+	 * free-tree augmentation correctly propagates the maximum offset alignment
+	 * present in each subtree at every stage.
+	 */
+
+	for (i = 0; i < ARRAY_SIZE(alignments); i++) {
+		struct gpu_buddy_block *root = NULL;
+		unsigned int expected;
+		u64 align;
+
+		align = alignments[i];
+		expected = ilog2(align) - 1;
+
+		for (;;) {
+			ret = gpu_buddy_alloc_blocks(&mm,
+						     0, mm_size,
+						     SZ_4K, align,
+						     &allocated[i],
+						     0);
+			if (ret)
+				break;
+
+			block = list_last_entry(&allocated[i],
+						struct gpu_buddy_block,
+						link);
+			KUNIT_EXPECT_TRUE(test, IS_ALIGNED(gpu_buddy_block_offset(block), align));
+		}
+
+		for (order = mm.max_order; order >= 0 && !root; order--) {
+			for (tree = 0; tree < 2; tree++) {
+				node = mm.free_trees[tree][order].rb_node;
+				if (node) {
+					root = container_of(node,
+							    struct gpu_buddy_block,
+							    rb);
+					break;
+				}
+			}
+		}
+
+		KUNIT_ASSERT_NOT_NULL(test, root);
+		KUNIT_EXPECT_EQ(test, root->subtree_max_alignment, expected);
+	}
+
+	for (i = ARRAY_SIZE(alignments); i-- > 0; ) {
+		gpu_buddy_free_list(&mm, &allocated[i], 0);
+
+		for (order = 0; order <= mm.max_order; order++) {
+			for (tree = 0; tree < 2; tree++) {
+				node = mm.free_trees[tree][order].rb_node;
+				if (!node)
+					continue;
+
+				block = container_of(node, struct gpu_buddy_block, rb);
+				max_subtree_align = max(max_subtree_align,
+							block->subtree_max_alignment);
+			}
+		}
+
+		KUNIT_EXPECT_GE(test, max_subtree_align, ilog2(alignments[i]));
+	}
+
+	gpu_buddy_fini(&mm);
+}
+
+static void gpu_test_buddy_offset_aligned_allocation(struct kunit *test)
+{
+	struct gpu_buddy_block *block, *tmp;
+	int num_blocks, i, count = 0;
+	LIST_HEAD(allocated);
+	struct gpu_buddy mm;
+	u64 mm_size = SZ_4M;
+	LIST_HEAD(freed);
+
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, mm_size, SZ_4K),
+			       "buddy_init failed\n");
+
+	num_blocks = mm_size / SZ_256K;
+	/*
+	 * Allocate multiple sizes under a fixed offset alignment.
+	 * Ensures alignment handling is independent of allocation size and
+	 * exercises subtree max-alignment pruning for small requests.
+	 */
+	for (i = 0; i < num_blocks; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size, SZ_8K, SZ_256K,
+								    &allocated, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_8K);
+
+	list_for_each_entry(block, &allocated, link) {
+		/* Ensure the allocated block uses the expected 8 KB size */
+		KUNIT_EXPECT_EQ(test, gpu_buddy_block_size(&mm, block), SZ_8K);
+		/* Ensure the block starts at a 256 KB-aligned offset for proper alignment */
+		KUNIT_EXPECT_TRUE(test, IS_ALIGNED(gpu_buddy_block_offset(block), SZ_256K));
+	}
+	gpu_buddy_free_list(&mm, &allocated, 0);
+
+	for (i = 0; i < num_blocks; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size, SZ_16K, SZ_256K,
+								    &allocated, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_16K);
+
+	list_for_each_entry(block, &allocated, link) {
+		/* Ensure the allocated block uses the expected 16 KB size */
+		KUNIT_EXPECT_EQ(test, gpu_buddy_block_size(&mm, block), SZ_16K);
+		/* Ensure the block starts at a 256 KB-aligned offset for proper alignment */
+		KUNIT_EXPECT_TRUE(test, IS_ALIGNED(gpu_buddy_block_offset(block), SZ_256K));
+	}
+
+	/*
+	 * Free alternating aligned blocks to introduce fragmentation.
+	 * Ensures offset-aligned allocations remain valid after frees and
+	 * verifies subtree max-alignment metadata is correctly maintained.
+	 */
+	list_for_each_entry_safe(block, tmp, &allocated, link) {
+		if (count % 2 == 0)
+			list_move_tail(&block->link, &freed);
+		count++;
+	}
+	gpu_buddy_free_list(&mm, &freed, 0);
+
+	for (i = 0; i < num_blocks / 2; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size, SZ_16K, SZ_256K,
+								    &allocated, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_16K);
+
+	/*
+	 * Allocate with offset alignment after all slots are used; must fail.
+	 * Confirms that no aligned offsets remain.
+	 */
+	KUNIT_ASSERT_TRUE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size, SZ_16K, SZ_256K,
+							   &allocated, 0),
+			       "buddy_alloc hit an error size=%u\n", SZ_16K);
+	gpu_buddy_free_list(&mm, &allocated, 0);
+	gpu_buddy_fini(&mm);
+}
+
 static void gpu_test_buddy_fragmentation_performance(struct kunit *test)
 {
 	struct gpu_buddy_block *block, *tmp;
@@ -359,6 +523,332 @@ static void gpu_test_buddy_alloc_range_bias(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, gpu_buddy_block_is_clear(block), false);
 
 	gpu_buddy_free_list(&mm, &allocated, 0);
+	gpu_buddy_fini(&mm);
+}
+
+static void gpu_test_buddy_alloc_range(struct kunit *test)
+{
+	GPU_RND_STATE(prng, random_seed);
+	struct gpu_buddy_block *block;
+	struct gpu_buddy mm;
+	u32 mm_size, total;
+	LIST_HEAD(blocks);
+	LIST_HEAD(tmp);
+	u32 ps = SZ_4K;
+	int ret;
+
+	mm_size = SZ_16M;
+
+	KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_init(&mm, mm_size, ps),
+			       "buddy_init failed\n");
+
+	/*
+	 * Basic exact-range allocation.
+	 * Allocate the entire mm as one exact range (start + size == end).
+	 * This is the simplest case exercising __gpu_buddy_alloc_range.
+	 */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, mm_size, mm_size, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ_MSG(test, ret, 0,
+			    "exact-range alloc of full mm failed\n");
+
+	total = 0;
+	list_for_each_entry(block, &blocks, link) {
+		u64 offset = gpu_buddy_block_offset(block);
+		u64 bsize = gpu_buddy_block_size(&mm, block);
+
+		KUNIT_EXPECT_TRUE_MSG(test, offset + bsize <= (u64)mm_size,
+				      "block [%llx, %llx) outside mm\n", offset, offset + bsize);
+		total += (u32)bsize;
+	}
+	KUNIT_EXPECT_EQ(test, total, mm_size);
+	KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+
+	/* Full mm should be exhausted */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, ps, ps, ps, &tmp, 0);
+	KUNIT_EXPECT_NE_MSG(test, ret, 0, "alloc should fail when mm is full\n");
+
+	gpu_buddy_free_list(&mm, &blocks, 0);
+	KUNIT_EXPECT_EQ(test, mm.avail, (u64)mm_size);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Exact-range allocation of sub-ranges.
+	 * Split the mm into four equal quarters and allocate each as an exact
+	 * range. Validates splitting and non-overlapping exact allocations.
+	 */
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	{
+		u32 quarter = mm_size / 4;
+		int i;
+
+		for (i = 0; i < 4; i++) {
+			u32 start = i * quarter;
+			u32 end = start + quarter;
+
+			ret = gpu_buddy_alloc_blocks(&mm, start, end, quarter, ps, &blocks, 0);
+			KUNIT_ASSERT_EQ_MSG(test, ret, 0,
+					    "exact-range alloc quarter %d [%x, %x) failed\n",
+					    i, start, end);
+		}
+		KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+		gpu_buddy_free_list(&mm, &blocks, 0);
+	}
+
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Minimum chunk-size exact range at various offsets.
+	 * Allocate single-page exact ranges at the start, middle and end.
+	 */
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	ret = gpu_buddy_alloc_blocks(&mm, 0, ps, ps, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = gpu_buddy_alloc_blocks(&mm, mm_size / 2, mm_size / 2 + ps, ps, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = gpu_buddy_alloc_blocks(&mm, mm_size - ps, mm_size, ps, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	total = 0;
+	list_for_each_entry(block, &blocks, link)
+		total += (u32)gpu_buddy_block_size(&mm, block);
+	KUNIT_EXPECT_EQ(test, total, 3 * ps);
+
+	gpu_buddy_free_list(&mm, &blocks, 0);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Non power-of-two mm size (multiple roots).
+	 * Exact-range allocations that span root boundaries must still work.
+	 */
+	mm_size = SZ_4M + SZ_2M + SZ_1M; /* 7 MiB, three roots */
+
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+	KUNIT_EXPECT_GT(test, mm.n_roots, 1U);
+
+	/* Allocate first 4M root exactly */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, SZ_4M, SZ_4M, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Allocate second root (4M-6M) exactly */
+	ret = gpu_buddy_alloc_blocks(&mm, SZ_4M, SZ_4M + SZ_2M, SZ_2M, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Allocate third root (6M-7M) exactly */
+	ret = gpu_buddy_alloc_blocks(&mm, SZ_4M + SZ_2M, mm_size, SZ_1M, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+	gpu_buddy_free_list(&mm, &blocks, 0);
+
+	/* Cross-root exact-range: the entire non-pot mm */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, mm_size, mm_size, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+
+	gpu_buddy_free_list(&mm, &blocks, 0);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Randomized exact-range allocations.
+	 * Divide the mm into N random-sized, contiguous, page-aligned slices
+	 * and allocate each as an exact range in random order.
+	 */
+	mm_size = SZ_16M;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	{
+#define N_RAND_RANGES 16
+		u32 ranges[N_RAND_RANGES + 1]; /* boundaries */
+		u32 order_arr[N_RAND_RANGES];
+		u32 remaining = mm_size;
+		int i;
+
+		ranges[0] = 0;
+		for (i = 0; i < N_RAND_RANGES - 1; i++) {
+			u32 max_chunk = remaining - (N_RAND_RANGES - 1 - i) * ps;
+			u32 sz = max(round_up(prandom_u32_state(&prng) % max_chunk, ps), ps);
+
+			ranges[i + 1] = ranges[i] + sz;
+			remaining -= sz;
+		}
+		ranges[N_RAND_RANGES] = mm_size;
+
+		/* Create a random order */
+		for (i = 0; i < N_RAND_RANGES; i++)
+			order_arr[i] = i;
+		for (i = N_RAND_RANGES - 1; i > 0; i--) {
+			u32 j = prandom_u32_state(&prng) % (i + 1);
+			u32 tmp_val = order_arr[i];
+
+			order_arr[i] = order_arr[j];
+			order_arr[j] = tmp_val;
+		}
+
+		for (i = 0; i < N_RAND_RANGES; i++) {
+			u32 idx = order_arr[i];
+			u32 start = ranges[idx];
+			u32 end = ranges[idx + 1];
+			u32 sz = end - start;
+
+			ret = gpu_buddy_alloc_blocks(&mm, start, end, sz, ps, &blocks, 0);
+			KUNIT_ASSERT_EQ_MSG(test, ret, 0,
+					    "random exact-range [%x, %x) sz=%x failed\n",
+					    start, end, sz);
+		}
+
+		KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+		gpu_buddy_free_list(&mm, &blocks, 0);
+#undef N_RAND_RANGES
+	}
+
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Negative case - partially allocated range.
+	 * Allocate the first half, then try to exact-range allocate the full
+	 * mm. This must fail because the first half is already occupied.
+	 */
+	mm_size = SZ_16M;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	ret = gpu_buddy_alloc_blocks(&mm, 0, mm_size / 2, mm_size / 2, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = gpu_buddy_alloc_blocks(&mm, 0, mm_size, mm_size, ps, &tmp, 0);
+	KUNIT_EXPECT_NE_MSG(test, ret, 0,
+			    "exact-range alloc should fail when range is partially used\n");
+
+	/* Also try the already-occupied sub-range directly */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, mm_size / 2, mm_size / 2, ps, &tmp, 0);
+	KUNIT_EXPECT_NE_MSG(test, ret, 0,
+			    "double alloc of same exact range should fail\n");
+
+	/* The free second half should still be allocatable */
+	ret = gpu_buddy_alloc_blocks(&mm, mm_size / 2, mm_size, mm_size / 2, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, mm.avail, 0ULL);
+	gpu_buddy_free_list(&mm, &blocks, 0);
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Negative case - checkerboard partial allocation.
+	 * Allocate every other page-sized chunk in a small mm, then try to
+	 * exact-range allocate a range covering two pages (one allocated, one
+	 * free). This must fail.
+	 */
+	mm_size = SZ_64K;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	{
+		u32 off;
+
+		for (off = 0; off < mm_size; off += 2 * ps) {
+			ret = gpu_buddy_alloc_blocks(&mm, off, off + ps, ps, ps, &blocks, 0);
+			KUNIT_ASSERT_EQ(test, ret, 0);
+		}
+
+		/* Try exact range over a pair [allocated, free] */
+		ret = gpu_buddy_alloc_blocks(&mm, 0, 2 * ps, 2 * ps, ps, &tmp, 0);
+		KUNIT_EXPECT_NE_MSG(test, ret, 0,
+				    "exact-range over partially allocated pair should fail\n");
+
+		/* The free pages individually should still work */
+		ret = gpu_buddy_alloc_blocks(&mm, ps, 2 * ps, ps, ps, &blocks, 0);
+		KUNIT_ASSERT_EQ(test, ret, 0);
+
+		gpu_buddy_free_list(&mm, &blocks, 0);
+	}
+
+	gpu_buddy_fini(&mm);
+
+	/* Negative case - misaligned start/end/size */
+	mm_size = SZ_16M;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	/* start not aligned to chunk_size */
+	ret = gpu_buddy_alloc_blocks(&mm, ps / 2, ps / 2 + ps, ps, ps, &tmp, 0);
+	KUNIT_EXPECT_NE(test, ret, 0);
+
+	/* size not aligned */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, ps + 1, ps + 1, ps, &tmp, 0);
+	KUNIT_EXPECT_NE(test, ret, 0);
+
+	/* end exceeds mm size */
+	ret = gpu_buddy_alloc_blocks(&mm, mm_size, mm_size + ps, ps, ps, &tmp, 0);
+	KUNIT_EXPECT_NE(test, ret, 0);
+
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Free and re-allocate the same exact range.
+	 * This exercises merge-on-free followed by exact-range re-split.
+	 */
+	mm_size = SZ_16M;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	{
+		int i;
+
+		for (i = 0; i < 5; i++) {
+			ret = gpu_buddy_alloc_blocks(&mm, SZ_4M, SZ_4M + SZ_2M,
+						     SZ_2M, ps, &blocks, 0);
+			KUNIT_ASSERT_EQ_MSG(test, ret, 0,
+					    "re-alloc iteration %d failed\n", i);
+
+			total = 0;
+			list_for_each_entry(block, &blocks, link) {
+				u64 offset = gpu_buddy_block_offset(block);
+				u64 bsize = gpu_buddy_block_size(&mm, block);
+
+				KUNIT_EXPECT_GE(test, offset, (u64)SZ_4M);
+				KUNIT_EXPECT_LE(test, offset + bsize, (u64)(SZ_4M + SZ_2M));
+				total += (u32)bsize;
+			}
+			KUNIT_EXPECT_EQ(test, total, SZ_2M);
+
+			gpu_buddy_free_list(&mm, &blocks, 0);
+		}
+
+		KUNIT_EXPECT_EQ(test, mm.avail, (u64)mm_size);
+	}
+
+	gpu_buddy_fini(&mm);
+
+	/*
+	 * Various power-of-two exact ranges within a large mm.
+	 * Allocate non-overlapping power-of-two exact ranges at their natural
+	 * alignment, validating that the allocator handles different orders.
+	 */
+	mm_size = SZ_16M;
+	KUNIT_ASSERT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+
+	/* Allocate 4K at offset 0 */
+	ret = gpu_buddy_alloc_blocks(&mm, 0, SZ_4K, SZ_4K, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Allocate 64K at offset 64K */
+	ret = gpu_buddy_alloc_blocks(&mm, SZ_64K, SZ_64K + SZ_64K, SZ_64K, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Allocate 1M at offset 1M */
+	ret = gpu_buddy_alloc_blocks(&mm, SZ_1M, SZ_1M + SZ_1M, SZ_1M, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Allocate 4M at offset 4M */
+	ret = gpu_buddy_alloc_blocks(&mm, SZ_4M, SZ_4M + SZ_4M, SZ_4M, ps, &blocks, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	total = 0;
+	list_for_each_entry(block, &blocks, link)
+		total += (u32)gpu_buddy_block_size(&mm, block);
+	KUNIT_EXPECT_EQ(test, total, SZ_4K + SZ_64K + SZ_1M + SZ_4M);
+
+	gpu_buddy_free_list(&mm, &blocks, 0);
 	gpu_buddy_fini(&mm);
 }
 
@@ -909,9 +1399,12 @@ static struct kunit_case gpu_buddy_tests[] = {
 	KUNIT_CASE(gpu_test_buddy_alloc_pathological),
 	KUNIT_CASE(gpu_test_buddy_alloc_contiguous),
 	KUNIT_CASE(gpu_test_buddy_alloc_clear),
+	KUNIT_CASE(gpu_test_buddy_alloc_range),
 	KUNIT_CASE(gpu_test_buddy_alloc_range_bias),
 	KUNIT_CASE_SLOW(gpu_test_buddy_fragmentation_performance),
 	KUNIT_CASE(gpu_test_buddy_alloc_exceeds_max_order),
+	KUNIT_CASE(gpu_test_buddy_offset_aligned_allocation),
+	KUNIT_CASE(gpu_test_buddy_subtree_offset_alignment_stress),
 	{}
 };
 

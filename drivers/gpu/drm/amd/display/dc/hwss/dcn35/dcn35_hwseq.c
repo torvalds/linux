@@ -60,15 +60,15 @@
 #include "dcn20/dcn20_hwseq.h"
 #include "dc_state_priv.h"
 
-#define DC_LOGGER_INIT(logger) \
-	struct dal_logger *dc_logger = logger
+#define DC_LOGGER \
+	dc_ctx->logger
+#define DC_LOGGER_INIT(ctx) \
+	struct dc_context *dc_ctx = ctx
 
 #define CTX \
 	hws->ctx
 #define REG(reg)\
 	hws->regs->reg
-#define DC_LOGGER \
-	dc_logger
 
 
 #undef FN
@@ -331,7 +331,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
 
-	DC_LOGGER_INIT(stream->ctx->logger);
+	DC_LOGGER_INIT(stream->ctx);
 
 	ASSERT(dsc);
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
@@ -897,7 +897,7 @@ void dcn35_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx 
 	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
-	DC_LOGGER_INIT(dc->ctx->logger);
+	DC_LOGGER_INIT(dc->ctx);
 
 	if (!pipe_ctx->plane_res.hubp || pipe_ctx->plane_res.hubp->power_gated)
 		return;

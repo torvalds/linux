@@ -9,18 +9,65 @@
 struct dma_fence;
 struct drm_crtc;
 struct drm_device;
+struct drm_file;
 struct drm_framebuffer;
 struct drm_gem_object;
+struct drm_mode_fb_cmd2;
 struct drm_plane_state;
 struct drm_scanout_buffer;
 struct i915_vma;
+struct intel_dpt;
+struct intel_dsb_buffer;
+struct intel_frontbuffer;
 struct intel_hdcp_gsc_context;
 struct intel_initial_plane_config;
 struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
+struct seq_file;
+struct vm_area_struct;
 
 /* Keep struct definitions sorted */
+
+struct intel_display_bo_interface {
+	bool (*is_tiled)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_userptr)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_shmem)(struct drm_gem_object *obj); /* Optional */
+	bool (*is_protected)(struct drm_gem_object *obj);
+	int (*key_check)(struct drm_gem_object *obj);
+	int (*fb_mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
+	int (*read_from_page)(struct drm_gem_object *obj, u64 offset, void *dst, int size);
+	void (*describe)(struct seq_file *m, struct drm_gem_object *obj); /* Optional */
+	int (*framebuffer_init)(struct drm_gem_object *obj, struct drm_mode_fb_cmd2 *mode_cmd);
+	void (*framebuffer_fini)(struct drm_gem_object *obj);
+	struct drm_gem_object *(*framebuffer_lookup)(struct drm_device *drm,
+						     struct drm_file *filp,
+						     const struct drm_mode_fb_cmd2 *user_mode_cmd);
+};
+
+struct intel_display_dpt_interface {
+	struct intel_dpt *(*create)(struct drm_gem_object *obj, size_t size);
+	void (*destroy)(struct intel_dpt *dpt);
+	void (*suspend)(struct intel_dpt *dpt);
+	void (*resume)(struct intel_dpt *dpt);
+};
+
+struct intel_display_dsb_interface {
+	u32 (*ggtt_offset)(struct intel_dsb_buffer *dsb_buf);
+	void (*write)(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val);
+	u32 (*read)(struct intel_dsb_buffer *dsb_buf, u32 idx);
+	void (*fill)(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size);
+	struct intel_dsb_buffer *(*create)(struct drm_device *drm, size_t size);
+	void (*cleanup)(struct intel_dsb_buffer *dsb_buf);
+	void (*flush_map)(struct intel_dsb_buffer *dsb_buf);
+};
+
+struct intel_display_frontbuffer_interface {
+	struct intel_frontbuffer *(*get)(struct drm_gem_object *obj);
+	void (*ref)(struct intel_frontbuffer *front);
+	void (*put)(struct intel_frontbuffer *front);
+	void (*flush_for_display)(struct intel_frontbuffer *front);
+};
 
 struct intel_display_hdcp_interface {
 	ssize_t (*gsc_msg_send)(struct intel_hdcp_gsc_context *gsc_context,
@@ -44,6 +91,35 @@ struct intel_display_irq_interface {
 	void (*synchronize)(struct drm_device *drm);
 };
 
+struct intel_display_overlay_interface {
+	bool (*is_active)(struct drm_device *drm);
+
+	int (*overlay_on)(struct drm_device *drm,
+			  u32 frontbuffer_bits);
+	int (*overlay_continue)(struct drm_device *drm,
+				struct i915_vma *vma,
+				bool load_polyphase_filter);
+	int (*overlay_off)(struct drm_device *drm);
+	int (*recover_from_interrupt)(struct drm_device *drm);
+	int (*release_old_vid)(struct drm_device *drm);
+
+	void (*reset)(struct drm_device *drm);
+
+	struct i915_vma *(*pin_fb)(struct drm_device *drm,
+				   struct drm_gem_object *obj,
+				   u32 *offset);
+	void (*unpin_fb)(struct drm_device *drm,
+			 struct i915_vma *vma);
+
+	struct drm_gem_object *(*obj_lookup)(struct drm_device *drm,
+					     struct drm_file *filp,
+					     u32 handle);
+
+	void __iomem *(*setup)(struct drm_device *drm,
+			       bool needs_physical);
+	void (*cleanup)(struct drm_device *drm);
+};
+
 struct intel_display_panic_interface {
 	struct intel_panic *(*alloc)(void);
 	int (*setup)(struct intel_panic *panic, struct drm_scanout_buffer *sb);
@@ -53,6 +129,13 @@ struct intel_display_panic_interface {
 struct intel_display_pc8_interface {
 	void (*block)(struct drm_device *drm);
 	void (*unblock)(struct drm_device *drm);
+};
+
+struct intel_display_pcode_interface {
+	int (*read)(struct drm_device *drm, u32 mbox, u32 *val, u32 *val1);
+	int (*write)(struct drm_device *drm, u32 mbox, u32 val, int timeout_ms);
+	int (*request)(struct drm_device *drm, u32 mbox, u32 request,
+		       u32 reply_mask, u32 reply, int timeout_base_ms);
 };
 
 struct intel_display_rpm_interface {
@@ -93,6 +176,10 @@ struct intel_display_stolen_interface {
 	void (*node_free)(const struct intel_stolen_node *node);
 };
 
+struct intel_display_vma_interface {
+	int (*fence_id)(const struct i915_vma *vma);
+};
+
 /**
  * struct intel_display_parent_interface - services parent driver provides to display
  *
@@ -106,6 +193,18 @@ struct intel_display_stolen_interface {
  * check the optional pointers.
  */
 struct intel_display_parent_interface {
+	/** @bo: BO interface */
+	const struct intel_display_bo_interface *bo;
+
+	/** @dpt: DPT interface. Optional. */
+	const struct intel_display_dpt_interface *dpt;
+
+	/** @dsb: DSB buffer interface */
+	const struct intel_display_dsb_interface *dsb;
+
+	/** @frontbuffer: Frontbuffer interface */
+	const struct intel_display_frontbuffer_interface *frontbuffer;
+
 	/** @hdcp: HDCP GSC interface */
 	const struct intel_display_hdcp_interface *hdcp;
 
@@ -118,8 +217,14 @@ struct intel_display_parent_interface {
 	/** @panic: Panic interface */
 	const struct intel_display_panic_interface *panic;
 
+	/** @overlay: Overlay. Optional. */
+	const struct intel_display_overlay_interface *overlay;
+
 	/** @pc8: PC8 interface. Optional. */
 	const struct intel_display_pc8_interface *pc8;
+
+	/** @pcode: Pcode interface */
+	const struct intel_display_pcode_interface *pcode;
 
 	/** @rpm: Runtime PM functions */
 	const struct intel_display_rpm_interface *rpm;
@@ -129,6 +234,9 @@ struct intel_display_parent_interface {
 
 	/** @stolen: Stolen memory. */
 	const struct intel_display_stolen_interface *stolen;
+
+	/** @vma: VMA interface. Optional. */
+	const struct intel_display_vma_interface *vma;
 
 	/* Generic independent functions */
 	struct {

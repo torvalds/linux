@@ -33,6 +33,7 @@
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"

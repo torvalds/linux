@@ -58,13 +58,13 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 
-#include "intel_bo.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_drrs.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_parent.h"
 #include "intel_psr.h"
 #include "intel_tdf.h"
 
@@ -123,9 +123,9 @@ void intel_frontbuffer_flip(struct intel_display *display,
 	frontbuffer_flush(display, frontbuffer_bits, ORIGIN_FLIP);
 }
 
-void __intel_fb_invalidate(struct intel_frontbuffer *front,
-			   enum fb_op_origin origin,
-			   unsigned int frontbuffer_bits)
+void __intel_frontbuffer_invalidate(struct intel_frontbuffer *front,
+				    enum fb_op_origin origin,
+				    unsigned int frontbuffer_bits)
 {
 	struct intel_display *display = front->display;
 
@@ -143,14 +143,14 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 	intel_fbc_invalidate(display, frontbuffer_bits, origin);
 }
 
-void __intel_fb_flush(struct intel_frontbuffer *front,
-		      enum fb_op_origin origin,
-		      unsigned int frontbuffer_bits)
+void __intel_frontbuffer_flush(struct intel_frontbuffer *front,
+			       enum fb_op_origin origin,
+			       unsigned int frontbuffer_bits)
 {
 	struct intel_display *display = front->display;
 
 	if (origin == ORIGIN_DIRTYFB)
-		intel_bo_frontbuffer_flush_for_display(front);
+		intel_parent_frontbuffer_flush_for_display(display, front);
 
 	if (origin == ORIGIN_CS) {
 		spin_lock(&display->fb_tracking.lock);
@@ -164,18 +164,13 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 		frontbuffer_flush(display, frontbuffer_bits, origin);
 }
 
-static void intel_frontbuffer_ref(struct intel_frontbuffer *front)
-{
-	intel_bo_frontbuffer_ref(front);
-}
-
 static void intel_frontbuffer_flush_work(struct work_struct *work)
 {
 	struct intel_frontbuffer *front =
 		container_of(work, struct intel_frontbuffer, flush_work);
 
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
-	intel_frontbuffer_put(front);
+	intel_parent_frontbuffer_put(front->display, front);
 }
 
 /**
@@ -190,9 +185,9 @@ void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 	if (!front)
 		return;
 
-	intel_frontbuffer_ref(front);
+	intel_parent_frontbuffer_ref(front->display, front);
 	if (!schedule_work(&front->flush_work))
-		intel_frontbuffer_put(front);
+		intel_parent_frontbuffer_put(front->display, front);
 }
 
 void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *drm)
@@ -205,16 +200,6 @@ void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *
 void intel_frontbuffer_fini(struct intel_frontbuffer *front)
 {
 	drm_WARN_ON(front->display->drm, atomic_read(&front->bits));
-}
-
-struct intel_frontbuffer *intel_frontbuffer_get(struct drm_gem_object *obj)
-{
-	return intel_bo_frontbuffer_get(obj);
-}
-
-void intel_frontbuffer_put(struct intel_frontbuffer *front)
-{
-	intel_bo_frontbuffer_put(front);
 }
 
 /**

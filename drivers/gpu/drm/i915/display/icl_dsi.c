@@ -34,7 +34,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_reg.h"
 #include "icl_dsi.h"
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
@@ -1623,12 +1622,6 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 
 	if (crtc_state->pipe_bpp < 8 * 3)
 		return -EINVAL;
-
-	/* FIXME: split only when necessary */
-	if (crtc_state->dsc.slice_count > 1)
-		crtc_state->dsc.num_streams = 2;
-	else
-		crtc_state->dsc.num_streams = 1;
 
 	/* FIXME: initialize from VBT */
 	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;

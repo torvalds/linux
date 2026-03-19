@@ -3,11 +3,13 @@
  * Copyright 2023, Intel Corporation.
  */
 
+#include <drm/intel/display_parent_interface.h>
+
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "i915_drv.h"
+#include "i915_dsb_buffer.h"
 #include "i915_vma.h"
-#include "intel_dsb_buffer.h"
 
 struct intel_dsb_buffer {
 	u32 *cmd_buf;
@@ -15,29 +17,29 @@ struct intel_dsb_buffer {
 	size_t buf_size;
 };
 
-u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
+static u32 intel_dsb_buffer_ggtt_offset(struct intel_dsb_buffer *dsb_buf)
 {
 	return i915_ggtt_offset(dsb_buf->vma);
 }
 
-void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
+static void intel_dsb_buffer_write(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val)
 {
 	dsb_buf->cmd_buf[idx] = val;
 }
 
-u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
+static u32 intel_dsb_buffer_read(struct intel_dsb_buffer *dsb_buf, u32 idx)
 {
 	return dsb_buf->cmd_buf[idx];
 }
 
-void intel_dsb_buffer_memset(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
+static void intel_dsb_buffer_fill(struct intel_dsb_buffer *dsb_buf, u32 idx, u32 val, size_t size)
 {
 	WARN_ON(idx > (dsb_buf->buf_size - size) / sizeof(*dsb_buf->cmd_buf));
 
 	memset(&dsb_buf->cmd_buf[idx], val, size);
 }
 
-struct intel_dsb_buffer *intel_dsb_buffer_create(struct drm_device *drm, size_t size)
+static struct intel_dsb_buffer *intel_dsb_buffer_create(struct drm_device *drm, size_t size)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_dsb_buffer *dsb_buf;
@@ -93,13 +95,23 @@ err:
 	return ERR_PTR(ret);
 }
 
-void intel_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
+static void intel_dsb_buffer_cleanup(struct intel_dsb_buffer *dsb_buf)
 {
 	i915_vma_unpin_and_release(&dsb_buf->vma, I915_VMA_RELEASE_MAP);
 	kfree(dsb_buf);
 }
 
-void intel_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
+static void intel_dsb_buffer_flush_map(struct intel_dsb_buffer *dsb_buf)
 {
 	i915_gem_object_flush_map(dsb_buf->vma->obj);
 }
+
+const struct intel_display_dsb_interface i915_display_dsb_interface = {
+	.ggtt_offset = intel_dsb_buffer_ggtt_offset,
+	.write = intel_dsb_buffer_write,
+	.read = intel_dsb_buffer_read,
+	.fill = intel_dsb_buffer_fill,
+	.create = intel_dsb_buffer_create,
+	.cleanup = intel_dsb_buffer_cleanup,
+	.flush_map = intel_dsb_buffer_flush_map,
+};

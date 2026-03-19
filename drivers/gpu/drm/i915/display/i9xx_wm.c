@@ -6,8 +6,8 @@
 #include <linux/iopoll.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/intel_gmd_misc_regs.h>
 
-#include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "i9xx_wm_regs.h"
 #include "intel_atomic.h"
@@ -182,8 +182,8 @@ static bool _intel_set_memory_cxsr(struct intel_display *display, bool enable)
 		intel_de_posting_read(display, DSPFW3(display));
 	} else if (display->platform.i945g || display->platform.i945gm) {
 		was_enabled = intel_de_read(display, FW_BLC_SELF) & FW_BLC_SELF_EN;
-		val = enable ? _MASKED_BIT_ENABLE(FW_BLC_SELF_EN) :
-			       _MASKED_BIT_DISABLE(FW_BLC_SELF_EN);
+		val = enable ? REG_MASKED_FIELD_ENABLE(FW_BLC_SELF_EN) :
+			       REG_MASKED_FIELD_DISABLE(FW_BLC_SELF_EN);
 		intel_de_write(display, FW_BLC_SELF, val);
 		intel_de_posting_read(display, FW_BLC_SELF);
 	} else if (display->platform.i915gm) {
@@ -193,8 +193,8 @@ static bool _intel_set_memory_cxsr(struct intel_display *display, bool enable)
 		 * FW_BLC_SELF. What's going on?
 		 */
 		was_enabled = intel_de_read(display, INSTPM) & INSTPM_SELF_EN;
-		val = enable ? _MASKED_BIT_ENABLE(INSTPM_SELF_EN) :
-			       _MASKED_BIT_DISABLE(INSTPM_SELF_EN);
+		val = enable ? REG_MASKED_FIELD_ENABLE(INSTPM_SELF_EN) :
+			       REG_MASKED_FIELD_DISABLE(INSTPM_SELF_EN);
 		intel_de_write(display, INSTPM, val);
 		intel_de_posting_read(display, INSTPM);
 	} else {

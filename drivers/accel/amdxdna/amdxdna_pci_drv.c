@@ -35,9 +35,10 @@ MODULE_FIRMWARE("amdnpu/17f0_11/npu_7.sbin");
  * 0.4: Support getting resource information
  * 0.5: Support getting telemetry data
  * 0.6: Support preemption
+ * 0.7: Support getting power and utilization data
  */
 #define AMDXDNA_DRIVER_MAJOR		0
-#define AMDXDNA_DRIVER_MINOR		6
+#define AMDXDNA_DRIVER_MINOR		7
 
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the
@@ -358,5 +359,6 @@ static struct pci_driver amdxdna_pci_driver = {
 module_pci_driver(amdxdna_pci_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("AMD_PMF");
 MODULE_AUTHOR("XRT Team <runtimeca39d@amd.com>");
 MODULE_DESCRIPTION("amdxdna driver");

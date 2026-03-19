@@ -291,22 +291,22 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 			break;
 		case 5:
 			/* rlc_hdr v2_5 */
-			DRM_INFO("rlc_iram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_iram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_size_bytes));
-			DRM_INFO("rlc_iram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_iram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_offset_bytes));
-			DRM_INFO("rlc_dram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_dram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_size_bytes));
-			DRM_INFO("rlc_dram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_dram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_offset_bytes));
 			/* rlc_hdr v2_5 */
-			DRM_INFO("rlc_1_iram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_1_iram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_size_bytes));
-			DRM_INFO("rlc_1_iram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_1_iram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_offset_bytes));
-			DRM_INFO("rlc_1_dram_ucode_size_bytes: %u\n",
+			DRM_DEBUG("rlc_1_dram_ucode_size_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_size_bytes));
-			DRM_INFO("rlc_1_dram_ucode_offset_bytes: %u\n",
+			DRM_DEBUG("rlc_1_dram_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_offset_bytes));
 			break;
 		default:

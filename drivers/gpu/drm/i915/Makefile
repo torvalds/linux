@@ -76,9 +76,13 @@ i915-$(CONFIG_PERF_EVENTS) += \
 
 # core display adaptation
 i915-y += \
+	i915_bo.o \
 	i915_display_pc8.o \
+	i915_dpt.o \
+	i915_dsb_buffer.o \
 	i915_hdcp_gsc.o \
 	i915_initial_plane.o \
+	i915_overlay.o \
 	i915_panic.o
 
 # "Graphics Technology" (aka we talk to the gpu)
@@ -270,13 +274,10 @@ i915-y += \
 	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
 	display/intel_dpt.o \
-	display/intel_dpt_common.o \
 	display/intel_dram.o \
 	display/intel_drrs.o \
 	display/intel_dsb.o \
-	display/intel_dsb_buffer.o \
 	display/intel_fb.o \
-	display/intel_fb_bo.o \
 	display/intel_fb_pin.o \
 	display/intel_fbc.o \
 	display/intel_fdi.o \

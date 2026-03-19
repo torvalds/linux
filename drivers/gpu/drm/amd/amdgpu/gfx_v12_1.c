@@ -1155,11 +1155,13 @@ static int gfx_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 		break;
 	}
 
-	/* recalculate compute rings to use based on hardware configuration */
-	num_compute_rings = (adev->gfx.mec.num_pipe_per_mec *
-			     adev->gfx.mec.num_queue_per_pipe) / 2;
-	adev->gfx.num_compute_rings = min(adev->gfx.num_compute_rings,
-					  num_compute_rings);
+	if (adev->gfx.num_compute_rings) {
+		/* recalculate compute rings to use based on hardware configuration */
+		num_compute_rings = (adev->gfx.mec.num_pipe_per_mec *
+				     adev->gfx.mec.num_queue_per_pipe) / 2;
+		adev->gfx.num_compute_rings = min(adev->gfx.num_compute_rings,
+						  num_compute_rings);
+	}
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
@@ -2794,6 +2796,33 @@ static void gfx_v12_1_xcc_fini(struct amdgpu_device *adev,
 	gfx_v12_1_xcc_enable_gui_idle_interrupt(adev, false, xcc_id);
 }
 
+static int gfx_v12_1_set_userq_eop_interrupts(struct amdgpu_device *adev,
+					      bool enable)
+{
+	unsigned int irq_type;
+	int m, p, r;
+
+	if (adev->gfx.disable_kq) {
+		for (m = 0; m < adev->gfx.mec.num_mec; ++m) {
+			for (p = 0; p < adev->gfx.mec.num_pipe_per_mec; p++) {
+				irq_type = AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP
+					+ (m * adev->gfx.mec.num_pipe_per_mec)
+					+ p;
+				if (enable)
+					r = amdgpu_irq_get(adev, &adev->gfx.eop_irq,
+							   irq_type);
+				else
+					r = amdgpu_irq_put(adev, &adev->gfx.eop_irq,
+							   irq_type);
+				if (r)
+					return r;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int gfx_v12_1_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -2801,6 +2830,7 @@ static int gfx_v12_1_hw_fini(struct amdgpu_ip_block *ip_block)
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
+	gfx_v12_1_set_userq_eop_interrupts(adev, false);
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
@@ -2868,10 +2898,26 @@ static int gfx_v12_1_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
+
+	switch (amdgpu_user_queue) {
+	case -1:
+	default:
+		adev->gfx.disable_kq = true;
+		adev->gfx.disable_uq = true;
+		break;
+	case 0:
+		adev->gfx.disable_kq = false;
+		adev->gfx.disable_uq = true;
+		break;
+	}
+
 	adev->gfx.funcs = &gfx_v12_1_gfx_funcs;
 
-	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
-					  AMDGPU_MAX_COMPUTE_RINGS);
+	if (adev->gfx.disable_kq)
+		adev->gfx.num_compute_rings = 0;
+	else
+		adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
+						  AMDGPU_MAX_COMPUTE_RINGS);
 
 	gfx_v12_1_set_kiq_pm4_funcs(adev);
 	gfx_v12_1_set_ring_funcs(adev);
@@ -2895,6 +2941,10 @@ static int gfx_v12_1_late_init(struct amdgpu_ip_block *ip_block)
 		return r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
+	if (r)
+		return r;
+
+	r = gfx_v12_1_set_userq_eop_interrupts(adev, true);
 	if (r)
 		return r;
 
@@ -3630,12 +3680,6 @@ static int gfx_v12_1_eop_irq(struct amdgpu_device *adev,
 			return -EINVAL;
 
 		switch (me_id) {
-		case 0:
-			if (pipe_id == 0)
-				amdgpu_fence_process(&adev->gfx.gfx_ring[0]);
-			else
-				amdgpu_fence_process(&adev->gfx.gfx_ring[1]);
-			break;
 		case 1:
 		case 2:
 			for (i = 0; i < adev->gfx.num_compute_rings; i++) {
@@ -3651,6 +3695,9 @@ static int gfx_v12_1_eop_irq(struct amdgpu_device *adev,
 				    (ring->queue == queue_id))
 					amdgpu_fence_process(ring);
 			}
+			break;
+		default:
+			dev_dbg(adev->dev, "Unexpected me %d in eop_irq\n", me_id);
 			break;
 		}
 	}
@@ -3719,29 +3766,23 @@ static void gfx_v12_1_handle_priv_fault(struct amdgpu_device *adev,
 	if (xcc_id == -EINVAL)
 		return;
 
-	switch (me_id) {
-	case 0:
-		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
-			ring = &adev->gfx.gfx_ring[i];
-			/* we only enabled 1 gfx queue per pipe for now */
-			if (ring->me == me_id && ring->pipe == pipe_id)
-				drm_sched_fault(&ring->sched);
-		}
-		break;
-	case 1:
-	case 2:
-		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-			ring = &adev->gfx.compute_ring
+	if (!adev->gfx.disable_kq) {
+		switch (me_id) {
+		case 1:
+		case 2:
+			for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+				ring = &adev->gfx.compute_ring
 					[i +
 					 xcc_id * adev->gfx.num_compute_rings];
-			if (ring->me == me_id && ring->pipe == pipe_id &&
-			    ring->queue == queue_id)
-				drm_sched_fault(&ring->sched);
+				if (ring->me == me_id && ring->pipe == pipe_id &&
+				    ring->queue == queue_id)
+					drm_sched_fault(&ring->sched);
+			}
+			break;
+		default:
+			dev_dbg(adev->dev, "Unexpected me %d in priv_fault\n", me_id);
+			break;
 		}
-		break;
-	default:
-		BUG();
-		break;
 	}
 }
 

@@ -20,10 +20,6 @@ properties:
   reg:
     maxItems: 1
 
-  label: true
-  reset-gpios: true
-  port: true
-
 required:
   - compatible
   - port

@@ -5,8 +5,8 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
+#include <drm/intel/intel_gmd_interrupt_regs.h>
 
-#include "i915_reg.h"
 #include "icl_dsi_regs.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -1619,7 +1619,7 @@ static void i915gm_irq_cstate_wa_enable(struct intel_display *display)
 	 */
 	if (display->irq.vblank_enabled++ == 0)
 		intel_de_write(display, SCPD0,
-			       _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+			       REG_MASKED_FIELD_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 static void i915gm_irq_cstate_wa_disable(struct intel_display *display)
@@ -1628,7 +1628,7 @@ static void i915gm_irq_cstate_wa_disable(struct intel_display *display)
 
 	if (--display->irq.vblank_enabled == 0)
 		intel_de_write(display, SCPD0,
-			       _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+			       REG_MASKED_FIELD_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 void i915gm_irq_cstate_wa(struct intel_display *display, bool enable)
@@ -2472,6 +2472,7 @@ void intel_display_irq_init(struct intel_display *display)
 
 struct intel_display_irq_snapshot {
 	u32 derrmr;
+	u32 err_int;
 };
 
 struct intel_display_irq_snapshot *
@@ -2486,6 +2487,9 @@ intel_display_irq_snapshot_capture(struct intel_display *display)
 	if (DISPLAY_VER(display) >= 6 && DISPLAY_VER(display) < 20 && !HAS_GMCH(display))
 		snapshot->derrmr = intel_de_read(display, DERRMR);
 
+	if (DISPLAY_VER(display) == 7)
+		snapshot->err_int = intel_de_read(display, GEN7_ERR_INT);
+
 	return snapshot;
 }
 
@@ -2496,4 +2500,5 @@ void intel_display_irq_snapshot_print(const struct intel_display_irq_snapshot *s
 		return;
 
 	drm_printf(p, "DERRMR: 0x%08x\n", snapshot->derrmr);
+	drm_printf(p, "ERR_INT: 0x%08x\n", snapshot->err_int);
 }

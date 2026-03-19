@@ -757,8 +757,9 @@ static int xe_oa_configure_oar_context(struct xe_oa_stream *stream, bool enable)
 		},
 		{
 			RING_CONTEXT_CONTROL(stream->hwe->mmio_base),
-			_MASKED_FIELD(CTX_CTRL_OAC_CONTEXT_ENABLE,
-				      enable ? CTX_CTRL_OAC_CONTEXT_ENABLE : 0)
+			enable ?
+			REG_MASKED_FIELD_ENABLE(CTX_CTRL_OAC_CONTEXT_ENABLE) :
+			REG_MASKED_FIELD_DISABLE(CTX_CTRL_OAC_CONTEXT_ENABLE)
 		},
 	};
 
@@ -781,9 +782,9 @@ static int xe_oa_configure_oac_context(struct xe_oa_stream *stream, bool enable)
 		},
 		{
 			RING_CONTEXT_CONTROL(stream->hwe->mmio_base),
-			_MASKED_FIELD(CTX_CTRL_OAC_CONTEXT_ENABLE,
-				      enable ? CTX_CTRL_OAC_CONTEXT_ENABLE : 0) |
-			_MASKED_FIELD(CTX_CTRL_RUN_ALONE, enable ? CTX_CTRL_RUN_ALONE : 0),
+			enable ?
+			REG_MASKED_FIELD_ENABLE(CTX_CTRL_OAC_CONTEXT_ENABLE | CTX_CTRL_RUN_ALONE) :
+			REG_MASKED_FIELD_DISABLE(CTX_CTRL_OAC_CONTEXT_ENABLE | CTX_CTRL_RUN_ALONE),
 		},
 	};
 
@@ -811,9 +812,10 @@ static int xe_oa_configure_oa_context(struct xe_oa_stream *stream, bool enable)
 
 static u32 oag_configure_mmio_trigger(const struct xe_oa_stream *stream, bool enable)
 {
-	return _MASKED_FIELD(OAG_OA_DEBUG_DISABLE_MMIO_TRG,
-			     enable && stream && stream->sample ?
-			     0 : OAG_OA_DEBUG_DISABLE_MMIO_TRG);
+	if (enable && stream && stream->sample)
+		return REG_MASKED_FIELD_DISABLE(OAG_OA_DEBUG_DISABLE_MMIO_TRG);
+	else
+		return REG_MASKED_FIELD_ENABLE(OAG_OA_DEBUG_DISABLE_MMIO_TRG);
 }
 
 static void xe_oa_disable_metric_set(struct xe_oa_stream *stream)
@@ -824,9 +826,9 @@ static void xe_oa_disable_metric_set(struct xe_oa_stream *stream)
 	/* Enable thread stall DOP gating and EU DOP gating. */
 	if (XE_GT_WA(stream->gt, 1508761755)) {
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN,
-					  _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
+					  REG_MASKED_FIELD_DISABLE(STALL_DOP_GATING_DISABLE));
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN2,
-					  _MASKED_BIT_DISABLE(DISABLE_DOP_GATING));
+					  REG_MASKED_FIELD_DISABLE(DISABLE_DOP_GATING));
 	}
 
 	xe_mmio_write32(mmio, __oa_regs(stream)->oa_debug,
@@ -1054,16 +1056,18 @@ exit:
 static u32 oag_report_ctx_switches(const struct xe_oa_stream *stream)
 {
 	/* If user didn't require OA reports, ask HW not to emit ctx switch reports */
-	return _MASKED_FIELD(OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS,
-			     stream->sample ?
-			     0 : OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	if (stream->sample)
+		return REG_MASKED_FIELD_DISABLE(OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	else
+		return REG_MASKED_FIELD_ENABLE(OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
 static u32 oag_buf_size_select(const struct xe_oa_stream *stream)
 {
-	return _MASKED_FIELD(OAG_OA_DEBUG_BUF_SIZE_SELECT,
-			     xe_bo_size(stream->oa_buffer.bo) > SZ_16M ?
-			     OAG_OA_DEBUG_BUF_SIZE_SELECT : 0);
+	if (xe_bo_size(stream->oa_buffer.bo) > SZ_16M)
+		return REG_MASKED_FIELD_ENABLE(OAG_OA_DEBUG_BUF_SIZE_SELECT);
+	else
+		return REG_MASKED_FIELD_DISABLE(OAG_OA_DEBUG_BUF_SIZE_SELECT);
 }
 
 static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
@@ -1078,9 +1082,9 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 	 */
 	if (XE_GT_WA(stream->gt, 1508761755)) {
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN,
-					  _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
+					  REG_MASKED_FIELD_ENABLE(STALL_DOP_GATING_DISABLE));
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN2,
-					  _MASKED_BIT_ENABLE(DISABLE_DOP_GATING));
+					  REG_MASKED_FIELD_ENABLE(DISABLE_DOP_GATING));
 	}
 
 	/* Disable clk ratio reports */
@@ -1095,7 +1099,7 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 			OAG_OA_DEBUG_DISABLE_START_TRG_1_COUNT_QUAL;
 
 	xe_mmio_write32(mmio, __oa_regs(stream)->oa_debug,
-			_MASKED_BIT_ENABLE(oa_debug) |
+			REG_MASKED_FIELD_ENABLE(oa_debug) |
 			oag_report_ctx_switches(stream) |
 			oag_buf_size_select(stream) |
 			oag_configure_mmio_trigger(stream, true));

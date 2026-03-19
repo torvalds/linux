@@ -67,7 +67,7 @@ void gen6_ppgtt_enable(struct intel_gt *gt)
 	if (HAS_PPGTT(uncore->i915)) /* may be disabled for VT-d */
 		intel_uncore_write(uncore,
 				   GFX_MODE,
-				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+				   REG_MASKED_FIELD_ENABLE(GFX_PPGTT_ENABLE));
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */

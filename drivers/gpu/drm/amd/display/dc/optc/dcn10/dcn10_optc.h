@@ -218,7 +218,7 @@
 	uint32_t OTG_CRC_SIG_BLUE_CONTROL_MASK; \
 	uint32_t OTG_CRC_SIG_RED_GREEN_MASK; \
 	uint32_t OTG_DLPC_CONTROL; \
-	uint32_t OTG_DRR_CONTROL2; \
+	uint32_t OTG_DRR_CONTOL2; \
 	uint32_t OTG_DRR_TIMING_INT_STATUS; \
 	uint32_t OTG_GLOBAL_CONTROL3; \
 	uint32_t OTG_GLOBAL_SYNC_STATUS; \
@@ -676,6 +676,10 @@ struct dcn_optc_registers {
 	type OTG_V_COUNT_STOP_TIMER;
 
 #define TG_REG_FIELD_LIST_DCN3_6(type) \
+	type OPTC_RSMU_UNDERFLOW_CLEAR;\
+	type OPTC_RSMU_UNDERFLOW_OCCURRED_STATUS;\
+	type OPTC_RSMU_UNDERFLOW_INT_EN;\
+	type OPTC_RSMU_UNDERFLOW_INT_STATUS;\
 	type OTG_CRC_POLY_SEL; \
 	type CRC0_R_CR32; \
 	type CRC0_G_Y32; \
@@ -703,7 +707,7 @@ struct dcn_optc_shift {
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_6(uint8_t)
 	TG_REG_FIELD_LIST_DCN401(uint8_t)
-	TG_REG_FIELD_LIST_DCN42(uint8_t)
+		TG_REG_FIELD_LIST_DCN42(uint8_t)
 };
 
 struct dcn_optc_mask {

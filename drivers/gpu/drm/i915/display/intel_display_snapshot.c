@@ -19,7 +19,6 @@ struct intel_display_snapshot {
 	struct intel_display_device_info info;
 	struct intel_display_runtime_info runtime_info;
 	struct intel_display_params params;
-	struct intel_overlay_snapshot *overlay;
 	struct intel_dmc_snapshot *dmc;
 	struct intel_display_irq_snapshot *irq;
 };
@@ -41,7 +40,6 @@ struct intel_display_snapshot *intel_display_snapshot_capture(struct intel_displ
 	intel_display_params_copy(&snapshot->params);
 
 	snapshot->irq = intel_display_irq_snapshot_capture(display);
-	snapshot->overlay = intel_overlay_snapshot_capture(display);
 	snapshot->dmc = intel_dmc_snapshot_capture(display);
 
 	return snapshot;
@@ -61,7 +59,6 @@ void intel_display_snapshot_print(const struct intel_display_snapshot *snapshot,
 	intel_display_params_dump(&snapshot->params, display->drm->driver->name, p);
 
 	intel_display_irq_snapshot_print(snapshot->irq, p);
-	intel_overlay_snapshot_print(snapshot->overlay, p);
 	intel_dmc_snapshot_print(snapshot->dmc, p);
 }
 
@@ -73,7 +70,6 @@ void intel_display_snapshot_free(struct intel_display_snapshot *snapshot)
 	intel_display_params_free(&snapshot->params);
 
 	kfree(snapshot->irq);
-	kfree(snapshot->overlay);
 	kfree(snapshot->dmc);
 	kfree(snapshot);
 }

@@ -132,8 +132,8 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 }
 
 #define fw_ack(d) readl((d)->reg_ack)
-#define fw_set(d, val) writel(_MASKED_BIT_ENABLE((val)), (d)->reg_set)
-#define fw_clear(d, val) writel(_MASKED_BIT_DISABLE((val)), (d)->reg_set)
+#define fw_set(d, val) writel(REG_MASKED_FIELD_ENABLE((val)), (d)->reg_set)
+#define fw_clear(d, val) writel(REG_MASKED_FIELD_DISABLE((val)), (d)->reg_set)
 
 static inline void
 fw_domain_reset(const struct intel_uncore_forcewake_domain *d)

@@ -215,7 +215,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dcfclk_bypass;
 	uint32_t dprefclk_bypass;
 	uint32_t dispclk_bypass;
-	uint32_t timer_threhold;
+	uint32_t timer_threshold;
 };
 
 struct rv1_clk_internal {
