@@ -56,7 +56,7 @@ config REGMAP_W1
 
 config REGMAP_MDIO
 	tristate
-	select MDIO_BUS
+	depends on PHYLIB
 
 config REGMAP_MMIO
 	tristate
