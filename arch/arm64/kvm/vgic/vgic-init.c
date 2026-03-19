@@ -66,7 +66,7 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type);
  * or through the generic KVM_CREATE_DEVICE API ioctl.
  * irqchip_in_kernel() tells you if this function succeeded or not.
  * @kvm: kvm struct pointer
- * @type: KVM_DEV_TYPE_ARM_VGIC_V[23]
+ * @type: KVM_DEV_TYPE_ARM_VGIC_V[235]
  */
 int kvm_vgic_create(struct kvm *kvm, u32 type)
 {
@@ -131,8 +131,11 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 	if (type == KVM_DEV_TYPE_ARM_VGIC_V2)
 		kvm->max_vcpus = VGIC_V2_MAX_CPUS;
-	else
+	else if (type == KVM_DEV_TYPE_ARM_VGIC_V3)
 		kvm->max_vcpus = VGIC_V3_MAX_CPUS;
+	else if (type == KVM_DEV_TYPE_ARM_VGIC_V5)
+		kvm->max_vcpus = min(VGIC_V5_MAX_CPUS,
+				     kvm_vgic_global_state.max_gic_vcpus);
 
 	if (atomic_read(&kvm->online_vcpus) > kvm->max_vcpus) {
 		ret = -E2BIG;
@@ -426,22 +429,28 @@ int vgic_init(struct kvm *kvm)
 	if (kvm->created_vcpus != atomic_read(&kvm->online_vcpus))
 		return -EBUSY;
 
-	/* freeze the number of spis */
-	if (!dist->nr_spis)
-		dist->nr_spis = VGIC_NR_IRQS_LEGACY - VGIC_NR_PRIVATE_IRQS;
+	if (!vgic_is_v5(kvm)) {
+		/* freeze the number of spis */
+		if (!dist->nr_spis)
+			dist->nr_spis = VGIC_NR_IRQS_LEGACY - VGIC_NR_PRIVATE_IRQS;
 
-	ret = kvm_vgic_dist_init(kvm, dist->nr_spis);
-	if (ret)
-		goto out;
-
-	/*
-	 * Ensure vPEs are allocated if direct IRQ injection (e.g. vSGIs,
-	 * vLPIs) is supported.
-	 */
-	if (vgic_supports_direct_irqs(kvm)) {
-		ret = vgic_v4_init(kvm);
+		ret = kvm_vgic_dist_init(kvm, dist->nr_spis);
 		if (ret)
-			goto out;
+			return ret;
+
+		/*
+		 * Ensure vPEs are allocated if direct IRQ injection (e.g. vSGIs,
+		 * vLPIs) is supported.
+		 */
+		if (vgic_supports_direct_irqs(kvm)) {
+			ret = vgic_v4_init(kvm);
+			if (ret)
+				return ret;
+		}
+	} else {
+		ret = vgic_v5_init(kvm);
+		if (ret)
+			return ret;
 	}
 
 	kvm_for_each_vcpu(idx, vcpu, kvm)
@@ -449,12 +458,12 @@ int vgic_init(struct kvm *kvm)
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
 	if (ret)
-		goto out;
+		return ret;
 
 	vgic_debug_init(kvm);
 	dist->initialized = true;
-out:
-	return ret;
+
+	return 0;
 }
 
 static void kvm_vgic_dist_destroy(struct kvm *kvm)
@@ -598,6 +607,7 @@ int vgic_lazy_init(struct kvm *kvm)
 int kvm_vgic_map_resources(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
+	bool needs_dist = true;
 	enum vgic_type type;
 	gpa_t dist_base;
 	int ret = 0;
@@ -616,12 +626,16 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2) {
 		ret = vgic_v2_map_resources(kvm);
 		type = VGIC_V2;
-	} else {
+	} else if (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
 		ret = vgic_v3_map_resources(kvm);
 		type = VGIC_V3;
+	} else {
+		ret = vgic_v5_map_resources(kvm);
+		type = VGIC_V5;
+		needs_dist = false;
 	}
 
-	if (ret)
+	if (ret || !needs_dist)
 		goto out;
 
 	dist_base = dist->vgic_dist_base;
