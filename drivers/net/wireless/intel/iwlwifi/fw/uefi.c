@@ -571,9 +571,11 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_ppag *data;
 	int ret = 0;
+	int data_sz = sizeof(*data) + sizeof(data->vals[0]) *
+		IWL_NUM_CHAIN_LIMITS * UEFI_PPAG_SUB_BANDS_NUM;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_PPAG_NAME,
-					      "PPAG", sizeof(*data), NULL);
+					      "PPAG", data_sz, NULL);
 	if (IS_ERR(data))
 		return -EINVAL;
 
@@ -589,9 +591,22 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
 						   fwrt->ppag_bios_rev);
 
-	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
-	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
-	       sizeof(data->ppag_chains));
+	/*
+	 * Make sure fwrt has enough room to hold
+	 * data coming from the UEFI table
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(fwrt->ppag_chains) *
+		     ARRAY_SIZE(fwrt->ppag_chains[0].subbands) <
+		     IWL_NUM_CHAIN_LIMITS * UEFI_PPAG_SUB_BANDS_NUM);
+
+	for (int chain = 0; chain < IWL_NUM_CHAIN_LIMITS; chain++) {
+		for (int subband = 0;
+		     subband < UEFI_PPAG_SUB_BANDS_NUM;
+		     subband++)
+			fwrt->ppag_chains[chain].subbands[subband] =
+				data->vals[chain * UEFI_PPAG_SUB_BANDS_NUM + subband];
+	}
+
 	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);

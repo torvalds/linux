@@ -77,6 +77,7 @@ struct uefi_cnv_common_step_data {
 } __packed;
 
 #define UEFI_SAR_MAX_SUB_BANDS_NUM	11
+#define UEFI_PPAG_SUB_BANDS_NUM		11
 #define UEFI_SAR_MAX_CHAINS_PER_PROFILE	4
 
 /*
@@ -137,23 +138,18 @@ struct uefi_cnv_var_wgds {
 } __packed;
 
 /*
- * struct uefi_ppag_chain - PPAG table for a specific chain
- * @subbands: the PPAG values for band
- */
-struct uefi_ppag_chain {
-	s8 subbands[UEFI_SAR_MAX_SUB_BANDS_NUM];
-};
-
-/*
  * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
  * @revision: the revision of the table
  * @ppag_modes: values from &enum iwl_ppag_flags
- * @ppag_chains: the PPAG values per chain and band
+ * @vals: the PPAG values per chain and band as an array.
+ *	vals[chain * num_of_subbands + subband] will return the right value.
+ *	num_of_subbands is %UEFI_PPAG_SUB_BANDS_NUM.
+ *	the max number of chains is currently 2
  */
 struct uefi_cnv_var_ppag {
 	u8 revision;
 	u32 ppag_modes;
-	struct uefi_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
+	s8 vals[];
 } __packed;
 
 /* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
