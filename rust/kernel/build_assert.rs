@@ -41,6 +41,30 @@ macro_rules! static_assert {
     };
 }
 
+/// Assertion during constant evaluation.
+///
+/// This is a more powerful version of [`static_assert!`] that can refer to generics inside
+/// functions or implementation blocks. However, it also has a limitation where it can only appear
+/// in places where statements can appear; for example, you cannot use it as an item in the module.
+///
+/// # Examples
+///
+/// ```
+/// fn foo<const N: usize>() {
+///     const_assert!(N > 1);
+/// }
+///
+/// fn bar<T>() {
+///     const_assert!(size_of::<T>() > 0, "T cannot be ZST");
+/// }
+/// ```
+#[macro_export]
+macro_rules! const_assert {
+    ($condition:expr $(,$arg:literal)?) => {
+        const { ::core::assert!($condition $(,$arg)?) };
+    };
+}
+
 /// Fails the build if the code path calling `build_error!` can possibly be executed.
 ///
 /// If the macro is executed in const context, `build_error!` will panic.

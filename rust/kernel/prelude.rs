@@ -32,6 +32,7 @@ pub use pin_init::{init, pin_data, pin_init, pinned_drop, InPlaceWrite, Init, Pi
 pub use super::{
     build_assert,
     build_error,
+    const_assert,
     static_assert, //
 };
 

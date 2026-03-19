@@ -255,9 +255,7 @@ macro_rules! impl_const_new {
             /// ```
             pub const fn new<const VALUE: $type>() -> Self {
                 // Statically assert that `VALUE` fits within the set number of bits.
-                const {
-                    assert!(fits_within!(VALUE, $type, N));
-                }
+                const_assert!(fits_within!(VALUE, $type, N));
 
                 // SAFETY: `fits_within` confirmed that `VALUE` can be represented within
                 // `N` bits.
@@ -287,12 +285,10 @@ where
     /// The caller must ensure that `value` can be represented within `N` bits.
     const unsafe fn __new(value: T) -> Self {
         // Enforce the type invariants.
-        const {
-            // `N` cannot be zero.
-            assert!(N != 0);
-            // The backing type is at least as large as `N` bits.
-            assert!(N <= T::BITS);
-        }
+        // `N` cannot be zero.
+        const_assert!(N != 0);
+        // The backing type is at least as large as `N` bits.
+        const_assert!(N <= T::BITS);
 
         // INVARIANT: The caller ensures `value` fits within `N` bits.
         Self(value)
@@ -406,12 +402,10 @@ where
     /// assert_eq!(larger_v, v);
     /// ```
     pub const fn extend<const M: u32>(self) -> Bounded<T, M> {
-        const {
-            assert!(
-                M >= N,
-                "Requested number of bits is less than the current representation."
-            );
-        }
+        const_assert!(
+            M >= N,
+            "Requested number of bits is less than the current representation."
+        );
 
         // SAFETY: The value did fit within `N` bits, so it will all the more fit within
         // the larger `M` bits.
