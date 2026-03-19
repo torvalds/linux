@@ -15,4 +15,4 @@ Conteúdos:
 
    maintainer-netdev
    maintainer-soc
-
+   maintainer-soc-clean-dts

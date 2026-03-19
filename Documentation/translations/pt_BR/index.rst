@@ -71,3 +71,4 @@ kernel e sobre como ver seu trabalho integrado.
    Manuais dos mantenedores <process/maintainer-handbooks>
    Processo do subsistema de rede (netdev) <process/maintainer-netdev>
    Processo do subsistema SoC <process/maintainer-soc>
+   Conformidade de DTS para SoC <process/maintainer-soc-clean-dts>
