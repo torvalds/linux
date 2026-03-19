@@ -51,7 +51,6 @@ enum {
 };
 
 #define MLX5_MR_CACHE_PERSISTENT_ENTRY_MIN_DESCS 4
-#define MLX5_UMR_ALIGN 2048
 
 static void
 create_mkey_callback(int status, struct mlx5_async_work *context);

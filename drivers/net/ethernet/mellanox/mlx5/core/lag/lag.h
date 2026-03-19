@@ -5,8 +5,17 @@
 #define __MLX5_LAG_H__
 
 #include <linux/debugfs.h>
+#include <linux/errno.h>
+#include <linux/xarray.h>
+#include <linux/mlx5/fs.h>
 
 #define MLX5_LAG_MAX_HASH_BUCKETS 16
+/* XArray mark for the LAG master device
+ * (device with lowest mlx5_get_dev_index).
+ * Note: XA_MARK_0 is reserved by XA_FLAGS_ALLOC for free-slot tracking.
+ */
+#define MLX5_LAG_XA_MARK_MASTER XA_MARK_1
+
 #include "mlx5_core.h"
 #include "mp.h"
 #include "port_sel.h"
@@ -39,6 +48,7 @@ struct lag_func {
 	struct mlx5_core_dev *dev;
 	struct net_device    *netdev;
 	bool has_drop;
+	unsigned int idx; /* xarray index assigned by LAG */
 	struct mlx5_nb port_change_nb;
 };
 
@@ -64,7 +74,7 @@ struct mlx5_lag {
 	int			  mode_changes_in_progress;
 	u8			  v2p_map[MLX5_MAX_PORTS * MLX5_LAG_MAX_HASH_BUCKETS];
 	struct kref               ref;
-	struct lag_func           pf[MLX5_MAX_PORTS];
+	struct xarray             pfs;
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
@@ -76,12 +86,43 @@ struct mlx5_lag {
 	/* Protect lag fields/state changes */
 	struct mutex		  lock;
 	struct lag_mpesw	  lag_mpesw;
+	struct mlx5_flow_table   *lag_demux_ft;
+	struct mlx5_flow_group   *lag_demux_fg;
+	struct xarray		  lag_demux_rules;
 };
 
 static inline struct mlx5_lag *
 mlx5_lag_dev(struct mlx5_core_dev *dev)
 {
 	return dev->priv.lag;
+}
+
+static inline struct lag_func *
+mlx5_lag_pf(struct mlx5_lag *ldev, unsigned int idx)
+{
+	return xa_load(&ldev->pfs, idx);
+}
+
+/* Get device index (mlx5_get_dev_index) from xarray index */
+static inline int mlx5_lag_xa_to_dev_idx(struct mlx5_lag *ldev, int xa_idx)
+{
+	struct lag_func *pf = mlx5_lag_pf(ldev, xa_idx);
+
+	return pf ? mlx5_get_dev_index(pf->dev) : -ENOENT;
+}
+
+/* Find lag_func by device index (reverse lookup from mlx5_get_dev_index) */
+static inline struct lag_func *
+mlx5_lag_pf_by_dev_idx(struct mlx5_lag *ldev, int dev_idx)
+{
+	struct lag_func *pf;
+	unsigned long idx;
+
+	xa_for_each(&ldev->pfs, idx, pf) {
+		if (mlx5_get_dev_index(pf->dev) == dev_idx)
+			return pf;
+	}
+	return NULL;
 }
 
 static inline bool
@@ -98,6 +139,12 @@ mlx5_lag_is_ready(struct mlx5_lag *ldev)
 
 bool mlx5_lag_shared_fdb_supported(struct mlx5_lag *ldev);
 bool mlx5_lag_check_prereq(struct mlx5_lag *ldev);
+int mlx5_lag_demux_init(struct mlx5_core_dev *dev,
+			struct mlx5_flow_table_attr *ft_attr);
+void mlx5_lag_demux_cleanup(struct mlx5_core_dev *dev);
+int mlx5_lag_demux_rule_add(struct mlx5_core_dev *dev, u16 vport_num,
+			    int vport_index);
+void mlx5_lag_demux_rule_del(struct mlx5_core_dev *dev, int vport_index);
 void mlx5_modify_lag(struct mlx5_lag *ldev,
 		     struct lag_tracker *tracker);
 int mlx5_activate_lag(struct mlx5_lag *ldev,

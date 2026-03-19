@@ -293,6 +293,7 @@ enum {
 	MLX5_UMR_INLINE			= (1 << 7),
 };
 
+#define MLX5_UMR_ALIGN (2048)
 #define MLX5_UMR_FLEX_ALIGNMENT 0x40
 #define MLX5_UMR_MTT_NUM_ENTRIES_ALIGNMENT (MLX5_UMR_FLEX_ALIGNMENT / sizeof(struct mlx5_mtt))
 #define MLX5_UMR_KLM_NUM_ENTRIES_ALIGNMENT (MLX5_UMR_FLEX_ALIGNMENT / sizeof(struct mlx5_klm))
@@ -1259,6 +1260,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_PORT_SELECTION = 0x25,
 	MLX5_CAP_ADV_VIRTUALIZATION = 0x26,
 	MLX5_CAP_ADV_RDMA = 0x28,
+	MLX5_CAP_TLP_EMULATION = 0x2a,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1480,6 +1482,14 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP64_DEV_VDPA_EMULATION(mdev, cap)\
 	MLX5_GET64(virtio_emulation_cap, \
 		(mdev)->caps.hca[MLX5_CAP_VDPA_EMULATION]->cur, cap)
+
+#define MLX5_CAP_DEV_TLP_EMULATION(mdev, cap)\
+	MLX5_GET(tlp_dev_emu_capabilities, \
+		(mdev)->caps.hca[MLX5_CAP_TLP_EMULATION]->cur, cap)
+
+#define MLX5_CAP64_DEV_TLP_EMULATION(mdev, cap)\
+	MLX5_GET64(tlp_dev_emu_capabilities, \
+		(mdev)->caps.hca[MLX5_CAP_TLP_EMULATION]->cur, cap)
 
 #define MLX5_CAP_IPSEC(mdev, cap)\
 	MLX5_GET(ipsec_cap, (mdev)->caps.hca[MLX5_CAP_IPSEC]->cur, cap)
