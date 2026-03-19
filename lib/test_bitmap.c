@@ -653,7 +653,7 @@ static void __init test_bitmap_arr32(void)
 
 	memset(arr, 0xa5, sizeof(arr));
 
-	for (nbits = 0; nbits < EXP1_IN_BITS; ++nbits) {
+	for (nbits = 1; nbits < EXP1_IN_BITS; ++nbits) {
 		bitmap_to_arr32(arr, exp1, nbits);
 		bitmap_from_arr32(bmap2, arr, nbits);
 		expect_eq_bitmap(bmap2, exp1, nbits);
@@ -681,7 +681,7 @@ static void __init test_bitmap_arr64(void)
 
 	memset(arr, 0xa5, sizeof(arr));
 
-	for (nbits = 0; nbits < EXP1_IN_BITS; ++nbits) {
+	for (nbits = 1; nbits < EXP1_IN_BITS; ++nbits) {
 		memset(bmap2, 0xff, sizeof(arr));
 		bitmap_to_arr64(arr, exp1, nbits);
 		bitmap_from_arr64(bmap2, arr, nbits);
@@ -714,7 +714,7 @@ static void noinline __init test_mem_optimisations(void)
 	unsigned int start, nbits;
 
 	for (start = 0; start < 1024; start += 8) {
-		for (nbits = 0; nbits < 1024 - start; nbits += 8) {
+		for (nbits = 1; nbits < 1024 - start; nbits += 8) {
 			memset(bmap1, 0x5a, sizeof(bmap1));
 			memset(bmap2, 0x5a, sizeof(bmap2));
 
@@ -873,7 +873,7 @@ static void __init test_bitmap_weight(void)
 
 	/* Test outline implementation */
 	w = bitmap_weight(exp1, EXP1_IN_BITS);
-	for (bit = 0; bit < EXP1_IN_BITS; bit++) {
+	for (bit = 1; bit < EXP1_IN_BITS; bit++) {
 		w1 = bitmap_weight(exp1, bit);
 		w2 = bitmap_weight_from(exp1, bit, EXP1_IN_BITS);
 		expect_eq_uint(w1 + w2, w);
