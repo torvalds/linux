@@ -819,18 +819,12 @@ static void acpi_processor_setup_cstates(struct acpi_processor *pr)
 	drv->state_count = count;
 }
 
-static inline void acpi_processor_cstate_first_run_checks(void)
+static inline void acpi_processor_update_max_cstate(void)
 {
-	static int first_run;
-
-	if (first_run)
-		return;
 	dmi_check_system(processor_power_dmi_table);
 	max_cstate = acpi_processor_cstate_check(max_cstate);
 	if (max_cstate < ACPI_C_STATES_MAX)
 		pr_notice("processor limited to max C-state %d\n", max_cstate);
-
-	first_run++;
 
 	if (nocst)
 		return;
@@ -840,7 +834,7 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 #else
 
 static inline int disabled_by_idle_boot_param(void) { return 0; }
-static inline void acpi_processor_cstate_first_run_checks(void) { }
+static inline void acpi_processor_update_max_cstate(void) { }
 static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 {
 	return -ENODEV;
@@ -1016,9 +1010,7 @@ static bool combine_lpi_states(struct acpi_lpi_state *local,
 	result->arch_flags = parent->arch_flags;
 	result->index = parent->index;
 
-	strscpy(result->desc, local->desc, ACPI_CX_DESC_LEN);
-	strlcat(result->desc, "+", ACPI_CX_DESC_LEN);
-	strlcat(result->desc, parent->desc, ACPI_CX_DESC_LEN);
+	scnprintf(result->desc, ACPI_CX_DESC_LEN, "%s+%s", local->desc, parent->desc);
 	return true;
 }
 
@@ -1068,6 +1060,8 @@ static unsigned int flatten_lpi_states(struct acpi_processor *pr,
 				stash_composite_state(curr_level, flpi);
 				flat_state_cnt++;
 				flpi++;
+				if (flat_state_cnt >= ACPI_PROCESSOR_MAX_POWER)
+					break;
 			}
 		}
 	}
@@ -1357,6 +1351,8 @@ void acpi_processor_register_idle_driver(void)
 	int ret = -ENODEV;
 	int cpu;
 
+	acpi_processor_update_max_cstate();
+
 	/*
 	 * ACPI idle driver is used by all possible CPUs.
 	 * Use the processor power info of one in them to set up idle states.
@@ -1368,7 +1364,6 @@ void acpi_processor_register_idle_driver(void)
 		if (!pr)
 			continue;
 
-		acpi_processor_cstate_first_run_checks();
 		ret = acpi_processor_get_power_info(pr);
 		if (!ret) {
 			pr->flags.power_setup_done = 1;
@@ -1408,8 +1403,6 @@ void acpi_processor_power_init(struct acpi_processor *pr)
 
 	if (disabled_by_idle_boot_param())
 		return;
-
-	acpi_processor_cstate_first_run_checks();
 
 	if (!acpi_processor_get_power_info(pr))
 		pr->flags.power_setup_done = 1;
