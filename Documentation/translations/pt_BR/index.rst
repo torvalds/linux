@@ -70,3 +70,4 @@ kernel e sobre como ver seu trabalho integrado.
    Requisitos mínimos <process/changes>
    Manuais dos mantenedores <process/maintainer-handbooks>
    Processo do subsistema de rede (netdev) <process/maintainer-netdev>
+   Processo do subsistema SoC <process/maintainer-soc>
