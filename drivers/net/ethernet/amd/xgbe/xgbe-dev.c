@@ -3186,7 +3186,16 @@ static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	/* The Tx engine cannot be stopped if it is actively processing
 	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
 	 * wait forever though...
+	 *
+	 * Optimization: Skip the wait when link is down. Hardware won't
+	 * complete TX processing, so waiting serves no purpose and only
+	 * delays interface shutdown. Descriptors will be reclaimed via
+	 * the force-cleanup path in tx_poll.
 	 */
+
+	if (!pdata->phy.link)
+		return;
+
 	tx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
 	while (time_before(jiffies, tx_timeout)) {
 		tx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_TQDR);
