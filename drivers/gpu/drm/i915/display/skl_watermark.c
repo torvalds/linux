@@ -2735,10 +2735,17 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			old = &old_crtc_state->wm.skl.plane_ddb[plane_id];
 			new = &new_crtc_state->wm.skl.plane_ddb[plane_id];
 
-			if (skl_ddb_entry_equal(old, new))
+			if (!skl_ddb_entry_equal(old, new))
+				skl_print_plane_ddb_changes(plane, old, new, "ddb");
+
+			if (DISPLAY_VER(display) >= 11)
 				continue;
 
-			skl_print_plane_ddb_changes(plane, old, new, "ddb");
+			old = &old_crtc_state->wm.skl.plane_ddb_y[plane_id];
+			new = &new_crtc_state->wm.skl.plane_ddb_y[plane_id];
+
+			if (!skl_ddb_entry_equal(old, new))
+				skl_print_plane_ddb_changes(plane, old, new, "ddb_y");
 		}
 
 		for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
