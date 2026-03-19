@@ -104,18 +104,6 @@ VBLANK Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_vblank_helper.c
    :export:
 
-Simple KMS Helper Reference
-===========================
-
-.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
-   :doc: overview
-
-.. kernel-doc:: include/drm/drm_simple_kms_helper.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_simple_kms_helper.c
-   :export:
-
 fbdev Helper Functions Reference
 ================================
 
