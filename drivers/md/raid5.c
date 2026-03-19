@@ -3916,6 +3916,8 @@ static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 					break;
 			}
 			BUG_ON(other < 0);
+			if (test_bit(R5_LOCKED, &sh->dev[other].flags))
+				return 0;
 			pr_debug("Computing stripe %llu blocks %d,%d\n",
 			       (unsigned long long)sh->sector,
 			       disk_idx, other);
