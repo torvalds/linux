@@ -360,6 +360,10 @@ int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 	if (policy_has_boost_freq(policy))
 		policy->boost_supported = true;
 
+	if (policy->freq_table_sorted == CPUFREQ_TABLE_SORTED_ASCENDING ||
+	    policy->freq_table_sorted == CPUFREQ_TABLE_SORTED_DESCENDING)
+		return 0;
+
 	return set_freq_table_sorted(policy);
 }
 
