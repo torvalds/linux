@@ -20,7 +20,6 @@
 #include <linux/scatterlist.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
