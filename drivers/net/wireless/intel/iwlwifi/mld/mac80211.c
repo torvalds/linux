@@ -754,6 +754,30 @@ void iwl_mld_mac80211_remove_interface(struct ieee80211_hw *hw,
 	mld->monitor.phy.valid = false;
 }
 
+static
+int iwl_mld_mac80211_change_interface(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum nl80211_iftype new_type, bool p2p)
+{
+	enum nl80211_iftype old_type = vif->type;
+	bool old_p2p = vif->p2p;
+	int ret;
+
+	iwl_mld_mac80211_remove_interface(hw, vif);
+
+	/* set the new type for adding it cleanly */
+	vif->type = new_type;
+	vif->p2p = p2p;
+
+	ret = iwl_mld_mac80211_add_interface(hw, vif);
+
+	/* restore for mac80211, it will change it again */
+	vif->type = old_type;
+	vif->p2p = old_p2p;
+
+	return ret;
+}
+
 struct iwl_mld_mc_iter_data {
 	struct iwl_mld *mld;
 	int port_id;
@@ -2716,6 +2740,7 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.get_antenna = iwl_mld_get_antenna,
 	.set_antenna = iwl_mld_set_antenna,
 	.add_interface = iwl_mld_mac80211_add_interface,
+	.change_interface = iwl_mld_mac80211_change_interface,
 	.remove_interface = iwl_mld_mac80211_remove_interface,
 	.conf_tx = iwl_mld_mac80211_conf_tx,
 	.prepare_multicast = iwl_mld_mac80211_prepare_multicast,
