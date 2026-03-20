@@ -20911,7 +20911,8 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 	 * state when it exits.
 	 */
 	int err = check_resource_leak(env, exception_exit,
-				      !env->cur_state->curframe,
+				      exception_exit || !env->cur_state->curframe,
+				      exception_exit ? "bpf_throw" :
 				      "BPF_EXIT instruction in main prog");
 	if (err)
 		return err;
