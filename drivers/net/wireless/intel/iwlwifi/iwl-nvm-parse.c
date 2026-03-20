@@ -23,6 +23,8 @@
 #include "fw/api/commands.h"
 #include "fw/api/cmdhdr.h"
 #include "fw/img.h"
+#include "fw/dbg.h"
+
 #include "mei/iwl-mei.h"
 
 /* NVM offsets (in words) definitions */
@@ -1701,6 +1703,11 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		center_freq = ieee80211_channel_to_frequency(nvm_chan[ch_idx],
 							     band);
 		new_rule = false;
+
+		if (IWL_FW_CHECK(trans, !center_freq,
+				 "Invalid channel %d (idx %d) in NVM\n",
+				 nvm_chan[ch_idx], ch_idx))
+			continue;
 
 		if (!(ch_flags & NVM_CHANNEL_VALID)) {
 			iwl_nvm_print_channel_flags(dev, IWL_DL_LAR,
