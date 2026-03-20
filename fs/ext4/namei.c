@@ -2353,10 +2353,10 @@ out_frames:
  * may not sleep between calling this and putting something into
  * the entry, as someone else might have used it while you slept.
  */
-static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
+static int __ext4_add_entry(handle_t *handle, struct inode *dir,
+			  const struct qstr *d_name,
 			  struct inode *inode)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
 	struct buffer_head *bh = NULL;
 	struct ext4_dir_entry_2 *de;
 	struct super_block *sb;
@@ -2373,13 +2373,10 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	sb = dir->i_sb;
 	blocksize = sb->s_blocksize;
 
-	if (fscrypt_is_nokey_name(dentry))
-		return -ENOKEY;
-
-	if (!generic_ci_validate_strict_name(dir, &dentry->d_name))
+	if (!generic_ci_validate_strict_name(dir, d_name))
 		return -EINVAL;
 
-	retval = ext4_fname_setup_filename(dir, &dentry->d_name, 0, &fname);
+	retval = ext4_fname_setup_filename(dir, d_name, 0, &fname);
 	if (retval)
 		return retval;
 
@@ -2458,6 +2455,16 @@ out:
 	if (retval == 0)
 		ext4_set_inode_state(inode, EXT4_STATE_NEWENTRY);
 	return retval;
+}
+
+static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
+			  struct inode *inode)
+{
+	struct inode *dir = d_inode(dentry->d_parent);
+
+	if (fscrypt_is_nokey_name(dentry))
+		return -ENOKEY;
+	return __ext4_add_entry(handle, dir, &dentry->d_name, inode);
 }
 
 /*
