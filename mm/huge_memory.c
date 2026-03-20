@@ -2402,6 +2402,37 @@ static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
 	mm_dec_nr_ptes(mm);
 }
 
+static void zap_huge_pmd_folio(struct mm_struct *mm, struct vm_area_struct *vma,
+		pmd_t pmdval, struct folio *folio, bool is_present,
+		bool *has_deposit)
+{
+	const bool is_device_private = folio_is_device_private(folio);
+
+	/* Present and device private folios are rmappable. */
+	if (is_present || is_device_private)
+		folio_remove_rmap_pmd(folio, &folio->page, vma);
+
+	if (folio_test_anon(folio)) {
+		*has_deposit = true;
+		add_mm_counter(mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+	} else {
+		add_mm_counter(mm, mm_counter_file(folio),
+			       -HPAGE_PMD_NR);
+
+		/*
+		 * Use flush_needed to indicate whether the PMD entry
+		 * is present, instead of checking pmd_present() again.
+		 */
+		if (is_present && pmd_young(pmdval) &&
+		    likely(vma_has_recency(vma)))
+			folio_mark_accessed(folio);
+	}
+
+	/* Device private folios are pinned. */
+	if (is_device_private)
+		folio_put(folio);
+}
+
 /**
  * zap_huge_pmd - Zap a huge THP which is of PMD size.
  * @tlb: The MMU gather TLB state associated with the operation.
@@ -2417,7 +2448,7 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	bool has_deposit = arch_needs_pgtable_deposit();
 	struct mm_struct *mm = tlb->mm;
 	struct folio *folio = NULL;
-	bool flush_needed = false;
+	bool is_present = false;
 	spinlock_t *ptl;
 	pmd_t orig_pmd;
 
@@ -2446,14 +2477,11 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 	if (pmd_present(orig_pmd)) {
 		folio = pmd_folio(orig_pmd);
-
-		flush_needed = true;
-		folio_remove_rmap_pmd(folio, &folio->page, vma);
+		is_present = true;
 	} else if (pmd_is_valid_softleaf(orig_pmd)) {
 		const softleaf_t entry = softleaf_from_pmd(orig_pmd);
 
 		folio = softleaf_to_folio(entry);
-
 		if (!thp_migration_supported())
 			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
 	} else {
@@ -2461,33 +2489,14 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		goto out;
 	}
 
-	if (folio_test_anon(folio)) {
-		has_deposit = true;
-		add_mm_counter(mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-	} else {
-		add_mm_counter(mm, mm_counter_file(folio),
-			       -HPAGE_PMD_NR);
-
-		/*
-		 * Use flush_needed to indicate whether the PMD entry
-		 * is present, instead of checking pmd_present() again.
-		 */
-		if (flush_needed && pmd_young(orig_pmd) &&
-		    likely(vma_has_recency(vma)))
-			folio_mark_accessed(folio);
-	}
-
-	if (folio_is_device_private(folio)) {
-		folio_remove_rmap_pmd(folio, &folio->page, vma);
-		folio_put(folio);
-	}
+	zap_huge_pmd_folio(mm, vma, orig_pmd, folio, is_present, &has_deposit);
 
 out:
 	if (has_deposit)
 		zap_deposited_table(mm, pmd);
 
 	spin_unlock(ptl);
-	if (flush_needed)
+	if (is_present)
 		tlb_remove_page_size(tlb, &folio->page, HPAGE_PMD_SIZE);
 	return true;
 }
