@@ -95,7 +95,9 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 			      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
-void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
+static void
+_iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans,
+				   bool dump_on_timeout)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
@@ -133,7 +135,7 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 			"timeout waiting for FW reset ACK (inta_hw=0x%x, reset_done %d)\n",
 			inta_hw, reset_done);
 
-		if (!reset_done) {
+		if (!reset_done && dump_on_timeout) {
 			struct iwl_fw_error_dump_mode mode = {
 				.type = IWL_ERR_TYPE_RESET_HS_TIMEOUT,
 				.context = IWL_ERR_CONTEXT_FROM_OPMODE,
@@ -145,6 +147,11 @@ void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 	}
 
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;
+}
+
+void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
+{
+	_iwl_trans_pcie_fw_reset_handshake(trans, false);
 }
 
 static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
@@ -163,7 +170,7 @@ static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 		 * should assume that the firmware is already dead.
 		 */
 		trans->state = IWL_TRANS_NO_FW;
-		iwl_trans_pcie_fw_reset_handshake(trans);
+		_iwl_trans_pcie_fw_reset_handshake(trans, true);
 	}
 
 	trans_pcie->is_down = true;
