@@ -519,8 +519,8 @@ enum vma_operation {
  */
 struct vm_area_desc {
 	/* Immutable state. */
-	const struct mm_struct *const mm;
-	struct file *const file; /* May vary from vm_file in stacked callers. */
+	struct mm_struct *mm;
+	struct file *file; /* May vary from vm_file in stacked callers. */
 	unsigned long start;
 	unsigned long end;
 
@@ -1278,50 +1278,70 @@ static inline void vma_set_anonymous(struct vm_area_struct *vma)
 }
 
 /* Declared in vma.h. */
-static inline void set_vma_from_desc(struct vm_area_struct *vma,
+static inline void compat_set_vma_from_desc(struct vm_area_struct *vma,
 		struct vm_area_desc *desc);
+
+static inline void compat_set_desc_from_vma(struct vm_area_desc *desc,
+			      const struct file *file,
+			      const struct vm_area_struct *vma)
+{
+	memset(desc, 0, sizeof(*desc));
+
+	desc->mm = vma->vm_mm;
+	desc->file = (struct file *)file;
+	desc->start = vma->vm_start;
+	desc->end = vma->vm_end;
+
+	desc->pgoff = vma->vm_pgoff;
+	desc->vm_file = vma->vm_file;
+	desc->vma_flags = vma->flags;
+	desc->page_prot = vma->vm_page_prot;
+
+	/* Default. */
+	desc->action.type = MMAP_NOTHING;
+}
+
+static inline unsigned long vma_pages(const struct vm_area_struct *vma)
+{
+	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+}
 
 static inline int vfs_mmap_prepare(struct file *file, struct vm_area_desc *desc)
 {
 	return file->f_op->mmap_prepare(desc);
 }
 
-static inline unsigned long vma_pages(struct vm_area_struct *vma)
+static inline int __compat_vma_mmap(struct vm_area_desc *desc,
+		struct vm_area_struct *vma)
 {
-	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	int err;
+
+	/* Perform any preparatory tasks for mmap action. */
+	err = mmap_action_prepare(desc);
+	if (err)
+		return err;
+	/* Update the VMA from the descriptor. */
+	compat_set_vma_from_desc(vma, desc);
+	/* Complete any specified mmap actions. */
+	return mmap_action_complete(vma, &desc->action);
 }
 
 static inline int compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct vm_area_desc desc = {
-		.mm = vma->vm_mm,
-		.file = file,
-		.start = vma->vm_start,
-		.end = vma->vm_end,
-
-		.pgoff = vma->vm_pgoff,
-		.vm_file = vma->vm_file,
-		.vma_flags = vma->flags,
-		.page_prot = vma->vm_page_prot,
-
-		.action.type = MMAP_NOTHING, /* Default */
-	};
-	struct mmap_action *action = &desc.action;
+	struct vm_area_desc desc;
+	struct mmap_action *action;
 	int err;
 
+	compat_set_desc_from_vma(&desc, file, vma);
 	err = vfs_mmap_prepare(file, &desc);
 	if (err)
 		return err;
-
-	err = mmap_action_prepare(&desc);
-	if (err)
-		return err;
+	action = &desc.action;
 
 	/* being invoked from .mmmap means we don't have to enforce this. */
 	action->hide_from_rmap_until_complete = false;
 
-	set_vma_from_desc(vma, &desc);
-	return mmap_action_complete(vma, action);
+	return __compat_vma_mmap(&desc, vma);
 }
 
 static inline void vma_iter_init(struct vma_iterator *vmi,
