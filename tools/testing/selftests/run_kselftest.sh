@@ -22,7 +22,7 @@ usage()
 	cat <<EOF
 Usage: $0 [OPTIONS]
   -s | --summary		Print summary with detailed log in output.log (conflict with -p)
-  -p | --per-test-log		Print test log in /tmp with each test name (conflict with -s)
+  -p | --per-test-log [DIR]	Print test log in /tmp or DIR with each test name (conflict with -s)
   -t | --test COLLECTION:TEST	Run TEST from COLLECTION
   -S | --skip COLLECTION:TEST	Skip TEST from COLLECTION
   -c | --collection COLLECTION	Run all tests from COLLECTION
@@ -50,7 +50,33 @@ while true; do
 			shift ;;
 		-p | --per-test-log)
 			per_test_logging=1
-			shift ;;
+			if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+				per_test_log_dir="$2"
+				if [ -e "$per_test_log_dir" ] && [ ! -d "$per_test_log_dir" ]; then
+					echo "Per-test log path is not a dir:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				if [ ! -d "$per_test_log_dir" ] && \
+				   ! mkdir -p "$per_test_log_dir"; then
+					echo "Could not create log dir:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				per_test_log_dir=$(cd "$per_test_log_dir" && pwd -P)
+				if [ -z "$per_test_log_dir" ]; then
+					echo "Could not resolve per-test log directory" >&2
+					exit 1
+				fi
+				if [ ! -w "$per_test_log_dir" ]; then
+					echo "Per-test log dir is not writable:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				shift 2
+			else
+				shift
+			fi ;;
 		-t | --test)
 			TESTS="$TESTS $2"
 			shift 2 ;;

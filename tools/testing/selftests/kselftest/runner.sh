@@ -6,6 +6,7 @@
 export timeout_rc=124
 export logfile=/dev/stdout
 export per_test_logging=
+export per_test_log_dir=/tmp
 export RUN_IN_NETNS=
 
 # Defaults for "settings" file fields:
@@ -196,7 +197,7 @@ run_many()
 		BASENAME_TEST=$(basename $TEST)
 		test_num=$(( test_num + 1 ))
 		if [ -n "$per_test_logging" ]; then
-			logfile="/tmp/$BASENAME_TEST"
+			logfile="$per_test_log_dir/$BASENAME_TEST"
 			cat /dev/null > "$logfile"
 		fi
 		if [ -n "$RUN_IN_NETNS" ]; then
