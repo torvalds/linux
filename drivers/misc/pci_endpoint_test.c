@@ -547,7 +547,7 @@ static int pci_endpoint_test_bar_subrange(struct pci_endpoint_test *test,
 
 	sub_size = bar_size / nsub;
 	if (sub_size < sizeof(u32)) {
-		ret = -ENOSPC;
+		ret = -EINVAL;
 		goto out_clear;
 	}
 
