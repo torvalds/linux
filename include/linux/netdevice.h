@@ -1716,7 +1716,6 @@ struct net_device_ops {
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
  * @IFF_L3MDEV_SLAVE: device is enslaved to an L3 master device
  * @IFF_TEAM: device is a team device
- * @IFF_RXFH_CONFIGURED: device has had Rx Flow indirection table configured
  * @IFF_PHONY_HEADROOM: the headroom value is controlled by an external
  *	entity (i.e. the master device for bridged veth)
  * @IFF_MACSEC: device is a MACsec device
@@ -1752,7 +1751,6 @@ enum netdev_priv_flags {
 	IFF_OPENVSWITCH			= 1<<20,
 	IFF_L3MDEV_SLAVE		= 1<<21,
 	IFF_TEAM			= 1<<22,
-	IFF_RXFH_CONFIGURED		= 1<<23,
 	IFF_PHONY_HEADROOM		= 1<<24,
 	IFF_MACSEC			= 1<<25,
 	IFF_NO_RX_HANDLER		= 1<<26,
@@ -5580,10 +5578,7 @@ static inline bool netif_is_lag_port(const struct net_device *dev)
 	return netif_is_bond_slave(dev) || netif_is_team_port(dev);
 }
 
-static inline bool netif_is_rxfh_configured(const struct net_device *dev)
-{
-	return dev->priv_flags & IFF_RXFH_CONFIGURED;
-}
+bool netif_is_rxfh_configured(const struct net_device *dev);
 
 static inline bool netif_is_failover(const struct net_device *dev)
 {

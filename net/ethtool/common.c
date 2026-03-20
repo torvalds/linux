@@ -1204,6 +1204,34 @@ void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id)
 }
 EXPORT_SYMBOL(ethtool_rxfh_context_lost);
 
+bool netif_is_rxfh_configured(const struct net_device *dev)
+{
+	return dev->ethtool->rss_indir_user_size;
+}
+EXPORT_SYMBOL(netif_is_rxfh_configured);
+
+/**
+ * ethtool_rxfh_indir_lost - Notify core that the RSS indirection table was lost
+ * @dev: network device
+ *
+ * Drivers should call this when the device can no longer maintain the
+ * user-configured indirection table, typically after a HW fault recovery
+ * that reduced the maximum queue count. Marks the default RSS context
+ * indirection table as unconfigured and sends an %ETHTOOL_MSG_RSS_NTF
+ * notification.
+ */
+void ethtool_rxfh_indir_lost(struct net_device *dev)
+{
+	WARN_ONCE(!rtnl_is_locked() &&
+		  !lockdep_is_held_type(&dev->ethtool->rss_lock, -1),
+		  "RSS context lock assertion failed\n");
+
+	netdev_err(dev, "device error, RSS indirection table lost\n");
+	dev->ethtool->rss_indir_user_size = 0;
+	ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_NTF, 0);
+}
+EXPORT_SYMBOL(ethtool_rxfh_indir_lost);
+
 enum ethtool_link_medium ethtool_str_to_medium(const char *str)
 {
 	int i;
