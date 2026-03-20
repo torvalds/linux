@@ -1751,7 +1751,7 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 				return -EBUSY;
 		}
 
-		ret = iwl_mld_add_sta(mld, sta, vif, STATION_TYPE_PEER);
+		ret = iwl_mld_add_sta(mld, sta, vif);
 		if (ret)
 			return ret;
 
