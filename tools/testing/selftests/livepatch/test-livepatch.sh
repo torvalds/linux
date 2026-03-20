@@ -8,6 +8,8 @@ MOD_LIVEPATCH1=test_klp_livepatch
 MOD_LIVEPATCH2=test_klp_syscall
 MOD_LIVEPATCH3=test_klp_callbacks_demo
 MOD_REPLACE=test_klp_atomic_replace
+MOD_TARGET=test_klp_mod_target
+MOD_TARGET_PATCH=test_klp_mod_patch
 
 setup_config
 
@@ -194,6 +196,104 @@ livepatch: '$MOD_REPLACE': starting unpatching transition
 livepatch: '$MOD_REPLACE': completing unpatching transition
 livepatch: '$MOD_REPLACE': unpatching complete
 % rmmod $MOD_REPLACE"
+
+
+# - load a target module that provides /proc/test_klp_mod_target with
+#   original output
+# - load a livepatch that patches the target module's show function
+# - verify the proc entry returns livepatched output
+# - disable and unload the livepatch
+# - verify the proc entry returns original output again
+# - unload the target module
+
+start_test "module function patching"
+
+load_mod $MOD_TARGET
+
+if [[ "$(cat /proc/$MOD_TARGET)" != "$MOD_TARGET: original output" ]] ; then
+	echo -e "FAIL\n\n"
+	die "livepatch kselftest(s) failed"
+fi
+
+load_lp $MOD_TARGET_PATCH
+
+if [[ "$(cat /proc/$MOD_TARGET)" != "$MOD_TARGET_PATCH: this has been live patched" ]] ; then
+	echo -e "FAIL\n\n"
+	die "livepatch kselftest(s) failed"
+fi
+
+disable_lp $MOD_TARGET_PATCH
+unload_lp $MOD_TARGET_PATCH
+
+if [[ "$(cat /proc/$MOD_TARGET)" != "$MOD_TARGET: original output" ]] ; then
+	echo -e "FAIL\n\n"
+	die "livepatch kselftest(s) failed"
+fi
+
+unload_mod $MOD_TARGET
+
+check_result "% insmod test_modules/$MOD_TARGET.ko
+$MOD_TARGET: test_klp_mod_target_init
+% insmod test_modules/$MOD_TARGET_PATCH.ko
+livepatch: enabling patch '$MOD_TARGET_PATCH'
+livepatch: '$MOD_TARGET_PATCH': initializing patching transition
+livepatch: '$MOD_TARGET_PATCH': starting patching transition
+livepatch: '$MOD_TARGET_PATCH': completing patching transition
+livepatch: '$MOD_TARGET_PATCH': patching complete
+% echo 0 > $SYSFS_KLP_DIR/$MOD_TARGET_PATCH/enabled
+livepatch: '$MOD_TARGET_PATCH': initializing unpatching transition
+livepatch: '$MOD_TARGET_PATCH': starting unpatching transition
+livepatch: '$MOD_TARGET_PATCH': completing unpatching transition
+livepatch: '$MOD_TARGET_PATCH': unpatching complete
+% rmmod $MOD_TARGET_PATCH
+% rmmod $MOD_TARGET
+$MOD_TARGET: test_klp_mod_target_exit"
+
+
+# - load a livepatch that targets a not-yet-loaded module
+# - load the target module: klp_module_coming patches it immediately
+# - verify the proc entry returns livepatched output
+# - disable and unload the livepatch
+# - verify the proc entry returns original output again
+# - unload the target module
+
+start_test "module function patching (livepatch first)"
+
+load_lp $MOD_TARGET_PATCH
+load_mod $MOD_TARGET
+
+if [[ "$(cat /proc/$MOD_TARGET)" != "$MOD_TARGET_PATCH: this has been live patched" ]] ; then
+	echo -e "FAIL\n\n"
+	die "livepatch kselftest(s) failed"
+fi
+
+disable_lp $MOD_TARGET_PATCH
+unload_lp $MOD_TARGET_PATCH
+
+if [[ "$(cat /proc/$MOD_TARGET)" != "$MOD_TARGET: original output" ]] ; then
+	echo -e "FAIL\n\n"
+	die "livepatch kselftest(s) failed"
+fi
+
+unload_mod $MOD_TARGET
+
+check_result "% insmod test_modules/$MOD_TARGET_PATCH.ko
+livepatch: enabling patch '$MOD_TARGET_PATCH'
+livepatch: '$MOD_TARGET_PATCH': initializing patching transition
+livepatch: '$MOD_TARGET_PATCH': starting patching transition
+livepatch: '$MOD_TARGET_PATCH': completing patching transition
+livepatch: '$MOD_TARGET_PATCH': patching complete
+% insmod test_modules/$MOD_TARGET.ko
+livepatch: applying patch '$MOD_TARGET_PATCH' to loading module '$MOD_TARGET'
+$MOD_TARGET: test_klp_mod_target_init
+% echo 0 > $SYSFS_KLP_DIR/$MOD_TARGET_PATCH/enabled
+livepatch: '$MOD_TARGET_PATCH': initializing unpatching transition
+livepatch: '$MOD_TARGET_PATCH': starting unpatching transition
+livepatch: '$MOD_TARGET_PATCH': completing unpatching transition
+livepatch: '$MOD_TARGET_PATCH': unpatching complete
+% rmmod $MOD_TARGET_PATCH
+% rmmod $MOD_TARGET
+$MOD_TARGET: test_klp_mod_target_exit"
 
 
 exit 0
