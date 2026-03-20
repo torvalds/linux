@@ -2348,4 +2348,8 @@ enum nvme_pr_change_ptpl {
 
 #define NVME_PR_IGNORE_KEY (1 << 3)
 
+/* Section 8.3.4.5.2 of the NVMe 2.1 */
+#define NVME_AUTH_DHCHAP_MAX_HASH_IDS 30
+#define NVME_AUTH_DHCHAP_MAX_DH_IDS 30
+
 #endif /* _LINUX_NVME_H */
