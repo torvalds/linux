@@ -369,15 +369,39 @@ out:
 static void iwl_mld_update_link_sig(struct ieee80211_vif *vif, int sig,
 				    struct ieee80211_bss_conf *bss_conf)
 {
+	struct iwl_mld_link *link = iwl_mld_link_from_mac80211(bss_conf);
 	struct iwl_mld *mld = iwl_mld_vif_from_mac80211(vif)->mld;
 	int exit_emlsr_thresh;
+	int last_event;
 
 	if (sig == 0) {
 		IWL_DEBUG_RX(mld, "RSSI is 0 - skip signal based decision\n");
 		return;
 	}
 
-	/* TODO: task=statistics handle CQM notifications */
+	if (WARN_ON(!link))
+		return;
+
+	/* CQM Notification */
+	if (vif->driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI) {
+		int thold = bss_conf->cqm_rssi_thold;
+		int hyst = bss_conf->cqm_rssi_hyst;
+
+		last_event = link->last_cqm_rssi_event;
+		if (thold && sig < thold &&
+		    (last_event == 0 || sig < last_event - hyst)) {
+			link->last_cqm_rssi_event = sig;
+			ieee80211_cqm_rssi_notify(vif,
+						  NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+						  sig, GFP_KERNEL);
+		} else if (sig > thold &&
+			   (last_event == 0 || sig > last_event + hyst)) {
+			link->last_cqm_rssi_event = sig;
+			ieee80211_cqm_rssi_notify(vif,
+						  NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+						  sig, GFP_KERNEL);
+		}
+	}
 
 	if (!iwl_mld_emlsr_active(vif)) {
 		/* We're not in EMLSR and our signal is bad,
