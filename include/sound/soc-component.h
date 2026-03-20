@@ -224,7 +224,6 @@ struct snd_soc_component {
 	int num_dai;
 
 	struct regmap *regmap;
-	int val_bytes;
 
 	struct mutex io_mutex;
 
@@ -327,7 +326,7 @@ int snd_soc_component_stream_event(struct snd_soc_component *component,
 int snd_soc_component_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level);
 
-void snd_soc_component_setup_regmap(struct snd_soc_component *component);
+int snd_soc_component_regmap_val_bytes(struct snd_soc_component *component);
 #ifdef CONFIG_REGMAP
 void snd_soc_component_init_regmap(struct snd_soc_component *component,
 				   struct regmap *regmap);

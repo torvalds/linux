@@ -2906,8 +2906,6 @@ int snd_soc_add_component(struct snd_soc_component *component,
 		if (!component->regmap)
 			component->regmap = dev_get_regmap(component->dev,
 							   NULL);
-		if (component->regmap)
-			snd_soc_component_setup_regmap(component);
 	}
 
 	/* see for_each_component */

@@ -472,9 +472,10 @@ int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_bytes *params = (void *)kcontrol->private_value;
+	int val_bytes = snd_soc_component_regmap_val_bytes(component);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
-	uinfo->count = params->num_regs * component->val_bytes;
+	uinfo->count = params->num_regs * val_bytes;
 
 	return 0;
 }
@@ -485,18 +486,19 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_bytes *params = (void *)kcontrol->private_value;
+	int val_bytes = snd_soc_component_regmap_val_bytes(component);
 	int ret;
 
 	if (component->regmap)
 		ret = regmap_raw_read(component->regmap, params->base,
 				      ucontrol->value.bytes.data,
-				      params->num_regs * component->val_bytes);
+				      params->num_regs * val_bytes);
 	else
 		ret = -EINVAL;
 
 	/* Hide any masked bytes to ensure consistent data reporting */
 	if (ret == 0 && params->mask) {
-		switch (component->val_bytes) {
+		switch (val_bytes) {
 		case 1:
 			ucontrol->value.bytes.data[0] &= ~params->mask;
 			break;
@@ -522,13 +524,14 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_bytes *params = (void *)kcontrol->private_value;
+	int val_bytes = snd_soc_component_regmap_val_bytes(component);
 	unsigned int val, mask;
 	int ret, len;
 
 	if (!component->regmap || !params->num_regs)
 		return -EINVAL;
 
-	len = params->num_regs * component->val_bytes;
+	len = params->num_regs * val_bytes;
 
 	void *data __free(kfree) = kmemdup(ucontrol->value.bytes.data, len,
 					   GFP_KERNEL | GFP_DMA);
@@ -547,7 +550,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 
 		val &= params->mask;
 
-		switch (component->val_bytes) {
+		switch (val_bytes) {
 		case 1:
 			((u8 *)data)[0] &= ~params->mask;
 			((u8 *)data)[0] |= val;
@@ -670,9 +673,10 @@ int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mreg_control *mc =
 		(struct soc_mreg_control *)kcontrol->private_value;
+	int val_bytes = snd_soc_component_regmap_val_bytes(component);
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
-	unsigned int regwshift = component->val_bytes * BITS_PER_BYTE;
+	unsigned int regwshift = val_bytes * BITS_PER_BYTE;
 	unsigned int regwmask = GENMASK(regwshift - 1, 0);
 	unsigned long mask = GENMASK(mc->nbits - 1, 0);
 	long val = 0;
@@ -714,9 +718,10 @@ int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mreg_control *mc =
 		(struct soc_mreg_control *)kcontrol->private_value;
+	int val_bytes = snd_soc_component_regmap_val_bytes(component);
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
-	unsigned int regwshift = component->val_bytes * BITS_PER_BYTE;
+	unsigned int regwshift = val_bytes * BITS_PER_BYTE;
 	unsigned int regwmask = GENMASK(regwshift - 1, 0);
 	unsigned long mask = GENMASK(mc->nbits - 1, 0);
 	long val = ucontrol->value.integer.value[0];
