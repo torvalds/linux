@@ -704,4 +704,55 @@ int create_init_stack_vma(struct mm_struct *mm, struct vm_area_struct **vmap,
 int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
 #endif
 
+#ifdef CONFIG_MMU
+/*
+ * Denies creating a writable executable mapping or gaining executable permissions.
+ *
+ * This denies the following:
+ *
+ *	a)	mmap(PROT_WRITE | PROT_EXEC)
+ *
+ *	b)	mmap(PROT_WRITE)
+ *		mprotect(PROT_EXEC)
+ *
+ *	c)	mmap(PROT_WRITE)
+ *		mprotect(PROT_READ)
+ *		mprotect(PROT_EXEC)
+ *
+ * But allows the following:
+ *
+ *	d)	mmap(PROT_READ | PROT_EXEC)
+ *		mmap(PROT_READ | PROT_EXEC | PROT_BTI)
+ *
+ * This is only applicable if the user has set the Memory-Deny-Write-Execute
+ * (MDWE) protection mask for the current process.
+ *
+ * @old specifies the VMA flags the VMA originally possessed, and @new the ones
+ * we propose to set.
+ *
+ * Return: false if proposed change is OK, true if not ok and should be denied.
+ */
+static inline bool map_deny_write_exec(const vma_flags_t *old,
+				       const vma_flags_t *new)
+{
+	/* If MDWE is disabled, we have nothing to deny. */
+	if (!mm_flags_test(MMF_HAS_MDWE, current->mm))
+		return false;
+
+	/* If the new VMA is not executable, we have nothing to deny. */
+	if (!vma_flags_test(new, VMA_EXEC_BIT))
+		return false;
+
+	/* Under MDWE we do not accept newly writably executable VMAs... */
+	if (vma_flags_test(new, VMA_WRITE_BIT))
+		return true;
+
+	/* ...nor previously non-executable VMAs becoming executable. */
+	if (!vma_flags_test(old, VMA_EXEC_BIT))
+		return true;
+
+	return false;
+}
+#endif
+
 #endif	/* __MM_VMA_H */

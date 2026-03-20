@@ -882,6 +882,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	tmp = vma->vm_start;
 	for_each_vma_range(vmi, vma, end) {
 		vm_flags_t mask_off_old_flags;
+		vma_flags_t new_vma_flags;
 		vm_flags_t newflags;
 		int new_vma_pkey;
 
@@ -904,6 +905,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 		new_vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
 		newflags = calc_vm_prot_bits(prot, new_vma_pkey);
 		newflags |= (vma->vm_flags & ~mask_off_old_flags);
+		new_vma_flags = legacy_to_vma_flags(newflags);
 
 		/* newflags >> 4 shift VM_MAY% in place of VM_% */
 		if ((newflags & ~(newflags >> 4)) & VM_ACCESS_FLAGS) {
@@ -911,7 +913,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 			break;
 		}
 
-		if (map_deny_write_exec(vma->vm_flags, newflags)) {
+		if (map_deny_write_exec(&vma->flags, &new_vma_flags)) {
 			error = -EACCES;
 			break;
 		}
