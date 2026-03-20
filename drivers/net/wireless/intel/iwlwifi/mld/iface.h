@@ -219,8 +219,6 @@ iwl_mld_link_from_mac80211(struct ieee80211_bss_conf *bss_conf)
 	return iwl_mld_link_dereference_check(mld_vif, bss_conf->link_id);
 }
 
-int iwl_mld_mac80211_iftype_to_fw(const struct ieee80211_vif *vif);
-
 /* Cleanup function for struct iwl_mld_vif, will be called in restart */
 void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif);
 int iwl_mld_mac_fw_action(struct iwl_mld *mld, struct ieee80211_vif *vif,
