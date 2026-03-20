@@ -68,6 +68,8 @@ static const struct smu_feature_bits smu_v14_0_2_dpm_features = {
 		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT) }
 };
 
+#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x2E
+
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 #define DEBUGSMC_MSG_Mode1Reset        2
 #define LINK_SPEED_MAX					3
@@ -2798,7 +2800,7 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.fini_power = smu_v14_0_fini_power,
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.setup_pptable = smu_v14_0_2_setup_pptable,
-	.check_fw_version = smu_v14_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.set_driver_table_location = smu_v14_0_set_driver_table_location,
 	.system_features_control = smu_v14_0_system_features_control,
 	.set_allowed_mask = smu_v14_0_set_allowed_mask,
@@ -2863,5 +2865,6 @@ void smu_v14_0_2_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v14_0_2_table_map;
 	smu->pwr_src_map = smu_v14_0_2_pwr_src_map;
 	smu->workload_map = smu_v14_0_2_workload_map;
+	smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
 	smu_v14_0_2_init_msg_ctl(smu);
 }
