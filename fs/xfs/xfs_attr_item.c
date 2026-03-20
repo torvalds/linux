@@ -1132,52 +1132,6 @@ xlog_recover_attri_commit_pass2(
 		return -EFSCORRUPTED;
 	}
 
-	switch (op) {
-	case XFS_ATTRI_OP_FLAGS_REMOVE:
-		/* Regular remove operations operate only on names. */
-		if (attr_value != NULL || value_len != 0) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					     attri_formatp, len);
-			return -EFSCORRUPTED;
-		}
-		fallthrough;
-	case XFS_ATTRI_OP_FLAGS_PPTR_REMOVE:
-	case XFS_ATTRI_OP_FLAGS_PPTR_SET:
-	case XFS_ATTRI_OP_FLAGS_SET:
-	case XFS_ATTRI_OP_FLAGS_REPLACE:
-		/*
-		 * Regular xattr set/remove/replace operations require a name
-		 * and do not take a newname.  Values are optional for set and
-		 * replace.
-		 *
-		 * Name-value set/remove operations must have a name, do not
-		 * take a newname, and can take a value.
-		 */
-		if (attr_name == NULL || name_len == 0) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					     attri_formatp, len);
-			return -EFSCORRUPTED;
-		}
-		break;
-	case XFS_ATTRI_OP_FLAGS_PPTR_REPLACE:
-		/*
-		 * Name-value replace operations require the caller to
-		 * specify the old and new names and values explicitly.
-		 * Values are optional.
-		 */
-		if (attr_name == NULL || name_len == 0) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					     attri_formatp, len);
-			return -EFSCORRUPTED;
-		}
-		if (attr_new_name == NULL || new_name_len == 0) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					     attri_formatp, len);
-			return -EFSCORRUPTED;
-		}
-		break;
-	}
-
 	/*
 	 * Memory alloc failure will cause replay to abort.  We attach the
 	 * name/value buffer to the recovered incore log item and drop our
