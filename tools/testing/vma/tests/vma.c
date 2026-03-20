@@ -22,7 +22,8 @@ static bool compare_legacy_flags(vm_flags_t legacy_flags, vma_flags_t flags)
 
 static bool test_copy_vma(void)
 {
-	vm_flags_t vm_flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE;
+	vma_flags_t vma_flags = mk_vma_flags(VMA_READ_BIT, VMA_WRITE_BIT,
+					     VMA_MAYREAD_BIT, VMA_MAYWRITE_BIT);
 	struct mm_struct mm = {};
 	bool need_locks = false;
 	VMA_ITERATOR(vmi, &mm, 0);
@@ -30,7 +31,7 @@ static bool test_copy_vma(void)
 
 	/* Move backwards and do not merge. */
 
-	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, vm_flags);
+	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, vma_flags);
 	vma_new = copy_vma(&vma, 0, 0x2000, 0, &need_locks);
 	ASSERT_NE(vma_new, vma);
 	ASSERT_EQ(vma_new->vm_start, 0);
@@ -42,8 +43,8 @@ static bool test_copy_vma(void)
 
 	/* Move a VMA into position next to another and merge the two. */
 
-	vma = alloc_and_link_vma(&mm, 0, 0x2000, 0, vm_flags);
-	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x8000, 6, vm_flags);
+	vma = alloc_and_link_vma(&mm, 0, 0x2000, 0, vma_flags);
+	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x8000, 6, vma_flags);
 	vma_new = copy_vma(&vma, 0x4000, 0x2000, 4, &need_locks);
 	vma_assert_attached(vma_new);
 
@@ -60,7 +61,6 @@ static bool test_vma_flags_unchanged(void)
 	int bit;
 	struct vm_area_struct vma;
 	struct vm_area_desc desc;
-
 
 	vma.flags = EMPTY_VMA_FLAGS;
 	desc.vma_flags = EMPTY_VMA_FLAGS;
