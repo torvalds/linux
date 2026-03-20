@@ -3573,27 +3573,12 @@ invalid_opcode:
 	return 1;
 }
 
-/**
- *	ata_scsiop_maint_in - Simulate a subset of MAINTENANCE_IN
- *	@dev: Target device.
- *	@cmd: SCSI command of interest.
- *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
- *
- *	Yields a subset to satisfy scsi_report_opcode()
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-static unsigned int ata_scsiop_maint_in(struct ata_device *dev,
-					struct scsi_cmnd *cmd, u8 *rbuf)
+static unsigned int ata_scsi_report_supported_opcodes(struct ata_device *dev,
+						      struct scsi_cmnd *cmd,
+						      u8 *rbuf)
 {
 	u8 *cdb = cmd->cmnd;
 	u8 supported = 0, cdlp = 0, rwcdlp = 0;
-
-	if ((cdb[1] & 0x1f) != MI_REPORT_SUPPORTED_OPERATION_CODES) {
-		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
-		return 0;
-	}
 
 	if (cdb[2] != 1 && cdb[2] != 3) {
 		ata_dev_warn(dev, "invalid command format %d\n", cdb[2]);
@@ -3672,6 +3657,32 @@ static unsigned int ata_scsiop_maint_in(struct ata_device *dev,
 	rbuf[1] = cdlp | supported;
 
 	return 4;
+}
+
+/**
+ *	ata_scsiop_maint_in - Simulate a subset of MAINTENANCE_IN
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Yields a subset to satisfy scsi_report_opcode()
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_maint_in(struct ata_device *dev,
+					struct scsi_cmnd *cmd, u8 *rbuf)
+{
+	u8 *cdb = cmd->cmnd;
+	u8 service_action = cdb[1] & 0x1f;
+
+	switch (service_action) {
+	case MI_REPORT_SUPPORTED_OPERATION_CODES:
+		return ata_scsi_report_supported_opcodes(dev, cmd, rbuf);
+	default:
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 0;
+	}
 }
 
 /**
