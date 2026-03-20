@@ -133,6 +133,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.dbg.mem_tlv);
 	kfree(drv->fw.iml);
 	kfree(drv->fw.ucode_capa.cmd_versions);
+	kfree(drv->fw.ucode_capa.cmd_bios_tables);
 	kfree(drv->fw.phy_integration_ver);
 	kfree(drv->trans->dbg.pc_data);
 	drv->trans->dbg.pc_data = NULL;
@@ -1425,6 +1426,26 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (!drv->fw.pnvm_data)
 				return -ENOMEM;
 			drv->fw.pnvm_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_CMD_BIOS_TABLE:
+			if (tlv_len % sizeof(struct iwl_fw_cmd_bios_table)) {
+				IWL_ERR(drv,
+					"Invalid length for command bios table: %u\n",
+					tlv_len);
+				return -EINVAL;
+			}
+
+			if (capa->cmd_bios_tables) {
+				IWL_ERR(drv, "Duplicate TLV type 0x%02X detected\n",
+					tlv_type);
+				return -EINVAL;
+			}
+			capa->cmd_bios_tables = kmemdup(tlv_data, tlv_len,
+							GFP_KERNEL);
+			if (!capa->cmd_bios_tables)
+				return -ENOMEM;
+			capa->n_cmd_bios_tables =
+				tlv_len / sizeof(struct iwl_fw_cmd_bios_table);
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);

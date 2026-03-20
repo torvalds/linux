@@ -204,7 +204,7 @@ struct iwl_nvm_get_info_phy {
 } __packed; /* REGULATORY_NVM_GET_INFO_PHY_SKU_SECTION_S_VER_1 */
 
 #define IWL_NUM_CHANNELS_V1	51
-#define IWL_NUM_CHANNELS	110
+#define IWL_NUM_CHANNELS_V2	110
 
 /**
  * struct iwl_nvm_get_info_regulatory_v1 - regulatory information
@@ -227,7 +227,7 @@ struct iwl_nvm_get_info_regulatory_v1 {
 struct iwl_nvm_get_info_regulatory {
 	__le32 lar_enabled;
 	__le32 n_channels;
-	__le32 channel_profile[IWL_NUM_CHANNELS];
+	__le32 channel_profile[IWL_NUM_CHANNELS_V2];
 } __packed; /* REGULATORY_NVM_GET_INFO_REGULATORY_S_VER_2 */
 
 /**

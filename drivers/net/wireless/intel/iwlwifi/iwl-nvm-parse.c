@@ -2031,7 +2031,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
-	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS);
+	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS_V2);
 	if (!nvm) {
 		ret = -ENOMEM;
 		goto out;
