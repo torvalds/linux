@@ -73,6 +73,10 @@ static const struct smu_feature_bits navi10_dpm_features = {
 
 #define SMU_11_0_GFX_BUSY_THRESHOLD 15
 
+#define SMU11_DRIVER_IF_VERSION_NV10  0x37
+#define SMU11_DRIVER_IF_VERSION_NV12  0x38
+#define SMU11_DRIVER_IF_VERSION_NV14  0x38
+
 static struct cmn2asic_msg_mapping navi10_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,			1),
 	MSG_MAP(GetSmuVersion,			PPSMC_MSG_GetSmuVersion,		1),
@@ -3308,7 +3312,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.check_fw_status = smu_v11_0_check_fw_status,
 	.setup_pptable = navi10_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.check_fw_version = smu_v11_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
@@ -3361,11 +3365,26 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 
 void navi10_set_ppt_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->ppt_funcs = &navi10_ppt_funcs;
 	smu->clock_map = navi10_clk_map;
 	smu->feature_map = navi10_feature_mask_map;
 	smu->table_map = navi10_table_map;
 	smu->pwr_src_map = navi10_pwr_src_map;
 	smu->workload_map = navi10_workload_map;
+
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
+	case IP_VERSION(11, 0, 0):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV10;
+		break;
+	case IP_VERSION(11, 0, 9):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV12;
+		break;
+	case IP_VERSION(11, 0, 5):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV14;
+		break;
+	}
+
 	smu_v11_0_init_msg_ctl(smu, navi10_message_map);
 }
