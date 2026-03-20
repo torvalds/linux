@@ -1163,33 +1163,7 @@ void flush_dcache_folio(struct folio *folio)
 EXPORT_SYMBOL(flush_dcache_folio);
 #endif
 
-/**
- * compat_vma_mmap() - Apply the file's .mmap_prepare() hook to an
- * existing VMA and execute any requested actions.
- * @file: The file which possesss an f_op->mmap_prepare() hook.
- * @vma: The VMA to apply the .mmap_prepare() hook to.
- *
- * Ordinarily, .mmap_prepare() is invoked directly upon mmap(). However, certain
- * stacked filesystems invoke a nested mmap hook of an underlying file.
- *
- * Until all filesystems are converted to use .mmap_prepare(), we must be
- * conservative and continue to invoke these stacked filesystems using the
- * deprecated .mmap() hook.
- *
- * However we have a problem if the underlying file system possesses an
- * .mmap_prepare() hook, as we are in a different context when we invoke the
- * .mmap() hook, already having a VMA to deal with.
- *
- * compat_vma_mmap() is a compatibility function that takes VMA state,
- * establishes a struct vm_area_desc descriptor, passes to the underlying
- * .mmap_prepare() hook and applies any changes performed by it.
- *
- * Once the conversion of filesystems is complete this function will no longer
- * be required and will be removed.
- *
- * Returns: 0 on success or error.
- */
-int compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
+static int __compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct vm_area_desc desc = {
 		.mm = vma->vm_mm,
@@ -1221,7 +1195,48 @@ int compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
 	set_vma_from_desc(vma, &desc);
 	return mmap_action_complete(vma, action);
 }
+
+/**
+ * compat_vma_mmap() - Apply the file's .mmap_prepare() hook to an
+ * existing VMA and execute any requested actions.
+ * @file: The file which possesss an f_op->mmap_prepare() hook.
+ * @vma: The VMA to apply the .mmap_prepare() hook to.
+ *
+ * Ordinarily, .mmap_prepare() is invoked directly upon mmap(). However, certain
+ * stacked filesystems invoke a nested mmap hook of an underlying file.
+ *
+ * Until all filesystems are converted to use .mmap_prepare(), we must be
+ * conservative and continue to invoke these stacked filesystems using the
+ * deprecated .mmap() hook.
+ *
+ * However we have a problem if the underlying file system possesses an
+ * .mmap_prepare() hook, as we are in a different context when we invoke the
+ * .mmap() hook, already having a VMA to deal with.
+ *
+ * compat_vma_mmap() is a compatibility function that takes VMA state,
+ * establishes a struct vm_area_desc descriptor, passes to the underlying
+ * .mmap_prepare() hook and applies any changes performed by it.
+ *
+ * Once the conversion of filesystems is complete this function will no longer
+ * be required and will be removed.
+ *
+ * Returns: 0 on success or error.
+ */
+int compat_vma_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return __compat_vma_mmap(file, vma);
+}
 EXPORT_SYMBOL(compat_vma_mmap);
+
+int __vma_check_mmap_hook(struct vm_area_struct *vma)
+{
+	/* vm_ops->mapped is not valid if mmap() is specified. */
+	if (vma->vm_ops && WARN_ON_ONCE(vma->vm_ops->mapped))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(__vma_check_mmap_hook);
 
 static void set_ps_flags(struct page_snapshot *ps, const struct folio *folio,
 			 const struct page *page)
@@ -1311,11 +1326,32 @@ again:
 	}
 }
 
+static int call_vma_mapped(struct vm_area_struct *vma)
+{
+	const struct vm_operations_struct *vm_ops = vma->vm_ops;
+	void *vm_private_data = vma->vm_private_data;
+	int err;
+
+	if (!vm_ops || !vm_ops->mapped)
+		return 0;
+
+	err = vm_ops->mapped(vma->vm_start, vma->vm_end, vma->vm_pgoff,
+			     vma->vm_file, &vm_private_data);
+	if (err)
+		return err;
+
+	if (vm_private_data != vma->vm_private_data)
+		vma->vm_private_data = vm_private_data;
+	return 0;
+}
+
 static int mmap_action_finish(struct vm_area_struct *vma,
 			      struct mmap_action *action, int err)
 {
 	size_t len;
 
+	if (!err)
+		err = call_vma_mapped(vma);
 	if (!err && action->success_hook)
 		err = action->success_hook(vma);
 

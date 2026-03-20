@@ -25,6 +25,21 @@ That is - no resources should be allocated nor state updated to reflect that a
 mapping has been established, as the mapping may either be merged, or fail to be
 mapped after the callback is complete.
 
+Mapped callback
+---------------
+
+If resources need to be allocated per-mapping, or state such as a reference
+count needs to be manipulated, this should be done using the ``vm_ops->mapped``
+hook, which itself should be set by the >mmap_prepare hook.
+
+This callback is only invoked if a new mapping has been established and was not
+merged with any other, and is invoked at a point where no error may occur before
+the mapping is established.
+
+You may return an error to the callback itself, which will cause the mapping to
+become unmapped and an error returned to the mmap() caller. This is useful if
+resources need to be allocated, and that allocation might fail.
+
 How To Use
 ==========
 

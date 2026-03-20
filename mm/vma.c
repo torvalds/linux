@@ -2781,7 +2781,6 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 
 	if (have_mmap_prepare && allocated_new) {
 		error = mmap_action_complete(vma, &desc.action);
-
 		if (error)
 			return error;
 	}
