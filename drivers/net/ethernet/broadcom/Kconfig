@@ -25,7 +25,7 @@ config B44
 	select SSB
 	select MII
 	select PHYLIB
-	select FIXED_PHY if BCM47XX
+	select FIXED_PHY
 	help
 	  If you have a network (Ethernet) controller of this type, say Y
 	  or M here.
