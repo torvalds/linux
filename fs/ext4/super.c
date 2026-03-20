@@ -1523,6 +1523,27 @@ void ext4_clear_inode(struct inode *inode)
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 	ext4_discard_preallocations(inode);
+	/*
+	 * We must remove the inode from the hash before ext4_free_inode()
+	 * clears the bit in inode bitmap as otherwise another process reusing
+	 * the inode will block in insert_inode_hash() waiting for inode
+	 * eviction to complete while holding transaction handle open, but
+	 * ext4_evict_inode() still running for that inode could block waiting
+	 * for transaction commit if the inode is marked as IS_SYNC => deadlock.
+	 *
+	 * Removing the inode from the hash here is safe. There are two cases
+	 * to consider:
+	 * 1) The inode still has references to it (i_nlink > 0). In that case
+	 * we are keeping the inode and once we remove the inode from the hash,
+	 * iget() can create the new inode structure for the same inode number
+	 * and we are fine with that as all IO on behalf of the inode is
+	 * finished.
+	 * 2) We are deleting the inode (i_nlink == 0). In that case inode
+	 * number cannot be reused until ext4_free_inode() clears the bit in
+	 * the inode bitmap, at which point all IO is done and reuse is fine
+	 * again.
+	 */
+	remove_inode_hash(inode);
 	ext4_es_remove_extent(inode, 0, EXT_MAX_BLOCKS);
 	dquot_drop(inode);
 	if (EXT4_I(inode)->jinode) {
