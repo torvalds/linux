@@ -4792,6 +4792,16 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 				       0, last_segment, skb->len);
 	}
 
+	if (priv->sarc_type)
+		stmmac_set_desc_sarc(priv, first_desc, priv->sarc_type);
+
+	if (tx_q->tbs & STMMAC_TBS_EN) {
+		struct timespec64 ts = ns_to_timespec64(skb->tstamp);
+
+		tbs_desc = &tx_q->dma_entx[first_entry];
+		stmmac_set_desc_tbs(priv, tbs_desc, ts.tv_sec, ts.tv_nsec);
+	}
+
 	for (i = 0; i < nfrags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		unsigned int frag_size = skb_frag_size(frag);
@@ -4877,16 +4887,6 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (set_ic)
 		u64_stats_inc(&txq_stats->q.tx_set_ic_bit);
 	u64_stats_update_end(&txq_stats->q_syncp);
-
-	if (priv->sarc_type)
-		stmmac_set_desc_sarc(priv, first_desc, priv->sarc_type);
-
-	if (tx_q->tbs & STMMAC_TBS_EN) {
-		struct timespec64 ts = ns_to_timespec64(skb->tstamp);
-
-		tbs_desc = &tx_q->dma_entx[first_entry];
-		stmmac_set_desc_tbs(priv, tbs_desc, ts.tv_sec, ts.tv_nsec);
-	}
 
 	/* Set the OWN bit on the first descriptor now that all descriptors
 	 * for this skb are populated.
