@@ -185,7 +185,7 @@ static void subsection_mask_set(unsigned long *map, unsigned long pfn,
 	bitmap_set(map, idx, end - idx + 1);
 }
 
-void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
+void __init sparse_init_subsection_map(unsigned long pfn, unsigned long nr_pages)
 {
 	int end_sec_nr = pfn_to_section_nr(pfn + nr_pages - 1);
 	unsigned long nr, start_sec_nr = pfn_to_section_nr(pfn);
@@ -206,10 +206,6 @@ void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
 		pfn += pfns;
 		nr_pages -= pfns;
 	}
-}
-#else
-void __init subsection_map_init(unsigned long pfn, unsigned long nr_pages)
-{
 }
 #endif
 
