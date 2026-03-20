@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 
 #include <linux/nfc.h>
 #include <net/nfc/hci.h>
