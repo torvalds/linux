@@ -18,7 +18,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: apple,t6020-pinctrl
+          - enum:
+              - apple,t6020-pinctrl
+              - apple,t8122-pinctrl
           - const: apple,t8103-pinctrl
       - items:
           # Do not add additional SoC to this list.
