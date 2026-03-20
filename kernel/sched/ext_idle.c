@@ -424,18 +424,24 @@ static inline bool task_affinity_all(const struct task_struct *p)
  *   - prefer the last used CPU to take advantage of cached data (L1, L2) and
  *     branch prediction optimizations.
  *
- * 3. Pick a CPU within the same LLC (Last-Level Cache):
+ * 3. Prefer @prev_cpu's SMT sibling:
+ *   - if @prev_cpu is busy and no fully idle core is available, try to
+ *     place the task on an idle SMT sibling of @prev_cpu; keeping the
+ *     task on the same core makes migration cheaper, preserves L1 cache
+ *     locality and reduces wakeup latency.
+ *
+ * 4. Pick a CPU within the same LLC (Last-Level Cache):
  *   - if the above conditions aren't met, pick a CPU that shares the same
  *     LLC, if the LLC domain is a subset of @cpus_allowed, to maintain
  *     cache locality.
  *
- * 4. Pick a CPU within the same NUMA node, if enabled:
+ * 5. Pick a CPU within the same NUMA node, if enabled:
  *   - choose a CPU from the same NUMA node, if the node cpumask is a
  *     subset of @cpus_allowed, to reduce memory access latency.
  *
- * 5. Pick any idle CPU within the @cpus_allowed domain.
+ * 6. Pick any idle CPU within the @cpus_allowed domain.
  *
- * Step 3 and 4 are performed only if the system has, respectively,
+ * Step 4 and 5 are performed only if the system has, respectively,
  * multiple LLCs / multiple NUMA nodes (see scx_selcpu_topo_llc and
  * scx_selcpu_topo_numa) and they don't contain the same subset of CPUs.
  *
@@ -614,6 +620,18 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	if (is_prev_allowed && scx_idle_test_and_clear_cpu(prev_cpu)) {
 		cpu = prev_cpu;
 		goto out_unlock;
+	}
+
+	/*
+	 * Use @prev_cpu's sibling if it's idle.
+	 */
+	if (sched_smt_active()) {
+		for_each_cpu_and(cpu, cpu_smt_mask(prev_cpu), allowed) {
+			if (cpu == prev_cpu)
+				continue;
+			if (scx_idle_test_and_clear_cpu(cpu))
+				goto out_unlock;
+		}
 	}
 
 	/*
