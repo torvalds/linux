@@ -1232,6 +1232,161 @@ void ethtool_rxfh_indir_lost(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_rxfh_indir_lost);
 
+static bool ethtool_rxfh_is_periodic(const u32 *tbl, u32 old_size, u32 new_size)
+{
+	u32 i;
+
+	for (i = new_size; i < old_size; i++)
+		if (tbl[i] != tbl[i % new_size])
+			return false;
+	return true;
+}
+
+static bool ethtool_rxfh_can_resize(const u32 *tbl, u32 old_size, u32 new_size,
+				    u32 user_size)
+{
+	if (new_size == old_size)
+		return true;
+
+	if (!user_size)
+		return true;
+
+	if (new_size < old_size) {
+		if (new_size < user_size)
+			return false;
+		if (old_size % new_size)
+			return false;
+		if (!ethtool_rxfh_is_periodic(tbl, old_size, new_size))
+			return false;
+		return true;
+	}
+
+	if (new_size % old_size)
+		return false;
+	return true;
+}
+
+/* Resize without validation; caller must have called can_resize first */
+static void ethtool_rxfh_resize(u32 *tbl, u32 old_size, u32 new_size)
+{
+	u32 i;
+
+	/* Grow: replicate existing pattern; shrink is a no-op on the data */
+	for (i = old_size; i < new_size; i++)
+		tbl[i] = tbl[i % old_size];
+}
+
+/**
+ * ethtool_rxfh_indir_can_resize - Check if context 0 indir table can resize
+ * @dev: network device
+ * @tbl: indirection table
+ * @old_size: current number of entries in the table
+ * @new_size: desired number of entries
+ *
+ * Validate that @tbl can be resized from @old_size to @new_size without
+ * data loss. Uses the user_size floor from context 0. When user_size is
+ * zero the table is not user-configured and resize always succeeds.
+ * Read-only; does not modify the table.
+ *
+ * Return: true if resize is possible, false otherwise.
+ */
+bool ethtool_rxfh_indir_can_resize(struct net_device *dev, const u32 *tbl,
+				   u32 old_size, u32 new_size)
+{
+	return ethtool_rxfh_can_resize(tbl, old_size, new_size,
+				       dev->ethtool->rss_indir_user_size);
+}
+EXPORT_SYMBOL(ethtool_rxfh_indir_can_resize);
+
+/**
+ * ethtool_rxfh_indir_resize - Fold or unfold context 0 indirection table
+ * @dev: network device
+ * @tbl: indirection table (must have room for max(old_size, new_size) entries)
+ * @old_size: current number of entries in the table
+ * @new_size: desired number of entries
+ *
+ * Resize the default RSS context indirection table in place. Caller
+ * must have validated with ethtool_rxfh_indir_can_resize() first.
+ */
+void ethtool_rxfh_indir_resize(struct net_device *dev, u32 *tbl,
+			       u32 old_size, u32 new_size)
+{
+	if (!dev->ethtool->rss_indir_user_size)
+		return;
+
+	ethtool_rxfh_resize(tbl, old_size, new_size);
+}
+EXPORT_SYMBOL(ethtool_rxfh_indir_resize);
+
+/**
+ * ethtool_rxfh_ctxs_can_resize - Validate resize for all RSS contexts
+ * @dev: network device
+ * @new_indir_size: new indirection table size
+ *
+ * Validate that the indirection tables of all non-default RSS contexts
+ * can be resized to @new_indir_size. Read-only; does not modify any
+ * context. Intended to be paired with ethtool_rxfh_ctxs_resize().
+ *
+ * Return: 0 if all contexts can be resized, negative errno on failure.
+ */
+int ethtool_rxfh_ctxs_can_resize(struct net_device *dev, u32 new_indir_size)
+{
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
+	int ret = 0;
+
+	if (!dev->ethtool_ops->rxfh_indir_space ||
+	    new_indir_size > dev->ethtool_ops->rxfh_indir_space)
+		return -EINVAL;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
+		u32 *indir = ethtool_rxfh_context_indir(ctx);
+
+		if (!ethtool_rxfh_can_resize(indir, ctx->indir_size,
+					     new_indir_size,
+					     ctx->indir_user_size)) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+	}
+unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	return ret;
+}
+EXPORT_SYMBOL(ethtool_rxfh_ctxs_can_resize);
+
+/**
+ * ethtool_rxfh_ctxs_resize - Resize all RSS context indirection tables
+ * @dev: network device
+ * @new_indir_size: new indirection table size
+ *
+ * Resize the indirection table of every non-default RSS context to
+ * @new_indir_size. Caller must have validated with
+ * ethtool_rxfh_ctxs_can_resize() first. An %ETHTOOL_MSG_RSS_NTF is
+ * sent for each resized context.
+ *
+ * Notifications are sent outside the RSS lock to avoid holding the
+ * mutex during notification delivery.
+ */
+void ethtool_rxfh_ctxs_resize(struct net_device *dev, u32 new_indir_size)
+{
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
+		ethtool_rxfh_resize(ethtool_rxfh_context_indir(ctx),
+				    ctx->indir_size, new_indir_size);
+		ctx->indir_size = new_indir_size;
+	}
+	mutex_unlock(&dev->ethtool->rss_lock);
+
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx)
+		ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_NTF, context);
+}
+EXPORT_SYMBOL(ethtool_rxfh_ctxs_resize);
+
 enum ethtool_link_medium ethtool_str_to_medium(const char *str)
 {
 	int i;
