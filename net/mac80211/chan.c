@@ -448,73 +448,92 @@ ieee80211_get_max_required_bw(struct ieee80211_link_data *link)
 }
 
 static enum nl80211_chan_width
+ieee80211_get_width_of_link(struct ieee80211_link_data *link)
+{
+	struct ieee80211_local *local = link->sdata->local;
+
+	switch (link->sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		if (!link->sdata->vif.cfg.assoc) {
+			/*
+			 * The AP's sta->bandwidth may not yet be set
+			 * at this point (pre-association), so simply
+			 * take the width from the chandef. We cannot
+			 * have TDLS peers yet (only after association).
+			 */
+			return link->conf->chanreq.oper.width;
+		}
+		/*
+		 * otherwise just use min_def like in AP, depending on what
+		 * we currently think the AP STA (and possibly TDLS peers)
+		 * require(s)
+		 */
+		fallthrough;
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+		return ieee80211_get_max_required_bw(link);
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_NAN:
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		WARN_ON_ONCE(!ieee80211_hw_check(&local->hw,
+						 NO_VIRTUAL_MONITOR));
+		fallthrough;
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_OCB:
+		return link->conf->chanreq.oper.width;
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	/* Take the lowest possible, so it won't change the max width */
+	return NL80211_CHAN_WIDTH_20_NOHT;
+}
+
+static enum nl80211_chan_width
 ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx,
 				      struct ieee80211_link_data *rsvd_for,
 				      bool check_reserved)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_link_data *link;
 	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
+	struct ieee80211_chanctx_user_iter iter;
+	struct ieee80211_sub_if_data *sdata;
+	enum nl80211_chan_width width;
 
 	if (WARN_ON(check_reserved && rsvd_for))
 		return ctx->conf.def.width;
 
-	for_each_sdata_link(local, link) {
-		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_NOHT;
-
-		if (check_reserved) {
-			if (link->reserved_chanctx != ctx)
-				continue;
-		} else if (link != rsvd_for &&
-			   rcu_access_pointer(link->conf->chanctx_conf) != &ctx->conf)
-			continue;
-
-		switch (link->sdata->vif.type) {
-		case NL80211_IFTYPE_STATION:
-			if (!link->sdata->vif.cfg.assoc) {
-				/*
-				 * The AP's sta->bandwidth may not yet be set
-				 * at this point (pre-association), so simply
-				 * take the width from the chandef. We cannot
-				 * have TDLS peers yet (only after association).
-				 */
-				width = link->conf->chanreq.oper.width;
-				break;
-			}
-			/*
-			 * otherwise just use min_def like in AP, depending on what
-			 * we currently think the AP STA (and possibly TDLS peers)
-			 * require(s)
-			 */
-			fallthrough;
-		case NL80211_IFTYPE_AP:
-		case NL80211_IFTYPE_AP_VLAN:
-			width = ieee80211_get_max_required_bw(link);
-			break;
-		case NL80211_IFTYPE_P2P_DEVICE:
-		case NL80211_IFTYPE_NAN:
-			continue;
-		case NL80211_IFTYPE_MONITOR:
-			WARN_ON_ONCE(!ieee80211_hw_check(&local->hw,
-							 NO_VIRTUAL_MONITOR));
-			fallthrough;
-		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_MESH_POINT:
-		case NL80211_IFTYPE_OCB:
-			width = link->conf->chanreq.oper.width;
-			break;
-		case NL80211_IFTYPE_WDS:
-		case NL80211_IFTYPE_UNSPECIFIED:
-		case NUM_NL80211_IFTYPES:
-		case NL80211_IFTYPE_P2P_CLIENT:
-		case NL80211_IFTYPE_P2P_GO:
-			WARN_ON_ONCE(1);
+	/* When this is true we only care about the reserving links */
+	if (check_reserved) {
+		for_each_chanctx_user_reserved(local, ctx, &iter) {
+			width = ieee80211_get_width_of_link(iter.link);
+			max_bw = max(max_bw, width);
 		}
+		goto check_monitor;
+	}
 
+	/* Consider all assigned links */
+	for_each_chanctx_user_assigned(local, ctx, &iter) {
+		width = ieee80211_get_width_of_link(iter.link);
 		max_bw = max(max_bw, width);
 	}
 
+	if (!rsvd_for ||
+	    rsvd_for->sdata == rcu_access_pointer(local->monitor_sdata))
+		goto check_monitor;
+
+	/* Consider the link for which this chanctx is reserved/going to be assigned */
+	width = ieee80211_get_width_of_link(rsvd_for);
+	max_bw = max(max_bw, width);
+
+check_monitor:
 	/* use the configured bandwidth in case of monitor interface */
 	sdata = wiphy_dereference(local->hw.wiphy, local->monitor_sdata);
 	if (sdata &&
