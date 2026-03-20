@@ -967,13 +967,13 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	}
 
 	num_read_bo_handles = wait_info->num_bo_read_handles;
-	ptr = u64_to_user_ptr(wait_info->bo_read_handles),
+	ptr = u64_to_user_ptr(wait_info->bo_read_handles);
 	r = drm_gem_objects_lookup(filp, ptr, num_read_bo_handles, &gobj_read);
 	if (r)
 		goto free_timeline_points;
 
 	num_write_bo_handles = wait_info->num_bo_write_handles;
-	ptr = u64_to_user_ptr(wait_info->bo_write_handles),
+	ptr = u64_to_user_ptr(wait_info->bo_write_handles);
 	r = drm_gem_objects_lookup(filp, ptr, num_write_bo_handles,
 				   &gobj_write);
 	if (r)
