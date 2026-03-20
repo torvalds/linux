@@ -26,8 +26,7 @@ use crate::{
     gpu::Chipset,
     num::{
         self,
-        FromSafeCast,
-        IntoSafeCast, //
+        FromSafeCast, //
     },
     regs,
     regs::macros::RegisterBase, //
@@ -653,7 +652,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             }
             FalconMem::Dmem => (
                 0,
-                dma_obj.dma_handle_with_offset(load_offsets.src_start.into_safe_cast())?,
+                dma_obj.dma_handle() + DmaAddress::from(load_offsets.src_start),
             ),
         };
         if dma_start % DmaAddress::from(DMA_LEN) > 0 {

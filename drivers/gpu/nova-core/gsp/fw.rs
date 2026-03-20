@@ -40,8 +40,7 @@ use crate::{
     },
 };
 
-// TODO: Replace with `IoView` projections once available; the `unwrap()` calls go away once we
-// switch to the new `dma::Coherent` API.
+// TODO: Replace with `IoView` projections once available.
 pub(super) mod gsp_mem {
     use core::sync::atomic::{
         fence,
@@ -49,10 +48,9 @@ pub(super) mod gsp_mem {
     };
 
     use kernel::{
-        dma::CoherentAllocation,
+        dma::Coherent,
         dma_read,
-        dma_write,
-        prelude::*, //
+        dma_write, //
     };
 
     use crate::gsp::cmdq::{
@@ -60,49 +58,35 @@ pub(super) mod gsp_mem {
         MSGQ_NUM_PAGES, //
     };
 
-    pub(in crate::gsp) fn gsp_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn gsp_write_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .gspq.tx.0.writePtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn gsp_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn gsp_read_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .gspq.rx.0.readPtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn cpu_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn cpu_read_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &Coherent<GspMem>, count: u32) {
         let rptr = cpu_read_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
 
         // Ensure read pointer is properly ordered.
         fence(Ordering::SeqCst);
 
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result {
-            dma_write!(qs, [0]?.cpuq.rx.0.readPtr, rptr);
-            Ok(())
-        }()
-        .unwrap()
+        dma_write!(qs, .cpuq.rx.0.readPtr, rptr);
     }
 
-    pub(in crate::gsp) fn cpu_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    pub(in crate::gsp) fn cpu_write_ptr(qs: &Coherent<GspMem>) -> u32 {
+        dma_read!(qs, .cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES
     }
 
-    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &Coherent<GspMem>, count: u32) {
         let wptr = cpu_write_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
 
-        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
-        || -> Result {
-            dma_write!(qs, [0]?.cpuq.tx.0.writePtr, wptr);
-            Ok(())
-        }()
-        .unwrap();
+        dma_write!(qs, .cpuq.tx.0.writePtr, wptr);
 
         // Ensure all command data is visible before triggering the GSP read.
         fence(Ordering::SeqCst);
