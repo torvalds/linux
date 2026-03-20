@@ -964,6 +964,7 @@ void memmap_init_range(unsigned long, int, unsigned long, unsigned long,
  */
 #ifdef CONFIG_SPARSEMEM
 void sparse_init(void);
+int sparse_index_init(unsigned long section_nr, int nid);
 
 static inline void sparse_init_one_section(struct mem_section *ms,
 		unsigned long pnum, struct page *mem_map,
@@ -999,6 +1000,9 @@ static inline void __section_mark_present(struct mem_section *ms,
 static inline void sparse_init(void) {}
 #endif /* CONFIG_SPARSEMEM */
 
+/*
+ * mm/sparse-vmemmap.c
+ */
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 void sparse_init_subsection_map(unsigned long pfn, unsigned long nr_pages);
 #else
