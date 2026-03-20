@@ -2414,6 +2414,7 @@ static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
 bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
+	bool has_deposit = arch_needs_pgtable_deposit();
 	struct folio *folio = NULL;
 	bool flush_needed = false;
 	spinlock_t *ptl;
@@ -2434,23 +2435,19 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 						tlb->fullmm);
 	arch_check_zapped_pmd(vma, orig_pmd);
 	tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-	if (vma_is_special_huge(vma)) {
-		if (arch_needs_pgtable_deposit())
-			zap_deposited_table(tlb->mm, pmd);
+	if (vma_is_special_huge(vma))
 		goto out;
-	}
 	if (is_huge_zero_pmd(orig_pmd)) {
-		if (!vma_is_dax(vma) || arch_needs_pgtable_deposit())
-			zap_deposited_table(tlb->mm, pmd);
+		if (!vma_is_dax(vma))
+			has_deposit = true;
 		goto out;
 	}
 
 	if (pmd_present(orig_pmd)) {
-		struct page *page = pmd_page(orig_pmd);
+		folio = pmd_folio(orig_pmd);
 
 		flush_needed = true;
-		folio = page_folio(page);
-		folio_remove_rmap_pmd(folio, page, vma);
+		folio_remove_rmap_pmd(folio, &folio->page, vma);
 		WARN_ON_ONCE(folio_mapcount(folio) < 0);
 	} else if (pmd_is_valid_softleaf(orig_pmd)) {
 		const softleaf_t entry = softleaf_from_pmd(orig_pmd);
@@ -2465,11 +2462,9 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	}
 
 	if (folio_test_anon(folio)) {
-		zap_deposited_table(tlb->mm, pmd);
+		has_deposit = true;
 		add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
 	} else {
-		if (arch_needs_pgtable_deposit())
-			zap_deposited_table(tlb->mm, pmd);
 		add_mm_counter(tlb->mm, mm_counter_file(folio),
 			       -HPAGE_PMD_NR);
 
@@ -2489,6 +2484,9 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	}
 
 out:
+	if (has_deposit)
+		zap_deposited_table(tlb->mm, pmd);
+
 	spin_unlock(ptl);
 	if (flush_needed)
 		tlb_remove_page_size(tlb, &folio->page, HPAGE_PMD_SIZE);
