@@ -1,2 +1,3 @@
 pid_max
+pidns_init_via_setns
 regression_enomem
