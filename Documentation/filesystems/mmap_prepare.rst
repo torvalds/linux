@@ -156,5 +156,13 @@ pointer. These are:
 * mmap_action_simple_ioremap() - Sets up an I/O remap from a specified
   physical address and over a specified length.
 
+* mmap_action_map_kernel_pages() - Maps a specified array of `struct page`
+  pointers in the VMA from a specific offset.
+
+* mmap_action_map_kernel_pages_full() - Maps a specified array of `struct
+  page` pointers over the entire VMA. The caller must ensure there are
+  sufficient entries in the page array to cover the entire range of the
+  described VMA.
+
 **NOTE:** The ``action`` field should never normally be manipulated directly,
 rather you ought to use one of these helpers.
