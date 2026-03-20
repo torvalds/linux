@@ -2462,6 +2462,10 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 		if (!thp_migration_supported())
 			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
+	} else {
+		WARN_ON_ONCE(true);
+		spin_unlock(ptl);
+		return true;
 	}
 
 	if (folio_test_anon(folio)) {
