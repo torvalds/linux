@@ -313,5 +313,10 @@ properties:
           - const: nvidia,p3971-0089+p3834-0008
           - const: nvidia,p3834-0008
           - const: nvidia,tegra264
+      - description: Jetson AGX Thor Developer Kit
+        items:
+          - const: nvidia,p4071-0000+p3834-0008
+          - const: nvidia,p3834-0008
+          - const: nvidia,tegra264
 
 additionalProperties: true
