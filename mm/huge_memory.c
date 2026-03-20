@@ -2419,10 +2419,6 @@ static void zap_huge_pmd_folio(struct mm_struct *mm, struct vm_area_struct *vma,
 		add_mm_counter(mm, mm_counter_file(folio),
 			       -HPAGE_PMD_NR);
 
-		/*
-		 * Use flush_needed to indicate whether the PMD entry
-		 * is present, instead of checking pmd_present() again.
-		 */
 		if (is_present && pmd_young(pmdval) &&
 		    likely(vma_has_recency(vma)))
 			folio_mark_accessed(folio);
@@ -2431,6 +2427,17 @@ static void zap_huge_pmd_folio(struct mm_struct *mm, struct vm_area_struct *vma,
 	/* Device private folios are pinned. */
 	if (is_device_private)
 		folio_put(folio);
+}
+
+static struct folio *normal_or_softleaf_folio_pmd(struct vm_area_struct *vma,
+		unsigned long addr, pmd_t pmdval, bool is_present)
+{
+	if (is_present)
+		return vm_normal_folio_pmd(vma, addr, pmdval);
+
+	if (!thp_migration_supported())
+		WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
+	return pmd_to_softleaf_folio(pmdval);
 }
 
 /**
@@ -2467,36 +2474,20 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 						tlb->fullmm);
 	arch_check_zapped_pmd(vma, orig_pmd);
 	tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-	if (vma_is_special_huge(vma))
-		goto out;
-	if (is_huge_zero_pmd(orig_pmd)) {
-		if (!vma_is_dax(vma))
-			has_deposit = true;
-		goto out;
-	}
 
-	if (pmd_present(orig_pmd)) {
-		folio = pmd_folio(orig_pmd);
-		is_present = true;
-	} else if (pmd_is_valid_softleaf(orig_pmd)) {
-		const softleaf_t entry = softleaf_from_pmd(orig_pmd);
+	is_present = pmd_present(orig_pmd);
+	folio = normal_or_softleaf_folio_pmd(vma, addr, orig_pmd, is_present);
+	if (folio)
+		zap_huge_pmd_folio(mm, vma, orig_pmd, folio, is_present,
+				   &has_deposit);
+	else if (is_huge_zero_pmd(orig_pmd))
+		has_deposit = has_deposit || !vma_is_dax(vma);
 
-		folio = softleaf_to_folio(entry);
-		if (!thp_migration_supported())
-			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
-	} else {
-		WARN_ON_ONCE(true);
-		goto out;
-	}
-
-	zap_huge_pmd_folio(mm, vma, orig_pmd, folio, is_present, &has_deposit);
-
-out:
 	if (has_deposit)
 		zap_deposited_table(mm, pmd);
 
 	spin_unlock(ptl);
-	if (is_present)
+	if (is_present && folio)
 		tlb_remove_page_size(tlb, &folio->page, HPAGE_PMD_SIZE);
 	return true;
 }
