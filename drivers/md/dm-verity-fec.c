@@ -133,7 +133,7 @@ done:
 	if (r < 0 && neras)
 		DMERR_LIMIT("%s: FEC %llu: failed to correct: %d",
 			    v->data_dev->name, target_block, r);
-	else if (r == 0 && corrected > 0)
+	else if (r == 0)
 		DMWARN_LIMIT("%s: FEC %llu: corrected %d errors",
 			     v->data_dev->name, target_block, corrected);
 
