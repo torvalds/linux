@@ -377,6 +377,20 @@ static __always_inline void csd_unlock(call_single_data_t *csd)
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);
 
+#ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
+static call_single_data_t *get_single_csd_data(int cpu)
+{
+	if (static_branch_unlikely(&csdlock_debug_enabled))
+		return per_cpu_ptr(&csd_data, cpu);
+	return this_cpu_ptr(&csd_data);
+}
+#else
+static call_single_data_t *get_single_csd_data(int cpu)
+{
+	return this_cpu_ptr(&csd_data);
+}
+#endif
+
 void __smp_call_single_queue(int cpu, struct llist_node *node)
 {
 	/*
@@ -671,7 +685,7 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 
 	csd = &csd_stack;
 	if (!wait) {
-		csd = this_cpu_ptr(&csd_data);
+		csd = get_single_csd_data(cpu);
 		csd_lock(csd);
 	}
 
