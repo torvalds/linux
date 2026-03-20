@@ -391,7 +391,7 @@ static void gfs2_ail1_wipe(struct gfs2_sbd *sdp, u64 bstart, u32 blen)
 	struct buffer_head *bh;
 	u64 end = bstart + blen;
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_log_lock);
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe(tr, s, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry_safe(bd, bs, &tr->tr_ail1_list,
@@ -404,7 +404,7 @@ static void gfs2_ail1_wipe(struct gfs2_sbd *sdp, u64 bstart, u32 blen)
 		}
 	}
 	spin_unlock(&sdp->sd_ail_lock);
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_log_lock);
 }
 
 static struct buffer_head *gfs2_getjdatabuf(struct gfs2_inode *ip, u64 blkno)
@@ -456,11 +456,11 @@ void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 		}
 		if (bh) {
 			lock_buffer(bh);
-			gfs2_log_lock(sdp);
+			spin_lock(&sdp->sd_log_lock);
 			spin_lock(&sdp->sd_ail_lock);
 			gfs2_remove_from_journal(bh, ty);
 			spin_unlock(&sdp->sd_ail_lock);
-			gfs2_log_unlock(sdp);
+			spin_unlock(&sdp->sd_log_lock);
 			unlock_buffer(bh);
 			brelse(bh);
 		}

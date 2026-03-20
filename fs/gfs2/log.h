@@ -20,30 +20,6 @@
  */
 #define GFS2_LOG_FLUSH_MIN_BLOCKS 4
 
-/**
- * gfs2_log_lock - acquire the right to mess with the log manager
- * @sdp: the filesystem
- *
- */
-
-static inline void gfs2_log_lock(struct gfs2_sbd *sdp)
-__acquires(&sdp->sd_log_lock)
-{
-	spin_lock(&sdp->sd_log_lock);
-}
-
-/**
- * gfs2_log_unlock - release the right to mess with the log manager
- * @sdp: the filesystem
- *
- */
-
-static inline void gfs2_log_unlock(struct gfs2_sbd *sdp)
-__releases(&sdp->sd_log_lock)
-{
-	spin_unlock(&sdp->sd_log_lock);
-}
-
 static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);

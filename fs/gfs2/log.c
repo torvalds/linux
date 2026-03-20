@@ -800,9 +800,9 @@ void gfs2_flush_revokes(struct gfs2_sbd *sdp)
 	/* number of revokes we still have room for */
 	unsigned int max_revokes = atomic_read(&sdp->sd_log_revokes_available);
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_log_lock);
 	gfs2_ail1_empty(sdp, max_revokes);
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_log_lock);
 }
 
 /**
@@ -1110,7 +1110,7 @@ repeat:
 		goto out_withdraw;
 	lops_after_commit(sdp, tr);
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_log_lock);
 	sdp->sd_log_blks_reserved = 0;
 
 	spin_lock(&sdp->sd_ail_lock);
@@ -1119,7 +1119,7 @@ repeat:
 		tr = NULL;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_log_lock);
 
 	if (!(flags & GFS2_LOG_HEAD_FLUSH_NORMAL)) {
 		if (!sdp->sd_log_idle) {
@@ -1200,7 +1200,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	unsigned int unused;
 	unsigned int maxres;
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_log_lock);
 
 	if (sdp->sd_log_tr) {
 		gfs2_merge_trans(sdp, tr);
@@ -1218,7 +1218,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		gfs2_log_release(sdp, unused);
 	sdp->sd_log_blks_reserved = reserved;
 
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_log_lock);
 }
 
 static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
