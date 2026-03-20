@@ -401,28 +401,6 @@ config SND_SOC_WM_ADSP
 	tristate "Cirrus Logic wm_adsp driver" if KUNIT
 	select FW_CS_DSP
 	select SND_SOC_COMPRESS
-	default y if SND_SOC_MADERA=y
-	default y if SND_SOC_CS47L24=y
-	default y if SND_SOC_WM5102=y
-	default y if SND_SOC_WM5110=y
-	default y if SND_SOC_WM2200=y
-	default y if SND_SOC_CS35L41_SPI=y
-	default y if SND_SOC_CS35L41_I2C=y
-	default y if SND_SOC_CS35L45_SPI=y
-	default y if SND_SOC_CS35L45_I2C=y
-	default y if SND_SOC_CS35L56=y
-	default y if SND_SOC_CS48L32=y
-	default m if SND_SOC_MADERA=m
-	default m if SND_SOC_CS47L24=m
-	default m if SND_SOC_WM5102=m
-	default m if SND_SOC_WM5110=m
-	default m if SND_SOC_WM2200=m
-	default m if SND_SOC_CS35L41_SPI=m
-	default m if SND_SOC_CS35L41_I2C=m
-	default m if SND_SOC_CS35L45_SPI=m
-	default m if SND_SOC_CS35L45_I2C=m
-	default m if SND_SOC_CS35L56=m
-	default m if SND_SOC_CS48L32=m
 
 config SND_SOC_WM_ADSP_TEST
 	tristate "KUnit tests for Cirrus Logic wm_adsp" if !KUNIT_ALL_TESTS
@@ -834,6 +812,7 @@ config SND_SOC_CS35L41_LIB
 
 config SND_SOC_CS35L41
 	tristate
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_CS35L41_SPI
 	tristate "Cirrus Logic CS35L41 CODEC (SPI)"
@@ -852,6 +831,7 @@ config SND_SOC_CS35L41_I2C
 config SND_SOC_CS35L45
 	tristate
 	select REGMAP_IRQ
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_CS35L45_SPI
 	tristate "Cirrus Logic CS35L45 CODEC (SPI)"
@@ -875,6 +855,7 @@ config SND_SOC_CS35L45_I2C
 
 config SND_SOC_CS35L56
 	tristate
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_CS35L56_SHARED
 	select SND_SOC_CS_AMP_LIB
@@ -1112,6 +1093,7 @@ config SND_SOC_CS47L15
 config SND_SOC_CS47L24
 	tristate
 	depends on MFD_CS47L24 && MFD_ARIZONA
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_CS47L35
 	tristate
@@ -1133,6 +1115,7 @@ config SND_SOC_CS48L32
 	tristate "Cirrus Logic CS48L32 audio DSP"
 	depends on SPI_MASTER
 	select REGMAP_SPI
+	select SND_SOC_WM_ADSP
 	help
 	  Build the codec driver for the Cirrus Logic CS48L32 audio DSP.
 
@@ -1391,6 +1374,7 @@ config SND_SOC_LOCHNAGAR_SC
 
 config SND_SOC_MADERA
 	tristate
+	select SND_SOC_WM_ADSP
 	default y if SND_SOC_CS47L15=y
 	default y if SND_SOC_CS47L35=y
 	default y if SND_SOC_CS47L85=y
@@ -2489,6 +2473,7 @@ config SND_SOC_WM2000
 config SND_SOC_WM2200
 	tristate
 	depends on I2C
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_WM5100
 	tristate
@@ -2497,10 +2482,12 @@ config SND_SOC_WM5100
 config SND_SOC_WM5102
 	tristate
 	depends on MFD_WM5102 && MFD_ARIZONA
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_WM5110
 	tristate
 	depends on MFD_WM5110 && MFD_ARIZONA
+	select SND_SOC_WM_ADSP
 
 config SND_SOC_WM8350
 	tristate
