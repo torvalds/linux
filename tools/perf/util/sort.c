@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <regex.h>
@@ -263,6 +264,115 @@ struct sort_entry sort_comm = {
 	.se_snprintf	= hist_entry__comm_snprintf,
 	.se_filter	= hist_entry__thread_filter,
 	.se_width_idx	= HISTC_COMM,
+};
+
+/* --sort comm_nodigit */
+
+size_t sort__comm_nodigit_len(struct hist_entry *entry)
+{
+	const char *comm = comm__str(entry->comm);
+	size_t index, len_nodigit = 0;
+	bool in_number = false;
+
+	if (!comm)
+		return 0;
+
+	for (index = 0; comm[index]; index++) {
+		if (!isdigit((unsigned char)comm[index])) {
+			in_number = false;
+			len_nodigit++;
+		} else if (!in_number) {
+			in_number = true;
+			len_nodigit += 3; /* <N> */
+		}
+	}
+
+	return len_nodigit;
+}
+
+static int64_t strcmp_nodigit(const char *left, const char *right)
+{
+	for (;;) {
+		while (*left && isdigit((unsigned char)*left))
+			left++;
+		while (*right && isdigit((unsigned char)*right))
+			right++;
+		if (*left == *right && !*left) {
+			return 0;
+		} else if (*left == *right) {
+			left++;
+			right++;
+		} else {
+			return (int64_t)((unsigned char)*left - (unsigned char)*right);
+		}
+	}
+}
+
+static int64_t
+sort__comm_nodigit_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return strcmp_nodigit(comm__str(right->comm), comm__str(left->comm));
+}
+
+static int64_t
+sort__comm_nodigit_collapse(struct hist_entry *left, struct hist_entry *right)
+{
+	return strcmp_nodigit(comm__str(right->comm), comm__str(left->comm));
+}
+
+static int64_t
+sort__comm_nodigit_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return strcmp_nodigit(comm__str(right->comm), comm__str(left->comm));
+}
+
+static int hist_entry__comm_nodigit_snprintf(struct hist_entry *he, char *bf,
+						size_t size, unsigned int width)
+{
+	int ret = 0;
+	unsigned int print_len, printed = 0, start = 0, end = 0;
+	bool in_digit;
+	const char *comm = comm__str(he->comm), *print;
+
+	while (printed < width && printed < size && comm[start]) {
+		in_digit = !!isdigit((unsigned char)comm[start]);
+		end = start + 1;
+		while (comm[end] && !!isdigit((unsigned char)comm[end]) == in_digit)
+			end++;
+		if (in_digit) {
+			print_len = 3; /* <N> */
+			print = "<N>";
+		} else {
+			print_len = end - start;
+			print = &comm[start];
+		}
+		print_len = min(print_len, width - printed);
+		ret = repsep_snprintf(bf + printed, size - printed, "%-.*s",
+					print_len, print);
+		if (ret < 0)
+			return ret;
+		start = end;
+		printed += ret;
+	}
+	/* Pad to width if necessary */
+	if (printed < width && printed < size) {
+		ret = repsep_snprintf(bf + printed, size - printed, "%-*.*s",
+				       width - printed, width - printed, "");
+		if (ret < 0)
+			return ret;
+		printed += ret;
+	}
+	return printed;
+}
+
+struct sort_entry sort_comm_nodigit = {
+	.se_header	= "CommandNoDigit",
+	.se_cmp		= sort__comm_nodigit_cmp,
+	.se_collapse	= sort__comm_nodigit_collapse,
+	.se_sort	= sort__comm_nodigit_sort,
+	.se_snprintf	= hist_entry__comm_nodigit_snprintf,
+	.se_filter	= hist_entry__thread_filter,
+	.se_width_idx	= HISTC_COMM_NODIGIT,
 };
 
 /* --sort dso */
@@ -2583,6 +2693,7 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_PID, "pid", sort_thread),
 	DIM(SORT_TGID, "tgid", sort_tgid),
 	DIM(SORT_COMM, "comm", sort_comm),
+	DIM(SORT_COMM_NODIGIT, "comm_nodigit", sort_comm_nodigit),
 	DIM(SORT_DSO, "dso", sort_dso),
 	DIM(SORT_SYM, "symbol", sort_sym),
 	DIM(SORT_PARENT, "parent", sort_parent),
@@ -3579,6 +3690,8 @@ static int __sort_dimension__update(struct sort_dimension *sd,
 		list->thread = 1;
 	} else if (sd->entry == &sort_comm) {
 		list->comm = 1;
+	} else if (sd->entry == &sort_comm_nodigit) {
+		list->comm_nodigit = list->comm = 1;
 	} else if (sd->entry == &sort_type_offset) {
 		symbol_conf.annotate_data_member = true;
 	} else if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to) {
@@ -4040,6 +4153,7 @@ static bool get_elide(int idx, FILE *output)
 	case HISTC_DSO:
 		return __get_elide(symbol_conf.dso_list, "dso", output);
 	case HISTC_COMM:
+	case HISTC_COMM_NODIGIT:
 		return __get_elide(symbol_conf.comm_list, "comm", output);
 	default:
 		break;

@@ -44,6 +44,7 @@ enum hist_column {
 	HISTC_THREAD,
 	HISTC_TGID,
 	HISTC_COMM,
+	HISTC_COMM_NODIGIT,
 	HISTC_CGROUP_ID,
 	HISTC_CGROUP,
 	HISTC_PARENT,
@@ -522,6 +523,7 @@ struct perf_hpp_list {
 	int socket;
 	int thread;
 	int comm;
+	int comm_nodigit;
 };
 
 extern struct perf_hpp_list perf_hpp_list;
