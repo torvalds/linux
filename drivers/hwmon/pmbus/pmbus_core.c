@@ -1161,12 +1161,11 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 	int ret, status;
 	u16 regval;
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
+
 	status = pmbus_get_status(client, page, reg);
-	if (status < 0) {
-		ret = status;
-		goto unlock;
-	}
+	if (status < 0)
+		return status;
 
 	if (s1)
 		pmbus_update_sensor_data(client, s1);
@@ -1178,7 +1177,7 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 		if (data->revision >= PMBUS_REV_12) {
 			ret = _pmbus_write_byte_data(client, page, reg, regval);
 			if (ret)
-				goto unlock;
+				return ret;
 		} else {
 			pmbus_clear_fault_page(client, page);
 		}
@@ -1186,14 +1185,10 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 	if (s1 && s2) {
 		s64 v1, v2;
 
-		if (s1->data < 0) {
-			ret = s1->data;
-			goto unlock;
-		}
-		if (s2->data < 0) {
-			ret = s2->data;
-			goto unlock;
-		}
+		if (s1->data < 0)
+			return s1->data;
+		if (s2->data < 0)
+			return s2->data;
 
 		v1 = pmbus_reg2data(data, s1);
 		v2 = pmbus_reg2data(data, s2);
@@ -1201,8 +1196,6 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 	} else {
 		ret = !!regval;
 	}
-unlock:
-	mutex_unlock(&data->update_lock);
 	return ret;
 }
 
@@ -1232,16 +1225,16 @@ static ssize_t pmbus_show_sensor(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
 	struct pmbus_data *data = i2c_get_clientdata(client);
-	ssize_t ret;
+	s64 val;
 
-	mutex_lock(&data->update_lock);
-	pmbus_update_sensor_data(client, sensor);
-	if (sensor->data < 0)
-		ret = sensor->data;
-	else
-		ret = sysfs_emit(buf, "%lld\n", pmbus_reg2data(data, sensor));
-	mutex_unlock(&data->update_lock);
-	return ret;
+	scoped_guard(pmbus_lock, client) {
+		pmbus_update_sensor_data(client, sensor);
+		if (sensor->data < 0)
+			return sensor->data;
+		val = pmbus_reg2data(data, sensor);
+	}
+
+	return sysfs_emit(buf, "%lld\n", val);
 }
 
 static ssize_t pmbus_set_sensor(struct device *dev,
@@ -1251,7 +1244,6 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
-	ssize_t rv = count;
 	s64 val;
 	int ret;
 	u16 regval;
@@ -1259,15 +1251,15 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 	if (kstrtos64(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
+
 	regval = pmbus_data2reg(data, sensor, val);
 	ret = _pmbus_write_word_data(client, sensor->page, sensor->reg, regval);
 	if (ret < 0)
-		rv = ret;
-	else
-		sensor->data = -ENODATA;
-	mutex_unlock(&data->update_lock);
-	return rv;
+		return ret;
+
+	sensor->data = -ENODATA;
+	return count;
 }
 
 static ssize_t pmbus_show_label(struct device *dev,
@@ -1369,7 +1361,7 @@ static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	struct pmbus_data *pmbus_data = tdata->pmbus_data;
 	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
 	struct device *dev = pmbus_data->hwmon_dev;
-	int ret = 0;
+	int _temp;
 
 	if (!dev) {
 		/* May not even get to hwmon yet */
@@ -1377,15 +1369,15 @@ static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 		return 0;
 	}
 
-	mutex_lock(&pmbus_data->update_lock);
-	pmbus_update_sensor_data(client, sensor);
-	if (sensor->data < 0)
-		ret = sensor->data;
-	else
-		*temp = (int)pmbus_reg2data(pmbus_data, sensor);
-	mutex_unlock(&pmbus_data->update_lock);
+	scoped_guard(pmbus_lock, client) {
+		pmbus_update_sensor_data(client, sensor);
+		if (sensor->data < 0)
+			return sensor->data;
+		_temp = (int)pmbus_reg2data(pmbus_data, sensor);
+	}
 
-	return ret;
+	*temp = _temp;
+	return 0;
 }
 
 static const struct thermal_zone_device_ops pmbus_thermal_ops = {
@@ -2417,13 +2409,12 @@ static ssize_t pmbus_show_samples(struct device *dev,
 	int val;
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
-	struct pmbus_data *data = i2c_get_clientdata(client);
 
-	mutex_lock(&data->update_lock);
-	val = _pmbus_read_word_data(client, reg->page, 0xff, reg->attr->reg);
-	mutex_unlock(&data->update_lock);
-	if (val < 0)
-		return val;
+	scoped_guard(pmbus_lock, client) {
+		val = _pmbus_read_word_data(client, reg->page, 0xff, reg->attr->reg);
+		if (val < 0)
+			return val;
+	}
 
 	return sysfs_emit(buf, "%d\n", val);
 }
@@ -2436,14 +2427,13 @@ static ssize_t pmbus_set_samples(struct device *dev,
 	long val;
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_samples_reg *reg = to_samples_reg(devattr);
-	struct pmbus_data *data = i2c_get_clientdata(client);
 
 	if (kstrtol(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
+
 	ret = _pmbus_write_word_data(client, reg->page, reg->attr->reg, val);
-	mutex_unlock(&data->update_lock);
 
 	return ret ? : count;
 }
@@ -2955,14 +2945,9 @@ static int _pmbus_is_enabled(struct i2c_client *client, u8 page)
 
 static int __maybe_unused pmbus_is_enabled(struct i2c_client *client, u8 page)
 {
-	struct pmbus_data *data = i2c_get_clientdata(client);
-	int ret;
+	guard(pmbus_lock)(client);
 
-	mutex_lock(&data->update_lock);
-	ret = _pmbus_is_enabled(client, page);
-	mutex_unlock(&data->update_lock);
-
-	return ret;
+	return _pmbus_is_enabled(client, page);
 }
 
 #define to_dev_attr(_dev_attr) \
@@ -2992,14 +2977,13 @@ static void pmbus_notify(struct pmbus_data *data, int page, int reg, int flags)
 	}
 }
 
-static int _pmbus_get_flags(struct pmbus_data *data, u8 page, unsigned int *flags,
+static int _pmbus_get_flags(struct i2c_client *client, u8 page, unsigned int *flags,
 			    unsigned int *event, bool notify)
 {
+	struct pmbus_data *data = i2c_get_clientdata(client);
 	int i, status;
 	const struct pmbus_status_category *cat;
 	const struct pmbus_status_assoc *bit;
-	struct device *dev = data->dev;
-	struct i2c_client *client = to_i2c_client(dev);
 	int func = data->info->func[page];
 
 	*flags = 0;
@@ -3075,16 +3059,12 @@ static int _pmbus_get_flags(struct pmbus_data *data, u8 page, unsigned int *flag
 	return 0;
 }
 
-static int __maybe_unused pmbus_get_flags(struct pmbus_data *data, u8 page, unsigned int *flags,
+static int __maybe_unused pmbus_get_flags(struct i2c_client *client, u8 page, unsigned int *flags,
 					  unsigned int *event, bool notify)
 {
-	int ret;
+	guard(pmbus_lock)(client);
 
-	mutex_lock(&data->update_lock);
-	ret = _pmbus_get_flags(data, page, flags, event, notify);
-	mutex_unlock(&data->update_lock);
-
-	return ret;
+	return _pmbus_get_flags(client, page, flags, event, notify);
 }
 
 #if IS_ENABLED(CONFIG_REGULATOR)
@@ -3100,17 +3080,13 @@ static int _pmbus_regulator_on_off(struct regulator_dev *rdev, bool enable)
 {
 	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct pmbus_data *data = i2c_get_clientdata(client);
 	u8 page = rdev_get_id(rdev);
-	int ret;
 
-	mutex_lock(&data->update_lock);
-	ret = pmbus_update_byte_data(client, page, PMBUS_OPERATION,
-				     PB_OPERATION_CONTROL_ON,
-				     enable ? PB_OPERATION_CONTROL_ON : 0);
-	mutex_unlock(&data->update_lock);
+	guard(pmbus_lock)(client);
 
-	return ret;
+	return pmbus_update_byte_data(client, page, PMBUS_OPERATION,
+				      PB_OPERATION_CONTROL_ON,
+				      enable ? PB_OPERATION_CONTROL_ON : 0);
 }
 
 static int pmbus_regulator_enable(struct regulator_dev *rdev)
@@ -3127,54 +3103,41 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 {
 	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct pmbus_data *data = i2c_get_clientdata(client);
 	int event;
 
-	return pmbus_get_flags(data, rdev_get_id(rdev), flags, &event, false);
+	return pmbus_get_flags(client, rdev_get_id(rdev), flags, &event, false);
 }
 
 static int pmbus_regulator_get_status(struct regulator_dev *rdev)
 {
 	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct pmbus_data *data = i2c_get_clientdata(client);
 	u8 page = rdev_get_id(rdev);
 	int status, ret;
 	int event;
 
-	mutex_lock(&data->update_lock);
-	status = pmbus_get_status(client, page, PMBUS_STATUS_WORD);
-	if (status < 0) {
-		ret = status;
-		goto unlock;
-	}
+	guard(pmbus_lock)(client);
 
-	if (status & PB_STATUS_OFF) {
-		ret = REGULATOR_STATUS_OFF;
-		goto unlock;
-	}
+	status = pmbus_get_status(client, page, PMBUS_STATUS_WORD);
+	if (status < 0)
+		return status;
+
+	if (status & PB_STATUS_OFF)
+		return REGULATOR_STATUS_OFF;
 
 	/* If regulator is ON & reports power good then return ON */
-	if (!(status & PB_STATUS_POWER_GOOD_N)) {
-		ret = REGULATOR_STATUS_ON;
-		goto unlock;
-	}
+	if (!(status & PB_STATUS_POWER_GOOD_N))
+		return REGULATOR_STATUS_ON;
 
-	ret = _pmbus_get_flags(data, rdev_get_id(rdev), &status, &event, false);
+	ret = _pmbus_get_flags(client, rdev_get_id(rdev), &status, &event, false);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	if (status & (REGULATOR_ERROR_UNDER_VOLTAGE | REGULATOR_ERROR_OVER_CURRENT |
-	   REGULATOR_ERROR_REGULATION_OUT | REGULATOR_ERROR_FAIL | REGULATOR_ERROR_OVER_TEMP)) {
-		ret = REGULATOR_STATUS_ERROR;
-		goto unlock;
-	}
+	   REGULATOR_ERROR_REGULATION_OUT | REGULATOR_ERROR_FAIL | REGULATOR_ERROR_OVER_TEMP))
+		return REGULATOR_STATUS_ERROR;
 
-	ret = REGULATOR_STATUS_UNDEFINED;
-
-unlock:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return REGULATOR_STATUS_UNDEFINED;
 }
 
 static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
@@ -3239,19 +3202,16 @@ static int pmbus_regulator_get_voltage(struct regulator_dev *rdev)
 		.class = PSC_VOLTAGE_OUT,
 		.convert = true,
 	};
-	int ret;
+	int voltage;
 
-	mutex_lock(&data->update_lock);
-	s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_READ_VOUT);
-	if (s.data < 0) {
-		ret = s.data;
-		goto unlock;
+	scoped_guard(pmbus_lock, client) {
+		s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_READ_VOUT);
+		if (s.data < 0)
+			return s.data;
+		voltage = (int)pmbus_reg2data(data, &s);
 	}
 
-	ret = (int)pmbus_reg2data(data, &s) * 1000; /* unit is uV */
-unlock:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return voltage * 1000; /* unit is uV */
 }
 
 static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
@@ -3268,22 +3228,18 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 	};
 	int val = DIV_ROUND_CLOSEST(min_uv, 1000); /* convert to mV */
 	int low, high;
-	int ret;
 
 	*selector = 0;
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
+
 	low = pmbus_regulator_get_low_margin(client, s.page);
-	if (low < 0) {
-		ret = low;
-		goto unlock;
-	}
+	if (low < 0)
+		return low;
 
 	high = pmbus_regulator_get_high_margin(client, s.page);
-	if (high < 0) {
-		ret = high;
-		goto unlock;
-	}
+	if (high < 0)
+		return high;
 
 	/* Make sure we are within margins */
 	if (low > val)
@@ -3293,10 +3249,7 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 
 	val = pmbus_data2reg(data, &s, val);
 
-	ret = _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
-unlock:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
 }
 
 static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
@@ -3306,7 +3259,6 @@ static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	int val, low, high;
-	int ret;
 
 	if (data->flags & PMBUS_VOUT_PROTECTED)
 		return 0;
@@ -3319,29 +3271,20 @@ static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
 	val = DIV_ROUND_CLOSEST(rdev->desc->min_uV +
 				(rdev->desc->uV_step * selector), 1000); /* convert to mV */
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
 
 	low = pmbus_regulator_get_low_margin(client, rdev_get_id(rdev));
-	if (low < 0) {
-		ret = low;
-		goto unlock;
-	}
+	if (low < 0)
+		return low;
 
 	high = pmbus_regulator_get_high_margin(client, rdev_get_id(rdev));
-	if (high < 0) {
-		ret = high;
-		goto unlock;
-	}
+	if (high < 0)
+		return high;
 
-	if (val >= low && val <= high) {
-		ret = val * 1000; /* unit is uV */
-		goto unlock;
-	}
+	if (val >= low && val <= high)
+		return val * 1000; /* unit is uV */
 
-	ret = 0;
-unlock:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return 0;
 }
 
 const struct regulator_ops pmbus_regulator_ops = {
@@ -3477,16 +3420,16 @@ static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
 	struct i2c_client *client = to_i2c_client(data->dev);
 	int i, status, event;
 
-	mutex_lock(&data->update_lock);
+	guard(pmbus_lock)(client);
+
 	for (i = 0; i < data->info->pages; i++) {
-		_pmbus_get_flags(data, i, &status, &event, true);
+		_pmbus_get_flags(client, i, &status, &event, true);
 
 		if (event)
 			pmbus_regulator_notify(data, i, event);
 	}
 
 	pmbus_clear_faults(client);
-	mutex_unlock(&data->update_lock);
 
 	return IRQ_HANDLED;
 }
@@ -3542,15 +3485,13 @@ static struct dentry *pmbus_debugfs_dir;	/* pmbus debugfs directory */
 
 static int pmbus_debugfs_get(void *data, u64 *val)
 {
-	int rc;
 	struct pmbus_debugfs_entry *entry = data;
-	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
+	struct i2c_client *client = entry->client;
+	int rc;
 
-	rc = mutex_lock_interruptible(&pdata->update_lock);
-	if (rc)
-		return rc;
-	rc = _pmbus_read_byte_data(entry->client, entry->page, entry->reg);
-	mutex_unlock(&pdata->update_lock);
+	guard(pmbus_lock)(client);
+
+	rc = _pmbus_read_byte_data(client, entry->page, entry->reg);
 	if (rc < 0)
 		return rc;
 
@@ -3563,15 +3504,14 @@ DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops, pmbus_debugfs_get, NULL,
 
 static int pmbus_debugfs_get_status(void *data, u64 *val)
 {
-	int rc;
 	struct pmbus_debugfs_entry *entry = data;
-	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
+	struct i2c_client *client = entry->client;
+	struct pmbus_data *pdata = i2c_get_clientdata(client);
+	int rc;
 
-	rc = mutex_lock_interruptible(&pdata->update_lock);
-	if (rc)
-		return rc;
-	rc = pdata->read_status(entry->client, entry->page);
-	mutex_unlock(&pdata->update_lock);
+	guard(pmbus_lock)(client);
+
+	rc = pdata->read_status(client, entry->page);
 	if (rc < 0)
 		return rc;
 
@@ -3587,17 +3527,14 @@ static ssize_t pmbus_debugfs_block_read(struct file *file, char __user *buf,
 {
 	int rc;
 	struct pmbus_debugfs_entry *entry = file->private_data;
-	struct pmbus_data *pdata = i2c_get_clientdata(entry->client);
+	struct i2c_client *client = entry->client;
 	char data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
 
-	rc = mutex_lock_interruptible(&pdata->update_lock);
-	if (rc)
-		return rc;
-	rc = pmbus_read_block_data(entry->client, entry->page, entry->reg,
-				   data);
-	mutex_unlock(&pdata->update_lock);
-	if (rc < 0)
-		return rc;
+	scoped_guard(pmbus_lock, client) {
+		rc = pmbus_read_block_data(client, entry->page, entry->reg, data);
+		if (rc < 0)
+			return rc;
+	}
 
 	/* Add newline at the end of a read data */
 	data[rc] = '\n';
