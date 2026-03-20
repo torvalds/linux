@@ -1222,13 +1222,13 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local,
 		}
 	}
 
-	set_bit(SDATA_STATE_RUNNING, &sdata->state);
-
 	ret = ieee80211_check_queues(sdata, NL80211_IFTYPE_MONITOR);
 	if (ret) {
 		kfree(sdata);
 		return ret;
 	}
+
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	mutex_lock(&local->iflist_mtx);
 	rcu_assign_pointer(local->monitor_sdata, sdata);
@@ -1242,6 +1242,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local,
 		mutex_unlock(&local->iflist_mtx);
 		synchronize_net();
 		drv_remove_interface(local, sdata);
+		clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 		kfree(sdata);
 		return ret;
 	}
@@ -1550,8 +1551,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	sdata->bss = NULL;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		list_del(&sdata->u.vlan.list);
-	/* might already be clear but that doesn't matter */
-	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	return res;
 }
 
