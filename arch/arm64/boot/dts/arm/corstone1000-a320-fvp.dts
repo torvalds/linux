@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (c) 2026, Arm Limited. All rights reserved.
+ *
+ */
+
+/dts-v1/;
+
+#include "corstone1000-a320.dtsi"
+#include "corstone1000-fvp.dtsi"
+
+/ {
+	model = "ARM Corstone1000-A320 FVP (Fixed Virtual Platform)";
+	compatible = "arm,corstone1000-a320-fvp";
+};
