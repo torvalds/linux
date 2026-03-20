@@ -211,10 +211,8 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 		.v8.ppag_config_info.hdr.table_revision = fwrt->ppag_bios_rev,
 		.v8.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags),
 	};
-	int cmd_ver =
-		iwl_fw_lookup_cmd_ver(mld->fw,
-				      WIDE_ID(PHY_OPS_GROUP,
-					      PER_PLATFORM_ANT_GAIN_CMD), 1);
+	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_PLATFORM_ANT_GAIN_CMD);
+	int cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 1);
 	int cmd_len = sizeof(cmd.v8);
 	int ret;
 
@@ -271,9 +269,7 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 	}
 
 	IWL_DEBUG_RADIO(mld, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-	ret = iwl_mld_send_cmd_pdu(mld, WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD),
-				   &cmd, cmd_len);
+	ret = iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, cmd_len);
 	if (ret < 0)
 		IWL_ERR(mld, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);
