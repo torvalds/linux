@@ -999,15 +999,11 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 
 	/* Resume all the queues for this process */
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
-		queue = amdgpu_userq_get(uq_mgr, queue_id);
-		if (!queue)
-			continue;
 
 		if (!amdgpu_userq_buffer_vas_mapped(queue)) {
 			drm_file_err(uq_mgr->file,
 				     "trying restore queue without va mapping\n");
 			queue->state = AMDGPU_USERQ_STATE_INVALID_VA;
-			amdgpu_userq_put(queue);
 			continue;
 		}
 
@@ -1015,7 +1011,6 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 		if (r)
 			ret = r;
 
-		amdgpu_userq_put(queue);
 	}
 
 	if (ret)
@@ -1252,13 +1247,9 @@ amdgpu_userq_evict_all(struct amdgpu_userq_mgr *uq_mgr)
 	amdgpu_userq_detect_and_reset_queues(uq_mgr);
 	/* Try to unmap all the queues in this process ctx */
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
-		queue = amdgpu_userq_get(uq_mgr, queue_id);
-		if (!queue)
-			continue;
 		r = amdgpu_userq_preempt_helper(queue);
 		if (r)
 			ret = r;
-		amdgpu_userq_put(queue);
 	}
 
 	if (ret)
@@ -1291,24 +1282,18 @@ amdgpu_userq_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 	int ret;
 
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
-		queue = amdgpu_userq_get(uq_mgr, queue_id);
-		if (!queue)
-			continue;
-
 		struct dma_fence *f = queue->last_fence;
 
-		if (!f || dma_fence_is_signaled(f)) {
-			amdgpu_userq_put(queue);
+		if (!f || dma_fence_is_signaled(f))
 			continue;
-		}
+
 		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
 		if (ret <= 0) {
 			drm_file_err(uq_mgr->file, "Timed out waiting for fence=%llu:%llu\n",
 				     f->context, f->seqno);
-			amdgpu_userq_put(queue);
+
 			return -ETIMEDOUT;
 		}
-		amdgpu_userq_put(queue);
 	}
 
 	return 0;
