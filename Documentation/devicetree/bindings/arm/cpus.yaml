@@ -86,11 +86,13 @@ properties:
           - apple,avalanche
           - apple,blizzard
           - apple,cyclone
+          - apple,everest
           - apple,firestorm
           - apple,hurricane-zephyr
           - apple,icestorm
           - apple,mistral
           - apple,monsoon
+          - apple,sawtooth
           - apple,twister
           - apple,typhoon
           - arm,arm710t
