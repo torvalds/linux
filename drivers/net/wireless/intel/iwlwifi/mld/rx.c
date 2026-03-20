@@ -2211,8 +2211,9 @@ void iwl_mld_sync_rx_queues(struct iwl_mld *mld,
 	ret = wait_event_timeout(mld->rxq_sync.waitq,
 				 READ_ONCE(mld->rxq_sync.state) == 0,
 				 SYNC_RX_QUEUE_TIMEOUT);
-	WARN_ONCE(!ret, "RXQ sync failed: state=0x%lx, cookie=%d\n",
-		  mld->rxq_sync.state, mld->rxq_sync.cookie);
+	IWL_FW_CHECK(mld, !ret,
+		     "RXQ sync failed: state=0x%lx, cookie=%d\n",
+		     mld->rxq_sync.state, mld->rxq_sync.cookie);
 
 out:
 	mld->rxq_sync.state = 0;
