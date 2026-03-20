@@ -224,6 +224,12 @@ static bool ext4_fc_disabled(struct super_block *sb)
 		(EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY));
 }
 
+static bool ext4_fc_eligible(struct super_block *sb)
+{
+	return !ext4_fc_disabled(sb) &&
+		!(ext4_test_mount_flag(sb, EXT4_MF_FC_INELIGIBLE));
+}
+
 /*
  * Remove inode from fast commit list. If the inode is being committed
  * we wait until inode commit is done.
@@ -473,13 +479,8 @@ void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
-		return;
-
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
-		return;
-
-	__ext4_fc_track_unlink(handle, inode, dentry);
+	if (ext4_fc_eligible(inode->i_sb))
+		__ext4_fc_track_unlink(handle, inode, dentry);
 }
 
 void __ext4_fc_track_link(handle_t *handle,
@@ -500,13 +501,8 @@ void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
-		return;
-
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
-		return;
-
-	__ext4_fc_track_link(handle, inode, dentry);
+	if (ext4_fc_eligible(inode->i_sb))
+		__ext4_fc_track_link(handle, inode, dentry);
 }
 
 void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
@@ -527,13 +523,8 @@ void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (ext4_fc_disabled(inode->i_sb))
-		return;
-
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
-		return;
-
-	__ext4_fc_track_create(handle, inode, dentry);
+	if (ext4_fc_eligible(inode->i_sb))
+		__ext4_fc_track_create(handle, inode, dentry);
 }
 
 /* __track_fn for inode tracking */
@@ -557,16 +548,13 @@ void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	if (ext4_fc_disabled(inode->i_sb))
-		return;
-
 	if (ext4_should_journal_data(inode)) {
 		ext4_fc_mark_ineligible(inode->i_sb,
 					EXT4_FC_REASON_INODE_JOURNAL_DATA, handle);
 		return;
 	}
 
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (!ext4_fc_eligible(inode->i_sb))
 		return;
 
 	/*
@@ -644,10 +632,7 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	if (ext4_fc_disabled(inode->i_sb))
-		return;
-
-	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_INELIGIBLE))
+	if (!ext4_fc_eligible(inode->i_sb))
 		return;
 
 	if (ext4_has_inline_data(inode)) {
