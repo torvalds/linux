@@ -1630,8 +1630,8 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct xe_v
 	bo = xe_bo_create_pin_map_novm(xe, tile, bo_size,
 				       ttm_bo_type_kernel,
 				       bo_flags, false);
-	if (IS_ERR(lrc->bo))
-		return PTR_ERR(lrc->bo);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
 	lrc->bo = bo;
 
