@@ -1976,6 +1976,9 @@ struct vm_area_struct *userfaultfd_clear_vma(struct vma_iterator *vmi,
 {
 	struct vm_area_struct *ret;
 	bool give_up_on_oom = false;
+	vma_flags_t new_vma_flags = vma->flags;
+
+	vma_flags_clear_mask(&new_vma_flags, __VMA_UFFD_FLAGS);
 
 	/*
 	 * If we are modifying only and not splitting, just give up on the merge
@@ -1989,8 +1992,8 @@ struct vm_area_struct *userfaultfd_clear_vma(struct vma_iterator *vmi,
 		uffd_wp_range(vma, start, end - start, false);
 
 	ret = vma_modify_flags_uffd(vmi, prev, vma, start, end,
-				    vma->vm_flags & ~__VM_UFFD_FLAGS,
-				    NULL_VM_UFFD_CTX, give_up_on_oom);
+				    &new_vma_flags, NULL_VM_UFFD_CTX,
+				    give_up_on_oom);
 
 	/*
 	 * In the vma_merge() successful mprotect-like case 8:
@@ -2010,10 +2013,11 @@ int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 			       unsigned long start, unsigned long end,
 			       bool wp_async)
 {
+	vma_flags_t vma_flags = legacy_to_vma_flags(vm_flags);
 	VMA_ITERATOR(vmi, ctx->mm, start);
 	struct vm_area_struct *prev = vma_prev(&vmi);
 	unsigned long vma_end;
-	vm_flags_t new_flags;
+	vma_flags_t new_vma_flags;
 
 	if (vma->vm_start < start)
 		prev = vma;
@@ -2024,23 +2028,26 @@ int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 		VM_WARN_ON_ONCE(!vma_can_userfault(vma, vm_flags, wp_async));
 		VM_WARN_ON_ONCE(vma->vm_userfaultfd_ctx.ctx &&
 				vma->vm_userfaultfd_ctx.ctx != ctx);
-		VM_WARN_ON_ONCE(!(vma->vm_flags & VM_MAYWRITE));
+		VM_WARN_ON_ONCE(!vma_test(vma, VMA_MAYWRITE_BIT));
 
 		/*
 		 * Nothing to do: this vma is already registered into this
 		 * userfaultfd and with the right tracking mode too.
 		 */
 		if (vma->vm_userfaultfd_ctx.ctx == ctx &&
-		    (vma->vm_flags & vm_flags) == vm_flags)
+		    vma_test_all_mask(vma, vma_flags))
 			goto skip;
 
 		if (vma->vm_start > start)
 			start = vma->vm_start;
 		vma_end = min(end, vma->vm_end);
 
-		new_flags = (vma->vm_flags & ~__VM_UFFD_FLAGS) | vm_flags;
+		new_vma_flags = vma->flags;
+		vma_flags_clear_mask(&new_vma_flags, __VMA_UFFD_FLAGS);
+		vma_flags_set_mask(&new_vma_flags, vma_flags);
+
 		vma = vma_modify_flags_uffd(&vmi, prev, vma, start, vma_end,
-					    new_flags,
+					    &new_vma_flags,
 					    (struct vm_userfaultfd_ctx){ctx},
 					    /* give_up_on_oom = */false);
 		if (IS_ERR(vma))

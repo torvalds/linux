@@ -342,24 +342,23 @@ void unmap_region(struct unmap_desc *unmap);
  * @vma: The VMA containing the range @start to @end to be updated.
  * @start: The start of the range to update. May be offset within @vma.
  * @end: The exclusive end of the range to update, may be offset within @vma.
- * @vm_flags_ptr: A pointer to the VMA flags that the @start to @end range is
+ * @vma_flags_ptr: A pointer to the VMA flags that the @start to @end range is
  * about to be set to. On merge, this will be updated to include sticky flags.
  *
  * IMPORTANT: The actual modification being requested here is NOT applied,
  * rather the VMA is perhaps split, perhaps merged to accommodate the change,
  * and the caller is expected to perform the actual modification.
  *
- * In order to account for sticky VMA flags, the @vm_flags_ptr parameter points
+ * In order to account for sticky VMA flags, the @vma_flags_ptr parameter points
  * to the requested flags which are then updated so the caller, should they
  * overwrite any existing flags, correctly retains these.
  *
  * Returns: A VMA which contains the range @start to @end ready to have its
- * flags altered to *@vm_flags.
+ * flags altered to *@vma_flags.
  */
 __must_check struct vm_area_struct *vma_modify_flags(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
-		unsigned long start, unsigned long end,
-		vm_flags_t *vm_flags_ptr);
+		unsigned long start, unsigned long end, vma_flags_t *vma_flags_ptr);
 
 /**
  * vma_modify_name() - Perform any necessary split/merge in preparation for
@@ -418,7 +417,7 @@ __must_check struct vm_area_struct *vma_modify_policy(struct vma_iterator *vmi,
  * @vma: The VMA containing the range @start to @end to be updated.
  * @start: The start of the range to update. May be offset within @vma.
  * @end: The exclusive end of the range to update, may be offset within @vma.
- * @vm_flags: The VMA flags that the @start to @end range is about to be set to.
+ * @vma_flags: The VMA flags that the @start to @end range is about to be set to.
  * @new_ctx: The userfaultfd context that the @start to @end range is about to
  * be set to.
  * @give_up_on_oom: If an out of memory condition occurs on merge, simply give
@@ -429,11 +428,11 @@ __must_check struct vm_area_struct *vma_modify_policy(struct vma_iterator *vmi,
  * and the caller is expected to perform the actual modification.
  *
  * Returns: A VMA which contains the range @start to @end ready to have its VMA
- * flags changed to @vm_flags and its userfaultfd context changed to @new_ctx.
+ * flags changed to @vma_flags and its userfaultfd context changed to @new_ctx.
  */
 __must_check struct vm_area_struct *vma_modify_flags_uffd(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
-		unsigned long start, unsigned long end, vm_flags_t vm_flags,
+		unsigned long start, unsigned long end, const vma_flags_t *vma_flags,
 		struct vm_userfaultfd_ctx new_ctx, bool give_up_on_oom);
 
 __must_check struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg);

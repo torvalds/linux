@@ -132,7 +132,6 @@ static bool test_simple_modify(void)
 	struct vm_area_struct *vma;
 	vma_flags_t vma_flags = mk_vma_flags(VMA_READ_BIT, VMA_WRITE_BIT, VMA_MAYREAD_BIT,
 					     VMA_MAYWRITE_BIT);
-	vm_flags_t legacy_flags = VM_READ | VM_WRITE;
 	struct mm_struct mm = {};
 	struct vm_area_struct *init_vma = alloc_vma(&mm, 0, 0x3000, 0, vma_flags);
 	VMA_ITERATOR(vmi, &mm, 0x1000);
@@ -144,7 +143,7 @@ static bool test_simple_modify(void)
 	 * performs the merge/split only.
 	 */
 	vma = vma_modify_flags(&vmi, init_vma, init_vma,
-			       0x1000, 0x2000, &legacy_flags);
+			       0x1000, 0x2000, &vma_flags);
 	ASSERT_NE(vma, NULL);
 	/* We modify the provided VMA, and on split allocate new VMAs. */
 	ASSERT_EQ(vma, init_vma);

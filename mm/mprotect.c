@@ -756,13 +756,11 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 		vma_flags_clear(&new_vma_flags, VMA_ACCOUNT_BIT);
 	}
 
-	newflags = vma_flags_to_legacy(new_vma_flags);
-	vma = vma_modify_flags(vmi, *pprev, vma, start, end, &newflags);
+	vma = vma_modify_flags(vmi, *pprev, vma, start, end, &new_vma_flags);
 	if (IS_ERR(vma)) {
 		error = PTR_ERR(vma);
 		goto fail;
 	}
-	new_vma_flags = legacy_to_vma_flags(newflags);
 
 	*pprev = vma;
 
@@ -771,7 +769,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	 * held in write mode.
 	 */
 	vma_start_write(vma);
-	vm_flags_reset_once(vma, newflags);
+	vma_flags_reset_once(vma, &new_vma_flags);
 	if (vma_wants_manual_pte_write_upgrade(vma))
 		mm_cp_flags |= MM_CP_TRY_CHANGE_WRITABLE;
 	vma_set_page_prot(vma);
@@ -796,6 +794,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	}
 
 	vm_stat_account(mm, vma_flags_to_legacy(old_vma_flags), -nrpages);
+	newflags = vma_flags_to_legacy(new_vma_flags);
 	vm_stat_account(mm, newflags, nrpages);
 	perf_event_mmap(vma);
 	return 0;
