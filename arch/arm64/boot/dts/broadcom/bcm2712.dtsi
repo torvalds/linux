@@ -509,10 +509,6 @@
 			     <0x18 0x00000000  0x18 0x00000000  0x04 0x00000000>,
 			     <0x1c 0x00000000  0x1c 0x00000000  0x04 0x00000000>;
 
-		vc4: gpu {
-			compatible = "brcm,bcm2712-vc6";
-		};
-
 		pcie0: pcie@1000100000 {
 			compatible = "brcm,bcm2712-pcie";
 			reg = <0x10 0x00100000 0x00 0x9310>;
@@ -667,6 +663,10 @@
 			interrupts = <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>;
 		};
+	};
+
+	vc4: gpu {
+		compatible = "brcm,bcm2712-vc6";
 	};
 
 	timer {
