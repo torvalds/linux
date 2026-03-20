@@ -57,11 +57,11 @@ static void stmmac_dwmac_mode_quirk(struct stmmac_priv *priv)
 
 	if (priv->chain_mode) {
 		dev_info(priv->device, "Chain mode enabled\n");
-		priv->mode = STMMAC_CHAIN_MODE;
+		priv->descriptor_mode = STMMAC_CHAIN_MODE;
 		mac->mode = &chain_mode_ops;
 	} else {
 		dev_info(priv->device, "Ring mode enabled\n");
-		priv->mode = STMMAC_RING_MODE;
+		priv->descriptor_mode = STMMAC_RING_MODE;
 		mac->mode = &ring_mode_ops;
 	}
 }
