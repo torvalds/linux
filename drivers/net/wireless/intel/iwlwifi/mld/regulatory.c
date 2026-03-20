@@ -214,6 +214,7 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_PLATFORM_ANT_GAIN_CMD);
 	int cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 1);
 	int cmd_len = sizeof(cmd.v8);
+	u8 cmd_bios_rev;
 	int ret;
 
 	BUILD_BUG_ON(offsetof(typeof(cmd), v8.ppag_config_info.hdr) !=
@@ -249,6 +250,10 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 			}
 		}
 		cmd_len = sizeof(cmd.v7);
+		cmd_bios_rev =
+			iwl_fw_lookup_cmd_bios_supported_revision(fwrt->fw,
+								  fwrt->ppag_bios_source,
+								  cmd_id, 4);
 	} else if (cmd_ver == 8) {
 		for (int chain = 0; chain < ARRAY_SIZE(cmd.v8.gain); chain++) {
 			for (int subband = 0;
@@ -262,10 +267,21 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 						cmd.v8.gain[chain][subband]);
 			}
 		}
+		cmd_bios_rev =
+			iwl_fw_lookup_cmd_bios_supported_revision(fwrt->fw,
+								  fwrt->ppag_bios_source,
+								  cmd_id, 5);
 	} else {
 		WARN(1, "Bad version for PER_PLATFORM_ANT_GAIN_CMD %d\n",
 		     cmd_ver);
 		return -EINVAL;
+	}
+
+	if (cmd_bios_rev < fwrt->ppag_bios_rev) {
+		IWL_ERR(mld,
+			"BIOS revision compatibility check failed - Supported: %d, Current: %d\n",
+			cmd_bios_rev, fwrt->ppag_bios_rev);
+		return 0;
 	}
 
 	IWL_DEBUG_RADIO(mld, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
