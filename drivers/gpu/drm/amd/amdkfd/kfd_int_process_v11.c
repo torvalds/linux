@@ -353,7 +353,7 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 
 		/* CP */
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
-			kfd_signal_event_interrupt(pasid, context_id0, 32);
+			kfd_signal_event_interrupt(pasid, context_id0, 32, true);
 		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
 			 KFD_DBG_EC_TYPE_IS_PACKET(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0))) {
 			u32 doorbell_id = KFD_CTXID0_DOORBELL_ID(context_id0);
@@ -366,7 +366,7 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 
 		/* SDMA */
 		else if (source_id == SOC21_INTSRC_SDMA_TRAP)
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
+			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28, true);
 		else if (source_id == SOC21_INTSRC_SDMA_ECC) {
 			event_interrupt_poison_consumption_v11(dev, pasid, source_id);
 			return;
@@ -404,7 +404,7 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 			default:
 				break;
 			}
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24);
+			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24, true);
 		}
 
 	} else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {

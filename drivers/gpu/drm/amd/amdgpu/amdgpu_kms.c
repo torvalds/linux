@@ -1522,10 +1522,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 			 "Failed to init usermode queue manager (%d), use legacy workload submission only\n",
 			 r);
 
-	r = amdgpu_eviction_fence_init(&fpriv->evf_mgr);
-	if (r)
-		goto error_vm;
-
+	amdgpu_evf_mgr_init(&fpriv->evf_mgr);
 	amdgpu_ctx_mgr_init(&fpriv->ctx_mgr, adev);
 
 	file_priv->driver_priv = fpriv;

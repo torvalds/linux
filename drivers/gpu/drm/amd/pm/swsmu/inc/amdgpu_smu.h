@@ -389,6 +389,7 @@ struct smu_table_context {
 	void				*metrics_table;
 	void				*clocks_table;
 	void				*watermarks_table;
+	struct mutex			metrics_lock;
 
 	void				*max_sustainable_clocks;
 	struct smu_bios_boot_up_values	boot_values;

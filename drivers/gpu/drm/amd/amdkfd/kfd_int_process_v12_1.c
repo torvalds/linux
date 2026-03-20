@@ -28,6 +28,7 @@
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 #include "kfd_smi_events.h"
 #include "kfd_debug.h"
+#include "amdgpu_ras_mgr.h"
 
 /*
  * GFX12.1 SQ Interrupts
@@ -185,6 +186,7 @@ static void event_interrupt_poison_consumption_v12_1(struct kfd_node *node,
 	enum amdgpu_ras_block block = 0;
 	int ret = -EINVAL;
 	uint32_t reset = 0;
+	u64 event_id = RAS_EVENT_INVALID_ID;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid, NULL);
 
 	if (!p)
@@ -220,7 +222,15 @@ static void event_interrupt_poison_consumption_v12_1(struct kfd_node *node,
 	 * resetting queue passes, do page retirement without gpu reset
 	 * resetting queue fails, fallback to gpu reset solution
 	 */
-	amdgpu_amdkfd_ras_poison_consumption_handler(node->adev, block, reset);
+	if (amdgpu_uniras_enabled(node->adev))
+		event_id = amdgpu_ras_mgr_gen_ras_event_seqno(node->adev,
+					RAS_SEQNO_TYPE_POISON_CONSUMPTION);
+
+	RAS_EVENT_LOG(node->adev, event_id,
+		      "poison is consumed by source %d, kick off gpu reset flow\n", source_id);
+
+	amdgpu_amdkfd_ras_pasid_poison_consumption_handler(node->adev,
+				block, pasid, NULL, NULL, reset);
 }
 
 static bool event_interrupt_isr_v12_1(struct kfd_node *node,
@@ -326,7 +336,7 @@ static void event_interrupt_wq_v12_1(struct kfd_node *node,
 
 		/* CP */
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
-			kfd_signal_event_interrupt(pasid, context_id0, 32);
+			kfd_signal_event_interrupt(pasid, context_id0, 32, false);
 		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
 			 KFD_DBG_EC_TYPE_IS_PACKET(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0))) {
 			u32 doorbell_id = KFD_CTXID0_DOORBELL_ID(context_id0);
@@ -339,7 +349,7 @@ static void event_interrupt_wq_v12_1(struct kfd_node *node,
 
 		/* SDMA */
 		else if (source_id == SOC21_INTSRC_SDMA_TRAP)
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
+			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28, true);
 		else if (source_id == SOC21_INTSRC_SDMA_ECC) {
 			event_interrupt_poison_consumption_v12_1(node, pasid, source_id);
 			return;
@@ -377,7 +387,7 @@ static void event_interrupt_wq_v12_1(struct kfd_node *node,
 			default:
 				break;
 			}
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24);
+			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24, true);
 		}
 
 	} else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {

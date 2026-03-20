@@ -112,8 +112,10 @@
 #include "smuio_v15_0_8.h"
 #include "vcn_v5_0_0.h"
 #include "vcn_v5_0_1.h"
+#include "vcn_v5_0_2.h"
 #include "jpeg_v5_0_0.h"
 #include "jpeg_v5_0_1.h"
+#include "jpeg_v5_0_2.h"
 #include "jpeg_v5_3_0.h"
 
 #include "amdgpu_ras_mgr.h"
@@ -296,13 +298,17 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 	if (vram_size)
 		adev->discovery.offset = (vram_size << 20) - DISCOVERY_TMR_OFFSET;
 
-	if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
-		adev->discovery.offset =
-			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
-		adev->discovery.size =
-			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
-		if (!adev->discovery.offset || !adev->discovery.size)
-			return -EINVAL;
+	if (amdgpu_sriov_vf(adev)) {
+		if (adev->virt.is_dynamic_crit_regn_enabled) {
+			adev->discovery.offset =
+				adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
+			adev->discovery.size =
+				adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
+			if (!adev->discovery.offset || !adev->discovery.size)
+				return -EINVAL;
+		} else {
+			goto out;
+		}
 	} else {
 		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
 		if (tmr_size) {
@@ -322,7 +328,7 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 			adev->discovery.offset = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
 		}
 	}
-
+out:
 	adev->discovery.bin = kzalloc(adev->discovery.size, GFP_KERNEL);
 	if (!adev->discovery.bin)
 		return -ENOMEM;
@@ -556,7 +562,7 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 	checksum = le16_to_cpu(info->checksum);
 
 	switch (table_id) {
-	case IP_DISCOVERY:
+	case IP_DISCOVERY: {
 		struct ip_discovery_header *ihdr =
 			(struct ip_discovery_header *)(discovery_bin + offset);
 		act_val = le32_to_cpu(ihdr->signature);
@@ -564,7 +570,8 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		table_size = le16_to_cpu(ihdr->size);
 		table_name = "data table";
 		break;
-	case GC:
+	}
+	case GC: {
 		struct gpu_info_header *ghdr =
 			(struct gpu_info_header *)(discovery_bin + offset);
 		act_val = le32_to_cpu(ghdr->table_id);
@@ -572,7 +579,8 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		table_size = le16_to_cpu(ghdr->size);
 		table_name = "gc table";
 		break;
-	case HARVEST_INFO:
+	}
+	case HARVEST_INFO: {
 		struct harvest_info_header *hhdr =
 			(struct harvest_info_header *)(discovery_bin + offset);
 		act_val = le32_to_cpu(hhdr->signature);
@@ -580,7 +588,8 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		table_size = sizeof(struct harvest_table);
 		table_name = "harvest table";
 		break;
-	case VCN_INFO:
+	}
+	case VCN_INFO: {
 		struct vcn_info_header *vhdr =
 			(struct vcn_info_header *)(discovery_bin + offset);
 		act_val = le32_to_cpu(vhdr->table_id);
@@ -588,7 +597,8 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		table_size = le32_to_cpu(vhdr->size_bytes);
 		table_name = "vcn table";
 		break;
-	case MALL_INFO:
+	}
+	case MALL_INFO: {
 		struct mall_info_header *mhdr =
 			(struct mall_info_header *)(discovery_bin + offset);
 		act_val = le32_to_cpu(mhdr->table_id);
@@ -597,6 +607,7 @@ static int amdgpu_discovery_table_check(struct amdgpu_device *adev,
 		table_name = "mall table";
 		check_table = false;
 		break;
+	}
 	default:
 		dev_err(adev->dev, "invalid ip discovery table id %d specified\n", table_id);
 		check_table = false;
@@ -2639,6 +2650,10 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(5, 0, 1):
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_1_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_1_ip_block);
+			break;
+		case IP_VERSION(5, 0, 2):
+			amdgpu_device_ip_block_add(adev, &vcn_v5_0_2_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_2_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,

@@ -1129,12 +1129,21 @@ static void sdma_v7_1_vm_set_pte_pde(struct amdgpu_ib *ib,
 	/* for physically contiguous pages (vram) */
 	u32 header = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_PTEPDE);
 
-	if (amdgpu_mtype_local)
-		header |= SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x3);
-	else
-		header |= (SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x2) |
-			   SDMA_PKT_PTEPDE_COPY_HEADER_SNOOP(0x1) |
-			   SDMA_PKT_PTEPDE_COPY_HEADER_SCOPE(0x3));
+	/* TODO:
+	 * When VM_L2_CNTL5.WALKER_FETCH_PDE_MTYPE_ENABLE is enabled, change below MTYPE
+	 * to RW for AID A1 and UC for AID A0. NC needs additional GCR flush and need not
+	 * be supported. Also, honour amdgpu_mtype_local override. RW would additionally
+	 * require setting SCOPE bits in the header.
+	 *
+	 * header |= (SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x2:RW) |
+	 *           SDMA_PKT_PTEPDE_COPY_HEADER_SNOOP(0x1) |
+	 *           SDMA_PKT_PTEPDE_COPY_HEADER_SCOPE(0x3:SYS_SCOPE));
+	 */
+
+	/* VM_L2_CNTL5.WALKER_FETCH_PDE_MTYPE_ENABLE is 0 which defaults to UC. So,
+	 * use MTYPE_UC (0x3). For ref. MTYPE_RW=0x2 MTYPE_NC=0x0
+	 */
+	header |= SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x3) | SDMA_PKT_PTEPDE_COPY_HEADER_SNOOP(0x1);
 
 	ib->ptr[ib->length_dw++] = header;
 	ib->ptr[ib->length_dw++] = lower_32_bits(pe); /* dst addr */

@@ -103,6 +103,16 @@ int amdgpu_ras_process_handle_consumption_interrupt(struct amdgpu_device *adev, 
 	if (!ih_info)
 		return -EINVAL;
 
+	if (amdgpu_sriov_vf(adev)) {
+		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
+			adev->virt.ops->ras_poison_handler(adev, ih_info->block);
+		else
+			dev_warn(adev->dev,
+				"No ras_poison_handler interface in SRIOV for block[%d]!\n",
+				ih_info->block);
+		return 0;
+	}
+
 	memset(&req, 0, sizeof(req));
 	req.block = ih_info->block;
 	req.data = ih_info->data;

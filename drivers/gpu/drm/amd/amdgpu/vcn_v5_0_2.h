@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Advanced Micro Devices, Inc.
+ * Copyright 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __SOC_V1_0_H__
-#define __SOC_V1_0_H__
 
-extern const struct amdgpu_ip_block_version soc_v1_0_common_ip_block;
+#ifndef __VCN_v5_0_2_H__
+#define __VCN_v5_0_2_H__
 
-void soc_v1_0_grbm_select(struct amdgpu_device *adev,
-			  u32 me, u32 pipe,
-			  u32 queue, u32 vmid,
-			  int xcc_id);
-int soc_v1_0_init_soc_config(struct amdgpu_device *adev);
-bool soc_v1_0_normalize_xcc_reg_range(uint32_t reg);
-bool soc_v1_0_mid1_reg_range(uint32_t reg);
-uint32_t soc_v1_0_normalize_xcc_reg_offset(uint32_t reg);
-uint32_t soc_v1_0_normalize_reg_offset(uint32_t reg);
-u64 soc_v1_0_encode_ext_smn_addressing(int ext_id);
+extern const struct amdgpu_ip_block_version vcn_v5_0_2_ip_block;
 
-#endif
+#endif /* __VCN_v5_0_2_H__ */

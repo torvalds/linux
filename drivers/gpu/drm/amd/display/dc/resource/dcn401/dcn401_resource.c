@@ -1839,8 +1839,15 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.get_power_profile = dcn401_get_power_profile,
 	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe,
-	.get_max_hw_cursor_size = dcn32_get_max_hw_cursor_size
+	.get_max_hw_cursor_size = dcn32_get_max_hw_cursor_size,
+	.get_default_tiling_info = dcn401_get_default_tiling_info
 };
+
+void dcn401_get_default_tiling_info(struct dc_tiling_info *tiling_info)
+{
+	tiling_info->gfxversion = DcGfxAddr3;
+	tiling_info->gfx_addr3.swizzle = DC_ADDR3_SW_LINEAR;
+}
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
 {

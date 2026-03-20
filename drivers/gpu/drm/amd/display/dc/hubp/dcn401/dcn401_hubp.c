@@ -812,9 +812,8 @@ void hubp401_cursor_set_position(
 	int x_pos_viewport = 0;
 	int x_hot_viewport = 0;
 	uint32_t cur_en = pos->enable ? 1 : 0;
-
+	uint32_t x_hotspot_clamped = pos->x_hotspot;
 	hubp->curs_pos = *pos;
-
 	/* Recout is zero for pipes if the entire dst_rect is contained
 	 * within preceeding ODM slices.
 	 */
@@ -845,6 +844,8 @@ void hubp401_cursor_set_position(
 
 	ASSERT(param->h_scale_ratio.value);
 
+	if (x_hotspot_clamped > 0xFF)
+		x_hotspot_clamped = 0xFF;
 	if (param->h_scale_ratio.value)
 		dst_x_offset = dc_fixpt_floor(dc_fixpt_div(
 			dc_fixpt_from_int(dst_x_offset),
@@ -865,7 +866,7 @@ void hubp401_cursor_set_position(
 			CURSOR_Y_POSITION, pos->y);
 
 		REG_SET_2(CURSOR_HOT_SPOT, 0,
-			CURSOR_HOT_SPOT_X, pos->x_hotspot,
+			CURSOR_HOT_SPOT_X, x_hotspot_clamped,
 			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
 
 		REG_SET(CURSOR_DST_OFFSET, 0,

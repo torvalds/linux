@@ -527,8 +527,11 @@ bool ras_core_is_enabled(struct ras_core_context *ras_core)
 
 uint64_t ras_core_get_utc_second_timestamp(struct ras_core_context *ras_core)
 {
-	if (ras_core && ras_core->sys_fn &&
-		ras_core->sys_fn->get_utc_second_timestamp)
+	if (!ras_core)
+		return 0;
+
+	if (ras_core->sys_fn &&
+	    ras_core->sys_fn->get_utc_second_timestamp)
 		return ras_core->sys_fn->get_utc_second_timestamp(ras_core);
 
 	RAS_DEV_ERR(ras_core->dev, "Failed to get system timestamp!\n");
@@ -550,7 +553,9 @@ bool ras_core_ras_interrupt_detected(struct ras_core_context *ras_core)
 		ras_core->sys_fn->detect_ras_interrupt)
 		return ras_core->sys_fn->detect_ras_interrupt(ras_core);
 
-	RAS_DEV_ERR(ras_core->dev, "Failed to detect ras interrupt!\n");
+	if (ras_core && ras_core->dev)
+		RAS_DEV_ERR(ras_core->dev, "Failed to detect ras interrupt!\n");
+
 	return false;
 }
 

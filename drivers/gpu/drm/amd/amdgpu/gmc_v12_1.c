@@ -524,20 +524,27 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 	bool ext_coherent = bo->flags & AMDGPU_GEM_CREATE_EXT_COHERENT;
 	uint32_t gc_ip_version = amdgpu_ip_version(adev, GC_HWIP, 0);
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
-	unsigned int mtype, mtype_local;
+	unsigned int mtype, mtype_local, mtype_remote;
 	bool snoop = false;
 	bool is_local = false;
+	bool is_aid_a1;
 
 	switch (gc_ip_version) {
 	case IP_VERSION(12, 1, 0):
-		mtype_local = MTYPE_RW;
-		if (amdgpu_mtype_local == 1) {
+		is_aid_a1 = (adev->rev_id & 0x10);
+
+		mtype_local = is_aid_a1 ? MTYPE_RW : MTYPE_NC;
+		mtype_remote = is_aid_a1 ? MTYPE_NC : MTYPE_UC;
+		if (amdgpu_mtype_local == 0) {
+			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			mtype_local = MTYPE_RW;
+		} else if (amdgpu_mtype_local == 1) {
 			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
 			mtype_local = MTYPE_NC;
 		} else if (amdgpu_mtype_local == 2) {
-			DRM_INFO_ONCE("MTYPE_CC not supported, using MTYPE_RW instead for local memory\n");
+			DRM_INFO_ONCE("MTYPE_CC not supported, using %s for local memory\n", is_aid_a1 ? "MTYPE_RW" : "MTYPE_NC");
 		} else {
-			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			DRM_INFO_ONCE("Using %s for local memory\n", is_aid_a1 ? "MTYPE_RW" : "MTYPE_NC");
 		}
 
 		is_local = (is_vram && adev == bo_adev);
@@ -547,10 +554,7 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 		} else if (ext_coherent) {
 			mtype = is_local ? mtype_local : MTYPE_UC;
 		} else {
-			if (is_local)
-				mtype = mtype_local;
-			else
-				mtype = MTYPE_NC;
+			mtype = is_local ? mtype_local : mtype_remote;
 		}
 		break;
 	default:
@@ -621,10 +625,17 @@ static const struct amdgpu_irq_src_funcs gmc_v12_1_irq_funcs = {
 	.process = gmc_v12_1_process_interrupt,
 };
 
+static const struct amdgpu_irq_src_funcs gmc_v12_1_ecc_funcs = {
+	.process = amdgpu_umc_uniras_process_ecc_irq,
+};
+
 void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v12_1_irq_funcs;
+
+	adev->gmc.ecc_irq.num_types = 1;
+	adev->gmc.ecc_irq.funcs = &gmc_v12_1_ecc_funcs;
 }
 
 void gmc_v12_1_init_vram_info(struct amdgpu_device *adev)

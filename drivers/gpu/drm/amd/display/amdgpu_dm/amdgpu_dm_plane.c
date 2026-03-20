@@ -62,9 +62,6 @@ static const uint32_t rgb_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_RGB565,
-	DRM_FORMAT_NV21,
-	DRM_FORMAT_NV12,
-	DRM_FORMAT_P010
 };
 
 static const uint32_t overlay_formats[] = {
@@ -707,21 +704,21 @@ static void amdgpu_dm_plane_add_gfx12_modifiers(struct amdgpu_device *adev,
 	uint8_t max_comp_block[] = {2, 1, 0};
 	uint64_t max_comp_block_mod[ARRAY_SIZE(max_comp_block)] = {0};
 	uint8_t i = 0, j = 0;
-	uint64_t gfx12_modifiers[] = {mod_256k, mod_64k, mod_4k, mod_256b, DRM_FORMAT_MOD_LINEAR};
+	/* Note, linear (no DCC) gets added to the modifier list for all chips by the caller. */
+	uint64_t gfx12_modifiers[] = {mod_256k, mod_64k, mod_4k, mod_256b};
 
 	for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
 		max_comp_block_mod[i] = AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_comp_block[i]);
 
 	/* With DCC: Best choice should be kept first. Hence, add all 256k modifiers of different
 	 * max compressed blocks first and then move on to the next smaller sized layouts.
-	 * Do not add the linear modifier here, and hence the condition of size-1 for the loop
 	 */
-	for (j = 0; j < ARRAY_SIZE(gfx12_modifiers) - 1; j++)
+	for (j = 0; j < ARRAY_SIZE(gfx12_modifiers); j++)
 		for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
 			amdgpu_dm_plane_add_modifier(mods, size, capacity,
 						     ver | dcc | max_comp_block_mod[i] | gfx12_modifiers[j]);
 
-	/* Without DCC. Add all modifiers including linear at the end */
+	/* Without DCC. */
 	for (i = 0; i < ARRAY_SIZE(gfx12_modifiers); i++)
 		amdgpu_dm_plane_add_modifier(mods, size, capacity, gfx12_modifiers[i]);
 

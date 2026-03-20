@@ -398,6 +398,17 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+int amdgpu_umc_uniras_process_ecc_irq(struct amdgpu_device *adev,
+			struct amdgpu_irq_src *source,
+			struct amdgpu_iv_entry *entry)
+{
+	struct ras_ih_info ih_info = {0};
+
+	ih_info.block = RAS_BLOCK_ID__UMC;
+	amdgpu_ras_mgr_dispatch_interrupt(adev, &ih_info);
+	return 0;
+}
+
 int amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t err_addr,
 		uint64_t retired_page,

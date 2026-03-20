@@ -314,7 +314,6 @@ uint64_t amdgpu_reg_get_smn_base64(struct amdgpu_device *adev,
 				"SMN base address query not supported for this device\n");
 			return 0;
 		}
-		return 0;
 	}
 	return adev->reg.smn.get_smn_base(adev, block, die_inst);
 }

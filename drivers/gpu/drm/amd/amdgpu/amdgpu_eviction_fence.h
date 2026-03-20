@@ -25,6 +25,8 @@
 #ifndef AMDGPU_EV_FENCE_H_
 #define AMDGPU_EV_FENCE_H_
 
+#include <linux/dma-fence.h>
+
 struct amdgpu_eviction_fence {
 	struct dma_fence base;
 	spinlock_t	 lock;
@@ -35,35 +37,36 @@ struct amdgpu_eviction_fence {
 struct amdgpu_eviction_fence_mgr {
 	u64			ev_fence_ctx;
 	atomic_t		ev_fence_seq;
-	spinlock_t		ev_fence_lock;
-	struct amdgpu_eviction_fence *ev_fence;
-	struct delayed_work	suspend_work;
-	uint8_t fd_closing;
+
+	/*
+	 * Only updated while holding the VM resv lock.
+	 * Only signaled while holding the userq mutex.
+	 */
+	struct dma_fence __rcu	*ev_fence;
+	struct work_struct	suspend_work;
+	bool			shutdown;
 };
 
-/* Eviction fence helper functions */
-struct amdgpu_eviction_fence *
-amdgpu_eviction_fence_create(struct amdgpu_eviction_fence_mgr *evf_mgr);
+static inline struct dma_fence *
+amdgpu_evf_mgr_get_fence(struct amdgpu_eviction_fence_mgr *evf_mgr)
+{
+	struct dma_fence *ev_fence;
 
-void
-amdgpu_eviction_fence_destroy(struct amdgpu_eviction_fence_mgr *evf_mgr);
+	rcu_read_lock();
+	ev_fence = dma_fence_get_rcu_safe(&evf_mgr->ev_fence);
+	rcu_read_unlock();
+	return ev_fence;
+}
 
-int
-amdgpu_eviction_fence_attach(struct amdgpu_eviction_fence_mgr *evf_mgr,
-			     struct amdgpu_bo *bo);
+int amdgpu_evf_mgr_attach_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,
+				struct amdgpu_bo *bo);
+int amdgpu_evf_mgr_rearm(struct amdgpu_eviction_fence_mgr *evf_mgr,
+			 struct drm_exec *exec);
+void amdgpu_evf_mgr_detach_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,
+				 struct amdgpu_bo *bo);
+void amdgpu_evf_mgr_init(struct amdgpu_eviction_fence_mgr *evf_mgr);
+void amdgpu_evf_mgr_shutdown(struct amdgpu_eviction_fence_mgr *evf_mgr);
+void amdgpu_evf_mgr_flush_suspend(struct amdgpu_eviction_fence_mgr *evf_mgr);
+void amdgpu_evf_mgr_fini(struct amdgpu_eviction_fence_mgr *evf_mgr);
 
-void
-amdgpu_eviction_fence_detach(struct amdgpu_eviction_fence_mgr *evf_mgr,
-			     struct amdgpu_bo *bo);
-
-int
-amdgpu_eviction_fence_init(struct amdgpu_eviction_fence_mgr *evf_mgr);
-
-void
-amdgpu_eviction_fence_signal(struct amdgpu_eviction_fence_mgr *evf_mgr,
-			     struct amdgpu_eviction_fence *ev_fence);
-
-int
-amdgpu_eviction_fence_replace_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,
-				    struct drm_exec *exec);
 #endif

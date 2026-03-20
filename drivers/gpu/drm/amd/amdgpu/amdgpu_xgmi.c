@@ -472,12 +472,12 @@ static ssize_t amdgpu_xgmi_show_num_hops(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
-	int i;
+	int i, offset = 0;
 
 	for (i = 0; i < top->num_nodes; i++)
-		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_hops);
+		offset += sysfs_emit_at(buf, offset, "%02x ", top->nodes[i].num_hops);
 
-	return sysfs_emit(buf, "%s\n", buf);
+	return offset + sysfs_emit_at(buf, offset, "\n");
 }
 
 static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
@@ -487,12 +487,12 @@ static ssize_t amdgpu_xgmi_show_num_links(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
-	int i;
+	int i, offset = 0;
 
 	for (i = 0; i < top->num_nodes; i++)
-		sprintf(buf + 3 * i, "%02x ", top->nodes[i].num_links);
+		offset += sysfs_emit_at(buf, offset, "%02x ", top->nodes[i].num_links);
 
-	return sysfs_emit(buf, "%s\n", buf);
+	return offset + sysfs_emit_at(buf, offset, "\n");
 }
 
 static ssize_t amdgpu_xgmi_show_connected_port_num(struct device *dev,

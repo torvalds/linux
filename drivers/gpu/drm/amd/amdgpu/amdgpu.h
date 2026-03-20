@@ -327,6 +327,7 @@ struct kfd_vm_fault_info;
 struct amdgpu_hive_info;
 struct amdgpu_reset_context;
 struct amdgpu_reset_control;
+struct amdgpu_coredump_info;
 
 enum amdgpu_cp_irq {
 	AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP = 0,
@@ -1146,6 +1147,11 @@ struct amdgpu_device {
 	struct list_head                ras_list;
 
 	struct amdgpu_reset_domain	*reset_domain;
+
+#ifdef CONFIG_DEV_COREDUMP
+	struct amdgpu_coredump_info	*coredump;
+	struct work_struct		coredump_work;
+#endif
 
 	struct mutex			benchmark_mutex;
 

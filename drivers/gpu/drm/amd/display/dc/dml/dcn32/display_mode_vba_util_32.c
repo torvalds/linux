@@ -459,8 +459,8 @@ void dml32_CalculateSwathAndDETConfiguration(
 {
 	unsigned int MaximumSwathHeightY[DC__NUM_DPP__MAX];
 	unsigned int MaximumSwathHeightC[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX] = { 0 };
+	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX] = { 0 };
 	unsigned int RoundedUpSwathSizeBytesY;
 	unsigned int RoundedUpSwathSizeBytesC;
 	double SwathWidthdoubleDPP[DC__NUM_DPP__MAX];
@@ -2988,7 +2988,7 @@ void dml32_UseMinimumDCFCLK(
 		for  (j = 0; j <= 1; ++j) {
 			double PixelDCFCLKCyclesRequiredInPrefetch[DC__NUM_DPP__MAX];
 			double PrefetchPixelLinesTime[DC__NUM_DPP__MAX];
-			double DCFCLKRequiredForPeakBandwidthPerSurface[DC__NUM_DPP__MAX];
+			double DCFCLKRequiredForPeakBandwidthPerSurface[DC__NUM_DPP__MAX] = { 0 };
 			double DynamicMetadataVMExtraLatency[DC__NUM_DPP__MAX];
 			double MinimumTWait = 0.0;
 			double DPTEBandwidth;

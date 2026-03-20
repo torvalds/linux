@@ -597,11 +597,11 @@ exec_fini:
 put_gobj_write:
 	for (i = 0; i < num_write_bo_handles; i++)
 		drm_gem_object_put(gobj_write[i]);
-	kfree(gobj_write);
+	kvfree(gobj_write);
 put_gobj_read:
 	for (i = 0; i < num_read_bo_handles; i++)
 		drm_gem_object_put(gobj_read[i]);
-	kfree(gobj_read);
+	kvfree(gobj_read);
 free_syncobj:
 	while (entry-- > 0)
 		if (syncobj[entry])
@@ -616,23 +616,321 @@ free_syncobj_handles:
 	return r;
 }
 
+/* Count the number of expected fences so userspace can alloc a buffer */
+static int
+amdgpu_userq_wait_count_fences(struct drm_file *filp,
+			       struct drm_amdgpu_userq_wait *wait_info,
+			       u32 *syncobj_handles, u32 *timeline_points,
+			       u32 *timeline_handles,
+			       struct drm_gem_object **gobj_write,
+			       struct drm_gem_object **gobj_read)
+{
+	int num_read_bo_handles, num_write_bo_handles;
+	struct dma_fence_unwrap iter;
+	struct dma_fence *fence, *f;
+	unsigned int num_fences = 0;
+	struct drm_exec exec;
+	int i, r;
+
+	/*
+	 * This needs to be outside of the lock provided by drm_exec for
+	 * DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT to work correctly.
+	 */
+
+	/* Count timeline fences */
+	for (i = 0; i < wait_info->num_syncobj_timeline_handles; i++) {
+		r = drm_syncobj_find_fence(filp, timeline_handles[i],
+					   timeline_points[i],
+					   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+					   &fence);
+		if (r)
+			return r;
+
+		dma_fence_unwrap_for_each(f, &iter, fence)
+			num_fences++;
+
+		dma_fence_put(fence);
+	}
+
+	/* Count boolean fences */
+	for (i = 0; i < wait_info->num_syncobj_handles; i++) {
+		r = drm_syncobj_find_fence(filp, syncobj_handles[i], 0,
+					   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+					   &fence);
+		if (r)
+			return r;
+
+		num_fences++;
+		dma_fence_put(fence);
+	}
+
+	/* Lock all the GEM objects */
+	/* TODO: It is actually not necessary to lock them */
+	num_read_bo_handles = wait_info->num_bo_read_handles;
+	num_write_bo_handles = wait_info->num_bo_write_handles;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+		      num_read_bo_handles + num_write_bo_handles);
+
+	drm_exec_until_all_locked(&exec) {
+		r = drm_exec_prepare_array(&exec, gobj_read,
+					   num_read_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto error_unlock;
+
+		r = drm_exec_prepare_array(&exec, gobj_write,
+					   num_write_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto error_unlock;
+	}
+
+	/* Count read fences */
+	for (i = 0; i < num_read_bo_handles; i++) {
+		struct dma_resv_iter resv_cursor;
+		struct dma_fence *fence;
+
+		dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
+					DMA_RESV_USAGE_READ, fence)
+			num_fences++;
+	}
+
+	/* Count write fences */
+	for (i = 0; i < num_write_bo_handles; i++) {
+		struct dma_resv_iter resv_cursor;
+		struct dma_fence *fence;
+
+		dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
+					DMA_RESV_USAGE_WRITE, fence)
+			num_fences++;
+	}
+
+	wait_info->num_fences = num_fences;
+	r = 0;
+
+error_unlock:
+	/* Unlock all the GEM objects */
+	drm_exec_fini(&exec);
+	return r;
+}
+
+static int
+amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
+				    struct drm_amdgpu_userq_wait *wait_info,
+				    u32 *syncobj_handles, u32 *timeline_points,
+				    u32 *timeline_handles,
+				    struct drm_gem_object **gobj_write,
+				    struct drm_gem_object **gobj_read)
+{
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
+	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
+	struct drm_amdgpu_userq_fence_info *fence_info;
+	int num_read_bo_handles, num_write_bo_handles;
+	struct amdgpu_usermode_queue *waitq;
+	struct dma_fence **fences, *fence, *f;
+	struct dma_fence_unwrap iter;
+	int num_points, num_syncobj;
+	unsigned int num_fences = 0;
+	struct drm_exec exec;
+	int i, cnt, r;
+
+	fence_info = kmalloc_array(wait_info->num_fences, sizeof(*fence_info),
+				   GFP_KERNEL);
+	if (!fence_info)
+		return -ENOMEM;
+
+	fences = kmalloc_array(wait_info->num_fences, sizeof(*fences),
+			       GFP_KERNEL);
+	if (!fences) {
+		r = -ENOMEM;
+		goto free_fence_info;
+	}
+
+	/* Retrieve timeline fences */
+	num_points = wait_info->num_syncobj_timeline_handles;
+	for (i = 0; i < num_points; i++) {
+		r = drm_syncobj_find_fence(filp, timeline_handles[i],
+					   timeline_points[i],
+					   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+					   &fence);
+		if (r)
+			goto free_fences;
+
+		dma_fence_unwrap_for_each(f, &iter, fence) {
+			if (num_fences >= wait_info->num_fences) {
+				r = -EINVAL;
+				dma_fence_put(fence);
+				goto free_fences;
+			}
+
+			fences[num_fences++] = dma_fence_get(f);
+		}
+
+		dma_fence_put(fence);
+	}
+
+	/* Retrieve boolean fences */
+	num_syncobj = wait_info->num_syncobj_handles;
+	for (i = 0; i < num_syncobj; i++) {
+		struct dma_fence *fence;
+
+		r = drm_syncobj_find_fence(filp, syncobj_handles[i], 0,
+					   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+					   &fence);
+		if (r)
+			goto free_fences;
+
+		if (num_fences >= wait_info->num_fences) {
+			dma_fence_put(fence);
+			r = -EINVAL;
+			goto free_fences;
+		}
+
+		/* Give the reference to the fence array */
+		fences[num_fences++] = fence;
+	}
+
+	/* Lock all the GEM objects */
+	num_read_bo_handles = wait_info->num_bo_read_handles;
+	num_write_bo_handles = wait_info->num_bo_write_handles;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+		      num_read_bo_handles + num_write_bo_handles);
+
+	drm_exec_until_all_locked(&exec) {
+		r = drm_exec_prepare_array(&exec, gobj_read,
+					   num_read_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto error_unlock;
+
+		r = drm_exec_prepare_array(&exec, gobj_write,
+					   num_write_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto error_unlock;
+	}
+
+	/* Retrieve GEM read objects fence */
+	for (i = 0; i < num_read_bo_handles; i++) {
+		struct dma_resv_iter resv_cursor;
+		struct dma_fence *fence;
+
+		dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
+					DMA_RESV_USAGE_READ, fence) {
+			if (num_fences >= wait_info->num_fences) {
+				r = -EINVAL;
+				goto error_unlock;
+			}
+
+			fences[num_fences++] = dma_fence_get(fence);
+		}
+	}
+
+	/* Retrieve GEM write objects fence */
+	for (i = 0; i < num_write_bo_handles; i++) {
+		struct dma_resv_iter resv_cursor;
+		struct dma_fence *fence;
+
+		dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
+					DMA_RESV_USAGE_WRITE, fence) {
+			if (num_fences >= wait_info->num_fences) {
+				r = -EINVAL;
+				goto error_unlock;
+			}
+
+			fences[num_fences++] = dma_fence_get(fence);
+		}
+	}
+
+	drm_exec_fini(&exec);
+
+	/*
+	 * Keep only the latest fences to reduce the number of values
+	 * given back to userspace.
+	 */
+	num_fences = dma_fence_dedup_array(fences, num_fences);
+
+	waitq = amdgpu_userq_get(userq_mgr, wait_info->waitq_id);
+	if (!waitq) {
+		r = -EINVAL;
+		goto free_fences;
+	}
+
+	for (i = 0, cnt = 0; i < num_fences; i++) {
+		struct amdgpu_userq_fence_driver *fence_drv;
+		struct amdgpu_userq_fence *userq_fence;
+		u32 index;
+
+		userq_fence = to_amdgpu_userq_fence(fences[i]);
+		if (!userq_fence) {
+			/*
+			 * Just waiting on other driver fences should
+			 * be good for now
+			 */
+			r = dma_fence_wait(fences[i], true);
+			if (r)
+				goto put_waitq;
+
+			continue;
+		}
+
+		fence_drv = userq_fence->fence_drv;
+		/*
+		 * We need to make sure the user queue release their reference
+		 * to the fence drivers at some point before queue destruction.
+		 * Otherwise, we would gather those references until we don't
+		 * have any more space left and crash.
+		 */
+		r = xa_alloc(&waitq->fence_drv_xa, &index, fence_drv,
+			     xa_limit_32b, GFP_KERNEL);
+		if (r)
+			goto put_waitq;
+
+		amdgpu_userq_fence_driver_get(fence_drv);
+
+		/* Store drm syncobj's gpu va address and value */
+		fence_info[cnt].va = fence_drv->va;
+		fence_info[cnt].value = fences[i]->seqno;
+
+		/* Increment the actual userq fence count */
+		cnt++;
+	}
+	wait_info->num_fences = cnt;
+
+	/* Copy userq fence info to user space */
+	if (copy_to_user(u64_to_user_ptr(wait_info->out_fences),
+			 fence_info, cnt * sizeof(*fence_info)))
+		r = -EFAULT;
+	else
+		r = 0;
+
+put_waitq:
+	amdgpu_userq_put(waitq);
+
+free_fences:
+	while (num_fences--)
+		dma_fence_put(fences[num_fences]);
+	kfree(fences);
+
+free_fence_info:
+	kfree(fence_info);
+	return r;
+
+error_unlock:
+	drm_exec_fini(&exec);
+	goto free_fences;
+}
+
 int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {
+	int num_points, num_syncobj, num_read_bo_handles, num_write_bo_handles;
+	u32 *syncobj_handles, *timeline_points, *timeline_handles;
 	struct drm_amdgpu_userq_wait *wait_info = data;
-	const unsigned int num_write_bo_handles = wait_info->num_bo_write_handles;
-	const unsigned int num_read_bo_handles = wait_info->num_bo_read_handles;
-	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
-	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
-	struct drm_gem_object **gobj_write, **gobj_read;
-	u32 *timeline_points, *timeline_handles;
-	struct amdgpu_usermode_queue *waitq = NULL;
-	u32 *syncobj_handles, num_syncobj;
-	struct dma_fence **fences = NULL;
-	u16 num_points, num_fences = 0;
-	struct drm_exec exec;
-	int r, i, cnt;
+	struct drm_gem_object **gobj_write;
+	struct drm_gem_object **gobj_read;
+	void __user *ptr;
+	int r;
 
 	if (!amdgpu_userq_enabled(dev))
 		return -ENOTSUPP;
@@ -642,313 +940,75 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	num_syncobj = wait_info->num_syncobj_handles;
-	syncobj_handles = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_handles),
-					    num_syncobj, sizeof(u32));
+	ptr = u64_to_user_ptr(wait_info->syncobj_handles);
+	syncobj_handles = memdup_array_user(ptr, num_syncobj, sizeof(u32));
 	if (IS_ERR(syncobj_handles))
 		return PTR_ERR(syncobj_handles);
 
-
 	num_points = wait_info->num_syncobj_timeline_handles;
-	timeline_handles = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_timeline_handles),
-					     num_points, sizeof(u32));
+	ptr = u64_to_user_ptr(wait_info->syncobj_timeline_handles);
+	timeline_handles = memdup_array_user(ptr, num_points, sizeof(u32));
 	if (IS_ERR(timeline_handles)) {
 		r = PTR_ERR(timeline_handles);
 		goto free_syncobj_handles;
 	}
 
-	timeline_points = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_timeline_points),
-					    num_points, sizeof(u32));
-
+	ptr = u64_to_user_ptr(wait_info->syncobj_timeline_points);
+	timeline_points = memdup_array_user(ptr, num_points, sizeof(u32));
 	if (IS_ERR(timeline_points)) {
 		r = PTR_ERR(timeline_points);
 		goto free_timeline_handles;
 	}
 
-	r = drm_gem_objects_lookup(filp,
-				   u64_to_user_ptr(wait_info->bo_read_handles),
-				   num_read_bo_handles,
-				   &gobj_read);
+	num_read_bo_handles = wait_info->num_bo_read_handles;
+	ptr = u64_to_user_ptr(wait_info->bo_read_handles),
+	r = drm_gem_objects_lookup(filp, ptr, num_read_bo_handles, &gobj_read);
 	if (r)
 		goto free_timeline_points;
 
-	r = drm_gem_objects_lookup(filp,
-				   u64_to_user_ptr(wait_info->bo_write_handles),
-				   num_write_bo_handles,
+	num_write_bo_handles = wait_info->num_bo_write_handles;
+	ptr = u64_to_user_ptr(wait_info->bo_write_handles),
+	r = drm_gem_objects_lookup(filp, ptr, num_write_bo_handles,
 				   &gobj_write);
 	if (r)
 		goto put_gobj_read;
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
-		      (num_read_bo_handles + num_write_bo_handles));
-
-	/* Lock all BOs with retry handling */
-	drm_exec_until_all_locked(&exec) {
-		r = drm_exec_prepare_array(&exec, gobj_read, num_read_bo_handles, 1);
-		drm_exec_retry_on_contention(&exec);
-		if (r) {
-			drm_exec_fini(&exec);
-			goto put_gobj_write;
-		}
-
-		r = drm_exec_prepare_array(&exec, gobj_write, num_write_bo_handles, 1);
-		drm_exec_retry_on_contention(&exec);
-		if (r) {
-			drm_exec_fini(&exec);
-			goto put_gobj_write;
-		}
-	}
-
+	/*
+	 * Passing num_fences = 0 means that userspace doesn't want to
+	 * retrieve userq_fence_info. If num_fences = 0 we skip filling
+	 * userq_fence_info and return the actual number of fences on
+	 * args->num_fences.
+	 */
 	if (!wait_info->num_fences) {
-		if (num_points) {
-			struct dma_fence_unwrap iter;
-			struct dma_fence *fence;
-			struct dma_fence *f;
-
-			for (i = 0; i < num_points; i++) {
-				r = drm_syncobj_find_fence(filp, timeline_handles[i],
-							   timeline_points[i],
-							   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
-							   &fence);
-				if (r)
-					goto exec_fini;
-
-				dma_fence_unwrap_for_each(f, &iter, fence)
-					num_fences++;
-
-				dma_fence_put(fence);
-			}
-		}
-
-		/* Count syncobj's fence */
-		for (i = 0; i < num_syncobj; i++) {
-			struct dma_fence *fence;
-
-			r = drm_syncobj_find_fence(filp, syncobj_handles[i],
-						   0,
-						   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
-						   &fence);
-			if (r)
-				goto exec_fini;
-
-			num_fences++;
-			dma_fence_put(fence);
-		}
-
-		/* Count GEM objects fence */
-		for (i = 0; i < num_read_bo_handles; i++) {
-			struct dma_resv_iter resv_cursor;
-			struct dma_fence *fence;
-
-			dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
-						DMA_RESV_USAGE_READ, fence)
-				num_fences++;
-		}
-
-		for (i = 0; i < num_write_bo_handles; i++) {
-			struct dma_resv_iter resv_cursor;
-			struct dma_fence *fence;
-
-			dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
-						DMA_RESV_USAGE_WRITE, fence)
-				num_fences++;
-		}
-
-		/*
-		 * Passing num_fences = 0 means that userspace doesn't want to
-		 * retrieve userq_fence_info. If num_fences = 0 we skip filling
-		 * userq_fence_info and return the actual number of fences on
-		 * args->num_fences.
-		 */
-		wait_info->num_fences = num_fences;
+		r = amdgpu_userq_wait_count_fences(filp, wait_info,
+						   syncobj_handles,
+						   timeline_points,
+						   timeline_handles,
+						   gobj_write,
+						   gobj_read);
 	} else {
-		/* Array of fence info */
-		fence_info = kmalloc_array(wait_info->num_fences, sizeof(*fence_info), GFP_KERNEL);
-		if (!fence_info) {
-			r = -ENOMEM;
-			goto exec_fini;
-		}
-
-		/* Array of fences */
-		fences = kmalloc_array(wait_info->num_fences, sizeof(*fences), GFP_KERNEL);
-		if (!fences) {
-			r = -ENOMEM;
-			goto free_fence_info;
-		}
-
-		/* Retrieve GEM read objects fence */
-		for (i = 0; i < num_read_bo_handles; i++) {
-			struct dma_resv_iter resv_cursor;
-			struct dma_fence *fence;
-
-			dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
-						DMA_RESV_USAGE_READ, fence) {
-				if (num_fences >= wait_info->num_fences) {
-					r = -EINVAL;
-					goto free_fences;
-				}
-
-				fences[num_fences++] = fence;
-				dma_fence_get(fence);
-			}
-		}
-
-		/* Retrieve GEM write objects fence */
-		for (i = 0; i < num_write_bo_handles; i++) {
-			struct dma_resv_iter resv_cursor;
-			struct dma_fence *fence;
-
-			dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
-						DMA_RESV_USAGE_WRITE, fence) {
-				if (num_fences >= wait_info->num_fences) {
-					r = -EINVAL;
-					goto free_fences;
-				}
-
-				fences[num_fences++] = fence;
-				dma_fence_get(fence);
-			}
-		}
-
-		if (num_points) {
-			struct dma_fence_unwrap iter;
-			struct dma_fence *fence;
-			struct dma_fence *f;
-
-			for (i = 0; i < num_points; i++) {
-				r = drm_syncobj_find_fence(filp, timeline_handles[i],
-							   timeline_points[i],
-							   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
-							   &fence);
-				if (r)
-					goto free_fences;
-
-				dma_fence_unwrap_for_each(f, &iter, fence) {
-					if (num_fences >= wait_info->num_fences) {
-						r = -EINVAL;
-						dma_fence_put(fence);
-						goto free_fences;
-					}
-
-					dma_fence_get(f);
-					fences[num_fences++] = f;
-				}
-
-				dma_fence_put(fence);
-			}
-		}
-
-		/* Retrieve syncobj's fence */
-		for (i = 0; i < num_syncobj; i++) {
-			struct dma_fence *fence;
-
-			r = drm_syncobj_find_fence(filp, syncobj_handles[i],
-						   0,
-						   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
-						   &fence);
-			if (r)
-				goto free_fences;
-
-			if (num_fences >= wait_info->num_fences) {
-				r = -EINVAL;
-				dma_fence_put(fence);
-				goto free_fences;
-			}
-
-			fences[num_fences++] = fence;
-		}
-
-		/*
-		 * Keep only the latest fences to reduce the number of values
-		 * given back to userspace.
-		 */
-		num_fences = dma_fence_dedup_array(fences, num_fences);
-
-		waitq = amdgpu_userq_get(userq_mgr, wait_info->waitq_id);
-		if (!waitq) {
-			r = -EINVAL;
-			goto free_fences;
-		}
-
-		for (i = 0, cnt = 0; i < num_fences; i++) {
-			struct amdgpu_userq_fence_driver *fence_drv;
-			struct amdgpu_userq_fence *userq_fence;
-			u32 index;
-
-			userq_fence = to_amdgpu_userq_fence(fences[i]);
-			if (!userq_fence) {
-				/*
-				 * Just waiting on other driver fences should
-				 * be good for now
-				 */
-				r = dma_fence_wait(fences[i], true);
-				if (r) {
-					dma_fence_put(fences[i]);
-					goto free_fences;
-				}
-
-				dma_fence_put(fences[i]);
-				continue;
-			}
-
-			fence_drv = userq_fence->fence_drv;
-			/*
-			 * We need to make sure the user queue release their reference
-			 * to the fence drivers at some point before queue destruction.
-			 * Otherwise, we would gather those references until we don't
-			 * have any more space left and crash.
-			 */
-			r = xa_alloc(&waitq->fence_drv_xa, &index, fence_drv,
-				     xa_limit_32b, GFP_KERNEL);
-			if (r)
-				goto free_fences;
-
-			amdgpu_userq_fence_driver_get(fence_drv);
-
-			/* Store drm syncobj's gpu va address and value */
-			fence_info[cnt].va = fence_drv->va;
-			fence_info[cnt].value = fences[i]->seqno;
-
-			dma_fence_put(fences[i]);
-			/* Increment the actual userq fence count */
-			cnt++;
-		}
-
-		wait_info->num_fences = cnt;
-		/* Copy userq fence info to user space */
-		if (copy_to_user(u64_to_user_ptr(wait_info->out_fences),
-				 fence_info, wait_info->num_fences * sizeof(*fence_info))) {
-			r = -EFAULT;
-			goto free_fences;
-		}
+		r = amdgpu_userq_wait_return_fence_info(filp, wait_info,
+							syncobj_handles,
+							timeline_points,
+							timeline_handles,
+							gobj_write,
+							gobj_read);
 	}
 
-free_fences:
-	if (fences) {
-		while (num_fences-- > 0)
-			dma_fence_put(fences[num_fences]);
-		kfree(fences);
-	}
-free_fence_info:
-	kfree(fence_info);
-exec_fini:
-	drm_exec_fini(&exec);
-put_gobj_write:
-	for (i = 0; i < num_write_bo_handles; i++)
-		drm_gem_object_put(gobj_write[i]);
-	kfree(gobj_write);
+	while (num_write_bo_handles--)
+		drm_gem_object_put(gobj_write[num_write_bo_handles]);
+	kvfree(gobj_write);
+
 put_gobj_read:
-	for (i = 0; i < num_read_bo_handles; i++)
-		drm_gem_object_put(gobj_read[i]);
-	kfree(gobj_read);
+	while (num_read_bo_handles--)
+		drm_gem_object_put(gobj_read[num_read_bo_handles]);
+	kvfree(gobj_read);
+
 free_timeline_points:
 	kfree(timeline_points);
 free_timeline_handles:
 	kfree(timeline_handles);
 free_syncobj_handles:
 	kfree(syncobj_handles);
-
-	if (waitq)
-		amdgpu_userq_put(waitq);
-
 	return r;
 }

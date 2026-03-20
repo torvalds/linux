@@ -31,6 +31,8 @@
 #include "gc/gc_11_0_0_default.h"
 #include "v12_structs.h"
 #include "mes_v12_api_def.h"
+#include "gfx_v12_1_pkt.h"
+#include "sdma_v7_1_0_pkt_open.h"
 
 MODULE_FIRMWARE("amdgpu/gc_12_1_0_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_1_0_mes1.bin");
@@ -41,6 +43,7 @@ static int mes_v12_1_xcc_hw_init(struct amdgpu_ip_block *ip_block, int xcc_id);
 static int mes_v12_1_hw_fini(struct amdgpu_ip_block *ip_block);
 static int mes_v12_1_kiq_hw_init(struct amdgpu_device *adev, uint32_t xcc_id);
 static int mes_v12_1_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id);
+static int mes_v12_1_self_test(struct amdgpu_device *adev, int xcc_id);
 
 #define MES_EOP_SIZE   2048
 
@@ -491,16 +494,12 @@ static int mes_v12_1_query_sched_status(struct amdgpu_mes *mes,
 }
 static uint32_t mes_v12_1_get_xcc_from_reg(uint32_t reg_offset)
 {
-	/* Check xcc reg offset range */
-	uint32_t xcc = (reg_offset & XCC_MID_MASK) ? 4 : 0;
-	/* Each XCC has two register ranges.
-	 * These are represented in reg_offset[17:16]
-	 */
-	return ((reg_offset >> 16) & 0x3) + xcc;
+	return ((reg_offset >> 16) & 0x7);
 }
 
 static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
-				 struct RRMT_OPTION *rrmt_opt)
+			       struct RRMT_OPTION *rrmt_opt,
+			       uint32_t *out_reg)
 {
 	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
 
@@ -509,8 +508,12 @@ static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
 		rrmt_opt->mode = (xcc_id == rrmt_opt->xcd_die_id) ?
 			 MES_RRMT_MODE_LOCAL_XCD : MES_RRMT_MODE_REMOTE_XCD;
 	} else {
-		rrmt_opt->mode = MES_RRMT_MODE_LOCAL_REMOTE_AID;
+		rrmt_opt->mode = MES_RRMT_MODE_REMOTE_MID;
+		if (soc_v1_0_mid1_reg_range(reg))
+			rrmt_opt->mid_die_id = 1;
 	}
+
+	*out_reg = soc_v1_0_normalize_reg_offset(reg);
 }
 
 static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
@@ -534,65 +537,44 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 	switch (input->op) {
 	case MES_MISC_OP_READ_REG:
 		misc_pkt.opcode = MESAPI_MISC__READ_REG;
-		misc_pkt.read_reg.reg_offset = input->read_reg.reg_offset;
 		misc_pkt.read_reg.buffer_addr = input->read_reg.buffer_addr;
 		mes_v12_1_get_rrmt(input->read_reg.reg_offset,
 				   GET_INST(GC, input->xcc_id),
-				   &misc_pkt.read_reg.rrmt_opt);
-		if (misc_pkt.read_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
-			misc_pkt.read_reg.reg_offset =
-				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.read_reg.reg_offset);
-		}
+				   &misc_pkt.read_reg.rrmt_opt,
+				   &misc_pkt.read_reg.reg_offset);
 		break;
 	case MES_MISC_OP_WRITE_REG:
 		misc_pkt.opcode = MESAPI_MISC__WRITE_REG;
-		misc_pkt.write_reg.reg_offset = input->write_reg.reg_offset;
 		misc_pkt.write_reg.reg_value = input->write_reg.reg_value;
 		mes_v12_1_get_rrmt(input->write_reg.reg_offset,
 				   GET_INST(GC, input->xcc_id),
-				   &misc_pkt.write_reg.rrmt_opt);
-		if (misc_pkt.write_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
-			misc_pkt.write_reg.reg_offset =
-				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.write_reg.reg_offset);
-		}
+				   &misc_pkt.write_reg.rrmt_opt,
+				   &misc_pkt.write_reg.reg_offset);
 		break;
 	case MES_MISC_OP_WRM_REG_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
 		misc_pkt.wait_reg_mem.op = WRM_OPERATION__WAIT_REG_MEM;
 		misc_pkt.wait_reg_mem.reference = input->wrm_reg.ref;
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
-		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
 		misc_pkt.wait_reg_mem.reg_offset2 = 0;
 		mes_v12_1_get_rrmt(input->wrm_reg.reg0,
 				   GET_INST(GC, input->xcc_id),
-				   &misc_pkt.wait_reg_mem.rrmt_opt1);
-		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
-			misc_pkt.wait_reg_mem.reg_offset1 =
-				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset1);
-		}
+				   &misc_pkt.wait_reg_mem.rrmt_opt1,
+				   &misc_pkt.wait_reg_mem.reg_offset1);
 		break;
 	case MES_MISC_OP_WRM_REG_WR_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
 		misc_pkt.wait_reg_mem.op = WRM_OPERATION__WR_WAIT_WR_REG;
 		misc_pkt.wait_reg_mem.reference = input->wrm_reg.ref;
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
-		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
-		misc_pkt.wait_reg_mem.reg_offset2 = input->wrm_reg.reg1;
 		mes_v12_1_get_rrmt(input->wrm_reg.reg0,
 				   GET_INST(GC, input->xcc_id),
-				   &misc_pkt.wait_reg_mem.rrmt_opt1);
+				   &misc_pkt.wait_reg_mem.rrmt_opt1,
+				   &misc_pkt.wait_reg_mem.reg_offset1);
 		mes_v12_1_get_rrmt(input->wrm_reg.reg1,
 				   GET_INST(GC, input->xcc_id),
-				   &misc_pkt.wait_reg_mem.rrmt_opt2);
-
-		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
-			misc_pkt.wait_reg_mem.reg_offset1 =
-				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset1);
-		}
-		if (misc_pkt.wait_reg_mem.rrmt_opt2.mode != MES_RRMT_MODE_REMOTE_MID) {
-			misc_pkt.wait_reg_mem.reg_offset2 =
-				soc_v1_0_normalize_xcc_reg_offset(misc_pkt.wait_reg_mem.reg_offset2);
-		}
+				   &misc_pkt.wait_reg_mem.rrmt_opt2,
+				   &misc_pkt.wait_reg_mem.reg_offset2);
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:
 		pipe = AMDGPU_MES_SCHED_PIPE;
@@ -1949,10 +1931,31 @@ static int mes_v12_1_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static int mes_v12_1_late_init(struct amdgpu_ip_block *ip_block)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	int xcc_id, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+	/* TODO: remove it if issue fixed. */
+	if (adev->mes.enable_coop_mode)
+		return 0;
+
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		/* for COOP mode, only test master xcc. */
+		if (adev->mes.enable_coop_mode &&
+		    adev->mes.master_xcc_ids[xcc_id] != xcc_id)
+			continue;
+
+		mes_v12_1_self_test(adev, xcc_id);
+	}
+
+	return 0;
+}
+
 static const struct amd_ip_funcs mes_v12_1_ip_funcs = {
 	.name = "mes_v12_1",
 	.early_init = mes_v12_1_early_init,
-	.late_init = NULL,
+	.late_init = mes_v12_1_late_init,
 	.sw_init = mes_v12_1_sw_init,
 	.sw_fini = mes_v12_1_sw_fini,
 	.hw_init = mes_v12_1_hw_init,
@@ -1968,3 +1971,312 @@ const struct amdgpu_ip_block_version mes_v12_1_ip_block = {
 	.rev = 0,
 	.funcs = &mes_v12_1_ip_funcs,
 };
+
+static int mes_v12_1_alloc_test_buf(struct amdgpu_device *adev,
+				    struct amdgpu_bo **bo, uint64_t *addr,
+				    void **ptr, int size)
+{
+	amdgpu_bo_create_kernel(adev, size, PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+				bo, addr, ptr);
+	if (!*bo) {
+		dev_err(adev->dev, "failed to allocate test buffer bo\n");
+		return -ENOMEM;
+	}
+	memset(*ptr, 0, size);
+	return 0;
+}
+
+static int mes_v12_1_map_test_bo(struct amdgpu_device *adev,
+				 struct amdgpu_bo *bo, struct amdgpu_vm *vm,
+				 struct amdgpu_bo_va **bo_va, u64 va, int size)
+{
+	struct amdgpu_sync sync;
+	int r;
+
+	r = amdgpu_map_static_csa(adev, vm, bo, bo_va, va, size);
+	if (r)
+		return r;
+
+	amdgpu_sync_create(&sync);
+
+	r = amdgpu_vm_bo_update(adev, *bo_va, false);
+	if (r) {
+		dev_err(adev->dev, "failed to do vm_bo_update on meta data\n");
+		goto error;
+	}
+	amdgpu_sync_fence(&sync, (*bo_va)->last_pt_update, GFP_KERNEL);
+
+	r = amdgpu_vm_update_pdes(adev, vm, false);
+	if (r) {
+		dev_err(adev->dev, "failed to update pdes on meta data\n");
+		goto error;
+	}
+	amdgpu_sync_fence(&sync, vm->last_update, GFP_KERNEL);
+	amdgpu_sync_wait(&sync, false);
+
+error:
+	amdgpu_sync_free(&sync);
+	return 0;
+}
+
+static int mes_v12_1_test_ring(struct amdgpu_device *adev, int xcc_id,
+			       u32 *queue_ptr, u64 fence_gpu_addr,
+			       void *fence_cpu_ptr, void *wptr_cpu_addr,
+			       u64 doorbell_idx, int queue_type)
+{
+	volatile uint32_t *cpu_ptr = fence_cpu_ptr;
+	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	int sdma_ring_align = 0x10, compute_ring_align = 0x100;
+	uint32_t tmp, xcc_offset;
+	int r = 0, i, wptr = 0;
+
+	if (queue_type == AMDGPU_RING_TYPE_COMPUTE) {
+		if (!adev->mes.enable_coop_mode) {
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id),
+				     regSCRATCH_REG0, 0xCAFEDEAD);
+		} else {
+			for (i = 0; i < num_xcc; i++) {
+				if (adev->mes.master_xcc_ids[i] == xcc_id)
+					WREG32_SOC15(GC, GET_INST(GC, i),
+					       regSCRATCH_REG0, 0xCAFEDEAD);
+			}
+		}
+
+		xcc_offset = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
+		queue_ptr[wptr++] = PACKET3(PACKET3_SET_UCONFIG_REG, 1);
+		queue_ptr[wptr++] = xcc_offset - PACKET3_SET_UCONFIG_REG_START;
+		queue_ptr[wptr++] = 0xDEADBEEF;
+
+		for (i = wptr; i < compute_ring_align; i++)
+			queue_ptr[wptr++] = PACKET3(PACKET3_NOP, 0x3FFF);
+
+	}  else if (queue_type == AMDGPU_RING_TYPE_SDMA) {
+		*cpu_ptr = 0xCAFEDEAD;
+
+		queue_ptr[wptr++] = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_WRITE) |
+			SDMA_PKT_COPY_LINEAR_HEADER_SUB_OP(SDMA_SUBOP_WRITE_LINEAR);
+		queue_ptr[wptr++] = lower_32_bits(fence_gpu_addr);
+		queue_ptr[wptr++] = upper_32_bits(fence_gpu_addr);
+		queue_ptr[wptr++] = SDMA_PKT_WRITE_UNTILED_DW_3_COUNT(0);
+		queue_ptr[wptr++] = 0xDEADBEEF;
+
+		for (i = wptr; i < sdma_ring_align; i++)
+			queue_ptr[wptr++] = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP);
+
+		wptr <<= 2;
+	}
+
+	atomic64_set((atomic64_t *)wptr_cpu_addr, wptr);
+	WDOORBELL64(doorbell_idx, wptr);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (queue_type == AMDGPU_RING_TYPE_SDMA) {
+			tmp = le32_to_cpu(*cpu_ptr);
+		} else {
+			if (!adev->mes.enable_coop_mode) {
+				tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
+						   regSCRATCH_REG0);
+			} else {
+				for (i = 0; i < num_xcc; i++) {
+					if (xcc_id != adev->mes.master_xcc_ids[i])
+						continue;
+
+					tmp = RREG32_SOC15(GC, GET_INST(GC, i),
+							   regSCRATCH_REG0);
+					if (tmp != 0xDEADBEEF)
+						break;
+				}
+			}
+		}
+
+		if (tmp == 0xDEADBEEF)
+			break;
+
+		if (amdgpu_emu_mode == 1)
+			msleep(1);
+		else
+			udelay(1);
+	}
+
+	if (i >= adev->usec_timeout) {
+		dev_err(adev->dev, "xcc%d: mes self test (%s) failed\n", xcc_id,
+		      queue_type == AMDGPU_RING_TYPE_SDMA ? "sdma" : "compute");
+
+		while (halt_if_hws_hang)
+			schedule();
+
+		r = -ETIMEDOUT;
+	} else {
+		dev_info(adev->dev, "xcc%d: mes self test (%s) pass\n", xcc_id,
+		      queue_type == AMDGPU_RING_TYPE_SDMA ? "sdma" : "compute");
+	}
+
+	return r;
+}
+
+#define USER_CTX_SIZE (PAGE_SIZE * 2)
+#define USER_CTX_VA AMDGPU_VA_RESERVED_BOTTOM
+#define RING_OFFSET(addr) ((addr))
+#define EOP_OFFSET(addr)  ((addr) + PAGE_SIZE)
+#define WPTR_OFFSET(addr) ((addr) + USER_CTX_SIZE - sizeof(u64))
+#define RPTR_OFFSET(addr) ((addr) + USER_CTX_SIZE - sizeof(u64) * 2)
+#define FENCE_OFFSET(addr) ((addr) + USER_CTX_SIZE - sizeof(u64) * 3)
+
+static int mes_v12_1_test_queue(struct amdgpu_device *adev, int xcc_id,
+		     int pasid, struct amdgpu_vm *vm, u64 meta_gpu_addr,
+		     u64 queue_gpu_addr, void *ctx_ptr, int queue_type)
+{
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
+	struct amdgpu_mqd *mqd_mgr = &adev->mqds[queue_type];
+	struct amdgpu_mqd_prop mqd_prop = {0};
+	struct mes_add_queue_input add_queue = {0};
+	struct mes_remove_queue_input remove_queue = {0};
+	struct amdgpu_bo *mqd_bo = NULL;
+	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	int i, r, off, mqd_size, mqd_count = 1;
+	void *mqd_ptr = NULL;
+	u64 mqd_gpu_addr, doorbell_idx;
+
+	/* extra one page size padding for mes fw */
+	mqd_size = mqd_mgr->mqd_size + PAGE_SIZE;
+
+	if (queue_type == AMDGPU_RING_TYPE_SDMA) {
+		doorbell_idx = adev->mes.db_start_dw_offset +	\
+			adev->doorbell_index.sdma_engine[0];
+	} else {
+		doorbell_idx = adev->mes.db_start_dw_offset + \
+			adev->doorbell_index.userqueue_start;
+	}
+
+	if (adev->mes.enable_coop_mode &&
+	    queue_type == AMDGPU_RING_TYPE_COMPUTE) {
+		for (i = 0, mqd_count = 0; i < num_xcc; i++) {
+			if (adev->mes.master_xcc_ids[i] == xcc_id)
+				mqd_count++;
+		}
+		mqd_size *= mqd_count;
+	}
+
+	r = mes_v12_1_alloc_test_buf(adev, &mqd_bo, &mqd_gpu_addr,
+				     &mqd_ptr, mqd_size * mqd_count);
+	if (r < 0)
+		return r;
+
+	mqd_prop.mqd_gpu_addr = mqd_gpu_addr;
+	mqd_prop.hqd_base_gpu_addr = RING_OFFSET(USER_CTX_VA);
+	mqd_prop.eop_gpu_addr = EOP_OFFSET(USER_CTX_VA);
+	mqd_prop.wptr_gpu_addr = WPTR_OFFSET(USER_CTX_VA);
+	mqd_prop.rptr_gpu_addr = RPTR_OFFSET(USER_CTX_VA);
+	mqd_prop.doorbell_index = doorbell_idx;
+	mqd_prop.queue_size = PAGE_SIZE;
+	mqd_prop.mqd_stride_size = mqd_size;
+	mqd_prop.use_doorbell = true;
+	mqd_prop.hqd_active = false;
+
+	mqd_mgr->init_mqd(adev, mqd_ptr, &mqd_prop);
+	if (mqd_count > 1) {
+		for (i = 1; i < mqd_count; i++) {
+			off = mqd_size * i;
+			mqd_prop.mqd_gpu_addr = mqd_gpu_addr + off;
+			mqd_mgr->init_mqd(adev, (char *)mqd_ptr + off,
+					  &mqd_prop);
+		}
+	}
+
+	add_queue.xcc_id = xcc_id;
+	add_queue.process_id = pasid;
+	add_queue.page_table_base_addr = adev->vm_manager.vram_base_offset +
+		amdgpu_bo_gpu_offset(vm->root.bo) - adev->gmc.vram_start;
+	add_queue.process_va_start = 0;
+	add_queue.process_va_end = adev->vm_manager.max_pfn - 1;
+	add_queue.process_context_addr = meta_gpu_addr;
+	add_queue.gang_context_addr = meta_gpu_addr + AMDGPU_MES_PROC_CTX_SIZE;
+	add_queue.doorbell_offset = doorbell_idx;
+	add_queue.mqd_addr = mqd_gpu_addr;
+	add_queue.wptr_addr = mqd_prop.wptr_gpu_addr;
+	add_queue.wptr_mc_addr = WPTR_OFFSET(queue_gpu_addr);
+	add_queue.queue_type = queue_type;
+	add_queue.vm_cntx_cntl = hub->vm_cntx_cntl;
+
+	r = mes_v12_1_add_hw_queue(&adev->mes, &add_queue);
+	if (r)
+		goto error;
+
+	mes_v12_1_test_ring(adev, xcc_id, (u32 *)RING_OFFSET((char *)ctx_ptr),
+			    FENCE_OFFSET(USER_CTX_VA),
+			    FENCE_OFFSET((char *)ctx_ptr),
+			    WPTR_OFFSET((char *)ctx_ptr),
+			    doorbell_idx, queue_type);
+
+	remove_queue.xcc_id = xcc_id;
+	remove_queue.doorbell_offset = doorbell_idx;
+	remove_queue.gang_context_addr = add_queue.gang_context_addr;
+	r = mes_v12_1_remove_hw_queue(&adev->mes, &remove_queue);
+
+error:
+	amdgpu_bo_free_kernel(&mqd_bo, &mqd_gpu_addr, &mqd_ptr);
+	return r;
+}
+
+static int mes_v12_1_self_test(struct amdgpu_device *adev, int xcc_id)
+{
+	int queue_types[] = { AMDGPU_RING_TYPE_COMPUTE,
+		              /* AMDGPU_RING_TYPE_SDMA */ };
+	struct amdgpu_bo_va *bo_va = NULL;
+	struct amdgpu_vm *vm = NULL;
+	struct amdgpu_bo *meta_bo = NULL, *ctx_bo = NULL;
+	void *meta_ptr = NULL, *ctx_ptr = NULL;
+	u64 meta_gpu_addr, ctx_gpu_addr;
+	int size, i, r, pasid;;
+
+	pasid = amdgpu_pasid_alloc(16);
+	if (pasid < 0)
+		pasid = 0;
+
+	size = AMDGPU_MES_PROC_CTX_SIZE + AMDGPU_MES_GANG_CTX_SIZE;
+	r = mes_v12_1_alloc_test_buf(adev, &meta_bo, &meta_gpu_addr,
+				     &meta_ptr, size);
+	if (r < 0)
+		goto err2;
+
+	r = mes_v12_1_alloc_test_buf(adev, &ctx_bo, &ctx_gpu_addr,
+				     &ctx_ptr, USER_CTX_SIZE);
+	if (r < 0)
+		goto err2;
+
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	if (!vm) {
+		r = -ENOMEM;
+		goto err2;
+	}
+
+	r = amdgpu_vm_init(adev, vm, -1, pasid);
+	if (r)
+		goto err1;
+
+	r = mes_v12_1_map_test_bo(adev, ctx_bo, vm, &bo_va,
+				  USER_CTX_VA, USER_CTX_SIZE);
+	if (r)
+		goto err0;
+
+	for (i = 0; i < ARRAY_SIZE(queue_types); i++) {
+		memset(ctx_ptr, 0, USER_CTX_SIZE);
+
+		r = mes_v12_1_test_queue(adev, xcc_id, pasid, vm, meta_gpu_addr,
+					 ctx_gpu_addr, ctx_ptr, queue_types[i]);
+		if (r)
+			break;
+	}
+
+	amdgpu_unmap_static_csa(adev, vm, ctx_bo, bo_va, USER_CTX_VA);
+err0:
+	amdgpu_vm_fini(adev, vm);
+err1:
+	kfree(vm);
+err2:
+	amdgpu_bo_free_kernel(&meta_bo, &meta_gpu_addr, &meta_ptr);
+	amdgpu_bo_free_kernel(&ctx_bo, &ctx_gpu_addr, &ctx_ptr);
+	amdgpu_pasid_free(pasid);
+	return r;
+}
+

@@ -41,6 +41,44 @@
 #define NORMALIZE_XCC_REG_OFFSET(offset) \
 	(offset & 0xFFFF)
 
+#define MID1_REG_RANGE_0_LOW  0x40000
+#define MID1_REG_RANGE_0_HIGH 0x80000
+#define NORMALIZE_MID_REG_OFFSET(offset) \
+		(offset & 0x3FFFF)
+
+static const struct amdgpu_video_codecs vcn_5_0_2_video_codecs_encode_vcn0 = {
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_0_2_video_codecs_decode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_0_2_video_codecs_decode_vcn0 = {
+	.codec_count = ARRAY_SIZE(vcn_5_0_2_video_codecs_decode_array_vcn0),
+	.codec_array = vcn_5_0_2_video_codecs_decode_array_vcn0,
+};
+
+static int soc_v1_0_query_video_codecs(struct amdgpu_device *adev, bool encode,
+					const struct amdgpu_video_codecs **codecs)
+{
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
+	case IP_VERSION(5, 0, 2):
+		if (encode)
+			*codecs = &vcn_5_0_2_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_5_0_2_video_codecs_decode_vcn0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 /* Initialized doorbells for amdgpu including multimedia
  * KFD can use all the rest in 2M doorbell bar */
 static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
@@ -257,6 +295,7 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
 	.reset = soc_v1_0_asic_reset,
 	.reset_method = &soc_v1_0_asic_reset_method,
+	.query_video_codecs = &soc_v1_0_query_video_codecs,
 };
 
 static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
@@ -283,7 +322,7 @@ static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(12, 1, 0):
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	default:
@@ -870,3 +909,31 @@ uint32_t soc_v1_0_normalize_xcc_reg_offset(uint32_t reg)
 	else
 		return reg;
 }
+
+bool soc_v1_0_mid1_reg_range(uint32_t reg)
+{
+	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg))
+		return false;
+
+	if ((reg >= MID1_REG_RANGE_0_LOW) && (reg < MID1_REG_RANGE_0_HIGH))
+		return true;
+	else
+		return false;
+}
+
+uint32_t soc_v1_0_normalize_reg_offset(uint32_t reg)
+{
+	uint32_t normalized_reg = soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	if (soc_v1_0_normalize_xcc_reg_range(normalized_reg))
+		return soc_v1_0_normalize_xcc_reg_offset(reg);
+
+	/* check if the reg offset is inside MID1. */
+	if (soc_v1_0_mid1_reg_range(reg))
+		return NORMALIZE_MID_REG_OFFSET(reg);
+
+	return reg;
+}
+

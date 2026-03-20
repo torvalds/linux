@@ -214,6 +214,7 @@ struct resource_funcs {
             unsigned int index);
 
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
+	void (*get_default_tiling_info)(struct dc_tiling_info *tiling_info);
 	void (*build_pipe_pix_clk_params)(struct pipe_ctx *pipe_ctx);
 	/*
 	 * Get indicator of power from a context that went through full validation

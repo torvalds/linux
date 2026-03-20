@@ -463,6 +463,7 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		cp_ecc_error_irq;
 	struct amdgpu_irq_src		sq_irq;
 	struct amdgpu_irq_src		rlc_gc_fed_irq;
+	struct amdgpu_irq_src		rlc_poison_irq;
 	struct sq_work			sq_work;
 
 	/* gfx status */

@@ -1988,7 +1988,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* pptable related */
 	.setup_pptable = aldebaran_setup_pptable,
 	.get_vbios_bootup_values = smu_v13_0_get_vbios_bootup_values,
-	.check_fw_version = smu_v13_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
