@@ -21,6 +21,32 @@
 /delete-node/ &cpu_pd15;
 /delete-node/ &cpu_pd16;
 /delete-node/ &cpu_pd17;
+/delete-node/ &thermal_aoss_6;
+/delete-node/ &thermal_aoss_7;
+/delete-node/ &thermal_cpu_2_0_0;
+/delete-node/ &thermal_cpu_2_0_1;
+/delete-node/ &thermal_cpu_2_1_0;
+/delete-node/ &thermal_cpu_2_1_1;
+/delete-node/ &thermal_cpu_2_2_0;
+/delete-node/ &thermal_cpu_2_2_1;
+/delete-node/ &thermal_cpu_2_3_0;
+/delete-node/ &thermal_cpu_2_3_1;
+/delete-node/ &thermal_cpu_2_4_0;
+/delete-node/ &thermal_cpu_2_4_1;
+/delete-node/ &thermal_cpu_2_5_0;
+/delete-node/ &thermal_cpu_2_5_1;
+/delete-node/ &thermal_cpuillc_2_1;
+/delete-node/ &thermal_cpullc_2_0;
+/delete-node/ &thermal_ddr_2;
+/delete-node/ &thermal_gpu_3_0;
+/delete-node/ &thermal_gpu_3_1;
+/delete-node/ &thermal_gpu_3_2;
+/delete-node/ &thermal_qmx_2_0;
+/delete-node/ &thermal_qmx_2_1;
+/delete-node/ &thermal_qmx_2_2;
+/delete-node/ &thermal_qmx_2_3;
+/delete-node/ &thermal_qmx_2_4;
+/delete-node/ &thermal_video_1;
 /delete-node/ &tsens6;
 /delete-node/ &tsens7;
 
@@ -111,130 +137,99 @@
 	compatible = "qcom,mahua-system-noc", "qcom,glymur-system-noc";
 };
 
-&tlmm {
-	compatible = "qcom,mahua-tlmm";
+&thermal_camera_0 {
+	thermal-sensors = <&tsens4 9>;
+};
+
+&thermal_camera_1 {
+	thermal-sensors = <&tsens4 10>;
+};
+
+&thermal_ddr_1 {
+	thermal-sensors = <&tsens1 7>;
+};
+
+&thermal_gpu_0_0 {
+	thermal-sensors = <&tsens5 1>;
+};
+
+&thermal_gpu_0_1 {
+	thermal-sensors = <&tsens5 2>;
+};
+
+&thermal_gpu_0_2 {
+	thermal-sensors = <&tsens5 3>;
+};
+
+&thermal_gpu_1_0 {
+	thermal-sensors = <&tsens5 4>;
+};
+
+&thermal_gpu_1_1 {
+	thermal-sensors = <&tsens5 5>;
+};
+
+&thermal_gpu_1_2 {
+	thermal-sensors = <&tsens5 6>;
+};
+
+&thermal_gpu_2_0 {
+	thermal-sensors = <&tsens5 7>;
+};
+
+&thermal_gpu_2_1 {
+	thermal-sensors = <&tsens5 8>;
+};
+
+&thermal_gpu_2_2 {
+	thermal-sensors = <&tsens5 9>;
+};
+
+&thermal_gpuss_0 {
+	thermal-sensors = <&tsens5 10>;
+};
+
+&thermal_gpuss_1 {
+	thermal-sensors = <&tsens5 11>;
+};
+
+&thermal_nsphmx_0 {
+	thermal-sensors = <&tsens4 5>;
+};
+
+&thermal_nsphmx_1 {
+	thermal-sensors = <&tsens4 6>;
+};
+
+&thermal_nsphmx_2 {
+	thermal-sensors = <&tsens4 7>;
+};
+
+&thermal_nsphmx_3 {
+	thermal-sensors = <&tsens4 8>;
+};
+
+&thermal_nsphvx_0 {
+	thermal-sensors = <&tsens4 1>;
+};
+
+&thermal_nsphvx_1 {
+	thermal-sensors = <&tsens4 2>;
+};
+
+&thermal_nsphvx_2 {
+	thermal-sensors = <&tsens4 3>;
+};
+
+&thermal_nsphvx_3 {
+	thermal-sensors = <&tsens4 4>;
+};
+
+&thermal_video_0 {
+	thermal-sensors = <&tsens1 8>;
 };
 
 &thermal_zones {
-	/delete-node/ aoss-6-thermal;
-	/delete-node/ aoss-7-thermal;
-	/delete-node/ cpu-2-0-0-thermal;
-	/delete-node/ cpu-2-0-1-thermal;
-	/delete-node/ cpu-2-1-0-thermal;
-	/delete-node/ cpu-2-1-1-thermal;
-	/delete-node/ cpu-2-2-0-thermal;
-	/delete-node/ cpu-2-2-1-thermal;
-	/delete-node/ cpu-2-3-0-thermal;
-	/delete-node/ cpu-2-3-1-thermal;
-	/delete-node/ cpu-2-4-0-thermal;
-	/delete-node/ cpu-2-4-1-thermal;
-	/delete-node/ cpu-2-5-0-thermal;
-	/delete-node/ cpu-2-5-1-thermal;
-	/delete-node/ cpullc-2-0-thermal;
-	/delete-node/ cpuillc-2-1-thermal;
-	/delete-node/ ddr-2-thermal;
-	/delete-node/ gpu-3-0-thermal;
-	/delete-node/ gpu-3-1-thermal;
-	/delete-node/ gpu-3-2-thermal;
-	/delete-node/ qmx-2-0-thermal;
-	/delete-node/ qmx-2-1-thermal;
-	/delete-node/ qmx-2-2-thermal;
-	/delete-node/ qmx-2-3-thermal;
-	/delete-node/ qmx-2-4-thermal;
-	/delete-node/ video-1-thermal;
-
-	ddr-1-thermal {
-		thermal-sensors = <&tsens1 7>;
-	};
-
-	video-0-thermal {
-		thermal-sensors = <&tsens1 8>;
-	};
-
-	nsphvx-0-thermal {
-		thermal-sensors = <&tsens4 1>;
-	};
-
-	nsphvx-1-thermal {
-		thermal-sensors = <&tsens4 2>;
-	};
-
-	nsphvx-2-thermal {
-		thermal-sensors = <&tsens4 3>;
-	};
-
-	nsphvx-3-thermal {
-		thermal-sensors = <&tsens4 4>;
-	};
-
-	nsphmx-0-thermal {
-		thermal-sensors = <&tsens4 5>;
-	};
-
-	nsphmx-1-thermal {
-		thermal-sensors = <&tsens4 6>;
-	};
-
-	nsphmx-2-thermal {
-		thermal-sensors = <&tsens4 7>;
-	};
-
-	nsphmx-3-thermal {
-		thermal-sensors = <&tsens4 8>;
-	};
-
-	camera-0-thermal {
-		thermal-sensors = <&tsens4 9>;
-	};
-
-	camera-1-thermal {
-		thermal-sensors = <&tsens4 10>;
-	};
-
-	gpu-0-0-thermal {
-		thermal-sensors = <&tsens5 1>;
-	};
-
-	gpu-0-1-thermal {
-		thermal-sensors = <&tsens5 2>;
-	};
-
-	gpu-0-2-thermal {
-		thermal-sensors = <&tsens5 3>;
-	};
-
-	gpu-1-0-thermal {
-		thermal-sensors = <&tsens5 4>;
-	};
-
-	gpu-1-1-thermal {
-		thermal-sensors = <&tsens5 5>;
-	};
-
-	gpu-1-2-thermal {
-		thermal-sensors = <&tsens5 6>;
-	};
-
-	gpu-2-0-thermal {
-		thermal-sensors = <&tsens5 7>;
-	};
-
-	gpu-2-1-thermal {
-		thermal-sensors = <&tsens5 8>;
-	};
-
-	gpu-2-2-thermal {
-		thermal-sensors = <&tsens5 9>;
-	};
-
-	gpuss-0-thermal {
-		thermal-sensors = <&tsens5 10>;
-	};
-
-	gpuss-1-thermal {
-		thermal-sensors = <&tsens5 11>;
-	};
-
 	gpuss-2-thermal {
 		thermal-sensors = <&tsens5 12>;
 
@@ -288,6 +283,10 @@
 			};
 		};
 	};
+};
+
+&tlmm {
+	compatible = "qcom,mahua-tlmm";
 };
 
 &tsens4 {
