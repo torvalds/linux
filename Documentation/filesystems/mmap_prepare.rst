@@ -153,5 +153,8 @@ pointer. These are:
 * mmap_action_ioremap_full() - Same as mmap_action_ioremap(), only remaps
   the entire mapping from ``start_pfn`` onward.
 
+* mmap_action_simple_ioremap() - Sets up an I/O remap from a specified
+  physical address and over a specified length.
+
 **NOTE:** The ``action`` field should never normally be manipulated directly,
 rather you ought to use one of these helpers.
