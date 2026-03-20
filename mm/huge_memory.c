@@ -2415,7 +2415,7 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
 	struct folio *folio = NULL;
-	bool flush_needed = true;
+	bool flush_needed = false;
 	spinlock_t *ptl;
 	pmd_t orig_pmd;
 
@@ -2437,19 +2437,18 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	if (vma_is_special_huge(vma)) {
 		if (arch_needs_pgtable_deposit())
 			zap_deposited_table(tlb->mm, pmd);
-		spin_unlock(ptl);
-		return true;
+		goto out;
 	}
 	if (is_huge_zero_pmd(orig_pmd)) {
 		if (!vma_is_dax(vma) || arch_needs_pgtable_deposit())
 			zap_deposited_table(tlb->mm, pmd);
-		spin_unlock(ptl);
-		return true;
+		goto out;
 	}
 
 	if (pmd_present(orig_pmd)) {
 		struct page *page = pmd_page(orig_pmd);
 
+		flush_needed = true;
 		folio = page_folio(page);
 		folio_remove_rmap_pmd(folio, page, vma);
 		WARN_ON_ONCE(folio_mapcount(folio) < 0);
@@ -2458,14 +2457,12 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		const softleaf_t entry = softleaf_from_pmd(orig_pmd);
 
 		folio = softleaf_to_folio(entry);
-		flush_needed = false;
 
 		if (!thp_migration_supported())
 			WARN_ONCE(1, "Non present huge pmd without pmd migration enabled!");
 	} else {
 		WARN_ON_ONCE(true);
-		spin_unlock(ptl);
-		return true;
+		goto out;
 	}
 
 	if (folio_test_anon(folio)) {
@@ -2492,10 +2489,10 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		folio_put(folio);
 	}
 
+out:
 	spin_unlock(ptl);
 	if (flush_needed)
 		tlb_remove_page_size(tlb, &folio->page, HPAGE_PMD_SIZE);
-
 	return true;
 }
 
