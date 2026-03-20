@@ -735,21 +735,24 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr,
 	return (ret & VM_FAULT_OOM) ? -ENOMEM : 0;
 }
 
-static bool ksm_compatible(const struct file *file, vm_flags_t vm_flags)
+static bool ksm_compatible(const struct file *file, vma_flags_t vma_flags)
 {
-	if (vm_flags & (VM_SHARED  | VM_MAYSHARE | VM_SPECIAL |
-			VM_HUGETLB | VM_DROPPABLE))
-		return false;		/* just ignore the advice */
-
+	/* Just ignore the advice. */
+	if (vma_flags_test_any(&vma_flags, VMA_SHARED_BIT, VMA_MAYSHARE_BIT,
+			       VMA_HUGETLB_BIT))
+		return false;
+	if (vma_flags_test_single_mask(&vma_flags, VMA_DROPPABLE))
+		return false;
+	if (vma_flags_test_any_mask(&vma_flags, VMA_SPECIAL_FLAGS))
+		return false;
 	if (file_is_dax(file))
 		return false;
-
 #ifdef VM_SAO
-	if (vm_flags & VM_SAO)
+	if (vma_flags_test(&vma_flags, VMA_SAO_BIT))
 		return false;
 #endif
 #ifdef VM_SPARC_ADI
-	if (vm_flags & VM_SPARC_ADI)
+	if (vma_flags_test(&vma_flags, VMA_SPARC_ADI_BIT))
 		return false;
 #endif
 
@@ -758,7 +761,7 @@ static bool ksm_compatible(const struct file *file, vm_flags_t vm_flags)
 
 static bool vma_ksm_compatible(struct vm_area_struct *vma)
 {
-	return ksm_compatible(vma->vm_file, vma->vm_flags);
+	return ksm_compatible(vma->vm_file, vma->flags);
 }
 
 static struct vm_area_struct *find_mergeable_vma(struct mm_struct *mm,
@@ -2825,17 +2828,17 @@ static int ksm_scan_thread(void *nothing)
 	return 0;
 }
 
-static bool __ksm_should_add_vma(const struct file *file, vm_flags_t vm_flags)
+static bool __ksm_should_add_vma(const struct file *file, vma_flags_t vma_flags)
 {
-	if (vm_flags & VM_MERGEABLE)
+	if (vma_flags_test(&vma_flags, VMA_MERGEABLE_BIT))
 		return false;
 
-	return ksm_compatible(file, vm_flags);
+	return ksm_compatible(file, vma_flags);
 }
 
 static void __ksm_add_vma(struct vm_area_struct *vma)
 {
-	if (__ksm_should_add_vma(vma->vm_file, vma->vm_flags))
+	if (__ksm_should_add_vma(vma->vm_file, vma->flags))
 		vm_flags_set(vma, VM_MERGEABLE);
 }
 
@@ -2860,16 +2863,16 @@ static int __ksm_del_vma(struct vm_area_struct *vma)
  *
  * @mm:       Proposed VMA's mm_struct
  * @file:     Proposed VMA's file-backed mapping, if any.
- * @vm_flags: Proposed VMA"s flags.
+ * @vma_flags: Proposed VMA"s flags.
  *
- * Returns: @vm_flags possibly updated to mark mergeable.
+ * Returns: @vma_flags possibly updated to mark mergeable.
  */
-vm_flags_t ksm_vma_flags(struct mm_struct *mm, const struct file *file,
-			 vm_flags_t vm_flags)
+vma_flags_t ksm_vma_flags(struct mm_struct *mm, const struct file *file,
+			  vma_flags_t vma_flags)
 {
 	if (mm_flags_test(MMF_VM_MERGE_ANY, mm) &&
-	    __ksm_should_add_vma(file, vm_flags)) {
-		vm_flags |= VM_MERGEABLE;
+	    __ksm_should_add_vma(file, vma_flags)) {
+		vma_flags_set(&vma_flags, VMA_MERGEABLE_BIT);
 		/*
 		 * Generally, the flags here always include MMF_VM_MERGEABLE.
 		 * However, in rare cases, this flag may be cleared by ksmd who
@@ -2879,7 +2882,7 @@ vm_flags_t ksm_vma_flags(struct mm_struct *mm, const struct file *file,
 			__ksm_enter(mm);
 	}
 
-	return vm_flags;
+	return vma_flags;
 }
 
 static void ksm_add_vmas(struct mm_struct *mm)

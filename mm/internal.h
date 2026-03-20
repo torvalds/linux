@@ -1916,4 +1916,7 @@ static inline int get_sysctl_max_map_count(void)
 	return READ_ONCE(sysctl_max_map_count);
 }
 
+bool may_expand_vm(struct mm_struct *mm, const vma_flags_t *vma_flags,
+		   unsigned long npages);
+
 #endif	/* __MM_INTERNAL_H */

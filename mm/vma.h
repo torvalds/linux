@@ -237,13 +237,13 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 	return vma->vm_pgoff + PHYS_PFN(addr - vma->vm_start);
 }
 
-#define VMG_STATE(name, mm_, vmi_, start_, end_, vm_flags_, pgoff_)	\
+#define VMG_STATE(name, mm_, vmi_, start_, end_, vma_flags_, pgoff_)	\
 	struct vma_merge_struct name = {				\
 		.mm = mm_,						\
 		.vmi = vmi_,						\
 		.start = start_,					\
 		.end = end_,						\
-		.vm_flags = vm_flags_,					\
+		.vma_flags = vma_flags_,				\
 		.pgoff = pgoff_,					\
 		.state = VMA_MERGE_START,				\
 	}
@@ -465,7 +465,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
 		struct list_head *uf);
 
 int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
-		 unsigned long addr, unsigned long request, unsigned long flags);
+		 unsigned long addr, unsigned long request,
+		 vma_flags_t vma_flags);
 
 unsigned long unmapped_area(struct vm_unmapped_area_info *info);
 unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
@@ -527,6 +528,13 @@ static inline bool is_data_mapping(vm_flags_t flags)
 	return (flags & (VM_WRITE | VM_SHARED | VM_STACK)) == VM_WRITE;
 }
 
+static inline bool is_data_mapping_vma_flags(const vma_flags_t *vma_flags)
+{
+	const vma_flags_t mask = vma_flags_and(vma_flags,
+			VMA_WRITE_BIT, VMA_SHARED_BIT, VMA_STACK_BIT);
+
+	return vma_flags_same(&mask, VMA_WRITE_BIT);
+}
 
 static inline void vma_iter_config(struct vma_iterator *vmi,
 		unsigned long index, unsigned long last)

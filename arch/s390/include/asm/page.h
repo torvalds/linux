@@ -277,7 +277,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 
 #define virt_addr_valid(kaddr)	pfn_valid(phys_to_pfn(__pa_nodebug((unsigned long)(kaddr))))
 
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+#define VMA_DATA_DEFAULT_FLAGS	VMA_DATA_FLAGS_NON_EXEC
 
 #endif /* !__ASSEMBLER__ */
 

@@ -1429,11 +1429,10 @@ static bool test_expand_only_mode(void)
 {
 	vma_flags_t vma_flags = mk_vma_flags(VMA_READ_BIT, VMA_WRITE_BIT,
 					     VMA_MAYREAD_BIT, VMA_MAYWRITE_BIT);
-	vm_flags_t legacy_flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE;
 	struct mm_struct mm = {};
 	VMA_ITERATOR(vmi, &mm, 0);
 	struct vm_area_struct *vma_prev, *vma;
-	VMG_STATE(vmg, &mm, &vmi, 0x5000, 0x9000, legacy_flags, 5);
+	VMG_STATE(vmg, &mm, &vmi, 0x5000, 0x9000, vma_flags, 5);
 
 	/*
 	 * Place a VMA prior to the one we're expanding so we assert that we do

@@ -184,7 +184,7 @@ extern int pfn_valid(unsigned long);
 
 #include <asm/memory.h>
 
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
+#define VMA_DATA_DEFAULT_FLAGS	VMA_DATA_FLAGS_TSK_EXEC
 
 #include <asm-generic/getorder.h>
 #include <asm-generic/memory_model.h>
