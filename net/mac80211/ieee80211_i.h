@@ -928,6 +928,9 @@ struct ieee80211_chanctx {
 
 	bool radar_detected;
 
+	/* This chanctx is in process of getting used */
+	bool will_be_used;
+
 	/* MUST be last - ends in a flexible-array member. */
 	struct ieee80211_chanctx_conf conf;
 };
