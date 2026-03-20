@@ -56,7 +56,7 @@ void crashing_child(void)
 		pthread_create(&thread, NULL, do_nothing, NULL);
 
 	/* crash on purpose */
-	__builtin_trap();
+	i = *(volatile int *)NULL;
 }
 
 int create_detached_tmpfs(void)
