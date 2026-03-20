@@ -497,10 +497,9 @@ void __ext4_fc_track_link(handle_t *handle,
 	trace_ext4_fc_track_link(handle, inode, dentry, ret);
 }
 
-void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
+void ext4_fc_track_link(handle_t *handle, struct inode *inode,
+			struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
-
 	if (ext4_fc_eligible(inode->i_sb))
 		__ext4_fc_track_link(handle, inode, dentry);
 }
@@ -1431,7 +1430,6 @@ static int ext4_fc_replay_link_internal(struct super_block *sb,
 				struct inode *inode)
 {
 	struct inode *dir = NULL;
-	struct dentry *dentry_dir = NULL, *dentry_inode = NULL;
 	struct qstr qstr_dname = QSTR_INIT(darg->dname, darg->dname_len);
 	int ret = 0;
 
@@ -1442,21 +1440,7 @@ static int ext4_fc_replay_link_internal(struct super_block *sb,
 		goto out;
 	}
 
-	dentry_dir = d_obtain_alias(dir);
-	if (IS_ERR(dentry_dir)) {
-		ext4_debug("Failed to obtain dentry");
-		dentry_dir = NULL;
-		goto out;
-	}
-
-	dentry_inode = d_alloc(dentry_dir, &qstr_dname);
-	if (!dentry_inode) {
-		ext4_debug("Inode dentry not created.");
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = __ext4_link(dir, inode, dentry_inode);
+	ret = __ext4_link(dir, inode, &qstr_dname, NULL);
 	/*
 	 * It's possible that link already existed since data blocks
 	 * for the dir in question got persisted before we crashed OR
@@ -1470,16 +1454,8 @@ static int ext4_fc_replay_link_internal(struct super_block *sb,
 
 	ret = 0;
 out:
-	if (dentry_dir) {
-		d_drop(dentry_dir);
-		dput(dentry_dir);
-	} else if (dir) {
+	if (dir)
 		iput(dir);
-	}
-	if (dentry_inode) {
-		d_drop(dentry_inode);
-		dput(dentry_inode);
-	}
 
 	return ret;
 }

@@ -3452,7 +3452,8 @@ out_retry:
 	return err;
 }
 
-int __ext4_link(struct inode *dir, struct inode *inode, struct dentry *dentry)
+int __ext4_link(struct inode *dir, struct inode *inode,
+		const struct qstr *d_name, struct dentry *dentry)
 {
 	handle_t *handle;
 	int err, retries = 0;
@@ -3468,9 +3469,8 @@ retry:
 
 	inode_set_ctime_current(inode);
 	ext4_inc_count(inode);
-	ihold(inode);
 
-	err = ext4_add_entry(handle, dentry, inode);
+	err = __ext4_add_entry(handle, dir, d_name, inode);
 	if (!err) {
 		err = ext4_mark_inode_dirty(handle, inode);
 		/* this can happen only for tmpfile being
@@ -3478,11 +3478,10 @@ retry:
 		 */
 		if (inode->i_nlink == 1)
 			ext4_orphan_del(handle, inode);
-		d_instantiate(dentry, inode);
-		ext4_fc_track_link(handle, dentry);
+		if (dentry)
+			ext4_fc_track_link(handle, inode, dentry);
 	} else {
 		drop_nlink(inode);
-		iput(inode);
 	}
 	ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
@@ -3511,9 +3510,13 @@ static int ext4_link(struct dentry *old_dentry,
 	err = dquot_initialize(dir);
 	if (err)
 		return err;
-	return __ext4_link(dir, inode, dentry);
+	err = __ext4_link(dir, inode, &dentry->d_name, dentry);
+	if (!err) {
+		ihold(inode);
+		d_instantiate(dentry, inode);
+	}
+	return err;
 }
-
 /*
  * Try to find buffer head where contains the parent block.
  * It should be the inode block if it is inlined or the 1st block

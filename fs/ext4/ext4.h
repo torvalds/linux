@@ -2971,7 +2971,8 @@ void __ext4_fc_track_unlink(handle_t *handle, struct inode *inode,
 void __ext4_fc_track_link(handle_t *handle, struct inode *inode,
 	struct dentry *dentry);
 void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry);
-void ext4_fc_track_link(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_link(handle_t *handle, struct inode *inode,
+			struct dentry *dentry);
 void __ext4_fc_track_create(handle_t *handle, struct inode *inode,
 			    struct dentry *dentry);
 void ext4_fc_track_create(handle_t *handle, struct dentry *dentry);
@@ -3716,7 +3717,7 @@ extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
 extern int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
 			 struct inode *inode, struct dentry *dentry);
 extern int __ext4_link(struct inode *dir, struct inode *inode,
-		       struct dentry *dentry);
+		       const struct qstr *d_name, struct dentry *dentry);
 
 #define S_SHIFT 12
 static const unsigned char ext4_type_by_mode[(S_IFMT >> S_SHIFT) + 1] = {
