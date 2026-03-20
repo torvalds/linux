@@ -186,7 +186,6 @@ struct team_mode {
 #define TEAM_MODE_PRIV_SIZE (sizeof(long) * TEAM_MODE_PRIV_LONGS)
 
 struct team {
-	struct net_device *dev; /* associated netdevice */
 	struct team_pcpu_stats __percpu *pcpu_stats;
 
 	const struct header_ops *header_ops_cache;
@@ -232,7 +231,7 @@ static inline int team_dev_queue_xmit(struct team *team, struct team_port *port,
 	skb_set_queue_mapping(skb, qdisc_skb_cb(skb)->slave_dev_queue_mapping);
 
 	skb->dev = port->dev;
-	if (unlikely(netpoll_tx_running(team->dev))) {
+	if (unlikely(netpoll_tx_running(netdev_from_priv(team)))) {
 		team_netpoll_send_skb(port, skb);
 		return 0;
 	}
