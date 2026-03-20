@@ -2415,6 +2415,7 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
 	bool has_deposit = arch_needs_pgtable_deposit();
+	struct mm_struct *mm = tlb->mm;
 	struct folio *folio = NULL;
 	bool flush_needed = false;
 	spinlock_t *ptl;
@@ -2462,9 +2463,9 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 	if (folio_test_anon(folio)) {
 		has_deposit = true;
-		add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+		add_mm_counter(mm, MM_ANONPAGES, -HPAGE_PMD_NR);
 	} else {
-		add_mm_counter(tlb->mm, mm_counter_file(folio),
+		add_mm_counter(mm, mm_counter_file(folio),
 			       -HPAGE_PMD_NR);
 
 		/*
@@ -2483,7 +2484,7 @@ bool zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 
 out:
 	if (has_deposit)
-		zap_deposited_table(tlb->mm, pmd);
+		zap_deposited_table(mm, pmd);
 
 	spin_unlock(ptl);
 	if (flush_needed)
