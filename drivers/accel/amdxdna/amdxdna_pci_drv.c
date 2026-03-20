@@ -245,7 +245,7 @@ const struct drm_driver amdxdna_drm_drv = {
 	.ioctls = amdxdna_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(amdxdna_drm_ioctls),
 
-	.gem_create_object = amdxdna_gem_create_object_cb,
+	.gem_create_object = amdxdna_gem_create_shmem_object_cb,
 	.gem_prime_import = amdxdna_gem_prime_import,
 };
 

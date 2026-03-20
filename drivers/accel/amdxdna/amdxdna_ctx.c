@@ -94,8 +94,11 @@ int amdxdna_hwctx_walk(struct amdxdna_client *client, void *arg,
 
 void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size)
 {
-	struct amdxdna_cmd *cmd = abo->mem.kva;
+	struct amdxdna_cmd *cmd = amdxdna_gem_vmap(abo);
 	u32 num_masks, count;
+
+	if (!cmd)
+		return NULL;
 
 	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
 		num_masks = 0;
@@ -118,9 +121,12 @@ void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size)
 
 u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 {
-	struct amdxdna_cmd *cmd = abo->mem.kva;
+	struct amdxdna_cmd *cmd = amdxdna_gem_vmap(abo);
 	u32 num_masks, i;
 	u32 *cu_mask;
+
+	if (!cmd)
+		return INVALID_CU_IDX;
 
 	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
 		return INVALID_CU_IDX;
@@ -141,8 +147,11 @@ int amdxdna_cmd_set_error(struct amdxdna_gem_obj *abo,
 			  void *err_data, size_t size)
 {
 	struct amdxdna_client *client = job->hwctx->client;
-	struct amdxdna_cmd *cmd = abo->mem.kva;
+	struct amdxdna_cmd *cmd = amdxdna_gem_vmap(abo);
 	struct amdxdna_cmd_chain *cc = NULL;
+
+	if (!cmd)
+		return -ENOMEM;
 
 	cmd->header &= ~AMDXDNA_CMD_STATE;
 	cmd->header |= FIELD_PREP(AMDXDNA_CMD_STATE, error_state);
@@ -150,10 +159,12 @@ int amdxdna_cmd_set_error(struct amdxdna_gem_obj *abo,
 	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN) {
 		cc = amdxdna_cmd_get_payload(abo, NULL);
 		cc->error_index = (cmd_idx < cc->command_count) ? cmd_idx : 0;
-		abo = amdxdna_gem_get_obj(client, cc->data[0], AMDXDNA_BO_CMD);
+		abo = amdxdna_gem_get_obj(client, cc->data[0], AMDXDNA_BO_SHARE);
 		if (!abo)
 			return -EINVAL;
-		cmd = abo->mem.kva;
+		cmd = amdxdna_gem_vmap(abo);
+		if (!cmd)
+			return -ENOMEM;
 	}
 
 	memset(cmd->data, 0xff, abo->mem.size - sizeof(*cmd));
@@ -472,7 +483,7 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	job->drv_cmd = drv_cmd;
 
 	if (cmd_bo_hdl != AMDXDNA_INVALID_BO_HANDLE) {
-		job->cmd_bo = amdxdna_gem_get_obj(client, cmd_bo_hdl, AMDXDNA_BO_CMD);
+		job->cmd_bo = amdxdna_gem_get_obj(client, cmd_bo_hdl, AMDXDNA_BO_SHARE);
 		if (!job->cmd_bo) {
 			XDNA_ERR(xdna, "Failed to get cmd bo from %d", cmd_bo_hdl);
 			ret = -EINVAL;

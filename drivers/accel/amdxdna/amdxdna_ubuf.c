@@ -17,7 +17,6 @@
 struct amdxdna_ubuf_priv {
 	struct page **pages;
 	u64 nr_pages;
-	enum amdxdna_ubuf_flag flags;
 	struct mm_struct *mm;
 };
 
@@ -37,11 +36,9 @@ static struct sg_table *amdxdna_ubuf_map(struct dma_buf_attachment *attach,
 	if (ret)
 		goto err_free_sg;
 
-	if (ubuf->flags & AMDXDNA_UBUF_FLAG_MAP_DMA) {
-		ret = dma_map_sgtable(attach->dev, sg, direction, 0);
-		if (ret)
-			goto err_free_table;
-	}
+	ret = dma_map_sgtable(attach->dev, sg, direction, 0);
+	if (ret)
+		goto err_free_table;
 
 	return sg;
 
@@ -56,11 +53,7 @@ static void amdxdna_ubuf_unmap(struct dma_buf_attachment *attach,
 			       struct sg_table *sg,
 			       enum dma_data_direction direction)
 {
-	struct amdxdna_ubuf_priv *ubuf = attach->dmabuf->priv;
-
-	if (ubuf->flags & AMDXDNA_UBUF_FLAG_MAP_DMA)
-		dma_unmap_sgtable(attach->dev, sg, direction, 0);
-
+	dma_unmap_sgtable(attach->dev, sg, direction, 0);
 	sg_free_table(sg);
 	kfree(sg);
 }
@@ -133,7 +126,6 @@ static const struct dma_buf_ops amdxdna_ubuf_dmabuf_ops = {
 };
 
 struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
-				 enum amdxdna_ubuf_flag flags,
 				 u32 num_entries, void __user *va_entries)
 {
 	struct amdxdna_dev *xdna = to_xdna_dev(dev);
@@ -152,7 +144,6 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	if (!ubuf)
 		return ERR_PTR(-ENOMEM);
 
-	ubuf->flags = flags;
 	ubuf->mm = current->mm;
 	mmgrab(ubuf->mm);
 

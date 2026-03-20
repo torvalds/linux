@@ -79,7 +79,7 @@ static int aie2_hwctx_restart(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hw
 	}
 
 	ret = aie2_map_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
-				amdxdna_obj_dma_addr(hwctx->client, heap),
+				amdxdna_obj_dma_addr(heap),
 				heap->mem.size);
 	if (ret) {
 		XDNA_ERR(xdna, "Map host buf failed, ret %d", ret);
@@ -659,14 +659,14 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 			.size = MAX_CHAIN_CMDBUF_SIZE,
 		};
 
-		abo = amdxdna_drm_alloc_dev_bo(&xdna->ddev, &args, client->filp);
+		abo = amdxdna_drm_create_dev_bo(&xdna->ddev, &args, client->filp);
 		if (IS_ERR(abo)) {
 			ret = PTR_ERR(abo);
 			goto free_cmd_bufs;
 		}
 
 		XDNA_DBG(xdna, "Command buf %d addr 0x%llx size 0x%lx",
-			 i, abo->mem.dev_addr, abo->mem.size);
+			 i, amdxdna_gem_dev_addr(abo), abo->mem.size);
 		priv->cmd_buf[i] = abo;
 	}
 
@@ -707,7 +707,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	}
 
 	ret = aie2_map_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
-				amdxdna_obj_dma_addr(hwctx->client, heap),
+				amdxdna_obj_dma_addr(heap),
 				heap->mem.size);
 	if (ret) {
 		XDNA_ERR(xdna, "Map host buffer failed, ret %d", ret);
