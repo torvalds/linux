@@ -1407,6 +1407,7 @@ static void iwl_mld_set_rx_rate(struct iwl_mld *mld,
 	u32 rate_n_flags = phy_data->rate_n_flags;
 	u8 stbc = u32_get_bits(rate_n_flags, RATE_MCS_STBC_MSK);
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
+	u32 he_type = u32_get_bits(rate_n_flags, RATE_MCS_HE_TYPE_MSK);
 	bool is_sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 
 	/* bandwidth may be overridden to RU by PHY ntfy */
@@ -1480,6 +1481,12 @@ static void iwl_mld_set_rx_rate(struct iwl_mld *mld,
 	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->encoding = RX_ENC_EHT;
 		iwl_mld_set_rx_nonlegacy_rate_info(rate_n_flags, rx_status);
+		break;
+	case RATE_MCS_MOD_TYPE_UHR:
+		rx_status->encoding = RX_ENC_UHR;
+		iwl_mld_set_rx_nonlegacy_rate_info(rate_n_flags, rx_status);
+		if (he_type == RATE_MCS_HE_TYPE_UHR_ELR)
+			rx_status->uhr.elr = 1;
 		break;
 	default:
 		WARN_ON_ONCE(1);
