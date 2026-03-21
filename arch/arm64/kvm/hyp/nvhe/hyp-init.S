@@ -173,7 +173,7 @@ SYM_CODE_END(___kvm_hyp_init)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START(kvm_hyp_cpu_entry)
-	mov	x1, #1				// is_cpu_on = true
+	ldr	x29, =__kvm_host_psci_cpu_on_entry
 	b	__kvm_hyp_init_cpu
 
 /*
@@ -182,11 +182,10 @@ SYM_CODE_START(kvm_hyp_cpu_entry)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START(kvm_hyp_cpu_resume)
-	mov	x1, #0				// is_cpu_on = false
+	ldr	x29, =__kvm_host_psci_cpu_resume_entry
 
 SYM_INNER_LABEL(__kvm_hyp_init_cpu, SYM_L_LOCAL)
 	mov	x28, x0				// Stash arguments
-	mov	x29, x1
 
 	/* Check that the core was booted in EL2. */
 	mrs	x0, CurrentEL
@@ -204,9 +203,7 @@ SYM_INNER_LABEL(__kvm_hyp_init_cpu, SYM_L_LOCAL)
 	bl	___kvm_hyp_init			// Clobbers x0..x2
 
 	/* Leave idmap -- using BLR is OK, LR is restored from host context */
-	mov	x0, x29
-	ldr	x1, =__kvm_host_psci_cpu_entry
-	blr	x1
+	blr	x29
 
 	// The core booted in EL1, or the C code unexpectedly returned.
 	// Either way, KVM cannot be initialized on it.
