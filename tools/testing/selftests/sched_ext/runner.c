@@ -166,6 +166,9 @@ int main(int argc, char **argv)
 		enum scx_test_status status;
 		struct scx_test *test = &__scx_tests[i];
 
+		if (exit_req)
+			break;
+
 		if (list) {
 			printf("%s\n", test->name);
 			if (i == (__scx_num_tests - 1))

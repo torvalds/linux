@@ -98,7 +98,7 @@ static long insn_array_delete_elem(struct bpf_map *map, void *key)
 	return -EINVAL;
 }
 
-static int insn_array_check_btf(const struct bpf_map *map,
+static int insn_array_check_btf(struct bpf_map *map,
 			      const struct btf *btf,
 			      const struct btf_type *key_type,
 			      const struct btf_type *value_type)

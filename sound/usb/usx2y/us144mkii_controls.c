@@ -3,8 +3,8 @@
 
 #include "us144mkii.h"
 
-/**
- * @brief Text descriptions for playback output source options.
+/*
+ * Text descriptions for playback output source options.
  *
  * Used by ALSA kcontrol elements to provide user-friendly names for
  * the playback routing options (e.g., "Playback 1-2", "Playback 3-4").
@@ -12,15 +12,15 @@
 static const char *const playback_source_texts[] = { "Playback 1-2",
 						     "Playback 3-4" };
 
-/**
- * @brief Text descriptions for capture input source options.
+/*
+ * Text descriptions for capture input source options.
  *
  * Used by ALSA kcontrol elements to provide user-friendly names for
  * the capture routing options (e.g., "Analog In", "Digital In").
  */
 static const char *const capture_source_texts[] = { "Analog In", "Digital In" };
 
-/**
+/*
  * tascam_playback_source_info() - ALSA control info callback for playback
  * source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -38,7 +38,7 @@ static int tascam_playback_source_info(struct snd_kcontrol *kcontrol,
 	return snd_ctl_enum_info(uinfo, 1, 2, playback_source_texts);
 }
 
-/**
+/*
  * tascam_line_out_get() - ALSA control get callback for Line Outputs Source.
  * @kcontrol: The ALSA kcontrol instance.
  * @ucontrol: The ALSA control element value structure to fill.
@@ -60,7 +60,7 @@ static int tascam_line_out_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_line_out_put() - ALSA control put callback for Line Outputs Source.
  * @kcontrol: The ALSA kcontrol instance.
  * @ucontrol: The ALSA control element value structure containing the new value.
@@ -89,7 +89,7 @@ static int tascam_line_out_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-/**
+/*
  * tascam_line_out_control - ALSA kcontrol definition for Line Outputs Source.
  *
  * This defines a new ALSA mixer control named "Line OUTPUTS Source" that allows
@@ -106,7 +106,7 @@ static const struct snd_kcontrol_new tascam_line_out_control = {
 	.put = tascam_line_out_put,
 };
 
-/**
+/*
  * tascam_digital_out_get() - ALSA control get callback for Digital Outputs
  * Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -129,7 +129,7 @@ static int tascam_digital_out_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_digital_out_put() - ALSA control put callback for Digital Outputs
  * Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -159,7 +159,7 @@ static int tascam_digital_out_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-/**
+/*
  * tascam_digital_out_control - ALSA kcontrol definition for Digital Outputs
  * Source.
  *
@@ -177,7 +177,7 @@ static const struct snd_kcontrol_new tascam_digital_out_control = {
 	.put = tascam_digital_out_put,
 };
 
-/**
+/*
  * tascam_capture_source_info() - ALSA control info callback for capture source.
  * @kcontrol: The ALSA kcontrol instance.
  * @uinfo: The ALSA control element info structure to fill.
@@ -194,7 +194,7 @@ static int tascam_capture_source_info(struct snd_kcontrol *kcontrol,
 	return snd_ctl_enum_info(uinfo, 1, 2, capture_source_texts);
 }
 
-/**
+/*
  * tascam_capture_12_get() - ALSA control get callback for Capture channels 1
  * and 2 Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -217,7 +217,7 @@ static int tascam_capture_12_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_capture_12_put() - ALSA control put callback for Capture channels 1
  * and 2 Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -247,7 +247,7 @@ static int tascam_capture_12_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-/**
+/*
  * tascam_capture_12_control - ALSA kcontrol definition for Capture channels 1
  * and 2 Source.
  *
@@ -265,7 +265,7 @@ static const struct snd_kcontrol_new tascam_capture_12_control = {
 	.put = tascam_capture_12_put,
 };
 
-/**
+/*
  * tascam_capture_34_get() - ALSA control get callback for Capture channels 3
  * and 4 Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -288,7 +288,7 @@ static int tascam_capture_34_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_capture_34_put() - ALSA control put callback for Capture channels 3
  * and 4 Source.
  * @kcontrol: The ALSA kcontrol instance.
@@ -318,7 +318,7 @@ static int tascam_capture_34_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-/**
+/*
  * tascam_capture_34_control - ALSA kcontrol definition for Capture channels 3
  * and 4 Source.
  *
@@ -336,7 +336,7 @@ static const struct snd_kcontrol_new tascam_capture_34_control = {
 	.put = tascam_capture_34_put,
 };
 
-/**
+/*
  * tascam_samplerate_info() - ALSA control info callback for Sample Rate.
  * @kcontrol: The ALSA kcontrol instance.
  * @uinfo: The ALSA control element info structure to fill.
@@ -356,7 +356,7 @@ static int tascam_samplerate_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_samplerate_get() - ALSA control get callback for Sample Rate.
  * @kcontrol: The ALSA kcontrol instance.
  * @ucontrol: The ALSA control element value structure to fill.
@@ -400,7 +400,7 @@ static int tascam_samplerate_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/**
+/*
  * tascam_samplerate_control - ALSA kcontrol definition for Sample Rate.
  *
  * This defines a new ALSA mixer control named "Sample Rate" that displays

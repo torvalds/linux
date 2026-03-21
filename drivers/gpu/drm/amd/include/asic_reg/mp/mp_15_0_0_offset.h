@@ -82,6 +82,24 @@
 #define regMPASP_SMN_IH_SW_INT_CTRL                                                                     0x0142
 #define regMPASP_SMN_IH_SW_INT_CTRL_BASE_IDX                                                            0
 
+// addressBlock: mp_SmuMpASPPub_PcruDec
+// base address: 0x3800000
+#define regMPASP_PCRU1_MPASP_C2PMSG_64                                                   0x4280
+#define regMPASP_PCRU1_MPASP_C2PMSG_64_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_65                                                   0x4281
+#define regMPASP_PCRU1_MPASP_C2PMSG_65_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_66                                                   0x4282
+#define regMPASP_PCRU1_MPASP_C2PMSG_66_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_67                                                   0x4283
+#define regMPASP_PCRU1_MPASP_C2PMSG_67_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_68                                                   0x4284
+#define regMPASP_PCRU1_MPASP_C2PMSG_68_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_69                                                   0x4285
+#define regMPASP_PCRU1_MPASP_C2PMSG_69_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_70                                                   0x4286
+#define regMPASP_PCRU1_MPASP_C2PMSG_70_BASE_IDX                                          3
+#define regMPASP_PCRU1_MPASP_C2PMSG_71                                                   0x4287
+#define regMPASP_PCRU1_MPASP_C2PMSG_71_BASE_IDX                                          3
 
 // addressBlock: mp_SmuMp1_SmnDec
 // base address: 0x0

@@ -768,7 +768,9 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 				 rsu_async_status_callback);
 	if (ret) {
 		dev_err(dev, "Error, getting RSU status %i\n", ret);
+		stratix10_svc_remove_async_client(priv->chan);
 		stratix10_svc_free_channel(priv->chan);
+		return ret;
 	}
 
 	/* get DCMF version from firmware */

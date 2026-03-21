@@ -314,6 +314,22 @@ xfs_rgno_mark_sick(
 	xfs_rtgroup_put(rtg);
 }
 
+static inline void xfs_inode_report_fserror(struct xfs_inode *ip)
+{
+	/*
+	 * Do not report inodes being constructed or freed, or metadata inodes,
+	 * to fsnotify.
+	 */
+	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIM) ||
+	    xfs_is_internal_inode(ip)) {
+		fserror_report_metadata(ip->i_mount->m_super, -EFSCORRUPTED,
+				GFP_NOFS);
+		return;
+	}
+
+	fserror_report_file_metadata(VFS_I(ip), -EFSCORRUPTED, GFP_NOFS);
+}
+
 /* Mark the unhealthy parts of an inode. */
 void
 xfs_inode_mark_sick(
@@ -339,7 +355,7 @@ xfs_inode_mark_sick(
 	inode_state_clear(VFS_I(ip), I_DONTCACHE);
 	spin_unlock(&VFS_I(ip)->i_lock);
 
-	fserror_report_file_metadata(VFS_I(ip), -EFSCORRUPTED, GFP_NOFS);
+	xfs_inode_report_fserror(ip);
 	if (mask)
 		xfs_healthmon_report_inode(ip, XFS_HEALTHMON_SICK, old_mask,
 				mask);
@@ -371,7 +387,7 @@ xfs_inode_mark_corrupt(
 	inode_state_clear(VFS_I(ip), I_DONTCACHE);
 	spin_unlock(&VFS_I(ip)->i_lock);
 
-	fserror_report_file_metadata(VFS_I(ip), -EFSCORRUPTED, GFP_NOFS);
+	xfs_inode_report_fserror(ip);
 	if (mask)
 		xfs_healthmon_report_inode(ip, XFS_HEALTHMON_CORRUPT, old_mask,
 				mask);

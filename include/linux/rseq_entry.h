@@ -226,10 +226,10 @@ static __always_inline bool rseq_grant_slice_extension(unsigned long ti_work, un
 }
 
 #else /* CONFIG_RSEQ_SLICE_EXTENSION */
-static inline bool rseq_slice_extension_enabled(void) { return false; }
-static inline bool rseq_arm_slice_extension_timer(void) { return false; }
-static inline void rseq_slice_clear_grant(struct task_struct *t) { }
-static inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask) { return false; }
+static __always_inline bool rseq_slice_extension_enabled(void) { return false; }
+static __always_inline bool rseq_arm_slice_extension_timer(void) { return false; }
+static __always_inline void rseq_slice_clear_grant(struct task_struct *t) { }
+static __always_inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask) { return false; }
 #endif /* !CONFIG_RSEQ_SLICE_EXTENSION */
 
 bool rseq_debug_update_user_cs(struct task_struct *t, struct pt_regs *regs, unsigned long csaddr);

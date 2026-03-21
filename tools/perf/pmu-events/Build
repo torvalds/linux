@@ -214,7 +214,8 @@ ifneq ($(strip $(ORPHAN_FILES)),)
 quiet_cmd_rm  = RM      $^
 
 prune_orphans: $(ORPHAN_FILES)
-	$(Q)$(call echo-cmd,rm)rm -f $^
+	# The list of files can be long. Use xargs to prevent issues.
+	$(Q)$(call echo-cmd,rm)echo "$^" | xargs rm -f
 
 JEVENTS_DEPS += prune_orphans
 endif

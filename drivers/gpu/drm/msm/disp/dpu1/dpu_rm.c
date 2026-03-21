@@ -350,25 +350,27 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 	return true;
 }
 
-static bool dpu_rm_find_lms(struct dpu_rm *rm,
-			    struct dpu_global_state *global_state,
-			    uint32_t crtc_id, bool skip_dspp,
-			    struct msm_display_topology *topology,
-			    int *lm_idx, int *pp_idx, int *dspp_idx)
+static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
+			       struct dpu_global_state *global_state,
+			       uint32_t crtc_id,
+			       struct msm_display_topology *topology)
 
 {
+	int lm_idx[MAX_BLOCKS];
+	int pp_idx[MAX_BLOCKS];
+	int dspp_idx[MAX_BLOCKS] = {0};
 	int i, lm_count = 0;
+
+	if (!topology->num_lm) {
+		DPU_ERROR("zero LMs in topology\n");
+		return -EINVAL;
+	}
 
 	/* Find a primary mixer */
 	for (i = 0; i < ARRAY_SIZE(rm->mixer_blks) &&
 			lm_count < topology->num_lm; i++) {
 		if (!rm->mixer_blks[i])
 			continue;
-
-		if (skip_dspp && to_dpu_hw_mixer(rm->mixer_blks[i])->cap->dspp) {
-			DPU_DEBUG("Skipping LM_%d, skipping LMs with DSPPs\n", i);
-			continue;
-		}
 
 		/*
 		 * Reset lm_count to an even index. This will drop the previous
@@ -408,38 +410,12 @@ static bool dpu_rm_find_lms(struct dpu_rm *rm,
 		}
 	}
 
-	return lm_count == topology->num_lm;
-}
-
-static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
-			       struct dpu_global_state *global_state,
-			       uint32_t crtc_id,
-			       struct msm_display_topology *topology)
-
-{
-	int lm_idx[MAX_BLOCKS];
-	int pp_idx[MAX_BLOCKS];
-	int dspp_idx[MAX_BLOCKS] = {0};
-	int i;
-	bool found;
-
-	if (!topology->num_lm) {
-		DPU_ERROR("zero LMs in topology\n");
-		return -EINVAL;
-	}
-
-	/* Try using non-DSPP LM blocks first */
-	found = dpu_rm_find_lms(rm, global_state, crtc_id, !topology->num_dspp,
-				topology, lm_idx, pp_idx, dspp_idx);
-	if (!found && !topology->num_dspp)
-		found = dpu_rm_find_lms(rm, global_state, crtc_id, false,
-					topology, lm_idx, pp_idx, dspp_idx);
-	if (!found) {
+	if (lm_count != topology->num_lm) {
 		DPU_DEBUG("unable to find appropriate mixers\n");
 		return -ENAVAIL;
 	}
 
-	for (i = 0; i < topology->num_lm; i++) {
+	for (i = 0; i < lm_count; i++) {
 		global_state->mixer_to_crtc_id[lm_idx[i]] = crtc_id;
 		global_state->pingpong_to_crtc_id[pp_idx[i]] = crtc_id;
 		global_state->dspp_to_crtc_id[dspp_idx[i]] =

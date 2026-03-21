@@ -374,7 +374,7 @@ int smb3_fs_context_dup(struct smb3_fs_context *new_ctx,
 			struct smb3_fs_context *ctx);
 int smb3_sync_session_ctx_passwords(struct cifs_sb_info *cifs_sb,
 				    struct cifs_ses *ses);
-void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb);
+unsigned int smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb);
 
 /*
  * max deferred close timeout (jiffies) - 2^30

@@ -15,7 +15,6 @@
 #include <signal.h>
 #include <bpf/bpf.h>
 #include <scx/common.h>
-#include <unistd.h>
 #include "rt_stall.bpf.skel.h"
 #include "scx_test.h"
 #include "../kselftest.h"

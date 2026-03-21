@@ -6,6 +6,7 @@ menuconfig INFINIBAND
 	depends on INET
 	depends on m || IPV6 != m
 	depends on !ALPHA
+	select DMA_SHARED_BUFFER
 	select IRQ_POLL
 	select DIMLIB
 	help
