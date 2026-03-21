@@ -14505,7 +14505,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		if (btf_type_is_ptr(t))
 			mark_btf_func_reg_size(env, regno, sizeof(void *));
 		else
-			/* scalar. ensured by btf_check_kfunc_arg_match() */
+			/* scalar. ensured by check_kfunc_args() */
 			mark_btf_func_reg_size(env, regno, t->size);
 	}
 
