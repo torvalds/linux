@@ -9,7 +9,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 /* Context structure */
@@ -345,14 +344,14 @@
 
 
 	/*
-	 * Transform blocks*64 bytes (blocks*16 32-bit words) at 'src'.
+	 * Transform nblocks*64 bytes (nblocks*16 32-bit words) at 'data'.
 	 *
-	 * void sm3_neon_transform(struct sm3_state *sst, u8 const *src,
-	 *                         int blocks)
+	 * void sm3_neon_transform(struct sm3_block_state *state,
+	 *			   const u8 *data, size_t nblocks)
 	 */
 	.text
 .align 3
-SYM_TYPED_FUNC_START(sm3_neon_transform)
+SYM_FUNC_START(sm3_neon_transform)
 	ldp		ra, rb, [RSTATE, #0]
 	ldp		rc, rd, [RSTATE, #8]
 	ldp		re, rf, [RSTATE, #16]

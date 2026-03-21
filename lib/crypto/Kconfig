@@ -279,6 +279,7 @@ config CRYPTO_LIB_SM3
 config CRYPTO_LIB_SM3_ARCH
 	bool
 	depends on CRYPTO_LIB_SM3 && !UML
+	default y if ARM64
 
 source "lib/crypto/tests/Kconfig"
 
