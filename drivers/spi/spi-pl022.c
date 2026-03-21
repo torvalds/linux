@@ -1127,11 +1127,11 @@ static inline void pl022_dma_remove(struct pl022 *pl022)
  *
  * This function handles interrupts generated for an interrupt based transfer.
  * If a receive overrun (ROR) interrupt is there then we disable SSP, flag the
- * current message's state as STATE_ERROR and schedule the tasklet
- * pump_transfers which will do the postprocessing of the current message by
- * calling giveback(). Otherwise it reads data from RX FIFO till there is no
- * more data, and writes data in TX FIFO till it is not full. If we complete
- * the transfer we move to the next transfer and schedule the tasklet.
+ * current transfer with SPI_TRANS_FAIL_IO and call
+ * spi_finalize_current_transfer() to let the core finish the message.
+ * Otherwise it reads data from RX FIFO till there is no more data, and writes
+ * data in TX FIFO till it is not full. When the transfer is complete we call
+ * spi_finalize_current_transfer() so the core can schedule the next one.
  */
 static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 {
