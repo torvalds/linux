@@ -20,59 +20,16 @@
  *    managed alongside the master keys in the filesystem-level keyring)
  */
 
-#include <crypto/skcipher.h>
+#include <crypto/aes.h>
 #include <crypto/utils.h>
 #include <keys/user-type.h>
 #include <linux/hashtable.h>
-#include <linux/scatterlist.h>
 
 #include "fscrypt_private.h"
 
 /* Table of keys referenced by DIRECT_KEY policies */
 static DEFINE_HASHTABLE(fscrypt_direct_keys, 6); /* 6 bits = 64 buckets */
 static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
-
-/*
- * v1 key derivation function.  This generates the derived key by encrypting the
- * master key with AES-128-ECB using the nonce as the AES key.  This provides a
- * unique derived key with sufficient entropy for each inode.  However, it's
- * nonstandard, non-extensible, doesn't evenly distribute the entropy from the
- * master key, and is trivially reversible: an attacker who compromises a
- * derived key can "decrypt" it to get back to the master key, then derive any
- * other key.  For all new code, use HKDF instead.
- *
- * The master key must be at least as long as the derived key.  If the master
- * key is longer, then only the first 'derived_keysize' bytes are used.
- */
-static int derive_key_aes(const u8 *master_key,
-			  const u8 nonce[FSCRYPT_FILE_NONCE_SIZE],
-			  u8 *derived_key, unsigned int derived_keysize)
-{
-	struct crypto_sync_skcipher *tfm;
-	int err;
-
-	tfm = crypto_alloc_sync_skcipher("ecb(aes)", 0, FSCRYPT_CRYPTOAPI_MASK);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	err = crypto_sync_skcipher_setkey(tfm, nonce, FSCRYPT_FILE_NONCE_SIZE);
-	if (err == 0) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
-		struct scatterlist src_sg, dst_sg;
-
-		skcipher_request_set_callback(req,
-					      CRYPTO_TFM_REQ_MAY_BACKLOG |
-						      CRYPTO_TFM_REQ_MAY_SLEEP,
-					      NULL, NULL);
-		sg_init_one(&src_sg, master_key, derived_keysize);
-		sg_init_one(&dst_sg, derived_key, derived_keysize);
-		skcipher_request_set_crypt(req, &src_sg, &dst_sg,
-					   derived_keysize, NULL);
-		err = crypto_skcipher_encrypt(req);
-	}
-	crypto_free_sync_skcipher(tfm);
-	return err;
-}
 
 /*
  * Search the current task's subscribed keyrings for a "logon" key with
@@ -255,29 +212,41 @@ static int setup_v1_file_key_direct(struct fscrypt_inode_info *ci,
 	return 0;
 }
 
-/* v1 policy, !DIRECT_KEY: derive the file's encryption key */
+/*
+ * v1 policy, !DIRECT_KEY: derive the file's encryption key.
+ *
+ * The v1 key derivation function generates the derived key by encrypting the
+ * master key with AES-128-ECB using the file's nonce as the AES key.  This
+ * provides a unique derived key with sufficient entropy for each inode.
+ * However, it's nonstandard, non-extensible, doesn't evenly distribute the
+ * entropy from the master key, and is trivially reversible: an attacker who
+ * compromises a derived key can "decrypt" it to get back to the master key,
+ * then derive any other key.  For all new code, use HKDF instead.
+ *
+ * The master key must be at least as long as the derived key.  If the master
+ * key is longer, then only the first ci->ci_mode->keysize bytes are used.
+ */
 static int setup_v1_file_key_derived(struct fscrypt_inode_info *ci,
 				     const u8 *raw_master_key)
 {
-	u8 *derived_key;
+	const unsigned int derived_keysize = ci->ci_mode->keysize;
+	u8 derived_key[FSCRYPT_MAX_RAW_KEY_SIZE];
+	struct aes_enckey aes;
 	int err;
 
-	/*
-	 * This cannot be a stack buffer because it will be passed to the
-	 * scatterlist crypto API during derive_key_aes().
-	 */
-	derived_key = kmalloc(ci->ci_mode->keysize, GFP_KERNEL);
-	if (!derived_key)
-		return -ENOMEM;
+	if (WARN_ON_ONCE(derived_keysize > FSCRYPT_MAX_RAW_KEY_SIZE ||
+			 derived_keysize % AES_BLOCK_SIZE != 0))
+		return -EINVAL;
 
-	err = derive_key_aes(raw_master_key, ci->ci_nonce,
-			     derived_key, ci->ci_mode->keysize);
-	if (err)
-		goto out;
+	static_assert(FSCRYPT_FILE_NONCE_SIZE == AES_KEYSIZE_128);
+	aes_prepareenckey(&aes, ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE);
+	for (unsigned int i = 0; i < derived_keysize; i += AES_BLOCK_SIZE)
+		aes_encrypt(&aes, &derived_key[i], &raw_master_key[i]);
 
 	err = fscrypt_set_per_file_enc_key(ci, derived_key);
-out:
-	kfree_sensitive(derived_key);
+
+	memzero_explicit(derived_key, derived_keysize);
+	/* No need to zeroize 'aes', as its key is not secret. */
 	return err;
 }
 
