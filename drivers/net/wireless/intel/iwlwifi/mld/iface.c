@@ -404,6 +404,7 @@ iwl_mld_init_vif(struct iwl_mld *mld, struct ieee80211_vif *vif)
 	lockdep_assert_wiphy(mld->wiphy);
 
 	mld_vif->mld = mld;
+	mld_vif->fw_id = IWL_MLD_INVALID_FW_ID;
 	mld_vif->roc_activity = ROC_NUM_ACTIVITIES;
 
 	if (!mld->fw_status.in_hw_restart) {
@@ -450,6 +451,10 @@ void iwl_mld_rm_vif(struct iwl_mld *mld, struct ieee80211_vif *vif)
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
 	lockdep_assert_wiphy(mld->wiphy);
+
+	/* NAN interface type is not known to FW */
+	if (vif->type == NL80211_IFTYPE_NAN)
+		return;
 
 	iwl_mld_mac_fw_action(mld, vif, FW_CTXT_ACTION_REMOVE);
 
