@@ -490,7 +490,7 @@ int irq_non_sleepable_global_subprog(void *ctx)
 }
 
 SEC("?syscall")
-__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+__failure __msg("sleepable global function")
 int irq_sleepable_helper_global_subprog(void *ctx)
 {
 	unsigned long flags;
@@ -502,7 +502,7 @@ int irq_sleepable_helper_global_subprog(void *ctx)
 }
 
 SEC("?syscall")
-__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+__failure __msg("sleepable global function")
 int irq_sleepable_global_subprog_indirect(void *ctx)
 {
 	unsigned long flags;
