@@ -907,6 +907,125 @@ impl<T: KnownSize + AsBytes + ?Sized> debugfs::BinaryWriter for Coherent<T> {
     }
 }
 
+/// An opaque DMA allocation without a kernel virtual mapping.
+///
+/// Unlike [`Coherent`], a `CoherentHandle` does not provide CPU access to the allocated memory.
+/// The allocation is always performed with `DMA_ATTR_NO_KERNEL_MAPPING`, meaning no kernel
+/// virtual mapping is created for the buffer. The value returned by the C API as the CPU
+/// address is an opaque handle used only to free the allocation.
+///
+/// This is useful for buffers that are only ever accessed by hardware.
+///
+/// # Invariants
+///
+/// - `cpu_handle` holds the opaque handle returned by `dma_alloc_attrs` with
+///   `DMA_ATTR_NO_KERNEL_MAPPING` set, and is only valid for passing back to `dma_free_attrs`.
+/// - `dma_handle` is the corresponding bus address for device DMA.
+/// - `size` is the allocation size in bytes as passed to `dma_alloc_attrs`.
+/// - `dma_attrs` contains the attributes used for the allocation, always including
+///   `DMA_ATTR_NO_KERNEL_MAPPING`.
+pub struct CoherentHandle {
+    dev: ARef<device::Device>,
+    dma_handle: DmaAddress,
+    cpu_handle: NonNull<c_void>,
+    size: usize,
+    dma_attrs: Attrs,
+}
+
+impl CoherentHandle {
+    /// Allocates `size` bytes of coherent DMA memory without creating a kernel virtual mapping.
+    ///
+    /// Additional DMA attributes may be passed via `dma_attrs`; `DMA_ATTR_NO_KERNEL_MAPPING` is
+    /// always set implicitly.
+    ///
+    /// Returns `EINVAL` if `size` is zero, `ENOMEM` if the allocation fails.
+    pub fn alloc_with_attrs(
+        dev: &device::Device<Bound>,
+        size: usize,
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self> {
+        if size == 0 {
+            return Err(EINVAL);
+        }
+
+        let dma_attrs = dma_attrs | Attrs(bindings::DMA_ATTR_NO_KERNEL_MAPPING);
+        let mut dma_handle = 0;
+        // SAFETY: `dev.as_raw()` is valid by the type invariant on `device::Device`.
+        let cpu_handle = unsafe {
+            bindings::dma_alloc_attrs(
+                dev.as_raw(),
+                size,
+                &mut dma_handle,
+                gfp_flags.as_raw(),
+                dma_attrs.as_raw(),
+            )
+        };
+
+        let cpu_handle = NonNull::new(cpu_handle).ok_or(ENOMEM)?;
+
+        // INVARIANT: `cpu_handle` is the opaque handle from a successful `dma_alloc_attrs` call
+        // with `DMA_ATTR_NO_KERNEL_MAPPING`, `dma_handle` is the corresponding DMA address,
+        // and we hold a refcounted reference to the device.
+        Ok(Self {
+            dev: dev.into(),
+            dma_handle,
+            cpu_handle,
+            size,
+            dma_attrs,
+        })
+    }
+
+    /// Allocates `size` bytes of coherent DMA memory without creating a kernel virtual mapping.
+    #[inline]
+    pub fn alloc(
+        dev: &device::Device<Bound>,
+        size: usize,
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Self> {
+        Self::alloc_with_attrs(dev, size, gfp_flags, Attrs(0))
+    }
+
+    /// Returns the DMA handle for this allocation.
+    ///
+    /// This address can be programmed into device hardware for DMA access.
+    #[inline]
+    pub fn dma_handle(&self) -> DmaAddress {
+        self.dma_handle
+    }
+
+    /// Returns the size in bytes of this allocation.
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
+impl Drop for CoherentHandle {
+    fn drop(&mut self) {
+        // SAFETY: All values are valid by the type invariants on `CoherentHandle`.
+        // `cpu_handle` is the opaque handle from `dma_alloc_attrs` and is passed back unchanged.
+        unsafe {
+            bindings::dma_free_attrs(
+                self.dev.as_raw(),
+                self.size,
+                self.cpu_handle.as_ptr(),
+                self.dma_handle,
+                self.dma_attrs.as_raw(),
+            )
+        }
+    }
+}
+
+// SAFETY: `CoherentHandle` only holds a device reference, a DMA handle, an opaque CPU handle,
+// and a size. None of these are tied to a specific thread.
+unsafe impl Send for CoherentHandle {}
+
+// SAFETY: `CoherentHandle` provides no CPU access to the underlying allocation. The only
+// operations on `&CoherentHandle` are reading the DMA handle and size, both of which are
+// plain `Copy` values.
+unsafe impl Sync for CoherentHandle {}
+
 /// Reads a field of an item from an allocated region of structs.
 ///
 /// The syntax is of the form `kernel::dma_read!(dma, proj)` where `dma` is an expression evaluating
