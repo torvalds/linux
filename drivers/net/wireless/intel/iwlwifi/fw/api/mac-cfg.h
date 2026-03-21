@@ -709,6 +709,7 @@ struct iwl_link_config_cmd {
  */
 #define IWL_FW_MAX_ACTIVE_LINKS_NUM 2
 #define IWL_FW_MAX_LINK_ID 3
+#define IWL_FW_MAX_LINKS IWL_FW_MAX_LINK_ID + 1
 
 /**
  * enum iwl_fw_sta_type - FW station types

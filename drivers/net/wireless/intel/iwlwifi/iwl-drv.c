@@ -1315,7 +1315,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (tlv_len != sizeof(u32))
 				goto invalid_tlv_len;
 			if (le32_to_cpup((const __le32 *)tlv_data) >
-			    IWL_FW_MAX_LINK_ID + 1) {
+			    IWL_FW_MAX_LINKS) {
 				IWL_ERR(drv,
 					"%d is an invalid number of links\n",
 					le32_to_cpup((const __le32 *)tlv_data));

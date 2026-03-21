@@ -938,7 +938,7 @@ static void iwl_mld_count_mpdu(struct ieee80211_link_sta *link_sta, int queue,
 	if (!(mld_vif->emlsr.blocked_reasons & IWL_MLD_EMLSR_BLOCKED_TPT))
 		goto unlock;
 
-	for (int i = 0; i <= IWL_FW_MAX_LINK_ID; i++)
+	for (int i = 0; i < IWL_FW_MAX_LINKS; i++)
 		total_mpdus += tx ? queue_counter->per_link[i].tx :
 				    queue_counter->per_link[i].rx;
 

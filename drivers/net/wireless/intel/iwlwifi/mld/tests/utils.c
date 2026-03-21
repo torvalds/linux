@@ -42,7 +42,7 @@ int iwlmld_kunit_test_init(struct kunit *test)
 	iwl_construct_mld(mld, trans, cfg, fw, hw, NULL);
 
 	fw->ucode_capa.num_stations = IWL_STATION_COUNT_MAX;
-	fw->ucode_capa.num_links = IWL_FW_MAX_LINK_ID + 1;
+	fw->ucode_capa.num_links = IWL_FW_MAX_LINKS;
 
 	mld->fwrt.trans = trans;
 	mld->fwrt.fw = fw;
