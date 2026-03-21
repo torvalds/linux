@@ -356,6 +356,9 @@ elif alg == 'sha3':
     print()
     print('/* SHAKE test vectors */')
     gen_additional_sha3_testvecs()
+elif alg == 'sm3':
+    gen_unkeyed_testvecs(alg)
+    # Kernel doesn't implement HMAC-SM3 library functions yet.
 else:
     gen_unkeyed_testvecs(alg)
     gen_hmac_testvecs(alg)
