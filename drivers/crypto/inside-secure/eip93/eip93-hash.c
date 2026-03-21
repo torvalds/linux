@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2024
  *
- * Christian Marangi <ansuelsmth@gmail.com
+ * Christian Marangi <ansuelsmth@gmail.com>
  */
 
 #include <crypto/sha1.h>
