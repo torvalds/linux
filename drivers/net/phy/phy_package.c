@@ -194,8 +194,8 @@ EXPORT_SYMBOL_GPL(phy_package_probe_once);
  * for offset calculation to access generic registers of a PHY package.
  * Usually, one of the PHY addresses of the different PHYs in the package
  * provides access to these global registers.
- * The address which is given here, will be used in the phy_package_read()
- * and phy_package_write() convenience functions as base and added to the
+ * The address which is given here, will be used in the __phy_package_read()
+ * and __phy_package_write() convenience functions as base and added to the
  * passed offset in those functions.
  *
  * This will set the shared pointer of the phydev to the shared storage.
