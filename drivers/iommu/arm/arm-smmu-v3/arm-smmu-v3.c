@@ -2688,7 +2688,7 @@ static void __arm_smmu_domain_inv_range(struct arm_smmu_invs *invs,
 		case INV_TYPE_S2_VMID_S1_CLEAR:
 			/* CMDQ_OP_TLBI_S12_VMALL already flushed S1 entries */
 			if (arm_smmu_inv_size_too_big(cur->smmu, size, granule))
-				continue;
+				break;
 			cmd.tlbi.vmid = cur->id;
 			arm_smmu_cmdq_batch_add(smmu, &cmds, &cmd);
 			break;
@@ -2704,7 +2704,7 @@ static void __arm_smmu_domain_inv_range(struct arm_smmu_invs *invs,
 			break;
 		default:
 			WARN_ON_ONCE(1);
-			continue;
+			break;
 		}
 
 		/* Skip any trash entry in-between */
