@@ -14,7 +14,6 @@
 
 #define SM3_DIGEST_SIZE	32
 #define SM3_BLOCK_SIZE	64
-#define SM3_STATE_SIZE	40
 
 #define SM3_IVA		0x7380166f
 #define SM3_IVB		0x4914b2b9
@@ -24,12 +23,6 @@
 #define SM3_IVF		0x163138aa
 #define SM3_IVG		0xe38dee4d
 #define SM3_IVH		0xb0fb0e4e
-
-struct sm3_state {
-	u32 state[SM3_DIGEST_SIZE / 4];
-	u64 count;
-	u8 buffer[SM3_BLOCK_SIZE];
-};
 
 /* State for the SM3 compression function */
 struct sm3_block_state {
