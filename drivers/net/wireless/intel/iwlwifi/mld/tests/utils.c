@@ -68,7 +68,7 @@ int iwlmld_kunit_test_init(struct kunit *test)
 	return 0;
 }
 
-IWL_MLD_ALLOC_FN(link, bss_conf)
+static IWL_MLD_ALLOC_FN(link, bss_conf)
 
 static void iwlmld_kunit_init_link(struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *link,
@@ -94,7 +94,7 @@ static void iwlmld_kunit_init_link(struct ieee80211_vif *vif,
 	rcu_assign_pointer(vif->link_conf[link_id], link);
 }
 
-IWL_MLD_ALLOC_FN(vif, vif)
+static IWL_MLD_ALLOC_FN(vif, vif)
 
 /* Helper function to add and initialize a VIF for KUnit tests */
 struct ieee80211_vif *iwlmld_kunit_add_vif(bool mlo, enum nl80211_iftype type)
@@ -199,7 +199,7 @@ void iwlmld_kunit_assign_chanctx_to_link(struct ieee80211_vif *vif,
 		vif->active_links |= BIT(link->link_id);
 }
 
-IWL_MLD_ALLOC_FN(link_sta, link_sta)
+static IWL_MLD_ALLOC_FN(link_sta, link_sta)
 
 static void iwlmld_kunit_add_link_sta(struct ieee80211_sta *sta,
 				      struct ieee80211_link_sta *link_sta,

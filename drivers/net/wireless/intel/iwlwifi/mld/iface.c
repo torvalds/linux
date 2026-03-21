@@ -386,7 +386,7 @@ static void iwl_mld_mlo_scan_start_wk(struct wiphy *wiphy,
 	iwl_mld_int_mlo_scan(mld, iwl_mld_vif_to_mac80211(mld_vif));
 }
 
-IWL_MLD_ALLOC_FN(vif, vif)
+static IWL_MLD_ALLOC_FN(vif, vif)
 
 /* Constructor function for struct iwl_mld_vif */
 static void

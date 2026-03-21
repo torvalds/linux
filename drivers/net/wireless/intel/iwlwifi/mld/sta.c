@@ -528,7 +528,7 @@ iwl_mld_add_modify_sta_cmd(struct iwl_mld *mld,
 	return iwl_mld_send_sta_cmd(mld, &cmd);
 }
 
-IWL_MLD_ALLOC_FN(link_sta, link_sta)
+static IWL_MLD_ALLOC_FN(link_sta, link_sta)
 
 static int
 iwl_mld_add_link_sta(struct iwl_mld *mld, struct ieee80211_link_sta *link_sta)
