@@ -892,7 +892,7 @@ static void cs_hsi_data_enable(struct cs_hsi_iface *hi,
 
 	data_start = L1_CACHE_ALIGN(sizeof(*hi->mmap_cfg));
 	dev_dbg(&hi->cl->device,
-			"setting data start at %u, cfg block %u, align %u\n",
+			"setting data start at %u, cfg block %zu, align %u\n",
 			data_start, sizeof(*hi->mmap_cfg), L1_CACHE_BYTES);
 
 	for (i = 0; i < hi->mmap_cfg->rx_bufs; i++) {
