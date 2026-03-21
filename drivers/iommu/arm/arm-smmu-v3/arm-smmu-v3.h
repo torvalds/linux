@@ -687,7 +687,7 @@ static inline bool arm_smmu_inv_is_ats(const struct arm_smmu_inv *inv)
  *            greater than @max_invs
  * @num_trashes: number of trash entries in the array for arm_smmu_invs_purge().
  *               Must not be greater than @num_invs
- * @rwlock: optional rwlock to fench ATS operations
+ * @rwlock: optional rwlock to fence ATS operations
  * @has_ats: flag if the array contains an INV_TYPE_ATS or INV_TYPE_ATS_FULL
  * @rcu: rcu head for kfree_rcu()
  * @inv: flexible invalidation array

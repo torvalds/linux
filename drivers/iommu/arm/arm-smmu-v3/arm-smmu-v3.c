@@ -1128,7 +1128,7 @@ static inline int arm_smmu_invs_iter_next_cmp(struct arm_smmu_invs *invs_l,
  * Both @invs and @to_merge must be sorted, to ensure the returned array will be
  * sorted as well.
  *
- * Caller is resposible for freeing the @invs and the returned new one.
+ * Caller is responsible for freeing the @invs and the returned new one.
  *
  * Entries marked as trash will be purged in the returned array.
  */
@@ -1258,7 +1258,7 @@ EXPORT_SYMBOL_IF_KUNIT(arm_smmu_invs_unref);
  * This function must be locked and serialized with arm_smmu_invs_merge() and
  * arm_smmu_invs_unref(), but do not lockdep on any lock for KUNIT test.
  *
- * Caller is resposible for freeing the @invs and the returned new one.
+ * Caller is responsible for freeing the @invs and the returned new one.
  */
 VISIBLE_IF_KUNIT
 struct arm_smmu_invs *arm_smmu_invs_purge(struct arm_smmu_invs *invs)
@@ -2739,7 +2739,7 @@ void arm_smmu_domain_inv_range(struct arm_smmu_domain *smmu_domain,
 	 * But in a race, these two can be interdependent, making it a special
 	 * case requiring an additional smp_mb() for the write->read ordering.
 	 * Pairing with the dma_wmb() in arm_smmu_install_ste_for_dev(), this
-	 * makes sure that IOPTE update prior to this point is visable to SMMU
+	 * makes sure that IOPTE update prior to this point is visible to SMMU
 	 * hardware before we load the updated invalidation array.
 	 *
 	 *  [CPU0]                        | [CPU1]
