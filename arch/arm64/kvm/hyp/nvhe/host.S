@@ -125,7 +125,6 @@ SYM_FUNC_START(__hyp_do_panic)
 	mrs	x0, hcr_el2
 	bic	x0, x0, #HCR_VM
 	msr_hcr_el2 x0
-	isb
 	tlbi	vmalls12e1
 	dsb	nsh
 #endif
