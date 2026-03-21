@@ -637,8 +637,8 @@ static int qce_aead_setkey(struct crypto_aead *tfm, const u8 *key, unsigned int 
 
 	memcpy(ctx->enc_key, authenc_keys.enckey, authenc_keys.enckeylen);
 
-	memset(ctx->auth_key, 0, sizeof(ctx->auth_key));
-	memcpy(ctx->auth_key, authenc_keys.authkey, authenc_keys.authkeylen);
+	memcpy_and_pad(ctx->auth_key, sizeof(ctx->auth_key),
+		       authenc_keys.authkey, authenc_keys.authkeylen, 0);
 
 	return crypto_aead_setkey(ctx->fallback, key, keylen);
 }
