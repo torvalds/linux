@@ -110,7 +110,7 @@ struct crypt_iv_operations {
 		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
 	int (*init)(struct crypt_config *cc);
-	int (*wipe)(struct crypt_config *cc);
+	void (*wipe)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv,
 			 struct dm_crypt_request *dmreq);
 	int (*post)(struct crypt_config *cc, u8 *iv,
@@ -508,14 +508,12 @@ static int crypt_iv_lmk_init(struct crypt_config *cc)
 	return 0;
 }
 
-static int crypt_iv_lmk_wipe(struct crypt_config *cc)
+static void crypt_iv_lmk_wipe(struct crypt_config *cc)
 {
 	struct iv_lmk_private *lmk = &cc->iv_gen_private.lmk;
 
 	if (lmk->seed)
 		memset(lmk->seed, 0, LMK_SEED_SIZE);
-
-	return 0;
 }
 
 static void crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
@@ -629,14 +627,12 @@ static int crypt_iv_tcw_init(struct crypt_config *cc)
 	return 0;
 }
 
-static int crypt_iv_tcw_wipe(struct crypt_config *cc)
+static void crypt_iv_tcw_wipe(struct crypt_config *cc)
 {
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
 
 	memset(tcw->iv_seed, 0, cc->iv_size);
 	memset(tcw->whitening, 0, TCW_WHITENING_SIZE);
-
-	return 0;
 }
 
 static void crypt_iv_tcw_whitening(struct crypt_config *cc,
@@ -1015,12 +1011,11 @@ static int crypt_iv_elephant_init(struct crypt_config *cc)
 	return aes_prepareenckey(elephant->key, &cc->key[key_offset], cc->key_extra_size);
 }
 
-static int crypt_iv_elephant_wipe(struct crypt_config *cc)
+static void crypt_iv_elephant_wipe(struct crypt_config *cc)
 {
 	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
 
 	memzero_explicit(elephant->key, sizeof(*elephant->key));
-	return 0;
 }
 
 static const struct crypt_iv_operations crypt_iv_plain_ops = {
@@ -2648,11 +2643,8 @@ static int crypt_wipe_key(struct crypt_config *cc)
 	get_random_bytes(&cc->key, cc->key_size);
 
 	/* Wipe IV private keys */
-	if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
-		r = cc->iv_gen_ops->wipe(cc);
-		if (r)
-			return r;
-	}
+	if (cc->iv_gen_ops && cc->iv_gen_ops->wipe)
+		cc->iv_gen_ops->wipe(cc);
 
 	kfree_sensitive(cc->key_string);
 	cc->key_string = NULL;
