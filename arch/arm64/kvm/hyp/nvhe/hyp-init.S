@@ -175,7 +175,6 @@ SYM_CODE_END(___kvm_hyp_init)
 SYM_CODE_START(kvm_hyp_cpu_entry)
 	mov	x1, #1				// is_cpu_on = true
 	b	__kvm_hyp_init_cpu
-SYM_CODE_END(kvm_hyp_cpu_entry)
 
 /*
  * PSCI CPU_SUSPEND / SYSTEM_SUSPEND entry point
@@ -184,17 +183,8 @@ SYM_CODE_END(kvm_hyp_cpu_entry)
  */
 SYM_CODE_START(kvm_hyp_cpu_resume)
 	mov	x1, #0				// is_cpu_on = false
-	b	__kvm_hyp_init_cpu
-SYM_CODE_END(kvm_hyp_cpu_resume)
 
-/*
- * Common code for CPU entry points. Initializes EL2 state and
- * installs the hypervisor before handing over to a C handler.
- *
- * x0: struct kvm_nvhe_init_params PA
- * x1: bool is_cpu_on
- */
-SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
+SYM_INNER_LABEL(__kvm_hyp_init_cpu, SYM_L_LOCAL)
 	mov	x28, x0				// Stash arguments
 	mov	x29, x1
 
@@ -223,7 +213,8 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 1:	wfe
 	wfi
 	b	1b
-SYM_CODE_END(__kvm_hyp_init_cpu)
+SYM_CODE_END(kvm_hyp_cpu_resume)
+SYM_CODE_END(kvm_hyp_cpu_entry)
 
 SYM_CODE_START(__kvm_handle_stub_hvc)
 	/*
