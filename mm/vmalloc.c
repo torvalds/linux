@@ -4575,20 +4575,20 @@ finished:
  * @count:        number of bytes to be read.
  *
  * This function checks that addr is a valid vmalloc'ed area, and
- * copy data from that area to a given buffer. If the given memory range
+ * copies data from that area to a given iterator. If the given memory range
  * of [addr...addr+count) includes some valid address, data is copied to
- * proper area of @buf. If there are memory holes, they'll be zero-filled.
+ * proper area of @iter. If there are memory holes, they'll be zero-filled.
  * IOREMAP area is treated as memory hole and no copy is done.
  *
  * If [addr...addr+count) doesn't includes any intersects with alive
- * vm_struct area, returns 0. @buf should be kernel's buffer.
+ * vm_struct area, returns 0.
  *
- * Note: In usual ops, vread() is never necessary because the caller
+ * Note: In usual ops, vread_iter() is never necessary because the caller
  * should know vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
  * any information, as /proc/kcore.
  *
- * Return: number of bytes for which addr and buf should be increased
+ * Return: number of bytes for which addr and iter should be advanced
  * (same number as @count) or %0 if [addr...addr+count) doesn't
  * include any intersection with valid vmalloc area
  */
