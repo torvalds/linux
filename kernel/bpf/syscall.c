@@ -2832,7 +2832,7 @@ static int bpf_prog_verify_signature(struct bpf_prog *prog, union bpf_attr *attr
 	sig = kvmemdup_bpfptr(usig, attr->signature_size);
 	if (IS_ERR(sig)) {
 		bpf_key_put(key);
-		return -ENOMEM;
+		return PTR_ERR(sig);
 	}
 
 	bpf_dynptr_init(&sig_ptr, sig, BPF_DYNPTR_TYPE_LOCAL, 0,
