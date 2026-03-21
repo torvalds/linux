@@ -213,12 +213,13 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	mov	x0, x28
 	bl	___kvm_hyp_init			// Clobbers x0..x2
 
-	/* Leave idmap. */
+	/* Leave idmap -- using BLR is OK, LR is restored from host context */
 	mov	x0, x29
-	ldr	x1, =kvm_host_psci_cpu_entry
-	br	x1
+	ldr	x1, =__kvm_host_psci_cpu_entry
+	blr	x1
 
-	// The core booted in EL1. KVM cannot be initialized on it.
+	// The core booted in EL1, or the C code unexpectedly returned.
+	// Either way, KVM cannot be initialized on it.
 1:	wfe
 	wfi
 	b	1b
