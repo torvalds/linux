@@ -48,7 +48,8 @@ static int simple_parse_platform(struct simple_util_priv *priv,
 
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
+	 * It will be used as the of_node for component matching during
+	 * snd_soc_add_pcm_runtime().
 	 */
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)
@@ -76,7 +77,8 @@ static int simple_parse_dai(struct simple_util_priv *priv,
 
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
+	 * It will be used as the of_node for component matching during
+	 * snd_soc_add_pcm_runtime().
 	 */
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)

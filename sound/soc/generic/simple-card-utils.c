@@ -718,7 +718,7 @@ void simple_util_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links)
 {
 	/*
-	 * In soc_bind_dai_link() will check cpu name after
+	 * In snd_soc_add_pcm_runtime() will check cpu name after
 	 * of_node matching if dai_link has cpu_dai_name.
 	 * but, it will never match if name was created by
 	 * fmt_single_name() remove cpu_dai_name if cpu_args
