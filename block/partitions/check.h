@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
+#include <linux/seq_buf.h>
 #include "../blk.h"
 
 /*
@@ -20,7 +21,7 @@ struct parsed_partitions {
 	int next;
 	int limit;
 	bool access_beyond_eod;
-	char *pp_buf;
+	struct seq_buf pp_buf;
 };
 
 typedef struct {
@@ -37,12 +38,9 @@ static inline void
 put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)
 {
 	if (n < p->limit) {
-		char tmp[1 + BDEVNAME_SIZE + 10 + 1];
-
 		p->parts[n].from = from;
 		p->parts[n].size = size;
-		snprintf(tmp, sizeof(tmp), " %s%d", p->name, n);
-		strlcat(p->pp_buf, tmp, PAGE_SIZE);
+		seq_buf_printf(&p->pp_buf, " %s%d", p->name, n);
 	}
 }
 

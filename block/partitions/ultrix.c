@@ -39,7 +39,7 @@ int ultrix_partition(struct parsed_partitions *state)
 					      label->pt_part[i].pi_blkoff,
 					      label->pt_part[i].pi_nblocks);
 		put_dev_sector(sect);
-		strlcat(state->pp_buf, "\n", PAGE_SIZE);
+		seq_buf_puts(&state->pp_buf, "\n");
 		return 1;
 	} else {
 		put_dev_sector(sect);

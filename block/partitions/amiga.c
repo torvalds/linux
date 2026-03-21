@@ -81,13 +81,8 @@ int amiga_partition(struct parsed_partitions *state)
 	/* blksize is blocks per 512 byte standard block */
 	blksize = be32_to_cpu( rdb->rdb_BlockBytes ) / 512;
 
-	{
-		char tmp[7 + 10 + 1 + 1];
-
-		/* Be more informative */
-		snprintf(tmp, sizeof(tmp), " RDSK (%d)", blksize * 512);
-		strlcat(state->pp_buf, tmp, PAGE_SIZE);
-	}
+	/* Be more informative */
+	seq_buf_printf(&state->pp_buf, " RDSK (%d)", blksize * 512);
 	blk = be32_to_cpu(rdb->rdb_PartitionList);
 	put_dev_sector(sect);
 	for (part = 1; (s32) blk>0 && part<=16; part++, put_dev_sector(sect)) {
@@ -179,27 +174,27 @@ int amiga_partition(struct parsed_partitions *state)
 		{
 			/* Be even more informative to aid mounting */
 			char dostype[4];
-			char tmp[42];
 
 			__be32 *dt = (__be32 *)dostype;
 			*dt = pb->pb_Environment[16];
 			if (dostype[3] < ' ')
-				snprintf(tmp, sizeof(tmp), " (%c%c%c^%c)",
-					dostype[0], dostype[1],
-					dostype[2], dostype[3] + '@' );
+				seq_buf_printf(&state->pp_buf,
+					       " (%c%c%c^%c)",
+					       dostype[0], dostype[1],
+					       dostype[2],
+					       dostype[3] + '@');
 			else
-				snprintf(tmp, sizeof(tmp), " (%c%c%c%c)",
-					dostype[0], dostype[1],
-					dostype[2], dostype[3]);
-			strlcat(state->pp_buf, tmp, PAGE_SIZE);
-			snprintf(tmp, sizeof(tmp), "(res %d spb %d)",
-				be32_to_cpu(pb->pb_Environment[6]),
-				be32_to_cpu(pb->pb_Environment[4]));
-			strlcat(state->pp_buf, tmp, PAGE_SIZE);
+				seq_buf_printf(&state->pp_buf,
+					       " (%c%c%c%c)",
+					       dostype[0], dostype[1],
+					       dostype[2], dostype[3]);
+			seq_buf_printf(&state->pp_buf, "(res %d spb %d)",
+				       be32_to_cpu(pb->pb_Environment[6]),
+				       be32_to_cpu(pb->pb_Environment[4]));
 		}
 		res = 1;
 	}
-	strlcat(state->pp_buf, "\n", PAGE_SIZE);
+	seq_buf_puts(&state->pp_buf, "\n");
 
 rdb_done:
 	return res;
