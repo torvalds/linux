@@ -196,7 +196,7 @@ static int hvs_channel_readable_payload(struct vmbus_channel *chan)
 
 	if (readable > HVS_PKT_LEN(0)) {
 		/* At least we have 1 byte to read. We don't need to return
-		 * the exact readable bytes: see vsock_stream_recvmsg() ->
+		 * the exact readable bytes: see vsock_connectible_recvmsg() ->
 		 * vsock_stream_has_data().
 		 */
 		return 1;
