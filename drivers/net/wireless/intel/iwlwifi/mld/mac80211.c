@@ -1759,9 +1759,18 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 		if (ret)
 			return ret;
 
-		/* just added first TDLS STA, so disable PM */
-		if (sta->tdls && tdls_count == 0)
+		/* just added first TDLS STA, so disable PM and block EMLSR */
+		if (sta->tdls && tdls_count == 0) {
 			iwl_mld_update_mac_power(mld, vif, false);
+
+			/* TDLS requires single-link operation with
+			 * direct peer communication.
+			 * Block and exit EMLSR when TDLS is established.
+			 */
+			iwl_mld_block_emlsr(mld, vif,
+					    IWL_MLD_EMLSR_BLOCKED_TDLS,
+					    iwl_mld_get_primary_link(vif));
+		}
 
 		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			mld_vif->ap_sta = sta;
@@ -1898,8 +1907,14 @@ static int iwl_mld_move_sta_state_down(struct iwl_mld *mld,
 		iwl_mld_remove_sta(mld, sta);
 
 		if (sta->tdls && iwl_mld_tdls_sta_count(mld) == 0) {
-			/* just removed last TDLS STA, so enable PM */
+			/* just removed last TDLS STA, so enable PM
+			 * and unblock EMLSR
+			 */
 			iwl_mld_update_mac_power(mld, vif, false);
+
+			/* Unblock EMLSR when TDLS connection is torn down */
+			iwl_mld_unblock_emlsr(mld, vif,
+					      IWL_MLD_EMLSR_BLOCKED_TDLS);
 		}
 	} else {
 		return -EINVAL;

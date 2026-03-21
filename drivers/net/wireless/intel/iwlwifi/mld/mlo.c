@@ -13,7 +13,8 @@
 	HOW(NON_BSS)			\
 	HOW(TMP_NON_BSS)		\
 	HOW(TPT)			\
-	HOW(NAN)
+	HOW(NAN)			\
+	HOW(TDLS)
 
 static const char *
 iwl_mld_get_emlsr_blocked_string(enum iwl_mld_emlsr_blocked blocked)
