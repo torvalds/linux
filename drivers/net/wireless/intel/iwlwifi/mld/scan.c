@@ -2055,9 +2055,7 @@ void iwl_mld_handle_scan_complete_notif(struct iwl_mld *mld,
 		struct ieee80211_bss_conf *link_conf = NULL;
 
 		if (fw_link_id != IWL_MLD_INVALID_FW_ID)
-			link_conf =
-				wiphy_dereference(mld->wiphy,
-						  mld->fw_id_to_bss_conf[fw_link_id]);
+			link_conf = iwl_mld_fw_id_to_link_conf(mld, fw_link_id);
 
 		/* It is possible that by the time the scan is complete the
 		 * link was already removed and is not valid.

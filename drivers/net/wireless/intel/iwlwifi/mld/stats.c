@@ -431,14 +431,13 @@ iwl_mld_process_per_link_stats(struct iwl_mld *mld,
 	u32 total_airtime_usec = 0;
 
 	for (u32 fw_id = 0;
-	     fw_id < ARRAY_SIZE(mld->fw_id_to_bss_conf);
+	     fw_id < mld->fw->ucode_capa.num_links;
 	     fw_id++) {
 		const struct iwl_stats_ntfy_per_link *link_stats;
 		struct ieee80211_bss_conf *bss_conf;
 		int sig;
 
-		bss_conf = wiphy_dereference(mld->wiphy,
-					     mld->fw_id_to_bss_conf[fw_id]);
+		bss_conf = iwl_mld_fw_id_to_link_conf(mld, fw_id);
 		if (!bss_conf || bss_conf->vif->type != NL80211_IFTYPE_STATION)
 			continue;
 
