@@ -424,6 +424,10 @@ enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv, nvidia195mv };
 #define PMBUS_REV_12 0x22	/* PMBus revision 1.2 */
 #define PMBUS_REV_13 0x33	/* PMBus revision 1.3 */
 
+/* Operation type flags for pmbus_update_ts */
+#define PMBUS_OP_WRITE		BIT(0)
+#define PMBUS_OP_PAGE_CHANGE	BIT(1)
+
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
 	u8 phases[PMBUS_PAGES];	/* Number of phases per page */
@@ -541,6 +545,8 @@ int pmbus_regulator_init_cb(struct regulator_dev *rdev,
 
 void pmbus_clear_cache(struct i2c_client *client);
 void pmbus_set_update(struct i2c_client *client, u8 reg, bool update);
+void pmbus_wait(struct i2c_client *client);
+void pmbus_update_ts(struct i2c_client *client, int op);
 int pmbus_set_page(struct i2c_client *client, int page, int phase);
 int pmbus_read_word_data(struct i2c_client *client, int page, int phase,
 			 u8 reg);
