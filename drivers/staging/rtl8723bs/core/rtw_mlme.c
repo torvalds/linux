@@ -1166,86 +1166,91 @@ void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 	pmlmepriv->link_detect_info.traffic_transition_count = 0;
 	pmlmepriv->link_detect_info.low_power_transition_count = 0;
 
-	if (pnetwork->join_res > 0) {
-		spin_lock_bh(&pmlmepriv->scanned_queue.lock);
-		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
-			/* s1. find ptarget_wlan */
-			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-				if (the_same_macaddr) {
-					ptarget_wlan = rtw_find_network(&pmlmepriv->scanned_queue, cur_network->network.mac_address);
-				} else {
-					pcur_wlan = rtw_find_network(&pmlmepriv->scanned_queue, cur_network->network.mac_address);
-					if (pcur_wlan)
-						pcur_wlan->fixed = false;
-
-					pcur_sta = rtw_get_stainfo(pstapriv, cur_network->network.mac_address);
-					if (pcur_sta)
-						rtw_free_stainfo(adapter,  pcur_sta);
-
-					ptarget_wlan = rtw_find_network(&pmlmepriv->scanned_queue, pnetwork->network.mac_address);
-					if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-						if (ptarget_wlan)
-							ptarget_wlan->fixed = true;
-					}
-				}
-
-			} else {
-				ptarget_wlan = _rtw_find_same_network(&pmlmepriv->scanned_queue, pnetwork);
-				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-					if (ptarget_wlan)
-						ptarget_wlan->fixed = true;
-				}
-			}
-
-			/* s2. update cur_network */
-			if (ptarget_wlan) {
-				rtw_joinbss_update_network(adapter, ptarget_wlan, pnetwork);
-			} else {
-				netdev_dbg(adapter->pnetdev,
-					   "Can't find ptarget_wlan when joinbss_event callback\n");
-				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-				goto ignore_joinbss_callback;
-			}
-
-			/* s3. find ptarget_sta & update ptarget_sta after update cur_network only for station mode */
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-				ptarget_sta = rtw_joinbss_update_stainfo(adapter, pnetwork);
-				if (!ptarget_sta) {
-					spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-					goto ignore_joinbss_callback;
-				}
-			}
-
-			/* s4. indicate connect */
-			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-				pmlmepriv->cur_network_scanned = ptarget_wlan;
-				rtw_indicate_connect(adapter);
-			}
-
-			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-
-			spin_unlock_bh(&pmlmepriv->lock);
-			/* s5. Cancel assoc_timer */
-			timer_delete_sync(&pmlmepriv->assoc_timer);
-			spin_lock_bh(&pmlmepriv->lock);
-		} else {
-			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-		}
-	} else if (pnetwork->join_res == -4) {
+	if (pnetwork->join_res == -4) {
 		rtw_reset_securitypriv(adapter);
 		_set_timer(&pmlmepriv->assoc_timer, 1);
 
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
-	} else {/* if join_res < 0 (join fails), then try again */
-		_set_timer(&pmlmepriv->assoc_timer, 1);
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+		spin_unlock_bh(&pmlmepriv->lock);
+		return;
 	}
 
-ignore_joinbss_callback:
+	if (pnetwork->join_res <= 0) { /* if join_res < 0 (join fails), then try again */
+		_set_timer(&pmlmepriv->assoc_timer, 1);
+		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+		spin_unlock_bh(&pmlmepriv->lock);
+		return;
+	}
+
+	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
+
+	if (!check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
+		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+		spin_unlock_bh(&pmlmepriv->lock);
+		return;
+	}
+
+	/* s1. find ptarget_wlan */
+	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+		if (the_same_macaddr) {
+			ptarget_wlan = rtw_find_network(&pmlmepriv->scanned_queue, cur_network->network.mac_address);
+		} else {
+			pcur_wlan = rtw_find_network(&pmlmepriv->scanned_queue, cur_network->network.mac_address);
+			if (pcur_wlan)
+				pcur_wlan->fixed = false;
+
+			pcur_sta = rtw_get_stainfo(pstapriv, cur_network->network.mac_address);
+			if (pcur_sta)
+				rtw_free_stainfo(adapter, pcur_sta);
+
+			ptarget_wlan = rtw_find_network(&pmlmepriv->scanned_queue, pnetwork->network.mac_address);
+			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+				if (ptarget_wlan)
+					ptarget_wlan->fixed = true;
+			}
+		}
+	} else {
+		ptarget_wlan = _rtw_find_same_network(&pmlmepriv->scanned_queue, pnetwork);
+		if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+			if (ptarget_wlan)
+				ptarget_wlan->fixed = true;
+		}
+	}
+
+	/* s2. update cur_network */
+	if (!ptarget_wlan) {
+		netdev_dbg(adapter->pnetdev,
+			   "Can't find ptarget_wlan when joinbss_event callback\n");
+		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+		spin_unlock_bh(&pmlmepriv->lock);
+		return;
+	}
+
+	rtw_joinbss_update_network(adapter, ptarget_wlan, pnetwork);
+
+	/* s3. find ptarget_sta & update ptarget_sta after update cur_network only for station mode */
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+		ptarget_sta = rtw_joinbss_update_stainfo(adapter, pnetwork);
+		if (!ptarget_sta) {
+			spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+			spin_unlock_bh(&pmlmepriv->lock);
+			return;
+		}
+	}
+
+	/* s4. indicate connect */
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
+		pmlmepriv->cur_network_scanned = ptarget_wlan;
+		rtw_indicate_connect(adapter);
+	}
+
+	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 
 	spin_unlock_bh(&pmlmepriv->lock);
+	/* s5. Cancel assoc_timer */
+	timer_delete_sync(&pmlmepriv->assoc_timer);
 }
 
 void rtw_joinbss_event_callback(struct adapter *adapter, u8 *pbuf)
