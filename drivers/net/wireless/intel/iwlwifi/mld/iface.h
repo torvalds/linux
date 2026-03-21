@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #ifndef __iwl_mld_iface_h__
 #define __iwl_mld_iface_h__
@@ -201,6 +201,15 @@ static inline struct ieee80211_vif *
 iwl_mld_vif_to_mac80211(struct iwl_mld_vif *mld_vif)
 {
 	return container_of((void *)mld_vif, struct ieee80211_vif, drv_priv);
+}
+
+/* Call only for interfaces that were added to the driver! */
+static inline bool iwl_mld_vif_fw_id_valid(struct iwl_mld_vif *mld_vif)
+{
+	if (WARN_ON(mld_vif->fw_id >= ARRAY_SIZE(mld_vif->mld->fw_id_to_vif)))
+		return false;
+
+	return true;
 }
 
 #define iwl_mld_link_dereference_check(mld_vif, link_id)		\
