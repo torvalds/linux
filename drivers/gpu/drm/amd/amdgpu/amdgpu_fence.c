@@ -438,7 +438,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
  * @ring: ring to init the fence driver on
  *
  * Init the fence driver for the requested ring (all asics).
- * Helper function for amdgpu_fence_driver_init().
+ * Helper function for amdgpu_fence_driver_sw_init().
  */
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 {
