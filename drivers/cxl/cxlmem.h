@@ -923,7 +923,7 @@ int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd);
  */
 struct cxl_hdm {
 	struct cxl_component_regs regs;
-	unsigned int decoder_count;
+	int decoder_count;
 	unsigned int target_count;
 	unsigned int interleave_mask;
 	unsigned long iw_cap_mask;
