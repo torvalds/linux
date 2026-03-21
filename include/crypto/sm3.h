@@ -16,9 +16,6 @@
 #define SM3_BLOCK_SIZE	64
 #define SM3_STATE_SIZE	40
 
-#define SM3_T1		0x79CC4519
-#define SM3_T2		0x7A879D8A
-
 #define SM3_IVA		0x7380166f
 #define SM3_IVB		0x4914b2b9
 #define SM3_IVC		0x172442d7
@@ -27,8 +24,6 @@
 #define SM3_IVF		0x163138aa
 #define SM3_IVG		0xe38dee4d
 #define SM3_IVH		0xb0fb0e4e
-
-extern const u8 sm3_zero_message_hash[SM3_DIGEST_SIZE];
 
 struct sm3_state {
 	u32 state[SM3_DIGEST_SIZE / 4];
