@@ -272,6 +272,13 @@ config CRYPTO_LIB_SHA3_ARCH
 
 config CRYPTO_LIB_SM3
 	tristate
+	help
+	  The SM3 library functions.  Select this if your module uses any of the
+	  functions from <crypto/sm3.h>.
+
+config CRYPTO_LIB_SM3_ARCH
+	bool
+	depends on CRYPTO_LIB_SM3 && !UML
 
 source "lib/crypto/tests/Kconfig"
 
