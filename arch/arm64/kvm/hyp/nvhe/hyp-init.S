@@ -201,14 +201,9 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	/* Check that the core was booted in EL2. */
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
-	b.eq	2f
+	b.ne	1f
 
-	/* The core booted in EL1. KVM cannot be initialized on it. */
-1:	wfe
-	wfi
-	b	1b
-
-2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
+	msr	SPsel, #1			// We want to use SP_EL2
 
 	init_el2_hcr	0
 
@@ -222,6 +217,11 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 	mov	x0, x29
 	ldr	x1, =kvm_host_psci_cpu_entry
 	br	x1
+
+	// The core booted in EL1. KVM cannot be initialized on it.
+1:	wfe
+	wfi
+	b	1b
 SYM_CODE_END(__kvm_hyp_init_cpu)
 
 SYM_CODE_START(__kvm_handle_stub_hvc)
