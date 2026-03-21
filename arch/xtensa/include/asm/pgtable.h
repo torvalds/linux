@@ -304,15 +304,14 @@ set_pmd(pmd_t *pmdp, pmd_t pmdval)
 
 struct vm_area_struct;
 
-static inline int
-ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr,
-			  pte_t *ptep)
+static inline bool ptep_test_and_clear_young(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
 	if (!pte_young(pte))
-		return 0;
+		return false;
 	update_pte(ptep, pte_mkold(pte));
-	return 1;
+	return true;
 }
 
 static inline pte_t

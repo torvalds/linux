@@ -438,16 +438,17 @@ static inline pte_t ptep_get(pte_t *ptep)
 }
 #define ptep_get ptep_get
 
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+static inline bool ptep_test_and_clear_young(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep)
 {
 	pte_t pte;
 
 	pte = ptep_get(ptep);
 	if (!pte_young(pte)) {
-		return 0;
+		return false;
 	}
 	set_pte_at(vma->vm_mm, addr, ptep, pte_mkold(pte));
-	return 1;
+	return true;
 }
 
 int ptep_clear_flush_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep);
