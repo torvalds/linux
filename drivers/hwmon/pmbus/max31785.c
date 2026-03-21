@@ -141,13 +141,13 @@ static int max31785_read_long_data(struct i2c_client *client, int page,
 	 */
 	pmbus_update_ts(client, 0);
 
-	if (rc < 0)
-		return rc;
+	if (rc != ARRAY_SIZE(msg))
+		return rc < 0 ? rc : -EIO;
 
 	*data = (rspbuf[0] << (0 * 8)) | (rspbuf[1] << (1 * 8)) |
 		(rspbuf[2] << (2 * 8)) | (rspbuf[3] << (3 * 8));
 
-	return rc;
+	return 0;
 }
 
 static int max31785_get_pwm(struct i2c_client *client, int page)
