@@ -1118,7 +1118,7 @@ static int ssi_port_probe(struct platform_device *pd)
 
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
-	if (!ssi->port || !omap_ssi->port) {
+	if (!omap_ssi->port) {
 		dev_err(&pd->dev, "ssi controller not initialized!\n");
 		err = -ENODEV;
 		goto error;
