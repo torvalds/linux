@@ -21,7 +21,17 @@ typedef void (sm3_block_fn)(struct sm3_state *sst, u8 const *src, int blocks);
 
 static inline int sm3_base_init(struct shash_desc *desc)
 {
-	sm3_init(shash_desc_ctx(desc));
+	struct sm3_state *sctx = shash_desc_ctx(desc);
+
+	sctx->state[0] = SM3_IVA;
+	sctx->state[1] = SM3_IVB;
+	sctx->state[2] = SM3_IVC;
+	sctx->state[3] = SM3_IVD;
+	sctx->state[4] = SM3_IVE;
+	sctx->state[5] = SM3_IVF;
+	sctx->state[6] = SM3_IVG;
+	sctx->state[7] = SM3_IVH;
+	sctx->count = 0;
 	return 0;
 }
 

@@ -46,19 +46,6 @@ struct sm3_state {
  * For details see lib/crypto/sm3.c
  */
 
-static inline void sm3_init(struct sm3_state *sctx)
-{
-	sctx->state[0] = SM3_IVA;
-	sctx->state[1] = SM3_IVB;
-	sctx->state[2] = SM3_IVC;
-	sctx->state[3] = SM3_IVD;
-	sctx->state[4] = SM3_IVE;
-	sctx->state[5] = SM3_IVF;
-	sctx->state[6] = SM3_IVG;
-	sctx->state[7] = SM3_IVH;
-	sctx->count = 0;
-}
-
 void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks);
 
 #endif
