@@ -374,6 +374,7 @@ ifeq ($(CONFIG_CRYPTO_LIB_SM3_ARCH),y)
 CFLAGS_sm3.o += -I$(src)/$(SRCARCH)
 libsm3-$(CONFIG_ARM64) += arm64/sm3-ce-core.o \
 			  arm64/sm3-neon-core.o
+libsm3-$(CONFIG_RISCV) += riscv/sm3-riscv64-zvksh-zvkb.o
 endif # CONFIG_CRYPTO_LIB_SM3_ARCH
 
 ################################################################################

@@ -80,7 +80,8 @@
 	// For the next 8 rounds, w0 and w1 are swapped.
 .endm
 
-// void sm3_transform_zvksh_zvkb(u32 state[8], const u8 *data, int num_blocks);
+// void sm3_transform_zvksh_zvkb(struct sm3_block_state *state,
+//				 const u8 *data, size_t nblocks);
 SYM_FUNC_START(sm3_transform_zvksh_zvkb)
 
 	// Load the state and endian-swap each 32-bit word.
