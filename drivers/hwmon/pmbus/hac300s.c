@@ -58,6 +58,8 @@ static int hac300s_read_word_data(struct i2c_client *client, int page,
 	case PMBUS_MFR_VOUT_MIN:
 	case PMBUS_READ_VOUT:
 		rv = pmbus_read_word_data(client, page, phase, reg);
+		if (rv < 0)
+			return rv;
 		return FIELD_GET(LINEAR11_MANTISSA_MASK, rv);
 	default:
 		return -ENODATA;
