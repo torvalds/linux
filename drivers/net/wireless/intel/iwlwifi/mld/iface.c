@@ -61,13 +61,20 @@ void iwl_mld_cleanup_vif(void *data, u8 *mac, struct ieee80211_vif *vif)
 static int iwl_mld_send_mac_cmd(struct iwl_mld *mld,
 				struct iwl_mac_config_cmd *cmd)
 {
+	u16 cmd_id = WIDE_ID(MAC_CONF_GROUP, MAC_CONFIG_CMD);
+	int len = sizeof(*cmd);
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	ret = iwl_mld_send_cmd_pdu(mld,
-				   WIDE_ID(MAC_CONF_GROUP, MAC_CONFIG_CMD),
-				   cmd);
+	if (iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0) < 4) {
+		if (WARN_ON(cmd->mac_type == cpu_to_le32(FW_MAC_TYPE_NAN)))
+			return -EINVAL;
+
+		len = sizeof(struct iwl_mac_config_cmd_v3);
+	}
+
+	ret = iwl_mld_send_cmd_pdu(mld, cmd_id, cmd, len);
 	if (ret)
 		IWL_ERR(mld, "Failed to send MAC_CONFIG_CMD ret = %d\n", ret);
 
