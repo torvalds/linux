@@ -2145,8 +2145,6 @@
 		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&cru PCLK_EDP>, <&cru PCLK_EDP_CTRL>, <&cru PCLK_VIO_GRF>;
 		clock-names = "dp", "pclk", "grf";
-		pinctrl-names = "default";
-		pinctrl-0 = <&edp_hpd>;
 		power-domains = <&power RK3399_PD_EDP>;
 		resets = <&cru SRST_P_EDP_CTRL>;
 		reset-names = "dp";
@@ -2384,6 +2382,7 @@
 		};
 
 		edp {
+			/omit-if-no-ref/
 			edp_hpd: edp-hpd {
 				rockchip,pins =
 					<4 RK_PC7 2 &pcfg_pull_none>;

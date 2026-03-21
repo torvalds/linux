@@ -381,6 +381,22 @@
 	domain-supply = <&vdd_gpu_s0>;
 };
 
+&pd_rkvdec0 {
+	domain-supply = <&vdd_vdenc_s0>;
+};
+
+&pd_rkvdec1 {
+	domain-supply = <&vdd_vdenc_s0>;
+};
+
+&pd_venc0 {
+	domain-supply = <&vdd_vdenc_s0>;
+};
+
+&pd_venc1 {
+	domain-supply = <&vdd_vdenc_s0>;
+};
+
 &pinctrl {
 	audio {
 		hp_detect: headphone-detect {

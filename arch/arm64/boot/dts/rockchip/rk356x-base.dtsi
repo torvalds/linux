@@ -3,6 +3,7 @@
  * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/ata/ahci.h>
 #include <dt-bindings/clock/rk3568-cru.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -221,11 +222,20 @@
 			 <&cru CLK_SATA1_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
 		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&combphy1 PHY_TYPE_SATA>;
-		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3568_PD_PIPE>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
+
+		sata1_port0: sata-port@0 {
+			reg = <0>;
+			hba-port-cap = <HBA_PORT_FBSCP>;
+			phys = <&combphy1 PHY_TYPE_SATA>;
+			phy-names = "sata-phy";
+			snps,rx-ts-max = <32>;
+			snps,tx-ts-max = <32>;
+		};
 	};
 
 	sata2: sata@fc800000 {
@@ -235,11 +245,20 @@
 			 <&cru CLK_SATA2_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-		phys = <&combphy2 PHY_TYPE_SATA>;
-		phy-names = "sata-phy";
 		ports-implemented = <0x1>;
 		power-domains = <&power RK3568_PD_PIPE>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		status = "disabled";
+
+		sata2_port0: sata-port@0 {
+			reg = <0>;
+			hba-port-cap = <HBA_PORT_FBSCP>;
+			phys = <&combphy2 PHY_TYPE_SATA>;
+			phy-names = "sata-phy";
+			snps,rx-ts-max = <32>;
+			snps,tx-ts-max = <32>;
+		};
 	};
 
 	usb_host0_xhci: usb@fcc00000 {

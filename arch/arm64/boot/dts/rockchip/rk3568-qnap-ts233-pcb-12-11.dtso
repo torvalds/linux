@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Device tree overlay for TS233 board PCBs-12-11 revision.
+ *
+ * Copyright (C) 2025 Heiko Stuebner <heiko@sntech.de>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+&{/} {
+	/*
+	 * The default hardware-state of this gpio causes the drive
+	 * to be already running when entering the kernel.
+	 * regulator-boot-on is needed to prevent one additional
+	 * power-cycle on the drive.
+	 *
+	 * With regulator-boot-on we get the expected 1 cycle
+	 * per boot, without it we end up with 2 cycles as seen
+	 * via smartctl.
+	 */
+	hdd1_pwr: regulator-hdd1-power {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdd1_power_pin>;
+		regulator-name = "hdd1-power";
+		regulator-boot-on;
+		vin-supply = <&dc_12v>;
+	};
+
+	hdd2_pwr: regulator-hdd2-power {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hdd2_power_pin>;
+		regulator-name = "hdd2-power";
+		regulator-boot-on;
+		vin-supply = <&dc_12v>;
+	};
+};
+
+&gpio2 {
+	hdd1-present-hog {
+		gpios = <RK_PA2 GPIO_ACTIVE_LOW>;
+		gpio-hog;
+		input;
+		line-name = "hdd1-present";
+	};
+
+	hdd2-present-hog {
+		gpios = <RK_PA1 GPIO_ACTIVE_LOW>;
+		gpio-hog;
+		input;
+		line-name = "hdd2-present";
+	};
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdd1_present_pin &hdd2_present_pin>;
+
+	hdd-power {
+		hdd1_power_pin: hdd1-power-pin {
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		hdd2_power_pin: hdd2-power-pin {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hdd-present {
+		hdd1_present_pin: hdd1-present-pin {
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		hdd2_present_pin: hdd2-present-pin {
+			rockchip,pins = <2 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&sata1_port0 {
+	target-supply = <&hdd2_pwr>;
+};
+
+&sata2_port0 {
+	target-supply = <&hdd1_pwr>;
+};
