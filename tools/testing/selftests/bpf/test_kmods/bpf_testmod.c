@@ -1411,6 +1411,12 @@ static int bpf_testmod_ops__test_refcounted(int dummy,
 	return 0;
 }
 
+static int bpf_testmod_ops__test_refcounted_multi(int dummy, struct task_struct *task__nullable,
+						  struct task_struct *task__ref)
+{
+	return 0;
+}
+
 static struct task_struct *
 bpf_testmod_ops__test_return_ref_kptr(int dummy, struct task_struct *task__ref,
 				      struct cgroup *cgrp)
@@ -1423,6 +1429,7 @@ static struct bpf_testmod_ops __bpf_testmod_ops = {
 	.test_2 = bpf_testmod_test_2,
 	.test_maybe_null = bpf_testmod_ops__test_maybe_null,
 	.test_refcounted = bpf_testmod_ops__test_refcounted,
+	.test_refcounted_multi = bpf_testmod_ops__test_refcounted_multi,
 	.test_return_ref_kptr = bpf_testmod_ops__test_return_ref_kptr,
 };
 
