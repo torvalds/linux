@@ -236,8 +236,6 @@ int FirmwareDownloadBT(struct adapter *adapter, struct rt_firmware *firmware);
 void CCX_FwC2HTxRpt_8723b(struct adapter *padapter, u8 *pdata, u8 len);
 s32 c2h_id_filter_ccx_8723b(u8 *buf);
 s32 c2h_handler_8723b(struct adapter *padapter, u8 *pC2hEvent);
-u8 MRateToHwRate8723B(u8 rate);
-u8 HwRateToMRate8723B(u8 rate);
 
 void Hal_ReadRFGainOffset(struct adapter *padapter, u8 *hwinfo,
 			  bool AutoLoadFail);
