@@ -375,6 +375,7 @@ CFLAGS_sm3.o += -I$(src)/$(SRCARCH)
 libsm3-$(CONFIG_ARM64) += arm64/sm3-ce-core.o \
 			  arm64/sm3-neon-core.o
 libsm3-$(CONFIG_RISCV) += riscv/sm3-riscv64-zvksh-zvkb.o
+libsm3-$(CONFIG_X86) += x86/sm3-avx-asm_64.o
 endif # CONFIG_CRYPTO_LIB_SM3_ARCH
 
 ################################################################################
