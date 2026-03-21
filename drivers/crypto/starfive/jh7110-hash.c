@@ -520,7 +520,7 @@ static int starfive_sha512_init_tfm(struct crypto_ahash *hash)
 
 static int starfive_sm3_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "sm3-generic",
+	return starfive_hash_init_tfm(hash, "sm3-lib",
 				      STARFIVE_HASH_SM3, 0);
 }
 
@@ -550,7 +550,7 @@ static int starfive_hmac_sha512_init_tfm(struct crypto_ahash *hash)
 
 static int starfive_hmac_sm3_init_tfm(struct crypto_ahash *hash)
 {
-	return starfive_hash_init_tfm(hash, "hmac(sm3-generic)",
+	return starfive_hash_init_tfm(hash, "hmac(sm3-lib)",
 				      STARFIVE_HASH_SM3, 1);
 }
 
