@@ -79,8 +79,8 @@ static const u32 ____cacheline_aligned K[64] = {
 		^ rol32(W[(i-13) & 0x0f], 7)		\
 		^ W[(i-6) & 0x0f])
 
-static void sm3_transform(struct sm3_block_state *state,
-			  const u8 data[SM3_BLOCK_SIZE], u32 W[16])
+static void sm3_block_generic(struct sm3_block_state *state,
+			      const u8 data[SM3_BLOCK_SIZE], u32 W[16])
 {
 	u32 a, b, c, d, e, f, g, h, ss1, ss2;
 
@@ -177,26 +177,13 @@ static void sm3_transform(struct sm3_block_state *state,
 #undef W1
 #undef W2
 
-void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks)
-{
-	u32 W[16];
-
-	do {
-		sm3_transform((struct sm3_block_state *)sctx->state, data, W);
-		data += SM3_BLOCK_SIZE;
-	} while (--blocks);
-
-	memzero_explicit(W, sizeof(W));
-}
-EXPORT_SYMBOL_GPL(sm3_block_generic);
-
 static void __maybe_unused sm3_blocks_generic(struct sm3_block_state *state,
 					      const u8 *data, size_t nblocks)
 {
 	u32 W[16];
 
 	do {
-		sm3_transform(state, data, W);
+		sm3_block_generic(state, data, W);
 		data += SM3_BLOCK_SIZE;
 	} while (--nblocks);
 

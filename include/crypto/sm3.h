@@ -31,8 +31,6 @@ struct sm3_state {
 	u8 buffer[SM3_BLOCK_SIZE];
 };
 
-void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks);
-
 /* State for the SM3 compression function */
 struct sm3_block_state {
 	u32 h[SM3_DIGEST_SIZE / 4];
