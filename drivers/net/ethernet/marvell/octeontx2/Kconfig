@@ -33,6 +33,7 @@ config OCTEONTX2_PF
 	select OCTEONTX2_MBOX
 	select NET_DEVLINK
 	select PAGE_POOL
+	select CRYPTO_LIB_AES if MACSEC
 	depends on (64BIT && COMPILE_TEST) || ARM64
 	select DIMLIB
 	depends on PCI
