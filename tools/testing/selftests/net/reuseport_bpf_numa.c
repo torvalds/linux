@@ -230,9 +230,19 @@ static void test(int *rcv_fd, int len, int family, int proto)
 		close(rcv_fd[node]);
 }
 
+static void setup_netns(void)
+{
+	if (unshare(CLONE_NEWNET))
+		error(1, errno, "failed to unshare netns");
+	if (system("ip link set lo up"))
+		error(1, 0, "failed to bring up lo interface in netns");
+}
+
 int main(void)
 {
 	int *rcv_fd, nodes;
+
+	setup_netns();
 
 	if (numa_available() < 0)
 		ksft_exit_skip("no numa api support\n");

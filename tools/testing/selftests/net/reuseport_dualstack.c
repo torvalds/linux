@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sched.h>
 
 static const int PORT = 8888;
 
@@ -156,9 +157,19 @@ static void test(int *rcv_fds, int count, int proto)
 	close(epfd);
 }
 
+static void setup_netns(void)
+{
+	if (unshare(CLONE_NEWNET))
+		error(1, errno, "failed to unshare netns");
+	if (system("ip link set lo up"))
+		error(1, 0, "failed to bring up lo interface in netns");
+}
+
 int main(void)
 {
 	int rcv_fds[32], i;
+
+	setup_netns();
 
 	fprintf(stderr, "---- UDP IPv4 created before IPv6 ----\n");
 	build_rcv_fd(AF_INET, SOCK_DGRAM, rcv_fds, 5);

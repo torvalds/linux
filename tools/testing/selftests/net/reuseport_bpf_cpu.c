@@ -228,9 +228,19 @@ static void test(int *rcv_fd, int len, int family, int proto)
 		close(rcv_fd[cpu]);
 }
 
+static void setup_netns(void)
+{
+	if (unshare(CLONE_NEWNET))
+		error(1, errno, "failed to unshare netns");
+	if (system("ip link set lo up"))
+		error(1, 0, "failed to bring up lo interface in netns");
+}
+
 int main(void)
 {
 	int *rcv_fd, cpus;
+
+	setup_netns();
 
 	cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	if (cpus <= 0)

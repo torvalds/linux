@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <sched.h>
 
 #include "kselftest.h"
 
@@ -455,8 +456,18 @@ static __attribute__((destructor)) void main_dtor(void)
 	setrlimit(RLIMIT_MEMLOCK, &rlim_old);
 }
 
+static void setup_netns(void)
+{
+	if (unshare(CLONE_NEWNET))
+		error(1, errno, "failed to unshare netns");
+	if (system("ip link set lo up"))
+		error(1, 0, "failed to bring up lo interface in netns");
+}
+
 int main(void)
 {
+	setup_netns();
+
 	fprintf(stderr, "---- IPv4 UDP ----\n");
 	/* NOTE: UDP socket lookups traverse a different code path when there
 	 * are > 10 sockets in a group.  Run the bpf test through both paths.
