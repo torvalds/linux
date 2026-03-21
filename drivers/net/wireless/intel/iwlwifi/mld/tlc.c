@@ -9,6 +9,7 @@
 #include "hcmd.h"
 #include "sta.h"
 #include "phy.h"
+#include "iface.h"
 
 #include "fw/api/rs.h"
 #include "fw/api/context.h"
@@ -530,6 +531,7 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 				 struct ieee80211_bss_conf *link)
 {
 	struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(link_sta->sta);
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
 	enum nl80211_band band = link->chanreq.oper.chan->band;
 	struct ieee80211_supported_band *sband = mld->hw->wiphy->bands[band];
 	const struct ieee80211_sta_he_cap *own_he_cap =
@@ -566,7 +568,10 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 
 	cmd.sta_mask = cpu_to_le32(BIT(fw_sta_id));
 
-	chan_ctx = rcu_dereference_wiphy(mld->wiphy, link->chanctx_conf);
+	if (WARN_ON_ONCE(!mld_link))
+		return;
+
+	chan_ctx = rcu_dereference_wiphy(mld->wiphy, mld_link->chan_ctx);
 	if (WARN_ON(!chan_ctx))
 		return;
 
@@ -656,6 +661,49 @@ void iwl_mld_config_tlc_link(struct iwl_mld *mld,
 	}
 
 	iwl_mld_send_tlc_cmd(mld, vif, link_sta, link_conf);
+}
+
+void iwl_mld_tlc_update_phy(struct iwl_mld *mld, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link_conf);
+	struct ieee80211_chanctx_conf *chan_ctx;
+	int link_id = link_conf->link_id;
+	struct ieee80211_sta *sta;
+
+	lockdep_assert_wiphy(mld->wiphy);
+
+	if (WARN_ON(!mld_link))
+		return;
+
+	chan_ctx = rcu_dereference_wiphy(mld->wiphy, mld_link->chan_ctx);
+
+	for_each_station(sta, mld->hw) {
+		struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(sta);
+		struct iwl_mld_link_sta *mld_link_sta;
+		struct ieee80211_link_sta *link_sta;
+
+		if (mld_sta->vif != vif)
+			continue;
+
+		link_sta = link_sta_dereference_protected(sta, link_id);
+		if (!link_sta)
+			continue;
+
+		mld_link_sta = iwl_mld_link_sta_dereference_check(mld_sta,
+								  link_id);
+
+		/* In recovery flow, the station may not be (yet) in the
+		 * firmware, don't send a TLC command for a station the
+		 * firmware does not know.
+		 */
+		if (!mld_link_sta || !mld_link_sta->in_fw)
+			continue;
+
+		if (chan_ctx)
+			iwl_mld_config_tlc_link(mld, vif, link_conf, link_sta);
+		/* TODO: else, remove the TLC object in the firmware */
+	}
 }
 
 void iwl_mld_config_tlc(struct iwl_mld *mld, struct ieee80211_vif *vif,
