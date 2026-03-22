@@ -1213,7 +1213,11 @@ static int iommu_create_device_direct_mappings(struct iommu_domain *domain,
 			if (addr == end)
 				goto map_end;
 
-			phys_addr = iommu_iova_to_phys(domain, addr);
+			/*
+			 * Return address by iommu_iova_to_phys for 0 is
+			 * ambiguous. Offset to address 1 if addr is 0.
+			 */
+			phys_addr = iommu_iova_to_phys(domain, addr ? addr : 1);
 			if (!phys_addr) {
 				map_size += pg_size;
 				continue;

@@ -765,30 +765,22 @@ static int ax_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctlr);
 
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(xspi->regs)) {
-		ret = PTR_ERR(xspi->regs);
-		goto remove_ctlr;
-	}
+	if (IS_ERR(xspi->regs))
+		return PTR_ERR(xspi->regs);
 
 	xspi->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(xspi->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
-		ret = PTR_ERR(xspi->pclk);
-		goto remove_ctlr;
-	}
+	if (IS_ERR(xspi->pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(xspi->pclk),
+				     "pclk clock not found.\n");
 
 	xspi->ref_clk = devm_clk_get(&pdev->dev, "ref");
-	if (IS_ERR(xspi->ref_clk)) {
-		dev_err(&pdev->dev, "ref clock not found.\n");
-		ret = PTR_ERR(xspi->ref_clk);
-		goto remove_ctlr;
-	}
+	if (IS_ERR(xspi->ref_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(xspi->ref_clk),
+				     "ref clock not found.\n");
 
 	ret = clk_prepare_enable(xspi->pclk);
-	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable APB clock.\n");
-		goto remove_ctlr;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Unable to enable APB clock.\n");
 
 	ret = clk_prepare_enable(xspi->ref_clk);
 	if (ret) {
@@ -869,8 +861,7 @@ clk_dis_all:
 	clk_disable_unprepare(xspi->ref_clk);
 clk_dis_apb:
 	clk_disable_unprepare(xspi->pclk);
-remove_ctlr:
-	spi_controller_put(ctlr);
+
 	return ret;
 }
 

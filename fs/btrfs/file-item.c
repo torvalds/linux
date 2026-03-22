@@ -308,6 +308,13 @@ static int search_csum_tree(struct btrfs_fs_info *fs_info,
 	/* Current item doesn't contain the desired range, search again */
 	btrfs_release_path(path);
 	csum_root = btrfs_csum_root(fs_info, disk_bytenr);
+	if (unlikely(!csum_root)) {
+		btrfs_err(fs_info,
+			  "missing csum root for extent at bytenr %llu",
+			  disk_bytenr);
+		return -EUCLEAN;
+	}
+
 	item = btrfs_lookup_csum(NULL, csum_root, path, disk_bytenr, 0);
 	if (IS_ERR(item)) {
 		ret = PTR_ERR(item);
