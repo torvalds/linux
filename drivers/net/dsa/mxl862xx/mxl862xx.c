@@ -424,6 +424,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 	ds->ops = &mxl862xx_switch_ops;
 	ds->phylink_mac_ops = &mxl862xx_phylink_mac_ops;
 	ds->num_ports = MXL862XX_MAX_PORTS;
+	mxl862xx_host_init(priv);
 
 	dev_set_drvdata(dev, ds);
 
@@ -433,21 +434,31 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 static void mxl862xx_remove(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+	struct mxl862xx_priv *priv;
 
 	if (!ds)
 		return;
 
+	priv = ds->priv;
+
 	dsa_unregister_switch(ds);
+
+	mxl862xx_host_shutdown(priv);
 }
 
 static void mxl862xx_shutdown(struct mdio_device *mdiodev)
 {
 	struct dsa_switch *ds = dev_get_drvdata(&mdiodev->dev);
+	struct mxl862xx_priv *priv;
 
 	if (!ds)
 		return;
 
+	priv = ds->priv;
+
 	dsa_switch_shutdown(ds);
+
+	mxl862xx_host_shutdown(priv);
 
 	dev_set_drvdata(&mdiodev->dev, NULL);
 }

@@ -11,6 +11,8 @@
 struct mxl862xx_priv {
 	struct dsa_switch *ds;
 	struct mdio_device *mdiodev;
+	struct work_struct crc_err_work;
+	unsigned long crc_err;
 };
 
 #endif /* __MXL862XX_H */
