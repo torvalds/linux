@@ -283,6 +283,17 @@ static int mxl862xx_get_data(struct mxl862xx_priv *priv, u16 words)
 				  MXL862XX_MMD_REG_DATA_MAX_SIZE * sizeof(u16));
 }
 
+static int mxl862xx_rst_data(struct mxl862xx_priv *priv)
+{
+	return mxl862xx_issue_cmd(priv, MMD_API_RST_DATA, 0);
+}
+
+/* Minimum number of zero words in the data payload before issuing a
+ * RST_DATA command is worthwhile.  RST_DATA costs one full command
+ * round-trip (~5 MDIO transactions), so the threshold must offset that.
+ */
+#define RST_DATA_THRESHOLD	5
+
 static int mxl862xx_send_cmd(struct mxl862xx_priv *priv, u16 cmd, u16 size,
 			     bool quiet)
 {
@@ -318,6 +329,8 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 		      u16 size, bool read, bool quiet)
 {
 	__le16 *data = _data;
+	bool use_rst = false;
+	unsigned int zeros;
 	int ret, cmd_ret;
 	u16 max, crc, i;
 
@@ -330,6 +343,24 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 	ret = mxl862xx_busy_wait(priv);
 	if (ret < 0)
 		goto out;
+
+	/* If the data contains enough zero words, issue RST_DATA to zero
+	 * both the firmware buffer and MMD registers, then skip writing
+	 * zero words individually.
+	 */
+	for (i = 0, zeros = 0; i < size / 2 && zeros < RST_DATA_THRESHOLD; i++)
+		if (!data[i])
+			zeros++;
+
+	if (zeros < RST_DATA_THRESHOLD && (size & 1) && !*(u8 *)&data[i])
+		zeros++;
+
+	if (zeros >= RST_DATA_THRESHOLD) {
+		ret = mxl862xx_rst_data(priv);
+		if (ret < 0)
+			goto out;
+		use_rst = true;
+	}
 
 	/* Compute CRC-16 over the data payload; written as an extra word
 	 * after the data so the firmware can verify the transfer.
@@ -366,6 +397,13 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 		} else {
 			val = le16_to_cpu(data[i]);
 		}
+
+		/* After RST_DATA, skip zero data words as the registers
+		 * already contain zeros, but never skip the CRC word at the
+		 * final word.
+		 */
+		if (use_rst && i < max && val == 0)
+			continue;
 
 		ret = mxl862xx_reg_write(priv,
 					 MXL862XX_MMD_REG_DATA_FIRST + off,
