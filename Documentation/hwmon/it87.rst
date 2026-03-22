@@ -25,6 +25,14 @@ Supported chips:
 
     Datasheet: Not publicly available
 
+  * IT8689E
+
+    Prefix: 'it8689'
+
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+
+    Datasheet: Not publicly available
+
   * IT8705F
 
     Prefix: 'it87'
@@ -228,9 +236,9 @@ Description
 -----------
 
 This driver implements support for the IT8603E, IT8620E, IT8623E, IT8628E,
-IT8705F, IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8732F,
-IT8758E, IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E,
-IT8792E/IT8795E, IT87952E and SiS950 chips.
+IT8689E, IT8705F, IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F,
+IT8728F, IT8732F, IT8758E, IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F,
+IT8786E, IT8790E, IT8792E/IT8795E, IT87952E and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -274,6 +282,9 @@ of the fan is not supported (value 0 of pwmX_enable).
 The IT8620E and IT8628E are custom designs, hardware monitoring part is similar
 to IT8728F. It only supports 16-bit fan mode. Both chips support up to 6 fans.
 
+The IT8689E supports newer autopwm, 12mV ADC, 16-bit fans, six fans, six PWM
+channels, PWM frequency 2, six temperature inputs, and AVCC3 (in9).
+
 The IT8790E, IT8792E/IT8795E and IT87952E support up to 3 fans. 16-bit fan
 mode is always enabled.
 
@@ -301,12 +312,15 @@ of 0.016 volt.  IT8603E, IT8721F/IT8758E and IT8728F can measure between 0 and
 2.8 volts with a resolution of 0.0109 volt.  The battery voltage in8 does not
 have limit registers.
 
-On the IT8603E, IT8620E, IT8628E, IT8721F/IT8758E, IT8732F, IT8781F, IT8782F,
-and IT8783E/F, some voltage inputs are internal and scaled inside the chip:
+On the IT8603E, IT8620E, IT8628E, IT8689E, IT8721F/IT8758E, IT8732F, IT8781F,
+IT8782F, and IT8783E/F, some voltage inputs are internal and scaled inside the
+chip:
+
 * in3 (optional)
 * in7 (optional for IT8781F, IT8782F, and IT8783E/F)
 * in8 (always)
-* in9 (relevant for IT8603E only)
+* in9 (IT8603E, IT8622E, and IT8689E: always AVCC3; others: optional)
+
 The driver handles this transparently so user-space doesn't have to care.
 
 The VID lines (IT8712F/IT8716F/IT8718F/IT8720F) encode the core voltage value:
