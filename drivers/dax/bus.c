@@ -668,7 +668,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 	};
 
 	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
-		kfree(dax_region);
+		dax_region_put(dax_region);
 		return NULL;
 	}
 
