@@ -13,7 +13,8 @@ import sys
 import re
 from pprint import pformat
 
-from kdoc.kdoc_re import NestedMatch, KernRe
+from kdoc.c_lex import CTokenizer, tokenizer_set_log
+from kdoc.kdoc_re import KernRe
 from kdoc.kdoc_item import KdocItem
 
 #
@@ -84,15 +85,9 @@ def trim_private_members(text):
     """
     Remove ``struct``/``enum`` members that have been marked "private".
     """
-    # First look for a "public:" block that ends a private region, then
-    # handle the "private until the end" case.
-    #
-    text = KernRe(r'/\*\s*private:.*?/\*\s*public:.*?\*/', flags=re.S).sub('', text)
-    text = KernRe(r'/\*\s*private:.*', flags=re.S).sub('', text)
-    #
-    # We needed the comments to do the above, but now we can take them out.
-    #
-    return KernRe(r'\s*/\*.*?\*/\s*', flags=re.S).sub('', text).strip()
+
+    tokens = CTokenizer(text)
+    return str(tokens)
 
 class state:
     """
@@ -257,6 +252,8 @@ class KernelDoc:
         self.fname = fname
         self.config = config
         self.xforms = xforms
+
+        tokenizer_set_log(self.config.log, f"{self.fname}: CMatch: ")
 
         # Initial state for the state machines
         self.state = state.NORMAL
@@ -726,6 +723,7 @@ class KernelDoc:
         #
         # Do the basic parse to get the pieces of the declaration.
         #
+        proto = trim_private_members(proto)
         struct_parts = self.split_struct_proto(proto)
         if not struct_parts:
             self.emit_msg(ln, f"{proto} error: Cannot parse struct or union!")
@@ -739,7 +737,6 @@ class KernelDoc:
         #
         # Go through the list of members applying all of our transformations.
         #
-        members = trim_private_members(members)
         members = self.xforms.apply("struct", members)
 
         #
@@ -766,6 +763,7 @@ class KernelDoc:
         # Strip preprocessor directives.  Note that this depends on the
         # trailing semicolon we added in process_proto_type().
         #
+        proto = trim_private_members(proto)
         proto = KernRe(r'#\s*((define|ifdef|if)\s+|endif)[^;]*;', flags=re.S).sub('', proto)
         #
         # Parse out the name and members of the enum.  Typedef form first.
@@ -773,7 +771,7 @@ class KernelDoc:
         r = KernRe(r'typedef\s+enum\s*\{(.*)\}\s*(\w*)\s*;')
         if r.search(proto):
             declaration_name = r.group(2)
-            members = trim_private_members(r.group(1))
+            members = r.group(1)
         #
         # Failing that, look for a straight enum
         #
@@ -781,7 +779,7 @@ class KernelDoc:
             r = KernRe(r'enum\s+(\w*)\s*\{(.*)\}')
             if r.match(proto):
                 declaration_name = r.group(1)
-                members = trim_private_members(r.group(2))
+                members = r.group(2)
         #
         # OK, this isn't going to work.
         #
@@ -810,9 +808,10 @@ class KernelDoc:
         member_set = set()
         members = KernRe(r'\([^;)]*\)').sub('', members)
         for arg in members.split(','):
-            if not arg:
-                continue
             arg = KernRe(r'^\s*(\w+).*').sub(r'\1', arg)
+            if not arg.strip():
+                continue
+
             self.entry.parameterlist.append(arg)
             if arg not in self.entry.parameterdescs:
                 self.entry.parameterdescs[arg] = self.undescribed
@@ -1355,6 +1354,12 @@ class KernelDoc:
         elif doc_content.search(line):
             self.emit_msg(ln, f"Incorrect use of kernel-doc format: {line}")
             self.state = state.PROTO
+
+            #
+            # Don't let it add partial comments at the code, as breaks the
+            # logic meant to remove comments from prototypes.
+            #
+            self.process_proto_type(ln, "/**\n" + line)
         # else ... ??
 
     def process_inline_text(self, ln, line):

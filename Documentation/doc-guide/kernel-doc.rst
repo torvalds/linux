@@ -213,6 +213,10 @@ The ``private:`` and ``public:`` tags must begin immediately following a
 ``/*`` comment marker. They may optionally include comments between the
 ``:`` and the ending ``*/`` marker.
 
+When ``private:`` is used on nested structs, it propagates only to inner
+structs/unions.
+
+
 Example::
 
   /**
@@ -256,8 +260,10 @@ It is possible to document nested structs and unions, like::
         union {
           struct {
             int memb1;
+            /* private: hides memb2 from documentation */
             int memb2;
           };
+          /* Everything here is public again, as private scope finished */
           struct {
             void *memb3;
             int memb4;
