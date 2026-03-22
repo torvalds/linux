@@ -622,6 +622,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		goto out_unlock;
 	}
 
+#ifdef CONFIG_SCHED_SMT
 	/*
 	 * Use @prev_cpu's sibling if it's idle.
 	 */
@@ -633,6 +634,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 				goto out_unlock;
 		}
 	}
+#endif
 
 	/*
 	 * Search for any idle CPU in the same LLC domain.
