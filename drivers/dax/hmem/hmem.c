@@ -58,20 +58,13 @@ static void release_hmem(void *pdev)
 	platform_device_unregister(pdev);
 }
 
-static int hmem_register_device(struct device *host, int target_nid,
-				const struct resource *res)
+static int __hmem_register_device(struct device *host, int target_nid,
+				  const struct resource *res)
 {
 	struct platform_device *pdev;
 	struct memregion_info info;
 	long id;
 	int rc;
-
-	if (IS_ENABLED(CONFIG_CXL_REGION) &&
-	    region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
-			      IORES_DESC_CXL) != REGION_DISJOINT) {
-		dev_dbg(host, "deferring range to CXL: %pr\n", res);
-		return 0;
-	}
 
 	rc = region_intersects_soft_reserve(res->start, resource_size(res));
 	if (rc != REGION_INTERSECTS)
@@ -121,6 +114,19 @@ static int hmem_register_device(struct device *host, int target_nid,
 out_put:
 	platform_device_put(pdev);
 	return rc;
+}
+
+static int hmem_register_device(struct device *host, int target_nid,
+				const struct resource *res)
+{
+	if (IS_ENABLED(CONFIG_CXL_REGION) &&
+	    region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
+			      IORES_DESC_CXL) != REGION_DISJOINT) {
+		dev_dbg(host, "deferring range to CXL: %pr\n", res);
+		return 0;
+	}
+
+	return __hmem_register_device(host, target_nid, res);
 }
 
 static int dax_hmem_platform_probe(struct platform_device *pdev)
