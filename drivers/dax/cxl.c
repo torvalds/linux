@@ -44,6 +44,7 @@ static struct cxl_driver cxl_dax_region_driver = {
 
 static void cxl_dax_region_driver_register(struct work_struct *work)
 {
+	dax_hmem_flush_work();
 	cxl_driver_register(&cxl_dax_region_driver);
 }
 

@@ -8,6 +8,9 @@
 static bool nohmem;
 module_param_named(disable, nohmem, bool, 0444);
 
+bool dax_hmem_initial_probe;
+EXPORT_SYMBOL_GPL(dax_hmem_initial_probe);
+
 static bool platform_initialized;
 static DEFINE_MUTEX(hmem_resource_lock);
 static struct resource hmem_active = {

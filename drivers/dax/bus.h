@@ -49,6 +49,13 @@ void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
 bool static_dev_dax(struct dev_dax *dev_dax);
 
+#if IS_ENABLED(CONFIG_DEV_DAX_HMEM)
+extern bool dax_hmem_initial_probe;
+void dax_hmem_flush_work(void);
+#else
+static inline void dax_hmem_flush_work(void) { }
+#endif
+
 #define MODULE_ALIAS_DAX_DEVICE(type) \
 	MODULE_ALIAS("dax:t" __stringify(type) "*")
 #define DAX_DEVICE_MODALIAS_FMT "dax:t%d"
