@@ -70,10 +70,15 @@ class KernRe:
 
         flags_name = " | ".join(flags)
 
+        max_len = 60
+        pattern = ""
+        for pos in range(0, len(self.regex.pattern), max_len):
+            pattern += '"' + self.regex.pattern[pos:max_len + pos] + '" '
+
         if flags_name:
-            return f'KernRe("{self.regex.pattern}", {flags_name})'
+            return f'KernRe({pattern}, {flags_name})'
         else:
-            return f'KernRe("{self.regex.pattern}")'
+            return f'KernRe({pattern})'
 
     def __add__(self, other):
         """

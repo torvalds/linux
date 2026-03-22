@@ -21,6 +21,15 @@ Regular expression class handler
    :undoc-members:
 
 
+C tokenizer
+===========
+
+.. automodule:: lib.python.kdoc.c_lex
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+
 Chinese, Japanese and Korean variable fonts handler
 ===================================================
 

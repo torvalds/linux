@@ -336,13 +336,14 @@ class CTokenArgs:
         self.sub_tokeninzer = CTokenizer(sub_str)
 
     def groups(self, new_tokenizer):
-        """
+        r"""
         Create replacement arguments for backrefs like:
 
-        ``\0``, ``\1``, ``\2``, ...``\n``
+        ``\0``, ``\1``, ``\2``, ... ``\{number}``
 
-        It also accepts a ``+`` character to the highest backref. When used,
-        it means in practice to ignore delimins after it, being greedy.
+        It also accepts a ``+`` character to the highest backref, like
+        ``\4+``. When used, the backref will be greedy, picking all other
+        arguments afterwards.
 
         The logic is smart enough to only go up to the maximum required
         argument, even if there are more.

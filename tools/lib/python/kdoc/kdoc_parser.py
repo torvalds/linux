@@ -140,7 +140,7 @@ class KernelEntry:
         self.parametertypes = {}
         self.parameterdesc_start_lines = {}
 
-        self.section_start_lines = {}
+        self.sections_start_lines = {}
         self.sections = {}
 
         self.anon_struct_union = False
@@ -220,7 +220,7 @@ class KernelEntry:
                 self.sections[name] += '\n' + contents
             else:
                 self.sections[name] = contents
-                self.section_start_lines[name] = self.new_start_line
+                self.sections_start_lines[name] = self.new_start_line
                 self.new_start_line = 0
 
 #        self.config.log.debug("Section: %s : %s", name, pformat(vars(self)))
@@ -246,12 +246,13 @@ class KernelDoc:
     #: String to write when a parameter is not described.
     undescribed = "-- undescribed --"
 
-    def __init__(self, config, fname, xforms):
+    def __init__(self, config, fname, xforms, store_src=False):
         """Initialize internal variables"""
 
         self.fname = fname
         self.config = config
         self.xforms = xforms
+        self.store_src = store_src
 
         tokenizer_set_log(self.config.log, f"{self.fname}: CMatch: ")
 
@@ -263,6 +264,9 @@ class KernelDoc:
 
         # Place all potential outputs into an array
         self.entries = []
+
+        # When store_src is true, the kernel-doc source content is stored here
+        self.source = None
 
         #
         # We need Python 3.7 for its "dicts remember the insertion
@@ -316,7 +320,7 @@ class KernelDoc:
         for section in ["Description", "Return"]:
             if section in sections and not sections[section].rstrip():
                 del sections[section]
-        item.set_sections(sections, self.entry.section_start_lines)
+        item.set_sections(sections, self.entry.sections_start_lines)
         item.set_params(self.entry.parameterlist, self.entry.parameterdescs,
                         self.entry.parametertypes,
                         self.entry.parameterdesc_start_lines)
@@ -1592,6 +1596,15 @@ class KernelDoc:
         state.DOCBLOCK:			process_docblock,
         }
 
+    def get_source(self):
+        """
+        Return the file content of the lines handled by kernel-doc at the
+        latest parse_kdoc() run.
+
+        Returns none if KernelDoc() was not initialized with store_src,
+        """
+        return self.source
+
     def parse_kdoc(self):
         """
         Open and process each line of a C source file.
@@ -1605,6 +1618,8 @@ class KernelDoc:
         prev = ""
         prev_ln = None
         export_table = set()
+        self.source = []
+        self.state = state.NORMAL
 
         try:
             with open(self.fname, "r", encoding="utf8",
@@ -1631,6 +1646,8 @@ class KernelDoc:
                                           ln, state.name[self.state],
                                           line)
 
+                    prev_state = self.state
+
                     # This is an optimization over the original script.
                     # There, when export_file was used for the same file,
                     # it was read twice. Here, we use the already-existing
@@ -1640,6 +1657,14 @@ class KernelDoc:
                        not self.process_export(export_table, line):
                         # Hand this line to the appropriate state handler
                         self.state_actions[self.state](self, ln, line)
+
+                    if self.store_src and prev_state != self.state or self.state != state.NORMAL:
+                        if self.state == state.NAME:
+                            # A "/**" was detected. Add a new source element
+                            self.source.append({"ln": ln, "data": line + "\n"})
+                        else:
+                            # Append to the existing one
+                            self.source[-1]["data"] += line + "\n"
 
             self.emit_unused_warnings()
 
