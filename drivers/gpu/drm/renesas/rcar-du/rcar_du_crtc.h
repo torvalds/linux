@@ -65,7 +65,7 @@ struct rcar_du_crtc {
 	unsigned int vblank_count;
 
 	struct rcar_du_group *group;
-	struct platform_device *cmm;
+	struct device *cmm;
 	struct rcar_du_vsp *vsp;
 	unsigned int vsp_pipe;
 

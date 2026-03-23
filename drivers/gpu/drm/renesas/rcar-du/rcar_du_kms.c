@@ -806,13 +806,13 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 		 * -ENODEV is used to report that the CMM config option is
 		 * disabled: return 0 and let the DU continue probing.
 		 */
-		ret = rcar_cmm_init(pdev);
+		ret = rcar_cmm_init(&pdev->dev);
 		if (ret) {
 			platform_device_put(pdev);
 			return ret == -ENODEV ? 0 : ret;
 		}
 
-		rcdu->cmms[i] = pdev;
+		rcdu->cmms[i] = &pdev->dev;
 
 		/*
 		 * Enforce suspend/resume ordering by making the CMM a provider
@@ -835,7 +835,7 @@ static void rcar_du_modeset_cleanup(struct drm_device *dev, void *res)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rcdu->cmms); ++i)
-		platform_device_put(rcdu->cmms[i]);
+		put_device(rcdu->cmms[i]);
 }
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
