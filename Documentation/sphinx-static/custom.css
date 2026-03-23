@@ -40,6 +40,13 @@ li { text-indent: 0em; }
 dl.function, dl.struct, dl.enum { margin-top: 2em; background-color: #ecf0f3; }
 /* indent lines 2+ of multi-line function prototypes */
 dl.function dt { margin-left: 10em; text-indent: -10em; }
+/*
+ * Preserve C API signatures on one line and apply contained horizontal
+ * scrolling to prevent them from exceeding their container width and
+ * breaking page layout.
+ */
+dl.c { overflow-x: auto; overflow-y: hidden; }
+dl.c > dt.sig.sig-object { white-space: nowrap; }
 dt.sig-object { font-size: larger; }
 div.kernelindent { margin-left: 2em; margin-right: 4em; }
 
