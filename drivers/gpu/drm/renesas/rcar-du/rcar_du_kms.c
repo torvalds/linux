@@ -19,6 +19,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
 #include <linux/of.h>
@@ -573,7 +574,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				     enum rcar_du_output output,
 				     struct of_endpoint *ep)
 {
-	struct device_node *entity;
+	struct device_node *entity __free(device_node) = NULL;
 	int ret;
 
 	/* Locate the connected entity and initialize the encoder. */
@@ -588,7 +589,6 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 		dev_dbg(rcdu->dev,
 			"connected entity %pOF is disabled, skipping\n",
 			entity);
-		of_node_put(entity);
 		return -ENODEV;
 	}
 
@@ -598,15 +598,13 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 			 "failed to initialize encoder %pOF on output %s (%d), skipping\n",
 			 entity, rcar_du_output_name(output), ret);
 
-	of_node_put(entity);
-
 	return ret;
 }
 
 static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 {
+	struct device_node *ep_node __free(device_node) = NULL;
 	struct device_node *np = rcdu->dev->of_node;
-	struct device_node *ep_node;
 	unsigned int num_encoders = 0;
 
 	/*
@@ -620,10 +618,8 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 		int ret;
 
 		ret = of_graph_parse_endpoint(ep_node, &ep);
-		if (ret < 0) {
-			of_node_put(ep_node);
+		if (ret < 0)
 			return ret;
-		}
 
 		/* Find the output route corresponding to the port number. */
 		for (i = 0; i < RCAR_DU_OUTPUT_MAX; ++i) {
@@ -644,10 +640,8 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 		/* Process the output pipeline. */
 		ret = rcar_du_encoders_init_one(rcdu, output, &ep);
 		if (ret < 0) {
-			if (ret == -EPROBE_DEFER) {
-				of_node_put(ep_node);
+			if (ret == -EPROBE_DEFER)
 				return ret;
-			}
 
 			continue;
 		}
@@ -775,9 +769,9 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 	}
 
 	for (i = 0; i < cells; ++i) {
+		struct device_node *cmm __free(device_node) = NULL;
 		struct platform_device *pdev;
 		struct device_link *link;
-		struct device_node *cmm;
 		int ret;
 
 		cmm = of_parse_phandle(np, "renesas,cmms", i);
@@ -787,20 +781,15 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 			return -EINVAL;
 		}
 
-		if (!of_device_is_available(cmm)) {
+		if (!of_device_is_available(cmm))
 			/* It's fine to have a phandle to a non-enabled CMM. */
-			of_node_put(cmm);
 			continue;
-		}
 
 		pdev = of_find_device_by_node(cmm);
 		if (!pdev) {
 			dev_err(rcdu->dev, "No device found for CMM%u\n", i);
-			of_node_put(cmm);
 			return -EINVAL;
 		}
-
-		of_node_put(cmm);
 
 		/*
 		 * -ENODEV is used to report that the CMM config option is
