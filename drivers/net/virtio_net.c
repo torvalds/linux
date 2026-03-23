@@ -6800,8 +6800,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
 	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6))
 		dev->features |= NETIF_F_GRO_HW;
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS))
-		dev->hw_features |= NETIF_F_GRO_HW;
 
 	dev->vlan_features = dev->features;
 	dev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
@@ -6994,6 +6992,19 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	enable_rx_mode_work(vi);
 
+	for (i = 0; i < ARRAY_SIZE(guest_offloads); i++) {
+		unsigned int fbit;
+
+		fbit = virtio_offload_to_feature(guest_offloads[i]);
+		if (virtio_has_feature(vi->vdev, fbit))
+			set_bit(guest_offloads[i], &vi->guest_offloads);
+	}
+	vi->guest_offloads_capable = vi->guest_offloads;
+
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS) &&
+	    (vi->guest_offloads_capable & GUEST_OFFLOAD_GRO_HW_MASK))
+		dev->hw_features |= NETIF_F_GRO_HW;
+
 	/* serialize netdev register + virtio_device_ready() with ndo_open() */
 	rtnl_lock();
 
@@ -7075,15 +7086,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 		virtnet_update_settings(vi);
 		netif_carrier_on(dev);
 	}
-
-	for (i = 0; i < ARRAY_SIZE(guest_offloads); i++) {
-		unsigned int fbit;
-
-		fbit = virtio_offload_to_feature(guest_offloads[i]);
-		if (virtio_has_feature(vi->vdev, fbit))
-			set_bit(guest_offloads[i], &vi->guest_offloads);
-	}
-	vi->guest_offloads_capable = vi->guest_offloads;
 
 	rtnl_unlock();
 
