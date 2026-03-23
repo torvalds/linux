@@ -868,6 +868,64 @@ fib6_gc_test()
 	check_rt_num 5 $($IP -6 route list |grep -v expires|grep 2001:20::|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection (replace with permanent)"
 
+	# Delete dummy_10 and remove all routes
+	$IP link del dev dummy_10
+
+	# rd6 is required for the next test. (ipv6toolkit)
+	if [ ! -x "$(command -v rd6)" ]; then
+	    echo "SKIP: rd6 not found."
+	    set +e
+	    cleanup &> /dev/null
+	    return
+	fi
+
+	setup_ns ns2
+	$IP link add veth1 type veth peer veth2 netns $ns2
+	$IP link set veth1 up
+	ip -netns $ns2 link set veth2 up
+	$IP addr add fe80:dead::1/64 dev veth1
+	ip -netns $ns2 addr add fe80:dead::2/64 dev veth2
+
+	# Add NTF_ROUTER neighbour to prevent rt6_age_examine_exception()
+	# from removing not-yet-expired exceptions.
+	ip -netns $ns2 link set veth2 address 00:11:22:33:44:55
+	$IP neigh add fe80:dead::3 lladdr 00:11:22:33:44:55 dev veth1 router
+
+	$NS_EXEC sysctl -wq net.ipv6.conf.veth1.accept_redirects=1
+	$NS_EXEC sysctl -wq net.ipv6.conf.veth1.forwarding=0
+
+	# Temporary routes
+	for i in $(seq 1 5); do
+	    # Expire route after $EXPIRE seconds
+	    $IP -6 route add 2001:10::$i \
+		via fe80:dead::2 dev veth1 expires $EXPIRE
+
+	    ip netns exec $ns2 rd6 -i veth2 \
+		-s fe80:dead::2 -d fe80:dead::1 \
+		-r 2001:10::$i -t fe80:dead::3 -p ICMP6
+	done
+
+	check_rt_num 5 $($IP -6 route list | grep expires | grep 2001:10:: | wc -l)
+
+	# Promote to permanent routes by "prepend" (w/o NLM_F_EXCL and NLM_F_REPLACE)
+	for i in $(seq 1 5); do
+	    # -EEXIST, but the temporary route becomes the permanent route.
+	    $IP -6 route append 2001:10::$i \
+		via fe80:dead::2 dev veth1 2>/dev/null || true
+	done
+
+	check_rt_num 5 $($IP -6 route list | grep -v expires | grep 2001:10:: | wc -l)
+	check_rt_num 5 $($IP -6 route list cache | grep 2001:10:: | wc -l)
+
+	# Trigger GC instead of waiting $GC_WAIT_TIME.
+	# rt6_nh_dump_exceptions() just skips expired exceptions.
+	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
+	check_rt_num 0 $($IP -6 route list cache | grep 2001:10:: | wc -l)
+	log_test $ret 0 "ipv6 route garbage collection (promote to permanent routes)"
+
+	$IP neigh del fe80:dead::3 lladdr 00:11:22:33:44:55 dev veth1 router
+	$IP link del veth1
+
 	# ra6 is required for the next test. (ipv6toolkit)
 	if [ ! -x "$(command -v ra6)" ]; then
 	    echo "SKIP: ra6 not found."
@@ -875,9 +933,6 @@ fib6_gc_test()
 	    cleanup &> /dev/null
 	    return
 	fi
-
-	# Delete dummy_10 and remove all routes
-	$IP link del dev dummy_10
 
 	# Create a pair of veth devices to send a RA message from one
 	# device to another.
