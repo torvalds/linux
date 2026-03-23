@@ -2829,13 +2829,6 @@ long sched_group_rt_period(struct task_group *tg)
 	return rt_period_us;
 }
 
-#ifdef CONFIG_SYSCTL
-static int sched_rt_global_constraints(void)
-{
-	return 0;
-}
-#endif /* CONFIG_SYSCTL */
-
 int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
 {
 	/* Don't accept real-time tasks when there is no way for them to run */
@@ -2845,14 +2838,6 @@ int sched_rt_can_attach(struct task_group *tg, struct task_struct *tsk)
 	return 1;
 }
 
-#else /* !CONFIG_RT_GROUP_SCHED: */
-
-#ifdef CONFIG_SYSCTL
-static int sched_rt_global_constraints(void)
-{
-	return 0;
-}
-#endif /* CONFIG_SYSCTL */
 #endif /* !CONFIG_RT_GROUP_SCHED */
 
 #ifdef CONFIG_SYSCTL
@@ -2872,10 +2857,6 @@ static int sched_rt_global_validate(void)
 		return __rt_schedulable(NULL, 0, 0);
 #endif
 	return 0;
-}
-
-static void sched_rt_do_global(void)
-{
 }
 
 static int sched_rt_handler(const struct ctl_table *table, int write, void *buffer,
@@ -2901,11 +2882,6 @@ static int sched_rt_handler(const struct ctl_table *table, int write, void *buff
 		if (ret)
 			goto undo;
 
-		ret = sched_rt_global_constraints();
-		if (ret)
-			goto undo;
-
-		sched_rt_do_global();
 		sched_dl_do_global();
 	}
 	if (0) {
