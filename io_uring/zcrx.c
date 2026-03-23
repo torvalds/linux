@@ -384,11 +384,11 @@ static int io_allocate_rbuf_ring(struct io_ring_ctx *ctx,
 	mmap_offset = IORING_MAP_OFF_ZCRX_REGION;
 	mmap_offset += id << IORING_OFF_PBUF_SHIFT;
 
-	ret = io_create_region(ctx, &ifq->region, rd, mmap_offset);
+	ret = io_create_region(ctx, &ifq->rq_region, rd, mmap_offset);
 	if (ret < 0)
 		return ret;
 
-	ptr = io_region_get_ptr(&ifq->region);
+	ptr = io_region_get_ptr(&ifq->rq_region);
 	ifq->rq_ring = (struct io_uring *)ptr;
 	ifq->rqes = (struct io_uring_zcrx_rqe *)(ptr + off);
 
@@ -397,7 +397,7 @@ static int io_allocate_rbuf_ring(struct io_ring_ctx *ctx,
 
 static void io_free_rbuf_ring(struct io_zcrx_ifq *ifq)
 {
-	io_free_region(ifq->user, &ifq->region);
+	io_free_region(ifq->user, &ifq->rq_region);
 	ifq->rq_ring = NULL;
 	ifq->rqes = NULL;
 }
@@ -645,7 +645,7 @@ struct io_mapped_region *io_zcrx_get_region(struct io_ring_ctx *ctx,
 
 	lockdep_assert_held(&ctx->mmap_lock);
 
-	return ifq ? &ifq->region : NULL;
+	return ifq ? &ifq->rq_region : NULL;
 }
 
 static int zcrx_box_release(struct inode *inode, struct file *file)
