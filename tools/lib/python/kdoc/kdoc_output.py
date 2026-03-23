@@ -513,7 +513,9 @@ class RestFormat(OutputFormat):
     def out_var(self, fname, name, args):
         oldprefix = self.lineprefix
         ln = args.declaration_start_line
-        full_proto = args.other_stuff["full_proto"]
+        full_proto = args.other_stuff.get("full_proto")
+        if not full_proto:
+            raise KeyError(f"Can't find full proto for {name} variable")
 
         self.lineprefix = "  "
 
