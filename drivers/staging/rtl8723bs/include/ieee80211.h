@@ -507,11 +507,6 @@ join_res:
 #define DEFAULT_FTS 2346
 #define IP_ARG(x) (x)
 
-static inline int is_multicast_mac_addr(const u8 *addr)
-{
-	return ((addr[0] != 0xff) && (0x01 & addr[0]));
-}
-
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
 
