@@ -378,125 +378,22 @@ static void zloop_rw_complete(struct kiocb *iocb, long ret)
 	zloop_put_cmd(cmd);
 }
 
-static void zloop_rw(struct zloop_cmd *cmd)
+static int zloop_do_rw(struct zloop_cmd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	int rw = req_op(rq) == REQ_OP_READ ? ITER_DEST : ITER_SOURCE;
+	unsigned int nr_bvec = blk_rq_nr_bvec(rq);
 	struct zloop_device *zlo = rq->q->queuedata;
-	unsigned int zone_no = rq_zone_no(rq);
-	sector_t sector = blk_rq_pos(rq);
-	sector_t nr_sectors = blk_rq_sectors(rq);
-	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
-	bool is_write = req_op(rq) == REQ_OP_WRITE || is_append;
-	int rw = is_write ? ITER_SOURCE : ITER_DEST;
+	struct zloop_zone *zone = &zlo->zones[rq_zone_no(rq)];
 	struct req_iterator rq_iter;
-	struct zloop_zone *zone;
 	struct iov_iter iter;
-	struct bio_vec tmp;
-	unsigned long flags;
-	sector_t zone_end;
-	unsigned int nr_bvec;
-	int ret;
-
-	atomic_set(&cmd->ref, 2);
-	cmd->sector = sector;
-	cmd->nr_sectors = nr_sectors;
-	cmd->ret = 0;
-
-	if (WARN_ON_ONCE(is_append && !zlo->zone_append)) {
-		ret = -EIO;
-		goto out;
-	}
-
-	/* We should never get an I/O beyond the device capacity. */
-	if (WARN_ON_ONCE(zone_no >= zlo->nr_zones)) {
-		ret = -EIO;
-		goto out;
-	}
-	zone = &zlo->zones[zone_no];
-	zone_end = zone->start + zlo->zone_capacity;
-
-	/*
-	 * The block layer should never send requests that are not fully
-	 * contained within the zone.
-	 */
-	if (WARN_ON_ONCE(sector + nr_sectors > zone->start + zlo->zone_size)) {
-		ret = -EIO;
-		goto out;
-	}
-
-	if (test_and_clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags)) {
-		mutex_lock(&zone->lock);
-		ret = zloop_update_seq_zone(zlo, zone_no);
-		mutex_unlock(&zone->lock);
-		if (ret)
-			goto out;
-	}
-
-	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write) {
-		mutex_lock(&zone->lock);
-
-		spin_lock_irqsave(&zone->wp_lock, flags);
-
-		/*
-		 * Zone append operations always go at the current write
-		 * pointer, but regular write operations must already be
-		 * aligned to the write pointer when submitted.
-		 */
-		if (is_append) {
-			/*
-			 * If ordered zone append is in use, we already checked
-			 * and set the target sector in zloop_queue_rq().
-			 */
-			if (!zlo->ordered_zone_append) {
-				if (zone->cond == BLK_ZONE_COND_FULL ||
-				    zone->wp + nr_sectors > zone_end) {
-					spin_unlock_irqrestore(&zone->wp_lock,
-							       flags);
-					ret = -EIO;
-					goto unlock;
-				}
-				sector = zone->wp;
-			}
-			cmd->sector = sector;
-		} else if (sector != zone->wp) {
-			spin_unlock_irqrestore(&zone->wp_lock, flags);
-			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
-			       zone_no, sector, zone->wp);
-			ret = -EIO;
-			goto unlock;
-		}
-
-		/* Implicitly open the target zone. */
-		if (zone->cond == BLK_ZONE_COND_CLOSED ||
-		    zone->cond == BLK_ZONE_COND_EMPTY)
-			zone->cond = BLK_ZONE_COND_IMP_OPEN;
-
-		/*
-		 * Advance the write pointer, unless ordered zone append is in
-		 * use. If the write fails, the write pointer position will be
-		 * corrected when the next I/O starts execution.
-		 */
-		if (!is_append || !zlo->ordered_zone_append) {
-			zone->wp += nr_sectors;
-			if (zone->wp == zone_end) {
-				zone->cond = BLK_ZONE_COND_FULL;
-				zone->wp = ULLONG_MAX;
-			}
-		}
-
-		spin_unlock_irqrestore(&zone->wp_lock, flags);
-	}
-
-	nr_bvec = blk_rq_nr_bvec(rq);
 
 	if (rq->bio != rq->biotail) {
-		struct bio_vec *bvec;
+		struct bio_vec tmp, *bvec;
 
 		cmd->bvec = kmalloc_objs(*cmd->bvec, nr_bvec, GFP_NOIO);
-		if (!cmd->bvec) {
-			ret = -EIO;
-			goto unlock;
-		}
+		if (!cmd->bvec)
+			return -EIO;
 
 		/*
 		 * The bios of the request may be started from the middle of
@@ -522,7 +419,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 		iter.iov_offset = rq->bio->bi_iter.bi_bvec_done;
 	}
 
-	cmd->iocb.ki_pos = (sector - zone->start) << SECTOR_SHIFT;
+	cmd->iocb.ki_pos = (cmd->sector - zone->start) << SECTOR_SHIFT;
 	cmd->iocb.ki_filp = zone->file;
 	cmd->iocb.ki_complete = zloop_rw_complete;
 	if (!zlo->buffered_io)
@@ -530,12 +427,123 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	cmd->iocb.ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
 
 	if (rw == ITER_SOURCE)
-		ret = zone->file->f_op->write_iter(&cmd->iocb, &iter);
-	else
-		ret = zone->file->f_op->read_iter(&cmd->iocb, &iter);
-unlock:
-	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write)
+		return zone->file->f_op->write_iter(&cmd->iocb, &iter);
+	return zone->file->f_op->read_iter(&cmd->iocb, &iter);
+}
+
+static int zloop_seq_write_prep(struct zloop_cmd *cmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct zloop_device *zlo = rq->q->queuedata;
+	unsigned int zone_no = rq_zone_no(rq);
+	sector_t nr_sectors = blk_rq_sectors(rq);
+	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
+	struct zloop_zone *zone = &zlo->zones[zone_no];
+	sector_t zone_end = zone->start + zlo->zone_capacity;
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&zone->wp_lock, flags);
+
+	/*
+	 * Zone append operations always go at the current write pointer, but
+	 * regular write operations must already be aligned to the write pointer
+	 * when submitted.
+	 */
+	if (is_append) {
+		/*
+		 * If ordered zone append is in use, we already checked and set
+		 * the target sector in zloop_queue_rq().
+		 */
+		if (!zlo->ordered_zone_append) {
+			if (zone->cond == BLK_ZONE_COND_FULL ||
+			    zone->wp + nr_sectors > zone_end) {
+				ret = -EIO;
+				goto out_unlock;
+			}
+			cmd->sector = zone->wp;
+		}
+	} else {
+		if (cmd->sector != zone->wp) {
+			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
+			       zone_no, cmd->sector, zone->wp);
+			ret = -EIO;
+			goto out_unlock;
+		}
+	}
+
+	/* Implicitly open the target zone. */
+	if (zone->cond == BLK_ZONE_COND_CLOSED ||
+	    zone->cond == BLK_ZONE_COND_EMPTY)
+		zone->cond = BLK_ZONE_COND_IMP_OPEN;
+
+	/*
+	 * Advance the write pointer, unless ordered zone append is in use. If
+	 * the write fails, the write pointer position will be corrected when
+	 * the next I/O starts execution.
+	 */
+	if (!is_append || !zlo->ordered_zone_append) {
+		zone->wp += nr_sectors;
+		if (zone->wp == zone_end) {
+			zone->cond = BLK_ZONE_COND_FULL;
+			zone->wp = ULLONG_MAX;
+		}
+	}
+out_unlock:
+	spin_unlock_irqrestore(&zone->wp_lock, flags);
+	return ret;
+}
+
+static void zloop_rw(struct zloop_cmd *cmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct zloop_device *zlo = rq->q->queuedata;
+	unsigned int zone_no = rq_zone_no(rq);
+	sector_t nr_sectors = blk_rq_sectors(rq);
+	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
+	bool is_write = req_op(rq) == REQ_OP_WRITE || is_append;
+	struct zloop_zone *zone;
+	int ret = -EIO;
+
+	atomic_set(&cmd->ref, 2);
+	cmd->sector = blk_rq_pos(rq);
+	cmd->nr_sectors = nr_sectors;
+	cmd->ret = 0;
+
+	if (WARN_ON_ONCE(is_append && !zlo->zone_append))
+		goto out;
+
+	/* We should never get an I/O beyond the device capacity. */
+	if (WARN_ON_ONCE(zone_no >= zlo->nr_zones))
+		goto out;
+
+	zone = &zlo->zones[zone_no];
+
+	/*
+	 * The block layer should never send requests that are not fully
+	 * contained within the zone.
+	 */
+	if (WARN_ON_ONCE(cmd->sector + nr_sectors >
+			 zone->start + zlo->zone_size))
+		goto out;
+
+	if (test_and_clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags)) {
+		mutex_lock(&zone->lock);
+		ret = zloop_update_seq_zone(zlo, zone_no);
 		mutex_unlock(&zone->lock);
+		if (ret)
+			goto out;
+	}
+
+	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write) {
+		mutex_lock(&zone->lock);
+		ret = zloop_seq_write_prep(cmd);
+		if (!ret)
+			ret = zloop_do_rw(cmd);
+		mutex_unlock(&zone->lock);
+	} else {
+		ret = zloop_do_rw(cmd);
+	}
 out:
 	if (ret != -EIOCBQUEUED)
 		zloop_rw_complete(&cmd->iocb, ret);
