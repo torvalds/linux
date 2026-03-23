@@ -1524,6 +1524,18 @@ xfs_buftarg_isolate(
 		return LRU_SKIP;
 
 	/*
+	 * If the buffer is in use, remove it from the LRU for now.  We can't
+	 * free it while someone is using it, and we should also not count
+	 * eviction passed for it, just as if it hadn't been added to the LRU
+	 * yet.
+	 */
+	if (bp->b_lockref.count > 0) {
+		list_lru_isolate(lru, &bp->b_lru);
+		spin_unlock(&bp->b_lockref.lock);
+		return LRU_REMOVED;
+	}
+
+	/*
 	 * Decrement the b_lru_ref count unless the value is already
 	 * zero. If the value is already zero, we need to reclaim the
 	 * buffer, otherwise it gets another trip through the LRU.
@@ -1531,16 +1543,6 @@ xfs_buftarg_isolate(
 	if (atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
 		spin_unlock(&bp->b_lockref.lock);
 		return LRU_ROTATE;
-	}
-
-	/*
-	 * If the buffer is in use, remove it from the LRU for now as we can't
-	 * free it.  It will be freed when the last reference drops.
-	 */
-	if (bp->b_lockref.count > 0) {
-		list_lru_isolate(lru, &bp->b_lru);
-		spin_unlock(&bp->b_lockref.lock);
-		return LRU_REMOVED;
 	}
 
 	lockref_mark_dead(&bp->b_lockref);
