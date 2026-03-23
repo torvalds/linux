@@ -85,6 +85,16 @@ In the example, 'Requester ID' means the ID of the device that sent
 the error message to the Root Port. Please refer to PCIe specs for other
 fields.
 
+The 'TLP Header' is the prefix/header of the TLP that caused the error
+in raw hex format. To decode the TLP Header into human-readable form
+one may use tlp-tool:
+
+https://github.com/mmpg-x86/tlp-tool
+
+Example usage::
+
+  curl -L https://git.kernel.org/linus/2ca1c94ce0b6 | rtlp-tool --aer
+
 AER Ratelimits
 --------------
 
