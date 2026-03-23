@@ -493,7 +493,7 @@ TEST_F(clone3_empty_mntns, mount_properties)
 			sm = statmount_alloc(root_id, 0,
 					     STATMOUNT_MNT_BASIC |
 					     STATMOUNT_MNT_POINT |
-					     STATMOUNT_FS_TYPE);
+					     STATMOUNT_FS_TYPE, 0);
 			if (!sm)
 				_exit(4);
 
@@ -607,7 +607,7 @@ TEST_F(clone3_empty_mntns, child_overmount_tmpfs)
 			if (!root_id)
 				_exit(4);
 
-			sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE);
+			sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE, 0);
 			if (!sm)
 				_exit(5);
 			if (!(sm->mask & STATMOUNT_FS_TYPE))
@@ -668,7 +668,7 @@ TEST_F(clone3_empty_mntns, child_overmount_tmpfs)
 			if (!root_id)
 				_exit(16);
 
-			sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE);
+			sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE, 0);
 			if (!sm)
 				_exit(17);
 			if (!(sm->mask & STATMOUNT_FS_TYPE))

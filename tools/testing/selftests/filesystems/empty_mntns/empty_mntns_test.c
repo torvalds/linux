@@ -283,7 +283,7 @@ TEST_F(empty_mntns, cwd_reset)
 		if (root_id != cwd_id)
 			_exit(9);
 
-		sm = statmount_alloc(root_id, 0, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT);
+		sm = statmount_alloc(root_id, 0, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT, 0);
 		if (!sm)
 			_exit(10);
 
@@ -320,7 +320,7 @@ TEST_F(empty_mntns, mount_properties)
 			_exit(3);
 
 		sm = statmount_alloc(root_id, 0, STATMOUNT_MNT_BASIC | STATMOUNT_MNT_ROOT |
-				     STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE);
+				     STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE, 0);
 		if (!sm)
 			_exit(4);
 
@@ -490,7 +490,7 @@ TEST_F(empty_mntns, overmount_tmpfs)
 			_exit(4);
 
 		/* Verify root is nullfs */
-		sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE);
+		sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE, 0);
 		if (!sm)
 			_exit(5);
 
@@ -574,7 +574,7 @@ TEST_F(empty_mntns, overmount_tmpfs)
 		if (!root_id)
 			_exit(19);
 
-		sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE);
+		sm = statmount_alloc(root_id, 0, STATMOUNT_FS_TYPE, 0);
 		if (!sm)
 			_exit(20);
 

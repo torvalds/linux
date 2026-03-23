@@ -204,7 +204,7 @@ TEST(overmount_chroot)
 		/* Verify the root mount is tmpfs */
 		sm = statmount_alloc(root_id_after, 0,
 				     STATMOUNT_MNT_BASIC | STATMOUNT_MNT_ROOT |
-				     STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE);
+				     STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE, 0);
 		if (!sm)
 			_exit(21);
 
