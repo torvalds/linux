@@ -5442,7 +5442,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		 * zero. Make sure any new writes to the file get on disk
 		 * on close.
 		 */
-		if (newsize == 0)
+		if (newsize == 0 && oldsize != 0)
 			set_bit(BTRFS_INODE_FLUSH_ON_CLOSE,
 				&BTRFS_I(inode)->runtime_flags);
 
