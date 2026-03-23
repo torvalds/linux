@@ -85,7 +85,6 @@ config DRM_KUNIT_TEST
 
 config DRM_TTM_KUNIT_TEST
 	tristate "KUnit tests for TTM" if !KUNIT_ALL_TESTS
-	default n
 	depends on DRM && KUNIT && MMU && (UML || COMPILE_TEST)
 	select DRM_TTM
 	select DRM_BUDDY
