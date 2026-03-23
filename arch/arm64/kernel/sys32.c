@@ -89,7 +89,7 @@ COMPAT_SYSCALL_DEFINE4(aarch32_truncate64, const char __user *, pathname,
 COMPAT_SYSCALL_DEFINE4(aarch32_ftruncate64, unsigned int, fd, u32, __pad,
 		       arg_u32p(length))
 {
-	return ksys_ftruncate(fd, arg_u64(length));
+	return ksys_ftruncate(fd, arg_u64(length), FTRUNCATE_LFS);
 }
 
 COMPAT_SYSCALL_DEFINE5(aarch32_readahead, int, fd, u32, __pad,
