@@ -8,6 +8,7 @@ powervr-y := \
 	pvr_device.o \
 	pvr_device_info.o \
 	pvr_drv.o \
+	pvr_dump.o \
 	pvr_free_list.o \
 	pvr_fw.o \
 	pvr_fw_meta.o \
