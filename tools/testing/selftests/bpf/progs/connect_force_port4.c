@@ -14,6 +14,8 @@
 
 char _license[] SEC("license") = "GPL";
 
+__u16 port = 0;
+
 struct svc_addr {
 	__be32 addr;
 	__be16 port;
@@ -40,7 +42,7 @@ int connect4(struct bpf_sock_addr *ctx)
 	if (bpf_bind(ctx, (struct sockaddr *)&sa, sizeof(sa)) != 0)
 		return 0;
 
-	/* Rewire service 1.2.3.4:60000 to backend 127.0.0.1:60123. */
+	/* Rewire service 1.2.3.4:60000 to backend 127.0.0.1:port. */
 	if (ctx->user_port == bpf_htons(60000)) {
 		orig = bpf_sk_storage_get(&service_mapping, ctx->sk, 0,
 					  BPF_SK_STORAGE_GET_F_CREATE);
@@ -51,7 +53,7 @@ int connect4(struct bpf_sock_addr *ctx)
 		orig->port = ctx->user_port;
 
 		ctx->user_ip4 = bpf_htonl(0x7f000001);
-		ctx->user_port = bpf_htons(60123);
+		ctx->user_port = bpf_htons(port);
 	}
 	return 1;
 }
@@ -63,7 +65,7 @@ int getsockname4(struct bpf_sock_addr *ctx)
 		return 1;
 
 	/* Expose local server as 1.2.3.4:60000 to client. */
-	if (ctx->user_port == bpf_htons(60123)) {
+	if (ctx->user_port == bpf_htons(port)) {
 		ctx->user_ip4 = bpf_htonl(0x01020304);
 		ctx->user_port = bpf_htons(60000);
 	}
@@ -79,7 +81,7 @@ int getpeername4(struct bpf_sock_addr *ctx)
 		return 1;
 
 	/* Expose service 1.2.3.4:60000 as peer instead of backend. */
-	if (ctx->user_port == bpf_htons(60123)) {
+	if (ctx->user_port == bpf_htons(port)) {
 		orig = bpf_sk_storage_get(&service_mapping, ctx->sk, 0, 0);
 		if (orig) {
 			ctx->user_ip4 = orig->addr;
