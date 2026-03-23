@@ -4842,7 +4842,17 @@ static const struct kobj_type scx_ktype = {
 
 static int scx_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
 {
-	const struct scx_sched *sch = container_of(kobj, struct scx_sched, kobj);
+	const struct scx_sched *sch;
+
+	/*
+	 * scx_uevent() can be reached by both scx_sched kobjects (scx_ktype)
+	 * and sub-scheduler kset kobjects (kset_ktype) through the parent
+	 * chain walk. Filter out the latter to avoid invalid casts.
+	 */
+	if (kobj->ktype != &scx_ktype)
+		return 0;
+
+	sch = container_of(kobj, struct scx_sched, kobj);
 
 	return add_uevent_var(env, "SCXOPS=%s", sch->ops.name);
 }
