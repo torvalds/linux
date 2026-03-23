@@ -678,7 +678,7 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 	csd->func = func;
 	csd->info = info;
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
-	csd->node.src = smp_processor_id();
+	csd->node.src = this_cpu;
 	csd->node.dst = cpu;
 #endif
 
@@ -833,7 +833,7 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 			csd->func = func;
 			csd->info = info;
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
-			csd->node.src = smp_processor_id();
+			csd->node.src = this_cpu;
 			csd->node.dst = cpu;
 #endif
 			trace_csd_queue_cpu(cpu, _RET_IP_, func, csd);
