@@ -55,8 +55,6 @@
 #define MTL_WOPCM_SIZE			SZ_4M
 #define WOPCM_SIZE			SZ_2M
 
-#define MAX_WOPCM_SIZE			SZ_8M
-
 /* 16KB WOPCM (RSVD WOPCM) is reserved from HuC firmware top. */
 #define WOPCM_RESERVED_SIZE		SZ_16K
 
@@ -186,6 +184,14 @@ u32 xe_wopcm_size(struct xe_device *xe)
 		WOPCM_SIZE;
 }
 
+static u32 max_wopcm_size(struct xe_device *xe)
+{
+	if (xe->info.platform == XE_NOVALAKE_P)
+		return SZ_16M;
+	else
+		return SZ_8M;
+}
+
 /**
  * xe_wopcm_init() - Initialize the WOPCM structure.
  * @wopcm: pointer to xe_wopcm.
@@ -227,8 +233,11 @@ int xe_wopcm_init(struct xe_wopcm *wopcm)
 		 * When the GuC wopcm base and size are preprogrammed by
 		 * BIOS/IFWI, check against the max allowed wopcm size to
 		 * validate if the programmed values align to the wopcm layout.
+		 *
+		 * FIXME: This is giving the maximum overall WOPCM size and not
+		 * the size relative to each GT.
 		 */
-		wopcm->size = MAX_WOPCM_SIZE;
+		wopcm->size = max_wopcm_size(xe);
 
 		goto check;
 	}

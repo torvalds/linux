@@ -78,7 +78,6 @@ drm-$(CONFIG_DRM_CLIENT) += \
 	drm_client_event.o \
 	drm_client_modeset.o \
 	drm_client_sysrq.o
-drm-$(CONFIG_DRM_LIB_RANDOM) += lib/drm_random.o
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o
 drm-$(CONFIG_OF) += drm_of.o
@@ -237,11 +236,12 @@ obj-y			+= solomon/
 obj-$(CONFIG_DRM_SPRD) += sprd/
 obj-$(CONFIG_DRM_LOONGSON) += loongson/
 obj-$(CONFIG_DRM_POWERVR) += imagination/
+obj-$(CONFIG_DRM_VERISILICON_DC) += verisilicon/
 
 # Ensure drm headers are self-contained and pass kernel-doc
 hdrtest-files := \
 	$(shell cd $(src) && find . -maxdepth 1 -name 'drm_*.h') \
-	$(shell cd $(src) && find display lib -name '*.h')
+	$(shell cd $(src) && find display -name '*.h')
 
 always-$(CONFIG_DRM_HEADER_TEST) += \
 	$(patsubst %.h,%.hdrtest, $(hdrtest-files))

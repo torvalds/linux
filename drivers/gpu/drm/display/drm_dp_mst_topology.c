@@ -5184,6 +5184,28 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	kfree(mst_state);
 }
 
+static struct drm_private_state *
+drm_dp_mst_atomic_create_state(struct drm_private_obj *obj)
+{
+	struct drm_dp_mst_topology_mgr *mgr =
+		to_dp_mst_topology_mgr(obj);
+	struct drm_dp_mst_topology_state *mst_state;
+
+	mst_state = kzalloc_obj(*mst_state);
+	if (!mst_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_private_obj_create_state(obj, &mst_state->base);
+
+	mst_state->total_avail_slots = 63;
+	mst_state->start_slot = 1;
+
+	mst_state->mgr = mgr;
+	INIT_LIST_HEAD(&mst_state->payloads);
+
+	return &mst_state->base;
+}
+
 static bool drm_dp_mst_port_downstream_of_branch(struct drm_dp_mst_port *port,
 						 struct drm_dp_mst_branch *branch)
 {
@@ -5620,6 +5642,7 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_dp_mst_atomic_check);
 
 const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs = {
+	.atomic_create_state = drm_dp_mst_atomic_create_state,
 	.atomic_duplicate_state = drm_dp_mst_duplicate_state,
 	.atomic_destroy_state = drm_dp_mst_destroy_state,
 };
@@ -5708,8 +5731,6 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 int max_dpcd_transaction_bytes, int max_payloads,
 				 int conn_base_id)
 {
-	struct drm_dp_mst_topology_state *mst_state;
-
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
 	mutex_init(&mgr->delayed_destroy_lock);
@@ -5743,18 +5764,8 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mgr->max_payloads = max_payloads;
 	mgr->conn_base_id = conn_base_id;
 
-	mst_state = kzalloc_obj(*mst_state);
-	if (mst_state == NULL)
-		return -ENOMEM;
-
-	mst_state->total_avail_slots = 63;
-	mst_state->start_slot = 1;
-
-	mst_state->mgr = mgr;
-	INIT_LIST_HEAD(&mst_state->payloads);
-
 	drm_atomic_private_obj_init(dev, &mgr->base,
-				    &mst_state->base,
+				    NULL,
 				    &drm_dp_mst_topology_state_funcs);
 
 	return 0;

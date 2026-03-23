@@ -56,7 +56,8 @@ static inline unsigned int xe_sriov_pf_num_vfs(const struct xe_device *xe)
  */
 static inline bool xe_sriov_pf_admin_only(const struct xe_device *xe)
 {
-	return !xe->info.probe_display;
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	return xe->sriov.pf.admin_only;
 }
 
 static inline struct mutex *xe_sriov_pf_master_mutex(struct xe_device *xe)

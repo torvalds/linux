@@ -78,6 +78,7 @@
 #include "dcn351/dcn351_resource.h"
 #include "dcn36/dcn36_resource.h"
 #include "dcn401/dcn401_resource.h"
+#include "dcn42/dcn42_resource.h"
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dc_spl_translate.h"
 #endif
@@ -252,6 +253,9 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			ASICREV_IS_GC_12_0_0_A0(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_4_01;
 		break;
+	case AMDGPU_FAMILY_GC_11_5_4:
+			dc_version = DCN_VERSION_4_2;
+	break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -367,6 +371,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_4_01:
 		res_pool = dcn401_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_4_2:
+		res_pool = dcn42_create_resource_pool(init_data, dc);
 		break;
 #endif /* CONFIG_DRM_AMD_DC_FP */
 	default:

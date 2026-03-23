@@ -103,6 +103,8 @@ properties:
       - dlc,dlc1010gig
         # Emerging Display Technology Corp. 3.5" QVGA TFT LCD panel
       - edt,et035012dm6
+        # Emerging Display Technology Corp. 5.7" 24-bit VGA TFT LCD panel
+      - edt,et057023udba
         # Emerging Display Technology Corp. 5.7" VGA TFT LCD panel
       - edt,et057090dhu
       - edt,et070080dh6
@@ -144,8 +146,6 @@ properties:
       - foxlink,fl500wvr00-a0t
         # Frida FRD350H54004 3.5" QVGA TFT LCD panel
       - frida,frd350h54004
-        # FriendlyELEC HD702E 800x1280 LCD panel
-      - friendlyarm,hd702e
         # GiantPlus GPG48273QS5 4.3" (480x272) WQVGA TFT LCD panel
       - giantplus,gpg48273qs5
         # GiantPlus GPM940B0 3.0" QVGA TFT LCD panel
@@ -268,6 +268,8 @@ properties:
       - powertip,ph128800t006-zhc01
         # POWERTIP PH800480T013-IDF2 7.0" WVGA TFT LCD panel
       - powertip,ph800480t013-idf02
+        # POWERTIP PH800480T032-ZHC19 7.0" WVGA TFT LCD panel
+      - powertip,ph800480t032-zhc19
         # PrimeView PM070WL4 7.0" 800x480 TFT LCD panel
       - primeview,pm070wl4
         # QiaoDian XianShi Corporation 4"3 TFT LCD panel

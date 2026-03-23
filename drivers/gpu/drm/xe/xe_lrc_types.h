@@ -22,6 +22,12 @@ struct xe_lrc {
 	 */
 	struct xe_bo *bo;
 
+	/**
+	 * @seqno_bo: Buffer object (memory) for seqno numbers. Always in system
+	 * memory as this a CPU read, GPU write path object.
+	 */
+	struct xe_bo *seqno_bo;
+
 	/** @size: size of the lrc and optional indirect ring state */
 	u32 size;
 

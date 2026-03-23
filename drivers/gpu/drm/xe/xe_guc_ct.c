@@ -32,6 +32,7 @@
 #include "xe_guc_tlb_inval.h"
 #include "xe_map.h"
 #include "xe_pm.h"
+#include "xe_sleep.h"
 #include "xe_sriov_vf.h"
 #include "xe_trace_guc.h"
 
@@ -254,6 +255,7 @@ static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
 
 #define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
 #define CTB_H2G_BUFFER_OFFSET	(CTB_DESC_SIZE * 2)
+#define CTB_G2H_BUFFER_OFFSET	(CTB_DESC_SIZE * 2)
 #define CTB_H2G_BUFFER_SIZE	(SZ_4K)
 #define CTB_H2G_BUFFER_DWORDS	(CTB_H2G_BUFFER_SIZE / sizeof(u32))
 #define CTB_G2H_BUFFER_SIZE	(SZ_128K)
@@ -274,14 +276,18 @@ static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
  */
 long xe_guc_ct_queue_proc_time_jiffies(struct xe_guc_ct *ct)
 {
-	BUILD_BUG_ON(!IS_ALIGNED(CTB_H2G_BUFFER_SIZE, SZ_4));
+	BUILD_BUG_ON(!IS_ALIGNED(CTB_H2G_BUFFER_SIZE, SZ_4K));
 	return (CTB_H2G_BUFFER_SIZE / SZ_4K) * HZ;
 }
 
-static size_t guc_ct_size(void)
+static size_t guc_h2g_size(void)
 {
-	return CTB_H2G_BUFFER_OFFSET + CTB_H2G_BUFFER_SIZE +
-		CTB_G2H_BUFFER_SIZE;
+	return CTB_H2G_BUFFER_OFFSET + CTB_H2G_BUFFER_SIZE;
+}
+
+static size_t guc_g2h_size(void)
+{
+	return CTB_G2H_BUFFER_OFFSET + CTB_G2H_BUFFER_SIZE;
 }
 
 static void guc_ct_fini(struct drm_device *drm, void *arg)
@@ -310,7 +316,8 @@ int xe_guc_ct_init_noalloc(struct xe_guc_ct *ct)
 	struct xe_gt *gt = ct_to_gt(ct);
 	int err;
 
-	xe_gt_assert(gt, !(guc_ct_size() % PAGE_SIZE));
+	xe_gt_assert(gt, !(guc_h2g_size() % PAGE_SIZE));
+	xe_gt_assert(gt, !(guc_g2h_size() % PAGE_SIZE));
 
 	err = drmm_mutex_init(&xe->drm, &ct->lock);
 	if (err)
@@ -355,7 +362,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_bo *bo;
 
-	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ct_size(),
+	bo = xe_managed_bo_create_pin_map(xe, tile, guc_h2g_size(),
 					  XE_BO_FLAG_SYSTEM |
 					  XE_BO_FLAG_GGTT |
 					  XE_BO_FLAG_GGTT_INVALIDATE |
@@ -363,7 +370,17 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	ct->bo = bo;
+	ct->ctbs.h2g.bo = bo;
+
+	bo = xe_managed_bo_create_pin_map(xe, tile, guc_g2h_size(),
+					  XE_BO_FLAG_SYSTEM |
+					  XE_BO_FLAG_GGTT |
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_PINNED_NORESTORE);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	ct->ctbs.g2h.bo = bo;
 
 	return devm_add_action_or_reset(xe->drm.dev, guc_action_disable_ct, ct);
 }
@@ -388,7 +405,7 @@ int xe_guc_ct_init_post_hwconfig(struct xe_guc_ct *ct)
 	xe_assert(xe, !xe_guc_ct_enabled(ct));
 
 	if (IS_DGFX(xe)) {
-		ret = xe_managed_bo_reinit_in_vram(xe, tile, &ct->bo);
+		ret = xe_managed_bo_reinit_in_vram(xe, tile, &ct->ctbs.h2g.bo);
 		if (ret)
 			return ret;
 	}
@@ -438,8 +455,7 @@ static void guc_ct_ctb_g2h_init(struct xe_device *xe, struct guc_ctb *g2h,
 	g2h->desc = IOSYS_MAP_INIT_OFFSET(map, CTB_DESC_SIZE);
 	xe_map_memset(xe, &g2h->desc, 0, 0, sizeof(struct guc_ct_buffer_desc));
 
-	g2h->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_H2G_BUFFER_OFFSET +
-					    CTB_H2G_BUFFER_SIZE);
+	g2h->cmds = IOSYS_MAP_INIT_OFFSET(map, CTB_G2H_BUFFER_OFFSET);
 }
 
 static int guc_ct_ctb_h2g_register(struct xe_guc_ct *ct)
@@ -448,8 +464,8 @@ static int guc_ct_ctb_h2g_register(struct xe_guc_ct *ct)
 	u32 desc_addr, ctb_addr, size;
 	int err;
 
-	desc_addr = xe_bo_ggtt_addr(ct->bo);
-	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_H2G_BUFFER_OFFSET;
+	desc_addr = xe_bo_ggtt_addr(ct->ctbs.h2g.bo);
+	ctb_addr = xe_bo_ggtt_addr(ct->ctbs.h2g.bo) + CTB_H2G_BUFFER_OFFSET;
 	size = ct->ctbs.h2g.info.size * sizeof(u32);
 
 	err = xe_guc_self_cfg64(guc,
@@ -475,9 +491,8 @@ static int guc_ct_ctb_g2h_register(struct xe_guc_ct *ct)
 	u32 desc_addr, ctb_addr, size;
 	int err;
 
-	desc_addr = xe_bo_ggtt_addr(ct->bo) + CTB_DESC_SIZE;
-	ctb_addr = xe_bo_ggtt_addr(ct->bo) + CTB_H2G_BUFFER_OFFSET +
-		CTB_H2G_BUFFER_SIZE;
+	desc_addr = xe_bo_ggtt_addr(ct->ctbs.g2h.bo) + CTB_DESC_SIZE;
+	ctb_addr = xe_bo_ggtt_addr(ct->ctbs.g2h.bo) + CTB_G2H_BUFFER_OFFSET;
 	size = ct->ctbs.g2h.info.size * sizeof(u32);
 
 	err = xe_guc_self_cfg64(guc,
@@ -604,9 +619,12 @@ static int __xe_guc_ct_start(struct xe_guc_ct *ct, bool needs_register)
 	xe_gt_assert(gt, !xe_guc_ct_enabled(ct));
 
 	if (needs_register) {
-		xe_map_memset(xe, &ct->bo->vmap, 0, 0, xe_bo_size(ct->bo));
-		guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
-		guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
+		xe_map_memset(xe, &ct->ctbs.h2g.bo->vmap, 0, 0,
+			      xe_bo_size(ct->ctbs.h2g.bo));
+		xe_map_memset(xe, &ct->ctbs.g2h.bo->vmap, 0, 0,
+			      xe_bo_size(ct->ctbs.g2h.bo));
+		guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->ctbs.h2g.bo->vmap);
+		guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->ctbs.g2h.bo->vmap);
 
 		err = guc_ct_ctb_h2g_register(ct);
 		if (err)
@@ -623,7 +641,7 @@ static int __xe_guc_ct_start(struct xe_guc_ct *ct, bool needs_register)
 		ct->ctbs.h2g.info.broken = false;
 		ct->ctbs.g2h.info.broken = false;
 		/* Skip everything in H2G buffer */
-		xe_map_memset(xe, &ct->bo->vmap, CTB_H2G_BUFFER_OFFSET, 0,
+		xe_map_memset(xe, &ct->ctbs.h2g.bo->vmap, CTB_H2G_BUFFER_OFFSET, 0,
 			      CTB_H2G_BUFFER_SIZE);
 	}
 
@@ -643,7 +661,7 @@ static int __xe_guc_ct_start(struct xe_guc_ct *ct, bool needs_register)
 	spin_lock_irq(&ct->dead.lock);
 	if (ct->dead.reason) {
 		ct->dead.reason |= (1 << CT_DEAD_STATE_REARM);
-		queue_work(system_unbound_wq, &ct->dead.worker);
+		queue_work(system_dfl_wq, &ct->dead.worker);
 	}
 	spin_unlock_irq(&ct->dead.lock);
 #endif
@@ -921,22 +939,22 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	u32 full_len;
 	struct iosys_map map = IOSYS_MAP_INIT_OFFSET(&h2g->cmds,
 							 tail * sizeof(u32));
-	u32 desc_status;
 
 	full_len = len + GUC_CTB_HDR_LEN;
 
 	lockdep_assert_held(&ct->lock);
 	xe_gt_assert(gt, full_len <= GUC_CTB_MSG_MAX_LEN);
 
-	desc_status = desc_read(xe, h2g, status);
-	if (desc_status) {
-		xe_gt_err(gt, "CT write: non-zero status: %u\n", desc_status);
-		goto corrupted;
-	}
-
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
 		u32 desc_tail = desc_read(xe, h2g, tail);
 		u32 desc_head = desc_read(xe, h2g, head);
+		u32 desc_status;
+
+		desc_status = desc_read(xe, h2g, status);
+		if (desc_status) {
+			xe_gt_err(gt, "CT write: non-zero status: %u\n", desc_status);
+			goto corrupted;
+		}
 
 		if (tail != desc_tail) {
 			desc_write(xe, h2g, status, desc_status | GUC_CTB_STATUS_MISMATCH);
@@ -1005,8 +1023,15 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
 
-	trace_xe_guc_ctb_h2g(xe, gt->info.id, *(action - 1), full_len,
-			     desc_read(xe, h2g, head), h2g->info.tail);
+	/*
+	 * desc_read() performs an VRAM read which serializes the CPU and drains
+	 * posted writes on dGPU platforms. Tracepoints evaluate arguments even
+	 * when disabled, so guard the event to avoid adding µs-scale latency to
+	 * the fast H2G submission path when tracing is not active.
+	 */
+	if (trace_xe_guc_ctb_h2g_enabled())
+		trace_xe_guc_ctb_h2g(xe, gt->info.id, *(action - 1), full_len,
+				     desc_read(xe, h2g, head), h2g->info.tail);
 
 	return 0;
 
@@ -1101,7 +1126,8 @@ static int dequeue_one_g2h(struct xe_guc_ct *ct);
  */
 static bool guc_ct_send_wait_for_retry(struct xe_guc_ct *ct, u32 len,
 				       u32 g2h_len, struct g2h_fence *g2h_fence,
-				       unsigned int *sleep_period_ms)
+				       unsigned int *sleep_period_ms,
+				       unsigned int *sleep_total_ms)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 
@@ -1115,17 +1141,15 @@ static bool guc_ct_send_wait_for_retry(struct xe_guc_ct *ct, u32 len,
 	if (!h2g_has_room(ct, len + GUC_CTB_HDR_LEN)) {
 		struct guc_ctb *h2g = &ct->ctbs.h2g;
 
-		if (*sleep_period_ms == 1024)
+		if (*sleep_total_ms > 1000)
 			return false;
 
 		trace_xe_guc_ct_h2g_flow_control(xe, h2g->info.head, h2g->info.tail,
 						 h2g->info.size,
 						 h2g->info.space,
 						 len + GUC_CTB_HDR_LEN);
-		msleep(*sleep_period_ms);
-		*sleep_period_ms <<= 1;
+		*sleep_total_ms += xe_sleep_exponential_ms(sleep_period_ms, 64);
 	} else {
-		struct xe_device *xe = ct_to_xe(ct);
 		struct guc_ctb *g2h = &ct->ctbs.g2h;
 		int ret;
 
@@ -1147,7 +1171,7 @@ static bool guc_ct_send_wait_for_retry(struct xe_guc_ct *ct, u32 len,
 		ret = dequeue_one_g2h(ct);
 		if (ret < 0) {
 			if (ret != -ECANCELED)
-				xe_gt_err(ct_to_gt(ct), "CTB receive failed (%pe)",
+				xe_gt_err(ct_to_gt(ct), "CTB receive failed (%pe)\n",
 					  ERR_PTR(ret));
 			return false;
 		}
@@ -1161,6 +1185,7 @@ static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
 {
 	struct xe_gt *gt = ct_to_gt(ct);
 	unsigned int sleep_period_ms = 1;
+	unsigned int sleep_total_ms = 0;
 	int ret;
 
 	xe_gt_assert(gt, !g2h_len || !g2h_fence);
@@ -1173,7 +1198,7 @@ try_again:
 
 	if (unlikely(ret == -EBUSY)) {
 		if (!guc_ct_send_wait_for_retry(ct, len, g2h_len, g2h_fence,
-						&sleep_period_ms))
+						&sleep_period_ms, &sleep_total_ms))
 			goto broken;
 		goto try_again;
 	}
@@ -1322,7 +1347,7 @@ retry_same_fence:
 	 */
 	mutex_lock(&ct->lock);
 	if (!ret) {
-		xe_gt_err(gt, "Timed out wait for G2H, fence %u, action %04x, done %s",
+		xe_gt_err(gt, "Timed out wait for G2H, fence %u, action %04x, done %s\n",
 			  g2h_fence.seqno, action[0], str_yes_no(g2h_fence.done));
 		xa_erase(&ct->fence_lookup, g2h_fence.seqno);
 		mutex_unlock(&ct->lock);
@@ -1832,7 +1857,7 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
 		break;
 	default:
-		xe_gt_warn(gt, "NOT_POSSIBLE");
+		xe_gt_warn(gt, "NOT_POSSIBLE\n");
 	}
 
 	if (ret) {
@@ -1935,7 +1960,7 @@ static void receive_g2h(struct xe_guc_ct *ct)
 		mutex_unlock(&ct->lock);
 
 		if (unlikely(ret == -EPROTO || ret == -EOPNOTSUPP)) {
-			xe_gt_err(ct_to_gt(ct), "CT dequeue failed: %d", ret);
+			xe_gt_err(ct_to_gt(ct), "CT dequeue failed: %d\n", ret);
 			CT_DEAD(ct, NULL, G2H_RECV);
 			kick_reset(ct);
 		}
@@ -1961,8 +1986,9 @@ static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bo
 	if (!snapshot)
 		return NULL;
 
-	if (ct->bo && want_ctb) {
-		snapshot->ctb_size = xe_bo_size(ct->bo);
+	if (ct->ctbs.h2g.bo && ct->ctbs.g2h.bo && want_ctb) {
+		snapshot->ctb_size = xe_bo_size(ct->ctbs.h2g.bo) +
+			xe_bo_size(ct->ctbs.g2h.bo);
 		snapshot->ctb = kmalloc(snapshot->ctb_size, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	}
 
@@ -2010,8 +2036,13 @@ static struct xe_guc_ct_snapshot *guc_ct_snapshot_capture(struct xe_guc_ct *ct, 
 		guc_ctb_snapshot_capture(xe, &ct->ctbs.g2h, &snapshot->g2h);
 	}
 
-	if (ct->bo && snapshot->ctb)
-		xe_map_memcpy_from(xe, snapshot->ctb, &ct->bo->vmap, 0, snapshot->ctb_size);
+	if (ct->ctbs.h2g.bo && ct->ctbs.g2h.bo && snapshot->ctb) {
+		xe_map_memcpy_from(xe, snapshot->ctb, &ct->ctbs.h2g.bo->vmap, 0,
+				   xe_bo_size(ct->ctbs.h2g.bo));
+		xe_map_memcpy_from(xe, snapshot->ctb + xe_bo_size(ct->ctbs.h2g.bo),
+				   &ct->ctbs.g2h.bo->vmap, 0,
+				   xe_bo_size(ct->ctbs.g2h.bo));
+	}
 
 	return snapshot;
 }
@@ -2165,7 +2196,7 @@ static void ct_dead_capture(struct xe_guc_ct *ct, struct guc_ctb *ctb, u32 reaso
 
 	spin_unlock_irqrestore(&ct->dead.lock, flags);
 
-	queue_work(system_unbound_wq, &(ct)->dead.worker);
+	queue_work(system_dfl_wq, &(ct)->dead.worker);
 }
 
 static void ct_dead_print(struct xe_dead_ct *dead)

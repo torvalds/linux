@@ -21,11 +21,11 @@ properties:
   backlight: true
   port: true
 
-additionalProperties: false
-
 required:
   - compatible
   - power-supply
   - backlight
+
+additionalProperties: false
 
 ...

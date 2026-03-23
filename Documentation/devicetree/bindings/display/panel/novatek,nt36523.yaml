@@ -37,9 +37,6 @@ properties:
   vddio-supply:
     description: regulator that supplies the I/O voltage
 
-  rotation: true
-  backlight: true
-
 required:
   - compatible
   - reg

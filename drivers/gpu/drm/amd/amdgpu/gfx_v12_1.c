@@ -1405,7 +1405,7 @@ static void gfx_v12_1_xcc_init_compute_vmid(struct amdgpu_device *adev,
 	/*
 	 * Configure apertures:
 	 * LDS:         0x20000000'00000000 - 0x20000001'00000000 (4GB)
-	 * Scratch:     0x10000000'00000000 - 0x10000001'00000000 (4GB)
+	 * Scratch:     0x10000000'00000000 - 0x11ffffff'ffffffff (128PB 57-bit)
 	 */
 	sh_mem_bases = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
 				     (adev->gmc.private_aperture_start >> 58));

@@ -124,7 +124,7 @@ struct nvkm_rm_api {
 	} *ce, *nvdec, *nvenc, *nvjpg, *ofa;
 
 	const struct nvkm_rm_api_gr {
-		int (*get_ctxbufs_info)(struct r535_gr *);
+		int (*get_ctxbufs_and_zcull_info)(struct r535_gr *);
 		struct {
 			int (*init)(struct r535_gr *);
 			void (*fini)(struct r535_gr *);

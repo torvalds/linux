@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -131,4 +131,15 @@ GPIO_DCN401 = hw_translate_dcn401.o hw_factory_dcn401.o
 AMD_DAL_GPIO_DCN401 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn401/,$(GPIO_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN401)
+
+###############################################################################
+# DCN 4.2
+###############################################################################
+
+GPIO_DCN42 = hw_translate_dcn42.o hw_factory_dcn42.o
+
+AMD_DAL_GPIO_DCN42 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn42/,$(GPIO_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN42)
+
 

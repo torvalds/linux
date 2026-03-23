@@ -148,7 +148,7 @@ __dma_fence_signal__notify(struct dma_fence *fence,
 {
 	struct dma_fence_cb *cur, *tmp;
 
-	lockdep_assert_held(fence->lock);
+	dma_fence_assert_held(fence);
 
 	list_for_each_entry_safe(cur, tmp, list, node) {
 		INIT_LIST_HEAD(&cur->node);

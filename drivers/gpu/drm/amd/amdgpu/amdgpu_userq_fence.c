@@ -461,33 +461,31 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct drm_amdgpu_userq_signal *args = data;
+	const unsigned int num_write_bo_handles = args->num_bo_write_handles;
+	const unsigned int num_read_bo_handles = args->num_bo_read_handles;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
-	struct drm_amdgpu_userq_signal *args = data;
-	struct drm_gem_object **gobj_write = NULL;
-	struct drm_gem_object **gobj_read = NULL;
-	struct amdgpu_usermode_queue *queue = NULL;
-	struct amdgpu_userq_fence *userq_fence;
-	struct drm_syncobj **syncobj = NULL;
-	u32 *bo_handles_write, num_write_bo_handles;
+	struct drm_gem_object **gobj_write, **gobj_read;
 	u32 *syncobj_handles, num_syncobj_handles;
-	u32 *bo_handles_read, num_read_bo_handles;
-	int r, i, entry, rentry, wentry;
+	struct amdgpu_userq_fence *userq_fence;
+	struct amdgpu_usermode_queue *queue = NULL;
+	struct drm_syncobj **syncobj = NULL;
 	struct dma_fence *fence;
 	struct drm_exec exec;
+	int r, i, entry;
 	u64 wptr;
 
 	if (!amdgpu_userq_enabled(dev))
 		return -ENOTSUPP;
 
-	if (args->num_syncobj_handles > AMDGPU_USERQ_MAX_HANDLES ||
-	    args->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	if (args->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
 	    args->num_bo_read_handles > AMDGPU_USERQ_MAX_HANDLES)
 		return -EINVAL;
 
 	num_syncobj_handles = args->num_syncobj_handles;
-	syncobj_handles = memdup_user(u64_to_user_ptr(args->syncobj_handles),
-				      size_mul(sizeof(u32), num_syncobj_handles));
+	syncobj_handles = memdup_array_user(u64_to_user_ptr(args->syncobj_handles),
+					    num_syncobj_handles, sizeof(u32));
 	if (IS_ERR(syncobj_handles))
 		return PTR_ERR(syncobj_handles);
 
@@ -506,51 +504,19 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	num_read_bo_handles = args->num_bo_read_handles;
-	bo_handles_read = memdup_user(u64_to_user_ptr(args->bo_read_handles),
-				      sizeof(u32) * num_read_bo_handles);
-	if (IS_ERR(bo_handles_read)) {
-		r = PTR_ERR(bo_handles_read);
+	r = drm_gem_objects_lookup(filp,
+				   u64_to_user_ptr(args->bo_read_handles),
+				   num_read_bo_handles,
+				   &gobj_read);
+	if (r)
 		goto free_syncobj;
-	}
 
-	/* Array of pointers to the GEM read objects */
-	gobj_read = kmalloc_array(num_read_bo_handles, sizeof(*gobj_read), GFP_KERNEL);
-	if (!gobj_read) {
-		r = -ENOMEM;
-		goto free_bo_handles_read;
-	}
-
-	for (rentry = 0; rentry < num_read_bo_handles; rentry++) {
-		gobj_read[rentry] = drm_gem_object_lookup(filp, bo_handles_read[rentry]);
-		if (!gobj_read[rentry]) {
-			r = -ENOENT;
-			goto put_gobj_read;
-		}
-	}
-
-	num_write_bo_handles = args->num_bo_write_handles;
-	bo_handles_write = memdup_user(u64_to_user_ptr(args->bo_write_handles),
-				       sizeof(u32) * num_write_bo_handles);
-	if (IS_ERR(bo_handles_write)) {
-		r = PTR_ERR(bo_handles_write);
+	r = drm_gem_objects_lookup(filp,
+				   u64_to_user_ptr(args->bo_write_handles),
+				   num_write_bo_handles,
+				   &gobj_write);
+	if (r)
 		goto put_gobj_read;
-	}
-
-	/* Array of pointers to the GEM write objects */
-	gobj_write = kmalloc_array(num_write_bo_handles, sizeof(*gobj_write), GFP_KERNEL);
-	if (!gobj_write) {
-		r = -ENOMEM;
-		goto free_bo_handles_write;
-	}
-
-	for (wentry = 0; wentry < num_write_bo_handles; wentry++) {
-		gobj_write[wentry] = drm_gem_object_lookup(filp, bo_handles_write[wentry]);
-		if (!gobj_write[wentry]) {
-			r = -ENOENT;
-			goto put_gobj_write;
-		}
-	}
 
 	/* Retrieve the user queue */
 	queue = amdgpu_userq_get(userq_mgr, args->queue_id);
@@ -629,17 +595,13 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 exec_fini:
 	drm_exec_fini(&exec);
 put_gobj_write:
-	while (wentry-- > 0)
-		drm_gem_object_put(gobj_write[wentry]);
+	for (i = 0; i < num_write_bo_handles; i++)
+		drm_gem_object_put(gobj_write[i]);
 	kfree(gobj_write);
-free_bo_handles_write:
-	kfree(bo_handles_write);
 put_gobj_read:
-	while (rentry-- > 0)
-		drm_gem_object_put(gobj_read[rentry]);
+	for (i = 0; i < num_read_bo_handles; i++)
+		drm_gem_object_put(gobj_read[i]);
 	kfree(gobj_read);
-free_bo_handles_read:
-	kfree(bo_handles_read);
 free_syncobj:
 	while (entry-- > 0)
 		if (syncobj[entry])
@@ -657,92 +619,64 @@ free_syncobj_handles:
 int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {
-	u32 *syncobj_handles, *timeline_points, *timeline_handles, *bo_handles_read, *bo_handles_write;
-	u32 num_syncobj, num_read_bo_handles, num_write_bo_handles;
-	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct drm_amdgpu_userq_wait *wait_info = data;
+	const unsigned int num_write_bo_handles = wait_info->num_bo_write_handles;
+	const unsigned int num_read_bo_handles = wait_info->num_bo_read_handles;
+	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
+	struct drm_gem_object **gobj_write, **gobj_read;
+	u32 *timeline_points, *timeline_handles;
 	struct amdgpu_usermode_queue *waitq = NULL;
-	struct drm_gem_object **gobj_write;
-	struct drm_gem_object **gobj_read;
+	u32 *syncobj_handles, num_syncobj;
 	struct dma_fence **fences = NULL;
 	u16 num_points, num_fences = 0;
-	int r, i, rentry, wentry, cnt;
 	struct drm_exec exec;
+	int r, i, cnt;
 
 	if (!amdgpu_userq_enabled(dev))
 		return -ENOTSUPP;
 
-	if (wait_info->num_syncobj_handles > AMDGPU_USERQ_MAX_HANDLES ||
-	    wait_info->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
+	if (wait_info->num_bo_write_handles > AMDGPU_USERQ_MAX_HANDLES ||
 	    wait_info->num_bo_read_handles > AMDGPU_USERQ_MAX_HANDLES)
 		return -EINVAL;
 
-	num_read_bo_handles = wait_info->num_bo_read_handles;
-	bo_handles_read = memdup_user(u64_to_user_ptr(wait_info->bo_read_handles),
-				      size_mul(sizeof(u32), num_read_bo_handles));
-	if (IS_ERR(bo_handles_read))
-		return PTR_ERR(bo_handles_read);
-
-	num_write_bo_handles = wait_info->num_bo_write_handles;
-	bo_handles_write = memdup_user(u64_to_user_ptr(wait_info->bo_write_handles),
-				       size_mul(sizeof(u32), num_write_bo_handles));
-	if (IS_ERR(bo_handles_write)) {
-		r = PTR_ERR(bo_handles_write);
-		goto free_bo_handles_read;
-	}
-
 	num_syncobj = wait_info->num_syncobj_handles;
-	syncobj_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_handles),
-				      size_mul(sizeof(u32), num_syncobj));
-	if (IS_ERR(syncobj_handles)) {
-		r = PTR_ERR(syncobj_handles);
-		goto free_bo_handles_write;
-	}
+	syncobj_handles = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_handles),
+					    num_syncobj, sizeof(u32));
+	if (IS_ERR(syncobj_handles))
+		return PTR_ERR(syncobj_handles);
+
 
 	num_points = wait_info->num_syncobj_timeline_handles;
-	timeline_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_timeline_handles),
-				       sizeof(u32) * num_points);
+	timeline_handles = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_timeline_handles),
+					     num_points, sizeof(u32));
 	if (IS_ERR(timeline_handles)) {
 		r = PTR_ERR(timeline_handles);
 		goto free_syncobj_handles;
 	}
 
-	timeline_points = memdup_user(u64_to_user_ptr(wait_info->syncobj_timeline_points),
-				      sizeof(u32) * num_points);
+	timeline_points = memdup_array_user(u64_to_user_ptr(wait_info->syncobj_timeline_points),
+					    num_points, sizeof(u32));
+
 	if (IS_ERR(timeline_points)) {
 		r = PTR_ERR(timeline_points);
 		goto free_timeline_handles;
 	}
 
-	gobj_read = kmalloc_array(num_read_bo_handles, sizeof(*gobj_read), GFP_KERNEL);
-	if (!gobj_read) {
-		r = -ENOMEM;
+	r = drm_gem_objects_lookup(filp,
+				   u64_to_user_ptr(wait_info->bo_read_handles),
+				   num_read_bo_handles,
+				   &gobj_read);
+	if (r)
 		goto free_timeline_points;
-	}
 
-	for (rentry = 0; rentry < num_read_bo_handles; rentry++) {
-		gobj_read[rentry] = drm_gem_object_lookup(filp, bo_handles_read[rentry]);
-		if (!gobj_read[rentry]) {
-			r = -ENOENT;
-			goto put_gobj_read;
-		}
-	}
-
-	gobj_write = kmalloc_array(num_write_bo_handles, sizeof(*gobj_write), GFP_KERNEL);
-	if (!gobj_write) {
-		r = -ENOMEM;
+	r = drm_gem_objects_lookup(filp,
+				   u64_to_user_ptr(wait_info->bo_write_handles),
+				   num_write_bo_handles,
+				   &gobj_write);
+	if (r)
 		goto put_gobj_read;
-	}
-
-	for (wentry = 0; wentry < num_write_bo_handles; wentry++) {
-		gobj_write[wentry] = drm_gem_object_lookup(filp, bo_handles_write[wentry]);
-		if (!gobj_write[wentry]) {
-			r = -ENOENT;
-			goto put_gobj_write;
-		}
-	}
 
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
 		      (num_read_bo_handles + num_write_bo_handles));
@@ -999,12 +933,12 @@ free_fence_info:
 exec_fini:
 	drm_exec_fini(&exec);
 put_gobj_write:
-	while (wentry-- > 0)
-		drm_gem_object_put(gobj_write[wentry]);
+	for (i = 0; i < num_write_bo_handles; i++)
+		drm_gem_object_put(gobj_write[i]);
 	kfree(gobj_write);
 put_gobj_read:
-	while (rentry-- > 0)
-		drm_gem_object_put(gobj_read[rentry]);
+	for (i = 0; i < num_read_bo_handles; i++)
+		drm_gem_object_put(gobj_read[i]);
 	kfree(gobj_read);
 free_timeline_points:
 	kfree(timeline_points);
@@ -1012,10 +946,6 @@ free_timeline_handles:
 	kfree(timeline_handles);
 free_syncobj_handles:
 	kfree(syncobj_handles);
-free_bo_handles_write:
-	kfree(bo_handles_write);
-free_bo_handles_read:
-	kfree(bo_handles_read);
 
 	if (waitq)
 		amdgpu_userq_put(waitq);

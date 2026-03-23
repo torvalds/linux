@@ -3,9 +3,28 @@
 #define __NVKM_GR_H__
 #include <core/engine.h>
 
+struct nvkm_gr_zcull_info {
+	__u32 width_align_pixels;
+	__u32 height_align_pixels;
+	__u32 pixel_squares_by_aliquots;
+	__u32 aliquot_total;
+	__u32 zcull_region_byte_multiplier;
+	__u32 zcull_region_header_size;
+	__u32 zcull_subregion_header_size;
+	__u32 subregion_count;
+	__u32 subregion_width_align_pixels;
+	__u32 subregion_height_align_pixels;
+
+	__u32 ctxsw_size;
+	__u32 ctxsw_align;
+};
+
 struct nvkm_gr {
 	const struct nvkm_gr_func *func;
 	struct nvkm_engine engine;
+
+	struct nvkm_gr_zcull_info zcull_info;
+	bool has_zcull_info;
 };
 
 u64 nvkm_gr_units(struct nvkm_gr *);

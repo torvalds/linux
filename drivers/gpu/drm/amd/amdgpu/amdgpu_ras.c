@@ -21,6 +21,7 @@
  *
  *
  */
+#include "amdgpu_reg_access.h"
 #include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -42,6 +43,7 @@
 #include "amdgpu_reset.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ras_mgr.h"
+#include "amdgpu_virt_ras_cmd.h"
 
 #ifdef CONFIG_X86_MCE_AMD
 #include <asm/mce.h>
@@ -228,19 +230,30 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 		return 0;
 
 	if (amdgpu_sriov_vf(adev)) {
-		if (amdgpu_virt_check_vf_critical_region(adev, address, &hit))
-			return -EPERM;
-		return hit ? -EACCES : 0;
+		if (amdgpu_uniras_enabled(adev)) {
+			if (amdgpu_virt_ras_check_address_validity(adev, address, &hit))
+				return -EPERM;
+			if (hit)
+				return -EACCES;
+		} else {
+			if (amdgpu_virt_check_vf_critical_region(adev, address, &hit))
+				return -EPERM;
+			return hit ? -EACCES : 0;
+		}
 	}
 
 	if ((address >= adev->gmc.mc_vram_size) ||
 	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
 		return -EFAULT;
 
-	if (amdgpu_uniras_enabled(adev))
-		count = amdgpu_ras_mgr_lookup_bad_pages_in_a_row(adev, address,
-			page_pfns, ARRAY_SIZE(page_pfns));
-	else
+	if (amdgpu_uniras_enabled(adev)) {
+		if (amdgpu_sriov_vf(adev))
+			count = amdgpu_virt_ras_convert_retired_address(adev, address,
+				page_pfns, ARRAY_SIZE(page_pfns));
+		else
+			count = amdgpu_ras_mgr_lookup_bad_pages_in_a_row(adev, address,
+				page_pfns, ARRAY_SIZE(page_pfns));
+	} else
 		count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				address, page_pfns, ARRAY_SIZE(page_pfns));
 
@@ -3118,9 +3131,11 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 				enum amdgpu_memory_partition nps)
 {
 	int i = 0;
+	uint64_t chan_idx_v2;
 	enum amdgpu_memory_partition save_nps;
 
 	save_nps = (bps[0].retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+	chan_idx_v2 = bps[0].retired_page & UMC_CHANNEL_IDX_V2;
 
 	/*old asics just have pa in eeprom*/
 	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
@@ -3132,7 +3147,7 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 	for (i = 0; i < adev->umc.retire_unit; i++)
 		bps[i].retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 
-	if (save_nps) {
+	if (save_nps || chan_idx_v2) {
 		if (save_nps == nps) {
 			if (amdgpu_umc_pages_in_a_row(adev, err_data,
 					bps[0].retired_page << AMDGPU_GPU_PAGE_SHIFT))
@@ -3176,10 +3191,12 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 				enum amdgpu_memory_partition nps)
 {
 	int i = 0;
+	uint64_t chan_idx_v2;
 	enum amdgpu_memory_partition save_nps;
 
 	if (!amdgpu_ras_smu_eeprom_supported(adev)) {
 		save_nps = (bps->retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+		chan_idx_v2 = bps->retired_page & UMC_CHANNEL_IDX_V2;
 		bps->retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 	} else {
 		/* if pmfw manages eeprom, save_nps is not stored on eeprom,
@@ -3201,16 +3218,19 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 			err_data->err_addr[i].mcumc_id = bps->mcumc_id;
 		}
 	} else {
-		if (bps->address) {
+		if (save_nps || chan_idx_v2) {
 			if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
 				return -EINVAL;
 		} else {
 			/* for specific old eeprom data, mca address is not stored,
 			 * calc it from pa
 			 */
-			if (amdgpu_umc_pa2mca(adev, bps->retired_page << AMDGPU_GPU_PAGE_SHIFT,
-				&(bps->address), AMDGPU_NPS1_PARTITION_MODE))
-				return -EINVAL;
+			if (bps->address == 0)
+				if (amdgpu_umc_pa2mca(adev,
+					bps->retired_page << AMDGPU_GPU_PAGE_SHIFT,
+					&(bps->address),
+					AMDGPU_NPS1_PARTITION_MODE))
+					return -EINVAL;
 
 			if (amdgpu_ras_mca2pa(adev, bps, err_data))
 				return -EOPNOTSUPP;
@@ -5516,11 +5536,11 @@ static void amdgpu_ras_boot_time_error_reporting(struct amdgpu_device *adev,
 	 * is changed. In such case, replace the aqua_vanjaram implementation
 	 * with more common helper */
 	reg_addr = (mmMP0_SMN_C2PMSG_92 << 2) +
-		   aqua_vanjaram_encode_ext_smn_addressing(instance);
+		   amdgpu_reg_get_smn_base64(adev, MP0_HWIP, instance);
 	fw_status = amdgpu_device_indirect_rreg_ext(adev, reg_addr);
 
 	reg_addr = (mmMP0_SMN_C2PMSG_126 << 2) +
-		   aqua_vanjaram_encode_ext_smn_addressing(instance);
+		   amdgpu_reg_get_smn_base64(adev, MP0_HWIP, instance);
 	boot_error = amdgpu_device_indirect_rreg_ext(adev, reg_addr);
 
 	socket_id = AMDGPU_RAS_GPU_ERR_SOCKET_ID(boot_error);
@@ -5586,7 +5606,7 @@ static bool amdgpu_ras_boot_error_detected(struct amdgpu_device *adev,
 	int retry_loop;
 
 	reg_addr = (mmMP0_SMN_C2PMSG_92 << 2) +
-		   aqua_vanjaram_encode_ext_smn_addressing(instance);
+		   amdgpu_reg_get_smn_base64(adev, MP0_HWIP, instance);
 
 	for (retry_loop = 0; retry_loop < AMDGPU_RAS_BOOT_STATUS_POLLING_LIMIT; retry_loop++) {
 		reg_data = amdgpu_device_indirect_rreg_ext(adev, reg_addr);
@@ -5665,7 +5685,7 @@ int amdgpu_ras_add_critical_region(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_vram_mgr_resource *vres;
 	struct ras_critical_region *region;
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 	int ret = 0;
 
 	if (!bo || !bo->tbo.resource)

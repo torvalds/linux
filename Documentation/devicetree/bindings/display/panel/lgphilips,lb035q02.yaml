@@ -20,10 +20,6 @@ properties:
   reg:
     maxItems: 1
 
-  label: true
-  enable-gpios: true
-  port: true
-
   spi-cpha: true
   spi-cpol: true
 

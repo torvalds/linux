@@ -734,8 +734,12 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
 
 	dml_dispcfg->gpuvm_enable = dml_ctx->config.gpuvm_enable;
-	dml_dispcfg->gpuvm_max_page_table_levels = 4;
-	dml_dispcfg->hostvm_enable = false;
+	if (dml_ctx->v21.dml_init.soc_bb.gpuvm_max_page_table_levels)
+		dml_dispcfg->gpuvm_max_page_table_levels = dml_ctx->v21.dml_init.soc_bb.gpuvm_max_page_table_levels;
+	else
+		dml_dispcfg->gpuvm_max_page_table_levels = 4;
+	dml_dispcfg->hostvm_enable = dml_ctx->config.hostvm_enable;
+	dml_dispcfg->hostvm_max_non_cached_page_table_levels = dml_ctx->v21.dml_init.soc_bb.hostvm_max_non_cached_page_table_levels;
 	dml_dispcfg->minimize_det_reallocation = true;
 	dml_dispcfg->overrides.enable_subvp_implicit_pmo = true;
 

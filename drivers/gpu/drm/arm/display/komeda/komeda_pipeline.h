@@ -128,6 +128,8 @@ struct komeda_component {
 	const struct komeda_component_funcs *funcs;
 };
 
+#define to_component(o)	container_of(o, struct komeda_component, obj)
+
 /**
  * struct komeda_component_output
  *

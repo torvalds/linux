@@ -43,12 +43,12 @@ properties:
   no-hpd: true
   hpd-gpios: true
 
-additionalProperties: false
-
 required:
   - compatible
   - enable-gpios
   - power-supply
+
+additionalProperties: false
 
 examples:
   - |

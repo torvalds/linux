@@ -879,6 +879,7 @@ enum atom_connector_caps_def
 {
   ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY         = 0x01,        //a cap bit to indicate that this non-embedded display connector is an internal display
   ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL      = 0x02,        //a cap bit to indicate that this internal display requires BL control from GPU, refers to lcd_info for BL PWM freq 
+  ATOM_CONNECTOR_CAP_DP_PLUS_PLUS_TYPE2_ONLY  = 0x10,        //a cap bit that indicates connector with DP_PLUS_PLUS_TYPE2_ONLY
 };
 
 struct atom_disp_connector_caps_record

@@ -72,33 +72,3 @@ u64 drm_sysfb_get_visible_size_si(struct drm_device *dev, const struct screen_in
 	return drm_sysfb_get_validated_size0(dev, "visible size", vsize, size);
 }
 EXPORT_SYMBOL(drm_sysfb_get_visible_size_si);
-
-const struct drm_format_info *drm_sysfb_get_format_si(struct drm_device *dev,
-						      const struct drm_sysfb_format *formats,
-						      size_t nformats,
-						      const struct screen_info *si)
-{
-	const struct drm_format_info *format = NULL;
-	struct pixel_format pixel;
-	size_t i;
-	int ret;
-
-	ret = screen_info_pixel_format(si, &pixel);
-	if (ret)
-		return NULL;
-
-	for (i = 0; i < nformats; ++i) {
-		const struct drm_sysfb_format *f = &formats[i];
-
-		if (pixel_format_equal(&pixel, &f->pixel)) {
-			format = drm_format_info(f->fourcc);
-			break;
-		}
-	}
-
-	if (!format)
-		drm_warn(dev, "No compatible color format found\n");
-
-	return format;
-}
-EXPORT_SYMBOL(drm_sysfb_get_format_si);

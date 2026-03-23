@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2020-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -69,4 +69,12 @@ AMD_DAL_MPC_DCN401 = $(addprefix $(AMDDALPATH)/dc/mpc/dcn401/,$(MPC_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_MPC_DCN401)
 
+###############################################################################
+# DCN42
+###############################################################################
+MPC_DCN42 = dcn42_mpc.o
+
+AMD_DAL_MPC_DCN42 = $(addprefix $(AMDDALPATH)/dc/mpc/dcn42/,$(MPC_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_MPC_DCN42)
 endif

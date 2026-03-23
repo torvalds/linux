@@ -47,11 +47,6 @@
 #define VCE_V1_0_DATA_SIZE	(7808 * (AMDGPU_MAX_VCE_HANDLES + 1))
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
-#define VCE_V1_0_GART_PAGE_START \
-	(AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS)
-#define VCE_V1_0_GART_ADDR_START \
-	(VCE_V1_0_GART_PAGE_START * AMDGPU_GPU_PAGE_SIZE)
-
 static void vce_v1_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v1_0_set_irq_funcs(struct amdgpu_device *adev);
 
@@ -535,27 +530,29 @@ static int vce_v1_0_early_init(struct amdgpu_ip_block *ip_block)
  */
 static int vce_v1_0_ensure_vcpu_bo_32bit_addr(struct amdgpu_device *adev)
 {
-	u64 gpu_addr = amdgpu_bo_gpu_offset(adev->vce.vcpu_bo);
 	u64 bo_size = amdgpu_bo_size(adev->vce.vcpu_bo);
 	u64 max_vcpu_bo_addr = 0xffffffff - bo_size;
 	u64 num_pages = ALIGN(bo_size, AMDGPU_GPU_PAGE_SIZE) / AMDGPU_GPU_PAGE_SIZE;
 	u64 pa = amdgpu_gmc_vram_pa(adev, adev->vce.vcpu_bo);
 	u64 flags = AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE | AMDGPU_PTE_VALID;
+	u64 vce_gart_start_offs;
+	int r;
 
-	/*
-	 * Check if the VCPU BO already has a 32-bit address.
-	 * Eg. if MC is configured to put VRAM in the low address range.
-	 */
-	if (gpu_addr <= max_vcpu_bo_addr)
-		return 0;
+	r = amdgpu_gtt_mgr_alloc_entries(&adev->mman.gtt_mgr,
+					 &adev->vce.gart_node, num_pages,
+					 DRM_MM_INSERT_LOW);
+	if (r)
+		return r;
+
+	vce_gart_start_offs = amdgpu_gtt_node_to_byte_offset(&adev->vce.gart_node);
 
 	/* Check if we can map the VCPU BO in GART to a 32-bit address. */
-	if (adev->gmc.gart_start + VCE_V1_0_GART_ADDR_START > max_vcpu_bo_addr)
+	if (adev->gmc.gart_start + vce_gart_start_offs > max_vcpu_bo_addr)
 		return -EINVAL;
 
-	amdgpu_gart_map_vram_range(adev, pa, VCE_V1_0_GART_PAGE_START,
+	amdgpu_gart_map_vram_range(adev, pa, adev->vce.gart_node.start,
 				   num_pages, flags, adev->gart.ptr);
-	adev->vce.gpu_addr = adev->gmc.gart_start + VCE_V1_0_GART_ADDR_START;
+	adev->vce.gpu_addr = adev->gmc.gart_start + vce_gart_start_offs;
 	if (adev->vce.gpu_addr > max_vcpu_bo_addr)
 		return -EINVAL;
 
@@ -610,7 +607,11 @@ static int vce_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	return amdgpu_vce_sw_fini(adev);
+	r = amdgpu_vce_sw_fini(adev);
+
+	amdgpu_gtt_mgr_free_entries(&adev->mman.gtt_mgr, &adev->vce.gart_node);
+
+	return r;
 }
 
 /**

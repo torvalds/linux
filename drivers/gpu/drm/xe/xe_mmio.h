@@ -6,7 +6,7 @@
 #ifndef _XE_MMIO_H_
 #define _XE_MMIO_H_
 
-#include "xe_gt_types.h"
+#include "xe_mmio_types.h"
 
 struct xe_device;
 struct xe_reg;
@@ -35,11 +35,6 @@ static inline u32 xe_mmio_adjusted_addr(const struct xe_mmio *mmio, u32 addr)
 	if (addr < mmio->adj_limit)
 		addr += mmio->adj_offset;
 	return addr;
-}
-
-static inline struct xe_mmio *xe_root_tile_mmio(struct xe_device *xe)
-{
-	return &xe->tiles[0].mmio;
 }
 
 #ifdef CONFIG_PCI_IOV

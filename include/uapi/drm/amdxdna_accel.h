@@ -353,7 +353,8 @@ struct amdxdna_drm_query_clock_metadata {
 };
 
 enum amdxdna_sensor_type {
-	AMDXDNA_SENSOR_TYPE_POWER
+	AMDXDNA_SENSOR_TYPE_POWER,
+	AMDXDNA_SENSOR_TYPE_COLUMN_UTILIZATION
 };
 
 /**

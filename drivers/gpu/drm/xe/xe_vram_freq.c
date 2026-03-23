@@ -5,9 +5,9 @@
 #include <linux/sysfs.h>
 #include <drm/drm_managed.h>
 
+#include "xe_device_types.h"
 #include "xe_pcode.h"
 #include "xe_pcode_api.h"
-#include "xe_tile.h"
 #include "xe_tile_sysfs.h"
 #include "xe_vram_freq.h"
 

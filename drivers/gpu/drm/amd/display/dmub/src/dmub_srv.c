@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: MIT
 /*
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright 2019-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +23,6 @@
  * Authors: AMD
  *
  */
-
 #include "../dmub_srv.h"
 #include "dmub_dcn20.h"
 #include "dmub_dcn21.h"
@@ -40,6 +40,7 @@
 #include "dmub_dcn351.h"
 #include "dmub_dcn36.h"
 #include "dmub_dcn401.h"
+#include "dmub_dcn42.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -87,6 +88,7 @@
 
 static struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs;
 static struct dmub_srv_dcn35_regs dmub_srv_dcn35_regs;
+struct dmub_srv_dcn42_regs dmub_srv_dcn42_regs;
 
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
@@ -409,6 +411,64 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 			funcs->is_hw_powered_up = dmub_dcn35_is_hw_powered_up;
 			funcs->should_detect = dmub_dcn35_should_detect;
+			break;
+	case DMUB_ASIC_DCN42:
+			dmub->regs_dcn42 = &dmub_srv_dcn42_regs;
+			funcs->configure_dmub_in_system_memory = dmub_dcn42_configure_dmub_in_system_memory;
+			funcs->send_inbox0_cmd = dmub_dcn42_send_inbox0_cmd;
+			funcs->clear_inbox0_ack_register = dmub_dcn42_clear_inbox0_ack_register;
+			funcs->read_inbox0_ack_register = dmub_dcn42_read_inbox0_ack_register;
+			funcs->reset = dmub_dcn42_reset;
+			funcs->reset_release = dmub_dcn42_reset_release;
+			funcs->backdoor_load = dmub_dcn42_backdoor_load;
+			funcs->backdoor_load_zfb_mode = dmub_dcn42_backdoor_load_zfb_mode;
+			funcs->setup_windows = dmub_dcn42_setup_windows;
+			funcs->setup_mailbox = dmub_dcn42_setup_mailbox;
+			funcs->get_inbox1_wptr = dmub_dcn42_get_inbox1_wptr;
+			funcs->get_inbox1_rptr = dmub_dcn42_get_inbox1_rptr;
+			funcs->set_inbox1_wptr = dmub_dcn42_set_inbox1_wptr;
+			funcs->setup_out_mailbox = dmub_dcn42_setup_out_mailbox;
+			funcs->get_outbox1_wptr = dmub_dcn42_get_outbox1_wptr;
+			funcs->set_outbox1_rptr = dmub_dcn42_set_outbox1_rptr;
+			funcs->is_supported = dmub_dcn42_is_supported;
+			funcs->is_hw_init = dmub_dcn42_is_hw_init;
+			funcs->set_gpint = dmub_dcn42_set_gpint;
+			funcs->is_gpint_acked = dmub_dcn42_is_gpint_acked;
+			funcs->get_gpint_response = dmub_dcn42_get_gpint_response;
+			funcs->get_gpint_dataout = dmub_dcn42_get_gpint_dataout;
+			funcs->get_fw_status = dmub_dcn42_get_fw_boot_status;
+			funcs->get_fw_boot_option = dmub_dcn42_get_fw_boot_option;
+			funcs->enable_dmub_boot_options = dmub_dcn42_enable_dmub_boot_options;
+			funcs->skip_dmub_panel_power_sequence = dmub_dcn42_skip_dmub_panel_power_sequence;
+			/*outbox0 call stacks*/
+			funcs->setup_outbox0 = dmub_dcn42_setup_outbox0;
+			funcs->get_outbox0_wptr = dmub_dcn42_get_outbox0_wptr;
+			funcs->set_outbox0_rptr = dmub_dcn42_set_outbox0_rptr;
+
+			funcs->get_current_time = dmub_dcn42_get_current_time;
+			funcs->get_diagnostic_data = dmub_dcn42_get_diagnostic_data;
+			funcs->get_preos_fw_info = dmub_dcn42_get_preos_fw_info;
+
+			/*carried from dcn401*/
+			funcs->send_reg_inbox0_cmd_msg = dmub_dcn42_send_reg_inbox0_cmd_msg;
+			funcs->read_reg_inbox0_rsp_int_status = dmub_dcn42_read_reg_inbox0_rsp_int_status;
+			funcs->read_reg_inbox0_cmd_rsp = dmub_dcn42_read_reg_inbox0_cmd_rsp;
+			funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn42_write_reg_inbox0_rsp_int_ack;
+			funcs->clear_reg_inbox0_rsp_int_ack = dmub_dcn42_clear_reg_inbox0_rsp_int_ack;
+			funcs->enable_reg_inbox0_rsp_int = dmub_dcn42_enable_reg_inbox0_rsp_int;
+			default_inbox_type = DMUB_CMD_INTERFACE_FB; /*still default to FB for now*/
+
+			funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn42_write_reg_outbox0_rdy_int_ack;
+			funcs->read_reg_outbox0_msg = dmub_dcn42_read_reg_outbox0_msg;
+			funcs->write_reg_outbox0_rsp = dmub_dcn42_write_reg_outbox0_rsp;
+			funcs->read_reg_outbox0_rdy_int_status = dmub_dcn42_read_reg_outbox0_rdy_int_status;
+			funcs->read_reg_outbox0_rsp_int_status = dmub_dcn42_read_reg_outbox0_rsp_int_status;
+			funcs->enable_reg_inbox0_rsp_int = dmub_dcn42_enable_reg_inbox0_rsp_int;
+			funcs->enable_reg_outbox0_rdy_int = dmub_dcn42_enable_reg_outbox0_rdy_int;
+			funcs->init_reg_offsets = dmub_srv_dcn42_regs_init;
+
+			funcs->is_hw_powered_up = dmub_dcn42_is_hw_powered_up;
+			funcs->should_detect = dmub_dcn42_should_detect;
 			break;
 
 	case DMUB_ASIC_DCN401:

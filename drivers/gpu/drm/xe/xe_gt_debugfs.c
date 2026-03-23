@@ -155,6 +155,30 @@ static int register_save_restore(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+/*
+ * Check the registers referenced on a save-restore list and report any
+ * save-restore entries that did not get applied.
+ */
+static int register_save_restore_check(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL)) {
+		drm_printf(p, "ERROR: Could not acquire forcewake\n");
+		return -ETIMEDOUT;
+	}
+
+	xe_reg_sr_readback_check(&gt->reg_sr, gt, p);
+	for_each_hw_engine(hwe, gt, id)
+		xe_reg_sr_readback_check(&hwe->reg_sr, gt, p);
+	for_each_hw_engine(hwe, gt, id)
+		xe_reg_sr_lrc_check(&hwe->reg_lrc, gt, hwe, p);
+
+	return 0;
+}
+
 static int rcs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_lrc_dump_default(p, gt, XE_ENGINE_CLASS_RENDER);
@@ -209,6 +233,8 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{ "default_lrc_vecs", .show = xe_gt_debugfs_show_with_rpm, .data = vecs_default_lrc },
 	{ "hwconfig", .show = xe_gt_debugfs_show_with_rpm, .data = hwconfig },
 	{ "pat_sw_config", .show = xe_gt_debugfs_simple_show, .data = xe_pat_dump_sw_config },
+	{ "register-save-restore-check",
+		.show = xe_gt_debugfs_show_with_rpm, .data = register_save_restore_check },
 };
 
 /* everything else should be added here */

@@ -142,9 +142,6 @@ query_engine_cycles(struct xe_device *xe,
 		return -EINVAL;
 
 	eci = &resp.eci;
-	if (eci->gt_id >= xe->info.max_gt_per_tile)
-		return -EINVAL;
-
 	gt = xe_device_get_gt(xe, eci->gt_id);
 	if (!gt)
 		return -EINVAL;

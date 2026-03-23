@@ -488,15 +488,11 @@ u32 xe_gt_sriov_vf_gmdid(struct xe_gt *gt)
 static int vf_get_ggtt_info(struct xe_gt *gt)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
-	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	struct xe_guc *guc = &gt->uc.guc;
 	u64 start, size, ggtt_size;
-	s64 shift;
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-
-	guard(mutex)(&ggtt->lock);
 
 	err = guc_action_query_single_klv64(guc, GUC_KLV_VF_CFG_GGTT_START_KEY, &start);
 	if (unlikely(err))
@@ -509,8 +505,21 @@ static int vf_get_ggtt_info(struct xe_gt *gt)
 	if (!size)
 		return -ENODATA;
 
+	xe_tile_sriov_vf_ggtt_base_store(tile, start);
 	ggtt_size = xe_tile_sriov_vf_ggtt(tile);
-	if (ggtt_size && ggtt_size != size) {
+	if (!ggtt_size) {
+		/*
+		 * This function is called once during xe_guc_init_noalloc(),
+		 * at which point ggtt_size = 0 and we have to initialize everything,
+		 * and GGTT is not yet initialized.
+		 *
+		 * Return early as there's nothing to fixup.
+		 */
+		xe_tile_sriov_vf_ggtt_store(tile, size);
+		return 0;
+	}
+
+	if (ggtt_size != size) {
 		xe_gt_sriov_err(gt, "Unexpected GGTT reassignment: %lluK != %lluK\n",
 				size / SZ_1K, ggtt_size / SZ_1K);
 		return -EREMCHG;
@@ -519,21 +528,13 @@ static int vf_get_ggtt_info(struct xe_gt *gt)
 	xe_gt_sriov_dbg_verbose(gt, "GGTT %#llx-%#llx = %lluK\n",
 				start, start + size - 1, size / SZ_1K);
 
-	shift = start - (s64)xe_tile_sriov_vf_ggtt_base(tile);
-	xe_tile_sriov_vf_ggtt_base_store(tile, start);
-	xe_tile_sriov_vf_ggtt_store(tile, size);
-
-	if (shift && shift != start) {
-		xe_gt_sriov_info(gt, "Shifting GGTT base by %lld to 0x%016llx\n",
-				 shift, start);
-		xe_tile_sriov_vf_fixup_ggtt_nodes_locked(gt_to_tile(gt), shift);
-	}
-
-	if (xe_sriov_vf_migration_supported(gt_to_xe(gt))) {
-		WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, false);
-		smp_wmb();	/* Ensure above write visible before wake */
-		wake_up_all(&gt->sriov.vf.migration.wq);
-	}
+	/*
+	 * This function can be called repeatedly from post migration fixups,
+	 * at which point we inform the GGTT of the new base address.
+	 * xe_ggtt_shift_nodes() may be called multiple times for each migration,
+	 * but will be a noop if the base is unchanged.
+	 */
+	xe_ggtt_shift_nodes(tile->mem.ggtt, start);
 
 	return 0;
 }
@@ -837,6 +838,13 @@ static void xe_gt_sriov_vf_default_lrcs_hwsp_rebase(struct xe_gt *gt)
 
 	for_each_hw_engine(hwe, gt, id)
 		xe_default_lrc_update_memirq_regs_with_address(hwe);
+}
+
+static void vf_post_migration_mark_fixups_done(struct xe_gt *gt)
+{
+	WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, false);
+	smp_wmb();	/* Ensure above write visible before wake */
+	wake_up_all(&gt->sriov.vf.migration.wq);
 }
 
 static void vf_start_migration_recovery(struct xe_gt *gt)
@@ -1269,6 +1277,8 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	atomic_inc(&gt->sriov.vf.migration.fixups_complete_count);
+
 	return 0;
 }
 
@@ -1373,6 +1383,7 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 	if (err)
 		goto fail;
 
+	vf_post_migration_mark_fixups_done(gt);
 	vf_post_migration_rearm(gt);
 
 	err = vf_post_migration_resfix_done(gt, marker);
@@ -1507,19 +1518,49 @@ static bool vf_valid_ggtt(struct xe_gt *gt)
 }
 
 /**
- * xe_gt_sriov_vf_wait_valid_ggtt() - VF wait for valid GGTT addresses
- * @gt: the &xe_gt
+ * xe_vf_migration_fixups_complete_count() - Get count of VF fixups completions.
+ * @gt: the &xe_gt instance which contains affected Global GTT
+ *
+ * Return: number of times VF fixups were completed since driver
+ * probe, or 0 if migration is not available, or -1 if fixups are
+ * pending or being applied right now.
  */
-void xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt)
+int xe_vf_migration_fixups_complete_count(struct xe_gt *gt)
+{
+	if (!IS_SRIOV_VF(gt_to_xe(gt)) ||
+	    !xe_sriov_vf_migration_supported(gt_to_xe(gt)))
+		return 0;
+
+	/* should never match fixups_complete_count value */
+	if (!vf_valid_ggtt(gt))
+		return -1;
+
+	return atomic_read(&gt->sriov.vf.migration.fixups_complete_count);
+}
+
+/**
+ * xe_gt_sriov_vf_wait_valid_ggtt() - wait for valid GGTT nodes and address refs
+ * @gt: the &xe_gt instance which contains affected Global GTT
+ *
+ * Return: number of times VF fixups were completed since driver
+ * probe, or 0 if migration is not available.
+ */
+int xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt)
 {
 	int ret;
 
+	/*
+	 * this condition needs to be identical to one in
+	 * xe_vf_migration_fixups_complete_count()
+	 */
 	if (!IS_SRIOV_VF(gt_to_xe(gt)) ||
 	    !xe_sriov_vf_migration_supported(gt_to_xe(gt)))
-		return;
+		return 0;
 
 	ret = wait_event_interruptible_timeout(gt->sriov.vf.migration.wq,
 					       vf_valid_ggtt(gt),
 					       HZ * 5);
 	xe_gt_WARN_ON(gt, !ret);
+
+	return atomic_read(&gt->sriov.vf.migration.fixups_complete_count);
 }

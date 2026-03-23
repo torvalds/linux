@@ -3,12 +3,37 @@
  * Copyright © 2024 Intel Corporation
  */
 
-#include <linux/atomic.h>
-
+#include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
+#include "xe_device.h"
 #include "xe_gt_stats.h"
-#include "xe_gt_types.h"
+
+static void xe_gt_stats_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_gt *gt = arg;
+
+	free_percpu(gt->stats);
+}
+
+/**
+ * xe_gt_stats_init() - Initialize GT statistics
+ * @gt: GT structure
+ *
+ * Allocate per-CPU GT statistics. Using per-CPU stats allows increments
+ * to occur without cross-CPU atomics.
+ *
+ * Return: 0 on success, -ENOMEM on failure.
+ */
+int xe_gt_stats_init(struct xe_gt *gt)
+{
+	gt->stats = alloc_percpu(struct xe_gt_stats);
+	if (!gt->stats)
+		return -ENOMEM;
+
+	return drmm_add_action_or_reset(&gt_to_xe(gt)->drm, xe_gt_stats_fini,
+					gt);
+}
 
 /**
  * xe_gt_stats_incr - Increments the specified stats counter
@@ -23,7 +48,7 @@ void xe_gt_stats_incr(struct xe_gt *gt, const enum xe_gt_stats_id id, int incr)
 	if (id >= __XE_GT_STATS_NUM_IDS)
 		return;
 
-	atomic64_add(incr, &gt->stats.counters[id]);
+	this_cpu_add(gt->stats->counters[id], incr);
 }
 
 #define DEF_STAT_STR(ID, name) [XE_GT_STATS_ID_##ID] = name
@@ -35,6 +60,7 @@ static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
 	DEF_STAT_STR(SVM_TLB_INVAL_US, "svm_tlb_inval_us"),
 	DEF_STAT_STR(VMA_PAGEFAULT_COUNT, "vma_pagefault_count"),
 	DEF_STAT_STR(VMA_PAGEFAULT_KB, "vma_pagefault_kb"),
+	DEF_STAT_STR(INVALID_PREFETCH_PAGEFAULT_COUNT, "invalid_prefetch_pagefault_count"),
 	DEF_STAT_STR(SVM_4K_PAGEFAULT_COUNT, "svm_4K_pagefault_count"),
 	DEF_STAT_STR(SVM_64K_PAGEFAULT_COUNT, "svm_64K_pagefault_count"),
 	DEF_STAT_STR(SVM_2M_PAGEFAULT_COUNT, "svm_2M_pagefault_count"),
@@ -94,23 +120,37 @@ int xe_gt_stats_print_info(struct xe_gt *gt, struct drm_printer *p)
 {
 	enum xe_gt_stats_id id;
 
-	for (id = 0; id < __XE_GT_STATS_NUM_IDS; ++id)
-		drm_printf(p, "%s: %lld\n", stat_description[id],
-			   atomic64_read(&gt->stats.counters[id]));
+	for (id = 0; id < __XE_GT_STATS_NUM_IDS; ++id) {
+		u64 total = 0;
+		int cpu;
+
+		for_each_possible_cpu(cpu) {
+			struct xe_gt_stats *s = per_cpu_ptr(gt->stats, cpu);
+
+			total += s->counters[id];
+		}
+
+		drm_printf(p, "%s: %lld\n", stat_description[id], total);
+	}
 
 	return 0;
 }
 
 /**
- * xe_gt_stats_clear - Clear the GT stats
+ * xe_gt_stats_clear() - Clear the GT stats
  * @gt: GT structure
  *
- * This clear (zeros) all the available GT stats.
+ * Clear (zero) all available GT stats. Note that if the stats are being
+ * updated while this function is running, the results may be unpredictable.
+ * Intended to be called on an idle GPU.
  */
 void xe_gt_stats_clear(struct xe_gt *gt)
 {
-	int id;
+	int cpu;
 
-	for (id = 0; id < ARRAY_SIZE(gt->stats.counters); ++id)
-		atomic64_set(&gt->stats.counters[id], 0);
+	for_each_possible_cpu(cpu) {
+		struct xe_gt_stats *s = per_cpu_ptr(gt->stats, cpu);
+
+		memset(s, 0, sizeof(*s));
+	}
 }

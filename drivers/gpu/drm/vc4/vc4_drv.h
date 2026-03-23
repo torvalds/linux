@@ -791,10 +791,7 @@ struct vc4_exec_info {
 struct vc4_file {
 	struct vc4_dev *dev;
 
-	struct {
-		struct idr idr;
-		struct mutex lock;
-	} perfmon;
+	struct xarray perfmons;
 
 	bool bin_bo_used;
 };

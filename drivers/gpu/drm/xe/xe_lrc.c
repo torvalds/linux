@@ -113,13 +113,17 @@ size_t xe_gt_lrc_hang_replay_size(struct xe_gt *gt, enum xe_engine_class class)
 	/* Engine context image */
 	switch (class) {
 	case XE_ENGINE_CLASS_RENDER:
-		if (GRAPHICS_VER(xe) >= 20)
+		if (GRAPHICS_VERx100(xe) >= 3510)
+			size += 7 * SZ_4K;
+		else if (GRAPHICS_VER(xe) >= 20)
 			size += 3 * SZ_4K;
 		else
 			size += 13 * SZ_4K;
 		break;
 	case XE_ENGINE_CLASS_COMPUTE:
-		if (GRAPHICS_VER(xe) >= 20)
+		if (GRAPHICS_VERx100(xe) >= 3510)
+			size += 5 * SZ_4K;
+		else if (GRAPHICS_VER(xe) >= 20)
 			size += 2 * SZ_4K;
 		else
 			size += 13 * SZ_4K;
@@ -711,11 +715,12 @@ u32 xe_lrc_pphwsp_offset(struct xe_lrc *lrc)
 #define __xe_lrc_pphwsp_offset xe_lrc_pphwsp_offset
 #define __xe_lrc_regs_offset xe_lrc_regs_offset
 
-#define LRC_SEQNO_PPHWSP_OFFSET 512
-#define LRC_START_SEQNO_PPHWSP_OFFSET (LRC_SEQNO_PPHWSP_OFFSET + 8)
-#define LRC_CTX_JOB_TIMESTAMP_OFFSET (LRC_START_SEQNO_PPHWSP_OFFSET + 8)
+#define LRC_CTX_JOB_TIMESTAMP_OFFSET 512
 #define LRC_ENGINE_ID_PPHWSP_OFFSET 1024
 #define LRC_PARALLEL_PPHWSP_OFFSET 2048
+
+#define LRC_SEQNO_OFFSET 0
+#define LRC_START_SEQNO_OFFSET (LRC_SEQNO_OFFSET + 8)
 
 u32 xe_lrc_regs_offset(struct xe_lrc *lrc)
 {
@@ -743,14 +748,12 @@ size_t xe_lrc_skip_size(struct xe_device *xe)
 
 static inline u32 __xe_lrc_seqno_offset(struct xe_lrc *lrc)
 {
-	/* The seqno is stored in the driver-defined portion of PPHWSP */
-	return xe_lrc_pphwsp_offset(lrc) + LRC_SEQNO_PPHWSP_OFFSET;
+	return LRC_SEQNO_OFFSET;
 }
 
 static inline u32 __xe_lrc_start_seqno_offset(struct xe_lrc *lrc)
 {
-	/* The start seqno is stored in the driver-defined portion of PPHWSP */
-	return xe_lrc_pphwsp_offset(lrc) + LRC_START_SEQNO_PPHWSP_OFFSET;
+	return LRC_START_SEQNO_OFFSET;
 }
 
 static u32 __xe_lrc_ctx_job_timestamp_offset(struct xe_lrc *lrc)
@@ -801,10 +804,11 @@ static inline u32 __xe_lrc_wa_bb_offset(struct xe_lrc *lrc)
 	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE;
 }
 
-#define DECL_MAP_ADDR_HELPERS(elem) \
+#define DECL_MAP_ADDR_HELPERS(elem, bo_expr) \
 static inline struct iosys_map __xe_lrc_##elem##_map(struct xe_lrc *lrc) \
 { \
-	struct iosys_map map = lrc->bo->vmap; \
+	struct xe_bo *bo = (bo_expr); \
+	struct iosys_map map = bo->vmap; \
 \
 	xe_assert(lrc_to_xe(lrc), !iosys_map_is_null(&map));  \
 	iosys_map_incr(&map, __xe_lrc_##elem##_offset(lrc)); \
@@ -812,20 +816,22 @@ static inline struct iosys_map __xe_lrc_##elem##_map(struct xe_lrc *lrc) \
 } \
 static inline u32 __maybe_unused __xe_lrc_##elem##_ggtt_addr(struct xe_lrc *lrc) \
 { \
-	return xe_bo_ggtt_addr(lrc->bo) + __xe_lrc_##elem##_offset(lrc); \
+	struct xe_bo *bo = (bo_expr); \
+\
+	return xe_bo_ggtt_addr(bo) + __xe_lrc_##elem##_offset(lrc); \
 } \
 
-DECL_MAP_ADDR_HELPERS(ring)
-DECL_MAP_ADDR_HELPERS(pphwsp)
-DECL_MAP_ADDR_HELPERS(seqno)
-DECL_MAP_ADDR_HELPERS(regs)
-DECL_MAP_ADDR_HELPERS(start_seqno)
-DECL_MAP_ADDR_HELPERS(ctx_job_timestamp)
-DECL_MAP_ADDR_HELPERS(ctx_timestamp)
-DECL_MAP_ADDR_HELPERS(ctx_timestamp_udw)
-DECL_MAP_ADDR_HELPERS(parallel)
-DECL_MAP_ADDR_HELPERS(indirect_ring)
-DECL_MAP_ADDR_HELPERS(engine_id)
+DECL_MAP_ADDR_HELPERS(ring, lrc->bo)
+DECL_MAP_ADDR_HELPERS(pphwsp, lrc->bo)
+DECL_MAP_ADDR_HELPERS(seqno, lrc->seqno_bo)
+DECL_MAP_ADDR_HELPERS(regs, lrc->bo)
+DECL_MAP_ADDR_HELPERS(start_seqno, lrc->seqno_bo)
+DECL_MAP_ADDR_HELPERS(ctx_job_timestamp, lrc->bo)
+DECL_MAP_ADDR_HELPERS(ctx_timestamp, lrc->bo)
+DECL_MAP_ADDR_HELPERS(ctx_timestamp_udw, lrc->bo)
+DECL_MAP_ADDR_HELPERS(parallel, lrc->bo)
+DECL_MAP_ADDR_HELPERS(indirect_ring, lrc->bo)
+DECL_MAP_ADDR_HELPERS(engine_id, lrc->bo)
 
 #undef DECL_MAP_ADDR_HELPERS
 
@@ -1032,6 +1038,7 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
 {
 	xe_hw_fence_ctx_finish(&lrc->fence_ctx);
 	xe_bo_unpin_map_no_vm(lrc->bo);
+	xe_bo_unpin_map_no_vm(lrc->seqno_bo);
 }
 
 /*
@@ -1431,52 +1438,15 @@ void xe_lrc_set_multi_queue_priority(struct xe_lrc *lrc, enum xe_multi_queue_pri
 	lrc->desc |= FIELD_PREP(LRC_PRIORITY, xe_multi_queue_prio_to_lrc(lrc, priority));
 }
 
-static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		       struct xe_vm *vm, void *replay_state, u32 ring_size,
-		       u16 msix_vec,
-		       u32 init_flags)
+static int xe_lrc_ctx_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct xe_vm *vm,
+			   void *replay_state, u16 msix_vec, u32 init_flags)
 {
 	struct xe_gt *gt = hwe->gt;
-	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
-	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct iosys_map map;
 	u32 arb_enable;
-	u32 bo_flags;
 	int err;
-
-	kref_init(&lrc->refcount);
-	lrc->gt = gt;
-	lrc->replay_size = xe_gt_lrc_hang_replay_size(gt, hwe->class);
-	lrc->size = lrc_size;
-	lrc->flags = 0;
-	lrc->ring.size = ring_size;
-	lrc->ring.tail = 0;
-
-	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
-		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
-		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
-	}
-
-	if (xe_gt_has_indirect_ring_state(gt))
-		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
-
-	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
-		   XE_BO_FLAG_GGTT_INVALIDATE;
-
-	if ((vm && vm->xef) || init_flags & XE_LRC_CREATE_USER_CTX) /* userspace */
-		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
-
-	lrc->bo = xe_bo_create_pin_map_novm(xe, tile,
-					    bo_size,
-					    ttm_bo_type_kernel,
-					    bo_flags, false);
-	if (IS_ERR(lrc->bo))
-		return PTR_ERR(lrc->bo);
-
-	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
-			     hwe->fence_irq, hwe->name);
 
 	/*
 	 * Init Per-Process of HW status Page, LRC / context state to known
@@ -1489,7 +1459,7 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_map_memset(xe, &map, 0, 0, LRC_PPHWSP_SIZE);	/* PPHWSP */
 		xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 				 gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE,
-				 lrc_size - LRC_PPHWSP_SIZE);
+				 lrc->size - LRC_PPHWSP_SIZE);
 		if (replay_state)
 			xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 					 replay_state, lrc->replay_size);
@@ -1497,20 +1467,15 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		void *init_data = empty_lrc_data(hwe);
 
 		if (!init_data) {
-			err = -ENOMEM;
-			goto err_lrc_finish;
+			return -ENOMEM;
 		}
 
-		xe_map_memcpy_to(xe, &map, 0, init_data, lrc_size);
+		xe_map_memcpy_to(xe, &map, 0, init_data, lrc->size);
 		kfree(init_data);
 	}
 
-	if (vm) {
+	if (vm)
 		xe_lrc_set_ppgtt(lrc, vm);
-
-		if (vm->xef)
-			xe_drm_client_add_bo(vm->xef->client, lrc->bo);
-	}
 
 	if (xe_device_has_msix(xe)) {
 		xe_lrc_write_ctx_reg(lrc, CTX_INT_STATUS_REPORT_PTR,
@@ -1527,14 +1492,20 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START,
 					      __xe_lrc_ring_ggtt_addr(lrc));
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START_UDW, 0);
-		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, 0);
+
+		/* Match head and tail pointers */
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, lrc->ring.tail);
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_TAIL, lrc->ring.tail);
+
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_CTL,
 					      RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	} else {
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_START, __xe_lrc_ring_ggtt_addr(lrc));
-		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, 0);
+
+		/* Match head and tail pointers */
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, lrc->ring.tail);
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
+
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
 				     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	}
@@ -1583,11 +1554,75 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	err = setup_wa_bb(lrc, hwe);
 	if (err)
-		goto err_lrc_finish;
+		return err;
 
 	err = setup_indirect_ctx(lrc, hwe);
+
+	return err;
+}
+
+static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct xe_vm *vm,
+		       void *replay_state, u32 ring_size, u16 msix_vec, u32 init_flags)
+{
+	struct xe_gt *gt = hwe->gt;
+	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
+	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_bo *bo;
+	u32 bo_flags;
+	int err;
+
+	kref_init(&lrc->refcount);
+	lrc->gt = gt;
+	lrc->replay_size = xe_gt_lrc_hang_replay_size(gt, hwe->class);
+	lrc->size = lrc_size;
+	lrc->flags = 0;
+	lrc->ring.size = ring_size;
+	lrc->ring.tail = 0;
+
+	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
+		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
+	}
+
+	if (xe_gt_has_indirect_ring_state(gt))
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
+
+	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
+		   XE_BO_FLAG_GGTT_INVALIDATE;
+
+	if ((vm && vm->xef) || init_flags & XE_LRC_CREATE_USER_CTX) /* userspace */
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
+
+	bo = xe_bo_create_pin_map_novm(xe, tile, bo_size,
+				       ttm_bo_type_kernel,
+				       bo_flags, false);
+	if (IS_ERR(lrc->bo))
+		return PTR_ERR(lrc->bo);
+
+	lrc->bo = bo;
+
+	bo = xe_bo_create_pin_map_novm(xe, tile, PAGE_SIZE,
+				       ttm_bo_type_kernel,
+				       XE_BO_FLAG_GGTT |
+				       XE_BO_FLAG_GGTT_INVALIDATE |
+				       XE_BO_FLAG_SYSTEM, false);
+	if (IS_ERR(bo)) {
+		err = PTR_ERR(bo);
+		goto err_lrc_finish;
+	}
+	lrc->seqno_bo = bo;
+
+	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
+			     hwe->fence_irq, hwe->name);
+
+	err = xe_lrc_ctx_init(lrc, hwe, vm, replay_state, msix_vec, init_flags);
 	if (err)
 		goto err_lrc_finish;
+
+	if (vm && vm->xef)
+		xe_drm_client_add_bo(vm->xef->client, lrc->bo);
 
 	return 0;
 
@@ -1966,6 +2001,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH(PIPELINE_SELECT);
 
 	MATCH3D(3DSTATE_DRAWING_RECTANGLE_FAST);
+	MATCH3D(3DSTATE_CUSTOM_SAMPLE_PATTERN);
 	MATCH3D(3DSTATE_CLEAR_PARAMS);
 	MATCH3D(3DSTATE_DEPTH_BUFFER);
 	MATCH3D(3DSTATE_STENCIL_BUFFER);
@@ -2049,8 +2085,16 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_SBE_MESH);
 	MATCH3D(3DSTATE_CPSIZE_CONTROL_BUFFER);
 	MATCH3D(3DSTATE_COARSE_PIXEL);
+	MATCH3D(3DSTATE_MESH_SHADER_DATA_EXT);
+	MATCH3D(3DSTATE_TASK_SHADER_DATA_EXT);
+	MATCH3D(3DSTATE_VIEWPORT_STATE_POINTERS_CC_2);
+	MATCH3D(3DSTATE_CC_STATE_POINTERS_2);
+	MATCH3D(3DSTATE_SCISSOR_STATE_POINTERS_2);
+	MATCH3D(3DSTATE_BLEND_STATE_POINTERS_2);
+	MATCH3D(3DSTATE_VIEWPORT_STATE_POINTERS_SF_CLIP_2);
 
 	MATCH3D(3DSTATE_DRAWING_RECTANGLE);
+	MATCH3D(3DSTATE_URB_MEMORY);
 	MATCH3D(3DSTATE_CHROMA_KEY);
 	MATCH3D(3DSTATE_POLY_STIPPLE_OFFSET);
 	MATCH3D(3DSTATE_POLY_STIPPLE_PATTERN);
@@ -2070,6 +2114,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_SUBSLICE_HASH_TABLE);
 	MATCH3D(3DSTATE_SLICE_TABLE_STATE_POINTERS);
 	MATCH3D(3DSTATE_PTBR_TILE_PASS_INFO);
+	MATCH3D(3DSTATE_SLICE_TABLE_STATE_POINTER_2);
 
 	default:
 		drm_printf(p, "[%#010x] unknown GFXPIPE command (pipeline=%#x, opcode=%#x, subopcode=%#x), likely %d dwords\n",
@@ -2139,6 +2184,102 @@ void xe_lrc_dump_default(struct drm_printer *p,
 		dw += num_dw;
 		remaining_dw -= num_dw;
 	}
+}
+
+/*
+ * Lookup the value of a register within the offset/value pairs of an
+ * MI_LOAD_REGISTER_IMM instruction.
+ *
+ * Return -ENOENT if the register is not present in the MI_LRI instruction.
+ */
+static int lookup_reg_in_mi_lri(u32 offset, u32 *value,
+				const u32 *dword_pair, int num_regs)
+{
+	for (int i = 0; i < num_regs; i++) {
+		if (dword_pair[2 * i] == offset) {
+			*value = dword_pair[2 * i + 1];
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/*
+ * Lookup the value of a register in a specific engine type's default LRC.
+ *
+ * Return -EINVAL if the default LRC doesn't exist, or ENOENT if the register
+ * cannot be found in the default LRC.
+ */
+int xe_lrc_lookup_default_reg_value(struct xe_gt *gt,
+				    enum xe_engine_class hwe_class,
+				    u32 offset,
+				    u32 *value)
+{
+	u32 *dw;
+	int remaining_dw, ret;
+
+	if (!gt->default_lrc[hwe_class])
+		return -EINVAL;
+
+	/*
+	 * Skip the beginning of the LRC since it contains the per-process
+	 * hardware status page.
+	 */
+	dw = gt->default_lrc[hwe_class] + LRC_PPHWSP_SIZE;
+	remaining_dw = (xe_gt_lrc_size(gt, hwe_class) - LRC_PPHWSP_SIZE) / 4;
+
+	while (remaining_dw > 0) {
+		u32 num_dw = instr_dw(*dw);
+
+		if (num_dw > remaining_dw)
+			num_dw = remaining_dw;
+
+		switch (*dw & XE_INSTR_CMD_TYPE) {
+		case XE_INSTR_MI:
+			switch (*dw & MI_OPCODE) {
+			case MI_BATCH_BUFFER_END:
+				/* End of LRC; register not found */
+				return -ENOENT;
+
+			case MI_NOOP:
+			case MI_TOPOLOGY_FILTER:
+				/*
+				 * MI_NOOP and MI_TOPOLOGY_FILTER don't have
+				 * a length field and are always 1-dword
+				 * instructions.
+				 */
+				remaining_dw--;
+				dw++;
+				break;
+
+			case MI_LOAD_REGISTER_IMM:
+				ret = lookup_reg_in_mi_lri(offset, value,
+							   dw + 1, (num_dw - 1) / 2);
+				if (ret == 0)
+					return 0;
+
+				fallthrough;
+
+			default:
+				/*
+				 * Jump to next instruction based on length
+				 * field.
+				 */
+				remaining_dw -= num_dw;
+				dw += num_dw;
+				break;
+			}
+			break;
+
+		default:
+			/* Jump to next instruction based on length field. */
+			remaining_dw -= num_dw;
+			dw += num_dw;
+		}
+	}
+
+	return -ENOENT;
 }
 
 struct instr_state {

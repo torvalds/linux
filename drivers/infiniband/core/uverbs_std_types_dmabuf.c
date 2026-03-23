@@ -169,7 +169,7 @@ static void uverbs_dmabuf_fd_destroy_uobj(struct ib_uobject *uobj,
 	if (!uverbs_dmabuf->revoked) {
 		uverbs_dmabuf->revoked = true;
 		list_del(&uverbs_dmabuf->dmabufs_elm);
-		dma_buf_move_notify(uverbs_dmabuf->dmabuf);
+		dma_buf_invalidate_mappings(uverbs_dmabuf->dmabuf);
 		dma_resv_wait_timeout(uverbs_dmabuf->dmabuf->resv,
 				      DMA_RESV_USAGE_BOOKKEEP, false,
 				      MAX_SCHEDULE_TIMEOUT);

@@ -24,6 +24,10 @@ int xe_sriov_pf_provision_bulk_apply_priority(struct xe_device *xe, u32 prio);
 int xe_sriov_pf_provision_apply_vf_priority(struct xe_device *xe, unsigned int vfid, u32 prio);
 int xe_sriov_pf_provision_query_vf_priority(struct xe_device *xe, unsigned int vfid, u32 *prio);
 
+int xe_sriov_pf_provision_bulk_apply_vram(struct xe_device *xe, u64 size);
+int xe_sriov_pf_provision_apply_vf_vram(struct xe_device *xe, unsigned int vfid, u64 size);
+int xe_sriov_pf_provision_query_vf_vram(struct xe_device *xe, unsigned int vfid, u64 *size);
+
 int xe_sriov_pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs);
 int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs);
 

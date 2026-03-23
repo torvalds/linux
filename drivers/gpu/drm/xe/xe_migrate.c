@@ -25,6 +25,7 @@
 #include "xe_exec_queue.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
@@ -1148,65 +1149,73 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
 		size -= src_L0;
 	}
 
+	bb = xe_bb_alloc(gt);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
 	bb_pool = ctx->mem.ccs_bb_pool;
-	guard(mutex) (xe_sa_bo_swap_guard(bb_pool));
-	xe_sa_bo_swap_shadow(bb_pool);
+	scoped_guard(mutex, xe_sa_bo_swap_guard(bb_pool)) {
+		xe_sa_bo_swap_shadow(bb_pool);
 
-	bb = xe_bb_ccs_new(gt, batch_size, read_write);
-	if (IS_ERR(bb)) {
-		drm_err(&xe->drm, "BB allocation failed.\n");
-		err = PTR_ERR(bb);
-		return err;
+		err = xe_bb_init(bb, bb_pool, batch_size);
+		if (err) {
+			xe_gt_err(gt, "BB allocation failed.\n");
+			xe_bb_free(bb, NULL);
+			return err;
+		}
+
+		batch_size_allocated = batch_size;
+		size = xe_bo_size(src_bo);
+		batch_size = 0;
+
+		/*
+		 * Emit PTE and copy commands here.
+		 * The CCS copy command can only support limited size. If the size to be
+		 * copied is more than the limit, divide copy into chunks. So, calculate
+		 * sizes here again before copy command is emitted.
+		 */
+
+		while (size) {
+			batch_size += 10; /* Flush + ggtt addr + 2 NOP */
+			u32 flush_flags = 0;
+			u64 ccs_ofs, ccs_size;
+			u32 ccs_pt;
+
+			u32 avail_pts = max_mem_transfer_per_pass(xe) /
+					LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+
+			src_L0 = xe_migrate_res_sizes(m, &src_it);
+
+			batch_size += pte_update_size(m, false, src, &src_it, &src_L0,
+						      &src_L0_ofs, &src_L0_pt, 0, 0,
+						      avail_pts);
+
+			ccs_size = xe_device_ccs_bytes(xe, src_L0);
+			batch_size += pte_update_size(m, 0, NULL, &ccs_it, &ccs_size, &ccs_ofs,
+						      &ccs_pt, 0, avail_pts, avail_pts);
+			xe_assert(xe, IS_ALIGNED(ccs_it.start, PAGE_SIZE));
+			batch_size += EMIT_COPY_CCS_DW;
+
+			emit_pte(m, bb, src_L0_pt, false, true, &src_it, src_L0, src);
+
+			emit_pte(m, bb, ccs_pt, false, false, &ccs_it, ccs_size, src);
+
+			bb->len = emit_flush_invalidate(bb->cs, bb->len, flush_flags);
+			flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_pltt,
+							  src_L0_ofs, dst_is_pltt,
+							  src_L0, ccs_ofs, true);
+			bb->len = emit_flush_invalidate(bb->cs, bb->len, flush_flags);
+
+			size -= src_L0;
+		}
+
+		xe_assert(xe, (batch_size_allocated == bb->len));
+		src_bo->bb_ccs[read_write] = bb;
+
+		xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
+		xe_sa_bo_sync_shadow(bb->bo);
 	}
 
-	batch_size_allocated = batch_size;
-	size = xe_bo_size(src_bo);
-	batch_size = 0;
-
-	/*
-	 * Emit PTE and copy commands here.
-	 * The CCS copy command can only support limited size. If the size to be
-	 * copied is more than the limit, divide copy into chunks. So, calculate
-	 * sizes here again before copy command is emitted.
-	 */
-	while (size) {
-		batch_size += 10; /* Flush + ggtt addr + 2 NOP */
-		u32 flush_flags = 0;
-		u64 ccs_ofs, ccs_size;
-		u32 ccs_pt;
-
-		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
-
-		src_L0 = xe_migrate_res_sizes(m, &src_it);
-
-		batch_size += pte_update_size(m, false, src, &src_it, &src_L0,
-					      &src_L0_ofs, &src_L0_pt, 0, 0,
-					      avail_pts);
-
-		ccs_size = xe_device_ccs_bytes(xe, src_L0);
-		batch_size += pte_update_size(m, 0, NULL, &ccs_it, &ccs_size, &ccs_ofs,
-					      &ccs_pt, 0, avail_pts, avail_pts);
-		xe_assert(xe, IS_ALIGNED(ccs_it.start, PAGE_SIZE));
-		batch_size += EMIT_COPY_CCS_DW;
-
-		emit_pte(m, bb, src_L0_pt, false, true, &src_it, src_L0, src);
-
-		emit_pte(m, bb, ccs_pt, false, false, &ccs_it, ccs_size, src);
-
-		bb->len = emit_flush_invalidate(bb->cs, bb->len, flush_flags);
-		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_pltt,
-						  src_L0_ofs, dst_is_pltt,
-						  src_L0, ccs_ofs, true);
-		bb->len = emit_flush_invalidate(bb->cs, bb->len, flush_flags);
-
-		size -= src_L0;
-	}
-
-	xe_assert(xe, (batch_size_allocated == bb->len));
-	src_bo->bb_ccs[read_write] = bb;
-
-	xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
-	xe_sa_bo_sync_shadow(bb->bo);
 	return 0;
 }
 

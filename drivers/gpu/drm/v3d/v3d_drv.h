@@ -220,10 +220,7 @@ v3d_has_csd(struct v3d_dev *v3d)
 struct v3d_file_priv {
 	struct v3d_dev *v3d;
 
-	struct {
-		struct idr idr;
-		struct mutex lock;
-	} perfmon;
+	struct xarray perfmons;
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 

@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -748,120 +749,6 @@ static struct i2c_adapter *dw_hdmi_qp_i2c_adapter(struct dw_hdmi_qp *hdmi)
 	return adap;
 }
 
-static int dw_hdmi_qp_config_avi_infoframe(struct dw_hdmi_qp *hdmi,
-					   const u8 *buffer, size_t len)
-{
-	u32 val, i, j;
-
-	if (len != HDMI_INFOFRAME_SIZE(AVI)) {
-		dev_err(hdmi->dev, "failed to configure avi infoframe\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * DW HDMI QP IP uses a different byte format from standard AVI info
-	 * frames, though generally the bits are in the correct bytes.
-	 */
-	val = buffer[1] << 8 | buffer[2] << 16;
-	dw_hdmi_qp_write(hdmi, val, PKT_AVI_CONTENTS0);
-
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < 4; j++) {
-			if (i * 4 + j >= 14)
-				break;
-			if (!j)
-				val = buffer[i * 4 + j + 3];
-			val |= buffer[i * 4 + j + 3] << (8 * j);
-		}
-
-		dw_hdmi_qp_write(hdmi, val, PKT_AVI_CONTENTS1 + i * 4);
-	}
-
-	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_AVI_FIELDRATE, PKTSCHED_PKT_CONFIG1);
-
-	dw_hdmi_qp_mod(hdmi, PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN,
-		       PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
-
-	return 0;
-}
-
-static int dw_hdmi_qp_config_drm_infoframe(struct dw_hdmi_qp *hdmi,
-					   const u8 *buffer, size_t len)
-{
-	u32 val, i;
-
-	if (len != HDMI_INFOFRAME_SIZE(DRM)) {
-		dev_err(hdmi->dev, "failed to configure drm infoframe\n");
-		return -EINVAL;
-	}
-
-	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_TX_EN, PKTSCHED_PKT_EN);
-
-	val = buffer[1] << 8 | buffer[2] << 16;
-	dw_hdmi_qp_write(hdmi, val, PKT_DRMI_CONTENTS0);
-
-	for (i = 0; i <= buffer[2]; i++) {
-		if (i % 4 == 0)
-			val = buffer[3 + i];
-		val |= buffer[3 + i] << ((i % 4) * 8);
-
-		if ((i % 4 == 3) || i == buffer[2])
-			dw_hdmi_qp_write(hdmi, val,
-					 PKT_DRMI_CONTENTS1 + ((i / 4) * 4));
-	}
-
-	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_FIELDRATE, PKTSCHED_PKT_CONFIG1);
-	dw_hdmi_qp_mod(hdmi, PKTSCHED_DRMI_TX_EN, PKTSCHED_DRMI_TX_EN,
-		       PKTSCHED_PKT_EN);
-
-	return 0;
-}
-
-/*
- * Static values documented in the TRM
- * Different values are only used for debug purposes
- */
-#define DW_HDMI_QP_AUDIO_INFOFRAME_HB1	0x1
-#define DW_HDMI_QP_AUDIO_INFOFRAME_HB2	0xa
-
-static int dw_hdmi_qp_config_audio_infoframe(struct dw_hdmi_qp *hdmi,
-					     const u8 *buffer, size_t len)
-{
-	/*
-	 * AUDI_CONTENTS0: { RSV, HB2, HB1, RSV }
-	 * AUDI_CONTENTS1: { PB3, PB2, PB1, PB0 }
-	 * AUDI_CONTENTS2: { PB7, PB6, PB5, PB4 }
-	 *
-	 * PB0: CheckSum
-	 * PB1: | CT3    | CT2  | CT1  | CT0  | F13  | CC2 | CC1 | CC0 |
-	 * PB2: | F27    | F26  | F25  | SF2  | SF1  | SF0 | SS1 | SS0 |
-	 * PB3: | F37    | F36  | F35  | F34  | F33  | F32 | F31 | F30 |
-	 * PB4: | CA7    | CA6  | CA5  | CA4  | CA3  | CA2 | CA1 | CA0 |
-	 * PB5: | DM_INH | LSV3 | LSV2 | LSV1 | LSV0 | F52 | F51 | F50 |
-	 * PB6~PB10: Reserved
-	 *
-	 * AUDI_CONTENTS0 default value defined by HDMI specification,
-	 * and shall only be changed for debug purposes.
-	 */
-	u32 header_bytes = (DW_HDMI_QP_AUDIO_INFOFRAME_HB1 << 8) |
-			  (DW_HDMI_QP_AUDIO_INFOFRAME_HB2 << 16);
-
-	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS0, &header_bytes, 1);
-	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS1, &buffer[3], 1);
-	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS2, &buffer[4], 1);
-
-	/* Enable ACR, AUDI, AMD */
-	dw_hdmi_qp_mod(hdmi,
-		       PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		       PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		       PKTSCHED_PKT_EN);
-
-	/* Enable AUDS */
-	dw_hdmi_qp_mod(hdmi, PKTSCHED_AUDS_TX_EN, PKTSCHED_AUDS_TX_EN, PKTSCHED_PKT_EN);
-
-	return 0;
-}
-
 static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 					    struct drm_atomic_state *state)
 {
@@ -970,9 +857,9 @@ static int dw_hdmi_qp_bridge_clear_avi_infoframe(struct drm_bridge *bridge)
 
 static int dw_hdmi_qp_bridge_clear_hdmi_infoframe(struct drm_bridge *bridge)
 {
-	/* FIXME: add support for this InfoFrame */
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
-	drm_warn_once(bridge->encoder->dev, "HDMI VSI not supported\n");
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_VSI_TX_EN, PKTSCHED_PKT_EN);
 
 	return 0;
 }
@@ -982,6 +869,15 @@ static int dw_hdmi_qp_bridge_clear_hdr_drm_infoframe(struct drm_bridge *bridge)
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
 	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_TX_EN, PKTSCHED_PKT_EN);
+
+	return 0;
+}
+
+static int dw_hdmi_qp_bridge_clear_spd_infoframe(struct drm_bridge *bridge)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_SPDI_TX_EN, PKTSCHED_PKT_EN);
 
 	return 0;
 }
@@ -999,6 +895,32 @@ static int dw_hdmi_qp_bridge_clear_audio_infoframe(struct drm_bridge *bridge)
 	return 0;
 }
 
+static void dw_hdmi_qp_write_pkt(struct dw_hdmi_qp *hdmi, const u8 *buffer,
+				 size_t start, size_t len, unsigned int reg)
+{
+	u32 val = 0;
+	size_t i;
+
+	for (i = start; i < start + len; i++)
+		val |= buffer[i] << ((i % 4) * BITS_PER_BYTE);
+
+	dw_hdmi_qp_write(hdmi, val, reg);
+}
+
+static void dw_hdmi_qp_write_infoframe(struct dw_hdmi_qp *hdmi, const u8 *buffer,
+				       size_t len, unsigned int reg)
+{
+	size_t i;
+
+	/* InfoFrame packet header */
+	dw_hdmi_qp_write_pkt(hdmi, buffer, 1, 2, reg);
+
+	/* InfoFrame packet body */
+	for (i = 0; i < len - 3; i += 4)
+		dw_hdmi_qp_write_pkt(hdmi, buffer + 3, i, min(len - i - 3, 4),
+				     reg + i + 4);
+}
+
 static int dw_hdmi_qp_bridge_write_avi_infoframe(struct drm_bridge *bridge,
 						 const u8 *buffer, size_t len)
 {
@@ -1006,15 +928,27 @@ static int dw_hdmi_qp_bridge_write_avi_infoframe(struct drm_bridge *bridge,
 
 	dw_hdmi_qp_bridge_clear_avi_infoframe(bridge);
 
-	return dw_hdmi_qp_config_avi_infoframe(hdmi, buffer, len);
+	dw_hdmi_qp_write_infoframe(hdmi, buffer, len, PKT_AVI_CONTENTS0);
+
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_AVI_FIELDRATE, PKTSCHED_PKT_CONFIG1);
+	dw_hdmi_qp_mod(hdmi, PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN,
+		       PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
+
+	return 0;
 }
 
 static int dw_hdmi_qp_bridge_write_hdmi_infoframe(struct drm_bridge *bridge,
 						  const u8 *buffer, size_t len)
 {
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
 	dw_hdmi_qp_bridge_clear_hdmi_infoframe(bridge);
 
-	/* FIXME: add support for the HDMI VSI */
+	dw_hdmi_qp_write_infoframe(hdmi, buffer, len, PKT_VSI_CONTENTS0);
+
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_VSI_FIELDRATE, PKTSCHED_PKT_CONFIG1);
+	dw_hdmi_qp_mod(hdmi, PKTSCHED_VSI_TX_EN, PKTSCHED_VSI_TX_EN,
+		       PKTSCHED_PKT_EN);
 
 	return 0;
 }
@@ -1026,7 +960,28 @@ static int dw_hdmi_qp_bridge_write_hdr_drm_infoframe(struct drm_bridge *bridge,
 
 	dw_hdmi_qp_bridge_clear_hdr_drm_infoframe(bridge);
 
-	return dw_hdmi_qp_config_drm_infoframe(hdmi, buffer, len);
+	dw_hdmi_qp_write_infoframe(hdmi, buffer, len, PKT_DRMI_CONTENTS0);
+
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_FIELDRATE, PKTSCHED_PKT_CONFIG1);
+	dw_hdmi_qp_mod(hdmi, PKTSCHED_DRMI_TX_EN, PKTSCHED_DRMI_TX_EN,
+		       PKTSCHED_PKT_EN);
+
+	return 0;
+}
+
+static int dw_hdmi_qp_bridge_write_spd_infoframe(struct drm_bridge *bridge,
+						 const u8 *buffer, size_t len)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
+	dw_hdmi_qp_bridge_clear_spd_infoframe(bridge);
+
+	dw_hdmi_qp_write_infoframe(hdmi, buffer, len, PKT_SPDI_CONTENTS0);
+
+	dw_hdmi_qp_mod(hdmi, PKTSCHED_SPDI_TX_EN, PKTSCHED_SPDI_TX_EN,
+		       PKTSCHED_PKT_EN);
+
+	return 0;
 }
 
 static int dw_hdmi_qp_bridge_write_audio_infoframe(struct drm_bridge *bridge,
@@ -1036,7 +991,31 @@ static int dw_hdmi_qp_bridge_write_audio_infoframe(struct drm_bridge *bridge,
 
 	dw_hdmi_qp_bridge_clear_audio_infoframe(bridge);
 
-	return dw_hdmi_qp_config_audio_infoframe(hdmi, buffer, len);
+	/*
+	 * AUDI_CONTENTS0: { RSV, HB2, HB1, RSV }
+	 * AUDI_CONTENTS1: { PB3, PB2, PB1, PB0 }
+	 * AUDI_CONTENTS2: { PB7, PB6, PB5, PB4 }
+	 *
+	 * PB0: CheckSum
+	 * PB1: | CT3    | CT2  | CT1  | CT0  | F13  | CC2 | CC1 | CC0 |
+	 * PB2: | F27    | F26  | F25  | SF2  | SF1  | SF0 | SS1 | SS0 |
+	 * PB3: | F37    | F36  | F35  | F34  | F33  | F32 | F31 | F30 |
+	 * PB4: | CA7    | CA6  | CA5  | CA4  | CA3  | CA2 | CA1 | CA0 |
+	 * PB5: | DM_INH | LSV3 | LSV2 | LSV1 | LSV0 | F52 | F51 | F50 |
+	 * PB6~PB10: Reserved
+	 */
+	dw_hdmi_qp_write_infoframe(hdmi, buffer, len, PKT_AUDI_CONTENTS0);
+
+	/* Enable ACR, AUDI, AMD */
+	dw_hdmi_qp_mod(hdmi,
+		       PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+		       PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+		       PKTSCHED_PKT_EN);
+
+	/* Enable AUDS */
+	dw_hdmi_qp_mod(hdmi, PKTSCHED_AUDS_TX_EN, PKTSCHED_AUDS_TX_EN, PKTSCHED_PKT_EN);
+
+	return 0;
 }
 
 #ifdef CONFIG_DRM_DW_HDMI_QP_CEC
@@ -1227,6 +1206,8 @@ static const struct drm_bridge_funcs dw_hdmi_qp_bridge_funcs = {
 	.hdmi_write_hdmi_infoframe = dw_hdmi_qp_bridge_write_hdmi_infoframe,
 	.hdmi_clear_hdr_drm_infoframe = dw_hdmi_qp_bridge_clear_hdr_drm_infoframe,
 	.hdmi_write_hdr_drm_infoframe = dw_hdmi_qp_bridge_write_hdr_drm_infoframe,
+	.hdmi_clear_spd_infoframe = dw_hdmi_qp_bridge_clear_spd_infoframe,
+	.hdmi_write_spd_infoframe = dw_hdmi_qp_bridge_write_spd_infoframe,
 	.hdmi_clear_audio_infoframe = dw_hdmi_qp_bridge_clear_audio_infoframe,
 	.hdmi_write_audio_infoframe = dw_hdmi_qp_bridge_write_audio_infoframe,
 	.hdmi_audio_startup = dw_hdmi_qp_audio_enable,
@@ -1344,7 +1325,8 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 			   DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HDMI |
 			   DRM_BRIDGE_OP_HDMI_AUDIO |
-			   DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME;
+			   DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME |
+			   DRM_BRIDGE_OP_HDMI_SPD_INFOFRAME;
 	if (!hdmi->no_hpd)
 		hdmi->bridge.ops |= DRM_BRIDGE_OP_HPD;
 	hdmi->bridge.of_node = pdev->dev.of_node;

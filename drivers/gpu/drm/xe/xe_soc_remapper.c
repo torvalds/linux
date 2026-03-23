@@ -4,6 +4,7 @@
  */
 
 #include "regs/xe_soc_remapper_regs.h"
+#include "xe_device.h"
 #include "xe_mmio.h"
 #include "xe_soc_remapper.h"
 

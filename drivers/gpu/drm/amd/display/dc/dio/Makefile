@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2020-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -123,4 +123,13 @@ DIO_DCN401 = dcn401_dio_link_encoder.o dcn401_dio_stream_encoder.o
 AMD_DAL_DIO_DCN401 = $(addprefix $(AMDDALPATH)/dc/dio/dcn401/,$(DIO_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN401)
+
+###############################################################################
+# DCN42
+###############################################################################
+DIO_DCN42 = dcn42_dio_link_encoder.o dcn42_dio_stream_encoder.o
+
+AMD_DAL_DIO_DCN42 = $(addprefix $(AMDDALPATH)/dc/dio/dcn42/,$(DIO_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN42)
 endif

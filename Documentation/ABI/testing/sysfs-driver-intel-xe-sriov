@@ -129,6 +129,37 @@ Description:
 			-EIO if FW refuses to change the provisioning.
 
 
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/.bulk_profile/vram_quota
+What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/profile/vram_quota
+Date:		February 2026
+KernelVersion:	7.0
+Contact:	intel-xe@lists.freedesktop.org
+Description:
+		These files allow to perform initial VFs VRAM provisioning prior to VFs
+		enabling or to change VFs VRAM provisioning once the VFs are enabled.
+		Any non-zero initial VRAM provisioning will block VFs auto-provisioning.
+		Without initial VRAM provisioning those files will show result of the
+		VRAM auto-provisioning performed by the PF once the VFs are enabled.
+		Once the VFs are disabled, all VRAM provisioning will be released.
+		These files are visible only on discrete Intel Xe platforms with VRAM
+		and are writeable only if dynamic VFs VRAM provisioning is supported.
+
+		.bulk_profile/vram_quota: (WO) unsigned integer
+			The amount of the provisioned VRAM in [bytes] for each VF.
+			Actual quota value might be aligned per HW/FW requirements.
+
+		profile/vram_quota: (RW) unsigned integer
+			The amount of the provisioned VRAM in [bytes] for this VF.
+			Actual quota value might be aligned per HW/FW requirements.
+
+			Default is 0 (unprovisioned).
+
+		Writes to these attributes may fail with errors like:
+			-EINVAL if provided input is malformed or not recognized,
+			-EPERM if change is not applicable on given HW/FW,
+			-EIO if FW refuses to change the provisioning.
+
+
 What:		/sys/bus/pci/drivers/xe/.../sriov_admin/vf<n>/stop
 Date:		October 2025
 KernelVersion:	6.19

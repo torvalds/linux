@@ -1173,6 +1173,11 @@ static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
 	{ DRM_MODE_LINK_STATUS_BAD, "Bad" },
 };
 
+static const struct drm_prop_enum_list drm_panel_type_enum_list[] = {
+	{ DRM_MODE_PANEL_TYPE_UNKNOWN, "unknown" },
+	{ DRM_MODE_PANEL_TYPE_OLED, "OLED" },
+};
+
 /**
  * drm_display_info_set_bus_formats - set the supported bus formats
  * @info: display info to store bus formats in
@@ -1501,6 +1506,9 @@ EXPORT_SYMBOL(drm_hdmi_connector_get_output_format_name);
  * 	Summarizing: Only set "DPMS" when the connector is known to be enabled,
  * 	assume that a successful SETCONFIG call also sets "DPMS" to on, and
  * 	never read back the value of "DPMS" because it can be incorrect.
+ * panel_type:
+ * 	Immutable enum property to indicate the type of connected panel.
+ * 	Possible values are "unknown" (default) and "OLED".
  * PATH:
  * 	Connector path property to identify how this sink is physically
  * 	connected. Used by DP MST. This should be set by calling
@@ -1850,6 +1858,13 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.link_status_property = prop;
+
+	prop = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE, "panel_type",
+					drm_panel_type_enum_list,
+					ARRAY_SIZE(drm_panel_type_enum_list));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.panel_type_property = prop;
 
 	prop = drm_property_create_bool(dev, DRM_MODE_PROP_IMMUTABLE, "non-desktop");
 	if (!prop)
@@ -3626,3 +3641,21 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 	return tg;
 }
 EXPORT_SYMBOL(drm_mode_create_tile_group);
+
+/**
+ * drm_connector_attach_panel_type_property - attaches panel type property
+ * @connector: connector to attach the property on.
+ *
+ * This is used to add support for panel type detection.
+ */
+void drm_connector_attach_panel_type_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop = dev->mode_config.panel_type_property;
+
+	if (!prop)
+		return;
+
+	drm_object_attach_property(&connector->base, prop, DRM_MODE_PANEL_TYPE_UNKNOWN);
+}
+EXPORT_SYMBOL(drm_connector_attach_panel_type_property);

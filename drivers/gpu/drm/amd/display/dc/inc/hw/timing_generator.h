@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -518,6 +518,8 @@ struct timing_generator_funcs {
 	bool (*wait_update_lock_status)(struct timing_generator *tg, bool locked);
 	void (*read_otg_state)(struct timing_generator *tg, struct dcn_otg_state *s);
 	void (*optc_read_reg_state)(struct timing_generator *tg, struct dcn_optc_reg_state *optc_reg_state);
+	void (*enable_otg_pwa)(struct timing_generator *tg,  struct otc_pwa_frame_sync *pwa_param);
+	void (*disable_otg_pwa)(struct timing_generator *tg);
 };
 
 #endif

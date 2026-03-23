@@ -36,8 +36,6 @@ properties:
   port: true
   reset-gpios: true
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
@@ -45,6 +43,8 @@ required:
   - vdd3p3-supply
   - reset-gpios
   - port
+
+additionalProperties: false
 
 examples:
   - |

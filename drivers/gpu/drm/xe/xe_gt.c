@@ -33,6 +33,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_vf.h"
+#include "xe_gt_stats.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
@@ -141,15 +142,14 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 static void xe_gt_enable_comp_1wcoh(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	u32 reg;
 
 	if (IS_SRIOV_VF(xe))
 		return;
 
 	if (GRAPHICS_VER(xe) >= 30 && xe->info.has_flat_ccs) {
-		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-		if (!fw_ref)
+		CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+		if (!fw_ref.domains)
 			return;
 
 		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
@@ -163,8 +163,6 @@ static void xe_gt_enable_comp_1wcoh(struct xe_gt *gt)
 			reg |= EN_CMP_1WCOH_GW;
 			xe_gt_mcr_multicast_write(gt, XE2_GAMWALK_CTRL_3D, reg);
 		}
-
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
 }
 
@@ -497,6 +495,10 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_gt_mmio_init(gt);
 
 	err = xe_uc_init_noalloc(&gt->uc);
+	if (err)
+		return err;
+
+	err = xe_gt_stats_init(gt);
 	if (err)
 		return err;
 
@@ -894,7 +896,6 @@ static void gt_reset_worker(struct work_struct *w)
 	if (IS_SRIOV_PF(gt_to_xe(gt)))
 		xe_gt_sriov_pf_stop_prepare(gt);
 
-	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);
 	xe_pagefault_reset(gt_to_xe(gt), gt);
 

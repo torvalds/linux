@@ -592,12 +592,6 @@ struct psb_ops {
 extern void psb_modeset_init(struct drm_device *dev);
 extern void psb_modeset_cleanup(struct drm_device *dev);
 
-/* framebuffer */
-struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
-					       const struct drm_format_info *info,
-					       const struct drm_mode_fb_cmd2 *mode_cmd,
-					       struct drm_gem_object *obj);
-
 /* fbdev */
 #if defined(CONFIG_DRM_FBDEV_EMULATION)
 int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,

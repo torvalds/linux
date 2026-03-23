@@ -1,5 +1,5 @@
 #
-# Copyright 2020 Advanced Micro Devices, Inc.
+# Copyright 2020, 2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -32,4 +32,12 @@ PG_DCN35 = dcn35_pg_cntl.o
 AMD_DAL_PG_DCN35 = $(addprefix $(AMDDALPATH)/dc/pg/dcn35/,$(PG_DCN35))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_PG_DCN35)
+###############################################################################
+# DCN42
+###############################################################################
+PG_DCN42 = dcn42_pg_cntl.o
+
+AMD_DAL_PG_DCN42 = $(addprefix $(AMDDALPATH)/dc/pg/dcn42/,$(PG_DCN42))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_PG_DCN42)
 endif

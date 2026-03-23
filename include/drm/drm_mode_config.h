@@ -601,6 +601,10 @@ struct drm_mode_config {
 	 */
 	struct drm_property *tile_property;
 	/**
+	 * @panel_type_property: Default connector property for panel type
+	 */
+	struct drm_property *panel_type_property;
+	/**
 	 * @link_status_property: Default connector property for link status
 	 * of a connector
 	 */

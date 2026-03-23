@@ -35,11 +35,13 @@
 #include "xe_guc_klv_helpers.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_rc.h"
 #include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_sleep.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf_migration.h"
 #include "xe_uc.h"
@@ -210,9 +212,6 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_GT_WA(gt, 18020744125) &&
 	    !xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_RENDER))
 		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
-
-	if (XE_GT_WA(gt, 1509372804))
-		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
 
 	if (XE_GT_WA(gt, 14018913170))
 		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
@@ -668,6 +667,13 @@ static void guc_fini_hw(void *arg)
 	guc_g2g_fini(guc);
 }
 
+static void vf_guc_fini_hw(void *arg)
+{
+	struct xe_guc *guc = arg;
+
+	xe_gt_sriov_vf_reset(guc_to_gt(guc));
+}
+
 /**
  * xe_guc_comm_init_early - early initialization of GuC communication
  * @guc: the &xe_guc to initialize
@@ -772,6 +778,10 @@ int xe_guc_init(struct xe_guc *guc)
 		xe->info.has_page_reclaim_hw_assist = false;
 
 	if (IS_SRIOV_VF(xe)) {
+		ret = devm_add_action_or_reset(xe->drm.dev, vf_guc_fini_hw, guc);
+		if (ret)
+			goto out;
+
 		ret = xe_guc_ct_init(&guc->ct);
 		if (ret)
 			goto out;
@@ -869,6 +879,10 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 	if (ret)
 		return ret;
 
+	ret = xe_guc_rc_init(guc);
+	if (ret)
+		return ret;
+
 	ret = xe_guc_engine_activity_init(guc);
 	if (ret)
 		return ret;
@@ -900,6 +914,41 @@ int xe_guc_post_load_init(struct xe_guc *guc)
 	return xe_guc_submit_enable(guc);
 }
 
+/*
+ * Wa_14025883347: Prevent GuC firmware DMA failures during GuC-only reset by ensuring
+ * SRAM save/restore operations are complete before reset.
+ */
+static void guc_prevent_fw_dma_failure_on_reset(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	u32 boot_hash_chk, guc_status, sram_status;
+	int ret;
+
+	guc_status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
+	if (guc_status & GS_MIA_IN_RESET)
+		return;
+
+	boot_hash_chk = xe_mmio_read32(&gt->mmio, BOOT_HASH_CHK);
+	if (!(boot_hash_chk & GUC_BOOT_UKERNEL_VALID))
+		return;
+
+	/* Disable idle flow during reset (GuC reset re-enables it automatically) */
+	xe_mmio_rmw32(&gt->mmio, GUC_MAX_IDLE_COUNT, 0, GUC_IDLE_FLOW_DISABLE);
+
+	ret = xe_mmio_wait32(&gt->mmio, GUC_STATUS, GS_UKERNEL_MASK,
+			     FIELD_PREP(GS_UKERNEL_MASK, XE_GUC_LOAD_STATUS_READY),
+			     100000, &guc_status, false);
+	if (ret)
+		xe_gt_warn(gt, "GuC not ready after disabling idle flow (GUC_STATUS: 0x%x)\n",
+			   guc_status);
+
+	ret = xe_mmio_wait32(&gt->mmio, GUC_SRAM_STATUS, GUC_SRAM_HANDLING_MASK,
+			     0, 5000, &sram_status, false);
+	if (ret)
+		xe_gt_warn(gt, "SRAM handling not complete (GUC_SRAM_STATUS: 0x%x)\n",
+			   sram_status);
+}
+
 int xe_guc_reset(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -911,6 +960,9 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return xe_gt_sriov_vf_bootstrap(gt);
+
+	if (XE_GT_WA(gt, 14025883347))
+		guc_prevent_fw_dma_failure_on_reset(guc);
 
 	xe_mmio_write32(mmio, GDRST, GRDOM_GUC);
 
@@ -1388,17 +1440,21 @@ int xe_guc_auth_huc(struct xe_guc *guc, u32 rsa_addr)
 	return xe_guc_ct_send_block(&guc->ct, action, ARRAY_SIZE(action));
 }
 
+#define MAX_RETRIES_ON_FLR	2
+#define MIN_SLEEP_MS_ON_FLR	256
+
 int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 			  u32 len, u32 *response_buf)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_mmio *mmio = &gt->mmio;
-	u32 header, reply;
 	struct xe_reg reply_reg = xe_gt_is_media_type(gt) ?
 		MED_VF_SW_FLAG(0) : VF_SW_FLAG(0);
 	const u32 LAST_INDEX = VF_SW_FLAG_COUNT - 1;
-	bool lost = false;
+	unsigned int sleep_period_ms = 1;
+	unsigned int lost = 0;
+	u32 header;
 	int ret;
 	int i;
 
@@ -1430,21 +1486,25 @@ retry:
 
 	ret = xe_mmio_wait32(mmio, reply_reg, GUC_HXG_MSG_0_ORIGIN,
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_GUC),
-			     50000, &reply, false);
+			     50000, &header, false);
 	if (ret) {
 		/* scratch registers might be cleared during FLR, try once more */
-		if (!reply && !lost) {
+		if (!header) {
+			if (++lost > MAX_RETRIES_ON_FLR) {
+				xe_gt_err(gt, "GuC mmio request %#x: lost, too many retries %u\n",
+					  request[0], lost);
+				return -ENOLINK;
+			}
 			xe_gt_dbg(gt, "GuC mmio request %#x: lost, trying again\n", request[0]);
-			lost = true;
+			xe_sleep_relaxed_ms(MIN_SLEEP_MS_ON_FLR);
 			goto retry;
 		}
 timeout:
 		xe_gt_err(gt, "GuC mmio request %#x: no reply %#x\n",
-			  request[0], reply);
+			  request[0], header);
 		return ret;
 	}
 
-	header = xe_mmio_read32(mmio, reply_reg);
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
 		/*
@@ -1480,6 +1540,8 @@ timeout:
 
 		xe_gt_dbg(gt, "GuC mmio request %#x: retrying, reason %#x\n",
 			  request[0], reason);
+
+		xe_sleep_exponential_ms(&sleep_period_ms, 256);
 		goto retry;
 	}
 
@@ -1609,6 +1671,7 @@ void xe_guc_stop_prepare(struct xe_guc *guc)
 	if (!IS_SRIOV_VF(guc_to_xe(guc))) {
 		int err;
 
+		xe_guc_rc_disable(guc);
 		err = xe_guc_pc_stop(&guc->pc);
 		xe_gt_WARN(guc_to_gt(guc), err, "Failed to stop GuC PC: %pe\n",
 			   ERR_PTR(err));

@@ -1419,48 +1419,12 @@ static void drm_sched_cancel_remaining_jobs(struct drm_gpu_scheduler *sched)
  */
 void drm_sched_fini(struct drm_gpu_scheduler *sched)
 {
-	struct drm_sched_entity *s_entity;
 	int i;
 
 	drm_sched_wqueue_stop(sched);
 
-	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
-		struct drm_sched_rq *rq = sched->sched_rq[i];
-
-		spin_lock(&rq->lock);
-		list_for_each_entry(s_entity, &rq->entities, list) {
-			/*
-			 * Prevents reinsertion and marks job_queue as idle,
-			 * it will be removed from the rq in drm_sched_entity_fini()
-			 * eventually
-			 *
-			 * FIXME:
-			 * This lacks the proper spin_lock(&s_entity->lock) and
-			 * is, therefore, a race condition. Most notably, it
-			 * can race with drm_sched_entity_push_job(). The lock
-			 * cannot be taken here, however, because this would
-			 * lead to lock inversion -> deadlock.
-			 *
-			 * The best solution probably is to enforce the life
-			 * time rule of all entities having to be torn down
-			 * before their scheduler. Then, however, locking could
-			 * be dropped alltogether from this function.
-			 *
-			 * For now, this remains a potential race in all
-			 * drivers that keep entities alive for longer than
-			 * the scheduler.
-			 *
-			 * The READ_ONCE() is there to make the lockless read
-			 * (warning about the lockless write below) slightly
-			 * less broken...
-			 */
-			if (!READ_ONCE(s_entity->stopped))
-				dev_warn(sched->dev, "Tearing down scheduler with active entities!\n");
-			s_entity->stopped = true;
-		}
-		spin_unlock(&rq->lock);
+	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++)
 		kfree(sched->sched_rq[i]);
-	}
 
 	/* Wakeup everyone stuck in drm_sched_entity_flush for this scheduler */
 	wake_up_all(&sched->job_scheduled);

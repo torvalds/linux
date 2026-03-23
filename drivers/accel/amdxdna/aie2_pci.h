@@ -7,6 +7,7 @@
 #define _AIE2_PCI_H_
 
 #include <drm/amdxdna_accel.h>
+#include <linux/limits.h>
 #include <linux/semaphore.h>
 
 #include "amdxdna_mailbox.h"
@@ -45,6 +46,33 @@
 	((_ndev)->priv->mbox_size) ? (_ndev)->priv->mbox_size : \
 	pci_resource_len(NDEV2PDEV(_ndev), (_ndev)->xdna->dev_info->mbox_bar); \
 })
+
+#if IS_ENABLED(CONFIG_AMD_PMF)
+#define AIE2_GET_PMF_NPU_METRICS(metrics) amd_pmf_get_npu_data(metrics)
+#define AIE2_GET_PMF_NPU_DATA(field, val)				\
+({									\
+	struct amd_pmf_npu_metrics _npu_metrics;			\
+	int _ret;							\
+									\
+	_ret = amd_pmf_get_npu_data(&_npu_metrics);			\
+	val = _ret ? U32_MAX : _npu_metrics.field;			\
+	(_ret);								\
+})
+#else
+#define AIE2_GET_PMF_NPU_METRICS(metrics)				\
+({									\
+	typeof(metrics) _m = metrics;					\
+	memset(_m, 0xff, sizeof(*_m));					\
+	(-EOPNOTSUPP);							\
+})
+
+#define SENSOR_DEFAULT_npu_power	U32_MAX
+#define AIE2_GET_PMF_NPU_DATA(field, val)				\
+({									\
+	val = SENSOR_DEFAULT_##field;					\
+	(-EOPNOTSUPP);							\
+})
+#endif
 
 enum aie2_smu_reg_idx {
 	SMU_CMD_REG = 0,

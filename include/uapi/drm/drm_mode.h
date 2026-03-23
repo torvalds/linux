@@ -166,6 +166,10 @@ extern "C" {
 #define DRM_MODE_LINK_STATUS_GOOD	0
 #define DRM_MODE_LINK_STATUS_BAD	1
 
+/* Panel type property */
+#define DRM_MODE_PANEL_TYPE_UNKNOWN	0
+#define DRM_MODE_PANEL_TYPE_OLED	1
+
 /*
  * DRM_MODE_ROTATE_<degrees>
  *

@@ -57,6 +57,23 @@ static u64 lmtt_page_size(struct xe_lmtt *lmtt)
 	return BIT_ULL(lmtt->ops->lmtt_pte_shift(0));
 }
 
+/**
+ * xe_lmtt_page_size() - Get LMTT page size.
+ * @lmtt: the &xe_lmtt
+ *
+ * This function shall be called only by PF.
+ *
+ * Return: LMTT page size.
+ */
+u64 xe_lmtt_page_size(struct xe_lmtt *lmtt)
+{
+	lmtt_assert(lmtt, IS_SRIOV_PF(lmtt_to_xe(lmtt)));
+	lmtt_assert(lmtt, xe_device_has_lmtt(lmtt_to_xe(lmtt)));
+	lmtt_assert(lmtt, lmtt->ops);
+
+	return lmtt_page_size(lmtt);
+}
+
 static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level)
 {
 	unsigned int num_entries = level ? lmtt->ops->lmtt_pte_num(level) : 0;

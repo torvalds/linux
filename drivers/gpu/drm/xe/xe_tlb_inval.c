@@ -41,11 +41,14 @@ static void xe_tlb_inval_fence_fini(struct xe_tlb_inval_fence *fence)
 static void
 xe_tlb_inval_fence_signal(struct xe_tlb_inval_fence *fence)
 {
+	struct xe_tlb_inval *tlb_inval = fence->tlb_inval;
 	bool stack = test_bit(FENCE_STACK_BIT, &fence->base.flags);
 
 	lockdep_assert_held(&fence->tlb_inval->pending_lock);
 
 	list_del(&fence->link);
+	if (list_empty(&tlb_inval->pending_fences))
+		cancel_delayed_work(&tlb_inval->fence_tdr);
 	trace_xe_tlb_inval_fence_signal(fence->tlb_inval->xe, fence);
 	xe_tlb_inval_fence_fini(fence);
 	dma_fence_signal(&fence->base);
@@ -111,6 +114,16 @@ static void tlb_inval_fini(struct drm_device *drm, void *arg)
 	xe_tlb_inval_reset(tlb_inval);
 }
 
+static void primelockdep(struct xe_tlb_inval *tlb_inval)
+{
+	if (!IS_ENABLED(CONFIG_LOCKDEP))
+		return;
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	might_lock(&tlb_inval->seqno_lock);
+	fs_reclaim_release(GFP_KERNEL);
+}
+
 /**
  * xe_gt_tlb_inval_init_early() - Initialize TLB invalidation state
  * @gt: GT structure
@@ -136,6 +149,8 @@ int xe_gt_tlb_inval_init_early(struct xe_gt *gt)
 	err = drmm_mutex_init(&xe->drm, &tlb_inval->seqno_lock);
 	if (err)
 		return err;
+
+	primelockdep(tlb_inval);
 
 	tlb_inval->job_wq = drmm_alloc_ordered_workqueue(&xe->drm,
 							 "gt-tbl-inval-job-wq",
@@ -452,4 +467,22 @@ void xe_tlb_inval_fence_init(struct xe_tlb_inval *tlb_inval,
 	else
 		dma_fence_get(&fence->base);
 	fence->tlb_inval = tlb_inval;
+}
+
+/**
+ * xe_tlb_inval_idle() - Initialize TLB invalidation is idle
+ * @tlb_inval: TLB invalidation client
+ *
+ * Check the TLB invalidation seqno to determine if it is idle (i.e., no TLB
+ * invalidations are in flight). Expected to be called in the backend after the
+ * fence has been added to the pending list, and takes this into account.
+ *
+ * Return: True if TLB invalidation client is idle, False otherwise
+ */
+bool xe_tlb_inval_idle(struct xe_tlb_inval *tlb_inval)
+{
+	lockdep_assert_held(&tlb_inval->seqno_lock);
+
+	guard(spinlock_irq)(&tlb_inval->pending_lock);
+	return list_is_singular(&tlb_inval->pending_fences);
 }
