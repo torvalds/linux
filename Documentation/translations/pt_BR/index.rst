@@ -69,6 +69,7 @@ kernel e sobre como ver seu trabalho integrado.
    Introdução <process/1.Intro>
    Como começar <process/howto>
    Requisitos mínimos <process/changes>
+   Conclave (Continuidade do projeto) <process/conclave>
    Manuais dos mantenedores <process/maintainer-handbooks>
    Processo do subsistema de rede (netdev) <process/maintainer-netdev>
    Processo do subsistema SoC <process/maintainer-soc>
