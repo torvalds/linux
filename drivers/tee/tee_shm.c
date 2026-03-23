@@ -23,29 +23,11 @@ struct tee_shm_dma_mem {
 	struct page *page;
 };
 
-static void shm_put_kernel_pages(struct page **pages, size_t page_count)
-{
-	size_t n;
-
-	for (n = 0; n < page_count; n++)
-		put_page(pages[n]);
-}
-
-static void shm_get_kernel_pages(struct page **pages, size_t page_count)
-{
-	size_t n;
-
-	for (n = 0; n < page_count; n++)
-		get_page(pages[n]);
-}
-
 static void release_registered_pages(struct tee_shm *shm)
 {
 	if (shm->pages) {
 		if (shm->flags & TEE_SHM_USER_MAPPED)
 			unpin_user_pages(shm->pages, shm->num_pages);
-		else
-			shm_put_kernel_pages(shm->pages, shm->num_pages);
 
 		kfree(shm->pages);
 	}
@@ -477,13 +459,6 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 		goto err_put_shm_pages;
 	}
 
-	/*
-	 * iov_iter_extract_kvec_pages does not get reference on the pages,
-	 * get a reference on them.
-	 */
-	if (iov_iter_is_kvec(iter))
-		shm_get_kernel_pages(shm->pages, num_pages);
-
 	shm->offset = off;
 	shm->size = len;
 	shm->num_pages = num_pages;
@@ -499,8 +474,6 @@ register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
 err_put_shm_pages:
 	if (!iov_iter_is_kvec(iter))
 		unpin_user_pages(shm->pages, shm->num_pages);
-	else
-		shm_put_kernel_pages(shm->pages, shm->num_pages);
 err_free_shm_pages:
 	kfree(shm->pages);
 err_free_shm:
