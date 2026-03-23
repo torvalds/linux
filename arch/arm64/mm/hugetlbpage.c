@@ -427,11 +427,11 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	pte_t orig_pte;
 
 	VM_WARN_ON(!pte_present(pte));
+	ncontig = num_contig_ptes(huge_page_size(hstate_vma(vma)), &pgsize);
 
 	if (!pte_cont(pte))
-		return __ptep_set_access_flags(vma, addr, ptep, pte, dirty);
-
-	ncontig = num_contig_ptes(huge_page_size(hstate_vma(vma)), &pgsize);
+		return __ptep_set_access_flags_anysz(vma, addr, ptep, pte,
+						     dirty, pgsize);
 
 	if (!__cont_access_flags_changed(ptep, pte, ncontig))
 		return 0;
