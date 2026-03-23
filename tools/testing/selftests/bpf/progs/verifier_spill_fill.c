@@ -1279,4 +1279,41 @@ __naked void stack_noperfmon_spill_32bit_onto_64bit_slot(void)
 	: __clobber_all);
 }
 
+/*
+ * stacksafe(): check if 32-bit scalar spill in old state is considered
+ * equivalent to STACK_MISC in cur state.
+ * 32-bit scalar spill creates slot[0-3] = STACK_MISC, slot[4-7] = STACK_SPILL.
+ * Without 32-bit spill support in stacksafe(), the STACK_SPILL vs STACK_MISC
+ * mismatch at slot[4] causes pruning to fail.
+ */
+SEC("socket")
+__success __log_level(2)
+__msg("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg("8: safe")
+__msg("processed 11 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_imprecise_scalar32_vs_cur_stack_misc(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure 32-bit scalar spill at fp-8 */
+	"r0 = 42;"
+	"*(u32*)(r10 - 8) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure STACK_MISC at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u16*)(r10 - 8) = r0;"
+	"*(u16*)(r10 - 6) = r0;"
+"2:"
+	/* read fp-8, should be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
