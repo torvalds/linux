@@ -3132,7 +3132,7 @@ static void intel_cpufreq_trace(struct cpudata *cpu, unsigned int trace_type, in
 		return;
 
 	sample = &cpu->sample;
-	trace_pstate_sample(trace_type,
+	trace_call__pstate_sample(trace_type,
 		0,
 		old_pstate,
 		cpu->pstate.current_pstate,
