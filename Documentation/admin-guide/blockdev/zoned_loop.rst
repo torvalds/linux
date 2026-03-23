@@ -104,6 +104,11 @@ ordered_zone_append   Enable zloop mitigation of zone append reordering.
                       (extents), as when enabled, this can significantly reduce
                       the number of data extents needed to for a file data
                       mapping.
+discard_write_cache   Discard all data that was not explicitly persisted using a
+                      flush operation when the device is removed by truncating
+                      each zone file to the size recorded during the last flush
+                      operation. This simulates power fail events where
+                      uncommitted data is lost.
 ===================   =========================================================
 
 3) Deleting a Zoned Device

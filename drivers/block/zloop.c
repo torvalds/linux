@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
+#include <linux/xattr.h>
 
 /*
  * Options for adding (and removing) a device.
@@ -34,6 +35,7 @@ enum {
 	ZLOOP_OPT_BUFFERED_IO		= (1 << 8),
 	ZLOOP_OPT_ZONE_APPEND		= (1 << 9),
 	ZLOOP_OPT_ORDERED_ZONE_APPEND	= (1 << 10),
+	ZLOOP_OPT_DISCARD_WRITE_CACHE	= (1 << 11),
 };
 
 static const match_table_t zloop_opt_tokens = {
@@ -48,6 +50,7 @@ static const match_table_t zloop_opt_tokens = {
 	{ ZLOOP_OPT_BUFFERED_IO,	"buffered_io"		},
 	{ ZLOOP_OPT_ZONE_APPEND,	"zone_append=%u"	},
 	{ ZLOOP_OPT_ORDERED_ZONE_APPEND, "ordered_zone_append"	},
+	{ ZLOOP_OPT_DISCARD_WRITE_CACHE, "discard_write_cache" },
 	{ ZLOOP_OPT_ERR,		NULL			}
 };
 
@@ -79,6 +82,7 @@ struct zloop_options {
 	bool			buffered_io;
 	bool			zone_append;
 	bool			ordered_zone_append;
+	bool			discard_write_cache;
 };
 
 /*
@@ -119,6 +123,7 @@ struct zloop_device {
 	bool			buffered_io;
 	bool			zone_append;
 	bool			ordered_zone_append;
+	bool			discard_write_cache;
 
 	const char		*base_dir;
 	struct file		*data_dir;
@@ -550,6 +555,41 @@ out:
 	zloop_put_cmd(cmd);
 }
 
+static inline bool zloop_zone_is_active(struct zloop_zone *zone)
+{
+	switch (zone->cond) {
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int zloop_record_safe_wps(struct zloop_device *zlo)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < zlo->nr_zones; i++) {
+		struct zloop_zone *zone = &zlo->zones[i];
+		struct file *file = zone->file;
+
+		if (!zloop_zone_is_active(zone))
+			continue;
+		ret = vfs_setxattr(file_mnt_idmap(file), file_dentry(file),
+				"user.zloop.wp", &zone->wp, sizeof(zone->wp), 0);
+		if (ret) {
+			pr_err("%pg: failed to record write pointer (%d)\n",
+				zlo->disk->part0, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Sync the entire FS containing the zone files instead of walking all files.
  */
@@ -557,6 +597,12 @@ static int zloop_flush(struct zloop_device *zlo)
 {
 	struct super_block *sb = file_inode(zlo->data_dir)->i_sb;
 	int ret;
+
+	if (zlo->discard_write_cache) {
+		ret = zloop_record_safe_wps(zlo);
+		if (ret)
+			return ret;
+	}
 
 	down_read(&sb->s_umount);
 	ret = sync_filesystem(sb);
@@ -1054,6 +1100,7 @@ static int zloop_ctl_add(struct zloop_options *opts)
 	zlo->zone_append = opts->zone_append;
 	if (zlo->zone_append)
 		zlo->ordered_zone_append = opts->ordered_zone_append;
+	zlo->discard_write_cache = opts->discard_write_cache;
 
 	zlo->workqueue = alloc_workqueue("zloop%d", WQ_UNBOUND | WQ_FREEZABLE,
 				opts->nr_queues * opts->queue_depth, zlo->id);
@@ -1176,6 +1223,49 @@ out:
 	return ret;
 }
 
+static void zloop_truncate(struct file *file, loff_t pos)
+{
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	struct dentry *dentry = file_dentry(file);
+	struct iattr newattrs;
+
+	newattrs.ia_size = pos;
+	newattrs.ia_valid = ATTR_SIZE;
+
+	inode_lock(dentry->d_inode);
+	notify_change(idmap, dentry, &newattrs, NULL);
+	inode_unlock(dentry->d_inode);
+}
+
+static void zloop_forget_cache(struct zloop_device *zlo)
+{
+	unsigned int i;
+	int ret;
+
+	pr_info("%pg: discarding volatile write cache\n", zlo->disk->part0);
+
+	for (i = 0; i < zlo->nr_zones; i++) {
+		struct zloop_zone *zone = &zlo->zones[i];
+		struct file *file = zone->file;
+		sector_t old_wp;
+
+		if (!zloop_zone_is_active(zone))
+			continue;
+
+		ret = vfs_getxattr(file_mnt_idmap(file), file_dentry(file),
+				"user.zloop.wp", &old_wp, sizeof(old_wp));
+		if (ret == -ENODATA) {
+			old_wp = 0;
+		} else if (ret != sizeof(old_wp)) {
+			pr_err("%pg: failed to retrieve write pointer (%d)\n",
+				zlo->disk->part0, ret);
+			continue;
+		}
+		if (old_wp < zone->wp)
+			zloop_truncate(file, old_wp);
+	}
+}
+
 static int zloop_ctl_remove(struct zloop_options *opts)
 {
 	struct zloop_device *zlo;
@@ -1210,6 +1300,10 @@ static int zloop_ctl_remove(struct zloop_options *opts)
 		return ret;
 
 	del_gendisk(zlo->disk);
+
+	if (zlo->discard_write_cache)
+		zloop_forget_cache(zlo);
+
 	put_disk(zlo->disk);
 
 	pr_info("Removed device %d\n", opts->id);
@@ -1360,6 +1454,9 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 			break;
 		case ZLOOP_OPT_ORDERED_ZONE_APPEND:
 			opts->ordered_zone_append = true;
+			break;
+		case ZLOOP_OPT_DISCARD_WRITE_CACHE:
+			opts->discard_write_cache = true;
 			break;
 		case ZLOOP_OPT_ERR:
 		default:
