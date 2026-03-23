@@ -4282,12 +4282,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 		 * SPI transfer length should be multiple of SPI word size
 		 * where SPI word size should be power-of-two multiple.
 		 */
-		if (xfer->bits_per_word <= 8)
-			w_size = 1;
-		else if (xfer->bits_per_word <= 16)
-			w_size = 2;
-		else
-			w_size = 4;
+		w_size = spi_bpw_to_bytes(xfer->bits_per_word);
 
 		/* No partial transfers accepted */
 		if (xfer->len % w_size)
