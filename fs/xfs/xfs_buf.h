@@ -69,13 +69,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_INCORE,		"INCORE" }, \
 	{ XBF_TRYLOCK,		"TRYLOCK" }
 
-struct xfs_buf_cache {
-	struct rhashtable	bc_hash;
-};
-
-int xfs_buf_cache_init(struct xfs_buf_cache *bch);
-void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
-
 /*
  * The xfs_buftarg contains 2 notions of "sector size" -
  *
@@ -113,8 +106,7 @@ struct xfs_buftarg {
 	unsigned int		bt_awu_min;
 	unsigned int		bt_awu_max;
 
-	/* built-in cache, if we're not using the perag one */
-	struct xfs_buf_cache	bt_cache[];
+	struct rhashtable	bt_hash;
 };
 
 struct xfs_buf_map {

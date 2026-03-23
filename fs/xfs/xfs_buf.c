@@ -363,20 +363,6 @@ static const struct rhashtable_params xfs_buf_hash_params = {
 	.obj_cmpfn		= _xfs_buf_obj_cmp,
 };
 
-int
-xfs_buf_cache_init(
-	struct xfs_buf_cache	*bch)
-{
-	return rhashtable_init(&bch->bc_hash, &xfs_buf_hash_params);
-}
-
-void
-xfs_buf_cache_destroy(
-	struct xfs_buf_cache	*bch)
-{
-	rhashtable_destroy(&bch->bc_hash);
-}
-
 static int
 xfs_buf_map_verify(
 	struct xfs_buftarg	*btp,
@@ -434,7 +420,7 @@ xfs_buf_find_lock(
 
 static inline int
 xfs_buf_lookup(
-	struct xfs_buf_cache	*bch,
+	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
@@ -443,7 +429,7 @@ xfs_buf_lookup(
 	int			error;
 
 	rcu_read_lock();
-	bp = rhashtable_lookup(&bch->bc_hash, map, xfs_buf_hash_params);
+	bp = rhashtable_lookup(&btp->bt_hash, map, xfs_buf_hash_params);
 	if (!bp || !lockref_get_not_dead(&bp->b_lockref)) {
 		rcu_read_unlock();
 		return -ENOENT;
@@ -468,7 +454,6 @@ xfs_buf_lookup(
 static int
 xfs_buf_find_insert(
 	struct xfs_buftarg	*btp,
-	struct xfs_buf_cache	*bch,
 	struct xfs_perag	*pag,
 	struct xfs_buf_map	*cmap,
 	struct xfs_buf_map	*map,
@@ -488,7 +473,7 @@ xfs_buf_find_insert(
 	new_bp->b_pag = pag;
 
 	rcu_read_lock();
-	bp = rhashtable_lookup_get_insert_fast(&bch->bc_hash,
+	bp = rhashtable_lookup_get_insert_fast(&btp->bt_hash,
 			&new_bp->b_rhash_head, xfs_buf_hash_params);
 	if (IS_ERR(bp)) {
 		rcu_read_unlock();
@@ -530,16 +515,6 @@ xfs_buftarg_get_pag(
 	return xfs_perag_get(mp, xfs_daddr_to_agno(mp, map->bm_bn));
 }
 
-static inline struct xfs_buf_cache *
-xfs_buftarg_buf_cache(
-	struct xfs_buftarg		*btp,
-	struct xfs_perag		*pag)
-{
-	if (pag)
-		return &pag->pag_bcache;
-	return btp->bt_cache;
-}
-
 /*
  * Assembles a buffer covering the specified range. The code is optimised for
  * cache hits, as metadata intensive workloads will see 3 orders of magnitude
@@ -553,7 +528,6 @@ xfs_buf_get_map(
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_buf_cache	*bch;
 	struct xfs_perag	*pag;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
@@ -570,9 +544,8 @@ xfs_buf_get_map(
 		return error;
 
 	pag = xfs_buftarg_get_pag(btp, &cmap);
-	bch = xfs_buftarg_buf_cache(btp, pag);
 
-	error = xfs_buf_lookup(bch, &cmap, flags, &bp);
+	error = xfs_buf_lookup(btp, &cmap, flags, &bp);
 	if (error && error != -ENOENT)
 		goto out_put_perag;
 
@@ -584,7 +557,7 @@ xfs_buf_get_map(
 			goto out_put_perag;
 
 		/* xfs_buf_find_insert() consumes the perag reference. */
-		error = xfs_buf_find_insert(btp, bch, pag, &cmap, map, nmaps,
+		error = xfs_buf_find_insert(btp, pag, &cmap, map, nmaps,
 				flags, &bp);
 		if (error)
 			return error;
@@ -848,11 +821,8 @@ xfs_buf_destroy(
 	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
 	if (!xfs_buf_is_uncached(bp)) {
-		struct xfs_buf_cache	*bch =
-			xfs_buftarg_buf_cache(bp->b_target, bp->b_pag);
-
-		rhashtable_remove_fast(&bch->bc_hash, &bp->b_rhash_head,
-				xfs_buf_hash_params);
+		rhashtable_remove_fast(&bp->b_target->bt_hash,
+				&bp->b_rhash_head, xfs_buf_hash_params);
 
 		if (bp->b_pag)
 			xfs_perag_put(bp->b_pag);
@@ -1618,6 +1588,7 @@ xfs_destroy_buftarg(
 	ASSERT(percpu_counter_sum(&btp->bt_readahead_count) == 0);
 	percpu_counter_destroy(&btp->bt_readahead_count);
 	list_lru_destroy(&btp->bt_lru);
+	rhashtable_destroy(&btp->bt_hash);
 }
 
 void
@@ -1712,8 +1683,10 @@ xfs_init_buftarg(
 	ratelimit_state_init(&btp->bt_ioerror_rl, 30 * HZ,
 			     DEFAULT_RATELIMIT_BURST);
 
-	if (list_lru_init(&btp->bt_lru))
+	if (rhashtable_init(&btp->bt_hash, &xfs_buf_hash_params))
 		return -ENOMEM;
+	if (list_lru_init(&btp->bt_lru))
+		goto out_destroy_hash;
 	if (percpu_counter_init(&btp->bt_readahead_count, 0, GFP_KERNEL))
 		goto out_destroy_lru;
 
@@ -1731,6 +1704,8 @@ out_destroy_io_count:
 	percpu_counter_destroy(&btp->bt_readahead_count);
 out_destroy_lru:
 	list_lru_destroy(&btp->bt_lru);
+out_destroy_hash:
+	rhashtable_destroy(&btp->bt_hash);
 	return -ENOMEM;
 }
 
