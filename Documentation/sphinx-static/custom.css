@@ -170,6 +170,11 @@ div.body table.docutils a.reference {
     overflow-wrap: anywhere;
 }
 
+/* Let long link text wrap instead of forcing overflow. */
+a {
+    overflow-wrap: anywhere;
+}
+
 /* Make xrefs more universally visible */
 a.reference, a.reference:hover {
     border-bottom: none;
