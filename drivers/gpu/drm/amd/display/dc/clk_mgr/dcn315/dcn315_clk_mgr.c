@@ -652,11 +652,12 @@ void dcn315_clk_mgr_construct(
 	if (clk_mgr->base.smu_ver > 0)
 		clk_mgr->base.smu_present = true;
 
-	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+	if (ctx->dc_bios->integrated_info &&
+	    ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType)
 		dcn315_bw_params.wm_table = lpddr5_wm_table;
-	} else {
+	else
 		dcn315_bw_params.wm_table = ddr5_wm_table;
-	}
+
 	/* Saved clocks configured at boot for debug purposes */
 	dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
 				  &clk_mgr->base.base, &log_info);

@@ -842,7 +842,8 @@ void dcn314_clk_mgr_construct(
 	/* TODO: Check we get what we expect during bringup */
 	clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
 
-	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType)
+	if (ctx->dc_bios->integrated_info &&
+	    ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType)
 		dcn314_bw_params.wm_table = lpddr5_wm_table;
 	else
 		dcn314_bw_params.wm_table = ddr5_wm_table;
