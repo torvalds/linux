@@ -66,7 +66,9 @@ const struct nla_policy ethnl_rss_get_policy[] = {
 };
 
 static int
-rss_parse_request(struct ethnl_req_info *req_info, struct nlattr **tb,
+rss_parse_request(struct ethnl_req_info *req_info,
+		  const struct genl_info *info,
+		  struct nlattr **tb,
 		  struct netlink_ext_ack *extack)
 {
 	struct rss_req_info *request = RSS_REQINFO(req_info);

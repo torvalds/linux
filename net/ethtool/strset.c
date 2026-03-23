@@ -190,6 +190,7 @@ static const struct nla_policy strset_stringsets_policy[] = {
 };
 
 static int strset_parse_request(struct ethnl_req_info *req_base,
+				const struct genl_info *info,
 				struct nlattr **tb,
 				struct netlink_ext_ack *extack)
 {

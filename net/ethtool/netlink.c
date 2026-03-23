@@ -462,7 +462,8 @@ static int ethnl_default_parse(struct ethnl_req_info *req_info,
 		return ret;
 
 	if (request_ops->parse_request) {
-		ret = request_ops->parse_request(req_info, tb, info->extack);
+		ret = request_ops->parse_request(req_info, info, tb,
+						 info->extack);
 		if (ret < 0)
 			goto err_dev;
 	}

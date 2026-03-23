@@ -99,6 +99,7 @@ const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_SRC + 1] = {
 };
 
 static int stats_parse_request(struct ethnl_req_info *req_base,
+			       const struct genl_info *info,
 			       struct nlattr **tb,
 			       struct netlink_ext_ack *extack)
 {
