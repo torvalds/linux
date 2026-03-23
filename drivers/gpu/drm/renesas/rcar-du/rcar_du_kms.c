@@ -769,23 +769,23 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 	}
 
 	for (i = 0; i < cells; ++i) {
-		struct device_node *cmm __free(device_node) = NULL;
+		struct device_node *cmm_node __free(device_node) = NULL;
+		struct rcar_du_cmm *cmm = &rcdu->cmms[i];
 		struct platform_device *pdev;
-		struct device_link *link;
 		int ret;
 
-		cmm = of_parse_phandle(np, "renesas,cmms", i);
-		if (!cmm) {
+		cmm_node = of_parse_phandle(np, "renesas,cmms", i);
+		if (!cmm_node) {
 			dev_err(rcdu->dev,
 				"Failed to parse 'renesas,cmms' property\n");
 			return -EINVAL;
 		}
 
-		if (!of_device_is_available(cmm))
+		if (!of_device_is_available(cmm_node))
 			/* It's fine to have a phandle to a non-enabled CMM. */
 			continue;
 
-		pdev = of_find_device_by_node(cmm);
+		pdev = of_find_device_by_node(cmm_node);
 		if (!pdev) {
 			dev_err(rcdu->dev, "No device found for CMM%u\n", i);
 			return -EINVAL;
@@ -801,14 +801,15 @@ static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
 			return ret == -ENODEV ? 0 : ret;
 		}
 
-		rcdu->cmms[i] = &pdev->dev;
+		cmm->dev = &pdev->dev;
 
 		/*
 		 * Enforce suspend/resume ordering by making the CMM a provider
 		 * of the DU: CMM is suspended after and resumed before the DU.
 		 */
-		link = device_link_add(rcdu->dev, &pdev->dev, DL_FLAG_STATELESS);
-		if (!link) {
+		cmm->link = device_link_add(rcdu->dev, cmm->dev,
+					    DL_FLAG_STATELESS);
+		if (!cmm->link) {
 			dev_err(rcdu->dev,
 				"Failed to create device link to CMM%u\n", i);
 			return -EINVAL;
@@ -823,8 +824,14 @@ static void rcar_du_modeset_cleanup(struct drm_device *dev, void *res)
 	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(rcdu->cmms); ++i)
-		put_device(rcdu->cmms[i]);
+	for (i = 0; i < ARRAY_SIZE(rcdu->cmms); ++i) {
+		struct rcar_du_cmm *cmm = &rcdu->cmms[i];
+
+		if (cmm->link)
+			device_link_del(cmm->link);
+
+		put_device(cmm->dev);
+	}
 }
 
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
