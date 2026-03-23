@@ -1253,6 +1253,8 @@ int io_zcrx_ctrl(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 	struct zcrx_ctrl ctrl;
 	struct io_zcrx_ifq *zcrx;
 
+	BUILD_BUG_ON(sizeof(ctrl.zc_export) != sizeof(ctrl.zc_flush));
+
 	if (nr_args)
 		return -EINVAL;
 	if (copy_from_user(&ctrl, arg, sizeof(ctrl)))
