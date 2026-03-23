@@ -74,3 +74,4 @@ kernel e sobre como ver seu trabalho integrado.
    Processo do subsistema de rede (netdev) <process/maintainer-netdev>
    Processo do subsistema SoC <process/maintainer-soc>
    Conformidade de DTS para SoC <process/maintainer-soc-clean-dts>
+   Processo do subsistema KVM x86 <process/maintainer-kvm-x86>
