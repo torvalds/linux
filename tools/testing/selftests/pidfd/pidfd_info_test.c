@@ -724,6 +724,7 @@ TEST(supported_mask_field)
 	ASSERT_TRUE(!!(info.supported_mask & PIDFD_INFO_COREDUMP));
 	ASSERT_TRUE(!!(info.supported_mask & PIDFD_INFO_SUPPORTED_MASK));
 	ASSERT_TRUE(!!(info.supported_mask & PIDFD_INFO_COREDUMP_SIGNAL));
+	ASSERT_TRUE(!!(info.supported_mask & PIDFD_INFO_COREDUMP_CODE));
 
 	/* Clean up */
 	sys_pidfd_send_signal(pidfd, SIGKILL, NULL, 0);
