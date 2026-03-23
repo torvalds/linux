@@ -1372,9 +1372,9 @@ static bool is_spilled_scalar_reg(const struct bpf_stack_state *stack)
 	       stack->spilled_ptr.type == SCALAR_VALUE;
 }
 
-static bool is_spilled_scalar_reg64(const struct bpf_stack_state *stack)
+static bool is_spilled_scalar_after(const struct bpf_stack_state *stack, int im)
 {
-	return stack->slot_type[0] == STACK_SPILL &&
+	return stack->slot_type[im] == STACK_SPILL &&
 	       stack->spilled_ptr.type == SCALAR_VALUE;
 }
 
@@ -20020,12 +20020,12 @@ static __init int unbound_reg_init(void)
 }
 late_initcall(unbound_reg_init);
 
-static bool is_stack_all_misc(struct bpf_verifier_env *env,
-			      struct bpf_stack_state *stack)
+static bool is_stack_misc_after(struct bpf_verifier_env *env,
+				struct bpf_stack_state *stack, int im)
 {
 	u32 i;
 
-	for (i = 0; i < ARRAY_SIZE(stack->slot_type); ++i) {
+	for (i = im; i < ARRAY_SIZE(stack->slot_type); ++i) {
 		if ((stack->slot_type[i] == STACK_MISC) ||
 		    (stack->slot_type[i] == STACK_INVALID && env->allow_uninit_stack))
 			continue;
@@ -20036,12 +20036,12 @@ static bool is_stack_all_misc(struct bpf_verifier_env *env,
 }
 
 static struct bpf_reg_state *scalar_reg_for_stack(struct bpf_verifier_env *env,
-						  struct bpf_stack_state *stack)
+						  struct bpf_stack_state *stack, int im)
 {
-	if (is_spilled_scalar_reg64(stack))
+	if (is_spilled_scalar_after(stack, im))
 		return &stack->spilled_ptr;
 
-	if (is_stack_all_misc(env, stack))
+	if (is_stack_misc_after(env, stack, im))
 		return &unbound_reg;
 
 	return NULL;
@@ -20059,6 +20059,7 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 	 */
 	for (i = 0; i < old->allocated_stack; i++) {
 		struct bpf_reg_state *old_reg, *cur_reg;
+		int im = i % BPF_REG_SIZE;
 
 		spi = i / BPF_REG_SIZE;
 
@@ -20081,18 +20082,21 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 		if (i >= cur->allocated_stack)
 			return false;
 
-		/* 64-bit scalar spill vs all slots MISC and vice versa.
-		 * Load from all slots MISC produces unbound scalar.
+		/*
+		 * 64 and 32-bit scalar spills vs MISC/INVALID slots and vice versa.
+		 * Load from MISC/INVALID slots produces unbound scalar.
 		 * Construct a fake register for such stack and call
 		 * regsafe() to ensure scalar ids are compared.
 		 */
-		old_reg = scalar_reg_for_stack(env, &old->stack[spi]);
-		cur_reg = scalar_reg_for_stack(env, &cur->stack[spi]);
-		if (old_reg && cur_reg) {
-			if (!regsafe(env, old_reg, cur_reg, idmap, exact))
-				return false;
-			i += BPF_REG_SIZE - 1;
-			continue;
+		if (im == 0 || im == 4) {
+			old_reg = scalar_reg_for_stack(env, &old->stack[spi], im);
+			cur_reg = scalar_reg_for_stack(env, &cur->stack[spi], im);
+			if (old_reg && cur_reg) {
+				if (!regsafe(env, old_reg, cur_reg, idmap, exact))
+					return false;
+				i += (im == 0 ? BPF_REG_SIZE - 1 : 3);
+				continue;
+			}
 		}
 
 		/* if old state was safe with misc data in the stack
