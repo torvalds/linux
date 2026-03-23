@@ -105,14 +105,14 @@ static int __init tilcdc_panel_copy_props(struct device_node *old_panel,
 
 	if (!invert_pxl_clk) {
 		ret = tilcdc_panel_update_prop(&ocs, new_timing, "pixelclk-active",
-					       &(u32){cpu_to_be32(1)}, sizeof(u32));
+					       &(__be32){cpu_to_be32(1)}, sizeof(__be32));
 		if (ret)
 			goto destroy_ocs;
 	}
 
 	if (!sync_edge) {
 		ret = tilcdc_panel_update_prop(&ocs, new_timing, "syncclk-active",
-					       &(u32){cpu_to_be32(1)}, sizeof(u32));
+					       &(__be32){cpu_to_be32(1)}, sizeof(__be32));
 		if (ret)
 			goto destroy_ocs;
 	}

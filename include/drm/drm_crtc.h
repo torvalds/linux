@@ -275,6 +275,18 @@ struct drm_crtc_state {
 	struct drm_property_blob *gamma_lut;
 
 	/**
+	 * @background_color:
+	 *
+	 * RGB value representing the CRTC's background color.  The background
+	 * color (aka "canvas color") of a CRTC is the color that will be used
+	 * for pixels not covered by a plane, or covered by transparent pixels
+	 * of a plane.  The value here should be built using DRM_ARGB64_PREP*()
+	 * helpers, while the individual color components can be extracted with
+	 * desired precision via the DRM_ARGB64_GET*() macros.
+	 */
+	u64 background_color;
+
+	/**
 	 * @target_vblank:
 	 *
 	 * Target vertical blank period when a page flip

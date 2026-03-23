@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2025 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #include <drm/drm_file.h>
@@ -607,6 +607,7 @@ bool ivpu_job_handle_engine_error(struct ivpu_device *vdev, u32 job_id, u32 job_
 		 * status and ensure both are handled in the same way
 		 */
 		job->file_priv->has_mmu_faults = true;
+		atomic_set(&vdev->faults_detected, 1);
 		queue_work(system_percpu_wq, &vdev->context_abort_work);
 		return true;
 	}
@@ -1115,6 +1116,51 @@ void ivpu_job_done_consumer_fini(struct ivpu_device *vdev)
 	ivpu_ipc_consumer_del(vdev, &vdev->job_done_consumer);
 }
 
+static int reset_engine_and_mark_faulty_contexts(struct ivpu_device *vdev)
+{
+	u32 num_impacted_contexts;
+	struct vpu_jsm_msg resp;
+	int ret;
+	u32 i;
+
+	ret = ivpu_jsm_reset_engine(vdev, 0, &resp);
+	if (ret)
+		return ret;
+
+	/*
+	 * If faults are detected, ignore guilty contexts from engine reset as NPU may not be stuck
+	 * and could return currently running good context and faulty contexts are already marked
+	 */
+	if (atomic_cmpxchg(&vdev->faults_detected, 1, 0) == 1)
+		return 0;
+
+	num_impacted_contexts = resp.payload.engine_reset_done.num_impacted_contexts;
+
+	ivpu_warn_ratelimited(vdev, "Engine reset performed, impacted contexts: %u\n",
+			      num_impacted_contexts);
+
+	if (!in_range(num_impacted_contexts, 1, VPU_MAX_ENGINE_RESET_IMPACTED_CONTEXTS - 1)) {
+		ivpu_pm_trigger_recovery(vdev, "Cannot determine guilty contexts");
+		return -EIO;
+	}
+
+	/* No faults detected, NPU likely got stuck. Mark returned contexts as guilty */
+	guard(mutex)(&vdev->context_list_lock);
+
+	for (i = 0; i < num_impacted_contexts; i++) {
+		u32 ssid = resp.payload.engine_reset_done.impacted_contexts[i].host_ssid;
+		struct ivpu_file_priv *file_priv = xa_load(&vdev->context_xa, ssid);
+
+		if (file_priv) {
+			mutex_lock(&file_priv->lock);
+			file_priv->has_mmu_faults = true;
+			mutex_unlock(&file_priv->lock);
+		}
+	}
+
+	return 0;
+}
+
 void ivpu_context_abort_work_fn(struct work_struct *work)
 {
 	struct ivpu_device *vdev = container_of(work, struct ivpu_device, context_abort_work);
@@ -1127,7 +1173,7 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 		return;
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
-		if (ivpu_jsm_reset_engine(vdev, 0))
+		if (reset_engine_and_mark_faulty_contexts(vdev))
 			goto runtime_put;
 
 	mutex_lock(&vdev->context_list_lock);

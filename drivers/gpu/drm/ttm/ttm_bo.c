@@ -32,6 +32,7 @@
 #define pr_fmt(fmt) "[TTM] " fmt
 
 #include <drm/drm_print.h>
+#include <drm/drm_util.h>
 #include <drm/ttm/ttm_allocation.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
@@ -1208,9 +1209,9 @@ const struct ttm_lru_walk_ops ttm_swap_ops = {
  * @man: The resource manager whose resources / buffer objects are
  * goint to be swapped out.
  * @gfp_flags: The gfp flags used for shmem page allocations.
- * @target: The desired number of bytes to swap out.
+ * @target: The desired number of pages to swap out.
  *
- * Return: The number of bytes actually swapped out, or negative error code
+ * Return: The number of pages actually swapped out, or negative error code
  * on error.
  */
 s64 ttm_bo_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
@@ -1230,6 +1231,7 @@ s64 ttm_bo_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 
 	return ttm_lru_walk_for_evict(&swapout_walk.walk, bdev, man, target);
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_bo_swapout);
 
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo)
 {

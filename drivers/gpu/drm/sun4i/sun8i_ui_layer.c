@@ -124,25 +124,13 @@ static void sun8i_ui_layer_update_buffer(struct sun8i_layer *layer,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_dma_object *gem;
 	dma_addr_t dma_addr;
 	u32 ch_base;
-	int bpp;
 
 	ch_base = sun8i_channel_base(layer);
 
-	/* Get the physical address of the buffer in memory */
-	gem = drm_fb_dma_get_gem_obj(fb, 0);
-
-	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->dma_addr);
-
-	/* Compute the start of the displayed memory */
-	bpp = fb->format->cpp[0];
-	dma_addr = gem->dma_addr + fb->offsets[0];
-
-	/* Fixup framebuffer address for src coordinates */
-	dma_addr += (state->src.x1 >> 16) * bpp;
-	dma_addr += (state->src.y1 >> 16) * fb->pitches[0];
+	/* Get the start of the displayed memory */
+	dma_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
 
 	/* Set the line width */
 	DRM_DEBUG_DRIVER("Layer line width: %d bytes\n", fb->pitches[0]);

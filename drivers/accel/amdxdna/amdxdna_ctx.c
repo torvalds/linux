@@ -137,7 +137,8 @@ u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 
 int amdxdna_cmd_set_error(struct amdxdna_gem_obj *abo,
 			  struct amdxdna_sched_job *job, u32 cmd_idx,
-			  enum ert_cmd_state error_state)
+			  enum ert_cmd_state error_state,
+			  void *err_data, size_t size)
 {
 	struct amdxdna_client *client = job->hwctx->client;
 	struct amdxdna_cmd *cmd = abo->mem.kva;
@@ -156,6 +157,9 @@ int amdxdna_cmd_set_error(struct amdxdna_gem_obj *abo,
 	}
 
 	memset(cmd->data, 0xff, abo->mem.size - sizeof(*cmd));
+	if (err_data)
+		memcpy(cmd->data, err_data, min(size, abo->mem.size - sizeof(*cmd)));
+
 	if (cc)
 		amdxdna_gem_put_obj(abo);
 

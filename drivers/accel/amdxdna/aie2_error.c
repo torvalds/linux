@@ -355,9 +355,8 @@ int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev)
 		return -ENOMEM;
 
 	events->buf = aie2_alloc_msg_buffer(ndev, &total_size, &events->addr);
-
-	if (!events->buf) {
-		ret = -ENOMEM;
+	if (IS_ERR(events->buf)) {
+		ret = PTR_ERR(events->buf);
 		goto free_events;
 	}
 	events->size = total_size;

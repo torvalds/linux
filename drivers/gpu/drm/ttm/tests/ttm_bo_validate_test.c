@@ -759,6 +759,46 @@ static void ttm_bo_validate_move_fence_not_signaled(struct kunit *test)
 	ttm_mock_manager_fini(priv->ttm_dev, snd_mem);
 }
 
+static void ttm_bo_validate_swapout(struct kunit *test)
+{
+	u32 mem_type = TTM_PL_TT;
+	struct ttm_test_devices *priv = test->priv;
+	struct ttm_operation_ctx ctx_init = { };
+	enum ttm_bo_type bo_type = ttm_bo_type_device;
+	struct ttm_resource_manager *man;
+	struct ttm_placement *placement;
+	struct ttm_buffer_object *bo;
+	struct ttm_place *place;
+	int err;
+	s64 swapped;
+
+	ttm_mock_manager_init(priv->ttm_dev, mem_type, MANAGER_SIZE);
+	man = ttm_manager_type(priv->ttm_dev, mem_type);
+	KUNIT_ASSERT_NOT_NULL(test, man);
+
+	place = ttm_place_kunit_init(test, mem_type, 0);
+	placement = ttm_placement_kunit_init(test, place, 1);
+
+	bo = kunit_kzalloc(test, sizeof(*bo), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, bo);
+
+	drm_gem_private_object_init(priv->drm, &bo->base, MANAGER_SIZE);
+	err = ttm_bo_init_reserved(priv->ttm_dev, bo, bo_type, placement,
+				   PAGE_SIZE, &ctx_init, NULL, NULL,
+				   &dummy_ttm_bo_destroy);
+	KUNIT_EXPECT_EQ(test, err, 0);
+	dma_resv_unlock(bo->base.resv);
+
+	swapped = ttm_bo_swapout(priv->ttm_dev, &ctx_init, man, GFP_KERNEL,
+				 MANAGER_SIZE / PAGE_SIZE);
+	KUNIT_EXPECT_EQ(test, swapped, MANAGER_SIZE / PAGE_SIZE);
+	KUNIT_EXPECT_EQ(test, bo->resource->mem_type, TTM_PL_SYSTEM);
+	KUNIT_EXPECT_TRUE(test, bo->ttm->page_flags & TTM_TT_FLAG_SWAPPED);
+
+	ttm_bo_fini(bo);
+	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
+}
+
 static void ttm_bo_validate_happy_evict(struct kunit *test)
 {
 	u32 mem_type = TTM_PL_VRAM, mem_multihop = TTM_PL_TT,
@@ -1153,6 +1193,7 @@ static struct kunit_case ttm_bo_validate_test_cases[] = {
 	KUNIT_CASE(ttm_bo_validate_move_fence_signaled),
 	KUNIT_CASE_PARAM(ttm_bo_validate_move_fence_not_signaled,
 			 ttm_bo_validate_wait_gen_params),
+	KUNIT_CASE(ttm_bo_validate_swapout),
 	KUNIT_CASE(ttm_bo_validate_happy_evict),
 	KUNIT_CASE(ttm_bo_validate_all_pinned_evict),
 	KUNIT_CASE(ttm_bo_validate_allowed_only_evict),

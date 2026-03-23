@@ -31,6 +31,7 @@ enum aie2_msg_opcode {
 	MSG_OP_SET_RUNTIME_CONFIG          = 0x10A,
 	MSG_OP_GET_RUNTIME_CONFIG          = 0x10B,
 	MSG_OP_REGISTER_ASYNC_EVENT_MSG    = 0x10C,
+	MSG_OP_GET_APP_HEALTH              = 0x114,
 	MSG_OP_MAX_DRV_OPCODE,
 	MSG_OP_GET_PROTOCOL_VERSION        = 0x301,
 	MSG_OP_MAX_OPCODE
@@ -450,5 +451,56 @@ struct config_debug_bo_req {
 
 struct config_debug_bo_resp {
 	enum aie2_msg_status	status;
+} __packed;
+
+struct fatal_error_info {
+	__u32 fatal_type;         /* Fatal error type */
+	__u32 exception_type;     /* Only valid if fatal_type is a specific value */
+	__u32 exception_argument; /* Argument based on exception type */
+	__u32 exception_pc;       /* Program Counter at the time of the exception */
+	__u32 app_module;         /* Error module name */
+	__u32 task_index;         /* Index of the task in which the error occurred */
+	__u32 reserved[128];
+};
+
+struct app_health_report {
+	__u16 major;
+	__u16 minor;
+	__u32 size;
+	__u32 context_id;
+	/*
+	 * Program Counter (PC) of the last initiated DPU opcode, as reported by the ERT
+	 * application. Before execution begins or after successful completion, the value is set
+	 * to UINT_MAX. If execution halts prematurely due to an error, this field retains the
+	 * opcode's PC value.
+	 * Note: To optimize performance, the ERT may simplify certain aspects of reporting.
+	 * Proper interpretation requires familiarity with the implementation details.
+	 */
+	__u32 dpu_pc;
+	/*
+	 * Index of the last initiated TXN opcode.
+	 * Before execution starts or after successful completion, the value is set to UINT_MAX.
+	 * If execution halts prematurely due to an error, this field retains the opcode's ID.
+	 * Note: To optimize performance, the ERT may simplify certain aspects of reporting.
+	 * Proper interpretation requires familiarity with the implementation details.
+	 */
+	__u32 txn_op_id;
+	/* The PC of the context at the time of the report */
+	__u32 ctx_pc;
+	struct fatal_error_info		fatal_info;
+	/* Index of the most recently executed run list entry. */
+	__u32 run_list_id;
+};
+
+struct get_app_health_req {
+	__u32 context_id;
+	__u32 buf_size;
+	__u64 buf_addr;
+} __packed;
+
+struct get_app_health_resp {
+	enum aie2_msg_status status;
+	__u32 required_buffer_size;
+	__u32 reserved[7];
 } __packed;
 #endif /* _AIE2_MSG_PRIV_H_ */

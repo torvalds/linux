@@ -6,7 +6,9 @@
 #ifndef _AMDXDNA_GEM_H_
 #define _AMDXDNA_GEM_H_
 
+#include <drm/drm_gem_shmem_helper.h>
 #include <linux/hmm.h>
+#include <linux/iova.h>
 #include "amdxdna_pci_drv.h"
 
 struct amdxdna_umap {
@@ -25,6 +27,7 @@ struct amdxdna_mem {
 	u64				userptr;
 	void				*kva;
 	u64				dev_addr;
+	u64				dma_addr;
 	size_t				size;
 	struct page			**pages;
 	u32				nr_pages;
@@ -39,6 +42,7 @@ struct amdxdna_gem_obj {
 	bool				pinned;
 	struct mutex			lock; /* Protects: pinned */
 	struct amdxdna_mem		mem;
+	u32				ref;
 
 	/* Below members is uninitialized when needed */
 	struct drm_mm			mm; /* For AMDXDNA_BO_DEV_HEAP */
@@ -66,6 +70,12 @@ static inline void amdxdna_gem_put_obj(struct amdxdna_gem_obj *abo)
 static inline u64 amdxdna_dev_bo_offset(struct amdxdna_gem_obj *abo)
 {
 	return abo->mem.dev_addr - abo->client->dev_heap->mem.dev_addr;
+}
+
+static inline u64 amdxdna_obj_dma_addr(struct amdxdna_client *client,
+				       struct amdxdna_gem_obj *abo)
+{
+	return amdxdna_pasid_on(client) ? abo->mem.userptr : abo->mem.dma_addr;
 }
 
 void amdxdna_umap_put(struct amdxdna_umap *mapp);
