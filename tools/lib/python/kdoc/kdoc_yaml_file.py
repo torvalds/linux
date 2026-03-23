@@ -25,6 +25,7 @@ class KDocTestFile():
         self.config = config
         self.test_file = os.path.expanduser(yaml_file)
         self.yaml_content = yaml_content
+        self.test_names = set()
 
         self.tests = []
 
@@ -102,13 +103,10 @@ class KDocTestFile():
         if not symbols:
             return
 
-        base_name = "test_" + fname.replace(".", "_").replace("/", "_")
         expected_dict = {}
         start_line=1
 
-        for i in range(0, len(symbols)):
-            arg = symbols[i]
-
+        for arg in symbols:
             source = arg.get("source", "")
 
             if arg and "KdocItem" in self.yaml_content:
@@ -120,6 +118,21 @@ class KDocTestFile():
 
                 expected_dict["kdoc_item"] = msg
 
+            base_name = arg.name
+            if not base_name:
+                base_name = fname
+            base_name = base_name.lower().replace(".", "_").replace("/", "_")
+
+
+            # Don't add duplicated names
+            i = 0
+            name = base_name
+            while name in self.test_names:
+                i += 1
+                name = f"{base_name}_{i:03d}"
+
+            self.test_names.add(name)
+
             for out_style in self.out_style:
                 if isinstance(out_style, ManFormat):
                     key = "man"
@@ -127,8 +140,6 @@ class KDocTestFile():
                     key = "rst"
 
                 expected_dict[key]= out_style.output_symbols(fname, [arg]).strip()
-
-            name = f"{base_name}_{i:03d}"
 
             test = {
                 "name": name,
