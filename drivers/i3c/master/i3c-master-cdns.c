@@ -1143,7 +1143,7 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 	}
 
 	ret = i3c_master_entdaa_locked(&master->base);
-	if (ret && ret != I3C_ERROR_M2)
+	if (ret)
 		return ret;
 
 	newdevs = readl(master->regs + DEVS_CTRL) & DEVS_CTRL_DEVS_ACTIVE_MASK;
