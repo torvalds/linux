@@ -3316,6 +3316,53 @@
 			#clock-cells = <0>;
 		};
 
+		arbiter@c400000 {
+			compatible = "qcom,kaanapali-spmi-pmic-arb", "qcom,glymur-spmi-pmic-arb";
+			reg = <0x0 0x0c400000 0x0 0x3000>,
+			      <0x0 0x0c900000 0x0 0x400000>,
+			      <0x0 0x0c4c0000 0x0 0x400000>,
+			      <0x0 0x0c403000 0x0 0x8000>;
+			reg-names = "core",
+				    "chnls",
+				    "obsrvr",
+				    "chnl_map";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			qcom,channel = <0>;
+			qcom,ee = <0>;
+
+			spmi_bus0: spmi@c426000 {
+				reg = <0x0 0x0c426000 0x0 0x4000>,
+				      <0x0 0x0c8c0000 0x0 0x10000>,
+				      <0x0 0x0c42a000 0x0 0x8000>;
+				reg-names = "cnfg",
+					    "intr",
+					    "chnl_owner";
+				interrupts-extended = <&pdc 1 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "periph_irq";
+				interrupt-controller;
+				#interrupt-cells = <4>;
+				#address-cells = <2>;
+				#size-cells = <0>;
+			};
+
+			spmi_bus1: spmi@c437000 {
+				reg = <0x0 0x0c437000 0x0 0x4000>,
+				      <0x0 0x0c8d0000 0x0 0x10000>,
+				      <0x0 0x0c43b000 0x0 0x8000>;
+				reg-names = "cnfg",
+					    "intr",
+					    "chnl_owner";
+				interrupts-extended = <&pdc 3 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "periph_irq";
+				interrupt-controller;
+				#interrupt-cells = <4>;
+				#address-cells = <2>;
+				#size-cells = <0>;
+			};
+		};
+
 		tlmm: pinctrl@f100000 {
 			compatible = "qcom,kaanapali-tlmm";
 			reg = <0x0 0x0f100000 0x0 0x300000>;
