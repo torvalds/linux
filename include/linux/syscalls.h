@@ -1285,13 +1285,7 @@ static inline long ksys_lchown(const char __user *filename, uid_t user,
 
 #define FTRUNCATE_LFS	(1u << 0)	/* allow truncating > 32-bit */
 int ksys_ftruncate(unsigned int fd, loff_t length, unsigned int flags);
-
-int do_sys_truncate(const char __user *pathname, loff_t length);
-
-static inline long ksys_truncate(const char __user *pathname, loff_t length)
-{
-	return do_sys_truncate(pathname, length);
-}
+int ksys_truncate(const char __user *pathname, loff_t length);
 
 static inline unsigned int ksys_personality(unsigned int personality)
 {
