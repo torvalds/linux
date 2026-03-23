@@ -16,22 +16,36 @@ config EROFS_FS
 	select ZLIB_INFLATE if EROFS_FS_ZIP_DEFLATE
 	select ZSTD_DECOMPRESS if EROFS_FS_ZIP_ZSTD
 	help
-	  EROFS (Enhanced Read-Only File System) is a lightweight read-only
-	  file system with modern designs (e.g. no buffer heads, inline
-	  xattrs/data, chunk-based deduplication, multiple devices, etc.) for
-	  scenarios which need high-performance read-only solutions, e.g.
-	  smartphones with Android OS, LiveCDs and high-density hosts with
-	  numerous containers;
+	  EROFS (Enhanced Read-Only File System) is a modern, lightweight,
+	  secure read-only filesystem for various use cases, such as immutable
+	  system images, container images, application sandboxes, and datasets.
 
-	  It also provides transparent compression and deduplication support to
-	  improve storage density and maintain relatively high compression
-	  ratios, and it implements in-place decompression to temporarily reuse
-	  page cache for compressed data using proper strategies, which is
-	  quite useful for ensuring guaranteed end-to-end runtime decompression
+	  EROFS uses a flexible, hierarchical on-disk design so that features
+	  can be enabled on demand: the core on-disk format is block-aligned in
+	  order to perform optimally on all kinds of devices, including block
+	  and memory-backed devices; the format is easy to parse and has zero
+	  metadata redundancy, unlike generic filesystems, making it ideal for
+	  filesystem auditing and remote access; inline data, random-access
+	  friendly directory data, inline/shared extended attributes and
+	  chunk-based deduplication ensure space efficiency while maintaining
+	  high performance.
+
+	  Optionally, it supports multiple devices to reference external data,
+	  enabling data sharing for container images.
+
+	  It also has advanced encoded on-disk layouts, particularly for data
+	  compression and fine-grained deduplication. It utilizes fixed-size
+	  output compression to improve storage density while keeping relatively
+	  high compression ratios. Furthermore, it implements in-place
+	  decompression to reuse file pages to keep compressed data temporarily
+	  with proper strategies, which ensures guaranteed end-to-end runtime
 	  performance under extreme memory pressure without extra cost.
 
-	  See the documentation at <file:Documentation/filesystems/erofs.rst>
-	  and the web pages at <https://erofs.docs.kernel.org> for more details.
+	  For more details, see the web pages at <https://erofs.docs.kernel.org>
+	  and the documentation at <file:Documentation/filesystems/erofs.rst>.
+
+	  To compile EROFS filesystem support as a module, choose M here. The
+	  module will be called erofs.
 
 	  If unsure, say N.
 
@@ -105,7 +119,8 @@ config EROFS_FS_ZIP
 	depends on EROFS_FS
 	default y
 	help
-	  Enable transparent compression support for EROFS file systems.
+	  Enable EROFS compression layouts so that filesystems containing
+	  compressed files can be parsed by the kernel.
 
 	  If you don't want to enable compression feature, say N.
 
