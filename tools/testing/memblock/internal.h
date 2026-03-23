@@ -29,4 +29,13 @@ static inline unsigned long free_reserved_area(void *start, void *end,
 	return 0;
 }
 
+#define for_each_valid_pfn(pfn, start_pfn, end_pfn)                     \
+       for ((pfn) = (start_pfn); (pfn) < (end_pfn); (pfn)++)
+
+static inline void init_deferred_page(unsigned long pfn, int nid)
+{
+}
+
+#define __SetPageReserved(p)	((void)(p))
+
 #endif

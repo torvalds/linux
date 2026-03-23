@@ -32,8 +32,6 @@ static inline phys_addr_t virt_to_phys(volatile void *address)
 	return (phys_addr_t)address;
 }
 
-void reserve_bootmem_region(phys_addr_t start, phys_addr_t end, int nid);
-
 static inline void totalram_pages_inc(void)
 {
 }

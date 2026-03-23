@@ -974,7 +974,7 @@ __init void memmap_init_kho_scratch_pages(void)
 	/*
 	 * Initialize struct pages for free scratch memory.
 	 * The struct pages for reserved scratch memory will be set up in
-	 * reserve_bootmem_region()
+	 * memmap_init_reserved_pages()
 	 */
 	__for_each_mem_range(i, &memblock.memory, NULL, NUMA_NO_NODE,
 			     MEMBLOCK_KHO_SCRATCH, &start, &end, &nid) {
@@ -2241,6 +2241,31 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 	return end_pfn - start_pfn;
 }
 
+/*
+ * Initialised pages do not have PageReserved set. This function is called
+ * for each reserved range and marks the pages PageReserved.
+ * When deferred initialization of struct pages is enabled it also ensures
+ * that struct pages are properly initialised.
+ */
+static void __init memmap_init_reserved_range(phys_addr_t start,
+					      phys_addr_t end, int nid)
+{
+	unsigned long pfn;
+
+	for_each_valid_pfn(pfn, PFN_DOWN(start), PFN_UP(end)) {
+		struct page *page = pfn_to_page(pfn);
+
+		init_deferred_page(pfn, nid);
+
+		/*
+		 * no need for atomic set_bit because the struct
+		 * page is not visible yet so nobody should
+		 * access it yet.
+		 */
+		__SetPageReserved(page);
+	}
+}
+
 static void __init memmap_init_reserved_pages(void)
 {
 	struct memblock_region *region;
@@ -2260,7 +2285,7 @@ repeat:
 		end = start + region->size;
 
 		if (memblock_is_nomap(region))
-			reserve_bootmem_region(start, end, nid);
+			memmap_init_reserved_range(start, end, nid);
 
 		memblock_set_node(start, region->size, &memblock.reserved, nid);
 	}
@@ -2285,7 +2310,7 @@ repeat:
 			if (!numa_valid_node(nid))
 				nid = early_pfn_to_nid(PFN_DOWN(start));
 
-			reserve_bootmem_region(start, end, nid);
+			memmap_init_reserved_range(start, end, nid);
 		}
 	}
 }
