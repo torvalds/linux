@@ -54,6 +54,7 @@ struct io_zcrx_ifq {
 	unsigned			niov_shift;
 	struct user_struct		*user;
 	struct mm_struct		*mm_account;
+	bool				kern_readable;
 
 	struct zcrx_rq			rq ____cacheline_aligned_in_smp;
 

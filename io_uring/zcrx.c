@@ -423,8 +423,13 @@ static void io_zcrx_free_area(struct io_zcrx_ifq *ifq,
 static int io_zcrx_append_area(struct io_zcrx_ifq *ifq,
 				struct io_zcrx_area *area)
 {
+	bool kern_readable = !area->mem.is_dmabuf;
+
 	if (WARN_ON_ONCE(ifq->area))
 		return -EINVAL;
+	if (WARN_ON_ONCE(ifq->kern_readable != kern_readable))
+		return -EINVAL;
+
 	ifq->area = area;
 	return 0;
 }
@@ -882,6 +887,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	if (ret)
 		goto err;
 
+	ifq->kern_readable = !(area.flags & IORING_ZCRX_AREA_DMABUF);
+
 	if (!(reg.flags & ZCRX_REG_NODEV)) {
 		ret = zcrx_register_netdev(ifq, &reg, &area);
 		if (ret)
@@ -1298,7 +1305,7 @@ static struct net_iov *io_alloc_fallback_niov(struct io_zcrx_ifq *ifq)
 	struct io_zcrx_area *area = ifq->area;
 	struct net_iov *niov = NULL;
 
-	if (area->mem.is_dmabuf)
+	if (!ifq->kern_readable)
 		return NULL;
 
 	scoped_guard(spinlock_bh, &area->freelist_lock)
