@@ -19,6 +19,7 @@ use crate::{
     },
     types::Opaque,
     workqueue::{
+        HasDelayedWork,
         HasWork,
         Work,
         WorkItem, //
@@ -290,4 +291,16 @@ where
         // SAFETY: `T::Data` is stored as the `data` field in `Device<T>`.
         unsafe { crate::container_of!(data_ptr, Self, data) }
     }
+}
+
+// SAFETY: Our `HasWork<T, ID>` implementation returns a `work_struct` that is
+// stored in the `work` field of a `delayed_work` with the same access rules as
+// the `work_struct` owing to the bound on `T::Data: HasDelayedWork<Device<T>,
+// ID>`, which requires that `T::Data::raw_get_work` return a `work_struct` that
+// is inside a `delayed_work`.
+unsafe impl<T, const ID: u64> HasDelayedWork<Device<T>, ID> for Device<T>
+where
+    T: drm::Driver,
+    T::Data: HasDelayedWork<Device<T>, ID>,
+{
 }
