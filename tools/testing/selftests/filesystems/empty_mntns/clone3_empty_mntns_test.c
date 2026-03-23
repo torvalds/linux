@@ -4,7 +4,7 @@
  *
  * These tests exercise the clone3() code path for creating empty mount
  * namespaces, which is distinct from the unshare() path tested in
- * empty_mntns_test.c.  With clone3(), CLONE_EMPTY_MNTNS (0x400000000ULL)
+ * empty_mntns_test.c.  With clone3(), CLONE_EMPTY_MNTNS (0x2000000000ULL)
  * is a 64-bit flag that implies CLONE_NEWNS.  The implication happens in
  * kernel_clone() before copy_process(), unlike unshare() where it goes
  * through UNSHARE_EMPTY_MNTNS -> CLONE_EMPTY_MNTNS conversion in
