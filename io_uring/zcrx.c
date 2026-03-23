@@ -300,21 +300,23 @@ static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 	}
 }
 
-static void io_zcrx_sync_for_device(struct page_pool *pool,
-				    struct net_iov *niov)
+static void zcrx_sync_for_device(struct page_pool *pp, struct io_zcrx_ifq *zcrx,
+				 netmem_ref *netmems, unsigned nr)
 {
 #if defined(CONFIG_HAS_DMA) && defined(CONFIG_DMA_NEED_SYNC)
+	struct device *dev = pp->p.dev;
+	unsigned i, niov_size;
 	dma_addr_t dma_addr;
 
-	unsigned niov_size;
-
-	if (!dma_dev_need_sync(pool->p.dev))
+	if (!dma_dev_need_sync(dev))
 		return;
+	niov_size = 1U << zcrx->niov_shift;
 
-	niov_size = 1U << io_pp_to_ifq(pool)->niov_shift;
-	dma_addr = page_pool_get_dma_addr_netmem(net_iov_to_netmem(niov));
-	__dma_sync_single_for_device(pool->p.dev, dma_addr + pool->p.offset,
-				     niov_size, pool->p.dma_dir);
+	for (i = 0; i < nr; i++) {
+		dma_addr = page_pool_get_dma_addr_netmem(netmems[i]);
+		__dma_sync_single_for_device(dev, dma_addr + pp->p.offset,
+					     niov_size, pp->p.dma_dir);
+	}
 #endif
 }
 
@@ -1046,7 +1048,6 @@ static unsigned io_zcrx_ring_refill(struct page_pool *pp,
 			continue;
 		}
 
-		io_zcrx_sync_for_device(pp, niov);
 		netmems[allocated] = netmem;
 		allocated++;
 	} while (--entries);
@@ -1069,7 +1070,6 @@ static unsigned io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *if
 		if (!niov)
 			break;
 		net_mp_niov_set_page_pool(pp, niov);
-		io_zcrx_sync_for_device(pp, niov);
 		netmems[allocated] = net_iov_to_netmem(niov);
 	}
 	return allocated;
@@ -1094,6 +1094,7 @@ static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 	if (!allocated)
 		return 0;
 out_return:
+	zcrx_sync_for_device(pp, ifq, netmems, allocated);
 	allocated--;
 	pp->alloc.count += allocated;
 	return netmems[allocated];
