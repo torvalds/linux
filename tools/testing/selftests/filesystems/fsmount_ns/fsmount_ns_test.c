@@ -388,12 +388,23 @@ TEST_F(fsmount_ns_caps, requires_cap_sys_admin)
 {
 	pid_t pid;
 	int status;
+	int fs_fd;
+
+	/*
+	 * Prepare the configured filesystem fd as root before forking.
+	 * fsopen() requires CAP_SYS_ADMIN in the mount namespace's
+	 * user_ns, which won't be available after enter_userns().
+	 */
+	fs_fd = sys_fsopen("tmpfs", FSOPEN_CLOEXEC);
+	ASSERT_GE(fs_fd, 0);
+
+	ASSERT_EQ(sys_fsconfig(fs_fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
 
 	if (pid == 0) {
-		int fs_fd, fd;
+		int fd;
 
 		/* Child: drop privileges using utils.h helper */
 		if (enter_userns() != 0)
@@ -402,15 +413,6 @@ TEST_F(fsmount_ns_caps, requires_cap_sys_admin)
 		/* Drop all caps using utils.h helper */
 		if (caps_down() == 0)
 			_exit(3);
-
-		fs_fd = sys_fsopen("tmpfs", FSOPEN_CLOEXEC);
-		if (fs_fd < 0)
-			_exit(4);
-
-		if (sys_fsconfig(fs_fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0) < 0) {
-			close(fs_fd);
-			_exit(5);
-		}
 
 		fd = sys_fsmount(fs_fd, FSMOUNT_NAMESPACE | FSMOUNT_CLOEXEC, 0);
 		close(fs_fd);
@@ -432,6 +434,7 @@ TEST_F(fsmount_ns_caps, requires_cap_sys_admin)
 		_exit(7);
 	}
 
+	close(fs_fd);
 	ASSERT_EQ(waitpid(pid, &status, 0), pid);
 	ASSERT_TRUE(WIFEXITED(status));
 
@@ -447,12 +450,6 @@ TEST_F(fsmount_ns_caps, requires_cap_sys_admin)
 		break;
 	case 3:
 		SKIP(return, "caps_down failed");
-		break;
-	case 4:
-		SKIP(return, "fsopen failed in userns");
-		break;
-	case 5:
-		SKIP(return, "fsconfig CMD_CREATE failed in userns");
 		break;
 	case 6:
 		SKIP(return, "FSMOUNT_NAMESPACE not supported");
