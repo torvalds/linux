@@ -1011,19 +1011,21 @@ static inline bool io_parse_rqe(struct io_uring_zcrx_rqe *rqe,
 	return true;
 }
 
-static void io_zcrx_ring_refill(struct page_pool *pp,
-				struct io_zcrx_ifq *ifq)
+static unsigned io_zcrx_ring_refill(struct page_pool *pp,
+				    struct io_zcrx_ifq *ifq,
+				    netmem_ref *netmems, unsigned to_alloc)
 {
 	struct zcrx_rq *rq = &ifq->rq;
 	unsigned int mask = rq->nr_entries - 1;
 	unsigned int entries;
+	unsigned allocated = 0;
 
 	guard(spinlock_bh)(&rq->lock);
 
 	entries = zcrx_rq_entries(rq);
-	entries = min_t(unsigned, entries, PP_ALLOC_CACHE_REFILL);
+	entries = min_t(unsigned, entries, to_alloc);
 	if (unlikely(!entries))
-		return;
+		return 0;
 
 	do {
 		struct io_uring_zcrx_rqe *rqe = zcrx_next_rqe(rq, mask);
@@ -1045,48 +1047,56 @@ static void io_zcrx_ring_refill(struct page_pool *pp,
 		}
 
 		io_zcrx_sync_for_device(pp, niov);
-		net_mp_netmem_place_in_cache(pp, netmem);
+		netmems[allocated] = netmem;
+		allocated++;
 	} while (--entries);
 
 	smp_store_release(&rq->ring->head, rq->cached_head);
+	return allocated;
 }
 
-static void io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq)
+static unsigned io_zcrx_refill_slow(struct page_pool *pp, struct io_zcrx_ifq *ifq,
+				    netmem_ref *netmems, unsigned to_alloc)
 {
 	struct io_zcrx_area *area = ifq->area;
+	unsigned allocated = 0;
 
 	guard(spinlock_bh)(&area->freelist_lock);
 
-	while (pp->alloc.count < PP_ALLOC_CACHE_REFILL) {
+	for (allocated = 0; allocated < to_alloc; allocated++) {
 		struct net_iov *niov = zcrx_get_free_niov(area);
-		netmem_ref netmem;
 
 		if (!niov)
 			break;
 		net_mp_niov_set_page_pool(pp, niov);
 		io_zcrx_sync_for_device(pp, niov);
-		netmem = net_iov_to_netmem(niov);
-		net_mp_netmem_place_in_cache(pp, netmem);
+		netmems[allocated] = net_iov_to_netmem(niov);
 	}
+	return allocated;
 }
 
 static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 {
 	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
+	netmem_ref *netmems = pp->alloc.cache;
+	unsigned to_alloc = PP_ALLOC_CACHE_REFILL;
+	unsigned allocated;
 
 	/* pp should already be ensuring that */
 	if (WARN_ON_ONCE(pp->alloc.count))
 		return 0;
 
-	io_zcrx_ring_refill(pp, ifq);
-	if (likely(pp->alloc.count))
+	allocated = io_zcrx_ring_refill(pp, ifq, netmems, to_alloc);
+	if (likely(allocated))
 		goto out_return;
 
-	io_zcrx_refill_slow(pp, ifq);
-	if (!pp->alloc.count)
+	allocated = io_zcrx_refill_slow(pp, ifq, netmems, to_alloc);
+	if (!allocated)
 		return 0;
 out_return:
-	return pp->alloc.cache[--pp->alloc.count];
+	allocated--;
+	pp->alloc.count += allocated;
+	return netmems[allocated];
 }
 
 static bool io_pp_zc_release_netmem(struct page_pool *pp, netmem_ref netmem)
