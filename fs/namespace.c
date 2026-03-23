@@ -3086,8 +3086,13 @@ static struct file *open_detached_copy(struct path *path, unsigned int flags)
 	return file;
 }
 
+enum mount_copy_flags_t {
+	MOUNT_COPY_RECURSIVE    = (1 << 0),
+	MOUNT_COPY_NEW		= (1 << 1),
+};
+
 static struct mnt_namespace *create_new_namespace(struct path *path,
-						  bool recurse)
+						  enum mount_copy_flags_t flags)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct user_namespace *user_ns = current_user_ns();
@@ -3096,7 +3101,7 @@ static struct mnt_namespace *create_new_namespace(struct path *path,
 	struct path to_path;
 	struct mount *mnt;
 	unsigned int copy_flags = 0;
-	bool locked = false;
+	bool locked = false, recurse = flags & MOUNT_COPY_RECURSIVE;
 
 	if (user_ns != ns->user_ns)
 		copy_flags |= CL_SLAVE;
@@ -3135,22 +3140,10 @@ static struct mnt_namespace *create_new_namespace(struct path *path,
 	 * the restrictions of creating detached bind-mounts. It has a
 	 * lot saner and simpler semantics.
 	 */
-	mnt = real_mount(path->mnt);
-	if (!mnt->mnt_ns) {
-		/*
-		 * If we're moving into a new mount namespace via
-		 * fsmount() swap the mount ids so the nullfs mount id
-		 * is the lowest in the mount namespace avoiding another
-		 * useless copy. This is fine we're not attached to any
-		 * mount namespace so the mount ids are pure decoration
-		 * at that point.
-		 */
-		swap(mnt->mnt_id_unique, new_ns_root->mnt_id_unique);
-		swap(mnt->mnt_id, new_ns_root->mnt_id);
-		mntget(&mnt->mnt);
-	} else {
+	if (flags & MOUNT_COPY_NEW)
+		mnt = clone_mnt(real_mount(path->mnt), path->dentry, copy_flags);
+	else
 		mnt = __do_loopback(path, recurse, copy_flags);
-	}
 	scoped_guard(mount_writer) {
 		if (IS_ERR(mnt)) {
 			emptied_ns = new_ns;
@@ -3179,11 +3172,12 @@ static struct mnt_namespace *create_new_namespace(struct path *path,
 	return new_ns;
 }
 
-static struct file *open_new_namespace(struct path *path, bool recurse)
+static struct file *open_new_namespace(struct path *path,
+				       enum mount_copy_flags_t flags)
 {
 	struct mnt_namespace *new_ns;
 
-	new_ns = create_new_namespace(path, recurse);
+	new_ns = create_new_namespace(path, flags);
 	if (IS_ERR(new_ns))
 		return ERR_CAST(new_ns);
 	return open_namespace_file(to_ns_common(new_ns));
@@ -3232,7 +3226,7 @@ static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned
 		return ERR_PTR(ret);
 
 	if (flags & OPEN_TREE_NAMESPACE)
-		return open_new_namespace(&path, (flags & AT_RECURSIVE));
+		return open_new_namespace(&path, (flags & AT_RECURSIVE) ? MOUNT_COPY_RECURSIVE : 0);
 
 	if (flags & OPEN_TREE_CLONE)
 		return open_detached_copy(&path, flags);
@@ -4519,7 +4513,7 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 
 	if (flags & FSMOUNT_NAMESPACE)
 		return FD_ADD((flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0,
-			      open_new_namespace(&new_path, 0));
+			      open_new_namespace(&new_path, MOUNT_COPY_NEW));
 
 	ns = alloc_mnt_ns(current->nsproxy->mnt_ns->user_ns, true);
 	if (IS_ERR(ns))
