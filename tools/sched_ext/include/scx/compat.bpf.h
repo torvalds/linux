@@ -108,6 +108,19 @@ static inline struct task_struct *__COMPAT_scx_bpf_dsq_peek(u64 dsq_id)
 	return p;
 }
 
+/*
+ * v7.1: scx_bpf_sub_dispatch() for sub-sched dispatch. Preserve until
+ * we drop the compat layer for older kernels that lack the kfunc.
+ */
+bool scx_bpf_sub_dispatch___compat(u64 cgroup_id) __ksym __weak;
+
+static inline bool scx_bpf_sub_dispatch(u64 cgroup_id)
+{
+	if (bpf_ksym_exists(scx_bpf_sub_dispatch___compat))
+		return scx_bpf_sub_dispatch___compat(cgroup_id);
+	return false;
+}
+
 /**
  * __COMPAT_is_enq_cpu_selected - Test if SCX_ENQ_CPU_SELECTED is on
  * in a compatible way. We will preserve this __COMPAT helper until v6.16.
