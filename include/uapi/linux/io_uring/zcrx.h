@@ -49,7 +49,14 @@ struct io_uring_zcrx_area_reg {
 };
 
 enum zcrx_reg_flags {
-	ZCRX_REG_IMPORT	= 1,
+	ZCRX_REG_IMPORT		= 1,
+
+	/*
+	 * Register a zcrx instance without a net device. All data will be
+	 * copied. The refill queue entries might not be automatically
+	 * consumed and need to be flushed, see ZCRX_CTRL_FLUSH_RQ.
+	 */
+	ZCRX_REG_NODEV		= 2,
 };
 
 enum zcrx_features {
