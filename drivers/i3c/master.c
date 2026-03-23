@@ -1086,7 +1086,8 @@ int i3c_master_entdaa_locked(struct i3c_master_controller *master)
 EXPORT_SYMBOL_GPL(i3c_master_entdaa_locked);
 
 static int i3c_master_enec_disec_locked(struct i3c_master_controller *master,
-					u8 addr, bool enable, u8 evts)
+					u8 addr, bool enable, u8 evts,
+					bool suppress_m2)
 {
 	struct i3c_ccc_events *events;
 	struct i3c_ccc_cmd_dest dest;
@@ -1105,6 +1106,9 @@ static int i3c_master_enec_disec_locked(struct i3c_master_controller *master,
 			 &dest, 1);
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
 	i3c_ccc_cmd_dest_cleanup(&dest);
+
+	if (suppress_m2 && ret && cmd.err == I3C_ERROR_M2)
+		ret = 0;
 
 	return ret;
 }
@@ -1126,7 +1130,7 @@ static int i3c_master_enec_disec_locked(struct i3c_master_controller *master,
 int i3c_master_disec_locked(struct i3c_master_controller *master, u8 addr,
 			    u8 evts)
 {
-	return i3c_master_enec_disec_locked(master, addr, false, evts);
+	return i3c_master_enec_disec_locked(master, addr, false, evts, false);
 }
 EXPORT_SYMBOL_GPL(i3c_master_disec_locked);
 
@@ -1147,7 +1151,7 @@ EXPORT_SYMBOL_GPL(i3c_master_disec_locked);
 int i3c_master_enec_locked(struct i3c_master_controller *master, u8 addr,
 			   u8 evts)
 {
-	return i3c_master_enec_disec_locked(master, addr, true, evts);
+	return i3c_master_enec_disec_locked(master, addr, true, evts, false);
 }
 EXPORT_SYMBOL_GPL(i3c_master_enec_locked);
 
@@ -2134,11 +2138,14 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 			goto err_bus_cleanup;
 	}
 
-	/* Disable all slave events before starting DAA. */
-	ret = i3c_master_disec_locked(master, I3C_BROADCAST_ADDR,
-				      I3C_CCC_EVENT_SIR | I3C_CCC_EVENT_MR |
-				      I3C_CCC_EVENT_HJ);
-	if (ret && ret != I3C_ERROR_M2)
+	/*
+	 * Disable all slave events before starting DAA. When no active device
+	 * is on the bus, returns Mx error code M2, this error is ignored.
+	 */
+	ret = i3c_master_enec_disec_locked(master, I3C_BROADCAST_ADDR, false,
+					   I3C_CCC_EVENT_SIR | I3C_CCC_EVENT_MR |
+					   I3C_CCC_EVENT_HJ, true);
+	if (ret)
 		goto err_bus_cleanup;
 
 	/*
