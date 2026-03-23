@@ -265,9 +265,6 @@ class KernelDoc:
         # Place all potential outputs into an array
         self.entries = []
 
-        # When store_src is true, the kernel-doc source content is stored here
-        self.source = None
-
         #
         # We need Python 3.7 for its "dicts remember the insertion
         # order" guarantee
@@ -720,13 +717,14 @@ class KernelDoc:
         return declaration
 
 
-    def dump_struct(self, ln, proto):
+    def dump_struct(self, ln, proto, source):
         """
         Store an entry for a ``struct`` or ``union``
         """
         #
         # Do the basic parse to get the pieces of the declaration.
         #
+        source = source
         proto = trim_private_members(proto)
         struct_parts = self.split_struct_proto(proto)
         if not struct_parts:
@@ -756,10 +754,11 @@ class KernelDoc:
                                    declaration_name)
         self.check_sections(ln, declaration_name, decl_type)
         self.output_declaration(decl_type, declaration_name,
+                                source=source,
                                 definition=self.format_struct_decl(declaration),
                                 purpose=self.entry.declaration_purpose)
 
-    def dump_enum(self, ln, proto):
+    def dump_enum(self, ln, proto, source):
         """
         Store an ``enum`` inside self.entries array.
         """
@@ -767,6 +766,7 @@ class KernelDoc:
         # Strip preprocessor directives.  Note that this depends on the
         # trailing semicolon we added in process_proto_type().
         #
+        source = source
         proto = trim_private_members(proto)
         proto = KernRe(r'#\s*((define|ifdef|if)\s+|endif)[^;]*;', flags=re.S).sub('', proto)
         #
@@ -831,9 +831,10 @@ class KernelDoc:
                               f"Excess enum value '@{k}' description in '{declaration_name}'")
 
         self.output_declaration('enum', declaration_name,
+                                source=source,
                                 purpose=self.entry.declaration_purpose)
 
-    def dump_var(self, ln, proto):
+    def dump_var(self, ln, proto, source):
         """
         Store variables that are part of kAPI.
         """
@@ -846,6 +847,7 @@ class KernelDoc:
         #
         # Store the full prototype before modifying it
         #
+        source = source
         full_proto = proto
         declaration_name = None
 
@@ -895,32 +897,34 @@ class KernelDoc:
             default_val = default_val.lstrip("=").strip()
 
         self.output_declaration("var", declaration_name,
+                                source=source,
                                 full_proto=full_proto,
                                 default_val=default_val,
                                 purpose=self.entry.declaration_purpose)
 
-    def dump_declaration(self, ln, prototype):
+    def dump_declaration(self, ln, prototype, source):
         """
         Store a data declaration inside self.entries array.
         """
 
         if self.entry.decl_type == "enum":
-            self.dump_enum(ln, prototype)
+            self.dump_enum(ln, prototype, source)
         elif self.entry.decl_type == "typedef":
-            self.dump_typedef(ln, prototype)
+            self.dump_typedef(ln, prototype, source)
         elif self.entry.decl_type in ["union", "struct"]:
-            self.dump_struct(ln, prototype)
+            self.dump_struct(ln, prototype, source)
         elif self.entry.decl_type == "var":
-            self.dump_var(ln, prototype)
+            self.dump_var(ln, prototype, source)
         else:
             # This would be a bug
             self.emit_message(ln, f'Unknown declaration type: {self.entry.decl_type}')
 
-    def dump_function(self, ln, prototype):
+    def dump_function(self, ln, prototype, source):
         """
         Store a function or function macro inside self.entries array.
         """
 
+        source = source
         found = func_macro = False
         return_type = ''
         decl_type = 'function'
@@ -1013,13 +1017,14 @@ class KernelDoc:
         # Store the result.
         #
         self.output_declaration(decl_type, declaration_name,
+                                source=source,
                                 typedef=('typedef' in return_type),
                                 functiontype=return_type,
                                 purpose=self.entry.declaration_purpose,
                                 func_macro=func_macro)
 
 
-    def dump_typedef(self, ln, proto):
+    def dump_typedef(self, ln, proto, source):
         """
         Store a ``typedef`` inside self.entries array.
         """
@@ -1029,6 +1034,8 @@ class KernelDoc:
         typedef_type = r'typedef((?:\s+[\w*]+\b){0,7}\s+(?:\w+\b|\*+))\s*'
         typedef_ident = r'\*?\s*(\w\S+)\s*'
         typedef_args = r'\s*\((.*)\);'
+
+        source = source
 
         typedef1 = KernRe(typedef_type + r'\(' + typedef_ident + r'\)' + typedef_args)
         typedef2 = KernRe(typedef_type + typedef_ident + typedef_args)
@@ -1050,6 +1057,7 @@ class KernelDoc:
             self.create_parameter_list(ln, 'function', args, ',', declaration_name)
 
             self.output_declaration('function', declaration_name,
+                                    source=source,
                                     typedef=True,
                                     functiontype=return_type,
                                     purpose=self.entry.declaration_purpose)
@@ -1067,6 +1075,7 @@ class KernelDoc:
                 return
 
             self.output_declaration('typedef', declaration_name,
+                                    source=source,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1104,7 +1113,7 @@ class KernelDoc:
         function_set.add(symbol)
         return True
 
-    def process_normal(self, ln, line):
+    def process_normal(self, ln, line, source):
         """
         STATE_NORMAL: looking for the ``/**`` to begin everything.
         """
@@ -1118,7 +1127,7 @@ class KernelDoc:
         # next line is always the function name
         self.state = state.NAME
 
-    def process_name(self, ln, line):
+    def process_name(self, ln, line, source):
         """
         STATE_NAME: Looking for the "name - description" line
         """
@@ -1251,7 +1260,7 @@ class KernelDoc:
         return False
 
 
-    def process_decl(self, ln, line):
+    def process_decl(self, ln, line, source):
         """
         STATE_DECLARATION: We've seen the beginning of a declaration.
         """
@@ -1280,7 +1289,7 @@ class KernelDoc:
             self.emit_msg(ln, f"bad line: {line}")
 
 
-    def process_special(self, ln, line):
+    def process_special(self, ln, line, source):
         """
         STATE_SPECIAL_SECTION: a section ending with a blank line.
         """
@@ -1331,7 +1340,7 @@ class KernelDoc:
             # Unknown line, ignore
             self.emit_msg(ln, f"bad line: {line}")
 
-    def process_body(self, ln, line):
+    def process_body(self, ln, line, source):
         """
         STATE_BODY: the bulk of a kerneldoc comment.
         """
@@ -1345,7 +1354,7 @@ class KernelDoc:
             # Unknown line, ignore
             self.emit_msg(ln, f"bad line: {line}")
 
-    def process_inline_name(self, ln, line):
+    def process_inline_name(self, ln, line, source):
         """STATE_INLINE_NAME: beginning of docbook comments within a prototype."""
 
         if doc_inline_sect.search(line):
@@ -1363,10 +1372,10 @@ class KernelDoc:
             # Don't let it add partial comments at the code, as breaks the
             # logic meant to remove comments from prototypes.
             #
-            self.process_proto_type(ln, "/**\n" + line)
+            self.process_proto_type(ln, "/**\n" + line, source)
         # else ... ??
 
-    def process_inline_text(self, ln, line):
+    def process_inline_text(self, ln, line, source):
         """STATE_INLINE_TEXT: docbook comments within a prototype."""
 
         if doc_inline_end.search(line):
@@ -1452,7 +1461,7 @@ class KernelDoc:
 
         return proto
 
-    def process_proto_function(self, ln, line):
+    def process_proto_function(self, ln, line, source):
         """Ancillary routine to process a function prototype."""
 
         # strip C99-style comments to end of line
@@ -1494,10 +1503,10 @@ class KernelDoc:
             #
             # ... and we're done
             #
-            self.dump_function(ln, self.entry.prototype)
+            self.dump_function(ln, self.entry.prototype, source)
             self.reset_state(ln)
 
-    def process_proto_type(self, ln, line):
+    def process_proto_type(self, ln, line, source):
         """
         Ancillary routine to process a type.
         """
@@ -1527,7 +1536,7 @@ class KernelDoc:
                 elif chunk == '}':
                     self.entry.brcount -= 1
                 elif chunk == ';' and self.entry.brcount <= 0:
-                    self.dump_declaration(ln, self.entry.prototype)
+                    self.dump_declaration(ln, self.entry.prototype, source)
                     self.reset_state(ln)
                     return
         #
@@ -1536,7 +1545,7 @@ class KernelDoc:
         #
         self.entry.prototype += ' '
 
-    def process_proto(self, ln, line):
+    def process_proto(self, ln, line, source):
         """STATE_PROTO: reading a function/whatever prototype."""
 
         if doc_inline_oneline.search(line):
@@ -1548,17 +1557,18 @@ class KernelDoc:
             self.state = state.INLINE_NAME
 
         elif self.entry.decl_type == 'function':
-            self.process_proto_function(ln, line)
+            self.process_proto_function(ln, line, source)
 
         else:
-            self.process_proto_type(ln, line)
+            self.process_proto_type(ln, line, source)
 
-    def process_docblock(self, ln, line):
+    def process_docblock(self, ln, line, source):
         """STATE_DOCBLOCK: within a ``DOC:`` block."""
 
         if doc_end.search(line):
             self.dump_section()
-            self.output_declaration("doc", self.entry.identifier)
+            self.output_declaration("doc", self.entry.identifier,
+                                    source=source)
             self.reset_state(ln)
 
         elif doc_content.search(line):
@@ -1596,15 +1606,6 @@ class KernelDoc:
         state.DOCBLOCK:			process_docblock,
         }
 
-    def get_source(self):
-        """
-        Return the file content of the lines handled by kernel-doc at the
-        latest parse_kdoc() run.
-
-        Returns none if KernelDoc() was not initialized with store_src,
-        """
-        return self.source
-
     def parse_kdoc(self):
         """
         Open and process each line of a C source file.
@@ -1618,8 +1619,8 @@ class KernelDoc:
         prev = ""
         prev_ln = None
         export_table = set()
-        self.source = []
         self.state = state.NORMAL
+        source = ""
 
         try:
             with open(self.fname, "r", encoding="utf8",
@@ -1646,7 +1647,11 @@ class KernelDoc:
                                           ln, state.name[self.state],
                                           line)
 
-                    prev_state = self.state
+                    if self.store_src:
+                        if source and self.state == state.NORMAL:
+                            source = ""
+                        elif self.state != state.NORMAL:
+                            source += line + "\n"
 
                     # This is an optimization over the original script.
                     # There, when export_file was used for the same file,
@@ -1655,16 +1660,11 @@ class KernelDoc:
                     #
                     if (self.state != state.NORMAL) or \
                        not self.process_export(export_table, line):
+                        prev_state = self.state
                         # Hand this line to the appropriate state handler
-                        self.state_actions[self.state](self, ln, line)
-
-                    if self.store_src and prev_state != self.state or self.state != state.NORMAL:
-                        if self.state == state.NAME:
-                            # A "/**" was detected. Add a new source element
-                            self.source.append({"ln": ln, "data": line + "\n"})
-                        else:
-                            # Append to the existing one
-                            self.source[-1]["data"] += line + "\n"
+                        self.state_actions[self.state](self, ln, line, source)
+                        if prev_state == state.NORMAL and self.state != state.NORMAL:
+                            source += line + "\n"
 
             self.emit_unused_warnings()
 

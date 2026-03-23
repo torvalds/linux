@@ -14,7 +14,8 @@ class KdocItem:
     then pass into the output modules.
     """
 
-    def __init__(self, name, fname, type, start_line, **other_stuff):
+    def __init__(self, name, fname, type, start_line,
+                 **other_stuff):
         self.name = name
         self.fname = fname
         self.type = type
@@ -59,6 +60,9 @@ class KdocItem:
 
     def __getitem__(self, key):
         return self.get(key)
+
+    def __repr__(self):
+        return f"KdocItem({self.name}, {self.fname}, {self.type}, {self.declaration_start_line})"
 
     @classmethod
     def from_dict(cls, d):

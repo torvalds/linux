@@ -85,7 +85,7 @@ class KDocTestFile():
 
         return d
 
-    def output_symbols(self, fname, symbols, source):
+    def output_symbols(self, fname, symbols):
         """
         Store source, symbols and output strings at self.tests.
         """
@@ -96,16 +96,10 @@ class KDocTestFile():
         kdoc_item = []
         expected = []
 
-        if not symbols and not source:
-            return
-
-        if not source or len(symbols) != len(source):
-            print(f"Warning: lengths are different. Ignoring {fname}")
-
-            # Folding without line numbers is too hard.
-            # The right thing to do here to proceed would be to delete
-            # not-handled source blocks, as len(source) should be bigger
-            # than len(symbols)
+        #
+        # Source code didn't produce any symbol
+        #
+        if not symbols:
             return
 
         base_name = "test_" + fname.replace(".", "_").replace("/", "_")
@@ -115,8 +109,14 @@ class KDocTestFile():
         for i in range(0, len(symbols)):
             arg = symbols[i]
 
-            if "KdocItem" in self.yaml_content:
+            source = arg.get("source", "")
+
+            if arg and "KdocItem" in self.yaml_content:
                 msg = self.get_kdoc_item(arg)
+
+                other_stuff = msg.get("other_stuff", {})
+                if "source" in other_stuff:
+                    del other_stuff["source"]
 
                 expected_dict["kdoc_item"] = msg
 
@@ -132,9 +132,9 @@ class KDocTestFile():
 
             test = {
                 "name": name,
-                "description": f"{fname} line {source[i]["ln"]}",
+                "description": f"{fname} line {arg.declaration_start_line}",
                 "fname": fname,
-                "source": source[i]["data"],
+                "source": source,
                 "expected": [expected_dict]
             }
 

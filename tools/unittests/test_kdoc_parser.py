@@ -167,7 +167,16 @@ class GenerateKdocItem(unittest.TestCase):
                 self.assertIsInstance(entry, KdocItem)
 
                 d = vars(entry)
+
+                other_stuff = d.get("other_stuff", {})
+                if "source" in other_stuff:
+                    del other_stuff["source"]
+
                 for key, value in expected.items():
+                    if key == "other_stuff":
+                        if "source" in value:
+                            del value["source"]
+
                     result = clean_whitespc(d[key], relax_whitespace)
                     value = clean_whitespc(value, relax_whitespace)
 

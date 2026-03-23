@@ -203,10 +203,6 @@ class KernelFiles():
 
         self.results[fname] = entries
 
-        source = doc.get_source()
-        if source:
-            self.source[fname] = source
-
     def process_export_file(self, fname):
         """
         Parses ``EXPORT_SYMBOL*`` macros from a single Kernel source file.
@@ -294,7 +290,6 @@ class KernelFiles():
 
         self.errors = 0
         self.results = {}
-        self.source = {}
 
         self.files = set()
         self.export_files = set()
@@ -364,8 +359,7 @@ class KernelFiles():
                                           function_table, enable_lineno,
                                           no_doc_sections)
 
-                self.test_file.output_symbols(fname, symbols,
-                                              self.source.get(fname))
+                self.test_file.output_symbols(fname, symbols)
 
                 continue
 
