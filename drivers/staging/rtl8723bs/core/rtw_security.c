@@ -531,7 +531,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 					if (start == 0)
 						start = jiffies;
 
-					if (is_broadcast_mac_addr(prxattrib->ra))
+					if (is_broadcast_ether_addr(prxattrib->ra))
 						no_gkey_bc_cnt++;
 					else
 						no_gkey_mc_cnt++;
@@ -1225,7 +1225,7 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 			if (start == 0)
 				start = jiffies;
 
-			if (is_broadcast_mac_addr(prxattrib->ra))
+			if (is_broadcast_ether_addr(prxattrib->ra))
 				no_gkey_bc_cnt++;
 			else
 				no_gkey_mc_cnt++;

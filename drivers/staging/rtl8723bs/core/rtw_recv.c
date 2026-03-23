@@ -1274,7 +1274,7 @@ static signed int validate_recv_mgnt_frame(struct adapter *padapter, union recv_
 			    GetAddr1Ptr(precv_frame->u.hdr.rx_data),
 			    ETH_ALEN))
 			psta->sta_stats.rx_probersp_pkts++;
-		else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)) ||
+		else if (is_broadcast_ether_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)) ||
 			 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)))
 			psta->sta_stats.rx_probersp_bm_pkts++;
 		else
