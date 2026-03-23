@@ -53,3 +53,11 @@ Python version ancillary methods
    :members:
    :show-inheritance:
    :undoc-members:
+
+Write output on YAML file
+=========================
+
+.. automodule:: lib.python.kdoc.kdoc_yaml_file
+   :members:
+   :show-inheritance:
+   :undoc-members:
