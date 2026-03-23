@@ -4185,6 +4185,8 @@ static int move_existing_remap(struct btrfs_fs_info *fs_info,
 	dest_addr = ins.objectid;
 	dest_length = ins.offset;
 
+	dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
+
 	if (!is_data && !IS_ALIGNED(dest_length, fs_info->nodesize)) {
 		u64 new_length = ALIGN_DOWN(dest_length, fs_info->nodesize);
 
@@ -4295,15 +4297,12 @@ static int move_existing_remap(struct btrfs_fs_info *fs_info,
 	if (unlikely(ret))
 		goto end;
 
-	dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
-
 	adjust_block_group_remap_bytes(trans, dest_bg, dest_length);
 
 	mutex_lock(&dest_bg->free_space_lock);
 	bg_needs_free_space = test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
 				       &dest_bg->runtime_flags);
 	mutex_unlock(&dest_bg->free_space_lock);
-	btrfs_put_block_group(dest_bg);
 
 	if (bg_needs_free_space) {
 		ret = btrfs_add_block_group_free_space(trans, dest_bg);
@@ -4333,12 +4332,12 @@ end:
 			btrfs_end_transaction(trans);
 		}
 	} else {
-		dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
 		btrfs_free_reserved_bytes(dest_bg, dest_length, 0);
-		btrfs_put_block_group(dest_bg);
 
 		ret = btrfs_commit_transaction(trans);
 	}
+
+	btrfs_put_block_group(dest_bg);
 
 	return ret;
 }
@@ -4399,6 +4398,8 @@ static int move_existing_remaps(struct btrfs_fs_info *fs_info,
 
 				leaf = path->nodes[0];
 			}
+
+			btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 		}
 
 		remap = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
@@ -4952,6 +4953,12 @@ static int do_remap_reloc_trans(struct btrfs_fs_info *fs_info,
 	struct btrfs_space_info *sinfo = src_bg->space_info;
 
 	extent_root = btrfs_extent_root(fs_info, src_bg->start);
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for block group at offset %llu",
+			  src_bg->start);
+		return -EUCLEAN;
+	}
 
 	trans = btrfs_start_transaction(extent_root, 0);
 	if (IS_ERR(trans))
@@ -5304,6 +5311,13 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	int ret;
 	bool bg_is_ro = false;
 
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for block group at offset %llu",
+			  group_start);
+		return -EUCLEAN;
+	}
+
 	/*
 	 * This only gets set if we had a half-deleted snapshot on mount.  We
 	 * cannot allow relocation to start while we're still trying to clean up
@@ -5534,11 +5548,16 @@ int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 		goto out;
 	}
 
+	rc->extent_root = btrfs_extent_root(fs_info, 0);
+	if (unlikely(!rc->extent_root)) {
+		btrfs_err(fs_info, "missing extent root for extent at bytenr 0");
+		ret = -EUCLEAN;
+		goto out;
+	}
+
 	ret = reloc_chunk_start(fs_info);
 	if (ret < 0)
 		goto out_end;
-
-	rc->extent_root = btrfs_extent_root(fs_info, 0);
 
 	set_reloc_control(rc);
 
@@ -5633,6 +5652,14 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, disk_bytenr);
 	LIST_HEAD(list);
 	int ret;
+
+	if (unlikely(!csum_root)) {
+		btrfs_mark_ordered_extent_error(ordered);
+		btrfs_err(fs_info,
+			  "missing csum root for extent at bytenr %llu",
+			  disk_bytenr);
+		return -EUCLEAN;
+	}
 
 	ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 				      disk_bytenr + ordered->num_bytes - 1,

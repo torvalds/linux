@@ -31,9 +31,6 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, unsigned int level, cons
 #define btrfs_printk_in_rcu(fs_info, level, fmt, args...)		\
 	btrfs_no_printk(fs_info, fmt, ##args)
 
-#define btrfs_printk_in_rcu(fs_info, level, fmt, args...)		\
-	btrfs_no_printk(fs_info, fmt, ##args)
-
 #define btrfs_printk_rl_in_rcu(fs_info, level, fmt, args...)		\
 	btrfs_no_printk(fs_info, fmt, ##args)
 
