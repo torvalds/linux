@@ -654,13 +654,73 @@ static int llbitmap_cache_pages(struct llbitmap *llbitmap)
 	return 0;
 }
 
+/*
+ * Check if all underlying disks support write_zeroes with unmap.
+ */
+static bool llbitmap_all_disks_support_wzeroes_unmap(struct llbitmap *llbitmap)
+{
+	struct mddev *mddev = llbitmap->mddev;
+	struct md_rdev *rdev;
+
+	rdev_for_each(rdev, mddev) {
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		if (bdev_write_zeroes_unmap_sectors(rdev->bdev) == 0)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Issue write_zeroes to all underlying disks to zero their data regions.
+ * This ensures parity consistency for RAID-456 (0 XOR 0 = 0).
+ * Returns true if all disks were successfully zeroed.
+ */
+static bool llbitmap_zero_all_disks(struct llbitmap *llbitmap)
+{
+	struct mddev *mddev = llbitmap->mddev;
+	struct md_rdev *rdev;
+	sector_t dev_sectors = mddev->dev_sectors;
+	int ret;
+
+	rdev_for_each(rdev, mddev) {
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		ret = blkdev_issue_zeroout(rdev->bdev,
+					   rdev->data_offset,
+					   dev_sectors,
+					   GFP_KERNEL, 0);
+		if (ret) {
+			pr_warn("md/llbitmap: failed to zero disk %pg: %d\n",
+				rdev->bdev, ret);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void llbitmap_init_state(struct llbitmap *llbitmap)
 {
+	struct mddev *mddev = llbitmap->mddev;
 	enum llbitmap_state state = BitUnwritten;
 	unsigned long i;
 
-	if (test_and_clear_bit(BITMAP_CLEAN, &llbitmap->flags))
+	if (test_and_clear_bit(BITMAP_CLEAN, &llbitmap->flags)) {
 		state = BitClean;
+	} else if (raid_is_456(mddev) &&
+		   llbitmap_all_disks_support_wzeroes_unmap(llbitmap)) {
+		/*
+		 * All disks support write_zeroes with unmap. Zero all disks
+		 * to ensure parity consistency, then set BitCleanUnwritten
+		 * to skip initial sync.
+		 */
+		if (llbitmap_zero_all_disks(llbitmap))
+			state = BitCleanUnwritten;
+	}
 
 	for (i = 0; i < llbitmap->chunks; i++)
 		llbitmap_write(llbitmap, state, i);
