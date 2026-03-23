@@ -317,7 +317,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 	int step;
 
 	/* We only do strict verification on 6 GHz */
-	if (center < 5955 || center > 7115)
+	if (center < 5955 || center > 7215)
 		return true;
 
 	bw = nl80211_chan_width_to_mhz(width);
@@ -325,7 +325,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 		return false;
 
 	/* Validate that the channels bw is entirely within the 6 GHz band */
-	if (center - bw / 2 < 5945 || center + bw / 2 > 7125)
+	if (center - bw / 2 < 5945 || center + bw / 2 > 7225)
 		return false;
 
 	/* With 320 MHz the permitted channels overlap */
