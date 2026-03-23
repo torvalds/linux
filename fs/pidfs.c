@@ -57,6 +57,7 @@ struct pidfs_attr {
 	};
 	__u32 coredump_mask;
 	__u32 coredump_signal;
+	__u32 coredump_code;
 };
 
 static struct rhashtable pidfs_ino_ht;
@@ -333,7 +334,8 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 			      PIDFD_INFO_EXIT | \
 			      PIDFD_INFO_COREDUMP | \
 			      PIDFD_INFO_SUPPORTED_MASK | \
-			      PIDFD_INFO_COREDUMP_SIGNAL)
+			      PIDFD_INFO_COREDUMP_SIGNAL | \
+			      PIDFD_INFO_COREDUMP_CODE)
 
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -347,7 +349,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	const struct cred *c;
 	__u64 mask;
 
-	BUILD_BUG_ON(sizeof(struct pidfd_info) != PIDFD_INFO_SIZE_VER2);
+	BUILD_BUG_ON(sizeof(struct pidfd_info) != PIDFD_INFO_SIZE_VER3);
 
 	if (!uinfo)
 		return -EINVAL;
@@ -380,9 +382,10 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	if (mask & PIDFD_INFO_COREDUMP) {
 		if (test_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask)) {
 			smp_rmb();
-			kinfo.mask |= PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL;
+			kinfo.mask |= PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL | PIDFD_INFO_COREDUMP_CODE;
 			kinfo.coredump_mask = attr->coredump_mask;
 			kinfo.coredump_signal = attr->coredump_signal;
+			kinfo.coredump_code = attr->coredump_code;
 		}
 	}
 
@@ -755,8 +758,9 @@ void pidfs_coredump(const struct coredump_params *cprm)
 			      PIDFD_COREDUMPED;
 	/* If coredumping is set to skip we should never end up here. */
 	VFS_WARN_ON_ONCE(attr->coredump_mask & PIDFD_COREDUMP_SKIP);
-	/* Expose the signal number that caused the coredump. */
+	/* Expose the signal number and code that caused the coredump. */
 	attr->coredump_signal = cprm->siginfo->si_signo;
+	attr->coredump_code = cprm->siginfo->si_code;
 	smp_wmb();
 	set_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask);
 }
