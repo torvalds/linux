@@ -14,13 +14,11 @@
 #include "test_util.h"
 
 #include "kvm_util.h"
+#include "smm.h"
 
 #include "vmx.h"
 #include "svm_util.h"
 
-#define SMRAM_SIZE 65536
-#define SMRAM_MEMSLOT ((1 << 16) | 1)
-#define SMRAM_PAGES (SMRAM_SIZE / PAGE_SIZE)
 #define SMRAM_GPA 0x1000000
 #define SMRAM_STAGE 0xfe
 
@@ -113,18 +111,6 @@ static void guest_code(void *arg)
 	sync_with_host(DONE);
 }
 
-void inject_smi(struct kvm_vcpu *vcpu)
-{
-	struct kvm_vcpu_events events;
-
-	vcpu_events_get(vcpu, &events);
-
-	events.smi.pending = 1;
-	events.flags |= KVM_VCPUEVENT_VALID_SMM;
-
-	vcpu_events_set(vcpu, &events);
-}
-
 int main(int argc, char *argv[])
 {
 	vm_vaddr_t nested_gva = 0;
@@ -140,16 +126,7 @@ int main(int argc, char *argv[])
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, SMRAM_GPA,
-				    SMRAM_MEMSLOT, SMRAM_PAGES, 0);
-	TEST_ASSERT(vm_phy_pages_alloc(vm, SMRAM_PAGES, SMRAM_GPA, SMRAM_MEMSLOT)
-		    == SMRAM_GPA, "could not allocate guest physical addresses?");
-
-	memset(addr_gpa2hva(vm, SMRAM_GPA), 0x0, SMRAM_SIZE);
-	memcpy(addr_gpa2hva(vm, SMRAM_GPA) + 0x8000, smi_handler,
-	       sizeof(smi_handler));
-
-	vcpu_set_msr(vcpu, MSR_IA32_SMBASE, SMRAM_GPA);
+	setup_smram(vm, vcpu, SMRAM_GPA, smi_handler, sizeof(smi_handler));
 
 	if (kvm_has_cap(KVM_CAP_NESTED_STATE)) {
 		if (kvm_cpu_has(X86_FEATURE_SVM))

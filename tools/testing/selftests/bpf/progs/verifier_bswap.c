@@ -91,6 +91,28 @@ BSWAP_RANGE_TEST(le32_range, "le32", 0x3f00, 0x3f0000)
 BSWAP_RANGE_TEST(le64_range, "le64", 0x3f00, 0x3f000000000000)
 #endif
 
+SEC("socket")
+__description("BSWAP, reset reg id")
+__failure __msg("math between fp pointer and register with unbounded min value is not allowed")
+__naked void bswap_reset_reg_id(void)
+{
+	asm volatile ("					\
+	call %[bpf_ktime_get_ns];			\
+	r1 = r0;					\
+	r0 = be16 r0;					\
+	if r0 != 1 goto l0_%=;				\
+	r2 = r10;					\
+	r2 += -512;					\
+	r2 += r1;					\
+	*(u8 *)(r2 + 0) = 0;				\
+l0_%=:							\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")

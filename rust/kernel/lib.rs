@@ -20,6 +20,7 @@
 #![feature(generic_nonzero)]
 #![feature(inline_const)]
 #![feature(pointer_is_aligned)]
+#![feature(slice_ptr_len)]
 //
 // Stable since Rust 1.80.0.
 #![feature(slice_flatten)]
@@ -36,6 +37,9 @@
 #![feature(const_option)]
 #![feature(const_ptr_write)]
 #![feature(const_refs_to_cell)]
+//
+// Stable since Rust 1.84.0.
+#![feature(strict_provenance)]
 //
 // Expected to become stable.
 #![feature(arbitrary_self_types)]

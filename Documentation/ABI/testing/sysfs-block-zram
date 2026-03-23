@@ -151,11 +151,11 @@ Description:
 		The algorithm_params file is write-only and is used to setup
 		compression algorithm parameters.
 
-What:		/sys/block/zram<id>/writeback_compressed
+What:		/sys/block/zram<id>/compressed_writeback
 Date:		Decemeber 2025
 Contact:	Richard Chang <richardycc@google.com>
 Description:
-		The writeback_compressed device atrribute toggles compressed
+		The compressed_writeback device atrribute toggles compressed
 		writeback feature.
 
 What:		/sys/block/zram<id>/writeback_batch_size
