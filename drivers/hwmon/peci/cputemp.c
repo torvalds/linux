@@ -319,7 +319,7 @@ static umode_t cputemp_is_visible(const void *data, enum hwmon_sensor_types type
 {
 	const struct peci_cputemp *priv = data;
 
-	if (channel > CPUTEMP_CHANNEL_NUMS)
+	if (channel >= CPUTEMP_CHANNEL_NUMS)
 		return 0;
 
 	if (channel < channel_core)
