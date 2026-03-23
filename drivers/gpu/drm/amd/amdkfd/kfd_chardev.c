@@ -3170,11 +3170,11 @@ static int kfd_ioctl_create_process(struct file *filep, struct kfd_process *p, v
 	struct kfd_process *process;
 	int ret;
 
-	/* Each FD owns only one kfd_process */
-	if (p->context_id != KFD_CONTEXT_ID_PRIMARY)
+	if (!filep->private_data || !p)
 		return -EINVAL;
 
-	if (!filep->private_data || !p)
+	/* Each FD owns only one kfd_process */
+	if (p->context_id != KFD_CONTEXT_ID_PRIMARY)
 		return -EINVAL;
 
 	mutex_lock(&kfd_processes_mutex);
