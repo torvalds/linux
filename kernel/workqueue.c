@@ -5624,8 +5624,16 @@ enomem:
 		for_each_possible_cpu(cpu) {
 			struct pool_workqueue *pwq = *per_cpu_ptr(wq->cpu_pwq, cpu);
 
-			if (pwq)
+			if (pwq) {
+				/*
+				 * Unlink pwq from wq->pwqs since link_pwq()
+				 * may have already added it. wq->mutex is not
+				 * needed as the wq has not been published yet.
+				 */
+				if (!list_empty(&pwq->pwqs_node))
+					list_del_rcu(&pwq->pwqs_node);
 				kmem_cache_free(pwq_cache, pwq);
+			}
 		}
 		free_percpu(wq->cpu_pwq);
 		wq->cpu_pwq = NULL;
