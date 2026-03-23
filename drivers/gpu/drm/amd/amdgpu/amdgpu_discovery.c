@@ -324,7 +324,7 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 			ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
 			if (ret)
 				return ret;
-			adev->discovery.size = (u32)tmr_size;
+			adev->discovery.size = DISCOVERY_TMR_SIZE;
 			adev->discovery.offset = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
 		}
 	}
