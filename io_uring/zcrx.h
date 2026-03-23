@@ -41,17 +41,21 @@ struct io_zcrx_area {
 	struct io_zcrx_mem	mem;
 };
 
+struct zcrx_rq {
+	spinlock_t			lock;
+	struct io_uring			*ring;
+	struct io_uring_zcrx_rqe	*rqes;
+	u32				cached_head;
+	u32				nr_entries;
+};
+
 struct io_zcrx_ifq {
 	struct io_zcrx_area		*area;
 	unsigned			niov_shift;
 	struct user_struct		*user;
 	struct mm_struct		*mm_account;
 
-	spinlock_t			rq_lock ____cacheline_aligned_in_smp;
-	struct io_uring			*rq_ring;
-	struct io_uring_zcrx_rqe	*rqes;
-	u32				cached_rq_head;
-	u32				rq_entries;
+	struct zcrx_rq			rq ____cacheline_aligned_in_smp;
 
 	u32				if_rxq;
 	struct device			*dev;
