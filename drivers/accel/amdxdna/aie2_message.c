@@ -56,6 +56,7 @@ void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
 			    dma_addr_t *dma_addr)
 {
 	struct amdxdna_dev *xdna = ndev->xdna;
+	void *vaddr;
 	int order;
 
 	*size = max(*size, SZ_8K);
@@ -67,8 +68,12 @@ void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
 	if (amdxdna_iova_on(xdna))
 		return amdxdna_iommu_alloc(xdna, *size, dma_addr);
 
-	return dma_alloc_noncoherent(xdna->ddev.dev, *size, dma_addr,
+	vaddr = dma_alloc_noncoherent(xdna->ddev.dev, *size, dma_addr,
 				      DMA_FROM_DEVICE, GFP_KERNEL);
+	if (!vaddr)
+		return ERR_PTR(-ENOMEM);
+
+	return vaddr;
 }
 
 void aie2_free_msg_buffer(struct amdxdna_dev_hdl *ndev, size_t size,
