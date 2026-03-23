@@ -203,6 +203,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,ipq5424-dwc3
               - qcom,ipq9574-dwc3
               - qcom,kaanapali-dwc3
               - qcom,msm8953-dwc3
@@ -488,6 +489,26 @@ allOf:
           items:
             - const: dwc_usb3
             - const: pwr_event
+            - const: dp_hs_phy_irq
+            - const: dm_hs_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq5424-dwc3
+              - qcom,ipq9574-dwc3
+    then:
+      properties:
+        interrupts:
+          minItems: 5
+          maxItems: 5
+        interrupt-names:
+          items:
+            - const: dwc_usb3
+            - const: pwr_event
+            - const: qusb2_phy
             - const: dp_hs_phy_irq
             - const: dm_hs_phy_irq
 
