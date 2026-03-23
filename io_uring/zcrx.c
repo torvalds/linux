@@ -1075,8 +1075,8 @@ static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 	struct io_zcrx_ifq *ifq = io_pp_to_ifq(pp);
 
 	/* pp should already be ensuring that */
-	if (unlikely(pp->alloc.count))
-		goto out_return;
+	if (WARN_ON_ONCE(pp->alloc.count))
+		return 0;
 
 	io_zcrx_ring_refill(pp, ifq);
 	if (likely(pp->alloc.count))
