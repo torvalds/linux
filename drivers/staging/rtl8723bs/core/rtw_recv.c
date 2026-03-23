@@ -1250,33 +1250,41 @@ static union recv_frame *recvframe_chk_defrag(struct adapter *padapter, union re
 static signed int validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame)
 {
 	/* struct mlme_priv *pmlmepriv = &adapter->mlmepriv; */
+	struct sta_info *psta;
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
 	if (!precv_frame)
 		return _SUCCESS;
 
-	{
-		/* for rx pkt statistics */
-		struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(precv_frame->u.hdr.rx_data));
+	/* for rx pkt statistics */
+	psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(precv_frame->u.hdr.rx_data));
+	if (!psta)
+		goto exit;
 
-		if (psta) {
-			psta->sta_stats.rx_mgnt_pkts++;
-			if (GetFrameSubType(precv_frame->u.hdr.rx_data) == WIFI_BEACON)
-				psta->sta_stats.rx_beacon_pkts++;
-			else if (GetFrameSubType(precv_frame->u.hdr.rx_data) == WIFI_PROBEREQ)
-				psta->sta_stats.rx_probereq_pkts++;
-			else if (GetFrameSubType(precv_frame->u.hdr.rx_data) == WIFI_PROBERSP) {
-				if (!memcmp(padapter->eeprompriv.mac_addr, GetAddr1Ptr(precv_frame->u.hdr.rx_data), ETH_ALEN))
-					psta->sta_stats.rx_probersp_pkts++;
-				else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)) ||
-					 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)))
-					psta->sta_stats.rx_probersp_bm_pkts++;
-				else
-					psta->sta_stats.rx_probersp_uo_pkts++;
-			}
-		}
+	psta->sta_stats.rx_mgnt_pkts++;
+
+	switch (GetFrameSubType(precv_frame->u.hdr.rx_data)) {
+	case WIFI_BEACON:
+		psta->sta_stats.rx_beacon_pkts++;
+		break;
+	case WIFI_PROBEREQ:
+		psta->sta_stats.rx_probereq_pkts++;
+		break;
+	case WIFI_PROBERSP:
+		if (!memcmp(padapter->eeprompriv.mac_addr,
+			    GetAddr1Ptr(precv_frame->u.hdr.rx_data),
+			    ETH_ALEN))
+			psta->sta_stats.rx_probersp_pkts++;
+		else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)) ||
+			 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)))
+			psta->sta_stats.rx_probersp_bm_pkts++;
+		else
+			psta->sta_stats.rx_probersp_uo_pkts++;
+
+		break;
 	}
 
+exit:
 	mgt_dispatcher(padapter, precv_frame);
 
 	return _SUCCESS;
