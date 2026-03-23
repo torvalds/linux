@@ -120,6 +120,7 @@ static void tld_free(void);
 
 static void __tld_thread_exit_handler(void *unused)
 {
+	(void)unused;
 	tld_free();
 }
 #endif
@@ -222,10 +223,10 @@ static tld_key_t __tld_create_key(const char *name, size_t size, bool dyn_data)
 	if (!TLD_READ_ONCE(tld_meta_p)) {
 		err = __tld_init_meta_p();
 		if (err)
-			return (tld_key_t){err};
+			return (tld_key_t){(__s16)err};
 	}
 
-	for (i = 0; i < TLD_MAX_DATA_CNT; i++) {
+	for (i = 0; i < (int)TLD_MAX_DATA_CNT; i++) {
 retry:
 		cnt = atomic_load(&tld_meta_p->cnt);
 		if (i < cnt) {
