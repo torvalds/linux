@@ -11,12 +11,10 @@ u8 rtw_validate_bssid(u8 *bssid)
 {
 	u8 ret = true;
 
-	if (is_zero_mac_addr(bssid)
-		|| is_broadcast_mac_addr(bssid)
-		|| is_multicast_mac_addr(bssid)
-	) {
+	if (is_zero_mac_addr(bssid) ||
+	    is_broadcast_mac_addr(bssid) ||
+	    is_multicast_mac_addr(bssid))
 		ret = false;
-	}
 
 	return ret;
 }
