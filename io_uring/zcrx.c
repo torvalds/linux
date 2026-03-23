@@ -816,8 +816,8 @@ netdev_put_unlock:
 	return ret;
 }
 
-int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
-			  struct io_uring_zcrx_ifq_reg __user *arg)
+int io_register_zcrx(struct io_ring_ctx *ctx,
+		     struct io_uring_zcrx_ifq_reg __user *arg)
 {
 	struct io_uring_zcrx_area_reg area;
 	struct io_uring_zcrx_ifq_reg reg;
@@ -955,7 +955,7 @@ void io_terminate_zcrx(struct io_ring_ctx *ctx)
 	}
 }
 
-void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
+void io_unregister_zcrx(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
 
