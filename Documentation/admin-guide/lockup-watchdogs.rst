@@ -41,31 +41,35 @@ is a trade-off between fast response to lockups and detection overhead.
 Implementation
 ==============
 
-The soft lockup detector is built on top of the hrtimer subsystem.
-The hard lockup detector is built on top of the perf subsystem
-(on architectures that support it) or uses an SMP "buddy" system.
-
-Softlockup Detector
--------------------
-
-The watchdog job runs in a stop scheduling thread that updates a
-timestamp every time it is scheduled. If that timestamp is not updated
-for 2*watchdog_thresh seconds (the softlockup threshold) the
-'softlockup detector' (coded inside the hrtimer callback function)
-will dump useful debug information to the system log, after which it
-will call panic if it was instructed to do so or resume execution of
-other kernel code.
+The soft and hard lockup detectors are built around a hrtimer.
+In addition, the softlockup detector regularly schedules a job, and
+the hard lockup detector might use Perf/NMI events on architectures
+that support it.
 
 Frequency and Heartbeats
 ------------------------
 
-The hrtimer used by the softlockup detector serves a dual purpose:
-it detects softlockups, and it also generates the interrupts
-(heartbeats) that the hardlockup detectors use to verify CPU liveness.
+The core of the detectors in a hrtimer. It servers multiple purpose:
 
-The period of this hrtimer is 2*watchdog_thresh/5. This means the
-hrtimer has two or three chances to generate an interrupt before the
-NMI hardlockup detector kicks in.
+- schedules watchdog job for the softlockup detector
+- bumps the interrupt counter for hardlockup detectors (heartbeat)
+- detects softlockups
+- detects hardlockups in Buddy mode
+
+The period of this hrtimer is 2*watchdog_thresh/5, which is 4 seconds
+by default. The hrtimer has two or three chances to generate an interrupt
+(heartbeat) before the hardlockup detector kicks in.
+
+Softlockup Detector
+-------------------
+
+The watchdog job is scheduled by the hrtimer and runs in a stop scheduling
+thread. It updates a timestamp every time it is scheduled. If that timestamp
+is not updated for 2*watchdog_thresh seconds (the softlockup threshold) the
+'softlockup detector' (coded inside the hrtimer callback function)
+will dump useful debug information to the system log, after which it
+will call panic if it was instructed to do so or resume execution of
+other kernel code.
 
 Hardlockup Detector (NMI/Perf)
 ------------------------------
