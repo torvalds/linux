@@ -1007,6 +1007,7 @@ struct mana_deregister_filter_resp {
 #define STATISTICS_FLAGS_TX_ERRORS_GDMA_ERROR		0x0000000004000000
 
 #define MANA_MAX_NUM_QUEUES 64
+#define MANA_DEF_NUM_QUEUES 16
 
 #define MANA_SHORT_VPORT_OFFSET_MAX ((1U << 8) - 1)
 
