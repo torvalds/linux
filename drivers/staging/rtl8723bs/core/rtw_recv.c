@@ -1249,7 +1249,6 @@ static union recv_frame *recvframe_chk_defrag(struct adapter *padapter, union re
 
 static signed int validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_frame)
 {
-	/* struct mlme_priv *pmlmepriv = &adapter->mlmepriv; */
 	struct sta_info *psta;
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
