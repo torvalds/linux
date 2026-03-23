@@ -5036,9 +5036,9 @@
 			status = "disabled";
 		};
 
-		usb_1_ss2: usb@a0f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a0f8800 0 0x400>;
+		usb_1_ss2: usb@a000000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a000000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_TERT_AXI_CLK>,
 				 <&gcc GCC_USB30_TERT_MASTER_CLK>,
@@ -5064,11 +5064,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 58 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 57 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 10 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -5087,61 +5089,47 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x14a0 0x0>;
+
+			phys = <&usb_1_ss2_hsphy>,
+			       <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss2_dwc3: usb@a000000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a000000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x14a0 0x0>;
-
-				phys = <&usb_1_ss2_hsphy>,
-				       <&usb_1_ss2_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-				            "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss2_dwc3_hs: endpoint {
-						};
+					usb_1_ss2_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss2_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss2_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss2_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss2_qmpphy_usb_ss_in>;
 					};
 				};
 			};
 		};
 
-		usb_2: usb@a2f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a2f8800 0 0x400>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+		usb_2: usb@a200000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a200000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB2_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB20_MASTER_CLK>,
@@ -5166,10 +5154,12 @@
 					  <&gcc GCC_USB20_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 50 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 49 IRQ_TYPE_EDGE_BOTH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq";
 
@@ -5188,31 +5178,26 @@
 			qcom,select-utmi-as-pipe-clk;
 			wakeup-source;
 
+			iommus = <&apps_smmu 0x14e0 0x0>;
+			phys = <&usb_2_hsphy>;
+			phy-names = "usb2-phy";
+			maximum-speed = "high-speed";
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
+
 			status = "disabled";
 
-			usb_2_dwc3: usb@a200000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a200000 0 0xcd00>;
-				interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
-				iommus = <&apps_smmu 0x14e0 0x0>;
-				phys = <&usb_2_hsphy>;
-				phy-names = "usb2-phy";
-				maximum-speed = "high-speed";
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				port {
-					usb_2_dwc3_hs: endpoint {
-					};
+			port {
+				usb_2_dwc3_hs: endpoint {
 				};
 			};
 		};
 
-		usb_mp: usb@a4f8800 {
-			compatible = "qcom,x1e80100-dwc3-mp", "qcom,dwc3";
-			reg = <0 0x0a4f8800 0 0x400>;
+		usb_mp: usb@a400000 {
+			compatible = "qcom,x1e80100-dwc3-mp", "qcom,snps-dwc3";
+			reg = <0 0x0a400000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_MP_AXI_CLK>,
 				 <&gcc GCC_USB30_MP_MASTER_CLK>,
@@ -5238,7 +5223,8 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
 					      <&intc GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
@@ -5248,7 +5234,8 @@
 					      <&pdc 53 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 55 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 56 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event_1", "pwr_event_2",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event_1", "pwr_event_2",
 					  "hs_phy_1",	 "hs_phy_2",
 					  "dp_hs_phy_1", "dm_hs_phy_1",
 					  "dp_hs_phy_2", "dm_hs_phy_2",
@@ -5268,39 +5255,28 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1400 0x0>;
+
+			phys = <&usb_mp_hsphy0>, <&usb_mp_qmpphy0>,
+			       <&usb_mp_hsphy1>, <&usb_mp_qmpphy1>;
+			phy-names = "usb2-0", "usb3-0",
+				    "usb2-1", "usb3-1";
+			dr_mode = "host";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
-
-			usb_mp_dwc3: usb@a400000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a400000 0 0xcd00>;
-
-				interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>;
-
-				iommus = <&apps_smmu 0x1400 0x0>;
-
-				phys = <&usb_mp_hsphy0>, <&usb_mp_qmpphy0>,
-				       <&usb_mp_hsphy1>, <&usb_mp_qmpphy1>;
-				phy-names = "usb2-0", "usb3-0",
-					    "usb2-1", "usb3-1";
-				dr_mode = "host";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-			};
 		};
 
-		usb_1_ss0: usb@a6f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a6f8800 0 0x400>;
+		usb_1_ss0: usb@a600000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a600000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
@@ -5326,11 +5302,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 61 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 15 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 17 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -5342,58 +5320,47 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1420 0x0>;
+
+			phys = <&usb_1_ss0_hsphy>,
+			       <&usb_1_ss0_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss0_dwc3: usb@a600000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a600000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x1420 0x0>;
-
-				phys = <&usb_1_ss0_hsphy>,
-				       <&usb_1_ss0_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-					    "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss0_dwc3_hs: endpoint {
-						};
+					usb_1_ss0_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss0_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss0_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss0_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss0_qmpphy_usb_ss_in>;
 					};
 				};
 			};
 		};
 
-		usb_1_ss1: usb@a8f8800 {
-			compatible = "qcom,x1e80100-dwc3", "qcom,dwc3";
-			reg = <0 0x0a8f8800 0 0x400>;
+		usb_1_ss1: usb@a800000 {
+			compatible = "qcom,x1e80100-dwc3", "qcom,snps-dwc3";
+			reg = <0 0x0a800000 0 0xfc100>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
 				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
@@ -5419,11 +5386,13 @@
 			assigned-clock-rates = <19200000>,
 					       <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 60 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 11 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 47 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "pwr_event",
+			interrupt-names = "dwc_usb3",
+					  "pwr_event",
 					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
 					  "ss_phy_irq";
@@ -5442,50 +5411,39 @@
 
 			wakeup-source;
 
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			iommus = <&apps_smmu 0x1460 0x0>;
+
+			phys = <&usb_1_ss1_hsphy>,
+			       <&usb_1_ss1_qmpphy QMP_USB43DP_USB3_PHY>;
+			phy-names = "usb2-phy",
+				    "usb3-phy";
+
+			snps,dis_u2_susphy_quirk;
+			snps,dis_enblslpm_quirk;
+			snps,usb3_lpm_capable;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
+
+			dma-coherent;
 
 			status = "disabled";
 
-			usb_1_ss1_dwc3: usb@a800000 {
-				compatible = "snps,dwc3";
-				reg = <0 0x0a800000 0 0xcd00>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
+				port@0 {
+					reg = <0>;
 
-				iommus = <&apps_smmu 0x1460 0x0>;
-
-				phys = <&usb_1_ss1_hsphy>,
-				       <&usb_1_ss1_qmpphy QMP_USB43DP_USB3_PHY>;
-				phy-names = "usb2-phy",
-					    "usb3-phy";
-
-				snps,dis_u2_susphy_quirk;
-				snps,dis_enblslpm_quirk;
-				snps,usb3_lpm_capable;
-				snps,dis-u1-entry-quirk;
-				snps,dis-u2-entry-quirk;
-
-				dma-coherent;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						usb_1_ss1_dwc3_hs: endpoint {
-						};
+					usb_1_ss1_dwc3_hs: endpoint {
 					};
+				};
 
-					port@1 {
-						reg = <1>;
+				port@1 {
+					reg = <1>;
 
-						usb_1_ss1_dwc3_ss: endpoint {
-							remote-endpoint = <&usb_1_ss1_qmpphy_usb_ss_in>;
-						};
+					usb_1_ss1_dwc3_ss: endpoint {
+						remote-endpoint = <&usb_1_ss1_qmpphy_usb_ss_in>;
 					};
 				};
 			};
