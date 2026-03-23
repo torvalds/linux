@@ -347,6 +347,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 	char *out;
 	const char *outstr;
 	unsigned int sign_prefix;
+	int got_width;
 
 	written = 0;
 	while (1) {
@@ -377,23 +378,28 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 		}
 
 		/* Width and precision */
-		for (;; ch = *fmt++) {
+		for (got_width = 0;; ch = *fmt++) {
 			if (ch == '*') {
-				precision = va_arg(args, unsigned int);
+				precision = va_arg(args, int);
 				ch = *fmt++;
 			} else {
 				for (precision = 0; ch >= '0' && ch <= '9'; ch = *fmt++)
 					precision = precision * 10 + (ch - '0');
 			}
-			if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '.'))
+			if (got_width)
 				break;
 			width = precision;
 			if (ch != '.') {
 				/* Default precision for strings */
-				precision = INT_MAX;
+				precision = -1;
 				break;
 			}
-			flags |= _NOLIBC_PF_FLAG('.');
+			got_width = 1;
+		}
+		/* A negative width (e.g. from "%*s") requests left justify. */
+		if (width < 0) {
+			width = -width;
+			flags |= _NOLIBC_PF_FLAG('-');
 		}
 
 		/* Length modifier.
@@ -457,7 +463,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 				if (!outstr) {
 					outstr = "(null)";
 					/* Match glibc, nothing output if precision too small */
-					len = precision >= 6 ? 6 : 0;
+					len = precision < 0 || precision >= 6 ? 6 : 0;
 					goto do_output;
 				}
 				goto do_strlen_output;
@@ -533,32 +539,34 @@ int __nolibc_printf(__nolibc_printf_cb cb, void *state, const char *fmt, va_list
 			}
 
 			/* Add zero padding */
-			if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '0', '.')) {
-				if (!_NOLIBC_PF_FLAGS_CONTAIN(flags, '.')) {
-					if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '-'))
-						/* Left justify overrides zero pad */
-						goto prepend_sign;
-					/* eg "%05d", Zero pad to field width less sign.
-					 * Note that precision can end up negative so all
-					 * the variables have to be 'signed int'.
-					 */
-					precision = width;
-					if (sign_prefix) {
+			if (precision < 0) {
+				/* No explicit precision (or negative from "%.*s"). */
+				if (!_NOLIBC_PF_FLAGS_CONTAIN(flags, '0'))
+					goto no_zero_padding;
+				if (_NOLIBC_PF_FLAGS_CONTAIN(flags, '-'))
+					/* Left justify overrides zero pad */
+					goto no_zero_padding;
+				/* eg "%05d", Zero pad to field width less sign.
+				 * Note that precision can end up negative so all
+				 * the variables have to be 'signed int'.
+				 */
+				precision = width;
+				if (sign_prefix) {
+					precision--;
+					if (sign_prefix >= 256)
 						precision--;
-						if (sign_prefix >= 256)
-							precision--;
-					}
-				}
-				if (precision > 31)
-					/* Don't run off the start of outbuf[], arbitrary limit
-					 * longer than the longest number field. */
-					precision = 31;
-				for (; len < precision; len++) {
-					/* Stop gcc generating horrid code and memset(). */
-					_NOLIBC_OPTIMIZER_HIDE_VAR(len);
-					*--out = '0';
 				}
 			}
+			if (precision > 31)
+				/* Don't run off the start of outbuf[], arbitrary limit
+				 * longer than the longest number field. */
+				precision = 31;
+			for (; len < precision; len++) {
+				/* Stop gcc generating horrid code and memset(). */
+				_NOLIBC_OPTIMIZER_HIDE_VAR(len);
+				*--out = '0';
+			}
+no_zero_padding:
 
 			/* %#o has set sign_prefix to '0', but we don't want so add an extra
 			 * leading zero here.
@@ -603,7 +611,7 @@ prepend_sign:
 
 do_strlen_output:
 		/* Open coded strnlen() (slightly smaller). */
-		for (len = 0; len < precision; len++)
+		for (len = 0; precision < 0 || len < precision; len++)
 			if (!outstr[len])
 				break;
 
