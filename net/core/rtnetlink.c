@@ -629,6 +629,9 @@ int rtnl_link_register(struct rtnl_link_ops *ops)
 unlock:
 	mutex_unlock(&link_ops_mutex);
 
+	if (err)
+		cleanup_srcu_struct(&ops->srcu);
+
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtnl_link_register);
