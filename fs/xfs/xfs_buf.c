@@ -80,11 +80,8 @@ xfs_buf_stale(
 
 	spin_lock(&bp->b_lock);
 	atomic_set(&bp->b_lru_ref, 0);
-	if (!(bp->b_state & XFS_BSTATE_DISPOSE) &&
-	    (list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru)))
-		bp->b_hold--;
-
-	ASSERT(bp->b_hold >= 1);
+	if (bp->b_hold >= 0)
+		list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru);
 	spin_unlock(&bp->b_lock);
 }
 
@@ -442,7 +439,7 @@ xfs_buf_try_hold(
 	struct xfs_buf		*bp)
 {
 	spin_lock(&bp->b_lock);
-	if (bp->b_hold == 0) {
+	if (bp->b_hold == -1) {
 		spin_unlock(&bp->b_lock);
 		return false;
 	}
@@ -862,76 +859,24 @@ xfs_buf_hold(
 }
 
 static void
-xfs_buf_rele_uncached(
+xfs_buf_destroy(
 	struct xfs_buf		*bp)
 {
-	ASSERT(list_empty(&bp->b_lru));
+	ASSERT(bp->b_hold < 0);
+	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
-	spin_lock(&bp->b_lock);
-	if (--bp->b_hold) {
-		spin_unlock(&bp->b_lock);
-		return;
-	}
-	spin_unlock(&bp->b_lock);
-	xfs_buf_free(bp);
-}
+	if (!xfs_buf_is_uncached(bp)) {
+		struct xfs_buf_cache	*bch =
+			xfs_buftarg_buf_cache(bp->b_target, bp->b_pag);
 
-static void
-xfs_buf_rele_cached(
-	struct xfs_buf		*bp)
-{
-	struct xfs_buftarg	*btp = bp->b_target;
-	struct xfs_perag	*pag = bp->b_pag;
-	struct xfs_buf_cache	*bch = xfs_buftarg_buf_cache(btp, pag);
-	bool			freebuf = false;
-
-	trace_xfs_buf_rele(bp, _RET_IP_);
-
-	spin_lock(&bp->b_lock);
-	ASSERT(bp->b_hold >= 1);
-	if (bp->b_hold > 1) {
-		bp->b_hold--;
-		goto out_unlock;
-	}
-
-	/* we are asked to drop the last reference */
-	if (atomic_read(&bp->b_lru_ref)) {
-		/*
-		 * If the buffer is added to the LRU, keep the reference to the
-		 * buffer for the LRU and clear the (now stale) dispose list
-		 * state flag, else drop the reference.
-		 */
-		if (list_lru_add_obj(&btp->bt_lru, &bp->b_lru))
-			bp->b_state &= ~XFS_BSTATE_DISPOSE;
-		else
-			bp->b_hold--;
-	} else {
-		bp->b_hold--;
-		/*
-		 * most of the time buffers will already be removed from the
-		 * LRU, so optimise that case by checking for the
-		 * XFS_BSTATE_DISPOSE flag indicating the last list the buffer
-		 * was on was the disposal list
-		 */
-		if (!(bp->b_state & XFS_BSTATE_DISPOSE)) {
-			list_lru_del_obj(&btp->bt_lru, &bp->b_lru);
-		} else {
-			ASSERT(list_empty(&bp->b_lru));
-		}
-
-		ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 		rhashtable_remove_fast(&bch->bc_hash, &bp->b_rhash_head,
 				xfs_buf_hash_params);
-		if (pag)
-			xfs_perag_put(pag);
-		freebuf = true;
+
+		if (bp->b_pag)
+			xfs_perag_put(bp->b_pag);
 	}
 
-out_unlock:
-	spin_unlock(&bp->b_lock);
-
-	if (freebuf)
-		xfs_buf_free(bp);
+	xfs_buf_free(bp);
 }
 
 /*
@@ -942,10 +887,22 @@ xfs_buf_rele(
 	struct xfs_buf		*bp)
 {
 	trace_xfs_buf_rele(bp, _RET_IP_);
-	if (xfs_buf_is_uncached(bp))
-		xfs_buf_rele_uncached(bp);
-	else
-		xfs_buf_rele_cached(bp);
+
+	spin_lock(&bp->b_lock);
+	if (!--bp->b_hold) {
+		if (xfs_buf_is_uncached(bp) || !atomic_read(&bp->b_lru_ref))
+			goto kill;
+		list_lru_add_obj(&bp->b_target->bt_lru, &bp->b_lru);
+	}
+	spin_unlock(&bp->b_lock);
+	return;
+
+kill:
+	bp->b_hold = -1;
+	list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru);
+	spin_unlock(&bp->b_lock);
+
+	xfs_buf_destroy(bp);
 }
 
 /*
@@ -1254,9 +1211,11 @@ xfs_buf_ioerror_alert(
 
 /*
  * To simulate an I/O failure, the buffer must be locked and held with at least
- * three references. The LRU reference is dropped by the stale call. The buf
- * item reference is dropped via ioend processing. The third reference is owned
- * by the caller and is dropped on I/O completion if the buffer is XBF_ASYNC.
+ * two references.
+ *
+ * The buf item reference is dropped via ioend processing. The second reference
+ * is owned by the caller and is dropped on I/O completion if the buffer is
+ * XBF_ASYNC.
  */
 void
 xfs_buf_ioend_fail(
@@ -1514,19 +1473,14 @@ xfs_buftarg_drain_rele(
 
 	if (!spin_trylock(&bp->b_lock))
 		return LRU_SKIP;
-	if (bp->b_hold > 1) {
+	if (bp->b_hold > 0) {
 		/* need to wait, so skip it this pass */
 		spin_unlock(&bp->b_lock);
 		trace_xfs_buf_drain_buftarg(bp, _RET_IP_);
 		return LRU_SKIP;
 	}
 
-	/*
-	 * clear the LRU reference count so the buffer doesn't get
-	 * ignored in xfs_buf_rele().
-	 */
-	atomic_set(&bp->b_lru_ref, 0);
-	bp->b_state |= XFS_BSTATE_DISPOSE;
+	bp->b_hold = -1;
 	list_lru_isolate_move(lru, item, dispose);
 	spin_unlock(&bp->b_lock);
 	return LRU_REMOVED;
@@ -1581,7 +1535,7 @@ xfs_buftarg_drain(
 "Corruption Alert: Buffer at daddr 0x%llx had permanent write failures!",
 					(long long)xfs_buf_daddr(bp));
 			}
-			xfs_buf_rele(bp);
+			xfs_buf_destroy(bp);
 		}
 		if (loop++ != 0)
 			delay(100);
@@ -1625,7 +1579,17 @@ xfs_buftarg_isolate(
 		return LRU_ROTATE;
 	}
 
-	bp->b_state |= XFS_BSTATE_DISPOSE;
+	/*
+	 * If the buffer is in use, remove it from the LRU for now as we can't
+	 * free it.  It will be freed when the last reference drops.
+	 */
+	if (bp->b_hold > 0) {
+		list_lru_isolate(lru, &bp->b_lru);
+		spin_unlock(&bp->b_lock);
+		return LRU_REMOVED;
+	}
+
+	bp->b_hold = -1;
 	list_lru_isolate_move(lru, item, dispose);
 	spin_unlock(&bp->b_lock);
 	return LRU_REMOVED;
@@ -1647,7 +1611,7 @@ xfs_buftarg_shrink_scan(
 		struct xfs_buf *bp;
 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
 		list_del_init(&bp->b_lru);
-		xfs_buf_rele(bp);
+		xfs_buf_destroy(bp);
 	}
 
 	return freed;
