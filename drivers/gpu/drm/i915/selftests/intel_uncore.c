@@ -272,67 +272,6 @@ out_rpm:
 	return err;
 }
 
-static int live_forcewake_domains(void *arg)
-{
-#define FW_RANGE 0x40000
-	struct intel_gt *gt = arg;
-	struct intel_uncore *uncore = gt->uncore;
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_display *display = i915->display;
-	unsigned long *valid;
-	u32 offset;
-	int err;
-
-	if (!HAS_FPGA_DBG_UNCLAIMED(display) &&
-	    !IS_VALLEYVIEW(i915) &&
-	    !IS_CHERRYVIEW(i915))
-		return 0;
-
-	/*
-	 * This test may lockup the machine or cause GPU hangs afterwards.
-	 */
-	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
-		return 0;
-
-	valid = bitmap_zalloc(FW_RANGE, GFP_KERNEL);
-	if (!valid)
-		return -ENOMEM;
-
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	check_for_unclaimed_mmio(uncore);
-	for (offset = 0; offset < FW_RANGE; offset += 4) {
-		i915_reg_t reg = { offset };
-
-		intel_uncore_posting_read_fw(uncore, reg);
-		if (!check_for_unclaimed_mmio(uncore))
-			set_bit(offset, valid);
-	}
-
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-
-	err = 0;
-	for_each_set_bit(offset, valid, FW_RANGE) {
-		i915_reg_t reg = { offset };
-
-		iosf_mbi_punit_acquire();
-		intel_uncore_forcewake_reset(uncore);
-		iosf_mbi_punit_release();
-
-		check_for_unclaimed_mmio(uncore);
-
-		intel_uncore_posting_read_fw(uncore, reg);
-		if (check_for_unclaimed_mmio(uncore)) {
-			pr_err("Unclaimed mmio read to register 0x%04x\n",
-			       offset);
-			err = -EINVAL;
-		}
-	}
-
-	bitmap_free(valid);
-	return err;
-}
-
 static int live_fw_table(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -348,7 +287,6 @@ int intel_uncore_live_selftests(struct drm_i915_private *i915)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_fw_table),
 		SUBTEST(live_forcewake_ops),
-		SUBTEST(live_forcewake_domains),
 	};
 
 	return intel_gt_live_subtests(tests, to_gt(i915));
