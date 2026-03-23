@@ -241,7 +241,7 @@ static int kmemleak_skip_disable;
 /* If there are leaks that can be reported */
 static bool kmemleak_found_leaks;
 
-static bool kmemleak_verbose;
+static bool kmemleak_verbose = IS_ENABLED(CONFIG_DEBUG_KMEMLEAK_VERBOSE);
 module_param_named(verbose, kmemleak_verbose, bool, 0600);
 
 static void kmemleak_disable(void);
