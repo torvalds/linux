@@ -149,6 +149,15 @@ div.language-selection ul li:hover {
     background: #dddddd;
 }
 
+/*
+ * Let long inline literals in paragraph text wrap as needed to prevent
+ * overflow.
+ */
+code.docutils.literal span.pre {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 /* Make xrefs more universally visible */
 a.reference, a.reference:hover {
     border-bottom: none;
