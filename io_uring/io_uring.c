@@ -2308,6 +2308,10 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 	struct io_tctx_node *node;
 	int ret;
 
+	mutex_lock(&ctx->uring_lock);
+	io_terminate_zcrx(ctx);
+	mutex_unlock(&ctx->uring_lock);
+
 	/*
 	 * If we're doing polled IO and end up having requests being
 	 * submitted async (out-of-line), then completions can come in while
