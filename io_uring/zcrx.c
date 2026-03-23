@@ -423,7 +423,7 @@ static void io_zcrx_free_area(struct io_zcrx_ifq *ifq,
 static int io_zcrx_append_area(struct io_zcrx_ifq *ifq,
 				struct io_zcrx_area *area)
 {
-	if (ifq->area)
+	if (WARN_ON_ONCE(ifq->area))
 		return -EINVAL;
 	ifq->area = area;
 	return 0;
