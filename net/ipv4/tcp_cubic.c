@@ -139,24 +139,21 @@ __bpf_kfunc static void cubictcp_init(struct sock *sk)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
 }
 
-__bpf_kfunc static void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+__bpf_kfunc static void cubictcp_cwnd_event_tx_start(struct sock *sk)
 {
-	if (event == CA_EVENT_TX_START) {
-		struct bictcp *ca = inet_csk_ca(sk);
-		u32 now = tcp_jiffies32;
-		s32 delta;
+	struct bictcp *ca = inet_csk_ca(sk);
+	u32 now = tcp_jiffies32;
+	s32 delta;
 
-		delta = now - tcp_sk(sk)->lsndtime;
+	delta = now - tcp_sk(sk)->lsndtime;
 
-		/* We were application limited (idle) for a while.
-		 * Shift epoch_start to keep cwnd growth to cubic curve.
-		 */
-		if (ca->epoch_start && delta > 0) {
-			ca->epoch_start += delta;
-			if (after(ca->epoch_start, now))
-				ca->epoch_start = now;
-		}
-		return;
+	/* We were application limited (idle) for a while.
+	 * Shift epoch_start to keep cwnd growth to cubic curve.
+	 */
+	if (ca->epoch_start && delta > 0) {
+		ca->epoch_start += delta;
+		if (after(ca->epoch_start, now))
+			ca->epoch_start = now;
 	}
 }
 
@@ -481,7 +478,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.cong_avoid	= cubictcp_cong_avoid,
 	.set_state	= cubictcp_state,
 	.undo_cwnd	= tcp_reno_undo_cwnd,
-	.cwnd_event	= cubictcp_cwnd_event,
+	.cwnd_event_tx_start = cubictcp_cwnd_event_tx_start,
 	.pkts_acked     = cubictcp_acked,
 	.owner		= THIS_MODULE,
 	.name		= "cubic",
@@ -492,7 +489,7 @@ BTF_ID_FLAGS(func, cubictcp_init)
 BTF_ID_FLAGS(func, cubictcp_recalc_ssthresh)
 BTF_ID_FLAGS(func, cubictcp_cong_avoid)
 BTF_ID_FLAGS(func, cubictcp_state)
-BTF_ID_FLAGS(func, cubictcp_cwnd_event)
+BTF_ID_FLAGS(func, cubictcp_cwnd_event_tx_start)
 BTF_ID_FLAGS(func, cubictcp_acked)
 BTF_KFUNCS_END(tcp_cubic_check_kfunc_ids)
 

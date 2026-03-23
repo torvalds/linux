@@ -112,8 +112,13 @@ static void tcp_veno_state(struct sock *sk, u8 ca_state)
  */
 static void tcp_veno_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
-	if (event == CA_EVENT_CWND_RESTART || event == CA_EVENT_TX_START)
+	if (event == CA_EVENT_CWND_RESTART)
 		tcp_veno_init(sk);
+}
+
+static void tcp_veno_cwnd_event_tx_start(struct sock *sk)
+{
+	tcp_veno_init(sk);
 }
 
 static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
@@ -213,6 +218,7 @@ static struct tcp_congestion_ops tcp_veno __read_mostly = {
 	.pkts_acked	= tcp_veno_pkts_acked,
 	.set_state	= tcp_veno_state,
 	.cwnd_event	= tcp_veno_cwnd_event,
+	.cwnd_event_tx_start = tcp_veno_cwnd_event_tx_start,
 
 	.owner		= THIS_MODULE,
 	.name		= "veno",

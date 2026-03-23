@@ -272,6 +272,10 @@ static void bpf_tcp_ca_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 {
 }
 
+static void bpf_tcp_ca_cwnd_event_tx_start(struct sock *sk)
+{
+}
+
 static void bpf_tcp_ca_in_ack_event(struct sock *sk, u32 flags)
 {
 }
@@ -313,6 +317,7 @@ static struct tcp_congestion_ops __bpf_ops_tcp_congestion_ops = {
 	.cong_avoid = bpf_tcp_ca_cong_avoid,
 	.set_state = bpf_tcp_ca_set_state,
 	.cwnd_event = bpf_tcp_ca_cwnd_event,
+	.cwnd_event_tx_start = bpf_tcp_ca_cwnd_event_tx_start,
 	.in_ack_event = bpf_tcp_ca_in_ack_event,
 	.pkts_acked = bpf_tcp_ca_pkts_acked,
 	.min_tso_segs = bpf_tcp_ca_min_tso_segs,

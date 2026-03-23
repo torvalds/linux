@@ -151,11 +151,16 @@ EXPORT_SYMBOL_GPL(tcp_vegas_state);
  */
 void tcp_vegas_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
-	if (event == CA_EVENT_CWND_RESTART ||
-	    event == CA_EVENT_TX_START)
+	if (event == CA_EVENT_CWND_RESTART)
 		tcp_vegas_init(sk);
 }
 EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event);
+
+void tcp_vegas_cwnd_event_tx_start(struct sock *sk)
+{
+	tcp_vegas_init(sk);
+}
+EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event_tx_start);
 
 static inline u32 tcp_vegas_ssthresh(struct tcp_sock *tp)
 {
