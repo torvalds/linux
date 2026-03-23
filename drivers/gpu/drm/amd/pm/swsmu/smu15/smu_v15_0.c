@@ -610,7 +610,7 @@ int smu_v15_0_set_driver_table_location(struct smu_context *smu)
 {
 	struct smu_table *driver_table = &smu->smu_table.driver_table;
 	struct smu_msg_args args = {
-		.msg = SMU_MSG_SetDriverDramAddrHigh,
+		.msg = SMU_MSG_SetDriverDramAddr,
 		.num_args = 2,
 		.num_out_args = 0,
 	};
@@ -625,7 +625,7 @@ int smu_v15_0_set_tool_table_location(struct smu_context *smu)
 {
 	struct smu_table *tool_table = &smu->smu_table.tables[SMU_TABLE_PMSTATUSLOG];
 	struct smu_msg_args args = {
-		.msg = SMU_MSG_SetToolsDramAddrHigh,
+		.msg = SMU_MSG_SetToolsDramAddr,
 		.num_args = 2,
 		.num_out_args = 0,
 	};

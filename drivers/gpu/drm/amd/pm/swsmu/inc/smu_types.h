@@ -42,8 +42,10 @@
        __SMU_DUMMY_MAP(SetPptLimit),                  \
        __SMU_DUMMY_MAP(SetDriverDramAddrHigh),        \
        __SMU_DUMMY_MAP(SetDriverDramAddrLow),         \
+       __SMU_DUMMY_MAP(SetDriverDramAddr),            \
        __SMU_DUMMY_MAP(SetToolsDramAddrHigh),         \
        __SMU_DUMMY_MAP(SetToolsDramAddrLow),          \
+       __SMU_DUMMY_MAP(SetToolsDramAddr),             \
        __SMU_DUMMY_MAP(TransferTableSmu2Dram),        \
        __SMU_DUMMY_MAP(TransferTableDram2Smu),        \
        __SMU_DUMMY_MAP(UseDefaultPPTable),            \
