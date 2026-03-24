@@ -1053,6 +1053,9 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 	return resource_alignment(res);
 }
 
+resource_size_t pci_min_window_alignment(struct pci_bus *bus,
+					 unsigned long type);
+
 void pci_acs_init(struct pci_dev *dev);
 void pci_enable_acs(struct pci_dev *dev);
 #ifdef CONFIG_PCI_QUIRKS
