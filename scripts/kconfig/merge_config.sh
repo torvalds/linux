@@ -151,6 +151,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 	if ! "$AWK" -v prefix="$CONFIG_PREFIX" \
 		-v warnoverride="$WARNOVERRIDE" \
 		-v strict="$STRICT" \
+		-v outfile="$TMP_FILE.new" \
 		-v builtin="$BUILTIN" \
 		-v warnredun="$WARNREDUN" '
 	BEGIN {
@@ -195,7 +196,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 
 	# First pass: read merge file, store all lines and index
 	FILENAME == ARGV[1] {
-	        mergefile = FILENAME
+		mergefile = FILENAME
 		merge_lines[FNR] = $0
 		merge_total = FNR
 		cfg = get_cfg($0)
@@ -212,17 +213,17 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 
 		# Not a config or not in merge file - keep it
 		if (cfg == "" || !(cfg in merge_cfg)) {
-			print $0 >> ARGV[3]
+			print $0 >> outfile
 			next
 		}
 
-	        prev_val = $0
+		prev_val = $0
 		new_val = merge_cfg[cfg]
 
 		# BUILTIN: do not demote y to m
 		if (builtin == "true" && new_val ~ /=m$/ && prev_val ~ /=y$/) {
 			warn_builtin(cfg, prev_val, new_val)
-			print $0 >> ARGV[3]
+			print $0 >> outfile
 			skip_merge[merge_cfg_line[cfg]] = 1
 			next
 		}
@@ -235,7 +236,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 
 		# "=n" is the same as "is not set"
 		if (prev_val ~ /=n$/ && new_val ~ / is not set$/) {
-			print $0 >> ARGV[3]
+			print $0 >> outfile
 			next
 		}
 
@@ -246,25 +247,20 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 		}
 	}
 
-	# output file, skip all lines
-	FILENAME == ARGV[3] {
-		nextfile
-	}
-
 	END {
 		# Newline in case base file lacks trailing newline
-		print "" >> ARGV[3]
+		print "" >> outfile
 		# Append merge file, skipping lines marked for builtin preservation
 		for (i = 1; i <= merge_total; i++) {
 			if (!(i in skip_merge)) {
-				print merge_lines[i] >> ARGV[3]
+				print merge_lines[i] >> outfile
 			}
 		}
 		if (strict_violated) {
 			exit 1
 		}
 	}' \
-	"$ORIG_MERGE_FILE" "$TMP_FILE" "$TMP_FILE.new"; then
+	"$ORIG_MERGE_FILE" "$TMP_FILE"; then
 		# awk exited non-zero, strict mode was violated
 		STRICT_MODE_VIOLATED=true
 	fi
@@ -381,7 +377,7 @@ END {
 	STRICT_MODE_VIOLATED=true
 fi
 
-if [ "$STRICT" == "true" ] && [ "$STRICT_MODE_VIOLATED" == "true" ]; then
+if [ "$STRICT" = "true" ] && [ "$STRICT_MODE_VIOLATED" = "true" ]; then
 	echo "Requested and effective config differ"
 	exit 1
 fi
