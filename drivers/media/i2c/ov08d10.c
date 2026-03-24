@@ -14,7 +14,6 @@
 #include <media/v4l2-fwnode.h>
 
 #define OV08D10_SCLK			144000000ULL
-#define OV08D10_XVCLK_19_2		19200000
 #define OV08D10_ROWCLK			36000
 #define OV08D10_DATA_LANES		2
 #define OV08D10_RGB_DEPTH		10
@@ -78,8 +77,13 @@ struct ov08d10_reg_list {
 	const struct ov08d10_reg *regs;
 };
 
+static const u32 ov08d10_xvclk_freqs[] = {
+	19200000,
+	24000000
+};
+
 struct ov08d10_link_freq_config {
-	const struct ov08d10_reg_list reg_list;
+	const struct ov08d10_reg_list reg_list[ARRAY_SIZE(ov08d10_xvclk_freqs)];
 };
 
 struct ov08d10_mode {
@@ -108,8 +112,8 @@ struct ov08d10_mode {
 	u8 data_lanes;
 };
 
-/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes */
-static const struct ov08d10_reg mipi_data_rate_720mbps[] = {
+/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes - 19.2 MHz */
+static const struct ov08d10_reg mipi_data_rate_720mbps_19_2[] = {
 	{0xfd, 0x00},
 	{0x11, 0x2a},
 	{0x14, 0x43},
@@ -119,11 +123,35 @@ static const struct ov08d10_reg mipi_data_rate_720mbps[] = {
 	{0xb7, 0x02}
 };
 
-/* 1632x1224 needs 360Mbps/lane, 2 lanes */
-static const struct ov08d10_reg mipi_data_rate_360mbps[] = {
+/* 1632x1224 needs 360Mbps/lane, 2 lanes - 19.2 MHz */
+static const struct ov08d10_reg mipi_data_rate_360mbps_19_2[] = {
 	{0xfd, 0x00},
 	{0x1a, 0x04},
 	{0x1b, 0xe1},
+	{0x1d, 0x00},
+	{0x1c, 0x19},
+	{0x11, 0x2a},
+	{0x14, 0x54},
+	{0x1e, 0x13},
+	{0xb7, 0x02}
+};
+
+/* 3280x2460, 3264x2448 need 720Mbps/lane, 2 lanes - 24 MHz */
+static const struct ov08d10_reg mipi_data_rate_720mbps_24_0[] = {
+	{0xfd, 0x00},
+	{0x11, 0x2a},
+	{0x14, 0x43},
+	{0x1a, 0x04},
+	{0x1b, 0xb4},
+	{0x1e, 0x13},
+	{0xb7, 0x02}
+};
+
+/* 1632x1224 needs 360Mbps/lane, 2 lanes - 24 MHz */
+static const struct ov08d10_reg mipi_data_rate_360mbps_24_0[] = {
+	{0xfd, 0x00},
+	{0x1a, 0x04},
+	{0x1b, 0xb4},
 	{0x1d, 0x00},
 	{0x1c, 0x19},
 	{0x11, 0x2a},
@@ -525,6 +553,7 @@ struct ov08d10 {
 	struct clk *clk;
 	struct reset_control *reset;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(ov08d10_supply_names)];
+	u8 xvclk_index;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -565,17 +594,29 @@ static const struct ov08d10_lane_cfg lane_cfg_2 = {
 	},
 	{{
 		.reg_list = {
+		{
 			.num_of_regs =
-				ARRAY_SIZE(mipi_data_rate_720mbps),
-			.regs = mipi_data_rate_720mbps,
-		}
+				ARRAY_SIZE(mipi_data_rate_720mbps_19_2),
+			.regs = mipi_data_rate_720mbps_19_2,
+		},
+		{
+			.num_of_regs =
+				ARRAY_SIZE(mipi_data_rate_720mbps_24_0),
+			.regs = mipi_data_rate_720mbps_24_0,
+		}}
 	},
 	{
 		.reg_list = {
+		{
 			.num_of_regs =
-				ARRAY_SIZE(mipi_data_rate_360mbps),
-			.regs = mipi_data_rate_360mbps,
-		}
+				ARRAY_SIZE(mipi_data_rate_360mbps_19_2),
+			.regs = mipi_data_rate_360mbps_19_2,
+		},
+		{
+			.num_of_regs =
+				ARRAY_SIZE(mipi_data_rate_360mbps_24_0),
+			.regs = mipi_data_rate_360mbps_24_0,
+		}}
 	}},
 	{{
 		.width = 3280,
@@ -1028,7 +1069,8 @@ static int ov08d10_start_streaming(struct ov08d10 *ov08d10)
 
 	link_freq_index = ov08d10->cur_mode->link_freq_index;
 	reg_list =
-	    &ov08d10->priv_lane->link_freq_configs[link_freq_index].reg_list;
+		&ov08d10->priv_lane->link_freq_configs[link_freq_index]
+			 .reg_list[ov08d10->xvclk_index];
 
 	/* soft reset */
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
@@ -1456,9 +1498,15 @@ static int ov08d10_probe(struct i2c_client *client)
 				     "failed to get clock\n");
 
 	freq = clk_get_rate(ov08d10->clk);
-	if (freq != OV08D10_XVCLK_19_2)
-		dev_warn(ov08d10->dev,
-			 "external clock rate %lu is not supported\n", freq);
+	for (i = 0; i < ARRAY_SIZE(ov08d10_xvclk_freqs); i++) {
+		if (freq == ov08d10_xvclk_freqs[i])
+			break;
+	}
+	if (i >= ARRAY_SIZE(ov08d10_xvclk_freqs))
+		return dev_err_probe(ov08d10->dev, -EINVAL,
+				     "external clock rate %lu is not supported\n",
+				     freq);
+	ov08d10->xvclk_index = i;
 
 	ret = ov08d10_get_hwcfg(ov08d10);
 	if (ret) {
