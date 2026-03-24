@@ -6568,7 +6568,7 @@ static struct task_struct *proxy_deactivate(struct rq *rq, struct task_struct *d
 		 * as unblocked, as we aren't doing proxy-migrations
 		 * yet (more logic will be needed then).
 		 */
-		donor->blocked_on = NULL;
+		clear_task_blocked_on(donor, NULL);
 	}
 	return NULL;
 }
@@ -6592,6 +6592,7 @@ static struct task_struct *proxy_deactivate(struct rq *rq, struct task_struct *d
 static struct task_struct *
 find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 {
+	enum { FOUND, DEACTIVATE_DONOR } action = FOUND;
 	struct task_struct *owner = NULL;
 	int this_cpu = cpu_of(rq);
 	struct task_struct *p;
@@ -6625,12 +6626,14 @@ find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 
 		if (!READ_ONCE(owner->on_rq) || owner->se.sched_delayed) {
 			/* XXX Don't handle blocked owners/delayed dequeue yet */
-			return proxy_deactivate(rq, donor);
+			action = DEACTIVATE_DONOR;
+			break;
 		}
 
 		if (task_cpu(owner) != this_cpu) {
 			/* XXX Don't handle migrations yet */
-			return proxy_deactivate(rq, donor);
+			action = DEACTIVATE_DONOR;
+			break;
 		}
 
 		if (task_on_rq_migrating(owner)) {
@@ -6688,6 +6691,13 @@ find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 		 */
 	}
 
+	/* Handle actions we need to do outside of the guard() scope */
+	switch (action) {
+	case DEACTIVATE_DONOR:
+		return proxy_deactivate(rq, donor);
+	case FOUND:
+		/* fallthrough */;
+	}
 	WARN_ON_ONCE(owner && !owner->on_rq);
 	return owner;
 }
