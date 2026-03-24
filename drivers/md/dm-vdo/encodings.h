@@ -803,6 +803,10 @@ vdo_get_index_region_size(struct volume_geometry geometry)
 		vdo_get_index_region_start(geometry);
 }
 
+int vdo_initialize_volume_geometry(nonce_t nonce, uuid_t *uuid,
+				   const struct index_config *index_config,
+				   struct volume_geometry *geometry);
+
 int __must_check vdo_parse_geometry_block(unsigned char *block,
 					  struct volume_geometry *geometry);
 
