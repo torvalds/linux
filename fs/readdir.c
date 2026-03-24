@@ -22,6 +22,8 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 
+#define dirent_size(dirent, len) offsetof(typeof(*(dirent)), d_name[len])
+
 /*
  * Some filesystems were never converted to '->iterate_shared()'
  * and their directory iterators want the inode lock held for
@@ -198,9 +200,7 @@ static bool fillonedir(struct dir_context *ctx, const char *name, int namlen,
 	}
 	buf->result++;
 	dirent = buf->dirent;
-	if (!user_write_access_begin(dirent,
-			(unsigned long)(dirent->d_name + namlen + 1) -
-				(unsigned long)dirent))
+	if (!user_write_access_begin(dirent, dirent_size(dirent, namlen + 1)))
 		goto efault;
 	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
 	unsafe_put_user(offset, &dirent->d_offset, efault_end);
@@ -263,8 +263,7 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
 	struct getdents_callback *buf =
 		container_of(ctx, struct getdents_callback, ctx);
 	unsigned long d_ino;
-	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
-		sizeof(long));
+	int reclen = ALIGN(dirent_size(dirent, namlen + 2), sizeof(long));
 	int prev_reclen;
 	unsigned int flags = d_type;
 
@@ -352,8 +351,7 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 	struct linux_dirent64 __user *dirent, *prev;
 	struct getdents_callback64 *buf =
 		container_of(ctx, struct getdents_callback64, ctx);
-	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
-		sizeof(u64));
+	int reclen = ALIGN(dirent_size(dirent, namlen + 1), sizeof(u64));
 	int prev_reclen;
 	unsigned int flags = d_type;
 
@@ -460,9 +458,7 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
 	}
 	buf->result++;
 	dirent = buf->dirent;
-	if (!user_write_access_begin(dirent,
-			(unsigned long)(dirent->d_name + namlen + 1) -
-				(unsigned long)dirent))
+	if (!user_write_access_begin(dirent, dirent_size(dirent, namlen + 1)))
 		goto efault;
 	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
 	unsafe_put_user(offset, &dirent->d_offset, efault_end);
@@ -519,8 +515,7 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
 	struct compat_getdents_callback *buf =
 		container_of(ctx, struct compat_getdents_callback, ctx);
 	compat_ulong_t d_ino;
-	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
-		namlen + 2, sizeof(compat_long_t));
+	int reclen = ALIGN(dirent_size(dirent, namlen + 2), sizeof(compat_long_t));
 	int prev_reclen;
 	unsigned int flags = d_type;
 
