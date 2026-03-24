@@ -1316,4 +1316,45 @@ __naked void old_imprecise_scalar32_vs_cur_stack_misc(void)
 	: __clobber_all);
 }
 
+SEC("raw_tp")
+__success
+__naked void var_off_write_over_scalar_spill(void)
+{
+	asm volatile (
+	/* Get an unknown value bounded to {0, 4} */
+	"call %[bpf_ktime_get_ns];"
+	"r6 = r0;"
+	"r6 &= 4;"
+
+	/* Spill a scalar to fp-16 */
+	"r7 = 0xdeadbeef00000000 ll;"
+	"*(u64 *)(r10 - 16) = r7;"
+
+	/*
+	 * Variable-offset 4-byte write covering [fp-12, fp-4).
+	 * This touches stype[3..0] of the spill slot at fp-16 but
+	 * leaves stype[7..4] as STACK_SPILL. check_stack_write_var_off()
+	 * must scrub the entire slot when setting spilled_ptr to NOT_INIT,
+	 * otherwise a subsequent sub-register fill sees a non-scalar
+	 * spilled_ptr and is rejected.
+	 */
+	"r8 = r10;"
+	"r8 += r6;"
+	"r8 += -12;"
+	"r9 = 0;"
+	"*(u32 *)(r8 + 0) = r9;"
+
+	/*
+	 * 4-byte read from fp-16. Without the fix this fails with
+	 * "invalid size of register fill" because is_spilled_reg()
+	 * sees STACK_SPILL while spilled_ptr.type == NOT_INIT.
+	 */
+	"r0 = *(u32 *)(r10 - 16);"
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
