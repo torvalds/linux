@@ -567,6 +567,23 @@ noinline void bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
 {
 }
 
+noinline void bpf_fentry_test_ppvoid(void **pp)
+{
+}
+
+noinline void bpf_fentry_test_pppvoid(void ***ppp)
+{
+}
+
+noinline void bpf_fentry_test_ppfile(struct file **ppf)
+{
+}
+
+noinline struct file **bpf_fexit_test_ret_ppfile(void)
+{
+	return (struct file **)NULL;
+}
+
 __bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
