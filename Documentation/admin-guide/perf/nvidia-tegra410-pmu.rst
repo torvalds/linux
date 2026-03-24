@@ -8,6 +8,7 @@ metrics like memory bandwidth, latency, and utilization:
 * Unified Coherence Fabric (UCF)
 * PCIE
 * PCIE-TGT
+* CPU Memory (CMEM) Latency
 
 PMU Driver
 ----------
@@ -344,3 +345,27 @@ Example usage:
   0x10000 to 0x100FF on socket 0's PCIE RC-1::
 
     perf stat -a -e nvidia_pcie_tgt_pmu_0_rc_1/event=0x1,dst_addr_base=0x10000,dst_addr_mask=0xFFF00,dst_addr_en=0x1/
+
+CPU Memory (CMEM) Latency PMU
+-----------------------------
+
+This PMU monitors latency events of memory read requests from the edge of the
+Unified Coherence Fabric (UCF) to local CPU DRAM:
+
+  * RD_REQ counters: count read requests (32B per request).
+  * RD_CUM_OUTS counters: accumulated outstanding request counter, which track
+    how many cycles the read requests are in flight.
+  * CYCLES counter: counts the number of elapsed cycles.
+
+The average latency is calculated as::
+
+   FREQ_IN_GHZ = CYCLES / ELAPSED_TIME_IN_NS
+   AVG_LATENCY_IN_CYCLES = RD_CUM_OUTS / RD_REQ
+   AVERAGE_LATENCY_IN_NS = AVG_LATENCY_IN_CYCLES / FREQ_IN_GHZ
+
+The events and configuration options of this PMU device are described in sysfs,
+see /sys/bus/event_source/devices/nvidia_cmem_latency_pmu_<socket-id>.
+
+Example usage::
+
+  perf stat -a -e '{nvidia_cmem_latency_pmu_0/rd_req/,nvidia_cmem_latency_pmu_0/rd_cum_outs/,nvidia_cmem_latency_pmu_0/cycles/}'
