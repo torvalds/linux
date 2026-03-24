@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/string.h>
 #include <crypto/aes.h>
 #include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
@@ -239,9 +240,8 @@ static int ccp_register_aes_xts_alg(struct list_head *head,
 
 	alg = &ccp_alg->alg;
 
-	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
-	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 def->drv_name);
+	strscpy(alg->base.cra_name, def->name);
+	strscpy(alg->base.cra_driver_name, def->drv_name);
 	alg->base.cra_flags	= CRYPTO_ALG_ASYNC |
 				  CRYPTO_ALG_ALLOCATES_MEMORY |
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
