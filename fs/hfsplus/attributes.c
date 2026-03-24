@@ -57,7 +57,8 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 	if (name) {
 		int res = hfsplus_asc2uni(sb,
 				(struct hfsplus_unistr *)&key->attr.key_name,
-				HFSPLUS_ATTR_MAX_STRLEN, name, strlen(name));
+				HFSPLUS_ATTR_MAX_STRLEN, name, strlen(name),
+				HFS_XATTR_NAME);
 		if (res)
 			return res;
 		len = be16_to_cpu(key->attr.key_name.length);

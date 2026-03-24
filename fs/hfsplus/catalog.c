@@ -47,7 +47,7 @@ int hfsplus_cat_build_key(struct super_block *sb,
 
 	key->cat.parent = cpu_to_be32(parent);
 	err = hfsplus_asc2uni(sb, &key->cat.name, HFSPLUS_MAX_STRLEN,
-			str->name, str->len);
+			      str->name, str->len, HFS_REGULAR_NAME);
 	if (unlikely(err < 0))
 		return err;
 
@@ -183,7 +183,7 @@ static int hfsplus_fill_cat_thread(struct super_block *sb,
 	entry->thread.reserved = 0;
 	entry->thread.parentID = cpu_to_be32(parentid);
 	err = hfsplus_asc2uni(sb, &entry->thread.nodeName, HFSPLUS_MAX_STRLEN,
-				str->name, str->len);
+				str->name, str->len, HFS_REGULAR_NAME);
 	if (unlikely(err < 0))
 		return err;
 

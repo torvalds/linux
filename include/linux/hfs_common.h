@@ -166,6 +166,11 @@ struct hfsplus_attr_unistr {
 	hfsplus_unichr unicode[HFSPLUS_ATTR_MAX_STRLEN];
 } __packed;
 
+enum {
+	HFS_REGULAR_NAME,
+	HFS_XATTR_NAME,
+};
+
 struct hfs_extent {
 	__be16 block;
 	__be16 count;
