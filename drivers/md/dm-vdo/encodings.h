@@ -608,6 +608,12 @@ struct vdo_config {
 	block_count_t slab_journal_blocks; /* number of slab journal blocks */
 };
 
+/** The maximum logical space is 4 petabytes, which is 1 terablock. */
+#define MAXIMUM_VDO_LOGICAL_BLOCKS ((block_count_t)(1024ULL * 1024 * 1024 * 1024))
+
+/** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
+#define MAXIMUM_VDO_PHYSICAL_BLOCKS ((block_count_t)(1024ULL * 1024 * 1024 * 64))
+
 /* This is the structure that captures the vdo fields saved as a super block component. */
 struct vdo_component {
 	enum vdo_state state;

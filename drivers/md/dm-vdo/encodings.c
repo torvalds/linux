@@ -16,12 +16,6 @@
 #include "status-codes.h"
 #include "types.h"
 
-/** The maximum logical space is 4 petabytes, which is 1 terablock. */
-static const block_count_t MAXIMUM_VDO_LOGICAL_BLOCKS = 1024ULL * 1024 * 1024 * 1024;
-
-/** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
-static const block_count_t MAXIMUM_VDO_PHYSICAL_BLOCKS = 1024ULL * 1024 * 1024 * 64;
-
 struct geometry_block {
 	char magic_number[VDO_GEOMETRY_MAGIC_NUMBER_SIZE];
 	struct packed_header header;
@@ -1220,9 +1214,9 @@ int vdo_validate_config(const struct vdo_config *config,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = VDO_ASSERT(config->slab_size <= (1 << MAX_VDO_SLAB_BITS),
-			    "slab size must be less than or equal to 2^%d",
-			    MAX_VDO_SLAB_BITS);
+	result = VDO_ASSERT(config->slab_size <= MAX_VDO_SLAB_BLOCKS,
+			    "slab size must be a power of two less than or equal to %d",
+			    MAX_VDO_SLAB_BLOCKS);
 	if (result != VDO_SUCCESS)
 		return result;
 
