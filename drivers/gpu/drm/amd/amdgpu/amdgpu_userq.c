@@ -1227,10 +1227,8 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 	}
 
 	ret = amdgpu_userq_restore_all(uq_mgr);
-	if (ret) {
+	if (ret)
 		drm_file_err(uq_mgr->file, "Failed to restore all queues\n");
-		goto unlock;
-	}
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
