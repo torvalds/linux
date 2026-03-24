@@ -4506,18 +4506,20 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 	ret = rb_read_data_buffer(bpage, tail, cpu_buffer->cpu, &ts, &delta);
 	if (ret < 0) {
 		if (delta < ts) {
-			buffer_warn_return("[CPU: %d]ABSOLUTE TIME WENT BACKWARDS: last ts: %lld absolute ts: %lld\n",
-					   cpu_buffer->cpu, ts, delta);
+			buffer_warn_return("[CPU: %d]ABSOLUTE TIME WENT BACKWARDS: last ts: %lld absolute ts: %lld clock:%pS\n",
+					   cpu_buffer->cpu, ts, delta,
+					   cpu_buffer->buffer->clock);
 			goto out;
 		}
 	}
 	if ((full && ts > info->ts) ||
 	    (!full && ts + info->delta != info->ts)) {
-		buffer_warn_return("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld before:%lld after:%lld%s context:%s\n",
+		buffer_warn_return("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld before:%lld after:%lld%s context:%s\ntrace clock:%pS",
 				   cpu_buffer->cpu,
 				   ts + info->delta, info->ts, info->delta,
 				   info->before, info->after,
-				   full ? " (full)" : "", show_interrupt_level());
+				   full ? " (full)" : "", show_interrupt_level(),
+				   cpu_buffer->buffer->clock);
 	}
 out:
 	atomic_dec(this_cpu_ptr(&checking));
