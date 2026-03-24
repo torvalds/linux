@@ -813,6 +813,8 @@ int vdo_initialize_volume_geometry(nonce_t nonce, uuid_t *uuid,
 				   const struct index_config *index_config,
 				   struct volume_geometry *geometry);
 
+int vdo_encode_volume_geometry(u8 *buffer, const struct volume_geometry *geometry,
+			       u32 version);
 int __must_check vdo_parse_geometry_block(unsigned char *block,
 					  struct volume_geometry *geometry);
 

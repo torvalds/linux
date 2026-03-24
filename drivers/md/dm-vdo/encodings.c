@@ -288,6 +288,62 @@ static void decode_volume_geometry(u8 *buffer, size_t *offset,
 }
 
 /**
+ * vdo_encode_volume_geometry() - Encode the on-disk representation of a volume geometry into a buffer.
+ * @buffer: A buffer to store the encoding.
+ * @geometry: The geometry to encode.
+ * @version: The geometry block version to encode.
+ *
+ * Return: VDO_SUCCESS or an error.
+ */
+int vdo_encode_volume_geometry(u8 *buffer, const struct volume_geometry *geometry,
+			       u32 version)
+{
+	int result;
+	enum volume_region_id id;
+	u32 checksum;
+	size_t offset = 0;
+	const struct header *header;
+
+	memcpy(buffer, VDO_GEOMETRY_MAGIC_NUMBER, VDO_GEOMETRY_MAGIC_NUMBER_SIZE);
+	offset += VDO_GEOMETRY_MAGIC_NUMBER_SIZE;
+
+	header = (version > 4) ? &GEOMETRY_BLOCK_HEADER_5_0 : &GEOMETRY_BLOCK_HEADER_4_0;
+	vdo_encode_header(buffer, &offset, header);
+
+	/* This is for backwards compatibility */
+	encode_u32_le(buffer, &offset, geometry->unused);
+	encode_u64_le(buffer, &offset, geometry->nonce);
+	memcpy(buffer + offset, (unsigned char *) &geometry->uuid, sizeof(uuid_t));
+	offset += sizeof(uuid_t);
+
+	if (version > 4)
+		encode_u64_le(buffer, &offset, geometry->bio_offset);
+
+	for (id = 0; id < VDO_VOLUME_REGION_COUNT; id++) {
+		encode_u32_le(buffer, &offset, geometry->regions[id].id);
+		encode_u64_le(buffer, &offset, geometry->regions[id].start_block);
+	}
+
+	encode_u32_le(buffer, &offset, geometry->index_config.mem);
+	encode_u32_le(buffer, &offset, 0);
+
+	if (geometry->index_config.sparse)
+		buffer[offset++] = 1;
+	else
+		buffer[offset++] = 0;
+
+	result = VDO_ASSERT(header->size == offset + sizeof(u32),
+			    "should have encoded up to the geometry checksum");
+	if (result != VDO_SUCCESS)
+		return result;
+
+	checksum = vdo_crc32(buffer, offset);
+	encode_u32_le(buffer, &offset, checksum);
+
+	return VDO_SUCCESS;
+}
+
+/**
  * vdo_parse_geometry_block() - Decode and validate an encoded geometry block.
  * @block: The encoded geometry block.
  * @geometry: The structure to receive the decoded fields.
