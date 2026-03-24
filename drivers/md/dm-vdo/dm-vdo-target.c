@@ -61,6 +61,11 @@ enum admin_phases {
 	LOAD_PHASE_DRAIN_JOURNAL,
 	LOAD_PHASE_WAIT_FOR_READ_ONLY,
 	PRE_LOAD_PHASE_START,
+	PRE_LOAD_PHASE_FORMAT_START,
+	PRE_LOAD_PHASE_FORMAT_SUPER,
+	PRE_LOAD_PHASE_FORMAT_GEOMETRY,
+	PRE_LOAD_PHASE_FORMAT_END,
+	PRE_LOAD_PHASE_LOAD_SUPER,
 	PRE_LOAD_PHASE_LOAD_COMPONENTS,
 	PRE_LOAD_PHASE_END,
 	PREPARE_GROW_PHYSICAL_PHASE_START,
@@ -110,6 +115,11 @@ static const char * const ADMIN_PHASE_NAMES[] = {
 	"LOAD_PHASE_DRAIN_JOURNAL",
 	"LOAD_PHASE_WAIT_FOR_READ_ONLY",
 	"PRE_LOAD_PHASE_START",
+	"PRE_LOAD_PHASE_FORMAT_START",
+	"PRE_LOAD_PHASE_FORMAT_SUPER",
+	"PRE_LOAD_PHASE_FORMAT_GEOMETRY",
+	"PRE_LOAD_PHASE_FORMAT_END",
+	"PRE_LOAD_PHASE_LOAD_SUPER",
 	"PRE_LOAD_PHASE_LOAD_COMPONENTS",
 	"PRE_LOAD_PHASE_END",
 	"PREPARE_GROW_PHYSICAL_PHASE_START",
@@ -1487,7 +1497,33 @@ static void pre_load_callback(struct vdo_completion *completion)
 			vdo_continue_completion(completion, result);
 			return;
 		}
+		if (vdo->needs_formatting)
+			vdo->admin.phase = PRE_LOAD_PHASE_FORMAT_START;
+		else
+			vdo->admin.phase = PRE_LOAD_PHASE_LOAD_SUPER;
 
+		vdo_continue_completion(completion, VDO_SUCCESS);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_START:
+		vdo_continue_completion(completion, vdo_clear_layout(vdo));
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_SUPER:
+		vdo_save_super_block(vdo, completion);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_GEOMETRY:
+		vdo_save_geometry_block(vdo, completion);
+		return;
+
+	case PRE_LOAD_PHASE_FORMAT_END:
+		/* cleanup layout before load adds to it */
+		vdo_uninitialize_layout(&vdo->states.layout);
+		vdo_continue_completion(completion, VDO_SUCCESS);
+		return;
+
+	case PRE_LOAD_PHASE_LOAD_SUPER:
 		vdo_load_super_block(vdo, completion);
 		return;
 
