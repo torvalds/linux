@@ -14,6 +14,7 @@
 #include <objtool/util.h>
 #include <arch/special.h>
 
+#include <linux/align.h>
 #include <linux/objtool_types.h>
 #include <linux/livepatch_external.h>
 #include <linux/stringify.h>
@@ -560,7 +561,7 @@ static struct symbol *__clone_symbol(struct elf *elf, struct symbol *patched_sym
 		}
 
 		if (!is_sec_sym(patched_sym))
-			offset = sec_size(out_sec);
+			offset = ALIGN(sec_size(out_sec), out_sec->sh.sh_addralign);
 
 		if (patched_sym->len || is_sec_sym(patched_sym)) {
 			void *data = NULL;

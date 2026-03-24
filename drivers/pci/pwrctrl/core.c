@@ -268,6 +268,46 @@ err_power_off:
 }
 EXPORT_SYMBOL_GPL(pci_pwrctrl_power_on_devices);
 
+/*
+ * Check whether the pwrctrl device really needs to be created or not. The
+ * pwrctrl device will only be created if the node satisfies below requirements:
+ *
+ * 1. Presence of compatible property with "pci" prefix to match against the
+ *    pwrctrl driver (AND)
+ * 2. At least one of the power supplies defined in the devicetree node of the
+ *    device (OR) in the remote endpoint parent node to indicate pwrctrl
+ *    requirement.
+ */
+static bool pci_pwrctrl_is_required(struct device_node *np)
+{
+	struct device_node *endpoint;
+	const char *compat;
+	int ret;
+
+	ret = of_property_read_string(np, "compatible", &compat);
+	if (ret < 0)
+		return false;
+
+	if (!strstarts(compat, "pci"))
+		return false;
+
+	if (of_pci_supply_present(np))
+		return true;
+
+	if (of_graph_is_present(np)) {
+		for_each_endpoint_of_node(np, endpoint) {
+			struct device_node *remote __free(device_node) =
+				of_graph_get_remote_port_parent(endpoint);
+			if (remote) {
+				if (of_pci_supply_present(remote))
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 static int pci_pwrctrl_create_device(struct device_node *np,
 				     struct device *parent)
 {
@@ -287,19 +327,7 @@ static int pci_pwrctrl_create_device(struct device_node *np,
 		return 0;
 	}
 
-	/*
-	 * Sanity check to make sure that the node has the compatible property
-	 * to allow driver binding.
-	 */
-	if (!of_property_present(np, "compatible"))
-		return 0;
-
-	/*
-	 * Check whether the pwrctrl device really needs to be created or not.
-	 * This is decided based on at least one of the power supplies defined
-	 * in the devicetree node of the device or the graph property.
-	 */
-	if (!of_pci_supply_present(np) && !of_graph_is_present(np)) {
+	if (!pci_pwrctrl_is_required(np)) {
 		dev_dbg(parent, "Skipping OF node: %s\n", np->name);
 		return 0;
 	}
