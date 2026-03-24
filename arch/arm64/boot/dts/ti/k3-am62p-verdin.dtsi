@@ -247,6 +247,13 @@
 		>;
 	};
 
+	/* Verdin SPI_1_CS as GPIO */
+	pinctrl_spi1_cs_gpio: main-gpio0-7-default-pins {
+		pinctrl-single,pins = <
+			AM62PX_IOPAD(0x001c, PIN_OUTPUT, 7) /* (N21) OSPI0_D4.GPIO0_7 */ /* SODIMM 202 */
+		>;
+	};
+
 	/* Verdin QSPI_1_CS# as GPIO (conflict with Verdin QSPI_1 interface) */
 	pinctrl_qspi1_cs_gpio: main-gpio0-11-default-pins {
 		pinctrl-single,pins = <
