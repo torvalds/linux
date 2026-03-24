@@ -39,6 +39,7 @@
  */
 resource_size_t
 pcibios_align_resource(void *data, const struct resource *res,
+		       const struct resource *empty_res,
 		       resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;

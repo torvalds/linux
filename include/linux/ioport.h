@@ -202,6 +202,7 @@ enum {
  * typedef resource_alignf - Resource alignment callback
  * @data:	Private data used by the callback
  * @res:	Resource candidate range (an empty resource space)
+ * @empty_res:	Empty resource range without alignment applied
  * @size:	The minimum size of the empty space
  * @align:	Alignment from the constraints
  *
@@ -212,6 +213,7 @@ enum {
  */
 typedef resource_size_t (*resource_alignf)(void *data,
 					   const struct resource *res,
+					   const struct resource *empty_res,
 					   resource_size_t size,
 					   resource_size_t align);
 

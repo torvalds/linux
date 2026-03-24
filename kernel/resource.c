@@ -759,7 +759,8 @@ static int __find_resource_space(struct resource *root, struct resource *old,
 			alloc.flags = avail.flags;
 			if (alignf) {
 				alloc.start = alignf(constraint->alignf_data,
-						     &avail, size, constraint->align);
+						     &avail, &tmp,
+						     size, constraint->align);
 			} else {
 				alloc.start = avail.start;
 			}

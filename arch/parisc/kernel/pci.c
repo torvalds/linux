@@ -196,7 +196,9 @@ void __ref pcibios_init_bridge(struct pci_dev *dev)
  * than res->start.
  */
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t alignment)
+				       const struct resource *empty_res,
+				       resource_size_t size,
+				       resource_size_t alignment)
 {
 	resource_size_t mask, align, start = res->start;
 
