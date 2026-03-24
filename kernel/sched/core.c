@@ -6597,11 +6597,7 @@ find_proxy_task(struct rq *rq, struct task_struct *donor, struct rq_flags *rf)
 	struct mutex *mutex;
 
 	/* Follow blocked_on chain. */
-	for (p = donor; task_is_blocked(p); p = owner) {
-		mutex = p->blocked_on;
-		/* Something changed in the chain, so pick again */
-		if (!mutex)
-			return NULL;
+	for (p = donor; (mutex = p->blocked_on); p = owner) {
 		/*
 		 * By taking mutex->wait_lock we hold off concurrent mutex_unlock()
 		 * and ensure @owner sticks around.
@@ -6832,12 +6828,14 @@ pick_again:
 	next = pick_next_task(rq, rq->donor, &rf);
 	rq_set_donor(rq, next);
 	rq->next_class = next->sched_class;
-	if (unlikely(task_is_blocked(next))) {
-		next = find_proxy_task(rq, next, &rf);
-		if (!next)
-			goto pick_again;
-		if (next == rq->idle)
-			goto keep_resched;
+	if (sched_proxy_exec()) {
+		if (unlikely(next->blocked_on)) {
+			next = find_proxy_task(rq, next, &rf);
+			if (!next)
+				goto pick_again;
+			if (next == rq->idle)
+				goto keep_resched;
+		}
 	}
 picked:
 	clear_tsk_need_resched(prev);
