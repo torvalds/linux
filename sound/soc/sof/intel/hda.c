@@ -1179,6 +1179,9 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		struct snd_soc_acpi_endpoint *endpoints;
 		int amp_group_id = 1;
 
+		if (sdw_device->id.mfg_id != codec_info_list[i].vendor_id)
+			continue;
+
 		if (sdw_device->id.part_id != codec_info_list[i].part_id)
 			continue;
 
@@ -1193,8 +1196,8 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		 * dereference
 		 */
 		if (!name_prefix) {
-			dev_err(dev, "codec_info_list name_prefix of part id %#x is missing\n",
-				codec_info_list[i].part_id);
+			dev_err(dev, "codec_info_list name_prefix of part id %#x-%#x is missing\n",
+				codec_info_list[i].vendor_id, codec_info_list[i].part_id);
 			return NULL;
 		}
 		for (j = 0; j < codec_info_list[i].dai_num; j++) {
