@@ -7,6 +7,7 @@
 
 #include "imx943.dtsi"
 #include <dt-bindings/usb/pd.h>
+#include <dt-bindings/pwm/pwm.h>
 
 #define BRD_SM_CTRL_BT_WAKE		0x8000  /*!< PCAL6416A-3 */
 #define BRD_SM_CTRL_SD3_WAKE		0x8001  /*!< PCAL6416A-4 */
@@ -334,6 +335,20 @@
 				PLLVDD-supply = <&reg_audio_pwr>;
 				SPKVDD1-supply = <&reg_audio_pwr>;
 				SPKVDD2-supply = <&reg_audio_pwr>;
+			};
+
+			fan_controller: pwm@2f {
+				compatible = "microchip,emc2301", "microchip,emc2305";
+				reg = <0x2f>;
+				#pwm-cells = <3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				fan0: fan@0 {
+					reg = <0x0>;
+					pwms = <&fan_controller 26000 1 PWM_POLARITY_INVERTED>;
+					#cooling-cells = <2>;
+				};
 			};
 
 			ptn5150: tcpc@3d {
@@ -890,6 +905,47 @@
 			BRD_SM_CTRL_BT_WAKE		1
 			BRD_SM_CTRL_PCIE2_WAKE		1
 			BRD_SM_CTRL_BUTTON		1>;
+};
+
+&thermal_zones {
+	a55-thermal {
+		trips {
+			atrip2: trip2 {
+				temperature = <55000>;
+				hysteresis = <2000>;
+				type = "active";
+			};
+
+			atrip3: trip3 {
+				temperature = <65000>;
+				hysteresis = <2000>;
+				type = "active";
+			};
+
+			atrip4: trip4 {
+				temperature = <75000>;
+				hysteresis = <2000>;
+				type = "active";
+			};
+		};
+
+		cooling-maps {
+			map1 {
+				trip = <&atrip2>;
+				cooling-device = <&fan0 4 6>;
+			};
+
+			map2 {
+				trip = <&atrip3>;
+				cooling-device = <&fan0 6 8>;
+			};
+
+			map3 {
+				trip = <&atrip4>;
+				cooling-device = <&fan0 8 10>;
+			};
+		};
+	};
 };
 
 &usb2 {
