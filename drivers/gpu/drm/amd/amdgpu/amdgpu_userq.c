@@ -1004,6 +1004,7 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 	unsigned long queue_id;
 	int ret = 0, r;
 
+	mutex_lock(&uq_mgr->userq_mutex);
 	/* Resume all the queues for this process */
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
 
@@ -1019,6 +1020,7 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 			ret = r;
 
 	}
+	mutex_unlock(&uq_mgr->userq_mutex);
 
 	if (ret)
 		drm_file_err(uq_mgr->file, "Failed to map all the queues\n");
@@ -1222,23 +1224,21 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 	struct dma_fence *ev_fence;
 	int ret;
 
-	mutex_lock(&uq_mgr->userq_mutex);
 	ev_fence = amdgpu_evf_mgr_get_fence(&fpriv->evf_mgr);
 	if (!dma_fence_is_signaled(ev_fence))
-		goto unlock;
+		goto put_fence;
 
 	ret = amdgpu_userq_vm_validate(uq_mgr);
 	if (ret) {
 		drm_file_err(uq_mgr->file, "Failed to validate BOs to restore\n");
-		goto unlock;
+		goto put_fence;
 	}
 
 	ret = amdgpu_userq_restore_all(uq_mgr);
 	if (ret)
 		drm_file_err(uq_mgr->file, "Failed to restore all queues\n");
 
-unlock:
-	mutex_unlock(&uq_mgr->userq_mutex);
+put_fence:
 	dma_fence_put(ev_fence);
 }
 
