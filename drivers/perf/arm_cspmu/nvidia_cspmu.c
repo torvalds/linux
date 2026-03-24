@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2022-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  */
 
@@ -20,6 +20,13 @@
 
 #define NV_CNVL_PORT_COUNT           4ULL
 #define NV_CNVL_FILTER_ID_MASK       GENMASK_ULL(NV_CNVL_PORT_COUNT - 1, 0)
+
+#define NV_UCF_SRC_COUNT             3ULL
+#define NV_UCF_DST_COUNT             4ULL
+#define NV_UCF_FILTER_ID_MASK        GENMASK_ULL(11, 0)
+#define NV_UCF_FILTER_SRC            GENMASK_ULL(2, 0)
+#define NV_UCF_FILTER_DST            GENMASK_ULL(11, 8)
+#define NV_UCF_FILTER_DEFAULT        (NV_UCF_FILTER_SRC | NV_UCF_FILTER_DST)
 
 #define NV_GENERIC_FILTER_ID_MASK    GENMASK_ULL(31, 0)
 
@@ -124,6 +131,36 @@ static struct attribute *mcf_pmu_event_attrs[] = {
 	NULL,
 };
 
+static struct attribute *ucf_pmu_event_attrs[] = {
+	ARM_CSPMU_EVENT_ATTR(bus_cycles,            0x1D),
+
+	ARM_CSPMU_EVENT_ATTR(slc_allocate,          0xF0),
+	ARM_CSPMU_EVENT_ATTR(slc_wb,                0xF3),
+	ARM_CSPMU_EVENT_ATTR(slc_refill_rd,         0x109),
+	ARM_CSPMU_EVENT_ATTR(slc_refill_wr,         0x10A),
+	ARM_CSPMU_EVENT_ATTR(slc_hit_rd,            0x119),
+
+	ARM_CSPMU_EVENT_ATTR(slc_access_dataless,   0x183),
+	ARM_CSPMU_EVENT_ATTR(slc_access_atomic,     0x184),
+
+	ARM_CSPMU_EVENT_ATTR(slc_access_rd,         0x111),
+	ARM_CSPMU_EVENT_ATTR(slc_access_wr,         0x112),
+	ARM_CSPMU_EVENT_ATTR(slc_bytes_rd,          0x113),
+	ARM_CSPMU_EVENT_ATTR(slc_bytes_wr,          0x114),
+
+	ARM_CSPMU_EVENT_ATTR(mem_access_rd,         0x121),
+	ARM_CSPMU_EVENT_ATTR(mem_access_wr,         0x122),
+	ARM_CSPMU_EVENT_ATTR(mem_bytes_rd,          0x123),
+	ARM_CSPMU_EVENT_ATTR(mem_bytes_wr,          0x124),
+
+	ARM_CSPMU_EVENT_ATTR(local_snoop,           0x180),
+	ARM_CSPMU_EVENT_ATTR(ext_snp_access,        0x181),
+	ARM_CSPMU_EVENT_ATTR(ext_snp_evict,         0x182),
+
+	ARM_CSPMU_EVENT_ATTR(cycles, ARM_CSPMU_EVT_CYCLES_DEFAULT),
+	NULL
+};
+
 static struct attribute *generic_pmu_event_attrs[] = {
 	ARM_CSPMU_EVENT_ATTR(cycles, ARM_CSPMU_EVT_CYCLES_DEFAULT),
 	NULL,
@@ -150,6 +187,18 @@ static struct attribute *cnvlink_pmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
 	ARM_CSPMU_FORMAT_ATTR(rem_socket, "config1:0-3"),
 	NULL,
+};
+
+static struct attribute *ucf_pmu_format_attrs[] = {
+	ARM_CSPMU_FORMAT_EVENT_ATTR,
+	ARM_CSPMU_FORMAT_ATTR(src_loc_noncpu, "config1:0"),
+	ARM_CSPMU_FORMAT_ATTR(src_loc_cpu, "config1:1"),
+	ARM_CSPMU_FORMAT_ATTR(src_rem, "config1:2"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_cmem, "config1:8"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_gmem, "config1:9"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_other, "config1:10"),
+	ARM_CSPMU_FORMAT_ATTR(dst_rem, "config1:11"),
+	NULL
 };
 
 static struct attribute *generic_pmu_format_attrs[] = {
@@ -236,6 +285,27 @@ static void nv_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
 	writel(filter, cspmu->base0 + PMCCFILTR);
 }
 
+static u32 ucf_pmu_event_filter(const struct perf_event *event)
+{
+	u32 ret, filter, src, dst;
+
+	filter = nv_cspmu_event_filter(event);
+
+	/* Monitor all sources if none is selected. */
+	src = FIELD_GET(NV_UCF_FILTER_SRC, filter);
+	if (src == 0)
+		src = GENMASK_ULL(NV_UCF_SRC_COUNT - 1, 0);
+
+	/* Monitor all destinations if none is selected. */
+	dst = FIELD_GET(NV_UCF_FILTER_DST, filter);
+	if (dst == 0)
+		dst = GENMASK_ULL(NV_UCF_DST_COUNT - 1, 0);
+
+	ret = FIELD_PREP(NV_UCF_FILTER_SRC, src);
+	ret |= FIELD_PREP(NV_UCF_FILTER_DST, dst);
+
+	return ret;
+}
 
 enum nv_cspmu_name_fmt {
 	NAME_FMT_GENERIC,
@@ -340,6 +410,21 @@ static const struct nv_cspmu_match nv_cspmu_match[] = {
 		.get_filter2 = NULL,
 		.data = NULL,
 		.init_data = NULL
+	  },
+	},
+	{
+	  .prodid = 0x2CF20000,
+	  .prodid_mask = NV_PRODID_MASK,
+	  .name_pattern = "nvidia_ucf_pmu_%u",
+	  .name_fmt = NAME_FMT_SOCKET,
+	  .template_ctx = {
+		.event_attr = ucf_pmu_event_attrs,
+		.format_attr = ucf_pmu_format_attrs,
+		.filter_mask = NV_UCF_FILTER_ID_MASK,
+		.filter_default_val = NV_UCF_FILTER_DEFAULT,
+		.filter2_mask = 0x0,
+		.filter2_default_val = 0x0,
+		.get_filter = ucf_pmu_event_filter,
 	  },
 	},
 	{
