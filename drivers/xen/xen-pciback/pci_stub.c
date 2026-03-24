@@ -598,6 +598,8 @@ static int pcistub_seize(struct pci_dev *dev,
 	return err;
 }
 
+static struct pci_driver xen_pcibk_pci_driver;
+
 /* Called when 'bind'. This means we must _NOT_ call pci_reset_function or
  * other functions that take the sysfs lock. */
 static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
@@ -609,8 +611,8 @@ static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	match = pcistub_match(dev);
 
-	if ((dev->driver_override &&
-	     !strcmp(dev->driver_override, PCISTUB_DRIVER_NAME)) ||
+	if (device_match_driver_override(&dev->dev,
+					 &xen_pcibk_pci_driver.driver) > 0 ||
 	    match) {
 
 		if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL
