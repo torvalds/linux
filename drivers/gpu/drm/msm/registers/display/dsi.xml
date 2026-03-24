@@ -15,6 +15,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<value name="VID_DST_FORMAT_RGB666" value="1"/>
 		<value name="VID_DST_FORMAT_RGB666_LOOSE" value="2"/>
 		<value name="VID_DST_FORMAT_RGB888" value="3"/>
+		<value name="VID_DST_FORMAT_RGB101010" value="4"/>
 	</enum>
 	<enum name="dsi_rgb_swap">
 		<value name="SWAP_RGB" value="0"/>
@@ -39,6 +40,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<value name="CMD_DST_FORMAT_RGB565" value="6"/>
 		<value name="CMD_DST_FORMAT_RGB666" value="7"/>
 		<value name="CMD_DST_FORMAT_RGB888" value="8"/>
+		<value name="CMD_DST_FORMAT_RGB101010" value="9"/>
 	</enum>
 	<enum name="dsi_lane_swap">
 		<value name="LANE_SWAP_0123" value="0"/>
@@ -142,7 +144,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="0x0000c" name="VID_CFG0">
 		<bitfield name="VIRT_CHANNEL" low="0" high="1" type="uint"/>  <!-- always zero? -->
-		<bitfield name="DST_FORMAT" low="4" high="5" type="dsi_vid_dst_format"/>
+		<!-- high was 5 before DSI 6G 2.1.0 -->
+		<bitfield name="DST_FORMAT" low="4" high="6" type="dsi_vid_dst_format"/>
 		<bitfield name="TRAFFIC_MODE" low="8" high="9" type="dsi_traffic_mode"/>
 		<bitfield name="BLLP_POWER_STOP" pos="12" type="boolean"/>
 		<bitfield name="EOF_BLLP_POWER_STOP" pos="15" type="boolean"/>
