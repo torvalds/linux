@@ -1489,6 +1489,88 @@ int vdo_decode_super_block(u8 *buffer)
 }
 
 /**
+ * vdo_initialize_component_states() - Initialize the components so they can be written out.
+ * @vdo_config: The config used for component state initialization.
+ * @geometry: The volume geometry used to calculate the data region offset.
+ * @nonce: The nonce to use to identify the vdo.
+ * @states: The component states to initialize.
+ *
+ * Return: VDO_SUCCESS or an error code.
+ */
+int vdo_initialize_component_states(const struct vdo_config *vdo_config,
+				    const struct volume_geometry *geometry,
+				    nonce_t nonce,
+				    struct vdo_component_states *states)
+{
+	int result;
+	struct slab_config slab_config;
+	struct partition *partition;
+
+	states->vdo.config = *vdo_config;
+	states->vdo.nonce = nonce;
+	states->volume_version = VDO_VOLUME_VERSION_67_0;
+
+	states->recovery_journal = (struct recovery_journal_state_7_0) {
+		.journal_start = RECOVERY_JOURNAL_STARTING_SEQUENCE_NUMBER,
+		.logical_blocks_used = 0,
+		.block_map_data_blocks = 0,
+	};
+
+	/*
+	 * The layout starts 1 block past the beginning of the data region, as the
+	 * data region contains the super block but the layout does not.
+	 */
+	result = vdo_initialize_layout(vdo_config->physical_blocks,
+				       vdo_get_data_region_start(*geometry) + 1,
+				       DEFAULT_VDO_BLOCK_MAP_TREE_ROOT_COUNT,
+				       vdo_config->recovery_journal_size,
+				       VDO_SLAB_SUMMARY_BLOCKS,
+				       &states->layout);
+	if (result != VDO_SUCCESS)
+		return result;
+
+	result = vdo_configure_slab(vdo_config->slab_size,
+				    vdo_config->slab_journal_blocks,
+				    &slab_config);
+	if (result != VDO_SUCCESS) {
+		vdo_uninitialize_layout(&states->layout);
+		return result;
+	}
+
+	result = vdo_get_partition(&states->layout, VDO_SLAB_DEPOT_PARTITION,
+				   &partition);
+	if (result != VDO_SUCCESS) {
+		vdo_uninitialize_layout(&states->layout);
+		return result;
+	}
+
+	result = vdo_configure_slab_depot(partition, slab_config, 0,
+					  &states->slab_depot);
+	if (result != VDO_SUCCESS) {
+		vdo_uninitialize_layout(&states->layout);
+		return result;
+	}
+
+	result = vdo_get_partition(&states->layout, VDO_BLOCK_MAP_PARTITION,
+				   &partition);
+	if (result != VDO_SUCCESS) {
+		vdo_uninitialize_layout(&states->layout);
+		return result;
+	}
+
+	states->block_map = (struct block_map_state_2_0) {
+		.flat_page_origin = VDO_BLOCK_MAP_FLAT_PAGE_ORIGIN,
+		.flat_page_count = 0,
+		.root_origin = partition->offset,
+		.root_count = DEFAULT_VDO_BLOCK_MAP_TREE_ROOT_COUNT,
+	};
+
+	states->vdo.state = VDO_NEW;
+
+	return VDO_SUCCESS;
+}
+
+/**
  * vdo_compute_index_blocks() - Compute the number of blocks that the indexer will use.
  * @config: The index config from which the blocks are calculated.
  * @index_blocks_ptr: The number of blocks the index will use.

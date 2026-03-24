@@ -1268,6 +1268,11 @@ int __must_check vdo_validate_component_states(struct vdo_component_states *stat
 void vdo_encode_super_block(u8 *buffer, struct vdo_component_states *states);
 int __must_check vdo_decode_super_block(u8 *buffer);
 
+int vdo_initialize_component_states(const struct vdo_config *vdo_config,
+				    const struct volume_geometry *geometry,
+				    nonce_t nonce,
+				    struct vdo_component_states *states);
+
 /* We start with 0L and postcondition with ~0L to match our historical usage in userspace. */
 static inline u32 vdo_crc32(const void *buf, unsigned long len)
 {

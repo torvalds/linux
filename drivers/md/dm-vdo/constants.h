@@ -44,6 +44,9 @@ enum {
 	/* The default size of each slab journal, in blocks */
 	DEFAULT_VDO_SLAB_JOURNAL_SIZE = 224,
 
+	/* The recovery journal starting sequence number set at format time */
+	RECOVERY_JOURNAL_STARTING_SEQUENCE_NUMBER = 1,
+
 	/*
 	 * The initial size of lbn_operations and pbn_operations, which is based upon the expected
 	 * maximum number of outstanding VIOs. This value was chosen to make it highly unlikely
