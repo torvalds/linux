@@ -264,6 +264,21 @@ static void intel_pch_cpt_init_clock_gating(struct intel_display *display)
 			       TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
+static void intel_pch_lpt_init_clock_gating(struct intel_display *display)
+{
+	/*
+	 * TODO: this bit should only be enabled when really needed, then
+	 * disabled when not needed anymore in order to save power.
+	 */
+	if (HAS_PCH_LPT_LP(display))
+		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
+			     PCH_LP_PARTITION_LEVEL_DISABLE);
+
+	/* WADPOClockGatingDisable:hsw */
+	intel_de_rmw(display, TRANS_CHICKEN1(PIPE_A), 0,
+		     TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
+}
+
 void intel_pch_init_clock_gating(struct intel_display *display)
 {
 	switch (INTEL_PCH_TYPE(display)) {
@@ -272,6 +287,10 @@ void intel_pch_init_clock_gating(struct intel_display *display)
 		break;
 	case PCH_CPT:
 		intel_pch_cpt_init_clock_gating(display);
+		break;
+	case PCH_LPT_H:
+	case PCH_LPT_LP:
+		intel_pch_lpt_init_clock_gating(display);
 		break;
 	default:
 		break;
