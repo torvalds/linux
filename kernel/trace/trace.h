@@ -264,6 +264,7 @@ static inline bool still_need_pid_events(int type, struct trace_pid_list *pid_li
 
 typedef bool (*cond_update_fn_t)(struct trace_array *tr, void *cond_data);
 
+#ifdef CONFIG_TRACER_SNAPSHOT
 /**
  * struct cond_snapshot - conditional snapshot data and callback
  *
@@ -306,6 +307,7 @@ struct cond_snapshot {
 	void				*cond_data;
 	cond_update_fn_t		update;
 };
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 /*
  * struct trace_func_repeats - used to keep track of the consecutive
@@ -675,6 +677,7 @@ void tracing_reset_all_online_cpus(void);
 void tracing_reset_all_online_cpus_unlocked(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 int tracing_open_generic_tr(struct inode *inode, struct file *filp);
+int tracing_release(struct inode *inode, struct file *file);
 int tracing_release_generic_tr(struct inode *inode, struct file *file);
 int tracing_open_file_tr(struct inode *inode, struct file *filp);
 int tracing_release_file_tr(struct inode *inode, struct file *filp);
@@ -684,12 +687,48 @@ void tracer_tracing_on(struct trace_array *tr);
 void tracer_tracing_off(struct trace_array *tr);
 void tracer_tracing_disable(struct trace_array *tr);
 void tracer_tracing_enable(struct trace_array *tr);
+int allocate_trace_buffer(struct trace_array *tr, struct array_buffer *buf, int size);
 struct dentry *trace_create_file(const char *name,
 				 umode_t mode,
 				 struct dentry *parent,
 				 void *data,
 				 const struct file_operations *fops);
 
+struct trace_iterator *__tracing_open(struct inode *inode, struct file *file,
+				      bool snapshot);
+int tracing_buffers_open(struct inode *inode, struct file *filp);
+ssize_t tracing_buffers_read(struct file *filp, char __user *ubuf,
+			     size_t count, loff_t *ppos);
+int tracing_buffers_release(struct inode *inode, struct file *file);
+ssize_t tracing_buffers_splice_read(struct file *file, loff_t *ppos,
+		   struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+
+ssize_t tracing_nsecs_read(unsigned long *ptr, char __user *ubuf,
+			   size_t cnt, loff_t *ppos);
+ssize_t tracing_nsecs_write(unsigned long *ptr, const char __user *ubuf,
+			    size_t cnt, loff_t *ppos);
+
+void trace_set_buffer_entries(struct array_buffer *buf, unsigned long val);
+
+/*
+ * Should be used after trace_array_get(), trace_types_lock
+ * ensures that i_cdev was already initialized.
+ */
+static inline int tracing_get_cpu(struct inode *inode)
+{
+	if (inode->i_cdev) /* See trace_create_cpu_file() */
+		return (long)inode->i_cdev - 1;
+	return RING_BUFFER_ALL_CPUS;
+}
+void tracing_reset_cpu(struct array_buffer *buf, int cpu);
+
+struct ftrace_buffer_info {
+	struct trace_iterator	iter;
+	void			*spare;
+	unsigned int		spare_cpu;
+	unsigned int		spare_size;
+	unsigned int		read;
+};
 
 /**
  * tracer_tracing_is_on_cpu - show real state of ring buffer enabled on for a cpu
@@ -828,11 +867,15 @@ static inline bool tracer_uses_snapshot(struct tracer *tracer)
 {
 	return tracer->use_max_tr;
 }
+void trace_create_maxlat_file(struct trace_array *tr,
+			      struct dentry *d_tracer);
 #else
 static inline bool tracer_uses_snapshot(struct tracer *tracer)
 {
 	return false;
 }
+static inline void trace_create_maxlat_file(struct trace_array *tr,
+					    struct dentry *d_tracer) { }
 #endif
 
 void trace_last_func_repeats(struct trace_array *tr,
@@ -2140,12 +2183,6 @@ static inline bool event_command_needs_rec(struct event_command *cmd_ops)
 
 extern int trace_event_enable_disable(struct trace_event_file *file,
 				      int enable, int soft_disable);
-extern int tracing_alloc_snapshot(void);
-extern void tracing_snapshot_cond(struct trace_array *tr, void *cond_data);
-extern int tracing_snapshot_cond_enable(struct trace_array *tr, void *cond_data, cond_update_fn_t update);
-
-extern int tracing_snapshot_cond_disable(struct trace_array *tr);
-extern void *tracing_cond_snapshot_data(struct trace_array *tr);
 
 extern const char *__start___trace_bprintk_fmt[];
 extern const char *__stop___trace_bprintk_fmt[];
@@ -2233,19 +2270,71 @@ static inline void trace_event_update_all(struct trace_eval_map **map, int len) 
 #endif
 
 #ifdef CONFIG_TRACER_SNAPSHOT
+extern const struct file_operations snapshot_fops;
+extern const struct file_operations snapshot_raw_fops;
+
+/* Used when creating instances */
+int trace_allocate_snapshot(struct trace_array *tr, int size);
+
+int tracing_alloc_snapshot(void);
+void tracing_snapshot_cond(struct trace_array *tr, void *cond_data);
+int tracing_snapshot_cond_enable(struct trace_array *tr, void *cond_data, cond_update_fn_t update);
+int tracing_snapshot_cond_disable(struct trace_array *tr);
+void *tracing_cond_snapshot_data(struct trace_array *tr);
 void tracing_snapshot_instance(struct trace_array *tr);
 int tracing_alloc_snapshot_instance(struct trace_array *tr);
+int tracing_arm_snapshot_locked(struct trace_array *tr);
 int tracing_arm_snapshot(struct trace_array *tr);
 void tracing_disarm_snapshot(struct trace_array *tr);
-#else
+void free_snapshot(struct trace_array *tr);
+void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter);
+int get_snapshot_map(struct trace_array *tr);
+void put_snapshot_map(struct trace_array *tr);
+int resize_buffer_duplicate_size(struct array_buffer *trace_buf,
+				 struct array_buffer *size_buf, int cpu_id);
+__init void do_allocate_snapshot(const char *name);
+# ifdef CONFIG_DYNAMIC_FTRACE
+__init int register_snapshot_cmd(void);
+# else
+static inline int register_snapshot_cmd(void) { return 0; }
+# endif
+#else /* !CONFIG_TRACER_SNAPSHOT */
+static inline int trace_allocate_snapshot(struct trace_array *tr, int size) { return 0; }
 static inline void tracing_snapshot_instance(struct trace_array *tr) { }
 static inline int tracing_alloc_snapshot_instance(struct trace_array *tr)
 {
 	return 0;
 }
+static inline int tracing_arm_snapshot_locked(struct trace_array *tr) { return -EBUSY; }
 static inline int tracing_arm_snapshot(struct trace_array *tr) { return 0; }
 static inline void tracing_disarm_snapshot(struct trace_array *tr) { }
-#endif
+static inline void free_snapshot(struct trace_array *tr) {}
+static inline void tracing_snapshot_cond(struct trace_array *tr, void *cond_data)
+{
+	WARN_ONCE(1, "Snapshot feature not enabled, but internal conditional snapshot used");
+}
+static inline void *tracing_cond_snapshot_data(struct trace_array *tr)
+{
+	return NULL;
+}
+static inline int tracing_snapshot_cond_enable(struct trace_array *tr, void *cond_data, cond_update_fn_t update)
+{
+	return -ENODEV;
+}
+static inline int tracing_snapshot_cond_disable(struct trace_array *tr)
+{
+	return false;
+}
+static inline void print_snapshot_help(struct seq_file *m, struct trace_iterator *iter)
+{
+	/* Should never be called */
+	WARN_ONCE(1, "Snapshot print function called without snapshot configured");
+}
+static inline int get_snapshot_map(struct trace_array *tr) { return 0; }
+static inline void put_snapshot_map(struct trace_array *tr) { }
+static inline void do_allocate_snapshot(const char *name) { }
+static inline int register_snapshot_cmd(void) { return 0; }
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 #ifdef CONFIG_PREEMPT_TRACER
 void tracer_preempt_on(unsigned long a0, unsigned long a1);

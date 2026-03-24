@@ -31,7 +31,7 @@
 #define ARCH_SUPPORTS_FTRACE_OPS 0
 #endif
 
-#ifdef CONFIG_TRACING
+#ifdef CONFIG_TRACER_SNAPSHOT
 extern void ftrace_boot_snapshot(void);
 #else
 static inline void ftrace_boot_snapshot(void) { }
