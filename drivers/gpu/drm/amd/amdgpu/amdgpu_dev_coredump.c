@@ -35,6 +35,9 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 void amdgpu_coredump_init(struct amdgpu_device *adev)
 {
 }
+void amdgpu_coredump_fini(struct amdgpu_device *adev)
+{
+}
 #else
 
 #define AMDGPU_CORE_DUMP_SIZE_MAX (256 * 1024 * 1024)
@@ -439,5 +442,11 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 void amdgpu_coredump_init(struct amdgpu_device *adev)
 {
 	INIT_WORK(&adev->coredump_work, amdgpu_devcoredump_deferred_work);
+}
+
+void amdgpu_coredump_fini(struct amdgpu_device *adev)
+{
+	/* Finish deferred coredump formatting before HW/IP teardown. */
+	flush_work(&adev->coredump_work);
 }
 #endif
