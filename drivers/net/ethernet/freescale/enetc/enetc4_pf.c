@@ -814,6 +814,9 @@ static void enetc4_mac_tx_graceful_stop(struct enetc_pf *pf)
 	val |= POR_TXDIS;
 	enetc_port_wr(hw, ENETC4_POR, val);
 
+	if (enetc_is_pseudo_mac(si))
+		return;
+
 	enetc4_mac_wait_tx_empty(si, 0);
 	if (si->hw_features & ENETC_SI_F_QBU)
 		enetc4_mac_wait_tx_empty(si, 1);
@@ -856,6 +859,9 @@ static void enetc4_mac_rx_graceful_stop(struct enetc_pf *pf)
 	struct enetc_si *si = pf->si;
 	u32 val;
 
+	if (enetc_is_pseudo_mac(si))
+		goto check_rx_busy;
+
 	if (si->hw_features & ENETC_SI_F_QBU) {
 		val = enetc_port_rd(hw, ENETC4_PM_CMD_CFG(1));
 		val &= ~PM_CMD_CFG_RX_EN;
@@ -868,6 +874,7 @@ static void enetc4_mac_rx_graceful_stop(struct enetc_pf *pf)
 	enetc_port_wr(hw, ENETC4_PM_CMD_CFG(0), val);
 	enetc4_mac_wait_rx_empty(si, 0);
 
+check_rx_busy:
 	if (read_poll_timeout(enetc_port_rd, val,
 			      !(val & PSR_RX_BUSY),
 			      100, 10000, false, hw,
