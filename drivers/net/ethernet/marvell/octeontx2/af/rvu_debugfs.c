@@ -962,30 +962,21 @@ static bool rvu_dbg_is_valid_lf(struct rvu *rvu, int blkaddr, int lf,
 
 static void print_npa_qsize(struct seq_file *m, struct rvu_pfvf *pfvf)
 {
-	char *buf;
-
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
-
 	if (!pfvf->aura_ctx) {
 		seq_puts(m, "Aura context is not initialized\n");
 	} else {
-		bitmap_print_to_pagebuf(false, buf, pfvf->aura_bmap,
-					pfvf->aura_ctx->qsize);
 		seq_printf(m, "Aura count : %d\n", pfvf->aura_ctx->qsize);
-		seq_printf(m, "Aura context ena/dis bitmap : %s\n", buf);
+		seq_printf(m, "Aura context ena/dis bitmap : %*pb\n",
+			   pfvf->aura_ctx->qsize, pfvf->aura_bmap);
 	}
 
 	if (!pfvf->pool_ctx) {
 		seq_puts(m, "Pool context is not initialized\n");
 	} else {
-		bitmap_print_to_pagebuf(false, buf, pfvf->pool_bmap,
-					pfvf->pool_ctx->qsize);
 		seq_printf(m, "Pool count : %d\n", pfvf->pool_ctx->qsize);
-		seq_printf(m, "Pool context ena/dis bitmap : %s\n", buf);
+		seq_printf(m, "Pool context ena/dis bitmap : %*pb\n",
+			   pfvf->pool_ctx->qsize, pfvf->pool_bmap);
 	}
-	kfree(buf);
 }
 
 /* The 'qsize' entry dumps current Aura/Pool context Qsize
@@ -2547,17 +2538,8 @@ RVU_DEBUG_SEQ_FOPS(nix_cq_ctx, nix_cq_ctx_display, nix_cq_ctx_write);
 static void print_nix_qctx_qsize(struct seq_file *filp, int qsize,
 				 unsigned long *bmap, char *qtype)
 {
-	char *buf;
-
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	bitmap_print_to_pagebuf(false, buf, bmap, qsize);
 	seq_printf(filp, "%s context count : %d\n", qtype, qsize);
-	seq_printf(filp, "%s context ena/dis bitmap : %s\n",
-		   qtype, buf);
-	kfree(buf);
+	seq_printf(filp, "%s context ena/dis bitmap : %*pb\n", qtype, qsize, bmap);
 }
 
 static void print_nix_qsize(struct seq_file *filp, struct rvu_pfvf *pfvf)
