@@ -133,7 +133,7 @@ static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 	struct qat_compression_ctx *ctx = acomp_tfm_ctx(acomp_tfm);
 	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp_tfm);
 	struct qat_compression_instance *inst;
-	int node;
+	int node, ret;
 
 	if (tfm->node == NUMA_NO_NODE)
 		node = numa_node_id();
@@ -146,7 +146,13 @@ static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 		return -EINVAL;
 	ctx->inst = inst;
 
-	return qat_comp_build_ctx(inst->accel_dev, ctx->comp_ctx, QAT_DEFLATE);
+	ret = qat_comp_build_ctx(inst->accel_dev, ctx->comp_ctx, QAT_DEFLATE);
+	if (ret) {
+		qat_compression_put_instance(inst);
+		memset(ctx, 0, sizeof(*ctx));
+	}
+
+	return ret;
 }
 
 static void qat_comp_alg_exit_tfm(struct crypto_acomp *acomp_tfm)
