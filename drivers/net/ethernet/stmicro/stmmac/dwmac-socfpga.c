@@ -72,6 +72,18 @@ struct socfpga_dwmac {
 	const struct socfpga_dwmac_ops *ops;
 };
 
+static int socfpga_get_plat_phymode(struct socfpga_dwmac *dwmac)
+{
+	return dwmac->plat_dat->phy_interface;
+}
+
+static void socfpga_sgmii_config(struct socfpga_dwmac *dwmac, bool enable)
+{
+	u16 val = enable ? SGMII_ADAPTER_ENABLE : SGMII_ADAPTER_DISABLE;
+
+	writew(val, dwmac->sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
+}
+
 static void socfpga_dwmac_fix_mac_speed(void *bsp_priv,
 					phy_interface_t interface, int speed,
 					unsigned int mode)
@@ -242,18 +254,6 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 err_node_put:
 	of_node_put(np_sgmii_adapter);
 	return ret;
-}
-
-static int socfpga_get_plat_phymode(struct socfpga_dwmac *dwmac)
-{
-	return dwmac->plat_dat->phy_interface;
-}
-
-static void socfpga_sgmii_config(struct socfpga_dwmac *dwmac, bool enable)
-{
-	u16 val = enable ? SGMII_ADAPTER_ENABLE : SGMII_ADAPTER_DISABLE;
-
-	writew(val, dwmac->sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
 }
 
 static int socfpga_set_phy_mode_common(int phymode, u32 *val)
