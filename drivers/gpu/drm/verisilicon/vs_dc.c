@@ -190,7 +190,7 @@ static void vs_dc_shutdown(struct platform_device *pdev)
 	vs_drm_shutdown_handler(dc);
 }
 
-struct platform_driver vs_dc_platform_driver = {
+static struct platform_driver vs_dc_platform_driver = {
 	.probe = vs_dc_probe,
 	.remove = vs_dc_remove,
 	.shutdown = vs_dc_shutdown,
