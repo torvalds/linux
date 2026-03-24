@@ -5933,6 +5933,8 @@ struct rtw89_phy_efuse_gain {
 	s8 offset2[RF_PATH_MAX][RTW89_GAIN_OFFSET_NR]; /* S(8, 0) */
 	s8 offset_base[RTW89_PHY_NUM]; /* S(8, 4) */
 	s8 rssi_base[RTW89_PHY_NUM]; /* S(8, 4) */
+	s8 ref_gain_base[RTW89_PHY_NUM]; /* S(8, 2) */
+	s8 cck_rpl_base[RTW89_PHY_NUM]; /* S(8, 0) */
 	s8 comp[RF_PATH_MAX][RTW89_SUBBAND_NR]; /* S(8, 0) */
 };
 
