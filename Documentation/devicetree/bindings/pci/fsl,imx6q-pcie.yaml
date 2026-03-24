@@ -21,16 +21,22 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - fsl,imx6q-pcie
-      - fsl,imx6sx-pcie
-      - fsl,imx6qp-pcie
-      - fsl,imx7d-pcie
-      - fsl,imx8mq-pcie
-      - fsl,imx8mm-pcie
-      - fsl,imx8mp-pcie
-      - fsl,imx95-pcie
-      - fsl,imx8q-pcie
+    oneOf:
+      - enum:
+          - fsl,imx6q-pcie
+          - fsl,imx6qp-pcie
+          - fsl,imx6sx-pcie
+          - fsl,imx7d-pcie
+          - fsl,imx8mm-pcie
+          - fsl,imx8mp-pcie
+          - fsl,imx8mq-pcie
+          - fsl,imx8q-pcie
+          - fsl,imx95-pcie
+      - items:
+          - enum:
+              - fsl,imx94-pcie
+              - fsl,imx943-pcie
+          - const: fsl,imx95-pcie
 
   clocks:
     minItems: 3
