@@ -133,10 +133,7 @@ struct stmmac_axi {
 	u32 axi_blen_regval;
 	bool axi_lpi_en;
 	bool axi_xit_frm;
-	bool axi_kbbe;
 	bool axi_fb;
-	bool axi_mb;
-	bool axi_rb;
 };
 
 struct stmmac_rxq_cfg {
