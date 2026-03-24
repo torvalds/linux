@@ -130,8 +130,8 @@ void qat_comp_alg_callback(void *resp)
 
 static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 {
+	struct qat_compression_ctx *ctx = acomp_tfm_ctx(acomp_tfm);
 	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp_tfm);
-	struct qat_compression_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct qat_compression_instance *inst;
 	int node;
 
@@ -151,8 +151,7 @@ static int qat_comp_alg_init_tfm(struct crypto_acomp *acomp_tfm)
 
 static void qat_comp_alg_exit_tfm(struct crypto_acomp *acomp_tfm)
 {
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp_tfm);
-	struct qat_compression_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct qat_compression_ctx *ctx = acomp_tfm_ctx(acomp_tfm);
 
 	qat_compression_put_instance(ctx->inst);
 	memset(ctx, 0, sizeof(*ctx));
@@ -164,8 +163,7 @@ static int qat_comp_alg_compress_decompress(struct acomp_req *areq, enum directi
 {
 	struct qat_compression_req *qat_req = acomp_request_ctx(areq);
 	struct crypto_acomp *acomp_tfm = crypto_acomp_reqtfm(areq);
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp_tfm);
-	struct qat_compression_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct qat_compression_ctx *ctx = acomp_tfm_ctx(acomp_tfm);
 	struct qat_compression_instance *inst = ctx->inst;
 	gfp_t f = qat_algs_alloc_flags(&areq->base);
 	struct qat_sgl_to_bufl_params params = {0};
