@@ -279,6 +279,13 @@ static void intel_pch_lpt_init_clock_gating(struct intel_display *display)
 		     TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
+static void intel_pch_cnp_init_clock_gating(struct intel_display *display)
+{
+	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
+	intel_de_rmw(display, SOUTH_DSPCLK_GATE_D, 0,
+		     CNP_PWM_CGE_GATING_DISABLE);
+}
+
 void intel_pch_init_clock_gating(struct intel_display *display)
 {
 	switch (INTEL_PCH_TYPE(display)) {
@@ -291,6 +298,9 @@ void intel_pch_init_clock_gating(struct intel_display *display)
 	case PCH_LPT_H:
 	case PCH_LPT_LP:
 		intel_pch_lpt_init_clock_gating(display);
+		break;
+	case PCH_CNP:
+		intel_pch_cnp_init_clock_gating(display);
 		break;
 	default:
 		break;
