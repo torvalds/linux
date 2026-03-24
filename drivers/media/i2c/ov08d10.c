@@ -1464,10 +1464,17 @@ static const struct acpi_device_id ov08d10_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, ov08d10_acpi_ids);
 #endif
 
+static const struct of_device_id ov08d10_of_match[] = {
+	{ .compatible = "ovti,ov08d10" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ov08d10_of_match);
+
 static struct i2c_driver ov08d10_i2c_driver = {
 	.driver = {
 		.name = "ov08d10",
 		.acpi_match_table = ACPI_PTR(ov08d10_acpi_ids),
+		.of_match_table = ov08d10_of_match,
 	},
 	.probe = ov08d10_probe,
 	.remove = ov08d10_remove,
