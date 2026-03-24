@@ -211,6 +211,8 @@ enum pci_epc_bar_type {
 /**
  * enum pci_epc_bar_rsvd_region_type - type of a fixed subregion behind a BAR
  * @PCI_EPC_BAR_RSVD_DMA_CTRL_MMIO: Integrated DMA controller MMIO window
+ * @PCI_EPC_BAR_RSVD_MSIX_TBL_RAM: MSI-X table structure
+ * @PCI_EPC_BAR_RSVD_MSIX_PBA_RAM: MSI-X PBA structure
  *
  * BARs marked BAR_RESERVED are owned by the SoC/EPC hardware and must not be
  * reprogrammed by EPF drivers. Some of them still expose fixed subregions that
@@ -218,6 +220,8 @@ enum pci_epc_bar_type {
  */
 enum pci_epc_bar_rsvd_region_type {
 	PCI_EPC_BAR_RSVD_DMA_CTRL_MMIO = 0,
+	PCI_EPC_BAR_RSVD_MSIX_TBL_RAM,
+	PCI_EPC_BAR_RSVD_MSIX_PBA_RAM,
 };
 
 /**
