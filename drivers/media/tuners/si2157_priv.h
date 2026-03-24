@@ -72,7 +72,8 @@ struct si2157_cmd {
 			       ((dev)->part_id == SI2177))
 
 #define SUPPORTS_ATV_IF(dev) (((dev)->part_id == SI2157) || \
-			      ((dev)->part_id == SI2158))
+			      ((dev)->part_id == SI2158) || \
+			      ((dev)->part_id == SI2177))
 
 /* Old firmware namespace */
 #define SI2158_A20_FIRMWARE "dvb-tuner-si2158-a20-01.fw"
