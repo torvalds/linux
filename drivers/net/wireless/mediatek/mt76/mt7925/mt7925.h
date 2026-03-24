@@ -250,7 +250,9 @@ int mt7925_mcu_set_bss_pm(struct mt792x_dev *dev,
 			  bool enable);
 int mt7925_mcu_sta_update(struct mt792x_dev *dev,
 			  struct ieee80211_link_sta *link_sta,
-			  struct ieee80211_vif *vif, bool enable,
+			  struct ieee80211_vif *vif,
+			  struct mt792x_link_sta *mlink,
+			  bool enable,
 			  enum mt76_sta_info_state state);
 int mt7925_mcu_set_chan_info(struct mt792x_phy *phy, u16 tag);
 int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_bss_conf *bss_conf);
@@ -298,6 +300,7 @@ int mt7925_mcu_uni_rx_ba(struct mt792x_dev *dev,
 void mt7925_mlo_pm_work(struct work_struct *work);
 void mt7925_scan_work(struct work_struct *work);
 void mt7925_roc_work(struct work_struct *work);
+void mt7925_csa_work(struct work_struct *work);
 int mt7925_mcu_uni_bss_ps(struct mt792x_dev *dev,
 			  struct ieee80211_bss_conf *link_conf);
 void mt7925_coredump_work(struct work_struct *work);
@@ -349,8 +352,8 @@ int mt7925_set_tx_sar_pwr(struct ieee80211_hw *hw,
 int mt7925_mcu_regval(struct mt792x_dev *dev, u32 regidx, u32 *val, bool set);
 int mt7925_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 		       enum environment_cap env_cap);
-int mt7925_mcu_set_mlo_roc(struct mt792x_bss_conf *mconf, u16 sel_links,
-			   int duration, u8 token_id);
+int mt7925_mcu_set_mlo_roc(struct mt792x_phy *phy, struct mt792x_bss_conf *mconf,
+			   u16 sel_links, int duration, u8 token_id);
 int mt7925_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_bss_conf *mconf,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7925_roc_req type, u8 token_id);
@@ -367,8 +370,8 @@ int mt7925_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 int mt7925_mcu_set_rts_thresh(struct mt792x_phy *phy, u32 val);
 int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 				     struct ieee80211_vif *vif,
-				     struct ieee80211_sta *sta,
-				     int link_id);
+				     struct mt792x_bss_conf *mconf,
+				     struct mt792x_link_sta *mlink);
 int mt7925_mcu_wf_rf_pin_ctrl(struct mt792x_phy *phy);
 
 int mt7925_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

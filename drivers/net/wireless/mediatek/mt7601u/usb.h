@@ -9,6 +9,7 @@
 #include "mt7601u.h"
 
 #define MT7601U_FIRMWARE	"mt7601u.bin"
+#define MT7601U_FIRMWARE_PATHS	ARRAY_SIZE(mt7601u_fw_paths)
 
 #define MT_VEND_REQ_MAX_RETRY	10
 #define MT_VEND_REQ_TOUT_MS	300

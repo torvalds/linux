@@ -7,6 +7,8 @@
 #include "../mt792x.h"
 #include "regs.h"
 
+#define MT7921_MAX_AID                  20
+
 #define MT7921_TX_RING_SIZE		2048
 #define MT7921_TX_MCU_RING_SIZE		256
 #define MT7921_TX_FWDL_RING_SIZE	128
@@ -14,6 +16,9 @@
 #define MT7921_RX_RING_SIZE		1536
 #define MT7921_RX_MCU_RING_SIZE		8
 #define MT7921_RX_MCU_WA_RING_SIZE	512
+
+/* MT7902 Rx Ring0 is for both Rx Event and Tx Done Event */
+#define MT7902_RX_MCU_RING_SIZE		512
 
 #define MT7921_EEPROM_SIZE		3584
 #define MT7921_TOKEN_SIZE		8192
@@ -115,6 +120,17 @@ enum mt7921_rxq_id {
 	MT7921_RXQ_BAND0 = 0,
 	MT7921_RXQ_BAND1,
 	MT7921_RXQ_MCU_WM = 0,
+};
+
+/* MT7902 assigns its MCU-WM TXQ at index 15 */
+enum mt7902_txq_id {
+	MT7902_TXQ_MCU_WM = 15,
+};
+
+struct mt7921_dma_layout {
+	u8 mcu_wm_txq;
+	u16 mcu_rxdone_ring_size;
+	bool has_mcu_wa;
 };
 
 enum {
