@@ -57,6 +57,29 @@ write_dpt_padding(struct iosys_map *map, unsigned int dest, unsigned int pad)
 }
 
 static unsigned int
+write_dpt_remapped_linear(struct xe_bo *bo, struct iosys_map *map,
+			  unsigned int dest,
+			  const struct intel_remapped_plane_info *plane)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
+	const u64 pte = xe_ggtt_encode_pte_flags(ggtt, bo,
+						 xe->pat.idx[XE_CACHE_NONE]);
+	unsigned int offset = plane->offset * XE_PAGE_SIZE;
+	unsigned int size = plane->size;
+
+	while (size--) {
+		u64 addr = xe_bo_addr(bo, offset, XE_PAGE_SIZE);
+
+		iosys_map_wr(map, dest, u64, addr | pte);
+		dest += sizeof(u64);
+		offset += XE_PAGE_SIZE;
+	}
+
+	return dest;
+}
+
+static unsigned int
 write_dpt_remapped_tiled(struct xe_bo *bo, struct iosys_map *map,
 			 unsigned int dest,
 			 const struct intel_remapped_plane_info *plane)
@@ -109,7 +132,10 @@ write_dpt_remapped(struct xe_bo *bo,
 			dest = write_dpt_padding(map, dest, pad);
 		}
 
-		dest = write_dpt_remapped_tiled(bo, map, dest, plane);
+		if (plane->linear)
+			dest = write_dpt_remapped_linear(bo, map, dest, plane);
+		else
+			dest = write_dpt_remapped_tiled(bo, map, dest, plane);
 	}
 }
 
