@@ -20,7 +20,7 @@ static ssize_t errors_correctable_show(struct device *dev,
 		return -EINVAL;
 
 	counter = ADF_RAS_ERR_CTR_READ(accel_dev->ras_errors, ADF_RAS_CORR);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", counter);
+	return sysfs_emit(buf, "%d\n", counter);
 }
 
 static ssize_t errors_nonfatal_show(struct device *dev,
@@ -35,7 +35,7 @@ static ssize_t errors_nonfatal_show(struct device *dev,
 		return -EINVAL;
 
 	counter = ADF_RAS_ERR_CTR_READ(accel_dev->ras_errors, ADF_RAS_UNCORR);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", counter);
+	return sysfs_emit(buf, "%d\n", counter);
 }
 
 static ssize_t errors_fatal_show(struct device *dev,
@@ -50,7 +50,7 @@ static ssize_t errors_fatal_show(struct device *dev,
 		return -EINVAL;
 
 	counter = ADF_RAS_ERR_CTR_READ(accel_dev->ras_errors, ADF_RAS_FATAL);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", counter);
+	return sysfs_emit(buf, "%d\n", counter);
 }
 
 static ssize_t reset_error_counters_store(struct device *dev,
