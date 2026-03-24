@@ -3186,7 +3186,16 @@ static void xgbe_txq_prepare_tx_stop(struct xgbe_prv_data *pdata,
 	/* The Tx engine cannot be stopped if it is actively processing
 	 * packets. Wait for the Tx queue to empty the Tx fifo.  Don't
 	 * wait forever though...
+	 *
+	 * Optimization: Skip the wait when link is down. Hardware won't
+	 * complete TX processing, so waiting serves no purpose and only
+	 * delays interface shutdown. Descriptors will be reclaimed via
+	 * the force-cleanup path in tx_poll.
 	 */
+
+	if (!pdata->phy.link)
+		return;
+
 	tx_timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
 	while (time_before(jiffies, tx_timeout)) {
 		tx_status = XGMAC_MTL_IOREAD(pdata, queue, MTL_Q_TQDR);
@@ -3267,28 +3276,83 @@ static void xgbe_enable_tx(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 1);
 }
 
+/**
+ * xgbe_wait_for_dma_tx_complete - Wait for DMA to complete pending TX
+ * @pdata: driver private data
+ *
+ * Wait for the DMA TX channels to complete all pending descriptors.
+ * This ensures no frames are in-flight before we disable the transmitter.
+ * If link is down, return immediately as TX will never complete.
+ *
+ * Return: 0 on success, -ETIMEDOUT on timeout
+ */
+static int xgbe_wait_for_dma_tx_complete(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_channel *channel;
+	struct xgbe_ring *ring;
+	unsigned long timeout;
+	unsigned int i;
+	bool complete;
+
+	/* If link is down, TX will never complete - skip waiting */
+	if (!pdata->phy.link)
+		return 0;
+
+	timeout = jiffies + (XGBE_DMA_STOP_TIMEOUT * HZ);
+
+	do {
+		complete = true;
+
+		for (i = 0; i < pdata->channel_count; i++) {
+			channel = pdata->channel[i];
+			ring = channel->tx_ring;
+			if (!ring)
+				continue;
+
+			/* Check if DMA has processed all descriptors */
+			if (ring->dirty != ring->cur) {
+				complete = false;
+				break;
+			}
+		}
+
+		if (complete)
+			return 0;
+
+		usleep_range(100, 200);
+	} while (time_before(jiffies, timeout));
+
+	netif_warn(pdata, drv, pdata->netdev,
+		   "timeout waiting for DMA TX to complete\n");
+	return -ETIMEDOUT;
+}
+
 static void xgbe_disable_tx(struct xgbe_prv_data *pdata)
 {
 	unsigned int i;
 
-	/* Prepare for Tx DMA channel stop */
-	for (i = 0; i < pdata->tx_q_count; i++)
-		xgbe_prepare_tx_stop(pdata, i);
+	/* Step 1: Wait for DMA to complete pending descriptors */
+	xgbe_wait_for_dma_tx_complete(pdata);
 
-	/* Disable MAC Tx */
-	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
-
-	/* Disable each Tx queue */
-	for (i = 0; i < pdata->tx_q_count; i++)
-		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TXQEN, 0);
-
-	/* Disable each Tx DMA channel */
+	/* Step 2: Disable each Tx DMA channel to stop
+	 * processing new descriptors
+	 */
 	for (i = 0; i < pdata->channel_count; i++) {
 		if (!pdata->channel[i]->tx_ring)
 			break;
-
 		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_TCR, ST, 0);
 	}
+
+	/* Step 3: Wait for MTL TX queues to drain */
+	for (i = 0; i < pdata->tx_q_count; i++)
+		xgbe_prepare_tx_stop(pdata, i);
+
+	/* Step 4: Disable MTL TX queues */
+	for (i = 0; i < pdata->tx_q_count; i++)
+		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TXQEN, 0);
+
+	/* Step 5: Disable MAC TX last */
+	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, TE, 0);
 }
 
 static void xgbe_prepare_rx_stop(struct xgbe_prv_data *pdata,
