@@ -6826,9 +6826,11 @@ static void __sched notrace __schedule(int sched_mode)
 
 pick_again:
 	next = pick_next_task(rq, rq->donor, &rf);
-	rq_set_donor(rq, next);
 	rq->next_class = next->sched_class;
 	if (sched_proxy_exec()) {
+		struct task_struct *prev_donor = rq->donor;
+
+		rq_set_donor(rq, next);
 		if (unlikely(next->blocked_on)) {
 			next = find_proxy_task(rq, next, &rf);
 			if (!next)
@@ -6836,7 +6838,27 @@ pick_again:
 			if (next == rq->idle)
 				goto keep_resched;
 		}
+		if (rq->donor == prev_donor && prev != next) {
+			struct task_struct *donor = rq->donor;
+			/*
+			 * When transitioning like:
+			 *
+			 *         prev         next
+			 * donor:    B            B
+			 * curr:     A          B or C
+			 *
+			 * then put_prev_set_next_task() will not have done
+			 * anything, since B == B. However, A might have
+			 * missed a RT/DL balance opportunity due to being
+			 * on_cpu.
+			 */
+			donor->sched_class->put_prev_task(rq, donor, donor);
+			donor->sched_class->set_next_task(rq, donor, true);
+		}
+	} else {
+		rq_set_donor(rq, next);
 	}
+
 picked:
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
