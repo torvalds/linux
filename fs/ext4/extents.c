@@ -3254,6 +3254,9 @@ static struct ext4_ext_path *ext4_split_extent_at(handle_t *handle,
 
 	insert_err = PTR_ERR(path);
 	err = 0;
+	if (insert_err != -ENOSPC && insert_err != -EDQUOT &&
+	    insert_err != -ENOMEM)
+		goto out_path;
 
 	/*
 	 * Get a new path to try to zeroout or fix the extent length.
@@ -3270,12 +3273,19 @@ static struct ext4_ext_path *ext4_split_extent_at(handle_t *handle,
 		goto out_path;
 	}
 
+	depth = ext_depth(inode);
+	ex = path[depth].p_ext;
+	if (!ex) {
+		EXT4_ERROR_INODE(inode,
+				 "bad extent address lblock: %lu, depth: %d pblock %llu",
+				 (unsigned long)ee_block, depth, path[depth].p_block);
+		err = -EFSCORRUPTED;
+		goto out;
+	}
+
 	err = ext4_ext_get_access(handle, inode, path + depth);
 	if (err)
 		goto out;
-
-	depth = ext_depth(inode);
-	ex = path[depth].p_ext;
 
 fix_extent_len:
 	ex->ee_len = orig_ex.ee_len;
