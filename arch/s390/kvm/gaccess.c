@@ -1434,7 +1434,8 @@ static int _do_shadow_pte(struct gmap *sg, gpa_t raddr, union pte *ptep_h, union
 	if (rc)
 		return rc;
 
-	pgste = pgste_get_lock(ptep_h);
+	if (!pgste_get_trylock(ptep_h, &pgste))
+		return -EAGAIN;
 	newpte = _pte(f->pfn, f->writable, !p, 0);
 	newpte.s.d |= ptep->s.d;
 	newpte.s.sd |= ptep->s.sd;
@@ -1444,7 +1445,8 @@ static int _do_shadow_pte(struct gmap *sg, gpa_t raddr, union pte *ptep_h, union
 	pgste_set_unlock(ptep_h, pgste);
 
 	newpte = _pte(f->pfn, 0, !p, 0);
-	pgste = pgste_get_lock(ptep);
+	if (!pgste_get_trylock(ptep, &pgste))
+		return -EAGAIN;
 	pgste = __dat_ptep_xchg(ptep, pgste, newpte, gpa_to_gfn(raddr), sg->asce, uses_skeys(sg));
 	pgste_set_unlock(ptep, pgste);
 

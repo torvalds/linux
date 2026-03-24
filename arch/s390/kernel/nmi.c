@@ -487,8 +487,8 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);
 	if (test_cpu_flag(CIF_MCCK_GUEST) &&
 	(mcck_dam_code & MCCK_CODE_NO_GUEST) != mcck_dam_code) {
-		/* Set exit reason code for host's later handling */
-		*((long *)(regs->gprs[15] + __SF_SIE_REASON)) = -EINTR;
+		/* Set sie return code for host's later handling */
+		((struct stack_frame *)regs->gprs[15])->sie_return = SIE64_RETURN_MCCK;
 	}
 	clear_cpu_flag(CIF_MCCK_GUEST);
 
