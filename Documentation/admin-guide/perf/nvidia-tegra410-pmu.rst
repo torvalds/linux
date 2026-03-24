@@ -7,6 +7,7 @@ metrics like memory bandwidth, latency, and utilization:
 
 * Unified Coherence Fabric (UCF)
 * PCIE
+* PCIE-TGT
 
 PMU Driver
 ----------
@@ -212,6 +213,11 @@ Example usage:
 
     perf stat -a -e nvidia_pcie_pmu_0_rc_4/event=0x4,src_bdf=0x0180,src_bdf_en=0x1/
 
+.. _NVIDIA_T410_PCIE_PMU_RC_Mapping_Section:
+
+Mapping the RC# to lspci segment number
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Mapping the RC# to lspci segment number can be non-trivial; hence a new NVIDIA
 Designated Vendor Specific Capability (DVSEC) register is added into the PCIE config space
 for each RP. This DVSEC has vendor id "10de" and DVSEC id of "0x4". The DVSEC register
@@ -267,3 +273,74 @@ Example output::
   000d:40:00.0: Bus=40, Segment=0d, RP=01, RC=04, Socket=01
   000d:c0:00.0: Bus=c0, Segment=0d, RP=02, RC=04, Socket=01
   000e:00:00.0: Bus=00, Segment=0e, RP=00, RC=05, Socket=01
+
+PCIE-TGT PMU
+------------
+
+This PMU is located in the SOC fabric connecting the PCIE root complex (RC) and
+the memory subsystem. It monitors traffic targeting PCIE BAR and CXL HDM ranges.
+There is one PCIE-TGT PMU per PCIE RC in the SoC. Each RC in Tegra410 SoC can
+have up to 16 lanes that can be bifurcated into up to 8 root ports (RP). The PMU
+provides RP filter to count PCIE BAR traffic to each RP and address filter to
+count access to PCIE BAR or CXL HDM ranges. The details of the filters are
+described in the following sections.
+
+Mapping the RC# to lspci segment number is similar to the PCIE PMU. Please see
+:ref:`NVIDIA_T410_PCIE_PMU_RC_Mapping_Section` for more info.
+
+The events and configuration options of this PMU device are available in sysfs,
+see /sys/bus/event_source/devices/nvidia_pcie_tgt_pmu_<socket-id>_rc_<pcie-rc-id>.
+
+The events in this PMU can be used to measure bandwidth and utilization:
+
+  * rd_req: count the number of read requests to PCIE.
+  * wr_req: count the number of write requests to PCIE.
+  * rd_bytes: count the number of bytes transferred by rd_req.
+  * wr_bytes: count the number of bytes transferred by wr_req.
+  * cycles: count the clock cycles of SOC fabric connected to the PCIE interface.
+
+The average bandwidth is calculated as::
+
+   AVG_RD_BANDWIDTH_IN_GBPS = RD_BYTES / ELAPSED_TIME_IN_NS
+   AVG_WR_BANDWIDTH_IN_GBPS = WR_BYTES / ELAPSED_TIME_IN_NS
+
+The average request rate is calculated as::
+
+   AVG_RD_REQUEST_RATE = RD_REQ / CYCLES
+   AVG_WR_REQUEST_RATE = WR_REQ / CYCLES
+
+The PMU events can be filtered based on the destination root port or target
+address range. Filtering based on RP is only available for PCIE BAR traffic.
+Address filter works for both PCIE BAR and CXL HDM ranges. These filters can be
+found in sysfs, see
+/sys/bus/event_source/devices/nvidia_pcie_tgt_pmu_<socket-id>_rc_<pcie-rc-id>/format/.
+
+Destination filter settings:
+
+* dst_rp_mask: bitmask to select the root port(s) to monitor. E.g. "dst_rp_mask=0xFF"
+  corresponds to all root ports (from 0 to 7) in the PCIE RC. Note that this filter is
+  only available for PCIE BAR traffic.
+* dst_addr_base: BAR or CXL HDM filter base address.
+* dst_addr_mask: BAR or CXL HDM filter address mask.
+* dst_addr_en: enable BAR or CXL HDM address range filter. If this is set, the
+  address range specified by "dst_addr_base" and "dst_addr_mask" will be used to filter
+  the PCIE BAR and CXL HDM traffic address. The PMU uses the following comparison
+  to determine if the traffic destination address falls within the filter range::
+
+    (txn's addr & dst_addr_mask) == (dst_addr_base & dst_addr_mask)
+
+  If the comparison succeeds, then the event will be counted.
+
+If the destination filter is not specified, the RP filter will be configured by default
+to count PCIE BAR traffic to all root ports.
+
+Example usage:
+
+* Count event id 0x0 to root port 0 and 1 of PCIE RC-0 on socket 0::
+
+    perf stat -a -e nvidia_pcie_tgt_pmu_0_rc_0/event=0x0,dst_rp_mask=0x3/
+
+* Count event id 0x1 for accesses to PCIE BAR or CXL HDM address range
+  0x10000 to 0x100FF on socket 0's PCIE RC-1::
+
+    perf stat -a -e nvidia_pcie_tgt_pmu_0_rc_1/event=0x1,dst_addr_base=0x10000,dst_addr_mask=0xFFF00,dst_addr_en=0x1/
