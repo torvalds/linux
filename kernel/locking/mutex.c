@@ -983,7 +983,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 		next = waiter->task;
 
 		debug_mutex_wake_waiter(lock, waiter);
-		clear_task_blocked_on(next, lock);
+		set_task_blocked_on_waking(next, lock);
 		wake_q_add(&wake_q, next);
 	}
 
