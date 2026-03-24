@@ -360,7 +360,7 @@ static int sof_pcm_prepare(struct snd_soc_component *component,
 	platform_params = &spcm->platform_params[substream->stream];
 	ret = sof_widget_list_setup(sdev, spcm, params, platform_params, dir);
 	if (ret < 0) {
-		dev_err(sdev->dev, "failed widget list set up for pcm %d dir %d\n",
+		dev_err(sdev->dev, "failed widget list set up for pcm %d dir %u\n",
 			le32_to_cpu(spcm->pcm.pcm_id), dir);
 		spcm->stream[dir].list = NULL;
 		snd_soc_dapm_dai_free_widgets(&list);

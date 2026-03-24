@@ -775,7 +775,7 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 						       array);
 			break;
 		default:
-			dev_err(scomp->dev, "error: unknown token type %d\n",
+			dev_err(scomp->dev, "error: unknown token type %u\n",
 				le32_to_cpu(array->type));
 			return -EINVAL;
 		}
@@ -880,7 +880,7 @@ skip:
 			       ARRAY_SIZE(led_tokens), mc->priv.array,
 			       le32_to_cpu(mc->priv.size));
 	if (ret != 0) {
-		dev_err(scomp->dev, "error: parse led tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse led tokens failed %u\n",
 			le32_to_cpu(mc->priv.size));
 		goto err;
 	}
@@ -970,7 +970,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	struct snd_sof_control *scontrol;
 	int ret;
 
-	dev_dbg(scomp->dev, "tplg: load control type %d name : %s\n",
+	dev_dbg(scomp->dev, "tplg: load control type %u name : %s\n",
 		le32_to_cpu(hdr->type), hdr->name);
 
 	scontrol = kzalloc_obj(*scontrol);
@@ -1015,7 +1015,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 	case SND_SOC_TPLG_DAPM_CTL_PIN:
 	default:
-		dev_warn(scomp->dev, "control type not supported %d:%d:%d\n",
+		dev_warn(scomp->dev, "control type not supported %u:%u:%u\n",
 			 le32_to_cpu(hdr->ops.get),
 			 le32_to_cpu(hdr->ops.put),
 			 le32_to_cpu(hdr->ops.info));
@@ -1525,7 +1525,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	case snd_soc_dapm_pga:
 		if (!le32_to_cpu(tw->num_kcontrols)) {
-			dev_err(scomp->dev, "invalid kcontrol count %d for volume\n",
+			dev_err(scomp->dev, "invalid kcontrol count %u for volume\n",
 				le32_to_cpu(tw->num_kcontrols));
 			ret = -EINVAL;
 			break;
@@ -1774,7 +1774,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 			       ARRAY_SIZE(stream_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret) {
-		dev_err(scomp->dev, "error: parse stream tokens failed %d\n",
+		dev_err(scomp->dev, "error: parse stream tokens failed %u\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
