@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -513,9 +514,17 @@ static const char * const ov08d10_test_pattern_menu[] = {
 	"Standard Color Bar",
 };
 
+static const char *const ov08d10_supply_names[] = {
+	"dovdd",	/* Digital I/O power */
+	"avdd",		/* Analog power */
+	"dvdd",		/* Digital core power */
+};
+
 struct ov08d10 {
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *reset;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(ov08d10_supply_names)];
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -1265,6 +1274,56 @@ static const struct v4l2_subdev_internal_ops ov08d10_internal_ops = {
 	.open = ov08d10_open,
 };
 
+static int ov08d10_power_off(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov08d10 *ov08d10 = to_ov08d10(sd);
+
+	reset_control_assert(ov08d10->reset);
+
+	regulator_bulk_disable(ARRAY_SIZE(ov08d10->supplies),
+			       ov08d10->supplies);
+
+	clk_disable_unprepare(ov08d10->clk);
+
+	return 0;
+}
+
+static int ov08d10_power_on(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov08d10 *ov08d10 = to_ov08d10(sd);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ov08d10->supplies),
+				    ov08d10->supplies);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(ov08d10->clk);
+	if (ret < 0) {
+		regulator_bulk_disable(ARRAY_SIZE(ov08d10->supplies),
+				       ov08d10->supplies);
+
+		dev_err(dev, "failed to enable imaging clock: %d\n", ret);
+		return ret;
+	}
+
+	if (ov08d10->reset) {
+		/* Delay from DVDD stable to sensor XSHUTDN pull up: 5ms */
+		fsleep(5 * USEC_PER_MSEC);
+
+		reset_control_deassert(ov08d10->reset);
+
+		/* Delay from XSHUTDN pull up to SCCB start: 8ms */
+		fsleep(8 * USEC_PER_MSEC);
+	}
+
+	return 0;
+}
+
 static int ov08d10_identify_module(struct ov08d10 *ov08d10)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov08d10->sd);
@@ -1371,6 +1430,10 @@ static void ov08d10_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(ov08d10->dev);
+	if (!pm_runtime_status_suspended(ov08d10->dev)) {
+		ov08d10_power_off(ov08d10->dev);
+		pm_runtime_set_suspended(ov08d10->dev);
+	}
 	mutex_destroy(&ov08d10->mutex);
 }
 
@@ -1378,6 +1441,7 @@ static int ov08d10_probe(struct i2c_client *client)
 {
 	struct ov08d10 *ov08d10;
 	unsigned long freq;
+	unsigned int i;
 	int ret;
 
 	ov08d10 = devm_kzalloc(&client->dev, sizeof(*ov08d10), GFP_KERNEL);
@@ -1403,12 +1467,32 @@ static int ov08d10_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	ov08d10->reset = devm_reset_control_get_optional_exclusive(ov08d10->dev, NULL);
+	if (IS_ERR(ov08d10->reset))
+		return dev_err_probe(ov08d10->dev, PTR_ERR(ov08d10->reset),
+				     "failed to get reset\n");
+	reset_control_assert(ov08d10->reset);
+
+	for (i = 0; i < ARRAY_SIZE(ov08d10_supply_names); i++)
+		ov08d10->supplies[i].supply = ov08d10_supply_names[i];
+
+	ret = devm_regulator_bulk_get(ov08d10->dev,
+				      ARRAY_SIZE(ov08d10->supplies),
+				      ov08d10->supplies);
+	if (ret)
+		return dev_err_probe(ov08d10->dev, ret,
+				     "failed to get regulators\n");
+
 	v4l2_i2c_subdev_init(&ov08d10->sd, client, &ov08d10_subdev_ops);
+
+	ret = ov08d10_power_on(ov08d10->dev);
+	if (ret)
+		return dev_err_probe(ov08d10->dev, ret, "failed to power on\n");
 
 	ret = ov08d10_identify_module(ov08d10);
 	if (ret) {
 		dev_err(ov08d10->dev, "failed to find sensor: %d\n", ret);
-		return ret;
+		goto probe_error_power_off;
 	}
 
 	mutex_init(&ov08d10->mutex);
@@ -1452,8 +1536,14 @@ probe_error_v4l2_ctrl_handler_free:
 	v4l2_ctrl_handler_free(ov08d10->sd.ctrl_handler);
 	mutex_destroy(&ov08d10->mutex);
 
+probe_error_power_off:
+	ov08d10_power_off(ov08d10->dev);
+
 	return ret;
 }
+
+static DEFINE_RUNTIME_DEV_PM_OPS(ov08d10_pm_ops,
+				 ov08d10_power_off, ov08d10_power_on, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08d10_acpi_ids[] = {
@@ -1473,6 +1563,7 @@ MODULE_DEVICE_TABLE(of, ov08d10_of_match);
 static struct i2c_driver ov08d10_i2c_driver = {
 	.driver = {
 		.name = "ov08d10",
+		.pm = pm_ptr(&ov08d10_pm_ops),
 		.acpi_match_table = ACPI_PTR(ov08d10_acpi_ids),
 		.of_match_table = ov08d10_of_match,
 	},
