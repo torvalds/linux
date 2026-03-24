@@ -630,6 +630,211 @@ static int rtw8922d_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 	}
 }
 
+static void rtw8922d_phycap_parsing_vco_trim(struct rtw89_dev *rtwdev,
+					     u8 *phycap_map)
+{
+	static const u32 vco_trim_addr[RF_PATH_NUM_8922D] = {0x175E, 0x175F};
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	const u32 vco_check_addr = 0x1700;
+	u8 val;
+
+	val = phycap_map[vco_check_addr - addr];
+	if (val & BIT(1))
+		return;
+
+	info->pg_vco_trim = true;
+
+	info->vco_trim[0] = u8_get_bits(phycap_map[vco_trim_addr[0] - addr], GENMASK(4, 0));
+	info->vco_trim[1] = u8_get_bits(phycap_map[vco_trim_addr[1] - addr], GENMASK(4, 0));
+}
+
+static void rtw8922d_vco_trim(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+
+	if (!info->pg_vco_trim)
+		return;
+
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_VCO, RR_VCO_VAL, info->vco_trim[0]);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_VCO, RR_VCO_VAL, info->vco_trim[1]);
+}
+
+#define THM_TRIM_POSITIVE_MASK BIT(6)
+#define THM_TRIM_MAGNITUDE_MASK GENMASK(5, 0)
+#define THM_TRIM_MAX (15)
+#define THM_TRIM_MIN (-15)
+
+static void rtw8922d_phycap_parsing_thermal_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	static const u32 thm_trim_addr[RF_PATH_NUM_8922D] = {0x1706, 0x1732};
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	bool pg = true;
+	u8 pg_th;
+	s8 val;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		pg_th = phycap_map[thm_trim_addr[i] - addr];
+		if (pg_th == 0xff) {
+			memset(info->thermal_trim, 0, sizeof(info->thermal_trim));
+			pg = false;
+			goto out;
+		}
+
+		val = u8_get_bits(pg_th, THM_TRIM_MAGNITUDE_MASK);
+
+		if (!(pg_th & THM_TRIM_POSITIVE_MASK))
+			val *= -1;
+
+		if (val <= THM_TRIM_MIN || val >= THM_TRIM_MAX) {
+			val = 0;
+			info->thermal_trim[i] = 0;
+		} else {
+			info->thermal_trim[i] = pg_th;
+		}
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[THERMAL][TRIM] path=%d thermal_trim=0x%x (%d)\n",
+			    i, pg_th, val);
+	}
+
+out:
+	info->pg_thermal_trim = pg;
+}
+
+static void rtw8922d_thermal_trim(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u8 thermal;
+	int i;
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		thermal = info->pg_thermal_trim ? info->thermal_trim[i] : 0;
+		rtw89_write_rf(rtwdev, i, RR_TM, RR_TM_TRM, thermal & 0x7f);
+	}
+}
+
+static void rtw8922d_phycap_parsing_pa_bias_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	static const u32 pabias_trim_addr[RF_PATH_NUM_8922D] = {0x1707, 0x1733};
+	static const u32 check_pa_pad_trim_addr = 0x1700;
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	bool pg = true;
+	u8 val;
+	u8 i;
+
+	val = phycap_map[check_pa_pad_trim_addr - addr];
+	if (val == 0xff) {
+		pg = false;
+		goto out;
+	}
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		info->pa_bias_trim[i] = phycap_map[pabias_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PA_BIAS][TRIM] path=%d pa_bias_trim=0x%x\n",
+			    i, info->pa_bias_trim[i]);
+	}
+
+out:
+	info->pg_pa_bias_trim = pg;
+}
+
+static void rtw8922d_pa_bias_trim(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u8 pabias_2g, pabias_5g;
+	u8 i;
+
+	if (!info->pg_pa_bias_trim) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PA_BIAS][TRIM] no PG, do nothing\n");
+
+		return;
+	}
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		pabias_2g = FIELD_GET(GENMASK(3, 0), info->pa_bias_trim[i]);
+		pabias_5g = FIELD_GET(GENMASK(7, 4), info->pa_bias_trim[i]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PA_BIAS][TRIM] path=%d 2G=0x%x 5G=0x%x\n",
+			    i, pabias_2g, pabias_5g);
+
+		rtw89_write_rf(rtwdev, i, RR_BIASA, RR_BIASA_TXG_V1, pabias_2g);
+		rtw89_write_rf(rtwdev, i, RR_BIASA, RR_BIASA_TXA_V1, pabias_5g);
+	}
+}
+
+static void rtw8922d_phycap_parsing_pad_bias_trim(struct rtw89_dev *rtwdev,
+						  u8 *phycap_map)
+{
+	static const u32 pad_bias_trim_addr[RF_PATH_NUM_8922D] = {0x1708, 0x1734};
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	u8 i;
+
+	if (!info->pg_pa_bias_trim)
+		return;
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		info->pad_bias_trim[i] = phycap_map[pad_bias_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PAD_BIAS][TRIM] path=%d pad_bias_trim=0x%x\n",
+			    i, info->pad_bias_trim[i]);
+	}
+}
+
+static void rtw8922d_pad_bias_trim(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u8 pad_bias_2g, pad_bias_5g;
+	u8 i;
+
+	if (!info->pg_pa_bias_trim) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PAD_BIAS][TRIM] no PG, do nothing\n");
+		return;
+	}
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		pad_bias_2g = u8_get_bits(info->pad_bias_trim[i], GENMASK(3, 0));
+		pad_bias_5g = u8_get_bits(info->pad_bias_trim[i], GENMASK(7, 4));
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PAD_BIAS][TRIM] path=%d 2G=0x%x 5G=0x%x\n",
+			    i, pad_bias_2g, pad_bias_5g);
+
+		rtw89_write_rf(rtwdev, i, RR_BIASA, RR_BIASD_TXG_V1, pad_bias_2g);
+		rtw89_write_rf(rtwdev, i, RR_BIASA, RR_BIASD_TXA_V1, pad_bias_5g);
+	}
+}
+
+static int rtw8922d_read_phycap(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	rtw8922d_phycap_parsing_vco_trim(rtwdev, phycap_map);
+	rtw8922d_phycap_parsing_thermal_trim(rtwdev, phycap_map);
+	rtw8922d_phycap_parsing_pa_bias_trim(rtwdev, phycap_map);
+	rtw8922d_phycap_parsing_pad_bias_trim(rtwdev, phycap_map);
+
+	return 0;
+}
+
+static void rtw8922d_power_trim(struct rtw89_dev *rtwdev)
+{
+	rtw8922d_vco_trim(rtwdev);
+	rtw8922d_thermal_trim(rtwdev);
+	rtw8922d_pa_bias_trim(rtwdev);
+	rtw8922d_pad_bias_trim(rtwdev);
+}
+
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
 MODULE_FIRMWARE(RTW8922DS_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
