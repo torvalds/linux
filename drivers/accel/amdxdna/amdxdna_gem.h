@@ -41,8 +41,9 @@ struct amdxdna_gem_obj {
 	struct amdxdna_client		*client;
 	u8				type;
 	bool				pinned;
-	struct mutex			lock; /* Protects: pinned, mem.kva */
+	struct mutex			lock; /* Protects: pinned, mem.kva, open_ref */
 	struct amdxdna_mem		mem;
+	int				open_ref;
 
 	/* Below members are initialized when needed */
 	struct drm_mm			mm; /* For AMDXDNA_BO_DEV_HEAP */
@@ -50,6 +51,9 @@ struct amdxdna_gem_obj {
 	u32				assigned_hwctx;
 	struct dma_buf			*dma_buf;
 	struct dma_buf_attachment	*attach;
+
+	/* True, if BO is managed by XRT, not application */
+	bool				internal;
 };
 
 #define to_gobj(obj)    (&(obj)->base.base)
@@ -98,5 +102,6 @@ void amdxdna_gem_unpin(struct amdxdna_gem_obj *abo);
 int amdxdna_drm_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdxdna_drm_get_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdxdna_drm_sync_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int amdxdna_drm_get_bo_usage(struct drm_device *dev, struct amdxdna_drm_get_array *args);
 
 #endif /* _AMDXDNA_GEM_H_ */
