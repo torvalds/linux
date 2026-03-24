@@ -601,27 +601,33 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 
 	plane->composition.viewport.stationary = false;
 
-	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
+	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
 		plane->tdlut.setup_for_tdlut = true;
 
-		switch (plane_state->cm.lut3d_dma.swizzle) {
-		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
-		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.layout) {
+		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB:
+		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_sw_linear;
 			break;
-		case CM_LUT_1D_PACKED_LINEAR:
-		default:
+		case DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_simple_linear;
 			break;
 		}
 
-		switch (plane_state->cm.lut3d_dma.size) {
-		case CM_LUT_SIZE_333333:
+		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.size) {
+		case DC_CM2_GPU_MEM_SIZE_171717:
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
+			break;
+		case DC_CM2_GPU_MEM_SIZE_333333:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
 			break;
-		case CM_LUT_SIZE_171717:
+		// handling when use case and HW support available
+		case DC_CM2_GPU_MEM_SIZE_454545:
+		case DC_CM2_GPU_MEM_SIZE_656565:
+			break;
+		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
 		default:
-			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
+			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
 			break;
 		}
 	}
