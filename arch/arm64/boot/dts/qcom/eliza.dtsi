@@ -785,6 +785,8 @@
 			iommus = <&apps_smmu 0x60 0x0>;
 			dma-coherent;
 
+			msi-parent = <&gic_its 0x60>;
+
 			lanes-per-direction = <2>;
 			qcom,ice = <&ice>;
 
