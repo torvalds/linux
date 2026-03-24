@@ -132,12 +132,15 @@ static unsigned long snp_nr_leaked_pages;
 #undef pr_fmt
 #define pr_fmt(fmt)	"SEV-SNP: " fmt
 
-static void mfd_enable(void *arg)
+static void mfd_reconfigure(void *arg)
 {
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return;
 
-	msr_set_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
+	if (arg)
+		msr_set_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
+	else
+		msr_clear_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
 }
 
 static void snp_enable(void *arg)
@@ -523,12 +526,25 @@ void snp_prepare(void)
 	 * MtrrFixDramModEn is not shared between threads on a core,
 	 * therefore it must be set on all CPUs prior to enabling SNP.
 	 */
-	on_each_cpu(mfd_enable, NULL, 1);
+	on_each_cpu(mfd_reconfigure, (void *)1, 1);
 	on_each_cpu(snp_enable, NULL, 1);
 
 	cpus_read_unlock();
 }
 EXPORT_SYMBOL_FOR_MODULES(snp_prepare, "ccp");
+
+void snp_shutdown(void)
+{
+	u64 syscfg;
+
+	rdmsrq(MSR_AMD64_SYSCFG, syscfg);
+	if (syscfg & MSR_AMD64_SYSCFG_SNP_EN)
+		return;
+
+	clear_rmp();
+	on_each_cpu(mfd_reconfigure, NULL, 1);
+}
+EXPORT_SYMBOL_FOR_MODULES(snp_shutdown, "ccp");
 
 /*
  * Do the necessary preparations which are verified by the firmware as
