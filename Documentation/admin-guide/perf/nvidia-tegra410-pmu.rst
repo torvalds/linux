@@ -9,6 +9,9 @@ metrics like memory bandwidth, latency, and utilization:
 * PCIE
 * PCIE-TGT
 * CPU Memory (CMEM) Latency
+* NVLink-C2C
+* NV-CLink
+* NV-DLink
 
 PMU Driver
 ----------
@@ -369,3 +372,151 @@ see /sys/bus/event_source/devices/nvidia_cmem_latency_pmu_<socket-id>.
 Example usage::
 
   perf stat -a -e '{nvidia_cmem_latency_pmu_0/rd_req/,nvidia_cmem_latency_pmu_0/rd_cum_outs/,nvidia_cmem_latency_pmu_0/cycles/}'
+
+NVLink-C2C PMU
+--------------
+
+This PMU monitors latency events of memory read/write requests that pass through
+the NVIDIA Chip-to-Chip (C2C) interface. Bandwidth events are not available
+in this PMU, unlike the C2C PMU in Grace (Tegra241 SoC).
+
+The events and configuration options of this PMU device are available in sysfs,
+see /sys/bus/event_source/devices/nvidia_nvlink_c2c_pmu_<socket-id>.
+
+The list of events:
+
+  * IN_RD_CUM_OUTS: accumulated outstanding request (in cycles) of incoming read requests.
+  * IN_RD_REQ: the number of incoming read requests.
+  * IN_WR_CUM_OUTS: accumulated outstanding request (in cycles) of incoming write requests.
+  * IN_WR_REQ: the number of incoming write requests.
+  * OUT_RD_CUM_OUTS: accumulated outstanding request (in cycles) of outgoing read requests.
+  * OUT_RD_REQ: the number of outgoing read requests.
+  * OUT_WR_CUM_OUTS: accumulated outstanding request (in cycles) of outgoing write requests.
+  * OUT_WR_REQ: the number of outgoing write requests.
+  * CYCLES: NVLink-C2C interface cycle counts.
+
+The incoming events count the reads/writes from remote device to the SoC.
+The outgoing events count the reads/writes from the SoC to remote device.
+
+The sysfs /sys/bus/event_source/devices/nvidia_nvlink_c2c_pmu_<socket-id>/peer
+contains the information about the connected device.
+
+When the C2C interface is connected to GPU(s), the user can use the
+"gpu_mask" parameter to filter traffic to/from specific GPU(s). Each bit represents the GPU
+index, e.g. "gpu_mask=0x1" corresponds to GPU 0 and "gpu_mask=0x3" is for GPU 0 and 1.
+The PMU will monitor all GPUs by default if not specified.
+
+When connected to another SoC, only the read events are available.
+
+The events can be used to calculate the average latency of the read/write requests::
+
+   C2C_FREQ_IN_GHZ = CYCLES / ELAPSED_TIME_IN_NS
+
+   IN_RD_AVG_LATENCY_IN_CYCLES = IN_RD_CUM_OUTS / IN_RD_REQ
+   IN_RD_AVG_LATENCY_IN_NS = IN_RD_AVG_LATENCY_IN_CYCLES / C2C_FREQ_IN_GHZ
+
+   IN_WR_AVG_LATENCY_IN_CYCLES = IN_WR_CUM_OUTS / IN_WR_REQ
+   IN_WR_AVG_LATENCY_IN_NS = IN_WR_AVG_LATENCY_IN_CYCLES / C2C_FREQ_IN_GHZ
+
+   OUT_RD_AVG_LATENCY_IN_CYCLES = OUT_RD_CUM_OUTS / OUT_RD_REQ
+   OUT_RD_AVG_LATENCY_IN_NS = OUT_RD_AVG_LATENCY_IN_CYCLES / C2C_FREQ_IN_GHZ
+
+   OUT_WR_AVG_LATENCY_IN_CYCLES = OUT_WR_CUM_OUTS / OUT_WR_REQ
+   OUT_WR_AVG_LATENCY_IN_NS = OUT_WR_AVG_LATENCY_IN_CYCLES / C2C_FREQ_IN_GHZ
+
+Example usage:
+
+  * Count incoming traffic from all GPUs connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/in_rd_req/
+
+  * Count incoming traffic from GPU 0 connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/in_rd_cum_outs,gpu_mask=0x1/
+
+  * Count incoming traffic from GPU 1 connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/in_rd_cum_outs,gpu_mask=0x2/
+
+  * Count outgoing traffic to all GPUs connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/out_rd_req/
+
+  * Count outgoing traffic to GPU 0 connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/out_rd_cum_outs,gpu_mask=0x1/
+
+  * Count outgoing traffic to GPU 1 connected via NVLink-C2C::
+
+      perf stat -a -e nvidia_nvlink_c2c_pmu_0/out_rd_cum_outs,gpu_mask=0x2/
+
+NV-CLink PMU
+------------
+
+This PMU monitors latency events of memory read requests that pass through
+the NV-CLINK interface. Bandwidth events are not available in this PMU.
+In Tegra410 SoC, the NV-CLink interface is used to connect to another Tegra410
+SoC and this PMU only counts read traffic.
+
+The events and configuration options of this PMU device are available in sysfs,
+see /sys/bus/event_source/devices/nvidia_nvclink_pmu_<socket-id>.
+
+The list of events:
+
+  * IN_RD_CUM_OUTS: accumulated outstanding request (in cycles) of incoming read requests.
+  * IN_RD_REQ: the number of incoming read requests.
+  * OUT_RD_CUM_OUTS: accumulated outstanding request (in cycles) of outgoing read requests.
+  * OUT_RD_REQ: the number of outgoing read requests.
+  * CYCLES: NV-CLINK interface cycle counts.
+
+The incoming events count the reads from remote device to the SoC.
+The outgoing events count the reads from the SoC to remote device.
+
+The events can be used to calculate the average latency of the read requests::
+
+   CLINK_FREQ_IN_GHZ = CYCLES / ELAPSED_TIME_IN_NS
+
+   IN_RD_AVG_LATENCY_IN_CYCLES = IN_RD_CUM_OUTS / IN_RD_REQ
+   IN_RD_AVG_LATENCY_IN_NS = IN_RD_AVG_LATENCY_IN_CYCLES / CLINK_FREQ_IN_GHZ
+
+   OUT_RD_AVG_LATENCY_IN_CYCLES = OUT_RD_CUM_OUTS / OUT_RD_REQ
+   OUT_RD_AVG_LATENCY_IN_NS = OUT_RD_AVG_LATENCY_IN_CYCLES / CLINK_FREQ_IN_GHZ
+
+Example usage:
+
+  * Count incoming read traffic from remote SoC connected via NV-CLINK::
+
+      perf stat -a -e nvidia_nvclink_pmu_0/in_rd_req/
+
+  * Count outgoing read traffic to remote SoC connected via NV-CLINK::
+
+      perf stat -a -e nvidia_nvclink_pmu_0/out_rd_req/
+
+NV-DLink PMU
+------------
+
+This PMU monitors latency events of memory read requests that pass through
+the NV-DLINK interface.  Bandwidth events are not available in this PMU.
+In Tegra410 SoC, this PMU only counts CXL memory read traffic.
+
+The events and configuration options of this PMU device are available in sysfs,
+see /sys/bus/event_source/devices/nvidia_nvdlink_pmu_<socket-id>.
+
+The list of events:
+
+  * IN_RD_CUM_OUTS: accumulated outstanding read requests (in cycles) to CXL memory.
+  * IN_RD_REQ: the number of read requests to CXL memory.
+  * CYCLES: NV-DLINK interface cycle counts.
+
+The events can be used to calculate the average latency of the read requests::
+
+   DLINK_FREQ_IN_GHZ = CYCLES / ELAPSED_TIME_IN_NS
+
+   IN_RD_AVG_LATENCY_IN_CYCLES = IN_RD_CUM_OUTS / IN_RD_REQ
+   IN_RD_AVG_LATENCY_IN_NS = IN_RD_AVG_LATENCY_IN_CYCLES / DLINK_FREQ_IN_GHZ
+
+Example usage:
+
+  * Count read events to CXL memory::
+
+      perf stat -a -e '{nvidia_nvdlink_pmu_0/in_rd_req/,nvidia_nvdlink_pmu_0/in_rd_cum_outs/}'
