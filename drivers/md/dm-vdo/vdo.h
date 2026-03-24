@@ -144,6 +144,13 @@ struct thread_config {
 
 struct thread_count_config;
 
+struct vdo_geometry_block {
+	/* The vio for reading and writing the geometry block to disk */
+	struct vio vio;
+	/* A buffer to hold the geometry block */
+	u8 *buffer;
+};
+
 struct vdo_super_block {
 	/* The vio for reading and writing the super block to disk */
 	struct vio vio;
@@ -185,6 +192,9 @@ struct vdo {
 	struct device_config *device_config;
 	/* The thread mapping */
 	struct thread_config thread_config;
+
+	/* The geometry block */
+	struct vdo_geometry_block geometry_block;
 
 	/* The super block */
 	struct vdo_super_block super_block;
