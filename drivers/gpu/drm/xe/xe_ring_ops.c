@@ -48,22 +48,48 @@ static u32 preparser_disable(bool state)
 	return MI_ARB_CHECK | BIT(8) | state;
 }
 
-static int emit_aux_table_inv(struct xe_gt *gt, struct xe_reg reg,
-			      u32 *dw, int i)
+static u32 *
+__emit_aux_table_inv(u32 *cmd, const struct xe_reg reg, u32 adj_offset)
 {
-	dw[i++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) | MI_LRI_MMIO_REMAP_EN;
-	dw[i++] = reg.addr + gt->mmio.adj_offset;
-	dw[i++] = AUX_INV;
-	dw[i++] = MI_SEMAPHORE_WAIT_TOKEN |
-		  MI_SEMAPHORE_REGISTER_POLL |
-		  MI_SEMAPHORE_POLL |
-		  MI_SEMAPHORE_SAD_EQ_SDD;
-	dw[i++] = 0;
-	dw[i++] = reg.addr + gt->mmio.adj_offset;
-	dw[i++] = 0;
-	dw[i++] = 0;
+	*cmd++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1) |
+		 MI_LRI_MMIO_REMAP_EN;
+	*cmd++ = reg.addr + adj_offset;
+	*cmd++ = AUX_INV;
+	*cmd++ = MI_SEMAPHORE_WAIT_TOKEN | MI_SEMAPHORE_REGISTER_POLL |
+		 MI_SEMAPHORE_POLL | MI_SEMAPHORE_SAD_EQ_SDD;
+	*cmd++ = 0;
+	*cmd++ = reg.addr + adj_offset;
+	*cmd++ = 0;
+	*cmd++ = 0;
 
-	return i;
+	return cmd;
+}
+
+static u32 *emit_aux_table_inv_render_compute(struct xe_gt *gt, u32 *cmd)
+{
+	return __emit_aux_table_inv(cmd, CCS_AUX_INV, gt->mmio.adj_offset);
+}
+
+static u32 *emit_aux_table_inv_video_decode(struct xe_gt *gt, u32 *cmd)
+{
+	return __emit_aux_table_inv(cmd, VD0_AUX_INV, gt->mmio.adj_offset);
+}
+
+static u32 *emit_aux_table_inv_video_enhance(struct xe_gt *gt, u32 *cmd)
+{
+	return __emit_aux_table_inv(cmd, VE0_AUX_INV, gt->mmio.adj_offset);
+}
+
+static int emit_aux_table_inv(struct xe_hw_engine *hwe, u32 *dw, int i)
+{
+	struct xe_gt *gt = hwe->gt;
+	u32 *(*emit)(struct xe_gt *gt, u32 *cmd) =
+		gt->ring_ops[hwe->class]->emit_aux_table_inv;
+
+	if (emit)
+		return emit(gt, dw + i) - dw;
+	else
+		return i;
 }
 
 static int emit_user_interrupt(u32 *dw, int i)
@@ -356,7 +382,6 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	u32 ppgtt_flag = get_ppgtt_flag(job);
 	struct xe_gt *gt = job->q->gt;
 	struct xe_device *xe = gt_to_xe(gt);
-	bool decode = job->q->class == XE_ENGINE_CLASS_VIDEO_DECODE;
 
 	*head = lrc->ring.tail;
 
@@ -368,12 +393,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 	dw[i++] = preparser_disable(true);
 
 	/* hsdes: 1809175790 */
-	if (has_aux_ccs(xe)) {
-		if (decode)
-			i = emit_aux_table_inv(gt, VD0_AUX_INV, dw, i);
-		else
-			i = emit_aux_table_inv(gt, VE0_AUX_INV, dw, i);
-	}
+	i = emit_aux_table_inv(job->q->hwe, dw, i);
 
 	if (job->ring_ops_flush_tlb)
 		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
@@ -416,7 +436,6 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	struct xe_gt *gt = job->q->gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	bool lacks_render = !(gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK);
-	const bool aux_ccs = has_aux_ccs(xe);
 	u32 mask_flags = 0;
 
 	*head = lrc->ring.tail;
@@ -430,7 +449,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	 * On AuxCCS platforms the invalidation of the Aux table requires
 	 * quiescing the memory traffic beforehand.
 	 */
-	if (aux_ccs)
+	if (has_aux_ccs(xe))
 		i = emit_render_cache_flush(job, dw, i);
 
 	dw[i++] = preparser_disable(true);
@@ -443,8 +462,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	i = emit_pipe_invalidate(job->q, mask_flags, job->ring_ops_flush_tlb, dw, i);
 
 	/* hsdes: 1809175790 */
-	if (aux_ccs)
-		i = emit_aux_table_inv(gt, CCS_AUX_INV, dw, i);
+	i = emit_aux_table_inv(job->q->hwe, dw, i);
 
 	dw[i++] = preparser_disable(false);
 
@@ -571,7 +589,11 @@ static const struct xe_ring_ops ring_ops_gen12_copy = {
 	.emit_job = emit_job_gen12_copy,
 };
 
-static const struct xe_ring_ops ring_ops_gen12_video = {
+static const struct xe_ring_ops ring_ops_gen12_video_decode = {
+	.emit_job = emit_job_gen12_video,
+};
+
+static const struct xe_ring_ops ring_ops_gen12_video_enhance = {
 	.emit_job = emit_job_gen12_video,
 };
 
@@ -579,20 +601,47 @@ static const struct xe_ring_ops ring_ops_gen12_render_compute = {
 	.emit_job = emit_job_gen12_render_compute,
 };
 
+static const struct xe_ring_ops auxccs_ring_ops_gen12_video_decode = {
+	.emit_job = emit_job_gen12_video,
+	.emit_aux_table_inv = emit_aux_table_inv_video_decode,
+};
+
+static const struct xe_ring_ops auxccs_ring_ops_gen12_video_enhance = {
+	.emit_job = emit_job_gen12_video,
+	.emit_aux_table_inv = emit_aux_table_inv_video_enhance,
+};
+
+static const struct xe_ring_ops auxccs_ring_ops_gen12_render_compute = {
+	.emit_job = emit_job_gen12_render_compute,
+	.emit_aux_table_inv = emit_aux_table_inv_render_compute,
+};
+
 const struct xe_ring_ops *
 xe_ring_ops_get(struct xe_gt *gt, enum xe_engine_class class)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+
 	switch (class) {
 	case XE_ENGINE_CLASS_OTHER:
 		return &ring_ops_gen12_gsc;
 	case XE_ENGINE_CLASS_COPY:
 		return &ring_ops_gen12_copy;
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
+		if (has_aux_ccs(xe))
+			return &auxccs_ring_ops_gen12_video_decode;
+		else
+			return &ring_ops_gen12_video_decode;
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		return &ring_ops_gen12_video;
+		if (has_aux_ccs(xe))
+			return &auxccs_ring_ops_gen12_video_enhance;
+		else
+			return &ring_ops_gen12_video_enhance;
 	case XE_ENGINE_CLASS_RENDER:
 	case XE_ENGINE_CLASS_COMPUTE:
-		return &ring_ops_gen12_render_compute;
+		if (has_aux_ccs(xe))
+			return &auxccs_ring_ops_gen12_render_compute;
+		else
+			return &ring_ops_gen12_render_compute;
 	default:
 		return NULL;
 	}
