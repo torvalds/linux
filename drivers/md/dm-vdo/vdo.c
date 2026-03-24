@@ -34,7 +34,9 @@
 #include <linux/lz4.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 #include "logger.h"
 #include "memory-alloc.h"
@@ -55,6 +57,7 @@
 #include "slab-depot.h"
 #include "statistics.h"
 #include "status-codes.h"
+#include "time-utils.h"
 #include "vio.h"
 
 #define PARANOID_THREAD_CONSISTENCY_CHECKS 0
@@ -286,30 +289,6 @@ static int initialize_super_block(struct vdo *vdo, struct vdo_super_block *super
 				       &vdo->super_block.vio);
 }
 
-/**
- * read_geometry_block() - Synchronously read the geometry block from a vdo's underlying block
- *                         device.
- * @vdo: The vdo whose geometry is to be read.
- *
- * Return: VDO_SUCCESS or an error code.
- */
-static int __must_check read_geometry_block(struct vdo *vdo)
-{
-	int result;
-
-	/*
-	 * This is only safe because, having not already loaded the geometry, the vdo's geometry's
-	 * bio_offset field is 0, so the fact that vio_reset_bio() will subtract that offset from
-	 * the supplied pbn is not a problem.
-	 */
-	result = vdo_submit_metadata_vio_wait(&vdo->geometry_block.vio,
-					      VDO_GEOMETRY_BLOCK_LOCATION, REQ_OP_READ);
-	if (result != VDO_SUCCESS)
-		return result;
-
-	return vdo_parse_geometry_block(vdo->geometry_block.buffer, &vdo->geometry);
-}
-
 static bool get_zone_thread_name(const thread_id_t thread_ids[], zone_count_t count,
 				 thread_id_t id, const char *prefix,
 				 char *buffer, size_t buffer_length)
@@ -455,6 +434,67 @@ static int register_vdo(struct vdo *vdo)
 }
 
 /**
+ * vdo_format() - Format a block device to function as a new VDO.
+ * @vdo:       The vdo to format.
+ * @error_ptr: The reason for any failure during this call.
+ *
+ * This function must be called on a device before a VDO can be loaded for the first time.
+ * Once a device has been formatted, the VDO can be loaded and shut down repeatedly.
+ * If a new VDO is desired, this function should be called again.
+ *
+ * Return: VDO_SUCCESS or an error
+ **/
+static int __must_check vdo_format(struct vdo *vdo, char **error_ptr)
+{
+	int result;
+	uuid_t uuid;
+	nonce_t nonce = current_time_us();
+	struct device_config *config = vdo->device_config;
+
+	struct index_config index_config = {
+		.mem    = config->index_memory,
+		.sparse = config->index_sparse,
+	};
+
+	struct vdo_config vdo_config = {
+		.logical_blocks        = config->logical_blocks,
+		.physical_blocks       = config->physical_blocks,
+		.slab_size             = config->slab_blocks,
+		.slab_journal_blocks   = DEFAULT_VDO_SLAB_JOURNAL_SIZE,
+		.recovery_journal_size = DEFAULT_VDO_RECOVERY_JOURNAL_SIZE,
+	};
+
+	uuid_gen(&uuid);
+	result = vdo_initialize_volume_geometry(nonce, &uuid, &index_config, &vdo->geometry);
+	if (result != VDO_SUCCESS) {
+		*error_ptr = "Could not initialize volume geometry during format";
+		return result;
+	}
+
+	result = vdo_initialize_component_states(&vdo_config, &vdo->geometry, nonce, &vdo->states);
+	if (result == VDO_NO_SPACE) {
+		block_count_t slab_blocks = config->slab_blocks;
+		/* 1 is counting geometry block */
+		block_count_t fixed_layout_size = 1 +
+			vdo->geometry.regions[VDO_DATA_REGION].start_block +
+			DEFAULT_VDO_BLOCK_MAP_TREE_ROOT_COUNT +
+			DEFAULT_VDO_RECOVERY_JOURNAL_SIZE + VDO_SLAB_SUMMARY_BLOCKS;
+		block_count_t necessary_size = fixed_layout_size + slab_blocks;
+
+		vdo_log_error("Minimum required size for VDO volume: %llu bytes",
+			      (unsigned long long) necessary_size * VDO_BLOCK_SIZE);
+		*error_ptr = "Could not allocate enough space for VDO during format";
+		return result;
+	}
+	if (result != VDO_SUCCESS) {
+		*error_ptr = "Could not initialize data layout during format";
+		return result;
+	}
+
+	return VDO_SUCCESS;
+}
+
+/**
  * initialize_vdo() - Do the portion of initializing a vdo which will clean up after itself on
  *                    error.
  * @vdo: The vdo being initialized
@@ -490,10 +530,24 @@ static int initialize_vdo(struct vdo *vdo, struct device_config *config,
 		return result;
 	}
 
-	result = read_geometry_block(vdo);
+	result = vdo_submit_metadata_vio_wait(&vdo->geometry_block.vio,
+					      VDO_GEOMETRY_BLOCK_LOCATION, REQ_OP_READ);
 	if (result != VDO_SUCCESS) {
 		*reason = "Could not load geometry block";
 		return result;
+	}
+
+	if (mem_is_zero(vdo->geometry_block.vio.data, VDO_BLOCK_SIZE)) {
+		result = vdo_format(vdo, reason);
+		if (result != VDO_SUCCESS)
+			return result;
+	} else {
+		result = vdo_parse_geometry_block(vdo->geometry_block.buffer,
+						  &vdo->geometry);
+		if (result != VDO_SUCCESS) {
+			*reason = "Could not parse geometry block";
+			return result;
+		}
 	}
 
 	result = initialize_thread_config(config->thread_counts, &vdo->thread_config);
