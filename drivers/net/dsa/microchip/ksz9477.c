@@ -310,36 +310,33 @@ static int ksz9477_pcs_write(struct mii_bus *bus, int phy, int mmd, int reg,
 
 int ksz9477_pcs_create(struct ksz_device *dev)
 {
-	/* This chip has a SGMII port. */
-	if (ksz_has_sgmii_port(dev)) {
-		int port = ksz_get_sgmii_port(dev);
-		struct ksz_port *p = &dev->ports[port];
-		struct phylink_pcs *pcs;
-		struct mii_bus *bus;
-		int ret;
+	int port = ksz_get_sgmii_port(dev);
+	struct ksz_port *p = &dev->ports[port];
+	struct phylink_pcs *pcs;
+	struct mii_bus *bus;
+	int ret;
 
-		bus = devm_mdiobus_alloc(dev->dev);
-		if (!bus)
-			return -ENOMEM;
+	bus = devm_mdiobus_alloc(dev->dev);
+	if (!bus)
+		return -ENOMEM;
 
-		bus->name = "ksz_pcs_mdio_bus";
-		snprintf(bus->id, MII_BUS_ID_SIZE, "%s-pcs",
-			 dev_name(dev->dev));
-		bus->read_c45 = &ksz9477_pcs_read;
-		bus->write_c45 = &ksz9477_pcs_write;
-		bus->parent = dev->dev;
-		bus->phy_mask = ~0;
-		bus->priv = dev;
+	bus->name = "ksz_pcs_mdio_bus";
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-pcs",
+		 dev_name(dev->dev));
+	bus->read_c45 = &ksz9477_pcs_read;
+	bus->write_c45 = &ksz9477_pcs_write;
+	bus->parent = dev->dev;
+	bus->phy_mask = ~0;
+	bus->priv = dev;
 
-		ret = devm_mdiobus_register(dev->dev, bus);
-		if (ret)
-			return ret;
+	ret = devm_mdiobus_register(dev->dev, bus);
+	if (ret)
+		return ret;
 
-		pcs = xpcs_create_pcs_mdiodev(bus, 0);
-		if (IS_ERR(pcs))
-			return PTR_ERR(pcs);
-		p->pcs = pcs;
-	}
+	pcs = xpcs_create_pcs_mdiodev(bus, 0);
+	if (IS_ERR(pcs))
+		return PTR_ERR(pcs);
+	p->pcs = pcs;
 
 	return 0;
 }
