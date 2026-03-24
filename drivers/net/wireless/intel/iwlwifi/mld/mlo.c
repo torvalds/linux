@@ -739,7 +739,7 @@ iwl_mld_set_link_sel_data(struct iwl_mld *mld,
 
 		/* Ignore any BSS that was not seen in the last MLO scan */
 		if (ktime_before(link_conf->bss->ts_boottime,
-				 mld->scan.last_mlo_scan_time))
+				 mld->scan.last_mlo_scan_start_time))
 			continue;
 
 		data[n_data].link_id = link_id;
@@ -945,7 +945,7 @@ static void _iwl_mld_select_links(struct iwl_mld *mld,
 	if (!mld_vif->authorized || hweight16(usable_links) <= 1)
 		return;
 
-	if (WARN(ktime_before(mld->scan.last_mlo_scan_time,
+	if (WARN(ktime_before(mld->scan.last_mlo_scan_start_time,
 			      ktime_sub_ns(ktime_get_boottime_ns(),
 					   5ULL * NSEC_PER_SEC)),
 		"Last MLO scan was too long ago, can't select links\n"))

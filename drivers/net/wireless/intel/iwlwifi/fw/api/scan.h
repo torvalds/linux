@@ -1157,6 +1157,16 @@ enum iwl_umac_scan_abort_status {
 };
 
 /**
+ * struct iwl_umac_scan_start - scan start notification
+ * @uid: scan id, &enum iwl_umac_scan_uid_offsets
+ * @reserved: for future use
+ */
+struct iwl_umac_scan_start {
+	__le32 uid;
+	__le32 reserved;
+} __packed; /* SCAN_START_UMAC_API_S_VER_1 */
+
+/**
  * struct iwl_umac_scan_complete - scan complete notification
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @last_schedule: last scheduling line
