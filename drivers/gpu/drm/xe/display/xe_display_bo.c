@@ -42,9 +42,9 @@ static int xe_display_bo_framebuffer_init(struct drm_gem_object *obj,
 	if (ret)
 		goto err;
 
-	if (!(bo->flags & XE_BO_FLAG_SCANOUT)) {
+	if (!(bo->flags & XE_BO_FLAG_FORCE_WC)) {
 		/*
-		 * XE_BO_FLAG_SCANOUT should ideally be set at creation, or is
+		 * XE_BO_FLAG_FORCE_WC should ideally be set at creation, or is
 		 * automatically set when creating FB. We cannot change caching
 		 * mode when the bo is VM_BINDed, so we can only set
 		 * coherency with display when unbound.
@@ -54,7 +54,7 @@ static int xe_display_bo_framebuffer_init(struct drm_gem_object *obj,
 			ret = -EINVAL;
 			goto err;
 		}
-		bo->flags |= XE_BO_FLAG_SCANOUT;
+		bo->flags |= XE_BO_FLAG_FORCE_WC;
 	}
 	ttm_bo_unreserve(&bo->ttm);
 	return 0;
