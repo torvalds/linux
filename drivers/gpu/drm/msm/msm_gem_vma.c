@@ -373,6 +373,12 @@ msm_gem_vma_new(struct drm_gpuvm *gpuvm, struct drm_gem_object *obj,
 	struct msm_gem_vma *vma;
 	int ret;
 
+	/* _NO_SHARE objs cannot be mapped outside of their "host" vm: */
+	if (obj && (to_msm_bo(obj)->flags & MSM_BO_NO_SHARE) &&
+	    GEM_WARN_ON(obj->resv != drm_gpuvm_resv(gpuvm))) {
+		return ERR_PTR(-EINVAL);
+	}
+
 	drm_gpuvm_resv_assert_held(&vm->base);
 
 	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
