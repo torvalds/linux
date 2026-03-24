@@ -8,6 +8,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "rtw8922d.h"
+#include "rtw8922d_rfk.h"
 #include "util.h"
 
 #define RTW8922D_FW_FORMAT_MAX 0
