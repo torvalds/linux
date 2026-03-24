@@ -134,6 +134,7 @@ int main(int argc, char **argv)
 {
 	const char *filter = NULL;
 	const char *failed_tests[MAX_SCX_TESTS];
+	const char *skipped_tests[MAX_SCX_TESTS];
 	unsigned testnum = 0, i;
 	unsigned passed = 0, skipped = 0, failed = 0;
 	int opt;
@@ -199,7 +200,7 @@ int main(int argc, char **argv)
 			passed++;
 			break;
 		case SCX_TEST_SKIP:
-			skipped++;
+			skipped_tests[skipped++] = test->name;
 			break;
 		case SCX_TEST_FAIL:
 			failed_tests[failed++] = test->name;
@@ -211,6 +212,11 @@ int main(int argc, char **argv)
 	printf("PASSED:  %u\n", passed);
 	printf("SKIPPED: %u\n", skipped);
 	printf("FAILED:  %u\n", failed);
+	if (skipped > 0) {
+		printf("\nSkipped tests:\n");
+		for (i = 0; i < skipped; i++)
+			printf("  - %s\n", skipped_tests[i]);
+	}
 	if (failed > 0) {
 		printf("\nFailed tests:\n");
 		for (i = 0; i < failed; i++)
