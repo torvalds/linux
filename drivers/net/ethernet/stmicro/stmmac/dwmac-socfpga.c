@@ -95,8 +95,7 @@ static void socfpga_dwmac_fix_mac_speed(void *bsp_priv,
 	u32 val;
 
 	if (sgmii_adapter_base)
-		writew(SGMII_ADAPTER_DISABLE,
-		       sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
+		socfpga_sgmii_config(dwmac, false);
 
 	if (splitter_base) {
 		val = readl(splitter_base + EMAC_SPLITTER_CTRL_REG);
@@ -121,8 +120,7 @@ static void socfpga_dwmac_fix_mac_speed(void *bsp_priv,
 	if ((priv->plat->phy_interface == PHY_INTERFACE_MODE_SGMII ||
 	     priv->plat->phy_interface == PHY_INTERFACE_MODE_1000BASEX) &&
 	     sgmii_adapter_base)
-		writew(SGMII_ADAPTER_ENABLE,
-		       sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
+		socfpga_sgmii_config(dwmac, true);
 }
 
 static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *dev)
