@@ -506,6 +506,11 @@ static bool __init setup_rmptable(void)
 	return true;
 }
 
+static void clear_hsave_pa(void *arg)
+{
+	wrmsrq(MSR_VM_HSAVE_PA, 0);
+}
+
 void snp_prepare(void)
 {
 	u64 val;
@@ -528,6 +533,9 @@ void snp_prepare(void)
 	 */
 	on_each_cpu(mfd_reconfigure, (void *)1, 1);
 	on_each_cpu(snp_enable, NULL, 1);
+
+	/* SNP_INIT requires MSR_VM_HSAVE_PA to be cleared on all CPUs. */
+	on_each_cpu(clear_hsave_pa, NULL, 1);
 
 	cpus_read_unlock();
 }
