@@ -4678,16 +4678,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	int gso = skb_shinfo(skb)->gso_type;
 	struct stmmac_txq_stats *txq_stats;
 	struct dma_desc *desc, *first_desc;
-	struct dma_edesc *tbs_desc = NULL;
 	struct stmmac_tx_queue *tx_q;
 	int i, csum_insertion = 0;
 	int entry, first_tx;
 	dma_addr_t dma_addr;
 	u32 sdu_len;
-
-	tx_q = &priv->dma_conf.tx_queue[queue];
-	txq_stats = &priv->xstats.txq_stats[queue];
-	first_tx = tx_q->cur_tx;
 
 	if (priv->tx_path_in_lpi_mode && priv->eee_sw_timer_en)
 		stmmac_stop_sw_lpi(priv);
@@ -4725,12 +4720,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
+	tx_q = &priv->dma_conf.tx_queue[queue];
+	first_tx = tx_q->cur_tx;
+
 	/* Check if VLAN can be inserted by HW */
 	has_vlan = stmmac_vlan_insert(priv, skb, tx_q);
-
-	entry = tx_q->cur_tx;
-	first_entry = entry;
-	WARN_ON(tx_q->tx_skbuff[first_entry]);
 
 	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
 	/* DWMAC IPs can be synthesized to support tx coe only for a few tx
@@ -4748,6 +4742,10 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		csum_insertion = !csum_insertion;
 	}
 
+	entry = tx_q->cur_tx;
+	first_entry = entry;
+	WARN_ON(tx_q->tx_skbuff[first_entry]);
+
 	desc = stmmac_get_tx_desc(priv, tx_q, entry);
 	first_desc = desc;
 
@@ -4763,6 +4761,48 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		entry = stmmac_jumbo_frm(priv, tx_q, skb, csum_insertion);
 		if (unlikely(entry < 0) && (entry != -EINVAL))
 			goto dma_map_err;
+	} else {
+		bool last_segment = (nfrags == 0);
+
+		dma_addr = dma_map_single(priv->device, skb->data,
+					  nopaged_len, DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->device, dma_addr))
+			goto dma_map_err;
+
+		stmmac_set_tx_skb_dma_entry(tx_q, first_entry, dma_addr,
+					    nopaged_len, false);
+
+		stmmac_set_desc_addr(priv, first_desc, dma_addr);
+
+		if (last_segment)
+			stmmac_set_tx_dma_last_segment(tx_q, first_entry);
+
+		if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+			     priv->hwts_tx_en)) {
+			/* declare that device is doing timestamping */
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			stmmac_enable_tx_timestamp(priv, first_desc);
+		}
+
+		/* Prepare the first descriptor without setting the OWN bit */
+		stmmac_prepare_tx_desc(priv, first_desc, 1, nopaged_len,
+				       csum_insertion, priv->descriptor_mode,
+				       0, last_segment, skb->len);
+	}
+
+	if (priv->sarc_type)
+		stmmac_set_desc_sarc(priv, first_desc, priv->sarc_type);
+
+	/* STMMAC_TBS_EN can only be set if STMMAC_TBS_AVAIL has already
+	 * been set, which means the underlying type of the descriptors
+	 * will be struct stmmac_edesc. Therefore, it is safe to convert
+	 * the basic descriptor to the enhanced descriptor here.
+	 */
+	if (tx_q->tbs & STMMAC_TBS_EN) {
+		struct timespec64 ts = ns_to_timespec64(skb->tstamp);
+
+		stmmac_set_desc_tbs(priv, dma_desc_to_edesc(first_desc),
+				    ts.tv_sec, ts.tv_nsec);
 	}
 
 	for (i = 0; i < nfrags; i++) {
@@ -4845,55 +4885,16 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, queue));
 	}
 
+	txq_stats = &priv->xstats.txq_stats[queue];
 	u64_stats_update_begin(&txq_stats->q_syncp);
 	u64_stats_add(&txq_stats->q.tx_bytes, skb->len);
 	if (set_ic)
 		u64_stats_inc(&txq_stats->q.tx_set_ic_bit);
 	u64_stats_update_end(&txq_stats->q_syncp);
 
-	if (priv->sarc_type)
-		stmmac_set_desc_sarc(priv, first_desc, priv->sarc_type);
-
-	/* Ready to fill the first descriptor and set the OWN bit w/o any
-	 * problems because all the descriptors are actually ready to be
-	 * passed to the DMA engine.
+	/* Set the OWN bit on the first descriptor now that all descriptors
+	 * for this skb are populated.
 	 */
-	if (likely(!is_jumbo)) {
-		bool last_segment = (nfrags == 0);
-
-		dma_addr = dma_map_single(priv->device, skb->data,
-					  nopaged_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, dma_addr))
-			goto dma_map_err;
-
-		stmmac_set_tx_skb_dma_entry(tx_q, first_entry, dma_addr,
-					    nopaged_len, false);
-
-		stmmac_set_desc_addr(priv, first_desc, dma_addr);
-
-		if (last_segment)
-			stmmac_set_tx_dma_last_segment(tx_q, first_entry);
-
-		if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-			     priv->hwts_tx_en)) {
-			/* declare that device is doing timestamping */
-			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-			stmmac_enable_tx_timestamp(priv, first_desc);
-		}
-
-		/* Prepare the first descriptor setting the OWN bit too */
-		stmmac_prepare_tx_desc(priv, first_desc, 1, nopaged_len,
-				       csum_insertion, priv->descriptor_mode,
-				       0, last_segment, skb->len);
-	}
-
-	if (tx_q->tbs & STMMAC_TBS_EN) {
-		struct timespec64 ts = ns_to_timespec64(skb->tstamp);
-
-		tbs_desc = &tx_q->dma_entx[first_entry];
-		stmmac_set_desc_tbs(priv, tbs_desc, ts.tv_sec, ts.tv_nsec);
-	}
-
 	stmmac_set_tx_owner(priv, first_desc);
 
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, queue), skb->len);
