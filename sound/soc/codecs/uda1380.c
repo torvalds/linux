@@ -117,20 +117,31 @@ static int uda1380_write(struct snd_soc_component *component, unsigned int reg,
 	pr_debug("uda1380: hw write %x val %x\n", reg, value);
 
 	ret = i2c_master_send(uda1380->i2c, data, 3);
-	if (ret != 3)
-		return ret < 0 ? ret : -EIO;
+	if (ret != 3) {
+		int err = ret < 0 ? ret : -EIO;
+		dev_err(component->dev, "write failed: %pe\n", ERR_PTR(err));
+		return err;
+	}
 
 	ret = i2c_master_send(uda1380->i2c, data, 1);
-	if (ret != 1)
-		return ret < 0 ? ret : -EIO;
+	if (ret != 1) {
+		int err = ret < 0 ? ret : -EIO;
+		dev_err(component->dev, "send address failed: %pe\n", ERR_PTR(err));
+		return err;
+}
 
 	ret = i2c_master_recv(uda1380->i2c, data, 2);
-	if (ret != 2)
-		return ret < 0 ? ret : -EIO;
+	if (ret != 2) {
+		int err = ret < 0 ? ret : -EIO;
+		dev_err(component->dev, "read failed: %pe\n", ERR_PTR(err));
+		return err;
+	}
 
 	val = (data[0] << 8) | data[1];
-	if (val != value)
+	if (val != value) {
+		dev_err(component->dev, "read back val %x (expected %x)\n", val, value);
 		return -EIO;
+	}
 
 	if (reg >= 0x10)
 		clear_bit(reg - 0x10, &uda1380_cache_dirty);
