@@ -130,7 +130,7 @@ struct rkvdec_h264_ctx {
 	struct vdpu383_regs_h26x regs;
 };
 
-static void set_field_order_cnt(struct rkvdec_pps *pps, const struct v4l2_h264_dpb_entry *dpb)
+static noinline_for_stack void set_field_order_cnt(struct rkvdec_pps *pps, const struct v4l2_h264_dpb_entry *dpb)
 {
 	pps->top_field_order_cnt0 = dpb[0].top_field_order_cnt;
 	pps->bot_field_order_cnt0 = dpb[0].bottom_field_order_cnt;
@@ -166,6 +166,31 @@ static void set_field_order_cnt(struct rkvdec_pps *pps, const struct v4l2_h264_d
 	pps->bot_field_order_cnt15 = dpb[15].bottom_field_order_cnt;
 }
 
+static noinline_for_stack void set_dec_params(struct rkvdec_pps *pps, const struct v4l2_ctrl_h264_decode_params *dec_params)
+{
+	const struct v4l2_h264_dpb_entry *dpb = dec_params->dpb;
+
+	for (int i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
+		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM)
+			pps->is_longterm |= (1 << i);
+		pps->ref_field_flags |=
+		 (!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD)) << i;
+		pps->ref_colmv_use_flag |=
+		 (!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)) << i;
+		pps->ref_topfield_used |=
+		 (!!(dpb[i].fields & V4L2_H264_TOP_FIELD_REF)) << i;
+		pps->ref_botfield_used |=
+			(!!(dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF)) << i;
+	}
+	pps->pic_field_flag =
+		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC);
+	pps->pic_associated_flag =
+		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD);
+
+	pps->cur_top_field = dec_params->top_field_order_cnt;
+	pps->cur_bot_field = dec_params->bottom_field_order_cnt;
+}
+
 static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 			    struct rkvdec_h264_run *run)
 {
@@ -177,7 +202,6 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	struct rkvdec_h264_priv_tbl *priv_tbl = h264_ctx->priv_tbl.cpu;
 	struct rkvdec_sps_pps *hw_ps;
 	u32 pic_width, pic_height;
-	u32 i;
 
 	/*
 	 * HW read the SPS/PPS information from PPS packet index by PPS id.
@@ -261,28 +285,8 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 		!!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT);
 
 	set_field_order_cnt(&hw_ps->pps, dpb);
+	set_dec_params(&hw_ps->pps, dec_params);
 
-	for (i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
-		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM)
-			hw_ps->pps.is_longterm |= (1 << i);
-
-		hw_ps->pps.ref_field_flags |=
-			(!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD)) << i;
-		hw_ps->pps.ref_colmv_use_flag |=
-			(!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)) << i;
-		hw_ps->pps.ref_topfield_used |=
-			(!!(dpb[i].fields & V4L2_H264_TOP_FIELD_REF)) << i;
-		hw_ps->pps.ref_botfield_used |=
-			(!!(dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF)) << i;
-	}
-
-	hw_ps->pps.pic_field_flag =
-		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC);
-	hw_ps->pps.pic_associated_flag =
-		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD);
-
-	hw_ps->pps.cur_top_field = dec_params->top_field_order_cnt;
-	hw_ps->pps.cur_bot_field = dec_params->bottom_field_order_cnt;
 }
 
 static void rkvdec_write_regs(struct rkvdec_ctx *ctx)
