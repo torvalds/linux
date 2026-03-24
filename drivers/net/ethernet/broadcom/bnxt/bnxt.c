@@ -8118,8 +8118,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 		    (bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) !=
 		     bnxt_get_nr_rss_ctxs(bp, rx_rings) ||
 		     bnxt_get_max_rss_ring(bp) >= rx_rings)) {
-			netdev_warn(bp->dev, "RSS table entries reverting to default\n");
-			bp->dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+			ethtool_rxfh_indir_lost(bp->dev);
 		}
 	}
 	bp->rx_nr_rings = rx_rings;

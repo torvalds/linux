@@ -1405,9 +1405,9 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 
 	/* indicate whether rxfh was set to default */
 	if (user_size == 0)
-		dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+		dev->ethtool->rss_indir_user_size = 0;
 	else
-		dev->priv_flags |= IFF_RXFH_CONFIGURED;
+		dev->ethtool->rss_indir_user_size = rxfh_dev.indir_size;
 
 out_unlock:
 	mutex_unlock(&dev->ethtool->rss_lock);
@@ -1722,9 +1722,9 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (!rxfh_dev.rss_context) {
 		/* indicate whether rxfh was set to default */
 		if (rxfh.indir_size == 0)
-			dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+			dev->ethtool->rss_indir_user_size = 0;
 		else if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
-			dev->priv_flags |= IFF_RXFH_CONFIGURED;
+			dev->ethtool->rss_indir_user_size = dev_indir_size;
 	}
 	/* Update rss_ctx tracking */
 	if (rxfh_dev.rss_delete) {
@@ -1737,6 +1737,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			ctx->indir_configured =
 				rxfh.indir_size &&
 				rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE;
+			ctx->indir_user_size = dev_indir_size;
 		}
 		if (rxfh_dev.key) {
 			memcpy(ethtool_rxfh_context_key(ctx), rxfh_dev.key,
