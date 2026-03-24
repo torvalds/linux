@@ -50,9 +50,9 @@ write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_
 }
 
 static void
-write_dpt_remapped(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
-		   u32 bo_ofs, u32 width, u32 height, u32 src_stride,
-		   u32 dst_stride)
+write_dpt_remapped_tiled(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
+			 u32 bo_ofs, u32 width, u32 height, u32 src_stride,
+			 u32 dst_stride)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
@@ -76,6 +76,22 @@ write_dpt_remapped(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
 
 	/* Align to next page */
 	*dpt_ofs = ALIGN(*dpt_ofs, 4096);
+}
+
+static void
+write_dpt_remapped(struct xe_bo *bo,
+		   const struct intel_remapped_info *remap_info,
+		   struct iosys_map *map)
+{
+	u32 i, dpt_ofs = 0;
+
+	for (i = 0; i < ARRAY_SIZE(remap_info->plane); i++)
+		write_dpt_remapped_tiled(bo, map, &dpt_ofs,
+					 remap_info->plane[i].offset,
+					 remap_info->plane[i].width,
+					 remap_info->plane[i].height,
+					 remap_info->plane[i].src_stride,
+					 sremap_info->plane[i].dst_stride);
 }
 
 static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
@@ -138,17 +154,7 @@ static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
 			iosys_map_wr(&dpt->vmap, x * 8, u64, pte | addr);
 		}
 	} else if (view->type == I915_GTT_VIEW_REMAPPED) {
-		const struct intel_remapped_info *remap_info = &view->remapped;
-		u32 i, dpt_ofs = 0;
-
-		for (i = 0; i < ARRAY_SIZE(remap_info->plane); i++)
-			write_dpt_remapped(bo, &dpt->vmap, &dpt_ofs,
-					   remap_info->plane[i].offset,
-					   remap_info->plane[i].width,
-					   remap_info->plane[i].height,
-					   remap_info->plane[i].src_stride,
-					   remap_info->plane[i].dst_stride);
-
+		write_dpt_remapped(bo, &view->remapped, &dpt->vmap);
 	} else {
 		const struct intel_rotation_info *rot_info = &view->rotated;
 		u32 i, dpt_ofs = 0;
