@@ -5,6 +5,8 @@
 
 #include <drm/drm_print.h>
 
+#include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_core.h"
 #include "intel_display_utils.h"
 #include "intel_pch.h"
@@ -211,6 +213,28 @@ intel_pch_type(const struct intel_display *display, unsigned short id)
 		return PCH_ADP;
 	default:
 		return PCH_NONE;
+	}
+}
+
+static void intel_pch_ibx_init_clock_gating(struct intel_display *display)
+{
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	intel_de_write(display, SOUTH_DSPCLK_GATE_D,
+		       PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+}
+
+void intel_pch_init_clock_gating(struct intel_display *display)
+{
+	switch (INTEL_PCH_TYPE(display)) {
+	case PCH_IBX:
+		intel_pch_ibx_init_clock_gating(display);
+		break;
+	default:
+		break;
 	}
 }
 

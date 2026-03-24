@@ -33,6 +33,7 @@
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
 #include "display/intel_display_regs.h"
+#include "display/intel_pch.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_mcr.h"
@@ -124,16 +125,6 @@ static void glk_init_clock_gating(struct drm_i915_private *i915)
 			   PWM1_GATING_DIS | PWM2_GATING_DIS);
 }
 
-static void ibx_init_clock_gating(struct drm_i915_private *i915)
-{
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	intel_uncore_write(&i915->uncore, SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-}
-
 static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = dev_priv->display;
@@ -202,7 +193,7 @@ static void ilk_init_clock_gating(struct drm_i915_private *i915)
 
 	g4x_disable_trickle_feed(i915);
 
-	ibx_init_clock_gating(i915);
+	intel_pch_init_clock_gating(i915->display);
 }
 
 static void cpt_init_clock_gating(struct drm_i915_private *i915)
