@@ -664,7 +664,7 @@ static int ov08d10_write_reg_list(struct ov08d10 *ov08d10,
 						r_list->regs[i].val);
 		if (ret) {
 			dev_err_ratelimited(ov08d10->dev,
-					    "failed to write reg 0x%2.2x. error = %d",
+					    "failed to write reg 0x%2.2x. error = %d\n",
 					    r_list->regs[i].address, ret);
 			return ret;
 		}
@@ -1024,32 +1024,32 @@ static int ov08d10_start_streaming(struct ov08d10 *ov08d10)
 	/* soft reset */
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0e);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 	usleep_range(3000, 4000);
 	ret = i2c_smbus_write_byte_data(client, 0x20, 0x0b);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to reset sensor");
+		dev_err(ov08d10->dev, "failed to reset sensor\n");
 		return ret;
 	}
 
 	/* update sensor setting */
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to set plls");
+		dev_err(ov08d10->dev, "failed to set plls\n");
 		return ret;
 	}
 
 	reg_list = &ov08d10->cur_mode->reg_list;
 	ret = ov08d10_write_reg_list(ov08d10, reg_list);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to set mode");
+		dev_err(ov08d10->dev, "failed to set mode\n");
 		return ret;
 	}
 
@@ -1076,19 +1076,19 @@ static void ov08d10_stop_streaming(struct ov08d10 *ov08d10)
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x00);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_MODE_SELECT,
 					OV08D10_MODE_STANDBY);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 
 	ret = i2c_smbus_write_byte_data(client, OV08D10_REG_PAGE, 0x01);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to stop streaming");
+		dev_err(ov08d10->dev, "failed to stop streaming\n");
 		return;
 	}
 }
@@ -1324,7 +1324,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 
 	/* Get number of data lanes */
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
@@ -1336,7 +1336,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 	ov08d10->modes_size = ov08d10_modes_num(ov08d10);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "no link frequencies defined\n");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1349,7 +1349,7 @@ static int ov08d10_get_hwcfg(struct ov08d10 *ov08d10)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "no link frequency %lld supported\n",
 				ov08d10->priv_lane->link_freq_menu[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1398,7 +1398,7 @@ static int ov08d10_probe(struct i2c_client *client)
 
 	ret = ov08d10_get_hwcfg(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to get HW configuration: %d",
+		dev_err(ov08d10->dev, "failed to get HW configuration: %d\n",
 			ret);
 		return ret;
 	}
@@ -1407,7 +1407,7 @@ static int ov08d10_probe(struct i2c_client *client)
 
 	ret = ov08d10_identify_module(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to find sensor: %d", ret);
+		dev_err(ov08d10->dev, "failed to find sensor: %d\n", ret);
 		return ret;
 	}
 
@@ -1415,7 +1415,7 @@ static int ov08d10_probe(struct i2c_client *client)
 	ov08d10->cur_mode = &ov08d10->priv_lane->sp_modes[0];
 	ret = ov08d10_init_controls(ov08d10);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to init controls: %d", ret);
+		dev_err(ov08d10->dev, "failed to init controls: %d\n", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -1425,7 +1425,7 @@ static int ov08d10_probe(struct i2c_client *client)
 	ov08d10->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov08d10->sd.entity, 1, &ov08d10->pad);
 	if (ret) {
-		dev_err(ov08d10->dev, "failed to init entity pads: %d", ret);
+		dev_err(ov08d10->dev, "failed to init entity pads: %d\n", ret);
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -1434,7 +1434,7 @@ static int ov08d10_probe(struct i2c_client *client)
 
 	ret = v4l2_async_register_subdev_sensor(&ov08d10->sd);
 	if (ret < 0) {
-		dev_err(ov08d10->dev, "failed to register V4L2 subdev: %d",
+		dev_err(ov08d10->dev, "failed to register V4L2 subdev: %d\n",
 			ret);
 		goto probe_error_media_entity_cleanup;
 	}
