@@ -95,6 +95,8 @@ static int uda1380_write(struct snd_soc_component *component, unsigned int reg,
 {
 	struct uda1380_priv *uda1380 = snd_soc_component_get_drvdata(component);
 	u8 data[3];
+	unsigned int val;
+	int ret;
 
 	/* data is
 	 *   data[0] is register offset
@@ -113,21 +115,27 @@ static int uda1380_write(struct snd_soc_component *component, unsigned int reg,
 	if (!snd_soc_component_active(component) && (reg >= UDA1380_MVOL))
 		return 0;
 	pr_debug("uda1380: hw write %x val %x\n", reg, value);
-	if (i2c_master_send(uda1380->i2c, data, 3) == 3) {
-		unsigned int val;
-		i2c_master_send(uda1380->i2c, data, 1);
-		i2c_master_recv(uda1380->i2c, data, 2);
-		val = (data[0]<<8) | data[1];
-		if (val != value) {
-			pr_debug("uda1380: READ BACK VAL %x\n",
-					(data[0]<<8) | data[1]);
-			return -EIO;
-		}
-		if (reg >= 0x10)
-			clear_bit(reg - 0x10, &uda1380_cache_dirty);
-		return 0;
-	} else
+
+	ret = i2c_master_send(uda1380->i2c, data, 3);
+	if (ret != 3)
+		return ret < 0 ? ret : -EIO;
+
+	ret = i2c_master_send(uda1380->i2c, data, 1);
+	if (ret != 1)
+		return ret < 0 ? ret : -EIO;
+
+	ret = i2c_master_recv(uda1380->i2c, data, 2);
+	if (ret != 2)
+		return ret < 0 ? ret : -EIO;
+
+	val = (data[0] << 8) | data[1];
+	if (val != value)
 		return -EIO;
+
+	if (reg >= 0x10)
+		clear_bit(reg - 0x10, &uda1380_cache_dirty);
+
+	return 0;
 }
 
 static void uda1380_sync_cache(struct snd_soc_component *component)
