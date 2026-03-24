@@ -1859,6 +1859,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 			 const struct hid_device_id *id)
 {
 	struct hid_report_enum *input_report_enum;
+	struct hid_report_enum *output_report_enum;
 	struct hid_report *rep;
 	struct dj_receiver_dev *djrcv_dev;
 	struct usb_interface *intf;
@@ -1901,6 +1902,15 @@ static int logi_dj_probe(struct hid_device *hdev,
 			hdev->quirks |= HID_QUIRK_INPUT_PER_APP;
 			return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 		}
+	}
+
+	output_report_enum = &hdev->report_enum[HID_OUTPUT_REPORT];
+	rep = output_report_enum->report_id_hash[REPORT_ID_DJ_SHORT];
+
+	if (rep->maxfield < 1 || rep->field[0]->report_count != DJREPORT_SHORT_LENGTH - 1) {
+		hid_err(hdev, "Expected size of DJ short report is %d, but got %d",
+			DJREPORT_SHORT_LENGTH - 1, rep->field[0]->report_count);
+		return -EINVAL;
 	}
 
 	input_report_enum = &hdev->report_enum[HID_INPUT_REPORT];
