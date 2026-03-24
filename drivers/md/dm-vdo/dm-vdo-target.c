@@ -792,6 +792,12 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	struct device_config *config = NULL;
 	int result;
 
+	if (logical_bytes > (MAXIMUM_VDO_LOGICAL_BLOCKS * VDO_BLOCK_SIZE)) {
+		handle_parse_error(config, error_ptr,
+				   "Logical size exceeds the maximum");
+		return VDO_BAD_CONFIGURATION;
+	}
+
 	if ((logical_bytes % VDO_BLOCK_SIZE) != 0) {
 		handle_parse_error(config, error_ptr,
 				   "Logical size must be a multiple of 4096");
