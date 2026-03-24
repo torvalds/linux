@@ -2,6 +2,7 @@
 /* Copyright(c) 2026  Realtek Corporation
  */
 
+#include "debug.h"
 #include "efuse.h"
 #include "mac.h"
 #include "reg.h"
@@ -466,6 +467,167 @@ static int rtw8922d_pwr_off_func(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_UDM1, 0);
 
 	return 0;
+}
+
+static void rtw8922d_efuse_parsing_tssi(struct rtw89_dev *rtwdev,
+					struct rtw8922d_efuse *map)
+{
+	const struct rtw8922d_tssi_offset_6g * const ofst_6g[] = {
+		&map->path_a_tssi_6g,
+		&map->path_b_tssi_6g,
+	};
+	const struct rtw8922d_tssi_offset * const ofst[] = {
+		&map->path_a_tssi,
+		&map->path_b_tssi,
+	};
+	struct rtw89_tssi_info *tssi = &rtwdev->tssi;
+	u8 i, j;
+
+	tssi->thermal[RF_PATH_A] = map->path_a_therm;
+	tssi->thermal[RF_PATH_B] = map->path_b_therm;
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		memcpy(tssi->tssi_cck[i], ofst[i]->cck_tssi, TSSI_CCK_CH_GROUP_NUM);
+
+		for (j = 0; j < TSSI_CCK_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d cck[%d]=0x%x\n",
+				    i, j, tssi->tssi_cck[i][j]);
+
+		memcpy(tssi->tssi_mcs[i], ofst[i]->bw40_tssi,
+		       TSSI_MCS_2G_CH_GROUP_NUM);
+		memcpy(tssi->tssi_mcs[i] + TSSI_MCS_2G_CH_GROUP_NUM,
+		       ofst[i]->bw40_1s_tssi_5g, TSSI_MCS_5G_CH_GROUP_NUM);
+		memcpy(tssi->tssi_6g_mcs[i], ofst_6g[i]->bw40_1s_tssi_6g,
+		       TSSI_MCS_6G_CH_GROUP_NUM);
+
+		for (j = 0; j < TSSI_MCS_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d mcs[%d]=0x%x\n",
+				    i, j, tssi->tssi_mcs[i][j]);
+
+		for (j = 0; j < TSSI_MCS_6G_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d mcs_6g[%d]=0x%x\n",
+				    i, j, tssi->tssi_6g_mcs[i][j]);
+	}
+}
+
+static void
+__rtw8922d_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
+				     s8 offset[RTW89_GAIN_OFFSET_NR],
+				     const s8 *offset_default,
+				     const struct rtw8922d_rx_gain *rx_gain,
+				     const struct rtw8922d_rx_gain_6g *rx_gain_6g)
+{
+	int i;
+	u8 t;
+
+	offset[RTW89_GAIN_OFFSET_2G_CCK] = rx_gain->_2g_cck;
+	offset[RTW89_GAIN_OFFSET_2G_OFDM] = rx_gain->_2g_ofdm;
+	offset[RTW89_GAIN_OFFSET_5G_LOW] = rx_gain->_5g_low;
+	offset[RTW89_GAIN_OFFSET_5G_MID] = rx_gain->_5g_mid;
+	offset[RTW89_GAIN_OFFSET_5G_HIGH] = rx_gain->_5g_high;
+	offset[RTW89_GAIN_OFFSET_6G_L0] = rx_gain_6g->_6g_l0;
+	offset[RTW89_GAIN_OFFSET_6G_L1] = rx_gain_6g->_6g_l1;
+	offset[RTW89_GAIN_OFFSET_6G_M0] = rx_gain_6g->_6g_m0;
+	offset[RTW89_GAIN_OFFSET_6G_M1] = rx_gain_6g->_6g_m1;
+	offset[RTW89_GAIN_OFFSET_6G_H0] = rx_gain_6g->_6g_h0;
+	offset[RTW89_GAIN_OFFSET_6G_H1] = rx_gain_6g->_6g_h1;
+	offset[RTW89_GAIN_OFFSET_6G_UH0] = rx_gain_6g->_6g_uh0;
+	offset[RTW89_GAIN_OFFSET_6G_UH1] = rx_gain_6g->_6g_uh1;
+
+	for (i = 0; i < RTW89_GAIN_OFFSET_NR; i++) {
+		t = offset[i];
+		if (t == 0xff) {
+			if (offset_default) {
+				offset[i] = offset_default[i];
+				continue;
+			}
+			t = 0;
+		}
+
+		/* transform: sign-bit + U(7,2) to S(8,2) */
+		if (t & 0x80)
+			offset[i] = (t ^ 0x7f) + 1;
+		else
+			offset[i] = t;
+	}
+}
+
+static void rtw8922d_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
+					       struct rtw8922d_efuse *map)
+{
+	struct rtw89_phy_efuse_gain *gain = &rtwdev->efuse_gain;
+
+	__rtw8922d_efuse_parsing_gain_offset(rtwdev, gain->offset[RF_PATH_A],
+					     NULL,
+					     &map->rx_gain_a, &map->rx_gain_6g_a);
+	__rtw8922d_efuse_parsing_gain_offset(rtwdev, gain->offset[RF_PATH_B],
+					     NULL,
+					     &map->rx_gain_b, &map->rx_gain_6g_b);
+
+	__rtw8922d_efuse_parsing_gain_offset(rtwdev, gain->offset2[RF_PATH_A],
+					     gain->offset[RF_PATH_A],
+					     &map->rx_gain_a_2, &map->rx_gain_6g_a_2);
+	__rtw8922d_efuse_parsing_gain_offset(rtwdev, gain->offset2[RF_PATH_B],
+					     gain->offset[RF_PATH_B],
+					     &map->rx_gain_b_2, &map->rx_gain_6g_b_2);
+
+	gain->offset_valid = true;
+}
+
+static int rtw8922d_read_efuse_pci_sdio(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	if (rtwdev->hci.type == RTW89_HCI_TYPE_PCIE)
+		ether_addr_copy(efuse->addr, log_map + 0x4104);
+	else
+		ether_addr_copy(efuse->addr, log_map + 0x001A);
+
+	return 0;
+}
+
+static int rtw8922d_read_efuse_usb(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	ether_addr_copy(efuse->addr, log_map + 0x0078);
+
+	return 0;
+}
+
+static int rtw8922d_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw8922d_efuse *map = (struct rtw8922d_efuse *)log_map;
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	efuse->rfe_type = map->rfe_type;
+	efuse->xtal_cap = map->xtal_k;
+	efuse->country_code[0] = map->country_code[0];
+	efuse->country_code[1] = map->country_code[1];
+	efuse->bt_setting_2 = map->bt_setting_2;
+	efuse->bt_setting_3 = map->bt_setting_3;
+	rtw8922d_efuse_parsing_tssi(rtwdev, map);
+	rtw8922d_efuse_parsing_gain_offset(rtwdev, map);
+
+	return 0;
+}
+
+static int rtw8922d_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
+{
+	switch (block) {
+	case RTW89_EFUSE_BLOCK_HCI_DIG_PCIE_SDIO:
+		return rtw8922d_read_efuse_pci_sdio(rtwdev, log_map);
+	case RTW89_EFUSE_BLOCK_HCI_DIG_USB:
+		return rtw8922d_read_efuse_usb(rtwdev, log_map);
+	case RTW89_EFUSE_BLOCK_RF:
+		return rtw8922d_read_efuse_rf(rtwdev, log_map);
+	default:
+		return 0;
+	}
 }
 
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
