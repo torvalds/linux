@@ -17,6 +17,7 @@ description:
 properties:
   compatible:
     enum:
+      - rockchip,rv1103b-cru
       - rockchip,rv1126b-cru
 
   reg:
