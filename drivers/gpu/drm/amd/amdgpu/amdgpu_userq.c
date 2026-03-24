@@ -1298,7 +1298,7 @@ amdgpu_userq_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 }
 
 void
-amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr, bool schedule_resume)
+amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	int ret;
@@ -1312,8 +1312,6 @@ amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr, bool schedule_resume)
 	if (ret)
 		dev_err(adev->dev, "Failed to evict userqueue\n");
 
-	if (schedule_resume)
-		schedule_delayed_work(&uq_mgr->resume_work, 0);
 }
 
 int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *file_priv,

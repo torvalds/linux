@@ -76,7 +76,7 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	cookie = dma_fence_begin_signalling();
 
 	ev_fence = amdgpu_evf_mgr_get_fence(evf_mgr);
-	amdgpu_userq_evict(uq_mgr, !evf_mgr->shutdown);
+	amdgpu_userq_evict(uq_mgr);
 
 	/*
 	 * Signaling the eviction fence must be done while holding the
@@ -86,6 +86,10 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	dma_fence_signal(ev_fence);
 	dma_fence_end_signalling(cookie);
 	dma_fence_put(ev_fence);
+
+	if (!evf_mgr->shutdown)
+		schedule_delayed_work(&uq_mgr->resume_work, 0);
+
 	mutex_unlock(&uq_mgr->userq_mutex);
 }
 
