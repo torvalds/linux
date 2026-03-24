@@ -164,30 +164,31 @@ static const struct ieee80211_channel ath12k_6ghz_channels[] = {
 	CHAN6G(233, 7115, 0),
 };
 
+#define ATH12K_MAC_RATE_A_M(bps, code) \
+	{ .bitrate = (bps), .hw_value = (code),\
+	  .flags = IEEE80211_RATE_MANDATORY_A }
+
+#define ATH12K_MAC_RATE_B(bps, code, code_short) \
+	{ .bitrate = (bps), .hw_value = (code), .hw_value_short = (code_short),\
+	  .flags = IEEE80211_RATE_SHORT_PREAMBLE }
+
 static struct ieee80211_rate ath12k_legacy_rates[] = {
 	{ .bitrate = 10,
 	  .hw_value = ATH12K_HW_RATE_CCK_LP_1M },
-	{ .bitrate = 20,
-	  .hw_value = ATH12K_HW_RATE_CCK_LP_2M,
-	  .hw_value_short = ATH12K_HW_RATE_CCK_SP_2M,
-	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-	{ .bitrate = 55,
-	  .hw_value = ATH12K_HW_RATE_CCK_LP_5_5M,
-	  .hw_value_short = ATH12K_HW_RATE_CCK_SP_5_5M,
-	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-	{ .bitrate = 110,
-	  .hw_value = ATH12K_HW_RATE_CCK_LP_11M,
-	  .hw_value_short = ATH12K_HW_RATE_CCK_SP_11M,
-	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
-
-	{ .bitrate = 60, .hw_value = ATH12K_HW_RATE_OFDM_6M },
-	{ .bitrate = 90, .hw_value = ATH12K_HW_RATE_OFDM_9M },
-	{ .bitrate = 120, .hw_value = ATH12K_HW_RATE_OFDM_12M },
-	{ .bitrate = 180, .hw_value = ATH12K_HW_RATE_OFDM_18M },
-	{ .bitrate = 240, .hw_value = ATH12K_HW_RATE_OFDM_24M },
-	{ .bitrate = 360, .hw_value = ATH12K_HW_RATE_OFDM_36M },
-	{ .bitrate = 480, .hw_value = ATH12K_HW_RATE_OFDM_48M },
-	{ .bitrate = 540, .hw_value = ATH12K_HW_RATE_OFDM_54M },
+	ATH12K_MAC_RATE_B(20, ATH12K_HW_RATE_CCK_LP_2M,
+			  ATH12K_HW_RATE_CCK_SP_2M),
+	ATH12K_MAC_RATE_B(55, ATH12K_HW_RATE_CCK_LP_5_5M,
+			  ATH12K_HW_RATE_CCK_SP_5_5M),
+	ATH12K_MAC_RATE_B(110, ATH12K_HW_RATE_CCK_LP_11M,
+			  ATH12K_HW_RATE_CCK_SP_11M),
+	ATH12K_MAC_RATE_A_M(60, ATH12K_HW_RATE_OFDM_6M),
+	ATH12K_MAC_RATE_A_M(90, ATH12K_HW_RATE_OFDM_9M),
+	ATH12K_MAC_RATE_A_M(120, ATH12K_HW_RATE_OFDM_12M),
+	ATH12K_MAC_RATE_A_M(180, ATH12K_HW_RATE_OFDM_18M),
+	ATH12K_MAC_RATE_A_M(240, ATH12K_HW_RATE_OFDM_24M),
+	ATH12K_MAC_RATE_A_M(360, ATH12K_HW_RATE_OFDM_36M),
+	ATH12K_MAC_RATE_A_M(480, ATH12K_HW_RATE_OFDM_48M),
+	ATH12K_MAC_RATE_A_M(540, ATH12K_HW_RATE_OFDM_54M),
 };
 
 static const int
@@ -732,10 +733,16 @@ u8 ath12k_mac_hw_rate_to_idx(const struct ieee80211_supported_band *sband,
 		if (ath12k_mac_bitrate_is_cck(rate->bitrate) != cck)
 			continue;
 
-		if (rate->hw_value == hw_rate)
+		/* To handle 802.11a PPDU type */
+		if ((!cck) && (rate->hw_value == hw_rate) &&
+		    (rate->flags & IEEE80211_RATE_MANDATORY_A))
 			return i;
+		/* To handle 802.11b short PPDU type */
 		else if (rate->flags & IEEE80211_RATE_SHORT_PREAMBLE &&
 			 rate->hw_value_short == hw_rate)
+			return i;
+		/* To handle 802.11b long PPDU type */
+		else if (rate->hw_value == hw_rate)
 			return i;
 	}
 
@@ -6786,6 +6793,8 @@ static void ath12k_mac_free_unassign_link_sta(struct ath12k_hw *ah,
 		return;
 
 	ahsta->links_map &= ~BIT(link_id);
+	ahsta->free_logical_link_idx_map |= BIT(arsta->link_idx);
+
 	rcu_assign_pointer(ahsta->link[link_id], NULL);
 	synchronize_rcu();
 
@@ -7104,6 +7113,7 @@ static int ath12k_mac_assign_link_sta(struct ath12k_hw *ah,
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(ahsta);
 	struct ieee80211_link_sta *link_sta;
 	struct ath12k_link_vif *arvif;
+	int link_idx;
 
 	lockdep_assert_wiphy(ah->hw->wiphy);
 
@@ -7122,8 +7132,16 @@ static int ath12k_mac_assign_link_sta(struct ath12k_hw *ah,
 
 	ether_addr_copy(arsta->addr, link_sta->addr);
 
-	/* logical index of the link sta in order of creation */
-	arsta->link_idx = ahsta->num_peer++;
+	if (!ahsta->free_logical_link_idx_map)
+		return -ENOSPC;
+
+	/*
+	 * Allocate a logical link index by selecting the first available bit
+	 * from the free logical index map
+	 */
+	link_idx = __ffs(ahsta->free_logical_link_idx_map);
+	ahsta->free_logical_link_idx_map &= ~BIT(link_idx);
+	arsta->link_idx = link_idx;
 
 	arsta->link_id = link_id;
 	ahsta->links_map |= BIT(arsta->link_id);
@@ -7632,6 +7650,7 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
 		memset(ahsta, 0, sizeof(*ahsta));
+		ahsta->free_logical_link_idx_map = U16_MAX;
 
 		arsta = &ahsta->deflink;
 
