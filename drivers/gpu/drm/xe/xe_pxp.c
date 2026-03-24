@@ -380,6 +380,18 @@ int xe_pxp_init(struct xe_device *xe)
 		return 0;
 	}
 
+	/*
+	 * On PTL, older GSC FWs have a bug that can cause them to crash during
+	 * PXP invalidation events, which leads to a complete loss of power
+	 * management on the media GT. Therefore, we can't use PXP on FWs that
+	 * have this bug, which was fixed in PTL GSC build 1396.
+	 */
+	if (xe->info.platform == XE_PANTHERLAKE &&
+	    gt->uc.gsc.fw.versions.found[XE_UC_FW_VER_RELEASE].build < 1396) {
+		drm_info(&xe->drm, "PXP requires PTL GSC build 1396 or newer\n");
+		return 0;
+	}
+
 	pxp = drmm_kzalloc(&xe->drm, sizeof(struct xe_pxp), GFP_KERNEL);
 	if (!pxp) {
 		err = -ENOMEM;
