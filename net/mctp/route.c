@@ -1037,6 +1037,13 @@ static int mctp_do_fragment_route(struct mctp_dst *dst, struct sk_buff *skb,
 		return -EMSGSIZE;
 	}
 
+	/* within MTU? avoid the copy, send original skb */
+	if (skb->len <= mtu) {
+		hdr->flags_seq_tag = MCTP_HDR_FLAG_SOM |
+			MCTP_HDR_FLAG_EOM | tag;
+		return dst->output(dst, skb);
+	}
+
 	/* keep same headroom as the original skb */
 	headroom = skb_headroom(skb);
 
@@ -1111,7 +1118,6 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	struct mctp_hdr *hdr;
 	unsigned long flags;
 	unsigned int netid;
-	unsigned int mtu;
 	mctp_eid_t saddr;
 	int rc;
 	u8 tag;
@@ -1133,7 +1139,7 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	netid = READ_ONCE(dst->dev->net);
 
 	if (rc)
-		goto out_release;
+		goto err_free;
 
 	if (req_tag & MCTP_TAG_OWNER) {
 		if (req_tag & MCTP_TAG_PREALLOC)
@@ -1145,7 +1151,7 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 
 		if (IS_ERR(key)) {
 			rc = PTR_ERR(key);
-			goto out_release;
+			goto err_free;
 		}
 		mctp_skb_set_flow(skb, key);
 		/* done with the key in this scope */
@@ -1170,20 +1176,10 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	hdr->dest = daddr;
 	hdr->src = saddr;
 
-	mtu = dst->mtu;
-
-	if (skb->len + sizeof(struct mctp_hdr) <= mtu) {
-		hdr->flags_seq_tag = MCTP_HDR_FLAG_SOM |
-			MCTP_HDR_FLAG_EOM | tag;
-		rc = dst->output(dst, skb);
-	} else {
-		rc = mctp_do_fragment_route(dst, skb, mtu, tag);
-	}
-
 	/* route output functions consume the skb, even on error */
-	skb = NULL;
+	return mctp_do_fragment_route(dst, skb, dst->mtu, tag);
 
-out_release:
+err_free:
 	kfree_skb(skb);
 	return rc;
 }

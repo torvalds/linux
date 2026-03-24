@@ -63,6 +63,10 @@ static void mctp_test_fragment(struct kunit *test)
 		if (!skb2)
 			break;
 
+		/* avoid copying single-skb messages */
+		if (first && last)
+			KUNIT_EXPECT_PTR_EQ(test, skb, skb2);
+
 		hdr2 = mctp_hdr(skb2);
 
 		tag_mask = MCTP_HDR_TAG_MASK | MCTP_HDR_FLAG_TO;
