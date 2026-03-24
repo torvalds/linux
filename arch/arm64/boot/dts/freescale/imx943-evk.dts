@@ -8,6 +8,12 @@
 #include "imx943.dtsi"
 #include <dt-bindings/usb/pd.h>
 
+#define BRD_SM_CTRL_BT_WAKE		0x8000  /*!< PCAL6416A-3 */
+#define BRD_SM_CTRL_SD3_WAKE		0x8001  /*!< PCAL6416A-4 */
+#define BRD_SM_CTRL_PCIE1_WAKE		0x8002  /*!< PCAL6416A-5 */
+#define BRD_SM_CTRL_PCIE2_WAKE		0x8003  /*!< PCAL6416A-6 */
+#define BRD_SM_CTRL_BUTTON		0x8004  /*!< PCAL6416A-7 */
+
 / {
 	compatible = "fsl,imx943-evk", "fsl,imx94";
 	model = "NXP i.MX943 EVK board";
@@ -876,6 +882,14 @@
 			IMX94_PAD_XSPI1_DQS__XSPI1_A_DQS	0x3fe
 		>;
 	};
+};
+
+&scmi_misc {
+	nxp,ctrl-ids = <BRD_SM_CTRL_SD3_WAKE		1
+			BRD_SM_CTRL_PCIE1_WAKE		1
+			BRD_SM_CTRL_BT_WAKE		1
+			BRD_SM_CTRL_PCIE2_WAKE		1
+			BRD_SM_CTRL_BUTTON		1>;
 };
 
 &usb2 {
