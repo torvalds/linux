@@ -295,8 +295,6 @@ static int initialize_super_block(struct vdo *vdo, struct vdo_super_block *super
  */
 static int __must_check read_geometry_block(struct vdo *vdo)
 {
-	struct vio *vio = &vdo->geometry_block.vio;
-	u8 *block = vdo->geometry_block.buffer;
 	int result;
 
 	/*
@@ -304,20 +302,12 @@ static int __must_check read_geometry_block(struct vdo *vdo)
 	 * bio_offset field is 0, so the fact that vio_reset_bio() will subtract that offset from
 	 * the supplied pbn is not a problem.
 	 */
-	result = vio_reset_bio(vio, (char *)block, NULL, REQ_OP_READ,
-			       VDO_GEOMETRY_BLOCK_LOCATION);
+	result = vdo_submit_metadata_vio_wait(&vdo->geometry_block.vio,
+					      VDO_GEOMETRY_BLOCK_LOCATION, REQ_OP_READ);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	bio_set_dev(vio->bio, vdo_get_backing_device(vdo));
-	submit_bio_wait(vio->bio);
-	result = blk_status_to_errno(vio->bio->bi_status);
-	if (result != 0) {
-		vdo_log_error_strerror(result, "synchronous read failed");
-		return -EIO;
-	}
-
-	return vdo_parse_geometry_block(block, &vdo->geometry);
+	return vdo_parse_geometry_block(vdo->geometry_block.buffer, &vdo->geometry);
 }
 
 static bool get_zone_thread_name(const thread_id_t thread_ids[], zone_count_t count,
