@@ -577,6 +577,9 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 		return host_bridge->align_resource(dev, res,
 				start, size, align);
 
+	if (res->flags & IORESOURCE_MEM)
+		return pci_align_resource(dev, res, empty_res, size, align);
+
 	return start;
 }
 

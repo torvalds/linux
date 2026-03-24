@@ -201,6 +201,7 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				       resource_size_t size,
 				       resource_size_t alignment)
 {
+	struct pci_dev *dev = data;
 	resource_size_t align, start = res->start;
 
 	DBG_RES("pcibios_align_resource(%s, (%p) [%lx,%lx]/%x, 0x%lx, 0x%lx)\n",
@@ -212,6 +213,8 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 	align = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
 	if (align > alignment)
 		start = ALIGN(start, align);
+	else
+		start = pci_align_resource(dev, res, empty_res, size, alignment);
 
 	return start;
 }

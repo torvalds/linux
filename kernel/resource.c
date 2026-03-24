@@ -766,7 +766,7 @@ static int __find_resource_space(struct resource *root, struct resource *old,
 			}
 			alloc.end = alloc.start + size - 1;
 			if (alloc.start <= alloc.end &&
-			    __resource_contains_unbound(&avail, &alloc)) {
+			    __resource_contains_unbound(&full_avail, &alloc)) {
 				new->start = alloc.start;
 				new->end = alloc.end;
 				return 0;
