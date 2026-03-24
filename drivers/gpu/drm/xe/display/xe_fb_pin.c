@@ -49,33 +49,44 @@ write_dpt_rotated(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs, u32 bo_
 	*dpt_ofs = ALIGN(*dpt_ofs, 4096);
 }
 
-static void
-write_dpt_remapped_tiled(struct xe_bo *bo, struct iosys_map *map, u32 *dpt_ofs,
-			 u32 bo_ofs, u32 width, u32 height, u32 src_stride,
-			 u32 dst_stride)
+static unsigned int
+write_dpt_padding(struct iosys_map *map, unsigned int dest, unsigned int pad)
+{
+	/* The DE ignores the PTEs for the padding tiles */
+	return dest + pad * sizeof(u64);
+}
+
+static unsigned int
+write_dpt_remapped_tiled(struct xe_bo *bo, struct iosys_map *map,
+			 unsigned int dest,
+			 const struct intel_remapped_plane_info *plane)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
-	u32 column, row;
-	u64 pte = xe_ggtt_encode_pte_flags(ggtt, bo, xe->pat.idx[XE_CACHE_NONE]);
+	const u64 pte = xe_ggtt_encode_pte_flags(ggtt, bo,
+						 xe->pat.idx[XE_CACHE_NONE]);
+	unsigned int offset, column, row;
 
-	for (row = 0; row < height; row++) {
-		u32 src_idx = src_stride * row + bo_ofs;
+	for (row = 0; row < plane->height; row++) {
+		offset = (plane->offset + plane->src_stride * row) *
+			 XE_PAGE_SIZE;
 
-		for (column = 0; column < width; column++) {
-			u64 addr = xe_bo_addr(bo, src_idx * XE_PAGE_SIZE, XE_PAGE_SIZE);
-			iosys_map_wr(map, *dpt_ofs, u64, pte | addr);
+		for (column = 0; column < plane->width; column++) {
+			u64 addr = xe_bo_addr(bo, offset, XE_PAGE_SIZE);
 
-			*dpt_ofs += 8;
-			src_idx++;
+			iosys_map_wr(map, dest, u64, addr | pte);
+			dest += sizeof(u64);
+			offset += XE_PAGE_SIZE;
 		}
 
-		/* The DE ignores the PTEs for the padding tiles */
-		*dpt_ofs += (dst_stride - width) * 8;
+		dest = write_dpt_padding(map, dest,
+					 plane->dst_stride - plane->width);
 	}
 
 	/* Align to next page */
-	*dpt_ofs = ALIGN(*dpt_ofs, 4096);
+	dest = ALIGN(dest, XE_PAGE_SIZE);
+
+	return dest;
 }
 
 static void
@@ -83,15 +94,14 @@ write_dpt_remapped(struct xe_bo *bo,
 		   const struct intel_remapped_info *remap_info,
 		   struct iosys_map *map)
 {
-	u32 i, dpt_ofs = 0;
+	unsigned int i, dest = 0;
 
-	for (i = 0; i < ARRAY_SIZE(remap_info->plane); i++)
-		write_dpt_remapped_tiled(bo, map, &dpt_ofs,
-					 remap_info->plane[i].offset,
-					 remap_info->plane[i].width,
-					 remap_info->plane[i].height,
-					 remap_info->plane[i].src_stride,
-					 sremap_info->plane[i].dst_stride);
+	for (i = 0; i < ARRAY_SIZE(remap_info->plane); i++) {
+		const struct intel_remapped_plane_info *plane =
+				&remap_info->plane[i];
+
+		dest = write_dpt_remapped_tiled(bo, map, dest, plane);
+	}
 }
 
 static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
