@@ -30,16 +30,14 @@ static struct bpf_program *load_prog(char *file, char *name, struct inst *inst)
 	return prog;
 }
 
-/* TODO: use different target function to run in concurrent mode */
-void serial_test_trampoline_count(void)
+void test_trampoline_count(void)
 {
 	char *file = "test_trampoline_count.bpf.o";
 	char *const progs[] = { "fentry_test", "fmod_ret_test", "fexit_test" };
-	int bpf_max_tramp_links, err, i, prog_fd;
+	int bpf_max_tramp_links, i;
 	struct bpf_program *prog;
 	struct bpf_link *link;
 	struct inst *inst;
-	LIBBPF_OPTS(bpf_test_run_opts, opts);
 
 	bpf_max_tramp_links = get_bpf_max_tramp_links();
 	if (!ASSERT_GE(bpf_max_tramp_links, 1, "bpf_max_tramp_links"))
@@ -80,16 +78,7 @@ void serial_test_trampoline_count(void)
 		goto cleanup;
 
 	/* and finally execute the probe */
-	prog_fd = bpf_program__fd(prog);
-	if (!ASSERT_GE(prog_fd, 0, "bpf_program__fd"))
-		goto cleanup;
-
-	err = bpf_prog_test_run_opts(prog_fd, &opts);
-	if (!ASSERT_OK(err, "bpf_prog_test_run_opts"))
-		goto cleanup;
-
-	ASSERT_EQ(opts.retval & 0xffff, 33, "bpf_modify_return_test.result");
-	ASSERT_EQ(opts.retval >> 16, 2, "bpf_modify_return_test.side_effect");
+	ASSERT_OK(trigger_module_test_read(256), "trigger_module_test_read");
 
 cleanup:
 	for (; i >= 0; i--) {
