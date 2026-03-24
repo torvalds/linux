@@ -83,9 +83,6 @@ write_dpt_remapped_tiled(struct xe_bo *bo, struct iosys_map *map,
 					 plane->dst_stride - plane->width);
 	}
 
-	/* Align to next page */
-	dest = ALIGN(dest, XE_PAGE_SIZE);
-
 	return dest;
 }
 
@@ -99,6 +96,18 @@ write_dpt_remapped(struct xe_bo *bo,
 	for (i = 0; i < ARRAY_SIZE(remap_info->plane); i++) {
 		const struct intel_remapped_plane_info *plane =
 				&remap_info->plane[i];
+
+		if (!plane->linear && !plane->width && !plane->height)
+			continue;
+
+		if (dest && remap_info->plane_alignment) {
+			const unsigned int index = dest / sizeof(u64);
+			const unsigned int pad =
+				ALIGN(index, remap_info->plane_alignment) -
+				index;
+
+			dest = write_dpt_padding(map, dest, pad);
+		}
 
 		dest = write_dpt_remapped_tiled(bo, map, dest, plane);
 	}
