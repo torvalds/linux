@@ -97,7 +97,7 @@ struct em28xx_dvb {
 	struct semaphore      pll_mutex;
 	bool			dont_attach_fe1;
 	int			lna_gpio;
-	struct i2c_client	*i2c_client_demod;
+	struct i2c_client	*i2c_client_demod[2];
 	struct i2c_client	*i2c_client_tuner;
 	struct i2c_client	*i2c_client_sec;
 };
@@ -854,14 +854,14 @@ static void px_bcud_init(struct em28xx *dev)
 	};
 	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x46);
 	/* sleeping ISDB-T */
-	dev->dvb->i2c_client_demod->addr = 0x14;
+	dev->dvb->i2c_client_demod[0]->addr = 0x14;
 	for (i = 0; i < ARRAY_SIZE(regs1); i++)
-		i2c_master_send(dev->dvb->i2c_client_demod,
+		i2c_master_send(dev->dvb->i2c_client_demod[0],
 				regs1[i].r, regs1[i].len);
 	/* sleeping ISDB-S */
-	dev->dvb->i2c_client_demod->addr = 0x15;
+	dev->dvb->i2c_client_demod[0]->addr = 0x15;
 	for (i = 0; i < ARRAY_SIZE(regs2); i++)
-		i2c_master_send(dev->dvb->i2c_client_demod, regs2[i].r,
+		i2c_master_send(dev->dvb->i2c_client_demod[0], regs2[i].r,
 				regs2[i].len);
 	for (i = 0; i < ARRAY_SIZE(gpio); i++) {
 		em28xx_write_reg_bits(dev, gpio[i].reg, gpio[i].val,
@@ -1155,13 +1155,13 @@ static int em28174_dvb_init_pctv_460e(struct em28xx *dev)
 	tda10071_pdata.pll_multiplier = 20;
 	tda10071_pdata.tuner_i2c_addr = 0x14;
 
-	dvb->i2c_client_demod = dvb_module_probe("tda10071", "tda10071_cx24118",
+	dvb->i2c_client_demod[0] = dvb_module_probe("tda10071", "tda10071_cx24118",
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x55, &tda10071_pdata);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
-	dvb->fe[0] = tda10071_pdata.get_dvb_frontend(dvb->i2c_client_demod);
+	dvb->fe[0] = tda10071_pdata.get_dvb_frontend(dvb->i2c_client_demod[0]);
 
 	/* attach SEC */
 	a8293_pdata.dvb_frontend = dvb->fe[0];
@@ -1170,7 +1170,7 @@ static int em28174_dvb_init_pctv_460e(struct em28xx *dev)
 					       &dev->i2c_adap[dev->def_i2c_bus],
 					       0x08, &a8293_pdata);
 	if (!dvb->i2c_client_sec) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1193,14 +1193,14 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 	m88ds3103_pdata.ts_clk_pol = 1;
 	m88ds3103_pdata.agc = 0x99;
 
-	dvb->i2c_client_demod = dvb_module_probe("m88ds3103", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("m88ds3103", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x68, &m88ds3103_pdata);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
-	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod);
-	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod);
+	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod[0]);
+	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod[0]);
 
 	/* attach tuner */
 	ts2020_config.fe = dvb->fe[0];
@@ -1209,7 +1209,7 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 						 i2c_adapter,
 						 0x60, &ts2020_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1230,7 +1230,7 @@ static int em28178_dvb_init_pctv_461e(struct em28xx *dev)
 					       0x08, &a8293_pdata);
 	if (!dvb->i2c_client_sec) {
 		dvb_module_release(dvb->i2c_client_tuner);
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1254,15 +1254,15 @@ static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
 	m88ds3103_pdata.agc = 0x99;
 	m88ds3103_pdata.agc_inv = 0;
 	m88ds3103_pdata.spec_inv = 0;
-	dvb->i2c_client_demod = dvb_module_probe("m88ds3103", "m88ds3103b",
+	dvb->i2c_client_demod[0] = dvb_module_probe("m88ds3103", "m88ds3103b",
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x6a, &m88ds3103_pdata);
 
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
-	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod);
-	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod);
+	dvb->fe[0] = m88ds3103_pdata.get_dvb_frontend(dvb->i2c_client_demod[0]);
+	i2c_adapter = m88ds3103_pdata.get_i2c_adapter(dvb->i2c_client_demod[0]);
 
 	/* attach tuner */
 	ts2020_config.fe = dvb->fe[0];
@@ -1270,7 +1270,7 @@ static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
 						 i2c_adapter,
 						 0x60, &ts2020_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1285,7 +1285,7 @@ static int em28178_dvb_init_pctv_461e_v2(struct em28xx *dev)
 					       0x08, &a8293_pdata);
 	if (!dvb->i2c_client_sec) {
 		dvb_module_release(dvb->i2c_client_tuner);
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1305,10 +1305,10 @@ static int em28178_dvb_init_pctv_292e(struct em28xx *dev)
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
 	si2168_config.spectral_inversion = true;
 
-	dvb->i2c_client_demod = dvb_module_probe("si2168", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("si2168", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x64, &si2168_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	/* attach tuner */
@@ -1321,7 +1321,7 @@ static int em28178_dvb_init_pctv_292e(struct em28xx *dev)
 						 adapter,
 						 0x60, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 	dvb->fe[0]->ops.set_lna = em28xx_pctv_292e_set_lna;
@@ -1341,10 +1341,10 @@ static int em28178_dvb_init_terratec_t2_stick_hd(struct em28xx *dev)
 	si2168_config.fe = &dvb->fe[0];
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
 
-	dvb->i2c_client_demod = dvb_module_probe("si2168", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("si2168", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x64, &si2168_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	/* attach tuner */
@@ -1358,7 +1358,7 @@ static int em28178_dvb_init_terratec_t2_stick_hd(struct em28xx *dev)
 						 adapter,
 						 0x60, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1372,10 +1372,10 @@ static int em28178_dvb_init_plex_px_bcud(struct em28xx *dev)
 	struct qm1d1c0042_config qm1d1c0042_config = {};
 
 	/* attach demod */
-	dvb->i2c_client_demod = dvb_module_probe("tc90522", "tc90522sat",
+	dvb->i2c_client_demod[0] = dvb_module_probe("tc90522", "tc90522sat",
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 0x15, &tc90522_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	/* attach tuner */
@@ -1386,7 +1386,7 @@ static int em28178_dvb_init_plex_px_bcud(struct em28xx *dev)
 						 tc90522_config.tuner_i2c,
 						 0x61, &qm1d1c0042_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1411,10 +1411,10 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_dvb(struct em28xx *dev)
 	si2168_config.spectral_inversion = true;
 	addr = (dev->ts == PRIMARY_TS) ? 0x64 : 0x67;
 
-	dvb->i2c_client_demod = dvb_module_probe("si2168", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("si2168", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 addr, &si2168_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	/* attach tuner */
@@ -1430,7 +1430,7 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_dvb(struct em28xx *dev)
 						 adapter,
 						 addr, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1451,10 +1451,10 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_01595(struct em28xx *dev)
 	lgdt3306a_config.i2c_adapter = &adapter;
 	addr = (dev->ts == PRIMARY_TS) ? 0x59 : 0x0e;
 
-	dvb->i2c_client_demod = dvb_module_probe("lgdt3306a", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("lgdt3306a", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 addr, &lgdt3306a_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	/* attach tuner */
@@ -1470,7 +1470,7 @@ static int em28174_dvb_init_hauppauge_wintv_dualhd_01595(struct em28xx *dev)
 						 adapter,
 						 addr, &si2157_config);
 	if (!dvb->i2c_client_tuner) {
-		dvb_module_release(dvb->i2c_client_demod);
+		dvb_module_release(dvb->i2c_client_demod[0]);
 		return -ENODEV;
 	}
 
@@ -1488,10 +1488,10 @@ static int em2874_dvb_init_hauppauge_usb_quadhd(struct em28xx *dev)
 	mxl692_config.fe = &dvb->fe[0];
 	addr = (dev->ts == PRIMARY_TS) ? 0x60 : 0x63;
 
-	dvb->i2c_client_demod = dvb_module_probe("mxl692", NULL,
+	dvb->i2c_client_demod[0] = dvb_module_probe("mxl692", NULL,
 						 &dev->i2c_adap[dev->def_i2c_bus],
 						 addr, &mxl692_config);
-	if (!dvb->i2c_client_demod)
+	if (!dvb->i2c_client_demod[0])
 		return -ENODEV;
 
 	return 0;
@@ -1522,6 +1522,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	dev->dvb = dvb;
 	dvb->fe[0] = NULL;
 	dvb->fe[1] = NULL;
+	dvb->i2c_client_demod[0] = NULL;
+	dvb->i2c_client_demod[1] = NULL;
 
 	/* pre-allocate DVB usb transfer buffers */
 	if (dev->dvb_xfer_bulk) {
@@ -2083,7 +2085,8 @@ static int em28xx_dvb_fini(struct em28xx *dev)
 	/* release I2C module bindings */
 	dvb_module_release(dvb->i2c_client_sec);
 	dvb_module_release(dvb->i2c_client_tuner);
-	dvb_module_release(dvb->i2c_client_demod);
+	dvb_module_release(dvb->i2c_client_demod[1]);
+	dvb_module_release(dvb->i2c_client_demod[0]);
 
 	kfree(dvb);
 	dev->dvb = NULL;
