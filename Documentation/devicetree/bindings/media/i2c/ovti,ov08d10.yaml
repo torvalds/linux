@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/ovti,ov08d10.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Omnivision OV08D10 1/4-Inch 8MP CMOS color image sensor
+
+maintainers:
+  - Matthias Fend <matthias.fend@emfend.at>
+
+description:
+  The Omnivision OV08D10 is a 1/4-Inch 8MP CMOS color image sensor with an
+  active array size of 3280 x 2464. It is programmable through I2C
+  interface. Image data is transmitted via MIPI CSI-2 using 2 lanes.
+
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
+properties:
+  compatible:
+    const: ovti,ov08d10
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: MCLK input clock (6 - 27 MHz)
+    maxItems: 1
+
+  reset-gpios:
+    description: Active low XSHUTDN pin
+    maxItems: 1
+
+  dovdd-supply:
+    description: IO power supply (1.8V)
+
+  avdd-supply:
+    description: Analog power supply (2.8V)
+
+  dvdd-supply:
+    description: Core power supply (1.2V)
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+    required:
+      - endpoint
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/media/video-interfaces.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sensor@36 {
+            compatible = "ovti,ov08d10";
+            reg = <0x36>;
+
+            clocks = <&ov08d10_clk>;
+
+            dovdd-supply = <&ov08d10_vdddo_1v8>;
+            avdd-supply = <&ov08d10_vdda_2v8>;
+            dvdd-supply = <&ov08d10_vddd_1v2>;
+
+            orientation = <2>;
+            rotation = <0>;
+
+            reset-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+
+            port {
+                ov08d10_output: endpoint {
+                    data-lanes = <1 2>;
+                    link-frequencies = /bits/ 64 <360000000 720000000>;
+                    remote-endpoint = <&csi_input>;
+                };
+            };
+        };
+    };
+...
