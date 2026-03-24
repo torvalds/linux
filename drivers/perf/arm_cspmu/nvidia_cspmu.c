@@ -8,6 +8,7 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/topology.h>
 
 #include "arm_cspmu.h"
@@ -27,6 +28,19 @@
 #define NV_UCF_FILTER_SRC            GENMASK_ULL(2, 0)
 #define NV_UCF_FILTER_DST            GENMASK_ULL(11, 8)
 #define NV_UCF_FILTER_DEFAULT        (NV_UCF_FILTER_SRC | NV_UCF_FILTER_DST)
+
+#define NV_PCIE_V2_PORT_COUNT        8ULL
+#define NV_PCIE_V2_FILTER_ID_MASK    GENMASK_ULL(24, 0)
+#define NV_PCIE_V2_FILTER_PORT       GENMASK_ULL(NV_PCIE_V2_PORT_COUNT - 1, 0)
+#define NV_PCIE_V2_FILTER_BDF_VAL    GENMASK_ULL(23, NV_PCIE_V2_PORT_COUNT)
+#define NV_PCIE_V2_FILTER_BDF_EN     BIT(24)
+#define NV_PCIE_V2_FILTER_BDF_VAL_EN GENMASK_ULL(24, NV_PCIE_V2_PORT_COUNT)
+#define NV_PCIE_V2_FILTER_DEFAULT    NV_PCIE_V2_FILTER_PORT
+
+#define NV_PCIE_V2_DST_COUNT         5ULL
+#define NV_PCIE_V2_FILTER2_ID_MASK   GENMASK_ULL(4, 0)
+#define NV_PCIE_V2_FILTER2_DST       GENMASK_ULL(NV_PCIE_V2_DST_COUNT - 1, 0)
+#define NV_PCIE_V2_FILTER2_DEFAULT   NV_PCIE_V2_FILTER2_DST
 
 #define NV_GENERIC_FILTER_ID_MASK    GENMASK_ULL(31, 0)
 
@@ -161,6 +175,16 @@ static struct attribute *ucf_pmu_event_attrs[] = {
 	NULL
 };
 
+static struct attribute *pcie_v2_pmu_event_attrs[] = {
+	ARM_CSPMU_EVENT_ATTR(rd_bytes,		0x0),
+	ARM_CSPMU_EVENT_ATTR(wr_bytes,		0x1),
+	ARM_CSPMU_EVENT_ATTR(rd_req,		0x2),
+	ARM_CSPMU_EVENT_ATTR(wr_req,		0x3),
+	ARM_CSPMU_EVENT_ATTR(rd_cum_outs,	0x4),
+	ARM_CSPMU_EVENT_ATTR(cycles, ARM_CSPMU_EVT_CYCLES_DEFAULT),
+	NULL
+};
+
 static struct attribute *generic_pmu_event_attrs[] = {
 	ARM_CSPMU_EVENT_ATTR(cycles, ARM_CSPMU_EVT_CYCLES_DEFAULT),
 	NULL,
@@ -201,6 +225,19 @@ static struct attribute *ucf_pmu_format_attrs[] = {
 	NULL
 };
 
+static struct attribute *pcie_v2_pmu_format_attrs[] = {
+	ARM_CSPMU_FORMAT_EVENT_ATTR,
+	ARM_CSPMU_FORMAT_ATTR(src_rp_mask, "config1:0-7"),
+	ARM_CSPMU_FORMAT_ATTR(src_bdf, "config1:8-23"),
+	ARM_CSPMU_FORMAT_ATTR(src_bdf_en, "config1:24"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_cmem, "config2:0"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_gmem, "config2:1"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_pcie_p2p, "config2:2"),
+	ARM_CSPMU_FORMAT_ATTR(dst_loc_pcie_cxl, "config2:3"),
+	ARM_CSPMU_FORMAT_ATTR(dst_rem, "config2:4"),
+	NULL
+};
+
 static struct attribute *generic_pmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
 	ARM_CSPMU_FORMAT_FILTER_ATTR,
@@ -231,6 +268,32 @@ nv_cspmu_get_name(const struct arm_cspmu *cspmu)
 
 	return ctx->name;
 }
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_ARM64)
+static int nv_cspmu_get_inst_id(const struct arm_cspmu *cspmu, u32 *id)
+{
+	struct fwnode_handle *fwnode;
+	struct acpi_device *adev;
+	int ret;
+
+	adev = arm_cspmu_acpi_dev_get(cspmu);
+	if (!adev)
+		return -ENODEV;
+
+	fwnode = acpi_fwnode_handle(adev);
+	ret = fwnode_property_read_u32(fwnode, "instance_id", id);
+	if (ret)
+		dev_err(cspmu->dev, "Failed to get instance ID\n");
+
+	acpi_dev_put(adev);
+	return ret;
+}
+#else
+static int nv_cspmu_get_inst_id(const struct arm_cspmu *cspmu, u32 *id)
+{
+	return -EINVAL;
+}
+#endif
 
 static u32 nv_cspmu_event_filter(const struct perf_event *event)
 {
@@ -277,6 +340,20 @@ static void nv_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
 	}
 }
 
+static void nv_cspmu_reset_ev_filter(struct arm_cspmu *cspmu,
+				     const struct perf_event *event)
+{
+	const struct nv_cspmu_ctx *ctx =
+		to_nv_cspmu_ctx(to_arm_cspmu(event->pmu));
+	const u32 offset = 4 * event->hw.idx;
+
+	if (ctx->get_filter)
+		writel(0, cspmu->base0 + PMEVFILTR + offset);
+
+	if (ctx->get_filter2)
+		writel(0, cspmu->base0 + PMEVFILT2R + offset);
+}
+
 static void nv_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
 				   const struct perf_event *event)
 {
@@ -307,9 +384,103 @@ static u32 ucf_pmu_event_filter(const struct perf_event *event)
 	return ret;
 }
 
+static u32 pcie_v2_pmu_bdf_val_en(u32 filter)
+{
+	const u32 bdf_en = FIELD_GET(NV_PCIE_V2_FILTER_BDF_EN, filter);
+
+	/* Returns both BDF value and enable bit if BDF filtering is enabled. */
+	if (bdf_en)
+		return FIELD_GET(NV_PCIE_V2_FILTER_BDF_VAL_EN, filter);
+
+	/* Ignore the BDF value if BDF filter is not enabled. */
+	return 0;
+}
+
+static u32 pcie_v2_pmu_event_filter(const struct perf_event *event)
+{
+	u32 filter, lead_filter, lead_bdf;
+	struct perf_event *leader;
+	const struct nv_cspmu_ctx *ctx =
+		to_nv_cspmu_ctx(to_arm_cspmu(event->pmu));
+
+	filter = event->attr.config1 & ctx->filter_mask;
+	if (filter != 0)
+		return filter;
+
+	leader = event->group_leader;
+
+	/* Use leader's filter value if its BDF filtering is enabled. */
+	if (event != leader) {
+		lead_filter = pcie_v2_pmu_event_filter(leader);
+		lead_bdf = pcie_v2_pmu_bdf_val_en(lead_filter);
+		if (lead_bdf != 0)
+			return lead_filter;
+	}
+
+	/* Otherwise, return default filter value. */
+	return ctx->filter_default_val;
+}
+
+static int pcie_v2_pmu_validate_event(struct arm_cspmu *cspmu,
+				   struct perf_event *new_ev)
+{
+	/*
+	 * Make sure the events are using same BDF filter since the PCIE-SRC PMU
+	 * only supports one common BDF filter setting for all of the counters.
+	 */
+
+	int idx;
+	u32 new_filter, new_rp, new_bdf, new_lead_filter, new_lead_bdf;
+	struct perf_event *new_leader;
+
+	if (cspmu->impl.ops.is_cycle_counter_event(new_ev))
+		return 0;
+
+	new_leader = new_ev->group_leader;
+
+	new_filter = pcie_v2_pmu_event_filter(new_ev);
+	new_lead_filter = pcie_v2_pmu_event_filter(new_leader);
+
+	new_bdf = pcie_v2_pmu_bdf_val_en(new_filter);
+	new_lead_bdf = pcie_v2_pmu_bdf_val_en(new_lead_filter);
+
+	new_rp = FIELD_GET(NV_PCIE_V2_FILTER_PORT, new_filter);
+
+	if (new_rp != 0 && new_bdf != 0) {
+		dev_err(cspmu->dev,
+			"RP and BDF filtering are mutually exclusive\n");
+		return -EINVAL;
+	}
+
+	if (new_bdf != new_lead_bdf) {
+		dev_err(cspmu->dev,
+			"sibling and leader BDF value should be equal\n");
+		return -EINVAL;
+	}
+
+	/* Compare BDF filter on existing events. */
+	idx = find_first_bit(cspmu->hw_events.used_ctrs,
+			     cspmu->cycle_counter_logical_idx);
+
+	if (idx != cspmu->cycle_counter_logical_idx) {
+		struct perf_event *leader = cspmu->hw_events.events[idx]->group_leader;
+
+		const u32 lead_filter = pcie_v2_pmu_event_filter(leader);
+		const u32 lead_bdf = pcie_v2_pmu_bdf_val_en(lead_filter);
+
+		if (new_lead_bdf != lead_bdf) {
+			dev_err(cspmu->dev, "only one BDF value is supported\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 enum nv_cspmu_name_fmt {
 	NAME_FMT_GENERIC,
-	NAME_FMT_SOCKET
+	NAME_FMT_SOCKET,
+	NAME_FMT_SOCKET_INST,
 };
 
 struct nv_cspmu_match {
@@ -428,6 +599,26 @@ static const struct nv_cspmu_match nv_cspmu_match[] = {
 	  },
 	},
 	{
+	  .prodid = 0x10301000,
+	  .prodid_mask = NV_PRODID_MASK,
+	  .name_pattern = "nvidia_pcie_pmu_%u_rc_%u",
+	  .name_fmt = NAME_FMT_SOCKET_INST,
+	  .template_ctx = {
+		.event_attr = pcie_v2_pmu_event_attrs,
+		.format_attr = pcie_v2_pmu_format_attrs,
+		.filter_mask = NV_PCIE_V2_FILTER_ID_MASK,
+		.filter_default_val = NV_PCIE_V2_FILTER_DEFAULT,
+		.filter2_mask = NV_PCIE_V2_FILTER2_ID_MASK,
+		.filter2_default_val = NV_PCIE_V2_FILTER2_DEFAULT,
+		.get_filter = pcie_v2_pmu_event_filter,
+		.get_filter2 = nv_cspmu_event_filter2,
+	  },
+	  .ops = {
+		.validate_event = pcie_v2_pmu_validate_event,
+		.reset_ev_filter = nv_cspmu_reset_ev_filter,
+	  }
+	},
+	{
 	  .prodid = 0,
 	  .prodid_mask = 0,
 	  .name_pattern = "nvidia_uncore_pmu_%u",
@@ -450,7 +641,7 @@ static const struct nv_cspmu_match nv_cspmu_match[] = {
 static char *nv_cspmu_format_name(const struct arm_cspmu *cspmu,
 				  const struct nv_cspmu_match *match)
 {
-	char *name;
+	char *name = NULL;
 	struct device *dev = cspmu->dev;
 
 	static atomic_t pmu_generic_idx = {0};
@@ -464,12 +655,19 @@ static char *nv_cspmu_format_name(const struct arm_cspmu *cspmu,
 				       socket);
 		break;
 	}
+	case NAME_FMT_SOCKET_INST: {
+		const int cpu = cpumask_first(&cspmu->associated_cpus);
+		const int socket = cpu_to_node(cpu);
+		u32 inst_id;
+
+		if (!nv_cspmu_get_inst_id(cspmu, &inst_id))
+			name = devm_kasprintf(dev, GFP_KERNEL,
+					match->name_pattern, socket, inst_id);
+		break;
+	}
 	case NAME_FMT_GENERIC:
 		name = devm_kasprintf(dev, GFP_KERNEL, match->name_pattern,
 				       atomic_fetch_inc(&pmu_generic_idx));
-		break;
-	default:
-		name = NULL;
 		break;
 	}
 
@@ -511,8 +709,10 @@ static int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 	cspmu->impl.ctx = ctx;
 
 	/* NVIDIA specific callbacks. */
+	SET_OP(validate_event, impl_ops, match, NULL);
 	SET_OP(set_cc_filter, impl_ops, match, nv_cspmu_set_cc_filter);
 	SET_OP(set_ev_filter, impl_ops, match, nv_cspmu_set_ev_filter);
+	SET_OP(reset_ev_filter, impl_ops, match, NULL);
 	SET_OP(get_event_attrs, impl_ops, match, nv_cspmu_get_event_attrs);
 	SET_OP(get_format_attrs, impl_ops, match, nv_cspmu_get_format_attrs);
 	SET_OP(get_name, impl_ops, match, nv_cspmu_get_name);
