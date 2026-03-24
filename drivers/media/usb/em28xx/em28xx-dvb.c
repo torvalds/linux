@@ -1497,6 +1497,194 @@ static int em2874_dvb_init_hauppauge_usb_quadhd(struct em28xx *dev)
 	return 0;
 }
 
+static int em2828X_dvb_init_hauppauge_wintv_935_v2(struct em28xx *dev)
+{
+	struct em28xx_dvb *dvb = dev->dvb;
+	struct i2c_adapter *adapter;
+	struct si2168_config si2168_config = {};
+	struct si2157_config si2157_config = {};
+
+	/* Hauppauge HVR-9x5 V2 */
+	static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_init[] = {
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	0,		EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{0x90,				EM_GPIO_5,	EM_GPIO_5,	50},
+		{	-1,			-1,		-1,	-1},
+	};
+
+	em28xx_gpio_set(dev, hauppauge_hvr_9x5_v2_init);
+
+	/* attach demod */
+	si2168_config.i2c_adapter = &adapter;
+	si2168_config.fe = &dvb->fe[0];
+	si2168_config.ts_mode = SI2168_TS_SERIAL;
+	si2168_config.ts_clock_inv = true;
+
+	dvb->i2c_client_demod[0] = dvb_module_probe("si2168", NULL,
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x64, &si2168_config);
+	if (!dvb->i2c_client_demod[0]) {
+		dev_err(&dev->intf->dev, "si2168 demod initialization failure\n");
+		return -ENODEV;
+	}
+
+	/* attach tuner */
+	si2157_config.fe = dvb->fe[0];
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	si2157_config.mdev = dev->media_dev;
+#endif
+	si2157_config.if_port = 0;
+	si2157_config.inversion = true;
+	si2157_config.dont_load_firmware = 1;
+
+	dvb->i2c_client_tuner = dvb_module_probe("si2157", "si2177",
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x60, &si2157_config);
+	if (!dvb->i2c_client_tuner) {
+		dev_err(&dev->intf->dev, "si2157 tuner initialization failure\n");
+		dvb_module_release(dvb->i2c_client_demod[0]);
+		return -ENODEV;
+	}
+
+	dev->em28xx_set_analog_freq = em28xx_set_analog_freq;
+
+	return 0;
+}
+
+static int em2828X_dvb_init_hauppauge_wintv_955_v2(struct em28xx *dev)
+{
+	struct em28xx_dvb *dvb = dev->dvb;
+	struct i2c_adapter *adapter;
+	struct lgdt3306a_config lgdt3306a_config = {};
+	struct si2157_config si2157_config = {};
+
+	/* Hauppauge HVR-9x5 V2 */
+	static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_init[] = {
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	0,		EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{0x90,				EM_GPIO_5,	EM_GPIO_5,	50},
+		{	-1,			-1,		-1,	-1},
+	};
+
+	em28xx_gpio_set(dev, hauppauge_hvr_9x5_v2_init);
+
+	/* attach demod */
+	lgdt3306a_config = hauppauge_01595_lgdt3306a_config;
+	lgdt3306a_config.fe = &dvb->fe[0];
+	lgdt3306a_config.i2c_adapter = &adapter;
+
+	dvb->i2c_client_demod[0] = dvb_module_probe("lgdt3306a", NULL,
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x59, &lgdt3306a_config);
+	if (!dvb->i2c_client_demod[0]) {
+		dev_err(&dev->intf->dev, "lgdt3306a demod initialization failure\n");
+		return -ENODEV;
+	}
+
+	/* attach tuner */
+	si2157_config.fe = dvb->fe[0];
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	si2157_config.mdev = dev->media_dev;
+#endif
+	si2157_config.if_port = 0;
+	si2157_config.inversion = true;
+	si2157_config.dont_load_firmware = 1;
+
+	dvb->i2c_client_tuner = dvb_module_probe("si2157", "si2177",
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x60, &si2157_config);
+	if (!dvb->i2c_client_tuner) {
+		dev_err(&dev->intf->dev, "si2157 tuner initialization failure\n");
+		dvb_module_release(dvb->i2c_client_demod[0]);
+		return -ENODEV;
+	}
+
+	dev->em28xx_set_analog_freq = em28xx_set_analog_freq;
+
+	return 0;
+}
+
+static int em2828X_dvb_init_hauppauge_wintv_975_v2(struct em28xx *dev)
+{
+	struct em28xx_dvb *dvb = dev->dvb;
+	struct i2c_adapter *adapter;
+	struct i2c_adapter *adapter2;
+	struct lgdt3306a_config lgdt3306a_config = {};
+	struct si2168_config si2168_config = {};
+	struct si2157_config si2157_config = {};
+
+	/* Hauppauge HVR-9x5 V2 */
+	static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_init[] = {
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	0,		EM_GPIO_6,	50},
+		{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_6,	EM_GPIO_6,	50},
+		{0x90,				EM_GPIO_5,	EM_GPIO_5,	50},
+		{-1,				-1,		-1,		-1},
+	};
+
+	em28xx_gpio_set(dev, hauppauge_hvr_9x5_v2_init);
+
+	/* attach demod */
+	lgdt3306a_config = hauppauge_01595_lgdt3306a_config;
+	lgdt3306a_config.fe = &dvb->fe[0];
+	lgdt3306a_config.i2c_adapter = &adapter;
+
+	dvb->i2c_client_demod[0] = dvb_module_probe("lgdt3306a", NULL,
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x59, &lgdt3306a_config);
+	if (!dvb->i2c_client_demod[0]) {
+		dev_err(&dev->intf->dev, "lgdt3306a demod initialization failure\n");
+		return -ENODEV;
+	}
+
+	/* attach demod */
+	si2168_config.i2c_adapter = &adapter2;
+	si2168_config.fe = &dvb->fe[1];
+	si2168_config.ts_mode = SI2168_TS_SERIAL;
+	si2168_config.ts_clock_inv = true;
+
+	dvb->i2c_client_demod[1] = dvb_module_probe("si2168", NULL,
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x64, &si2168_config);
+	if (!dvb->i2c_client_demod[1]) {
+		dev_err(&dev->intf->dev, "si2168 demod initialization failure\n");
+		dvb_module_release(dvb->i2c_client_demod[0]);
+		return -ENODEV;
+	}
+
+	dvb->fe[1]->id = 1;
+
+	/* attach tuner */
+	si2157_config.fe = dvb->fe[0];
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	si2157_config.mdev = dev->media_dev;
+#endif
+	si2157_config.if_port = 0;
+	si2157_config.inversion = true;
+	si2157_config.dont_load_firmware = 1;
+
+	dvb->i2c_client_tuner = dvb_module_probe("si2157", "si2177",
+						 &dev->i2c_adap[dev->def_i2c_bus],
+						 0x60, &si2157_config);
+	if (!dvb->i2c_client_tuner) {
+		dev_err(&dev->intf->dev, "si2157 tuner initialization failure\n");
+		dvb_module_release(dvb->i2c_client_demod[1]);
+		dvb_module_release(dvb->i2c_client_demod[0]);
+		return -ENODEV;
+	}
+
+	dvb->fe[1]->tuner_priv = dvb->fe[0]->tuner_priv;
+
+	memcpy(&dvb->fe[1]->ops.tuner_ops,
+		&dvb->fe[0]->ops.tuner_ops, sizeof(struct dvb_tuner_ops));
+
+	dev->em28xx_set_analog_freq = em28xx_set_analog_freq;
+
+	return 0;
+}
+
 static int em28xx_dvb_init(struct em28xx *dev)
 {
 	int result = 0, dvb_alt = 0;
@@ -1987,6 +2175,21 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		break;
 	case EM2874_BOARD_HAUPPAUGE_USB_QUADHD:
 		result = em2874_dvb_init_hauppauge_usb_quadhd(dev);
+		if (result)
+			goto out_free;
+		break;
+	case EM2828X_BOARD_HAUPPAUGE_935_V2:
+		result = em2828X_dvb_init_hauppauge_wintv_935_v2(dev);
+		if (result)
+			goto out_free;
+		break;
+	case EM2828X_BOARD_HAUPPAUGE_955_V2:
+		result = em2828X_dvb_init_hauppauge_wintv_955_v2(dev);
+		if (result)
+			goto out_free;
+		break;
+	case EM2828X_BOARD_HAUPPAUGE_975_V2:
+		result = em2828X_dvb_init_hauppauge_wintv_975_v2(dev);
 		if (result)
 			goto out_free;
 		break;

@@ -553,6 +553,36 @@ static struct em28xx_reg_seq hauppauge_usb_quadhd_atsc_reg_seq[] = {
 	{EM2874_R5E_TS2_PKT_SIZE,      0x05, 0xff,     50},
 	{-1,                           -1,   -1,       -1},
 };
+/* Hauppauge HVR-935 \ HVR-955 / HVR-975 V2 */
+static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2[] = {
+	{EM2874_R80_GPIO_P0_CTRL,	0xdc,	0xff,	50},
+	{EM2874_R5F_TS_ENABLE,		0x00,	0xff,	50}, /* disable TS filters */
+	{EM2874_R5D_TS1_PKT_SIZE,	0x05,	0xff,	50},
+	{-1,				-1,	-1,	-1},
+};
+
+static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_comp[] = {
+	{0x0b,				0x00,	0xff,		100},
+	{0x0b,				0x96,	0xff,		100},
+	{0x0b,				0x00,	0xff,		100},
+	{EM2874_R80_GPIO_P0_CTRL,	0,	EM_GPIO_5,	10},
+	{-1,				-1,	-1,		-1},
+};
+
+static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_television[] = {
+	{0x0b,				0x00,		0xff,		100},
+	{0x0b,				0x96,		0xff,		100},
+	{0x0b,				0x00,		0xff,		100},
+	{EM2874_R80_GPIO_P0_CTRL,	EM_GPIO_5,	EM_GPIO_5,	10},
+	{-1,				-1,		-1,		-1},
+};
+
+static const struct em28xx_reg_seq hauppauge_hvr_9x5_v2_dvb[] = {
+	{0x0b,		0x80,	0xff,	100},
+	{0x0b,		0x96,	0xff,	100},
+	{0x0b,		0x80,	0xff,	100},
+	{-1,		-1,	-1,	-1},
+};
 
 /*
  * MyGica USB TV Box
@@ -685,6 +715,16 @@ static struct em28xx_led hauppauge_usb_quadhd_leds[] = {
 		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
 		.gpio_mask = EM_GPIO_0,
 		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
+static struct em28xx_led hauppauge_9x5_v2_leds[] = {
+	{
+		.role      = EM28XX_LED_DIGITAL_CAPTURING,
+		.gpio_reg  = EM2874_R80_GPIO_P0_CTRL,
+		.gpio_mask = EM_GPIO_0,
+		.inverted  = 0,
 	},
 	{-1, 0, 0, 0},
 };
@@ -2640,6 +2680,109 @@ const struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+
+	/* 2040:8360 Hauppauge HVR-935
+	 * Empia EM2828X, si2168 demod, si2177 tuner
+	 * Composite input, s-video input, analog TV, stereo audio input
+	 */
+	[EM2828X_BOARD_HAUPPAUGE_935_V2] = {
+		.name         = "Hauppauge WinTV-HVR-935",
+		.def_i2c_bus  = 1,
+		.has_dvb      = 1,
+		.vchannels    = 3,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_BUILTIN,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_gpio   = hauppauge_hvr_9x5_v2,
+		.dvb_gpio     = hauppauge_hvr_9x5_v2_dvb,
+		.leds         = hauppauge_9x5_v2_leds,
+		.xclk         = 0x8f,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_television,
+
+		} },
+	},
+	/* 2040:8366 Hauppauge HVR-955
+	 * Empia EM2828X, lgdt3306a demod, si2177 tuner
+	 * Composite input, s-video input, analog TV, stereo audio input
+	 */
+	[EM2828X_BOARD_HAUPPAUGE_955_V2] = {
+		.name         = "Hauppauge WinTV-HVR-955",
+		.def_i2c_bus  = 1,
+		.has_dvb      = 1,
+		.vchannels    = 3,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_BUILTIN,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_gpio   = hauppauge_hvr_9x5_v2,
+		.dvb_gpio     = hauppauge_hvr_9x5_v2_dvb,
+		.leds         = hauppauge_9x5_v2_leds,
+		.xclk         = 0x8f,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_television,
+
+		} },
+	},
+	/* 2040:836a Hauppauge HVR-975
+	 * Empia EM2828X, si2168 demod, lgdt3306a demod, si2177 tuner
+	 * Composite input, s-video input, analog TV, stereo audio input
+	 */
+	[EM2828X_BOARD_HAUPPAUGE_975_V2] = {
+		.name         = "Hauppauge WinTV-HVR-975",
+		.def_i2c_bus  = 1,
+		.has_dvb      = 1,
+		.vchannels    = 3,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_BUILTIN,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_gpio   = hauppauge_hvr_9x5_v2,
+		.dvb_gpio     = hauppauge_hvr_9x5_v2_dvb,
+		.leds         = hauppauge_9x5_v2_leds,
+		.xclk         = 0x8f,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = 0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 1,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_comp,
+		}, {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = hauppauge_hvr_9x5_v2_television,
+
+		} },
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2789,6 +2932,18 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2874_BOARD_HAUPPAUGE_USB_QUADHD },
 	{ USB_DEVICE(0x2040, 0xc220),
 			.driver_info = EM2828X_BOARD_HAUPPAUGE_USB_LIVE2 },
+	{ USB_DEVICE(0x2040, 0x0360),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_935_V2 },
+	{ USB_DEVICE(0x2040, 0x8360),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_935_V2 },
+	{ USB_DEVICE(0x2040, 0x0366),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_955_V2 },
+	{ USB_DEVICE(0x2040, 0x8366),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_955_V2 },
+	{ USB_DEVICE(0x2040, 0x036a),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_975_V2 },
+	{ USB_DEVICE(0x2040, 0x836a),
+			.driver_info = EM2828X_BOARD_HAUPPAUGE_975_V2 },
 	{ USB_DEVICE(0x0438, 0xb002),
 			.driver_info = EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600 },
 	{ USB_DEVICE(0x2001, 0xf112),
@@ -3280,6 +3435,9 @@ static void em28xx_card_setup(struct em28xx *dev)
 	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_DVB:
 	case EM28174_BOARD_HAUPPAUGE_WINTV_DUALHD_01595:
 	case EM2828X_BOARD_HAUPPAUGE_USB_LIVE2:
+	case EM2828X_BOARD_HAUPPAUGE_935_V2:
+	case EM2828X_BOARD_HAUPPAUGE_955_V2:
+	case EM2828X_BOARD_HAUPPAUGE_975_V2:
 	{
 		struct tveeprom tv;
 

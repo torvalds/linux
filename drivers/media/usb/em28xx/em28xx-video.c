@@ -171,7 +171,14 @@ static int em28xx_vbi_supported(struct em28xx *dev)
 
 static int em28xx_analogtv_supported(struct em28xx *dev)
 {
-	return 0;
+	switch (dev->model) {
+	case EM2828X_BOARD_HAUPPAUGE_935_V2:
+	case EM2828X_BOARD_HAUPPAUGE_955_V2:
+	case EM2828X_BOARD_HAUPPAUGE_975_V2:
+		return 1;
+	default:
+		return 0;
+	};
 }
 
 /*
@@ -2019,7 +2026,18 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (f->tuner != 0)
 		return -EINVAL;
 
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, s_frequency, f);
+	switch (dev->model) {
+	case EM2828X_BOARD_HAUPPAUGE_935_V2:
+	case EM2828X_BOARD_HAUPPAUGE_955_V2:
+	case EM2828X_BOARD_HAUPPAUGE_975_V2:
+		if (dev->em28xx_set_analog_freq)
+			dev->em28xx_set_analog_freq(dev, f->frequency);
+		break;
+	default:
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, s_frequency, f);
+		break;
+	}
+
 	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, g_frequency, &new_freq);
 	v4l2->frequency = new_freq.frequency;
 
