@@ -485,10 +485,33 @@ static void xe_svm_copy_kb_stats_incr(struct xe_gt *gt,
 				      const enum xe_svm_copy_dir dir,
 				      int kb)
 {
-	if (dir == XE_SVM_COPY_TO_VRAM)
+	if (dir == XE_SVM_COPY_TO_VRAM) {
+		switch (kb) {
+		case 4:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_4K_DEVICE_COPY_KB, kb);
+			break;
+		case 64:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_64K_DEVICE_COPY_KB, kb);
+			break;
+		case 2048:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_2M_DEVICE_COPY_KB, kb);
+			break;
+		}
 		xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_DEVICE_COPY_KB, kb);
-	else
+	} else {
+		switch (kb) {
+		case 4:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_4K_CPU_COPY_KB, kb);
+			break;
+		case 64:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_64K_CPU_COPY_KB, kb);
+			break;
+		case 2048:
+			xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_2M_CPU_COPY_KB, kb);
+			break;
+		}
 		xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_CPU_COPY_KB, kb);
+	}
 }
 
 static void xe_svm_copy_us_stats_incr(struct xe_gt *gt,
