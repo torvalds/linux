@@ -28,8 +28,6 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of the WM8960 audio codec.
 
-unevaluatedProperties: false
-
 required:
   - compatible
   - mediatek,platform
@@ -37,6 +35,8 @@ required:
   - mediatek,audio-codec
   - pinctrl-names
   - pinctrl-0
+
+additionalProperties: false
 
 examples:
   - |
