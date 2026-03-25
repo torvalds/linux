@@ -1185,6 +1185,15 @@ ssize_t cs35l56_calibrate_debugfs_write(struct cs35l56_base *cs35l56_base,
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_calibrate_debugfs_write, "SND_SOC_CS35L56_SHARED");
 
+int cs35l56_factory_calibrate(struct cs35l56_base *cs35l56_base)
+{
+	if (!IS_ENABLED(CONFIG_SND_SOC_CS35L56_CAL_PERFORM_CTRL))
+		return -ENXIO;
+
+	return cs35l56_perform_calibration(cs35l56_base);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_factory_calibrate, "SND_SOC_CS35L56_SHARED");
+
 ssize_t cs35l56_cal_ambient_debugfs_write(struct cs35l56_base *cs35l56_base,
 					  const char __user *from, size_t count,
 					  loff_t *ppos)
