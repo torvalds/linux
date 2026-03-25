@@ -1444,7 +1444,7 @@ static inline void tcp_ca_event(struct sock *sk, const enum tcp_ca_event event)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (event == CA_EVENT_TX_START) {
-	    if (icsk->icsk_ca_ops->cwnd_event_tx_start)
+		if (icsk->icsk_ca_ops->cwnd_event_tx_start)
 			icsk->icsk_ca_ops->cwnd_event_tx_start(sk);
 		return;
 	}
