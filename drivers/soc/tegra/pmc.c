@@ -180,16 +180,18 @@
 #define WAKE_AOWAKE_CNTRL(x) (0x000 + ((x) << 2))
 #define WAKE_AOWAKE_CNTRL_LEVEL (1 << 3)
 #define WAKE_AOWAKE_CNTRL_SR_CAPTURE_EN (1 << 1)
-#define WAKE_AOWAKE_MASK_W(x) (0x180 + ((x) << 2))
-#define WAKE_AOWAKE_STATUS_W(x) (0x30c + ((x) << 2))
-#define WAKE_AOWAKE_STATUS_R(x) (0x48c + ((x) << 2))
-#define WAKE_AOWAKE_TIER2_ROUTING(x) (0x4cc + ((x) << 2))
-#define WAKE_AOWAKE_SW_STATUS_W_0	0x49c
-#define WAKE_AOWAKE_SW_STATUS(x)	(0x4a0 + ((x) << 2))
-#define WAKE_LATCH_SW			0x498
+#define WAKE_AOWAKE_MASK_W(_pmc, x) \
+	((_pmc)->soc->regs->aowake_mask_w + ((x) << 2))
+#define WAKE_AOWAKE_STATUS_W(_pmc, x) \
+	((_pmc)->soc->regs->aowake_status_w + ((x) << 2))
+#define WAKE_AOWAKE_STATUS_R(_pmc, x) \
+	((_pmc)->soc->regs->aowake_status_r + ((x) << 2))
+#define WAKE_AOWAKE_TIER2_ROUTING(_pmc, x) \
+	((_pmc)->soc->regs->aowake_tier2_routing + ((x) << 2))
+#define WAKE_AOWAKE_SW_STATUS(_pmc, x) \
+	((_pmc)->soc->regs->aowake_sw_status + ((x) << 2))
 
-#define WAKE_AOWAKE_CTRL 0x4f4
-#define  WAKE_AOWAKE_CTRL_INTR_POLARITY BIT(0)
+#define WAKE_AOWAKE_CTRL_INTR_POLARITY BIT(0)
 
 #define SW_WAKE_ID		83 /* wake83 */
 
@@ -302,6 +304,14 @@ struct tegra_pmc_regs {
 	unsigned int rst_source_mask;
 	unsigned int rst_level_shift;
 	unsigned int rst_level_mask;
+	unsigned int aowake_mask_w;
+	unsigned int aowake_status_w;
+	unsigned int aowake_status_r;
+	unsigned int aowake_tier2_routing;
+	unsigned int aowake_sw_status_w;
+	unsigned int aowake_sw_status;
+	unsigned int aowake_latch_sw;
+	unsigned int aowake_ctrl;
 };
 
 struct tegra_wake_event {
@@ -2629,20 +2639,20 @@ static int tegra186_pmc_irq_set_wake(struct irq_data *data, unsigned int on)
 	bit = data->hwirq % 32;
 
 	/* clear wake status */
-	writel(0x1, pmc->wake + WAKE_AOWAKE_STATUS_W(data->hwirq));
+	writel(0x1, pmc->wake + WAKE_AOWAKE_STATUS_W(pmc, data->hwirq));
 
 	/* route wake to tier 2 */
-	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
+	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(pmc, offset));
 
 	if (!on)
 		value &= ~(1 << bit);
 	else
 		value |= 1 << bit;
 
-	writel(value, pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
+	writel(value, pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(pmc, offset));
 
 	/* enable wakeup event */
-	writel(!!on, pmc->wake + WAKE_AOWAKE_MASK_W(data->hwirq));
+	writel(!!on, pmc->wake + WAKE_AOWAKE_MASK_W(pmc, data->hwirq));
 
 	return 0;
 }
@@ -3309,7 +3319,7 @@ static void wke_write_wake_levels(struct tegra_pmc *pmc)
 
 static void wke_clear_sw_wake_status(struct tegra_pmc *pmc)
 {
-	wke_32kwritel(pmc, 1, WAKE_AOWAKE_SW_STATUS_W_0);
+	wke_32kwritel(pmc, 1, pmc->soc->regs->aowake_sw_status_w);
 }
 
 static void wke_read_sw_wake_status(struct tegra_pmc *pmc)
@@ -3322,7 +3332,7 @@ static void wke_read_sw_wake_status(struct tegra_pmc *pmc)
 
 	wke_clear_sw_wake_status(pmc);
 
-	wke_32kwritel(pmc, 1, WAKE_LATCH_SW);
+	wke_32kwritel(pmc, 1, pmc->soc->regs->aowake_latch_sw);
 
 	/*
 	 * WAKE_AOWAKE_SW_STATUS is edge triggered, so in order to
@@ -3340,12 +3350,12 @@ static void wke_read_sw_wake_status(struct tegra_pmc *pmc)
 	 */
 	udelay(300);
 
-	wke_32kwritel(pmc, 0, WAKE_LATCH_SW);
+	wke_32kwritel(pmc, 0, pmc->soc->regs->aowake_latch_sw);
 
 	bitmap_zero(pmc->wake_sw_status_map, pmc->soc->max_wake_events);
 
 	for (i = 0; i < pmc->soc->max_wake_vectors; i++) {
-		status = readl(pmc->wake + WAKE_AOWAKE_SW_STATUS(i));
+		status = readl(pmc->wake + WAKE_AOWAKE_SW_STATUS(pmc, i));
 
 		for_each_set_bit(wake, &status, 32)
 			set_bit(wake + (i * 32), pmc->wake_sw_status_map);
@@ -3359,11 +3369,12 @@ static void wke_clear_wake_status(struct tegra_pmc *pmc)
 	u32 mask;
 
 	for (i = 0; i < pmc->soc->max_wake_vectors; i++) {
-		mask = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(i));
-		status = readl(pmc->wake + WAKE_AOWAKE_STATUS_R(i)) & mask;
+		mask = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(pmc, i));
+		status = readl(pmc->wake + WAKE_AOWAKE_STATUS_R(pmc, i)) & mask;
 
 		for_each_set_bit(wake, &status, 32)
-			wke_32kwritel(pmc, 0x1, WAKE_AOWAKE_STATUS_W((i * 32) + wake));
+			wke_32kwritel(pmc, 0x1, WAKE_AOWAKE_STATUS_W(pmc,
+							(i * 32) + wake));
 	}
 }
 
@@ -3374,8 +3385,9 @@ static void tegra186_pmc_wake_syscore_resume(void *data)
 	u32 mask;
 
 	for (i = 0; i < pmc->soc->max_wake_vectors; i++) {
-		mask = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(i));
-		pmc->wake_status[i] = readl(pmc->wake + WAKE_AOWAKE_STATUS_R(i)) & mask;
+		mask = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(pmc, i));
+		pmc->wake_status[i] = readl(pmc->wake +
+					    WAKE_AOWAKE_STATUS_R(pmc, i)) & mask;
 	}
 
 	/* Schedule IRQ work to process wake IRQs (if any) */
@@ -4062,6 +4074,14 @@ static const struct tegra_pmc_regs tegra186_pmc_regs = {
 	.rst_source_mask = 0x3c,
 	.rst_level_shift = 0x0,
 	.rst_level_mask = 0x3,
+	.aowake_mask_w = 0x180,
+	.aowake_status_w = 0x30c,
+	.aowake_status_r = 0x48c,
+	.aowake_tier2_routing = 0x4cc,
+	.aowake_sw_status_w = 0x49c,
+	.aowake_sw_status = 0x4a0,
+	.aowake_latch_sw = 0x498,
+	.aowake_ctrl = 0x4f4,
 };
 
 static void tegra186_pmc_init(struct tegra_pmc *pmc)
@@ -4094,14 +4114,14 @@ static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
 		return;
 	}
 
-	value = readl(wake + WAKE_AOWAKE_CTRL);
+	value = readl(wake + pmc->soc->regs->aowake_ctrl);
 
 	if (invert)
 		value |= WAKE_AOWAKE_CTRL_INTR_POLARITY;
 	else
 		value &= ~WAKE_AOWAKE_CTRL_INTR_POLARITY;
 
-	writel(value, wake + WAKE_AOWAKE_CTRL);
+	writel(value, wake + pmc->soc->regs->aowake_ctrl);
 
 	iounmap(wake);
 }
@@ -4281,6 +4301,14 @@ static const struct tegra_pmc_regs tegra194_pmc_regs = {
 	.rst_source_mask = 0x7c,
 	.rst_level_shift = 0x0,
 	.rst_level_mask = 0x3,
+	.aowake_mask_w = 0x180,
+	.aowake_status_w = 0x30c,
+	.aowake_status_r = 0x48c,
+	.aowake_tier2_routing = 0x4cc,
+	.aowake_sw_status_w = 0x49c,
+	.aowake_sw_status = 0x4a0,
+	.aowake_latch_sw = 0x498,
+	.aowake_ctrl = 0x4f4,
 };
 
 static const char * const tegra194_reset_sources[] = {
@@ -4400,6 +4428,14 @@ static const struct tegra_pmc_regs tegra234_pmc_regs = {
 	.rst_source_mask = 0xfc,
 	.rst_level_shift = 0x0,
 	.rst_level_mask = 0x3,
+	.aowake_mask_w = 0x180,
+	.aowake_status_w = 0x30c,
+	.aowake_status_r = 0x48c,
+	.aowake_tier2_routing = 0x4cc,
+	.aowake_sw_status_w = 0x49c,
+	.aowake_sw_status = 0x4a0,
+	.aowake_latch_sw = 0x498,
+	.aowake_ctrl = 0x4f4,
 };
 
 static const char * const tegra234_reset_sources[] = {
