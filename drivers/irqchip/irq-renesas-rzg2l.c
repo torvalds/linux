@@ -212,48 +212,61 @@ static void rzfive_irqc_unmask(struct irq_data *d)
 	irq_chip_unmask_parent(d);
 }
 
-static void rzfive_tint_irq_endisable(struct irq_data *d, bool enable)
+static void rzfive_irq_endisable(struct irq_data *d, bool enable)
 {
 	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 	unsigned int hwirq = irqd_to_hwirq(d);
 
-	if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ) {
-		u32 offset = hwirq - IRQC_TINT_START;
-		u32 tssr_offset = TSSR_OFFSET(offset);
-		u8 tssr_index = TSSR_INDEX(offset);
-		u32 reg;
+	guard(raw_spinlock)(&priv->lock);
+	if (enable)
+		rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
+	else
+		rzfive_irqc_mask_irq_interrupt(priv, hwirq);
+}
 
-		raw_spin_lock(&priv->lock);
-		if (enable)
-			rzfive_irqc_unmask_tint_interrupt(priv, hwirq);
-		else
-			rzfive_irqc_mask_tint_interrupt(priv, hwirq);
-		reg = readl_relaxed(priv->base + TSSR(tssr_index));
-		if (enable)
-			reg |= TIEN << TSSEL_SHIFT(tssr_offset);
-		else
-			reg &= ~(TIEN << TSSEL_SHIFT(tssr_offset));
-		writel_relaxed(reg, priv->base + TSSR(tssr_index));
-		raw_spin_unlock(&priv->lock);
-	} else {
-		raw_spin_lock(&priv->lock);
-		if (enable)
-			rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
-		else
-			rzfive_irqc_mask_irq_interrupt(priv, hwirq);
-		raw_spin_unlock(&priv->lock);
-	}
+static void rzfive_tint_endisable(struct irq_data *d, bool enable)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
+	unsigned int offset = hwirq - IRQC_TINT_START;
+	unsigned int tssr_offset = TSSR_OFFSET(offset);
+	unsigned int tssr_index = TSSR_INDEX(offset);
+	u32 reg;
+
+	guard(raw_spinlock)(&priv->lock);
+	if (enable)
+		rzfive_irqc_unmask_tint_interrupt(priv, hwirq);
+	else
+		rzfive_irqc_mask_tint_interrupt(priv, hwirq);
+	reg = readl_relaxed(priv->base + TSSR(tssr_index));
+	if (enable)
+		reg |= TIEN << TSSEL_SHIFT(tssr_offset);
+	else
+		reg &= ~(TIEN << TSSEL_SHIFT(tssr_offset));
+	writel_relaxed(reg, priv->base + TSSR(tssr_index));
 }
 
 static void rzfive_irqc_irq_disable(struct irq_data *d)
 {
 	irq_chip_disable_parent(d);
-	rzfive_tint_irq_endisable(d, false);
+	rzfive_irq_endisable(d, false);
 }
 
 static void rzfive_irqc_irq_enable(struct irq_data *d)
 {
-	rzfive_tint_irq_endisable(d, true);
+	rzfive_irq_endisable(d, true);
+	irq_chip_enable_parent(d);
+}
+
+static void rzfive_irqc_tint_disable(struct irq_data *d)
+{
+	irq_chip_disable_parent(d);
+	rzfive_tint_endisable(d, false);
+}
+
+static void rzfive_irqc_tint_enable(struct irq_data *d)
+{
+	rzfive_tint_endisable(d, true);
 	irq_chip_enable_parent(d);
 }
 
@@ -501,8 +514,8 @@ static const struct irq_chip rzfive_irqc_tint_chip = {
 	.irq_eoi		= rzg2l_irqc_tint_eoi,
 	.irq_mask		= rzfive_irqc_mask,
 	.irq_unmask		= rzfive_irqc_unmask,
-	.irq_disable		= rzfive_irqc_irq_disable,
-	.irq_enable		= rzfive_irqc_irq_enable,
+	.irq_disable		= rzfive_irqc_tint_disable,
+	.irq_enable		= rzfive_irqc_tint_enable,
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
