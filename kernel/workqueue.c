@@ -7702,13 +7702,14 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		/*
 		 * Did we stall?
 		 *
-		 * Do a lockless check first. On weakly ordered
-		 * architectures, the lockless check can observe a
-		 * reordering between worklist insert_work() and
-		 * last_progress_ts update from __queue_work(). Since
-		 * __queue_work() is a much hotter path than the timer
-		 * function, we handle false positive here by reading
-		 * last_progress_ts again with pool->lock held.
+		 * Do a lockless check first to do not disturb the system.
+		 *
+		 * Prevent false positives by double checking the timestamp
+		 * under pool->lock. The lock makes sure that the check reads
+		 * an updated pool->last_progress_ts when this CPU saw
+		 * an already updated pool->worklist above. It seems better
+		 * than adding another barrier into __queue_work() which
+		 * is a hotter path.
 		 */
 		if (time_after(now, ts + thresh)) {
 			scoped_guard(raw_spinlock_irqsave, &pool->lock) {
