@@ -1217,7 +1217,23 @@ static int parse_range_cmp_log(const char *log_buf, struct case_spec spec,
 			spec.compare_subregs ? "w0" : "r0",
 			spec.compare_subregs ? "w" : "r", specs[i].reg_idx);
 
-		q = strstr(p, buf);
+		/*
+		 * In the verifier log look for lines:
+		 *   18: (bf) r0 = r6       ; R0=... R6=...
+		 * Different verifier passes may print
+		 *   18: (bf) r0 = r6
+		 * as well, but never followed by ';'.
+		 */
+		q = p;
+		while ((q = strstr(q, buf)) != NULL) {
+			const char *s = q + strlen(buf);
+
+			while (*s == ' ' || *s == '\t')
+				s++;
+			if (*s == ';')
+				break;
+			q = s;
+		}
 		if (!q) {
 			*specs[i].state = (struct reg_state){.valid = false};
 			continue;
