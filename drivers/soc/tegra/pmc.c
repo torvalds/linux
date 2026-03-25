@@ -4538,6 +4538,14 @@ static const struct tegra_pmc_regs tegra264_pmc_regs = {
 	.rst_source_mask = 0x1fc,
 	.rst_level_shift = 0x0,
 	.rst_level_mask = 0x3,
+	.aowake_mask_w = 0x200,
+	.aowake_status_w = 0x410,
+	.aowake_status_r = 0x610,
+	.aowake_tier2_routing = 0x660,
+	.aowake_sw_status_w = 0x624,
+	.aowake_sw_status = 0x628,
+	.aowake_latch_sw = 0x620,
+	.aowake_ctrl = 0x68c,
 };
 
 static const char * const tegra264_reset_sources[] = {
