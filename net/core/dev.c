@@ -1182,7 +1182,6 @@ void netdev_copy_name(struct net_device *dev, char *name)
 		strscpy(name, dev->name, IFNAMSIZ);
 	} while (read_seqretry(&netdev_rename_lock, seq));
 }
-EXPORT_IPV6_MOD_GPL(netdev_copy_name);
 
 /**
  *	netdev_get_name - get a netdevice name, knowing its ifindex.
@@ -1312,7 +1311,6 @@ struct net_device *netdev_get_by_flags_rcu(struct net *net, netdevice_tracker *t
 
 	return NULL;
 }
-EXPORT_IPV6_MOD(netdev_get_by_flags_rcu);
 
 /**
  *	dev_valid_name - check if name is okay for network device
@@ -1838,7 +1836,6 @@ void netif_disable_lro(struct net_device *dev)
 		netdev_unlock_ops(lower_dev);
 	}
 }
-EXPORT_IPV6_MOD(netif_disable_lro);
 
 /**
  *	dev_disable_gro_hw - disable HW Generic Receive Offload on a device

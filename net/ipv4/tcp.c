@@ -303,7 +303,6 @@ DEFINE_PER_CPU(u32, tcp_tw_isn);
 EXPORT_PER_CPU_SYMBOL_GPL(tcp_tw_isn);
 
 long sysctl_tcp_mem[3] __read_mostly;
-EXPORT_IPV6_MOD(sysctl_tcp_mem);
 
 DEFINE_PER_CPU(int, tcp_memory_per_cpu_fw_alloc);
 EXPORT_PER_CPU_SYMBOL_GPL(tcp_memory_per_cpu_fw_alloc);
@@ -317,7 +316,6 @@ EXPORT_SYMBOL(tcp_have_smc);
  * Current number of TCP sockets.
  */
 struct percpu_counter tcp_sockets_allocated ____cacheline_aligned_in_smp;
-EXPORT_IPV6_MOD(tcp_sockets_allocated);
 
 /*
  * Pressure flag: try to collapse.
@@ -341,7 +339,6 @@ void tcp_enter_memory_pressure(struct sock *sk)
 	if (!cmpxchg(&tcp_memory_pressure, 0, val))
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURES);
 }
-EXPORT_IPV6_MOD_GPL(tcp_enter_memory_pressure);
 
 void tcp_leave_memory_pressure(struct sock *sk)
 {
@@ -354,7 +351,6 @@ void tcp_leave_memory_pressure(struct sock *sk)
 		NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPMEMORYPRESSURESCHRONO,
 			      jiffies_to_msecs(jiffies - val));
 }
-EXPORT_IPV6_MOD_GPL(tcp_leave_memory_pressure);
 
 /* Convert seconds to retransmits based on initial and max timeout */
 static u8 secs_to_retrans(int seconds, int timeout, int rto_max)
@@ -418,7 +414,6 @@ void tcp_md5_destruct_sock(struct sock *sk)
 		static_branch_slow_dec_deferred(&tcp_md5_needed);
 	}
 }
-EXPORT_IPV6_MOD_GPL(tcp_md5_destruct_sock);
 #endif
 
 /* Address-family independent initialization for a tcp_sock.
@@ -486,7 +481,6 @@ void tcp_init_sock(struct sock *sk)
 	sk_sockets_allocated_inc(sk);
 	xa_init_flags(&sk->sk_user_frags, XA_FLAGS_ALLOC1);
 }
-EXPORT_IPV6_MOD(tcp_init_sock);
 
 static void tcp_tx_timestamp(struct sock *sk, struct sockcm_cookie *sockc)
 {
@@ -691,7 +685,6 @@ int tcp_ioctl(struct sock *sk, int cmd, int *karg)
 	*karg = answ;
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_ioctl);
 
 void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
 {
@@ -908,7 +901,6 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 
 	return ret;
 }
-EXPORT_IPV6_MOD(tcp_splice_read);
 
 /* We allow to exceed memory limits for FIN packets to expedite
  * connection tear down and (memory) recovery.
@@ -1483,7 +1475,6 @@ void tcp_splice_eof(struct socket *sock)
 	tcp_push(sk, 0, mss_now, tp->nonagle, size_goal);
 	release_sock(sk);
 }
-EXPORT_IPV6_MOD_GPL(tcp_splice_eof);
 
 /*
  *	Handle reading urgent data. BSD has very simple semantics for
@@ -1795,7 +1786,6 @@ int tcp_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 	}
 	return copied;
 }
-EXPORT_IPV6_MOD(tcp_read_skb);
 
 void tcp_read_done(struct sock *sk, size_t len)
 {
@@ -1840,7 +1830,6 @@ int tcp_peek_len(struct socket *sock)
 {
 	return tcp_inq(sock->sk);
 }
-EXPORT_IPV6_MOD(tcp_peek_len);
 
 /* Make sure sk_rcvbuf is big enough to satisfy SO_RCVLOWAT hint */
 int tcp_set_rcvlowat(struct sock *sk, int val)
@@ -1870,7 +1859,6 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 	}
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_set_rcvlowat);
 
 #ifdef CONFIG_MMU
 static const struct vm_operations_struct tcp_vm_ops = {
@@ -1889,7 +1877,6 @@ int tcp_mmap(struct file *file, struct socket *sock,
 	vma->vm_ops = &tcp_vm_ops;
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_mmap);
 
 static skb_frag_t *skb_advance_to_frag(struct sk_buff *skb, u32 offset_skb,
 				       u32 *offset_frag)
@@ -2974,7 +2961,6 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags)
 	}
 	return ret;
 }
-EXPORT_IPV6_MOD(tcp_recvmsg);
 
 void tcp_set_state(struct sock *sk, int state)
 {
@@ -3104,7 +3090,6 @@ void tcp_shutdown(struct sock *sk, int how)
 			tcp_send_fin(sk);
 	}
 }
-EXPORT_IPV6_MOD(tcp_shutdown);
 
 int tcp_orphan_count_sum(void)
 {
@@ -3617,7 +3602,6 @@ static int tcp_repair_options_est(struct sock *sk, sockptr_t optbuf,
 }
 
 DEFINE_STATIC_KEY_FALSE(tcp_tx_delay_enabled);
-EXPORT_IPV6_MOD(tcp_tx_delay_enabled);
 
 static void tcp_enable_tx_delay(struct sock *sk, int val)
 {
@@ -4202,7 +4186,6 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 								optval, optlen);
 	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
 }
-EXPORT_IPV6_MOD(tcp_setsockopt);
 
 static void tcp_get_info_chrono_stats(const struct tcp_sock *tp,
 				      struct tcp_info *info)
@@ -4865,7 +4848,6 @@ bool tcp_bpf_bypass_getsockopt(int level, int optname)
 
 	return false;
 }
-EXPORT_IPV6_MOD(tcp_bpf_bypass_getsockopt);
 
 int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		   int __user *optlen)
@@ -4879,7 +4861,6 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	return do_tcp_getsockopt(sk, level, optname, USER_SOCKPTR(optval),
 				 USER_SOCKPTR(optlen));
 }
-EXPORT_IPV6_MOD(tcp_getsockopt);
 
 #ifdef CONFIG_TCP_MD5SIG
 void tcp_md5_hash_skb_data(struct md5_ctx *ctx, const struct sk_buff *skb,
@@ -4910,7 +4891,6 @@ void tcp_md5_hash_skb_data(struct md5_ctx *ctx, const struct sk_buff *skb,
 	skb_walk_frags(skb, frag_iter)
 		tcp_md5_hash_skb_data(ctx, frag_iter, 0);
 }
-EXPORT_IPV6_MOD(tcp_md5_hash_skb_data);
 
 void tcp_md5_hash_key(struct md5_ctx *ctx,
 		      const struct tcp_md5sig_key *key)
@@ -4922,7 +4902,6 @@ void tcp_md5_hash_key(struct md5_ctx *ctx,
 	 */
 	data_race(({ md5_update(ctx, key->key, keylen), 0; }));
 }
-EXPORT_IPV6_MOD(tcp_md5_hash_key);
 
 /* Called with rcu_read_lock() */
 static enum skb_drop_reason
@@ -5023,7 +5002,6 @@ int tcp_do_parse_auth_options(const struct tcphdr *th,
 	}
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_do_parse_auth_options);
 #endif
 
 /* Called with rcu_read_lock() */
@@ -5092,7 +5070,6 @@ tcp_inbound_hash(struct sock *sk, const struct request_sock *req,
 	return tcp_inbound_md5_hash(sk, skb, saddr, daddr, family,
 				    l3index, md5_location);
 }
-EXPORT_IPV6_MOD_GPL(tcp_inbound_hash);
 
 void tcp_done(struct sock *sk)
 {

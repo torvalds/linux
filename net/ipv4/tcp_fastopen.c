@@ -559,7 +559,6 @@ bool tcp_fastopen_defer_connect(struct sock *sk, int *err)
 	}
 	return false;
 }
-EXPORT_IPV6_MOD(tcp_fastopen_defer_connect);
 
 /*
  * The following code block is to deal with middle box issues with TFO:

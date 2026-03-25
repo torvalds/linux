@@ -201,7 +201,6 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 
 	return 0;
 }
-EXPORT_IPV6_MOD_GPL(tcp_twsk_unique);
 
 static int tcp_v4_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			      int addr_len)
@@ -362,7 +361,6 @@ failure:
 	inet->inet_dport = 0;
 	return err;
 }
-EXPORT_IPV6_MOD(tcp_v4_connect);
 
 /*
  * This routine reacts to ICMP_FRAG_NEEDED mtu indications as defined in RFC1191.
@@ -402,7 +400,6 @@ void tcp_v4_mtu_reduced(struct sock *sk)
 		tcp_simple_retransmit(sk);
 	} /* else let the usual retransmit timer handle it */
 }
-EXPORT_IPV6_MOD(tcp_v4_mtu_reduced);
 
 static void do_redirect(struct sk_buff *skb, struct sock *sk)
 {
@@ -436,7 +433,6 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 	}
 	reqsk_put(req);
 }
-EXPORT_IPV6_MOD(tcp_req_err);
 
 /* TCP-LD (RFC 6069) logic */
 void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
@@ -475,7 +471,6 @@ void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
 		tcp_retransmit_timer(sk);
 	}
 }
-EXPORT_IPV6_MOD(tcp_ld_RTO_revert);
 
 /*
  * This routine is called by the ICMP module when it gets some
@@ -1222,7 +1217,6 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
  */
 
 DEFINE_STATIC_KEY_DEFERRED_FALSE(tcp_md5_needed, HZ);
-EXPORT_IPV6_MOD(tcp_md5_needed);
 
 static bool better_md5_match(struct tcp_md5sig_key *old, struct tcp_md5sig_key *new)
 {
@@ -1281,7 +1275,6 @@ struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk, int l3index,
 	}
 	return best_match;
 }
-EXPORT_IPV6_MOD(__tcp_md5_do_lookup);
 
 static struct tcp_md5sig_key *tcp_md5_do_lookup_exact(const struct sock *sk,
 						      const union tcp_md5_addr *addr,
@@ -1328,7 +1321,6 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 	addr = (const union tcp_md5_addr *)&addr_sk->sk_daddr;
 	return tcp_md5_do_lookup(sk, l3index, addr, AF_INET);
 }
-EXPORT_IPV6_MOD(tcp_v4_md5_lookup);
 
 static int tcp_md5sig_info_add(struct sock *sk, gfp_t gfp)
 {
@@ -1423,7 +1415,6 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	return __tcp_md5_do_add(sk, addr, family, prefixlen, l3index, flags,
 				newkey, newkeylen, GFP_KERNEL);
 }
-EXPORT_IPV6_MOD(tcp_md5_do_add);
 
 int tcp_md5_key_copy(struct sock *sk, const union tcp_md5_addr *addr,
 		     int family, u8 prefixlen, int l3index,
@@ -1451,7 +1442,6 @@ int tcp_md5_key_copy(struct sock *sk, const union tcp_md5_addr *addr,
 				key->flags, key->key, key->keylen,
 				sk_gfp_mask(sk, GFP_ATOMIC));
 }
-EXPORT_IPV6_MOD(tcp_md5_key_copy);
 
 int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family,
 		   u8 prefixlen, int l3index, u8 flags)
@@ -1466,7 +1456,6 @@ int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family,
 	kfree_rcu(key, rcu);
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_md5_do_del);
 
 void tcp_clear_md5_list(struct sock *sk)
 {
@@ -1604,7 +1593,6 @@ tcp_v4_md5_hash_skb(char *md5_hash, const struct tcp_md5sig_key *key,
 	tcp_md5_hash_key(&ctx, key);
 	md5_final(&ctx, md5_hash);
 }
-EXPORT_IPV6_MOD(tcp_v4_md5_hash_skb);
 
 #endif
 
@@ -1674,7 +1662,6 @@ drop:
 	tcp_listendrop(sk);
 	return 0;
 }
-EXPORT_IPV6_MOD(tcp_v4_conn_request);
 
 
 /*
@@ -1800,7 +1787,6 @@ put_and_exit:
 	tcp_done(newsk);
 	goto exit;
 }
-EXPORT_IPV6_MOD(tcp_v4_syn_recv_sock);
 
 static struct sock *tcp_v4_cookie_check(struct sock *sk, struct sk_buff *skb)
 {
@@ -2055,7 +2041,6 @@ no_coalesce:
 	}
 	return false;
 }
-EXPORT_IPV6_MOD(tcp_add_backlog);
 
 static void tcp_v4_restore_cb(struct sk_buff *skb)
 {
@@ -2367,7 +2352,6 @@ void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 		sk->sk_rx_dst_ifindex = skb->skb_iif;
 	}
 }
-EXPORT_IPV6_MOD(inet_sk_rx_dst_set);
 
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,
@@ -2380,7 +2364,6 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.getsockopt	   = ip_getsockopt,
 	.mtu_reduced	   = tcp_v4_mtu_reduced,
 };
-EXPORT_IPV6_MOD(ipv4_specific);
 
 #if defined(CONFIG_TCP_MD5SIG) || defined(CONFIG_TCP_AO)
 static const struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
@@ -2473,7 +2456,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
 
 	sk_sockets_allocated_dec(sk);
 }
-EXPORT_IPV6_MOD(tcp_v4_destroy_sock);
 
 #ifdef CONFIG_PROC_FS
 /* Proc filesystem TCP sock list dumping. */
@@ -2709,7 +2691,6 @@ out:
 	st->last_pos = *pos;
 	return rc;
 }
-EXPORT_IPV6_MOD(tcp_seq_start);
 
 void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
@@ -2740,7 +2721,6 @@ out:
 	st->last_pos = *pos;
 	return rc;
 }
-EXPORT_IPV6_MOD(tcp_seq_next);
 
 void tcp_seq_stop(struct seq_file *seq, void *v)
 {
@@ -2758,7 +2738,6 @@ void tcp_seq_stop(struct seq_file *seq, void *v)
 		break;
 	}
 }
-EXPORT_IPV6_MOD(tcp_seq_stop);
 
 static void get_openreq4(const struct request_sock *req,
 			 struct seq_file *f, int i)

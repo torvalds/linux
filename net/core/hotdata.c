@@ -27,4 +27,3 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 EXPORT_SYMBOL(net_hotdata);
 
 struct net_aligned_data net_aligned_data;
-EXPORT_IPV6_MOD(net_aligned_data);
