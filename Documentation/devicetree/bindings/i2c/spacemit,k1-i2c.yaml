@@ -14,7 +14,11 @@ allOf:
 
 properties:
   compatible:
-    const: spacemit,k1-i2c
+    oneOf:
+      - items:
+          - const: spacemit,k3-i2c
+          - const: spacemit,k1-i2c
+      - const: spacemit,k1-i2c
 
   reg:
     maxItems: 1
