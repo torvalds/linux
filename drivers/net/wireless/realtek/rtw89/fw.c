@@ -9709,6 +9709,7 @@ int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
 				 bool enable)
 {
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_h2c_wow_wakeup_ctrl *h2c;
 	struct sk_buff *skb;
@@ -9728,9 +9729,14 @@ int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 	if (rtw_wow->pattern_cnt)
 		h2c->w0 |= le32_encode_bits(enable,
 					    RTW89_H2C_WOW_WAKEUP_CTRL_W0_PATTERN_MATCH_ENABLE);
-	if (test_bit(RTW89_WOW_FLAG_EN_MAGIC_PKT, rtw_wow->flags))
+	if (test_bit(RTW89_WOW_FLAG_EN_MAGIC_PKT, rtw_wow->flags)) {
 		h2c->w0 |= le32_encode_bits(enable,
 					    RTW89_H2C_WOW_WAKEUP_CTRL_W0_MAGIC_ENABLE);
+		if (ieee80211_vif_is_mld(vif))
+			h2c->w0 |= le32_encode_bits(enable,
+						    RTW89_H2C_WOW_WAKEUP_CTRL_W0_MAGIC_MLD_ENABLE);
+	}
+
 	if (test_bit(RTW89_WOW_FLAG_EN_DISCONNECT, rtw_wow->flags))
 		h2c->w0 |= le32_encode_bits(enable,
 					    RTW89_H2C_WOW_WAKEUP_CTRL_W0_DEAUTH_ENABLE);
