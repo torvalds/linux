@@ -1153,7 +1153,12 @@ int rtw89_fw_recognize_txpwr_from_elm(struct rtw89_dev *rtwdev,
 	const struct __rtw89_fw_txpwr_element *txpwr_elm = &elm->u.txpwr;
 	const unsigned long offset = arg.offset;
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u16 aid = le16_to_cpu(elm->aid);
 	struct rtw89_txpwr_conf *conf;
+
+	if (aid && aid != hal->aid)
+		return 1;
 
 	if (!rtwdev->rfe_data) {
 		rtwdev->rfe_data = kzalloc_obj(*rtwdev->rfe_data);
