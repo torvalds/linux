@@ -480,8 +480,16 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 static const struct of_device_id __rmem_of_table_sentinel
 	__used __section("__reservedmem_of_table_end");
 
-/*
- * __reserved_mem_init_node() - call region specific reserved memory init code
+/**
+ * __reserved_mem_init_node() - initialize a reserved memory region
+ * @rmem: reserved_mem structure to initialize
+ * @node: FDT node describing the reserved memory region
+ *
+ * This function iterates through the reserved memory drivers and calls the
+ * node_init callback for the compatible entry matching the node. On success,
+ * the operations pointer is stored in the reserved_mem structure.
+ *
+ * Return: 0 on success, -ENODEV if no compatible match found
  */
 static int __init __reserved_mem_init_node(struct reserved_mem *rmem,
 					   unsigned long node)
@@ -492,14 +500,15 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem,
 
 	for (i = __reservedmem_of_table; ret == -ENODEV &&
 	     i < &__rmem_of_table_sentinel; i++) {
-		reservedmem_of_init_fn initfn = i->data;
+		const struct reserved_mem_ops *ops = i->data;
 		const char *compat = i->compatible;
 
 		if (!of_flat_dt_is_compatible(node, compat))
 			continue;
 
-		ret = initfn(node, rmem);
+		ret = ops->node_init(node, rmem);
 		if (ret == 0) {
+			rmem->ops = ops;
 			pr_info("initialized node %s, compatible id %s\n",
 				rmem->name, compat);
 			break;
