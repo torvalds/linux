@@ -12,6 +12,7 @@ use crate::{
     ffi::{c_char, c_void},
     fs::file,
     prelude::*,
+    ptr::KnownSize,
     transmute::{AsBytes, FromBytes},
 };
 use core::mem::{size_of, MaybeUninit};
@@ -524,7 +525,12 @@ impl UserSliceWriter {
     ///     writer.write_dma(alloc, 0, 256)
     /// }
     /// ```
-    pub fn write_dma(&mut self, alloc: &Coherent<[u8]>, offset: usize, count: usize) -> Result {
+    pub fn write_dma<T: KnownSize + AsBytes + ?Sized>(
+        &mut self,
+        alloc: &Coherent<T>,
+        offset: usize,
+        count: usize,
+    ) -> Result {
         let len = alloc.size();
         if offset.checked_add(count).ok_or(EOVERFLOW)? > len {
             return Err(ERANGE);
