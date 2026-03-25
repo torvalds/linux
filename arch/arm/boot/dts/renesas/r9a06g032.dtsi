@@ -554,6 +554,7 @@
 			compatible = "arm,gic-400", "arm,cortex-a7-gic";
 			interrupt-controller;
 			#interrupt-cells = <3>;
+			#address-cells = <0>;
 			reg = <0x44101000 0x1000>, /* Distributer */
 			      <0x44102000 0x2000>, /* CPU interface */
 			      <0x44104000 0x2000>, /* Virt interface control */
