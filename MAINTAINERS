@@ -26732,6 +26732,12 @@ F:	drivers/char/toshiba.c
 F:	include/linux/toshiba.h
 F:	include/uapi/linux/toshiba.h
 
+TOSHIBA T4KA3 CAMERA SENSOR DRIVER
+M:	Kate Hsuan <hpa@redhat.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/t4ka3.c
+
 TOSHIBA TC358743 DRIVER
 M:	Hans Verkuil <hverkuil@kernel.org>
 L:	linux-media@vger.kernel.org
