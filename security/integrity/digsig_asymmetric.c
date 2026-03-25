@@ -154,7 +154,8 @@ static int calc_file_id_hash(enum evm_ima_xattr_type type,
 	size_t file_id_size;
 	int rc;
 
-	if (type != IMA_VERITY_DIGSIG && type != EVM_IMA_XATTR_DIGSIG)
+	if (type != IMA_VERITY_DIGSIG && type != EVM_IMA_XATTR_DIGSIG &&
+	    type != EVM_XATTR_PORTABLE_DIGSIG)
 		return -EINVAL;
 
 	tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
