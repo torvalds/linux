@@ -351,20 +351,52 @@ static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 		return;
 
 	rtw89_write32(rtwdev, R_BE_PL1_DBG_INFO, 0x0);
-	rtw89_write32_set(rtwdev, R_BE_FWS1IMR, B_BE_PCIE_SER_TIMEOUT_INDIC_EN);
-	rtw89_write32_set(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
-	rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_TIMER_UNIT_MASK, 1);
 
-	val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
-	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR | B_BE_SER_PM_MASTER_IMR |
-		 B_BE_SER_LTSSM_IMR | B_BE_SER_PM_CLK_MASK | B_BE_SER_PCLKREQ_ACK_MASK;
-	rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
+	switch (hal->cv) {
+	case CHIP_CAV:
+	case CHIP_CBV:
+		rtw89_write32_clr(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+		rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL,
+				   B_BE_PL1_TIMER_UNIT_MASK, PCIE_SER_TIMER_UNIT);
+
+		val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
+		val32 &= ~(B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR |
+			   B_BE_SER_PM_MASTER_IMR | B_BE_SER_LTSSM_IMR |
+			   B_BE_SER_PM_CLK_MASK | B_BE_SER_PCLKREQ_ACK_MASK);
+		rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
+		break;
+	case CHIP_CCV:
+	default:
+		rtw89_write32_clr(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+
+		ret = read_poll_timeout_atomic(rtw89_read32, val32, !val32,
+					       1, 1000, false, rtwdev, R_BE_REG_PL1_ISR);
+		if (ret)
+			rtw89_warn(rtwdev, "[ERR] PCIE SER clear poll fail\n");
+
+		rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL,
+				   B_BE_PL1_TIMER_UNIT_MASK, PCIE_SER_TIMER_UNIT);
+		rtw89_write32_set(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+
+		val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
+		val32 |= (B_BE_SER_PMU_IMR | B_BE_SER_PM_MASTER_IMR |
+			  B_BE_SER_LTSSM_IMR | B_BE_SER_PM_CLK_MASK |
+			  B_BE_SER_PCLKREQ_ACK_MASK);
+		val32 &= ~B_BE_SER_L1SUB_IMR;
+		rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
+		break;
+	}
 
 	return;
 
 be2_chips:
 	rtw89_write32_clr(rtwdev, R_BE_PCIE_SER_DBG, B_BE_PCIE_SER_FLUSH_RSTB);
 	rtw89_write32_set(rtwdev, R_BE_PCIE_SER_DBG, B_BE_PCIE_SER_FLUSH_RSTB);
+
+	rtw89_write16_clr(rtwdev, RAC_DIRECT_OFFESET_L0_G1 +
+				  RAC_ANA40 * RAC_MULT, PHY_ERR_IMR_DIS);
+	rtw89_write16_clr(rtwdev, RAC_DIRECT_OFFESET_L0_G2 +
+				  RAC_ANA40 * RAC_MULT, PHY_ERR_IMR_DIS);
 
 	rtw89_write16_clr(rtwdev, RAC_DIRECT_OFFESET_L0_G1 +
 				  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
@@ -378,6 +410,7 @@ be2_chips:
 	val32 = rtw89_read32(rtwdev, R_BE_SER_PL1_CTRL);
 	val32 &= ~B_BE_PL1_SER_PL1_EN;
 	rtw89_write32(rtwdev, R_BE_SER_PL1_CTRL, val32);
+	rtw89_write32(rtwdev, R_BE_REG_PL1_ISR, B_PCIE_SER_ALL_ISR);
 
 	ret = read_poll_timeout_atomic(rtw89_read32, val32, !val32,
 				       1, 1000, false, rtwdev, R_BE_REG_PL1_ISR);
@@ -385,9 +418,10 @@ be2_chips:
 		rtw89_warn(rtwdev, "[ERR] PCIE SER clear poll fail\n");
 
 	val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
-	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR | B_BE_SER_PM_MASTER_IMR |
+	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_PM_MASTER_IMR |
 		 B_BE_SER_LTSSM_IMR | B_BE_SER_PM_CLK_MASK | B_BE_SER_PCLKREQ_ACK_MASK |
 		 B_BE_SER_LTSSM_UNSTABLE_MASK;
+	val32 &= ~B_BE_SER_L1SUB_IMR;
 	rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
 
 	rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_TIMER_UNIT_MASK,
@@ -761,6 +795,8 @@ static int __maybe_unused rtw89_pci_resume_be(struct device *dev)
 		goto clear_phy_isr;
 
 	rtw89_write32_clr(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+	if (rtwdev->chip->chip_id == RTL8922D)
+		rtw89_write32(rtwdev, R_BE_REG_PL1_ISR, B_PCIE_SER_ALL_ISR);
 
 	ret = read_poll_timeout_atomic(rtw89_read32, polling, !polling, 1, 1000,
 				       false, rtwdev, R_BE_REG_PL1_ISR);

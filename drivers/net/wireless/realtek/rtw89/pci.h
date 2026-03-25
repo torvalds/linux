@@ -55,6 +55,8 @@
 #define B_AX_CALIB_EN			BIT(13)
 #define B_AX_DIV			GENMASK(15, 14)
 #define RAC_SET_PPR_V1			0x31
+#define RAC_ANA40			0x40
+#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(0))
 #define RAC_ANA41			0x41
 #define PHY_ERR_FLAG_EN		        BIT(6)
 
@@ -1029,6 +1031,7 @@
 #define B_BE_SER_PMU_IMR BIT(0)
 
 #define R_BE_REG_PL1_ISR 0x34B4
+#define B_PCIE_SER_ALL_ISR 0x7F
 
 #define R_BE_RX_APPEND_MODE 0x8920
 #define B_BE_APPEND_OFFSET_MASK GENMASK(23, 16)
