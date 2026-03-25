@@ -439,6 +439,8 @@ struct tegra_pmc_soc {
  *     cntrl register associated with each wake during system suspend.
  * @reboot_notifier: PMC reboot notifier handler
  * @syscore: syscore suspend/resume callbacks
+ * @wake_work: IRQ work handler for processing wake-up events.
+ * @wake_status: Status of wake-up events.
  */
 struct tegra_pmc {
 	struct device *dev;
