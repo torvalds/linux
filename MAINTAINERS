@@ -20399,6 +20399,7 @@ F:	Documentation/devicetree/bindings/pci/
 F:	drivers/pci/controller/
 F:	drivers/pci/pci-bridge-emul.c
 F:	drivers/pci/pci-bridge-emul.h
+F:	include/trace/events/pci_controller.h
 
 PCI PEER-TO-PEER DMA (P2PDMA)
 M:	Bjorn Helgaas <bhelgaas@google.com>
