@@ -10459,8 +10459,8 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 	pos = mgmt->u.action.ml_reconf_resp.variable;
 	len -= offsetofend(typeof(*mgmt), u.action.ml_reconf_resp);
 
-	/* each status duple is 3 octets */
-	if (len < mgmt->u.action.ml_reconf_resp.count * 3) {
+	if (len < mgmt->u.action.ml_reconf_resp.count *
+				sizeof(struct ieee80211_ml_reconf_status)) {
 		sdata_info(sdata,
 			   "mlo: reconf: unexpected len=%zu, count=%u\n",
 			   len, mgmt->u.action.ml_reconf_resp.count);
@@ -10469,9 +10469,11 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 
 	link_mask = sta_changed_links;
 	for (i = 0; i < mgmt->u.action.ml_reconf_resp.count; i++) {
-		u16 status = get_unaligned_le16(pos + 1);
+		struct ieee80211_ml_reconf_status *reconf_status = (void *)pos;
+		u16 status = le16_to_cpu(reconf_status->status);
 
-		link_id = *pos;
+		link_id = u8_get_bits(reconf_status->info,
+				      IEEE80211_ML_RECONF_LINK_ID_MASK);
 
 		if (!(link_mask & BIT(link_id))) {
 			sdata_info(sdata,
@@ -10506,8 +10508,8 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 			sdata->u.mgd.reconf.added_links &= ~BIT(link_id);
 		}
 
-		pos += 3;
-		len -= 3;
+		pos += sizeof(*reconf_status);
+		len -= sizeof(*reconf_status);
 	}
 
 	if (link_mask) {
