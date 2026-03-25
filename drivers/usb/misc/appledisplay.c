@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/hid.h>
 #include <linux/usb.h>
 #include <linux/backlight.h>
 #include <linux/timer.h>
@@ -19,9 +20,6 @@
 #include <linux/atomic.h>
 
 #define APPLE_VENDOR_ID		0x05AC
-
-#define USB_REQ_GET_REPORT	0x01
-#define USB_REQ_SET_REPORT	0x09
 
 #define ACD_USB_TIMEOUT		250
 
@@ -140,7 +138,7 @@ static int appledisplay_bl_update_status(struct backlight_device *bd)
 	retval = usb_control_msg(
 		pdata->udev,
 		usb_sndctrlpipe(pdata->udev, 0),
-		USB_REQ_SET_REPORT,
+		HID_REQ_SET_REPORT,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		ACD_USB_BRIGHTNESS,
 		0,
@@ -163,7 +161,7 @@ static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 	retval = usb_control_msg(
 		pdata->udev,
 		usb_rcvctrlpipe(pdata->udev, 0),
-		USB_REQ_GET_REPORT,
+		HID_REQ_GET_REPORT,
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		ACD_USB_BRIGHTNESS,
 		0,
