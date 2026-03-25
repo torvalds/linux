@@ -334,6 +334,7 @@ enum rtw89_mac_dbg_port_sel {
 #define NAT25_CAM_BASE_ADDR_BE		0x18820000
 #define RXPLD_FLTR_CAM_BASE_ADDR_BE	0x18823000
 #define SEC_CAM_BASE_ADDR_BE		0x18824000
+#define SEC_CAM_BASE_ADDR_BE_8922D	0x1882C000
 #define WOW_CAM_BASE_ADDR_BE		0x18828000
 #define MLD_TBL_BASE_ADDR_BE		0x18829000
 #define RX_CLSF_CAM_BASE_ADDR_BE	0x1882A000
@@ -1130,6 +1131,18 @@ struct rtw89_mac_gen_def {
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_be;
+
+static inline
+u32 rtw89_mac_mem_base_addrs(struct rtw89_dev *rtwdev, u8 sel)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (rtwdev->chip->chip_id == RTL8922D &&
+	    sel == RTW89_MAC_MEM_SECURITY_CAM)
+		return SEC_CAM_BASE_ADDR_BE_8922D;
+
+	return mac->mem_base_addrs[sel];
+}
 
 static inline
 u32 rtw89_mac_reg_by_idx(struct rtw89_dev *rtwdev, u32 reg_base, u8 band)

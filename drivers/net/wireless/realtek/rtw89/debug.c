@@ -1129,7 +1129,7 @@ static int rtw89_debug_dump_mac_mem(struct rtw89_dev *rtwdev,
 	pages = len / mem_page_size + 1;
 	start_page = start_addr / mem_page_size;
 	residue = start_addr % mem_page_size;
-	base_addr = mac->mem_base_addrs[sel];
+	base_addr = rtw89_mac_mem_base_addrs(rtwdev, sel);
 	base_addr += start_page * mem_page_size;
 
 	for (pp = 0; pp < pages; pp++) {

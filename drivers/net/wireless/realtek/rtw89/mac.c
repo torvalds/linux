@@ -43,7 +43,7 @@ static void rtw89_mac_mem_write(struct rtw89_dev *rtwdev, u32 offset,
 				u32 val, enum rtw89_mac_mem_sel sel)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	u32 addr = mac->mem_base_addrs[sel] + offset;
+	u32 addr = rtw89_mac_mem_base_addrs(rtwdev, sel) + offset;
 
 	rtw89_write32(rtwdev, mac->filter_model_addr, addr);
 	rtw89_write32(rtwdev, mac->indir_access_addr, val);
@@ -53,7 +53,7 @@ static u32 rtw89_mac_mem_read(struct rtw89_dev *rtwdev, u32 offset,
 			      enum rtw89_mac_mem_sel sel)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	u32 addr = mac->mem_base_addrs[sel] + offset;
+	u32 addr = rtw89_mac_mem_base_addrs(rtwdev, sel) + offset;
 
 	rtw89_write32(rtwdev, mac->filter_model_addr, addr);
 	return rtw89_read32(rtwdev, mac->indir_access_addr);
