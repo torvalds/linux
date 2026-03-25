@@ -196,7 +196,7 @@ static u64 read_imc_reg(struct skx_imc *imc, int chan, u32 offset, u8 width)
 	case 8:
 		return I10NM_GET_REG64(imc, chan, offset);
 	default:
-		i10nm_printk(KERN_ERR, "Invalid readd RRL 0x%x width %d\n", offset, width);
+		i10nm_printk(KERN_ERR, "Invalid read RRL 0x%x width %d\n", offset, width);
 		return 0;
 	}
 }
