@@ -533,48 +533,48 @@ int gpiochip_setup_shared(struct gpio_chip *gc)
 	 * exposing shared pins. Find them and create the proxy devices.
 	 */
 	list_for_each_entry(entry, &gpio_shared_list, list) {
-		guard(mutex)(&entry->lock);
-
 		if (!device_match_fwnode(&gdev->dev, entry->fwnode))
 			continue;
 
 		if (list_count_nodes(&entry->refs) <= 1)
 			continue;
 
+		scoped_guard(mutex, &entry->lock) {
 #if IS_ENABLED(CONFIG_OF)
-		if (is_of_node(entry->fwnode) && gc->of_xlate) {
-			/*
-			 * This is the earliest that we can tranlate the
-			 * devicetree offset to the chip offset.
-			 */
-			struct of_phandle_args gpiospec = { };
+			if (is_of_node(entry->fwnode) && gc->of_xlate) {
+				/*
+				 * This is the earliest that we can tranlate the
+				 * devicetree offset to the chip offset.
+				 */
+				struct of_phandle_args gpiospec = { };
 
-			gpiospec.np = to_of_node(entry->fwnode);
-			gpiospec.args_count = 2;
-			gpiospec.args[0] = entry->offset;
+				gpiospec.np = to_of_node(entry->fwnode);
+				gpiospec.args_count = 2;
+				gpiospec.args[0] = entry->offset;
 
-			ret = gc->of_xlate(gc, &gpiospec, NULL);
-			if (ret < 0)
-				return ret;
+				ret = gc->of_xlate(gc, &gpiospec, NULL);
+				if (ret < 0)
+					return ret;
 
-			entry->offset = ret;
-		}
+				entry->offset = ret;
+			}
 #endif /* CONFIG_OF */
 
-		desc = &gdev->descs[entry->offset];
+			desc = &gdev->descs[entry->offset];
 
-		__set_bit(GPIOD_FLAG_SHARED, &desc->flags);
-		/*
-		 * Shared GPIOs are not requested via the normal path. Make
-		 * them inaccessible to anyone even before we register the
-		 * chip.
-		 */
-		ret = gpiod_request_commit(desc, "shared");
-		if (ret)
-			return ret;
+			__set_bit(GPIOD_FLAG_SHARED, &desc->flags);
+			/*
+			 * Shared GPIOs are not requested via the normal path. Make
+			 * them inaccessible to anyone even before we register the
+			 * chip.
+			 */
+			ret = gpiod_request_commit(desc, "shared");
+			if (ret)
+				return ret;
 
-		pr_debug("GPIO %u owned by %s is shared by multiple consumers\n",
-			 entry->offset, gpio_device_get_label(gdev));
+			pr_debug("GPIO %u owned by %s is shared by multiple consumers\n",
+				 entry->offset, gpio_device_get_label(gdev));
+		}
 
 		list_for_each_entry(ref, &entry->refs, list) {
 			pr_debug("Setting up a shared GPIO entry for %s (con_id: '%s')\n",
