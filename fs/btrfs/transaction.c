@@ -1905,6 +1905,22 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		ret = btrfs_uuid_tree_add(trans, new_root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  objectid);
+		/*
+		 * We are creating of lot of snapshots of the same root that was
+		 * received (has a received UUID) and reached a leaf's limit for
+		 * an item. We can safely ignore this and avoid a transaction
+		 * abort. A deletion of this snapshot will still work since we
+		 * ignore if an item with a BTRFS_UUID_KEY_RECEIVED_SUBVOL key
+		 * is missing (see btrfs_delete_subvolume()). Send/receive will
+		 * work too since it peeks the first root id from the existing
+		 * item (it could peek any), and in case it's missing it
+		 * falls back to search by BTRFS_UUID_KEY_SUBVOL keys.
+		 * Creation of a snapshot does not require CAP_SYS_ADMIN, so
+		 * we don't want users triggering transaction aborts, either
+		 * intentionally or not.
+		 */
+		if (ret == -EOVERFLOW)
+			ret = 0;
 		if (unlikely(ret && ret != -EEXIST)) {
 			btrfs_abort_transaction(trans, ret);
 			goto fail;

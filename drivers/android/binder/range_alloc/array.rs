@@ -118,7 +118,7 @@ impl<T> ArrayRangeAllocator<T> {
         size: usize,
         is_oneway: bool,
         pid: Pid,
-    ) -> Result<usize> {
+    ) -> Result<(usize, bool)> {
         // Compute new value of free_oneway_space, which is set only on success.
         let new_oneway_space = if is_oneway {
             match self.free_oneway_space.checked_sub(size) {
@@ -146,7 +146,38 @@ impl<T> ArrayRangeAllocator<T> {
             .ok()
             .unwrap();
 
-        Ok(insert_at_offset)
+        // Start detecting spammers once we have less than 20%
+        // of async space left (which is less than 10% of total
+        // buffer size).
+        //
+        // (This will short-circuit, so `low_oneway_space` is
+        // only called when necessary.)
+        let oneway_spam_detected =
+            is_oneway && new_oneway_space < self.size / 10 && self.low_oneway_space(pid);
+
+        Ok((insert_at_offset, oneway_spam_detected))
+    }
+
+    /// Find the amount and size of buffers allocated by the current caller.
+    ///
+    /// The idea is that once we cross the threshold, whoever is responsible
+    /// for the low async space is likely to try to send another async transaction,
+    /// and at some point we'll catch them in the act.  This is more efficient
+    /// than keeping a map per pid.
+    fn low_oneway_space(&self, calling_pid: Pid) -> bool {
+        let mut total_alloc_size = 0;
+        let mut num_buffers = 0;
+
+        // Warn if this pid has more than 50 transactions, or more than 50% of
+        // async space (which is 25% of total buffer size). Oneway spam is only
+        // detected when the threshold is exceeded.
+        for range in &self.ranges {
+            if range.state.is_oneway() && range.state.pid() == calling_pid {
+                total_alloc_size += range.size;
+                num_buffers += 1;
+            }
+        }
+        num_buffers > 50 || total_alloc_size > self.size / 4
     }
 
     pub(crate) fn reservation_abort(&mut self, offset: usize) -> Result<FreedRange> {

@@ -202,7 +202,7 @@ static int io_register_restrictions_task(void __user *arg, unsigned int nr_args)
 		return -EPERM;
 	/*
 	 * Similar to seccomp, disallow setting a filter if task_no_new_privs
-	 * is true and we're not CAP_SYS_ADMIN.
+	 * is false and we're not CAP_SYS_ADMIN.
 	 */
 	if (!task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
@@ -238,7 +238,7 @@ static int io_register_bpf_filter_task(void __user *arg, unsigned int nr_args)
 
 	/*
 	 * Similar to seccomp, disallow setting a filter if task_no_new_privs
-	 * is true and we're not CAP_SYS_ADMIN.
+	 * is false and we're not CAP_SYS_ADMIN.
 	 */
 	if (!task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
@@ -633,7 +633,15 @@ overflow:
 	ctx->sq_entries = p->sq_entries;
 	ctx->cq_entries = p->cq_entries;
 
+	/*
+	 * Just mark any flag we may have missed and that the application
+	 * should act on unconditionally. Worst case it'll be an extra
+	 * syscall.
+	 */
+	atomic_or(IORING_SQ_TASKRUN | IORING_SQ_NEED_WAKEUP, &n.rings->sq_flags);
 	ctx->rings = n.rings;
+	rcu_assign_pointer(ctx->rings_rcu, n.rings);
+
 	ctx->sq_sqes = n.sq_sqes;
 	swap_old(ctx, o, n, ring_region);
 	swap_old(ctx, o, n, sq_region);
@@ -642,6 +650,9 @@ overflow:
 out:
 	spin_unlock(&ctx->completion_lock);
 	mutex_unlock(&ctx->mmap_lock);
+	/* Wait for concurrent io_ctx_mark_taskrun() */
+	if (to_free == &o)
+		synchronize_rcu_expedited();
 	io_register_free_rings(ctx, to_free);
 
 	if (ctx->sq_data)

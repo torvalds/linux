@@ -124,6 +124,12 @@
 
 #include <trace/events/sock.h>
 
+/* Keep the definition of IPv6 disable here for now, to avoid annoying linker
+ * issues in case IPv6=m
+ */
+int disable_ipv6_mod;
+EXPORT_SYMBOL(disable_ipv6_mod);
+
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
  */
