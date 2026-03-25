@@ -2267,10 +2267,9 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ahub);
 
 	ahub->clk = devm_clk_get(&pdev->dev, "ahub");
-	if (IS_ERR(ahub->clk)) {
-		dev_err(&pdev->dev, "can't retrieve AHUB clock\n");
-		return PTR_ERR(ahub->clk);
-	}
+	if (IS_ERR(ahub->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ahub->clk),
+				     "can't retrieve AHUB clock\n");
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
@@ -2289,18 +2288,17 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 					      ahub->soc_data->cmpnt_drv,
 					      ahub->soc_data->dai_drv,
 					      ahub->soc_data->num_dais);
-	if (err) {
-		dev_err(&pdev->dev, "can't register AHUB component, err: %d\n",
-			err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err,
+				     "can't register AHUB component\n");
 
 	pm_runtime_enable(&pdev->dev);
 
 	err = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 	if (err) {
 		pm_runtime_disable(&pdev->dev);
-		return err;
+		return dev_err_probe(&pdev->dev, err,
+				     "failed to populate child nodes\n");
 	}
 
 	return 0;
