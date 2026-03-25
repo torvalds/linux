@@ -22,6 +22,8 @@
 
 #define IRQC_IRQ_START			1
 #define IRQC_TINT_COUNT			32
+#define IRQC_SHARED_IRQ_COUNT		8
+#define IRQC_IRQ_SHARED_START		(IRQC_IRQ_START + IRQC_SHARED_IRQ_COUNT)
 
 #define ISCR				0x10
 #define IITSR				0x14
@@ -29,6 +31,7 @@
 #define TITSR(n)			(0x24 + (n) * 4)
 #define TITSR0_MAX_INT			16
 #define TITSEL_WIDTH			0x2
+#define INTTSEL				0x2c
 #define TSSR(n)				(0x30 + ((n) * 4))
 #define TIEN				BIT(7)
 #define TSSEL_SHIFT(n)			(8 * (n))
@@ -52,16 +55,21 @@
 #define IITSR_IITSEL_EDGE_BOTH		3
 #define IITSR_IITSEL_MASK(n)		IITSR_IITSEL((n), 3)
 
+#define INTTSEL_TINTSEL(n)		BIT(n)
+#define INTTSEL_TINTSEL_START		24
+
 #define TINT_EXTRACT_HWIRQ(x)		FIELD_GET(GENMASK(15, 0), (x))
 #define TINT_EXTRACT_GPIOINT(x)		FIELD_GET(GENMASK(31, 16), (x))
 
 /**
  * struct rzg2l_irqc_reg_cache - registers cache (necessary for suspend/resume)
  * @iitsr: IITSR register
+ * @inttsel: INTTSEL register
  * @titsr: TITSR registers
  */
 struct rzg2l_irqc_reg_cache {
 	u32	iitsr;
+	u32	inttsel;
 	u32	titsr[2];
 };
 
@@ -71,12 +79,14 @@ struct rzg2l_irqc_reg_cache {
  * @irq_count:		Number of IRQC interrupts
  * @tint_start:		Start of TINT interrupts
  * @num_irq:		Total Number of interrupts
+ * @shared_irq_cnt:	Number of shared interrupts
  */
 struct rzg2l_hw_info {
 	const u8	*tssel_lut;
 	unsigned int	irq_count;
 	unsigned int	tint_start;
 	unsigned int	num_irq;
+	unsigned int	shared_irq_cnt;
 };
 
 /**
@@ -88,6 +98,7 @@ struct rzg2l_hw_info {
  * @lock:	Lock to serialize access to hardware registers
  * @info:	Hardware specific data
  * @cache:	Registers cache for suspend/resume
+ * @used_irqs:	Bitmap to manage the shared interrupts
  */
 static struct rzg2l_irqc_priv {
 	void __iomem			*base;
@@ -97,6 +108,7 @@ static struct rzg2l_irqc_priv {
 	raw_spinlock_t			lock;
 	struct rzg2l_hw_info		info;
 	struct rzg2l_irqc_reg_cache	cache;
+	DECLARE_BITMAP(used_irqs, IRQC_SHARED_IRQ_COUNT);
 } *rzg2l_irqc_data;
 
 static struct rzg2l_irqc_priv *irq_data_to_priv(struct irq_data *data)
@@ -462,6 +474,8 @@ static int rzg2l_irqc_irq_suspend(void *data)
 	void __iomem *base = rzg2l_irqc_data->base;
 
 	cache->iitsr = readl_relaxed(base + IITSR);
+	if (rzg2l_irqc_data->info.shared_irq_cnt)
+		cache->inttsel = readl_relaxed(base + INTTSEL);
 	for (u8 i = 0; i < 2; i++)
 		cache->titsr[i] = readl_relaxed(base + TITSR(i));
 
@@ -480,6 +494,8 @@ static void rzg2l_irqc_irq_resume(void *data)
 	 */
 	for (u8 i = 0; i < 2; i++)
 		writel_relaxed(cache->titsr[i], base + TITSR(i));
+	if (rzg2l_irqc_data->info.shared_irq_cnt)
+		writel_relaxed(cache->inttsel, base + INTTSEL);
 	writel_relaxed(cache->iitsr, base + IITSR);
 }
 
@@ -560,6 +576,72 @@ static const struct irq_chip rzfive_irqc_tint_chip = {
 				  IRQCHIP_SKIP_SET_WAKE,
 };
 
+static bool rzg2l_irqc_is_shared_irqc(const struct rzg2l_hw_info info, unsigned int hw_irq)
+{
+	return ((hw_irq >= (info.tint_start - info.shared_irq_cnt)) && hw_irq < info.tint_start);
+}
+
+static bool rzg2l_irqc_is_shared_tint(const struct rzg2l_hw_info info, unsigned int hw_irq)
+{
+	return ((hw_irq >= (info.num_irq - info.shared_irq_cnt)) && hw_irq < info.num_irq);
+}
+
+static bool rzg2l_irqc_is_shared_and_get_irq_num(struct rzg2l_irqc_priv *priv,
+						 irq_hw_number_t hwirq, unsigned int *irq_num)
+{
+	bool is_shared = false;
+
+	if (rzg2l_irqc_is_shared_irqc(priv->info, hwirq)) {
+		*irq_num = hwirq - IRQC_IRQ_SHARED_START;
+		is_shared = true;
+	} else if (rzg2l_irqc_is_shared_tint(priv->info, hwirq)) {
+		*irq_num = hwirq - IRQC_TINT_COUNT - IRQC_IRQ_SHARED_START;
+		is_shared = true;
+	}
+
+	return is_shared;
+}
+
+static void rzg2l_irqc_set_inttsel(struct rzg2l_irqc_priv *priv, unsigned int offset,
+				   unsigned int select_irq)
+{
+	u32 reg;
+
+	guard(raw_spinlock_irqsave)(&priv->lock);
+	reg = readl_relaxed(priv->base + INTTSEL);
+	if (select_irq)
+		reg |= INTTSEL_TINTSEL(offset);
+	else
+		reg &= ~INTTSEL_TINTSEL(offset);
+	writel_relaxed(reg, priv->base + INTTSEL);
+}
+
+static int rzg2l_irqc_shared_irq_alloc(struct rzg2l_irqc_priv *priv, irq_hw_number_t hwirq)
+{
+	unsigned int irq_num;
+
+	if (rzg2l_irqc_is_shared_and_get_irq_num(priv, hwirq, &irq_num)) {
+		if (test_and_set_bit(irq_num, priv->used_irqs))
+			return -EBUSY;
+
+		if (hwirq < priv->info.tint_start)
+			rzg2l_irqc_set_inttsel(priv, INTTSEL_TINTSEL_START + irq_num, 1);
+		else
+			rzg2l_irqc_set_inttsel(priv, INTTSEL_TINTSEL_START + irq_num, 0);
+	}
+
+	return 0;
+}
+
+static void rzg2l_irqc_shared_irq_free(struct rzg2l_irqc_priv *priv, irq_hw_number_t hwirq)
+{
+	unsigned int irq_num;
+
+	if (rzg2l_irqc_is_shared_and_get_irq_num(priv, hwirq, &irq_num) &&
+	    test_and_clear_bit(irq_num, priv->used_irqs))
+		rzg2l_irqc_set_inttsel(priv, INTTSEL_TINTSEL_START + irq_num, 0);
+}
+
 static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 			    unsigned int nr_irqs, void *arg)
 {
@@ -592,16 +674,45 @@ static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (hwirq >= priv->info.num_irq)
 		return -EINVAL;
 
+	if (priv->info.shared_irq_cnt) {
+		ret = rzg2l_irqc_shared_irq_alloc(priv, hwirq);
+		if (ret)
+			return ret;
+	}
+
 	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, chip, (void *)(uintptr_t)tint);
 	if (ret)
-		return ret;
+		goto shared_irq_free;
 
-	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &priv->fwspec[hwirq]);
+	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &priv->fwspec[hwirq]);
+	if (ret)
+		goto shared_irq_free;
+
+	return 0;
+
+shared_irq_free:
+	if (priv->info.shared_irq_cnt)
+		rzg2l_irqc_shared_irq_free(priv, hwirq);
+
+	return ret;
+}
+
+static void rzg2l_irqc_free(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs)
+{
+	struct rzg2l_irqc_priv *priv = domain->host_data;
+
+	irq_domain_free_irqs_common(domain, virq, nr_irqs);
+
+	if (priv->info.shared_irq_cnt) {
+		struct irq_data *d = irq_domain_get_irq_data(domain, virq);
+
+		rzg2l_irqc_shared_irq_free(priv, irqd_to_hwirq(d));
+	}
 }
 
 static const struct irq_domain_ops rzg2l_irqc_domain_ops = {
 	.alloc = rzg2l_irqc_alloc,
-	.free = irq_domain_free_irqs_common,
+	.free = rzg2l_irqc_free,
 	.translate = irq_domain_translate_twocell,
 };
 
@@ -716,6 +827,7 @@ static const struct rzg2l_hw_info rzg3l_hw_params = {
 	.irq_count	= 16,
 	.tint_start	= IRQC_IRQ_START + 16,
 	.num_irq	= IRQC_IRQ_START + 16 + IRQC_TINT_COUNT,
+	.shared_irq_cnt	= IRQC_SHARED_IRQ_COUNT,
 };
 
 static const struct rzg2l_hw_info rzg2l_hw_params = {
