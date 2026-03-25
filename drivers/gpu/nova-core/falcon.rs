@@ -13,7 +13,10 @@ use kernel::{
         DmaAddress,
         DmaMask, //
     },
-    io::poll::read_poll_timeout,
+    io::{
+        poll::read_poll_timeout,
+        Io, //
+    },
     prelude::*,
     sync::aref::ARef,
     time::Delta,
@@ -531,7 +534,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         self.hal.reset_wait_mem_scrubbing(bar)?;
 
         regs::NV_PFALCON_FALCON_RM::default()
-            .set_value(regs::NV_PMC_BOOT_0::read(bar).into())
+            .set_value(bar.read(regs::NV_PMC_BOOT_0).into())
             .write(bar, &E::ID);
 
         Ok(())
