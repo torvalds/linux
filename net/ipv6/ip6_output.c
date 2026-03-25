@@ -873,6 +873,11 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	__be32 frag_id;
 	u8 *prevhdr, nexthdr = 0;
 
+	if (!ipv6_mod_enabled()) {
+		kfree_skb(skb);
+		return -EAFNOSUPPORT;
+	}
+
 	err = ip6_find_1stfragopt(skb, &prevhdr);
 	if (err < 0)
 		goto fail;
@@ -1045,6 +1050,7 @@ fail:
 	kfree_skb(skb);
 	return err;
 }
+EXPORT_SYMBOL_GPL(ip6_fragment);
 
 static inline int ip6_rt_check(const struct rt6key *rt_key,
 			       const struct in6_addr *fl_addr,
@@ -1256,6 +1262,8 @@ struct dst_entry *ip6_dst_lookup_flow(struct net *net, const struct sock *sk, st
 	struct dst_entry *dst = NULL;
 	int err;
 
+	if (!ipv6_mod_enabled())
+		return ERR_PTR(-EAFNOSUPPORT);
 	err = ip6_dst_lookup_tail(net, sk, &dst, fl6);
 	if (err)
 		return ERR_PTR(err);
