@@ -319,6 +319,7 @@ static struct tcp_congestion_ops tcp_vegas __read_mostly = {
 	.pkts_acked	= tcp_vegas_pkts_acked,
 	.set_state	= tcp_vegas_state,
 	.cwnd_event	= tcp_vegas_cwnd_event,
+	.cwnd_event_tx_start = tcp_vegas_cwnd_event_tx_start,
 	.get_info	= tcp_vegas_get_info,
 
 	.owner		= THIS_MODULE,
