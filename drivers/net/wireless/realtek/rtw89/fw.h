@@ -2219,50 +2219,20 @@ struct rtw89_h2c_cfg_nlo {
 #define RTW89_H2C_NLO_W0_IGNORE_CIPHER BIT(2)
 #define RTW89_H2C_NLO_W0_MACID GENMASK(31, 24)
 
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_PATTERN_MATCH_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
-}
+struct rtw89_h2c_wow_wakeup_ctrl {
+	__le32 w0;
+} __packed;
 
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAGIC_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_HW_UNICAST_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(2));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_FW_UNICAST_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(3));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_DEAUTH_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(4));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_REKEYP_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(5));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_EAP_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(6));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_ALL_DATA_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(7));
-}
-
-static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAC_ID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
-}
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_PATTERN_MATCH_ENABLE BIT(0)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_MAGIC_ENABLE BIT(1)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_HW_UNICAST_ENABLE BIT(2)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_FW_UNICAST_ENABLE BIT(3)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_DEAUTH_ENABLE BIT(4)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_REKEYP_ENABLE BIT(5)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_EAP_ENABLE BIT(6)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_ALL_DATA_ENABLE BIT(7)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_MAC_ID_EXT GENMASK(23, 16)
+#define RTW89_H2C_WOW_WAKEUP_CTRL_W0_MAC_ID GENMASK(31, 24)
 
 struct rtw89_h2c_wow_cam_update {
 	__le32 w0;
