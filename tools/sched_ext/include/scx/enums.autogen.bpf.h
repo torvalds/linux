@@ -67,6 +67,12 @@ const volatile u64 __SCX_TASK_RESET_RUNNABLE_AT __weak;
 const volatile u64 __SCX_TASK_DEQD_FOR_SLEEP __weak;
 #define SCX_TASK_DEQD_FOR_SLEEP __SCX_TASK_DEQD_FOR_SLEEP
 
+const volatile u64 __SCX_TASK_SUB_INIT __weak;
+#define SCX_TASK_SUB_INIT __SCX_TASK_SUB_INIT
+
+const volatile u64 __SCX_TASK_IMMED __weak;
+#define SCX_TASK_IMMED __SCX_TASK_IMMED
+
 const volatile u64 __SCX_TASK_STATE_SHIFT __weak;
 #define SCX_TASK_STATE_SHIFT __SCX_TASK_STATE_SHIFT
 
@@ -114,6 +120,9 @@ const volatile u64 __SCX_ENQ_HEAD __weak;
 
 const volatile u64 __SCX_ENQ_PREEMPT __weak;
 #define SCX_ENQ_PREEMPT __SCX_ENQ_PREEMPT
+
+const volatile u64 __SCX_ENQ_IMMED __weak;
+#define SCX_ENQ_IMMED __SCX_ENQ_IMMED
 
 const volatile u64 __SCX_ENQ_REENQ __weak;
 #define SCX_ENQ_REENQ __SCX_ENQ_REENQ

@@ -26,6 +26,8 @@
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_QUEUED); \
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_RESET_RUNNABLE_AT); \
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_DEQD_FOR_SLEEP); \
+	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_SUB_INIT); \
+	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_IMMED); \
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_STATE_SHIFT); \
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_STATE_BITS); \
 	SCX_ENUM_SET(skel, scx_ent_flags, SCX_TASK_STATE_MASK); \
@@ -42,6 +44,7 @@
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_WAKEUP); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_HEAD); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_PREEMPT); \
+	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_IMMED); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_REENQ); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_LAST); \
 	SCX_ENUM_SET(skel, scx_enq_flags, SCX_ENQ_CLEAR_OPSS); \
