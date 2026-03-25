@@ -3109,6 +3109,9 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 	for (i = 0; i < COEX_BTINFO_LENGTH; i++)
 		coex_stat->bt_info_c2h[rsp_source][i] = buf[i];
 
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8821A)
+		coex_stat->bt_info_c2h[rsp_source][5] = 0;
+
 	/* get the same info from bt, skip it */
 	if (coex_stat->bt_info_c2h[rsp_source][1] == coex_stat->bt_info_lb2 &&
 	    coex_stat->bt_info_c2h[rsp_source][2] == coex_stat->bt_info_lb3 &&
