@@ -89,6 +89,15 @@ enum tegra234_cbb_fabric_ids {
 	T234_MAX_FABRIC_ID,
 };
 
+enum tegra238_cbb_fabric_ids {
+	T238_CBB_FABRIC_ID  = 0,
+	T238_AON_FABRIC_ID  = 4,
+	T238_PSC_FABRIC_ID  = 5,
+	T238_BPMP_FABRIC_ID = 6,
+	T238_APE_FABRIC_ID  = 7,
+	T238_MAX_FABRIC_ID,
+};
+
 enum tegra264_cbb_fabric_ids {
 	T264_SYSTEM_CBB_FABRIC_ID,
 	T264_TOP_0_CBB_FABRIC_ID,
@@ -974,6 +983,127 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.firewall_wr_ctl = 0x288,
 };
 
+static const struct tegra234_target_lookup tegra238_ape_target_map[] = {
+	{ "AXI2APB", 0x00000 },
+	{ "AGIC",    0x15000 },
+	{ "AMC",     0x16000 },
+	{ "AST0",    0x17000 },
+	{ "AST1",    0x18000 },
+	{ "AST2",    0x19000 },
+	{ "CBB",     0x1A000 },
+};
+
+static const struct tegra234_target_lookup tegra238_cbb_target_map[] = {
+	{ "AON",         0x40000 },
+	{ "APE",         0x50000 },
+	{ "BPMP",        0x41000 },
+	{ "HOST1X",      0x43000 },
+	{ "STM",         0x44000 },
+	{ "CBB_CENTRAL", 0x00000 },
+	{ "PCIE_C0",     0x51000 },
+	{ "PCIE_C1",     0x47000 },
+	{ "PCIE_C2",     0x48000 },
+	{ "PCIE_C3",     0x49000 },
+	{ "GPU",         0x4C000 },
+	{ "SMMU0",       0x4D000 },
+	{ "SMMU1",       0x4E000 },
+	{ "SMMU2",       0x4F000 },
+	{ "PSC",         0x52000 },
+	{ "AXI2APB_1",   0x70000 },
+	{ "AXI2APB_12",  0x73000 },
+	{ "AXI2APB_13",  0x74000 },
+	{ "AXI2APB_15",  0x76000 },
+	{ "AXI2APB_16",  0x77000 },
+	{ "AXI2APB_18",  0x79000 },
+	{ "AXI2APB_19",  0x7A000 },
+	{ "AXI2APB_2",   0x7B000 },
+	{ "AXI2APB_23",  0x7F000 },
+	{ "AXI2APB_25",  0x80000 },
+	{ "AXI2APB_26",  0x81000 },
+	{ "AXI2APB_27",  0x82000 },
+	{ "AXI2APB_28",  0x83000 },
+	{ "AXI2APB_32",  0x87000 },
+	{ "AXI2APB_33",  0x88000 },
+	{ "AXI2APB_4",   0x8B000 },
+	{ "AXI2APB_5",   0x8C000 },
+	{ "AXI2APB_6",   0x93000 },
+	{ "AXI2APB_9",   0x90000 },
+	{ "AXI2APB_3",   0x91000 },
+};
+
+static const struct tegra234_fabric_lookup tegra238_cbb_fab_list[] = {
+	[T238_CBB_FABRIC_ID]  = { "cbb-fabric", true,
+				  tegra238_cbb_target_map,
+				  ARRAY_SIZE(tegra238_cbb_target_map) },
+	[T238_AON_FABRIC_ID]  = { "aon-fabric", true,
+				  tegra234_aon_target_map,
+				  ARRAY_SIZE(tegra234_aon_target_map) },
+	[T238_PSC_FABRIC_ID]  = { "psc-fabric" },
+	[T238_BPMP_FABRIC_ID] = { "bpmp-fabric", true,
+				  tegra234_bpmp_target_map,
+				  ARRAY_SIZE(tegra234_bpmp_target_map) },
+	[T238_APE_FABRIC_ID]  = { "ape-fabric", true,
+				  tegra238_ape_target_map,
+				  ARRAY_SIZE(tegra238_ape_target_map) },
+};
+
+static const struct tegra234_cbb_fabric tegra238_aon_fabric = {
+	.fab_id = T238_AON_FABRIC_ID,
+	.fab_list = tegra238_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0x7,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x17000,
+	.firewall_base = 0x30000,
+	.firewall_ctl = 0x8f0,
+	.firewall_wr_ctl = 0x8e8,
+};
+
+static const struct tegra234_cbb_fabric tegra238_ape_fabric = {
+	.fab_id = T238_APE_FABRIC_ID,
+	.fab_list = tegra238_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x1E000,
+	.firewall_base = 0x30000,
+	.firewall_ctl = 0xad0,
+	.firewall_wr_ctl = 0xac8,
+};
+
+static const struct tegra234_cbb_fabric tegra238_bpmp_fabric = {
+	.fab_id = T238_BPMP_FABRIC_ID,
+	.fab_list = tegra238_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x19000,
+	.firewall_base = 0x30000,
+	.firewall_ctl = 0x8f0,
+	.firewall_wr_ctl = 0x8e8,
+};
+
+static const struct tegra234_cbb_fabric tegra238_cbb_fabric = {
+	.fab_id = T238_CBB_FABRIC_ID,
+	.fab_list = tegra238_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0x3f,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x60000,
+	.off_mask_erd = 0x3d004,
+	.firewall_base = 0x10000,
+	.firewall_ctl = 0x2230,
+	.firewall_wr_ctl = 0x2228,
+};
+
 static const char * const tegra241_initiator_id[] = {
 	[0x0] = "TZ",
 	[0x1] = "CCPLEX",
@@ -1480,6 +1610,10 @@ static const struct of_device_id tegra234_cbb_dt_ids[] = {
 	{ .compatible = "nvidia,tegra234-dce-fabric", .data = &tegra234_dce_fabric },
 	{ .compatible = "nvidia,tegra234-rce-fabric", .data = &tegra234_rce_fabric },
 	{ .compatible = "nvidia,tegra234-sce-fabric", .data = &tegra234_sce_fabric },
+	{ .compatible = "nvidia,tegra238-aon-fabric", .data = &tegra238_aon_fabric },
+	{ .compatible = "nvidia,tegra238-ape-fabric", .data = &tegra238_ape_fabric },
+	{ .compatible = "nvidia,tegra238-bpmp-fabric", .data = &tegra238_bpmp_fabric },
+	{ .compatible = "nvidia,tegra238-cbb-fabric", .data = &tegra238_cbb_fabric },
 	{ .compatible = "nvidia,tegra264-sys-cbb-fabric", .data = &tegra264_sys_cbb_fabric },
 	{ .compatible = "nvidia,tegra264-top0-cbb-fabric", .data = &tegra264_top0_cbb_fabric },
 	{ .compatible = "nvidia,tegra264-uphy0-cbb-fabric", .data = &tegra264_uphy0_cbb_fabric },
