@@ -3684,11 +3684,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct crypt_config *cc = ti->private;
 
-	limits->logical_block_size =
-		max_t(unsigned int, limits->logical_block_size, cc->sector_size);
-	limits->physical_block_size =
-		max_t(unsigned int, limits->physical_block_size, cc->sector_size);
-	limits->io_min = max_t(unsigned int, limits->io_min, cc->sector_size);
+	dm_stack_bs_limits(limits, cc->sector_size);
 	limits->dma_alignment = limits->logical_block_size - 1;
 
 	/*

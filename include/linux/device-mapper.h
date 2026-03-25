@@ -755,4 +755,11 @@ static inline unsigned long to_bytes(sector_t n)
 	return (n << SECTOR_SHIFT);
 }
 
+static inline void dm_stack_bs_limits(struct queue_limits *limits, unsigned int bs)
+{
+	limits->logical_block_size = max(limits->logical_block_size, bs);
+	limits->physical_block_size = max(limits->physical_block_size, bs);
+	limits->io_min = max(limits->io_min, bs);
+}
+
 #endif	/* _LINUX_DEVICE_MAPPER_H */
