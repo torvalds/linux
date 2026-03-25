@@ -113,8 +113,8 @@ nf_ct_exp_equal(const struct nf_conntrack_tuple *tuple,
 		const struct net *net)
 {
 	return nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
-	       net_eq(net, nf_ct_net(i->master)) &&
-	       nf_ct_zone_equal_any(i->master, zone);
+	       net_eq(net, read_pnet(&i->net)) &&
+	       nf_ct_exp_zone_equal_any(i, zone);
 }
 
 bool nf_ct_remove_expect(struct nf_conntrack_expect *exp)
@@ -326,6 +326,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 {
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn *ct = exp->master;
+	struct net *net = read_pnet(&ct->ct_net);
 	struct nf_conn_help *help;
 	int len;
 
@@ -343,6 +344,10 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 		helper = rcu_dereference(help->helper);
 
 	rcu_assign_pointer(exp->helper, helper);
+	write_pnet(&exp->net, net);
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	exp->zone = ct->zone;
+#endif
 	exp->tuple.src.l3num = family;
 	exp->tuple.dst.protonum = proto;
 

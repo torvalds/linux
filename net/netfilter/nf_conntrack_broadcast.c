@@ -21,6 +21,7 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 				unsigned int timeout)
 {
 	const struct nf_conntrack_helper *helper;
+	struct net *net = read_pnet(&ct->ct_net);
 	struct nf_conntrack_expect *exp;
 	struct iphdr *iph = ip_hdr(skb);
 	struct rtable *rt = skb_rtable(skb);
@@ -71,7 +72,10 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	exp->flags                = NF_CT_EXPECT_PERMANENT;
 	exp->class		  = NF_CT_EXPECT_CLASS_DEFAULT;
 	rcu_assign_pointer(exp->helper, helper);
-
+	write_pnet(&exp->net, net);
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	exp->zone = ct->zone;
+#endif
 	nf_ct_expect_related(exp, 0);
 	nf_ct_expect_put(exp);
 
