@@ -48,6 +48,10 @@ properties:
       - nvidia,tegra234-dce-fabric
       - nvidia,tegra234-rce-fabric
       - nvidia,tegra234-sce-fabric
+      - nvidia,tegra238-ape-fabric
+      - nvidia,tegra238-aon-fabric
+      - nvidia,tegra238-bpmp-fabric
+      - nvidia,tegra238-cbb-fabric
 
   reg:
     maxItems: 1
