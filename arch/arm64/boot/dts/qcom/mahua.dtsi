@@ -6,6 +6,7 @@
 /* Mahua is heavily based on Glymur, with some meaningful differences */
 #include "glymur.dtsi"
 
+/delete-node/ &bwmon_cluster2;
 /delete-node/ &cluster2_pd;
 /delete-node/ &cpu_map_cluster2;
 /delete-node/ &cpu12;
