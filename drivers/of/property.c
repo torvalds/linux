@@ -1620,12 +1620,36 @@ static int of_fwnode_irq_get(const struct fwnode_handle *fwnode,
 	return of_irq_get(to_of_node(fwnode), index);
 }
 
+static int match_property_by_path(const char *node_path, const char *prop_name,
+				  const char *value)
+{
+	struct device_node *np __free(device_node) = of_find_node_by_path(node_path);
+
+	return of_property_match_string(np, prop_name, value);
+}
+
+static bool of_is_fwnode_add_links_supported(void)
+{
+	static int is_supported = -1;
+
+	if (!IS_ENABLED(CONFIG_X86))
+		return true;
+
+	if (is_supported != -1)
+		return !!is_supported;
+
+	is_supported = !((match_property_by_path("/soc", "compatible", "intel,ce4100-cp") >= 0) ||
+			 (match_property_by_path("/", "architecture", "OLPC") >= 0));
+
+	return !!is_supported;
+}
+
 static int of_fwnode_add_links(struct fwnode_handle *fwnode)
 {
 	const struct property *p;
 	struct device_node *con_np = to_of_node(fwnode);
 
-	if (IS_ENABLED(CONFIG_X86))
+	if (!of_is_fwnode_add_links_supported())
 		return 0;
 
 	if (!con_np)
