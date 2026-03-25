@@ -33,7 +33,7 @@ int mlx5_shd_init(struct mlx5_core_dev *dev)
 		start = pci_vpd_find_ro_info_keyword(vpd_data, vpd_size,
 						     PCI_VPD_RO_KEYWORD_SERIALNO, &kw_len);
 		if (start < 0)
-			return -ENOENT;
+			return 0; /* No usable serial number found, ignore. */
 	}
 	sn = kstrndup(vpd_data + start, kw_len, GFP_KERNEL);
 	if (!sn)
