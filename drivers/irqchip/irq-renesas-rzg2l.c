@@ -491,9 +491,6 @@ static int rzg2l_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (hwirq > IRQC_IRQ_COUNT) {
 		tint = TINT_EXTRACT_GPIOINT(hwirq);
 		hwirq = TINT_EXTRACT_HWIRQ(hwirq);
-
-		if (hwirq < IRQC_TINT_START)
-			return -EINVAL;
 	}
 
 	if (hwirq > (IRQC_NUM_IRQ - 1))
