@@ -885,7 +885,7 @@ unsafe impl<T: KnownSize + Send + ?Sized> Send for Coherent<T> {}
 // The safe methods only return metadata or raw pointers whose use requires `unsafe`.
 unsafe impl<T: KnownSize + ?Sized + AsBytes + FromBytes + Sync> Sync for Coherent<T> {}
 
-impl debugfs::BinaryWriter for Coherent<[u8]> {
+impl<T: KnownSize + AsBytes + ?Sized> debugfs::BinaryWriter for Coherent<T> {
     fn write_to_slice(
         &self,
         writer: &mut UserSliceWriter,
