@@ -236,6 +236,7 @@ config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
 	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)
 	depends on ARCH_BRCMSTB || ARCH_BCM2835 || BMIPS_GENERIC || COMPILE_TEST
+	depends on OF
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -463,6 +464,7 @@ config GPIO_LPC18XX
 config GPIO_LPC32XX
 	tristate "NXP LPC32XX GPIO support"
 	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on OF
 	help
 	  Select this option to enable GPIO driver for
 	  NXP LPC32XX devices.
@@ -505,6 +507,7 @@ config GPIO_MPC8XXX
 config GPIO_MT7621
 	bool "Mediatek MT7621 GPIO Support"
 	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
+	depends on OF
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
@@ -645,6 +648,7 @@ config GPIO_RTD
 
 config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
+	depends on OF
 	depends on MFD_SYSCON
 	depends on ARCH_AT91 || COMPILE_TEST
 	select GPIO_SYSCON
@@ -685,6 +689,7 @@ config GPIO_SNPS_CREG
 config GPIO_SPACEMIT_K1
 	tristate "SPACEMIT K1 GPIO support"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
+	depends on OF
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
@@ -750,6 +755,7 @@ config GPIO_TEGRA186
 	tristate "NVIDIA Tegra186 GPIO support"
 	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC
 	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC || COMPILE_TEST
+	depends on OF
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
