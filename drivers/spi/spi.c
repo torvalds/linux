@@ -3534,8 +3534,19 @@ int devm_spi_register_controller(struct device *dev,
 	if (ret)
 		return ret;
 
-	return devm_add_action_or_reset(dev, devm_spi_unregister_controller, ctlr);
+	/*
+	 * Prevent controller from being freed by spi_unregister_controller()
+	 * if devm_add_action_or_reset() fails for a non-devres allocated
+	 * controller.
+	 */
+	spi_controller_get(ctlr);
 
+	ret = devm_add_action_or_reset(dev, devm_spi_unregister_controller, ctlr);
+
+	if (ret == 0 || ctlr->devm_allocated)
+		spi_controller_put(ctlr);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_spi_register_controller);
 
