@@ -102,6 +102,18 @@ void aa_info_message(const char *str);
 /* Security blob offsets */
 extern struct lsm_blob_sizes apparmor_blob_sizes;
 
+enum reftype {
+	REF_NS,
+	REF_PROXY,
+	REF_RAWDATA,
+};
+
+/* common reference count used by data the shows up in aafs */
+struct aa_common_ref {
+	struct kref count;
+	enum reftype reftype;
+};
+
 /**
  * aa_strneq - compare null terminated @str to a non null terminated substring
  * @str: a null terminated string

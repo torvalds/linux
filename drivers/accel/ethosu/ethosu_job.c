@@ -143,16 +143,9 @@ out:
 	return ret;
 }
 
-static void ethosu_job_cleanup(struct kref *ref)
+static void ethosu_job_err_cleanup(struct ethosu_job *job)
 {
-	struct ethosu_job *job = container_of(ref, struct ethosu_job,
-						refcount);
 	unsigned int i;
-
-	pm_runtime_put_autosuspend(job->dev->base.dev);
-
-	dma_fence_put(job->done_fence);
-	dma_fence_put(job->inference_done_fence);
 
 	for (i = 0; i < job->region_cnt; i++)
 		drm_gem_object_put(job->region_bo[i]);
@@ -160,6 +153,19 @@ static void ethosu_job_cleanup(struct kref *ref)
 	drm_gem_object_put(job->cmd_bo);
 
 	kfree(job);
+}
+
+static void ethosu_job_cleanup(struct kref *ref)
+{
+	struct ethosu_job *job = container_of(ref, struct ethosu_job,
+						refcount);
+
+	pm_runtime_put_autosuspend(job->dev->base.dev);
+
+	dma_fence_put(job->done_fence);
+	dma_fence_put(job->inference_done_fence);
+
+	ethosu_job_err_cleanup(job);
 }
 
 static void ethosu_job_put(struct ethosu_job *job)
@@ -454,12 +460,16 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 		}
 	}
 	ret = ethosu_job_push(ejob);
+	if (!ret) {
+		ethosu_job_put(ejob);
+		return 0;
+	}
 
 out_cleanup_job:
 	if (ret)
 		drm_sched_job_cleanup(&ejob->base);
 out_put_job:
-	ethosu_job_put(ejob);
+	ethosu_job_err_cleanup(ejob);
 
 	return ret;
 }

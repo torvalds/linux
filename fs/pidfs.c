@@ -608,9 +608,8 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			struct user_namespace *user_ns;
 
 			user_ns = task_cred_xxx(task, user_ns);
-			if (!ns_ref_get(user_ns))
-				break;
-			ns_common = to_ns_common(user_ns);
+			if (ns_ref_get(user_ns))
+				ns_common = to_ns_common(user_ns);
 		}
 #endif
 		break;
@@ -620,9 +619,8 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			struct pid_namespace *pid_ns;
 
 			pid_ns = task_active_pid_ns(task);
-			if (!ns_ref_get(pid_ns))
-				break;
-			ns_common = to_ns_common(pid_ns);
+			if (ns_ref_get(pid_ns))
+				ns_common = to_ns_common(pid_ns);
 		}
 #endif
 		break;

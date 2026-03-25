@@ -3,7 +3,7 @@
 
 #include "us144mkii.h"
 
-/**
+/*
  * tascam_capture_open() - Opens the PCM capture substream.
  * @substream: The ALSA PCM substream to open.
  *
@@ -23,7 +23,7 @@ static int tascam_capture_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_capture_close() - Closes the PCM capture substream.
  * @substream: The ALSA PCM substream to close.
  *
@@ -41,7 +41,7 @@ static int tascam_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_capture_prepare() - Prepares the PCM capture substream for use.
  * @substream: The ALSA PCM substream to prepare.
  *
@@ -62,7 +62,7 @@ static int tascam_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_capture_pointer() - Returns the current capture pointer position.
  * @substream: The ALSA PCM substream.
  *
@@ -91,7 +91,7 @@ tascam_capture_pointer(struct snd_pcm_substream *substream)
 	return do_div(pos, runtime->buffer_size);
 }
 
-/**
+/*
  * tascam_capture_ops - ALSA PCM operations for capture.
  *
  * This structure defines the callback functions for capture stream operations,
@@ -109,7 +109,7 @@ const struct snd_pcm_ops tascam_capture_ops = {
 	.pointer = tascam_capture_pointer,
 };
 
-/**
+/*
  * decode_tascam_capture_block() - Decodes a raw 512-byte block from the device.
  * @src_block: Pointer to the 512-byte raw source block.
  * @dst_block: Pointer to the destination buffer for decoded audio frames.

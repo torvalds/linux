@@ -154,6 +154,7 @@ void ieee80211_rx_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
 	u8 *ptr = mgmt->u.action.u.eml_omn.variable;
 	struct ieee80211_eml_params eml_params = {
 		.link_id = status->link_id,
+		.control = control,
 	};
 	struct sta_info *sta;
 	int opt_len = 0;

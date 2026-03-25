@@ -80,6 +80,7 @@ struct xenbus_device {
 	const char *devicetype;
 	const char *nodename;
 	const char *otherend;
+	bool vanished;
 	int otherend_id;
 	struct xenbus_watch otherend_watch;
 	struct device dev;
@@ -228,7 +229,8 @@ int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr);
 int xenbus_alloc_evtchn(struct xenbus_device *dev, evtchn_port_t *port);
 int xenbus_free_evtchn(struct xenbus_device *dev, evtchn_port_t port);
 
-enum xenbus_state xenbus_read_driver_state(const char *path);
+enum xenbus_state xenbus_read_driver_state(const struct xenbus_device *dev,
+					   const char *path);
 
 __printf(3, 4)
 void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt, ...);

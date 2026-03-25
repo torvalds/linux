@@ -9816,6 +9816,15 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->dig_in = 0x09;
 		break;
 	}
+
+	/* Default HP/Speaker auto-detect from headphone pin verb: enable if the
+	 * pin config indicates presence detect (not AC_DEFCFG_MISC_NO_PRESENCE).
+	 */
+	if (spec->unsol_tag_hp &&
+	    (snd_hda_query_pin_caps(codec, spec->unsol_tag_hp) & AC_PINCAP_PRES_DETECT) &&
+	    !(get_defcfg_misc(snd_hda_codec_get_pincfg(codec, spec->unsol_tag_hp)) &
+	      AC_DEFCFG_MISC_NO_PRESENCE))
+		spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID] = 1;
 }
 
 static int ca0132_prepare_verbs(struct hda_codec *codec)

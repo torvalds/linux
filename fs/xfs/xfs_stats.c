@@ -42,7 +42,7 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "xstrat",		xfsstats_offset(xs_write_calls)	},
 		{ "rw",			xfsstats_offset(xs_attr_get)	},
 		{ "attr",		xfsstats_offset(xs_iflush_count)},
-		{ "icluster",		xfsstats_offset(vn_active)	},
+		{ "icluster",		xfsstats_offset(xs_inodes_active) },
 		{ "vnodes",		xfsstats_offset(xb_get)		},
 		{ "buf",		xfsstats_offset(xs_abtb_2)	},
 		{ "abtb2",		xfsstats_offset(xs_abtc_2)	},
@@ -59,7 +59,8 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "rtrefcntbt",		xfsstats_offset(xs_qm_dqreclaims)},
 		/* we print both series of quota information together */
 		{ "qm",			xfsstats_offset(xs_gc_read_calls)},
-		{ "zoned",		xfsstats_offset(__pad1)},
+		{ "zoned",		xfsstats_offset(xs_inodes_meta)},
+		{ "metafile",		xfsstats_offset(xs_xstrat_bytes)},
 	};
 
 	/* Loop over all stats groups */
@@ -99,16 +100,20 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 
 void xfs_stats_clearall(struct xfsstats __percpu *stats)
 {
+	uint32_t	xs_inodes_active, xs_inodes_meta;
 	int		c;
-	uint32_t	vn_active;
 
 	xfs_notice(NULL, "Clearing xfsstats");
 	for_each_possible_cpu(c) {
 		preempt_disable();
-		/* save vn_active, it's a universal truth! */
-		vn_active = per_cpu_ptr(stats, c)->s.vn_active;
+		/*
+		 * Save the active / meta inode counters, as they are stateful.
+		 */
+		xs_inodes_active = per_cpu_ptr(stats, c)->s.xs_inodes_active;
+		xs_inodes_meta = per_cpu_ptr(stats, c)->s.xs_inodes_meta;
 		memset(per_cpu_ptr(stats, c), 0, sizeof(*stats));
-		per_cpu_ptr(stats, c)->s.vn_active = vn_active;
+		per_cpu_ptr(stats, c)->s.xs_inodes_active = xs_inodes_active;
+		per_cpu_ptr(stats, c)->s.xs_inodes_meta = xs_inodes_meta;
 		preempt_enable();
 	}
 }

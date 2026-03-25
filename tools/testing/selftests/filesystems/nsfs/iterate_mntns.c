@@ -37,16 +37,19 @@ FIXTURE(iterate_mount_namespaces) {
 	__u64 mnt_ns_id[MNT_NS_COUNT];
 };
 
+static inline bool mntns_in_list(__u64 *mnt_ns_id, struct mnt_ns_info *info)
+{
+	for (int i = 0; i < MNT_NS_COUNT; i++) {
+		if (mnt_ns_id[i] == info->mnt_ns_id)
+			return true;
+	}
+	return false;
+}
+
 FIXTURE_SETUP(iterate_mount_namespaces)
 {
 	for (int i = 0; i < MNT_NS_COUNT; i++)
 		self->fd_mnt_ns[i] = -EBADF;
-
-	/*
-	 * Creating a new user namespace let's us guarantee that we only see
-	 * mount namespaces that we did actually create.
-	 */
-	ASSERT_EQ(unshare(CLONE_NEWUSER), 0);
 
 	for (int i = 0; i < MNT_NS_COUNT; i++) {
 		struct mnt_ns_info info = {};
@@ -75,13 +78,15 @@ TEST_F(iterate_mount_namespaces, iterate_all_forward)
 	fd_mnt_ns_cur = fcntl(self->fd_mnt_ns[0], F_DUPFD_CLOEXEC);
 	ASSERT_GE(fd_mnt_ns_cur, 0);
 
-	for (;; count++) {
+	for (;;) {
 		struct mnt_ns_info info = {};
 		int fd_mnt_ns_next;
 
 		fd_mnt_ns_next = ioctl(fd_mnt_ns_cur, NS_MNT_GET_NEXT, &info);
 		if (fd_mnt_ns_next < 0 && errno == ENOENT)
 			break;
+		if (mntns_in_list(self->mnt_ns_id, &info))
+			count++;
 		ASSERT_GE(fd_mnt_ns_next, 0);
 		ASSERT_EQ(close(fd_mnt_ns_cur), 0);
 		fd_mnt_ns_cur = fd_mnt_ns_next;
@@ -96,13 +101,15 @@ TEST_F(iterate_mount_namespaces, iterate_all_backwards)
 	fd_mnt_ns_cur = fcntl(self->fd_mnt_ns[MNT_NS_LAST_INDEX], F_DUPFD_CLOEXEC);
 	ASSERT_GE(fd_mnt_ns_cur, 0);
 
-	for (;; count++) {
+	for (;;) {
 		struct mnt_ns_info info = {};
 		int fd_mnt_ns_prev;
 
 		fd_mnt_ns_prev = ioctl(fd_mnt_ns_cur, NS_MNT_GET_PREV, &info);
 		if (fd_mnt_ns_prev < 0 && errno == ENOENT)
 			break;
+		if (mntns_in_list(self->mnt_ns_id, &info))
+			count++;
 		ASSERT_GE(fd_mnt_ns_prev, 0);
 		ASSERT_EQ(close(fd_mnt_ns_cur), 0);
 		fd_mnt_ns_cur = fd_mnt_ns_prev;
@@ -125,7 +132,6 @@ TEST_F(iterate_mount_namespaces, iterate_forward)
 		ASSERT_GE(fd_mnt_ns_next, 0);
 		ASSERT_EQ(close(fd_mnt_ns_cur), 0);
 		fd_mnt_ns_cur = fd_mnt_ns_next;
-		ASSERT_EQ(info.mnt_ns_id, self->mnt_ns_id[i]);
 	}
 }
 
@@ -144,7 +150,6 @@ TEST_F(iterate_mount_namespaces, iterate_backward)
 		ASSERT_GE(fd_mnt_ns_prev, 0);
 		ASSERT_EQ(close(fd_mnt_ns_cur), 0);
 		fd_mnt_ns_cur = fd_mnt_ns_prev;
-		ASSERT_EQ(info.mnt_ns_id, self->mnt_ns_id[i]);
 	}
 }
 

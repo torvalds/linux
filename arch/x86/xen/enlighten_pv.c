@@ -392,7 +392,7 @@ static void __init xen_init_capabilities(void)
 
 	/*
 	 * Xen PV would need some work to support PCID: CR3 handling as well
-	 * as xen_flush_tlb_others() would need updating.
+	 * as xen_flush_tlb_multi() would need updating.
 	 */
 	setup_clear_cpu_cap(X86_FEATURE_PCID);
 

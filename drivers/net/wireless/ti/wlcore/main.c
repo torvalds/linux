@@ -1875,6 +1875,8 @@ static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 		     wl->wow_enabled);
 	WARN_ON(!wl->wow_enabled);
 
+	mutex_lock(&wl->mutex);
+
 	ret = pm_runtime_force_resume(wl->dev);
 	if (ret < 0) {
 		wl1271_error("ELP wakeup failure!");
@@ -1890,8 +1892,6 @@ static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 	if (test_and_clear_bit(WL1271_FLAG_PENDING_WORK, &wl->flags))
 		run_irq_work = true;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
-	mutex_lock(&wl->mutex);
 
 	/* test the recovery flag before calling any SDIO functions */
 	pending_recovery = test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS,

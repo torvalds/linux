@@ -39,13 +39,9 @@ enum vcpu_ftr {
 /* bits [6-5] MAS2_X1 and MAS2_X0 and [4-0] bits for WIMGE */
 #define E500_TLB_MAS2_ATTR	(0x7f)
 
-struct tlbe_ref {
+struct tlbe_priv {
 	kvm_pfn_t pfn;		/* valid only for TLB0, except briefly */
 	unsigned int flags;	/* E500_TLB_* */
-};
-
-struct tlbe_priv {
-	struct tlbe_ref ref;
 };
 
 #ifdef CONFIG_KVM_E500V2

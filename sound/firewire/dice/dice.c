@@ -122,7 +122,7 @@ static void dice_card_strings(struct snd_dice *dice)
 	fw_csr_string(dev->config_rom + 5, CSR_VENDOR, vendor, sizeof(vendor));
 	strscpy(model, "?");
 	fw_csr_string(dice->unit->directory, CSR_MODEL, model, sizeof(model));
-	snprintf(card->longname, sizeof(card->longname),
+	scnprintf(card->longname, sizeof(card->longname),
 		 "%s %s (serial %u) at %s, S%d",
 		 vendor, model, dev->config_rom[4] & 0x3fffff,
 		 dev_name(&dice->unit->device), 100 << dev->max_speed);

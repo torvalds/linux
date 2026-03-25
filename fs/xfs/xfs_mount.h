@@ -345,7 +345,7 @@ typedef struct xfs_mount {
 	struct xfs_hooks	m_dir_update_hooks;
 
 	/* Private data referring to a health monitor object. */
-	struct xfs_healthmon	*m_healthmon;
+	struct xfs_healthmon __rcu	*m_healthmon;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)

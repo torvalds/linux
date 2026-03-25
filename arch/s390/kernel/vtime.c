@@ -48,8 +48,7 @@ static inline void set_vtimer(u64 expires)
 
 static inline int virt_timer_forward(u64 elapsed)
 {
-	BUG_ON(!irqs_disabled());
-
+	lockdep_assert_irqs_disabled();
 	if (list_empty(&virt_timer_list))
 		return 0;
 	elapsed = atomic64_add_return(elapsed, &virt_timer_elapsed);
@@ -137,23 +136,16 @@ static int do_account_vtime(struct task_struct *tsk)
 		lc->system_timer += timer;
 
 	/* Update MT utilization calculation */
-	if (smp_cpu_mtid &&
-	    time_after64(jiffies_64, this_cpu_read(mt_scaling_jiffies)))
+	if (smp_cpu_mtid && time_after64(jiffies_64, __this_cpu_read(mt_scaling_jiffies)))
 		update_mt_scaling();
 
 	/* Calculate cputime delta */
-	user = update_tsk_timer(&tsk->thread.user_timer,
-				READ_ONCE(lc->user_timer));
-	guest = update_tsk_timer(&tsk->thread.guest_timer,
-				 READ_ONCE(lc->guest_timer));
-	system = update_tsk_timer(&tsk->thread.system_timer,
-				  READ_ONCE(lc->system_timer));
-	hardirq = update_tsk_timer(&tsk->thread.hardirq_timer,
-				   READ_ONCE(lc->hardirq_timer));
-	softirq = update_tsk_timer(&tsk->thread.softirq_timer,
-				   READ_ONCE(lc->softirq_timer));
-	lc->steal_timer +=
-		clock - user - guest - system - hardirq - softirq;
+	user = update_tsk_timer(&tsk->thread.user_timer, lc->user_timer);
+	guest = update_tsk_timer(&tsk->thread.guest_timer, lc->guest_timer);
+	system = update_tsk_timer(&tsk->thread.system_timer, lc->system_timer);
+	hardirq = update_tsk_timer(&tsk->thread.hardirq_timer, lc->hardirq_timer);
+	softirq = update_tsk_timer(&tsk->thread.softirq_timer, lc->softirq_timer);
+	lc->steal_timer += clock - user - guest - system - hardirq - softirq;
 
 	/* Push account value */
 	if (user) {
@@ -225,10 +217,6 @@ static u64 vtime_delta(void)
 	return timer - lc->last_update_timer;
 }
 
-/*
- * Update process times based on virtual cpu times stored by entry.S
- * to the lowcore fields user_timer, system_timer & steal_clock.
- */
 void vtime_account_kernel(struct task_struct *tsk)
 {
 	struct lowcore *lc = get_lowcore();
@@ -238,27 +226,17 @@ void vtime_account_kernel(struct task_struct *tsk)
 		lc->guest_timer += delta;
 	else
 		lc->system_timer += delta;
-
-	virt_timer_forward(delta);
 }
 EXPORT_SYMBOL_GPL(vtime_account_kernel);
 
 void vtime_account_softirq(struct task_struct *tsk)
 {
-	u64 delta = vtime_delta();
-
-	get_lowcore()->softirq_timer += delta;
-
-	virt_timer_forward(delta);
+	get_lowcore()->softirq_timer += vtime_delta();
 }
 
 void vtime_account_hardirq(struct task_struct *tsk)
 {
-	u64 delta = vtime_delta();
-
-	get_lowcore()->hardirq_timer += delta;
-
-	virt_timer_forward(delta);
+	get_lowcore()->hardirq_timer += vtime_delta();
 }
 
 /*

@@ -35,6 +35,8 @@ struct fwnode_handle;
  *		otherwise. It may also return error code if determining that
  *		the driver supports the device is not possible. In case of
  *		-EPROBE_DEFER it will queue the device for deferred probing.
+ *		Note: This callback may be invoked with or without the device
+ *		lock held.
  * @uevent:	Called when a device is added, removed, or a few other things
  *		that generate uevents to add the environment variables.
  * @probe:	Called when a new device or driver add to this bus, and callback

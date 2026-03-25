@@ -191,7 +191,7 @@ void xenbus_otherend_changed(struct xenbus_watch *watch,
 		return;
 	}
 
-	state = xenbus_read_driver_state(dev->otherend);
+	state = xenbus_read_driver_state(dev, dev->otherend);
 
 	dev_dbg(&dev->dev, "state is %d, (%s), %s, %s\n",
 		state, xenbus_strstate(state), dev->otherend_watch.node, path);
@@ -364,7 +364,7 @@ void xenbus_dev_remove(struct device *_dev)
 	 * closed.
 	 */
 	if (!drv->allow_rebind ||
-	    xenbus_read_driver_state(dev->nodename) == XenbusStateClosing)
+	    xenbus_read_driver_state(dev, dev->nodename) == XenbusStateClosing)
 		xenbus_switch_state(dev, XenbusStateClosed);
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_remove);
@@ -444,6 +444,9 @@ static void xenbus_cleanup_devices(const char *path, struct bus_type *bus)
 		info.dev = NULL;
 		bus_for_each_dev(bus, NULL, &info, cleanup_dev);
 		if (info.dev) {
+			dev_warn(&info.dev->dev,
+				 "device forcefully removed from xenstore\n");
+			info.dev->vanished = true;
 			device_unregister(&info.dev->dev);
 			put_device(&info.dev->dev);
 		}
@@ -514,7 +517,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	size_t stringlen;
 	char *tmpstring;
 
-	enum xenbus_state state = xenbus_read_driver_state(nodename);
+	enum xenbus_state state = xenbus_read_driver_state(NULL, nodename);
 
 	if (state != XenbusStateInitialising) {
 		/* Device is not new, so ignore it.  This can happen if a
@@ -659,6 +662,39 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 		return;
 
 	dev = xenbus_device_find(root, &bus->bus);
+	/*
+	 * Backend domain crash results in not coordinated frontend removal,
+	 * without going through XenbusStateClosing. If this is a new instance
+	 * of the same device Xen tools will have reset the state to
+	 * XenbusStateInitializing.
+	 * It might be that the backend crashed early during the init phase of
+	 * device setup, in which case the known state would have been
+	 * XenbusStateInitializing. So test the backend domid to match the
+	 * saved one. In case the new backend happens to have the same domid as
+	 * the old one, we can just carry on, as there is no inconsistency
+	 * resulting in this case.
+	 */
+	if (dev && !strcmp(bus->root, "device")) {
+		enum xenbus_state state = xenbus_read_driver_state(dev, dev->nodename);
+		unsigned int backend = xenbus_read_unsigned(root, "backend-id",
+							    dev->otherend_id);
+
+		if (state == XenbusStateInitialising &&
+		    (state != dev->state || backend != dev->otherend_id)) {
+			/*
+			 * State has been reset, assume the old one vanished
+			 * and new one needs to be probed.
+			 */
+			dev_warn(&dev->dev,
+				 "state reset occurred, reconnecting\n");
+			dev->vanished = true;
+		}
+		if (dev->vanished) {
+			device_unregister(&dev->dev);
+			put_device(&dev->dev);
+			dev = NULL;
+		}
+	}
 	if (!dev)
 		xenbus_probe_node(bus, type, root);
 	else
