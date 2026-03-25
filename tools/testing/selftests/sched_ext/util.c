@@ -60,11 +60,11 @@ int file_write_long(const char *path, long val)
 	char buf[64];
 	int ret;
 
-	ret = sprintf(buf, "%lu", val);
+	ret = sprintf(buf, "%ld", val);
 	if (ret < 0)
 		return ret;
 
-	if (write_text(path, buf, sizeof(buf)) <= 0)
+	if (write_text(path, buf, ret) <= 0)
 		return -1;
 
 	return 0;

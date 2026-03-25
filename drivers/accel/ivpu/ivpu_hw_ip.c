@@ -931,7 +931,6 @@ static int soc_cpu_boot_40xx(struct ivpu_device *vdev)
 
 static int soc_cpu_boot_60xx(struct ivpu_device *vdev)
 {
-	REGV_WR64(VPU_40XX_HOST_SS_AON_RETENTION1, vdev->fw->mem_bp->vpu_addr);
 	soc_cpu_set_entry_point_40xx(vdev, vdev->fw->cold_boot_entry_point);
 
 	return 0;

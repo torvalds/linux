@@ -135,7 +135,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		}
 	}
 
-	if (adev->device_type == ACPI_BUS_TYPE_DEVICE && !adev->pnp.type.backlight) {
+	if (adev->device_type == ACPI_BUS_TYPE_DEVICE) {
 		LIST_HEAD(resource_list);
 
 		count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);

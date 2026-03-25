@@ -276,7 +276,7 @@ config PPC_BOOK3S
 config PPC_E500
 	select FSL_EMB_PERFMON
 	bool
-	select ARCH_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select ARCH_SUPPORTS_HUGETLBFS
 	select PPC_SMP_MUXED_IPI
 	select PPC_DOORBELL
 	select PPC_KUEP
@@ -337,7 +337,7 @@ config BOOKE
 config PTE_64BIT
 	bool
 	depends on 44x || PPC_E500 || PPC_86xx
-	default y if PHYS_64BIT
+	default y if PPC_E500 || PHYS_64BIT
 
 config PHYS_64BIT
 	bool 'Large physical address support' if PPC_E500 || PPC_86xx
