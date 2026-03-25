@@ -19,12 +19,13 @@ Current Minimal Requirements
 
 Upgrade to at **least** these software revisions before thinking you've
 encountered a bug!  If you're unsure what version you're currently
-running, the suggested command should tell you.
+running, the suggested command should tell you. For a list of the programs
+on your system including their version execute ./scripts/ver_linux
 
 Again, keep in mind that this list assumes you are already functionally
 running a Linux kernel.  Also, not all tools are necessary on all
 systems; obviously, if you don't have any PC Card hardware, for example,
-you probably needn't concern yourself with pcmciautils.
+you probably do not need to concern yourself with pcmciautils.
 
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
@@ -40,7 +41,7 @@ flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.22             pahole --version
 util-linux             2.10o            mount --version
-kmod                   13               depmod -V
+kmod                   13               kmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
 xfsprogs               2.6.0            xfs_db -V
@@ -51,8 +52,8 @@ quota-tools            3.09             quota -V
 PPP                    2.4.0            pppd --version
 nfs-utils              1.0.5            showmount --version
 procps                 3.2.0            ps --version
-udev                   081              udevd --version
-grub                   0.93             grub --version || grub-install --version
+udev                   081              udevadm --version
+GRUB                   0.93             grub --version || grub-install --version
 mcelog                 0.6              mcelog --version
 iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
@@ -62,7 +63,8 @@ GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
 Python                 3.9.x            python3 --version
-GNU AWK (optional)     5.1.0            gawk --version
+GNU awk (optional)     5.1.0            gawk --version
+gdb                    7.2              gdb --version
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
