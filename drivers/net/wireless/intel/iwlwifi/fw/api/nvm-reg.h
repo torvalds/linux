@@ -204,7 +204,7 @@ struct iwl_nvm_get_info_phy {
 } __packed; /* REGULATORY_NVM_GET_INFO_PHY_SKU_SECTION_S_VER_1 */
 
 #define IWL_NUM_CHANNELS_V1	51
-#define IWL_NUM_CHANNELS	110
+#define IWL_NUM_CHANNELS_V2	110
 
 /**
  * struct iwl_nvm_get_info_regulatory_v1 - regulatory information
@@ -227,7 +227,7 @@ struct iwl_nvm_get_info_regulatory_v1 {
 struct iwl_nvm_get_info_regulatory {
 	__le32 lar_enabled;
 	__le32 n_channels;
-	__le32 channel_profile[IWL_NUM_CHANNELS];
+	__le32 channel_profile[IWL_NUM_CHANNELS_V2];
 } __packed; /* REGULATORY_NVM_GET_INFO_REGULATORY_S_VER_2 */
 
 /**
@@ -701,13 +701,23 @@ struct iwl_pnvm_init_complete_ntfy {
 #define UATS_TABLE_COL_SIZE	13
 
 /**
- * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
+ * struct iwl_mcc_allowed_ap_type_cmd_v1 - struct for MCC_ALLOWED_AP_TYPE_CMD
  * @mcc_to_ap_type_map: mapping an MCC to 6 GHz AP type support (UATS)
  * @reserved: reserved
  */
-struct iwl_mcc_allowed_ap_type_cmd {
+struct iwl_mcc_allowed_ap_type_cmd_v1 {
 	u8 mcc_to_ap_type_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
 	__le16 reserved;
 } __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
+ * @mcc_to_ap_type_map: mapping an MCC to 6 GHz AP type support (UATS)
+ * @mcc_to_ap_type_unii9_map: mapping an MCC to UNII-9 AP type support allowed
+ */
+struct iwl_mcc_allowed_ap_type_cmd {
+	u8 mcc_to_ap_type_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
+	u8 mcc_to_ap_type_unii9_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
+} __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_nvm_reg_h__ */

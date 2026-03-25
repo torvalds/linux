@@ -402,11 +402,11 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	if (uats_data->revision != 1)
 		return -EINVAL;
 
-	memcpy(fwrt->uats_table.mcc_to_ap_type_map,
+	memcpy(fwrt->ap_type_cmd.mcc_to_ap_type_map,
 	       uats_data->mcc_to_ap_type_map,
-	       sizeof(fwrt->uats_table.mcc_to_ap_type_map));
+	       sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_map));
 
-	fwrt->uats_valid = true;
+	fwrt->ap_type_cmd_valid = true;
 
 	return 0;
 }
@@ -429,12 +429,61 @@ void iwl_uefi_get_uats_table(struct iwl_trans *trans,
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
 
-static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
-				     struct uefi_sar_profile *uefi_sar_prof,
-				     u8 prof_index, bool enabled)
+void iwl_uefi_get_uneb_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
 {
-	memcpy(&fwrt->sar_profiles[prof_index].chains, uefi_sar_prof,
-	       sizeof(struct uefi_sar_profile));
+	struct uefi_cnv_wlan_uneb_data *data;
+
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UNEB_NAME,
+					      "UNEB", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return;
+
+	if (data->revision != 1) {
+		IWL_DEBUG_RADIO(fwrt,
+				"Cannot read UNEB table. rev is invalid\n");
+		goto out;
+	}
+
+	BUILD_BUG_ON(sizeof(data->mcc_to_ap_type_map) !=
+		     sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map));
+
+	memcpy(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map,
+	       data->mcc_to_ap_type_map,
+	       sizeof(fwrt->ap_type_cmd.mcc_to_ap_type_unii9_map));
+
+	fwrt->ap_type_cmd_valid = true;
+
+out:
+	kfree(data);
+}
+IWL_EXPORT_SYMBOL(iwl_uefi_get_uneb_table);
+
+static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
+				     const u8 *vals, u8 prof_index,
+				     u8 num_subbands, bool enabled)
+{
+	struct iwl_sar_profile *sar_prof = &fwrt->sar_profiles[prof_index];
+
+	/*
+	 * Make sure fwrt has enough room to hold the data
+	 * coming from the UEFI table
+	 */
+	if (WARN_ON(ARRAY_SIZE(sar_prof->chains) *
+		    ARRAY_SIZE(sar_prof->chains[0].subbands)  <
+		    UEFI_SAR_MAX_CHAINS_PER_PROFILE * num_subbands))
+		return;
+
+	BUILD_BUG_ON(ARRAY_SIZE(sar_prof->chains) !=
+		     UEFI_SAR_MAX_CHAINS_PER_PROFILE);
+
+	for (int chain = 0;
+	     chain < UEFI_SAR_MAX_CHAINS_PER_PROFILE;
+	     chain++) {
+		for (int subband = 0; subband < num_subbands; subband++)
+			sar_prof->chains[chain].subbands[subband] =
+				vals[chain * num_subbands + subband];
+	}
 
 	fwrt->sar_profiles[prof_index].enabled = enabled & IWL_SAR_ENABLE_MSK;
 }
@@ -442,24 +491,46 @@ static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_wrds *data;
+	unsigned long size;
+	unsigned long expected_size;
+	int num_subbands;
 	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDS_NAME,
-					      "WRDS", sizeof(*data), NULL);
+					      "WRDS",
+					      UEFI_SAR_WRDS_TABLE_SIZE_REV2,
+					      &size);
+
 	if (IS_ERR(data))
 		return -EINVAL;
 
-	if (data->revision != IWL_UEFI_WRDS_REVISION) {
-		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDS revision:%d\n",
+	switch (data->revision) {
+	case 2:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		break;
+	case 3:
+		expected_size = UEFI_SAR_WRDS_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI WRDS revision:%d\n",
 				data->revision);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (size != expected_size) {
+		ret = -EINVAL;
 		goto out;
 	}
 
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	iwl_uefi_set_sar_profile(fwrt, &data->sar_profile, 0, data->mode);
+	iwl_uefi_set_sar_profile(fwrt, data->vals, 0,
+				 num_subbands, data->mode);
 out:
 	kfree(data);
 	return ret;
@@ -468,21 +539,40 @@ out:
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_ewrd *data;
+	unsigned long expected_size;
 	int i, ret = 0;
+	unsigned long size;
+	int num_subbands;
+	int profile_size;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_EWRD_NAME,
-					      "EWRD", sizeof(*data), NULL);
+					      "EWRD",
+					      UEFI_SAR_EWRD_TABLE_SIZE_REV2,
+					      &size);
 	if (IS_ERR(data))
 		return -EINVAL;
 
-	if (data->revision != IWL_UEFI_EWRD_REVISION) {
-		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI EWRD revision:%d\n",
+	switch (data->revision) {
+	case 2:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV2;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV2;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV2;
+		break;
+	case 3:
+		expected_size = UEFI_SAR_EWRD_TABLE_SIZE_REV3;
+		num_subbands = UEFI_SAR_SUB_BANDS_NUM_REV3;
+		profile_size = UEFI_SAR_PROFILE_SIZE_REV3;
+		break;
+	default:
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI EWRD revision:%d\n",
 				data->revision);
+		ret = -EINVAL;
 		goto out;
 	}
 
-	if (data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
+	if (size != expected_size ||
+	    data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -492,8 +582,8 @@ int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
 		 */
-		iwl_uefi_set_sar_profile(fwrt, &data->sar_profiles[i], i + 1,
-					 data->mode);
+		iwl_uefi_set_sar_profile(fwrt, &data->vals[i * profile_size],
+					 i + 1, num_subbands, data->mode);
 
 out:
 	kfree(data);
@@ -503,17 +593,36 @@ out:
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_wgds *data;
-	int i, ret = 0;
+	unsigned long expected_size;
+	unsigned long size;
+	int profile_size;
+	int n_subbands;
+	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WGDS_NAME,
-					      "WGDS", sizeof(*data), NULL);
+					      "WGDS", UEFI_WGDS_TABLE_SIZE_REV3,
+					      &size);
 	if (IS_ERR(data))
 		return -EINVAL;
 
-	if (data->revision != IWL_UEFI_WGDS_REVISION) {
+	switch (data->revision) {
+	case 3:
+		expected_size = UEFI_WGDS_TABLE_SIZE_REV3;
+		n_subbands = UEFI_GEO_NUM_BANDS_REV3;
+		break;
+	case 4:
+		expected_size = UEFI_WGDS_TABLE_SIZE_REV4;
+		n_subbands = UEFI_GEO_NUM_BANDS_REV4;
+		break;
+	default:
 		ret = -EINVAL;
 		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WGDS revision:%d\n",
 				data->revision);
+		goto out;
+	}
+
+	if (size != expected_size) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -525,10 +634,31 @@ int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 		goto out;
 	}
 
+	if (WARN_ON(BIOS_GEO_MAX_PROFILE_NUM >
+		    ARRAY_SIZE(fwrt->geo_profiles) ||
+		    n_subbands > ARRAY_SIZE(fwrt->geo_profiles[0].bands) ||
+		    BIOS_GEO_NUM_CHAINS >
+		    ARRAY_SIZE(fwrt->geo_profiles[0].bands[0].chains))) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	fwrt->geo_rev = data->revision;
-	for (i = 0; i < data->num_profiles; i++)
-		memcpy(&fwrt->geo_profiles[i], &data->geo_profiles[i],
-		       sizeof(struct iwl_geo_profile));
+	fwrt->geo_bios_source = BIOS_SOURCE_UEFI;
+	profile_size = 3 * n_subbands;
+	for (int prof = 0; prof < data->num_profiles; prof++) {
+		const u8 *val = &data->vals[profile_size * prof];
+		struct iwl_geo_profile *geo_prof = &fwrt->geo_profiles[prof];
+
+		for (int subband = 0; subband < n_subbands; subband++) {
+			geo_prof->bands[subband].max = *val++;
+
+			for (int chain = 0;
+			     chain < BIOS_GEO_NUM_CHAINS;
+			     chain++)
+				geo_prof->bands[subband].chains[chain] = *val++;
+		}
+	}
 
 	fwrt->geo_num_profiles = data->num_profiles;
 	fwrt->geo_enabled = true;
@@ -540,18 +670,52 @@ out:
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_ppag *data;
+	int n_subbands;
+	u32 valid_rev;
 	int ret = 0;
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_PPAG_NAME,
-					      "PPAG", sizeof(*data), NULL);
-	if (IS_ERR(data))
-		return -EINVAL;
+					      "PPAG", UEFI_PPAG_DATA_SIZE_V5,
+					      NULL);
+	if (!IS_ERR(data)) {
+		n_subbands = UEFI_PPAG_SUB_BANDS_NUM_REV5;
+		valid_rev = BIT(5);
 
-	if (data->revision < IWL_UEFI_MIN_PPAG_REV ||
-	    data->revision > IWL_UEFI_MAX_PPAG_REV) {
+		goto parse_table;
+	}
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans,
+					      IWL_UEFI_PPAG_NAME,
+					      "PPAG",
+					      UEFI_PPAG_DATA_SIZE_V4,
+					      NULL);
+	if (!IS_ERR(data)) {
+		n_subbands = UEFI_PPAG_SUB_BANDS_NUM_REV4;
+		/* revisions 1-4 have all the same size */
+		valid_rev = BIT(1) | BIT(2) | BIT(3) | BIT(4);
+
+		goto parse_table;
+	}
+
+	return -EINVAL;
+
+parse_table:
+	if (!(BIT(data->revision) & valid_rev)) {
 		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PPAG revision:%d\n",
+		IWL_DEBUG_RADIO(fwrt,
+				"Unsupported UEFI PPAG revision:%d\n",
 				data->revision);
+		goto out;
+	}
+
+	/*
+	 * Make sure fwrt has enough room to hold
+	 * data coming from the UEFI table
+	 */
+	if (WARN_ON(ARRAY_SIZE(fwrt->ppag_chains) *
+		    ARRAY_SIZE(fwrt->ppag_chains[0].subbands)  <
+		    UEFI_PPAG_NUM_CHAINS * n_subbands)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -559,9 +723,13 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
 						   fwrt->ppag_bios_rev);
 
-	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
-	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
-	       sizeof(data->ppag_chains));
+	for (int chain = 0; chain < UEFI_PPAG_NUM_CHAINS; chain++) {
+		for (int subband = 0; subband < n_subbands; subband++)
+			fwrt->ppag_chains[chain].subbands[subband] =
+				data->vals[chain * n_subbands + subband];
+	}
+
+	iwl_bios_print_ppag(fwrt, n_subbands);
 	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);

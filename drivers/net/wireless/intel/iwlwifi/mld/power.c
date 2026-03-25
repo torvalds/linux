@@ -405,7 +405,10 @@ int iwl_mld_set_tx_power(struct iwl_mld *mld,
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_LINK),
 		.common.pwr_restriction = cpu_to_le16(u_tx_power),
 	};
-	int len = sizeof(cmd.common) + sizeof(cmd.v10);
+	int len = sizeof(cmd.common) + sizeof(cmd.v11);
+
+	if (iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 10) == 10)
+		len = sizeof(cmd.common) + sizeof(cmd.v10);
 
 	if (WARN_ON(!mld_link))
 		return -ENODEV;

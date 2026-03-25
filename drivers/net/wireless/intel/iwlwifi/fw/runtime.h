@@ -106,13 +106,14 @@ struct iwl_txf_iter_data {
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
  * @dump: debug dump data
- * @uats_table: AP type table
- * @uats_valid: is AP type table valid
+ * @ap_type_cmd: AP type tables (for enablement on 6 GHz)
+ * @ap_type_cmd_valid: if &ap_type_cmd is valid
  * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
  *	0: Unlocked, 1 and 2: Locked.
  *	Only read the UEFI variables if locked.
  * @sar_profiles: sar profiles as read from WRDS/EWRD BIOS tables
  * @geo_profiles: geographic profiles as read from WGDS BIOS table
+ * @geo_bios_source: see &enum bios_source
  * @phy_filters: specific phy filters as read from WPFC BIOS table
  * @ppag_bios_rev: PPAG BIOS revision
  * @ppag_bios_source: see &enum bios_source
@@ -204,6 +205,7 @@ struct iwl_fw_runtime {
 	u8 sar_chain_b_profile;
 	u8 reduced_power_flags;
 	struct iwl_geo_profile geo_profiles[BIOS_GEO_MAX_PROFILE_NUM];
+	enum bios_source geo_bios_source;
 	u32 geo_rev;
 	u32 geo_num_profiles;
 	bool geo_enabled;
@@ -213,8 +215,8 @@ struct iwl_fw_runtime {
 	u8 ppag_bios_source;
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
-	struct iwl_mcc_allowed_ap_type_cmd uats_table;
-	bool uats_valid;
+	struct iwl_mcc_allowed_ap_type_cmd ap_type_cmd;
+	bool ap_type_cmd_valid;
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
 	enum bios_source dsm_source;
