@@ -1828,8 +1828,7 @@ static inline bool rtw89_mac_chk_preload_allow(struct rtw89_dev *rtwdev)
 	if (rtwdev->hci.type != RTW89_HCI_TYPE_PCIE)
 		return false;
 
-	if (rtwdev->chip->chip_id == RTL8922D && rtwdev->hal.cid == RTL8922D_CID7090)
-		return true;
+	/* The RTL8922DE will re-enable pre-load function after verification. */
 
 	return false;
 }
