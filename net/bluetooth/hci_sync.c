@@ -7460,13 +7460,16 @@ int hci_le_read_remote_features(struct hci_conn *conn)
 	 * role is possible. Otherwise just transition into the
 	 * connected state without requesting the remote features.
 	 */
-	if (conn->out || (hdev->le_features[0] & HCI_LE_PERIPHERAL_FEATURES))
+	if (conn->out || (hdev->le_features[0] & HCI_LE_PERIPHERAL_FEATURES)) {
 		err = hci_cmd_sync_queue_once(hdev,
 					      hci_le_read_remote_features_sync,
 					      hci_conn_hold(conn),
 					      le_read_features_complete);
-	else
+		if (err)
+			hci_conn_drop(conn);
+	} else {
 		err = -EOPNOTSUPP;
+	}
 
 	return (err == -EEXIST) ? 0 : err;
 }
@@ -7505,6 +7508,9 @@ int hci_acl_change_pkt_type(struct hci_conn *conn, u16 pkt_type)
 
 	err = hci_cmd_sync_queue_once(hdev, hci_change_conn_ptype_sync, cp,
 				      pkt_type_changed);
+	if (err)
+		kfree(cp);
+
 	return (err == -EEXIST) ? 0 : err;
 }
 
@@ -7544,5 +7550,8 @@ int hci_le_set_phy(struct hci_conn *conn, u8 tx_phys, u8 rx_phys)
 
 	err = hci_cmd_sync_queue_once(hdev, hci_le_set_phy_sync, cp,
 				      le_phy_update_complete);
+	if (err)
+		kfree(cp);
+
 	return (err == -EEXIST) ? 0 : err;
 }
