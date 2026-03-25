@@ -89,8 +89,8 @@ static inline dma_addr_t dma_direct_map_phys(struct device *dev,
 	dma_addr_t dma_addr;
 
 	if (is_swiotlb_force_bounce(dev)) {
-		if (attrs & DMA_ATTR_MMIO)
-			goto err_overflow;
+		if (attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT))
+			return DMA_MAPPING_ERROR;
 
 		return swiotlb_map(dev, phys, size, dir, attrs);
 	}
@@ -103,7 +103,8 @@ static inline dma_addr_t dma_direct_map_phys(struct device *dev,
 		dma_addr = phys_to_dma(dev, phys);
 		if (unlikely(!dma_capable(dev, dma_addr, size, true)) ||
 		    dma_kmalloc_needs_bounce(dev, size, dir)) {
-			if (is_swiotlb_active(dev))
+			if (is_swiotlb_active(dev) &&
+			    !(attrs & DMA_ATTR_REQUIRE_COHERENT))
 				return swiotlb_map(dev, phys, size, dir, attrs);
 
 			goto err_overflow;
@@ -132,7 +133,7 @@ static inline void dma_direct_unmap_phys(struct device *dev, dma_addr_t addr,
 {
 	phys_addr_t phys;
 
-	if (attrs & DMA_ATTR_MMIO)
+	if (attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT))
 		/* nothing to do: uncached and no swiotlb */
 		return;
 

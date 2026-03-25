@@ -1219,7 +1219,7 @@ dma_addr_t iommu_dma_map_phys(struct device *dev, phys_addr_t phys, size_t size,
 	 */
 	if (dev_use_swiotlb(dev, size, dir) &&
 	    iova_unaligned(iovad, phys, size)) {
-		if (attrs & DMA_ATTR_MMIO)
+		if (attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT))
 			return DMA_MAPPING_ERROR;
 
 		phys = iommu_dma_map_swiotlb(dev, phys, size, dir, attrs);
@@ -1233,7 +1233,8 @@ dma_addr_t iommu_dma_map_phys(struct device *dev, phys_addr_t phys, size_t size,
 	}
 
 	iova = __iommu_dma_map(dev, phys, size, prot, dma_mask);
-	if (iova == DMA_MAPPING_ERROR && !(attrs & DMA_ATTR_MMIO))
+	if (iova == DMA_MAPPING_ERROR &&
+	    !(attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT)))
 		swiotlb_tbl_unmap_single(dev, phys, size, dir, attrs);
 	return iova;
 }
@@ -1243,7 +1244,7 @@ void iommu_dma_unmap_phys(struct device *dev, dma_addr_t dma_handle,
 {
 	phys_addr_t phys;
 
-	if (attrs & DMA_ATTR_MMIO) {
+	if (attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT)) {
 		__iommu_dma_unmap(dev, dma_handle, size);
 		return;
 	}
@@ -1957,9 +1958,21 @@ int dma_iova_link(struct device *dev, struct dma_iova_state *state,
 	if (WARN_ON_ONCE(iova_start_pad && offset > 0))
 		return -EIO;
 
+	/*
+	 * DMA_IOVA_USE_SWIOTLB is set on state after some entry
+	 * took SWIOTLB path, which we were supposed to prevent
+	 * for DMA_ATTR_REQUIRE_COHERENT attribute.
+	 */
+	if (WARN_ON_ONCE((state->__size & DMA_IOVA_USE_SWIOTLB) &&
+			 (attrs & DMA_ATTR_REQUIRE_COHERENT)))
+		return -EOPNOTSUPP;
+
+	if (!dev_is_dma_coherent(dev) && (attrs & DMA_ATTR_REQUIRE_COHERENT))
+		return -EOPNOTSUPP;
+
 	if (dev_use_swiotlb(dev, size, dir) &&
 	    iova_unaligned(iovad, phys, size)) {
-		if (attrs & DMA_ATTR_MMIO)
+		if (attrs & (DMA_ATTR_MMIO | DMA_ATTR_REQUIRE_COHERENT))
 			return -EPERM;
 
 		return iommu_dma_iova_link_swiotlb(dev, state, phys, offset,
