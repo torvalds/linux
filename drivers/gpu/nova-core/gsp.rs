@@ -42,6 +42,7 @@ pub(crate) const GSP_PAGE_SIZE: usize = 1 << GSP_PAGE_SHIFT;
 
 /// Number of GSP pages to use in a RM log buffer.
 const RM_LOG_BUFFER_NUM_PAGES: usize = 0x10;
+const LOG_BUFFER_SIZE: usize = RM_LOG_BUFFER_NUM_PAGES * GSP_PAGE_SIZE;
 
 /// Array of page table entries, as understood by the GSP bootloader.
 #[repr(C)]
@@ -77,24 +78,19 @@ impl<const NUM_PAGES: usize> PteArray<NUM_PAGES> {
 /// then pp points to index into the buffer where the next logging entry will
 /// be written. Therefore, the logging data is valid if:
 ///   1 <= pp < sizeof(buffer)/sizeof(u64)
-struct LogBuffer(Coherent<[u8]>);
+struct LogBuffer(Coherent<[u8; LOG_BUFFER_SIZE]>);
 
 impl LogBuffer {
     /// Creates a new `LogBuffer` mapped on `dev`.
     fn new(dev: &device::Device<device::Bound>) -> Result<Self> {
-        const NUM_PAGES: usize = RM_LOG_BUFFER_NUM_PAGES;
-
-        let obj = Self(Coherent::<u8>::zeroed_slice(
-            dev,
-            NUM_PAGES * GSP_PAGE_SIZE,
-            GFP_KERNEL,
-        )?);
+        let obj = Self(Coherent::zeroed(dev, GFP_KERNEL)?);
 
         let start_addr = obj.0.dma_handle();
 
         // SAFETY: `obj` has just been created and we are its sole user.
-        let pte_region =
-            unsafe { &mut obj.0.as_mut()[size_of::<u64>()..][..NUM_PAGES * size_of::<u64>()] };
+        let pte_region = unsafe {
+            &mut obj.0.as_mut()[size_of::<u64>()..][..RM_LOG_BUFFER_NUM_PAGES * size_of::<u64>()]
+        };
 
         // Write values one by one to avoid an on-stack instance of `PteArray`.
         for (i, chunk) in pte_region.chunks_exact_mut(size_of::<u64>()).enumerate() {
