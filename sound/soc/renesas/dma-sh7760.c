@@ -58,8 +58,9 @@ struct camelot_pcm {
 	struct snd_pcm_substream *rx_ss;
 	unsigned long rx_period_size;
 	unsigned int  rx_period;
+};
 
-} cam_pcm_data[2] = {
+static struct camelot_pcm cam_pcm_data[2] = {
 	{
 		.mmio	=	0xFE3C0040,
 		.txid	=	DMABRGIRQ_A0TXF,
