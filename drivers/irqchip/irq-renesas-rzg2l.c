@@ -393,15 +393,20 @@ static int rzg2l_tint_set_edge(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static int rzg2l_irqc_set_type(struct irq_data *d, unsigned int type)
+static int rzg2l_irqc_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	unsigned int hw_irq = irqd_to_hwirq(d);
-	int ret = -EINVAL;
+	int ret = rzg2l_irq_set_type(d, type);
 
-	if (hw_irq >= IRQC_IRQ_START && hw_irq <= IRQC_IRQ_COUNT)
-		ret = rzg2l_irq_set_type(d, type);
-	else if (hw_irq >= IRQC_TINT_START && hw_irq < IRQC_NUM_IRQ)
-		ret = rzg2l_tint_set_edge(d, type);
+	if (ret)
+		return ret;
+
+	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
+}
+
+static int rzg2l_irqc_tint_set_type(struct irq_data *d, unsigned int type)
+{
+	int ret = rzg2l_tint_set_edge(d, type);
+
 	if (ret)
 		return ret;
 
@@ -454,7 +459,7 @@ static const struct irq_chip rzg2l_irqc_irq_chip = {
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= rzg2l_irqc_set_type,
+	.irq_set_type		= rzg2l_irqc_irq_set_type,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND |
 				  IRQCHIP_SET_TYPE_MASKED |
@@ -471,7 +476,7 @@ static const struct irq_chip rzg2l_irqc_tint_chip = {
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= rzg2l_irqc_set_type,
+	.irq_set_type		= rzg2l_irqc_tint_set_type,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND |
 				  IRQCHIP_SET_TYPE_MASKED |
@@ -488,7 +493,7 @@ static const struct irq_chip rzfive_irqc_irq_chip = {
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= rzg2l_irqc_set_type,
+	.irq_set_type		= rzg2l_irqc_irq_set_type,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND |
 				  IRQCHIP_SET_TYPE_MASKED |
@@ -505,7 +510,7 @@ static const struct irq_chip rzfive_irqc_tint_chip = {
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
 	.irq_set_irqchip_state	= irq_chip_set_parent_state,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
-	.irq_set_type		= rzg2l_irqc_set_type,
+	.irq_set_type		= rzg2l_irqc_tint_set_type,
 	.irq_set_affinity	= irq_chip_set_affinity_parent,
 	.flags			= IRQCHIP_MASK_ON_SUSPEND |
 				  IRQCHIP_SET_TYPE_MASKED |
