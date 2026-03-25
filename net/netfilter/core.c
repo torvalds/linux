@@ -27,9 +27,6 @@
 
 #include "nf_internals.h"
 
-const struct nf_ipv6_ops __rcu *nf_ipv6_ops __read_mostly;
-EXPORT_SYMBOL_GPL(nf_ipv6_ops);
-
 #ifdef CONFIG_JUMP_LABEL
 struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 EXPORT_SYMBOL(nf_hooks_needed);

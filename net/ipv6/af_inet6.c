@@ -38,7 +38,6 @@
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/icmpv6.h>
-#include <linux/netfilter_ipv6.h>
 
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -1066,9 +1065,6 @@ static int __init inet6_init(void)
 	if (err)
 		goto igmp_fail;
 
-	err = ipv6_netfilter_init();
-	if (err)
-		goto netfilter_fail;
 	/* Create /proc/foo6 entries. */
 #ifdef CONFIG_PROC_FS
 	err = -ENOMEM;
@@ -1199,8 +1195,6 @@ proc_misc6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
 #endif
-	ipv6_netfilter_fini();
-netfilter_fail:
 	igmp6_cleanup();
 igmp_fail:
 	ndisc_cleanup();
