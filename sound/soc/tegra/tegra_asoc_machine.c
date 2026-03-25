@@ -432,7 +432,8 @@ static int tegra_machine_register_codec(struct device *dev, const char *name)
 
 	pdev = platform_device_register_simple(name, -1, NULL, 0);
 	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
+		return dev_err_probe(dev, PTR_ERR(pdev),
+				     "failed to register codec %s\n", name);
 
 	err = devm_add_action_or_reset(dev, tegra_machine_unregister_codec,
 				       pdev);
@@ -468,32 +469,38 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,hp-mute", GPIOD_OUT_HIGH);
 	machine->gpiod_hp_mute = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get hp-mute GPIO\n");
 
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,hp-det", GPIOD_IN);
 	machine->gpiod_hp_det = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get hp-det GPIO\n");
 
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,mic-det", GPIOD_IN);
 	machine->gpiod_mic_det = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get mic-det GPIO\n");
 
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,spkr-en", GPIOD_OUT_LOW);
 	machine->gpiod_spkr_en = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get spkr-en GPIO\n");
 
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,int-mic-en", GPIOD_OUT_LOW);
 	machine->gpiod_int_mic_en = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get int-mic-en GPIO\n");
 
 	gpiod = devm_gpiod_get_optional(dev, "nvidia,ext-mic-en", GPIOD_OUT_LOW);
 	machine->gpiod_ext_mic_en = gpiod;
 	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		return dev_err_probe(dev, PTR_ERR(gpiod),
+				     "failed to get ext-mic-en GPIO\n");
 
 	err = snd_soc_of_parse_card_name(card, "nvidia,model");
 	if (err)
@@ -549,22 +556,19 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		card->driver_name = "tegra";
 
 	machine->clk_pll_a = devm_clk_get(dev, "pll_a");
-	if (IS_ERR(machine->clk_pll_a)) {
-		dev_err(dev, "Can't retrieve clk pll_a\n");
-		return PTR_ERR(machine->clk_pll_a);
-	}
+	if (IS_ERR(machine->clk_pll_a))
+		return dev_err_probe(dev, PTR_ERR(machine->clk_pll_a),
+				     "can't retrieve clk pll_a\n");
 
 	machine->clk_pll_a_out0 = devm_clk_get(dev, "pll_a_out0");
-	if (IS_ERR(machine->clk_pll_a_out0)) {
-		dev_err(dev, "Can't retrieve clk pll_a_out0\n");
-		return PTR_ERR(machine->clk_pll_a_out0);
-	}
+	if (IS_ERR(machine->clk_pll_a_out0))
+		return dev_err_probe(dev, PTR_ERR(machine->clk_pll_a_out0),
+				     "can't retrieve clk pll_a_out0\n");
 
 	machine->clk_cdev1 = devm_clk_get(dev, "mclk");
-	if (IS_ERR(machine->clk_cdev1)) {
-		dev_err(dev, "Can't retrieve clk cdev1\n");
-		return PTR_ERR(machine->clk_cdev1);
-	}
+	if (IS_ERR(machine->clk_cdev1))
+		return dev_err_probe(dev, PTR_ERR(machine->clk_cdev1),
+				     "can't retrieve clk cdev1\n");
 
 	/*
 	 * If clock parents are not set in DT, configure here to use clk_out_1
@@ -578,28 +582,24 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		dev_warn(dev, "Please update DT to use assigned-clock-parents\n");
 
 		clk_extern1 = devm_clk_get(dev, "extern1");
-		if (IS_ERR(clk_extern1)) {
-			dev_err(dev, "Can't retrieve clk extern1\n");
-			return PTR_ERR(clk_extern1);
-		}
+		if (IS_ERR(clk_extern1))
+			return dev_err_probe(dev, PTR_ERR(clk_extern1),
+					     "can't retrieve clk extern1\n");
 
 		err = clk_set_parent(clk_extern1, machine->clk_pll_a_out0);
-		if (err < 0) {
-			dev_err(dev, "Set parent failed for clk extern1\n");
-			return err;
-		}
+		if (err < 0)
+			return dev_err_probe(dev, err,
+					     "set parent failed for clk extern1\n");
 
 		clk_out_1 = devm_clk_get(dev, "pmc_clk_out_1");
-		if (IS_ERR(clk_out_1)) {
-			dev_err(dev, "Can't retrieve pmc_clk_out_1\n");
-			return PTR_ERR(clk_out_1);
-		}
+		if (IS_ERR(clk_out_1))
+			return dev_err_probe(dev, PTR_ERR(clk_out_1),
+					     "can't retrieve pmc_clk_out_1\n");
 
 		err = clk_set_parent(clk_out_1, clk_extern1);
-		if (err < 0) {
-			dev_err(dev, "Set parent failed for pmc_clk_out_1\n");
-			return err;
-		}
+		if (err < 0)
+			return dev_err_probe(dev, err,
+					     "set parent failed for pmc_clk_out_1\n");
 
 		machine->clk_cdev1 = clk_out_1;
 	}
