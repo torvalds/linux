@@ -16,49 +16,56 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - isil,isl68137
-      - renesas,isl68220
-      - renesas,isl68221
-      - renesas,isl68222
-      - renesas,isl68223
-      - renesas,isl68224
-      - renesas,isl68225
-      - renesas,isl68226
-      - renesas,isl68227
-      - renesas,isl68229
-      - renesas,isl68233
-      - renesas,isl68239
-      - renesas,isl69222
-      - renesas,isl69223
-      - renesas,isl69224
-      - renesas,isl69225
-      - renesas,isl69227
-      - renesas,isl69228
-      - renesas,isl69234
-      - renesas,isl69236
-      - renesas,isl69239
-      - renesas,isl69242
-      - renesas,isl69243
-      - renesas,isl69247
-      - renesas,isl69248
-      - renesas,isl69254
-      - renesas,isl69255
-      - renesas,isl69256
-      - renesas,isl69259
-      - isil,isl69260
-      - renesas,isl69268
-      - isil,isl69269
-      - renesas,isl69298
-      - renesas,raa228000
-      - renesas,raa228004
-      - renesas,raa228006
-      - renesas,raa228228
-      - renesas,raa228244
-      - renesas,raa228246
-      - renesas,raa229001
-      - renesas,raa229004
-      - renesas,raa229621
+    oneOf:
+      - enum:
+          - isil,isl68137
+          - renesas,isl68220
+          - renesas,isl68221
+          - renesas,isl68222
+          - renesas,isl68223
+          - renesas,isl68224
+          - renesas,isl68225
+          - renesas,isl68226
+          - renesas,isl68227
+          - renesas,isl68229
+          - renesas,isl68233
+          - renesas,isl68239
+          - renesas,isl69222
+          - renesas,isl69223
+          - renesas,isl69224
+          - renesas,isl69225
+          - renesas,isl69227
+          - renesas,isl69228
+          - renesas,isl69234
+          - renesas,isl69236
+          - renesas,isl69239
+          - renesas,isl69242
+          - renesas,isl69243
+          - renesas,isl69247
+          - renesas,isl69248
+          - renesas,isl69254
+          - renesas,isl69255
+          - renesas,isl69256
+          - renesas,isl69259
+          - isil,isl69260
+          - renesas,isl69268
+          - isil,isl69269
+          - renesas,isl69298
+          - renesas,raa228000
+          - renesas,raa228004
+          - renesas,raa228006
+          - renesas,raa228228
+          - renesas,raa228244
+          - renesas,raa228246
+          - renesas,raa229001
+          - renesas,raa229004
+          - renesas,raa229621
+
+      - items:
+          - enum:
+              - renesas,raa228942
+              - renesas,raa228943
+          - const: renesas,raa228244
 
   reg:
     maxItems: 1
