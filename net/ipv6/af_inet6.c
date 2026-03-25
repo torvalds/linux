@@ -70,10 +70,6 @@
 
 #include "ip6_offload.h"
 
-MODULE_AUTHOR("Cast of dozens");
-MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
-MODULE_LICENSE("GPL");
-
 /* The inetsw6 table contains everything that inet6_create needs to
  * build a new socket.
  */
@@ -1278,6 +1274,4 @@ out_unregister_tcp_proto:
 	proto_unregister(&tcpv6_prot);
 	goto out;
 }
-module_init(inet6_init);
-
-MODULE_ALIAS_NETPROTO(PF_INET6);
+device_initcall(inet6_init);

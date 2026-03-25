@@ -3,9 +3,8 @@
 # IPv6 configuration
 #
 
-#   IPv6 as module will cause a CRASH if you try to unload it
 menuconfig IPV6
-	tristate "The IPv6 protocol"
+	bool "The IPv6 protocol"
 	default y
 	select CRYPTO_LIB_SHA1
 	help
@@ -16,9 +15,6 @@ menuconfig IPV6
 	  For specific information about IPv6 under Linux, see
 	  Documentation/networking/ipv6.rst and read the HOWTO at
 	  <https://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/>
-
-	  To compile this protocol support as a module, choose M here: the
-	  module will be called ipv6.
 
 if IPV6
 

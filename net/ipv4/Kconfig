@@ -191,7 +191,7 @@ config NET_IP_TUNNEL
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
-	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
+	depends on NET_IPGRE_DEMUX
 	select NET_IP_TUNNEL
 	help
 	  Tunneling means encapsulating data of one protocol type within
@@ -303,7 +303,6 @@ config SYN_COOKIES
 
 config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
-	depends on IPV6 || IPV6=n
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM
@@ -439,7 +438,7 @@ config INET_TCP_DIAG
 
 config INET_UDP_DIAG
 	tristate "UDP: socket monitoring interface"
-	depends on INET_DIAG && (IPV6 || IPV6=n)
+	depends on INET_DIAG
 	default n
 	help
 	  Support for UDP socket monitoring interface used by the ss tool.
@@ -447,7 +446,7 @@ config INET_UDP_DIAG
 
 config INET_RAW_DIAG
 	tristate "RAW: socket monitoring interface"
-	depends on INET_DIAG && (IPV6 || IPV6=n)
+	depends on INET_DIAG
 	default n
 	help
 	  Support for RAW socket monitoring interface used by the ss tool.
@@ -750,7 +749,7 @@ config TCP_AO
 	select CRYPTO
 	select CRYPTO_LIB_UTILS
 	select TCP_SIGPOOL
-	depends on 64BIT && IPV6 != m # seq-number extension needs WRITE_ONCE(u64)
+	depends on 64BIT # seq-number extension needs WRITE_ONCE(u64)
 	help
 	  TCP-AO specifies the use of stronger Message Authentication Codes (MACs),
 	  protects against replays for long-lived TCP connections, and
