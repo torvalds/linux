@@ -621,7 +621,6 @@ static inline void fib6_update_sernum_upto_root(struct net *net, struct fib6_inf
 {
 }
 #endif
-void fib6_update_sernum_stub(struct net *net, struct fib6_info *f6i);
 
 void fib6_metric_set(struct fib6_info *f6i, int metric, u32 val);
 static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)

@@ -7,7 +7,6 @@
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
-#include <net/ipv6_stubs.h>
 #endif
 
 #define UDP_TUNNEL_PARTIAL_FEATURES	NETIF_F_GSO_ENCAP_ALL
