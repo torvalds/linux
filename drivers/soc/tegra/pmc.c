@@ -60,6 +60,7 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 #include <dt-bindings/gpio/tegra234-gpio.h>
+#include <dt-bindings/gpio/nvidia,tegra264-gpio.h>
 #include <dt-bindings/soc/tegra-pmc.h>
 
 #define PMC_CNTRL			0x0
@@ -4639,6 +4640,16 @@ static const char * const tegra264_reset_sources[] = {
 };
 
 static const struct tegra_wake_event tegra264_wake_events[] = {
+	TEGRA_WAKE_IRQ("pmu", 0, 727),
+	TEGRA_WAKE_GPIO("power", 5, 1, TEGRA264_AON_GPIO(AA, 5)),
+	TEGRA_WAKE_IRQ("rtc", 65, 548),
+	TEGRA_WAKE_IRQ("usb3-port-0", 79, 965),
+	TEGRA_WAKE_IRQ("usb3-port-1", 80, 965),
+	TEGRA_WAKE_IRQ("usb3-port-3", 82, 965),
+	TEGRA_WAKE_IRQ("usb2-port-0", 83, 965),
+	TEGRA_WAKE_IRQ("usb2-port-1", 84, 965),
+	TEGRA_WAKE_IRQ("usb2-port-2", 85, 965),
+	TEGRA_WAKE_IRQ("usb2-port-3", 86, 965),
 };
 
 static const struct tegra_pmc_soc tegra264_pmc_soc = {
