@@ -26,6 +26,7 @@ Description:
 		2	  Permit modification of EVM-protected metadata at
 			  runtime. Not supported if HMAC validation and
 			  creation is enabled (deprecated).
+		3	  Require asymmetric signatures to be version 3
 		31	  Disable further runtime modification of EVM policy
 		===	  ==================================================
 

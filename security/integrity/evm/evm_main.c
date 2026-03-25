@@ -136,6 +136,14 @@ static bool evm_hmac_disabled(void)
 	return true;
 }
 
+static bool evm_sigv3_required(void)
+{
+	if (evm_initialized & EVM_SIGV3_REQUIRED)
+		return true;
+
+	return false;
+}
+
 static int evm_find_protected_xattrs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
@@ -258,6 +266,12 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		}
 
 		hdr = (struct signature_v2_hdr *)xattr_data;
+
+		if (evm_sigv3_required() && hdr->version != 3) {
+			evm_status = INTEGRITY_FAIL;
+			goto out;
+		}
+
 		digest.hdr.algo = hdr->hash_algo;
 		rc = evm_calc_hash(dentry, xattr_name, xattr_value,
 				   xattr_value_len, xattr_data->type, &digest,
