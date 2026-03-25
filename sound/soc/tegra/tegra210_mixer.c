@@ -651,10 +651,9 @@ static int tegra210_mixer_platform_probe(struct platform_device *pdev)
 	err = devm_snd_soc_register_component(dev, &tegra210_mixer_cmpnt,
 					      tegra210_mixer_dais,
 					      ARRAY_SIZE(tegra210_mixer_dais));
-	if (err) {
-		dev_err(dev, "can't register MIXER component, err: %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "can't register MIXER component\n");
 
 	pm_runtime_enable(dev);
 
