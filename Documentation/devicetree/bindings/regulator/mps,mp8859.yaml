@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/mps,mp8859.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Monolithic Power Systems MP8859 Voltage Regulator
+
+maintainers:
+  - Markus Reichl <reichl@t-online.de>
+
+description:
+  The MP8859 is a synchronous, 4-switch, integrated buck-boost converter
+  capable of regulating the output voltage from 2.8V to 22V wide input voltage
+  range with high efficiency.
+
+properties:
+  compatible:
+    const: mps,mp8859
+
+  reg:
+    maxItems: 1
+
+  mp8859_dcdc:
+    $ref: /schemas/regulator/regulator.yaml#
+    type: object
+    description: DCDC regulator subnode
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@66 {
+            compatible = "mps,mp8859";
+            reg = <0x66>;
+
+            mp8859_dcdc {
+                regulator-name = "dc_12v";
+                regulator-min-microvolt = <12000000>;
+                regulator-max-microvolt = <12000000>;
+                regulator-boot-on;
+                regulator-always-on;
+            };
+        };
+    };
