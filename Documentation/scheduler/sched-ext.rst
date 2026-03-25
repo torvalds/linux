@@ -433,13 +433,15 @@ by a sched_ext scheduler:
                 ops.dequeue(); /* Exiting BPF scheduler */
             }
             ops.running();      /* Task starts running on its assigned CPU */
-            while (task->scx.slice > 0 && task is runnable)
-                ops.tick();     /* Called every 1/HZ seconds */
+
+            while task_is_runnable(p) {
+                while (task->scx.slice > 0 && task_is_runnable(p))
+                    ops.tick();     /* Called every 1/HZ seconds */
+
+                ops.dispatch();     /* task->scx.slice can be refilled */
+            }
+
             ops.stopping();     /* Task stops running (time slice expires or wait) */
-
-            /* Task's CPU becomes available */
-
-            ops.dispatch();     /* task->scx.slice can be refilled */
         }
 
         ops.quiescent();        /* Task releases its assigned CPU (wait) */
