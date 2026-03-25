@@ -4577,8 +4577,10 @@ static void macb_configure_caps(struct macb *bp,
 {
 	u32 dcfg;
 
-	if (dt_conf)
-		bp->caps = dt_conf->caps;
+	bp->caps = dt_conf->caps;
+
+	if (!dt_conf->usrio)
+		bp->caps |= MACB_CAPS_USRIO_DISABLED;
 
 	if (hw_is_gem(bp->regs, bp->native_io)) {
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
