@@ -184,31 +184,47 @@ static void rzfive_irqc_unmask_tint_interrupt(struct rzg2l_irqc_priv *priv,
 	writel_relaxed(readl_relaxed(priv->base + TMSK) & ~bit, priv->base + TMSK);
 }
 
-static void rzfive_irqc_mask(struct irq_data *d)
+static void rzfive_irqc_irq_mask(struct irq_data *d)
 {
 	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 	unsigned int hwirq = irqd_to_hwirq(d);
 
-	raw_spin_lock(&priv->lock);
-	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
+	scoped_guard(raw_spinlock, &priv->lock)
 		rzfive_irqc_mask_irq_interrupt(priv, hwirq);
-	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
-		rzfive_irqc_mask_tint_interrupt(priv, hwirq);
-	raw_spin_unlock(&priv->lock);
+
 	irq_chip_mask_parent(d);
 }
 
-static void rzfive_irqc_unmask(struct irq_data *d)
+static void rzfive_irqc_tint_mask(struct irq_data *d)
 {
 	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
 	unsigned int hwirq = irqd_to_hwirq(d);
 
-	raw_spin_lock(&priv->lock);
-	if (hwirq >= IRQC_IRQ_START && hwirq <= IRQC_IRQ_COUNT)
+	scoped_guard(raw_spinlock, &priv->lock)
+		rzfive_irqc_mask_tint_interrupt(priv, hwirq);
+
+	irq_chip_mask_parent(d);
+}
+
+static void rzfive_irqc_irq_unmask(struct irq_data *d)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
+
+	scoped_guard(raw_spinlock, &priv->lock)
 		rzfive_irqc_unmask_irq_interrupt(priv, hwirq);
-	else if (hwirq >= IRQC_TINT_START && hwirq < IRQC_NUM_IRQ)
+
+	irq_chip_unmask_parent(d);
+}
+
+static void rzfive_irqc_tint_unmask(struct irq_data *d)
+{
+	struct rzg2l_irqc_priv *priv = irq_data_to_priv(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
+
+	scoped_guard(raw_spinlock, &priv->lock)
 		rzfive_irqc_unmask_tint_interrupt(priv, hwirq);
-	raw_spin_unlock(&priv->lock);
+
 	irq_chip_unmask_parent(d);
 }
 
@@ -495,8 +511,8 @@ static const struct irq_chip rzg2l_irqc_tint_chip = {
 static const struct irq_chip rzfive_irqc_irq_chip = {
 	.name			= "rzfive-irqc",
 	.irq_eoi		= rzg2l_irqc_irq_eoi,
-	.irq_mask		= rzfive_irqc_mask,
-	.irq_unmask		= rzfive_irqc_unmask,
+	.irq_mask		= rzfive_irqc_irq_mask,
+	.irq_unmask		= rzfive_irqc_irq_unmask,
 	.irq_disable		= rzfive_irqc_irq_disable,
 	.irq_enable		= rzfive_irqc_irq_enable,
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
@@ -512,8 +528,8 @@ static const struct irq_chip rzfive_irqc_irq_chip = {
 static const struct irq_chip rzfive_irqc_tint_chip = {
 	.name			= "rzfive-irqc",
 	.irq_eoi		= rzg2l_irqc_tint_eoi,
-	.irq_mask		= rzfive_irqc_mask,
-	.irq_unmask		= rzfive_irqc_unmask,
+	.irq_mask		= rzfive_irqc_tint_mask,
+	.irq_unmask		= rzfive_irqc_tint_unmask,
 	.irq_disable		= rzfive_irqc_tint_disable,
 	.irq_enable		= rzfive_irqc_tint_enable,
 	.irq_get_irqchip_state	= irq_chip_get_parent_state,
