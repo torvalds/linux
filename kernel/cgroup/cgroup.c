@@ -6229,20 +6229,22 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  * cgroup_drain_dying - wait for dying tasks to leave before rmdir
  * @cgrp: the cgroup being removed
  *
- * The PF_EXITING filter in css_task_iter_advance() hides exiting tasks from
- * cgroup.procs so that userspace (e.g. systemd) doesn't see tasks that have
- * already been reaped via waitpid(). However, the populated counter
- * (nr_populated_csets) is only decremented when the task later passes through
+ * cgroup.procs and cgroup.threads use css_task_iter which filters out
+ * PF_EXITING tasks so that userspace doesn't see tasks that have already been
+ * reaped via waitpid(). However, cgroup_has_tasks() - which tests whether the
+ * cgroup has non-empty css_sets - is only updated when dying tasks pass through
  * cgroup_task_dead() in finish_task_switch(). This creates a window where
- * cgroup.procs appears empty but cgroup_is_populated() is still true, causing
- * rmdir to fail with -EBUSY.
+ * cgroup.procs reads empty but cgroup_has_tasks() is still true, making rmdir
+ * fail with -EBUSY from cgroup_destroy_locked() even though userspace sees no
+ * tasks.
  *
- * This function bridges that gap. If the cgroup is populated but all remaining
- * tasks have PF_EXITING set, we wait for cgroup_task_dead() to process them.
- * Tasks are removed from the cgroup's css_set in cgroup_task_dead() called from
- * finish_task_switch(). As the window between PF_EXITING and cgroup_task_dead()
- * is short, the number of PF_EXITING tasks on the list is small and the wait
- * is brief.
+ * This function aligns cgroup_has_tasks() with what userspace can observe. If
+ * cgroup_has_tasks() but the task iterator sees nothing (all remaining tasks are
+ * PF_EXITING), we wait for cgroup_task_dead() to finish processing them. As the
+ * window between PF_EXITING and cgroup_task_dead() is short, the wait is brief.
+ *
+ * This function only concerns itself with this cgroup's own dying tasks.
+ * Whether the cgroup has children is cgroup_destroy_locked()'s problem.
  *
  * Each cgroup_task_dead() kicks the waitqueue via cset->cgrp_links, and we
  * retry the full check from scratch.
@@ -6258,7 +6260,7 @@ static int cgroup_drain_dying(struct cgroup *cgrp)
 
 	lockdep_assert_held(&cgroup_mutex);
 retry:
-	if (!cgroup_is_populated(cgrp))
+	if (!cgroup_has_tasks(cgrp))
 		return 0;
 
 	/* Same iterator as cgroup.threads - if any task is visible, it's busy */
@@ -6273,15 +6275,15 @@ retry:
 	 * All remaining tasks are PF_EXITING and will pass through
 	 * cgroup_task_dead() shortly. Wait for a kick and retry.
 	 *
-	 * cgroup_is_populated() can't transition from false to true while
-	 * we're holding cgroup_mutex, but the true to false transition
-	 * happens under css_set_lock (via cgroup_task_dead()). We must
-	 * retest and prepare_to_wait() under css_set_lock. Otherwise, the
-	 * transition can happen between our first test and
-	 * prepare_to_wait(), and we sleep with no one to wake us.
+	 * cgroup_has_tasks() can't transition from false to true while we're
+	 * holding cgroup_mutex, but the true to false transition happens
+	 * under css_set_lock (via cgroup_task_dead()). We must retest and
+	 * prepare_to_wait() under css_set_lock. Otherwise, the transition
+	 * can happen between our first test and prepare_to_wait(), and we
+	 * sleep with no one to wake us.
 	 */
 	spin_lock_irq(&css_set_lock);
-	if (!cgroup_is_populated(cgrp)) {
+	if (!cgroup_has_tasks(cgrp)) {
 		spin_unlock_irq(&css_set_lock);
 		return 0;
 	}
