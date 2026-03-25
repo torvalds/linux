@@ -665,7 +665,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 	int size;
 	int i;
 	int ret;
-	int total_length = 0;
+	u32 total_length = 0;
 
 	if (!usb_pipeisoc(urb->pipe))
 		return 0;
@@ -706,14 +706,23 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 	for (i = 0; i < np; i++) {
 		usbip_iso_packet_correct_endian(&iso[i], 0);
 		usbip_pack_iso(&iso[i], &urb->iso_frame_desc[i], 0);
+		if (urb->iso_frame_desc[i].actual_length >
+				(unsigned int)urb->transfer_buffer_length) {
+			dev_err(&urb->dev->dev,
+				"recv iso: frame actual_length %u exceeds buffer %d\n",
+				urb->iso_frame_desc[i].actual_length,
+				urb->transfer_buffer_length);
+			kfree(buff);
+			return -EPROTO;
+		}
 		total_length += urb->iso_frame_desc[i].actual_length;
 	}
 
 	kfree(buff);
 
-	if (total_length != urb->actual_length) {
+	if (total_length != (u32)urb->actual_length) {
 		dev_err(&urb->dev->dev,
-			"total length of iso packets %d not equal to actual length of buffer %d\n",
+			"total length of iso packets %u not equal to actual length of buffer %d\n",
 			total_length, urb->actual_length);
 
 		if (ud->side == USBIP_STUB || ud->side == USBIP_VUDC)
