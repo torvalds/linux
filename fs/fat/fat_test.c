@@ -218,7 +218,7 @@ KUNIT_ARRAY_PARAM(fat_truncate_atime, truncate_atime_test_cases,
 
 static void fat_test_set_time_offset(struct msdos_sb_info *sbi, int time_offset)
 {
-	*sbi = (struct msdos_sb_info){};
+	memset(sbi, 0, sizeof(*sbi));
 	sbi->options.tz_set = 1;
 	sbi->options.time_offset = time_offset;
 }
