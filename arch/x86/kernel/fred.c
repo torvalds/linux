@@ -27,9 +27,6 @@ EXPORT_PER_CPU_SYMBOL(fred_rsp0);
 
 void cpu_init_fred_exceptions(void)
 {
-	/* When FRED is enabled by default, remove this log message */
-	pr_info("Initialize FRED on CPU%d\n", smp_processor_id());
-
 	/*
 	 * If a kernel event is delivered before a CPU goes to user level for
 	 * the first time, its SS is NULL thus NULL is pushed into the SS field
