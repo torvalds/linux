@@ -24,8 +24,6 @@
 #include <linux/slab.h>
 #include <linux/memblock.h>
 #include <linux/kmemleak.h>
-#include <linux/cma.h>
-#include <linux/dma-map-ops.h>
 
 #include "of_private.h"
 
@@ -106,6 +104,11 @@ static void __init alloc_reserved_mem_array(void)
 
 static void __init fdt_init_reserved_mem_node(struct reserved_mem *rmem,
 					      unsigned long node);
+static int fdt_validate_reserved_mem_node(unsigned long node,
+					  phys_addr_t *align);
+static int fdt_fixup_reserved_mem_node(unsigned long node,
+				       phys_addr_t base, phys_addr_t size);
+
 /*
  * fdt_reserved_mem_save_node() - save fdt node for second pass initialization
  */
@@ -154,21 +157,19 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 					     const char *uname)
 {
 	phys_addr_t base, size;
-	int i, len;
+	int i, len, err;
 	const __be32 *prop;
-	bool nomap, default_cma;
+	bool nomap;
 
 	prop = of_flat_dt_get_addr_size_prop(node, "reg", &len);
 	if (!prop)
 		return -ENOENT;
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
-	default_cma = of_get_flat_dt_prop(node, "linux,cma-default", NULL);
 
-	if (default_cma && cma_skip_dt_default_reserved_mem()) {
-		pr_err("Skipping dt linux,cma-default for \"cma=\" kernel param.\n");
-		return -EINVAL;
-	}
+	err = fdt_validate_reserved_mem_node(node, NULL);
+	if (err && err != -ENODEV)
+		return err;
 
 	for (i = 0; i < len; i++) {
 		u64 b, s;
@@ -179,10 +180,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 		size = s;
 
 		if (size && early_init_dt_reserve_memory(base, size, nomap) == 0) {
-			/* Architecture specific contiguous memory fixup. */
-			if (of_flat_dt_is_compatible(node, "shared-dma-pool") &&
-			    of_get_flat_dt_prop(node, "reusable", NULL))
-				dma_contiguous_early_fixup(base, size);
+			fdt_fixup_reserved_mem_node(node, base, size);
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
 				uname, &base, (unsigned long)(size / SZ_1M));
 		} else {
@@ -253,15 +251,17 @@ void __init fdt_scan_reserved_mem_reg_nodes(void)
 
 	fdt_for_each_subnode(child, fdt, node) {
 		const char *uname;
-		bool default_cma = of_get_flat_dt_prop(child, "linux,cma-default", NULL);
 		u64 b, s;
+		int ret;
 
 		if (!of_fdt_device_is_available(fdt, child))
 			continue;
-		if (default_cma && cma_skip_dt_default_reserved_mem())
-			continue;
 
 		if (!of_flat_dt_get_addr_size(child, "reg", &b, &s))
+			continue;
+
+		ret = fdt_validate_reserved_mem_node(child, NULL);
+		if (ret && ret != -ENODEV)
 			continue;
 
 		base = b;
@@ -397,7 +397,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 	phys_addr_t base = 0, align = 0, size;
 	int i, len;
 	const __be32 *prop;
-	bool nomap, default_cma;
+	bool nomap;
 	int ret;
 
 	prop = of_get_flat_dt_prop(node, "size", &len);
@@ -421,19 +421,10 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 	}
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
-	default_cma = of_get_flat_dt_prop(node, "linux,cma-default", NULL);
 
-	if (default_cma && cma_skip_dt_default_reserved_mem()) {
-		pr_err("Skipping dt linux,cma-default for \"cma=\" kernel param.\n");
-		return -EINVAL;
-	}
-
-	/* Need adjust the alignment to satisfy the CMA requirement */
-	if (IS_ENABLED(CONFIG_CMA)
-	    && of_flat_dt_is_compatible(node, "shared-dma-pool")
-	    && of_get_flat_dt_prop(node, "reusable", NULL)
-	    && !nomap)
-		align = max_t(phys_addr_t, align, CMA_MIN_ALIGNMENT_BYTES);
+	ret = fdt_validate_reserved_mem_node(node, &align);
+	if (ret && ret != -ENODEV)
+		return ret;
 
 	prop = of_flat_dt_get_addr_size_prop(node, "alloc-ranges", &len);
 	if (prop) {
@@ -468,17 +459,75 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 		       uname, (unsigned long)(size / SZ_1M));
 		return -ENOMEM;
 	}
-	/* Architecture specific contiguous memory fixup. */
-	if (of_flat_dt_is_compatible(node, "shared-dma-pool") &&
-	    of_get_flat_dt_prop(node, "reusable", NULL))
-		dma_contiguous_early_fixup(base, size);
+
+	fdt_fixup_reserved_mem_node(node, base, size);
+
 	/* Save region in the reserved_mem array */
 	fdt_reserved_mem_save_node(node, uname, base, size);
 	return 0;
 }
 
+extern const struct of_device_id __reservedmem_of_table[];
 static const struct of_device_id __rmem_of_table_sentinel
 	__used __section("__reservedmem_of_table_end");
+
+/**
+ * fdt_fixup_reserved_mem_node() - call fixup function for a reserved memory node
+ * @node: FDT node to fixup
+ * @base: base address of the reserved memory region
+ * @size: size of the reserved memory region
+ *
+ * This function iterates through the reserved memory drivers and calls
+ * the node_fixup callback for the compatible entry matching the node.
+ *
+ * Return: 0 on success, -ENODEV if no compatible match found
+ */
+static int __init fdt_fixup_reserved_mem_node(unsigned long node,
+					phys_addr_t base, phys_addr_t size)
+{
+	const struct of_device_id *i;
+	int ret = -ENODEV;
+
+	for (i = __reservedmem_of_table; ret == -ENODEV &&
+	     i < &__rmem_of_table_sentinel; i++) {
+		const struct reserved_mem_ops *ops = i->data;
+
+		if (!of_flat_dt_is_compatible(node, i->compatible))
+			continue;
+
+		if (ops->node_fixup)
+			ret = ops->node_fixup(node, base, size);
+	}
+	return ret;
+}
+
+/**
+ * fdt_validate_reserved_mem_node() - validate a reserved memory node
+ * @node: FDT node to validate
+ * @align: pointer to store the validated alignment (may be modified by callback)
+ *
+ * This function iterates through the reserved memory drivers and calls
+ * the node_validate callback for the compatible entry matching the node.
+ *
+ * Return: 0 on success, -ENODEV if no compatible match found
+ */
+static int __init fdt_validate_reserved_mem_node(unsigned long node, phys_addr_t *align)
+{
+	const struct of_device_id *i;
+	int ret = -ENODEV;
+
+	for (i = __reservedmem_of_table; ret == -ENODEV &&
+	     i < &__rmem_of_table_sentinel; i++) {
+		const struct reserved_mem_ops *ops = i->data;
+
+		if (!of_flat_dt_is_compatible(node, i->compatible))
+			continue;
+
+		if (ops->node_validate)
+			ret = ops->node_validate(node, align);
+	}
+	return ret;
+}
 
 /**
  * __reserved_mem_init_node() - initialize a reserved memory region
@@ -494,7 +543,6 @@ static const struct of_device_id __rmem_of_table_sentinel
 static int __init __reserved_mem_init_node(struct reserved_mem *rmem,
 					   unsigned long node)
 {
-	extern const struct of_device_id __reservedmem_of_table[];
 	const struct of_device_id *i;
 	int ret = -ENODEV;
 
@@ -511,7 +559,7 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem,
 			rmem->ops = ops;
 			pr_info("initialized node %s, compatible id %s\n",
 				rmem->name, compat);
-			break;
+			return ret;
 		}
 	}
 	return ret;
