@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/hid.h>
 #include <linux/usb/iowarrior.h>
 
 #define DRIVER_AUTHOR "Christian Lucht <lucht@codemercs.com>"
@@ -98,14 +99,13 @@ struct iowarrior {
 /*    globals   */
 /*--------------*/
 
-#define USB_REQ_GET_REPORT  0x01
 //#if 0
 static int usb_get_report(struct usb_device *dev,
 			  struct usb_host_interface *inter, unsigned char type,
 			  unsigned char id, void *buf, int size)
 {
 	return usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-			       USB_REQ_GET_REPORT,
+			       HID_REQ_GET_REPORT,
 			       USB_DIR_IN | USB_TYPE_CLASS |
 			       USB_RECIP_INTERFACE, (type << 8) + id,
 			       inter->desc.bInterfaceNumber, buf, size,
@@ -113,14 +113,12 @@ static int usb_get_report(struct usb_device *dev,
 }
 //#endif
 
-#define USB_REQ_SET_REPORT 0x09
-
 static int usb_set_report(struct usb_interface *intf, unsigned char type,
 			  unsigned char id, void *buf, int size)
 {
 	return usb_control_msg(interface_to_usbdev(intf),
 			       usb_sndctrlpipe(interface_to_usbdev(intf), 0),
-			       USB_REQ_SET_REPORT,
+			       HID_REQ_SET_REPORT,
 			       USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			       (type << 8) + id,
 			       intf->cur_altsetting->desc.bInterfaceNumber, buf,
