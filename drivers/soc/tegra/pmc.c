@@ -181,11 +181,8 @@
 #define WAKE_AOWAKE_CNTRL_LEVEL (1 << 3)
 #define WAKE_AOWAKE_CNTRL_SR_CAPTURE_EN (1 << 1)
 #define WAKE_AOWAKE_MASK_W(x) (0x180 + ((x) << 2))
-#define WAKE_AOWAKE_MASK_R(x) (0x300 + ((x) << 2))
 #define WAKE_AOWAKE_STATUS_W(x) (0x30c + ((x) << 2))
 #define WAKE_AOWAKE_STATUS_R(x) (0x48c + ((x) << 2))
-#define WAKE_AOWAKE_TIER0_ROUTING(x) (0x4b4 + ((x) << 2))
-#define WAKE_AOWAKE_TIER1_ROUTING(x) (0x4c0 + ((x) << 2))
 #define WAKE_AOWAKE_TIER2_ROUTING(x) (0x4cc + ((x) << 2))
 #define WAKE_AOWAKE_SW_STATUS_W_0	0x49c
 #define WAKE_AOWAKE_SW_STATUS(x)	(0x4a0 + ((x) << 2))
