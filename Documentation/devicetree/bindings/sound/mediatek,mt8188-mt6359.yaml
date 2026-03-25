@@ -105,11 +105,11 @@ patternProperties:
     required:
       - link-name
 
-unevaluatedProperties: false
-
 required:
   - compatible
   - mediatek,platform
+
+unevaluatedProperties: false
 
 examples:
   - |
