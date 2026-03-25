@@ -1808,7 +1808,7 @@ static int rtw89_phy_sel_headline(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_phy_init_reg(struct rtw89_dev *rtwdev,
-			       const struct rtw89_phy_table *table,
+			       const struct rtw89_phy_table *table, bool by_acv,
 			       void (*config)(struct rtw89_dev *rtwdev,
 					      const struct rtw89_reg2_def *reg,
 					      enum rtw89_rf_path rf_path,
@@ -1817,8 +1817,8 @@ static void rtw89_phy_init_reg(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_reg2_def *reg;
 	enum rtw89_rf_path rf_path = table->rf_path;
+	u8 cv = by_acv ? rtwdev->hal.acv : rtwdev->hal.cv;
 	u8 rfe = rtwdev->efuse.rfe_type;
-	u8 cv = rtwdev->hal.cv;
 	u32 i;
 	u32 headline_size = 0, headline_idx = 0;
 	u32 target = 0, cfg_target;
@@ -1885,16 +1885,16 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 	const struct rtw89_phy_table *bb_gain_table;
 
 	bb_table = elm_info->bb_tbl ? elm_info->bb_tbl : chip->bb_table;
-	rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg, NULL);
+	rtw89_phy_init_reg(rtwdev, bb_table, false, rtw89_phy_config_bb_reg, NULL);
 	if (rtwdev->dbcc_en)
-		rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg,
+		rtw89_phy_init_reg(rtwdev, bb_table, false, rtw89_phy_config_bb_reg,
 				   (void *)RTW89_PHY_1);
 
 	rtw89_chip_init_txpwr_unit(rtwdev);
 
 	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
 	if (bb_gain_table)
-		rtw89_phy_init_reg(rtwdev, bb_gain_table,
+		rtw89_phy_init_reg(rtwdev, bb_gain_table, false,
 				   chip->phy_def->config_bb_gain, NULL);
 
 	rtw89_phy_bb_reset(rtwdev);
@@ -2000,6 +2000,7 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_phy_table *rf_table;
 	struct rtw89_fw_h2c_rf_reg_info *rf_reg_info;
+	bool by_acv = chip->chip_id == RTL8922D;
 	u8 path;
 
 	rf_reg_info = kzalloc_obj(*rf_reg_info);
@@ -2015,7 +2016,7 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 		else
 			config = rf_table->config ? rf_table->config :
 				 rtw89_phy_config_rf_reg;
-		rtw89_phy_init_reg(rtwdev, rf_table, config, (void *)rf_reg_info);
+		rtw89_phy_init_reg(rtwdev, rf_table, by_acv, config, (void *)rf_reg_info);
 		if (rtw89_phy_config_rf_reg_fw(rtwdev, rf_reg_info))
 			rtw89_warn(rtwdev, "rf path %d reg h2c config failed\n",
 				   rf_reg_info->rf_path);
@@ -2056,7 +2057,7 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 	rtw89_phy_preinit_rf_nctl(rtwdev);
 
 	nctl_table = elm_info->rf_nctl ? elm_info->rf_nctl : chip->nctl_table;
-	rtw89_phy_init_reg(rtwdev, nctl_table, rtw89_phy_config_bb_reg, NULL);
+	rtw89_phy_init_reg(rtwdev, nctl_table, false, rtw89_phy_config_bb_reg, NULL);
 
 	if (chip->nctl_post_table)
 		rtw89_rfk_parser(rtwdev, chip->nctl_post_table);
