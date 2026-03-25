@@ -372,7 +372,7 @@ struct tegra_pmc_soc {
 	bool has_tsense_reset;
 	bool has_gpu_clamps;
 	bool needs_mbist_war;
-	bool has_impl_33v_pwr;
+	bool has_io_pad_wren;
 	bool maybe_tz_only;
 
 	const struct tegra_io_pad_soc *io_pads;
@@ -1922,7 +1922,7 @@ static int tegra_io_pad_set_voltage(struct tegra_pmc *pmc, enum tegra_io_pad id,
 
 	mutex_lock(&pmc->powergates_lock);
 
-	if (!pmc->soc->has_impl_33v_pwr) {
+	if (pmc->soc->has_io_pad_wren) {
 		/* write-enable PMC_PWR_DET_VALUE[pad->ena_3v3] */
 		value = tegra_pmc_readl(pmc, PMC_PWR_DET);
 		value |= BIT(pad->ena_3v3);
@@ -3536,7 +3536,7 @@ static const struct tegra_pmc_soc tegra20_pmc_soc = {
 	.has_tsense_reset = false,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = false,
+	.has_io_pad_wren = true,
 	.maybe_tz_only = false,
 	.num_io_pads = 0,
 	.io_pads = NULL,
@@ -3598,7 +3598,7 @@ static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.has_tsense_reset = true,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = false,
+	.has_io_pad_wren = true,
 	.maybe_tz_only = false,
 	.num_io_pads = 0,
 	.io_pads = NULL,
@@ -3656,7 +3656,7 @@ static const struct tegra_pmc_soc tegra114_pmc_soc = {
 	.has_tsense_reset = true,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = false,
+	.has_io_pad_wren = true,
 	.maybe_tz_only = false,
 	.num_io_pads = 0,
 	.io_pads = NULL,
@@ -3807,7 +3807,7 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.has_tsense_reset = true,
 	.has_gpu_clamps = true,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = false,
+	.has_io_pad_wren = true,
 	.maybe_tz_only = false,
 	.num_io_pads = ARRAY_SIZE(tegra124_io_pads),
 	.io_pads = tegra124_io_pads,
@@ -3981,7 +3981,7 @@ static const struct tegra_pmc_soc tegra210_pmc_soc = {
 	.has_tsense_reset = true,
 	.has_gpu_clamps = true,
 	.needs_mbist_war = true,
-	.has_impl_33v_pwr = false,
+	.has_io_pad_wren = true,
 	.maybe_tz_only = true,
 	.num_io_pads = ARRAY_SIZE(tegra210_io_pads),
 	.io_pads = tegra210_io_pads,
@@ -4195,7 +4195,7 @@ static const struct tegra_pmc_soc tegra186_pmc_soc = {
 	.has_tsense_reset = false,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = true,
+	.has_io_pad_wren = false,
 	.maybe_tz_only = false,
 	.num_io_pads = ARRAY_SIZE(tegra186_io_pads),
 	.io_pads = tegra186_io_pads,
@@ -4399,7 +4399,7 @@ static const struct tegra_pmc_soc tegra194_pmc_soc = {
 	.has_tsense_reset = false,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = true,
+	.has_io_pad_wren = false,
 	.maybe_tz_only = false,
 	.num_io_pads = ARRAY_SIZE(tegra194_io_pads),
 	.io_pads = tegra194_io_pads,
@@ -4555,7 +4555,7 @@ static const struct tegra_pmc_soc tegra234_pmc_soc = {
 	.has_tsense_reset = false,
 	.has_gpu_clamps = false,
 	.needs_mbist_war = false,
-	.has_impl_33v_pwr = true,
+	.has_io_pad_wren = false,
 	.maybe_tz_only = false,
 	.num_io_pads = ARRAY_SIZE(tegra234_io_pads),
 	.io_pads = tegra234_io_pads,
@@ -4704,7 +4704,7 @@ static const struct tegra_wake_event tegra264_wake_events[] = {
 };
 
 static const struct tegra_pmc_soc tegra264_pmc_soc = {
-	.has_impl_33v_pwr = true,
+	.has_io_pad_wren = false,
 	.regs = &tegra264_pmc_regs,
 	.init = tegra186_pmc_init,
 	.setup_irq_polarity = tegra186_pmc_setup_irq_polarity,
