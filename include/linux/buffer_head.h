@@ -207,28 +207,10 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate);
 
 /* Things to do with metadata buffers list */
 void mmb_mark_buffer_dirty(struct buffer_head *bh, struct mapping_metadata_bhs *mmb);
-static inline void mark_buffer_dirty_inode(struct buffer_head *bh,
-					   struct inode *inode)
-{
-	mmb_mark_buffer_dirty(bh, &inode->i_data.i_metadata_bhs);
-}
 int mmb_fsync_noflush(struct file *file, struct mapping_metadata_bhs *mmb,
 		      loff_t start, loff_t end, bool datasync);
-static inline int generic_buffers_fsync_noflush(struct file *file,
-						loff_t start, loff_t end,
-						bool datasync)
-{
-	return mmb_fsync_noflush(file, &file->f_mapping->i_metadata_bhs,
-				 start, end, datasync);
-}
 int mmb_fsync(struct file *file, struct mapping_metadata_bhs *mmb,
 	      loff_t start, loff_t end, bool datasync);
-static inline int generic_buffers_fsync(struct file *file,
-					loff_t start, loff_t end, bool datasync)
-{
-	return mmb_fsync(file, &file->f_mapping->i_metadata_bhs,
-			 start, end, datasync);
-}
 void clean_bdev_aliases(struct block_device *bdev, sector_t block,
 			sector_t len);
 static inline void clean_bdev_bh_alias(struct buffer_head *bh)
@@ -537,14 +519,6 @@ void mmb_init(struct mapping_metadata_bhs *mmb, struct address_space *mapping);
 bool mmb_has_buffers(struct mapping_metadata_bhs *mmb);
 void mmb_invalidate(struct mapping_metadata_bhs *mmb);
 int mmb_sync(struct mapping_metadata_bhs *mmb);
-static inline void invalidate_inode_buffers(struct inode *inode)
-{
-	mmb_invalidate(&inode->i_data.i_metadata_bhs);
-}
-static inline int sync_mapping_buffers(struct address_space *mapping)
-{
-	return mmb_sync(&mapping->i_metadata_bhs);
-}
 void invalidate_bh_lrus(void);
 void invalidate_bh_lrus_cpu(void);
 bool has_bh_in_lru(int cpu, void *dummy);
@@ -555,8 +529,6 @@ extern int buffer_heads_over_limit;
 static inline void buffer_init(void) {}
 static inline bool try_to_free_buffers(struct folio *folio) { return true; }
 static inline int mmb_sync(struct mapping_metadata_bhs *mmb) { return 0; }
-static inline void invalidate_inode_buffers(struct inode *inode) {}
-static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
 static inline void invalidate_bh_lrus(void) {}
 static inline void invalidate_bh_lrus_cpu(void) {}
 static inline bool has_bh_in_lru(int cpu, void *dummy) { return false; }
