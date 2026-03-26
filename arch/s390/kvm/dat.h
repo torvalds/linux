@@ -160,14 +160,14 @@ union pmd {
 			unsigned long              :44; /* HW */
 			unsigned long              : 3; /* Unused */
 			unsigned long              : 1; /* HW */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable soft-bit */
 			unsigned long r            : 1; /* Readable soft-bit */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1; /* Unused */
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */
@@ -183,14 +183,14 @@ union pud {
 			unsigned long              :33; /* HW */
 			unsigned long              :14; /* Unused */
 			unsigned long              : 1; /* HW */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable soft-bit */
 			unsigned long r            : 1; /* Readable soft-bit */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1; /* Unused */
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */
@@ -254,14 +254,14 @@ union crste {
 		struct {
 			unsigned long              :47;
 			unsigned long              : 1; /* HW (should be 0) */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable */
 			unsigned long r            : 1; /* Readable */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1;
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */

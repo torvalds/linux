@@ -185,6 +185,8 @@ static inline union pgste _gmap_ptep_xchg(struct gmap *gmap, union pte *ptep, un
 		else
 			_gmap_handle_vsie_unshadow_event(gmap, gfn);
 	}
+	if (!ptep->s.d && newpte.s.d && !newpte.s.s)
+		SetPageDirty(pfn_to_page(newpte.h.pfra));
 	return __dat_ptep_xchg(ptep, pgste, newpte, gfn, gmap->asce, uses_skeys(gmap));
 }
 
@@ -220,6 +222,8 @@ static inline bool __must_check _gmap_crstep_xchg_atomic(struct gmap *gmap, unio
 		else
 			_gmap_handle_vsie_unshadow_event(gmap, gfn);
 	}
+	if (!oldcrste.s.fc1.d && newcrste.s.fc1.d && !newcrste.s.fc1.s)
+		SetPageDirty(phys_to_page(crste_origin_large(newcrste)));
 	return dat_crstep_xchg_atomic(crstep, oldcrste, newcrste, gfn, gmap->asce);
 }
 
