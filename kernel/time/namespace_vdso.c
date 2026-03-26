@@ -144,3 +144,17 @@ void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
 	timens_set_vvar_page(tsk, ns);
 	vdso_join_timens(tsk, ns);
 }
+
+int timens_vdso_alloc_vvar_page(struct time_namespace *ns)
+{
+	ns->vvar_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (!ns->vvar_page)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void timens_vdso_free_vvar_page(struct time_namespace *ns)
+{
+	__free_page(ns->vvar_page);
+}

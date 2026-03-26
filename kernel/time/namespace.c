@@ -93,8 +93,8 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	if (!ns)
 		goto fail_dec;
 
-	ns->vvar_page = alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
-	if (!ns->vvar_page)
+	err = timens_vdso_alloc_vvar_page(ns);
+	if (err)
 		goto fail_free;
 
 	err = ns_common_init(ns);
@@ -109,7 +109,7 @@ static struct time_namespace *clone_time_ns(struct user_namespace *user_ns,
 	return ns;
 
 fail_free_page:
-	__free_page(ns->vvar_page);
+	timens_vdso_free_vvar_page(ns);
 fail_free:
 	kfree(ns);
 fail_dec:
@@ -146,7 +146,7 @@ void free_time_ns(struct time_namespace *ns)
 	dec_time_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
 	ns_common_free(ns);
-	__free_page(ns->vvar_page);
+	timens_vdso_free_vvar_page(ns);
 	/* Concurrent nstree traversal depends on a grace period. */
 	kfree_rcu(ns, ns.ns_rcu);
 }
