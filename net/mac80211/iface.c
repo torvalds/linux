@@ -409,13 +409,6 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 							nsdata->vif.type))
 				return -ENOTUNIQ;
 
-			/* No support for VLAN with MLO yet */
-			if (iftype == NL80211_IFTYPE_AP_VLAN &&
-			    sdata->wdev.use_4addr &&
-			    nsdata->vif.type == NL80211_IFTYPE_AP &&
-			    nsdata->vif.valid_links)
-				return -EOPNOTSUPP;
-
 			/*
 			 * can only add VLANs to enabled APs
 			 */
