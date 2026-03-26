@@ -461,7 +461,7 @@ static int memfd_luo_retrieve_folios(struct file *file,
 		if (err) {
 			pr_err("shmem: failed to account folio index %ld(%ld pages): %d\n",
 			       i, npages, err);
-			goto unlock_folio;
+			goto remove_from_cache;
 		}
 
 		nr_added_pages += npages;
@@ -474,6 +474,8 @@ static int memfd_luo_retrieve_folios(struct file *file,
 
 	return 0;
 
+remove_from_cache:
+	filemap_remove_folio(folio);
 unlock_folio:
 	folio_unlock(folio);
 	folio_put(folio);
