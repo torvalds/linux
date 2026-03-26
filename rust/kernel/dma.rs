@@ -453,6 +453,66 @@ impl<T: AsBytes + FromBytes> CoherentBox<[T]> {
 
         Ok(())
     }
+
+    /// Allocates a region of coherent memory of the same size as `data` and initializes it with a
+    /// copy of its contents.
+    ///
+    /// This is the [`CoherentBox`] variant of [`Coherent::from_slice_with_attrs`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use core::ops::Deref;
+    ///
+    /// # use kernel::device::{Bound, Device};
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     CoherentBox
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let data = [0u8, 1u8, 2u8, 3u8];
+    /// let c: CoherentBox<[u8]> =
+    ///     CoherentBox::from_slice_with_attrs(dev, &data, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    ///
+    /// assert_eq!(c.deref(), &data);
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    pub fn from_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Self>
+    where
+        T: Copy,
+    {
+        let mut slice = Self(Coherent::<T>::alloc_slice_with_attrs(
+            dev,
+            data.len(),
+            gfp_flags,
+            dma_attrs,
+        )?);
+
+        // PANIC: `slice` was created with length `data.len()`.
+        slice.copy_from_slice(data);
+
+        Ok(slice)
+    }
+
+    /// Performs the same functionality as [`CoherentBox::from_slice_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn from_slice(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Self>
+    where
+        T: Copy,
+    {
+        Self::from_slice_with_attrs(dev, data, gfp_flags, Attrs(0))
+    }
 }
 
 impl<T: AsBytes + FromBytes> CoherentBox<T> {
@@ -838,6 +898,53 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
         gfp_flags: kernel::alloc::Flags,
     ) -> Result<Coherent<[T]>> {
         Self::zeroed_slice_with_attrs(dev, len, gfp_flags, Attrs(0))
+    }
+
+    /// Allocates a region of coherent memory of the same size as `data` and initializes it with a
+    /// copy of its contents.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::device::{Bound, Device};
+    /// use kernel::dma::{
+    ///     attrs::*,
+    ///     Coherent
+    /// };
+    ///
+    /// # fn test(dev: &Device<Bound>) -> Result {
+    /// let data = [0u8, 1u8, 2u8, 3u8];
+    /// // `c` has the same content as `data`.
+    /// let c: Coherent<[u8]> =
+    ///     Coherent::from_slice_with_attrs(dev, &data, GFP_KERNEL, DMA_ATTR_NO_WARN)?;
+    ///
+    /// # Ok::<(), Error>(()) }
+    /// ```
+    #[inline]
+    pub fn from_slice_with_attrs(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+        dma_attrs: Attrs,
+    ) -> Result<Coherent<[T]>>
+    where
+        T: Copy,
+    {
+        CoherentBox::from_slice_with_attrs(dev, data, gfp_flags, dma_attrs).map(Into::into)
+    }
+
+    /// Performs the same functionality as [`Coherent::from_slice_with_attrs`], except the
+    /// `dma_attrs` is 0 by default.
+    #[inline]
+    pub fn from_slice(
+        dev: &device::Device<Bound>,
+        data: &[T],
+        gfp_flags: kernel::alloc::Flags,
+    ) -> Result<Coherent<[T]>>
+    where
+        T: Copy,
+    {
+        Self::from_slice_with_attrs(dev, data, gfp_flags, Attrs(0))
     }
 }
 
