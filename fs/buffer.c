@@ -469,30 +469,13 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  *
  * The functions mark_buffer_dirty_inode(), fsync_inode_buffers(),
  * inode_has_buffers() and invalidate_inode_buffers() are provided for the
- * management of a list of dependent buffers at ->i_mapping->i_private_list.
+ * management of a list of dependent buffers in mapping_metadata_bhs struct.
  *
- * Locking is a little subtle: try_to_free_buffers() will remove buffers
- * from their controlling inode's queue when they are being freed.  But
- * try_to_free_buffers() will be operating against the *blockdev* mapping
- * at the time, not against the S_ISREG file which depends on those buffers.
- * So the locking for i_private_list is via the i_private_lock in the address_space
- * which backs the buffers.  Which is different from the address_space 
- * against which the buffers are listed.  So for a particular address_space,
- * mapping->i_private_lock does *not* protect mapping->i_private_list!  In fact,
- * mapping->i_private_list will always be protected by the backing blockdev's
- * ->i_private_lock.
- *
- * Which introduces a requirement: all buffers on an address_space's
- * ->i_private_list must be from the same address_space: the blockdev's.
- *
- * address_spaces which do not place buffers at ->i_private_list via these
- * utility functions are free to use i_private_lock and i_private_list for
- * whatever they want.  The only requirement is that list_empty(i_private_list)
- * be true at clear_inode() time.
- *
- * FIXME: clear_inode should not call invalidate_inode_buffers().  The
- * filesystems should do that.  invalidate_inode_buffers() should just go
- * BUG_ON(!list_empty).
+ * The locking is a little subtle: The list of buffer heads is protected by
+ * the lock in mapping_metadata_bhs so functions coming from bdev mapping
+ * (such as try_to_free_buffers()) need to safely get to mapping_metadata_bhs
+ * using RCU, grab the lock, verify we didn't race with somebody detaching the
+ * bh / moving it to different inode and only then proceeding.
  *
  * FIXME: mark_buffer_dirty_inode() is a data-plane operation.  It should
  * take an address_space, not an inode.  And it should be called
@@ -509,19 +492,45 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  * b_inode back.
  */
 
-/*
- * The buffer's backing address_space's i_private_lock must be held
- */
-static void __remove_assoc_queue(struct buffer_head *bh)
+static void __remove_assoc_queue(struct mapping_metadata_bhs *mmb,
+			         struct buffer_head *bh)
 {
+	lockdep_assert_held(&mmb->lock);
 	list_del_init(&bh->b_assoc_buffers);
 	WARN_ON(!bh->b_assoc_map);
 	bh->b_assoc_map = NULL;
 }
 
+static void remove_assoc_queue(struct buffer_head *bh)
+{
+	struct address_space *mapping;
+	struct mapping_metadata_bhs *mmb;
+
+	/*
+	 * The locking dance is ugly here. We need to acquire the lock
+	 * protecting the metadata bh list while possibly racing with bh
+	 * being removed from the list or moved to a different one.  We
+	 * use RCU to pin mapping_metadata_bhs in memory to
+	 * opportunistically acquire the lock and then recheck the bh
+	 * didn't move under us.
+	 */
+	while (bh->b_assoc_map) {
+		rcu_read_lock();
+		mapping = READ_ONCE(bh->b_assoc_map);
+		if (mapping) {
+			mmb = &mapping->i_metadata_bhs;
+			spin_lock(&mmb->lock);
+			if (bh->b_assoc_map == mapping)
+				__remove_assoc_queue(mmb, bh);
+			spin_unlock(&mmb->lock);
+		}
+		rcu_read_unlock();
+	}
+}
+
 int inode_has_buffers(struct inode *inode)
 {
-	return !list_empty(&inode->i_data.i_private_list);
+	return !list_empty(&inode->i_data.i_metadata_bhs.list);
 }
 EXPORT_SYMBOL_GPL(inode_has_buffers);
 
@@ -529,7 +538,7 @@ EXPORT_SYMBOL_GPL(inode_has_buffers);
  * sync_mapping_buffers - write out & wait upon a mapping's "associated" buffers
  * @mapping: the mapping which wants those buffers written
  *
- * Starts I/O against the buffers at mapping->i_private_list, and waits upon
+ * Starts I/O against the buffers at mapping->i_metadata_bhs and waits upon
  * that I/O. Basically, this is a convenience function for fsync().  @mapping
  * is a file or directory which needs those buffers to be written for a
  * successful fsync().
@@ -548,23 +557,22 @@ EXPORT_SYMBOL_GPL(inode_has_buffers);
  */
 int sync_mapping_buffers(struct address_space *mapping)
 {
-	struct address_space *buffer_mapping =
-				mapping->host->i_sb->s_bdev->bd_mapping;
+	struct mapping_metadata_bhs *mmb = &mapping->i_metadata_bhs;
 	struct buffer_head *bh;
 	int err = 0;
 	struct blk_plug plug;
 	LIST_HEAD(tmp);
 
-	if (list_empty(&mapping->i_private_list))
+	if (list_empty(&mmb->list))
 		return 0;
 
 	blk_start_plug(&plug);
 
-	spin_lock(&buffer_mapping->i_private_lock);
-	while (!list_empty(&mapping->i_private_list)) {
-		bh = BH_ENTRY(mapping->i_private_list.next);
+	spin_lock(&mmb->lock);
+	while (!list_empty(&mmb->list)) {
+		bh = BH_ENTRY(mmb->list.next);
 		WARN_ON_ONCE(bh->b_assoc_map != mapping);
-		__remove_assoc_queue(bh);
+		__remove_assoc_queue(mmb, bh);
 		/* Avoid race with mark_buffer_dirty_inode() which does
 		 * a lockless check and we rely on seeing the dirty bit */
 		smp_mb();
@@ -573,7 +581,7 @@ int sync_mapping_buffers(struct address_space *mapping)
 			bh->b_assoc_map = mapping;
 			if (buffer_dirty(bh)) {
 				get_bh(bh);
-				spin_unlock(&buffer_mapping->i_private_lock);
+				spin_unlock(&mmb->lock);
 				/*
 				 * Ensure any pending I/O completes so that
 				 * write_dirty_buffer() actually writes the
@@ -590,35 +598,34 @@ int sync_mapping_buffers(struct address_space *mapping)
 				 * through sync_buffer().
 				 */
 				brelse(bh);
-				spin_lock(&buffer_mapping->i_private_lock);
+				spin_lock(&mmb->lock);
 			}
 		}
 	}
 
-	spin_unlock(&buffer_mapping->i_private_lock);
+	spin_unlock(&mmb->lock);
 	blk_finish_plug(&plug);
-	spin_lock(&buffer_mapping->i_private_lock);
+	spin_lock(&mmb->lock);
 
 	while (!list_empty(&tmp)) {
 		bh = BH_ENTRY(tmp.prev);
 		get_bh(bh);
-		__remove_assoc_queue(bh);
+		__remove_assoc_queue(mmb, bh);
 		/* Avoid race with mark_buffer_dirty_inode() which does
 		 * a lockless check and we rely on seeing the dirty bit */
 		smp_mb();
 		if (buffer_dirty(bh)) {
-			list_add(&bh->b_assoc_buffers,
-				 &mapping->i_private_list);
+			list_add(&bh->b_assoc_buffers, &mmb->list);
 			bh->b_assoc_map = mapping;
 		}
-		spin_unlock(&buffer_mapping->i_private_lock);
+		spin_unlock(&mmb->lock);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh))
 			err = -EIO;
 		brelse(bh);
-		spin_lock(&buffer_mapping->i_private_lock);
+		spin_lock(&mmb->lock);
 	}
-	spin_unlock(&buffer_mapping->i_private_lock);
+	spin_unlock(&mmb->lock);
 	return err;
 }
 EXPORT_SYMBOL(sync_mapping_buffers);
@@ -715,15 +722,14 @@ void write_boundary_block(struct block_device *bdev,
 void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct address_space *buffer_mapping = bh->b_folio->mapping;
 
 	mark_buffer_dirty(bh);
 	if (!bh->b_assoc_map) {
-		spin_lock(&buffer_mapping->i_private_lock);
+		spin_lock(&mapping->i_metadata_bhs.lock);
 		list_move_tail(&bh->b_assoc_buffers,
-				&mapping->i_private_list);
+				&mapping->i_metadata_bhs.list);
 		bh->b_assoc_map = mapping;
-		spin_unlock(&buffer_mapping->i_private_lock);
+		spin_unlock(&mapping->i_metadata_bhs.lock);
 	}
 }
 EXPORT_SYMBOL(mark_buffer_dirty_inode);
@@ -796,22 +802,16 @@ EXPORT_SYMBOL(block_dirty_folio);
  * Invalidate any and all dirty buffers on a given inode.  We are
  * probably unmounting the fs, but that doesn't mean we have already
  * done a sync().  Just drop the buffers from the inode list.
- *
- * NOTE: we take the inode's blockdev's mapping's i_private_lock.  Which
- * assumes that all the buffers are against the blockdev.
  */
 void invalidate_inode_buffers(struct inode *inode)
 {
 	if (inode_has_buffers(inode)) {
-		struct address_space *mapping = &inode->i_data;
-		struct list_head *list = &mapping->i_private_list;
-		struct address_space *buffer_mapping =
-				mapping->host->i_sb->s_bdev->bd_mapping;
+		struct mapping_metadata_bhs *mmb = &inode->i_data.i_metadata_bhs;
 
-		spin_lock(&buffer_mapping->i_private_lock);
-		while (!list_empty(list))
-			__remove_assoc_queue(BH_ENTRY(list->next));
-		spin_unlock(&buffer_mapping->i_private_lock);
+		spin_lock(&mmb->lock);
+		while (!list_empty(&mmb->list))
+			__remove_assoc_queue(mmb, BH_ENTRY(mmb->list.next));
+		spin_unlock(&mmb->lock);
 	}
 }
 EXPORT_SYMBOL(invalidate_inode_buffers);
@@ -1155,14 +1155,7 @@ EXPORT_SYMBOL(__brelse);
 void __bforget(struct buffer_head *bh)
 {
 	clear_buffer_dirty(bh);
-	if (bh->b_assoc_map) {
-		struct address_space *buffer_mapping = bh->b_folio->mapping;
-
-		spin_lock(&buffer_mapping->i_private_lock);
-		list_del_init(&bh->b_assoc_buffers);
-		bh->b_assoc_map = NULL;
-		spin_unlock(&buffer_mapping->i_private_lock);
-	}
+	remove_assoc_queue(bh);
 	__brelse(bh);
 }
 EXPORT_SYMBOL(__bforget);
@@ -2810,8 +2803,7 @@ drop_buffers(struct folio *folio, struct buffer_head **buffers_to_free)
 	do {
 		struct buffer_head *next = bh->b_this_page;
 
-		if (bh->b_assoc_map)
-			__remove_assoc_queue(bh);
+		remove_assoc_queue(bh);
 		bh = next;
 	} while (bh != head);
 	*buffers_to_free = head;
