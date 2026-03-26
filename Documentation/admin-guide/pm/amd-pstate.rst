@@ -239,6 +239,7 @@ control its functionality at the system level. They are located in the
 
  root@hr-test1:/home/ray# ls /sys/devices/system/cpu/cpufreq/policy0/*amd*
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_highest_perf
+ /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_hw_prefcore
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_nonlinear_freq
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_max_freq
 
@@ -264,8 +265,9 @@ This attribute is read-only.
 
 ``amd_pstate_hw_prefcore``
 
-Whether the platform supports the preferred core feature and it has been
-enabled. This attribute is read-only.
+Whether the platform supports the preferred core feature and it has
+been enabled. This attribute is read-only. This file is only visible
+on platforms which support the preferred core feature.
 
 ``amd_pstate_prefcore_ranking``
 
