@@ -447,6 +447,7 @@ extern const struct address_space_operations empty_aops;
 
 /* Structure for tracking metadata buffer heads associated with the mapping */
 struct mapping_metadata_bhs {
+	struct address_space *mapping;	/* Mapping bhs are associated with */
 	spinlock_t lock;	/* Lock protecting bh list */
 	struct list_head list;	/* The list of bhs (b_assoc_buffers) */
 };

@@ -497,13 +497,12 @@ static void __remove_assoc_queue(struct mapping_metadata_bhs *mmb,
 {
 	lockdep_assert_held(&mmb->lock);
 	list_del_init(&bh->b_assoc_buffers);
-	WARN_ON(!bh->b_assoc_map);
-	bh->b_assoc_map = NULL;
+	WARN_ON(!bh->b_mmb);
+	bh->b_mmb = NULL;
 }
 
 static void remove_assoc_queue(struct buffer_head *bh)
 {
-	struct address_space *mapping;
 	struct mapping_metadata_bhs *mmb;
 
 	/*
@@ -514,13 +513,12 @@ static void remove_assoc_queue(struct buffer_head *bh)
 	 * opportunistically acquire the lock and then recheck the bh
 	 * didn't move under us.
 	 */
-	while (bh->b_assoc_map) {
+	while (bh->b_mmb) {
 		rcu_read_lock();
-		mapping = READ_ONCE(bh->b_assoc_map);
-		if (mapping) {
-			mmb = &mapping->i_metadata_bhs;
+		mmb = READ_ONCE(bh->b_mmb);
+		if (mmb) {
 			spin_lock(&mmb->lock);
-			if (bh->b_assoc_map == mapping)
+			if (bh->b_mmb == mmb)
 				__remove_assoc_queue(mmb, bh);
 			spin_unlock(&mmb->lock);
 		}
@@ -551,9 +549,9 @@ EXPORT_SYMBOL_GPL(inode_has_buffers);
  * Do this in two main stages: first we copy dirty buffers to a
  * temporary inode list, queueing the writes as we go. Then we clean
  * up, waiting for those writes to complete. mark_buffer_dirty_inode()
- * doesn't touch b_assoc_buffers list if b_assoc_map is not NULL so we
- * are sure the buffer stays on our list until IO completes (at which point
- * it can be reaped).
+ * doesn't touch b_assoc_buffers list if b_mmb is not NULL so we are sure the
+ * buffer stays on our list until IO completes (at which point it can be
+ * reaped).
  */
 int sync_mapping_buffers(struct address_space *mapping)
 {
@@ -571,14 +569,14 @@ int sync_mapping_buffers(struct address_space *mapping)
 	spin_lock(&mmb->lock);
 	while (!list_empty(&mmb->list)) {
 		bh = BH_ENTRY(mmb->list.next);
-		WARN_ON_ONCE(bh->b_assoc_map != mapping);
+		WARN_ON_ONCE(bh->b_mmb != mmb);
 		__remove_assoc_queue(mmb, bh);
 		/* Avoid race with mark_buffer_dirty_inode() which does
 		 * a lockless check and we rely on seeing the dirty bit */
 		smp_mb();
 		if (buffer_dirty(bh) || buffer_locked(bh)) {
 			list_add(&bh->b_assoc_buffers, &tmp);
-			bh->b_assoc_map = mapping;
+			bh->b_mmb = mmb;
 			if (buffer_dirty(bh)) {
 				get_bh(bh);
 				spin_unlock(&mmb->lock);
@@ -616,7 +614,7 @@ int sync_mapping_buffers(struct address_space *mapping)
 		smp_mb();
 		if (buffer_dirty(bh)) {
 			list_add(&bh->b_assoc_buffers, &mmb->list);
-			bh->b_assoc_map = mapping;
+			bh->b_mmb = mmb;
 		}
 		spin_unlock(&mmb->lock);
 		wait_on_buffer(bh);
@@ -724,11 +722,11 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
 	struct address_space *mapping = inode->i_mapping;
 
 	mark_buffer_dirty(bh);
-	if (!bh->b_assoc_map) {
+	if (!bh->b_mmb) {
 		spin_lock(&mapping->i_metadata_bhs.lock);
 		list_move_tail(&bh->b_assoc_buffers,
 				&mapping->i_metadata_bhs.list);
-		bh->b_assoc_map = mapping;
+		bh->b_mmb = &mapping->i_metadata_bhs;
 		spin_unlock(&mapping->i_metadata_bhs.lock);
 	}
 }
@@ -1124,8 +1122,8 @@ void mark_buffer_write_io_error(struct buffer_head *bh)
 	/* FIXME: do we need to set this in both places? */
 	if (bh->b_folio && bh->b_folio->mapping)
 		mapping_set_error(bh->b_folio->mapping, -EIO);
-	if (bh->b_assoc_map)
-		mapping_set_error(bh->b_assoc_map, -EIO);
+	if (bh->b_mmb)
+		mapping_set_error(bh->b_mmb->mapping, -EIO);
 }
 EXPORT_SYMBOL(mark_buffer_write_io_error);
 
