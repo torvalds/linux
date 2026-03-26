@@ -80,8 +80,7 @@ struct intel_dsi {
 	/* NON_BURST_SYNC_PULSE, NON_BURST_SYNC_EVENTS, or BURST_MODE */
 	int video_mode;
 
-	/* eot for MIPI_EOT_DISABLE register */
-	u8 eotp_pkt;
+	bool eot_pkt;
 	u8 clock_stop;
 
 	u8 escape_clk_div;

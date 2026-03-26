@@ -711,7 +711,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 		tmp = intel_de_read(display, DSI_TRANS_FUNC_CONF(dsi_trans));
 
-		if (intel_dsi->eotp_pkt)
+		if (intel_dsi->eot_pkt)
 			tmp &= ~EOTP_DISABLED;
 		else
 			tmp |= EOTP_DISABLED;
