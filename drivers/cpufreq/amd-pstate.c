@@ -1220,12 +1220,87 @@ static ssize_t show_energy_performance_preference(
 	return sysfs_emit(buf, "%s\n", energy_perf_strings[preference]);
 }
 
+cpufreq_freq_attr_ro(amd_pstate_max_freq);
+cpufreq_freq_attr_ro(amd_pstate_lowest_nonlinear_freq);
+
+cpufreq_freq_attr_ro(amd_pstate_highest_perf);
+cpufreq_freq_attr_ro(amd_pstate_prefcore_ranking);
+cpufreq_freq_attr_ro(amd_pstate_hw_prefcore);
+cpufreq_freq_attr_rw(energy_performance_preference);
+cpufreq_freq_attr_ro(energy_performance_available_preferences);
+
+struct freq_attr_visibility {
+	struct freq_attr *attr;
+	bool (*visibility_fn)(void);
+};
+
+/* For attributes which are always visible */
+static bool always_visible(void)
+{
+	return true;
+}
+
+/* Determines whether prefcore related attributes should be visible */
+static bool prefcore_visibility(void)
+{
+	return amd_pstate_prefcore;
+}
+
+/* Determines whether energy performance preference should be visible */
+static bool epp_visibility(void)
+{
+	return cppc_state == AMD_PSTATE_ACTIVE;
+}
+
+static struct freq_attr_visibility amd_pstate_attr_visibility[] = {
+	{&amd_pstate_max_freq, always_visible},
+	{&amd_pstate_lowest_nonlinear_freq, always_visible},
+	{&amd_pstate_highest_perf, always_visible},
+	{&amd_pstate_prefcore_ranking, prefcore_visibility},
+	{&amd_pstate_hw_prefcore, prefcore_visibility},
+	{&energy_performance_preference, epp_visibility},
+	{&energy_performance_available_preferences, epp_visibility},
+};
+
+static struct freq_attr **get_freq_attrs(void)
+{
+	bool attr_visible[ARRAY_SIZE(amd_pstate_attr_visibility)];
+	struct freq_attr **attrs;
+	int i, j, count;
+
+	for (i = 0, count = 0; i < ARRAY_SIZE(amd_pstate_attr_visibility); i++) {
+		struct freq_attr_visibility *v = &amd_pstate_attr_visibility[i];
+
+		attr_visible[i] = v->visibility_fn();
+		if (attr_visible[i])
+			count++;
+	}
+
+	/* amd_pstate_{max_freq, lowest_nonlinear_freq, highest_perf} should always be visible */
+	BUG_ON(!count);
+
+	attrs = kcalloc(count + 1, sizeof(struct freq_attr *), GFP_KERNEL);
+	if (!attrs)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(amd_pstate_attr_visibility); i++) {
+		if (!attr_visible[i])
+			continue;
+
+		attrs[j++] = amd_pstate_attr_visibility[i].attr;
+	}
+
+	return attrs;
+}
+
 static void amd_pstate_driver_cleanup(void)
 {
 	if (amd_pstate_prefcore)
 		sched_clear_itmt_support();
 
 	cppc_state = AMD_PSTATE_DISABLE;
+	kfree(current_pstate_driver->attr);
+	current_pstate_driver->attr = NULL;
 	current_pstate_driver = NULL;
 }
 
@@ -1250,6 +1325,7 @@ static int amd_pstate_set_driver(int mode_idx)
 
 static int amd_pstate_register_driver(int mode)
 {
+	struct freq_attr **attr = NULL;
 	int ret;
 
 	ret = amd_pstate_set_driver(mode);
@@ -1257,6 +1333,22 @@ static int amd_pstate_register_driver(int mode)
 		return ret;
 
 	cppc_state = mode;
+
+	/*
+	 * Note: It is important to compute the attrs _after_
+	 * re-initializing the cppc_state.  Some attributes become
+	 * visible only when cppc_state is AMD_PSTATE_ACTIVE.
+	 */
+	attr = get_freq_attrs();
+	if (IS_ERR(attr)) {
+		ret = (int) PTR_ERR(attr);
+		pr_err("Couldn't compute freq_attrs for current mode %s [%d]\n",
+			amd_pstate_get_mode_string(cppc_state), ret);
+		amd_pstate_driver_cleanup();
+		return ret;
+	}
+
+	current_pstate_driver->attr = attr;
 
 	/* at least one CPU supports CPB */
 	current_pstate_driver->boost_enabled = cpu_feature_enabled(X86_FEATURE_CPB);
@@ -1399,36 +1491,8 @@ static ssize_t prefcore_show(struct device *dev,
 	return sysfs_emit(buf, "%s\n", str_enabled_disabled(amd_pstate_prefcore));
 }
 
-cpufreq_freq_attr_ro(amd_pstate_max_freq);
-cpufreq_freq_attr_ro(amd_pstate_lowest_nonlinear_freq);
-
-cpufreq_freq_attr_ro(amd_pstate_highest_perf);
-cpufreq_freq_attr_ro(amd_pstate_prefcore_ranking);
-cpufreq_freq_attr_ro(amd_pstate_hw_prefcore);
-cpufreq_freq_attr_rw(energy_performance_preference);
-cpufreq_freq_attr_ro(energy_performance_available_preferences);
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(prefcore);
-
-static struct freq_attr *amd_pstate_attr[] = {
-	&amd_pstate_max_freq,
-	&amd_pstate_lowest_nonlinear_freq,
-	&amd_pstate_highest_perf,
-	&amd_pstate_prefcore_ranking,
-	&amd_pstate_hw_prefcore,
-	NULL,
-};
-
-static struct freq_attr *amd_pstate_epp_attr[] = {
-	&amd_pstate_max_freq,
-	&amd_pstate_lowest_nonlinear_freq,
-	&amd_pstate_highest_perf,
-	&amd_pstate_prefcore_ranking,
-	&amd_pstate_hw_prefcore,
-	&energy_performance_preference,
-	&energy_performance_available_preferences,
-	NULL,
-};
 
 static struct attribute *pstate_global_attributes[] = {
 	&dev_attr_status.attr,
@@ -1696,7 +1760,6 @@ static struct cpufreq_driver amd_pstate_driver = {
 	.set_boost	= amd_pstate_set_boost,
 	.update_limits	= amd_pstate_update_limits,
 	.name		= "amd-pstate",
-	.attr		= amd_pstate_attr,
 };
 
 static struct cpufreq_driver amd_pstate_epp_driver = {
@@ -1712,7 +1775,6 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 	.update_limits	= amd_pstate_update_limits,
 	.set_boost	= amd_pstate_set_boost,
 	.name		= "amd-pstate-epp",
-	.attr		= amd_pstate_epp_attr,
 };
 
 /*
@@ -1858,7 +1920,7 @@ static int __init amd_pstate_init(void)
 	return ret;
 
 global_attr_free:
-	cpufreq_unregister_driver(current_pstate_driver);
+	amd_pstate_unregister_driver(0);
 	return ret;
 }
 device_initcall(amd_pstate_init);
