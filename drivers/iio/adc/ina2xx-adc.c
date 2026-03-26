@@ -33,8 +33,6 @@
 #include <linux/sched/task.h>
 #include <linux/util_macros.h>
 
-#include <linux/platform_data/ina2xx.h>
-
 /* INA2XX registers definition */
 #define INA2XX_CONFIG                   0x00
 #define INA2XX_SHUNT_VOLTAGE            0x01	/* readonly */
@@ -980,16 +978,8 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	mutex_init(&chip->state_lock);
 
-	if (of_property_read_u32(client->dev.of_node,
-				 "shunt-resistor", &val) < 0) {
-		struct ina2xx_platform_data *pdata =
-		    dev_get_platdata(&client->dev);
-
-		if (pdata)
-			val = pdata->shunt_uohms;
-		else
-			val = INA2XX_RSHUNT_DEFAULT;
-	}
+	if (of_property_read_u32(client->dev.of_node, "shunt-resistor", &val) < 0)
+		val = INA2XX_RSHUNT_DEFAULT;
 
 	ret = set_shunt_resistor(chip, val);
 	if (ret)
