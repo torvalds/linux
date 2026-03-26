@@ -5,13 +5,13 @@
 
 use kernel::{
     device,
+    dma::Coherent,
     firmware::Firmware,
     prelude::*,
     transmute::FromBytes, //
 };
 
 use crate::{
-    dma::DmaObject,
     firmware::BinFirmware,
     num::FromSafeCast, //
 };
@@ -66,7 +66,7 @@ pub(crate) struct RiscvFirmware {
     /// Application version.
     pub(crate) app_version: u32,
     /// Device-mapped firmware image.
-    pub(crate) ucode: DmaObject,
+    pub(crate) ucode: Coherent<[u8]>,
 }
 
 impl RiscvFirmware {
@@ -81,7 +81,7 @@ impl RiscvFirmware {
             let len = usize::from_safe_cast(bin_fw.hdr.data_size);
             let end = start.checked_add(len).ok_or(EINVAL)?;
 
-            DmaObject::from_data(dev, fw.data().get(start..end).ok_or(EINVAL)?)?
+            Coherent::from_slice(dev, fw.data().get(start..end).ok_or(EINVAL)?, GFP_KERNEL)?
         };
 
         Ok(Self {
