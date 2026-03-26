@@ -13,6 +13,7 @@
 #include <linux/uio.h>
 #include <linux/bvec.h>
 #include <linux/folio_queue.h>
+#include <linux/minmax.h>
 #include <kunit/test.h>
 
 MODULE_DESCRIPTION("iov_iter testing");
@@ -37,7 +38,7 @@ static const struct kvec_test_range kvec_test_ranges[] = {
 
 static inline u8 pattern(unsigned long x)
 {
-	return x & 0xff;
+	return (u8)x + (u8)(x >> 8) + (u8)(x >> 16);
 }
 
 static void iov_kunit_unmap(void *data)
@@ -52,6 +53,7 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 	struct page **pages;
 	unsigned long got;
 	void *buffer;
+	unsigned int i;
 
 	pages = kzalloc_objs(struct page *, npages, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
@@ -63,6 +65,9 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
 		kvfree(pages);
 		KUNIT_ASSERT_EQ(test, got, npages);
 	}
+	/* Make sure that we don't get a physically contiguous buffer. */
+	for (i = 0; i < npages / 4; ++i)
+		swap(pages[i], pages[i + npages / 2]);
 
 	buffer = vmap(pages, npages, VM_MAP | VM_MAP_PUT_PAGES, PAGE_KERNEL);
 	if (buffer == NULL) {
