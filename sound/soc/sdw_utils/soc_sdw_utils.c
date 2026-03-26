@@ -331,6 +331,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.vendor_id = 0x025d,
 		.part_id = 0x1320,
 		.name_prefix = "rt1320",
+		.is_amp = true,
 		.dais = {
 			{
 				.direction = {true, false},
@@ -346,13 +347,24 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.widgets = generic_spk_widgets,
 				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
 			},
+			{
+				.direction = {false, true},
+				.dai_name = "rt1320-aif2",
+				.component_name = "rt1320",
+				.dai_type = SOC_SDW_DAI_TYPE_MIC,
+				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
+				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
+				.widgets = generic_dmic_widgets,
+				.num_widgets = ARRAY_SIZE(generic_dmic_widgets),
+			},
 		},
-		.dai_num = 1,
+		.dai_num = 2,
 	},
 	{
 		.vendor_id = 0x025d,
 		.part_id = 0x1321,
 		.name_prefix = "rt1320",
+		.is_amp = true,
 		.dais = {
 			{
 				.direction = {true, false},
@@ -368,8 +380,18 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.widgets = generic_spk_widgets,
 				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
 			},
+			{
+				.direction = {false, true},
+				.dai_name = "rt1320-aif2",
+				.component_name = "rt1320",
+				.dai_type = SOC_SDW_DAI_TYPE_MIC,
+				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
+				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
+				.widgets = generic_dmic_widgets,
+				.num_widgets = ARRAY_SIZE(generic_dmic_widgets),
+			},
 		},
-		.dai_num = 1,
+		.dai_num = 2,
 	},
 	{
 		.vendor_id = 0x025d,
