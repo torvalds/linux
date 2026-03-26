@@ -81,7 +81,7 @@ struct intel_dsi {
 	int video_mode;
 
 	bool eot_pkt;
-	u8 clock_stop;
+	bool clock_stop;
 
 	u8 escape_clk_div;
 	u8 dual_link;
