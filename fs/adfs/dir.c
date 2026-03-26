@@ -454,5 +454,5 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
  */
 const struct inode_operations adfs_dir_inode_operations = {
 	.lookup		= adfs_lookup,
-	.setattr	= adfs_notify_change,
+	.setattr	= adfs_setattr,
 };
