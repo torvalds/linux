@@ -35,6 +35,10 @@
 
 #include "amd-pstate.h"
 
+static char *test_list;
+module_param(test_list, charp, 0444);
+MODULE_PARM_DESC(test_list,
+	"Comma-delimited list of tests to run (empty means run all tests)");
 
 struct amd_pstate_ut_struct {
 	const char *name;
@@ -57,6 +61,25 @@ static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       },
 	{"amd_pstate_ut_check_driver",	   amd_pstate_ut_check_driver     }
 };
+
+static bool test_in_list(const char *list, const char *name)
+{
+	size_t name_len = strlen(name);
+	const char *p = list;
+
+	while (*p) {
+		const char *sep = strchr(p, ',');
+		size_t token_len = sep ? sep - p : strlen(p);
+
+		if (token_len == name_len && !strncmp(p, name, token_len))
+			return true;
+		if (!sep)
+			break;
+		p = sep + 1;
+	}
+
+	return false;
+}
 
 static bool get_shared_mem(void)
 {
@@ -275,7 +298,13 @@ static int __init amd_pstate_ut_init(void)
 	u32 i = 0, arr_size = ARRAY_SIZE(amd_pstate_ut_cases);
 
 	for (i = 0; i < arr_size; i++) {
-		int ret = amd_pstate_ut_cases[i].func(i);
+		int ret;
+
+		if (test_list && *test_list &&
+		    !test_in_list(test_list, amd_pstate_ut_cases[i].name))
+			continue;
+
+		ret = amd_pstate_ut_cases[i].func(i);
 
 		if (ret)
 			pr_err("%-4d %-20s\t fail: %d!\n", i+1, amd_pstate_ut_cases[i].name, ret);
