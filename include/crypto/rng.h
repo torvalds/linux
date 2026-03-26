@@ -57,11 +57,6 @@ struct crypto_rng {
 	struct crypto_tfm base;
 };
 
-extern struct crypto_rng *crypto_default_rng;
-
-int crypto_get_default_rng(void);
-void crypto_put_default_rng(void);
-
 /**
  * crypto_stdrng_get_bytes() - get cryptographically secure random bytes
  * @buf: output buffer holding the random numbers
