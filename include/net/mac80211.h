@@ -365,6 +365,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
  * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
  * @BSS_CHANGED_TPE: transmit power envelope changed
+ * @BSS_CHANGED_NAN_LOCAL_SCHED: NAN local schedule changed (NAN mode only)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -402,6 +403,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
 	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
 	BSS_CHANGED_TPE			= BIT_ULL(35),
+	BSS_CHANGED_NAN_LOCAL_SCHED	= BIT_ULL(36),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -864,6 +866,28 @@ struct ieee80211_bss_conf {
 	u8 bss_param_ch_cnt_link_id;
 
 	u8 s1g_long_beacon_period;
+};
+
+#define IEEE80211_NAN_MAX_CHANNELS 3
+
+/**
+ * struct ieee80211_nan_channel - NAN channel information
+ *
+ * @chanreq: channel request for this NAN channel. Even though this chanreq::ap
+ *	is irrelevant for NAN, still store it for convenience - some functions
+ *	require it as an argument.
+ * @needed_rx_chains: number of RX chains needed for this NAN channel
+ * @chanctx_conf: chanctx_conf assigned to this NAN channel. Will be %NULL
+ *	if the channel is ULWed.
+ * @channel_entry: the Channel Entry blob as defined in Wi-Fi Aware
+ *	(TM) 4.0 specification Table 100 (Channel Entry format for the NAN
+ *	Availability attribute).
+ */
+struct ieee80211_nan_channel {
+	struct ieee80211_chan_req chanreq;
+	u8 needed_rx_chains;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	u8 channel_entry[6];
 };
 
 /**
@@ -1917,6 +1941,8 @@ enum ieee80211_offload_flags {
 	IEEE80211_OFFLOAD_DECAP_ENABLED		= BIT(2),
 };
 
+#define IEEE80211_NAN_AVAIL_BLOB_MAX_LEN	54
+
 /**
  * struct ieee80211_eml_params - EHT Operating mode notification parameters
  *
@@ -1940,6 +1966,32 @@ struct ieee80211_eml_params {
 	u16 link_bitmap;
 	u8 emlmr_mcs_map_count;
 	u8 emlmr_mcs_map_bw[9];
+};
+
+/**
+ * struct ieee80211_nan_sched_cfg - NAN schedule configuration
+ * @channels: array of NAN channels. A channel entry is in use if
+ *	channels[i].chanreq.oper.chan is not NULL.
+ * @schedule: NAN local schedule - mapping of each 16TU time slot to
+ *	the NAN channel on which the radio will operate. NULL if unscheduled.
+ * @avail_blob: NAN Availability attribute blob.
+ * @avail_blob_len: length of the @avail_blob in bytes.
+ * @deferred: indicates that the driver should notify peers before applying the
+ *	new NAN schedule, and apply the new schedule the second NAN Slot
+ *	boundary after it notified the peers, as defined in Wi-Fi Aware (TM) 4.0
+ *	specification, section 5.2.2.
+ *	The driver must call ieee80211_nan_sched_update_done() after the
+ *	schedule has been applied.
+ *	If a HW restart happened while a deferred schedule update was pending,
+ *	mac80211 will reconfigure the deferred schedule (and wait for the driver
+ *	to notify that the schedule has been applied).
+ */
+struct ieee80211_nan_sched_cfg {
+	struct ieee80211_nan_channel channels[IEEE80211_NAN_MAX_CHANNELS];
+	struct ieee80211_nan_channel *schedule[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+	u8 avail_blob[IEEE80211_NAN_AVAIL_BLOB_MAX_LEN];
+	u16 avail_blob_len;
+	bool deferred;
 };
 
 /**
@@ -1970,6 +2022,7 @@ struct ieee80211_eml_params {
  *	your driver/device needs to do.
  * @ap_addr: AP MLD address, or BSSID for non-MLO connections
  *	(station mode only)
+ * @nan_sched: NAN schedule parameters. &struct ieee80211_nan_sched_cfg
  */
 struct ieee80211_vif_cfg {
 	/* association related data */
@@ -1988,6 +2041,8 @@ struct ieee80211_vif_cfg {
 	bool s1g;
 	bool idle;
 	u8 ap_addr[ETH_ALEN] __aligned(2);
+	/* Protected by the wiphy mutex */
+	struct ieee80211_nan_sched_cfg nan_sched;
 };
 
 #define IEEE80211_TTLM_NUM_TIDS 8
@@ -7755,6 +7810,17 @@ void ieee80211_nan_func_terminated(struct ieee80211_vif *vif,
 void ieee80211_nan_func_match(struct ieee80211_vif *vif,
 			      struct cfg80211_nan_match_params *match,
 			      gfp_t gfp);
+
+/**
+ * ieee80211_nan_sched_update_done - notify that NAN schedule update is done
+ *
+ * This function is called by the driver to notify mac80211 that the NAN
+ * schedule update has been applied.
+ * Must be called with wiphy mutex held. May sleep.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ */
+void ieee80211_nan_sched_update_done(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_calc_rx_airtime - calculate estimated transmission airtime for RX.
