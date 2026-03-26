@@ -502,12 +502,15 @@ static int ieee80211_add_nan_func(struct wiphy *wiphy,
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
 
-	spin_lock_bh(&sdata->u.nan.func_lock);
+	if (WARN_ON(wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return -EOPNOTSUPP;
 
-	ret = idr_alloc(&sdata->u.nan.function_inst_ids,
+	spin_lock_bh(&sdata->u.nan.de.func_lock);
+
+	ret = idr_alloc(&sdata->u.nan.de.function_inst_ids,
 			nan_func, 1, sdata->local->hw.max_nan_de_entries + 1,
 			GFP_ATOMIC);
-	spin_unlock_bh(&sdata->u.nan.func_lock);
+	spin_unlock_bh(&sdata->u.nan.de.func_lock);
 
 	if (ret < 0)
 		return ret;
@@ -518,10 +521,10 @@ static int ieee80211_add_nan_func(struct wiphy *wiphy,
 
 	ret = drv_add_nan_func(sdata->local, sdata, nan_func);
 	if (ret) {
-		spin_lock_bh(&sdata->u.nan.func_lock);
-		idr_remove(&sdata->u.nan.function_inst_ids,
+		spin_lock_bh(&sdata->u.nan.de.func_lock);
+		idr_remove(&sdata->u.nan.de.function_inst_ids,
 			   nan_func->instance_id);
-		spin_unlock_bh(&sdata->u.nan.func_lock);
+		spin_unlock_bh(&sdata->u.nan.de.func_lock);
 	}
 
 	return ret;
@@ -534,9 +537,9 @@ ieee80211_find_nan_func_by_cookie(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_nan_func *func;
 	int id;
 
-	lockdep_assert_held(&sdata->u.nan.func_lock);
+	lockdep_assert_held(&sdata->u.nan.de.func_lock);
 
-	idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, id) {
+	idr_for_each_entry(&sdata->u.nan.de.function_inst_ids, func, id) {
 		if (func->cookie == cookie)
 			return func;
 	}
@@ -555,13 +558,16 @@ static void ieee80211_del_nan_func(struct wiphy *wiphy,
 	    !ieee80211_sdata_running(sdata))
 		return;
 
-	spin_lock_bh(&sdata->u.nan.func_lock);
+	if (WARN_ON(wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return;
+
+	spin_lock_bh(&sdata->u.nan.de.func_lock);
 
 	func = ieee80211_find_nan_func_by_cookie(sdata, cookie);
 	if (func)
 		instance_id = func->instance_id;
 
-	spin_unlock_bh(&sdata->u.nan.func_lock);
+	spin_unlock_bh(&sdata->u.nan.de.func_lock);
 
 	if (instance_id)
 		drv_del_nan_func(sdata->local, sdata, instance_id);
@@ -4888,18 +4894,22 @@ void ieee80211_nan_func_terminated(struct ieee80211_vif *vif,
 	if (WARN_ON(vif->type != NL80211_IFTYPE_NAN))
 		return;
 
-	spin_lock_bh(&sdata->u.nan.func_lock);
+	if (WARN_ON(sdata->local->hw.wiphy->nan_capa.flags &
+		    WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return;
 
-	func = idr_find(&sdata->u.nan.function_inst_ids, inst_id);
+	spin_lock_bh(&sdata->u.nan.de.func_lock);
+
+	func = idr_find(&sdata->u.nan.de.function_inst_ids, inst_id);
 	if (WARN_ON(!func)) {
-		spin_unlock_bh(&sdata->u.nan.func_lock);
+		spin_unlock_bh(&sdata->u.nan.de.func_lock);
 		return;
 	}
 
 	cookie = func->cookie;
-	idr_remove(&sdata->u.nan.function_inst_ids, inst_id);
+	idr_remove(&sdata->u.nan.de.function_inst_ids, inst_id);
 
-	spin_unlock_bh(&sdata->u.nan.func_lock);
+	spin_unlock_bh(&sdata->u.nan.de.func_lock);
 
 	cfg80211_free_nan_func(func);
 
@@ -4918,16 +4928,20 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
 	if (WARN_ON(vif->type != NL80211_IFTYPE_NAN))
 		return;
 
-	spin_lock_bh(&sdata->u.nan.func_lock);
+	if (WARN_ON(sdata->local->hw.wiphy->nan_capa.flags &
+		    WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return;
 
-	func = idr_find(&sdata->u.nan.function_inst_ids,  match->inst_id);
+	spin_lock_bh(&sdata->u.nan.de.func_lock);
+
+	func = idr_find(&sdata->u.nan.de.function_inst_ids,  match->inst_id);
 	if (WARN_ON(!func)) {
-		spin_unlock_bh(&sdata->u.nan.func_lock);
+		spin_unlock_bh(&sdata->u.nan.de.func_lock);
 		return;
 	}
 	match->cookie = func->cookie;
 
-	spin_unlock_bh(&sdata->u.nan.func_lock);
+	spin_unlock_bh(&sdata->u.nan.de.func_lock);
 
 	cfg80211_nan_match(ieee80211_vif_to_wdev(vif), match, gfp);
 }

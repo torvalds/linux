@@ -1157,7 +1157,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (WARN_ON(local->hw.wiphy->interface_modes &
 			BIT(NL80211_IFTYPE_NAN) &&
-		    (!local->ops->start_nan || !local->ops->stop_nan)))
+		    ((!local->ops->start_nan || !local->ops->stop_nan) ||
+		     (local->hw.wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE &&
+		     (local->ops->add_nan_func || local->ops->del_nan_func)))))
 		return -EINVAL;
 
 	if (hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO) {

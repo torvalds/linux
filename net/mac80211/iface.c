@@ -622,15 +622,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		break;
 	case NL80211_IFTYPE_NAN:
 		/* clean all the functions */
-		spin_lock_bh(&sdata->u.nan.func_lock);
+		if (!(local->hw.wiphy->nan_capa.flags &
+		      WIPHY_NAN_FLAGS_USERSPACE_DE)) {
+			spin_lock_bh(&sdata->u.nan.de.func_lock);
 
-		idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, i) {
-			idr_remove(&sdata->u.nan.function_inst_ids, i);
-			cfg80211_free_nan_func(func);
+			idr_for_each_entry(&sdata->u.nan.de.function_inst_ids,
+					   func, i) {
+				idr_remove(&sdata->u.nan.de.function_inst_ids, i);
+				cfg80211_free_nan_func(func);
+			}
+			idr_destroy(&sdata->u.nan.de.function_inst_ids);
+
+			spin_unlock_bh(&sdata->u.nan.de.func_lock);
 		}
-		idr_destroy(&sdata->u.nan.function_inst_ids);
-
-		spin_unlock_bh(&sdata->u.nan.func_lock);
 		break;
 	default:
 		wiphy_work_cancel(sdata->local->hw.wiphy, &sdata->work);
@@ -1942,8 +1946,11 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
 	case NL80211_IFTYPE_NAN:
-		idr_init(&sdata->u.nan.function_inst_ids);
-		spin_lock_init(&sdata->u.nan.func_lock);
+		if (!(sdata->local->hw.wiphy->nan_capa.flags &
+		      WIPHY_NAN_FLAGS_USERSPACE_DE)) {
+			idr_init(&sdata->u.nan.de.function_inst_ids);
+			spin_lock_init(&sdata->u.nan.de.func_lock);
+		}
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:

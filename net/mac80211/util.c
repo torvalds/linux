@@ -1754,6 +1754,10 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(res))
 		return res;
 
+	if (sdata->local->hw.wiphy->nan_capa.flags &
+	    WIPHY_NAN_FLAGS_USERSPACE_DE)
+		return 0;
+
 	funcs = kzalloc_objs(*funcs, sdata->local->hw.max_nan_de_entries + 1);
 	if (!funcs)
 		return -ENOMEM;
@@ -1762,12 +1766,12 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
 	 * This is a little bit ugly. We need to call a potentially sleeping
 	 * callback for each NAN function, so we can't hold the spinlock.
 	 */
-	spin_lock_bh(&sdata->u.nan.func_lock);
+	spin_lock_bh(&sdata->u.nan.de.func_lock);
 
-	idr_for_each_entry(&sdata->u.nan.function_inst_ids, func, id)
+	idr_for_each_entry(&sdata->u.nan.de.function_inst_ids, func, id)
 		funcs[i++] = func;
 
-	spin_unlock_bh(&sdata->u.nan.func_lock);
+	spin_unlock_bh(&sdata->u.nan.de.func_lock);
 
 	for (i = 0; funcs[i]; i++) {
 		res = drv_add_nan_func(sdata->local, sdata, funcs[i]);

@@ -987,16 +987,19 @@ struct ieee80211_if_mntr {
  *
  * @conf: current NAN configuration
  * @started: true iff NAN is started
- * @func_lock: lock for @func_inst_ids
- * @function_inst_ids: a bitmap of available instance_id's
+ * @de: Discovery Engine state (only valid if !WIPHY_NAN_FLAGS_USERSPACE_DE)
+ * @de.func_lock: lock for @de.function_inst_ids
+ * @de.function_inst_ids: a bitmap of available instance_id's
  */
 struct ieee80211_if_nan {
 	struct cfg80211_nan_conf conf;
 	bool started;
 
-	/* protects function_inst_ids */
-	spinlock_t func_lock;
-	struct idr function_inst_ids;
+	struct {
+		/* protects function_inst_ids */
+		spinlock_t func_lock;
+		struct idr function_inst_ids;
+	} de;
 };
 
 struct ieee80211_link_data_managed {
