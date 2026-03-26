@@ -141,7 +141,7 @@ class Summary(unittest.TestResult):
         super().addSkip(test, reason)
         self._record_test(test, f"SKIP ({reason})")
 
-    def printResults(self):
+    def printResults(self, verbose):
         """
         Print results using colors if tty.
         """
@@ -174,10 +174,15 @@ class Summary(unittest.TestResult):
 
         # Print results
         for module_name, classes in self.test_results.items():
-            print(f"{module_name}:")
+            if verbose:
+                print(f"{module_name}:")
             for class_name, tests in classes.items():
-                print(f"    {class_name}:")
+                if verbose:
+                    print(f"    {class_name}:")
                 for test_name, status in tests:
+                    if not verbose and status in [ "OK", "EXPECTED_FAIL" ]:
+                        continue
+
                     # Get base status without reason for SKIP
                     if status.startswith("SKIP"):
                         status_code = status.split()[0]
@@ -187,7 +192,8 @@ class Summary(unittest.TestResult):
                     print(
                         f"        {test_name + ':':<{max_length}}{color}{status}{COLORS['reset']}"
                     )
-            print()
+            if verbose:
+                print()
 
         # Print summary
         print(f"\nRan {self.testsRun} tests", end="")
@@ -230,6 +236,7 @@ class TestUnits:
         """Returns a parser for command line arguments."""
         parser = argparse.ArgumentParser(description="Test runner with regex filtering")
         parser.add_argument("-v", "--verbose", action="count", default=1)
+        parser.add_argument("-q", "--quiet", action="store_true")
         parser.add_argument("-f", "--failfast", action="store_true")
         parser.add_argument("-k", "--keyword",
                             help="Regex pattern to filter test methods")
@@ -279,7 +286,10 @@ class TestUnits:
         if not caller_file and not suite:
             raise TypeError("Either caller_file or suite is needed at TestUnits")
 
-        verbose = args.verbose
+        if args.quiet:
+            verbose = 0
+        else:
+            verbose = args.verbose
 
         if not env:
             env = os.environ.copy()
@@ -334,7 +344,7 @@ class TestUnits:
                                             failfast=args.failfast)
         result = runner.run(suite)
         if resultclass:
-            result.printResults()
+            result.printResults(verbose)
 
         sys.exit(not result.wasSuccessful())
 
