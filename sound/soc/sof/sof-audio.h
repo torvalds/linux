@@ -411,11 +411,11 @@ struct snd_sof_dai_link {
 	struct snd_sof_tuple *tuples;
 	int num_tuples;
 	struct snd_soc_dai_link *link;
-	struct snd_soc_tplg_hw_config *hw_configs;
 	int num_hw_configs;
 	int default_hw_cfg_id;
 	int type;
 	struct list_head list;
+	struct snd_soc_tplg_hw_config hw_configs[] __counted_by(num_hw_configs);
 };
 
 /* ASoC SOF DAPM widget */
