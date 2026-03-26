@@ -50,6 +50,7 @@ struct udf_inode_info {
 	struct kernel_lb_addr	i_locStreamdir;
 	__u64			i_lenStreams;
 	struct rw_semaphore	i_data_sem;
+	struct mapping_metadata_bhs i_metadata_bhs;
 	struct udf_ext_cache cached_extent;
 	/* Spinlock for protecting extent cache */
 	spinlock_t i_extent_cache_lock;

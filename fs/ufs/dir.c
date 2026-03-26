@@ -652,7 +652,7 @@ const struct file_operations ufs_dir_operations = {
 	.release	= ufs_dir_release,
 	.read		= generic_read_dir,
 	.iterate_shared	= ufs_readdir,
-	.fsync		= generic_file_fsync,
+	.fsync		= simple_fsync,
 	.llseek		= ufs_dir_llseek,
 	.setlease	= generic_setlease,
 };

@@ -186,7 +186,7 @@ static void udf_update_alloc_ext_desc(struct inode *inode,
 		len += lenalloc;
 
 	udf_update_tag(epos->bh->b_data, len);
-	mark_buffer_dirty_inode(epos->bh, inode);
+	mmb_mark_buffer_dirty(epos->bh, &UDF_I(inode)->i_metadata_bhs);
 }
 
 /*

@@ -73,8 +73,8 @@ struct buffer_head {
 	bh_end_io_t *b_end_io;		/* I/O completion */
  	void *b_private;		/* reserved for b_end_io */
 	struct list_head b_assoc_buffers; /* associated with another mapping */
-	struct address_space *b_assoc_map;	/* mapping this buffer is
-						   associated with */
+	struct mapping_metadata_bhs *b_mmb; /* head of the list of metadata bhs
+					     * this buffer is associated with */
 	atomic_t b_count;		/* users using this buffer_head */
 	spinlock_t b_uptodate_lock;	/* Used by the first bh in a page, to
 					 * serialise IO completion of other
@@ -205,12 +205,12 @@ struct buffer_head *create_empty_buffers(struct folio *folio,
 void end_buffer_read_sync(struct buffer_head *bh, int uptodate);
 void end_buffer_write_sync(struct buffer_head *bh, int uptodate);
 
-/* Things to do with buffers at mapping->private_list */
-void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode);
-int generic_buffers_fsync_noflush(struct file *file, loff_t start, loff_t end,
-				  bool datasync);
-int generic_buffers_fsync(struct file *file, loff_t start, loff_t end,
-			  bool datasync);
+/* Things to do with metadata buffers list */
+void mmb_mark_buffer_dirty(struct buffer_head *bh, struct mapping_metadata_bhs *mmb);
+int mmb_fsync_noflush(struct file *file, struct mapping_metadata_bhs *mmb,
+		      loff_t start, loff_t end, bool datasync);
+int mmb_fsync(struct file *file, struct mapping_metadata_bhs *mmb,
+	      loff_t start, loff_t end, bool datasync);
 void clean_bdev_aliases(struct block_device *bdev, sector_t block,
 			sector_t len);
 static inline void clean_bdev_bh_alias(struct buffer_head *bh)
@@ -515,10 +515,10 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio);
 
 void buffer_init(void);
 bool try_to_free_buffers(struct folio *folio);
-int inode_has_buffers(struct inode *inode);
-void invalidate_inode_buffers(struct inode *inode);
-int remove_inode_buffers(struct inode *inode);
-int sync_mapping_buffers(struct address_space *mapping);
+void mmb_init(struct mapping_metadata_bhs *mmb, struct address_space *mapping);
+bool mmb_has_buffers(struct mapping_metadata_bhs *mmb);
+void mmb_invalidate(struct mapping_metadata_bhs *mmb);
+int mmb_sync(struct mapping_metadata_bhs *mmb);
 void invalidate_bh_lrus(void);
 void invalidate_bh_lrus_cpu(void);
 bool has_bh_in_lru(int cpu, void *dummy);
@@ -528,10 +528,7 @@ extern int buffer_heads_over_limit;
 
 static inline void buffer_init(void) {}
 static inline bool try_to_free_buffers(struct folio *folio) { return true; }
-static inline int inode_has_buffers(struct inode *inode) { return 0; }
-static inline void invalidate_inode_buffers(struct inode *inode) {}
-static inline int remove_inode_buffers(struct inode *inode) { return 1; }
-static inline int sync_mapping_buffers(struct address_space *mapping) { return 0; }
+static inline int mmb_sync(struct mapping_metadata_bhs *mmb) { return 0; }
 static inline void invalidate_bh_lrus(void) {}
 static inline void invalidate_bh_lrus_cpu(void) {}
 static inline bool has_bh_in_lru(int cpu, void *dummy) { return false; }

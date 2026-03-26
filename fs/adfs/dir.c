@@ -389,7 +389,7 @@ const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.llseek		= generic_file_llseek,
 	.iterate_shared	= adfs_iterate,
-	.fsync		= generic_file_fsync,
+	.fsync		= simple_fsync,
 };
 
 static int
