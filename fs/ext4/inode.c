@@ -187,7 +187,7 @@ void ext4_evict_inode(struct inode *inode)
 		truncate_inode_pages_final(&inode->i_data);
 		/* Avoid mballoc special inode which has no proper iops */
 		if (!EXT4_SB(inode->i_sb)->s_journal)
-			sync_mapping_buffers(&inode->i_data);
+			mmb_sync(&EXT4_I(inode)->i_metadata_bhs);
 		goto no_delete;
 	}
 
@@ -3436,7 +3436,7 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 	}
 
 	/* Any metadata buffers to write? */
-	if (mmb_has_buffers(&inode->i_mapping->i_metadata_bhs))
+	if (mmb_has_buffers(&EXT4_I(inode)->i_metadata_bhs))
 		return true;
 	return inode_state_read_once(inode) & I_DIRTY_DATASYNC;
 }

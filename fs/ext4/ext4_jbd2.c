@@ -390,7 +390,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 		}
 	} else {
 		if (inode)
-			mark_buffer_dirty_inode(bh, inode);
+			mmb_mark_buffer_dirty(bh,
+					      &EXT4_I(inode)->i_metadata_bhs);
 		else
 			mark_buffer_dirty(bh);
 		if (inode && inode_needs_sync(inode)) {
