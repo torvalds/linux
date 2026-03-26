@@ -105,7 +105,6 @@ static int memfd_luo_preserve_folios(struct file *file,
 	if (!size) {
 		*nr_foliosp = 0;
 		*out_folios_ser = NULL;
-		memset(kho_vmalloc, 0, sizeof(*kho_vmalloc));
 		return 0;
 	}
 
