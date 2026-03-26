@@ -672,8 +672,15 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	struct xe_device *xe = to_xe_device(dev);
 	struct xe_file *xef = to_xe_file(file);
 	struct drm_xe_madvise *args = data;
-	struct xe_vmas_in_madvise_range madvise_range = {.addr = args->start,
-							 .range =  args->range, };
+	struct xe_vmas_in_madvise_range madvise_range = {
+		/*
+		 * Userspace may pass canonical (sign-extended) addresses.
+		 * Strip the sign extension to get the internal non-canonical
+		 * form used by the GPUVM, matching xe_vm_bind_ioctl() behavior.
+		 */
+		.addr = xe_device_uncanonicalize_addr(xe, args->start),
+		.range = args->range,
+	};
 	struct xe_madvise_details details;
 	u16 pat_index, coh_mode;
 	struct xe_vm *vm;
@@ -724,7 +731,7 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	if (err)
 		goto unlock_vm;
 
-	err = xe_vm_alloc_madvise_vma(vm, args->start, args->range);
+	err = xe_vm_alloc_madvise_vma(vm, madvise_range.addr, args->range);
 	if (err)
 		goto madv_fini;
 
@@ -796,7 +803,8 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	madvise_funcs[attr_type](xe, vm, madvise_range.vmas, madvise_range.num_vmas, args,
 				 &details);
 
-	err = xe_vm_invalidate_madvise_range(vm, args->start, args->start + args->range);
+	err = xe_vm_invalidate_madvise_range(vm, madvise_range.addr,
+					     madvise_range.addr + args->range);
 
 	if (madvise_range.has_svm_userptr_vmas)
 		xe_svm_notifier_unlock(vm);
