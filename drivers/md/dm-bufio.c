@@ -391,7 +391,7 @@ struct dm_buffer_cache {
 	 */
 	unsigned int num_locks;
 	bool no_sleep;
-	struct buffer_tree trees[];
+	struct buffer_tree trees[] __counted_by(num_locks);
 };
 
 static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
@@ -2511,7 +2511,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	}
 
 	num_locks = dm_num_hash_locks();
-	c = kzalloc(sizeof(*c) + (num_locks * sizeof(struct buffer_tree)), GFP_KERNEL);
+	c = kzalloc_flex(*c, cache.trees, num_locks);
 	if (!c) {
 		r = -ENOMEM;
 		goto bad_client;
