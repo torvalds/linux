@@ -410,7 +410,7 @@ static int memfd_luo_retrieve_folios(struct file *file,
 	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	struct folio *folio;
-	long npages;
+	long npages, nr_added_pages = 0;
 	int err = -EIO;
 	long i;
 
@@ -465,11 +465,13 @@ static int memfd_luo_retrieve_folios(struct file *file,
 			goto unlock_folio;
 		}
 
-		shmem_recalc_inode(inode, npages, 0);
+		nr_added_pages += npages;
 		folio_add_lru(folio);
 		folio_unlock(folio);
 		folio_put(folio);
 	}
+
+	shmem_recalc_inode(inode, nr_added_pages, 0);
 
 	return 0;
 
@@ -488,6 +490,8 @@ put_folios:
 		if (folio)
 			folio_put(folio);
 	}
+
+	shmem_recalc_inode(inode, nr_added_pages, 0);
 
 	return err;
 }
