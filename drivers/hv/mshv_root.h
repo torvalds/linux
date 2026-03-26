@@ -190,7 +190,6 @@ struct hv_synic_pages {
 };
 
 struct mshv_root {
-	struct hv_synic_pages __percpu *synic_pages;
 	spinlock_t pt_ht_lock;
 	DECLARE_HASHTABLE(pt_htable, MSHV_PARTITIONS_HASH_BITS);
 	struct hv_partition_property_vmm_capabilities vmm_caps;
@@ -249,8 +248,8 @@ int mshv_register_doorbell(u64 partition_id, doorbell_cb_t doorbell_cb,
 void mshv_unregister_doorbell(u64 partition_id, int doorbell_portid);
 
 void mshv_isr(void);
-int mshv_synic_init(unsigned int cpu);
-int mshv_synic_cleanup(unsigned int cpu);
+int mshv_synic_init(struct device *dev);
+void mshv_synic_exit(void);
 
 static inline bool mshv_partition_encrypted(struct mshv_partition *partition)
 {

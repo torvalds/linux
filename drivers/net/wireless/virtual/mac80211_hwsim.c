@@ -3021,7 +3021,6 @@ static void hw_scan_work(struct work_struct *work)
 						      hwsim->tmp_chan->band,
 						      NULL)) {
 				rcu_read_unlock();
-				kfree_skb(probe);
 				continue;
 			}
 
@@ -6489,7 +6488,7 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	if (info->attrs[HWSIM_ATTR_PMSR_SUPPORT]) {
 		struct cfg80211_pmsr_capabilities *pmsr_capa;
 
-		pmsr_capa = kmalloc_obj(*pmsr_capa);
+		pmsr_capa = kzalloc_obj(*pmsr_capa);
 		if (!pmsr_capa) {
 			ret = -ENOMEM;
 			goto out_free;

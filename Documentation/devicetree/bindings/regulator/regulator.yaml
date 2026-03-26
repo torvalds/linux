@@ -168,7 +168,7 @@ properties:
       offset from voltage set to regulator.
 
   regulator-uv-protection-microvolt:
-    description: Set over under voltage protection limit. This is a limit where
+    description: Set under voltage protection limit. This is a limit where
       hardware performs emergency shutdown. Zero can be passed to disable
       protection and value '1' indicates that protection should be enabled but
       limit setting can be omitted. Limit is given as microvolt offset from
@@ -182,7 +182,7 @@ properties:
       is given as microvolt offset from voltage set to regulator.
 
   regulator-uv-warn-microvolt:
-    description: Set over under voltage warning limit. This is a limit where
+    description: Set under voltage warning limit. This is a limit where
       hardware is assumed still to be functional but approaching limit where
       it gets damaged. Recovery actions should be initiated. Zero can be passed
       to disable detection and value '1' indicates that detection should

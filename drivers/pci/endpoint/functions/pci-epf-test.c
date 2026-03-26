@@ -894,6 +894,11 @@ static void pci_epf_test_bar_subrange_setup(struct pci_epf_test *epf_test,
 		dev_err(&epf->dev, "pci_epc_set_bar() failed: %d\n", ret);
 		bar->submap = old_submap;
 		bar->num_submap = old_nsub;
+		ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, bar);
+		if (ret)
+			dev_warn(&epf->dev, "Failed to restore the original BAR mapping: %d\n",
+				 ret);
+
 		kfree(submap);
 		goto err;
 	}

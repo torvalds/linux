@@ -986,7 +986,8 @@ static void session_free(struct kref *ref)
 	skb_queue_purge(&session->intr_transmit);
 	fput(session->intr_sock->file);
 	fput(session->ctrl_sock->file);
-	l2cap_conn_put(session->conn);
+	if (session->conn)
+		l2cap_conn_put(session->conn);
 	kfree(session);
 }
 
@@ -1164,6 +1165,15 @@ static void hidp_session_remove(struct l2cap_conn *conn,
 
 	down_write(&hidp_session_sem);
 
+	/* Drop L2CAP reference immediately to indicate that
+	 * l2cap_unregister_user() shall not be called as it is already
+	 * considered removed.
+	 */
+	if (session->conn) {
+		l2cap_conn_put(session->conn);
+		session->conn = NULL;
+	}
+
 	hidp_session_terminate(session);
 
 	cancel_work_sync(&session->dev_init);
@@ -1301,7 +1311,9 @@ static int hidp_session_thread(void *arg)
 	 * Instead, this call has the same semantics as if user-space tried to
 	 * delete the session.
 	 */
-	l2cap_unregister_user(session->conn, &session->user);
+	if (session->conn)
+		l2cap_unregister_user(session->conn, &session->user);
+
 	hidp_session_put(session);
 
 	module_put_and_kthread_exit(0);

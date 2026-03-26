@@ -304,6 +304,9 @@ config AS_HAS_LBT_EXTENSION
 config AS_HAS_LVZ_EXTENSION
 	def_bool $(as-instr,hvcl 0)
 
+config AS_HAS_SCQ_EXTENSION
+	def_bool $(as-instr,sc.q \$t0$(comma)\$t1$(comma)\$t2)
+
 config CC_HAS_ANNOTATE_TABLEJUMP
 	def_bool $(cc-option,-mannotate-tablejump)
 

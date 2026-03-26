@@ -6606,9 +6606,9 @@ int update_ftrace_direct_mod(struct ftrace_ops *ops, struct ftrace_hash *hash, b
 	if (!orig_hash)
 		goto unlock;
 
-	/* Enable the tmp_ops to have the same functions as the direct ops */
+	/* Enable the tmp_ops to have the same functions as the hash object. */
 	ftrace_ops_init(&tmp_ops);
-	tmp_ops.func_hash = ops->func_hash;
+	tmp_ops.func_hash->filter_hash = hash;
 
 	err = register_ftrace_function_nolock(&tmp_ops);
 	if (err)

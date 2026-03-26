@@ -357,8 +357,10 @@ void gem_ptp_remove(struct net_device *ndev)
 {
 	struct macb *bp = netdev_priv(ndev);
 
-	if (bp->ptp_clock)
+	if (bp->ptp_clock) {
 		ptp_clock_unregister(bp->ptp_clock);
+		bp->ptp_clock = NULL;
+	}
 
 	gem_ptp_clear_timer(bp);
 

@@ -600,7 +600,7 @@ int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	bio_first_folio(&fi, &cb->bbio.bio, 0);
 	if (unlikely(!fi.folio))
 		return -EINVAL;
-	ASSERT(folio_size(fi.folio) == blocksize);
+	ASSERT(folio_size(fi.folio) == min_folio_size);
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);

@@ -91,7 +91,7 @@ struct lec_priv {
 						 */
 	spinlock_t lec_arp_lock;
 	struct atm_vcc *mcast_vcc;		/* Default Multicast Send VCC */
-	struct atm_vcc *lecd;
+	struct atm_vcc __rcu *lecd;
 	struct delayed_work lec_arp_work;	/* C10 */
 	unsigned int maximum_unknown_frame_count;
 						/*
