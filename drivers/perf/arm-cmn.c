@@ -2573,8 +2573,8 @@ static int arm_cmn_probe(struct platform_device *pdev)
 
 	/* Map the whole region now, claim the DTCs once we've found them */
 	cmn->base = devm_ioremap(cmn->dev, cfg->start, resource_size(cfg));
-	if (IS_ERR(cmn->base))
-		return PTR_ERR(cmn->base);
+	if (!cmn->base)
+		return -ENOMEM;
 
 	rootnode = arm_cmn_get_root(cmn, cfg);
 	if (rootnode < 0)
