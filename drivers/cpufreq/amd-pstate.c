@@ -1390,6 +1390,14 @@ static struct freq_attr_visibility amd_pstate_attr_visibility[] = {
 	{&amd_pstate_floor_count, floor_freq_visibility},
 };
 
+struct freq_attr **amd_pstate_get_current_attrs(void)
+{
+	if (!current_pstate_driver)
+		return NULL;
+	return current_pstate_driver->attr;
+}
+EXPORT_SYMBOL_GPL(amd_pstate_get_current_attrs);
+
 static struct freq_attr **get_freq_attrs(void)
 {
 	bool attr_visible[ARRAY_SIZE(amd_pstate_attr_visibility)];

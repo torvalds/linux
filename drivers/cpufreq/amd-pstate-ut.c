@@ -23,6 +23,8 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitfield.h>
+#include <linux/cpufeature.h>
+#include <linux/cpufreq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -53,13 +55,15 @@ static int amd_pstate_ut_check_enabled(u32 index);
 static int amd_pstate_ut_check_perf(u32 index);
 static int amd_pstate_ut_check_freq(u32 index);
 static int amd_pstate_ut_check_driver(u32 index);
+static int amd_pstate_ut_check_freq_attrs(u32 index);
 
 static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
-	{"amd_pstate_ut_acpi_cpc_valid",   amd_pstate_ut_acpi_cpc_valid   },
-	{"amd_pstate_ut_check_enabled",    amd_pstate_ut_check_enabled    },
-	{"amd_pstate_ut_check_perf",       amd_pstate_ut_check_perf       },
-	{"amd_pstate_ut_check_freq",       amd_pstate_ut_check_freq       },
-	{"amd_pstate_ut_check_driver",	   amd_pstate_ut_check_driver     }
+	{"amd_pstate_ut_acpi_cpc_valid",    amd_pstate_ut_acpi_cpc_valid   },
+	{"amd_pstate_ut_check_enabled",     amd_pstate_ut_check_enabled    },
+	{"amd_pstate_ut_check_perf",        amd_pstate_ut_check_perf       },
+	{"amd_pstate_ut_check_freq",        amd_pstate_ut_check_freq       },
+	{"amd_pstate_ut_check_driver",      amd_pstate_ut_check_driver     },
+	{"amd_pstate_ut_check_freq_attrs",  amd_pstate_ut_check_freq_attrs },
 };
 
 static bool test_in_list(const char *list, const char *name)
@@ -289,6 +293,131 @@ out:
 			amd_pstate_get_mode_string(mode1),
 			amd_pstate_get_mode_string(mode2), ret);
 
+	amd_pstate_set_mode(orig_mode);
+	return ret;
+}
+
+enum attr_category {
+	ATTR_ALWAYS,
+	ATTR_PREFCORE,
+	ATTR_EPP,
+	ATTR_FLOOR_FREQ,
+};
+
+static const struct {
+	const char	*name;
+	enum attr_category category;
+} expected_freq_attrs[] = {
+	{"amd_pstate_max_freq",				ATTR_ALWAYS},
+	{"amd_pstate_lowest_nonlinear_freq",		ATTR_ALWAYS},
+	{"amd_pstate_highest_perf",			ATTR_ALWAYS},
+	{"amd_pstate_prefcore_ranking",			ATTR_PREFCORE},
+	{"amd_pstate_hw_prefcore",			ATTR_PREFCORE},
+	{"energy_performance_preference",		ATTR_EPP},
+	{"energy_performance_available_preferences",	ATTR_EPP},
+	{"amd_pstate_floor_freq",			ATTR_FLOOR_FREQ},
+	{"amd_pstate_floor_count",			ATTR_FLOOR_FREQ},
+};
+
+static bool attr_in_driver(struct freq_attr **driver_attrs, const char *name)
+{
+	int j;
+
+	for (j = 0; driver_attrs[j]; j++) {
+		if (!strcmp(driver_attrs[j]->attr.name, name))
+			return true;
+	}
+	return false;
+}
+
+/*
+ * Verify that for each mode the driver's live ->attr array contains exactly
+ * the attributes that should be visible.  Expected visibility is derived
+ * independently from hw_prefcore, cpu features, and the current mode —
+ * not from the driver's own visibility functions.
+ */
+static int amd_pstate_ut_check_freq_attrs(u32 index)
+{
+	enum amd_pstate_mode orig_mode = amd_pstate_get_status();
+	static const enum amd_pstate_mode modes[] = {
+		AMD_PSTATE_PASSIVE, AMD_PSTATE_ACTIVE, AMD_PSTATE_GUIDED,
+	};
+	bool has_prefcore, has_floor_freq;
+	int m, i, ret;
+
+	has_floor_freq = cpu_feature_enabled(X86_FEATURE_CPPC_PERF_PRIO);
+
+	/*
+	 * Determine prefcore support from any online CPU's cpudata.
+	 * hw_prefcore reflects the platform-wide decision made at init.
+	 */
+	has_prefcore = false;
+	for_each_online_cpu(i) {
+		struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
+		struct amd_cpudata *cpudata;
+
+		policy = cpufreq_cpu_get(i);
+		if (!policy)
+			continue;
+		cpudata = policy->driver_data;
+		has_prefcore = cpudata->hw_prefcore;
+		break;
+	}
+
+	for (m = 0; m < ARRAY_SIZE(modes); m++) {
+		struct freq_attr **driver_attrs;
+
+		ret = amd_pstate_set_mode(modes[m]);
+		if (ret)
+			goto out;
+
+		driver_attrs = amd_pstate_get_current_attrs();
+		if (!driver_attrs) {
+			pr_err("%s: no driver attrs in mode %s\n",
+			       __func__, amd_pstate_get_mode_string(modes[m]));
+			ret = -EINVAL;
+			goto out;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(expected_freq_attrs); i++) {
+			bool expected, found;
+
+			switch (expected_freq_attrs[i].category) {
+			case ATTR_ALWAYS:
+				expected = true;
+				break;
+			case ATTR_PREFCORE:
+				expected = has_prefcore;
+				break;
+			case ATTR_EPP:
+				expected = (modes[m] == AMD_PSTATE_ACTIVE);
+				break;
+			case ATTR_FLOOR_FREQ:
+				expected = has_floor_freq;
+				break;
+			default:
+				expected = false;
+				break;
+			}
+
+			found = attr_in_driver(driver_attrs,
+					       expected_freq_attrs[i].name);
+
+			if (expected != found) {
+				pr_err("%s: mode %s: attr %s expected %s but is %s\n",
+				       __func__,
+				       amd_pstate_get_mode_string(modes[m]),
+				       expected_freq_attrs[i].name,
+				       expected ? "visible" : "hidden",
+				       found ? "visible" : "hidden");
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+out:
 	amd_pstate_set_mode(orig_mode);
 	return ret;
 }
