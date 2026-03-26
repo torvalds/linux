@@ -10,6 +10,7 @@ use kernel::{
         Device, //
     },
     dma::{
+        Coherent,
         DmaAddress,
         DmaMask, //
     },
@@ -28,7 +29,6 @@ use kernel::{
 
 use crate::{
     bounded_enum,
-    dma::DmaObject,
     driver::Bar0,
     falcon::hal::LoadMethod,
     gpu::Chipset,
@@ -504,7 +504,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     fn dma_wr(
         &self,
         bar: &Bar0,
-        dma_obj: &DmaObject,
+        dma_obj: &Coherent<[u8]>,
         target_mem: FalconMem,
         load_offsets: FalconDmaLoadTarget,
     ) -> Result {
@@ -614,7 +614,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         fw: &F,
     ) -> Result {
         // Create DMA object with firmware content as the source of the DMA engine.
-        let dma_obj = DmaObject::from_data(dev, fw.as_slice())?;
+        let dma_obj = Coherent::from_slice(dev, fw.as_slice(), GFP_KERNEL)?;
 
         self.dma_reset(bar);
         bar.update(regs::NV_PFALCON_FBIF_TRANSCFG::of::<E>().at(0), |v| {
