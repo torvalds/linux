@@ -1475,7 +1475,6 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 		arg = pinconf_to_config_argument(_configs[i]);
 		switch (param) {
 		case PIN_CONFIG_INPUT_ENABLE:
-
 			if (!(cfg & PIN_CFG_IEN))
 				return -EINVAL;
 
