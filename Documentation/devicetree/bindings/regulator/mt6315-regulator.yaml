@@ -25,6 +25,15 @@ properties:
   reg:
     maxItems: 1
 
+  pvdd1-supply:
+    description: Supply for regulator vbuck1
+  pvdd2-supply:
+    description: Supply for regulator vbuck2
+  pvdd3-supply:
+    description: Supply for regulator vbuck3
+  pvdd4-supply:
+    description: Supply for regulator vbuck4
+
   regulators:
     type: object
     description: List of regulators and its properties
@@ -49,8 +58,11 @@ examples:
     pmic@6 {
       compatible = "mediatek,mt6315-regulator";
       reg = <0x6 0>;
+      pvdd1-supply = <&pp4200_z2>;
+      pvdd3-supply = <&pp4200_z2>;
 
       regulators {
+
         vbuck1 {
           regulator-min-microvolt = <300000>;
           regulator-max-microvolt = <1193750>;
