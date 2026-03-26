@@ -729,6 +729,12 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		else
 			tmp |= CLK_HS_CONTINUOUS;
 
+		if (DISPLAY_VER(display) >= 12 &&
+		    intel_dsi->lp_clock_during_lpm)
+			tmp |= LP_CLK_DURING_LPM;
+		else
+			tmp &= ~LP_CLK_DURING_LPM;
+
 		/* configure buffer threshold limit to minimum */
 		tmp &= ~PIX_BUF_THRESHOLD_MASK;
 		tmp |= PIX_BUF_THRESHOLD_1_4;

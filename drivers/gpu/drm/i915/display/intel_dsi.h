@@ -80,6 +80,7 @@ struct intel_dsi {
 	/* NON_BURST_SYNC_PULSE, NON_BURST_SYNC_EVENTS, or BURST_MODE */
 	int video_mode;
 
+	bool lp_clock_during_lpm;
 	bool blanking_pkt;
 	bool eot_pkt;
 	bool clock_stop;
