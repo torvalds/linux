@@ -1718,7 +1718,7 @@ static int t_show_filters(struct seq_file *m, void *v)
 
 	len = get_call_len(call);
 
-	seq_printf(m, "%s:%s%*.s%s\n", call->class->system,
+	seq_printf(m, "%s:%s%*s%s\n", call->class->system,
 		   trace_event_name(call), len, "", filter->filter_string);
 
 	return 0;
@@ -1750,7 +1750,7 @@ static int t_show_triggers(struct seq_file *m, void *v)
 	len = get_call_len(call);
 
 	list_for_each_entry_rcu(data, &file->triggers, list) {
-		seq_printf(m, "%s:%s%*.s", call->class->system,
+		seq_printf(m, "%s:%s%*s", call->class->system,
 			   trace_event_name(call), len, "");
 
 		data->cmd_ops->print(m, data);
