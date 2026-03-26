@@ -435,7 +435,7 @@ int reset_control_bulk_reset(int num_rstcs,
 EXPORT_SYMBOL_GPL(reset_control_bulk_reset);
 
 /**
- * reset_control_rearm - allow shared reset line to be re-triggered"
+ * reset_control_rearm - allow shared reset line to be re-triggered
  * @rstc: reset controller
  *
  * On a shared reset line the actual reset pulse is only triggered once for the
