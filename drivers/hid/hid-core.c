@@ -1244,6 +1244,88 @@ void hid_setup_resolution_multiplier(struct hid_device *hid)
 }
 EXPORT_SYMBOL_GPL(hid_setup_resolution_multiplier);
 
+static int hid_parse_collections(struct hid_device *device)
+{
+	struct hid_parser *parser;
+	struct hid_item item;
+	const u8 *start = device->rdesc;
+	const u8 *end = start + device->rsize;
+	const u8 *next;
+	int ret;
+	static typeof(hid_parser_main) (* const dispatch_type[]) = {
+		hid_parser_main,
+		hid_parser_global,
+		hid_parser_local,
+		hid_parser_reserved
+	};
+
+	parser = vzalloc(sizeof(*parser));
+	if (!parser)
+		return -ENOMEM;
+
+	parser->device = device;
+
+	device->collection = kzalloc_objs(*device->collection,
+					  HID_DEFAULT_NUM_COLLECTIONS);
+	if (!device->collection) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	device->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
+	for (unsigned int i = 0; i < HID_DEFAULT_NUM_COLLECTIONS; i++)
+		device->collection[i].parent_idx = -1;
+
+	ret = -EINVAL;
+	while ((next = fetch_item(start, end, &item)) != NULL) {
+		start = next;
+
+		if (item.format != HID_ITEM_FORMAT_SHORT) {
+			hid_err(device, "unexpected long global item\n");
+			goto out;
+		}
+
+		if (dispatch_type[item.type](parser, &item)) {
+			hid_err(device, "item %u %u %u %u parsing failed\n",
+				item.format,
+				(unsigned int)item.size,
+				(unsigned int)item.type,
+				(unsigned int)item.tag);
+			goto out;
+		}
+	}
+
+	if (start != end) {
+		hid_err(device, "item fetching failed at offset %u/%u\n",
+			device->rsize - (unsigned int)(end - start),
+			device->rsize);
+		goto out;
+	}
+
+	if (parser->collection_stack_ptr) {
+		hid_err(device, "unbalanced collection at end of report description\n");
+		goto out;
+	}
+
+	if (parser->local.delimiter_depth) {
+		hid_err(device, "unbalanced delimiter at end of report description\n");
+		goto out;
+	}
+
+	/*
+	 * fetch initial values in case the device's
+	 * default multiplier isn't the recommended 1
+	 */
+	hid_setup_resolution_multiplier(device);
+
+	device->status |= HID_STAT_PARSED;
+	ret = 0;
+
+out:
+	kfree(parser->collection_stack);
+	vfree(parser);
+	return ret;
+}
+
 /**
  * hid_open_report - open a driver-specific device report
  *
@@ -1258,21 +1340,9 @@ EXPORT_SYMBOL_GPL(hid_setup_resolution_multiplier);
  */
 int hid_open_report(struct hid_device *device)
 {
-	struct hid_parser *parser;
-	struct hid_item item;
 	unsigned int size;
-	const __u8 *start;
-	const __u8 *end;
-	const __u8 *next;
-	int ret;
-	int i;
-	static int (*dispatch_type[])(struct hid_parser *parser,
-				      struct hid_item *item) = {
-		hid_parser_main,
-		hid_parser_global,
-		hid_parser_local,
-		hid_parser_reserved
-	};
+	const u8 *start;
+	int error;
 
 	if (WARN_ON(device->status & HID_STAT_PARSED))
 		return -EBUSY;
@@ -1309,74 +1379,13 @@ int hid_open_report(struct hid_device *device)
 	device->rdesc = start;
 	device->rsize = size;
 
-	parser = vzalloc(sizeof(struct hid_parser));
-	if (!parser) {
-		ret = -ENOMEM;
-		goto alloc_err;
+	error = hid_parse_collections(device);
+	if (error) {
+		hid_close_report(device);
+		return error;
 	}
 
-	parser->device = device;
-
-	end = start + size;
-
-	device->collection = kzalloc_objs(struct hid_collection,
-					  HID_DEFAULT_NUM_COLLECTIONS);
-	if (!device->collection) {
-		ret = -ENOMEM;
-		goto err;
-	}
-	device->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
-	for (i = 0; i < HID_DEFAULT_NUM_COLLECTIONS; i++)
-		device->collection[i].parent_idx = -1;
-
-	ret = -EINVAL;
-	while ((next = fetch_item(start, end, &item)) != NULL) {
-		start = next;
-
-		if (item.format != HID_ITEM_FORMAT_SHORT) {
-			hid_err(device, "unexpected long global item\n");
-			goto err;
-		}
-
-		if (dispatch_type[item.type](parser, &item)) {
-			hid_err(device, "item %u %u %u %u parsing failed\n",
-				item.format, (unsigned)item.size,
-				(unsigned)item.type, (unsigned)item.tag);
-			goto err;
-		}
-
-		if (start == end) {
-			if (parser->collection_stack_ptr) {
-				hid_err(device, "unbalanced collection at end of report description\n");
-				goto err;
-			}
-			if (parser->local.delimiter_depth) {
-				hid_err(device, "unbalanced delimiter at end of report description\n");
-				goto err;
-			}
-
-			/*
-			 * fetch initial values in case the device's
-			 * default multiplier isn't the recommended 1
-			 */
-			hid_setup_resolution_multiplier(device);
-
-			kfree(parser->collection_stack);
-			vfree(parser);
-			device->status |= HID_STAT_PARSED;
-
-			return 0;
-		}
-	}
-
-	hid_err(device, "item fetching failed at offset %u/%u\n",
-		size - (unsigned int)(end - start), size);
-err:
-	kfree(parser->collection_stack);
-alloc_err:
-	vfree(parser);
-	hid_close_report(device);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_open_report);
 
