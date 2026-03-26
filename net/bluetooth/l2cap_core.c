@@ -1771,6 +1771,9 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
+	disable_delayed_work_sync(&conn->info_timer);
+	disable_delayed_work_sync(&conn->id_addr_timer);
+
 	mutex_lock(&conn->lock);
 
 	kfree_skb(conn->rx_skb);
@@ -1785,8 +1788,6 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		cancel_work_sync(&conn->pending_rx_work);
 
 	ida_destroy(&conn->tx_ida);
-
-	cancel_delayed_work_sync(&conn->id_addr_timer);
 
 	l2cap_unregister_all_users(conn);
 
@@ -1805,9 +1806,6 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		l2cap_chan_unlock(chan);
 		l2cap_chan_put(chan);
 	}
-
-	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
-		cancel_delayed_work_sync(&conn->info_timer);
 
 	hci_chan_del(conn->hchan);
 	conn->hchan = NULL;
@@ -2399,6 +2397,9 @@ static int l2cap_segment_sdu(struct l2cap_chan *chan,
 
 	/* Remote device may have requested smaller PDUs */
 	pdu_len = min_t(size_t, pdu_len, chan->remote_mps);
+
+	if (!pdu_len)
+		return -EINVAL;
 
 	if (len <= pdu_len) {
 		sar = L2CAP_SAR_UNSEGMENTED;
@@ -4335,14 +4336,16 @@ static inline int l2cap_config_req(struct l2cap_conn *conn,
 	if (test_bit(CONF_INPUT_DONE, &chan->conf_state)) {
 		set_default_fcs(chan);
 
-		if (chan->mode == L2CAP_MODE_ERTM ||
-		    chan->mode == L2CAP_MODE_STREAMING)
-			err = l2cap_ertm_init(chan);
+		if (chan->state != BT_CONNECTED) {
+			if (chan->mode == L2CAP_MODE_ERTM ||
+			    chan->mode == L2CAP_MODE_STREAMING)
+				err = l2cap_ertm_init(chan);
 
-		if (err < 0)
-			l2cap_send_disconn_req(chan, -err);
-		else
-			l2cap_chan_ready(chan);
+			if (err < 0)
+				l2cap_send_disconn_req(chan, -err);
+			else
+				l2cap_chan_ready(chan);
+		}
 
 		goto unlock;
 	}
@@ -6629,6 +6632,10 @@ static void l2cap_chan_le_send_credits(struct l2cap_chan *chan)
 	struct l2cap_conn *conn = chan->conn;
 	struct l2cap_le_credits pkt;
 	u16 return_credits = l2cap_le_rx_credits(chan);
+
+	if (chan->mode != L2CAP_MODE_LE_FLOWCTL &&
+	    chan->mode != L2CAP_MODE_EXT_FLOWCTL)
+		return;
 
 	if (chan->rx_credits >= return_credits)
 		return;
