@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 
-#include <vdso/datapage.h>
+#include "namespace_internal.h"
 
 ktime_t do_timens_ktime_to_host(clockid_t clockid, ktime_t tim,
 				struct timens_offsets *ns_offsets)
@@ -138,117 +138,7 @@ struct time_namespace *copy_time_ns(u64 flags,
 	return clone_time_ns(user_ns, old_ns);
 }
 
-static struct timens_offset offset_from_ts(struct timespec64 off)
-{
-	struct timens_offset ret;
-
-	ret.sec = off.tv_sec;
-	ret.nsec = off.tv_nsec;
-
-	return ret;
-}
-
-/*
- * A time namespace VVAR page has the same layout as the VVAR page which
- * contains the system wide VDSO data.
- *
- * For a normal task the VVAR pages are installed in the normal ordering:
- *     VVAR
- *     PVCLOCK
- *     HVCLOCK
- *     TIMENS   <- Not really required
- *
- * Now for a timens task the pages are installed in the following order:
- *     TIMENS
- *     PVCLOCK
- *     HVCLOCK
- *     VVAR
- *
- * The check for vdso_clock->clock_mode is in the unlikely path of
- * the seq begin magic. So for the non-timens case most of the time
- * 'seq' is even, so the branch is not taken.
- *
- * If 'seq' is odd, i.e. a concurrent update is in progress, the extra check
- * for vdso_clock->clock_mode is a non-issue. The task is spin waiting for the
- * update to finish and for 'seq' to become even anyway.
- *
- * Timens page has vdso_clock->clock_mode set to VDSO_CLOCKMODE_TIMENS which
- * enforces the time namespace handling path.
- */
-static void timens_setup_vdso_clock_data(struct vdso_clock *vc,
-					 struct time_namespace *ns)
-{
-	struct timens_offset *offset = vc->offset;
-	struct timens_offset monotonic = offset_from_ts(ns->offsets.monotonic);
-	struct timens_offset boottime = offset_from_ts(ns->offsets.boottime);
-
-	vc->seq				= 1;
-	vc->clock_mode			= VDSO_CLOCKMODE_TIMENS;
-	offset[CLOCK_MONOTONIC]		= monotonic;
-	offset[CLOCK_MONOTONIC_RAW]	= monotonic;
-	offset[CLOCK_MONOTONIC_COARSE]	= monotonic;
-	offset[CLOCK_BOOTTIME]		= boottime;
-	offset[CLOCK_BOOTTIME_ALARM]	= boottime;
-}
-
-struct page *find_timens_vvar_page(struct vm_area_struct *vma)
-{
-	if (likely(vma->vm_mm == current->mm))
-		return current->nsproxy->time_ns->vvar_page;
-
-	/*
-	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
-	 * through interfaces like /proc/$pid/mem or
-	 * process_vm_{readv,writev}() as long as there's no .access()
-	 * in special_mapping_vmops().
-	 * For more details check_vma_flags() and __access_remote_vm()
-	 */
-
-	WARN(1, "vvar_page accessed remotely");
-
-	return NULL;
-}
-
-/*
- * Protects possibly multiple offsets writers racing each other
- * and tasks entering the namespace.
- */
-static DEFINE_MUTEX(offset_lock);
-
-static void timens_set_vvar_page(struct task_struct *task,
-				struct time_namespace *ns)
-{
-	struct vdso_time_data *vdata;
-	struct vdso_clock *vc;
-	unsigned int i;
-
-	if (ns == &init_time_ns)
-		return;
-
-	/* Fast-path, taken by every task in namespace except the first. */
-	if (likely(ns->frozen_offsets))
-		return;
-
-	mutex_lock(&offset_lock);
-	/* Nothing to-do: vvar_page has been already initialized. */
-	if (ns->frozen_offsets)
-		goto out;
-
-	ns->frozen_offsets = true;
-	vdata = page_address(ns->vvar_page);
-	vc = vdata->clock_data;
-
-	for (i = 0; i < CS_BASES; i++)
-		timens_setup_vdso_clock_data(&vc[i], ns);
-
-	if (IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS)) {
-		for (i = 0; i < ARRAY_SIZE(vdata->aux_clock_data); i++)
-			timens_setup_vdso_clock_data(&vdata->aux_clock_data[i], ns);
-	}
-
-out:
-	mutex_unlock(&offset_lock);
-}
+DEFINE_MUTEX(timens_offset_lock);
 
 void free_time_ns(struct time_namespace *ns)
 {
@@ -296,12 +186,6 @@ static struct ns_common *timens_for_children_get(struct task_struct *task)
 static void timens_put(struct ns_common *ns)
 {
 	put_time_ns(to_time_ns(ns));
-}
-
-void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
-{
-	timens_set_vvar_page(tsk, ns);
-	vdso_join_timens(tsk, ns);
 }
 
 static int timens_install(struct nsset *nsset, struct ns_common *new)
@@ -428,7 +312,7 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 			goto out;
 	}
 
-	mutex_lock(&offset_lock);
+	mutex_lock(&timens_offset_lock);
 	if (time_ns->frozen_offsets) {
 		err = -EACCES;
 		goto out_unlock;
@@ -453,7 +337,7 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 	}
 
 out_unlock:
-	mutex_unlock(&offset_lock);
+	mutex_unlock(&timens_offset_lock);
 out:
 	put_time_ns(time_ns);
 
