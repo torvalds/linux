@@ -271,6 +271,8 @@ static inline bool xe_bo_madv_is_dontneed(struct xe_bo *bo)
 	return bo->madv_purgeable == XE_MADV_PURGEABLE_DONTNEED;
 }
 
+void xe_bo_set_purgeable_state(struct xe_bo *bo, enum xe_madv_purgeable_state new_state);
+
 static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
 {
 	if (likely(bo)) {

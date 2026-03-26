@@ -26,6 +26,8 @@ struct xe_vmas_in_madvise_range {
 /**
  * struct xe_madvise_details - Argument to madvise_funcs
  * @dpagemap: Reference-counted pointer to a struct drm_pagemap.
+ * @has_purged_bo: Track if any BO was purged (for purgeable state)
+ * @retained_ptr: User pointer for retained value (for purgeable state)
  *
  * The madvise IOCTL handler may, in addition to the user-space
  * args, have additional info to pass into the madvise_func that
@@ -34,6 +36,8 @@ struct xe_vmas_in_madvise_range {
  */
 struct xe_madvise_details {
 	struct drm_pagemap *dpagemap;
+	bool has_purged_bo;
+	u64 retained_ptr;
 };
 
 static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_range)
@@ -180,6 +184,67 @@ static void madvise_pat_index(struct xe_device *xe, struct xe_vm *vm,
 	}
 }
 
+/**
+ * madvise_purgeable - Handle purgeable buffer object advice
+ * @xe: XE device
+ * @vm: VM
+ * @vmas: Array of VMAs
+ * @num_vmas: Number of VMAs
+ * @op: Madvise operation
+ * @details: Madvise details for return values
+ *
+ * Handles DONTNEED/WILLNEED/PURGED states. Tracks if any BO was purged
+ * in details->has_purged_bo for later copy to userspace.
+ *
+ * Note: Marked __maybe_unused until hooked into madvise_funcs[] in the
+ * final patch to maintain bisectability. The NULL placeholder in the
+ * array ensures proper -EINVAL return for userspace until all supporting
+ * infrastructure (shrinker, per-VMA tracking) is complete.
+ */
+static void __maybe_unused madvise_purgeable(struct xe_device *xe,
+					     struct xe_vm *vm,
+					     struct xe_vma **vmas,
+					     int num_vmas,
+					     struct drm_xe_madvise *op,
+					     struct xe_madvise_details *details)
+{
+	int i;
+
+	xe_assert(vm->xe, op->type == DRM_XE_VMA_ATTR_PURGEABLE_STATE);
+
+	for (i = 0; i < num_vmas; i++) {
+		struct xe_bo *bo = xe_vma_bo(vmas[i]);
+
+		if (!bo)
+			continue;
+
+		/* BO must be locked before modifying madv state */
+		xe_bo_assert_held(bo);
+
+		/*
+		 * Once purged, always purged. Cannot transition back to WILLNEED.
+		 * This matches i915 semantics where purged BOs are permanently invalid.
+		 */
+		if (xe_bo_is_purged(bo)) {
+			details->has_purged_bo = true;
+			continue;
+		}
+
+		switch (op->purge_state_val.val) {
+		case DRM_XE_VMA_PURGEABLE_STATE_WILLNEED:
+			xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_WILLNEED);
+			break;
+		case DRM_XE_VMA_PURGEABLE_STATE_DONTNEED:
+			xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_DONTNEED);
+			break;
+		default:
+			drm_warn(&vm->xe->drm, "Invalid madvise value = %d\n",
+				 op->purge_state_val.val);
+			return;
+		}
+	}
+}
+
 typedef void (*madvise_func)(struct xe_device *xe, struct xe_vm *vm,
 			     struct xe_vma **vmas, int num_vmas,
 			     struct drm_xe_madvise *op,
@@ -189,6 +254,12 @@ static const madvise_func madvise_funcs[] = {
 	[DRM_XE_MEM_RANGE_ATTR_PREFERRED_LOC] = madvise_preferred_mem_loc,
 	[DRM_XE_MEM_RANGE_ATTR_ATOMIC] = madvise_atomic,
 	[DRM_XE_MEM_RANGE_ATTR_PAT] = madvise_pat_index,
+	/*
+	 * Purgeable support implemented but not enabled yet to maintain
+	 * bisectability. Will be set to madvise_purgeable() in final patch
+	 * when all infrastructure (shrinker, VMA tracking) is complete.
+	 */
+	[DRM_XE_VMA_ATTR_PURGEABLE_STATE] = NULL,
 };
 
 static u8 xe_zap_ptes_in_madvise_range(struct xe_vm *vm, u64 start, u64 end)
@@ -319,6 +390,19 @@ static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madv
 			return false;
 		break;
 	}
+	case DRM_XE_VMA_ATTR_PURGEABLE_STATE:
+	{
+		u32 val = args->purge_state_val.val;
+
+		if (XE_IOCTL_DBG(xe, !(val == DRM_XE_VMA_PURGEABLE_STATE_WILLNEED ||
+				       val == DRM_XE_VMA_PURGEABLE_STATE_DONTNEED)))
+			return false;
+
+		if (XE_IOCTL_DBG(xe, args->purge_state_val.pad))
+			return false;
+
+		break;
+	}
 	default:
 		if (XE_IOCTL_DBG(xe, 1))
 			return false;
@@ -336,6 +420,12 @@ static int xe_madvise_details_init(struct xe_vm *vm, const struct drm_xe_madvise
 	struct xe_device *xe = vm->xe;
 
 	memset(details, 0, sizeof(*details));
+
+	/* Store retained pointer for purgeable state */
+	if (args->type == DRM_XE_VMA_ATTR_PURGEABLE_STATE) {
+		details->retained_ptr = args->purge_state_val.retained_ptr;
+		return 0;
+	}
 
 	if (args->type == DRM_XE_MEM_RANGE_ATTR_PREFERRED_LOC) {
 		int fd = args->preferred_mem_loc.devmem_fd;
@@ -363,6 +453,21 @@ static int xe_madvise_details_init(struct xe_vm *vm, const struct drm_xe_madvise
 static void xe_madvise_details_fini(struct xe_madvise_details *details)
 {
 	drm_pagemap_put(details->dpagemap);
+}
+
+static int xe_madvise_purgeable_retained_to_user(const struct xe_madvise_details *details)
+{
+	u32 retained;
+
+	if (!details->retained_ptr)
+		return 0;
+
+	retained = !details->has_purged_bo;
+
+	if (put_user(retained, (u32 __user *)u64_to_user_ptr(details->retained_ptr)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static bool check_bo_args_are_sane(struct xe_vm *vm, struct xe_vma **vmas,
@@ -423,6 +528,7 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	struct xe_vm *vm;
 	struct drm_exec exec;
 	int err, attr_type;
+	bool do_retained;
 
 	vm = xe_vm_lookup(xef, args->vm_id);
 	if (XE_IOCTL_DBG(xe, !vm))
@@ -431,6 +537,25 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	if (!madvise_args_are_sane(vm->xe, args)) {
 		err = -EINVAL;
 		goto put_vm;
+	}
+
+	/* Cache whether we need to write retained, and validate it's initialized to 0 */
+	do_retained = args->type == DRM_XE_VMA_ATTR_PURGEABLE_STATE &&
+		      args->purge_state_val.retained_ptr;
+	if (do_retained) {
+		u32 retained;
+		u32 __user *retained_ptr;
+
+		retained_ptr = u64_to_user_ptr(args->purge_state_val.retained_ptr);
+		if (get_user(retained, retained_ptr)) {
+			err = -EFAULT;
+			goto put_vm;
+		}
+
+		if (XE_IOCTL_DBG(xe, retained != 0)) {
+			err = -EINVAL;
+			goto put_vm;
+		}
 	}
 
 	xe_svm_flush(vm);
@@ -510,6 +635,13 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	attr_type = array_index_nospec(args->type, ARRAY_SIZE(madvise_funcs));
+
+	/* Ensure the madvise function exists for this type */
+	if (!madvise_funcs[attr_type]) {
+		err = -EINVAL;
+		goto err_fini;
+	}
+
 	madvise_funcs[attr_type](xe, vm, madvise_range.vmas, madvise_range.num_vmas, args,
 				 &details);
 
@@ -528,6 +660,10 @@ madv_fini:
 	xe_madvise_details_fini(&details);
 unlock_vm:
 	up_write(&vm->lock);
+
+	/* Write retained value to user after releasing all locks */
+	if (!err && do_retained)
+		err = xe_madvise_purgeable_retained_to_user(&details);
 put_vm:
 	xe_vm_put(vm);
 	return err;

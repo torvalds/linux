@@ -838,6 +838,84 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 	return 0;
 }
 
+/**
+ * xe_bo_set_purgeable_state() - Set BO purgeable state with validation
+ * @bo: Buffer object
+ * @new_state: New purgeable state
+ *
+ * Sets the purgeable state with lockdep assertions and validates state
+ * transitions. Once a BO is PURGED, it cannot transition to any other state.
+ * Invalid transitions are caught with xe_assert().
+ */
+void xe_bo_set_purgeable_state(struct xe_bo *bo,
+			       enum xe_madv_purgeable_state new_state)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+
+	xe_bo_assert_held(bo);
+
+	/* Validate state is one of the known values */
+	xe_assert(xe, new_state == XE_MADV_PURGEABLE_WILLNEED ||
+		  new_state == XE_MADV_PURGEABLE_DONTNEED ||
+		  new_state == XE_MADV_PURGEABLE_PURGED);
+
+	/* Once purged, always purged - cannot transition out */
+	xe_assert(xe, !(bo->madv_purgeable == XE_MADV_PURGEABLE_PURGED &&
+			new_state != XE_MADV_PURGEABLE_PURGED));
+
+	bo->madv_purgeable = new_state;
+}
+
+/**
+ * xe_ttm_bo_purge() - Purge buffer object backing store
+ * @ttm_bo: The TTM buffer object to purge
+ * @ctx: TTM operation context
+ *
+ * This function purges the backing store of a BO marked as DONTNEED and
+ * triggers rebind to invalidate stale GPU mappings. For fault-mode VMs,
+ * this zaps the PTEs. The next GPU access will trigger a page fault and
+ * perform NULL rebind (scratch pages or clear PTEs based on VM config).
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+static int xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
+{
+	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
+	struct ttm_placement place = {};
+	int ret;
+
+	xe_bo_assert_held(bo);
+
+	if (!ttm_bo->ttm)
+		return 0;
+
+	if (!xe_bo_madv_is_dontneed(bo))
+		return 0;
+
+	/*
+	 * Use the standard pre-move hook so we share the same cleanup/invalidate
+	 * path as migrations: drop any CPU vmap and schedule the necessary GPU
+	 * unbind/rebind work.
+	 *
+	 * This must be called before ttm_bo_validate() frees the pages.
+	 * May fail in no-wait contexts (fault/shrinker) or if the BO is
+	 * pinned. Keep state unchanged on failure so we don't end up "PURGED"
+	 * with stale mappings.
+	 */
+	ret = xe_bo_move_notify(bo, ctx);
+	if (ret)
+		return ret;
+
+	ret = ttm_bo_validate(ttm_bo, &place, ctx);
+	if (ret)
+		return ret;
+
+	/* Commit the state transition only once invalidation was queued */
+	xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_PURGED);
+
+	return 0;
+}
+
 static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		      struct ttm_operation_ctx *ctx,
 		      struct ttm_resource *new_mem,
@@ -856,6 +934,20 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool handle_system_ccs = (!IS_DGFX(xe) && xe_bo_needs_ccs_pages(bo) &&
 				  ttm && ttm_tt_is_populated(ttm)) ? true : false;
 	int ret = 0;
+
+	/*
+	 * Purge only non-shared BOs explicitly marked DONTNEED by userspace.
+	 * The move_notify callback will handle invalidation asynchronously.
+	 */
+	if (evict && xe_bo_madv_is_dontneed(bo)) {
+		ret = xe_ttm_bo_purge(ttm_bo, ctx);
+		if (ret)
+			return ret;
+
+		/* Free the unused eviction destination resource */
+		ttm_resource_free(ttm_bo, &new_mem);
+		return 0;
+	}
 
 	/* Bo creation path, moving to system or TT. */
 	if ((!old_mem && ttm) && !handle_system_ccs) {
@@ -1606,18 +1698,6 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
-static void xe_ttm_bo_purge(struct ttm_buffer_object *ttm_bo, struct ttm_operation_ctx *ctx)
-{
-	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
-
-	if (ttm_bo->ttm) {
-		struct ttm_placement place = {};
-		int ret = ttm_bo_validate(ttm_bo, &place, ctx);
-
-		drm_WARN_ON(&xe->drm, ret);
-	}
-}
-
 static void xe_ttm_bo_swap_notify(struct ttm_buffer_object *ttm_bo)
 {
 	struct ttm_operation_ctx ctx = {
@@ -2197,6 +2277,9 @@ struct xe_bo *xe_bo_init_locked(struct xe_device *xe, struct xe_bo *bo,
 	INIT_LIST_HEAD(&bo->client_link);
 #endif
 	INIT_LIST_HEAD(&bo->vram_userfault_link);
+
+	/* Initialize purge advisory state */
+	bo->madv_purgeable = XE_MADV_PURGEABLE_WILLNEED;
 
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 

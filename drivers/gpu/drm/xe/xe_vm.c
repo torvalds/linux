@@ -327,6 +327,7 @@ void xe_vm_kill(struct xe_vm *vm, bool unlocked)
 static int xe_gpuvm_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
 {
 	struct xe_vm *vm = gpuvm_to_vm(vm_bo->vm);
+	struct xe_bo *bo = gem_to_xe_bo(vm_bo->obj);
 	struct drm_gpuva *gpuva;
 	int ret;
 
@@ -335,10 +336,16 @@ static int xe_gpuvm_validate(struct drm_gpuvm_bo *vm_bo, struct drm_exec *exec)
 		list_move_tail(&gpuva_to_vma(gpuva)->combined_links.rebind,
 			       &vm->rebind_list);
 
+	/* Skip re-populating purged BOs, rebind maps scratch pages. */
+	if (xe_bo_is_purged(bo)) {
+		vm_bo->evicted = false;
+		return 0;
+	}
+
 	if (!try_wait_for_completion(&vm->xe->pm_block))
 		return -EAGAIN;
 
-	ret = xe_bo_validate(gem_to_xe_bo(vm_bo->obj), vm, false, exec);
+	ret = xe_bo_validate(bo, vm, false, exec);
 	if (ret)
 		return ret;
 
@@ -1427,6 +1434,9 @@ static u64 xelp_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 			       u16 pat_index, u32 pt_level)
 {
+	struct xe_bo *bo = xe_vma_bo(vma);
+	struct xe_vm *vm = xe_vma_vm(vma);
+
 	pte |= XE_PAGE_PRESENT;
 
 	if (likely(!xe_vma_read_only(vma)))
@@ -1435,7 +1445,13 @@ static u64 xelp_pte_encode_vma(u64 pte, struct xe_vma *vma,
 	pte |= pte_encode_pat_index(pat_index, pt_level);
 	pte |= pte_encode_ps(pt_level);
 
-	if (unlikely(xe_vma_is_null(vma)))
+	/*
+	 * NULL PTEs redirect to scratch page (return zeros on read).
+	 * Set for: 1) explicit null VMAs, 2) purged BOs on scratch VMs.
+	 * Never set NULL flag without scratch page - causes undefined behavior.
+	 */
+	if (unlikely(xe_vma_is_null(vma) ||
+		     (bo && xe_bo_is_purged(bo) && xe_vm_has_scratch(vm))))
 		pte |= XE_PTE_NULL;
 
 	return pte;
