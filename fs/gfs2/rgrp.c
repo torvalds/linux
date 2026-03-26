@@ -2529,7 +2529,7 @@ void __gfs2_free_blocks(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
 	rgrp_unlock_local(rgd);
 
 	/* Directories keep their data in the metadata address space */
-	if (meta || ip->i_depth || gfs2_is_jdata(ip))
+	if (meta || (ip->i_diskflags & GFS2_DIF_EXHASH) || gfs2_is_jdata(ip))
 		gfs2_journal_wipe(ip, bstart, blen);
 }
 

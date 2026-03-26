@@ -457,6 +457,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_depth = (u8)depth;
 	ip->i_entries = be32_to_cpu(str->di_entries);
 
+	if (!S_ISDIR(inode->i_mode) && (ip->i_diskflags & GFS2_DIF_EXHASH)) {
+		gfs2_consist_inode(ip);
+		return -EIO;
+	}
+
 	if (gfs2_is_stuffed(ip) && inode->i_size > gfs2_max_stuffed_size(ip)) {
 		gfs2_consist_inode(ip);
 		return -EIO;
