@@ -133,6 +133,10 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	if (!vht_cap_ie || !own_vht_cap->vht_supported)
 		return;
 
+	/* NDI station are using the capabilities from the NMI station */
+	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_NAN_DATA))
+		return;
+
 	if (sband) {
 		/* Allow VHT if at least one channel on the sband supports 80 MHz */
 		bool have_80mhz = false;
@@ -320,7 +324,8 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_STA_RX_BW_160;
 	}
 
-	link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
+	if (sdata->vif.type != NL80211_IFTYPE_NAN)
+		link_sta->pub->bandwidth = ieee80211_sta_cur_vht_bw(link_sta);
 
 	/*
 	 * Work around the Cisco 9115 FW 17.3 bug by taking the min of
@@ -372,6 +377,10 @@ __ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
 			band = chandef->chan->band;
 		} else {
 			struct ieee80211_bss_conf *link_conf;
+
+			if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_NAN_DATA ||
+					 sdata->vif.type == NL80211_IFTYPE_NAN))
+				return IEEE80211_STA_RX_BW_20;
 
 			rcu_read_lock();
 			link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
@@ -517,6 +526,11 @@ _ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta,
 		bss_width = chandef->width;
 	} else {
 		struct ieee80211_bss_conf *link_conf;
+
+		/* NAN operates on multiple channels so a chandef must be given */
+		if (WARN_ON_ONCE(sta->sdata->vif.type == NL80211_IFTYPE_NAN ||
+				 sta->sdata->vif.type == NL80211_IFTYPE_NAN_DATA))
+			return IEEE80211_STA_RX_BW_20;
 
 		rcu_read_lock();
 		link_conf = rcu_dereference(sta->sdata->vif.link_conf[link_sta->link_id]);

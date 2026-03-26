@@ -535,12 +535,14 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
-	 * For AP_VLANs stations may exist since there's nothing else that
-	 * would have removed them, but in other modes there shouldn't
-	 * be any stations.
+	 * For AP_VLANs, NAN and NAN_DATA stations may exist since there's
+	 * nothing else that would have removed them, but in other modes there
+	 * shouldn't be any stations.
 	 */
 	flushed = sta_info_flush(sdata, -1);
-	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP_VLAN && flushed > 0);
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+		     sdata->vif.type != NL80211_IFTYPE_NAN &&
+		     sdata->vif.type != NL80211_IFTYPE_NAN_DATA && flushed > 0);
 
 	/* don't count this interface for allmulti while it is down */
 	if (sdata->flags & IEEE80211_SDATA_ALLMULTI)

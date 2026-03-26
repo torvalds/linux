@@ -2534,11 +2534,15 @@ struct ieee80211_sta_aggregates {
  * @uhr_cap: UHR capabilities of this STA
  * @s1g_cap: S1G capabilities of this STA
  * @agg: per-link data for multi-link aggregation
- * @bandwidth: current bandwidth the station can receive with
+ * @bandwidth: current bandwidth the station can receive with.
+ *	This is the minimum between the peer's capabilities and our own
+ *	operating channel width; Invalid for NAN since that is operating on
+ *	multiple channels.
  * @rx_nss: in HT/VHT, the maximum number of spatial streams the
  *	station can receive at the moment, changed by operating mode
  *	notifications and capabilities. The value is only valid after
- *	the station moves to associated state.
+ *	the station moves to associated state. Invalid for NAN since it
+ *	operates on multiple configurations of rx_nss.
  * @txpwr: the station tx power configuration
  *
  */
@@ -2620,6 +2624,7 @@ struct ieee80211_link_sta {
  * @valid_links: bitmap of valid links, or 0 for non-MLO
  * @spp_amsdu: indicates whether the STA uses SPP A-MSDU or not.
  * @epp_peer: indicates that the peer is an EPP peer.
+ * @nmi: For NDI stations, pointer to the NMI station of the peer.
  */
 struct ieee80211_sta {
 	u8 addr[ETH_ALEN] __aligned(2);
@@ -2647,6 +2652,8 @@ struct ieee80211_sta {
 	bool epp_peer;
 	struct ieee80211_link_sta deflink;
 	struct ieee80211_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct ieee80211_sta __rcu *nmi;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -2881,6 +2888,8 @@ struct ieee80211_txq {
  *	station has a unique address, i.e. each station entry can be identified
  *	by just its MAC address; this prevents, for example, the same station
  *	from connecting to two virtual AP interfaces at the same time.
+ *	Note that this doesn't apply for NAN, in which the peer's NMI address
+ *	can be equal to its NDI address.
  *
  * @IEEE80211_HW_SUPPORTS_REORDERING_BUFFER: Hardware (or driver) manages the
  *	reordering buffer internally, guaranteeing mac80211 receives frames in
