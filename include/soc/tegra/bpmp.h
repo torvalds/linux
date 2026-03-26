@@ -127,6 +127,7 @@ struct tegra_bpmp_message {
 
 #if IS_ENABLED(CONFIG_TEGRA_BPMP)
 struct tegra_bpmp *tegra_bpmp_get(struct device *dev);
+struct tegra_bpmp *tegra_bpmp_get_with_id(struct device *dev, unsigned int *id);
 void tegra_bpmp_put(struct tegra_bpmp *bpmp);
 int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 			       struct tegra_bpmp_message *msg);
@@ -145,6 +146,13 @@ static inline struct tegra_bpmp *tegra_bpmp_get(struct device *dev)
 {
 	return ERR_PTR(-ENOTSUPP);
 }
+
+static inline struct tegra_bpmp *tegra_bpmp_get_with_id(struct device *dev,
+							unsigned int *id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline void tegra_bpmp_put(struct tegra_bpmp *bpmp)
 {
 }
