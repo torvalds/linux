@@ -1092,7 +1092,7 @@ void exit_itimers(struct task_struct *tsk)
 	}
 
 	/*
-	 * There should be no timers on the ignored list. itimer_delete() has
+	 * There should be no timers on the ignored list. posix_timer_delete() has
 	 * mopped them up.
 	 */
 	if (!WARN_ON_ONCE(!hlist_empty(&tsk->signal->ignored_posix_timers)))
