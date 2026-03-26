@@ -765,10 +765,11 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			}
 		}
 
-		if (DISPLAY_VER(display) >= 12) {
-			if (is_vid_mode(intel_dsi))
-				tmp |= BLANKING_PACKET_ENABLE;
-		}
+		if (DISPLAY_VER(display) >= 12 &&
+		    is_vid_mode(intel_dsi) && intel_dsi->blanking_pkt)
+			tmp |= BLANKING_PACKET_ENABLE;
+		else
+			tmp &= ~BLANKING_PACKET_ENABLE;
 
 		/* program DSI operation mode */
 		if (is_vid_mode(intel_dsi)) {
