@@ -131,9 +131,7 @@ static u32 sdio_init(struct dvobj_priv *dvobj)
 release:
 	sdio_release_host(func);
 
-	if (err)
-		return _FAIL;
-	return _SUCCESS;
+	return err;
 }
 
 static void sdio_deinit(struct dvobj_priv *dvobj)
@@ -157,6 +155,7 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 {
 	struct dvobj_priv *dvobj = NULL;
 	struct sdio_data *psdio;
+	int ret;
 
 	dvobj = devobj_init();
 	if (!dvobj)
@@ -167,7 +166,8 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 	psdio = &dvobj->intf_data;
 	psdio->func = func;
 
-	if (sdio_init(dvobj) != _SUCCESS)
+	ret = sdio_init(dvobj);
+	if (ret)
 		goto free_dvobj;
 
 	rtw_reset_continual_io_error(dvobj);
