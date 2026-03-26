@@ -14,26 +14,38 @@
 
 static void ieee80211_update_apvlan_links(struct ieee80211_sub_if_data *sdata)
 {
+	unsigned long rem = ~sdata->vif.valid_links &
+				    GENMASK(IEEE80211_MLD_MAX_NUM_LINKS - 1, 0);
+	struct ieee80211_local *local = sdata->local;
+	unsigned long add = sdata->vif.valid_links;
+	struct wiphy *wiphy = local->hw.wiphy;
 	struct ieee80211_sub_if_data *vlan;
 	struct ieee80211_link_data *link;
-	u16 ap_bss_links = sdata->vif.valid_links;
-	u16 new_links, vlan_links;
-	unsigned long add;
+	struct sta_info *sta;
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		int link_id;
 
-		/* No support for 4addr with MLO yet */
-		if (vlan->wdev.use_4addr)
-			return;
+		if (vlan->wdev.use_4addr) {
+			sta = wiphy_dereference(wiphy,
+						vlan->u.vlan.sta);
+			if (sta)
+				add = add & sta->sta.valid_links;
+		}
 
-		vlan_links = vlan->vif.valid_links;
-
-		new_links = ap_bss_links;
-
-		add = new_links & ~vlan_links;
-		if (!add)
+		if (add == vlan->vif.valid_links)
 			continue;
+
+		for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
+			vlan->wdev.valid_links |= BIT(link_id);
+			ether_addr_copy(vlan->wdev.links[link_id].addr,
+					sdata->wdev.links[link_id].addr);
+		}
+
+		for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+			vlan->wdev.valid_links &= ~BIT(link_id);
+			eth_zero_addr(vlan->wdev.links[link_id].addr);
+		}
 
 		ieee80211_vif_set_links(vlan, add, 0);
 
@@ -96,8 +108,13 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 
 		ap_bss = container_of(sdata->bss,
 				      struct ieee80211_sub_if_data, u.ap);
-		ap_bss_conf = sdata_dereference(ap_bss->vif.link_conf[link_id],
-						ap_bss);
+
+		if (deflink)
+			ap_bss_conf = &ap_bss->vif.bss_conf;
+		else
+			ap_bss_conf = sdata_dereference(ap_bss->vif.link_conf[link_id],
+							ap_bss);
+
 		memcpy(link_conf, ap_bss_conf, sizeof(*link_conf));
 	}
 

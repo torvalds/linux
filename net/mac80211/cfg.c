@@ -2527,6 +2527,65 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return 0;
 }
 
+static int ieee80211_set_sta_4addr(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata,
+				   struct sta_info *sta)
+{
+	struct ieee80211_vif *vif = &sdata->vif;
+	struct wiphy *wiphy = local->hw.wiphy;
+	struct ieee80211_sub_if_data *master;
+	struct ieee80211_bss_conf *link_conf;
+	struct wireless_dev *wdev;
+	unsigned long master_iter;
+	int link_id;
+	int err;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (sdata->u.vlan.sta)
+		return -EBUSY;
+
+	wdev = &sdata->wdev;
+	master = container_of(sdata->bss,
+			      struct ieee80211_sub_if_data,
+			      u.ap);
+
+	if (sta->sta.valid_links) {
+		u16 sta_links = sta->sta.valid_links;
+		u16 new_links = master->vif.valid_links & sta_links;
+		u16 orig_links = wdev->valid_links;
+
+		wdev->valid_links = new_links;
+
+		err = ieee80211_vif_set_links(sdata, new_links, 0);
+		if (err) {
+			wdev->valid_links = orig_links;
+			return err;
+		}
+
+		master_iter = master->vif.valid_links;
+
+		for_each_set_bit(link_id, &master_iter,
+				 IEEE80211_MLD_MAX_NUM_LINKS) {
+			if (!(sta_links & BIT(link_id))) {
+				eth_zero_addr(wdev->links[link_id].addr);
+			} else {
+				link_conf = wiphy_dereference(wiphy,
+							      vif->link_conf[link_id]);
+
+				ether_addr_copy(wdev->links[link_id].addr,
+						link_conf->bssid);
+			}
+		}
+	}
+
+	rcu_assign_pointer(sdata->u.vlan.sta, sta);
+	__ieee80211_check_fast_rx_iface(sdata);
+	drv_sta_set_4addr(local, sta->sdata, &sta->sta, true);
+
+	return 0;
+}
+
 static int ieee80211_change_station(struct wiphy *wiphy,
 				    struct wireless_dev *wdev, const u8 *mac,
 				    struct station_parameters *params)
@@ -2589,12 +2648,10 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		vlansdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
 		if (params->vlan->ieee80211_ptr->use_4addr) {
-			if (vlansdata->u.vlan.sta)
-				return -EBUSY;
+			err = ieee80211_set_sta_4addr(local, vlansdata, sta);
+			if (err)
+				return err;
 
-			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
-			__ieee80211_check_fast_rx_iface(vlansdata);
-			drv_sta_set_4addr(local, sta->sdata, &sta->sta, true);
 		}
 
 		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
