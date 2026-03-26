@@ -54,6 +54,8 @@ struct cs35l56_private {
 	bool sysclk_set;
 	u8 sdw_link_num;
 	u8 sdw_unique_id;
+
+	u8 ambient_ctl_value;
 };
 
 static inline struct cs35l56_private *cs35l56_private_from_base(struct cs35l56_base *cs35l56_base)

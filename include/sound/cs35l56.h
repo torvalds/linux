@@ -435,6 +435,7 @@ ssize_t cs35l56_cal_data_debugfs_read(struct cs35l56_base *cs35l56_base,
 ssize_t cs35l56_cal_data_debugfs_write(struct cs35l56_base *cs35l56_base,
 				       const char __user *from, size_t count,
 				       loff_t *ppos);
+int cs35l56_factory_calibrate(struct cs35l56_base *cs35l56_base);
 void cs35l56_create_cal_debugfs(struct cs35l56_base *cs35l56_base,
 				const struct cs35l56_cal_debugfs_fops *fops);
 void cs35l56_remove_cal_debugfs(struct cs35l56_base *cs35l56_base);
