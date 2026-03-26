@@ -1817,6 +1817,14 @@ static int ieee80211_reconfig_nan(struct ieee80211_sub_if_data *sdata)
 			if (WARN_ON(res))
 				return res;
 		}
+
+		/* Add peer schedules for NMI stations that have them */
+		if (!sta->sta.nan_sched)
+			continue;
+
+		res = drv_nan_peer_sched_changed(local, sdata, sta);
+		if (WARN_ON(res))
+			return res;
 	}
 
 	/* Add NDI stations (stations on NAN_DATA interfaces) */

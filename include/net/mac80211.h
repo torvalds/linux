@@ -877,8 +877,11 @@ struct ieee80211_bss_conf {
  *	is irrelevant for NAN, still store it for convenience - some functions
  *	require it as an argument.
  * @needed_rx_chains: number of RX chains needed for this NAN channel
- * @chanctx_conf: chanctx_conf assigned to this NAN channel. Will be %NULL
- *	if the channel is ULWed.
+ * @chanctx_conf: chanctx_conf assigned to this NAN channel.
+ *	If a local channel is being ULWed (because we needed this chanctx for
+ *	something else), the local NAN channel that used this chanctx,
+ *	will have this pointer set to %NULL.
+ *	A peer NAN channel should never have this pointer set to %NULL.
  * @channel_entry: the Channel Entry blob as defined in Wi-Fi Aware
  *	(TM) 4.0 specification Table 100 (Channel Entry format for the NAN
  *	Availability attribute).
@@ -888,6 +891,49 @@ struct ieee80211_nan_channel {
 	u8 needed_rx_chains;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	u8 channel_entry[6];
+};
+
+/**
+ * struct ieee80211_nan_peer_map - NAN peer schedule map
+ *
+ * This stores a single map from a peer's schedule. Each peer can have
+ * multiple maps.
+ *
+ * @map_id: the map ID from the peer schedule, %CFG80211_NAN_INVALID_MAP_ID
+ *	if unused
+ * @slots: mapping of time slots to channel configurations in the schedule's
+ *	channels array
+ */
+struct ieee80211_nan_peer_map {
+	u8 map_id;
+	struct ieee80211_nan_channel *slots[CFG80211_NAN_SCHED_NUM_TIME_SLOTS];
+};
+
+/**
+ * struct ieee80211_nan_peer_sched - NAN peer schedule
+ *
+ * This stores the complete schedule from a peer. Contains peer-level
+ * parameters and an array of schedule maps.
+ *
+ * @seq_id: the sequence ID from the peer schedule
+ * @committed_dw: committed DW as published by the peer
+ * @max_chan_switch: maximum channel switch time in microseconds
+ * @init_ulw: initial ULWs as published by the peer (copied)
+ * @ulw_size: number of bytes in @init_ulw
+ * @maps: array of peer schedule maps. Invalid slots have map_id set to
+ *	%CFG80211_NAN_INVALID_MAP_ID.
+ * @n_channels: number of valid channel entries in @channels
+ * @channels: flexible array of negotiated peer channels for this schedule
+ */
+struct ieee80211_nan_peer_sched {
+	u8 seq_id;
+	u16 committed_dw;
+	u16 max_chan_switch;
+	const u8 *init_ulw;
+	u16 ulw_size;
+	struct ieee80211_nan_peer_map maps[CFG80211_NAN_MAX_PEER_MAPS];
+	u8 n_channels;
+	struct ieee80211_nan_channel channels[] __counted_by(n_channels);
 };
 
 /**
@@ -2625,6 +2671,7 @@ struct ieee80211_link_sta {
  * @spp_amsdu: indicates whether the STA uses SPP A-MSDU or not.
  * @epp_peer: indicates that the peer is an EPP peer.
  * @nmi: For NDI stations, pointer to the NMI station of the peer.
+ * @nan_sched: NAN peer schedule for this station. Valid only for NMI stations.
  */
 struct ieee80211_sta {
 	u8 addr[ETH_ALEN] __aligned(2);
@@ -2654,6 +2701,9 @@ struct ieee80211_sta {
 	struct ieee80211_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	struct ieee80211_sta __rcu *nmi;
+
+	/* should only be accessed with the wiphy mutex held */
+	struct ieee80211_nan_peer_sched *nan_sched;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -4556,6 +4606,12 @@ struct ieee80211_prep_tx_info {
  * @del_nan_func: Remove a NAN function. The driver must call
  *	ieee80211_nan_func_terminated() with
  *	NL80211_NAN_FUNC_TERM_REASON_USER_REQUEST reason code upon removal.
+ * @nan_peer_sched_changed: Notifies the driver that the peer NAN schedule
+ *	has changed. The new schedule is available via sta->nan_sched.
+ *	Note that the channel_entry blob might not match the actual chandef
+ *	since the bandwidth of the chandef is the minimum of the local and peer
+ *	bandwidth. It is the driver responsibility to remove the peer schedule
+ *	when the NMI station is removed.
  * @can_aggregate_in_amsdu: Called in order to determine if HW supports
  *	aggregating two specific frames in the same A-MSDU. The relation
  *	between the skbs should be symmetric and transitive. Note that while
@@ -4961,6 +5017,8 @@ struct ieee80211_ops {
 	void (*del_nan_func)(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    u8 instance_id);
+	int (*nan_peer_sched_changed)(struct ieee80211_hw *hw,
+				      struct ieee80211_sta *sta);
 	bool (*can_aggregate_in_amsdu)(struct ieee80211_hw *hw,
 				       struct sk_buff *head,
 				       struct sk_buff *skb);
