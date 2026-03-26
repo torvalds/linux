@@ -103,10 +103,8 @@ int amdgpu_sched_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (!amdgpu_ctx_priority_is_valid(args->in.priority)) {
-		WARN(1, "Invalid context priority %d\n", args->in.priority);
+	if (!amdgpu_ctx_priority_is_valid(args->in.priority))
 		return -EINVAL;
-	}
 
 	switch (args->in.op) {
 	case AMDGPU_SCHED_OP_PROCESS_PRIORITY_OVERRIDE:

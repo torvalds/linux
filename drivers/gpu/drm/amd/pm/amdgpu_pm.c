@@ -680,6 +680,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - minimum(not available for Vega20 and Navi1x) and maximum memory
  *   clock labeled OD_MCLK
  *
+ * - minimum and maximum fabric clock labeled OD_FCLK (SMU13)
+ *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
  *   They can be used to calibrate the sclk voltage curve. This is
  *   available for Vega20 and NV1X.
@@ -715,10 +717,11 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - First select manual using power_dpm_force_performance_level
  *
  * - For clock frequency setting, enter a new value by writing a
- *   string that contains "s/m index clock" to the file. The index
+ *   string that contains "s/m/f index clock" to the file. The index
  *   should be 0 if to set minimum clock. And 1 if to set maximum
  *   clock. E.g., "s 0 500" will update minimum sclk to be 500 MHz.
- *   "m 1 800" will update maximum mclk to be 800Mhz. For core
+ *   "m 1 800" will update maximum mclk to be 800Mhz. "f 1 1600" will
+ *   update maximum fabric clock to be 1600Mhz. For core
  *   clocks on VanGogh, the string contains "p core index clock".
  *   E.g., "p 2 0 800" would set the minimum core clock on core
  *   2 to 800Mhz.
@@ -768,6 +771,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_EDIT_CCLK_VDDC_TABLE;
 	else if (*buf == 'm')
 		type = PP_OD_EDIT_MCLK_VDDC_TABLE;
+	else if (*buf == 'f')
+		type = PP_OD_EDIT_FCLK_TABLE;
 	else if (*buf == 'r')
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
@@ -843,9 +848,10 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int size = 0;
 	int ret;
-	enum pp_clock_type od_clocks[6] = {
+	enum pp_clock_type od_clocks[] = {
 		OD_SCLK,
 		OD_MCLK,
+		OD_FCLK,
 		OD_VDDC_CURVE,
 		OD_RANGE,
 		OD_VDDGFX_OFFSET,
@@ -857,10 +863,8 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (ret)
 		return ret;
 
-	for (clk_index = 0 ; clk_index < 6 ; clk_index++) {
-		ret = amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
-		if (ret)
-			break;
+	for (clk_index = 0 ; clk_index < ARRAY_SIZE(od_clocks) ; clk_index++) {
+		amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
 	}
 
 	if (size == 0)

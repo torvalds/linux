@@ -757,6 +757,9 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 {
 	struct dc_clocks *clocks = &dc->current_state->bw_ctx.bw.dcn.clk;
 
+	if (!dc->clk_mgr || !dc->clk_mgr->bw_params || !dc->clk_mgr->funcs)
+		return;
+
 	clocks->dcfclk_deep_sleep_khz = DCN3_2_DCFCLK_DS_INIT_KHZ;
 	clocks->dcfclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dcfclk_mhz * 1000;
 	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
@@ -765,9 +768,10 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
 	clocks->fclk_p_state_change_support = true;
 	clocks->p_state_change_support = true;
+
 	if (dc->debug.disable_boot_optimizations) {
 		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
-	} else {
+	} else if (dc->clk_mgr->funcs->get_dispclk_from_dentist) {
 		/* Even though DPG_EN = 1 for the connected display, it still requires the
 		 * correct timing so we cannot set DISPCLK to min freq or it could cause
 		 * audio corruption. Read current DISPCLK from DENTIST and request the same
@@ -776,10 +780,10 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
 	}
 
-	dc->clk_mgr->funcs->update_clocks(
-			dc->clk_mgr,
-			dc->current_state,
-			true);
+	if (dc->clk_mgr->funcs->update_clocks)
+		dc->clk_mgr->funcs->update_clocks(dc->clk_mgr,
+						  dc->current_state,
+						  true);
 }
 
 void dcn32_init_hw(struct dc *dc)
@@ -1007,7 +1011,8 @@ void dcn32_init_hw(struct dc *dc)
 				DMUB_FW_VERSION(7, 0, 35)) {
 			/* FAMS2 is disabled */
 			dc->debug.fams2_config.bits.enable = false;
-			if (dc->debug.using_dml2 && dc->res_pool->funcs->update_bw_bounding_box) {
+			if (dc->debug.using_dml2 && dc->res_pool->funcs->update_bw_bounding_box &&
+			    dc->clk_mgr && dc->clk_mgr->bw_params) {
 				/* update bounding box if FAMS2 disabled */
 				dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
 			}

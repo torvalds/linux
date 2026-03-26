@@ -461,6 +461,7 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
 
 	if ((pgm == 0 && fw_ver >= 0x00558200) ||
+	    (pgm == 4 && fw_ver >= 0x04557100) ||
 	    (pgm == 7 && fw_ver >= 0x07551400))
 		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
 }
@@ -1199,6 +1200,7 @@ static int smu_v13_0_6_populate_umd_state_clk(struct smu_context *smu)
 	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
 	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
 	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *fclk_table = &dpm_context->dpm_tables.fclk_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 
 	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
@@ -1215,6 +1217,12 @@ static int smu_v13_0_6_populate_umd_state_clk(struct smu_context *smu)
 	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
 	pstate_table->socclk_pstate.curr.min = SMU_DPM_TABLE_MIN(soc_table);
 	pstate_table->socclk_pstate.curr.max = SMU_DPM_TABLE_MAX(soc_table);
+
+	pstate_table->fclk_pstate.min = SMU_DPM_TABLE_MIN(fclk_table);
+	pstate_table->fclk_pstate.peak = SMU_DPM_TABLE_MAX(fclk_table);
+	pstate_table->fclk_pstate.curr.min = SMU_DPM_TABLE_MIN(fclk_table);
+	pstate_table->fclk_pstate.curr.max = SMU_DPM_TABLE_MAX(fclk_table);
+	pstate_table->fclk_pstate.standard = SMU_DPM_TABLE_MIN(fclk_table);
 
 	if (gfx_table->count > SMU_13_0_6_UMD_PSTATE_GFXCLK_LEVEL &&
 	    mem_table->count > SMU_13_0_6_UMD_PSTATE_MCLK_LEVEL &&
@@ -1394,14 +1402,22 @@ static int smu_v13_0_6_emit_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_OD_MCLK:
 		if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(SET_UCLK_MAX)))
-			return 0;
+			return -EOPNOTSUPP;
 
 		size += sysfs_emit_at(buf, size, "%s:\n", "OD_MCLK");
 		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
 				      pstate_table->uclk_pstate.curr.min,
 				      pstate_table->uclk_pstate.curr.max);
 		break;
+	case SMU_OD_FCLK:
+		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT))
+			return -EOPNOTSUPP;
 
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_FCLK");
+		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->fclk_pstate.curr.min,
+				      pstate_table->fclk_pstate.curr.max);
+		break;
 	case SMU_SCLK:
 	case SMU_GFXCLK:
 		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
@@ -2043,7 +2059,7 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 	int ret = 0;
 
 	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK &&
-	    clk_type != SMU_UCLK)
+	    clk_type != SMU_UCLK && clk_type != SMU_FCLK)
 		return -EINVAL;
 
 	if ((smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) &&
@@ -2082,6 +2098,15 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 				smu, SMU_UCLK, 0, max, false);
 			if (!ret)
 				pstate_table->uclk_pstate.curr.max = max;
+		}
+
+		if (clk_type == SMU_FCLK) {
+			if (max == pstate_table->fclk_pstate.curr.max)
+				return 0;
+
+			ret = smu_v13_0_set_soft_freq_limited_range(smu, SMU_FCLK, 0, max, false);
+			if (!ret)
+				pstate_table->fclk_pstate.curr.max = max;
 		}
 
 		return ret;
@@ -2125,6 +2150,8 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 {
 	struct smu_dpm_context *smu_dpm = &(smu->smu_dpm);
 	struct smu_13_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_dpm_table *uclk_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *fclk_table = &dpm_context->dpm_tables.fclk_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
 	uint32_t min_clk;
 	uint32_t max_clk;
@@ -2205,6 +2232,40 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			pstate_table->uclk_pstate.custom.max = input[1];
 		}
 		break;
+	case PP_OD_EDIT_FCLK_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (!smu_cmn_feature_is_enabled(smu,
+						SMU_FEATURE_DPM_FCLK_BIT)) {
+			dev_warn(smu->adev->dev,
+				 "FCLK limits setting not supported!\n");
+			return -EOPNOTSUPP;
+		}
+
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.fclk_table);
+		if (input[0] == 0) {
+			dev_info(smu->adev->dev,
+				 "Setting min FCLK level is not supported\n");
+			return -EOPNOTSUPP;
+		} else if (input[0] == 1) {
+			if (input[1] > max_clk) {
+				dev_warn(smu->adev->dev,
+					 "Maximum FCLK (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					 input[1], max_clk);
+				pstate_table->fclk_pstate.custom.max =
+					pstate_table->fclk_pstate.curr.max;
+				return -EINVAL;
+			}
+
+			pstate_table->fclk_pstate.custom.max = input[1];
+		} else {
+			return -EINVAL;
+		}
+		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (size != 0) {
@@ -2224,14 +2285,27 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 			if (ret)
 				return ret;
 
-			min_clk = SMU_DPM_TABLE_MIN(
-				&dpm_context->dpm_tables.uclk_table);
-			max_clk = SMU_DPM_TABLE_MAX(
-				&dpm_context->dpm_tables.uclk_table);
-			ret = smu_v13_0_6_set_soft_freq_limited_range(
-				smu, SMU_UCLK, min_clk, max_clk, false);
-			if (ret)
-				return ret;
+			if (SMU_DPM_TABLE_MAX(uclk_table) !=
+			    pstate_table->uclk_pstate.curr.max) {
+				min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.uclk_table);
+				max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.uclk_table);
+				ret = smu_v13_0_6_set_soft_freq_limited_range(smu,
+									      SMU_UCLK, min_clk,
+									      max_clk, false);
+				if (ret)
+					return ret;
+			}
+
+			if (SMU_DPM_TABLE_MAX(fclk_table) !=
+			    pstate_table->fclk_pstate.curr.max) {
+				max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.fclk_table);
+				min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.fclk_table);
+				ret = smu_v13_0_6_set_soft_freq_limited_range(smu,
+									      SMU_FCLK, min_clk,
+									      max_clk, false);
+				if (ret)
+					return ret;
+			}
 			smu_v13_0_reset_custom_level(smu);
 		}
 		break;
@@ -2257,6 +2331,16 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 
 			if (ret)
 				return ret;
+
+			if (pstate_table->fclk_pstate.custom.max) {
+				min_clk = pstate_table->fclk_pstate.curr.min;
+				max_clk = pstate_table->fclk_pstate.custom.max;
+				ret = smu_v13_0_6_set_soft_freq_limited_range(smu,
+									      SMU_FCLK, min_clk,
+									      max_clk, false);
+				if (ret)
+					return ret;
+			}
 
 			if (!pstate_table->uclk_pstate.custom.max)
 				return 0;

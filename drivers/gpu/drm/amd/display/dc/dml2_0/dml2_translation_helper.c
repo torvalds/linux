@@ -1174,12 +1174,12 @@ static unsigned int map_plane_to_dml_display_cfg(const struct dml2_context *dml2
 		const struct dc_state *context, const struct dml_display_cfg_st *dml_dispcfg, unsigned int stream_id, int plane_index)
 {
 	unsigned int plane_id;
-	int i = 0;
-	int location = -1;
+	unsigned int i = 0;
+	unsigned int location = UINT_MAX;
 
 	if (!get_plane_id(context->bw_ctx.dml2, context, plane, stream_id, plane_index, &plane_id)) {
 		ASSERT(false);
-		return -1;
+		return UINT_MAX;
 	}
 
 	for (i = 0; i < __DML2_WRAPPER_MAX_STREAMS_PLANES__; i++) {

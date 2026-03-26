@@ -1963,6 +1963,8 @@ static bool dcn31_resource_construct(
 	dc->config.use_pipe_ctx_sync_logic = true;
 	dc->config.disable_hbr_audio_dp2 = true;
 
+	dc->config.no_native422_support = true;
+
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

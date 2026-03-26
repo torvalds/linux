@@ -1057,10 +1057,6 @@ int smu_cmn_check_fw_version(struct smu_context *smu)
 		      smu->smc_driver_if_version, if_version,
 		      smu_program, smu_version, smu_major, smu_minor, smu_debug);
 
-	if (smu->smc_driver_if_version != SMU_IGNORE_IF_VERSION &&
-	    if_version != smu->smc_driver_if_version)
-		dev_info(adev->dev, "SMU driver if version not matched\n");
-
 	return 0;
 }
 
@@ -1303,6 +1299,16 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 
 		*backend_workload_mask |= 1 << workload_type;
 	}
+}
+
+void smu_cmn_reset_custom_level(struct smu_context *smu)
+{
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+
+	pstate_table->gfxclk_pstate.custom.min = 0;
+	pstate_table->gfxclk_pstate.custom.max = 0;
+	pstate_table->uclk_pstate.custom.min = 0;
+	pstate_table->uclk_pstate.custom.max = 0;
 }
 
 static inline bool smu_cmn_freqs_match(uint32_t freq1, uint32_t freq2)

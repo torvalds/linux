@@ -181,7 +181,8 @@ void link_set_all_streams_dpms_off_for_link(struct dc_link *link)
 	/* link can be also enabled by vbios. In this case it is not recorded
 	 * in pipe_ctx. Disable link phy here to make sure it is completely off
 	 */
-	dp_disable_link_phy(link, &link_res, link->connector_signal);
+	if (dc_is_dp_signal(link->connector_signal))
+		dp_disable_link_phy(link, &link_res, link->connector_signal);
 }
 
 void link_resume(struct dc_link *link)

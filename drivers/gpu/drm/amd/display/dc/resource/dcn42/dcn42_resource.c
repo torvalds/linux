@@ -760,6 +760,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = false,
 	.ignore_pg = true,
 	.disable_stutter_for_wm_program = true,
+	.min_deep_sleep_dcfclk_khz = 8000,
 };
 
 static const struct dc_check_config config_defaults = {
@@ -1790,8 +1791,10 @@ static struct resource_funcs dcn42_res_pool_funcs = {
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
 	.prepare_mcache_programming = dcn42_prepare_mcache_programming,
 	.build_pipe_pix_clk_params = dcn42_build_pipe_pix_clk_params,
+	.get_power_profile = dcn401_get_power_profile,
 	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe,
 	.get_max_hw_cursor_size = dcn42_get_max_hw_cursor_size,
+	.get_default_tiling_info = dcn10_get_default_tiling_info
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -2015,7 +2018,7 @@ static bool dcn42_resource_construct(
 	dc->config.dcn_override_sharpness_range.hdr_rgb_mid = 1500;
 
 	dc->config.use_pipe_ctx_sync_logic = true;
-	dc->config.dc_mode_clk_limit_support = true;
+	dc->config.dc_mode_clk_limit_support = false;
 	dc->config.enable_windowed_mpo_odm = true;
 	/* Use psp mailbox to enable assr */
 	dc->config.use_assr_psp_message = true;

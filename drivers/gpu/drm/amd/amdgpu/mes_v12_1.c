@@ -2227,7 +2227,7 @@ static int mes_v12_1_self_test(struct amdgpu_device *adev, int xcc_id)
 	struct amdgpu_bo *meta_bo = NULL, *ctx_bo = NULL;
 	void *meta_ptr = NULL, *ctx_ptr = NULL;
 	u64 meta_gpu_addr, ctx_gpu_addr;
-	int size, i, r, pasid;;
+	int size, i, r, pasid;
 
 	pasid = amdgpu_pasid_alloc(16);
 	if (pasid < 0)

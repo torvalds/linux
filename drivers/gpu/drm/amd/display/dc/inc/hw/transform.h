@@ -160,7 +160,7 @@ struct scaler_data {
 	struct scaling_ratios ratios;
 	struct scl_inits inits;
 	struct sharpness_adj sharpness;
-	enum pixel_format format;
+	enum dc_pixel_format format;
 	struct line_buffer_params lb_params;
 	// Below struct holds the scaler values to program hw registers
 	struct dscl_prog_data dscl_prog_data;

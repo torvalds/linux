@@ -176,11 +176,12 @@ void pg_cntl42_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+		       pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
+		       pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
+		       pg_cntl->ctx->dc->idle_optimizations_allowed;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
-		pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl42_hubp_dpp_pg_status(pg_cntl, hubp_dpp_inst);

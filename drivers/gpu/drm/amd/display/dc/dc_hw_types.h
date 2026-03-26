@@ -218,7 +218,7 @@ enum surface_pixel_format {
 
 
 /* Pixel format */
-enum pixel_format {
+enum dc_pixel_format {
 	/*graph*/
 	PIXEL_FORMAT_UNINITIALIZED,
 	PIXEL_FORMAT_INDEX8,
@@ -445,6 +445,10 @@ enum dc_gfxversion {
 			enum swizzle_mode_addr3_values swizzle;
 		} gfx_addr3;/*gfx with addr3 and above*/
 	};
+
+	struct {
+		bool avoid_full_update_on_tiling_change;
+	} flags;
 };
 
 /* Rotation angle */

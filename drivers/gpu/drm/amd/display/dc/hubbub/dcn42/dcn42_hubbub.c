@@ -6,6 +6,7 @@
 #include "dcn31/dcn31_hubbub.h"
 #include "dcn32/dcn32_hubbub.h"
 #include "dcn35/dcn35_hubbub.h"
+#include "dcn401/dcn401_hubbub.h"
 #include "dcn42/dcn42_hubbub.h"
 #include "dm_services.h"
 #include "reg_helper.h"
@@ -429,15 +430,6 @@ static void hubbub42_allow_self_refresh_control(struct hubbub *hubbub, bool allo
 	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
 			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
-
-	if (!allow && hubbub->ctx->dc->debug.disable_stutter) {/*controlled by registry key*/
-		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_DCFCLK_DEEP_SLEEP_FORCE_ENABLE, 1);
-		REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, 1);
-	}
 }
 static void hubbub42_set_sdp_control(struct hubbub *hubbub, bool dc_control)
 {
@@ -494,6 +486,46 @@ static bool hubbub42_program_watermarks(
 	return wm_pending;
 }
 
+static void hubbub42_set_request_limit(struct hubbub *hubbub, int memory_channel_count, int words_per_channel)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+	uint32_t request_limit = 96; //MAX(12 * memory_channel_count, 96);
+
+	REG_UPDATE(SDPIF_REQUEST_RATE_LIMIT, SDPIF_REQUEST_RATE_LIMIT, request_limit);
+}
+
+static bool dcn42_program_arbiter(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs,
+				  bool safe_to_lower)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	bool wm_pending = false;
+	uint32_t temp;
+
+	/* request backpressure and outstanding return threshold (unused)*/
+	//REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL1, DCHUBBUB_TIMEOUT_REQ_STALL_THRESHOLD, arb_regs->req_stall_threshold);
+
+	/* 401 delta: do not update P-State stall threshold (handled by fw) */
+	// REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL2, DCHUBBUB_TIMEOUT_PSTATE_STALL_THRESHOLD, arb_regs->pstate_stall_threshold);
+
+	if (safe_to_lower || arb_regs->allow_sdpif_rate_limit_when_cstate_req > hubbub2->allow_sdpif_rate_limit_when_cstate_req) {
+		hubbub2->allow_sdpif_rate_limit_when_cstate_req = arb_regs->allow_sdpif_rate_limit_when_cstate_req;
+
+		/* only update the required bits */
+		REG_GET(DCHUBBUB_CTRL_STATUS, DCHUBBUB_HW_DEBUG, &temp);
+		if (hubbub2->allow_sdpif_rate_limit_when_cstate_req) {
+			temp |= (1 << 5);
+		} else {
+			temp &= ~(1 << 5);
+		}
+		REG_UPDATE(DCHUBBUB_CTRL_STATUS, DCHUBBUB_HW_DEBUG, temp);
+	} else {
+		wm_pending = true;
+	}
+
+	return wm_pending;
+}
+
 static const struct hubbub_funcs hubbub42_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub31_init_dchub_sys_ctx,
@@ -509,13 +541,16 @@ static const struct hubbub_funcs hubbub42_funcs = {
 	.force_wm_propagate_to_pipes = hubbub32_force_wm_propagate_to_pipes,
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub35_init_watermarks,
-	.program_det_size = dcn32_program_det_size,
-	.program_compbuf_size = dcn35_program_compbuf_size,
-	.init_crb = dcn35_init_crb,
+	.init_crb = dcn401_init_crb,
+	.dchvm_init = dcn35_dchvm_init,
 	.hubbub_read_state = hubbub2_read_state,
 	.force_usr_retraining_allow = hubbub32_force_usr_retraining_allow,
-	.dchubbub_init = hubbub35_init,
-	.dchvm_init = dcn35_dchvm_init,
+	.set_request_limit = hubbub42_set_request_limit,
+	.program_det_segments = dcn401_program_det_segments,
+	.program_compbuf_segments = dcn401_program_compbuf_segments,
+	.wait_for_det_update = dcn401_wait_for_det_update,
+	.program_arbiter = dcn42_program_arbiter,
+	.hubbub_read_reg_state = hubbub3_read_reg_state
 };
 
 void hubbub42_construct(struct dcn20_hubbub *hubbub2,

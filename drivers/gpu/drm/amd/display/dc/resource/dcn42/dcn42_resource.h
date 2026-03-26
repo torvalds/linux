@@ -481,6 +481,8 @@
 		SRI_ARR(OPTC_INPUT_CLOCK_CONTROL, ODM, inst),                            \
 		SRI_ARR(OPTC_DATA_SOURCE_SELECT, ODM, inst),                             \
 		SRI_ARR(OPTC_INPUT_GLOBAL_CONTROL, ODM, inst),                           \
+		SRI_ARR(OPTC_RSMU_UNDERFLOW, ODM, inst),                                 \
+		SRI_ARR(OPTC_UNDERFLOW_THRESHOLD, ODM, inst),                            \
 		SRI_ARR(CONTROL, VTG, inst), \
 		SRI_ARR(OTG_VERT_SYNC_CONTROL, OTG, inst),  \
 		SRI_ARR(OTG_GSL_CONTROL, OTG, inst), \
@@ -584,5 +586,6 @@ enum dc_status dcn42_validate_bandwidth(struct dc *dc,
 							  enum dc_validate_mode validate_mode);
 
 void dcn42_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
+int dcn42_get_power_profile(const struct dc_state *context);
 
 #endif /* _DCN42_RESOURCE_H_ */

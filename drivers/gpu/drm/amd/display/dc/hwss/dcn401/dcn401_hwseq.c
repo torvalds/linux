@@ -369,12 +369,14 @@ void dcn401_init_hw(struct dc *dc)
 	}
 }
 
-void dcn401_trigger_3dlut_dma_load(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn401_trigger_3dlut_dma_load(struct pipe_ctx *pipe_ctx)
 {
-	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	const struct pipe_ctx *primary_dpp_pipe_ctx = resource_get_primary_dpp_pipe(pipe_ctx);
+	struct hubp *primary_hubp = primary_dpp_pipe_ctx ?
+			primary_dpp_pipe_ctx->plane_res.hubp : NULL;
 
-	if (hubp->funcs->hubp_enable_3dlut_fl) {
-		hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
+	if (primary_hubp && primary_hubp->funcs->hubp_enable_3dlut_fl) {
+		primary_hubp->funcs->hubp_enable_3dlut_fl(primary_hubp, true);
 	}
 }
 
@@ -382,8 +384,11 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state)
 {
 	struct dc *dc = pipe_ctx->plane_res.hubp->ctx->dc;
+	const struct pipe_ctx *primary_dpp_pipe_ctx = resource_get_primary_dpp_pipe(pipe_ctx);
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct hubp *primary_hubp =	primary_dpp_pipe_ctx ?
+			primary_dpp_pipe_ctx->plane_res.hubp : NULL;
 	const struct dc_plane_cm *cm = &plane_state->cm;
 	int mpcc_id = hubp->inst;
 	struct mpc *mpc = dc->res_pool->mpc;
@@ -481,25 +486,41 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 			mpc->funcs->program_lut_read_write_control(mpc, MCM_LUT_3DLUT, lut_bank_a, 12, mpcc_id);
 
 		if (mpc->funcs->update_3dlut_fast_load_select)
-			mpc->funcs->update_3dlut_fast_load_select(mpc, mpcc_id, hubp->inst);
+			mpc->funcs->update_3dlut_fast_load_select(mpc, mpcc_id, primary_hubp->inst);
 
 		/* HUBP */
-		if (hubp->funcs->hubp_program_3dlut_fl_config)
-			hubp->funcs->hubp_program_3dlut_fl_config(hubp, &cm->lut3d_dma);
+		if (primary_hubp->inst == hubp->inst) {
+			/* only program if this is the primary dpp pipe for the given plane */
+			if (hubp->funcs->hubp_program_3dlut_fl_config)
+				hubp->funcs->hubp_program_3dlut_fl_config(hubp, &cm->lut3d_dma);
 
-		if (hubp->funcs->hubp_program_3dlut_fl_crossbar)
-			hubp->funcs->hubp_program_3dlut_fl_crossbar(hubp, cm->lut3d_dma.format);
+			if (hubp->funcs->hubp_program_3dlut_fl_crossbar)
+				hubp->funcs->hubp_program_3dlut_fl_crossbar(hubp, cm->lut3d_dma.format);
 
-		if (hubp->funcs->hubp_program_3dlut_fl_addr)
-			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, &cm->lut3d_dma.addr);
+			if (hubp->funcs->hubp_program_3dlut_fl_addr)
+				hubp->funcs->hubp_program_3dlut_fl_addr(hubp, &cm->lut3d_dma.addr);
 
-		if (hubp->funcs->hubp_enable_3dlut_fl) {
-			hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
+			if (hubp->funcs->hubp_enable_3dlut_fl) {
+				hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
+			} else {
+				/* GPU memory only supports fast load path */
+				BREAK_TO_DEBUGGER();
+				lut_enable = false;
+				result = false;
+			}
 		} else {
-			/* GPU memory only supports fast load path */
-			BREAK_TO_DEBUGGER();
-			lut_enable = false;
-			result = false;
+			/* re-trigger priamry HUBP to load 3DLUT */
+			if (primary_hubp->funcs->hubp_enable_3dlut_fl) {
+				primary_hubp->funcs->hubp_enable_3dlut_fl(primary_hubp, true);
+			}
+
+			/* clear FL setup on this pipe's HUBP */
+			memset(&lut3d_dma, 0, sizeof(lut3d_dma));
+			if (hubp->funcs->hubp_program_3dlut_fl_config)
+				hubp->funcs->hubp_program_3dlut_fl_config(hubp, &lut3d_dma);
+
+			if (hubp->funcs->hubp_enable_3dlut_fl)
+				hubp->funcs->hubp_enable_3dlut_fl(hubp, false);
 		}
 	} else {
 		/* Legacy (Host) Load Mode */
@@ -1809,42 +1830,41 @@ void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx)
 	 * This is meant to work around a known HW issue where VREADY will cancel the pending 3DLUT_ENABLE signal regardless
 	 * of whether OTG lock is currently being held or not.
 	 */
-	struct pipe_ctx *wa_pipes[MAX_PIPES] = { NULL };
-	struct pipe_ctx *odm_pipe, *mpc_pipe;
-	int i, wa_pipe_ct = 0;
+	const struct pipe_ctx *otg_master_pipe_ctx = resource_get_otg_master(pipe_ctx);
+	struct timing_generator *tg = otg_master_pipe_ctx ?
+			otg_master_pipe_ctx->stream_res.tg : NULL;
+	const struct pipe_ctx *primary_dpp_pipe_ctx = resource_is_pipe_type(pipe_ctx, DPP_PIPE) ?
+			resource_get_primary_dpp_pipe(pipe_ctx) : pipe_ctx;
+	struct hubp *primary_hubp = primary_dpp_pipe_ctx ?
+			primary_dpp_pipe_ctx->plane_res.hubp : NULL;
 
-	for (odm_pipe = pipe_ctx; odm_pipe != NULL; odm_pipe = odm_pipe->next_odm_pipe) {
-		for (mpc_pipe = odm_pipe; mpc_pipe != NULL; mpc_pipe = mpc_pipe->bottom_pipe) {
-			if (mpc_pipe->plane_state &&
-					mpc_pipe->plane_state->cm.flags.bits.lut3d_enable &&
-					mpc_pipe->plane_state->cm.flags.bits.lut3d_dma_enable) {
-				wa_pipes[wa_pipe_ct++] = mpc_pipe;
-			}
-		}
+	if (!otg_master_pipe_ctx && !tg) {
+		return;
 	}
 
-	if (wa_pipe_ct > 0) {
-		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
-			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, true);
+	if (primary_dpp_pipe_ctx &&
+			primary_dpp_pipe_ctx->plane_state &&
+			primary_dpp_pipe_ctx->plane_state->cm.flags.bits.lut3d_enable &&
+			primary_dpp_pipe_ctx->plane_state->cm.flags.bits.lut3d_dma_enable) {
+		if (tg->funcs->set_vupdate_keepout)
+			tg->funcs->set_vupdate_keepout(tg, true);
 
-		for (i = 0; i < wa_pipe_ct; ++i) {
-			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
-				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		if (primary_hubp->funcs->hubp_enable_3dlut_fl) {
+			primary_hubp->funcs->hubp_enable_3dlut_fl(primary_hubp, true);
 		}
 
-		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
-		if (pipe_ctx->stream_res.tg->funcs->wait_update_lock_status)
-			pipe_ctx->stream_res.tg->funcs->wait_update_lock_status(pipe_ctx->stream_res.tg, false);
+		tg->funcs->unlock(tg);
+		if (tg->funcs->wait_update_lock_status)
+			tg->funcs->wait_update_lock_status(tg, false);
 
-		for (i = 0; i < wa_pipe_ct; ++i) {
-			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
-				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		if (primary_hubp->funcs->hubp_enable_3dlut_fl) {
+			primary_hubp->funcs->hubp_enable_3dlut_fl(primary_hubp, true);
 		}
 
-		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
-			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, false);
+		if (tg->funcs->set_vupdate_keepout)
+			tg->funcs->set_vupdate_keepout(tg, false);
 	} else {
-		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		tg->funcs->unlock(tg);
 	}
 }
 

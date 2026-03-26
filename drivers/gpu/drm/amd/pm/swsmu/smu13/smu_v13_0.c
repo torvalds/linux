@@ -2466,4 +2466,6 @@ void smu_v13_0_reset_custom_level(struct smu_context *smu)
 	pstate_table->uclk_pstate.custom.max = 0;
 	pstate_table->gfxclk_pstate.custom.min = 0;
 	pstate_table->gfxclk_pstate.custom.max = 0;
+	pstate_table->fclk_pstate.custom.min = 0;
+	pstate_table->fclk_pstate.custom.max = 0;
 }
