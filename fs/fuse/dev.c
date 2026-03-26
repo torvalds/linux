@@ -2098,6 +2098,13 @@ static int fuse_notify_prune(struct fuse_conn *fc, unsigned int size,
 static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		       unsigned int size, struct fuse_copy_state *cs)
 {
+	/*
+	 * Only allow notifications during while the connection is in an
+	 * initialized and connected state
+	 */
+	if (!fc->initialized || !fc->connected)
+		return -EINVAL;
+
 	/* Don't try to move folios (yet) */
 	cs->move_folios = false;
 
