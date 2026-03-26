@@ -458,4 +458,6 @@ LIBBPF_1.7.0 {
 } LIBBPF_1.6.0;
 
 LIBBPF_1.8.0 {
+	global:
+		btf__new_empty_opts;
 } LIBBPF_1.7.0;
