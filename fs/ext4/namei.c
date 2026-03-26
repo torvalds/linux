@@ -647,7 +647,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 					/* Directory is not encrypted */
 					(void) ext4fs_dirhash(dir, de->name,
 						de->name_len, &h);
-					printk("%*.s:(U)%x.%u ", len,
+					printk("%.*s:(U)%x.%u ", len,
 					       name, h.hash,
 					       (unsigned) ((char *) de
 							   - base));
@@ -683,7 +683,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 						(void) ext4fs_dirhash(dir,
 							de->name,
 							de->name_len, &h);
-					printk("%*.s:(E)%x.%u ", len, name,
+					printk("%.*s:(E)%x.%u ", len, name,
 					       h.hash, (unsigned) ((char *) de
 								   - base));
 					fscrypt_fname_free_buffer(
@@ -694,7 +694,7 @@ static struct stats dx_show_leaf(struct inode *dir,
 				char *name = de->name;
 				(void) ext4fs_dirhash(dir, de->name,
 						      de->name_len, &h);
-				printk("%*.s:%x.%u ", len, name, h.hash,
+				printk("%.*s:%x.%u ", len, name, h.hash,
 				       (unsigned) ((char *) de - base));
 #endif
 			}
