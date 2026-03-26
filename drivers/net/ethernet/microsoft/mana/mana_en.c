@@ -1207,10 +1207,16 @@ static int mana_query_device_cfg(struct mana_context *ac, u32 proto_major_ver,
 
 	*max_num_vports = resp.max_num_vports;
 
-	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2)
+	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V2) {
+		if (resp.adapter_mtu < ETH_MIN_MTU + ETH_HLEN) {
+			dev_err(dev, "Adapter MTU too small: %u\n",
+				resp.adapter_mtu);
+			return -EPROTO;
+		}
 		gc->adapter_mtu = resp.adapter_mtu;
-	else
+	} else {
 		gc->adapter_mtu = ETH_FRAME_LEN;
+	}
 
 	if (resp.hdr.response.msg_version >= GDMA_MESSAGE_V3)
 		*bm_hostmode = resp.bm_hostmode;
