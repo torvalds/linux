@@ -333,6 +333,7 @@ static int amd_pstate_set_floor_perf(struct cpufreq_policy *policy, u8 perf)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	u64 value, prev;
+	bool changed;
 	int ret;
 
 	if (!cpu_feature_enabled(X86_FEATURE_CPPC_PERF_PRIO))
@@ -341,17 +342,24 @@ static int amd_pstate_set_floor_perf(struct cpufreq_policy *policy, u8 perf)
 	value = prev = READ_ONCE(cpudata->cppc_req2_cached);
 	FIELD_MODIFY(AMD_CPPC_FLOOR_PERF_MASK, &value, perf);
 
-	if (value == prev)
-		return 0;
+	changed = value != prev;
+	if (!changed) {
+		ret = 0;
+		goto out_trace;
+	}
 
 	ret = wrmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ2, value);
 	if (ret) {
+		changed = false;
 		pr_err("failed to set CPPC REQ2 value. Error (%d)\n", ret);
-		return ret;
+		goto out_trace;
 	}
 
 	WRITE_ONCE(cpudata->cppc_req2_cached, value);
 
+out_trace:
+	if (trace_amd_pstate_cppc_req2_enabled())
+		trace_amd_pstate_cppc_req2(cpudata->cpu, perf, changed, ret);
 	return ret;
 }
 
