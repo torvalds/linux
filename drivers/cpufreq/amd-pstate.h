@@ -62,9 +62,14 @@ struct amd_aperf_mperf {
  * @cpu: CPU number
  * @req: constraint request to apply
  * @cppc_req_cached: cached performance request hints
+ * @cppc_req2_cached: cached value of MSR_AMD_CPPC_REQ2
  * @perf: cached performance-related data
  * @prefcore_ranking: the preferred core ranking, the higher value indicates a higher
  * 		  priority.
+ * @floor_perf_cnt: Cached value of the number of distinct floor
+ *                  performance levels supported
+ * @bios_floor_perf: Cached value of the boot-time floor performance level from
+ *                   MSR_AMD_CPPC_REQ2
  * @min_limit_freq: Cached value of policy->min (in khz)
  * @max_limit_freq: Cached value of policy->max (in khz)
  * @nominal_freq: the frequency (in khz) that mapped to nominal_perf
@@ -87,10 +92,13 @@ struct amd_cpudata {
 
 	struct	freq_qos_request req[2];
 	u64	cppc_req_cached;
+	u64	cppc_req2_cached;
 
 	union perf_cached perf;
 
 	u8	prefcore_ranking;
+	u8	floor_perf_cnt;
+	u8	bios_floor_perf;
 	u32	min_limit_freq;
 	u32	max_limit_freq;
 	u32	nominal_freq;
