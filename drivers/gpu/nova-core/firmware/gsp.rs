@@ -3,6 +3,7 @@
 use kernel::{
     device,
     dma::{
+        Coherent,
         DataDirection,
         DmaAddress, //
     },
@@ -140,7 +141,7 @@ pub(crate) struct GspFirmware {
     /// Size in bytes of the firmware contained in [`Self::fw`].
     pub(crate) size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
-    pub(crate) signatures: DmaObject,
+    pub(crate) signatures: Coherent<[u8]>,
     /// GSP bootloader, verifies the GSP firmware before loading and running it.
     pub(crate) bootloader: RiscvFirmware,
 }
@@ -226,7 +227,7 @@ impl GspFirmware {
 
                     elf::elf64_section(firmware.data(), sigs_section)
                         .ok_or(EINVAL)
-                        .and_then(|data| DmaObject::from_data(dev, data))?
+                        .and_then(|data| Coherent::from_slice(dev, data, GFP_KERNEL))?
                 },
                 bootloader: {
                     let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
