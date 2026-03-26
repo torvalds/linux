@@ -609,10 +609,19 @@ static int policy_set_boost(struct cpufreq_policy *policy, bool enable)
 	policy->boost_enabled = enable;
 
 	ret = cpufreq_driver->set_boost(policy, enable);
-	if (ret)
+	if (ret) {
 		policy->boost_enabled = !policy->boost_enabled;
+		return ret;
+	}
 
-	return ret;
+	ret = freq_qos_update_request(policy->boost_freq_req, policy->cpuinfo.max_freq);
+	if (ret < 0) {
+		policy->boost_enabled = !policy->boost_enabled;
+		cpufreq_driver->set_boost(policy, policy->boost_enabled);
+		return ret;
+	}
+
+	return 0;
 }
 
 static ssize_t store_local_boost(struct cpufreq_policy *policy,
@@ -1377,6 +1386,7 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	}
 
 	freq_qos_remove_request(policy->min_freq_req);
+	freq_qos_remove_request(policy->boost_freq_req);
 	kfree(policy->min_freq_req);
 
 	cpufreq_policy_put_kobj(policy);
@@ -1442,26 +1452,38 @@ static int cpufreq_policy_online(struct cpufreq_policy *policy,
 	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
 
 	if (new_policy) {
+		unsigned int count;
+
 		for_each_cpu(j, policy->related_cpus) {
 			per_cpu(cpufreq_cpu_data, j) = policy;
 			add_cpu_dev_symlink(policy, j, get_cpu_device(j));
 		}
 
-		policy->min_freq_req = kzalloc(2 * sizeof(*policy->min_freq_req),
+		count = policy->boost_supported ? 3 : 2;
+		policy->min_freq_req = kzalloc(count * sizeof(*policy->min_freq_req),
 					       GFP_KERNEL);
 		if (!policy->min_freq_req) {
 			ret = -ENOMEM;
 			goto out_destroy_policy;
 		}
 
+		if (policy->boost_supported) {
+			policy->boost_freq_req = policy->min_freq_req + 2;
+
+			ret = freq_qos_add_request(&policy->constraints,
+						   policy->boost_freq_req,
+						   FREQ_QOS_MAX,
+						   policy->cpuinfo.max_freq);
+			if (ret < 0) {
+				policy->boost_freq_req = NULL;
+				goto out_destroy_policy;
+			}
+		}
+
 		ret = freq_qos_add_request(&policy->constraints,
 					   policy->min_freq_req, FREQ_QOS_MIN,
 					   FREQ_QOS_MIN_DEFAULT_VALUE);
 		if (ret < 0) {
-			/*
-			 * So we don't call freq_qos_remove_request() for an
-			 * uninitialized request.
-			 */
 			kfree(policy->min_freq_req);
 			policy->min_freq_req = NULL;
 			goto out_destroy_policy;
@@ -2785,16 +2807,10 @@ int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 		return -ENXIO;
 
 	ret = cpufreq_frequency_table_cpuinfo(policy);
-	if (ret) {
+	if (ret)
 		pr_err("%s: Policy frequency update failed\n", __func__);
-		return ret;
-	}
 
-	ret = freq_qos_update_request(policy->max_freq_req, policy->max);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_boost_set_sw);
 
