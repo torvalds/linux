@@ -186,6 +186,33 @@ static void madvise_pat_index(struct xe_device *xe, struct xe_vm *vm,
 }
 
 /**
+ * xe_bo_is_dmabuf_shared() - Check if BO is shared via dma-buf
+ * @bo: Buffer object
+ *
+ * Prevent marking imported or exported dma-bufs as purgeable.
+ * For imported BOs, Xe doesn't own the backing store and cannot
+ * safely reclaim pages (exporter or other devices may still be
+ * using them). For exported BOs, external devices may have active
+ * mappings we cannot track.
+ *
+ * Return: true if BO is imported or exported, false otherwise
+ */
+static bool xe_bo_is_dmabuf_shared(struct xe_bo *bo)
+{
+	struct drm_gem_object *obj = &bo->ttm.base;
+
+	/* Imported: exporter owns backing store */
+	if (drm_gem_is_imported(obj))
+		return true;
+
+	/* Exported: external devices may be accessing */
+	if (obj->dma_buf)
+		return true;
+
+	return false;
+}
+
+/**
  * enum xe_bo_vmas_purge_state - VMA purgeable state aggregation
  *
  * Distinguishes whether a BO's VMAs are all DONTNEED, have at least
@@ -233,6 +260,10 @@ static enum xe_bo_vmas_purge_state xe_bo_all_vmas_dontneed(struct xe_bo *bo)
 	bool has_vmas = false;
 
 	xe_bo_assert_held(bo);
+
+	/* Shared dma-bufs cannot be purgeable */
+	if (xe_bo_is_dmabuf_shared(bo))
+		return XE_BO_VMAS_STATE_WILLNEED;
 
 	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
 		drm_gpuvm_bo_for_each_va(gpuva, vm_bo) {
@@ -334,6 +365,12 @@ static void __maybe_unused madvise_purgeable(struct xe_device *xe,
 
 		/* BO must be locked before modifying madv state */
 		xe_bo_assert_held(bo);
+
+		/* Skip shared dma-bufs - no PTEs to zap */
+		if (xe_bo_is_dmabuf_shared(bo)) {
+			vmas[i]->skip_invalidation = true;
+			continue;
+		}
 
 		/*
 		 * Once purged, always purged. Cannot transition back to WILLNEED.
