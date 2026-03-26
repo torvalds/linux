@@ -12,6 +12,7 @@ use kernel::{
         self,
         Device, //
     },
+    dma::Coherent,
     io::{
         register::WithBase, //
         Io,
@@ -29,7 +30,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     driver::Bar0,
     falcon::{
         self,
@@ -129,7 +129,7 @@ unsafe impl AsBytes for BootloaderDmemDescV2 {}
 /// operation.
 pub(crate) struct FwsecFirmwareWithBl {
     /// DMA object the bootloader will copy the firmware from.
-    _firmware_dma: DmaObject,
+    _firmware_dma: Coherent<[u8]>,
     /// Code of the bootloader to be loaded into non-secure IMEM.
     ucode: KVec<u8>,
     /// Descriptor to be loaded into DMEM for the bootloader to read.
@@ -211,7 +211,7 @@ impl FwsecFirmwareWithBl {
 
             (
                 align_padding,
-                DmaObject::from_data(dev, firmware_obj.as_slice())?,
+                Coherent::from_slice(dev, firmware_obj.as_slice(), GFP_KERNEL)?,
             )
         };
 
