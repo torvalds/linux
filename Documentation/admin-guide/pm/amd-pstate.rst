@@ -242,6 +242,7 @@ control its functionality at the system level. They are located in the
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_hw_prefcore
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_nonlinear_freq
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_max_freq
+ /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_prefcore_ranking
 
 
 ``amd_pstate_highest_perf / amd_pstate_max_freq``
@@ -273,7 +274,8 @@ on platforms which support the preferred core feature.
 
 The performance ranking of the core. This number doesn't have any unit, but
 larger numbers are preferred at the time of reading. This can change at
-runtime based on platform conditions. This attribute is read-only.
+runtime based on platform conditions. This attribute is read-only. This file
+is only visible on platforms which support the preferred core feature.
 
 ``energy_performance_available_preferences``
 
