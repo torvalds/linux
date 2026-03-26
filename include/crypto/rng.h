@@ -12,6 +12,8 @@
 #include <linux/atomic.h>
 #include <linux/container_of.h>
 #include <linux/crypto.h>
+#include <linux/fips.h>
+#include <linux/random.h>
 
 struct crypto_rng;
 
@@ -57,18 +59,27 @@ struct crypto_rng {
 	struct crypto_tfm base;
 };
 
+int __crypto_stdrng_get_bytes(void *buf, unsigned int len);
+
 /**
  * crypto_stdrng_get_bytes() - get cryptographically secure random bytes
  * @buf: output buffer holding the random numbers
  * @len: length of the output buffer
  *
  * This function fills the caller-allocated buffer with random numbers using the
- * highest-priority "stdrng" algorithm in the crypto_rng subsystem.
+ * normal Linux RNG if fips_enabled=0, or the highest-priority "stdrng"
+ * algorithm in the crypto_rng subsystem if fips_enabled=1.
  *
  * Context: May sleep
  * Return: 0 function was successful; < 0 if an error occurred
  */
-int crypto_stdrng_get_bytes(void *buf, unsigned int len);
+static inline int crypto_stdrng_get_bytes(void *buf, unsigned int len)
+{
+	might_sleep();
+	if (fips_enabled)
+		return __crypto_stdrng_get_bytes(buf, len);
+	return get_random_bytes_wait(buf, len);
+}
 
 /**
  * DOC: Random number generator API

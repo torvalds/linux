@@ -142,7 +142,7 @@ static void crypto_put_default_rng(void)
 	mutex_unlock(&crypto_default_rng_lock);
 }
 
-int crypto_stdrng_get_bytes(void *buf, unsigned int len)
+int __crypto_stdrng_get_bytes(void *buf, unsigned int len)
 {
 	int err;
 
@@ -154,7 +154,7 @@ int crypto_stdrng_get_bytes(void *buf, unsigned int len)
 	crypto_put_default_rng();
 	return err;
 }
-EXPORT_SYMBOL_GPL(crypto_stdrng_get_bytes);
+EXPORT_SYMBOL_GPL(__crypto_stdrng_get_bytes);
 
 #if defined(CONFIG_CRYPTO_RNG) || defined(CONFIG_CRYPTO_RNG_MODULE)
 int crypto_del_default_rng(void)
