@@ -103,7 +103,7 @@ mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata, u16 stype,
 	 * section.
 	 */
 	if (ieee80211_have_rx_timestamp(rx_status))
-		t_r = ieee80211_calculate_rx_timestamp(local, rx_status,
+		t_r = ieee80211_calculate_rx_timestamp(&local->hw, rx_status,
 						       len + FCS_LEN, 24);
 	else
 		t_r = drv_get_tsf(local, sdata);

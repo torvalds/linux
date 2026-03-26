@@ -7394,6 +7394,24 @@ void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif);
 int ieee80211_ave_rssi(struct ieee80211_vif *vif, int link_id);
 
 /**
+ * ieee80211_calculate_rx_timestamp - calculate timestamp in frame
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @status: RX status
+ * @mpdu_len: total MPDU length (including FCS)
+ * @mpdu_offset: offset into MPDU to calculate timestamp at
+ *
+ * This function calculates the RX timestamp at the given MPDU offset, taking
+ * into account what the RX timestamp was. An offset of 0 will just normalize
+ * the timestamp to TSF at beginning of MPDU reception.
+ *
+ * Returns: the calculated timestamp
+ */
+u64 ieee80211_calculate_rx_timestamp(struct ieee80211_hw *hw,
+				     struct ieee80211_rx_status *status,
+				     unsigned int mpdu_len,
+				     unsigned int mpdu_offset);
+
+/**
  * ieee80211_report_wowlan_wakeup - report WoWLAN wakeup
  * @vif: virtual interface
  * @wakeup: wakeup reason(s)

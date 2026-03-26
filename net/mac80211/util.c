@@ -3423,20 +3423,7 @@ u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs)
 	return 1;
 }
 
-/**
- * ieee80211_calculate_rx_timestamp - calculate timestamp in frame
- * @local: mac80211 hw info struct
- * @status: RX status
- * @mpdu_len: total MPDU length (including FCS)
- * @mpdu_offset: offset into MPDU to calculate timestamp at
- *
- * This function calculates the RX timestamp at the given MPDU offset, taking
- * into account what the RX timestamp was. An offset of 0 will just normalize
- * the timestamp to TSF at beginning of MPDU reception.
- *
- * Returns: the calculated timestamp
- */
-u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
+u64 ieee80211_calculate_rx_timestamp(struct ieee80211_hw *hw,
 				     struct ieee80211_rx_status *status,
 				     unsigned int mpdu_len,
 				     unsigned int mpdu_offset)
@@ -3555,7 +3542,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 	case RX_ENC_LEGACY: {
 		struct ieee80211_supported_band *sband;
 
-		sband = local->hw.wiphy->bands[status->band];
+		sband = hw->wiphy->bands[status->band];
 		ri.legacy = sband->bitrates[status->rate_idx].bitrate;
 
 		if (mactime_plcp_start) {
@@ -3587,6 +3574,7 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 
 	return ts;
 }
+EXPORT_SYMBOL_GPL(ieee80211_calculate_rx_timestamp);
 
 /* Cancel CAC for the interfaces under the specified @local. If @ctx is
  * also provided, only the interfaces using that ctx will be canceled.
