@@ -145,6 +145,20 @@ void crypto_put_default_rng(void)
 }
 EXPORT_SYMBOL_GPL(crypto_put_default_rng);
 
+int crypto_stdrng_get_bytes(void *buf, unsigned int len)
+{
+	int err;
+
+	err = crypto_get_default_rng();
+	if (err)
+		return err;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, buf, len);
+	crypto_put_default_rng();
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_stdrng_get_bytes);
+
 #if defined(CONFIG_CRYPTO_RNG) || defined(CONFIG_CRYPTO_RNG_MODULE)
 int crypto_del_default_rng(void)
 {

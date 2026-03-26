@@ -63,6 +63,19 @@ int crypto_get_default_rng(void);
 void crypto_put_default_rng(void);
 
 /**
+ * crypto_stdrng_get_bytes() - get cryptographically secure random bytes
+ * @buf: output buffer holding the random numbers
+ * @len: length of the output buffer
+ *
+ * This function fills the caller-allocated buffer with random numbers using the
+ * highest-priority "stdrng" algorithm in the crypto_rng subsystem.
+ *
+ * Context: May sleep
+ * Return: 0 function was successful; < 0 if an error occurred
+ */
+int crypto_stdrng_get_bytes(void *buf, unsigned int len);
+
+/**
  * DOC: Random number generator API
  *
  * The random number generator API is used with the ciphers of type
