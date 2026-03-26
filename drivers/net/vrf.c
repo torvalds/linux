@@ -1007,13 +1007,11 @@ static void vrf_rtable_release(struct net_device *dev, struct net_vrf *vrf)
 	/* move dev in dst's to loopback so this VRF device can be deleted
 	 * - based on dst_ifdown
 	 */
-	if (rth) {
-		dst = &rth->dst;
-		netdev_ref_replace(dst->dev, net->loopback_dev,
-				   &dst->dev_tracker, GFP_KERNEL);
-		dst->dev = net->loopback_dev;
-		dst_release(dst);
-	}
+	dst = &rth->dst;
+	netdev_ref_replace(dst->dev, net->loopback_dev,
+			   &dst->dev_tracker, GFP_KERNEL);
+	dst->dev = net->loopback_dev;
+	dst_release(dst);
 }
 
 static int vrf_rtable_create(struct net_device *dev)
