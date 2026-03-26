@@ -7,6 +7,7 @@ use core::ops::{
 
 use kernel::{
     device,
+    dma::CoherentHandle,
     fmt,
     io::Io,
     prelude::*,
@@ -19,7 +20,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     driver::Bar0,
     firmware::gsp::GspFirmware,
     gpu::Chipset,
@@ -53,7 +53,7 @@ pub(crate) struct SysmemFlush {
     chipset: Chipset,
     device: ARef<device::Device>,
     /// Keep the page alive as long as we need it.
-    page: DmaObject,
+    page: CoherentHandle,
 }
 
 impl SysmemFlush {
@@ -63,7 +63,7 @@ impl SysmemFlush {
         bar: &Bar0,
         chipset: Chipset,
     ) -> Result<Self> {
-        let page = DmaObject::new(dev, kernel::page::PAGE_SIZE)?;
+        let page = CoherentHandle::alloc(dev, kernel::page::PAGE_SIZE, GFP_KERNEL)?;
 
         hal::fb_hal(chipset).write_sysmem_flush_page(bar, page.dma_handle())?;
 
