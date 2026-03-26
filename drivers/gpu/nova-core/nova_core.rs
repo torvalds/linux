@@ -13,7 +13,6 @@ use kernel::{
 #[macro_use]
 mod bitfield;
 
-mod dma;
 mod driver;
 mod falcon;
 mod fb;

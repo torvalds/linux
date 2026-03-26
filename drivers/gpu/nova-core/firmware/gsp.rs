@@ -4,10 +4,10 @@ use kernel::{
     device,
     dma::{
         Coherent,
+        CoherentBox,
         DataDirection,
         DmaAddress, //
     },
-    kvec,
     prelude::*,
     scatterlist::{
         Owned,
@@ -16,7 +16,6 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
     firmware::riscv::RiscvFirmware,
     gpu::{
         Architecture,
@@ -137,7 +136,7 @@ pub(crate) struct GspFirmware {
     #[pin]
     level1: SGTable<Owned<VVec<u8>>>,
     /// Level 0 page table (single 4KB page) with one entry: DMA address of first level 1 page.
-    level0: DmaObject,
+    level0: Coherent<[u64]>,
     /// Size in bytes of the firmware contained in [`Self::fw`].
     pub(crate) size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
@@ -198,17 +197,20 @@ impl GspFirmware {
                     // Allocate the level 0 page table as a device-visible DMA object, and map the
                     // level 1 page table onto it.
 
-                    // Level 0 page table data.
-                    let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
-
                     // Fill level 1 page entry.
                     let level1_entry = level1.iter().next().ok_or(EINVAL)?;
                     let level1_entry_addr = level1_entry.dma_address();
-                    let dst = &mut level0_data[..size_of_val(&level1_entry_addr)];
-                    dst.copy_from_slice(&level1_entry_addr.to_le_bytes());
 
-                    // Turn the level0 page table into a [`DmaObject`].
-                    DmaObject::from_data(dev, &level0_data)?
+                    // Create level 0 page table data and fill its first entry with the level 1
+                    // table.
+                    let mut level0 = CoherentBox::<[u64]>::zeroed_slice(
+                        dev,
+                        GSP_PAGE_SIZE / size_of::<u64>(),
+                        GFP_KERNEL
+                    )?;
+                    level0[0] = level1_entry_addr.to_le();
+
+                    level0.into()
                 },
                 size,
                 signatures: {
