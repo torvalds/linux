@@ -2146,7 +2146,7 @@ static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int id
 	size = cmn->part == PART_CMN600 ? SZ_16K : SZ_64K;
 	if (!devm_request_mem_region(cmn->dev, base, size, dev_name(cmn->dev)))
 		return dev_err_probe(cmn->dev, -EBUSY,
-				     "Failed to request DTC region 0x%llx\n", base);
+				     "Failed to request DTC region 0x%pa\n", &base);
 
 	writel_relaxed(CMN_DT_DTC_CTL_DT_EN, dtc->base + CMN_DT_DTC_CTL);
 	writel_relaxed(CMN_DT_PMCR_PMU_EN | CMN_DT_PMCR_OVFL_INTR_EN, CMN_DT_PMCR(dtc));
