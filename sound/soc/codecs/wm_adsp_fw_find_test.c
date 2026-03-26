@@ -1041,6 +1041,7 @@ static const char * const wm_adsp_fw_find_test_dir_all_files[] = {
 	"cirrus/cs1234-dsp1-mbc-vss.bin",
 	"cirrus/wm1234-dsp1-mbc-vss.bin",
 	"wm1234-dsp1-mbc-vss.bin",
+	NULL /* terminator */
 };
 
 /*
