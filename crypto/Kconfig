@@ -109,10 +109,6 @@ config CRYPTO_RNG2
 	tristate
 	select CRYPTO_ALGAPI2
 
-config CRYPTO_RNG_DEFAULT
-	tristate
-	select CRYPTO_DRBG_MENU
-
 config CRYPTO_AKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
@@ -296,7 +292,6 @@ config CRYPTO_DH
 config CRYPTO_DH_RFC7919_GROUPS
 	bool "RFC 7919 FFDHE groups"
 	depends on CRYPTO_DH
-	select CRYPTO_RNG_DEFAULT
 	help
 	  FFDHE (Finite-Field-based Diffie-Hellman Ephemeral) groups
 	  defined in RFC7919.
@@ -308,7 +303,6 @@ config CRYPTO_DH_RFC7919_GROUPS
 
 config CRYPTO_ECC
 	tristate
-	select CRYPTO_RNG_DEFAULT
 
 config CRYPTO_ECDH
 	tristate "ECDH (Elliptic Curve Diffie-Hellman)"
@@ -804,7 +798,6 @@ config CRYPTO_GENIV
 	tristate
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
-	select CRYPTO_RNG_DEFAULT
 
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
