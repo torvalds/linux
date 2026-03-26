@@ -560,6 +560,11 @@ static bool memfd_luo_can_preserve(struct liveupdate_file_handler *handler,
 	return shmem_file(file) && !inode->i_nlink;
 }
 
+static unsigned long memfd_luo_get_id(struct file *file)
+{
+	return (unsigned long)file_inode(file);
+}
+
 static const struct liveupdate_file_ops memfd_luo_file_ops = {
 	.freeze = memfd_luo_freeze,
 	.finish = memfd_luo_finish,
@@ -567,6 +572,7 @@ static const struct liveupdate_file_ops memfd_luo_file_ops = {
 	.preserve = memfd_luo_preserve,
 	.unpreserve = memfd_luo_unpreserve,
 	.can_preserve = memfd_luo_can_preserve,
+	.get_id = memfd_luo_get_id,
 	.owner = THIS_MODULE,
 };
 
