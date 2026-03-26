@@ -242,6 +242,8 @@ control its functionality at the system level. They are located in the
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_hw_prefcore
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_nonlinear_freq
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_max_freq
+ /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_floor_freq
+ /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_floor_count
  /sys/devices/system/cpu/cpufreq/policy0/amd_pstate_prefcore_ranking
 
 
@@ -276,6 +278,36 @@ The performance ranking of the core. This number doesn't have any unit, but
 larger numbers are preferred at the time of reading. This can change at
 runtime based on platform conditions. This attribute is read-only. This file
 is only visible on platforms which support the preferred core feature.
+
+``amd_pstate_floor_freq``
+
+The floor frequency associated with each CPU. Userspace can write any
+value between ``cpuinfo_min_freq`` and ``scaling_max_freq`` into this
+file. When the system is under power or thermal constraints, the
+platform firmware will attempt to throttle the CPU frequency to the
+value specified in ``amd_pstate_floor_freq`` before throttling it
+further. This allows userspace to specify different floor frequencies
+to different CPUs. For optimal results, threads of the same core
+should have the same floor frequency value. This file is only visible
+on platforms that support the CPPC Performance Priority feature.
+
+
+``amd_pstate_floor_count``
+
+The number of distinct Floor Performance levels supported by the
+platform. For example, if this value is 2, then the number of unique
+values obtained from the command ``cat
+/sys/devices/system/cpu/cpufreq/policy*/amd_pstate_floor_freq |
+sort -n | uniq`` should be at most this number for the behavior
+described in ``amd_pstate_floor_freq`` to take effect. A zero value
+implies that the platform supports unlimited floor performance levels.
+This file is only visible on platforms that support the CPPC
+Performance Priority feature.
+
+**Note**: When ``amd_pstate_floor_count`` is non-zero, the frequency to
+which the CPU is throttled under power or thermal constraints is
+undefined when the number of unique values of ``amd_pstate_floor_freq``
+across all CPUs in the system exceeds ``amd_pstate_floor_count``.
 
 ``energy_performance_available_preferences``
 
