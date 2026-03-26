@@ -40,6 +40,7 @@
 #include "xe_tile.h"
 #include "xe_tlb_inval.h"
 #include "xe_trace_bo.h"
+#include "xe_vm_madvise.h"
 #include "xe_wa.h"
 
 static struct drm_gem_object *xe_vm_obj(struct xe_vm *vm)
@@ -1154,6 +1155,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 static void xe_vma_destroy_late(struct xe_vma *vma)
 {
 	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_bo *bo = xe_vma_bo(vma);
 
 	if (vma->ufence) {
 		xe_sync_ufence_put(vma->ufence);
@@ -1168,7 +1170,7 @@ static void xe_vma_destroy_late(struct xe_vma *vma)
 	} else if (xe_vma_is_null(vma) || xe_vma_is_cpu_addr_mirror(vma)) {
 		xe_vm_put(vm);
 	} else {
-		xe_bo_put(xe_vma_bo(vma));
+		xe_bo_put(bo);
 	}
 
 	xe_vma_free(vma);
@@ -1194,6 +1196,7 @@ static void vma_destroy_cb(struct dma_fence *fence,
 static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 {
 	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_bo *bo = xe_vma_bo(vma);
 
 	lockdep_assert_held_write(&vm->lock);
 	xe_assert(vm->xe, list_empty(&vma->combined_links.destroy));
@@ -1202,9 +1205,10 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 		xe_assert(vm->xe, vma->gpuva.flags & XE_VMA_DESTROYED);
 		xe_userptr_destroy(to_userptr_vma(vma));
 	} else if (!xe_vma_is_null(vma) && !xe_vma_is_cpu_addr_mirror(vma)) {
-		xe_bo_assert_held(xe_vma_bo(vma));
+		xe_bo_assert_held(bo);
 
 		drm_gpuva_unlink(&vma->gpuva);
+		xe_bo_recompute_purgeable_state(bo);
 	}
 
 	xe_vm_assert_held(vm);
@@ -2767,6 +2771,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct drm_gpuva_ops *ops,
 				.atomic_access = DRM_XE_ATOMIC_UNDEFINED,
 				.default_pat_index = op->map.pat_index,
 				.pat_index = op->map.pat_index,
+				.purgeable_state = XE_MADV_PURGEABLE_WILLNEED,
 			};
 
 			flags |= op->map.vma_flags & XE_VMA_CREATE_MASK;
