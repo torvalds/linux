@@ -134,7 +134,6 @@ config CRYPTO_LIB_MD5
 config CRYPTO_LIB_MD5_ARCH
 	bool
 	depends on CRYPTO_LIB_MD5 && !UML
-	default y if MIPS && CPU_CAVIUM_OCTEON
 	default y if PPC
 	default y if SPARC64
 
