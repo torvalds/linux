@@ -189,10 +189,16 @@ use crate::{
     alloc::{AllocError, Flags},
     container_of,
     prelude::*,
-    sync::Arc,
-    sync::LockClassKey,
+    sync::{
+        aref::{
+            ARef,
+            AlwaysRefCounted, //
+        },
+        Arc,
+        LockClassKey, //
+    },
     time::Jiffies,
-    types::{ARef, AlwaysRefCounted, Opaque},
+    types::Opaque,
 };
 use core::{marker::PhantomData, ptr::NonNull};
 
