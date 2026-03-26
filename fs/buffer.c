@@ -467,30 +467,24 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  * a successful fsync().  For example, ext2 indirect blocks need to be
  * written back and waited upon before fsync() returns.
  *
- * The functions mark_buffer_dirty_inode(), fsync_inode_buffers(),
- * mmb_has_buffers() and invalidate_inode_buffers() are provided for the
- * management of a list of dependent buffers in mapping_metadata_bhs struct.
+ * The functions mmb_mark_buffer_dirty(), mmb_sync(), mmb_has_buffers()
+ * and mmb_invalidate() are provided for the management of a list of dependent
+ * buffers in mapping_metadata_bhs struct.
  *
  * The locking is a little subtle: The list of buffer heads is protected by
  * the lock in mapping_metadata_bhs so functions coming from bdev mapping
  * (such as try_to_free_buffers()) need to safely get to mapping_metadata_bhs
  * using RCU, grab the lock, verify we didn't race with somebody detaching the
  * bh / moving it to different inode and only then proceeding.
- *
- * FIXME: mark_buffer_dirty_inode() is a data-plane operation.  It should
- * take an address_space, not an inode.  And it should be called
- * mark_buffer_dirty_fsync() to clearly define why those buffers are being
- * queued up.
- *
- * FIXME: mark_buffer_dirty_inode() doesn't need to add the buffer to the
- * list if it is already on a list.  Because if the buffer is on a list,
- * it *must* already be on the right one.  If not, the filesystem is being
- * silly.  This will save a ton of locking.  But first we have to ensure
- * that buffers are taken *off* the old inode's list when they are freed
- * (presumably in truncate).  That requires careful auditing of all
- * filesystems (do it inside bforget()).  It could also be done by bringing
- * b_inode back.
  */
+
+void mmb_init(struct mapping_metadata_bhs *mmb, struct address_space *mapping)
+{
+	spin_lock_init(&mmb->lock);
+	INIT_LIST_HEAD(&mmb->list);
+	mmb->mapping = mapping;
+}
+EXPORT_SYMBOL(mmb_init);
 
 static void __remove_assoc_queue(struct mapping_metadata_bhs *mmb,
 			         struct buffer_head *bh)
@@ -533,12 +527,12 @@ bool mmb_has_buffers(struct mapping_metadata_bhs *mmb)
 EXPORT_SYMBOL_GPL(mmb_has_buffers);
 
 /**
- * sync_mapping_buffers - write out & wait upon a mapping's "associated" buffers
- * @mapping: the mapping which wants those buffers written
+ * mmb_sync - write out & wait upon all buffers in a list
+ * @mmb: the list of buffers to write
  *
- * Starts I/O against the buffers at mapping->i_metadata_bhs and waits upon
- * that I/O. Basically, this is a convenience function for fsync().  @mapping
- * is a file or directory which needs those buffers to be written for a
+ * Starts I/O against the buffers in the given list and waits upon
+ * that I/O. Basically, this is a convenience function for fsync().  @mmb is
+ * for a file or directory which needs those buffers to be written for a
  * successful fsync().
  *
  * We have conflicting pressures: we want to make sure that all
@@ -553,9 +547,8 @@ EXPORT_SYMBOL_GPL(mmb_has_buffers);
  * buffer stays on our list until IO completes (at which point it can be
  * reaped).
  */
-int sync_mapping_buffers(struct address_space *mapping)
+int mmb_sync(struct mapping_metadata_bhs *mmb)
 {
-	struct mapping_metadata_bhs *mmb = &mapping->i_metadata_bhs;
 	struct buffer_head *bh;
 	int err = 0;
 	struct blk_plug plug;
@@ -626,33 +619,35 @@ int sync_mapping_buffers(struct address_space *mapping)
 	spin_unlock(&mmb->lock);
 	return err;
 }
-EXPORT_SYMBOL(sync_mapping_buffers);
+EXPORT_SYMBOL(mmb_sync);
 
 /**
- * generic_buffers_fsync_noflush - generic buffer fsync implementation
- * for simple filesystems with no inode lock
+ * mmb_fsync_noflush - fsync implementation for simple filesystems with
+ * 		       metadata buffers list
  *
  * @file:	file to synchronize
+ * @mmb:	list of metadata bhs to flush
  * @start:	start offset in bytes
  * @end:	end offset in bytes (inclusive)
  * @datasync:	only synchronize essential metadata if true
  *
- * This is a generic implementation of the fsync method for simple
- * filesystems which track all non-inode metadata in the buffers list
- * hanging off the address_space structure.
+ * This is an implementation of the fsync method for simple filesystems which
+ * track all non-inode metadata in the buffers list hanging off the @mmb
+ * structure.
  */
-int generic_buffers_fsync_noflush(struct file *file, loff_t start, loff_t end,
-				  bool datasync)
+int mmb_fsync_noflush(struct file *file, struct mapping_metadata_bhs *mmb,
+		      loff_t start, loff_t end, bool datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int err;
-	int ret;
+	int ret = 0;
 
 	err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
 
-	ret = sync_mapping_buffers(inode->i_mapping);
+	if (mmb)
+		ret = mmb_sync(mmb);
 	if (!(inode_state_read_once(inode) & I_DIRTY_ALL))
 		goto out;
 	if (datasync && !(inode_state_read_once(inode) & I_DIRTY_DATASYNC))
@@ -669,34 +664,35 @@ out:
 		ret = err;
 	return ret;
 }
-EXPORT_SYMBOL(generic_buffers_fsync_noflush);
+EXPORT_SYMBOL(mmb_fsync_noflush);
 
 /**
- * generic_buffers_fsync - generic buffer fsync implementation
- * for simple filesystems with no inode lock
+ * mmb_fsync - fsync implementation for simple filesystems with metadata
+ * 	       buffers list
  *
  * @file:	file to synchronize
+ * @mmb:	list of metadata bhs to flush
  * @start:	start offset in bytes
  * @end:	end offset in bytes (inclusive)
  * @datasync:	only synchronize essential metadata if true
  *
- * This is a generic implementation of the fsync method for simple
- * filesystems which track all non-inode metadata in the buffers list
- * hanging off the address_space structure. This also makes sure that
- * a device cache flush operation is called at the end.
+ * This is an implementation of the fsync method for simple filesystems which
+ * track all non-inode metadata in the buffers list hanging off the @mmb
+ * structure. This also makes sure that a device cache flush operation is
+ * called at the end.
  */
-int generic_buffers_fsync(struct file *file, loff_t start, loff_t end,
-			  bool datasync)
+int mmb_fsync(struct file *file, struct mapping_metadata_bhs *mmb,
+	      loff_t start, loff_t end, bool datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	int ret;
 
-	ret = generic_buffers_fsync_noflush(file, start, end, datasync);
+	ret = mmb_fsync_noflush(file, mmb, start, end, datasync);
 	if (!ret)
 		ret = blkdev_issue_flush(inode->i_sb->s_bdev);
 	return ret;
 }
-EXPORT_SYMBOL(generic_buffers_fsync);
+EXPORT_SYMBOL(mmb_fsync);
 
 /*
  * Called when we've recently written block `bblock', and it is known that
@@ -717,20 +713,18 @@ void write_boundary_block(struct block_device *bdev,
 	}
 }
 
-void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+void mmb_mark_buffer_dirty(struct buffer_head *bh,
+			   struct mapping_metadata_bhs *mmb)
 {
-	struct address_space *mapping = inode->i_mapping;
-
 	mark_buffer_dirty(bh);
 	if (!bh->b_mmb) {
-		spin_lock(&mapping->i_metadata_bhs.lock);
-		list_move_tail(&bh->b_assoc_buffers,
-				&mapping->i_metadata_bhs.list);
-		bh->b_mmb = &mapping->i_metadata_bhs;
-		spin_unlock(&mapping->i_metadata_bhs.lock);
+		spin_lock(&mmb->lock);
+		list_move_tail(&bh->b_assoc_buffers, &mmb->list);
+		bh->b_mmb = mmb;
+		spin_unlock(&mmb->lock);
 	}
 }
-EXPORT_SYMBOL(mark_buffer_dirty_inode);
+EXPORT_SYMBOL(mmb_mark_buffer_dirty);
 
 /**
  * block_dirty_folio - Mark a folio as dirty.
@@ -797,14 +791,12 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio)
 EXPORT_SYMBOL(block_dirty_folio);
 
 /*
- * Invalidate any and all dirty buffers on a given inode.  We are
+ * Invalidate any and all dirty buffers on a given buffers list.  We are
  * probably unmounting the fs, but that doesn't mean we have already
  * done a sync().  Just drop the buffers from the inode list.
  */
-void invalidate_inode_buffers(struct inode *inode)
+void mmb_invalidate(struct mapping_metadata_bhs *mmb)
 {
-	struct mapping_metadata_bhs *mmb = &inode->i_data.i_metadata_bhs;
-
 	if (mmb_has_buffers(mmb)) {
 		spin_lock(&mmb->lock);
 		while (!list_empty(&mmb->list))
@@ -812,7 +804,7 @@ void invalidate_inode_buffers(struct inode *inode)
 		spin_unlock(&mmb->lock);
 	}
 }
-EXPORT_SYMBOL(invalidate_inode_buffers);
+EXPORT_SYMBOL(mmb_invalidate);
 
 /*
  * Create the appropriate buffers when given a folio for data area and
