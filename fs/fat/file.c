@@ -188,7 +188,7 @@ int fat_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	struct inode *inode = filp->f_mapping->host;
 	int err;
 
-	err = __generic_file_fsync(filp, start, end, datasync);
+	err = generic_buffers_fsync_noflush(filp, start, end, datasync);
 	if (err)
 		return err;
 
