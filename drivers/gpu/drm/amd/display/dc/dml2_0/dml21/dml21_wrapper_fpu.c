@@ -60,6 +60,7 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	int num_pipes;
 	unsigned int dml_phantom_prog_idx;
+	unsigned int stream_wb_idx;
 
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
@@ -100,6 +101,15 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 			if (pln_prog->phantom_plane.valid && dc_phantom_pipes[dc_pipe_index]) {
 				dml21_program_dc_pipe(in_ctx, context, dc_phantom_pipes[dc_pipe_index], pln_prog, stream_prog);
 			}
+		}
+
+		/* program WB */
+		for (stream_wb_idx = 0; stream_wb_idx < stream_prog->stream_descriptor->writeback.active_writebacks_per_stream; stream_wb_idx++) {
+			dml21_program_dc_mcif_arb_params(in_ctx,
+					context,
+					stream_prog,
+					stream_wb_idx,
+					dc_main_pipes[0]->stream->writeback_info[stream_wb_idx].dwb_pipe_inst);
 		}
 
 		/* copy per plane mcache allocation */

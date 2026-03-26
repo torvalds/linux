@@ -6741,6 +6741,25 @@ static void CalculateFlipSchedule(
 #endif
 }
 
+static double calculate_writeback_latency_hiding_us(
+		const struct dml2_display_cfg *display_cfg,
+		unsigned int writeback_buffer_size_bytes,
+		unsigned int stream_index,
+		unsigned int dwb_index)
+{
+	double line_time_us = (double)display_cfg->stream_descriptors[stream_index].timing.h_total /
+			(double)display_cfg->stream_descriptors[stream_index].timing.pixel_clock_khz / 1000.0;
+
+	double writeback_latency_hiding_us = (double)writeback_buffer_size_bytes /
+			((double)display_cfg->stream_descriptors[stream_index].writeback.writeback_stream[dwb_index].output_height *
+			(double)display_cfg->stream_descriptors[stream_index].writeback.writeback_stream[dwb_index].output_width /
+			((double)display_cfg->stream_descriptors[stream_index].writeback.writeback_stream[dwb_index].input_height *
+			line_time_us) * 4.0);
+
+	return display_cfg->stream_descriptors[stream_index].writeback.writeback_stream[dwb_index].pixel_format == dml2_444_64 ?
+			writeback_latency_hiding_us / 2 : writeback_latency_hiding_us;
+}
+
 static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	struct dml2_core_internal_scratch *scratch,
 	struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_params *p)
@@ -6905,13 +6924,10 @@ static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 			p->VActiveLatencyHidingUs[k] = s->ActiveClockChangeLatencyHiding;
 
 		if (p->display_cfg->stream_descriptors[p->display_cfg->plane_descriptors[k].stream_index].writeback.active_writebacks_per_stream > 0) {
-			s->WritebackLatencyHiding = (double)p->WritebackInterfaceBufferSize * 1024.0
-				/ ((double)p->display_cfg->stream_descriptors[p->display_cfg->plane_descriptors[k].stream_index].writeback.writeback_stream[0].output_height
-					* (double)p->display_cfg->stream_descriptors[p->display_cfg->plane_descriptors[k].stream_index].writeback.writeback_stream[0].output_width
-					/ ((double)p->display_cfg->stream_descriptors[p->display_cfg->plane_descriptors[k].stream_index].writeback.writeback_stream[0].input_height * (double)h_total / pixel_clock_mhz) * 4.0);
-			if (p->display_cfg->stream_descriptors[p->display_cfg->plane_descriptors[k].stream_index].writeback.writeback_stream[0].pixel_format == dml2_444_64) {
-				s->WritebackLatencyHiding = s->WritebackLatencyHiding / 2;
-			}
+			s->WritebackLatencyHiding = calculate_writeback_latency_hiding_us(p->display_cfg,
+					p->WritebackInterfaceBufferSize * 1024,
+					p->display_cfg->plane_descriptors[k].stream_index,
+					0);
 			s->WritebackDRAMClockChangeLatencyMargin = s->WritebackLatencyHiding - p->Watermark->WritebackDRAMClockChangeWatermark;
 
 			s->WritebackFCLKChangeLatencyMargin = s->WritebackLatencyHiding - p->Watermark->WritebackFCLKChangeWatermark;
@@ -8693,6 +8709,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	s->TotalNumberOfActiveWriteback = 0;
 	memset(s->stream_visited, 0, DML2_MAX_PLANES * sizeof(bool));
 
+	mode_lib->ms.support.EnoughWritebackUnits = true;
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 		if (!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k])) {
 			if (!s->stream_visited[display_cfg->plane_descriptors[k].stream_index]) {
@@ -8700,6 +8717,10 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 				if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.active_writebacks_per_stream > 0)
 					s->TotalNumberOfActiveWriteback = s->TotalNumberOfActiveWriteback + 1;
+
+				/* >1 writeback per stream is currently not supported */
+				if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].writeback.active_writebacks_per_stream > 1)
+					mode_lib->ms.support.EnoughWritebackUnits = false;
 
 				s->TotalNumberOfActiveOTG = s->TotalNumberOfActiveOTG + 1;
 				if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_encoder == dml2_hdmifrl)
@@ -8716,10 +8737,10 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	}
 
 	/* Writeback Mode Support Check */
-	mode_lib->ms.support.EnoughWritebackUnits = 1;
 	if (s->TotalNumberOfActiveWriteback > (unsigned int)mode_lib->ip.max_num_wb) {
 		mode_lib->ms.support.EnoughWritebackUnits = false;
 	}
+
 	mode_lib->ms.support.NumberOfOTGSupport = (s->TotalNumberOfActiveOTG <= (unsigned int)mode_lib->ip.max_num_otg);
 	mode_lib->ms.support.NumberOfHDMIFRLSupport = (s->TotalNumberOfActiveHDMIFRL <= (unsigned int)mode_lib->ip.max_num_hdmi_frl_outputs);
 	mode_lib->ms.support.NumberOfDP2p0Support = (s->TotalNumberOfActiveDP2p0 <= (unsigned int)mode_lib->ip.max_num_dp2p0_streams && s->TotalNumberOfActiveDP2p0Outputs <= (unsigned int)mode_lib->ip.max_num_dp2p0_outputs);
@@ -12831,6 +12852,14 @@ void dml2_core_calcs_get_arb_params(const struct dml2_display_cfg *display_cfg, 
 	rq_dlg_get_arb_params(display_cfg, mode_lib, out);
 }
 
+void dml2_core_calcs_get_mcif_arb_params(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_mcif_global_register_set *out)
+{
+	out->wm_regs[0].fclk_pstate = (unsigned int)(mode_lib->mp.Watermark.WritebackFCLKChangeWatermark * 1000.0);
+	out->wm_regs[0].uclk_pstate = (unsigned int)(mode_lib->mp.Watermark.WritebackDRAMClockChangeWatermark * 1000.0);
+	out->wm_regs[0].urgent = (unsigned int)(mode_lib->mp.Watermark.WritebackUrgentWatermark * 1000.0);
+	out->wm_regs[0].temp_read_or_ppt = (unsigned int)(mode_lib->mp.Watermark.writeback_temp_read_or_ppt_watermark_us * 1000.0);
+}
+
 void dml2_core_calcs_get_pipe_regs(const struct dml2_display_cfg *display_cfg,
 	struct dml2_core_internal_display_mode_lib *mode_lib,
 	struct dml2_dchub_per_pipe_register_set *out, int pipe_index)
@@ -12852,6 +12881,29 @@ void dml2_core_calcs_get_global_sync_programming(const struct dml2_core_internal
 void dml2_core_calcs_get_stream_programming(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_per_stream_programming *out, int pipe_index)
 {
 	dml2_core_calcs_get_global_sync_programming(mode_lib, &out->global_sync, pipe_index);
+}
+
+void dml2_core_calcs_get_per_dwb_params(const struct dml2_display_cfg *display_cfg,
+		const struct dml2_core_internal_display_mode_lib *mode_lib,
+		struct dml2_mcif_per_pipe_register_set *out,
+		int stream_index,
+		int dwb_index)
+{
+	double writeback_latency_hiding_us = calculate_writeback_latency_hiding_us(display_cfg,
+					mode_lib->ip.writeback_interface_buffer_size_kbytes * 1024,
+					stream_index,
+					dwb_index);
+
+	out->max_scaled_time_ns = (unsigned int)math_max2(
+			(writeback_latency_hiding_us - mode_lib->mp.Watermark.WritebackUrgentWatermark) * 1000.0,
+			0.0);
+
+	/* 1024ps units in U6.6 format */
+	out->time_per_pixel = (unsigned int)((1000000.0 * math_pow(2, 6)) /
+			(double)display_cfg->stream_descriptors[stream_index].timing.pixel_clock_khz);
+
+	out->slice_lines = 31;
+	out->arbitration_slice = 2;
 }
 
 void dml2_core_calcs_get_global_fams2_programming(const struct dml2_core_internal_display_mode_lib *mode_lib,

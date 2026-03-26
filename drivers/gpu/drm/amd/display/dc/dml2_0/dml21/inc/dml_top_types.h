@@ -279,6 +279,8 @@ struct dml2_per_stream_programming {
 
 	enum dml2_pstate_method uclk_pstate_method;
 
+	struct dml2_mcif_per_pipe_register_set *mcif_regs[DML2_MAX_WRITEBACK];
+
 	struct {
 		bool enabled;
 		struct dml2_stream_parameters descriptor;

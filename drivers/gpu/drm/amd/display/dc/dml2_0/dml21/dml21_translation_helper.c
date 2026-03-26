@@ -267,6 +267,61 @@ static void populate_dml21_output_config_from_stream_state(struct dml2_link_outp
 	// output->validate_output
 }
 
+static void populate_dml21_writeback_config_from_stream_state(struct dml2_writeback_cfg *writeback,
+		const struct dc_stream_state *stream)
+{
+	if (stream->num_wb_info > 0) {
+		writeback->active_writebacks_per_stream = stream->num_wb_info <= DML2_MAX_WRITEBACK ?
+				stream->num_wb_info : DML2_MAX_WRITEBACK;
+
+		ASSERT(stream->num_wb_info <= DML2_MAX_WRITEBACK);
+
+		for (unsigned int wb_index = 0; wb_index < stream->num_wb_info; wb_index++) {
+			const struct dc_writeback_info *dc_wb_info = &stream->writeback_info[wb_index];
+			struct dml2_writeback_info *wb_info = &writeback->writeback_stream[wb_index];
+
+			switch (dc_wb_info->dwb_params.cnv_params.fc_out_format) {
+			case DWB_OUT_FORMAT_64BPP_ARGB:
+			case DWB_OUT_FORMAT_64BPP_RGBA:
+				wb_info->pixel_format = dml2_444_64;
+				break;
+			case DWB_OUT_FORMAT_32BPP_ARGB:
+			case DWB_OUT_FORMAT_32BPP_RGBA:
+			default:
+				wb_info->pixel_format = dml2_444_32;
+				break;
+			}
+
+			wb_info->input_width = dc_wb_info->dwb_params.cnv_params.crop_en ?
+					dc_wb_info->dwb_params.cnv_params.crop_width :
+					dc_wb_info->dwb_params.cnv_params.src_width;
+			wb_info->input_height = dc_wb_info->dwb_params.cnv_params.crop_en ?
+					dc_wb_info->dwb_params.cnv_params.crop_height :
+					dc_wb_info->dwb_params.cnv_params.src_height;
+			wb_info->output_width = dc_wb_info->dwb_params.dest_width;
+			wb_info->output_height = dc_wb_info->dwb_params.dest_height;
+			wb_info->v_taps = dc_wb_info->dwb_params.scaler_taps.v_taps > 0 ?
+					dc_wb_info->dwb_params.scaler_taps.v_taps : 1;
+			wb_info->h_taps = dc_wb_info->dwb_params.scaler_taps.h_taps > 0 ?
+					dc_wb_info->dwb_params.scaler_taps.h_taps : 1;
+			wb_info->v_taps_chroma = dc_wb_info->dwb_params.scaler_taps.v_taps_c > 0 ?
+					dc_wb_info->dwb_params.scaler_taps.v_taps_c : 1;
+			wb_info->h_taps_chroma = dc_wb_info->dwb_params.scaler_taps.h_taps_c > 0 ?
+					dc_wb_info->dwb_params.scaler_taps.h_taps_c : 1;
+			wb_info->h_ratio = dc_wb_info->dwb_params.cnv_params.crop_en ?
+					(double)dc_wb_info->dwb_params.cnv_params.crop_width /
+					(double)dc_wb_info->dwb_params.dest_width :
+					(double)dc_wb_info->dwb_params.cnv_params.src_width /
+					(double)dc_wb_info->dwb_params.dest_width;
+			wb_info->v_ratio = dc_wb_info->dwb_params.cnv_params.crop_en ?
+					(double)dc_wb_info->dwb_params.cnv_params.crop_height /
+					(double)dc_wb_info->dwb_params.dest_height :
+					(double)dc_wb_info->dwb_params.cnv_params.src_height /
+					(double)dc_wb_info->dwb_params.dest_height;
+		}
+	}
+}
+
 static void populate_dml21_stream_overrides_from_stream_state(
 		struct dml2_stream_parameters *stream_desc,
 		struct dc_stream_state *stream,
@@ -826,6 +881,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location < __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], otg_master_pipe, dml_ctx);
 		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], otg_master_pipe);
+		populate_dml21_writeback_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].writeback, context->streams[stream_index]);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index], &context->stream_status[stream_index]);
 
 		dml_dispcfg->stream_descriptors[disp_cfg_stream_location].overrides.hw.twait_budgeting.fclk_pstate = dml2_twait_budgeting_setting_if_needed;
