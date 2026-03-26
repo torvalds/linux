@@ -90,7 +90,7 @@ static unsigned int calc_max_hardware_v_total(const struct dc_stream_state *stre
 
 static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cfg *timing,
 		struct dc_stream_state *stream,
-		struct pipe_ctx *pipe_ctx,
+		struct pipe_ctx *otg_master_pipe,
 		struct dml2_context *dml_ctx)
 {
 	const unsigned int min_v_front_porch = (stream->timing.flags.INTERLACE != 0) ? 2 : 1;
@@ -99,24 +99,24 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	uint64_t min_hardware_refresh_in_uhz;
 	uint32_t pix_clk_100hz;
 
-	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
+	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + otg_master_pipe->dsc_padding_params.dsc_hactive_padding;
 	timing->v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 	timing->h_front_porch = stream->timing.h_front_porch;
 	timing->v_front_porch = stream->timing.v_front_porch > min_v_front_porch ?
 			stream->timing.v_front_porch : min_v_front_porch;
 	timing->pixel_clock_khz = stream->timing.pix_clk_100hz / 10;
-	if (pipe_ctx->dsc_padding_params.dsc_hactive_padding != 0)
-		timing->pixel_clock_khz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz / 10;
+	if (otg_master_pipe->dsc_padding_params.dsc_hactive_padding != 0)
+		timing->pixel_clock_khz = otg_master_pipe->dsc_padding_params.dsc_pix_clk_100hz / 10;
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		timing->pixel_clock_khz *= 2;
-	timing->h_total = stream->timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
+	timing->h_total = stream->timing.h_total + otg_master_pipe->dsc_padding_params.dsc_htotal_padding;
 	timing->v_total = stream->timing.v_total;
 	timing->h_sync_width = stream->timing.h_sync_width;
 	timing->interlaced = (stream->timing.flags.INTERLACE != 0);
 
 	hblank_start = stream->timing.h_total - stream->timing.h_front_porch;
 
-	timing->h_blank_end = hblank_start - stream->timing.h_addressable - pipe_ctx->dsc_padding_params.dsc_hactive_padding
+	timing->h_blank_end = hblank_start - stream->timing.h_addressable - otg_master_pipe->dsc_padding_params.dsc_hactive_padding
 		- stream->timing.h_border_left - stream->timing.h_border_right;
 
 	if (hblank_start < stream->timing.h_addressable)
@@ -135,8 +135,8 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	/* limit min refresh rate to DC cap */
 	min_hardware_refresh_in_uhz = stream->timing.min_refresh_in_uhz;
 	if (stream->ctx->dc->caps.max_v_total != 0) {
-		if (pipe_ctx->dsc_padding_params.dsc_hactive_padding != 0) {
-			pix_clk_100hz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz;
+		if (otg_master_pipe->dsc_padding_params.dsc_hactive_padding != 0) {
+			pix_clk_100hz = otg_master_pipe->dsc_padding_params.dsc_pix_clk_100hz;
 		} else {
 			pix_clk_100hz = stream->timing.pix_clk_100hz;
 		}
@@ -197,7 +197,7 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 }
 
 static void populate_dml21_output_config_from_stream_state(struct dml2_link_output_cfg *output,
-		struct dc_stream_state *stream, const struct pipe_ctx *pipe)
+		struct dc_stream_state *stream, const struct pipe_ctx *otg_master_pipe)
 {
 	output->output_dp_lane_count = 4;
 
@@ -205,7 +205,7 @@ static void populate_dml21_output_config_from_stream_state(struct dml2_link_outp
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_DISPLAY_PORT:
 		output->output_encoder = dml2_dp;
-		if (check_dp2p0_output_encoder(pipe))
+		if (check_dp2p0_output_encoder(otg_master_pipe))
 			output->output_encoder = dml2_dp2p0;
 		break;
 	case SIGNAL_TYPE_EDP:
@@ -795,6 +795,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 	int disp_cfg_stream_location, disp_cfg_plane_location;
 	struct dml2_display_cfg *dml_dispcfg = &dml_ctx->v21.display_config;
 	unsigned int plane_count = 0;
+	struct pipe_ctx *otg_master_pipe;
 
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
 
@@ -819,9 +820,12 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 		if (disp_cfg_stream_location < 0)
 			disp_cfg_stream_location = dml_dispcfg->num_streams++;
 
+		otg_master_pipe = dml_ctx->config.callbacks.get_otg_master_for_stream(&context->res_ctx, context->streams[stream_index]);
+		ASSERT(otg_master_pipe);
+
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location < __DML2_WRAPPER_MAX_STREAMS_PLANES__);
-		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index], dml_ctx);
-		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index]);
+		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], otg_master_pipe, dml_ctx);
+		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], otg_master_pipe);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index], &context->stream_status[stream_index]);
 
 		dml_dispcfg->stream_descriptors[disp_cfg_stream_location].overrides.hw.twait_budgeting.fclk_pstate = dml2_twait_budgeting_setting_if_needed;
