@@ -623,18 +623,12 @@ static void ethqos_configure_sgmii(struct qcom_ethqos *ethqos,
 	ethqos_pcs_set_inband(priv, interface == PHY_INTERFACE_MODE_SGMII);
 }
 
-static void ethqos_configure(struct qcom_ethqos *ethqos,
-			     phy_interface_t interface, int speed)
-{
-	return ethqos->configure_func(ethqos, interface, speed);
-}
-
 static void ethqos_fix_mac_speed(void *priv, phy_interface_t interface,
 				 int speed, unsigned int mode)
 {
 	struct qcom_ethqos *ethqos = priv;
 
-	ethqos_configure(ethqos, interface, speed);
+	ethqos->configure_func(ethqos, interface, speed);
 }
 
 static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
