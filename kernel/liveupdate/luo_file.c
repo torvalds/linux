@@ -288,12 +288,14 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 		goto  err_fput;
 
 	err = -ENOENT;
+	down_read(&luo_register_rwlock);
 	list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 		if (fh->ops->can_preserve(fh, file)) {
 			err = 0;
 			break;
 		}
 	}
+	up_read(&luo_register_rwlock);
 
 	/* err is still -ENOENT if no handler was found */
 	if (err)
@@ -805,12 +807,14 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 		bool handler_found = false;
 		struct luo_file *luo_file;
 
+		down_read(&luo_register_rwlock);
 		list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 			if (!strcmp(fh->compatible, file_ser[i].compatible)) {
 				handler_found = true;
 				break;
 			}
 		}
+		up_read(&luo_register_rwlock);
 
 		if (!handler_found) {
 			pr_warn("No registered handler for compatible '%.*s'\n",
@@ -879,32 +883,36 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 	if (!luo_session_quiesce())
 		return -EBUSY;
 
+	down_write(&luo_register_rwlock);
 	/* Check for duplicate compatible strings */
 	list_private_for_each_entry(fh_iter, &luo_file_handler_list, list) {
 		if (!strcmp(fh_iter->compatible, fh->compatible)) {
 			pr_err("File handler registration failed: Compatible string '%s' already registered.\n",
 			       fh->compatible);
 			err = -EEXIST;
-			goto err_resume;
+			goto err_unlock;
 		}
 	}
 
 	/* Pin the module implementing the handler */
 	if (!try_module_get(fh->ops->owner)) {
 		err = -EAGAIN;
-		goto err_resume;
+		goto err_unlock;
 	}
 
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, flb_list));
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, list));
 	list_add_tail(&ACCESS_PRIVATE(fh, list), &luo_file_handler_list);
+	up_write(&luo_register_rwlock);
+
 	luo_session_resume();
 
 	liveupdate_test_register(fh);
 
 	return 0;
 
-err_resume:
+err_unlock:
+	up_write(&luo_register_rwlock);
 	luo_session_resume();
 	return err;
 }
@@ -938,16 +946,20 @@ int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 	if (!luo_session_quiesce())
 		goto err_register;
 
+	down_write(&luo_register_rwlock);
 	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
-		goto err_resume;
+		goto err_unlock;
 
 	list_del(&ACCESS_PRIVATE(fh, list));
+	up_write(&luo_register_rwlock);
+
 	module_put(fh->ops->owner);
 	luo_session_resume();
 
 	return 0;
 
-err_resume:
+err_unlock:
+	up_write(&luo_register_rwlock);
 	luo_session_resume();
 err_register:
 	liveupdate_test_register(fh);
