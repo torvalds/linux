@@ -2651,6 +2651,18 @@ config SENSORS_XGENE
 	  If you say yes here you get support for the temperature
 	  and power sensors for APM X-Gene SoC.
 
+config SENSORS_YOGAFAN
+	tristate "Lenovo Yoga Fan Hardware Monitoring"
+	depends on ACPI && HWMON && DMI
+	help
+	  If you say yes here you get support for fan speed monitoring
+	  on Lenovo Yoga, Legion, IdeaPad, Slim and LOQ laptops.
+	  The driver interfaces with the Embedded Controller via ACPI
+	  and uses a Rate-Limited Lag filter to smooth RPM readings.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called yogafan.
+
 config SENSORS_INTEL_M10_BMC_HWMON
 	tristate "Intel MAX10 BMC Hardware Monitoring"
 	depends on MFD_INTEL_M10_BMC_CORE
