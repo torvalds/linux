@@ -207,11 +207,6 @@ static int auxiliary_uevent(const struct device *dev, struct kobj_uevent_env *en
 			      (int)(p - name), name);
 }
 
-static const struct dev_pm_ops auxiliary_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(pm_generic_runtime_suspend, pm_generic_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_generic_suspend, pm_generic_resume)
-};
-
 static int auxiliary_bus_probe(struct device *dev)
 {
 	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
@@ -258,7 +253,6 @@ static const struct bus_type auxiliary_bus_type = {
 	.shutdown = auxiliary_bus_shutdown,
 	.match = auxiliary_match,
 	.uevent = auxiliary_uevent,
-	.pm = &auxiliary_dev_pm_ops,
 };
 
 /**
