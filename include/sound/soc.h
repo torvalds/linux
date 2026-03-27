@@ -1073,9 +1073,6 @@ struct snd_soc_card {
 	struct list_head dapm_list;
 	struct list_head dapm_dirty;
 
-	/* attached dynamic objects */
-	struct list_head dobj_list;
-
 	/* Generic DAPM context for the card */
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_dapm_stats dapm_stats;
