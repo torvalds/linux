@@ -22,6 +22,7 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/resource.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -4927,6 +4928,148 @@ TEST_F(scoped_domains, unix_seqpacket_connect_to_child_full)
 
 #undef USE_SENDTO
 #undef ENFORCE_ALL
+
+static void read_core_pattern(struct __test_metadata *const _metadata,
+			      char *buf, size_t buf_size)
+{
+	int fd;
+	ssize_t ret;
+
+	fd = open("/proc/sys/kernel/core_pattern", O_RDONLY | O_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	ret = read(fd, buf, buf_size - 1);
+	ASSERT_LE(0, ret);
+	EXPECT_EQ(0, close(fd));
+
+	buf[ret] = '\0';
+}
+
+static void set_core_pattern(struct __test_metadata *const _metadata,
+			     const char *pattern)
+{
+	int fd;
+	size_t len = strlen(pattern);
+
+	/*
+	 * Writing to /proc/sys/kernel/core_pattern requires EUID 0 because
+	 * sysctl_perm() checks that, ignoring capabilities like
+	 * CAP_SYS_ADMIN or CAP_DAC_OVERRIDE.
+	 *
+	 * Switching EUID clears the dumpable flag, which must be restored
+	 * afterwards to allow coredumps.
+	 */
+	set_cap(_metadata, CAP_SETUID);
+	ASSERT_EQ(0, seteuid(0));
+	clear_cap(_metadata, CAP_SETUID);
+
+	fd = open("/proc/sys/kernel/core_pattern", O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, fd)
+	{
+		TH_LOG("Failed to open core_pattern for writing: %s",
+		       strerror(errno));
+	}
+
+	ASSERT_EQ(len, write(fd, pattern, len));
+	EXPECT_EQ(0, close(fd));
+
+	set_cap(_metadata, CAP_SETUID);
+	ASSERT_EQ(0, seteuid(getuid()));
+	clear_cap(_metadata, CAP_SETUID);
+
+	/* Restore dumpable flag cleared by seteuid(). */
+	ASSERT_EQ(0, prctl(PR_SET_DUMPABLE, 1, 0, 0, 0));
+}
+
+FIXTURE(coredump)
+{
+	char original_core_pattern[256];
+};
+
+FIXTURE_SETUP(coredump)
+{
+	disable_caps(_metadata);
+	read_core_pattern(_metadata, self->original_core_pattern,
+			  sizeof(self->original_core_pattern));
+}
+
+FIXTURE_TEARDOWN_PARENT(coredump)
+{
+	set_core_pattern(_metadata, self->original_core_pattern);
+}
+
+/*
+ * Test that even when a process is restricted with
+ * LANDLOCK_ACCESS_FS_RESOLVE_UNIX, the kernel can still initiate a connection
+ * to the coredump socket on the processes' behalf.
+ */
+TEST_F_FORK(coredump, socket_not_restricted)
+{
+	static const char core_pattern[] = "@/tmp/landlock_coredump_test.sock";
+	const char *const sock_path = core_pattern + 1;
+	int srv_fd, conn_fd, status;
+	pid_t child_pid;
+	struct ucred cred;
+	socklen_t cred_len = sizeof(cred);
+	char buf[4096];
+
+	/* Set up the coredump server socket. */
+	unlink(sock_path);
+	srv_fd = set_up_named_unix_server(_metadata, SOCK_STREAM, sock_path);
+
+	/* Point coredumps at our socket. */
+	set_core_pattern(_metadata, core_pattern);
+
+	/* Restrict LANDLOCK_ACCESS_FS_RESOLVE_UNIX. */
+	drop_access_rights(_metadata,
+			   &(struct landlock_ruleset_attr){
+				   .handled_access_fs =
+					   LANDLOCK_ACCESS_FS_RESOLVE_UNIX,
+			   });
+
+	/* Fork a child that crashes. */
+	child_pid = fork();
+	ASSERT_LE(0, child_pid);
+	if (child_pid == 0) {
+		struct rlimit rl = {
+			.rlim_cur = RLIM_INFINITY,
+			.rlim_max = RLIM_INFINITY,
+		};
+
+		ASSERT_EQ(0, setrlimit(RLIMIT_CORE, &rl));
+
+		/* Crash on purpose. */
+		kill(getpid(), SIGSEGV);
+		_exit(1);
+	}
+
+	/*
+	 * Accept the coredump connection.  If Landlock incorrectly denies the
+	 * kernel's coredump connect, accept() will block forever, so the test
+	 * would time out.
+	 */
+	conn_fd = accept(srv_fd, NULL, NULL);
+	ASSERT_LE(0, conn_fd);
+
+	/* Check that the connection came from the crashing child. */
+	ASSERT_EQ(0, getsockopt(conn_fd, SOL_SOCKET, SO_PEERCRED, &cred,
+				&cred_len));
+	EXPECT_EQ(child_pid, cred.pid);
+
+	/* Drain the coredump data so the kernel can finish. */
+	while (read(conn_fd, buf, sizeof(buf)) > 0)
+		;
+
+	EXPECT_EQ(0, close(conn_fd));
+
+	/* Wait for the child and verify it coredumped. */
+	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
+	ASSERT_TRUE(WIFSIGNALED(status));
+	ASSERT_TRUE(WCOREDUMP(status));
+
+	EXPECT_EQ(0, close(srv_fd));
+	EXPECT_EQ(0, unlink(sock_path));
+}
 
 /* clang-format off */
 FIXTURE(layout1_bind) {};
