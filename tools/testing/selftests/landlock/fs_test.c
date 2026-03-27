@@ -7961,6 +7961,46 @@ TEST_F(audit_layout1, ioctl_dev)
 	EXPECT_EQ(1, records.domain);
 }
 
+TEST_F(audit_layout1, resolve_unix)
+{
+	struct audit_records records;
+	const char *const path = "sock";
+	int srv_fd, cli_fd, status;
+	pid_t child_pid;
+
+	srv_fd = set_up_named_unix_server(_metadata, SOCK_STREAM, path);
+
+	child_pid = fork();
+	ASSERT_LE(0, child_pid);
+	if (!child_pid) {
+		drop_access_rights(_metadata,
+				   &(struct landlock_ruleset_attr){
+					   .handled_access_fs = ACCESS_ALL,
+				   });
+
+		cli_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+		ASSERT_LE(0, cli_fd);
+		EXPECT_EQ(EACCES,
+			  test_connect_named_unix(_metadata, cli_fd, path));
+
+		EXPECT_EQ(0, close(cli_fd));
+		_exit(_metadata->exit_code);
+	}
+
+	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
+	EXPECT_EQ(1, WIFEXITED(status));
+	EXPECT_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+
+	EXPECT_EQ(0, matches_log_fs_extra(_metadata, self->audit_fd,
+					  "fs\\.resolve_unix", path, NULL));
+
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(1, records.domain);
+
+	EXPECT_EQ(0, close(srv_fd));
+}
+
 TEST_F(audit_layout1, mount)
 {
 	struct audit_records records;
