@@ -138,15 +138,6 @@ static struct xor_block_template xor_block_arm4regs = {
 	.do_5	= xor_arm4regs_5,
 };
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES			\
-	do {					\
-		xor_speed(&xor_block_arm4regs);	\
-		xor_speed(&xor_block_8regs);	\
-		xor_speed(&xor_block_32regs);	\
-		NEON_TEMPLATES;			\
-	} while (0)
-
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 extern struct xor_block_template const xor_block_neon_inner;
@@ -201,8 +192,16 @@ static struct xor_block_template xor_block_neon = {
 	.do_5	= xor_neon_5
 };
 
-#define NEON_TEMPLATES	\
-	do { if (cpu_has_neon()) xor_speed(&xor_block_neon); } while (0)
-#else
-#define NEON_TEMPLATES
+#endif /* CONFIG_KERNEL_MODE_NEON */
+
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	xor_register(&xor_block_arm4regs);
+	xor_register(&xor_block_8regs);
+	xor_register(&xor_block_32regs);
+#ifdef CONFIG_KERNEL_MODE_NEON
+	if (cpu_has_neon())
+		xor_register(&xor_block_neon);
 #endif
+}

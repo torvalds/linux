@@ -60,14 +60,14 @@ static struct xor_block_template xor_block_arm64 = {
 	.do_4   = xor_neon_4,
 	.do_5	= xor_neon_5
 };
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES           \
-	do {        \
-		xor_speed(&xor_block_8regs);    \
-		xor_speed(&xor_block_32regs);    \
-		if (cpu_has_neon()) { \
-			xor_speed(&xor_block_arm64);\
-		} \
-	} while (0)
+
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	xor_register(&xor_block_8regs);
+	xor_register(&xor_block_32regs);
+	if (cpu_has_neon())
+		xor_register(&xor_block_arm64);
+}
 
 #endif /* ! CONFIG_KERNEL_MODE_NEON */

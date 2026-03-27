@@ -55,14 +55,15 @@ static struct xor_block_template xor_block_rvv = {
 	.do_4 = xor_vector_4,
 	.do_5 = xor_vector_5
 };
+#endif /* CONFIG_RISCV_ISA_V */
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES           \
-	do {        \
-		xor_speed(&xor_block_8regs);    \
-		xor_speed(&xor_block_32regs);    \
-		if (has_vector()) { \
-			xor_speed(&xor_block_rvv);\
-		} \
-	} while (0)
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	xor_register(&xor_block_8regs);
+	xor_register(&xor_block_32regs);
+#ifdef CONFIG_RISCV_ISA_V
+	if (has_vector())
+		xor_register(&xor_block_rvv);
 #endif
+}

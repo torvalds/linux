@@ -14,10 +14,6 @@
 #include <linux/preempt.h>
 #include <asm/xor.h>
 
-#ifndef XOR_SELECT_TEMPLATE
-#define XOR_SELECT_TEMPLATE(x) (x)
-#endif
-
 /* The xor routines to use.  */
 static struct xor_block_template *active_template;
 
@@ -55,10 +51,31 @@ EXPORT_SYMBOL(xor_blocks);
 static struct xor_block_template *__initdata template_list;
 static bool __initdata xor_forced = false;
 
-static void __init do_xor_register(struct xor_block_template *tmpl)
+/**
+ * xor_register - register a XOR template
+ * @tmpl:	template to register
+ *
+ * Register a XOR implementation with the core.  Registered implementations
+ * will be measured by a trivial benchmark, and the fastest one is chosen
+ * unless an implementation is forced using xor_force().
+ */
+void __init xor_register(struct xor_block_template *tmpl)
 {
 	tmpl->next = template_list;
 	template_list = tmpl;
+}
+
+/**
+ * xor_force - force use of a XOR template
+ * @tmpl:	template to register
+ *
+ * Register a XOR implementation with the core and force using it.  Forcing
+ * an implementation will make the core ignore any template registered using
+ * xor_register(), or any previous implementation forced using xor_force().
+ */
+void __init xor_force(struct xor_block_template *tmpl)
+{
+	active_template = tmpl;
 }
 
 #define BENCH_SIZE	4096
@@ -126,21 +143,25 @@ static int __init calibrate_xor_blocks(void)
 
 static int __init xor_init(void)
 {
+#ifdef arch_xor_init
+	arch_xor_init();
+#else
+	xor_register(&xor_block_8regs);
+	xor_register(&xor_block_8regs_p);
+	xor_register(&xor_block_32regs);
+	xor_register(&xor_block_32regs_p);
+#endif
+
 	/*
 	 * If this arch/cpu has a short-circuited selection, don't loop through
 	 * all the possible functions, just use the best one.
 	 */
-	active_template = XOR_SELECT_TEMPLATE(NULL);
 	if (active_template) {
 		pr_info("xor: automatically using best checksumming function   %-10s\n",
 			active_template->name);
 		xor_forced = true;
 		return 0;
 	}
-
-#define xor_speed	do_xor_register
-	XOR_TRY_TEMPLATES;
-#undef xor_speed
 
 #ifdef MODULE
 	return calibrate_xor_blocks();

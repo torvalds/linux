@@ -851,16 +851,19 @@ static struct xor_block_template xor_block_alpha_prefetch = {
 /* For grins, also test the generic routines.  */
 #include <asm-generic/xor.h>
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-	do {						\
-		xor_speed(&xor_block_8regs);		\
-		xor_speed(&xor_block_32regs);		\
-		xor_speed(&xor_block_alpha);		\
-		xor_speed(&xor_block_alpha_prefetch);	\
-	} while (0)
-
-/* Force the use of alpha_prefetch if EV6, as it is significantly
-   faster in the cold cache case.  */
-#define XOR_SELECT_TEMPLATE(FASTEST) \
-	(implver() == IMPLVER_EV6 ? &xor_block_alpha_prefetch : FASTEST)
+/*
+ * Force the use of alpha_prefetch if EV6, as it is significantly faster in the
+ * cold cache case.
+ */
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	if (implver() == IMPLVER_EV6) {
+		xor_force(&xor_block_alpha_prefetch);
+	} else {
+		xor_register(&xor_block_8regs);
+		xor_register(&xor_block_32regs);
+		xor_register(&xor_block_alpha);
+		xor_register(&xor_block_alpha_prefetch);
+	}
+}

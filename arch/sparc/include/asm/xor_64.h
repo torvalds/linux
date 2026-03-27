@@ -60,20 +60,17 @@ static struct xor_block_template xor_block_niagara = {
         .do_5	= xor_niagara_5,
 };
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-	do {						\
-		xor_speed(&xor_block_VIS);		\
-		xor_speed(&xor_block_niagara);		\
-	} while (0)
-
-/* For VIS for everything except Niagara.  */
-#define XOR_SELECT_TEMPLATE(FASTEST) \
-	((tlb_type == hypervisor && \
-	  (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA2 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA3 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA4 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA5)) ? \
-	 &xor_block_niagara : \
-	 &xor_block_VIS)
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	/* Force VIS for everything except Niagara.  */
+	if (tlb_type == hypervisor &&
+	    (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
+	     sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
+	     sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+	     sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+	     sun4v_chip_type == SUN4V_CHIP_NIAGARA5))
+		xor_force(&xor_block_niagara);
+	else
+		xor_force(&xor_block_VIS);
+}

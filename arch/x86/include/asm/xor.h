@@ -496,7 +496,4 @@ static struct xor_block_template xor_block_sse_pf64 = {
 # include <asm/xor_64.h>
 #endif
 
-#define XOR_SELECT_TEMPLATE(FASTEST) \
-	AVX_SELECT(FASTEST)
-
 #endif /* _ASM_X86_XOR_H */

@@ -16,14 +16,6 @@ static struct xor_block_template xor_block_lsx = {
 	.do_4 = xor_lsx_4,
 	.do_5 = xor_lsx_5,
 };
-
-#define XOR_SPEED_LSX()					\
-	do {						\
-		if (cpu_has_lsx)			\
-			xor_speed(&xor_block_lsx);	\
-	} while (0)
-#else /* CONFIG_CPU_HAS_LSX */
-#define XOR_SPEED_LSX()
 #endif /* CONFIG_CPU_HAS_LSX */
 
 #ifdef CONFIG_CPU_HAS_LASX
@@ -34,14 +26,6 @@ static struct xor_block_template xor_block_lasx = {
 	.do_4 = xor_lasx_4,
 	.do_5 = xor_lasx_5,
 };
-
-#define XOR_SPEED_LASX()					\
-	do {							\
-		if (cpu_has_lasx)				\
-			xor_speed(&xor_block_lasx);		\
-	} while (0)
-#else /* CONFIG_CPU_HAS_LASX */
-#define XOR_SPEED_LASX()
 #endif /* CONFIG_CPU_HAS_LASX */
 
 /*
@@ -54,15 +38,21 @@ static struct xor_block_template xor_block_lasx = {
  */
 #include <asm-generic/xor.h>
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-do {							\
-	xor_speed(&xor_block_8regs);			\
-	xor_speed(&xor_block_8regs_p);			\
-	xor_speed(&xor_block_32regs);			\
-	xor_speed(&xor_block_32regs_p);			\
-	XOR_SPEED_LSX();				\
-	XOR_SPEED_LASX();				\
-} while (0)
+#define arch_xor_init arch_xor_init
+static __always_inline void __init arch_xor_init(void)
+{
+	xor_register(&xor_block_8regs);
+	xor_register(&xor_block_8regs_p);
+	xor_register(&xor_block_32regs);
+	xor_register(&xor_block_32regs_p);
+#ifdef CONFIG_CPU_HAS_LSX
+	if (cpu_has_lsx)
+		xor_register(&xor_block_lsx);
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	if (cpu_has_lasx)
+		xor_register(&xor_block_lasx);
+#endif
+}
 
 #endif /* _ASM_LOONGARCH_XOR_H */

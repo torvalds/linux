@@ -2,6 +2,8 @@
 #ifndef _XOR_IMPL_H
 #define _XOR_IMPL_H
 
+#include <linux/init.h>
+
 struct xor_block_template {
 	struct xor_block_template *next;
 	const char *name;
@@ -21,5 +23,8 @@ struct xor_block_template {
 		     const unsigned long * __restrict,
 		     const unsigned long * __restrict);
 };
+
+void __init xor_register(struct xor_block_template *tmpl);
+void __init xor_force(struct xor_block_template *tmpl);
 
 #endif /* _XOR_IMPL_H */
