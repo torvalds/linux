@@ -122,7 +122,6 @@ endif # CONFIG_CRYPTO_LIB_CHACHA_ARCH
 
 obj-$(CONFIG_CRYPTO_LIB_CHACHA20POLY1305)	+= libchacha20poly1305.o
 libchacha20poly1305-y				+= chacha20poly1305.o
-libchacha20poly1305-$(CONFIG_CRYPTO_SELFTESTS)	+= chacha20poly1305-selftest.o
 
 ################################################################################
 

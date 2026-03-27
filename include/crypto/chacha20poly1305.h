@@ -46,6 +46,4 @@ bool chacha20poly1305_decrypt_sg_inplace(struct scatterlist *src, size_t src_len
 					 const u64 nonce,
 					 const u8 key[at_least CHACHA20POLY1305_KEY_SIZE]);
 
-bool chacha20poly1305_selftest(void);
-
 #endif /* __CHACHA20POLY1305_H */
