@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2023 Collabora, Ltd. */
-/* Copyright (c) 2024 Valve Corporation */
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. */
 
 #include "msm_gem.h"
 #include "a6xx_gpu.h"
@@ -10,34 +8,20 @@
 #include "msm_mmu.h"
 #include "msm_gpu_trace.h"
 
-static void a6xx_preempt_timer(struct timer_list *t)
-{
-	struct a6xx_gpu *a6xx_gpu = timer_container_of(a6xx_gpu, t,
-						       preempt_timer);
-	struct msm_gpu *gpu = &a6xx_gpu->base.base;
-	struct drm_device *dev = gpu->dev;
-
-	if (!try_preempt_state(a6xx_gpu, PREEMPT_TRIGGERED, PREEMPT_FAULTED))
-		return;
-
-	dev_err(dev->dev, "%s: preemption timed out\n", gpu->name);
-	kthread_queue_work(gpu->worker, &gpu->recover_work);
-}
-
 static void preempt_prepare_postamble(struct a6xx_gpu *a6xx_gpu)
 {
 	u32 *postamble = a6xx_gpu->preempt_postamble_ptr;
 	u32 count = 0;
 
 	postamble[count++] = PKT7(CP_REG_RMW, 3);
-	postamble[count++] = REG_A6XX_RBBM_PERFCTR_SRAM_INIT_CMD;
+	postamble[count++] = REG_A8XX_RBBM_PERFCTR_SRAM_INIT_CMD;
 	postamble[count++] = 0;
 	postamble[count++] = 1;
 
 	postamble[count++] = PKT7(CP_WAIT_REG_MEM, 6);
 	postamble[count++] = CP_WAIT_REG_MEM_0_FUNCTION(WRITE_EQ);
 	postamble[count++] = CP_WAIT_REG_MEM_POLL_ADDR_LO(
-				REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS);
+				REG_A8XX_RBBM_PERFCTR_SRAM_INIT_STATUS);
 	postamble[count++] = CP_WAIT_REG_MEM_POLL_ADDR_HI(0);
 	postamble[count++] = CP_WAIT_REG_MEM_3_REF(0x1);
 	postamble[count++] = CP_WAIT_REG_MEM_4_MASK(0x1);
@@ -63,20 +47,17 @@ static void preempt_disable_postamble(struct a6xx_gpu *a6xx_gpu)
 
 /*
  * Set preemption keepalive vote. Please note that this vote is different from the one used in
- * a6xx_irq()
+ * a8xx_irq()
  */
-static void a6xx_preempt_keepalive_vote(struct msm_gpu *gpu, bool on)
+static void a8xx_preempt_keepalive_vote(struct msm_gpu *gpu, bool on)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
-	if (adreno_has_gmu_wrapper(adreno_gpu))
-		return;
-
-	gmu_write(&a6xx_gpu->gmu, REG_A6XX_GMU_PWR_COL_PREEMPT_KEEPALIVE, on);
+	gmu_write(&a6xx_gpu->gmu, REG_A8XX_GMU_PWR_COL_PREEMPT_KEEPALIVE, on);
 }
 
-void a6xx_preempt_irq(struct msm_gpu *gpu)
+void a8xx_preempt_irq(struct msm_gpu *gpu)
 {
 	uint32_t status;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -96,8 +77,8 @@ void a6xx_preempt_irq(struct msm_gpu *gpu)
 	 * before we have a chance to finish. If that happens, log and go for
 	 * recovery
 	 */
-	status = gpu_read(gpu, REG_A6XX_CP_CONTEXT_SWITCH_CNTL);
-	if (unlikely(status & A6XX_CP_CONTEXT_SWITCH_CNTL_STOP)) {
+	status = gpu_read(gpu, REG_A8XX_CP_CONTEXT_SWITCH_CNTL);
+	if (unlikely(status & A8XX_CP_CONTEXT_SWITCH_CNTL_STOP)) {
 		DRM_DEV_ERROR(&gpu->pdev->dev,
 					  "!!!!!!!!!!!!!!!! preemption faulted !!!!!!!!!!!!!! irq\n");
 		set_preempt_state(a6xx_gpu, PREEMPT_FAULTED);
@@ -116,7 +97,7 @@ void a6xx_preempt_irq(struct msm_gpu *gpu)
 
 	set_preempt_state(a6xx_gpu, PREEMPT_NONE);
 
-	a6xx_preempt_keepalive_vote(gpu, false);
+	a8xx_preempt_keepalive_vote(gpu, false);
 
 	trace_msm_gpu_preemption_irq(a6xx_gpu->cur_ring->id);
 
@@ -124,10 +105,10 @@ void a6xx_preempt_irq(struct msm_gpu *gpu)
 	 * Retrigger preemption to avoid a deadlock that might occur when preemption
 	 * is skipped due to it being already in flight when requested.
 	 */
-	a6xx_preempt_trigger(gpu);
+	a8xx_preempt_trigger(gpu);
 }
 
-void a6xx_preempt_hw_init(struct msm_gpu *gpu)
+void a8xx_preempt_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
@@ -149,7 +130,7 @@ void a6xx_preempt_hw_init(struct msm_gpu *gpu)
 	}
 
 	/* Write a 0 to signal that we aren't switching pagetables */
-	gpu_write64(gpu, REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO, 0);
+	gpu_write64(gpu, REG_A8XX_CP_CONTEXT_SWITCH_SMMU_INFO, 0);
 
 	/* Enable the GMEM save/restore feature for preemption */
 	gpu_write(gpu, REG_A6XX_RB_CONTEXT_SWITCH_GMEM_SAVE_RESTORE_ENABLE, 0x1);
@@ -163,7 +144,7 @@ void a6xx_preempt_hw_init(struct msm_gpu *gpu)
 	a6xx_gpu->cur_ring = gpu->rb[0];
 }
 
-void a6xx_preempt_trigger(struct msm_gpu *gpu)
+void a8xx_preempt_trigger(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
@@ -191,15 +172,15 @@ void a6xx_preempt_trigger(struct msm_gpu *gpu)
 		return;
 	}
 
-	cntl = A6XX_CP_CONTEXT_SWITCH_CNTL_LEVEL(a6xx_gpu->preempt_level);
+	cntl = A8XX_CP_CONTEXT_SWITCH_CNTL_LEVEL(a6xx_gpu->preempt_level);
 
 	if (a6xx_gpu->skip_save_restore)
-		cntl |= A6XX_CP_CONTEXT_SWITCH_CNTL_SKIP_SAVE_RESTORE;
+		cntl |= A8XX_CP_CONTEXT_SWITCH_CNTL_SKIP_SAVE_RESTORE;
 
 	if (a6xx_gpu->uses_gmem)
-		cntl |= A6XX_CP_CONTEXT_SWITCH_CNTL_USES_GMEM;
+		cntl |= A8XX_CP_CONTEXT_SWITCH_CNTL_USES_GMEM;
 
-	cntl |= A6XX_CP_CONTEXT_SWITCH_CNTL_STOP;
+	cntl |= A8XX_CP_CONTEXT_SWITCH_CNTL_STOP;
 
 	/* Get the next ring to preempt to */
 	ring = get_next_ring(gpu);
@@ -245,14 +226,14 @@ void a6xx_preempt_trigger(struct msm_gpu *gpu)
 	spin_unlock_irqrestore(&ring->preempt_lock, flags);
 
 	/* Set the keepalive bit to keep the GPU ON until preemption is complete */
-	a6xx_preempt_keepalive_vote(gpu, true);
+	a8xx_preempt_keepalive_vote(gpu, true);
 
 	a6xx_fenced_write(a6xx_gpu,
-		REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO, a6xx_gpu->preempt_smmu_iova[ring->id],
+		REG_A8XX_CP_CONTEXT_SWITCH_SMMU_INFO, a6xx_gpu->preempt_smmu_iova[ring->id],
 		BIT(1), true);
 
 	a6xx_fenced_write(a6xx_gpu,
-		REG_A6XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR,
+		REG_A8XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR,
 		a6xx_gpu->preempt_iova[ring->id], BIT(1), true);
 
 	a6xx_gpu->next_ring = ring;
@@ -273,130 +254,6 @@ void a6xx_preempt_trigger(struct msm_gpu *gpu)
 	set_preempt_state(a6xx_gpu, PREEMPT_TRIGGERED);
 
 	/* Trigger the preemption */
-	a6xx_fenced_write(a6xx_gpu, REG_A6XX_CP_CONTEXT_SWITCH_CNTL, cntl, BIT(1), false);
+	a6xx_fenced_write(a6xx_gpu, REG_A8XX_CP_CONTEXT_SWITCH_CNTL, cntl, BIT(1), false);
 }
 
-static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
-		struct msm_ringbuffer *ring)
-{
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct drm_gem_object *bo = NULL;
-	phys_addr_t ttbr;
-	u64 iova = 0;
-	void *ptr;
-	int asid;
-
-	ptr = msm_gem_kernel_new(gpu->dev,
-		PREEMPT_RECORD_SIZE(adreno_gpu),
-		MSM_BO_WC | MSM_BO_MAP_PRIV, gpu->vm, &bo, &iova);
-
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
-
-	memset(ptr, 0, PREEMPT_RECORD_SIZE(adreno_gpu));
-
-	msm_gem_object_set_name(bo, "preempt_record ring%d", ring->id);
-
-	a6xx_gpu->preempt_bo[ring->id] = bo;
-	a6xx_gpu->preempt_iova[ring->id] = iova;
-	a6xx_gpu->preempt[ring->id] = ptr;
-
-	struct a6xx_preempt_record *record_ptr = ptr;
-
-	ptr = msm_gem_kernel_new(gpu->dev,
-		PREEMPT_SMMU_INFO_SIZE,
-		MSM_BO_WC | MSM_BO_MAP_PRIV | MSM_BO_GPU_READONLY,
-		gpu->vm, &bo, &iova);
-
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
-
-	memset(ptr, 0, PREEMPT_SMMU_INFO_SIZE);
-
-	msm_gem_object_set_name(bo, "preempt_smmu_info ring%d", ring->id);
-
-	a6xx_gpu->preempt_smmu_bo[ring->id] = bo;
-	a6xx_gpu->preempt_smmu_iova[ring->id] = iova;
-	a6xx_gpu->preempt_smmu[ring->id] = ptr;
-
-	struct a7xx_cp_smmu_info *smmu_info_ptr = ptr;
-
-	msm_iommu_pagetable_params(to_msm_vm(gpu->vm)->mmu, &ttbr, &asid);
-
-	smmu_info_ptr->magic = GEN7_CP_SMMU_INFO_MAGIC;
-	smmu_info_ptr->ttbr0 = ttbr;
-	smmu_info_ptr->asid = 0xdecafbad;
-	smmu_info_ptr->context_idr = 0;
-
-	/* Set up the defaults on the preemption record */
-	record_ptr->magic = A6XX_PREEMPT_RECORD_MAGIC;
-	record_ptr->info = 0;
-	record_ptr->data = 0;
-	record_ptr->rptr = 0;
-	record_ptr->wptr = 0;
-	record_ptr->cntl = MSM_GPU_RB_CNTL_DEFAULT;
-	record_ptr->rbase = ring->iova;
-	record_ptr->counter = 0;
-	record_ptr->bv_rptr_addr = rbmemptr(ring, bv_rptr);
-
-	return 0;
-}
-
-void a6xx_preempt_fini(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	int i;
-
-	for (i = 0; i < gpu->nr_rings; i++)
-		msm_gem_kernel_put(a6xx_gpu->preempt_bo[i], gpu->vm);
-}
-
-void a6xx_preempt_init(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	int i;
-
-	/* No preemption if we only have one ring */
-	if (gpu->nr_rings <= 1)
-		return;
-
-	for (i = 0; i < gpu->nr_rings; i++) {
-		if (preempt_init_ring(a6xx_gpu, gpu->rb[i]))
-			goto fail;
-	}
-
-	/* TODO: make this configurable? */
-	a6xx_gpu->preempt_level = 1;
-	a6xx_gpu->uses_gmem = 1;
-	a6xx_gpu->skip_save_restore = 1;
-
-	a6xx_gpu->preempt_postamble_ptr  = msm_gem_kernel_new(gpu->dev,
-			PAGE_SIZE,
-			MSM_BO_WC | MSM_BO_MAP_PRIV | MSM_BO_GPU_READONLY,
-			gpu->vm, &a6xx_gpu->preempt_postamble_bo,
-			&a6xx_gpu->preempt_postamble_iova);
-
-	if (IS_ERR(a6xx_gpu->preempt_postamble_ptr))
-		goto fail;
-
-	preempt_prepare_postamble(a6xx_gpu);
-
-	timer_setup(&a6xx_gpu->preempt_timer, a6xx_preempt_timer, 0);
-
-	return;
-fail:
-	/*
-	 * On any failure our adventure is over. Clean up and
-	 * set nr_rings to 1 to force preemption off
-	 */
-	a6xx_preempt_fini(gpu);
-	gpu->nr_rings = 1;
-
-	DRM_DEV_ERROR(&gpu->pdev->dev,
-				  "preemption init failed, disabling preemption\n");
-
-	return;
-}
