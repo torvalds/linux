@@ -159,7 +159,7 @@ static int hmem_register_cxl_device(struct device *host, int target_nid,
 			      IORES_DESC_CXL) == REGION_DISJOINT)
 		return 0;
 
-	if (cxl_region_contains_resource((struct resource *)res)) {
+	if (cxl_region_contains_resource(res)) {
 		dev_dbg(host, "CXL claims resource, dropping: %pr\n", res);
 		return 0;
 	}

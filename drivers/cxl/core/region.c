@@ -4225,9 +4225,9 @@ static int cxl_region_setup_poison(struct cxl_region *cxlr)
 	return devm_add_action_or_reset(dev, remove_debugfs, dentry);
 }
 
-static int region_contains_resource(struct device *dev, void *data)
+static int region_contains_resource(struct device *dev, const void *data)
 {
-	struct resource *res = data;
+	const struct resource *res = data;
 	struct cxl_region *cxlr;
 	struct cxl_region_params *p;
 
@@ -4246,11 +4246,12 @@ static int region_contains_resource(struct device *dev, void *data)
 	return resource_contains(p->res, res) ? 1 : 0;
 }
 
-bool cxl_region_contains_resource(struct resource *res)
+bool cxl_region_contains_resource(const struct resource *res)
 {
 	guard(rwsem_read)(&cxl_rwsem.region);
-	return bus_for_each_dev(&cxl_bus_type, NULL, res,
-				region_contains_resource) != 0;
+	struct device *dev __free(put_device) = bus_find_device(
+		&cxl_bus_type, NULL, res, region_contains_resource);
+	return !!dev;
 }
 EXPORT_SYMBOL_FOR_MODULES(cxl_region_contains_resource, "dax_hmem");
 
