@@ -231,7 +231,6 @@ motorcomm_default_plat_data(struct pci_dev *pdev)
 
 	plat->axi->axi_wr_osr_lmt	= 1;
 	plat->axi->axi_rd_osr_lmt	= 1;
-	plat->axi->axi_mb		= true;
 	plat->axi->axi_blen_regval	= DMA_AXI_BLEN4 | DMA_AXI_BLEN8 |
 					  DMA_AXI_BLEN16 | DMA_AXI_BLEN32;
 
