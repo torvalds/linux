@@ -1769,7 +1769,7 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 		cval->master_readonly = readonly_mask;
 	} else {
 		int i, c = 0;
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < MAX_CHANNELS; i++)
 			if (ctl_mask & BIT(i))
 				c++;
 		cval->channels = c;
