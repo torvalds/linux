@@ -18,7 +18,6 @@ SYM_FUNC_START(xor_regs_2_)
 	bnez a0, xor_regs_2_
 	ret
 SYM_FUNC_END(xor_regs_2_)
-EXPORT_SYMBOL(xor_regs_2_)
 
 SYM_FUNC_START(xor_regs_3_)
 	vsetvli a4, a0, e8, m8, ta, ma
@@ -35,7 +34,6 @@ SYM_FUNC_START(xor_regs_3_)
 	bnez a0, xor_regs_3_
 	ret
 SYM_FUNC_END(xor_regs_3_)
-EXPORT_SYMBOL(xor_regs_3_)
 
 SYM_FUNC_START(xor_regs_4_)
 	vsetvli a5, a0, e8, m8, ta, ma
@@ -55,7 +53,6 @@ SYM_FUNC_START(xor_regs_4_)
 	bnez a0, xor_regs_4_
 	ret
 SYM_FUNC_END(xor_regs_4_)
-EXPORT_SYMBOL(xor_regs_4_)
 
 SYM_FUNC_START(xor_regs_5_)
 	vsetvli a6, a0, e8, m8, ta, ma
@@ -78,4 +75,3 @@ SYM_FUNC_START(xor_regs_5_)
 	bnez a0, xor_regs_5_
 	ret
 SYM_FUNC_END(xor_regs_5_)
-EXPORT_SYMBOL(xor_regs_5_)
