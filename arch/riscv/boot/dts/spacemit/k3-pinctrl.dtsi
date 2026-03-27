@@ -46,6 +46,17 @@
 	};
 
 	/omit-if-no-ref/
+	i2c8_cfg: i2c8-cfg {
+		i2c8-pins {
+			pinmux = <K3_PADCONF(128, 0)>,	/* i2c8 scl */
+				 <K3_PADCONF(129, 0)>;	/* i2c8 sda */
+
+			bias-pull-up = <0>;
+			drive-strength = <25>;
+		};
+	};
+
+	/omit-if-no-ref/
 	uart0_0_cfg: uart0-0-cfg {
 		uart0-0-pins {
 			pinmux = <K3_PADCONF(149, 2)>,	/* uart0 tx */
