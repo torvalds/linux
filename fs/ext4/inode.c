@@ -4257,7 +4257,8 @@ int ext4_block_zero_eof(struct inode *inode, loff_t from, loff_t end)
 	return 0;
 }
 
-int ext4_zero_partial_blocks(struct inode *inode, loff_t lstart, loff_t length)
+int ext4_zero_partial_blocks(struct inode *inode, loff_t lstart, loff_t length,
+			     bool *did_zero)
 {
 	struct super_block *sb = inode->i_sb;
 	unsigned partial_start, partial_end;
@@ -4274,20 +4275,21 @@ int ext4_zero_partial_blocks(struct inode *inode, loff_t lstart, loff_t length)
 	/* Handle partial zero within the single block */
 	if (start == end &&
 	    (partial_start || (partial_end != sb->s_blocksize - 1))) {
-		err = ext4_block_zero_range(inode, lstart, length, NULL, NULL);
+		err = ext4_block_zero_range(inode, lstart, length, did_zero,
+					    NULL);
 		return err;
 	}
 	/* Handle partial zero out on the start of the range */
 	if (partial_start) {
 		err = ext4_block_zero_range(inode, lstart, sb->s_blocksize,
-					    NULL, NULL);
+					    did_zero, NULL);
 		if (err)
 			return err;
 	}
 	/* Handle partial zero out on the end of the range */
 	if (partial_end != sb->s_blocksize - 1)
 		err = ext4_block_zero_range(inode, byte_end - partial_end,
-					    partial_end + 1, NULL, NULL);
+					    partial_end + 1, did_zero, NULL);
 	return err;
 }
 
@@ -4436,6 +4438,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 	loff_t end = offset + length;
 	handle_t *handle;
 	unsigned int credits;
+	bool partial_zeroed = false;
 	int ret;
 
 	trace_ext4_punch_hole(inode, offset, length, 0);
@@ -4471,9 +4474,15 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 	if (ret)
 		return ret;
 
-	ret = ext4_zero_partial_blocks(inode, offset, length);
+	ret = ext4_zero_partial_blocks(inode, offset, length, &partial_zeroed);
 	if (ret)
 		return ret;
+	if (((file->f_flags & O_SYNC) || IS_SYNC(inode)) && partial_zeroed) {
+		ret = filemap_write_and_wait_range(inode->i_mapping, offset,
+						   end - 1);
+		if (ret)
+			return ret;
+	}
 
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		credits = ext4_chunk_trans_extent(inode, 0);
