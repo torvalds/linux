@@ -49,8 +49,8 @@ struct i2c_atr_alias_pair {
  * @shared:   Indicates if this alias pool is shared by multiple channels
  *
  * @lock:     Lock protecting @aliases and @use_mask
- * @aliases:  Array of aliases, must hold exactly @size elements
  * @use_mask: Mask of used aliases
+ * @aliases:  Array of aliases, must hold exactly @size elements
  */
 struct i2c_atr_alias_pool {
 	size_t size;
@@ -58,8 +58,8 @@ struct i2c_atr_alias_pool {
 
 	/* Protects aliases and use_mask */
 	spinlock_t lock;
-	u16 *aliases;
 	unsigned long *use_mask;
+	u16 aliases[] __counted_by(size);
 };
 
 /**
@@ -137,22 +137,16 @@ static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases, b
 	struct i2c_atr_alias_pool *alias_pool;
 	int ret;
 
-	alias_pool = kzalloc_obj(*alias_pool);
+	alias_pool = kzalloc_flex(*alias_pool, aliases, num_aliases);
 	if (!alias_pool)
 		return ERR_PTR(-ENOMEM);
 
 	alias_pool->size = num_aliases;
 
-	alias_pool->aliases = kcalloc(num_aliases, sizeof(*alias_pool->aliases), GFP_KERNEL);
-	if (!alias_pool->aliases) {
-		ret = -ENOMEM;
-		goto err_free_alias_pool;
-	}
-
 	alias_pool->use_mask = bitmap_zalloc(num_aliases, GFP_KERNEL);
 	if (!alias_pool->use_mask) {
 		ret = -ENOMEM;
-		goto err_free_aliases;
+		goto err_free_alias_pool;
 	}
 
 	alias_pool->shared = shared;
@@ -161,8 +155,6 @@ static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases, b
 
 	return alias_pool;
 
-err_free_aliases:
-	kfree(alias_pool->aliases);
 err_free_alias_pool:
 	kfree(alias_pool);
 	return ERR_PTR(ret);
@@ -171,7 +163,6 @@ err_free_alias_pool:
 static void i2c_atr_free_alias_pool(struct i2c_atr_alias_pool *alias_pool)
 {
 	bitmap_free(alias_pool->use_mask);
-	kfree(alias_pool->aliases);
 	kfree(alias_pool);
 }
 
