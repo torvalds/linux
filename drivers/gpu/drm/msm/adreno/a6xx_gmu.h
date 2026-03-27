@@ -130,6 +130,8 @@ struct a6xx_gmu {
 #define GMU_STATUS_PDC_SLEEP	1
 /* To track Perfcounter OOB set status */
 #define GMU_STATUS_OOB_PERF_SET 2
+/* To track whether secure world init was done */
+#define GMU_STATUS_SECURE_INIT	3
 	unsigned long status;
 };
 
