@@ -2429,37 +2429,36 @@ static int __init vub300_init(void)
 
 	pr_info("VUB300 Driver rom wait states = %02X irqpoll timeout = %04X",
 		firmware_rom_wait_states, 0x0FFFF & firmware_irqpoll_timeout);
+
 	cmndworkqueue = create_singlethread_workqueue("kvub300c");
-	if (!cmndworkqueue) {
-		pr_err("not enough memory for the REQUEST workqueue");
-		result = -ENOMEM;
-		goto out1;
-	}
+	if (!cmndworkqueue)
+		return -ENOMEM;
+
 	pollworkqueue = create_singlethread_workqueue("kvub300p");
 	if (!pollworkqueue) {
-		pr_err("not enough memory for the IRQPOLL workqueue");
 		result = -ENOMEM;
-		goto out2;
+		goto err_destroy_cmdwq;
 	}
+
 	deadworkqueue = create_singlethread_workqueue("kvub300d");
 	if (!deadworkqueue) {
-		pr_err("not enough memory for the EXPIRED workqueue");
 		result = -ENOMEM;
-		goto out3;
+		goto err_destroy_pollwq;
 	}
+
 	result = usb_register(&vub300_driver);
-	if (result) {
-		pr_err("usb_register failed. Error number %d", result);
-		goto out4;
-	}
+	if (result)
+		goto err_destroy_deadwq;
+
 	return 0;
-out4:
+
+err_destroy_deadwq:
 	destroy_workqueue(deadworkqueue);
-out3:
+err_destroy_pollwq:
 	destroy_workqueue(pollworkqueue);
-out2:
+err_destroy_cmdwq:
 	destroy_workqueue(cmndworkqueue);
-out1:
+
 	return result;
 }
 
