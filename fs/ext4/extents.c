@@ -4582,7 +4582,7 @@ static int ext4_alloc_file_blocks(struct file *file, loff_t offset, loff_t len,
 	ext4_lblk_t len_lblk;
 	struct ext4_map_blocks map;
 	unsigned int credits;
-	loff_t epos, old_size = i_size_read(inode);
+	loff_t epos = 0, old_size = i_size_read(inode);
 	unsigned int blkbits = inode->i_blkbits;
 	bool alloc_zero = false;
 
@@ -4647,44 +4647,60 @@ retry:
 			ext4_journal_stop(handle);
 			break;
 		}
+		ext4_update_inode_fsync_trans(handle, inode, 1);
+		ret = ext4_journal_stop(handle);
+		if (unlikely(ret))
+			break;
+
 		/*
 		 * allow a full retry cycle for any remaining allocations
 		 */
 		retries = 0;
-		epos = EXT4_LBLK_TO_B(inode, map.m_lblk + ret);
-		if (new_size) {
-			if (epos > new_size)
-				epos = new_size;
-			ext4_update_inode_size(inode, epos);
-			if (epos > old_size)
-				pagecache_isize_extended(inode, old_size, epos);
-		}
-		ret2 = ext4_mark_inode_dirty(handle, inode);
-		ext4_update_inode_fsync_trans(handle, inode, 1);
-		ret3 = ext4_journal_stop(handle);
-		ret2 = ret3 ? ret3 : ret2;
-		if (unlikely(ret2))
-			break;
 
 		if (alloc_zero &&
 		    (map.m_flags & (EXT4_MAP_MAPPED | EXT4_MAP_UNWRITTEN))) {
-			ret2 = ext4_issue_zeroout(inode, map.m_lblk, map.m_pblk,
-						  map.m_len);
-			if (likely(!ret2))
-				ret2 = ext4_convert_unwritten_extents(NULL,
+			ret = ext4_issue_zeroout(inode, map.m_lblk, map.m_pblk,
+						 map.m_len);
+			if (likely(!ret))
+				ret = ext4_convert_unwritten_extents(NULL,
 					inode, (loff_t)map.m_lblk << blkbits,
 					(loff_t)map.m_len << blkbits);
-			if (ret2)
+			if (ret)
 				break;
 		}
 
-		map.m_lblk += ret;
-		map.m_len = len_lblk = len_lblk - ret;
+		map.m_lblk += map.m_len;
+		map.m_len = len_lblk = len_lblk - map.m_len;
+		epos = EXT4_LBLK_TO_B(inode, map.m_lblk);
 	}
+
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	return ret > 0 ? ret2 : ret;
+	if (!epos || !new_size)
+		return ret;
+
+	/*
+	 * Allocate blocks, update the file size to match the size of the
+	 * already successfully allocated blocks.
+	 */
+	if (epos > new_size)
+		epos = new_size;
+
+	handle = ext4_journal_start(inode, EXT4_HT_MISC, 1);
+	if (IS_ERR(handle))
+		return ret ? ret : PTR_ERR(handle);
+
+	ext4_update_inode_size(inode, epos);
+	ret2 = ext4_mark_inode_dirty(handle, inode);
+	ext4_update_inode_fsync_trans(handle, inode, 1);
+	ret3 = ext4_journal_stop(handle);
+	ret2 = ret3 ? ret3 : ret2;
+
+	if (epos > old_size)
+		pagecache_isize_extended(inode, old_size, epos);
+
+	return ret ? ret : ret2;
 }
 
 static int ext4_collapse_range(struct file *file, loff_t offset, loff_t len);
