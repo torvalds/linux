@@ -21,6 +21,7 @@
 		ethernet0 = &ethernet0;
 		i2c1 = &i2c1;
 		serial0 = &uart7;
+		serial2 = &uart6;
 	};
 
 	chosen {
@@ -859,6 +860,10 @@
 		function = "gpio";
 		bias-pull-up;
 	};
+};
+
+&uart6 {
+	status = "okay";
 };
 
 &uart7 {
