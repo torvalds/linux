@@ -193,6 +193,8 @@ ret=${ksft_skip}
 nsuccess=0
 nfail=0
 
+HAS_TUNSRC=false
+
 log_test()
 {
 	local rc="$1"
@@ -345,6 +347,17 @@ setup_rt_networking()
 		ip -netns "${nsname}" addr \
 			add "${net_prefix}::${rt}/64" dev "${devname}" nodad
 
+		# A dedicated ::dead:<rt> address (with preferred_lft 0, i.e.,
+		# deprecated) is added when there is support for tunsrc. Because
+		# it is deprecated, the kernel should never auto-select it as
+		# source with current config. Only an explicit tunsrc can place
+		# it in the outer header.
+		if $HAS_TUNSRC; then
+			ip -netns "${nsname}" addr \
+				add "${net_prefix}::dead:${rt}/64" \
+				dev "${devname}" nodad preferred_lft 0
+		fi
+
 		ip -netns "${nsname}" link set "${devname}" up
 	done
 
@@ -420,6 +433,7 @@ setup_rt_local_sids()
 #       to the destination host)
 #  $5 - encap mode (full or red)
 #  $6 - traffic type (IPv6 or IPv4)
+#  $7 - force tunsrc (true or false)
 __setup_rt_policy()
 {
 	local dst="$1"
@@ -428,9 +442,45 @@ __setup_rt_policy()
 	local dec_rt="$4"
 	local mode="$5"
 	local traffic="$6"
+	local with_tunsrc="$7"
 	local nsname
 	local policy=''
+	local tunsrc=''
 	local n
+
+	# Verify the per-route tunnel source address ("tunsrc") feature.
+	# If it is not supported, fallback on encap config without tunsrc.
+	if $with_tunsrc && $HAS_TUNSRC; then
+		local net_prefix
+		local drule
+		local nxt
+
+		eval nsname=\${$(get_rtname "${dec_rt}")}
+
+		# Next SRv6 hop: first End router if any, or the decap router
+		[ -z "${end_rts}" ] && nxt="${dec_rt}" || nxt="${end_rts%% *}"
+
+		# Use the right prefix for tunsrc depending on the next SRv6 hop
+		net_prefix="$(get_network_prefix "${encap_rt}" "${nxt}")"
+		tunsrc="tunsrc ${net_prefix}::dead:${encap_rt}"
+
+		# To verify that the outer source address matches the one
+		# configured with tunsrc, the decap router discards packets
+		# with any other source address.
+		ip netns exec "${nsname}" ip6tables -t raw -I PREROUTING 1 \
+			-s "${net_prefix}::dead:${encap_rt}" \
+			-d "${VPN_LOCATOR_SERVICE}:${dec_rt}::${DT46_FUNC}" \
+			-j ACCEPT
+
+		drule="PREROUTING \
+		       -d ${VPN_LOCATOR_SERVICE}:${dec_rt}::${DT46_FUNC} \
+		       -j DROP"
+
+		if ! ip netns exec "${nsname}" \
+				ip6tables -t raw -C ${drule} &>/dev/null; then
+			ip netns exec "${nsname}" ip6tables -t raw -A ${drule}
+		fi
+	fi
 
 	eval nsname=\${$(get_rtname "${encap_rt}")}
 
@@ -444,7 +494,7 @@ __setup_rt_policy()
 	if [ "${traffic}" -eq 6 ]; then
 		ip -netns "${nsname}" -6 route \
 			add "${IPv6_HS_NETWORK}::${dst}" vrf "${VRF_DEVNAME}" \
-			encap seg6 mode "${mode}" segs "${policy}" \
+			encap seg6 mode "${mode}" ${tunsrc} segs "${policy}" \
 			dev "${VRF_DEVNAME}"
 
 		ip -netns "${nsname}" -6 neigh \
@@ -455,7 +505,7 @@ __setup_rt_policy()
 		# received, otherwise the proxy arp does not work.
 		ip -netns "${nsname}" -4 route \
 			add "${IPv4_HS_NETWORK}.${dst}" vrf "${VRF_DEVNAME}" \
-			encap seg6 mode "${mode}" segs "${policy}" \
+			encap seg6 mode "${mode}" ${tunsrc} segs "${policy}" \
 			dev "${VRF_DEVNAME}"
 	fi
 }
@@ -463,13 +513,13 @@ __setup_rt_policy()
 # see __setup_rt_policy
 setup_rt_policy_ipv6()
 {
-	__setup_rt_policy "$1" "$2" "$3" "$4" "$5" 6
+	__setup_rt_policy "$1" "$2" "$3" "$4" "$5" 6 "$6"
 }
 
 #see __setup_rt_policy
 setup_rt_policy_ipv4()
 {
-	__setup_rt_policy "$1" "$2" "$3" "$4" "$5" 4
+	__setup_rt_policy "$1" "$2" "$3" "$4" "$5" 4 "$6"
 }
 
 setup_hs()
@@ -567,41 +617,41 @@ setup()
 	# the network path between hs-1 and hs-2 traverses several routers
 	# depending on the direction of traffic.
 	#
-	# Direction hs-1 -> hs-2 (H.Encaps.Red)
+	# Direction hs-1 -> hs-2 (H.Encaps.Red + tunsrc)
 	#  - rt-3,rt-4 (SRv6 End behaviors)
 	#  - rt-2 (SRv6 End.DT46 behavior)
 	#
 	# Direction hs-2 -> hs-1 (H.Encaps.Red)
 	#  - rt-1 (SRv6 End.DT46 behavior)
-	setup_rt_policy_ipv6 2 1 "3 4" 2 encap.red
-	setup_rt_policy_ipv6 1 2 "" 1 encap.red
+	setup_rt_policy_ipv6 2 1 "3 4" 2 encap.red true
+	setup_rt_policy_ipv6 1 2 "" 1 encap.red false
 
 	# create an IPv4 VPN between hosts hs-1 and hs-2
 	# the network path between hs-1 and hs-2 traverses several routers
 	# depending on the direction of traffic.
 	#
-	# Direction hs-1 -> hs-2 (H.Encaps.Red)
+	# Direction hs-1 -> hs-2 (H.Encaps.Red + tunsrc)
 	# - rt-2 (SRv6 End.DT46 behavior)
 	#
 	# Direction hs-2 -> hs-1 (H.Encaps.Red)
 	#  - rt-4,rt-3 (SRv6 End behaviors)
 	#  - rt-1 (SRv6 End.DT46 behavior)
-	setup_rt_policy_ipv4 2 1 "" 2 encap.red
-	setup_rt_policy_ipv4 1 2 "4 3" 1 encap.red
+	setup_rt_policy_ipv4 2 1 "" 2 encap.red true
+	setup_rt_policy_ipv4 1 2 "4 3" 1 encap.red false
 
 	# create an IPv6 VPN between hosts hs-3 and hs-4
 	# the network path between hs-3 and hs-4 traverses several routers
 	# depending on the direction of traffic.
 	#
-	# Direction hs-3 -> hs-4 (H.Encaps.Red)
+	# Direction hs-3 -> hs-4 (H.Encaps.Red + tunsrc)
 	# - rt-2 (SRv6 End Behavior)
 	# - rt-4 (SRv6 End.DT46 behavior)
 	#
 	# Direction hs-4 -> hs-3 (H.Encaps.Red)
 	#  - rt-1 (SRv6 End behavior)
 	#  - rt-3 (SRv6 End.DT46 behavior)
-	setup_rt_policy_ipv6 4 3 "2" 4 encap.red
-	setup_rt_policy_ipv6 3 4 "1" 3 encap.red
+	setup_rt_policy_ipv6 4 3 "2" 4 encap.red true
+	setup_rt_policy_ipv6 3 4 "1" 3 encap.red false
 
 	# testing environment was set up successfully
 	SETUP_ERR=0
@@ -809,6 +859,38 @@ test_vrf_or_ksft_skip()
 	fi
 }
 
+# Before enabling tunsrc tests, make sure tunsrc and ip6tables are supported.
+check_tunsrc_support()
+{
+	setup_ns tunsrc_ns
+
+	ip -netns "${tunsrc_ns}" link add veth0 type veth \
+		peer name veth1 netns "${tunsrc_ns}"
+
+	ip -netns "${tunsrc_ns}" link set veth0 up
+
+	if ! ip -netns "${tunsrc_ns}" -6 route add fc00::dead:beef/128 \
+			encap seg6 mode encap.red tunsrc fc00::1 segs fc00::2 \
+			dev veth0 &>/dev/null; then
+		cleanup_ns "${tunsrc_ns}"
+		return
+	fi
+
+	if ! ip -netns "${tunsrc_ns}" -6 route show | grep -q "tunsrc"; then
+		cleanup_ns "${tunsrc_ns}"
+		return
+	fi
+
+	if ! ip netns exec "${tunsrc_ns}" ip6tables -t raw -A PREROUTING \
+			-d fc00::dead:beef -j DROP &>/dev/null; then
+		cleanup_ns "${tunsrc_ns}"
+		return
+	fi
+
+	cleanup_ns "${tunsrc_ns}"
+	HAS_TUNSRC=true
+}
+
 if [ "$(id -u)" -ne 0 ]; then
 	echo "SKIP: Need root privileges"
 	exit "${ksft_skip}"
@@ -826,6 +908,7 @@ test_vrf_or_ksft_skip
 set -e
 trap cleanup EXIT
 
+check_tunsrc_support
 setup
 set +e
 
