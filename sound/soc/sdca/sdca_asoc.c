@@ -850,7 +850,7 @@ static int q78_read(struct snd_soc_component *component,
 
 	reg_val = snd_soc_component_read(component, reg);
 
-	val = (sign_extend32(reg_val, mc->sign_bit) / mc->shift) - mc->min;
+	val = (sign_extend32(reg_val, mc->sign_bit) / (int)mc->shift) - mc->min;
 
 	return val & GENMASK(mc->sign_bit, 0);
 }
