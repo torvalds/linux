@@ -1065,6 +1065,7 @@ static bool is_kf_implicit_arg(const struct btf *btf, const struct btf_param *p)
 {
 	static const char *const kf_implicit_arg_types[] = {
 		"bpf_prog_aux",
+		"btf_struct_meta",
 	};
 	const struct btf_type *t;
 	const char *name;

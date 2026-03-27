@@ -110,7 +110,7 @@ int BPF_PROG(test_array_map_3)
 }
 
 SEC("?fentry.s/bpf_fentry_test1")
-__failure __msg("arg#0 expected for bpf_percpu_obj_drop_impl()")
+__failure __msg("arg#0 expected for bpf_percpu_obj_drop()")
 int BPF_PROG(test_array_map_4)
 {
 	struct val_t __percpu_kptr *p;
@@ -124,7 +124,7 @@ int BPF_PROG(test_array_map_4)
 }
 
 SEC("?fentry.s/bpf_fentry_test1")
-__failure __msg("arg#0 expected for bpf_obj_drop_impl()")
+__failure __msg("arg#0 expected for bpf_obj_drop()")
 int BPF_PROG(test_array_map_5)
 {
 	struct val_t *p;
