@@ -1780,6 +1780,9 @@ static int snd_pcm_suspend(struct snd_pcm_substream *substream)
  * snd_pcm_suspend_all - trigger SUSPEND to all substreams in the given pcm
  * @pcm: the PCM instance
  *
+ * Takes and releases pcm->open_mutex to serialize against
+ * concurrent open/close while walking the substreams.
+ *
  * After this call, all streams are changed to SUSPENDED state.
  *
  * Return: Zero if successful (or @pcm is %NULL), or a negative error code.
@@ -1792,8 +1795,9 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 	if (! pcm)
 		return 0;
 
+	guard(mutex)(&pcm->open_mutex);
+
 	for_each_pcm_substream(pcm, stream, substream) {
-		/* FIXME: the open/close code should lock this as well */
 		if (!substream->runtime)
 			continue;
 
