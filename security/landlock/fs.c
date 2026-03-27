@@ -1595,10 +1595,13 @@ static void unmask_scoped_access(const struct landlock_ruleset *const client,
 		return;
 
 	/*
-	 * client_layer must be a signed integer with greater capacity
-	 * than client->num_layers to ensure the following loop stops.
+	 * client_layer must be able to represent all numbers from
+	 * LANDLOCK_MAX_NUM_LAYERS - 1 to -1 for the loop below to terminate.
+	 * (It must be large enough, and it must be signed.)
 	 */
-	BUILD_BUG_ON(sizeof(client_layer) > sizeof(client->num_layers));
+	BUILD_BUG_ON(!is_signed_type(typeof(client_layer)));
+	BUILD_BUG_ON(LANDLOCK_MAX_NUM_LAYERS - 1 >
+		     type_max(typeof(client_layer)));
 
 	client_layer = client->num_layers - 1;
 	client_walker = client->hierarchy;
