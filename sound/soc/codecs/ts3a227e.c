@@ -5,7 +5,6 @@
  * Copyright (C) 2014 Google, Inc.
  */
 
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/input.h>
