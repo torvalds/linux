@@ -21,6 +21,7 @@
 		ethernet0 = &ethernet0;
 		mmc1 = &sdhc;
 		serial0 = &uart10;
+		serial2 = &uart0;
 	};
 
 	dmic: audio-codec-0 {
@@ -948,6 +949,10 @@
 		function = "gpio";
 		bias-pull-up;
 	};
+};
+
+&uart0 {
+	status = "okay";
 };
 
 &uart10 {
