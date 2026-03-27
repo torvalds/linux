@@ -3,7 +3,7 @@
 #include <linux/memregion.h>
 #include <linux/module.h>
 #include <linux/dax.h>
-#include <cxl/cxl.h>
+#include "../../cxl/cxl.h"
 #include "../bus.h"
 
 static bool region_idle;
