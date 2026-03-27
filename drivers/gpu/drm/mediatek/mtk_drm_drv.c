@@ -4,6 +4,7 @@
  * Author: YT SHEN <yt.shen@mediatek.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -654,6 +655,10 @@ static int mtk_drm_bind(struct device *dev)
 	ret = mtk_drm_kms_init(drm);
 	if (ret < 0)
 		goto err_free;
+
+	ret = aperture_remove_all_conflicting_devices(DRIVER_NAME);
+	if (ret < 0)
+		dev_err(dev, "Error %d while removing conflicting aperture devices", ret);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
