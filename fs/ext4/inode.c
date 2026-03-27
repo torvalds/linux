@@ -4105,12 +4105,12 @@ unlock:
 	return err ? ERR_PTR(err) : NULL;
 }
 
-static int ext4_block_do_zero_range(handle_t *handle, struct inode *inode,
-				    loff_t from, loff_t length, bool *did_zero)
+static int ext4_block_do_zero_range(struct inode *inode, loff_t from,
+				    loff_t length, bool *did_zero,
+				    bool *zero_written)
 {
 	struct buffer_head *bh;
 	struct folio *folio;
-	int err = 0;
 
 	bh = ext4_load_tail_bh(inode, from);
 	if (IS_ERR_OR_NULL(bh))
@@ -4121,19 +4121,14 @@ static int ext4_block_do_zero_range(handle_t *handle, struct inode *inode,
 	BUFFER_TRACE(bh, "zeroed end of block");
 
 	mark_buffer_dirty(bh);
-	/*
-	 * Only the written block requires ordered data to prevent exposing
-	 * stale data.
-	 */
-	if (ext4_should_order_data(inode) &&
-	    !buffer_unwritten(bh) && !buffer_delay(bh))
-		err = ext4_jbd2_inode_add_write(handle, inode, from, length);
-	if (!err && did_zero)
+	if (did_zero)
 		*did_zero = true;
+	if (zero_written && !buffer_unwritten(bh) && !buffer_delay(bh))
+		*zero_written = true;
 
 	folio_unlock(folio);
 	folio_put(folio);
-	return err;
+	return 0;
 }
 
 static int ext4_block_journalled_zero_range(handle_t *handle,
@@ -4176,7 +4171,8 @@ out:
  * shortened to end of the block that corresponds to 'from'.
  */
 static int ext4_block_zero_range(handle_t *handle, struct inode *inode,
-				 loff_t from, loff_t length, bool *did_zero)
+				 loff_t from, loff_t length, bool *did_zero,
+				 bool *zero_written)
 {
 	unsigned blocksize = inode->i_sb->s_blocksize;
 	unsigned int max = blocksize - (from & (blocksize - 1));
@@ -4195,7 +4191,8 @@ static int ext4_block_zero_range(handle_t *handle, struct inode *inode,
 		return ext4_block_journalled_zero_range(handle, inode, from,
 							length, did_zero);
 	}
-	return ext4_block_do_zero_range(handle, inode, from, length, did_zero);
+	return ext4_block_do_zero_range(inode, from, length, did_zero,
+					zero_written);
 }
 
 /*
@@ -4211,6 +4208,9 @@ int ext4_block_zero_eof(handle_t *handle, struct inode *inode,
 	unsigned int blocksize = i_blocksize(inode);
 	unsigned int offset;
 	loff_t length = end - from;
+	bool did_zero = false;
+	bool zero_written = false;
+	int err;
 
 	offset = from & (blocksize - 1);
 	if (!offset || from >= end)
@@ -4222,7 +4222,21 @@ int ext4_block_zero_eof(handle_t *handle, struct inode *inode,
 	if (length > blocksize - offset)
 		length = blocksize - offset;
 
-	return ext4_block_zero_range(handle, inode, from, length, NULL);
+	err = ext4_block_zero_range(handle, inode, from, length,
+				    &did_zero, &zero_written);
+	if (err)
+		return err;
+	/*
+	 * It's necessary to order zeroed data before update i_disksize when
+	 * truncating up or performing an append write, because there might be
+	 * exposing stale on-disk data which may caused by concurrent post-EOF
+	 * mmap write during folio writeback.
+	 */
+	if (ext4_should_order_data(inode) &&
+	    did_zero && zero_written && !IS_DAX(inode))
+		err = ext4_jbd2_inode_add_write(handle, inode, from, length);
+
+	return err;
 }
 
 int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
@@ -4244,13 +4258,13 @@ int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 	if (start == end &&
 	    (partial_start || (partial_end != sb->s_blocksize - 1))) {
 		err = ext4_block_zero_range(handle, inode, lstart,
-					    length, NULL);
+					    length, NULL, NULL);
 		return err;
 	}
 	/* Handle partial zero out on the start of the range */
 	if (partial_start) {
 		err = ext4_block_zero_range(handle, inode, lstart,
-					    sb->s_blocksize, NULL);
+					    sb->s_blocksize, NULL, NULL);
 		if (err)
 			return err;
 	}
@@ -4258,7 +4272,7 @@ int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 	if (partial_end != sb->s_blocksize - 1)
 		err = ext4_block_zero_range(handle, inode,
 					    byte_end - partial_end,
-					    partial_end + 1, NULL);
+					    partial_end + 1, NULL, NULL);
 	return err;
 }
 
@@ -4432,17 +4446,6 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 	if (end > max_end)
 		end = max_end;
 	length = end - offset;
-
-	/*
-	 * Attach jinode to inode for jbd2 if we do any zeroing of partial
-	 * block.
-	 */
-	if (!IS_ALIGNED(offset | end, sb->s_blocksize)) {
-		ret = ext4_inode_attach_jinode(inode);
-		if (ret < 0)
-			return ret;
-	}
-
 
 	ret = ext4_update_disksize_before_punch(inode, offset, length);
 	if (ret)
