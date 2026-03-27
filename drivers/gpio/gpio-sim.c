@@ -36,8 +36,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-#include "dev-sync-probe.h"
-
 #define GPIO_SIM_NGPIO_MAX	1024
 #define GPIO_SIM_PROP_MAX	5 /* Max 4 properties + sentinel. */
 #define GPIO_SIM_HOG_PROP_MAX	5
@@ -546,7 +544,7 @@ static struct platform_driver gpio_sim_driver = {
 };
 
 struct gpio_sim_device {
-	struct dev_sync_probe_data probe_data;
+	struct platform_device *pdev;
 	struct config_group group;
 
 	int id;
@@ -673,7 +671,7 @@ static bool gpio_sim_device_is_live(struct gpio_sim_device *dev)
 {
 	lockdep_assert_held(&dev->lock);
 
-	return !!dev->probe_data.pdev;
+	return !!dev->pdev;
 }
 
 static char *gpio_sim_strdup_trimmed(const char *str, size_t count)
@@ -695,7 +693,7 @@ static ssize_t gpio_sim_device_config_dev_name_show(struct config_item *item,
 
 	guard(mutex)(&dev->lock);
 
-	pdev = dev->probe_data.pdev;
+	pdev = dev->pdev;
 	if (pdev)
 		return sprintf(page, "%s\n", dev_name(&pdev->dev));
 
@@ -900,6 +898,7 @@ static bool gpio_sim_bank_labels_non_unique(struct gpio_sim_device *dev)
 static int gpio_sim_device_activate(struct gpio_sim_device *dev)
 {
 	struct platform_device_info pdevinfo;
+	struct platform_device *pdev;
 	struct fwnode_handle *swnode;
 	struct gpio_sim_bank *bank;
 	int ret;
@@ -927,28 +926,39 @@ static int gpio_sim_device_activate(struct gpio_sim_device *dev)
 		bank->swnode = gpio_sim_make_bank_swnode(bank, swnode);
 		if (IS_ERR(bank->swnode)) {
 			ret = PTR_ERR(bank->swnode);
-			gpio_sim_remove_swnode_recursive(swnode);
-			return ret;
+			goto err_remove_swnode;
 		}
 
 		ret = gpio_sim_bank_add_hogs(bank);
-		if (ret) {
-			gpio_sim_remove_swnode_recursive(swnode);
-			return ret;
-		}
+		if (ret)
+			goto err_remove_swnode;
 	}
 
 	pdevinfo.name = "gpio-sim";
 	pdevinfo.fwnode = swnode;
 	pdevinfo.id = dev->id;
 
-	ret = dev_sync_probe_register(&dev->probe_data, &pdevinfo);
-	if (ret) {
-		gpio_sim_remove_swnode_recursive(swnode);
-		return ret;
+	pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(pdev)) {
+		ret = PTR_ERR(pdev);
+		goto err_remove_swnode;
 	}
 
+	wait_for_device_probe();
+	if (!device_is_bound(&pdev->dev)) {
+		ret = -ENXIO;
+		goto err_unregister_pdev;
+	}
+
+	dev->pdev = pdev;
 	return 0;
+
+err_unregister_pdev:
+	platform_device_unregister(pdev);
+err_remove_swnode:
+	gpio_sim_remove_swnode_recursive(swnode);
+
+	return ret;
 }
 
 static void gpio_sim_device_deactivate(struct gpio_sim_device *dev)
@@ -957,8 +967,9 @@ static void gpio_sim_device_deactivate(struct gpio_sim_device *dev)
 
 	lockdep_assert_held(&dev->lock);
 
-	swnode = dev_fwnode(&dev->probe_data.pdev->dev);
-	dev_sync_probe_unregister(&dev->probe_data);
+	swnode = dev_fwnode(&dev->pdev->dev);
+	platform_device_unregister(dev->pdev);
+	dev->pdev = NULL;
 	gpio_sim_remove_swnode_recursive(swnode);
 }
 
@@ -1060,7 +1071,7 @@ static ssize_t gpio_sim_bank_config_chip_name_show(struct config_item *item,
 	guard(mutex)(&dev->lock);
 
 	if (gpio_sim_device_is_live(dev))
-		return device_for_each_child(&dev->probe_data.pdev->dev, &ctx,
+		return device_for_each_child(&dev->pdev->dev, &ctx,
 					     gpio_sim_emit_chip_name);
 
 	return sprintf(page, "none\n");
@@ -1570,8 +1581,6 @@ gpio_sim_config_make_device_group(struct config_group *group, const char *name)
 	dev->id = id;
 	mutex_init(&dev->lock);
 	INIT_LIST_HEAD(&dev->bank_list);
-
-	dev_sync_probe_init(&dev->probe_data);
 
 	return &no_free_ptr(dev)->group;
 }
