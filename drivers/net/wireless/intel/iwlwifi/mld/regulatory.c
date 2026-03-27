@@ -64,6 +64,7 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 	}
 
 	iwl_uefi_get_uats_table(mld->trans, &mld->fwrt);
+	iwl_uefi_get_uneb_table(mld->trans, &mld->fwrt);
 
 	iwl_bios_get_phy_filters(&mld->fwrt);
 }
@@ -72,16 +73,36 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 {
 	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD);
 	/* Only set to South Korea if the table revision is 1 */
-	__le32 sk = cpu_to_le32(mld->fwrt.geo_rev == 1 ? 1 : 0);
+	u8 sk = mld->fwrt.geo_rev == 1 ? 1 : 0;
 	union iwl_geo_tx_power_profiles_cmd cmd = {
 		.v5.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
-		.v5.table_revision = sk,
 	};
+	u32 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0);
+	int n_subbands;
+	int cmd_size;
 	int ret;
 
-	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v5.table[0][0],
-				     ARRAY_SIZE(cmd.v5.table[0]),
-				     BIOS_GEO_MAX_PROFILE_NUM);
+	switch (cmd_ver) {
+	case 5:
+		n_subbands = ARRAY_SIZE(cmd.v5.table[0]);
+		cmd.v5.table_revision = cpu_to_le32(sk);
+		cmd_size = sizeof(cmd.v5);
+		break;
+	case 6:
+		n_subbands = ARRAY_SIZE(cmd.v6.table[0]);
+		cmd.v6.bios_hdr.table_revision = mld->fwrt.geo_rev;
+		cmd.v6.bios_hdr.table_source = mld->fwrt.geo_bios_source;
+		cmd_size = sizeof(cmd.v6);
+		break;
+	default:
+		WARN(false, "unsupported version: %d", cmd_ver);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(offsetof(typeof(cmd), v6.table) !=
+		     offsetof(typeof(cmd), v5.table));
+	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v6.table[0][0],
+				     n_subbands, BIOS_GEO_MAX_PROFILE_NUM);
 
 	/* It is a valid scenario to not support SAR, or miss wgds table,
 	 * but in that case there is no need to send the command.
@@ -89,28 +110,48 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 	if (ret)
 		return 0;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, sizeof(cmd.v5));
+	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, cmd_size);
 }
 
 int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
 {
-	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
-		.v10.flags = cpu_to_le32(mld->fwrt.reduced_power_flags),
 	};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, REDUCE_TX_POWER_CMD, 10);
+	int num_subbands;
+	int cmd_size;
 	int ret;
 
+	switch (cmd_ver) {
+	case 10:
+		cmd.v10.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
+		cmd_size = sizeof(cmd.common) + sizeof(cmd.v10);
+		num_subbands = IWL_NUM_SUB_BANDS_V2;
+		break;
+	case 11:
+		cmd.v11.flags = cpu_to_le32(mld->fwrt.reduced_power_flags);
+		cmd_size = sizeof(cmd.common) + sizeof(cmd.v11);
+		num_subbands = IWL_NUM_SUB_BANDS_V3;
+		break;
+	default:
+		WARN_ONCE(1, "Bad version for REDUCE_TX_POWER_CMD: %d\n",
+			  cmd_ver);
+		return -EOPNOTSUPP;
+	}
+
 	/* TODO: CDB - support IWL_NUM_CHAIN_TABLES_V2 */
-	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v10.per_chain[0][0][0],
-				   IWL_NUM_CHAIN_TABLES, IWL_NUM_SUB_BANDS_V2,
+	/* v10 and v11 have the same position for per_chain */
+	BUILD_BUG_ON(offsetof(typeof(cmd), v11.per_chain) !=
+		     offsetof(typeof(cmd), v10.per_chain));
+	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v11.per_chain[0][0][0],
+				   IWL_NUM_CHAIN_TABLES, num_subbands,
 				   prof_a, prof_b);
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)
 		return ret;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd,
-				    sizeof(cmd.common) + sizeof(cmd.v10));
+	return iwl_mld_send_cmd_pdu(mld, REDUCE_TX_POWER_CMD, &cmd, cmd_size);
 }
 
 int iwl_mld_init_sar(struct iwl_mld *mld)
@@ -165,30 +206,86 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 {
 	struct iwl_fw_runtime *fwrt = &mld->fwrt;
 	union iwl_ppag_table_cmd cmd = {
-		.v7.ppag_config_info.hdr.table_source = fwrt->ppag_bios_source,
-		.v7.ppag_config_info.hdr.table_revision = fwrt->ppag_bios_rev,
-		.v7.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags),
+		/* v7 and v8 have the same layout for the ppag_config_info */
+		.v8.ppag_config_info.hdr.table_source = fwrt->ppag_bios_source,
+		.v8.ppag_config_info.hdr.table_revision = fwrt->ppag_bios_rev,
+		.v8.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags),
 	};
+	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_PLATFORM_ANT_GAIN_CMD);
+	int cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 1);
+	int cmd_len = sizeof(cmd.v8);
+	u8 cmd_bios_rev;
 	int ret;
+
+	BUILD_BUG_ON(offsetof(typeof(cmd), v8.ppag_config_info.hdr) !=
+		     offsetof(typeof(cmd), v7.ppag_config_info.hdr));
+	BUILD_BUG_ON(offsetof(typeof(cmd), v8.gain) !=
+		     offsetof(typeof(cmd), v7.gain));
+
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.v7.gain) > ARRAY_SIZE(fwrt->ppag_chains));
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.v7.gain[0]) >
+		     ARRAY_SIZE(fwrt->ppag_chains[0].subbands));
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.v8.gain) > ARRAY_SIZE(fwrt->ppag_chains));
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.v8.gain[0]) >
+		     ARRAY_SIZE(fwrt->ppag_chains[0].subbands));
 
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits going to be sent: %d\n",
 			fwrt->ppag_flags);
 
-	for (int chain = 0; chain < IWL_NUM_CHAIN_LIMITS; chain++) {
-		for (int subband = 0; subband < IWL_NUM_SUB_BANDS_V2; subband++) {
-			cmd.v7.gain[chain][subband] =
-				fwrt->ppag_chains[chain].subbands[subband];
-			IWL_DEBUG_RADIO(fwrt,
-					"PPAG table: chain[%d] band[%d]: gain = %d\n",
-					chain, subband, cmd.v7.gain[chain][subband]);
+	/* Since ver 7 will be deprecated at some point, don't bother making
+	 * this code generic for both ver 7 and ver 8: duplicate the code.
+	 */
+	if (cmd_ver == 7) {
+		for (int chain = 0; chain < ARRAY_SIZE(cmd.v7.gain); chain++) {
+			for (int subband = 0;
+			     subband < ARRAY_SIZE(cmd.v7.gain[0]);
+			     subband++) {
+				cmd.v7.gain[chain][subband] =
+					fwrt->ppag_chains[chain].subbands[subband];
+				IWL_DEBUG_RADIO(fwrt,
+						"PPAG table: chain[%d] band[%d]: gain = %d\n",
+						chain, subband,
+						cmd.v7.gain[chain][subband]);
+			}
 		}
+		cmd_len = sizeof(cmd.v7);
+		cmd_bios_rev =
+			iwl_fw_lookup_cmd_bios_supported_revision(fwrt->fw,
+								  fwrt->ppag_bios_source,
+								  cmd_id, 4);
+	} else if (cmd_ver == 8) {
+		for (int chain = 0; chain < ARRAY_SIZE(cmd.v8.gain); chain++) {
+			for (int subband = 0;
+			     subband < ARRAY_SIZE(cmd.v8.gain[0]);
+			     subband++) {
+				cmd.v8.gain[chain][subband] =
+					fwrt->ppag_chains[chain].subbands[subband];
+				IWL_DEBUG_RADIO(fwrt,
+						"PPAG table: chain[%d] band[%d]: gain = %d\n",
+						chain, subband,
+						cmd.v8.gain[chain][subband]);
+			}
+		}
+		cmd_bios_rev =
+			iwl_fw_lookup_cmd_bios_supported_revision(fwrt->fw,
+								  fwrt->ppag_bios_source,
+								  cmd_id, 5);
+	} else {
+		WARN(1, "Bad version for PER_PLATFORM_ANT_GAIN_CMD %d\n",
+		     cmd_ver);
+		return -EINVAL;
+	}
+
+	if (cmd_bios_rev < fwrt->ppag_bios_rev) {
+		IWL_ERR(mld,
+			"BIOS revision compatibility check failed - Supported: %d, Current: %d\n",
+			cmd_bios_rev, fwrt->ppag_bios_rev);
+		return 0;
 	}
 
 	IWL_DEBUG_RADIO(mld, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
-	ret = iwl_mld_send_cmd_pdu(mld, WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD),
-				   &cmd, sizeof(cmd.v7));
+	ret = iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, cmd_len);
 	if (ret < 0)
 		IWL_ERR(mld, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
 			ret);
@@ -352,21 +449,42 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 				ret);
 }
 
-void iwl_mld_init_uats(struct iwl_mld *mld)
+void iwl_mld_init_ap_type_tables(struct iwl_mld *mld)
 {
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
 			      MCC_ALLOWED_AP_TYPE_CMD),
-		.data[0] = &mld->fwrt.uats_table,
-		.len[0] =  sizeof(mld->fwrt.uats_table),
+		.data[0] = &mld->fwrt.ap_type_cmd,
+		.len[0] =  sizeof(mld->fwrt.ap_type_cmd),
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 
-	if (!mld->fwrt.uats_valid)
+	if (!mld->fwrt.ap_type_cmd_valid)
 		return;
 
-	ret = iwl_mld_send_cmd(mld, &cmd);
+	if (iwl_fw_lookup_cmd_ver(mld->fw, cmd.id, 1) == 1) {
+		struct iwl_mcc_allowed_ap_type_cmd_v1 *cmd_v1 =
+			kzalloc(sizeof(*cmd_v1), GFP_KERNEL);
+
+		if (!cmd_v1)
+			return;
+
+		BUILD_BUG_ON(sizeof(mld->fwrt.ap_type_cmd.mcc_to_ap_type_map) !=
+			     sizeof(cmd_v1->mcc_to_ap_type_map));
+
+		memcpy(cmd_v1->mcc_to_ap_type_map,
+		       mld->fwrt.ap_type_cmd.mcc_to_ap_type_map,
+		       sizeof(mld->fwrt.ap_type_cmd.mcc_to_ap_type_map));
+
+		cmd.data[0] = cmd_v1;
+		cmd.len[0] = sizeof(*cmd_v1);
+		ret = iwl_mld_send_cmd(mld, &cmd);
+		kfree(cmd_v1);
+	} else {
+		ret = iwl_mld_send_cmd(mld, &cmd);
+	}
+
 	if (ret)
 		IWL_ERR(mld, "failed to send MCC_ALLOWED_AP_TYPE_CMD (%d)\n",
 			ret);

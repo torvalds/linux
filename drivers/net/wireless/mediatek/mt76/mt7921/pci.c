@@ -26,6 +26,8 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
 		.driver_data = (kernel_ulong_t)MT7922_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7920),
 		.driver_data = (kernel_ulong_t)MT7920_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7902),
+		.driver_data = (kernel_ulong_t)MT7902_FIRMWARE_WM },
 	{ },
 };
 
@@ -167,7 +169,28 @@ static u32 mt7921_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 
 static int mt7921_dma_init(struct mt792x_dev *dev)
 {
+	struct mt7921_dma_layout layout = {
+		/* General case: MT7921 / MT7922 /MT7920 */
+		.mcu_wm_txq            = MT7921_TXQ_MCU_WM,
+		.mcu_rxdone_ring_size  = MT7921_RX_MCU_RING_SIZE,
+		.has_mcu_wa            = true,
+	};
+	bool is_mt7902;
 	int ret;
+
+	is_mt7902 = mt7921_l1_rr(dev, MT_HW_CHIPID) == 0x7902;
+
+	/*
+	 * MT7902 special case:
+	 *   - MCU-WM TXQ uses index 15
+	 *   - RX Ring0 is larger and shared for event/TX-done
+	 *   - MT7902 does not use the MCU_WA ring
+	 */
+	if (is_mt7902) {
+		layout.mcu_wm_txq           = MT7902_TXQ_MCU_WM;
+		layout.mcu_rxdone_ring_size = MT7902_RX_MCU_RING_SIZE;
+		layout.has_mcu_wa           = false;
+	}
 
 	mt76_dma_attach(&dev->mt76);
 
@@ -185,7 +208,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, 0x4);
 
 	/* command to WM */
-	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT7921_TXQ_MCU_WM,
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, layout.mcu_wm_txq,
 				  MT7921_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
@@ -199,18 +222,20 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	/* event from WM before firmware download */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU],
 			       MT7921_RXQ_MCU_WM,
-			       MT7921_RX_MCU_RING_SIZE,
+			       layout.mcu_rxdone_ring_size,
 			       MT_RX_BUF_SIZE, MT_RX_EVENT_RING_BASE);
 	if (ret)
 		return ret;
 
-	/* Change mcu queue after firmware download */
-	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
-			       MT7921_RXQ_MCU_WM,
-			       MT7921_RX_MCU_WA_RING_SIZE,
-			       MT_RX_BUF_SIZE, MT_WFDMA0(0x540));
-	if (ret)
-		return ret;
+	if (layout.has_mcu_wa) {
+		/* Change mcu queue after firmware download */
+		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
+				       MT7921_RXQ_MCU_WM,
+				       MT7921_RX_MCU_WA_RING_SIZE,
+				       MT_RX_BUF_SIZE, MT_WFDMA0(0x540));
+		if (ret)
+			return ret;
+	}
 
 	/* rx data */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
@@ -276,15 +301,12 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	struct mt76_bus_ops *bus_ops;
 	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
+	void __iomem *regs;
 	u16 cmd, chipid;
 	u8 features;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
-	if (ret)
-		return ret;
-
-	ret = pcim_iomap_regions(pdev, BIT(0), pci_name(pdev));
 	if (ret)
 		return ret;
 
@@ -321,11 +343,29 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, mdev);
 
+	regs =  pcim_iomap_region(pdev, 0, pci_name(pdev));
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
 	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &mt7921_pcie_ops;
 	dev->irq_map = &irq_map;
-	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
+	mt76_mmio_init(&dev->mt76, regs);
+
+	if (id->device == 0x7902) {
+		struct mt792x_irq_map *map;
+
+		/* MT7902 needs a mutable copy because wm2_complete_mask differs */
+		map = devm_kmemdup(&pdev->dev, &irq_map,
+				   sizeof(irq_map), GFP_KERNEL);
+		if (!map)
+			return -ENOMEM;
+
+		map->rx.wm2_complete_mask = 0;
+		dev->irq_map = map;
+	}
+
 	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
 
 	dev->phy.dev = dev;
@@ -579,6 +619,8 @@ MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
 MODULE_FIRMWARE(MT7922_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7922_ROM_PATCH);
+MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
+MODULE_FIRMWARE(MT7902_ROM_PATCH);
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");

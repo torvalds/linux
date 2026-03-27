@@ -128,15 +128,27 @@ static void mt7996_dma_config(struct mt7996_dev *dev)
 
 	/* data tx queue */
 	if (is_mt7996(&dev->mt76)) {
-		TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0, MT7996_TXQ_BAND0);
 		if (dev->hif2) {
-			/* default bn1:ring19 bn2:ring21 */
-			TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1,
-				   MT7996_TXQ_BAND1);
-			TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2,
-				   MT7996_TXQ_BAND2);
+			if (mt76_npu_device_active(&dev->mt76)) {
+				TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND2,
+					   MT7996_TXQ_BAND2);
+				TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND0,
+					   MT7996_TXQ_BAND0);
+				TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND1,
+					   MT7996_TXQ_BAND1);
+			} else {
+				/* default bn1:ring19 bn2:ring21 */
+				TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0,
+					   MT7996_TXQ_BAND0);
+				TXQ_CONFIG(1, WFDMA0, MT_INT_TX_DONE_BAND1,
+					   MT7996_TXQ_BAND1);
+				TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND2,
+					   MT7996_TXQ_BAND2);
+			}
 		} else {
 			/* single pcie bn0/1:ring18 bn2:ring19 */
+			TXQ_CONFIG(0, WFDMA0, MT_INT_TX_DONE_BAND0,
+				   MT7996_TXQ_BAND0);
 			TXQ_CONFIG(2, WFDMA0, MT_INT_TX_DONE_BAND1,
 				   MT7996_TXQ_BAND1);
 		}
@@ -350,6 +362,9 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 	if (!mt7996_has_wa(dev) || mt76_npu_device_active(&dev->mt76))
 		irq_mask &= ~(MT_INT_RX(MT_RXQ_MAIN_WA) |
 			      MT_INT_RX(MT_RXQ_BAND1_WA));
+	if (is_mt7996(&dev->mt76) && mt76_npu_device_active(&dev->mt76))
+		irq_mask &= ~(MT_INT_RX(MT_RXQ_TXFREE_BAND0) |
+			      MT_INT_RX(MT_RXQ_MSDU_PAGE_BAND2));
 	irq_mask = reset ? MT_INT_MCU_CMD : irq_mask;
 
 	mt7996_irq_enable(dev, irq_mask);
@@ -430,39 +445,48 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 			   MT_WFDMA_HOST_CONFIG_BAND1_PCIE1 |
 			   MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
 
-		if (is_mt7996(&dev->mt76))
-			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
-				 MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
-		else
+		if (is_mt7996(&dev->mt76)) {
+			if (mt76_npu_device_active(&dev->mt76))
+				mt76_set(dev, MT_WFDMA_HOST_CONFIG,
+					 MT_WFDMA_HOST_CONFIG_BAND0_PCIE1);
+			else
+				mt76_set(dev, MT_WFDMA_HOST_CONFIG,
+					 MT_WFDMA_HOST_CONFIG_BAND2_PCIE1);
+		} else {
 			mt76_set(dev, MT_WFDMA_HOST_CONFIG,
 				 MT_WFDMA_HOST_CONFIG_BAND1_PCIE1);
+		}
 
 		/* AXI read outstanding number */
 		mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL,
 			 MT_WFDMA_AXI_R2A_CTRL_OUTSTAND_MASK, 0x14);
 
-		if (dev->hif2->speed < PCIE_SPEED_5_0GT ||
-		    (dev->hif2->speed == PCIE_SPEED_5_0GT &&
-		     dev->hif2->width < PCIE_LNK_X2)) {
-			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
-				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
-				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
-					    0x1));
-			mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
-				 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
-				 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
-					    0x1));
-		} else if (dev->hif2->speed < PCIE_SPEED_8_0GT ||
-			   (dev->hif2->speed == PCIE_SPEED_8_0GT &&
-			    dev->hif2->width < PCIE_LNK_X2)) {
-			mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
-				 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
-				 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
-					    0x2));
-			mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
-				 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
-				 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
-					    0x2));
+		if (!is_mt7996(&dev->mt76) ||
+		    !mt76_npu_device_active(&dev->mt76)) {
+			if (dev->hif2->speed < PCIE_SPEED_5_0GT ||
+			    (dev->hif2->speed == PCIE_SPEED_5_0GT &&
+			     dev->hif2->width < PCIE_LNK_X2)) {
+				mt76_rmw(dev,
+					 WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
+					 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+					 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+						    0x1));
+				mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
+					 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+					 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+						    0x1));
+			} else if (dev->hif2->speed < PCIE_SPEED_8_0GT ||
+				   (dev->hif2->speed == PCIE_SPEED_8_0GT &&
+				    dev->hif2->width < PCIE_LNK_X2)) {
+				mt76_rmw(dev, WF_WFDMA0_GLO_CFG_EXT0 + hif1_ofs,
+					 WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+					 FIELD_PREP(WF_WFDMA0_GLO_CFG_EXT0_OUTSTAND_MASK,
+						    0x2));
+				mt76_rmw(dev, MT_WFDMA_AXI_R2A_CTRL2,
+					 MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+					 FIELD_PREP(MT_WFDMA_AXI_R2A_CTRL2_OUTSTAND_MASK,
+						    0x2));
+			}
 		}
 
 		/* WFDMA rx threshold */
@@ -497,7 +521,7 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 int mt7996_dma_rro_init(struct mt7996_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
-	u32 irq_mask;
+	u32 size;
 	int ret;
 
 	if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
@@ -524,7 +548,8 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			mt76_queue_reset(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C],
 					 true);
 		}
-		goto start_hw_rro;
+
+		return 0;
 	}
 
 	/* ind cmd */
@@ -545,10 +570,12 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 	if (mtk_wed_device_active(&mdev->mmio.wed) &&
 	    mtk_wed_get_rx_capa(&mdev->mmio.wed))
 		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0].wed = &mdev->mmio.wed;
+
+	size = is_mt7996(mdev) && mt76_npu_device_active(mdev)
+	       ? MT7996_NPU_RX_RING_SIZE / 4 : MT7996_RX_RING_SIZE;
 	ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND0],
 			       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND0),
-			       MT7996_RX_RING_SIZE,
-			       MT7996_RX_MSDU_PAGE_SIZE,
+			       size, MT7996_RX_MSDU_PAGE_SIZE,
 			       MT_RXQ_RING_BASE(MT_RXQ_MSDU_PAGE_BAND0));
 	if (ret)
 		return ret;
@@ -560,10 +587,12 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed))
 			mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1].wed = &mdev->mmio.wed;
+
+		size = is_mt7996(mdev) && mt76_npu_device_active(mdev)
+		       ? MT7996_NPU_RX_RING_SIZE / 2 : MT7996_RX_RING_SIZE;
 		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1],
 				       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND1),
-				       MT7996_RX_RING_SIZE,
-				       MT7996_RX_MSDU_PAGE_SIZE,
+				       size, MT7996_RX_MSDU_PAGE_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_MSDU_PAGE_BAND1));
 		if (ret)
 			return ret;
@@ -576,52 +605,60 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		if (mtk_wed_device_active(&mdev->mmio.wed) &&
 		    mtk_wed_get_rx_capa(&mdev->mmio.wed))
 			mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2].wed = &mdev->mmio.wed;
+
+		size = is_mt7996(mdev) && mt76_npu_device_active(mdev)
+		       ? MT7996_NPU_RX_RING_SIZE : MT7996_RX_RING_SIZE;
 		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2],
 				       MT_RXQ_ID(MT_RXQ_MSDU_PAGE_BAND2),
-				       MT7996_RX_RING_SIZE,
-				       MT7996_RX_MSDU_PAGE_SIZE,
+				       size, MT7996_RX_MSDU_PAGE_SIZE,
 				       MT_RXQ_RING_BASE(MT_RXQ_MSDU_PAGE_BAND2));
 		if (ret)
 			return ret;
 	}
 
-start_hw_rro:
-	if (mtk_wed_device_active(&mdev->mmio.wed)) {
-		irq_mask = mdev->mmio.irqmask |
+	return 0;
+}
+
+void mt7996_dma_rro_start(struct mt7996_dev *dev)
+{
+	u32 irq_mask;
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		irq_mask = dev->mt76.mmio.irqmask |
 			   MT_INT_TX_DONE_BAND2;
 
 		mt76_wr(dev, MT_INT_MASK_CSR, irq_mask);
-		mtk_wed_device_start_hw_rro(&mdev->mmio.wed, irq_mask, false);
+		mtk_wed_device_start_hw_rro(&dev->mt76.mmio.wed, irq_mask,
+					    false);
 		mt7996_irq_enable(dev, irq_mask);
-	} else {
-		if (is_mt7996(&dev->mt76)) {
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND1,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND2,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND2,
-					   mt76_dma_rx_poll);
-		} else {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND1,
-					   mt76_dma_rx_poll);
-		}
-
-		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
-		if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_RXDMAD_C,
-					   mt76_dma_rx_poll);
-		} else {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_IND,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
-					   mt76_dma_rx_poll);
-		}
-
-		if (!mt76_npu_device_active(&dev->mt76))
-			mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
+		return;
 	}
 
-	return 0;
+	if (is_mt7996(&dev->mt76)) {
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND1,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND2,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND2,
+				   mt76_dma_rx_poll);
+	} else {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND1,
+				   mt76_dma_rx_poll);
+	}
+
+	mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
+	if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_RXDMAD_C,
+				   mt76_dma_rx_poll);
+	} else {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_IND,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
+				   mt76_dma_rx_poll);
+	}
+
+	if (!mt76_npu_device_active(&dev->mt76))
+		mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
 }
 
 int mt7996_dma_init(struct mt7996_dev *dev)
@@ -642,11 +679,16 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	mt7996_dma_disable(dev, true);
 
 	/* init tx queue */
-	ret = mt7996_init_tx_queues(&dev->phy,
-				    MT_TXQ_ID(dev->mphy.band_idx),
-				    MT7996_TX_RING_SIZE,
-				    MT_TXQ_RING_BASE(0),
-				    wed);
+	if (is_mt7996(&dev->mt76) && mt76_npu_device_active(&dev->mt76))
+		ret = mt7996_init_tx_queues(&dev->phy, MT_TXQ_ID(0),
+					    MT7996_NPU_TX_RING_SIZE,
+					    MT_TXQ_RING_BASE(0) + hif1_ofs,
+					    NULL);
+	else
+		ret = mt7996_init_tx_queues(&dev->phy,
+					    MT_TXQ_ID(dev->mphy.band_idx),
+					    MT7996_TX_RING_SIZE,
+					    MT_TXQ_RING_BASE(0), wed);
 	if (ret)
 		return ret;
 
@@ -714,6 +756,9 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	     (is_mt7992(&dev->mt76)))) {
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
+	} else if (is_mt7992(&dev->mt76) &&
+		   mt76_npu_device_active(&dev->mt76)) {
+		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_NPU_Q_TXFREE(0);
 	}
 
 	if (mt7996_has_wa(dev)) {
@@ -846,6 +891,8 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 				/* tx free notify event from WA for band0 */
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_WED_Q_TXFREE;
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
+			} else if (mt76_npu_device_active(&dev->mt76)) {
+				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_NPU_Q_TXFREE(0);
 			}
 
 			ret = mt76_queue_alloc(dev,
@@ -859,16 +906,21 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		}
 
 		if (mt7996_band_valid(dev, MT_BAND2)) {
+			u32 size;
+
 			/* rx rro data queue for band2 */
 			dev->mt76.q_rx[MT_RXQ_RRO_BAND2].flags =
 				MT_WED_RRO_Q_DATA(1) | MT_QFLAG_WED_RRO_EN;
 			if (mtk_wed_device_active(wed) &&
 			    mtk_wed_get_rx_capa(wed))
 				dev->mt76.q_rx[MT_RXQ_RRO_BAND2].wed = wed;
+
+			size = is_mt7996(&dev->mt76) &&
+			       mt76_npu_device_active(&dev->mt76)
+			       ? MT7996_NPU_RX_RING_SIZE : MT7996_RX_RING_SIZE;
 			ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_RRO_BAND2],
 					       MT_RXQ_ID(MT_RXQ_RRO_BAND2),
-					       MT7996_RX_RING_SIZE,
-					       MT7996_RX_BUF_SIZE,
+					       size, MT7996_RX_BUF_SIZE,
 					       MT_RXQ_RING_BASE(MT_RXQ_RRO_BAND2) + hif1_ofs);
 			if (ret)
 				return ret;

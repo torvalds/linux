@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2025 Intel Corporation
+ * Copyright (c) 2018 - 2026 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_NAN_H
@@ -22,6 +22,11 @@
 #define NAN_OP_MODE_80P80MHZ		0x02
 #define NAN_OP_MODE_160MHZ		0x04
 #define NAN_OP_MODE_PNDL_SUPPRTED	0x08
+
+#define NAN_DEV_CAPA_NUM_TX_ANT_POS	0
+#define NAN_DEV_CAPA_NUM_TX_ANT_MASK	0x0f
+#define NAN_DEV_CAPA_NUM_RX_ANT_POS	4
+#define NAN_DEV_CAPA_NUM_RX_ANT_MASK	0xf0
 
 /* NAN Device capabilities, as defined in Wi-Fi Aware (TM) specification
  * Table 79

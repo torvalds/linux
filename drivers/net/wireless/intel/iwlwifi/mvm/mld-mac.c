@@ -6,7 +6,7 @@
 
 static void iwl_mvm_mld_set_he_support(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
-				       struct iwl_mac_config_cmd *cmd,
+				       struct iwl_mac_config_cmd_v3 *cmd,
 				       int cmd_ver)
 {
 	if (vif->type == NL80211_IFTYPE_AP) {
@@ -24,7 +24,7 @@ static void iwl_mvm_mld_set_he_support(struct iwl_mvm *mvm,
 
 static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
-					    struct iwl_mac_config_cmd *cmd,
+					    struct iwl_mac_config_cmd_v3 *cmd,
 					    u32 action)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -83,7 +83,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_mld_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
-					 struct iwl_mac_config_cmd *cmd)
+					 struct iwl_mac_config_cmd_v3 *cmd)
 {
 	int ret = iwl_mvm_send_cmd_pdu(mvm,
 				       WIDE_ID(MAC_CONF_GROUP, MAC_CONFIG_CMD),
@@ -98,7 +98,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,
 					u32 action, bool force_assoc_off)
 {
-	struct iwl_mac_config_cmd cmd = {};
+	struct iwl_mac_config_cmd_v3 cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_STATION);
 
@@ -151,7 +151,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 					     struct ieee80211_vif *vif,
 					     u32 action)
 {
-	struct iwl_mac_config_cmd cmd = {};
+	struct iwl_mac_config_cmd_v3 cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_MONITOR);
 
@@ -170,7 +170,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_ibss(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
 					 u32 action)
 {
-	struct iwl_mac_config_cmd cmd = {};
+	struct iwl_mac_config_cmd_v3 cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_ADHOC);
 
@@ -187,7 +187,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 					       struct ieee80211_vif *vif,
 					       u32 action)
 {
-	struct iwl_mac_config_cmd cmd = {};
+	struct iwl_mac_config_cmd_v3 cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE);
 
@@ -210,7 +210,7 @@ static int iwl_mvm_mld_mac_ctxt_cmd_ap_go(struct iwl_mvm *mvm,
 					  u32 action)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mac_config_cmd cmd = {};
+	struct iwl_mac_config_cmd_v3 cmd = {};
 
 	WARN_ON(vif->type != NL80211_IFTYPE_AP);
 
@@ -286,7 +286,7 @@ int iwl_mvm_mld_mac_ctxt_changed(struct iwl_mvm *mvm,
 int iwl_mvm_mld_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mac_config_cmd cmd = {
+	struct iwl_mac_config_cmd_v3 cmd = {
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.id_and_color = cpu_to_le32(mvmvif->id),
 	};

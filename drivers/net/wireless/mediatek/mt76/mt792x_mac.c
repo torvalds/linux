@@ -375,7 +375,7 @@ void mt792x_pm_power_save_work(struct work_struct *work)
 	}
 
 	if (!mt792x_mcu_fw_pmctrl(dev)) {
-		cancel_delayed_work_sync(&mphy->mac_work);
+		cancel_delayed_work(&mphy->mac_work);
 		return;
 	}
 out:

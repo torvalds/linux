@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -791,6 +791,9 @@ static void *
 iwl_mld_radiotap_put_tlv(struct sk_buff *skb, u16 type, u16 len)
 {
 	struct ieee80211_radiotap_tlv *tlv;
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+
+	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 
 	tlv = skb_put(skb, sizeof(*tlv));
 	tlv->type = cpu_to_le16(type);
@@ -1234,8 +1237,6 @@ static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
 
 	eht = iwl_mld_radiotap_put_tlv(skb, IEEE80211_RADIOTAP_EHT, eht_len);
 
-	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
-
 	switch (u32_get_bits(rate_n_flags, RATE_MCS_HE_GI_LTF_MSK)) {
 	case 0:
 		if (he_type == RATE_MCS_HE_TYPE_TRIG) {
@@ -1329,7 +1330,6 @@ static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
 static void iwl_mld_add_rtap_sniffer_config(struct iwl_mld *mld,
 					    struct sk_buff *skb)
 {
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_vendor_content *radiotap;
 	const u16 vendor_data_len = sizeof(mld->monitor.cur_aid);
 
@@ -1353,8 +1353,6 @@ static void iwl_mld_add_rtap_sniffer_config(struct iwl_mld *mld,
 	/* fill the data now */
 	memcpy(radiotap->data, &mld->monitor.cur_aid,
 	       sizeof(mld->monitor.cur_aid));
-
-	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
 #endif
 
@@ -1362,7 +1360,6 @@ static void iwl_mld_add_rtap_sniffer_phy_data(struct iwl_mld *mld,
 					      struct sk_buff *skb,
 					      struct iwl_rx_phy_air_sniffer_ntfy *ntfy)
 {
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_vendor_content *radiotap;
 	const u16 vendor_data_len = sizeof(*ntfy);
 
@@ -1382,8 +1379,6 @@ static void iwl_mld_add_rtap_sniffer_phy_data(struct iwl_mld *mld,
 
 	/* fill the data now */
 	memcpy(radiotap->data, ntfy, vendor_data_len);
-
-	rx_status->flag |= RX_FLAG_RADIOTAP_TLV_AT_END;
 }
 
 static void
@@ -1407,6 +1402,7 @@ static void iwl_mld_set_rx_rate(struct iwl_mld *mld,
 	u32 rate_n_flags = phy_data->rate_n_flags;
 	u8 stbc = u32_get_bits(rate_n_flags, RATE_MCS_STBC_MSK);
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
+	u32 he_type = u32_get_bits(rate_n_flags, RATE_MCS_HE_TYPE_MSK);
 	bool is_sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 
 	/* bandwidth may be overridden to RU by PHY ntfy */
@@ -1480,6 +1476,12 @@ static void iwl_mld_set_rx_rate(struct iwl_mld *mld,
 	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->encoding = RX_ENC_EHT;
 		iwl_mld_set_rx_nonlegacy_rate_info(rate_n_flags, rx_status);
+		break;
+	case RATE_MCS_MOD_TYPE_UHR:
+		rx_status->encoding = RX_ENC_UHR;
+		iwl_mld_set_rx_nonlegacy_rate_info(rate_n_flags, rx_status);
+		if (he_type == RATE_MCS_HE_TYPE_UHR_ELR)
+			rx_status->uhr.elr = 1;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -2204,8 +2206,9 @@ void iwl_mld_sync_rx_queues(struct iwl_mld *mld,
 	ret = wait_event_timeout(mld->rxq_sync.waitq,
 				 READ_ONCE(mld->rxq_sync.state) == 0,
 				 SYNC_RX_QUEUE_TIMEOUT);
-	WARN_ONCE(!ret, "RXQ sync failed: state=0x%lx, cookie=%d\n",
-		  mld->rxq_sync.state, mld->rxq_sync.cookie);
+	IWL_FW_CHECK(mld, !ret,
+		     "RXQ sync failed: state=0x%lx, cookie=%d\n",
+		     mld->rxq_sync.state, mld->rxq_sync.cookie);
 
 out:
 	mld->rxq_sync.state = 0;

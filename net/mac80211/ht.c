@@ -136,7 +136,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 
 
 bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
-				       struct ieee80211_supported_band *sband,
+				       const struct ieee80211_sta_ht_cap *own_cap_ptr,
 				       const struct ieee80211_ht_cap *ht_cap_ie,
 				       struct link_sta_info *link_sta)
 {
@@ -151,12 +151,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	memset(&ht_cap, 0, sizeof(ht_cap));
 
-	if (!ht_cap_ie || !sband->ht_cap.ht_supported)
+	if (!ht_cap_ie || !own_cap_ptr->ht_supported)
 		goto apply;
 
 	ht_cap.ht_supported = true;
 
-	own_cap = sband->ht_cap;
+	own_cap = *own_cap_ptr;
 
 	/*
 	 * If user has specified capability over-rides, take care

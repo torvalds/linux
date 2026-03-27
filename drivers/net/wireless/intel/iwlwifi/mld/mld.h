@@ -205,7 +205,7 @@
 struct iwl_mld {
 	/* Add here fields that need clean up on restart */
 	struct_group(zeroed_on_hw_restart,
-		struct ieee80211_bss_conf __rcu *fw_id_to_bss_conf[IWL_FW_MAX_LINK_ID + 1];
+		struct ieee80211_bss_conf __rcu *fw_id_to_bss_conf[IWL_FW_MAX_LINKS];
 		struct ieee80211_vif __rcu *fw_id_to_vif[NUM_MAC_INDEX_DRIVER];
 		struct ieee80211_txq __rcu *fw_id_to_txq[IWL_MAX_TVQM_QUEUES];
 		u8 used_phy_ids: NUM_PHY_CTX;
@@ -530,9 +530,9 @@ void iwl_construct_mld(struct iwl_mld *mld, struct iwl_trans *trans,
 #define IWL_MLD_INVALID_FW_ID 0xff
 
 #define IWL_MLD_ALLOC_FN(_type, _mac80211_type)						\
-static int										\
+int											\
 iwl_mld_allocate_##_type##_fw_id(struct iwl_mld *mld,					\
-				 u8 *fw_id,				\
+				 u8 *fw_id,						\
 				 struct ieee80211_##_mac80211_type *mac80211_ptr)	\
 {											\
 	u8 rand = IWL_MLD_DIS_RANDOM_FW_ID ? 0 : get_random_u8();			\

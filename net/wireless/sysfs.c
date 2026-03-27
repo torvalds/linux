@@ -102,25 +102,26 @@ static int wiphy_suspend(struct device *dev)
 	if (!rdev->wiphy.registered)
 		goto out_unlock_rtnl;
 
-	wiphy_lock(&rdev->wiphy);
 	if (rdev->wiphy.wowlan_config) {
-		cfg80211_process_wiphy_works(rdev, NULL);
-		if (rdev->ops->suspend)
-			ret = rdev_suspend(rdev, rdev->wiphy.wowlan_config);
-		if (ret <= 0)
-			goto out_unlock_wiphy;
+		scoped_guard(wiphy, &rdev->wiphy) {
+			cfg80211_process_wiphy_works(rdev, NULL);
+			if (rdev->ops->suspend)
+				ret = rdev_suspend(rdev,
+						   rdev->wiphy.wowlan_config);
+			if (ret <= 0)
+				goto out_unlock_rtnl;
+		}
 	}
 
 	/* Driver refused to configure wowlan (ret = 1) or no wowlan */
 
 	cfg80211_leave_all(rdev);
-	cfg80211_process_rdev_events(rdev);
-	cfg80211_process_wiphy_works(rdev, NULL);
-	if (rdev->ops->suspend)
-		ret = rdev_suspend(rdev, NULL);
-
-out_unlock_wiphy:
-	wiphy_unlock(&rdev->wiphy);
+	scoped_guard(wiphy, &rdev->wiphy) {
+		cfg80211_process_rdev_events(rdev);
+		cfg80211_process_wiphy_works(rdev, NULL);
+		if (rdev->ops->suspend)
+			ret = rdev_suspend(rdev, NULL);
+	}
 out_unlock_rtnl:
 	if (ret == 0)
 		rdev->suspended = true;

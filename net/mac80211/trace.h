@@ -1778,9 +1778,8 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 				SWITCH_ENTRY_ASSIGN(vif.vif_type, vif->type);
 				SWITCH_ENTRY_ASSIGN(vif.p2p, vif->p2p);
 				SWITCH_ENTRY_ASSIGN(link_id, link_conf->link_id);
-				strncpy(local_vifs[i].vif.vif_name,
-					sdata->name,
-					sizeof(local_vifs[i].vif.vif_name));
+				strscpy_pad(local_vifs[i].vif.vif_name,
+					    sdata->name);
 				SWITCH_ENTRY_ASSIGN(old_chandef.control_freq,
 						old_ctx->def.chan->center_freq);
 				SWITCH_ENTRY_ASSIGN(old_chandef.freq_offset,
