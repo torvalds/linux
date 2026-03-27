@@ -81,29 +81,26 @@ static void cxlr_dax_unregister(void *_cxlr_dax)
 
 int devm_cxl_add_dax_region(struct cxl_region *cxlr)
 {
-	struct cxl_dax_region *cxlr_dax;
 	struct device *dev;
 	int rc;
 
-	cxlr_dax = cxl_dax_region_alloc(cxlr);
+	struct cxl_dax_region *cxlr_dax __free(put_cxl_dax_region) =
+		cxl_dax_region_alloc(cxlr);
 	if (IS_ERR(cxlr_dax))
 		return PTR_ERR(cxlr_dax);
 
 	dev = &cxlr_dax->dev;
 	rc = dev_set_name(dev, "dax_region%d", cxlr->id);
 	if (rc)
-		goto err;
+		return rc;
 
 	rc = device_add(dev);
 	if (rc)
-		goto err;
+		return rc;
 
 	dev_dbg(&cxlr->dev, "%s: register %s\n", dev_name(dev->parent),
 		dev_name(dev));
 
 	return devm_add_action_or_reset(&cxlr->dev, cxlr_dax_unregister,
-					cxlr_dax);
-err:
-	put_device(dev);
-	return rc;
+					no_free_ptr(cxlr_dax));
 }
