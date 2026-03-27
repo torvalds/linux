@@ -1954,6 +1954,12 @@ static const struct adreno_info a8xx_gpus[] = {
 			},
 		},
 		.preempt_record_size = 19708 * SZ_1K,
+		.speedbins = ADRENO_SPEEDBINS(
+			{ 0,   0 },
+			{ 273, 1 },
+			{ 252, 2 },
+			{ 221, 3 },
+		),
 	}
 };
 
