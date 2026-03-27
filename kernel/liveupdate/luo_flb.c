@@ -348,7 +348,6 @@ int liveupdate_register_flb(struct liveupdate_file_handler *fh,
 	struct luo_flb_link *link __free(kfree) = NULL;
 	struct liveupdate_flb *gflb;
 	struct luo_flb_link *iter;
-	int err;
 
 	if (!liveupdate_enabled())
 		return -EOPNOTSUPP;
@@ -369,21 +368,12 @@ int liveupdate_register_flb(struct liveupdate_file_handler *fh,
 	if (!link)
 		return -ENOMEM;
 
-	/*
-	 * Ensure the system is quiescent (no active sessions).
-	 * This acts as a global lock for registration: no other thread can
-	 * be in this section, and no sessions can be creating/using FDs.
-	 */
-	if (!luo_session_quiesce())
-		return -EBUSY;
-
-	down_write(&luo_register_rwlock);
+	guard(rwsem_write)(&luo_register_rwlock);
 
 	/* Check that this FLB is not already linked to this file handler */
-	err = -EEXIST;
 	list_for_each_entry(iter, flb_list, list) {
 		if (iter->flb == flb)
-			goto err_resume;
+			return -EEXIST;
 	}
 
 	/*
@@ -391,20 +381,16 @@ int liveupdate_register_flb(struct liveupdate_file_handler *fh,
 	 * is registered
 	 */
 	if (!private->users) {
-		if (WARN_ON(!list_empty(&private->list))) {
-			err = -EINVAL;
-			goto err_resume;
-		}
+		if (WARN_ON(!list_empty(&private->list)))
+			return -EINVAL;
 
-		if (luo_flb_global.count == LUO_FLB_MAX) {
-			err = -ENOSPC;
-			goto err_resume;
-		}
+		if (luo_flb_global.count == LUO_FLB_MAX)
+			return -ENOSPC;
 
 		/* Check that compatible string is unique in global list */
 		list_private_for_each_entry(gflb, &luo_flb_global.list, private.list) {
 			if (!strcmp(gflb->compatible, flb->compatible))
-				goto err_resume;
+				return -EEXIST;
 		}
 
 		list_add_tail(&private->list, &luo_flb_global.list);
@@ -415,15 +401,8 @@ int liveupdate_register_flb(struct liveupdate_file_handler *fh,
 	private->users++;
 	link->flb = flb;
 	list_add_tail(&no_free_ptr(link)->list, flb_list);
-	up_write(&luo_register_rwlock);
-	luo_session_resume();
 
 	return 0;
-
-err_resume:
-	up_write(&luo_register_rwlock);
-	luo_session_resume();
-	return err;
 }
 
 /**
@@ -439,12 +418,9 @@ err_resume:
  * the FLB is removed from the global registry and the reference to its
  * owner module (acquired during registration) is released.
  *
- * Context: This function ensures the session is quiesced (no active FDs
- *          being created) during the update. It is typically called from a
- *          subsystem's module exit function.
+ * Context: It is typically called from a subsystem's module exit function.
  * Return: 0 on success.
  *         -EOPNOTSUPP if live update is disabled.
- *         -EBUSY if the live update session is active and cannot be quiesced.
  *         -ENOENT if the FLB was not found in the file handler's list.
  */
 int liveupdate_unregister_flb(struct liveupdate_file_handler *fh,
@@ -458,14 +434,7 @@ int liveupdate_unregister_flb(struct liveupdate_file_handler *fh,
 	if (!liveupdate_enabled())
 		return -EOPNOTSUPP;
 
-	/*
-	 * Ensure the system is quiescent (no active sessions).
-	 * This acts as a global lock for unregistration.
-	 */
-	if (!luo_session_quiesce())
-		return -EBUSY;
-
-	down_write(&luo_register_rwlock);
+	guard(rwsem_write)(&luo_register_rwlock);
 
 	/* Find and remove the link from the file handler's list */
 	list_for_each_entry(iter, flb_list, list) {
@@ -478,7 +447,7 @@ int liveupdate_unregister_flb(struct liveupdate_file_handler *fh,
 	}
 
 	if (err)
-		goto err_resume;
+		return err;
 
 	private->users--;
 	/*
@@ -490,15 +459,7 @@ int liveupdate_unregister_flb(struct liveupdate_file_handler *fh,
 		luo_flb_global.count--;
 	}
 
-	up_write(&luo_register_rwlock);
-	luo_session_resume();
-
 	return 0;
-
-err_resume:
-	up_write(&luo_register_rwlock);
-	luo_session_resume();
-	return err;
 }
 
 /**

@@ -875,14 +875,6 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		return -EINVAL;
 	}
 
-	/*
-	 * Ensure the system is quiescent (no active sessions).
-	 * This prevents registering new handlers while sessions are active or
-	 * while deserialization is in progress.
-	 */
-	if (!luo_session_quiesce())
-		return -EBUSY;
-
 	down_write(&luo_register_rwlock);
 	/* Check for duplicate compatible strings */
 	list_private_for_each_entry(fh_iter, &luo_file_handler_list, list) {
@@ -905,15 +897,12 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 	list_add_tail(&ACCESS_PRIVATE(fh, list), &luo_file_handler_list);
 	up_write(&luo_register_rwlock);
 
-	luo_session_resume();
-
 	liveupdate_test_register(fh);
 
 	return 0;
 
 err_unlock:
 	up_write(&luo_register_rwlock);
-	luo_session_resume();
 	return err;
 }
 
@@ -925,14 +914,12 @@ err_unlock:
  * reverses the operations of liveupdate_register_file_handler().
  *
  * It ensures safe removal by checking that:
- * No live update session is currently in progress.
  * No FLB registered with this file handler.
  *
  * If the unregistration fails, the internal test state is reverted.
  *
  * Return: 0 Success. -EOPNOTSUPP when live update is not enabled. -EBUSY A live
- * update is in progress, can't quiesce live update or FLB is registred with
- * this file handler.
+ * update is in progress, FLB is registred with this file handler.
  */
 int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 {
@@ -943,9 +930,6 @@ int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 
 	liveupdate_test_unregister(fh);
 
-	if (!luo_session_quiesce())
-		goto err_register;
-
 	down_write(&luo_register_rwlock);
 	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
 		goto err_unlock;
@@ -954,14 +938,11 @@ int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 	up_write(&luo_register_rwlock);
 
 	module_put(fh->ops->owner);
-	luo_session_resume();
 
 	return 0;
 
 err_unlock:
 	up_write(&luo_register_rwlock);
-	luo_session_resume();
-err_register:
 	liveupdate_test_register(fh);
 	return err;
 }
