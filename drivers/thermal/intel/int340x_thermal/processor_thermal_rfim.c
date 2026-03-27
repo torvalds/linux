@@ -402,17 +402,31 @@ static ssize_t rfi_restriction_show(struct device *dev,
 	return sysfs_emit(buf, "%llu\n", resp);
 }
 
+ /* ddr_data_rate */
+static const struct mmio_reg nvl_ddr_data_rate_reg = { 1, 0xE0, 10, 0x3FF, 2};
+
+static const struct mmio_reg *ddr_data_rate_reg;
+
 static ssize_t ddr_data_rate_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
 {
-	u16 id = 0x0107;
 	u64 resp;
-	int ret;
 
-	ret = processor_thermal_send_mbox_read_cmd(to_pci_dev(dev), id, &resp);
-	if (ret)
-		return ret;
+	if (ddr_data_rate_reg) {
+		u16 reg_val;
+
+		pci_read_config_word(to_pci_dev(dev), ddr_data_rate_reg->offset, &reg_val);
+		resp = (reg_val >> ddr_data_rate_reg->shift) & ddr_data_rate_reg->mask;
+		resp = (resp * 3333) / 100;
+	} else {
+		const u16 id = 0x0107;
+		int ret;
+
+		ret = processor_thermal_send_mbox_read_cmd(to_pci_dev(dev), id, &resp);
+		if (ret)
+			return ret;
+	}
 
 	return sysfs_emit(buf, "%llu\n", resp);
 }
@@ -461,6 +475,7 @@ int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 		case PCI_DEVICE_ID_INTEL_NVL_H_THERMAL:
 		case PCI_DEVICE_ID_INTEL_NVL_S_THERMAL:
 			dlvr_mmio_regs_table = nvl_dlvr_mmio_regs;
+			ddr_data_rate_reg = &nvl_ddr_data_rate_reg;
 			break;
 		default:
 			dlvr_mmio_regs_table = dlvr_mmio_regs;
