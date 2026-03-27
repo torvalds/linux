@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
+ccflags-y			+= -I $(src)
+
 obj-$(CONFIG_XOR_BLOCKS)	+= xor.o
 
 xor-y				+= xor-core.o
@@ -7,6 +9,10 @@ xor-y				+= xor-8regs.o
 xor-y				+= xor-32regs.o
 xor-y				+= xor-8regs-prefetch.o
 xor-y				+= xor-32regs-prefetch.o
+
+ifeq ($(CONFIG_XOR_BLOCKS_ARCH),y)
+CFLAGS_xor-core.o		+= -I$(src)/$(SRCARCH)
+endif
 
 xor-$(CONFIG_ALPHA)		+= alpha/xor.o
 xor-$(CONFIG_ARM)		+= arm/xor.o

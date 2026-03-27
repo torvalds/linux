@@ -4,9 +4,9 @@
  *
  * Copyright (C) 1998 Ingo Molnar.
  */
-#include <linux/raid/xor_impl.h>
 #include <asm/fpu/api.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 #define LD(x, y)	"       movq   8*("#x")(%1), %%mm"#y"   ;\n"
 #define ST(x, y)	"       movq %%mm"#y",   8*("#x")(%1)   ;\n"

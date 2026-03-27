@@ -2,8 +2,8 @@
 /*
  *  Copyright (C) 2001 Russell King
  */
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 #define __XOR(a1, a2) a1 ^= a2
 

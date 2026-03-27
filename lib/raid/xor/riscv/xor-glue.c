@@ -3,11 +3,11 @@
  * Copyright (C) 2021 SiFive
  */
 
-#include <linux/raid/xor_impl.h>
 #include <asm/vector.h>
 #include <asm/switch_to.h>
 #include <asm/asm-prototypes.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 static void xor_vector_2(unsigned long bytes, unsigned long *__restrict p1,
 			 const unsigned long *__restrict p2)

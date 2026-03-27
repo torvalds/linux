@@ -9,10 +9,9 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/raid/xor.h>
-#include <linux/raid/xor_impl.h>
 #include <linux/jiffies.h>
 #include <linux/preempt.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
 
 /* The xor routines to use.  */
 static struct xor_block_template *active_template;
@@ -141,16 +140,21 @@ static int __init calibrate_xor_blocks(void)
 	return 0;
 }
 
-static int __init xor_init(void)
-{
-#ifdef arch_xor_init
-	arch_xor_init();
+#ifdef CONFIG_XOR_BLOCKS_ARCH
+#include "xor_arch.h" /* $SRCARCH/xor_arch.h */
 #else
+static void __init arch_xor_init(void)
+{
 	xor_register(&xor_block_8regs);
 	xor_register(&xor_block_8regs_p);
 	xor_register(&xor_block_32regs);
 	xor_register(&xor_block_32regs_p);
-#endif
+}
+#endif /* CONFIG_XOR_BLOCKS_ARCH */
+
+static int __init xor_init(void)
+{
+	arch_xor_init();
 
 	/*
 	 * If this arch/cpu has a short-circuited selection, don't loop through

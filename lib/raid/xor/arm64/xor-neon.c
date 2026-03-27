@@ -4,10 +4,10 @@
  * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
  */
 
-#include <linux/raid/xor_impl.h>
 #include <linux/cache.h>
 #include <asm/neon-intrinsics.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 #include "xor-neon.h"
 
 void __xor_neon_2(unsigned long bytes, unsigned long * __restrict p1,

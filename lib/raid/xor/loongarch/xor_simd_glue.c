@@ -6,9 +6,9 @@
  */
 
 #include <linux/sched.h>
-#include <linux/raid/xor_impl.h>
 #include <asm/fpu.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 #include "xor_simd.h"
 
 #define MAKE_XOR_GLUE_2(flavor)							\

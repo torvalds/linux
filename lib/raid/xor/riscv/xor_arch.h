@@ -3,11 +3,9 @@
  * Copyright (C) 2021 SiFive
  */
 #include <asm/vector.h>
-#include <asm-generic/xor.h>
 
 extern struct xor_block_template xor_block_rvv;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	xor_register(&xor_block_8regs);

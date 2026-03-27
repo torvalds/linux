@@ -2,3 +2,18 @@
 
 config XOR_BLOCKS
 	tristate
+
+# selected by architectures that provide an optimized XOR implementation
+config XOR_BLOCKS_ARCH
+	depends on XOR_BLOCKS
+	default y if ALPHA
+	default y if ARM
+	default y if ARM64
+	default y if CPU_HAS_LSX		# loongarch
+	default y if ALTIVEC			# powerpc
+	default y if RISCV_ISA_V
+	default y if SPARC
+	default y if S390
+	default y if X86_32
+	default y if X86_64
+	bool

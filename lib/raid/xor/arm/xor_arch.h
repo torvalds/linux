@@ -2,13 +2,11 @@
 /*
  *  Copyright (C) 2001 Russell King
  */
-#include <asm-generic/xor.h>
 #include <asm/neon.h>
 
 extern struct xor_block_template xor_block_arm4regs;
 extern struct xor_block_template xor_block_neon;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	xor_register(&xor_block_arm4regs);

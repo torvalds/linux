@@ -65,4 +65,3 @@ mandatory-y += vermagic.h
 mandatory-y += vga.h
 mandatory-y += video.h
 mandatory-y += word-at-a-time.h
-mandatory-y += xor.h

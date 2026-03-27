@@ -8,8 +8,8 @@
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 void xor_vis_2(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p2);

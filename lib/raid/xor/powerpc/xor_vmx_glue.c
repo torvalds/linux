@@ -7,9 +7,9 @@
 
 #include <linux/preempt.h>
 #include <linux/sched.h>
-#include <linux/raid/xor_impl.h>
 #include <asm/switch_to.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 #include "xor_vmx.h"
 
 static void xor_altivec_2(unsigned long bytes, unsigned long * __restrict p1,

@@ -7,8 +7,8 @@
  */
 
 #include <linux/types.h>
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 static void xor_xc_2(unsigned long bytes, unsigned long * __restrict p1,
 		     const unsigned long * __restrict p2)

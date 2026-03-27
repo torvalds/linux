@@ -3,16 +3,12 @@
  * Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
-#ifndef ___ASM_SPARC_XOR_H
-#define ___ASM_SPARC_XOR_H
-
 #if defined(__sparc__) && defined(__arch64__)
 #include <asm/spitfire.h>
 
 extern struct xor_block_template xor_block_VIS;
 extern struct xor_block_template xor_block_niagara;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	/* Force VIS for everything except Niagara.  */
@@ -28,12 +24,8 @@ static __always_inline void __init arch_xor_init(void)
 }
 #else /* sparc64 */
 
-/* For grins, also test the generic routines.  */
-#include <asm-generic/xor.h>
-
 extern struct xor_block_template xor_block_SPARC;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	xor_register(&xor_block_8regs);
@@ -41,4 +33,3 @@ static __always_inline void __init arch_xor_init(void)
 	xor_register(&xor_block_SPARC);
 }
 #endif /* !sparc64 */
-#endif /* ___ASM_SPARC_XOR_H */

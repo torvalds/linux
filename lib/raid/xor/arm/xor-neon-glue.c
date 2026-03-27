@@ -2,8 +2,8 @@
 /*
  *  Copyright (C) 2001 Russell King
  */
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 extern struct xor_block_template const xor_block_neon_inner;
 

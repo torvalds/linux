@@ -8,9 +8,9 @@
  * Based on Ingo Molnar and Zach Brown's respective MMX and SSE routines
  */
 #include <linux/compiler.h>
-#include <linux/raid/xor_impl.h>
 #include <asm/fpu/api.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 #define BLOCK4(i) \
 		BLOCK(32 * i, 0) \

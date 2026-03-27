@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-#ifndef _ASM_X86_XOR_H
-#define _ASM_X86_XOR_H
-
 #include <asm/cpufeature.h>
-#include <asm-generic/xor.h>
 
 extern struct xor_block_template xor_block_pII_mmx;
 extern struct xor_block_template xor_block_p5_mmx;
@@ -20,7 +16,6 @@ extern struct xor_block_template xor_block_avx;
  *
  * 32-bit without MMX can fall back to the generic routines.
  */
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	if (boot_cpu_has(X86_FEATURE_AVX) &&
@@ -39,5 +34,3 @@ static __always_inline void __init arch_xor_init(void)
 		xor_register(&xor_block_32regs_p);
 	}
 }
-
-#endif /* _ASM_X86_XOR_H */

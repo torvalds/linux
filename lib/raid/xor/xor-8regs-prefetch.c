@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/prefetch.h>
-#include <linux/raid/xor_impl.h>
-#include <asm-generic/xor.h>
+#include "xor_impl.h"
 
 static void
 xor_8regs_p_2(unsigned long bytes, unsigned long * __restrict p1,

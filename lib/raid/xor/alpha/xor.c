@@ -2,8 +2,8 @@
 /*
  * Optimized XOR parity functions for alpha EV5 and EV6
  */
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 extern void
 xor_alpha_2(unsigned long bytes, unsigned long * __restrict p1,

@@ -3,14 +3,11 @@
  * Authors: Jackie Liu <liuyun01@kylinos.cn>
  * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
  */
-
-#include <asm-generic/xor.h>
 #include <asm/simd.h>
 
 extern struct xor_block_template xor_block_neon;
 extern struct xor_block_template xor_block_eor3;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	xor_register(&xor_block_8regs);

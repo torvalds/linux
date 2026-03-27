@@ -4,9 +4,9 @@
  * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
  */
 
-#include <linux/raid/xor_impl.h>
 #include <asm/simd.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 #include "xor-neon.h"
 
 #define XOR_TEMPLATE(_name)						\

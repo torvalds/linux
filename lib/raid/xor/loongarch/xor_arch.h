@@ -2,9 +2,6 @@
 /*
  * Copyright (C) 2023 WANG Xuerui <git@xen0n.name>
  */
-#ifndef _ASM_LOONGARCH_XOR_H
-#define _ASM_LOONGARCH_XOR_H
-
 #include <asm/cpu-features.h>
 
 /*
@@ -15,12 +12,10 @@
  * the scalar ones, maybe for errata or micro-op reasons. It may be
  * appropriate to revisit this after one or two more uarch generations.
  */
-#include <asm-generic/xor.h>
 
 extern struct xor_block_template xor_block_lsx;
 extern struct xor_block_template xor_block_lasx;
 
-#define arch_xor_init arch_xor_init
 static __always_inline void __init arch_xor_init(void)
 {
 	xor_register(&xor_block_8regs);
@@ -36,5 +31,3 @@ static __always_inline void __init arch_xor_init(void)
 		xor_register(&xor_block_lasx);
 #endif
 }
-
-#endif /* _ASM_LOONGARCH_XOR_H */

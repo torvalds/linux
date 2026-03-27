@@ -12,9 +12,9 @@
  * x86-64 changes / gcc fixes from Andi Kleen.
  * Copyright 2002 Andi Kleen, SuSE Labs.
  */
-#include <linux/raid/xor_impl.h>
 #include <asm/fpu/api.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 #ifdef CONFIG_X86_32
 /* reduce register pressure */

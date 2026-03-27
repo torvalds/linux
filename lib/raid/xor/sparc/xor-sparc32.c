@@ -5,8 +5,8 @@
  *
  * Copyright (C) 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
-#include <linux/raid/xor_impl.h>
-#include <asm/xor.h>
+#include "xor_impl.h"
+#include "xor_arch.h"
 
 static void
 sparc_2(unsigned long bytes, unsigned long * __restrict p1,
