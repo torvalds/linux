@@ -94,7 +94,7 @@ struct wcnss_download_nv_req {
 	u16 seq;
 	u16 last;
 	u32 frag_size;
-	u8 fragment[];
+	u8 fragment[] __counted_by(frag_size);
 } __packed;
 
 /**
@@ -201,15 +201,11 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 {
 	const struct firmware *fw;
 	struct device *dev = wcnss->dev;
+	struct wcnss_download_nv_req *req;
 	const char *nvbin = NVBIN_FILE;
 	const void *data;
 	ssize_t left;
 	int ret;
-
-	struct wcnss_download_nv_req *req __free(kfree) = kzalloc(sizeof(*req) + NV_FRAGMENT_SIZE,
-								  GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
 
 	ret = of_property_read_string(dev->of_node, "firmware-name", &nvbin);
 	if (ret < 0 && ret != -EINVAL)
@@ -224,11 +220,15 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 	data = fw->data;
 	left = fw->size;
 
+	req = kzalloc_flex(*req, fragment, NV_FRAGMENT_SIZE);
+	if (!req)
+		return -ENOMEM;
+
+	req->frag_size = NV_FRAGMENT_SIZE;
 	req->hdr.type = WCNSS_DOWNLOAD_NV_REQ;
-	req->hdr.len = sizeof(*req) + NV_FRAGMENT_SIZE;
+	req->hdr.len = struct_size(req, fragment, NV_FRAGMENT_SIZE);
 
 	req->last = 0;
-	req->frag_size = NV_FRAGMENT_SIZE;
 
 	req->seq = 0;
 	do {
@@ -264,6 +264,7 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 
 release_fw:
 	release_firmware(fw);
+	kfree(req);
 
 	return ret;
 }
