@@ -160,14 +160,14 @@ union pmd {
 			unsigned long              :44; /* HW */
 			unsigned long              : 3; /* Unused */
 			unsigned long              : 1; /* HW */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable soft-bit */
 			unsigned long r            : 1; /* Readable soft-bit */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1; /* Unused */
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */
@@ -183,14 +183,14 @@ union pud {
 			unsigned long              :33; /* HW */
 			unsigned long              :14; /* Unused */
 			unsigned long              : 1; /* HW */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable soft-bit */
 			unsigned long r            : 1; /* Readable soft-bit */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1; /* Unused */
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */
@@ -254,14 +254,14 @@ union crste {
 		struct {
 			unsigned long              :47;
 			unsigned long              : 1; /* HW (should be 0) */
+			unsigned long s            : 1; /* Special */
 			unsigned long w            : 1; /* Writable */
 			unsigned long r            : 1; /* Readable */
 			unsigned long d            : 1; /* Dirty */
 			unsigned long y            : 1; /* Young */
-			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long              : 3; /* HW */
+			unsigned long prefix_notif : 1; /* Guest prefix invalidation notification */
 			unsigned long vsie_notif   : 1; /* Referenced in a shadow table */
-			unsigned long              : 1;
 			unsigned long              : 4; /* HW */
 			unsigned long sd           : 1; /* Soft-Dirty */
 			unsigned long pr           : 1; /* Present */
@@ -540,8 +540,6 @@ int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gf
 		 u16 type, u16 param);
 int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn);
 bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end);
-int dat_link(struct kvm_s390_mmu_cache *mc, union asce asce, int level,
-	     bool uses_skeys, struct guest_fault *f);
 
 int dat_perform_essa(union asce asce, gfn_t gfn, int orc, union essa_state *state, bool *dirty);
 long dat_reset_cmma(union asce asce, gfn_t start_gfn);
@@ -938,11 +936,14 @@ static inline bool dat_pudp_xchg_atomic(union pud *pudp, union pud old, union pu
 	return dat_crstep_xchg_atomic(_CRSTEP(pudp), _CRSTE(old), _CRSTE(new), gfn, asce);
 }
 
-static inline void dat_crstep_clear(union crste *crstep, gfn_t gfn, union asce asce)
+static inline union crste dat_crstep_clear_atomic(union crste *crstep, gfn_t gfn, union asce asce)
 {
-	union crste newcrste = _CRSTE_EMPTY(crstep->h.tt);
+	union crste oldcrste, empty = _CRSTE_EMPTY(crstep->h.tt);
 
-	dat_crstep_xchg(crstep, newcrste, gfn, asce);
+	do {
+		oldcrste = READ_ONCE(*crstep);
+	} while (!dat_crstep_xchg_atomic(crstep, oldcrste, empty, gfn, asce));
+	return oldcrste;
 }
 
 static inline int get_level(union crste *crstep, union pte *ptep)
