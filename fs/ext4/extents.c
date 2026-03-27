@@ -4571,15 +4571,15 @@ retry_remove_space:
 	return err;
 }
 
-static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
-				  ext4_lblk_t len, loff_t new_size,
-				  int flags)
+static int ext4_alloc_file_blocks(struct file *file, loff_t offset, loff_t len,
+				  loff_t new_size, int flags)
 {
 	struct inode *inode = file_inode(file);
 	handle_t *handle;
 	int ret = 0, ret2 = 0, ret3 = 0;
 	int retries = 0;
 	int depth = 0;
+	ext4_lblk_t len_lblk;
 	struct ext4_map_blocks map;
 	unsigned int credits;
 	loff_t epos, old_size = i_size_read(inode);
@@ -4587,14 +4587,14 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	bool alloc_zero = false;
 
 	BUG_ON(!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS));
-	map.m_lblk = offset;
-	map.m_len = len;
+	map.m_lblk = offset >> blkbits;
+	map.m_len = len_lblk = EXT4_MAX_BLOCKS(len, offset, blkbits);
 	/*
 	 * Don't normalize the request if it can fit in one extent so
 	 * that it doesn't get unnecessarily split into multiple
 	 * extents.
 	 */
-	if (len <= EXT_UNWRITTEN_MAX_LEN)
+	if (len_lblk <= EXT_UNWRITTEN_MAX_LEN)
 		flags |= EXT4_GET_BLOCKS_NO_NORMALIZE;
 
 	/*
@@ -4611,16 +4611,16 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	/*
 	 * credits to insert 1 extent into extent tree
 	 */
-	credits = ext4_chunk_trans_blocks(inode, len);
+	credits = ext4_chunk_trans_blocks(inode, len_lblk);
 	depth = ext_depth(inode);
 
 retry:
-	while (len) {
+	while (len_lblk) {
 		/*
 		 * Recalculate credits when extent tree depth changes.
 		 */
 		if (depth != ext_depth(inode)) {
-			credits = ext4_chunk_trans_blocks(inode, len);
+			credits = ext4_chunk_trans_blocks(inode, len_lblk);
 			depth = ext_depth(inode);
 		}
 
@@ -4677,7 +4677,7 @@ retry:
 		}
 
 		map.m_lblk += ret;
-		map.m_len = len = len - ret;
+		map.m_len = len_lblk = len_lblk - ret;
 	}
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
@@ -4694,11 +4694,9 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 {
 	struct inode *inode = file_inode(file);
 	handle_t *handle = NULL;
-	loff_t new_size = 0;
+	loff_t align_start, align_end, new_size = 0;
 	loff_t end = offset + len;
-	ext4_lblk_t start_lblk, end_lblk;
 	unsigned int blocksize = i_blocksize(inode);
-	unsigned int blkbits = inode->i_blkbits;
 	int ret, flags, credits;
 
 	trace_ext4_zero_range(inode, offset, len, mode);
@@ -4719,11 +4717,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	flags = EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT;
 	/* Preallocate the range including the unaligned edges */
 	if (!IS_ALIGNED(offset | end, blocksize)) {
-		ext4_lblk_t alloc_lblk = offset >> blkbits;
-		ext4_lblk_t len_lblk = EXT4_MAX_BLOCKS(len, offset, blkbits);
-
-		ret = ext4_alloc_file_blocks(file, alloc_lblk, len_lblk,
-					     new_size, flags);
+		ret = ext4_alloc_file_blocks(file, offset, len, new_size,
+					     flags);
 		if (ret)
 			return ret;
 	}
@@ -4738,18 +4733,17 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		return ret;
 
 	/* Zero range excluding the unaligned edges */
-	start_lblk = EXT4_B_TO_LBLK(inode, offset);
-	end_lblk = end >> blkbits;
-	if (end_lblk > start_lblk) {
-		ext4_lblk_t zero_blks = end_lblk - start_lblk;
-
+	align_start = round_up(offset, blocksize);
+	align_end = round_down(end, blocksize);
+	if (align_end > align_start) {
 		if (mode & FALLOC_FL_WRITE_ZEROES)
 			flags = EXT4_GET_BLOCKS_CREATE_ZERO | EXT4_EX_NOCACHE;
 		else
 			flags |= (EXT4_GET_BLOCKS_CONVERT_UNWRITTEN |
 				  EXT4_EX_NOCACHE);
-		ret = ext4_alloc_file_blocks(file, start_lblk, zero_blks,
-					     new_size, flags);
+		ret = ext4_alloc_file_blocks(file, align_start,
+					     align_end - align_start, new_size,
+					     flags);
 		if (ret)
 			return ret;
 	}
@@ -4797,14 +4791,10 @@ static long ext4_do_fallocate(struct file *file, loff_t offset,
 	struct inode *inode = file_inode(file);
 	loff_t end = offset + len;
 	loff_t new_size = 0;
-	ext4_lblk_t start_lblk, len_lblk;
 	int ret;
 
 	trace_ext4_fallocate_enter(inode, offset, len, mode);
 	WARN_ON_ONCE(!inode_is_locked(inode));
-
-	start_lblk = offset >> inode->i_blkbits;
-	len_lblk = EXT4_MAX_BLOCKS(len, offset, inode->i_blkbits);
 
 	/* We only support preallocation for extent-based files only. */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
@@ -4820,7 +4810,7 @@ static long ext4_do_fallocate(struct file *file, loff_t offset,
 			goto out;
 	}
 
-	ret = ext4_alloc_file_blocks(file, start_lblk, len_lblk, new_size,
+	ret = ext4_alloc_file_blocks(file, offset, len, new_size,
 				     EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT);
 	if (ret)
 		goto out;
@@ -4830,7 +4820,8 @@ static long ext4_do_fallocate(struct file *file, loff_t offset,
 					EXT4_I(inode)->i_sync_tid);
 	}
 out:
-	trace_ext4_fallocate_exit(inode, offset, len_lblk, ret);
+	trace_ext4_fallocate_exit(inode, offset,
+			EXT4_MAX_BLOCKS(len, offset, inode->i_blkbits), ret);
 	return ret;
 }
 
