@@ -100,9 +100,6 @@ struct ethqos_emac_driver_data {
 struct qcom_ethqos {
 	struct platform_device *pdev;
 	void __iomem *rgmii_base;
-	void (*configure_func)(struct qcom_ethqos *ethqos,
-			       phy_interface_t interface, int speed);
-
 	struct clk *link_clk;
 	struct phy *serdes_phy;
 	phy_interface_t phy_mode;
@@ -521,12 +518,16 @@ static int ethqos_rgmii_macro_init(struct qcom_ethqos *ethqos, int speed)
 	return 0;
 }
 
-static void ethqos_configure_rgmii(struct qcom_ethqos *ethqos,
-				   phy_interface_t interface, int speed)
+static void ethqos_fix_mac_speed_rgmii(void *bsp_priv,
+				       phy_interface_t interface, int speed,
+				       unsigned int mode)
 {
-	struct device *dev = &ethqos->pdev->dev;
+	struct qcom_ethqos *ethqos = bsp_priv;
+	struct device *dev;
 	unsigned int i;
 	u32 val;
+
+	dev = &ethqos->pdev->dev;
 
 	/* Reset to POR values and enable clk */
 	for (i = 0; i < ethqos->num_rgmii_por; i++)
@@ -601,9 +602,12 @@ static void ethqos_pcs_set_inband(struct qcom_ethqos *ethqos, bool enable)
 /* On interface toggle MAC registers gets reset.
  * Configure MAC block for SGMII on ethernet phy link up
  */
-static void ethqos_configure_sgmii(struct qcom_ethqos *ethqos,
-				   phy_interface_t interface, int speed)
+static void ethqos_fix_mac_speed_sgmii(void *bsp_priv,
+				       phy_interface_t interface, int speed,
+				       unsigned int mode)
 {
+	struct qcom_ethqos *ethqos = bsp_priv;
+
 	switch (speed) {
 	case SPEED_2500:
 	case SPEED_1000:
@@ -621,14 +625,6 @@ static void ethqos_configure_sgmii(struct qcom_ethqos *ethqos,
 	}
 
 	ethqos_pcs_set_inband(ethqos, interface == PHY_INTERFACE_MODE_SGMII);
-}
-
-static void ethqos_fix_mac_speed(void *priv, phy_interface_t interface,
-				 int speed, unsigned int mode)
-{
-	struct qcom_ethqos *ethqos = priv;
-
-	ethqos->configure_func(ethqos, interface, speed);
 }
 
 static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
@@ -687,7 +683,7 @@ static int ethqos_clks_config(void *priv, bool enabled)
 		/* Enable functional clock to prevent DMA reset to timeout due
 		 * to lacking PHY clock after the hardware block has been power
 		 * cycled. The actual configuration will be adjusted once
-		 * ethqos_fix_mac_speed() is invoked.
+		 * ethqos' fix_mac_speed() method is invoked.
 		 */
 		qcom_ethqos_set_sgmii_loopback(ethqos, true);
 		ethqos_set_func_clk_en(ethqos);
@@ -753,11 +749,11 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		ethqos->configure_func = ethqos_configure_rgmii;
+		plat_dat->fix_mac_speed = ethqos_fix_mac_speed_rgmii;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
-		ethqos->configure_func = ethqos_configure_sgmii;
+		plat_dat->fix_mac_speed = ethqos_fix_mac_speed_sgmii;
 		plat_dat->mac_finish = ethqos_mac_finish_serdes;
 		break;
 	default:
@@ -805,7 +801,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	plat_dat->bsp_priv = ethqos;
 	plat_dat->set_clk_tx_rate = ethqos_set_clk_tx_rate;
-	plat_dat->fix_mac_speed = ethqos_fix_mac_speed;
 	plat_dat->dump_debug_regs = rgmii_dump;
 	plat_dat->ptp_clk_freq_config = ethqos_ptp_clk_freq_config;
 	plat_dat->core_type = DWMAC_CORE_GMAC4;
