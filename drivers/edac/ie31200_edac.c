@@ -706,7 +706,7 @@ static struct res_config skl_cfg = {
 	.reg_mad_dimm_width_mask[1]	= GENMASK(25, 24),
 };
 
-struct res_config rpl_s_cfg = {
+static struct res_config rpl_s_cfg = {
 	.mtype				= MEM_DDR5,
 	.cmci				= true,
 	.imc_num			= 2,
