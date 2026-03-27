@@ -7,3 +7,5 @@ xor-y				+= xor-8regs.o
 xor-y				+= xor-32regs.o
 xor-y				+= xor-8regs-prefetch.o
 xor-y				+= xor-32regs-prefetch.o
+
+xor-$(CONFIG_ALPHA)		+= alpha/xor.o
