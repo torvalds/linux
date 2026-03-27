@@ -4531,7 +4531,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 		goto out_handle;
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
-	if (IS_SYNC(inode))
+	if ((file->f_flags & O_SYNC) || IS_SYNC(inode))
 		ext4_handle_sync(handle);
 out_handle:
 	ext4_journal_stop(handle);
