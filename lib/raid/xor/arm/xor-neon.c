@@ -4,6 +4,7 @@
  */
 
 #include "xor_impl.h"
+#include "xor_arch.h"
 
 #ifndef __ARM_NEON__
 #error You should compile this file with '-march=armv7-a -mfloat-abi=softfp -mfpu=neon'
@@ -22,10 +23,4 @@
 #define NO_TEMPLATE
 #include "../xor-8regs.c"
 
-struct xor_block_template const xor_block_neon_inner = {
-	.name	= "__inner_neon__",
-	.do_2	= xor_8regs_2,
-	.do_3	= xor_8regs_3,
-	.do_4	= xor_8regs_4,
-	.do_5	= xor_8regs_5,
-};
+__DO_XOR_BLOCKS(neon_inner, xor_8regs_2, xor_8regs_3, xor_8regs_4, xor_8regs_5);

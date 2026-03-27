@@ -51,8 +51,6 @@ xor_sse_2(unsigned long bytes, unsigned long * __restrict p1,
 {
 	unsigned long lines = bytes >> 8;
 
-	kernel_fpu_begin();
-
 	asm volatile(
 #undef BLOCK
 #define BLOCK(i)					\
@@ -93,8 +91,6 @@ xor_sse_2(unsigned long bytes, unsigned long * __restrict p1,
 	  [p1] "+r" (p1), [p2] "+r" (p2)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -102,8 +98,6 @@ xor_sse_2_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p2)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -128,8 +122,6 @@ xor_sse_2_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	  [p1] "+r" (p1), [p2] "+r" (p2)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -138,8 +130,6 @@ xor_sse_3(unsigned long bytes, unsigned long * __restrict p1,
 	  const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -188,8 +178,6 @@ xor_sse_3(unsigned long bytes, unsigned long * __restrict p1,
 	  [p1] "+r" (p1), [p2] "+r" (p2), [p3] "+r" (p3)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -198,8 +186,6 @@ xor_sse_3_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -226,8 +212,6 @@ xor_sse_3_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	  [p1] "+r" (p1), [p2] "+r" (p2), [p3] "+r" (p3)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -237,8 +221,6 @@ xor_sse_4(unsigned long bytes, unsigned long * __restrict p1,
 	  const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -294,8 +276,6 @@ xor_sse_4(unsigned long bytes, unsigned long * __restrict p1,
 	  [p2] "+r" (p2), [p3] "+r" (p3), [p4] "+r" (p4)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -305,8 +285,6 @@ xor_sse_4_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -335,8 +313,6 @@ xor_sse_4_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	  [p2] "+r" (p2), [p3] "+r" (p3), [p4] "+r" (p4)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -347,8 +323,6 @@ xor_sse_5(unsigned long bytes, unsigned long * __restrict p1,
 	  const unsigned long * __restrict p5)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -411,8 +385,6 @@ xor_sse_5(unsigned long bytes, unsigned long * __restrict p1,
 	  [p3] "+r" (p3), [p4] "+r" (p4), [p5] "+r" (p5)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -423,8 +395,6 @@ xor_sse_5_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p5)
 {
 	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -455,22 +425,35 @@ xor_sse_5_pf64(unsigned long bytes, unsigned long * __restrict p1,
 	  [p3] "+r" (p3), [p4] "+r" (p4), [p5] "+r" (p5)
 	: [inc] XOR_CONSTANT_CONSTRAINT (256UL)
 	: "memory");
+}
 
+DO_XOR_BLOCKS(sse_inner, xor_sse_2, xor_sse_3, xor_sse_4, xor_sse_5);
+
+static void xor_gen_sse(void *dest, void **srcs, unsigned int src_cnt,
+			unsigned int bytes)
+{
+	kernel_fpu_begin();
+	xor_gen_sse_inner(dest, srcs, src_cnt, bytes);
 	kernel_fpu_end();
 }
 
 struct xor_block_template xor_block_sse = {
-	.name = "sse",
-	.do_2 = xor_sse_2,
-	.do_3 = xor_sse_3,
-	.do_4 = xor_sse_4,
-	.do_5 = xor_sse_5,
+	.name		= "sse",
+	.xor_gen	= xor_gen_sse,
 };
 
+DO_XOR_BLOCKS(sse_pf64_inner, xor_sse_2_pf64, xor_sse_3_pf64, xor_sse_4_pf64,
+		xor_sse_5_pf64);
+
+static void xor_gen_sse_pf64(void *dest, void **srcs, unsigned int src_cnt,
+			unsigned int bytes)
+{
+	kernel_fpu_begin();
+	xor_gen_sse_pf64_inner(dest, srcs, src_cnt, bytes);
+	kernel_fpu_end();
+}
+
 struct xor_block_template xor_block_sse_pf64 = {
-	.name = "prefetch64-sse",
-	.do_2 = xor_sse_2_pf64,
-	.do_3 = xor_sse_3_pf64,
-	.do_4 = xor_sse_4_pf64,
-	.do_5 = xor_sse_5_pf64,
+	.name		= "prefetch64-sse",
+	.xor_gen	= xor_gen_sse_pf64,
 };

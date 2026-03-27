@@ -125,10 +125,9 @@ static void xor_xc_5(unsigned long bytes, unsigned long * __restrict p1,
 		: : "0", "cc", "memory");
 }
 
+DO_XOR_BLOCKS(xc, xor_xc_2, xor_xc_3, xor_xc_4, xor_xc_5);
+
 struct xor_block_template xor_block_xc = {
-	.name = "xc",
-	.do_2 = xor_xc_2,
-	.do_3 = xor_xc_3,
-	.do_4 = xor_xc_4,
-	.do_5 = xor_xc_5,
+	.name		= "xc",
+	.xor_gen	= xor_gen_xc,
 };

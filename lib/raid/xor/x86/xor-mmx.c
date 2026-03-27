@@ -21,8 +21,6 @@ xor_pII_mmx_2(unsigned long bytes, unsigned long * __restrict p1,
 {
 	unsigned long lines = bytes >> 7;
 
-	kernel_fpu_begin();
-
 	asm volatile(
 #undef BLOCK
 #define BLOCK(i)				\
@@ -55,8 +53,6 @@ xor_pII_mmx_2(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2)
 	:
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -65,8 +61,6 @@ xor_pII_mmx_3(unsigned long bytes, unsigned long * __restrict p1,
 	      const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 7;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -105,8 +99,6 @@ xor_pII_mmx_3(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2), "+r" (p3)
 	:
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -116,8 +108,6 @@ xor_pII_mmx_4(unsigned long bytes, unsigned long * __restrict p1,
 	      const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 7;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 #undef BLOCK
@@ -161,8 +151,6 @@ xor_pII_mmx_4(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2), "+r" (p3), "+r" (p4)
 	:
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 
@@ -174,8 +162,6 @@ xor_pII_mmx_5(unsigned long bytes, unsigned long * __restrict p1,
 	      const unsigned long * __restrict p5)
 {
 	unsigned long lines = bytes >> 7;
-
-	kernel_fpu_begin();
 
 	/* Make sure GCC forgets anything it knows about p4 or p5,
 	   such that it won't pass to the asm volatile below a
@@ -237,8 +223,6 @@ xor_pII_mmx_5(unsigned long bytes, unsigned long * __restrict p1,
 	   Clobber them just to be sure nobody does something stupid
 	   like assuming they have some legal value.  */
 	asm("" : "=r" (p4), "=r" (p5));
-
-	kernel_fpu_end();
 }
 
 #undef LD
@@ -254,8 +238,6 @@ xor_p5_mmx_2(unsigned long bytes, unsigned long * __restrict p1,
 	     const unsigned long * __restrict p2)
 {
 	unsigned long lines = bytes >> 6;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 	" .align 32	             ;\n"
@@ -293,8 +275,6 @@ xor_p5_mmx_2(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2)
 	:
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -303,8 +283,6 @@ xor_p5_mmx_3(unsigned long bytes, unsigned long * __restrict p1,
 	     const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 6;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 	" .align 32,0x90             ;\n"
@@ -351,8 +329,6 @@ xor_p5_mmx_3(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2), "+r" (p3)
 	:
 	: "memory" );
-
-	kernel_fpu_end();
 }
 
 static void
@@ -362,8 +338,6 @@ xor_p5_mmx_4(unsigned long bytes, unsigned long * __restrict p1,
 	     const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 6;
-
-	kernel_fpu_begin();
 
 	asm volatile(
 	" .align 32,0x90             ;\n"
@@ -419,8 +393,6 @@ xor_p5_mmx_4(unsigned long bytes, unsigned long * __restrict p1,
 	  "+r" (p1), "+r" (p2), "+r" (p3), "+r" (p4)
 	:
 	: "memory");
-
-	kernel_fpu_end();
 }
 
 static void
@@ -431,8 +403,6 @@ xor_p5_mmx_5(unsigned long bytes, unsigned long * __restrict p1,
 	     const unsigned long * __restrict p5)
 {
 	unsigned long lines = bytes >> 6;
-
-	kernel_fpu_begin();
 
 	/* Make sure GCC forgets anything it knows about p4 or p5,
 	   such that it won't pass to the asm volatile below a
@@ -510,22 +480,36 @@ xor_p5_mmx_5(unsigned long bytes, unsigned long * __restrict p1,
 	   Clobber them just to be sure nobody does something stupid
 	   like assuming they have some legal value.  */
 	asm("" : "=r" (p4), "=r" (p5));
+}
 
+DO_XOR_BLOCKS(pII_mmx_inner, xor_pII_mmx_2, xor_pII_mmx_3, xor_pII_mmx_4,
+		xor_pII_mmx_5);
+
+static void xor_gen_pII_mmx(void *dest, void **srcs, unsigned int src_cnt,
+		unsigned int bytes)
+{
+	kernel_fpu_begin();
+	xor_gen_pII_mmx_inner(dest, srcs, src_cnt, bytes);
 	kernel_fpu_end();
 }
 
 struct xor_block_template xor_block_pII_mmx = {
-	.name = "pII_mmx",
-	.do_2 = xor_pII_mmx_2,
-	.do_3 = xor_pII_mmx_3,
-	.do_4 = xor_pII_mmx_4,
-	.do_5 = xor_pII_mmx_5,
+	.name		= "pII_mmx",
+	.xor_gen	= xor_gen_pII_mmx,
 };
 
+DO_XOR_BLOCKS(p5_mmx_inner, xor_p5_mmx_2, xor_p5_mmx_3, xor_p5_mmx_4,
+		xor_p5_mmx_5);
+
+static void xor_gen_p5_mmx(void *dest, void **srcs, unsigned int src_cnt,
+		unsigned int bytes)
+{
+	kernel_fpu_begin();
+	xor_gen_p5_mmx_inner(dest, srcs, src_cnt, bytes);
+	kernel_fpu_end();
+}
+
 struct xor_block_template xor_block_p5_mmx = {
-	.name = "p5_mmx",
-	.do_2 = xor_p5_mmx_2,
-	.do_3 = xor_p5_mmx_3,
-	.do_4 = xor_p5_mmx_4,
-	.do_5 = xor_p5_mmx_5,
+	.name		= "p5_mmx",
+	.xor_gen	= xor_gen_p5_mmx,
 };

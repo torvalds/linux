@@ -136,10 +136,11 @@ xor_8regs_p_5(unsigned long bytes, unsigned long * __restrict p1,
 		goto once_more;
 }
 
+
+DO_XOR_BLOCKS(8regs_p, xor_8regs_p_2, xor_8regs_p_3, xor_8regs_p_4,
+		xor_8regs_p_5);
+
 struct xor_block_template xor_block_8regs_p = {
-	.name = "8regs_prefetch",
-	.do_2 = xor_8regs_p_2,
-	.do_3 = xor_8regs_p_3,
-	.do_4 = xor_8regs_p_4,
-	.do_5 = xor_8regs_p_5,
+	.name		= "8regs_prefetch",
+	.xor_gen	= xor_gen_8regs_p,
 };

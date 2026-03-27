@@ -10,6 +10,7 @@
  * Sparse (as at v0.5.0) gets very, very confused by this file.
  * Make it a bit simpler for it.
  */
+#include "xor_impl.h"
 #if !defined(__CHECKER__)
 #include <altivec.h>
 #else
@@ -49,9 +50,9 @@ typedef vector signed char unative_t;
 		V1##_3 = vec_xor(V1##_3, V2##_3);	\
 	} while (0)
 
-void __xor_altivec_2(unsigned long bytes,
-		     unsigned long * __restrict v1_in,
-		     const unsigned long * __restrict v2_in)
+static void __xor_altivec_2(unsigned long bytes,
+		unsigned long * __restrict v1_in,
+		const unsigned long * __restrict v2_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -68,10 +69,10 @@ void __xor_altivec_2(unsigned long bytes,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_3(unsigned long bytes,
-		     unsigned long * __restrict v1_in,
-		     const unsigned long * __restrict v2_in,
-		     const unsigned long * __restrict v3_in)
+static void __xor_altivec_3(unsigned long bytes,
+		unsigned long * __restrict v1_in,
+		const unsigned long * __restrict v2_in,
+		const unsigned long * __restrict v3_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -92,11 +93,11 @@ void __xor_altivec_3(unsigned long bytes,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_4(unsigned long bytes,
-		     unsigned long * __restrict v1_in,
-		     const unsigned long * __restrict v2_in,
-		     const unsigned long * __restrict v3_in,
-		     const unsigned long * __restrict v4_in)
+static void __xor_altivec_4(unsigned long bytes,
+		unsigned long * __restrict v1_in,
+		const unsigned long * __restrict v2_in,
+		const unsigned long * __restrict v3_in,
+		const unsigned long * __restrict v4_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -121,12 +122,12 @@ void __xor_altivec_4(unsigned long bytes,
 	} while (--lines > 0);
 }
 
-void __xor_altivec_5(unsigned long bytes,
-		     unsigned long * __restrict v1_in,
-		     const unsigned long * __restrict v2_in,
-		     const unsigned long * __restrict v3_in,
-		     const unsigned long * __restrict v4_in,
-		     const unsigned long * __restrict v5_in)
+static void __xor_altivec_5(unsigned long bytes,
+		unsigned long * __restrict v1_in,
+		const unsigned long * __restrict v2_in,
+		const unsigned long * __restrict v3_in,
+		const unsigned long * __restrict v4_in,
+		const unsigned long * __restrict v5_in)
 {
 	DEFINE(v1);
 	DEFINE(v2);
@@ -154,3 +155,6 @@ void __xor_altivec_5(unsigned long bytes,
 		v5 += 4;
 	} while (--lines > 0);
 }
+
+__DO_XOR_BLOCKS(altivec_inner, __xor_altivec_2, __xor_altivec_3,
+		__xor_altivec_4, __xor_altivec_5);

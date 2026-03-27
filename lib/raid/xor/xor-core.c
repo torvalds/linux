@@ -13,38 +13,8 @@
 #include <linux/preempt.h>
 #include "xor_impl.h"
 
-/* The xor routines to use.  */
+/* The xor routine to use.  */
 static struct xor_block_template *active_template;
-
-void
-xor_blocks(unsigned int src_count, unsigned int bytes, void *dest, void **srcs)
-{
-	unsigned long *p1, *p2, *p3, *p4;
-
-	WARN_ON_ONCE(!in_task() || irqs_disabled() || softirq_count());
-
-	p1 = (unsigned long *) srcs[0];
-	if (src_count == 1) {
-		active_template->do_2(bytes, dest, p1);
-		return;
-	}
-
-	p2 = (unsigned long *) srcs[1];
-	if (src_count == 2) {
-		active_template->do_3(bytes, dest, p1, p2);
-		return;
-	}
-
-	p3 = (unsigned long *) srcs[2];
-	if (src_count == 3) {
-		active_template->do_4(bytes, dest, p1, p2, p3);
-		return;
-	}
-
-	p4 = (unsigned long *) srcs[3];
-	active_template->do_5(bytes, dest, p1, p2, p3, p4);
-}
-EXPORT_SYMBOL(xor_blocks);
 
 /**
  * xor_gen - generate RAID-style XOR information
@@ -63,20 +33,11 @@ EXPORT_SYMBOL(xor_blocks);
  */
 void xor_gen(void *dest, void **srcs, unsigned int src_cnt, unsigned int bytes)
 {
-	unsigned int src_off = 0;
-
-	WARN_ON_ONCE(in_interrupt());
+	WARN_ON_ONCE(!in_task() || irqs_disabled() || softirq_count());
 	WARN_ON_ONCE(bytes == 0);
 	WARN_ON_ONCE(bytes & 511);
 
-	while (src_cnt > 0) {
-		unsigned int this_cnt = min(src_cnt, MAX_XOR_BLOCKS);
-
-		xor_blocks(this_cnt, bytes, dest, srcs + src_off);
-
-		src_cnt -= this_cnt;
-		src_off += this_cnt;
-	}
+	active_template->xor_gen(dest, srcs, src_cnt, bytes);
 }
 EXPORT_SYMBOL(xor_gen);
 
@@ -120,6 +81,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	int speed;
 	unsigned long reps;
 	ktime_t min, start, t0;
+	void *srcs[1] = { b2 };
 
 	preempt_disable();
 
@@ -130,7 +92,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 		cpu_relax();
 	do {
 		mb(); /* prevent loop optimization */
-		tmpl->do_2(BENCH_SIZE, b1, b2);
+		tmpl->xor_gen(b1, srcs, 1, BENCH_SIZE);
 		mb();
 	} while (reps++ < REPS || (t0 = ktime_get()) == start);
 	min = ktime_sub(t0, start);

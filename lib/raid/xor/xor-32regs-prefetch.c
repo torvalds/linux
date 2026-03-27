@@ -258,10 +258,10 @@ xor_32regs_p_5(unsigned long bytes, unsigned long * __restrict p1,
 		goto once_more;
 }
 
+DO_XOR_BLOCKS(32regs_p, xor_32regs_p_2, xor_32regs_p_3, xor_32regs_p_4,
+		xor_32regs_p_5);
+
 struct xor_block_template xor_block_32regs_p = {
-	.name = "32regs_prefetch",
-	.do_2 = xor_32regs_p_2,
-	.do_3 = xor_32regs_p_3,
-	.do_4 = xor_32regs_p_4,
-	.do_5 = xor_32regs_p_5,
+	.name		= "32regs_prefetch",
+	.xor_gen	= xor_gen_32regs_p,
 };

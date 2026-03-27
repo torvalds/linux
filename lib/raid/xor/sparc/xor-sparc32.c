@@ -244,10 +244,9 @@ sparc_5(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
+DO_XOR_BLOCKS(sparc32, sparc_2, sparc_3, sparc_4, sparc_5);
+
 struct xor_block_template xor_block_SPARC = {
-	.name	= "SPARC",
-	.do_2	= sparc_2,
-	.do_3	= sparc_3,
-	.do_4	= sparc_4,
-	.do_5	= sparc_5,
+	.name		= "SPARC",
+	.xor_gen	= xor_gen_sparc32,
 };

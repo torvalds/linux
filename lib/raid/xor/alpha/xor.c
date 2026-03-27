@@ -832,18 +832,17 @@ xor_alpha_prefetch_5:						\n\
 	.end xor_alpha_prefetch_5				\n\
 ");
 
+DO_XOR_BLOCKS(alpha, xor_alpha_2, xor_alpha_3, xor_alpha_4, xor_alpha_5);
+
 struct xor_block_template xor_block_alpha = {
-	.name	= "alpha",
-	.do_2	= xor_alpha_2,
-	.do_3	= xor_alpha_3,
-	.do_4	= xor_alpha_4,
-	.do_5	= xor_alpha_5,
+	.name		= "alpha",
+	.xor_gen	= xor_gen_alpha,
 };
 
+DO_XOR_BLOCKS(alpha_prefetch, xor_alpha_prefetch_2, xor_alpha_prefetch_3,
+		xor_alpha_prefetch_4, xor_alpha_prefetch_5);
+
 struct xor_block_template xor_block_alpha_prefetch = {
-	.name	= "alpha prefetch",
-	.do_2	= xor_alpha_prefetch_2,
-	.do_3	= xor_alpha_prefetch_3,
-	.do_4	= xor_alpha_prefetch_4,
-	.do_5	= xor_alpha_prefetch_5,
+	.name		= "alpha prefetch",
+	.xor_gen	= xor_gen_alpha_prefetch,
 };

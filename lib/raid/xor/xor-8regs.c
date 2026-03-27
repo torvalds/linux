@@ -94,11 +94,10 @@ xor_8regs_5(unsigned long bytes, unsigned long * __restrict p1,
 }
 
 #ifndef NO_TEMPLATE
+DO_XOR_BLOCKS(8regs, xor_8regs_2, xor_8regs_3, xor_8regs_4, xor_8regs_5);
+
 struct xor_block_template xor_block_8regs = {
-	.name = "8regs",
-	.do_2 = xor_8regs_2,
-	.do_3 = xor_8regs_3,
-	.do_4 = xor_8regs_4,
-	.do_5 = xor_8regs_5,
+	.name		= "8regs",
+	.xor_gen	= xor_gen_8regs,
 };
 #endif /* NO_TEMPLATE */

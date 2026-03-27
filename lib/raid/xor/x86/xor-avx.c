@@ -29,8 +29,6 @@ static void xor_avx_2(unsigned long bytes, unsigned long * __restrict p0,
 {
 	unsigned long lines = bytes >> 9;
 
-	kernel_fpu_begin();
-
 	while (lines--) {
 #undef BLOCK
 #define BLOCK(i, reg) \
@@ -47,8 +45,6 @@ do { \
 		p0 = (unsigned long *)((uintptr_t)p0 + 512);
 		p1 = (unsigned long *)((uintptr_t)p1 + 512);
 	}
-
-	kernel_fpu_end();
 }
 
 static void xor_avx_3(unsigned long bytes, unsigned long * __restrict p0,
@@ -56,8 +52,6 @@ static void xor_avx_3(unsigned long bytes, unsigned long * __restrict p0,
 		      const unsigned long * __restrict p2)
 {
 	unsigned long lines = bytes >> 9;
-
-	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -78,8 +72,6 @@ do { \
 		p1 = (unsigned long *)((uintptr_t)p1 + 512);
 		p2 = (unsigned long *)((uintptr_t)p2 + 512);
 	}
-
-	kernel_fpu_end();
 }
 
 static void xor_avx_4(unsigned long bytes, unsigned long * __restrict p0,
@@ -88,8 +80,6 @@ static void xor_avx_4(unsigned long bytes, unsigned long * __restrict p0,
 		      const unsigned long * __restrict p3)
 {
 	unsigned long lines = bytes >> 9;
-
-	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -113,8 +103,6 @@ do { \
 		p2 = (unsigned long *)((uintptr_t)p2 + 512);
 		p3 = (unsigned long *)((uintptr_t)p3 + 512);
 	}
-
-	kernel_fpu_end();
 }
 
 static void xor_avx_5(unsigned long bytes, unsigned long * __restrict p0,
@@ -124,8 +112,6 @@ static void xor_avx_5(unsigned long bytes, unsigned long * __restrict p0,
 	     const unsigned long * __restrict p4)
 {
 	unsigned long lines = bytes >> 9;
-
-	kernel_fpu_begin();
 
 	while (lines--) {
 #undef BLOCK
@@ -152,14 +138,19 @@ do { \
 		p3 = (unsigned long *)((uintptr_t)p3 + 512);
 		p4 = (unsigned long *)((uintptr_t)p4 + 512);
 	}
+}
 
+DO_XOR_BLOCKS(avx_inner, xor_avx_2, xor_avx_3, xor_avx_4, xor_avx_5);
+
+static void xor_gen_avx(void *dest, void **srcs, unsigned int src_cnt,
+			unsigned int bytes)
+{
+	kernel_fpu_begin();
+	xor_gen_avx_inner(dest, srcs, src_cnt, bytes);
 	kernel_fpu_end();
 }
 
 struct xor_block_template xor_block_avx = {
-	.name = "avx",
-	.do_2 = xor_avx_2,
-	.do_3 = xor_avx_3,
-	.do_4 = xor_avx_4,
-	.do_5 = xor_avx_5,
+	.name		= "avx",
+	.xor_gen	= xor_gen_avx,
 };
