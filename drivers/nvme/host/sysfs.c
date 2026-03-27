@@ -658,7 +658,7 @@ static ssize_t nvme_ctrl_dhchap_secret_store(struct device *dev,
 		struct nvme_dhchap_key *key, *host_key;
 		int ret;
 
-		ret = nvme_auth_generate_key(dhchap_secret, &key);
+		ret = nvme_auth_parse_key(dhchap_secret, &key);
 		if (ret) {
 			kfree(dhchap_secret);
 			return ret;
@@ -716,7 +716,7 @@ static ssize_t nvme_ctrl_dhchap_ctrl_secret_store(struct device *dev,
 		struct nvme_dhchap_key *key, *ctrl_key;
 		int ret;
 
-		ret = nvme_auth_generate_key(dhchap_secret, &key);
+		ret = nvme_auth_parse_key(dhchap_secret, &key);
 		if (ret) {
 			kfree(dhchap_secret);
 			return ret;
@@ -829,7 +829,49 @@ static ssize_t tls_configured_key_show(struct device *dev,
 
 	return sysfs_emit(buf, "%08x\n", key_serial(key));
 }
-static DEVICE_ATTR_RO(tls_configured_key);
+
+static ssize_t tls_configured_key_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
+	int error, qid;
+
+	error = kstrtoint(buf, 10, &qid);
+	if (error)
+		return error;
+
+	/*
+	 * We currently only allow userspace to write a `0` indicating
+	 * generate a new key.
+	 */
+	if (qid)
+		return -EINVAL;
+
+	if (!ctrl->opts || !ctrl->opts->concat)
+		return -EOPNOTSUPP;
+
+	error = nvme_auth_negotiate(ctrl, 0);
+	if (error < 0) {
+		nvme_reset_ctrl(ctrl);
+		return error;
+	}
+
+	error = nvme_auth_wait(ctrl, 0);
+	if (error < 0) {
+		nvme_reset_ctrl(ctrl);
+		return error;
+	}
+
+	/*
+	 * We need to reset the TLS connection, so let's just
+	 * reset the controller.
+	 */
+	nvme_reset_ctrl(ctrl);
+
+	return count;
+}
+static DEVICE_ATTR_RW(tls_configured_key);
 
 static ssize_t tls_keyring_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -861,7 +903,7 @@ static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
 	    !ctrl->opts->tls && !ctrl->opts->concat)
 		return 0;
 	if (a == &dev_attr_tls_configured_key.attr &&
-	    (!ctrl->opts->tls_key || ctrl->opts->concat))
+	    !ctrl->opts->concat)
 		return 0;
 	if (a == &dev_attr_tls_keyring.attr &&
 	    !ctrl->opts->keyring)
