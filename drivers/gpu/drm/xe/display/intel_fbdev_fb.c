@@ -56,9 +56,11 @@ struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size
 	if (intel_fbdev_fb_prefer_stolen(drm, size)) {
 		obj = xe_bo_create_pin_map_novm(xe, xe_device_get_root_tile(xe),
 						size,
-						ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
+						ttm_bo_type_kernel,
+						XE_BO_FLAG_FORCE_WC |
 						XE_BO_FLAG_STOLEN |
-						XE_BO_FLAG_GGTT, false);
+						XE_BO_FLAG_GGTT,
+						false);
 		if (!IS_ERR(obj))
 			drm_info(&xe->drm, "Allocated fbdev into stolen\n");
 		else
@@ -69,9 +71,11 @@ struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size
 
 	if (IS_ERR(obj)) {
 		obj = xe_bo_create_pin_map_novm(xe, xe_device_get_root_tile(xe), size,
-						ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
+						ttm_bo_type_kernel,
+						XE_BO_FLAG_FORCE_WC |
 						XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-						XE_BO_FLAG_GGTT, false);
+						XE_BO_FLAG_GGTT,
+						false);
 	}
 
 	if (IS_ERR(obj)) {

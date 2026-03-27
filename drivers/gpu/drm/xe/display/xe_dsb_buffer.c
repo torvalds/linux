@@ -54,7 +54,9 @@ static struct intel_dsb_buffer *xe_dsb_buffer_create(struct drm_device *drm, siz
 					PAGE_ALIGN(size),
 					ttm_bo_type_kernel,
 					XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(xe)) |
-					XE_BO_FLAG_SCANOUT | XE_BO_FLAG_GGTT, false);
+					XE_BO_FLAG_FORCE_WC |
+					XE_BO_FLAG_GGTT,
+					false);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto err_pin_map;

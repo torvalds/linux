@@ -42,6 +42,7 @@ _type xe_sriov_vfio_##_func(struct xe_device *xe, unsigned int vfid)		\
 EXPORT_SYMBOL_FOR_MODULES(xe_sriov_vfio_##_func, "xe-vfio-pci")
 
 DEFINE_XE_SRIOV_VFIO_FUNCTION(int, wait_flr_done, control_wait_flr);
+DEFINE_XE_SRIOV_VFIO_FUNCTION(int, flr_prepare, control_prepare_flr);
 DEFINE_XE_SRIOV_VFIO_FUNCTION(int, suspend_device, control_pause_vf);
 DEFINE_XE_SRIOV_VFIO_FUNCTION(int, resume_device, control_resume_vf);
 DEFINE_XE_SRIOV_VFIO_FUNCTION(int, stop_copy_enter, control_trigger_save_vf);
