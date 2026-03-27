@@ -91,16 +91,6 @@ static int __init early_cma(char *p)
 }
 early_param("cma", early_cma);
 
-/*
- * cma_skip_dt_default_reserved_mem - This is called from the
- * reserved_mem framework to detect if the default cma region is being
- * set by the "cma=" kernel parameter.
- */
-bool __init cma_skip_dt_default_reserved_mem(void)
-{
-	return size_cmdline != -1;
-}
-
 #ifdef CONFIG_DMA_NUMA_CMA
 
 static struct cma *dma_contiguous_numa_area[MAX_NUMNODES];
@@ -470,47 +460,89 @@ static void rmem_cma_device_release(struct reserved_mem *rmem,
 	dev->cma_area = NULL;
 }
 
-static const struct reserved_mem_ops rmem_cma_ops = {
-	.device_init	= rmem_cma_device_init,
-	.device_release = rmem_cma_device_release,
-};
-
-static int __init rmem_cma_setup(struct reserved_mem *rmem)
+static int __init __rmem_cma_verify_node(unsigned long node)
 {
-	unsigned long node = rmem->fdt_node;
-	bool default_cma = of_get_flat_dt_prop(node, "linux,cma-default", NULL);
-	struct cma *cma;
-	int err;
-
 	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
 	    of_get_flat_dt_prop(node, "no-map", NULL))
-		return -EINVAL;
+		return -ENODEV;
+
+	if (size_cmdline != -1 &&
+	    of_get_flat_dt_prop(node, "linux,cma-default", NULL)) {
+		pr_err("Skipping dt linux,cma-default node in favor for \"cma=\" kernel param.\n");
+		return -EBUSY;
+	}
+	return 0;
+}
+
+static int __init rmem_cma_validate(unsigned long node, phys_addr_t *align)
+{
+	int ret = __rmem_cma_verify_node(node);
+
+	if (ret)
+		return ret;
+
+	if (align)
+		*align = max_t(phys_addr_t, *align, CMA_MIN_ALIGNMENT_BYTES);
+
+	return 0;
+}
+
+static int __init rmem_cma_fixup(unsigned long node, phys_addr_t base,
+				    phys_addr_t size)
+{
+	int ret = __rmem_cma_verify_node(node);
+
+	if (ret)
+		return ret;
+
+	/* Architecture specific contiguous memory fixup. */
+	dma_contiguous_early_fixup(base, size);
+	return 0;
+}
+
+static int __init rmem_cma_setup(unsigned long node, struct reserved_mem *rmem)
+{
+	bool default_cma = of_get_flat_dt_prop(node, "linux,cma-default", NULL);
+	struct cma *cma;
+	int ret;
+
+	ret = __rmem_cma_verify_node(node);
+	if (ret)
+		return ret;
 
 	if (!IS_ALIGNED(rmem->base | rmem->size, CMA_MIN_ALIGNMENT_BYTES)) {
 		pr_err("Reserved memory: incorrect alignment of CMA region\n");
 		return -EINVAL;
 	}
 
-	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, rmem->name, &cma);
-	if (err) {
+	ret = cma_init_reserved_mem(rmem->base, rmem->size, 0, rmem->name, &cma);
+	if (ret) {
 		pr_err("Reserved memory: unable to setup CMA region\n");
-		return err;
+		return ret;
 	}
 
 	if (default_cma)
 		dma_contiguous_default_area = cma;
 
-	rmem->ops = &rmem_cma_ops;
 	rmem->priv = cma;
 
 	pr_info("Reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
 
-	err = dma_heap_cma_register_heap(cma);
-	if (err)
+	ret = dma_heap_cma_register_heap(cma);
+	if (ret)
 		pr_warn("Couldn't register CMA heap.");
 
 	return 0;
 }
-RESERVEDMEM_OF_DECLARE(cma, "shared-dma-pool", rmem_cma_setup);
+
+static const struct reserved_mem_ops rmem_cma_ops = {
+	.node_validate  = rmem_cma_validate,
+	.node_fixup	= rmem_cma_fixup,
+	.node_init	= rmem_cma_setup,
+	.device_init	= rmem_cma_device_init,
+	.device_release = rmem_cma_device_release,
+};
+
+RESERVEDMEM_OF_DECLARE(cma, "shared-dma-pool", &rmem_cma_ops);
 #endif
