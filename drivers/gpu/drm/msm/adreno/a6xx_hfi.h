@@ -4,6 +4,8 @@
 #ifndef _A6XX_HFI_H_
 #define _A6XX_HFI_H_
 
+#define HFI_MAX_QUEUES 3
+
 struct a6xx_hfi_queue_table_header {
 	u32 version;
 	u32 size;		/* Size of the queue table in dwords */
