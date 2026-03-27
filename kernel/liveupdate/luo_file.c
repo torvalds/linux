@@ -923,26 +923,16 @@ err_unlock:
  */
 int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 {
-	int err = -EBUSY;
-
 	if (!liveupdate_enabled())
 		return -EOPNOTSUPP;
 
 	liveupdate_test_unregister(fh);
 
-	down_write(&luo_register_rwlock);
-	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
-		goto err_unlock;
-
+	guard(rwsem_write)(&luo_register_rwlock);
+	luo_flb_unregister_all(fh);
 	list_del(&ACCESS_PRIVATE(fh, list));
-	up_write(&luo_register_rwlock);
 
 	module_put(fh->ops->owner);
 
 	return 0;
-
-err_unlock:
-	up_write(&luo_register_rwlock);
-	liveupdate_test_register(fh);
-	return err;
 }
