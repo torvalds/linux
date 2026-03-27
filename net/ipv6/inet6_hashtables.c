@@ -42,7 +42,7 @@ u32 inet6_ehashfn(const struct net *net,
 	 * Hash laddr + faddr + lport/fport + net_hash_mix.
 	 * Notes:
 	 * We combine laddr[0] (high order 32 bits of local address)
-	 * with net_hash_mix() to avoid using __jhash_final(a, b, c).
+	 * with net_hash_mix() to hash a multiple of 3 words.
 	 *
 	 * We do not include JHASH_INITVAL + 36 contribution
 	 * to initial values of a, b, c.
@@ -63,7 +63,7 @@ u32 inet6_ehashfn(const struct net *net,
 	a += (__force u32)faddr->s6_addr32[2];
 	b += (__force u32)faddr->s6_addr32[3];
 	c += (__force u32)fport;
-	__jhash_mix(a, b, c);
+	__jhash_final(a, b, c);
 
 	/* Note: We need to add @lport instead of fully hashing it.
 	 * See commits 9544d60a2605 ("inet: change lport contribution
