@@ -44,7 +44,6 @@ enum {
 		.io_reg = REG_SIZE * id + 0x4,		\
 		.intr_cfg_reg = REG_SIZE * id + 0x8,	\
 		.intr_status_reg = REG_SIZE * id + 0xc,	\
-		.intr_target_reg = REG_SIZE * id + 0x8,	\
 		.tile = _tile,				\
 		.mux_bit = 2,				\
 		.pull_bit = 0,				\
@@ -73,7 +72,6 @@ enum {
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
-		.intr_target_reg = 0,			\
 		.tile = NORTH,				\
 		.mux_bit = -1,				\
 		.pull_bit = pull,			\
@@ -99,7 +97,6 @@ enum {
 		.io_reg = offset + 0x4,			\
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
-		.intr_target_reg = 0,			\
 		.tile = SOUTH,				\
 		.mux_bit = -1,				\
 		.pull_bit = 3,				\

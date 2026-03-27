@@ -242,7 +242,6 @@ DECLARE_QCA_GPIO_PINS(99);
 		.io_reg = 0x4 + 0x1000 * id,		\
 		.intr_cfg_reg = 0x8 + 0x1000 * id,	\
 		.intr_status_reg = 0xc + 0x1000 * id,	\
-		.intr_target_reg = 0x8 + 0x1000 * id,	\
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\

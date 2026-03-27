@@ -98,7 +98,22 @@ MSM_ACCESSOR(ctl)
 MSM_ACCESSOR(io)
 MSM_ACCESSOR(intr_cfg)
 MSM_ACCESSOR(intr_status)
-MSM_ACCESSOR(intr_target)
+
+static u32 msm_readl_intr_target(struct msm_pinctrl *pctrl,
+				 const struct msm_pingroup *g)
+{
+	u32 reg = g->intr_target_reg ? g->intr_target_reg : g->intr_cfg_reg;
+
+	return readl(pctrl->regs[g->tile] + reg);
+}
+
+static void msm_writel_intr_target(u32 val, struct msm_pinctrl *pctrl,
+				   const struct msm_pingroup *g)
+{
+	u32 reg = g->intr_target_reg ? g->intr_target_reg : g->intr_cfg_reg;
+
+	writel(val, pctrl->regs[g->tile] + reg);
+}
 
 static void msm_ack_intr_status(struct msm_pinctrl *pctrl,
 				const struct msm_pingroup *g)
@@ -1078,7 +1093,8 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		intr_target_mask = GENMASK(g->intr_target_width - 1, 0);
 
 	if (pctrl->intr_target_use_scm) {
-		u32 addr = pctrl->phys_base[0] + g->intr_target_reg;
+		u32 reg = g->intr_target_reg ? g->intr_target_reg : g->intr_cfg_reg;
+		u32 addr = pctrl->phys_base[0] + reg;
 		int ret;
 
 		qcom_scm_io_readl(addr, &val);
