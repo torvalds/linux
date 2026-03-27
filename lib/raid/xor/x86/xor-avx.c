@@ -1,18 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef _ASM_X86_XOR_AVX_H
-#define _ASM_X86_XOR_AVX_H
-
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Optimized RAID-5 checksumming functions for AVX
+ * Optimized XOR parity functions for AVX
  *
  * Copyright (C) 2012 Intel Corporation
  * Author: Jim Kukunas <james.t.kukunas@linux.intel.com>
  *
  * Based on Ingo Molnar and Zach Brown's respective MMX and SSE routines
  */
-
 #include <linux/compiler.h>
+#include <linux/raid/xor_impl.h>
 #include <asm/fpu/api.h>
+#include <asm/xor.h>
 
 #define BLOCK4(i) \
 		BLOCK(32 * i, 0) \
@@ -158,12 +156,10 @@ do { \
 	kernel_fpu_end();
 }
 
-static struct xor_block_template xor_block_avx = {
+struct xor_block_template xor_block_avx = {
 	.name = "avx",
 	.do_2 = xor_avx_2,
 	.do_3 = xor_avx_3,
 	.do_4 = xor_avx_4,
 	.do_5 = xor_avx_5,
 };
-
-#endif

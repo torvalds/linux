@@ -1,15 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-#ifndef _ASM_X86_XOR_32_H
-#define _ASM_X86_XOR_32_H
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Optimized RAID-5 checksumming functions for MMX.
- */
-
-/*
- * High-speed RAID5 checksumming functions utilizing MMX instructions.
+ * Optimized XOR parity functions for MMX.
+ *
  * Copyright (C) 1998 Ingo Molnar.
  */
+#include <linux/raid/xor_impl.h>
+#include <asm/fpu/api.h>
+#include <asm/xor.h>
 
 #define LD(x, y)	"       movq   8*("#x")(%1), %%mm"#y"   ;\n"
 #define ST(x, y)	"       movq %%mm"#y",   8*("#x")(%1)   ;\n"
@@ -17,8 +14,6 @@
 #define XO2(x, y)	"       pxor   8*("#x")(%3), %%mm"#y"   ;\n"
 #define XO3(x, y)	"       pxor   8*("#x")(%4), %%mm"#y"   ;\n"
 #define XO4(x, y)	"       pxor   8*("#x")(%5), %%mm"#y"   ;\n"
-
-#include <asm/fpu/api.h>
 
 static void
 xor_pII_mmx_2(unsigned long bytes, unsigned long * __restrict p1,
@@ -519,7 +514,7 @@ xor_p5_mmx_5(unsigned long bytes, unsigned long * __restrict p1,
 	kernel_fpu_end();
 }
 
-static struct xor_block_template xor_block_pII_mmx = {
+struct xor_block_template xor_block_pII_mmx = {
 	.name = "pII_mmx",
 	.do_2 = xor_pII_mmx_2,
 	.do_3 = xor_pII_mmx_3,
@@ -527,49 +522,10 @@ static struct xor_block_template xor_block_pII_mmx = {
 	.do_5 = xor_pII_mmx_5,
 };
 
-static struct xor_block_template xor_block_p5_mmx = {
+struct xor_block_template xor_block_p5_mmx = {
 	.name = "p5_mmx",
 	.do_2 = xor_p5_mmx_2,
 	.do_3 = xor_p5_mmx_3,
 	.do_4 = xor_p5_mmx_4,
 	.do_5 = xor_p5_mmx_5,
 };
-
-static struct xor_block_template xor_block_pIII_sse = {
-	.name = "pIII_sse",
-	.do_2 = xor_sse_2,
-	.do_3 = xor_sse_3,
-	.do_4 = xor_sse_4,
-	.do_5 = xor_sse_5,
-};
-
-/* Also try the AVX routines */
-#include <asm/xor_avx.h>
-
-/* Also try the generic routines.  */
-#include <asm-generic/xor.h>
-
-/* We force the use of the SSE xor block because it can write around L2.
-   We may also be able to load into the L1 only depending on how the cpu
-   deals with a load to a line that is being prefetched.  */
-#define arch_xor_init arch_xor_init
-static __always_inline void __init arch_xor_init(void)
-{
-	if (boot_cpu_has(X86_FEATURE_AVX) &&
-	    boot_cpu_has(X86_FEATURE_OSXSAVE)) {
-		xor_force(&xor_block_avx);
-	} else if (boot_cpu_has(X86_FEATURE_XMM)) {
-		xor_register(&xor_block_pIII_sse);
-		xor_register(&xor_block_sse_pf64);
-	} else if (boot_cpu_has(X86_FEATURE_MMX)) {
-		xor_register(&xor_block_pII_mmx);
-		xor_register(&xor_block_p5_mmx);
-	} else {
-		xor_register(&xor_block_8regs);
-		xor_register(&xor_block_8regs_p);
-		xor_register(&xor_block_32regs);
-		xor_register(&xor_block_32regs_p);
-	}
-}
-
-#endif /* _ASM_X86_XOR_32_H */
