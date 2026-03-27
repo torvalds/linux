@@ -26,8 +26,8 @@ MODULE_LICENSE("GPL");
 #pragma GCC optimize "tree-vectorize"
 #endif
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#include <asm-generic/xor.h>
+#define NO_TEMPLATE
+#include "../../../lib/raid/xor/xor-8regs.c"
 
 struct xor_block_template const xor_block_neon_inner = {
 	.name	= "__inner_neon__",
