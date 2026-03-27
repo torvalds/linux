@@ -378,12 +378,14 @@ struct cxl_decoder {
 };
 
 /*
- * Track whether this decoder is reserved for region autodiscovery, or
- * free for userspace provisioning.
+ * Track whether this decoder is free for userspace provisioning, reserved for
+ * region autodiscovery, whether it is started connecting (awaiting other
+ * peers), or has completed auto assembly.
  */
 enum cxl_decoder_state {
 	CXL_DECODER_STATE_MANUAL,
 	CXL_DECODER_STATE_AUTO,
+	CXL_DECODER_STATE_AUTO_STAGED,
 };
 
 /**
