@@ -57,12 +57,54 @@ static void __trace_do_switch(u64 *saved_trfcr, u64 new_trfcr)
 	write_sysreg_el1(new_trfcr, SYS_TRFCR);
 }
 
-static bool __trace_needs_drain(void)
+static void __trace_drain_and_disable(void)
 {
-	if (is_protected_kvm_enabled() && host_data_test_flag(HAS_TRBE))
-		return read_sysreg_s(SYS_TRBLIMITR_EL1) & TRBLIMITR_EL1_E;
+	u64 *trblimitr_el1 = host_data_ptr(host_debug_state.trblimitr_el1);
+	bool needs_drain = is_protected_kvm_enabled() ?
+			   host_data_test_flag(HAS_TRBE) :
+			   host_data_test_flag(TRBE_ENABLED);
 
-	return host_data_test_flag(TRBE_ENABLED);
+	if (!needs_drain) {
+		*trblimitr_el1 = 0;
+		return;
+	}
+
+	*trblimitr_el1 = read_sysreg_s(SYS_TRBLIMITR_EL1);
+	if (*trblimitr_el1 & TRBLIMITR_EL1_E) {
+		/*
+		 * The host has enabled the Trace Buffer Unit so we have
+		 * to beat the CPU with a stick until it stops accessing
+		 * memory.
+		 */
+
+		/* First, ensure that our prior write to TRFCR has stuck. */
+		isb();
+
+		/* Now synchronise with the trace and drain the buffer. */
+		tsb_csync();
+		dsb(nsh);
+
+		/*
+		 * With no more trace being generated, we can disable the
+		 * Trace Buffer Unit.
+		 */
+		write_sysreg_s(0, SYS_TRBLIMITR_EL1);
+		if (cpus_have_final_cap(ARM64_WORKAROUND_2064142)) {
+			/*
+			 * Some CPUs are so good, we have to drain 'em
+			 * twice.
+			 */
+			tsb_csync();
+			dsb(nsh);
+		}
+
+		/*
+		 * Ensure that the Trace Buffer Unit is disabled before
+		 * we start mucking with the stage-2 and trap
+		 * configuration.
+		 */
+		isb();
+	}
 }
 
 static bool __trace_needs_switch(void)
@@ -79,15 +121,26 @@ static void __trace_switch_to_guest(void)
 
 	__trace_do_switch(host_data_ptr(host_debug_state.trfcr_el1),
 			  *host_data_ptr(trfcr_while_in_guest));
-
-	if (__trace_needs_drain()) {
-		isb();
-		tsb_csync();
-	}
+	__trace_drain_and_disable();
 }
 
 static void __trace_switch_to_host(void)
 {
+	u64 trblimitr_el1 = *host_data_ptr(host_debug_state.trblimitr_el1);
+
+	if (trblimitr_el1 & TRBLIMITR_EL1_E) {
+		/* Re-enable the Trace Buffer Unit for the host. */
+		write_sysreg_s(trblimitr_el1, SYS_TRBLIMITR_EL1);
+		isb();
+		if (cpus_have_final_cap(ARM64_WORKAROUND_2038923)) {
+			/*
+			 * Make sure the unit is re-enabled before we
+			 * poke TRFCR.
+			 */
+			isb();
+		}
+	}
+
 	__trace_do_switch(host_data_ptr(trfcr_while_in_guest),
 			  *host_data_ptr(host_debug_state.trfcr_el1));
 }
