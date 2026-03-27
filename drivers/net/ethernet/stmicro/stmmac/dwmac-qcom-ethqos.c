@@ -590,8 +590,11 @@ static void ethqos_configure_rgmii(struct qcom_ethqos *ethqos,
 	ethqos_rgmii_macro_init(ethqos, speed);
 }
 
-static void ethqos_pcs_set_inband(struct stmmac_priv *priv, bool enable)
+static void ethqos_pcs_set_inband(struct qcom_ethqos *ethqos, bool enable)
 {
+	struct net_device *dev = platform_get_drvdata(ethqos->pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
+
 	stmmac_pcs_ctrl_ane(priv, enable, 0);
 }
 
@@ -601,9 +604,6 @@ static void ethqos_pcs_set_inband(struct stmmac_priv *priv, bool enable)
 static void ethqos_configure_sgmii(struct qcom_ethqos *ethqos,
 				   phy_interface_t interface, int speed)
 {
-	struct net_device *dev = platform_get_drvdata(ethqos->pdev);
-	struct stmmac_priv *priv = netdev_priv(dev);
-
 	switch (speed) {
 	case SPEED_2500:
 	case SPEED_1000:
@@ -620,7 +620,7 @@ static void ethqos_configure_sgmii(struct qcom_ethqos *ethqos,
 		break;
 	}
 
-	ethqos_pcs_set_inband(priv, interface == PHY_INTERFACE_MODE_SGMII);
+	ethqos_pcs_set_inband(ethqos, interface == PHY_INTERFACE_MODE_SGMII);
 }
 
 static void ethqos_fix_mac_speed(void *priv, phy_interface_t interface,
