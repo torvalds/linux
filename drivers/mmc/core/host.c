@@ -33,7 +33,6 @@
 
 static DEFINE_IDA(mmc_host_ida);
 
-#ifdef CONFIG_PM_SLEEP
 static int mmc_host_class_prepare(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
@@ -60,14 +59,9 @@ static void mmc_host_class_complete(struct device *dev)
 }
 
 static const struct dev_pm_ops mmc_host_class_dev_pm_ops = {
-	.prepare = mmc_host_class_prepare,
-	.complete = mmc_host_class_complete,
+	.prepare = pm_sleep_ptr(mmc_host_class_prepare),
+	.complete = pm_sleep_ptr(mmc_host_class_complete),
 };
-
-#define MMC_HOST_CLASS_DEV_PM_OPS (&mmc_host_class_dev_pm_ops)
-#else
-#define MMC_HOST_CLASS_DEV_PM_OPS NULL
-#endif
 
 static void mmc_host_classdev_release(struct device *dev)
 {
@@ -90,7 +84,7 @@ static const struct class mmc_host_class = {
 	.name		= "mmc_host",
 	.dev_release	= mmc_host_classdev_release,
 	.shutdown_pre	= mmc_host_classdev_shutdown,
-	.pm		= MMC_HOST_CLASS_DEV_PM_OPS,
+	.pm		= pm_ptr(&mmc_host_class_dev_pm_ops),
 };
 
 int mmc_register_host_class(void)
