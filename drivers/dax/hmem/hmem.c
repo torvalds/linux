@@ -59,20 +59,11 @@ static void release_hmem(void *pdev)
 	platform_device_unregister(pdev);
 }
 
-struct dax_defer_work {
-	struct platform_device *pdev;
-	struct work_struct work;
-};
-
-static void process_defer_work(struct work_struct *w);
-
-static struct dax_defer_work dax_hmem_work = {
-	.work = __WORK_INITIALIZER(dax_hmem_work.work, process_defer_work),
-};
+static struct workqueue_struct *dax_hmem_wq;
 
 void dax_hmem_flush_work(void)
 {
-	flush_work(&dax_hmem_work.work);
+	flush_workqueue(dax_hmem_wq);
 }
 EXPORT_SYMBOL_FOR_MODULES(dax_hmem_flush_work, "dax_cxl");
 
@@ -134,24 +125,6 @@ out_put:
 	return rc;
 }
 
-static int hmem_register_device(struct device *host, int target_nid,
-				const struct resource *res)
-{
-	if (IS_ENABLED(CONFIG_DEV_DAX_CXL) &&
-	    region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
-			      IORES_DESC_CXL) != REGION_DISJOINT) {
-		if (!dax_hmem_initial_probe) {
-			dev_dbg(host, "await CXL initial probe: %pr\n", res);
-			queue_work(system_long_wq, &dax_hmem_work.work);
-			return 0;
-		}
-		dev_dbg(host, "deferring range to CXL: %pr\n", res);
-		return 0;
-	}
-
-	return __hmem_register_device(host, target_nid, res);
-}
-
 static int hmem_register_cxl_device(struct device *host, int target_nid,
 				    const struct resource *res)
 {
@@ -170,35 +143,55 @@ static int hmem_register_cxl_device(struct device *host, int target_nid,
 
 static void process_defer_work(struct work_struct *w)
 {
-	struct dax_defer_work *work = container_of(w, typeof(*work), work);
-	struct platform_device *pdev;
-
-	if (!work->pdev)
-		return;
-
-	pdev = work->pdev;
+	struct hmem_platform_device *hpdev = container_of(w, typeof(*hpdev), work);
+	struct device *dev = &hpdev->pdev.dev;
 
 	/* Relies on cxl_acpi and cxl_pci having had a chance to load */
 	wait_for_device_probe();
 
-	guard(device)(&pdev->dev);
-	if (!pdev->dev.driver)
-		return;
+	guard(device)(dev);
+	if (!dev->driver)
+		goto out;
 
-	if (!dax_hmem_initial_probe) {
-		dax_hmem_initial_probe = true;
-		walk_hmem_resources(&pdev->dev, hmem_register_cxl_device);
+	if (!hpdev->did_probe) {
+		hpdev->did_probe = true;
+		walk_hmem_resources(dev, hmem_register_cxl_device);
 	}
+out:
+	put_device(dev);
+}
+
+static int hmem_register_device(struct device *host, int target_nid,
+				const struct resource *res)
+{
+	struct platform_device *pdev = to_platform_device(host);
+	struct hmem_platform_device *hpdev = to_hmem_platform_device(pdev);
+
+	if (IS_ENABLED(CONFIG_DEV_DAX_CXL) &&
+	    region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
+			      IORES_DESC_CXL) != REGION_DISJOINT) {
+		if (!hpdev->did_probe) {
+			dev_dbg(host, "await CXL initial probe: %pr\n", res);
+			hpdev->work.func = process_defer_work;
+			get_device(host);
+			if (!queue_work(dax_hmem_wq, &hpdev->work))
+				put_device(host);
+			return 0;
+		}
+		dev_dbg(host, "deferring range to CXL: %pr\n", res);
+		return 0;
+	}
+
+	return __hmem_register_device(host, target_nid, res);
 }
 
 static int dax_hmem_platform_probe(struct platform_device *pdev)
 {
-	if (work_pending(&dax_hmem_work.work))
-		return -EBUSY;
+	struct hmem_platform_device *hpdev = to_hmem_platform_device(pdev);
 
-	if (!dax_hmem_work.pdev)
-		dax_hmem_work.pdev =
-			to_platform_device(get_device(&pdev->dev));
+	/* queue is only flushed on module unload, fail rebind with pending work */
+	if (work_pending(&hpdev->work))
+		return -EBUSY;
 
 	return walk_hmem_resources(&pdev->dev, hmem_register_device);
 }
@@ -224,26 +217,33 @@ static __init int dax_hmem_init(void)
 		request_module("cxl_pci");
 	}
 
+	dax_hmem_wq = alloc_ordered_workqueue("dax_hmem_wq", 0);
+	if (!dax_hmem_wq)
+		return -ENOMEM;
+
 	rc = platform_driver_register(&dax_hmem_platform_driver);
 	if (rc)
-		return rc;
+		goto err_platform_driver;
 
 	rc = platform_driver_register(&dax_hmem_driver);
 	if (rc)
-		platform_driver_unregister(&dax_hmem_platform_driver);
+		goto err_driver;
+
+	return 0;
+
+err_driver:
+	platform_driver_unregister(&dax_hmem_platform_driver);
+err_platform_driver:
+	destroy_workqueue(dax_hmem_wq);
 
 	return rc;
 }
 
 static __exit void dax_hmem_exit(void)
 {
-	if (dax_hmem_work.pdev) {
-		flush_work(&dax_hmem_work.work);
-		put_device(&dax_hmem_work.pdev->dev);
-	}
-
 	platform_driver_unregister(&dax_hmem_driver);
 	platform_driver_unregister(&dax_hmem_platform_driver);
+	destroy_workqueue(dax_hmem_wq);
 }
 
 module_init(dax_hmem_init);

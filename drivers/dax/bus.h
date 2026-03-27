@@ -3,7 +3,9 @@
 #ifndef __DAX_BUS_H__
 #define __DAX_BUS_H__
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/range.h>
+#include <linux/workqueue.h>
 
 struct dev_dax;
 struct resource;
@@ -49,8 +51,19 @@ void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
 bool static_dev_dax(struct dev_dax *dev_dax);
 
+struct hmem_platform_device {
+	struct platform_device pdev;
+	struct work_struct work;
+	bool did_probe;
+};
+
+static inline struct hmem_platform_device *
+to_hmem_platform_device(struct platform_device *pdev)
+{
+	return container_of(pdev, struct hmem_platform_device, pdev);
+}
+
 #if IS_ENABLED(CONFIG_DEV_DAX_HMEM)
-extern bool dax_hmem_initial_probe;
 void dax_hmem_flush_work(void);
 #else
 static inline void dax_hmem_flush_work(void) { }
