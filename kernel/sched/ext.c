@@ -8212,13 +8212,21 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(const struct bpf_prog_aux *aux)
 
 /**
  * scx_bpf_dsq_move_to_local - move a task from a DSQ to the current CPU's local DSQ
- * @dsq_id: DSQ to move task from
+ * @dsq_id: DSQ to move task from. Must be a user-created DSQ
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  * @enq_flags: %SCX_ENQ_*
  *
  * Move a task from the non-local DSQ identified by @dsq_id to the current CPU's
  * local DSQ for execution with @enq_flags applied. Can only be called from
  * ops.dispatch().
+ *
+ * Built-in DSQs (%SCX_DSQ_GLOBAL and %SCX_DSQ_LOCAL*) are not supported as
+ * sources. Local DSQs support reenqueueing (a task can be picked up for
+ * execution, dequeued for property changes, or reenqueued), but the BPF
+ * scheduler cannot directly iterate or move tasks from them. %SCX_DSQ_GLOBAL
+ * is similar but also doesn't support reenqueueing, as it maps to multiple
+ * per-node DSQs making the scope difficult to define; this may change in the
+ * future.
  *
  * This function flushes the in-flight dispatches from scx_bpf_dsq_insert()
  * before trying to move from the specified DSQ. It may also grab rq locks and
