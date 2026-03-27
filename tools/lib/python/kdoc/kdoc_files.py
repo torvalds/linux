@@ -238,7 +238,12 @@ class KernelFiles():
         """
 
         if not verbose:
-            verbose = bool(os.environ.get("KBUILD_VERBOSE", 0))
+            try:
+                verbose = bool(int(os.environ.get("KBUILD_VERBOSE", 0)))
+            except ValueError:
+                # Handles an eventual case where verbosity is not a number
+                # like KBUILD_VERBOSE=""
+                verbose = False
 
         if out_style is None:
             out_style = OutputFormat()

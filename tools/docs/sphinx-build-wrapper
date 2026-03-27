@@ -238,7 +238,12 @@ class SphinxBuilder:
             self.latexopts = os.environ.get("LATEXOPTS", "")
 
         if not verbose:
-            verbose = bool(os.environ.get("KBUILD_VERBOSE", "") != "")
+            try:
+                verbose = bool(int(os.environ.get("KBUILD_VERBOSE", 0)))
+            except ValueError:
+                # Handles an eventual case where verbosity is not a number
+                # like KBUILD_VERBOSE=""
+                verbose = False
 
         if verbose is not None:
             self.verbose = verbose
