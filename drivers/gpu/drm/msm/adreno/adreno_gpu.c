@@ -441,6 +441,10 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_context *ctx,
 	case MSM_PARAM_HAS_PRR:
 		*value = adreno_smmu_has_prr(gpu);
 		return 0;
+	case MSM_PARAM_AQE:
+		*value = !!(adreno_gpu->funcs->aqe_is_enabled &&
+			    adreno_gpu->funcs->aqe_is_enabled(adreno_gpu));
+		return 0;
 	default:
 		return UERR(EINVAL, drm, "%s: invalid param: %u", gpu->name, param);
 	}
