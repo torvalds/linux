@@ -182,8 +182,7 @@ static int aspeed_ahash_dma_prepare(struct aspeed_hace_dev *hace_dev)
 			final = true;
 	} else
 		length -= remain;
-	scatterwalk_map_and_copy(hash_engine->ahash_src_addr, rctx->src_sg,
-				 rctx->offset, length, 0);
+	memcpy_from_sglist(hash_engine->ahash_src_addr, rctx->src_sg, rctx->offset, length);
 	aspeed_ahash_update_counter(rctx, length);
 	if (final)
 		length += aspeed_ahash_fill_padding(
