@@ -424,12 +424,35 @@ void hfsplus_prepare_volume_header_for_commit(struct hfsplus_vh *vhdr)
 	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
 }
 
+static inline int hfsplus_get_hidden_dir_entry(struct super_block *sb,
+					       const struct qstr *str,
+					       hfsplus_cat_entry *entry)
+{
+	struct hfs_find_data fd;
+	int err;
+
+	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
+	if (unlikely(err))
+		return err;
+
+	err = hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_ROOT_CNID, str);
+	if (unlikely(err))
+		goto free_fd;
+
+	err = hfsplus_brec_read_cat(&fd, entry);
+	if (err)
+		err = -ENOENT;
+
+free_fd:
+	hfs_find_exit(&fd);
+	return err;
+}
+
 static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hfsplus_vh *vhdr;
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	hfsplus_cat_entry entry;
-	struct hfs_find_data fd;
 	struct inode *root, *inode;
 	struct qstr str;
 	struct nls_table *nls;
@@ -565,16 +588,14 @@ static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;
-	err = hfs_find_init(sbi->cat_tree, &fd);
-	if (err)
+	err = hfsplus_get_hidden_dir_entry(sb, &str, &entry);
+	if (err == -ENOENT) {
+		/*
+		 * Hidden directory is absent or it cannot be read.
+		 */
+	} else if (unlikely(err)) {
 		goto out_put_root;
-	err = hfsplus_cat_build_key(sb, fd.search_key, HFSPLUS_ROOT_CNID, &str);
-	if (unlikely(err < 0)) {
-		hfs_find_exit(&fd);
-		goto out_put_root;
-	}
-	if (!hfsplus_brec_read_cat(&fd, &entry)) {
-		hfs_find_exit(&fd);
+	} else {
 		if (entry.type != cpu_to_be16(HFSPLUS_FOLDER)) {
 			err = -EIO;
 			goto out_put_root;
@@ -585,8 +606,7 @@ static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 			goto out_put_root;
 		}
 		sbi->hidden_dir = inode;
-	} else
-		hfs_find_exit(&fd);
+	}
 
 	if (!sb_rdonly(sb)) {
 		/*
