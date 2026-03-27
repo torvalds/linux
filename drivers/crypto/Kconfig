@@ -490,7 +490,7 @@ config CRYPTO_DEV_ATMEL_ECC
 	select CRYPTO_ECDH
 	select CRC16
 	help
-	  Microhip / Atmel ECC hw accelerator.
+	  Microchip / Atmel ECC hw accelerator.
 	  Select this if you want to use the Microchip / Atmel module for
 	  ECDH algorithm.
 
@@ -504,7 +504,7 @@ config CRYPTO_DEV_ATMEL_SHA204A
 	select HW_RANDOM
 	select CRC16
 	help
-	  Microhip / Atmel SHA accelerator and RNG.
+	  Microchip / Atmel SHA accelerator and RNG.
 	  Select this if you want to use the Microchip / Atmel SHA204A
 	  module as a random number generator. (Other functions of the
 	  chip are currently not exposed by this driver)
