@@ -96,6 +96,7 @@ static int __hmem_register_device(struct device *host, int target_nid,
 		return -ENOMEM;
 	}
 
+	pdev->dev.parent = host;
 	pdev->dev.numa_node = numa_map_to_online_node(target_nid);
 	info = (struct memregion_info) {
 		.target_node = target_nid,
