@@ -51,12 +51,12 @@ struct mmc_test_pages {
 
 /**
  * struct mmc_test_mem - allocated memory.
- * @arr: array of allocations
  * @cnt: number of allocations
+ * @arr: array of allocations
  */
 struct mmc_test_mem {
-	struct mmc_test_pages *arr;
 	unsigned int cnt;
+	struct mmc_test_pages arr[] __counted_by(cnt);
 };
 
 /**
@@ -135,21 +135,22 @@ struct mmc_test_dbgfs_file {
  * struct mmc_test_card - test information.
  * @card: card under test
  * @scratch: transfer buffer
- * @buffer: transfer buffer
  * @highmem: buffer for highmem tests
  * @area: information for performance tests
  * @gr: pointer to results of current testcase
+ * @buffer: transfer buffer
  */
 struct mmc_test_card {
 	struct mmc_card	*card;
 
 	u8		scratch[BUFFER_SIZE];
-	u8		*buffer;
 #ifdef CONFIG_HIGHMEM
 	struct page	*highmem;
 #endif
 	struct mmc_test_area		area;
 	struct mmc_test_general_result	*gr;
+
+	u8		buffer[];
 };
 
 enum mmc_test_prep_media {
@@ -315,7 +316,6 @@ static void mmc_test_free_mem(struct mmc_test_mem *mem)
 	while (mem->cnt--)
 		__free_pages(mem->arr[mem->cnt].page,
 			     mem->arr[mem->cnt].order);
-	kfree(mem->arr);
 	kfree(mem);
 }
 
@@ -348,13 +348,9 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 	if (max_segs > max_page_cnt)
 		max_segs = max_page_cnt;
 
-	mem = kzalloc_obj(*mem);
+	mem = kzalloc_flex(*mem, arr, max_segs);
 	if (!mem)
 		return NULL;
-
-	mem->arr = kzalloc_objs(*mem->arr, max_segs);
-	if (!mem->arr)
-		goto out_free;
 
 	while (max_page_cnt) {
 		struct page *page;
@@ -3099,7 +3095,7 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	if (ret)
 		return ret;
 
-	test = kzalloc_obj(*test);
+	test = kzalloc_flex(*test, buffer, BUFFER_SIZE);
 	if (!test)
 		return -ENOMEM;
 
@@ -3111,7 +3107,6 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 
 	test->card = card;
 
-	test->buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
 #ifdef CONFIG_HIGHMEM
 	test->highmem = alloc_pages(GFP_KERNEL | __GFP_HIGHMEM, BUFFER_ORDER);
 	if (!test->highmem) {
@@ -3120,17 +3115,14 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	}
 #endif
 
-	if (test->buffer) {
-		mutex_lock(&mmc_test_lock);
-		mmc_test_run(test, testcase);
-		mutex_unlock(&mmc_test_lock);
-	}
+	mutex_lock(&mmc_test_lock);
+	mmc_test_run(test, testcase);
+	mutex_unlock(&mmc_test_lock);
 
 #ifdef CONFIG_HIGHMEM
 	__free_pages(test->highmem, BUFFER_ORDER);
 free_test_buffer:
 #endif
-	kfree(test->buffer);
 	kfree(test);
 
 	return count;
