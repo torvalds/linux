@@ -4,6 +4,7 @@
 #include "pvr_ccb.h"
 #include "pvr_device.h"
 #include "pvr_drv.h"
+#include "pvr_dump.h"
 #include "pvr_free_list.h"
 #include "pvr_fw.h"
 #include "pvr_gem.h"
@@ -164,6 +165,10 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 		 * stats. It may be added in the future, but for now just
 		 * suppress the "unknown" warning when receiving this command.
 		 */
+		break;
+	case ROGUE_FWIF_FWCCB_CMD_CONTEXT_RESET_NOTIFICATION:
+		pvr_dump_context_reset_notification(pvr_dev,
+						    &cmd->cmd_data.cmd_context_reset_notification);
 		break;
 
 	default:

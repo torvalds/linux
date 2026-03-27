@@ -65,7 +65,7 @@ static const struct drm_private_state_funcs komeda_layer_obj_funcs = {
 static int komeda_layer_obj_add(struct komeda_kms_dev *kms,
 				struct komeda_layer *layer)
 {
-	drm_atomic_private_obj_init(&kms->base, &layer->base.obj, NULL,
+	drm_atomic_private_obj_init(&kms->base, &layer->base.obj,
 				    &komeda_layer_obj_funcs);
 	return 0;
 }
@@ -118,7 +118,7 @@ static int komeda_scaler_obj_add(struct komeda_kms_dev *kms,
 				 struct komeda_scaler *scaler)
 {
 	drm_atomic_private_obj_init(&kms->base,
-				    &scaler->base.obj, NULL,
+				    &scaler->base.obj,
 				    &komeda_scaler_obj_funcs);
 	return 0;
 }
@@ -170,7 +170,7 @@ static const struct drm_private_state_funcs komeda_compiz_obj_funcs = {
 static int komeda_compiz_obj_add(struct komeda_kms_dev *kms,
 				 struct komeda_compiz *compiz)
 {
-	drm_atomic_private_obj_init(&kms->base, &compiz->base.obj, NULL,
+	drm_atomic_private_obj_init(&kms->base, &compiz->base.obj,
 				    &komeda_compiz_obj_funcs);
 
 	return 0;
@@ -224,7 +224,7 @@ static int komeda_splitter_obj_add(struct komeda_kms_dev *kms,
 				   struct komeda_splitter *splitter)
 {
 	drm_atomic_private_obj_init(&kms->base,
-				    &splitter->base.obj, NULL,
+				    &splitter->base.obj,
 				    &komeda_splitter_obj_funcs);
 
 	return 0;
@@ -277,7 +277,7 @@ static int komeda_merger_obj_add(struct komeda_kms_dev *kms,
 				 struct komeda_merger *merger)
 {
 	drm_atomic_private_obj_init(&kms->base,
-				    &merger->base.obj, NULL,
+				    &merger->base.obj,
 				    &komeda_merger_obj_funcs);
 
 	return 0;
@@ -330,7 +330,7 @@ static const struct drm_private_state_funcs komeda_improc_obj_funcs = {
 static int komeda_improc_obj_add(struct komeda_kms_dev *kms,
 				 struct komeda_improc *improc)
 {
-	drm_atomic_private_obj_init(&kms->base, &improc->base.obj, NULL,
+	drm_atomic_private_obj_init(&kms->base, &improc->base.obj,
 				    &komeda_improc_obj_funcs);
 
 	return 0;
@@ -383,7 +383,7 @@ static const struct drm_private_state_funcs komeda_timing_ctrlr_obj_funcs = {
 static int komeda_timing_ctrlr_obj_add(struct komeda_kms_dev *kms,
 				       struct komeda_timing_ctrlr *ctrlr)
 {
-	drm_atomic_private_obj_init(&kms->base, &ctrlr->base.obj, NULL,
+	drm_atomic_private_obj_init(&kms->base, &ctrlr->base.obj,
 				    &komeda_timing_ctrlr_obj_funcs);
 
 	return 0;
@@ -437,7 +437,7 @@ static const struct drm_private_state_funcs komeda_pipeline_obj_funcs = {
 static int komeda_pipeline_obj_add(struct komeda_kms_dev *kms,
 				   struct komeda_pipeline *pipe)
 {
-	drm_atomic_private_obj_init(&kms->base, &pipe->obj, NULL,
+	drm_atomic_private_obj_init(&kms->base, &pipe->obj,
 				    &komeda_pipeline_obj_funcs);
 
 	return 0;

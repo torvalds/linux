@@ -36,9 +36,10 @@ MODULE_FIRMWARE("amdnpu/17f0_11/npu_7.sbin");
  * 0.5: Support getting telemetry data
  * 0.6: Support preemption
  * 0.7: Support getting power and utilization data
+ * 0.8: Support BO usage query
  */
 #define AMDXDNA_DRIVER_MAJOR		0
-#define AMDXDNA_DRIVER_MINOR		7
+#define AMDXDNA_DRIVER_MINOR		8
 
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the
@@ -120,10 +121,11 @@ static void amdxdna_client_cleanup(struct amdxdna_client *client)
 	amdxdna_hwctx_remove_all(client);
 	xa_destroy(&client->hwctx_xa);
 	cleanup_srcu_struct(&client->hwctx_srcu);
-	mutex_destroy(&client->mm_lock);
 
 	if (client->dev_heap)
 		drm_gem_object_put(to_gobj(client->dev_heap));
+
+	mutex_destroy(&client->mm_lock);
 
 	if (!IS_ERR_OR_NULL(client->sva))
 		iommu_sva_unbind_device(client->sva);
@@ -245,7 +247,7 @@ const struct drm_driver amdxdna_drm_drv = {
 	.ioctls = amdxdna_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(amdxdna_drm_ioctls),
 
-	.gem_create_object = amdxdna_gem_create_object_cb,
+	.gem_create_object = amdxdna_gem_create_shmem_object_cb,
 	.gem_prime_import = amdxdna_gem_prime_import,
 };
 

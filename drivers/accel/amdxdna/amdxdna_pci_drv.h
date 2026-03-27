@@ -138,6 +138,10 @@ struct amdxdna_client {
 	struct iommu_sva		*sva;
 	int				pasid;
 	struct mm_struct		*mm;
+
+	size_t				heap_usage;
+	size_t				total_bo_usage;
+	size_t				total_int_bo_usage;
 };
 
 #define amdxdna_for_each_hwctx(client, hwctx_id, entry)		\

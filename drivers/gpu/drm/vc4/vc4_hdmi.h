@@ -210,7 +210,7 @@ struct vc4_hdmi {
 	 * @drm_connector_state.hdmi.output_format for use outside of
 	 * KMS hooks. Protected by @mutex.
 	 */
-	enum hdmi_colorspace output_format;
+	enum drm_output_color_format output_format;
 
 	/**
 	 * @hdmi_jack: Represents the connection state of the HDMI plug, for

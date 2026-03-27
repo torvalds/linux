@@ -789,7 +789,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	struct drm_connector *connector;
 	struct i2c_adapter *ddc = NULL;
 	struct drm_bridge *panel_bridge __free(drm_bridge_put) = NULL;
-	unsigned int supported_formats = BIT(HDMI_COLORSPACE_RGB);
+	unsigned int supported_formats = BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444);
 	unsigned int max_bpc = 8;
 	bool support_hdcp = false;
 	int connector_type;
@@ -960,7 +960,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 
 	if (bridge_connector->bridge_hdmi) {
 		if (!connector->ycbcr_420_allowed)
-			supported_formats &= ~BIT(HDMI_COLORSPACE_YUV420);
+			supported_formats &= ~BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420);
 
 		bridge_connector->hdmi_funcs = drm_bridge_connector_hdmi_funcs;
 

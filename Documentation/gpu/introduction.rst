@@ -119,12 +119,6 @@ Simple DRM drivers to use as examples
 The DRM subsystem contains a lot of helper functions to ease writing drivers for
 simple graphic devices. For example, the `drivers/gpu/drm/tiny/` directory has a
 set of drivers that are simple enough to be implemented in a single source file.
-
-These drivers make use of the `struct drm_simple_display_pipe_funcs`, that hides
-any complexity of the DRM subsystem and just requires drivers to implement a few
-functions needed to operate the device. This could be used for devices that just
-need a display pipeline with one full-screen scanout buffer feeding one output.
-
 The tiny DRM drivers are good examples to understand how DRM drivers should look
 like. Since are just a few hundreds lines of code, they are quite easy to read.
 

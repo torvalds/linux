@@ -326,6 +326,25 @@ void __drm_atomic_helper_connector_hdmi_reset(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_hdmi_reset);
 
+static enum hdmi_colorspace
+output_color_format_to_hdmi_colorspace(const struct drm_connector *connector,
+				       enum drm_output_color_format fmt)
+{
+	switch (fmt) {
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR420:
+		return HDMI_COLORSPACE_YUV420;
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR422:
+		return HDMI_COLORSPACE_YUV422;
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR444:
+		return HDMI_COLORSPACE_YUV444;
+	default:
+		drm_warn(connector->dev, "Unsupported output color format. Defaulting to RGB.");
+		fallthrough;
+	case DRM_OUTPUT_COLOR_FORMAT_RGB444:
+		return HDMI_COLORSPACE_RGB;
+	}
+}
+
 static const struct drm_display_mode *
 connector_state_get_mode(const struct drm_connector_state *conn_state)
 {
@@ -360,7 +379,7 @@ static bool hdmi_is_limited_range(const struct drm_connector *connector,
 	 * i915 just assumes limited range for YCbCr output, so let's
 	 * just do the same.
 	 */
-	if (conn_state->hdmi.output_format != HDMI_COLORSPACE_RGB)
+	if (conn_state->hdmi.output_format != DRM_OUTPUT_COLOR_FORMAT_RGB444)
 		return true;
 
 	if (conn_state->hdmi.broadcast_rgb == DRM_HDMI_BROADCAST_RGB_FULL)
@@ -379,7 +398,8 @@ static bool
 sink_supports_format_bpc(const struct drm_connector *connector,
 			 const struct drm_display_info *info,
 			 const struct drm_display_mode *mode,
-			 unsigned int format, unsigned int bpc)
+			 enum drm_output_color_format format,
+			 unsigned int bpc)
 {
 	struct drm_device *dev = connector->dev;
 	u8 vic = drm_match_cea_mode(mode);
@@ -400,7 +420,7 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 	}
 
 	if (!info->is_hdmi &&
-	    (format != HDMI_COLORSPACE_RGB || bpc != 8)) {
+	    (format != DRM_OUTPUT_COLOR_FORMAT_RGB444 || bpc != 8)) {
 		drm_dbg_kms(dev, "DVI Monitors require an RGB output at 8 bpc\n");
 		return false;
 	}
@@ -411,13 +431,13 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 		return false;
 	}
 
-	if (drm_mode_is_420_only(info, mode) && format != HDMI_COLORSPACE_YUV420) {
+	if (drm_mode_is_420_only(info, mode) && format != DRM_OUTPUT_COLOR_FORMAT_YCBCR420) {
 		drm_dbg_kms(dev, "Mode can be only supported in YUV420 format.\n");
 		return false;
 	}
 
 	switch (format) {
-	case HDMI_COLORSPACE_RGB:
+	case DRM_OUTPUT_COLOR_FORMAT_RGB444:
 		drm_dbg_kms(dev, "RGB Format, checking the constraints.\n");
 
 		/*
@@ -428,7 +448,7 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 		 * supported so we can keep things going and light up
 		 * the display.
 		 */
-		if (!(info->color_formats & DRM_COLOR_FORMAT_RGB444))
+		if (!(info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_RGB444)))
 			drm_warn(dev, "HDMI Sink doesn't support RGB, something's wrong.\n");
 
 		if (bpc == 10 && !(info->edid_hdmi_rgb444_dc_modes & DRM_EDID_HDMI_DC_30)) {
@@ -445,10 +465,10 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 
 		return true;
 
-	case HDMI_COLORSPACE_YUV420:
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR420:
 		drm_dbg_kms(dev, "YUV420 format, checking the constraints.\n");
 
-		if (!(info->color_formats & DRM_COLOR_FORMAT_YCBCR420)) {
+		if (!(info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420))) {
 			drm_dbg_kms(dev, "Sink doesn't support YUV420.\n");
 			return false;
 		}
@@ -477,10 +497,10 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 
 		return true;
 
-	case HDMI_COLORSPACE_YUV422:
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR422:
 		drm_dbg_kms(dev, "YUV422 format, checking the constraints.\n");
 
-		if (!(info->color_formats & DRM_COLOR_FORMAT_YCBCR422)) {
+		if (!(info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422))) {
 			drm_dbg_kms(dev, "Sink doesn't support YUV422.\n");
 			return false;
 		}
@@ -500,10 +520,10 @@ sink_supports_format_bpc(const struct drm_connector *connector,
 
 		return true;
 
-	case HDMI_COLORSPACE_YUV444:
+	case DRM_OUTPUT_COLOR_FORMAT_YCBCR444:
 		drm_dbg_kms(dev, "YUV444 format, checking the constraints.\n");
 
-		if (!(info->color_formats & DRM_COLOR_FORMAT_YCBCR444)) {
+		if (!(info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444))) {
 			drm_dbg_kms(dev, "Sink doesn't support YUV444.\n");
 			return false;
 		}
@@ -553,7 +573,7 @@ static int
 hdmi_compute_clock(const struct drm_connector *connector,
 		   struct drm_connector_state *conn_state,
 		   const struct drm_display_mode *mode,
-		   unsigned int bpc, enum hdmi_colorspace fmt)
+		   unsigned int bpc, enum drm_output_color_format fmt)
 {
 	enum drm_mode_status status;
 	unsigned long long clock;
@@ -575,7 +595,7 @@ static bool
 hdmi_try_format_bpc(const struct drm_connector *connector,
 		    struct drm_connector_state *conn_state,
 		    const struct drm_display_mode *mode,
-		    unsigned int bpc, enum hdmi_colorspace fmt)
+		    unsigned int bpc, enum drm_output_color_format fmt)
 {
 	const struct drm_display_info *info = &connector->display_info;
 	struct drm_device *dev = connector->dev;
@@ -611,7 +631,7 @@ static int
 hdmi_compute_format_bpc(const struct drm_connector *connector,
 			struct drm_connector_state *conn_state,
 			const struct drm_display_mode *mode,
-			unsigned int max_bpc, enum hdmi_colorspace fmt)
+			unsigned int max_bpc, enum drm_output_color_format fmt)
 {
 	struct drm_device *dev = connector->dev;
 	unsigned int bpc;
@@ -652,12 +672,12 @@ hdmi_compute_config(const struct drm_connector *connector,
 	int ret;
 
 	ret = hdmi_compute_format_bpc(connector, conn_state, mode, max_bpc,
-				      HDMI_COLORSPACE_RGB);
+				      DRM_OUTPUT_COLOR_FORMAT_RGB444);
 	if (ret) {
 		if (connector->ycbcr_420_allowed) {
 			ret = hdmi_compute_format_bpc(connector, conn_state,
 						      mode, max_bpc,
-						      HDMI_COLORSPACE_YUV420);
+						      DRM_OUTPUT_COLOR_FORMAT_YCBCR420);
 			if (ret)
 				drm_dbg_kms(connector->dev,
 					    "YUV420 output format doesn't work.\n");
@@ -691,7 +711,9 @@ static int hdmi_generate_avi_infoframe(const struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	frame->colorspace = conn_state->hdmi.output_format;
+	frame->colorspace =
+		output_color_format_to_hdmi_colorspace(connector,
+						       conn_state->hdmi.output_format);
 
 	/*
 	 * FIXME: drm_hdmi_avi_infoframe_quant_range() doesn't handle
@@ -889,7 +911,7 @@ drm_hdmi_connector_mode_valid(struct drm_connector *connector,
 {
 	unsigned long long clock;
 
-	clock = drm_hdmi_compute_mode_clock(mode, 8, HDMI_COLORSPACE_RGB);
+	clock = drm_hdmi_compute_mode_clock(mode, 8, DRM_OUTPUT_COLOR_FORMAT_RGB444);
 	if (!clock)
 		return MODE_ERROR;
 

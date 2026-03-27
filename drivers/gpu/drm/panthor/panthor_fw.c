@@ -581,7 +581,7 @@ static int panthor_fw_load_section_entry(struct panthor_device *ptdev,
 
 	if (hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_PROT) {
 		drm_warn(&ptdev->base,
-			 "Firmware protected mode entry not be supported, ignoring");
+			 "Firmware protected mode entry is not supported, ignoring");
 		return 0;
 	}
 
@@ -750,7 +750,7 @@ static int panthor_fw_load_entry(struct panthor_device *ptdev,
 
 	if ((iter->offset % sizeof(u32)) ||
 	    (CSF_FW_BINARY_ENTRY_SIZE(ehdr) % sizeof(u32))) {
-		drm_err(&ptdev->base, "Firmware entry isn't 32 bit aligned, offset=0x%x size=0x%x\n",
+		drm_err(&ptdev->base, "Firmware entry is not 32-bit aligned, offset=0x%x size=0x%x\n",
 			(u32)(iter->offset - sizeof(u32)), CSF_FW_BINARY_ENTRY_SIZE(ehdr));
 		return -EINVAL;
 	}

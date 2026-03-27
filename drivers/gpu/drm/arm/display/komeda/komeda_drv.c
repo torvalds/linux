@@ -104,6 +104,7 @@ free_mdrv:
 static const struct of_device_id komeda_of_match[] = {
 	{ .compatible = "arm,mali-d71", .data = d71_identify, },
 	{ .compatible = "arm,mali-d32", .data = d71_identify, },
+	{ .compatible = "armchina,linlon-d6", .data = d71_identify, },
 	{},
 };
 

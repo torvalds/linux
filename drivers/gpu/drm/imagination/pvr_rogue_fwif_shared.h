@@ -236,6 +236,18 @@ enum rogue_context_reset_reason {
 	ROGUE_CONTEXT_RESET_REASON_INNOCENT_OVERRUNING = 4,
 	/* Forced reset to ensure scheduling requirements */
 	ROGUE_CONTEXT_RESET_REASON_HARD_CONTEXT_SWITCH = 5,
+	/* CDM Mission/safety checksum mismatch */
+	ROGUE_CONTEXT_RESET_REASON_WGP_CHECKSUM = 6,
+	/* TRP checksum mismatch */
+	ROGUE_CONTEXT_RESET_REASON_TRP_CHECKSUM = 7,
+	/* GPU ECC error (corrected, OK) */
+	ROGUE_CONTEXT_RESET_REASON_GPU_ECC_OK = 8,
+	/* GPU ECC error (uncorrected, HWR) */
+	ROGUE_CONTEXT_RESET_REASON_GPU_ECC_HWR = 9,
+	/* FW ECC error (corrected, OK) */
+	ROGUE_CONTEXT_RESET_REASON_FW_ECC_OK = 10,
+	/* FW ECC error (uncorrected, ERR) */
+	ROGUE_CONTEXT_RESET_REASON_FW_ECC_ERR = 11,
 	/* FW Safety watchdog triggered */
 	ROGUE_CONTEXT_RESET_REASON_FW_WATCHDOG = 12,
 	/* FW page fault (no HWR) */
@@ -249,7 +261,11 @@ enum rogue_context_reset_reason {
 };
 
 struct rogue_context_reset_reason_data {
-	enum rogue_context_reset_reason reset_reason;
+	/*
+	 * The valid values for reset_reason are the ones from
+	 * enum rogue_context_reset_reason
+	 */
+	u32 reset_reason;
 	u32 reset_ext_job_ref;
 };
 

@@ -100,7 +100,7 @@ static void lt8713sx_i2c_disable(struct lt8713sx *lt8713sx)
 static int lt8713sx_prepare_firmware_data(struct lt8713sx *lt8713sx)
 {
 	int ret = 0;
-	u64 sz_12k = 12 * SZ_1K;
+	size_t sz_12k = 12 * SZ_1K;
 
 	ret = request_firmware(&lt8713sx->fw, FW_FILE, lt8713sx->dev);
 	if (ret < 0) {

@@ -19,6 +19,7 @@
 
 #include <media/vsp1.h>
 
+struct rcar_du_cmm;
 struct rcar_du_group;
 struct rcar_du_vsp;
 
@@ -65,7 +66,7 @@ struct rcar_du_crtc {
 	unsigned int vblank_count;
 
 	struct rcar_du_group *group;
-	struct platform_device *cmm;
+	struct rcar_du_cmm *cmm;
 	struct rcar_du_vsp *vsp;
 	unsigned int vsp_pipe;
 

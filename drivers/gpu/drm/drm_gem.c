@@ -821,13 +821,14 @@ err:
  * Takes an array of userspace handles and returns a newly allocated array of
  * GEM objects.
  *
+ * After a successful lookup GEM objects need to be released using
+ * drm_gem_object_put() and the array returned in @objs_out must be freed using
+ * kvfree().
+ *
  * For a single handle lookup, use drm_gem_object_lookup().
  *
- * Returns:
- * @objs filled in with GEM object pointers. Returned GEM objects need to be
- * released with drm_gem_object_put(). -ENOENT is returned on a lookup
- * failure. 0 is returned on success.
- *
+ * Return:
+ * Zero on success or a negative error code.
  */
 int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 			   int count, struct drm_gem_object ***objs_out)

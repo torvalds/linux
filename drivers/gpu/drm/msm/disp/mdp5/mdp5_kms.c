@@ -717,7 +717,6 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	mdp5_kms->dev = dev;
 
 	drm_atomic_private_obj_init(mdp5_kms->dev, &mdp5_kms->glob_state,
-				    NULL,
 				    &mdp5_global_state_funcs);
 
 	/* we need to set a default rate before enabling.  Set a safe

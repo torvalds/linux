@@ -1161,7 +1161,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dev->mode_config.cursor_height = 512;
 
 	drm_atomic_private_obj_init(dpu_kms->dev, &dpu_kms->global_state,
-				    NULL,
 				    &dpu_kms_global_state_funcs);
 
 	atomic_set(&dpu_kms->bandwidth_ref, 0);

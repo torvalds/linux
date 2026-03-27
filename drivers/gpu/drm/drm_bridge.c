@@ -304,6 +304,9 @@ EXPORT_SYMBOL(drm_bridge_get);
  *
  * This function decrements the bridge's reference count and frees the
  * object if the reference count drops to zero.
+ *
+ * See also drm_bridge_clear_and_put() if you also need to set the pointer
+ * to NULL
  */
 void drm_bridge_put(struct drm_bridge *bridge)
 {
@@ -311,6 +314,37 @@ void drm_bridge_put(struct drm_bridge *bridge)
 		kref_put(&bridge->refcount, __drm_bridge_free);
 }
 EXPORT_SYMBOL(drm_bridge_put);
+
+/**
+ * drm_bridge_clear_and_put - Given a bridge pointer, clear the pointer
+ *                            then put the bridge
+ * @bridge_pp: pointer to pointer to a struct drm_bridge; ``bridge_pp``
+ *             must be non-NULL; if ``*bridge_pp`` is NULL this function
+ *             does nothing
+ *
+ * Helper to put a DRM bridge, but only after setting its pointer to
+ * NULL. Useful when a struct drm_bridge reference must be dropped without
+ * leaving a use-after-free window where the pointed bridge might have been
+ * freed while still holding a pointer to it.
+ *
+ * For struct ``drm_bridge *some_bridge``, this code::
+ *
+ *     drm_bridge_clear_and_put(&some_bridge);
+ *
+ * is equivalent to the more complex::
+ *
+ *     struct drm_bridge *temp = some_bridge;
+ *     some_bridge = NULL;
+ *     drm_bridge_put(temp);
+ */
+void drm_bridge_clear_and_put(struct drm_bridge **bridge_pp)
+{
+	struct drm_bridge *bridge = *bridge_pp;
+
+	*bridge_pp = NULL;
+	drm_bridge_put(bridge);
+}
+EXPORT_SYMBOL(drm_bridge_clear_and_put);
 
 /**
  * drm_bridge_put_void - wrapper to drm_bridge_put() taking a void pointer
@@ -387,7 +421,7 @@ void drm_bridge_add(struct drm_bridge *bridge)
 
 	if (bridge->ops & DRM_BRIDGE_OP_HDMI)
 		bridge->ycbcr_420_allowed = !!(bridge->supported_formats &
-					       BIT(HDMI_COLORSPACE_YUV420));
+					       BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR420));
 
 	mutex_lock(&bridge_lock);
 	list_add_tail(&bridge->list, &bridge_list);
@@ -553,7 +587,6 @@ int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
 
 	if (drm_bridge_is_atomic(bridge))
 		drm_atomic_private_obj_init(bridge->dev, &bridge->base,
-					    NULL,
 					    &drm_bridge_priv_state_funcs);
 
 	return 0;

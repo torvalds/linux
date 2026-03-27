@@ -52,23 +52,49 @@ struct st7735r_cfg {
 	unsigned int rgb:1;		/* RGB (vs. BGR) */
 };
 
-struct st7735r_priv {
+struct st7735r_device {
 	struct mipi_dbi_dev dbidev;	/* Must be first for .release() */
 	const struct st7735r_cfg *cfg;
+
+	struct drm_plane plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
+	struct drm_connector connector;
 };
 
-static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *crtc_state,
-				struct drm_plane_state *plane_state)
+static struct st7735r_device *to_st7735r_device(struct drm_device *drm)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct st7735r_priv *priv = container_of(dbidev, struct st7735r_priv,
-						 dbidev);
+	return container_of(drm_to_mipi_dbi_dev(drm), struct st7735r_device, dbidev);
+}
+
+static const u32 st7735r_plane_formats[] = {
+	DRM_MIPI_DBI_PLANE_FORMATS,
+};
+
+static const u64 st7735r_plane_format_modifiers[] = {
+	DRM_MIPI_DBI_PLANE_FORMAT_MODIFIERS,
+};
+
+static const struct drm_plane_helper_funcs st7735r_plane_helper_funcs = {
+	DRM_MIPI_DBI_PLANE_HELPER_FUNCS,
+};
+
+static const struct drm_plane_funcs st7735r_plane_funcs = {
+	DRM_MIPI_DBI_PLANE_FUNCS,
+	.destroy = drm_plane_cleanup,
+};
+
+static void st7735r_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					      struct drm_atomic_state *state)
+{
+	struct drm_device *drm = crtc->dev;
+	struct st7735r_device *st7735r = to_st7735r_device(drm);
+	struct mipi_dbi_dev *dbidev = &st7735r->dbidev;
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int ret, idx;
 	u8 addr_mode;
 
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+	if (!drm_dev_enter(drm, &idx))
 		return;
 
 	DRM_DEBUG_KMS("\n");
@@ -109,7 +135,7 @@ static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
 		break;
 	}
 
-	if (priv->cfg->rgb)
+	if (st7735r->cfg->rgb)
 		addr_mode |= ST7735R_RGB;
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
@@ -129,13 +155,40 @@ static void st7735r_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(20);
 
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+	backlight_enable(dbidev->backlight);
 out_exit:
 	drm_dev_exit(idx);
 }
 
-static const struct drm_simple_display_pipe_funcs st7735r_pipe_funcs = {
-	DRM_MIPI_DBI_SIMPLE_DISPLAY_PIPE_FUNCS(st7735r_pipe_enable),
+static const struct drm_crtc_helper_funcs st7735r_crtc_helper_funcs = {
+	DRM_MIPI_DBI_CRTC_HELPER_FUNCS,
+	.atomic_enable = st7735r_crtc_helper_atomic_enable,
+};
+
+static const struct drm_crtc_funcs st7735r_crtc_funcs = {
+	DRM_MIPI_DBI_CRTC_FUNCS,
+	.destroy = drm_crtc_cleanup,
+};
+
+static const struct drm_encoder_funcs st7735r_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static const struct drm_connector_helper_funcs st7735r_connector_helper_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_HELPER_FUNCS,
+};
+
+static const struct drm_connector_funcs st7735r_connector_funcs = {
+	DRM_MIPI_DBI_CONNECTOR_FUNCS,
+	.destroy = drm_connector_cleanup,
+};
+
+static const struct drm_mode_config_helper_funcs st7735r_mode_config_helper_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_HELPER_FUNCS,
+};
+
+static const struct drm_mode_config_funcs st7735r_mode_config_funcs = {
+	DRM_MIPI_DBI_MODE_CONFIG_FUNCS,
 };
 
 static const struct st7735r_cfg jd_t18003_t01_cfg = {
@@ -184,10 +237,14 @@ static int st7735r_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct st7735r_cfg *cfg;
 	struct mipi_dbi_dev *dbidev;
-	struct st7735r_priv *priv;
+	struct st7735r_device *st7735r;
 	struct drm_device *drm;
 	struct mipi_dbi *dbi;
 	struct gpio_desc *dc;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 	u32 rotation = 0;
 	int ret;
 
@@ -195,13 +252,12 @@ static int st7735r_probe(struct spi_device *spi)
 	if (!cfg)
 		cfg = (void *)spi_get_device_id(spi)->driver_data;
 
-	priv = devm_drm_dev_alloc(dev, &st7735r_driver,
-				  struct st7735r_priv, dbidev.drm);
-	if (IS_ERR(priv))
-		return PTR_ERR(priv);
+	st7735r = devm_drm_dev_alloc(dev, &st7735r_driver, struct st7735r_device, dbidev.drm);
+	if (IS_ERR(st7735r))
+		return PTR_ERR(st7735r);
 
-	dbidev = &priv->dbidev;
-	priv->cfg = cfg;
+	dbidev = &st7735r->dbidev;
+	st7735r->cfg = cfg;
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
@@ -230,8 +286,52 @@ static int st7735r_probe(struct spi_device *spi)
 	dbidev->left_offset = cfg->left_offset;
 	dbidev->top_offset = cfg->top_offset;
 
-	ret = mipi_dbi_dev_init(dbidev, &st7735r_pipe_funcs, &cfg->mode,
-				rotation);
+	ret = drm_mipi_dbi_dev_init(dbidev, &cfg->mode, st7735r_plane_formats[0], rotation, 0);
+	if (ret)
+		return ret;
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	drm->mode_config.min_width = dbidev->mode.hdisplay;
+	drm->mode_config.max_width = dbidev->mode.hdisplay;
+	drm->mode_config.min_height = dbidev->mode.vdisplay;
+	drm->mode_config.max_height = dbidev->mode.vdisplay;
+	drm->mode_config.funcs = &st7735r_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
+	drm->mode_config.helper_private = &st7735r_mode_config_helper_funcs;
+
+	plane = &st7735r->plane;
+	ret = drm_universal_plane_init(drm, plane, 0, &st7735r_plane_funcs,
+				       st7735r_plane_formats, ARRAY_SIZE(st7735r_plane_formats),
+				       st7735r_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(plane, &st7735r_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(plane);
+
+	crtc = &st7735r->crtc;
+	ret = drm_crtc_init_with_planes(drm, crtc, plane, NULL, &st7735r_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &st7735r_crtc_helper_funcs);
+
+	encoder = &st7735r->encoder;
+	ret = drm_encoder_init(drm, encoder, &st7735r_encoder_funcs, DRM_MODE_ENCODER_NONE, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &st7735r->connector;
+	ret = drm_connector_init(drm, connector, &st7735r_connector_funcs,
+				 DRM_MODE_CONNECTOR_SPI);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &st7735r_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
 

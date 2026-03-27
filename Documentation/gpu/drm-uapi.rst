@@ -438,14 +438,14 @@ following expectations.
     unknown         consumer policy
     =============== ========================================
 
-The only exception to this is ``WEDGED=none``, which signifies that the device
-was temporarily 'wedged' at some point but was recovered from driver context
-using device specific methods like reset. No explicit recovery is expected from
-the consumer in this case, but it can still take additional steps like gathering
-telemetry information (devcoredump, syslog). This is useful because the first
-hang is usually the most critical one which can result in consequential hangs or
-complete wedging.
+No Recovery
+-----------
 
+Here ``WEDGED=none`` signifies that no recovery is expected from the consumer
+but it can still try to gather telemetry information (devcoredump, syslog) for
+debug purpose in order to root cause the hang. This is useful because the first
+hang is usually the most critical one which can result in consequential hangs
+or complete wedging.
 
 Vendor Specific Recovery
 ------------------------
