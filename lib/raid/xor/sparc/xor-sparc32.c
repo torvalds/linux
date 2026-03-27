@@ -1,16 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * include/asm/xor.h
- *
- * Optimized RAID-5 checksumming functions for 32-bit Sparc.
- */
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * High speed xor_block operation for RAID4/5 utilizing the
  * ldd/std SPARC instructions.
  *
  * Copyright (C) 1999 Jakub Jelinek (jj@ultra.linux.cz)
  */
+#include <linux/raid/xor_impl.h>
+#include <asm/xor.h>
 
 static void
 sparc_2(unsigned long bytes, unsigned long * __restrict p1,
@@ -248,21 +244,10 @@ sparc_5(unsigned long bytes, unsigned long * __restrict p1,
 	} while (--lines > 0);
 }
 
-static struct xor_block_template xor_block_SPARC = {
+struct xor_block_template xor_block_SPARC = {
 	.name	= "SPARC",
 	.do_2	= sparc_2,
 	.do_3	= sparc_3,
 	.do_4	= sparc_4,
 	.do_5	= sparc_5,
 };
-
-/* For grins, also test the generic routines.  */
-#include <asm-generic/xor.h>
-
-#define arch_xor_init arch_xor_init
-static __always_inline void __init arch_xor_init(void)
-{
-	xor_register(&xor_block_8regs);
-	xor_register(&xor_block_32regs);
-	xor_register(&xor_block_SPARC);
-}

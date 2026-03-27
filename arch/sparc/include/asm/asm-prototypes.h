@@ -14,7 +14,6 @@
 #include <asm/oplib.h>
 #include <asm/pgtable.h>
 #include <asm/trap_block.h>
-#include <asm/xor.h>
 
 void *__memscan_zero(void *, size_t);
 void *__memscan_generic(void *, int, size_t);

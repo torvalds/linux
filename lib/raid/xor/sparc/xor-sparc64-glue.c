@@ -1,7 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * include/asm/xor.h
- *
  * High speed xor_block operation for RAID4/5 utilizing the
  * UltraSparc Visual Instruction Set and Niagara block-init
  * twin-load instructions.
@@ -10,7 +8,8 @@
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
-#include <asm/spitfire.h>
+#include <linux/raid/xor_impl.h>
+#include <asm/xor.h>
 
 void xor_vis_2(unsigned long bytes, unsigned long * __restrict p1,
 	       const unsigned long * __restrict p2);
@@ -29,7 +28,7 @@ void xor_vis_5(unsigned long bytes, unsigned long * __restrict p1,
 
 /* XXX Ugh, write cheetah versions... -DaveM */
 
-static struct xor_block_template xor_block_VIS = {
+struct xor_block_template xor_block_VIS = {
         .name	= "VIS",
         .do_2	= xor_vis_2,
         .do_3	= xor_vis_3,
@@ -52,25 +51,10 @@ void xor_niagara_5(unsigned long bytes, unsigned long * __restrict p1,
 		   const unsigned long * __restrict p4,
 		   const unsigned long * __restrict p5);
 
-static struct xor_block_template xor_block_niagara = {
+struct xor_block_template xor_block_niagara = {
         .name	= "Niagara",
         .do_2	= xor_niagara_2,
         .do_3	= xor_niagara_3,
         .do_4	= xor_niagara_4,
         .do_5	= xor_niagara_5,
 };
-
-#define arch_xor_init arch_xor_init
-static __always_inline void __init arch_xor_init(void)
-{
-	/* Force VIS for everything except Niagara.  */
-	if (tlb_type == hypervisor &&
-	    (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
-	     sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-	     sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
-	     sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
-	     sun4v_chip_type == SUN4V_CHIP_NIAGARA5))
-		xor_force(&xor_block_niagara);
-	else
-		xor_force(&xor_block_VIS);
-}
