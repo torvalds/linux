@@ -13,7 +13,7 @@ struct a6xx_hfi_queue_table_header {
 	u32 qhdr_size;		/* Size of the queue headers */
 	u32 num_queues;		/* Number of total queues */
 	u32 active_queues;	/* Number of active queues */
-};
+} __packed;
 
 struct a6xx_hfi_queue_header {
 	u32 status;
@@ -28,7 +28,7 @@ struct a6xx_hfi_queue_header {
 	u32 tx_request;
 	u32 read_index;
 	u32 write_index;
-};
+} __packed;
 
 struct a6xx_hfi_queue {
 	struct a6xx_hfi_queue_header *header;
@@ -74,7 +74,7 @@ struct a6xx_hfi_msg_response {
 	u32 ret_header;
 	u32 error;
 	u32 payload[HFI_RESPONSE_PAYLOAD_SIZE];
-};
+} __packed;
 
 #define HFI_F2H_MSG_ERROR 100
 
@@ -82,7 +82,7 @@ struct a6xx_hfi_msg_error {
 	u32 header;
 	u32 code;
 	u32 payload[2];
-};
+} __packed;
 
 #define HFI_H2F_MSG_INIT 0
 
@@ -92,27 +92,27 @@ struct a6xx_hfi_msg_gmu_init_cmd {
 	u32 dbg_buffer_addr;
 	u32 dbg_buffer_size;
 	u32 boot_state;
-};
+} __packed;
 
 #define HFI_H2F_MSG_FW_VERSION 1
 
 struct a6xx_hfi_msg_fw_version {
 	u32 header;
 	u32 supported_version;
-};
+} __packed;
 
 #define HFI_H2F_MSG_PERF_TABLE 4
 
 struct perf_level {
 	u32 vote;
 	u32 freq;
-};
+} __packed;
 
 struct perf_gx_level {
 	u32 vote;
 	u32 acd;
 	u32 freq;
-};
+} __packed;
 
 struct a6xx_hfi_msg_perf_table_v1 {
 	u32 header;
@@ -121,7 +121,7 @@ struct a6xx_hfi_msg_perf_table_v1 {
 
 	struct perf_level gx_votes[16];
 	struct perf_level cx_votes[4];
-};
+} __packed;
 
 struct a6xx_hfi_msg_perf_table {
 	u32 header;
@@ -130,7 +130,7 @@ struct a6xx_hfi_msg_perf_table {
 
 	struct perf_gx_level gx_votes[16];
 	struct perf_level cx_votes[4];
-};
+} __packed;
 
 #define HFI_H2F_MSG_BW_TABLE 3
 
@@ -145,13 +145,13 @@ struct a6xx_hfi_msg_bw_table {
 	u32 cnoc_cmds_data[2][6];
 	u32 ddr_cmds_addrs[8];
 	u32 ddr_cmds_data[16][8];
-};
+} __packed;
 
 #define HFI_H2F_MSG_TEST 5
 
 struct a6xx_hfi_msg_test {
 	u32 header;
-};
+} __packed;
 
 #define HFI_H2F_MSG_ACD 7
 #define MAX_ACD_STRIDE 2
@@ -163,13 +163,13 @@ struct a6xx_hfi_acd_table {
 	u32 stride;
 	u32 num_levels;
 	u32 data[16 * MAX_ACD_STRIDE];
-};
+} __packed;
 
 #define HFI_H2F_MSG_START 10
 
 struct a6xx_hfi_msg_start {
 	u32 header;
-};
+} __packed;
 
 #define HFI_H2F_FEATURE_CTRL 11
 
@@ -178,14 +178,14 @@ struct a6xx_hfi_msg_feature_ctrl {
 	u32 feature;
 	u32 enable;
 	u32 data;
-};
+} __packed;
 
 #define HFI_H2F_MSG_CORE_FW_START 14
 
 struct a6xx_hfi_msg_core_fw_start {
 	u32 header;
 	u32 handle;
-};
+} __packed;
 
 #define HFI_H2F_MSG_TABLE 15
 
@@ -193,7 +193,7 @@ struct a6xx_hfi_table_entry {
 	u32 count;
 	u32 stride;
 	u32 data[];
-};
+} __packed;
 
 struct a6xx_hfi_table {
 	u32 header;
@@ -202,7 +202,7 @@ struct a6xx_hfi_table {
 #define HFI_TABLE_BW_VOTE 0
 #define HFI_TABLE_GPU_PERF 1
 	struct a6xx_hfi_table_entry entry[];
-};
+} __packed;
 
 #define HFI_H2F_MSG_GX_BW_PERF_VOTE 30
 
@@ -211,7 +211,7 @@ struct a6xx_hfi_gx_bw_perf_vote_cmd {
 	u32 ack_type;
 	u32 freq;
 	u32 bw;
-};
+} __packed;
 
 #define AB_VOTE_MASK		GENMASK(31, 16)
 #define MAX_AB_VOTE		(FIELD_MAX(AB_VOTE_MASK) - 1)
@@ -224,6 +224,6 @@ struct a6xx_hfi_prep_slumber_cmd {
 	u32 header;
 	u32 bw;
 	u32 freq;
-};
+} __packed;
 
 #endif
