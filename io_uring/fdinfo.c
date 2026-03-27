@@ -119,12 +119,13 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 					sq_idx);
 				break;
 			}
-			if ((++sq_head & sq_mask) == 0) {
+			if (sq_idx == sq_mask) {
 				seq_printf(m,
 					"%5u: corrupted sqe, wrapping 128B entry\n",
 					sq_idx);
 				break;
 			}
+			sq_head++;
 			i++;
 			sqe128 = true;
 		}
