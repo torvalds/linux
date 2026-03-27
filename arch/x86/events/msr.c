@@ -2,7 +2,6 @@
 #include <linux/perf_event.h>
 #include <linux/sysfs.h>
 #include <linux/nospec.h>
-#include <asm/cpu_device_id.h>
 #include <asm/msr.h>
 
 #include "probe.h"
@@ -41,86 +40,11 @@ static bool test_therm_status(int idx, void *data)
 
 static bool test_intel(int idx, void *data)
 {
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-	    boot_cpu_data.x86 != 6)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return false;
 
-	switch (boot_cpu_data.x86_vfm) {
-	case INTEL_NEHALEM:
-	case INTEL_NEHALEM_G:
-	case INTEL_NEHALEM_EP:
-	case INTEL_NEHALEM_EX:
-
-	case INTEL_WESTMERE:
-	case INTEL_WESTMERE_EP:
-	case INTEL_WESTMERE_EX:
-
-	case INTEL_SANDYBRIDGE:
-	case INTEL_SANDYBRIDGE_X:
-
-	case INTEL_IVYBRIDGE:
-	case INTEL_IVYBRIDGE_X:
-
-	case INTEL_HASWELL:
-	case INTEL_HASWELL_X:
-	case INTEL_HASWELL_L:
-	case INTEL_HASWELL_G:
-
-	case INTEL_BROADWELL:
-	case INTEL_BROADWELL_D:
-	case INTEL_BROADWELL_G:
-	case INTEL_BROADWELL_X:
-	case INTEL_SAPPHIRERAPIDS_X:
-	case INTEL_EMERALDRAPIDS_X:
-	case INTEL_GRANITERAPIDS_X:
-	case INTEL_GRANITERAPIDS_D:
-
-	case INTEL_ATOM_SILVERMONT:
-	case INTEL_ATOM_SILVERMONT_D:
-	case INTEL_ATOM_AIRMONT:
-	case INTEL_ATOM_AIRMONT_NP:
-
-	case INTEL_ATOM_GOLDMONT:
-	case INTEL_ATOM_GOLDMONT_D:
-	case INTEL_ATOM_GOLDMONT_PLUS:
-	case INTEL_ATOM_TREMONT_D:
-	case INTEL_ATOM_TREMONT:
-	case INTEL_ATOM_TREMONT_L:
-
-	case INTEL_XEON_PHI_KNL:
-	case INTEL_XEON_PHI_KNM:
-		if (idx == PERF_MSR_SMI)
-			return true;
-		break;
-
-	case INTEL_SKYLAKE_L:
-	case INTEL_SKYLAKE:
-	case INTEL_SKYLAKE_X:
-	case INTEL_KABYLAKE_L:
-	case INTEL_KABYLAKE:
-	case INTEL_COMETLAKE_L:
-	case INTEL_COMETLAKE:
-	case INTEL_ICELAKE_L:
-	case INTEL_ICELAKE:
-	case INTEL_ICELAKE_X:
-	case INTEL_ICELAKE_D:
-	case INTEL_TIGERLAKE_L:
-	case INTEL_TIGERLAKE:
-	case INTEL_ROCKETLAKE:
-	case INTEL_ALDERLAKE:
-	case INTEL_ALDERLAKE_L:
-	case INTEL_ATOM_GRACEMONT:
-	case INTEL_RAPTORLAKE:
-	case INTEL_RAPTORLAKE_P:
-	case INTEL_RAPTORLAKE_S:
-	case INTEL_METEORLAKE:
-	case INTEL_METEORLAKE_L:
-		if (idx == PERF_MSR_SMI || idx == PERF_MSR_PPERF)
-			return true;
-		break;
-	}
-
-	return false;
+	/* Rely on perf_msr_probe() to check the availability */
+	return true;
 }
 
 PMU_EVENT_ATTR_STRING(tsc,				attr_tsc,		"event=0x00"	);
