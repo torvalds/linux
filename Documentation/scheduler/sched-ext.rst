@@ -43,7 +43,6 @@ options should be enabled to use sched_ext:
     CONFIG_DEBUG_INFO_BTF=y
     CONFIG_BPF_JIT_ALWAYS_ON=y
     CONFIG_BPF_JIT_DEFAULT_ON=y
-    CONFIG_PAHOLE_HAS_BTF_TAG=y
 
 sched_ext is used only when the BPF scheduler is loaded and running.
 
@@ -58,7 +57,8 @@ in ``ops->flags``, all ``SCHED_NORMAL``, ``SCHED_BATCH``, ``SCHED_IDLE``, and
 However, when the BPF scheduler is loaded and ``SCX_OPS_SWITCH_PARTIAL`` is
 set in ``ops->flags``, only tasks with the ``SCHED_EXT`` policy are scheduled
 by sched_ext, while tasks with ``SCHED_NORMAL``, ``SCHED_BATCH`` and
-``SCHED_IDLE`` policies are scheduled by the fair-class scheduler.
+``SCHED_IDLE`` policies are scheduled by the fair-class scheduler which has
+higher sched_class precedence than ``SCHED_EXT``.
 
 Terminating the sched_ext scheduler program, triggering `SysRq-S`, or
 detection of any internal error including stalled runnable tasks aborts the
@@ -345,6 +345,8 @@ Where to Look
   The functions prefixed with ``scx_bpf_`` can be called from the BPF
   scheduler.
 
+* ``kernel/sched/ext_idle.c`` contains the built-in idle CPU selection policy.
+
 * ``tools/sched_ext/`` hosts example BPF scheduler implementations.
 
   * ``scx_simple[.bpf].c``: Minimal global FIFO scheduler example using a
@@ -353,13 +355,35 @@ Where to Look
   * ``scx_qmap[.bpf].c``: A multi-level FIFO scheduler supporting five
     levels of priority implemented with ``BPF_MAP_TYPE_QUEUE``.
 
+  * ``scx_central[.bpf].c``: A central FIFO scheduler where all scheduling
+    decisions are made on one CPU, demonstrating ``LOCAL_ON`` dispatching,
+    tickless operation, and kthread preemption.
+
+  * ``scx_cpu0[.bpf].c``: A scheduler that queues all tasks to a shared DSQ
+    and only dispatches them on CPU0 in FIFO order. Useful for testing bypass
+    behavior.
+
+  * ``scx_flatcg[.bpf].c``: A flattened cgroup hierarchy scheduler
+    implementing hierarchical weight-based cgroup CPU control by compounding
+    each cgroup's share at every level into a single flat scheduling layer.
+
+  * ``scx_pair[.bpf].c``: A core-scheduling example that always makes
+    sibling CPU pairs execute tasks from the same CPU cgroup.
+
+  * ``scx_sdt[.bpf].c``: A variation of ``scx_simple`` demonstrating BPF
+    arena memory management for per-task data.
+
+  * ``scx_userland[.bpf].c``: A minimal scheduler demonstrating user space
+    scheduling. Tasks with CPU affinity are direct-dispatched in FIFO order;
+    all others are scheduled in user space by a simple vruntime scheduler.
+
 ABI Instability
 ===============
 
 The APIs provided by sched_ext to BPF schedulers programs have no stability
 guarantees. This includes the ops table callbacks and constants defined in
 ``include/linux/sched/ext.h``, as well as the ``scx_bpf_`` kfuncs defined in
-``kernel/sched/ext.c``.
+``kernel/sched/ext.c`` and ``kernel/sched/ext_idle.c``.
 
 While we will attempt to provide a relatively stable API surface when
 possible, they are subject to change without warning between kernel

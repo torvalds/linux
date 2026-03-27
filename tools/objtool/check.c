@@ -2184,12 +2184,11 @@ static void mark_func_jump_tables(struct objtool_file *file,
 			last = insn;
 
 		/*
-		 * Store back-pointers for unconditional forward jumps such
+		 * Store back-pointers for forward jumps such
 		 * that find_jump_table() can back-track using those and
 		 * avoid some potentially confusing code.
 		 */
-		if (insn->type == INSN_JUMP_UNCONDITIONAL && insn->jump_dest &&
-		    insn->offset > last->offset &&
+		if (insn->jump_dest &&
 		    insn->jump_dest->offset > insn->offset &&
 		    !insn->jump_dest->first_jump_src) {
 
@@ -3000,6 +2999,20 @@ static int update_cfi_state(struct instruction *insn,
 				cfi->stack_size += 8;
 			}
 
+			else if (cfi->vals[op->src.reg].base == CFI_CFA) {
+				/*
+				 * Clang RSP musical chairs:
+				 *
+				 *   mov %rsp, %rdx [handled above]
+				 *   ...
+				 *   mov %rdx, %rbx [handled here]
+				 *   ...
+				 *   mov %rbx, %rsp [handled above]
+				 */
+				cfi->vals[op->dest.reg].base = CFI_CFA;
+				cfi->vals[op->dest.reg].offset = cfi->vals[op->src.reg].offset;
+			}
+
 
 			break;
 
@@ -3734,7 +3747,7 @@ static void checksum_update_insn(struct objtool_file *file, struct symbol *func,
 static int validate_branch(struct objtool_file *file, struct symbol *func,
 			   struct instruction *insn, struct insn_state state);
 static int do_validate_branch(struct objtool_file *file, struct symbol *func,
-			      struct instruction *insn, struct insn_state state);
+			      struct instruction *insn, struct insn_state *state);
 
 static int validate_insn(struct objtool_file *file, struct symbol *func,
 			 struct instruction *insn, struct insn_state *statep,
@@ -3999,7 +4012,7 @@ static int validate_insn(struct objtool_file *file, struct symbol *func,
  * tools/objtool/Documentation/objtool.txt.
  */
 static int do_validate_branch(struct objtool_file *file, struct symbol *func,
-			      struct instruction *insn, struct insn_state state)
+			      struct instruction *insn, struct insn_state *state)
 {
 	struct instruction *next_insn, *prev_insn = NULL;
 	bool dead_end;
@@ -4030,7 +4043,7 @@ static int do_validate_branch(struct objtool_file *file, struct symbol *func,
 			return 1;
 		}
 
-		ret = validate_insn(file, func, insn, &state, prev_insn, next_insn,
+		ret = validate_insn(file, func, insn, state, prev_insn, next_insn,
 				    &dead_end);
 
 		if (!insn->trace) {
@@ -4041,7 +4054,7 @@ static int do_validate_branch(struct objtool_file *file, struct symbol *func,
 		}
 
 		if (!dead_end && !next_insn) {
-			if (state.cfi.cfa.base == CFI_UNDEFINED)
+			if (state->cfi.cfa.base == CFI_UNDEFINED)
 				return 0;
 			if (file->ignore_unreachables)
 				return 0;
@@ -4066,7 +4079,7 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 	int ret;
 
 	trace_depth_inc();
-	ret = do_validate_branch(file, func, insn, state);
+	ret = do_validate_branch(file, func, insn, &state);
 	trace_depth_dec();
 
 	return ret;

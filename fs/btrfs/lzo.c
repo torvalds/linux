@@ -429,7 +429,7 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
 	struct folio_iter fi;
 	char *kaddr;
@@ -447,7 +447,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	/* There must be a compressed folio and matches the sectorsize. */
 	if (unlikely(!fi.folio))
 		return -EINVAL;
-	ASSERT(folio_size(fi.folio) == sectorsize);
+	ASSERT(folio_size(fi.folio) == btrfs_min_folio_size(fs_info));
 	kaddr = kmap_local_folio(fi.folio, 0);
 	len_in = read_compress_length(kaddr);
 	kunmap_local(kaddr);

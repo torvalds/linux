@@ -62,7 +62,6 @@ impl InitializerKind {
 
 enum InitializerAttribute {
     DefaultError(DefaultErrorAttribute),
-    DisableInitializedFieldAccess,
 }
 
 struct DefaultErrorAttribute {
@@ -86,6 +85,7 @@ pub(crate) fn expand(
     let error = error.map_or_else(
         || {
             if let Some(default_error) = attrs.iter().fold(None, |acc, attr| {
+                #[expect(irrefutable_let_patterns)]
                 if let InitializerAttribute::DefaultError(DefaultErrorAttribute { ty }) = attr {
                     Some(ty.clone())
                 } else {
@@ -145,22 +145,9 @@ pub(crate) fn expand(
     };
     // `mixed_site` ensures that the data is not accessible to the user-controlled code.
     let data = Ident::new("__data", Span::mixed_site());
-    let init_fields = init_fields(
-        &fields,
-        pinned,
-        !attrs
-            .iter()
-            .any(|attr| matches!(attr, InitializerAttribute::DisableInitializedFieldAccess)),
-        &data,
-        &slot,
-    );
+    let init_fields = init_fields(&fields, pinned, &data, &slot);
     let field_check = make_field_check(&fields, init_kind, &path);
     Ok(quote! {{
-        // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
-        // type and shadow it later when we insert the arbitrary user code. That way there will be
-        // no possibility of returning without `unsafe`.
-        struct __InitOk;
-
         // Get the data about fields from the supplied type.
         // SAFETY: TODO
         let #data = unsafe {
@@ -170,18 +157,15 @@ pub(crate) fn expand(
             #path::#get_data()
         };
         // Ensure that `#data` really is of type `#data` and help with type inference:
-        let init = ::pin_init::__internal::#data_trait::make_closure::<_, __InitOk, #error>(
+        let init = ::pin_init::__internal::#data_trait::make_closure::<_, #error>(
             #data,
             move |slot| {
-                {
-                    // Shadow the structure so it cannot be used to return early.
-                    struct __InitOk;
-                    #zeroable_check
-                    #this
-                    #init_fields
-                    #field_check
-                }
-                Ok(__InitOk)
+                #zeroable_check
+                #this
+                #init_fields
+                #field_check
+                // SAFETY: we are the `init!` macro that is allowed to call this.
+                Ok(unsafe { ::pin_init::__internal::InitOk::new() })
             }
         );
         let init = move |slot| -> ::core::result::Result<(), #error> {
@@ -236,7 +220,6 @@ fn get_init_kind(rest: Option<(Token![..], Expr)>, dcx: &mut DiagCtxt) -> InitKi
 fn init_fields(
     fields: &Punctuated<InitializerField, Token![,]>,
     pinned: bool,
-    generate_initialized_accessors: bool,
     data: &Ident,
     slot: &Ident,
 ) -> TokenStream {
@@ -260,6 +243,10 @@ fn init_fields(
                 });
                 // Again span for better diagnostics
                 let write = quote_spanned!(ident.span()=> ::core::ptr::write);
+                // NOTE: the field accessor ensures that the initialized field is properly aligned.
+                // Unaligned fields will cause the compiler to emit E0793. We do not support
+                // unaligned fields since `Init::__init` requires an aligned pointer; the call to
+                // `ptr::write` below has the same requirement.
                 let accessor = if pinned {
                     let project_ident = format_ident!("__project_{ident}");
                     quote! {
@@ -272,13 +259,6 @@ fn init_fields(
                         unsafe { &mut (*#slot).#ident }
                     }
                 };
-                let accessor = generate_initialized_accessors.then(|| {
-                    quote! {
-                        #(#cfgs)*
-                        #[allow(unused_variables)]
-                        let #ident = #accessor;
-                    }
-                });
                 quote! {
                     #(#attrs)*
                     {
@@ -286,12 +266,18 @@ fn init_fields(
                         // SAFETY: TODO
                         unsafe { #write(::core::ptr::addr_of_mut!((*#slot).#ident), #value_ident) };
                     }
-                    #accessor
+                    #(#cfgs)*
+                    #[allow(unused_variables)]
+                    let #ident = #accessor;
                 }
             }
             InitializerKind::Init { ident, value, .. } => {
                 // Again span for better diagnostics
                 let init = format_ident!("init", span = value.span());
+                // NOTE: the field accessor ensures that the initialized field is properly aligned.
+                // Unaligned fields will cause the compiler to emit E0793. We do not support
+                // unaligned fields since `Init::__init` requires an aligned pointer; the call to
+                // `ptr::write` below has the same requirement.
                 let (value_init, accessor) = if pinned {
                     let project_ident = format_ident!("__project_{ident}");
                     (
@@ -326,20 +312,15 @@ fn init_fields(
                         },
                     )
                 };
-                let accessor = generate_initialized_accessors.then(|| {
-                    quote! {
-                        #(#cfgs)*
-                        #[allow(unused_variables)]
-                        let #ident = #accessor;
-                    }
-                });
                 quote! {
                     #(#attrs)*
                     {
                         let #init = #value;
                         #value_init
                     }
-                    #accessor
+                    #(#cfgs)*
+                    #[allow(unused_variables)]
+                    let #ident = #accessor;
                 }
             }
             InitializerKind::Code { block: value, .. } => quote! {
@@ -466,10 +447,6 @@ impl Parse for Initializer {
                 if a.path().is_ident("default_error") {
                     a.parse_args::<DefaultErrorAttribute>()
                         .map(InitializerAttribute::DefaultError)
-                } else if a.path().is_ident("disable_initialized_field_access") {
-                    a.meta
-                        .require_path_only()
-                        .map(|_| InitializerAttribute::DisableInitializedFieldAccess)
                 } else {
                     Err(syn::Error::new_spanned(a, "unknown initializer attribute"))
                 }

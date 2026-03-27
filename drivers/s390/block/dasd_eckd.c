@@ -6135,6 +6135,7 @@ static void copy_pair_set_active(struct dasd_copy_relation *copy, char *new_busi
 static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid,
 				    char *sec_busid)
 {
+	struct dasd_eckd_private *prim_priv, *sec_priv;
 	struct dasd_device *primary, *secondary;
 	struct dasd_copy_relation *copy;
 	struct dasd_block *block;
@@ -6154,6 +6155,9 @@ static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid
 	secondary = copy_relation_find_device(copy, sec_busid);
 	if (!secondary)
 		return DASD_COPYPAIRSWAP_SECONDARY;
+
+	prim_priv = primary->private;
+	sec_priv = secondary->private;
 
 	/*
 	 * usually the device should be quiesced for swap
@@ -6181,6 +6185,18 @@ static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid
 			dev_name(&primary->cdev->dev),
 			dev_name(&secondary->cdev->dev), rc);
 	}
+
+	if (primary->stopped & DASD_STOPPED_QUIESCE) {
+		dasd_device_set_stop_bits(secondary, DASD_STOPPED_QUIESCE);
+		dasd_device_remove_stop_bits(primary, DASD_STOPPED_QUIESCE);
+	}
+
+	/*
+	 * The secondary device never got through format detection, but since it
+	 * is a copy of the primary device, the format is exactly the same;
+	 * therefore, the detected layout can simply be copied.
+	 */
+	sec_priv->uses_cdl = prim_priv->uses_cdl;
 
 	/* re-enable device */
 	dasd_device_remove_stop_bits(primary, DASD_STOPPED_PPRC);

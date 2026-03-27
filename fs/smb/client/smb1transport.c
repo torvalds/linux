@@ -460,7 +460,7 @@ check_smb_hdr(struct smb_hdr *smb)
 		return 0;
 
 	/*
-	 * Windows NT server returns error resposne (e.g. STATUS_DELETE_PENDING
+	 * Windows NT server returns error response (e.g. STATUS_DELETE_PENDING
 	 * or STATUS_OBJECT_NAME_NOT_FOUND or ERRDOS/ERRbadfile or any other)
 	 * for some TRANS2 requests without the RESPONSE flag set in header.
 	 */

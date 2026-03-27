@@ -99,3 +99,51 @@ of the driver is decremented. All symlinks between the two are removed.
 When a driver is removed, the list of devices that it supports is
 iterated over, and the driver's remove callback is called for each
 one. The device is removed from that list and the symlinks removed.
+
+
+Driver Override
+~~~~~~~~~~~~~~~
+
+Userspace may override the standard matching by writing a driver name to
+a device's ``driver_override`` sysfs attribute.  When set, only a driver
+whose name matches the override will be considered during binding.  This
+bypasses all bus-specific matching (OF, ACPI, ID tables, etc.).
+
+The override may be cleared by writing an empty string, which returns
+the device to standard matching rules.  Writing to ``driver_override``
+does not automatically unbind the device from its current driver or
+make any attempt to load the specified driver.
+
+Buses opt into this mechanism by setting the ``driver_override`` flag in
+their ``struct bus_type``::
+
+  const struct bus_type example_bus_type = {
+      ...
+      .driver_override = true,
+  };
+
+When the flag is set, the driver core automatically creates the
+``driver_override`` sysfs attribute for every device on that bus.
+
+The bus's ``match()`` callback should check the override before performing
+its own matching, using ``device_match_driver_override()``::
+
+  static int example_match(struct device *dev, const struct device_driver *drv)
+  {
+      int ret;
+
+      ret = device_match_driver_override(dev, drv);
+      if (ret >= 0)
+          return ret;
+
+      /* Fall through to bus-specific matching... */
+  }
+
+``device_match_driver_override()`` returns > 0 if the override matches
+the given driver, 0 if the override is set but does not match, or < 0 if
+no override is set at all.
+
+Additional helpers are available:
+
+- ``device_set_driver_override()`` - set or clear the override from kernel code.
+- ``device_has_driver_override()`` - check whether an override is set.

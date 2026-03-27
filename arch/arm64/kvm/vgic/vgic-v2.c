@@ -115,7 +115,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_v2_cpu_if *cpuif = &vgic_cpu->vgic_v2;
 	u32 eoicount = FIELD_GET(GICH_HCR_EOICOUNT, cpuif->vgic_hcr);
-	struct vgic_irq *irq;
+	struct vgic_irq *irq = *host_data_ptr(last_lr_irq);
 
 	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
@@ -123,7 +123,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 		vgic_v2_fold_lr(vcpu, cpuif->vgic_lr[lr]);
 
 	/* See the GICv3 equivalent for the EOIcount handling rationale */
-	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
+	list_for_each_entry_continue(irq, &vgic_cpu->ap_list_head, ap_list) {
 		u32 lr;
 
 		if (!eoicount) {

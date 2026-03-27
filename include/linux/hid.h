@@ -682,6 +682,7 @@ struct hid_device {
 	__s32 battery_charge_status;
 	enum hid_battery_status battery_status;
 	bool battery_avoid_query;
+	bool battery_present;
 	ktime_t battery_ratelimit_time;
 #endif
 

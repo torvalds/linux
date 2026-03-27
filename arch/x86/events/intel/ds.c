@@ -345,12 +345,12 @@ static u64 parse_omr_data_source(u8 dse)
 	if (omr.omr_remote)
 		val |= REM;
 
-	val |= omr.omr_hitm ? P(SNOOP, HITM) : P(SNOOP, HIT);
-
 	if (omr.omr_source == 0x2) {
-		u8 snoop = omr.omr_snoop | omr.omr_promoted;
+		u8 snoop = omr.omr_snoop | (omr.omr_promoted << 1);
 
-		if (snoop == 0x0)
+		if (omr.omr_hitm)
+			val |= P(SNOOP, HITM);
+		else if (snoop == 0x0)
 			val |= P(SNOOP, NA);
 		else if (snoop == 0x1)
 			val |= P(SNOOP, MISS);
@@ -359,7 +359,10 @@ static u64 parse_omr_data_source(u8 dse)
 		else if (snoop == 0x3)
 			val |= P(SNOOP, NONE);
 	} else if (omr.omr_source > 0x2 && omr.omr_source < 0x7) {
+		val |= omr.omr_hitm ? P(SNOOP, HITM) : P(SNOOP, HIT);
 		val |= omr.omr_snoop ? P(SNOOPX, FWD) : 0;
+	} else {
+		val |= P(SNOOP, NONE);
 	}
 
 	return val;

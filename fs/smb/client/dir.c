@@ -187,7 +187,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	const char *full_path;
 	void *page = alloc_dentry_path();
 	struct inode *newinode = NULL;
-	unsigned int sbflags;
+	unsigned int sbflags = cifs_sb_flags(cifs_sb);
 	int disposition;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
@@ -308,6 +308,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 		goto out;
 	}
 
+	create_options |= cifs_open_create_options(oflags, create_options);
 	/*
 	 * if we're not using unix extensions, see if we need to set
 	 * ATTR_READONLY on the create call
@@ -367,7 +368,6 @@ retry_open:
 	 * If Open reported that we actually created a file then we now have to
 	 * set the mode if possible.
 	 */
-	sbflags = cifs_sb_flags(cifs_sb);
 	if ((tcon->unix_ext) && (*oplock & CIFS_CREATE_ACTION)) {
 		struct cifs_unix_set_info_args args = {
 				.mode	= mode,

@@ -531,7 +531,7 @@ static int ad7768_reg_access(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static void ad7768_fill_scale_tbl(struct iio_dev *dev)
+static int ad7768_fill_scale_tbl(struct iio_dev *dev)
 {
 	struct ad7768_state *st = iio_priv(dev);
 	const struct iio_scan_type *scan_type;
@@ -541,6 +541,11 @@ static void ad7768_fill_scale_tbl(struct iio_dev *dev)
 	u64 tmp2;
 
 	scan_type = iio_get_current_scan_type(dev, &dev->channels[0]);
+	if (IS_ERR(scan_type)) {
+		dev_err(&st->spi->dev, "Failed to get scan type.\n");
+		return PTR_ERR(scan_type);
+	}
+
 	if (scan_type->sign == 's')
 		val2 = scan_type->realbits - 1;
 	else
@@ -565,6 +570,8 @@ static void ad7768_fill_scale_tbl(struct iio_dev *dev)
 		st->scale_tbl[i][0] = tmp0; /* Integer part */
 		st->scale_tbl[i][1] = abs(tmp1); /* Fractional part */
 	}
+
+	return 0;
 }
 
 static int ad7768_set_sinc3_dec_rate(struct ad7768_state *st,
@@ -669,7 +676,9 @@ static int ad7768_configure_dig_fil(struct iio_dev *dev,
 	}
 
 	/* Update scale table: scale values vary according to the precision */
-	ad7768_fill_scale_tbl(dev);
+	ret = ad7768_fill_scale_tbl(dev);
+	if (ret)
+		return ret;
 
 	ad7768_fill_samp_freq_tbl(st);
 

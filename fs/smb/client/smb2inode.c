@@ -1156,7 +1156,7 @@ smb2_mkdir_setinfo(struct inode *inode, const char *name,
 	cifs_i = CIFS_I(inode);
 	dosattrs = cifs_i->cifsAttrs | ATTR_READONLY;
 	data.Attributes = cpu_to_le32(dosattrs);
-	cifs_get_writable_path(tcon, name, FIND_WR_ANY, &cfile);
+	cifs_get_writable_path(tcon, name, FIND_ANY, &cfile);
 	oparms = CIFS_OPARMS(cifs_sb, tcon, name, FILE_WRITE_ATTRIBUTES,
 			     FILE_CREATE, CREATE_NOT_FILE, ACL_NO_MODE);
 	tmprc = smb2_compound_op(xid, tcon, cifs_sb, name,
@@ -1336,14 +1336,13 @@ int smb2_rename_path(const unsigned int xid,
 	__u32 co = file_create_options(source_dentry);
 
 	drop_cached_dir_by_name(xid, tcon, from_name, cifs_sb);
-	cifs_get_writable_path(tcon, from_name, FIND_WR_WITH_DELETE, &cfile);
+	cifs_get_writable_path(tcon, from_name, FIND_WITH_DELETE, &cfile);
 
 	int rc = smb2_set_path_attr(xid, tcon, from_name, to_name, cifs_sb,
 				  co, DELETE, SMB2_OP_RENAME, cfile, source_dentry);
 	if (rc == -EINVAL) {
 		cifs_dbg(FYI, "invalid lease key, resending request without lease");
-		cifs_get_writable_path(tcon, from_name,
-				       FIND_WR_WITH_DELETE, &cfile);
+		cifs_get_writable_path(tcon, from_name, FIND_WITH_DELETE, &cfile);
 		rc = smb2_set_path_attr(xid, tcon, from_name, to_name, cifs_sb,
 				  co, DELETE, SMB2_OP_RENAME, cfile, NULL);
 	}
@@ -1377,7 +1376,7 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 
 	in_iov.iov_base = &eof;
 	in_iov.iov_len = sizeof(eof);
-	cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+	cifs_get_writable_path(tcon, full_path, FIND_ANY, &cfile);
 
 	oparms = CIFS_OPARMS(cifs_sb, tcon, full_path, FILE_WRITE_DATA,
 			     FILE_OPEN, 0, ACL_NO_MODE);
@@ -1387,7 +1386,7 @@ smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      cfile, NULL, NULL, dentry);
 	if (rc == -EINVAL) {
 		cifs_dbg(FYI, "invalid lease key, resending request without lease");
-		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+		cifs_get_writable_path(tcon, full_path, FIND_ANY, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb,
 				      full_path, &oparms, &in_iov,
 				      &(int){SMB2_OP_SET_EOF}, 1,
@@ -1417,7 +1416,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0)) {
 		if (buf->Attributes == 0)
 			goto out; /* would be a no op, no sense sending this */
-		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+		cifs_get_writable_path(tcon, full_path, FIND_ANY, &cfile);
 	}
 
 	oparms = CIFS_OPARMS(cifs_sb, tcon, full_path, FILE_WRITE_ATTRIBUTES,
@@ -1476,7 +1475,7 @@ struct inode *smb2_create_reparse_inode(struct cifs_open_info_data *data,
 
 	if (tcon->posix_extensions) {
 		cmds[1] = SMB2_OP_POSIX_QUERY_INFO;
-		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+		cifs_get_writable_path(tcon, full_path, FIND_ANY, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, &oparms,
 				      in_iov, cmds, 2, cfile, out_iov, out_buftype, NULL);
 		if (!rc) {
@@ -1485,7 +1484,7 @@ struct inode *smb2_create_reparse_inode(struct cifs_open_info_data *data,
 		}
 	} else {
 		cmds[1] = SMB2_OP_QUERY_INFO;
-		cifs_get_writable_path(tcon, full_path, FIND_WR_ANY, &cfile);
+		cifs_get_writable_path(tcon, full_path, FIND_ANY, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, &oparms,
 				      in_iov, cmds, 2, cfile, out_iov, out_buftype, NULL);
 		if (!rc) {
@@ -1636,13 +1635,12 @@ int smb2_rename_pending_delete(const char *full_path,
 	iov[1].iov_base = utf16_path;
 	iov[1].iov_len = sizeof(*utf16_path) * UniStrlen((wchar_t *)utf16_path);
 
-	cifs_get_writable_path(tcon, full_path, FIND_WR_WITH_DELETE, &cfile);
+	cifs_get_writable_path(tcon, full_path, FIND_WITH_DELETE, &cfile);
 	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, &oparms, iov,
 			      cmds, num_cmds, cfile, NULL, NULL, dentry);
 	if (rc == -EINVAL) {
 		cifs_dbg(FYI, "invalid lease key, resending request without lease\n");
-		cifs_get_writable_path(tcon, full_path,
-				       FIND_WR_WITH_DELETE, &cfile);
+		cifs_get_writable_path(tcon, full_path, FIND_WITH_DELETE, &cfile);
 		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path, &oparms, iov,
 				      cmds, num_cmds, cfile, NULL, NULL, NULL);
 	}

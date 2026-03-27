@@ -27,6 +27,7 @@ int enter_vmx_usercopy(void)
 
 	return 1;
 }
+EXPORT_SYMBOL(enter_vmx_usercopy);
 
 /*
  * This function must return 0 because we tail call optimise when calling
@@ -49,6 +50,7 @@ int exit_vmx_usercopy(void)
 		set_dec(1);
 	return 0;
 }
+EXPORT_SYMBOL(exit_vmx_usercopy);
 
 int enter_vmx_ops(void)
 {

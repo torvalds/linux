@@ -156,10 +156,12 @@ static void dpu_hw_sspp_setup_pe_config_v13(struct dpu_hw_sspp *ctx,
 	u8 color;
 	u32 lr_pe[4], tb_pe[4];
 	const u32 bytemask = 0xff;
-	u32 offset = ctx->cap->sblk->sspp_rec0_blk.base;
+	u32 offset;
 
 	if (!ctx || !pe_ext)
 		return;
+
+	offset = ctx->cap->sblk->sspp_rec0_blk.base;
 
 	c = &ctx->hw;
 	/* program SW pixel extension override for all pipes*/

@@ -2912,7 +2912,7 @@ void mlx5e_ipsec_disable_events(struct mlx5e_priv *priv)
 		goto out;
 
 	peer_priv = mlx5_devcom_get_next_peer_data(priv->devcom, &tmp);
-	if (peer_priv)
+	if (peer_priv && peer_priv->ipsec)
 		complete_all(&peer_priv->ipsec->comp);
 
 	mlx5_devcom_for_each_peer_end(priv->devcom);
