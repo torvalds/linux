@@ -17,3 +17,14 @@ config XOR_BLOCKS_ARCH
 	default y if X86_32
 	default y if X86_64
 	bool
+
+config XOR_KUNIT_TEST
+	tristate "KUnit tests for xor_gen" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on XOR_BLOCKS
+	default KUNIT_ALL_TESTS
+	help
+	  Unit tests for the XOR library functions.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
