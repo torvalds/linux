@@ -74,7 +74,7 @@ void dax_hmem_flush_work(void)
 {
 	flush_work(&dax_hmem_work.work);
 }
-EXPORT_SYMBOL_GPL(dax_hmem_flush_work);
+EXPORT_SYMBOL_FOR_MODULES(dax_hmem_flush_work, "dax_cxl");
 
 static int __hmem_register_device(struct device *host, int target_nid,
 				  const struct resource *res)

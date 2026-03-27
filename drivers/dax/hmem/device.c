@@ -9,7 +9,7 @@ static bool nohmem;
 module_param_named(disable, nohmem, bool, 0444);
 
 bool dax_hmem_initial_probe;
-EXPORT_SYMBOL_GPL(dax_hmem_initial_probe);
+EXPORT_SYMBOL_FOR_MODULES(dax_hmem_initial_probe, "dax_hmem");
 
 static bool platform_initialized;
 static DEFINE_MUTEX(hmem_resource_lock);
