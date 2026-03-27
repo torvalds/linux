@@ -4654,8 +4654,8 @@ retry:
 						      inode_get_ctime(inode));
 			if (epos > old_size) {
 				pagecache_isize_extended(inode, old_size, epos);
-				ext4_zero_partial_blocks(handle, inode,
-						     old_size, epos - old_size);
+				ext4_block_zero_eof(handle, inode, old_size,
+						    epos);
 			}
 		}
 		ret2 = ext4_mark_inode_dirty(handle, inode);
