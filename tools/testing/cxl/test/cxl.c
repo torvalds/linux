@@ -1121,6 +1121,53 @@ static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
 	cxl_endpoint_get_perf_coordinates(port, ep_c);
 }
 
+/*
+ * Simulate that the first half of mock CXL Window 0 is "Soft Reserve" capacity
+ */
+static int mock_walk_hmem_resources(struct device *host, walk_hmem_fn fn)
+{
+	struct acpi_cedt_cfmws *cfmws = mock_cfmws[0];
+	struct resource window =
+		DEFINE_RES_MEM(cfmws->base_hpa, cfmws->window_size / 2);
+
+	dev_dbg(host, "walk cxl_test resource: %pr\n", &window);
+	return fn(host, 0, &window);
+}
+
+/*
+ * This should only be called by the dax_hmem case, treat mismatches (negative
+ * result) as "fallback to base region_intersects()". Simulate that the first
+ * half of mock CXL Window 0 is IORES_DESC_CXL capacity.
+ */
+static int mock_region_intersects(resource_size_t start, size_t size,
+				  unsigned long flags, unsigned long desc)
+{
+	struct resource res = DEFINE_RES_MEM(start, size);
+	struct acpi_cedt_cfmws *cfmws = mock_cfmws[0];
+	struct resource window =
+		DEFINE_RES_MEM(cfmws->base_hpa, cfmws->window_size / 2);
+
+	if (resource_overlaps(&res, &window))
+		return REGION_INTERSECTS;
+	pr_debug("warning: no cxl_test CXL intersection for %pr\n", &res);
+	return -1;
+}
+
+
+static int
+mock_region_intersects_soft_reserve(resource_size_t start, size_t size)
+{
+	struct resource res = DEFINE_RES_MEM(start, size);
+	struct acpi_cedt_cfmws *cfmws = mock_cfmws[0];
+	struct resource window =
+		DEFINE_RES_MEM(cfmws->base_hpa, cfmws->window_size / 2);
+
+	if (resource_overlaps(&res, &window))
+		return REGION_INTERSECTS;
+	pr_debug("warning: no cxl_test soft reserve intersection for %pr\n", &res);
+	return -1;
+}
+
 static struct cxl_mock_ops cxl_mock_ops = {
 	.is_mock_adev = is_mock_adev,
 	.is_mock_bridge = is_mock_bridge,
@@ -1136,6 +1183,9 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.devm_cxl_add_dport_by_dev = mock_cxl_add_dport_by_dev,
 	.hmat_get_extended_linear_cache_size =
 		mock_hmat_get_extended_linear_cache_size,
+	.walk_hmem_resources = mock_walk_hmem_resources,
+	.region_intersects = mock_region_intersects,
+	.region_intersects_soft_reserve = mock_region_intersects_soft_reserve,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
 
@@ -1561,8 +1611,14 @@ static __init int cxl_test_init(void)
 	if (rc)
 		goto err_root;
 
+	rc = hmem_test_init();
+	if (rc)
+		goto err_mem;
+
 	return 0;
 
+err_mem:
+	cxl_mem_exit();
 err_root:
 	platform_device_put(cxl_acpi);
 err_rch:
@@ -1600,6 +1656,7 @@ static __exit void cxl_test_exit(void)
 {
 	int i;
 
+	hmem_test_exit();
 	cxl_mem_exit();
 	platform_device_unregister(cxl_acpi);
 	cxl_rch_topo_exit();

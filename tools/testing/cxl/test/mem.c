@@ -1695,6 +1695,9 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	struct cxl_dpa_info range_info = { 0 };
 	int rc;
 
+	/* Increase async probe race window */
+	usleep_range(500*1000, 1000*1000);
+
 	mdata = devm_kzalloc(dev, sizeof(*mdata), GFP_KERNEL);
 	if (!mdata)
 		return -ENOMEM;
