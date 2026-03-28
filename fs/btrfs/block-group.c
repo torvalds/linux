@@ -3381,7 +3381,13 @@ again:
 	}
 
 	if (IS_ERR(inode)) {
-		BUG_ON(retries);
+		if (retries) {
+			ret = PTR_ERR(inode);
+			btrfs_err(fs_info,
+				  "failed to lookup free space inode after creation for block group %llu: %d",
+				  block_group->start, ret);
+			goto out_free;
+		}
 		retries++;
 
 		if (block_group->ro)
