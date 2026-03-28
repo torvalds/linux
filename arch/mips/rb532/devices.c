@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/platnand.h>
 #include <linux/mtd/mtd.h>
-#include <linux/gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
 #include <linux/gpio_keys.h>
@@ -135,12 +134,6 @@ static struct platform_device cf_slot0 = {
 	.num_resources = ARRAY_SIZE(cf_slot0_res),
 };
 
-/* Resources and device for NAND */
-static int rb532_dev_ready(struct nand_chip *chip)
-{
-	return gpio_get_value(GPIO_RDY);
-}
-
 static void rb532_cmd_ctrl(struct nand_chip *chip, int cmd, unsigned int ctrl)
 {
 	unsigned char orbits, nandbits;
@@ -166,16 +159,23 @@ static struct resource nand_slot0_res[] = {
 };
 
 static struct platform_nand_data rb532_nand_data = {
-	.ctrl.dev_ready = rb532_dev_ready,
 	.ctrl.cmd_ctrl	= rb532_cmd_ctrl,
 };
 
-static struct platform_device nand_slot0 = {
-	.name = "gen_nand",
-	.id = -1,
-	.resource = nand_slot0_res,
-	.num_resources = ARRAY_SIZE(nand_slot0_res),
-	.dev.platform_data = &rb532_nand_data,
+static const struct property_entry nand0_properties[] = {
+	PROPERTY_ENTRY_GPIO("ready-gpios", &rb532_gpio0_node,
+			    GPIO_RDY, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct platform_device_info nand0_info  __initconst = {
+	.name		= "gen_nand",
+	.id		= PLATFORM_DEVID_NONE,
+	.res		= nand_slot0_res,
+	.num_res	= ARRAY_SIZE(nand_slot0_res),
+	.data		= &rb532_nand_data,
+	.size_data	= sizeof(struct platform_nand_data),
+	.properties	= nand0_properties,
 };
 
 static struct mtd_partition rb532_partition_info[] = {
@@ -234,7 +234,6 @@ static struct platform_device rb532_uart = {
 
 static struct platform_device *rb532_devs[] = {
 	&korina_dev0,
-	&nand_slot0,
 	&cf_slot0,
 	&rb532_led,
 	&rb532_uart,
@@ -320,6 +319,13 @@ static int __init plat_setup_devices(void)
 	 * register the node for the GPIO chip.
 	 */
 	software_node_register(&rb532_gpio0_node);
+
+	pd = platform_device_register_full(&nand0_info);
+	ret = PTR_ERR_OR_ZERO(pd);
+	if (ret) {
+		pr_err("failed to create NAND slot0 device: %d\n", ret);
+		return ret;
+	}
 
 	pd = platform_device_register_full(&rb532_button_info);
 	ret = PTR_ERR_OR_ZERO(pd);

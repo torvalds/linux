@@ -6,6 +6,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -17,6 +18,7 @@ struct plat_nand_data {
 	struct nand_controller	controller;
 	struct nand_chip	chip;
 	void __iomem		*io_base;
+	struct gpio_desc	*ready_gpio;
 };
 
 static int plat_nand_attach_chip(struct nand_chip *chip)
@@ -32,6 +34,14 @@ static const struct nand_controller_ops plat_nand_ops = {
 	.attach_chip = plat_nand_attach_chip,
 };
 
+/* Resources and device for NAND */
+static int plat_nand_gpio_dev_ready(struct nand_chip *chip)
+{
+	struct plat_nand_data *data = nand_get_controller_data(chip);
+
+	return gpiod_get_value(data->ready_gpio);
+}
+
 /*
  * Probe for the NAND device.
  */
@@ -41,6 +51,7 @@ static int plat_nand_probe(struct platform_device *pdev)
 	struct plat_nand_data *data;
 	struct mtd_info *mtd;
 	const char **part_types;
+	struct nand_chip *chip;
 	int err = 0;
 
 	if (!pdata) {
@@ -59,9 +70,17 @@ static int plat_nand_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	data->ready_gpio = devm_gpiod_get_optional(&pdev->dev, "ready",
+						   GPIOD_IN);
+	if (IS_ERR(data->ready_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->ready_gpio),
+				     "could not get READY GPIO\n");
+
 	data->controller.ops = &plat_nand_ops;
 	nand_controller_init(&data->controller);
 	data->chip.controller = &data->controller;
+	chip = &data->chip;
+	nand_set_controller_data(chip, data);
 
 	data->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->io_base))
@@ -74,7 +93,10 @@ static int plat_nand_probe(struct platform_device *pdev)
 	data->chip.legacy.IO_ADDR_R = data->io_base;
 	data->chip.legacy.IO_ADDR_W = data->io_base;
 	data->chip.legacy.cmd_ctrl = pdata->ctrl.cmd_ctrl;
-	data->chip.legacy.dev_ready = pdata->ctrl.dev_ready;
+	if (data->ready_gpio)
+		data->chip.legacy.dev_ready = plat_nand_gpio_dev_ready;
+	else
+		data->chip.legacy.dev_ready = pdata->ctrl.dev_ready;
 	data->chip.legacy.select_chip = pdata->ctrl.select_chip;
 	data->chip.legacy.write_buf = pdata->ctrl.write_buf;
 	data->chip.legacy.read_buf = pdata->ctrl.read_buf;
