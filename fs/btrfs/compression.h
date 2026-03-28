@@ -98,7 +98,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret);
 
-struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info);
+struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info, gfp_t gfp);
 void btrfs_free_compr_folio(struct folio *folio);
 
 struct workspace_manager {

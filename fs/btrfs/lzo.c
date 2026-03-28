@@ -202,7 +202,7 @@ static int copy_compressed_data_to_bio(struct btrfs_fs_info *fs_info,
 	ASSERT((old_size >> sectorsize_bits) == (old_size + LZO_LEN - 1) >> sectorsize_bits);
 
 	if (!*out_folio) {
-		*out_folio = btrfs_alloc_compr_folio(fs_info);
+		*out_folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 		if (!*out_folio)
 			return -ENOMEM;
 	}
@@ -229,7 +229,7 @@ static int copy_compressed_data_to_bio(struct btrfs_fs_info *fs_info,
 			return -E2BIG;
 
 		if (!*out_folio) {
-			*out_folio = btrfs_alloc_compr_folio(fs_info);
+			*out_folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 			if (!*out_folio)
 				return -ENOMEM;
 		}
@@ -280,7 +280,7 @@ int lzo_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 	ASSERT(bio->bi_iter.bi_size == 0);
 	ASSERT(len);
 
-	folio_out = btrfs_alloc_compr_folio(fs_info);
+	folio_out = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 	if (!folio_out)
 		return -ENOMEM;
 

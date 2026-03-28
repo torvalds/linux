@@ -9980,7 +9980,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 		size_t bytes = min(min_folio_size, iov_iter_count(from));
 		char *kaddr;
 
-		folio = btrfs_alloc_compr_folio(fs_info);
+		folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 		if (!folio) {
 			ret = -ENOMEM;
 			goto out_cb;

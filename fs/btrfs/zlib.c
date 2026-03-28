@@ -172,7 +172,7 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 	workspace->strm.total_in = 0;
 	workspace->strm.total_out = 0;
 
-	out_folio = btrfs_alloc_compr_folio(fs_info);
+	out_folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 	if (out_folio == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -254,7 +254,7 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 				goto out;
 			}
 
-			out_folio = btrfs_alloc_compr_folio(fs_info);
+			out_folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 			if (out_folio == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -291,7 +291,7 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 				goto out;
 			}
 			/* Get another folio for the stream end. */
-			out_folio = btrfs_alloc_compr_folio(fs_info);
+			out_folio = btrfs_alloc_compr_folio(fs_info, GFP_NOFS);
 			if (out_folio == NULL) {
 				ret = -ENOMEM;
 				goto out;
