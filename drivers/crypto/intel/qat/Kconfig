@@ -12,6 +12,7 @@ config CRYPTO_DEV_QAT
 	select CRYPTO_LIB_SHA1
 	select CRYPTO_LIB_SHA256
 	select CRYPTO_LIB_SHA512
+	select CRYPTO_ZSTD
 	select FW_LOADER
 	select CRC8
 

@@ -336,7 +336,8 @@ enum icp_qat_hw_compression_delayed_match {
 enum icp_qat_hw_compression_algo {
 	ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE = 0,
 	ICP_QAT_HW_COMPRESSION_ALGO_LZS = 1,
-	ICP_QAT_HW_COMPRESSION_ALGO_DELIMITER = 2
+	ICP_QAT_HW_COMPRESSION_ALGO_ZSTD = 2,
+	ICP_QAT_HW_COMPRESSION_ALGO_DELIMITER
 };
 
 enum icp_qat_hw_compression_depth {

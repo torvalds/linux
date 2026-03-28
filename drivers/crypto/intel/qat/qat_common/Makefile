@@ -41,6 +41,7 @@ intel_qat-y := adf_accel_engine.o \
 	qat_bl.o \
 	qat_comp_algs.o \
 	qat_compression.o \
+	qat_comp_zstd_utils.o \
 	qat_crypto.o \
 	qat_hal.o \
 	qat_mig_dev.o \

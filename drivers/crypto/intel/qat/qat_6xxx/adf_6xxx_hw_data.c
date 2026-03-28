@@ -33,6 +33,8 @@
 #define ADF_AE_GROUP_1		GENMASK(7, 4)
 #define ADF_AE_GROUP_2		BIT(8)
 
+#define ASB_MULTIPLIER		9
+
 struct adf_ring_config {
 	u32 ring_mask;
 	enum adf_cfg_service_type ring_type;
@@ -509,6 +511,9 @@ static int build_comp_block(void *ctx, enum adf_dc_algo algo)
 	case QAT_DEFLATE:
 		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DYNAMIC;
 	break;
+	case QAT_ZSTD:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_ZSTD_COMPRESS;
+	break;
 	default:
 		return -EINVAL;
 	}
@@ -518,6 +523,13 @@ static int build_comp_block(void *ctx, enum adf_dc_algo algo)
 	lower_val = ICP_QAT_FW_COMP_51_BUILD_CONFIG_LOWER(hw_comp_lower_csr);
 	cd_pars->u.sl.comp_slice_cfg_word[0] = lower_val;
 	cd_pars->u.sl.comp_slice_cfg_word[1] = 0;
+
+	/*
+	 * Store Auto Select Best (ASB) multiplier in the request template.
+	 * This will be used in the data path to set the actual threshold
+	 * value based on the input data size.
+	 */
+	req_tmpl->u3.asb_threshold.asb_value = ASB_MULTIPLIER;
 
 	return 0;
 }
@@ -532,12 +544,16 @@ static int build_decomp_block(void *ctx, enum adf_dc_algo algo)
 	case QAT_DEFLATE:
 		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DECOMPRESS;
 	break;
+	case QAT_ZSTD:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_ZSTD_DECOMPRESS;
+	break;
 	default:
 		return -EINVAL;
 	}
 
 	cd_pars->u.sl.comp_slice_cfg_word[0] = 0;
 	cd_pars->u.sl.comp_slice_cfg_word[1] = 0;
+	req_tmpl->u3.asb_threshold.asb_value = 0;
 
 	return 0;
 }
@@ -1030,6 +1046,7 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->num_rps = ADF_GEN6_ETR_MAX_BANKS;
 	hw_data->clock_frequency = ADF_6XXX_AE_FREQ;
 	hw_data->get_svc_slice_cnt = adf_gen6_get_svc_slice_cnt;
+	hw_data->accel_capabilities_ext_mask = ADF_ACCEL_CAPABILITIES_EXT_ZSTD;
 
 	adf_gen6_init_services_supported(hw_data);
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);

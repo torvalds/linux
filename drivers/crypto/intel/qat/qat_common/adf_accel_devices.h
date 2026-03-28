@@ -59,6 +59,11 @@ enum adf_accel_capabilities {
 	ADF_ACCEL_CAPABILITIES_RANDOM_NUMBER = 128
 };
 
+enum adf_accel_capabilities_ext {
+	ADF_ACCEL_CAPABILITIES_EXT_ZSTD_LZ4S = BIT(0),
+	ADF_ACCEL_CAPABILITIES_EXT_ZSTD = BIT(1),
+};
+
 enum adf_fuses {
 	ADF_FUSECTL0,
 	ADF_FUSECTL1,
@@ -336,6 +341,7 @@ struct adf_hw_device_data {
 	u32 fuses[ADF_MAX_FUSES];
 	u32 straps;
 	u32 accel_capabilities_mask;
+	u32 accel_capabilities_ext_mask;
 	u32 extended_dc_capabilities;
 	u16 fw_capabilities;
 	u32 clock_frequency;
