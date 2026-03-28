@@ -16,8 +16,10 @@
 #include <linux/mtd/mtd.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/property.h>
 #include <linux/serial_8250.h>
 
 #include <asm/bootinfo.h>
@@ -37,6 +39,10 @@
 extern unsigned int idt_cpu_freq;
 
 static struct mpmc_device dev3;
+
+static const struct software_node rb532_gpio0_node = {
+	.name = "gpio0",
+};
 
 void set_latch_u5(unsigned char or_mask, unsigned char nand_mask)
 {
@@ -189,11 +195,6 @@ static struct platform_device rb532_led = {
 	.id = -1,
 };
 
-static struct platform_device rb532_button = {
-	.name	= "rb532-button",
-	.id	= -1,
-};
-
 static struct resource rb532_wdt_res[] = {
 	{
 		.name = "rb532_wdt_res",
@@ -236,10 +237,22 @@ static struct platform_device *rb532_devs[] = {
 	&nand_slot0,
 	&cf_slot0,
 	&rb532_led,
-	&rb532_button,
 	&rb532_uart,
 	&rb532_wdt
 };
+
+static const struct property_entry rb532_button_properties[] = {
+	PROPERTY_ENTRY_GPIO("button-gpios", &rb532_gpio0_node,
+			    GPIO_BTN_S1, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static const struct platform_device_info rb532_button_info  __initconst = {
+	.name		= "rb532-button",
+	.id		= PLATFORM_DEVID_NONE,
+	.properties	= rb532_button_properties,
+};
+
 
 /* NAND definitions */
 #define NAND_CHIP_DELAY 25
@@ -267,6 +280,9 @@ static void __init rb532_nand_setup(void)
 
 static int __init plat_setup_devices(void)
 {
+	struct platform_device *pd;
+	int ret;
+
 	/* Look for the CF card reader */
 	if (!readl(IDT434_REG_BASE + DEV1MASK))
 		rb532_devs[2] = NULL;	/* disable cf_slot0 at index 2 */
@@ -295,7 +311,24 @@ static int __init plat_setup_devices(void)
 	rb532_uart_res[0].uartclk = idt_cpu_freq;
 
 	gpiod_add_lookup_table(&cf_slot0_gpio_table);
-	return platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
+	ret = platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
+	if (ret)
+		return ret;
+
+	/*
+	 * Stack devices using full info and properties here, after we
+	 * register the node for the GPIO chip.
+	 */
+	software_node_register(&rb532_gpio0_node);
+
+	pd = platform_device_register_full(&rb532_button_info);
+	ret = PTR_ERR_OR_ZERO(pd);
+	if (ret) {
+		pr_err("failed to create RB532 button device: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_NET
