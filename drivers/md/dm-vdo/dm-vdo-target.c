@@ -412,7 +412,7 @@ static int __must_check parse_memory(const char *memory_str,
 
 		result = kstrtouint(memory_str, 10, &value);
 		if (result) {
-			vdo_log_error("optional parameter error: invalid memory size, must be a postive integer");
+			vdo_log_error("optional parameter error: invalid memory size, must be a positive integer");
 			return -EINVAL;
 		}
 
