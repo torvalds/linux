@@ -698,15 +698,14 @@ shared_irq_free:
 
 static void rzg2l_irqc_free(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs)
 {
+	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
 	struct rzg2l_irqc_priv *priv = domain->host_data;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
 	irq_domain_free_irqs_common(domain, virq, nr_irqs);
 
-	if (priv->info.shared_irq_cnt) {
-		struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-
-		rzg2l_irqc_shared_irq_free(priv, irqd_to_hwirq(d));
-	}
+	if (priv->info.shared_irq_cnt)
+		rzg2l_irqc_shared_irq_free(priv, hwirq);
 }
 
 static const struct irq_domain_ops rzg2l_irqc_domain_ops = {
