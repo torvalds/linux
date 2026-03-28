@@ -30,6 +30,8 @@
 
 #include <linux/atomic.h>
 
+#include <asm/runtime-const.h>
+
 #include "internal.h"
 
 /* sysctl tunables... */
@@ -38,8 +40,10 @@ static struct files_stat_struct files_stat = {
 };
 
 /* SLAB cache for file structures */
-static struct kmem_cache *filp_cachep __ro_after_init;
-static struct kmem_cache *bfilp_cachep __ro_after_init;
+static struct kmem_cache *__filp_cache __ro_after_init;
+#define filp_cache runtime_const_ptr(__filp_cache)
+static struct kmem_cache *__bfilp_cache __ro_after_init;
+#define bfilp_cache runtime_const_ptr(__bfilp_cache)
 
 static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
@@ -74,9 +78,9 @@ static inline void file_free(struct file *f)
 	put_cred(f->f_cred);
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
 		path_put(backing_file_user_path(f));
-		kmem_cache_free(bfilp_cachep, backing_file(f));
+		kmem_cache_free(bfilp_cache, backing_file(f));
 	} else {
-		kmem_cache_free(filp_cachep, f);
+		kmem_cache_free(filp_cache, f);
 	}
 }
 
@@ -234,13 +238,13 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
 			goto over;
 	}
 
-	f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
+	f = kmem_cache_alloc(filp_cache, GFP_KERNEL);
 	if (unlikely(!f))
 		return ERR_PTR(-ENOMEM);
 
 	error = init_file(f, flags, cred);
 	if (unlikely(error)) {
-		kmem_cache_free(filp_cachep, f);
+		kmem_cache_free(filp_cache, f);
 		return ERR_PTR(error);
 	}
 
@@ -268,13 +272,13 @@ struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
 	struct file *f;
 	int error;
 
-	f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
+	f = kmem_cache_alloc(filp_cache, GFP_KERNEL);
 	if (unlikely(!f))
 		return ERR_PTR(-ENOMEM);
 
 	error = init_file(f, flags, cred);
 	if (unlikely(error)) {
-		kmem_cache_free(filp_cachep, f);
+		kmem_cache_free(filp_cache, f);
 		return ERR_PTR(error);
 	}
 
@@ -295,13 +299,13 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 	struct backing_file *ff;
 	int error;
 
-	ff = kmem_cache_alloc(bfilp_cachep, GFP_KERNEL);
+	ff = kmem_cache_alloc(bfilp_cache, GFP_KERNEL);
 	if (unlikely(!ff))
 		return ERR_PTR(-ENOMEM);
 
 	error = init_file(&ff->file, flags, cred);
 	if (unlikely(error)) {
-		kmem_cache_free(bfilp_cachep, ff);
+		kmem_cache_free(bfilp_cache, ff);
 		return ERR_PTR(error);
 	}
 
@@ -593,14 +597,17 @@ void __init files_init(void)
 		.freeptr_offset = offsetof(struct file, f_freeptr),
 	};
 
-	filp_cachep = kmem_cache_create("filp", sizeof(struct file), &args,
+	__filp_cache = kmem_cache_create("filp", sizeof(struct file), &args,
 				SLAB_HWCACHE_ALIGN | SLAB_PANIC |
 				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
+	runtime_const_init(ptr, __filp_cache);
 
 	args.freeptr_offset = offsetof(struct backing_file, bf_freeptr);
-	bfilp_cachep = kmem_cache_create("bfilp", sizeof(struct backing_file),
+	__bfilp_cache = kmem_cache_create("bfilp", sizeof(struct backing_file),
 				&args, SLAB_HWCACHE_ALIGN | SLAB_PANIC |
 				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
+	runtime_const_init(ptr, __bfilp_cache);
+
 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
 }
 
