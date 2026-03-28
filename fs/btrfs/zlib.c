@@ -308,7 +308,9 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 	}
 	/* Queue the remaining part of the folio. */
 	if (workspace->strm.total_out > bio->bi_iter.bi_size) {
-		u32 cur_len = offset_in_folio(out_folio, workspace->strm.total_out);
+		const u32 cur_len = workspace->strm.total_out - bio->bi_iter.bi_size;
+
+		ASSERT(cur_len <= folio_size(out_folio));
 
 		if (!bio_add_folio(bio, out_folio, cur_len, 0)) {
 			ret = -E2BIG;
