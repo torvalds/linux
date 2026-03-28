@@ -629,7 +629,6 @@ static int img_hash_digest(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct img_hash_ctx *tctx = crypto_ahash_ctx(tfm);
 	struct img_hash_request_ctx *ctx = ahash_request_ctx(req);
-	int err;
 
 	spin_lock(&img_hash.lock);
 	if (!tctx->hdev)
@@ -666,9 +665,7 @@ static int img_hash_digest(struct ahash_request *req)
 	ctx->sgfirst = req->src;
 	ctx->nents = sg_nents(ctx->sg);
 
-	err = img_hash_handle_queue(ctx->hdev, req);
-
-	return err;
+	return img_hash_handle_queue(ctx->hdev, req);
 }
 
 static int img_hash_cra_init(struct crypto_tfm *tfm, const char *alg_name)
