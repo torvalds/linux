@@ -373,14 +373,13 @@ static int rzg2l_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	raw_spin_lock(&priv->lock);
+	guard(raw_spinlock)(&priv->lock);
 	tmp = readl_relaxed(priv->base + IITSR);
 	tmp &= ~IITSR_IITSEL_MASK(iitseln);
 	tmp |= IITSR_IITSEL(iitseln, sense);
 	if (clear_irq_int)
 		rzg2l_clear_irq_int(priv, hwirq);
 	writel_relaxed(tmp, priv->base + IITSR);
-	raw_spin_unlock(&priv->lock);
 
 	return 0;
 }
