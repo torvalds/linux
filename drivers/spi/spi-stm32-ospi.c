@@ -928,7 +928,7 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	dma_cfg.dst_addr = ospi->regs_phys_base + OSPI_DR;
 	ret = stm32_ospi_dma_setup(ospi, &dma_cfg);
 	if (ret)
-		return ret;
+		goto err_dma_free;
 
 	mutex_init(&ospi->lock);
 
@@ -980,6 +980,7 @@ err_pm_resume:
 err_pm_enable:
 	pm_runtime_force_suspend(ospi->dev);
 	mutex_destroy(&ospi->lock);
+err_dma_free:
 	if (ospi->dma_chtx)
 		dma_release_channel(ospi->dma_chtx);
 	if (ospi->dma_chrx)
