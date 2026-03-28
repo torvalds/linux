@@ -24,7 +24,6 @@ struct kvm_ptdump_guest_state {
 	struct ptdump_pg_state	parser_state;
 	struct addr_marker	ipa_marker[MARKERS_LEN];
 	struct ptdump_pg_level	level[KVM_PGTABLE_MAX_LEVELS];
-	struct ptdump_range	range[MARKERS_LEN];
 };
 
 static const struct ptdump_prot_bits stage2_pte_bits[] = {
@@ -132,17 +131,8 @@ static struct kvm_ptdump_guest_state *kvm_ptdump_parser_create(struct kvm_s2_mmu
 
 	st->ipa_marker[0].name		= "Guest IPA";
 	st->ipa_marker[1].start_address = BIT(pgtable->ia_bits);
-	st->range[0].end		= BIT(pgtable->ia_bits);
 
 	st->mmu				= mmu;
-	st->parser_state = (struct ptdump_pg_state) {
-		.marker		= &st->ipa_marker[0],
-		.level		= -1,
-		.pg_level	= &st->level[0],
-		.ptdump.range	= &st->range[0],
-		.start_address	= 0,
-	};
-
 	return st;
 }
 
@@ -152,14 +142,18 @@ static int kvm_ptdump_guest_show(struct seq_file *m, void *unused)
 	struct kvm_ptdump_guest_state *st = m->private;
 	struct kvm_s2_mmu *mmu = st->mmu;
 	struct kvm *kvm = kvm_s2_mmu_to_kvm(mmu);
-	struct ptdump_pg_state *parser_state = &st->parser_state;
 	struct kvm_pgtable_walker walker = (struct kvm_pgtable_walker) {
 		.cb	= kvm_ptdump_visitor,
-		.arg	= parser_state,
+		.arg	= &st->parser_state,
 		.flags	= KVM_PGTABLE_WALK_LEAF,
 	};
 
-	parser_state->seq = m;
+	st->parser_state = (struct ptdump_pg_state) {
+		.marker		= &st->ipa_marker[0],
+		.level		= -1,
+		.pg_level	= &st->level[0],
+		.seq		= m,
+	};
 
 	write_lock(&kvm->mmu_lock);
 	ret = kvm_pgtable_walk(mmu->pgt, 0, BIT(mmu->pgt->ia_bits), &walker);
