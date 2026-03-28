@@ -690,9 +690,9 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->group->xg_gno - b2->group->xg_gno;
+	diff = cmp_int(b1->group->xg_gno, b2->group->xg_gno);
 	if (!diff)
-		diff = b1->bno - b2->bno;
+		diff = cmp_int(b1->bno, b2->bno);
 	return diff;
 }
 
