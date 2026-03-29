@@ -3182,7 +3182,7 @@ static void dfx_rcv_queue_process(
 							       pkt_len + 3);
 				if (skb == NULL)
 					{
-					printk("%s: Could not allocate receive buffer.  Dropping packet.\n", bp->dev->name);
+					printk_ratelimited("%s: Could not allocate receive buffer.  Dropping packet.\n", bp->dev->name);
 					bp->rcv_discards++;
 					break;
 					}
