@@ -3,8 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
-#ifndef _XE_LATE_BIND_TYPES_H_
-#define _XE_LATE_BIND_TYPES_H_
+#ifndef _XE_LATE_BIND_FW_TYPES_H_
+#define _XE_LATE_BIND_FW_TYPES_H_
 
 #include <linux/iosys-map.h>
 #include <linux/mutex.h>

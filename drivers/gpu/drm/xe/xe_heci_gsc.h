@@ -2,8 +2,8 @@
 /*
  * Copyright(c) 2023, Intel Corporation. All rights reserved.
  */
-#ifndef __XE_HECI_GSC_DEV_H__
-#define __XE_HECI_GSC_DEV_H__
+#ifndef _XE_HECI_GSC_H_
+#define _XE_HECI_GSC_H_
 
 #include <linux/types.h>
 
@@ -37,4 +37,4 @@ int xe_heci_gsc_init(struct xe_device *xe);
 void xe_heci_gsc_irq_handler(struct xe_device *xe, u32 iir);
 void xe_heci_csc_irq_handler(struct xe_device *xe, u32 iir);
 
-#endif /* __XE_HECI_GSC_DEV_H__ */
+#endif /* _XE_HECI_GSC_H_ */

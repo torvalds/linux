@@ -59,6 +59,19 @@ static int xe_pagefault_begin(struct drm_exec *exec, struct xe_vma *vma,
 	if (!bo)
 		return 0;
 
+	/*
+	 * Skip validate/migrate for DONTNEED/purged BOs - repopulating
+	 * their pages would prevent the shrinker from reclaiming them.
+	 * For non-scratch VMs there is no safe fallback so fail the fault.
+	 * For scratch VMs let xe_vma_rebind() run normally; it will install
+	 * scratch PTEs so the GPU gets safe zero reads instead of faulting.
+	 */
+	if (unlikely(xe_bo_madv_is_dontneed(bo) || xe_bo_is_purged(bo))) {
+		if (!xe_vm_has_scratch(vm))
+			return -EACCES;
+		return 0;
+	}
+
 	return need_vram_move ? xe_bo_migrate(bo, vram->placement, NULL, exec) :
 		xe_bo_validate(bo, vm, true, exec);
 }
@@ -145,7 +158,7 @@ static struct xe_vm *xe_pagefault_asid_to_vm(struct xe_device *xe, u32 asid)
 
 	down_read(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, asid);
-	if (vm && xe_vm_in_fault_mode(vm))
+	if (vm && (xe_vm_in_fault_mode(vm) || xe_vm_has_scratch(vm)))
 		xe_vm_get(vm);
 	else
 		vm = ERR_PTR(-EINVAL);
