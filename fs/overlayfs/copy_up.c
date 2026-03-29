@@ -1146,15 +1146,15 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		return -EOVERFLOW;
 
 	/*
-	 * With metacopy disabled, we fsync after final metadata copyup, for
+	 * With "fsync=strict", we fsync after final metadata copyup, for
 	 * both regular files and directories to get atomic copyup semantics
 	 * on filesystems that do not use strict metadata ordering (e.g. ubifs).
 	 *
-	 * With metacopy enabled we want to avoid fsync on all meta copyup
+	 * By default, we want to avoid fsync on all meta copyup, because
 	 * that will hurt performance of workloads such as chown -R, so we
 	 * only fsync on data copyup as legacy behavior.
 	 */
-	ctx.metadata_fsync = !OVL_FS(dentry->d_sb)->config.metacopy &&
+	ctx.metadata_fsync = ovl_should_sync_metadata(OVL_FS(dentry->d_sb)) &&
 			     (S_ISREG(ctx.stat.mode) || S_ISDIR(ctx.stat.mode));
 	ctx.metacopy = ovl_need_meta_copy_up(dentry, ctx.stat.mode, flags);
 
