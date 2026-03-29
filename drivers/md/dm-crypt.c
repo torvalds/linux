@@ -113,8 +113,8 @@ struct crypt_iv_operations {
 	void (*wipe)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv,
 			 struct dm_crypt_request *dmreq);
-	int (*post)(struct crypt_config *cc, u8 *iv,
-		    struct dm_crypt_request *dmreq);
+	void (*post)(struct crypt_config *cc, u8 *iv,
+		     struct dm_crypt_request *dmreq);
 };
 
 struct iv_benbi_private {
@@ -559,14 +559,14 @@ static int crypt_iv_lmk_gen(struct crypt_config *cc, u8 *iv,
 	return 0;
 }
 
-static int crypt_iv_lmk_post(struct crypt_config *cc, u8 *iv,
-			     struct dm_crypt_request *dmreq)
+static void crypt_iv_lmk_post(struct crypt_config *cc, u8 *iv,
+			      struct dm_crypt_request *dmreq)
 {
 	struct scatterlist *sg;
 	u8 *dst;
 
 	if (bio_data_dir(dmreq->ctx->bio_in) == WRITE)
-		return 0;
+		return;
 
 	sg = crypt_get_sg_data(cc, dmreq->sg_out);
 	dst = kmap_local_page(sg_page(sg));
@@ -576,7 +576,6 @@ static int crypt_iv_lmk_post(struct crypt_config *cc, u8 *iv,
 	crypto_xor(dst + sg->offset, iv, cc->iv_size);
 
 	kunmap_local(dst);
-	return 0;
 }
 
 static void crypt_iv_tcw_dtr(struct crypt_config *cc)
@@ -684,22 +683,20 @@ static int crypt_iv_tcw_gen(struct crypt_config *cc, u8 *iv,
 	return 0;
 }
 
-static int crypt_iv_tcw_post(struct crypt_config *cc, u8 *iv,
-			     struct dm_crypt_request *dmreq)
+static void crypt_iv_tcw_post(struct crypt_config *cc, u8 *iv,
+			      struct dm_crypt_request *dmreq)
 {
 	struct scatterlist *sg;
 	u8 *dst;
 
 	if (bio_data_dir(dmreq->ctx->bio_in) != WRITE)
-		return 0;
+		return;
 
 	/* Apply whitening on ciphertext */
 	sg = crypt_get_sg_data(cc, dmreq->sg_out);
 	dst = kmap_local_page(sg_page(sg));
 	crypt_iv_tcw_whitening(cc, dmreq, dst + sg->offset);
 	kunmap_local(dst);
-
-	return 0;
 }
 
 static int crypt_iv_random_gen(struct crypt_config *cc, u8 *iv,
@@ -994,13 +991,11 @@ static int crypt_iv_elephant_gen(struct crypt_config *cc, u8 *iv,
 	return crypt_iv_eboiv_gen(cc, iv, dmreq);
 }
 
-static int crypt_iv_elephant_post(struct crypt_config *cc, u8 *iv,
-				  struct dm_crypt_request *dmreq)
+static void crypt_iv_elephant_post(struct crypt_config *cc, u8 *iv,
+				   struct dm_crypt_request *dmreq)
 {
 	if (bio_data_dir(dmreq->ctx->bio_in) != WRITE)
 		crypt_iv_elephant(cc, dmreq);
-
-	return 0;
 }
 
 static int crypt_iv_elephant_init(struct crypt_config *cc)
@@ -1346,7 +1341,7 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	}
 
 	if (!r && cc->iv_gen_ops && cc->iv_gen_ops->post)
-		r = cc->iv_gen_ops->post(cc, org_iv, dmreq);
+		cc->iv_gen_ops->post(cc, org_iv, dmreq);
 
 	bio_advance_iter(ctx->bio_in, &ctx->iter_in, cc->sector_size);
 	bio_advance_iter(ctx->bio_out, &ctx->iter_out, cc->sector_size);
@@ -1423,7 +1418,7 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 		r = crypto_skcipher_decrypt(req);
 
 	if (!r && cc->iv_gen_ops && cc->iv_gen_ops->post)
-		r = cc->iv_gen_ops->post(cc, org_iv, dmreq);
+		cc->iv_gen_ops->post(cc, org_iv, dmreq);
 
 	bio_advance_iter(ctx->bio_in, &ctx->iter_in, cc->sector_size);
 	bio_advance_iter(ctx->bio_out, &ctx->iter_out, cc->sector_size);
@@ -2187,7 +2182,7 @@ static void kcryptd_async_done(void *data, int error)
 	}
 
 	if (!error && cc->iv_gen_ops && cc->iv_gen_ops->post)
-		error = cc->iv_gen_ops->post(cc, org_iv_of_dmreq(cc, dmreq), dmreq);
+		cc->iv_gen_ops->post(cc, org_iv_of_dmreq(cc, dmreq), dmreq);
 
 	if (error == -EBADMSG) {
 		sector_t s = le64_to_cpu(*org_sector_of_dmreq(cc, dmreq));
