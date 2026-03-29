@@ -773,7 +773,6 @@ struct pp_hwmgr {
 	const struct pp_smumgr_func *smumgr_funcs;
 	bool is_kicker;
 
-	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;

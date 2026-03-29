@@ -2794,10 +2794,6 @@ static int smu7_patch_dependency_tables_with_leakage(struct pp_hwmgr *hwmgr)
 	if (tmp)
 		return -EINVAL;
 
-	tmp = smu7_patch_vddc(hwmgr, hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-	if (tmp)
-		return -EINVAL;
-
 	tmp = smu7_patch_vddci(hwmgr, hwmgr->dyn_state.vddci_dependency_on_mclk);
 	if (tmp)
 		return -EINVAL;
@@ -2887,8 +2883,6 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 
 static int smu7_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
 	kfree(hwmgr->dyn_state.vddc_dependency_on_display_clock);
 	hwmgr->dyn_state.vddc_dependency_on_display_clock = NULL;
 	kfree(hwmgr->backend);
@@ -3045,9 +3039,6 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		smu7_patch_dependency_tables_with_leakage(hwmgr);
 		smu7_set_private_data_based_on_pptable_v0(hwmgr);
 	}
-
-	/* Initalize Dynamic State Adjustment Rule Settings */
-	result = phm_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
 
 	if (result)
 		goto fail;
