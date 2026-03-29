@@ -121,6 +121,9 @@ noinstr struct ghcb *__sev_get_ghcb(struct ghcb_state *state)
 
 	WARN_ON(!irqs_disabled());
 
+	if (!sev_cfg.ghcbs_initialized)
+		return boot_ghcb;
+
 	data = this_cpu_read(runtime_data);
 	ghcb = &data->ghcb_page;
 
@@ -163,6 +166,9 @@ noinstr void __sev_put_ghcb(struct ghcb_state *state)
 	struct ghcb *ghcb;
 
 	WARN_ON(!irqs_disabled());
+
+	if (!sev_cfg.ghcbs_initialized)
+		return;
 
 	data = this_cpu_read(runtime_data);
 	ghcb = &data->ghcb_page;
