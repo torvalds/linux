@@ -107,7 +107,6 @@ static int netfs_single_dispatch_read(struct netfs_io_request *rreq)
 	spin_lock(&rreq->lock);
 	list_add_tail(&subreq->rreq_link, &stream->subrequests);
 	trace_netfs_sreq(subreq, netfs_sreq_trace_added);
-	stream->front = subreq;
 	/* Store list pointers before active flag */
 	smp_store_release(&stream->active, true);
 	spin_unlock(&rreq->lock);
