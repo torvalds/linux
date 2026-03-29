@@ -709,7 +709,6 @@ out_err:
 	arg->err = error;
 	return NULL;
 }
-EXPORT_IPV6_MOD(inet_csk_accept);
 
 /*
  * Using different timers for retransmit, delayed acks and probes
@@ -1021,7 +1020,6 @@ void inet_csk_reqsk_queue_drop_and_put(struct sock *sk, struct request_sock *req
 	inet_csk_reqsk_queue_drop(sk, req);
 	reqsk_put(req);
 }
-EXPORT_IPV6_MOD(inet_csk_reqsk_queue_drop_and_put);
 
 static void reqsk_timer_handler(struct timer_list *t)
 {

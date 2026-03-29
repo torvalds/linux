@@ -356,9 +356,25 @@ static int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry
 	return 0;
 }
 
+static int nf_ip6_reroute(struct sk_buff *skb,
+			  const struct nf_queue_entry *entry)
+{
+	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
+
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
+		const struct ipv6hdr *iph = ipv6_hdr(skb);
+
+		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
+		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
+		    skb->mark != rt_info->mark)
+			return nf_ip6_route_me_harder(entry->state.net,
+						      entry->state.sk, skb);
+	}
+	return 0;
+}
+
 static int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
 {
-	const struct nf_ipv6_ops *v6ops;
 	int ret = 0;
 
 	switch (entry->state.pf) {
@@ -366,9 +382,7 @@ static int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
 		ret = nf_ip_reroute(skb, entry);
 		break;
 	case AF_INET6:
-		v6ops = rcu_dereference(nf_ipv6_ops);
-		if (v6ops)
-			ret = v6ops->reroute(skb, entry);
+		ret = nf_ip6_reroute(skb, entry);
 		break;
 	}
 	return ret;

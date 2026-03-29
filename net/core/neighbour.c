@@ -778,7 +778,6 @@ struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 
 	return NULL;
 }
-EXPORT_IPV6_MOD(pneigh_lookup);
 
 int pneigh_create(struct neigh_table *tbl, struct net *net,
 		  const void *pkey, struct net_device *dev,

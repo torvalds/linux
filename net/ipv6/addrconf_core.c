@@ -6,7 +6,6 @@
 
 #include <linux/export.h>
 #include <net/ipv6.h>
-#include <net/ipv6_stubs.h>
 #include <net/addrconf.h>
 #include <net/ip.h>
 
@@ -128,96 +127,6 @@ int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&inet6addr_validator_chain, val, v);
 }
 EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
-
-static struct dst_entry *eafnosupport_ipv6_dst_lookup_flow(struct net *net,
-							   const struct sock *sk,
-							   struct flowi6 *fl6,
-							   const struct in6_addr *final_dst)
-{
-	return ERR_PTR(-EAFNOSUPPORT);
-}
-
-static int eafnosupport_ipv6_route_input(struct sk_buff *skb)
-{
-	return -EAFNOSUPPORT;
-}
-
-static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
-{
-	return NULL;
-}
-
-static int
-eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
-			       int oif, struct flowi6 *fl6,
-			       struct fib6_result *res, int flags)
-{
-	return -EAFNOSUPPORT;
-}
-
-static int
-eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			 struct fib6_result *res, int flags)
-{
-	return -EAFNOSUPPORT;
-}
-
-static void
-eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
-			      struct flowi6 *fl6, int oif, bool have_oif_match,
-			      const struct sk_buff *skb, int strict)
-{
-}
-
-static u32
-eafnosupport_ip6_mtu_from_fib6(const struct fib6_result *res,
-			       const struct in6_addr *daddr,
-			       const struct in6_addr *saddr)
-{
-	return 0;
-}
-
-static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
-				     struct fib6_config *cfg, gfp_t gfp_flags,
-				     struct netlink_ext_ack *extack)
-{
-	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
-	return -EAFNOSUPPORT;
-}
-
-static int eafnosupport_ip6_del_rt(struct net *net, struct fib6_info *rt,
-				   bool skip_notify)
-{
-	return -EAFNOSUPPORT;
-}
-
-static int eafnosupport_ipv6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
-				      int (*output)(struct net *, struct sock *, struct sk_buff *))
-{
-	kfree_skb(skb);
-	return -EAFNOSUPPORT;
-}
-
-static struct net_device *eafnosupport_ipv6_dev_find(struct net *net, const struct in6_addr *addr,
-						     struct net_device *dev)
-{
-	return ERR_PTR(-EAFNOSUPPORT);
-}
-
-const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
-	.ipv6_dst_lookup_flow = eafnosupport_ipv6_dst_lookup_flow,
-	.ipv6_route_input  = eafnosupport_ipv6_route_input,
-	.fib6_get_table    = eafnosupport_fib6_get_table,
-	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
-	.fib6_lookup       = eafnosupport_fib6_lookup,
-	.fib6_select_path  = eafnosupport_fib6_select_path,
-	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
-	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
-	.ip6_del_rt	   = eafnosupport_ip6_del_rt,
-	.ipv6_fragment	   = eafnosupport_ipv6_fragment,
-	.ipv6_dev_find     = eafnosupport_ipv6_dev_find,
-};
-EXPORT_SYMBOL_GPL(ipv6_stub);
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
 const struct in6_addr in6addr_loopback __aligned(BITS_PER_LONG/8)

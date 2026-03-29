@@ -576,6 +576,7 @@ void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 
 	ndisc_send_skb(skb, daddr, src_addr);
 }
+EXPORT_SYMBOL_GPL(ndisc_send_na);
 
 static void ndisc_send_unsol_na(struct net_device *dev)
 {

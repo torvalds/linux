@@ -38,7 +38,6 @@
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/icmpv6.h>
-#include <linux/netfilter_ipv6.h>
 
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -51,7 +50,6 @@
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
-#include <net/ipv6_stubs.h>
 #include <net/ndisc.h>
 #ifdef CONFIG_IPV6_TUNNEL
 #include <net/ip6_tunnel.h>
@@ -69,10 +67,6 @@
 #include <linux/mroute6.h>
 
 #include "ip6_offload.h"
-
-MODULE_AUTHOR("Cast of dozens");
-MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
-MODULE_LICENSE("GPL");
 
 /* The inetsw6 table contains everything that inet6_create needs to
  * build a new socket.
@@ -268,8 +262,8 @@ out_sk_release:
 	goto out;
 }
 
-static int __inet6_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
-			u32 flags)
+int __inet6_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
+		 u32 flags)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
@@ -1000,50 +994,6 @@ static struct pernet_operations inet6_net_ops = {
 	.exit = inet6_net_exit,
 };
 
-static int ipv6_route_input(struct sk_buff *skb)
-{
-	ip6_route_input(skb);
-	return skb_dst(skb)->error;
-}
-
-static const struct ipv6_stub ipv6_stub_impl = {
-	.ipv6_sock_mc_join = ipv6_sock_mc_join,
-	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
-	.ipv6_dst_lookup_flow = ip6_dst_lookup_flow,
-	.ipv6_route_input  = ipv6_route_input,
-	.fib6_get_table	   = fib6_get_table,
-	.fib6_table_lookup = fib6_table_lookup,
-	.fib6_lookup       = fib6_lookup,
-	.fib6_select_path  = fib6_select_path,
-	.ip6_mtu_from_fib6 = ip6_mtu_from_fib6,
-	.fib6_nh_init	   = fib6_nh_init,
-	.fib6_nh_release   = fib6_nh_release,
-	.fib6_nh_release_dsts = fib6_nh_release_dsts,
-	.fib6_update_sernum = fib6_update_sernum_stub,
-	.fib6_rt_update	   = fib6_rt_update,
-	.ip6_del_rt	   = ip6_del_rt,
-	.udpv6_encap_enable = udpv6_encap_enable,
-	.ndisc_send_na = ndisc_send_na,
-#if IS_ENABLED(CONFIG_XFRM)
-	.xfrm6_local_rxpmtu = xfrm6_local_rxpmtu,
-	.xfrm6_udp_encap_rcv = xfrm6_udp_encap_rcv,
-	.xfrm6_gro_udp_encap_rcv = xfrm6_gro_udp_encap_rcv,
-	.xfrm6_rcv_encap = xfrm6_rcv_encap,
-#endif
-	.nd_tbl	= &nd_tbl,
-	.ipv6_fragment = ip6_fragment,
-	.ipv6_dev_find = ipv6_dev_find,
-	.ip6_xmit = ip6_xmit,
-};
-
-static const struct ipv6_bpf_stub ipv6_bpf_stub_impl = {
-	.inet6_bind = __inet6_bind,
-	.udp6_lib_lookup = __udp6_lib_lookup,
-	.ipv6_setsockopt = do_ipv6_setsockopt,
-	.ipv6_getsockopt = do_ipv6_getsockopt,
-	.ipv6_dev_get_saddr = ipv6_dev_get_saddr,
-};
-
 static int __init inet6_init(void)
 {
 	struct list_head *r;
@@ -1115,9 +1065,6 @@ static int __init inet6_init(void)
 	if (err)
 		goto igmp_fail;
 
-	err = ipv6_netfilter_init();
-	if (err)
-		goto netfilter_fail;
 	/* Create /proc/foo6 entries. */
 #ifdef CONFIG_PROC_FS
 	err = -ENOMEM;
@@ -1200,10 +1147,6 @@ static int __init inet6_init(void)
 		goto sysctl_fail;
 #endif
 
-	/* ensure that ipv6 stubs are visible only after ipv6 is ready */
-	wmb();
-	ipv6_stub = &ipv6_stub_impl;
-	ipv6_bpf_stub = &ipv6_bpf_stub_impl;
 out:
 	return err;
 
@@ -1252,8 +1195,6 @@ proc_misc6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
 #endif
-	ipv6_netfilter_fini();
-netfilter_fail:
 	igmp6_cleanup();
 igmp_fail:
 	ndisc_cleanup();
@@ -1278,6 +1219,4 @@ out_unregister_tcp_proto:
 	proto_unregister(&tcpv6_prot);
 	goto out;
 }
-module_init(inet6_init);
-
-MODULE_ALIAS_NETPROTO(PF_INET6);
+device_initcall(inet6_init);

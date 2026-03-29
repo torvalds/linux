@@ -2,8 +2,6 @@
 #ifndef _NDISC_H
 #define _NDISC_H
 
-#include <net/ipv6_stubs.h>
-
 /*
  *	ICMP codes for neighbour discovery messages
  */
@@ -359,14 +357,6 @@ static inline struct neighbour *__ipv6_neigh_lookup_noref(struct net_device *dev
 	return ___neigh_lookup_noref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
 }
 
-static inline
-struct neighbour *__ipv6_neigh_lookup_noref_stub(struct net_device *dev,
-						 const void *pkey)
-{
-	return ___neigh_lookup_noref(ipv6_stub->nd_tbl, neigh_key_eq128,
-				     ndisc_hashfn, pkey, dev);
-}
-
 static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, const void *pkey)
 {
 	struct neighbour *n;
@@ -391,28 +381,20 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 	rcu_read_unlock();
 }
 
-static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
-					     const void *pkey)
-{
-	struct neighbour *n;
-
-	rcu_read_lock();
-	n = __ipv6_neigh_lookup_noref_stub(dev, pkey);
-	neigh_confirm(n);
-	rcu_read_unlock();
-}
-
-/* uses ipv6_stub and is meant for use outside of IPv6 core */
 static inline struct neighbour *ip_neigh_gw6(struct net_device *dev,
 					     const void *addr)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	struct neighbour *neigh;
 
-	neigh = __ipv6_neigh_lookup_noref_stub(dev, addr);
+	neigh = __ipv6_neigh_lookup_noref(dev, addr);
 	if (unlikely(!neigh))
-		neigh = __neigh_create(ipv6_stub->nd_tbl, addr, dev, false);
+		neigh = __neigh_create(&nd_tbl, addr, dev, false);
 
 	return neigh;
+#else
+	return ERR_PTR(-EAFNOSUPPORT);
+#endif
 }
 
 int ndisc_init(void);
@@ -434,6 +416,7 @@ void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
 
 void ndisc_send_rs(struct net_device *dev,
 		   const struct in6_addr *saddr, const struct in6_addr *daddr);
+
 void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 		   const struct in6_addr *solicited_addr,
 		   bool router, bool solicited, bool override, bool inc_opt);
