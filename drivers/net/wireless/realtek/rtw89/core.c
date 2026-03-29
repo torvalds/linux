@@ -3203,7 +3203,7 @@ static void rtw89_core_update_rx_freq_from_ie(struct rtw89_dev *rtwdev,
 	u8 *variable;
 	int chan;
 
-	if (!rtwdev->chip->rx_freq_frome_ie)
+	if (!rtwdev->chip->rx_freq_from_ie)
 		return;
 
 	if (!rtwdev->scanning)

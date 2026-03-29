@@ -4546,7 +4546,7 @@ struct rtw89_chip_info {
 	bool support_noise;
 	bool ul_tb_waveform_ctrl;
 	bool ul_tb_pwr_diff;
-	bool rx_freq_frome_ie;
+	bool rx_freq_from_ie;
 	bool hw_sec_hdr;
 	bool hw_mgmt_tx_encrypt;
 	bool hw_tkip_crypto;
