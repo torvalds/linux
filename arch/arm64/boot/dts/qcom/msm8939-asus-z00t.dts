@@ -154,6 +154,9 @@
 		interrupts-extended = <&tlmm 113 IRQ_TYPE_EDGE_FALLING>;
 		proximity-near-level = <30>;
 
+		vdd-supply = <&pm8916_l8>;
+		vio-supply = <&pm8916_l6>;
+
 		pinctrl-0 = <&light_int_default>;
 		pinctrl-names = "default";
 	};
