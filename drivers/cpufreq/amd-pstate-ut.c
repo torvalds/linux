@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/cleanup.h>
 
@@ -41,6 +42,7 @@ static char *test_list;
 module_param(test_list, charp, 0444);
 MODULE_PARM_DESC(test_list,
 	"Comma-delimited list of tests to run (empty means run all tests)");
+DEFINE_FREE(cleanup_page, void *, if (_T) free_page((unsigned long)_T))
 
 struct amd_pstate_ut_struct {
 	const char *name;
@@ -54,6 +56,7 @@ static int amd_pstate_ut_acpi_cpc_valid(u32 index);
 static int amd_pstate_ut_check_enabled(u32 index);
 static int amd_pstate_ut_check_perf(u32 index);
 static int amd_pstate_ut_check_freq(u32 index);
+static int amd_pstate_ut_epp(u32 index);
 static int amd_pstate_ut_check_driver(u32 index);
 static int amd_pstate_ut_check_freq_attrs(u32 index);
 
@@ -62,6 +65,7 @@ static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_check_enabled",     amd_pstate_ut_check_enabled    },
 	{"amd_pstate_ut_check_perf",        amd_pstate_ut_check_perf       },
 	{"amd_pstate_ut_check_freq",        amd_pstate_ut_check_freq       },
+	{"amd_pstate_ut_epp",               amd_pstate_ut_epp              },
 	{"amd_pstate_ut_check_driver",      amd_pstate_ut_check_driver     },
 	{"amd_pstate_ut_check_freq_attrs",  amd_pstate_ut_check_freq_attrs },
 };
@@ -266,6 +270,111 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 	pr_debug("->setting mode to %s\n", mode_str);
 
 	return amd_pstate_update_status(mode_str, strlen(mode_str));
+}
+
+static int amd_pstate_ut_epp(u32 index)
+{
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
+	char *buf __free(cleanup_page) = NULL;
+	static const char * const epp_strings[] = {
+		"performance",
+		"balance_performance",
+		"balance_power",
+		"power",
+	};
+	struct amd_cpudata *cpudata;
+	enum amd_pstate_mode orig_mode;
+	bool orig_dynamic_epp;
+	int ret, cpu = 0;
+	int i;
+	u16 epp;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return -ENODEV;
+
+	cpudata = policy->driver_data;
+	orig_mode = amd_pstate_get_status();
+	orig_dynamic_epp = cpudata->dynamic_epp;
+
+	/* disable dynamic EPP before running test */
+	if (cpudata->dynamic_epp) {
+		pr_debug("Dynamic EPP is enabled, disabling it\n");
+		amd_pstate_clear_dynamic_epp(policy);
+	}
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = amd_pstate_set_mode(AMD_PSTATE_ACTIVE);
+	if (ret)
+		goto out;
+
+	for (epp = 0; epp <= U8_MAX; epp++) {
+		u8 val;
+
+		/* write all EPP values */
+		memset(buf, 0, PAGE_SIZE);
+		snprintf(buf, PAGE_SIZE, "%d", epp);
+		ret = store_energy_performance_preference(policy, buf, strlen(buf));
+		if (ret < 0)
+			goto out;
+
+		/* check if the EPP value reads back correctly for raw numbers */
+		memset(buf, 0, PAGE_SIZE);
+		ret = show_energy_performance_preference(policy, buf);
+		if (ret < 0)
+			goto out;
+		strreplace(buf, '\n', '\0');
+		ret = kstrtou8(buf, 0, &val);
+		if (!ret && epp != val) {
+			pr_err("Raw EPP value mismatch: %d != %d\n", epp, val);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(epp_strings); i++) {
+		memset(buf, 0, PAGE_SIZE);
+		snprintf(buf, PAGE_SIZE, "%s", epp_strings[i]);
+		ret = store_energy_performance_preference(policy, buf, strlen(buf));
+		if (ret < 0)
+			goto out;
+
+		memset(buf, 0, PAGE_SIZE);
+		ret = show_energy_performance_preference(policy, buf);
+		if (ret < 0)
+			goto out;
+		strreplace(buf, '\n', '\0');
+
+		if (strcmp(buf, epp_strings[i])) {
+			pr_err("String EPP value mismatch: %s != %s\n", buf, epp_strings[i]);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	ret = 0;
+
+out:
+	if (orig_dynamic_epp) {
+		int ret2;
+
+		ret2 = amd_pstate_set_mode(AMD_PSTATE_DISABLE);
+		if (!ret && ret2)
+			ret = ret2;
+	}
+
+	if (orig_mode != amd_pstate_get_status()) {
+		int ret2;
+
+		ret2 = amd_pstate_set_mode(orig_mode);
+		if (!ret && ret2)
+			ret = ret2;
+	}
+
+	return ret;
 }
 
 static int amd_pstate_ut_check_driver(u32 index)
