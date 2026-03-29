@@ -727,7 +727,7 @@ static irqreturn_t lance_dma_merr_int(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 
-	printk(KERN_ERR "%s: DMA error\n", dev->name);
+	pr_err_ratelimited("%s: DMA error\n", dev->name);
 	return IRQ_HANDLED;
 }
 
