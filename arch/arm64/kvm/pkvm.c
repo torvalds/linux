@@ -192,10 +192,16 @@ int pkvm_create_hyp_vm(struct kvm *kvm)
 {
 	int ret = 0;
 
+	/*
+	 * Synchronise with kvm_arch_prepare_memory_region(), as we
+	 * prevent memslot modifications on a pVM that has been run.
+	 */
+	mutex_lock(&kvm->slots_lock);
 	mutex_lock(&kvm->arch.config_lock);
 	if (!pkvm_hyp_vm_is_created(kvm))
 		ret = __pkvm_create_hyp_vm(kvm);
 	mutex_unlock(&kvm->arch.config_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	return ret;
 }
