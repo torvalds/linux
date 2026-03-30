@@ -285,7 +285,5 @@ enum sec_cap_table_type {
 
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
-int sec_register_to_crypto(struct hisi_qm *qm);
-void sec_unregister_from_crypto(struct hisi_qm *qm);
 u64 sec_get_alg_bitmap(struct hisi_qm *qm, u32 high, u32 low);
 #endif

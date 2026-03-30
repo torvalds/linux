@@ -472,6 +472,8 @@ static struct qm_typical_qos_table shaper_cbs_s[] = {
 
 static void qm_irqs_unregister(struct hisi_qm *qm);
 static int qm_reset_device(struct hisi_qm *qm);
+static void hisi_qm_stop_qp(struct hisi_qp *qp);
+
 int hisi_qm_q_num_set(const char *val, const struct kernel_param *kp,
 		      unsigned int device)
 {
@@ -2262,7 +2264,7 @@ static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
  * After this function, qp can receive request from user. Return 0 if
  * successful, negative error code if failed.
  */
-int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
+static int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 {
 	struct hisi_qm *qm = qp->qm;
 	int ret;
@@ -2273,7 +2275,6 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 
 /**
  * qp_stop_fail_cb() - call request cb.
@@ -2418,13 +2419,12 @@ static void qm_stop_qp_nolock(struct hisi_qp *qp)
  *
  * This function is reverse of hisi_qm_start_qp.
  */
-void hisi_qm_stop_qp(struct hisi_qp *qp)
+static void hisi_qm_stop_qp(struct hisi_qp *qp)
 {
 	down_write(&qp->qm->qps_lock);
 	qm_stop_qp_nolock(qp);
 	up_write(&qp->qm->qps_lock);
 }
-EXPORT_SYMBOL_GPL(hisi_qm_stop_qp);
 
 /**
  * hisi_qp_send() - Queue up a task in the hardware queue.
