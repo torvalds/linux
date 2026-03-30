@@ -1447,6 +1447,20 @@ static void rtw8922d_set_rx_gain_normal(struct rtw89_dev *rtwdev,
 	rtw8922d_set_rx_gain_normal_ofdm(rtwdev, chan, path, phy_idx);
 }
 
+static void rtw8922d_calc_rx_gain_normal(struct rtw89_dev *rtwdev,
+					 const struct rtw89_chan *chan,
+					 enum rtw89_rf_path path,
+					 enum rtw89_phy_idx phy_idx,
+					 struct rtw89_phy_calc_efuse_gain *calc)
+{
+	rtw8922d_calc_rx_gain_normal_ofdm(rtwdev, chan, path, phy_idx, calc);
+
+	if (chan->band_type != RTW89_BAND_2G)
+		return;
+
+	rtw8922d_calc_rx_gain_normal_cck(rtwdev, chan, path, phy_idx, calc);
+}
+
 static void rtw8922d_set_cck_parameters(struct rtw89_dev *rtwdev,
 					const struct rtw89_chan *chan,
 					enum rtw89_phy_idx phy_idx)
@@ -2741,6 +2755,336 @@ static void rtw8922d_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 {
 	/* Feature move to firmware */
 }
+
+static void rtw8922d_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
+					 struct rtw89_rx_phy_ppdu *phy_ppdu,
+					 struct ieee80211_rx_status *status)
+{
+	u8 chan_idx = phy_ppdu->chan_idx;
+	enum nl80211_band band;
+	u8 ch;
+
+	if (chan_idx == 0)
+		return;
+
+	rtw89_decode_chan_idx(rtwdev, chan_idx, &ch, &band);
+	status->freq = ieee80211_channel_to_frequency(ch, band);
+	status->band = band;
+}
+
+static void rtw8922d_query_ppdu(struct rtw89_dev *rtwdev,
+				struct rtw89_rx_phy_ppdu *phy_ppdu,
+				struct ieee80211_rx_status *status)
+{
+	u8 path;
+	u8 *rx_power = phy_ppdu->rssi;
+
+	if (!status->signal)
+		status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A],
+							   rx_power[RF_PATH_B]));
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		status->chains |= BIT(path);
+		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
+	}
+	if (phy_ppdu->valid)
+		rtw8922d_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
+}
+
+static void rtw8922d_convert_rpl_to_rssi(struct rtw89_dev *rtwdev,
+					 struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	/* Mapping to BW: 5, 10, 20, 40, 80, 160, 80_80 */
+	static const u8 bw_compensate[] = {0, 0, 0, 6, 12, 18, 0};
+	u8 *rssi = phy_ppdu->rssi;
+	u8 compensate = 0;
+	u8 i;
+
+	if (phy_ppdu->bw_idx < ARRAY_SIZE(bw_compensate))
+		compensate = bw_compensate[phy_ppdu->bw_idx];
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		if (!(phy_ppdu->rx_path_en & BIT(i))) {
+			rssi[i] = 0;
+			phy_ppdu->rpl_path[i] = 0;
+			phy_ppdu->rpl_fd[i] = 0;
+		}
+
+		if (phy_ppdu->ie != RTW89_CCK_PKT && rssi[i])
+			rssi[i] += compensate;
+
+		phy_ppdu->rpl_path[i] = rssi[i];
+	}
+}
+
+static void rtw8922d_phy_rpt_to_rssi(struct rtw89_dev *rtwdev,
+				     struct rtw89_rx_desc_info *desc_info,
+				     struct ieee80211_rx_status *rx_status)
+{
+	if (desc_info->rssi <= 0x1 || (desc_info->rssi >> 2) > MAX_RSSI)
+		return;
+
+	rx_status->signal = (desc_info->rssi >> 2) - MAX_RSSI;
+}
+
+static int rtw8922d_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	return 0;
+}
+
+static int rtw8922d_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	return 0;
+}
+
+static const struct rtw89_chanctx_listener rtw8922d_chanctx_listener = {
+	.callbacks[RTW89_CHANCTX_CALLBACK_TAS] = rtw89_tas_chanctx_cb,
+};
+
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support rtw_wowlan_stub_8922d = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT |
+		 WIPHY_WOWLAN_NET_DETECT,
+	.n_patterns = RTW89_MAX_PATTERN_NUM,
+	.pattern_max_len = RTW89_MAX_PATTERN_SIZE,
+	.pattern_min_len = 1,
+	.max_nd_match_sets = RTW89_SCANOFLD_MAX_SSID,
+};
+#endif
+
+static const struct rtw89_chip_ops rtw8922d_chip_ops = {
+	.enable_bb_rf		= rtw8922d_mac_enable_bb_rf,
+	.disable_bb_rf		= rtw8922d_mac_disable_bb_rf,
+	.bb_preinit		= rtw8922d_bb_preinit,
+	.bb_postinit		= rtw8922d_bb_postinit,
+	.bb_reset		= rtw8922d_bb_reset,
+	.bb_sethw		= rtw8922d_bb_sethw,
+	.read_rf		= rtw89_phy_read_rf_v3,
+	.write_rf		= rtw89_phy_write_rf_v3,
+	.set_channel		= rtw8922d_set_channel,
+	.set_channel_help	= rtw8922d_set_channel_help,
+	.read_efuse		= rtw8922d_read_efuse,
+	.read_phycap		= rtw8922d_read_phycap,
+	.fem_setup		= NULL,
+	.rfe_gpio		= NULL,
+	.rfk_hw_init		= rtw8922d_rfk_hw_init,
+	.rfk_init		= rtw8922d_rfk_init,
+	.rfk_init_late		= rtw8922d_rfk_init_late,
+	.rfk_channel		= rtw8922d_rfk_channel,
+	.rfk_band_changed	= rtw8922d_rfk_band_changed,
+	.rfk_scan		= rtw8922d_rfk_scan,
+	.rfk_track		= rtw8922d_rfk_track,
+	.power_trim		= rtw8922d_power_trim,
+	.set_txpwr		= rtw8922d_set_txpwr,
+	.set_txpwr_ctrl		= rtw8922d_set_txpwr_ctrl,
+	.init_txpwr_unit	= NULL,
+	.get_thermal		= rtw8922d_get_thermal,
+	.chan_to_rf18_val	= rtw8922d_chan_to_rf18_val,
+	.ctrl_btg_bt_rx		= rtw8922d_set_gbt_bt_rx_sel,
+	.query_ppdu		= rtw8922d_query_ppdu,
+	.convert_rpl_to_rssi	= rtw8922d_convert_rpl_to_rssi,
+	.phy_rpt_to_rssi	= rtw8922d_phy_rpt_to_rssi,
+	.ctrl_nbtg_bt_tx	= rtw8922d_ctrl_nbtg_bt_tx,
+	.cfg_txrx_path		= rtw8922d_bb_cfg_txrx_path,
+	.set_txpwr_ul_tb_offset	= NULL,
+	.digital_pwr_comp	= rtw8922d_digital_pwr_comp,
+	.calc_rx_gain_normal	= rtw8922d_calc_rx_gain_normal,
+	.pwr_on_func		= rtw8922d_pwr_on_func,
+	.pwr_off_func		= rtw8922d_pwr_off_func,
+	.query_rxdesc		= rtw89_core_query_rxdesc_v3,
+	.fill_txdesc		= rtw89_core_fill_txdesc_v3,
+	.fill_txdesc_fwcmd	= rtw89_core_fill_txdesc_fwcmd_v2,
+	.get_ch_dma		= {rtw89_core_get_ch_dma_v1,
+				   NULL,
+				   NULL,},
+	.cfg_ctrl_path		= rtw89_mac_cfg_ctrl_path_v2,
+	.mac_cfg_gnt		= rtw89_mac_cfg_gnt_v3,
+	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v2,
+	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v2,
+	.h2c_dctl_sec_cam	= rtw89_fw_h2c_dctl_sec_cam_v3,
+	.h2c_default_cmac_tbl	= rtw89_fw_h2c_default_cmac_tbl_be,
+	.h2c_assoc_cmac_tbl	= rtw89_fw_h2c_assoc_cmac_tbl_be,
+	.h2c_ampdu_cmac_tbl	= rtw89_fw_h2c_ampdu_cmac_tbl_be,
+	.h2c_txtime_cmac_tbl	= rtw89_fw_h2c_txtime_cmac_tbl_be,
+	.h2c_punctured_cmac_tbl	= rtw89_fw_h2c_punctured_cmac_tbl_be,
+	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v3,
+	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
+	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
+	.h2c_wow_cam_update	= rtw89_fw_h2c_wow_cam_update_v1,
+
+	.btc_set_rfe		= rtw8922d_btc_set_rfe,
+	.btc_init_cfg		= rtw8922d_btc_init_cfg,
+	.btc_set_wl_pri		= NULL,
+	.btc_set_wl_txpwr_ctrl	= rtw8922d_btc_set_wl_txpwr_ctrl,
+	.btc_get_bt_rssi	= rtw8922d_btc_get_bt_rssi,
+	.btc_update_bt_cnt	= rtw8922d_btc_update_bt_cnt,
+	.btc_wl_s1_standby	= rtw8922d_btc_wl_s1_standby,
+	.btc_set_wl_rx_gain	= rtw8922d_btc_set_wl_rx_gain,
+	.btc_set_policy		= rtw89_btc_set_policy_v1,
+};
+
+const struct rtw89_chip_info rtw8922d_chip_info = {
+	.chip_id		= RTL8922D,
+	.chip_gen		= RTW89_CHIP_BE,
+	.ops			= &rtw8922d_chip_ops,
+	.mac_def		= &rtw89_mac_gen_be,
+	.phy_def		= &rtw89_phy_gen_be_v1,
+	.fw_def			= {
+		.fw_basename	= RTW8922D_FW_BASENAME,
+		.fw_format_max	= RTW8922D_FW_FORMAT_MAX,
+		.fw_b_aid	= RTL8922D_AID7102,
+	},
+	.try_ce_fw		= false,
+	.bbmcu_nr		= 0,
+	.needed_fw_elms		= RTW89_BE_GEN_DEF_NEEDED_FW_ELEMENTS_V1,
+	.fw_blacklist		= &rtw89_fw_blacklist_default,
+	.fifo_size		= 393216,
+	.small_fifo_size	= false,
+	.dle_scc_rsvd_size	= 0,
+	.max_amsdu_limit	= 11000,
+	.max_vht_mpdu_cap	= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_7991,
+	.max_eht_mpdu_cap	= IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991,
+	.max_tx_agg_num		= 128,
+	.max_rx_agg_num		= 256,
+	.dis_2g_40m_ul_ofdma	= false,
+	.rsvd_ple_ofst		= 0x5f800,
+	.hfc_param_ini		= {rtw8922d_hfc_param_ini_pcie, NULL, NULL},
+	.dle_mem		= {rtw8922d_dle_mem_pcie, NULL, NULL, NULL},
+	.wde_qempty_acq_grpnum	= 8,
+	.wde_qempty_mgq_grpsel	= 8,
+	.rf_base_addr		= {0x3e000, 0x3f000},
+	.thermal_th		= {0xac, 0xad},
+	.pwr_on_seq		= NULL,
+	.pwr_off_seq		= NULL,
+	.bb_table		= NULL,
+	.bb_gain_table		= NULL,
+	.rf_table		= {},
+	.nctl_table		= NULL,
+	.nctl_post_table	= &rtw8922d_nctl_post_defs_tbl,
+	.dflt_parms		= NULL, /* load parm from fw */
+	.rfe_parms_conf		= NULL, /* load parm from fw */
+	.chanctx_listener	= &rtw8922d_chanctx_listener,
+	.txpwr_factor_bb	= 3,
+	.txpwr_factor_rf	= 2,
+	.txpwr_factor_mac	= 1,
+	.dig_table		= NULL,
+	.dig_regs		= &rtw8922d_dig_regs,
+	.tssi_dbw_table		= NULL,
+	.support_macid_num	= 64,
+	.support_link_num	= 2,
+	.support_chanctx_num	= 2,
+	.support_rnr		= true,
+	.support_bands		= BIT(NL80211_BAND_2GHZ) |
+				  BIT(NL80211_BAND_5GHZ) |
+				  BIT(NL80211_BAND_6GHZ),
+	.support_bandwidths	= BIT(NL80211_CHAN_WIDTH_20) |
+				  BIT(NL80211_CHAN_WIDTH_40) |
+				  BIT(NL80211_CHAN_WIDTH_80) |
+				  BIT(NL80211_CHAN_WIDTH_160),
+	.support_unii4		= true,
+	.support_ant_gain	= false,
+	.support_tas		= false,
+	.support_sar_by_ant	= true,
+	.support_noise		= false,
+	.ul_tb_waveform_ctrl	= false,
+	.ul_tb_pwr_diff		= false,
+	.rx_freq_frome_ie	= false,
+	.hw_sec_hdr		= true,
+	.hw_mgmt_tx_encrypt	= true,
+	.hw_tkip_crypto		= true,
+	.hw_mlo_bmc_crypto	= true,
+	.rf_path_num		= 2,
+	.tx_nss			= 2,
+	.rx_nss			= 2,
+	.acam_num		= 128,
+	.bcam_num		= 16,
+	.scam_num		= 32,
+	.bacam_num		= 24,
+	.bacam_dynamic_num	= 8,
+	.bacam_ver		= RTW89_BACAM_V1,
+	.addrcam_ver		= 1,
+	.ppdu_max_usr		= 16,
+	.sec_ctrl_efuse_size	= 4,
+	.physical_efuse_size	= 0x1300,
+	.logical_efuse_size	= 0x70000,
+	.limit_efuse_size	= 0x40000,
+	.dav_phy_efuse_size	= 0,
+	.dav_log_efuse_size	= 0,
+	.efuse_blocks		= rtw8922d_efuse_blocks,
+	.phycap_addr		= 0x1700,
+	.phycap_size		= 0x60,
+	.para_ver		= 0x3ff,
+	.wlcx_desired		= 0x09150000,
+	.scbd			= 0x1,
+	.mailbox		= 0x1,
+
+	.afh_guard_ch		= 6,
+	.wl_rssi_thres		= rtw89_btc_8922d_wl_rssi_thres,
+	.bt_rssi_thres		= rtw89_btc_8922d_bt_rssi_thres,
+	.rssi_tol		= 2,
+	.mon_reg_num		= ARRAY_SIZE(rtw89_btc_8922d_mon_reg),
+	.mon_reg		= rtw89_btc_8922d_mon_reg,
+	.rf_para_ulink_v9	= rtw89_btc_8922d_rf_ul_v9,
+	.rf_para_dlink_v9	= rtw89_btc_8922d_rf_dl_v9,
+	.rf_para_ulink_num_v9	= ARRAY_SIZE(rtw89_btc_8922d_rf_ul_v9),
+	.rf_para_dlink_num_v9	= ARRAY_SIZE(rtw89_btc_8922d_rf_dl_v9),
+	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
+				  BIT(RTW89_PS_MODE_CLK_GATED) |
+				  BIT(RTW89_PS_MODE_PWR_GATED),
+	.low_power_hci_modes	= 0,
+	.h2c_cctl_func_id	= H2C_FUNC_MAC_CCTLINFO_UD_G7,
+	.hci_func_en_addr	= R_BE_HCI_FUNC_EN,
+	.h2c_desc_size		= sizeof(struct rtw89_rxdesc_short_v3),
+	.txwd_body_size		= sizeof(struct rtw89_txwd_body_v2),
+	.txwd_info_size		= sizeof(struct rtw89_txwd_info_v2),
+	.h2c_ctrl_reg		= R_BE_H2CREG_CTRL,
+	.h2c_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
+	.h2c_regs		= rtw8922d_h2c_regs,
+	.c2h_ctrl_reg		= R_BE_C2HREG_CTRL,
+	.c2h_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
+	.c2h_regs		= rtw8922d_c2h_regs,
+	.page_regs		= &rtw8922d_page_regs,
+	.wow_reason_reg		= rtw8922d_wow_wakeup_regs,
+	.cfo_src_fd		= true,
+	.cfo_hw_comp            = true,
+	.dcfo_comp		= NULL,
+	.dcfo_comp_sft		= 0,
+	.nhm_report		= NULL,
+	.nhm_th			= NULL,
+	.imr_info		= NULL,
+	.imr_dmac_table		= &rtw8922d_imr_dmac_table,
+	.imr_cmac_table		= &rtw8922d_imr_cmac_table,
+	.rrsr_cfgs		= &rtw8922d_rrsr_cfgs,
+	.bss_clr_vld		= {R_BSS_CLR_VLD_BE4, B_BSS_CLR_VLD_BE4},
+	.bss_clr_map_reg	= R_BSS_CLR_MAP_BE4,
+	.rfkill_init		= &rtw8922d_rfkill_regs,
+	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
+	.btc_sb			= {{{R_BE_SCOREBOARD_0, R_BE_SCOREBOARD_0_BT_DATA},
+				    {R_BE_SCOREBOARD_1, R_BE_SCOREBOARD_1_BT_DATA}}},
+	.dma_ch_mask		= BIT(RTW89_DMA_ACH1) | BIT(RTW89_DMA_ACH3) |
+				  BIT(RTW89_DMA_ACH5) | BIT(RTW89_DMA_ACH7) |
+				  BIT(RTW89_DMA_B0HI) | BIT(RTW89_DMA_B1HI),
+	.edcca_regs		= &rtw8922d_edcca_regs,
+#ifdef CONFIG_PM
+	.wowlan_stub		= &rtw_wowlan_stub_8922d,
+#endif
+	.xtal_info		= NULL,
+	.default_quirks		= BIT(RTW89_QUIRK_THERMAL_PROT_120C),
+};
+EXPORT_SYMBOL(rtw8922d_chip_info);
+
+static const struct rtw89_fw_def rtw8922de_vs_fw_def = {
+	.fw_basename		= RTW8922DS_FW_BASENAME,
+	.fw_format_max		= RTW8922DS_FW_FORMAT_MAX,
+	.fw_b_aid		= RTL8922D_AID7060,
+};
+
+const struct rtw89_chip_variant rtw8922de_vs_variant = {
+	.no_mcs_12_13 = true,
+	.fw_min_ver_code = RTW89_FW_VER_CODE(0, 0, 0, 0),
+	.fw_def_override = &rtw8922de_vs_fw_def,
+};
+EXPORT_SYMBOL(rtw8922de_vs_variant);
 
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
 MODULE_FIRMWARE(RTW8922DS_MODULE_FIRMWARE);

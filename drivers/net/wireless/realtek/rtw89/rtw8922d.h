@@ -77,4 +77,7 @@ struct rtw8922d_efuse {
 	struct rtw8922d_rx_gain_6g rx_gain_6g_b_2;
 } __packed;
 
+extern const struct rtw89_chip_info rtw8922d_chip_info;
+extern const struct rtw89_chip_variant rtw8922de_vs_variant;
+
 #endif
