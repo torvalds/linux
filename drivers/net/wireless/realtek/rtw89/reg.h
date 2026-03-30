@@ -10676,6 +10676,12 @@
 #define B_KTBL1_TBL0 BIT(3)
 #define B_KTBL1_TBL1 BIT(5)
 
+#define R_TC_EN_BE4 0x3c200
+#define B_TC_EN_BE4 BIT(0)
+#define B_TC_TRIG_BE4 BIT(1)
+#define R_TC_VAL_BE4 0x3c208
+#define B_TC_VAL_BE4 GENMASK(7, 0)
+
 /* WiFi CPU local domain */
 #define R_AX_WDT_CTRL 0x0040
 #define B_AX_WDT_EN BIT(31)

@@ -9,6 +9,12 @@
 #include "rtw8922d.h"
 #include "rtw8922d_rfk.h"
 
+static const struct rtw89_reg5_def rtw8922d_nctl_post_defs[] = {
+	RTW89_DECL_RFK_WM(0x20c7c, 0x00e00000, 0x1),
+};
+
+RTW89_DECLARE_RFK_TBL(rtw8922d_nctl_post_defs);
+
 static void rtw8922d_tssi_cont_en(struct rtw89_dev *rtwdev, bool en,
 				  enum rtw89_rf_path path, u8 phy_idx)
 {
@@ -237,6 +243,24 @@ void rtw8922d_rfk_mlo_ctrl(struct rtw89_dev *rtwdev)
 
 set_rfk_reload:
 	rtw8922d_chlk_reload(rtwdev);
+}
+
+static void rtw8922d_x4k_setting(struct rtw89_dev *rtwdev)
+{
+	u32 val;
+
+	val = rtw89_read_rf(rtwdev, RF_PATH_A, 0xB9, 0xF000);
+	rtw89_write_rf(rtwdev, RF_PATH_A, 0xB9, 0xF000, val);
+	val = rtw89_read_rf(rtwdev, RF_PATH_B, 0xB9, 0xF000);
+	rtw89_write_rf(rtwdev, RF_PATH_B, 0xB9, 0xF000, val);
+
+	rtw89_write_rf(rtwdev, RF_PATH_A, 0xC2, BIT(19), 0x1);
+	rtw89_write_rf(rtwdev, RF_PATH_B, 0xC2, BIT(19), 0x1);
+}
+
+void rtw8922d_rfk_hw_init(struct rtw89_dev *rtwdev)
+{
+	rtw8922d_x4k_setting(rtwdev);
 }
 
 void rtw8922d_pre_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
