@@ -28,6 +28,13 @@
 
 static struct rv_monitor rv_this;
 
+/*
+ * Type for the target id, default to int but can be overridden.
+ */
+#ifndef da_id_type
+#define da_id_type int
+#endif
+
 static void react(enum states curr_state, enum events event)
 {
 	rv_react(&rv_this,
@@ -96,90 +103,6 @@ static inline bool da_monitor_handling_event(struct da_monitor *da_mon)
 
 	return 1;
 }
-
-#if RV_MON_TYPE == RV_MON_GLOBAL || RV_MON_TYPE == RV_MON_PER_CPU
-/*
- * Event handler for implicit monitors. Implicit monitor is the one which the
- * handler does not need to specify which da_monitor to manipulate. Examples
- * of implicit monitor are the per_cpu or the global ones.
- *
- * Retry in case there is a race between getting and setting the next state,
- * warn and reset the monitor if it runs out of retries. The monitor should be
- * able to handle various orders.
- */
-
-static inline bool da_event(struct da_monitor *da_mon, enum events event)
-{
-	enum states curr_state, next_state;
-
-	curr_state = READ_ONCE(da_mon->curr_state);
-	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {
-		next_state = model_get_next_state(curr_state, event);
-		if (next_state == INVALID_STATE) {
-			react(curr_state, event);
-			CONCATENATE(trace_error_, MONITOR_NAME)(
-				    model_get_state_name(curr_state),
-				    model_get_event_name(event));
-			return false;
-		}
-		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {
-			CONCATENATE(trace_event_, MONITOR_NAME)(
-				    model_get_state_name(curr_state),
-				    model_get_event_name(event),
-				    model_get_state_name(next_state),
-				    model_is_final_state(next_state));
-			return true;
-		}
-	}
-
-	trace_rv_retries_error(__stringify(MONITOR_NAME), model_get_event_name(event));
-	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)
-		" retries reached for event %s, resetting monitor %s",
-		model_get_event_name(event), __stringify(MONITOR_NAME));
-	return false;
-}
-
-#elif RV_MON_TYPE == RV_MON_PER_TASK
-/*
- * Event handler for per_task monitors.
- *
- * Retry in case there is a race between getting and setting the next state,
- * warn and reset the monitor if it runs out of retries. The monitor should be
- * able to handle various orders.
- */
-
-static inline bool da_event(struct da_monitor *da_mon, struct task_struct *tsk,
-			    enum events event)
-{
-	enum states curr_state, next_state;
-
-	curr_state = READ_ONCE(da_mon->curr_state);
-	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {
-		next_state = model_get_next_state(curr_state, event);
-		if (next_state == INVALID_STATE) {
-			react(curr_state, event);
-			CONCATENATE(trace_error_, MONITOR_NAME)(tsk->pid,
-				    model_get_state_name(curr_state),
-				    model_get_event_name(event));
-			return false;
-		}
-		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {
-			CONCATENATE(trace_event_, MONITOR_NAME)(tsk->pid,
-				    model_get_state_name(curr_state),
-				    model_get_event_name(event),
-				    model_get_state_name(next_state),
-				    model_is_final_state(next_state));
-			return true;
-		}
-	}
-
-	trace_rv_retries_error(__stringify(MONITOR_NAME), model_get_event_name(event));
-	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)
-		" retries reached for event %s, resetting monitor %s",
-		model_get_event_name(event), __stringify(MONITOR_NAME));
-	return false;
-}
-#endif /* RV_MON_TYPE */
 
 #if RV_MON_TYPE == RV_MON_GLOBAL
 /*
@@ -335,33 +258,140 @@ static inline void da_monitor_destroy(void)
 
 #if RV_MON_TYPE == RV_MON_GLOBAL || RV_MON_TYPE == RV_MON_PER_CPU
 /*
+ * Trace events for implicit monitors. Implicit monitor is the one which the
+ * handler does not need to specify which da_monitor to manipulate. Examples
+ * of implicit monitor are the per_cpu or the global ones.
+ */
+
+static inline void da_trace_event(struct da_monitor *da_mon,
+				  char *curr_state, char *event,
+				  char *next_state, bool is_final,
+				  da_id_type id)
+{
+	CONCATENATE(trace_event_, MONITOR_NAME)(curr_state, event, next_state,
+						is_final);
+}
+
+static inline void da_trace_error(struct da_monitor *da_mon,
+				  char *curr_state, char *event,
+				  da_id_type id)
+{
+	CONCATENATE(trace_error_, MONITOR_NAME)(curr_state, event);
+}
+
+#elif RV_MON_TYPE == RV_MON_PER_TASK
+/*
+ * Trace events for per_task monitors, report the PID of the task.
+ */
+
+static inline void da_trace_event(struct da_monitor *da_mon,
+				  char *curr_state, char *event,
+				  char *next_state, bool is_final,
+				  da_id_type id)
+{
+	CONCATENATE(trace_event_, MONITOR_NAME)(id, curr_state, event,
+						next_state, is_final);
+}
+
+static inline void da_trace_error(struct da_monitor *da_mon,
+				  char *curr_state, char *event,
+				  da_id_type id)
+{
+	CONCATENATE(trace_error_, MONITOR_NAME)(id, curr_state, event);
+}
+#endif /* RV_MON_TYPE */
+
+/*
+ * da_event - handle an event for the da_mon
+ *
+ * This function is valid for both implicit and id monitors.
+ * Retry in case there is a race between getting and setting the next state,
+ * warn and reset the monitor if it runs out of retries. The monitor should be
+ * able to handle various orders.
+ */
+static inline bool da_event(struct da_monitor *da_mon, enum events event, da_id_type id)
+{
+	enum states curr_state, next_state;
+
+	curr_state = READ_ONCE(da_mon->curr_state);
+	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {
+		next_state = model_get_next_state(curr_state, event);
+		if (next_state == INVALID_STATE) {
+			react(curr_state, event);
+			da_trace_error(da_mon, model_get_state_name(curr_state),
+				       model_get_event_name(event), id);
+			return false;
+		}
+		if (likely(try_cmpxchg(&da_mon->curr_state, &curr_state, next_state))) {
+			da_trace_event(da_mon, model_get_state_name(curr_state),
+				       model_get_event_name(event),
+				       model_get_state_name(next_state),
+				       model_is_final_state(next_state), id);
+			return true;
+		}
+	}
+
+	trace_rv_retries_error(__stringify(MONITOR_NAME), model_get_event_name(event));
+	pr_warn("rv: " __stringify(MAX_DA_RETRY_RACING_EVENTS)
+		" retries reached for event %s, resetting monitor %s",
+		model_get_event_name(event), __stringify(MONITOR_NAME));
+	return false;
+}
+
+static inline void __da_handle_event_common(struct da_monitor *da_mon,
+					    enum events event, da_id_type id)
+{
+	if (!da_event(da_mon, event, id))
+		da_monitor_reset(da_mon);
+}
+
+static inline void __da_handle_event(struct da_monitor *da_mon,
+				     enum events event, da_id_type id)
+{
+	if (da_monitor_handling_event(da_mon))
+		__da_handle_event_common(da_mon, event, id);
+}
+
+static inline bool __da_handle_start_event(struct da_monitor *da_mon,
+					   enum events event, da_id_type id)
+{
+	if (!da_monitor_enabled())
+		return 0;
+	if (unlikely(!da_monitoring(da_mon))) {
+		da_monitor_start(da_mon);
+		return 0;
+	}
+
+	__da_handle_event_common(da_mon, event, id);
+
+	return 1;
+}
+
+static inline bool __da_handle_start_run_event(struct da_monitor *da_mon,
+					       enum events event, da_id_type id)
+{
+	if (!da_monitor_enabled())
+		return 0;
+	if (unlikely(!da_monitoring(da_mon)))
+		da_monitor_start(da_mon);
+
+	__da_handle_event_common(da_mon, event, id);
+
+	return 1;
+}
+
+#if RV_MON_TYPE == RV_MON_GLOBAL || RV_MON_TYPE == RV_MON_PER_CPU
+/*
  * Handle event for implicit monitor: da_get_monitor() will figure out
  * the monitor.
  */
-
-static inline void __da_handle_event(struct da_monitor *da_mon,
-				     enum events event)
-{
-	bool retval;
-
-	retval = da_event(da_mon, event);
-	if (!retval)
-		da_monitor_reset(da_mon);
-}
 
 /*
  * da_handle_event - handle an event
  */
 static inline void da_handle_event(enum events event)
 {
-	struct da_monitor *da_mon = da_get_monitor();
-	bool retval;
-
-	retval = da_monitor_handling_event(da_mon);
-	if (!retval)
-		return;
-
-	__da_handle_event(da_mon, event);
+	__da_handle_event(da_get_monitor(), event, 0);
 }
 
 /*
@@ -376,21 +406,7 @@ static inline void da_handle_event(enum events event)
  */
 static inline bool da_handle_start_event(enum events event)
 {
-	struct da_monitor *da_mon;
-
-	if (!da_monitor_enabled())
-		return 0;
-
-	da_mon = da_get_monitor();
-
-	if (unlikely(!da_monitoring(da_mon))) {
-		da_monitor_start(da_mon);
-		return 0;
-	}
-
-	__da_handle_event(da_mon, event);
-
-	return 1;
+	return __da_handle_start_event(da_get_monitor(), event, 0);
 }
 
 /*
@@ -401,19 +417,7 @@ static inline bool da_handle_start_event(enum events event)
  */
 static inline bool da_handle_start_run_event(enum events event)
 {
-	struct da_monitor *da_mon;
-
-	if (!da_monitor_enabled())
-		return 0;
-
-	da_mon = da_get_monitor();
-
-	if (unlikely(!da_monitoring(da_mon)))
-		da_monitor_start(da_mon);
-
-	__da_handle_event(da_mon, event);
-
-	return 1;
+	return __da_handle_start_run_event(da_get_monitor(), event, 0);
 }
 
 #elif RV_MON_TYPE == RV_MON_PER_TASK
@@ -421,29 +425,12 @@ static inline bool da_handle_start_run_event(enum events event)
  * Handle event for per task.
  */
 
-static inline void __da_handle_event(struct da_monitor *da_mon,
-				     struct task_struct *tsk, enum events event)
-{
-	bool retval;
-
-	retval = da_event(da_mon, tsk, event);
-	if (!retval)
-		da_monitor_reset(da_mon);
-}
-
 /*
  * da_handle_event - handle an event
  */
 static inline void da_handle_event(struct task_struct *tsk, enum events event)
 {
-	struct da_monitor *da_mon = da_get_monitor(tsk);
-	bool retval;
-
-	retval = da_monitor_handling_event(da_mon);
-	if (!retval)
-		return;
-
-	__da_handle_event(da_mon, tsk, event);
+	__da_handle_event(da_get_monitor(tsk), event, tsk->pid);
 }
 
 /*
@@ -459,21 +446,7 @@ static inline void da_handle_event(struct task_struct *tsk, enum events event)
 static inline bool da_handle_start_event(struct task_struct *tsk,
 					 enum events event)
 {
-	struct da_monitor *da_mon;
-
-	if (!da_monitor_enabled())
-		return 0;
-
-	da_mon = da_get_monitor(tsk);
-
-	if (unlikely(!da_monitoring(da_mon))) {
-		da_monitor_start(da_mon);
-		return 0;
-	}
-
-	__da_handle_event(da_mon, tsk, event);
-
-	return 1;
+	return __da_handle_start_event(da_get_monitor(tsk), event, tsk->pid);
 }
 
 /*
@@ -485,19 +458,7 @@ static inline bool da_handle_start_event(struct task_struct *tsk,
 static inline bool da_handle_start_run_event(struct task_struct *tsk,
 					     enum events event)
 {
-	struct da_monitor *da_mon;
-
-	if (!da_monitor_enabled())
-		return 0;
-
-	da_mon = da_get_monitor(tsk);
-
-	if (unlikely(!da_monitoring(da_mon)))
-		da_monitor_start(da_mon);
-
-	__da_handle_event(da_mon, tsk, event);
-
-	return 1;
+	return __da_handle_start_run_event(da_get_monitor(tsk), event, tsk->pid);
 }
 #endif /* RV_MON_TYPE */
 
