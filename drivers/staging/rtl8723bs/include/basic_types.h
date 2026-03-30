@@ -7,7 +7,6 @@
 #ifndef __BASIC_TYPES_H__
 #define __BASIC_TYPES_H__
 
-
 #define SUCCESS	0
 #define FAIL	(-1)
 
