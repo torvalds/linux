@@ -54,6 +54,21 @@ static int bcm84881_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int bcm8489x_config_init(struct phy_device *phydev)
+{
+	__set_bit(PHY_INTERFACE_MODE_USXGMII, phydev->possible_interfaces);
+
+	if (phydev->interface != PHY_INTERFACE_MODE_USXGMII)
+		return -ENODEV;
+
+	/* MDIO_CTRL1_LPOWER is set at boot on the tested platform. Does not
+	 * recur on ifdown/ifup, cable events, or link-partner advertisement
+	 * changes; clear it once.
+	 */
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_CTRL1_LPOWER);
+}
+
 static int bcm84881_probe(struct phy_device *phydev)
 {
 	/* This driver requires PMAPMD and AN blocks */
@@ -201,6 +216,15 @@ static int bcm84881_read_status(struct phy_device *phydev)
 		return 0;
 	}
 
+	/* BCM84891/92 on USXGMII: the host interface mode doesn't change
+	 * with copper speed (USXGMII symbol replication; the MAC receives
+	 * the negotiated copper speed, not 10G, so no rate adaptation).
+	 * Skip 0x4011; phy_resolve_aneg_linkmode() above already set the
+	 * speed. Only bcm8489x_config_init() allows USXGMII.
+	 */
+	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII)
+		return genphy_c45_read_mdix(phydev);
+
 	/* Set the host link mode - we set the phy interface mode and
 	 * the speed according to this register so that downshift works.
 	 * We leave the duplex setting as per the resolution from the
@@ -256,6 +280,26 @@ static struct phy_driver bcm84881_drivers[] = {
 		.config_aneg	= bcm84881_config_aneg,
 		.aneg_done	= bcm84881_aneg_done,
 		.read_status	= bcm84881_read_status,
+	}, {
+		PHY_ID_MATCH_MODEL(0x35905080),
+		.name		= "Broadcom BCM84891",
+		.inband_caps	= bcm84881_inband_caps,
+		.config_init	= bcm8489x_config_init,
+		.probe		= bcm84881_probe,
+		.get_features	= bcm84881_get_features,
+		.config_aneg	= bcm84881_config_aneg,
+		.aneg_done	= bcm84881_aneg_done,
+		.read_status	= bcm84881_read_status,
+	}, {
+		PHY_ID_MATCH_MODEL(0x359050a0),
+		.name		= "Broadcom BCM84892",
+		.inband_caps	= bcm84881_inband_caps,
+		.config_init	= bcm8489x_config_init,
+		.probe		= bcm84881_probe,
+		.get_features	= bcm84881_get_features,
+		.config_aneg	= bcm84881_config_aneg,
+		.aneg_done	= bcm84881_aneg_done,
+		.read_status	= bcm84881_read_status,
 	},
 };
 
@@ -264,9 +308,11 @@ module_phy_driver(bcm84881_drivers);
 /* FIXME: module auto-loading for Clause 45 PHYs seems non-functional */
 static const struct mdio_device_id __maybe_unused bcm84881_tbl[] = {
 	{ 0xae025150, 0xfffffff0 },
+	{ PHY_ID_MATCH_MODEL(0x35905080) },
+	{ PHY_ID_MATCH_MODEL(0x359050a0) },
 	{ },
 };
 MODULE_AUTHOR("Russell King");
-MODULE_DESCRIPTION("Broadcom BCM84881 PHY driver");
+MODULE_DESCRIPTION("Broadcom BCM84881/BCM84891/BCM84892 PHY driver");
 MODULE_DEVICE_TABLE(mdio, bcm84881_tbl);
 MODULE_LICENSE("GPL");
