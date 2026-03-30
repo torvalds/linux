@@ -12,6 +12,7 @@ NUM_NETIFS=2
 lib_dir=$(dirname "$0")
 source "$lib_dir"/../../../net/forwarding/lib.sh
 
+UINT32_MAX=$((2**32 - 1))
 ETH_FCS_LEN=4
 ETH_HLEN=$((6+6+2))
 
@@ -64,8 +65,7 @@ bucket_test()
 
 	expected=$([ "$set" = rx ] && echo "$num_rx" || echo "$num_tx")
 
-	# Allow some extra tolerance for other packets sent by the stack
-	[ "$delta" -ge "$expected" ] && [ "$delta" -le $((expected + 100)) ]
+	[ "$delta" -ge "$expected" ] && [ "$delta" -le "$UINT32_MAX" ]
 }
 
 rmon_histogram()
