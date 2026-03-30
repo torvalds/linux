@@ -18919,6 +18919,12 @@ S:	Maintained
 F:	drivers/video/fbdev/nvidia/
 F:	drivers/video/fbdev/riva/
 
+NVIDIA GHES VENDOR CPER RECORD HANDLER
+M:	Kai-Heng Feng <kaihengf@nvidia.com>
+L:	linux-acpi@vger.kernel.org
+S:	Maintained
+F:	drivers/acpi/apei/nvidia-ghes.c
+
 NVIDIA VRS RTC DRIVER
 M:	Shubhi Garg <shgarg@nvidia.com>
 L:	linux-tegra@vger.kernel.org
