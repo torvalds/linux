@@ -2066,6 +2066,108 @@ static void rtw8922d_set_channel_bb(struct rtw89_dev *rtwdev,
 	rtw8922d_tssi_reset(rtwdev, RF_PATH_AB, phy_idx);
 }
 
+static void rtw8922d_pre_set_channel_bb(struct rtw89_dev *rtwdev,
+					enum rtw89_phy_idx phy_idx)
+{
+	if (!rtwdev->dbcc_en)
+		return;
+
+	rtw89_phy_write32_mask(rtwdev, R_SYS_DBCC_BE4, B_SYS_DBCC_BE4, 0x0);
+
+	if (phy_idx == RTW89_PHY_0) {
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xBBBB);
+		fsleep(1);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_BB_CLK_BE4, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xAFFF);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xEBAD);
+		fsleep(1);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_BB_CLK_BE4, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xEAAD);
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xBBBB);
+		fsleep(1);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_BB_CLK_BE4, 0x3);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xAFFF);
+		fsleep(1);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xEFFF);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_BB_CLK_BE4, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_EMLSR_SWITCH_BE4, B_EMLSR_SWITCH_BE4, 0xEEFF);
+	}
+
+	fsleep(1);
+}
+
+static void rtw8922d_post_set_channel_bb(struct rtw89_dev *rtwdev,
+					 enum rtw89_mlo_dbcc_mode mode,
+					 enum rtw89_phy_idx phy_idx)
+{
+	if (!rtwdev->dbcc_en)
+		return;
+
+	rtw8922d_ctrl_mlo(rtwdev, mode, true);
+}
+
+static void rtw8922d_set_channel(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_mac_idx mac_idx,
+				 enum rtw89_phy_idx phy_idx)
+{
+	rtw8922d_set_channel_mac(rtwdev, chan, mac_idx);
+	rtw8922d_set_channel_bb(rtwdev, chan, phy_idx);
+	rtw8922d_set_channel_rf(rtwdev, chan, phy_idx);
+}
+
+static void __rtw8922d_dack_reset(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
+{
+	rtw89_phy_write32_mask(rtwdev, 0x3c000 + (path << 8), BIT(17), 0x0);
+	rtw89_phy_write32_mask(rtwdev, 0x3c000 + (path << 8), BIT(17), 0x1);
+}
+
+static void rtw8922d_dack_reset(struct rtw89_dev *rtwdev)
+{
+	__rtw8922d_dack_reset(rtwdev, RF_PATH_A);
+	__rtw8922d_dack_reset(rtwdev, RF_PATH_B);
+}
+
+static
+void rtw8922d_hal_reset(struct rtw89_dev *rtwdev,
+			enum rtw89_phy_idx phy_idx, enum rtw89_mac_idx mac_idx,
+			enum rtw89_band band, u32 *tx_en, bool enter)
+{
+	if (enter) {
+		rtw89_chip_stop_sch_tx(rtwdev, mac_idx, tx_en, RTW89_SCH_TX_SEL_ALL);
+		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, false);
+		rtw8922d_dack_reset(rtwdev);
+		rtw8922d_tssi_cont_en_phyidx(rtwdev, false, phy_idx);
+		fsleep(40);
+		rtw8922d_bb_reset_en(rtwdev, band, false, phy_idx);
+	} else {
+		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, true);
+		rtw8922d_tssi_cont_en_phyidx(rtwdev, true, phy_idx);
+		rtw8922d_bb_reset_en(rtwdev, band, true, phy_idx);
+		rtw89_chip_resume_sch_tx(rtwdev, mac_idx, *tx_en);
+	}
+}
+
+static void rtw8922d_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
+				      struct rtw89_channel_help_params *p,
+				      const struct rtw89_chan *chan,
+				      enum rtw89_mac_idx mac_idx,
+				      enum rtw89_phy_idx phy_idx)
+{
+	if (enter) {
+		rtw8922d_pre_set_channel_bb(rtwdev, phy_idx);
+		rtw8922d_pre_set_channel_rf(rtwdev, phy_idx);
+	}
+
+	rtw8922d_hal_reset(rtwdev, phy_idx, mac_idx, chan->band_type, &p->tx_en, enter);
+
+	if (!enter) {
+		rtw8922d_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode, phy_idx);
+		rtw8922d_post_set_channel_rf(rtwdev, phy_idx);
+	}
+}
+
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
 MODULE_FIRMWARE(RTW8922DS_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");
