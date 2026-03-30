@@ -163,7 +163,6 @@ struct jz_codec {
 	struct device *dev;
 	struct regmap *regmap;
 	void __iomem *base;
-	struct clk *clk;
 };
 
 static int jz4760_codec_set_bias_level(struct snd_soc_component *codec,
@@ -602,25 +601,13 @@ static void jz4760_codec_codec_init_regs(struct snd_soc_component *codec)
 
 static int jz4760_codec_codec_probe(struct snd_soc_component *codec)
 {
-	struct jz_codec *jz_codec = snd_soc_component_get_drvdata(codec);
-
-	clk_prepare_enable(jz_codec->clk);
-
 	jz4760_codec_codec_init_regs(codec);
 
 	return 0;
 }
 
-static void jz4760_codec_codec_remove(struct snd_soc_component *codec)
-{
-	struct jz_codec *jz_codec = snd_soc_component_get_drvdata(codec);
-
-	clk_disable_unprepare(jz_codec->clk);
-}
-
 static const struct snd_soc_component_driver jz4760_codec_soc_codec_dev = {
 	.probe			= jz4760_codec_codec_probe,
-	.remove			= jz4760_codec_codec_remove,
 	.set_bias_level		= jz4760_codec_set_bias_level,
 	.controls		= jz4760_codec_snd_controls,
 	.num_controls		= ARRAY_SIZE(jz4760_codec_snd_controls),
@@ -818,6 +805,7 @@ static int jz4760_codec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct jz_codec *codec;
+	struct clk *clk;
 	int ret;
 
 	codec = devm_kzalloc(dev, sizeof(*codec), GFP_KERNEL);
@@ -835,9 +823,9 @@ static int jz4760_codec_probe(struct platform_device *pdev)
 	if (IS_ERR(codec->regmap))
 		return PTR_ERR(codec->regmap);
 
-	codec->clk = devm_clk_get(dev, "aic");
-	if (IS_ERR(codec->clk))
-		return PTR_ERR(codec->clk);
+	clk = devm_clk_get_enabled(dev, "aic");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	platform_set_drvdata(pdev, codec);
 
