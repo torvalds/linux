@@ -149,7 +149,7 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 
 #define copy_to_nontemporal copy_to_nontemporal
 extern size_t copy_to_nontemporal(void *dst, const void *src, size_t size);
-extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
+extern size_t copy_user_flushcache(void *dst, const void __user *src, size_t size);
 
 static inline int
 copy_from_user_inatomic_nontemporal(void *dst, const void __user *src,
@@ -164,11 +164,11 @@ copy_from_user_inatomic_nontemporal(void *dst, const void __user *src,
 	return ret;
 }
 
-static inline int
-__copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
+static inline size_t
+copy_from_user_flushcache(void *dst, const void __user *src, size_t size)
 {
 	kasan_check_write(dst, size);
-	return __copy_user_flushcache(dst, src, size);
+	return copy_user_flushcache(dst, src, size);
 }
 
 /*

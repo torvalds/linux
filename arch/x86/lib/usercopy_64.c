@@ -43,14 +43,14 @@ void arch_wb_cache_pmem(void *addr, size_t size)
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
-long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
+size_t copy_user_flushcache(void *dst, const void __user *src, size_t size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
-	long rc;
+	unsigned long rc;
 
-	stac();
+	src = masked_user_access_begin(src);
 	rc = copy_to_nontemporal(dst, (__force const void *)src, size);
-	clac();
+	user_access_end();
 
 	/*
 	 * copy_to_nontemporal() uses non-temporal stores for the bulk
