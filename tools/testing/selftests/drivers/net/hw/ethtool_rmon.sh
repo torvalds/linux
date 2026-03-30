@@ -106,13 +106,11 @@ rmon_histogram()
 rmon_rx_histogram()
 {
 	rmon_histogram "$h1" "$h2" rx
-	rmon_histogram "$h2" "$h1" rx
 }
 
 rmon_tx_histogram()
 {
 	rmon_histogram "$h1" "$h2" tx
-	rmon_histogram "$h2" "$h1" tx
 }
 
 setup_prepare()
