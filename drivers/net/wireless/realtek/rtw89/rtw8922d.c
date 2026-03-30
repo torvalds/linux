@@ -11,6 +11,7 @@
 #include "reg.h"
 #include "rtw8922d.h"
 #include "rtw8922d_rfk.h"
+#include "sar.h"
 #include "util.h"
 
 #define RTW8922D_FW_FORMAT_MAX 0
@@ -2320,6 +2321,120 @@ static void rtw8922d_rfk_scan(struct rtw89_dev *rtwdev,
 static void rtw8922d_rfk_track(struct rtw89_dev *rtwdev)
 {
 	rtw8922d_lck_track(rtwdev);
+}
+
+static const struct rtw89_reg_def rtw8922d_txpwr_ref[][3] = {
+	{{ .addr = R_TXAGC_REF_DBM_PATH0_TBL0_BE4,
+	   .mask = B_TXAGC_OFDM_REF_DBM_PATH0_TBL0_BE4 },
+	 { .addr = R_TXAGC_REF_DBM_PATH0_TBL0_BE4,
+	   .mask = B_TXAGC_CCK_REF_DBM_PATH0_TBL0_BE4 },
+	 { .addr = R_TSSI_K_OFDM_PATH0_TBL0_BE4,
+	   .mask = B_TSSI_K_OFDM_PATH0_TBL0_BE4 }
+	},
+	{{ .addr = R_TXAGC_REF_DBM_PATH0_TBL1_BE4,
+	   .mask = B_TXAGC_OFDM_REF_DBM_PATH0_TBL1_BE4 },
+	 { .addr = R_TXAGC_REF_DBM_PATH0_TBL1_BE4,
+	   .mask = B_TXAGC_CCK_REF_DBM_PATH0_TBL1_BE4 },
+	 { .addr = R_TSSI_K_OFDM_PATH0_TBL1_BE4,
+	   .mask = B_TSSI_K_OFDM_PATH0_TBL1_BE4 }
+	},
+};
+
+static void rtw8922d_set_txpwr_diff(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_phy_idx phy_idx)
+{
+	s16 pwr_ofst = rtw89_phy_ant_gain_pwr_offset(rtwdev, chan);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	static const u32 path_ofst[] = {0x0, 0x100};
+	const struct rtw89_reg_def *txpwr_ref;
+	s16 tssi_k_ofst = abs(pwr_ofst);
+	s16 ofst_dec[RF_PATH_NUM_8922D];
+	s16 tssi_k[RF_PATH_NUM_8922D];
+	s16 pwr_ref_ofst;
+	s16 pwr_ref = 16;
+	u8 i;
+
+	pwr_ref <<= chip->txpwr_factor_rf;
+	pwr_ref_ofst = pwr_ref - rtw89_phy_txpwr_bb_to_rf(rtwdev, abs(pwr_ofst));
+
+	ofst_dec[RF_PATH_A] = pwr_ofst > 0 ? pwr_ref : pwr_ref_ofst;
+	ofst_dec[RF_PATH_B] = pwr_ofst > 0 ? pwr_ref_ofst : pwr_ref;
+	tssi_k[RF_PATH_A] = pwr_ofst > 0 ? 0 : tssi_k_ofst;
+	tssi_k[RF_PATH_B] = pwr_ofst > 0 ? tssi_k_ofst : 0;
+
+	for (i = 0; i < RF_PATH_NUM_8922D; i++) {
+		txpwr_ref = rtw8922d_txpwr_ref[phy_idx];
+
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[0].addr + path_ofst[i],
+				       txpwr_ref[0].mask, ofst_dec[i]);
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[1].addr + path_ofst[i],
+				       txpwr_ref[1].mask, ofst_dec[i]);
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[2].addr + path_ofst[i],
+				       txpwr_ref[2].mask, tssi_k[i]);
+	}
+}
+
+static void rtw8922d_set_txpwr_ref(struct rtw89_dev *rtwdev,
+				   const struct rtw89_chan *chan,
+				   enum rtw89_phy_idx phy_idx)
+{
+	s16 ref_ofdm = 0;
+	s16 ref_cck = 0;
+
+	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set txpwr reference\n");
+
+	rtw8922d_set_txpwr_diff(rtwdev, chan, phy_idx);
+
+	rtw89_mac_txpwr_write32_mask(rtwdev, phy_idx, R_BE_PWR_REF_CTRL,
+				     B_BE_PWR_REF_CTRL_OFDM, ref_ofdm);
+	rtw89_mac_txpwr_write32_mask(rtwdev, phy_idx, R_BE_PWR_REF_CTRL,
+				     B_BE_PWR_REF_CTRL_CCK, ref_cck);
+}
+
+static void rtw8922d_set_txpwr_sar_diff(struct rtw89_dev *rtwdev,
+					const struct rtw89_chan *chan,
+					enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_sar_parm sar_parm = {
+		.center_freq = chan->freq,
+		.force_path = true,
+	};
+	s16 sar_rf;
+	s8 sar_mac;
+
+	if (phy_idx != RTW89_PHY_0)
+		return;
+
+	sar_parm.path = RF_PATH_A;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_rf = rtw89_phy_txpwr_mac_to_rf(rtwdev, sar_mac);
+	rtw89_phy_write32_mask(rtwdev, R_P0_TXPWRB_BE4, B_TXPWRB_MAX_BE, sar_rf);
+
+	sar_parm.path = RF_PATH_B;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_rf = rtw89_phy_txpwr_mac_to_rf(rtwdev, sar_mac);
+	rtw89_phy_write32_mask(rtwdev, R_P1_TXPWRB_BE4, B_TXPWRB_MAX_BE, sar_rf);
+}
+
+static void rtw8922d_set_txpwr(struct rtw89_dev *rtwdev,
+			       const struct rtw89_chan *chan,
+			       enum rtw89_phy_idx phy_idx)
+{
+	rtw89_phy_set_txpwr_byrate(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_offset(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_limit(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+	rtw8922d_set_txpwr_ref(rtwdev, chan, phy_idx);
+	rtw8922d_set_txpwr_sar_diff(rtwdev, chan, phy_idx);
+}
+
+static void rtw8922d_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
+				    enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_chan *chan = rtw89_mgnt_chan_get(rtwdev, phy_idx);
+
+	rtw8922d_set_txpwr_ref(rtwdev, chan, phy_idx);
 }
 
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
