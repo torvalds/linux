@@ -784,9 +784,13 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 #define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
 				 PMD_TYPE_TABLE)
-#define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
-				 PMD_TYPE_SECT)
-#define pmd_leaf(pmd)		(pmd_present(pmd) && !pmd_table(pmd))
+
+#define pmd_leaf pmd_leaf
+static inline bool pmd_leaf(pmd_t pmd)
+{
+	return pmd_present(pmd) && !pmd_table(pmd);
+}
+
 #define pmd_bad(pmd)		(!pmd_table(pmd))
 
 #define pmd_leaf_size(pmd)	(pmd_cont(pmd) ? CONT_PMD_SIZE : PMD_SIZE)
@@ -804,11 +808,8 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 #if defined(CONFIG_ARM64_64K_PAGES) || CONFIG_PGTABLE_LEVELS < 3
-static inline bool pud_sect(pud_t pud) { return false; }
 static inline bool pud_table(pud_t pud) { return true; }
 #else
-#define pud_sect(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
-				 PUD_TYPE_SECT)
 #define pud_table(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
 				 PUD_TYPE_TABLE)
 #endif
@@ -878,7 +879,11 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 				 PUD_TYPE_TABLE)
 #define pud_present(pud)	pte_present(pud_pte(pud))
 #ifndef __PAGETABLE_PMD_FOLDED
-#define pud_leaf(pud)		(pud_present(pud) && !pud_table(pud))
+#define pud_leaf pud_leaf
+static inline bool pud_leaf(pud_t pud)
+{
+	return pud_present(pud) && !pud_table(pud);
+}
 #else
 #define pud_leaf(pud)		false
 #endif

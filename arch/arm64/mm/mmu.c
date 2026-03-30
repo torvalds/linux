@@ -204,7 +204,7 @@ static int alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,
 	pmd_t pmd = READ_ONCE(*pmdp);
 	pte_t *ptep;
 
-	BUG_ON(pmd_sect(pmd));
+	BUG_ON(pmd_leaf(pmd));
 	if (pmd_none(pmd)) {
 		pmdval_t pmdval = PMD_TYPE_TABLE | PMD_TABLE_UXN | PMD_TABLE_AF;
 		phys_addr_t pte_phys;
@@ -303,7 +303,7 @@ static int alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	/*
 	 * Check for initial section mappings in the pgd/pud.
 	 */
-	BUG_ON(pud_sect(pud));
+	BUG_ON(pud_leaf(pud));
 	if (pud_none(pud)) {
 		pudval_t pudval = PUD_TYPE_TABLE | PUD_TABLE_UXN | PUD_TABLE_AF;
 		phys_addr_t pmd_phys;
@@ -1503,7 +1503,7 @@ static void unmap_hotplug_pmd_range(pud_t *pudp, unsigned long addr,
 			continue;
 
 		WARN_ON(!pmd_present(pmd));
-		if (pmd_sect(pmd)) {
+		if (pmd_leaf(pmd)) {
 			pmd_clear(pmdp);
 
 			/*
@@ -1536,7 +1536,7 @@ static void unmap_hotplug_pud_range(p4d_t *p4dp, unsigned long addr,
 			continue;
 
 		WARN_ON(!pud_present(pud));
-		if (pud_sect(pud)) {
+		if (pud_leaf(pud)) {
 			pud_clear(pudp);
 
 			/*
@@ -1650,7 +1650,7 @@ static void free_empty_pmd_table(pud_t *pudp, unsigned long addr,
 		if (pmd_none(pmd))
 			continue;
 
-		WARN_ON(!pmd_present(pmd) || !pmd_table(pmd) || pmd_sect(pmd));
+		WARN_ON(!pmd_present(pmd) || !pmd_table(pmd));
 		free_empty_pte_table(pmdp, addr, next, floor, ceiling);
 	} while (addr = next, addr < end);
 
@@ -1690,7 +1690,7 @@ static void free_empty_pud_table(p4d_t *p4dp, unsigned long addr,
 		if (pud_none(pud))
 			continue;
 
-		WARN_ON(!pud_present(pud) || !pud_table(pud) || pud_sect(pud));
+		WARN_ON(!pud_present(pud) || !pud_table(pud));
 		free_empty_pmd_table(pudp, addr, next, floor, ceiling);
 	} while (addr = next, addr < end);
 
@@ -1786,7 +1786,7 @@ int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
 {
 	vmemmap_verify((pte_t *)pmdp, node, addr, next);
 
-	return pmd_sect(READ_ONCE(*pmdp));
+	return pmd_leaf(READ_ONCE(*pmdp));
 }
 
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
@@ -1850,7 +1850,7 @@ void p4d_clear_huge(p4d_t *p4dp)
 
 int pud_clear_huge(pud_t *pudp)
 {
-	if (!pud_sect(READ_ONCE(*pudp)))
+	if (!pud_leaf(READ_ONCE(*pudp)))
 		return 0;
 	pud_clear(pudp);
 	return 1;
@@ -1858,7 +1858,7 @@ int pud_clear_huge(pud_t *pudp)
 
 int pmd_clear_huge(pmd_t *pmdp)
 {
-	if (!pmd_sect(READ_ONCE(*pmdp)))
+	if (!pmd_leaf(READ_ONCE(*pmdp)))
 		return 0;
 	pmd_clear(pmdp);
 	return 1;
