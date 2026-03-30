@@ -3115,13 +3115,9 @@ static noinline int do_init_module(struct module *mod)
 
 		goto fail_free_freeinit;
 	}
-	if (ret > 0) {
-		pr_warn("%s: '%s'->init suspiciously returned %d, it should "
-			"follow 0/-E convention\n"
-			"%s: loading module anyway...\n",
-			__func__, mod->name, ret, __func__);
-		dump_stack();
-	}
+	if (ret > 0)
+		pr_warn("%s: init suspiciously returned %d, it should follow 0/-E convention\n",
+			mod->name, ret);
 
 	/* Now it's a first class citizen! */
 	mod->state = MODULE_STATE_LIVE;
