@@ -1458,7 +1458,7 @@ static void mmc_blk_data_prep(struct mmc_queue *mq, struct mmc_queue_req *mqrq,
 		 * sectors can be read successfully.
 		 */
 		if (recovery_mode)
-			brq->data.blocks = queue_physical_block_size(mq->queue) >> 9;
+			brq->data.blocks = queue_physical_block_size(mq->queue) >> SECTOR_SHIFT;
 
 		/*
 		 * Some controllers have HW issues while operating
@@ -1976,7 +1976,7 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	}
 
 	if (rq_data_dir(req) == READ && brq->data.blocks >
-			queue_physical_block_size(mq->queue) >> 9) {
+			queue_physical_block_size(mq->queue) >> SECTOR_SHIFT) {
 		/* Read one (native) sector at a time */
 		mmc_blk_read_single(mq, req);
 		return;
@@ -3025,14 +3025,14 @@ static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 			 */
 			ret = mmc_blk_alloc_rpmb_part(card, md,
 				card->part[idx].part_cfg,
-				card->part[idx].size >> 9,
+				card->part[idx].size >> SECTOR_SHIFT,
 				card->part[idx].name);
 			if (ret)
 				return ret;
 		} else if (card->part[idx].size) {
 			ret = mmc_blk_alloc_part(card, md,
 				card->part[idx].part_cfg,
-				card->part[idx].size >> 9,
+				card->part[idx].size >> SECTOR_SHIFT,
 				card->part[idx].force_ro,
 				card->part[idx].name,
 				card->part[idx].area_type);
