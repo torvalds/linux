@@ -230,9 +230,11 @@ void pkvm_hyp_vm_table_init(void *tbl)
 /*
  * Return the hyp vm structure corresponding to the handle.
  */
-static struct pkvm_hyp_vm *get_vm_by_handle(pkvm_handle_t handle)
+struct pkvm_hyp_vm *get_vm_by_handle(pkvm_handle_t handle)
 {
 	unsigned int idx = vm_handle_to_idx(handle);
+
+	hyp_assert_lock_held(&vm_table_lock);
 
 	if (unlikely(idx >= KVM_MAX_PVMS))
 		return NULL;

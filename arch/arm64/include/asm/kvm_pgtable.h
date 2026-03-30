@@ -116,6 +116,12 @@ enum kvm_invalid_pte_type {
 	 * ownership.
 	 */
 	KVM_HOST_INVALID_PTE_TYPE_DONATION,
+
+	/*
+	 * The page has been forcefully reclaimed from the guest by the
+	 * host.
+	 */
+	KVM_GUEST_INVALID_PTE_TYPE_POISONED,
 };
 
 static inline bool kvm_pte_valid(kvm_pte_t pte)
