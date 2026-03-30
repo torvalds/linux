@@ -27,7 +27,6 @@ extern struct host_mmu host_mmu;
 enum pkvm_component_id {
 	PKVM_ID_HOST,
 	PKVM_ID_HYP,
-	PKVM_ID_FFA,
 };
 
 extern unsigned long hyp_nr_cpus;
