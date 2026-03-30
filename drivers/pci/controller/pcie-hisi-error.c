@@ -287,23 +287,14 @@ static int hisi_pcie_error_handler_probe(struct platform_device *pdev)
 
 	priv->nb.notifier_call = hisi_pcie_notify_error;
 	priv->dev = &pdev->dev;
-	ret = ghes_register_vendor_record_notifier(&priv->nb);
+	ret = devm_ghes_register_vendor_record_notifier(&pdev->dev, &priv->nb);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to register hisi pcie controller error handler with apei\n");
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
 	return 0;
-}
-
-static void hisi_pcie_error_handler_remove(struct platform_device *pdev)
-{
-	struct hisi_pcie_error_private *priv = platform_get_drvdata(pdev);
-
-	ghes_unregister_vendor_record_notifier(&priv->nb);
 }
 
 static const struct acpi_device_id hisi_pcie_acpi_match[] = {
@@ -317,7 +308,6 @@ static struct platform_driver hisi_pcie_error_handler_driver = {
 		.acpi_match_table = hisi_pcie_acpi_match,
 	},
 	.probe		= hisi_pcie_error_handler_probe,
-	.remove		= hisi_pcie_error_handler_remove,
 };
 module_platform_driver(hisi_pcie_error_handler_driver);
 
