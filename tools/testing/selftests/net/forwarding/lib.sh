@@ -546,10 +546,11 @@ mac_addr_prepare()
 		dev=${NETIFS[p$i]}
 		new_addr=$(printf "00:01:02:03:04:%02x" $i)
 
-		MAC_ADDR_ORIG["$dev"]=$(ip -j link show dev $dev | jq -e '.[].address')
+		MAC_ADDR_ORIG["$dev"]=$(run_on "$dev" \
+			ip -j link show dev "$dev" | jq -e '.[].address')
 		# Strip quotes
 		MAC_ADDR_ORIG["$dev"]=${MAC_ADDR_ORIG["$dev"]//\"/}
-		ip link set dev $dev address $new_addr
+		run_on "$dev" ip link set dev "$dev" address $new_addr
 	done
 }
 
@@ -559,7 +560,8 @@ mac_addr_restore()
 
 	for ((i = 1; i <= NUM_NETIFS; ++i)); do
 		dev=${NETIFS[p$i]}
-		ip link set dev $dev address ${MAC_ADDR_ORIG["$dev"]}
+		run_on "$dev" \
+			ip link set dev "$dev" address ${MAC_ADDR_ORIG["$dev"]}
 	done
 }
 
@@ -572,7 +574,9 @@ if [[ "$STABLE_MAC_ADDRS" = "yes" ]]; then
 fi
 
 for ((i = 1; i <= NUM_NETIFS; ++i)); do
-	ip link show dev ${NETIFS[p$i]} &> /dev/null
+	int="${NETIFS[p$i]}"
+
+	run_on "$int" ip link show dev "$int" &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
 		exit $ksft_skip
@@ -655,7 +659,7 @@ setup_wait_dev_with_timeout()
 	local i
 
 	for ((i = 1; i <= $max_iterations; ++i)); do
-		ip link show dev $dev up \
+		run_on "$dev" ip link show dev "$dev" up \
 			| grep 'state UP' &> /dev/null
 		if [[ $? -ne 0 ]]; then
 			sleep 1
@@ -960,12 +964,13 @@ ethtool_std_stats_get()
 	local src=$1; shift
 
 	if [[ "$grp" == "pause" ]]; then
-		ethtool -I --json -a "$dev" --src "$src" | \
+		run_on "$dev" ethtool -I --json -a "$dev" --src "$src" | \
 			jq --arg name "$name" '.[].statistics[$name]'
 		return
 	fi
 
-	ethtool --json -S "$dev" --groups "$grp" -- --src "$src" | \
+	run_on "$dev" \
+		ethtool --json -S "$dev" --groups "$grp" -- --src "$src" | \
 		jq --arg grp "$grp" --arg name "$name" '.[][$grp][$name]'
 }
 
