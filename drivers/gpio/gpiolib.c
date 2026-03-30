@@ -938,12 +938,18 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 	struct fwnode_handle *gc_node = dev_fwnode(&gc->gpiodev->dev);
 	struct fwnode_reference_args gpiospec;
 	enum gpiod_flags dflags;
+	const char *name = NULL;
 	struct gpio_desc *desc;
+	unsigned int num_hogs;
 	unsigned long lflags;
-	const char *name;
 	int ret, argc;
-	u32 gpios[3]; /* We support up to three-cell bindings. */
-	u32 cells;
+	/*
+	 * For devicetree-based systems, this needs to be defined in bindings
+	 * and there's no real default value. For other firmware descriptions
+	 * it makes the most sense to use 2 cells for the GPIO offset and
+	 * request flags.
+	 */
+	u32 cells = 2;
 
 	lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
 	dflags = GPIOD_ASIS;
@@ -952,42 +958,22 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 	argc = fwnode_property_count_u32(fwnode, "gpios");
 	if (argc < 0)
 		return argc;
-	if (argc > 3)
+
+	ret = fwnode_property_read_u32(gc_node, "#gpio-cells", &cells);
+	if (ret && is_of_node(fwnode))
+		return ret;
+	if (argc % cells)
 		return -EINVAL;
+
+	num_hogs = argc / cells;
+
+	u32 *gpios __free(kfree) = kzalloc_objs(*gpios, argc);
+	if (!gpios)
+		return -ENOMEM;
 
 	ret = fwnode_property_read_u32_array(fwnode, "gpios", gpios, argc);
 	if (ret < 0)
 		return ret;
-
-	if (is_of_node(fwnode)) {
-		/*
-		 * OF-nodes need some additional special handling for
-		 * translating of devicetree flags.
-		 */
-		ret = fwnode_property_read_u32(gc_node, "#gpio-cells", &cells);
-		if (ret)
-			return ret;
-		if (!ret && argc != cells)
-			return -EINVAL;
-
-		memset(&gpiospec, 0, sizeof(gpiospec));
-		gpiospec.fwnode = fwnode;
-		gpiospec.nargs = argc;
-
-		for (int i = 0; i < argc; i++)
-			gpiospec.args[i] = gpios[i];
-
-		ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
-		if (ret)
-			return ret;
-	} else {
-		/*
-		 * GPIO_ACTIVE_LOW is currently the only lookup flag
-		 * supported for non-OF firmware nodes.
-		 */
-		if (gpios[1])
-			lflags |= GPIO_ACTIVE_LOW;
-	}
 
 	if (fwnode_property_present(fwnode, "input"))
 		dflags |= GPIOD_IN;
@@ -1000,11 +986,41 @@ int gpiochip_add_hog(struct gpio_chip *gc, struct fwnode_handle *fwnode)
 
 	fwnode_property_read_string(fwnode, "line-name", &name);
 
-	desc = gpiochip_get_desc(gc, gpios[0]);
-	if (IS_ERR(desc))
-		return PTR_ERR(desc);
+	for (unsigned int i = 0; i < num_hogs; i++) {
+		if (is_of_node(fwnode)) {
+			/*
+			 * OF-nodes need some additional special handling for
+			 * translating of devicetree flags.
+			 */
+			memset(&gpiospec, 0, sizeof(gpiospec));
+			gpiospec.fwnode = fwnode;
+			gpiospec.nargs = cells;
 
-	return gpiod_hog(desc, name, lflags, dflags);
+			for (unsigned int j = 0; j < cells; j++)
+				gpiospec.args[j] = gpios[i * cells + j];
+
+			ret = of_gpiochip_get_lflags(gc, &gpiospec, &lflags);
+			if (ret)
+				return ret;
+		} else {
+			/*
+			 * GPIO_ACTIVE_LOW is currently the only lookup flag
+			 * supported for non-OF firmware nodes.
+			 */
+			if (gpios[i * cells + 1])
+				lflags |= GPIO_ACTIVE_LOW;
+		}
+
+		desc = gpiochip_get_desc(gc, gpios[i * cells]);
+		if (IS_ERR(desc))
+			return PTR_ERR(desc);
+
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int gpiochip_hog_lines(struct gpio_chip *gc)
