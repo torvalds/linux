@@ -4278,8 +4278,8 @@ int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	if (num_vfs == 0)
 		return hisi_qm_sriov_disable(pdev, false);
-	else
-		return hisi_qm_sriov_enable(pdev, num_vfs);
+
+	return hisi_qm_sriov_enable(pdev, num_vfs);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_sriov_configure);
 
