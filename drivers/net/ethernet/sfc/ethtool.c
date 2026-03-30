@@ -231,6 +231,8 @@ static int efx_ethtool_get_ts_info(struct net_device *net_dev,
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
+	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
+
 	efx_ptp_get_ts_info(efx, ts_info);
 	return 0;
 }

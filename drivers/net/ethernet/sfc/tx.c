@@ -371,6 +371,8 @@ netdev_tx_t __efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb
 	if (!data_mapped && (efx_tx_map_data(tx_queue, skb, segments)))
 		goto err;
 
+	skb_tx_timestamp(skb);
+
 	efx_tx_maybe_stop_queue(tx_queue);
 
 	tx_queue->xmit_pending = true;
