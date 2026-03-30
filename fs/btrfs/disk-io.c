@@ -4434,19 +4434,19 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	btrfs_put_block_group_cache(fs_info);
 
-	/*
-	 * we must make sure there is not any read request to
-	 * submit after we stopping all workers.
-	 */
-	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
-	btrfs_stop_all_workers(fs_info);
-
 	/* We shouldn't have any transaction open at this point */
 	warn_about_uncommitted_trans(fs_info);
 
 	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	free_root_pointers(fs_info, true);
 	btrfs_free_fs_roots(fs_info);
+
+	/*
+	 * We must make sure there is not any read request to
+	 * submit after we stop all workers.
+	 */
+	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
+	btrfs_stop_all_workers(fs_info);
 
 	/*
 	 * We must free the block groups after dropping the fs_roots as we could
