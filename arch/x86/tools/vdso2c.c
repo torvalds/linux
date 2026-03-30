@@ -75,7 +75,6 @@ struct vdso_sym {
 };
 
 struct vdso_sym required_syms[] = {
-	{"VDSO32_NOTE_MASK", true},
 	{"__kernel_vsyscall", true},
 	{"__kernel_sigreturn", true},
 	{"__kernel_rt_sigreturn", true},
