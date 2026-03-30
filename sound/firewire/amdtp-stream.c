@@ -1164,7 +1164,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 	struct pkt_desc *desc = s->packet_descs_cursor;
 	unsigned int pkt_header_length;
 	unsigned int packets;
-	u32 curr_cycle_time;
+	u32 curr_cycle_time = 0;
 	bool need_hw_irq;
 	int i;
 

@@ -99,6 +99,12 @@ enum {
 	OVL_VERITY_REQUIRE,
 };
 
+enum {
+	OVL_FSYNC_VOLATILE,
+	OVL_FSYNC_AUTO,
+	OVL_FSYNC_STRICT,
+};
+
 /*
  * The tuple (fh,uuid) is a universal unique identifier for a copy up origin,
  * where:
@@ -654,6 +660,21 @@ static inline bool ovl_has_fsid(struct ovl_fs *ofs)
 static inline bool ovl_xino_warn(struct ovl_fs *ofs)
 {
 	return ofs->config.xino == OVL_XINO_ON;
+}
+
+static inline bool ovl_should_sync(struct ovl_fs *ofs)
+{
+	return ofs->config.fsync_mode != OVL_FSYNC_VOLATILE;
+}
+
+static inline bool ovl_should_sync_metadata(struct ovl_fs *ofs)
+{
+	return ofs->config.fsync_mode == OVL_FSYNC_STRICT;
+}
+
+static inline bool ovl_is_volatile(struct ovl_config *config)
+{
+	return config->fsync_mode == OVL_FSYNC_VOLATILE;
 }
 
 /*

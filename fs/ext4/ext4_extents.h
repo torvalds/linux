@@ -264,5 +264,17 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 				     0xffff);
 }
 
+extern int __ext4_ext_dirty(const char *where, unsigned int line,
+			    handle_t *handle, struct inode *inode,
+			    struct ext4_ext_path *path);
+extern int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex);
+#if IS_ENABLED(CONFIG_EXT4_KUNIT_TESTS)
+extern int ext4_ext_space_root_idx_test(struct inode *inode, int check);
+extern struct ext4_ext_path *ext4_split_convert_extents_test(
+				handle_t *handle, struct inode *inode,
+				struct ext4_map_blocks *map,
+				struct ext4_ext_path *path,
+				int flags, unsigned int *allocated);
+#endif
 #endif /* _EXT4_EXTENTS */
 

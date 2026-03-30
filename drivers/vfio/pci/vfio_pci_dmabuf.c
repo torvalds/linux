@@ -301,11 +301,10 @@ int vfio_pci_core_feature_dma_buf(struct vfio_pci_core_device *vdev, u32 flags,
 	 */
 	ret = dma_buf_fd(priv->dmabuf, get_dma_buf.open_flags);
 	if (ret < 0)
-		goto err_dma_buf;
+		dma_buf_put(priv->dmabuf);
+
 	return ret;
 
-err_dma_buf:
-	dma_buf_put(priv->dmabuf);
 err_dev_put:
 	vfio_device_put_registration(&vdev->vdev);
 err_free_phys:

@@ -6,6 +6,7 @@
  * Copyright (c) 2012 Guenter Roeck
  */
 
+#include <linux/atomic.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dcache.h>
@@ -21,8 +22,8 @@
 #include <linux/pmbus.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/of.h>
 #include <linux/thermal.h>
+#include <linux/workqueue.h>
 #include "pmbus.h"
 
 /*
@@ -111,6 +112,11 @@ struct pmbus_data {
 	struct pmbus_sensor *sensors;
 
 	struct mutex update_lock;
+
+#if IS_ENABLED(CONFIG_REGULATOR)
+	atomic_t regulator_events[PMBUS_PAGES];
+	struct work_struct regulator_notify_work;
+#endif
 
 	bool has_status_word;		/* device uses STATUS_WORD register */
 	int (*read_status)(struct i2c_client *client, int page);
@@ -1209,6 +1215,12 @@ static ssize_t pmbus_show_boolean(struct device *dev,
 	return sysfs_emit(buf, "%d\n", val);
 }
 
+static ssize_t pmbus_show_zero(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
+{
+	return sysfs_emit(buf, "0\n");
+}
+
 static ssize_t pmbus_show_sensor(struct device *dev,
 				 struct device_attribute *devattr, char *buf)
 {
@@ -1407,7 +1419,7 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 					     int reg,
 					     enum pmbus_sensor_classes class,
 					     bool update, bool readonly,
-					     bool convert)
+					     bool writeonly, bool convert)
 {
 	struct pmbus_sensor *sensor;
 	struct device_attribute *a;
@@ -1436,7 +1448,8 @@ static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
 	sensor->data = -ENODATA;
 	pmbus_dev_attr_init(a, sensor->name,
 			    readonly ? 0444 : 0644,
-			    pmbus_show_sensor, pmbus_set_sensor);
+			    writeonly ? pmbus_show_zero : pmbus_show_sensor,
+			    pmbus_set_sensor);
 
 	if (pmbus_add_attribute(data, &a->attr))
 		return NULL;
@@ -1495,8 +1508,10 @@ static int pmbus_add_label(struct pmbus_data *data,
 struct pmbus_limit_attr {
 	u16 reg;		/* Limit register */
 	u16 sbit;		/* Alarm attribute status bit */
-	bool update;		/* True if register needs updates */
-	bool low;		/* True if low limit; for limits with compare functions only */
+	bool readonly:1;	/* True if the attribute is read-only */
+	bool writeonly:1;	/* True if the attribute is write-only */
+	bool update:1;		/* True if register needs updates */
+	bool low:1;		/* True if low limit; for limits with compare functions only */
 	const char *attr;	/* Attribute name */
 	const char *alarm;	/* Alarm attribute name */
 };
@@ -1511,9 +1526,9 @@ struct pmbus_sensor_attr {
 	u8 nlimit;			/* # of limit registers */
 	enum pmbus_sensor_classes class;/* sensor class */
 	const char *label;		/* sensor label */
-	bool paged;			/* true if paged sensor */
-	bool update;			/* true if update needed */
-	bool compare;			/* true if compare function needed */
+	bool paged:1;			/* true if paged sensor */
+	bool update:1;			/* true if update needed */
+	bool compare:1;			/* true if compare function needed */
 	u32 func;			/* sensor mask */
 	u32 sfunc;			/* sensor status mask */
 	int sreg;			/* status register */
@@ -1544,7 +1559,7 @@ static int pmbus_add_limit_attrs(struct i2c_client *client,
 			curr = pmbus_add_sensor(data, name, l->attr, index,
 						page, 0xff, l->reg, attr->class,
 						attr->update || l->update,
-						false, true);
+						l->readonly, l->writeonly, true);
 			if (!curr)
 				return -ENOMEM;
 			if (l->sbit && (info->func[page] & attr->sfunc)) {
@@ -1584,7 +1599,7 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 			return ret;
 	}
 	base = pmbus_add_sensor(data, name, "input", index, page, phase,
-				attr->reg, attr->class, true, true, true);
+				attr->reg, attr->class, true, true, false, true);
 	if (!base)
 		return -ENOMEM;
 	/* No limit and alarm attributes for phase specific sensors */
@@ -1707,23 +1722,29 @@ static const struct pmbus_limit_attr vin_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_VIN_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_VIN_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_VIN_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_VIN_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_VIN_MIN,
+		.readonly = true,
 		.attr = "rated_min",
 	}, {
 		.reg = PMBUS_MFR_VIN_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -1776,23 +1797,29 @@ static const struct pmbus_limit_attr vout_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_VOUT_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_VOUT_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_VOUT_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_VOUT_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_VOUT_MIN,
+		.readonly = true,
 		.attr = "rated_min",
 	}, {
 		.reg = PMBUS_MFR_VOUT_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -1852,20 +1879,25 @@ static const struct pmbus_limit_attr iin_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_IIN_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_IIN_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_IIN_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_IIN_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_IIN_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -1889,20 +1921,25 @@ static const struct pmbus_limit_attr iout_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_IOUT_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_IOUT_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_IOUT_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_IOUT_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_IOUT_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -1943,20 +1980,25 @@ static const struct pmbus_limit_attr pin_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_PIN_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_PIN_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "input_lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_PIN_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "input_highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_PIN_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_PIN_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -1980,20 +2022,25 @@ static const struct pmbus_limit_attr pout_limit_attrs[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_POUT_AVG,
 		.update = true,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_POUT_MIN,
 		.update = true,
+		.readonly = true,
 		.attr = "input_lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_POUT_MAX,
 		.update = true,
+		.readonly = true,
 		.attr = "input_highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_POUT_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_POUT_MAX,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -2049,18 +2096,23 @@ static const struct pmbus_limit_attr temp_limit_attrs[] = {
 		.sbit = PB_TEMP_OT_FAULT,
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP_MIN,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP_AVG,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP_MAX,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_TEMP_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_MAX_TEMP_1,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -2090,18 +2142,23 @@ static const struct pmbus_limit_attr temp_limit_attrs2[] = {
 		.sbit = PB_TEMP_OT_FAULT,
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP2_MIN,
+		.readonly = true,
 		.attr = "lowest",
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP2_AVG,
+		.readonly = true,
 		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP2_MAX,
+		.readonly = true,
 		.attr = "highest",
 	}, {
 		.reg = PMBUS_VIRT_RESET_TEMP2_HISTORY,
+		.writeonly = true,
 		.attr = "reset_history",
 	}, {
 		.reg = PMBUS_MFR_MAX_TEMP_2,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -2131,6 +2188,7 @@ static const struct pmbus_limit_attr temp_limit_attrs3[] = {
 		.sbit = PB_TEMP_OT_FAULT,
 	}, {
 		.reg = PMBUS_MFR_MAX_TEMP_3,
+		.readonly = true,
 		.attr = "rated_max",
 	},
 };
@@ -2214,7 +2272,7 @@ static int pmbus_add_fan_ctrl(struct i2c_client *client,
 
 	sensor = pmbus_add_sensor(data, "fan", "target", index, page,
 				  0xff, PMBUS_VIRT_FAN_TARGET_1 + id, PSC_FAN,
-				  false, false, true);
+				  false, false, false, true);
 
 	if (!sensor)
 		return -ENOMEM;
@@ -2225,14 +2283,14 @@ static int pmbus_add_fan_ctrl(struct i2c_client *client,
 
 	sensor = pmbus_add_sensor(data, "pwm", NULL, index, page,
 				  0xff, PMBUS_VIRT_PWM_1 + id, PSC_PWM,
-				  false, false, true);
+				  false, false, false, true);
 
 	if (!sensor)
 		return -ENOMEM;
 
 	sensor = pmbus_add_sensor(data, "pwm", "enable", index, page,
 				  0xff, PMBUS_VIRT_PWM_ENABLE_1 + id, PSC_PWM,
-				  true, false, false);
+				  true, false, false, false);
 
 	if (!sensor)
 		return -ENOMEM;
@@ -2274,7 +2332,7 @@ static int pmbus_add_fan_attributes(struct i2c_client *client,
 
 			if (pmbus_add_sensor(data, "fan", "input", index,
 					     page, 0xff, pmbus_fan_registers[f],
-					     PSC_FAN, true, true, true) == NULL)
+					     PSC_FAN, true, true, false, true) == NULL)
 				return -ENOMEM;
 
 			/* Fan control */
@@ -3176,12 +3234,19 @@ static int pmbus_regulator_get_voltage(struct regulator_dev *rdev)
 		.class = PSC_VOLTAGE_OUT,
 		.convert = true,
 	};
+	int ret;
 
+	mutex_lock(&data->update_lock);
 	s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_READ_VOUT);
-	if (s.data < 0)
-		return s.data;
+	if (s.data < 0) {
+		ret = s.data;
+		goto unlock;
+	}
 
-	return (int)pmbus_reg2data(data, &s) * 1000; /* unit is uV */
+	ret = (int)pmbus_reg2data(data, &s) * 1000; /* unit is uV */
+unlock:
+	mutex_unlock(&data->update_lock);
+	return ret;
 }
 
 static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
@@ -3198,16 +3263,22 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 	};
 	int val = DIV_ROUND_CLOSEST(min_uv, 1000); /* convert to mV */
 	int low, high;
+	int ret;
 
 	*selector = 0;
 
+	mutex_lock(&data->update_lock);
 	low = pmbus_regulator_get_low_margin(client, s.page);
-	if (low < 0)
-		return low;
+	if (low < 0) {
+		ret = low;
+		goto unlock;
+	}
 
 	high = pmbus_regulator_get_high_margin(client, s.page);
-	if (high < 0)
-		return high;
+	if (high < 0) {
+		ret = high;
+		goto unlock;
+	}
 
 	/* Make sure we are within margins */
 	if (low > val)
@@ -3217,7 +3288,10 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 
 	val = pmbus_data2reg(data, &s, val);
 
-	return _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
+	ret = _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
+unlock:
+	mutex_unlock(&data->update_lock);
+	return ret;
 }
 
 static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
@@ -3227,6 +3301,7 @@ static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	int val, low, high;
+	int ret;
 
 	if (data->flags & PMBUS_VOUT_PROTECTED)
 		return 0;
@@ -3239,18 +3314,29 @@ static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
 	val = DIV_ROUND_CLOSEST(rdev->desc->min_uV +
 				(rdev->desc->uV_step * selector), 1000); /* convert to mV */
 
+	mutex_lock(&data->update_lock);
+
 	low = pmbus_regulator_get_low_margin(client, rdev_get_id(rdev));
-	if (low < 0)
-		return low;
+	if (low < 0) {
+		ret = low;
+		goto unlock;
+	}
 
 	high = pmbus_regulator_get_high_margin(client, rdev_get_id(rdev));
-	if (high < 0)
-		return high;
+	if (high < 0) {
+		ret = high;
+		goto unlock;
+	}
 
-	if (val >= low && val <= high)
-		return val * 1000; /* unit is uV */
+	if (val >= low && val <= high) {
+		ret = val * 1000; /* unit is uV */
+		goto unlock;
+	}
 
-	return 0;
+	ret = 0;
+unlock:
+	mutex_unlock(&data->update_lock);
+	return ret;
 }
 
 const struct regulator_ops pmbus_regulator_ops = {
@@ -3281,12 +3367,42 @@ int pmbus_regulator_init_cb(struct regulator_dev *rdev,
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_regulator_init_cb, "PMBUS");
 
+static void pmbus_regulator_notify_work_cancel(void *data)
+{
+	struct pmbus_data *pdata = data;
+
+	cancel_work_sync(&pdata->regulator_notify_work);
+}
+
+static void pmbus_regulator_notify_worker(struct work_struct *work)
+{
+	struct pmbus_data *data =
+		container_of(work, struct pmbus_data, regulator_notify_work);
+	int i, j;
+
+	for (i = 0; i < data->info->pages; i++) {
+		int event;
+
+		event = atomic_xchg(&data->regulator_events[i], 0);
+		if (!event)
+			continue;
+
+		for (j = 0; j < data->info->num_regulators; j++) {
+			if (i == rdev_get_id(data->rdevs[j])) {
+				regulator_notifier_call_chain(data->rdevs[j],
+							      event, NULL);
+				break;
+			}
+		}
+	}
+}
+
 static int pmbus_regulator_register(struct pmbus_data *data)
 {
 	struct device *dev = data->dev;
 	const struct pmbus_driver_info *info = data->info;
 	const struct pmbus_platform_data *pdata = dev_get_platdata(dev);
-	int i;
+	int i, ret;
 
 	data->rdevs = devm_kzalloc(dev, sizeof(struct regulator_dev *) * info->num_regulators,
 				   GFP_KERNEL);
@@ -3310,19 +3426,19 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 					     info->reg_desc[i].name);
 	}
 
+	INIT_WORK(&data->regulator_notify_work, pmbus_regulator_notify_worker);
+
+	ret = devm_add_action_or_reset(dev, pmbus_regulator_notify_work_cancel, data);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static void pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
 {
-	int j;
-
-	for (j = 0; j < data->info->num_regulators; j++) {
-		if (page == rdev_get_id(data->rdevs[j])) {
-			regulator_notifier_call_chain(data->rdevs[j], event, NULL);
-			break;
-		}
-	}
+	atomic_or(event, &data->regulator_events[page]);
+	schedule_work(&data->regulator_notify_work);
 }
 #else
 static int pmbus_regulator_register(struct pmbus_data *data)
