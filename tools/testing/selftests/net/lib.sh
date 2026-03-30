@@ -670,3 +670,8 @@ cmd_jq()
 	# return success only in case of non-empty output
 	[ ! -z "$output" ]
 }
+
+run_on()
+{
+	shift; "$@"
+}

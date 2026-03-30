@@ -1,5 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
+#shellcheck disable=SC2034 # SC doesn't see our uses of global variables
 
 ##############################################################################
 # Topology description. p1 looped back to p2, p3 to p4 and so on.
@@ -340,17 +341,144 @@ fi
 ##############################################################################
 # Command line options handling
 
-count=0
-
-while [[ $# -gt 0 ]]; do
-	if [[ "$count" -eq "0" ]]; then
-		unset NETIFS
-		declare -A NETIFS
+check_env() {
+	if [[ ! (( -n "$LOCAL_V4" && -n "$REMOTE_V4") ||
+		 ( -n "$LOCAL_V6" && -n "$REMOTE_V6" )) ]]; then
+		echo "SKIP: Invalid environment, missing or inconsistent LOCAL_V4/REMOTE_V4/LOCAL_V6/REMOTE_V6"
+		echo "Please see tools/testing/selftests/drivers/net/README.rst"
+		exit "$ksft_skip"
 	fi
-	count=$((count + 1))
-	NETIFS[p$count]="$1"
-	shift
-done
+
+	if [[ -z "$REMOTE_TYPE" ]]; then
+		echo "SKIP: Invalid environment, missing REMOTE_TYPE"
+		exit "$ksft_skip"
+	fi
+
+	if [[ -z "$REMOTE_ARGS" ]]; then
+		echo "SKIP: Invalid environment, missing REMOTE_ARGS"
+		exit "$ksft_skip"
+	fi
+}
+
+__run_on()
+{
+	local target=$1; shift
+	local type args
+
+	IFS=':' read -r type args <<< "$target"
+
+	case "$type" in
+	netns)
+		# Execute command in network namespace
+		# args contains the namespace name
+		ip netns exec "$args" "$@"
+		;;
+	ssh)
+		# Execute command via SSH args contains user@host
+		ssh -n "$args" "$@"
+		;;
+	local|*)
+		# Execute command locally. This is also the fallback
+		# case for when the interface's target is not found in
+		# the TARGETS array.
+		"$@"
+		;;
+	esac
+}
+
+run_on()
+{
+	local iface=$1; shift
+	local target="local:"
+
+	if [ "${DRIVER_TEST_CONFORMANT}" = "yes" ]; then
+		target="${TARGETS[$iface]}"
+	fi
+
+	__run_on "$target" "$@"
+}
+
+get_ifname_by_ip()
+{
+	local target=$1; shift
+	local ip_addr=$1; shift
+
+	__run_on "$target" ip -j addr show to "$ip_addr" | jq -r '.[].ifname'
+}
+
+# Whether the test is conforming to the requirements and usage described in
+# drivers/net/README.rst.
+: "${DRIVER_TEST_CONFORMANT:=no}"
+
+declare -A TARGETS
+
+# Based on DRIVER_TEST_CONFORMANT, decide if to source drivers/net/net.config
+# or not. In the "yes" case, the test expects to pass the arguments through the
+# variables specified in drivers/net/README.rst file. If not, fallback on
+# parsing the script arguments for interface names.
+if [ "${DRIVER_TEST_CONFORMANT}" = "yes" ]; then
+	if [[ -f $net_forwarding_dir/../../drivers/net/net.config ]]; then
+		source "$net_forwarding_dir/../../drivers/net/net.config"
+	fi
+
+	if (( NUM_NETIFS > 2)); then
+		echo "SKIP: DRIVER_TEST_CONFORMANT=yes and NUM_NETIFS is bigger than 2"
+		exit "$ksft_skip"
+	fi
+
+	check_env
+
+	# Populate the NETIFS and TARGETS arrays automatically based on the
+	# environment variables. The TARGETS array is indexed by the network
+	# interface name keeping track of the target on which the interface
+	# resides. Values will be strings of the following format -
+	# <type>:<args>.
+	#
+	# TARGETS[eth0]="local:" - meaning that the eth0 interface is
+	# accessible locally
+	# TARGETS[eth1]="netns:foo" - eth1 is in the foo netns
+	# TARGETS[eth2]="ssh:root@10.0.0.2" - eth2 is accessible through
+	# running the 'ssh root@10.0.0.2' command.
+
+	unset NETIFS
+	declare -A NETIFS
+
+	NETIFS[p1]="$NETIF"
+	TARGETS[$NETIF]="local:"
+
+	# Locate the name of the remote interface
+	remote_target="$REMOTE_TYPE:$REMOTE_ARGS"
+	if [[ -v REMOTE_V4 ]]; then
+		remote_netif=$(get_ifname_by_ip "$remote_target" "$REMOTE_V4")
+	else
+		remote_netif=$(get_ifname_by_ip "$remote_target" "$REMOTE_V6")
+	fi
+	if [[ ! -n "$remote_netif" ]]; then
+		echo "SKIP: cannot find remote interface"
+		exit "$ksft_skip"
+	fi
+
+	if [[ "$NETIF" == "$remote_netif" ]]; then
+		echo "SKIP: local and remote interfaces cannot have the same name"
+		exit "$ksft_skip"
+	fi
+
+	NETIFS[p2]="$remote_netif"
+	TARGETS[$remote_netif]="$REMOTE_TYPE:$REMOTE_ARGS"
+else
+	count=0
+
+	while [[ $# -gt 0 ]]; do
+		if [[ "$count" -eq "0" ]]; then
+			unset NETIFS
+			declare -A NETIFS
+		fi
+		count=$((count + 1))
+		NETIFS[p$count]="$1"
+		TARGETS[$1]="local:"
+		shift
+	done
+fi
 
 ##############################################################################
 # Network interfaces configuration
