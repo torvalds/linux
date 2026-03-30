@@ -335,7 +335,7 @@ static inline void __loadsegment_fs(unsigned short value)
 
 		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_CLEAR_FS)
 
-		     : : "rm" (value) : "memory");
+		     : : ASM_INPUT_RM (value) : "memory");
 }
 
 /* __loadsegment_gs is intentionally undefined.  Use load_gs_index instead. */
