@@ -457,7 +457,6 @@ static int cttimeout_default_get(struct sk_buff *skb,
 		timeouts = nf_tcp_pernet(info->net)->timeouts;
 		break;
 	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
 		timeouts = nf_udp_pernet(info->net)->timeouts;
 		break;
 	case IPPROTO_ICMPV6:
