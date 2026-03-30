@@ -3362,7 +3362,6 @@ static void mmc_blk_shutdown(struct mmc_card *card)
 	_mmc_blk_suspend(card);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mmc_blk_suspend(struct device *dev)
 {
 	struct mmc_card *card = mmc_dev_to_card(dev);
@@ -3388,14 +3387,13 @@ static int mmc_blk_resume(struct device *dev)
 	}
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mmc_blk_pm_ops, mmc_blk_suspend, mmc_blk_resume);
 
 static struct mmc_driver mmc_driver = {
 	.drv		= {
 		.name	= "mmcblk",
-		.pm	= &mmc_blk_pm_ops,
+		.pm	= pm_sleep_ptr(&mmc_blk_pm_ops),
 	},
 	.probe		= mmc_blk_probe,
 	.remove		= mmc_blk_remove,
