@@ -3679,7 +3679,7 @@ int pci_enable_atomic_ops_to_root(struct pci_dev *dev, u32 cap_mask)
 	u32 cap, ctl2;
 
 	/*
-	 * Per PCIe r5.0, sec 9.3.5.10, the AtomicOp Requester Enable bit
+	 * Per PCIe r7.0, sec 7.5.3.16, the AtomicOp Requester Enable bit
 	 * in Device Control 2 is reserved in VFs and the PF value applies
 	 * to all associated VFs.
 	 */
@@ -3690,7 +3690,7 @@ int pci_enable_atomic_ops_to_root(struct pci_dev *dev, u32 cap_mask)
 		return -EINVAL;
 
 	/*
-	 * Per PCIe r4.0, sec 6.15, endpoints and root ports may be
+	 * Per PCIe r7.0, sec 6.15, endpoints and root ports may be
 	 * AtomicOp requesters.  For now, we only support (legacy) endpoints
 	 * as requesters and root ports as completers.  No endpoints as
 	 * completers, and no peer-to-peer.
