@@ -500,11 +500,15 @@ void rkvdec_hevc_run_preamble(struct rkvdec_ctx *ctx,
 		ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
 				      V4L2_CID_STATELESS_HEVC_EXT_SPS_ST_RPS);
 		run->ext_sps_st_rps = ctrl ? ctrl->p_cur.p : NULL;
+	} else {
+		run->ext_sps_st_rps = NULL;
 	}
 	if (ctx->has_sps_lt_rps) {
 		ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
 				      V4L2_CID_STATELESS_HEVC_EXT_SPS_LT_RPS);
 		run->ext_sps_lt_rps = ctrl ? ctrl->p_cur.p : NULL;
+	} else {
+		run->ext_sps_lt_rps = NULL;
 	}
 
 	rkvdec_run_preamble(ctx, &run->base);

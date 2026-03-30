@@ -40,6 +40,75 @@ use crate::{
     },
 };
 
+// TODO: Replace with `IoView` projections once available; the `unwrap()` calls go away once we
+// switch to the new `dma::Coherent` API.
+pub(super) mod gsp_mem {
+    use core::sync::atomic::{
+        fence,
+        Ordering, //
+    };
+
+    use kernel::{
+        dma::CoherentAllocation,
+        dma_read,
+        dma_write,
+        prelude::*, //
+    };
+
+    use crate::gsp::cmdq::{
+        GspMem,
+        MSGQ_NUM_PAGES, //
+    };
+
+    pub(in crate::gsp) fn gsp_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    }
+
+    pub(in crate::gsp) fn gsp_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result<u32> { Ok(dma_read!(qs, [0]?.gspq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    }
+
+    pub(in crate::gsp) fn cpu_read_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES) }().unwrap()
+    }
+
+    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+        let rptr = cpu_read_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
+
+        // Ensure read pointer is properly ordered.
+        fence(Ordering::SeqCst);
+
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result {
+            dma_write!(qs, [0]?.cpuq.rx.0.readPtr, rptr);
+            Ok(())
+        }()
+        .unwrap()
+    }
+
+    pub(in crate::gsp) fn cpu_write_ptr(qs: &CoherentAllocation<GspMem>) -> u32 {
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result<u32> { Ok(dma_read!(qs, [0]?.cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES) }().unwrap()
+    }
+
+    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &CoherentAllocation<GspMem>, count: u32) {
+        let wptr = cpu_write_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
+
+        // PANIC: A `dma::CoherentAllocation` always contains at least one element.
+        || -> Result {
+            dma_write!(qs, [0]?.cpuq.tx.0.writePtr, wptr);
+            Ok(())
+        }()
+        .unwrap();
+
+        // Ensure all command data is visible before triggering the GSP read.
+        fence(Ordering::SeqCst);
+    }
+}
+
 /// Empty type to group methods related to heap parameters for running the GSP firmware.
 enum GspFwHeapParams {}
 
@@ -708,22 +777,6 @@ impl MsgqTxHeader {
             entryOff: num::usize_into_u32::<GSP_PAGE_SIZE>(),
         })
     }
-
-    /// Returns the value of the write pointer for this queue.
-    pub(crate) fn write_ptr(&self) -> u32 {
-        let ptr = core::ptr::from_ref(&self.0.writePtr);
-
-        // SAFETY: `ptr` is a valid pointer to a `u32`.
-        unsafe { ptr.read_volatile() }
-    }
-
-    /// Sets the value of the write pointer for this queue.
-    pub(crate) fn set_write_ptr(&mut self, val: u32) {
-        let ptr = core::ptr::from_mut(&mut self.0.writePtr);
-
-        // SAFETY: `ptr` is a valid pointer to a `u32`.
-        unsafe { ptr.write_volatile(val) }
-    }
 }
 
 // SAFETY: Padding is explicit and does not contain uninitialized data.
@@ -738,22 +791,6 @@ impl MsgqRxHeader {
     /// Creates a new RX queue header.
     pub(crate) fn new() -> Self {
         Self(Default::default())
-    }
-
-    /// Returns the value of the read pointer for this queue.
-    pub(crate) fn read_ptr(&self) -> u32 {
-        let ptr = core::ptr::from_ref(&self.0.readPtr);
-
-        // SAFETY: `ptr` is a valid pointer to a `u32`.
-        unsafe { ptr.read_volatile() }
-    }
-
-    /// Sets the value of the read pointer for this queue.
-    pub(crate) fn set_read_ptr(&mut self, val: u32) {
-        let ptr = core::ptr::from_mut(&mut self.0.readPtr);
-
-        // SAFETY: `ptr` is a valid pointer to a `u32`.
-        unsafe { ptr.write_volatile(val) }
     }
 }
 

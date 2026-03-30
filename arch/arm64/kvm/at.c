@@ -1504,8 +1504,6 @@ int __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 			fail = true;
 		}
 
-		isb();
-
 		if (!fail)
 			par = read_sysreg_par();
 
@@ -1755,7 +1753,7 @@ int __kvm_at_swap_desc(struct kvm *kvm, gpa_t ipa, u64 old, u64 new)
 	if (!writable)
 		return -EPERM;
 
-	ptep = (u64 __user *)hva + offset;
+	ptep = (void __user *)hva + offset;
 	if (cpus_have_final_cap(ARM64_HAS_LSE_ATOMICS))
 		r = __lse_swap_desc(ptep, old, new);
 	else

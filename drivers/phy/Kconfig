@@ -6,7 +6,7 @@
 menu "PHY Subsystem"
 
 config PHY_COMMON_PROPS
-	bool
+	bool "PHY common properties" if KUNIT_ALL_TESTS
 	help
 	  This parses properties common between generic PHYs and Ethernet PHYs.
 
@@ -16,8 +16,7 @@ config PHY_COMMON_PROPS
 
 config PHY_COMMON_PROPS_TEST
 	tristate "KUnit tests for PHY common props" if !KUNIT_ALL_TESTS
-	select PHY_COMMON_PROPS
-	depends on KUNIT
+	depends on KUNIT && PHY_COMMON_PROPS
 	default KUNIT_ALL_TESTS
 	help
 	  This builds KUnit tests for the PHY common property API.

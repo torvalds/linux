@@ -85,7 +85,7 @@ int __io_uring_run_bpf_filters(struct io_bpf_filter __rcu **filters,
 	do {
 		if (filter == &dummy_filter)
 			return -EACCES;
-		ret = bpf_prog_run(filter->prog, &bpf_ctx);
+		ret = bpf_prog_run_pin_on_cpu(filter->prog, &bpf_ctx);
 		if (!ret)
 			return -EACCES;
 		filter = filter->next;

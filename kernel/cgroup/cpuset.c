@@ -879,7 +879,7 @@ generate_doms:
 	/*
 	 * Cgroup v2 doesn't support domain attributes, just set all of them
 	 * to SD_ATTR_INIT. Also non-isolating partition root CPUs are a
-	 * subset of HK_TYPE_DOMAIN housekeeping CPUs.
+	 * subset of HK_TYPE_DOMAIN_BOOT housekeeping CPUs.
 	 */
 	for (i = 0; i < ndoms; i++) {
 		/*
@@ -888,7 +888,7 @@ generate_doms:
 		 */
 		if (!csa || csa[i] == &top_cpuset)
 			cpumask_and(doms[i], top_cpuset.effective_cpus,
-				    housekeeping_cpumask(HK_TYPE_DOMAIN));
+				    housekeeping_cpumask(HK_TYPE_DOMAIN_BOOT));
 		else
 			cpumask_copy(doms[i], csa[i]->effective_cpus);
 		if (dattr)
@@ -1329,17 +1329,22 @@ static bool prstate_housekeeping_conflict(int prstate, struct cpumask *new_cpus)
 }
 
 /*
- * update_hk_sched_domains - Update HK cpumasks & rebuild sched domains
+ * cpuset_update_sd_hk_unlock - Rebuild sched domains, update HK & unlock
  *
- * Update housekeeping cpumasks and rebuild sched domains if necessary.
- * This should be called at the end of cpuset or hotplug actions.
+ * Update housekeeping cpumasks and rebuild sched domains if necessary and
+ * then do a cpuset_full_unlock().
+ * This should be called at the end of cpuset operation.
  */
-static void update_hk_sched_domains(void)
+static void cpuset_update_sd_hk_unlock(void)
+	__releases(&cpuset_mutex)
+	__releases(&cpuset_top_mutex)
 {
+	/* force_sd_rebuild will be cleared in rebuild_sched_domains_locked() */
+	if (force_sd_rebuild)
+		rebuild_sched_domains_locked();
+
 	if (update_housekeeping) {
-		/* Updating HK cpumasks implies rebuild sched domains */
 		update_housekeeping = false;
-		force_sd_rebuild = true;
 		cpumask_copy(isolated_hk_cpus, isolated_cpus);
 
 		/*
@@ -1350,22 +1355,19 @@ static void update_hk_sched_domains(void)
 		mutex_unlock(&cpuset_mutex);
 		cpus_read_unlock();
 		WARN_ON_ONCE(housekeeping_update(isolated_hk_cpus));
-		cpus_read_lock();
-		mutex_lock(&cpuset_mutex);
+		mutex_unlock(&cpuset_top_mutex);
+	} else {
+		cpuset_full_unlock();
 	}
-	/* force_sd_rebuild will be cleared in rebuild_sched_domains_locked() */
-	if (force_sd_rebuild)
-		rebuild_sched_domains_locked();
 }
 
 /*
- * Work function to invoke update_hk_sched_domains()
+ * Work function to invoke cpuset_update_sd_hk_unlock()
  */
 static void hk_sd_workfn(struct work_struct *work)
 {
 	cpuset_full_lock();
-	update_hk_sched_domains();
-	cpuset_full_unlock();
+	cpuset_update_sd_hk_unlock();
 }
 
 /**
@@ -3230,8 +3232,7 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 
 	free_cpuset(trialcs);
 out_unlock:
-	update_hk_sched_domains();
-	cpuset_full_unlock();
+	cpuset_update_sd_hk_unlock();
 	if (of_cft(of)->private == FILE_MEMLIST)
 		schedule_flush_migrate_mm();
 	return retval ?: nbytes;
@@ -3338,8 +3339,7 @@ static ssize_t cpuset_partition_write(struct kernfs_open_file *of, char *buf,
 	cpuset_full_lock();
 	if (is_cpuset_online(cs))
 		retval = update_prstate(cs, val);
-	update_hk_sched_domains();
-	cpuset_full_unlock();
+	cpuset_update_sd_hk_unlock();
 	return retval ?: nbytes;
 }
 
@@ -3513,8 +3513,7 @@ static void cpuset_css_killed(struct cgroup_subsys_state *css)
 	/* Reset valid partition back to member */
 	if (is_partition_valid(cs))
 		update_prstate(cs, PRS_MEMBER);
-	update_hk_sched_domains();
-	cpuset_full_unlock();
+	cpuset_update_sd_hk_unlock();
 }
 
 static void cpuset_css_free(struct cgroup_subsys_state *css)
@@ -3923,11 +3922,13 @@ static void cpuset_handle_hotplug(void)
 		rcu_read_unlock();
 	}
 
-
 	/*
-	 * Queue a work to call housekeeping_update() & rebuild_sched_domains()
-	 * There will be a slight delay before the HK_TYPE_DOMAIN housekeeping
-	 * cpumask can correctly reflect what is in isolated_cpus.
+	 * rebuild_sched_domains() will always be called directly if needed
+	 * to make sure that newly added or removed CPU will be reflected in
+	 * the sched domains. However, if isolated partition invalidation
+	 * or recreation is being done (update_housekeeping set), a work item
+	 * will be queued to call housekeeping_update() to update the
+	 * corresponding housekeeping cpumasks after some slight delay.
 	 *
 	 * We rely on WORK_STRUCT_PENDING_BIT to not requeue a work item that
 	 * is still pending. Before the pending bit is cleared, the work data
@@ -3936,8 +3937,10 @@ static void cpuset_handle_hotplug(void)
 	 * previously queued work. Since hk_sd_workfn() doesn't use the work
 	 * item at all, this is not a problem.
 	 */
-	if (update_housekeeping || force_sd_rebuild)
-		queue_work(system_unbound_wq, &hk_sd_work);
+	if (force_sd_rebuild)
+		rebuild_sched_domains_cpuslocked();
+	if (update_housekeeping)
+		queue_work(system_dfl_wq, &hk_sd_work);
 
 	free_tmpmasks(ptmp);
 }

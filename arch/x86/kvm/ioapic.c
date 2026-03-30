@@ -321,7 +321,8 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
-		hlist_for_each_entry_rcu(kimn, &ioapic->mask_notifier_list, link)
+		hlist_for_each_entry_srcu(kimn, &ioapic->mask_notifier_list, link,
+				srcu_read_lock_held(&kvm->irq_srcu))
 			if (kimn->irq == gsi)
 				kimn->func(kimn, mask);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
