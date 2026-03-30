@@ -147,7 +147,8 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 	return copy_user_generic((__force void *)dst, src, size);
 }
 
-extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size);
+#define copy_to_nontemporal copy_to_nontemporal
+extern size_t copy_to_nontemporal(void *dst, const void *src, size_t size);
 extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
 
 static inline int
@@ -157,7 +158,7 @@ __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
 	long ret;
 	kasan_check_write(dst, size);
 	stac();
-	ret = __copy_user_nocache(dst, src, size);
+	ret = copy_to_nontemporal(dst, (__force const void *)src, size);
 	clac();
 	return ret;
 }
