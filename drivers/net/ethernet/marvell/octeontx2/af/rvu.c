@@ -2645,7 +2645,7 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 	}
 
 	mw->mbox_wq = alloc_workqueue("%s",
-				      WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				      WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_PERCPU,
 				      num, name);
 	if (!mw->mbox_wq) {
 		err = -ENOMEM;
