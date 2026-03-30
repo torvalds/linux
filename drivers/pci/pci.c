@@ -3692,15 +3692,14 @@ int pci_enable_atomic_ops_to_root(struct pci_dev *dev, u32 cap_mask)
 
 	/*
 	 * Per PCIe r4.0, sec 6.15, endpoints and root ports may be
-	 * AtomicOp requesters.  For now, we only support endpoints as
-	 * requesters and root ports as completers.  No endpoints as
+	 * AtomicOp requesters.  For now, we only support (legacy) endpoints
+	 * as requesters and root ports as completers.  No endpoints as
 	 * completers, and no peer-to-peer.
 	 */
 
 	switch (pci_pcie_type(dev)) {
 	case PCI_EXP_TYPE_ENDPOINT:
 	case PCI_EXP_TYPE_LEG_END:
-	case PCI_EXP_TYPE_RC_END:
 		break;
 	default:
 		return -EINVAL;
