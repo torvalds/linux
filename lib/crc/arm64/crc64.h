@@ -16,15 +16,13 @@ static inline u64 crc64_nvme_arch(u64 crc, const u8 *p, size_t len)
 {
 	if (len >= 128 && cpu_have_named_feature(PMULL) &&
 	    likely(may_use_simd())) {
-		do {
-			size_t chunk = min_t(size_t, len & ~15, SZ_4K);
+		size_t chunk = len & ~15;
 
-			scoped_ksimd()
-				crc = crc64_nvme_arm64_c(crc, p, chunk);
+		scoped_ksimd()
+			crc = crc64_nvme_arm64_c(crc, p, chunk);
 
-			p += chunk;
-			len -= chunk;
-		} while (len >= 128);
+		p += chunk;
+		len &= 15;
 	}
 	return crc64_nvme_generic(crc, p, len);
 }
