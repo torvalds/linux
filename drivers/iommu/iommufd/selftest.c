@@ -421,19 +421,6 @@ static const struct iommu_dirty_ops amdv1_mock_dirty_ops = {
 	.set_dirty_tracking = mock_domain_set_dirty_tracking,
 };
 
-static const struct iommu_domain_ops amdv1_ops = {
-	IOMMU_PT_DOMAIN_OPS(amdv1),
-	.free = mock_domain_free,
-	.attach_dev = mock_domain_nop_attach,
-	.set_dev_pasid = mock_domain_set_dev_pasid_nop,
-	.iotlb_sync = &mock_iotlb_sync,
-};
-
-static const struct iommu_dirty_ops amdv1_dirty_ops = {
-	IOMMU_PT_DIRTY_OPS(amdv1),
-	.set_dirty_tracking = mock_domain_set_dirty_tracking,
-};
-
 static struct mock_iommu_domain *
 mock_domain_alloc_pgtable(struct device *dev,
 			  const struct iommu_hwpt_selftest *user_cfg, u32 flags)
@@ -475,24 +462,6 @@ mock_domain_alloc_pgtable(struct device *dev,
 						     PAGE_SIZE;
 		if (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING)
 			mock->domain.dirty_ops = &amdv1_mock_dirty_ops;
-		break;
-	}
-
-	case MOCK_IOMMUPT_AMDV1: {
-		struct pt_iommu_amdv1_cfg cfg = {};
-
-		cfg.common.hw_max_vasz_lg2 = 64;
-		cfg.common.hw_max_oasz_lg2 = 52;
-		cfg.common.features = BIT(PT_FEAT_DYNAMIC_TOP) |
-				      BIT(PT_FEAT_AMDV1_ENCRYPT_TABLES) |
-				      BIT(PT_FEAT_AMDV1_FORCE_COHERENCE);
-		cfg.starting_level = 2;
-		mock->domain.ops = &amdv1_ops;
-		rc = pt_iommu_amdv1_init(&mock->amdv1, &cfg, GFP_KERNEL);
-		if (rc)
-			goto err_free;
-		if (flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING)
-			mock->domain.dirty_ops = &amdv1_dirty_ops;
 		break;
 	}
 	default:
