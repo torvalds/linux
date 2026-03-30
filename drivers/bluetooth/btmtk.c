@@ -995,7 +995,7 @@ static int __set_mtk_intr_interface(struct hci_dev *hdev)
 {
 	struct btmtk_data *btmtk_data = hci_get_priv(hdev);
 	struct usb_interface *intf = btmtk_data->isopkt_intf;
-	int i, err;
+	int err;
 
 	if (!btmtk_data->isopkt_intf)
 		return -ENODEV;
@@ -1006,29 +1006,10 @@ static int __set_mtk_intr_interface(struct hci_dev *hdev)
 		return err;
 	}
 
-	btmtk_data->isopkt_tx_ep = NULL;
-	btmtk_data->isopkt_rx_ep = NULL;
-
-	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
-		struct usb_endpoint_descriptor *ep_desc;
-
-		ep_desc = &intf->cur_altsetting->endpoint[i].desc;
-
-		if (!btmtk_data->isopkt_tx_ep &&
-		    usb_endpoint_is_int_out(ep_desc)) {
-			btmtk_data->isopkt_tx_ep = ep_desc;
-			continue;
-		}
-
-		if (!btmtk_data->isopkt_rx_ep &&
-		    usb_endpoint_is_int_in(ep_desc)) {
-			btmtk_data->isopkt_rx_ep = ep_desc;
-			continue;
-		}
-	}
-
-	if (!btmtk_data->isopkt_tx_ep ||
-	    !btmtk_data->isopkt_rx_ep) {
+	err = usb_find_common_endpoints(intf->cur_altsetting, NULL, NULL,
+					&btmtk_data->isopkt_rx_ep,
+					&btmtk_data->isopkt_tx_ep);
+	if (err) {
 		bt_dev_err(hdev, "invalid interrupt descriptors");
 		return -ENODEV;
 	}
