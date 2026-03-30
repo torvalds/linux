@@ -159,14 +159,8 @@ config_stmt: config_entry_start config_option_list
 			yynerrs++;
 		}
 
-		/*
-		 * If the same symbol appears twice in a choice block, the list
-		 * node would be added twice, leading to a broken linked list.
-		 * list_empty() ensures that this symbol has not yet added.
-		 */
-		if (list_empty(&current_entry->sym->choice_link))
-			list_add_tail(&current_entry->sym->choice_link,
-				      &current_choice->choice_members);
+		list_add_tail(&current_entry->sym->choice_link,
+			      &current_choice->choice_members);
 	}
 
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
@@ -546,11 +540,10 @@ static int choice_check_sanity(const struct menu *menu)
 			ret = -1;
 		}
 
-		if (prop->menu != menu && prop->type == P_PROMPT &&
-		    prop->menu->parent != menu->parent) {
+		if (prop->menu != menu && prop->type == P_PROMPT) {
 			fprintf(stderr, "%s:%d: error: %s",
 				prop->filename, prop->lineno,
-				"choice value has a prompt outside its choice group\n");
+				"choice value must not have a prompt in another entry\n");
 			ret = -1;
 		}
 	}
