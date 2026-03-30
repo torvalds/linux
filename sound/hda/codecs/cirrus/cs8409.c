@@ -268,7 +268,7 @@ static int cs8409_i2c_bulk_read(struct sub_codec *scodec, struct cs8409_i2c_para
 	return 0;
 
 error:
-	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", scodec->addr);
+	codec_err(codec, "I2C Bulk Read Failed 0x%02x\n", scodec->addr);
 	return -EIO;
 }
 
