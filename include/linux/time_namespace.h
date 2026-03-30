@@ -8,6 +8,7 @@
 #include <linux/ns_common.h>
 #include <linux/err.h>
 #include <linux/time64.h>
+#include <linux/cleanup.h>
 
 struct user_namespace;
 extern struct user_namespace init_user_ns;
@@ -170,5 +171,7 @@ static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
 	return NULL;
 }
 #endif /* CONFIG_TIME_NS_VDSO */
+
+DEFINE_FREE(time_ns, struct time_namespace *, if (_T) put_time_ns(_T))
 
 #endif /* _LINUX_TIMENS_H */
