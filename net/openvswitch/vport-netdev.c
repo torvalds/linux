@@ -151,11 +151,15 @@ static void vport_netdev_free(struct rcu_head *rcu)
 void ovs_netdev_detach_dev(struct vport *vport)
 {
 	ASSERT_RTNL();
-	vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
 	netdev_rx_handler_unregister(vport->dev);
 	netdev_upper_dev_unlink(vport->dev,
 				netdev_master_upper_dev_get(vport->dev));
 	dev_set_promiscuity(vport->dev, -1);
+
+	/* paired with smp_mb() in netdev_destroy() */
+	smp_wmb();
+
+	vport->dev->priv_flags &= ~IFF_OVS_DATAPATH;
 }
 
 static void netdev_destroy(struct vport *vport)
@@ -174,6 +178,9 @@ static void netdev_destroy(struct vport *vport)
 		rtnl_unlock();
 	}
 
+	/* paired with smp_wmb() in ovs_netdev_detach_dev() */
+	smp_mb();
+
 	call_rcu(&vport->rcu, vport_netdev_free);
 }
 
@@ -189,8 +196,6 @@ void ovs_netdev_tunnel_destroy(struct vport *vport)
 	 */
 	if (vport->dev->reg_state == NETREG_REGISTERED)
 		rtnl_delete_link(vport->dev, 0, NULL);
-	netdev_put(vport->dev, &vport->dev_tracker);
-	vport->dev = NULL;
 	rtnl_unlock();
 
 	call_rcu(&vport->rcu, vport_netdev_free);

@@ -200,7 +200,7 @@ SYM_FUNC_START(__sie64a)
 	stg	%r3,__SF_SIE_CONTROL(%r15)	# ...and virtual addresses
 	stg	%r4,__SF_SIE_SAVEAREA(%r15)	# save guest register save area
 	stg	%r5,__SF_SIE_GUEST_ASCE(%r15)	# save guest asce
-	xc	__SF_SIE_REASON(8,%r15),__SF_SIE_REASON(%r15) # reason code = 0
+	xc	__SF_SIE_RETURN(8,%r15),__SF_SIE_RETURN(%r15) # return code = 0
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r14) # copy thread flags
 	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
 	mvi	__TI_sie(%r14),1
@@ -237,7 +237,7 @@ SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
 	xgr	%r4,%r4
 	xgr	%r5,%r5
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
-	lg	%r2,__SF_SIE_REASON(%r15)	# return exit reason code
+	lg	%r2,__SF_SIE_RETURN(%r15)	# return sie return code
 	BR_EX	%r14
 SYM_FUNC_END(__sie64a)
 EXPORT_SYMBOL(__sie64a)
@@ -271,6 +271,7 @@ SYM_CODE_START(system_call)
 	xgr	%r9,%r9
 	xgr	%r10,%r10
 	xgr	%r11,%r11
+	xgr	%r12,%r12
 	la	%r2,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA(%r13)
 	MBEAR	%r2,%r13
@@ -407,6 +408,7 @@ SYM_CODE_START(\name)
 	xgr	%r6,%r6
 	xgr	%r7,%r7
 	xgr	%r10,%r10
+	xgr	%r12,%r12
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
 	MBEAR	%r11,%r13
@@ -496,6 +498,7 @@ SYM_CODE_START(mcck_int_handler)
 	xgr	%r6,%r6
 	xgr	%r7,%r7
 	xgr	%r10,%r10
+	xgr	%r12,%r12
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)

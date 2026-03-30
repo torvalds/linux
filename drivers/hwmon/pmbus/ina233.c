@@ -67,10 +67,13 @@ static int ina233_read_word_data(struct i2c_client *client, int page,
 	switch (reg) {
 	case PMBUS_VIRT_READ_VMON:
 		ret = pmbus_read_word_data(client, 0, 0xff, MFR_READ_VSHUNT);
+		if (ret < 0)
+			return ret;
 
 		/* Adjust returned value to match VIN coefficients */
 		/* VIN: 1.25 mV VSHUNT: 2.5 uV LSB */
-		ret = DIV_ROUND_CLOSEST(ret * 25, 12500);
+		ret = clamp_val(DIV_ROUND_CLOSEST((s16)ret * 25, 12500),
+				S16_MIN, S16_MAX) & 0xffff;
 		break;
 	default:
 		ret = -ENODATA;

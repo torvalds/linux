@@ -53,7 +53,7 @@ struct iommu_flush_ops {
  *                 tables.
  * @ias:           Input address (iova) size, in bits.
  * @oas:           Output address (paddr) size, in bits.
- * @coherent_walk  A flag to indicate whether or not page table walks made
+ * @coherent_walk: A flag to indicate whether or not page table walks made
  *                 by the IOMMU are coherent with the CPU caches.
  * @tlb:           TLB management callbacks for this set of tables.
  * @iommu_dev:     The device representing the DMA configuration for the
@@ -136,6 +136,7 @@ struct io_pgtable_cfg {
 	void (*free)(void *cookie, void *pages, size_t size);
 
 	/* Low-level data specific to the table format */
+	/* private: */
 	union {
 		struct {
 			u64	ttbr;
@@ -203,6 +204,9 @@ struct arm_lpae_io_pgtable_walk_data {
  * @unmap_pages:  Unmap a range of virtually contiguous pages of the same size.
  * @iova_to_phys: Translate iova to physical address.
  * @pgtable_walk: (optional) Perform a page table walk for a given iova.
+ * @read_and_clear_dirty: Record dirty info per IOVA. If an IOVA is dirty,
+ *			  clear its dirty state from the PTE unless the
+ *			  IOMMU_DIRTY_NO_CLEAR flag is passed in.
  *
  * These functions map directly onto the iommu_ops member functions with
  * the same names.
@@ -231,7 +235,9 @@ struct io_pgtable_ops {
  *          the configuration actually provided by the allocator (e.g. the
  *          pgsize_bitmap may be restricted).
  * @cookie: An opaque token provided by the IOMMU driver and passed back to
- *          the callback routines in cfg->tlb.
+ *          the callback routines.
+ *
+ * Returns: Pointer to the &struct io_pgtable_ops for this set of page tables.
  */
 struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
 					    struct io_pgtable_cfg *cfg,
