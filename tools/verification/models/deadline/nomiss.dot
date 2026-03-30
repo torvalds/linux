@@ -1,0 +1,41 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = circle] "idle"};
+	{node [shape = plaintext, style=invis, label=""] "__init_ready"};
+	{node [shape = doublecircle] "ready"};
+	{node [shape = circle] "ready"};
+	{node [shape = circle] "running"};
+	{node [shape = circle] "sleeping"};
+	{node [shape = circle] "throttled"};
+	"__init_ready" -> "ready";
+	"idle" [label = "idle"];
+	"idle" -> "idle" [ label = "dl_server_idle" ];
+	"idle" -> "ready" [ label = "dl_replenish;reset(clk)" ];
+	"idle" -> "running" [ label = "sched_switch_in" ];
+	"idle" -> "sleeping" [ label = "dl_server_stop" ];
+	"idle" -> "throttled" [ label = "dl_throttle" ];
+	"ready" [label = "ready\nclk < DEADLINE_NS()", color = green3];
+	"ready" -> "idle" [ label = "dl_server_idle" ];
+	"ready" -> "ready" [ label = "sched_wakeup\ndl_replenish;reset(clk)" ];
+	"ready" -> "running" [ label = "sched_switch_in" ];
+	"ready" -> "sleeping" [ label = "dl_server_stop" ];
+	"ready" -> "throttled" [ label = "dl_throttle;is_defer == 1" ];
+	"running" [label = "running\nclk < DEADLINE_NS()"];
+	"running" -> "idle" [ label = "dl_server_idle" ];
+	"running" -> "running" [ label = "dl_replenish;reset(clk)\nsched_switch_in\nsched_wakeup" ];
+	"running" -> "sleeping" [ label = "sched_switch_suspend\ndl_server_stop" ];
+	"running" -> "throttled" [ label = "dl_throttle" ];
+	"sleeping" [label = "sleeping"];
+	"sleeping" -> "ready" [ label = "sched_wakeup\ndl_replenish;reset(clk)" ];
+	"sleeping" -> "running" [ label = "sched_switch_in" ];
+	"sleeping" -> "sleeping" [ label = "dl_server_stop\ndl_server_idle" ];
+	"sleeping" -> "throttled" [ label = "dl_throttle;is_constr_dl == 1 || is_defer == 1" ];
+	"throttled" [label = "throttled"];
+	"throttled" -> "ready" [ label = "dl_replenish;reset(clk)" ];
+	"throttled" -> "throttled" [ label = "sched_switch_suspend\nsched_wakeup\ndl_server_idle\ndl_throttle" ];
+	{ rank = min ;
+		"__init_ready";
+		"ready";
+	}
+}

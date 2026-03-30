@@ -17,3 +17,4 @@ Runtime Verification
    monitor_sched.rst
    monitor_rtapp.rst
    monitor_stall.rst
+   monitor_deadline.rst
