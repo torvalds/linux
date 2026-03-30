@@ -3381,7 +3381,7 @@ static int __hisi_qm_start(struct hisi_qm *qm)
 int hisi_qm_start(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	int ret = 0;
+	int ret;
 
 	down_write(&qm->qps_lock);
 
@@ -3917,8 +3917,8 @@ back_func_qos:
 
 static u32 qm_get_shaper_vft_qos(struct hisi_qm *qm, u32 fun_index)
 {
-	u64 cir_u = 0, cir_b = 0, cir_s = 0;
 	u64 shaper_vft, ir_calc, ir;
+	u64 cir_u, cir_b, cir_s;
 	unsigned int val;
 	u32 error_rate;
 	int ret;
