@@ -25,6 +25,11 @@ static ptdesc_t set_pageattr_masks(ptdesc_t val, struct mm_walk *walk)
 {
 	struct page_change_data *masks = walk->private;
 
+	/*
+	 * Some users clear and set bits which alias each other (e.g. PTE_NG and
+	 * PTE_PRESENT_INVALID). It is therefore important that we always clear
+	 * first then set.
+	 */
 	val &= ~(pgprot_val(masks->clear_mask));
 	val |= (pgprot_val(masks->set_mask));
 
@@ -36,7 +41,7 @@ static int pageattr_pud_entry(pud_t *pud, unsigned long addr,
 {
 	pud_t val = pudp_get(pud);
 
-	if (pud_sect(val)) {
+	if (pud_leaf(val)) {
 		if (WARN_ON_ONCE((next - addr) != PUD_SIZE))
 			return -EINVAL;
 		val = __pud(set_pageattr_masks(pud_val(val), walk));
@@ -52,7 +57,7 @@ static int pageattr_pmd_entry(pmd_t *pmd, unsigned long addr,
 {
 	pmd_t val = pmdp_get(pmd);
 
-	if (pmd_sect(val)) {
+	if (pmd_leaf(val)) {
 		if (WARN_ON_ONCE((next - addr) != PMD_SIZE))
 			return -EINVAL;
 		val = __pmd(set_pageattr_masks(pmd_val(val), walk));
@@ -132,11 +137,12 @@ static int __change_memory_common(unsigned long start, unsigned long size,
 	ret = update_range_prot(start, size, set_mask, clear_mask);
 
 	/*
-	 * If the memory is being made valid without changing any other bits
-	 * then a TLBI isn't required as a non-valid entry cannot be cached in
-	 * the TLB.
+	 * If the memory is being switched from present-invalid to valid without
+	 * changing any other bits then a TLBI isn't required as a non-valid
+	 * entry cannot be cached in the TLB.
 	 */
-	if (pgprot_val(set_mask) != PTE_VALID || pgprot_val(clear_mask))
+	if (pgprot_val(set_mask) != PTE_PRESENT_VALID_KERNEL ||
+	    pgprot_val(clear_mask) != PTE_PRESENT_INVALID)
 		flush_tlb_kernel_range(start, start + size);
 	return ret;
 }
@@ -237,18 +243,18 @@ int set_memory_valid(unsigned long addr, int numpages, int enable)
 {
 	if (enable)
 		return __change_memory_common(addr, PAGE_SIZE * numpages,
-					__pgprot(PTE_VALID),
-					__pgprot(0));
+					__pgprot(PTE_PRESENT_VALID_KERNEL),
+					__pgprot(PTE_PRESENT_INVALID));
 	else
 		return __change_memory_common(addr, PAGE_SIZE * numpages,
-					__pgprot(0),
-					__pgprot(PTE_VALID));
+					__pgprot(PTE_PRESENT_INVALID),
+					__pgprot(PTE_PRESENT_VALID_KERNEL));
 }
 
 int set_direct_map_invalid_noflush(struct page *page)
 {
-	pgprot_t clear_mask = __pgprot(PTE_VALID);
-	pgprot_t set_mask = __pgprot(0);
+	pgprot_t clear_mask = __pgprot(PTE_PRESENT_VALID_KERNEL);
+	pgprot_t set_mask = __pgprot(PTE_PRESENT_INVALID);
 
 	if (!can_set_direct_map())
 		return 0;
@@ -259,8 +265,8 @@ int set_direct_map_invalid_noflush(struct page *page)
 
 int set_direct_map_default_noflush(struct page *page)
 {
-	pgprot_t set_mask = __pgprot(PTE_VALID | PTE_WRITE);
-	pgprot_t clear_mask = __pgprot(PTE_RDONLY);
+	pgprot_t set_mask = __pgprot(PTE_PRESENT_VALID_KERNEL | PTE_WRITE);
+	pgprot_t clear_mask = __pgprot(PTE_PRESENT_INVALID | PTE_RDONLY);
 
 	if (!can_set_direct_map())
 		return 0;
@@ -296,8 +302,8 @@ static int __set_memory_enc_dec(unsigned long addr,
 	 * entries or Synchronous External Aborts caused by RIPAS_EMPTY
 	 */
 	ret = __change_memory_common(addr, PAGE_SIZE * numpages,
-				     __pgprot(set_prot),
-				     __pgprot(clear_prot | PTE_VALID));
+				     __pgprot(set_prot | PTE_PRESENT_INVALID),
+				     __pgprot(clear_prot | PTE_PRESENT_VALID_KERNEL));
 
 	if (ret)
 		return ret;
@@ -311,8 +317,8 @@ static int __set_memory_enc_dec(unsigned long addr,
 		return ret;
 
 	return __change_memory_common(addr, PAGE_SIZE * numpages,
-				      __pgprot(PTE_VALID),
-				      __pgprot(0));
+				      __pgprot(PTE_PRESENT_VALID_KERNEL),
+				      __pgprot(PTE_PRESENT_INVALID));
 }
 
 static int realm_set_memory_encrypted(unsigned long addr, int numpages)
@@ -404,15 +410,15 @@ bool kernel_page_present(struct page *page)
 	pud = READ_ONCE(*pudp);
 	if (pud_none(pud))
 		return false;
-	if (pud_sect(pud))
-		return true;
+	if (pud_leaf(pud))
+		return pud_valid(pud);
 
 	pmdp = pmd_offset(pudp, addr);
 	pmd = READ_ONCE(*pmdp);
 	if (pmd_none(pmd))
 		return false;
-	if (pmd_sect(pmd))
-		return true;
+	if (pmd_leaf(pmd))
+		return pmd_valid(pmd);
 
 	ptep = pte_offset_kernel(pmdp, addr);
 	return pte_valid(__ptep_get(ptep));

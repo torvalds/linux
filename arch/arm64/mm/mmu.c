@@ -602,6 +602,8 @@ static int split_pmd(pmd_t *pmdp, pmd_t pmd, gfp_t gfp, bool to_cont)
 		tableprot |= PMD_TABLE_PXN;
 
 	prot = __pgprot((pgprot_val(prot) & ~PTE_TYPE_MASK) | PTE_TYPE_PAGE);
+	if (!pmd_valid(pmd))
+		prot = pte_pgprot(pte_mkinvalid(pfn_pte(0, prot)));
 	prot = __pgprot(pgprot_val(prot) & ~PTE_CONT);
 	if (to_cont)
 		prot = __pgprot(pgprot_val(prot) | PTE_CONT);
@@ -647,6 +649,8 @@ static int split_pud(pud_t *pudp, pud_t pud, gfp_t gfp, bool to_cont)
 		tableprot |= PUD_TABLE_PXN;
 
 	prot = __pgprot((pgprot_val(prot) & ~PMD_TYPE_MASK) | PMD_TYPE_SECT);
+	if (!pud_valid(pud))
+		prot = pmd_pgprot(pmd_mkinvalid(pfn_pmd(0, prot)));
 	prot = __pgprot(pgprot_val(prot) & ~PTE_CONT);
 	if (to_cont)
 		prot = __pgprot(pgprot_val(prot) | PTE_CONT);

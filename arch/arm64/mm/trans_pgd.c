@@ -31,36 +31,6 @@ static void *trans_alloc(struct trans_pgd_info *info)
 	return info->trans_alloc_page(info->trans_alloc_arg);
 }
 
-static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
-{
-	pte_t pte = __ptep_get(src_ptep);
-
-	if (pte_valid(pte)) {
-		/*
-		 * Resume will overwrite areas that may be marked
-		 * read only (code, rodata). Clear the RDONLY bit from
-		 * the temporary mappings we use during restore.
-		 */
-		__set_pte(dst_ptep, pte_mkwrite_novma(pte));
-	} else if (!pte_none(pte)) {
-		/*
-		 * debug_pagealloc will removed the PTE_VALID bit if
-		 * the page isn't in use by the resume kernel. It may have
-		 * been in use by the original kernel, in which case we need
-		 * to put it back in our copy to do the restore.
-		 *
-		 * Other cases include kfence / vmalloc / memfd_secret which
-		 * may call `set_direct_map_invalid_noflush()`.
-		 *
-		 * Before marking this entry valid, check the pfn should
-		 * be mapped.
-		 */
-		BUG_ON(!pfn_valid(pte_pfn(pte)));
-
-		__set_pte(dst_ptep, pte_mkvalid(pte_mkwrite_novma(pte)));
-	}
-}
-
 static int copy_pte(struct trans_pgd_info *info, pmd_t *dst_pmdp,
 		    pmd_t *src_pmdp, unsigned long start, unsigned long end)
 {
@@ -76,7 +46,11 @@ static int copy_pte(struct trans_pgd_info *info, pmd_t *dst_pmdp,
 
 	src_ptep = pte_offset_kernel(src_pmdp, start);
 	do {
-		_copy_pte(dst_ptep, src_ptep, addr);
+		pte_t pte = __ptep_get(src_ptep);
+
+		if (pte_none(pte))
+			continue;
+		__set_pte(dst_ptep, pte_mkvalid_k(pte_mkwrite_novma(pte)));
 	} while (dst_ptep++, src_ptep++, addr += PAGE_SIZE, addr != end);
 
 	return 0;
@@ -109,8 +83,7 @@ static int copy_pmd(struct trans_pgd_info *info, pud_t *dst_pudp,
 			if (copy_pte(info, dst_pmdp, src_pmdp, addr, next))
 				return -ENOMEM;
 		} else {
-			set_pmd(dst_pmdp,
-				__pmd(pmd_val(pmd) & ~PMD_SECT_RDONLY));
+			set_pmd(dst_pmdp, pmd_mkvalid_k(pmd_mkwrite_novma(pmd)));
 		}
 	} while (dst_pmdp++, src_pmdp++, addr = next, addr != end);
 
@@ -145,8 +118,7 @@ static int copy_pud(struct trans_pgd_info *info, p4d_t *dst_p4dp,
 			if (copy_pmd(info, dst_pudp, src_pudp, addr, next))
 				return -ENOMEM;
 		} else {
-			set_pud(dst_pudp,
-				__pud(pud_val(pud) & ~PUD_SECT_RDONLY));
+			set_pud(dst_pudp, pud_mkvalid_k(pud_mkwrite_novma(pud)));
 		}
 	} while (dst_pudp++, src_pudp++, addr = next, addr != end);
 
