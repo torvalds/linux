@@ -1109,7 +1109,6 @@ xfs_setattr_size(
 		xfs_inode_clear_eofblocks_tag(ip);
 	}
 
-	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
 	setattr_copy(idmap, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
