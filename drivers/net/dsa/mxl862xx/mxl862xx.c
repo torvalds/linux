@@ -407,6 +407,7 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 	struct device *dev = &mdiodev->dev;
 	struct mxl862xx_priv *priv;
 	struct dsa_switch *ds;
+	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -428,7 +429,11 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(dev, ds);
 
-	return dsa_register_switch(ds);
+	err = dsa_register_switch(ds);
+	if (err)
+		mxl862xx_host_shutdown(priv);
+
+	return err;
 }
 
 static void mxl862xx_remove(struct mdio_device *mdiodev)
