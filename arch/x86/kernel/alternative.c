@@ -2448,12 +2448,6 @@ void __init alternative_instructions(void)
 					    __smp_locks, __smp_locks_end,
 					    _text, _etext);
 	}
-
-	if (!uniproc_patched || num_possible_cpus() == 1) {
-		free_init_pages("SMP alternatives",
-				(unsigned long)__smp_locks,
-				(unsigned long)__smp_locks_end);
-	}
 #endif
 
 	restart_nmi();
@@ -2461,6 +2455,24 @@ void __init alternative_instructions(void)
 
 	alt_reloc_selftest();
 }
+
+#ifdef CONFIG_SMP
+/*
+ * With CONFIG_DEFERRED_STRUCT_PAGE_INIT enabled we can free_init_pages() only
+ * after the deferred initialization of the memory map is complete.
+ */
+static int __init free_smp_locks(void)
+{
+	if (!uniproc_patched || num_possible_cpus() == 1) {
+		free_init_pages("SMP alternatives",
+				(unsigned long)__smp_locks,
+				(unsigned long)__smp_locks_end);
+	}
+
+	return 0;
+}
+arch_initcall(free_smp_locks);
+#endif
 
 /**
  * text_poke_early - Update instructions on a live kernel at boot time
