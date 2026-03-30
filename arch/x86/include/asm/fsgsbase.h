@@ -25,7 +25,7 @@ static __always_inline unsigned long rdfsbase(void)
 {
 	unsigned long fsbase;
 
-	asm volatile("rdfsbase %0" : "=r" (fsbase) :: "memory");
+	asm volatile("rdfsbase %0" : "=r" (fsbase));
 
 	return fsbase;
 }
@@ -34,7 +34,7 @@ static __always_inline unsigned long rdgsbase(void)
 {
 	unsigned long gsbase;
 
-	asm volatile("rdgsbase %0" : "=r" (gsbase) :: "memory");
+	asm volatile("rdgsbase %0" : "=r" (gsbase));
 
 	return gsbase;
 }
