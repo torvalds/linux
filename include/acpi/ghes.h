@@ -71,6 +71,17 @@ int ghes_register_vendor_record_notifier(struct notifier_block *nb);
  */
 void ghes_unregister_vendor_record_notifier(struct notifier_block *nb);
 
+/**
+ * devm_ghes_register_vendor_record_notifier - device-managed vendor
+ * record notifier registration.
+ * @dev: device that owns the notifier lifetime
+ * @nb: pointer to the notifier_block structure of the vendor record handler
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int devm_ghes_register_vendor_record_notifier(struct device *dev,
+					      struct notifier_block *nb);
+
 struct list_head *ghes_get_devices(void);
 
 void ghes_estatus_pool_region_free(unsigned long addr, u32 size);
