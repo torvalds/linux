@@ -331,16 +331,21 @@ static inline size_t probe_subpage_writeable(char __user *uaddr, size_t size)
 
 #endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
 
-#ifndef ARCH_HAS_NOCACHE_UACCESS
+#ifndef ARCH_HAS_NONTEMPORAL_UACCESS
 
 static inline __must_check unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+copy_from_user_inatomic_nontemporal(void *to, const void __user *from,
 				  unsigned long n)
 {
+	if (can_do_masked_user_access())
+		from = mask_user_address(from);
+	else
+		if (!access_ok(from, n))
+			return n;
 	return __copy_from_user_inatomic(to, from, n);
 }
 
-#endif		/* ARCH_HAS_NOCACHE_UACCESS */
+#endif		/* ARCH_HAS_NONTEMPORAL_UACCESS */
 
 extern __must_check int check_zeroed_user(const void __user *from, size_t size);
 
