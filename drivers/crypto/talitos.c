@@ -12,6 +12,7 @@
  * All rights reserved.
  */
 
+#include <linux/workqueue.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -870,10 +871,18 @@ struct talitos_ahash_req_ctx {
 	unsigned int swinit;
 	unsigned int first;
 	unsigned int last;
+	unsigned int last_request;
 	unsigned int to_hash_later;
 	unsigned int nbuf;
 	struct scatterlist bufsl[2];
 	struct scatterlist *psrc;
+
+	struct scatterlist request_bufsl[2];
+	struct ahash_request *areq;
+	struct scatterlist *request_sl;
+	unsigned int remaining_ahash_request_bytes;
+	unsigned int current_ahash_request_bytes;
+	struct work_struct sec1_ahash_process_remaining;
 };
 
 struct talitos_export_state {
@@ -1759,7 +1768,20 @@ static void ahash_done(struct device *dev,
 
 	kfree(edesc);
 
-	ahash_request_complete(areq, err);
+	if (err) {
+		ahash_request_complete(areq, err);
+		return;
+	}
+
+	req_ctx->remaining_ahash_request_bytes -=
+		req_ctx->current_ahash_request_bytes;
+
+	if (!req_ctx->remaining_ahash_request_bytes) {
+		ahash_request_complete(areq, 0);
+		return;
+	}
+
+	schedule_work(&req_ctx->sec1_ahash_process_remaining);
 }
 
 /*
@@ -1925,6 +1947,171 @@ static struct talitos_edesc *ahash_edesc_alloc(struct ahash_request *areq,
 				   nbytes, 0, 0, 0, areq->base.flags, false);
 }
 
+static int ahash_process_req_one(struct ahash_request *areq, unsigned int nbytes)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
+	struct talitos_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
+	struct talitos_edesc *edesc;
+	unsigned int blocksize =
+			crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
+	unsigned int nbytes_to_hash;
+	unsigned int to_hash_later;
+	unsigned int nsg;
+	int nents;
+	struct device *dev = ctx->dev;
+	struct talitos_private *priv = dev_get_drvdata(dev);
+	bool is_sec1 = has_ftr_sec1(priv);
+	u8 *ctx_buf = req_ctx->buf[req_ctx->buf_idx];
+
+	if (!req_ctx->last && (nbytes + req_ctx->nbuf <= blocksize)) {
+		/* Buffer up to one whole block */
+		nents = sg_nents_for_len(req_ctx->request_sl, nbytes);
+		if (nents < 0) {
+			dev_err(dev, "Invalid number of src SG.\n");
+			return nents;
+		}
+		sg_copy_to_buffer(req_ctx->request_sl, nents,
+				  ctx_buf + req_ctx->nbuf, nbytes);
+		req_ctx->nbuf += nbytes;
+		return 0;
+	}
+
+	/* At least (blocksize + 1) bytes are available to hash */
+	nbytes_to_hash = nbytes + req_ctx->nbuf;
+	to_hash_later = nbytes_to_hash & (blocksize - 1);
+
+	if (req_ctx->last)
+		to_hash_later = 0;
+	else if (to_hash_later)
+		/* There is a partial block. Hash the full block(s) now */
+		nbytes_to_hash -= to_hash_later;
+	else {
+		/* Keep one block buffered */
+		nbytes_to_hash -= blocksize;
+		to_hash_later = blocksize;
+	}
+
+	/* Chain in any previously buffered data */
+	if (!is_sec1 && req_ctx->nbuf) {
+		nsg = (req_ctx->nbuf < nbytes_to_hash) ? 2 : 1;
+		sg_init_table(req_ctx->bufsl, nsg);
+		sg_set_buf(req_ctx->bufsl, ctx_buf, req_ctx->nbuf);
+		if (nsg > 1)
+			sg_chain(req_ctx->bufsl, 2, req_ctx->request_sl);
+		req_ctx->psrc = req_ctx->bufsl;
+	} else if (is_sec1 && req_ctx->nbuf && req_ctx->nbuf < blocksize) {
+		int offset;
+
+		if (nbytes_to_hash > blocksize)
+			offset = blocksize - req_ctx->nbuf;
+		else
+			offset = nbytes_to_hash - req_ctx->nbuf;
+		nents = sg_nents_for_len(req_ctx->request_sl, offset);
+		if (nents < 0) {
+			dev_err(dev, "Invalid number of src SG.\n");
+			return nents;
+		}
+		sg_copy_to_buffer(req_ctx->request_sl, nents,
+				  ctx_buf + req_ctx->nbuf, offset);
+		req_ctx->nbuf += offset;
+		req_ctx->psrc = scatterwalk_ffwd(req_ctx->bufsl, req_ctx->request_sl,
+						 offset);
+	} else
+		req_ctx->psrc = req_ctx->request_sl;
+
+	if (to_hash_later) {
+		nents = sg_nents_for_len(req_ctx->request_sl, nbytes);
+		if (nents < 0) {
+			dev_err(dev, "Invalid number of src SG.\n");
+			return nents;
+		}
+		sg_pcopy_to_buffer(req_ctx->request_sl, nents,
+				   req_ctx->buf[(req_ctx->buf_idx + 1) & 1],
+				      to_hash_later,
+				      nbytes - to_hash_later);
+	}
+	req_ctx->to_hash_later = to_hash_later;
+
+	/* Allocate extended descriptor */
+	edesc = ahash_edesc_alloc(req_ctx->areq, nbytes_to_hash);
+	if (IS_ERR(edesc))
+		return PTR_ERR(edesc);
+
+	edesc->desc.hdr = ctx->desc_hdr_template;
+
+	/* On last one, request SEC to pad; otherwise continue */
+	if (req_ctx->last)
+		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_PAD;
+	else
+		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_CONT;
+
+	/* request SEC to INIT hash. */
+	if (req_ctx->first && !req_ctx->swinit)
+		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_INIT;
+
+	/* When the tfm context has a keylen, it's an HMAC.
+	 * A first or last (ie. not middle) descriptor must request HMAC.
+	 */
+	if (ctx->keylen && (req_ctx->first || req_ctx->last))
+		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_HMAC;
+
+	return common_nonsnoop_hash(edesc, req_ctx->areq, nbytes_to_hash, ahash_done);
+}
+
+static void sec1_ahash_process_remaining(struct work_struct *work)
+{
+	struct talitos_ahash_req_ctx *req_ctx =
+		container_of(work, struct talitos_ahash_req_ctx,
+			     sec1_ahash_process_remaining);
+	int err = 0;
+
+	req_ctx->request_sl = scatterwalk_ffwd(req_ctx->request_bufsl,
+					       req_ctx->request_sl, TALITOS1_MAX_DATA_LEN);
+
+	if (req_ctx->remaining_ahash_request_bytes > TALITOS1_MAX_DATA_LEN)
+		req_ctx->current_ahash_request_bytes = TALITOS1_MAX_DATA_LEN;
+	else {
+		req_ctx->current_ahash_request_bytes =
+			req_ctx->remaining_ahash_request_bytes;
+
+		if (req_ctx->last_request)
+			req_ctx->last = 1;
+	}
+
+	err = ahash_process_req_one(req_ctx->areq,
+				    req_ctx->current_ahash_request_bytes);
+
+	if (err != -EINPROGRESS)
+		ahash_request_complete(req_ctx->areq, err);
+}
+
+static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
+	struct talitos_ctx *ctx = crypto_ahash_ctx(tfm);
+	struct device *dev = ctx->dev;
+	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
+	struct talitos_private *priv = dev_get_drvdata(dev);
+	bool is_sec1 = has_ftr_sec1(priv);
+
+	req_ctx->areq = areq;
+	req_ctx->request_sl = areq->src;
+	req_ctx->remaining_ahash_request_bytes = nbytes;
+
+	if (is_sec1) {
+		if (nbytes > TALITOS1_MAX_DATA_LEN)
+			nbytes = TALITOS1_MAX_DATA_LEN;
+		else if (req_ctx->last_request)
+			req_ctx->last = 1;
+	}
+
+	req_ctx->current_ahash_request_bytes = nbytes;
+
+	return ahash_process_req_one(req_ctx->areq,
+				     req_ctx->current_ahash_request_bytes);
+}
+
 static int ahash_init(struct ahash_request *areq)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
@@ -1943,6 +2130,9 @@ static int ahash_init(struct ahash_request *areq)
 			? TALITOS_MDEU_CONTEXT_SIZE_MD5_SHA1_SHA256
 			: TALITOS_MDEU_CONTEXT_SIZE_SHA384_SHA512;
 	req_ctx->hw_context_size = size;
+	req_ctx->last_request = 0;
+	req_ctx->last = 0;
+	INIT_WORK(&req_ctx->sec1_ahash_process_remaining, sec1_ahash_process_remaining);
 
 	dma = dma_map_single(dev, req_ctx->hw_context, req_ctx->hw_context_size,
 			     DMA_TO_DEVICE);
@@ -1978,123 +2168,11 @@ static int ahash_init_sha224_swinit(struct ahash_request *areq)
 	return 0;
 }
 
-static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
-	struct talitos_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
-	struct talitos_edesc *edesc;
-	unsigned int blocksize =
-			crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
-	unsigned int nbytes_to_hash;
-	unsigned int to_hash_later;
-	unsigned int nsg;
-	int nents;
-	struct device *dev = ctx->dev;
-	struct talitos_private *priv = dev_get_drvdata(dev);
-	bool is_sec1 = has_ftr_sec1(priv);
-	u8 *ctx_buf = req_ctx->buf[req_ctx->buf_idx];
-
-	if (!req_ctx->last && (nbytes + req_ctx->nbuf <= blocksize)) {
-		/* Buffer up to one whole block */
-		nents = sg_nents_for_len(areq->src, nbytes);
-		if (nents < 0) {
-			dev_err(dev, "Invalid number of src SG.\n");
-			return nents;
-		}
-		sg_copy_to_buffer(areq->src, nents,
-				  ctx_buf + req_ctx->nbuf, nbytes);
-		req_ctx->nbuf += nbytes;
-		return 0;
-	}
-
-	/* At least (blocksize + 1) bytes are available to hash */
-	nbytes_to_hash = nbytes + req_ctx->nbuf;
-	to_hash_later = nbytes_to_hash & (blocksize - 1);
-
-	if (req_ctx->last)
-		to_hash_later = 0;
-	else if (to_hash_later)
-		/* There is a partial block. Hash the full block(s) now */
-		nbytes_to_hash -= to_hash_later;
-	else {
-		/* Keep one block buffered */
-		nbytes_to_hash -= blocksize;
-		to_hash_later = blocksize;
-	}
-
-	/* Chain in any previously buffered data */
-	if (!is_sec1 && req_ctx->nbuf) {
-		nsg = (req_ctx->nbuf < nbytes_to_hash) ? 2 : 1;
-		sg_init_table(req_ctx->bufsl, nsg);
-		sg_set_buf(req_ctx->bufsl, ctx_buf, req_ctx->nbuf);
-		if (nsg > 1)
-			sg_chain(req_ctx->bufsl, 2, areq->src);
-		req_ctx->psrc = req_ctx->bufsl;
-	} else if (is_sec1 && req_ctx->nbuf && req_ctx->nbuf < blocksize) {
-		int offset;
-
-		if (nbytes_to_hash > blocksize)
-			offset = blocksize - req_ctx->nbuf;
-		else
-			offset = nbytes_to_hash - req_ctx->nbuf;
-		nents = sg_nents_for_len(areq->src, offset);
-		if (nents < 0) {
-			dev_err(dev, "Invalid number of src SG.\n");
-			return nents;
-		}
-		sg_copy_to_buffer(areq->src, nents,
-				  ctx_buf + req_ctx->nbuf, offset);
-		req_ctx->nbuf += offset;
-		req_ctx->psrc = scatterwalk_ffwd(req_ctx->bufsl, areq->src,
-						 offset);
-	} else
-		req_ctx->psrc = areq->src;
-
-	if (to_hash_later) {
-		nents = sg_nents_for_len(areq->src, nbytes);
-		if (nents < 0) {
-			dev_err(dev, "Invalid number of src SG.\n");
-			return nents;
-		}
-		sg_pcopy_to_buffer(areq->src, nents,
-				   req_ctx->buf[(req_ctx->buf_idx + 1) & 1],
-				      to_hash_later,
-				      nbytes - to_hash_later);
-	}
-	req_ctx->to_hash_later = to_hash_later;
-
-	/* Allocate extended descriptor */
-	edesc = ahash_edesc_alloc(areq, nbytes_to_hash);
-	if (IS_ERR(edesc))
-		return PTR_ERR(edesc);
-
-	edesc->desc.hdr = ctx->desc_hdr_template;
-
-	/* On last one, request SEC to pad; otherwise continue */
-	if (req_ctx->last)
-		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_PAD;
-	else
-		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_CONT;
-
-	/* request SEC to INIT hash. */
-	if (req_ctx->first && !req_ctx->swinit)
-		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_INIT;
-
-	/* When the tfm context has a keylen, it's an HMAC.
-	 * A first or last (ie. not middle) descriptor must request HMAC.
-	 */
-	if (ctx->keylen && (req_ctx->first || req_ctx->last))
-		edesc->desc.hdr |= DESC_HDR_MODE0_MDEU_HMAC;
-
-	return common_nonsnoop_hash(edesc, areq, nbytes_to_hash, ahash_done);
-}
-
 static int ahash_update(struct ahash_request *areq)
 {
 	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
 
-	req_ctx->last = 0;
+	req_ctx->last_request = 0;
 
 	return ahash_process_req(areq, areq->nbytes);
 }
@@ -2103,7 +2181,7 @@ static int ahash_final(struct ahash_request *areq)
 {
 	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
 
-	req_ctx->last = 1;
+	req_ctx->last_request = 1;
 
 	return ahash_process_req(areq, 0);
 }
@@ -2112,7 +2190,7 @@ static int ahash_finup(struct ahash_request *areq)
 {
 	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
 
-	req_ctx->last = 1;
+	req_ctx->last_request = 1;
 
 	return ahash_process_req(areq, areq->nbytes);
 }
