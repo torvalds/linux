@@ -11,10 +11,12 @@ ALL_TESTS="
 NUM_NETIFS=2
 lib_dir=$(dirname "$0")
 source "$lib_dir"/../../../net/forwarding/lib.sh
+source "$lib_dir"/../../../kselftest/ktap_helpers.sh
 
 UINT32_MAX=$((2**32 - 1))
 ETH_FCS_LEN=4
 ETH_HLEN=$((6+6+2))
+TEST_NAME=$(basename "$0" .sh)
 
 declare -A netif_mtu
 
@@ -76,29 +78,28 @@ rmon_histogram()
 	local nbuckets=0
 	local step=
 
-	RET=0
-
 	while read -r -a bucket; do
-		step="$set-pkts${bucket[0]}to${bucket[1]} on $iface"
+		step="$set-pkts${bucket[0]}to${bucket[1]}"
 
 		for if in "$iface" "$neigh"; do
 			if ! ensure_mtu "$if" "${bucket[0]}"; then
-				log_test_xfail "$if does not support the required MTU for $step"
+				ktap_print_msg "$if does not support the required MTU for $step"
+				ktap_test_xfail "$TEST_NAME.$step"
 				return
 			fi
 		done
 
 		if ! bucket_test "$iface" "$neigh" "$set" "$nbuckets" "${bucket[0]}"; then
-			check_err 1 "$step failed"
+			ktap_test_fail "$TEST_NAME.$step"
 			return 1
 		fi
-		log_test "$step"
+		ktap_test_pass "$TEST_NAME.$step"
 		nbuckets=$((nbuckets + 1))
 	done < <(ethtool --json -S "$iface" --groups rmon | \
 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][]|[.low, .high]|@tsv" 2>/dev/null)
 
 	if [ "$nbuckets" -eq 0 ]; then
-		log_test_xfail "$iface does not support $set histogram counters"
+		ktap_print_msg "$iface does not support $set histogram counters"
 		return
 	fi
 }
@@ -139,9 +140,16 @@ cleanup()
 check_ethtool_counter_group_support
 trap cleanup EXIT
 
+bucket_count=$(ethtool --json -S "${NETIFS[p1]}" --groups rmon | \
+	jq -r '.[0].rmon |
+		"\((."rx-pktsNtoM" | length) +
+		   (."tx-pktsNtoM" | length))"')
+ktap_print_header
+ktap_set_plan "$bucket_count"
+
 setup_prepare
 setup_wait
 
 tests_run
 
-exit "$EXIT_STATUS"
+ktap_finished
