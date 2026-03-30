@@ -13,6 +13,7 @@
 #define RV_MON_GLOBAL   0
 #define RV_MON_PER_CPU  1
 #define RV_MON_PER_TASK 2
+#define RV_MON_PER_OBJ  3
 
 #ifdef CONFIG_RV
 #include <linux/array_size.h>

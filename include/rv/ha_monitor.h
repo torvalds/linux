@@ -190,7 +190,10 @@ static inline void ha_trace_error_env(struct ha_monitor *ha_mon,
 {
 	CONCATENATE(trace_error_env_, MONITOR_NAME)(curr_state, event, env);
 }
-#elif RV_MON_TYPE == RV_MON_PER_TASK
+#elif RV_MON_TYPE == RV_MON_PER_TASK || RV_MON_TYPE == RV_MON_PER_OBJ
+
+#define ha_get_target(ha_mon) da_get_target(&ha_mon->da_mon)
+
 static inline void ha_trace_error_env(struct ha_monitor *ha_mon,
 				      char *curr_state, char *event, char *env,
 				      da_id_type id)
