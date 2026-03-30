@@ -45,8 +45,8 @@ struct qm_dfx_item {
 
 struct qm_cmd_dump_item {
 	const char *cmd;
-	char *info_name;
-	int (*dump_fn)(struct hisi_qm *qm, char *cmd, char *info_name);
+	const char *info_name;
+	int (*dump_fn)(struct hisi_qm *qm, char *cmd, const char *info_name);
 };
 
 static struct qm_dfx_item qm_dfx_files[] = {
@@ -151,7 +151,7 @@ static ssize_t qm_cmd_read(struct file *filp, char __user *buffer,
 }
 
 static void dump_show(struct hisi_qm *qm, void *info,
-		     unsigned int info_size, char *info_name)
+		     unsigned int info_size, const char *info_name)
 {
 	struct device *dev = &qm->pdev->dev;
 	u8 *info_curr = info;
@@ -165,7 +165,7 @@ static void dump_show(struct hisi_qm *qm, void *info,
 	}
 }
 
-static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_sqc_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	struct device *dev = &qm->pdev->dev;
 	struct qm_sqc sqc;
@@ -202,7 +202,7 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 	return 0;
 }
 
-static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_cqc_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	struct device *dev = &qm->pdev->dev;
 	struct qm_cqc cqc;
@@ -239,7 +239,7 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 	return 0;
 }
 
-static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	struct device *dev = &qm->pdev->dev;
 	struct qm_aeqc aeqc;
@@ -317,7 +317,7 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 	return 0;
 }
 
-static int qm_sq_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_sq_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	u16 sq_depth = qm->qp_array->sq_depth;
 	struct hisi_qp *qp;
@@ -345,7 +345,7 @@ static int qm_sq_dump(struct hisi_qm *qm, char *s, char *name)
 	return 0;
 }
 
-static int qm_cq_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_cq_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	struct qm_cqe *cqe_curr;
 	struct hisi_qp *qp;
@@ -363,7 +363,7 @@ static int qm_cq_dump(struct hisi_qm *qm, char *s, char *name)
 	return 0;
 }
 
-static int qm_eq_aeq_dump(struct hisi_qm *qm, char *s, char *name)
+static int qm_eq_aeq_dump(struct hisi_qm *qm, char *s, const char *name)
 {
 	struct device *dev = &qm->pdev->dev;
 	u16 xeq_depth;
