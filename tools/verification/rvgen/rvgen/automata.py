@@ -9,24 +9,64 @@
 #   Documentation/trace/rv/deterministic_automata.rst
 
 import ntpath
+import re
+from typing import Iterator
+
+class _ConstraintKey:
+    """Base class for constraint keys."""
+
+class _StateConstraintKey(_ConstraintKey, int):
+    """Key for a state constraint. Under the hood just state_id."""
+    def __new__(cls, state_id: int):
+        return super().__new__(cls, state_id)
+
+class _EventConstraintKey(_ConstraintKey, tuple):
+    """Key for an event constraint. Under the hood just tuple(state_id,event_id)."""
+    def __new__(cls, state_id: int, event_id: int):
+        return super().__new__(cls, (state_id, event_id))
 
 class Automata:
     """Automata class: Reads a dot file and part it as an automata.
+
+    It supports both deterministic and hybrid automata.
 
     Attributes:
         dot_file: A dot file with an state_automaton definition.
     """
 
     invalid_state_str = "INVALID_STATE"
+    # val can be numerical, uppercase (constant or macro), lowercase (parameter or function)
+    # only numerical values should have units
+    constraint_rule = re.compile(r"""
+        ^
+        (?P<env>[a-zA-Z_][a-zA-Z0-9_]+)  # C-like identifier for the env var
+        (?P<op>[!<=>]{1,2})              # operator
+        (?P<val>
+            [0-9]+ |                     # numerical value
+            [A-Z_]+\(\) |                # macro
+            [A-Z_]+ |                    # constant
+            [a-z_]+\(\) |                # function
+            [a-z_]+                      # parameter
+        )
+        (?P<unit>[a-z]{1,2})?            # optional unit for numerical values
+        """, re.VERBOSE)
+    constraint_reset = re.compile(r"^reset\((?P<env>[a-zA-Z_][a-zA-Z0-9_]+)\)")
 
     def __init__(self, file_path, model_name=None):
         self.__dot_path = file_path
         self.name = model_name or self.__get_model_name()
         self.__dot_lines = self.__open_dot()
         self.states, self.initial_state, self.final_states = self.__get_state_variables()
-        self.events = self.__get_event_variables()
-        self.function = self.__create_matrix()
+        self.env_types = {}
+        self.env_stored = set()
+        self.constraint_vars = set()
+        self.self_loop_reset_events = set()
+        self.events, self.envs = self.__get_event_variables()
+        self.function, self.constraints = self.__create_matrix()
         self.events_start, self.events_start_run = self.__store_init_events()
+        self.env_stored = sorted(self.env_stored)
+        self.constraint_vars = sorted(self.constraint_vars)
+        self.self_loop_reset_events = sorted(self.self_loop_reset_events)
 
     def __get_model_name(self) -> str:
         basename = ntpath.basename(self.__dot_path)
@@ -116,30 +156,93 @@ class Automata:
 
         return states, initial_state, final_states
 
-    def __get_event_variables(self) -> list[str]:
+    def __get_event_variables(self) -> tuple[list[str], list[str]]:
         # here we are at the begin of transitions, take a note, we will return later.
         cursor = self.__get_cursor_begin_events()
 
         events = []
+        envs = []
         while self.__dot_lines[cursor].lstrip()[0] == '"':
             # transitions have the format:
             # "all_fired" -> "both_fired" [ label = "disable_irq" ];
             #  ------------ event is here ------------^^^^^
             if self.__dot_lines[cursor].split()[1] == "->":
                 line = self.__dot_lines[cursor].split()
-                event = "".join(line[line.index("label")+2:-1]).replace('"', '')
+                event = "".join(line[line.index("label") + 2:-1]).replace('"', '')
 
                 # when a transition has more than one lables, they are like this
                 # "local_irq_enable\nhw_local_irq_enable_n"
                 # so split them.
 
                 for i in event.split("\\n"):
-                    events.append(i)
+                    # if the event contains a constraint (hybrid automata),
+                    # it will be separated by a ";":
+                    # "sched_switch;x<1000;reset(x)"
+                    ev, *constr = i.split(";")
+                    if constr:
+                        if len(constr) > 2:
+                            raise ValueError("Only 1 constraint and 1 reset are supported")
+                        envs += self.__extract_env_var(constr)
+                    events.append(ev)
+            else:
+                # state labels have the format:
+                # "enable_fired" [label = "enable_fired\ncondition"];
+                #  ----- label is here -----^^^^^
+                # label and node name must be the same, condition is optional
+                state = self.__dot_lines[cursor].split("label")[1].split('"')[1]
+                _, *constr = state.split("\\n")
+                if constr:
+                    if len(constr) > 1:
+                        raise ValueError("Only 1 constraint is supported in the state")
+                    envs += self.__extract_env_var([constr[0].replace(" ", "")])
             cursor += 1
 
-        return sorted(set(events))
+        return sorted(set(events)), sorted(set(envs))
 
-    def __create_matrix(self) -> list[list[str]]:
+    def _split_constraint_expr(self, constr: list[str]) -> Iterator[tuple[str,
+                                                                          str | None]]:
+        """
+        Get a list of strings of the type constr1 && constr2 and returns a list of
+        constraints and separators: [[constr1,"&&"],[constr2,None]]
+        """
+        exprs = []
+        seps = []
+        for c in constr:
+            while "&&" in c or "||" in c:
+                a = c.find("&&")
+                o = c.find("||")
+                pos = a if o < 0 or 0 < a < o else o
+                exprs.append(c[:pos].replace(" ", ""))
+                seps.append(c[pos:pos + 2].replace(" ", ""))
+                c = c[pos + 2:].replace(" ", "")
+            exprs.append(c)
+            seps.append(None)
+        return zip(exprs, seps)
+
+    def __extract_env_var(self, constraint: list[str]) -> list[str]:
+        env = []
+        for c, _ in self._split_constraint_expr(constraint):
+            rule = self.constraint_rule.search(c)
+            reset = self.constraint_reset.search(c)
+            if rule:
+                env.append(rule["env"])
+                if rule.groupdict().get("unit"):
+                    self.env_types[rule["env"]] = rule["unit"]
+                if rule["val"][0].isalpha():
+                    self.constraint_vars.add(rule["val"])
+                # try to infer unit from constants or parameters
+                val_for_unit = rule["val"].lower().replace("()", "")
+                if val_for_unit.endswith("_ns"):
+                    self.env_types[rule["env"]] = "ns"
+                if val_for_unit.endswith("_jiffies"):
+                    self.env_types[rule["env"]] = "j"
+            if reset:
+                env.append(reset["env"])
+                # environment variables that are reset need a storage
+                self.env_stored.add(reset["env"])
+        return env
+
+    def __create_matrix(self) -> tuple[list[list[str]], dict[_ConstraintKey, list[str]]]:
         # transform the array into a dictionary
         events = self.events
         states = self.states
@@ -157,6 +260,7 @@ class Automata:
 
         # declare the matrix....
         matrix = [[ self.invalid_state_str for x in range(nr_event)] for y in range(nr_state)]
+        constraints: dict[_ConstraintKey, list[str]] = {}
 
         # and we are back! Let's fill the matrix
         cursor = self.__get_cursor_begin_events()
@@ -166,12 +270,24 @@ class Automata:
                 line = self.__dot_lines[cursor].split()
                 origin_state = line[0].replace('"','').replace(',','_')
                 dest_state = line[2].replace('"','').replace(',','_')
-                possible_events = "".join(line[line.index("label")+2:-1]).replace('"', '')
+                possible_events = "".join(line[line.index("label") + 2:-1]).replace('"', '')
                 for event in possible_events.split("\\n"):
+                    event, *constr = event.split(";")
+                    if constr:
+                        key = _EventConstraintKey(states_dict[origin_state], events_dict[event])
+                        constraints[key] = constr
+                        # those events reset also on self loops
+                        if origin_state == dest_state and "reset" in "".join(constr):
+                            self.self_loop_reset_events.add(event)
                     matrix[states_dict[origin_state]][events_dict[event]] = dest_state
+            else:
+                state = self.__dot_lines[cursor].split("label")[1].split('"')[1]
+                state, *constr = state.replace(" ", "").split("\\n")
+                if constr:
+                    constraints[_StateConstraintKey(states_dict[state])] = constr
             cursor += 1
 
-        return matrix
+        return matrix, constraints
 
     def __store_init_events(self) -> tuple[list[bool], list[bool]]:
         events_start = [False] * len(self.events)
@@ -203,3 +319,13 @@ class Automata:
         if any(self.events_start):
             return False
         return self.events_start_run[self.events.index(event)]
+
+    def is_hybrid_automata(self) -> bool:
+        return bool(self.envs)
+
+    def is_event_constraint(self, key: _ConstraintKey) -> bool:
+        """
+        Given the key in self.constraints return true if it is an event
+        constraint, false if it is a state constraint
+        """
+        return isinstance(key, _EventConstraintKey)

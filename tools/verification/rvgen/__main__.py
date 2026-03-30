@@ -9,7 +9,7 @@
 #   Documentation/trace/rv/da_monitor_synthesis.rst
 
 if __name__ == '__main__':
-    from rvgen.dot2k import dot2k
+    from rvgen.dot2k import da2k, ha2k
     from rvgen.generator import Monitor
     from rvgen.container import Container
     from rvgen.ltl2k import ltl2k
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     monitor_parser.add_argument("-p", "--parent", dest="parent",
                                 required=False, help="Create a monitor nested to parent")
     monitor_parser.add_argument('-c', "--class", dest="monitor_class",
-                                help="Monitor class, either \"da\" or \"ltl\"")
+                                help="Monitor class, either \"da\", \"ha\" or \"ltl\"")
     monitor_parser.add_argument('-s', "--spec", dest="spec", help="Monitor specification file")
     monitor_parser.add_argument('-t', "--monitor_type", dest="monitor_type",
                                 help=f"Available options: {', '.join(Monitor.monitor_types.keys())}")
@@ -43,7 +43,9 @@ if __name__ == '__main__':
         if params.subcmd == "monitor":
             print("Opening and parsing the specification file %s" % params.spec)
             if params.monitor_class == "da":
-                monitor = dot2k(params.spec, params.monitor_type, vars(params))
+                monitor = da2k(params.spec, params.monitor_type, vars(params))
+            elif params.monitor_class == "ha":
+                monitor = ha2k(params.spec, params.monitor_type, vars(params))
             elif params.monitor_class == "ltl":
                 monitor = ltl2k(params.spec, params.monitor_type, vars(params))
             else:
