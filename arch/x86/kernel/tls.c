@@ -117,7 +117,7 @@ int do_set_thread_area(struct task_struct *p, int idx,
 		       int can_allocate)
 {
 	struct user_desc info;
-	unsigned short __maybe_unused sel, modified_sel;
+	unsigned short modified_sel;
 
 	if (copy_from_user(&info, u_info, sizeof(info)))
 		return -EFAULT;
@@ -153,6 +153,8 @@ int do_set_thread_area(struct task_struct *p, int idx,
 	modified_sel = (idx << 3) | 3;
 
 	if (p == current) {
+		unsigned short sel;
+
 #ifdef CONFIG_X86_64
 		savesegment(ds, sel);
 		if (sel == modified_sel)
