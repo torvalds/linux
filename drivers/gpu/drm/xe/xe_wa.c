@@ -247,7 +247,8 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 				   LSN_DIM_Z_WGT_MASK,
 				   LSN_LNI_WGT(1) | LSN_LNE_WGT(1) |
 				   LSN_DIM_X_WGT(1) | LSN_DIM_Y_WGT(1) |
-				   LSN_DIM_Z_WGT(1)))
+				   LSN_DIM_Z_WGT(1)),
+			SET(LSC_CHICKEN_BIT_0_UDW, L3_128B_256B_WRT_DIS))
 	},
 
 	/* Xe2_HPM */

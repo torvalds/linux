@@ -1117,7 +1117,7 @@ static int config_attr(struct perf_event_attr *attr,
 
 static struct evsel_config_term *add_config_term(enum evsel_term_type type,
 						 struct list_head *head_terms,
-						 bool weak)
+						 bool weak, char *str, u64 val)
 {
 	struct evsel_config_term *t;
 
@@ -1128,8 +1128,62 @@ static struct evsel_config_term *add_config_term(enum evsel_term_type type,
 	INIT_LIST_HEAD(&t->list);
 	t->type = type;
 	t->weak	= weak;
-	list_add_tail(&t->list, head_terms);
 
+	switch (type) {
+	case EVSEL__CONFIG_TERM_PERIOD:
+	case EVSEL__CONFIG_TERM_FREQ:
+	case EVSEL__CONFIG_TERM_STACK_USER:
+	case EVSEL__CONFIG_TERM_USR_CHG_CONFIG:
+	case EVSEL__CONFIG_TERM_USR_CHG_CONFIG1:
+	case EVSEL__CONFIG_TERM_USR_CHG_CONFIG2:
+	case EVSEL__CONFIG_TERM_USR_CHG_CONFIG3:
+	case EVSEL__CONFIG_TERM_USR_CHG_CONFIG4:
+		t->val.val = val;
+		break;
+	case EVSEL__CONFIG_TERM_TIME:
+		t->val.time = val;
+		break;
+	case EVSEL__CONFIG_TERM_INHERIT:
+		t->val.inherit = val;
+		break;
+	case EVSEL__CONFIG_TERM_OVERWRITE:
+		t->val.overwrite = val;
+		break;
+	case EVSEL__CONFIG_TERM_MAX_STACK:
+		t->val.max_stack = val;
+		break;
+	case EVSEL__CONFIG_TERM_MAX_EVENTS:
+		t->val.max_events = val;
+		break;
+	case EVSEL__CONFIG_TERM_PERCORE:
+		t->val.percore = val;
+		break;
+	case EVSEL__CONFIG_TERM_AUX_OUTPUT:
+		t->val.aux_output = val;
+		break;
+	case EVSEL__CONFIG_TERM_AUX_SAMPLE_SIZE:
+		t->val.aux_sample_size = val;
+		break;
+	case EVSEL__CONFIG_TERM_CALLGRAPH:
+	case EVSEL__CONFIG_TERM_BRANCH:
+	case EVSEL__CONFIG_TERM_DRV_CFG:
+	case EVSEL__CONFIG_TERM_RATIO_TO_PREV:
+	case EVSEL__CONFIG_TERM_AUX_ACTION:
+		if (str) {
+			t->val.str = strdup(str);
+			if (!t->val.str) {
+				zfree(&t);
+				return NULL;
+			}
+			t->free_str = true;
+		}
+		break;
+	default:
+		t->val.val = val;
+		break;
+	}
+
+	list_add_tail(&t->list, head_terms);
 	return t;
 }
 
@@ -1142,7 +1196,7 @@ static int get_config_terms(const struct parse_events_terms *head_config,
 		struct evsel_config_term *new_term;
 		enum evsel_term_type new_type;
 		bool str_type = false;
-		u64 val;
+		u64 val = 0;
 
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
@@ -1234,20 +1288,15 @@ static int get_config_terms(const struct parse_events_terms *head_config,
 			continue;
 		}
 
-		new_term = add_config_term(new_type, head_terms, term->weak);
+		/*
+		 * Note: Members evsel_config_term::val and
+		 * parse_events_term::val are unions and endianness needs
+		 * to be taken into account when changing such union members.
+		 */
+		new_term = add_config_term(new_type, head_terms, term->weak,
+					   str_type ? term->val.str : NULL, val);
 		if (!new_term)
 			return -ENOMEM;
-
-		if (str_type) {
-			new_term->val.str = strdup(term->val.str);
-			if (!new_term->val.str) {
-				zfree(&new_term);
-				return -ENOMEM;
-			}
-			new_term->free_str = true;
-		} else {
-			new_term->val.val = val;
-		}
 	}
 	return 0;
 }
@@ -1277,10 +1326,9 @@ static int add_cfg_chg(const struct perf_pmu *pmu,
 	if (bits) {
 		struct evsel_config_term *new_term;
 
-		new_term = add_config_term(new_term_type, head_terms, false);
+		new_term = add_config_term(new_term_type, head_terms, false, NULL, bits);
 		if (!new_term)
 			return -ENOMEM;
-		new_term->val.cfg_chg = bits;
 	}
 
 	return 0;

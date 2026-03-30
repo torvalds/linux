@@ -299,8 +299,10 @@ static bool pci_pwrctrl_is_required(struct device_node *np)
 			struct device_node *remote __free(device_node) =
 				of_graph_get_remote_port_parent(endpoint);
 			if (remote) {
-				if (of_pci_supply_present(remote))
+				if (of_pci_supply_present(remote)) {
+					of_node_put(endpoint);
 					return true;
+				}
 			}
 		}
 	}
