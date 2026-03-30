@@ -261,3 +261,88 @@ void rtw8922d_post_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx p
 {
 	rtw8922d_rfk_mlo_ctrl(rtwdev);
 }
+
+static u8 _get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
+{
+	rtw89_write_rf(rtwdev, path, RR_TM, RR_TM_TRI, 0x1);
+	rtw89_write_rf(rtwdev, path, RR_TM, RR_TM_TRI, 0x0);
+	rtw89_write_rf(rtwdev, path, RR_TM, RR_TM_TRI, 0x1);
+
+	fsleep(200);
+
+	return rtw89_read_rf(rtwdev, path, RR_TM, RR_TM_VAL_V1);
+}
+
+static void _lck_keep_thermal(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+	int path;
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		lck->thermal[path] = _get_thermal(rtwdev, path);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+			    "[LCK] path=%d thermal=0x%x", path, lck->thermal[path]);
+	}
+}
+
+static void _lck(struct rtw89_dev *rtwdev)
+{
+	enum _rf_syn_pow syn_pow = rtw8922d_get_syn_pow(rtwdev);
+	u8 path_mask = 0;
+	u32 tmp18, tmp5;
+	int path;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK, "[LCK] DO LCK\n");
+
+	if (syn_pow == RF_SYN_ALLON)
+		path_mask = BIT(RF_PATH_A) | BIT(RF_PATH_B);
+	else if (syn_pow == RF_SYN_ON_OFF)
+		path_mask = BIT(RF_PATH_A);
+	else if (syn_pow == RF_SYN_OFF_ON)
+		path_mask = BIT(RF_PATH_B);
+	else
+		return;
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		if (!(path_mask & BIT(path)))
+			continue;
+
+		tmp18 = rtw89_read_rf(rtwdev, path, RR_CFGCH, MASKDWORD);
+		tmp5 = rtw89_read_rf(rtwdev, path, RR_RSV1, MASKDWORD);
+
+		rtw89_write_rf(rtwdev, path, RR_MOD, MASKDWORD, 0x10000);
+		rtw89_write_rf(rtwdev, path, RR_RSV1, MASKDWORD, 0x0);
+		rtw89_write_rf(rtwdev, path, RR_LCK_TRG, RR_LCK_TRGSEL, 0x1);
+		rtw89_write_rf(rtwdev, path, RR_CFGCH, MASKDWORD, tmp18);
+		rtw89_write_rf(rtwdev, path, RR_LCK_TRG, RR_LCK_TRGSEL, 0x0);
+
+		fsleep(400);
+
+		rtw89_write_rf(rtwdev, path, RR_RSV1, MASKDWORD, tmp5);
+	}
+
+	_lck_keep_thermal(rtwdev);
+}
+
+#define RTW8922D_LCK_TH 16
+void rtw8922d_lck_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+	u8 cur_thermal;
+	int delta;
+	int path;
+
+	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
+		cur_thermal = _get_thermal(rtwdev, path);
+		delta = abs((int)cur_thermal - lck->thermal[path]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK_TRACK,
+			    "[LCK] path=%d current thermal=0x%x delta=0x%x\n",
+			    path, cur_thermal, delta);
+
+		if (delta >= RTW8922D_LCK_TH) {
+			_lck(rtwdev);
+			return;
+		}
+	}
+}

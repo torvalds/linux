@@ -3,6 +3,7 @@
  */
 
 #include "chan.h"
+#include "coex.h"
 #include "debug.h"
 #include "efuse.h"
 #include "mac.h"
@@ -2166,6 +2167,159 @@ static void rtw8922d_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 		rtw8922d_post_set_channel_bb(rtwdev, rtwdev->mlo_dbcc_mode, phy_idx);
 		rtw8922d_post_set_channel_rf(rtwdev, phy_idx);
 	}
+}
+
+static void rtw8922d_rfk_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
+	struct rtw89_lck_info *lck = &rtwdev->lck;
+
+	rtwdev->is_tssi_mode[RF_PATH_A] = false;
+	rtwdev->is_tssi_mode[RF_PATH_B] = false;
+	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
+	memset(lck, 0, sizeof(*lck));
+}
+
+static void __rtw8922d_rfk_init_late(struct rtw89_dev *rtwdev,
+				     enum rtw89_phy_idx phy_idx,
+				     const struct rtw89_chan *chan)
+{
+	rtw8922d_rfk_mlo_ctrl(rtwdev);
+
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
+	if (!test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags))
+		rtw89_phy_rfk_rxdck_and_wait(rtwdev, phy_idx, chan, false, 128);
+	if (phy_idx == RTW89_PHY_0)
+		rtw89_phy_rfk_dack_and_wait(rtwdev, phy_idx, chan, 58);
+}
+
+static void rtw8922d_rfk_init_late(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+
+	__rtw8922d_rfk_init_late(rtwdev, RTW89_PHY_0, chan);
+	if (rtwdev->dbcc_en)
+		__rtw8922d_rfk_init_late(rtwdev, RTW89_PHY_1, chan);
+}
+
+static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
+{
+	u32 rf_mode;
+	u8 path;
+	int ret;
+
+	for (path = 0; path < RF_PATH_NUM_8922D; path++) {
+		if (!(kpath & BIT(path)))
+			continue;
+
+		ret = read_poll_timeout_atomic(rtw89_read_rf, rf_mode, rf_mode != 2,
+					       2, 5000, false, rtwdev, path, 0x00,
+					       RR_MOD_MASK);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[RFK] Wait S%d to Rx mode!! (ret = %d)\n",
+			    path, ret);
+	}
+}
+
+static void __rtw8922d_tssi_enable(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	u8 path;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		u32 addr_ofst = (phy_idx << 12) + (path << 8);
+
+		rtw89_phy_write32_mask(rtwdev, R_TSSI_DCK_MOV_AVG_LEN_P0_BE4 + addr_ofst,
+				       B_TSSI_DCK_MOV_AVG_LEN_P0_BE4, 0x4);
+		rtw89_phy_write32_clr(rtwdev, R_USED_TSSI_TRK_ON_P0_BE4 + addr_ofst,
+				      B_USED_TSSI_TRK_ON_P0_BE4);
+		rtw89_phy_write32_set(rtwdev, R_USED_TSSI_TRK_ON_P0_BE4 + addr_ofst,
+				      B_USED_TSSI_TRK_ON_P0_BE4);
+		rtw89_phy_write32_clr(rtwdev, R_TSSI_EN_P0_BE4 + addr_ofst,
+				      B_TSSI_EN_P0_BE4);
+		rtw89_phy_write32_mask(rtwdev, R_TSSI_EN_P0_BE4 + addr_ofst,
+				       B_TSSI_EN_P0_BE4, 0x3);
+	}
+}
+
+static void __rtw8922d_tssi_disable(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	u8 path;
+
+	for (path = RF_PATH_A; path <= RF_PATH_B; path++) {
+		u32 addr_ofst = (phy_idx << 12) + (path << 8);
+
+		rtw89_phy_write32_clr(rtwdev, R_TSSI_DCK_MOV_AVG_LEN_P0_BE4 + addr_ofst,
+				      B_TSSI_DCK_MOV_AVG_LEN_P0_BE4);
+		rtw89_phy_write32_clr(rtwdev, R_USED_TSSI_TRK_ON_P0_BE4 + addr_ofst,
+				      B_USED_TSSI_TRK_ON_P0_BE4);
+		rtw89_phy_write32_clr(rtwdev, R_TSSI_EN_P0_BE4 + addr_ofst,
+				      B_TSSI_EN_P0_BE4);
+	}
+}
+
+static void rtw8922d_rfk_tssi(struct rtw89_dev *rtwdev,
+			      enum rtw89_phy_idx phy_idx,
+			      const struct rtw89_chan *chan,
+			      enum rtw89_tssi_mode tssi_mode,
+			      unsigned int ms)
+{
+	int ret;
+
+	ret = rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, chan, tssi_mode, ms);
+	if (ret) {
+		rtwdev->is_tssi_mode[RF_PATH_A] = false;
+		rtwdev->is_tssi_mode[RF_PATH_B] = false;
+	} else {
+		rtwdev->is_tssi_mode[RF_PATH_A] = true;
+		rtwdev->is_tssi_mode[RF_PATH_B] = true;
+	}
+}
+
+static void rtw8922d_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
+{
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB, chanctx_idx);
+	u32 tx_en;
+
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_START);
+	rtw89_chip_stop_sch_tx(rtwdev, phy_idx, &tx_en, RTW89_SCH_TX_SEL_ALL);
+	_wait_rx_mode(rtwdev, RF_AB);
+
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
+	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, chan, 54);
+	rtw89_phy_rfk_txiqk_and_wait(rtwdev, phy_idx, chan, 45);
+	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, chan, 84);
+	rtw8922d_rfk_tssi(rtwdev, phy_idx, chan, RTW89_TSSI_NORMAL, 20);
+	rtw89_phy_rfk_cim3k_and_wait(rtwdev, phy_idx, chan, 44);
+	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, chan, 68);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, chan, true, 32);
+
+	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_STOP);
+}
+
+static void rtw8922d_rfk_band_changed(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx,
+				      const struct rtw89_chan *chan)
+{
+}
+
+static void rtw8922d_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      bool start)
+{
+	if (start)
+		__rtw8922d_tssi_disable(rtwdev, rtwvif_link->phy_idx);
+	else
+		__rtw8922d_tssi_enable(rtwdev, rtwvif_link->phy_idx);
+}
+
+static void rtw8922d_rfk_track(struct rtw89_dev *rtwdev)
+{
+	rtw8922d_lck_track(rtwdev);
 }
 
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
