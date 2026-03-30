@@ -5838,7 +5838,7 @@
 		};
 
 		/* Cluster 0 */
-		pmu@310b3400  {
+		pmu@310b3400 {
 			compatible = "qcom,kaanapali-cpu-bwmon", "qcom,sdm845-bwmon";
 			reg = <0x0 0x310b3400 0x0 0x600>;
 
@@ -5899,7 +5899,7 @@
 		};
 
 		/* Cluster 1 */
-		pmu@310b7400  {
+		pmu@310b7400 {
 			compatible = "qcom,kaanapali-cpu-bwmon", "qcom,sdm845-bwmon";
 			reg = <0x0 0x310b7400 0x0 0x600>;
 
