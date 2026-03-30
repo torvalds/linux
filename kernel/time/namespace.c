@@ -270,7 +270,7 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 	struct time_namespace *time_ns __free(time_ns) = NULL;
 	struct ns_common *ns = timens_for_children_get(p);
 	struct timespec64 tp;
-	int i, err;
+	int i;
 
 	if (!ns)
 		return -ESRCH;
@@ -307,13 +307,10 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 			return -ERANGE;
 	}
 
-	mutex_lock(&timens_offset_lock);
-	if (time_ns->frozen_offsets) {
-		err = -EACCES;
-		goto out_unlock;
-	}
+	guard(mutex)(&timens_offset_lock);
+	if (time_ns->frozen_offsets)
+		return -EACCES;
 
-	err = 0;
 	/* Don't report errors after this line */
 	for (i = 0; i < noffsets; i++) {
 		struct proc_timens_offset *off = &offsets[i];
@@ -331,10 +328,7 @@ int proc_timens_set_offset(struct file *file, struct task_struct *p,
 		*offset = off->val;
 	}
 
-out_unlock:
-	mutex_unlock(&timens_offset_lock);
-
-	return err;
+	return 0;
 }
 
 const struct proc_ns_operations timens_operations = {
