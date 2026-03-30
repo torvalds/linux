@@ -12,4 +12,8 @@ DEFINE_EVENT(event_da_monitor, event_opid,
 DEFINE_EVENT(error_da_monitor, error_opid,
 	     TP_PROTO(char *state, char *event),
 	     TP_ARGS(state, event));
+
+DEFINE_EVENT(error_env_da_monitor, error_env_opid,
+	     TP_PROTO(char *state, char *event, char *env),
+	     TP_ARGS(state, event, env));
 #endif /* CONFIG_RV_MON_OPID */
