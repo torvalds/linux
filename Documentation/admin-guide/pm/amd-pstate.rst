@@ -826,13 +826,13 @@ Reference
 ===========
 
 .. [1] AMD64 Architecture Programmer's Manual Volume 2: System Programming,
-       https://www.amd.com/system/files/TechDocs/24593.pdf
+       https://docs.amd.com/v/u/en-US/24593_3.44_APM_Vol2
 
 .. [2] Advanced Configuration and Power Interface Specification,
        https://uefi.org/sites/default/files/resources/ACPI_Spec_6_4_Jan22.pdf
 
 .. [3] Processor Programming Reference (PPR) for AMD Family 19h Model 51h, Revision A1 Processors
-       https://www.amd.com/system/files/TechDocs/56569-A1-PUB.zip
+       https://docs.amd.com/v/u/en-US/56569-A1-PUB_3.03
 
 .. [4] Linux Kernel Selftests,
        https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html
