@@ -4295,17 +4295,25 @@ static bool bpf_task_work_ctx_tryget(struct bpf_task_work_ctx *ctx)
 	return refcount_inc_not_zero(&ctx->refcnt);
 }
 
+static void bpf_task_work_destroy(struct irq_work *irq_work)
+{
+	struct bpf_task_work_ctx *ctx = container_of(irq_work, struct bpf_task_work_ctx, irq_work);
+
+	bpf_task_work_ctx_reset(ctx);
+	kfree_rcu(ctx, rcu);
+}
+
 static void bpf_task_work_ctx_put(struct bpf_task_work_ctx *ctx)
 {
 	if (!refcount_dec_and_test(&ctx->refcnt))
 		return;
 
-	bpf_task_work_ctx_reset(ctx);
-
-	/* bpf_mem_free expects migration to be disabled */
-	migrate_disable();
-	bpf_mem_free(&bpf_global_ma, ctx);
-	migrate_enable();
+	if (irqs_disabled()) {
+		ctx->irq_work = IRQ_WORK_INIT(bpf_task_work_destroy);
+		irq_work_queue(&ctx->irq_work);
+	} else {
+		bpf_task_work_destroy(&ctx->irq_work);
+	}
 }
 
 static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx)
@@ -4359,7 +4367,7 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 	enum bpf_task_work_state state;
 	int err;
 
-	guard(rcu_tasks_trace)();
+	guard(rcu)();
 
 	if (cmpxchg(&ctx->state, BPF_TW_PENDING, BPF_TW_SCHEDULING) != BPF_TW_PENDING) {
 		bpf_task_work_ctx_put(ctx);
@@ -4381,9 +4389,9 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 	/*
 	 * It's technically possible for just scheduled task_work callback to
 	 * complete running by now, going SCHEDULING -> RUNNING and then
-	 * dropping its ctx refcount. Instead of capturing extra ref just to
-	 * protected below ctx->state access, we rely on RCU protection to
-	 * perform below SCHEDULING -> SCHEDULED attempt.
+	 * dropping its ctx refcount. Instead of capturing an extra ref just
+	 * to protect below ctx->state access, we rely on rcu_read_lock
+	 * above to prevent kfree_rcu from freeing ctx before we return.
 	 */
 	state = cmpxchg(&ctx->state, BPF_TW_SCHEDULING, BPF_TW_SCHEDULED);
 	if (state == BPF_TW_FREED)
@@ -4400,7 +4408,7 @@ static struct bpf_task_work_ctx *bpf_task_work_fetch_ctx(struct bpf_task_work *t
 	if (ctx)
 		return ctx;
 
-	ctx = bpf_mem_alloc(&bpf_global_ma, sizeof(struct bpf_task_work_ctx));
+	ctx = bpf_map_kmalloc_nolock(map, sizeof(*ctx), 0, NUMA_NO_NODE);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -4414,7 +4422,7 @@ static struct bpf_task_work_ctx *bpf_task_work_fetch_ctx(struct bpf_task_work *t
 		 * tw->ctx is set by concurrent BPF program, release allocated
 		 * memory and try to reuse already set context.
 		 */
-		bpf_mem_free(&bpf_global_ma, ctx);
+		kfree_nolock(ctx);
 		return old_ctx;
 	}
 
@@ -4426,13 +4434,23 @@ static struct bpf_task_work_ctx *bpf_task_work_acquire_ctx(struct bpf_task_work 
 {
 	struct bpf_task_work_ctx *ctx;
 
-	ctx = bpf_task_work_fetch_ctx(tw, map);
-	if (IS_ERR(ctx))
-		return ctx;
+	/*
+	 * Sleepable BPF programs hold rcu_read_lock_trace but not
+	 * regular rcu_read_lock. Since kfree_rcu waits for regular
+	 * RCU GP, the ctx can be freed while we're between reading
+	 * the pointer and incrementing the refcount. Take regular
+	 * rcu_read_lock to prevent kfree_rcu from freeing the ctx
+	 * before we can tryget it.
+	 */
+	scoped_guard(rcu) {
+		ctx = bpf_task_work_fetch_ctx(tw, map);
+		if (IS_ERR(ctx))
+			return ctx;
 
-	/* try to get ref for task_work callback to hold */
-	if (!bpf_task_work_ctx_tryget(ctx))
-		return ERR_PTR(-EBUSY);
+		/* try to get ref for task_work callback to hold */
+		if (!bpf_task_work_ctx_tryget(ctx))
+			return ERR_PTR(-EBUSY);
+	}
 
 	if (cmpxchg(&ctx->state, BPF_TW_STANDBY, BPF_TW_PENDING) != BPF_TW_STANDBY) {
 		/* lost acquiring race or map_release_uref() stole it from us, put ref and bail */
