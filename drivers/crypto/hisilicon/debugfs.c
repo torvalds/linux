@@ -305,7 +305,7 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 
 	ret = kstrtou32(presult, 0, e_id);
 	if (ret || *e_id >= q_depth) {
-		dev_err(dev, "Please input sqe num (0-%u)", q_depth - 1);
+		dev_err(dev, "Please input sqe num (0-%d)", q_depth - 1);
 		return -EINVAL;
 	}
 
@@ -388,7 +388,7 @@ static int qm_eq_aeq_dump(struct hisi_qm *qm, char *s, char *name)
 	}
 
 	if (xeqe_id >= xeq_depth) {
-		dev_err(dev, "Please input eqe or aeqe num (0-%u)", xeq_depth - 1);
+		dev_err(dev, "Please input eqe or aeqe num (0-%d)", xeq_depth - 1);
 		return -EINVAL;
 	}
 

@@ -909,7 +909,7 @@ static int sec_debugfs_atomic64_set(void *data, u64 val)
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
-			 sec_debugfs_atomic64_set, "%lld\n");
+			 sec_debugfs_atomic64_set, "%llu\n");
 
 static int sec_regs_show(struct seq_file *s, void *unused)
 {
