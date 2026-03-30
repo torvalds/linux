@@ -2681,6 +2681,10 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.rf_para_ulink		= rtw89_btc_8851b_rf_ul,
 	.rf_para_dlink_num	= ARRAY_SIZE(rtw89_btc_8851b_rf_dl),
 	.rf_para_dlink		= rtw89_btc_8851b_rf_dl,
+	.rf_para_ulink_v9	= NULL,
+	.rf_para_dlink_v9	= NULL,
+	.rf_para_ulink_num_v9	= 0,
+	.rf_para_dlink_num_v9	= 0,
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED),
 	.low_power_hci_modes	= 0,

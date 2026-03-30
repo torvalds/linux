@@ -2619,6 +2619,129 @@ static u32 rtw8922d_chan_to_rf18_val(struct rtw89_dev *rtwdev,
 	return val;
 }
 
+static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
+{
+}
+
+static void rtw8922d_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	/* offload to firmware */
+}
+
+static void
+rtw8922d_btc_set_wl_txpwr_ctrl(struct rtw89_dev *rtwdev, u32 txpwr_val)
+{
+	u16 ctrl_all_time = u32_get_bits(txpwr_val, GENMASK(15, 0));
+	u16 ctrl_gnt_bt = u32_get_bits(txpwr_val, GENMASK(31, 16));
+
+	switch (ctrl_all_time) {
+	case 0xffff:
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_RATE_CTRL,
+					     B_BE_FORCE_PWR_BY_RATE_EN, 0x0);
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_RATE_CTRL,
+					     B_BE_FORCE_PWR_BY_RATE_VAL, 0x0);
+		break;
+	default:
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_RATE_CTRL,
+					     B_BE_FORCE_PWR_BY_RATE_VAL, ctrl_all_time);
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_RATE_CTRL,
+					     B_BE_FORCE_PWR_BY_RATE_EN, 0x1);
+		break;
+	}
+
+	switch (ctrl_gnt_bt) {
+	case 0xffff:
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_REG_CTRL,
+					     B_BE_PWR_BT_EN, 0x0);
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_COEX_CTRL,
+					     B_BE_PWR_BT_VAL, 0x0);
+		break;
+	default:
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_COEX_CTRL,
+					     B_BE_PWR_BT_VAL, ctrl_gnt_bt);
+		rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, R_BE_PWR_REG_CTRL,
+					     B_BE_PWR_BT_EN, 0x1);
+		break;
+	}
+}
+
+static
+s8 rtw8922d_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
+{
+	return clamp_t(s8, val, -100, 0) + 100;
+}
+
+static const struct rtw89_btc_rf_trx_para_v9 rtw89_btc_8922d_rf_ul_v9[] = {
+	/*
+	 * 0 -> original
+	 * 1 -> for BT-connected ACI issue && BTG co-rx
+	 * 2 ~ 4 ->reserved for shared-antenna
+	 * 5 ~ 8 ->for non-shared-antenna free-run
+	 */
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {2, 2}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{ 6,  6}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{13, 13}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{13, 13}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+};
+
+static const struct rtw89_btc_rf_trx_para_v9 rtw89_btc_8922d_rf_dl_v9[] = {
+	/*
+	 * 0 -> original
+	 * 1 -> for BT-connected ACI issue && BTG co-rx
+	 * 2 ~ 4 ->reserved for shared-antenna
+	 * 5 ~ 8 ->for non-shared-antenna free-run
+	 */
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {2, 2}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {0, 0}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+	{{15, 15}, {1, 1}, {0, 0}, {7, 7}, {0, 0}, {0, 0}},
+};
+
+static const u8 rtw89_btc_8922d_wl_rssi_thres[BTC_WL_RSSI_THMAX] = {60, 50, 40, 30};
+static const u8 rtw89_btc_8922d_bt_rssi_thres[BTC_BT_RSSI_THMAX] = {50, 40, 30, 20};
+
+static const struct rtw89_btc_fbtc_mreg rtw89_btc_8922d_mon_reg[] = {
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe300),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe330),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe334),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe338),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe344),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe348),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe34c),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe350),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe354),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe35c),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe370),
+	RTW89_DEF_FBTC_MREG(REG_MAC, 4, 0xe380),
+};
+
+static
+void rtw8922d_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
+{
+	/* Feature move to firmware */
+}
+
+static
+void rtw8922d_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
+{
+	/* Feature move to firmware */
+}
+
+static void rtw8922d_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
+{
+	/* Feature move to firmware */
+}
+
 MODULE_FIRMWARE(RTW8922D_MODULE_FIRMWARE);
 MODULE_FIRMWARE(RTW8922DS_MODULE_FIRMWARE);
 MODULE_AUTHOR("Realtek Corporation");

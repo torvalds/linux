@@ -873,6 +873,14 @@ enum rtw89_phy_idx {
 	RTW89_PHY_NUM,
 };
 
+enum rtw89_fbtc_bt_index {
+	BTC_BT_1ST = 0x0,
+	BTC_BT_2ND = 0x1,
+	BTC_BT_EXT = 0x2,
+	BTC_ALL_BT = 0x2,
+	BTC_ALL_BT_EZL = 0x3 /* BT0+BT1+Ext-ZB(or Thread, or LTE) */
+};
+
 #define __RTW89_MLD_MAX_LINK_NUM 2
 #define RTW89_MLD_NON_STA_LINK_NUM 1
 
@@ -2195,6 +2203,15 @@ struct rtw89_btc_bt_info {
 	u32 scan_info_update: 1;
 	u32 lna_constrain: 3;
 	u32 rsvd: 17;
+};
+
+struct rtw89_btc_rf_trx_para_v9 {
+	u32 wl_tx_power[RTW89_PHY_NUM]; /* absolute Tx power (dBm), 1's complement -5->0x85 */
+	u32 wl_rx_gain[RTW89_PHY_NUM]; /* rx gain table index (TBD.) */
+	u32 bt_tx_power[BTC_ALL_BT]; /* decrease Tx power (dB) */
+	u32 bt_rx_gain[BTC_ALL_BT]; /* LNA constrain level */
+	u32 zb_tx_power[BTC_ALL_BT]; /* 15.4 devrease Tx power (dB) */
+	u32 zb_rx_gain[BTC_ALL_BT]; /* 15.4 constrain level */
 };
 
 struct rtw89_btc_cx {
@@ -4609,6 +4626,10 @@ struct rtw89_chip_info {
 	const struct rtw89_btc_rf_trx_para *rf_para_ulink;
 	u8 rf_para_dlink_num;
 	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
+	const struct rtw89_btc_rf_trx_para_v9 *rf_para_ulink_v9;
+	const struct rtw89_btc_rf_trx_para_v9 *rf_para_dlink_v9;
+	u8 rf_para_ulink_num_v9;
+	u8 rf_para_dlink_num_v9;
 	u8 ps_mode_supported;
 	u8 low_power_hci_modes;
 
