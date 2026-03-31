@@ -9,25 +9,6 @@
 #include <crypto/utils.h>
 #include <linux/export.h>
 #include <linux/module.h>
-#include <asm/irqflags.h>
-
-static void aesgcm_encrypt_block(const struct aes_enckey *key, void *dst,
-				 const void *src)
-{
-	unsigned long flags;
-
-	/*
-	 * In AES-GCM, both the GHASH key derivation and the CTR mode
-	 * encryption operate on known plaintext, making them susceptible to
-	 * timing attacks on the encryption key. The AES library already
-	 * mitigates this risk to some extent by pulling the entire S-box into
-	 * the caches before doing any substitutions, but this strategy is more
-	 * effective when running with interrupts disabled.
-	 */
-	local_irq_save(flags);
-	aes_encrypt(key, dst, src);
-	local_irq_restore(flags);
-}
 
 /**
  * aesgcm_expandkey - Expands the AES and GHASH keys for the AES-GCM key
@@ -53,7 +34,7 @@ int aesgcm_expandkey(struct aesgcm_ctx *ctx, const u8 *key,
 		return ret;
 
 	ctx->authsize = authsize;
-	aesgcm_encrypt_block(&ctx->aes_key, h, h);
+	aes_encrypt(&ctx->aes_key, h, h);
 	ghash_preparekey(&ctx->ghash_key, h);
 	memzero_explicit(h, sizeof(h));
 	return 0;
@@ -98,7 +79,7 @@ static void aesgcm_mac(const struct aesgcm_ctx *ctx, const u8 *src, int src_len,
 	ghash_final(&ghash, ghash_out);
 
 	ctr[3] = cpu_to_be32(1);
-	aesgcm_encrypt_block(&ctx->aes_key, enc_ctr, ctr);
+	aes_encrypt(&ctx->aes_key, enc_ctr, (const u8 *)ctr);
 	crypto_xor_cpy(authtag, ghash_out, enc_ctr, ctx->authsize);
 
 	memzero_explicit(ghash_out, sizeof(ghash_out));
@@ -120,7 +101,7 @@ static void aesgcm_crypt(const struct aesgcm_ctx *ctx, u8 *dst, const u8 *src,
 		 * len', this cannot happen, so no explicit test is necessary.
 		 */
 		ctr[3] = cpu_to_be32(n++);
-		aesgcm_encrypt_block(&ctx->aes_key, buf, ctr);
+		aes_encrypt(&ctx->aes_key, buf, (const u8 *)ctr);
 		crypto_xor_cpy(dst, src, buf, min(len, AES_BLOCK_SIZE));
 
 		dst += AES_BLOCK_SIZE;
