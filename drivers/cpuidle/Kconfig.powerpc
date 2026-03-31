@@ -4,7 +4,6 @@
 #
 config PSERIES_CPUIDLE
 	bool "Cpuidle driver for pSeries platforms"
-	depends on CPU_IDLE
 	depends on PPC_PSERIES
 	default y
 	help
@@ -13,7 +12,6 @@ config PSERIES_CPUIDLE
 
 config POWERNV_CPUIDLE
 	bool "Cpuidle driver for powernv platforms"
-	depends on CPU_IDLE
 	depends on PPC_POWERNV
 	default y
 	help
