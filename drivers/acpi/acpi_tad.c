@@ -25,6 +25,7 @@
 
 #include <linux/acpi.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -658,12 +659,113 @@ static int acpi_tad_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+static int acpi_tad_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct acpi_tad_driver_data *dd = dev_get_drvdata(dev);
+	s64 value = ACPI_TAD_WAKE_DISABLED;
+	struct rtc_time tm_now;
+	struct acpi_tad_rt rt;
+	int ret;
+
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	if (t->enabled) {
+		/*
+		 * The value to pass to _STV is expected to be the number of
+		 * seconds between the time when the timer is programmed and the
+		 * time when it expires represented as a 32-bit integer.
+		 */
+		ret = __acpi_tad_get_real_time(dev, &rt);
+		if (ret)
+			return ret;
+
+		acpi_tad_rt_to_tm(&rt, &tm_now);
+
+		value = ktime_divns(ktime_sub(rtc_tm_to_ktime(t->time),
+					      rtc_tm_to_ktime(tm_now)), NSEC_PER_SEC);
+		if (value <= 0 || value > U32_MAX)
+			return -EINVAL;
+	}
+
+	ret = __acpi_tad_wake_set(dev, "_STV", ACPI_TAD_AC_TIMER, value);
+	if (ret && t->enabled)
+		return ret;
+
+	/*
+	 * If a separate DC alarm timer is supported, set it to the same value
+	 * as the AC alarm timer.
+	 */
+	if (dd->capabilities & ACPI_TAD_DC_WAKE) {
+		ret = __acpi_tad_wake_set(dev, "_STV", ACPI_TAD_DC_TIMER, value);
+		if (ret && t->enabled) {
+			__acpi_tad_wake_set(dev, "_STV", ACPI_TAD_AC_TIMER,
+					    ACPI_TAD_WAKE_DISABLED);
+			return ret;
+		}
+	}
+
+	/* Assume success if the alarm is being disabled. */
+	return 0;
+}
+
+static int acpi_tad_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	unsigned long long retval;
+	struct rtc_time tm_now;
+	struct acpi_tad_rt rt;
+	int ret;
+
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	ret = __acpi_tad_get_real_time(dev, &rt);
+	if (ret)
+		return ret;
+
+	acpi_tad_rt_to_tm(&rt, &tm_now);
+
+	/*
+	 * Assume that the alarm was set by acpi_tad_rtc_set_alarm(), so the AC
+	 * and DC alarm timer settings are the same and it is sufficient to read
+	 * the former.
+	 *
+	 * The value returned by _TIV should be the number of seconds till the
+	 * expiration of the timer, represented as a 32-bit integer, or the
+	 * special ACPI_TAD_WAKE_DISABLED value meaning that the timer has
+	 * been disabled.
+	 */
+	ret = __acpi_tad_wake_read(dev, "_TIV", ACPI_TAD_AC_TIMER, &retval);
+	if (ret)
+		return ret;
+
+	if (retval > U32_MAX)
+		return -ENODATA;
+
+	t->pending = 0;
+
+	if (retval != ACPI_TAD_WAKE_DISABLED) {
+		t->enabled = 1;
+		t->time = rtc_ktime_to_tm(ktime_add_ns(rtc_tm_to_ktime(tm_now),
+						       (u64)retval * NSEC_PER_SEC));
+	} else {
+		t->enabled = 0;
+		t->time = tm_now;
+	}
+
+	return 0;
+}
+
 static const struct rtc_class_ops acpi_tad_rtc_ops = {
 	.read_time = acpi_tad_rtc_read_time,
 	.set_time = acpi_tad_rtc_set_time,
+	.set_alarm = acpi_tad_rtc_set_alarm,
+	.read_alarm = acpi_tad_rtc_read_alarm,
 };
 
-static void acpi_tad_register_rtc(struct device *dev)
+static void acpi_tad_register_rtc(struct device *dev, unsigned long long caps)
 {
 	struct rtc_device *rtc;
 
@@ -676,10 +778,14 @@ static void acpi_tad_register_rtc(struct device *dev)
 
 	rtc->ops = &acpi_tad_rtc_ops;
 
+	if (!(caps & ACPI_TAD_AC_WAKE))
+		clear_bit(RTC_FEATURE_ALARM, rtc->features);
+
 	devm_rtc_register_device(rtc);
 }
 #else /* !CONFIG_RTC_CLASS */
-static inline void acpi_tad_register_rtc(struct device *dev) {}
+static inline void acpi_tad_register_rtc(struct device *dev,
+					 unsigned long long caps) {}
 #endif /* !CONFIG_RTC_CLASS */
 
 /* Platform driver interface */
@@ -765,7 +871,7 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	pm_runtime_suspend(dev);
 
 	if (caps & ACPI_TAD_RT)
-		acpi_tad_register_rtc(dev);
+		acpi_tad_register_rtc(dev, caps);
 
 	return 0;
 }
