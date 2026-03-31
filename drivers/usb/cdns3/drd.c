@@ -107,7 +107,7 @@ void cdns_clear_vbus(struct cdns *cdns)
 {
 	u32 reg;
 
-	if (cdns->version != CDNSP_CONTROLLER_V2)
+	if (cdns->version != CDNSP_CONTROLLER_V2 || cdns->no_drd)
 		return;
 
 	reg = readl(&cdns->otg_cdnsp_regs->override);
@@ -120,7 +120,7 @@ void cdns_set_vbus(struct cdns *cdns)
 {
 	u32 reg;
 
-	if (cdns->version != CDNSP_CONTROLLER_V2)
+	if (cdns->version != CDNSP_CONTROLLER_V2 || cdns->no_drd)
 		return;
 
 	reg = readl(&cdns->otg_cdnsp_regs->override);
@@ -234,6 +234,9 @@ int cdns_drd_gadget_on(struct cdns *cdns)
 	u32 ready_bit;
 	int ret, val;
 
+	if (cdns->no_drd)
+		return 0;
+
 	/* switch OTG core */
 	writel(OTGCMD_DEV_BUS_REQ | reg, &cdns->otg_regs->cmd);
 
@@ -264,6 +267,9 @@ EXPORT_SYMBOL_GPL(cdns_drd_gadget_on);
 void cdns_drd_gadget_off(struct cdns *cdns)
 {
 	u32 val;
+
+	if (cdns->no_drd)
+		return;
 
 	/*
 	 * Driver should wait at least 10us after disabling Device
@@ -391,6 +397,12 @@ int cdns_drd_init(struct cdns *cdns)
 	void __iomem *regs;
 	u32 state, reg;
 	int ret;
+
+	if (cdns->no_drd) {
+		cdns->version  = CDNSP_CONTROLLER_V2;
+		cdns->dr_mode = USB_DR_MODE_PERIPHERAL;
+		return 0;
+	}
 
 	regs = devm_ioremap_resource(cdns->dev, &cdns->otg_res);
 	if (IS_ERR(regs))

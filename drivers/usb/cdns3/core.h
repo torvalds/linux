@@ -80,9 +80,11 @@ struct cdns3_platform_data {
  * @pdata: platform data from glue layer
  * @lock: spinlock structure
  * @xhci_plat_data: xhci private data structure pointer
+ * @gadget_init: pointer to gadget initialization function
  * @override_apb_timeout: hold value of APB timeout. For value 0 the default
  *                        value in CHICKEN_BITS_3 will be preserved.
- * @gadget_init: pointer to gadget initialization function
+ * @no_drd: DRD register block is inaccessible - driver handles only
+ *          device mode.
  */
 struct cdns {
 	struct device			*dev;
@@ -122,6 +124,7 @@ struct cdns {
 	struct xhci_plat_priv		*xhci_plat_data;
 	int (*gadget_init)(struct cdns *cdns);
 	u32                             override_apb_timeout;
+	bool				no_drd;
 };
 
 int cdns_hw_role_switch(struct cdns *cdns);
