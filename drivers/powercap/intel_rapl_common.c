@@ -100,13 +100,6 @@
 
 #define RAPL_EVENT_MASK			GENMASK(7, 0)
 
-enum unit_type {
-	ARBITRARY_UNIT,		/* no translation */
-	POWER_UNIT,
-	ENERGY_UNIT,
-	TIME_UNIT,
-};
-
 static const char *pl_names[NR_POWER_LIMITS] = {
 	[POWER_LIMIT1] = "long_term",
 	[POWER_LIMIT2] = "short_term",
@@ -207,27 +200,6 @@ static const struct rapl_defaults *get_defaults(struct rapl_package *rp)
 {
 	return rp->priv->defaults;
 }
-
-/* per domain data. used to describe individual knobs such that access function
- * can be consolidated into one instead of many inline functions.
- */
-struct rapl_primitive_info {
-	const char *name;
-	u64 mask;
-	int shift;
-	enum rapl_domain_reg_id id;
-	enum unit_type unit;
-	u32 flag;
-};
-
-#define PRIMITIVE_INFO_INIT(p, m, s, i, u, f) {	\
-		.name = #p,			\
-		.mask = m,			\
-		.shift = s,			\
-		.id = i,			\
-		.unit = u,			\
-		.flag = f			\
-	}
 
 static void rapl_init_domains(struct rapl_package *rp);
 static int rapl_read_data_raw(struct rapl_domain *rd,
@@ -748,10 +720,10 @@ static int rapl_config(struct rapl_package *rp)
 	/* MMIO I/F shares the same register layout as MSR registers */
 	case RAPL_IF_MMIO:
 	case RAPL_IF_MSR:
-		rp->priv->rpi = (void *)rpi_msr;
+		rp->priv->rpi = rpi_msr;
 		break;
 	case RAPL_IF_TPMI:
-		rp->priv->rpi = (void *)rpi_tpmi;
+		rp->priv->rpi = rpi_tpmi;
 		break;
 	default:
 		return -EINVAL;
