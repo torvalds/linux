@@ -254,7 +254,7 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 				       aggr_cpu_id_get_t get_id,
 				       void *data, bool needs_sort)
 {
-	int idx;
+	unsigned int idx;
 	struct perf_cpu cpu;
 	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(perf_cpu_map__nr(cpus));
 
@@ -280,7 +280,7 @@ struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 		}
 	}
 	/* Trim. */
-	if (c->nr != perf_cpu_map__nr(cpus)) {
+	if (c->nr != (int)perf_cpu_map__nr(cpus)) {
 		struct cpu_aggr_map *trimmed_c =
 			realloc(c,
 				sizeof(struct cpu_aggr_map) + sizeof(struct aggr_cpu_id) * c->nr);
@@ -631,9 +631,9 @@ size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 
 #define COMMA first ? "" : ","
 
-	for (i = 0; i < perf_cpu_map__nr(map) + 1; i++) {
+	for (i = 0; i < (int)perf_cpu_map__nr(map) + 1; i++) {
 		struct perf_cpu cpu = { .cpu = INT16_MAX };
-		bool last = i == perf_cpu_map__nr(map);
+		bool last = i == (int)perf_cpu_map__nr(map);
 
 		if (!last)
 			cpu = perf_cpu_map__cpu(map, i);
@@ -679,7 +679,7 @@ static char hex_char(unsigned char val)
 
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 {
-	int idx;
+	unsigned int idx;
 	char *ptr = buf;
 	unsigned char *bitmap;
 	struct perf_cpu c, last_cpu = perf_cpu_map__max(map);

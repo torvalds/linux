@@ -410,7 +410,7 @@ static int read_tool_counters(void)
 	struct evsel *counter;
 
 	evlist__for_each_entry(evsel_list, counter) {
-		int idx;
+		unsigned int idx;
 
 		if (!evsel__is_tool(counter))
 			continue;

@@ -2572,7 +2572,6 @@ static struct scripting_ops	*scripting_ops;
 static void __process_stat(struct evsel *counter, u64 tstamp)
 {
 	int nthreads = perf_thread_map__nr(counter->core.threads);
-	int idx, thread;
 	struct perf_cpu cpu;
 	static int header_printed;
 
@@ -2582,7 +2581,9 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 		header_printed = 1;
 	}
 
-	for (thread = 0; thread < nthreads; thread++) {
+	for (int thread = 0; thread < nthreads; thread++) {
+		unsigned int idx;
+
 		perf_cpu_map__for_each_cpu(cpu, idx, evsel__cpus(counter)) {
 			struct perf_counts_values *counts;
 

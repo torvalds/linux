@@ -2363,7 +2363,8 @@ static int setup_parallelism_bitmap(void)
 {
 	struct perf_cpu_map *map;
 	struct perf_cpu cpu;
-	int i, err = -1;
+	unsigned int i;
+	int err = -1;
 
 	if (symbol_conf.parallelism_list_str == NULL)
 		return 0;

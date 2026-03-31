@@ -67,7 +67,7 @@ static void off_cpu_start(void *arg)
 	struct evlist *evlist = arg;
 	struct evsel *evsel;
 	struct perf_cpu pcpu;
-	int i;
+	unsigned int i;
 
 	/* update task filter for the given workload */
 	if (skel->rodata->has_task && skel->rodata->uses_tgid &&

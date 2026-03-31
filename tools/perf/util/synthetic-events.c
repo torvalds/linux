@@ -1266,7 +1266,7 @@ static void synthesize_cpus(struct synthesize_cpu_map_data *data)
 
 static void synthesize_mask(struct synthesize_cpu_map_data *data)
 {
-	int idx;
+	unsigned int idx;
 	struct perf_cpu cpu;
 
 	/* Due to padding, the 4bytes per entry mask variant is always smaller. */

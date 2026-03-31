@@ -718,7 +718,7 @@ int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu)
 
 		for (i = 0; i < env->nr_numa_nodes; i++) {
 			struct perf_cpu tmp;
-			int j;
+			unsigned int j;
 
 			nn = &env->numa_nodes[i];
 			perf_cpu_map__for_each_cpu(tmp, j, nn->map)

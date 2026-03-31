@@ -148,7 +148,8 @@ static bool valid_kwork_class_type(enum kwork_class_type type)
 static int setup_filters(struct perf_kwork *kwork)
 {
 	if (kwork->cpu_list != NULL) {
-		int idx, nr_cpus;
+		unsigned int idx;
+		int nr_cpus;
 		struct perf_cpu_map *map;
 		struct perf_cpu cpu;
 		int fd = bpf_map__fd(skel->maps.perf_kwork_cpu_filter);

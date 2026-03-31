@@ -221,7 +221,8 @@ static void gnr_uncore_cha_imc_adjust_cpumask_for_snc(struct perf_pmu *pmu, bool
 	static struct perf_cpu_map *cha_adjusted[MAX_SNCS];
 	static struct perf_cpu_map *imc_adjusted[MAX_SNCS];
 	struct perf_cpu_map **adjusted = cha ? cha_adjusted : imc_adjusted;
-	int idx, pmu_snc, cpu_adjust;
+	unsigned int idx;
+	int pmu_snc, cpu_adjust;
 	struct perf_cpu cpu;
 	bool alloc;
 

@@ -69,7 +69,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		.path = path,
 		.mode = PERF_DATA_MODE_READ,
 	};
-	int i;
+	unsigned int i;
 	struct aggr_cpu_id id;
 	struct perf_cpu cpu;
 	struct perf_env *env;
@@ -116,7 +116,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 
 	TEST_ASSERT_VAL("Session header CPU map not set", env->cpu);
 
-	for (i = 0; i < env->nr_cpus_avail; i++) {
+	for (i = 0; i < (unsigned int)env->nr_cpus_avail; i++) {
 		cpu.cpu = i;
 		if (!perf_cpu_map__has(map, cpu))
 			continue;

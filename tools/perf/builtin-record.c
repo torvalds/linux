@@ -3663,7 +3663,7 @@ struct option *record_options = __record_options;
 static int record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cpu_map *cpus)
 {
 	struct perf_cpu cpu;
-	int idx;
+	unsigned int idx;
 
 	if (cpu_map__is_dummy(cpus))
 		return 0;

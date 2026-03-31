@@ -2766,7 +2766,8 @@ struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap)
 {
-	int i, err = -1;
+	unsigned int i;
+	int err = -1;
 	struct perf_cpu_map *map;
 	int nr_cpus = min(perf_session__env(session)->nr_cpus_avail, MAX_NR_CPUS);
 	struct perf_cpu cpu;

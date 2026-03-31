@@ -1701,7 +1701,7 @@ static void python_process_stat(struct perf_stat_config *config,
 	struct perf_cpu_map *cpus = counter->core.cpus;
 
 	for (int thread = 0; thread < perf_thread_map__nr(threads); thread++) {
-		int idx;
+		unsigned int idx;
 		struct perf_cpu cpu;
 
 		perf_cpu_map__for_each_cpu(cpu, idx, cpus) {

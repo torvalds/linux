@@ -22,7 +22,8 @@
 static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __maybe_unused,
 						  int subtest __maybe_unused)
 {
-	int err = TEST_FAIL, fd, idx;
+	int err = TEST_FAIL, fd;
+	unsigned int idx;
 	struct perf_cpu cpu;
 	struct perf_cpu_map *cpus;
 	struct evsel *evsel;

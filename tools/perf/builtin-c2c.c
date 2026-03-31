@@ -2310,7 +2310,6 @@ static int setup_nodes(struct perf_session *session)
 {
 	struct numa_node *n;
 	unsigned long **nodes;
-	int node, idx;
 	struct perf_cpu cpu;
 	int *cpu2node;
 	struct perf_env *env = perf_session__env(session);
@@ -2335,14 +2334,15 @@ static int setup_nodes(struct perf_session *session)
 	if (!cpu2node)
 		return -ENOMEM;
 
-	for (idx = 0; idx < c2c.cpus_cnt; idx++)
+	for (int idx = 0; idx < c2c.cpus_cnt; idx++)
 		cpu2node[idx] = -1;
 
 	c2c.cpu2node = cpu2node;
 
-	for (node = 0; node < c2c.nodes_cnt; node++) {
+	for (int node = 0; node < c2c.nodes_cnt; node++) {
 		struct perf_cpu_map *map = n[node].map;
 		unsigned long *set;
+		unsigned int idx;
 
 		set = bitmap_zalloc(c2c.cpus_cnt);
 		if (!set)
