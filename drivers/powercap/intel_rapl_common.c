@@ -96,15 +96,7 @@
 /* per domain data, some are optional */
 #define NR_RAW_PRIMITIVES		(NR_RAPL_PRIMITIVES - 2)
 
-#define	DOMAIN_STATE_INACTIVE		BIT(0)
-#define	DOMAIN_STATE_POWER_LIMIT_SET	BIT(1)
-
-/* Sideband MBI registers */
-#define IOSF_CPU_POWER_BUDGET_CTL_BYT	0x02
-#define IOSF_CPU_POWER_BUDGET_CTL_TNG	0xDF
-
 #define PACKAGE_PLN_INT_SAVED		BIT(0)
-#define MAX_PRIM_NAME			32
 
 #define RAPL_EVENT_MASK			GENMASK(7, 0)
 
