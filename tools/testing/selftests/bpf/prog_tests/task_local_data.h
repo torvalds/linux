@@ -90,7 +90,7 @@ typedef struct {
 
 struct tld_metadata {
 	char name[TLD_NAME_LEN];
-	_Atomic __u16 size;
+	_Atomic __u16 size; /* size of tld_data_u->data */
 };
 
 struct tld_meta_u {
@@ -101,7 +101,7 @@ struct tld_meta_u {
 
 struct tld_data_u {
 	__u64 start; /* offset of tld_data_u->data in a page */
-	char data[];
+	char data[] __attribute__((aligned(8)));
 };
 
 struct tld_map_value {
@@ -158,6 +158,7 @@ static int __tld_init_data_p(int map_fd)
 	struct tld_data_u *data;
 	void *data_alloc = NULL;
 	int err, tid_fd = -1;
+	size_t size;
 
 	tid_fd = syscall(SYS_pidfd_open, sys_gettid(), O_EXCL);
 	if (tid_fd < 0) {
@@ -173,9 +174,10 @@ static int __tld_init_data_p(int map_fd)
 	 * tld_meta_p->size = TLD_DYN_DATA_SIZE +
 	 *          total size of TLDs defined via TLD_DEFINE_KEY()
 	 */
-	data_alloc = (use_aligned_alloc || tld_meta_p->size * 2 >= TLD_PAGE_SIZE) ?
-		aligned_alloc(TLD_PAGE_SIZE, tld_meta_p->size) :
-		malloc(tld_meta_p->size * 2);
+	size = tld_meta_p->size + sizeof(struct tld_data_u);
+	data_alloc = (use_aligned_alloc || size * 2 >= TLD_PAGE_SIZE) ?
+		aligned_alloc(TLD_PAGE_SIZE, size) :
+		malloc(size * 2);
 	if (!data_alloc) {
 		err = -ENOMEM;
 		goto out;
