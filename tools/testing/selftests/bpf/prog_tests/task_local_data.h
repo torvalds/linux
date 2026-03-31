@@ -67,8 +67,6 @@
 
 #define TLD_ROUND_UP_POWER_OF_TWO(x) (1UL << (sizeof(x) * 8 - __builtin_clzl(x - 1)))
 
-#define TLD_READ_ONCE(x) (*(volatile typeof(x) *)&(x))
-
 #ifndef TLD_DYN_DATA_SIZE
 #define TLD_DYN_DATA_SIZE 64
 #endif
@@ -184,7 +182,7 @@ static int __tld_init_data_p(int map_fd)
 	 */
 	map_val.data = (void *)(TLD_PAGE_MASK & (intptr_t)data);
 	data->start = (~TLD_PAGE_MASK & (intptr_t)data) + sizeof(struct tld_data_u);
-	map_val.meta = TLD_READ_ONCE(tld_meta_p);
+	map_val.meta = tld_meta_p;
 
 	err = bpf_map_update_elem(map_fd, &tid_fd, &map_val, 0);
 	if (err) {
@@ -207,7 +205,7 @@ static tld_key_t __tld_create_key(const char *name, size_t size, bool dyn_data)
 	int err, i, sz, off = 0;
 	__u16 cnt;
 
-	if (!TLD_READ_ONCE(tld_meta_p)) {
+	if (!tld_meta_p) {
 		err = __tld_init_meta_p();
 		if (err)
 			return (tld_key_t){(__s16)err};
@@ -338,7 +336,7 @@ static inline int tld_key_err_or_zero(tld_key_t key)
 __attribute__((unused))
 static void *tld_get_data(int map_fd, tld_key_t key)
 {
-	if (!TLD_READ_ONCE(tld_meta_p))
+	if (!tld_meta_p)
 		return NULL;
 
 	/* tld_data_p is allocated on the first invocation of tld_get_data() */

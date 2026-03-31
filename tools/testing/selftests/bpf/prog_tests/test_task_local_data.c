@@ -26,7 +26,7 @@ TLD_DEFINE_KEY(value0_key, "value0", sizeof(int));
  */
 static void reset_tld(void)
 {
-	if (TLD_READ_ONCE(tld_meta_p)) {
+	if (tld_meta_p) {
 		/* Remove TLDs created by tld_create_key() */
 		tld_meta_p->cnt = 1;
 		tld_meta_p->size = TLD_DYN_DATA_SIZE;
