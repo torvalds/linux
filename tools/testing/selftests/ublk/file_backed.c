@@ -27,6 +27,40 @@ static int loop_queue_flush_io(struct ublk_thread *t, struct ublk_queue *q,
 	return 1;
 }
 
+/*
+ * Shared memory zero-copy I/O: when UBLK_IO_F_SHMEM_ZC is set, the
+ * request's data lives in a registered shared memory buffer. Decode
+ * index + offset from iod->addr and use the server's mmap of that
+ * buffer as the I/O buffer for the backing file.
+ */
+static int loop_queue_shmem_zc_io(struct ublk_thread *t, struct ublk_queue *q,
+				  const struct ublksrv_io_desc *iod, int tag)
+{
+	unsigned ublk_op = ublksrv_get_op(iod);
+	enum io_uring_op op = ublk_to_uring_op(iod, 0);
+	__u64 file_offset = iod->start_sector << 9;
+	__u32 len = iod->nr_sectors << 9;
+	__u32 shmem_idx = ublk_shmem_zc_index(iod->addr);
+	__u32 shmem_off = ublk_shmem_zc_offset(iod->addr);
+	struct io_uring_sqe *sqe[1];
+	void *addr;
+
+	if (shmem_idx >= UBLK_BUF_MAX || !shmem_table[shmem_idx].mmap_base)
+		return -EINVAL;
+
+	addr = shmem_table[shmem_idx].mmap_base + shmem_off;
+
+	ublk_io_alloc_sqes(t, sqe, 1);
+	if (!sqe[0])
+		return -ENOMEM;
+
+	io_uring_prep_rw(op, sqe[0], ublk_get_registered_fd(q, 1),
+			 addr, len, file_offset);
+	io_uring_sqe_set_flags(sqe[0], IOSQE_FIXED_FILE);
+	sqe[0]->user_data = build_user_data(tag, ublk_op, 0, q->q_id, 1);
+	return 1;
+}
+
 static int loop_queue_tgt_rw_io(struct ublk_thread *t, struct ublk_queue *q,
 				const struct ublksrv_io_desc *iod, int tag)
 {
@@ -40,6 +74,10 @@ static int loop_queue_tgt_rw_io(struct ublk_thread *t, struct ublk_queue *q,
 	struct io_uring_sqe *sqe[3];
 	void *addr = io->buf_addr;
 	unsigned short buf_index = ublk_io_buf_idx(t, q, tag);
+
+	/* shared memory zero-copy path */
+	if (iod->op_flags & UBLK_IO_F_SHMEM_ZC)
+		return loop_queue_shmem_zc_io(t, q, iod, tag);
 
 	if (iod->op_flags & UBLK_IO_F_INTEGRITY) {
 		ublk_io_alloc_sqes(t, sqe, 1);
