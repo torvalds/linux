@@ -3012,6 +3012,16 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 		!cpumask_equal(cs->effective_cpus, oldcs->effective_cpus) ||
 		!nodes_equal(cs->effective_mems, oldcs->effective_mems);
 
+	/*
+	 * A v1 cpuset with tasks will have no CPU left only when CPU hotplug
+	 * brings the last online CPU offline as users are not allowed to empty
+	 * cpuset.cpus when there are active tasks inside. When that happens,
+	 * we should allow tasks to migrate out without security check to make
+	 * sure they will be able to run after migration.
+	 */
+	if (!is_in_v2_mode() && cpumask_empty(oldcs->effective_cpus))
+		setsched_check = false;
+
 	cgroup_taskset_for_each(task, css, tset) {
 		ret = task_can_attach(task);
 		if (ret)
