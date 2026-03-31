@@ -880,6 +880,21 @@ static bool mctp_rt_compare_exact(struct mctp_route *rt1,
 		rt1->max == rt2->max;
 }
 
+static mctp_eid_t mctp_dev_saddr(struct mctp_dev *dev)
+{
+	mctp_eid_t addr = MCTP_ADDR_NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->addrs_lock, flags);
+	if (dev->num_addrs) {
+		/* use the outbound interface's first address as our source */
+		addr = dev->addrs[0];
+	}
+	spin_unlock_irqrestore(&dev->addrs_lock, flags);
+
+	return addr;
+}
+
 /* must only be called on a direct route, as the final output hop */
 static void mctp_dst_from_route(struct mctp_dst *dst, mctp_eid_t eid,
 				unsigned int mtu, struct mctp_route *route)
@@ -892,6 +907,7 @@ static void mctp_dst_from_route(struct mctp_dst *dst, mctp_eid_t eid,
 		dst->mtu = min(dst->mtu, mtu);
 	dst->halen = 0;
 	dst->output = route->output;
+	dst->saddr = mctp_dev_saddr(route->dev);
 }
 
 int mctp_dst_from_extaddr(struct mctp_dst *dst, struct net *net, int ifindex,
@@ -924,6 +940,7 @@ int mctp_dst_from_extaddr(struct mctp_dst *dst, struct net *net, int ifindex,
 	dst->halen = halen;
 	dst->output = mctp_dst_output;
 	dst->nexthop = 0;
+	dst->saddr = mctp_dev_saddr(dev);
 	memcpy(dst->haddr, haddr, halen);
 
 	rc = 0;
@@ -958,6 +975,7 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 {
 	const unsigned int max_depth = 32;
 	unsigned int depth, mtu = 0;
+	struct mctp_dst dst_tmp;
 	int rc = -EHOSTUNREACH;
 
 	rcu_read_lock();
@@ -978,9 +996,15 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 			mtu = mtu ?: rt->mtu;
 
 		if (rt->dst_type == MCTP_ROUTE_DIRECT) {
-			if (dst)
-				mctp_dst_from_route(dst, daddr, mtu, rt);
-			rc = 0;
+			mctp_dst_from_route(&dst_tmp, daddr, mtu, rt);
+			/* we need a source address */
+			if (dst_tmp.saddr == MCTP_ADDR_NULL) {
+				mctp_dst_release(&dst_tmp);
+			} else {
+				if (dst)
+					*dst = dst_tmp;
+				rc = 0;
+			}
 			break;
 
 		} else if (rt->dst_type == MCTP_ROUTE_GATEWAY) {
@@ -1116,26 +1140,15 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_sk_key *key;
 	struct mctp_hdr *hdr;
-	unsigned long flags;
 	unsigned int netid;
-	mctp_eid_t saddr;
-	int rc;
+	int rc = 0;
 	u8 tag;
 
 	KUNIT_STATIC_STUB_REDIRECT(mctp_local_output, sk, dst, skb, daddr,
 				   req_tag);
 
-	rc = -ENODEV;
-
-	spin_lock_irqsave(&dst->dev->addrs_lock, flags);
-	if (dst->dev->num_addrs == 0) {
+	if (dst->saddr == MCTP_ADDR_NULL)
 		rc = -EHOSTUNREACH;
-	} else {
-		/* use the outbound interface's first address as our source */
-		saddr = dst->dev->addrs[0];
-		rc = 0;
-	}
-	spin_unlock_irqrestore(&dst->dev->addrs_lock, flags);
 	netid = READ_ONCE(dst->dev->net);
 
 	if (rc)
@@ -1146,8 +1159,8 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 			key = mctp_lookup_prealloc_tag(msk, netid, daddr,
 						       req_tag, &tag);
 		else
-			key = mctp_alloc_local_tag(msk, netid, saddr, daddr,
-						   false, &tag);
+			key = mctp_alloc_local_tag(msk, netid, dst->saddr,
+						   daddr, false, &tag);
 
 		if (IS_ERR(key)) {
 			rc = PTR_ERR(key);
@@ -1174,7 +1187,7 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	hdr = mctp_hdr(skb);
 	hdr->ver = 1;
 	hdr->dest = daddr;
-	hdr->src = saddr;
+	hdr->src = dst->saddr;
 
 	/* route output functions consume the skb, even on error */
 	return mctp_do_fragment_route(dst, skb, dst->mtu, tag);
