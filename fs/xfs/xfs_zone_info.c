@@ -95,8 +95,12 @@ xfs_zoned_show_stats(
 	seq_printf(m, "\tfree zones: %d\n", atomic_read(&zi->zi_nr_free_zones));
 
 	spin_lock(&zi->zi_open_zones_lock);
-	seq_printf(m, "\tnumber of open zones: %u / %u\n",
-		zi->zi_nr_open_zones, mp->m_max_open_zones);
+	seq_printf(m, "\tmax open zones: %u\n",
+		mp->m_max_open_zones);
+	seq_printf(m, "\tnr open zones: %u\n",
+		zi->zi_nr_open_zones);
+	seq_printf(m, "\tnr open GC zones: %u\n",
+		zi->zi_nr_open_gc_zones);
 	seq_puts(m, "\topen zones:\n");
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry)
 		xfs_show_open_zone(m, oz);
