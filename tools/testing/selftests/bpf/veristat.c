@@ -1673,7 +1673,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	fd = bpf_program__clone(prog, &opts);
 	if (fd < 0) {
 		err = fd;
-		fprintf(stderr, "Failed to load program %s %d\n", prog_name, err);
+		if (env.verbose)
+			fprintf(stderr, "Failed to load program %s %d\n", prog_name, err);
 	}
 	mem_peak_b = cgroup_memory_peak();
 	if (!cgroup_err && mem_peak_a >= 0 && mem_peak_b >= 0)
@@ -2247,7 +2248,7 @@ static int process_obj(const char *filename)
 	}
 
 	err = bpf_object__prepare(obj);
-	if (err) /* run process_prog() anyway to output per program failures */
+	if (err && env.verbose) /* run process_prog() anyway to output per program failures */
 		fprintf(stderr, "Failed to prepare BPF object for loading %d\n", err);
 
 	bpf_object__for_each_program(prog, obj) {
