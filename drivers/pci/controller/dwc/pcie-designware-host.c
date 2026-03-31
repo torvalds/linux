@@ -1171,7 +1171,7 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 	 * the MSI and MSI-X capabilities of the Root Port to allow the drivers
 	 * to fall back to INTx instead.
 	 */
-	if (pp->use_imsi_rx) {
+	if (pp->use_imsi_rx && !pp->keep_rp_msi_en) {
 		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSI);
 		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSIX);
 	}
