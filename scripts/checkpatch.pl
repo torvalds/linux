@@ -7512,10 +7512,10 @@ sub process {
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)
-# and avoid what seem like struct definitions 'struct foo {'
+# and avoid what seem like struct definitions 'struct foo {' or forward declarations 'struct foo;'
 		if (defined($const_structs) &&
 		    $line !~ /\bconst\b/ &&
-		    $line =~ /\bstruct\s+($const_structs)\b(?!\s*\{)/) {
+		    $line =~ /\bstruct\s+($const_structs)\b(?!\s*[\{;])/) {
 			WARN("CONST_STRUCT",
 			     "struct $1 should normally be const\n" . $herecurr);
 		}
