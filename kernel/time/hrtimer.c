@@ -355,7 +355,7 @@ s64 __ktime_divns(const ktime_t kt, s64 div)
 	return dclc < 0 ? -tmp : tmp;
 }
 EXPORT_SYMBOL_GPL(__ktime_divns);
-#endif /* BITS_PER_LONG >= 64 */
+#endif /* BITS_PER_LONG < 64 */
 
 /*
  * Add two ktime values and do a safety check for overflow:
