@@ -4949,6 +4949,13 @@ static int macb_init(struct platform_device *pdev,
 		return macb_init_dflt(pdev);
 }
 
+static const struct macb_usrio_config at91_default_usrio = {
+	.mii = MACB_BIT(MII),
+	.rmii = MACB_BIT(RMII),
+	.rgmii = GEM_BIT(RGMII),
+	.clken = MACB_BIT(CLKEN),
+};
+
 #if defined(CONFIG_OF)
 /* 1518 rounded up */
 #define AT91ETHER_MAX_RBUFF_SZ	0x600
@@ -5522,13 +5529,6 @@ static int eyeq5_init(struct platform_device *pdev)
 		phy_exit(bp->phy);
 	return ret;
 }
-
-static const struct macb_usrio_config at91_default_usrio = {
-	.mii = MACB_BIT(MII),
-	.rmii = MACB_BIT(RMII),
-	.rgmii = GEM_BIT(RGMII),
-	.clken = MACB_BIT(CLKEN),
-};
 
 static const struct macb_usrio_config mpfs_usrio = {
 	.tsu_source = 0,
