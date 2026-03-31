@@ -805,9 +805,12 @@ struct scx_rq {
 	cpumask_var_t		cpus_to_kick_if_idle;
 	cpumask_var_t		cpus_to_preempt;
 	cpumask_var_t		cpus_to_wait;
+	cpumask_var_t		cpus_to_sync;
+	bool			kick_sync_pending;
 	unsigned long		kick_sync;
 	local_t			reenq_local_deferred;
 	struct balance_callback	deferred_bal_cb;
+	struct balance_callback	kick_sync_bal_cb;
 	struct irq_work		deferred_irq_work;
 	struct irq_work		kick_cpus_irq_work;
 	struct scx_dispatch_q	bypass_dsq;
