@@ -987,6 +987,10 @@ KBUILD_CFLAGS	+= $(call cc-option, -fno-stack-clash-protection)
 # Get details on warnings generated due to GCC value tracking.
 KBUILD_CFLAGS	+= $(call cc-option, -fdiagnostics-show-context=2)
 
+# Show inlining notes for __attribute__((warning/error)) call chains.
+# GCC supports this unconditionally while Clang 23+ provides a flag.
+KBUILD_CFLAGS	+= $(call cc-option, -fdiagnostics-show-inlining-chain)
+
 # Clear used registers at func exit (to reduce data lifetime and ROP gadgets).
 ifdef CONFIG_ZERO_CALL_USED_REGS
 KBUILD_CFLAGS	+= -fzero-call-used-regs=used-gpr
