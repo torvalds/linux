@@ -356,6 +356,8 @@ struct ublk_params_header {
 
 static void ublk_io_release(void *priv);
 static void ublk_stop_dev_unlocked(struct ublk_device *ub);
+static bool ublk_try_buf_match(struct ublk_device *ub, struct request *rq,
+				  u32 *buf_idx, u32 *buf_off);
 static void ublk_buf_cleanup(struct ublk_device *ub);
 static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq);
 static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
@@ -424,6 +426,12 @@ static inline bool ublk_dev_support_zero_copy(const struct ublk_device *ub)
 static inline bool ublk_support_shmem_zc(const struct ublk_queue *ubq)
 {
 	return false;
+}
+
+static inline bool ublk_iod_is_shmem_zc(const struct ublk_queue *ubq,
+					unsigned int tag)
+{
+	return ublk_get_iod(ubq, tag)->op_flags & UBLK_IO_F_SHMEM_ZC;
 }
 
 static inline bool ublk_dev_support_shmem_zc(const struct ublk_device *ub)
@@ -1494,6 +1502,18 @@ static blk_status_t ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
 	iod->nr_sectors = blk_rq_sectors(req);
 	iod->start_sector = blk_rq_pos(req);
 
+	/* Try shmem zero-copy match before setting addr */
+	if (ublk_support_shmem_zc(ubq) && ublk_rq_has_data(req)) {
+		u32 buf_idx, buf_off;
+
+		if (ublk_try_buf_match(ubq->dev, req,
+					  &buf_idx, &buf_off)) {
+			iod->op_flags |= UBLK_IO_F_SHMEM_ZC;
+			iod->addr = ublk_shmem_zc_addr(buf_idx, buf_off);
+			return BLK_STS_OK;
+		}
+	}
+
 	iod->addr = io->buf.addr;
 
 	return BLK_STS_OK;
@@ -1537,6 +1557,10 @@ static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
 	 */
 	if (req_op(req) != REQ_OP_READ && req_op(req) != REQ_OP_WRITE &&
 	    req_op(req) != REQ_OP_DRV_IN)
+		goto exit;
+
+	/* shmem zero copy: no data to unmap, pages already shared */
+	if (ublk_iod_is_shmem_zc(req->mq_hctx->driver_data, req->tag))
 		goto exit;
 
 	/* for READ request, writing data in iod->addr to rq buffers */
@@ -1697,8 +1721,13 @@ static void ublk_auto_buf_dispatch(const struct ublk_queue *ubq,
 static bool ublk_start_io(const struct ublk_queue *ubq, struct request *req,
 			  struct ublk_io *io)
 {
-	unsigned mapped_bytes = ublk_map_io(ubq, req, io);
+	unsigned mapped_bytes;
 
+	/* shmem zero copy: skip data copy, pages already shared */
+	if (ublk_iod_is_shmem_zc(ubq, req->tag))
+		return true;
+
+	mapped_bytes = ublk_map_io(ubq, req, io);
 
 	/* partially mapped, update io descriptor */
 	if (unlikely(mapped_bytes != blk_rq_bytes(req))) {
@@ -5458,7 +5487,53 @@ static void ublk_buf_cleanup(struct ublk_device *ub)
 	mtree_destroy(&ub->buf_tree);
 }
 
+/* Check if request pages match a registered shared memory buffer */
+static bool ublk_try_buf_match(struct ublk_device *ub,
+				   struct request *rq,
+				   u32 *buf_idx, u32 *buf_off)
+{
+	struct req_iterator iter;
+	struct bio_vec bv;
+	int index = -1;
+	unsigned long expected_offset = 0;
+	bool first = true;
 
+	rq_for_each_bvec(bv, rq, iter) {
+		unsigned long pfn = page_to_pfn(bv.bv_page);
+		struct ublk_buf_range *range;
+		unsigned long off;
+
+		range = mtree_load(&ub->buf_tree, pfn);
+		if (!range)
+			return false;
+
+		off = range->base_offset +
+			(pfn - range->base_pfn) * PAGE_SIZE + bv.bv_offset;
+
+		if (first) {
+			/* Read-only buffer can't serve READ (kernel writes) */
+			if ((range->flags & UBLK_SHMEM_BUF_READ_ONLY) &&
+			    req_op(rq) != REQ_OP_WRITE)
+				return false;
+			index = range->buf_index;
+			expected_offset = off;
+			*buf_off = off;
+			first = false;
+		} else {
+			if (range->buf_index != index)
+				return false;
+			if (off != expected_offset)
+				return false;
+		}
+		expected_offset += bv.bv_len;
+	}
+
+	if (first)
+		return false;
+
+	*buf_idx = index;
+	return true;
+}
 
 static int ublk_ctrl_uring_cmd_permission(struct ublk_device *ub,
 		u32 cmd_op, struct ublksrv_ctrl_cmd *header)
