@@ -670,7 +670,6 @@ static int rapl_config(struct rapl_package *rp)
 {
 	switch (rp->priv->type) {
 	/* MMIO I/F shares the same register layout as MSR registers */
-	case RAPL_IF_MMIO:
 	case RAPL_IF_MSR:
 		rp->priv->rpi = rpi_msr;
 		break;
