@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: LGPL-2.1
 
-[ $# -eq 1 ] && header_dir=$1 || header_dir=tools/include/uapi/drm/
+[ $# -eq 1 ] && header_dir=$1 || header_dir=tools/perf/trace/beauty/include/uapi/drm/
 
 printf "#ifndef DRM_COMMAND_BASE\n"
 grep "#define DRM_COMMAND_BASE" $header_dir/drm.h
