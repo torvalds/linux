@@ -216,33 +216,6 @@ static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
 	return ra->err;
 }
 
-/* List of verified CPUs. */
-static const struct x86_cpu_id pl4_support_ids[] = {
-	X86_MATCH_VFM(INTEL_ICELAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_TIGERLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_ALDERLAKE, NULL),
-	X86_MATCH_VFM(INTEL_ALDERLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT, NULL),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE, NULL),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_P, NULL),
-	X86_MATCH_VFM(INTEL_METEORLAKE, NULL),
-	X86_MATCH_VFM(INTEL_METEORLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_U, NULL),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_H, NULL),
-	X86_MATCH_VFM(INTEL_PANTHERLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_WILDCATLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_NOVALAKE, NULL),
-	X86_MATCH_VFM(INTEL_NOVALAKE_L, NULL),
-	{}
-};
-
-/* List of MSR-based RAPL PMU support CPUs */
-static const struct x86_cpu_id pmu_support_ids[] = {
-	X86_MATCH_VFM(INTEL_PANTHERLAKE_L, NULL),
-	X86_MATCH_VFM(INTEL_WILDCATLAKE_L, NULL),
-	{}
-};
-
 static int rapl_check_unit_atom(struct rapl_domain *rd)
 {
 	struct reg_action ra;
@@ -420,6 +393,23 @@ static const struct rapl_defaults rapl_defaults_amd = {
 	.check_unit = rapl_default_check_unit,
 };
 
+static const struct rapl_defaults rapl_defaults_core_pl4 = {
+	.floor_freq_reg_addr = 0,
+	.check_unit = rapl_default_check_unit,
+	.set_floor_freq = rapl_default_set_floor_freq,
+	.compute_time_window = rapl_default_compute_time_window,
+	.msr_pl4_support = 1,
+};
+
+static const struct rapl_defaults rapl_defaults_core_pl4_pmu = {
+	.floor_freq_reg_addr = 0,
+	.check_unit = rapl_default_check_unit,
+	.set_floor_freq = rapl_default_set_floor_freq,
+	.compute_time_window = rapl_default_compute_time_window,
+	.msr_pl4_support = 1,
+	.msr_pmu_support = 1,
+};
+
 static const struct x86_cpu_id rapl_ids[]  = {
 	X86_MATCH_VFM(INTEL_SANDYBRIDGE,		&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_SANDYBRIDGE_X,		&rapl_defaults_core),
@@ -443,35 +433,35 @@ static const struct x86_cpu_id rapl_ids[]  = {
 	X86_MATCH_VFM(INTEL_KABYLAKE_L,			&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_KABYLAKE,			&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_CANNONLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ICELAKE_L,			&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_ICELAKE_L,			&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_ICELAKE,			&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,		&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_ICELAKE_X,			&rapl_defaults_hsw_server),
 	X86_MATCH_VFM(INTEL_ICELAKE_D,			&rapl_defaults_hsw_server),
 	X86_MATCH_VFM(INTEL_COMETLAKE_L,		&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_COMETLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_TIGERLAKE_L,		&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_TIGERLAKE_L,		&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_TIGERLAKE,			&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_ROCKETLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ALDERLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ALDERLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,		&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_ALDERLAKE,			&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L,		&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,		&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE,			&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,		&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,		&rapl_defaults_core),
 	X86_MATCH_VFM(INTEL_BARTLETTLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_METEORLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_METEORLAKE_L,		&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_METEORLAKE,			&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L,		&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,		&rapl_defaults_spr_server),
 	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,		&rapl_defaults_spr_server),
 	X86_MATCH_VFM(INTEL_LUNARLAKE_M,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_WILDCATLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_NOVALAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_NOVALAKE_L,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_H,		&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,		&rapl_defaults_core_pl4_pmu),
+	X86_MATCH_VFM(INTEL_WILDCATLAKE_L,		&rapl_defaults_core_pl4_pmu),
+	X86_MATCH_VFM(INTEL_NOVALAKE,			&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_NOVALAKE_L,			&rapl_defaults_core_pl4),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_H,		&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_ARROWLAKE,			&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_U,		&rapl_defaults_core),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_U,		&rapl_defaults_core_pl4),
 	X86_MATCH_VFM(INTEL_LAKEFIELD,			&rapl_defaults_core),
 
 	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT,		&rapl_defaults_byt),
@@ -498,7 +488,6 @@ MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
 
 static int rapl_msr_probe(struct platform_device *pdev)
 {
-	const struct x86_cpu_id *id = x86_match_cpu(pl4_support_ids);
 	int ret;
 
 	switch (boot_cpu_data.x86_vendor) {
@@ -518,16 +507,16 @@ static int rapl_msr_probe(struct platform_device *pdev)
 	rapl_msr_priv->defaults = (const struct rapl_defaults *)pdev->dev.platform_data;
 	rapl_msr_priv->rpi = rpi_msr;
 
-	if (id) {
+	if (rapl_msr_priv->defaults->msr_pl4_support) {
 		rapl_msr_priv->limits[RAPL_DOMAIN_PACKAGE] |= BIT(POWER_LIMIT4);
 		rapl_msr_priv->regs[RAPL_DOMAIN_PACKAGE][RAPL_DOMAIN_REG_PL4].msr =
 			MSR_VR_CURRENT_CONFIG;
-		pr_info("PL4 support detected.\n");
+		pr_info("PL4 support detected (updated).\n");
 	}
 
-	if (x86_match_cpu(pmu_support_ids)) {
+	if (rapl_msr_priv->defaults->msr_pmu_support) {
 		rapl_msr_pmu = true;
-		pr_info("MSR-based RAPL PMU support enabled\n");
+		pr_info("MSR-based RAPL PMU support enabled (updated)\n");
 	}
 
 	rapl_msr_priv->control_type = powercap_register_control_type(NULL, "intel-rapl", NULL);

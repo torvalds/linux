@@ -135,6 +135,8 @@ struct rapl_defaults {
 	unsigned int dram_domain_energy_unit;
 	unsigned int psys_domain_energy_unit;
 	bool spr_psys_bits;
+	bool msr_pl4_support;
+	bool msr_pmu_support;
 };
 
 #define PRIMITIVE_INFO_INIT(p, m, s, i, u, f) {	\
