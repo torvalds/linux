@@ -181,7 +181,7 @@ static inline struct alloc_tag *__pgalloc_tag_get(struct page *page)
 
 	if (get_page_tag_ref(page, &ref, &handle)) {
 		alloc_tag_sub_check(&ref);
-		if (ref.ct)
+		if (ref.ct && !is_codetag_empty(&ref))
 			tag = ct_to_alloc_tag(ref.ct);
 		put_page_tag_ref(handle);
 	}
