@@ -12992,6 +12992,21 @@ static int bnxt_tx_nr_rings_per_tc(struct bnxt *bp)
 	return bp->num_tc ? bp->tx_nr_rings / bp->num_tc : bp->tx_nr_rings;
 }
 
+static void bnxt_set_xdp_tx_rings(struct bnxt *bp)
+{
+	bp->tx_nr_rings_xdp = bp->tx_nr_rings_per_tc;
+	bp->tx_nr_rings += bp->tx_nr_rings_xdp;
+}
+
+static void bnxt_adj_tx_rings(struct bnxt *bp)
+{
+	/* Make adjustments if reserved TX rings are less than requested */
+	bp->tx_nr_rings -= bp->tx_nr_rings_xdp;
+	bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
+	if (bp->tx_nr_rings_xdp)
+		bnxt_set_xdp_tx_rings(bp);
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -13009,13 +13024,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (rc)
 		return rc;
 
-	/* Make adjustments if reserved TX rings are less than requested */
-	bp->tx_nr_rings -= bp->tx_nr_rings_xdp;
-	bp->tx_nr_rings_per_tc = bnxt_tx_nr_rings_per_tc(bp);
-	if (bp->tx_nr_rings_xdp) {
-		bp->tx_nr_rings_xdp = bp->tx_nr_rings_per_tc;
-		bp->tx_nr_rings += bp->tx_nr_rings_xdp;
-	}
+	bnxt_adj_tx_rings(bp);
 	rc = bnxt_alloc_mem(bp, irq_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "bnxt_alloc_mem err: %x\n", rc);
@@ -15436,11 +15445,19 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+void bnxt_set_cp_rings(struct bnxt *bp, bool sh)
+{
+	int tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+
+	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
+			       tx_cp + bp->rx_nr_rings;
+}
+
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	bool sh = false;
-	int rc, tx_cp;
+	int rc;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "Too many traffic classes requested: %d. Max supported is %d.\n",
@@ -15473,9 +15490,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		bp->num_tc = 0;
 	}
 	bp->tx_nr_rings += bp->tx_nr_rings_xdp;
-	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
-	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
-			       tx_cp + bp->rx_nr_rings;
+	bnxt_set_cp_rings(bp, sh);
 
 	if (netif_running(bp->dev))
 		return bnxt_open_nic(bp, true, false);
@@ -16525,6 +16540,15 @@ static void bnxt_trim_dflt_sh_rings(struct bnxt *bp)
 	bp->tx_nr_rings = bnxt_tx_nr_rings(bp);
 }
 
+static void bnxt_adj_dflt_rings(struct bnxt *bp, bool sh)
+{
+	if (sh)
+		bnxt_trim_dflt_sh_rings(bp);
+	else
+		bp->cp_nr_rings = bp->tx_nr_rings_per_tc + bp->rx_nr_rings;
+	bp->tx_nr_rings = bnxt_tx_nr_rings(bp);
+}
+
 static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
@@ -16550,11 +16574,8 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 		return rc;
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
 	bp->tx_nr_rings_per_tc = min_t(int, dflt_rings, max_tx_rings);
-	if (sh)
-		bnxt_trim_dflt_sh_rings(bp);
-	else
-		bp->cp_nr_rings = bp->tx_nr_rings_per_tc + bp->rx_nr_rings;
-	bp->tx_nr_rings = bnxt_tx_nr_rings(bp);
+
+	bnxt_adj_dflt_rings(bp, sh);
 
 	avail_msix = bnxt_get_max_func_irqs(bp) - bp->cp_nr_rings;
 	if (avail_msix >= BNXT_MIN_ROCE_CP_RINGS) {
