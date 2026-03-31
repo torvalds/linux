@@ -845,13 +845,13 @@ void update_max_tr_single(struct trace_array *tr,
 #if defined(CONFIG_TRACER_MAX_TRACE) && defined(CONFIG_FSNOTIFY)
 # define LATENCY_FS_NOTIFY
 #endif
+#endif /* CONFIG_TRACER_SNAPSHOT */
 
 #ifdef LATENCY_FS_NOTIFY
 void latency_fsnotify(struct trace_array *tr);
 #else
 static inline void latency_fsnotify(struct trace_array *tr) { }
 #endif
-#endif /* CONFIG_TRACER_SNAPSHOT */
 
 #ifdef CONFIG_STACKTRACE
 void __trace_stack(struct trace_array *tr, unsigned int trace_ctx, int skip);
