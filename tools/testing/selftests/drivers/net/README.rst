@@ -253,6 +253,39 @@ By default the tests are expected to be able to run on
 single-interface systems. All tests which may disconnect ``NETIF``
 must be annotated with ``@ksft_disruptive``.
 
+ksft_variants
+~~~~~~~~~~~~~
+
+Use the ``@ksft_variants`` decorator to run a test with multiple sets
+of inputs as separate test cases. This avoids duplicating test functions
+that only differ in parameters.
+
+Parameters can be a single value, a tuple, or a ``KsftNamedVariant``
+(which gives an explicit name to the sub-case). The argument to the
+decorator can be a list or a generator.
+
+Example::
+
+  @ksft_variants([
+      KsftNamedVariant("main", False),
+      KsftNamedVariant("ctx", True),
+  ])
+  def resize_periodic(cfg, create_context):
+      # test body receives (cfg, create_context) where create_context
+      # is False for the "main" variant and True for "ctx"
+      pass
+
+or::
+
+  def _gro_variants():
+      for mode in ["sw", "hw"]:
+          for protocol in ["tcp4", "tcp6"]:
+              yield (mode, protocol)
+
+  @ksft_variants(_gro_variants())
+  def test(cfg, mode, protocol):
+      pass
+
 Running tests CI-style
 ======================
 
