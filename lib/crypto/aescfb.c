@@ -6,7 +6,7 @@
  */
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 #include <linux/export.h>
 #include <linux/module.h>
 

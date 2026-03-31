@@ -5,8 +5,8 @@
  * Copyright (C) 2015 Martin Willi
  */
 
-#include <crypto/algapi.h> // for crypto_xor_cpy
 #include <crypto/chacha.h>
+#include <crypto/utils.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
