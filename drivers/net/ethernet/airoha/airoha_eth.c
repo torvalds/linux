@@ -572,11 +572,12 @@ static int airoha_qdma_fill_rx_queue(struct airoha_queue *q)
 		WRITE_ONCE(desc->msg1, 0);
 		WRITE_ONCE(desc->msg2, 0);
 		WRITE_ONCE(desc->msg3, 0);
+	}
 
+	if (nframes)
 		airoha_qdma_rmw(qdma, REG_RX_CPU_IDX(qid),
 				RX_RING_CPU_IDX_MASK,
 				FIELD_PREP(RX_RING_CPU_IDX_MASK, q->head));
-	}
 
 	return nframes;
 }
