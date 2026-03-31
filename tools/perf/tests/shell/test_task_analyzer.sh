@@ -3,6 +3,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 tmpdir=$(mktemp -d /tmp/perf-script-task-analyzer-XXXXX)
+# TODO: perf script report only supports input from the CWD perf.data file, make
+# it support input from any file.
+perfdata="perf.data"
+csv="$tmpdir/csv"
+csvsummary="$tmpdir/csvsummary"
 err=0
 
 # set PERF_EXEC_PATH to find scripts in the source directory
@@ -15,11 +20,10 @@ fi
 export ASAN_OPTIONS=detect_leaks=0
 
 cleanup() {
-  rm -f perf.data
-  rm -f perf.data.old
-  rm -f csv
-  rm -f csvsummary
+  rm -f "${perfdata}"
+  rm -f "${perfdata}".old
   rm -rf "$tmpdir"
+
   trap - exit term int
 }
 
@@ -61,10 +65,10 @@ skip_no_probe_record_support() {
 
 prepare_perf_data() {
 	# 1s should be sufficient to catch at least some switches
-	perf record -e sched:sched_switch -a -- sleep 1 > /dev/null 2>&1
+	perf record -e sched:sched_switch -a -o "${perfdata}" -- sleep 1 > /dev/null 2>&1
 	# check if perf data file got created in above step.
-	if [ ! -e "perf.data" ]; then
-		printf "FAIL: perf record failed to create \"perf.data\" \n"
+	if [ ! -e "${perfdata}" ]; then
+		printf "FAIL: perf record failed to create \"${perfdata}\" \n"
 		return 1
 	fi
 }
@@ -130,28 +134,28 @@ test_extended_times_summary_ns() {
 }
 
 test_csv() {
-	perf script report task-analyzer --csv csv > /dev/null
-	check_exec_0 "perf script report task-analyzer --csv csv"
-	find_str_or_fail "Comm;" csv "${FUNCNAME[0]}"
+	perf script report task-analyzer --csv "${csv}" > /dev/null
+	check_exec_0 "perf script report task-analyzer --csv ${csv}"
+	find_str_or_fail "Comm;" "${csv}" "${FUNCNAME[0]}"
 }
 
 test_csv_extended_times() {
-	perf script report task-analyzer --csv csv --extended-times > /dev/null
-	check_exec_0 "perf script report task-analyzer --csv csv --extended-times"
-	find_str_or_fail "Out-Out;" csv "${FUNCNAME[0]}"
+	perf script report task-analyzer --csv "${csv}" --extended-times > /dev/null
+	check_exec_0 "perf script report task-analyzer --csv ${csv} --extended-times"
+	find_str_or_fail "Out-Out;" "${csv}" "${FUNCNAME[0]}"
 }
 
 test_csvsummary() {
-	perf script report task-analyzer --csv-summary csvsummary > /dev/null
-	check_exec_0 "perf script report task-analyzer --csv-summary csvsummary"
-	find_str_or_fail "Comm;" csvsummary "${FUNCNAME[0]}"
+	perf script report task-analyzer --csv-summary "${csvsummary}" > /dev/null
+	check_exec_0 "perf script report task-analyzer --csv-summary ${csvsummary}"
+	find_str_or_fail "Comm;" "${csvsummary}" "${FUNCNAME[0]}"
 }
 
 test_csvsummary_extended() {
-	perf script report task-analyzer --csv-summary csvsummary --summary-extended \
+	perf script report task-analyzer --csv-summary "${csvsummary}" --summary-extended \
 	>/dev/null
-	check_exec_0 "perf script report task-analyzer --csv-summary csvsummary --summary-extended"
-	find_str_or_fail "Out-Out;" csvsummary "${FUNCNAME[0]}"
+	check_exec_0 "perf script report task-analyzer --csv-summary ${csvsummary} --summary-extended"
+	find_str_or_fail "Out-Out;" "${csvsummary}" "${FUNCNAME[0]}"
 }
 
 skip_no_probe_record_support
