@@ -54,6 +54,7 @@ TEST_PROGS += test_part_02.sh
 
 TEST_PROGS += test_shmemzc_01.sh
 TEST_PROGS += test_shmemzc_02.sh
+TEST_PROGS += test_shmemzc_03.sh
 
 TEST_PROGS += test_stress_01.sh
 TEST_PROGS += test_stress_02.sh
