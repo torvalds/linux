@@ -374,7 +374,7 @@ done:
 }
 
 static bool
-xfs_zone_gc_iter_next(
+xfs_zone_gc_iter_irec(
 	struct xfs_mount	*mp,
 	struct xfs_zone_gc_iter	*iter,
 	struct xfs_rmap_irec	*chunk_rec,
@@ -691,7 +691,7 @@ xfs_zone_gc_start_chunk(
 	if (xfs_is_shutdown(mp))
 		return false;
 
-	if (!xfs_zone_gc_iter_next(mp, iter, &irec, &ip))
+	if (!xfs_zone_gc_iter_irec(mp, iter, &irec, &ip))
 		return false;
 	oz = xfs_zone_gc_alloc_blocks(data, &irec.rm_blockcount, &daddr,
 			&is_seq);
