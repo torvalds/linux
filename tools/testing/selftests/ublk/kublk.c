@@ -1219,11 +1219,13 @@ static void ublk_shmem_unregister_all(void)
 	shmem_count = 0;
 }
 
-static int ublk_ctrl_reg_buf(struct ublk_dev *dev, void *addr, size_t size)
+static int ublk_ctrl_reg_buf(struct ublk_dev *dev, void *addr, size_t size,
+			     __u32 flags)
 {
 	struct ublk_shmem_buf_reg buf_reg = {
 		.addr = (unsigned long)addr,
 		.len = size,
+		.flags = flags,
 	};
 	struct ublk_ctrl_cmd_data data = {
 		.cmd_op = UBLK_U_CMD_REG_BUF,
@@ -1272,7 +1274,7 @@ static void ublk_shmem_handle_client(int sock_fd, struct ublk_dev *dev)
 	}
 
 	/* Register server's VA range with kernel for PFN matching */
-	ret = ublk_ctrl_reg_buf(dev, base, size);
+	ret = ublk_ctrl_reg_buf(dev, base, size, 0);
 	if (ret < 0) {
 		ublk_dbg(UBLK_DBG_DEV,
 			 "shmem_zc: kernel reg failed %d\n", ret);
@@ -1357,7 +1359,8 @@ static int ublk_shmem_htlb_setup(const struct dev_ctx *ctx,
 		return -EINVAL;
 	}
 
-	base = mmap(NULL, st.st_size, PROT_READ | PROT_WRITE,
+	base = mmap(NULL, st.st_size,
+		    ctx->rdonly_shmem_buf ? PROT_READ : PROT_READ | PROT_WRITE,
 		    MAP_SHARED | MAP_POPULATE, fd, 0);
 	if (base == MAP_FAILED) {
 		ublk_err("htlb: mmap failed\n");
@@ -1365,7 +1368,8 @@ static int ublk_shmem_htlb_setup(const struct dev_ctx *ctx,
 		return -ENOMEM;
 	}
 
-	ret = ublk_ctrl_reg_buf(dev, base, st.st_size);
+	ret = ublk_ctrl_reg_buf(dev, base, st.st_size,
+			       ctx->rdonly_shmem_buf ? UBLK_SHMEM_BUF_READ_ONLY : 0);
 	if (ret < 0) {
 		ublk_err("htlb: reg_buf failed: %d\n", ret);
 		munmap(base, st.st_size);
@@ -2129,6 +2133,7 @@ int main(int argc, char *argv[])
 		{ "no_auto_part_scan",	0,	NULL,  0 },
 		{ "shmem_zc",		0,	NULL,  0  },
 		{ "htlb",		1,	NULL,  0  },
+		{ "rdonly_shmem_buf",	0,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
 	const struct ublk_tgt_ops *ops = NULL;
@@ -2248,6 +2253,8 @@ int main(int argc, char *argv[])
 				ctx.flags |= UBLK_F_SHMEM_ZC;
 			if (!strcmp(longopts[option_idx].name, "htlb"))
 				ctx.htlb_path = strdup(optarg);
+			if (!strcmp(longopts[option_idx].name, "rdonly_shmem_buf"))
+				ctx.rdonly_shmem_buf = 1;
 			break;
 		case '?':
 			/*
