@@ -1654,6 +1654,28 @@ static void display_platforms_or(struct intel_display_platforms *dst,
 	bitmap_or(dst->bitmap, dst->bitmap, src->bitmap, display_platforms_num_bits());
 }
 
+#define __STEP_NAME(name) [STEP_##name] = #name,
+
+static void initialize_step(struct intel_display *display, enum intel_step step)
+{
+	static const char step_names[][3] = {
+		STEP_NAME_LIST(__STEP_NAME)
+	};
+
+	DISPLAY_RUNTIME_INFO(display)->step = step;
+
+	/* Step name will remain an empty string if not applicable */
+	if (step >= 0 && step < ARRAY_SIZE(step_names))
+		strscpy(DISPLAY_RUNTIME_INFO(display)->step_name, step_names[step]);
+}
+
+#undef __STEP_NAME
+
+static const char *step_name(const struct intel_display_runtime_info *runtime)
+{
+	return strlen(runtime->step_name) ? runtime->step_name : "N/A";
+}
+
 struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
 						 const struct intel_display_parent_interface *parent)
 {
@@ -1731,14 +1753,14 @@ struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
 					  subdesc ? &subdesc->step_info : NULL);
 	}
 
-	DISPLAY_RUNTIME_INFO(display)->step = step;
+	initialize_step(display, step);
 
 	drm_info(display->drm, "Found %s%s%s (device ID %04x) %s display version %u.%02u stepping %s\n",
 		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
 		 pdev->device, display->platform.dgfx ? "discrete" : "integrated",
 		 DISPLAY_RUNTIME_INFO(display)->ip.ver,
 		 DISPLAY_RUNTIME_INFO(display)->ip.rel,
-		 step != STEP_NONE ? intel_step_name(step) : "N/A");
+		 step_name(DISPLAY_RUNTIME_INFO(display)));
 
 	return display;
 
@@ -1954,7 +1976,7 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
 		drm_printf(p, "display version: %u\n",
 			   runtime->ip.ver);
 
-	drm_printf(p, "display stepping: %s\n", intel_step_name(runtime->step));
+	drm_printf(p, "display stepping: %s\n", step_name(runtime));
 
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
 	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);

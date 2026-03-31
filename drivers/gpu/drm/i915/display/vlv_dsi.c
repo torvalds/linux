@@ -1367,7 +1367,7 @@ static void intel_dsi_prepare(struct intel_encoder *encoder,
 	}
 
 	tmp = 0;
-	if (intel_dsi->eotp_pkt == 0)
+	if (!intel_dsi->eot_pkt)
 		tmp |= EOT_DISABLE;
 	if (intel_dsi->clock_stop)
 		tmp |= CLOCKSTOP;

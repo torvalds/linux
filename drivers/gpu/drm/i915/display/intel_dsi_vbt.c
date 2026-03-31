@@ -718,8 +718,10 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 		   "burst" : "<unknown>");
 	drm_printf(&p, "Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
 	drm_printf(&p, "Reset timer %d\n", intel_dsi->rst_timer_val);
-	drm_printf(&p, "Eot %s\n", str_enabled_disabled(intel_dsi->eotp_pkt));
-	drm_printf(&p, "Clockstop %s\n", str_enabled_disabled(!intel_dsi->clock_stop));
+	drm_printf(&p, "LP clock during LPM %s\n", str_enabled_disabled(intel_dsi->lp_clock_during_lpm));
+	drm_printf(&p, "Blanking packets during BLLP %s\n", str_enabled_disabled(intel_dsi->blanking_pkt));
+	drm_printf(&p, "EoT packet %s\n", str_enabled_disabled(intel_dsi->eot_pkt));
+	drm_printf(&p, "Clock stop during BLLP %s\n", str_enabled_disabled(intel_dsi->clock_stop));
 	drm_printf(&p, "Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
 		drm_printf(&p, "Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
@@ -770,8 +772,10 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	drm_dbg_kms(display->drm, "\n");
 
-	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
-	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
+	intel_dsi->lp_clock_during_lpm = mipi_config->lp_clock_during_lpm;
+	intel_dsi->blanking_pkt = mipi_config->blanking_packets_during_bllp;
+	intel_dsi->eot_pkt = !mipi_config->eot_pkt_disabled;
+	intel_dsi->clock_stop = mipi_config->enable_clk_stop;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
 	intel_dsi->pixel_format =
 		vbt_to_dsi_pixel_format(mipi_config->videomode_color_format);

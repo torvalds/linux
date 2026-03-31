@@ -399,6 +399,35 @@ static void fw_domains_get_with_thread_status(struct intel_uncore *uncore,
 	__gen6_gt_wait_for_thread_c0(uncore);
 }
 
+static void
+gen6_check_for_fifo_debug(struct intel_uncore *uncore)
+{
+	u32 fifodbg;
+
+	fifodbg = __raw_uncore_read32(uncore, GTFIFODBG);
+
+	if (unlikely(fifodbg)) {
+		drm_dbg(&uncore->i915->drm, "GTFIFODBG = 0x08%x\n", fifodbg);
+		__raw_uncore_write32(uncore, GTFIFODBG, fifodbg);
+	}
+}
+
+static void
+fw_domains_get_normal_fifo(struct intel_uncore *uncore,
+			   enum forcewake_domains fw_domains)
+{
+	gen6_check_for_fifo_debug(uncore);
+	fw_domains_get_normal(uncore, fw_domains);
+}
+
+static void
+fw_domains_get_with_thread_status_fifo(struct intel_uncore *uncore,
+				       enum forcewake_domains fw_domains)
+{
+	gen6_check_for_fifo_debug(uncore);
+	fw_domains_get_with_thread_status(uncore, fw_domains);
+}
+
 static inline u32 fifo_free_entries(struct intel_uncore *uncore)
 {
 	u32 count = __raw_uncore_read32(uncore, GTFIFOCTL);
@@ -562,21 +591,6 @@ vlv_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 }
 
 static bool
-gen6_check_for_fifo_debug(struct intel_uncore *uncore)
-{
-	u32 fifodbg;
-
-	fifodbg = __raw_uncore_read32(uncore, GTFIFODBG);
-
-	if (unlikely(fifodbg)) {
-		drm_dbg(&uncore->i915->drm, "GTFIFODBG = 0x08%x\n", fifodbg);
-		__raw_uncore_write32(uncore, GTFIFODBG, fifodbg);
-	}
-
-	return fifodbg;
-}
-
-static bool
 check_for_unclaimed_mmio(struct intel_uncore *uncore)
 {
 	bool ret = false;
@@ -591,9 +605,6 @@ check_for_unclaimed_mmio(struct intel_uncore *uncore)
 
 	if (intel_uncore_has_dbg_unclaimed(uncore))
 		ret |= vlv_check_for_unclaimed_mmio(uncore);
-
-	if (intel_uncore_has_fifo(uncore))
-		ret |= gen6_check_for_fifo_debug(uncore);
 
 	return ret;
 }
@@ -610,6 +621,9 @@ static void forcewake_early_sanitize(struct intel_uncore *uncore,
 				     GT_FIFO_CTL_BLOCK_ALL_POLICY_STALL |
 				     GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
+
+	if (intel_uncore_has_fifo(uncore))
+		gen6_check_for_fifo_debug(uncore);
 
 	iosf_mbi_punit_acquire();
 	intel_uncore_forcewake_reset(uncore);
@@ -2155,6 +2169,14 @@ static const struct intel_uncore_fw_get uncore_get_thread_status = {
 	.force_wake_get = fw_domains_get_with_thread_status
 };
 
+static const struct intel_uncore_fw_get uncore_get_normal_fifo = {
+	.force_wake_get = fw_domains_get_normal_fifo,
+};
+
+static const struct intel_uncore_fw_get uncore_get_thread_status_fifo = {
+	.force_wake_get = fw_domains_get_with_thread_status_fifo
+};
+
 static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
@@ -2218,13 +2240,19 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 		fw_domain_init(uncore, FW_DOMAIN_ID_MEDIA,
 			       FORCEWAKE_MEDIA_GEN9, FORCEWAKE_ACK_MEDIA_GEN9);
 	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		uncore->fw_get_funcs = &uncore_get_normal;
+		if (intel_uncore_has_fifo(uncore))
+			uncore->fw_get_funcs = &uncore_get_normal_fifo;
+		else
+			uncore->fw_get_funcs = &uncore_get_normal;
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_VLV, FORCEWAKE_ACK_VLV);
 		fw_domain_init(uncore, FW_DOMAIN_ID_MEDIA,
 			       FORCEWAKE_MEDIA_VLV, FORCEWAKE_ACK_MEDIA_VLV);
 	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
-		uncore->fw_get_funcs = &uncore_get_thread_status;
+		if (intel_uncore_has_fifo(uncore))
+			uncore->fw_get_funcs = &uncore_get_thread_status_fifo;
+		else
+			uncore->fw_get_funcs = &uncore_get_thread_status;
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_ACK_HSW);
 	} else if (IS_IVYBRIDGE(i915)) {
@@ -2239,7 +2267,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 		 * (correctly) interpreted by the test below as MT
 		 * forcewake being disabled.
 		 */
-		uncore->fw_get_funcs = &uncore_get_thread_status;
+		uncore->fw_get_funcs = &uncore_get_thread_status_fifo;
 
 		/* We need to init first for ECOBUS access and then
 		 * determine later if we want to reinit, in case of MT access is
@@ -2270,7 +2298,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 				       FORCEWAKE, FORCEWAKE_ACK);
 		}
 	} else if (GRAPHICS_VER(i915) == 6) {
-		uncore->fw_get_funcs = &uncore_get_thread_status;
+		uncore->fw_get_funcs = &uncore_get_thread_status_fifo;
 		fw_domain_init(uncore, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE, FORCEWAKE_ACK);
 	}

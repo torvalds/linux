@@ -63,7 +63,6 @@ static void skl_sagv_disable(struct intel_display *display);
 struct skl_wm_params {
 	bool x_tiled, y_tiled;
 	bool rc_surface;
-	bool is_planar;
 	u32 width;
 	u8 cpp;
 	u32 plane_pixel_rate;
@@ -1357,14 +1356,13 @@ skl_check_wm_level(struct skl_wm_level *wm, const struct skl_ddb_entry *ddb)
 }
 
 static void
-skl_check_nv12_wm_level(struct skl_wm_level *wm, struct skl_wm_level *uv_wm,
-			const struct skl_ddb_entry *ddb_y, const struct skl_ddb_entry *ddb)
+skl_check_wm_level_nv12(struct skl_wm_level *wm,
+			const struct skl_ddb_entry *ddb_y,
+			const struct skl_ddb_entry *ddb)
 {
 	if (wm->min_ddb_alloc > skl_ddb_entry_size(ddb_y) ||
-	    uv_wm->min_ddb_alloc > skl_ddb_entry_size(ddb)) {
+	    wm->min_ddb_alloc_uv > skl_ddb_entry_size(ddb))
 		memset(wm, 0, sizeof(*wm));
-		memset(uv_wm, 0, sizeof(*uv_wm));
-	}
 }
 
 static bool skl_need_wm_copy_wa(struct intel_display *display, int level,
@@ -1391,10 +1389,9 @@ struct skl_plane_ddb_iter {
 };
 
 static void
-skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
-		       struct skl_ddb_entry *ddb,
-		       const struct skl_wm_level *wm,
-		       u64 data_rate)
+_skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+			u16 min_ddb_alloc,
+			struct skl_ddb_entry *ddb, u64 data_rate)
 {
 	u16 size, extra = 0;
 
@@ -1411,10 +1408,28 @@ skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
 	 * to avoid skl_ddb_add_affected_planes() adding them to
 	 * the state when other planes change their allocations.
 	 */
-	size = wm->min_ddb_alloc + extra;
+	size = min_ddb_alloc + extra;
 	if (size)
 		iter->start = skl_ddb_entry_init(ddb, iter->start,
 						 iter->start + size);
+}
+
+static void
+skl_allocate_plane_ddb(struct skl_plane_ddb_iter *iter,
+		       const struct skl_wm_level *wm,
+		       struct skl_ddb_entry *ddb, u64 data_rate)
+{
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc, ddb, data_rate);
+}
+
+static void
+skl_allocate_plane_ddb_nv12(struct skl_plane_ddb_iter *iter,
+			    const struct skl_wm_level *wm,
+			    struct skl_ddb_entry *ddb_y, u64 data_rate_y,
+			    struct skl_ddb_entry *ddb, u64 data_rate)
+{
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc, ddb_y, data_rate_y);
+	_skl_allocate_plane_ddb(iter, wm->min_ddb_alloc_uv, ddb, data_rate);
 }
 
 static int
@@ -1482,7 +1497,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			}
 
 			blocks += wm->wm[level].min_ddb_alloc;
-			blocks += wm->uv_wm[level].min_ddb_alloc;
+			blocks += wm->wm[level].min_ddb_alloc_uv;
 		}
 
 		if (blocks <= iter.size) {
@@ -1523,15 +1538,13 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			continue;
 
 		if (DISPLAY_VER(display) < 11 &&
-		    crtc_state->nv12_planes & BIT(plane_id)) {
-			skl_allocate_plane_ddb(&iter, ddb_y, &wm->wm[level],
-					       crtc_state->rel_data_rate_y[plane_id]);
-			skl_allocate_plane_ddb(&iter, ddb, &wm->uv_wm[level],
-					       crtc_state->rel_data_rate[plane_id]);
-		} else {
-			skl_allocate_plane_ddb(&iter, ddb, &wm->wm[level],
-					       crtc_state->rel_data_rate[plane_id]);
-		}
+		    crtc_state->nv12_planes & BIT(plane_id))
+			skl_allocate_plane_ddb_nv12(&iter, &wm->wm[level],
+						    ddb_y, crtc_state->rel_data_rate_y[plane_id],
+						    ddb, crtc_state->rel_data_rate[plane_id]);
+		else
+			skl_allocate_plane_ddb(&iter, &wm->wm[level],
+					       ddb, crtc_state->rel_data_rate[plane_id]);
 
 		if (DISPLAY_VER(display) >= 30) {
 			*min_ddb = wm->wm[0].min_ddb_alloc;
@@ -1557,9 +1570,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 
 			if (DISPLAY_VER(display) < 11 &&
 			    crtc_state->nv12_planes & BIT(plane_id))
-				skl_check_nv12_wm_level(&wm->wm[level],
-							&wm->uv_wm[level],
-							ddb_y, ddb);
+				skl_check_wm_level_nv12(&wm->wm[level], ddb_y, ddb);
 			else
 				skl_check_wm_level(&wm->wm[level], ddb);
 
@@ -1675,10 +1686,9 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->y_tiled = modifier != I915_FORMAT_MOD_X_TILED &&
 		intel_fb_is_tiled_modifier(modifier);
 	wp->rc_surface = intel_fb_is_ccs_modifier(modifier);
-	wp->is_planar = intel_format_info_is_yuv_semiplanar(format, modifier);
 
 	wp->width = width;
-	if (color_plane == 1 && wp->is_planar)
+	if (color_plane == 1 && intel_format_info_is_yuv_semiplanar(format, modifier))
 		wp->width /= 2;
 
 	wp->cpp = format->cpp[color_plane];
@@ -2069,11 +2079,11 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 				 const struct intel_plane_state *plane_state,
 				 struct intel_plane *plane)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane->id];
+	struct skl_wm_level uv_wm[ARRAY_SIZE(wm->wm)] = {};
 	struct skl_wm_params wm_params;
-	int ret;
-
-	wm->is_planar = true;
+	int ret, level;
 
 	/* uv plane watermarks must also be validated for NV12/Planar */
 	ret = skl_compute_plane_wm_params(crtc_state, plane_state,
@@ -2081,7 +2091,14 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	skl_compute_wm_levels(crtc_state, plane, &wm_params, wm->uv_wm);
+	skl_compute_wm_levels(crtc_state, plane, &wm_params, uv_wm);
+
+	/*
+	 * Only keep the min_ddb_alloc for UV as
+	 * the hardware needs nothing else.
+	 */
+	for (level = 0; level < display->wm.num_levels; level++)
+		wm->wm[level].min_ddb_alloc_uv = uv_wm[level].min_ddb_alloc;
 
 	return 0;
 }
@@ -2304,7 +2321,6 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 			 * thing as bad via min_ddb_alloc=U16_MAX?
 			 */
 			wm->wm[level].enable = false;
-			wm->uv_wm[level].enable = false;
 		}
 	}
 
@@ -2375,11 +2391,6 @@ static bool skl_plane_wm_equals(struct intel_display *display,
 	int level;
 
 	for (level = 0; level < display->wm.num_levels; level++) {
-		/*
-		 * We don't check uv_wm as the hardware doesn't actually
-		 * use it. It only gets used for calculating the required
-		 * ddb allocation.
-		 */
 		if (!skl_wm_level_equals(&wm1->wm[level], &wm2->wm[level]))
 			return false;
 	}
@@ -2590,14 +2601,30 @@ static char enast(bool enable)
 	return enable ? '*' : ' ';
 }
 
-static noinline_for_stack void
-skl_print_plane_changes(struct intel_display *display,
-			struct intel_plane *plane,
-			const struct skl_plane_wm *old_wm,
-			const struct skl_plane_wm *new_wm)
+static void
+skl_print_plane_ddb_changes(struct intel_plane *plane,
+			    const struct skl_ddb_entry *old,
+			    const struct skl_ddb_entry *new,
+			    const char *ddb_name)
 {
+	struct intel_display *display = to_intel_display(plane);
+
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]   level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
+		    "[PLANE:%d:%s] %5s (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
+		    plane->base.base.id, plane->base.name, ddb_name,
+		    old->start, old->end, new->start, new->end,
+		    skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+}
+
+static noinline_for_stack void
+skl_print_plane_wm_changes(struct intel_plane *plane,
+			   const struct skl_plane_wm *old_wm,
+			   const struct skl_plane_wm *new_wm)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	drm_dbg_kms(display->drm,
+		    "[PLANE:%d:%s]      level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
 		    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
 		    plane->base.base.id, plane->base.name,
 		    enast(old_wm->wm[0].enable), enast(old_wm->wm[1].enable),
@@ -2616,7 +2643,7 @@ skl_print_plane_changes(struct intel_display *display,
 		    enast(new_wm->sagv.trans_wm.enable));
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
+		    "[PLANE:%d:%s]      lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
 		      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
 		    plane->base.base.id, plane->base.name,
 		    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].lines,
@@ -2643,7 +2670,7 @@ skl_print_plane_changes(struct intel_display *display,
 		    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.lines);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    "[PLANE:%d:%s]     blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
 		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 		    plane->base.base.id, plane->base.name,
 		    old_wm->wm[0].blocks, old_wm->wm[1].blocks,
@@ -2662,7 +2689,7 @@ skl_print_plane_changes(struct intel_display *display,
 		    new_wm->sagv.trans_wm.blocks);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s] min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    "[PLANE:%d:%s]    min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
 		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
 		    plane->base.base.id, plane->base.name,
 		    old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
@@ -2679,6 +2706,28 @@ skl_print_plane_changes(struct intel_display *display,
 		    new_wm->trans_wm.min_ddb_alloc,
 		    new_wm->sagv.wm0.min_ddb_alloc,
 		    new_wm->sagv.trans_wm.min_ddb_alloc);
+
+	if (DISPLAY_VER(display) >= 11)
+		return;
+
+	drm_dbg_kms(display->drm,
+		    "[PLANE:%d:%s] min_ddb_uv %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
+		    plane->base.base.id, plane->base.name,
+		    old_wm->wm[0].min_ddb_alloc_uv, old_wm->wm[1].min_ddb_alloc_uv,
+		    old_wm->wm[2].min_ddb_alloc_uv, old_wm->wm[3].min_ddb_alloc_uv,
+		    old_wm->wm[4].min_ddb_alloc_uv, old_wm->wm[5].min_ddb_alloc_uv,
+		    old_wm->wm[6].min_ddb_alloc_uv, old_wm->wm[7].min_ddb_alloc_uv,
+		    old_wm->trans_wm.min_ddb_alloc_uv,
+		    old_wm->sagv.wm0.min_ddb_alloc_uv,
+		    old_wm->sagv.trans_wm.min_ddb_alloc_uv,
+		    new_wm->wm[0].min_ddb_alloc_uv, new_wm->wm[1].min_ddb_alloc_uv,
+		    new_wm->wm[2].min_ddb_alloc_uv, new_wm->wm[3].min_ddb_alloc_uv,
+		    new_wm->wm[4].min_ddb_alloc_uv, new_wm->wm[5].min_ddb_alloc_uv,
+		    new_wm->wm[6].min_ddb_alloc_uv, new_wm->wm[7].min_ddb_alloc_uv,
+		    new_wm->trans_wm.min_ddb_alloc_uv,
+		    new_wm->sagv.wm0.min_ddb_alloc_uv,
+		    new_wm->sagv.trans_wm.min_ddb_alloc_uv);
 }
 
 static void
@@ -2708,13 +2757,17 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			old = &old_crtc_state->wm.skl.plane_ddb[plane_id];
 			new = &new_crtc_state->wm.skl.plane_ddb[plane_id];
 
-			if (skl_ddb_entry_equal(old, new))
+			if (!skl_ddb_entry_equal(old, new))
+				skl_print_plane_ddb_changes(plane, old, new, "ddb");
+
+			if (DISPLAY_VER(display) >= 11)
 				continue;
-			drm_dbg_kms(display->drm,
-				    "[PLANE:%d:%s] ddb (%4d - %4d) -> (%4d - %4d), size %4d -> %4d\n",
-				    plane->base.base.id, plane->base.name,
-				    old->start, old->end, new->start, new->end,
-				    skl_ddb_entry_size(old), skl_ddb_entry_size(new));
+
+			old = &old_crtc_state->wm.skl.plane_ddb_y[plane_id];
+			new = &new_crtc_state->wm.skl.plane_ddb_y[plane_id];
+
+			if (!skl_ddb_entry_equal(old, new))
+				skl_print_plane_ddb_changes(plane, old, new, "ddb_y");
 		}
 
 		for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
@@ -2727,7 +2780,7 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			if (skl_plane_wm_equals(display, old_wm, new_wm))
 				continue;
 
-			skl_print_plane_changes(display, plane, old_wm, new_wm);
+			skl_print_plane_wm_changes(plane, old_wm, new_wm);
 		}
 	}
 }
@@ -2740,11 +2793,6 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 	int level;
 
 	for (level = 0; level < display->wm.num_levels; level++) {
-		/*
-		 * We don't check uv_wm as the hardware doesn't actually
-		 * use it. It only gets used for calculating the required
-		 * ddb allocation.
-		 */
 		if (!skl_wm_level_equals(skl_plane_wm_level(old_pipe_wm, plane->id, level),
 					 skl_plane_wm_level(new_pipe_wm, plane->id, level)))
 			return false;

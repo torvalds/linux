@@ -835,6 +835,7 @@ struct intel_pipe_wm {
 
 struct skl_wm_level {
 	u16 min_ddb_alloc;
+	u16 min_ddb_alloc_uv; /* for pre-icl */
 	u16 blocks;
 	u8 lines;
 	bool enable;
@@ -845,13 +846,11 @@ struct skl_wm_level {
 
 struct skl_plane_wm {
 	struct skl_wm_level wm[8];
-	struct skl_wm_level uv_wm[8];
 	struct skl_wm_level trans_wm;
 	struct {
 		struct skl_wm_level wm0;
 		struct skl_wm_level trans_wm;
 	} sagv;
-	bool is_planar;
 };
 
 struct skl_pipe_wm {
