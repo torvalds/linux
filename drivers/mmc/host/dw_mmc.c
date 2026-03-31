@@ -1224,8 +1224,7 @@ static void dw_mci_set_data_timeout(struct dw_mci *host,
 		timeout_ns, tmout >> 8);
 }
 
-static void __dw_mci_start_request(struct dw_mci *host,
-				   struct mmc_command *cmd)
+static void dw_mci_start_request(struct dw_mci *host, struct mmc_command *cmd)
 {
 	struct mmc_request *mrq;
 	struct mmc_data	*data;
@@ -1284,18 +1283,10 @@ static void __dw_mci_start_request(struct dw_mci *host,
 	host->stop_cmdr = dw_mci_prep_stop_abort(host, cmd);
 }
 
-static void dw_mci_start_request(struct dw_mci *host)
-{
-	struct mmc_request *mrq = host->mrq;
-	struct mmc_command *cmd;
-
-	cmd = mrq->sbc ? mrq->sbc : mrq->cmd;
-	__dw_mci_start_request(host, cmd);
-}
-
 static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct dw_mci *host = mmc_priv(mmc);
+	struct mmc_command *cmd;
 
 	WARN_ON(host->mrq);
 
@@ -1329,7 +1320,8 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (host->state == STATE_IDLE) {
 		host->state = STATE_SENDING_CMD;
-		dw_mci_start_request(host);
+		cmd = mrq->sbc ? mrq->sbc : mrq->cmd;
+		dw_mci_start_request(host, cmd);
 	}
 
 	spin_unlock_bh(&host->lock);
@@ -1949,7 +1941,7 @@ static void dw_mci_work_func(struct work_struct *t)
 			set_bit(EVENT_CMD_COMPLETE, &host->completed_events);
 			err = dw_mci_command_complete(host, cmd);
 			if (cmd == mrq->sbc && !err) {
-				__dw_mci_start_request(host, mrq->cmd);
+				dw_mci_start_request(host, mrq->cmd);
 				goto unlock;
 			}
 
