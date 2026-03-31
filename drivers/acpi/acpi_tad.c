@@ -617,6 +617,17 @@ static const struct attribute_group *acpi_tad_attr_groups[] = {
 #ifdef CONFIG_RTC_CLASS
 /* RTC class device interface */
 
+static void acpi_tad_rt_to_tm(struct acpi_tad_rt *rt, struct rtc_time *tm)
+{
+	tm->tm_year = rt->year - 1900;
+	tm->tm_mon = rt->month - 1;
+	tm->tm_mday = rt->day;
+	tm->tm_hour = rt->hour;
+	tm->tm_min = rt->minute;
+	tm->tm_sec = rt->second;
+	tm->tm_isdst = rt->daylight == ACPI_TAD_TIME_ISDST;
+}
+
 static int acpi_tad_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct acpi_tad_rt rt;
@@ -642,13 +653,7 @@ static int acpi_tad_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (ret)
 		return ret;
 
-	tm->tm_year = rt.year - 1900;
-	tm->tm_mon = rt.month - 1;
-	tm->tm_mday = rt.day;
-	tm->tm_hour = rt.hour;
-	tm->tm_min = rt.minute;
-	tm->tm_sec = rt.second;
-	tm->tm_isdst = rt.daylight == ACPI_TAD_TIME_ISDST;
+	acpi_tad_rt_to_tm(&rt, tm);
 
 	return 0;
 }
