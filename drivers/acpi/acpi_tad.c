@@ -151,13 +151,9 @@ out_free:
 	return ret;
 }
 
-static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
+static int __acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 {
 	int ret;
-
-	PM_RUNTIME_ACQUIRE(dev, pm);
-	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
-		return -ENXIO;
 
 	ret = acpi_tad_evaluate_grt(dev, rt);
 	if (ret)
@@ -167,6 +163,15 @@ static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 		return -ENODATA;
 
 	return 0;
+}
+
+static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
+{
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	return __acpi_tad_get_real_time(dev, rt);
 }
 
 /* sysfs interface */
@@ -268,8 +273,8 @@ static ssize_t time_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(time);
 
-static int acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
-			     u32 value)
+static int __acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
+			       u32 value)
 {
 	acpi_handle handle = ACPI_HANDLE(dev);
 	union acpi_object args[] = {
@@ -286,15 +291,21 @@ static int acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
 	args[0].integer.value = timer_id;
 	args[1].integer.value = value;
 
-	PM_RUNTIME_ACQUIRE(dev, pm);
-	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
-		return -ENXIO;
-
 	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
 	if (ACPI_FAILURE(status) || retval)
 		return -EIO;
 
 	return 0;
+}
+
+static int acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
+			     u32 value)
+{
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	return __acpi_tad_wake_set(dev, method, timer_id, value);
 }
 
 static int acpi_tad_wake_write(struct device *dev, const char *buf, char *method,
@@ -317,8 +328,8 @@ static int acpi_tad_wake_write(struct device *dev, const char *buf, char *method
 	return acpi_tad_wake_set(dev, method, timer_id, value);
 }
 
-static ssize_t acpi_tad_wake_read(struct device *dev, char *buf, char *method,
-				  u32 timer_id, const char *specval)
+static int __acpi_tad_wake_read(struct device *dev, char *method, u32 timer_id,
+				unsigned long long *retval)
 {
 	acpi_handle handle = ACPI_HANDLE(dev);
 	union acpi_object args[] = {
@@ -328,18 +339,30 @@ static ssize_t acpi_tad_wake_read(struct device *dev, char *buf, char *method,
 		.pointer = args,
 		.count = ARRAY_SIZE(args),
 	};
-	unsigned long long retval;
 	acpi_status status;
 
 	args[0].integer.value = timer_id;
+
+	status = acpi_evaluate_integer(handle, method, &arg_list, retval);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
+
+static ssize_t acpi_tad_wake_read(struct device *dev, char *buf, char *method,
+				  u32 timer_id, const char *specval)
+{
+	unsigned long long retval;
+	int ret;
 
 	PM_RUNTIME_ACQUIRE(dev, pm);
 	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
 		return -ENXIO;
 
-	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
-	if (ACPI_FAILURE(status))
-		return -EIO;
+	ret = __acpi_tad_wake_read(dev, method, timer_id, &retval);
+	if (ret)
+		return ret;
 
 	if ((u32)retval == ACPI_TAD_WAKE_DISABLED)
 		return sprintf(buf, "%s\n", specval);
