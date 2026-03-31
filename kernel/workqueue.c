@@ -7081,7 +7081,7 @@ int workqueue_unbound_housekeeping_update(const struct cpumask *hk)
 	/*
 	 * If the operation fails, it will fall back to
 	 * wq_requested_unbound_cpumask which is initially set to
-	 * (HK_TYPE_WQ ∩ HK_TYPE_DOMAIN) house keeping mask and rewritten
+	 * HK_TYPE_DOMAIN house keeping mask and rewritten
 	 * by any subsequent write to workqueue/cpumask sysfs file.
 	 */
 	if (!cpumask_and(cpumask, wq_requested_unbound_cpumask, hk))
@@ -7901,7 +7901,6 @@ void __init workqueue_init_early(void)
 
 	cpumask_copy(wq_online_cpumask, cpu_online_mask);
 	cpumask_copy(wq_unbound_cpumask, cpu_possible_mask);
-	restrict_unbound_cpumask("HK_TYPE_WQ", housekeeping_cpumask(HK_TYPE_WQ));
 	restrict_unbound_cpumask("HK_TYPE_DOMAIN", housekeeping_cpumask(HK_TYPE_DOMAIN));
 	if (!cpumask_empty(&wq_cmdline_cpumask))
 		restrict_unbound_cpumask("workqueue.unbound_cpus", &wq_cmdline_cpumask);
