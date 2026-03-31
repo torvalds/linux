@@ -997,8 +997,8 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 
 		if (rt->dst_type == MCTP_ROUTE_DIRECT) {
 			mctp_dst_from_route(&dst_tmp, daddr, mtu, rt);
-			/* we need a source address */
-			if (dst_tmp.saddr == MCTP_ADDR_NULL) {
+			/* cannot do gateway-ed routes without a src  */
+			if (dst_tmp.saddr == MCTP_ADDR_NULL && depth != 0) {
 				mctp_dst_release(&dst_tmp);
 			} else {
 				if (dst)
@@ -1141,18 +1141,12 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	struct mctp_sk_key *key;
 	struct mctp_hdr *hdr;
 	unsigned int netid;
-	int rc = 0;
 	u8 tag;
 
 	KUNIT_STATIC_STUB_REDIRECT(mctp_local_output, sk, dst, skb, daddr,
 				   req_tag);
 
-	if (dst->saddr == MCTP_ADDR_NULL)
-		rc = -EHOSTUNREACH;
 	netid = READ_ONCE(dst->dev->net);
-
-	if (rc)
-		goto err_free;
 
 	if (req_tag & MCTP_TAG_OWNER) {
 		if (req_tag & MCTP_TAG_PREALLOC)
@@ -1163,8 +1157,8 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 						   daddr, false, &tag);
 
 		if (IS_ERR(key)) {
-			rc = PTR_ERR(key);
-			goto err_free;
+			kfree_skb(skb);
+			return PTR_ERR(key);
 		}
 		mctp_skb_set_flow(skb, key);
 		/* done with the key in this scope */
@@ -1191,10 +1185,6 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 
 	/* route output functions consume the skb, even on error */
 	return mctp_do_fragment_route(dst, skb, dst->mtu, tag);
-
-err_free:
-	kfree_skb(skb);
-	return rc;
 }
 
 /* route management */
