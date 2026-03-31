@@ -527,7 +527,7 @@ xfs_zone_gc_select_victim(
 	return true;
 }
 
-static struct xfs_open_zone *
+static int
 xfs_zone_gc_steal_open(
 	struct xfs_zone_info	*zi)
 {
@@ -538,15 +538,18 @@ xfs_zone_gc_steal_open(
 		if (!found || oz->oz_allocated < found->oz_allocated)
 			found = oz;
 	}
-
-	if (found) {
-		found->oz_is_gc = true;
-		list_del_init(&found->oz_entry);
-		zi->zi_nr_open_zones--;
+	if (!found) {
+		spin_unlock(&zi->zi_open_zones_lock);
+		return -EIO;
 	}
 
+	trace_xfs_zone_gc_target_opened(found->oz_rtg);
+	found->oz_is_gc = true;
+	list_del_init(&found->oz_entry);
+	zi->zi_nr_open_zones--;
+	zi->zi_open_gc_zone = found;
 	spin_unlock(&zi->zi_open_zones_lock);
-	return found;
+	return 0;
 }
 
 static struct xfs_open_zone *
@@ -1194,30 +1197,23 @@ xfs_zone_gc_mount(
 {
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	struct xfs_zone_gc_data	*data;
-	struct xfs_open_zone	*oz;
 	int			error;
 
 	/*
-	 * If there are no free zones available for GC, pick the open zone with
+	 * If there are no free zones available for GC, or the number of open
+	 * zones has reached the open zone limit, pick the open zone with
 	 * the least used space to GC into.  This should only happen after an
-	 * unclean shutdown near ENOSPC while GC was ongoing.
-	 *
-	 * We also need to do this for the first gc zone allocation if we
-	 * unmounted while at the open limit.
+	 * unclean shutdown while GC was ongoing.  Otherwise a GC zone will
+	 * be selected from the free zone pool on demand.
 	 */
 	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_FREE) ||
-	    zi->zi_nr_open_zones == mp->m_max_open_zones)
-		oz = xfs_zone_gc_steal_open(zi);
-	else
-		oz = xfs_open_zone(mp, WRITE_LIFE_NOT_SET, true);
-	if (!oz) {
-		xfs_warn(mp, "unable to allocate a zone for gc");
-		error = -EIO;
-		goto out;
+	    zi->zi_nr_open_zones >= mp->m_max_open_zones) {
+		error = xfs_zone_gc_steal_open(zi);
+		if (error) {
+			xfs_warn(mp, "unable to steal an open zone for gc");
+			return error;
+		}
 	}
-
-	trace_xfs_zone_gc_target_opened(oz->oz_rtg);
-	zi->zi_open_gc_zone = oz;
 
 	data = xfs_zone_gc_data_alloc(mp);
 	if (!data) {
@@ -1241,7 +1237,6 @@ out_free_gc_data:
 	kfree(data);
 out_put_gc_zone:
 	xfs_open_zone_put(zi->zi_open_gc_zone);
-out:
 	return error;
 }
 
