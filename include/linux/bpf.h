@@ -1854,6 +1854,10 @@ struct bpf_link_ops {
 	 * target hook is sleepable, we'll go through tasks trace RCU GP and
 	 * then "classic" RCU GP; this need for chaining tasks trace and
 	 * classic RCU GPs is designated by setting bpf_link->sleepable flag
+	 *
+	 * For non-sleepable tracepoint links we go through SRCU gp instead,
+	 * since RCU is not used in that case. Sleepable tracepoints still
+	 * follow the scheme above.
 	 */
 	void (*dealloc_deferred)(struct bpf_link *link);
 	int (*detach)(struct bpf_link *link);
