@@ -54,6 +54,7 @@ impl<'a> IoRequest<'a> {
     /// use kernel::{
     ///     bindings,
     ///     device::Core,
+    ///     io::Io,
     ///     of,
     ///     platform,
     /// };
@@ -78,9 +79,9 @@ impl<'a> IoRequest<'a> {
     ///       let io = iomem.access(pdev.as_ref())?;
     ///
     ///       // Read and write a 32-bit value at `offset`.
-    ///       let data = io.read32_relaxed(offset);
+    ///       let data = io.read32(offset);
     ///
-    ///       io.write32_relaxed(data, offset);
+    ///       io.write32(data, offset);
     ///
     ///       # Ok(SampleDriver)
     ///     }
@@ -117,6 +118,7 @@ impl<'a> IoRequest<'a> {
     /// use kernel::{
     ///     bindings,
     ///     device::Core,
+    ///     io::Io,
     ///     of,
     ///     platform,
     /// };
@@ -141,9 +143,9 @@ impl<'a> IoRequest<'a> {
     ///
     ///       let io = iomem.access(pdev.as_ref())?;
     ///
-    ///       let data = io.try_read32_relaxed(offset)?;
+    ///       let data = io.try_read32(offset)?;
     ///
-    ///       io.try_write32_relaxed(data, offset)?;
+    ///       io.try_write32(data, offset)?;
     ///
     ///       # Ok(SampleDriver)
     ///     }

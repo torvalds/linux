@@ -1,20 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 
-use core::ops::Deref;
-use core::ops::DerefMut;
-use kernel::bits::genmask_u32;
-use kernel::device::Bound;
-use kernel::device::Device;
-use kernel::devres::Devres;
-use kernel::io::poll;
-use kernel::platform;
-use kernel::prelude::*;
-use kernel::time::Delta;
-use kernel::transmute::AsBytes;
-use kernel::uapi;
+use core::ops::{
+    Deref,
+    DerefMut, //
+};
+use kernel::{
+    bits::genmask_u32,
+    device::{
+        Bound,
+        Device, //
+    },
+    devres::Devres,
+    io::poll,
+    platform,
+    prelude::*,
+    time::Delta,
+    transmute::AsBytes,
+    uapi, //
+};
 
-use crate::driver::IoMem;
-use crate::regs;
+use crate::{
+    driver::IoMem,
+    regs, //
+};
 
 /// Struct containing information that can be queried by userspace. This is read from
 /// the GPU's registers.
@@ -84,13 +92,11 @@ impl GpuInfo {
     }
 
     pub(crate) fn log(&self, pdev: &platform::Device) {
-        let major = (self.gpu_id >> 16) & 0xff;
-        let minor = (self.gpu_id >> 8) & 0xff;
-        let status = self.gpu_id & 0xff;
+        let gpu_id = GpuId::from(self.gpu_id);
 
         let model_name = if let Some(model) = GPU_MODELS
             .iter()
-            .find(|&f| f.major == major && f.minor == minor)
+            .find(|&f| f.arch_major == gpu_id.arch_major && f.prod_major == gpu_id.prod_major)
         {
             model.name
         } else {
@@ -102,9 +108,9 @@ impl GpuInfo {
             "mali-{} id 0x{:x} major 0x{:x} minor 0x{:x} status 0x{:x}",
             model_name,
             self.gpu_id >> 16,
-            major,
-            minor,
-            status
+            gpu_id.ver_major,
+            gpu_id.ver_minor,
+            gpu_id.ver_status
         );
 
         dev_info!(
@@ -166,14 +172,14 @@ unsafe impl AsBytes for GpuInfo {}
 
 struct GpuModels {
     name: &'static str,
-    major: u32,
-    minor: u32,
+    arch_major: u32,
+    prod_major: u32,
 }
 
 const GPU_MODELS: [GpuModels; 1] = [GpuModels {
     name: "g610",
-    major: 10,
-    minor: 7,
+    arch_major: 10,
+    prod_major: 7,
 }];
 
 #[allow(dead_code)]

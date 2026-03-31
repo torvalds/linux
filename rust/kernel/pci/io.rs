@@ -8,8 +8,6 @@ use crate::{
     device,
     devres::Devres,
     io::{
-        io_define_read,
-        io_define_write,
         Io,
         IoCapable,
         IoKnownSize,
@@ -85,67 +83,41 @@ pub struct ConfigSpace<'a, S: ConfigSpaceKind = Extended> {
     _marker: PhantomData<S>,
 }
 
-/// Internal helper macros used to invoke C PCI configuration space read functions.
-///
-/// This macro is intended to be used by higher-level PCI configuration space access macros
-/// (io_define_read) and provides a unified expansion for infallible vs. fallible read semantics. It
-/// emits a direct call into the corresponding C helper and performs the required cast to the Rust
-/// return type.
-///
-/// # Parameters
-///
-/// * `$c_fn` – The C function performing the PCI configuration space write.
-/// * `$self` – The I/O backend object.
-/// * `$ty` – The type of the value to read.
-/// * `$addr` – The PCI configuration space offset to read.
-///
-/// This macro does not perform any validation; all invariants must be upheld by the higher-level
-/// abstraction invoking it.
-macro_rules! call_config_read {
-    (infallible, $c_fn:ident, $self:ident, $ty:ty, $addr:expr) => {{
-        let mut val: $ty = 0;
-        // SAFETY: By the type invariant `$self.pdev` is a valid address.
-        // CAST: The offset is cast to `i32` because the C functions expect a 32-bit signed offset
-        // parameter. PCI configuration space size is at most 4096 bytes, so the value always fits
-        // within `i32` without truncation or sign change.
-        // Return value from C function is ignored in infallible accessors.
-        let _ret = unsafe { bindings::$c_fn($self.pdev.as_raw(), $addr as i32, &mut val) };
-        val
-    }};
-}
+/// Implements [`IoCapable`] on [`ConfigSpace`] for `$ty` using `$read_fn` and `$write_fn`.
+macro_rules! impl_config_space_io_capable {
+    ($ty:ty, $read_fn:ident, $write_fn:ident) => {
+        impl<'a, S: ConfigSpaceKind> IoCapable<$ty> for ConfigSpace<'a, S> {
+            unsafe fn io_read(&self, address: usize) -> $ty {
+                let mut val: $ty = 0;
 
-/// Internal helper macros used to invoke C PCI configuration space write functions.
-///
-/// This macro is intended to be used by higher-level PCI configuration space access macros
-/// (io_define_write) and provides a unified expansion for infallible vs. fallible read semantics.
-/// It emits a direct call into the corresponding C helper and performs the required cast to the
-/// Rust return type.
-///
-/// # Parameters
-///
-/// * `$c_fn` – The C function performing the PCI configuration space write.
-/// * `$self` – The I/O backend object.
-/// * `$ty` – The type of the written value.
-/// * `$addr` – The configuration space offset to write.
-/// * `$value` – The value to write.
-///
-/// This macro does not perform any validation; all invariants must be upheld by the higher-level
-/// abstraction invoking it.
-macro_rules! call_config_write {
-    (infallible, $c_fn:ident, $self:ident, $ty:ty, $addr:expr, $value:expr) => {
-        // SAFETY: By the type invariant `$self.pdev` is a valid address.
-        // CAST: The offset is cast to `i32` because the C functions expect a 32-bit signed offset
-        // parameter. PCI configuration space size is at most 4096 bytes, so the value always fits
-        // within `i32` without truncation or sign change.
-        // Return value from C function is ignored in infallible accessors.
-        let _ret = unsafe { bindings::$c_fn($self.pdev.as_raw(), $addr as i32, $value) };
+                // Return value from C function is ignored in infallible accessors.
+                let _ret =
+                    // SAFETY: By the type invariant `self.pdev` is a valid address.
+                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                    // so the value always fits within `i32` without truncation or sign change.
+                    unsafe { bindings::$read_fn(self.pdev.as_raw(), address as i32, &mut val) };
+
+                val
+            }
+
+            unsafe fn io_write(&self, value: $ty, address: usize) {
+                // Return value from C function is ignored in infallible accessors.
+                let _ret =
+                    // SAFETY: By the type invariant `self.pdev` is a valid address.
+                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                    // so the value always fits within `i32` without truncation or sign change.
+                    unsafe { bindings::$write_fn(self.pdev.as_raw(), address as i32, value) };
+            }
+        }
     };
 }
 
 // PCI configuration space supports 8, 16, and 32-bit accesses.
-impl<'a, S: ConfigSpaceKind> IoCapable<u8> for ConfigSpace<'a, S> {}
-impl<'a, S: ConfigSpaceKind> IoCapable<u16> for ConfigSpace<'a, S> {}
-impl<'a, S: ConfigSpaceKind> IoCapable<u32> for ConfigSpace<'a, S> {}
+impl_config_space_io_capable!(u8, pci_read_config_byte, pci_write_config_byte);
+impl_config_space_io_capable!(u16, pci_read_config_word, pci_write_config_word);
+impl_config_space_io_capable!(u32, pci_read_config_dword, pci_write_config_dword);
 
 impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
     /// Returns the base address of the I/O region. It is always 0 for configuration space.
@@ -159,17 +131,6 @@ impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
     fn maxsize(&self) -> usize {
         self.pdev.cfg_size().into_raw()
     }
-
-    // PCI configuration space does not support fallible operations.
-    // The default implementations from the Io trait are not used.
-
-    io_define_read!(infallible, read8, call_config_read(pci_read_config_byte) -> u8);
-    io_define_read!(infallible, read16, call_config_read(pci_read_config_word) -> u16);
-    io_define_read!(infallible, read32, call_config_read(pci_read_config_dword) -> u32);
-
-    io_define_write!(infallible, write8, call_config_write(pci_write_config_byte) <- u8);
-    io_define_write!(infallible, write16, call_config_write(pci_write_config_word) <- u16);
-    io_define_write!(infallible, write32, call_config_write(pci_write_config_dword) <- u32);
 }
 
 impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {

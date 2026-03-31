@@ -58,7 +58,11 @@ pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// Reset the falcon engine.
     fn reset_eng(&self, bar: &Bar0) -> Result;
 
-    /// returns the method needed to load data into Falcon memory
+    /// Returns the method used to load data into the falcon's memory.
+    ///
+    /// The only chipsets supporting PIO are those < GA102, and PIO is the preferred method for
+    /// these. For anything above, the PIO registers appear to be masked to the CPU, so DMA is the
+    /// only usable method.
     fn load_method(&self) -> LoadMethod;
 }
 

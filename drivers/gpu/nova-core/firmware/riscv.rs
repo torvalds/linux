@@ -5,13 +5,13 @@
 
 use kernel::{
     device,
+    dma::Coherent,
     firmware::Firmware,
     prelude::*,
     transmute::FromBytes, //
 };
 
 use crate::{
-    dma::DmaObject,
     firmware::BinFirmware,
     num::FromSafeCast, //
 };
@@ -45,10 +45,11 @@ impl RmRiscvUCodeDesc {
     /// Fails if the header pointed at by `bin_fw` is not within the bounds of the firmware image.
     fn new(bin_fw: &BinFirmware<'_>) -> Result<Self> {
         let offset = usize::from_safe_cast(bin_fw.hdr.header_offset);
+        let end = offset.checked_add(size_of::<Self>()).ok_or(EINVAL)?;
 
         bin_fw
             .fw
-            .get(offset..offset + size_of::<Self>())
+            .get(offset..end)
             .and_then(Self::from_bytes_copy)
             .ok_or(EINVAL)
     }
@@ -65,7 +66,7 @@ pub(crate) struct RiscvFirmware {
     /// Application version.
     pub(crate) app_version: u32,
     /// Device-mapped firmware image.
-    pub(crate) ucode: DmaObject,
+    pub(crate) ucode: Coherent<[u8]>,
 }
 
 impl RiscvFirmware {
@@ -78,8 +79,9 @@ impl RiscvFirmware {
         let ucode = {
             let start = usize::from_safe_cast(bin_fw.hdr.data_offset);
             let len = usize::from_safe_cast(bin_fw.hdr.data_size);
+            let end = start.checked_add(len).ok_or(EINVAL)?;
 
-            DmaObject::from_data(dev, fw.data().get(start..start + len).ok_or(EINVAL)?)?
+            Coherent::from_slice(dev, fw.data().get(start..end).ok_or(EINVAL)?, GFP_KERNEL)?
         };
 
         Ok(Self {

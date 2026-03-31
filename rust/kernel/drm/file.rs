@@ -4,9 +4,13 @@
 //!
 //! C header: [`include/drm/drm_file.h`](srctree/include/drm/drm_file.h)
 
-use crate::{bindings, drm, error::Result, prelude::*, types::Opaque};
+use crate::{
+    bindings,
+    drm,
+    prelude::*,
+    types::Opaque, //
+};
 use core::marker::PhantomData;
-use core::pin::Pin;
 
 /// Trait that must be implemented by DRM drivers to represent a DRM File (a client instance).
 pub trait DriverFile {

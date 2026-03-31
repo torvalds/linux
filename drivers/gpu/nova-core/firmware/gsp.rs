@@ -3,10 +3,11 @@
 use kernel::{
     device,
     dma::{
+        Coherent,
+        CoherentBox,
         DataDirection,
         DmaAddress, //
     },
-    kvec,
     prelude::*,
     scatterlist::{
         Owned,
@@ -15,8 +16,10 @@ use kernel::{
 };
 
 use crate::{
-    dma::DmaObject,
-    firmware::riscv::RiscvFirmware,
+    firmware::{
+        elf,
+        riscv::RiscvFirmware, //
+    },
     gpu::{
         Architecture,
         Chipset, //
@@ -24,92 +27,6 @@ use crate::{
     gsp::GSP_PAGE_SIZE,
     num::FromSafeCast,
 };
-
-/// Ad-hoc and temporary module to extract sections from ELF images.
-///
-/// Some firmware images are currently packaged as ELF files, where sections names are used as keys
-/// to specific and related bits of data. Future firmware versions are scheduled to move away from
-/// that scheme before nova-core becomes stable, which means this module will eventually be
-/// removed.
-mod elf {
-    use kernel::{
-        bindings,
-        prelude::*,
-        transmute::FromBytes, //
-    };
-
-    /// Newtype to provide a [`FromBytes`] implementation.
-    #[repr(transparent)]
-    struct Elf64Hdr(bindings::elf64_hdr);
-    // SAFETY: all bit patterns are valid for this type, and it doesn't use interior mutability.
-    unsafe impl FromBytes for Elf64Hdr {}
-
-    #[repr(transparent)]
-    struct Elf64SHdr(bindings::elf64_shdr);
-    // SAFETY: all bit patterns are valid for this type, and it doesn't use interior mutability.
-    unsafe impl FromBytes for Elf64SHdr {}
-
-    /// Tries to extract section with name `name` from the ELF64 image `elf`, and returns it.
-    pub(super) fn elf64_section<'a, 'b>(elf: &'a [u8], name: &'b str) -> Option<&'a [u8]> {
-        let hdr = &elf
-            .get(0..size_of::<bindings::elf64_hdr>())
-            .and_then(Elf64Hdr::from_bytes)?
-            .0;
-
-        // Get all the section headers.
-        let mut shdr = {
-            let shdr_num = usize::from(hdr.e_shnum);
-            let shdr_start = usize::try_from(hdr.e_shoff).ok()?;
-            let shdr_end = shdr_num
-                .checked_mul(size_of::<Elf64SHdr>())
-                .and_then(|v| v.checked_add(shdr_start))?;
-
-            elf.get(shdr_start..shdr_end)
-                .map(|slice| slice.chunks_exact(size_of::<Elf64SHdr>()))?
-        };
-
-        // Get the strings table.
-        let strhdr = shdr
-            .clone()
-            .nth(usize::from(hdr.e_shstrndx))
-            .and_then(Elf64SHdr::from_bytes)?;
-
-        // Find the section which name matches `name` and return it.
-        shdr.find(|&sh| {
-            let Some(hdr) = Elf64SHdr::from_bytes(sh) else {
-                return false;
-            };
-
-            let Some(name_idx) = strhdr
-                .0
-                .sh_offset
-                .checked_add(u64::from(hdr.0.sh_name))
-                .and_then(|idx| usize::try_from(idx).ok())
-            else {
-                return false;
-            };
-
-            // Get the start of the name.
-            elf.get(name_idx..)
-                .and_then(|nstr| CStr::from_bytes_until_nul(nstr).ok())
-                // Convert into str.
-                .and_then(|c_str| c_str.to_str().ok())
-                // Check that the name matches.
-                .map(|str| str == name)
-                .unwrap_or(false)
-        })
-        // Return the slice containing the section.
-        .and_then(|sh| {
-            let hdr = Elf64SHdr::from_bytes(sh)?;
-            let start = usize::try_from(hdr.0.sh_offset).ok()?;
-            let end = usize::try_from(hdr.0.sh_size)
-                .ok()
-                .and_then(|sh_size| start.checked_add(sh_size))?;
-
-            elf.get(start..end)
-        })
-    }
-}
 
 /// GSP firmware with 3-level radix page tables for the GSP bootloader.
 ///
@@ -136,11 +53,11 @@ pub(crate) struct GspFirmware {
     #[pin]
     level1: SGTable<Owned<VVec<u8>>>,
     /// Level 0 page table (single 4KB page) with one entry: DMA address of first level 1 page.
-    level0: DmaObject,
+    level0: Coherent<[u64]>,
     /// Size in bytes of the firmware contained in [`Self::fw`].
     pub(crate) size: usize,
     /// Device-mapped GSP signatures matching the GPU's [`Chipset`].
-    pub(crate) signatures: DmaObject,
+    pub(crate) signatures: Coherent<[u8]>,
     /// GSP bootloader, verifies the GSP firmware before loading and running it.
     pub(crate) bootloader: RiscvFirmware,
 }
@@ -197,17 +114,20 @@ impl GspFirmware {
                     // Allocate the level 0 page table as a device-visible DMA object, and map the
                     // level 1 page table onto it.
 
-                    // Level 0 page table data.
-                    let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
-
                     // Fill level 1 page entry.
                     let level1_entry = level1.iter().next().ok_or(EINVAL)?;
                     let level1_entry_addr = level1_entry.dma_address();
-                    let dst = &mut level0_data[..size_of_val(&level1_entry_addr)];
-                    dst.copy_from_slice(&level1_entry_addr.to_le_bytes());
 
-                    // Turn the level0 page table into a [`DmaObject`].
-                    DmaObject::from_data(dev, &level0_data)?
+                    // Create level 0 page table data and fill its first entry with the level 1
+                    // table.
+                    let mut level0 = CoherentBox::<[u64]>::zeroed_slice(
+                        dev,
+                        GSP_PAGE_SIZE / size_of::<u64>(),
+                        GFP_KERNEL
+                    )?;
+                    level0[0] = level1_entry_addr.to_le();
+
+                    level0.into()
                 },
                 size,
                 signatures: {
@@ -226,7 +146,7 @@ impl GspFirmware {
 
                     elf::elf64_section(firmware.data(), sigs_section)
                         .ok_or(EINVAL)
-                        .and_then(|data| DmaObject::from_data(dev, data))?
+                        .and_then(|data| Coherent::from_slice(dev, data, GFP_KERNEL))?
                 },
                 bootloader: {
                     let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
