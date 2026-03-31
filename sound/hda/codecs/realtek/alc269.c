@@ -6591,10 +6591,10 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc288_fixup_surface_swap_dacs,
 	},
-        [ALC233_FIXUP_LENOVO_GPIO2_MIC_HOTKEY] = {
-                .type = HDA_FIXUP_FUNC,
-                .v.func = alc233_fixup_lenovo_gpio2_mic_hotkey,
-        },
+	[ALC233_FIXUP_LENOVO_GPIO2_MIC_HOTKEY] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc233_fixup_lenovo_gpio2_mic_hotkey,
+	},
 	[ALC245_FIXUP_BASS_HP_DAC] = {
 		.type = HDA_FIXUP_FUNC,
 		/* Borrow the DAC routing selected for those Thinkpads */
