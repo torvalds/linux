@@ -543,7 +543,7 @@ xfs_zone_gc_steal_open(
 		return -EIO;
 	}
 
-	trace_xfs_zone_gc_target_opened(found->oz_rtg);
+	trace_xfs_zone_gc_target_stolen(found->oz_rtg);
 	found->oz_is_gc = true;
 	list_del_init(&found->oz_entry);
 	zi->zi_nr_open_zones--;

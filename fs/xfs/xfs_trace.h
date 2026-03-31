@@ -394,6 +394,7 @@ DEFINE_ZONE_EVENT(xfs_zone_full);
 DEFINE_ZONE_EVENT(xfs_zone_opened);
 DEFINE_ZONE_EVENT(xfs_zone_reset);
 DEFINE_ZONE_EVENT(xfs_zone_gc_target_opened);
+DEFINE_ZONE_EVENT(xfs_zone_gc_target_stolen);
 
 TRACE_EVENT(xfs_zone_free_blocks,
 	TP_PROTO(struct xfs_rtgroup *rtg, xfs_rgblock_t rgbno,
