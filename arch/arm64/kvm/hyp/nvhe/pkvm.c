@@ -309,14 +309,8 @@ struct pkvm_hyp_vm *get_pkvm_hyp_vm(pkvm_handle_t handle)
 
 	hyp_spin_lock(&vm_table_lock);
 	hyp_vm = get_vm_by_handle(handle);
-	if (!hyp_vm)
-		goto unlock;
-
-	if (hyp_vm->kvm.arch.pkvm.is_dying)
-		hyp_vm = NULL;
-	else
+	if (hyp_vm)
 		hyp_page_ref_inc(hyp_virt_to_page(hyp_vm));
-unlock:
 	hyp_spin_unlock(&vm_table_lock);
 
 	return hyp_vm;
