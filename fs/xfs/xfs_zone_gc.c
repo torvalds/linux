@@ -125,6 +125,7 @@ struct xfs_zone_gc_iter {
  */
 struct xfs_zone_gc_data {
 	struct xfs_mount		*mp;
+	struct xfs_open_zone		*oz;
 
 	/* bioset used to allocate the gc_bios */
 	struct bio_set			bio_set;
@@ -525,9 +526,10 @@ xfs_zone_gc_select_victim(
 }
 
 static int
-xfs_zone_gc_steal_open(
-	struct xfs_zone_info	*zi)
+xfs_zone_gc_steal_open_zone(
+	struct xfs_zone_gc_data	*data)
 {
+	struct xfs_zone_info	*zi = data->mp->m_zone_info;
 	struct xfs_open_zone	*oz, *found = NULL;
 
 	spin_lock(&zi->zi_open_zones_lock);
@@ -542,10 +544,12 @@ xfs_zone_gc_steal_open(
 
 	trace_xfs_zone_gc_target_stolen(found->oz_rtg);
 	found->oz_is_gc = true;
-	list_del_init(&found->oz_entry);
 	zi->zi_nr_open_zones--;
-	zi->zi_open_gc_zone = found;
+	zi->zi_nr_open_gc_zones++;
 	spin_unlock(&zi->zi_open_zones_lock);
+
+	atomic_inc(&found->oz_ref);
+	data->oz = found;
 	return 0;
 }
 
@@ -554,39 +558,43 @@ xfs_zone_gc_steal_open(
  */
 static bool
 xfs_zone_gc_select_target(
-	struct xfs_mount	*mp)
+	struct xfs_zone_gc_data	*data)
 {
-	struct xfs_zone_info	*zi = mp->m_zone_info;
-	struct xfs_open_zone	*oz = zi->zi_open_gc_zone;
+	struct xfs_zone_info	*zi = data->mp->m_zone_info;
 
-	if (oz) {
+	if (data->oz) {
 		/*
 		 * If we have space available, just keep using the existing
 		 * zone.
 		 */
-		if (oz->oz_allocated < rtg_blocks(oz->oz_rtg))
+		if (data->oz->oz_allocated < rtg_blocks(data->oz->oz_rtg))
 			return true;
 
 		/*
 		 * Wait for all writes to the current zone to finish before
 		 * picking a new one.
 		 */
-		if (oz->oz_written < rtg_blocks(oz->oz_rtg))
+		if (data->oz->oz_written < rtg_blocks(data->oz->oz_rtg))
 			return false;
+
+		xfs_open_zone_put(data->oz);
 	}
 
 	/*
 	 * Open a new zone when there is none currently in use.
 	 */
 	ASSERT(zi->zi_nr_open_zones <=
-		mp->m_max_open_zones - XFS_OPEN_GC_ZONES);
-	oz = xfs_open_zone(mp, WRITE_LIFE_NOT_SET, true);
-	if (oz)
-		trace_xfs_zone_gc_target_opened(oz->oz_rtg);
+		data->mp->m_max_open_zones - XFS_OPEN_GC_ZONES);
+	data->oz = xfs_open_zone(data->mp, WRITE_LIFE_NOT_SET, true);
+	if (!data->oz)
+		return false;
+	trace_xfs_zone_gc_target_opened(data->oz->oz_rtg);
+	atomic_inc(&data->oz->oz_ref);
 	spin_lock(&zi->zi_open_zones_lock);
-	zi->zi_open_gc_zone = oz;
+	zi->zi_nr_open_gc_zones++;
+	list_add_tail(&data->oz->oz_entry, &zi->zi_open_zones);
 	spin_unlock(&zi->zi_open_zones_lock);
-	return !!oz;
+	return true;
 }
 
 static void
@@ -609,7 +617,7 @@ xfs_zone_gc_alloc_blocks(
 	bool			*is_seq)
 {
 	struct xfs_mount	*mp = data->mp;
-	struct xfs_open_zone	*oz = mp->m_zone_info->zi_open_gc_zone;
+	struct xfs_open_zone	*oz = data->oz;
 
 	*count_fsb = min(*count_fsb, XFS_B_TO_FSB(mp, data->scratch_available));
 
@@ -683,7 +691,7 @@ xfs_zone_gc_can_start_chunk(
 			return false;
 	}
 
-	return xfs_zone_gc_select_target(data->mp);
+	return xfs_zone_gc_select_target(data);
 }
 
 static bool
@@ -728,7 +736,7 @@ xfs_zone_gc_start_chunk(
 	chunk->new_daddr = daddr;
 	chunk->is_seq = is_seq;
 	chunk->data = data;
-	chunk->oz = mp->m_zone_info->zi_open_gc_zone;
+	chunk->oz = data->oz;
 	chunk->victim_rtg = iter->victim_rtg;
 	atomic_inc(&rtg_group(chunk->victim_rtg)->xg_active_ref);
 	atomic_inc(&chunk->victim_rtg->rtg_gccount);
@@ -1134,6 +1142,8 @@ xfs_zoned_gcd(
 	}
 	xfs_clear_zonegc_running(mp);
 
+	if (data->oz)
+		xfs_open_zone_put(data->oz);
 	if (data->iter.victim_rtg)
 		xfs_rtgroup_rele(data->iter.victim_rtg);
 
@@ -1183,6 +1193,10 @@ xfs_zone_gc_mount(
 	struct xfs_zone_gc_data	*data;
 	int			error;
 
+	data = xfs_zone_gc_data_alloc(mp);
+	if (!data)
+		return -ENOMEM;
+
 	/*
 	 * If there are no free zones available for GC, or the number of open
 	 * zones has reached the open zone limit, pick the open zone with
@@ -1192,17 +1206,11 @@ xfs_zone_gc_mount(
 	 */
 	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_FREE) ||
 	    zi->zi_nr_open_zones >= mp->m_max_open_zones) {
-		error = xfs_zone_gc_steal_open(zi);
+		error = xfs_zone_gc_steal_open_zone(data);
 		if (error) {
 			xfs_warn(mp, "unable to steal an open zone for gc");
-			return error;
+			goto out_free_gc_data;
 		}
-	}
-
-	data = xfs_zone_gc_data_alloc(mp);
-	if (!data) {
-		error = -ENOMEM;
-		goto out_put_gc_zone;
 	}
 
 	zi->zi_gc_thread = kthread_create(xfs_zoned_gcd, data,
@@ -1210,17 +1218,18 @@ xfs_zone_gc_mount(
 	if (IS_ERR(zi->zi_gc_thread)) {
 		xfs_warn(mp, "unable to create zone gc thread");
 		error = PTR_ERR(zi->zi_gc_thread);
-		goto out_free_gc_data;
+		goto out_put_oz;
 	}
 
 	/* xfs_zone_gc_start will unpark for rw mounts */
 	kthread_park(zi->zi_gc_thread);
 	return 0;
 
+out_put_oz:
+	if (data->oz)
+		xfs_open_zone_put(data->oz);
 out_free_gc_data:
 	kfree(data);
-out_put_gc_zone:
-	xfs_open_zone_put(zi->zi_open_gc_zone);
 	return error;
 }
 
@@ -1231,6 +1240,4 @@ xfs_zone_gc_unmount(
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 
 	kthread_stop(zi->zi_gc_thread);
-	if (zi->zi_open_gc_zone)
-		xfs_open_zone_put(zi->zi_open_gc_zone);
 }

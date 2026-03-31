@@ -30,11 +30,12 @@ xfs_show_open_zone(
 	struct seq_file		*m,
 	struct xfs_open_zone	*oz)
 {
-	seq_printf(m, "\t  zone %d, wp %u, written %u, used %u, hint %s\n",
+	seq_printf(m, "\t  zone %d, wp %u, written %u, used %u, hint %s %s\n",
 		rtg_rgno(oz->oz_rtg),
 		oz->oz_allocated, oz->oz_written,
 		rtg_rmap(oz->oz_rtg)->i_used_blocks,
-		xfs_write_hint_to_str(oz->oz_write_hint));
+		xfs_write_hint_to_str(oz->oz_write_hint),
+		oz->oz_is_gc ? "(GC)" : "");
 }
 
 static void
@@ -58,9 +59,8 @@ xfs_show_full_zone_used_distribution(
 	spin_unlock(&zi->zi_used_buckets_lock);
 
 	full = mp->m_sb.sb_rgcount;
-	if (zi->zi_open_gc_zone)
-		full--;
 	full -= zi->zi_nr_open_zones;
+	full -= zi->zi_nr_open_gc_zones;
 	full -= atomic_read(&zi->zi_nr_free_zones);
 	full -= reclaimable;
 
@@ -100,10 +100,6 @@ xfs_zoned_show_stats(
 	seq_puts(m, "\topen zones:\n");
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry)
 		xfs_show_open_zone(m, oz);
-	if (zi->zi_open_gc_zone) {
-		seq_puts(m, "\topen gc zone:\n");
-		xfs_show_open_zone(m, zi->zi_open_gc_zone);
-	}
 	spin_unlock(&zi->zi_open_zones_lock);
 	seq_puts(m, "\tused blocks distribution (fully written zones):\n");
 	xfs_show_full_zone_used_distribution(m, mp);
