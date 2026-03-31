@@ -614,7 +614,7 @@ static int policy_set_boost(struct cpufreq_policy *policy, bool enable)
 		return ret;
 	}
 
-	ret = freq_qos_update_request(policy->boost_freq_req, policy->cpuinfo.max_freq);
+	ret = freq_qos_update_request(&policy->boost_freq_req, policy->cpuinfo.max_freq);
 	if (ret < 0) {
 		policy->boost_enabled = !policy->boost_enabled;
 		cpufreq_driver->set_boost(policy, policy->boost_enabled);
@@ -769,7 +769,7 @@ static ssize_t store_##file_name					\
 	if (ret)							\
 		return ret;						\
 									\
-	ret = freq_qos_update_request(policy->object##_freq_req, val);\
+	ret = freq_qos_update_request(&policy->object##_freq_req, val);	\
 	return ret >= 0 ? count : ret;					\
 }
 
@@ -1374,7 +1374,7 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	/* Cancel any pending policy->update work before freeing the policy. */
 	cancel_work_sync(&policy->update);
 
-	if (policy->max_freq_req) {
+	if (freq_qos_request_active(&policy->max_freq_req)) {
 		/*
 		 * Remove max_freq_req after sending CPUFREQ_REMOVE_POLICY
 		 * notification, since CPUFREQ_CREATE_POLICY notification was
@@ -1382,12 +1382,13 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 		 */
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 					     CPUFREQ_REMOVE_POLICY, policy);
-		freq_qos_remove_request(policy->max_freq_req);
+		freq_qos_remove_request(&policy->max_freq_req);
 	}
 
-	freq_qos_remove_request(policy->min_freq_req);
-	freq_qos_remove_request(policy->boost_freq_req);
-	kfree(policy->min_freq_req);
+	if (freq_qos_request_active(&policy->min_freq_req))
+		freq_qos_remove_request(&policy->min_freq_req);
+	if (freq_qos_request_active(&policy->boost_freq_req))
+		freq_qos_remove_request(&policy->boost_freq_req);
 
 	cpufreq_policy_put_kobj(policy);
 	free_cpumask_var(policy->real_cpus);
@@ -1452,57 +1453,31 @@ static int cpufreq_policy_online(struct cpufreq_policy *policy,
 	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
 
 	if (new_policy) {
-		unsigned int count;
-
 		for_each_cpu(j, policy->related_cpus) {
 			per_cpu(cpufreq_cpu_data, j) = policy;
 			add_cpu_dev_symlink(policy, j, get_cpu_device(j));
 		}
 
-		count = policy->boost_supported ? 3 : 2;
-		policy->min_freq_req = kzalloc(count * sizeof(*policy->min_freq_req),
-					       GFP_KERNEL);
-		if (!policy->min_freq_req) {
-			ret = -ENOMEM;
-			goto out_destroy_policy;
-		}
-
 		if (policy->boost_supported) {
-			policy->boost_freq_req = policy->min_freq_req + 2;
-
 			ret = freq_qos_add_request(&policy->constraints,
-						   policy->boost_freq_req,
+						   &policy->boost_freq_req,
 						   FREQ_QOS_MAX,
 						   policy->cpuinfo.max_freq);
-			if (ret < 0) {
-				policy->boost_freq_req = NULL;
+			if (ret < 0)
 				goto out_destroy_policy;
-			}
 		}
 
 		ret = freq_qos_add_request(&policy->constraints,
-					   policy->min_freq_req, FREQ_QOS_MIN,
+					   &policy->min_freq_req, FREQ_QOS_MIN,
 					   FREQ_QOS_MIN_DEFAULT_VALUE);
-		if (ret < 0) {
-			kfree(policy->min_freq_req);
-			policy->min_freq_req = NULL;
+		if (ret < 0)
 			goto out_destroy_policy;
-		}
-
-		/*
-		 * This must be initialized right here to avoid calling
-		 * freq_qos_remove_request() on uninitialized request in case
-		 * of errors.
-		 */
-		policy->max_freq_req = policy->min_freq_req + 1;
 
 		ret = freq_qos_add_request(&policy->constraints,
-					   policy->max_freq_req, FREQ_QOS_MAX,
+					   &policy->max_freq_req, FREQ_QOS_MAX,
 					   FREQ_QOS_MAX_DEFAULT_VALUE);
-		if (ret < 0) {
-			policy->max_freq_req = NULL;
+		if (ret < 0)
 			goto out_destroy_policy;
-		}
 
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				CPUFREQ_CREATE_POLICY, policy);
