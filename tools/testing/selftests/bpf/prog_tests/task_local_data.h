@@ -22,14 +22,17 @@
 /*
  * OPTIONS
  *
- *   Define the option before including the header
+ *   Define the option before including the header. Using different options in
+ *   different translation units is strongly discouraged.
  *
  *   TLD_FREE_DATA_ON_THREAD_EXIT - Frees memory on thread exit automatically
  *
  *   Thread-specific memory for storing TLD is allocated lazily on the first call to
  *   tld_get_data(). The thread that calls it must also call tld_free() on thread exit
  *   to prevent memory leak. Pthread will be included if the option is defined. A pthread
- *   key will be registered with a destructor that calls tld_free().
+ *   key will be registered with a destructor that calls tld_free(). Enabled only when
+ *   the option is defined and TLD_DEFINE_KEY/tld_create_key() is called in the same
+ *   translation unit.
  *
  *
  *   TLD_DYN_DATA_SIZE - The maximum size of memory allocated for TLDs created dynamically
@@ -47,7 +50,7 @@
  *   TLD_NAME_LEN - The maximum length of the name of a TLD (default: 62)
  *
  *   Setting TLD_NAME_LEN will affect the maximum number of TLDs a process can store,
- *   TLD_MAX_DATA_CNT.
+ *   TLD_MAX_DATA_CNT. Must be consistent with task_local_data.bpf.h.
  *
  *
  *   TLD_DONT_ROUND_UP_DATA_SIZE - Don't round up memory size allocated for data if
@@ -110,6 +113,7 @@ struct tld_meta_u * _Atomic tld_meta_p __attribute__((weak));
 __thread struct tld_data_u *tld_data_p __attribute__((weak));
 
 #ifdef TLD_FREE_DATA_ON_THREAD_EXIT
+bool _Atomic tld_pthread_key_init __attribute__((weak));
 pthread_key_t tld_pthread_key __attribute__((weak));
 
 static void tld_free(void);
@@ -140,9 +144,6 @@ static int __tld_init_meta_p(void)
 		goto out;
 	}
 
-#ifdef TLD_FREE_DATA_ON_THREAD_EXIT
-	pthread_key_create(&tld_pthread_key, __tld_thread_exit_handler);
-#endif
 out:
 	return err;
 }
@@ -203,6 +204,7 @@ out:
 static tld_key_t __tld_create_key(const char *name, size_t size, bool dyn_data)
 {
 	int err, i, sz, off = 0;
+	bool uninit = false;
 	__u16 cnt;
 
 	if (!tld_meta_p) {
@@ -210,6 +212,14 @@ static tld_key_t __tld_create_key(const char *name, size_t size, bool dyn_data)
 		if (err)
 			return (tld_key_t){(__s16)err};
 	}
+
+#ifdef TLD_FREE_DATA_ON_THREAD_EXIT
+	if (atomic_compare_exchange_strong(&tld_pthread_key_init, &uninit, true)) {
+		err = pthread_key_create(&tld_pthread_key, __tld_thread_exit_handler);
+		if (err)
+			return (tld_key_t){(__s16)err};
+	}
+#endif
 
 	for (i = 0; i < (int)TLD_MAX_DATA_CNT; i++) {
 retry:
@@ -353,7 +363,8 @@ static void *tld_get_data(int map_fd, tld_key_t key)
  *
  * Users must call tld_free() on thread exit to prevent memory leak. Alternatively,
  * define TLD_FREE_DATA_ON_THREAD_EXIT and a thread exit handler will be registered
- * to free the memory automatically.
+ * to free the memory automatically. Calling tld_free() before thread exit is
+ * undefined behavior, which may lead to null-pointer dereference.
  */
 __attribute__((unused))
 static void tld_free(void)
