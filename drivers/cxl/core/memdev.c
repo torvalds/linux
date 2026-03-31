@@ -204,6 +204,9 @@ bool cxl_memdev_has_poison_cmd(struct cxl_memdev *cxlmd,
 {
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
+	if (!mds)
+		return 0;
+
 	return test_bit(cmd, mds->poison.enabled_cmds);
 }
 
