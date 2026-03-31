@@ -138,6 +138,7 @@ struct cma *dev_get_cma_area(struct device *dev)
 
 	return dma_contiguous_default_area;
 }
+EXPORT_SYMBOL_GPL(dev_get_cma_area);
 
 #ifdef CONFIG_DMA_NUMA_CMA
 
