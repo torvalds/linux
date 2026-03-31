@@ -2016,6 +2016,7 @@ static int disk_revalidate_zone_resources(struct gendisk *disk,
 {
 	struct queue_limits *lim = &disk->queue->limits;
 	unsigned int pool_size;
+	int ret = 0;
 
 	args->disk = disk;
 	args->nr_zones =
@@ -2038,10 +2039,13 @@ static int disk_revalidate_zone_resources(struct gendisk *disk,
 		pool_size =
 			min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, args->nr_zones);
 
-	if (!disk->zone_wplugs_hash)
-		return disk_alloc_zone_resources(disk, pool_size);
+	if (!disk->zone_wplugs_hash) {
+		ret = disk_alloc_zone_resources(disk, pool_size);
+		if (ret)
+			kfree(args->zones_cond);
+	}
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -2073,6 +2077,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	disk->zone_capacity = args->zone_capacity;
 	disk->last_zone_capacity = args->last_zone_capacity;
 	disk_set_zones_cond_array(disk, args->zones_cond);
+	args->zones_cond = NULL;
 
 	/*
 	 * Some devices can advertise zone resource limits that are larger than
@@ -2353,21 +2358,30 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	}
 	memalloc_noio_restore(noio_flag);
 
+	if (ret <= 0)
+		goto free_resources;
+
 	/*
 	 * If zones where reported, make sure that the entire disk capacity
 	 * has been checked.
 	 */
-	if (ret > 0 && args.sector != capacity) {
+	if (args.sector != capacity) {
 		pr_warn("%s: Missing zones from sector %llu\n",
 			disk->disk_name, args.sector);
 		ret = -ENODEV;
+		goto free_resources;
 	}
 
-	if (ret > 0)
-		return disk_update_zone_resources(disk, &args);
+	ret = disk_update_zone_resources(disk, &args);
+	if (ret)
+		goto free_resources;
 
+	return 0;
+
+free_resources:
 	pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
 
+	kfree(args.zones_cond);
 	memflags = blk_mq_freeze_queue(q);
 	disk_free_zone_resources(disk);
 	blk_mq_unfreeze_queue(q, memflags);
