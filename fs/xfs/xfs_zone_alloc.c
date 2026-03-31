@@ -182,11 +182,11 @@ xfs_open_zone_mark_full(
 		list_del_init(&oz->oz_entry);
 	}
 	spin_unlock(&zi->zi_open_zones_lock);
-	xfs_open_zone_put(oz);
 
 	wake_up_all(&zi->zi_zone_wait);
 	if (used < rtg_blocks(rtg))
 		xfs_zone_account_reclaimable(rtg, rtg_blocks(rtg) - used);
+	xfs_open_zone_put(oz);
 }
 
 static inline void
