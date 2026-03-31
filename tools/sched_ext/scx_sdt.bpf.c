@@ -317,7 +317,8 @@ int scx_alloc_free_idx(struct scx_allocator *alloc, __u64 idx)
 		};
 
 		/* Zero out one word at a time. */
-		for (i = zero; i < alloc->pool.elem_size / 8 && can_loop; i++) {
+		for (i = zero; i < (alloc->pool.elem_size - sizeof(struct sdt_data)) / 8
+		     && can_loop; i++) {
 			data->payload[i] = 0;
 		}
 	}
