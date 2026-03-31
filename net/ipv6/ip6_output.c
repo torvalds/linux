@@ -259,6 +259,27 @@ bool ip6_autoflowlabel(struct net *net, const struct sock *sk)
 	return inet6_test_bit(AUTOFLOWLABEL, sk);
 }
 
+int ip6_dst_hoplimit(struct dst_entry *dst)
+{
+	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
+
+	rcu_read_lock();
+	if (hoplimit == 0) {
+		struct net_device *dev = dst_dev_rcu(dst);
+		struct inet6_dev *idev;
+
+		idev = __in6_dev_get(dev);
+		if (idev)
+			hoplimit = READ_ONCE(idev->cnf.hop_limit);
+		else
+			hoplimit = READ_ONCE(dev_net(dev)->ipv6.devconf_all->hop_limit);
+	}
+	rcu_read_unlock();
+
+	return hoplimit;
+}
+EXPORT_SYMBOL(ip6_dst_hoplimit);
+
 /*
  * xmit an sk_buff (used by TCP and SCTP)
  * Note : socket lock is not held for SYNACK packets, but might be modified

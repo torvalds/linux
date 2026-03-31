@@ -100,29 +100,6 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 }
 EXPORT_SYMBOL(ip6_find_1stfragopt);
 
-#if IS_ENABLED(CONFIG_IPV6)
-int ip6_dst_hoplimit(struct dst_entry *dst)
-{
-	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
-
-	rcu_read_lock();
-	if (hoplimit == 0) {
-		struct net_device *dev = dst_dev_rcu(dst);
-		struct inet6_dev *idev;
-
-		idev = __in6_dev_get(dev);
-		if (idev)
-			hoplimit = READ_ONCE(idev->cnf.hop_limit);
-		else
-			hoplimit = READ_ONCE(dev_net(dev)->ipv6.devconf_all->hop_limit);
-	}
-	rcu_read_unlock();
-
-	return hoplimit;
-}
-EXPORT_SYMBOL(ip6_dst_hoplimit);
-#endif
-
 int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	ipv6_set_payload_len(ipv6_hdr(skb), skb->len - sizeof(struct ipv6hdr));
