@@ -50,16 +50,13 @@
  *   TLD_MAX_DATA_CNT.
  *
  *
- *   TLD_DATA_USE_ALIGNED_ALLOC - Always use aligned_alloc() instead of malloc()
+ *   TLD_DONT_ROUND_UP_DATA_SIZE - Don't round up memory size allocated for data if
+ *   the memory allocator has low overhead aligned_alloc() implementation.
  *
- *   When allocating the memory for storing TLDs, we need to make sure there is a memory
- *   region of the X bytes within a page. This is due to the limit posed by UPTR: memory
- *   pinned to the kernel cannot exceed a page nor can it cross the page boundary. The
- *   library normally calls malloc(2*X) given X bytes of total TLDs, and only uses
- *   aligned_alloc(PAGE_SIZE, X) when X >= PAGE_SIZE / 2. This is to reduce memory wastage
- *   as not all memory allocator can use the exact amount of memory requested to fulfill
- *   aligned_alloc(). For example, some may round the size up to the alignment. Enable the
- *   option to always use aligned_alloc() if the implementation has low memory overhead.
+ *   For some memory allocators, when calling aligned_alloc(alignment, size), size
+ *   does not need to be an integral multiple of alignment and it can be fulfilled
+ *   without using round_up(size, alignment) bytes of memory. Enable this option to
+ *   reduce memory usage.
  */
 
 #define TLD_PAGE_SIZE getpagesize()
@@ -67,6 +64,8 @@
 
 #define TLD_ROUND_MASK(x, y) ((__typeof__(x))((y) - 1))
 #define TLD_ROUND_UP(x, y) ((((x) - 1) | TLD_ROUND_MASK(x, y)) + 1)
+
+#define TLD_ROUND_UP_POWER_OF_TWO(x) (1UL << (sizeof(x) * 8 - __builtin_clzl(x - 1)))
 
 #define TLD_READ_ONCE(x) (*(volatile typeof(x) *)&(x))
 
@@ -111,7 +110,6 @@ struct tld_map_value {
 
 struct tld_meta_u * _Atomic tld_meta_p __attribute__((weak));
 __thread struct tld_data_u *tld_data_p __attribute__((weak));
-__thread void *tld_data_alloc_p __attribute__((weak));
 
 #ifdef TLD_FREE_DATA_ON_THREAD_EXIT
 pthread_key_t tld_pthread_key __attribute__((weak));
@@ -153,12 +151,10 @@ out:
 
 static int __tld_init_data_p(int map_fd)
 {
-	bool use_aligned_alloc = false;
 	struct tld_map_value map_val;
 	struct tld_data_u *data;
-	void *data_alloc = NULL;
 	int err, tid_fd = -1;
-	size_t size;
+	size_t size, size_pot;
 
 	tid_fd = syscall(SYS_pidfd_open, sys_gettid(), O_EXCL);
 	if (tid_fd < 0) {
@@ -166,48 +162,37 @@ static int __tld_init_data_p(int map_fd)
 		goto out;
 	}
 
-#ifdef TLD_DATA_USE_ALIGNED_ALLOC
-	use_aligned_alloc = true;
-#endif
-
 	/*
 	 * tld_meta_p->size = TLD_DYN_DATA_SIZE +
 	 *          total size of TLDs defined via TLD_DEFINE_KEY()
 	 */
 	size = tld_meta_p->size + sizeof(struct tld_data_u);
-	data_alloc = (use_aligned_alloc || size * 2 >= TLD_PAGE_SIZE) ?
-		aligned_alloc(TLD_PAGE_SIZE, size) :
-		malloc(size * 2);
-	if (!data_alloc) {
+	size_pot = TLD_ROUND_UP_POWER_OF_TWO(size);
+#ifdef TLD_DONT_ROUND_UP_DATA_SIZE
+	data = (struct tld_data_u *)aligned_alloc(size_pot, size);
+#else
+	data = (struct tld_data_u *)aligned_alloc(size_pot, size_pot);
+#endif
+	if (!data) {
 		err = -ENOMEM;
 		goto out;
 	}
 
 	/*
 	 * Always pass a page-aligned address to UPTR since the size of tld_map_value::data
-	 * is a page in BTF. If data_alloc spans across two pages, use the page that contains large
-	 * enough memory.
+	 * is a page in BTF.
 	 */
-	if (TLD_PAGE_SIZE - (~TLD_PAGE_MASK & (intptr_t)data_alloc) >= tld_meta_p->size) {
-		map_val.data = (void *)(TLD_PAGE_MASK & (intptr_t)data_alloc);
-		data = data_alloc;
-		data->start = (~TLD_PAGE_MASK & (intptr_t)data_alloc) +
-			      offsetof(struct tld_data_u, data);
-	} else {
-		map_val.data = (void *)(TLD_ROUND_UP((intptr_t)data_alloc, TLD_PAGE_SIZE));
-		data = (void *)(TLD_ROUND_UP((intptr_t)data_alloc, TLD_PAGE_SIZE));
-		data->start = offsetof(struct tld_data_u, data);
-	}
+	map_val.data = (void *)(TLD_PAGE_MASK & (intptr_t)data);
+	data->start = (~TLD_PAGE_MASK & (intptr_t)data) + sizeof(struct tld_data_u);
 	map_val.meta = TLD_READ_ONCE(tld_meta_p);
 
 	err = bpf_map_update_elem(map_fd, &tid_fd, &map_val, 0);
 	if (err) {
-		free(data_alloc);
+		free(data);
 		goto out;
 	}
 
 	tld_data_p = data;
-	tld_data_alloc_p = data_alloc;
 #ifdef TLD_FREE_DATA_ON_THREAD_EXIT
 	pthread_setspecific(tld_pthread_key, (void *)1);
 #endif
@@ -375,9 +360,8 @@ static void *tld_get_data(int map_fd, tld_key_t key)
 __attribute__((unused))
 static void tld_free(void)
 {
-	if (tld_data_alloc_p) {
-		free(tld_data_alloc_p);
-		tld_data_alloc_p = NULL;
+	if (tld_data_p) {
+		free(tld_data_p);
 		tld_data_p = NULL;
 	}
 }
