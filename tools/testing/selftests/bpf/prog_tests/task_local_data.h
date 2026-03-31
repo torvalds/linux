@@ -278,7 +278,7 @@ retry:
 #define TLD_DEFINE_KEY(key, name, size)			\
 tld_key_t key;						\
 							\
-__attribute__((constructor))				\
+__attribute__((constructor(101)))			\
 void __tld_define_key_##key(void)			\
 {							\
 	key = __tld_create_key(name, size, false);	\
