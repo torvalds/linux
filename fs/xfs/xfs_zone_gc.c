@@ -552,6 +552,9 @@ xfs_zone_gc_steal_open(
 	return 0;
 }
 
+/*
+ * Ensure we have a valid open zone to write to.
+ */
 static struct xfs_open_zone *
 xfs_zone_gc_select_target(
 	struct xfs_mount	*mp)
@@ -559,12 +562,25 @@ xfs_zone_gc_select_target(
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	struct xfs_open_zone	*oz = zi->zi_open_gc_zone;
 
-	/*
-	 * We need to wait for pending writes to finish.
-	 */
-	if (oz && oz->oz_written < rtg_blocks(oz->oz_rtg))
-		return NULL;
+	if (oz) {
+		/*
+		 * If we have space available, just keep using the existing
+		 * zone.
+		 */
+		if (oz->oz_allocated < rtg_blocks(oz->oz_rtg))
+			return oz;
 
+		/*
+		 * Wait for all writes to the current zone to finish before
+		 * picking a new one.
+		 */
+		if (oz->oz_written < rtg_blocks(oz->oz_rtg))
+			return NULL;
+	}
+
+	/*
+	 * Open a new zone when there is none currently in use.
+	 */
 	ASSERT(zi->zi_nr_open_zones <=
 		mp->m_max_open_zones - XFS_OPEN_GC_ZONES);
 	oz = xfs_open_zone(mp, WRITE_LIFE_NOT_SET, true);
@@ -573,23 +589,6 @@ xfs_zone_gc_select_target(
 	spin_lock(&zi->zi_open_zones_lock);
 	zi->zi_open_gc_zone = oz;
 	spin_unlock(&zi->zi_open_zones_lock);
-	return oz;
-}
-
-/*
- * Ensure we have a valid open zone to write the GC data to.
- *
- * If the current target zone has space keep writing to it, else first wait for
- * all pending writes and then pick a new one.
- */
-static struct xfs_open_zone *
-xfs_zone_gc_ensure_target(
-	struct xfs_mount	*mp)
-{
-	struct xfs_open_zone	*oz = mp->m_zone_info->zi_open_gc_zone;
-
-	if (!oz || oz->oz_allocated == rtg_blocks(oz->oz_rtg))
-		return xfs_zone_gc_select_target(mp);
 	return oz;
 }
 
@@ -615,7 +614,7 @@ xfs_zone_gc_alloc_blocks(
 	struct xfs_mount	*mp = data->mp;
 	struct xfs_open_zone	*oz;
 
-	oz = xfs_zone_gc_ensure_target(mp);
+	oz = xfs_zone_gc_select_target(mp);
 	if (!oz)
 		return NULL;
 
@@ -1019,7 +1018,7 @@ xfs_zone_gc_should_start_new_work(
 	if (!data->scratch_available)
 		return false;
 
-	oz = xfs_zone_gc_ensure_target(data->mp);
+	oz = xfs_zone_gc_select_target(data->mp);
 	if (!oz || oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
 
