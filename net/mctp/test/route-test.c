@@ -914,6 +914,48 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
+/* check we can receive an incoming packet with the null EID as daddr, when
+ * no RTN_LOCAL routes are present.
+ */
+static void mctp_test_route_input_null_eid(struct kunit *test)
+{
+	struct mctp_hdr hdr = RX_HDR(1, 10, 0, FL_S | FL_E | FL_TO);
+	struct sk_buff *skb_pkt, *skb_sk;
+	struct mctp_test_dev *dev;
+	struct sockaddr_mctp addr;
+	struct socket *sock;
+	u8 type = 0;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	addr.smctp_family = AF_MCTP;
+	addr.smctp_network = MCTP_NET_ANY;
+	addr.smctp_addr.s_addr = MCTP_ADDR_ANY;
+	addr.smctp_type = type;
+	rc = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	skb_pkt = mctp_test_create_skb_data(&hdr, &type);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb_pkt);
+
+	skb_pkt->dev = dev->ndev;
+	skb_pkt->pkt_type = PACKET_HOST;
+
+	mctp_pkttype_receive(skb_pkt, dev->ndev, &mctp_packet_type, NULL);
+
+	skb_sk = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, skb_sk);
+
+	skb_free_datagram(sock->sk, skb_sk);
+	sock_release(sock);
+	mctp_test_destroy_dev(dev);
+}
+
 #if IS_ENABLED(CONFIG_MCTP_FLOWS)
 
 static void mctp_test_flow_init(struct kunit *test,
@@ -1693,6 +1735,7 @@ static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE(mctp_test_route_input_sk_fail_frag),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_bind),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_key),
+	KUNIT_CASE(mctp_test_route_input_null_eid),
 	KUNIT_CASE(mctp_test_packet_flow),
 	KUNIT_CASE(mctp_test_fragment_flow),
 	KUNIT_CASE(mctp_test_route_output_key_create),

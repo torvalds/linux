@@ -1017,29 +1017,22 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 	return rc;
 }
 
-static int mctp_route_lookup_null(struct net *net, struct net_device *dev,
-				  struct mctp_dst *dst)
+static int mctp_dst_input_null(struct net *net, struct net_device *dev,
+			       struct mctp_dst *dst)
 {
-	int rc = -EHOSTUNREACH;
-	struct mctp_route *rt;
-
 	rcu_read_lock();
-
-	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
-		if (rt->dst_type != MCTP_ROUTE_DIRECT || rt->type != RTN_LOCAL)
-			continue;
-
-		if (rt->dev->dev != dev)
-			continue;
-
-		mctp_dst_from_route(dst, 0, 0, rt);
-		rc = 0;
-		break;
-	}
-
+	dst->dev = __mctp_dev_get(dev);
 	rcu_read_unlock();
 
-	return rc;
+	if (!dst->dev)
+		return -EHOSTUNREACH;
+
+	dst->mtu = READ_ONCE(dev->mtu);
+	dst->halen = 0;
+	dst->output = mctp_dst_input;
+	dst->nexthop = 0;
+
+	return 0;
 }
 
 static int mctp_do_fragment_route(struct mctp_dst *dst, struct sk_buff *skb,
@@ -1369,7 +1362,7 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 
 	/* NULL EID, but addressed to our physical address */
 	if (rc && mh->dest == MCTP_ADDR_NULL && skb->pkt_type == PACKET_HOST)
-		rc = mctp_route_lookup_null(net, dev, &dst);
+		rc = mctp_dst_input_null(net, dev, &dst);
 
 	if (rc)
 		goto err_drop;
