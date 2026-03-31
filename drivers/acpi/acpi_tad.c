@@ -174,6 +174,53 @@ static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 	return __acpi_tad_get_real_time(dev, rt);
 }
 
+static int __acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
+			       u32 value)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	union acpi_object args[] = {
+		{ .type = ACPI_TYPE_INTEGER, },
+		{ .type = ACPI_TYPE_INTEGER, },
+	};
+	struct acpi_object_list arg_list = {
+		.pointer = args,
+		.count = ARRAY_SIZE(args),
+	};
+	unsigned long long retval;
+	acpi_status status;
+
+	args[0].integer.value = timer_id;
+	args[1].integer.value = value;
+
+	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
+	if (ACPI_FAILURE(status) || retval)
+		return -EIO;
+
+	return 0;
+}
+
+static int __acpi_tad_wake_read(struct device *dev, char *method, u32 timer_id,
+				unsigned long long *retval)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	union acpi_object args[] = {
+		{ .type = ACPI_TYPE_INTEGER, },
+	};
+	struct acpi_object_list arg_list = {
+		.pointer = args,
+		.count = ARRAY_SIZE(args),
+	};
+	acpi_status status;
+
+	args[0].integer.value = timer_id;
+
+	status = acpi_evaluate_integer(handle, method, &arg_list, retval);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
+
 /* sysfs interface */
 
 static char *acpi_tad_rt_next_field(char *s, int *val)
@@ -273,31 +320,6 @@ static ssize_t time_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(time);
 
-static int __acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
-			       u32 value)
-{
-	acpi_handle handle = ACPI_HANDLE(dev);
-	union acpi_object args[] = {
-		{ .type = ACPI_TYPE_INTEGER, },
-		{ .type = ACPI_TYPE_INTEGER, },
-	};
-	struct acpi_object_list arg_list = {
-		.pointer = args,
-		.count = ARRAY_SIZE(args),
-	};
-	unsigned long long retval;
-	acpi_status status;
-
-	args[0].integer.value = timer_id;
-	args[1].integer.value = value;
-
-	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
-	if (ACPI_FAILURE(status) || retval)
-		return -EIO;
-
-	return 0;
-}
-
 static int acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
 			     u32 value)
 {
@@ -326,28 +348,6 @@ static int acpi_tad_wake_write(struct device *dev, const char *buf, char *method
 	}
 
 	return acpi_tad_wake_set(dev, method, timer_id, value);
-}
-
-static int __acpi_tad_wake_read(struct device *dev, char *method, u32 timer_id,
-				unsigned long long *retval)
-{
-	acpi_handle handle = ACPI_HANDLE(dev);
-	union acpi_object args[] = {
-		{ .type = ACPI_TYPE_INTEGER, },
-	};
-	struct acpi_object_list arg_list = {
-		.pointer = args,
-		.count = ARRAY_SIZE(args),
-	};
-	acpi_status status;
-
-	args[0].integer.value = timer_id;
-
-	status = acpi_evaluate_integer(handle, method, &arg_list, retval);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	return 0;
 }
 
 static ssize_t acpi_tad_wake_read(struct device *dev, char *buf, char *method,
