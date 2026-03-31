@@ -461,6 +461,7 @@ DEFINE_EVENT(xfs_zone_alloc_class, name,			\
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_record_blocks);
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_skip_blocks);
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_alloc_blocks);
+DEFINE_ZONE_ALLOC_EVENT(xfs_zone_spurious_open);
 
 TRACE_EVENT(xfs_zone_gc_select_victim,
 	TP_PROTO(struct xfs_rtgroup *rtg, unsigned int bucket),
