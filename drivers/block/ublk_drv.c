@@ -85,7 +85,8 @@
 		| (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) ? UBLK_F_INTEGRITY : 0) \
 		| UBLK_F_SAFE_STOP_DEV \
 		| UBLK_F_BATCH_IO \
-		| UBLK_F_NO_AUTO_PART_SCAN)
+		| UBLK_F_NO_AUTO_PART_SCAN \
+		| UBLK_F_SHMEM_ZC)
 
 #define UBLK_F_ALL_RECOVERY_FLAGS (UBLK_F_USER_RECOVERY \
 		| UBLK_F_USER_RECOVERY_REISSUE \
@@ -425,7 +426,7 @@ static inline bool ublk_dev_support_zero_copy(const struct ublk_device *ub)
 
 static inline bool ublk_support_shmem_zc(const struct ublk_queue *ubq)
 {
-	return false;
+	return ubq->flags & UBLK_F_SHMEM_ZC;
 }
 
 static inline bool ublk_iod_is_shmem_zc(const struct ublk_queue *ubq,
@@ -436,7 +437,7 @@ static inline bool ublk_iod_is_shmem_zc(const struct ublk_queue *ubq,
 
 static inline bool ublk_dev_support_shmem_zc(const struct ublk_device *ub)
 {
-	return false;
+	return ub->dev_info.flags & UBLK_F_SHMEM_ZC;
 }
 
 static inline bool ublk_support_auto_buf_reg(const struct ublk_queue *ubq)

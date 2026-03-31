@@ -408,6 +408,13 @@ struct ublk_shmem_buf_reg {
 /* Disable automatic partition scanning when device is started */
 #define UBLK_F_NO_AUTO_PART_SCAN (1ULL << 18)
 
+/*
+ * Enable shared memory zero copy. When enabled, the server can register
+ * shared memory buffers via UBLK_U_CMD_REG_BUF. If a block request's
+ * pages match a registered buffer, UBLK_IO_F_SHMEM_ZC is set and addr
+ * encodes the buffer index + offset instead of a userspace buffer address.
+ */
+#define UBLK_F_SHMEM_ZC	(1ULL << 19)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0
