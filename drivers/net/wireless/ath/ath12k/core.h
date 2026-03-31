@@ -1366,13 +1366,13 @@ static inline struct ath12k_hw *ath12k_hw_to_ah(struct ieee80211_hw  *hw)
 	return hw->priv;
 }
 
-static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah, u8 hw_link_id)
+static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah, u8 radio_idx)
 {
-	if (WARN(hw_link_id >= ah->num_radio,
-		 "bad hw link id %d, so switch to default link\n", hw_link_id))
-		hw_link_id = 0;
+	if (WARN(radio_idx >= ah->num_radio,
+		 "bad radio index %d, use default radio\n", radio_idx))
+		radio_idx = 0;
 
-	return &ah->radio[hw_link_id];
+	return &ah->radio[radio_idx];
 }
 
 static inline struct ath12k_hw *ath12k_ar_to_ah(struct ath12k *ar)
