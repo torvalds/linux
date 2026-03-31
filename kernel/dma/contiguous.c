@@ -42,7 +42,6 @@
 #include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/sizes.h>
-#include <linux/dma-buf/heaps/cma.h>
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
 #include <linux/nospec.h>
@@ -52,6 +51,37 @@
 #else
 #define CMA_SIZE_MBYTES 0
 #endif
+
+static struct cma *dma_contiguous_areas[MAX_CMA_AREAS];
+static unsigned int dma_contiguous_areas_num;
+
+static int dma_contiguous_insert_area(struct cma *cma)
+{
+	if (dma_contiguous_areas_num >= ARRAY_SIZE(dma_contiguous_areas))
+		return -EINVAL;
+
+	dma_contiguous_areas[dma_contiguous_areas_num++] = cma;
+
+	return 0;
+}
+
+/**
+ * dma_contiguous_get_area_by_idx() - Get contiguous area at given index
+ * @idx: index of the area we query
+ *
+ * Queries for the contiguous area located at index @idx.
+ *
+ * Returns:
+ * A pointer to the requested contiguous area, or NULL otherwise.
+ */
+struct cma *dma_contiguous_get_area_by_idx(unsigned int idx)
+{
+	if (idx >= dma_contiguous_areas_num)
+		return NULL;
+
+	return dma_contiguous_areas[idx];
+}
+EXPORT_SYMBOL_GPL(dma_contiguous_get_area_by_idx);
 
 struct cma *dma_contiguous_default_area;
 
@@ -264,9 +294,24 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 		if (ret)
 			return;
 
-		ret = dma_heap_cma_register_heap(dma_contiguous_default_area);
+		/*
+		 * We need to insert the new area in our list to avoid
+		 * any inconsistencies between having the default area
+		 * listed in the DT or not.
+		 *
+		 * The DT case is handled by rmem_cma_setup() and will
+		 * always insert all its areas in our list. However, if
+		 * it didn't run (because OF_RESERVED_MEM isn't set, or
+		 * there's no DT region specified), then we don't have a
+		 * default area yet, and no area in our list.
+		 *
+		 * This block creates the default area in such a case,
+		 * but we also need to insert it in our list to avoid
+		 * having a default area but an empty list.
+		 */
+		ret = dma_contiguous_insert_area(dma_contiguous_default_area);
 		if (ret)
-			pr_warn("Couldn't register default CMA heap.");
+			pr_warn("Couldn't queue default CMA region for heap creation.");
 	}
 }
 
@@ -506,9 +551,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	pr_info("Reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
 
-	err = dma_heap_cma_register_heap(cma);
+	err = dma_contiguous_insert_area(cma);
 	if (err)
-		pr_warn("Couldn't register CMA heap.");
+		pr_warn("Couldn't store CMA reserved area.");
 
 	return 0;
 }
