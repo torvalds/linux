@@ -170,7 +170,7 @@ static inline unsigned int refcount_read(const refcount_t *r)
 	return atomic_read(&r->refs);
 }
 
-static inline __must_check __signed_wrap
+static inline __must_check
 bool __refcount_add_not_zero(int i, refcount_t *r, int *oldp)
 {
 	int old = refcount_read(r);
@@ -212,7 +212,7 @@ static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
 	return __refcount_add_not_zero(i, r, NULL);
 }
 
-static inline __must_check __signed_wrap
+static inline __must_check
 bool __refcount_add_not_zero_limited_acquire(int i, refcount_t *r, int *oldp,
 					     int limit)
 {
@@ -244,7 +244,7 @@ __refcount_inc_not_zero_limited_acquire(refcount_t *r, int *oldp, int limit)
 	return __refcount_add_not_zero_limited_acquire(1, r, oldp, limit);
 }
 
-static inline __must_check __signed_wrap
+static inline __must_check
 bool __refcount_add_not_zero_acquire(int i, refcount_t *r, int *oldp)
 {
 	return __refcount_add_not_zero_limited_acquire(i, r, oldp, INT_MAX);
@@ -277,7 +277,7 @@ static inline __must_check bool refcount_add_not_zero_acquire(int i, refcount_t 
 	return __refcount_add_not_zero_acquire(i, r, NULL);
 }
 
-static inline __signed_wrap
+static inline
 void __refcount_add(int i, refcount_t *r, int *oldp)
 {
 	int old = atomic_fetch_add_relaxed(i, &r->refs);
@@ -383,7 +383,7 @@ static inline void refcount_inc(refcount_t *r)
 	__refcount_inc(r, NULL);
 }
 
-static inline __must_check __signed_wrap
+static inline __must_check
 bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp)
 {
 	int old = atomic_fetch_sub_release(i, &r->refs);
