@@ -2502,12 +2502,15 @@ static void hidpp_ff_work_handler(struct work_struct *w)
 		}
 		break;
 	case HIDPP_FF_DESTROY_EFFECT:
-		if (wd->effect_id >= 0)
-			/* regular effect destroyed */
-			data->effect_ids[wd->params[0]-1] = -1;
-		else if (wd->effect_id >= HIDPP_FF_EFFECTID_AUTOCENTER)
-			/* autocenter spring destroyed */
-			data->slot_autocenter = 0;
+		slot = wd->params[0];
+		if (slot > 0 && slot <= data->num_effects) {
+			if (wd->effect_id >= 0)
+				/* regular effect destroyed */
+				data->effect_ids[slot-1] = -1;
+			else if (wd->effect_id >= HIDPP_FF_EFFECTID_AUTOCENTER)
+				/* autocenter spring destroyed */
+				data->slot_autocenter = 0;
+		}
 		break;
 	case HIDPP_FF_SET_GLOBAL_GAINS:
 		data->gain = (wd->params[0] << 8) + wd->params[1];
