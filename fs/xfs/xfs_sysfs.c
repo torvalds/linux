@@ -13,6 +13,7 @@
 #include "xfs_log.h"
 #include "xfs_log_priv.h"
 #include "xfs_mount.h"
+#include "xfs_zone_priv.h"
 #include "xfs_zones.h"
 #include "xfs_zone_alloc.h"
 
@@ -720,6 +721,17 @@ max_open_zones_show(
 XFS_SYSFS_ATTR_RO(max_open_zones);
 
 static ssize_t
+nr_open_zones_show(
+	struct kobject		*kobj,
+	char			*buf)
+{
+	struct xfs_zone_info	*zi = zoned_to_mp(kobj)->m_zone_info;
+
+	return sysfs_emit(buf, "%u\n", READ_ONCE(zi->zi_nr_open_zones));
+}
+XFS_SYSFS_ATTR_RO(nr_open_zones);
+
+static ssize_t
 zonegc_low_space_store(
 	struct kobject		*kobj,
 	const char		*buf,
@@ -756,6 +768,7 @@ XFS_SYSFS_ATTR_RW(zonegc_low_space);
 
 static struct attribute *xfs_zoned_attrs[] = {
 	ATTR_LIST(max_open_zones),
+	ATTR_LIST(nr_open_zones),
 	ATTR_LIST(zonegc_low_space),
 	NULL,
 };
