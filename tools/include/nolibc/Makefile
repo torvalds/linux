@@ -17,12 +17,6 @@ endif
 # it defaults to this nolibc directory.
 OUTPUT ?= $(CURDIR)/
 
-ifeq ($(V),1)
-Q=
-else
-Q=@
-endif
-
 arch_files := arch.h $(wildcard arch-*.h)
 all_files := \
 		compiler.h \
