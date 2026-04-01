@@ -16,8 +16,10 @@ static int mpfs_mss_top_sysreg_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = mfd_add_devices(dev, PLATFORM_DEVID_NONE, mpfs_mss_top_sysreg_devs,
-			      ARRAY_SIZE(mpfs_mss_top_sysreg_devs) , NULL, 0, NULL);
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+				   mpfs_mss_top_sysreg_devs,
+				   ARRAY_SIZE(mpfs_mss_top_sysreg_devs), NULL,
+				   0, NULL);
 	if (ret)
 		return ret;
 
