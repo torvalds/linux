@@ -184,12 +184,44 @@ static int snd_es1688_isa_probe(struct device *dev, unsigned int n)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_es1688_card_suspend(struct snd_card *card)
+{
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	return 0;
+}
+
+static int snd_es1688_card_resume(struct snd_card *card)
+{
+	struct snd_es1688 *chip = card->private_data;
+	int err;
+
+	err = snd_es1688_reset(chip);
+	if (err < 0)
+		return err;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_es1688_isa_suspend(struct device *dev, unsigned int n,
+				  pm_message_t state)
+{
+	return snd_es1688_card_suspend(dev_get_drvdata(dev));
+}
+
+static int snd_es1688_isa_resume(struct device *dev, unsigned int n)
+{
+	return snd_es1688_card_resume(dev_get_drvdata(dev));
+}
+#endif
+
 static struct isa_driver snd_es1688_driver = {
 	.match		= snd_es1688_match,
 	.probe		= snd_es1688_isa_probe,
-#if 0	/* FIXME */
-	.suspend	= snd_es1688_suspend,
-	.resume		= snd_es1688_resume,
+#ifdef CONFIG_PM
+	.suspend	= snd_es1688_isa_suspend,
+	.resume		= snd_es1688_isa_resume,
 #endif
 	.driver		= {
 		.name	= DEV_NAME
@@ -266,20 +298,12 @@ static void snd_es968_pnp_remove(struct pnp_card_link *pcard)
 static int snd_es968_pnp_suspend(struct pnp_card_link *pcard,
 				 pm_message_t state)
 {
-	struct snd_card *card = pnp_get_card_drvdata(pcard);
-
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	return 0;
+	return snd_es1688_card_suspend(pnp_get_card_drvdata(pcard));
 }
 
 static int snd_es968_pnp_resume(struct pnp_card_link *pcard)
 {
-	struct snd_card *card = pnp_get_card_drvdata(pcard);
-	struct snd_es1688 *chip = card->private_data;
-
-	snd_es1688_reset(chip);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	return 0;
+	return snd_es1688_card_resume(pnp_get_card_drvdata(pcard));
 }
 #endif
 
