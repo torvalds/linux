@@ -3944,15 +3944,6 @@ int process_cpu_map_event(const struct perf_tool *tool,
 	return set_maps(script);
 }
 
-static int process_feature_event(const struct perf_tool *tool __maybe_unused,
-				 struct perf_session *session,
-				 union perf_event *event)
-{
-	if (event->feat.feat_id < HEADER_LAST_FEATURE)
-		return perf_event__process_feature(session, event);
-	return 0;
-}
-
 static int perf_script__process_auxtrace_info(const struct perf_tool *tool,
 					      struct perf_session *session,
 					      union perf_event *event)
@@ -4427,7 +4418,7 @@ script_found:
 #ifdef HAVE_LIBTRACEEVENT
 	script.tool.tracing_data	 = perf_event__process_tracing_data;
 #endif
-	script.tool.feature		 = process_feature_event;
+	script.tool.feature		 = perf_event__process_feature;
 	script.tool.build_id		 = perf_event__process_build_id;
 	script.tool.id_index		 = perf_event__process_id_index;
 	script.tool.auxtrace_info	 = perf_script__process_auxtrace_info;

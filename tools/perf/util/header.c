@@ -3819,11 +3819,11 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 	struct feat_fd ff;
 
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
-				"%d, continuing...\n", section->offset, feat);
+		pr_debug("Failed to lseek to %" PRIu64 " offset for feature %s (%d), continuing...\n",
+			 section->offset, header_feat__name(feat), feat);
 		return 0;
 	}
-	if (feat >= HEADER_LAST_FEATURE) {
+	if (feat >= ph->last_feat) {
 		pr_warning("unknown feature %d\n", feat);
 		return 0;
 	}
@@ -3875,7 +3875,7 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 		return 0;
 
 	fprintf(fp, "# missing features: ");
-	for_each_clear_bit(bit, header->adds_features, HEADER_LAST_FEATURE) {
+	for_each_clear_bit(bit, header->adds_features, header->last_feat) {
 		if (bit)
 			fprintf(fp, "%s ", feat_ops[bit].name);
 	}
@@ -4205,7 +4205,7 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 	if (err < 0)
 		goto out_free;
 
-	for_each_set_bit(feat, header->adds_features, HEADER_LAST_FEATURE) {
+	for_each_set_bit(feat, header->adds_features, header->last_feat) {
 		err = process(sec++, header, feat, fd, data);
 		if (err < 0)
 			goto out_free;
@@ -4420,6 +4420,7 @@ int perf_file_header__read(struct perf_file_header *header,
 	ph->data_offset  = header->data.offset;
 	ph->data_size	 = header->data.size;
 	ph->feat_offset  = header->data.offset + header->data.size;
+	ph->last_feat	 = HEADER_LAST_FEATURE;
 	return 0;
 }
 
@@ -4435,8 +4436,8 @@ static int perf_file_section__process(struct perf_file_section *section,
 	};
 
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
-		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
-			  "%d, continuing...\n", section->offset, feat);
+		pr_debug("Failed to lseek to %" PRIu64 " offset for feature %s (%d), continuing...\n",
+			 section->offset, header_feat__name(feat), feat);
 		return 0;
 	}
 
@@ -4469,6 +4470,8 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 	if (ph->needs_swap)
 		header->size = bswap_64(header->size);
 
+	/* The last feature is written out as a 0 sized event and will update this value. */
+	ph->last_feat = 0;
 	return 0;
 }
 
@@ -4701,31 +4704,68 @@ out_delete_evlist:
 	return -ENOMEM;
 }
 
-int perf_event__process_feature(struct perf_session *session,
+int perf_event__process_feature(const struct perf_tool *tool __maybe_unused,
+				struct perf_session *session,
 				union perf_event *event)
 {
 	struct feat_fd ff = { .fd = 0 };
 	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
+	struct perf_header *header = &session->header;
 	int type = fe->header.type;
-	u64 feat = fe->feat_id;
+	int feat = (int)fe->feat_id;
 	int ret = 0;
 	bool print = dump_trace;
+	bool last_feature_mark = false;
 
 	if (type < 0 || type >= PERF_RECORD_HEADER_MAX) {
 		pr_warning("invalid record type %d in pipe-mode\n", type);
 		return 0;
 	}
-	if (feat == HEADER_RESERVED || feat >= HEADER_LAST_FEATURE) {
-		pr_warning("invalid record type %d in pipe-mode\n", type);
+	if (feat == HEADER_RESERVED) {
+		pr_warning("invalid reserved record type in pipe-mode\n");
 		return -1;
 	}
-
+	if (feat < 0 || feat == INT_MAX) {
+		pr_warning("invalid value for feature type %x\n", feat);
+		return -1;
+	}
+	if (feat >= header->last_feat) {
+		if (event->header.size == sizeof(*fe)) {
+			/*
+			 * Either an unexpected zero size feature or the
+			 * HEADER_LAST_FEATURE mark.
+			 */
+			if (feat > header->last_feat)
+				header->last_feat = min(feat, HEADER_LAST_FEATURE);
+			last_feature_mark = true;
+		} else {
+			/*
+			 * A feature but beyond what is known as in
+			 * bounds. Assume the last feature is 1 beyond this
+			 * feature.
+			 */
+			session->header.last_feat = min(feat + 1, HEADER_LAST_FEATURE);
+		}
+	}
+	if (feat >= HEADER_LAST_FEATURE) {
+		if (!last_feature_mark) {
+			pr_warning("unknown feature %d for data file version (%s) in this version of perf (%s)\n",
+				   feat, header->env.version, perf_version_string);
+		}
+		return 0;
+	}
+	if (event->header.size < sizeof(*fe)) {
+		pr_warning("feature header size too small\n");
+		return -1;
+	}
 	ff.buf  = (void *)fe->data;
 	ff.size = event->header.size - sizeof(*fe);
-	ff.ph = &session->header;
+	ff.ph = header;
 
 	if (feat_ops[feat].process && feat_ops[feat].process(&ff, NULL)) {
-		ret = -1;
+		// Processing failed, ignore when this is the last feature mark.
+		if (!last_feature_mark)
+			ret = -1;
 		goto out;
 	}
 

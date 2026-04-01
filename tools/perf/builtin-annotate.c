@@ -313,15 +313,6 @@ out_put:
 	return ret;
 }
 
-static int process_feature_event(const struct perf_tool *tool __maybe_unused,
-				 struct perf_session *session,
-				 union perf_event *event)
-{
-	if (event->feat.feat_id < HEADER_LAST_FEATURE)
-		return perf_event__process_feature(session, event);
-	return 0;
-}
-
 static int hist_entry__stdio_annotate(struct hist_entry *he,
 				    struct evsel *evsel,
 				    struct perf_annotate *ann)
@@ -875,7 +866,7 @@ int cmd_annotate(int argc, const char **argv)
 	annotate.tool.id_index	= perf_event__process_id_index;
 	annotate.tool.auxtrace_info	= perf_event__process_auxtrace_info;
 	annotate.tool.auxtrace	= perf_event__process_auxtrace;
-	annotate.tool.feature	= process_feature_event;
+	annotate.tool.feature	= perf_event__process_feature;
 	annotate.tool.ordering_requires_timestamps = true;
 
 	annotate.session = perf_session__new(&data, &annotate.tool);
