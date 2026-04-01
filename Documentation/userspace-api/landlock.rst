@@ -383,8 +383,8 @@ Truncating files
 
 The operations covered by ``LANDLOCK_ACCESS_FS_WRITE_FILE`` and
 ``LANDLOCK_ACCESS_FS_TRUNCATE`` both change the contents of a file and sometimes
-overlap in non-intuitive ways.  It is recommended to always specify both of
-these together.
+overlap in non-intuitive ways.  It is strongly recommended to always specify
+both of these together (either granting both, or granting none).
 
 A particularly surprising example is :manpage:`creat(2)`.  The name suggests
 that this system call requires the rights to create and write files.  However,
@@ -395,6 +395,10 @@ It should also be noted that truncating files does not require the
 ``LANDLOCK_ACCESS_FS_WRITE_FILE`` right.  Apart from the :manpage:`truncate(2)`
 system call, this can also be done through :manpage:`open(2)` with the flags
 ``O_RDONLY | O_TRUNC``.
+
+At the same time, on some filesystems, :manpage:`fallocate(2)` offers a way to
+shorten file contents with ``FALLOC_FL_COLLAPSE_RANGE`` when the file is opened
+for writing, sidestepping the ``LANDLOCK_ACCESS_FS_TRUNCATE`` right.
 
 The truncate right is associated with the opened file (see below).
 
