@@ -4456,19 +4456,6 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 proto_hdr_len, hdr;
 	dma_addr_t des;
 
-	/* Always insert VLAN tag to SKB payload for TSO frames.
-	 *
-	 * Never insert VLAN tag by HW, since segments split by
-	 * TSO engine will be un-tagged by mistake.
-	 */
-	if (skb_vlan_tag_present(skb)) {
-		skb = __vlan_hwaccel_push_inside(skb);
-		if (unlikely(!skb)) {
-			priv->xstats.tx_dropped++;
-			return NETDEV_TX_OK;
-		}
-	}
-
 	nfrags = skb_shinfo(skb)->nr_frags;
 	queue = skb_get_queue_mapping(skb);
 
@@ -4969,6 +4956,16 @@ static netdev_features_t stmmac_features_check(struct sk_buff *skb,
 		if (!stmmac_tso_channel_permitted(netdev_priv(dev), queue) ||
 		    !stmmac_tso_valid_packet(skb))
 			features &= ~NETIF_F_GSO_MASK;
+
+		/* If we are going to be using hardware TSO, always insert
+		 * VLAN tag to SKB payload for TSO frames.
+		 *
+		 * Never insert VLAN tag by HW, since segments split by
+		 * TSO engine will be un-tagged by mistake.
+		 */
+		if (features & NETIF_F_GSO_MASK)
+			features &= ~(NETIF_F_HW_VLAN_STAG_TX |
+				      NETIF_F_HW_VLAN_CTAG_TX);
 	}
 
 	return vlan_features_check(skb, features);
