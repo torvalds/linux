@@ -275,7 +275,7 @@ static noinline int join_transaction(struct btrfs_fs_info *fs_info,
 	spin_lock(&fs_info->trans_lock);
 loop:
 	/* The file system has been taken offline. No new transactions. */
-	if (BTRFS_FS_ERROR(fs_info)) {
+	if (unlikely(BTRFS_FS_ERROR(fs_info))) {
 		spin_unlock(&fs_info->trans_lock);
 		return -EROFS;
 	}
@@ -333,7 +333,7 @@ loop:
 		btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
 		kfree(cur_trans);
 		goto loop;
-	} else if (BTRFS_FS_ERROR(fs_info)) {
+	} else if (unlikely(BTRFS_FS_ERROR(fs_info))) {
 		spin_unlock(&fs_info->trans_lock);
 		btrfs_lockdep_release(fs_info, btrfs_trans_num_extwriters);
 		btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
@@ -612,7 +612,7 @@ start_transaction(struct btrfs_root *root, unsigned int num_items,
 	bool do_chunk_alloc = false;
 	int ret;
 
-	if (BTRFS_FS_ERROR(fs_info))
+	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return ERR_PTR(-EROFS);
 
 	if (current->journal_info) {
@@ -1120,7 +1120,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (throttle)
 		btrfs_run_delayed_iputs(info);
 
-	if (TRANS_ABORTED(trans) || BTRFS_FS_ERROR(info)) {
+	if (unlikely(TRANS_ABORTED(trans) || BTRFS_FS_ERROR(info))) {
 		wake_up_process(info->transaction_kthread);
 		if (TRANS_ABORTED(trans))
 			ret = trans->aborted;
@@ -2351,7 +2351,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		 * abort to prevent writing a new superblock that reflects a
 		 * corrupt state (pointing to trees with unwritten nodes/leafs).
 		 */
-		if (BTRFS_FS_ERROR(fs_info)) {
+		if (unlikely(BTRFS_FS_ERROR(fs_info))) {
 			spin_unlock(&fs_info->trans_lock);
 			ret = -EROFS;
 			goto lockdep_release;

@@ -2974,7 +2974,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 	struct page *page;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 
-	if (BTRFS_FS_ERROR(fs_info))
+	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return -EROFS;
 
 	page = alloc_page(GFP_KERNEL);

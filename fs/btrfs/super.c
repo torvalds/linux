@@ -1299,7 +1299,7 @@ static int btrfs_remount_rw(struct btrfs_fs_info *fs_info)
 {
 	int ret;
 
-	if (BTRFS_FS_ERROR(fs_info)) {
+	if (unlikely(BTRFS_FS_ERROR(fs_info))) {
 		btrfs_err(fs_info,
 			  "remounting read-write after error is not allowed");
 		return -EINVAL;

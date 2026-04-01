@@ -2400,7 +2400,7 @@ retry:
 	 * and it only returns 0 or errors.
 	 */
 	ASSERT(ret <= 0);
-	if (!ret && BTRFS_FS_ERROR(fs_info))
+	if (unlikely(!ret && BTRFS_FS_ERROR(fs_info)))
 		ret = -EROFS;
 
 	if (ctx.zoned_bg)

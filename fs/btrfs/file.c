@@ -1445,7 +1445,7 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	 * have opened a file as writable, we have to stop this write operation
 	 * to ensure consistency.
 	 */
-	if (BTRFS_FS_ERROR(inode->root->fs_info))
+	if (unlikely(BTRFS_FS_ERROR(inode->root->fs_info)))
 		return -EROFS;
 
 	if (encoded && (iocb->ki_flags & IOCB_NOWAIT))

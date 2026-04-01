@@ -8972,7 +8972,7 @@ int btrfs_start_delalloc_snapshot(struct btrfs_root *root, bool in_reclaim_conte
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	if (BTRFS_FS_ERROR(fs_info))
+	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return -EROFS;
 	return start_delalloc_inodes(root, NULL, true, in_reclaim_context);
 }
@@ -8985,7 +8985,7 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, long nr,
 	LIST_HEAD(splice);
 	int ret;
 
-	if (BTRFS_FS_ERROR(fs_info))
+	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		return -EROFS;
 
 	mutex_lock(&fs_info->delalloc_root_mutex);
