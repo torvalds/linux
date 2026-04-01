@@ -4388,12 +4388,26 @@ static void stmmac_set_gso_types(struct stmmac_priv *priv, bool tso)
 static void stmmac_set_gso_features(struct net_device *ndev)
 {
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	const struct stmmac_dma_cfg *dma_cfg;
+	int txpbl;
 
 	if (!(priv->plat->flags & STMMAC_FLAG_TSO_EN))
 		return;
 
 	if (!priv->dma_cap.tsoen) {
 		dev_warn(priv->device, "platform requests unsupported TSO\n");
+		return;
+	}
+
+	/* FIXME:
+	 *  STM32MP151 (v4.2 userver v4.0) states that TxPBL must be >= 4. It
+	 *  is not clear whether PBLx8 (which multiplies the PBL value by 8)
+	 *  influences this.
+	 */
+	dma_cfg = priv->plat->dma_cfg;
+	txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+	if (txpbl < 4) {
+		dev_warn(priv->device, "txpbl(%d) is too low for TSO\n", txpbl);
 		return;
 	}
 
