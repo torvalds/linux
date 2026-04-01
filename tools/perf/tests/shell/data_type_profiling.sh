@@ -15,6 +15,10 @@ err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 perfout=$(mktemp /tmp/__perf_test.perf.out.XXXXX)
 
+# Check for support of perf mem before trap handler
+perf mem record -o /dev/null -- true  2>&1 | \
+  		grep -q "failed: no PMU supports the memory events" && exit 2
+
 cleanup() {
   rm -rf "${perfdata}" "${perfout}"
   rm -rf "${perfdata}".old
