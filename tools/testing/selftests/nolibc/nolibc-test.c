@@ -1841,6 +1841,29 @@ static int test_printf_error(void)
 	return 0;
 }
 
+int test_asprintf(void)
+{
+	char *str;
+	int ret;
+
+	ret = asprintf(&str, "foo%s", "bar");
+	if (ret == -1)
+		return 1;
+
+	if (ret != 6) {
+		free(str);
+		return 2;
+	}
+
+	if (memcmp(str, "foobar", 6) != 0) {
+		free(str);
+		return 3;
+	}
+
+	free(str);
+	return 0;
+}
+
 static int run_printf(int min, int max)
 {
 	int test;
@@ -1904,6 +1927,7 @@ static int run_printf(int min, int max)
 		CASE_TEST(errno-neg);    errno = -22; EXPECT_VFPRINTF(is_nolibc, "errno=-22   ", "%-12m"); break;
 		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
 		CASE_TEST(printf_error); EXPECT_ZR(1, test_printf_error()); break;
+		CASE_TEST(asprintf);     EXPECT_ZR(1, test_asprintf()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */

@@ -795,6 +795,56 @@ int sprintf(char *buf, const char *fmt, ...)
 	return ret;
 }
 
+static __attribute__((unused, format(printf, 2, 0)))
+int __nolibc_vasprintf(char **strp, const char *fmt, va_list args1, va_list args2)
+{
+	int len1, len2;
+	char *buf;
+
+	len1 = vsnprintf(NULL, 0, fmt, args1);
+	if (len1 < 0)
+		return -1;
+
+	buf = malloc(len1 + 1);
+	if (!buf)
+		return -1;
+
+	len2 = vsnprintf(buf, len1 + 1, fmt, args2);
+	if (len2 < 0) {
+		free(buf);
+		return -1;
+	}
+
+	*strp = buf;
+	return len1;
+}
+
+static __attribute__((unused, format(printf, 2, 0)))
+int vasprintf(char **strp, const char *fmt, va_list args)
+{
+	va_list args2;
+	int ret;
+
+	va_copy(args2, args);
+	ret = __nolibc_vasprintf(strp, fmt, args, args2);
+	va_end(args2);
+
+	return ret;
+}
+
+static __attribute__((unused, format(printf, 2, 3)))
+int asprintf(char **strp, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = vasprintf(strp, fmt, args);
+	va_end(args);
+
+	return ret;
+}
+
 static __attribute__((unused))
 int vsscanf(const char *str, const char *format, va_list args)
 {
