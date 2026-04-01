@@ -385,24 +385,14 @@ bool vgic_v5_has_pending_ppi(struct kvm_vcpu *vcpu)
 void vgic_v5_fold_ppi_state(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
-	DECLARE_BITMAP(changed_active, VGIC_V5_NR_PRIVATE_IRQS);
-	DECLARE_BITMAP(changed_pending, VGIC_V5_NR_PRIVATE_IRQS);
-	DECLARE_BITMAP(changed_bits, VGIC_V5_NR_PRIVATE_IRQS);
-	unsigned long *activer, *pendr_entry, *pendr;
+	unsigned long *activer, *pendr;
 	int i;
 
 	activer = host_data_ptr(vgic_v5_ppi_state)->activer_exit;
-	pendr_entry = host_data_ptr(vgic_v5_ppi_state)->pendr_entry;
-	pendr = host_data_ptr(vgic_v5_ppi_state)->pendr_exit;
+	pendr = host_data_ptr(vgic_v5_ppi_state)->pendr;
 
-	bitmap_xor(changed_active, cpu_if->vgic_ppi_activer, activer,
-		   VGIC_V5_NR_PRIVATE_IRQS);
-	bitmap_xor(changed_pending, pendr_entry, pendr,
-		   VGIC_V5_NR_PRIVATE_IRQS);
-	bitmap_or(changed_bits, changed_active, changed_pending,
-		  VGIC_V5_NR_PRIVATE_IRQS);
-
-	for_each_set_bit(i, changed_bits, VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_set_bit(i, vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask,
+			 VGIC_V5_NR_PRIVATE_IRQS) {
 		u32 intid = vgic_v5_make_ppi(i);
 		struct vgic_irq *irq;
 
@@ -462,15 +452,7 @@ void vgic_v5_flush_ppi_state(struct kvm_vcpu *vcpu)
 	 * incoming changes are merged with the outgoing changes on the return
 	 * path.
 	 */
-	bitmap_copy(host_data_ptr(vgic_v5_ppi_state)->pendr_entry, pendr,
-		    VGIC_V5_NR_PRIVATE_IRQS);
-
-	/*
-	 * Make sure that we can correctly detect "edges" in the PPI
-	 * state. There's a path where we never actually enter the guest, and
-	 * failure to do this risks losing pending state
-	 */
-	bitmap_copy(host_data_ptr(vgic_v5_ppi_state)->pendr_exit, pendr,
+	bitmap_copy(host_data_ptr(vgic_v5_ppi_state)->pendr, pendr,
 		    VGIC_V5_NR_PRIVATE_IRQS);
 }
 

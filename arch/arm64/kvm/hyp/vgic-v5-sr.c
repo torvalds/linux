@@ -37,7 +37,7 @@ void __vgic_v5_save_ppi_state(struct vgic_v5_cpu_if *cpu_if)
 
 	bitmap_write(host_data_ptr(vgic_v5_ppi_state)->activer_exit,
 		     read_sysreg_s(SYS_ICH_PPI_ACTIVER0_EL2), 0, 64);
-	bitmap_write(host_data_ptr(vgic_v5_ppi_state)->pendr_exit,
+	bitmap_write(host_data_ptr(vgic_v5_ppi_state)->pendr,
 		     read_sysreg_s(SYS_ICH_PPI_PENDR0_EL2), 0, 64);
 
 	cpu_if->vgic_ppi_priorityr[0] = read_sysreg_s(SYS_ICH_PPI_PRIORITYR0_EL2);
@@ -52,7 +52,7 @@ void __vgic_v5_save_ppi_state(struct vgic_v5_cpu_if *cpu_if)
 	if (VGIC_V5_NR_PRIVATE_IRQS == 128) {
 		bitmap_write(host_data_ptr(vgic_v5_ppi_state)->activer_exit,
 			     read_sysreg_s(SYS_ICH_PPI_ACTIVER1_EL2), 64, 64);
-		bitmap_write(host_data_ptr(vgic_v5_ppi_state)->pendr_exit,
+		bitmap_write(host_data_ptr(vgic_v5_ppi_state)->pendr,
 			     read_sysreg_s(SYS_ICH_PPI_PENDR1_EL2), 64, 64);
 
 		cpu_if->vgic_ppi_priorityr[8] = read_sysreg_s(SYS_ICH_PPI_PRIORITYR8_EL2);
@@ -87,7 +87,7 @@ void __vgic_v5_restore_ppi_state(struct vgic_v5_cpu_if *cpu_if)
 		       SYS_ICH_PPI_ENABLER0_EL2);
 
 	/* Update the pending state of the NON-DVI'd PPIs, only */
-	bitmap_andnot(pendr, host_data_ptr(vgic_v5_ppi_state)->pendr_entry,
+	bitmap_andnot(pendr, host_data_ptr(vgic_v5_ppi_state)->pendr,
 		      cpu_if->vgic_ppi_dvir, VGIC_V5_NR_PRIVATE_IRQS);
 	write_sysreg_s(bitmap_read(pendr, 0, 64), SYS_ICH_PPI_PENDR0_EL2);
 
