@@ -29,9 +29,9 @@ asmlinkage void __aes_ce_decrypt(const u32 inv_rk[], u8 out[AES_BLOCK_SIZE],
 asmlinkage u32 __aes_ce_sub(u32 l);
 asmlinkage void __aes_ce_invert(struct aes_block *out,
 				const struct aes_block *in);
-asmlinkage size_t neon_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-				      size_t blocks, u8 dg[], int enc_before,
-				      int enc_after);
+asmlinkage void neon_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+				    size_t blocks, u8 dg[], int enc_before,
+				    int enc_after);
 
 /*
  * Expand an AES key using the crypto extensions if supported and usable or
@@ -192,25 +192,16 @@ static bool aes_cbcmac_blocks_arch(u8 h[AES_BLOCK_SIZE],
 				   bool enc_after)
 {
 	if (static_branch_likely(&have_neon) && likely(may_use_simd())) {
-		do {
-			size_t rem;
-
-			scoped_ksimd() {
-				if (static_branch_likely(&have_aes))
-					rem = ce_aes_mac_update(
-						data, key->k.rndkeys,
-						key->nrounds, nblocks, h,
-						enc_before, enc_after);
-				else
-					rem = neon_aes_mac_update(
-						data, key->k.rndkeys,
-						key->nrounds, nblocks, h,
-						enc_before, enc_after);
-			}
-			data += (nblocks - rem) * AES_BLOCK_SIZE;
-			nblocks = rem;
-			enc_before = false;
-		} while (nblocks);
+		scoped_ksimd() {
+			if (static_branch_likely(&have_aes))
+				ce_aes_mac_update(data, key->k.rndkeys,
+						  key->nrounds, nblocks, h,
+						  enc_before, enc_after);
+			else
+				neon_aes_mac_update(data, key->k.rndkeys,
+						    key->nrounds, nblocks, h,
+						    enc_before, enc_after);
+		}
 		return true;
 	}
 	return false;

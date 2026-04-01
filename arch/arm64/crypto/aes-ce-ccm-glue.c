@@ -101,16 +101,11 @@ static u32 ce_aes_ccm_auth_data(u8 mac[], u8 const in[], u32 abytes,
 		u32 blocks = abytes / AES_BLOCK_SIZE;
 
 		if (macp == AES_BLOCK_SIZE || (!macp && blocks > 0)) {
-			u32 rem = ce_aes_mac_update(in, rk, rounds, blocks, mac,
-						    macp, enc_after);
-			u32 adv = (blocks - rem) * AES_BLOCK_SIZE;
-
+			ce_aes_mac_update(in, rk, rounds, blocks, mac, macp,
+					  enc_after);
 			macp = enc_after ? 0 : AES_BLOCK_SIZE;
-			in += adv;
-			abytes -= adv;
-
-			if (unlikely(rem))
-				macp = 0;
+			in += blocks * AES_BLOCK_SIZE;
+			abytes -= blocks * AES_BLOCK_SIZE;
 		} else {
 			u32 l = min(AES_BLOCK_SIZE - macp, abytes);
 
