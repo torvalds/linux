@@ -93,11 +93,11 @@
 	.endm
 
 	/*
-	 * size_t __sha512_ce_transform(struct sha512_block_state *state,
-	 *				const u8 *data, size_t nblocks);
+	 * void sha512_ce_transform(struct sha512_block_state *state,
+	 *			    const u8 *data, size_t nblocks);
 	 */
 	.text
-SYM_FUNC_START(__sha512_ce_transform)
+SYM_FUNC_START(sha512_ce_transform)
 	/* load state */
 	ld1		{v8.2d-v11.2d}, [x0]
 
@@ -186,12 +186,10 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 	add		v10.2d, v10.2d, v2.2d
 	add		v11.2d, v11.2d, v3.2d
 
-	cond_yield	3f, x4, x5
 	/* handled all input blocks? */
 	cbnz		x2, 0b
 
 	/* store new state */
-3:	st1		{v8.2d-v11.2d}, [x0]
-	mov		x0, x2
+	st1		{v8.2d-v11.2d}, [x0]
 	ret
-SYM_FUNC_END(__sha512_ce_transform)
+SYM_FUNC_END(sha512_ce_transform)
