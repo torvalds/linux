@@ -366,8 +366,8 @@ bool vgic_v5_has_pending_ppi(struct kvm_vcpu *vcpu)
 		irq = vgic_get_vcpu_irq(vcpu, intid);
 
 		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock)
-			has_pending = (irq->enabled && irq_is_pending(irq) &&
-				       irq->priority < priority_mask);
+			if (irq->enabled && irq->priority < priority_mask)
+				has_pending = irq->hw ? vgic_get_phys_line_level(irq) : irq_is_pending(irq);
 
 		vgic_put_irq(vcpu->kvm, irq);
 
