@@ -132,6 +132,8 @@ struct perf_header_feature_ops {
 
 extern const char perf_version_string[];
 
+const char *header_feat__name(unsigned int id);
+
 int perf_session__read_header(struct perf_session *session);
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,
