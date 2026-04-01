@@ -212,7 +212,7 @@ int vgic_v5_finalize_ppi_state(struct kvm *kvm)
 static u32 vgic_v5_get_effective_priority_mask(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
-	u32 highest_ap, priority_mask;
+	u32 highest_ap, priority_mask, apr;
 
 	/*
 	 * If the guest's CPU has not opted to receive interrupts, then the
@@ -227,7 +227,8 @@ static u32 vgic_v5_get_effective_priority_mask(struct kvm_vcpu *vcpu)
 	 * priority. Explicitly use the 32-bit version here as we have 32
 	 * priorities. 32 then means that there are no active priorities.
 	 */
-	highest_ap = cpu_if->vgic_apr ? __builtin_ctz(cpu_if->vgic_apr) : 32;
+	apr = cpu_if->vgic_apr;
+	highest_ap = apr ? __builtin_ctz(apr) : 32;
 
 	/*
 	 * An interrupt is of sufficient priority if it is equal to or
