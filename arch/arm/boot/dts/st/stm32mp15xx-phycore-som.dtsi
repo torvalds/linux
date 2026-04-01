@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * Copyright (C) 2022-2023 Steffen Trumtrar <kernel@pengutronix.de>
  * Copyright (C) Phytec GmbH 2019-2020 - All Rights Reserved
- * Author: Dom VOVARD <dom.vovard@linrt.com>.
+ * Author: Dom VOVARD <dom.vovard@linrt.com>
+ * Copyright (C) 2022-2023 Steffen Trumtrar <kernel@pengutronix.de>
+ * Copyright (C) 2024 PHYTEC Messtechnik GmbH
+ * Author: Christophe Parant <c.parant@phytec.fr>
  */
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/leds/common.h>
-#include <dt-bindings/leds/leds-pca9532.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include "stm32mp15-pinctrl.dtsi"
+#include "stm32mp15xxac-pinctrl.dtsi"
 
 / {
-	model = "PHYTEC phyCORE-STM32MP15 SOM";
-	compatible = "phytec,phycore-stm32mp157c-som", "st,stm32mp157";
 
 	aliases {
 		ethernet0 = &ethernet0;
@@ -25,42 +22,19 @@
 		rtc1 = &rtc;
 	};
 
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		key-home {
-			label = "Home";
-			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_HOME>;
-		};
-
-		key-enter {
-			label = "Enter";
-			gpios = <&gpioa 14 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_ENTER>;
-		};
+	/*
+	 * Set the minimum memory size here and
+	 * let the bootloader set the real size.
+	 */
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0xc0000000 0x20000000>;
 	};
 
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-
-		retram: retram@38000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x38000000 0x10000>;
-			no-map;
-		};
-
-		mcuram: mcuram@30000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x30000000 0x40000>;
-			no-map;
-		};
 
 		mcuram2: mcuram2@10000000 {
 			compatible = "shared-dma-pool";
@@ -85,21 +59,23 @@
 			reg = <0x10042000 0x4000>;
 			no-map;
 		};
-	};
 
-	sound {
-		compatible = "audio-graph-card";
-		label = "STM32MP1-PHYCORE";
-		routing =
-			"Playback", "MCLK", /* Set a route between "MCLK" and "playback" widgets */
-			"Capture", "MCLK";
-		dais = <&sai2b_port>,
-		       <&sai2a_port>;
+		mcuram: mcuram@30000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x30000000 0x40000>;
+			no-map;
+		};
+
+		retram: retram@38000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x38000000 0x10000>;
+			no-map;
+		};
 	};
 
 	regulator_vin: regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vin";
+		regulator-name = "VIN";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
@@ -126,101 +102,28 @@
 			reg = <1>;
 			interrupt-parent = <&gpiog>;
 			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+			enet-phy-lane-no-swap;
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 			ti,min-output-impedance;
-			enet-phy-lane-no-swap;
 			ti,clk-output-sel = <DP83867_CLK_O_SEL_OFF>;
 		};
 	};
 };
 
-&i2c1 {
+&fmc {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&i2c1_pins_b>;
-	pinctrl-1 = <&i2c1_sleep_pins_b>;
-	i2c-scl-rising-time-ns = <100>;
-	i2c-scl-falling-time-ns = <7>;
-	status = "okay";
+	pinctrl-0 = <&fmc_pins_a>;
+	pinctrl-1 = <&fmc_sleep_pins_a>;
+	status = "disabled";
 
-	codec@18 {
-		compatible = "ti,tlv320aic3007";
-		reg = <0x18>;
-		#sound-dai-cells = <0>;
-
-		ai3x-micbias-vg = <2>;
-
-		AVDD-supply = <&v3v3>;
-		IOVDD-supply = <&v3v3>;
-		DRVDD-supply = <&v3v3>;
-		DVDD-supply = <&v1v8_audio>;
-
-		clocks = <&sai2b>;
-
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			tlv320_tx_endpoint: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&sai2b_endpoint>;
-				frame-master;
-				bitclock-master;
-			};
-
-			tlv320_rx_endpoint: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&sai2a_endpoint>;
-				frame-master;
-				bitclock-master;
-			};
-		};
-	};
-
-	touch@44 {
-		compatible = "st,stmpe811";
-		reg = <0x44>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
-		interrupt-parent = <&gpioi>;
-		vio-supply = <&v3v3>;
-		vcc-supply = <&v3v3>;
-		st,sample-time = <4>;
-		st,mod-12b = <1>;
-		st,ref-sel = <0>;
-		st,adc-freq = <1>;
-
-		touchscreen {
-			compatible = "st,stmpe-ts";
-			st,ave-ctrl = <1>;
-			st,touch-det-delay = <2>;
-			st,settling = <2>;
-			st,fraction-z = <7>;
-			st,i-drive = <1>;
-		};
-	};
-
-	leds@62 {
-		compatible = "nxp,pca9533";
-		reg = <0x62>;
-
-		led-0 {
-			color = <LED_COLOR_ID_RED>;
-			function = LED_FUNCTION_POWER;
-			type = <PCA9532_TYPE_LED>;
-		};
-
-		led-1 {
-			color = <LED_COLOR_ID_GREEN>;
-			function = LED_FUNCTION_POWER;
-			type = <PCA9532_TYPE_LED>;
-		};
-
-		led-2 {
-			color = <LED_COLOR_ID_BLUE>;
-			function = LED_FUNCTION_HEARTBEAT;
-			type = <PCA9532_TYPE_LED>;
-			linux,default-trigger = "heartbeat";
+	nand-controller@4,0 {
+		nand0: nand@0 {
+			reg = <0>;
+			nand-on-flash-bbt;
+			nand-ecc-strength = <4>;
+			nand-ecc-step-size = <512>;
 		};
 	};
 };
@@ -257,7 +160,7 @@
 			pwr_sw2-supply = <&bst_out>;
 
 			vddcore: buck1 {
-				regulator-name = "vddcore";
+				regulator-name = "VDD_CORE";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
@@ -265,7 +168,7 @@
 			};
 
 			vdd_ddr: buck2 {
-				regulator-name = "vdd_ddr";
+				regulator-name = "VDD_DDR";
 				regulator-min-microvolt = <1350000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
@@ -273,7 +176,7 @@
 			};
 
 			vdd: buck3 {
-				regulator-name = "vdd";
+				regulator-name = "VDD";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -282,7 +185,7 @@
 			};
 
 			v3v3: buck4 {
-				regulator-name = "v3v3";
+				regulator-name = "VDD_BUCK4";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -290,7 +193,7 @@
 			};
 
 			v1v8_audio: ldo1 {
-				regulator-name = "v1v8_audio";
+				regulator-name = "VDD_LDO1";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -299,7 +202,7 @@
 			};
 
 			vdd_eth_2v5: ldo2 {
-				regulator-name = "dd_eth_2v5";
+				regulator-name = "VDD_ETH_2V5";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
 				regulator-always-on;
@@ -308,7 +211,7 @@
 			};
 
 			vtt_ddr: ldo3 {
-				regulator-name = "vtt_ddr";
+				regulator-name = "VTT_DDR";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <750000>;
 				regulator-always-on;
@@ -316,12 +219,12 @@
 			};
 
 			vdd_usb: ldo4 {
-				regulator-name = "vdd_usb";
+				regulator-name = "VDD_USB";
 				interrupts = <IT_CURLIM_LDO4 0>;
 			};
 
 			vdda: ldo5 {
-				regulator-name = "vdda";
+				regulator-name = "VDDA";
 				regulator-min-microvolt = <2900000>;
 				regulator-max-microvolt = <2900000>;
 				interrupts = <IT_CURLIM_LDO5 0>;
@@ -329,7 +232,7 @@
 			};
 
 			vdd_eth_1v0: ldo6 {
-				regulator-name = "vdd_eth_1v0";
+				regulator-name = "VDD_ETH_1V0";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
@@ -338,23 +241,23 @@
 			};
 
 			vref_ddr: vref_ddr {
-				regulator-name = "vref_ddr";
+				regulator-name = "VDD_REFDDR";
 				regulator-always-on;
 			};
 
 			bst_out: boost {
-				regulator-name = "bst_out";
+				regulator-name = "BST_OUT";
 				interrupts = <IT_OCP_BOOST 0>;
 			};
 
 			vbus_otg: pwr_sw1 {
-				regulator-name = "vbus_otg";
+				regulator-name = "VBUS_OTG";
 				interrupts = <IT_OCP_OTG 0>;
 				regulator-active-discharge = <1>;
 			};
 
 			vbus_sw: pwr_sw2 {
-				regulator-name = "vbus_sw";
+				regulator-name = "VBUS_SW";
 				interrupts = <IT_OCP_SWOUT 0>;
 				regulator-active-discharge = <1>;
 			};
@@ -375,14 +278,15 @@
 	};
 
 	i2c4_eeprom: eeprom@50 {
-		compatible = "microchip,24c32",
-			     "atmel,24c32";
+		compatible = "atmel,24c32";
 		reg = <0x50>;
+		status = "disabled";
 	};
 
 	i2c4_rtc: rtc@52 {
 		compatible = "microcrystal,rv3028";
 		reg = <0x52>;
+		status = "disabled";
 	};
 };
 
@@ -392,13 +296,6 @@
 
 &iwdg2 {
 	timeout-sec = <32>;
-	status = "okay";
-};
-
-&m_can2 {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&m_can2_pins_a>;
-	pinctrl-1 = <&m_can2_sleep_pins_a>;
 	status = "okay";
 };
 
@@ -419,18 +316,22 @@
 
 &qspi {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&qspi_clk_pins_a &qspi_bk1_pins_a>;
-	pinctrl-1 = <&qspi_clk_sleep_pins_a &qspi_bk1_sleep_pins_a>;
-	status = "okay";
+	pinctrl-0 = <&qspi_clk_pins_a
+		     &qspi_bk1_pins_a
+		     &qspi_cs1_pins_a>;
+	pinctrl-1 = <&qspi_clk_sleep_pins_a
+		     &qspi_bk1_sleep_pins_a
+		     &qspi_cs1_sleep_pins_a>;
+	reg = <0x58003000 0x1000>,
+	      <0x70000000 0x1000000>;
+	status = "disabled";
 
 	flash0: flash@0 {
-		compatible = "winbond,w25q128", "jedec,spi-nor";
+		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
 		m25p,fast-read;
-		#address-cells = <1>;
-		#size-cells = <1>;
 	};
 };
 
@@ -442,56 +343,7 @@
 	status = "okay";
 };
 
-&sai2 {
-	clocks = <&rcc SAI2>, <&rcc PLL3_Q>, <&rcc PLL3_R>;
-	clock-names = "pclk", "x8k", "x11k";
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sai2a_pins_b>, <&sai2b_pins_d>;
-	pinctrl-1 = <&sai2a_sleep_pins_b>, <&sai2b_sleep_pins_d>;
-	status = "okay";
-};
-
-&sai2a {
-	dma-names = "rx";
-	st,sync = <&sai2b 2>;
-	clocks = <&rcc SAI2_K>, <&sai2b>;
-	clock-names = "sai_ck", "MCLK";
-	#clock-cells = <0>;
-
-	sai2a_port: port {
-		sai2a_endpoint: endpoint {
-			remote-endpoint = <&tlv320_rx_endpoint>;
-			mclk-fs = <256>;
-			dai-tdm-slot-num = <2>;
-			dai-tdm-slot-width = <16>;
-		};
-	};
-};
-
-&sai2b {
-	dma-names = "tx";
-	#clock-cells = <0>;
-
-	sai2b_port: port {
-		sai2b_endpoint: endpoint {
-			remote-endpoint = <&tlv320_tx_endpoint>;
-			mclk-fs = <256>;
-			dai-tdm-slot-num = <2>;
-			dai-tdm-slot-width = <16>;
-		};
-	};
-};
-
-&sdmmc1 {
-	pinctrl-names = "default", "opendrain", "sleep";
-	pinctrl-0 = <&sdmmc1_b4_pins_b>;
-	pinctrl-1 = <&sdmmc1_b4_od_pins_b>;
-	pinctrl-2 = <&sdmmc1_b4_sleep_pins_b>;
-	cd-gpios = <&gpiof 3 GPIO_ACTIVE_LOW>;
-	disable-wp;
-	st,neg-edge;
-	bus-width = <4>;
-	vmmc-supply = <&v3v3>;
+&dts {
 	status = "okay";
 };
 
@@ -503,71 +355,10 @@
 	non-removable;
 	no-sd;
 	no-sdio;
-	st,neg-edge;
 	bus-width = <8>;
 	vmmc-supply = <&v3v3>;
 	vqmmc-supply = <&v3v3>;
 	mmc-ddr-3_3v;
-};
-
-&spi1 {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&spi1_pins_a>;
-	pinctrl-1 = <&spi1_sleep_pins_a>;
-	cs-gpios = <&gpioz 3 0>;
-	status = "okay";
-};
-
-&uart4 {
-	pinctrl-names = "default", "sleep", "idle";
-	pinctrl-0 = <&uart4_pins_a>;
-	pinctrl-1 = <&uart4_sleep_pins_a>;
-	pinctrl-2 = <&uart4_idle_pins_a>;
-	pinctrl-3 = <&uart4_pins_a>;
-	/delete-property/dmas;
-	/delete-property/dma-names;
-	status = "okay";
-};
-
-&usart1 {
-	pinctrl-names = "default", "sleep", "idle";
-	pinctrl-0 = <&usart1_pins_b &usart1_pins_a>;
-	pinctrl-1 = <&usart1_sleep_pins_b &usart1_sleep_pins_a>;
-	pinctrl-2 = <&usart1_idle_pins_b &usart1_idle_pins_a>;
-	uart-has-rtscts;
-	status = "okay";
-};
-
-&usart3 {
-	pinctrl-names = "default", "sleep", "idle";
-	pinctrl-0 = <&usart3_pins_a>;
-	pinctrl-1 = <&usart3_sleep_pins_a>;
-	pinctrl-2 = <&usart3_idle_pins_a>;
-	status = "okay";
-};
-
-&usbh_ehci {
-	status = "okay";
-};
-
-&usbh_ohci {
-	status = "okay";
-};
-
-&usbotg_hs {
-	phys = <&usbphyc_port1 0>;
-	phy-names = "usb2-phy";
-	status = "okay";
-};
-
-&usbphyc {
-	status = "okay";
-};
-
-&usbphyc_port0 {
-	phy-supply = <&vdd_usb>;
-};
-
-&usbphyc_port1 {
-	phy-supply = <&vdd_usb>;
+	st,neg-edge;
+	status = "disabled";
 };

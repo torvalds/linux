@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "stm32mp15xx-dhcom-overlay-panel-dpi.dtsi"
+
+&{/} {
+	gpio-keys {
+		/*
+		 * The EXTi IRQ line 6 is shared with touchscreen IRQ,
+		 * so operate button-1 as polled GPIO key.
+		 */
+		button-1 {
+			/* Use status as /delete-node/ does not work in DTOs */
+			status = "disabled";
+		};
+	};
+
+	gpio-keys-polled {
+		button-1 {
+			label = "TA2-GPIO-B";
+			linux,code = <KEY_B>;
+			gpios = <&gpiod 6 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	led {
+		/* LED5 GPIO-E conflicts with touchscreen IRQ */
+		led-0 {
+			/* Use status as /delete-node/ does not work in DTOs */
+			status = "disabled";
+		};
+	};
+};
+
+&display_bl {
+	pwms = <&pwm2 3 500000 PWM_POLARITY_INVERTED>;
+};
+
+&i2c5 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		/* Touchscreen IRQ GPIO-E conflicts with LED5 GPIO */
+		interrupt-parent = <&gpioc>;
+		interrupts = <6 IRQ_TYPE_EDGE_FALLING>; /* GPIO E */
+	};
+};
+
+&ltdc_dpi_out {
+	remote-endpoint = <&panel_in>;
+};
+
+&panel {
+	compatible = "edt,etm0700g0edh6";
+};
+
+&panel_in {
+	remote-endpoint = <&ltdc_dpi_out>;
+};

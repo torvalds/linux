@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen: touchscreen@38 {
+	};
+
+	attiny: regulator@45 {
+	};
+};
+
+#include "stm32mp15xx-dhsom-overlay-panel-dsi-rpi7inch.dtsi"
+
+&ltdc {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ltdc_ep_out: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dsi_in>;
+		};
+	};
+};

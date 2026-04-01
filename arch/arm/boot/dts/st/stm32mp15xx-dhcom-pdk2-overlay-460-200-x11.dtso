@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+&fmc {
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	sram@3,0 {
+		compatible = "mtd-ram";
+		reg = <3 0x0 0x80000>;
+		bank-width = <2>;
+
+		/* Timing values are in nS */
+		st,fmc2-ebi-cs-mux-enable;
+		st,fmc2-ebi-cs-transaction-type = <4>;
+		st,fmc2-ebi-cs-buswidth = <16>;
+		st,fmc2-ebi-cs-address-setup-ns = <6>;
+		st,fmc2-ebi-cs-address-hold-ns = <6>;
+		st,fmc2-ebi-cs-data-setup-ns = <127>;
+		st,fmc2-ebi-cs-bus-turnaround-ns = <9>;
+		st,fmc2-ebi-cs-data-hold-ns = <9>;
+	};
+};

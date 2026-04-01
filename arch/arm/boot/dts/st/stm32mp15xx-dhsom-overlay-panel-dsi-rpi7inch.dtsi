@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2021 Marek Vasut
+ */
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	panel {
+		compatible = "powertip,ph800480t013-idf02";
+		backlight = <&attiny>;
+		power-supply = <&attiny>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&bridge_out>;
+			};
+		};
+	};
+};
+
+&attiny {
+	compatible = "raspberrypi,7inch-touchscreen-panel-regulator";
+	gpio-controller;
+	#gpio-cells = <2>;
+	reg = <0x45>;
+};
+
+&dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	phy-dsi-supply = <&reg18>;
+	status = "okay";
+
+	bridge@0 {
+		compatible = "toshiba,tc358762";
+		reg = <0>;
+		reset-gpios = <&attiny 0 GPIO_ACTIVE_HIGH>;
+		vddc-supply = <&attiny>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				bridge_in: endpoint {
+					remote-endpoint = <&dsi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsi_in: endpoint {
+				remote-endpoint = <&ltdc_ep_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi_out: endpoint {
+				remote-endpoint = <&bridge_in>;
+			};
+		};
+	};
+};
+
+&touchscreen {
+	compatible = "edt,edt-ft5406";
+	reg = <0x38>;
+	reset-gpios = <&attiny 1 GPIO_ACTIVE_LOW>;
+	/*
+	 * Disabled, since the IRQ line is not on
+	 * the FPC cable, so we cannot get touch
+	 * IRQs unless its connected otherwise. In
+	 * that case, add entry like this one and
+	 * enable below.
+	 *
+	 * interrupt-parent = <&gpiog>;
+	 * interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+	 */
+	status = "disabled";
+};
