@@ -131,6 +131,14 @@ enum wq_internal_consts {
 	WORKER_ID_LEN		= 10 + WQ_NAME_LEN, /* "kworker/R-" + WQ_NAME_LEN */
 };
 
+/* Layout of shards within one LLC pod */
+struct llc_shard_layout {
+	int nr_large_shards;	/* number of large shards (cores_per_shard + 1) */
+	int cores_per_shard;	/* base number of cores per default shard */
+	int nr_shards;		/* total number of shards */
+	/* nr_default shards = (nr_shards - nr_large_shards) */
+};
+
 /*
  * We don't want to trap softirq for too long. See MAX_SOFTIRQ_TIME and
  * MAX_SOFTIRQ_RESTART in kernel/softirq.c. These are macros because
@@ -410,6 +418,7 @@ static const char * const wq_affn_names[WQ_AFFN_NR_TYPES] = {
 	[WQ_AFFN_CPU]		= "cpu",
 	[WQ_AFFN_SMT]		= "smt",
 	[WQ_AFFN_CACHE]		= "cache",
+	[WQ_AFFN_CACHE_SHARD]	= "cache_shard",
 	[WQ_AFFN_NUMA]		= "numa",
 	[WQ_AFFN_SYSTEM]	= "system",
 };
@@ -431,6 +440,9 @@ module_param_named(cpu_intensive_warning_thresh, wq_cpu_intensive_warning_thresh
 /* see the comment above the definition of WQ_POWER_EFFICIENT */
 static bool wq_power_efficient = IS_ENABLED(CONFIG_WQ_POWER_EFFICIENT_DEFAULT);
 module_param_named(power_efficient, wq_power_efficient, bool, 0444);
+
+static unsigned int wq_cache_shard_size = 8;
+module_param_named(cache_shard_size, wq_cache_shard_size, uint, 0444);
 
 static bool wq_online;			/* can kworkers be created yet? */
 static bool wq_topo_initialized __read_mostly = false;
@@ -8155,6 +8167,175 @@ static bool __init cpus_share_numa(int cpu0, int cpu1)
 	return cpu_to_node(cpu0) == cpu_to_node(cpu1);
 }
 
+/* Maps each CPU to its shard index within the LLC pod it belongs to */
+static int cpu_shard_id[NR_CPUS] __initdata;
+
+/**
+ * llc_count_cores - count distinct cores (SMT groups) within an LLC pod
+ * @pod_cpus:  the cpumask of CPUs in the LLC pod
+ * @smt_pods:  the SMT pod type, used to identify sibling groups
+ *
+ * A core is represented by the lowest-numbered CPU in its SMT group. Returns
+ * the number of distinct cores found in @pod_cpus.
+ */
+static int __init llc_count_cores(const struct cpumask *pod_cpus,
+				  struct wq_pod_type *smt_pods)
+{
+	const struct cpumask *sibling_cpus;
+	int nr_cores = 0, c;
+
+	/*
+	 * Count distinct cores by only counting the first CPU in each
+	 * SMT sibling group.
+	 */
+	for_each_cpu(c, pod_cpus) {
+		sibling_cpus = smt_pods->pod_cpus[smt_pods->cpu_pod[c]];
+		if (cpumask_first(sibling_cpus) == c)
+			nr_cores++;
+	}
+
+	return nr_cores;
+}
+
+/*
+ * llc_shard_size - number of cores in a given shard
+ *
+ * Cores are spread as evenly as possible. The first @nr_large_shards shards are
+ * "large shards" with (cores_per_shard + 1) cores; the rest are "default
+ * shards" with cores_per_shard cores.
+ */
+static int __init llc_shard_size(int shard_id, int cores_per_shard, int nr_large_shards)
+{
+	/* The first @nr_large_shards shards are large shards */
+	if (shard_id < nr_large_shards)
+		return cores_per_shard + 1;
+
+	/* The remaining shards are default shards */
+	return cores_per_shard;
+}
+
+/*
+ * llc_calc_shard_layout - compute the shard layout for an LLC pod
+ * @nr_cores:  number of distinct cores in the LLC pod
+ *
+ * Chooses the number of shards that keeps average shard size closest to
+ * wq_cache_shard_size. Returns a struct describing the total number of shards,
+ * the base size of each, and how many are large shards.
+ */
+static struct llc_shard_layout __init llc_calc_shard_layout(int nr_cores)
+{
+	struct llc_shard_layout layout;
+
+	/* Ensure at least one shard; pick the count closest to the target size */
+	layout.nr_shards = max(1, DIV_ROUND_CLOSEST(nr_cores, wq_cache_shard_size));
+	layout.cores_per_shard = nr_cores / layout.nr_shards;
+	layout.nr_large_shards = nr_cores % layout.nr_shards;
+
+	return layout;
+}
+
+/*
+ * llc_shard_is_full - check whether a shard has reached its core capacity
+ * @cores_in_shard: number of cores already assigned to this shard
+ * @shard_id:       index of the shard being checked
+ * @layout:         the shard layout computed by llc_calc_shard_layout()
+ *
+ * Returns true if @cores_in_shard equals the expected size for @shard_id.
+ */
+static bool __init llc_shard_is_full(int cores_in_shard, int shard_id,
+				     const struct llc_shard_layout *layout)
+{
+	return cores_in_shard == llc_shard_size(shard_id, layout->cores_per_shard,
+						layout->nr_large_shards);
+}
+
+/**
+ * llc_populate_cpu_shard_id - populate cpu_shard_id[] for each CPU in an LLC pod
+ * @pod_cpus:  the cpumask of CPUs in the LLC pod
+ * @smt_pods:  the SMT pod type, used to identify sibling groups
+ * @nr_cores:  number of distinct cores in @pod_cpus (from llc_count_cores())
+ *
+ * Walks @pod_cpus in order. At each SMT group leader, advances to the next
+ * shard once the current shard is full. Results are written to cpu_shard_id[].
+ */
+static void __init llc_populate_cpu_shard_id(const struct cpumask *pod_cpus,
+					     struct wq_pod_type *smt_pods,
+					     int nr_cores)
+{
+	struct llc_shard_layout layout = llc_calc_shard_layout(nr_cores);
+	const struct cpumask *sibling_cpus;
+	/* Count the number of cores in the current shard_id */
+	int cores_in_shard = 0;
+	/* This is a cursor for the shards. Go from zero to nr_shards - 1*/
+	int shard_id = 0;
+	int c;
+
+	/* Iterate at every CPU for a given LLC pod, and assign it a shard */
+	for_each_cpu(c, pod_cpus) {
+		sibling_cpus = smt_pods->pod_cpus[smt_pods->cpu_pod[c]];
+		if (cpumask_first(sibling_cpus) == c) {
+			/* This is the CPU leader for the siblings */
+			if (llc_shard_is_full(cores_in_shard, shard_id, &layout)) {
+				shard_id++;
+				cores_in_shard = 0;
+			}
+			cores_in_shard++;
+			cpu_shard_id[c] = shard_id;
+		} else {
+			/*
+			 * The siblings' shard MUST be the same as the leader.
+			 * never split threads in the same core.
+			 */
+			cpu_shard_id[c] = cpu_shard_id[cpumask_first(sibling_cpus)];
+		}
+	}
+
+	WARN_ON_ONCE(shard_id != (layout.nr_shards - 1));
+}
+
+/**
+ * precompute_cache_shard_ids - assign each CPU its shard index within its LLC
+ *
+ * Iterates over all LLC pods. For each pod, counts distinct cores then assigns
+ * shard indices to all CPUs in the pod. Must be called after WQ_AFFN_CACHE and
+ * WQ_AFFN_SMT have been initialized.
+ */
+static void __init precompute_cache_shard_ids(void)
+{
+	struct wq_pod_type *llc_pods = &wq_pod_types[WQ_AFFN_CACHE];
+	struct wq_pod_type *smt_pods = &wq_pod_types[WQ_AFFN_SMT];
+	const struct cpumask *cpus_sharing_llc;
+	int nr_cores;
+	int pod;
+
+	if (!wq_cache_shard_size) {
+		pr_warn("workqueue: cache_shard_size must be > 0, setting to 1\n");
+		wq_cache_shard_size = 1;
+	}
+
+	for (pod = 0; pod < llc_pods->nr_pods; pod++) {
+		cpus_sharing_llc = llc_pods->pod_cpus[pod];
+
+		/* Number of cores in this given LLC */
+		nr_cores = llc_count_cores(cpus_sharing_llc, smt_pods);
+		llc_populate_cpu_shard_id(cpus_sharing_llc, smt_pods, nr_cores);
+	}
+}
+
+/*
+ * cpus_share_cache_shard - test whether two CPUs belong to the same cache shard
+ *
+ * Two CPUs share a cache shard if they are in the same LLC and have the same
+ * shard index. Used as the pod affinity callback for WQ_AFFN_CACHE_SHARD.
+ */
+static bool __init cpus_share_cache_shard(int cpu0, int cpu1)
+{
+	if (!cpus_share_cache(cpu0, cpu1))
+		return false;
+
+	return cpu_shard_id[cpu0] == cpu_shard_id[cpu1];
+}
+
 /**
  * workqueue_init_topology - initialize CPU pods for unbound workqueues
  *
@@ -8170,6 +8351,8 @@ void __init workqueue_init_topology(void)
 	init_pod_type(&wq_pod_types[WQ_AFFN_CPU], cpus_dont_share);
 	init_pod_type(&wq_pod_types[WQ_AFFN_SMT], cpus_share_smt);
 	init_pod_type(&wq_pod_types[WQ_AFFN_CACHE], cpus_share_cache);
+	precompute_cache_shard_ids();
+	init_pod_type(&wq_pod_types[WQ_AFFN_CACHE_SHARD], cpus_share_cache_shard);
 	init_pod_type(&wq_pod_types[WQ_AFFN_NUMA], cpus_share_numa);
 
 	wq_topo_initialized = true;
