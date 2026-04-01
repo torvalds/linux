@@ -743,10 +743,9 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 
 	amx->regmap = devm_regmap_init_mmio(dev, regs,
 					    amx->soc_data->regmap_conf);
-	if (IS_ERR(amx->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(amx->regmap);
-	}
+	if (IS_ERR(amx->regmap))
+		return dev_err_probe(dev, PTR_ERR(amx->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(amx->regmap, true);
 

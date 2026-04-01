@@ -506,10 +506,9 @@ static int tegra186_dspk_platform_probe(struct platform_device *pdev)
 		return PTR_ERR(regs);
 
 	dspk->regmap = devm_regmap_init_mmio(dev, regs, &tegra186_dspk_regmap);
-	if (IS_ERR(dspk->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(dspk->regmap);
-	}
+	if (IS_ERR(dspk->regmap))
+		return dev_err_probe(dev, PTR_ERR(dspk->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(dspk->regmap, true);
 

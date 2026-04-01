@@ -518,10 +518,9 @@ static int tegra210_dmic_probe(struct platform_device *pdev)
 
 	dmic->regmap = devm_regmap_init_mmio(dev, regs,
 					     &tegra210_dmic_regmap_config);
-	if (IS_ERR(dmic->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(dmic->regmap);
-	}
+	if (IS_ERR(dmic->regmap))
+		return dev_err_probe(dev, PTR_ERR(dmic->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(dmic->regmap, true);
 
