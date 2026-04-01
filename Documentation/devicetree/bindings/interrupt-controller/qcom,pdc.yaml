@@ -28,6 +28,7 @@ properties:
       - enum:
           - qcom,eliza-pdc
           - qcom,glymur-pdc
+          - qcom,hawi-pdc
           - qcom,kaanapali-pdc
           - qcom,milos-pdc
           - qcom,qcs615-pdc
