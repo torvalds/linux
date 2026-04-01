@@ -183,10 +183,6 @@ void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
 		map->emul_ptimer = vcpu_ptimer(vcpu);
 	}
 
-	map->direct_vtimer->direct = true;
-	if (map->direct_ptimer)
-		map->direct_ptimer->direct = true;
-
 	trace_kvm_get_timer_map(vcpu->vcpu_id, map);
 }
 
@@ -462,8 +458,15 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 		return;
 
 	/* Skip injecting on GICv5 for directly injected (DVI'd) timers */
-	if (vgic_is_v5(vcpu->kvm) && timer_ctx->direct)
-		return;
+	if (vgic_is_v5(vcpu->kvm)) {
+		struct timer_map map;
+
+		get_timer_map(vcpu, &map);
+
+		if (map.direct_ptimer == timer_ctx ||
+		    map.direct_vtimer == timer_ctx)
+			return;
+	}
 
 	kvm_vgic_inject_irq(vcpu->kvm, vcpu,
 			    timer_irq(timer_ctx),

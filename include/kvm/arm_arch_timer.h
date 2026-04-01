@@ -76,9 +76,6 @@ struct arch_timer_context {
 
 	/* Duplicated state from arch_timer.c for convenience */
 	u32				host_timer_irq;
-
-	/* Is this a direct timer? */
-	bool				direct;
 };
 
 struct timer_map {
