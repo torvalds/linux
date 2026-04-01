@@ -748,28 +748,6 @@ alternative_else_nop_endif
 	set_sctlr sctlr_el2, \reg
 .endm
 
-	/*
-	 * Check whether asm code should yield as soon as it is able. This is
-	 * the case if we are currently running in task context, and the
-	 * TIF_NEED_RESCHED flag is set. (Note that the TIF_NEED_RESCHED flag
-	 * is stored negated in the top word of the thread_info::preempt_count
-	 * field)
-	 */
-	.macro		cond_yield, lbl:req, tmp:req, tmp2
-#ifdef CONFIG_PREEMPT_VOLUNTARY
-	get_current_task \tmp
-	ldr		\tmp, [\tmp, #TSK_TI_PREEMPT]
-	/*
-	 * If we are serving a softirq, there is no point in yielding: the
-	 * softirq will not be preempted no matter what we do, so we should
-	 * run to completion as quickly as we can. The preempt_count field will
-	 * have BIT(SOFTIRQ_SHIFT) set in this case, so the zero check will
-	 * catch this case too.
-	 */
-	cbz		\tmp, \lbl
-#endif
-	.endm
-
 /*
  * Branch Target Identifier (BTI)
  */
