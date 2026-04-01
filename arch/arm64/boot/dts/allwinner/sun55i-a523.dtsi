@@ -901,7 +901,7 @@
 			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&r_ccu CLK_BUS_R_SPI>, <&r_ccu CLK_R_SPI>;
 			clock-names = "ahb", "mod";
-			dmas = <&dma 53>, <&dma 53>;
+			dmas = <&mcu_dma 13>, <&mcu_dma 13>;
 			dma-names = "rx", "tx";
 			resets = <&r_ccu RST_BUS_R_SPI>;
 			status = "disabled";
