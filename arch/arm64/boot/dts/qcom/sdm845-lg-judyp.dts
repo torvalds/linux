@@ -56,3 +56,7 @@
 &venus {
 	firmware-name = "qcom/sdm845/LG/judyp/venus.mbn";
 };
+
+&wifi {
+	qcom,calibration-variant = "lg_judyp";
+};
