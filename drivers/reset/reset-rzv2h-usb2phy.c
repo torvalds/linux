@@ -5,42 +5,35 @@
  * Copyright (C) 2025 Renesas Electronics Corporation
  */
 
-#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 
-struct rzv2h_usb2phy_regval {
-	u16 reg;
-	u16 val;
-};
-
 struct rzv2h_usb2phy_reset_of_data {
-	const struct rzv2h_usb2phy_regval *init_vals;
-	unsigned int init_val_count;
+	const struct reg_sequence *init_seq;
+	unsigned int init_nseq;
+
+	const struct reg_sequence *assert_seq;
+	unsigned int assert_nseq;
+
+	const struct reg_sequence *deassert_seq;
+	unsigned int deassert_nseq;
 
 	u16 reset_reg;
-	u16 reset_assert_val;
-	u16 reset_deassert_val;
 	u16 reset_status_bits;
-	u16 reset_release_val;
-
-	u16 reset2_reg;
-	u16 reset2_acquire_val;
-	u16 reset2_release_val;
 };
 
 struct rzv2h_usb2phy_reset_priv {
 	const struct rzv2h_usb2phy_reset_of_data *data;
-	void __iomem *base;
+	struct regmap *regmap;
 	struct device *dev;
 	struct reset_controller_dev rcdev;
-	spinlock_t lock; /* protects register accesses */
 };
 
 static inline struct rzv2h_usb2phy_reset_priv
@@ -53,31 +46,18 @@ static int rzv2h_usbphy_reset_assert(struct reset_controller_dev *rcdev,
 				     unsigned long id)
 {
 	struct rzv2h_usb2phy_reset_priv *priv = rzv2h_usbphy_rcdev_to_priv(rcdev);
-	const struct rzv2h_usb2phy_reset_of_data *data = priv->data;
 
-	scoped_guard(spinlock, &priv->lock) {
-		writel(data->reset2_acquire_val, priv->base + data->reset2_reg);
-		writel(data->reset_assert_val, priv->base + data->reset_reg);
-	}
-
-	usleep_range(11, 20);
-
-	return 0;
+	return regmap_multi_reg_write(priv->regmap, priv->data->assert_seq,
+				      priv->data->assert_nseq);
 }
 
 static int rzv2h_usbphy_reset_deassert(struct reset_controller_dev *rcdev,
 				       unsigned long id)
 {
 	struct rzv2h_usb2phy_reset_priv *priv = rzv2h_usbphy_rcdev_to_priv(rcdev);
-	const struct rzv2h_usb2phy_reset_of_data *data = priv->data;
 
-	scoped_guard(spinlock, &priv->lock) {
-		writel(data->reset_deassert_val, priv->base + data->reset_reg);
-		writel(data->reset2_release_val, priv->base + data->reset2_reg);
-		writel(data->reset_release_val, priv->base + data->reset_reg);
-	}
-
-	return 0;
+	return regmap_multi_reg_write(priv->regmap, priv->data->deassert_seq,
+				      priv->data->deassert_nseq);
 }
 
 static int rzv2h_usbphy_reset_status(struct reset_controller_dev *rcdev,
@@ -86,7 +66,7 @@ static int rzv2h_usbphy_reset_status(struct reset_controller_dev *rcdev,
 	struct rzv2h_usb2phy_reset_priv *priv = rzv2h_usbphy_rcdev_to_priv(rcdev);
 	u32 reg;
 
-	reg = readl(priv->base + priv->data->reset_reg);
+	regmap_read(priv->regmap, priv->data->reset_reg, &reg);
 
 	return (reg & priv->data->reset_status_bits) == priv->data->reset_status_bits;
 }
@@ -104,6 +84,13 @@ static int rzv2h_usb2phy_reset_of_xlate(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static const struct regmap_config rzv2h_usb2phy_reset_regconf = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.can_sleep = true,
+};
+
 static void rzv2h_usb2phy_reset_pm_runtime_put(void *data)
 {
 	pm_runtime_put(data);
@@ -115,6 +102,7 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	struct rzv2h_usb2phy_reset_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct reset_control *rstc;
+	void __iomem *base;
 	int error;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -124,16 +112,18 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	data = of_device_get_match_data(dev);
 	priv->data = data;
 	priv->dev = dev;
-	priv->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(priv->base))
-		return PTR_ERR(priv->base);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	priv->regmap = devm_regmap_init_mmio(dev, base, &rzv2h_usb2phy_reset_regconf);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
 
 	rstc = devm_reset_control_get_shared_deasserted(dev, NULL);
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc),
 				     "failed to get deasserted reset\n");
-
-	spin_lock_init(&priv->lock);
 
 	error = devm_pm_runtime_enable(dev);
 	if (error)
@@ -148,8 +138,9 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	if (error)
 		return dev_err_probe(dev, error, "unable to register cleanup action\n");
 
-	for (unsigned int i = 0; i < data->init_val_count; i++)
-		writel(data->init_vals[i].val, priv->base + data->init_vals[i].reg);
+	error = regmap_multi_reg_write(priv->regmap, data->init_seq, data->init_nseq);
+	if (error)
+		return dev_err_probe(dev, error, "failed to initialize PHY registers\n");
 
 	priv->rcdev.ops = &rzv2h_usbphy_reset_ops;
 	priv->rcdev.of_reset_n_cells = 0;
@@ -169,23 +160,32 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
  * initialization values required to prepare the PHY to receive
  * assert and deassert requests.
  */
-static const struct rzv2h_usb2phy_regval rzv2h_init_vals[] = {
-	{ .reg = 0xc10, .val = 0x67c },
-	{ .reg = 0xc14, .val = 0x1f },
-	{ .reg = 0x600, .val = 0x909 },
+static const struct reg_sequence rzv2h_init_seq[] = {
+	{ .reg = 0xc10, .def = 0x67c },
+	{ .reg = 0xc14, .def = 0x01f },
+	{ .reg = 0x600, .def = 0x909 },
+};
+
+static const struct reg_sequence rzv2h_assert_seq[] = {
+	{ .reg = 0xb04, .def = 0x303 },
+	{ .reg = 0x000, .def = 0x206, .delay_us = 11 },
+};
+
+static const struct reg_sequence rzv2h_deassert_seq[] = {
+	{ .reg = 0x000, .def = 0x200 },
+	{ .reg = 0xb04, .def = 0x003 },
+	{ .reg = 0x000, .def = 0x000 },
 };
 
 static const struct rzv2h_usb2phy_reset_of_data rzv2h_reset_of_data = {
-	.init_vals = rzv2h_init_vals,
-	.init_val_count = ARRAY_SIZE(rzv2h_init_vals),
+	.init_seq = rzv2h_init_seq,
+	.init_nseq = ARRAY_SIZE(rzv2h_init_seq),
+	.assert_seq = rzv2h_assert_seq,
+	.assert_nseq = ARRAY_SIZE(rzv2h_assert_seq),
+	.deassert_seq = rzv2h_deassert_seq,
+	.deassert_nseq = ARRAY_SIZE(rzv2h_deassert_seq),
 	.reset_reg = 0,
-	.reset_assert_val = 0x206,
 	.reset_status_bits = BIT(2),
-	.reset_deassert_val = 0x200,
-	.reset_release_val = 0x0,
-	.reset2_reg = 0xb04,
-	.reset2_acquire_val = 0x303,
-	.reset2_release_val = 0x3,
 };
 
 static const struct of_device_id rzv2h_usb2phy_reset_of_match[] = {
