@@ -29,6 +29,14 @@
 	firmware-name = "qcom/sdm845/LG/judyp/adsp.mbn";
 };
 
+&bluetooth {
+	/*
+	 * This path is relative to the qca/
+	 * subdir under lib/firmware.
+	 */
+	firmware-name = "judyp/crnv21.bin";
+};
+
 &cdsp_pas {
 	firmware-name = "qcom/sdm845/LG/judyp/cdsp.mbn";
 };
