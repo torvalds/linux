@@ -1057,6 +1057,32 @@ config GPIO_SCH
 	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
 	  power well and 6 from the suspend power well.
 
+config GPIO_NOVALAKE
+	tristate "Intel Nova Lake GPIO-signaled ACPI events support"
+	depends on (X86 || COMPILE_TEST) && ACPI
+	select GPIOLIB_IRQCHIP
+	help
+	  Select this to enable GPIO-signaled ACPI events support on platforms
+	  with the following SoCs:
+
+	  - Intel Nova Lake
+
+	  This driver adds support for new mode of handling platform events,
+	  through the use of GPIO-signaled ACPI events. Main purpose is to
+	  handle platform IRQs that originate in PCH components, for example
+	  interrupt triggered by Power Management Event (PME).
+
+	  This driver, at this time, is not required to handle platform events.
+	  Listed platform(s) will stay in legacy mode, handling ACPI events as
+	  in previous generations. However, future platforms will eventually
+	  switch to new handling mode, requiring this driver to run events
+	  properly.
+
+	  Driver supports up to 128 GPIO pins per GPE block.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-novalake-events.
+
 config GPIO_SCH311X
 	tristate "SMSC SCH311x SuperI/O GPIO"
 	help
