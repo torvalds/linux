@@ -77,6 +77,8 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				CHT_PLAT_CLK_3_HZ, 48000 * 512);
 		if (ret < 0) {
 			dev_err(card->dev, "can't set codec pll: %d\n", ret);
+			if (ctx->mclk)
+				clk_disable_unprepare(ctx->mclk);
 			return ret;
 		}
 
@@ -85,6 +87,8 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 			48000 * 512, SND_SOC_CLOCK_IN);
 		if (ret < 0) {
 			dev_err(card->dev, "can't set codec sysclk: %d\n", ret);
+			if (ctx->mclk)
+				clk_disable_unprepare(ctx->mclk);
 			return ret;
 		}
 	} else {
