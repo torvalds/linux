@@ -2004,9 +2004,13 @@ static int trace__symbols_init(struct trace *trace, int argc, const char **argv,
 	if (err < 0)
 		goto out;
 
+	if (trace->summary_only && trace->summary_mode != SUMMARY__BY_THREAD)
+		goto out;
+
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->core.threads, trace__tool_process,
-					    /*needs_mmap=*/callchain_param.enabled,
+					    /*needs_mmap=*/callchain_param.enabled &&
+							   !trace->summary_only,
 					    /*mmap_data=*/false,
 					    /*nr_threads_synthesize=*/1);
 out:
