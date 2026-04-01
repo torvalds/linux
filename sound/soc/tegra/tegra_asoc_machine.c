@@ -591,16 +591,14 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 		 * host controller and the external codec
 		 */
 		err = clk_set_rate(machine->clk_pll_a, 73728000);
-		if (err) {
-			dev_err(dev, "Can't set pll_a rate: %d\n", err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "can't set pll_a rate\n");
 
 		err = clk_set_rate(machine->clk_pll_a_out0, 24576000);
-		if (err) {
-			dev_err(dev, "Can't set pll_a_out0 rate: %d\n", err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "can't set pll_a_out0 rate\n");
 
 		machine->set_baseclock = 73728000;
 		machine->set_mclk = 24576000;
@@ -612,10 +610,9 @@ int tegra_asoc_machine_probe(struct platform_device *pdev)
 	 * only needed for audio.
 	 */
 	err = clk_prepare_enable(machine->clk_cdev1);
-	if (err) {
-		dev_err(dev, "Can't enable cdev1: %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "can't enable cdev1\n");
 
 	err = devm_snd_soc_register_card(dev, card);
 	if (err)
