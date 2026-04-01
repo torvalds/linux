@@ -183,6 +183,8 @@ snd_compr_tstamp32_from_64(struct snd_compr_tstamp *tstamp32,
 static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 				   struct snd_compr_tstamp64 *tstamp)
 {
+	int ret;
+
 	if (!stream->ops->pointer)
 		return -ENOTSUPP;
 
@@ -193,7 +195,9 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 		break;
 	}
 
-	stream->ops->pointer(stream, tstamp);
+	ret = stream->ops->pointer(stream, tstamp);
+	if (ret != 0)
+		return ret;
 	pr_debug("dsp consumed till %u total %llu bytes\n", tstamp->byte_offset,
 		 tstamp->copied_total);
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
