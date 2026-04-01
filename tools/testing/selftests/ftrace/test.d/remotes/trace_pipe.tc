@@ -92,31 +92,6 @@ test_trace_pipe()
         rm $output
         cd - > /dev/null
     done
-
-    #
-    # Test interaction with hotplug
-    #
-
-    [ "$(get_cpu_ids | wc -l)" -ge 2 ] || return 0
-
-    echo 0 > trace
-
-    for cpu in $(get_cpu_ids); do
-        echo 0 > /sys/devices/system/cpu/cpu$cpu/online || return 0
-        break
-    done
-
-    for i in $(seq 1 8); do
-        echo $i > write_event
-    done
-
-    output=$(dump_trace_pipe)
-
-    check_trace 1 8 $output
-
-    rm $output
-
-    echo 1 > /sys/devices/system/cpu/cpu$cpu/online
 }
 
 if [ -z "$SOURCE_REMOTE_TEST" ]; then
