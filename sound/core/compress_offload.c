@@ -185,6 +185,14 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 {
 	if (!stream->ops->pointer)
 		return -ENOTSUPP;
+
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+		return -EBADFD;
+	default:
+		break;
+	}
+
 	stream->ops->pointer(stream, tstamp);
 	pr_debug("dsp consumed till %u total %llu bytes\n", tstamp->byte_offset,
 		 tstamp->copied_total);
