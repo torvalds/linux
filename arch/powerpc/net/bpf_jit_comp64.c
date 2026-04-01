@@ -179,6 +179,31 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	BUG();
 }
 
+void prepare_for_fsession_fentry(u32 *image, struct codegen_context *ctx, int cookie_cnt,
+				int cookie_off, int retval_off)
+{
+	EMIT(PPC_RAW_LI(bpf_to_ppc(TMP_REG_1), 0));
+
+	for (int i = 0; i < cookie_cnt; i++)
+		EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, cookie_off + 8 * i));
+	EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, retval_off));
+}
+
+void store_func_meta(u32 *image, struct codegen_context *ctx,
+					u64 func_meta, int func_meta_off)
+{
+	/*
+	 * Store func_meta to stack at [R1 + func_meta_off] = func_meta
+	 *
+	 * func_meta :
+	 *	bit[63]: is_return flag
+	 *	byte[1]: cookie offset from ctx
+	 *	byte[0]: args count
+	 */
+	PPC_LI64(bpf_to_ppc(TMP_REG_1), func_meta);
+	EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, func_meta_off));
+}
+
 void bpf_jit_realloc_regs(struct codegen_context *ctx)
 {
 }
