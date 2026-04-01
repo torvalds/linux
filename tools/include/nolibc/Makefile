@@ -17,7 +17,8 @@ endif
 # it defaults to this nolibc directory.
 OUTPUT ?= $(CURDIR)/
 
-arch_files := arch.h $(wildcard arch-*.h)
+architectures := arm arm64 loongarch m68k mips powerpc riscv s390 sh sparc x86
+arch_files := arch.h $(addsuffix .h, $(addprefix arch-, $(architectures)))
 all_files := \
 		compiler.h \
 		crt.h \
