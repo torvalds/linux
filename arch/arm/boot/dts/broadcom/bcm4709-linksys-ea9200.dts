@@ -5,6 +5,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/leds/common.h>
+
 #include "bcm4709.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
@@ -25,6 +27,10 @@
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x180000>;
+
+		et2macaddr: et2macaddr {
+			#nvmem-cell-cells = <1>;
+		};
 	};
 
 	gpio-keys {
@@ -36,16 +42,67 @@
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 		};
 
+		button-rfkill {
+			label = "WiFi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+		};
+
 		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_AMBER>;
+			function = LED_FUNCTION_WLAN;
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "rfkill-none";
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
+			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "usbport";
+			trigger-sources = <&ohci_port2>, <&ehci_port2>;
+		};
+
+		led-2 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_USB;
+			function-enumerator = <3>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "usbport";
+			trigger-sources = <&ohci_port1>, <&ehci_port1>,
+					  <&xhci_port1>;
+		};
+
+		led-3 {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_POWER;
+			gpios = <&chipcommon 8 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
 };
 
 &usb3_phy {
 	status = "okay";
+};
+
+&usb2 {
+	vcc-gpios = <&chipcommon 13 GPIO_ACTIVE_HIGH>;
+};
+
+&usb3 {
+	vcc-gpios = <&chipcommon 14 GPIO_ACTIVE_HIGH>;
 };
 
 &srab {
@@ -70,6 +127,9 @@
 
 		port@4 {
 			label = "wan";
+
+			nvmem-cells = <&et2macaddr 1>;
+			nvmem-cell-names = "mac-address";
 		};
 
 		port@5 {
@@ -82,6 +142,46 @@
 
 		port@8 {
 			label = "cpu";
+		};
+	};
+};
+
+&nandcs {
+	partitions {
+		compatible = "linksys,ns-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x0000000 0x0080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "nvram";
+			reg = <0x080000 0x0100000>;
+		};
+
+		partition@180000 {
+			label = "devinfo";
+			reg = <0x0180000 0x080000>;
+			read-only;
+		};
+
+		partition@200000 {
+			reg = <0x0200000 0x02800000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
+		};
+
+		partition@2a00000 {
+			reg = <0x02a00000 0x02800000>;
+			compatible = "linksys,ns-firmware", "brcm,trx";
+		};
+
+		partition@5200000 {
+			label = "system";
+			reg = <0x05200000 0x02e00000>;
 		};
 	};
 };

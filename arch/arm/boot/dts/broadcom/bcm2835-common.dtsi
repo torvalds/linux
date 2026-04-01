@@ -141,9 +141,10 @@
 			interrupts = <1 10>;
 		};
 
-		vc4: gpu {
-			compatible = "brcm,bcm2835-vc4";
-		};
+	};
+
+	vc4: gpu {
+		compatible = "brcm,bcm2835-vc4";
 	};
 };
 

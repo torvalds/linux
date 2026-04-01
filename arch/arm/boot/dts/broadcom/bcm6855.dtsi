@@ -240,6 +240,15 @@
 			};
 		};
 
+		i2c0: i2c@2100 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x2100 0x60>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		leds: led-controller@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -276,6 +285,15 @@
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&uart_clk>, <&uart_clk>;
 			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		i2c1: i2c@5a800 {
+			compatible = "brcm,brcmper-i2c";
+			reg = <0x5a800 0x60>;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 	};
