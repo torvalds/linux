@@ -24,6 +24,7 @@
 #define BD7182x_MASK_CONF_PON			BIT(0)
 #define BD71815_MASK_CONF_XSTB			BIT(1)
 #define BD7182x_MASK_BAT_STAT			0x3f
+#define BD7182x_MASK_ILIM			0x3f
 #define BD7182x_MASK_DCIN_STAT			0x07
 
 #define BD7182x_MASK_WDT_AUTO			0x40
@@ -48,9 +49,11 @@ struct pwr_regs {
 	unsigned int vbat_avg;
 	unsigned int ibat;
 	unsigned int ibat_avg;
+	unsigned int ilim_stat;
 	unsigned int btemp_vth;
 	unsigned int chg_state;
 	unsigned int bat_temp;
+	unsigned int dcin_set;
 	unsigned int dcin_stat;
 	unsigned int dcin_online_mask;
 	unsigned int dcin_collapse_limit;
@@ -66,9 +69,11 @@ static const struct pwr_regs pwr_regs_bd71828 = {
 	.vbat_avg = BD71828_REG_VBAT_U,
 	.ibat = BD71828_REG_IBAT_U,
 	.ibat_avg = BD71828_REG_IBAT_AVG_U,
+	.ilim_stat = BD71828_REG_ILIM_STAT,
 	.btemp_vth = BD71828_REG_VM_BTMP_U,
 	.chg_state = BD71828_REG_CHG_STATE,
 	.bat_temp = BD71828_REG_BAT_TEMP,
+	.dcin_set = BD71828_REG_DCIN_SET,
 	.dcin_stat = BD71828_REG_DCIN_STAT,
 	.dcin_online_mask = BD7182x_MASK_DCIN_DET,
 	.dcin_collapse_limit = BD71828_REG_DCIN_CLPS,
@@ -441,6 +446,7 @@ static int bd71828_charger_get_property(struct power_supply *psy,
 	struct bd71828_power *pwr = dev_get_drvdata(psy->dev.parent);
 	u32 vot;
 	u16 tmp;
+	int t;
 	int online;
 	int ret;
 
@@ -460,11 +466,64 @@ static int bd71828_charger_get_property(struct power_supply *psy,
 		/* 5 milli volt steps */
 		val->intval = 5000 * vot;
 		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		if (!pwr->regs->ilim_stat)
+			return -ENODATA;
+
+		ret = regmap_read(pwr->regmap, pwr->regs->ilim_stat, &t);
+		if (ret)
+			return ret;
+
+		t++;
+		val->intval = (t & BD7182x_MASK_ILIM) * 50000;
+		if (val->intval > 2000000)
+			val->intval = 2000000;
+
+		break;
 	default:
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int bd71828_charger_set_property(struct power_supply *psy,
+					enum power_supply_property psp,
+					const union power_supply_propval *val)
+{
+	struct bd71828_power *pwr = dev_get_drvdata(psy->dev.parent);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		if (val->intval > 2000000)
+			return -EINVAL;
+
+		if (val->intval < 50000)
+			return -EINVAL;
+
+		if (!pwr->regs->dcin_set)
+			return -EINVAL;
+
+		return regmap_update_bits(pwr->regmap, pwr->regs->dcin_set,
+					  BD7182x_MASK_ILIM,
+					  val->intval / 50000 - 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bd71828_charger_property_is_writeable(struct power_supply *psy,
+						 enum power_supply_property psp)
+{
+	struct bd71828_power *pwr = dev_get_drvdata(psy->dev.parent);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return !!(pwr->regs->dcin_set);
+	default:
+		return false;
+	}
 }
 
 static int bd71828_battery_get_property(struct power_supply *psy,
@@ -571,6 +630,7 @@ static int bd71828_battery_property_is_writeable(struct power_supply *psy,
 
 /** @brief ac properties */
 static const enum power_supply_property bd71828_charger_props[] = {
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
@@ -600,6 +660,8 @@ static const struct power_supply_desc bd71828_ac_desc = {
 	.properties	= bd71828_charger_props,
 	.num_properties	= ARRAY_SIZE(bd71828_charger_props),
 	.get_property	= bd71828_charger_get_property,
+	.set_property	= bd71828_charger_set_property,
+	.property_is_writeable   = bd71828_charger_property_is_writeable,
 };
 
 static const struct power_supply_desc bd71828_bat_desc = {
