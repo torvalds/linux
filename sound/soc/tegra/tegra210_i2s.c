@@ -1093,10 +1093,9 @@ static int tegra210_i2s_probe(struct platform_device *pdev)
 
 	i2s->regmap = devm_regmap_init_mmio(dev, regs,
 					    i2s->soc_data->regmap_conf);
-	if (IS_ERR(i2s->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(i2s->regmap);
-	}
+	if (IS_ERR(i2s->regmap))
+		return dev_err_probe(dev, PTR_ERR(i2s->regmap),
+				     "regmap init failed\n");
 
 	tegra210_parse_client_convert(dev);
 

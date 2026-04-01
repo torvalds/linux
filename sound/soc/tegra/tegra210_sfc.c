@@ -3598,10 +3598,9 @@ static int tegra210_sfc_platform_probe(struct platform_device *pdev)
 
 	sfc->regmap = devm_regmap_init_mmio(dev, regs,
 					    &tegra210_sfc_regmap_config);
-	if (IS_ERR(sfc->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(sfc->regmap);
-	}
+	if (IS_ERR(sfc->regmap))
+		return dev_err_probe(dev, PTR_ERR(sfc->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(sfc->regmap, true);
 

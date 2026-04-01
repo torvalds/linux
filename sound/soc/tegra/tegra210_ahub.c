@@ -2277,10 +2277,9 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 
 	ahub->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 					     ahub->soc_data->regmap_config);
-	if (IS_ERR(ahub->regmap)) {
-		dev_err(&pdev->dev, "regmap init failed\n");
-		return PTR_ERR(ahub->regmap);
-	}
+	if (IS_ERR(ahub->regmap))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ahub->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(ahub->regmap, true);
 
