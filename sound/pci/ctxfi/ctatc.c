@@ -1409,9 +1409,11 @@ static int atc_get_resources(struct ct_atc *atc)
 	struct sum_desc sum_dsc = {0};
 	struct sum_mgr *sum_mgr;
 	struct capabilities cap;
+	int atc_srcs_limit;
 	int err, i;
 
 	cap = atc->capabilities(atc);
+	atc_srcs_limit = cap.dedicated_mic ? NUM_ATC_SRCS : 4;
 
 	atc->daios = kcalloc(NUM_DAIOTYP, sizeof(void *), GFP_KERNEL);
 	if (!atc->daios)
@@ -1453,9 +1455,7 @@ static int atc_get_resources(struct ct_atc *atc)
 	src_dsc.multi = 1;
 	src_dsc.msr = atc->msr;
 	src_dsc.mode = ARCRW;
-	for (i = 0; i < NUM_ATC_SRCS; i++) {
-		if (((i > 3) && !cap.dedicated_mic))
-			continue;
+	for (i = 0; i < atc_srcs_limit; i++) {
 		err = src_mgr->get_src(src_mgr, &src_dsc,
 					(struct src **)&atc->srcs[i]);
 		if (err)
@@ -1464,9 +1464,7 @@ static int atc_get_resources(struct ct_atc *atc)
 
 	srcimp_mgr = atc->rsc_mgrs[SRCIMP];
 	srcimp_dsc.msr = 8;
-	for (i = 0; i < NUM_ATC_SRCS; i++) {
-		if (((i > 3) && !cap.dedicated_mic))
-			continue;
+	for (i = 0; i < atc_srcs_limit; i++) {
 		err = srcimp_mgr->get_srcimp(srcimp_mgr, &srcimp_dsc,
 					(struct srcimp **)&atc->srcimps[i]);
 		if (err)
