@@ -1473,6 +1473,19 @@
 				      "noc";
 		};
 
+		cmu_g3d: clock-controller@1a000000 {
+			compatible = "samsung,exynosautov920-cmu-g3d";
+			reg = <0x1a000000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_G3D_SWITCH>,
+				 <&cmu_top DOUT_CLKCMU_G3D_NOCP>;
+			clock-names = "oscclk",
+				      "switch",
+				      "nocp";
+		};
+
 		pinctrl_aud: pinctrl@1a460000 {
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x1a460000 0x10000>;
