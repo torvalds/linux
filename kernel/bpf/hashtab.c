@@ -1138,6 +1138,10 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 	} else if (fd_htab_map_needs_adjust(htab)) {
 		size = round_up(size, 8);
 		memcpy(htab_elem_value(l_new, key_size), value, size);
+	} else if (map_flags & BPF_F_LOCK) {
+		copy_map_value_locked(&htab->map,
+				      htab_elem_value(l_new, key_size),
+				      value, false);
 	} else {
 		copy_map_value(&htab->map, htab_elem_value(l_new, key_size), value);
 	}
