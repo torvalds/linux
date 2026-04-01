@@ -288,9 +288,9 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 {
 	struct nfcmrvl_usb_drv_data *drv_data;
 	struct nfcmrvl_private *priv;
-	int i;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct nfcmrvl_platform_data config;
+	int ret;
 
 	/* No configuration for USB */
 	memset(&config, 0, sizeof(config));
@@ -302,21 +302,9 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 	if (!drv_data)
 		return -ENOMEM;
 
-	for (i = 0; i < intf->cur_altsetting->desc.bNumEndpoints; i++) {
-		struct usb_endpoint_descriptor *ep_desc;
-
-		ep_desc = &intf->cur_altsetting->endpoint[i].desc;
-
-		if (!drv_data->bulk_tx_ep &&
-		    usb_endpoint_is_bulk_out(ep_desc)) {
-			drv_data->bulk_tx_ep = ep_desc;
-		} else if (!drv_data->bulk_rx_ep &&
-			   usb_endpoint_is_bulk_in(ep_desc)) {
-			drv_data->bulk_rx_ep = ep_desc;
-		}
-	}
-
-	if (!drv_data->bulk_tx_ep || !drv_data->bulk_rx_ep)
+	ret = usb_find_common_endpoints(intf->cur_altsetting, &drv_data->bulk_rx_ep,
+					&drv_data->bulk_tx_ep, NULL, NULL);
+	if (ret)
 		return -ENODEV;
 
 	drv_data->udev = udev;
