@@ -18,7 +18,7 @@
 #endif
 
 #ifndef offsetof
-#define offsetof(TYPE, FIELD) ((size_t) &((TYPE *)0)->FIELD)
+#define offsetof(TYPE, FIELD) __builtin_offsetof(TYPE, FIELD)
 #endif
 
 #endif /* _NOLIBC_STDDEF_H */
