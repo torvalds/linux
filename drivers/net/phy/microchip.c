@@ -26,6 +26,7 @@ struct lan88xx_priv {
 	int	chip_id;
 	int	chip_rev;
 	__u32	wolopts;
+	u8	downshift_cnt;
 };
 
 static int lan88xx_read_page(struct phy_device *phydev)
@@ -247,9 +248,15 @@ static int lan88xx_get_tunable(struct phy_device *phydev,
 static int lan88xx_set_tunable(struct phy_device *phydev,
 			       struct ethtool_tunable *tuna, const void *data)
 {
+	struct lan88xx_priv *priv = phydev->priv;
+	int ret;
+
 	switch (tuna->id) {
 	case ETHTOOL_PHY_DOWNSHIFT:
-		return lan88xx_set_downshift(phydev, *(const u8 *)data);
+		ret = lan88xx_set_downshift(phydev, *(const u8 *)data);
+		if (!ret)
+			priv->downshift_cnt = *(const u8 *)data;
+		return ret;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -267,6 +274,7 @@ static int lan88xx_probe(struct phy_device *phydev)
 		return -ENOMEM;
 
 	priv->wolopts = 0;
+	priv->downshift_cnt = 2;
 
 	len = of_property_read_variable_u32_array(dev->of_node,
 						  "microchip,led-modes",
@@ -346,7 +354,8 @@ static void lan88xx_set_mdix(struct phy_device *phydev)
 
 static int lan88xx_config_init(struct phy_device *phydev)
 {
-	int val;
+	struct lan88xx_priv *priv = phydev->priv;
+	int val, err;
 
 	/*Zerodetect delay enable */
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS,
@@ -358,6 +367,10 @@ static int lan88xx_config_init(struct phy_device *phydev)
 
 	/* Config DSP registers */
 	lan88xx_config_TR_regs(phydev);
+
+	err = lan88xx_set_downshift(phydev, priv->downshift_cnt);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
