@@ -2657,8 +2657,6 @@ cleanup_transaction:
 	btrfs_trans_release_chunk_metadata(trans);
 	trans->block_rsv = NULL;
 	btrfs_warn(fs_info, "Skipping commit of aborted transaction.");
-	if (current->journal_info == trans)
-		current->journal_info = NULL;
 	cleanup_transaction(trans, ret);
 
 	return ret;
