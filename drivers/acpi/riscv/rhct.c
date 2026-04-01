@@ -44,9 +44,14 @@ int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const 
 	struct acpi_rhct_isa_string *isa_node;
 	struct acpi_table_rhct *rhct;
 	u32 *hart_info_node_offset;
-	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
+	u32 acpi_cpu_id;
+	int ret;
 
 	BUG_ON(acpi_disabled);
+
+	ret = acpi_get_cpu_uid(cpu, &acpi_cpu_id);
+	if (ret != 0)
+		return ret;
 
 	if (!table) {
 		rhct = acpi_get_rhct();
