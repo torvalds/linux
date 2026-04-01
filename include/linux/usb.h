@@ -21,6 +21,7 @@
 #include <linux/completion.h>	/* for struct completion */
 #include <linux/sched.h>	/* for current && schedule_timeout */
 #include <linux/mutex.h>	/* for struct mutex */
+#include <linux/spinlock.h>	/* for spinlock_t */
 #include <linux/pm_runtime.h>	/* for runtime PM */
 
 struct usb_device;
@@ -636,8 +637,9 @@ struct usb3_lpm_parameters {
  * @do_remote_wakeup:  remote wakeup should be enabled
  * @reset_resume: needs reset instead of resume
  * @port_is_suspended: the upstream port is suspended (L2 or U3)
- * @offload_at_suspend: offload activities during suspend is enabled.
+ * @offload_pm_locked: prevents offload_usage changes during PM transitions.
  * @offload_usage: number of offload activities happening on this usb device.
+ * @offload_lock: protects offload_usage and offload_pm_locked
  * @slot_id: Slot ID assigned by xHCI
  * @l1_params: best effor service latency for USB2 L1 LPM state, and L1 timeout.
  * @u1_params: exit latencies for USB3 U1 LPM state, and hub-initiated timeout.
@@ -726,8 +728,9 @@ struct usb_device {
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
 	unsigned port_is_suspended:1;
-	unsigned offload_at_suspend:1;
+	unsigned offload_pm_locked:1;
 	int offload_usage;
+	spinlock_t offload_lock;
 	enum usb_link_tunnel_mode tunnel_mode;
 	struct device_link *usb4_link;
 
@@ -849,6 +852,7 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 int usb_offload_get(struct usb_device *udev);
 int usb_offload_put(struct usb_device *udev);
 bool usb_offload_check(struct usb_device *udev);
+void usb_offload_set_pm_locked(struct usb_device *udev, bool locked);
 #else
 
 static inline int usb_offload_get(struct usb_device *udev)
@@ -857,6 +861,8 @@ static inline int usb_offload_put(struct usb_device *udev)
 { return 0; }
 static inline bool usb_offload_check(struct usb_device *udev)
 { return false; }
+static inline void usb_offload_set_pm_locked(struct usb_device *udev, bool locked)
+{ }
 #endif
 
 extern int usb_disable_lpm(struct usb_device *udev);

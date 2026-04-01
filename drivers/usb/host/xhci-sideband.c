@@ -291,8 +291,8 @@ EXPORT_SYMBOL_GPL(xhci_sideband_get_event_buffer);
  * Allow other drivers, such as usb controller driver, to check if there are
  * any sideband activity on the host controller. This information could be used
  * for power management or other forms of resource management. The caller should
- * ensure downstream usb devices are all either suspended or marked as
- * "offload_at_suspend" to ensure the correctness of the return value.
+ * ensure downstream usb devices are all marked as "offload_pm_locked" to ensure
+ * the correctness of the return value.
  *
  * Returns true on any active sideband existence, false otherwise.
  */
