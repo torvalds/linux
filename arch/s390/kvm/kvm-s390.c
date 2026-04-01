@@ -629,6 +629,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_IRQFD_RESAMPLE:
 	case KVM_CAP_S390_USER_OPEREXEC:
 	case KVM_CAP_S390_KEYOP:
+	case KVM_CAP_S390_VSIE_ESAMODE:
 		r = 1;
 		break;
 	case KVM_CAP_SET_GUEST_DEBUG2:
@@ -924,6 +925,11 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_USER_OPEREXEC");
 		kvm->arch.user_operexec = 1;
 		icpt_operexc_on_all_vcpus(kvm);
+		r = 0;
+		break;
+	case KVM_CAP_S390_VSIE_ESAMODE:
+		VM_EVENT(kvm, 3, "%s", "ENABLE: CAP_S390_VSIE_ESAMODE");
+		kvm->arch.allow_vsie_esamode = 1;
 		r = 0;
 		break;
 	default:
