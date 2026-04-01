@@ -520,8 +520,6 @@ static int us122l_usb_probe(struct usb_interface *intf,
 		return err;
 	}
 
-	usb_get_intf(usb_ifnum_to_if(device, 0));
-	usb_get_dev(device);
 	*cardp = card;
 	return 0;
 }
@@ -542,11 +540,9 @@ static int snd_us122l_probe(struct usb_interface *intf,
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 1)
 		return 0;
 
-	err = us122l_usb_probe(usb_get_intf(intf), id, &card);
-	if (err < 0) {
-		usb_put_intf(intf);
+	err = us122l_usb_probe(intf, id, &card);
+	if (err < 0)
 		return err;
-	}
 
 	usb_set_intfdata(intf, card);
 	return 0;
@@ -573,10 +569,6 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	list_for_each(p, &us122l->midi_list) {
 		snd_usbmidi_disconnect(p);
 	}
-
-	usb_put_intf(usb_ifnum_to_if(us122l->dev, 0));
-	usb_put_intf(usb_ifnum_to_if(us122l->dev, 1));
-	usb_put_dev(us122l->dev);
 
 	snd_card_free_when_closed(card);
 }

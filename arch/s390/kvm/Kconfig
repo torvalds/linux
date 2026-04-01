@@ -28,9 +28,7 @@ config KVM
 	select HAVE_KVM_INVALID_WAKEUPS
 	select HAVE_KVM_NO_POLL
 	select KVM_VFIO
-	select MMU_NOTIFIER
 	select VIRT_XFER_TO_GUEST_WORK
-	select KVM_GENERIC_MMU_NOTIFIER
 	select KVM_MMU_LOCKLESS_AGING
 	help
 	  Support hosting paravirtualized guest machines using the SIE

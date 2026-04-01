@@ -712,8 +712,8 @@ xfs_fs_destroy_inode(
 	trace_xfs_destroy_inode(ip);
 
 	ASSERT(!rwsem_is_locked(&inode->i_rwsem));
-	XFS_STATS_INC(ip->i_mount, vn_rele);
-	XFS_STATS_INC(ip->i_mount, vn_remove);
+	XFS_STATS_INC(ip->i_mount, xs_inode_destroy);
+	XFS_STATS_INC(ip->i_mount, xs_inode_destroy2);
 	xfs_inode_mark_reclaimable(ip);
 }
 

@@ -169,7 +169,7 @@ void __kvm_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu,
 	 */
 	dsb(ish);
 	__tlbi(vmalle1is);
-	dsb(ish);
+	__tlbi_sync_s1ish_hyp();
 	isb();
 
 	exit_vmid_context(&cxt);
@@ -226,7 +226,7 @@ void __kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
 
 	dsb(ish);
 	__tlbi(vmalle1is);
-	dsb(ish);
+	__tlbi_sync_s1ish_hyp();
 	isb();
 
 	exit_vmid_context(&cxt);
@@ -240,7 +240,7 @@ void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
 	enter_vmid_context(mmu, &cxt, false);
 
 	__tlbi(vmalls12e1is);
-	dsb(ish);
+	__tlbi_sync_s1ish_hyp();
 	isb();
 
 	exit_vmid_context(&cxt);
@@ -266,5 +266,5 @@ void __kvm_flush_vm_context(void)
 	/* Same remark as in enter_vmid_context() */
 	dsb(ish);
 	__tlbi(alle1is);
-	dsb(ish);
+	__tlbi_sync_s1ish_hyp();
 }

@@ -509,7 +509,7 @@ next_chunk:
 			if (r->sdiag_family != AF_UNSPEC &&
 			    sk->sk_family != r->sdiag_family)
 				goto next_normal;
-			if (r->id.idiag_sport != htons(sk->sk_num) &&
+			if (r->id.idiag_sport != htons(READ_ONCE(sk->sk_num)) &&
 			    r->id.idiag_sport)
 				goto next_normal;
 			if (r->id.idiag_dport != sk->sk_dport &&

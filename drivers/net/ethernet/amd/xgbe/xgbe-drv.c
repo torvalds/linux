@@ -1120,7 +1120,6 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned long flags;
 
 	DBGPR("-->xgbe_powerdown\n");
 
@@ -1130,8 +1129,6 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 		DBGPR("<--xgbe_powerdown\n");
 		return -EINVAL;
 	}
-
-	spin_lock_irqsave(&pdata->lock, flags);
 
 	if (caller == XGMAC_DRIVER_CONTEXT)
 		netif_device_detach(netdev);
@@ -1148,8 +1145,6 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 
 	pdata->power_down = 1;
 
-	spin_unlock_irqrestore(&pdata->lock, flags);
-
 	DBGPR("<--xgbe_powerdown\n");
 
 	return 0;
@@ -1159,7 +1154,6 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned long flags;
 
 	DBGPR("-->xgbe_powerup\n");
 
@@ -1169,8 +1163,6 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 		DBGPR("<--xgbe_powerup\n");
 		return -EINVAL;
 	}
-
-	spin_lock_irqsave(&pdata->lock, flags);
 
 	pdata->power_down = 0;
 
@@ -1185,8 +1177,6 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
-
-	spin_unlock_irqrestore(&pdata->lock, flags);
 
 	DBGPR("<--xgbe_powerup\n");
 
@@ -1281,19 +1271,24 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	if (ret)
 		goto err_napi;
 
+	/* Reset the phy settings */
+	ret = xgbe_phy_reset(pdata);
+	if (ret)
+		goto err_irqs;
+
+	/* Start the phy */
 	ret = phy_if->phy_start(pdata);
 	if (ret)
 		goto err_irqs;
 
 	hw_if->enable_tx(pdata);
 	hw_if->enable_rx(pdata);
+	/* Synchronize flag with hardware state after enabling TX/RX.
+	 * This prevents stale state after device restart cycles.
+	 */
+	pdata->data_path_stopped = false;
 
 	udp_tunnel_nic_reset_ntf(netdev);
-
-	/* Reset the phy settings */
-	ret = xgbe_phy_reset(pdata);
-	if (ret)
-		goto err_txrx;
 
 	netif_tx_start_all_queues(netdev);
 
@@ -1303,10 +1298,6 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	clear_bit(XGBE_STOPPED, &pdata->dev_state);
 
 	return 0;
-
-err_txrx:
-	hw_if->disable_rx(pdata);
-	hw_if->disable_tx(pdata);
 
 err_irqs:
 	xgbe_free_irqs(pdata);

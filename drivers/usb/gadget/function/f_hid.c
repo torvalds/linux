@@ -1207,9 +1207,11 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!hidg->interval_user_set) {
 		hidg_fs_in_ep_desc.bInterval = 10;
 		hidg_hs_in_ep_desc.bInterval = 4;
+		hidg_ss_in_ep_desc.bInterval = 4;
 	} else {
 		hidg_fs_in_ep_desc.bInterval = hidg->interval;
 		hidg_hs_in_ep_desc.bInterval = hidg->interval;
+		hidg_ss_in_ep_desc.bInterval = hidg->interval;
 	}
 
 	hidg_ss_out_comp_desc.wBytesPerInterval =
@@ -1239,9 +1241,11 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 		if (!hidg->interval_user_set) {
 			hidg_fs_out_ep_desc.bInterval = 10;
 			hidg_hs_out_ep_desc.bInterval = 4;
+			hidg_ss_out_ep_desc.bInterval = 4;
 		} else {
 			hidg_fs_out_ep_desc.bInterval = hidg->interval;
 			hidg_hs_out_ep_desc.bInterval = hidg->interval;
+			hidg_ss_out_ep_desc.bInterval = hidg->interval;
 		}
 		status = usb_assign_descriptors(f,
 			    hidg_fs_descriptors_intout,

@@ -623,12 +623,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = !!(hv_enabled && kvmppc_hv_ops->enable_nested &&
 		       !kvmppc_hv_ops->enable_nested(NULL));
 		break;
-#endif
-	case KVM_CAP_SYNC_MMU:
-		BUILD_BUG_ON(!IS_ENABLED(CONFIG_KVM_GENERIC_MMU_NOTIFIER));
-		r = 1;
-		break;
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_HTAB_FD:
 		r = hv_enabled;
 		break;

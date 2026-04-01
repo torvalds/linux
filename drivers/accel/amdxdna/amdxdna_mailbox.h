@@ -74,9 +74,16 @@ struct mailbox *xdnam_mailbox_create(struct drm_device *ddev,
 				     const struct xdna_mailbox_res *res);
 
 /*
- * xdna_mailbox_create_channel() -- Create a mailbox channel instance
+ * xdna_mailbox_alloc_channel() -- alloc a mailbox channel
  *
- * @mailbox: the handle return from xdna_mailbox_create()
+ * @mb: mailbox handle
+ */
+struct mailbox_channel *xdna_mailbox_alloc_channel(struct mailbox *mb);
+
+/*
+ * xdna_mailbox_start_channel() -- start a mailbox channel instance
+ *
+ * @mb_chann: the handle return from xdna_mailbox_alloc_channel()
  * @x2i: host to firmware mailbox resources
  * @i2x: firmware to host mailbox resources
  * @xdna_mailbox_intr_reg: register addr of MSI-X interrupt
@@ -84,28 +91,24 @@ struct mailbox *xdnam_mailbox_create(struct drm_device *ddev,
  *
  * Return: If success, return a handle of mailbox channel. Otherwise, return NULL.
  */
-struct mailbox_channel *
-xdna_mailbox_create_channel(struct mailbox *mailbox,
-			    const struct xdna_mailbox_chann_res *x2i,
-			    const struct xdna_mailbox_chann_res *i2x,
-			    u32 xdna_mailbox_intr_reg,
-			    int mb_irq);
+int
+xdna_mailbox_start_channel(struct mailbox_channel *mb_chann,
+			   const struct xdna_mailbox_chann_res *x2i,
+			   const struct xdna_mailbox_chann_res *i2x,
+			   u32 xdna_mailbox_intr_reg,
+			   int mb_irq);
 
 /*
- * xdna_mailbox_destroy_channel() -- destroy mailbox channel
+ * xdna_mailbox_free_channel() -- free mailbox channel
  *
  * @mailbox_chann: the handle return from xdna_mailbox_create_channel()
- *
- * Return: if success, return 0. otherwise return error code
  */
-int xdna_mailbox_destroy_channel(struct mailbox_channel *mailbox_chann);
+void xdna_mailbox_free_channel(struct mailbox_channel *mailbox_chann);
 
 /*
  * xdna_mailbox_stop_channel() -- stop mailbox channel
  *
  * @mailbox_chann: the handle return from xdna_mailbox_create_channel()
- *
- * Return: if success, return 0. otherwise return error code
  */
 void xdna_mailbox_stop_channel(struct mailbox_channel *mailbox_chann);
 

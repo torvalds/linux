@@ -1655,13 +1655,34 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 	XE_WARN_ON(!level);
 	/* Check for leaf node */
 	if (xe_walk->prl && xe_page_reclaim_list_valid(xe_walk->prl) &&
-	    (!xe_child->base.children || !xe_child->base.children[first])) {
+	    xe_child->level <= MAX_HUGEPTE_LEVEL) {
 		struct iosys_map *leaf_map = &xe_child->bo->vmap;
 		pgoff_t count = xe_pt_num_entries(addr, next, xe_child->level, walk);
 
 		for (pgoff_t i = 0; i < count; i++) {
-			u64 pte = xe_map_rd(xe, leaf_map, (first + i) * sizeof(u64), u64);
+			u64 pte;
 			int ret;
+
+			/*
+			 * If not a leaf pt, skip unless non-leaf pt is interleaved between
+			 * leaf ptes which causes the page walk to skip over the child leaves
+			 */
+			if (xe_child->base.children && xe_child->base.children[first + i]) {
+				u64 pt_size = 1ULL << walk->shifts[xe_child->level];
+				bool edge_pt = (i == 0 && !IS_ALIGNED(addr, pt_size)) ||
+					       (i == count - 1 && !IS_ALIGNED(next, pt_size));
+
+				if (!edge_pt) {
+					xe_page_reclaim_list_abort(xe_walk->tile->primary_gt,
+								   xe_walk->prl,
+								   "PT is skipped by walk at level=%u offset=%lu",
+								   xe_child->level, first + i);
+					break;
+				}
+				continue;
+			}
+
+			pte = xe_map_rd(xe, leaf_map, (first + i) * sizeof(u64), u64);
 
 			/*
 			 * In rare scenarios, pte may not be written yet due to racy conditions.
@@ -1674,9 +1695,8 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 			}
 
 			/* Ensure it is a defined page */
-			xe_tile_assert(xe_walk->tile,
-				       xe_child->level == 0 ||
-				       (pte & (XE_PTE_PS64 | XE_PDE_PS_2M | XE_PDPE_PS_1G)));
+			xe_tile_assert(xe_walk->tile, xe_child->level == 0 ||
+				       (pte & (XE_PDE_PS_2M | XE_PDPE_PS_1G)));
 
 			/* An entry should be added for 64KB but contigious 4K have XE_PTE_PS64 */
 			if (pte & XE_PTE_PS64)
@@ -1701,11 +1721,11 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 	killed = xe_pt_check_kill(addr, next, level - 1, xe_child, action, walk);
 
 	/*
-	 * Verify PRL is active and if entry is not a leaf pte (base.children conditions),
-	 * there is a potential need to invalidate the PRL if any PTE (num_live) are dropped.
+	 * Verify if any PTE are potentially dropped at non-leaf levels, either from being
+	 * killed or the page walk covers the region.
 	 */
-	if (xe_walk->prl && level > 1 && xe_child->num_live &&
-	    xe_child->base.children && xe_child->base.children[first]) {
+	if (xe_walk->prl && xe_page_reclaim_list_valid(xe_walk->prl) &&
+	    xe_child->level > MAX_HUGEPTE_LEVEL && xe_child->num_live) {
 		bool covered = xe_pt_covers(addr, next, xe_child->level, &xe_walk->base);
 
 		/*

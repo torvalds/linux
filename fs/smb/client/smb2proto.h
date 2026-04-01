@@ -167,9 +167,6 @@ int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 		    struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		    u64 persistent_fid, u64 volatile_fid);
 void SMB2_flush_free(struct smb_rqst *rqst);
-int SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
-			    u64 persistent_fid, u64 volatile_fid,
-			    struct smb311_posix_qinfo *data, u32 *plen);
 int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		    u64 persistent_fid, u64 volatile_fid,
 		    struct smb2_file_all_info *data);

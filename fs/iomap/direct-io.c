@@ -87,6 +87,19 @@ static inline enum fserror_type iomap_dio_err_type(const struct iomap_dio *dio)
 	return FSERR_DIRECTIO_READ;
 }
 
+static inline bool should_report_dio_fserror(const struct iomap_dio *dio)
+{
+	switch (dio->error) {
+	case 0:
+	case -EAGAIN:
+	case -ENOTBLK:
+		/* don't send fsnotify for success or magic retry codes */
+		return false;
+	default:
+		return true;
+	}
+}
+
 ssize_t iomap_dio_complete(struct iomap_dio *dio)
 {
 	const struct iomap_dio_ops *dops = dio->dops;
@@ -96,7 +109,7 @@ ssize_t iomap_dio_complete(struct iomap_dio *dio)
 
 	if (dops && dops->end_io)
 		ret = dops->end_io(iocb, dio->size, ret, dio->flags);
-	if (dio->error)
+	if (should_report_dio_fserror(dio))
 		fserror_report_io(file_inode(iocb->ki_filp),
 				  iomap_dio_err_type(dio), offset, dio->size,
 				  dio->error, GFP_NOFS);

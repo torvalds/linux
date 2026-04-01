@@ -814,6 +814,9 @@ retry:
 
 static inline void vgic_fold_lr_state(struct kvm_vcpu *vcpu)
 {
+	if (!*host_data_ptr(last_lr_irq))
+		return;
+
 	if (kvm_vgic_global_state.type == VGIC_V2)
 		vgic_v2_fold_lr_state(vcpu);
 	else
@@ -960,10 +963,13 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 	if (irqs_outside_lrs(&als))
 		vgic_sort_ap_list(vcpu);
 
+	*host_data_ptr(last_lr_irq) = NULL;
+
 	list_for_each_entry(irq, &vgic_cpu->ap_list_head, ap_list) {
 		scoped_guard(raw_spinlock,  &irq->irq_lock) {
 			if (likely(vgic_target_oracle(irq) == vcpu)) {
 				vgic_populate_lr(vcpu, irq, count++);
+				*host_data_ptr(last_lr_irq) = irq;
 			}
 		}
 

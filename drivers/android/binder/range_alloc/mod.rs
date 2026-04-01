@@ -188,11 +188,11 @@ impl<T> RangeAllocator<T> {
                 self.reserve_new(args)
             }
             Impl::Array(array) => {
-                let offset =
+                let (offset, oneway_spam_detected) =
                     array.reserve_new(args.debug_id, args.size, args.is_oneway, args.pid)?;
                 Ok(ReserveNew::Success(ReserveNewSuccess {
                     offset,
-                    oneway_spam_detected: false,
+                    oneway_spam_detected,
                     _empty_array_alloc: args.empty_array_alloc,
                     _new_tree_alloc: args.new_tree_alloc,
                     _tree_alloc: args.tree_alloc,

@@ -109,6 +109,7 @@ static int of_get_dml_pipe_index(struct device_node *np, const char *name)
 				       &dma_spec))
 		return -ENODEV;
 
+	of_node_put(dma_spec.np);
 	if (dma_spec.args_count)
 		return dma_spec.args[0];
 

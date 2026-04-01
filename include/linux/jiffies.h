@@ -434,8 +434,44 @@ extern unsigned long preset_lpj;
 /*
  * Convert various time units to each other:
  */
-extern unsigned int jiffies_to_msecs(const unsigned long j);
-extern unsigned int jiffies_to_usecs(const unsigned long j);
+
+#if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
+/**
+ * jiffies_to_msecs - Convert jiffies to milliseconds
+ * @j: jiffies value
+ *
+ * This inline version takes care of HZ in {100,250,1000}.
+ *
+ * Return: milliseconds value
+ */
+static inline unsigned int jiffies_to_msecs(const unsigned long j)
+{
+	return (MSEC_PER_SEC / HZ) * j;
+}
+#else
+unsigned int jiffies_to_msecs(const unsigned long j);
+#endif
+
+#if !(USEC_PER_SEC % HZ)
+/**
+ * jiffies_to_usecs - Convert jiffies to microseconds
+ * @j: jiffies value
+ *
+ * Return: microseconds value
+ */
+static inline unsigned int jiffies_to_usecs(const unsigned long j)
+{
+	/*
+	 * Hz usually doesn't go much further MSEC_PER_SEC.
+	 * jiffies_to_usecs() and usecs_to_jiffies() depend on that.
+	 */
+	BUILD_BUG_ON(HZ > USEC_PER_SEC);
+
+	return (USEC_PER_SEC / HZ) * j;
+}
+#else
+unsigned int jiffies_to_usecs(const unsigned long j);
+#endif
 
 /**
  * jiffies_to_nsecs - Convert jiffies to nanoseconds

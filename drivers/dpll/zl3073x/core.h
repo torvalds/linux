@@ -35,6 +35,7 @@ struct zl3073x_dpll;
  * @dev: pointer to device
  * @regmap: regmap to access device registers
  * @multiop_lock: to serialize multiple register operations
+ * @chip_id: chip ID read from hardware
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
@@ -48,6 +49,7 @@ struct zl3073x_dev {
 	struct device		*dev;
 	struct regmap		*regmap;
 	struct mutex		multiop_lock;
+	u16			chip_id;
 
 	/* Invariants */
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
@@ -143,6 +145,32 @@ int zl3073x_write_hwreg_seq(struct zl3073x_dev *zldev,
  *****************/
 
 int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel);
+
+/**
+ * zl3073x_dev_is_ref_phase_comp_32bit - check ref phase comp register size
+ * @zldev: pointer to zl3073x device
+ *
+ * Some chip IDs have a 32-bit wide ref_phase_offset_comp register instead
+ * of the default 48-bit.
+ *
+ * Return: true if the register is 32-bit, false if 48-bit
+ */
+static inline bool
+zl3073x_dev_is_ref_phase_comp_32bit(struct zl3073x_dev *zldev)
+{
+	switch (zldev->chip_id) {
+	case 0x0E30:
+	case 0x0E93:
+	case 0x0E94:
+	case 0x0E95:
+	case 0x0E96:
+	case 0x0E97:
+	case 0x1F60:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static inline bool
 zl3073x_is_n_pin(u8 id)

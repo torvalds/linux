@@ -61,6 +61,7 @@ static void test_reenter_update(void)
 
 	ASSERT_EQ(skel->bss->update_err, -EDEADLK, "no reentrancy");
 out:
+	free(value);
 	htab_update__destroy(skel);
 }
 
