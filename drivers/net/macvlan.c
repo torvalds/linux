@@ -360,6 +360,9 @@ static void macvlan_broadcast_enqueue(struct macvlan_port *port,
 	struct sk_buff *nskb;
 	int err = -ENOMEM;
 
+	if (skb_queue_len_lockless(&port->bc_queue) >= bc_queue_len_used)
+		goto err;
+
 	nskb = skb_clone(skb, GFP_ATOMIC);
 	if (!nskb)
 		goto err;
