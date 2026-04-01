@@ -856,7 +856,6 @@ static int reset_add_gpio_aux_device(struct device *parent,
 	ret = __auxiliary_device_add(adev, "reset");
 	if (ret) {
 		auxiliary_device_uninit(adev);
-		kfree(adev);
 		return ret;
 	}
 
