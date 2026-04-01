@@ -445,8 +445,11 @@ void vgic_v5_flush_ppi_state(struct kvm_vcpu *vcpu)
 
 		irq = vgic_get_vcpu_irq(vcpu, intid);
 
-		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock)
+		scoped_guard(raw_spinlock_irqsave, &irq->irq_lock) {
 			__assign_bit(i, pendr, irq_is_pending(irq));
+			if (irq->config == VGIC_CONFIG_EDGE)
+				irq->pending_latch = false;
+		}
 
 		vgic_put_irq(vcpu->kvm, irq);
 	}
