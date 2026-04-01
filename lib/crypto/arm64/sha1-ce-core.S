@@ -80,10 +80,10 @@ SYM_FUNC_START(sha1_ce_transform)
 0:	ld1		{v8.4s-v11.4s}, [x1], #64
 	sub		x2, x2, #1
 
-CPU_LE(	rev32		v8.16b, v8.16b		)
-CPU_LE(	rev32		v9.16b, v9.16b		)
-CPU_LE(	rev32		v10.16b, v10.16b	)
-CPU_LE(	rev32		v11.16b, v11.16b	)
+	rev32		v8.16b, v8.16b
+	rev32		v9.16b, v9.16b
+	rev32		v10.16b, v10.16b
+	rev32		v11.16b, v11.16b
 
 	add		t0.4s, v8.4s, k0.4s
 	mov		dg0v.16b, dgav.16b

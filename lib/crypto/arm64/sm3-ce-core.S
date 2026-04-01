@@ -91,10 +91,10 @@ SYM_FUNC_START(sm3_ce_transform)
 	mov		v15.16b, v8.16b
 	mov		v16.16b, v9.16b
 
-CPU_LE(	rev32		v0.16b, v0.16b		)
-CPU_LE(	rev32		v1.16b, v1.16b		)
-CPU_LE(	rev32		v2.16b, v2.16b		)
-CPU_LE(	rev32		v3.16b, v3.16b		)
+	rev32		v0.16b, v0.16b
+	rev32		v1.16b, v1.16b
+	rev32		v2.16b, v2.16b
+	rev32		v3.16b, v3.16b
 
 	ext		v11.16b, v13.16b, v13.16b, #4
 

@@ -94,10 +94,10 @@ SYM_FUNC_START(sha256_ce_transform)
 0:	ld1		{v16.4s-v19.4s}, [x1], #64
 	sub		x2, x2, #1
 
-CPU_LE(	rev32		v16.16b, v16.16b	)
-CPU_LE(	rev32		v17.16b, v17.16b	)
-CPU_LE(	rev32		v18.16b, v18.16b	)
-CPU_LE(	rev32		v19.16b, v19.16b	)
+	rev32		v16.16b, v16.16b
+	rev32		v17.16b, v17.16b
+	rev32		v18.16b, v18.16b
+	rev32		v19.16b, v19.16b
 
 	add		t0.4s, v16.4s, v0.4s
 	mov		dg0v.16b, dgav.16b
@@ -289,14 +289,14 @@ SYM_FUNC_START(sha256_ce_finup2x)
 	ld1		{v20.4s-v23.4s}, [data2], #64
 .Lfinup2x_loop_have_data:
 	// Convert the words of the data blocks from big endian.
-CPU_LE(	rev32		v16.16b, v16.16b	)
-CPU_LE(	rev32		v17.16b, v17.16b	)
-CPU_LE(	rev32		v18.16b, v18.16b	)
-CPU_LE(	rev32		v19.16b, v19.16b	)
-CPU_LE(	rev32		v20.16b, v20.16b	)
-CPU_LE(	rev32		v21.16b, v21.16b	)
-CPU_LE(	rev32		v22.16b, v22.16b	)
-CPU_LE(	rev32		v23.16b, v23.16b	)
+	rev32		v16.16b, v16.16b
+	rev32		v17.16b, v17.16b
+	rev32		v18.16b, v18.16b
+	rev32		v19.16b, v19.16b
+	rev32		v20.16b, v20.16b
+	rev32		v21.16b, v21.16b
+	rev32		v22.16b, v22.16b
+	rev32		v23.16b, v23.16b
 .Lfinup2x_loop_have_bswapped_data:
 
 	// Save the original state for each block.
@@ -336,11 +336,8 @@ CPU_LE(	rev32		v23.16b, v23.16b	)
 	sub		w8, len, #64		// w8 = len - 64
 	add		data1, data1, w8, sxtw	// data1 += len - 64
 	add		data2, data2, w8, sxtw	// data2 += len - 64
-CPU_LE(	mov		x9, #0x80		)
-CPU_LE(	fmov		d16, x9			)
-CPU_BE(	movi		v16.16b, #0		)
-CPU_BE(	mov		x9, #0x8000000000000000	)
-CPU_BE(	mov		v16.d[1], x9		)
+	mov		x9, #0x80
+	fmov		d16, x9
 	movi		v17.16b, #0
 	stp		q16, q17, [sp, #64]
 	stp		q17, q17, [sp, #96]
@@ -348,7 +345,7 @@ CPU_BE(	mov		v16.d[1], x9		)
 	cmp		len, #56
 	b.ge		1f		// will count spill into its own block?
 	lsl		count, count, #3
-CPU_LE(	rev		count, count		)
+	rev		count, count
 	str		count, [x9, #56]
 	mov		final_step, #2	// won't need count-only block
 	b		2f
@@ -393,10 +390,10 @@ CPU_LE(	rev		count, count		)
 
 .Lfinup2x_done:
 	// Write the two digests with all bytes in the correct order.
-CPU_LE(	rev32		state0_a.16b, state0_a.16b	)
-CPU_LE(	rev32		state1_a.16b, state1_a.16b	)
-CPU_LE(	rev32		state0_b.16b, state0_b.16b	)
-CPU_LE(	rev32		state1_b.16b, state1_b.16b	)
+	rev32		state0_a.16b, state0_a.16b
+	rev32		state1_a.16b, state1_a.16b
+	rev32		state0_b.16b, state0_b.16b
+	rev32		state1_b.16b, state1_b.16b
 	st1		{state0_a.4s-state1_a.4s}, [out1]
 	st1		{state0_b.4s-state1_b.4s}, [out2]
 	add		sp, sp, #128

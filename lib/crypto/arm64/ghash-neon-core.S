@@ -192,7 +192,7 @@ SYM_FUNC_START(pmull_ghash_update_p8)
 	sub		x0, x0, #1
 
 	/* multiply XL by SHASH in GF(2^128) */
-CPU_LE(	rev64		T1.16b, T1.16b	)
+	rev64		T1.16b, T1.16b
 
 	ext		T2.16b, XL.16b, XL.16b, #8
 	ext		IN1.16b, T1.16b, T1.16b, #8

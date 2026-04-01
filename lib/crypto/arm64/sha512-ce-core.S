@@ -110,14 +110,14 @@ SYM_FUNC_START(sha512_ce_transform)
 	ld1		{v16.2d-v19.2d}, [x1], #64
 	sub		x2, x2, #1
 
-CPU_LE(	rev64		v12.16b, v12.16b	)
-CPU_LE(	rev64		v13.16b, v13.16b	)
-CPU_LE(	rev64		v14.16b, v14.16b	)
-CPU_LE(	rev64		v15.16b, v15.16b	)
-CPU_LE(	rev64		v16.16b, v16.16b	)
-CPU_LE(	rev64		v17.16b, v17.16b	)
-CPU_LE(	rev64		v18.16b, v18.16b	)
-CPU_LE(	rev64		v19.16b, v19.16b	)
+	rev64		v12.16b, v12.16b
+	rev64		v13.16b, v13.16b
+	rev64		v14.16b, v14.16b
+	rev64		v15.16b, v15.16b
+	rev64		v16.16b, v16.16b
+	rev64		v17.16b, v17.16b
+	rev64		v18.16b, v18.16b
+	rev64		v19.16b, v19.16b
 
 	mov		x4, x3				// rc pointer
 
