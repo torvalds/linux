@@ -767,6 +767,22 @@ static ssize_t extended_linear_cache_size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(extended_linear_cache_size);
 
+static ssize_t locked_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	int rc;
+
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return rc;
+
+	rc = test_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+	return sysfs_emit(buf, "%d\n", rc);
+}
+static DEVICE_ATTR_RO(locked);
+
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
 	&dev_attr_commit.attr,
@@ -776,6 +792,7 @@ static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_size.attr,
 	&dev_attr_mode.attr,
 	&dev_attr_extended_linear_cache_size.attr,
+	&dev_attr_locked.attr,
 	NULL,
 };
 

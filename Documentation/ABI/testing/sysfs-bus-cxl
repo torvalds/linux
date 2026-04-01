@@ -508,6 +508,19 @@ Description:
 		(RO) The size of extended linear cache, if there is an extended
 		linear cache. Otherwise the attribute will not be visible.
 
+
+What:		/sys/bus/cxl/devices/regionZ/locked
+Date:		Mar, 2026
+KernelVersion:	v7.1
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The CXL driver has the capability to lock a region based on
+		a BIOS or platform dependent configuration. Regions created as
+		locked are never permitted to be destroyed. Resets to participating
+		decoders will not result in a region destroy and will not free the
+		decoder resources.
+
+
 What:		/sys/bus/cxl/devices/regionZ/mode
 Date:		January, 2023
 KernelVersion:	v6.3
