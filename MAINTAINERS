@@ -21075,8 +21075,7 @@ F:	include/uapi/linux/atmppp.h
 F:	net/atm/pppoatm.c
 
 PPP OVER ETHERNET
-M:	Michal Ostrowski <mostrows@earthlink.net>
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ppp/pppoe.c
 F:	drivers/net/ppp/pppox.c
 
