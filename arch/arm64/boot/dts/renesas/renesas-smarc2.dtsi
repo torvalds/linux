@@ -96,6 +96,10 @@
 	clock-frequency = <400000>;
 };
 
+&pcie {
+	status = "okay";
+};
+
 &scif0 {
 	status = "okay";
 };
@@ -105,13 +109,5 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 
-	status = "okay";
-};
-
-&usb3_phy {
-	status = "okay";
-};
-
-&xhci {
 	status = "okay";
 };

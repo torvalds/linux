@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Overlay for Olimex MIPI-HDMI adapter connected to J4:DSI
+ * on R-Car V4H ES3.0 Sparrow Hawk board
+ *
+ * Copyright (C) 2026 Scott Murray <scott.murray@konsulko.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "HDMI1";
+		type = "a";
+		ddc-i2c-bus = <&i2c0_mux3>;
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&lt8912b_out>;
+			};
+		};
+	};
+
+	reg_vr1: regulator-vr1 {
+		compatible = "regulator-fixed";
+		regulator-name = "VR1-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		vin-supply = <&reg_3p3v>;
+	};
+};
+
+&i2c0_mux3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	hdmi-bridge@48 {
+		compatible = "lontium,lt8912b";
+		reg = <0x48>;
+		vcchdmipll-supply = <&reg_vr1>;
+		vcchdmitx-supply = <&reg_vr1>;
+		vcclvdspll-supply = <&reg_vr1>;
+		vcclvdstx-supply = <&reg_vr1>;
+		vccmipirx-supply = <&reg_vr1>;
+		vccsysclk-supply = <&reg_vr1>;
+		vdd-supply = <&reg_vr1>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				hdmi_out_in: endpoint {
+					data-lanes = <1 2>;
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lt8912b_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+};
+
+&dsi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi0_out: endpoint {
+				remote-endpoint = <&hdmi_out_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};

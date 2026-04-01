@@ -8,6 +8,24 @@
 #include <dt-bindings/clock/renesas,r9a09g087-cpg-mssr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+/* The IRQ_NS lines start at offset 16 in the ICU interrupt space */
+#define RZN2H_IRQ0	16
+#define RZN2H_IRQ1	17
+#define RZN2H_IRQ2	18
+#define RZN2H_IRQ3	19
+#define RZN2H_IRQ4	20
+#define RZN2H_IRQ5	21
+#define RZN2H_IRQ6	22
+#define RZN2H_IRQ7	23
+#define RZN2H_IRQ8	24
+#define RZN2H_IRQ9	25
+#define RZN2H_IRQ10	26
+#define RZN2H_IRQ11	27
+#define RZN2H_IRQ12	28
+#define RZN2H_IRQ13	29
+#define RZN2H_IRQ14	30
+#define RZN2H_IRQ15	31
+
 / {
 	compatible = "renesas,r9a09g087";
 	#address-cells = <2>;
