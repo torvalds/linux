@@ -345,7 +345,7 @@ static int kernfs_set_super(struct super_block *sb, struct fs_context *fc)
  *
  * Return: the namespace tag associated with kernfs super_block @sb.
  */
-const void *kernfs_super_ns(struct super_block *sb)
+const struct ns_common *kernfs_super_ns(struct super_block *sb)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
 

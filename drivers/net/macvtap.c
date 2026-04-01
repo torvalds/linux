@@ -35,10 +35,11 @@ struct macvtap_dev {
  */
 static dev_t macvtap_major;
 
-static const void *macvtap_net_namespace(const struct device *d)
+static const struct ns_common *macvtap_net_namespace(const struct device *d)
 {
 	const struct net_device *dev = to_net_dev(d->parent);
-	return dev_net(dev);
+
+	return to_ns_common(dev_net(dev));
 }
 
 static struct class macvtap_class = {

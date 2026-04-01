@@ -272,7 +272,7 @@ static const struct kernfs_ops sysfs_bin_kfops_mmap = {
 
 int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 		const struct attribute *attr, umode_t mode, kuid_t uid,
-		kgid_t gid, const void *ns)
+		kgid_t gid, const struct ns_common *ns)
 {
 	struct kobject *kobj = parent->priv;
 	const struct sysfs_ops *sysfs_ops = kobj->ktype->sysfs_ops;
@@ -322,7 +322,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 
 int sysfs_add_bin_file_mode_ns(struct kernfs_node *parent,
 		const struct bin_attribute *battr, umode_t mode, size_t size,
-		kuid_t uid, kgid_t gid, const void *ns)
+		kuid_t uid, kgid_t gid, const struct ns_common *ns)
 {
 	const struct attribute *attr = &battr->attr;
 	struct lock_class_key *key = NULL;
@@ -362,7 +362,7 @@ int sysfs_add_bin_file_mode_ns(struct kernfs_node *parent,
  * @ns: namespace the new file should belong to
  */
 int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
-			 const void *ns)
+			 const struct ns_common *ns)
 {
 	kuid_t uid;
 	kgid_t gid;
@@ -505,7 +505,7 @@ EXPORT_SYMBOL_GPL(sysfs_unbreak_active_protection);
  * Hash the attribute name and namespace tag and kill the victim.
  */
 void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
-			  const void *ns)
+			  const struct ns_common *ns)
 {
 	struct kernfs_node *parent = kobj->sd;
 

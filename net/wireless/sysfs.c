@@ -154,11 +154,11 @@ static SIMPLE_DEV_PM_OPS(wiphy_pm_ops, wiphy_suspend, wiphy_resume);
 #define WIPHY_PM_OPS NULL
 #endif
 
-static const void *wiphy_namespace(const struct device *d)
+static const struct ns_common *wiphy_namespace(const struct device *d)
 {
 	struct wiphy *wiphy = container_of(d, struct wiphy, dev);
 
-	return wiphy_net(wiphy);
+	return to_ns_common(wiphy_net(wiphy));
 }
 
 struct class ieee80211_class = {

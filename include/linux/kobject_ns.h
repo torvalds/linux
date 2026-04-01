@@ -16,6 +16,7 @@
 #ifndef _LINUX_KOBJECT_NS_H
 #define _LINUX_KOBJECT_NS_H
 
+struct ns_common;
 struct sock;
 struct kobject;
 
@@ -39,10 +40,10 @@ enum kobj_ns_type {
 struct kobj_ns_type_operations {
 	enum kobj_ns_type type;
 	bool (*current_may_mount)(void);
-	void *(*grab_current_ns)(void);
-	const void *(*netlink_ns)(struct sock *sk);
-	const void *(*initial_ns)(void);
-	void (*drop_ns)(void *);
+	struct ns_common *(*grab_current_ns)(void);
+	const struct ns_common *(*netlink_ns)(struct sock *sk);
+	const struct ns_common *(*initial_ns)(void);
+	void (*drop_ns)(struct ns_common *);
 };
 
 int kobj_ns_type_register(const struct kobj_ns_type_operations *ops);
@@ -51,7 +52,7 @@ const struct kobj_ns_type_operations *kobj_child_ns_ops(const struct kobject *pa
 const struct kobj_ns_type_operations *kobj_ns_ops(const struct kobject *kobj);
 
 bool kobj_ns_current_may_mount(enum kobj_ns_type type);
-void *kobj_ns_grab_current(enum kobj_ns_type type);
-void kobj_ns_drop(enum kobj_ns_type type, void *ns);
+struct ns_common *kobj_ns_grab_current(enum kobj_ns_type type);
+void kobj_ns_drop(enum kobj_ns_type type, struct ns_common *ns);
 
 #endif /* _LINUX_KOBJECT_NS_H */

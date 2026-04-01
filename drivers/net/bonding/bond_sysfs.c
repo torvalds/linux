@@ -808,7 +808,7 @@ int __net_init bond_create_sysfs(struct bond_net *bn)
 	sysfs_attr_init(&bn->class_attr_bonding_masters.attr);
 
 	ret = netdev_class_create_file_ns(&bn->class_attr_bonding_masters,
-					  bn->net);
+					  to_ns_common(bn->net));
 	/* Permit multiple loads of the module by ignoring failures to
 	 * create the bonding_masters sysfs file.  Bonding devices
 	 * created by second or subsequent loads of the module will
@@ -835,7 +835,7 @@ int __net_init bond_create_sysfs(struct bond_net *bn)
 /* Remove /sys/class/net/bonding_masters. */
 void __net_exit bond_destroy_sysfs(struct bond_net *bn)
 {
-	netdev_class_remove_file_ns(&bn->class_attr_bonding_masters, bn->net);
+	netdev_class_remove_file_ns(&bn->class_attr_bonding_masters, to_ns_common(bn->net));
 }
 
 /* Initialize sysfs for each bond.  This sets up and registers

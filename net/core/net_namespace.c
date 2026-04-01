@@ -540,12 +540,10 @@ void net_passive_dec(struct net *net)
 	}
 }
 
-void net_drop_ns(void *p)
+void net_drop_ns(struct ns_common *ns)
 {
-	struct net *net = (struct net *)p;
-
-	if (net)
-		net_passive_dec(net);
+	if (ns)
+		net_passive_dec(to_net_ns(ns));
 }
 
 struct net *copy_net_ns(u64 flags,
