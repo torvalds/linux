@@ -306,16 +306,19 @@ static int do_read_bitmap(struct feat_fd *ff, unsigned long **pset, u64 *psize)
 	return 0;
 }
 
-#ifdef HAVE_LIBTRACEEVENT
 static int write_tracing_data(struct feat_fd *ff,
-			      struct evlist *evlist)
+			      struct evlist *evlist __maybe_unused)
 {
 	if (WARN(ff->buf, "Error: calling %s in pipe-mode.\n", __func__))
 		return -1;
 
+#ifdef HAVE_LIBTRACEEVENT
 	return read_tracing_data(ff->fd, &evlist->core.entries);
-}
+#else
+	pr_err("ERROR: Trying to write tracing data without libtraceevent support.\n");
+	return -1;
 #endif
+}
 
 static int write_build_id(struct feat_fd *ff,
 			  struct evlist *evlist __maybe_unused)
@@ -1026,10 +1029,10 @@ static int write_dir_format(struct feat_fd *ff,
 	return do_write(ff, &data->dir.version, sizeof(data->dir.version));
 }
 
-#ifdef HAVE_LIBBPF_SUPPORT
-static int write_bpf_prog_info(struct feat_fd *ff,
+static int write_bpf_prog_info(struct feat_fd *ff  __maybe_unused,
 			       struct evlist *evlist __maybe_unused)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
 	struct rb_node *next;
@@ -1067,11 +1070,16 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 out:
 	up_read(&env->bpf_progs.lock);
 	return ret;
+#else
+	pr_err("ERROR: Trying to write bpf_prog_info without libbpf support.\n");
+	return -1;
+#endif // HAVE_LIBBPF_SUPPORT
 }
 
-static int write_bpf_btf(struct feat_fd *ff,
+static int write_bpf_btf(struct feat_fd *ff __maybe_unused,
 			 struct evlist *evlist __maybe_unused)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
 	struct rb_node *next;
@@ -1100,8 +1108,11 @@ static int write_bpf_btf(struct feat_fd *ff,
 out:
 	up_read(&env->bpf_progs.lock);
 	return ret;
-}
+#else
+	pr_err("ERROR: Trying to write btf data without libbpf support.\n");
+	return -1;
 #endif // HAVE_LIBBPF_SUPPORT
+}
 
 static int cpu_cache_level__sort(const void *a, const void *b)
 {
@@ -1980,9 +1991,9 @@ static void print_dir_format(struct feat_fd *ff, FILE *fp)
 	fprintf(fp, "# directory data version : %"PRIu64"\n", data->dir.version);
 }
 
-#ifdef HAVE_LIBBPF_SUPPORT
-static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
+static void print_bpf_prog_info(struct feat_fd *ff __maybe_unused, FILE *fp)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
 	struct rb_node *next;
@@ -1993,7 +2004,7 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 	next = rb_first(root);
 
 	if (!next)
-		printf("# bpf_prog_info empty\n");
+		fprintf(fp, "# bpf_prog_info empty\n");
 
 	while (next) {
 		struct bpf_prog_info_node *node;
@@ -2006,10 +2017,14 @@ static void print_bpf_prog_info(struct feat_fd *ff, FILE *fp)
 	}
 
 	up_read(&env->bpf_progs.lock);
+#else
+	fprintf(fp, "# bpf_prog_info missing, no libbpf support\n");
+#endif // HAVE_LIBBPF_SUPPORT
 }
 
-static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
+static void print_bpf_btf(struct feat_fd *ff __maybe_unused, FILE *fp)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct perf_env *env = &ff->ph->env;
 	struct rb_root *root;
 	struct rb_node *next;
@@ -2031,8 +2046,10 @@ static void print_bpf_btf(struct feat_fd *ff, FILE *fp)
 	}
 
 	up_read(&env->bpf_progs.lock);
-}
+#else
+	fprintf(fp, "# bpf btf data missing, no libbpf support\n");
 #endif // HAVE_LIBBPF_SUPPORT
+}
 
 static void free_event_desc(struct evsel *events)
 {
@@ -2654,14 +2671,17 @@ static int process_e_machine(struct feat_fd *ff, void *data __maybe_unused)
 	return do_read_u32(ff, &ff->ph->env.e_flags);
 }
 
-#ifdef HAVE_LIBTRACEEVENT
-static int process_tracing_data(struct feat_fd *ff, void *data)
+static int process_tracing_data(struct feat_fd *ff __maybe_unused, void *data __maybe_unused)
 {
+#ifdef HAVE_LIBTRACEEVENT
 	ssize_t ret = trace_report(ff->fd, data, false);
 
 	return ret < 0 ? -1 : 0;
-}
+#else
+	pr_err("ERROR: Trying to read tracing data without libtraceevent support.\n");
+	return -1;
 #endif
+}
 
 static int process_build_id(struct feat_fd *ff, void *data __maybe_unused)
 {
@@ -3340,9 +3360,9 @@ static int process_dir_format(struct feat_fd *ff,
 	return do_read_u64(ff, &data->dir.version);
 }
 
-#ifdef HAVE_LIBBPF_SUPPORT
-static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
+static int process_bpf_prog_info(struct feat_fd *ff __maybe_unused, void *data __maybe_unused)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = &ff->ph->env;
 	struct perf_bpil *info_linear;
@@ -3412,10 +3432,15 @@ out:
 	free(info_node);
 	up_write(&env->bpf_progs.lock);
 	return err;
+#else
+	pr_err("ERROR: Trying to read bpf_prog_info without libbpf support.\n");
+	return -1;
+#endif // HAVE_LIBBPF_SUPPORT
 }
 
-static int process_bpf_btf(struct feat_fd *ff, void *data __maybe_unused)
+static int process_bpf_btf(struct feat_fd *ff  __maybe_unused, void *data __maybe_unused)
 {
+#ifdef HAVE_LIBBPF_SUPPORT
 	struct perf_env *env = &ff->ph->env;
 	struct btf_node *node = NULL;
 	u32 count, i;
@@ -3459,8 +3484,11 @@ out:
 	up_write(&env->bpf_progs.lock);
 	free(node);
 	return err;
-}
+#else
+	pr_err("ERROR: Trying to read btf data without libbpf support.\n");
+	return -1;
 #endif // HAVE_LIBBPF_SUPPORT
+}
 
 static int process_compressed(struct feat_fd *ff,
 			      void *data __maybe_unused)
@@ -3736,9 +3764,7 @@ static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused
 const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE];
 
 const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-#ifdef HAVE_LIBTRACEEVENT
 	FEAT_OPN(TRACING_DATA,	tracing_data,	false),
-#endif
 	FEAT_OPN(BUILD_ID,	build_id,	false),
 	FEAT_OPR(HOSTNAME,	hostname,	false),
 	FEAT_OPR(OSRELEASE,	osrelease,	false),
@@ -3762,10 +3788,8 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(MEM_TOPOLOGY,	mem_topology,	true),
 	FEAT_OPR(CLOCKID,	clockid,	false),
 	FEAT_OPN(DIR_FORMAT,	dir_format,	false),
-#ifdef HAVE_LIBBPF_SUPPORT
 	FEAT_OPR(BPF_PROG_INFO, bpf_prog_info,  false),
 	FEAT_OPR(BPF_BTF,       bpf_btf,        false),
-#endif
 	FEAT_OPR(COMPRESSED,	compressed,	false),
 	FEAT_OPR(CPU_PMU_CAPS,	cpu_pmu_caps,	false),
 	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
