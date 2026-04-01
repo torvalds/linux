@@ -89,16 +89,8 @@ static void ghash_blocks_arch(struct polyval_elem *acc,
 			      const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_asimd) && may_use_simd()) {
-		do {
-			/* Allow rescheduling every 4 KiB. */
-			size_t n = min_t(size_t, nblocks,
-					 4096 / GHASH_BLOCK_SIZE);
-
-			scoped_ksimd()
-				pmull_ghash_update_p8(n, acc, data, &key->h);
-			data += n * GHASH_BLOCK_SIZE;
-			nblocks -= n;
-		} while (nblocks);
+		scoped_ksimd()
+			pmull_ghash_update_p8(nblocks, acc, data, &key->h);
 	} else {
 		ghash_blocks_generic(acc, &key->h, data, nblocks);
 	}
@@ -110,16 +102,8 @@ static void polyval_blocks_arch(struct polyval_elem *acc,
 				const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_pmull) && may_use_simd()) {
-		do {
-			/* Allow rescheduling every 4 KiB. */
-			size_t n = min_t(size_t, nblocks,
-					 4096 / POLYVAL_BLOCK_SIZE);
-
-			scoped_ksimd()
-				polyval_blocks_pmull(acc, key, data, n);
-			data += n * POLYVAL_BLOCK_SIZE;
-			nblocks -= n;
-		} while (nblocks);
+		scoped_ksimd()
+			polyval_blocks_pmull(acc, key, data, nblocks);
 	} else {
 		polyval_blocks_generic(acc, &key->h_powers[NUM_H_POWERS - 1],
 				       data, nblocks);
