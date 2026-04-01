@@ -102,7 +102,6 @@ headers:
 	$(Q)cp --parents $(arch_files) $(all_files) "$(OUTPUT)sysroot/include/"
 
 headers_standalone: headers
-	$(Q)$(MAKE) -C $(srctree) headers
 	$(Q)$(MAKE) -C $(srctree) headers_install INSTALL_HDR_PATH=$(OUTPUT)sysroot
 
 CFLAGS_s390 := -m64
