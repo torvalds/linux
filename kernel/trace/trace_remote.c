@@ -282,6 +282,14 @@ static void trace_remote_put(struct trace_remote *remote)
 	trace_remote_try_unload(remote);
 }
 
+static bool trace_remote_has_cpu(struct trace_remote *remote, int cpu)
+{
+	if (cpu == RING_BUFFER_ALL_CPUS)
+		return true;
+
+	return ring_buffer_poll_remote(remote->trace_buffer, cpu) == 0;
+}
+
 static void __poll_remote(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -324,6 +332,10 @@ static int __alloc_ring_buffer_iter(struct trace_remote_iterator *iter, int cpu)
 		iter->rb_iters[cpu] = ring_buffer_read_start(iter->remote->trace_buffer, cpu,
 							     GFP_KERNEL);
 		if (!iter->rb_iters[cpu]) {
+			/* This CPU isn't part of trace_buffer. Skip it */
+			if (!trace_remote_has_cpu(iter->remote, cpu))
+				continue;
+
 			__free_ring_buffer_iter(iter, RING_BUFFER_ALL_CPUS);
 			return -ENOMEM;
 		}
@@ -347,10 +359,10 @@ static struct trace_remote_iterator
 	if (ret)
 		return ERR_PTR(ret);
 
-	/* Test the CPU */
-	ret = ring_buffer_poll_remote(remote->trace_buffer, cpu);
-	if (ret)
+	if (!trace_remote_has_cpu(remote, cpu)) {
+		ret = -ENODEV;
 		goto err;
+	}
 
 	iter = kzalloc_obj(*iter);
 	if (iter) {
@@ -361,6 +373,7 @@ static struct trace_remote_iterator
 
 		switch (type) {
 		case TRI_CONSUMING:
+			ring_buffer_poll_remote(remote->trace_buffer, cpu);
 			INIT_DELAYED_WORK(&iter->poll_work, __poll_remote);
 			schedule_delayed_work(&iter->poll_work, msecs_to_jiffies(remote->poll_ms));
 			break;
@@ -476,6 +489,9 @@ __peek_event(struct trace_remote_iterator *iter, int cpu, u64 *ts, unsigned long
 		return ring_buffer_peek(iter->remote->trace_buffer, cpu, ts, lost_events);
 	case TRI_NONCONSUMING:
 		rb_iter = __get_rb_iter(iter, cpu);
+		if (!rb_iter)
+			return NULL;
+
 		rb_evt = ring_buffer_iter_peek(rb_iter, ts);
 		if (!rb_evt)
 			return NULL;
