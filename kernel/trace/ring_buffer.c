@@ -7722,6 +7722,12 @@ out:
 	return 0;
 }
 
+static void rb_cpu_sync(void *data)
+{
+	/* Not really needed, but documents what is happening */
+	smp_rmb();
+}
+
 /*
  * We only allocate new buffers, never free them if the CPU goes down.
  * If we were to free the buffer, then the user would lose any trace that was in
@@ -7760,7 +7766,18 @@ int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node)
 		     cpu);
 		return -ENOMEM;
 	}
-	smp_wmb();
+
+	/*
+	 * Ensure trace_buffer readers observe the newly allocated
+	 * ring_buffer_per_cpu before they check the cpumask. Instead of using a
+	 * read barrier for all readers, send an IPI.
+	 */
+	if (unlikely(system_state == SYSTEM_RUNNING)) {
+		on_each_cpu(rb_cpu_sync, NULL, 1);
+		/* Not really needed, but documents what is happening */
+		smp_wmb();
+	}
+
 	cpumask_set_cpu(cpu, buffer->cpumask);
 	return 0;
 }
