@@ -172,6 +172,16 @@ int vgic_v5_finalize_ppi_state(struct kvm *kvm)
 	if (!vgic_is_v5(kvm))
 		return 0;
 
+	guard(mutex)(&kvm->arch.config_lock);
+
+	/*
+	 * If SW_PPI has been advertised, then we know we already
+	 * initialised the whole thing, and we can return early. Yes,
+	 * this is pretty hackish as far as state tracking goes...
+	 */
+	if (test_bit(GICV5_ARCH_PPI_SW_PPI, kvm->arch.vgic.gicv5_vm.vgic_ppi_mask))
+		return 0;
+
 	/* The PPI state for all VCPUs should be the same. Pick the first. */
 	vcpu0 = kvm_get_vcpu(kvm, 0);
 
