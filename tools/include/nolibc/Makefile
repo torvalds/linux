@@ -97,7 +97,6 @@ help:
 
 # installs headers for all archs at once.
 headers:
-	$(Q)mkdir -p "$(OUTPUT)sysroot"
 	$(Q)mkdir -p "$(OUTPUT)sysroot/include"
 	$(Q)cp --parents $(arch_files) $(all_files) "$(OUTPUT)sysroot/include/"
 
