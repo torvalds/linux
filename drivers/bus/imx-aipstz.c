@@ -11,9 +11,19 @@
 #include <linux/regmap.h>
 
 #define IMX_AIPSTZ_MPR0 0x0
+#define IMX_AIPSTZ_OPACR0 0x40
+#define IMX_AIPSTZ_OPACR1 0x44
+#define IMX_AIPSTZ_OPACR2 0x48
+#define IMX_AIPSTZ_OPACR3 0x4c
+#define IMX_AIPSTZ_OPACR4 0x50
 
 struct imx_aipstz_config {
 	u32 mpr0;
+	u32 opacr0;
+	u32 opacr1;
+	u32 opacr2;
+	u32 opacr3;
+	u32 opacr4;
 };
 
 struct imx_aipstz_data {
@@ -24,6 +34,11 @@ struct imx_aipstz_data {
 static void imx_aipstz_apply_default(struct imx_aipstz_data *data)
 {
 	writel(data->default_cfg->mpr0, data->base + IMX_AIPSTZ_MPR0);
+	writel(data->default_cfg->opacr0, data->base + IMX_AIPSTZ_OPACR0);
+	writel(data->default_cfg->opacr1, data->base + IMX_AIPSTZ_OPACR1);
+	writel(data->default_cfg->opacr2, data->base + IMX_AIPSTZ_OPACR2);
+	writel(data->default_cfg->opacr3, data->base + IMX_AIPSTZ_OPACR3);
+	writel(data->default_cfg->opacr4, data->base + IMX_AIPSTZ_OPACR4);
 }
 
 static const struct of_device_id imx_aipstz_match_table[] = {
