@@ -79,11 +79,11 @@
 	.endm
 
 	/*
-	 * size_t __sha256_ce_transform(struct sha256_block_state *state,
-	 *				const u8 *data, size_t nblocks);
+	 * void sha256_ce_transform(struct sha256_block_state *state,
+	 *			    const u8 *data, size_t nblocks);
 	 */
 	.text
-SYM_FUNC_START(__sha256_ce_transform)
+SYM_FUNC_START(sha256_ce_transform)
 
 	load_round_constants	x8
 
@@ -127,17 +127,13 @@ CPU_LE(	rev32		v19.16b, v19.16b	)
 	add		dgav.4s, dgav.4s, dg0v.4s
 	add		dgbv.4s, dgbv.4s, dg1v.4s
 
-	/* return early if voluntary preemption is needed */
-	cond_yield	1f, x5, x6
-
 	/* handled all input blocks? */
 	cbnz		x2, 0b
 
 	/* store new state */
-1:	st1		{dgav.4s, dgbv.4s}, [x0]
-	mov		x0, x2
+	st1		{dgav.4s, dgbv.4s}, [x0]
 	ret
-SYM_FUNC_END(__sha256_ce_transform)
+SYM_FUNC_END(sha256_ce_transform)
 
 	.unreq dga
 	.unreq dgav
