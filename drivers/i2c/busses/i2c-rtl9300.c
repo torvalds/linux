@@ -61,7 +61,8 @@ enum rtl9300_i2c_reg_fields {
 struct rtl9300_i2c_drv_data {
 	struct rtl9300_i2c_reg_field field_desc[F_NUM_FIELDS];
 	int (*select_scl)(struct rtl9300_i2c *i2c, u8 scl);
-	u32 data_reg;
+	u32 rd_reg;
+	u32 wd_reg;
 	u8 max_nchan;
 };
 
@@ -74,7 +75,8 @@ struct rtl9300_i2c {
 	struct rtl9300_i2c_chan chans[RTL9310_I2C_MUX_NCHAN];
 	struct regmap_field *fields[F_NUM_FIELDS];
 	u32 reg_base;
-	u32 data_reg;
+	u32 rd_reg;
+	u32 wd_reg;
 	u8 scl_num;
 	u8 sda_num;
 	struct mutex lock;
@@ -171,7 +173,7 @@ static int rtl9300_i2c_read(struct rtl9300_i2c *i2c, u8 *buf, u8 len)
 	if (len > 16)
 		return -EIO;
 
-	ret = regmap_bulk_read(i2c->regmap, i2c->data_reg, vals, ARRAY_SIZE(vals));
+	ret = regmap_bulk_read(i2c->regmap, i2c->rd_reg, vals, ARRAY_SIZE(vals));
 	if (ret)
 		return ret;
 
@@ -198,12 +200,12 @@ static int rtl9300_i2c_write(struct rtl9300_i2c *i2c, u8 *buf, u8 len)
 		vals[reg] |= buf[i] << shift;
 	}
 
-	return regmap_bulk_write(i2c->regmap, i2c->data_reg, vals, ARRAY_SIZE(vals));
+	return regmap_bulk_write(i2c->regmap, i2c->wd_reg, vals, ARRAY_SIZE(vals));
 }
 
 static int rtl9300_i2c_writel(struct rtl9300_i2c *i2c, u32 data)
 {
-	return regmap_write(i2c->regmap, i2c->data_reg, data);
+	return regmap_write(i2c->regmap, i2c->wd_reg, data);
 }
 
 static int rtl9300_i2c_prepare_xfer(struct rtl9300_i2c *i2c, struct rtl9300_i2c_xfer *xfer)
@@ -268,14 +270,14 @@ static int rtl9300_i2c_do_xfer(struct rtl9300_i2c *i2c, struct rtl9300_i2c_xfer 
 	if (!xfer->write) {
 		switch (xfer->type) {
 		case RTL9300_I2C_XFER_BYTE:
-			ret = regmap_read(i2c->regmap, i2c->data_reg, &val);
+			ret = regmap_read(i2c->regmap, i2c->rd_reg, &val);
 			if (ret)
 				return ret;
 
 			*xfer->data = val & 0xff;
 			break;
 		case RTL9300_I2C_XFER_WORD:
-			ret = regmap_read(i2c->regmap, i2c->data_reg, &val);
+			ret = regmap_read(i2c->regmap, i2c->rd_reg, &val);
 			if (ret)
 				return ret;
 
@@ -408,7 +410,8 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 	if (device_get_child_node_count(dev) > drv_data->max_nchan)
 		return dev_err_probe(dev, -EINVAL, "Too many channels\n");
 
-	i2c->data_reg = i2c->reg_base + drv_data->data_reg;
+	i2c->rd_reg = i2c->reg_base + drv_data->rd_reg;
+	i2c->wd_reg = i2c->reg_base + drv_data->wd_reg;
 	for (i = 0; i < F_NUM_FIELDS; i++) {
 		fields[i] = drv_data->field_desc[i].field;
 		if (drv_data->field_desc[i].scope == REG_SCOPE_MASTER)
@@ -499,7 +502,8 @@ static const struct rtl9300_i2c_drv_data rtl9300_i2c_drv_data = {
 		[F_SDA_SEL]		= GLB_REG_FIELD(RTL9300_I2C_MST_GLB_CTRL, 0, 7),
 	},
 	.select_scl = rtl9300_i2c_select_scl,
-	.data_reg = RTL9300_I2C_MST_DATA_WORD0,
+	.rd_reg = RTL9300_I2C_MST_DATA_WORD0,
+	.wd_reg = RTL9300_I2C_MST_DATA_WORD0,
 	.max_nchan = RTL9300_I2C_MUX_NCHAN,
 };
 
@@ -519,7 +523,8 @@ static const struct rtl9300_i2c_drv_data rtl9310_i2c_drv_data = {
 		[F_MEM_ADDR]		= MST_REG_FIELD(RTL9310_I2C_MST_MEMADDR_CTRL, 0, 23),
 	},
 	.select_scl = rtl9310_i2c_select_scl,
-	.data_reg = RTL9310_I2C_MST_DATA_CTRL,
+	.rd_reg = RTL9310_I2C_MST_DATA_CTRL,
+	.wd_reg = RTL9310_I2C_MST_DATA_CTRL,
 	.max_nchan = RTL9310_I2C_MUX_NCHAN,
 };
 
