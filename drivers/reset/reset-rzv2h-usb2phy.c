@@ -5,7 +5,9 @@
  * Copyright (C) 2025 Renesas Electronics Corporation
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/delay.h>
+#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -14,6 +16,8 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
+
+static DEFINE_IDA(auxiliary_ids);
 
 struct rzv2h_usb2phy_reset_of_data {
 	const struct reg_sequence *init_seq;
@@ -84,6 +88,33 @@ static int rzv2h_usb2phy_reset_of_xlate(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static void rzv2h_usb2phy_reset_ida_free(void *data)
+{
+	struct auxiliary_device *adev = data;
+
+	ida_free(&auxiliary_ids, adev->id);
+}
+
+static int rzv2h_usb2phy_reset_mux_register(struct device *dev,
+					    const char *mux_name)
+{
+	struct auxiliary_device *adev;
+	int id;
+
+	id = ida_alloc(&auxiliary_ids, GFP_KERNEL);
+	if (id < 0)
+		return id;
+
+	adev = __devm_auxiliary_device_create(dev, dev->driver->name,
+					      mux_name, NULL, id);
+	if (!adev) {
+		ida_free(&auxiliary_ids, id);
+		return -ENOMEM;
+	}
+
+	return devm_add_action_or_reset(dev, rzv2h_usb2phy_reset_ida_free, adev);
+}
+
 static const struct regmap_config rzv2h_usb2phy_reset_regconf = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -152,6 +183,10 @@ static int rzv2h_usb2phy_reset_probe(struct platform_device *pdev)
 	error = devm_reset_controller_register(dev, &priv->rcdev);
 	if (error)
 		return dev_err_probe(dev, error, "could not register reset controller\n");
+
+	error = rzv2h_usb2phy_reset_mux_register(dev, "vbenctl");
+	if (error)
+		return dev_err_probe(dev, error, "could not register aux mux\n");
 
 	return 0;
 }
