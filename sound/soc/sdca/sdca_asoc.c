@@ -820,8 +820,8 @@ static int q78_write(struct snd_soc_component *component,
 	return snd_soc_component_update_bits(component, reg, mask, reg_val);
 }
 
-static int q78_put_volsw(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+int sdca_asoc_q78_put_volsw(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -841,6 +841,7 @@ static int q78_put_volsw(struct snd_kcontrol *kcontrol,
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(sdca_asoc_q78_put_volsw, "SND_SOC_SDCA");
 
 static int q78_read(struct snd_soc_component *component,
 		    struct soc_mixer_control *mc, unsigned int reg)
@@ -855,8 +856,8 @@ static int q78_read(struct snd_soc_component *component,
 	return val & GENMASK(mc->sign_bit, 0);
 }
 
-static int q78_get_volsw(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+int sdca_asoc_q78_get_volsw(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -868,6 +869,7 @@ static int q78_get_volsw(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(sdca_asoc_q78_get_volsw, "SND_SOC_SDCA");
 
 static int control_limit_kctl(struct device *dev,
 			      struct sdca_entity *entity,
@@ -912,8 +914,8 @@ static int control_limit_kctl(struct device *dev,
 
 	kctl->tlv.p = tlv;
 	kctl->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-	kctl->get = q78_get_volsw;
-	kctl->put = q78_put_volsw;
+	kctl->get = sdca_asoc_q78_get_volsw;
+	kctl->put = sdca_asoc_q78_put_volsw;
 
 	return 0;
 }
