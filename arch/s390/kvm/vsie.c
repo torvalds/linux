@@ -387,6 +387,17 @@ end:
 	return 0;
 }
 
+static void shadow_esa(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+{
+	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+
+	/* Ensure these bits are indeed turned off */
+	scb_s->eca &= ~ECA_VX;
+	scb_s->ecb &= ~(ECB_GS | ECB_TE);
+	scb_s->ecb3 &= ~ECB3_RI;
+	scb_s->ecd &= ~ECD_HOSTREGMGMT;
+}
+
 /* shadow (round up/down) the ibc to avoid validity icpt */
 static void prepare_ibc(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
@@ -589,6 +600,9 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	scb_s->hpid = HPID_VSIE;
 	scb_s->cpnc = scb_o->cpnc;
+
+	if (!(atomic_read(&scb_s->cpuflags) & CPUSTAT_ZARCH))
+		shadow_esa(vcpu, vsie_page);
 
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
