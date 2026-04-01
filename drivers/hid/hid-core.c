@@ -1272,6 +1272,11 @@ static int hid_parse_collections(struct hid_device *device)
 		device->collection[i].parent_idx = -1;
 
 	ret = -EINVAL;
+	if (start == end) {
+		hid_err(device, "rejecting 0-sized report descriptor\n");
+		goto out;
+	}
+
 	while ((next = fetch_item(start, end, &item)) != NULL) {
 		start = next;
 
