@@ -131,12 +131,12 @@
 #define MAX77759_MAXQ_OPCODE_USER_SPACE_READ     0x81
 #define MAX77759_MAXQ_OPCODE_USER_SPACE_WRITE    0x82
 
-/*
+/**
  * enum max77759_chgr_chgin_dtls_status - Charger Input Status
  * @MAX77759_CHGR_CHGIN_DTLS_VBUS_UNDERVOLTAGE:
  *     Charger input voltage (Vchgin) < Under Voltage Threshold (Vuvlo)
- * @MAX77759_CHGR_CHGIN_DTLS_VBUS_MARGINAL_VOLTAGE: Vchgin > Vuvlo and
- *     Vchgin < (Battery Voltage (Vbatt) + system voltage (Vsys))
+ * @MAX77759_CHGR_CHGIN_DTLS_VBUS_MARGINAL_VOLTAGE:
+ *     Vchgin > Vuvlo and Vchgin < (Battery Voltage (Vbatt) + system voltage (Vsys))
  * @MAX77759_CHGR_CHGIN_DTLS_VBUS_OVERVOLTAGE:
  *     Vchgin > Over Voltage threshold (Vovlo)
  * @MAX77759_CHGR_CHGIN_DTLS_VBUS_VALID:
@@ -149,7 +149,7 @@ enum max77759_chgr_chgin_dtls_status {
 	MAX77759_CHGR_CHGIN_DTLS_VBUS_VALID,
 };
 
-/*
+/**
  * enum max77759_chgr_bat_dtls_states - Battery Details
  * @MAX77759_CHGR_BAT_DTLS_NO_BATT_CHG_SUSP:	No battery and the charger suspended
  * @MAX77759_CHGR_BAT_DTLS_DEAD_BATTERY:	Vbatt < Vtrickle
@@ -171,7 +171,7 @@ enum max77759_chgr_bat_dtls_states {
 	MAX77759_CHGR_BAT_DTLS_BAT_ONLY_MODE,
 };
 
-/*
+/**
  * enum max77759_chgr_chg_dtls_states - Charger Details
  * @MAX77759_CHGR_CHG_DTLS_PREQUAL:		Charger in prequalification mode
  * @MAX77759_CHGR_CHG_DTLS_CC:			Charger in fast charge const curr mode
