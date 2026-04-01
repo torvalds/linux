@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2014-2026 NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/device.h>
@@ -1384,6 +1384,14 @@ static const struct tegra_mc_icc_ops tegra30_mc_icc_ops = {
 	.set = tegra30_mc_icc_set,
 };
 
+static const struct tegra_mc_intmask tegra30_mc_intmasks[] = {
+	{
+		.reg = MC_INTMASK,
+		.mask = MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
+			MC_INT_DECERR_EMEM,
+	},
+};
+
 const struct tegra_mc_soc tegra30_mc_soc = {
 	.clients = tegra30_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra30_mc_clients),
@@ -1393,11 +1401,15 @@ const struct tegra_mc_soc tegra30_mc_soc = {
 	.smmu = &tegra30_smmu_soc,
 	.emem_regs = tegra30_mc_emem_regs,
 	.num_emem_regs = ARRAY_SIZE(tegra30_mc_emem_regs),
-	.intmask = MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
-		   MC_INT_DECERR_EMEM,
+	.intmasks = tegra30_mc_intmasks,
+	.num_intmasks = ARRAY_SIZE(tegra30_mc_intmasks),
 	.reset_ops = &tegra_mc_reset_ops_common,
 	.resets = tegra30_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra30_mc_resets),
 	.icc_ops = &tegra30_mc_icc_ops,
 	.ops = &tegra30_mc_ops,
+	.regs = &tegra20_mc_regs,
+	.handle_irq = tegra30_mc_irq_handlers,
+	.num_interrupts = ARRAY_SIZE(tegra30_mc_irq_handlers),
+	.mc_err_status_type_mask = (0x7 << 28),
 };

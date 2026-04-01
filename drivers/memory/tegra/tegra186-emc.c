@@ -22,6 +22,7 @@ struct tegra186_emc {
 	struct tegra_bpmp *bpmp;
 	struct device *dev;
 	struct clk *clk;
+	struct clk *clk_dbb;
 
 	struct tegra186_emc_dvfs *dvfs;
 	unsigned int num_dvfs;
@@ -325,6 +326,13 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 	if (IS_ERR(emc->clk)) {
 		err = dev_err_probe(&pdev->dev, PTR_ERR(emc->clk),
 				    "failed to get EMC clock\n");
+		goto put_bpmp;
+	}
+
+	emc->clk_dbb = devm_clk_get_optional_enabled(&pdev->dev, "dbb");
+	if (IS_ERR(emc->clk_dbb)) {
+		err = dev_err_probe(&pdev->dev, PTR_ERR(emc->clk_dbb),
+				    "failed to get DBB clock\n");
 		goto put_bpmp;
 	}
 
