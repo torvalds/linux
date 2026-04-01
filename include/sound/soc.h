@@ -1337,15 +1337,6 @@ void snd_soc_of_parse_node_prefix(struct device_node *np,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname);
-static inline
-void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
-				   struct snd_soc_codec_conf *codec_conf,
-				   struct device_node *of_node,
-				   const char *propname)
-{
-	snd_soc_of_parse_node_prefix(card->dev->of_node,
-				     codec_conf, of_node, propname);
-}
 
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
