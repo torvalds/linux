@@ -196,6 +196,9 @@ static struct dso *__dsos__find_by_longname_id(struct dsos *dsos,
 
 int __dsos__add(struct dsos *dsos, struct dso *dso)
 {
+	if (!dso)
+		return -EINVAL;
+
 	if (dsos->cnt == dsos->allocated) {
 		unsigned int to_allocate = 2;
 		struct dso **temp;
