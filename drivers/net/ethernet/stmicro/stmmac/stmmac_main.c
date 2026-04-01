@@ -4391,12 +4391,19 @@ static size_t stmmac_tso_header_size(struct sk_buff *skb)
  *
  * While IPv4 is limited to MAC+VLAN+IPv4+ext+TCP+ext = 138 bytes, the IPv6
  * extension headers aren't similarly limited.
+ *
+ * Fall back to software GSO for these skbs. Also check that the MSS is >=
+ * the recommended 64 bytes (documented in ETH_DMACxCR register description),
+ * and that a the header plus MSS is not larger than 16383 (documented in
+ * "Building the Descriptor and the packet for the TSO feature").
  */
 static bool stmmac_tso_valid_packet(struct sk_buff *skb)
 {
 	size_t header_len = stmmac_tso_header_size(skb);
+	unsigned int gso_size = skb_shinfo(skb)->gso_size;
 
-	return header_len <= 1023;
+	return header_len <= 1023 && gso_size >= 64 &&
+	       header_len + gso_size < 16383;
 }
 
 /**
