@@ -213,6 +213,8 @@
 #define OCP_PHY_PATCH_STAT	0xb800
 #define OCP_PHY_PATCH_CMD	0xb820
 #define OCP_PHY_LOCK		0xb82e
+#define OCP_SRAM2_ADDR		0xb87c
+#define OCP_SRAM2_DATA		0xb87e
 #define OCP_ADC_IOFFSET		0xbcfc
 #define OCP_ADC_CFG		0xbc06
 #define OCP_SYSCLK_CFG		0xc416
@@ -1762,6 +1764,27 @@ static void sram_clr_bits(struct r8152 *tp, u16 addr, u16 clear)
 static void sram_set_bits(struct r8152 *tp, u16 addr, u16 set)
 {
 	sram_write_w0w1(tp, addr, 0, set);
+}
+
+static void sram2_write(struct r8152 *tp, u16 addr, u16 data)
+{
+	ocp_reg_write(tp, OCP_SRAM2_ADDR, addr);
+	ocp_reg_write(tp, OCP_SRAM2_DATA, data);
+}
+
+static u16 sram2_read(struct r8152 *tp, u16 addr)
+{
+	ocp_reg_write(tp, OCP_SRAM2_ADDR, addr);
+	return ocp_reg_read(tp, OCP_SRAM2_DATA);
+}
+
+static void sram2_write_w0w1(struct r8152 *tp, u16 addr, u16 clear, u16 set)
+{
+	u16 data;
+
+	data = sram2_read(tp, addr);
+	data = (data & ~clear) | set;
+	ocp_reg_write(tp, OCP_SRAM2_DATA, data);
 }
 
 static void r8152_mdio_clr_bit(struct r8152 *tp, u16 addr, u16 clear)
@@ -7195,16 +7218,12 @@ static void r8156_hw_phy_cfg(struct r8152 *tp)
 		ocp_reg_write(tp, 0xad4c, 0x00a8);
 		ocp_reg_write(tp, 0xac5c, 0x01ff);
 		ocp_reg_w0w1(tp, 0xac8a, 0xf0, BIT(4) | BIT(5));
-		ocp_reg_write(tp, 0xb87c, 0x8157);
-		ocp_reg_w0w1(tp, 0xb87e, 0xff00, 0x0500);
-		ocp_reg_write(tp, 0xb87c, 0x8159);
-		ocp_reg_w0w1(tp, 0xb87e, 0xff00, 0x0700);
+		sram2_write_w0w1(tp, 0x8157, 0xff00, 0x0500);
+		sram2_write_w0w1(tp, 0x8159, 0xff00, 0x0700);
 
 		/* AAGC */
-		ocp_reg_write(tp, 0xb87c, 0x80a2);
-		ocp_reg_write(tp, 0xb87e, 0x0153);
-		ocp_reg_write(tp, 0xb87c, 0x809c);
-		ocp_reg_write(tp, 0xb87e, 0x0153);
+		sram2_write(tp, 0x80a2, 0x0153);
+		sram2_write(tp, 0x809c, 0x0153);
 
 		/* EEE parameter */
 		ocp_write_word(tp, MCU_TYPE_PLA, PLA_EEE_TXTWSYS_2P5G, 0x0056);
@@ -7402,82 +7421,48 @@ static void r8156b_hw_phy_cfg(struct r8152 *tp)
 		ocp_reg_write(tp, 0xacc8, 0xa0d3);
 		ocp_reg_write(tp, 0xad08, 0x0007);
 
-		ocp_reg_write(tp, 0xb87c, 0x8560);
-		ocp_reg_write(tp, 0xb87e, 0x19cc);
-		ocp_reg_write(tp, 0xb87c, 0x8562);
-		ocp_reg_write(tp, 0xb87e, 0x19cc);
-		ocp_reg_write(tp, 0xb87c, 0x8564);
-		ocp_reg_write(tp, 0xb87e, 0x19cc);
-		ocp_reg_write(tp, 0xb87c, 0x8566);
-		ocp_reg_write(tp, 0xb87e, 0x147d);
-		ocp_reg_write(tp, 0xb87c, 0x8568);
-		ocp_reg_write(tp, 0xb87e, 0x147d);
-		ocp_reg_write(tp, 0xb87c, 0x856a);
-		ocp_reg_write(tp, 0xb87e, 0x147d);
-		ocp_reg_write(tp, 0xb87c, 0x8ffe);
-		ocp_reg_write(tp, 0xb87e, 0x0907);
-		ocp_reg_write(tp, 0xb87c, 0x80d6);
-		ocp_reg_write(tp, 0xb87e, 0x2801);
-		ocp_reg_write(tp, 0xb87c, 0x80f2);
-		ocp_reg_write(tp, 0xb87e, 0x2801);
-		ocp_reg_write(tp, 0xb87c, 0x80f4);
-		ocp_reg_write(tp, 0xb87e, 0x6077);
+		sram2_write(tp, 0x8560, 0x19cc);
+		sram2_write(tp, 0x8562, 0x19cc);
+		sram2_write(tp, 0x8564, 0x19cc);
+		sram2_write(tp, 0x8566, 0x147d);
+		sram2_write(tp, 0x8568, 0x147d);
+		sram2_write(tp, 0x856a, 0x147d);
+		sram2_write(tp, 0x8ffe, 0x0907);
+		sram2_write(tp, 0x80d6, 0x2801);
+		sram2_write(tp, 0x80f2, 0x2801);
+		sram2_write(tp, 0x80f4, 0x6077);
 		ocp_reg_write(tp, 0xb506, 0x01e7);
 
-		ocp_reg_write(tp, 0xb87c, 0x8013);
-		ocp_reg_write(tp, 0xb87e, 0x0700);
-		ocp_reg_write(tp, 0xb87c, 0x8fb9);
-		ocp_reg_write(tp, 0xb87e, 0x2801);
-		ocp_reg_write(tp, 0xb87c, 0x8fba);
-		ocp_reg_write(tp, 0xb87e, 0x0100);
-		ocp_reg_write(tp, 0xb87c, 0x8fbc);
-		ocp_reg_write(tp, 0xb87e, 0x1900);
-		ocp_reg_write(tp, 0xb87c, 0x8fbe);
-		ocp_reg_write(tp, 0xb87e, 0xe100);
-		ocp_reg_write(tp, 0xb87c, 0x8fc0);
-		ocp_reg_write(tp, 0xb87e, 0x0800);
-		ocp_reg_write(tp, 0xb87c, 0x8fc2);
-		ocp_reg_write(tp, 0xb87e, 0xe500);
-		ocp_reg_write(tp, 0xb87c, 0x8fc4);
-		ocp_reg_write(tp, 0xb87e, 0x0f00);
-		ocp_reg_write(tp, 0xb87c, 0x8fc6);
-		ocp_reg_write(tp, 0xb87e, 0xf100);
-		ocp_reg_write(tp, 0xb87c, 0x8fc8);
-		ocp_reg_write(tp, 0xb87e, 0x0400);
-		ocp_reg_write(tp, 0xb87c, 0x8fca);
-		ocp_reg_write(tp, 0xb87e, 0xf300);
-		ocp_reg_write(tp, 0xb87c, 0x8fcc);
-		ocp_reg_write(tp, 0xb87e, 0xfd00);
-		ocp_reg_write(tp, 0xb87c, 0x8fce);
-		ocp_reg_write(tp, 0xb87e, 0xff00);
-		ocp_reg_write(tp, 0xb87c, 0x8fd0);
-		ocp_reg_write(tp, 0xb87e, 0xfb00);
-		ocp_reg_write(tp, 0xb87c, 0x8fd2);
-		ocp_reg_write(tp, 0xb87e, 0x0100);
-		ocp_reg_write(tp, 0xb87c, 0x8fd4);
-		ocp_reg_write(tp, 0xb87e, 0xf400);
-		ocp_reg_write(tp, 0xb87c, 0x8fd6);
-		ocp_reg_write(tp, 0xb87e, 0xff00);
-		ocp_reg_write(tp, 0xb87c, 0x8fd8);
-		ocp_reg_write(tp, 0xb87e, 0xf600);
+		sram2_write(tp, 0x8013, 0x0700);
+		sram2_write(tp, 0x8fb9, 0x2801);
+		sram2_write(tp, 0x8fba, 0x0100);
+		sram2_write(tp, 0x8fbc, 0x1900);
+		sram2_write(tp, 0x8fbe, 0xe100);
+		sram2_write(tp, 0x8fc0, 0x0800);
+		sram2_write(tp, 0x8fc2, 0xe500);
+		sram2_write(tp, 0x8fc4, 0x0f00);
+		sram2_write(tp, 0x8fc6, 0xf100);
+		sram2_write(tp, 0x8fc8, 0x0400);
+		sram2_write(tp, 0x8fca, 0xf300);
+		sram2_write(tp, 0x8fcc, 0xfd00);
+		sram2_write(tp, 0x8fce, 0xff00);
+		sram2_write(tp, 0x8fd0, 0xfb00);
+		sram2_write(tp, 0x8fd2, 0x0100);
+		sram2_write(tp, 0x8fd4, 0xf400);
+		sram2_write(tp, 0x8fd6, 0xff00);
+		sram2_write(tp, 0x8fd8, 0xf600);
 
 		ocp_byte_set_bits(tp, MCU_TYPE_PLA, PLA_USB_CFG,
 				  EN_XG_LIP | EN_G_LIP);
 
-		ocp_reg_write(tp, 0xb87c, 0x813d);
-		ocp_reg_write(tp, 0xb87e, 0x390e);
-		ocp_reg_write(tp, 0xb87c, 0x814f);
-		ocp_reg_write(tp, 0xb87e, 0x790e);
-		ocp_reg_write(tp, 0xb87c, 0x80b0);
-		ocp_reg_write(tp, 0xb87e, 0x0f31);
+		sram2_write(tp, 0x813d, 0x390e);
+		sram2_write(tp, 0x814f, 0x790e);
+		sram2_write(tp, 0x80b0, 0x0f31);
 		ocp_reg_set_bits(tp, 0xbf4c, BIT(1));
 		ocp_reg_set_bits(tp, 0xbcca, BIT(9) | BIT(8));
-		ocp_reg_write(tp, 0xb87c, 0x8141);
-		ocp_reg_write(tp, 0xb87e, 0x320e);
-		ocp_reg_write(tp, 0xb87c, 0x8153);
-		ocp_reg_write(tp, 0xb87e, 0x720e);
-		ocp_reg_write(tp, 0xb87c, 0x8529);
-		ocp_reg_write(tp, 0xb87e, 0x050e);
+		sram2_write(tp, 0x8141, 0x320e);
+		sram2_write(tp, 0x8153, 0x720e);
+		sram2_write(tp, 0x8529, 0x050e);
 		ocp_reg_clr_bits(tp, OCP_EEE_CFG, CTAP_SHORT_EN);
 
 		sram_write(tp, 0x816c, 0xc4a0);
@@ -7489,27 +7474,17 @@ static void r8156b_hw_phy_cfg(struct r8152 *tp)
 		sram_write(tp, 0x8ff1, 0x0404);
 
 		ocp_reg_write(tp, 0xbf4a, 0x001b);
-		ocp_reg_write(tp, 0xb87c, 0x8033);
-		ocp_reg_write(tp, 0xb87e, 0x7c13);
-		ocp_reg_write(tp, 0xb87c, 0x8037);
-		ocp_reg_write(tp, 0xb87e, 0x7c13);
-		ocp_reg_write(tp, 0xb87c, 0x803b);
-		ocp_reg_write(tp, 0xb87e, 0xfc32);
-		ocp_reg_write(tp, 0xb87c, 0x803f);
-		ocp_reg_write(tp, 0xb87e, 0x7c13);
-		ocp_reg_write(tp, 0xb87c, 0x8043);
-		ocp_reg_write(tp, 0xb87e, 0x7c13);
-		ocp_reg_write(tp, 0xb87c, 0x8047);
-		ocp_reg_write(tp, 0xb87e, 0x7c13);
+		sram2_write(tp, 0x8033, 0x7c13);
+		sram2_write(tp, 0x8037, 0x7c13);
+		sram2_write(tp, 0x803b, 0xfc32);
+		sram2_write(tp, 0x803f, 0x7c13);
+		sram2_write(tp, 0x8043, 0x7c13);
+		sram2_write(tp, 0x8047, 0x7c13);
 
-		ocp_reg_write(tp, 0xb87c, 0x8145);
-		ocp_reg_write(tp, 0xb87e, 0x370e);
-		ocp_reg_write(tp, 0xb87c, 0x8157);
-		ocp_reg_write(tp, 0xb87e, 0x770e);
-		ocp_reg_write(tp, 0xb87c, 0x8169);
-		ocp_reg_write(tp, 0xb87e, 0x0d0a);
-		ocp_reg_write(tp, 0xb87c, 0x817b);
-		ocp_reg_write(tp, 0xb87e, 0x1d0a);
+		sram2_write(tp, 0x8145, 0x370e);
+		sram2_write(tp, 0x8157, 0x770e);
+		sram2_write(tp, 0x8169, 0x0d0a);
+		sram2_write(tp, 0x817b, 0x1d0a);
 
 		sram_write_w0w1(tp, 0x8217, 0xff00, 0x5000);
 		sram_write_w0w1(tp, 0x821a, 0xff00, 0x5000);
@@ -7574,12 +7549,9 @@ static void r8156b_hw_phy_cfg(struct r8152 *tp)
 		fallthrough;
 	case RTL_VER_15:
 		/* EEE parameter */
-		ocp_reg_write(tp, 0xb87c, 0x80f5);
-		ocp_reg_write(tp, 0xb87e, 0x760e);
-		ocp_reg_write(tp, 0xb87c, 0x8107);
-		ocp_reg_write(tp, 0xb87e, 0x360e);
-		ocp_reg_write(tp, 0xb87c, 0x8551);
-		ocp_reg_w0w1(tp, 0xb87e, 0xff00, 0x0800);
+		sram2_write(tp, 0x80f5, 0x760e);
+		sram2_write(tp, 0x8107, 0x360e);
+		sram2_write_w0w1(tp, 0x8551, 0xff00, 0x0800);
 
 		/* ADC_PGA parameter */
 		ocp_reg_w0w1(tp, 0xbf00, 0xe000, 0xa000);
