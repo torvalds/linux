@@ -115,13 +115,10 @@ unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 	if (resv > minvec)
 		return 0;
 
-	if (affd->calc_sets) {
+	if (affd->calc_sets)
 		set_vecs = maxvec - resv;
-	} else {
-		cpus_read_lock();
+	else
 		set_vecs = cpumask_weight(cpu_possible_mask);
-		cpus_read_unlock();
-	}
 
 	return resv + min(set_vecs, maxvec - resv);
 }
