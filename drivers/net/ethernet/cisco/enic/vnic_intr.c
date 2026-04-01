@@ -19,13 +19,13 @@ void vnic_intr_free(struct vnic_intr *intr)
 	intr->ctrl = NULL;
 }
 
-int vnic_intr_alloc(struct vnic_dev *vdev, struct vnic_intr *intr,
-	unsigned int index)
+int vnic_intr_alloc_with_type(struct vnic_dev *vdev, struct vnic_intr *intr,
+			      unsigned int index, unsigned int res_type)
 {
 	intr->index = index;
 	intr->vdev = vdev;
 
-	intr->ctrl = vnic_dev_get_res(vdev, RES_TYPE_INTR_CTRL, index);
+	intr->ctrl = vnic_dev_get_res(vdev, res_type, index);
 	if (!intr->ctrl) {
 		vdev_err(vdev, "Failed to hook INTR[%d].ctrl resource\n",
 			 index);
@@ -33,6 +33,12 @@ int vnic_intr_alloc(struct vnic_dev *vdev, struct vnic_intr *intr,
 	}
 
 	return 0;
+}
+
+int vnic_intr_alloc(struct vnic_dev *vdev, struct vnic_intr *intr,
+		    unsigned int index)
+{
+	return vnic_intr_alloc_with_type(vdev, intr, index, RES_TYPE_INTR_CTRL);
 }
 
 void vnic_intr_init(struct vnic_intr *intr, u32 coalescing_timer,

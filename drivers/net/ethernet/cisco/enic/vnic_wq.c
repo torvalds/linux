@@ -72,15 +72,16 @@ void vnic_wq_free(struct vnic_wq *wq)
 	wq->ctrl = NULL;
 }
 
-int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
-	unsigned int desc_count, unsigned int desc_size)
+int vnic_wq_alloc_with_type(struct vnic_dev *vdev, struct vnic_wq *wq,
+			    unsigned int index, unsigned int desc_count,
+			    unsigned int desc_size, unsigned int res_type)
 {
 	int err;
 
 	wq->index = index;
 	wq->vdev = vdev;
 
-	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_WQ, index);
+	wq->ctrl = vnic_dev_get_res(vdev, res_type, index);
 	if (!wq->ctrl) {
 		vdev_err(vdev, "Failed to hook WQ[%d] resource\n", index);
 		return -EINVAL;
@@ -99,6 +100,13 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 	}
 
 	return 0;
+}
+
+int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
+		  unsigned int desc_count, unsigned int desc_size)
+{
+	return vnic_wq_alloc_with_type(vdev, wq, index, desc_count, desc_size,
+				       RES_TYPE_WQ);
 }
 
 int enic_wq_devcmd2_alloc(struct vnic_dev *vdev, struct vnic_wq *wq,
