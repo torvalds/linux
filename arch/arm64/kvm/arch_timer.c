@@ -1543,6 +1543,10 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 		if (kvm_vgic_set_owner(vcpu, irq, ctx))
 			break;
 
+		/* With GICv5, the default PPI is what you get -- nothing else */
+		if (vgic_is_v5(vcpu->kvm) && irq != get_vgic_ppi(vcpu->kvm, default_ppi[i]))
+			break;
+
 		/*
 		 * We know by construction that we only have PPIs, so all values
 		 * are less than 32 for non-GICv5 VGICs. On GICv5, they are
@@ -1677,13 +1681,6 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	default:
 		return -ENXIO;
 	}
-
-	/*
-	 * The PPIs for the Arch Timers are architecturally defined for
-	 * GICv5. Reject anything that changes them from the specified value.
-	 */
-	if (vgic_is_v5(vcpu->kvm) && vcpu->kvm->arch.timer_data.ppi[idx] != irq)
-		return -EINVAL;
 
 	/*
 	 * We cannot validate the IRQ unicity before we run, so take it at
