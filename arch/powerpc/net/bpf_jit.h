@@ -178,7 +178,13 @@ struct codegen_context {
 	bool is_subprog;
 	bool exception_boundary;
 	bool exception_cb;
+	void __percpu *priv_sp;
+	unsigned int priv_stack_size;
 };
+
+/* Memory size & magic-value to detect private stack overflow/underflow */
+#define PRIV_STACK_GUARD_SZ    16
+#define PRIV_STACK_GUARD_VAL   0xEB9F12345678eb9fULL
 
 #define bpf_to_ppc(r)	(ctx->b2p[r])
 
