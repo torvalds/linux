@@ -20,6 +20,33 @@ enum {
 	MDIO_AN_C22 = 0xffe0,
 };
 
+/* BCM8489x LED controller (BCM84891L datasheet 2.4.1.58). Each pin has
+ * CTL bits in 0xA83B (stride 3: 2-bit CTL + 1-bit OE_N) plus MASK_LOW/
+ * MASK_EXT source selects. LED4 is firmware-controlled; always RMW.
+ */
+#define BCM8489X_LED_CTL		0xa83b
+#define BCM8489X_LED_CTL_ON(i)		(0x2 << ((i) * 3))
+#define BCM8489X_LED_CTL_MASK(i)	(0x3 << ((i) * 3))
+
+#define BCM8489X_LED_SRC_RX		BIT(1)
+#define BCM8489X_LED_SRC_TX		BIT(2)
+#define BCM8489X_LED_SRC_1000		BIT(3)	/* high only at 1000 */
+#define BCM8489X_LED_SRC_100_1000	BIT(4)	/* high at 100 and 1000 */
+#define BCM8489X_LED_SRC_FORCE		BIT(5)	/* always-1 source */
+#define BCM8489X_LED_SRC_10G		BIT(7)
+#define BCM8489X_LED_SRCX_2500		BIT(2)
+#define BCM8489X_LED_SRCX_5000		BIT(3)
+
+#define BCM8489X_MAX_LEDS		2
+
+static const struct {
+	u16 mask_low;
+	u16 mask_ext;
+} bcm8489x_led_regs[BCM8489X_MAX_LEDS] = {
+	{ 0xa82c, 0xa8ef },	/* LED1 */
+	{ 0xa82f, 0xa8f0 },	/* LED2 */
+};
+
 static int bcm84881_wait_init(struct phy_device *phydev)
 {
 	int val;
@@ -67,6 +94,127 @@ static int bcm8489x_config_init(struct phy_device *phydev)
 	 */
 	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				  MDIO_CTRL1_LPOWER);
+}
+
+static int bcm8489x_led_write(struct phy_device *phydev, u8 index,
+			      u16 low, u16 ext)
+{
+	int ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+			    bcm8489x_led_regs[index].mask_low, low);
+	if (ret)
+		return ret;
+	ret = phy_write_mmd(phydev, MDIO_MMD_PMAPMD,
+			    bcm8489x_led_regs[index].mask_ext, ext);
+	if (ret)
+		return ret;
+	return phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, BCM8489X_LED_CTL,
+			      BCM8489X_LED_CTL_MASK(index),
+			      (low | ext) ? BCM8489X_LED_CTL_ON(index) : 0);
+}
+
+static int bcm8489x_led_brightness_set(struct phy_device *phydev,
+				       u8 index, enum led_brightness value)
+{
+	if (index >= BCM8489X_MAX_LEDS)
+		return -EINVAL;
+
+	return bcm8489x_led_write(phydev, index,
+				  value ? BCM8489X_LED_SRC_FORCE : 0, 0);
+}
+
+static const unsigned long bcm8489x_supported_triggers =
+	BIT(TRIGGER_NETDEV_LINK) |
+	BIT(TRIGGER_NETDEV_LINK_100) |
+	BIT(TRIGGER_NETDEV_LINK_1000) |
+	BIT(TRIGGER_NETDEV_LINK_2500) |
+	BIT(TRIGGER_NETDEV_LINK_5000) |
+	BIT(TRIGGER_NETDEV_LINK_10000) |
+	BIT(TRIGGER_NETDEV_RX) |
+	BIT(TRIGGER_NETDEV_TX);
+
+static int bcm8489x_led_hw_is_supported(struct phy_device *phydev, u8 index,
+					unsigned long rules)
+{
+	if (index >= BCM8489X_MAX_LEDS)
+		return -EINVAL;
+
+	if (rules & ~bcm8489x_supported_triggers)
+		return -EOPNOTSUPP;
+
+	/* Source bit 4 lights at both 100 and 1000; "100 only" isn't
+	 * representable in hardware. Accept LINK_100 only alongside
+	 * LINK_1000 or LINK so the offload is precise.
+	 */
+	if ((rules & BIT(TRIGGER_NETDEV_LINK_100)) &&
+	    !(rules & (BIT(TRIGGER_NETDEV_LINK_1000) |
+		       BIT(TRIGGER_NETDEV_LINK))))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int bcm8489x_led_hw_control_set(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	u16 low = 0, ext = 0;
+
+	if (index >= BCM8489X_MAX_LEDS)
+		return -EINVAL;
+
+	if (rules & (BIT(TRIGGER_NETDEV_LINK_100) | BIT(TRIGGER_NETDEV_LINK)))
+		low |= BCM8489X_LED_SRC_100_1000;
+	if (rules & (BIT(TRIGGER_NETDEV_LINK_1000) | BIT(TRIGGER_NETDEV_LINK)))
+		low |= BCM8489X_LED_SRC_1000;
+	if (rules & (BIT(TRIGGER_NETDEV_LINK_2500) | BIT(TRIGGER_NETDEV_LINK)))
+		ext |= BCM8489X_LED_SRCX_2500;
+	if (rules & (BIT(TRIGGER_NETDEV_LINK_5000) | BIT(TRIGGER_NETDEV_LINK)))
+		ext |= BCM8489X_LED_SRCX_5000;
+	if (rules & (BIT(TRIGGER_NETDEV_LINK_10000) | BIT(TRIGGER_NETDEV_LINK)))
+		low |= BCM8489X_LED_SRC_10G;
+	if (rules & BIT(TRIGGER_NETDEV_RX))
+		low |= BCM8489X_LED_SRC_RX;
+	if (rules & BIT(TRIGGER_NETDEV_TX))
+		low |= BCM8489X_LED_SRC_TX;
+
+	return bcm8489x_led_write(phydev, index, low, ext);
+}
+
+static int bcm8489x_led_hw_control_get(struct phy_device *phydev, u8 index,
+				       unsigned long *rules)
+{
+	int low, ext;
+
+	if (index >= BCM8489X_MAX_LEDS)
+		return -EINVAL;
+
+	low = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+			   bcm8489x_led_regs[index].mask_low);
+	if (low < 0)
+		return low;
+	ext = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+			   bcm8489x_led_regs[index].mask_ext);
+	if (ext < 0)
+		return ext;
+
+	*rules = 0;
+	if (low & BCM8489X_LED_SRC_100_1000)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_100);
+	if (low & BCM8489X_LED_SRC_1000)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_1000);
+	if (ext & BCM8489X_LED_SRCX_2500)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_2500);
+	if (ext & BCM8489X_LED_SRCX_5000)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_5000);
+	if (low & BCM8489X_LED_SRC_10G)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_10000);
+	if (low & BCM8489X_LED_SRC_RX)
+		*rules |= BIT(TRIGGER_NETDEV_RX);
+	if (low & BCM8489X_LED_SRC_TX)
+		*rules |= BIT(TRIGGER_NETDEV_TX);
+
+	return 0;
 }
 
 static int bcm84881_probe(struct phy_device *phydev)
@@ -290,6 +438,10 @@ static struct phy_driver bcm84881_drivers[] = {
 		.config_aneg	= bcm84881_config_aneg,
 		.aneg_done	= bcm84881_aneg_done,
 		.read_status	= bcm84881_read_status,
+		.led_brightness_set = bcm8489x_led_brightness_set,
+		.led_hw_is_supported = bcm8489x_led_hw_is_supported,
+		.led_hw_control_set = bcm8489x_led_hw_control_set,
+		.led_hw_control_get = bcm8489x_led_hw_control_get,
 	}, {
 		PHY_ID_MATCH_MODEL(0x359050a0),
 		.name		= "Broadcom BCM84892",
@@ -300,6 +452,10 @@ static struct phy_driver bcm84881_drivers[] = {
 		.config_aneg	= bcm84881_config_aneg,
 		.aneg_done	= bcm84881_aneg_done,
 		.read_status	= bcm84881_read_status,
+		.led_brightness_set = bcm8489x_led_brightness_set,
+		.led_hw_is_supported = bcm8489x_led_hw_is_supported,
+		.led_hw_control_set = bcm8489x_led_hw_control_set,
+		.led_hw_control_get = bcm8489x_led_hw_control_get,
 	},
 };
 
