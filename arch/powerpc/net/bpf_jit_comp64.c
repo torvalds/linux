@@ -1709,6 +1709,14 @@ emit_clear:
 			break;
 
 		/*
+		 * JUMP reg
+		 */
+		case BPF_JMP | BPF_JA | BPF_X:
+			EMIT(PPC_RAW_MTCTR(dst_reg));
+			EMIT(PPC_RAW_BCTR());
+			break;
+
+		/*
 		 * Return/Exit
 		 */
 		case BPF_JMP | BPF_EXIT:
