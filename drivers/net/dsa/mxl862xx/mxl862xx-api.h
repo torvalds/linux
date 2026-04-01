@@ -3,6 +3,7 @@
 #ifndef __MXL862XX_API_H
 #define __MXL862XX_API_H
 
+#include <linux/bits.h>
 #include <linux/if_ether.h>
 
 /**
@@ -32,6 +33,168 @@ struct mxl862xx_register_mod {
 	__le16 addr;
 	__le16 data;
 	__le16 mask;
+} __packed;
+
+/**
+ * enum mxl862xx_mac_table_filter - Source/Destination MAC address filtering
+ *
+ * @MXL862XX_MAC_FILTER_NONE: no filter
+ * @MXL862XX_MAC_FILTER_SRC: source address filter
+ * @MXL862XX_MAC_FILTER_DEST: destination address filter
+ * @MXL862XX_MAC_FILTER_BOTH: both source and destination filter
+ */
+enum mxl862xx_mac_table_filter {
+	MXL862XX_MAC_FILTER_NONE = 0,
+	MXL862XX_MAC_FILTER_SRC = BIT(0),
+	MXL862XX_MAC_FILTER_DEST = BIT(1),
+	MXL862XX_MAC_FILTER_BOTH = BIT(0) | BIT(1),
+};
+
+#define MXL862XX_TCI_VLAN_ID		GENMASK(11, 0)
+#define MXL862XX_TCI_VLAN_CFI_DEI	BIT(12)
+#define MXL862XX_TCI_VLAN_PRI		GENMASK(15, 13)
+
+/* Set in port_id to use port_map[] as a portmap bitmap instead of a single
+ * port ID. When clear, port_id selects one port; when set, the firmware
+ * ignores the lower bits of port_id and writes port_map[] directly into
+ * the PCE bridge port map.
+ */
+#define MXL862XX_PORTMAP_FLAG		BIT(31)
+
+/**
+ * struct mxl862xx_mac_table_add - MAC Table Entry to be added
+ * @fid: Filtering Identifier (FID) (not supported by all switches)
+ * @port_id: Ethernet Port number
+ * @port_map: Bridge Port Map
+ * @sub_if_id: Sub-Interface Identifier Destination
+ * @age_timer: Aging Time in seconds
+ * @vlan_id: STAG VLAN Id
+ * @static_entry: Static Entry (value will be aged out if not set to static)
+ * @traffic_class: Egress queue traffic class
+ * @mac: MAC Address to add to the table
+ * @filter_flag: See &enum mxl862xx_mac_table_filter
+ * @igmp_controlled: Packet is marked as IGMP controlled if destination MAC
+ *                   address matches MAC in this entry
+ * @associated_mac: Associated Mac address
+ * @tci: TCI for B-Step
+ *	Bit [0:11] - VLAN ID
+ *	Bit [12] - VLAN CFI/DEI
+ *	Bit [13:15] - VLAN PRI
+ */
+struct mxl862xx_mac_table_add {
+	__le16 fid;
+	__le32 port_id;
+	__le16 port_map[8];
+	__le16 sub_if_id;
+	__le32 age_timer;
+	__le16 vlan_id;
+	u8 static_entry;
+	u8 traffic_class;
+	u8 mac[ETH_ALEN];
+	u8 filter_flag;
+	u8 igmp_controlled;
+	u8 associated_mac[ETH_ALEN];
+	__le16 tci;
+} __packed;
+
+/**
+ * struct mxl862xx_mac_table_remove - MAC Table Entry to be removed
+ * @fid: Filtering Identifier (FID)
+ * @mac: MAC Address to be removed from the table.
+ * @filter_flag: See &enum mxl862xx_mac_table_filter
+ * @tci: TCI for B-Step
+ *	Bit [0:11] - VLAN ID
+ *	Bit [12] - VLAN CFI/DEI
+ *	Bit [13:15] - VLAN PRI
+ */
+struct mxl862xx_mac_table_remove {
+	__le16 fid;
+	u8 mac[ETH_ALEN];
+	u8 filter_flag;
+	__le16 tci;
+} __packed;
+
+/**
+ * struct mxl862xx_mac_table_read - MAC Table Entry to be read
+ * @initial: Restart the get operation from the beginning of the table
+ * @last: Indicates that the read operation returned last entry
+ * @fid: Get the MAC table entry belonging to the given Filtering Identifier
+ * @port_id: The Bridge Port ID
+ * @port_map: Bridge Port Map
+ * @age_timer: Aging Time
+ * @vlan_id: STAG VLAN Id
+ * @static_entry: Indicates if this is a Static Entry
+ * @sub_if_id: Sub-Interface Identifier Destination
+ * @mac: MAC Address. Filled out by the switch API implementation.
+ * @filter_flag: See &enum mxl862xx_mac_table_filter
+ * @igmp_controlled: Packet is marked as IGMP controlled if destination MAC
+ *                   address matches the MAC in this entry
+ * @entry_changed: Indicate if the Entry has Changed
+ * @associated_mac: Associated MAC address
+ * @hit_status: MAC Table Hit Status Update
+ * @tci: TCI for B-Step
+ *	Bit [0:11] - VLAN ID
+ *	Bit [12] - VLAN CFI/DEI
+ *	Bit [13:15] - VLAN PRI
+ * @first_bridge_port_id: The port this MAC address has first been learned.
+ *                        This is used for loop detection.
+ */
+struct mxl862xx_mac_table_read {
+	u8 initial;
+	u8 last;
+	__le16 fid;
+	__le32 port_id;
+	__le16 port_map[8];
+	__le32 age_timer;
+	__le16 vlan_id;
+	u8 static_entry;
+	__le16 sub_if_id;
+	u8 mac[ETH_ALEN];
+	u8 filter_flag;
+	u8 igmp_controlled;
+	u8 entry_changed;
+	u8 associated_mac[ETH_ALEN];
+	u8 hit_status;
+	__le16 tci;
+	__le16 first_bridge_port_id;
+} __packed;
+
+/**
+ * struct mxl862xx_mac_table_query - MAC Table Entry key-based lookup
+ * @mac: MAC Address to search for (input)
+ * @fid: Filtering Identifier (input)
+ * @found: Set by firmware: 1 if entry was found, 0 if not
+ * @port_id: Bridge Port ID (output; MSB set if portmap mode)
+ * @port_map: Bridge Port Map (output; valid for static entries)
+ * @sub_if_id: Sub-Interface Identifier Destination
+ * @age_timer: Aging Time
+ * @vlan_id: STAG VLAN Id
+ * @static_entry: Indicates if this is a Static Entry
+ * @filter_flag: See &enum mxl862xx_mac_table_filter (input+output)
+ * @igmp_controlled: IGMP controlled flag
+ * @entry_changed: Entry changed flag
+ * @associated_mac: Associated MAC address
+ * @hit_status: MAC Table Hit Status Update
+ * @tci: TCI (VLAN ID + CFI/DEI + PRI) (input)
+ * @first_bridge_port_id: First learned bridge port
+ */
+struct mxl862xx_mac_table_query {
+	u8 mac[ETH_ALEN];
+	__le16 fid;
+	u8 found;
+	__le32 port_id;
+	__le16 port_map[8];
+	__le16 sub_if_id;
+	__le32 age_timer;
+	__le16 vlan_id;
+	u8 static_entry;
+	u8 filter_flag;
+	u8 igmp_controlled;
+	u8 entry_changed;
+	u8 associated_mac[ETH_ALEN];
+	u8 hit_status;
+	__le16 tci;
+	__le16 first_bridge_port_id;
 } __packed;
 
 /**
@@ -137,6 +300,40 @@ enum mxl862xx_bridge_port_egress_meter {
 	MXL862XX_BRIDGE_PORT_EGRESS_METER_OTHERS,
 	MXL862XX_BRIDGE_PORT_EGRESS_METER_MAX,
 };
+
+/**
+ * struct mxl862xx_qos_meter_cfg - Rate meter configuration
+ * @enable: Enable/disable meter
+ * @meter_id: Meter ID (assigned by firmware on alloc)
+ * @meter_name: Meter name string
+ * @meter_type: Meter algorithm type (srTCM = 0, trTCM = 1)
+ * @cbs: Committed Burst Size (in bytes)
+ * @res1: Reserved
+ * @ebs: Excess Burst Size (in bytes)
+ * @res2: Reserved
+ * @rate: Committed Information Rate (in kbit/s)
+ * @pi_rate: Peak Information Rate (in kbit/s)
+ * @colour_blind_mode: Colour-blind mode enable
+ * @pkt_mode: Packet mode enable
+ * @local_overhd: Local overhead accounting enable
+ * @local_overhd_val: Local overhead accounting value
+ */
+struct mxl862xx_qos_meter_cfg {
+	u8 enable;
+	__le16 meter_id;
+	char meter_name[32];
+	__le32 meter_type;
+	__le32 cbs;
+	__le32 res1;
+	__le32 ebs;
+	__le32 res2;
+	__le32 rate;
+	__le32 pi_rate;
+	u8 colour_blind_mode;
+	u8 pkt_mode;
+	u8 local_overhd;
+	__le16 local_overhd_val;
+} __packed;
 
 /**
  * enum mxl862xx_bridge_forward_mode - Bridge forwarding type of packet
@@ -456,7 +653,7 @@ struct mxl862xx_pmapper {
  */
 struct mxl862xx_bridge_port_config {
 	__le16 bridge_port_id;
-	__le32 mask; /* enum mxl862xx_bridge_port_config_mask  */
+	__le32 mask; /* enum mxl862xx_bridge_port_config_mask */
 	__le16 bridge_id;
 	u8 ingress_extended_vlan_enable;
 	__le16 ingress_extended_vlan_block_id;
@@ -656,6 +853,32 @@ struct mxl862xx_ctp_port_assignment {
 	__le16 number_of_ctp_port;
 	__le32 mode; /* enum mxl862xx_logical_port_mode */
 	__le16 bridge_port_id;
+} __packed;
+
+/**
+ * enum mxl862xx_stp_port_state - Spanning Tree Protocol port states
+ * @MXL862XX_STP_PORT_STATE_FORWARD: Forwarding state
+ * @MXL862XX_STP_PORT_STATE_DISABLE: Disabled/Discarding state
+ * @MXL862XX_STP_PORT_STATE_LEARNING: Learning state
+ * @MXL862XX_STP_PORT_STATE_BLOCKING: Blocking/Listening
+ */
+enum mxl862xx_stp_port_state {
+	MXL862XX_STP_PORT_STATE_FORWARD = 0,
+	MXL862XX_STP_PORT_STATE_DISABLE,
+	MXL862XX_STP_PORT_STATE_LEARNING,
+	MXL862XX_STP_PORT_STATE_BLOCKING,
+};
+
+/**
+ * struct mxl862xx_stp_port_cfg - Configures the Spanning Tree Protocol state
+ * @port_id: Port number
+ * @fid: Filtering Identifier (FID)
+ * @port_state: See &enum mxl862xx_stp_port_state
+ */
+struct mxl862xx_stp_port_cfg {
+	__le16 port_id;
+	__le16 fid;
+	__le32 port_state; /* enum mxl862xx_stp_port_state */
 } __packed;
 
 /**
