@@ -962,13 +962,13 @@ static int __io_read(struct io_kiocb *req, struct io_br_sel *sel,
 	if (ret == -EAGAIN) {
 		/* If we can poll, just do that. */
 		if (io_file_can_poll(req))
-			return -EAGAIN;
+			return ret;
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->flags & REQ_F_IOPOLL))
-			goto done;
+			return ret;
 		/* no retry on NONBLOCK nor RWF_NOWAIT */
 		if (req->flags & REQ_F_NOWAIT)
-			goto done;
+			return ret;
 		ret = 0;
 	} else if (ret == -EIOCBQUEUED) {
 		return IOU_ISSUE_SKIP_COMPLETE;
@@ -976,7 +976,7 @@ static int __io_read(struct io_kiocb *req, struct io_br_sel *sel,
 		   (req->flags & REQ_F_NOWAIT) || !need_complete_io(req) ||
 		   (issue_flags & IO_URING_F_MULTISHOT)) {
 		/* read all, failed, already did sync or don't want to retry */
-		goto done;
+		return ret;
 	}
 
 	/*
@@ -1019,8 +1019,7 @@ static int __io_read(struct io_kiocb *req, struct io_br_sel *sel,
 		kiocb->ki_flags &= ~IOCB_WAITQ;
 		iov_iter_restore(&io->iter, &io->iter_state);
 	} while (ret > 0);
-done:
-	/* it's faster to check here than delegate to kfree */
+
 	return ret;
 }
 
