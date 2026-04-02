@@ -387,11 +387,62 @@ static int nla_put_napi_id(struct sk_buff *skb, const struct napi_struct *napi)
 }
 
 static int
+netdev_nl_queue_fill_lease(struct sk_buff *rsp, struct net_device *netdev,
+			   u32 q_idx, u32 q_type)
+{
+	struct net_device *orig_netdev = netdev;
+	struct nlattr *nest_lease, *nest_queue;
+	struct netdev_rx_queue *rxq;
+	struct net *net, *peer_net;
+
+	rxq = __netif_get_rx_queue_lease(&netdev, &q_idx,
+					 NETIF_PHYS_TO_VIRT);
+	if (!rxq || orig_netdev == netdev)
+		return 0;
+
+	nest_lease = nla_nest_start(rsp, NETDEV_A_QUEUE_LEASE);
+	if (!nest_lease)
+		goto nla_put_failure;
+
+	nest_queue = nla_nest_start(rsp, NETDEV_A_LEASE_QUEUE);
+	if (!nest_queue)
+		goto nla_put_failure;
+	if (nla_put_u32(rsp, NETDEV_A_QUEUE_ID, q_idx))
+		goto nla_put_failure;
+	if (nla_put_u32(rsp, NETDEV_A_QUEUE_TYPE, q_type))
+		goto nla_put_failure;
+	nla_nest_end(rsp, nest_queue);
+
+	if (nla_put_u32(rsp, NETDEV_A_LEASE_IFINDEX,
+			READ_ONCE(netdev->ifindex)))
+		goto nla_put_failure;
+
+	rcu_read_lock();
+	peer_net = dev_net_rcu(netdev);
+	net = dev_net_rcu(orig_netdev);
+	if (!net_eq(net, peer_net)) {
+		s32 id = peernet2id_alloc(net, peer_net, GFP_ATOMIC);
+
+		if (nla_put_s32(rsp, NETDEV_A_LEASE_NETNS_ID, id))
+			goto nla_put_failure_unlock;
+	}
+	rcu_read_unlock();
+	nla_nest_end(rsp, nest_lease);
+	return 0;
+
+nla_put_failure_unlock:
+	rcu_read_unlock();
+nla_put_failure:
+	return -ENOMEM;
+}
+
+static int
 netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 			 u32 q_idx, u32 q_type, const struct genl_info *info)
 {
 	struct pp_memory_provider_params *params;
-	struct netdev_rx_queue *rxq;
+	struct net_device *orig_netdev = netdev;
+	struct netdev_rx_queue *rxq, *rxq_lease;
 	struct netdev_queue *txq;
 	void *hdr;
 
@@ -409,17 +460,22 @@ netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 		rxq = __netif_get_rx_queue(netdev, q_idx);
 		if (nla_put_napi_id(rsp, rxq->napi))
 			goto nla_put_failure;
+		if (netdev_nl_queue_fill_lease(rsp, netdev, q_idx, q_type))
+			goto nla_put_failure;
 
+		rxq_lease = netif_get_rx_queue_lease_locked(&netdev, &q_idx);
+		if (rxq_lease)
+			rxq = rxq_lease;
 		params = &rxq->mp_params;
 		if (params->mp_ops &&
 		    params->mp_ops->nl_fill(params->mp_priv, rsp, rxq))
-			goto nla_put_failure;
+			goto nla_put_failure_lease;
 #ifdef CONFIG_XDP_SOCKETS
 		if (rxq->pool)
 			if (nla_put_empty_nest(rsp, NETDEV_A_QUEUE_XSK))
-				goto nla_put_failure;
+				goto nla_put_failure_lease;
 #endif
-
+		netif_put_rx_queue_lease_locked(orig_netdev, netdev);
 		break;
 	case NETDEV_QUEUE_TYPE_TX:
 		txq = netdev_get_tx_queue(netdev, q_idx);
@@ -437,6 +493,8 @@ netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 
 	return 0;
 
+nla_put_failure_lease:
+	netif_put_rx_queue_lease_locked(orig_netdev, netdev);
 nla_put_failure:
 	genlmsg_cancel(rsp, hdr);
 	return -EMSGSIZE;
