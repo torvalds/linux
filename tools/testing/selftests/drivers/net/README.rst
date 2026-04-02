@@ -26,6 +26,10 @@ The netdevice against which tests will be run must exist, be running
 Refer to list of :ref:`Variables` later in this file to set up running
 the tests against a real device.
 
+The current support for bash tests restricts the use of the same interface name
+on the local system and the remote one and will bail if this case is
+encountered.
+
 Both modes required
 ~~~~~~~~~~~~~~~~~~~
 
