@@ -94,7 +94,6 @@
 #define START_SEQ 100
 #define START_ACK 100
 #define ETH_P_NONE 0
-#define TOTAL_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
 #define MSS (4096 - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
 #define MAX_PAYLOAD (IP_MAXPACKET - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
 #define NUM_LARGE_PKT (MAX_PAYLOAD / MSS)
@@ -526,9 +525,9 @@ static void send_data_pkts(int fd, struct sockaddr_ll *daddr,
  */
 static void send_large(int fd, struct sockaddr_ll *daddr, int remainder)
 {
-	static char pkts[NUM_LARGE_PKT][TOTAL_HDR_LEN + MSS];
-	static char last[TOTAL_HDR_LEN + MSS];
-	static char new_seg[TOTAL_HDR_LEN + MSS];
+	static char pkts[NUM_LARGE_PKT][MAX_HDR_LEN + MSS];
+	static char last[MAX_HDR_LEN + MSS];
+	static char new_seg[MAX_HDR_LEN + MSS];
 	int i;
 
 	for (i = 0; i < NUM_LARGE_PKT; i++)
