@@ -826,6 +826,13 @@ definitions:
       - name: none
       - name: default
   -
+    name: netkit-pairing
+    type: enum
+    enum-name: netkit-pairing
+    entries:
+      - name: pair
+      - name: single
+  -
     name: ovpn-mode
     enum-name: ovpn-mode
     name-prefix: ovpn-mode
@@ -2299,6 +2306,10 @@ attribute-sets:
       -
         name: tailroom
         type: u16
+      -
+        name: pairing
+        type: u32
+        enum: netkit-pairing
   -
     name: linkinfo-ovpn-attrs
     name-prefix: ifla-ovpn-

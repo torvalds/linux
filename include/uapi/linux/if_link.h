@@ -1296,6 +1296,11 @@ enum netkit_mode {
 	NETKIT_L3,
 };
 
+enum netkit_pairing {
+	NETKIT_DEVICE_PAIR,
+	NETKIT_DEVICE_SINGLE,
+};
+
 /* NETKIT_SCRUB_NONE leaves clearing skb->{mark,priority} up to
  * the BPF program if attached. This also means the latter can
  * consume the two fields if they were populated earlier.
@@ -1320,6 +1325,7 @@ enum {
 	IFLA_NETKIT_PEER_SCRUB,
 	IFLA_NETKIT_HEADROOM,
 	IFLA_NETKIT_TAILROOM,
+	IFLA_NETKIT_PAIRING,
 	__IFLA_NETKIT_MAX,
 };
 #define IFLA_NETKIT_MAX	(__IFLA_NETKIT_MAX - 1)
