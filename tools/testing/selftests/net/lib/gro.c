@@ -1154,7 +1154,7 @@ static void check_capacity_pkts(int fd)
 	memset(coalesced, 0, sizeof(coalesced));
 	memset(flow_order, -1, sizeof(flow_order));
 
-	while (total_data < num_flows * CAPACITY_PAYLOAD_LEN * 2) {
+	while (1) {
 		ip_ext_len = 0;
 		pkt_size = recv(fd, buffer, IP_MAXPACKET + ETH_HLEN + 1, 0);
 		if (pkt_size < 0)
@@ -1167,7 +1167,6 @@ static void check_capacity_pkts(int fd)
 
 		tcph = (struct tcphdr *)(buffer + tcp_offset + ip_ext_len);
 
-		/* FIN packet terminates reception */
 		if (tcph->fin)
 			break;
 
@@ -1189,7 +1188,13 @@ static void check_capacity_pkts(int fd)
 			data_len = pkt_size - total_hdr_len - ip_ext_len;
 		}
 
-		flow_order[num_pkt] = flow_id;
+		if (num_pkt < num_flows * 2) {
+			flow_order[num_pkt] = flow_id;
+		} else if (num_pkt == num_flows * 2) {
+			vlog("More packets than expected (%d)\n",
+			     num_flows * 2);
+			fail_reason = fail_reason ?: "too many packets";
+		}
 		coalesced[flow_id] = data_len;
 
 		if (data_len == CAPACITY_PAYLOAD_LEN * 2) {
