@@ -175,11 +175,7 @@ static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 
 	alignment = guest_page_size = vm_guest_mode_params[VM_MODE_DEFAULT].page_size;
 	gpa = (vm->max_gfn - TEST_NPAGES) * guest_page_size;
-#ifdef __s390x__
-	alignment = max(0x100000UL, guest_page_size);
-#else
 	alignment = SZ_2M;
-#endif
 	gpa = align_down(gpa, alignment);
 	gva = gpa & ((1ULL << (vm->va_bits - 1)) - 1);
 

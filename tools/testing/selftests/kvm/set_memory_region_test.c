@@ -413,14 +413,7 @@ static void test_add_max_memory_regions(void)
 	uint32_t max_mem_slots;
 	uint32_t slot;
 	void *mem, *mem_aligned, *mem_extra;
-	size_t alignment;
-
-#ifdef __s390x__
-	/* On s390x, the host address must be aligned to 1M (due to PGSTEs) */
-	alignment = 0x100000;
-#else
-	alignment = 1;
-#endif
+	size_t alignment = 1;
 
 	max_mem_slots = kvm_check_cap(KVM_CAP_NR_MEMSLOTS);
 	TEST_ASSERT(max_mem_slots > 0,
