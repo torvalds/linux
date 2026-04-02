@@ -2165,15 +2165,28 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	/* FIXME: Should we disable ports not in the Extended Capabilities? */
 }
 
-static void xhci_create_rhub_port_array(struct xhci_hcd *xhci,
-					struct xhci_hub *rhub, gfp_t flags)
+static void xhci_create_rhub_port_array(struct xhci_hcd *xhci, struct xhci_hub *rhub,
+					unsigned int max_ports, gfp_t flags)
 {
 	int port_index = 0;
 	int i;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	if (!rhub->num_ports)
+	if (!rhub->num_ports) {
+		xhci_info(xhci, "USB%u root hub has no ports\n", rhub->maj_rev);
 		return;
+	}
+
+	/*
+	 * Place limits on the number of roothub ports so that the hub
+	 * descriptors aren't longer than the USB core will allocate.
+	 */
+	if (rhub->num_ports > max_ports) {
+		xhci->usb3_rhub.num_ports = max_ports;
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Limiting USB%u root hub ports to %u",
+			       rhub->maj_rev, max_ports);
+	}
+
 	rhub->ports = kcalloc_node(rhub->num_ports, sizeof(*rhub->ports),
 			flags, dev_to_node(dev));
 	if (!rhub->ports)
@@ -2269,30 +2282,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		       "Found %u USB 2.0 ports and %u USB 3.0 ports.",
 		       xhci->usb2_rhub.num_ports, xhci->usb3_rhub.num_ports);
 
-	/* Place limits on the number of roothub ports so that the hub
-	 * descriptors aren't longer than the USB core will allocate.
-	 */
-	if (xhci->usb3_rhub.num_ports > USB_SS_MAXPORTS) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Limiting USB 3.0 roothub ports to %u.",
-				USB_SS_MAXPORTS);
-		xhci->usb3_rhub.num_ports = USB_SS_MAXPORTS;
-	}
-	if (xhci->usb2_rhub.num_ports > USB_MAXCHILDREN) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Limiting USB 2.0 roothub ports to %u.",
-				USB_MAXCHILDREN);
-		xhci->usb2_rhub.num_ports = USB_MAXCHILDREN;
-	}
-
-	if (!xhci->usb2_rhub.num_ports)
-		xhci_info(xhci, "USB2 root hub has no ports\n");
-
-	if (!xhci->usb3_rhub.num_ports)
-		xhci_info(xhci, "USB3 root hub has no ports\n");
-
-	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, flags);
-	xhci_create_rhub_port_array(xhci, &xhci->usb3_rhub, flags);
+	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, USB_MAXCHILDREN, flags);
+	xhci_create_rhub_port_array(xhci, &xhci->usb3_rhub, USB_SS_MAXPORTS, flags);
 
 	return 0;
 }
