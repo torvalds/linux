@@ -1082,9 +1082,11 @@ int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
+	struct xhci_segment	*seg;
 	int			retval = 0;
 	bool			pending_portevent = false;
 	bool			suspended_usb3_devs = false;
+	bool			reset_registers = false;
 
 	if (!hcd->state)
 		return 0;
@@ -1103,10 +1105,11 @@ int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 
 	spin_lock_irq(&xhci->lock);
 
-	if (xhci->quirks & XHCI_RESET_ON_RESUME || xhci->broken_suspend)
-		power_lost = true;
-
-	if (!power_lost) {
+	if (power_lost || xhci->broken_suspend || xhci->quirks & XHCI_RESET_ON_RESUME) {
+		xhci_dbg(xhci, "HC state lost, performing host controller reset\n");
+		reset_registers = true;
+	} else {
+		xhci_dbg(xhci, "HC state intact, continuing without reset\n");
 		/*
 		 * Some controllers might lose power during suspend, so wait
 		 * for controller not ready bit to clear, just as in xHC init.
@@ -1144,11 +1147,11 @@ int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 		temp = readl(&xhci->op_regs->status);
 		if ((temp & (STS_SRE | STS_HCE)) && !(xhci->xhc_state & XHCI_STATE_REMOVING)) {
 			xhci_warn(xhci, "xHC error in resume, USBSTS 0x%x, Reinit\n", temp);
-			power_lost = true;
+			reset_registers = true;
 		}
 	}
 
-	if (power_lost) {
+	if (reset_registers) {
 		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 				!(xhci_all_ports_seen_u0(xhci))) {
 			timer_delete_sync(&xhci->comp_mode_recovery_timer);
@@ -1172,27 +1175,33 @@ int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 		if (retval)
 			return retval;
 
-		xhci_dbg(xhci, "// Disabling event ring interrupts\n");
-		temp = readl(&xhci->op_regs->status);
-		writel((temp & ~0x1fff) | STS_EINT, &xhci->op_regs->status);
-		xhci_disable_interrupter(xhci, xhci->interrupters[0]);
+		cancel_delayed_work_sync(&xhci->cmd_timer);
 
-		xhci_dbg(xhci, "cleaning up memory\n");
-		xhci_mem_cleanup(xhci);
+		/* Delete all remaining commands */
+		xhci_cleanup_command_queue(xhci);
+
+		/* Clear data which is re-initilized during runtime */
+		xhci_for_each_ring_seg(xhci->interrupters[0]->event_ring->first_seg, seg)
+			memset(seg->trbs, 0, sizeof(union xhci_trb) * TRBS_PER_SEGMENT);
+
+		for (int i = xhci->max_slots; i > 0; i--)
+			xhci_free_virt_devices_depth_first(xhci, i);
+
+		xhci_rh_bw_cleanup(xhci);
+
+		xhci->cmd_ring_reserved_trbs = 0;
+		xhci_for_each_ring_seg(xhci->cmd_ring->first_seg, seg)
+			memset(seg->trbs, 0, sizeof(union xhci_trb) * TRBS_PER_SEGMENT);
+
 		xhci_debugfs_exit(xhci);
-		xhci_dbg(xhci, "xhci_stop completed - status = %x\n",
-			    readl(&xhci->op_regs->status));
-
-		/* USB core calls the PCI reinit and start functions twice:
-		 * first with the primary HCD, and then with the secondary HCD.
-		 * If we don't do the same, the host will never be started.
-		 */
-		retval = xhci_mem_init(xhci, GFP_KERNEL);
-		if (retval)
-			return retval;
 
 		xhci_init(hcd);
 
+		/*
+		 * USB core calls the PCI reinit and start functions twice:
+		 * first with the primary HCD, and then with the secondary HCD.
+		 * If we don't do the same, the host will never be started.
+		 */
 		xhci_dbg(xhci, "Start the primary HCD\n");
 		retval = xhci_run(hcd);
 		if (!retval && xhci->shared_hcd) {
