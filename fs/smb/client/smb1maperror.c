@@ -219,12 +219,24 @@ static int __init __array ## _is_sorted(void)				\
 
 /* ntstatus_to_dos_map_is_sorted */
 DEFINE_CHECK_SORT_FUNC(ntstatus_to_dos_map, ntstatus);
+/* mapping_table_ERRDOS_is_sorted */
+DEFINE_CHECK_SORT_FUNC(mapping_table_ERRDOS, smb_err);
+/* mapping_table_ERRSRV_is_sorted */
+DEFINE_CHECK_SORT_FUNC(mapping_table_ERRSRV, smb_err);
 
 int __init smb1_init_maperror(void)
 {
 	int rc;
 
 	rc = ntstatus_to_dos_map_is_sorted();
+	if (rc)
+		return rc;
+
+	rc = mapping_table_ERRDOS_is_sorted();
+	if (rc)
+		return rc;
+
+	rc = mapping_table_ERRSRV_is_sorted();
 	if (rc)
 		return rc;
 
