@@ -544,6 +544,7 @@ void dpaa2_mac_start(struct dpaa2_mac *mac)
 
 	phylink_start(mac->phylink);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_start);
 
 void dpaa2_mac_stop(struct dpaa2_mac *mac)
 {
@@ -554,6 +555,7 @@ void dpaa2_mac_stop(struct dpaa2_mac *mac)
 	if (mac->serdes_phy)
 		phy_power_off(mac->serdes_phy);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_stop);
 
 int dpaa2_mac_connect(struct dpaa2_mac *mac)
 {
@@ -646,6 +648,7 @@ err_pcs_destroy:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_connect);
 
 void dpaa2_mac_disconnect(struct dpaa2_mac *mac)
 {
@@ -658,6 +661,7 @@ void dpaa2_mac_disconnect(struct dpaa2_mac *mac)
 	of_phy_put(mac->serdes_phy);
 	mac->serdes_phy = NULL;
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_disconnect);
 
 int dpaa2_mac_open(struct dpaa2_mac *mac)
 {
@@ -729,6 +733,7 @@ err_close_dpmac:
 	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
 	return err;
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_open);
 
 void dpaa2_mac_close(struct dpaa2_mac *mac)
 {
@@ -753,6 +758,7 @@ void dpaa2_mac_close(struct dpaa2_mac *mac)
 	if (mac->fw_node)
 		fwnode_handle_put(mac->fw_node);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_close);
 
 static void dpaa2_mac_transfer_stats(const struct dpmac_counter *counters,
 				     size_t num_counters, void *s,
@@ -824,6 +830,7 @@ void dpaa2_mac_get_rmon_stats(struct dpaa2_mac *mac,
 
 	*ranges = dpaa2_mac_rmon_ranges;
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_rmon_stats);
 
 void dpaa2_mac_get_pause_stats(struct dpaa2_mac *mac,
 			       struct ethtool_pause_stats *s)
@@ -835,6 +842,7 @@ void dpaa2_mac_get_pause_stats(struct dpaa2_mac *mac,
 				     DPAA2_MAC_NUM_PAUSE_STATS,
 				     dpaa2_mac_pause_stats, s);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_pause_stats);
 
 void dpaa2_mac_get_ctrl_stats(struct dpaa2_mac *mac,
 			      struct ethtool_eth_ctrl_stats *s)
@@ -846,6 +854,7 @@ void dpaa2_mac_get_ctrl_stats(struct dpaa2_mac *mac,
 				     DPAA2_MAC_NUM_ETH_CTRL_STATS,
 				     dpaa2_mac_eth_ctrl_stats, s);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_ctrl_stats);
 
 void dpaa2_mac_get_eth_mac_stats(struct dpaa2_mac *mac,
 				 struct ethtool_eth_mac_stats *s)
@@ -857,11 +866,13 @@ void dpaa2_mac_get_eth_mac_stats(struct dpaa2_mac *mac,
 				     DPAA2_MAC_NUM_ETH_MAC_STATS,
 				     dpaa2_mac_eth_mac_stats, s);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_eth_mac_stats);
 
 int dpaa2_mac_get_sset_count(void)
 {
 	return DPAA2_MAC_NUM_ETHTOOL_STATS;
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_sset_count);
 
 void dpaa2_mac_get_strings(u8 **data)
 {
@@ -870,6 +881,7 @@ void dpaa2_mac_get_strings(u8 **data)
 	for (i = 0; i < DPAA2_MAC_NUM_ETHTOOL_STATS; i++)
 		ethtool_puts(data, dpaa2_mac_ethtool_stats[i].name);
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_strings);
 
 void dpaa2_mac_get_ethtool_stats(struct dpaa2_mac *mac, u64 *data)
 {
@@ -921,3 +933,7 @@ fallback:
 		*(data + i) = value;
 	}
 }
+EXPORT_SYMBOL_GPL(dpaa2_mac_get_ethtool_stats);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("DPAA2 Ethernet MAC library");
