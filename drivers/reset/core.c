@@ -12,6 +12,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/fwnode.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/property.h>
@@ -20,9 +21,11 @@
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
+#include <linux/srcu.h>
 
 static DEFINE_MUTEX(reset_list_mutex);
 static LIST_HEAD(reset_controller_list);
@@ -36,6 +39,7 @@ static DEFINE_IDA(reset_gpio_ida);
  * struct reset_control - a reset control
  * @rcdev: a pointer to the reset controller device
  *         this reset control belongs to
+ * @srcu: protects the rcdev pointer from removal during consumer access
  * @list: list entry for the rcdev's reset controller list
  * @id: ID of the reset controller in the reset
  *      controller device
@@ -47,9 +51,11 @@ static DEFINE_IDA(reset_gpio_ida);
  * @triggered_count: Number of times this reset line has been reset. Currently
  *                   only used for shared resets, which means that the value
  *                   will be either 0 or 1.
+ * @lock: serializes the internals of reset_control_acquire()
  */
 struct reset_control {
-	struct reset_controller_dev *rcdev;
+	struct reset_controller_dev __rcu *rcdev;
+	struct srcu_struct srcu;
 	struct list_head list;
 	unsigned int id;
 	struct kref refcnt;
@@ -58,6 +64,7 @@ struct reset_control {
 	bool array;
 	atomic_t deassert_count;
 	atomic_t triggered_count;
+	struct mutex lock;
 };
 
 /**
@@ -74,14 +81,16 @@ struct reset_control_array {
 
 /**
  * struct reset_gpio_lookup - lookup key for ad-hoc created reset-gpio devices
- * @of_args: phandle to the reset controller with all the args like GPIO number
+ * @ref_args: Reference to the reset controller with all the args like GPIO number
  * @swnode: Software node containing the reference to the GPIO provider
  * @list: list entry for the reset_gpio_lookup_list
+ * @adev: Auxiliary device representing the reset controller
  */
 struct reset_gpio_lookup {
-	struct of_phandle_args of_args;
+	struct fwnode_reference_args ref_args;
 	struct fwnode_handle *swnode;
 	struct list_head list;
+	struct auxiliary_device adev;
 };
 
 static const char *rcdev_name(struct reset_controller_dev *rcdev)
@@ -89,27 +98,24 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
 	if (rcdev->dev)
 		return dev_name(rcdev->dev);
 
-	if (rcdev->of_node)
-		return rcdev->of_node->full_name;
-
-	if (rcdev->of_args)
-		return rcdev->of_args->np->full_name;
+	if (rcdev->fwnode)
+		return fwnode_get_name(rcdev->fwnode);
 
 	return NULL;
 }
 
 /**
- * of_reset_simple_xlate - translate reset_spec to the reset line number
+ * fwnode_reset_simple_xlate - translate reset_spec to the reset line number
  * @rcdev: a pointer to the reset controller device
- * @reset_spec: reset line specifier as found in the device tree
+ * @reset_spec: reset line specifier as found in firmware
  *
- * This static translation function is used by default if of_xlate in
- * :c:type:`reset_controller_dev` is not set. It is useful for all reset
- * controllers with 1:1 mapping, where reset lines can be indexed by number
- * without gaps.
+ * This static translation function is used by default if neither fwnode_xlate
+ * not of_xlate in :c:type:`reset_controller_dev` is not set. It is useful for
+ * all reset controllers with 1:1 mapping, where reset lines can be indexed by
+ * number without gaps.
  */
-static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
-				 const struct of_phandle_args *reset_spec)
+static int fwnode_reset_simple_xlate(struct reset_controller_dev *rcdev,
+				     const struct fwnode_reference_args *reset_spec)
 {
 	if (reset_spec->args[0] >= rcdev->nr_resets)
 		return -EINVAL;
@@ -123,23 +129,46 @@ static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
  */
 int reset_controller_register(struct reset_controller_dev *rcdev)
 {
-	if (rcdev->of_node && rcdev->of_args)
+	if ((rcdev->of_node && rcdev->fwnode) || (rcdev->of_xlate && rcdev->fwnode_xlate))
 		return -EINVAL;
 
-	if (!rcdev->of_xlate) {
-		rcdev->of_reset_n_cells = 1;
-		rcdev->of_xlate = of_reset_simple_xlate;
+	if (rcdev->of_node && !rcdev->fwnode)
+		rcdev->fwnode = of_fwnode_handle(rcdev->of_node);
+
+	if (!rcdev->fwnode) {
+		rcdev->fwnode = dev_fwnode(rcdev->dev);
+		if (!rcdev->fwnode)
+			return -EINVAL;
+	}
+
+	if (rcdev->of_xlate)
+		rcdev->fwnode_reset_n_cells = rcdev->of_reset_n_cells;
+
+	if (!rcdev->fwnode_xlate && !rcdev->of_xlate) {
+		rcdev->fwnode_xlate = fwnode_reset_simple_xlate;
+		rcdev->fwnode_reset_n_cells = 1;
 	}
 
 	INIT_LIST_HEAD(&rcdev->reset_control_head);
+	mutex_init(&rcdev->lock);
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&reset_list_mutex);
+
 	list_add(&rcdev->list, &reset_controller_list);
-	mutex_unlock(&reset_list_mutex);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(reset_controller_register);
+
+static void reset_controller_remove(struct reset_controller_dev *rcdev,
+				    struct reset_control *rstc)
+{
+	lockdep_assert_held(&rcdev->lock);
+
+	list_del(&rstc->list);
+	module_put(rcdev->owner);
+	put_device(rcdev->dev);
+}
 
 /**
  * reset_controller_unregister - unregister a reset controller device
@@ -147,9 +176,24 @@ EXPORT_SYMBOL_GPL(reset_controller_register);
  */
 void reset_controller_unregister(struct reset_controller_dev *rcdev)
 {
-	mutex_lock(&reset_list_mutex);
-	list_del(&rcdev->list);
-	mutex_unlock(&reset_list_mutex);
+	struct reset_control *rstc, *pos;
+
+	scoped_guard(mutex, &reset_list_mutex)
+		list_del(&rcdev->list);
+
+	scoped_guard(mutex, &rcdev->lock) {
+		/*
+		 * Numb but don't free the remaining reset control handles that are
+		 * still held by consumers.
+		 */
+		list_for_each_entry_safe(rstc, pos, &rcdev->reset_control_head, list) {
+			rcu_assign_pointer(rstc->rcdev, NULL);
+			synchronize_srcu(&rstc->srcu);
+			reset_controller_remove(rcdev, rstc);
+		}
+	}
+
+	mutex_destroy(&rcdev->lock);
 }
 EXPORT_SYMBOL_GPL(reset_controller_unregister);
 
@@ -326,6 +370,7 @@ static inline bool reset_control_is_array(struct reset_control *rstc)
  */
 int reset_control_reset(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
 	int ret;
 
 	if (!rstc)
@@ -337,7 +382,13 @@ int reset_control_reset(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_reset(rstc_to_array(rstc));
 
-	if (!rstc->rcdev->ops->reset)
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	if (!rcdev->ops->reset)
 		return -ENOTSUPP;
 
 	if (rstc->shared) {
@@ -351,7 +402,7 @@ int reset_control_reset(struct reset_control *rstc)
 			return -EPERM;
 	}
 
-	ret = rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
+	ret = rcdev->ops->reset(rcdev, rstc->id);
 	if (rstc->shared && ret)
 		atomic_dec(&rstc->triggered_count);
 
@@ -384,7 +435,7 @@ int reset_control_bulk_reset(int num_rstcs,
 EXPORT_SYMBOL_GPL(reset_control_bulk_reset);
 
 /**
- * reset_control_rearm - allow shared reset line to be re-triggered"
+ * reset_control_rearm - allow shared reset line to be re-triggered
  * @rstc: reset controller
  *
  * On a shared reset line the actual reset pulse is only triggered once for the
@@ -441,6 +492,8 @@ EXPORT_SYMBOL_GPL(reset_control_rearm);
  */
 int reset_control_assert(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
@@ -449,6 +502,12 @@ int reset_control_assert(struct reset_control *rstc)
 
 	if (reset_control_is_array(rstc))
 		return reset_control_array_assert(rstc_to_array(rstc));
+
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
 
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
@@ -464,7 +523,7 @@ int reset_control_assert(struct reset_control *rstc)
 		 * Shared reset controls allow the reset line to be in any state
 		 * after this call, so doing nothing is a valid option.
 		 */
-		if (!rstc->rcdev->ops->assert)
+		if (!rcdev->ops->assert)
 			return 0;
 	} else {
 		/*
@@ -472,17 +531,17 @@ int reset_control_assert(struct reset_control *rstc)
 		 * is no way to guarantee that the reset line is asserted after
 		 * this call.
 		 */
-		if (!rstc->rcdev->ops->assert)
+		if (!rcdev->ops->assert)
 			return -ENOTSUPP;
 
 		if (!rstc->acquired) {
 			WARN(1, "reset %s (ID: %u) is not acquired\n",
-			     rcdev_name(rstc->rcdev), rstc->id);
+			     rcdev_name(rcdev), rstc->id);
 			return -EPERM;
 		}
 	}
 
-	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
+	return rcdev->ops->assert(rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_assert);
 
@@ -529,6 +588,8 @@ EXPORT_SYMBOL_GPL(reset_control_bulk_assert);
  */
 int reset_control_deassert(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
@@ -537,6 +598,12 @@ int reset_control_deassert(struct reset_control *rstc)
 
 	if (reset_control_is_array(rstc))
 		return reset_control_array_deassert(rstc_to_array(rstc));
+
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
 
 	if (rstc->shared) {
 		if (WARN_ON(atomic_read(&rstc->triggered_count) != 0))
@@ -547,7 +614,7 @@ int reset_control_deassert(struct reset_control *rstc)
 	} else {
 		if (!rstc->acquired) {
 			WARN(1, "reset %s (ID: %u) is not acquired\n",
-			     rcdev_name(rstc->rcdev), rstc->id);
+			     rcdev_name(rcdev), rstc->id);
 			return -EPERM;
 		}
 	}
@@ -559,10 +626,10 @@ int reset_control_deassert(struct reset_control *rstc)
 	 * case, the reset controller driver should implement .deassert() and
 	 * return -ENOTSUPP.
 	 */
-	if (!rstc->rcdev->ops->deassert)
+	if (!rcdev->ops->deassert)
 		return 0;
 
-	return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
+	return rcdev->ops->deassert(rcdev, rstc->id);
 }
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
@@ -604,14 +671,22 @@ EXPORT_SYMBOL_GPL(reset_control_bulk_deassert);
  */
 int reset_control_status(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
+
 	if (!rstc)
 		return 0;
 
 	if (WARN_ON(IS_ERR(rstc)) || reset_control_is_array(rstc))
 		return -EINVAL;
 
-	if (rstc->rcdev->ops->status)
-		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	if (rcdev->ops->status)
+		return rcdev->ops->status(rcdev, rstc->id);
 
 	return -ENOTSUPP;
 }
@@ -639,6 +714,7 @@ EXPORT_SYMBOL_GPL(reset_control_status);
  */
 int reset_control_acquire(struct reset_control *rstc)
 {
+	struct reset_controller_dev *rcdev;
 	struct reset_control *rc;
 
 	if (!rstc)
@@ -650,25 +726,28 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_acquire(rstc_to_array(rstc));
 
-	mutex_lock(&reset_list_mutex);
+	guard(mutex)(&rstc->lock);
 
-	if (rstc->acquired) {
-		mutex_unlock(&reset_list_mutex);
+	if (rstc->acquired)
 		return 0;
-	}
 
-	list_for_each_entry(rc, &rstc->rcdev->reset_control_head, list) {
-		if (rstc != rc && rstc->id == rc->id) {
-			if (rc->acquired) {
-				mutex_unlock(&reset_list_mutex);
-				return -EBUSY;
+	guard(srcu)(&rstc->srcu);
+
+	rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+	if (!rcdev)
+		return -ENODEV;
+
+	scoped_guard(mutex, &rcdev->lock) {
+		list_for_each_entry(rc, &rcdev->reset_control_head, list) {
+			if (rstc != rc && rstc->id == rc->id) {
+				if (rc->acquired)
+					return -EBUSY;
 			}
 		}
 	}
 
 	rstc->acquired = true;
 
-	mutex_unlock(&reset_list_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(reset_control_acquire);
@@ -752,8 +831,9 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	bool shared = flags & RESET_CONTROL_FLAGS_BIT_SHARED;
 	bool acquired = flags & RESET_CONTROL_FLAGS_BIT_ACQUIRED;
 	struct reset_control *rstc;
+	int ret;
 
-	lockdep_assert_held(&reset_list_mutex);
+	lockdep_assert_held(&rcdev->lock);
 
 	/* Expect callers to filter out OPTIONAL and DEASSERTED bits */
 	if (WARN_ON(flags & ~(RESET_CONTROL_FLAGS_BIT_SHARED |
@@ -782,15 +862,23 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 	if (!rstc)
 		return ERR_PTR(-ENOMEM);
 
+	ret = init_srcu_struct(&rstc->srcu);
+	if (ret) {
+		kfree(rstc);
+		return ERR_PTR(ret);
+	}
+
 	if (!try_module_get(rcdev->owner)) {
+		cleanup_srcu_struct(&rstc->srcu);
 		kfree(rstc);
 		return ERR_PTR(-ENODEV);
 	}
 
-	rstc->rcdev = rcdev;
+	rcu_assign_pointer(rstc->rcdev, rcdev);
 	list_add(&rstc->list, &rcdev->reset_control_head);
 	rstc->id = index;
 	kref_init(&rstc->refcnt);
+	mutex_init(&rstc->lock);
 	rstc->acquired = acquired;
 	rstc->shared = shared;
 	get_device(rcdev->dev);
@@ -802,77 +890,133 @@ static void __reset_control_release(struct kref *kref)
 {
 	struct reset_control *rstc = container_of(kref, struct reset_control,
 						  refcnt);
+	struct reset_controller_dev *rcdev;
 
-	lockdep_assert_held(&reset_list_mutex);
+	lockdep_assert_held(&rstc->srcu);
 
-	module_put(rstc->rcdev->owner);
+	rcdev = rcu_replace_pointer(rstc->rcdev, NULL, true);
+	if (rcdev) {
+		lockdep_assert_held(&rcdev->lock);
+		reset_controller_remove(rcdev, rstc);
+	}
 
-	list_del(&rstc->list);
-	put_device(rstc->rcdev->dev);
-	kfree(rstc);
+	mutex_destroy(&rstc->lock);
 }
 
-static void __reset_control_put_internal(struct reset_control *rstc)
+static void reset_control_put_internal(struct reset_control *rstc)
 {
-	lockdep_assert_held(&reset_list_mutex);
+	struct reset_controller_dev *rcdev;
+	int ret = 0;
 
 	if (IS_ERR_OR_NULL(rstc))
 		return;
 
-	kref_put(&rstc->refcnt, __reset_control_release);
+	scoped_guard(srcu, &rstc->srcu) {
+		rcdev = srcu_dereference(rstc->rcdev, &rstc->srcu);
+		if (!rcdev)
+			/* Already released. */
+			return;
+
+		guard(mutex)(&rcdev->lock);
+		ret = kref_put(&rstc->refcnt, __reset_control_release);
+	}
+
+	if (ret) {
+		synchronize_srcu(&rstc->srcu);
+		cleanup_srcu_struct(&rstc->srcu);
+		kfree(rstc);
+	}
 }
 
 static void reset_gpio_aux_device_release(struct device *dev)
 {
-	struct auxiliary_device *adev = to_auxiliary_dev(dev);
-
-	kfree(adev);
+	WARN(1, "reset-gpio device %s should never have been removed", dev_name(dev));
 }
 
-static int reset_add_gpio_aux_device(struct device *parent,
-				     struct fwnode_handle *swnode,
-				     int id, void *pdata)
+static int reset_create_gpio_aux_device(struct reset_gpio_lookup *rgpio_dev,
+					struct device *parent)
 {
-	struct auxiliary_device *adev;
-	int ret;
+	struct auxiliary_device *adev = &rgpio_dev->adev;
+	int ret, id;
 
-	adev = kzalloc_obj(*adev);
-	if (!adev)
+	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
+	if (id < 0)
 		return -ENOMEM;
 
 	adev->id = id;
 	adev->name = "gpio";
 	adev->dev.parent = parent;
-	adev->dev.platform_data = pdata;
+	adev->dev.platform_data = &rgpio_dev->ref_args;
 	adev->dev.release = reset_gpio_aux_device_release;
-	device_set_node(&adev->dev, swnode);
+	device_set_node(&adev->dev, rgpio_dev->swnode);
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
-		kfree(adev);
+		ida_free(&reset_gpio_ida, id);
 		return ret;
 	}
 
 	ret = __auxiliary_device_add(adev, "reset");
 	if (ret) {
 		auxiliary_device_uninit(adev);
-		kfree(adev);
+		ida_free(&reset_gpio_ida, id);
 		return ret;
 	}
 
-	return ret;
+	return 0;
+}
+
+static void reset_gpio_add_devlink(struct fwnode_handle *fwnode,
+				   struct reset_gpio_lookup *rgpio_dev)
+{
+	struct device *consumer;
+
+	/*
+	 * We must use get_dev_from_fwnode() and not ref_find_device_by_node()
+	 * because the latter only considers the platform bus while we want to
+	 * get consumers of any kind that can be associated with firmware
+	 * nodes: auxiliary, soundwire, etc.
+	 */
+	consumer = get_dev_from_fwnode(fwnode);
+	if (consumer) {
+		if (!device_link_add(consumer, &rgpio_dev->adev.dev,
+				     DL_FLAG_AUTOREMOVE_CONSUMER))
+			pr_warn("Failed to create a device link between reset-gpio and its consumer");
+
+		put_device(consumer);
+	}
+	/*
+	 * else { }
+	 *
+	 * TODO: If ever there's a case where we need to support shared
+	 * reset-gpios retrieved from a device node for which there's no
+	 * device present yet, this is where we'd set up a notifier waiting
+	 * for the device to appear in the system. This would be a lot of code
+	 * that would go unused for now so let's cross that bridge when and if
+	 * we get there.
+	 */
+}
+
+/* TODO: move it out into drivers/base/ */
+static bool fwnode_reference_args_equal(const struct fwnode_reference_args *left,
+					const struct fwnode_reference_args *right)
+{
+	return left->fwnode == right->fwnode && left->nargs == right->nargs &&
+	       !memcmp(left->args, right->args, sizeof(left->args[0]) * left->nargs);
 }
 
 /*
- * @args:	phandle to the GPIO provider with all the args like GPIO number
+ * @np: OF-node associated with the consumer
+ * @args: Reference to the GPIO provider with all the args like GPIO number
  */
-static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
+static int __reset_add_reset_gpio_device(struct fwnode_handle *fwnode,
+					 const struct fwnode_reference_args *args)
 {
 	struct property_entry properties[3] = { };
-	unsigned int offset, of_flags, lflags;
+	unsigned int offset, flags, lflags;
 	struct reset_gpio_lookup *rgpio_dev;
 	struct device *parent;
-	int id, ret, prop = 0;
+	int ret, prop = 0;
 
 	/*
 	 * Currently only #gpio-cells=2 is supported with the meaning of:
@@ -880,7 +1024,7 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 	 * args[1]: GPIO flags
 	 * TODO: Handle other cases.
 	 */
-	if (args->args_count != 2)
+	if (args->nargs != 2)
 		return -ENOENT;
 
 	/*
@@ -891,7 +1035,7 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 	lockdep_assert_not_held(&reset_list_mutex);
 
 	offset = args->args[0];
-	of_flags = args->args[1];
+	flags = args->args[1];
 
 	/*
 	 * Later we map GPIO flags between OF and Linux, however not all
@@ -901,90 +1045,89 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 	 * FIXME: Find a better way of translating OF flags to GPIO lookup
 	 * flags.
 	 */
-	if (of_flags > GPIO_ACTIVE_LOW) {
+	if (flags > GPIO_ACTIVE_LOW) {
 		pr_err("reset-gpio code does not support GPIO flags %u for GPIO %u\n",
-		       of_flags, offset);
+		       flags, offset);
 		return -EINVAL;
 	}
 
 	struct gpio_device *gdev __free(gpio_device_put) =
-		gpio_device_find_by_fwnode(of_fwnode_handle(args->np));
+			gpio_device_find_by_fwnode(args->fwnode);
 	if (!gdev)
 		return -EPROBE_DEFER;
 
 	guard(mutex)(&reset_gpio_lookup_mutex);
 
 	list_for_each_entry(rgpio_dev, &reset_gpio_lookup_list, list) {
-		if (args->np == rgpio_dev->of_args.np) {
-			if (of_phandle_args_equal(args, &rgpio_dev->of_args))
-				return 0; /* Already on the list, done */
+		if (fwnode_reference_args_equal(args, &rgpio_dev->ref_args)) {
+			/*
+			 * Already on the list, create the device link
+			 * and stop here.
+			 */
+			reset_gpio_add_devlink(fwnode, rgpio_dev);
+			return 0;
 		}
 	}
 
-	lflags = GPIO_PERSISTENT | (of_flags & GPIO_ACTIVE_LOW);
+	lflags = GPIO_PERSISTENT | (flags & GPIO_ACTIVE_LOW);
 	parent = gpio_device_to_device(gdev);
 	properties[prop++] = PROPERTY_ENTRY_STRING("compatible", "reset-gpio");
 	properties[prop++] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
 
-	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
-	if (id < 0)
-		return id;
-
 	/* Not freed on success, because it is persisent subsystem data. */
 	rgpio_dev = kzalloc_obj(*rgpio_dev);
-	if (!rgpio_dev) {
-		ret = -ENOMEM;
-		goto err_ida_free;
-	}
+	if (!rgpio_dev)
+		return -ENOMEM;
 
-	rgpio_dev->of_args = *args;
+	rgpio_dev->ref_args = *args;
 	/*
-	 * We keep the device_node reference, but of_args.np is put at the end
-	 * of __of_reset_control_get(), so get it one more time.
+	 * We keep the fwnode_handle reference, but ref_args.fwnode is put at
+	 * the end of __fwnode_reset_control_get(), so get it one more time.
 	 * Hold reference as long as rgpio_dev memory is valid.
 	 */
-	of_node_get(rgpio_dev->of_args.np);
+	fwnode_handle_get(rgpio_dev->ref_args.fwnode);
 
 	rgpio_dev->swnode = fwnode_create_software_node(properties, NULL);
 	if (IS_ERR(rgpio_dev->swnode)) {
 		ret = PTR_ERR(rgpio_dev->swnode);
-		goto err_put_of_node;
+		goto err_put_fwnode;
 	}
 
-	ret = reset_add_gpio_aux_device(parent, rgpio_dev->swnode, id,
-					&rgpio_dev->of_args);
+	ret = reset_create_gpio_aux_device(rgpio_dev, parent);
 	if (ret)
 		goto err_del_swnode;
 
+	reset_gpio_add_devlink(fwnode, rgpio_dev);
 	list_add(&rgpio_dev->list, &reset_gpio_lookup_list);
 
 	return 0;
 
 err_del_swnode:
 	fwnode_remove_software_node(rgpio_dev->swnode);
-err_put_of_node:
-	of_node_put(rgpio_dev->of_args.np);
+err_put_fwnode:
+	fwnode_handle_put(rgpio_dev->ref_args.fwnode);
 	kfree(rgpio_dev);
-err_ida_free:
-	ida_free(&reset_gpio_ida, id);
 
 	return ret;
 }
 
-static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_args *args,
-						       bool gpio_fallback)
+static struct reset_controller_dev *
+__reset_find_rcdev(const struct fwnode_reference_args *args, bool gpio_fallback)
 {
+	struct fwnode_reference_args *rc_args;
 	struct reset_controller_dev *rcdev;
 
 	lockdep_assert_held(&reset_list_mutex);
 
 	list_for_each_entry(rcdev, &reset_controller_list, list) {
-		if (gpio_fallback) {
-			if (rcdev->of_args && of_phandle_args_equal(args,
-								    rcdev->of_args))
+		if (gpio_fallback && rcdev->dev &&
+		    device_is_compatible(rcdev->dev, "reset-gpio")) {
+			rc_args = dev_get_platdata(rcdev->dev);
+
+			if (fwnode_reference_args_equal(args, rc_args))
 				return rcdev;
 		} else {
-			if (args->np == rcdev->of_node)
+			if (args->fwnode == rcdev->fwnode)
 				return rcdev;
 		}
 	}
@@ -993,31 +1136,31 @@ static struct reset_controller_dev *__reset_find_rcdev(const struct of_phandle_a
 }
 
 struct reset_control *
-__of_reset_control_get(struct device_node *node, const char *id, int index,
-		       enum reset_control_flags flags)
+__fwnode_reset_control_get(struct fwnode_handle *fwnode, const char *id, int index,
+			   enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	bool gpio_fallback = false;
-	struct reset_control *rstc;
+	struct reset_control *rstc = ERR_PTR(-EINVAL);
 	struct reset_controller_dev *rcdev;
-	struct of_phandle_args args;
-	int rstc_id;
+	struct fwnode_reference_args args;
+	struct of_phandle_args of_args;
+	int rstc_id = -EINVAL;
 	int ret;
 
-	if (!node)
+	if (!fwnode)
 		return ERR_PTR(-EINVAL);
 
 	if (id) {
-		index = of_property_match_string(node,
-						 "reset-names", id);
+		index = fwnode_property_match_string(fwnode, "reset-names", id);
 		if (index == -EILSEQ)
 			return ERR_PTR(index);
 		if (index < 0)
 			return optional ? NULL : ERR_PTR(-ENOENT);
 	}
 
-	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
-					 index, &args);
+	ret = fwnode_property_get_reference_args(fwnode, "resets", "#reset-cells",
+						 0, index, &args);
 	if (ret == -EINVAL)
 		return ERR_PTR(ret);
 	if (ret) {
@@ -1028,51 +1171,65 @@ __of_reset_control_get(struct device_node *node, const char *id, int index,
 		 * There can be only one reset-gpio for regular devices, so
 		 * don't bother with the "reset-gpios" phandle index.
 		 */
-		ret = of_parse_phandle_with_args(node, "reset-gpios", "#gpio-cells",
-						 0, &args);
+		ret = fwnode_property_get_reference_args(fwnode, "reset-gpios",
+							 "#gpio-cells", 0, 0, &args);
 		if (ret)
 			return optional ? NULL : ERR_PTR(ret);
 
 		gpio_fallback = true;
 
-		ret = __reset_add_reset_gpio_device(&args);
+		ret = __reset_add_reset_gpio_device(fwnode, &args);
+		if (ret) {
+			fwnode_handle_put(args.fwnode);
+			return ERR_PTR(ret);
+		}
+	}
+
+	guard(mutex)(&reset_list_mutex);
+
+	rcdev = __reset_find_rcdev(&args, gpio_fallback);
+	if (!rcdev) {
+		rstc = ERR_PTR(-EPROBE_DEFER);
+		goto out_put;
+	}
+
+	if (WARN_ON(args.nargs != rcdev->fwnode_reset_n_cells)) {
+		rstc = ERR_PTR(-EINVAL);
+		goto out_put;
+	}
+
+	if (rcdev->of_xlate && is_of_node(fwnode)) {
+		ret = of_parse_phandle_with_args(to_of_node(fwnode),
+					 gpio_fallback ? "reset-gpios" : "resets",
+					 gpio_fallback ? "#gpio-cells" : "#reset-cells",
+					 gpio_fallback ? 0 : index,
+					 &of_args);
 		if (ret) {
 			rstc = ERR_PTR(ret);
 			goto out_put;
 		}
-	}
 
-	mutex_lock(&reset_list_mutex);
-	rcdev = __reset_find_rcdev(&args, gpio_fallback);
-	if (!rcdev) {
-		rstc = ERR_PTR(-EPROBE_DEFER);
-		goto out_unlock;
+		rstc_id = rcdev->of_xlate(rcdev, &of_args);
+		of_node_put(of_args.np);
+	} else if (rcdev->fwnode_xlate) {
+		rstc_id = rcdev->fwnode_xlate(rcdev, &args);
 	}
-
-	if (WARN_ON(args.args_count != rcdev->of_reset_n_cells)) {
-		rstc = ERR_PTR(-EINVAL);
-		goto out_unlock;
-	}
-
-	rstc_id = rcdev->of_xlate(rcdev, &args);
 	if (rstc_id < 0) {
 		rstc = ERR_PTR(rstc_id);
-		goto out_unlock;
+		goto out_put;
 	}
 
 	flags &= ~RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 
-	/* reset_list_mutex also protects the rcdev's reset_control list */
-	rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
+	scoped_guard(mutex, &rcdev->lock)
+		rstc = __reset_control_get_internal(rcdev, rstc_id, flags);
 
-out_unlock:
-	mutex_unlock(&reset_list_mutex);
 out_put:
-	of_node_put(args.np);
+	fwnode_handle_put(args.fwnode);
 
 	return rstc;
 }
-EXPORT_SYMBOL_GPL(__of_reset_control_get);
+EXPORT_SYMBOL_GPL(__fwnode_reset_control_get);
 
 struct reset_control *__reset_control_get(struct device *dev, const char *id,
 					  int index, enum reset_control_flags flags)
@@ -1080,12 +1237,13 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
 	bool shared = flags & RESET_CONTROL_FLAGS_BIT_SHARED;
 	bool acquired = flags & RESET_CONTROL_FLAGS_BIT_ACQUIRED;
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
 	if (WARN_ON(shared && acquired))
 		return ERR_PTR(-EINVAL);
 
-	if (dev->of_node)
-		return __of_reset_control_get(dev->of_node, id, index, flags);
+	if (fwnode)
+		return __fwnode_reset_control_get(fwnode, id, index, flags);
 
 	return optional ? NULL : ERR_PTR(-ENOENT);
 }
@@ -1108,10 +1266,9 @@ int __reset_control_bulk_get(struct device *dev, int num_rstcs,
 	return 0;
 
 err:
-	mutex_lock(&reset_list_mutex);
 	while (i--)
-		__reset_control_put_internal(rstcs[i].rstc);
-	mutex_unlock(&reset_list_mutex);
+		reset_control_put_internal(rstcs[i].rstc);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__reset_control_bulk_get);
@@ -1120,10 +1277,8 @@ static void reset_control_array_put(struct reset_control_array *resets)
 {
 	int i;
 
-	mutex_lock(&reset_list_mutex);
 	for (i = 0; i < resets->num_rstcs; i++)
-		__reset_control_put_internal(resets->rstc[i]);
-	mutex_unlock(&reset_list_mutex);
+		reset_control_put_internal(resets->rstc[i]);
 	kfree(resets);
 }
 
@@ -1141,9 +1296,7 @@ void reset_control_put(struct reset_control *rstc)
 		return;
 	}
 
-	mutex_lock(&reset_list_mutex);
-	__reset_control_put_internal(rstc);
-	mutex_unlock(&reset_list_mutex);
+	reset_control_put_internal(rstc);
 }
 EXPORT_SYMBOL_GPL(reset_control_put);
 
@@ -1154,10 +1307,8 @@ EXPORT_SYMBOL_GPL(reset_control_put);
  */
 void reset_control_bulk_put(int num_rstcs, struct reset_control_bulk_data *rstcs)
 {
-	mutex_lock(&reset_list_mutex);
 	while (num_rstcs--)
-		__reset_control_put_internal(rstcs[num_rstcs].rstc);
-	mutex_unlock(&reset_list_mutex);
+		reset_control_put_internal(rstcs[num_rstcs].rstc);
 }
 EXPORT_SYMBOL_GPL(reset_control_bulk_put);
 
@@ -1318,21 +1469,35 @@ EXPORT_SYMBOL_GPL(__device_reset);
  */
 
 /**
- * of_reset_control_get_count - Count number of resets available with a device
+ * fwnode_reset_control_get_count - Count number of resets available with a device
  *
- * @node: device node that contains 'resets'.
+ * @fwnode: firmware node that contains 'resets'.
  *
  * Returns positive reset count on success, or error number on failure and
  * on count being zero.
  */
-static int of_reset_control_get_count(struct device_node *node)
+static int fwnode_reset_control_get_count(struct fwnode_handle *fwnode)
 {
-	int count;
+	struct fwnode_reference_args args;
+	int count = 0, ret;
 
-	if (!node)
+	if (!fwnode)
 		return -EINVAL;
 
-	count = of_count_phandle_with_args(node, "resets", "#reset-cells");
+	for (;;) {
+		ret = fwnode_property_get_reference_args(fwnode, "resets", "#reset-cells",
+							 0, count, &args);
+		if (ret) {
+			if (ret == -ENOENT)
+				break;
+
+			return ret;
+		}
+
+		fwnode_handle_put(args.fwnode);
+		count++;
+	}
+
 	if (count == 0)
 		count = -ENOENT;
 
@@ -1340,23 +1505,24 @@ static int of_reset_control_get_count(struct device_node *node)
 }
 
 /**
- * of_reset_control_array_get - Get a list of reset controls using
- *				device node.
+ * fwnode_reset_control_array_get - Get a list of reset controls using
+ *                                  a firmware node.
  *
- * @np: device node for the device that requests the reset controls array
+ * @fwnode: firmware node for the device that requests the reset controls array
  * @flags: whether reset controls are shared, optional, acquired
  *
  * Returns pointer to allocated reset_control on success or error on failure
  */
 struct reset_control *
-of_reset_control_array_get(struct device_node *np, enum reset_control_flags flags)
+fwnode_reset_control_array_get(struct fwnode_handle *fwnode,
+			       enum reset_control_flags flags)
 {
 	bool optional = flags & RESET_CONTROL_FLAGS_BIT_OPTIONAL;
 	struct reset_control_array *resets;
 	struct reset_control *rstc;
 	int num, i;
 
-	num = of_reset_control_get_count(np);
+	num = fwnode_reset_control_get_count(fwnode);
 	if (num < 0)
 		return optional ? NULL : ERR_PTR(num);
 
@@ -1366,7 +1532,7 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	resets->num_rstcs = num;
 
 	for (i = 0; i < num; i++) {
-		rstc = __of_reset_control_get(np, NULL, i, flags);
+		rstc = __fwnode_reset_control_get(fwnode, NULL, i, flags);
 		if (IS_ERR(rstc))
 			goto err_rst;
 		resets->rstc[i] = rstc;
@@ -1376,16 +1542,14 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	return &resets->base;
 
 err_rst:
-	mutex_lock(&reset_list_mutex);
 	while (--i >= 0)
-		__reset_control_put_internal(resets->rstc[i]);
-	mutex_unlock(&reset_list_mutex);
+		reset_control_put_internal(resets->rstc[i]);
 
 	kfree(resets);
 
 	return rstc;
 }
-EXPORT_SYMBOL_GPL(of_reset_control_array_get);
+EXPORT_SYMBOL_GPL(fwnode_reset_control_array_get);
 
 /**
  * devm_reset_control_array_get - Resource managed reset control array get
@@ -1409,7 +1573,7 @@ devm_reset_control_array_get(struct device *dev, enum reset_control_flags flags)
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = of_reset_control_array_get(dev->of_node, flags);
+	rstc = fwnode_reset_control_array_get(dev_fwnode(dev), flags);
 	if (IS_ERR_OR_NULL(rstc)) {
 		devres_free(ptr);
 		return rstc;
@@ -1432,8 +1596,10 @@ EXPORT_SYMBOL_GPL(devm_reset_control_array_get);
  */
 int reset_control_get_count(struct device *dev)
 {
-	if (dev->of_node)
-		return of_reset_control_get_count(dev->of_node);
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+
+	if (fwnode)
+		return fwnode_reset_control_get_count(fwnode);
 
 	return -ENOENT;
 }
