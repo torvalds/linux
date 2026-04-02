@@ -2,6 +2,7 @@
 
 import functools
 import inspect
+import os
 import signal
 import sys
 import time
@@ -29,6 +30,17 @@ class KsftXfailEx(Exception):
 
 class KsftTerminate(KeyboardInterrupt):
     pass
+
+
+@functools.lru_cache()
+def _ksft_supports_color():
+    if os.environ.get("NO_COLOR") is not None:
+        return False
+    if not hasattr(sys.stdout, "isatty") or not sys.stdout.isatty():
+        return False
+    if os.environ.get("TERM") == "dumb":
+        return False
+    return True
 
 
 def ksft_pr(*objs, **kwargs):
@@ -165,6 +177,14 @@ def ktap_result(ok, cnt=1, case_name="", comment=""):
         res += "." + case_name
     if comment:
         res += " # " + comment
+    if _ksft_supports_color():
+        if comment.startswith(("SKIP", "XFAIL")):
+            color = "\033[33m"
+        elif ok:
+            color = "\033[32m"
+        else:
+            color = "\033[31m"
+        res = color + res + "\033[0m"
     print(res, flush=True)
 
 
