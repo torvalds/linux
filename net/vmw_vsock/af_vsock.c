@@ -2952,6 +2952,7 @@ static void vsock_net_init(struct net *net)
 		net->vsock.mode = vsock_net_child_mode(current->nsproxy->net_ns);
 
 	net->vsock.child_ns_mode = net->vsock.mode;
+	net->vsock.child_ns_mode_locked = 0;
 	net->vsock.g2h_fallback = 1;
 }
 
