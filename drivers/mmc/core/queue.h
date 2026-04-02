@@ -69,9 +69,9 @@ struct mmc_queue_req {
 	enum mmc_drv_op		drv_op;
 	int			drv_op_result;
 	void			*drv_op_data;
-	unsigned int		ioc_count;
-	int			retries;
-	u32			flags;
+	u8			ioc_count;
+	u8			retries;
+	u8			flags;
 };
 
 struct mmc_queue {
