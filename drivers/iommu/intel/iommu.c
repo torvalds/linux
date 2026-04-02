@@ -3618,9 +3618,6 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	if (!pasid_supported(iommu) || dev_is_real_dma_subdevice(dev))
 		return -EOPNOTSUPP;
 
-	if (domain->dirty_ops)
-		return -EINVAL;
-
 	if (context_copied(iommu, info->bus, info->devfn))
 		return -EBUSY;
 
@@ -3688,6 +3685,7 @@ static void *intel_iommu_hw_info(struct device *dev, u32 *length,
 static int domain_set_dirty_tracking(struct dmar_domain *domain, bool enable)
 {
 	struct device_domain_info *info;
+	struct dev_pasid_info *dev_pasid;
 	int ret = 0;
 
 	lockdep_assert_held(&domain->lock);
@@ -3695,6 +3693,14 @@ static int domain_set_dirty_tracking(struct dmar_domain *domain, bool enable)
 	list_for_each_entry(info, &domain->devices, link) {
 		ret = intel_pasid_setup_dirty_tracking(info->iommu, info->dev,
 						       IOMMU_NO_PASID, enable);
+		if (ret)
+			return ret;
+	}
+
+	list_for_each_entry(dev_pasid, &domain->dev_pasids, link_domain) {
+		info = dev_iommu_priv_get(dev_pasid->dev);
+		ret = intel_pasid_setup_dirty_tracking(info->iommu, info->dev,
+						       dev_pasid->pasid, enable);
 		if (ret)
 			break;
 	}
