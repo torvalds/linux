@@ -1887,8 +1887,7 @@ static int macb_rx_poll(struct napi_struct *napi, int budget)
 		 */
 		if (macb_rx_pending(queue)) {
 			queue_writel(queue, IDR, bp->rx_intr_mask);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RCOMP));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(RCOMP));
 			netdev_vdbg(bp->dev, "poll: packets pending, reschedule\n");
 			napi_schedule(napi);
 		}
@@ -1975,8 +1974,7 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
 		 */
 		if (macb_tx_complete_pending(queue)) {
 			queue_writel(queue, IDR, MACB_BIT(TCOMP));
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(TCOMP));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(TCOMP));
 			netdev_vdbg(bp->dev, "TX poll: packets pending, reschedule\n");
 			napi_schedule(napi);
 		}
@@ -2043,8 +2041,7 @@ static irqreturn_t macb_wol_interrupt(int irq, void *dev_id)
 		netdev_vdbg(bp->dev, "MACB WoL: queue = %u, isr = 0x%08lx\n",
 			    (unsigned int)(queue - bp->queues),
 			    (unsigned long)status);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, MACB_BIT(WOL));
+		macb_queue_isr_clear(bp, queue, MACB_BIT(WOL));
 		pm_wakeup_event(&bp->pdev->dev, 0);
 	}
 
@@ -2072,8 +2069,7 @@ static irqreturn_t gem_wol_interrupt(int irq, void *dev_id)
 		netdev_vdbg(bp->dev, "GEM WoL: queue = %u, isr = 0x%08lx\n",
 			    (unsigned int)(queue - bp->queues),
 			    (unsigned long)status);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, GEM_BIT(WOL));
+		macb_queue_isr_clear(bp, queue, GEM_BIT(WOL));
 		pm_wakeup_event(&bp->pdev->dev, 0);
 	}
 
@@ -2100,8 +2096,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		/* close possible race with dev_close */
 		if (unlikely(!netif_running(dev))) {
 			queue_writel(queue, IDR, -1);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, -1);
+			macb_queue_isr_clear(bp, queue, -1);
 			break;
 		}
 
@@ -2117,19 +2112,15 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			 * now.
 			 */
 			queue_writel(queue, IDR, bp->rx_intr_mask);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RCOMP));
-
+			macb_queue_isr_clear(bp, queue, MACB_BIT(RCOMP));
 			napi_schedule(&queue->napi_rx);
 		}
 
 		if (status & (MACB_BIT(TCOMP) |
 			      MACB_BIT(TXUBR))) {
 			queue_writel(queue, IDR, MACB_BIT(TCOMP));
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(TCOMP) |
-							 MACB_BIT(TXUBR));
-
+			macb_queue_isr_clear(bp, queue, MACB_BIT(TCOMP) |
+							MACB_BIT(TXUBR));
 			if (status & MACB_BIT(TXUBR)) {
 				queue->txubr_pending = true;
 				wmb(); // ensure softirq can see update
@@ -2141,10 +2132,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
 			queue_writel(queue, IDR, MACB_TX_INT_FLAGS);
 			schedule_work(&queue->tx_error_task);
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_TX_ERR_FLAGS);
-
+			macb_queue_isr_clear(bp, queue, MACB_TX_ERR_FLAGS);
 			break;
 		}
 
@@ -2164,9 +2152,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
 			wmb();
 			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RXUBR));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(RXUBR));
 		}
 
 		if (status & MACB_BIT(ISR_ROVR)) {
@@ -2177,17 +2163,13 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			else
 				bp->hw_stats.macb.rx_overruns++;
 			spin_unlock(&bp->stats_lock);
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(ISR_ROVR));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(ISR_ROVR));
 		}
 
 		if (status & MACB_BIT(HRESP)) {
 			queue_work(system_bh_wq, &bp->hresp_err_bh_work);
 			netdev_err(dev, "DMA bus error: HRESP not OK\n");
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(HRESP));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(HRESP));
 		}
 		status = queue_readl(queue, ISR);
 	}
@@ -2883,8 +2865,7 @@ static void macb_reset_hw(struct macb *bp)
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		queue_writel(queue, IDR, -1);
 		queue_readl(queue, ISR);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, -1);
+		macb_queue_isr_clear(bp, queue, -1);
 	}
 }
 
@@ -6053,8 +6034,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 			/* Disable all interrupts */
 			queue_writel(queue, IDR, -1);
 			queue_readl(queue, ISR);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, -1);
+			macb_queue_isr_clear(bp, queue, -1);
 		}
 		/* Enable Receive engine */
 		macb_writel(bp, NCR, tmp | MACB_BIT(RE));
@@ -6165,8 +6145,7 @@ static int __maybe_unused macb_resume(struct device *dev)
 		}
 		/* Clear ISR on queue 0 */
 		queue_readl(bp->queues, ISR);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(bp->queues, ISR, -1);
+		macb_queue_isr_clear(bp, bp->queues, -1);
 		spin_unlock_irqrestore(&bp->lock, flags);
 
 		/* Replace interrupt handler on queue 0 */
