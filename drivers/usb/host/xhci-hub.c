@@ -1202,7 +1202,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports;
 	unsigned long flags;
-	u32 temp, status;
+	u32 temp, portpmsc, status;
 	int retval = 0;
 	struct xhci_bus_state *bus_state;
 	u16 link_state;
@@ -1508,20 +1508,20 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				goto error;
 
 			timeout = (wIndex & 0xff00) >> 8;
-			temp = readl(&port->port_reg->portpmsc);
-			temp &= ~PORT_U1_TIMEOUT_MASK;
-			temp |= PORT_U1_TIMEOUT(timeout);
-			writel(temp, &port->port_reg->portpmsc);
+			portpmsc = readl(&port->port_reg->portpmsc);
+			portpmsc &= ~PORT_U1_TIMEOUT_MASK;
+			portpmsc |= PORT_U1_TIMEOUT(timeout);
+			writel(portpmsc, &port->port_reg->portpmsc);
 			break;
 		case USB_PORT_FEAT_U2_TIMEOUT:
 			if (hcd->speed < HCD_USB3)
 				goto error;
 
 			timeout = (wIndex & 0xff00) >> 8;
-			temp = readl(&port->port_reg->portpmsc);
-			temp &= ~PORT_U2_TIMEOUT_MASK;
-			temp |= PORT_U2_TIMEOUT(timeout);
-			writel(temp, &port->port_reg->portpmsc);
+			portpmsc = readl(&port->port_reg->portpmsc);
+			portpmsc &= ~PORT_U2_TIMEOUT_MASK;
+			portpmsc |= PORT_U2_TIMEOUT(timeout);
+			writel(portpmsc, &port->port_reg->portpmsc);
 			break;
 		case USB_PORT_FEAT_TEST:
 			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
