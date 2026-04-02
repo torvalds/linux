@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqdomain.h>
+#include <linux/random.h>
 
 #include <trace/events/irq.h>
 
@@ -928,6 +929,8 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 		pr_err_once("Spurious%s percpu IRQ%u on CPU%u\n",
 			    enabled ? " and unmasked" : "", irq, cpu);
 	}
+
+	add_interrupt_randomness(irq);
 
 	if (chip->irq_eoi)
 		chip->irq_eoi(&desc->irq_data);
