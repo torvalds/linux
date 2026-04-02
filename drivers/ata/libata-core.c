@@ -6779,22 +6779,15 @@ static int __init ata_init(void)
 
 	libata_transport_init();
 	ata_scsi_transport_template = ata_attach_transport();
-	if (!ata_scsi_transport_template) {
-		ata_sff_exit();
-		rc = -ENOMEM;
-		goto err_out;
-	}
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
-	return 0;
 
-err_out:
-	return rc;
+	return 0;
 }
 
 static void __exit ata_exit(void)
 {
-	ata_release_transport(ata_scsi_transport_template);
+	ata_release_transport();
 	libata_transport_exit();
 	ata_sff_exit();
 	ata_free_force_param();

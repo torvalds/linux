@@ -745,6 +745,23 @@ int ata_tlink_add(struct ata_link *link)
 	return error;
 }
 
+static struct ata_internal ata_transport_internal = {
+	.t.eh_strategy_handler	= ata_scsi_error,
+	.t.user_scan		= ata_scsi_user_scan,
+
+	.t.host_attrs.ac.class	= &ata_port_class.class,
+	.t.host_attrs.ac.grp	= &ata_port_attr_group,
+	.t.host_attrs.ac.match	= ata_tport_match,
+
+	.link_attr_cont.ac.class = &ata_link_class.class,
+	.link_attr_cont.ac.grp   = &ata_link_attr_group,
+	.link_attr_cont.ac.match = ata_tlink_match,
+
+	.dev_attr_cont.ac.class	= &ata_dev_class.class,
+	.dev_attr_cont.ac.grp	= &ata_device_attr_group,
+	.dev_attr_cont.ac.match	= ata_tdev_match,
+};
+
 /*
  * Setup / Teardown code
  */
@@ -754,46 +771,22 @@ int ata_tlink_add(struct ata_link *link)
  */
 struct scsi_transport_template *ata_attach_transport(void)
 {
-	struct ata_internal *i;
+	transport_container_register(&ata_transport_internal.t.host_attrs);
+	transport_container_register(&ata_transport_internal.link_attr_cont);
+	transport_container_register(&ata_transport_internal.dev_attr_cont);
 
-	i = kzalloc_obj(struct ata_internal);
-	if (!i)
-		return NULL;
-
-	i->t.eh_strategy_handler	= ata_scsi_error;
-	i->t.user_scan			= ata_scsi_user_scan;
-
-	i->t.host_attrs.ac.class = &ata_port_class.class;
-	i->t.host_attrs.ac.grp   = &ata_port_attr_group;
-	i->t.host_attrs.ac.match = ata_tport_match;
-	transport_container_register(&i->t.host_attrs);
-
-	i->link_attr_cont.ac.class = &ata_link_class.class;
-	i->link_attr_cont.ac.grp   = &ata_link_attr_group;
-	i->link_attr_cont.ac.match = ata_tlink_match;
-	transport_container_register(&i->link_attr_cont);
-
-	i->dev_attr_cont.ac.class = &ata_dev_class.class;
-	i->dev_attr_cont.ac.grp   = &ata_device_attr_group;
-	i->dev_attr_cont.ac.match = ata_tdev_match;
-	transport_container_register(&i->dev_attr_cont);
-
-	return &i->t;
+	return &ata_transport_internal.t;
 }
 
 /**
  * ata_release_transport  --  release ATA transport template instance
  * @t:		transport template instance
  */
-void ata_release_transport(struct scsi_transport_template *t)
+void ata_release_transport(void)
 {
-	struct ata_internal *i = to_ata_internal(t);
-
-	transport_container_unregister(&i->t.host_attrs);
-	transport_container_unregister(&i->link_attr_cont);
-	transport_container_unregister(&i->dev_attr_cont);
-
-	kfree(i);
+	transport_container_unregister(&ata_transport_internal.t.host_attrs);
+	transport_container_unregister(&ata_transport_internal.link_attr_cont);
+	transport_container_unregister(&ata_transport_internal.dev_attr_cont);
 }
 
 __init int libata_transport_init(void)
