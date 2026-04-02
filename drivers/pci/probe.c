@@ -68,23 +68,6 @@ static struct resource *get_pci_domain_busn_res(int domain_nr)
 }
 
 /*
- * Some device drivers need know if PCI is initiated.
- * Basically, we think PCI is not initiated when there
- * is no device to be found on the pci_bus_type.
- */
-int no_pci_devices(void)
-{
-	struct device *dev;
-	int no_devices;
-
-	dev = bus_find_next_device(&pci_bus_type, NULL);
-	no_devices = (dev == NULL);
-	put_device(dev);
-	return no_devices;
-}
-EXPORT_SYMBOL(no_pci_devices);
-
-/*
  * PCI Bus Class
  */
 static void release_pcibus_dev(struct device *dev)
