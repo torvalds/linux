@@ -32,7 +32,6 @@
 #include <linux/ptrace.h>
 #include <linux/sysfb.h>
 #include <linux/efi.h>
-#include <linux/random.h>
 #include <linux/kernel.h>
 #include <linux/syscore_ops.h>
 #include <linux/dma-map-ops.h>
@@ -1361,8 +1360,6 @@ static void __vmbus_isr(void)
 
 	vmbus_message_sched(hv_cpu, hv_cpu->hyp_synic_message_page);
 	vmbus_message_sched(hv_cpu, hv_cpu->para_synic_message_page);
-
-	add_interrupt_randomness(vmbus_interrupt);
 }
 
 static DEFINE_PER_CPU(bool, vmbus_irq_pending);

@@ -161,6 +161,8 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	if (vmbus_handler)
 		vmbus_handler();
 
+	add_interrupt_randomness(HYPERVISOR_CALLBACK_VECTOR);
+
 	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
 		apic_eoi();
 
