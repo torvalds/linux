@@ -1551,23 +1551,12 @@ void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 pfsid,
 	qi_submit_sync(iommu, &desc, 1, 0);
 }
 
-/* PASID-based IOTLB invalidation */
-void qi_flush_piotlb(struct intel_iommu *iommu, u16 did, u32 pasid, u64 addr,
-		     unsigned long npages, bool ih)
+/* PASID-selective IOTLB invalidation */
+void qi_flush_piotlb_all(struct intel_iommu *iommu, u16 did, u32 pasid)
 {
-	struct qi_desc desc = {.qw2 = 0, .qw3 = 0};
+	struct qi_desc desc = {};
 
-	/*
-	 * npages == -1 means a PASID-selective invalidation, otherwise,
-	 * a positive value for Page-selective-within-PASID invalidation.
-	 * 0 is not a valid input.
-	 */
-	if (WARN_ON(!npages)) {
-		pr_err("Invalid input npages = %ld\n", npages);
-		return;
-	}
-
-	qi_desc_piotlb(did, pasid, addr, npages, ih, &desc);
+	qi_desc_piotlb_all(did, pasid, &desc);
 	qi_submit_sync(iommu, &desc, 1, 0);
 }
 

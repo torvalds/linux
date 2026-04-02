@@ -113,7 +113,7 @@ prq_retry:
 		qi_desc_dev_iotlb(sid, info->pfsid, info->ats_qdep, 0,
 				  MAX_AGAW_PFN_WIDTH, &desc[2]);
 	} else {
-		qi_desc_piotlb(did, pasid, 0, -1, 0, &desc[1]);
+		qi_desc_piotlb_all(did, pasid, &desc[1]);
 		qi_desc_dev_iotlb_pasid(sid, info->pfsid, pasid, info->ats_qdep,
 					0, MAX_AGAW_PFN_WIDTH, &desc[2]);
 	}
