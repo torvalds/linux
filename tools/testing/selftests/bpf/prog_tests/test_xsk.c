@@ -179,25 +179,6 @@ int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem
 	return xsk_socket__create(&xsk->xsk, ifobject->ifindex, 0, umem->umem, rxr, txr, &cfg);
 }
 
-#define MAX_SKB_FRAGS_PATH "/proc/sys/net/core/max_skb_frags"
-static unsigned int get_max_skb_frags(void)
-{
-	unsigned int max_skb_frags = 0;
-	FILE *file;
-
-	file = fopen(MAX_SKB_FRAGS_PATH, "r");
-	if (!file) {
-		ksft_print_msg("Error opening %s\n", MAX_SKB_FRAGS_PATH);
-		return 0;
-	}
-
-	if (fscanf(file, "%u", &max_skb_frags) != 1)
-		ksft_print_msg("Error reading %s\n", MAX_SKB_FRAGS_PATH);
-
-	fclose(file);
-	return max_skb_frags;
-}
-
 static int set_ring_size(struct ifobject *ifobj)
 {
 	int ret;
@@ -2242,11 +2223,7 @@ int testapp_too_many_frags(struct test_spec *test)
 	if (test->mode == TEST_MODE_ZC) {
 		max_frags = test->ifobj_tx->xdp_zc_max_segs;
 	} else {
-		max_frags = get_max_skb_frags();
-		if (!max_frags) {
-			ksft_print_msg("Can't get MAX_SKB_FRAGS from system, using default (17)\n");
-			max_frags = 17;
-		}
+		max_frags = test->ifobj_tx->max_skb_frags;
 		max_frags += 1;
 	}
 
