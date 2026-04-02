@@ -21,6 +21,7 @@
 #include <time.h>
 #include "vm_util.h"
 #include "kselftest.h"
+#include "thp_settings.h"
 
 uint64_t pagesize;
 unsigned int pageshift;
@@ -756,6 +757,9 @@ int main(int argc, char **argv)
 		ksft_print_msg("Please run the benchmark as root\n");
 		ksft_finished();
 	}
+
+	if (!thp_is_enabled())
+		ksft_exit_skip("Transparent Hugepages not available\n");
 
 	if (argc > 1)
 		optional_xfs_path = argv[1];
