@@ -234,6 +234,7 @@ int cifs_verify_signature(struct smb_rqst *rqst,
  * smb1maperror.c
  */
 int map_smb_to_linux_error(char *buf, bool logErr);
+int smb1_init_maperror(void);
 int map_and_check_smb_error(struct TCP_Server_Info *server,
 			    struct mid_q_entry *mid, bool logErr);
 

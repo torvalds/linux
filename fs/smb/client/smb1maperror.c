@@ -256,3 +256,35 @@ map_and_check_smb_error(struct TCP_Server_Info *server,
 
 	return rc;
 }
+
+#define DEFINE_CHECK_SORT_FUNC(__array, __field)			\
+static int __init __array ## _is_sorted(void)				\
+{									\
+	unsigned int i;							\
+									\
+	/* Check whether the array is sorted in ascending order */	\
+	for (i = 1; i < ARRAY_SIZE(__array); i++) {			\
+		if (__array[i].__field >=				\
+		    __array[i - 1].__field)				\
+			continue;					\
+									\
+		pr_err(#__array " array order is incorrect\n");		\
+		return -EINVAL;						\
+	}								\
+									\
+	return 0;							\
+}
+
+/* ntstatus_to_dos_map_is_sorted */
+DEFINE_CHECK_SORT_FUNC(ntstatus_to_dos_map, ntstatus);
+
+int __init smb1_init_maperror(void)
+{
+	int rc;
+
+	rc = ntstatus_to_dos_map_is_sorted();
+	if (rc)
+		return rc;
+
+	return rc;
+}
