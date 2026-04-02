@@ -81,7 +81,7 @@
 		status = "disabled";
 	};
 
-	target-module@2b300050 {
+	wkup_uart0_target: target-module@2b300050 {
 		compatible = "ti,sysc-omap2", "ti,sysc";
 		reg = <0x00 0x2b300050 0x00 0x4>,
 		      <0x00 0x2b300054 0x00 0x4>,
@@ -125,6 +125,11 @@
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
 			bootph-all;
+		};
+
+		opp_efuse_table: syscon@18 {
+			compatible = "ti,am62-opp-efuse-table", "syscon";
+			reg = <0x18 0x4>;
 		};
 
 		cpsw_mac_syscon: ethernet-mac-syscon@2000 {

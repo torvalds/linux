@@ -79,6 +79,7 @@ properties:
               - toradex,verdin-am62-nonwifi-ivy    # Verdin AM62 Module on Ivy
               - toradex,verdin-am62-nonwifi-mallow # Verdin AM62 Module on Mallow
               - toradex,verdin-am62-nonwifi-yavia  # Verdin AM62 Module on Yavia
+              - toradex,verdin-am62-nonwifi-zinnia # Verdin AM62 Module on Zinnia
           - const: toradex,verdin-am62-nonwifi     # Verdin AM62 Module without Wi-Fi / BT
           - const: toradex,verdin-am62             # Verdin AM62 Module
           - const: ti,am625
@@ -91,6 +92,7 @@ properties:
               - toradex,verdin-am62-wifi-ivy    # Verdin AM62 Wi-Fi / BT Module on Ivy
               - toradex,verdin-am62-wifi-mallow # Verdin AM62 Wi-Fi / BT Module on Mallow
               - toradex,verdin-am62-wifi-yavia  # Verdin AM62 Wi-Fi / BT Module on Yavia
+              - toradex,verdin-am62-wifi-zinnia # Verdin AM62 Wi-Fi / BT Module on Zinnia
           - const: toradex,verdin-am62-wifi     # Verdin AM62 Wi-Fi / BT Module
           - const: toradex,verdin-am62          # Verdin AM62 Module
           - const: ti,am625
@@ -103,6 +105,7 @@ properties:
               - toradex,verdin-am62p-nonwifi-ivy    # Verdin AM62P Module on Ivy
               - toradex,verdin-am62p-nonwifi-mallow # Verdin AM62P Module on Mallow
               - toradex,verdin-am62p-nonwifi-yavia  # Verdin AM62P Module on Yavia
+              - toradex,verdin-am62p-nonwifi-zinnia # Verdin AM62P Module on Zinnia
           - const: toradex,verdin-am62p-nonwifi     # Verdin AM62P Module without Wi-Fi / BT
           - const: toradex,verdin-am62p             # Verdin AM62P Module
           - const: ti,am62p5
@@ -115,6 +118,7 @@ properties:
               - toradex,verdin-am62p-wifi-ivy    # Verdin AM62P Wi-Fi / BT Module on Ivy
               - toradex,verdin-am62p-wifi-mallow # Verdin AM62P Wi-Fi / BT Module on Mallow
               - toradex,verdin-am62p-wifi-yavia  # Verdin AM62P Wi-Fi / BT Module on Yavia
+              - toradex,verdin-am62p-wifi-zinnia # Verdin AM62P Wi-Fi / BT Module on Zinnia
           - const: toradex,verdin-am62p-wifi     # Verdin AM62P Wi-Fi / BT Module
           - const: toradex,verdin-am62p          # Verdin AM62P Module
           - const: ti,am62p5
@@ -208,7 +212,6 @@ properties:
         items:
           - enum:
               - beagle,am67a-beagley-ai
-              - kontron,sa67             # Kontron SMARC-sAM67 board
               - ti,j722s-evm
           - const: ti,j722s
 
