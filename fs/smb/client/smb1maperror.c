@@ -288,3 +288,22 @@ int __init smb1_init_maperror(void)
 
 	return rc;
 }
+
+#if IS_ENABLED(CONFIG_SMB1_KUNIT_TESTS)
+#define EXPORT_SYMBOL_FOR_SMB_TEST(sym) \
+	EXPORT_SYMBOL_FOR_MODULES(sym, "smb1maperror_test")
+
+const struct ntstatus_to_dos_err *
+search_ntstatus_to_dos_map_test(__u32 ntstatus)
+{
+	return search_ntstatus_to_dos_map(ntstatus);
+}
+EXPORT_SYMBOL_FOR_SMB_TEST(search_ntstatus_to_dos_map_test);
+
+const struct ntstatus_to_dos_err *
+ntstatus_to_dos_map_test = ntstatus_to_dos_map;
+EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_map_test);
+
+unsigned int ntstatus_to_dos_num = ARRAY_SIZE(ntstatus_to_dos_map);
+EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_num);
+#endif

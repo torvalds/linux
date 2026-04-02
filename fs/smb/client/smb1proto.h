@@ -237,6 +237,12 @@ int map_smb_to_linux_error(char *buf, bool logErr);
 int smb1_init_maperror(void);
 int map_and_check_smb_error(struct TCP_Server_Info *server,
 			    struct mid_q_entry *mid, bool logErr);
+#if IS_ENABLED(CONFIG_SMB1_KUNIT_TESTS)
+extern const struct ntstatus_to_dos_err *ntstatus_to_dos_map_test;
+extern unsigned int ntstatus_to_dos_num;
+const struct ntstatus_to_dos_err *
+search_ntstatus_to_dos_map_test(__u32 ntstatus);
+#endif
 
 /*
  * smb1misc.c

@@ -71,6 +71,7 @@ $(obj)/smb2maperror.o: $(obj)/smb2_mapping_table.c
 quiet_cmd_gen_smb2_mapping = GEN     $@
       cmd_gen_smb2_mapping = perl $(src)/gen_smb2_mapping $< $@
 
+obj-$(CONFIG_SMB1_KUNIT_TESTS) += smb1maperror_test.o
 obj-$(CONFIG_SMB_KUNIT_TESTS) += smb2maperror_test.o
 
 # Let Kbuild handle tracking and cleaning
