@@ -12,6 +12,7 @@
  *   - data_same:    same size packets coalesce
  *   - data_lrg_sml: large then small coalesces
  *   - data_sml_lrg: small then large doesn't coalesce
+ *   - data_burst:   two bursts of two, separated by 100ms
  *
  * ack:
  *  Pure ACK does not coalesce.
@@ -1298,6 +1299,21 @@ static void gro_sender(void)
 	} else if (strcmp(testname, "data_sml_lrg") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN / 2, PAYLOAD_LEN);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "data_burst") == 0) {
+		static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
+
+		create_packet(buf, 0, 0, PAYLOAD_LEN, 0);
+		write_packet(txfd, buf, total_hdr_len + PAYLOAD_LEN, &daddr);
+		create_packet(buf, PAYLOAD_LEN, 0, PAYLOAD_LEN, 0);
+		write_packet(txfd, buf, total_hdr_len + PAYLOAD_LEN, &daddr);
+
+		usleep(100 * 1000); /* 100ms */
+		create_packet(buf, PAYLOAD_LEN * 2, 0, PAYLOAD_LEN, 0);
+		write_packet(txfd, buf, total_hdr_len + PAYLOAD_LEN, &daddr);
+		create_packet(buf, PAYLOAD_LEN * 3, 0, PAYLOAD_LEN, 0);
+		write_packet(txfd, buf, total_hdr_len + PAYLOAD_LEN, &daddr);
+
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
 	/* ack test */
 	} else if (strcmp(testname, "ack") == 0) {
@@ -1462,6 +1478,11 @@ static void gro_receiver(void)
 		printf("small data packets followed by a larger one: ");
 		correct_payload[0] = PAYLOAD_LEN / 2;
 		correct_payload[1] = PAYLOAD_LEN;
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "data_burst") == 0) {
+		printf("two bursts of two data packets: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = PAYLOAD_LEN * 2;
 		check_recv_pkts(rxfd, correct_payload, 2);
 
 	/* ack test */
