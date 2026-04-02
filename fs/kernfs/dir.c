@@ -1866,12 +1866,17 @@ static struct kernfs_node *kernfs_dir_pos(const struct ns_common *ns,
 	}
 	if (!pos && (hash > 1) && (hash < INT_MAX)) {
 		struct rb_node *node = parent->dir.children.rb_node;
+		u64 ns_id = kernfs_ns_id(ns);
 		while (node) {
 			pos = rb_to_kn(node);
 
 			if (hash < pos->hash)
 				node = node->rb_left;
 			else if (hash > pos->hash)
+				node = node->rb_right;
+			else if (ns_id < kernfs_ns_id(pos->ns))
+				node = node->rb_left;
+			else if (ns_id > kernfs_ns_id(pos->ns))
 				node = node->rb_right;
 			else
 				break;
