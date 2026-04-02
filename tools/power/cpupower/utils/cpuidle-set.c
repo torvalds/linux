@@ -24,8 +24,6 @@ static struct option info_opts[] = {
 
 int cmd_idle_set(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	int ret = 0, cont = 1, param = 0, disabled;
 	unsigned long long latency = 0, state_latency;
 	unsigned int cpu = 0, idlestate = 0, idlestates = 0;

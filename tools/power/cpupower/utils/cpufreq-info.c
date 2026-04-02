@@ -542,8 +542,6 @@ static struct option info_opts[] = {
 
 int cmd_freq_info(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	int ret = 0, cont = 1;
 	unsigned int cpu = 0;
 	unsigned int human = 0;
