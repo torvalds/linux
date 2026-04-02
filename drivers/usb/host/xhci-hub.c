@@ -866,8 +866,8 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		 * unless we're already in compliance
 		 * or the inactive state.
 		 */
-		if (pls != USB_SS_PORT_LS_COMP_MOD &&
-		    pls != USB_SS_PORT_LS_SS_INACTIVE) {
+		if (pls != XDEV_COMP_MODE &&
+		    pls != XDEV_INACTIVE) {
 			pls = USB_SS_PORT_LS_COMP_MOD;
 		}
 		/* Return also connection bit -
@@ -895,7 +895,7 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		 * caused by a delay on the host-device negotiation.
 		 */
 		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
-				(pls == USB_SS_PORT_LS_COMP_MOD))
+				(pls == XDEV_COMP_MODE))
 			pls |= USB_PORT_STAT_CONNECTION;
 	}
 
@@ -1365,7 +1365,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			if (link_state == USB_SS_PORT_LS_RX_DETECT) {
 				xhci_dbg(xhci, "Enable port %d-%d\n",
 					 hcd->self.busnum, portnum + 1);
-				xhci_set_link_state(xhci, port,	link_state);
+				xhci_set_link_state(xhci, port,	XDEV_RXDETECT);
 				temp = xhci_portsc_readl(port);
 				break;
 			}
@@ -1397,7 +1397,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 				xhci_dbg(xhci, "Enable compliance mode transition for port %d-%d\n",
 					 hcd->self.busnum, portnum + 1);
-				xhci_set_link_state(xhci, port, link_state);
+				xhci_set_link_state(xhci, port, XDEV_COMP_MODE);
 
 				temp = xhci_portsc_readl(port);
 				break;
@@ -1435,7 +1435,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					reinit_completion(&port->u3exit_done);
 				}
 				if (pls <= XDEV_U3) /* U1, U2, U3 */
-					xhci_set_link_state(xhci, port, USB_SS_PORT_LS_U0);
+					xhci_set_link_state(xhci, port, XDEV_U0);
 				if (!wait_u0) {
 					if (pls > XDEV_U3)
 						goto error;
@@ -1461,7 +1461,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					xhci_stop_device(xhci, port->slot_id, 1);
 					spin_lock_irqsave(&xhci->lock, flags);
 				}
-				xhci_set_link_state(xhci, port, USB_SS_PORT_LS_U3);
+				xhci_set_link_state(xhci, port, XDEV_U3);
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				while (retries--) {
 					usleep_range(4000, 8000);
