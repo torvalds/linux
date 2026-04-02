@@ -829,7 +829,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	}
 	netdev_hold(ifq->netdev, &ifq->netdev_tracker, GFP_KERNEL);
 
-	ifq->dev = netdev_queue_get_dma_dev(ifq->netdev, reg.if_rxq);
+	ifq->dev = netdev_queue_get_dma_dev(ifq->netdev, reg.if_rxq,
+					    NETDEV_QUEUE_TYPE_RX);
 	if (!ifq->dev) {
 		ret = -EOPNOTSUPP;
 		goto netdev_put_unlock;

@@ -976,7 +976,8 @@ netdev_nl_get_dma_dev(struct net_device *netdev, unsigned long *rxq_bitmap,
 	for_each_set_bit(rxq_idx, rxq_bitmap, netdev->real_num_rx_queues) {
 		struct device *rxq_dma_dev;
 
-		rxq_dma_dev = netdev_queue_get_dma_dev(netdev, rxq_idx);
+		rxq_dma_dev = netdev_queue_get_dma_dev(netdev, rxq_idx,
+						       NETDEV_QUEUE_TYPE_RX);
 		if (dma_dev && rxq_dma_dev != dma_dev) {
 			NL_SET_ERR_MSG_FMT(extack, "DMA device mismatch between queue %u and %u (multi-PF device?)",
 					   rxq_idx, prev_rxq_idx);
@@ -1153,7 +1154,7 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_netdev;
 	}
 
-	dma_dev = netdev_queue_get_dma_dev(netdev, 0);
+	dma_dev = netdev_queue_get_dma_dev(netdev, 0, NETDEV_QUEUE_TYPE_TX);
 	binding = net_devmem_bind_dmabuf(netdev, dma_dev, DMA_TO_DEVICE,
 					 dmabuf_fd, priv, info->extack);
 	if (IS_ERR(binding)) {

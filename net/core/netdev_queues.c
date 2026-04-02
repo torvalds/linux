@@ -6,17 +6,8 @@
 
 #include "dev.h"
 
-/**
- * netdev_queue_get_dma_dev() - get dma device for zero-copy operations
- * @dev:	net_device
- * @idx:	queue index
- *
- * Get dma device for zero-copy operations to be used for this queue.
- * When such device is not available or valid, the function will return NULL.
- *
- * Return: Device or NULL on error
- */
-struct device *netdev_queue_get_dma_dev(struct net_device *dev, int idx)
+static struct device *
+__netdev_queue_get_dma_dev(struct net_device *dev, unsigned int idx)
 {
 	const struct netdev_queue_mgmt_ops *queue_ops = dev->queue_mgmt_ops;
 	struct device *dma_dev;
@@ -27,6 +18,38 @@ struct device *netdev_queue_get_dma_dev(struct net_device *dev, int idx)
 		dma_dev = dev->dev.parent;
 
 	return dma_dev && dma_dev->dma_mask ? dma_dev : NULL;
+}
+
+/**
+ * netdev_queue_get_dma_dev() - get dma device for zero-copy operations
+ * @dev:	net_device
+ * @idx:	queue index
+ * @type:	queue type (RX or TX)
+ *
+ * Get dma device for zero-copy operations to be used for this queue. If
+ * the queue is an RX queue leased from a physical queue, we retrieve the
+ * physical queue's dma device. When the dma device is not available or
+ * valid, the function will return NULL.
+ *
+ * Return: Device or NULL on error
+ */
+struct device *netdev_queue_get_dma_dev(struct net_device *dev,
+					unsigned int idx,
+					enum netdev_queue_type type)
+{
+	struct net_device *orig_dev = dev;
+	struct device *dma_dev;
+
+	/* Only RX side supports queue leasing today. */
+	if (type != NETDEV_QUEUE_TYPE_RX || !netif_rxq_is_leased(dev, idx))
+		return __netdev_queue_get_dma_dev(dev, idx);
+
+	if (!netif_get_rx_queue_lease_locked(&dev, &idx))
+		return NULL;
+
+	dma_dev = __netdev_queue_get_dma_dev(dev, idx);
+	netif_put_rx_queue_lease_locked(orig_dev, dev);
+	return dma_dev;
 }
 
 bool netdev_can_create_queue(const struct net_device *dev,
