@@ -313,7 +313,7 @@ def _gro_variants():
     ]
 
     for mode in ["sw", "hw", "lro"]:
-        for protocol in ["ipv4", "ipv6", "ipip"]:
+        for protocol in ["ipv4", "ipv6", "ipip", "ip6ip6"]:
             for test_name in common_tests:
                 yield mode, protocol, test_name
 

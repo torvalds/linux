@@ -96,7 +96,8 @@
 #define ETH_P_NONE 0
 #define ASSUMED_MTU 4096
 #define MAX_MSS (ASSUMED_MTU - sizeof(struct iphdr) - sizeof(struct tcphdr))
-#define MAX_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
+#define MAX_HDR_LEN \
+	(ETH_HLEN + sizeof(struct ipv6hdr) * 2 + sizeof(struct tcphdr))
 #define MAX_LARGE_PKT_CNT ((IP_MAXPACKET - (MAX_HDR_LEN - ETH_HLEN)) /	\
 			   (ASSUMED_MTU - (MAX_HDR_LEN - ETH_HLEN)))
 #define MIN_EXTHDR_SIZE 8
@@ -131,6 +132,7 @@ static int tcp_offset = -1;
 static int total_hdr_len = -1;
 static int ethhdr_proto = -1;
 static bool ipip;
+static bool ip6ip6;
 static uint64_t txtime_ns;
 static int num_flows = 4;
 static bool order_check;
@@ -1125,7 +1127,8 @@ static void check_recv_pkts(int fd, int *correct_payload,
 
 		if (iph->version == 4)
 			ip_ext_len = (iph->ihl - 5) * 4;
-		else if (ip6h->version == 6 && ip6h->nexthdr != IPPROTO_TCP)
+		else if (ip6h->version == 6 && !ip6ip6 &&
+			 ip6h->nexthdr != IPPROTO_TCP)
 			ip_ext_len = MIN_EXTHDR_SIZE;
 
 		tcph = (struct tcphdr *)(buffer + tcp_offset + ip_ext_len);
@@ -1187,7 +1190,8 @@ static void check_capacity_pkts(int fd)
 
 		if (iph->version == 4)
 			ip_ext_len = (iph->ihl - 5) * 4;
-		else if (ip6h->version == 6 && ip6h->nexthdr != IPPROTO_TCP)
+		else if (ip6h->version == 6 && !ip6ip6 &&
+			 ip6h->nexthdr != IPPROTO_TCP)
 			ip_ext_len = MIN_EXTHDR_SIZE;
 
 		tcph = (struct tcphdr *)(buffer + tcp_offset + ip_ext_len);
@@ -1700,6 +1704,7 @@ static void parse_args(int argc, char **argv)
 		{ "ipv4", no_argument, NULL, '4' },
 		{ "ipv6", no_argument, NULL, '6' },
 		{ "ipip", no_argument, NULL, 'e' },
+		{ "ip6ip6", no_argument, NULL, 'E' },
 		{ "num-flows", required_argument, NULL, 'n' },
 		{ "rx", no_argument, NULL, 'r' },
 		{ "saddr", required_argument, NULL, 's' },
@@ -1711,7 +1716,7 @@ static void parse_args(int argc, char **argv)
 	};
 	int c;
 
-	while ((c = getopt_long(argc, argv, "46d:D:ei:n:rs:S:t:ov", opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "46d:D:eEi:n:rs:S:t:ov", opts, NULL)) != -1) {
 		switch (c) {
 		case '4':
 			proto = PF_INET;
@@ -1725,6 +1730,11 @@ static void parse_args(int argc, char **argv)
 			ipip = true;
 			proto = PF_INET;
 			ethhdr_proto = htons(ETH_P_IP);
+			break;
+		case 'E':
+			ip6ip6 = true;
+			proto = PF_INET6;
+			ethhdr_proto = htons(ETH_P_IPV6);
 			break;
 		case 'd':
 			addr4_dst = addr6_dst = optarg;
@@ -1770,12 +1780,15 @@ int main(int argc, char **argv)
 	if (ipip) {
 		tcp_offset = ETH_HLEN + sizeof(struct iphdr) * 2;
 		total_hdr_len = tcp_offset + sizeof(struct tcphdr);
+	} else if (ip6ip6) {
+		tcp_offset = ETH_HLEN + sizeof(struct ipv6hdr) * 2;
+		total_hdr_len = tcp_offset + sizeof(struct tcphdr);
 	} else if (proto == PF_INET) {
 		tcp_offset = ETH_HLEN + sizeof(struct iphdr);
 		total_hdr_len = tcp_offset + sizeof(struct tcphdr);
 	} else if (proto == PF_INET6) {
 		tcp_offset = ETH_HLEN + sizeof(struct ipv6hdr);
-		total_hdr_len = MAX_HDR_LEN;
+		total_hdr_len = tcp_offset + sizeof(struct tcphdr);
 	} else {
 		error(1, 0, "Protocol family is not ipv4 or ipv6");
 	}
