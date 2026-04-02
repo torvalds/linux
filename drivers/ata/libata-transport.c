@@ -40,13 +40,6 @@
 struct scsi_transport_template;
 struct scsi_transport_template *ata_scsi_transport_template;
 
-struct ata_internal {
-	struct scsi_transport_template t;
-
-	struct transport_container link_attr_cont;
-	struct transport_container dev_attr_cont;
-};
-
 static int ata_tlink_match(struct attribute_container *cont,
 			   struct device *dev);
 static int ata_tdev_match(struct attribute_container *cont,
@@ -729,21 +722,25 @@ int ata_tlink_add(struct ata_link *link)
 	return error;
 }
 
-static struct ata_internal ata_transport_internal = {
-	.t.eh_strategy_handler	= ata_scsi_error,
-	.t.user_scan		= ata_scsi_user_scan,
+static struct scsi_transport_template ata_scsi_transportt = {
+	.eh_strategy_handler	= ata_scsi_error,
+	.user_scan		= ata_scsi_user_scan,
 
-	.t.host_attrs.ac.class	= &ata_port_class.class,
-	.t.host_attrs.ac.grp	= &ata_port_attr_group,
-	.t.host_attrs.ac.match	= ata_tport_match,
+	.host_attrs.ac.class	= &ata_port_class.class,
+	.host_attrs.ac.grp	= &ata_port_attr_group,
+	.host_attrs.ac.match	= ata_tport_match,
+};
 
-	.link_attr_cont.ac.class = &ata_link_class.class,
-	.link_attr_cont.ac.grp   = &ata_link_attr_group,
-	.link_attr_cont.ac.match = ata_tlink_match,
+static struct transport_container ata_link_attr_cont = {
+	.ac.class	= &ata_link_class.class,
+	.ac.grp		= &ata_link_attr_group,
+	.ac.match	= ata_tlink_match,
+};
 
-	.dev_attr_cont.ac.class	= &ata_dev_class.class,
-	.dev_attr_cont.ac.grp	= &ata_device_attr_group,
-	.dev_attr_cont.ac.match	= ata_tdev_match,
+static struct transport_container ata_dev_attr_cont = {
+	.ac.class	= &ata_dev_class.class,
+	.ac.grp		= &ata_device_attr_group,
+	.ac.match	= ata_tdev_match,
 };
 
 static int ata_tlink_match(struct attribute_container *cont,
@@ -752,7 +749,7 @@ static int ata_tlink_match(struct attribute_container *cont,
 	if (!ata_is_link(dev))
 		return 0;
 
-	return &ata_transport_internal.link_attr_cont.ac == cont;
+	return &ata_link_attr_cont.ac == cont;
 }
 
 static int ata_tdev_match(struct attribute_container *cont,
@@ -761,7 +758,7 @@ static int ata_tdev_match(struct attribute_container *cont,
 	if (!ata_is_ata_dev(dev))
 		return 0;
 
-	return &ata_transport_internal.dev_attr_cont.ac == cont;
+	return &ata_dev_attr_cont.ac == cont;
 }
 
 /*
@@ -782,11 +779,11 @@ __init int libata_transport_init(void)
 	if (error)
 		goto out_unregister_port;
 
-	transport_container_register(&ata_transport_internal.t.host_attrs);
-	transport_container_register(&ata_transport_internal.link_attr_cont);
-	transport_container_register(&ata_transport_internal.dev_attr_cont);
+	transport_container_register(&ata_scsi_transportt.host_attrs);
+	transport_container_register(&ata_link_attr_cont);
+	transport_container_register(&ata_dev_attr_cont);
 
-	ata_scsi_transport_template = &ata_transport_internal.t;
+	ata_scsi_transport_template = &ata_scsi_transportt;
 
 	return 0;
 
@@ -801,9 +798,9 @@ __init int libata_transport_init(void)
 
 void __exit libata_transport_exit(void)
 {
-	transport_container_unregister(&ata_transport_internal.t.host_attrs);
-	transport_container_unregister(&ata_transport_internal.link_attr_cont);
-	transport_container_unregister(&ata_transport_internal.dev_attr_cont);
+	transport_container_unregister(&ata_scsi_transportt.host_attrs);
+	transport_container_unregister(&ata_link_attr_cont);
+	transport_container_unregister(&ata_dev_attr_cont);
 
 	transport_class_unregister(&ata_link_class);
 	transport_class_unregister(&ata_port_class);
