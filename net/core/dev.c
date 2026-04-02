@@ -12384,6 +12384,12 @@ static void netif_close_many_and_unlock_cond(struct list_head *close_head)
 #endif
 }
 
+bool unregister_netdevice_queued(const struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return !list_empty(&dev->unreg_list);
+}
+
 void unregister_netdevice_many_notify(struct list_head *head,
 				      u32 portid, const struct nlmsghdr *nlh)
 {
