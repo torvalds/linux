@@ -3080,8 +3080,6 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 	struct v4l2_rect *crop =
 		v4l2_subdev_state_get_crop(sd_state, pad);
 
-	guard(mutex)(&sensor->mutex);
-
 	ccs_get_native_size(ssd, crop);
 
 	fmt->width = crop->width;

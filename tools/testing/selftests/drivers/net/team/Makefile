@@ -3,6 +3,7 @@
 
 TEST_PROGS := \
 	dev_addr_lists.sh \
+	non_ether_header_ops.sh \
 	options.sh \
 	propagation.sh \
 	refleak.sh \

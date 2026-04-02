@@ -238,6 +238,8 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, unsigned int
 	arch_cmpxchg((ptr), (o), (n));					\
   })
 
+#ifdef CONFIG_AS_HAS_SCQ_EXTENSION
+
 union __u128_halves {
 	u128 full;
 	struct {
@@ -290,6 +292,9 @@ union __u128_halves {
 	BUILD_BUG_ON(sizeof(*(ptr)) != 16);				\
 	__arch_cmpxchg128(ptr, o, n, "");				\
 })
+
+#endif /* CONFIG_AS_HAS_SCQ_EXTENSION */
+
 #else
 #include <asm-generic/cmpxchg-local.h>
 #define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
