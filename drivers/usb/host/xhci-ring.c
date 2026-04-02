@@ -3208,10 +3208,9 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	/*
 	 * Clear the op reg interrupt status first,
 	 * so we can receive interrupts from other MSI-X interrupters.
-	 * Write 1 to clear the interrupt status.
+	 * USBSTS bits are write 1 to clear.
 	 */
-	status |= STS_EINT;
-	writel(status, &xhci->op_regs->status);
+	writel(STS_EINT, &xhci->op_regs->status);
 
 	/* This is the handler of the primary interrupter */
 	xhci_handle_events(xhci, xhci->interrupters[0], false);
