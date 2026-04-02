@@ -94,10 +94,11 @@
 #define START_SEQ 100
 #define START_ACK 100
 #define ETH_P_NONE 0
-#define MSS (4096 - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
-#define MAX_PAYLOAD (IP_MAXPACKET - sizeof(struct tcphdr) - sizeof(struct ipv6hdr))
-#define NUM_LARGE_PKT (MAX_PAYLOAD / MSS)
+#define ASSUMED_MTU 4096
+#define MAX_MSS (ASSUMED_MTU - sizeof(struct iphdr) - sizeof(struct tcphdr))
 #define MAX_HDR_LEN (ETH_HLEN + sizeof(struct ipv6hdr) + sizeof(struct tcphdr))
+#define MAX_LARGE_PKT_CNT ((IP_MAXPACKET - (MAX_HDR_LEN - ETH_HLEN)) /	\
+			   (ASSUMED_MTU - (MAX_HDR_LEN - ETH_HLEN)))
 #define MIN_EXTHDR_SIZE 8
 #define EXT_PAYLOAD_1 "\x00\x00\x00\x00\x00\x00"
 #define EXT_PAYLOAD_2 "\x11\x11\x11\x11\x11\x11"
@@ -144,6 +145,16 @@ static bool order_check;
 static int max_payload(void)
 {
 	return IP_MAXPACKET - (total_hdr_len - ETH_HLEN);
+}
+
+static int calc_mss(void)
+{
+	return ASSUMED_MTU - (total_hdr_len - ETH_HLEN);
+}
+
+static int num_large_pkt(void)
+{
+	return max_payload() / calc_mss();
 }
 
 static void vlog(const char *fmt, ...)
@@ -525,18 +536,20 @@ static void send_data_pkts(int fd, struct sockaddr_ll *daddr,
  */
 static void send_large(int fd, struct sockaddr_ll *daddr, int remainder)
 {
-	static char pkts[NUM_LARGE_PKT][MAX_HDR_LEN + MSS];
-	static char last[MAX_HDR_LEN + MSS];
-	static char new_seg[MAX_HDR_LEN + MSS];
+	static char pkts[MAX_LARGE_PKT_CNT][MAX_HDR_LEN + MAX_MSS];
+	static char new_seg[MAX_HDR_LEN + MAX_MSS];
+	static char last[MAX_HDR_LEN + MAX_MSS];
+	const int num_pkt = num_large_pkt();
+	const int mss = calc_mss();
 	int i;
 
-	for (i = 0; i < NUM_LARGE_PKT; i++)
-		create_packet(pkts[i], i * MSS, 0, MSS, 0);
-	create_packet(last, NUM_LARGE_PKT * MSS, 0, remainder, 0);
-	create_packet(new_seg, (NUM_LARGE_PKT + 1) * MSS, 0, remainder, 0);
+	for (i = 0; i < num_pkt; i++)
+		create_packet(pkts[i], i * mss, 0, mss, 0);
+	create_packet(last, num_pkt * mss, 0, remainder, 0);
+	create_packet(new_seg, (num_pkt + 1) * mss, 0, remainder, 0);
 
-	for (i = 0; i < NUM_LARGE_PKT; i++)
-		write_packet(fd, pkts[i], total_hdr_len + MSS, daddr);
+	for (i = 0; i < num_pkt; i++)
+		write_packet(fd, pkts[i], total_hdr_len + mss, daddr);
 	write_packet(fd, last, total_hdr_len + remainder, daddr);
 	write_packet(fd, new_seg, total_hdr_len + remainder, daddr);
 }
@@ -1437,12 +1450,12 @@ static void gro_sender(void)
 
 	/* large sub-tests */
 	} else if (strcmp(testname, "large_max") == 0) {
-		int remainder = max_payload() % MSS;
+		int remainder = max_payload() % calc_mss();
 
 		send_large(txfd, &daddr, remainder);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 	} else if (strcmp(testname, "large_rem") == 0) {
-		int remainder = max_payload() % MSS;
+		int remainder = max_payload() % calc_mss();
 
 		send_large(txfd, &daddr, remainder + 1);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
@@ -1646,14 +1659,14 @@ static void gro_receiver(void)
 
 	/* large sub-tests */
 	} else if (strcmp(testname, "large_max") == 0) {
-		int remainder = max_payload() % MSS;
+		int remainder = max_payload() % calc_mss();
 
 		correct_payload[0] = max_payload();
 		correct_payload[1] = remainder;
 		printf("Shouldn't coalesce if exceed IP max pkt size: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
 	} else if (strcmp(testname, "large_rem") == 0) {
-		int remainder = max_payload() % MSS;
+		int remainder = max_payload() % calc_mss();
 
 		/* last segment sent individually, doesn't start new segment */
 		correct_payload[0] = max_payload() - remainder;
