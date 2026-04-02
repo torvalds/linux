@@ -47,11 +47,11 @@ $(rq-offsets-file): kernel/sched/rq-offsets.s FORCE
 
 # Check for missing system calls
 
-missing-syscalls-file := .tmp_missing-syscalls
+missing-syscalls-file := .tmp_missing-syscalls$(missing_syscalls_instance)
 
 targets += $(missing-syscalls-file)
 
-quiet_cmd_syscalls = CALL    $<
+quiet_cmd_syscalls = CALL    $< $(addprefix for ,$(missing_syscalls_instance))
       cmd_syscalls = DEPFILE=$(depfile) $(CONFIG_SHELL) $< $(CC) $(c_flags) $(missing_syscalls_flags); touch $@
 
 $(missing-syscalls-file): scripts/checksyscalls.sh $(rq-offsets-file) FORCE
