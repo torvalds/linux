@@ -5,6 +5,8 @@
 #include <arm64/esr.h>
 #include <arm64/kvm_emulate.h>
 
+#include "handle_exit.h"
+
 typedef int (*exit_handle_fn)(struct kvm_vcpu *);
 
 #define PSCI_0_2_FN_SYSTEM_OFF		0x84000008
@@ -82,6 +84,36 @@ static int handle_trap_exceptions(struct kvm_vcpu *vcpu)
 
 	exit_handler = kvm_get_exit_handler(vcpu);
 	return exit_handler(vcpu);
+}
+
+/*
+ * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
+ * proper exit to userspace.
+ */
+int handle_exit(struct kvm_vcpu *vcpu)
+{
+	u8 icptr = vcpu->arch.sae_block.icptr;
+	int ret = 1;
+
+	switch (icptr) {
+	case SAE_ICPTR_SPURIOUS:
+		break;
+	case SAE_ICPTR_VALIDITY:
+		WARN_ONCE(true, "SAE: validity intercept. vir: 0x%04x",
+			  vcpu->arch.sae_block.vir);
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		ret = 0;
+		break;
+	case SAE_ICPTR_GUEST_ADDRESS_SIZE:
+	case SAE_ICPTR_HOST_ACCESS_EXCEPTION:
+	case SAE_ICPTR_SYNCHRONOUS_EXCEPTION:
+		ret = handle_trap_exceptions(vcpu);
+		break;
+	default:
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		ret = 0;
+	}
+	return ret;
 }
 
 /* manually copied from arch/arm64/kernel/traps.c */
