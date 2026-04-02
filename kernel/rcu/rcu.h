@@ -502,6 +502,15 @@ do {									\
 	___locked;							\
 })
 
+#define raw_spin_trylock_irqsave_rcu_node(p, flags)			\
+({									\
+	bool ___locked = raw_spin_trylock_irqsave(&ACCESS_PRIVATE(p, lock), flags); \
+									\
+	if (___locked)							\
+		smp_mb__after_unlock_lock();				\
+	___locked;							\
+})
+
 #define raw_lockdep_assert_held_rcu_node(p)				\
 	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
 
