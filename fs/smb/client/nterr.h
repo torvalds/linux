@@ -30,6 +30,10 @@ extern const struct nt_err_code_struct nt_errs[];
 /*
  * NTSTATUS Values extracted using a loop in smbclient then printing a netmon
  * sniff to a file.
+ *
+ * The comment at the end of each definition indicates `dos_class`
+ * and `dos_code` fields of the `ntstatus_to_dos_map` array; it is
+ * used to generate the `smb1_mapping_table.c` file.
  */
 
 #define NT_STATUS_OK                   0x0000	// SUCCESS, 0

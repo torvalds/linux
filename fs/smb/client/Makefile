@@ -44,6 +44,21 @@ cifs-$(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) += \
 
 cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o compress/lz77.o
 
+ifneq ($(CONFIG_CIFS_ALLOW_INSECURE_LEGACY),)
+#
+# Build the SMB1 error mapping tables from nterr.h
+#
+smb1-gen-y := smb1_mapping_table.c
+
+$(obj)/smb1_mapping_table.c: $(src)/nterr.h $(src)/gen_smb1_mapping FORCE
+	$(call if_changed,gen_smb1_mapping)
+
+$(obj)/smb1maperror.o: $(addprefix $(obj)/, $(smb1-gen-y))
+
+quiet_cmd_gen_smb1_mapping = GEN     $@
+      cmd_gen_smb1_mapping = perl $(src)/gen_smb1_mapping $< $@
+endif
+
 #
 # Build the SMB2 error mapping table from smb2status.h
 #
@@ -59,4 +74,4 @@ quiet_cmd_gen_smb2_mapping = GEN     $@
 obj-$(CONFIG_SMB_KUNIT_TESTS) += smb2maperror_test.o
 
 # Let Kbuild handle tracking and cleaning
-targets += smb2_mapping_table.c
+targets += smb2_mapping_table.c $(smb1-gen-y)
