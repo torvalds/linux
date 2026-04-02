@@ -1187,6 +1187,12 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 			if (UCSI_CONSTAT(con, PARTNER_FLAG_USB))
 				typec_set_mode(con->port, TYPEC_STATE_USB);
 		}
+
+		if (((con->ucsi->version >= UCSI_VERSION_3_0 &&
+		    UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN4)) ||
+		    (con->ucsi->version >= UCSI_VERSION_2_0 &&
+		    UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN3))) && con->partner)
+			typec_partner_set_usb_mode(con->partner, USB_MODE_USB4);
 	}
 
 	if ((!UCSI_CONSTAT(con, PARTNER_FLAG_USB)) &&
