@@ -242,6 +242,14 @@ extern const struct ntstatus_to_dos_err *ntstatus_to_dos_map_test;
 extern unsigned int ntstatus_to_dos_num;
 const struct ntstatus_to_dos_err *
 search_ntstatus_to_dos_map_test(__u32 ntstatus);
+extern const struct smb_to_posix_error *mapping_table_ERRDOS_test;
+extern unsigned int mapping_table_ERRDOS_num;
+const struct smb_to_posix_error *
+search_mapping_table_ERRDOS_test(__u16 smb_err);
+extern const struct smb_to_posix_error *mapping_table_ERRSRV_test;
+extern unsigned int mapping_table_ERRSRV_num;
+const struct smb_to_posix_error *
+search_mapping_table_ERRSRV_test(__u16 smb_err);
 #endif
 
 /*

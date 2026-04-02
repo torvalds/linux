@@ -16,11 +16,6 @@
 #include "nterr.h"
 #include "cifs_debug.h"
 
-struct smb_to_posix_error {
-	__u16 smb_err;
-	int posix_code;
-};
-
 static __always_inline int smb1_posix_error_cmp(const void *_key, const void *_pivot)
 {
 	__u16 key = *(__u16 *)_key;
@@ -260,4 +255,32 @@ EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_map_test);
 
 unsigned int ntstatus_to_dos_num = ARRAY_SIZE(ntstatus_to_dos_map);
 EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_num);
+
+const struct smb_to_posix_error *
+search_mapping_table_ERRDOS_test(__u16 smb_err)
+{
+	return search_mapping_table_ERRDOS(smb_err);
+}
+EXPORT_SYMBOL_FOR_SMB_TEST(search_mapping_table_ERRDOS_test);
+
+const struct smb_to_posix_error *
+mapping_table_ERRDOS_test = mapping_table_ERRDOS;
+EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRDOS_test);
+
+unsigned int mapping_table_ERRDOS_num = ARRAY_SIZE(mapping_table_ERRDOS);
+EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRDOS_num);
+
+const struct smb_to_posix_error *
+search_mapping_table_ERRSRV_test(__u16 smb_err)
+{
+	return search_mapping_table_ERRSRV(smb_err);
+}
+EXPORT_SYMBOL_FOR_SMB_TEST(search_mapping_table_ERRSRV_test);
+
+const struct smb_to_posix_error *
+mapping_table_ERRSRV_test = mapping_table_ERRSRV;
+EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRSRV_test);
+
+unsigned int mapping_table_ERRSRV_num = ARRAY_SIZE(mapping_table_ERRSRV);
+EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRSRV_num);
 #endif

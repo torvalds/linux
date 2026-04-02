@@ -9,6 +9,11 @@
  *
  */
 
+struct smb_to_posix_error {
+	__u16 smb_err;
+	int posix_code;
+};
+
 /* The request was successful. */
 #define SUCCESS	0x00
 /* Error is from the core DOS operating system set */

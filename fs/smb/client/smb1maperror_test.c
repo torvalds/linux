@@ -12,6 +12,7 @@
 #include <kunit/test.h>
 #include "smb1proto.h"
 #include "nterr.h"
+#include "smberr.h"
 
 #define DEFINE_CHECK_SEARCH_FUNC(__struct_name, __field,		\
 				 __array, __num)			\
@@ -39,12 +40,29 @@ test_cmp_ntstatus_to_dos_err(struct kunit *test,
 	KUNIT_EXPECT_STREQ(test, expect->nt_errstr, result->nt_errstr);
 }
 
+static void
+test_cmp_smb_to_posix_error(struct kunit *test,
+			    const struct smb_to_posix_error *expect,
+			    const struct smb_to_posix_error *result)
+{
+	KUNIT_EXPECT_EQ(test, expect->smb_err, result->smb_err);
+	KUNIT_EXPECT_EQ(test, expect->posix_code, result->posix_code);
+}
+
 /* check_search_ntstatus_to_dos_map */
 DEFINE_CHECK_SEARCH_FUNC(ntstatus_to_dos_err, ntstatus, ntstatus_to_dos_map,
 			 ntstatus_to_dos_num);
+/* check_search_mapping_table_ERRDOS */
+DEFINE_CHECK_SEARCH_FUNC(smb_to_posix_error, smb_err, mapping_table_ERRDOS,
+			 mapping_table_ERRDOS_num);
+/* check_search_mapping_table_ERRSRV */
+DEFINE_CHECK_SEARCH_FUNC(smb_to_posix_error, smb_err, mapping_table_ERRSRV,
+			 mapping_table_ERRSRV_num);
 
 static struct kunit_case maperror_test_cases[] = {
 	KUNIT_CASE(check_search_ntstatus_to_dos_map),
+	KUNIT_CASE(check_search_mapping_table_ERRDOS),
+	KUNIT_CASE(check_search_mapping_table_ERRSRV),
 	{}
 };
 
