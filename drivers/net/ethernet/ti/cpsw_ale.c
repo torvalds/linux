@@ -493,6 +493,7 @@ int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_flush_multicast);
 
 static inline void cpsw_ale_set_vlan_entry_type(u32 *ale_entry,
 						int flags, u16 vid)
@@ -530,6 +531,7 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_add_ucast);
 
 int cpsw_ale_del_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 		       int flags, u16 vid)
@@ -545,6 +547,7 @@ int cpsw_ale_del_ucast(struct cpsw_ale *ale, const u8 *addr, int port,
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_del_ucast);
 
 int cpsw_ale_add_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 		       int flags, u16 vid, int mcast_state)
@@ -578,6 +581,7 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_add_mcast);
 
 int cpsw_ale_del_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 		       int flags, u16 vid)
@@ -607,6 +611,7 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, const u8 *addr, int port_mask,
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_del_mcast);
 
 /* ALE NetCP NU switch specific vlan functions */
 static void cpsw_ale_set_vlan_mcast(struct cpsw_ale *ale, u32 *ale_entry,
@@ -676,6 +681,7 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port_mask, int untag,
 	cpsw_ale_write(ale, idx, ale_entry);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_add_vlan);
 
 static void cpsw_ale_vlan_del_modify_int(struct cpsw_ale *ale,  u32 *ale_entry,
 					 u16 vid, int port_mask)
@@ -733,6 +739,7 @@ int cpsw_ale_vlan_del_modify(struct cpsw_ale *ale, u16 vid, int port_mask)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_vlan_del_modify);
 
 int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
 {
@@ -767,6 +774,7 @@ int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_del_vlan);
 
 int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 			     int untag_mask, int reg_mask, int unreg_mask)
@@ -806,6 +814,7 @@ int cpsw_ale_vlan_add_modify(struct cpsw_ale *ale, u16 vid, int port_mask,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_vlan_add_modify);
 
 void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
 			      bool add)
@@ -833,6 +842,7 @@ void cpsw_ale_set_unreg_mcast(struct cpsw_ale *ale, int unreg_mcast_mask,
 		cpsw_ale_write(ale, idx, ale_entry);
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_set_unreg_mcast);
 
 static void cpsw_ale_vlan_set_unreg_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 					  int allmulti)
@@ -898,6 +908,7 @@ void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti, int port)
 		cpsw_ale_write(ale, idx, ale_entry);
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_set_allmulti);
 
 struct ale_control_info {
 	const char	*name;
@@ -1155,6 +1166,7 @@ int cpsw_ale_control_set(struct cpsw_ale *ale, int port, int control,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_control_set);
 
 int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control)
 {
@@ -1178,6 +1190,7 @@ int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control)
 	tmp = readl_relaxed(ale->params.ale_regs + offset) >> shift;
 	return tmp & BITMASK(info->bits);
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_control_get);
 
 int cpsw_ale_rx_ratelimit_mc(struct cpsw_ale *ale, int port, unsigned int ratelimit_pps)
 
@@ -1200,6 +1213,7 @@ int cpsw_ale_rx_ratelimit_mc(struct cpsw_ale *ale, int port, unsigned int rateli
 		port, val * ALE_RATE_LIMIT_MIN_PPS);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_rx_ratelimit_mc);
 
 int cpsw_ale_rx_ratelimit_bc(struct cpsw_ale *ale, int port, unsigned int ratelimit_pps)
 
@@ -1222,6 +1236,7 @@ int cpsw_ale_rx_ratelimit_bc(struct cpsw_ale *ale, int port, unsigned int rateli
 		port, val * ALE_RATE_LIMIT_MIN_PPS);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_rx_ratelimit_bc);
 
 static void cpsw_ale_timer(struct timer_list *t)
 {
@@ -1311,6 +1326,7 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 
 	cpsw_ale_aging_start(ale);
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_start);
 
 void cpsw_ale_stop(struct cpsw_ale *ale)
 {
@@ -1318,6 +1334,7 @@ void cpsw_ale_stop(struct cpsw_ale *ale)
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_stop);
 
 static const struct reg_field ale_fields_cpsw[] = {
 	/* CPSW_ALE_IDVER_REG */
@@ -1618,6 +1635,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 	return ale;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_create);
 
 void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data)
 {
@@ -1628,6 +1646,7 @@ void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data)
 		data += ALE_ENTRY_WORDS;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_dump);
 
 void cpsw_ale_restore(struct cpsw_ale *ale, u32 *data)
 {
@@ -1638,11 +1657,13 @@ void cpsw_ale_restore(struct cpsw_ale *ale, u32 *data)
 		data += ALE_ENTRY_WORDS;
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_restore);
 
 u32 cpsw_ale_get_num_entries(struct cpsw_ale *ale)
 {
 	return ale ? ale->params.ale_entries : 0;
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_get_num_entries);
 
 /* Reads the specified policer index into ALE POLICER registers */
 static void cpsw_ale_policer_read_idx(struct cpsw_ale *ale, u32 idx)
@@ -1745,3 +1766,7 @@ void cpsw_ale_classifier_setup_default(struct cpsw_ale *ale, int num_rx_ch)
 						   1);
 	}
 }
+EXPORT_SYMBOL_GPL(cpsw_ale_classifier_setup_default);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("TI N-Port Ethernet Switch Address Lookup Engine");
