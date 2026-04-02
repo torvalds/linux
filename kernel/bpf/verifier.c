@@ -16786,11 +16786,50 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *vstate,
 	}));
 }
 
+static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
+				u8 opcode, bool is_jmp32);
+static u8 rev_opcode(u8 opcode);
+
+/*
+ * Learn more information about live branches by simulating refinement on both branches.
+ * regs_refine_cond_op() is sound, so producing ill-formed register bounds for the branch means
+ * that branch is dead.
+ */
+static int simulate_both_branches_taken(struct bpf_verifier_env *env, u8 opcode, bool is_jmp32)
+{
+	/* Fallthrough (FALSE) branch */
+	regs_refine_cond_op(&env->false_reg1, &env->false_reg2, rev_opcode(opcode), is_jmp32);
+	reg_bounds_sync(&env->false_reg1);
+	reg_bounds_sync(&env->false_reg2);
+	/*
+	 * If there is a range bounds violation in *any* of the abstract values in either
+	 * reg_states in the FALSE branch (i.e. reg1, reg2), the FALSE branch must be dead. Only
+	 * TRUE branch will be taken.
+	 */
+	if (range_bounds_violation(&env->false_reg1) || range_bounds_violation(&env->false_reg2))
+		return 1;
+
+	/* Jump (TRUE) branch */
+	regs_refine_cond_op(&env->true_reg1, &env->true_reg2, opcode, is_jmp32);
+	reg_bounds_sync(&env->true_reg1);
+	reg_bounds_sync(&env->true_reg2);
+	/*
+	 * If there is a range bounds violation in *any* of the abstract values in either
+	 * reg_states in the TRUE branch (i.e. true_reg1, true_reg2), the TRUE branch must be dead.
+	 * Only FALSE branch will be taken.
+	 */
+	if (range_bounds_violation(&env->true_reg1) || range_bounds_violation(&env->true_reg2))
+		return 0;
+
+	/* Both branches are possible, we can't determine which one will be taken. */
+	return -1;
+}
+
 /*
  * <reg1> <op> <reg2>, currently assuming reg2 is a constant
  */
-static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
-				  u8 opcode, bool is_jmp32)
+static int is_scalar_branch_taken(struct bpf_verifier_env *env, struct bpf_reg_state *reg1,
+				  struct bpf_reg_state *reg2, u8 opcode, bool is_jmp32)
 {
 	struct tnum t1 = is_jmp32 ? tnum_subreg(reg1->var_off) : reg1->var_off;
 	struct tnum t2 = is_jmp32 ? tnum_subreg(reg2->var_off) : reg2->var_off;
@@ -16942,7 +16981,7 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 		break;
 	}
 
-	return -1;
+	return simulate_both_branches_taken(env, opcode, is_jmp32);
 }
 
 static int flip_opcode(u32 opcode)
@@ -17013,8 +17052,8 @@ static int is_pkt_ptr_branch_taken(struct bpf_reg_state *dst_reg,
  * -1 - unknown. Example: "if (reg1 < 5)" is unknown when register value
  *      range [0,10]
  */
-static int is_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg2,
-			   u8 opcode, bool is_jmp32)
+static int is_branch_taken(struct bpf_verifier_env *env, struct bpf_reg_state *reg1,
+			   struct bpf_reg_state *reg2, u8 opcode, bool is_jmp32)
 {
 	if (reg_is_pkt_pointer_any(reg1) && reg_is_pkt_pointer_any(reg2) && !is_jmp32)
 		return is_pkt_ptr_branch_taken(reg1, reg2, opcode);
@@ -17052,7 +17091,7 @@ static int is_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_state *reg
 	}
 
 	/* now deal with two scalars, but not necessarily constants */
-	return is_scalar_branch_taken(reg1, reg2, opcode, is_jmp32);
+	return is_scalar_branch_taken(env, reg1, reg2, opcode, is_jmp32);
 }
 
 /* Opcode that corresponds to a *false* branch condition.
@@ -17143,8 +17182,8 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
 			/* u32_min_value is not equal to 0xffffffff at this point,
 			 * because otherwise u32_max_value is 0xffffffff as well,
 			 * in such a case both reg1 and reg2 would be constants,
-			 * jump would be predicted and reg_set_min_max() won't
-			 * be called.
+			 * jump would be predicted and regs_refine_cond_op()
+			 * wouldn't be called.
 			 *
 			 * Same reasoning works for all {u,s}{min,max}{32,64} cases
 			 * below.
@@ -17251,33 +17290,10 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
 	}
 }
 
-/* Adjusts the register min/max values in the case that the dst_reg and
- * src_reg are both SCALAR_VALUE registers (or we are simply doing a BPF_K
- * check, in which case we have a fake SCALAR_VALUE representing insn->imm).
- * Technically we can do similar adjustments for pointers to the same object,
- * but we don't support that right now.
- */
-static int reg_set_min_max(struct bpf_verifier_env *env,
-			   u8 opcode, bool is_jmp32)
+/* Check for invariant violations on the registers for both branches of a condition */
+static int regs_bounds_sanity_check_branches(struct bpf_verifier_env *env)
 {
 	int err;
-
-	/* If either register is a pointer, we can't learn anything about its
-	 * variable offset from the compare (unless they were a pointer into
-	 * the same object, but we don't bother with that).
-	 */
-	if (env->false_reg1.type != SCALAR_VALUE || env->false_reg2.type != SCALAR_VALUE)
-		return 0;
-
-	/* fallthrough (FALSE) branch */
-	regs_refine_cond_op(&env->false_reg1, &env->false_reg2, rev_opcode(opcode), is_jmp32);
-	reg_bounds_sync(&env->false_reg1);
-	reg_bounds_sync(&env->false_reg2);
-
-	/* jump (TRUE) branch */
-	regs_refine_cond_op(&env->true_reg1, &env->true_reg2, opcode, is_jmp32);
-	reg_bounds_sync(&env->true_reg1);
-	reg_bounds_sync(&env->true_reg2);
 
 	err = reg_bounds_sanity_check(env, &env->true_reg1, "true_reg1");
 	err = err ?: reg_bounds_sanity_check(env, &env->true_reg2, "true_reg2");
@@ -17670,7 +17686,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	copy_register_state(&env->false_reg2, src_reg);
 	copy_register_state(&env->true_reg1, dst_reg);
 	copy_register_state(&env->true_reg2, src_reg);
-	pred = is_branch_taken(dst_reg, src_reg, opcode, is_jmp32);
+	pred = is_branch_taken(env, dst_reg, src_reg, opcode, is_jmp32);
 	if (pred >= 0) {
 		/* If we get here with a dst_reg pointer type it is because
 		 * above is_branch_taken() special cased the 0 comparison.
@@ -17734,7 +17750,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		return PTR_ERR(other_branch);
 	other_branch_regs = other_branch->frame[other_branch->curframe]->regs;
 
-	err = reg_set_min_max(env, opcode, is_jmp32);
+	err = regs_bounds_sanity_check_branches(env);
 	if (err)
 		return err;
 
