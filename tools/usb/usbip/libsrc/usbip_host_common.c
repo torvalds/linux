@@ -149,6 +149,9 @@ static int refresh_exported_devices(struct usbip_host_driver *hdriver)
 		}
 	}
 
+	if (hdriver->ndevs == 0)
+		info("Please load appropriate modules or export devices.");
+
 	return 0;
 }
 
