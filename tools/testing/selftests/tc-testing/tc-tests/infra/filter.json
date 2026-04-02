@@ -22,5 +22,49 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY root handle 1: htb default 1"
         ]
+    },
+    {
+        "id": "b7e3",
+        "name": "Empty fw filter on shared block - rejected at config time",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 egress_block 1 clsact"
+        ],
+        "cmdUnderTest": "$TC filter add block 1 protocol ip prio 1 fw",
+        "expExitCode": "2",
+        "verifyCmd": "$TC filter show block 1",
+        "matchPattern": "fw",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
+    },
+    {
+        "id": "c8f4",
+        "name": "Flow filter on shared block without baseclass - rejected at config time",
+        "category": [
+            "filter",
+            "flow"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress_block 1 clsact"
+        ],
+        "cmdUnderTest": "$TC filter add block 1 protocol ip prio 1 handle 1 flow map key dst",
+        "expExitCode": "2",
+        "verifyCmd": "$TC filter show block 1",
+        "matchPattern": "flow",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
     }
 ]

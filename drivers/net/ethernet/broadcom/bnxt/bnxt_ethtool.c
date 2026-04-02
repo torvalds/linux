@@ -945,7 +945,6 @@ static int bnxt_set_channels(struct net_device *dev,
 	bool sh = false;
 	int tx_xdp = 0;
 	int rc = 0;
-	int tx_cp;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -1013,9 +1012,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (tcs > 1)
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
-	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
-	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
-			       tx_cp + bp->rx_nr_rings;
+	bnxt_set_cp_rings(bp, sh);
 
 	/* After changing number of rx channels, update NTUPLE feature. */
 	netdev_update_features(dev);

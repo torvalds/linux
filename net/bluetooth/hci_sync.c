@@ -780,7 +780,7 @@ int hci_cmd_sync_queue_once(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 			    void *data, hci_cmd_sync_work_destroy_t destroy)
 {
 	if (hci_cmd_sync_lookup_entry(hdev, func, data, destroy))
-		return 0;
+		return -EEXIST;
 
 	return hci_cmd_sync_queue(hdev, func, data, destroy);
 }
@@ -801,8 +801,15 @@ int hci_cmd_sync_run(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 		return -ENETDOWN;
 
 	/* If on cmd_sync_work then run immediately otherwise queue */
-	if (current_work() == &hdev->cmd_sync_work)
-		return func(hdev, data);
+	if (current_work() == &hdev->cmd_sync_work) {
+		int err;
+
+		err = func(hdev, data);
+		if (destroy)
+			destroy(hdev, data, err);
+
+		return 0;
+	}
 
 	return hci_cmd_sync_submit(hdev, func, data, destroy);
 }
@@ -3255,6 +3262,8 @@ static int update_passive_scan_sync(struct hci_dev *hdev, void *data)
 
 int hci_update_passive_scan(struct hci_dev *hdev)
 {
+	int err;
+
 	/* Only queue if it would have any effect */
 	if (!test_bit(HCI_UP, &hdev->flags) ||
 	    test_bit(HCI_INIT, &hdev->flags) ||
@@ -3264,8 +3273,9 @@ int hci_update_passive_scan(struct hci_dev *hdev)
 	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		return 0;
 
-	return hci_cmd_sync_queue_once(hdev, update_passive_scan_sync, NULL,
-				       NULL);
+	err = hci_cmd_sync_queue_once(hdev, update_passive_scan_sync, NULL,
+				      NULL);
+	return (err == -EEXIST) ? 0 : err;
 }
 
 int hci_write_sc_support_sync(struct hci_dev *hdev, u8 val)
@@ -6958,8 +6968,11 @@ static int hci_acl_create_conn_sync(struct hci_dev *hdev, void *data)
 
 int hci_connect_acl_sync(struct hci_dev *hdev, struct hci_conn *conn)
 {
-	return hci_cmd_sync_queue_once(hdev, hci_acl_create_conn_sync, conn,
-				       NULL);
+	int err;
+
+	err = hci_cmd_sync_queue_once(hdev, hci_acl_create_conn_sync, conn,
+				      NULL);
+	return (err == -EEXIST) ? 0 : err;
 }
 
 static void create_le_conn_complete(struct hci_dev *hdev, void *data, int err)
@@ -6995,8 +7008,11 @@ done:
 
 int hci_connect_le_sync(struct hci_dev *hdev, struct hci_conn *conn)
 {
-	return hci_cmd_sync_queue_once(hdev, hci_le_create_conn_sync, conn,
-				       create_le_conn_complete);
+	int err;
+
+	err = hci_cmd_sync_queue_once(hdev, hci_le_create_conn_sync, conn,
+				      create_le_conn_complete);
+	return (err == -EEXIST) ? 0 : err;
 }
 
 int hci_cancel_connect_sync(struct hci_dev *hdev, struct hci_conn *conn)
@@ -7203,8 +7219,11 @@ done:
 
 int hci_connect_pa_sync(struct hci_dev *hdev, struct hci_conn *conn)
 {
-	return hci_cmd_sync_queue_once(hdev, hci_le_pa_create_sync, conn,
-				       create_pa_complete);
+	int err;
+
+	err = hci_cmd_sync_queue_once(hdev, hci_le_pa_create_sync, conn,
+				      create_pa_complete);
+	return (err == -EEXIST) ? 0 : err;
 }
 
 static void create_big_complete(struct hci_dev *hdev, void *data, int err)
@@ -7222,7 +7241,8 @@ static void create_big_complete(struct hci_dev *hdev, void *data, int err)
 
 static int hci_le_big_create_sync(struct hci_dev *hdev, void *data)
 {
-	DEFINE_FLEX(struct hci_cp_le_big_create_sync, cp, bis, num_bis, 0x11);
+	DEFINE_FLEX(struct hci_cp_le_big_create_sync, cp, bis, num_bis,
+		    HCI_MAX_ISO_BIS);
 	struct hci_conn *conn = data;
 	struct bt_iso_qos *qos = &conn->iso_qos;
 	int err;
@@ -7266,8 +7286,11 @@ static int hci_le_big_create_sync(struct hci_dev *hdev, void *data)
 
 int hci_connect_big_sync(struct hci_dev *hdev, struct hci_conn *conn)
 {
-	return hci_cmd_sync_queue_once(hdev, hci_le_big_create_sync, conn,
-				       create_big_complete);
+	int err;
+
+	err = hci_cmd_sync_queue_once(hdev, hci_le_big_create_sync, conn,
+				      create_big_complete);
+	return (err == -EEXIST) ? 0 : err;
 }
 
 struct past_data {
@@ -7359,7 +7382,7 @@ int hci_past_sync(struct hci_conn *conn, struct hci_conn *le)
 	if (err)
 		kfree(data);
 
-	return err;
+	return (err == -EEXIST) ? 0 : err;
 }
 
 static void le_read_features_complete(struct hci_dev *hdev, void *data, int err)
@@ -7368,10 +7391,8 @@ static void le_read_features_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_dbg(hdev, "err %d", err);
 
-	if (err == -ECANCELED)
-		return;
-
 	hci_conn_drop(conn);
+	hci_conn_put(conn);
 }
 
 static int hci_le_read_all_remote_features_sync(struct hci_dev *hdev,
@@ -7438,15 +7459,20 @@ int hci_le_read_remote_features(struct hci_conn *conn)
 	 * role is possible. Otherwise just transition into the
 	 * connected state without requesting the remote features.
 	 */
-	if (conn->out || (hdev->le_features[0] & HCI_LE_PERIPHERAL_FEATURES))
+	if (conn->out || (hdev->le_features[0] & HCI_LE_PERIPHERAL_FEATURES)) {
 		err = hci_cmd_sync_queue_once(hdev,
 					      hci_le_read_remote_features_sync,
-					      hci_conn_hold(conn),
+					      hci_conn_hold(hci_conn_get(conn)),
 					      le_read_features_complete);
-	else
+		if (err) {
+			hci_conn_drop(conn);
+			hci_conn_put(conn);
+		}
+	} else {
 		err = -EOPNOTSUPP;
+	}
 
-	return err;
+	return (err == -EEXIST) ? 0 : err;
 }
 
 static void pkt_type_changed(struct hci_dev *hdev, void *data, int err)
@@ -7472,6 +7498,7 @@ int hci_acl_change_pkt_type(struct hci_conn *conn, u16 pkt_type)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_change_conn_ptype *cp;
+	int err;
 
 	cp = kmalloc_obj(*cp);
 	if (!cp)
@@ -7480,8 +7507,12 @@ int hci_acl_change_pkt_type(struct hci_conn *conn, u16 pkt_type)
 	cp->handle = cpu_to_le16(conn->handle);
 	cp->pkt_type = cpu_to_le16(pkt_type);
 
-	return hci_cmd_sync_queue_once(hdev, hci_change_conn_ptype_sync, cp,
-				       pkt_type_changed);
+	err = hci_cmd_sync_queue_once(hdev, hci_change_conn_ptype_sync, cp,
+				      pkt_type_changed);
+	if (err)
+		kfree(cp);
+
+	return (err == -EEXIST) ? 0 : err;
 }
 
 static void le_phy_update_complete(struct hci_dev *hdev, void *data, int err)
@@ -7507,6 +7538,7 @@ int hci_le_set_phy(struct hci_conn *conn, u8 tx_phys, u8 rx_phys)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_set_phy *cp;
+	int err;
 
 	cp = kmalloc_obj(*cp);
 	if (!cp)
@@ -7517,6 +7549,10 @@ int hci_le_set_phy(struct hci_conn *conn, u8 tx_phys, u8 rx_phys)
 	cp->tx_phys = tx_phys;
 	cp->rx_phys = rx_phys;
 
-	return hci_cmd_sync_queue_once(hdev, hci_le_set_phy_sync, cp,
-				       le_phy_update_complete);
+	err = hci_cmd_sync_queue_once(hdev, hci_le_set_phy_sync, cp,
+				      le_phy_update_complete);
+	if (err)
+		kfree(cp);
+
+	return (err == -EEXIST) ? 0 : err;
 }
