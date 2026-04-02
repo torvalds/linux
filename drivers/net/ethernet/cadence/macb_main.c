@@ -70,6 +70,9 @@ struct sifive_fu540_macb_mgmt {
 #define MACB_TX_INT_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(TCOMP)	\
 					| MACB_BIT(TXUBR))
 
+#define MACB_INT_MISC_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(RXUBR) | \
+				 MACB_BIT(ISR_ROVR) | MACB_BIT(HRESP))
+
 /* Max length of transmit frame must be a multiple of 8 bytes */
 #define MACB_TX_LEN_ALIGN	8
 #define MACB_MAX_TX_LEN		((unsigned int)((1 << MACB_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
@@ -2078,12 +2081,66 @@ static irqreturn_t gem_wol_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int macb_interrupt_misc(struct macb_queue *queue, u32 status)
+{
+	struct macb *bp = queue->bp;
+	struct net_device *dev;
+	u32 ctrl;
+
+	dev = bp->dev;
+
+	if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
+		queue_writel(queue, IDR, MACB_TX_INT_FLAGS);
+		schedule_work(&queue->tx_error_task);
+		macb_queue_isr_clear(bp, queue, MACB_TX_ERR_FLAGS);
+		return -1;
+	}
+
+	/* Link change detection isn't possible with RMII, so we'll
+	 * add that if/when we get our hands on a full-blown MII PHY.
+	 */
+
+	/* There is a hardware issue under heavy load where DMA can
+	 * stop, this causes endless "used buffer descriptor read"
+	 * interrupts but it can be cleared by re-enabling RX. See
+	 * the at91rm9200 manual, section 41.3.1 or the Zynq manual
+	 * section 16.7.4 for details. RXUBR is only enabled for
+	 * these two versions.
+	 */
+	if (status & MACB_BIT(RXUBR)) {
+		ctrl = macb_readl(bp, NCR);
+		macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
+		wmb();
+		macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
+		macb_queue_isr_clear(bp, queue, MACB_BIT(RXUBR));
+	}
+
+	if (status & MACB_BIT(ISR_ROVR)) {
+		/* We missed at least one packet */
+		spin_lock(&bp->stats_lock);
+		if (macb_is_gem(bp))
+			bp->hw_stats.gem.rx_overruns++;
+		else
+			bp->hw_stats.macb.rx_overruns++;
+		spin_unlock(&bp->stats_lock);
+		macb_queue_isr_clear(bp, queue, MACB_BIT(ISR_ROVR));
+	}
+
+	if (status & MACB_BIT(HRESP)) {
+		queue_work(system_bh_wq, &bp->hresp_err_bh_work);
+		netdev_err(dev, "DMA bus error: HRESP not OK\n");
+		macb_queue_isr_clear(bp, queue, MACB_BIT(HRESP));
+	}
+
+	return 0;
+}
+
 static irqreturn_t macb_interrupt(int irq, void *dev_id)
 {
 	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
 	struct net_device *dev = bp->dev;
-	u32 status, ctrl;
+	u32 status;
 
 	status = queue_readl(queue, ISR);
 
@@ -2129,48 +2186,10 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			napi_schedule(&queue->napi_tx);
 		}
 
-		if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
-			queue_writel(queue, IDR, MACB_TX_INT_FLAGS);
-			schedule_work(&queue->tx_error_task);
-			macb_queue_isr_clear(bp, queue, MACB_TX_ERR_FLAGS);
-			break;
-		}
+		if (unlikely(status & MACB_INT_MISC_FLAGS))
+			if (macb_interrupt_misc(queue, status))
+				break;
 
-		/* Link change detection isn't possible with RMII, so we'll
-		 * add that if/when we get our hands on a full-blown MII PHY.
-		 */
-
-		/* There is a hardware issue under heavy load where DMA can
-		 * stop, this causes endless "used buffer descriptor read"
-		 * interrupts but it can be cleared by re-enabling RX. See
-		 * the at91rm9200 manual, section 41.3.1 or the Zynq manual
-		 * section 16.7.4 for details. RXUBR is only enabled for
-		 * these two versions.
-		 */
-		if (status & MACB_BIT(RXUBR)) {
-			ctrl = macb_readl(bp, NCR);
-			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
-			wmb();
-			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
-			macb_queue_isr_clear(bp, queue, MACB_BIT(RXUBR));
-		}
-
-		if (status & MACB_BIT(ISR_ROVR)) {
-			/* We missed at least one packet */
-			spin_lock(&bp->stats_lock);
-			if (macb_is_gem(bp))
-				bp->hw_stats.gem.rx_overruns++;
-			else
-				bp->hw_stats.macb.rx_overruns++;
-			spin_unlock(&bp->stats_lock);
-			macb_queue_isr_clear(bp, queue, MACB_BIT(ISR_ROVR));
-		}
-
-		if (status & MACB_BIT(HRESP)) {
-			queue_work(system_bh_wq, &bp->hresp_err_bh_work);
-			netdev_err(dev, "DMA bus error: HRESP not OK\n");
-			macb_queue_isr_clear(bp, queue, MACB_BIT(HRESP));
-		}
 		status = queue_readl(queue, ISR);
 	}
 
