@@ -12,6 +12,12 @@ import subprocess
 import sys
 from typing import Dict, Iterable, List, Literal, Optional, TypedDict
 
+def invoke_rustc(args: List[str]) -> str:
+    return subprocess.check_output(
+        [os.environ["RUSTC"]] + args,
+        stdin=subprocess.DEVNULL,
+    ).decode('utf-8').strip()
+
 def args_crates_cfgs(cfgs: List[str]) -> Dict[str, List[str]]:
     crates_cfgs = {}
     for cfg in cfgs:
@@ -69,6 +75,9 @@ def generate_crates(
     crates: List[Crate] = []
     crates_cfgs = args_crates_cfgs(cfgs)
 
+    def get_crate_name(path: pathlib.Path) -> str:
+        return invoke_rustc(["--print", "crate-name", str(path)])
+
     def build_crate(
         display_name: str,
         root_module: pathlib.Path,
@@ -112,23 +121,15 @@ def generate_crates(
             is_workspace_member=is_workspace_member,
             edition=edition,
         )
-        proc_macro_dylib_name = (
-            subprocess.check_output(
-                [
-                    os.environ["RUSTC"],
-                    "--print",
-                    "file-names",
-                    "--crate-name",
-                    display_name,
-                    "--crate-type",
-                    "proc-macro",
-                    "-",
-                ],
-                stdin=subprocess.DEVNULL,
-            )
-            .decode("utf-8")
-            .strip()
-        )
+        proc_macro_dylib_name = invoke_rustc([
+            "--print",
+            "file-names",
+            "--crate-name",
+            display_name,
+            "--crate-type",
+            "proc-macro",
+            "-",
+        ])
         proc_macro_crate: ProcMacroCrate = {
             **crate,
             "is_proc_macro": True,
@@ -324,16 +325,17 @@ def generate_crates(
     for folder in extra_dirs:
         for path in folder.rglob("*.rs"):
             logging.info("Checking %s", path)
-            name = path.stem
+            file_name = path.stem
 
             # Skip those that are not crate roots.
-            if not is_root_crate(path.parent / "Makefile", name) and \
-               not is_root_crate(path.parent / "Kbuild", name):
+            if not is_root_crate(path.parent / "Makefile", file_name) and \
+               not is_root_crate(path.parent / "Kbuild", file_name):
                 continue
 
-            logging.info("Adding %s", name)
+            crate_name = get_crate_name(path)
+            logging.info("Adding %s", crate_name)
             append_crate(
-                name,
+                crate_name,
                 path,
                 [core, kernel, pin_init],
                 cfg=generated_cfg,
