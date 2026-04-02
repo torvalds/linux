@@ -224,6 +224,8 @@ static void orangefs_readahead(struct readahead_control *rac)
 	loff_t new_start = readahead_pos(rac);
 	int ret;
 	size_t new_len = 0;
+	size_t this_size;
+	size_t remaining;
 
 	loff_t bytes_remaining = inode->i_size - readahead_pos(rac);
 	loff_t pages_remaining = bytes_remaining / PAGE_SIZE;
@@ -239,17 +241,33 @@ static void orangefs_readahead(struct readahead_control *rac)
 	offset = readahead_pos(rac);
 	i_pages = &rac->mapping->i_pages;
 
-	iov_iter_xarray(&iter, ITER_DEST, i_pages, offset, readahead_length(rac));
+	iov_iter_xarray(&iter, ITER_DEST, i_pages,
+				offset, readahead_length(rac));
 
-	/* read in the pages. */
-	if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, inode,
-			&offset, &iter, readahead_length(rac),
-			inode->i_size, NULL, NULL, rac->file)) < 0)
-		gossip_debug(GOSSIP_FILE_DEBUG,
-			"%s: wait_for_direct_io failed. \n", __func__);
-	else
-		ret = 0;
+	remaining = readahead_length(rac);
+	while (remaining) {
+		if (remaining > 4194304)
+			this_size = 4194304;
+		else
+			this_size = remaining;
 
+		/* read in the pages. */
+		if ((ret = wait_for_direct_io(ORANGEFS_IO_READ, inode,
+				&offset, &iter, this_size,
+				inode->i_size, NULL, NULL, rac->file)) < 0) {
+			gossip_debug(GOSSIP_FILE_DEBUG,
+				"%s: wait_for_direct_io failed. :%d: \n",
+				__func__, ret);
+			goto cleanup;
+		} else {
+			ret = 0;
+		}
+
+		remaining -= this_size;
+		offset += this_size;
+	}
+
+cleanup:
 	/* clean up. */
 	while ((folio = readahead_folio(rac))) {
 		if (!ret)
