@@ -12,6 +12,7 @@ struct net;
 struct netlink_ext_ack;
 struct netdev_queue_config;
 struct cpumask;
+struct pp_memory_provider_params;
 
 /* Random bits of netdevice that don't need to be exposed */
 #define FLOW_LIMIT_HISTORY	(1 << 7)  /* must be ^2 and !overflow buckets */
@@ -100,6 +101,12 @@ int netdev_queue_config_validate(struct net_device *dev, int rxq_idx,
 
 bool netif_rxq_has_mp(struct net_device *dev, unsigned int rxq_idx);
 bool netif_rxq_is_leased(struct net_device *dev, unsigned int rxq_idx);
+
+void __netif_mp_uninstall_rxq(struct netdev_rx_queue *rxq,
+			      const struct pp_memory_provider_params *p);
+
+void netif_rxq_cleanup_unlease(struct netdev_rx_queue *phys_rxq,
+			       struct netdev_rx_queue *virt_rxq);
 
 /* netdev management, shared between various uAPI entry points */
 struct netdev_name_node {
