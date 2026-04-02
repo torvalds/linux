@@ -588,6 +588,7 @@ struct ath12k_dbg_htt_stats {
 struct ath12k_debug {
 	struct dentry *debugfs_pdev;
 	struct dentry *debugfs_pdev_symlink;
+	struct dentry *debugfs_pdev_symlink_default;
 	struct ath12k_dbg_htt_stats htt_stats;
 	enum wmi_halphy_ctrl_path_stats_id tpc_stats_type;
 	bool tpc_request;
@@ -673,6 +674,7 @@ struct ath12k {
 	u8 pdev_idx;
 	u8 lmac_id;
 	u8 hw_link_id;
+	u8 radio_idx;
 
 	struct completion peer_assoc_done;
 	struct completion peer_delete_done;

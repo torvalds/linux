@@ -835,8 +835,6 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 		goto err_qmi_deinit;
 	}
 
-	ath12k_debugfs_pdev_create(ab);
-
 	return 0;
 
 err_qmi_deinit:
@@ -868,6 +866,8 @@ static int ath12k_core_pdev_create(struct ath12k_base *ab)
 		ath12k_err(ab, "could not register thermal device: %d\n", ret);
 		goto err_dp_pdev_free;
 	}
+
+	ath12k_debugfs_pdev_create(ab);
 
 	return 0;
 
