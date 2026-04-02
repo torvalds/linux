@@ -106,6 +106,19 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 /*****************************************************************************
  *convert a NT status code to a dos class/code
  *****************************************************************************/
+
+static __always_inline int ntstatus_to_dos_cmp(const void *_key, const void *_pivot)
+{
+	__u32 key = *(__u32 *)_key;
+	const struct ntstatus_to_dos_err *pivot = _pivot;
+
+	if (key < pivot->ntstatus)
+		return -1;
+	if (key > pivot->ntstatus)
+		return 1;
+	return 0;
+}
+
 /* NT status -> dos error map */
 static const struct ntstatus_to_dos_err ntstatus_to_dos_map[] = {
 /*
@@ -113,22 +126,15 @@ static const struct ntstatus_to_dos_err ntstatus_to_dos_map[] = {
  * sorted by NT status code (ascending).
  */
 #include "smb1_mapping_table.c"
-	{0, 0, 0, NULL}
 };
 
 static const struct ntstatus_to_dos_err *
-ntstatus_to_dos(__u32 ntstatus)
+search_ntstatus_to_dos_map(__u32 ntstatus)
 {
-	int i;
-
-	/* Check nt_errstr to allow mapping of NT_STATUS_OK (0) */
-	for (i = 0; ntstatus_to_dos_map[i].nt_errstr; i++) {
-		if (ntstatus == ntstatus_to_dos_map[i].ntstatus) {
-			return &ntstatus_to_dos_map[i];
-		}
-	}
-
-	return NULL;
+	return __inline_bsearch(&ntstatus, ntstatus_to_dos_map,
+				ARRAY_SIZE(ntstatus_to_dos_map),
+				sizeof(struct ntstatus_to_dos_err),
+				ntstatus_to_dos_cmp);
 }
 
 int
@@ -150,7 +156,7 @@ map_smb_to_linux_error(char *buf, bool logErr)
 		/* translate the newer STATUS codes to old style SMB errors
 		 * and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		const struct ntstatus_to_dos_err *map = ntstatus_to_dos(err);
+		const struct ntstatus_to_dos_err *map = search_ntstatus_to_dos_map(err);
 
 		if (map) {
 			if ((logErr && err != NT_STATUS_MORE_PROCESSING_REQUIRED) ||
