@@ -15,12 +15,13 @@
 #ifndef _NTERR_H
 #define _NTERR_H
 
-struct nt_err_code_struct {
-	char *nt_errstr;
-	__u32 nt_errcode;
+/* NT status -> dos error map */
+struct ntstatus_to_dos_err {
+	__u8 dos_class;
+	__u16 dos_code;
+	__u32 ntstatus;
+	const char *nt_errstr;
 };
-
-extern const struct nt_err_code_struct nt_errs[];
 
 /* Win32 Error Codes. */
 #define NT_ERROR_INVALID_PARAMETER     0x0057
