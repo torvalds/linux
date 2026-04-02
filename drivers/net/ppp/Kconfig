@@ -13,10 +13,9 @@ config PPP
 	  otherwise you can't use it; most Internet access providers these
 	  days support PPP rather than SLIP.
 
-	  To use PPP, you need an additional program called pppd as described
-	  in the PPP-HOWTO, available at
-	  <http://www.tldp.org/docs.html#howto>.  Make sure that you have
-	  the version of pppd recommended in <file:Documentation/Changes>.
+	  To use PPP, you need an additional program called pppd, available at
+	  <https://ppp.samba.org>.  Make sure that you have the version of pppd
+	  recommended in <file:Documentation/Changes>.
 	  The PPP option enlarges your kernel by about 16 KB.
 
 	  There are actually two versions of PPP: the traditional PPP for
@@ -116,11 +115,10 @@ config PPPOE
 	help
 	  Support for PPP over Ethernet.
 
-	  This driver requires the latest version of pppd from the CVS
-	  repository at cvs.samba.org.  Alternatively, see the
-	  RoaringPenguin package (<http://www.roaringpenguin.com/pppoe>)
-	  which contains instruction on how to use this driver (under
-	  the heading "Kernel mode PPPoE").
+	  To work in client mode, pppd version 2.4.2 or later is required.
+	  To work in server mode, the pppoe-server command from the RP-PPPoE
+	  package is also required, available at
+	  <https://dianne.skoll.ca/projects/rp-pppoe/>.
 
 choice
 	prompt "Number of PPPoE hash bits"
