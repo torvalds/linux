@@ -338,13 +338,11 @@ static void qi_batch_add_piotlb_all(struct intel_iommu *iommu, u16 did,
 }
 
 static void qi_batch_add_piotlb(struct intel_iommu *iommu, u16 did, u32 pasid,
-				u64 addr, unsigned long npages, bool ih,
+				u64 addr, unsigned int size_order, bool ih,
 				struct qi_batch *batch)
 {
-	if (!npages)
-		return;
-
-	qi_desc_piotlb(did, pasid, addr, npages, ih, &batch->descs[batch->index]);
+	qi_desc_piotlb(did, pasid, addr, size_order, ih,
+		       &batch->descs[batch->index]);
 	qi_batch_increment_index(iommu, batch);
 }
 
@@ -385,7 +383,7 @@ static void cache_tag_flush_iotlb(struct dmar_domain *domain, struct cache_tag *
 						tag->pasid, domain->qi_batch);
 		else
 			qi_batch_add_piotlb(iommu, tag->domain_id, tag->pasid,
-					    addr, pages, ih, domain->qi_batch);
+					    addr, mask, ih, domain->qi_batch);
 		return;
 	}
 
