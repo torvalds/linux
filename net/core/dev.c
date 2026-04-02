@@ -1122,6 +1122,14 @@ netdev_get_by_index_lock_ops_compat(struct net *net, int ifindex)
 }
 
 struct net_device *
+netdev_put_lock(struct net_device *dev, struct net *net,
+		netdevice_tracker *tracker)
+{
+	netdev_tracker_free(dev, tracker);
+	return __netdev_put_lock(dev, net);
+}
+
+struct net_device *
 netdev_xa_find_lock(struct net *net, struct net_device *dev,
 		    unsigned long *index)
 {
