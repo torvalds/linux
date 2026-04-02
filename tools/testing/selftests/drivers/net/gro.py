@@ -301,6 +301,7 @@ def _gro_variants():
 
     # Tests specific to IPv4
     ipv4_tests = [
+        "ip_csum",
         "ip_ttl", "ip_opt", "ip_frag4",
         "ip_id_df1_inc", "ip_id_df1_fixed",
         "ip_id_df0_inc", "ip_id_df0_fixed",

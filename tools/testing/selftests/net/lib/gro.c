@@ -36,6 +36,7 @@
  *  Packets with different (ECN, TTL, TOS) header, IP options or
  *  IP fragments shouldn't coalesce.
  *   - ip_ecn, ip_tos:            shared between IPv4/IPv6
+ *   - ip_csum:                   IPv4 only, bad IP header checksum
  *   - ip_ttl, ip_opt, ip_frag4:  IPv4 only
  *   - ip_id_df*:                 IPv4 IP ID field coalescing tests
  *   - ip_frag6, ip_v6ext_*:      IPv6 only
@@ -682,6 +683,24 @@ static void send_changed_checksum(int fd, struct sockaddr_ll *daddr)
 
 	create_packet(buf, PAYLOAD_LEN, 0, PAYLOAD_LEN, 0);
 	tcph->check = tcph->check - 1;
+	write_packet(fd, buf, pkt_size, daddr);
+}
+
+/* Packets with incorrect IPv4 header checksum don't coalesce. */
+static void send_changed_ip_checksum(int fd, struct sockaddr_ll *daddr)
+{
+	static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
+	struct iphdr *iph = (struct iphdr *)(buf + ETH_HLEN);
+	int pkt_size = total_hdr_len + PAYLOAD_LEN;
+
+	create_packet(buf, 0, 0, PAYLOAD_LEN, 0);
+	write_packet(fd, buf, pkt_size, daddr);
+
+	create_packet(buf, PAYLOAD_LEN, 0, PAYLOAD_LEN, 0);
+	iph->check = iph->check - 1;
+	write_packet(fd, buf, pkt_size, daddr);
+
+	create_packet(buf, PAYLOAD_LEN * 2, 0, PAYLOAD_LEN, 0);
 	write_packet(fd, buf, pkt_size, daddr);
 }
 
@@ -1402,6 +1421,10 @@ static void gro_sender(void)
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
 	/* ip sub-tests - IPv4 only */
+	} else if (strcmp(testname, "ip_csum") == 0) {
+		send_changed_ip_checksum(txfd, &daddr);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 	} else if (strcmp(testname, "ip_ttl") == 0) {
 		send_changed_ttl(txfd, &daddr);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
@@ -1598,6 +1621,12 @@ static void gro_receiver(void)
 		check_recv_pkts(rxfd, correct_payload, 2);
 
 	/* ip sub-tests - IPv4 only */
+	} else if (strcmp(testname, "ip_csum") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		correct_payload[2] = PAYLOAD_LEN;
+		printf("bad ip checksum doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 3);
 	} else if (strcmp(testname, "ip_ttl") == 0) {
 		correct_payload[0] = PAYLOAD_LEN;
 		correct_payload[1] = PAYLOAD_LEN;
