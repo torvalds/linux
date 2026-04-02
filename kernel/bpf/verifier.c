@@ -17253,10 +17253,6 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
  * but we don't support that right now.
  */
 static int reg_set_min_max(struct bpf_verifier_env *env,
-			   struct bpf_reg_state *true_reg1,
-			   struct bpf_reg_state *true_reg2,
-			   struct bpf_reg_state *false_reg1,
-			   struct bpf_reg_state *false_reg2,
 			   u8 opcode, bool is_jmp32)
 {
 	int err;
@@ -17265,30 +17261,23 @@ static int reg_set_min_max(struct bpf_verifier_env *env,
 	 * variable offset from the compare (unless they were a pointer into
 	 * the same object, but we don't bother with that).
 	 */
-	if (false_reg1->type != SCALAR_VALUE || false_reg2->type != SCALAR_VALUE)
-		return 0;
-
-	/* We compute branch direction for same SCALAR_VALUE registers in
-	 * is_scalar_branch_taken(). For unknown branch directions (e.g., BPF_JSET)
-	 * on the same registers, we don't need to adjust the min/max values.
-	 */
-	if (false_reg1 == false_reg2)
+	if (env->false_reg1.type != SCALAR_VALUE || env->false_reg2.type != SCALAR_VALUE)
 		return 0;
 
 	/* fallthrough (FALSE) branch */
-	regs_refine_cond_op(false_reg1, false_reg2, rev_opcode(opcode), is_jmp32);
-	reg_bounds_sync(false_reg1);
-	reg_bounds_sync(false_reg2);
+	regs_refine_cond_op(&env->false_reg1, &env->false_reg2, rev_opcode(opcode), is_jmp32);
+	reg_bounds_sync(&env->false_reg1);
+	reg_bounds_sync(&env->false_reg2);
 
 	/* jump (TRUE) branch */
-	regs_refine_cond_op(true_reg1, true_reg2, opcode, is_jmp32);
-	reg_bounds_sync(true_reg1);
-	reg_bounds_sync(true_reg2);
+	regs_refine_cond_op(&env->true_reg1, &env->true_reg2, opcode, is_jmp32);
+	reg_bounds_sync(&env->true_reg1);
+	reg_bounds_sync(&env->true_reg2);
 
-	err = reg_bounds_sanity_check(env, true_reg1, "true_reg1");
-	err = err ?: reg_bounds_sanity_check(env, true_reg2, "true_reg2");
-	err = err ?: reg_bounds_sanity_check(env, false_reg1, "false_reg1");
-	err = err ?: reg_bounds_sanity_check(env, false_reg2, "false_reg2");
+	err = reg_bounds_sanity_check(env, &env->true_reg1, "true_reg1");
+	err = err ?: reg_bounds_sanity_check(env, &env->true_reg2, "true_reg2");
+	err = err ?: reg_bounds_sanity_check(env, &env->false_reg1, "false_reg1");
+	err = err ?: reg_bounds_sanity_check(env, &env->false_reg2, "false_reg2");
 	return err;
 }
 
@@ -17672,6 +17661,10 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	}
 
 	is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+	copy_register_state(&env->false_reg1, dst_reg);
+	copy_register_state(&env->false_reg2, src_reg);
+	copy_register_state(&env->true_reg1, dst_reg);
+	copy_register_state(&env->true_reg2, src_reg);
 	pred = is_branch_taken(dst_reg, src_reg, opcode, is_jmp32);
 	if (pred >= 0) {
 		/* If we get here with a dst_reg pointer type it is because
@@ -17736,26 +17729,15 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		return PTR_ERR(other_branch);
 	other_branch_regs = other_branch->frame[other_branch->curframe]->regs;
 
-	if (BPF_SRC(insn->code) == BPF_X) {
-		err = reg_set_min_max(env,
-				      &other_branch_regs[insn->dst_reg],
-				      &other_branch_regs[insn->src_reg],
-				      dst_reg, src_reg, opcode, is_jmp32);
-	} else /* BPF_SRC(insn->code) == BPF_K */ {
-		/* reg_set_min_max() can mangle the fake_reg. Make a copy
-		 * so that these are two different memory locations. The
-		 * src_reg is not used beyond here in context of K.
-		 */
-		memcpy(&env->fake_reg[1], &env->fake_reg[0],
-		       sizeof(env->fake_reg[0]));
-		err = reg_set_min_max(env,
-				      &other_branch_regs[insn->dst_reg],
-				      &env->fake_reg[0],
-				      dst_reg, &env->fake_reg[1],
-				      opcode, is_jmp32);
-	}
+	err = reg_set_min_max(env, opcode, is_jmp32);
 	if (err)
 		return err;
+
+	copy_register_state(dst_reg, &env->false_reg1);
+	copy_register_state(src_reg, &env->false_reg2);
+	copy_register_state(&other_branch_regs[insn->dst_reg], &env->true_reg1);
+	if (BPF_SRC(insn->code) == BPF_X)
+		copy_register_state(&other_branch_regs[insn->src_reg], &env->true_reg2);
 
 	if (BPF_SRC(insn->code) == BPF_X &&
 	    src_reg->type == SCALAR_VALUE && src_reg->id &&

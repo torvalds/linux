@@ -837,7 +837,9 @@ struct bpf_verifier_env {
 	u64 scratched_stack_slots;
 	u64 prev_log_pos, prev_insn_print_pos;
 	/* buffer used to temporary hold constants as scalar registers */
-	struct bpf_reg_state fake_reg[2];
+	struct bpf_reg_state fake_reg[1];
+	/* buffers used to save updated reg states while simulating branches */
+	struct bpf_reg_state true_reg1, true_reg2, false_reg1, false_reg2;
 	/* buffer used to generate temporary string representations,
 	 * e.g., in reg_type_str() to generate reg_type string
 	 */
