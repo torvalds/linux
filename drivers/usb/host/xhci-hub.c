@@ -1209,6 +1209,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u16 wake_mask;
 	u8 timeout;
 	u8 test_mode;
+	u8 desc_type;
 	struct xhci_hub *rhub;
 	struct xhci_port **ports;
 	struct xhci_port *port;
@@ -1226,13 +1227,13 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		memset(buf, 0, 4);
 		break;
 	case GetHubDescriptor:
+		desc_type = (wValue & 0xff00) >> 8;
 		/* Check to make sure userspace is asking for the USB 3.0 hub
 		 * descriptor for the USB 3.0 roothub.  If not, we stall the
 		 * endpoint, like external hubs do.
 		 */
 		if (hcd->speed >= HCD_USB3 &&
-				(wLength < USB_DT_SS_HUB_SIZE ||
-				 wValue != (USB_DT_SS_HUB << 8))) {
+		    (wLength < USB_DT_SS_HUB_SIZE || desc_type != USB_DT_SS_HUB)) {
 			xhci_dbg(xhci, "Wrong hub descriptor type for "
 					"USB 3.0 roothub.\n");
 			goto error;
@@ -1241,7 +1242,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				(struct usb_hub_descriptor *) buf);
 		break;
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-		if ((wValue & 0xff00) != (USB_DT_BOS << 8))
+		desc_type = (wValue & 0xff00) >> 8;
+		if (desc_type != USB_DT_BOS)
 			goto error;
 
 		if (hcd->speed < HCD_USB3)
@@ -1272,7 +1274,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		/* if USB 3.1 extended port status return additional 4 bytes */
-		if (wValue == 0x02) {
+		if (wValue == HUB_EXT_PORT_STATUS) {
 			u32 port_li;
 
 			if (hcd->speed < HCD_USB31 || wLength != 8) {
