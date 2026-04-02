@@ -14,3 +14,7 @@
 	model = "Qualcomm Technologies, Inc. IPQ9574/AP-AL02-C9";
 	compatible = "qcom,ipq9574-ap-al02-c9", "qcom,ipq9574";
 };
+
+&qpic_nand {
+	status = "okay";
+};

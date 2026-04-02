@@ -2,27 +2,8 @@
 
 #include "msm8916-samsung-fortuna-common.dtsi"
 
-/* SM5504 MUIC instead of SM5502 */
-/delete-node/ &muic;
-
 /* IST3038 instead of Zinitix BT541 */
 /delete-node/ &touchscreen;
-
-&blsp_i2c1 {
-	muic: extcon@14 {
-		compatible = "siliconmitus,sm5504-muic";
-		reg = <0x14>;
-		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-0 = <&muic_int_default>;
-		pinctrl-names = "default";
-
-		usb_con: connector {
-			compatible = "usb-b-connector";
-			label = "micro-USB";
-			type = "micro";
-		};
-	};
-};
 
 &blsp_i2c5 {
 	touchscreen: touchscreen@50 {

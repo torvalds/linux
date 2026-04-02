@@ -104,7 +104,7 @@
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mdss_dsi_default &mdss_te_default>;
-	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_sleep>;
+	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_default>;
 
 	panel: panel@0 {
 		compatible = "jdi,fhd-r63452";

@@ -21,28 +21,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	vreg_12p0: vreg-12p0-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "VREG_12P0";
-
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-	};
-
-	vreg_5p0: vreg-5p0-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "VREG_5P0";
-
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-
-		vin-supply = <&vreg_12p0>;
-	};
-
 	vreg_1p8: vreg-1p8-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VREG_1P8";
@@ -51,8 +29,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-
-		vin-supply = <&vreg_5p0>;
 	};
 
 	vreg_1p0: vreg-1p0-regulator {
@@ -75,8 +51,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
-
-		vin-supply = <&vreg_12p0>;
 	};
 
 	vreg_conn_1p8: vreg_conn_1p8 {

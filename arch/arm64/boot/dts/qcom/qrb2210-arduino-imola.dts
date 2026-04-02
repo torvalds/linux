@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/usb/pd.h>
 #include "agatti.dtsi"
 #include "pm4125.dtsi"
 
@@ -109,6 +110,15 @@
 		leds = <&ledr>, <&ledg>, <&ledb>;
 	};
 
+	vreg_anx_30: regulator-anx-30 {
+		compatible = "regulator-fixed";
+		regulator-name = "anx30";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	/* PM4125 charger out, supplied by VBAT */
 	vph_pwr: regulator-vph-pwr {
 		compatible = "regulator-fixed";
@@ -141,6 +151,86 @@
 &i2c1 {
 	clock-frequency = <100000>;
 
+	status = "okay";
+
+	anx7625: encoder@58 {
+		compatible = "analogix,anx7625";
+		reg = <0x58>;
+		interrupts-extended = <&tlmm 81 IRQ_TYPE_EDGE_FALLING>;
+		vdd10-supply = <&pm4125_l11>;
+		vdd18-supply = <&pm4125_l15>;
+		vdd33-supply = <&vreg_anx_30>;
+		analogix,audio-enable;
+		analogix,lane0-swing = /bits/ 8 <0x14 0x54 0x64 0x74>;
+		analogix,lane1-swing = /bits/ 8 <0x14 0x54 0x64 0x74>;
+
+		pinctrl-0 = <&anx7625_int_pin>, <&anx7625_cable_det_pin>;
+
+		connector {
+			compatible = "usb-c-connector";
+			power-role = "sink";
+			data-role = "dual";
+			try-power-role = "sink";
+
+			pd-revision = /bits/ 8 <0x03 0x00 0x00 0x00>;
+			op-sink-microwatt = <15000000>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				     PDO_VAR(5000, 20000, 3000)>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					anx_hs_in: endpoint {
+						remote-endpoint = <&usb_dwc3_hs>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					anx_ss_in: endpoint {
+						remote-endpoint = <&usb_qmpphy_out>;
+					};
+				};
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				anx_dsi0_in: endpoint {
+					remote-endpoint = <&mdss_dsi0_out>;
+					data-lanes = <0 1 2 3>;
+				};
+			};
+		};
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm4125_l5>;
+
+	status = "okay";
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&anx_dsi0_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
 	status = "okay";
 };
 
@@ -325,21 +415,13 @@
 &spi5 {
 	status = "okay";
 
-	spidev@0 {
-		reg = <0>;
+	mcu@0 {
 		compatible = "arduino,unoq-mcu";
-		pinctrl-0 = <&spidev_cs>;
-		pinctrl-names = "default";
+		reg = <0>;
 	};
 };
 
 &tlmm {
-	spidev_cs: spidev-cs-state {
-		pins = "gpio17";
-		function = "gpio";
-		drive-strength = <16>;
-	};
-
 	jmisc_gpio18: jmisc-gpio18-state {
 		pins = "gpio18";
 		function = "gpio";
@@ -359,6 +441,22 @@
 		function = "gpio";
 		bias-pull-up;
 		output-disable;
+	};
+
+	anx7625_cable_det_pin: anx7625-cable-det-pins-state {
+		pins = "gpio46";
+		function = "gpio";
+		drive-strength = <16>;
+		output-disable;
+		bias-pull-up;
+	};
+
+	anx7625_int_pin: anx7625-int-pins-state {
+		pins = "gpio81";
+		function = "gpio";
+		drive-strength = <16>;
+		output-disable;
+		bias-pull-up;
 	};
 
 	key_volp_n: key-volp-n-state {
@@ -428,6 +526,10 @@
 	status = "okay";
 };
 
+&usb_dwc3_hs {
+	remote-endpoint = <&anx_hs_in>;
+};
+
 &usb_hsphy {
 	vdd-supply = <&pm4125_l12>;
 	vdda-pll-supply = <&pm4125_l13>;
@@ -441,6 +543,10 @@
 	vdda-pll-supply = <&pm4125_l13>;
 
 	status = "okay";
+};
+
+&usb_qmpphy_out {
+	remote-endpoint = <&anx_ss_in>;
 };
 
 &wifi {

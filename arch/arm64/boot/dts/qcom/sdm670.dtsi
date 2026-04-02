@@ -1130,6 +1130,17 @@
 			reg = <0x0 0x00ff1000 0x0 0x60>;
 		};
 
+		llcc: system-cache-controller@1100000 {
+			compatible = "qcom,sdm670-llcc";
+			reg = <0 0x01100000 0 0x50000>,
+			      <0 0x01180000 0 0x50000>,
+			      <0 0x01300000 0 0x50000>;
+			reg-names = "llcc0_base",
+				    "llcc1_base",
+				    "llcc_broadcast_base";
+			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		mem_noc: interconnect@1380000 {
 			compatible = "qcom,sdm670-mem-noc";
 			reg = <0 0x01380000 0 0x27200>;

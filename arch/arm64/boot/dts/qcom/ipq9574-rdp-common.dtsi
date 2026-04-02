@@ -22,6 +22,15 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	regulator_fixed_1p8: s1800 {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-name = "fixed_1p8";
+	};
+
 	regulator_fixed_3p3: s3300 {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
@@ -88,11 +97,27 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu1 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu2 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu3 {
+	cpu-supply = <&mp5496_s1>;
+};
+
 &rpm_requests {
 	regulators {
 		compatible = "qcom,rpm-mp5496-regulators";
 
-		ipq9574_s1: s1 {
+		mp5496_s1: s1 {
 		/*
 		 * During kernel bootup, the SoC runs at 800MHz with 875mV set by the bootloaders.
 		 * During regulator registration, kernel not knowing the initial voltage,
@@ -119,6 +144,11 @@
 			regulator-boot-on;
 		};
 	};
+};
+
+&sdhc_1 {
+	vmmc-supply = <&regulator_fixed_3p3>;
+	vqmmc-supply = <&regulator_fixed_1p8>;
 };
 
 &sleep_clk {
@@ -169,6 +199,38 @@
 			bias-disable;
 		};
 	};
+
+	sdc_default_state: sdc-default-state {
+		clk-pins {
+			pins = "gpio5";
+			function = "sdc_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		cmd-pins {
+			pins = "gpio4";
+			function = "sdc_cmd";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		data-pins {
+			pins = "gpio0", "gpio1", "gpio2",
+			       "gpio3", "gpio6", "gpio7",
+			       "gpio8", "gpio9";
+			function = "sdc_data";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		rclk-pins {
+			pins = "gpio10";
+			function = "sdc_rclk";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
 };
 
 &qpic_bam {
@@ -178,8 +240,6 @@
 &qpic_nand {
 	pinctrl-0 = <&qpic_snand_default_state>;
 	pinctrl-names = "default";
-
-	status = "okay";
 
 	flash@0 {
 		compatible = "spi-nand";

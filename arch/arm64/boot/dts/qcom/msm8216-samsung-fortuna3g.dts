@@ -16,10 +16,28 @@
 	constant-charge-voltage-max-microvolt = <4350000>;
 };
 
+&charger {
+	richtek,usb-connector = <&usb_con_sm5502>;
+	status = "okay";
+};
+
+&muic_sm5502 {
+	status = "okay";
+};
+
 &st_accel {
 	status = "okay";
 };
 
 &st_magn {
 	status = "okay";
+};
+
+&usb {
+	extcon = <&muic_sm5502>, <&muic_sm5502>;
+	status = "okay";
+};
+
+&usb_hs_phy {
+	extcon = <&muic_sm5502>;
 };

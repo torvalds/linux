@@ -3255,7 +3255,7 @@
 
 			bus-width = <4>;
 			status = "disabled";
-		 };
+		};
 
 		blsp1_dma: dma-controller@7544000 {
 			compatible = "qcom,bam-v1.7.0";

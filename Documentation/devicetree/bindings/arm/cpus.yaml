@@ -218,6 +218,13 @@ properties:
       - qcom,kryo685
       - qcom,kryo780
       - qcom,oryon
+      - qcom,oryon-1-1
+      - qcom,oryon-1-2
+      - qcom,oryon-1-3
+      - qcom,oryon-1-4
+      - qcom,oryon-2-1
+      - qcom,oryon-2-2
+      - qcom,oryon-2-3
       - qcom,scorpion
       - samsung,mongoose-m2
       - samsung,mongoose-m3

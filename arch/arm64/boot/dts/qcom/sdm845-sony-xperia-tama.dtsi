@@ -17,8 +17,8 @@
 	qcom,board-id = <8 0>;
 
 	aliases {
-		serial0 = &uart6;
-		serial1 = &uart9;
+		serial0 = &uart9;
+		serial1 = &uart6;
 	};
 
 	chosen {
@@ -755,6 +755,19 @@
 
 &uart6 {
 	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,wcn3990-bt";
+
+		firmware-name = "Sony/tama/crnv21.bin";
+
+		vddio-supply = <&vreg_s3a_1p3>;
+		vddxo-supply = <&vreg_s5a_1p9>;
+		vddrf-supply = <&vreg_l17a_1p3>;
+		vddch0-supply = <&vreg_l25a_3p0>;
+
+		max-speed = <3200000>;
+	};
 };
 
 &uart9 {

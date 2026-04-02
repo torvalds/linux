@@ -1646,6 +1646,8 @@
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
 
+			sram = <&ipa_modem_tables>;
+
 			status = "disabled";
 		};
 
@@ -3460,8 +3462,8 @@
 				dp_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
-					opp-160000000 {
-						opp-hz = /bits/ 64 <160000000>;
+					opp-162000000 {
+						opp-hz = /bits/ 64 <162000000>;
 						required-opps = <&rpmhpd_opp_low_svs>;
 					};
 
@@ -3586,6 +3588,10 @@
 			#size-cells = <1>;
 
 			ranges = <0 0 0x14680000 0x2e000>;
+
+			ipa_modem_tables: modem-tables@28000 {
+				reg = <0x28000 0x2000>;
+			};
 
 			pil-reloc@2a94c {
 				compatible = "qcom,pil-reloc-info";
