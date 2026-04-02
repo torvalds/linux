@@ -1100,13 +1100,15 @@ config HID_SONY
 	help
 	Support for
 
-	  * Sony PS3 6-axis controllers
+	  * Sixaxis controllers for PS3
 	  * Buzz controllers
-	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
-	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
-	  * Guitar Hero Live PS3, Wii U and PS4 guitar dongles
-	  * Guitar Hero PS3 and PC guitar dongles
+	  * Blu-ray Disc Remote Control for PS3
+	  * Logitech Harmony adapter for PS3
+	  * Guitar Hero Live PS3, Wii U and PS4 guitars
+	  * Guitar Hero PS3 and PC guitars
+	  * Rock Band 1, 2 and 3 PS3 and Wii instruments
 	  * Rock Band 4 PS4 and PS5 guitars
+	  * DJ Hero Turntable for PS3
 
 config SONY_FF
 	bool "Sony PS2/3/4 accessories force feedback support"
