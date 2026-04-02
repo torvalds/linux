@@ -914,10 +914,9 @@ static int __add_metric(struct list_head *metric_list,
 		expr = metric_no_threshold ? pm->metric_name : pm->metric_threshold;
 		visited_node.name = "__threshold__";
 	}
-	if (expr__find_ids(expr, NULL, root_metric->pctx) < 0) {
-		/* Broken metric. */
-		ret = -EINVAL;
-	}
+
+	ret = expr__find_ids(expr, NULL, root_metric->pctx);
+
 	if (!ret) {
 		/* Resolve referenced metrics. */
 		struct perf_pmu *pmu;
@@ -1101,7 +1100,7 @@ static int metricgroup__add_metric(const char *pmu, const char *metric_name, con
 	 */
 	ret = metricgroup__for_each_metric(table, metricgroup__add_metric_callback, &data);
 	if (!ret && !data.has_match)
-		ret = -EINVAL;
+		ret = -ENOENT;
 
 	/*
 	 * add to metric_list so that they can be released
@@ -1152,6 +1151,8 @@ static int metricgroup__add_metric_list(const char *pmu, const char *list,
 					      user_requested_cpu_list,
 					      system_wide, metric_list, table);
 		if (ret == -EINVAL)
+			pr_err("Fail to parse metric or group `%s'\n", metric_name);
+		else if (ret == -ENOENT)
 			pr_err("Cannot find metric or group `%s'\n", metric_name);
 
 		if (ret)
