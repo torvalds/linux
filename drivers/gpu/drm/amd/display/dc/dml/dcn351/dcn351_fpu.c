@@ -561,14 +561,9 @@ int dcn351_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	}
 
 	context->bw_ctx.dml.ip.det_buffer_size_kbytes = 384;/*per guide*/
-	dc->config.enable_4to1MPC = false;
 
 	if (pipe_cnt == 1 && pipe->plane_state && !dc->debug.disable_z9_mpc) {
-		if (is_dual_plane(pipe->plane_state->format)
-				&& pipe->plane_state->src_rect.width <= 1920 &&
-				pipe->plane_state->src_rect.height <= 1080) {
-			dc->config.enable_4to1MPC = true;
-		} else if (!is_dual_plane(pipe->plane_state->format) &&
+		if (!is_dual_plane(pipe->plane_state->format) &&
 			   pipe->plane_state->src_rect.width <= 5120) {
 			/*
 			 * Limit to 5k max to avoid forced pipe split when there

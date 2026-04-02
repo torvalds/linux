@@ -600,6 +600,13 @@ amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 		goto unpin_bo;
 	}
 
+	/* Validate doorbell_offset is within the doorbell BO */
+	if ((u64)db_info->doorbell_offset * db_size + db_size >
+	    amdgpu_bo_size(db_obj->obj)) {
+		r = -EINVAL;
+		goto unpin_bo;
+	}
+
 	index = amdgpu_doorbell_index_on_bar(uq_mgr->adev, db_obj->obj,
 					     db_info->doorbell_offset, db_size);
 	drm_dbg_driver(adev_to_drm(uq_mgr->adev),
@@ -997,6 +1004,7 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 	unsigned long queue_id;
 	int ret = 0, r;
 
+	mutex_lock(&uq_mgr->userq_mutex);
 	/* Resume all the queues for this process */
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
 
@@ -1012,6 +1020,7 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 			ret = r;
 
 	}
+	mutex_unlock(&uq_mgr->userq_mutex);
 
 	if (ret)
 		drm_file_err(uq_mgr->file, "Failed to map all the queues\n");
@@ -1215,23 +1224,21 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 	struct dma_fence *ev_fence;
 	int ret;
 
-	mutex_lock(&uq_mgr->userq_mutex);
 	ev_fence = amdgpu_evf_mgr_get_fence(&fpriv->evf_mgr);
 	if (!dma_fence_is_signaled(ev_fence))
-		goto unlock;
+		goto put_fence;
 
 	ret = amdgpu_userq_vm_validate(uq_mgr);
 	if (ret) {
 		drm_file_err(uq_mgr->file, "Failed to validate BOs to restore\n");
-		goto unlock;
+		goto put_fence;
 	}
 
 	ret = amdgpu_userq_restore_all(uq_mgr);
 	if (ret)
 		drm_file_err(uq_mgr->file, "Failed to restore all queues\n");
 
-unlock:
-	mutex_unlock(&uq_mgr->userq_mutex);
+put_fence:
 	dma_fence_put(ev_fence);
 }
 
@@ -1454,17 +1461,19 @@ int amdgpu_userq_start_sched_for_enforce_isolation(struct amdgpu_device *adev,
 
 	if (!adev->userq_halt_for_enforce_isolation)
 		dev_warn(adev->dev, "userq scheduling already started!\n");
+
 	adev->userq_halt_for_enforce_isolation = false;
+
 	xa_for_each(&adev->userq_doorbell_xa, queue_id, queue) {
 		uqm = queue->userq_mgr;
 		mutex_lock(&uqm->userq_mutex);
-			if (((queue->queue_type == AMDGPU_HW_IP_GFX) ||
-			     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)) &&
-			    (queue->xcp_id == idx)) {
+		if (((queue->queue_type == AMDGPU_HW_IP_GFX) ||
+		     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)) &&
+		    (queue->xcp_id == idx)) {
 			r = amdgpu_userq_restore_helper(queue);
 			if (r)
 				ret = r;
-			}
+		}
 		mutex_unlock(&uqm->userq_mutex);
 	}
 

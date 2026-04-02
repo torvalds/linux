@@ -954,11 +954,9 @@ static int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		return r;
 	}
 
-	r = dma_resv_reserve_fences(rbo->tbo.base.resv, 1);
-	if (r) {
-		drm_err(adev_to_drm(adev), "reserving fence slot failed (%d)\n", r);
+	r = dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
+	if (r)
 		goto error_unlock;
-	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
 		domain = amdgpu_display_supported_domains(adev, rbo->flags);
@@ -1374,8 +1372,16 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 		/* turn off cursor */
 		if (crtc_state && crtc_state->stream) {
 			mutex_lock(&adev->dm.dc_lock);
+			amdgpu_dm_ism_commit_event(
+				&amdgpu_crtc->ism,
+				DM_ISM_EVENT_BEGIN_CURSOR_UPDATE);
+
 			dc_stream_program_cursor_position(crtc_state->stream,
 						      &position);
+
+			amdgpu_dm_ism_commit_event(
+				&amdgpu_crtc->ism,
+				DM_ISM_EVENT_END_CURSOR_UPDATE);
 			mutex_unlock(&adev->dm.dc_lock);
 		}
 		return;
@@ -1405,6 +1411,10 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 
 	if (crtc_state->stream) {
 		mutex_lock(&adev->dm.dc_lock);
+		amdgpu_dm_ism_commit_event(
+			&amdgpu_crtc->ism,
+			DM_ISM_EVENT_BEGIN_CURSOR_UPDATE);
+
 		if (!dc_stream_program_cursor_attributes(crtc_state->stream,
 							 &attributes))
 			DRM_ERROR("DC failed to set cursor attributes\n");
@@ -1412,6 +1422,10 @@ void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 		if (!dc_stream_program_cursor_position(crtc_state->stream,
 						   &position))
 			DRM_ERROR("DC failed to set cursor position\n");
+
+		amdgpu_dm_ism_commit_event(
+			&amdgpu_crtc->ism,
+			DM_ISM_EVENT_END_CURSOR_UPDATE);
 		mutex_unlock(&adev->dm.dc_lock);
 	}
 }

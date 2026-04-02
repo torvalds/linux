@@ -124,37 +124,37 @@ bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state)
  * - Enable condition same as above
  * - Disable when vblank counter is enabled
  */
-static void amdgpu_dm_crtc_set_panel_sr_feature(
-	struct vblank_control_work *vblank_work,
+void amdgpu_dm_crtc_set_panel_sr_feature(
+	struct amdgpu_display_manager *dm,
+	struct amdgpu_crtc *acrtc,
+	struct dc_stream_state *stream,
 	bool vblank_enabled, bool allow_sr_entry)
 {
-	struct dc_link *link = vblank_work->stream->link;
+	struct dc_link *link = stream->link;
 	bool is_sr_active = (link->replay_settings.replay_allow_active ||
 				 link->psr_settings.psr_allow_active);
 	bool is_crc_window_active = false;
-	bool vrr_active = amdgpu_dm_crtc_vrr_active_irq(vblank_work->acrtc);
+	bool vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 	is_crc_window_active =
-		amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base);
+		amdgpu_dm_crc_window_is_activated(&acrtc->base);
 #endif
 
 	if (link->replay_settings.replay_feature_enabled && !vrr_active &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
-		amdgpu_dm_replay_enable(vblank_work->stream, true);
+		amdgpu_dm_replay_enable(stream, true);
 	} else if (vblank_enabled) {
 		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
-			amdgpu_dm_psr_disable(vblank_work->stream, false);
+			amdgpu_dm_psr_disable(stream, false);
 	} else if (link->psr_settings.psr_feature_enabled && !vrr_active &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
 
 		struct amdgpu_dm_connector *aconn =
-			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
+			(struct amdgpu_dm_connector *) stream->dm_stream_context;
 
 		if (!aconn->disallow_edp_enter_psr) {
-			struct amdgpu_display_manager *dm = vblank_work->dm;
-
-			amdgpu_dm_psr_enable(vblank_work->stream);
+			amdgpu_dm_psr_enable(stream);
 			if (dm->idle_workqueue &&
 			    (dm->dc->config.disable_ips == DMUB_IPS_ENABLE) &&
 			    dm->dc->idle_optimizations_allowed &&
@@ -251,33 +251,15 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 
 	mutex_lock(&dm->dc_lock);
 
-	if (vblank_work->enable)
+	if (vblank_work->enable) {
 		dm->active_vblank_irq_count++;
-	else if (dm->active_vblank_irq_count)
-		dm->active_vblank_irq_count--;
-
-	if (dm->active_vblank_irq_count > 0)
-		dc_allow_idle_optimizations(dm->dc, false);
-
-	/*
-	 * Control PSR based on vblank requirements from OS
-	 *
-	 * If panel supports PSR SU, there's no need to disable PSR when OS is
-	 * submitting fast atomic commits (we infer this by whether the OS
-	 * requests vblank events). Fast atomic commits will simply trigger a
-	 * full-frame-update (FFU); a specific case of selective-update (SU)
-	 * where the SU region is the full hactive*vactive region. See
-	 * fill_dc_dirty_rects().
-	 */
-	if (vblank_work->stream && vblank_work->stream->link && vblank_work->acrtc) {
-		amdgpu_dm_crtc_set_panel_sr_feature(
-			vblank_work, vblank_work->enable,
-			vblank_work->acrtc->dm_irq_params.allow_sr_entry);
-	}
-
-	if (dm->active_vblank_irq_count == 0) {
-		dc_post_update_surfaces_to_stream(dm->dc);
-		dc_allow_idle_optimizations(dm->dc, true);
+		amdgpu_dm_ism_commit_event(&vblank_work->acrtc->ism,
+				DM_ISM_EVENT_EXIT_IDLE_REQUESTED);
+	} else {
+		if (dm->active_vblank_irq_count > 0)
+			dm->active_vblank_irq_count--;
+		amdgpu_dm_ism_commit_event(&vblank_work->acrtc->ism,
+				DM_ISM_EVENT_ENTER_IDLE_REQUESTED);
 	}
 
 	mutex_unlock(&dm->dc_lock);
@@ -476,6 +458,9 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 
 static void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
 {
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	amdgpu_dm_ism_fini(&acrtc->ism);
 	drm_crtc_cleanup(crtc);
 	kfree(crtc);
 }
@@ -685,7 +670,7 @@ static int amdgpu_dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	 * pitch, the DCC state, rotation, etc.
 	 */
 	if (crtc_state->async_flip &&
-	    dm_crtc_state->update_type > UPDATE_TYPE_FAST) {
+	    dm_crtc_state->update_type != UPDATE_TYPE_FAST) {
 		drm_dbg_atomic(crtc->dev,
 			       "[CRTC:%d:%s] async flips are only supported for fast updates\n",
 			       crtc->base.id, crtc->name);
@@ -719,6 +704,35 @@ static const struct drm_crtc_helper_funcs amdgpu_dm_crtc_helper_funcs = {
 	.get_scanout_position = amdgpu_crtc_get_scanout_position,
 };
 
+/*
+ * This hysteresis filter as configured will:
+ *
+ * * Search through the latest 8[filter_history_size] entries in history,
+ *   skipping entries that are older than [filter_old_history_threshold] frames
+ *   (0 means ignore age)
+ * * Searches for short-idle-periods that lasted shorter than
+ *   4[filter_num_frames] frames-times
+ * * If there is at least 1[filter_entry_count] short-idle-period, then a delay
+ *   of 4[activation_num_delay_frames] will applied before allowing idle
+ *   optimizations again.
+ * * An additional delay of 11[sso_num_frames] is applied before enabling
+ *   panel-specific optimizations.
+ *
+ * The values were determined empirically on another OS, optimizing for Z8
+ * residency on APUs when running a productivity + web browsing test.
+ *
+ * TODO: Run similar tests to determine if these values are also optimal for
+ * Linux, and if each APU generation benefits differently.
+ */
+static struct amdgpu_dm_ism_config default_ism_config = {
+	.filter_num_frames = 4,
+	.filter_history_size = 8,
+	.filter_entry_count = 1,
+	.activation_num_delay_frames = 4,
+	.filter_old_history_threshold = 0,
+	.sso_num_frames = 11,
+};
+
 int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
 			       uint32_t crtc_index)
@@ -748,6 +762,8 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 
 	if (res)
 		goto fail;
+
+	amdgpu_dm_ism_init(&acrtc->ism, &default_ism_config);
 
 	drm_crtc_helper_add(&acrtc->base, &amdgpu_dm_crtc_helper_funcs);
 

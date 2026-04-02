@@ -50,4 +50,5 @@ struct amdgpu_coredump_info {
 void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 		     bool vram_lost, struct amdgpu_job *job);
 void amdgpu_coredump_init(struct amdgpu_device *adev);
+void amdgpu_coredump_fini(struct amdgpu_device *adev);
 #endif

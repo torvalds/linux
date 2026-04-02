@@ -78,6 +78,7 @@ int clk_mgr_helper_get_active_plane_cnt(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	(void)dc;
 	int i, total_plane_count;
 
 	total_plane_count = 0;
@@ -97,7 +98,7 @@ void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_m
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	unsigned int panel_inst;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -123,7 +124,7 @@ void clk_mgr_optimize_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	unsigned int panel_inst;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);

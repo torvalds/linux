@@ -350,6 +350,7 @@ static uint32_t calculate_required_audio_bw_in_symbols(
 	uint32_t av_stream_map_lane_count,
 	uint32_t audio_sdp_overhead)
 {
+	(void)channel_count;
 	/* DP spec recommends between 1.05 to 1.1 safety margin to prevent sample under-run */
 	struct fixed31_32 audio_sdp_margin = dc_fixpt_from_fraction(110, 100);
 	struct fixed31_32 horizontal_line_freq_khz = dc_fixpt_from_fraction(
@@ -1027,6 +1028,7 @@ static void get_azalia_clock_info_hdmi(
 	uint32_t actual_pixel_clock_100Hz,
 	struct azalia_clock_info *azalia_clock_info)
 {
+	(void)crtc_pixel_clock_100hz;
 	/* audio_dto_phase= 24 * 10,000;
 	 *   24MHz in [100Hz] units */
 	azalia_clock_info->audio_dto_phase =
@@ -1043,6 +1045,7 @@ static void get_azalia_clock_info_dp(
 	const struct audio_pll_info *pll_info,
 	struct azalia_clock_info *azalia_clock_info)
 {
+	(void)requested_pixel_clock_100Hz;
 	/* Reported dpDtoSourceClockInkhz value for
 	 * DCE8 already adjusted for SS, do not need any
 	 * adjustment here anymore

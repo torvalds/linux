@@ -27,20 +27,26 @@
 
 void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
+	(void)pipe_ctx;
 }
 
 void virtual_setup_stream_attribute(struct pipe_ctx *pipe_ctx)
 {
+	(void)pipe_ctx;
 }
 
 void virtual_reset_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
+	(void)pipe_ctx;
 }
 
 static void virtual_disable_link_output(struct dc_link *link,
 	const struct link_resource *link_res,
 	enum signal_type signal)
 {
+	(void)link;
+	(void)link_res;
+	(void)signal;
 }
 
 static const struct link_hwss virtual_link_hwss = {

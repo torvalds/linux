@@ -52,7 +52,6 @@ struct dc_dsc_policy {
 	uint32_t max_target_bpp;
 	uint32_t min_target_bpp;
 	bool enable_dsc_when_not_needed;
-	bool ycbcr422_simple;
 };
 
 struct dc_dsc_config_options {

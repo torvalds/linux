@@ -781,8 +781,10 @@ static void restore_phy_clocks_for_destructive_link_verification(const struct dc
 }
 
 static void verify_link_capability_destructive(struct dc_link *link,
+		struct dc_sink *sink,
 		enum dc_detect_reason reason)
 {
+	(void)sink;
 	bool should_prepare_phy_clocks =
 			should_prepare_phy_clocks_for_link_verification(link->dc, reason);
 
@@ -821,6 +823,7 @@ static void verify_link_capability_non_destructive(struct dc_link *link)
 static bool should_verify_link_capability_destructively(struct dc_link *link,
 		enum dc_detect_reason reason)
 {
+	(void)reason;
 	bool destrictive = false;
 	struct dc_link_settings max_link_cap;
 	bool is_link_enc_unavailable = false;
@@ -854,11 +857,11 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 	return destrictive;
 }
 
-static void verify_link_capability(struct dc_link *link,
+static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 		enum dc_detect_reason reason)
 {
 	if (should_verify_link_capability_destructively(link, reason))
-		verify_link_capability_destructive(link, reason);
+		verify_link_capability_destructive(link, sink, reason);
 	else
 		verify_link_capability_non_destructive(link);
 }
@@ -1452,9 +1455,8 @@ bool link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 	is_local_sink_detect_success = detect_link_and_local_sink(link, reason);
 
-	if (is_local_sink_detect_success && link->local_sink) {
-		verify_link_capability(link, reason);
-	}
+	if (is_local_sink_detect_success && link->local_sink)
+		verify_link_capability(link, link->local_sink, reason);
 
 	DC_LOG_DC("%s: link_index=%d is_local_sink_detect_success=%d pre_link_type=%d link_type=%d\n", __func__,
 				link->link_index, is_local_sink_detect_success, pre_link_type, link->type);

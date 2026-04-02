@@ -172,6 +172,7 @@ static unsigned int get_odm_config(struct pipe_ctx *pipe_ctx, unsigned int *opp_
 
 void dcn314_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
+	(void)context;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 0;
 	int opp_inst[MAX_PIPES] = {0};

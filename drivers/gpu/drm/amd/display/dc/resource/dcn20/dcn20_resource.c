@@ -916,6 +916,7 @@ struct link_encoder *dcn20_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn20_link_encoder *enc20 =
 		kzalloc_obj(struct dcn20_link_encoder);
 	int link_regs_id;
@@ -1310,6 +1311,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 
 enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state *context, struct dc_stream_state *stream)
 {
+	(void)dc;
 	enum dc_status status = DC_OK;
 	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
@@ -1537,6 +1539,7 @@ void dcn20_split_stream_for_mpc(
 		struct pipe_ctx *primary_pipe,
 		struct pipe_ctx *secondary_pipe)
 {
+	(void)res_ctx;
 	int pipe_idx = secondary_pipe->pipe_idx;
 	struct pipe_ctx *sec_bot_pipe = secondary_pipe->bottom_pipe;
 
@@ -1682,6 +1685,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *primary_pipe)
 {
+	(void)pool;
 	struct pipe_ctx *secondary_pipe = NULL;
 
 	if (dc && primary_pipe) {
@@ -1814,6 +1818,11 @@ void dcn20_merge_pipes_for_validate(
 	}
 }
 
+static bool is_dual_plane(enum surface_pixel_format format)
+{
+	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
+}
+
 int dcn20_validate_apply_pipe_split_flags(
 		struct dc *dc,
 		struct dc_state *context,
@@ -1898,8 +1907,15 @@ int dcn20_validate_apply_pipe_split_flags(
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		int pipe_plane = v->pipe_plane[pipe_idx];
-		bool split4mpc = context->stream_count == 1 && plane_count == 1
-				&& dc->config.enable_4to1MPC && dc->res_pool->pipe_count >= 4;
+		bool split4mpc = false;
+
+		if (context->stream_count == 1 && plane_count == 1
+		    && dc->config.allow_4to1MPC && dc->res_pool->pipe_count >= 4
+		    && !dc->debug.disable_z9_mpc
+		    && pipe->plane_state && is_dual_plane(pipe->plane_state->format)
+		    && pipe->plane_state->src_rect.width <= 1920
+		    && pipe->plane_state->src_rect.height <= 1080)
+				split4mpc = true;
 
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
@@ -2149,6 +2165,7 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head)
 {
+	(void)cur_ctx;
 	struct resource_context *res_ctx = &new_ctx->res_ctx;
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(res_ctx, opp_head->stream);
 	struct pipe_ctx *sec_dpp_pipe = resource_find_free_secondary_pipe_legacy(res_ctx, pool, otg_master);
@@ -2331,6 +2348,7 @@ static struct _vcs_dpi_ip_params_st *get_asic_rev_ip_params(
 
 static enum dml_project get_dml_project_version(uint32_t hw_internal_rev)
 {
+	(void)hw_internal_rev;
 	return DML_PROJECT_NAVI10v2;
 }
 
@@ -2417,7 +2435,7 @@ static bool dcn20_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;

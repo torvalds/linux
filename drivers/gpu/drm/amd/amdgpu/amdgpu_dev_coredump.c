@@ -35,6 +35,9 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 void amdgpu_coredump_init(struct amdgpu_device *adev)
 {
 }
+void amdgpu_coredump_fini(struct amdgpu_device *adev)
+{
+}
 #else
 
 #define AMDGPU_CORE_DUMP_SIZE_MAX (256 * 1024 * 1024)
@@ -192,12 +195,16 @@ static void amdgpu_devcoredump_fw_info(struct amdgpu_device *adev,
 	drm_printf(p, "VPE feature version: %u, fw version: 0x%08x\n",
 		   adev->vpe.feature_version, adev->vpe.fw_version);
 
-	drm_printf(p, "\nVBIOS Information\n");
-	drm_printf(p, "vbios name       : %s\n", ctx->name);
-	drm_printf(p, "vbios pn         : %s\n", ctx->vbios_pn);
-	drm_printf(p, "vbios version    : %d\n", ctx->version);
-	drm_printf(p, "vbios ver_str    : %s\n", ctx->vbios_ver_str);
-	drm_printf(p, "vbios date       : %s\n", ctx->date);
+	if (adev->bios) {
+		drm_printf(p, "\nVBIOS Information\n");
+		drm_printf(p, "vbios name       : %s\n", ctx->name);
+		drm_printf(p, "vbios pn         : %s\n", ctx->vbios_pn);
+		drm_printf(p, "vbios version    : %d\n", ctx->version);
+		drm_printf(p, "vbios ver_str    : %s\n", ctx->vbios_ver_str);
+		drm_printf(p, "vbios date       : %s\n", ctx->date);
+	}else {
+		drm_printf(p, "\nVBIOS Information: NA\n");
+	}
 }
 
 static ssize_t
@@ -435,5 +442,11 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 void amdgpu_coredump_init(struct amdgpu_device *adev)
 {
 	INIT_WORK(&adev->coredump_work, amdgpu_devcoredump_deferred_work);
+}
+
+void amdgpu_coredump_fini(struct amdgpu_device *adev)
+{
+	/* Finish deferred coredump formatting before HW/IP teardown. */
+	flush_work(&adev->coredump_work);
 }
 #endif

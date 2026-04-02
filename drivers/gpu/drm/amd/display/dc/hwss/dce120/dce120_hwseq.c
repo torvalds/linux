@@ -154,6 +154,10 @@ static bool dce120_enable_display_power_gating(
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
 {
+	(void)dc;
+	(void)controller_id;
+	(void)dcb;
+	(void)power_gating;
 	/* disable for bringup */
 #if 0
 	enum bp_result bp_result = BP_RESULT_OK;

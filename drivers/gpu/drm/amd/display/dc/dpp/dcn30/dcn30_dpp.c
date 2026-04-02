@@ -1307,6 +1307,7 @@ static void dpp3_set_3dlut_mode(
 		bool is_color_channel_12bits,
 		bool is_lut_size17x17x17)
 {
+	(void)is_color_channel_12bits;
 	uint32_t lut_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 

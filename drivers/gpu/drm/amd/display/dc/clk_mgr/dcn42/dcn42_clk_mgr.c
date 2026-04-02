@@ -43,8 +43,6 @@
 #define DC_LOGGER_INIT(logger) \
 	struct dal_logger *dc_logger = logger
 
-#define DCN42_CLKIP_REFCLK 48000
-
 #undef FN
 #define FN(reg_name, field_name) \
 	clk_mgr->clk_mgr_shift->field_name, clk_mgr->clk_mgr_mask->field_name
@@ -160,6 +158,9 @@ void dcn42_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 		struct dc_state *context,
 		int ref_dtbclk_khz)
 {
+	(void)clk_mgr;
+	(void)context;
+	(void)ref_dtbclk_khz;
 	/* DCN42 does not implement set_dtbclk_dto function, so this is a no-op */
 }
 
@@ -255,6 +256,10 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 			dcn42_smu_set_zstate_support(clk_mgr, DCN_ZSTATE_SUPPORT_DISALLOW);
 			clk_mgr_base->clks.zstate_support = new_clocks->zstate_support;
 		}
+		/* Only attempt to enable dtbclk if currently disabled AND new state requests it.
+		 * For dcn42b (no dtbclk hardware), init_clk_states sets dtbclk_en=false and
+		 * new_clocks->dtbclk_en should always be false, so this block never executes.
+		 */
 		if (!clk_mgr_base->clks.dtbclk_en && new_clocks->dtbclk_en) {
 			int actual_dtbclk = 0;
 
@@ -326,7 +331,7 @@ void dcn42_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	/* clock limits are received with MHz precision, divide by 1000 to prevent setting clocks at every call */
-	if (!dc->debug.disable_dtb_ref_clk_switch &&
+	if (!dc->debug.disable_dtb_ref_clk_switch && new_clocks->dtbclk_en &&
 	    should_set_clock(safe_to_lower, new_clocks->ref_dtbclk_khz / 1000,
 			     clk_mgr_base->clks.ref_dtbclk_khz / 1000)) {
 		dcn42_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
@@ -519,7 +524,7 @@ static void init_clk_states(struct clk_mgr *clk_mgr)
 	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKNOWN;
 }
 
-static void dcn42_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
+void dcn42_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
 		struct dcn42_smu_dpm_clks *smu_dpm_clks)
 {
 	DpmClocks_t_dcn42 *table = smu_dpm_clks->dpm_clks;
@@ -833,6 +838,7 @@ void dcn42_set_low_power_state(struct clk_mgr *clk_mgr_base)
 
 void dcn42_exit_low_power_state(struct clk_mgr *clk_mgr_base)
 {
+	(void)clk_mgr_base;
 
 }
 
@@ -842,7 +848,7 @@ static void dcn42_init_clocks_fpga(struct clk_mgr *clk_mgr)
 
 }
 
-static void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr,
+void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr,
 		struct dc_state *context,
 		bool safe_to_lower)
 {
@@ -895,13 +901,13 @@ static void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr,
 	// Both fclk and ref_dppclk run on the same scemi clock.
 	clk_mgr_int->dccg->ref_dppclk = clk_mgr->clks.fclk_khz;
 
-	/* TODO: set dtbclk in correct place */
-	clk_mgr->clks.dtbclk_en = true;
-
 	dm_set_dcn_clocks(clk_mgr->ctx, &clk_mgr->clks);
+	if (clk_mgr->clks.dtbclk_en) {
+		dcn42_update_clocks_update_dtb_dto(clk_mgr_int, context, clk_mgr->clks.ref_dtbclk_khz);
+	} else {
+		clk_mgr->clks.ref_dtbclk_khz = 0;
+	}
 	dcn42_update_clocks_update_dpp_dto(clk_mgr_int, context, safe_to_lower);
-
-	dcn42_update_clocks_update_dtb_dto(clk_mgr_int, context, clk_mgr->clks.ref_dtbclk_khz);
 }
 
 unsigned int dcn42_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type)
@@ -933,8 +939,9 @@ unsigned int dcn42_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type
 	return 0;
 }
 
-static int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
+int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 {
+	(void)clk_mgr_base;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	uint32_t dispclk_wdivider;
 	int disp_divider;
@@ -954,7 +961,7 @@ bool dcn42_is_smu_present(struct clk_mgr *clk_mgr_base)
 	return clk_mgr->smu_present;
 }
 
-static void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
+void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
 {
 	struct clk_mgr *clk_mgr_base = &clk_mgr_int->base;
 	struct dcn42_smu_dpm_clks smu_dpm_clks = { 0 };

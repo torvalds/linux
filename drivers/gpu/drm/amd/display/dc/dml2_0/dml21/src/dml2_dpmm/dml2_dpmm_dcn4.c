@@ -279,6 +279,26 @@ static bool round_up_and_copy_to_next_dpm(unsigned long min_value, unsigned long
 	bool result = false;
 	int index = 0;
 
+	/* Guard against empty clock tables (e.g. DTBCLK on DCN42B where the
+	 * clock is tied off and num_clk_values == 0).  Without this check the
+	 * else-if branch below would evaluate
+	 * clk_values_khz[num_clk_values - 1] with num_clk_values == 0, which
+	 * wraps the unsigned char index to 255 — a 235-element out-of-bounds
+	 * read on an array of DML_MAX_CLK_TABLE_SIZE (20) entries.
+	 *
+	 * Semantic: if the clock doesn't exist on this ASIC but no frequency
+	 * is required (min_value == 0), the request is trivially satisfied.
+	 * If a non-zero frequency is required but the clock is absent, the
+	 * configuration is unsupportable.
+	 */
+	if (clock_table->num_clk_values == 0) {
+		if (min_value == 0) {
+			*rounded_value = 0;
+			return true;
+		}
+		return false;
+	}
+
 	if (clock_table->num_clk_values > 2) {
 		while (index < clock_table->num_clk_values && clock_table->clk_values_khz[index] < min_value)
 			index++;

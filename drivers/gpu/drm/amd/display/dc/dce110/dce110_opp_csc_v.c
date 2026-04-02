@@ -110,6 +110,7 @@ static void program_color_matrix_v(
 	const struct out_csc_color_matrix *tbl_entry,
 	enum grph_color_adjust_option options)
 {
+	(void)options;
 	struct dc_context *ctx = xfm_dce->base.ctx;
 	uint32_t cntl_value = dm_read_reg(ctx, mmCOL_MAN_OUTPUT_CSC_CONTROL);
 	bool use_set_a = (get_reg_field_value(cntl_value,

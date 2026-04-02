@@ -41,8 +41,7 @@ static unsigned int abm_feature_support(struct abm *abm, unsigned int panel_inst
 {
 	struct dc_context *dc = abm->ctx;
 	struct dc_link *edp_links[MAX_NUM_EDP];
-	int i;
-	int edp_num;
+	unsigned int i, edp_num;
 	unsigned int ret = ABM_FEATURE_NO_SUPPORT;
 
 	dc_get_edp_links(dc->dc, edp_links, &edp_num);
@@ -174,6 +173,7 @@ static bool dmub_abm_set_backlight_level_pwm_ex(struct abm *abm,
 		unsigned int controller_id,
 		unsigned int panel_inst)
 {
+	(void)controller_id;
 	bool ret = false;
 	unsigned int feature_support;
 

@@ -1748,6 +1748,7 @@ enum dc_status resource_build_scaling_params_for_context(
 	const struct dc  *dc,
 	struct dc_state *context)
 {
+	(void)dc;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1825,6 +1826,7 @@ int resource_find_free_pipe_used_as_sec_opp_head_by_cur_otg_master(
 		struct resource_context *new_res_ctx,
 		const struct pipe_ctx *cur_otg_master)
 {
+	(void)cur_res_ctx;
 	const struct pipe_ctx *cur_sec_opp_head = cur_otg_master->next_odm_pipe;
 	struct pipe_ctx *new_pipe;
 	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
@@ -1846,6 +1848,7 @@ int resource_find_free_pipe_used_in_cur_mpc_blending_tree(
 		struct resource_context *new_res_ctx,
 		const struct pipe_ctx *cur_opp_head)
 {
+	(void)cur_res_ctx;
 	const struct pipe_ctx *cur_sec_dpp = cur_opp_head->bottom_pipe;
 	struct pipe_ctx *new_pipe;
 	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
@@ -2941,6 +2944,7 @@ enum dc_status resource_add_otg_master_for_stream_output(struct dc_state *new_ct
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
+	(void)pool;
 	struct dc *dc = stream->ctx->dc;
 
 	return dc->res_pool->funcs->add_stream_to_ctx(dc, new_ctx, stream);
@@ -3023,6 +3027,7 @@ static bool add_plane_to_opp_head_pipes(struct pipe_ctx *otg_master_pipe,
 		struct dc_plane_state *plane_state,
 		struct dc_state *context)
 {
+	(void)context;
 	struct pipe_ctx *opp_head_pipe = otg_master_pipe;
 
 	while (opp_head_pipe) {
@@ -3615,6 +3620,7 @@ static struct hpo_dp_stream_encoder *find_first_free_match_hpo_dp_stream_enc_for
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
+	(void)stream;
 	int i;
 
 	for (i = 0; i < pool->hpo_dp_stream_enc_count; i++) {
@@ -3634,6 +3640,7 @@ static struct audio *find_first_free_audio(
 		enum engine_id id,
 		enum dce_version dc_version)
 {
+	(void)dc_version;
 	int i, available_audio_count;
 
 	if (id == ENGINE_ID_UNKNOWN)
@@ -5240,7 +5247,7 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 		return 64;
 	default:
 		ASSERT_CRITICAL(false);
-		return -1;
+		return UINT_MAX;
 	}
 }
 static unsigned int get_max_audio_sample_rate(struct audio_mode *modes)

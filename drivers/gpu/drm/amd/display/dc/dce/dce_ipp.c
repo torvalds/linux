@@ -43,6 +43,7 @@ static void dce_ipp_cursor_set_position(
 	const struct dc_cursor_position *position,
 	const struct dc_cursor_mi_param *param)
 {
+	(void)param;
 	struct dce_ipp *ipp_dce = TO_DCE_IPP(ipp);
 
 	/* lock cursor registers */

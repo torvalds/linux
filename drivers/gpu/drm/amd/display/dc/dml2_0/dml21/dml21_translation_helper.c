@@ -90,7 +90,8 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 		struct pipe_ctx *pipe_ctx,
 		struct dml2_context *dml_ctx)
 {
-	unsigned int hblank_start, vblank_start, min_hardware_refresh_in_uhz;
+	unsigned int hblank_start, vblank_start;
+	uint64_t min_hardware_refresh_in_uhz;
 	uint32_t pix_clk_100hz;
 
 	timing->h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
@@ -105,7 +106,7 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	timing->h_total = stream->timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
 	timing->v_total = stream->timing.v_total;
 	timing->h_sync_width = stream->timing.h_sync_width;
-	timing->interlaced = stream->timing.flags.INTERLACE;
+	timing->interlaced = (stream->timing.flags.INTERLACE != 0);
 
 	hblank_start = stream->timing.h_total - stream->timing.h_front_porch;
 
@@ -137,7 +138,11 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 				(timing->h_total * (long long)calc_max_hardware_v_total(stream)));
 	}
 
-	timing->drr_config.min_refresh_uhz = max(stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
+	{
+		uint64_t min_refresh = max((uint64_t)stream->timing.min_refresh_in_uhz, min_hardware_refresh_in_uhz);
+		ASSERT(min_refresh <= ULONG_MAX);
+		timing->drr_config.min_refresh_uhz = (unsigned long)min_refresh;
+	}
 
 	if (dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase &&
 			stream->ctx->dc->config.enable_fpo_flicker_detection == 1)
@@ -601,27 +606,33 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 
 	plane->composition.viewport.stationary = false;
 
-	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
+	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
 		plane->tdlut.setup_for_tdlut = true;
 
-		switch (plane_state->cm.lut3d_dma.swizzle) {
-		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
-		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.layout) {
+		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB:
+		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_sw_linear;
 			break;
-		case CM_LUT_1D_PACKED_LINEAR:
-		default:
+		case DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR:
 			plane->tdlut.tdlut_addressing_mode = dml2_tdlut_simple_linear;
 			break;
 		}
 
-		switch (plane_state->cm.lut3d_dma.size) {
-		case CM_LUT_SIZE_333333:
+		switch (plane_state->mcm_luts.lut3d_data.gpu_mem_params.size) {
+		case DC_CM2_GPU_MEM_SIZE_171717:
+			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
+			break;
+		case DC_CM2_GPU_MEM_SIZE_333333:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
 			break;
-		case CM_LUT_SIZE_171717:
+		// handling when use case and HW support available
+		case DC_CM2_GPU_MEM_SIZE_454545:
+		case DC_CM2_GPU_MEM_SIZE_656565:
+			break;
+		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
 		default:
-			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
+			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
 			break;
 		}
 	}
@@ -691,7 +702,7 @@ unsigned int map_plane_to_dml21_display_cfg(const struct dml2_context *dml_ctx, 
 
 	if (!dml21_wrapper_get_plane_id(context, stream_id, plane, &plane_id)) {
 		ASSERT(false);
-		return -1;
+		return UINT_MAX;
 	}
 
 	for (i = 0; i < __DML2_WRAPPER_MAX_STREAMS_PLANES__; i++) {

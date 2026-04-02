@@ -27,6 +27,7 @@
 #include "clk_mgr_internal.h"
 
 #define NUM_CLOCK_SOURCES 5
+#define DCN42_CLKIP_REFCLK 48000
 
 struct dcn42_watermarks;
 
@@ -71,9 +72,15 @@ void dcn42_set_low_power_state(struct clk_mgr *clk_mgr_base);
 void dcn42_exit_low_power_state(struct clk_mgr *clk_mgr_base);
 unsigned int dcn42_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
 bool dcn42_is_smu_present(struct clk_mgr *clk_mgr_base);
+bool dcn42_has_active_display(struct dc *dc, const struct dc_state *context);
 int dcn42_get_active_display_cnt_wa(struct dc *dc, struct dc_state *context, int *all_active_disps);
+bool dcn42_has_active_display(struct dc *dc, const struct dc_state *context);
 void dcn42_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr, struct dc_state *context, bool safe_to_lower);
 void dcn42_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr, struct dc_state *context, int ref_dtbclk_khz);
 bool dcn42_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base);
-bool dcn42_has_active_display(struct dc *dc, const struct dc_state *context);
+struct dcn42_smu_dpm_clks; /* Forward declaration for pointer parameter below */
+void dcn42_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr, struct dcn42_smu_dpm_clks *smu_dpm_clks);
+void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int);
+void dcn42_update_clocks_fpga(struct clk_mgr *clk_mgr, struct dc_state *context, bool safe_to_lower);
+int dcn42_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base);
 #endif //__DCN42_CLK_MGR_H__

@@ -839,6 +839,7 @@ static struct link_encoder *dcn303_link_encoder_create(
 	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
+	(void)ctx;
 	struct dcn20_link_encoder *enc20 = kzalloc_obj(struct dcn20_link_encoder);
 
 	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
@@ -1159,7 +1160,7 @@ static bool dcn303_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->pipe_count = pool->res_cap->num_timing_generator;
 	pool->mpcc_count = pool->res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;

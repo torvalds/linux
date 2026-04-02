@@ -63,7 +63,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.375"
+#define DC_VER "3.2.376"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -467,7 +467,6 @@ struct dc_static_screen_params {
  */
 
 enum surface_update_type {
-	UPDATE_TYPE_ADDR_ONLY, /* only surface address is being updated, no other programming needed */
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
 	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
@@ -521,7 +520,7 @@ struct dc_config {
 	union allow_lttpr_non_transparent_mode allow_lttpr_non_transparent_mode;
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
-	bool enable_4to1MPC;
+	bool allow_4to1MPC;
 	bool enable_windowed_mpo_odm;
 	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
@@ -563,7 +562,6 @@ struct dc_config {
 	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
-	bool no_native422_support;
 };
 
 enum visual_confirm {
@@ -988,6 +986,7 @@ struct link_service;
  * causing an issue or not.
  */
 struct dc_debug_options {
+	bool native422_support;
 	bool disable_dsc;
 	enum visual_confirm visual_confirm;
 	int visual_confirm_rect_height;
@@ -1881,6 +1880,20 @@ struct dc_scaling_info {
 	struct scaling_taps scaling_quality;
 };
 
+struct dc_fast_update {
+	const struct dc_flip_addrs *flip_addr;
+	const struct dc_gamma *gamma;
+	const struct colorspace_transform *gamut_remap_matrix;
+	const struct dc_csc_transform *input_csc_color_matrix;
+	const struct fixed31_32 *coeff_reduction_factor;
+	struct dc_transfer_func *out_transfer_func;
+	struct dc_csc_transform *output_csc_transform;
+	const struct dc_csc_transform *cursor_csc_color_matrix;
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	struct cm_hist_control *cm_hist_control;
+#endif
+};
+
 struct dc_surface_update {
 	struct dc_plane_state *surface;
 
@@ -2019,7 +2032,12 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 void get_audio_check(struct audio_info *aud_modes,
 	struct audio_check *aud_chk);
 
-	/*
+bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_count);
+void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update);
+/*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.
  *
@@ -2062,7 +2080,7 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 /* Return an array of link pointers to edp links. */
 void dc_get_edp_links(const struct dc *dc,
 		struct dc_link **edp_links,
-		int *edp_num);
+		unsigned int *edp_num);
 
 void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 				 bool powerOn);

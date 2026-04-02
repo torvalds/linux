@@ -3119,7 +3119,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.check_fw_status = smu_v11_0_check_fw_status,
 	.setup_pptable = sienna_cichlid_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.check_fw_version = smu_v11_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
@@ -3176,13 +3176,36 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode2_reset = sienna_cichlid_mode2_reset,
 };
 
+#define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid  0x40
+#define SMU11_DRIVER_IF_VERSION_Navy_Flounder   0xE
+#define SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish 0xF
+#define SMU11_DRIVER_IF_VERSION_Beige_Goby      0xD
+
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->ppt_funcs = &sienna_cichlid_ppt_funcs;
 	smu->clock_map = sienna_cichlid_clk_map;
 	smu->feature_map = sienna_cichlid_feature_mask_map;
 	smu->table_map = sienna_cichlid_table_map;
 	smu->pwr_src_map = sienna_cichlid_pwr_src_map;
 	smu->workload_map = sienna_cichlid_workload_map;
+
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
+	case IP_VERSION(11, 0, 7):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Sienna_Cichlid;
+		break;
+	case IP_VERSION(11, 0, 11):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
+		break;
+	case IP_VERSION(11, 0, 12):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish;
+		break;
+	case IP_VERSION(11, 0, 13):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Beige_Goby;
+		break;
+	}
+
 	smu_v11_0_init_msg_ctl(smu, sienna_cichlid_message_map);
 }

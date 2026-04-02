@@ -70,6 +70,7 @@ bool hubbub401_program_urgent_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
+	(void)refclk_mhz;
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	bool wm_pending = false;
 
@@ -188,6 +189,7 @@ bool hubbub401_program_stutter_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
+	(void)refclk_mhz;
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	bool wm_pending = false;
 
@@ -287,6 +289,7 @@ bool hubbub401_program_pstate_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
+	(void)refclk_mhz;
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	bool wm_pending = false;
 
@@ -414,6 +417,7 @@ bool hubbub401_program_usr_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
+	(void)refclk_mhz;
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	bool wm_pending = false;
 

@@ -249,6 +249,7 @@ void color_space_to_black_color(
 	enum dc_color_space colorspace,
 	struct tg_color *black_color)
 {
+	(void)dc;
 	switch (colorspace) {
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR709:

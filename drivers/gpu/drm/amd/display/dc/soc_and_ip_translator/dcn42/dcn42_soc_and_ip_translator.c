@@ -159,6 +159,7 @@ static void dcn42_update_soc_bb_with_values_from_clk_mgr(struct dml2_soc_bb *soc
 
 static void apply_soc_bb_updates(struct dml2_soc_bb *soc_bb, const struct dc *dc, const struct dml2_configuration_options *config)
 {
+	(void)config;
 	/* Individual modification can be overwritten even if it was obtained by a previous function.
 	 * Modifications are acquired in order of priority (lowest to highest).
 	 */

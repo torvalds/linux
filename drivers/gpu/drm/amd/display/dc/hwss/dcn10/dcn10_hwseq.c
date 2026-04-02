@@ -86,6 +86,7 @@ static void print_microsec(struct dc_context *dc_ctx,
 			   struct dc_log_buffer_ctx *log_ctx,
 			   uint32_t ref_cycle)
 {
+	(void)log_ctx;
 	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 	uint32_t us_x10 = (ref_cycle * frac) / ref_clk_mhz;
@@ -252,6 +253,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 static void log_mpc_crc(struct dc *dc,
 	struct dc_log_buffer_ctx *log_ctx)
 {
+	(void)log_ctx;
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
 
@@ -450,6 +452,7 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 static void dcn10_log_color_state(struct dc *dc,
 				  struct dc_log_buffer_ctx *log_ctx)
 {
+	(void)log_ctx;
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
 	bool is_gamut_remap_available = false;
@@ -813,6 +816,7 @@ void dcn10_log_hw_state(struct dc *dc,
 
 bool dcn10_did_underflow_occur(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	(void)dc;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
@@ -1181,6 +1185,7 @@ enum dc_status dcn10_enable_stream_timing(
 		struct dc_state *context,
 		struct dc *dc)
 {
+	(void)context;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
@@ -1284,6 +1289,7 @@ static void dcn10_reset_back_end_for_pipe(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
+	(void)context;
 	int i;
 	struct dc_link *link;
 	DC_LOGGER_INIT(dc->ctx);
@@ -1551,6 +1557,7 @@ void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 void dcn10_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
+	(void)state;
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx);
 
@@ -1904,7 +1911,7 @@ void dcn10_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	int i = 0;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -2004,6 +2011,7 @@ static bool patch_address_for_sbs_tb_stereo(
 
 void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	(void)dc;
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -2030,6 +2038,7 @@ void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 bool dcn10_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			const struct dc_plane_state *plane_state)
 {
+	(void)dc;
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
@@ -2472,6 +2481,7 @@ void dcn10_enable_vblanks_synchronization(
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
 {
+	(void)group_index;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 	int i, width = 0, height = 0, master;
@@ -2537,6 +2547,7 @@ void dcn10_enable_timing_synchronization(
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
 {
+	(void)group_index;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 	int i, width = 0, height = 0;
@@ -2641,6 +2652,7 @@ static void mmhub_read_vm_system_aperture_settings(struct dcn10_hubp *hubp1,
 		struct vm_system_aperture_param *apt,
 		struct dce_hwseq *hws)
 {
+	(void)hubp1;
 	PHYSICAL_ADDRESS_LOC physical_page_number;
 	uint32_t logical_addr_low;
 	uint32_t logical_addr_high;
@@ -2666,6 +2678,7 @@ static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 		struct vm_context0_param *vm0,
 		struct dce_hwseq *hws)
 {
+	(void)hubp1;
 	PHYSICAL_ADDRESS_LOC fb_base;
 	PHYSICAL_ADDRESS_LOC fb_offset;
 	uint32_t fb_base_value;
@@ -2724,6 +2737,7 @@ static void dcn10_enable_plane(
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
 {
+	(void)context;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	if (dc->debug.sanity_checks) {
@@ -2821,6 +2835,8 @@ void dcn10_program_output_csc(struct dc *dc,
 		uint16_t *matrix,
 		int opp_id)
 {
+	(void)dc;
+	(void)opp_id;
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
 		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL) {
 
@@ -3586,6 +3602,10 @@ bool dcn10_dummy_display_power_gating(
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
 {
+	(void)dc;
+	(void)controller_id;
+	(void)dcb;
+	(void)power_gating;
 	return true;
 }
 
@@ -4052,6 +4072,7 @@ enum dc_status dcn10_set_clock(struct dc *dc,
 			uint32_t clk_khz,
 			uint32_t stepping)
 {
+	(void)stepping;
 	struct dc_state *context = dc->current_state;
 	struct dc_clock_config clock_cfg = {0};
 	struct dc_clocks *current_clocks = &context->bw_ctx.bw.dcn.clk;

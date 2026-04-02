@@ -51,6 +51,7 @@ static double get_refcyc_per_delivery(
 		unsigned int delivery_width,
 		unsigned int req_per_swath_ub)
 {
+	(void)mode_lib;
 	double refcyc_per_delivery = 0.0;
 
 	if (vratio <= 1.0) {
@@ -785,6 +786,7 @@ static void calculate_ttu_cursor(
 		unsigned int cur_width,
 		enum cursor_bpp cur_bpp)
 {
+	(void)mode_lib;
 	unsigned int cur_src_width = cur_width;
 	unsigned int cur_req_size = 0;
 	unsigned int cur_req_width = 0;
@@ -859,6 +861,12 @@ static void dml_rq_dlg_get_dlg_params(
 		const bool ignore_viewport_pos,
 		const bool immediate_flip_support)
 {
+	(void)cstate_en;
+	(void)pstate_en;
+	(void)vm_en;
+	(void)ignore_viewport_pos;
+	(void)immediate_flip_support;
+	(void)dlg_sys_param;
 	const display_pipe_source_params_st *src = &e2e_pipe_param[pipe_idx].pipe.src;
 	const display_pipe_dest_params_st *dst = &e2e_pipe_param[pipe_idx].pipe.dest;
 	const display_clocks_and_cfg_st *clks = &e2e_pipe_param[pipe_idx].clks_cfg;

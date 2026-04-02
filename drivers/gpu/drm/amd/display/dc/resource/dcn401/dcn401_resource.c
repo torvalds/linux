@@ -1643,8 +1643,10 @@ static struct dc_cap_funcs cap_funcs = {
 	.get_subvp_en = dcn32_subvp_in_use,
 };
 
-static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+static void dcn401_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params)
 {
+	dc_assert_fp_enabled();
+
 	/* re-calculate the available MALL size if required */
 	if (bw_params->num_channels > 0) {
 		dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
@@ -1653,17 +1655,19 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 		dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
 	}
 
-	DC_FP_START();
-
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2)
 		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
 
 	if (dc->debug.using_dml2 && dc->current_state && dc->current_state->bw_ctx.dml2_dc_power_source)
 		dml2_reinit(dc, &dc->dml2_dc_power_options, &dc->current_state->bw_ctx.dml2_dc_power_source);
-
-	DC_FP_END();
 }
 
+static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+{
+	DC_FP_START();
+	dcn401_update_bw_bounding_box_fpu(dc, bw_params);
+	DC_FP_END();
+}
 enum dc_status dcn401_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
 	plane_state->tiling_info.gfxversion = DcGfxAddr3;
@@ -1688,10 +1692,13 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 		}
 	}
 
-	if (dc->debug.using_dml2)
+	if (dc->debug.using_dml2) {
+		DC_FP_START();
 		status = dml2_validate(dc, context,
 				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
 				validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+		DC_FP_END();
+	}
 
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_OK && dc_state_is_subvp_in_use(context)) {
 		/* check new stream configuration still supports cursor if subvp used */
@@ -1710,10 +1717,13 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_FAIL_HW_CURSOR_SUPPORT) {
 		/* attempt to validate again with subvp disabled due to cursor */
-		if (dc->debug.using_dml2)
+		if (dc->debug.using_dml2) {
+			DC_FP_START();
 			status = dml2_validate(dc, context,
 					context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2,
 					validate_mode) ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
+			DC_FP_END();
+		}
 	}
 
 	return status;
@@ -1722,9 +1732,13 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 void dcn401_prepare_mcache_programming(struct dc *dc,
 		struct dc_state *context)
 {
-	if (dc->debug.using_dml21)
+	if (dc->debug.using_dml21) {
+		DC_FP_START();
 		dml2_prepare_mcache_programming(dc, context,
-				context->power_source == DC_POWER_SOURCE_DC ? context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+			context->power_source == DC_POWER_SOURCE_DC ?
+			context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+		DC_FP_END();
+	}
 }
 
 static void dcn401_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
@@ -1915,7 +1929,7 @@ static bool dcn401_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.timing_generator_count = num_pipes;
 	pool->base.pipe_count = num_pipes;
 	pool->base.mpcc_count = num_pipes;

@@ -144,9 +144,10 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_CTXID0_DOORBELL_ID(ctxid0)		((ctxid0) & \
 				KFD_CTXID0_DOORBELL_ID_MASK)
 
-static void print_sq_intr_info_auto(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_auto(struct kfd_node *dev, uint32_t context_id0, uint32_t context_id1)
 {
-	pr_debug_ratelimited(
+	dev_dbg_ratelimited(
+		dev->adev->dev,
 		"sq_intr: auto, ttrace %d, wlt %d, ttrace_buf0_full %d, ttrace_buf1_full %d ttrace_utc_err %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, WLT),
@@ -155,9 +156,10 @@ static void print_sq_intr_info_auto(uint32_t context_id0, uint32_t context_id1)
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE_UTC_ERROR));
 }
 
-static void print_sq_intr_info_inst(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_inst(struct kfd_node *dev, uint32_t context_id0, uint32_t context_id1)
 {
-	pr_debug_ratelimited(
+	dev_dbg_ratelimited(
+		dev->adev->dev,
 		"sq_intr: inst, data 0x%08x, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, DATA),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, SA_ID),
@@ -167,9 +169,10 @@ static void print_sq_intr_info_inst(uint32_t context_id0, uint32_t context_id1)
 		REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1, WGP_ID));
 }
 
-static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
+static void print_sq_intr_info_error(struct kfd_node *dev, uint32_t context_id0, uint32_t context_id1)
 {
-	pr_debug_ratelimited(
+	dev_warn_ratelimited(
+		dev->adev->dev,
 		"sq_intr: error, detail 0x%08x, type %d, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, DETAIL),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, TYPE),
@@ -246,7 +249,8 @@ static bool event_interrupt_isr_v12_1(struct kfd_node *node,
 	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
 
 	if (!kfd_irq_is_from_node(node, node_id, vmid)) {
-		pr_debug("Interrupt not for Node, node_id: %d, vmid: %d\n", node_id, vmid);
+		dev_dbg_ratelimited(node->adev->dev,
+			"Interrupt not for Node, node_id: %d, vmid: %d\n", node_id, vmid);
 		return false;
 	}
 
@@ -266,9 +270,9 @@ static bool event_interrupt_isr_v12_1(struct kfd_node *node,
 	    (context_id0 & AMDGPU_FENCE_MES_QUEUE_FLAG))
 		return false;
 
-	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+	dev_dbg(node->adev->dev, "client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
 		 client_id, source_id, vmid, pasid);
-	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+	dev_dbg(node->adev->dev, "%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
 		 data[0], data[1], data[2], data[3],
 		 data[4], data[5], data[6], data[7]);
 
@@ -361,10 +365,10 @@ static void event_interrupt_wq_v12_1(struct kfd_node *node,
 					SQ_INTERRUPT_WORD_WAVE_CTXID1, ENCODING);
 			switch (sq_int_enc) {
 			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				print_sq_intr_info_auto(context_id0, context_id1);
+				print_sq_intr_info_auto(node, context_id0, context_id1);
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				print_sq_intr_info_inst(context_id0, context_id1);
+				print_sq_intr_info_inst(node, context_id0, context_id1);
 				sq_int_priv = REG_GET_FIELD(context_id0,
 						SQ_INTERRUPT_WORD_WAVE_CTXID0, PRIV);
 				if (sq_int_priv && (kfd_set_dbg_ev_from_interrupt(node, pasid,
@@ -374,7 +378,7 @@ static void event_interrupt_wq_v12_1(struct kfd_node *node,
 					return;
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
-				print_sq_intr_info_error(context_id0, context_id1);
+				print_sq_intr_info_error(node, context_id0, context_id1);
 				sq_int_errtype = REG_GET_FIELD(context_id0,
 						SQ_INTERRUPT_WORD_ERROR_CTXID0, TYPE);
 				if (sq_int_errtype != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&

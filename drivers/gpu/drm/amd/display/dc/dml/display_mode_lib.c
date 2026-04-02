@@ -162,6 +162,7 @@ void dml_log_pipe_params(
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt)
 {
+	(void)mode_lib;
 	display_pipe_source_params_st *pipe_src;
 	display_pipe_dest_params_st   *pipe_dest;
 	scaler_ratio_depth_st         *scale_ratio_depth;

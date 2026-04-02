@@ -65,6 +65,8 @@
 #define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
 #define SMU_FEATURES_HIGH_SHIFT      32
 
+#define SMU11_DRIVER_IF_VERSION_ARCT 0x17
+
 static const struct smu_feature_bits arcturus_dpm_features = {
 	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
 		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
@@ -1905,7 +1907,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* pptable related */
 	.setup_pptable = arcturus_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.check_fw_version = smu_v11_0_check_fw_version,
+	.check_fw_version = smu_cmn_check_fw_version,
 	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
@@ -1958,5 +1960,6 @@ void arcturus_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = arcturus_table_map;
 	smu->pwr_src_map = arcturus_pwr_src_map;
 	smu->workload_map = arcturus_workload_map;
+	smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
 	smu_v11_0_init_msg_ctl(smu, arcturus_message_map);
 }

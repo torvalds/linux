@@ -66,7 +66,7 @@ void dcn42_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	int i;
-	int edp_num;
+	unsigned int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	bool dchub_ref_freq_changed;
@@ -386,6 +386,7 @@ void dcn42_program_cm_hist(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_plane_state *plane_state)
 {
+	(void)dc;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
 	if (dpp && dpp->funcs->dpp_cm_hist_control)
@@ -1000,6 +1001,7 @@ void dcn42_root_clock_control(struct dc *dc,
 }
 void dcn42_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 {
+	(void)dc;
 	struct crtc_stereo_flags flags = { 0 };
 	struct dc_stream_state *stream = pipe_ctx->stream;
 
@@ -1063,7 +1065,7 @@ void dcn42_power_down_on_boot(struct dc *dc)
 {
 	struct dc_link *edp_links[MAX_NUM_EDP];
 	struct dc_link *edp_link = NULL;
-	int edp_num;
+	unsigned int edp_num;
 	int i = 0;
 
 	dc_get_edp_links(dc, edp_links, &edp_num);

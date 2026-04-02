@@ -34,6 +34,7 @@
 #include "amdgpu_ras.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_atomfirmware.h"
 
 #include <drm/drm_drv.h>
 #include <drm/ttm/ttm_tt.h>
@@ -1745,5 +1746,33 @@ int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev)
 			 "Mem ranges not matching with hardware config\n");
 	}
 
+	return 0;
+}
+
+int amdgpu_gmc_get_vram_info(struct amdgpu_device *adev,
+		int *vram_width, int *vram_type, int *vram_vendor)
+{
+	int ret = 0;
+
+	if (adev->flags & AMD_IS_APU)
+		return amdgpu_atomfirmware_get_integrated_system_info(adev,
+							vram_width, vram_type, vram_vendor);
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		return amdgpu_atomfirmware_get_umc_info(adev,
+								vram_width, vram_type, vram_vendor);
+	case IP_VERSION(9, 5, 0):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 4, 3):
+		ret = amdgpu_atomfirmware_get_umc_info(adev,
+								vram_width, vram_type, vram_vendor);
+		if (vram_width && !ret)
+			*vram_width *= hweight32(adev->aid_mask);
+		return ret;
+	default:
+		return amdgpu_atomfirmware_get_vram_info(adev,
+								vram_width, vram_type, vram_vendor);
+	}
 	return 0;
 }

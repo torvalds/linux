@@ -551,5 +551,7 @@ void dce110_opp_set_regamma_mode_v(
 	struct transform *xfm,
 	enum opp_regamma mode)
 {
+	(void)xfm;
+	(void)mode;
 	// TODO: need to implement the function
 }

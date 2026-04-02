@@ -108,6 +108,7 @@ static void set_reg_field_values(struct dc_reg_value_masks *field_value_mask,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
 		va_list ap)
 {
+	(void)addr;
 	uint32_t shift, mask, field_value;
 	int i = 1;
 

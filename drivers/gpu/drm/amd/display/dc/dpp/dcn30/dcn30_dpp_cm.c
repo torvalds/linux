@@ -80,6 +80,7 @@ static void dpp3_program_gammcor_lut(
 		uint32_t num,
 		bool is_ram_a)
 {
+	(void)is_ram_a;
 	uint32_t i;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 	uint32_t last_base_value_red = rgb[num-1].red_reg + rgb[num-1].delta_red_reg;

@@ -164,6 +164,7 @@ void optc1_program_timing(
 	const enum signal_type signal,
 	bool use_vbios)
 {
+	(void)use_vbios;
 	struct dc_crtc_timing patched_crtc_timing;
 	uint32_t asic_blank_end;
 	uint32_t asic_blank_start;
@@ -855,6 +856,8 @@ void optc1_set_early_control(
 	struct timing_generator *optc,
 	uint32_t early_cntl)
 {
+	(void)optc;
+	(void)early_cntl;
 	/* asic design change, do not need this control
 	 * empty for share caller logic
 	 */
@@ -1249,6 +1252,7 @@ void optc1_get_crtc_scanoutpos(
 static void optc1_enable_stereo(struct timing_generator *optc,
 	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags)
 {
+	(void)timing;
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	if (flags) {

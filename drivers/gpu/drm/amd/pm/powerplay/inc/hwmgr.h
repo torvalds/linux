@@ -631,6 +631,7 @@ struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddci_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *mvdd_dependency_on_mclk;
+	struct phm_clock_voltage_dependency_table *vddc_dependency_on_display_clock;
 	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_clock_array                    *valid_sclk_values;
 	struct phm_clock_array                    *valid_mclk_values;
@@ -772,7 +773,6 @@ struct pp_hwmgr {
 	const struct pp_smumgr_func *smumgr_funcs;
 	bool is_kicker;
 
-	enum PP_DAL_POWERLEVEL dal_power_level;
 	struct phm_dynamic_state_info dyn_state;
 	const struct pp_hwmgr_func *hwmgr_func;
 	const struct pp_table_func *pptable_func;

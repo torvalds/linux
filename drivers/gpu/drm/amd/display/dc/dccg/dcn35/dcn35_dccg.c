@@ -558,6 +558,7 @@ static void dccg35_set_symclk32_se_src_new(
 static int
 dccg35_is_symclk32_se_src_functional_le_new(struct dccg *dccg, int symclk_32_se_inst, int symclk_32_le_inst)
 {
+	(void)symclk_32_se_inst;
 	uint32_t en;
 	uint32_t src_sel;
 
@@ -2373,6 +2374,7 @@ static void dccg35_disable_symclk_se_cb(
 			uint32_t stream_enc_inst,
 			uint32_t link_enc_inst)
 {
+	(void)link_enc_inst;
 	dccg35_disable_symclk_fe_new(dccg, stream_enc_inst);
 
 	/* DMU PHY sequence switches SYMCLK_BE (link_enc_inst) to ref clock once PHY is turned off */

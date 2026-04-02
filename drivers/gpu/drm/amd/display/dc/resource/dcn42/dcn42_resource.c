@@ -761,6 +761,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.ignore_pg = true,
 	.disable_stutter_for_wm_program = true,
 	.min_deep_sleep_dcfclk_khz = 8000,
+	.replay_skip_crtc_disabled = true,
+	.psr_skip_crtc_disable = true,
 };
 
 static const struct dc_check_config config_defaults = {
@@ -1694,37 +1696,51 @@ static void dcn42_destroy_resource_pool(struct resource_pool **pool)
 static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap};
 
+static void dcn42_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params)
+{
+	(void)bw_params;
+	dc_assert_fp_enabled();
+
+	if (dc->current_state && dc->current_state->bw_ctx.dml2)
+		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
+}
+
 static void dcn42_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	DC_FP_START();
-	if (dc->current_state && dc->current_state->bw_ctx.dml2)
-		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
+	dcn42_update_bw_bounding_box_fpu(dc, bw_params);
 	DC_FP_END();
 }
-
 enum dc_status dcn42_validate_bandwidth(struct dc *dc,
 							  struct dc_state *context,
 							  enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
+	DC_FP_START();
+
 	out = dml2_validate(dc, context, context->bw_ctx.dml2,
 						validate_mode);
-	DC_FP_START();
+
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		/*not required for mode enumeration*/
 		dcn42_decide_zstate_support(dc, context);
 	}
+
 	DC_FP_END();
+
 	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 void dcn42_prepare_mcache_programming(struct dc *dc,
 									  struct dc_state *context)
 {
-	if (dc->debug.using_dml21)
+	if (dc->debug.using_dml21) {
+		DC_FP_START();
 		dml2_prepare_mcache_programming(dc, context,
 			context->power_source == DC_POWER_SOURCE_DC ?
-				context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+			context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+		DC_FP_END();
+	}
 }
 /* Create a minimal link encoder object not associated with a particular
  * physical connector.
@@ -1759,6 +1775,8 @@ static unsigned int dcn42_get_max_hw_cursor_size(const struct dc *dc,
 			struct dc_state *state,
 			const struct dc_stream_state *stream)
 {
+	(void)state;
+	(void)stream;
 	return dc->caps.max_cursor_size;
 }
 static struct resource_funcs dcn42_res_pool_funcs = {
@@ -1783,7 +1801,7 @@ static struct resource_funcs dcn42_res_pool_funcs = {
 	.acquire_post_bldn_3dlut = dcn32_acquire_post_bldn_3dlut,
 	.release_post_bldn_3dlut = dcn32_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn42_update_bw_bounding_box,
-	.patch_unknown_plane_state = dcn401_patch_unknown_plane_state,
+	.patch_unknown_plane_state = dcn35_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn42_get_panel_config_defaults,
 	.get_preferred_eng_id_dpia = dcn42_get_preferred_eng_id_dpia,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
@@ -1864,7 +1882,7 @@ static bool dcn42_resource_construct(
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
-	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.underlay_pipe_index = (unsigned int)NO_UNDERLAY_PIPE;
 	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	pool->base.pipe_count = num_pipes;
 	pool->base.mpcc_count = num_pipes;

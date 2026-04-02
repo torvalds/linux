@@ -3488,6 +3488,7 @@ bool dcn32_allow_subvp_high_refresh_rate(struct dc *dc, struct dc_state *context
  */
 double dcn32_determine_max_vratio_prefetch(struct dc *dc, struct dc_state *context)
 {
+	(void)dc;
 	double max_vratio_pre = __DML_MAX_BW_RATIO_PRE__; // Default value is 4
 	int i;
 
@@ -3593,6 +3594,7 @@ bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, stru
 
 void dcn32_set_clock_limits(const struct _vcs_dpi_soc_bounding_box_st *soc_bb)
 {
+	(void)soc_bb;
 	dc_assert_fp_enabled();
 	dcn3_2_soc.clock_limits[0].dcfclk_mhz = 1200.0;
 }

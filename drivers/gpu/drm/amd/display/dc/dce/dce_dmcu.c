@@ -71,6 +71,7 @@ static const uint32_t abm_gain_stepsize = 0x0060;
 
 static bool dce_dmcu_init(struct dmcu *dmcu)
 {
+	(void)dmcu;
 	// Do nothing
 	return true;
 }

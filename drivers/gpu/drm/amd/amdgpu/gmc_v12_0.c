@@ -825,7 +825,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0)) {
 		gmc_v12_1_init_vram_info(adev);
 	} else {
-		r = amdgpu_atomfirmware_get_vram_info(adev,
+		r = amdgpu_gmc_get_vram_info(adev,
 			      &vram_width, &vram_type, &vram_vendor);
 		adev->gmc.vram_width = vram_width;
 		adev->gmc.vram_type = vram_type;

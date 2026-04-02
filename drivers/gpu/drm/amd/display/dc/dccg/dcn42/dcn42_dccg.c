@@ -186,6 +186,7 @@ void dccg42_set_pixel_rate_div(
 		enum pixel_rate_div tmds_div,
 		enum pixel_rate_div unused)
 {
+	(void)unused;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t cur_tmds_div = PIXEL_RATE_DIV_NA;
 	uint32_t dp_dto_int;

@@ -201,6 +201,8 @@ static void enable_display_pipe_clock_gating(
 	struct dc_context *ctx,
 	bool clock_gating)
 {
+	(void)ctx;
+	(void)clock_gating;
 	/*TODO*/
 }
 
@@ -284,6 +286,7 @@ static bool
 dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       const struct dc_plane_state *plane_state)
 {
+	(void)dc;
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	const struct dc_transfer_func *tf = NULL;
 	struct ipp_prescale_params prescale_params = { 0 };
@@ -488,15 +491,15 @@ dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
 		seg_distr[8] = 4;
 		seg_distr[9] = 4;
 		seg_distr[10] = 0;
-		seg_distr[11] = -1;
-		seg_distr[12] = -1;
-		seg_distr[13] = -1;
-		seg_distr[14] = -1;
-		seg_distr[15] = -1;
+		seg_distr[11] = (uint32_t)-1;
+		seg_distr[12] = (uint32_t)-1;
+		seg_distr[13] = (uint32_t)-1;
+		seg_distr[14] = (uint32_t)-1;
+		seg_distr[15] = (uint32_t)-1;
 	}
 
 	for (k = 0; k < 16; k++) {
-		if (seg_distr[k] != -1)
+		if (seg_distr[k] != (uint32_t)-1)
 			hw_points += (1 << seg_distr[k]);
 	}
 
@@ -607,6 +610,7 @@ static bool
 dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
 {
+	(void)dc;
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
 
 	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
@@ -1539,6 +1543,7 @@ static enum dc_status dce110_enable_stream_timing(
 		struct dc_state *context,
 		struct dc *dc)
 {
+	(void)context;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
@@ -1568,7 +1573,7 @@ static enum dc_status dce110_enable_stream_timing(
 			return DC_ERROR_UNEXPECTED;
 		}
 
-		if (dc_is_hdmi_tmds_signal(stream->signal)) {
+		if (dc_is_tmds_signal(stream->signal)) {
 			stream->link->phy_state.symclk_ref_cnts.otg = 1;
 			if (stream->link->phy_state.symclk_state == SYMCLK_OFF_TX_OFF)
 				stream->link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
@@ -1986,7 +1991,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct dce_hwseq *hws = dc->hwseq;
 	int edp_with_sink_num;
-	int edp_num;
+	unsigned int edp_num;
 	int edp_stream_num;
 	int i;
 	bool can_apply_edp_fast_boot = false;
@@ -2418,7 +2423,7 @@ static void dce110_reset_hw_ctx_wrap(
 				BREAK_TO_DEBUGGER();
 			}
 			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
-			if (dc_is_hdmi_tmds_signal(pipe_ctx_old->stream->signal))
+			if (dc_is_tmds_signal(pipe_ctx_old->stream->signal))
 				pipe_ctx_old->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_state->stream_count);
@@ -2728,6 +2733,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 static void update_plane_addr(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
+	(void)dc;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 
 	if (plane_state == NULL)
@@ -2814,6 +2820,8 @@ static void dce110_enable_timing_synchronization(
 		int group_size,
 		struct pipe_ctx *grouped_pipes[])
 {
+	(void)state;
+	(void)group_index;
 	struct dcp_gsl_params gsl_params = { 0 };
 	int i;
 	DC_LOGGER_INIT(dc->ctx);
@@ -2889,6 +2897,8 @@ static void dce110_enable_per_frame_crtc_position_reset(
 
 static void dce110_init_pipes(struct dc *dc, struct dc_state *context)
 {
+	(void)context;
+	(void)dc;
 	// Do nothing
 }
 
@@ -3154,10 +3164,13 @@ static void dce110_post_unlock_program_front_end(
 		struct dc *dc,
 		struct dc_state *context)
 {
+	(void)dc;
+	(void)context;
 }
 
 static void dce110_power_down_fe(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
+	(void)state;
 	struct dce_hwseq *hws = dc->hwseq;
 	int fe_idx = pipe_ctx->plane_res.mi ?
 		pipe_ctx->plane_res.mi->inst : pipe_ctx->pipe_idx;
@@ -3178,6 +3191,9 @@ static void dce110_wait_for_mpcc_disconnect(
 		struct resource_pool *res_pool,
 		struct pipe_ctx *pipe_ctx)
 {
+	(void)dc;
+	(void)res_pool;
+	(void)pipe_ctx;
 	/* do nothing*/
 }
 
@@ -3187,6 +3203,10 @@ static void program_output_csc(struct dc *dc,
 		uint16_t *matrix,
 		int opp_id)
 {
+	(void)dc;
+	(void)colorspace;
+	(void)matrix;
+	(void)opp_id;
 	int i;
 	struct out_csc_color_matrix tbl_entry;
 
@@ -3331,6 +3351,7 @@ void dce110_enable_lvds_link_output(struct dc_link *link,
 		enum clock_source_id clock_source,
 		uint32_t pixel_clock)
 {
+	(void)link_res;
 	link->link_enc->funcs->enable_lvds_output(
 			link->link_enc,
 			clock_source,
@@ -3345,6 +3366,7 @@ void dce110_enable_tmds_link_output(struct dc_link *link,
 		enum dc_color_depth color_depth,
 		uint32_t pixel_clock)
 {
+	(void)link_res;
 	link->link_enc->funcs->enable_tmds_output(
 			link->link_enc,
 			clock_source,

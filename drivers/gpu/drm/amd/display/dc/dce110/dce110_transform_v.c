@@ -371,6 +371,9 @@ static void calculate_inits(
 	struct rect *luma_viewport,
 	struct rect *chroma_viewport)
 {
+	(void)xfm_dce;
+	(void)luma_viewport;
+	(void)chroma_viewport;
 	inits->h_int_scale_ratio_luma =
 		dc_fixpt_u2d19(data->ratios.horz) << 5;
 	inits->v_int_scale_ratio_luma =
@@ -619,6 +622,8 @@ static void dce110_xfmv_set_gamut_remap(
 	struct transform *xfm,
 	const struct xfm_grph_csc_adjustment *adjust)
 {
+	(void)xfm;
+	(void)adjust;
 	/* DO NOTHING*/
 }
 
@@ -627,6 +632,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	enum lb_pixel_depth depth,
 	const struct bit_depth_reduction_params *bit_depth_params)
 {
+	(void)bit_depth_params;
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 	int pixel_depth = 0;
 	int expan_mode = 0;

@@ -288,6 +288,7 @@ void dpp1_cnv_setup (
 		enum dc_color_space input_color_space,
 		struct cnv_alpha_2bit_lut *alpha_2bit_lut)
 {
+	(void)alpha_2bit_lut;
 	uint32_t pixel_format;
 	uint32_t alpha_en;
 	enum pixel_format_description fmt ;

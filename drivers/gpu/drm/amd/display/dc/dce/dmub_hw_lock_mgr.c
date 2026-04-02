@@ -82,7 +82,7 @@ bool dmub_hw_lock_mgr_does_link_require_lock(const struct dc *dc, const struct d
 
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_1) {
 		struct dc_link *edp_links[MAX_NUM_EDP];
-		int edp_num;
+		unsigned int edp_num;
 
 		dc_get_edp_links(dc, edp_links, &edp_num);
 		if (edp_num == 1)

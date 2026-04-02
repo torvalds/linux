@@ -33,6 +33,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/nospec.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_choices.h>
 #include <asm/processor.h>
 
 #define MAX_NUM_OF_FEATURES_PER_SUBSET		8
@@ -1592,7 +1593,7 @@ static ssize_t amdgpu_get_thermal_throttling_logging(struct device *dev,
 
 	return sysfs_emit(buf, "%s: thermal throttling logging %s, with interval %d seconds\n",
 			  adev_to_drm(adev)->unique,
-			  atomic_read(&adev->throttling_logging_enabled) ? "enabled" : "disabled",
+			  str_enabled_disabled(atomic_read(&adev->throttling_logging_enabled)),
 			  adev->throttling_logging_rs.interval / HZ + 1);
 }
 
@@ -2235,7 +2236,7 @@ static ssize_t amdgpu_show_npm_status(struct device *dev,
 	if (r)
 		return r;
 
-	return sysfs_emit(buf, "%s\n", npower ? "enabled" : "disabled");
+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(npower));
 }
 
 /**

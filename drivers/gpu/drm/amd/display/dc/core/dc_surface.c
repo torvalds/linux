@@ -57,6 +57,7 @@ void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_sta
 
 void dc_plane_destruct(struct dc_plane_state *plane_state)
 {
+	(void)plane_state;
 	// no more pointers to free within dc_plane_state
 }
 

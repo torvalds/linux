@@ -421,10 +421,8 @@ static void dcn3_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->bw_params->dc_mode_softmax_memclk = dcn30_smu_get_dc_mode_max_dpm_freq(clk_mgr, PPCLK_UCLK);
 
 	/* Refresh bounding box */
-	DC_FP_START();
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
-	DC_FP_END();
 }
 
 static bool dcn3_is_smu_present(struct clk_mgr *clk_mgr_base)
@@ -523,6 +521,7 @@ void dcn3_clk_mgr_construct(
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg)
 {
+	(void)pp_smu;
 	struct clk_state_registers_and_bypass s = { 0 };
 
 	clk_mgr->base.ctx = ctx;
