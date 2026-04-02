@@ -263,7 +263,6 @@ bool icmp_global_allow(struct net *net)
 	}
 	return true;
 }
-EXPORT_SYMBOL(icmp_global_allow);
 
 void icmp_global_consume(struct net *net)
 {
@@ -273,7 +272,6 @@ void icmp_global_consume(struct net *net)
 	if (credits)
 		atomic_sub(credits, &net->ipv4.icmp_global_credit);
 }
-EXPORT_SYMBOL(icmp_global_consume);
 
 static bool icmpv4_mask_allow(struct net *net, int type, int code)
 {
@@ -1378,7 +1376,6 @@ send_mal_query:
 	icmphdr->code = ICMP_EXT_CODE_MAL_QUERY;
 	return true;
 }
-EXPORT_SYMBOL_GPL(icmp_build_probe);
 
 /*
  *	Handle ICMP Timestamp requests.
@@ -1600,7 +1597,6 @@ void ip_icmp_error_rfc4884(const struct sk_buff *skb,
 	if (!ip_icmp_error_rfc4884_validate(skb, off))
 		out->flags |= SO_EE_RFC4884_FLAG_INVALID;
 }
-EXPORT_SYMBOL_GPL(ip_icmp_error_rfc4884);
 
 int icmp_err(struct sk_buff *skb, u32 info)
 {
