@@ -1669,8 +1669,7 @@
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>;
 			interconnect-names = "gfx-mem";
 
-			iommus = <&adreno_smmu 0 1>,
-				 <&adreno_smmu 2 0>;
+			iommus = <&adreno_smmu 0 1>;
 			operating-points-v2 = <&gpu_opp_table>;
 			power-domains = <&rpmpd QCM2290_VDDCX>;
 			qcom,gmu = <&gmu_wrapper>;
@@ -1951,8 +1950,7 @@
 
 			power-domains = <&dispcc MDSS_GDSC>;
 
-			iommus = <&apps_smmu 0x420 0x2>,
-				 <&apps_smmu 0x421 0x0>;
+			iommus = <&apps_smmu 0x420 0x2>;
 			interconnects = <&mmrt_virt MASTER_MDP0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
 					<&bimc MASTER_APPSS_PROC RPM_ALWAYS_TAG
@@ -2436,10 +2434,7 @@
 
 			memory-region = <&pil_video_mem>;
 			iommus = <&apps_smmu 0x860 0x0>,
-				 <&apps_smmu 0x880 0x0>,
-				 <&apps_smmu 0x861 0x04>,
-				 <&apps_smmu 0x863 0x0>,
-				 <&apps_smmu 0x804 0xe0>;
+				 <&apps_smmu 0x880 0x0>;
 
 			interconnects = <&mmnrt_virt MASTER_VIDEO_P0 RPM_ALWAYS_TAG
 					 &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
