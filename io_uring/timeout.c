@@ -284,8 +284,8 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 
 	raw_spin_lock_irqsave(&ctx->timeout_lock, flags);
 	list_del_init(&timeout->list);
-	atomic_set(&req->ctx->cq_timeouts,
-		atomic_read(&req->ctx->cq_timeouts) + 1);
+	atomic_set(&ctx->cq_timeouts,
+		atomic_read(&ctx->cq_timeouts) + 1);
 	raw_spin_unlock_irqrestore(&ctx->timeout_lock, flags);
 
 	if (!(data->flags & IORING_TIMEOUT_ETIME_SUCCESS))
