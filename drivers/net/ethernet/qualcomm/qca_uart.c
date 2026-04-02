@@ -100,7 +100,7 @@ qca_tty_receive(struct serdev_device *serdev, const u8 *data, size_t count)
 			if (!qca->rx_skb) {
 				netdev_dbg(netdev, "recv: out of RX resources\n");
 				n_stats->rx_errors++;
-				return i;
+				return i + 1;
 			}
 		}
 	}
