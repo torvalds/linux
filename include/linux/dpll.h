@@ -52,6 +52,12 @@ struct dpll_device_ops {
 	int (*phase_offset_avg_factor_get)(const struct dpll_device *dpll,
 					   void *dpll_priv, u32 *factor,
 					   struct netlink_ext_ack *extack);
+	int (*freq_monitor_set)(const struct dpll_device *dpll, void *dpll_priv,
+				enum dpll_feature_state state,
+				struct netlink_ext_ack *extack);
+	int (*freq_monitor_get)(const struct dpll_device *dpll, void *dpll_priv,
+				enum dpll_feature_state *state,
+				struct netlink_ext_ack *extack);
 };
 
 struct dpll_pin_ops {
@@ -110,6 +116,10 @@ struct dpll_pin_ops {
 	int (*ffo_get)(const struct dpll_pin *pin, void *pin_priv,
 		       const struct dpll_device *dpll, void *dpll_priv,
 		       s64 *ffo, struct netlink_ext_ack *extack);
+	int (*measured_freq_get)(const struct dpll_pin *pin, void *pin_priv,
+				 const struct dpll_device *dpll,
+				 void *dpll_priv, u64 *measured_freq,
+				 struct netlink_ext_ack *extack);
 	int (*esync_set)(const struct dpll_pin *pin, void *pin_priv,
 			 const struct dpll_device *dpll, void *dpll_priv,
 			 u64 freq, struct netlink_ext_ack *extack);
