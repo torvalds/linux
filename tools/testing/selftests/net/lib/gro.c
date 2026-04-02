@@ -10,8 +10,9 @@
  *  packet coalesced: it can be smaller than the rest and coalesced
  *  as long as it is in the same flow.
  *   - data_same:    same size packets coalesce
- *   - data_lrg_sml: large then small coalesces
- *   - data_sml_lrg: small then large doesn't coalesce
+ *   - data_lrg_sml:   large then small coalesces
+ *   - data_lrg_1byte: large then 1 byte coalesces (Ethernet padding)
+ *   - data_sml_lrg:   small then large doesn't coalesce
  *   - data_burst:   two bursts of two, separated by 100ms
  *
  * ack:
@@ -1296,6 +1297,9 @@ static void gro_sender(void)
 	} else if (strcmp(testname, "data_lrg_sml") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN, PAYLOAD_LEN / 2);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "data_lrg_1byte") == 0) {
+		send_data_pkts(txfd, &daddr, PAYLOAD_LEN, 1);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 	} else if (strcmp(testname, "data_sml_lrg") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN / 2, PAYLOAD_LEN);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
@@ -1473,6 +1477,10 @@ static void gro_receiver(void)
 	} else if (strcmp(testname, "data_lrg_sml") == 0) {
 		printf("large data packets followed by a smaller one: ");
 		correct_payload[0] = PAYLOAD_LEN * 1.5;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "data_lrg_1byte") == 0) {
+		printf("large data packet followed by a 1 byte one: ");
+		correct_payload[0] = PAYLOAD_LEN + 1;
 		check_recv_pkts(rxfd, correct_payload, 1);
 	} else if (strcmp(testname, "data_sml_lrg") == 0) {
 		printf("small data packets followed by a larger one: ");
