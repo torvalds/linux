@@ -3,7 +3,7 @@
 #define _LIBATA_TRANSPORT_H
 
 
-extern struct scsi_transport_template *ata_scsi_transport_template;
+extern struct scsi_transport_template ata_scsi_transportt;
 
 int ata_tlink_add(struct ata_link *link);
 void ata_tlink_delete(struct ata_link *link);

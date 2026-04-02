@@ -37,9 +37,6 @@
 #include "libata.h"
 #include "libata-transport.h"
 
-struct scsi_transport_template;
-struct scsi_transport_template *ata_scsi_transport_template;
-
 static int ata_tlink_match(struct attribute_container *cont,
 			   struct device *dev);
 static int ata_tdev_match(struct attribute_container *cont,
@@ -224,7 +221,7 @@ static int ata_tport_match(struct attribute_container *cont,
 {
 	if (!ata_is_port(dev))
 		return 0;
-	return &ata_scsi_transport_template->host_attrs.ac == cont;
+	return &ata_scsi_transportt.host_attrs.ac == cont;
 }
 
 /**
@@ -722,7 +719,7 @@ int ata_tlink_add(struct ata_link *link)
 	return error;
 }
 
-static struct scsi_transport_template ata_scsi_transportt = {
+struct scsi_transport_template ata_scsi_transportt = {
 	.eh_strategy_handler	= ata_scsi_error,
 	.user_scan		= ata_scsi_user_scan,
 
@@ -782,8 +779,6 @@ __init int libata_transport_init(void)
 	transport_container_register(&ata_scsi_transportt.host_attrs);
 	transport_container_register(&ata_link_attr_cont);
 	transport_container_register(&ata_dev_attr_cont);
-
-	ata_scsi_transport_template = &ata_scsi_transportt;
 
 	return 0;
 
