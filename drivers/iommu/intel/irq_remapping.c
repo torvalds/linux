@@ -422,7 +422,7 @@ static int iommu_load_old_irte(struct intel_iommu *iommu)
 	u64 irta;
 
 	/* Check whether the old ir-table has the same size as ours */
-	irta = dmar_readq(iommu->reg + DMAR_IRTA_REG);
+	irta = readq(iommu->reg + DMAR_IRTA_REG);
 	if ((irta & INTR_REMAP_TABLE_REG_SIZE_MASK)
 	     != INTR_REMAP_TABLE_REG_SIZE)
 		return -EINVAL;

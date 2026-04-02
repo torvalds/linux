@@ -81,8 +81,8 @@ void intel_iommu_drain_pasid_prq(struct device *dev, u32 pasid)
 	 */
 prq_retry:
 	reinit_completion(&iommu->prq_complete);
-	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
-	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	while (head != tail) {
 		struct page_req_dsc *req;
 
@@ -208,8 +208,8 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	 */
 	writel(DMA_PRS_PPR, iommu->reg + DMAR_PRS_REG);
 
-	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
-	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	handled = (head != tail);
 	while (head != tail) {
 		req = &iommu->prq[head / sizeof(*req)];
@@ -268,8 +268,8 @@ prq_advance:
 	if (readl(iommu->reg + DMAR_PRS_REG) & DMA_PRS_PRO) {
 		pr_info_ratelimited("IOMMU: %s: PRQ overflow detected\n",
 				    iommu->name);
-		head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
-		tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+		head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+		tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
 		if (head == tail) {
 			iopf_queue_discard_partial(iommu->iopf_queue);
 			writel(DMA_PRS_PRO, iommu->reg + DMAR_PRS_REG);
