@@ -22,6 +22,7 @@ my $output_name = (split m|/|, $out_file)[-1];
 my $script_name = (split m|/|, $0)[-1];
 my @list     = ();
 my %seen     = ();
+my $current_class = "";
 
 # Parse annotated entries from the input file
 open(my $in, "<", $in_file) or die "Cannot open $in_file: $!";
@@ -48,6 +49,26 @@ if ($in_file =~ /nterr\.h$/) {
 			}
 			push @list, { val => $val, name => $name, class => $class, code => $code };
 		} elsif (/^\s*#define\s+NT_STATUS_.*(?:\/\/|\/\*)/) {
+			# Error if macro has a comment (// or /*) but fails mapping format
+			die "Error: Invalid mapping comment format in $in_file: $_";
+		}
+	}
+} elsif ($in_file =~ /smberr\.h$/) {
+	while (<$in>) {
+		# Handle backslash line continuation
+		$_ .= <$in> while s/\\\s*\n//;
+
+		# Detect current error class from header comments (ERRDOS or ERRSRV)
+		if (/generated with the (\w+) error class/) {
+			$current_class = $1;
+		}
+
+		# Match #define ERR/Err_... <value> followed by // -POSIX_ERR or /* -POSIX_ERR */
+		if (/^\s*#define\s+((?:ERR|Err)[A-Za-z0-9_]+)\s+([0-9a-fA-FxX]+)\s*(?:\/\/|\/\*)\s*(-[A-Z0-9_]+)/) {
+			my ($name, $val_str, $error) = ($1, $2, $3);
+			my $val = ($val_str =~ /^0x/i) ? hex($val_str) : $val_str;
+			push @list, { val => $val, name => $name, error => $error, class => $current_class };
+		} elsif ($current_class && /^\s*#define\s+(?:ERR|Err).*?(?:\/\/|\/\*)/) {
 			# Error if macro has a comment (// or /*) but fails mapping format
 			die "Error: Invalid mapping comment format in $in_file: $_";
 		}
@@ -87,5 +108,17 @@ if ($output_name eq "smb1_mapping_table.c") {
 
 		$full_names = "";
 	}
+} elsif ($output_name eq "smb1_err_dos_map.c" || $output_name eq "smb1_err_srv_map.c") {
+	# Generate SMB1 error -> POSIX error mapping file
+
+	# Filtered by exact output filename
+	my $filter = ($output_name eq "smb1_err_dos_map.c") ? "ERRDOS" : "ERRSRV";
+	foreach my $e (@list) {
+		if (!$filter || $e->{class} eq $filter) {
+			printf $out "\t{%s, %s},\n", $e->{name}, $e->{error};
+		}
+	}
+} else {
+	die "Error: Unsupported output target: $output_name\n";
 }
 close($out);

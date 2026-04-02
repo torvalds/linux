@@ -24,7 +24,11 @@
 
 /*#define SUCCESS	0	The request was successful. */
 
-/* The following error codes may be generated with the ERRDOS error class.*/
+/*
+ * The following error codes may be generated with the ERRDOS error class.
+ * The comment at the end of each definition indicates the POSIX error
+ * code; it is used to generate the `mapping_table_ERRDOS` array.
+ */
 
 /*
  * Invalid function. The server did not
@@ -162,7 +166,11 @@
 #define ERRsymlink              0xFFFD	// -EOPNOTSUPP
 #define ErrTooManyLinks         0xFFFE	// -EMLINK
 
-/* Following error codes may be generated with the ERRSRV error class.*/
+/*
+ * The following error codes may be generated with the ERRSRV error class.
+ * The comment at the end of each definition indicates the POSIX error
+ * code; it is used to generate the `mapping_table_ERRSRV` array.
+ */
 
 /*
  * Non-specific error code. It is

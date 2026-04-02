@@ -46,11 +46,16 @@ cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o compress/lz77.o
 
 ifneq ($(CONFIG_CIFS_ALLOW_INSECURE_LEGACY),)
 #
-# Build the SMB1 error mapping tables from nterr.h
+# Build the SMB1 error mapping tables from nterr.h and smberr.h
 #
-smb1-gen-y := smb1_mapping_table.c
+smb1-gen-y := smb1_mapping_table.c \
+	      smb1_err_dos_map.c \
+	      smb1_err_srv_map.c
 
 $(obj)/smb1_mapping_table.c: $(src)/nterr.h $(src)/gen_smb1_mapping FORCE
+	$(call if_changed,gen_smb1_mapping)
+
+$(obj)/smb1_err_%.c: $(src)/smberr.h $(src)/gen_smb1_mapping FORCE
 	$(call if_changed,gen_smb1_mapping)
 
 $(obj)/smb1maperror.o: $(addprefix $(obj)/, $(smb1-gen-y))
