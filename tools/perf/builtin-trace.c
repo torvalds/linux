@@ -2960,7 +2960,7 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 		++trace->stats.vfs_getname;
 	}
 
-	if (ttrace->entry_time) {
+	if (ttrace->entry_time && sample->time >= ttrace->entry_time) {
 		duration = sample->time - ttrace->entry_time;
 		if (trace__filter_duration(trace, duration))
 			goto out;
