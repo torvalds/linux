@@ -95,6 +95,7 @@
 					   limit to be exceeded. */
 #define ErrNotALink		0x201	/* A link operation was performed on a
 					   pathname that was not a link. */
+#define ERRnetlogonNotStarted	2455
 
 /* Below errors are used internally (do not come over the wire) for passthrough
    from STATUS codes to POSIX only  */
@@ -167,5 +168,4 @@
 #define ERRbadclient		2240	/* can not logon from this client */
 #define ERRbadLogonTime		2241	/* logon hours do not allow this */
 #define ERRpasswordExpired	2242
-#define ERRnetlogonNotStarted	2455
 #define ERRnosupport		0xFFFF
