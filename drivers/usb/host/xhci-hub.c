@@ -577,8 +577,8 @@ static void xhci_disable_port(struct xhci_hcd *xhci, struct xhci_port *port)
 		 hcd->self.busnum, port->hcd_portnum + 1, portsc);
 }
 
-static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
-		u16 wIndex, struct xhci_port *port, u32 port_status)
+static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue, struct xhci_port *port,
+				       u32 port_status)
 {
 	char *port_change_bit;
 	u32 status;
@@ -625,7 +625,7 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 	port_status = xhci_portsc_readl(port);
 
 	xhci_dbg(xhci, "clear port%d %s change, portsc: 0x%x\n",
-		 wIndex + 1, port_change_bit, port_status);
+		 port->hcd_portnum + 1, port_change_bit, port_status);
 }
 
 struct xhci_hub *xhci_get_rhub(struct usb_hcd *hcd)
@@ -675,14 +675,13 @@ static void xhci_set_port_power(struct xhci_hcd *xhci, struct xhci_port *port,
 	spin_lock_irqsave(&xhci->lock, *flags);
 }
 
-static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
-	u16 test_mode, u16 wIndex)
+static void xhci_port_set_test_mode(struct xhci_hcd *xhci, u16 test_mode, int portnum)
 {
 	u32 temp;
 	struct xhci_port *port;
 
 	/* xhci only supports test mode for usb2 ports */
-	port = xhci->usb2_rhub.ports[wIndex];
+	port = xhci->usb2_rhub.ports[portnum];
 	temp = readl(&port->port_reg->portpmsc);
 	temp |= test_mode << PORT_TEST_MODE_SHIFT;
 	writel(temp, &port->port_reg->portpmsc);
@@ -691,8 +690,8 @@ static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
 		xhci_start(xhci);
 }
 
-static int xhci_enter_test_mode(struct xhci_hcd *xhci,
-				u16 test_mode, u16 wIndex, unsigned long *flags)
+static int xhci_enter_test_mode(struct xhci_hcd *xhci, u16 test_mode, int portnum,
+				unsigned long *flags)
 	__must_hold(&xhci->lock)
 {
 	int i, retval;
@@ -726,10 +725,8 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 	/* Disable runtime PM for test mode */
 	pm_runtime_forbid(xhci_to_hcd(xhci)->self.controller);
 	/* Set PORTPMSC.PTC field to enter selected test mode */
-	/* Port is selected by wIndex. port_id = wIndex + 1 */
-	xhci_dbg(xhci, "Enter Test Mode: %d, Port_id=%d\n",
-					test_mode, wIndex + 1);
-	xhci_port_set_test_mode(xhci, test_mode, wIndex);
+	xhci_dbg(xhci, "Enter Test Mode: %u, Port_id=%d\n", test_mode, portnum + 1);
+	xhci_port_set_test_mode(xhci, test_mode, portnum);
 	return retval;
 }
 
@@ -913,8 +910,7 @@ static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
  * the compliance mode timer is deleted. A port won't enter
  * compliance mode if it has previously entered U0.
  */
-static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
-				    u16 wIndex)
+static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status, int portnum)
 {
 	u32 all_ports_seen_u0 = ((1 << xhci->usb3_rhub.num_ports) - 1);
 	bool port_in_u0 = ((status & PORT_PLS_MASK) == XDEV_U0);
@@ -923,7 +919,7 @@ static void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status,
 		return;
 
 	if ((xhci->port_status_u0 != all_ports_seen_u0) && port_in_u0) {
-		xhci->port_status_u0 |= 1 << wIndex;
+		xhci->port_status_u0 |= 1 << portnum;
 		if (xhci->port_status_u0 == all_ports_seen_u0) {
 			timer_delete_sync(&xhci->comp_mode_recovery_timer);
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
@@ -941,12 +937,12 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 	struct xhci_bus_state *bus_state;
 	struct xhci_hcd	*xhci;
 	struct usb_hcd *hcd;
-	u32 wIndex;
+	int portnum;
 
 	hcd = port->rhub->hcd;
 	bus_state = &port->rhub->bus_state;
 	xhci = hcd_to_xhci(hcd);
-	wIndex = port->hcd_portnum;
+	portnum = port->hcd_portnum;
 
 	if ((portsc & PORT_RESET) || !(portsc & PORT_PE)) {
 		return -EINVAL;
@@ -954,7 +950,7 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 	/* did port event handler already start resume timing? */
 	if (!port->resume_timestamp) {
 		/* If not, maybe we are in a host initiated resume? */
-		if (test_bit(wIndex, &bus_state->resuming_ports)) {
+		if (test_bit(portnum, &bus_state->resuming_ports)) {
 			/* Host initiated resume doesn't time the resume
 			 * signalling using resume_done[].
 			 * It manually sets RESUME state, sleeps 20ms
@@ -968,20 +964,20 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 			unsigned long timeout = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 
-			set_bit(wIndex, &bus_state->resuming_ports);
+			set_bit(portnum, &bus_state->resuming_ports);
 			port->resume_timestamp = timeout;
 			mod_timer(&hcd->rh_timer, timeout);
-			usb_hcd_start_port_resume(&hcd->self, wIndex);
+			usb_hcd_start_port_resume(&hcd->self, portnum);
 		}
 	/* Has resume been signalled for USB_RESUME_TIME yet? */
 	} else if (time_after_eq(jiffies, port->resume_timestamp)) {
 		int time_left;
 
 		xhci_dbg(xhci, "resume USB2 port %d-%d\n",
-			 hcd->self.busnum, wIndex + 1);
+			 hcd->self.busnum, portnum + 1);
 
 		port->resume_timestamp = 0;
-		clear_bit(wIndex, &bus_state->resuming_ports);
+		clear_bit(portnum, &bus_state->resuming_ports);
 
 		reinit_completion(&port->rexit_done);
 		port->rexit_active = true;
@@ -1005,7 +1001,7 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 			int port_status = xhci_portsc_readl(port);
 
 			xhci_warn(xhci, "Port resume timed out, port %d-%d: 0x%x\n",
-				  hcd->self.busnum, wIndex + 1, port_status);
+				  hcd->self.busnum, portnum + 1, port_status);
 			/*
 			 * keep rexit_active set if U0 transition failed so we
 			 * know to report PORT_STAT_SUSPEND status back to
@@ -1014,9 +1010,9 @@ static int xhci_handle_usb2_port_link_resume(struct xhci_port *port,
 			 */
 		}
 
-		usb_hcd_end_port_resume(&hcd->self, wIndex);
-		bus_state->port_c_suspend |= 1 << wIndex;
-		bus_state->suspended_ports &= ~(1 << wIndex);
+		usb_hcd_end_port_resume(&hcd->self, portnum);
+		bus_state->port_c_suspend |= 1 << portnum;
+		bus_state->suspended_ports &= ~(1 << portnum);
 	}
 
 	return 0;
@@ -1153,10 +1149,8 @@ static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
  *  - Stop the Synopsys redriver Compliance Mode polling.
  *  - Drop and reacquire the xHCI lock, in order to wait for port resume.
  */
-static u32 xhci_get_port_status(struct usb_hcd *hcd,
-		struct xhci_bus_state *bus_state,
-	u16 wIndex, u32 raw_port_status,
-		unsigned long *flags)
+static u32 xhci_get_port_status(struct usb_hcd *hcd, struct xhci_bus_state *bus_state,
+				int portnum, u32 raw_port_status, unsigned long *flags)
 	__releases(&xhci->lock)
 	__acquires(&xhci->lock)
 {
@@ -1165,7 +1159,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	struct xhci_port *port;
 
 	rhub = xhci_get_rhub(hcd);
-	port = rhub->ports[wIndex];
+	port = rhub->ports[portnum];
 
 	/* common wPortChange bits */
 	if (raw_port_status & PORT_CSC)
@@ -1196,7 +1190,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		xhci_get_usb2_port_status(port, &status, raw_port_status,
 					  flags);
 
-	if (bus_state->port_c_suspend & (1 << wIndex))
+	if (bus_state->port_c_suspend & (1 << portnum))
 		status |= USB_PORT_STAT_C_SUSPEND << 16;
 
 	return status;
@@ -1598,7 +1592,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_C_ENABLE:
 		case USB_PORT_FEAT_C_PORT_LINK_STATE:
 		case USB_PORT_FEAT_C_PORT_CONFIG_ERROR:
-			xhci_clear_port_change_bit(xhci, wValue, portnum, port, temp);
+			xhci_clear_port_change_bit(xhci, wValue, port, temp);
 			break;
 		case USB_PORT_FEAT_ENABLE:
 			xhci_disable_port(xhci, port);
