@@ -139,23 +139,24 @@ TEST_F(audit, layers)
 	    WEXITSTATUS(status) != EXIT_SUCCESS)
 		_metadata->exit_code = KSFT_FAIL;
 
-	/* Purges log from deallocated domains. */
-	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-				&audit_tv_dom_drop, sizeof(audit_tv_dom_drop)));
+	/*
+	 * Purges log from deallocated domains.  Records arrive in LIFO order
+	 * (innermost domain first) because landlock_put_hierarchy() walks the
+	 * chain sequentially in a single kworker context.
+	 */
 	for (i = ARRAY_SIZE(*domain_stack) - 1; i >= 0; i--) {
 		__u64 deallocated_dom = 2;
 
 		EXPECT_EQ(0, matches_log_domain_deallocated(self->audit_fd, 1,
+							    (*domain_stack)[i],
 							    &deallocated_dom));
 		EXPECT_EQ((*domain_stack)[i], deallocated_dom)
 		{
 			TH_LOG("Failed to match domain %llx (#%d)",
-			       (*domain_stack)[i], i);
+			       (unsigned long long)(*domain_stack)[i], i);
 		}
 	}
 	EXPECT_EQ(0, munmap(domain_stack, sizeof(*domain_stack)));
-	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-				&audit_tv_default, sizeof(audit_tv_default)));
 	EXPECT_EQ(0, close(ruleset_fd));
 }
 
@@ -271,13 +272,9 @@ TEST_F(audit, thread)
 	EXPECT_EQ(0, close(pipe_parent[1]));
 	ASSERT_EQ(0, pthread_join(thread, NULL));
 
-	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-				&audit_tv_dom_drop, sizeof(audit_tv_dom_drop)));
-	EXPECT_EQ(0, matches_log_domain_deallocated(self->audit_fd, 1,
-						    &deallocated_dom));
+	EXPECT_EQ(0, matches_log_domain_deallocated(
+			     self->audit_fd, 1, denial_dom, &deallocated_dom));
 	EXPECT_EQ(denial_dom, deallocated_dom);
-	EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-				&audit_tv_default, sizeof(audit_tv_default)));
 }
 
 /*
@@ -753,22 +750,21 @@ TEST_F(audit_flags, signal)
 
 	if (variant->restrict_flags &
 	    LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF) {
+		/*
+		 * No deallocation record: denials=0 never matches a real
+		 * record.
+		 */
 		EXPECT_EQ(-EAGAIN,
-			  matches_log_domain_deallocated(self->audit_fd, 0,
+			  matches_log_domain_deallocated(self->audit_fd, 0, 0,
 							 &deallocated_dom));
 		EXPECT_EQ(deallocated_dom, 2);
 	} else {
-		EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-					&audit_tv_dom_drop,
-					sizeof(audit_tv_dom_drop)));
 		EXPECT_EQ(0, matches_log_domain_deallocated(self->audit_fd, 2,
+							    *self->domain_id,
 							    &deallocated_dom));
 		EXPECT_NE(deallocated_dom, 2);
 		EXPECT_NE(deallocated_dom, 0);
 		EXPECT_EQ(deallocated_dom, *self->domain_id);
-		EXPECT_EQ(0, setsockopt(self->audit_fd, SOL_SOCKET, SO_RCVTIMEO,
-					&audit_tv_default,
-					sizeof(audit_tv_default)));
 	}
 }
 
