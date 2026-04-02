@@ -2,4 +2,4 @@
 
 GMAP ?= ../gmap
 
-gmap-y += $(GMAP)/dat.o $(GMAP)/gmap.o $(GMAP)/faultin.o
+gmap-y += $(GMAP)/dat.o $(GMAP)/gmap.o $(GMAP)/faultin.o $(GMAP)/kvm_mmu.o
