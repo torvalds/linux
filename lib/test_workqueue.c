@@ -242,7 +242,7 @@ static int __init run_bench(int n_threads, const char *scope, const char *label)
 
 	pr_info("test_workqueue:   %-16s %llu items/sec\tp50=%llu\tp90=%llu\tp95=%llu ns\n",
 		label,
-		elapsed_us ? total_items * 1000000ULL / elapsed_us : 0,
+		elapsed_us ? div_u64(total_items * 1000000ULL, elapsed_us) : 0,
 		all_latencies[total_items * 50 / 100],
 		all_latencies[total_items * 90 / 100],
 		all_latencies[total_items * 95 / 100]);
