@@ -46,7 +46,11 @@ struct ata_internal {
 	struct transport_container link_attr_cont;
 	struct transport_container dev_attr_cont;
 };
-#define to_ata_internal(tmpl)	container_of(tmpl, struct ata_internal, t)
+
+static int ata_tlink_match(struct attribute_container *cont,
+			   struct device *dev);
+static int ata_tdev_match(struct attribute_container *cont,
+			  struct device *dev);
 
 #define tdev_to_device(d)					\
 	container_of((d), struct ata_device, tdev)
@@ -519,16 +523,6 @@ static bool ata_is_ata_dev(const struct device *dev)
 	return dev->release == ata_tdev_release;
 }
 
-static int ata_tdev_match(struct attribute_container *cont,
-			  struct device *dev)
-{
-	struct ata_internal *i = to_ata_internal(ata_scsi_transport_template);
-
-	if (!ata_is_ata_dev(dev))
-		return 0;
-	return &i->dev_attr_cont.ac == cont;
-}
-
 /**
  * ata_tdev_free  --  free an ATA transport device
  * @dev:	struct ata_device owning the transport device to free
@@ -660,16 +654,6 @@ static bool ata_is_link(const struct device *dev)
 	return dev->release == ata_tlink_release;
 }
 
-static int ata_tlink_match(struct attribute_container *cont,
-			    struct device *dev)
-{
-	struct ata_internal *i = to_ata_internal(ata_scsi_transport_template);
-
-	if (!ata_is_link(dev))
-		return 0;
-	return &i->link_attr_cont.ac == cont;
-}
-
 /**
  * ata_tlink_delete  --  remove an ATA link transport device
  * @link:	struct ata_link owning the link transport device to remove
@@ -761,6 +745,24 @@ static struct ata_internal ata_transport_internal = {
 	.dev_attr_cont.ac.grp	= &ata_device_attr_group,
 	.dev_attr_cont.ac.match	= ata_tdev_match,
 };
+
+static int ata_tlink_match(struct attribute_container *cont,
+			   struct device *dev)
+{
+	if (!ata_is_link(dev))
+		return 0;
+
+	return &ata_transport_internal.link_attr_cont.ac == cont;
+}
+
+static int ata_tdev_match(struct attribute_container *cont,
+			  struct device *dev)
+{
+	if (!ata_is_ata_dev(dev))
+		return 0;
+
+	return &ata_transport_internal.dev_attr_cont.ac == cont;
+}
 
 /*
  * Setup / Teardown code
