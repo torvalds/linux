@@ -2165,4 +2165,33 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+/*
+ * Last jump can be detected as always taken because the intersection of R5 and
+ * R7 32bit tnums produces a constant that isn't within R7's s32 bounds.
+ */
+SEC("socket")
+__description("dead branch: tnums give impossible constant if equal")
+__success
+__flag(BPF_F_TEST_REG_INVARIANTS)
+__naked void tnums_equal_impossible_constant(void *ctx)
+{
+	asm volatile("						\
+	call %[bpf_get_prandom_u32];				\
+	r5 = r0;						\
+	/* Set r5's var_off32 to (0; 0xfffffffc) */		\
+	r5 &= 0xfffffffffffffffc;				\
+	r7 = r0;						\
+	/* Set r7's var_off32 to (0x0; 0x1) */			\
+	r7 &= 0x1;						\
+	/* Now, s32=[-43; -42], var_off32=(0xffffffd4; 0x3) */	\
+	r7 += -43;						\
+	/* On fallthrough, var_off32=-44, not in s32 */		\
+	if w5 != w7 goto +1;					\
+	r10 = 0;						\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
