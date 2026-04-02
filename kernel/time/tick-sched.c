@@ -345,7 +345,7 @@ static bool check_tick_dependency(atomic_t *dep)
 	int val = atomic_read(dep);
 
 	if (likely(!tracepoint_enabled(tick_stop)))
-		return !val;
+		return !!val;
 
 	if (val & TICK_DEP_MASK_POSIX_TIMER) {
 		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
