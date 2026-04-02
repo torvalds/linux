@@ -116,41 +116,19 @@ static const struct ntstatus_to_dos_err ntstatus_to_dos_map[] = {
 	{0, 0, 0, NULL}
 };
 
-/*****************************************************************************
- Print an error message from the status code
- *****************************************************************************/
-static void
-cifs_print_status(__u32 status_code)
-{
-	int idx = 0;
-
-	while (ntstatus_to_dos_map[idx].nt_errstr) {
-		if (ntstatus_to_dos_map[idx].ntstatus == status_code) {
-			pr_notice("Status code returned 0x%08x %s\n",
-				  status_code, ntstatus_to_dos_map[idx].nt_errstr);
-			return;
-		}
-		idx++;
-	}
-	return;
-}
-
-
-static void
-ntstatus_to_dos(__u32 ntstatus, __u8 *eclass, __u16 *ecode)
+static const struct ntstatus_to_dos_err *
+ntstatus_to_dos(__u32 ntstatus)
 {
 	int i;
 
 	/* Check nt_errstr to allow mapping of NT_STATUS_OK (0) */
 	for (i = 0; ntstatus_to_dos_map[i].nt_errstr; i++) {
 		if (ntstatus == ntstatus_to_dos_map[i].ntstatus) {
-			*eclass = ntstatus_to_dos_map[i].dos_class;
-			*ecode = ntstatus_to_dos_map[i].dos_code;
-			return;
+			return &ntstatus_to_dos_map[i];
 		}
 	}
-	*eclass = ERRHRD;
-	*ecode = ERRgeneral;
+
+	return NULL;
 }
 
 int
@@ -172,11 +150,20 @@ map_smb_to_linux_error(char *buf, bool logErr)
 		/* translate the newer STATUS codes to old style SMB errors
 		 * and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		if (logErr && (err != (NT_STATUS_MORE_PROCESSING_REQUIRED)))
-			cifs_print_status(err);
-		else if (cifsFYI & CIFS_RC)
-			cifs_print_status(err);
-		ntstatus_to_dos(err, &smberrclass, &smberrcode);
+		const struct ntstatus_to_dos_err *map = ntstatus_to_dos(err);
+
+		if (map) {
+			if ((logErr && err != NT_STATUS_MORE_PROCESSING_REQUIRED) ||
+			    (cifsFYI & CIFS_RC))
+				pr_notice("Status code returned 0x%08x %s\n",
+					  map->ntstatus, map->nt_errstr);
+
+			smberrclass = map->dos_class;
+			smberrcode = map->dos_code;
+		} else {
+			smberrclass = ERRHRD;
+			smberrcode = ERRgeneral;
+		}
 	} else {
 		smberrclass = smb->Status.DosError.ErrorClass;
 		smberrcode = le16_to_cpu(smb->Status.DosError.Error);
