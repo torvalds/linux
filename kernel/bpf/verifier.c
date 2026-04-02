@@ -2804,39 +2804,55 @@ static void reg_bounds_sync(struct bpf_reg_state *reg)
 	__update_reg_bounds(reg);
 }
 
+static bool range_bounds_violation(struct bpf_reg_state *reg)
+{
+	return (reg->umin_value > reg->umax_value || reg->smin_value > reg->smax_value ||
+		reg->u32_min_value > reg->u32_max_value ||
+		reg->s32_min_value > reg->s32_max_value);
+}
+
+static bool const_tnum_range_mismatch(struct bpf_reg_state *reg)
+{
+	u64 uval = reg->var_off.value;
+	s64 sval = (s64)uval;
+
+	if (!tnum_is_const(reg->var_off))
+		return false;
+
+	return reg->umin_value != uval || reg->umax_value != uval ||
+	       reg->smin_value != sval || reg->smax_value != sval;
+}
+
+static bool const_tnum_range_mismatch_32(struct bpf_reg_state *reg)
+{
+	u32 uval32 = tnum_subreg(reg->var_off).value;
+	s32 sval32 = (s32)uval32;
+
+	if (!tnum_subreg_is_const(reg->var_off))
+		return false;
+
+	return reg->u32_min_value != uval32 || reg->u32_max_value != uval32 ||
+	       reg->s32_min_value != sval32 || reg->s32_max_value != sval32;
+}
+
 static int reg_bounds_sanity_check(struct bpf_verifier_env *env,
 				   struct bpf_reg_state *reg, const char *ctx)
 {
 	const char *msg;
 
-	if (reg->umin_value > reg->umax_value ||
-	    reg->smin_value > reg->smax_value ||
-	    reg->u32_min_value > reg->u32_max_value ||
-	    reg->s32_min_value > reg->s32_max_value) {
-		    msg = "range bounds violation";
-		    goto out;
+	if (range_bounds_violation(reg)) {
+		msg = "range bounds violation";
+		goto out;
 	}
 
-	if (tnum_is_const(reg->var_off)) {
-		u64 uval = reg->var_off.value;
-		s64 sval = (s64)uval;
-
-		if (reg->umin_value != uval || reg->umax_value != uval ||
-		    reg->smin_value != sval || reg->smax_value != sval) {
-			msg = "const tnum out of sync with range bounds";
-			goto out;
-		}
+	if (const_tnum_range_mismatch(reg)) {
+		msg = "const tnum out of sync with range bounds";
+		goto out;
 	}
 
-	if (tnum_subreg_is_const(reg->var_off)) {
-		u32 uval32 = tnum_subreg(reg->var_off).value;
-		s32 sval32 = (s32)uval32;
-
-		if (reg->u32_min_value != uval32 || reg->u32_max_value != uval32 ||
-		    reg->s32_min_value != sval32 || reg->s32_max_value != sval32) {
-			msg = "const subreg tnum out of sync with range bounds";
-			goto out;
-		}
+	if (const_tnum_range_mismatch_32(reg)) {
+		msg = "const subreg tnum out of sync with range bounds";
+		goto out;
 	}
 
 	return 0;
