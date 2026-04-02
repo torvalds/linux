@@ -170,7 +170,8 @@ static int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
 	int retry_loop;
 
 	/* For a reset done at the end of S3, only wait for TOS to be unloaded */
-	if (adev->in_s3 && !(adev->flags & AMD_IS_APU) && amdgpu_in_reset(adev))
+	if ((adev->in_s4 || adev->in_s3) && !(adev->flags & AMD_IS_APU) &&
+	    amdgpu_in_reset(adev))
 		return psp_v11_wait_for_tos_unload(psp);
 
 	for (retry_loop = 0; retry_loop < 20; retry_loop++) {
