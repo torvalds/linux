@@ -766,29 +766,6 @@ static struct ata_internal ata_transport_internal = {
  * Setup / Teardown code
  */
 
-/**
- * ata_attach_transport  --  instantiate ATA transport template
- */
-struct scsi_transport_template *ata_attach_transport(void)
-{
-	transport_container_register(&ata_transport_internal.t.host_attrs);
-	transport_container_register(&ata_transport_internal.link_attr_cont);
-	transport_container_register(&ata_transport_internal.dev_attr_cont);
-
-	return &ata_transport_internal.t;
-}
-
-/**
- * ata_release_transport  --  release ATA transport template instance
- * @t:		transport template instance
- */
-void ata_release_transport(void)
-{
-	transport_container_unregister(&ata_transport_internal.t.host_attrs);
-	transport_container_unregister(&ata_transport_internal.link_attr_cont);
-	transport_container_unregister(&ata_transport_internal.dev_attr_cont);
-}
-
 __init int libata_transport_init(void)
 {
 	int error;
@@ -802,6 +779,13 @@ __init int libata_transport_init(void)
 	error = transport_class_register(&ata_dev_class);
 	if (error)
 		goto out_unregister_port;
+
+	transport_container_register(&ata_transport_internal.t.host_attrs);
+	transport_container_register(&ata_transport_internal.link_attr_cont);
+	transport_container_register(&ata_transport_internal.dev_attr_cont);
+
+	ata_scsi_transport_template = &ata_transport_internal.t;
+
 	return 0;
 
  out_unregister_port:
@@ -815,6 +799,10 @@ __init int libata_transport_init(void)
 
 void __exit libata_transport_exit(void)
 {
+	transport_container_unregister(&ata_transport_internal.t.host_attrs);
+	transport_container_unregister(&ata_transport_internal.link_attr_cont);
+	transport_container_unregister(&ata_transport_internal.dev_attr_cont);
+
 	transport_class_unregister(&ata_link_class);
 	transport_class_unregister(&ata_port_class);
 	transport_class_unregister(&ata_dev_class);

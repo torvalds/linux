@@ -6778,7 +6778,6 @@ static int __init ata_init(void)
 	}
 
 	libata_transport_init();
-	ata_scsi_transport_template = ata_attach_transport();
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 
@@ -6787,7 +6786,6 @@ static int __init ata_init(void)
 
 static void __exit ata_exit(void)
 {
-	ata_release_transport();
 	libata_transport_exit();
 	ata_sff_exit();
 	ata_free_force_param();
