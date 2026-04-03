@@ -954,9 +954,9 @@ int __init early_init_dt_scan_chosen_stdout(void)
 	if (offset < 0)
 		return -ENOENT;
 
-	p = fdt_getprop(fdt, offset, "stdout-path", &l);
+	p = fdt_stringlist_get(fdt, offset, "stdout-path", 0, &l);
 	if (!p)
-		p = fdt_getprop(fdt, offset, "linux,stdout-path", &l);
+		p = fdt_stringlist_get(fdt, offset, "linux,stdout-path", 0, &l);
 	if (!p || !l)
 		return -ENOENT;
 
