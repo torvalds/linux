@@ -980,10 +980,12 @@ static int onyx_i2c_probe(struct i2c_client *client)
 	onyx->codec.node = of_node_get(node);
 
 	if (aoa_codec_register(&onyx->codec)) {
-		goto fail;
+		goto fail_put;
 	}
 	printk(KERN_DEBUG PFX "created and attached onyx instance\n");
 	return 0;
+ fail_put:
+	of_node_put(onyx->codec.node);
  fail:
 	kfree(onyx);
 	return -ENODEV;
