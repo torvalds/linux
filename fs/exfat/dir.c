@@ -490,6 +490,7 @@ void exfat_init_ext_entry(struct exfat_entry_set_cache *es, int num_entries,
 	unsigned short *uniname = p_uniname->name;
 	struct exfat_dentry *ep;
 
+	es->num_entries = num_entries;
 	ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
 	ep->dentry.file.num_ext = (unsigned char)(num_entries - 1);
 
