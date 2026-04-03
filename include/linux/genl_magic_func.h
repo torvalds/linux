@@ -149,7 +149,8 @@ static int __ ## s_name ## _from_attrs(struct s_name *s,		\
 	if (!tla)							\
 		return -ENOMSG;						\
 	DPRINT_TLA(#s_name, "<=-", #tag_name);				\
-	err = drbd_nla_parse_nested(ntb, maxtype, tla, s_name ## _nl_policy);	\
+	err = nla_parse_nested_deprecated(ntb, maxtype, tla,			\
+					  s_name ## _nl_policy, NULL);	\
 	if (err)							\
 		return err;						\
 									\

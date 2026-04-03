@@ -74,7 +74,6 @@ int drbd_adm_dump_peer_devices_done(struct netlink_callback *cb);
 int drbd_adm_get_initial_state(struct sk_buff *skb, struct netlink_callback *cb);
 
 #include <linux/drbd_genl_api.h>
-#include "drbd_nla.h"
 
 static int drbd_pre_doit(const struct genl_split_ops *ops,
 			 struct sk_buff *skb, struct genl_info *info);
@@ -239,14 +238,14 @@ static int drbd_adm_prepare(struct drbd_config_context *adm_ctx,
 			goto fail;
 
 		/* and assign stuff to the adm_ctx */
-		nla = nested_attr_tb[__nla_type(T_ctx_volume)];
+		nla = nested_attr_tb[T_ctx_volume];
 		if (nla)
 			adm_ctx->volume = nla_get_u32(nla);
-		nla = nested_attr_tb[__nla_type(T_ctx_resource_name)];
+		nla = nested_attr_tb[T_ctx_resource_name];
 		if (nla)
 			adm_ctx->resource_name = nla_data(nla);
-		adm_ctx->my_addr = nested_attr_tb[__nla_type(T_ctx_my_addr)];
-		adm_ctx->peer_addr = nested_attr_tb[__nla_type(T_ctx_peer_addr)];
+		adm_ctx->my_addr = nested_attr_tb[T_ctx_my_addr];
+		adm_ctx->peer_addr = nested_attr_tb[T_ctx_peer_addr];
 		if ((adm_ctx->my_addr &&
 		     nla_len(adm_ctx->my_addr) > sizeof(adm_ctx->connection->my_addr)) ||
 		    (adm_ctx->peer_addr &&
@@ -825,7 +824,6 @@ out:
 static const char *from_attrs_err_to_txt(int err)
 {
 	return	err == -ENOMSG ? "required attribute missing" :
-		err == -EOPNOTSUPP ? "unknown mandatory attribute" :
 		err == -EEXIST ? "can not change invariant setting" :
 		"invalid attribute value";
 }
@@ -3303,14 +3301,13 @@ nla_put_failure:
 static struct nlattr *find_cfg_context_attr(const struct nlmsghdr *nlh, int attr)
 {
 	const unsigned hdrlen = GENL_HDRLEN + GENL_MAGIC_FAMILY_HDRSZ;
-	const int maxtype = ARRAY_SIZE(drbd_cfg_context_nl_policy) - 1;
 	struct nlattr *nla;
 
 	nla = nla_find(nlmsg_attrdata(nlh, hdrlen), nlmsg_attrlen(nlh, hdrlen),
 		       DRBD_NLA_CFG_CONTEXT);
 	if (!nla)
 		return NULL;
-	return drbd_nla_find_nested(maxtype, nla, __nla_type(attr));
+	return nla_find_nested(nla, attr);
 }
 
 static void resource_to_info(struct resource_info *, struct drbd_resource *);
@@ -4068,7 +4065,6 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nlattr *nla;
 	const char *resource_name;
 	struct drbd_resource *resource;
-	int maxtype;
 
 	/* Is this a followup call? */
 	if (cb->args[0]) {
@@ -4088,10 +4084,7 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	/* No explicit context given.  Dump all. */
 	if (!nla)
 		goto dump;
-	maxtype = ARRAY_SIZE(drbd_cfg_context_nl_policy) - 1;
-	nla = drbd_nla_find_nested(maxtype, nla, __nla_type(T_ctx_resource_name));
-	if (IS_ERR(nla))
-		return PTR_ERR(nla);
+	nla = nla_find_nested(nla, T_ctx_resource_name);
 	/* context given, but no name present? */
 	if (!nla)
 		return -EINVAL;
