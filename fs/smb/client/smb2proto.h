@@ -14,7 +14,6 @@
 #include <linux/key-type.h>
 #include "cached_dir.h"
 
-struct statfs;
 struct smb_rqst;
 
 /*
@@ -24,6 +23,12 @@ struct smb_rqst;
  */
 int map_smb2_to_linux_error(char *buf, bool log_err);
 int smb2_init_maperror(void);
+#if IS_ENABLED(CONFIG_SMB_KUNIT_TESTS)
+const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status);
+extern const struct status_to_posix_error *smb2_error_map_table_test;
+extern unsigned int smb2_error_map_num;
+#endif
+
 int smb2_check_message(char *buf, unsigned int pdu_len, unsigned int len,
 		       struct TCP_Server_Info *server);
 unsigned int smb2_calc_size(void *buf);

@@ -112,9 +112,6 @@ int __init smb2_init_maperror(void)
 #define EXPORT_SYMBOL_FOR_SMB_TEST(sym) \
 	EXPORT_SYMBOL_FOR_MODULES(sym, "smb2maperror_test")
 
-/* Previous prototype for eliminating the build warning. */
-const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status);
-
 const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status)
 {
 	return smb2_get_err_map(smb2_status);

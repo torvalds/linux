@@ -9,11 +9,9 @@
  */
 
 #include <kunit/test.h>
+#include "cifsglob.h"
 #include "smb2glob.h"
-
-const struct status_to_posix_error *smb2_get_err_map_test(__u32 smb2_status);
-extern const struct status_to_posix_error *smb2_error_map_table_test;
-extern unsigned int smb2_error_map_num;
+#include "smb2proto.h"
 
 static void
 test_cmp_map(struct kunit *test, const struct status_to_posix_error *expect)
