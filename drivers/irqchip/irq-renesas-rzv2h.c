@@ -755,10 +755,6 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 {
 	const struct rzv2h_hw_info *hw_info = rzv2h_icu_data->info;
 	bool irq_inject = IS_ENABLED(CONFIG_GENERIC_IRQ_INJECTION);
-	static const char * const rzv2h_swint_names[] = {
-		"int-ca55-0", "int-ca55-1",
-		"int-ca55-2", "int-ca55-3",
-	};
 	static const char *icu_err = "icu-error-ca55";
 	void __iomem *base = rzv2h_icu_data->base;
 	struct device *dev = &pdev->dev;
@@ -774,16 +770,14 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 
 		virq = irq_create_fwspec_mapping(&fwspec);
 		if (!virq) {
-			return dev_err_probe(dev, -EINVAL, "failed to create IRQ mapping for %s\n",
-					     rzv2h_swint_names[i]);
+			return dev_err_probe(dev, -EINVAL,
+					     "failed to create int-ca55-%u IRQ mapping\n", i);
 		}
 
 		ret = devm_request_irq(dev, virq, rzv2h_icu_swint_irq, 0, dev_name(dev),
 				       (void *)(uintptr_t)i);
-		if (ret) {
-			return dev_err_probe(dev, ret, "Failed to request %s IRQ\n",
-					     rzv2h_swint_names[i]);
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to request int-ca55-%u IRQ\n", i);
 	}
 
 	/* Unmask and clear all IP/CA55 error interrupts */
