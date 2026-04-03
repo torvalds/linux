@@ -82,6 +82,9 @@ struct page_pool;
 
 #define MLX5E_PAGECNT_BIAS_MAX U16_MAX
 #define MLX5E_RX_MAX_HEAD (256)
+#define MLX5E_XDP_LOG_MAX_LINEAR_SZ \
+	order_base_2(MLX5_SKB_FRAG_SZ(XDP_PACKET_HEADROOM + MLX5E_RX_MAX_HEAD))
+
 #define MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE (8)
 #define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE \
 	(PAGE_SIZE >> MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE)
@@ -596,6 +599,7 @@ struct mlx5e_mpw_info {
 
 struct mlx5e_mpw_linear_info {
 	struct mlx5e_frag_page frag_page;
+	u16 max_frags;
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
@@ -1080,6 +1084,8 @@ bool mlx5e_reset_rx_moderation(struct dim_cq_moder *cq_moder, u8 cq_period_mode,
 			       bool dim_enabled);
 bool mlx5e_reset_rx_channels_moderation(struct mlx5e_channels *chs, u8 cq_period_mode,
 					bool dim_enabled, bool keep_dim_state);
+
+void mlx5e_mpwqe_dealloc_linear_page(struct mlx5e_rq *rq);
 
 struct mlx5e_sq_param;
 int mlx5e_open_xdpsq(struct mlx5e_channel *c, struct mlx5e_params *params,
