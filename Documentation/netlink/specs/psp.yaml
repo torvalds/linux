@@ -267,6 +267,14 @@ operations:
             - dev-id
             - key-rotations
             - stale-events
+            - rx-packets
+            - rx-bytes
+            - rx-auth-fail
+            - rx-error
+            - rx-bad
+            - tx-packets
+            - tx-bytes
+            - tx-error
         pre: psp-device-get-locked
         post: psp-device-unlock
       dump:
