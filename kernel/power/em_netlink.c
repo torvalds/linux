@@ -109,6 +109,8 @@ int dev_energymodel_nl_get_perf_domains_doit(struct sk_buff *skb,
 
 	id = nla_get_u32(info->attrs[DEV_ENERGYMODEL_A_PERF_DOMAIN_PERF_DOMAIN_ID]);
 	pd = em_perf_domain_get_by_id(id);
+	if (!pd)
+		return -EINVAL;
 
 	__em_nl_get_pd_size(pd, &msg_sz);
 	msg = genlmsg_new(msg_sz, GFP_KERNEL);
