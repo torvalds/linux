@@ -105,17 +105,17 @@ static int __init riscv_kvm_init(void)
 		return rc;
 
 	kvm_riscv_gstage_mode_detect();
-	switch (kvm_riscv_gstage_mode) {
-	case HGATP_MODE_SV32X4:
+	switch (kvm_riscv_gstage_max_pgd_levels) {
+	case 2:
 		str = "Sv32x4";
 		break;
-	case HGATP_MODE_SV39X4:
+	case 3:
 		str = "Sv39x4";
 		break;
-	case HGATP_MODE_SV48X4:
+	case 4:
 		str = "Sv48x4";
 		break;
-	case HGATP_MODE_SV57X4:
+	case 5:
 		str = "Sv57x4";
 		break;
 	default:
@@ -164,7 +164,7 @@ static int __init riscv_kvm_init(void)
 			 (rc) ? slist : "no features");
 	}
 
-	kvm_info("using %s G-stage page table format\n", str);
+	kvm_info("highest G-stage page table mode is %s\n", str);
 
 	kvm_info("VMID %ld bits available\n", kvm_riscv_gstage_vmid_bits());
 

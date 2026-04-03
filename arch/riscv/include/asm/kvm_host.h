@@ -83,6 +83,7 @@ struct kvm_arch {
 	/* G-stage page table */
 	pgd_t *pgd;
 	phys_addr_t pgd_phys;
+	unsigned long pgd_levels;
 
 	/* Guest Timer */
 	struct kvm_guest_timer timer;
