@@ -17207,9 +17207,10 @@ F:	Documentation/devicetree/bindings/media/microchip,csi2dc.yaml
 F:	drivers/media/platform/microchip/microchip-csi2dc.c
 
 MICROCHIP ECC DRIVER
+M:	Thorsten Blum <thorsten.blum@linux.dev>
 L:	linux-crypto@vger.kernel.org
-S:	Orphan
-F:	drivers/crypto/atmel-ecc.*
+S:	Maintained
+F:	drivers/crypto/atmel-ecc.c
 
 MICROCHIP EIC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
