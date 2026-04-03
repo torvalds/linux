@@ -36,12 +36,10 @@ Requirements for GPIO Properties
 When using software nodes to describe GPIO connections, the following
 requirements must be met for the GPIO core to correctly resolve the reference:
 
-1.  **The GPIO controller's software node "name" must match the controller's
-    "label".** The gpiolib core uses this name to find the corresponding
-    struct gpio_chip at runtime.
-    This software node has to be registered, but need not be attached to the
-    device representing the GPIO controller that is providing the GPIO in
-    question. It may be left as a "free floating" node.
+1.  **The GPIO controller's software node must be registered and attached to
+    the controller's ``struct device`` either as its primary or secondary
+    firmware node.** The gpiolib core uses the address of the firmware node to
+    find the corresponding ``struct gpio_chip`` at runtime.
 
 2.  **The GPIO property must be a reference.** The ``PROPERTY_ENTRY_GPIO()``
     macro handles this as it is an alias for ``PROPERTY_ENTRY_REF()``.
@@ -121,13 +119,21 @@ A typical legacy board file might look like this:
   /* Device registration */
   static int __init myboard_init(void)
   {
+  	struct platform_device_info pdev_info = {
+  		.name = MYBOARD_GPIO_CONTROLLER,
+  		.id = PLATFORM_DEVID_NONE,
+  		.swnode = &gpio_controller_node
+  	};
+
   	gpiod_add_lookup_table(&myboard_leds_gpios);
   	gpiod_add_lookup_table(&myboard_buttons_gpios);
 
+  	platform_device_register_full(&pdev_info);
   	platform_device_register_data(NULL, "leds-gpio", -1,
   				      &myboard_leds_pdata, sizeof(myboard_leds_pdata));
   	platform_device_register_data(NULL, "gpio-keys", -1,
-  				      &myboard_buttons_pdata, sizeof(myboard_buttons_pdata));
+  				      &myboard_buttons_pdata,
+  				      sizeof(myboard_buttons_pdata));
 
   	return 0;
   }
@@ -141,8 +147,7 @@ Step 1: Define the GPIO Controller Node
 ***************************************
 
 First, define a software node that represents the GPIO controller that the
-LEDs and buttons are connected to. The ``name`` of this node must match the
-name of the driver for the GPIO controller (e.g., "gpio-foo").
+LEDs and buttons are connected to. The ``name`` of this node is optional.
 
 .. code-block:: c
 
@@ -258,12 +263,23 @@ software nodes using the ``fwnode`` field in struct platform_device_info.
   		return error;
 
   	memset(&pdev_info, 0, sizeof(pdev_info));
+  	pdev_info.name = MYBOARD_GPIO_CONTROLLER;
+  	pdev_info.id = PLATFORM_DEVID_NONE;
+  	pdev_info.swnode = &myboard_gpio_controller_node;
+  	gpio_pdev = platform_device_register_full(&pdev_info);
+  	if (IS_ERR(gpio_pdev)) {
+  		error = PTR_ERR(gpio_pdev);
+  		goto err_unregister_nodes;
+  	}
+
+  	memset(&pdev_info, 0, sizeof(pdev_info));
   	pdev_info.name = "leds-gpio";
   	pdev_info.id = PLATFORM_DEVID_NONE;
   	pdev_info.fwnode = software_node_fwnode(&myboard_leds_node);
   	leds_pdev = platform_device_register_full(&pdev_info);
   	if (IS_ERR(leds_pdev)) {
   		error = PTR_ERR(leds_pdev);
+  		platform_device_unregister(gpio_pdev);
   		goto err_unregister_nodes;
   	}
 
@@ -274,6 +290,7 @@ software nodes using the ``fwnode`` field in struct platform_device_info.
   	keys_pdev = platform_device_register_full(&pdev_info);
   	if (IS_ERR(keys_pdev)) {
   		error = PTR_ERR(keys_pdev);
+  		platform_device_unregister(gpio_pdev);
   		platform_device_unregister(leds_pdev);
   		goto err_unregister_nodes;
   	}
@@ -289,6 +306,7 @@ software nodes using the ``fwnode`` field in struct platform_device_info.
   {
   	platform_device_unregister(keys_pdev);
   	platform_device_unregister(leds_pdev);
+  	platform_device_unregister(gpio_pdev);
   	software_node_unregister_node_group(myboard_swnodes);
   }
 
