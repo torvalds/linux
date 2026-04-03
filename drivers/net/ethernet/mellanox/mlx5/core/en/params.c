@@ -298,12 +298,9 @@ static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5_core_dev *mdev,
 	 * no_head_tail_room should be set in the case of XDP with Striding RQ
 	 * when SKB is not linear. This is because another page is allocated for the linear part.
 	 */
-	sz = roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, no_head_tail_room));
+	sz = mlx5e_rx_get_linear_sz_skb(params, no_head_tail_room);
 
-	/* XDP in mlx5e doesn't support multiple packets per page.
-	 * Do not assume sz <= PAGE_SIZE if params->xdp_prog is set.
-	 */
-	return params->xdp_prog && sz < PAGE_SIZE ? PAGE_SIZE : sz;
+	return roundup_pow_of_two(sz);
 }
 
 static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5_core_dev *mdev,
@@ -452,10 +449,6 @@ u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, rqo))
 		return order_base_2(mlx5e_rx_get_linear_stride_sz(mdev, params,
 								  rqo, true));
-
-	/* XDP in mlx5e doesn't support multiple packets per page. */
-	if (params->xdp_prog)
-		return PAGE_SHIFT;
 
 	return MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev);
 }
