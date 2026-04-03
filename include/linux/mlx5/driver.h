@@ -550,7 +550,7 @@ struct mlx5_debugfs_entries {
 };
 
 enum mlx5_func_type {
-	MLX5_PF,
+	MLX5_SELF,
 	MLX5_VF,
 	MLX5_SF,
 	MLX5_HOST_PF,
