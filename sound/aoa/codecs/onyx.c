@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <sound/asoundef.h>
 MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("pcm3052 (onyx) codec driver for snd-aoa");
@@ -514,8 +515,36 @@ static int onyx_spdif_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int onyx_set_spdif_pcm_rate(struct onyx *onyx, unsigned int rate)
+{
+	u8 dig_info3, fs;
+
+	switch (rate) {
+	case 32000:
+		fs = IEC958_AES3_CON_FS_32000;
+		break;
+	case 44100:
+		fs = IEC958_AES3_CON_FS_44100;
+		break;
+	case 48000:
+		fs = IEC958_AES3_CON_FS_48000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (onyx_read_register(onyx, ONYX_REG_DIG_INFO3, &dig_info3))
+		return -EBUSY;
+	dig_info3 = (dig_info3 & ~IEC958_AES3_CON_FS) | fs;
+	if (onyx_write_register(onyx, ONYX_REG_DIG_INFO3, dig_info3))
+		return -EBUSY;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new onyx_spdif_ctrl = {
-	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.info =		onyx_spdif_info,
@@ -695,9 +724,9 @@ static int onyx_prepare(struct codec_info_item *cii,
 	case 32000:
 	case 44100:
 	case 48000:
-		/* these rates are ok for all outputs */
-		/* FIXME: program spdif channel control bits here so that
-		 *	  userspace doesn't have to if it only plays pcm! */
+		if (onyx->codec.connected & 2)
+			return onyx_set_spdif_pcm_rate(onyx,
+						       substream->runtime->rate);
 		return 0;
 	default:
 		/* got some rate that the digital output can't do,
