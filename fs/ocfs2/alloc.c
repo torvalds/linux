@@ -917,11 +917,32 @@ static int ocfs2_validate_extent_block(struct super_block *sb,
 		goto bail;
 	}
 
-	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation)
+	if (le32_to_cpu(eb->h_fs_generation) != OCFS2_SB(sb)->fs_generation) {
 		rc = ocfs2_error(sb,
 				 "Extent block #%llu has an invalid h_fs_generation of #%u\n",
 				 (unsigned long long)bh->b_blocknr,
 				 le32_to_cpu(eb->h_fs_generation));
+		goto bail;
+	}
+
+	if (le16_to_cpu(eb->h_list.l_count) != ocfs2_extent_recs_per_eb(sb)) {
+		rc = ocfs2_error(sb,
+				 "Extent block #%llu has invalid l_count %u (expected %u)\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le16_to_cpu(eb->h_list.l_count),
+				 ocfs2_extent_recs_per_eb(sb));
+		goto bail;
+	}
+
+	if (le16_to_cpu(eb->h_list.l_next_free_rec) > le16_to_cpu(eb->h_list.l_count)) {
+		rc = ocfs2_error(sb,
+				 "Extent block #%llu has invalid l_next_free_rec %u (l_count %u)\n",
+				 (unsigned long long)bh->b_blocknr,
+				 le16_to_cpu(eb->h_list.l_next_free_rec),
+				 le16_to_cpu(eb->h_list.l_count));
+		goto bail;
+	}
+
 bail:
 	return rc;
 }
