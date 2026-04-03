@@ -720,19 +720,18 @@ int hfsplus_cat_write_inode(struct inode *inode)
 					 sizeof(struct hfsplus_cat_file));
 	}
 
+	res = hfs_btree_write(tree);
+	if (res) {
+		pr_err("b-tree write err: %d, ino %lu\n",
+		       res, inode->i_ino);
+		goto out;
+	}
+
 	set_bit(HFSPLUS_I_CAT_DIRTY,
 		&HFSPLUS_I(HFSPLUS_CAT_TREE_I(inode->i_sb))->flags);
 	set_bit(HFSPLUS_I_CAT_DIRTY, &HFSPLUS_I(inode)->flags);
 out:
 	hfs_find_exit(&fd);
-
-	if (!res) {
-		res = hfs_btree_write(tree);
-		if (res) {
-			pr_err("b-tree write err: %d, ino %lu\n",
-			       res, inode->i_ino);
-		}
-	}
 
 	return res;
 }
