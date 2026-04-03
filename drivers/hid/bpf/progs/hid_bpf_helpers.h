@@ -9,6 +9,16 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include <linux/errno.h>
+#include "hid_report_descriptor_helpers.h"
+
+/* Compiler attributes */
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((__unused__))
+#endif
 
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
 			      unsigned int offset,
@@ -329,5 +339,131 @@ DEFINE_GUARD(bpf_spin, struct bpf_spin_lock, bpf_spin_lock, bpf_spin_unlock);
 #define hid_bpf_cpu_to_be16(x)	bpf_htons(x)
 #define hid_bpf_cpu_to_be32(x)	bpf_htonl(x)
 #define hid_bpf_cpu_to_be64(x)	bpf_cpu_to_be64(x)
+
+static inline __maybe_unused __u16 field_start_byte(struct hid_rdesc_field *field)
+{
+	return field->bits_start / 8;
+}
+
+static inline __maybe_unused __u16 field_end_byte(struct hid_rdesc_field *field)
+{
+	if (!field->bits_end)
+		return 0;
+
+	return (__u16)(field->bits_end - 1) / 8;
+}
+
+static __maybe_unused __u32 extract_bits(__u8 *buffer, const size_t size, struct hid_rdesc_field *field)
+{
+	__s32 nbits = field->bits_end - field->bits_start;
+	__u32 start = field_start_byte(field);
+	__u32 end = field_end_byte(field);
+	__u8 base_shift = field->bits_start % 8;
+
+	if (nbits <= 0 || nbits > 32 || start >= size || end >= size)
+		return 0;
+
+	/* Fast path for byte-aligned standard-sized reads */
+	if (base_shift == 0) {
+		/* 8-bit aligned read */
+		if (nbits == 8 && start < size)
+			return buffer[start];
+
+		/* 16-bit aligned read - use separate variables for verifier */
+		if (nbits == 16) {
+			__u32 off0 = start;
+			__u32 off1 = start + 1;
+
+			if (off0 < size && off1 < size) {
+				return buffer[off0] |
+				       ((__u32)buffer[off1] << 8);
+			}
+		}
+
+		/* 32-bit aligned read - use separate variables for verifier */
+		if (nbits == 32) {
+			__u32 off0 = start;
+			__u32 off1 = start + 1;
+			__u32 off2 = start + 2;
+			__u32 off3 = start + 3;
+
+			if (off0 < size && off1 < size &&
+			    off2 < size && off3 < size) {
+				return buffer[off0] |
+				       ((__u32)buffer[off1] << 8) |
+				       ((__u32)buffer[off2] << 16) |
+				       ((__u32)buffer[off3] << 24);
+			}
+		}
+	}
+
+	/* General case: bit manipulation for unaligned or non-standard sizes */
+	int mask = 0xffffffff >> (32 - nbits);
+	__u64 value = 0;
+	__u32 i;
+
+	bpf_for (i, start, end + 1) {
+		value |= (__u64)buffer[i] << ((i - start) * 8);
+	}
+
+	return (value >> base_shift) & mask;
+}
+
+#define EXTRACT_BITS(buffer, field) extract_bits(buffer, sizeof(buffer), field)
+
+/* Base macro for iterating over HID arrays with bounds checking.
+ * Follows the bpf_for pattern from libbpf.
+ */
+#define __hid_bpf_for_each_array(array, num_elements, max_elements, var)              \
+	for (                                                                          \
+		/* initialize and define destructor */                                 \
+		struct bpf_iter_num ___it __attribute__((aligned(8),                   \
+							 cleanup(bpf_iter_num_destroy))),      \
+		/* ___p pointer is necessary to call bpf_iter_num_new() *once* */      \
+				    *___p __attribute__((unused)) = (                  \
+			/* always initialize iterator; if bounds fail, iterate 0 times */ \
+			bpf_iter_num_new(&___it, 0,                                    \
+					 (num_elements) > (max_elements) ?             \
+						0 : (num_elements)),                   \
+			/* workaround for Clang bug */                                 \
+			(void)bpf_iter_num_destroy, (void *)0);                        \
+		({                                                                     \
+			/* iteration step */                                           \
+			int *___t = bpf_iter_num_next(&___it);                         \
+			int ___i;                                                      \
+			/* termination and bounds check, assign var */                 \
+			(___t && (___i = *___t, ___i >= 0 && ___i < (num_elements)) && \
+			 ((num_elements) <= (max_elements)) &&                         \
+			 (var = &(array)[___i], 1));                                   \
+		});                                                                    \
+	)
+
+/* Iterate over input reports in a descriptor */
+#define hid_bpf_for_each_input_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->input_reports, \
+				 (descriptor)->num_input_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over feature reports in a descriptor */
+#define hid_bpf_for_each_feature_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->feature_reports, \
+				 (descriptor)->num_feature_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over output reports in a descriptor */
+#define hid_bpf_for_each_output_report(descriptor, report_var) \
+	__hid_bpf_for_each_array((descriptor)->output_reports, \
+				 (descriptor)->num_output_reports, \
+				 HID_MAX_REPORTS, report_var)
+
+/* Iterate over fields in a report */
+#define hid_bpf_for_each_field(report, field_var) \
+	__hid_bpf_for_each_array((report)->fields, (report)->num_fields, \
+				 HID_MAX_FIELDS, field_var)
+
+/* Iterate over collections in a field */
+#define hid_bpf_for_each_collection(field, collection_var) \
+	__hid_bpf_for_each_array((field)->collections, (field)->num_collections, \
+				 HID_MAX_COLLECTIONS, collection_var)
 
 #endif /* __HID_BPF_HELPERS_H */
