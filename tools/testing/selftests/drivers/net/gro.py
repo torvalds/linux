@@ -11,6 +11,7 @@ coalescing behavior.
 Test cases:
   - data_same: Same size data packets coalesce
   - data_lrg_sml: Large packet followed by smaller one coalesces
+  - data_lrg_1byte: Large packet followed by 1B one coalesces (Ethernet padding)
   - data_sml_lrg: Small packet followed by larger one doesn't coalesce
   - ack: Pure ACK packets do not coalesce
   - flags_psh: Packets with PSH flag don't coalesce
@@ -289,7 +290,8 @@ def _gro_variants():
 
     # Tests that work for all protocols
     common_tests = [
-        "data_same", "data_lrg_sml", "data_sml_lrg",
+        "data_same", "data_lrg_sml", "data_sml_lrg", "data_lrg_1byte",
+        "data_burst",
         "ack",
         "flags_psh", "flags_syn", "flags_rst", "flags_urg", "flags_cwr",
         "tcp_csum", "tcp_seq", "tcp_ts", "tcp_opt",
@@ -299,6 +301,7 @@ def _gro_variants():
 
     # Tests specific to IPv4
     ipv4_tests = [
+        "ip_csum",
         "ip_ttl", "ip_opt", "ip_frag4",
         "ip_id_df1_inc", "ip_id_df1_fixed",
         "ip_id_df0_inc", "ip_id_df0_fixed",
@@ -311,7 +314,7 @@ def _gro_variants():
     ]
 
     for mode in ["sw", "hw", "lro"]:
-        for protocol in ["ipv4", "ipv6", "ipip"]:
+        for protocol in ["ipv4", "ipv6", "ipip", "ip6ip6"]:
             for test_name in common_tests:
                 yield mode, protocol, test_name
 
