@@ -455,7 +455,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "the call stack of 9 frames is too deep",
+	.errstr = "recursive call",
 	.result = REJECT,
 },
 {
@@ -812,7 +812,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "the call stack of 9 frames is too deep",
+	.errstr = "recursive call",
 	.result = REJECT,
 },
 {
@@ -824,7 +824,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "the call stack of 9 frames is too deep",
+	.errstr = "recursive call",
 	.result = REJECT,
 },
 {
