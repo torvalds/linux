@@ -70,6 +70,10 @@ struct sifive_fu540_macb_mgmt {
 #define MACB_TX_INT_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(TCOMP)	\
 					| MACB_BIT(TXUBR))
 
+#define MACB_INT_MISC_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(RXUBR) | \
+				 MACB_BIT(ISR_ROVR) | MACB_BIT(HRESP) | \
+				 GEM_BIT(WOL) | MACB_BIT(WOL))
+
 /* Max length of transmit frame must be a multiple of 8 bytes */
 #define MACB_TX_LEN_ALIGN	8
 #define MACB_MAX_TX_LEN		((unsigned int)((1 << MACB_TX_FRMLEN_SIZE) - 1) & ~((unsigned int)(MACB_TX_LEN_ALIGN - 1)))
@@ -1887,8 +1891,7 @@ static int macb_rx_poll(struct napi_struct *napi, int budget)
 		 */
 		if (macb_rx_pending(queue)) {
 			queue_writel(queue, IDR, bp->rx_intr_mask);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RCOMP));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(RCOMP));
 			netdev_vdbg(bp->dev, "poll: packets pending, reschedule\n");
 			napi_schedule(napi);
 		}
@@ -1975,8 +1978,7 @@ static int macb_tx_poll(struct napi_struct *napi, int budget)
 		 */
 		if (macb_tx_complete_pending(queue)) {
 			queue_writel(queue, IDR, MACB_BIT(TCOMP));
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(TCOMP));
+			macb_queue_isr_clear(bp, queue, MACB_BIT(TCOMP));
 			netdev_vdbg(bp->dev, "TX poll: packets pending, reschedule\n");
 			napi_schedule(napi);
 		}
@@ -2024,62 +2026,92 @@ static void macb_hresp_error_task(struct work_struct *work)
 	netif_tx_start_all_queues(dev);
 }
 
-static irqreturn_t macb_wol_interrupt(int irq, void *dev_id)
+static void macb_wol_interrupt(struct macb_queue *queue, u32 status)
 {
-	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
-	u32 status;
 
-	status = queue_readl(queue, ISR);
-
-	if (unlikely(!status))
-		return IRQ_NONE;
-
-	spin_lock(&bp->lock);
-
-	if (status & MACB_BIT(WOL)) {
-		queue_writel(queue, IDR, MACB_BIT(WOL));
-		macb_writel(bp, WOL, 0);
-		netdev_vdbg(bp->dev, "MACB WoL: queue = %u, isr = 0x%08lx\n",
-			    (unsigned int)(queue - bp->queues),
-			    (unsigned long)status);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, MACB_BIT(WOL));
-		pm_wakeup_event(&bp->pdev->dev, 0);
-	}
-
-	spin_unlock(&bp->lock);
-
-	return IRQ_HANDLED;
+	queue_writel(queue, IDR, MACB_BIT(WOL));
+	macb_writel(bp, WOL, 0);
+	netdev_vdbg(bp->dev, "MACB WoL: queue = %u, isr = 0x%08lx\n",
+		    (unsigned int)(queue - bp->queues),
+		    (unsigned long)status);
+	macb_queue_isr_clear(bp, queue, MACB_BIT(WOL));
+	pm_wakeup_event(&bp->pdev->dev, 0);
 }
 
-static irqreturn_t gem_wol_interrupt(int irq, void *dev_id)
+static void gem_wol_interrupt(struct macb_queue *queue, u32 status)
 {
-	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
-	u32 status;
 
-	status = queue_readl(queue, ISR);
+	queue_writel(queue, IDR, GEM_BIT(WOL));
+	gem_writel(bp, WOL, 0);
+	netdev_vdbg(bp->dev, "GEM WoL: queue = %u, isr = 0x%08lx\n",
+		    (unsigned int)(queue - bp->queues),
+		    (unsigned long)status);
+	macb_queue_isr_clear(bp, queue, GEM_BIT(WOL));
+	pm_wakeup_event(&bp->pdev->dev, 0);
+}
 
-	if (unlikely(!status))
-		return IRQ_NONE;
+static int macb_interrupt_misc(struct macb_queue *queue, u32 status)
+{
+	struct macb *bp = queue->bp;
+	struct net_device *dev;
+	u32 ctrl;
 
-	spin_lock(&bp->lock);
+	dev = bp->dev;
 
-	if (status & GEM_BIT(WOL)) {
-		queue_writel(queue, IDR, GEM_BIT(WOL));
-		gem_writel(bp, WOL, 0);
-		netdev_vdbg(bp->dev, "GEM WoL: queue = %u, isr = 0x%08lx\n",
-			    (unsigned int)(queue - bp->queues),
-			    (unsigned long)status);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, GEM_BIT(WOL));
-		pm_wakeup_event(&bp->pdev->dev, 0);
+	if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
+		queue_writel(queue, IDR, MACB_TX_INT_FLAGS);
+		schedule_work(&queue->tx_error_task);
+		macb_queue_isr_clear(bp, queue, MACB_TX_ERR_FLAGS);
+		return -1;
 	}
 
-	spin_unlock(&bp->lock);
+	/* Link change detection isn't possible with RMII, so we'll
+	 * add that if/when we get our hands on a full-blown MII PHY.
+	 */
 
-	return IRQ_HANDLED;
+	/* There is a hardware issue under heavy load where DMA can
+	 * stop, this causes endless "used buffer descriptor read"
+	 * interrupts but it can be cleared by re-enabling RX. See
+	 * the at91rm9200 manual, section 41.3.1 or the Zynq manual
+	 * section 16.7.4 for details. RXUBR is only enabled for
+	 * these two versions.
+	 */
+	if (status & MACB_BIT(RXUBR)) {
+		ctrl = macb_readl(bp, NCR);
+		macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
+		wmb();
+		macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
+		macb_queue_isr_clear(bp, queue, MACB_BIT(RXUBR));
+	}
+
+	if (status & MACB_BIT(ISR_ROVR)) {
+		/* We missed at least one packet */
+		spin_lock(&bp->stats_lock);
+		if (macb_is_gem(bp))
+			bp->hw_stats.gem.rx_overruns++;
+		else
+			bp->hw_stats.macb.rx_overruns++;
+		spin_unlock(&bp->stats_lock);
+		macb_queue_isr_clear(bp, queue, MACB_BIT(ISR_ROVR));
+	}
+
+	if (status & MACB_BIT(HRESP)) {
+		queue_work(system_bh_wq, &bp->hresp_err_bh_work);
+		netdev_err(dev, "DMA bus error: HRESP not OK\n");
+		macb_queue_isr_clear(bp, queue, MACB_BIT(HRESP));
+	}
+
+	if (macb_is_gem(bp)) {
+		if (status & GEM_BIT(WOL))
+			gem_wol_interrupt(queue, status);
+	} else {
+		if (status & MACB_BIT(WOL))
+			macb_wol_interrupt(queue, status);
+	}
+
+	return 0;
 }
 
 static irqreturn_t macb_interrupt(int irq, void *dev_id)
@@ -2087,7 +2119,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 	struct macb_queue *queue = dev_id;
 	struct macb *bp = queue->bp;
 	struct net_device *dev = bp->dev;
-	u32 status, ctrl;
+	u32 status;
 
 	status = queue_readl(queue, ISR);
 
@@ -2100,8 +2132,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		/* close possible race with dev_close */
 		if (unlikely(!netif_running(dev))) {
 			queue_writel(queue, IDR, -1);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, -1);
+			macb_queue_isr_clear(bp, queue, -1);
 			break;
 		}
 
@@ -2117,84 +2148,27 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			 * now.
 			 */
 			queue_writel(queue, IDR, bp->rx_intr_mask);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RCOMP));
-
-			if (napi_schedule_prep(&queue->napi_rx)) {
-				netdev_vdbg(bp->dev, "scheduling RX softirq\n");
-				__napi_schedule(&queue->napi_rx);
-			}
+			macb_queue_isr_clear(bp, queue, MACB_BIT(RCOMP));
+			napi_schedule(&queue->napi_rx);
 		}
 
 		if (status & (MACB_BIT(TCOMP) |
 			      MACB_BIT(TXUBR))) {
 			queue_writel(queue, IDR, MACB_BIT(TCOMP));
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(TCOMP) |
-							 MACB_BIT(TXUBR));
-
+			macb_queue_isr_clear(bp, queue, MACB_BIT(TCOMP) |
+							MACB_BIT(TXUBR));
 			if (status & MACB_BIT(TXUBR)) {
 				queue->txubr_pending = true;
 				wmb(); // ensure softirq can see update
 			}
 
-			if (napi_schedule_prep(&queue->napi_tx)) {
-				netdev_vdbg(bp->dev, "scheduling TX softirq\n");
-				__napi_schedule(&queue->napi_tx);
-			}
+			napi_schedule(&queue->napi_tx);
 		}
 
-		if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
-			queue_writel(queue, IDR, MACB_TX_INT_FLAGS);
-			schedule_work(&queue->tx_error_task);
+		if (unlikely(status & MACB_INT_MISC_FLAGS))
+			if (macb_interrupt_misc(queue, status))
+				break;
 
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_TX_ERR_FLAGS);
-
-			break;
-		}
-
-		/* Link change detection isn't possible with RMII, so we'll
-		 * add that if/when we get our hands on a full-blown MII PHY.
-		 */
-
-		/* There is a hardware issue under heavy load where DMA can
-		 * stop, this causes endless "used buffer descriptor read"
-		 * interrupts but it can be cleared by re-enabling RX. See
-		 * the at91rm9200 manual, section 41.3.1 or the Zynq manual
-		 * section 16.7.4 for details. RXUBR is only enabled for
-		 * these two versions.
-		 */
-		if (status & MACB_BIT(RXUBR)) {
-			ctrl = macb_readl(bp, NCR);
-			macb_writel(bp, NCR, ctrl & ~MACB_BIT(RE));
-			wmb();
-			macb_writel(bp, NCR, ctrl | MACB_BIT(RE));
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(RXUBR));
-		}
-
-		if (status & MACB_BIT(ISR_ROVR)) {
-			/* We missed at least one packet */
-			spin_lock(&bp->stats_lock);
-			if (macb_is_gem(bp))
-				bp->hw_stats.gem.rx_overruns++;
-			else
-				bp->hw_stats.macb.rx_overruns++;
-			spin_unlock(&bp->stats_lock);
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(ISR_ROVR));
-		}
-
-		if (status & MACB_BIT(HRESP)) {
-			queue_work(system_bh_wq, &bp->hresp_err_bh_work);
-			netdev_err(dev, "DMA bus error: HRESP not OK\n");
-
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, MACB_BIT(HRESP));
-		}
 		status = queue_readl(queue, ISR);
 	}
 
@@ -2889,8 +2863,7 @@ static void macb_reset_hw(struct macb *bp)
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		queue_writel(queue, IDR, -1);
 		queue_readl(queue, ISR);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(queue, ISR, -1);
+		macb_queue_isr_clear(bp, queue, -1);
 	}
 }
 
@@ -6010,7 +5983,6 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	unsigned long flags;
 	u32 tmp, ifa_local;
 	unsigned int q;
-	int err;
 
 	if (!device_may_wakeup(&bp->dev->dev))
 		phy_exit(bp->phy);
@@ -6059,8 +6031,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 			/* Disable all interrupts */
 			queue_writel(queue, IDR, -1);
 			queue_readl(queue, ISR);
-			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-				queue_writel(queue, ISR, -1);
+			macb_queue_isr_clear(bp, queue, -1);
 		}
 		/* Enable Receive engine */
 		macb_writel(bp, NCR, tmp | MACB_BIT(RE));
@@ -6074,39 +6045,15 @@ static int __maybe_unused macb_suspend(struct device *dev)
 			/* write IP address into register */
 			tmp |= MACB_BFEXT(IP, ifa_local);
 		}
-		spin_unlock_irqrestore(&bp->lock, flags);
 
-		/* Change interrupt handler and
-		 * Enable WoL IRQ on queue 0
-		 */
-		devm_free_irq(dev, bp->queues[0].irq, bp->queues);
 		if (macb_is_gem(bp)) {
-			err = devm_request_irq(dev, bp->queues[0].irq, gem_wol_interrupt,
-					       IRQF_SHARED, netdev->name, bp->queues);
-			if (err) {
-				dev_err(dev,
-					"Unable to request IRQ %d (error %d)\n",
-					bp->queues[0].irq, err);
-				return err;
-			}
-			spin_lock_irqsave(&bp->lock, flags);
 			queue_writel(bp->queues, IER, GEM_BIT(WOL));
 			gem_writel(bp, WOL, tmp);
-			spin_unlock_irqrestore(&bp->lock, flags);
 		} else {
-			err = devm_request_irq(dev, bp->queues[0].irq, macb_wol_interrupt,
-					       IRQF_SHARED, netdev->name, bp->queues);
-			if (err) {
-				dev_err(dev,
-					"Unable to request IRQ %d (error %d)\n",
-					bp->queues[0].irq, err);
-				return err;
-			}
-			spin_lock_irqsave(&bp->lock, flags);
 			queue_writel(bp->queues, IER, MACB_BIT(WOL));
 			macb_writel(bp, WOL, tmp);
-			spin_unlock_irqrestore(&bp->lock, flags);
 		}
+		spin_unlock_irqrestore(&bp->lock, flags);
 
 		enable_irq_wake(bp->queues[0].irq);
 	}
@@ -6148,7 +6095,6 @@ static int __maybe_unused macb_resume(struct device *dev)
 	struct macb_queue *queue;
 	unsigned long flags;
 	unsigned int q;
-	int err;
 
 	if (!device_may_wakeup(&bp->dev->dev))
 		phy_init(bp->phy);
@@ -6171,20 +6117,8 @@ static int __maybe_unused macb_resume(struct device *dev)
 		}
 		/* Clear ISR on queue 0 */
 		queue_readl(bp->queues, ISR);
-		if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
-			queue_writel(bp->queues, ISR, -1);
+		macb_queue_isr_clear(bp, bp->queues, -1);
 		spin_unlock_irqrestore(&bp->lock, flags);
-
-		/* Replace interrupt handler on queue 0 */
-		devm_free_irq(dev, bp->queues[0].irq, bp->queues);
-		err = devm_request_irq(dev, bp->queues[0].irq, macb_interrupt,
-				       IRQF_SHARED, netdev->name, bp->queues);
-		if (err) {
-			dev_err(dev,
-				"Unable to request IRQ %d (error %d)\n",
-				bp->queues[0].irq, err);
-			return err;
-		}
 
 		disable_irq_wake(bp->queues[0].irq);
 

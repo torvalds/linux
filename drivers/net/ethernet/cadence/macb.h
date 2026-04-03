@@ -1474,6 +1474,13 @@ static inline bool macb_dma_ptp(struct macb *bp)
 	       bp->caps & MACB_CAPS_DMA_PTP;
 }
 
+static inline void macb_queue_isr_clear(struct macb *bp,
+					struct macb_queue *queue, u32 value)
+{
+	if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+		queue_writel(queue, ISR, value);
+}
+
 /**
  * struct macb_platform_data - platform data for MACB Ethernet used for PCI registration
  * @pclk:		platform clock
