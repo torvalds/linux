@@ -1878,18 +1878,6 @@ static int __ocfs2_find_path(struct ocfs2_caching_info *ci,
 		eb = (struct ocfs2_extent_block *) bh->b_data;
 		el = &eb->h_list;
 
-		if (le16_to_cpu(el->l_next_free_rec) >
-		    le16_to_cpu(el->l_count)) {
-			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
-				    "Owner %llu has bad count in extent list at block %llu (next free=%u, count=%u)\n",
-				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
-				    (unsigned long long)bh->b_blocknr,
-				    le16_to_cpu(el->l_next_free_rec),
-				    le16_to_cpu(el->l_count));
-			ret = -EROFS;
-			goto out;
-		}
-
 		if (func)
 			func(data, bh);
 	}
