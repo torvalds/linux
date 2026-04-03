@@ -755,7 +755,6 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 {
 	const struct rzv2h_hw_info *hw_info = rzv2h_icu_data->info;
 	bool irq_inject = IS_ENABLED(CONFIG_GENERIC_IRQ_INJECTION);
-	static const char *icu_err = "icu-error-ca55";
 	void __iomem *base = rzv2h_icu_data->base;
 	struct device *dev = &pdev->dev;
 	struct irq_fwspec fwspec;
@@ -800,14 +799,12 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 	fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
 
 	virq = irq_create_fwspec_mapping(&fwspec);
-	if (!virq) {
-		return dev_err_probe(dev, -EINVAL, "failed to create IRQ mapping for %s\n",
-				     icu_err);
-	}
+	if (!virq)
+		return dev_err_probe(dev, -EINVAL, "failed to create icu-error-ca55 IRQ mapping\n");
 
 	ret = devm_request_irq(dev, virq, rzv2h_icu_error_irq, 0, dev_name(dev), rzv2h_icu_data);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to request %s IRQ\n", icu_err);
+		return dev_err_probe(dev, ret, "Failed to request icu-error-ca55 IRQ\n");
 
 	return 0;
 }
