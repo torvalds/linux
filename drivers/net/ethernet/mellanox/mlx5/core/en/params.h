@@ -8,7 +8,7 @@
 
 struct mlx5e_xsk_param {
 	u16 headroom;
-	u16 chunk_size;
+	u32 chunk_size;
 	bool unaligned;
 };
 
