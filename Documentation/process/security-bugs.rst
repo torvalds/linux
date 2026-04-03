@@ -7,6 +7,65 @@ Linux kernel developers take security very seriously.  As such, we'd
 like to know when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.
 
+Preparing your report
+---------------------
+
+Like with any bug report, a security bug report requires a lot of analysis work
+from the developers, so the more information you can share about the issue, the
+better.  Please review the procedure outlined in
+Documentation/admin-guide/reporting-issues.rst if you are unclear about what
+information is helpful.  The following information are absolutely necessary in
+**any** security bug report:
+
+  * **affected kernel version range**: with no version indication, your report
+    will not be processed.  A significant part of reports are for bugs that
+    have already been fixed, so it is extremely important that vulnerabilities
+    are verified on recent versions (development tree or latest stable
+    version), at least by verifying that the code has not changed since the
+    version where it was detected.
+
+  * **description of the problem**: a detailed description of the problem, with
+    traces showing its manifestation, and why you consider that the observed
+    behavior as a problem in the kernel, is necessary.
+
+  * **reproducer**: developers will need to be able to reproduce the problem to
+    consider a fix as effective.  This includes both a way to trigger the issue
+    and a way to confirm it happens.  A reproducer with low complexity
+    dependencies will be needed (source code, shell script, sequence of
+    instructions, file-system image etc).  Binary-only executables are not
+    accepted.  Working exploits are extremely helpful and will not be released
+    without consent from the reporter, unless they are already public.  By
+    definition if an issue cannot be reproduced, it is not exploitable, thus it
+    is not a security bug.
+
+  * **conditions**: if the bug depends on certain configuration options,
+    sysctls, permissions, timing, code modifications etc, these should be
+    indicated.
+
+In addition, the following information are highly desirable:
+
+  * **suspected location of the bug**: the file names and functions where the
+    bug is suspected to be present are very important, at least to help forward
+    the report to the appropriate maintainers.  When not possible (for example,
+    "system freezes each time I run this command"), the security team will help
+    identify the source of the bug.
+
+  * **a proposed fix**: bug reporters who have analyzed the cause of a bug in
+    the source code almost always have an accurate idea on how to fix it,
+    because they spent a long time studying it and its implications.  Proposing
+    a tested fix will save maintainers a lot of time, even if the fix ends up
+    not being the right one, because it helps understand the bug.  When
+    proposing a tested fix, please always format it in a way that can be
+    immediately merged (see Documentation/process/submitting-patches.rst).
+    This will save some back-and-forth exchanges if it is accepted, and you
+    will be credited for finding and fixing this issue.  Note that in this case
+    only a ``Signed-off-by:`` tag is needed, without ``Reported-by:` when the
+    reporter and author are the same.
+
+  * **mitigations**: very often during a bug analysis, some ways of mitigating
+    the issue appear. It is useful to share them, as they can be helpful to
+    keep end users protected during the time it takes them to apply the fix.
+
 Identifying contacts
 --------------------
 
@@ -88,13 +147,6 @@ they are available to explain their findings, engage in discussions, and
 run additional tests.  Reports where the reporter does not respond promptly
 or cannot effectively discuss their findings may be abandoned if the
 communication does not quickly improve.
-
-As it is with any bug, the more information provided the easier it
-will be to diagnose and fix.  Please review the procedure outlined in
-'Documentation/admin-guide/reporting-issues.rst' if you are unclear about what
-information is helpful.  Any exploit code is very helpful and will not
-be released without consent from the reporter unless it has already been
-made public.
 
 The report must be sent to maintainers, with the security team in ``Cc:``.
 The Linux kernel security team can be contacted by email at
