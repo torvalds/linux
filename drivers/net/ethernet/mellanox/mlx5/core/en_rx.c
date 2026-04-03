@@ -1869,6 +1869,7 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	struct mlx5e_frag_page *frag_page = &wi->alloc_units.frag_pages[page_idx];
 	u16 headlen = min_t(u16, MLX5E_RX_MAX_HEAD, cqe_bcnt);
 	struct mlx5e_frag_page *head_page = frag_page;
+	struct mlx5e_frag_page *linear_page = NULL;
 	struct mlx5e_xdp_buff *mxbuf = &rq->mxbuf;
 	u32 page_size = BIT(rq->mpwqe.page_shift);
 	u32 frag_offset    = head_offset;
@@ -1897,13 +1898,15 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	if (prog) {
 		/* area for bpf_xdp_[store|load]_bytes */
 		net_prefetchw(netmem_address(frag_page->netmem) + frag_offset);
+
+		linear_page = &rq->mpwqe.linear_info->frag_page;
 		if (unlikely(mlx5e_page_alloc_fragmented(rq->page_pool,
-							 &wi->linear_page))) {
+							 linear_page))) {
 			rq->stats->buff_alloc_err++;
 			return NULL;
 		}
 
-		va = netmem_address(wi->linear_page.netmem);
+		va = netmem_address(linear_page->netmem);
 		net_prefetchw(va); /* xdp_frame data area */
 		linear_hr = XDP_PACKET_HEADROOM;
 		linear_data_len = 0;
@@ -1966,10 +1969,10 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 				for (pfp = head_page; pfp < frag_page; pfp++)
 					pfp->frags++;
 
-				wi->linear_page.frags++;
+				linear_page->frags++;
 			}
 			mlx5e_page_release_fragmented(rq->page_pool,
-						      &wi->linear_page);
+						      linear_page);
 			return NULL; /* page/packet was consumed by XDP */
 		}
 
@@ -1988,13 +1991,13 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 			mxbuf->xdp.data - mxbuf->xdp.data_meta);
 		if (unlikely(!skb)) {
 			mlx5e_page_release_fragmented(rq->page_pool,
-						      &wi->linear_page);
+						      linear_page);
 			return NULL;
 		}
 
 		skb_mark_for_recycle(skb);
-		wi->linear_page.frags++;
-		mlx5e_page_release_fragmented(rq->page_pool, &wi->linear_page);
+		linear_page->frags++;
+		mlx5e_page_release_fragmented(rq->page_pool, linear_page);
 
 		if (xdp_buff_has_frags(&mxbuf->xdp)) {
 			struct mlx5e_frag_page *pagep;

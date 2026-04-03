@@ -369,6 +369,29 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq, int node)
 	return 0;
 }
 
+static int mlx5e_rq_alloc_mpwqe_linear_info(struct mlx5e_rq *rq, int node,
+					    struct mlx5e_params *params,
+					    struct mlx5e_rq_opt_param *rqo,
+					    u32 *pool_size)
+{
+	struct mlx5_core_dev *mdev = rq->mdev;
+	struct mlx5e_mpw_linear_info *li;
+
+	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, rqo) ||
+	    !params->xdp_prog)
+		return 0;
+
+	li = kvzalloc_node(sizeof(*li), GFP_KERNEL, node);
+	if (!li)
+		return -ENOMEM;
+
+	rq->mpwqe.linear_info = li;
+
+	/* additional page per packet for the linear part */
+	*pool_size *= 2;
+
+	return 0;
+}
 
 static u8 mlx5e_mpwrq_access_mode(enum mlx5e_mpwrq_umr_mode umr_mode)
 {
@@ -915,10 +938,6 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 			mlx5e_mpwqe_get_log_rq_size(mdev, params, rqo);
 		pool_order = rq->mpwqe.page_shift - PAGE_SHIFT;
 
-		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, rqo) &&
-		    params->xdp_prog)
-			pool_size *= 2; /* additional page per packet for the linear part */
-
 		rq->mpwqe.log_stride_sz =
 				mlx5e_mpwqe_get_log_stride_size(mdev, params,
 								rqo);
@@ -936,9 +955,14 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		if (err)
 			goto err_rq_mkey;
 
-		err = mlx5_rq_shampo_alloc(mdev, params, rq_param, rq, node);
+		err = mlx5e_rq_alloc_mpwqe_linear_info(rq, node, params, rqo,
+						       &pool_size);
 		if (err)
 			goto err_free_mpwqe_info;
+
+		err = mlx5_rq_shampo_alloc(mdev, params, rq_param, rq, node);
+		if (err)
+			goto err_free_mpwqe_linear_info;
 
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
@@ -1054,6 +1078,8 @@ err_free_by_rq_type:
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		mlx5e_rq_free_shampo(rq);
+err_free_mpwqe_linear_info:
+		kvfree(rq->mpwqe.linear_info);
 err_free_mpwqe_info:
 		kvfree(rq->mpwqe.info);
 err_rq_mkey:
@@ -1081,6 +1107,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		mlx5e_rq_free_shampo(rq);
+		kvfree(rq->mpwqe.linear_info);
 		kvfree(rq->mpwqe.info);
 		mlx5_core_destroy_mkey(rq->mdev, be32_to_cpu(rq->mpwqe.umr_mkey_be));
 		mlx5e_free_mpwqe_rq_drop_page(rq);
