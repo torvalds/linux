@@ -518,6 +518,8 @@ struct hfs_btree_header_rec {
 #define HFSPLUS_BTREE_HDR_MAP_REC_INDEX		2	/* Map (bitmap) record in Header node */
 #define HFSPLUS_BTREE_MAP_NODE_REC_INDEX	0	/* Map record in Map Node */
 #define HFSPLUS_BTREE_HDR_USER_BYTES		128
+#define HFSPLUS_BTREE_MAP_NODE_RECS_COUNT	2
+#define HFSPLUS_BTREE_MAP_NODE_RESERVED_BYTES	2
 
 /* btree key type */
 #define HFSPLUS_KEY_CASEFOLDING		0xCF	/* case-insensitive */

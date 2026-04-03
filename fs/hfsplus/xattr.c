@@ -50,7 +50,7 @@ static bool is_known_namespace(const char *name)
 	return true;
 }
 
-static void hfsplus_init_header_node(struct inode *attr_file,
+static u32 hfsplus_init_header_node(struct inode *attr_file,
 					u32 clump_size,
 					char *buf, u16 node_size)
 {
@@ -59,6 +59,7 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	u16 offset;
 	__be16 *rec_offsets;
 	u32 hdr_node_map_rec_bits;
+	u32 map_nodes = 0;
 	char *bmp;
 	u32 used_nodes;
 	u32 used_bmp_bytes;
@@ -93,7 +94,6 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	hdr_node_map_rec_bits = 8 * (node_size - offset - (4 * sizeof(u16)));
 	if (be32_to_cpu(head->node_count) > hdr_node_map_rec_bits) {
 		u32 map_node_bits;
-		u32 map_nodes;
 
 		desc->next = cpu_to_be32(be32_to_cpu(head->leaf_tail) + 1);
 		map_node_bits = 8 * (node_size - sizeof(struct hfs_bnode_desc) -
@@ -116,21 +116,100 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	*bmp = ~(0xFF >> used_nodes);
 	offset += hdr_node_map_rec_bits / 8;
 	*--rec_offsets = cpu_to_be16(offset);
+
+	return map_nodes;
+}
+
+/*
+ * Initialize a map node buffer. Map nodes have a single bitmap record.
+ */
+static void hfsplus_init_map_node(u8 *buf, u16 node_size, u32 next_node)
+{
+	struct hfs_bnode_desc *desc;
+	__be16 *rec_offsets;
+	size_t rec_size = sizeof(__be16);
+	u16 offset;
+
+	memset(buf, 0, node_size);
+
+	desc = (struct hfs_bnode_desc *)buf;
+	desc->type = HFS_NODE_MAP;
+	desc->num_recs = cpu_to_be16(1);
+	desc->next = cpu_to_be32(next_node);
+
+	/*
+	 * A map node consists of the node descriptor and a single
+	 * map record. The map record is a continuation of the map
+	 * record contained in the header node. The size of the map
+	 * record is the size of the node, minus the size of
+	 * the node descriptor (14 bytes), minus the size of two offsets
+	 * (4 bytes), minus two bytes of free space. That is, the size of
+	 * the map record is the size of the node minus 20 bytes;
+	 * this keeps the length of the map record an even multiple of 4 bytes.
+	 * The start of the map record is not aligned to a 4-byte boundary:
+	 * it starts immediately after the node descriptor
+	 * (at an offset of 14 bytes).
+	 *
+	 * Two record offsets stored at the end of the node:
+	 *   record[1] = start of record 0 -> sizeof(hfs_bnode_desc)
+	 *   record[2] = start of free space
+	 */
+	rec_offsets = (__be16 *)(buf + node_size);
+
+	/* record #1 */
+	offset = sizeof(struct hfs_bnode_desc);
+	*--rec_offsets = cpu_to_be16(offset);
+
+	/* record #2 */
+	offset = node_size;
+	offset -= (u16)HFSPLUS_BTREE_MAP_NODE_RECS_COUNT * rec_size;
+	offset -= HFSPLUS_BTREE_MAP_NODE_RESERVED_BYTES;
+	*--rec_offsets = cpu_to_be16(offset);
+}
+
+static inline
+int hfsplus_write_attributes_file_node(struct inode *attr_file, char *buf,
+					u16 node_size, int *index)
+{
+	struct address_space *mapping;
+	struct page *page;
+	void *kaddr;
+	u32 written = 0;
+
+	mapping = attr_file->i_mapping;
+
+	for (; written < node_size; (*index)++, written += PAGE_SIZE) {
+		page = read_mapping_page(mapping, *index, NULL);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		kaddr = kmap_local_page(page);
+		memcpy(kaddr, buf + written,
+			min_t(size_t, PAGE_SIZE, node_size - written));
+		kunmap_local(kaddr);
+
+		set_page_dirty(page);
+		put_page(page);
+	}
+
+	return 0;
 }
 
 static int hfsplus_create_attributes_file(struct super_block *sb)
 {
-	int err = 0;
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct inode *attr_file;
 	struct hfsplus_inode_info *hip;
+	struct hfs_bnode_desc *desc;
 	u32 clump_size;
 	u16 node_size = HFSPLUS_ATTR_TREE_NODE_SIZE;
+	u32 next_node;
+	u32 map_node_idx;
+	u32 map_nodes;
 	char *buf;
-	int index, written;
-	struct address_space *mapping;
-	struct page *page;
+	int index;
 	int old_state = HFSPLUS_EMPTY_ATTR_TREE;
+	int err = 0;
 
 	hfs_dbg("ino %d\n", HFSPLUS_ATTR_CNID);
 
@@ -195,7 +274,7 @@ check_attr_tree_state_again:
 	}
 
 	while (hip->alloc_blocks < hip->clump_blocks) {
-		err = hfsplus_file_extend(attr_file, false);
+		err = hfsplus_file_extend(attr_file, true);
 		if (unlikely(err)) {
 			pr_err("failed to extend attributes file\n");
 			goto end_attr_file_creation;
@@ -212,28 +291,30 @@ check_attr_tree_state_again:
 		goto end_attr_file_creation;
 	}
 
-	hfsplus_init_header_node(attr_file, clump_size, buf, node_size);
+	map_nodes = hfsplus_init_header_node(attr_file, clump_size, buf, node_size);
 
-	mapping = attr_file->i_mapping;
+	desc = (struct hfs_bnode_desc *)buf;
+	next_node = be32_to_cpu(desc->next);
 
 	index = 0;
-	written = 0;
-	for (; written < node_size; index++, written += PAGE_SIZE) {
-		void *kaddr;
 
-		page = read_mapping_page(mapping, index, NULL);
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
+	err = hfsplus_write_attributes_file_node(attr_file, buf,
+						 node_size, &index);
+	if (unlikely(err))
+		goto failed_header_node_init;
+
+	for (map_node_idx = 0; map_node_idx < map_nodes; map_node_idx++) {
+		if (next_node >= map_nodes)
+			next_node = 0;
+
+		hfsplus_init_map_node(buf, node_size, next_node);
+
+		err = hfsplus_write_attributes_file_node(attr_file, buf,
+							 node_size, &index);
+		if (unlikely(err))
 			goto failed_header_node_init;
-		}
 
-		kaddr = kmap_atomic(page);
-		memcpy(kaddr, buf + written,
-			min_t(size_t, PAGE_SIZE, node_size - written));
-		kunmap_atomic(kaddr);
-
-		set_page_dirty(page);
-		put_page(page);
+		next_node++;
 	}
 
 	hfsplus_mark_inode_dirty(HFSPLUS_ATTR_TREE_I(sb), HFSPLUS_I_ATTR_DIRTY);
