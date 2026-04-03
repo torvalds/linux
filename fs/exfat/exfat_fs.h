@@ -437,7 +437,8 @@ int exfat_set_volume_dirty(struct super_block *sb);
 int exfat_clear_volume_dirty(struct super_block *sb);
 
 /* fatent.c */
-#define exfat_get_next_cluster(sb, pclu) exfat_ent_get(sb, *(pclu), pclu, NULL)
+#define exfat_get_next_cluster(sb, pclu) \
+	exfat_cluster_walk(sb, (pclu), 1, ALLOC_FAT_CHAIN)
 
 int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		struct exfat_chain *p_chain, bool sync_bmap);
@@ -455,6 +456,26 @@ int exfat_count_num_clusters(struct super_block *sb,
 		struct exfat_chain *p_chain, unsigned int *ret_count);
 int exfat_blk_readahead(struct super_block *sb, sector_t sec,
 		sector_t *ra, blkcnt_t *ra_cnt, sector_t end);
+
+static inline int
+exfat_cluster_walk(struct super_block *sb, unsigned int *clu,
+		unsigned int step, int flags)
+{
+	struct buffer_head *bh = NULL;
+
+	if (flags == ALLOC_NO_FAT_CHAIN) {
+		(*clu) += step;
+		return 0;
+	}
+
+	while (step--) {
+		if (exfat_ent_get(sb, *clu, clu, &bh))
+			return -EIO;
+	}
+	brelse(bh);
+
+	return 0;
+}
 
 /* balloc.c */
 int exfat_load_bitmap(struct super_block *sb);
