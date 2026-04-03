@@ -7,6 +7,7 @@
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 #include <linux/errno.h>
 
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
@@ -262,5 +263,71 @@ DEFINE_GUARD(bpf_spin, struct bpf_spin_lock, bpf_spin_lock, bpf_spin_unlock);
 #define HID_BPF_CONFIG(...)  union { \
 	_EXPAND(_ARG, __VA_ARGS__) \
 } _device_ids SEC(".hid_bpf_config")
+
+
+/* Equivalency macros for bpf_htons and friends which are
+ * Big Endian only - HID needs little endian so these are the
+ * corresponding macros for that. See bpf/bpf_endian.h
+ */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+# define __hid_bpf_le16_to_cpu(x)		(x)
+# define __hid_bpf_le32_to_cpu(x)		(x)
+# define __hid_bpf_le64_to_cpu(x)		(x)
+# define __hid_bpf_cpu_to_le16(x)		(x)
+# define __hid_bpf_cpu_to_le32(x)		(x)
+# define __hid_bpf_cpu_to_le64(x)		(x)
+# define __hid_bpf_constant_le16_to_cpu(x)	(x)
+# define __hid_bpf_constant_le32_to_cpu(x)	(x)
+# define __hid_bpf_constant_le64_to_cpu(x)	(x)
+# define __hid_bpf_constant_cpu_to_le16(x)	(x)
+# define __hid_bpf_constant_cpu_to_le32(x)	(x)
+# define __hid_bpf_constant_cpu_to_le64(x)	(x)
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+# define __hid_bpf_le16_to_cpu(x)		__builtin_bswap16(x)
+# define __hid_bpf_le32_to_cpu(x)		__builtin_bswap32(x)
+# define __hid_bpf_le64_to_cpu(x)		__builtin_bswap64(x)
+# define __hid_bpf_cpu_to_le16(x)		__builtin_bswap16(x)
+# define __hid_bpf_cpu_to_le32(x)		__builtin_bswap32(x)
+# define __hid_bpf_cpu_to_le64(x)		__builtin_bswap64(x)
+# define __hid_bpf_constant_le16_to_cpu(x)	__bpf_swab16(x)
+# define __hid_bpf_constant_le32_to_cpu(x)	__bpf_swab32(x)
+# define __hid_bpf_constant_le64_to_cpu(x)	__bpf_swab64(x)
+# define __hid_bpf_constant_cpu_to_le16(x)	__bpf_swab16(x)
+# define __hid_bpf_constant_cpu_to_le32(x)	__bpf_swab32(x)
+# define __hid_bpf_constant_cpu_to_le64(x)	__bpf_swab64(x)
+#else
+# error "Invalid __BYTE_ORDER__"
+#endif
+
+#define hid_bpf_le16_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le16_to_cpu(x) : __hid_bpf_le16_to_cpu(x))
+
+#define hid_bpf_le32_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le32_to_cpu(x) : __hid_bpf_le32_to_cpu(x))
+
+#define hid_bpf_le64_to_cpu(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_le64_to_cpu(x) : __hid_bpf_le64_to_cpu(x))
+
+#define hid_bpf_cpu_to_le16(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le16(x) : __hid_bpf_cpu_to_le16(x))
+
+#define hid_bpf_cpu_to_le32(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le32(x) : __hid_bpf_cpu_to_le32(x))
+
+#define hid_bpf_cpu_to_le64(x)				\
+	(__builtin_constant_p(x) ?			\
+	 __hid_bpf_constant_cpu_to_le64(x) : __hid_bpf_cpu_to_le64(x))
+
+#define hid_bpf_be16_to_cpu(x)	bpf_ntohs(x)
+#define hid_bpf_be32_to_cpu(x)	bpf_ntohl(x)
+#define hid_bpf_be64_to_cpu(x)	bpf_be64_to_cpu(x)
+#define hid_bpf_cpu_to_be16(x)	bpf_htons(x)
+#define hid_bpf_cpu_to_be32(x)	bpf_htonl(x)
+#define hid_bpf_cpu_to_be64(x)	bpf_cpu_to_be64(x)
 
 #endif /* __HID_BPF_HELPERS_H */
