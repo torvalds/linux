@@ -80,7 +80,7 @@ static void cdns_exit_roles(struct cdns *cdns)
  *
  * Returns 0 on success otherwise negative errno
  */
-int cdns_core_init_role(struct cdns *cdns)
+static int cdns_core_init_role(struct cdns *cdns)
 {
 	struct device *dev = cdns->dev;
 	enum usb_dr_mode best_dr_mode;
@@ -197,14 +197,11 @@ int cdns_core_init_role(struct cdns *cdns)
 		goto err;
 	}
 
-	dev_dbg(dev, "Cadence USB3 core: probe succeed\n");
-
 	return 0;
 err:
 	cdns_exit_roles(cdns);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cdns_core_init_role);
 
 /**
  * cdns_hw_role_state_machine  - role switch state machine based on hw events.
@@ -472,7 +469,13 @@ int cdns_init(struct cdns *cdns)
 	if (ret)
 		goto init_failed;
 
+	ret = cdns_core_init_role(cdns);
+	if (ret)
+		goto init_failed;
+
 	spin_lock_init(&cdns->lock);
+
+	dev_dbg(dev, "Cadence USB3 core: probe succeed\n");
 
 	return 0;
 init_failed:

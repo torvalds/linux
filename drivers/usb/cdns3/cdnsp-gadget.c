@@ -2075,7 +2075,3 @@ int cdnsp_gadget_init(struct cdns *cdns)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cdnsp_gadget_init);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Cadence CDNSP DRD Driver - gadget");
