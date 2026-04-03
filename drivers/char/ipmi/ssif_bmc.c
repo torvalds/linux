@@ -18,6 +18,9 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/ipmi_ssif_bmc.h>
+#if IS_ENABLED(CONFIG_SSIF_IPMI_BMC_KUNIT_TEST)
+#include <kunit/test.h>
+#endif
 
 #define DEVICE_NAME                             "ipmi-ssif-host"
 
@@ -885,6 +888,373 @@ static struct i2c_driver ssif_bmc_driver = {
 	.remove         = ssif_bmc_remove,
 	.id_table       = ssif_bmc_id,
 };
+
+#if IS_ENABLED(CONFIG_SSIF_IPMI_BMC_KUNIT_TEST)
+struct ssif_bmc_test_ctx {
+	struct ssif_bmc_ctx ssif_bmc;
+	struct i2c_client client;
+	struct i2c_adapter adapter;
+	struct i2c_algorithm algo;
+};
+
+static int ssif_bmc_test_init(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx;
+
+	test_ctx = kunit_kzalloc(test, sizeof(*test_ctx), GFP_KERNEL);
+	if (!test_ctx)
+		return -ENOMEM;
+
+	test_ctx->adapter.algo = &test_ctx->algo;
+	test_ctx->client.addr = 0x20;
+	test_ctx->client.adapter = &test_ctx->adapter;
+
+	spin_lock_init(&test_ctx->ssif_bmc.lock);
+	init_waitqueue_head(&test_ctx->ssif_bmc.wait_queue);
+	test_ctx->ssif_bmc.client = &test_ctx->client;
+	i2c_set_clientdata(&test_ctx->client, &test_ctx->ssif_bmc);
+
+	test->priv = test_ctx;
+
+	return 0;
+}
+
+static void ssif_bmc_test_exit(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+
+	if (test_ctx->ssif_bmc.response_timer_inited)
+		timer_delete_sync(&test_ctx->ssif_bmc.response_timer);
+}
+
+static int ssif_bmc_test_run_event_val(struct ssif_bmc_test_ctx *test_ctx,
+					       enum i2c_slave_event event,
+					       u8 *value)
+{
+	return ssif_bmc_cb(&test_ctx->client, event, value);
+}
+
+static int ssif_bmc_test_run_event(struct ssif_bmc_test_ctx *test_ctx,
+					   enum i2c_slave_event event, u8 value)
+{
+	return ssif_bmc_test_run_event_val(test_ctx, event, &value);
+}
+
+static void ssif_bmc_test_singlepart_req(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+
+	ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+				GET_8BIT_ADDR(test_ctx->client.addr));
+	ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+				SSIF_IPMI_SINGLEPART_WRITE);
+	ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 2);
+
+	ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0xaa);
+
+	ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0x55);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), -EBUSY);
+
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_READY);
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->busy);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->aborting);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.len, 2);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.payload[0], 0xaa);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.payload[1], 0x55);
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->response_timer_inited);
+}
+
+static void ssif_bmc_test_restart_write_without_stop(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 2), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0xde), 0);
+
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_REQ_RECVING);
+
+	/* Write transaction, without stop, and new request coming */
+	ssif_bmc_test_singlepart_req(test);
+}
+
+
+static void ssif_bmc_test_restart_after_invalid_command(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0xff), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 1), 0);
+
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_ABORTING);
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->aborting);
+
+	/* After An Invalid Command, expect could handle new request */
+	ssif_bmc_test_singlepart_req(test);
+}
+
+static void ssif_bmc_test_singlepart_read_response_completion(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+	u8 value;
+
+	ssif_bmc->state = SSIF_SMBUS_CMD;
+	ssif_bmc->part_buf.smbus_cmd = SSIF_IPMI_SINGLEPART_READ;
+	ssif_bmc->response.len = 2;
+	ssif_bmc->response.payload[0] = 0x11;
+	ssif_bmc->response.payload[1] = 0x22;
+	ssif_bmc->response_in_progress = true;
+	ssif_bmc->is_singlepart_read = true;
+	ssif_bmc->pec_support = true;
+
+	value = 0;
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_REQUESTED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, 2);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_RES_SENDING);
+
+	value = 0;
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_PROCESSED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, 0x11);
+
+	value = 0;
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_PROCESSED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, 0x22);
+
+	value = 0;
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_PROCESSED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, ssif_bmc->part_buf.pec);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_READY);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->response_in_progress);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->response.len, 0);
+}
+
+static void ssif_bmc_test_stop_during_start_discards_partial_request(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_START);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_READY);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->msg_idx, 0);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 1), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0x77), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), -EBUSY);
+
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.len, 1);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.payload[0], 0x77);
+}
+
+static void ssif_bmc_test_read_interrupts_partial_write(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+	u8 value = 0xff;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 2), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0xab), 0);
+
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_REQ_RECVING);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_REQUESTED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_ABORTING);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_READY);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.len, 0);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 1), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0xcd), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), -EBUSY);
+
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.len, 1);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.payload[0], 0xcd);
+}
+
+static void ssif_bmc_test_write_interrupts_response_send(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+	u8 value = 0;
+
+	ssif_bmc->state = SSIF_SMBUS_CMD;
+	ssif_bmc->part_buf.smbus_cmd = SSIF_IPMI_SINGLEPART_READ;
+	ssif_bmc->response.len = 1;
+	ssif_bmc->response.payload[0] = 0x66;
+	ssif_bmc->response_in_progress = true;
+	ssif_bmc->is_singlepart_read = true;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_REQUESTED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_RES_SENDING);
+
+	/* READ_REQUESTED transaction */
+	ssif_bmc_test_singlepart_req(test);
+}
+
+static void ssif_bmc_test_write_interrupts_response_sending(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+	u8 value = 0;
+
+	ssif_bmc->state = SSIF_SMBUS_CMD;
+	ssif_bmc->part_buf.smbus_cmd = SSIF_IPMI_SINGLEPART_READ;
+	ssif_bmc->response.len = 1;
+	ssif_bmc->response.payload[0] = 0x66;
+	ssif_bmc->response_in_progress = true;
+	ssif_bmc->is_singlepart_read = true;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_REQUESTED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->state, SSIF_RES_SENDING);
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event_val(test_ctx, I2C_SLAVE_READ_PROCESSED,
+						    &value), 0);
+	KUNIT_EXPECT_EQ(test, value, 0x66);
+
+	/* READ_REQUESTED transaction */
+	ssif_bmc_test_singlepart_req(test);
+}
+
+static void ssif_bmc_test_timeout_interrupt_allows_retry(struct kunit *test)
+{
+	struct ssif_bmc_test_ctx *test_ctx = test->priv;
+	struct ssif_bmc_ctx *ssif_bmc = &test_ctx->ssif_bmc;
+
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 1), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0x21), 0);
+	KUNIT_ASSERT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), -EBUSY);
+
+	KUNIT_ASSERT_TRUE(test, timer_pending(&ssif_bmc->response_timer));
+	timer_delete_sync(&ssif_bmc->response_timer);
+	response_timeout(&ssif_bmc->response_timer);
+
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->busy);
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->aborting);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->response_timer_inited);
+
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_REQUESTED,
+						GET_8BIT_ADDR(test_ctx->client.addr)), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED,
+						SSIF_IPMI_SINGLEPART_WRITE), 0);
+	KUNIT_EXPECT_FALSE(test, ssif_bmc->aborting);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 1), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_WRITE_RECEIVED, 0x22), 0);
+	KUNIT_EXPECT_EQ(test,
+			ssif_bmc_test_run_event(test_ctx, I2C_SLAVE_STOP, 0), -EBUSY);
+
+	KUNIT_EXPECT_TRUE(test, ssif_bmc->request_available);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.len, 1);
+	KUNIT_EXPECT_EQ(test, ssif_bmc->request.payload[0], 0x22);
+}
+
+static struct kunit_case ssif_bmc_test_cases[] = {
+	KUNIT_CASE(ssif_bmc_test_singlepart_req),
+	KUNIT_CASE(ssif_bmc_test_restart_write_without_stop),
+	KUNIT_CASE(ssif_bmc_test_restart_after_invalid_command),
+	KUNIT_CASE(ssif_bmc_test_singlepart_read_response_completion),
+	KUNIT_CASE(ssif_bmc_test_stop_during_start_discards_partial_request),
+	KUNIT_CASE(ssif_bmc_test_read_interrupts_partial_write),
+	KUNIT_CASE(ssif_bmc_test_write_interrupts_response_send),
+	KUNIT_CASE(ssif_bmc_test_write_interrupts_response_sending),
+	KUNIT_CASE(ssif_bmc_test_timeout_interrupt_allows_retry),
+	{}
+};
+
+static struct kunit_suite ssif_bmc_test_suite = {
+	.name = "ssif_bmc_test",
+	.init = ssif_bmc_test_init,
+	.exit = ssif_bmc_test_exit,
+	.test_cases = ssif_bmc_test_cases,
+};
+
+kunit_test_suite(ssif_bmc_test_suite);
+#endif
 
 module_i2c_driver(ssif_bmc_driver);
 
