@@ -1654,6 +1654,11 @@ enum {
 	MLX5_STEERING_FORMAT_CONNECTX_8   = 3,
 };
 
+enum {
+	MLX5_ID_MODE_FUNCTION_INDEX   = 0,
+	MLX5_ID_MODE_FUNCTION_VHCA_ID = 1,
+};
+
 struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_0[0x6];
 	u8         page_request_disable[0x1];
@@ -1916,7 +1921,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_280[0x10];
 	u8         max_wqe_sz_sq[0x10];
 
-	u8         reserved_at_2a0[0x7];
+	u8         icm_mng_function_id_mode[0x1];
+	u8         reserved_at_2a1[0x6];
 	u8         mkey_pcie_tph[0x1];
 	u8         reserved_at_2a8[0x1];
 	u8         tis_tir_td_order[0x1];
