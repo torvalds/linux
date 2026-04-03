@@ -95,7 +95,7 @@ struct mctp_test_dev *mctp_test_create_dev_with_addr(mctp_eid_t addr)
 	}
 
 	dev->mdev->num_addrs = 1;
-	dev->mdev->addrs[0] = 8;
+	dev->mdev->addrs[0] = addr;
 
 	return dev;
 }
