@@ -146,8 +146,9 @@ struct hfs_bmap_ctx {
  * Returns the struct page pointer, or an ERR_PTR on failure.
  * Note: The caller is responsible for mapping/unmapping the returned page.
  */
-static struct page *hfs_bmap_get_map_page(struct hfs_bnode *node, struct hfs_bmap_ctx *ctx,
-				u32 byte_offset)
+static struct page *hfs_bmap_get_map_page(struct hfs_bnode *node,
+					  struct hfs_bmap_ctx *ctx,
+					  u32 byte_offset)
 {
 	u16 rec_idx, off16;
 	unsigned int page_off;
@@ -647,9 +648,12 @@ void hfs_bmap_free(struct hfs_bnode *node)
 
 	res = hfs_bmap_clear_bit(node, nidx);
 	if (res == -EINVAL) {
-		pr_crit("trying to free free bnode %u(%d)\n",
-				node->this, node->type);
-	} else if (!res) {
+		pr_crit("trying to free the freed bnode %u(%d)\n",
+			nidx, node->type);
+	} else if (res) {
+		pr_crit("fail to free bnode %u(%d)\n",
+			nidx, node->type);
+	} else {
 		tree->free_nodes++;
 		mark_inode_dirty(tree->inode);
 	}
