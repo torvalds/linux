@@ -595,6 +595,18 @@ struct bpf_insn_aux_data {
 	u32 scc;
 	/* registers alive before this instruction. */
 	u16 live_regs_before;
+	/*
+	 * Bitmask of R0-R9 that hold known values at this instruction.
+	 * const_reg_mask: scalar constants that fit in 32 bits.
+	 * const_reg_map_mask: map pointers, val is map_index into used_maps[].
+	 * const_reg_subprog_mask: subprog pointers, val is subprog number.
+	 * const_reg_vals[i] holds the 32-bit value for register i.
+	 * Populated by compute_const_regs() pre-pass.
+	 */
+	u16 const_reg_mask;
+	u16 const_reg_map_mask;
+	u16 const_reg_subprog_mask;
+	u32 const_reg_vals[10];
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */
@@ -945,6 +957,10 @@ void bpf_free_kfunc_btf_tab(struct bpf_kfunc_btf_tab *tab);
 
 int mark_chain_precision(struct bpf_verifier_env *env, int regno);
 
+bool bpf_map_is_rdonly(const struct bpf_map *map);
+int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
+			bool is_ldsx);
+
 #define BPF_BASE_TYPE_MASK	GENMASK(BPF_BASE_TYPE_BITS - 1, 0)
 
 /* extract base type from bpf_{arg, return, reg}_type. */
@@ -1087,6 +1103,13 @@ int bpf_jmp_offset(struct bpf_insn *insn);
 struct bpf_iarray *bpf_insn_successors(struct bpf_verifier_env *env, u32 idx);
 void bpf_fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask);
 bool bpf_calls_callback(struct bpf_verifier_env *env, int insn_idx);
+
+int bpf_find_subprog(struct bpf_verifier_env *env, int off);
+int bpf_compute_const_regs(struct bpf_verifier_env *env);
+int bpf_prune_dead_branches(struct bpf_verifier_env *env);
+int bpf_compute_postorder(struct bpf_verifier_env *env);
+bool bpf_insn_is_cond_jump(u8 code);
+bool bpf_is_may_goto_insn(struct bpf_insn *insn);
 
 int bpf_stack_liveness_init(struct bpf_verifier_env *env);
 void bpf_stack_liveness_free(struct bpf_verifier_env *env);

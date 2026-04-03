@@ -584,7 +584,7 @@ __naked void alu32_mov_u32_const(void)
 {
 	asm volatile ("					\
 	w7 = 0;						\
-	w7 &= 1;					\
+	w7 ^= w7;					\
 	w0 = w7;					\
 	if r0 == 0 goto l0_%=;				\
 	r0 = *(u64*)(r7 + 0);				\
@@ -894,7 +894,9 @@ __naked void unpriv_spectre_v1_and_v4_simple(void)
 {
 	asm volatile ("					\
 	r8 = 0;						\
+	r8 ^= r8;					\
 	r9 = 0;						\
+	r9 ^= r9;					\
 	r0 = r10;					\
 	r1 = 0;						\
 	r2 = r10;					\
@@ -932,7 +934,9 @@ __naked void unpriv_ldimm64_spectre_v1_and_v4_simple(void)
 {
 	asm volatile ("					\
 	r8 = 0;						\
+	r8 ^= r8;					\
 	r9 = 0;						\
+	r9 ^= r9;					\
 	r0 = r10;					\
 	r1 = 0;						\
 	r2 = r10;					\

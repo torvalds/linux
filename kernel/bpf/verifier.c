@@ -595,14 +595,14 @@ static bool is_async_cb_sleepable(struct bpf_verifier_env *env, struct bpf_insn 
 	return false;
 }
 
-static bool is_may_goto_insn(struct bpf_insn *insn)
+bool bpf_is_may_goto_insn(struct bpf_insn *insn)
 {
 	return insn->code == (BPF_JMP | BPF_JCOND) && insn->src_reg == BPF_MAY_GOTO;
 }
 
 static bool is_may_goto_insn_at(struct bpf_verifier_env *env, int insn_idx)
 {
-	return is_may_goto_insn(&env->prog->insnsi[insn_idx]);
+	return bpf_is_may_goto_insn(&env->prog->insnsi[insn_idx]);
 }
 
 static bool is_storage_get_function(enum bpf_func_id func_id)
@@ -3110,7 +3110,7 @@ struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *en
 }
 
 /* Find subprogram that starts exactly at 'off' */
-static int find_subprog(struct bpf_verifier_env *env, int off)
+int bpf_find_subprog(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *p;
 
@@ -3129,7 +3129,7 @@ static int add_subprog(struct bpf_verifier_env *env, int off)
 		verbose(env, "call to invalid destination\n");
 		return -EINVAL;
 	}
-	ret = find_subprog(env, off);
+	ret = bpf_find_subprog(env, off);
 	if (ret >= 0)
 		return ret;
 	if (env->subprog_cnt >= BPF_MAX_SUBPROGS) {
@@ -3818,7 +3818,7 @@ static int sort_subprogs_topo(struct bpf_verifier_env *env)
 
 				if (!bpf_pseudo_call(&insn[idx]) && !bpf_pseudo_func(&insn[idx]))
 					continue;
-				callee = find_subprog(env, idx + insn[idx].imm + 1);
+				callee = bpf_find_subprog(env, idx + insn[idx].imm + 1);
 				if (callee < 0) {
 					ret = -EFAULT;
 					goto out;
@@ -4624,7 +4624,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 			int subprog_insn_idx, subprog;
 
 			subprog_insn_idx = idx + insn->imm + 1;
-			subprog = find_subprog(env, subprog_insn_idx);
+			subprog = bpf_find_subprog(env, subprog_insn_idx);
 			if (subprog < 0)
 				return -EFAULT;
 
@@ -6956,7 +6956,7 @@ continue_func:
 
 		/* find the callee */
 		next_insn = i + insn[i].imm + 1;
-		sidx = find_subprog(env, next_insn);
+		sidx = bpf_find_subprog(env, next_insn);
 		if (verifier_bug_if(sidx < 0, env, "callee not found at insn %d", next_insn))
 			return -EFAULT;
 		if (subprog[sidx].is_async_cb) {
@@ -7091,7 +7091,7 @@ static int get_callee_stack_depth(struct bpf_verifier_env *env,
 {
 	int start = idx + insn->imm + 1, subprog;
 
-	subprog = find_subprog(env, start);
+	subprog = bpf_find_subprog(env, start);
 	if (verifier_bug_if(subprog < 0, env, "get stack depth: no program at insn %d", start))
 		return -EFAULT;
 	return env->subprog_info[subprog].stack_depth;
@@ -7338,7 +7338,7 @@ out:
 	set_sext32_default_val(reg, size);
 }
 
-static bool bpf_map_is_rdonly(const struct bpf_map *map)
+bool bpf_map_is_rdonly(const struct bpf_map *map)
 {
 	/* A map is considered read-only if the following condition are true:
 	 *
@@ -7358,8 +7358,8 @@ static bool bpf_map_is_rdonly(const struct bpf_map *map)
 	       !bpf_map_write_active(map);
 }
 
-static int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
-			       bool is_ldsx)
+int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
+			bool is_ldsx)
 {
 	void *ptr;
 	u64 addr;
@@ -11049,7 +11049,7 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	int err, subprog, target_insn;
 
 	target_insn = *insn_idx + insn->imm + 1;
-	subprog = find_subprog(env, target_insn);
+	subprog = bpf_find_subprog(env, target_insn);
 	if (verifier_bug_if(subprog < 0, env, "target of func call at insn %d is not a program",
 			    target_insn))
 		return -EFAULT;
@@ -17980,8 +17980,8 @@ static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 
 	if (insn->src_reg == BPF_PSEUDO_FUNC) {
 		struct bpf_prog_aux *aux = env->prog->aux;
-		u32 subprogno = find_subprog(env,
-					     env->insn_idx + insn->imm + 1);
+		u32 subprogno = bpf_find_subprog(env,
+						 env->insn_idx + insn->imm + 1);
 
 		if (!aux->func_info) {
 			verbose(env, "missing btf func_info\n");
@@ -19177,7 +19177,7 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 	default:
 		/* conditional jump with two edges */
 		mark_prune_point(env, t);
-		if (is_may_goto_insn(insn))
+		if (bpf_is_may_goto_insn(insn))
 			mark_force_checkpoint(env, t);
 
 		ret = push_insn(t, t + 1, FALLTHROUGH, env);
@@ -19284,7 +19284,7 @@ err_free:
  * [env->subprog_info[i].postorder_start, env->subprog_info[i+1].postorder_start)
  * with indices of 'i' instructions in postorder.
  */
-static int compute_postorder(struct bpf_verifier_env *env)
+int bpf_compute_postorder(struct bpf_verifier_env *env)
 {
 	u32 cur_postorder, i, top, stack_sz, s;
 	int *stack = NULL, *postorder = NULL, *state = NULL;
@@ -21593,6 +21593,27 @@ static int do_check(struct bpf_verifier_env *env)
 		sanitize_mark_insn_seen(env);
 		prev_insn_idx = env->insn_idx;
 
+		/* Sanity check: precomputed constants must match verifier state */
+		if (!state->speculative && insn_aux->const_reg_mask) {
+			struct bpf_reg_state *regs = cur_regs(env);
+			u16 mask = insn_aux->const_reg_mask;
+
+			for (int r = 0; r < ARRAY_SIZE(insn_aux->const_reg_vals); r++) {
+				u32 cval = insn_aux->const_reg_vals[r];
+
+				if (!(mask & BIT(r)))
+					continue;
+				if (regs[r].type != SCALAR_VALUE)
+					continue;
+				if (!tnum_is_const(regs[r].var_off))
+					continue;
+				if (verifier_bug_if((u32)regs[r].var_off.value != cval,
+						    env, "const R%d: %u != %llu",
+						    r, cval, regs[r].var_off.value))
+					return -EFAULT;
+			}
+		}
+
 		/* Reduce verification complexity by stopping speculative path
 		 * verification when a nospec is encountered.
 		 */
@@ -22582,7 +22603,7 @@ static void sanitize_dead_code(struct bpf_verifier_env *env)
 	}
 }
 
-static bool insn_is_cond_jump(u8 code)
+bool bpf_insn_is_cond_jump(u8 code)
 {
 	u8 op;
 
@@ -22605,7 +22626,7 @@ static void opt_hard_wire_dead_code_branches(struct bpf_verifier_env *env)
 	int i;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		if (!insn_is_cond_jump(insn->code))
+		if (!bpf_insn_is_cond_jump(insn->code))
 			continue;
 
 		if (!aux_data[i + 1].seen)
@@ -23101,7 +23122,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		 * need a hard reject of the program. Thus -EFAULT is
 		 * propagated in any case.
 		 */
-		subprog = find_subprog(env, i + insn->imm + 1);
+		subprog = bpf_find_subprog(env, i + insn->imm + 1);
 		if (verifier_bug_if(subprog < 0, env, "No program to jit at insn %d",
 				    i + insn->imm + 1))
 			return -EFAULT;
@@ -23316,7 +23337,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		if (!bpf_pseudo_call(insn))
 			continue;
 		insn->off = env->insn_aux_data[i].call_imm;
-		subprog = find_subprog(env, i + insn->off + 1);
+		subprog = bpf_find_subprog(env, i + insn->off + 1);
 		insn->imm = subprog;
 	}
 
@@ -23927,7 +23948,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			goto next_insn;
 		}
 
-		if (is_may_goto_insn(insn) && bpf_jit_supports_timed_may_goto()) {
+		if (bpf_is_may_goto_insn(insn) && bpf_jit_supports_timed_may_goto()) {
 			int stack_off_cnt = -stack_depth - 16;
 
 			/*
@@ -23970,7 +23991,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			env->prog = prog = new_prog;
 			insn = new_prog->insnsi + i + delta;
 			goto next_insn;
-		} else if (is_may_goto_insn(insn)) {
+		} else if (bpf_is_may_goto_insn(insn)) {
 			int stack_off = -stack_depth - 8;
 
 			stack_depth_extra = 8;
@@ -26396,7 +26417,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = compute_postorder(env);
+	ret = bpf_compute_postorder(env);
 	if (ret < 0)
 		goto skip_full_check;
 
@@ -26406,6 +26427,14 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 
 	ret = check_attach_btf_id(env);
 	if (ret)
+		goto skip_full_check;
+
+	ret = bpf_compute_const_regs(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	ret = bpf_prune_dead_branches(env);
+	if (ret < 0)
 		goto skip_full_check;
 
 	ret = sort_subprogs_topo(env);

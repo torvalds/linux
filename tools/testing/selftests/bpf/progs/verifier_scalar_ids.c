@@ -592,10 +592,10 @@ __naked void check_ids_in_regsafe_2(void)
  */
 SEC("socket")
 __success __log_level(2)
-__msg("11: (1d) if r3 == r4 goto pc+0")
+__msg("14: (1d) if r3 == r4 goto pc+0")
 __msg("frame 0: propagating r3,r4")
-__msg("11: safe")
-__msg("processed 15 insns")
+__msg("14: safe")
+__msg("processed 18 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
 __naked void no_scalar_id_for_const(void)
 {
@@ -605,6 +605,7 @@ __naked void no_scalar_id_for_const(void)
 	"if r0 > 7 goto l0_%=;"
 	/* possibly generate same scalar ids for r3 and r4 */
 	"r1 = 0;"
+	"r1 ^= r1;" /* prevent bpf_prune_dead_branches from folding the branch */
 	"r1 = r1;"
 	"r3 = r1;"
 	"r4 = r1;"
@@ -612,7 +613,9 @@ __naked void no_scalar_id_for_const(void)
 "l0_%=:"
 	/* possibly generate different scalar ids for r3 and r4 */
 	"r1 = 0;"
+	"r1 ^= r1;"
 	"r2 = 0;"
+	"r2 ^= r2;"
 	"r3 = r1;"
 	"r4 = r2;"
 "l1_%=:"
@@ -628,10 +631,10 @@ __naked void no_scalar_id_for_const(void)
 /* Same as no_scalar_id_for_const() but for 32-bit values */
 SEC("socket")
 __success __log_level(2)
-__msg("11: (1e) if w3 == w4 goto pc+0")
+__msg("14: (1e) if w3 == w4 goto pc+0")
 __msg("frame 0: propagating r3,r4")
-__msg("11: safe")
-__msg("processed 15 insns")
+__msg("14: safe")
+__msg("processed 18 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
 __naked void no_scalar_id_for_const32(void)
 {
@@ -641,6 +644,7 @@ __naked void no_scalar_id_for_const32(void)
 	"if r0 > 7 goto l0_%=;"
 	/* possibly generate same scalar ids for r3 and r4 */
 	"w1 = 0;"
+	"w1 ^= w1;" /* prevent bpf_prune_dead_branches from folding the branch */
 	"w1 = w1;"
 	"w3 = w1;"
 	"w4 = w1;"
@@ -648,11 +652,13 @@ __naked void no_scalar_id_for_const32(void)
 "l0_%=:"
 	/* possibly generate different scalar ids for r3 and r4 */
 	"w1 = 0;"
+	"w1 ^= w1;"
 	"w2 = 0;"
+	"w2 ^= w2;"
 	"w3 = w1;"
 	"w4 = w2;"
 "l1_%=:"
-	/* predictable jump, marks r1 and r2 precise */
+	/* predictable jump, marks r3 and r4 precise */
 	"if w3 == w4 goto +0;"
 	"r0 = 0;"
 	"exit;"
