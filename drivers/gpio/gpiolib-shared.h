@@ -11,17 +11,19 @@
 struct gpio_device;
 struct gpio_desc;
 struct device;
+struct fwnode_handle;
 
 #if IS_ENABLED(CONFIG_GPIO_SHARED)
 
-int gpio_device_setup_shared(struct gpio_device *gdev);
+int gpiochip_setup_shared(struct gpio_chip *gc);
 void gpio_device_teardown_shared(struct gpio_device *gdev);
-int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
-				 unsigned long lflags);
+int gpio_shared_add_proxy_lookup(struct device *consumer,
+				 struct fwnode_handle *fwnode,
+				 const char *con_id, unsigned long lflags);
 
 #else
 
-static inline int gpio_device_setup_shared(struct gpio_device *gdev)
+static inline int gpiochip_setup_shared(struct gpio_chip *gc)
 {
 	return 0;
 }
@@ -29,6 +31,7 @@ static inline int gpio_device_setup_shared(struct gpio_device *gdev)
 static inline void gpio_device_teardown_shared(struct gpio_device *gdev) { }
 
 static inline int gpio_shared_add_proxy_lookup(struct device *consumer,
+					       struct fwnode_handle *fwnode,
 					       const char *con_id,
 					       unsigned long lflags)
 {
