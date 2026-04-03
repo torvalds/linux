@@ -843,6 +843,7 @@ static void ssif_bmc_remove(struct i2c_client *client)
 {
 	struct ssif_bmc_ctx *ssif_bmc = i2c_get_clientdata(client);
 
+	timer_delete_sync(&ssif_bmc->response_timer);
 	i2c_slave_unregister(client);
 	misc_deregister(&ssif_bmc->miscdev);
 }
