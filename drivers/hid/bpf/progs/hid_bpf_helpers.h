@@ -340,6 +340,44 @@ DEFINE_GUARD(bpf_spin, struct bpf_spin_lock, bpf_spin_lock, bpf_spin_unlock);
 #define hid_bpf_cpu_to_be32(x)	bpf_htonl(x)
 #define hid_bpf_cpu_to_be64(x)	bpf_cpu_to_be64(x)
 
+/*
+ * The following macros are helpers for exporting udev properties:
+ *
+ * EXPORT_UDEV_PROP(name, len) generates:
+ *  - a map with a single element UDEV_PROP_##name, of size len
+ *  - a const global declaration of that len: SIZEOF_##name
+ *
+ * udev_prop_ptr(name) retrieves the data pointer behind the map.
+ *
+ * UDEV_PROP_SPRINTF(name, fmt, ...) writes data into the udev property.
+ *
+ *  Can be used as such:
+ *  EXPORT_UDEV_PROP(HID_FOO, 32);
+ *
+ *  SEC("syscall")
+ *  int probe(struct hid_bpf_probe_args *ctx)
+ *  {
+ *    const char *foo = "foo";
+ *    UDEV_PROP_SPRINTF(HID_FOO, "%s", foo);
+ *
+ *    return 0;
+ *  }
+ */
+#define EXPORT_UDEV_PROP(name, len) \
+	const __u32 SIZEOF_##name = len; \
+	struct COMBINE(udev_prop, __LINE__) { \
+		__uint(type, BPF_MAP_TYPE_ARRAY); \
+		__uint(max_entries, 1); \
+		__type(key, __u32); \
+		__type(value, __u8[len]); \
+	} UDEV_PROP_##name SEC(".maps");
+
+#define udev_prop_ptr(name) \
+	bpf_map_lookup_elem(&UDEV_PROP_##name, &(__u32){0})
+
+#define UDEV_PROP_SPRINTF(name, fmt, ...) \
+	BPF_SNPRINTF(udev_prop_ptr(name), SIZEOF_##name, fmt, ##__VA_ARGS__)
+
 static inline __maybe_unused __u16 field_start_byte(struct hid_rdesc_field *field)
 {
 	return field->bits_start / 8;
