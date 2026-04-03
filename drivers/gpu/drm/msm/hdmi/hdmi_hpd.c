@@ -65,7 +65,7 @@ void msm_hdmi_hpd_enable(struct drm_bridge *bridge)
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	struct device *dev = &hdmi->pdev->dev;
-	uint32_t hpd_ctrl;
+	u32 hpd_ctrl;
 	int ret;
 	unsigned long flags;
 
@@ -125,7 +125,7 @@ void msm_hdmi_hpd_irq(struct drm_bridge *bridge)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;
-	uint32_t hpd_int_status, hpd_int_ctrl;
+	u32 hpd_int_status, hpd_int_ctrl;
 
 	/* Process HPD: */
 	hpd_int_status = hdmi_read(hdmi, REG_HDMI_HPD_INT_STATUS);

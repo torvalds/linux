@@ -5,21 +5,29 @@
 
 debian/x86_64_build-base:
   variables:
-    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libkmod2 libkmod-dev libpciaccess-dev libproc2-dev libudev-dev libunwind-dev python3-docutils bc python3-ply libssl-dev bc"
-
-debian/x86_64_test-gl:
-  variables:
-    EXTRA_LOCAL_PACKAGES: "jq libasound2 libcairo2 libdw1 libglib2.0-0 libjson-c5 libkmod-dev libkmod2 libgles2 libproc2-dev"
+    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libkmod-dev libpciaccess-dev libproc2-dev libudev-dev libunwind-dev python3-docutils bc python3-ply libssl-dev bc"
 
 debian/arm64_build:
   variables:
-    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libproc2-dev libkmod2 libkmod-dev libpciaccess-dev libudev-dev libunwind-dev python3-docutils libssl-dev crossbuild-essential-armhf libkmod-dev:armhf libproc2-dev:armhf libunwind-dev:armhf libdw-dev:armhf libpixman-1-dev:armhf libcairo-dev:armhf libudev-dev:armhf libjson-c-dev:armhf"
+    EXTRA_LOCAL_PACKAGES: "libcairo-dev libdw-dev libjson-c-dev libproc2-dev libkmod-dev libpciaccess-dev libudev-dev libunwind-dev python3-docutils libssl-dev crossbuild-essential-armhf libkmod-dev:armhf libproc2-dev:armhf libunwind-dev:armhf libdw-dev:armhf libpixman-1-dev:armhf libcairo-dev:armhf libudev-dev:armhf libjson-c-dev:armhf"
 
-.kernel+rootfs:
+debian/x86_64_test-gl:
   variables:
-    EXTRA_LOCAL_PACKAGES: "jq libasound2 libcairo2 libdw1 libglib2.0-0 libjson-c5"
+    EXTRA_LOCAL_PACKAGES: "jq libasound2t64 libcairo2 libdw1t64 libglib2.0-0t64 libjson-c5 libkmod2 libgles2 libdrm-nouveau2 libdrm-amdgpu1"
+
+debian/arm64_test-gl:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "jq libasound2t64 libcairo2 libdw1t64 libglib2.0-0t64 libjson-c5 libkmod2 libgles2 libdrm-nouveau2 libdrm-amdgpu1"
+
+debian/arm32_test-gl:
+  variables:
+    EXTRA_LOCAL_PACKAGES: "jq libasound2t64 libcairo2 libdw1t64 libglib2.0-0t64 libjson-c5 libkmod2 libgles2 libdrm-nouveau2 libdrm-amdgpu1 libunwind8"
 
 # Disable container jobs that we won't use
+alpine/x86_64_build:
+  rules:
+    - when: never
+
 debian/arm64_test-vk:
   rules:
     - when: never
@@ -28,11 +36,19 @@ debian/baremetal_arm32_test-gl:
   rules:
     - when: never
 
+debian/baremetal_arm64_test-gl:
+  rules:
+    - when: never
+
 debian/baremetal_arm64_test-vk:
   rules:
     - when: never
 
 debian/ppc64el_build:
+  rules:
+    - when: never
+
+debian/riscv64_build:
   rules:
     - when: never
 

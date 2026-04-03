@@ -286,7 +286,6 @@ static const struct dpu_wb_cfg sc8180x_wb[] = {
 		.num_formats = ARRAY_SIZE(wb2_formats_rgb_yuv),
 		.clk_ctrl = DPU_CLK_CTRL_WB2,
 		.xin_id = 6,
-		.vbif_idx = VBIF_RT,
 		.maxlinewidth = 4096,
 		.intr_wb_done = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 4),
 	},
@@ -405,8 +404,7 @@ const struct dpu_mdss_cfg dpu_sc8180x_cfg = {
 	.wb = sc8180x_wb,
 	.intf_count = ARRAY_SIZE(sc8180x_intf),
 	.intf = sc8180x_intf,
-	.vbif_count = ARRAY_SIZE(sdm845_vbif),
-	.vbif = sdm845_vbif,
+	.vbif = &sdm845_vbif,
 	.perf = &sc8180x_perf_data,
 };
 

@@ -262,6 +262,14 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 	icc_set_bw(msm_mdss->reg_bus_path, 0,
 		   msm_mdss->reg_bus_bw);
 
+	/*
+	 * TODO:
+	 * Previous users (e.g. the bootloader) may have left this clock at a high rate, which
+	 * would remain set, as prepare_enable() doesn't reprogram it. This theoretically poses a
+	 * risk of brownout, but realistically this path is almost exclusively excercised after the
+	 * correct OPP has been set in one of the MDPn or DPU drivers, or during initial probe,
+	 * before the RPM(H)PD sync_state is done.
+	 */
 	ret = clk_bulk_prepare_enable(msm_mdss->num_clocks, msm_mdss->clocks);
 	if (ret) {
 		dev_err(msm_mdss->dev, "clock enable failed, ret:%d\n", ret);
@@ -560,6 +568,7 @@ static const struct msm_mdss_data data_153k6 = {
 
 static const struct of_device_id mdss_dt_match[] = {
 	{ .compatible = "qcom,mdss", .data = &data_153k6 },
+	{ .compatible = "qcom,eliza-mdss", .data = &data_57k },
 	{ .compatible = "qcom,glymur-mdss", .data = &data_57k },
 	{ .compatible = "qcom,kaanapali-mdss", .data = &data_57k },
 	{ .compatible = "qcom,msm8998-mdss", .data = &data_76k8 },

@@ -569,6 +569,7 @@ void dsi_link_clk_disable_v2(struct msm_dsi_host *msm_host)
  * dsi_adjust_pclk_for_compression() - Adjust the pclk rate for compression case
  * @mode: The selected mode for the DSI output
  * @dsc: DRM DSC configuration for this DSI output
+ * @is_bonded_dsi: True if two DSI controllers are bonded
  *
  * Adjust the pclk rate by calculating a new hdisplay proportional to
  * the compression ratio such that:
@@ -757,6 +758,7 @@ static inline enum dsi_vid_dst_format
 dsi_get_vid_fmt(const enum mipi_dsi_pixel_format mipi_fmt)
 {
 	switch (mipi_fmt) {
+	case MIPI_DSI_FMT_RGB101010:	return VID_DST_FORMAT_RGB101010;
 	case MIPI_DSI_FMT_RGB888:	return VID_DST_FORMAT_RGB888;
 	case MIPI_DSI_FMT_RGB666:	return VID_DST_FORMAT_RGB666_LOOSE;
 	case MIPI_DSI_FMT_RGB666_PACKED:	return VID_DST_FORMAT_RGB666;
@@ -769,6 +771,7 @@ static inline enum dsi_cmd_dst_format
 dsi_get_cmd_fmt(const enum mipi_dsi_pixel_format mipi_fmt)
 {
 	switch (mipi_fmt) {
+	case MIPI_DSI_FMT_RGB101010:	return CMD_DST_FORMAT_RGB101010;
 	case MIPI_DSI_FMT_RGB888:	return CMD_DST_FORMAT_RGB888;
 	case MIPI_DSI_FMT_RGB666_PACKED:
 	case MIPI_DSI_FMT_RGB666:	return CMD_DST_FORMAT_RGB666;
@@ -782,13 +785,21 @@ static void dsi_ctrl_disable(struct msm_dsi_host *msm_host)
 	dsi_write(msm_host, REG_DSI_CTRL, 0);
 }
 
+static bool msm_dsi_host_version_geq(struct msm_dsi_host *msm_host,
+				    u32 major, u32 minor)
+{
+	return msm_host->cfg_hnd->major > major ||
+	       (msm_host->cfg_hnd->major == major &&
+	       msm_host->cfg_hnd->minor >= minor);
+}
+
 bool msm_dsi_host_is_wide_bus_enabled(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
 	return msm_host->dsc &&
-		(msm_host->cfg_hnd->major == MSM_DSI_VER_MAJOR_6G &&
-		 msm_host->cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V2_5_0);
+		msm_dsi_host_version_geq(msm_host, MSM_DSI_VER_MAJOR_6G,
+					MSM_DSI_6G_VER_MINOR_V2_5_0);
 }
 
 static void dsi_ctrl_enable(struct msm_dsi_host *msm_host,
@@ -1033,8 +1044,9 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 		/*
 		 * DPU sends 3 bytes per pclk cycle to DSI. If widebus is
 		 * enabled, MDP always sends out 48-bit compressed data per
-		 * pclk and on average, DSI consumes an amount of compressed
-		 * data equivalent to the uncompressed pixel depth per pclk.
+		 * pclk and on average, for video mode, DSI consumes only an
+		 * amount of compressed data equivalent to the uncompressed
+		 * pixel depth per pclk.
 		 *
 		 * Calculate the number of pclks needed to transmit one line of
 		 * the compressed data.
@@ -1046,10 +1058,14 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 		 * unused anyway.
 		 */
 		h_total -= hdisplay;
-		if (wide_bus_enabled)
-			bits_per_pclk = mipi_dsi_pixel_format_to_bpp(msm_host->format);
-		else
+		if (wide_bus_enabled) {
+			if (msm_host->mode_flags & MIPI_DSI_MODE_VIDEO)
+				bits_per_pclk = dsc->bits_per_component * 3;
+			else
+				bits_per_pclk = 48;
+		} else {
 			bits_per_pclk = 24;
+		}
 
 		hdisplay = DIV_ROUND_UP(msm_dsc_get_bytes_per_line(msm_host->dsc) * 8, bits_per_pclk);
 
@@ -1704,6 +1720,26 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 	msm_host->mode_flags = dsi->mode_flags;
 	if (dsi->dsc)
 		msm_host->dsc = dsi->dsc;
+
+	if (msm_host->format == MIPI_DSI_FMT_RGB101010) {
+		if (!msm_dsi_host_version_geq(msm_host, MSM_DSI_VER_MAJOR_6G,
+					      MSM_DSI_6G_VER_MINOR_V2_1_0)) {
+			DRM_DEV_ERROR(&msm_host->pdev->dev,
+				      "RGB101010 not supported on this DSI controller\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * Downstream overrides RGB101010 back to RGB888 when DSC is enabled
+		 * but widebus is not. Using RGB101010 in this case may require some
+		 * extra changes.
+		 */
+		if (msm_host->dsc &&
+		    !msm_dsi_host_is_wide_bus_enabled(&msm_host->base)) {
+			dev_warn(&msm_host->pdev->dev,
+				 "RGB101010 with DSC but without widebus, may need extra changes\n");
+		}
+	}
 
 	ret = dsi_dev_attach(msm_host->pdev);
 	if (ret)

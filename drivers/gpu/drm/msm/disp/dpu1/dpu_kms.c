@@ -52,7 +52,7 @@
 #define DPU_DEBUGFS_DIR "msm_dpu"
 #define DPU_DEBUGFS_HWMASKNAME "hw_log_mask"
 
-bool dpu_use_virtual_planes;
+bool dpu_use_virtual_planes = true;
 module_param(dpu_use_virtual_planes, bool, 0);
 
 static int dpu_kms_hw_init(struct msm_kms *kms);
@@ -888,16 +888,12 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 
 static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 {
-	int i;
-
 	dpu_kms->hw_intr = NULL;
 
 	/* safe to call these more than once during shutdown */
 	_dpu_kms_mmu_destroy(dpu_kms);
 
-	for (i = 0; i < ARRAY_SIZE(dpu_kms->hw_vbif); i++) {
-		dpu_kms->hw_vbif[i] = NULL;
-	}
+	dpu_kms->hw_vbif = NULL;
 
 	dpu_kms_global_obj_fini(dpu_kms);
 
@@ -1061,13 +1057,11 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 					    dpu_kms->mmio + cat->cdm->base,
 					    "%s", cat->cdm->name);
 
-	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+	const struct dpu_vbif_cfg *vbif = dpu_kms->catalog->vbif;
 
-		msm_disp_snapshot_add_block(disp_state, vbif->len,
-					    dpu_kms->vbif[vbif->id] + vbif->base,
-					    "%s", vbif->name);
-	}
+	msm_disp_snapshot_add_block(disp_state, vbif->len,
+				    dpu_kms->vbif,
+				    "vbif");
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
@@ -1145,7 +1139,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 {
 	struct dpu_kms *dpu_kms;
 	struct drm_device *dev;
-	int i, rc = -EINVAL;
+	int rc = -EINVAL;
 	unsigned long max_core_clk_rate;
 	u32 core_rev;
 
@@ -1220,19 +1214,17 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto err_pm_put;
 	}
 
-	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		struct dpu_hw_vbif *hw;
-		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+	struct dpu_hw_vbif *hw;
+	const struct dpu_vbif_cfg *vbif = dpu_kms->catalog->vbif;
 
-		hw = dpu_hw_vbif_init(dev, vbif, dpu_kms->vbif[vbif->id]);
-		if (IS_ERR(hw)) {
-			rc = PTR_ERR(hw);
-			DPU_ERROR("failed to init vbif %d: %d\n", vbif->id, rc);
-			goto err_pm_put;
-		}
-
-		dpu_kms->hw_vbif[vbif->id] = hw;
+	hw = dpu_hw_vbif_init(dev, vbif, dpu_kms->vbif);
+	if (IS_ERR(hw)) {
+		rc = PTR_ERR(hw);
+		DPU_ERROR("failed to init vbif: %d\n", rc);
+		goto err_pm_put;
 	}
+
+	dpu_kms->hw_vbif = hw;
 
 	/* TODO: use the same max_freq as in dpu_kms_hw_init */
 	max_core_clk_rate = dpu_kms_get_clk_rate(dpu_kms, "core");
@@ -1348,22 +1340,12 @@ static int dpu_kms_mmap_mdp5(struct dpu_kms *dpu_kms)
 	}
 	DRM_DEBUG("mapped dpu address space @%p\n", dpu_kms->mmio);
 
-	dpu_kms->vbif[VBIF_RT] = msm_ioremap_mdss(mdss_dev,
-						  dpu_kms->pdev,
-						  "vbif_phys");
-	if (IS_ERR(dpu_kms->vbif[VBIF_RT])) {
-		ret = PTR_ERR(dpu_kms->vbif[VBIF_RT]);
+	dpu_kms->vbif = msm_ioremap_mdss(mdss_dev, dpu_kms->pdev, "vbif_phys");
+	if (IS_ERR(dpu_kms->vbif)) {
+		ret = PTR_ERR(dpu_kms->vbif);
 		DPU_ERROR("vbif register memory map failed: %d\n", ret);
-		dpu_kms->vbif[VBIF_RT] = NULL;
+		dpu_kms->vbif = NULL;
 		return ret;
-	}
-
-	dpu_kms->vbif[VBIF_NRT] = msm_ioremap_mdss(mdss_dev,
-						   dpu_kms->pdev,
-						   "vbif_nrt_phys");
-	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
-		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
 	}
 
 	return 0;
@@ -1383,18 +1365,12 @@ static int dpu_kms_mmap_dpu(struct dpu_kms *dpu_kms)
 	}
 	DRM_DEBUG("mapped dpu address space @%p\n", dpu_kms->mmio);
 
-	dpu_kms->vbif[VBIF_RT] = msm_ioremap(pdev, "vbif");
-	if (IS_ERR(dpu_kms->vbif[VBIF_RT])) {
-		ret = PTR_ERR(dpu_kms->vbif[VBIF_RT]);
+	dpu_kms->vbif = msm_ioremap(pdev, "vbif");
+	if (IS_ERR(dpu_kms->vbif)) {
+		ret = PTR_ERR(dpu_kms->vbif);
 		DPU_ERROR("vbif register memory map failed: %d\n", ret);
-		dpu_kms->vbif[VBIF_RT] = NULL;
+		dpu_kms->vbif = NULL;
 		return ret;
-	}
-
-	dpu_kms->vbif[VBIF_NRT] = msm_ioremap_quiet(pdev, "vbif_nrt");
-	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
-		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
 	}
 
 	return 0;
@@ -1462,8 +1438,6 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 	struct msm_drm_private *priv = platform_get_drvdata(pdev);
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 
-	/* Drop the performance state vote */
-	dev_pm_opp_set_rate(dev, 0);
 	clk_bulk_disable_unprepare(dpu_kms->num_clocks, dpu_kms->clocks);
 
 	for (i = 0; i < dpu_kms->num_paths; i++)
@@ -1506,6 +1480,7 @@ static const struct dev_pm_ops dpu_pm_ops = {
 };
 
 static const struct of_device_id dpu_dt_match[] = {
+	{ .compatible = "qcom,eliza-dpu", .data = &dpu_eliza_cfg, },
 	{ .compatible = "qcom,glymur-dpu", .data = &dpu_glymur_cfg, },
 	{ .compatible = "qcom,kaanapali-dpu", .data = &dpu_kaanapali_cfg, },
 	{ .compatible = "qcom,msm8917-mdp5", .data = &dpu_msm8917_cfg, },

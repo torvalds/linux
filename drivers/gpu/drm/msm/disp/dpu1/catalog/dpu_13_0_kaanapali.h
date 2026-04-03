@@ -362,7 +362,6 @@ static const struct dpu_wb_cfg kaanapali_wb[] = {
 		.format_list = wb2_formats_rgb_yuv,
 		.num_formats = ARRAY_SIZE(wb2_formats_rgb_yuv),
 		.xin_id = 6,
-		.vbif_idx = VBIF_RT,
 		.maxlinewidth = 4096,
 		.intr_wb_done = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 4),
 	},
@@ -418,7 +417,7 @@ static const struct dpu_intf_cfg kaanapali_intf[] = {
 		.name = "intf_3", .id = INTF_3,
 		.base = 0x190000, .len = 0x4bc,
 		.type = INTF_DP,
-		.controller_id = MSM_DP_CONTROLLER_1,
+		.controller_id = MSM_DP_CONTROLLER_0,	/* pair with intf_0 for DP MST */
 		.prog_fetch_lines_worst_case = 24,
 		.intr_underrun = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 30),
 		.intr_vsync = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR, 31),
@@ -484,8 +483,7 @@ const struct dpu_mdss_cfg dpu_kaanapali_cfg = {
 	.cwb = sm8650_cwb,
 	.intf_count = ARRAY_SIZE(kaanapali_intf),
 	.intf = kaanapali_intf,
-	.vbif_count = ARRAY_SIZE(sm8650_vbif),
-	.vbif = sm8650_vbif,
+	.vbif = &sm8650_vbif,
 	.perf = &kaanapali_perf_data,
 };
 

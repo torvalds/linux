@@ -7,7 +7,7 @@
 #include "hdmi.h"
 
 static void hdmi_phy_8960_powerup(struct hdmi_phy *phy,
-				  unsigned long int pixclock)
+				  unsigned long pixclock)
 {
 	DBG("pixclock: %lu", pixclock);
 

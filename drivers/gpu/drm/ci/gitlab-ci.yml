@@ -1,6 +1,6 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 02337aec715c25dae7ff2479d986f831c77fe536
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 25881c701a56233dd8fc7f92db6884a73949d63d
 
   UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
@@ -11,7 +11,7 @@ variables:
   DEQP_RUNNER_GIT_TAG: v0.20.0
 
   FDO_UPSTREAM_REPO: helen.fornazier/linux   # The repo where the git-archive daily runs
-  MESA_TEMPLATES_COMMIT: &ci-templates-commit c6aeb16f86e32525fa630fb99c66c4f3e62fc3cb
+  MESA_TEMPLATES_COMMIT: &ci-templates-commit aec7a6ce7bb38902c70641526f6611e27141784a
   DRM_CI_PROJECT_URL: https://gitlab.freedesktop.org/${DRM_CI_PROJECT_PATH}
   CI_PRE_CLONE_SCRIPT: |-
           set -o xtrace
@@ -30,6 +30,8 @@ variables:
   S3_GITCACHE_BUCKET: git-cache
   # Bucket for the pipeline artifacts pushed to S3
   S3_ARTIFACTS_BUCKET: artifacts
+  # Base path used for various artifacts
+  S3_BASE_PATH: "${S3_HOST}/${S3_KERNEL_BUCKET}"
   # per-pipeline artifact storage on MinIO
   PIPELINE_ARTIFACTS_BASE: ${S3_HOST}/${S3_ARTIFACTS_BUCKET}/${CI_PROJECT_PATH}/${CI_PIPELINE_ID}
   # per-job artifact storage on MinIO
@@ -44,6 +46,8 @@ variables:
   ARTIFACTS_BASE_URL: https://${CI_PROJECT_ROOT_NAMESPACE}.${CI_PAGES_DOMAIN}/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts
   # Python scripts for structured logger
   PYTHONPATH: "$PYTHONPATH:$CI_PROJECT_DIR/install"
+  # Mesa-specific variables that shouldn't be forwarded to DUTs and crosvm
+  CI_EXCLUDE_ENV_VAR_REGEX: 'SCRIPTS_DIR|RESULTS_DIR'
 
 
 default:
@@ -84,10 +88,11 @@ include:
   - project: *drm-ci-project-path
     ref: *drm-ci-commit-sha
     file:
+      - '/.gitlab-ci/bare-metal/gitlab-ci.yml'
       - '/.gitlab-ci/build/gitlab-ci.yml'
       - '/.gitlab-ci/container/gitlab-ci.yml'
       - '/.gitlab-ci/farm-rules.yml'
-      - '/.gitlab-ci/lava/lava-gitlab-ci.yml'
+      - '/.gitlab-ci/lava/gitlab-ci.yml'
       - '/.gitlab-ci/test-source-dep.yml'
       - '/.gitlab-ci/test/gitlab-ci.yml'
       - '/src/amd/ci/gitlab-ci-inc.yml'
@@ -131,6 +136,7 @@ stages:
   - meson
   - msm
   - panfrost
+  - panthor
   - powervr
   - rockchip
   - software-driver
@@ -147,10 +153,10 @@ stages:
     - if: &is-merge-attempt $GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"
     # post-merge pipeline
     - if: &is-post-merge $GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "push"
-    # Pre-merge pipeline
-    - if: &is-pre-merge $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Pre-merge pipeline (because merge pipelines are already caught above)
+    - if: &is-merge-request $CI_PIPELINE_SOURCE == "merge_request_event"
     # Push to a branch on a fork
-    - if: &is-fork-push $CI_PIPELINE_SOURCE == "push"
+    - if: &is-push-to-fork $CI_PIPELINE_SOURCE == "push"
     # nightly pipeline
     - if: &is-scheduled-pipeline $CI_PIPELINE_SOURCE == "schedule"
     # pipeline for direct pushes that bypassed the CI
@@ -160,9 +166,8 @@ stages:
 # Rules applied to every job in the pipeline
 .common-rules:
   rules:
-    - if: *is-fork-push
+    - if: *is-push-to-fork
       when: manual
-
 
 .never-post-merge-rules:
   rules:
@@ -170,7 +175,50 @@ stages:
       when: never
 
 
-.container+build-rules:
+# Note: make sure the branches in this list are the same as in
+# `.build-only-delayed-rules` below.
+.container-rules:
+  rules:
+    - !reference [.common-rules, rules]
+    # Run when re-enabling a disabled farm, but not when disabling it
+    - !reference [.disable-farm-mr-rules, rules]
+    # Never run immediately after merging, as we just ran everything
+    - !reference [.never-post-merge-rules, rules]
+    # Only rebuild containers in merge pipelines if any tags have been
+    # changed, else we'll just use the already-built containers
+    - if: *is-merge-attempt
+      changes: &image_tags_path
+        - drivers/gpu/drm/ci/image-tags.yml
+      when: on_success
+    # Skip everything for pre-merge and merge pipelines which don't change
+    # anything in the build; we only do this for marge-bot and not user
+    # pipelines in a MR, because we might still need to run it to copy the
+    # container into the user's namespace.
+    - if: *is-merge-attempt
+      when: never
+    # Any MR pipeline which changes image-tags.yml needs to be able to
+    # rebuild the containers
+    - if: *is-merge-request
+      changes: *image_tags_path
+      when: manual
+    # ... however for MRs running inside the user namespace, we may need to
+    # run these jobs to copy the container images from upstream
+    - if: *is-merge-request
+      when: manual
+    # Build everything after someone bypassed the CI
+    - if: *is-direct-push
+      when: manual
+    # Scheduled pipelines reuse already-built containers
+    - if: *is-scheduled-pipeline
+      when: never
+    # Allow building everything in fork pipelines, but build nothing unless
+    # manually triggered
+    - when: manual
+
+
+# Note: make sure the branches in this list are the same as in
+# `.build-only-delayed-rules` below.
+.build-rules:
   rules:
     - !reference [.common-rules, rules]
     # Run when re-enabling a disabled farm, but not when disabling it
@@ -181,7 +229,7 @@ stages:
     - if: *is-merge-attempt
       when: on_success
     # Same as above, but for pre-merge pipelines
-    - if: *is-pre-merge
+    - if: *is-merge-request
       when: manual
     # Build everything after someone bypassed the CI
     - if: *is-direct-push
@@ -197,7 +245,7 @@ stages:
 # Repeat of the above but with `when: on_success` replaced with
 # `when: delayed` + `start_in:`, for build-only jobs.
 # Note: make sure the branches in this list are the same as in
-# `.container+build-rules` above.
+# `.build-rules` above.
 .build-only-delayed-rules:
   rules:
     - !reference [.common-rules, rules]
@@ -210,7 +258,7 @@ stages:
       when: delayed
       start_in: &build-delay 5 minutes
     # Same as above, but for pre-merge pipelines
-    - if: *is-pre-merge
+    - if: *is-merge-request
       when: manual
     # Build everything after someone bypassed the CI
     - if: *is-direct-push
@@ -235,11 +283,6 @@ stages:
       - artifacts
       - _build/meson-logs/*.txt
       - _build/meson-logs/strace
-
-
-python-artifacts:
-  variables:
-    GIT_DEPTH: 10
 
 
 # Git archive
@@ -273,7 +316,7 @@ sanity:
   tags:
     - $FDO_RUNNER_JOB_PRIORITY_TAG_X86_64
   rules:
-    - if: *is-pre-merge
+    - if: *is-merge-request
       when: on_success
     - when: never
   variables:
@@ -284,7 +327,6 @@ sanity:
     - |
       set -eu
       image_tags=(
-        ALPINE_X86_64_LAVA_SSH_TAG
         CONTAINER_TAG
         DEBIAN_BASE_TAG
         DEBIAN_BUILD_TAG
@@ -345,5 +387,21 @@ linkcheck-docs:
     - when: never
 
 test-docs:
+   rules:
+    - when: never
+
+.ci-tron-x86_64-test-vk:
+   rules:
+    - when: never
+
+.ci-tron-x86_64-test-gl-manual:
+   rules:
+    - when: never
+
+.ci-tron-arm64-test-gl:
+   rules:
+    - when: never
+
+.ci-tron-x86_64-test-gl:
    rules:
     - when: never

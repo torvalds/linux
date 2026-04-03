@@ -284,12 +284,6 @@ enum dpu_wd_timer {
 	WD_TIMER_MAX
 };
 
-enum dpu_vbif {
-	VBIF_RT,
-	VBIF_NRT,
-	VBIF_MAX,
-};
-
 /**
  * enum dpu_3d_blend_mode
  * Desribes how the 3d data is blended
