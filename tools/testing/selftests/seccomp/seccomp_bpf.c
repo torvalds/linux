@@ -170,6 +170,12 @@ struct seccomp_data {
 # endif
 #endif
 
+#ifndef __NR_uprobe
+# if defined(__x86_64__)
+#  define __NR_uprobe 336
+# endif
+#endif
+
 #ifndef SECCOMP_SET_MODE_STRICT
 #define SECCOMP_SET_MODE_STRICT 0
 #endif
