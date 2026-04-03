@@ -225,15 +225,8 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 		 * *clu = (the first cluster of the allocated chain) =>
 		 * (the last cluster of ...)
 		 */
-		if (ei->flags == ALLOC_NO_FAT_CHAIN) {
-			*clu += num_to_be_allocated - 1;
-		} else {
-			while (num_to_be_allocated > 1) {
-				if (exfat_get_next_cluster(sb, clu))
-					return -EIO;
-				num_to_be_allocated--;
-			}
-		}
+		if (exfat_cluster_walk(sb, clu, num_to_be_allocated - 1, ei->flags))
+			return -EIO;
 		*count = 1;
 	}
 
