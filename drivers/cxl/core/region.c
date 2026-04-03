@@ -1103,6 +1103,14 @@ static int cxl_rr_ep_add(struct cxl_region_ref *cxl_rr,
 
 	if (!cxld->region) {
 		cxld->region = cxlr;
+
+		/*
+		 * Now that cxld->region is set the intermediate staging state
+		 * can be cleared.
+		 */
+		if (cxld == &cxled->cxld &&
+		    cxled->state == CXL_DECODER_STATE_AUTO_STAGED)
+			cxled->state = CXL_DECODER_STATE_AUTO;
 		get_device(&cxlr->dev);
 	}
 
@@ -1844,6 +1852,7 @@ static int cxl_region_attach_auto(struct cxl_region *cxlr,
 	pos = p->nr_targets;
 	p->targets[pos] = cxled;
 	cxled->pos = pos;
+	cxled->state = CXL_DECODER_STATE_AUTO_STAGED;
 	p->nr_targets++;
 
 	return 0;
@@ -2193,6 +2202,47 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 	return 0;
 }
 
+static int cxl_region_by_target(struct device *dev, const void *data)
+{
+	const struct cxl_endpoint_decoder *cxled = data;
+	struct cxl_region_params *p;
+	struct cxl_region *cxlr;
+
+	if (!is_cxl_region(dev))
+		return 0;
+
+	cxlr = to_cxl_region(dev);
+	p = &cxlr->params;
+	return p->targets[cxled->pos] == cxled;
+}
+
+/*
+ * When an auto-region fails to assemble the decoder may be listed as a target,
+ * but not fully attached.
+ */
+static void cxl_cancel_auto_attach(struct cxl_endpoint_decoder *cxled)
+{
+	struct cxl_region_params *p;
+	struct cxl_region *cxlr;
+	int pos = cxled->pos;
+
+	if (cxled->state != CXL_DECODER_STATE_AUTO_STAGED)
+		return;
+
+	struct device *dev __free(put_device) =
+		bus_find_device(&cxl_bus_type, NULL, cxled, cxl_region_by_target);
+	if (!dev)
+		return;
+
+	cxlr = to_cxl_region(dev);
+	p = &cxlr->params;
+
+	p->nr_targets--;
+	cxled->state = CXL_DECODER_STATE_AUTO;
+	cxled->pos = -1;
+	p->targets[pos] = NULL;
+}
+
 static struct cxl_region *
 __cxl_decoder_detach(struct cxl_region *cxlr,
 		     struct cxl_endpoint_decoder *cxled, int pos,
@@ -2216,8 +2266,10 @@ __cxl_decoder_detach(struct cxl_region *cxlr,
 		cxled = p->targets[pos];
 	} else {
 		cxlr = cxled->cxld.region;
-		if (!cxlr)
+		if (!cxlr) {
+			cxl_cancel_auto_attach(cxled);
 			return NULL;
+		}
 		p = &cxlr->params;
 	}
 
@@ -4216,6 +4268,36 @@ static int cxl_region_setup_poison(struct cxl_region *cxlr)
 
 	return devm_add_action_or_reset(dev, remove_debugfs, dentry);
 }
+
+static int region_contains_resource(struct device *dev, const void *data)
+{
+	const struct resource *res = data;
+	struct cxl_region *cxlr;
+	struct cxl_region_params *p;
+
+	if (!is_cxl_region(dev))
+		return 0;
+
+	cxlr = to_cxl_region(dev);
+	p = &cxlr->params;
+
+	if (p->state != CXL_CONFIG_COMMIT)
+		return 0;
+
+	if (!p->res)
+		return 0;
+
+	return resource_contains(p->res, res) ? 1 : 0;
+}
+
+bool cxl_region_contains_resource(const struct resource *res)
+{
+	guard(rwsem_read)(&cxl_rwsem.region);
+	struct device *dev __free(put_device) = bus_find_device(
+		&cxl_bus_type, NULL, res, region_contains_resource);
+	return !!dev;
+}
+EXPORT_SYMBOL_FOR_MODULES(cxl_region_contains_resource, "dax_hmem");
 
 static int cxl_region_can_probe(struct cxl_region *cxlr)
 {

@@ -10,6 +10,7 @@
 #include "dax-private.h"
 #include "bus.h"
 
+static struct resource dax_regions = DEFINE_RES_MEM_NAMED(0, -1, "DAX Regions");
 static DEFINE_MUTEX(dax_bus_lock);
 
 /*
@@ -627,6 +628,7 @@ static void dax_region_unregister(void *region)
 
 	sysfs_remove_groups(&dax_region->dev->kobj,
 			dax_region_attribute_groups);
+	release_resource(&dax_region->res);
 	dax_region_put(dax_region);
 }
 
@@ -635,6 +637,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		unsigned long flags)
 {
 	struct dax_region *dax_region;
+	int rc;
 
 	/*
 	 * The DAX core assumes that it can store its private data in
@@ -667,14 +670,25 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 		.flags = IORESOURCE_MEM | flags,
 	};
 
-	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups)) {
-		kfree(dax_region);
-		return NULL;
+	rc = request_resource(&dax_regions, &dax_region->res);
+	if (rc) {
+		dev_dbg(parent, "dax_region resource conflict for %pR\n",
+			&dax_region->res);
+		goto err_res;
 	}
+
+	if (sysfs_create_groups(&parent->kobj, dax_region_attribute_groups))
+		goto err_sysfs;
 
 	if (devm_add_action_or_reset(parent, dax_region_unregister, dax_region))
 		return NULL;
 	return dax_region;
+
+err_sysfs:
+	release_resource(&dax_region->res);
+err_res:
+	dax_region_put(dax_region);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(alloc_dax_region);
 

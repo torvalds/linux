@@ -251,6 +251,56 @@ struct cxl_dport *__wrap_devm_cxl_add_dport_by_dev(struct cxl_port *port,
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_dport_by_dev, "CXL");
 
+int __wrap_region_intersects(resource_size_t start, size_t size,
+			     unsigned long flags, unsigned long desc)
+{
+	int rc = -1;
+	int index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops)
+		rc = ops->region_intersects(start, size, flags, desc);
+	if (rc < 0)
+		rc = region_intersects(start, size, flags, desc);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(__wrap_region_intersects);
+
+int __wrap_region_intersects_soft_reserve(resource_size_t start, size_t size)
+{
+	int rc = -1;
+	int index;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (ops)
+		rc = ops->region_intersects_soft_reserve(start, size);
+	if (rc < 0)
+		rc = region_intersects_soft_reserve(start, size);
+	put_cxl_mock_ops(index);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(__wrap_region_intersects_soft_reserve);
+
+int __wrap_walk_hmem_resources(struct device *host, walk_hmem_fn fn)
+{
+	int index, rc = 0;
+	bool is_mock = strcmp(dev_name(host), "hmem_platform.1") == 0;
+	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
+
+	if (is_mock) {
+		if (ops)
+			rc = ops->walk_hmem_resources(host, fn);
+	} else {
+		rc = walk_hmem_resources(host, fn);
+	}
+	put_cxl_mock_ops(index);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(__wrap_walk_hmem_resources);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("cxl_test: emulation module");
 MODULE_IMPORT_NS("ACPI");
