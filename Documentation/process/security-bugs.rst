@@ -5,8 +5,75 @@ Security bugs
 
 Linux kernel developers take security very seriously.  As such, we'd
 like to know when a security bug is found so that it can be fixed and
-disclosed as quickly as possible.  Please report security bugs to the
-Linux kernel security team.
+disclosed as quickly as possible.
+
+Identifying contacts
+--------------------
+
+The most effective way to report a security bug is to send it directly to the
+affected subsystem's maintainers and Cc: the Linux kernel security team.  Do
+not send it to a public list at this stage, unless you have good reasons to
+consider the issue as being public or trivial to discover (e.g. result of a
+widely available automated vulnerability scanning tool that can be repeated by
+anyone).
+
+If you're sending a report for issues affecting multiple parts in the kernel,
+even if they're fairly similar issues, please send individual messages (think
+that maintainers will not all work on the issues at the same time). The only
+exception is when an issue concerns closely related parts maintained by the
+exact same subset of maintainers, and these parts are expected to be fixed all
+at once by the same commit, then it may be acceptable to report them at once.
+
+One difficulty for most first-time reporters is to figure the right list of
+recipients to send a report to.  In the Linux kernel, all official maintainers
+are trusted, so the consequences of accidentally including the wrong maintainer
+are essentially a bit more noise for that person, i.e. nothing dramatic.  As
+such, a suitable method to figure the list of maintainers (which kernel
+security officers use) is to rely on the get_maintainers.pl script, tuned to
+only report maintainers.  This script, when passed a file name, will look for
+its path in the MAINTAINERS file to figure a hierarchical list of relevant
+maintainers.  Calling it a first time with the finest level of filtering will
+most of the time return a short list of this specific file's maintainers::
+
+  $ ./scripts/get_maintainer.pl --no-l --no-r --pattern-depth 1 \
+    drivers/example.c
+  Developer One <dev1@example.com> (maintainer:example driver)
+  Developer Two <dev2@example.org> (maintainer:example driver)
+
+These two maintainers should then receive the message.  If the command does not
+return anything, it means the affected file is part of a wider subsystem, so we
+should be less specific::
+
+  $ ./scripts/get_maintainer.pl --no-l --no-r drivers/example.c
+  Developer One <dev1@example.com> (maintainer:example subsystem)
+  Developer Two <dev2@example.org> (maintainer:example subsystem)
+  Developer Three <dev3@example.com> (maintainer:example subsystem [GENERAL])
+  Developer Four <dev4@example.org> (maintainer:example subsystem [GENERAL])
+
+Here, picking the first, most specific ones, is sufficient.  When the list is
+long, it is possible to produce a comma-delimited e-mail address list on a
+single line suitable for use in the To: field of a mailer like this::
+
+  $ ./scripts/get_maintainer.pl --no-tree --no-l --no-r --no-n --m \
+    --no-git-fallback --no-substatus --no-rolestats --no-multiline \
+    --pattern-depth 1 drivers/example.c
+  dev1@example.com, dev2@example.org
+
+or this for the wider list::
+
+  $ ./scripts/get_maintainer.pl --no-tree --no-l --no-r --no-n --m \
+    --no-git-fallback --no-substatus --no-rolestats --no-multiline \
+    drivers/example.c
+  dev1@example.com, dev2@example.org, dev3@example.com, dev4@example.org
+
+If at this point you're still facing difficulties spotting the right
+maintainers, **and only in this case**, it's possible to send your report to
+the Linux kernel security team only.  Your message will be triaged, and you
+will receive instructions about whom to contact, if needed.  Your message may
+equally be forwarded as-is to the relevant maintainers.
+
+Sending the report
+------------------
 
 Reports are to be sent over e-mail exclusively.  Please use a working e-mail
 address, preferably the same that you want to appear in ``Reported-by`` tags
@@ -29,6 +96,7 @@ information is helpful.  Any exploit code is very helpful and will not
 be released without consent from the reporter unless it has already been
 made public.
 
+The report must be sent to maintainers, with the security team in ``Cc:``.
 The Linux kernel security team can be contacted by email at
 <security@kernel.org>.  This is a private list of security officers
 who will help verify the bug report and assist developers working on a fix.
@@ -44,7 +112,9 @@ reproduction steps, and follow it with a proposed fix, all in plain text.
 Markdown, HTML and RST formatted reports are particularly frowned upon since
 they're quite hard to read for humans and encourage to use dedicated viewers,
 sometimes online, which by definition is not acceptable for a confidential
-security report.
+security report. Note that some mailers tend to mangle formatting of plain
+text by default, please consult Documentation/process/email-clients.rst for
+more info.
 
 Disclosure and embargoed information
 ------------------------------------
