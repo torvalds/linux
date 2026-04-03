@@ -122,3 +122,14 @@ fresh identifier ALLOC_OBJS = script:python(ALLOC_ARRAY) { alloc_array(ALLOC_ARR
 -	ALLOC(struct_size_t(TYPE, FLEX, COUNT), GFP)
 +	ALLOC_FLEX(TYPE, FLEX, COUNT, GFP)
 )
+
+@drop_gfp_kernel depends on patch && !(file in "tools") && !(file in "samples")@
+identifier ALLOC = {kmalloc_obj,kmalloc_objs,kmalloc_flex,
+		    kzalloc_obj,kzalloc_objs,kzalloc_flex,
+		    kvmalloc_obj,kvmalloc_objs,kvmalloc_flex,
+		    kvzalloc_obj,kvzalloc_objs,kvzalloc_flex};
+@@
+
+	ALLOC(...
+-		 , GFP_KERNEL
+	     )

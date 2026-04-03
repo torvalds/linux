@@ -297,6 +297,11 @@ enum iwl_legacy_cmds {
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
 
 	/**
+	 * @SCAN_START_NOTIFICATION_UMAC: uses &struct iwl_umac_scan_start
+	 */
+	SCAN_START_NOTIFICATION_UMAC = 0xb2,
+
+	/**
 	 * @MATCH_FOUND_NOTIFICATION: scan match found
 	 */
 	MATCH_FOUND_NOTIFICATION = 0xd9,

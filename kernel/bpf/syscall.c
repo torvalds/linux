@@ -3261,6 +3261,18 @@ static void bpf_link_defer_dealloc_rcu_gp(struct rcu_head *rcu)
 	bpf_link_dealloc(link);
 }
 
+static bool bpf_link_is_tracepoint(struct bpf_link *link)
+{
+	/*
+	 * Only these combinations support a tracepoint bpf_link.
+	 * BPF_LINK_TYPE_TRACING raw_tp progs are hardcoded to use
+	 * bpf_raw_tp_link_lops and thus dealloc_deferred(), see
+	 * bpf_raw_tp_link_attach().
+	 */
+	return link->type == BPF_LINK_TYPE_RAW_TRACEPOINT ||
+	       (link->type == BPF_LINK_TYPE_TRACING && link->attach_type == BPF_TRACE_RAW_TP);
+}
+
 static void bpf_link_defer_dealloc_mult_rcu_gp(struct rcu_head *rcu)
 {
 	if (rcu_trace_implies_rcu_gp())
@@ -3279,16 +3291,25 @@ static void bpf_link_free(struct bpf_link *link)
 	if (link->prog)
 		ops->release(link);
 	if (ops->dealloc_deferred) {
-		/* Schedule BPF link deallocation, which will only then
+		/*
+		 * Schedule BPF link deallocation, which will only then
 		 * trigger putting BPF program refcount.
 		 * If underlying BPF program is sleepable or BPF link's target
 		 * attach hookpoint is sleepable or otherwise requires RCU GPs
 		 * to ensure link and its underlying BPF program is not
 		 * reachable anymore, we need to first wait for RCU tasks
-		 * trace sync, and then go through "classic" RCU grace period
+		 * trace sync, and then go through "classic" RCU grace period.
+		 *
+		 * For tracepoint BPF links, we need to go through SRCU grace
+		 * period wait instead when non-faultable tracepoint is used. We
+		 * don't need to chain SRCU grace period waits, however, for the
+		 * faultable case, since it exclusively uses RCU Tasks Trace.
 		 */
 		if (link->sleepable || (link->prog && link->prog->sleepable))
 			call_rcu_tasks_trace(&link->rcu, bpf_link_defer_dealloc_mult_rcu_gp);
+		/* We need to do a SRCU grace period wait for non-faultable tracepoint BPF links. */
+		else if (bpf_link_is_tracepoint(link))
+			call_tracepoint_unregister_atomic(&link->rcu, bpf_link_defer_dealloc_rcu_gp);
 		else
 			call_rcu(&link->rcu, bpf_link_defer_dealloc_rcu_gp);
 	} else if (ops->dealloc) {

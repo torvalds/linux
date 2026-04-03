@@ -181,22 +181,23 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_adinicb_writepages(struct address_space *mapping,
-		      struct writeback_control *wbc)
+static int udf_handle_page_wb(struct folio *folio,
+			      struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	struct folio *folio = NULL;
-	int error = 0;
 
-	while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
-		BUG_ON(!folio_test_locked(folio));
-		BUG_ON(folio->index != 0);
-		memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio,
+	/*
+	 * Inodes in the normal format are handled by the generic code. This
+	 * check is race-free as the folio lock protects us from inode type
+	 * conversion.
+	 */
+	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
+		return 1;
+
+	memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio,
 				0, i_size_read(inode));
-		folio_unlock(folio);
-	}
-
+	folio_unlock(folio);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -204,12 +205,8 @@ static int udf_adinicb_writepages(struct address_space *mapping,
 static int udf_writepages(struct address_space *mapping,
 			  struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-
-	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
-		return udf_adinicb_writepages(mapping, wbc);
-	return mpage_writepages(mapping, wbc, udf_get_block_wb);
+	return __mpage_writepages(mapping, wbc, udf_get_block_wb,
+				  udf_handle_page_wb);
 }
 
 static void udf_adinicb_read_folio(struct folio *folio)

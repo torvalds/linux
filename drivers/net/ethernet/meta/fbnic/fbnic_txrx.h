@@ -38,7 +38,7 @@ struct fbnic_net;
 #define FBNIC_MAX_XDPQS			128u
 
 /* These apply to TWQs, TCQ, RCQ */
-#define FBNIC_QUEUE_SIZE_MIN		16u
+#define FBNIC_QUEUE_SIZE_MIN		64u
 #define FBNIC_QUEUE_SIZE_MAX		SZ_64K
 
 #define FBNIC_TXQ_SIZE_DEFAULT		1024
