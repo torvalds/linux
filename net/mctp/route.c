@@ -897,7 +897,8 @@ static mctp_eid_t mctp_dev_saddr(struct mctp_dev *dev)
 
 /* must only be called on a direct route, as the final output hop */
 static void mctp_dst_from_route(struct mctp_dst *dst, mctp_eid_t eid,
-				unsigned int mtu, struct mctp_route *route)
+				mctp_eid_t saddr, unsigned int mtu,
+				struct mctp_route *route)
 {
 	mctp_dev_hold(route->dev);
 	dst->nexthop = eid;
@@ -907,7 +908,7 @@ static void mctp_dst_from_route(struct mctp_dst *dst, mctp_eid_t eid,
 		dst->mtu = min(dst->mtu, mtu);
 	dst->halen = 0;
 	dst->output = route->output;
-	dst->saddr = mctp_dev_saddr(route->dev);
+	dst->saddr = saddr;
 }
 
 int mctp_dst_from_extaddr(struct mctp_dst *dst, struct net *net, int ifindex,
@@ -975,7 +976,6 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 {
 	const unsigned int max_depth = 32;
 	unsigned int depth, mtu = 0;
-	struct mctp_dst dst_tmp;
 	int rc = -EHOSTUNREACH;
 
 	rcu_read_lock();
@@ -996,15 +996,15 @@ int mctp_route_lookup(struct net *net, unsigned int dnet,
 			mtu = mtu ?: rt->mtu;
 
 		if (rt->dst_type == MCTP_ROUTE_DIRECT) {
-			mctp_dst_from_route(&dst_tmp, daddr, mtu, rt);
+			mctp_eid_t saddr = mctp_dev_saddr(rt->dev);
+
 			/* cannot do gateway-ed routes without a src  */
-			if (dst_tmp.saddr == MCTP_ADDR_NULL && depth != 0) {
-				mctp_dst_release(&dst_tmp);
-			} else {
-				if (dst)
-					*dst = dst_tmp;
-				rc = 0;
-			}
+			if (saddr == MCTP_ADDR_NULL && depth != 0)
+				break;
+
+			if (dst)
+				mctp_dst_from_route(dst, daddr, saddr, mtu, rt);
+			rc = 0;
 			break;
 
 		} else if (rt->dst_type == MCTP_ROUTE_GATEWAY) {
