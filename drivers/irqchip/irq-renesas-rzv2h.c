@@ -745,7 +745,7 @@ static irqreturn_t rzv2h_icu_error_irq(int irq, void *data)
 
 static irqreturn_t rzv2h_icu_swint_irq(int irq, void *data)
 {
-	u8 cpu = *(u8 *)data;
+	unsigned int cpu = (uintptr_t)data;
 
 	pr_info("SWINT interrupt for CA55 core %u\n", cpu);
 	return IRQ_HANDLED;
@@ -760,7 +760,6 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 		"int-ca55-2", "int-ca55-3",
 	};
 	static const char *icu_err = "icu-error-ca55";
-	static const u8 swint_idx[] = { 0, 1, 2, 3 };
 	void __iomem *base = rzv2h_icu_data->base;
 	struct device *dev = &pdev->dev;
 	struct irq_fwspec fwspec;
@@ -780,7 +779,7 @@ static int rzv2h_icu_setup_irqs(struct platform_device *pdev, struct irq_domain 
 		}
 
 		ret = devm_request_irq(dev, virq, rzv2h_icu_swint_irq, 0, dev_name(dev),
-				       (void *)&swint_idx[i]);
+				       (void *)(uintptr_t)i);
 		if (ret) {
 			return dev_err_probe(dev, ret, "Failed to request %s IRQ\n",
 					     rzv2h_swint_names[i]);
