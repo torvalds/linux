@@ -172,7 +172,7 @@ examples:
         cpu@0 {
             compatible = "arm,cortex-a7";
             device_type = "cpu";
-            reg = <0>;
+            reg = <0x0>;
             next-level-cache = <&L2>;
             clocks = <&clk_controller 0>;
             clock-names = "cpu";
@@ -183,7 +183,7 @@ examples:
         cpu@1 {
             compatible = "arm,cortex-a7";
             device_type = "cpu";
-            reg = <1>;
+            reg = <0x1>;
             next-level-cache = <&L2>;
             clocks = <&clk_controller 0>;
             clock-names = "cpu";
@@ -194,7 +194,7 @@ examples:
         cpu@100 {
             compatible = "arm,cortex-a15";
             device_type = "cpu";
-            reg = <100>;
+            reg = <0x100>;
             next-level-cache = <&L2>;
             clocks = <&clk_controller 1>;
             clock-names = "cpu";
@@ -205,7 +205,7 @@ examples:
         cpu@101 {
             compatible = "arm,cortex-a15";
             device_type = "cpu";
-            reg = <101>;
+            reg = <0x101>;
             next-level-cache = <&L2>;
             clocks = <&clk_controller 1>;
             clock-names = "cpu";
