@@ -71,8 +71,7 @@ static void cdns_role_stop(struct cdns *cdns)
 static void cdns_exit_roles(struct cdns *cdns)
 {
 	cdns_role_stop(cdns);
-	if (!cdns->no_drd)
-		cdns_drd_exit(cdns);
+	cdns_drd_exit(cdns);
 }
 
 /**
