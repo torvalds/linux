@@ -6022,14 +6022,15 @@ static __always_inline bool can_free_to_pcs(struct slab *slab)
 		goto check_pfmemalloc;
 
 	/*
-	 * Freed object isn't from this cpu's node, but that node is memoryless.
+	 * Freed object isn't from this cpu's node, but that node is memoryless
+	 * or only has ZONE_MOVABLE memory, which slab cannot allocate from.
 	 * Proceed as it's better to cache remote objects than falling back to
 	 * the slowpath for everything. The allocation side can never obtain
 	 * a local object anyway, if none exist. We don't have numa_mem_id() to
 	 * point to the closest node as we would on a proper memoryless node
 	 * setup.
 	 */
-	if (unlikely(!node_state(numa_node, N_MEMORY)))
+	if (unlikely(!node_state(numa_node, N_NORMAL_MEMORY)))
 		goto check_pfmemalloc;
 #endif
 
