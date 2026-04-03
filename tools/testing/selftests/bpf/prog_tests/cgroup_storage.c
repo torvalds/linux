@@ -86,6 +86,11 @@ void test_cgroup_storage(void)
 	err = SYS_NOFAIL(PING_CMD);
 	ASSERT_OK(err, "sixth ping");
 
+	err = bpf_map__get_next_key(skel->maps.cgroup_storage, &key, &key,
+				    sizeof(key));
+	ASSERT_ERR(err, "bpf_map__get_next_key should fail");
+	ASSERT_EQ(errno, ENOENT, "no second key");
+
 cleanup_progs:
 	cgroup_storage__destroy(skel);
 cleanup_network:
