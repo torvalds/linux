@@ -17363,6 +17363,8 @@ M:	Victor Duicu <victor.duicu@microchip.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/hwmon/microchip,mcp9982.yaml
+F:	Documentation/hwmon/mcp9982.rst
+F:	drivers/hwmon/mcp9982.c
 
 MICROCHIP MMC/SD/SDIO MCI DRIVER
 M:	Aubin Constans <aubin.constans@microchip.com>

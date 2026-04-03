@@ -1378,6 +1378,17 @@ config SENSORS_MCP3021
 	  This driver can also be built as a module. If so, the module
 	  will be called mcp3021.
 
+config SENSORS_MCP9982
+       tristate "Microchip Technology MCP9982 driver"
+       depends on I2C
+       select REGMAP_I2C
+       help
+         Say yes here to include support for Microchip Technology's MCP998X/33
+         and MCP998XD/33D Multichannel Automotive Temperature Monitor Family.
+
+         This driver can also be built as a module. If so, the module
+         will be called mcp9982.
+
 config SENSORS_MLXREG_FAN
 	tristate "Mellanox FAN driver"
 	depends on MELLANOX_PLATFORM

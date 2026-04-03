@@ -1,0 +1,111 @@
+.. SPDX-License-Identifier: GPL-2.0+
+
+Kernel driver MCP998X
+=====================
+
+Supported chips:
+
+  * Microchip Technology MCP998X/MCP9933 and MCP998XD/MCP9933D
+
+    Prefix: 'mcp9982'
+
+    Datasheet:
+    https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/MCP998X-Family-Data-Sheet-DS20006827.pdf
+
+Authors:
+
+   - Victor Duicu <victor.duicu@microchip.com>
+
+Description
+-----------
+
+This driver implements support for the MCP998X family containing: MCP9982,
+MCP9982D, MCP9983, MCP9983D, MCP9984, MCP9984D, MCP9985, MCP9985D,
+MCP9933 and MCP9933D.
+
+The MCP998X Family is a high accuracy 2-wire multichannel automotive
+temperature monitor.
+
+The chips in the family have different numbers of external channels,
+ranging from 1 (MCP9982) to 4 channels (MCP9985). Reading diodes in
+anti-parallel connection is supported by MCP9984/85/33 and
+MCP9984D/85D/33D. Dedicated hardware shutdown circuitry is present
+only in MCP998XD and MCP9933D.
+
+Temperatures are read in millidegrees Celsius, ranging from -64 to
+191.875 with 0.125 precision.
+
+Each channel has a minimum, maximum, and critical limit alongside associated alarms.
+The chips also implement a hysteresis mechanism which applies only to the maximum
+and critical limits. The relative difference between a limit and its hysteresis
+is the same for both and the value is kept in a single register.
+
+The chips measure temperatures with a variable conversion rate.
+Update_interval = Conversion/Second, so the available options are:
+- 16000 (ms) = 1 conv/16 sec
+- 8000 (ms) = 1 conv/8 sec
+- 4000 (ms) = 1 conv/4 sec
+- 2000 (ms) = 1 conv/2 sec
+- 1000 (ms) = 1 conv/sec
+- 500 (ms) = 2 conv/sec
+- 250 (ms) = 4 conv/sec
+- 125 (ms) = 8 conv/sec
+- 64 (ms) = 16 conv/sec
+- 32 (ms) = 32 conv/sec
+- 16 (ms) = 64 conv/sec
+
+Usage Notes
+-----------
+
+Parameters that can be configured in devicetree:
+- anti-parallel diode mode operation
+- resistance error correction on channels 1 and 2
+- resistance error correction on channels 3 and 4
+- power state
+
+Chips 82/83 and 82D/83D do not support anti-parallel diode mode.
+For chips with "D" in the name resistance error correction must be on.
+Please see Documentation/devicetree/bindings/hwmon/microchip,mcp9982.yaml
+for details.
+
+There are two power states:
+- Active state: in which the chip is converting on all channels at the
+programmed rate.
+
+- Standby state: in which the host must initiate a conversion cycle.
+
+Chips with "D" in the name work in Active state only and those without
+can work in either state.
+
+Chips with "D" in the name can't set update interval slower than 1 second.
+
+Among the hysteresis attributes, only the tempX_crit_hyst ones are writeable
+while the others are read only. Setting tempX_crit_hyst writes the difference
+between tempX_crit and tempX_crit_hyst in the hysteresis register. The new value
+applies automatically  to the other limits. At power up the device starts with
+a 10 degree hysteresis.
+
+Sysfs entries
+-------------
+
+The following attributes are supported. The temperature limits and
+update_interval are read-write. The attribute tempX_crit_hyst is read-write,
+while tempX_max_hyst is read only. All other attributes are read only.
+
+======================= ==================================================
+temp[1-5]_label		User name for channel.
+temp[1-5]_input		Measured temperature for channel.
+
+temp[1-5]_crit		Critical temperature limit.
+temp[1-5]_crit_alarm	Critical temperature limit alarm.
+temp[1-5]_crit_hyst	Critical temperature limit hysteresis.
+
+temp[1-5]_max		High temperature limit.
+temp[1-5]_max_alarm	High temperature limit alarm.
+temp[1-5]_max_hyst	High temperature limit hysteresis.
+
+temp[1-5]_min		Low temperature limit.
+temp[1-5]_min_alarm	Low temperature limit alarm.
+
+update_interval		The interval at which the chip will update readings.
+======================= ==================================================
