@@ -34,7 +34,7 @@ int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 	if (data[3] != 0x06)
 		return 0;
 
-	for (int idx = 0; idx < ARRAY_SIZE(offsets); idx++) {
+	for (size_t idx = 0; idx < ARRAY_SIZE(offsets); idx++) {
 		u8 offset = offsets[idx];
 
 		/* if Input (Cnst,Var,Abs) , make it Input (Data,Var,Abs) */

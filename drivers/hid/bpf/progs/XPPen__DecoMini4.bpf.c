@@ -173,7 +173,7 @@ int BPF_PROG(hid_device_event_xppen_deco_mini_4, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 8 /* size */);
 	__u8 button_mask = 0;
-	int d, b;
+	size_t d, b;
 
 	if (!data)
 		return 0; /* EPERM check */

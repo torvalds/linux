@@ -462,7 +462,8 @@ int BPF_PROG(k20_fix_events, struct hid_bpf_ctx *hctx)
 			__u32 buttons;
 			__u8 wheel;
 		} __attribute__((packed)) *pad_report;
-		int i, b;
+		int i;
+		size_t b;
 		__u8 modifiers = data[1];
 		__u32 buttons = 0;
 
