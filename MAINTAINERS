@@ -17188,6 +17188,12 @@ S:	Supported
 F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/spi/spi-at91-usart.c
 
+MICROCHIP ATSHA204A DRIVER
+M:	Thorsten Blum <thorsten.blum@linux.dev>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	drivers/crypto/atmel-sha204a.c
+
 MICROCHIP AUDIO ASOC DRIVERS
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
 M:	Andrei Simion <andrei.simion@microchip.com>
