@@ -1339,27 +1339,44 @@ static int gfs2_truncate_inode_pages(struct inode *inode)
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = &inode->i_data;
 	bool need_trans = gfs2_is_jdata(ip) && mapping->nrpages;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Truncating a jdata inode address space may create revokes in
 	 * truncate_inode_pages() -> gfs2_invalidate_folio() -> ... ->
 	 * gfs2_remove_from_journal(), so we need a transaction here.
 	 *
-	 * FIXME: During a withdraw, no new transactions can be created.
-	 * In that case, we skip the truncate, but that doesn't help because
-	 * truncate_inode_pages_final() will then call gfs2_invalidate_folio()
-	 * again, and outside of a transaction.
+	 * During a withdraw, no new transactions can be created.  We still
+	 * take the log flush lock to prevent truncate from racing with
+	 * gfs2_log_flush().
 	 */
 	if (need_trans) {
 		ret = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 		if (ret)
-			return ret;
+			down_read(&sdp->sd_log_flush_lock);
 	}
 	truncate_inode_pages(mapping, 0);
-	if (need_trans)
-		gfs2_trans_end(sdp);
-	return 0;
+	if (need_trans) {
+		if (ret)
+			up_read(&sdp->sd_log_flush_lock);
+		else
+			gfs2_trans_end(sdp);
+	}
+	return ret;
+}
+
+static void gfs2_truncate_inode_pages_final(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct address_space *mapping = &inode->i_data;
+	bool need_lock = gfs2_is_jdata(ip) && mapping->nrpages;
+
+	if (need_lock)
+		down_read(&sdp->sd_log_flush_lock);
+	truncate_inode_pages_final(mapping);
+	if (need_lock)
+		up_read(&sdp->sd_log_flush_lock);
 }
 
 /*
@@ -1398,10 +1415,8 @@ static int evict_linked_inode(struct inode *inode, struct gfs2_holder *gh)
 
 clean:
 	ret = gfs2_truncate_inode_pages(inode);
-	if (ret)
-		return ret;
 	truncate_inode_pages(metamapping, 0);
-	return 0;
+	return ret;
 }
 
 /**
@@ -1472,7 +1487,7 @@ static void gfs2_evict_inode(struct inode *inode)
 out:
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
-	truncate_inode_pages_final(&inode->i_data);
+	gfs2_truncate_inode_pages_final(inode);
 	if (ip->i_qadata)
 		gfs2_assert_warn(sdp, ip->i_qadata->qa_ref == 0);
 	gfs2_rs_deltree(&ip->i_res);

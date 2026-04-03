@@ -1024,17 +1024,22 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
 		list_del_init(&bd->bd_list);
-		if (meta == REMOVE_META)
-			tr->tr_num_buf_rm++;
-		else
-			tr->tr_num_databuf_rm++;
-		set_bit(TR_TOUCHED, &tr->tr_flags);
+		if (tr) {
+			if (meta == REMOVE_META)
+				tr->tr_num_buf_rm++;
+			else
+				tr->tr_num_databuf_rm++;
+			set_bit(TR_TOUCHED, &tr->tr_flags);
+		}
 		was_pinned = 1;
 		brelse(bh);
 	}
 	if (bd) {
 		if (bd->bd_tr) {
-			gfs2_trans_add_revoke(sdp, bd);
+			if (tr)
+				gfs2_trans_add_revoke(sdp, bd);
+			else
+				 gfs2_remove_from_ail(bd);
 		} else if (was_pinned) {
 			bh->b_private = NULL;
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
