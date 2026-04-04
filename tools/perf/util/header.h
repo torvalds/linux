@@ -55,6 +55,7 @@ enum {
 	HEADER_PMU_CAPS,
 	HEADER_CPU_DOMAIN_INFO,
 	HEADER_E_MACHINE,
+	HEADER_CLN_SIZE,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -205,6 +206,8 @@ int write_padded(struct feat_fd *fd, const void *bf,
 #define MAX_CACHE_LVL 4
 
 int build_caches_for_cpu(u32 cpu, struct cpu_cache_level caches[], u32 *cntp);
+
+#define DEFAULT_CACHELINE_SIZE 64
 
 /*
  * arch specific callback

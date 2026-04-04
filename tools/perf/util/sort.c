@@ -31,6 +31,7 @@
 #include "time-utils.h"
 #include "cgroup.h"
 #include "machine.h"
+#include "session.h"
 #include "trace-event.h"
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -2584,7 +2585,26 @@ struct sort_entry sort_type_offset = {
 
 /* --sort typecln */
 
-#define DEFAULT_CACHELINE_SIZE 64
+static int
+hist_entry__cln_size(struct hist_entry *he)
+{
+	int ret = 0;
+
+	if (he && he->hists) {
+		struct evsel *evsel = hists_to_evsel(he->hists);
+
+		if (evsel) {
+			struct perf_session *session = evsel__session(evsel);
+
+			ret = session->header.env.cln_size;
+		}
+	}
+
+	if (ret < 1)
+		ret = DEFAULT_CACHELINE_SIZE; // avoid div/0 later
+
+	return ret;
+}
 
 static int64_t
 sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
@@ -2592,11 +2612,9 @@ sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
 	struct annotated_data_type *left_type = left->mem_type;
 	struct annotated_data_type *right_type = right->mem_type;
 	int64_t left_cln, right_cln;
+	int64_t cln_size_left = hist_entry__cln_size(left);
+	int64_t cln_size_right = hist_entry__cln_size(right);
 	int64_t ret;
-	int cln_size = cacheline_size();
-
-	if (cln_size == 0)
-		cln_size = DEFAULT_CACHELINE_SIZE;
 
 	if (!left_type) {
 		sort__type_init(left);
@@ -2612,8 +2630,8 @@ sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
 	if (ret)
 		return ret;
 
-	left_cln = left->mem_type_off / cln_size;
-	right_cln = right->mem_type_off / cln_size;
+	left_cln = left->mem_type_off / cln_size_left;
+	right_cln = right->mem_type_off / cln_size_right;
 	return left_cln - right_cln;
 }
 
@@ -2621,10 +2639,7 @@ static int hist_entry__typecln_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width __maybe_unused)
 {
 	struct annotated_data_type *he_type = he->mem_type;
-	int cln_size = cacheline_size();
-
-	if (cln_size == 0)
-		cln_size = DEFAULT_CACHELINE_SIZE;
+	int cln_size = hist_entry__cln_size(he);
 
 	return repsep_snprintf(bf, size, "%s: cache-line %d", he_type->self.type_name,
 			       he->mem_type_off / cln_size);

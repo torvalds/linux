@@ -54,6 +54,7 @@
 #include "bpf-event.h"
 #include "bpf-utils.h"
 #include "clockid.h"
+#include "cacheline.h"
 
 #include <linux/ctype.h>
 #include <internal/lib.h>
@@ -1315,6 +1316,19 @@ out:
 	return ret;
 }
 
+static int write_cln_size(struct feat_fd *ff,
+		       struct evlist *evlist __maybe_unused)
+{
+	int cln_size = cacheline_size();
+
+	if (!cln_size)
+		cln_size = DEFAULT_CACHELINE_SIZE;
+
+	ff->ph->env.cln_size = cln_size;
+
+	return do_write(ff, &cln_size, sizeof(cln_size));
+}
+
 static int write_stat(struct feat_fd *ff __maybe_unused,
 		      struct evlist *evlist __maybe_unused)
 {
@@ -2278,6 +2292,11 @@ static void print_cache(struct feat_fd *ff, FILE *fp __maybe_unused)
 	}
 }
 
+static void print_cln_size(struct feat_fd *ff, FILE *fp)
+{
+	fprintf(fp, "# cacheline size: %u\n", ff->ph->env.cln_size);
+}
+
 static void print_compressed(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# compressed : %s, level = %d, ratio = %d\n",
@@ -3184,6 +3203,16 @@ out_free_caches:
 	return -1;
 }
 
+static int process_cln_size(struct feat_fd *ff, void *data __maybe_unused)
+{
+	struct perf_env *env = &ff->ph->env;
+
+	if (do_read_u32(ff, &env->cln_size))
+		return -1;
+
+	return 0;
+}
+
 static int process_sample_time(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct perf_session *session;
@@ -3797,6 +3826,7 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(PMU_CAPS,	pmu_caps,	false),
 	FEAT_OPR(CPU_DOMAIN_INFO,	cpu_domain_info,	true),
 	FEAT_OPR(E_MACHINE,	e_machine,	false),
+	FEAT_OPR(CLN_SIZE,	cln_size,	false),
 };
 
 struct header_print_data {
