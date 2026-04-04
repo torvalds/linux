@@ -69,9 +69,6 @@
 #define bond_first_slave_rcu(bond) \
 	netdev_lower_get_first_private_rcu(bond->dev)
 
-#define bond_is_first_slave(bond, pos) (pos == bond_first_slave(bond))
-#define bond_is_last_slave(bond, pos) (pos == bond_last_slave(bond))
-
 /**
  * bond_for_each_slave - iterate over all slaves
  * @bond:	the bond holding this list
