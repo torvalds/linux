@@ -23,6 +23,7 @@
 		i2c2 = &lpi2c3;
 		mmc0 = &usdhc1;
 		mmc1 = &usdhc2;
+		mmc2 = &usdhc3;
 		rtc0 = &bbnsm_rtc;
 		serial0 = &lpuart1;
 		serial1 = &lpuart2;
@@ -57,6 +58,15 @@
 		enable-active-high;
 	};
 
+	reg_m2_pwr: regulator-m2-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "M.2-power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pcal6524 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_usdhc2_vmmc: regulator-usdhc2 {
 		compatible = "regulator-fixed";
 		off-on-delay-us = <12000>;
@@ -66,6 +76,23 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-name = "VSD_3V3";
 		gpio = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_usdhc3_vmmc: regulator-usdhc3 {
+		compatible = "regulator-fixed";
+		regulator-name = "WLAN_EN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_m2_pwr>;
+		gpio = <&pcal6524 20 GPIO_ACTIVE_HIGH>;
+		/*
+		 * IW612 wifi chip needs more delay than other wifi chips to complete
+		 * the host interface initialization after power up, otherwise the
+		 * internal state of IW612 may be unstable, resulting in the failure of
+		 * the SDIO3.0 switch voltage.
+		 */
+		startup-delay-us = <20000>;
 		enable-active-high;
 	};
 
@@ -143,6 +170,11 @@
 				sound-dai = <&xcvr>;
 			};
 		};
+	};
+
+	usdhc3_pwrseq: usdhc3_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pcal6524 12 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -246,6 +278,12 @@
 		interrupt-parent = <&gpio3>;
 		pinctrl-0 = <&pinctrl_pcal6524>;
 		pinctrl-names = "default";
+
+		m2-pcm-level-shifter-hog {
+			gpio-hog;
+			gpios = <19 GPIO_ACTIVE_HIGH>;
+			output-high;
+		};
 	};
 
 	pmic@25 {
@@ -514,6 +552,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	fsl,tuning-step = <1>;
 	status = "okay";
 };
 
@@ -528,6 +567,22 @@
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_gpio_sleep>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	fsl,tuning-step = <1>;
+	status = "okay";
+};
+
+&usdhc3 {
+	bus-width = <4>;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&usdhc3_pwrseq>;
+	non-removable;
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	pinctrl-3 = <&pinctrl_usdhc3_sleep>;
+	pinctrl-names = "default", "state_100mhz", "state_200mhz", "sleep";
+	vmmc-supply = <&reg_usdhc3_vmmc>;
+	wakeup-source;
 	status = "okay";
 };
 
@@ -850,4 +905,47 @@
 		>;
 	};
 
+	pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <
+			MX91_PAD_SD3_CLK__USDHC3_CLK                            0x1582
+			MX91_PAD_SD3_CMD__USDHC3_CMD                            0x1382
+			MX91_PAD_SD3_DATA0__USDHC3_DATA0                        0x1382
+			MX91_PAD_SD3_DATA1__USDHC3_DATA1                        0x1382
+			MX91_PAD_SD3_DATA2__USDHC3_DATA2                        0x1382
+			MX91_PAD_SD3_DATA3__USDHC3_DATA3                        0x1382
+		>;
+	};
+
+	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
+		fsl,pins = <
+			MX91_PAD_SD3_CLK__USDHC3_CLK                            0x158e
+			MX91_PAD_SD3_CMD__USDHC3_CMD                            0x138e
+			MX91_PAD_SD3_DATA0__USDHC3_DATA0                        0x138e
+			MX91_PAD_SD3_DATA1__USDHC3_DATA1                        0x138e
+			MX91_PAD_SD3_DATA2__USDHC3_DATA2                        0x138e
+			MX91_PAD_SD3_DATA3__USDHC3_DATA3                        0x138e
+		>;
+	};
+
+	pinctrl_usdhc3_200mhz: usdhc3-200mhzgrp {
+		fsl,pins = <
+			MX91_PAD_SD3_CLK__USDHC3_CLK                            0x15fe
+			MX91_PAD_SD3_CMD__USDHC3_CMD                            0x13fe
+			MX91_PAD_SD3_DATA0__USDHC3_DATA0                        0x13fe
+			MX91_PAD_SD3_DATA1__USDHC3_DATA1                        0x13fe
+			MX91_PAD_SD3_DATA2__USDHC3_DATA2                        0x13fe
+			MX91_PAD_SD3_DATA3__USDHC3_DATA3                        0x13fe
+		>;
+	};
+
+	pinctrl_usdhc3_sleep: usdhc3-sleepgrp {
+		fsl,pins = <
+			MX91_PAD_SD3_CLK__GPIO3_IO20                             0x31e
+			MX91_PAD_SD3_CMD__GPIO3_IO21                             0x31e
+			MX91_PAD_SD3_DATA0__GPIO3_IO22                           0x31e
+			MX91_PAD_SD3_DATA1__GPIO3_IO23                           0x31e
+			MX91_PAD_SD3_DATA2__GPIO3_IO24                           0x31e
+			MX91_PAD_SD3_DATA3__GPIO3_IO25                           0x31e
+		>;
+	};
 };

@@ -285,7 +285,7 @@
 
 	pmu {
 		compatible = "arm,cortex-a55-pmu";
-		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	psci {
@@ -295,10 +295,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>,
-			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 		clock-frequency = <24000000>;
 		arm,no-tick-in-suspend;
 		interrupt-parent = <&gic>;
@@ -672,6 +672,25 @@
 				#mbox-cells = <2>;
 				status = "disabled";
 			};
+
+			xspi1: spi@42400000 {
+				compatible = "nxp,imx952-xspi", "nxp,imx94-xspi";
+				reg = <0x42400000 0x50000>, <0x28000000 0x8000000>;
+				reg-names = "base", "mmap";
+				interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 401 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 402 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 403 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX952_CLK_XSPI1>;
+				clock-names = "per";
+				assigned-clocks = <&scmi_clk IMX952_CLK_XSPI1>;
+				assigned-clock-parents = <&scmi_clk IMX952_CLK_SYSPLL1_PFD1>;
+				assigned-clock-rates = <200000000>;
+				status = "disabled";
+			};
 		};
 
 		aips3: bus@42800000 {
@@ -800,6 +819,160 @@
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
 				fsl,tuning-step = <2>;
+				status = "disabled";
+			};
+		};
+
+		aips5: bus@43000000 {
+			compatible = "fsl,aips-bus", "simple-bus";
+			reg = <0 0x43000000 0 0x800000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x43000000 0x0 0x43000000 0x800000>;
+
+			asrc1: asrc@43000000 {
+				compatible = "fsl,imx952-asrc";
+				reg = <0x43000000 0x10000>;
+				interrupts = <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>,
+					 <&scmi_clk IMX952_CLK_BUSWAKEUP>,
+					 <&scmi_clk IMX952_CLK_ASRC1>,
+					 <&scmi_clk IMX952_CLK_ASRC2>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "mem", "ipg",
+					      "asrck_0", "asrck_1", "asrck_2", "asrck_3",
+					      "asrck_4", "asrck_5", "asrck_6", "asrck_7",
+					      "asrck_8", "asrck_9", "asrck_a", "asrck_b",
+					      "asrck_c", "asrck_d", "asrck_e", "asrck_f",
+					      "spba";
+				dmas = <&edma2 97 0 0>, <&edma2 98 0 0>, <&edma2 99 0 0>,
+				       <&edma2 100 0 FSL_EDMA_RX>, <&edma2 101 0 FSL_EDMA_RX>,
+				       <&edma2 102 0 FSL_EDMA_RX>;
+				/* tx* is output channel of asrc, it is rx channel for eDMA */
+				dma-names = "rxa", "rxb", "rxc",
+					    "txa", "txb", "txc";
+				#sound-dai-cells = <0>;
+				fsl,asrc-rate  = <8000>;
+				fsl,asrc-width = <16>;
+				status = "disabled";
+			};
+
+			asrc2: asrc@430f0000 {
+				compatible = "fsl,imx952-asrc";
+				reg = <0x430f0000 0x10000>;
+				interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>,
+					 <&scmi_clk IMX952_CLK_BUSWAKEUP>,
+					 <&scmi_clk IMX952_CLK_ASRC1>,
+					 <&scmi_clk IMX952_CLK_ASRC2>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "mem", "ipg",
+					      "asrck_0", "asrck_1", "asrck_2", "asrck_3",
+					      "asrck_4", "asrck_5", "asrck_6", "asrck_7",
+					      "asrck_8", "asrck_9", "asrck_a", "asrck_b",
+					      "asrck_c", "asrck_d", "asrck_e", "asrck_f",
+					      "spba";
+				dmas = <&edma2 103 0 0>, <&edma2 104 0 0>, <&edma2 105 0 0>,
+				       <&edma2 106 0 FSL_EDMA_RX>, <&edma2 107 0 FSL_EDMA_RX>,
+				       <&edma2 108 0 FSL_EDMA_RX>;
+				/* tx* is output channel of asrc, it is rx channel for eDMA */
+				dma-names = "rxa", "rxb", "rxc",
+					    "txa", "txb", "txc";
+				#sound-dai-cells = <0>;
+				fsl,asrc-rate  = <8000>;
+				fsl,asrc-width = <16>;
+				status = "disabled";
+			};
+
+			amix: amix@431f0000 {
+				compatible = "fsl,imx952-audmix";
+				reg = <0x431f0000 0x10000>;
+				clocks = <&scmi_clk IMX952_CLK_AUDMIX1>;
+				clock-names = "ipg";
+				status = "disabled";
+			};
+
+			sai3: sai@433e0000 {
+				compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+				reg = <0x433e0000 0x10000>;
+				interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>, <&clk_dummy>,
+					 <&scmi_clk IMX952_CLK_SAI3>, <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+				dmas = <&edma2 61 0 FSL_EDMA_RX>, <&edma2 60 0 0>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			sai4: sai@433f0000 {
+				compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+				reg = <0x433f0000 0x10000>;
+				interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>, <&clk_dummy>,
+					 <&scmi_clk IMX952_CLK_SAI4>, <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+				dmas = <&edma2 68 0 FSL_EDMA_RX>, <&edma2 67 0 0>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			sai5: sai@43400000 {
+				compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+				reg = <0x43400000 0x10000>;
+				interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>, <&clk_dummy>,
+					 <&scmi_clk IMX952_CLK_SAI5>, <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+				dmas = <&edma2 70 0 FSL_EDMA_RX>, <&edma2 69 0 0>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			sai6: sai@43410000 {
+				compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+				reg = <0x43410000 0x10000>;
+				interrupts = <GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSWAKEUP>, <&clk_dummy>,
+					 <&scmi_clk IMX952_CLK_SAI3>, <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+				dmas = <&edma2 96 0 FSL_EDMA_RX>, <&edma2 95 0 0>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 		};
@@ -1043,6 +1216,40 @@
 				status = "disabled";
 			};
 
+			sai1: sai@443b0000 {
+				compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+				reg = <0x443b0000 0x10000>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSAON>, <&clk_dummy>,
+					 <&scmi_clk IMX952_CLK_SAI1>, <&clk_dummy>,
+					 <&clk_dummy>;
+				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+				dmas = <&edma1 25 0 FSL_EDMA_RX>, <&edma1 24 0 0>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
+			micfil: micfil@44520000 {
+				compatible = "fsl,imx943-micfil";
+				reg = <0x44520000 0x10000>;
+				interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX952_CLK_BUSAON>,
+					 <&scmi_clk IMX952_CLK_PDM>,
+					 <&scmi_clk IMX952_CLK_AUDIOPLL1>,
+					 <&scmi_clk IMX952_CLK_AUDIOPLL2>,
+					 <&clk_dummy>;
+				clock-names = "ipg_clk", "ipg_clk_app",
+					      "pll8k", "pll11k", "clkext3";
+				dmas = <&edma1 6 0 (FSL_EDMA_MULTI_FIFO | FSL_EDMA_RX)>;
+				dma-names = "rx";
+				#sound-dai-cells = <0>;
+				status = "disabled";
+			};
+
 			adc1: adc@44530000 {
 				compatible = "nxp,imx93-adc";
 				reg = <0x44530000 0x10000>;
@@ -1261,6 +1468,21 @@
 			#index-cells = <1>;
 			reg = <0x0 0x4c200200 0x0 0x200>,
 			      <0x0 0x4c010014 0x0 0x4>;
+		};
+
+		sai2: sai@4c880000 {
+			compatible = "fsl,imx952-sai", "fsl,imx95-sai";
+			reg = <0x0 0x4c880000 0x0 0x10000>;
+			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX952_CLK_BUSNETCMIX>, <&clk_dummy>,
+				 <&scmi_clk IMX952_CLK_SAI2>, <&clk_dummy>,
+				 <&clk_dummy>;
+			clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
+			dmas = <&edma2 59 0 FSL_EDMA_RX>, <&edma2 58 0 0>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <0>;
+			power-domains = <&scmi_devpd IMX952_PD_NETC>;
+			status = "disabled";
 		};
 	};
 };
