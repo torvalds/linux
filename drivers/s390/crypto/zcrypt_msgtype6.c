@@ -953,6 +953,10 @@ static atomic_t zcrypt_step = ATOMIC_INIT(0);
 /*
  * The request distributor calls this function if it picked the CEXxC
  * device to handle a modexpo request.
+ * This function assumes that ap_msg has been initialized with
+ * ap_init_apmsg() and thus a valid buffer with the size of
+ * ap_msg->bufsize is available within ap_msg. Also the caller has
+ * to make sure ap_release_apmsg() is always called even on failure.
  * @zq: pointer to zcrypt_queue structure that identifies the
  *	CEXxC device to the request distributor
  * @mex: pointer to the modexpo request buffer
@@ -964,21 +968,17 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 	struct ap_response_type *resp_type = &ap_msg->response;
 	int rc;
 
-	ap_msg->msg = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg->msg)
-		return -ENOMEM;
-	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	rc = icamex_msg_to_type6mex_msgx(zq, ap_msg, mex);
 	if (rc)
-		goto out_free;
+		goto out;
 	resp_type->type = CEXXC_RESPONSE_TYPE_ICA;
 	init_completion(&resp_type->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
 	if (rc)
-		goto out_free;
+		goto out;
 	rc = wait_for_completion_interruptible(&resp_type->work);
 	if (rc == 0) {
 		rc = ap_msg->rc;
@@ -991,15 +991,17 @@ static long zcrypt_msgtype6_modexpo(struct zcrypt_queue *zq,
 		ap_cancel_message(zq->queue, ap_msg);
 	}
 
-out_free:
-	free_page((unsigned long)ap_msg->msg);
-	ap_msg->msg = NULL;
+out:
 	return rc;
 }
 
 /*
  * The request distributor calls this function if it picked the CEXxC
  * device to handle a modexpo_crt request.
+ * This function assumes that ap_msg has been initialized with
+ * ap_init_apmsg() and thus a valid buffer with the size of
+ * ap_msg->bufsize is available within ap_msg. Also the caller has
+ * to make sure ap_release_apmsg() is always called even on failure.
  * @zq: pointer to zcrypt_queue structure that identifies the
  *	CEXxC device to the request distributor
  * @crt: pointer to the modexpoc_crt request buffer
@@ -1011,21 +1013,17 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 	struct ap_response_type *resp_type = &ap_msg->response;
 	int rc;
 
-	ap_msg->msg = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!ap_msg->msg)
-		return -ENOMEM;
-	ap_msg->bufsize = PAGE_SIZE;
 	ap_msg->receive = zcrypt_msgtype6_receive;
 	ap_msg->psmid = (((unsigned long)current->pid) << 32) +
 		atomic_inc_return(&zcrypt_step);
 	rc = icacrt_msg_to_type6crt_msgx(zq, ap_msg, crt);
 	if (rc)
-		goto out_free;
+		goto out;
 	resp_type->type = CEXXC_RESPONSE_TYPE_ICA;
 	init_completion(&resp_type->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
 	if (rc)
-		goto out_free;
+		goto out;
 	rc = wait_for_completion_interruptible(&resp_type->work);
 	if (rc == 0) {
 		rc = ap_msg->rc;
@@ -1038,9 +1036,7 @@ static long zcrypt_msgtype6_modexpo_crt(struct zcrypt_queue *zq,
 		ap_cancel_message(zq->queue, ap_msg);
 	}
 
-out_free:
-	free_page((unsigned long)ap_msg->msg);
-	ap_msg->msg = NULL;
+out:
 	return rc;
 }
 
