@@ -12,24 +12,24 @@
 
 #include "../std.h"
 
-/* WARNING, it only deals with the 4096 first majors and 256 first minors */
 static __inline__ dev_t __nolibc_makedev(unsigned int maj, unsigned int min)
 {
-	return ((maj & 0xfff) << 8) | (min & 0xff);
+	return (((dev_t)maj & ~0xfff) << 32) | ((maj & 0xfff) << 8) |
+	       (((dev_t)min & ~0xff) << 12) | (min & 0xff);
 }
 
 #define makedev(maj, min) __nolibc_makedev(maj, min)
 
 static __inline__ unsigned int __nolibc_major(dev_t dev)
 {
-	return (dev >> 8) & 0xfff;
+	return ((dev >> 32) & ~0xfff) | ((dev >> 8) & 0xfff);
 }
 
 #define major(dev) __nolibc_major(dev)
 
 static __inline__ unsigned int __nolibc_minor(dev_t dev)
 {
-	return dev & 0xff;
+	return ((dev >> 12) & ~0xff) | (dev & 0xff);
 }
 
 #define minor(dev) __nolibc_minor(dev)

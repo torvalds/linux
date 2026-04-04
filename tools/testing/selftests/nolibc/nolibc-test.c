@@ -1684,6 +1684,9 @@ int run_stdlib(int min, int max)
 		CASE_TEST(makedev);                 EXPECT_EQ(1, makedev(0x12, 0x34), 0x1234); break;
 		CASE_TEST(major);                   EXPECT_EQ(1, major(0x1234), 0x12); break;
 		CASE_TEST(minor);                   EXPECT_EQ(1, minor(0x1234), 0x34); break;
+		CASE_TEST(makedev_big);             EXPECT_EQ(1, makedev(0x11223344, 0x55667788), 0x1122355667734488); break;
+		CASE_TEST(major_big);               EXPECT_EQ(1, major(0x1122355667734488), 0x11223344); break;
+		CASE_TEST(minor_big);               EXPECT_EQ(1, minor(0x1122355667734488), 0x55667788); break;
 
 		case __LINE__:
 			return ret; /* must be last */
