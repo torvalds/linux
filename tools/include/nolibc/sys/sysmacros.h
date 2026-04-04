@@ -13,8 +13,25 @@
 #include "../std.h"
 
 /* WARNING, it only deals with the 4096 first majors and 256 first minors */
-#define makedev(major, minor) ((dev_t)((((major) & 0xfff) << 8) | ((minor) & 0xff)))
-#define major(dev) ((unsigned int)(((dev) >> 8) & 0xfff))
-#define minor(dev) ((unsigned int)((dev) & 0xff))
+static __inline__ dev_t __nolibc_makedev(unsigned int maj, unsigned int min)
+{
+	return ((maj & 0xfff) << 8) | (min & 0xff);
+}
+
+#define makedev(maj, min) __nolibc_makedev(maj, min)
+
+static __inline__ unsigned int __nolibc_major(dev_t dev)
+{
+	return (dev >> 8) & 0xfff;
+}
+
+#define major(dev) __nolibc_major(dev)
+
+static __inline__ unsigned int __nolibc_minor(dev_t dev)
+{
+	return dev & 0xff;
+}
+
+#define minor(dev) __nolibc_minor(dev)
 
 #endif /* _NOLIBC_SYS_SYSMACROS_H */
