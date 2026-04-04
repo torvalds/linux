@@ -232,22 +232,13 @@ ifeq ($(origin XARCH),command line)
 CFLAGS_XARCH = $(CFLAGS_$(XARCH))
 endif
 
+LDLIBS_ppc = $(if $(LLVM),,-lgcc)
+LDLIBS = $(LDLIBS_$(XARCH))
+
 include Makefile.include
 
 CFLAGS  ?= $(CFLAGS_NOLIBC_TEST) $(CFLAGS_XARCH) $(CFLAGS_EXTRA)
 LDFLAGS :=
-
-LIBGCC := -lgcc
-
-ifeq ($(ARCH),x86)
-# Not needed on x86, probably not present for x32
-LIBGCC :=
-endif
-
-ifneq ($(LLVM),)
-# Not needed for clang
-LIBGCC :=
-endif
 
 # Modify CFLAGS based on LLVM=
 include $(srctree)/tools/scripts/Makefile.include
@@ -304,7 +295,7 @@ sysroot/$(ARCH)/include:
 
 nolibc-test: $(NOLIBC_TEST_SOURCES) sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include $(NOLIBC_TEST_SOURCES) $(LIBGCC)
+	  -nostdlib -nostdinc -static -Isysroot/$(ARCH)/include $(NOLIBC_TEST_SOURCES) $(LDLIBS)
 
 libc-test: $(NOLIBC_TEST_SOURCES)
 	$(QUIET_CC)$(HOSTCC) -o $@ $(NOLIBC_TEST_SOURCES)
