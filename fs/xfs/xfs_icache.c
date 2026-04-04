@@ -159,7 +159,6 @@ xfs_inode_free_callback(
 		ASSERT(!test_bit(XFS_LI_IN_AIL,
 				 &ip->i_itemp->ili_item.li_flags));
 		xfs_inode_item_destroy(ip);
-		ip->i_itemp = NULL;
 	}
 
 	kmem_cache_free(xfs_inode_cache, ip);
