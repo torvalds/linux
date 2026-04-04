@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 
 #include <linux/netfilter/x_tables.h>
@@ -21,8 +22,10 @@ eui64_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	unsigned char eui64[8];
 
-	if (!(skb_mac_header(skb) >= skb->head &&
-	      skb_mac_header(skb) + ETH_HLEN <= skb->data)) {
+	if (!skb->dev || skb->dev->type != ARPHRD_ETHER)
+		return false;
+
+	if (!skb_mac_header_was_set(skb) || skb_mac_header_len(skb) < ETH_HLEN) {
 		par->hotdrop = true;
 		return false;
 	}
