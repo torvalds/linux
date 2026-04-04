@@ -178,8 +178,6 @@ properties:
       - innolux,g121xce-l01
         # InnoLux 15.0" G150XGE-L05 XGA (1024x768) TFT LCD panel
       - innolux,g150xge-l05
-        # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
-      - innolux,g156hce-l01
         # InnoLux 13.3" FHD (1920x1080) TFT LCD panel
       - innolux,n133hse-ea1
         # InnoLux 15.6" WXGA TFT LCD panel
