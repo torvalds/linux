@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/nvidia,tegra210-mc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra210 SoC Memory Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The NVIDIA Tegra210 SoC features a 64 bit memory controller that is split
+  into two 32 bit channels to support LPDDR3 and LPDDR4 with x16 subpartitions.
+  The MC handles memory requests for 34-bit virtual addresses from internal
+  clients and arbitrates among them to allocate memory bandwidth.
+
+  Up to 8 GiB of physical memory can be supported. Security features such as
+  encryption of traffic to and from DRAM via general security apertures are
+  available for video and other secure applications.
+
+properties:
+  $nodename:
+    pattern: "^memory-controller@[0-9a-f]+$"
+
+  compatible:
+    items:
+      - enum:
+          - nvidia,tegra210-mc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: mc
+
+  "#iommu-cells":
+    const: 1
+
+  "#reset-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - "#iommu-cells"
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    memory-controller@70019000 {
+        compatible = "nvidia,tegra210-mc";
+        reg = <0x70019000 0x1000>;
+        interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_MC>;
+        clock-names = "mc";
+
+        #iommu-cells = <1>;
+        #reset-cells = <1>;
+    };

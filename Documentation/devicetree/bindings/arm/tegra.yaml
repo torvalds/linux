@@ -132,6 +132,33 @@ properties:
           - const: toradex,apalis-tk1
           - const: nvidia,tegra124
       - items:
+          - const: google,nyan-big-rev7
+          - const: google,nyan-big-rev6
+          - const: google,nyan-big-rev5
+          - const: google,nyan-big-rev4
+          - const: google,nyan-big-rev3
+          - const: google,nyan-big-rev2
+          - const: google,nyan-big-rev1
+          - const: google,nyan-big-rev0
+          - const: google,nyan-big
+          - const: google,nyan
+          - const: nvidia,tegra124
+      - items:
+          - const: google,nyan-blaze-rev10
+          - const: google,nyan-blaze-rev9
+          - const: google,nyan-blaze-rev8
+          - const: google,nyan-blaze-rev7
+          - const: google,nyan-blaze-rev6
+          - const: google,nyan-blaze-rev5
+          - const: google,nyan-blaze-rev4
+          - const: google,nyan-blaze-rev3
+          - const: google,nyan-blaze-rev2
+          - const: google,nyan-blaze-rev1
+          - const: google,nyan-blaze-rev0
+          - const: google,nyan-blaze
+          - const: google,nyan
+          - const: nvidia,tegra124
+      - items:
           - enum:
               - nvidia,norrin
           - const: nvidia,tegra132
@@ -184,16 +211,34 @@ properties:
           - const: nvidia,tegra124
       - items:
           - enum:
-              - nvidia,darcy
               - nvidia,p2371-0000
               - nvidia,p2371-2180
               - nvidia,p2571
-              - nvidia,p2894-0050-a08
-              - nvidia,p3450-0000
           - const: nvidia,tegra210
       - items:
           - const: nvidia,p3541-0000
           - const: nvidia,p3450-0000
+          - const: nvidia,tegra210
+      - description: NVIDIA Jetson Nano
+        items:
+          - const: nvidia,p3450-0000
+          - const: nvidia,tegra210
+      - description: NVIDIA Shield TV
+        items:
+          - const: nvidia,p2894-0050-a08
+          - const: nvidia,darcy
+          - const: nvidia,tegra210
+      - description: Google Pixel C
+        items:
+          - const: google,smaug-rev8
+          - const: google,smaug-rev7
+          - const: google,smaug-rev6
+          - const: google,smaug-rev5
+          - const: google,smaug-rev4
+          - const: google,smaug-rev3
+          - const: google,smaug-rev2
+          - const: google,smaug-rev1
+          - const: google,smaug
           - const: nvidia,tegra210
       - description: Jetson TX2 Developer Kit
         items:
@@ -266,6 +311,11 @@ properties:
       - description: NVIDIA P3971-0089+P3834-0008 Engineering Reference Platform
         items:
           - const: nvidia,p3971-0089+p3834-0008
+          - const: nvidia,p3834-0008
+          - const: nvidia,tegra264
+      - description: Jetson AGX Thor Developer Kit
+        items:
+          - const: nvidia,p4071-0000+p3834-0008
           - const: nvidia,p3834-0008
           - const: nvidia,tegra264
 
