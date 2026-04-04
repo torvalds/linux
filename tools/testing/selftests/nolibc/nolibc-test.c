@@ -1680,6 +1680,9 @@ int run_stdlib(int min, int max)
 		CASE_TEST(memchr_foobar6_o);        EXPECT_STREQ(1, memchr("foobar", 'o', 6), "oobar"); break;
 		CASE_TEST(memchr_foobar3_b);        EXPECT_STRZR(1, memchr("foobar", 'b', 3)); break;
 		CASE_TEST(time_types);              EXPECT_ZR(is_nolibc, test_time_types()); break;
+		CASE_TEST(makedev);                 EXPECT_EQ(1, makedev(0x12, 0x34), 0x1234); break;
+		CASE_TEST(major);                   EXPECT_EQ(1, major(0x1234), 0x12); break;
+		CASE_TEST(minor);                   EXPECT_EQ(1, minor(0x1234), 0x34); break;
 
 		case __LINE__:
 			return ret; /* must be last */
