@@ -59,7 +59,7 @@ In addition, the following information are highly desirable:
     immediately merged (see Documentation/process/submitting-patches.rst).
     This will save some back-and-forth exchanges if it is accepted, and you
     will be credited for finding and fixing this issue.  Note that in this case
-    only a ``Signed-off-by:`` tag is needed, without ``Reported-by:` when the
+    only a ``Signed-off-by:`` tag is needed, without ``Reported-by:`` when the
     reporter and author are the same.
 
   * **mitigations**: very often during a bug analysis, some ways of mitigating
@@ -88,7 +88,7 @@ recipients to send a report to.  In the Linux kernel, all official maintainers
 are trusted, so the consequences of accidentally including the wrong maintainer
 are essentially a bit more noise for that person, i.e. nothing dramatic.  As
 such, a suitable method to figure the list of maintainers (which kernel
-security officers use) is to rely on the get_maintainers.pl script, tuned to
+security officers use) is to rely on the get_maintainer.pl script, tuned to
 only report maintainers.  This script, when passed a file name, will look for
 its path in the MAINTAINERS file to figure a hierarchical list of relevant
 maintainers.  Calling it a first time with the finest level of filtering will
