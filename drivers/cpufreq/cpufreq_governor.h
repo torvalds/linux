@@ -21,6 +21,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 
 /* Ondemand Sampling types */
 enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
@@ -57,7 +58,7 @@ static ssize_t file_name##_show						\
 {									\
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
 	struct _gov##_dbs_tuners *tuners = dbs_data->tuners;		\
-	return sprintf(buf, "%u\n", tuners->file_name);			\
+	return sysfs_emit(buf, "%u\n", tuners->file_name);		\
 }
 
 #define gov_show_one_common(file_name)					\
@@ -65,7 +66,7 @@ static ssize_t file_name##_show						\
 (struct gov_attr_set *attr_set, char *buf)				\
 {									\
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);		\
-	return sprintf(buf, "%u\n", dbs_data->file_name);		\
+	return sysfs_emit(buf, "%u\n", dbs_data->file_name);		\
 }
 
 #define gov_attr_ro(_name)						\
