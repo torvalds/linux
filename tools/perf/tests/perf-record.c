@@ -300,6 +300,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 				}
 
 				perf_mmap__consume(&md->core);
+				perf_sample__exit(&sample);
 			}
 			perf_mmap__read_done(&md->core);
 		}

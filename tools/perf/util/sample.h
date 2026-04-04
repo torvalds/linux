@@ -155,12 +155,6 @@ struct perf_sample {
 	 *            intel-pt. The instruction itself is held in insn.
 	 */
 	u16 insn_len;
-	/**
-	 * @cpumode: The cpumode from struct perf_event_header misc variable
-	 *           masked with CPUMODE_MASK. Gives user, kernel and hypervisor
-	 *           information.
-	 */
-	u8  cpumode;
 	/** @misc: The entire struct perf_event_header misc variable. */
 	u16 misc;
 	/**
@@ -175,6 +169,12 @@ struct perf_sample {
 	 */
 	u16 weight3;
 	/**
+	 * @cpumode: The cpumode from struct perf_event_header misc variable
+	 *           masked with CPUMODE_MASK. Gives user, kernel and hypervisor
+	 *           information.
+	 */
+	u8  cpumode;
+	/**
 	 * @no_hw_idx: For PERF_SAMPLE_BRANCH_STACK, true when
 	 *             PERF_SAMPLE_BRANCH_HW_INDEX isn't set.
 	 */
@@ -184,6 +184,11 @@ struct perf_sample {
 	 *                      user callchain marker was encountered.
 	 */
 	bool deferred_callchain;
+	/**
+	 * @merged_callchain: A synthesized merged callchain that is allocated
+	 *                    and needs freeing.
+	 */
+	bool merged_callchain;
 	/**
 	 * @deferred_cookie: Identifier of the deferred callchain in the later
 	 *                   PERF_RECORD_CALLCHAIN_DEFERRED event.

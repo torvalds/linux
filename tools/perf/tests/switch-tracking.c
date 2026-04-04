@@ -239,11 +239,13 @@ static int add_event(struct evlist *evlist, struct list_head *events,
 
 	if (!sample.time) {
 		pr_debug("event with no time\n");
+		perf_sample__exit(&sample);
 		return -1;
 	}
 
 	node->event_time = sample.time;
 
+	perf_sample__exit(&sample);
 	return 0;
 }
 
