@@ -32,7 +32,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
-		ranges = <0x00 0x00000000 0x00 0x00000000 0x01 0x00000000>;
+		ranges = <0x00 0x00000000 0x00 0x00000000 0x00 0x20000000>; /* MMIO (512 MiB) */
 
 		misc@100000 {
 			compatible = "nvidia,tegra234-misc";
@@ -3277,6 +3277,50 @@
 			status = "disabled";
 		};
 
+		gpio_main: gpio@c300000 {
+			compatible = "nvidia,tegra264-gpio";
+			reg = <0x00 0x0c300000 0x0 0x4000>,
+			      <0x00 0x0c310000 0x0 0x4000>;
+			reg-names = "security", "gpio";
+			wakeup-parent = <&pmc>;
+			interrupts =  <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+				      <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		serial@c4e0000 {
 			compatible = "nvidia,tegra264-utc";
 			reg = <0x0 0x0c4e0000 0x0 0x8000>,
@@ -3347,6 +3391,22 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 		};
+
+		gpio_aon: gpio@cf00000 {
+			compatible = "nvidia,tegra264-gpio-aon";
+			reg = <0x0 0x0cf00000 0x0 0x10000>,
+			      <0x0 0x0cf10000 0x0 0x1000>;
+			reg-names = "security", "gpio";
+			wakeup-parent = <&pmc>;
+			interrupts = <GIC_SPI 538 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 539 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 540 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 541 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	/* TOP_MMIO */
@@ -3356,9 +3416,10 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
-		ranges = <0x00 0x00000000 0x81 0x00000000 0x01 0x00000000>, /* MMIO */
-			 <0x01 0x00000000 0x00 0x20000000 0x00 0x40000000>, /* non-prefetchable memory (32-bit) */
-			 <0x02 0x00000000 0xd0 0x00000000 0x08 0x80000000>; /* ECAM, prefetchable memory, I/O */
+		ranges = <0x00 0x00000000 0x81 0x00000000 0x00 0x20000000>, /* MMIO (512 MiB) */
+			 <0x00 0x20000000 0x00 0x20000000 0x00 0x20000000>, /* non-prefetchable memory (32-bit, 512 MiB) */
+			 <0x00 0x40000000 0x81 0x40000000 0x00 0x20000000>, /* MMIO (512 MiB) */
+			 <0xa8 0x80000000 0xa8 0x80000000 0x57 0x80000000>; /* I/O, ECAM, prefetchable memory (64-bit) */
 
 		smmu1: iommu@5000000 {
 			compatible = "nvidia,tegra264-smmu", "arm,smmu-v3";
@@ -3402,23 +3463,23 @@
 
 		mc: memory-controller@8020000 {
 			compatible = "nvidia,tegra264-mc";
-			reg = <0x00 0x8020000 0x0 0x20000>, /* MC broadcast */
-			      <0x00 0x8040000 0x0 0x20000>, /* MC  0 */
-			      <0x00 0x8060000 0x0 0x20000>, /* MC  1 */
-			      <0x00 0x8080000 0x0 0x20000>, /* MC  2 */
-			      <0x00 0x80a0000 0x0 0x20000>, /* MC  3 */
-			      <0x00 0x80c0000 0x0 0x20000>, /* MC  4 */
-			      <0x00 0x80e0000 0x0 0x20000>, /* MC  5 */
-			      <0x00 0x8100000 0x0 0x20000>, /* MC  6 */
-			      <0x00 0x8120000 0x0 0x20000>, /* MC  7 */
-			      <0x00 0x8140000 0x0 0x20000>, /* MC  8 */
-			      <0x00 0x8160000 0x0 0x20000>, /* MC  9 */
-			      <0x00 0x8180000 0x0 0x20000>, /* MC 10 */
-			      <0x00 0x81a0000 0x0 0x20000>, /* MC 11 */
-			      <0x00 0x81c0000 0x0 0x20000>, /* MC 12 */
-			      <0x00 0x81e0000 0x0 0x20000>, /* MC 13 */
-			      <0x00 0x8200000 0x0 0x20000>, /* MC 14 */
-			      <0x00 0x8220000 0x0 0x20000>; /* MC 15 */
+			reg = <0x000 0x8020000 0x0 0x20000>, /* MC broadcast */
+			      <0x000 0x8040000 0x0 0x20000>, /* MC  0 */
+			      <0x000 0x8060000 0x0 0x20000>, /* MC  1 */
+			      <0x000 0x8080000 0x0 0x20000>, /* MC  2 */
+			      <0x000 0x80a0000 0x0 0x20000>, /* MC  3 */
+			      <0x000 0x80c0000 0x0 0x20000>, /* MC  4 */
+			      <0x000 0x80e0000 0x0 0x20000>, /* MC  5 */
+			      <0x000 0x8100000 0x0 0x20000>, /* MC  6 */
+			      <0x000 0x8120000 0x0 0x20000>, /* MC  7 */
+			      <0x000 0x8140000 0x0 0x20000>, /* MC  8 */
+			      <0x000 0x8160000 0x0 0x20000>, /* MC  9 */
+			      <0x000 0x8180000 0x0 0x20000>, /* MC 10 */
+			      <0x000 0x81a0000 0x0 0x20000>, /* MC 11 */
+			      <0x000 0x81c0000 0x0 0x20000>, /* MC 12 */
+			      <0x000 0x81e0000 0x0 0x20000>, /* MC 13 */
+			      <0x000 0x8200000 0x0 0x20000>, /* MC 14 */
+			      <0x000 0x8220000 0x0 0x20000>; /* MC 15 */
 			reg-names = "broadcast", "ch0", "ch1", "ch2", "ch3",
 				    "ch4", "ch5", "ch6", "ch7", "ch8", "ch9",
 				    "ch10", "ch11", "ch12", "ch13", "ch14",
@@ -3437,12 +3498,12 @@
 			#size-cells = <2>;
 
 			/* limit the DMA range for memory clients to [39:0] */
-			dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+			dma-ranges = <0x000 0x0 0x000 0x0 0x100 0x0>;
 
 			emc: external-memory-controller@8800000 {
 				compatible = "nvidia,tegra264-emc";
-				reg = <0x00 0x8800000 0x0 0x20000>,
-				      <0x00 0x8890000 0x0 0x20000>;
+				reg = <0x000 0x8800000 0x0 0x20000>,
+				      <0x000 0x8890000 0x0 0x20000>;
 				interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&bpmp TEGRA264_CLK_EMC>,
 					 <&bpmp TEGRA264_CLK_DBB_UPHY0>;
@@ -3490,6 +3551,38 @@
 			compatible = "nvidia,tegra264-cmdqv";
 			reg = <0x00 0xb200000 0x0 0x830000>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		pci@c000000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xd0 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x0c000000 0x0 0x00004000>,
+			      <0x00 0x0c004000 0x0 0x00001000>,
+			      <0x00 0x0c005000 0x0 0x00001000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x00>;
+			#interrupt-cells = <0x1>;
+
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 155 IRQ_TYPE_LEVEL_HIGH>,
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 156 IRQ_TYPE_LEVEL_HIGH>,
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 157 IRQ_TYPE_LEVEL_HIGH>,
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 158 IRQ_TYPE_LEVEL_HIGH>;
+
+			iommu-map = <0x0 &smmu2 0x10000 0x10000>;
+			msi-map = <0x0 &its 0x210000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xd0 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x20000000 0x00 0x20000000 0x00 0x08000000>, /* non-prefetchable memory (128 MiB) */
+				 <0xc3000000 0xd0 0xc0000000 0xd0 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x0 0xff>;
+
+			nvidia,bpmp = <&bpmp 0>;
 			status = "disabled";
 		};
 
@@ -3720,7 +3813,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
-		ranges = <0x00 0x00000000 0x88 0x00000000 0x01 0x00000000>;
+		ranges = <0x00 0x00000000 0x88 0x00000000 0x00 0x20000000>; /* MMIO (512 MiB) */
 
 		smmu3: iommu@6000000 {
 			compatible = "nvidia,tegra264-smmu", "arm,smmu-v3";
@@ -3765,8 +3858,197 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
-		ranges = <0x00 0x00000000 0xa8 0x00000000 0x40 0x00000000>, /* MMIO, ECAM, prefetchable memory, I/O */
-			 <0x80 0x00000000 0x00 0x20000000 0x00 0x40000000>; /* non-prefetchable memory (32-bit) */
+		ranges = <0x00 0x00000000 0xa8 0x00000000 0x00 0x20000000>, /* MMIO (512 MiB) */
+			 <0x00 0x20000000 0x00 0x20000000 0x00 0x60000000>, /* non-prefetchable memory (32-bit, 1536 GiB) */
+			 <0xa8 0x80000000 0xa8 0x80000000 0x57 0x80000000>; /* I/O, ECAM, prefetchable memory (64-bit) */
+
+		gpio_uphy: gpio@8300000 {
+			compatible = "nvidia,tegra264-gpio-uphy";
+			reg = <0x00 0x08300000 0x0 0x2000>,
+			      <0x00 0x08310000 0x0 0x2000>;
+			reg-names = "security", "gpio";
+			wakeup-parent = <&pmc>;
+			interrupts = <GIC_SPI 843 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 844 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 845 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 847 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 848 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 849 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 850 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 851 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 852 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 853 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 854 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 855 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 856 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 857 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 858 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pci@8400000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xa8 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x08400000 0x0 0x00004000>,
+			      <0x00 0x08404000 0x0 0x00001000>,
+			      <0x00 0x08405000 0x0 0x00001000>,
+			      <0x00 0x08410000 0x0 0x00010000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x01>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 908 IRQ_TYPE_LEVEL_HIGH>, /* INTA */
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 909 IRQ_TYPE_LEVEL_HIGH>, /* INTB */
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 910 IRQ_TYPE_LEVEL_HIGH>, /* INTC */
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 911 IRQ_TYPE_LEVEL_HIGH>; /* INTD */
+
+			iommu-map = <0x0 &smmu1 0x10000 0x10000>;
+			msi-map = <0x0 &its 0x110000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xa8 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x28000000 0x00 0x28000000 0x00 0x08000000>, /* non-prefetchable memory */
+				 <0xc3000000 0xa8 0xc0000000 0xa8 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x00 0xff>;
+
+			nvidia,bpmp = <&bpmp 1>;
+			status = "disabled";
+		};
+
+		pci@8420000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xb0 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x08420000 0x0 0x00004000>,
+			      <0x00 0x08424000 0x0 0x00001000>,
+			      <0x00 0x08425000 0x0 0x00001000>,
+			      <0x00 0x08430000 0x0 0x00010000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x02>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 917 IRQ_TYPE_LEVEL_HIGH>, /* INTA */
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 918 IRQ_TYPE_LEVEL_HIGH>, /* INTB */
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 919 IRQ_TYPE_LEVEL_HIGH>, /* INTC */
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 920 IRQ_TYPE_LEVEL_HIGH>; /* INTD */
+
+			iommu-map = <0x0 &smmu1 0x20000 0x10000>;
+			msi-map = <0x0 &its 0x120000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xb0 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x30000000 0x00 0x30000000 0x00 0x08000000>, /* non-prefetchable memory */
+				 <0xc3000000 0xb0 0xc0000000 0xb0 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x00 0xff>;
+
+			nvidia,bpmp = <&bpmp 2>;
+			status = "disabled";
+		};
+
+		pci@8440000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xb8 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x08440000 0x0 0x00004000>,
+			      <0x00 0x08444000 0x0 0x00001000>,
+			      <0x00 0x08445000 0x0 0x00001000>,
+			      <0x00 0x08450000 0x0 0x00010000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x03>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 926 IRQ_TYPE_LEVEL_HIGH>, /* INTA */
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 927 IRQ_TYPE_LEVEL_HIGH>, /* INTB */
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 928 IRQ_TYPE_LEVEL_HIGH>, /* INTC */
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 929 IRQ_TYPE_LEVEL_HIGH>; /* INTD */
+
+			iommu-map = <0x0 &smmu1 0x30000 0x10000>;
+			msi-map = <0x0 &its 0x130000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xb8 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x38000000 0x00 0x38000000 0x00 0x08000000>, /* non-prefetchable memory */
+				 <0xc3000000 0xb8 0xc0000000 0xb8 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x00 0xff>;
+
+			nvidia,bpmp = <&bpmp 3>;
+			status = "disabled";
+		};
+
+		pci@8460000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xc0 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x08460000 0x0 0x00004000>,
+			      <0x00 0x08464000 0x0 0x00001000>,
+			      <0x00 0x08465000 0x0 0x00001000>,
+			      <0x00 0x08470000 0x0 0x00010000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x04>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 935 IRQ_TYPE_LEVEL_HIGH>, /* INTA */
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 936 IRQ_TYPE_LEVEL_HIGH>, /* INTB */
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 937 IRQ_TYPE_LEVEL_HIGH>, /* INTC */
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 938 IRQ_TYPE_LEVEL_HIGH>; /* INTD */
+
+			iommu-map = <0x0 &smmu1 0x40000 0x10000>;
+			msi-map = <0x0 &its 0x140000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xc0 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x40000000 0x00 0x40000000 0x00 0x08000000>, /* non-prefetchable memory */
+				 <0xc3000000 0xc0 0xc0000000 0xc0 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x00 0xff>;
+
+			nvidia,bpmp = <&bpmp 4>;
+			status = "disabled";
+		};
+
+		pci@8480000 {
+			compatible = "nvidia,tegra264-pcie";
+			reg = <0xc8 0xb0000000 0x0 0x10000000>,
+			      <0x00 0x08480000 0x0 0x00004000>,
+			      <0x00 0x08484000 0x0 0x00001000>,
+			      <0x00 0x08485000 0x0 0x00001000>,
+			      <0x00 0x08490000 0x0 0x00010000>;
+			reg-names = "ecam", "xal", "xtl", "xtl-pri", "xpl";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			linux,pci-domain = <0x05>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 944 IRQ_TYPE_LEVEL_HIGH>, /* INTA */
+					<0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 945 IRQ_TYPE_LEVEL_HIGH>, /* INTB */
+					<0x0 0x0 0x0 0x3 &gic 0x0 0x0 0x0 946 IRQ_TYPE_LEVEL_HIGH>, /* INTC */
+					<0x0 0x0 0x0 0x4 &gic 0x0 0x0 0x0 947 IRQ_TYPE_LEVEL_HIGH>; /* INTD */
+
+			iommu-map = <0x0 &smmu1 0x50000 0x10000>;
+			msi-map = <0x0 &its 0x150000 0x10000>;
+			dma-coherent;
+
+			ranges = <0x81000000 0x00 0x84000000 0xc8 0x84000000 0x00 0x00200000>, /* I/O */
+				 <0x82000000 0x00 0x48000000 0x00 0x48000000 0x00 0x08000000>, /* non-prefetchable memory */
+				 <0xc3000000 0xc8 0xc0000000 0xc8 0xc0000000 0x07 0xc0000000>; /* prefetchable memory */
+			bus-range = <0x00 0xff>;
+
+			nvidia,bpmp = <&bpmp 5>;
+			status = "disabled";
+		};
 	};
 
 	cpus {

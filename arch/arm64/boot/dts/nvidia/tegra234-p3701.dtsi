@@ -9,6 +9,7 @@
 		mmc0 = "/bus@0/mmc@3460000";
 		mmc1 = "/bus@0/mmc@3400000";
 		rtc0 = "/bpmp/i2c/pmic@3c";
+		rtc1 = "/bus@0/rtc@c2a0000";
 	};
 
 	bus@0 {
