@@ -10,6 +10,8 @@
 # checksyscalls.sh gcc gcc-options
 #
 
+set -e
+
 reference_table="$(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl"
 
 ignore_list() {
