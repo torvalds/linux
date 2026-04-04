@@ -394,11 +394,6 @@ dw_i3c_master_alloc_xfer(struct dw_i3c_master *master, unsigned int ncmds)
 	return xfer;
 }
 
-static void dw_i3c_master_free_xfer(struct dw_i3c_xfer *xfer)
-{
-	kfree(xfer);
-}
-
 static void dw_i3c_master_start_xfer_locked(struct dw_i3c_master *master)
 {
 	struct dw_i3c_xfer *xfer = master->xferqueue.cur;
@@ -716,7 +711,6 @@ static void dw_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 			  struct i3c_ccc_cmd *ccc)
 {
-	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	int ret, pos = 0;
 
@@ -726,7 +720,7 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 			return pos;
 	}
 
-	xfer = dw_i3c_master_alloc_xfer(master, 1);
+	struct dw_i3c_xfer *xfer __free(kfree) = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -751,14 +745,11 @@ static int dw_i3c_ccc_set(struct dw_i3c_master *master,
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
 		ccc->err = I3C_ERROR_M2;
 
-	dw_i3c_master_free_xfer(xfer);
-
 	return ret;
 }
 
 static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 {
-	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	int ret, pos;
 
@@ -766,7 +757,7 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 	if (pos < 0)
 		return pos;
 
-	xfer = dw_i3c_master_alloc_xfer(master, 1);
+	struct dw_i3c_xfer *xfer __free(kfree) = dw_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -791,7 +782,6 @@ static int dw_i3c_ccc_get(struct dw_i3c_master *master, struct i3c_ccc_cmd *ccc)
 	ret = xfer->ret;
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
 		ccc->err = I3C_ERROR_M2;
-	dw_i3c_master_free_xfer(xfer);
 
 	return ret;
 }
@@ -838,11 +828,14 @@ static int dw_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 static int dw_i3c_master_daa(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
-	struct dw_i3c_xfer *xfer;
 	struct dw_i3c_cmd *cmd;
 	u32 olddevs, newdevs;
 	u8 last_addr = 0;
 	int ret, pos;
+
+	struct dw_i3c_xfer *xfer __free(kfree) = dw_i3c_master_alloc_xfer(master, 1);
+	if (!xfer)
+		return -ENOMEM;
 
 	ret = pm_runtime_resume_and_get(master->dev);
 	if (ret < 0) {
@@ -877,15 +870,8 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		ret = 0;
 	}
 
-	xfer = dw_i3c_master_alloc_xfer(master, 1);
-	if (!xfer) {
-		ret = -ENOMEM;
-		goto rpm_out;
-	}
-
 	pos = dw_i3c_master_get_free_pos(master);
 	if (pos < 0) {
-		dw_i3c_master_free_xfer(xfer);
 		ret = pos;
 		goto rpm_out;
 	}
@@ -909,8 +895,6 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		if (newdevs & BIT(pos))
 			i3c_master_add_i3c_dev_locked(m, master->devs[pos].addr);
 	}
-
-	dw_i3c_master_free_xfer(xfer);
 
 rpm_out:
 	pm_runtime_put_autosuspend(master->dev);
@@ -1083,7 +1067,6 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	unsigned int nrxwords = 0, ntxwords = 0;
-	struct dw_i3c_xfer *xfer;
 	int i, ret = 0;
 
 	if (!i2c_nxfers)
@@ -1103,7 +1086,7 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 	    nrxwords > master->caps.datafifodepth)
 		return -EOPNOTSUPP;
 
-	xfer = dw_i3c_master_alloc_xfer(master, i2c_nxfers);
+	struct dw_i3c_xfer *xfer __free(kfree) = dw_i3c_master_alloc_xfer(master, i2c_nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -1112,7 +1095,6 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		dev_err(master->dev,
 			"<%s> cannot resume i3c bus master, err: %d\n",
 			__func__, ret);
-		dw_i3c_master_free_xfer(xfer);
 		return ret;
 	}
 
@@ -1144,7 +1126,6 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		dw_i3c_master_dequeue_xfer(master, xfer);
 
 	ret = xfer->ret;
-	dw_i3c_master_free_xfer(xfer);
 
 	pm_runtime_put_autosuspend(master->dev);
 	return ret;
