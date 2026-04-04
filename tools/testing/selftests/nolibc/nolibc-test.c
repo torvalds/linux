@@ -1555,6 +1555,60 @@ int test_time_types(void)
 	return 0;
 }
 
+int test_malloc(void)
+{
+	size_t sz_array1, sz_array2, sz_array3;
+	int *array1, *array2, *array3;
+	int pagesize = getpagesize();
+	size_t idx;
+
+	if (pagesize < 0)
+		return 1;
+
+	/* Dependent on the page size, as that is the granularity of our allocator. */
+	sz_array1 = pagesize / 2;
+	array1 = malloc(sz_array1 * sizeof(*array1));
+	if (!array1)
+		return 2;
+
+	for (idx = 0; idx < sz_array1; idx++)
+		array1[idx] = idx;
+
+	sz_array2 = pagesize * 2;
+	array2 = calloc(sz_array2, sizeof(*array2));
+	if (!array2) {
+		free(array1);
+		return 3;
+	}
+
+	for (idx = 0; idx < sz_array2; idx++) {
+		if (array2[idx] != 0) {
+			free(array2);
+			return 4;
+		}
+		array2[idx] = idx + sz_array1;
+	}
+
+	/* Resize array1 into array3 and append array2 at the end. */
+	sz_array3 = sz_array1 + sz_array2;
+	array3 = realloc(array1, sz_array3 * sizeof(*array3));
+	if (!array3) {
+		free(array2);
+		free(array1);
+		return 5;
+	}
+	memcpy(array3 + sz_array1, array2, sizeof(*array2) * sz_array2);
+	free(array2);
+
+	/* The contents must be contiguous now. */
+	for (idx = 0; idx < sz_array3; idx++)
+		if (array3[idx] != (int)idx)
+			return 6;
+
+	free(array3);
+	return 0;
+}
+
 int run_stdlib(int min, int max)
 {
 	int test;
@@ -1687,6 +1741,7 @@ int run_stdlib(int min, int max)
 		CASE_TEST(makedev_big);             EXPECT_EQ(1, makedev(0x11223344, 0x55667788), 0x1122355667734488); break;
 		CASE_TEST(major_big);               EXPECT_EQ(1, major(0x1122355667734488), 0x11223344); break;
 		CASE_TEST(minor_big);               EXPECT_EQ(1, minor(0x1122355667734488), 0x55667788); break;
+		CASE_TEST(malloc);                  EXPECT_ZR(1, test_malloc()); break;
 
 		case __LINE__:
 			return ret; /* must be last */
