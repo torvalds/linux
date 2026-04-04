@@ -70,7 +70,7 @@ def _exchg_udp(cfg, port, test_string):
     cfg.require_cmd("socat", remote=True)
 
     rx_udp_cmd = f"socat -{cfg.addr_ipver} -T 2 -u UDP-RECV:{port},reuseport STDOUT"
-    tx_udp_cmd = f"echo -n {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port}"
+    tx_udp_cmd = f"echo -n {test_string} | socat -t 2 -u STDIN UDP:{cfg.baddr}:{port},shut-none"
 
     with bkg(rx_udp_cmd, exit_wait=True) as nc:
         wait_port_listen(port, proto="udp")
@@ -271,7 +271,7 @@ def _test_xdp_native_tx(cfg, bpf_info, payload_lens):
         # Writing zero bytes to stdin gets ignored by socat,
         # but with the shut-null flag socat generates a zero sized packet
         # when the socket is closed.
-        tx_cmd_suffix = ",shut-null" if payload_len == 0 else ""
+        tx_cmd_suffix = ",shut-null" if payload_len == 0 else ",shut-none"
         tx_udp = f"echo -n {test_string} | socat -t 2 " + \
                  f"-u STDIN UDP:{cfg.baddr}:{port}{tx_cmd_suffix}"
 
