@@ -291,26 +291,6 @@ static struct xfrm_algo_desc aalg_list[] = {
 	}
 },
 {
-	.name = "hmac(rmd160)",
-	.compat = "rmd160",
-
-	.uinfo = {
-		.auth = {
-			.icv_truncbits = 96,
-			.icv_fullbits = 160,
-		}
-	},
-
-	.pfkey_supported = 1,
-
-	.desc = {
-		.sadb_alg_id = SADB_X_AALG_RIPEMD160HMAC,
-		.sadb_alg_ivlen = 0,
-		.sadb_alg_minbits = 160,
-		.sadb_alg_maxbits = 160
-	}
-},
-{
 	.name = "xcbc(aes)",
 
 	.uinfo = {
