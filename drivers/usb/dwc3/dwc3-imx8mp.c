@@ -263,7 +263,7 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 	dwc3 = platform_get_drvdata(dwc3_imx->dwc3_pdev);
 	if (!dwc3) {
 		err = dev_err_probe(dev, -EPROBE_DEFER, "failed to get dwc3 platform data\n");
-		goto depopulate;
+		goto put_dwc3;
 	}
 
 	dwc3->glue_ops = &dwc3_imx_glue_ops;
