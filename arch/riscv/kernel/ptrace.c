@@ -351,7 +351,7 @@ static int riscv_cfi_set(struct task_struct *target,
 	if ((user_cfi.cfi_status.cfi_state &
 	     (PTRACE_CFI_LP_EN_STATE | PTRACE_CFI_LP_LOCK_STATE |
 	      PTRACE_CFI_SS_EN_STATE | PTRACE_CFI_SS_LOCK_STATE)) ||
-	     (user_cfi.cfi_status.cfi_state & PRACE_CFI_STATE_INVALID_MASK))
+	     (user_cfi.cfi_status.cfi_state & PTRACE_CFI_STATE_INVALID_MASK))
 		return -EINVAL;
 
 	/* If lpad is enabled on target and ptrace requests to set / clear elp, do that */
