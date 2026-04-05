@@ -838,7 +838,13 @@ export WARN_ON_UNUSED_TRACEPOINTS
 
 # Per-version Rust flags. These are like `rust_common_flags`, but may
 # depend on the Rust compiler version (e.g. using `rustc-min-version`).
-rust_common_flags_per_version :=
+#
+# `-Aclippy::precedence`: the lint was extended in Rust 1.85.0 to
+# include bitmasking and shift operations. However, because it generated
+# many hits, in Rust 1.86.0 it was split into a new `precedence_bits`
+# lint which is not enabled by default.
+rust_common_flags_per_version := \
+    $(if $(call rustc-min-version,108600),,-Aclippy::precedence)
 
 rust_common_flags += $(rust_common_flags_per_version)
 KBUILD_HOSTRUSTFLAGS += $(rust_common_flags_per_version) $(HOSTRUSTFLAGS)
