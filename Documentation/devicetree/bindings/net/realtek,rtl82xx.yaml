@@ -40,15 +40,15 @@ properties:
 
   leds: true
 
-  realtek,clkout-disable:
-    type: boolean
-    description:
-      Disable CLKOUT clock, CLKOUT clock default is enabled after hardware reset.
-
   realtek,aldps-enable:
     type: boolean
     description:
       Enable ALDPS mode, ALDPS mode default is disabled after hardware reset.
+
+  realtek,clkout-disable:
+    type: boolean
+    description:
+      Disable CLKOUT clock, CLKOUT clock default is enabled after hardware reset.
 
   wakeup-source:
     type: boolean
