@@ -2164,8 +2164,7 @@ void alc_fixup_headset_mode_no_hp_mic(struct hda_codec *codec,
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		struct alc_spec *spec = codec->spec;
 		spec->parse_flags |= HDA_PINCFG_HEADSET_MIC;
-	}
-	else
+	} else
 		alc_fixup_headset_mode(codec, fix, action);
 }
 EXPORT_SYMBOL_NS_GPL(alc_fixup_headset_mode_no_hp_mic, "SND_HDA_CODEC_REALTEK");
