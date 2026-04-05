@@ -115,6 +115,8 @@ struct cdns_pcie {
  * @quirk_detect_quiet_flag: LTSSM Detect Quiet min delay set as quirk
  * @ecam_supported: Whether the ECAM is supported
  * @no_inbound_map: Whether inbound mapping is supported
+ * @quirk_broken_aspm_l0s: Disable ASPM L0s support as quirk
+ * @quirk_broken_aspm_l1: Disable ASPM L1 support as quirk
  */
 struct cdns_pcie_rc {
 	struct cdns_pcie	pcie;
@@ -127,6 +129,8 @@ struct cdns_pcie_rc {
 	unsigned int		quirk_detect_quiet_flag:1;
 	unsigned int            ecam_supported:1;
 	unsigned int            no_inbound_map:1;
+	unsigned int            quirk_broken_aspm_l0s:1;
+	unsigned int            quirk_broken_aspm_l1:1;
 };
 
 /**
@@ -342,6 +346,21 @@ static inline u16 cdns_pcie_rp_readw(struct cdns_pcie *pcie, u32 reg)
 	void __iomem *addr = pcie->reg_base + CDNS_PCIE_RP_BASE + reg;
 
 	return cdns_pcie_read_sz(addr, 0x2);
+}
+
+static inline void cdns_pcie_rp_writel(struct cdns_pcie *pcie,
+				       u32 reg, u32 value)
+{
+	void __iomem *addr = pcie->reg_base + CDNS_PCIE_RP_BASE + reg;
+
+	cdns_pcie_write_sz(addr, 0x4, value);
+}
+
+static inline u32 cdns_pcie_rp_readl(struct cdns_pcie *pcie, u32 reg)
+{
+	void __iomem *addr = pcie->reg_base + CDNS_PCIE_RP_BASE + reg;
+
+	return cdns_pcie_read_sz(addr, 0x4);
 }
 
 static inline void cdns_pcie_hpa_rp_writeb(struct cdns_pcie *pcie,
