@@ -39,16 +39,10 @@
 //
 // Expected to become stable.
 #![feature(arbitrary_self_types)]
+#![feature(derive_coerce_pointee)]
 //
 // To be determined.
 #![feature(used_with_arg)]
-//
-// `feature(derive_coerce_pointee)` is expected to become stable. Before Rust
-// 1.84.0, it did not exist, so enable the predecessor features.
-#![cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, feature(derive_coerce_pointee))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(coerce_unsized))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(dispatch_from_dyn))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(unsize))]
 //
 // `feature(file_with_nul)` is expected to become stable. Before Rust 1.89.0, it did not exist, so
 // enable it conditionally.
