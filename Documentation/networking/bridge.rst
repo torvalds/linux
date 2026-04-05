@@ -148,6 +148,28 @@ called by the kernel when STP is enabled/disabled on a bridge
 stp_state <0|1>``).  The kernel enables user_stp mode if that command returns
 0, or enables kernel_stp mode if that command returns any other value.
 
+STP mode selection
+------------------
+
+The ``IFLA_BR_STP_MODE`` bridge attribute allows explicit control over how
+STP operates when enabled, bypassing the ``/sbin/bridge-stp`` helper
+entirely for the ``user`` and ``kernel`` modes.
+
+.. kernel-doc:: include/uapi/linux/if_link.h
+   :doc: Bridge STP mode values
+
+The default mode is ``BR_STP_MODE_AUTO``, which preserves the traditional
+behavior of invoking the ``/sbin/bridge-stp`` helper. The ``user`` and
+``kernel`` modes are particularly useful in network namespace environments
+where the helper mechanism is not available, as ``call_usermodehelper()``
+is restricted to the initial network namespace.
+
+Example::
+
+  ip link set dev br0 type bridge stp_mode user stp_state 1
+
+The mode can only be changed while STP is disabled.
+
 VLAN
 ====
 
