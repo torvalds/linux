@@ -457,7 +457,8 @@ int arch_lock_shadow_stack_status(struct task_struct *task,
 	return 0;
 }
 
-int arch_get_indir_br_lp_status(struct task_struct *t, unsigned long __user *status)
+int arch_prctl_get_branch_landing_pad_state(struct task_struct *t,
+					    unsigned long __user *state)
 {
 	unsigned long fcfi_status = 0;
 
@@ -467,10 +468,10 @@ int arch_get_indir_br_lp_status(struct task_struct *t, unsigned long __user *sta
 	/* indirect branch tracking is enabled on the task or not */
 	fcfi_status |= (is_indir_lp_enabled(t) ? PR_INDIR_BR_LP_ENABLE : 0);
 
-	return copy_to_user(status, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
+	return copy_to_user(state, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
 }
 
-int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status)
+int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long state)
 {
 	bool enable_indir_lp = false;
 
@@ -482,24 +483,23 @@ int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status)
 		return -EINVAL;
 
 	/* Reject unknown flags */
-	if (status & ~PR_INDIR_BR_LP_ENABLE)
+	if (state & ~PR_INDIR_BR_LP_ENABLE)
 		return -EINVAL;
 
-	enable_indir_lp = (status & PR_INDIR_BR_LP_ENABLE);
+	enable_indir_lp = (state & PR_INDIR_BR_LP_ENABLE);
 	set_indir_lp_status(t, enable_indir_lp);
 
 	return 0;
 }
 
-int arch_lock_indir_br_lp_status(struct task_struct *task,
-				 unsigned long arg)
+int arch_prctl_lock_branch_landing_pad_state(struct task_struct *task)
 {
 	/*
 	 * If indirect branch tracking is not supported or not enabled on task,
 	 * nothing to lock here
 	 */
 	if (!is_user_lpad_enabled() ||
-	    !is_indir_lp_enabled(task) || arg != 0)
+	    !is_indir_lp_enabled(task))
 		return -EINVAL;
 
 	set_indir_lp_lock(task, true);

@@ -229,8 +229,8 @@ static inline bool cpu_attack_vector_mitigated(enum cpu_attack_vectors v)
 #define smt_mitigations SMT_MITIGATIONS_OFF
 #endif
 
-int arch_get_indir_br_lp_status(struct task_struct *t, unsigned long __user *status);
-int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status);
-int arch_lock_indir_br_lp_status(struct task_struct *t, unsigned long status);
+int arch_prctl_get_branch_landing_pad_state(struct task_struct *t, unsigned long __user *state);
+int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long state);
+int arch_prctl_lock_branch_landing_pad_state(struct task_struct *t);
 
 #endif /* _LINUX_CPU_H_ */
