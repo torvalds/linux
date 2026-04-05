@@ -311,10 +311,10 @@ static int riscv_cfi_get(struct task_struct *target,
 	}
 
 	if (is_shstk_enabled(target)) {
-		user_cfi.cfi_status.cfi_state |= (PTRACE_CFI_SS_EN_STATE |
-						  PTRACE_CFI_SS_PTR_STATE);
+		user_cfi.cfi_status.cfi_state |= (PTRACE_CFI_SHADOW_STACK_EN_STATE |
+						  PTRACE_CFI_SHADOW_STACK_PTR_STATE);
 		user_cfi.cfi_status.cfi_state |= is_shstk_locked(target) ?
-						 PTRACE_CFI_SS_LOCK_STATE : 0;
+						 PTRACE_CFI_SHADOW_STACK_LOCK_STATE : 0;
 		user_cfi.shstk_ptr = get_active_shstk(target);
 	}
 
@@ -350,7 +350,7 @@ static int riscv_cfi_set(struct task_struct *target,
 	 */
 	if ((user_cfi.cfi_status.cfi_state &
 	     (PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE | PTRACE_CFI_BRANCH_LANDING_PAD_LOCK_STATE |
-	      PTRACE_CFI_SS_EN_STATE | PTRACE_CFI_SS_LOCK_STATE)) ||
+	      PTRACE_CFI_SHADOW_STACK_EN_STATE | PTRACE_CFI_SHADOW_STACK_LOCK_STATE)) ||
 	     (user_cfi.cfi_status.cfi_state & PTRACE_CFI_STATE_INVALID_MASK))
 		return -EINVAL;
 
@@ -365,7 +365,7 @@ static int riscv_cfi_set(struct task_struct *target,
 
 	/* If shadow stack enabled on target, set new shadow stack pointer */
 	if (is_shstk_enabled(target) &&
-	    (user_cfi.cfi_status.cfi_state & PTRACE_CFI_SS_PTR_STATE))
+	    (user_cfi.cfi_status.cfi_state & PTRACE_CFI_SHADOW_STACK_PTR_STATE))
 		set_active_shstk(target, user_cfi.shstk_ptr);
 
 	return 0;

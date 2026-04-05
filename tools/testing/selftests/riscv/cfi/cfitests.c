@@ -95,8 +95,8 @@ bool cfi_ptrace_test(void)
 
 		switch (ptrace_test_num) {
 #define CFI_ENABLE_MASK (PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE |	\
-			 PTRACE_CFI_SS_EN_STATE |	\
-			 PTRACE_CFI_SS_PTR_STATE)
+			 PTRACE_CFI_SHADOW_STACK_EN_STATE |		\
+			 PTRACE_CFI_SHADOW_STACK_PTR_STATE)
 		case 0:
 			if ((cfi_reg.cfi_status.cfi_state & CFI_ENABLE_MASK) != CFI_ENABLE_MASK)
 				ksft_exit_fail_msg("%s: ptrace_getregset failed, %llu\n", __func__,
