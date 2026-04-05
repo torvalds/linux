@@ -4,6 +4,11 @@
 
 set -e
 
+if [ "$(id -u)" != 0 ]; then
+  echo "[Skip] No root permission"
+  exit 2
+fi
+
 perfdata=$(mktemp /tmp/__perf_test_sched_stats.perf.data.XXXXX)
 perfdata2=$(mktemp /tmp/__perf_test_sched_stats.perf.data.XXXXX)
 
