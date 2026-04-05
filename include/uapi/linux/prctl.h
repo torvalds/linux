@@ -397,30 +397,23 @@ struct prctl_mm_map {
 # define PR_RSEQ_SLICE_EXT_ENABLE		0x01
 
 /*
- * Get the current indirect branch tracking configuration for the current
- * thread, this will be the value configured via PR_SET_INDIR_BR_LP_STATUS.
+ * Get or set the control flow integrity (CFI) configuration for the
+ * current thread.
+ *
+ * Some per-thread control flow integrity settings are not yet
+ * controlled through this prctl(); see for example
+ * PR_{GET,SET,LOCK}_SHADOW_STACK_STATUS
  */
-#define PR_GET_INDIR_BR_LP_STATUS      80
-
+#define PR_GET_CFI	80
+#define PR_SET_CFI	81
 /*
- * Set the indirect branch tracking configuration. PR_INDIR_BR_LP_ENABLE will
- * enable cpu feature for user thread, to track all indirect branches and ensure
- * they land on arch defined landing pad instruction.
- * x86 - If enabled, an indirect branch must land on an ENDBRANCH instruction.
- * arch64 - If enabled, an indirect branch must land on a BTI instruction.
- * riscv - If enabled, an indirect branch must land on an lpad instruction.
- * PR_INDIR_BR_LP_DISABLE will disable feature for user thread and indirect
- * branches will no more be tracked by cpu to land on arch defined landing pad
- * instruction.
+ * Forward-edge CFI variants (excluding ARM64 BTI, which has its own
+ * prctl()s).
  */
-#define PR_SET_INDIR_BR_LP_STATUS      81
-# define PR_INDIR_BR_LP_ENABLE		   (1UL << 0)
-
-/*
- * Prevent further changes to the specified indirect branch tracking
- * configuration.  All bits may be locked via this call, including
- * undefined bits.
- */
-#define PR_LOCK_INDIR_BR_LP_STATUS      82
+#define PR_CFI_BRANCH_LANDING_PADS	0
+/* Return and control values for PR_{GET,SET}_CFI */
+# define PR_CFI_ENABLE		_BITUL(0)
+# define PR_CFI_DISABLE		_BITUL(1)
+# define PR_CFI_LOCK		_BITUL(2)
 
 #endif /* _LINUX_PRCTL_H */

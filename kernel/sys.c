@@ -2889,20 +2889,23 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		error = rseq_slice_extension_prctl(arg2, arg3);
 		break;
-	case PR_GET_INDIR_BR_LP_STATUS:
-		if (arg3 || arg4 || arg5)
+	case PR_GET_CFI:
+		if (arg2 != PR_CFI_BRANCH_LANDING_PADS)
 			return -EINVAL;
-		error = arch_prctl_get_branch_landing_pad_state(me, (unsigned long __user *)arg2);
+		if (arg4 || arg5)
+			return -EINVAL;
+		error = arch_prctl_get_branch_landing_pad_state(me, (unsigned long __user *)arg3);
 		break;
-	case PR_SET_INDIR_BR_LP_STATUS:
-		if (arg3 || arg4 || arg5)
+	case PR_SET_CFI:
+		if (arg2 != PR_CFI_BRANCH_LANDING_PADS)
 			return -EINVAL;
-		error = arch_prctl_set_branch_landing_pad_state(me, arg2);
-		break;
-	case PR_LOCK_INDIR_BR_LP_STATUS:
-		if (arg2 || arg3 || arg4 || arg5)
+		if (arg4 || arg5)
 			return -EINVAL;
-		error = arch_prctl_lock_branch_landing_pad_state(me);
+		error = arch_prctl_set_branch_landing_pad_state(me, arg3);
+		if (error)
+			break;
+		if (arg3 & PR_CFI_LOCK && !(arg3 & PR_CFI_DISABLE))
+			error = arch_prctl_lock_branch_landing_pad_state(me);
 		break;
 	default:
 		trace_task_prctl_unknown(option, arg2, arg3, arg4, arg5);

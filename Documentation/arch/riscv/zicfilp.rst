@@ -76,34 +76,49 @@ the program.
 4. prctl() enabling
 --------------------
 
-:c:macro:`PR_SET_INDIR_BR_LP_STATUS` / :c:macro:`PR_GET_INDIR_BR_LP_STATUS` /
-:c:macro:`PR_LOCK_INDIR_BR_LP_STATUS` are three prctls added to manage indirect
-branch tracking.  These prctls are architecture-agnostic and return -EINVAL if
-the underlying functionality is not supported.
+Per-task indirect branch tracking state can be monitored and
+controlled via the :c:macro:`PR_GET_CFI` and :c:macro:`PR_SET_CFI`
+``prctl()` arguments (respectively), by supplying
+:c:macro:`PR_CFI_BRANCH_LANDING_PADS` as the second argument.  These
+are architecture-agnostic, and will return -EINVAL if the underlying
+functionality is not supported.
 
-* prctl(PR_SET_INDIR_BR_LP_STATUS, unsigned long arg)
+* prctl(:c:macro:`PR_SET_CFI`, :c:macro:`PR_CFI_BRANCH_LANDING_PADS`, unsigned long arg)
 
-If arg1 is :c:macro:`PR_INDIR_BR_LP_ENABLE` and if CPU supports
-``zicfilp`` then the kernel will enable indirect branch tracking for the
-task.  The dynamic loader can issue this :c:macro:`prctl` once it has
+arg is a bitmask.
+
+If :c:macro:`PR_CFI_ENABLE` is set in arg, and the CPU supports
+``zicfilp``, then the kernel will enable indirect branch tracking for
+the task.  The dynamic loader can issue this ``prctl()`` once it has
 determined that all the objects loaded in the address space support
-indirect branch tracking.  Additionally, if there is a `dlopen` to an
-object which wasn't compiled with ``zicfilp``, the dynamic loader can
-issue this prctl with arg1 set to 0 (i.e. :c:macro:`PR_INDIR_BR_LP_ENABLE`
-cleared).
+indirect branch tracking.
 
-* prctl(PR_GET_INDIR_BR_LP_STATUS, unsigned long * arg)
+Indirect branch tracking state can also be locked once enabled.  This
+prevents the task from subsequently disabling it.  This is done by
+setting the bit :c:macro:`PR_CFI_LOCK` in arg.  Either indirect branch
+tracking must already be enabled for the task, or the bit
+:c:macro:`PR_CFI_ENABLE` must also be set in arg.  This is intended
+for environments that wish to run with a strict security posture that
+do not wish to load objects without ``zicfilp`` support.
 
-Returns the current status of indirect branch tracking. If enabled
-it'll return :c:macro:`PR_INDIR_BR_LP_ENABLE`
+Indirect branch tracking can also be disabled for the task, assuming
+that it has not previously been enabled and locked.  If there is a
+``dlopen()`` to an object which wasn't compiled with ``zicfilp``, the
+dynamic loader can issue this ``prctl()`` with arg set to
+:c:macro:`PR_CFI_DISABLE`.  Disabling indirect branch tracking for the
+task is not possible if it has previously been enabled and locked.
 
-* prctl(PR_LOCK_INDIR_BR_LP_STATUS, unsigned long arg)
 
-Locks the current status of indirect branch tracking on the task. User
-space may want to run with a strict security posture and wouldn't want
-loading of objects without ``zicfilp`` support in them, to disallow
-disabling of indirect branch tracking. In this case, user space can
-use this prctl to lock the current settings.
+* prctl(:c:macro:`PR_GET_CFI`, :c:macro:`PR_CFI_BRANCH_LANDING_PADS`, unsigned long * arg)
+
+Returns the current status of indirect branch tracking into a bitmask
+stored into the memory location pointed to by arg.  The bitmask will
+have the :c:macro:`PR_CFI_ENABLE` bit set if indirect branch tracking
+is currently enabled for the task, and if it is locked, will
+additionally have the :c:macro:`PR_CFI_LOCK` bit set.  If indirect
+branch tracking is currently disabled for the task, the
+:c:macro:`PR_CFI_DISABLE` bit will be set.
+
 
 5. violations related to indirect branch tracking
 --------------------------------------------------

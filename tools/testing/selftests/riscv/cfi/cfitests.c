@@ -146,11 +146,11 @@ int main(int argc, char *argv[])
 	 * pads for user mode except lighting up a bit in senvcfg via a prctl.
 	 * Enable landing pad support throughout the execution of the test binary.
 	 */
-	ret = my_syscall5(__NR_prctl, PR_GET_INDIR_BR_LP_STATUS, &lpad_status, 0, 0, 0);
+	ret = my_syscall5(__NR_prctl, PR_GET_CFI, PR_CFI_BRANCH_LANDING_PADS, &lpad_status, 0, 0);
 	if (ret)
 		ksft_exit_fail_msg("Get landing pad status failed with %d\n", ret);
 
-	if (!(lpad_status & PR_INDIR_BR_LP_ENABLE))
+	if (!(lpad_status & PR_CFI_ENABLE))
 		ksft_exit_fail_msg("Landing pad is not enabled, should be enabled via glibc\n");
 
 	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &ss_status, 0, 0, 0);

@@ -465,16 +465,14 @@ int arch_prctl_get_branch_landing_pad_state(struct task_struct *t,
 	if (!is_user_lpad_enabled())
 		return -EINVAL;
 
-	/* indirect branch tracking is enabled on the task or not */
-	fcfi_status |= (is_indir_lp_enabled(t) ? PR_INDIR_BR_LP_ENABLE : 0);
+	fcfi_status = (is_indir_lp_enabled(t) ? PR_CFI_ENABLE : PR_CFI_DISABLE);
+	fcfi_status |= (is_indir_lp_locked(t) ? PR_CFI_LOCK : 0);
 
 	return copy_to_user(state, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
 }
 
 int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long state)
 {
-	bool enable_indir_lp = false;
-
 	if (!is_user_lpad_enabled())
 		return -EINVAL;
 
@@ -482,12 +480,13 @@ int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long
 	if (is_indir_lp_locked(t))
 		return -EINVAL;
 
-	/* Reject unknown flags */
-	if (state & ~PR_INDIR_BR_LP_ENABLE)
+	if (!(state & (PR_CFI_ENABLE | PR_CFI_DISABLE)))
 		return -EINVAL;
 
-	enable_indir_lp = (state & PR_INDIR_BR_LP_ENABLE);
-	set_indir_lp_status(t, enable_indir_lp);
+	if (state & PR_CFI_ENABLE && state & PR_CFI_DISABLE)
+		return -EINVAL;
+
+	set_indir_lp_status(t, !!(state & PR_CFI_ENABLE));
 
 	return 0;
 }
