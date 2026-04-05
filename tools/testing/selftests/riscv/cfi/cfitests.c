@@ -94,7 +94,7 @@ bool cfi_ptrace_test(void)
 		}
 
 		switch (ptrace_test_num) {
-#define CFI_ENABLE_MASK (PTRACE_CFI_LP_EN_STATE |	\
+#define CFI_ENABLE_MASK (PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE |	\
 			 PTRACE_CFI_SS_EN_STATE |	\
 			 PTRACE_CFI_SS_PTR_STATE)
 		case 0:
@@ -106,7 +106,8 @@ bool cfi_ptrace_test(void)
 						   __func__);
 			break;
 		case 1:
-			if (!(cfi_reg.cfi_status.cfi_state & PTRACE_CFI_ELP_STATE))
+			if (!(cfi_reg.cfi_status.cfi_state &
+			      PTRACE_CFI_BRANCH_EXPECTED_LANDING_PAD_STATE))
 				ksft_exit_fail_msg("%s: elp must have been set\n", __func__);
 			/* clear elp state. not interested in anything else */
 			cfi_reg.cfi_status.cfi_state = 0;
