@@ -11,6 +11,7 @@ use kernel::{
     },
     dma::{
         Coherent,
+        CoherentBox,
         DmaAddress,
         DmaMask, //
     },
@@ -613,8 +614,24 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         bar: &Bar0,
         fw: &F,
     ) -> Result {
-        // Create DMA object with firmware content as the source of the DMA engine.
-        let dma_obj = Coherent::from_slice(dev, fw.as_slice(), GFP_KERNEL)?;
+        // DMA object with firmware content as the source of the DMA engine.
+        let dma_obj = {
+            let fw_slice = fw.as_slice();
+
+            // DMA copies are done in chunks of `MEM_BLOCK_ALIGNMENT`, so pad the length
+            // accordingly and fill with `0`.
+            let mut dma_obj = CoherentBox::zeroed_slice(
+                dev,
+                fw_slice.len().next_multiple_of(MEM_BLOCK_ALIGNMENT),
+                GFP_KERNEL,
+            )?;
+
+            // PANIC: `dma_obj` has been created with a length equal to or larger than
+            // `fw_slice.len()`, so the range `..fw_slice.len()` is valid.
+            dma_obj[..fw_slice.len()].copy_from_slice(fw_slice);
+
+            dma_obj.into()
+        };
 
         self.dma_reset(bar);
         bar.update(regs::NV_PFALCON_FBIF_TRANSCFG::of::<E>().at(0), |v| {
