@@ -95,6 +95,8 @@ static const int is_glibc =
 /* readdir_r() is likely to be marked deprecated */
 #undef readdir_r
 #define readdir_r(dir, dirent, result) ((errno = EINVAL), -1)
+
+#define _syscall(...) 0
 #endif
 
 /* definition of a series of tests */
@@ -1507,6 +1509,8 @@ int run_syscall(int min, int max)
 		CASE_TEST(ptrace);            EXPECT_SYSER(1, ptrace(PTRACE_CONT, getpid(), NULL, NULL), -1, ESRCH); break;
 		CASE_TEST(syscall_noargs);    EXPECT_SYSEQ(1, syscall(__NR_getpid), getpid()); break;
 		CASE_TEST(syscall_args);      EXPECT_SYSER(1, syscall(__NR_statx, 0, NULL, 0, 0, NULL), -1, EFAULT); break;
+		CASE_TEST(_syscall_noargs);   EXPECT_SYSEQ(is_nolibc, _syscall(__NR_getpid), getpid()); break;
+		CASE_TEST(_syscall_args);     EXPECT_SYSEQ(is_nolibc, _syscall(__NR_statx, 0, NULL, 0, 0, NULL), -EFAULT); break;
 		CASE_TEST(namespace);         EXPECT_SYSZR(euid0 && proc, test_namespace()); break;
 		case __LINE__:
 			return ret; /* must be last */
