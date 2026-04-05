@@ -1230,10 +1230,12 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	else
 		thread_fn = NULL;
 
+	if (thread_fn)
+		irq_flags |= IRQF_ONESHOT;
+
 	err = request_threaded_irq(lis3->irq, lis302dl_interrupt,
 				thread_fn,
-				IRQF_TRIGGER_RISING | IRQF_ONESHOT |
-				irq_flags,
+				irq_flags | IRQF_TRIGGER_RISING,
 				DRIVER_NAME, lis3);
 
 	if (err < 0) {
