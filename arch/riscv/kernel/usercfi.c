@@ -74,9 +74,9 @@ void set_shstk_status(struct task_struct *task, bool enable)
 	csr_write(CSR_ENVCFG, task->thread.envcfg);
 }
 
-void set_shstk_lock(struct task_struct *task)
+void set_shstk_lock(struct task_struct *task, bool lock)
 {
-	task->thread_info.user_cfi_state.ubcfi_locked = 1;
+	task->thread_info.user_cfi_state.ubcfi_locked = lock;
 }
 
 bool is_indir_lp_enabled(struct task_struct *task)
@@ -104,9 +104,9 @@ void set_indir_lp_status(struct task_struct *task, bool enable)
 	csr_write(CSR_ENVCFG, task->thread.envcfg);
 }
 
-void set_indir_lp_lock(struct task_struct *task)
+void set_indir_lp_lock(struct task_struct *task, bool lock)
 {
-	task->thread_info.user_cfi_state.ufcfi_locked = 1;
+	task->thread_info.user_cfi_state.ufcfi_locked = lock;
 }
 /*
  * If size is 0, then to be compatible with regular stack we want it to be as big as
@@ -452,7 +452,7 @@ int arch_lock_shadow_stack_status(struct task_struct *task,
 	    !is_shstk_enabled(task) || arg != 0)
 		return -EINVAL;
 
-	set_shstk_lock(task);
+	set_shstk_lock(task, true);
 
 	return 0;
 }
@@ -502,7 +502,7 @@ int arch_lock_indir_br_lp_status(struct task_struct *task,
 	    !is_indir_lp_enabled(task) || arg != 0)
 		return -EINVAL;
 
-	set_indir_lp_lock(task);
+	set_indir_lp_lock(task, true);
 
 	return 0;
 }
