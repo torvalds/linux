@@ -2124,7 +2124,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		osb->osb_cluster_stack[0] = '\0';
 	}
 
-	get_random_bytes(&osb->s_next_generation, sizeof(u32));
+	osb->s_next_generation = get_random_u32();
 
 	/*
 	 * FIXME
