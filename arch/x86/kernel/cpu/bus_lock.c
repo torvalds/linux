@@ -132,6 +132,12 @@ static void __init sld_state_setup(void)
 	sld_state = state;
 }
 
+static __init int setup_split_lock_detect(char *arg)
+{
+	return 1;
+}
+__setup("split_lock_detect=", setup_split_lock_detect);
+
 static void __init __split_lock_setup(void)
 {
 	if (!split_lock_verify_msr(false)) {
