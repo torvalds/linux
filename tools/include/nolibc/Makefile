@@ -20,11 +20,13 @@ OUTPUT ?= $(CURDIR)/
 architectures := arm arm64 loongarch m68k mips powerpc riscv s390 sh sparc x86
 arch_files := arch.h $(addsuffix .h, $(addprefix arch-, $(architectures)))
 all_files := \
+		byteswap.h \
 		compiler.h \
 		crt.h \
 		ctype.h \
 		dirent.h \
 		elf.h \
+		endian.h \
 		err.h \
 		errno.h \
 		fcntl.h \

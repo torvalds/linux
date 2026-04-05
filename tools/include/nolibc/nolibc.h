@@ -131,6 +131,8 @@
 #include "poll.h"
 #include "math.h"
 #include "err.h"
+#include "byteswap.h"
+#include "endian.h"
 
 /* Used by programs to avoid std includes */
 #define NOLIBC

@@ -43,6 +43,8 @@
 #include <limits.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <byteswap.h>
+#include <endian.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
@@ -66,6 +68,8 @@ static const char *argv0;
 
 /* will be used by constructor tests */
 static int constructor_test_value;
+
+static const int is_le = __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
 
 static const int is_nolibc =
 #ifdef NOLIBC
@@ -1746,6 +1750,15 @@ int run_stdlib(int min, int max)
 		CASE_TEST(major_big);               EXPECT_EQ(1, major(0x1122355667734488), 0x11223344); break;
 		CASE_TEST(minor_big);               EXPECT_EQ(1, minor(0x1122355667734488), 0x55667788); break;
 		CASE_TEST(malloc);                  EXPECT_ZR(1, test_malloc()); break;
+		CASE_TEST(bswap_16);                EXPECT_EQ(1, bswap_16(0x0123), 0x2301); break;
+		CASE_TEST(bswap_32);                EXPECT_EQ(1, bswap_32(0x01234567), 0x67452301); break;
+		CASE_TEST(bswap_64);                EXPECT_EQ(1, bswap_64(0x0123456789abcdef), 0xefcdab8967452301); break;
+		CASE_TEST(htobe16);                 EXPECT_EQ(1, htobe16(is_le ? 0x0123 : 0x2301), 0x2301); break;
+		CASE_TEST(htole16);                 EXPECT_EQ(1, htole16(is_le ? 0x0123 : 0x2301), 0x0123); break;
+		CASE_TEST(htobe32);                 EXPECT_EQ(1, htobe32(is_le ? 0x01234567 : 0x67452301), 0x67452301); break;
+		CASE_TEST(htole32);                 EXPECT_EQ(1, htole32(is_le ? 0x01234567 : 0x67452301), 0x01234567); break;
+		CASE_TEST(htobe64);                 EXPECT_EQ(1, htobe64(is_le ? 0x0123456789000000 : 0x8967452301), 0x8967452301); break;
+		CASE_TEST(htole64);                 EXPECT_EQ(1, htole64(is_le ? 0x0123456789 : 0x8967452301000000), 0x0123456789); break;
 
 		case __LINE__:
 			return ret; /* must be last */
