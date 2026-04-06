@@ -422,23 +422,29 @@ by a sched_ext scheduler:
 
         ops.runnable();         /* Task becomes ready to run */
 
-        while (task is runnable) {
+        while (task_is_runnable(task)) {
             if (task is not in a DSQ && task->scx.slice == 0) {
                 ops.enqueue();  /* Task can be added to a DSQ */
 
-                /* Any usable CPU becomes available */
-
-                ops.dispatch(); /* Task is moved to a local DSQ */
-
-                ops.dequeue(); /* Exiting BPF scheduler */
+                /* Task property change (i.e., affinity, nice, etc.)? */
+                if (sched_change(task)) {
+                    ops.dequeue(); /* Exiting BPF scheduler custody */
+                    continue;
+                }
             }
+
+            /* Any usable CPU becomes available */
+
+            ops.dispatch();     /* Task is moved to a local DSQ */
+            ops.dequeue();      /* Exiting BPF scheduler custody */
+
             ops.running();      /* Task starts running on its assigned CPU */
 
-            while task_is_runnable(p) {
-                while (task->scx.slice > 0 && task_is_runnable(p))
-                    ops.tick();     /* Called every 1/HZ seconds */
+            while (task_is_runnable(task) && task->scx.slice > 0) {
+                ops.tick();     /* Called every 1/HZ seconds */
 
-                ops.dispatch();     /* task->scx.slice can be refilled */
+                if (task->scx.slice == 0)
+                    ops.dispatch(); /* task->scx.slice can be refilled */
             }
 
             ops.stopping();     /* Task stops running (time slice expires or wait) */
