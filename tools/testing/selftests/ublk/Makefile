@@ -18,6 +18,7 @@ TEST_PROGS += test_generic_10.sh
 TEST_PROGS += test_generic_12.sh
 TEST_PROGS += test_generic_13.sh
 TEST_PROGS += test_generic_16.sh
+TEST_PROGS += test_generic_17.sh
 
 TEST_PROGS += test_batch_01.sh
 TEST_PROGS += test_batch_02.sh

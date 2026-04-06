@@ -796,6 +796,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 			q = &t->dev->q[q_id];
 			io = &q->ios[tag];
 			io->buf_index = j++;
+			if (q->tgt_ops->pre_fetch_io)
+				q->tgt_ops->pre_fetch_io(t, q, tag, false);
 			ublk_queue_io_cmd(t, io);
 		}
 	} else {
@@ -807,6 +809,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 		for (i = 0; i < q->q_depth; i++) {
 			io = &q->ios[i];
 			io->buf_index = i;
+			if (q->tgt_ops->pre_fetch_io)
+				q->tgt_ops->pre_fetch_io(t, q, i, false);
 			ublk_queue_io_cmd(t, io);
 		}
 	}
@@ -982,6 +986,9 @@ static void ublk_batch_setup_queues(struct ublk_thread *t)
 		 */
 		if (t->q_map[i] == 0)
 			continue;
+
+		if (q->tgt_ops->pre_fetch_io)
+			q->tgt_ops->pre_fetch_io(t, q, 0, true);
 
 		ret = ublk_batch_queue_prep_io_cmds(t, q);
 		ublk_assert(ret >= 0);

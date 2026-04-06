@@ -60,6 +60,7 @@ struct stripe_ctx {
 struct fault_inject_ctx {
 	/* fault_inject */
 	unsigned long   delay_us;
+	bool die_during_fetch;
 };
 
 struct dev_ctx {
@@ -138,6 +139,8 @@ struct ublk_tgt_ops {
 	int (*init_tgt)(const struct dev_ctx *ctx, struct ublk_dev *);
 	void (*deinit_tgt)(struct ublk_dev *);
 
+	void (*pre_fetch_io)(struct ublk_thread *t, struct ublk_queue *q,
+			     int tag, bool batch);
 	int (*queue_io)(struct ublk_thread *, struct ublk_queue *, int tag);
 	void (*tgt_io_done)(struct ublk_thread *, struct ublk_queue *,
 			    const struct io_uring_cqe *);
