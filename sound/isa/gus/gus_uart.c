@@ -232,3 +232,50 @@ int snd_gf1_rawmidi_new(struct snd_gus_card *gus, int device)
 	gus->midi_uart = rmidi;
 	return err;
 }
+
+void snd_gf1_uart_suspend(struct snd_gus_card *gus)
+{
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
+	outb(0x03, GUSP(gus, MIDICTRL));
+}
+
+void snd_gf1_uart_resume(struct snd_gus_card *gus)
+{
+	unsigned short uart_cmd;
+	bool active;
+	int i;
+
+	scoped_guard(spinlock_irqsave, &gus->uart_cmd_lock) {
+		active = gus->midi_substream_input || gus->midi_substream_output;
+	}
+	if (!active)
+		return;
+
+	/* snd_gf1_hw_start() already left MIDICTRL in reset. */
+	usleep_range(160, 200);
+
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
+	if (!gus->midi_substream_input && !gus->midi_substream_output)
+		return;
+
+	if (gus->midi_substream_output)
+		gus->gf1.interrupt_handler_midi_out = snd_gf1_interrupt_midi_out;
+	if (gus->midi_substream_input)
+		gus->gf1.interrupt_handler_midi_in = snd_gf1_interrupt_midi_in;
+
+	if (!gus->uart_enable)
+		return;
+
+	uart_cmd = gus->gf1.uart_cmd;
+	snd_gf1_uart_cmd(gus, 0x00);
+
+	if (gus->midi_substream_input) {
+		for (i = 0; i < 1000 && (snd_gf1_uart_stat(gus) & 0x01); i++)
+			snd_gf1_uart_get(gus);
+		if (i >= 1000)
+			dev_err(gus->card->dev,
+				"gus midi uart resume - cleanup error\n");
+	}
+
+	snd_gf1_uart_cmd(gus, uart_cmd);
+}

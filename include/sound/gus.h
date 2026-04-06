@@ -536,6 +536,7 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 			       struct snd_gf1_dma_block * block,
 			       int atomic,
 			       int synth);
+void snd_gf1_dma_suspend(struct snd_gus_card *gus);
 
 /* gus_volume.c */
 
@@ -552,6 +553,8 @@ struct snd_gus_voice *snd_gf1_alloc_voice(struct snd_gus_card * gus, int type, i
 void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice);
 int snd_gf1_start(struct snd_gus_card * gus);
 int snd_gf1_stop(struct snd_gus_card * gus);
+int snd_gf1_suspend(struct snd_gus_card *gus);
+int snd_gf1_resume(struct snd_gus_card *gus);
 
 /* gus_mixer.c */
 
@@ -572,6 +575,8 @@ int snd_gus_create(struct snd_card *card,
 		   int effect,
 		   struct snd_gus_card ** rgus);
 int snd_gus_initialize(struct snd_gus_card * gus);
+int snd_gus_suspend(struct snd_gus_card *gus);
+int snd_gus_resume(struct snd_gus_card *gus);
 
 /* gus_irq.c */
 
@@ -583,6 +588,8 @@ void snd_gus_irq_profile_init(struct snd_gus_card *gus);
 /* gus_uart.c */
 
 int snd_gf1_rawmidi_new(struct snd_gus_card *gus, int device);
+void snd_gf1_uart_suspend(struct snd_gus_card *gus);
+void snd_gf1_uart_resume(struct snd_gus_card *gus);
 
 /* gus_dram.c */
 int snd_gus_dram_write(struct snd_gus_card *gus, char __user *ptr,
@@ -593,5 +600,6 @@ int snd_gus_dram_read(struct snd_gus_card *gus, char __user *ptr,
 /* gus_timer.c */
 void snd_gf1_timers_init(struct snd_gus_card *gus);
 void snd_gf1_timers_done(struct snd_gus_card *gus);
+void snd_gf1_timers_resume(struct snd_gus_card *gus);
 
 #endif /* __SOUND_GUS_H */

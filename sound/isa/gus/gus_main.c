@@ -404,6 +404,42 @@ int snd_gus_initialize(struct snd_gus_card *gus)
 	return 0;
 }
 
+int snd_gus_suspend(struct snd_gus_card *gus)
+{
+	int err;
+
+	if (gus->pcm) {
+		err = snd_pcm_suspend_all(gus->pcm);
+		if (err < 0)
+			return err;
+	}
+
+	err = snd_gf1_suspend(gus);
+	if (err < 0)
+		return err;
+
+	snd_power_change_state(gus->card, SNDRV_CTL_POWER_D3hot);
+	return 0;
+}
+EXPORT_SYMBOL(snd_gus_suspend);
+
+int snd_gus_resume(struct snd_gus_card *gus)
+{
+	int err;
+
+	err = snd_gus_init_dma_irq(gus, 1);
+	if (err < 0)
+		return err;
+
+	err = snd_gf1_resume(gus);
+	if (err < 0)
+		return err;
+
+	snd_power_change_state(gus->card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+EXPORT_SYMBOL(snd_gus_resume);
+
   /* gus_io.c */
 EXPORT_SYMBOL(snd_gf1_delay);
 EXPORT_SYMBOL(snd_gf1_write8);

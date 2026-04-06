@@ -173,6 +173,39 @@ int snd_gf1_dma_done(struct snd_gus_card * gus)
 	return 0;
 }
 
+void snd_gf1_dma_suspend(struct snd_gus_card *gus)
+{
+	struct snd_gf1_dma_block *block;
+
+	guard(mutex)(&gus->dma_mutex);
+	if (!gus->gf1.dma_shared)
+		return;
+
+	snd_dma_disable(gus->gf1.dma1);
+	snd_gf1_dma_ack(gus);
+	if (gus->gf1.dma_ack)
+		gus->gf1.dma_ack(gus, gus->gf1.dma_private_data);
+	gus->gf1.dma_ack = NULL;
+	gus->gf1.dma_private_data = NULL;
+
+	while ((block = gus->gf1.dma_data_pcm)) {
+		gus->gf1.dma_data_pcm = block->next;
+		if (block->ack)
+			block->ack(gus, block->private_data);
+		kfree(block);
+	}
+	while ((block = gus->gf1.dma_data_synth)) {
+		gus->gf1.dma_data_synth = block->next;
+		if (block->ack)
+			block->ack(gus, block->private_data);
+		kfree(block);
+	}
+
+	gus->gf1.dma_data_pcm_last = NULL;
+	gus->gf1.dma_data_synth_last = NULL;
+	gus->gf1.dma_flags &= ~SNDRV_GF1_DMA_TRIGGER;
+}
+
 int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 			       struct snd_gf1_dma_block * __block,
 			       int atomic,

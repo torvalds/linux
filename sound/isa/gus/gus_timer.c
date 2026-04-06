@@ -178,3 +178,17 @@ void snd_gf1_timers_done(struct snd_gus_card * gus)
 		gus->gf1.timer2 = NULL;
 	}
 }
+
+void snd_gf1_timers_resume(struct snd_gus_card *gus)
+{
+	if (gus->gf1.timer1) {
+		gus->gf1.interrupt_handler_timer1 = snd_gf1_interrupt_timer1;
+		if (gus->gf1.timer_enabled & 4)
+			snd_gf1_timer1_start(gus->gf1.timer1);
+	}
+	if (gus->gf1.timer2) {
+		gus->gf1.interrupt_handler_timer2 = snd_gf1_interrupt_timer2;
+		if (gus->gf1.timer_enabled & 8)
+			snd_gf1_timer2_start(gus->gf1.timer2);
+	}
+}
