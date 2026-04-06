@@ -96,6 +96,8 @@ struct bnge_queue_info {
 
 #define BNGE_PHY_FLAGS2_SHIFT		8
 #define BNGE_PHY_FL_NO_FCS		PORT_PHY_QCAPS_RESP_FLAGS_NO_FCS
+#define BNGE_PHY_FL_NO_PAUSE		\
+	(PORT_PHY_QCAPS_RESP_FLAGS2_PAUSE_UNSUPPORTED << 8)
 
 struct bnge_dev {
 	struct device	*dev;

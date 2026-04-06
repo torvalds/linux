@@ -4,6 +4,8 @@
 #ifndef _BNGE_LINK_H_
 #define _BNGE_LINK_H_
 
+#include <linux/ethtool.h>
+
 #define BNGE_PHY_CFG_ABLE(bd)		\
 	((bd)->link_info.phy_enabled)
 
@@ -162,4 +164,9 @@ void bnge_report_link(struct bnge_dev *bd);
 bool bnge_support_speed_dropped(struct bnge_net *bn);
 void bnge_init_ethtool_link_settings(struct bnge_net *bn);
 int bnge_probe_phy(struct bnge_net *bn, bool fw_dflt);
+int bnge_set_link_ksettings(struct net_device *dev,
+			    const struct ethtool_link_ksettings *lk_ksettings);
+int bnge_get_link_ksettings(struct net_device *dev,
+			    struct ethtool_link_ksettings *lk_ksettings);
+u32 bnge_get_link(struct net_device *dev);
 #endif /* _BNGE_LINK_H_ */
