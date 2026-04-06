@@ -11,24 +11,12 @@ struct net_device;
 
 struct dsa_chip_data {
 	/*
-	 * How to access the switch configuration registers.
-	 */
-	struct device	*host_dev;
-	int		sw_addr;
-
-	/*
 	 * Reference to network devices
 	 */
 	struct device	*netdev[DSA_MAX_PORTS];
 
 	/* set to size of eeprom if supported by the switch */
 	int		eeprom_len;
-
-	/* Device tree node pointer for this specific switch chip
-	 * used during switch setup in case additional properties
-	 * and resources needs to be used
-	 */
-	struct device_node *of_node;
 
 	/*
 	 * The names of the switch's ports.  Use "cpu" to
@@ -38,14 +26,6 @@ struct dsa_chip_data {
 	 * or any other string to indicate this is a physical port.
 	 */
 	char		*port_names[DSA_MAX_PORTS];
-	struct device_node *port_dn[DSA_MAX_PORTS];
-
-	/*
-	 * An array of which element [a] indicates which port on this
-	 * switch should be used to send packets to that are destined
-	 * for switch a. Can be NULL if there is only one switch chip.
-	 */
-	s8		rtable[DSA_MAX_SWITCHES];
 };
 
 #endif /* __DSA_PDATA_H */
