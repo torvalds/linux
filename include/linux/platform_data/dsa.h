@@ -48,21 +48,4 @@ struct dsa_chip_data {
 	s8		rtable[DSA_MAX_SWITCHES];
 };
 
-struct dsa_platform_data {
-	/*
-	 * Reference to a Linux network interface that connects
-	 * to the root switch chip of the tree.
-	 */
-	struct device	*netdev;
-	struct net_device *of_netdev;
-
-	/*
-	 * Info structs describing each of the switch chips
-	 * connected via this network interface.
-	 */
-	int		nr_chips;
-	struct dsa_chip_data	*chip;
-};
-
-
 #endif /* __DSA_PDATA_H */
