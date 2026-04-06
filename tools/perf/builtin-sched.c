@@ -4955,6 +4955,7 @@ int cmd_sched(int argc, const char **argv)
 		.switch_event	    = replay_switch_event,
 		.fork_event	    = replay_fork_event,
 	};
+	struct trace_sched_handler stats_ops  = {};
 	int ret;
 
 	perf_tool__init(&sched.tool, /*ordered_events=*/true);
@@ -5037,6 +5038,7 @@ int cmd_sched(int argc, const char **argv)
 	} else if (!strcmp(argv[0], "stats")) {
 		const char *const stats_subcommands[] = {"record", "report", NULL};
 
+		sched.tp_handler = &stats_ops;
 		argc = parse_options_subcommand(argc, argv, stats_options,
 						stats_subcommands,
 						stats_usage,
