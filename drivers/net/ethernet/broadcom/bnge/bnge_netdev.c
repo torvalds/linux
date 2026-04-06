@@ -2860,6 +2860,7 @@ static int bnge_open_core(struct bnge_net *bn)
 	}
 
 	set_bit(BNGE_STATE_OPEN, &bd->state);
+	set_bit(BNGE_STATE_STATS_ENABLE, &bn->state);
 
 	bnge_enable_int(bn);
 
@@ -2898,6 +2899,77 @@ static int bnge_shutdown_nic(struct bnge_net *bn)
 	return 0;
 }
 
+static void bnge_add_prev_ring_stats64(struct bnge_net *bn,
+				       struct rtnl_link_stats64 *stats)
+{
+	struct netdev_queue_stats_rx *rx_save = &bn->rxq_prv_stats;
+	struct netdev_queue_stats_tx *tx_save = &bn->txq_prv_stats;
+	struct rtnl_link_stats64 *stats64_save = &bn->prv_stats64;
+
+	stats->rx_packets += rx_save->packets;
+	stats->tx_packets += tx_save->packets;
+	stats->rx_bytes += rx_save->bytes;
+	stats->tx_bytes += tx_save->bytes;
+	stats->rx_missed_errors += rx_save->hw_drop_overruns;
+	stats->tx_dropped += tx_save->hw_drop_errors;
+
+	stats->multicast += stats64_save->multicast;
+}
+
+static void bnge_get_ring_stats64(struct bnge_dev *bd,
+				  struct rtnl_link_stats64 *stats)
+{
+	struct bnge_net *bn = netdev_priv(bd->netdev);
+	int i;
+
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+		u64 tx_bytes, tx_packets, tx_dropped;
+		u64 multicast, rx_missed_errors;
+		struct bnge_nq_ring_info *nqr;
+		u64 rx_bytes, rx_packets;
+		unsigned int start;
+		u64 *sw;
+
+		nqr = &bnapi->nq_ring;
+		sw = nqr->stats.sw_stats;
+
+		do {
+			start = u64_stats_fetch_begin(&nqr->stats.syncp);
+
+			rx_packets = BNGE_GET_RING_STATS64(sw, rx_ucast_pkts);
+			rx_packets += BNGE_GET_RING_STATS64(sw, rx_mcast_pkts);
+			rx_packets += BNGE_GET_RING_STATS64(sw, rx_bcast_pkts);
+
+			tx_packets = BNGE_GET_RING_STATS64(sw, tx_ucast_pkts);
+			tx_packets += BNGE_GET_RING_STATS64(sw, tx_mcast_pkts);
+			tx_packets += BNGE_GET_RING_STATS64(sw, tx_bcast_pkts);
+
+			rx_bytes = BNGE_GET_RING_STATS64(sw, rx_ucast_bytes);
+			rx_bytes += BNGE_GET_RING_STATS64(sw, rx_mcast_bytes);
+			rx_bytes += BNGE_GET_RING_STATS64(sw, rx_bcast_bytes);
+
+			tx_bytes = BNGE_GET_RING_STATS64(sw, tx_ucast_bytes);
+			tx_bytes += BNGE_GET_RING_STATS64(sw, tx_mcast_bytes);
+			tx_bytes += BNGE_GET_RING_STATS64(sw, tx_bcast_bytes);
+
+			multicast = BNGE_GET_RING_STATS64(sw, rx_mcast_pkts);
+			rx_missed_errors =
+				BNGE_GET_RING_STATS64(sw, rx_discard_pkts);
+			tx_dropped =
+				BNGE_GET_RING_STATS64(sw, tx_error_pkts);
+		} while (u64_stats_fetch_retry(&nqr->stats.syncp, start));
+
+		stats->rx_packets += rx_packets;
+		stats->tx_packets += tx_packets;
+		stats->rx_bytes += rx_bytes;
+		stats->tx_bytes += tx_bytes;
+		stats->multicast += multicast;
+		stats->rx_missed_errors += rx_missed_errors;
+		stats->tx_dropped += tx_dropped;
+	}
+}
+
 static void bnge_get_port_stats64(struct bnge_net *bn,
 				  struct rtnl_link_stats64 *stats)
 {
@@ -2929,6 +3001,22 @@ static void bnge_get_port_stats64(struct bnge_net *bn,
 	} while (u64_stats_fetch_retry(&bn->port_stats.syncp, start));
 }
 
+static void bnge_fill_prev_stats64(struct bnge_net *bn,
+				   struct rtnl_link_stats64 *stats)
+{
+	struct netdev_queue_stats_rx *rx_save = &bn->rxq_prv_stats;
+	struct netdev_queue_stats_tx *tx_save = &bn->txq_prv_stats;
+	struct rtnl_link_stats64 *stats64_save = &bn->prv_stats64;
+
+	stats->rx_packets = rx_save->packets;
+	stats->tx_packets = tx_save->packets;
+	stats->rx_bytes = rx_save->bytes;
+	stats->tx_bytes = tx_save->bytes;
+	stats->rx_missed_errors = rx_save->hw_drop_overruns;
+	stats->tx_dropped = tx_save->hw_drop_errors;
+	stats->multicast = stats64_save->multicast;
+}
+
 static void bnge_get_stats64(struct net_device *dev,
 			     struct rtnl_link_stats64 *stats)
 {
@@ -2936,6 +3024,57 @@ static void bnge_get_stats64(struct net_device *dev,
 
 	if (bn->flags & BNGE_FLAG_PORT_STATS)
 		bnge_get_port_stats64(bn, stats);
+
+	spin_lock_bh(&bn->stats_lock);
+	if (!test_bit(BNGE_STATE_STATS_ENABLE, &bn->state)) {
+		bnge_fill_prev_stats64(bn, stats);
+		spin_unlock_bh(&bn->stats_lock);
+		return;
+	}
+
+	bnge_get_ring_stats64(bn->bd, stats);
+	bnge_add_prev_ring_stats64(bn, stats);
+	spin_unlock_bh(&bn->stats_lock);
+}
+
+static void bnge_save_ring_stats(struct bnge_net *bn)
+{
+	struct netdev_queue_stats_rx *rx_save = &bn->rxq_prv_stats;
+	struct netdev_queue_stats_tx *tx_save = &bn->txq_prv_stats;
+	struct rtnl_link_stats64 *stats64_save = &bn->prv_stats64;
+	int i;
+
+	for (i = 0; i < bn->bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+		struct bnge_nq_ring_info *nqr;
+		u64 *sw;
+
+		nqr = &bnapi->nq_ring;
+		sw = nqr->stats.sw_stats;
+
+		rx_save->packets += BNGE_GET_RING_STATS64(sw, rx_ucast_pkts);
+		rx_save->packets += BNGE_GET_RING_STATS64(sw, rx_mcast_pkts);
+		rx_save->packets += BNGE_GET_RING_STATS64(sw, rx_bcast_pkts);
+		rx_save->bytes += BNGE_GET_RING_STATS64(sw, rx_ucast_bytes);
+		rx_save->bytes += BNGE_GET_RING_STATS64(sw, rx_mcast_bytes);
+		rx_save->bytes += BNGE_GET_RING_STATS64(sw, rx_bcast_bytes);
+		rx_save->hw_drop_overruns += BNGE_GET_RING_STATS64(sw, rx_discard_pkts);
+		rx_save->hw_drops += BNGE_GET_RING_STATS64(sw, rx_error_pkts) +
+				BNGE_GET_RING_STATS64(sw, rx_discard_pkts);
+
+		tx_save->packets += BNGE_GET_RING_STATS64(sw, tx_ucast_pkts);
+		tx_save->packets += BNGE_GET_RING_STATS64(sw, tx_mcast_pkts);
+		tx_save->packets += BNGE_GET_RING_STATS64(sw, tx_bcast_pkts);
+		tx_save->bytes += BNGE_GET_RING_STATS64(sw, tx_ucast_bytes);
+		tx_save->bytes += BNGE_GET_RING_STATS64(sw, tx_mcast_bytes);
+		tx_save->bytes += BNGE_GET_RING_STATS64(sw, tx_bcast_bytes);
+		tx_save->hw_drop_errors += BNGE_GET_RING_STATS64(sw, tx_error_pkts);
+		tx_save->hw_drops += BNGE_GET_RING_STATS64(sw, tx_discard_pkts) +
+				BNGE_GET_RING_STATS64(sw, tx_error_pkts);
+
+		stats64_save->multicast +=
+			BNGE_GET_RING_STATS64(sw, rx_mcast_pkts);
+	}
 }
 
 static void bnge_close_core(struct bnge_net *bn)
@@ -2949,6 +3088,13 @@ static void bnge_close_core(struct bnge_net *bn)
 	timer_delete_sync(&bn->timer);
 	bnge_shutdown_nic(bn);
 	bnge_disable_napi(bn);
+
+	/* Save ring stats before shutdown */
+	spin_lock_bh(&bn->stats_lock);
+	bnge_save_ring_stats(bn);
+	clear_bit(BNGE_STATE_STATS_ENABLE, &bn->state);
+	spin_unlock_bh(&bn->stats_lock);
+
 	bnge_free_all_rings_bufs(bn);
 	bnge_free_irq(bn);
 	bnge_del_napi(bn);
@@ -2966,6 +3112,85 @@ static int bnge_close(struct net_device *dev)
 
 	return 0;
 }
+
+static void bnge_get_queue_stats_rx(struct net_device *dev, int i,
+				    struct netdev_queue_stats_rx *stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	struct bnge_nq_ring_info *nqr;
+	u64 *sw;
+
+	if (!bn->bnapi)
+		return;
+
+	nqr = &bn->bnapi[i]->nq_ring;
+	sw = nqr->stats.sw_stats;
+
+	stats->packets = 0;
+	stats->packets += BNGE_GET_RING_STATS64(sw, rx_ucast_pkts);
+	stats->packets += BNGE_GET_RING_STATS64(sw, rx_mcast_pkts);
+	stats->packets += BNGE_GET_RING_STATS64(sw, rx_bcast_pkts);
+
+	stats->bytes = 0;
+	stats->bytes += BNGE_GET_RING_STATS64(sw, rx_ucast_bytes);
+	stats->bytes += BNGE_GET_RING_STATS64(sw, rx_mcast_bytes);
+	stats->bytes += BNGE_GET_RING_STATS64(sw, rx_bcast_bytes);
+
+	stats->hw_drop_overruns = BNGE_GET_RING_STATS64(sw, rx_discard_pkts);
+	stats->hw_drops = BNGE_GET_RING_STATS64(sw, rx_error_pkts) +
+				stats->hw_drop_overruns;
+}
+
+static void bnge_get_queue_stats_tx(struct net_device *dev, int i,
+				    struct netdev_queue_stats_tx *stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	struct bnge_napi *bnapi;
+	u64 *sw;
+
+	if (!bn->tx_ring)
+		return;
+
+	bnapi = bn->tx_ring[bn->tx_ring_map[i]].bnapi;
+	sw = bnapi->nq_ring.stats.sw_stats;
+
+	stats->packets = 0;
+	stats->packets += BNGE_GET_RING_STATS64(sw, tx_ucast_pkts);
+	stats->packets += BNGE_GET_RING_STATS64(sw, tx_mcast_pkts);
+	stats->packets += BNGE_GET_RING_STATS64(sw, tx_bcast_pkts);
+
+	stats->bytes = 0;
+	stats->bytes += BNGE_GET_RING_STATS64(sw, tx_ucast_bytes);
+	stats->bytes += BNGE_GET_RING_STATS64(sw, tx_mcast_bytes);
+	stats->bytes += BNGE_GET_RING_STATS64(sw, tx_bcast_bytes);
+
+	stats->hw_drop_errors = BNGE_GET_RING_STATS64(sw, tx_error_pkts);
+	stats->hw_drops = BNGE_GET_RING_STATS64(sw, tx_discard_pkts) +
+				stats->hw_drop_errors;
+}
+
+static void bnge_get_base_stats(struct net_device *dev,
+				struct netdev_queue_stats_rx *rx,
+				struct netdev_queue_stats_tx *tx)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+
+	rx->packets = bn->rxq_prv_stats.packets;
+	rx->bytes = bn->rxq_prv_stats.bytes;
+	rx->hw_drops = bn->rxq_prv_stats.hw_drops;
+	rx->hw_drop_overruns = bn->rxq_prv_stats.hw_drop_overruns;
+
+	tx->packets = bn->txq_prv_stats.packets;
+	tx->bytes = bn->txq_prv_stats.bytes;
+	tx->hw_drops = bn->txq_prv_stats.hw_drops;
+	tx->hw_drop_errors = bn->txq_prv_stats.hw_drop_errors;
+}
+
+static const struct netdev_stat_ops bnge_stat_ops = {
+	.get_queue_stats_rx	= bnge_get_queue_stats_rx,
+	.get_queue_stats_tx	= bnge_get_queue_stats_tx,
+	.get_base_stats		= bnge_get_base_stats,
+};
 
 static const struct net_device_ops bnge_netdev_ops = {
 	.ndo_open		= bnge_open,
@@ -3113,6 +3338,7 @@ int bnge_netdev_alloc(struct bnge_dev *bd, int max_irqs)
 	bd->netdev = netdev;
 
 	netdev->netdev_ops = &bnge_netdev_ops;
+	netdev->stat_ops = &bnge_stat_ops;
 
 	bnge_set_ethtool_ops(netdev);
 
@@ -3212,6 +3438,7 @@ int bnge_netdev_alloc(struct bnge_dev *bd, int max_irqs)
 	rc = bnge_alloc_port_stats(bn);
 	if (rc)
 		goto err_free_workq;
+	spin_lock_init(&bn->stats_lock);
 
 	netdev->request_ops_lock = true;
 	rc = register_netdev(netdev);

@@ -8,6 +8,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/refcount.h>
 #include <linux/u64_stats_sync.h>
+#include <net/netdev_queues.h>
 #include "bnge_db.h"
 #include "bnge_hw_def.h"
 #include "bnge_link.h"
@@ -264,6 +265,7 @@ struct bnge_stats_mem {
 
 enum bnge_net_state {
 	BNGE_STATE_NAPI_DISABLED,
+	BNGE_STATE_STATS_ENABLE,
 };
 
 #define BNGE_TIMER_INTERVAL	HZ
@@ -360,6 +362,11 @@ struct bnge_net {
 	struct bnge_stats_mem	tx_port_stats_ext;
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
+
+	struct netdev_queue_stats_rx	rxq_prv_stats;
+	struct netdev_queue_stats_tx	txq_prv_stats;
+	struct rtnl_link_stats64	prv_stats64;
+	spinlock_t			stats_lock;
 
 	u8			pri2cos_idx[8];
 	bool			pri2cos_valid;
