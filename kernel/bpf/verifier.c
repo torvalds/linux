@@ -212,6 +212,8 @@ static int ref_set_non_owning(struct bpf_verifier_env *env,
 static bool is_trusted_reg(const struct bpf_reg_state *reg);
 static inline bool in_sleepable_context(struct bpf_verifier_env *env);
 static const char *non_sleepable_context_description(struct bpf_verifier_env *env);
+static void scalar32_min_max_add(struct bpf_reg_state *dst_reg, struct bpf_reg_state *src_reg);
+static void scalar_min_max_add(struct bpf_reg_state *dst_reg, struct bpf_reg_state *src_reg);
 
 static bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
 {
@@ -7858,6 +7860,23 @@ static bool get_func_retval_range(struct bpf_prog *prog,
 	return false;
 }
 
+static void add_scalar_to_reg(struct bpf_reg_state *dst_reg, s64 val)
+{
+	struct bpf_reg_state fake_reg;
+
+	if (!val)
+		return;
+
+	fake_reg.type = SCALAR_VALUE;
+	__mark_reg_known(&fake_reg, val);
+
+	scalar32_min_max_add(dst_reg, &fake_reg);
+	scalar_min_max_add(dst_reg, &fake_reg);
+	dst_reg->var_off = tnum_add(dst_reg->var_off, fake_reg.var_off);
+
+	reg_bounds_sync(dst_reg);
+}
+
 /* check whether memory at (regno + off) is accessible for t = (read | write)
  * if t==write, value_regno is a register which value is stored into memory
  * if t==read, value_regno is a register which will receive the value from memory
@@ -7939,6 +7958,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 					return -EACCES;
 				}
 				copy_register_state(&regs[value_regno], reg);
+				add_scalar_to_reg(&regs[value_regno], off);
 				regs[value_regno].type = PTR_TO_INSN;
 			} else {
 				mark_reg_unknown(env, regs, value_regno);
