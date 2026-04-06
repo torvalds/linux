@@ -14,8 +14,10 @@ static int mpfs_control_scb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	return mfd_add_devices(dev, PLATFORM_DEVID_NONE, mpfs_control_scb_devs,
-			       ARRAY_SIZE(mpfs_control_scb_devs), NULL, 0, NULL);
+	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
+				    mpfs_control_scb_devs,
+				    ARRAY_SIZE(mpfs_control_scb_devs), NULL, 0,
+				    NULL);
 }
 
 static const struct of_device_id mpfs_control_scb_of_match[] = {

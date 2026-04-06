@@ -350,4 +350,4 @@ module_platform_driver(rzg2l_usbphy_ctrl_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas RZ/G2L USBPHY Control");
-MODULE_AUTHOR("biju.das.jz@bp.renesas.com>");
+MODULE_AUTHOR("Biju Das <biju.das.jz@bp.renesas.com>");
