@@ -407,6 +407,37 @@ int syscall_ctx_unaligned_var_off_write(void *ctx)
 }
 
 SEC("?syscall")
+__description("syscall: reject ctx access past U16_MAX with fixed offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_u16_max_fixed_off(void *ctx)
+{
+	char *p = ctx;
+	volatile __u32 val;
+
+	p += 65535;
+	val = *(__u32 *)p;
+	(void)val;
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: reject ctx access past U16_MAX with variable offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_u16_max_var_off(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+	volatile __u32 val;
+
+	off &= 0xffff;
+	off += 1;
+	p += off;
+	val = *(__u32 *)p;
+	(void)val;
+	return 0;
+}
+
+SEC("?syscall")
 __description("syscall: reject negative variable offset ctx access")
 __failure __msg("min value is negative")
 int syscall_ctx_neg_var_off(void *ctx)
@@ -531,6 +562,56 @@ int syscall_ctx_helper_unaligned_var_off_write(void *ctx)
 }
 
 SEC("?syscall")
+__description("syscall: reject helper read ctx past U16_MAX with fixed offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_helper_u16_max_fixed_off_read(void *ctx)
+{
+	char *p = ctx;
+
+	p += 65535;
+	return bpf_strncmp(p, 4, ctx_strncmp_target);
+}
+
+SEC("?syscall")
+__description("syscall: reject helper write ctx past U16_MAX with fixed offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_helper_u16_max_fixed_off_write(void *ctx)
+{
+	char *p = ctx;
+
+	p += 65535;
+	return bpf_probe_read_kernel(p, 4, 0);
+}
+
+SEC("?syscall")
+__description("syscall: reject helper read ctx past U16_MAX with variable offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_helper_u16_max_var_off_read(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xffff;
+	off += 1;
+	p += off;
+	return bpf_strncmp(p, 4, ctx_strncmp_target);
+}
+
+SEC("?syscall")
+__description("syscall: reject helper write ctx past U16_MAX with variable offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_helper_u16_max_var_off_write(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xffff;
+	off += 1;
+	p += off;
+	return bpf_probe_read_kernel(p, 4, 0);
+}
+
+SEC("?syscall")
 __description("syscall: helper read zero-sized ctx access")
 __success
 int syscall_ctx_helper_zero_sized_read(void *ctx)
@@ -594,6 +675,33 @@ int syscall_ctx_kfunc_unaligned_var_off(void *ctx)
 
 	off &= 0xfc;
 	off += 2;
+	p += off;
+	bpf_kfunc_call_test_mem_len_pass1(p, 4);
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: reject kfunc ctx access past U16_MAX with fixed offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_kfunc_u16_max_fixed_off(void *ctx)
+{
+	char *p = ctx;
+
+	p += 65535;
+	bpf_kfunc_call_test_mem_len_pass1(p, 4);
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: reject kfunc ctx access past U16_MAX with variable offset")
+__failure __msg("outside of the allowed memory range")
+int syscall_ctx_kfunc_u16_max_var_off(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xffff;
+	off += 1;
 	p += off;
 	bpf_kfunc_call_test_mem_len_pass1(p, 4);
 	return 0;
