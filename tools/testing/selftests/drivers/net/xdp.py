@@ -13,7 +13,7 @@ from enum import Enum
 
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_ge, ksft_ne, ksft_pr
 from lib.py import KsftNamedVariant, ksft_variants
-from lib.py import KsftFailEx, NetDrvEpEnv
+from lib.py import KsftFailEx, KsftSkipEx, NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import bkg, cmd, rand_port, wait_port_listen
 from lib.py import ip, defer
@@ -693,6 +693,34 @@ def test_xdp_native_qstats(cfg, act):
             ksft_ge(after['tx-packets'], before['tx-packets'])
 
 
+def test_xdp_native_update_mb_to_sb(cfg):
+    """
+    Test multi-buf to single-buf replacement with jumbo MTU.
+    """
+    obj = cfg.net_lib_dir / "xdp_dummy.bpf.o"
+    mtu = 9000
+
+    ip(f"link set dev {cfg.ifname} mtu {mtu}")
+    defer(ip, f"link set dev {cfg.ifname} mtu {cfg.dev['mtu']} xdpdrv off")
+
+    attach = cmd(f"ip link set dev {cfg.ifname} xdpdrv obj {obj} sec xdp", fail=False)
+    if attach.ret == 0:
+        raise KsftSkipEx(f"device supports single-buffer XDP with mtu {mtu}")
+
+    attach = cmd(f"ip link set dev {cfg.ifname} xdpdrv obj {obj} sec xdp.frags", fail=False)
+    if attach.ret != 0:
+        ksft_pr(attach)
+        raise KsftSkipEx("device does not support multi-buffer XDP")
+
+    # Verify updating mb -> mb program works.
+    cmd(f"ip -force link set dev {cfg.ifname} xdpdrv obj {obj} sec xdp.frags")
+
+    # Verify updating mb -> sb program does not work.
+    update = cmd(f"ip -force link set dev {cfg.ifname} xdpdrv obj {obj} sec xdp", fail=False)
+    if update.ret == 0:
+        raise KsftFailEx("device unexpectedly updates non-multi-buffer XDP")
+
+
 def main():
     """
     Main function to execute the XDP tests.
@@ -718,6 +746,7 @@ def main():
                 test_xdp_native_adjst_head_grow_data,
                 test_xdp_native_adjst_head_shrnk_data,
                 test_xdp_native_qstats,
+                test_xdp_native_update_mb_to_sb,
             ],
             args=(cfg,))
     ksft_exit()
