@@ -22,7 +22,14 @@
 #include "../phylib.h"
 #include "realtek.h"
 
+#define RTL8201F_IER_PAGE			0x07
 #define RTL8201F_IER				0x13
+#define RTL8201F_IER_LINK			BIT(13)
+#define RTL8201F_IER_DUPLEX			BIT(12)
+#define RTL8201F_IER_ANERR			BIT(11)
+#define RTL8201F_IER_MASK			(RTL8201F_IER_ANERR | \
+						 RTL8201F_IER_DUPLEX | \
+						 RTL8201F_IER_LINK)
 
 #define RTL8201F_ISR				0x1e
 #define RTL8201F_ISR_ANERR			BIT(15)
@@ -349,11 +356,13 @@ static int rtl8201_config_intr(struct phy_device *phydev)
 		if (err)
 			return err;
 
-		val = BIT(13) | BIT(12) | BIT(11);
-		err = phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
+		val = RTL8201F_IER_MASK;
+		err = phy_write_paged(phydev, RTL8201F_IER_PAGE,
+				      RTL8201F_IER, val);
 	} else {
 		val = 0;
-		err = phy_write_paged(phydev, 0x7, RTL8201F_IER, val);
+		err = phy_write_paged(phydev, RTL8201F_IER_PAGE,
+				      RTL8201F_IER, val);
 		if (err)
 			return err;
 
