@@ -459,6 +459,14 @@ SYSCALL_DEFINE4(futex_requeue,
 	if (ret)
 		return ret;
 
+	/*
+	 * For now mandate both flags are identical, like the sys_futex()
+	 * interface has. If/when we merge the variable sized futex support,
+	 * that patch can modify this test to allow a difference in size.
+	 */
+	if (futexes[0].w.flags != futexes[1].w.flags)
+		return -EINVAL;
+
 	cmpval = futexes[0].w.val;
 
 	return futex_requeue(u64_to_user_ptr(futexes[0].w.uaddr), futexes[0].w.flags,

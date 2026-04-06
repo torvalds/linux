@@ -1415,14 +1415,16 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i = 0, n = 0;
 	struct usb_interface	*intf;
+	bool			offload_active = false;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
 
+	usb_offload_set_pm_locked(udev, true);
 	if (msg.event == PM_EVENT_SUSPEND && usb_offload_check(udev)) {
 		dev_dbg(&udev->dev, "device offloaded, skip suspend.\n");
-		udev->offload_at_suspend = 1;
+		offload_active = true;
 	}
 
 	/* Suspend all the interfaces and then udev itself */
@@ -1436,8 +1438,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 			 * interrupt urbs, allowing interrupt events to be
 			 * handled during system suspend.
 			 */
-			if (udev->offload_at_suspend &&
-			    intf->needs_remote_wakeup) {
+			if (offload_active && intf->needs_remote_wakeup) {
 				dev_dbg(&intf->dev,
 					"device offloaded, skip suspend.\n");
 				continue;
@@ -1452,7 +1453,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		}
 	}
 	if (status == 0) {
-		if (!udev->offload_at_suspend)
+		if (!offload_active)
 			status = usb_suspend_device(udev, msg);
 
 		/*
@@ -1498,7 +1499,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	 */
 	} else {
 		udev->can_submit = 0;
-		if (!udev->offload_at_suspend) {
+		if (!offload_active) {
 			for (i = 0; i < 16; ++i) {
 				usb_hcd_flush_endpoint(udev, udev->ep_out[i]);
 				usb_hcd_flush_endpoint(udev, udev->ep_in[i]);
@@ -1507,6 +1508,8 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	}
 
  done:
+	if (status != 0)
+		usb_offload_set_pm_locked(udev, false);
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
 	return status;
 }
@@ -1536,16 +1539,19 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i;
 	struct usb_interface	*intf;
+	bool			offload_active = false;
 
 	if (udev->state == USB_STATE_NOTATTACHED) {
 		status = -ENODEV;
 		goto done;
 	}
 	udev->can_submit = 1;
+	if (msg.event == PM_EVENT_RESUME)
+		offload_active = usb_offload_check(udev);
 
 	/* Resume the device */
 	if (udev->state == USB_STATE_SUSPENDED || udev->reset_resume) {
-		if (!udev->offload_at_suspend)
+		if (!offload_active)
 			status = usb_resume_device(udev, msg);
 		else
 			dev_dbg(&udev->dev,
@@ -1562,8 +1568,7 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 			 * pending interrupt urbs, allowing interrupt events
 			 * to be handled during system suspend.
 			 */
-			if (udev->offload_at_suspend &&
-			    intf->needs_remote_wakeup) {
+			if (offload_active && intf->needs_remote_wakeup) {
 				dev_dbg(&intf->dev,
 					"device offloaded, skip resume.\n");
 				continue;
@@ -1572,11 +1577,11 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 					udev->reset_resume);
 		}
 	}
-	udev->offload_at_suspend = 0;
 	usb_mark_last_busy(udev);
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
+	usb_offload_set_pm_locked(udev, false);
 	if (!status)
 		udev->reset_resume = 0;
 	return status;

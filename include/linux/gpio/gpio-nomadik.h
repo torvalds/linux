@@ -114,8 +114,7 @@ struct nmk_gpio_chip {
 }
 
 /**
- * enum prcm_gpiocr_reg_index
- * Used to reference an PRCM GPIOCR register address.
+ * enum prcm_gpiocr_reg_index - Used to reference a PRCM GPIOCR register address.
  */
 enum prcm_gpiocr_reg_index {
 	PRCM_IDX_GPIOCR1,
@@ -123,8 +122,7 @@ enum prcm_gpiocr_reg_index {
 	PRCM_IDX_GPIOCR3
 };
 /**
- * enum prcm_gpiocr_altcx_index
- * Used to reference an Other alternate-C function.
+ * enum prcm_gpiocr_altcx_index - Used to reference an Other alternate-C function.
  */
 enum prcm_gpiocr_altcx_index {
 	PRCM_IDX_GPIOCR_ALTC1,
@@ -135,7 +133,7 @@ enum prcm_gpiocr_altcx_index {
 };
 
 /**
- * struct prcm_gpio_altcx - Other alternate-C function
+ * struct prcm_gpiocr_altcx - Other alternate-C function
  * @used: other alternate-C function availability
  * @reg_index: PRCM GPIOCR register index used to control the function
  * @control_bit: PRCM GPIOCR bit used to control the function
@@ -147,7 +145,7 @@ struct prcm_gpiocr_altcx {
 } __packed;
 
 /**
- * struct prcm_gpio_altcx_pin_desc - Other alternate-C pin
+ * struct prcm_gpiocr_altcx_pin_desc - Other alternate-C pin
  * @pin: The pin number
  * @altcx: array of other alternate-C[1-4] functions
  */
@@ -193,7 +191,7 @@ struct nmk_pingroup {
  *		numbering.
  * @npins:	The number of entries in @pins.
  * @functions:	The functions supported on this SoC.
- * @nfunction:	The number of entries in @functions.
+ * @nfunctions:	The number of entries in @functions.
  * @groups:	An array describing all pin groups the pin SoC supports.
  * @ngroups:	The number of entries in @groups.
  * @altcx_pins:	The pins that support Other alternate-C function on this SoC

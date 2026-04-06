@@ -55,6 +55,9 @@ libaes-$(CONFIG_SPARC) += sparc/aes_asm.o
 libaes-$(CONFIG_X86) += x86/aes-aesni.o
 endif # CONFIG_CRYPTO_LIB_AES_ARCH
 
+# clean-files must be defined unconditionally
+clean-files += powerpc/aesp8-ppc.S
+
 ################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_AESCFB)			+= libaescfb.o

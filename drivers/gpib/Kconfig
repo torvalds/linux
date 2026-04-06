@@ -122,6 +122,7 @@ config GPIB_FLUKE
 	depends on OF
        select GPIB_COMMON
        select GPIB_NEC7210
+       depends on HAS_IOMEM
        help
          GPIB driver for Fluke based cda devices.
 

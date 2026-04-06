@@ -30,8 +30,8 @@
  * @default_rate:	Default sampling rate. 0 means reset default
  * @setup_resources:	Interrupt line setup call back function
  * @release_resources:	Interrupt line release call back function
- * @st_min_limits[3]:	Selftest acceptance minimum values
- * @st_max_limits[3]:	Selftest acceptance maximum values
+ * @st_min_limits:	Selftest acceptance minimum values (x, y, z)
+ * @st_max_limits:	Selftest acceptance maximum values (x, y, z)
  * @irq2:		Irq line 2 number
  *
  * Platform data is used to setup the sensor chip. Meaning of the different
