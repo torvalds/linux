@@ -1291,6 +1291,7 @@ F:	include/uapi/drm/amdxdna_accel.h
 
 AMD XGBE DRIVER
 M:	Raju Rangoju <Raju.Rangoju@amd.com>
+M:	Prashanth Kumar K R <PrashanthKumar.K.R@amd.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
