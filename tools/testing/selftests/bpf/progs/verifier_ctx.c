@@ -321,6 +321,30 @@ int syscall_ctx_fixed_off_read(void *ctx)
 }
 
 SEC("?syscall")
+__description("syscall: unaligned read ctx with fixed offset")
+__success
+int syscall_ctx_unaligned_fixed_off_read(void *ctx)
+{
+	char *p = ctx;
+	volatile __u32 val;
+
+	val = *(__u32 *)(p + 2);
+	(void)val;
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: unaligned write ctx with fixed offset")
+__success
+int syscall_ctx_unaligned_fixed_off_write(void *ctx)
+{
+	char *p = ctx;
+
+	*(__u32 *)(p + 2) = 0;
+	return 0;
+}
+
+SEC("?syscall")
 __description("syscall: read ctx with variable offset")
 __success
 int syscall_ctx_var_off_read(void *ctx)
@@ -345,6 +369,38 @@ int syscall_ctx_var_off_write(void *ctx)
 	char *p = ctx;
 
 	off &= 0xfc;
+	p += off;
+	*(__u32 *)p = 0;
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: unaligned read ctx with variable offset")
+__success
+int syscall_ctx_unaligned_var_off_read(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+	volatile __u32 val;
+
+	off &= 0xfc;
+	off += 2;
+	p += off;
+	val = *(__u32 *)p;
+	(void)val;
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: unaligned write ctx with variable offset")
+__success
+int syscall_ctx_unaligned_var_off_write(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xfc;
+	off += 2;
 	p += off;
 	*(__u32 *)p = 0;
 	return 0;
@@ -399,6 +455,28 @@ int syscall_ctx_helper_fixed_off_write(void *ctx)
 }
 
 SEC("?syscall")
+__description("syscall: helper unaligned read ctx with fixed offset")
+__success
+int syscall_ctx_helper_unaligned_fixed_off_read(void *ctx)
+{
+	char *p = ctx;
+
+	p += 2;
+	return bpf_strncmp(p, 4, ctx_strncmp_target);
+}
+
+SEC("?syscall")
+__description("syscall: helper unaligned write ctx with fixed offset")
+__success
+int syscall_ctx_helper_unaligned_fixed_off_write(void *ctx)
+{
+	char *p = ctx;
+
+	p += 2;
+	return bpf_probe_read_kernel(p, 4, 0);
+}
+
+SEC("?syscall")
 __description("syscall: helper read ctx with variable offset")
 __success
 int syscall_ctx_helper_var_off_read(void *ctx)
@@ -420,6 +498,34 @@ int syscall_ctx_helper_var_off_write(void *ctx)
 	char *p = ctx;
 
 	off &= 0xfc;
+	p += off;
+	return bpf_probe_read_kernel(p, 4, 0);
+}
+
+SEC("?syscall")
+__description("syscall: helper unaligned read ctx with variable offset")
+__success
+int syscall_ctx_helper_unaligned_var_off_read(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xfc;
+	off += 2;
+	p += off;
+	return bpf_strncmp(p, 4, ctx_strncmp_target);
+}
+
+SEC("?syscall")
+__description("syscall: helper unaligned write ctx with variable offset")
+__success
+int syscall_ctx_helper_unaligned_var_off_write(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xfc;
+	off += 2;
 	p += off;
 	return bpf_probe_read_kernel(p, 4, 0);
 }
@@ -461,6 +567,33 @@ int syscall_ctx_kfunc_var_off(void *ctx)
 	char *p = ctx;
 
 	off &= 0xfc;
+	p += off;
+	bpf_kfunc_call_test_mem_len_pass1(p, 4);
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: kfunc unaligned access ctx with fixed offset")
+__success
+int syscall_ctx_kfunc_unaligned_fixed_off(void *ctx)
+{
+	char *p = ctx;
+
+	p += 2;
+	bpf_kfunc_call_test_mem_len_pass1(p, 4);
+	return 0;
+}
+
+SEC("?syscall")
+__description("syscall: kfunc unaligned access ctx with variable offset")
+__success
+int syscall_ctx_kfunc_unaligned_var_off(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 0xfc;
+	off += 2;
 	p += off;
 	bpf_kfunc_call_test_mem_len_pass1(p, 4);
 	return 0;
