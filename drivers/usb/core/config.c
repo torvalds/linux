@@ -54,8 +54,8 @@ static void usb_parse_ssp_isoc_endpoint_companion(struct device *ddev,
 	 * follows the SuperSpeed Endpoint Companion descriptor
 	 */
 	desc = (struct usb_ssp_isoc_ep_comp_descriptor *) buffer;
-	if (desc->bDescriptorType != USB_DT_SSP_ISOC_ENDPOINT_COMP ||
-	    size < USB_DT_SSP_ISOC_EP_COMP_SIZE) {
+	if (size < USB_DT_SSP_ISOC_EP_COMP_SIZE ||
+	    desc->bDescriptorType != USB_DT_SSP_ISOC_ENDPOINT_COMP) {
 		dev_notice(ddev, "Invalid SuperSpeedPlus isoc endpoint companion"
 			 "for config %d interface %d altsetting %d ep %d.\n",
 			 cfgno, inum, asnum, ep->desc.bEndpointAddress);
