@@ -5983,6 +5983,10 @@ static int __check_mem_access(struct bpf_verifier_env *env, int regno,
 		verbose(env, "invalid access to packet, off=%d size=%d, R%d(id=%d,off=%d,r=%d)\n",
 			off, size, regno, reg->id, off, mem_size);
 		break;
+	case PTR_TO_CTX:
+		verbose(env, "invalid access to context, ctx_size=%d off=%d size=%d\n",
+			mem_size, off, size);
+		break;
 	case PTR_TO_MEM:
 	default:
 		verbose(env, "invalid access to memory, mem_size=%u off=%d size=%d\n",
@@ -6476,9 +6480,14 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 	return 0;
 }
 
+static bool is_var_ctx_off_allowed(struct bpf_prog *prog)
+{
+	return resolve_prog_type(prog) == BPF_PROG_TYPE_SYSCALL;
+}
+
 /* check access to 'struct bpf_context' fields.  Supports fixed offsets only */
-static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
-			    enum bpf_access_type t, struct bpf_insn_access_aux *info)
+static int __check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
+			      enum bpf_access_type t, struct bpf_insn_access_aux *info)
 {
 	if (env->ops->is_valid_access &&
 	    env->ops->is_valid_access(off, size, t, env->prog, info)) {
@@ -6507,6 +6516,34 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 
 	verbose(env, "invalid bpf_context access off=%d size=%d\n", off, size);
 	return -EACCES;
+}
+
+static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, u32 regno,
+			    int off, int access_size, enum bpf_access_type t,
+			    struct bpf_insn_access_aux *info)
+{
+	/*
+	 * Program types that don't rewrite ctx accesses can safely
+	 * dereference ctx pointers with fixed offsets.
+	 */
+	bool var_off_ok = is_var_ctx_off_allowed(env->prog);
+	bool fixed_off_ok = !env->ops->convert_ctx_access;
+	struct bpf_reg_state *regs = cur_regs(env);
+	struct bpf_reg_state *reg = regs + regno;
+	int err;
+
+	if (var_off_ok)
+		err = check_mem_region_access(env, regno, off, access_size, U16_MAX, false);
+	else
+		err = __check_ptr_off_reg(env, reg, regno, fixed_off_ok);
+	if (err)
+		return err;
+	off += reg->umax_value;
+
+	err = __check_ctx_access(env, insn_idx, off, access_size, t, info);
+	if (err)
+		verbose_linfo(env, insn_idx, "; ");
+	return err;
 }
 
 static int check_flow_keys_access(struct bpf_verifier_env *env, int off,
@@ -7939,17 +7976,12 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (!err && value_regno >= 0 && (t == BPF_READ || rdonly_mem))
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_CTX) {
-		/*
-		 * Program types that don't rewrite ctx accesses can safely
-		 * dereference ctx pointers with fixed offsets.
-		 */
-		bool fixed_off_ok = !env->ops->convert_ctx_access;
-		struct bpf_retval_range range;
 		struct bpf_insn_access_aux info = {
 			.reg_type = SCALAR_VALUE,
 			.is_ldsx = is_ldsx,
 			.log = &env->log,
 		};
+		struct bpf_retval_range range;
 
 		if (t == BPF_WRITE && value_regno >= 0 &&
 		    is_pointer_value(env, value_regno)) {
@@ -7957,19 +7989,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			return -EACCES;
 		}
 
-		err = __check_ptr_off_reg(env, reg, regno, fixed_off_ok);
-		if (err < 0)
-			return err;
-
-		/*
-		 * Fold the register's constant offset into the insn offset so
-		 * that is_valid_access() sees the true effective offset.
-		 */
-		if (fixed_off_ok)
-			off += reg->var_off.value;
-		err = check_ctx_access(env, insn_idx, off, size, t, &info);
-		if (err)
-			verbose_linfo(env, insn_idx, "; ");
+		err = check_ctx_access(env, insn_idx, regno, off, size, t, &info);
 		if (!err && t == BPF_READ && value_regno >= 0) {
 			/* ctx access returns either a scalar, or a
 			 * PTR_TO_PACKET[_META,_END]. In the latter
@@ -8543,22 +8563,16 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 		return check_ptr_to_btf_access(env, regs, regno, 0,
 					       access_size, BPF_READ, -1);
 	case PTR_TO_CTX:
-		/* in case the function doesn't know how to access the context,
-		 * (because we are in a program of type SYSCALL for example), we
-		 * can not statically check its size.
-		 * Dynamically check it now.
-		 */
-		if (!env->ops->convert_ctx_access) {
-			int offset = access_size - 1;
-
-			/* Allow zero-byte read from PTR_TO_CTX */
-			if (access_size == 0)
-				return zero_size_allowed ? 0 : -EACCES;
-
-			return check_mem_access(env, env->insn_idx, regno, offset, BPF_B,
-						access_type, -1, false, false);
+		/* Only permit reading or writing syscall context using helper calls. */
+		if (is_var_ctx_off_allowed(env->prog)) {
+			int err = check_mem_region_access(env, regno, 0, access_size, U16_MAX,
+							  zero_size_allowed);
+			if (err)
+				return err;
+			if (env->prog->aux->max_ctx_offset < reg->umax_value + access_size)
+				env->prog->aux->max_ctx_offset = reg->umax_value + access_size;
+			return 0;
 		}
-
 		fallthrough;
 	default: /* scalar_value or invalid ptr */
 		/* Allow zero-byte read from NULL, regardless of pointer type */
@@ -9502,6 +9516,7 @@ static const struct bpf_reg_types mem_types = {
 		PTR_TO_MEM | MEM_RINGBUF,
 		PTR_TO_BUF,
 		PTR_TO_BTF_ID | PTR_TRUSTED,
+		PTR_TO_CTX,
 	},
 };
 
@@ -9811,6 +9826,16 @@ static int check_func_arg_reg_off(struct bpf_verifier_env *env,
 		 * still need to do checks instead of returning.
 		 */
 		return __check_ptr_off_reg(env, reg, regno, true);
+	case PTR_TO_CTX:
+		/*
+		 * Allow fixed and variable offsets for syscall context, but
+		 * only when the argument is passed as memory, not ctx,
+		 * otherwise we may get modified ctx in tail called programs and
+		 * global subprogs (that may act as extension prog hooks).
+		 */
+		if (arg_type != ARG_PTR_TO_CTX && is_var_ctx_off_allowed(env->prog))
+			return 0;
+		fallthrough;
 	default:
 		return __check_ptr_off_reg(env, reg, regno, false);
 	}
@@ -10858,7 +10883,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 			 * invalid memory access.
 			 */
 		} else if (arg->arg_type == ARG_PTR_TO_CTX) {
-			ret = check_func_arg_reg_off(env, reg, regno, ARG_DONTCARE);
+			ret = check_func_arg_reg_off(env, reg, regno, ARG_PTR_TO_CTX);
 			if (ret < 0)
 				return ret;
 			/* If function expects ctx type in BTF check that caller
@@ -13732,7 +13757,6 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				}
 			}
 			fallthrough;
-		case KF_ARG_PTR_TO_CTX:
 		case KF_ARG_PTR_TO_DYNPTR:
 		case KF_ARG_PTR_TO_ITER:
 		case KF_ARG_PTR_TO_LIST_HEAD:
@@ -13749,6 +13773,9 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		case KF_ARG_PTR_TO_TASK_WORK:
 		case KF_ARG_PTR_TO_IRQ_FLAG:
 		case KF_ARG_PTR_TO_RES_SPIN_LOCK:
+			break;
+		case KF_ARG_PTR_TO_CTX:
+			arg_type = ARG_PTR_TO_CTX;
 			break;
 		default:
 			verifier_bug(env, "unknown kfunc arg type %d", kf_arg_type);

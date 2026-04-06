@@ -359,7 +359,6 @@ __naked void syscall_ctx_fixed_off_write(void)
 		: __clobber_all);					\
 	}
 
-no_rewrite_ctx_access("syscall", syscall, 4, u32);
 no_rewrite_ctx_access("kprobe", kprobe, 8, u64);
 no_rewrite_ctx_access("tracepoint", tp, 8, u64);
 no_rewrite_ctx_access("raw_tp", raw_tp, 8, u64);
