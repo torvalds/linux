@@ -551,10 +551,12 @@ helpful tips please see :ref:`development_advancedtopics_reviews`.
 
 It's safe to assume that netdev maintainers know the community and the level
 of expertise of the reviewers. The reviewers should not be concerned about
-their comments impeding or derailing the patch flow.
+their comments impeding or derailing the patch flow. A Reviewed-by tag
+is understood to mean "I have reviewed this code to the best of my ability"
+rather than "I can attest this code is correct".
 
-Less experienced reviewers are highly encouraged to do more in-depth
-review of submissions and not focus exclusively on trivial or subjective
+Reviewers are highly encouraged to do more in-depth review of submissions
+and not focus exclusively on process issues, trivial or subjective
 matters like code formatting, tags etc.
 
 Testimonials / feedback
