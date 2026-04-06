@@ -295,68 +295,58 @@ padding_access("sk_reuseport", sk_reuseport_md, hash, 4);
 SEC("syscall")
 __description("syscall: write to ctx with fixed offset")
 __success
-__naked void syscall_ctx_fixed_off_write(void)
+int syscall_ctx_fixed_off_write(void *ctx)
 {
-	asm volatile ("					\
-	r0 = 0;						\
-	*(u32*)(r1 + 0) = r0;				\
-	r1 += 4;					\
-	*(u32*)(r1 + 0) = r0;				\
-	exit;						\
-"	::: __clobber_all);
+	char *p = ctx;
+
+	*(__u32 *)p = 0;
+	*(__u32 *)(p + 4) = 0;
+	return 0;
 }
 
 /*
- * Test that program types without convert_ctx_access can dereference
- * their ctx pointer after adding a fixed offset. Variable and negative
- * offsets should still be rejected.
+ * For non-syscall program types without convert_ctx_access, direct ctx
+ * dereference is still allowed after adding a fixed offset, while variable
+ * and negative direct accesses reject.
+ *
+ * Passing ctx as a helper or kfunc memory argument is only permitted for
+ * syscall programs, so the helper and kfunc cases below validate rejection
+ * for non-syscall ctx pointers at fixed, variable, and zero-sized accesses.
  */
-#define no_rewrite_ctx_access(type, name, off, ld_op)			\
+#define no_rewrite_ctx_access(type, name, off, load_t)			\
 	SEC(type)							\
 	__description(type ": read ctx at fixed offset")		\
 	__success							\
-	__naked void no_rewrite_##name##_fixed(void)			\
+	int no_rewrite_##name##_fixed(void *ctx)			\
 	{								\
-		asm volatile ("						\
-		r1 += %[__off];						\
-		r0 = *(" #ld_op " *)(r1 + 0);				\
-		r0 = 0;							\
-		exit;"							\
-		:							\
-		: __imm_const(__off, off)				\
-		: __clobber_all);					\
+		char *p = ctx;						\
+		volatile load_t val;					\
+									\
+		val = *(load_t *)(p + off);				\
+		(void)val;						\
+		return 0;						\
 	}								\
 	SEC(type)							\
 	__description(type ": reject variable offset ctx access")	\
 	__failure __msg("variable ctx access var_off=")			\
-	__naked void no_rewrite_##name##_var(void)			\
+	int no_rewrite_##name##_var(void *ctx)			\
 	{								\
-		asm volatile ("						\
-		r6 = r1;						\
-		call %[bpf_get_prandom_u32];				\
-		r1 = r6;						\
-		r0 &= 4;						\
-		r1 += r0;						\
-		r0 = *(" #ld_op " *)(r1 + 0);				\
-		r0 = 0;							\
-		exit;"							\
-		:							\
-		: __imm(bpf_get_prandom_u32)				\
-		: __clobber_all);					\
+		__u64 off_var = bpf_get_prandom_u32();			\
+		char *p = ctx;						\
+									\
+		off_var &= 4;						\
+		p += off_var;						\
+		return *(load_t *)p;					\
 	}								\
 	SEC(type)							\
 	__description(type ": reject negative offset ctx access")	\
-	__failure __msg("negative offset ctx ptr")			\
-	__naked void no_rewrite_##name##_neg(void)			\
+	__failure __msg("invalid bpf_context access")			\
+	int no_rewrite_##name##_neg(void *ctx)			\
 	{								\
-		asm volatile ("						\
-		r1 += %[__neg_off];					\
-		r0 = *(" #ld_op " *)(r1 + 0);				\
-		r0 = 0;							\
-		exit;"							\
-		:							\
-		: __imm_const(__neg_off, -(off))			\
-		: __clobber_all);					\
+		char *p = ctx;						\
+									\
+		p -= 612;						\
+		return *(load_t *)p;					\
 	}
 
 no_rewrite_ctx_access("kprobe", kprobe, 8, u64);
