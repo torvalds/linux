@@ -46,6 +46,161 @@ static void bnge_get_drvinfo(struct net_device *dev,
 	strscpy(info->bus_info, pci_name(bd->pdev), sizeof(info->bus_info));
 }
 
+static void bnge_get_eth_phy_stats(struct net_device *dev,
+				   struct ethtool_eth_phy_stats *phy_stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	u64 *rx;
+
+	if (!(bn->flags & BNGE_FLAG_PORT_STATS_EXT))
+		return;
+
+	rx = bn->rx_port_stats_ext.sw_stats;
+	phy_stats->SymbolErrorDuringCarrier =
+		*(rx + BNGE_RX_STATS_EXT_OFFSET(rx_pcs_symbol_err));
+}
+
+static void bnge_get_eth_mac_stats(struct net_device *dev,
+				   struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	u64 *rx, *tx;
+
+	if (!(bn->flags & BNGE_FLAG_PORT_STATS))
+		return;
+
+	rx = bn->port_stats.sw_stats;
+	tx = bn->port_stats.sw_stats + BNGE_TX_PORT_STATS_BYTE_OFFSET / 8;
+
+	mac_stats->FramesReceivedOK =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_good_frames);
+	mac_stats->FramesTransmittedOK =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_good_frames);
+	mac_stats->FrameCheckSequenceErrors =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_fcs_err_frames);
+	mac_stats->AlignmentErrors =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_align_err_frames);
+	mac_stats->OutOfRangeLengthField =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_oor_len_frames);
+	mac_stats->OctetsReceivedOK = BNGE_GET_RX_PORT_STATS64(rx, rx_bytes);
+	mac_stats->OctetsTransmittedOK = BNGE_GET_TX_PORT_STATS64(tx, tx_bytes);
+	mac_stats->MulticastFramesReceivedOK =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_mcast_frames);
+	mac_stats->BroadcastFramesReceivedOK =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_bcast_frames);
+	mac_stats->MulticastFramesXmittedOK =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_mcast_frames);
+	mac_stats->BroadcastFramesXmittedOK =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_bcast_frames);
+	mac_stats->FrameTooLongErrors =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_ovrsz_frames);
+}
+
+static void bnge_get_eth_ctrl_stats(struct net_device *dev,
+				    struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	u64 *rx;
+
+	if (!(bn->flags & BNGE_FLAG_PORT_STATS))
+		return;
+
+	rx = bn->port_stats.sw_stats;
+	ctrl_stats->MACControlFramesReceived =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_ctrl_frames);
+}
+
+static void bnge_get_pause_stats(struct net_device *dev,
+				 struct ethtool_pause_stats *pause_stats)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	u64 *rx, *tx;
+
+	if (!(bn->flags & BNGE_FLAG_PORT_STATS))
+		return;
+
+	rx = bn->port_stats.sw_stats;
+	tx = bn->port_stats.sw_stats + BNGE_TX_PORT_STATS_BYTE_OFFSET / 8;
+
+	pause_stats->rx_pause_frames =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_pause_frames);
+	pause_stats->tx_pause_frames =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_pause_frames);
+}
+
+static const struct ethtool_rmon_hist_range bnge_rmon_ranges[] = {
+	{    0,    64 },
+	{   65,   127 },
+	{  128,   255 },
+	{  256,   511 },
+	{  512,  1023 },
+	{ 1024,  1518 },
+	{ 1519,  2047 },
+	{ 2048,  4095 },
+	{ 4096,  9216 },
+	{ 9217, 16383 },
+	{}
+};
+
+static void bnge_get_rmon_stats(struct net_device *dev,
+				struct ethtool_rmon_stats *rmon_stats,
+				const struct ethtool_rmon_hist_range **ranges)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	u64 *rx, *tx;
+
+	if (!(bn->flags & BNGE_FLAG_PORT_STATS))
+		return;
+
+	rx = bn->port_stats.sw_stats;
+	tx = bn->port_stats.sw_stats + BNGE_TX_PORT_STATS_BYTE_OFFSET / 8;
+
+	rmon_stats->jabbers = BNGE_GET_RX_PORT_STATS64(rx, rx_jbr_frames);
+	rmon_stats->oversize_pkts =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_ovrsz_frames);
+	rmon_stats->undersize_pkts =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_undrsz_frames);
+
+	rmon_stats->hist[0] = BNGE_GET_RX_PORT_STATS64(rx, rx_64b_frames);
+	rmon_stats->hist[1] = BNGE_GET_RX_PORT_STATS64(rx, rx_65b_127b_frames);
+	rmon_stats->hist[2] = BNGE_GET_RX_PORT_STATS64(rx, rx_128b_255b_frames);
+	rmon_stats->hist[3] = BNGE_GET_RX_PORT_STATS64(rx, rx_256b_511b_frames);
+	rmon_stats->hist[4] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_512b_1023b_frames);
+	rmon_stats->hist[5] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_1024b_1518b_frames);
+	rmon_stats->hist[6] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_1519b_2047b_frames);
+	rmon_stats->hist[7] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_2048b_4095b_frames);
+	rmon_stats->hist[8] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_4096b_9216b_frames);
+	rmon_stats->hist[9] =
+		BNGE_GET_RX_PORT_STATS64(rx, rx_9217b_16383b_frames);
+
+	rmon_stats->hist_tx[0] = BNGE_GET_TX_PORT_STATS64(tx, tx_64b_frames);
+	rmon_stats->hist_tx[1] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_65b_127b_frames);
+	rmon_stats->hist_tx[2] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_128b_255b_frames);
+	rmon_stats->hist_tx[3] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_256b_511b_frames);
+	rmon_stats->hist_tx[4] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_512b_1023b_frames);
+	rmon_stats->hist_tx[5] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_1024b_1518b_frames);
+	rmon_stats->hist_tx[6] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_1519b_2047b_frames);
+	rmon_stats->hist_tx[7] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_2048b_4095b_frames);
+	rmon_stats->hist_tx[8] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_4096b_9216b_frames);
+	rmon_stats->hist_tx[9] =
+		BNGE_GET_TX_PORT_STATS64(tx, tx_9217b_16383b_frames);
+
+	*ranges = bnge_rmon_ranges;
+}
+
 static void bnge_get_pauseparam(struct net_device *dev,
 				struct ethtool_pauseparam *epause)
 {
@@ -116,6 +271,11 @@ static const struct ethtool_ops bnge_ethtool_ops = {
 	.nway_reset		= bnge_nway_reset,
 	.get_pauseparam		= bnge_get_pauseparam,
 	.set_pauseparam		= bnge_set_pauseparam,
+	.get_eth_phy_stats	= bnge_get_eth_phy_stats,
+	.get_eth_mac_stats	= bnge_get_eth_mac_stats,
+	.get_eth_ctrl_stats	= bnge_get_eth_ctrl_stats,
+	.get_pause_stats	= bnge_get_pause_stats,
+	.get_rmon_stats		= bnge_get_rmon_stats,
 };
 
 void bnge_set_ethtool_ops(struct net_device *dev)
