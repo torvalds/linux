@@ -136,6 +136,7 @@ static void bnge_timer(struct timer_list *t)
 static void bnge_sp_task(struct work_struct *work)
 {
 	struct bnge_net *bn = container_of(work, struct bnge_net, sp_task);
+	bool speed_chng, cfg_chng, link_chng;
 	struct bnge_dev *bd = bn->bd;
 
 	netdev_lock(bn->netdev);
@@ -154,6 +155,28 @@ static void bnge_sp_task(struct work_struct *work)
 			WRITE_ONCE(bd->link_info.phy_retry, false);
 			netdev_info(bn->netdev, "update PHY settings retry succeeded\n");
 		}
+	}
+
+	speed_chng = test_and_clear_bit(BNGE_LINK_SPEED_CHNG_SP_EVENT,
+					&bn->sp_event);
+	cfg_chng = test_and_clear_bit(BNGE_LINK_CFG_CHANGE_SP_EVENT,
+				      &bn->sp_event);
+	link_chng = test_and_clear_bit(BNGE_LINK_CHNG_SP_EVENT,
+				       &bn->sp_event);
+
+	if (speed_chng || cfg_chng || link_chng) {
+		int rc;
+
+		if (speed_chng)
+			bnge_hwrm_phy_qcaps(bd);
+
+		rc = bnge_update_link(bn, true);
+		if (rc)
+			netdev_err(bn->netdev, "SP task cannot update link (rc: %d)\n",
+				   rc);
+
+		if (speed_chng || cfg_chng)
+			bnge_init_ethtool_link_settings(bn);
 	}
 
 	netdev_unlock(bn->netdev);

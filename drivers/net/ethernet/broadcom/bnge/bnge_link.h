@@ -169,4 +169,5 @@ int bnge_set_link_ksettings(struct net_device *dev,
 int bnge_get_link_ksettings(struct net_device *dev,
 			    struct ethtool_link_ksettings *lk_ksettings);
 u32 bnge_get_link(struct net_device *dev);
+void bnge_link_async_event_process(struct bnge_net *bn, u16 event_id);
 #endif /* _BNGE_LINK_H_ */
