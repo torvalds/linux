@@ -47,7 +47,7 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 	 */
 	while (ti_work & EXIT_TO_USER_MODE_WORK_LOOP) {
 
-		local_irq_enable_exit_to_user(ti_work);
+		local_irq_enable();
 
 		if (ti_work & (_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY)) {
 			if (!rseq_grant_slice_extension(ti_work & TIF_SLICE_EXT_DENY))
@@ -74,7 +74,7 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 		 * might have changed while interrupts and preemption was
 		 * enabled above.
 		 */
-		local_irq_disable_exit_to_user();
+		local_irq_disable();
 
 		/* Check if any of the above work has queued a deferred wakeup */
 		tick_nohz_user_enter_prepare();
