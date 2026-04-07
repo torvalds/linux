@@ -2149,7 +2149,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			 */
 			queue_writel(queue, IDR, bp->rx_intr_mask);
 			macb_queue_isr_clear(bp, queue, MACB_BIT(RCOMP));
-			napi_schedule(&queue->napi_rx);
+			napi_schedule_irqoff(&queue->napi_rx);
 		}
 
 		if (status & (MACB_BIT(TCOMP) |
@@ -2162,7 +2162,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 				wmb(); // ensure softirq can see update
 			}
 
-			napi_schedule(&queue->napi_tx);
+			napi_schedule_irqoff(&queue->napi_tx);
 		}
 
 		if (unlikely(status & MACB_INT_MISC_FLAGS))
