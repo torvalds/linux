@@ -9,11 +9,14 @@ from lib.py import ksft_eq, ksft_ge
 from lib.py import ksft_variants, KsftNamedVariant
 from lib.py import EthtoolFamily, NetDrvEpEnv, NetdevFamily
 from lib.py import KsftSkipEx
-from lib.py import cmd, ethtool, defer, rand_port, bkg, wait_port_listen
+from lib.py import cmd, ethtool, defer, rand_ports, bkg, wait_port_listen
 
 
 class NtupleField(Enum):
     SRC_IP = auto()
+    DST_IP = auto()
+    SRC_PORT = auto()
+    DST_PORT = auto()
 
 
 def _require_ntuple(cfg):
@@ -69,7 +72,7 @@ def _setup_isolated_queue(cfg):
     return random.randint(1, desired_queues - 1)
 
 
-def _send_traffic(cfg, ipver, proto, dst_port, pkt_cnt=40):
+def _send_traffic(cfg, ipver, proto, dst_port, src_port, pkt_cnt=40):
     """Generate traffic with the desired flow signature."""
 
     cfg.require_cmd("socat", remote=True)
@@ -86,28 +89,42 @@ def _send_traffic(cfg, ipver, proto, dst_port, pkt_cnt=40):
         send_cmd = f"""
         bash -c 'for i in $(seq {pkt_cnt}); do echo msg; sleep 0.02; done' |
         socat -{ipver} -u - \
-            {socat_proto}:{dst_addr}:{dst_port},reuseaddr{extra_opts}
+            {socat_proto}:{dst_addr}:{dst_port},sourceport={src_port},reuseaddr{extra_opts}
         """
         cmd(send_cmd, shell=True, host=cfg.remote)
 
 
 def _add_ntuple_rule_and_send_traffic(cfg, ipver, proto, fields, test_queue):
-    dst_port = rand_port()
+    ports = rand_ports(2)
+    src_port = ports[0]
+    dst_port = ports[1]
     flow_parts = [f"flow-type {proto}{ipver}"]
 
     for field in fields:
         if field == NtupleField.SRC_IP:
             flow_parts.append(f"src-ip {cfg.remote_addr_v[ipver]}")
+        elif field == NtupleField.DST_IP:
+            flow_parts.append(f"dst-ip {cfg.addr_v[ipver]}")
+        elif field == NtupleField.SRC_PORT:
+            flow_parts.append(f"src-port {src_port}")
+        elif field == NtupleField.DST_PORT:
+            flow_parts.append(f"dst-port {dst_port}")
 
     flow_parts.append(f"action {test_queue}")
     _ntuple_rule_add(cfg, " ".join(flow_parts))
-    _send_traffic(cfg, ipver, proto, dst_port=dst_port)
+    _send_traffic(cfg, ipver, proto, dst_port=dst_port, src_port=src_port)
 
 
 def _ntuple_variants():
     for ipver in ["4", "6"]:
         for proto in ["tcp", "udp"]:
-            for fields in [[NtupleField.SRC_IP]]:
+            for fields in [[NtupleField.SRC_IP],
+                           [NtupleField.DST_IP],
+                           [NtupleField.SRC_PORT],
+                           [NtupleField.DST_PORT],
+                           [NtupleField.SRC_IP, NtupleField.DST_IP],
+                           [NtupleField.SRC_IP, NtupleField.DST_IP,
+                            NtupleField.SRC_PORT, NtupleField.DST_PORT]]:
                 name = ".".join(f.name.lower() for f in fields)
                 yield KsftNamedVariant(f"{proto}{ipver}.{name}",
                                       ipver, proto, fields)
