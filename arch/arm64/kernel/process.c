@@ -699,6 +699,29 @@ void update_sctlr_el1(u64 sctlr)
 	isb();
 }
 
+static inline void debug_switch_state(void)
+{
+	if (system_uses_irq_prio_masking()) {
+		unsigned long daif_expected = 0;
+		unsigned long daif_actual = read_sysreg(daif);
+		unsigned long pmr_expected = GIC_PRIO_IRQOFF;
+		unsigned long pmr_actual = read_sysreg_s(SYS_ICC_PMR_EL1);
+
+		WARN_ONCE(daif_actual != daif_expected ||
+			  pmr_actual != pmr_expected,
+			  "Unexpected DAIF + PMR: 0x%lx + 0x%lx (expected 0x%lx + 0x%lx)\n",
+			  daif_actual, pmr_actual,
+			  daif_expected, pmr_expected);
+	} else {
+		unsigned long daif_expected = DAIF_PROCCTX_NOIRQ;
+		unsigned long daif_actual = read_sysreg(daif);
+
+		WARN_ONCE(daif_actual != daif_expected,
+			  "Unexpected DAIF value: 0x%lx (expected 0x%lx)\n",
+			  daif_actual, daif_expected);
+	}
+}
+
 /*
  * Thread switching.
  */
@@ -707,6 +730,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
 	struct task_struct *last;
+
+	debug_switch_state();
 
 	fpsimd_thread_switch(next);
 	tls_thread_switch(next);
