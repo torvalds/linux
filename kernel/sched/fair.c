@@ -5352,6 +5352,7 @@ static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
 	u64 vslice, vruntime = avg_vruntime(cfs_rq);
+	bool update_zero = false;
 	s64 lag = 0;
 
 	if (!se->custom_slice)
@@ -5368,7 +5369,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 */
 	if (sched_feat(PLACE_LAG) && cfs_rq->nr_queued && se->vlag) {
 		struct sched_entity *curr = cfs_rq->curr;
-		long load;
+		long load, weight;
 
 		lag = se->vlag;
 
@@ -5428,13 +5429,40 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 		if (curr && curr->on_rq)
 			load += avg_vruntime_weight(cfs_rq, curr->load.weight);
 
-		lag *= load + avg_vruntime_weight(cfs_rq, se->load.weight);
+		weight = avg_vruntime_weight(cfs_rq, se->load.weight);
+		lag *= load + weight;
 		if (WARN_ON_ONCE(!load))
 			load = 1;
 		lag = div64_long(lag, load);
+
+		/*
+		 * A heavy entity (relative to the tree) will pull the
+		 * avg_vruntime close to its vruntime position on enqueue. But
+		 * the zero_vruntime point is only updated at the next
+		 * update_deadline()/place_entity()/update_entity_lag().
+		 *
+		 * Specifically (see the comment near avg_vruntime_weight()):
+		 *
+		 *   sum_w_vruntime = \Sum (v_i - v0) * w_i
+		 *
+		 * Note that if v0 is near a light entity, both terms will be
+		 * small for the light entity, while in that case both terms
+		 * are large for the heavy entity, leading to risk of
+		 * overflow.
+		 *
+		 * OTOH if v0 is near the heavy entity, then the difference is
+		 * larger for the light entity, but the factor is small, while
+		 * for the heavy entity the difference is small but the factor
+		 * is large. Avoiding the multiplication overflow.
+		 */
+		if (weight > load)
+			update_zero = true;
 	}
 
 	se->vruntime = vruntime - lag;
+
+	if (update_zero)
+		update_zero_vruntime(cfs_rq, -lag);
 
 	if (sched_feat(PLACE_REL_DEADLINE) && se->rel_deadline) {
 		se->deadline += se->vruntime;
