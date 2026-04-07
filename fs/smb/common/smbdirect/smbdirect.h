@@ -32,8 +32,8 @@ struct smbdirect_socket_parameters {
 	__u32 resolve_route_timeout_msec;
 	__u32 rdma_connect_timeout_msec;
 	__u32 negotiate_timeout_msec;
-	__u8  initiator_depth;
-	__u8  responder_resources;
+	__u16 initiator_depth;     /* limited to U8_MAX */
+	__u16 responder_resources; /* limited to U8_MAX */
 	__u16 recv_credit_max;
 	__u16 send_credit_target;
 	__u32 max_send_size;

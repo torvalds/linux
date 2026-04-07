@@ -166,6 +166,11 @@ int smbdirect_socket_set_initial_parameters(struct smbdirect_socket *sc,
 	if (sp->flags & ~SMBDIRECT_FLAG_PORT_RANGE_MASK)
 		return -EINVAL;
 
+	if (sp->initiator_depth > U8_MAX)
+		return -EINVAL;
+	if (sp->responder_resources > U8_MAX)
+		return -EINVAL;
+
 	if (sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IB &&
 	    sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IW)
 		return -EINVAL;
