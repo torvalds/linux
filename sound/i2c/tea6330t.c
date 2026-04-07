@@ -51,6 +51,7 @@ int snd_tea6330t_detect(struct snd_i2c_bus *bus, int equalizer)
 	snd_i2c_unlock(bus);
 	return res;
 }
+EXPORT_SYMBOL(snd_tea6330t_detect);
 
 #if 0
 static void snd_tea6330t_set(struct tea6330t *tea,
@@ -356,5 +357,4 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
       	return err;
 }
 
-EXPORT_SYMBOL(snd_tea6330t_detect);
 EXPORT_SYMBOL(snd_tea6330t_update_mixer);
