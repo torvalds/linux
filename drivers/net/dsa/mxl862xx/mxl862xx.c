@@ -278,7 +278,7 @@ static int mxl862xx_set_bridge_port(struct dsa_switch *ds, int port)
 	bool enable;
 	int i, idx;
 
-	if (!p->setup_done)
+	if (dsa_port_is_unused(dp))
 		return 0;
 
 	if (dsa_port_is_cpu(dp)) {
