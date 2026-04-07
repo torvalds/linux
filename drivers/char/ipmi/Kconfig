@@ -189,7 +189,7 @@ config SSIF_IPMI_BMC
 
 config SSIF_IPMI_BMC_KUNIT_TEST
 	bool "KUnit tests for SSIF IPMI BMC driver" if !KUNIT_ALL_TESTS
-	depends on KUNIT
+	depends on KUNIT=y
 	depends on SSIF_IPMI_BMC
 	default KUNIT_ALL_TESTS
 	help
