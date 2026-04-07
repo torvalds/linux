@@ -197,6 +197,66 @@ static void test_attach_kprobe_legacy_by_addr_reject(void)
 	test_attach_probe_manual__destroy(skel);
 }
 
+/*
+ * bpf_fentry_shadow_test exists in both vmlinux (net/bpf/test_run.c) and
+ * bpf_testmod (bpf_testmod.c). When bpf_testmod is loaded the symbol is
+ * duplicated. Test that kprobe attachment handles this correctly:
+ * - Unqualified name ("bpf_fentry_shadow_test") attaches to vmlinux.
+ * - MOD:SYM name ("bpf_testmod:bpf_fentry_shadow_test") attaches to module.
+ *
+ * Note: bpf_fentry_shadow_test is not invoked via test_run, so we only
+ * verify that attach and detach succeed without triggering the probe.
+ */
+static void test_attach_probe_dup_sym(enum probe_attach_mode attach_mode)
+{
+	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	struct bpf_link *kprobe_link, *kretprobe_link;
+	struct test_attach_probe_manual *skel;
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_dup_sym_open_and_load"))
+		return;
+
+	kprobe_opts.attach_mode = attach_mode;
+
+	/* Unqualified: should attach to vmlinux symbol */
+	kprobe_opts.retprobe = false;
+	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						      "bpf_fentry_shadow_test",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe_vmlinux"))
+		goto cleanup;
+	bpf_link__destroy(kprobe_link);
+
+	kprobe_opts.retprobe = true;
+	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+							 "bpf_fentry_shadow_test",
+							 &kprobe_opts);
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe_vmlinux"))
+		goto cleanup;
+	bpf_link__destroy(kretprobe_link);
+
+	/* MOD:SYM qualified: should attach to module symbol */
+	kprobe_opts.retprobe = false;
+	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						      "bpf_testmod:bpf_fentry_shadow_test",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe_module"))
+		goto cleanup;
+	bpf_link__destroy(kprobe_link);
+
+	kprobe_opts.retprobe = true;
+	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+							 "bpf_testmod:bpf_fentry_shadow_test",
+							 &kprobe_opts);
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe_module"))
+		goto cleanup;
+	bpf_link__destroy(kretprobe_link);
+
+cleanup:
+	test_attach_probe_manual__destroy(skel);
+}
+
 /* attach uprobe/uretprobe long event name testings */
 static void test_attach_uprobe_long_event_name(void)
 {
@@ -558,6 +618,15 @@ void test_attach_probe(void)
 		test_attach_kprobe_by_addr(PROBE_ATTACH_MODE_LINK);
 	if (test__start_subtest("kprobe-legacy-by-addr-reject"))
 		test_attach_kprobe_legacy_by_addr_reject();
+
+	if (test__start_subtest("dup-sym-default"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_DEFAULT);
+	if (test__start_subtest("dup-sym-legacy"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_LEGACY);
+	if (test__start_subtest("dup-sym-perf"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_PERF);
+	if (test__start_subtest("dup-sym-link"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_LINK);
 
 	if (test__start_subtest("auto"))
 		test_attach_probe_auto(skel);
