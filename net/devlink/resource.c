@@ -398,11 +398,25 @@ devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
 			     struct netlink_callback *cb, int flags)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_port *devlink_port;
+	struct nlattr *scope_attr = NULL;
 	unsigned long port_idx;
+	u32 scope = 0;
 	int err;
 
-	if (!state->port_ctx.index_valid) {
+	if (info->attrs && info->attrs[DEVLINK_ATTR_RESOURCE_SCOPE_MASK]) {
+		scope_attr = info->attrs[DEVLINK_ATTR_RESOURCE_SCOPE_MASK];
+		scope = nla_get_u32(scope_attr);
+		if (!scope) {
+			NL_SET_ERR_MSG_ATTR(info->extack, scope_attr,
+					    "empty resource scope selection");
+			return -EINVAL;
+		}
+	}
+
+	if (!state->port_ctx.index_valid &&
+	    (!scope || (scope & DEVLINK_RESOURCE_SCOPE_DEV))) {
 		err = devlink_resource_dump_fill_one(skb, devlink, NULL,
 						     cb, flags, &state->idx);
 		if (err)
@@ -410,6 +424,8 @@ devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
 		state->idx = 0;
 	}
 
+	if (scope && !(scope & DEVLINK_RESOURCE_SCOPE_PORT))
+		goto out;
 	/* Check in case port was removed between dump callbacks. */
 	if (state->port_ctx.index_valid &&
 	    !xa_load(&devlink->ports, state->port_ctx.index))
@@ -425,6 +441,7 @@ devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
 		}
 		state->idx = 0;
 	}
+out:
 	state->port_ctx.index_valid = false;
 	state->port_ctx.index = 0;
 	return 0;

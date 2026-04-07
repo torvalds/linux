@@ -313,10 +313,11 @@ static const struct nla_policy devlink_resource_dump_do_nl_policy[DEVLINK_ATTR_I
 };
 
 /* DEVLINK_CMD_RESOURCE_DUMP - dump */
-static const struct nla_policy devlink_resource_dump_dump_nl_policy[DEVLINK_ATTR_INDEX + 1] = {
+static const struct nla_policy devlink_resource_dump_dump_nl_policy[DEVLINK_ATTR_RESOURCE_SCOPE_MASK + 1] = {
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING, },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING, },
 	[DEVLINK_ATTR_INDEX] = NLA_POLICY_FULL_RANGE(NLA_UINT, &devlink_attr_index_range),
+	[DEVLINK_ATTR_RESOURCE_SCOPE_MASK] = NLA_POLICY_MASK(NLA_U32, 0x3),
 };
 
 /* DEVLINK_CMD_RELOAD - do */
@@ -974,7 +975,7 @@ const struct genl_split_ops devlink_nl_ops[75] = {
 		.cmd		= DEVLINK_CMD_RESOURCE_DUMP,
 		.dumpit		= devlink_nl_resource_dump_dumpit,
 		.policy		= devlink_resource_dump_dump_nl_policy,
-		.maxattr	= DEVLINK_ATTR_INDEX,
+		.maxattr	= DEVLINK_ATTR_RESOURCE_SCOPE_MASK,
 		.flags		= GENL_CMD_CAP_DUMP,
 	},
 	{
