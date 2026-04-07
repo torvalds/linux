@@ -1182,6 +1182,10 @@ struct wx_hw_stats {
 	u64 fdirmiss;
 };
 
+struct wx_last_stats {
+	u32 qmprc[128];
+};
+
 enum wx_state {
 	WX_STATE_RESETTING,
 	WX_STATE_SWFW_BUSY,
@@ -1354,6 +1358,7 @@ struct wx {
 	bool default_up;
 
 	struct wx_hw_stats stats;
+	struct wx_last_stats last_stats;
 	spinlock_t hw_stats_lock; /* spinlock for accessing to hw stats */
 	u64 tx_busy;
 	u64 non_eop_descs;
@@ -1462,6 +1467,18 @@ wr32ptp(struct wx *wx, u32 reg, u32 value)
 		return wr32(wx, reg, value);
 
 	return wr32(wx, reg + 0xB500, value);
+}
+
+static inline u32
+rd32_wrap(struct wx *wx, u32 reg, u32 *last)
+{
+	u32 val, delta;
+
+	val = rd32(wx, reg);
+	delta = val - *last;
+	*last = val;
+
+	return delta;
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with

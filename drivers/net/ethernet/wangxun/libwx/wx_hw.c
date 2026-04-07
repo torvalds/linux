@@ -2915,11 +2915,10 @@ void wx_update_stats(struct wx *wx)
 		hwstats->fdirmiss += rd32(wx, WX_RDB_FDIR_MISS);
 	}
 
-	/* qmprc is not cleared on read, manual reset it */
-	hwstats->qmprc = 0;
 	for (i = wx->num_vfs * wx->num_rx_queues_per_pool;
 	     i < wx->mac.max_rx_queues; i++)
-		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));
+		hwstats->qmprc += rd32_wrap(wx, WX_PX_MPRC(i),
+					    &wx->last_stats.qmprc[i]);
 
 	spin_unlock(&wx->hw_stats_lock);
 }
@@ -2936,8 +2935,11 @@ void wx_clear_hw_cntrs(struct wx *wx)
 {
 	u16 i = 0;
 
-	for (i = 0; i < wx->mac.max_rx_queues; i++)
+	for (i = wx->num_vfs * wx->num_rx_queues_per_pool;
+	     i < wx->mac.max_rx_queues; i++) {
 		wr32(wx, WX_PX_MPRC(i), 0);
+		wx->last_stats.qmprc[i] = 0;
+	}
 
 	rd32(wx, WX_RDM_PKT_CNT);
 	rd32(wx, WX_TDM_PKT_CNT);
