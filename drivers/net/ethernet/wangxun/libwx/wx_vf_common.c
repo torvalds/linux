@@ -339,14 +339,16 @@ static void wxvf_down(struct wx *wx)
 
 static void wxvf_reinit_locked(struct wx *wx)
 {
-	while (test_and_set_bit(WX_STATE_RESETTING, wx->state))
-		usleep_range(1000, 2000);
+	mutex_lock(&wx->reset_lock);
+	set_bit(WX_STATE_RESETTING, wx->state);
+
 	wxvf_down(wx);
 	wx_free_irq(wx);
 	wx_configure_vf(wx);
 	wx_request_msix_irqs_vf(wx);
 	wxvf_up_complete(wx);
 	clear_bit(WX_STATE_RESETTING, wx->state);
+	mutex_unlock(&wx->reset_lock);
 }
 
 static void wxvf_reset_subtask(struct wx *wx)

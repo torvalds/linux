@@ -598,20 +598,16 @@ int txgbe_setup_tc(struct net_device *dev, u8 tc)
 
 static void txgbe_reinit_locked(struct wx *wx)
 {
-	int err = 0;
-
 	netif_trans_update(wx->netdev);
 
-	err = wx_set_state_reset(wx);
-	if (err) {
-		wx_err(wx, "wait device reset timeout\n");
-		return;
-	}
+	mutex_lock(&wx->reset_lock);
+	set_bit(WX_STATE_RESETTING, wx->state);
 
 	txgbe_down(wx);
 	txgbe_up(wx);
 
 	clear_bit(WX_STATE_RESETTING, wx->state);
+	mutex_unlock(&wx->reset_lock);
 }
 
 void txgbe_do_reset(struct net_device *netdev)
