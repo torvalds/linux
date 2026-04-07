@@ -544,9 +544,13 @@ static int mxl862xx_port_setup(struct dsa_switch *ds, int port)
 
 	mxl862xx_port_fast_age(ds, port);
 
-	if (dsa_port_is_unused(dp) ||
-	    dsa_port_is_dsa(dp))
+	if (dsa_port_is_unused(dp))
 		return 0;
+
+	if (dsa_port_is_dsa(dp)) {
+		dev_err(ds->dev, "port %d: DSA links not supported\n", port);
+		return -EOPNOTSUPP;
+	}
 
 	ret = mxl862xx_configure_sp_tag_proto(ds, port, is_cpu_port);
 	if (ret)
@@ -591,7 +595,7 @@ static void mxl862xx_port_teardown(struct dsa_switch *ds, int port)
 	struct mxl862xx_priv *priv = ds->priv;
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
-	if (dsa_port_is_unused(dp) || dsa_port_is_dsa(dp))
+	if (dsa_port_is_unused(dp))
 		return;
 
 	/* Prevent deferred host_flood_work from acting on stale state.
