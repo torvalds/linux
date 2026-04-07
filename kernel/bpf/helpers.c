@@ -1272,7 +1272,7 @@ static void bpf_async_cb_rcu_tasks_trace_free(struct rcu_head *rcu)
 		return;
 	}
 
-	/* rcu_trace_implies_rcu_gp() is true and will remain so */
+	/* RCU Tasks Trace grace period implies RCU grace period. */
 	bpf_async_cb_rcu_free(rcu);
 }
 

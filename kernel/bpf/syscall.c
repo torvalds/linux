@@ -941,14 +941,6 @@ static void bpf_map_free_rcu_gp(struct rcu_head *rcu)
 	bpf_map_free_in_work(container_of(rcu, struct bpf_map, rcu));
 }
 
-static void bpf_map_free_mult_rcu_gp(struct rcu_head *rcu)
-{
-	if (rcu_trace_implies_rcu_gp())
-		bpf_map_free_rcu_gp(rcu);
-	else
-		call_rcu(rcu, bpf_map_free_rcu_gp);
-}
-
 /* decrement map refcnt and schedule it for freeing via workqueue
  * (underlying map implementation ops->map_free() might sleep)
  */
@@ -959,8 +951,9 @@ void bpf_map_put(struct bpf_map *map)
 		bpf_map_free_id(map);
 
 		WARN_ON_ONCE(atomic64_read(&map->sleepable_refcnt));
+		/* RCU tasks trace grace period implies RCU grace period. */
 		if (READ_ONCE(map->free_after_mult_rcu_gp))
-			call_rcu_tasks_trace(&map->rcu, bpf_map_free_mult_rcu_gp);
+			call_rcu_tasks_trace(&map->rcu, bpf_map_free_rcu_gp);
 		else if (READ_ONCE(map->free_after_rcu_gp))
 			call_rcu(&map->rcu, bpf_map_free_rcu_gp);
 		else
@@ -3273,14 +3266,6 @@ static bool bpf_link_is_tracepoint(struct bpf_link *link)
 	       (link->type == BPF_LINK_TYPE_TRACING && link->attach_type == BPF_TRACE_RAW_TP);
 }
 
-static void bpf_link_defer_dealloc_mult_rcu_gp(struct rcu_head *rcu)
-{
-	if (rcu_trace_implies_rcu_gp())
-		bpf_link_defer_dealloc_rcu_gp(rcu);
-	else
-		call_rcu(rcu, bpf_link_defer_dealloc_rcu_gp);
-}
-
 /* bpf_link_free is guaranteed to be called from process context */
 static void bpf_link_free(struct bpf_link *link)
 {
@@ -3306,7 +3291,8 @@ static void bpf_link_free(struct bpf_link *link)
 		 * faultable case, since it exclusively uses RCU Tasks Trace.
 		 */
 		if (link->sleepable || (link->prog && link->prog->sleepable))
-			call_rcu_tasks_trace(&link->rcu, bpf_link_defer_dealloc_mult_rcu_gp);
+			/* RCU Tasks Trace grace period implies RCU grace period. */
+			call_rcu_tasks_trace(&link->rcu, bpf_link_defer_dealloc_rcu_gp);
 		/* We need to do a SRCU grace period wait for non-faultable tracepoint BPF links. */
 		else if (bpf_link_is_tracepoint(link))
 			call_tracepoint_unregister_atomic(&link->rcu, bpf_link_defer_dealloc_rcu_gp);
