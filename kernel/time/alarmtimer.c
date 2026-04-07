@@ -234,19 +234,23 @@ static int alarmtimer_suspend(struct device *dev)
 	if (!rtc)
 		return 0;
 
-	/* Find the soonest timer to expire*/
+	/* Find the soonest timer to expire */
 	for (i = 0; i < ALARM_NUMTYPE; i++) {
 		struct alarm_base *base = &alarm_bases[i];
 		struct timerqueue_node *next;
+		ktime_t next_expires;
 		ktime_t delta;
 
-		scoped_guard(spinlock_irqsave, &base->lock)
+		scoped_guard(spinlock_irqsave, &base->lock) {
 			next = timerqueue_getnext(&base->timerqueue);
+			if (next)
+				next_expires = next->expires;
+		}
 		if (!next)
 			continue;
-		delta = ktime_sub(next->expires, base->get_ktime());
+		delta = ktime_sub(next_expires, base->get_ktime());
 		if (!min || (delta < min)) {
-			expires = next->expires;
+			expires = next_expires;
 			min = delta;
 			type = i;
 		}
