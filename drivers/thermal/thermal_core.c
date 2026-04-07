@@ -1823,7 +1823,7 @@ static void thermal_zone_pm_prepare(struct thermal_zone_device *tz)
 	cancel_delayed_work(&tz->poll_queue);
 }
 
-static void thermal_pm_notify_prepare(void)
+static void __thermal_pm_prepare(void)
 {
 	struct thermal_zone_device *tz;
 
@@ -1833,6 +1833,19 @@ static void thermal_pm_notify_prepare(void)
 
 	list_for_each_entry(tz, &thermal_tz_list, node)
 		thermal_zone_pm_prepare(tz);
+}
+
+void thermal_pm_prepare(void)
+{
+	if (thermal_class_unavailable)
+		return;
+
+	__thermal_pm_prepare();
+	/*
+	 * Allow any leftover thermal work items already on the worqueue to
+	 * complete so they don't get in the way later.
+	 */
+	flush_workqueue(thermal_wq);
 }
 
 static void thermal_zone_pm_complete(struct thermal_zone_device *tz)
@@ -1851,9 +1864,12 @@ static void thermal_zone_pm_complete(struct thermal_zone_device *tz)
 	mod_delayed_work(thermal_wq, &tz->poll_queue, 0);
 }
 
-static void thermal_pm_notify_complete(void)
+void thermal_pm_complete(void)
 {
 	struct thermal_zone_device *tz;
+
+	if (thermal_class_unavailable)
+		return;
 
 	guard(mutex)(&thermal_list_lock);
 
@@ -1862,41 +1878,6 @@ static void thermal_pm_notify_complete(void)
 	list_for_each_entry(tz, &thermal_tz_list, node)
 		thermal_zone_pm_complete(tz);
 }
-
-static int thermal_pm_notify(struct notifier_block *nb,
-			     unsigned long mode, void *_unused)
-{
-	switch (mode) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_RESTORE_PREPARE:
-	case PM_SUSPEND_PREPARE:
-		thermal_pm_notify_prepare();
-		/*
-		 * Allow any leftover thermal work items already on the
-		 * worqueue to complete so they don't get in the way later.
-		 */
-		flush_workqueue(thermal_wq);
-		break;
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-	case PM_POST_SUSPEND:
-		thermal_pm_notify_complete();
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
-static struct notifier_block thermal_pm_nb = {
-	.notifier_call = thermal_pm_notify,
-	/*
-	 * Run at the lowest priority to avoid interference between the thermal
-	 * zone resume work items spawned by thermal_pm_notify() and the other
-	 * PM notifiers.
-	 */
-	.priority = INT_MIN,
-};
 
 static int __init thermal_init(void)
 {
@@ -1923,11 +1904,6 @@ static int __init thermal_init(void)
 		goto unregister_governors;
 
 	thermal_class_unavailable = false;
-
-	result = register_pm_notifier(&thermal_pm_nb);
-	if (result)
-		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
-			result);
 
 	return 0;
 
