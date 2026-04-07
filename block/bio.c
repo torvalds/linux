@@ -1462,7 +1462,7 @@ void bio_iov_iter_unbounce(struct bio *bio, bool is_error, bool mark_dirty)
 		bio_iov_iter_unbounce_read(bio, is_error, mark_dirty);
 }
 
-static void submit_bio_wait_endio(struct bio *bio)
+static void bio_wait_end_io(struct bio *bio)
 {
 	complete(bio->bi_private);
 }
@@ -1484,7 +1484,7 @@ int submit_bio_wait(struct bio *bio)
 			bio->bi_bdev->bd_disk->lockdep_map);
 
 	bio->bi_private = &done;
-	bio->bi_end_io = submit_bio_wait_endio;
+	bio->bi_end_io = bio_wait_end_io;
 	bio->bi_opf |= REQ_SYNC;
 	submit_bio(bio);
 	blk_wait_io(&done);
@@ -1523,12 +1523,6 @@ int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
 }
 EXPORT_SYMBOL_GPL(bdev_rw_virt);
 
-static void bio_wait_end_io(struct bio *bio)
-{
-	complete(bio->bi_private);
-	bio_put(bio);
-}
-
 /*
  * bio_await_chain - ends @bio and waits for every chained bio to complete
  */
@@ -1541,6 +1535,7 @@ void bio_await_chain(struct bio *bio)
 	bio->bi_end_io = bio_wait_end_io;
 	bio_endio(bio);
 	blk_wait_io(&done);
+	bio_put(bio);
 }
 
 void __bio_advance(struct bio *bio, unsigned bytes)
