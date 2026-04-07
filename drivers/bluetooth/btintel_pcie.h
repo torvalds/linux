@@ -178,9 +178,6 @@ enum {
 /* The size of DMA buffer for TX and RX in bytes */
 #define BTINTEL_PCIE_BUFFER_SIZE	4096
 
-/* DMA allocation alignment */
-#define BTINTEL_PCIE_DMA_POOL_ALIGNMENT	256
-
 #define BTINTEL_PCIE_TX_WAIT_TIMEOUT_MS		500
 
 /* Doorbell vector for TFD */
