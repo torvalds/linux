@@ -1757,19 +1757,21 @@ operations:
       attribute-set: devlink
       dont-validate: [strict]
       do:
-        pre: devlink-nl-pre-doit
+        pre: devlink-nl-pre-doit-port-optional
         post: devlink-nl-post-doit
         request:
           attributes:
             - bus-name
             - dev-name
             - index
+            - port-index
         reply: &resource-dump-reply
           value: 36
           attributes:
             - bus-name
             - dev-name
             - index
+            - port-index
             - resource-list
       dump:
         request:
