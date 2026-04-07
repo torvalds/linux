@@ -714,6 +714,23 @@ out_unregister:
 
 EXPORT_SYMBOL_GPL(cpuidle_register_device);
 
+void cpuidle_unregister_device_no_lock(struct cpuidle_device *dev)
+{
+	if (!dev || dev->registered == 0)
+		return;
+
+	lockdep_assert_held(&cpuidle_lock);
+
+	cpuidle_disable_device(dev);
+
+	cpuidle_remove_sysfs(dev);
+
+	__cpuidle_unregister_device(dev);
+
+	cpuidle_coupled_unregister_device(dev);
+}
+EXPORT_SYMBOL_GPL(cpuidle_unregister_device_no_lock);
+
 /**
  * cpuidle_unregister_device - unregisters a CPU's idle PM feature
  * @dev: the cpu
@@ -724,18 +741,9 @@ void cpuidle_unregister_device(struct cpuidle_device *dev)
 		return;
 
 	cpuidle_pause_and_lock();
-
-	cpuidle_disable_device(dev);
-
-	cpuidle_remove_sysfs(dev);
-
-	__cpuidle_unregister_device(dev);
-
-	cpuidle_coupled_unregister_device(dev);
-
+	cpuidle_unregister_device_no_lock(dev);
 	cpuidle_resume_and_unlock();
 }
-
 EXPORT_SYMBOL_GPL(cpuidle_unregister_device);
 
 /**
