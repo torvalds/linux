@@ -109,3 +109,38 @@ To show resources for a specific port:
     $ devlink resource show pci/0000:03:00.0/196608
     pci/0000:03:00.0/196608:
       name max_SFs size 128 unit entry dpipe_tables none
+
+Resource Scope Filtering
+========================
+
+When dumping resources for all devices, ``devlink resource show`` accepts
+an optional ``scope`` parameter to restrict the response to device-level
+resources, port-level resources, or both (the default).
+
+To dump only device-level resources across all devices:
+
+.. code:: shell
+
+    $ devlink resource show scope dev
+    pci/0000:03:00.0:
+      name max_local_SFs size 128 unit entry dpipe_tables none
+      name max_external_SFs size 128 unit entry dpipe_tables none
+    pci/0000:03:00.1:
+      name max_local_SFs size 128 unit entry dpipe_tables none
+      name max_external_SFs size 128 unit entry dpipe_tables none
+
+To dump only port-level resources across all devices:
+
+.. code:: shell
+
+    $ devlink resource show scope port
+    pci/0000:03:00.0/196608:
+      name max_SFs size 128 unit entry dpipe_tables none
+    pci/0000:03:00.0/196609:
+      name max_SFs size 128 unit entry dpipe_tables none
+    pci/0000:03:00.1/196708:
+      name max_SFs size 128 unit entry dpipe_tables none
+    pci/0000:03:00.1/196709:
+      name max_SFs size 128 unit entry dpipe_tables none
+
+Note that port-level resources are read-only.
