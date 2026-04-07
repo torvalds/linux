@@ -1307,37 +1307,42 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 	 */
 
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
-
 		/* Protect against cpu-hotplug */
 		cpus_read_lock();
+
+		/* Unregister cpuidle device of all CPUs */
 		cpuidle_pause_and_lock();
-
-		/* Disable all cpuidle devices */
-		for_each_online_cpu(cpu) {
-			_pr = per_cpu(processors, cpu);
-			if (!_pr || !_pr->flags.power_setup_done)
-				continue;
+		for_each_possible_cpu(cpu) {
 			dev = per_cpu(acpi_cpuidle_device, cpu);
-			cpuidle_disable_device(dev);
-		}
-
-		/* Populate Updated C-state information */
-		acpi_processor_get_power_info(pr);
-		acpi_processor_setup_cpuidle_states(pr);
-
-		/* Enable all cpuidle devices */
-		for_each_online_cpu(cpu) {
 			_pr = per_cpu(processors, cpu);
-			if (!_pr || !_pr->flags.power_setup_done)
+			if (!_pr || !_pr->flags.power || !dev)
 				continue;
-			acpi_processor_get_power_info(_pr);
-			if (_pr->flags.power) {
-				dev = per_cpu(acpi_cpuidle_device, cpu);
-				acpi_processor_setup_cpuidle_dev(_pr, dev);
-				cpuidle_enable_device(dev);
-			}
+
+			cpuidle_unregister_device_no_lock(dev);
+			kfree(dev);
+			_pr->flags.power = 0;
 		}
 		cpuidle_resume_and_unlock();
+
+		/*
+		 * Unregister ACPI idle driver, reinitialize ACPI idle states
+		 * and register ACPI idle driver again.
+		 */
+		acpi_processor_unregister_idle_driver();
+		acpi_processor_register_idle_driver();
+
+		/*
+		 * Reinitialize power information of all CPUs and re-register
+		 * all cpuidle devices. Now idle states is ok to use, can enable
+		 * cpuidle of each CPU safely one by one.
+		 */
+		for_each_possible_cpu(cpu) {
+			_pr = per_cpu(processors, cpu);
+			if (!_pr)
+				continue;
+			acpi_processor_power_init(_pr);
+		}
+
 		cpus_read_unlock();
 	}
 
