@@ -11,9 +11,49 @@
 #ifndef _VIDEO_FONT_H
 #define _VIDEO_FONT_H
 
+#include <linux/math.h>
 #include <linux/types.h>
 
 struct console_font;
+
+/*
+ * Glyphs
+ */
+
+/**
+ * font_glyph_pitch - Calculates the number of bytes per scanline
+ * @width: The glyph width in bits per scanline
+ *
+ * A glyph's pitch is the number of bytes in a single scanline, rounded
+ * up to the next full byte. The parameter @width receives the number
+ * of visible bits per scanline. For example, if width is 14 bytes per
+ * scanline, the pitch is 2 bytes per scanline. If width is 8 bits per
+ * scanline, the pitch is 1 byte per scanline.
+ *
+ * Returns:
+ * The number of bytes in a single scanline of the glyph
+ */
+static inline unsigned int font_glyph_pitch(unsigned int width)
+{
+	return DIV_ROUND_UP(width, 8);
+}
+
+/**
+ * font_glyph_size - Calculates the number of bytes per glyph
+ * @width: The glyph width in bits per scanline
+ * @vpitch: The number of scanlines in the glyph
+ *
+ * The number of bytes in a glyph depends on the pitch and the number
+ * of scanlines. font_glyph_size automatically calculates the pitch
+ * from the given width. The parameter @vpitch gives the number of
+ * scanlines, which is usually the glyph's height in scanlines. Fonts
+ * coming from user space can sometimes have a different vertical pitch
+ * with empty scanlines between two adjacent glyphs.
+ */
+static inline unsigned int font_glyph_size(unsigned int width, unsigned int vpitch)
+{
+	return font_glyph_pitch(width) * vpitch;
+}
 
 /*
  * font_data_t and helpers

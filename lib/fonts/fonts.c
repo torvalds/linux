@@ -26,7 +26,7 @@
 
 #include "font.h"
 
-#define console_font_pitch(font) DIV_ROUND_UP((font)->width, 8)
+#define console_font_pitch(font) font_glyph_pitch((font)->width)
 
 /*
  * Helpers for font_data_t

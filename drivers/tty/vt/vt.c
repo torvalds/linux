@@ -71,7 +71,6 @@
  * by Adam Tla/lka <atlka@pg.gda.pl>, Aug 2006
  */
 
-#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
@@ -244,7 +243,7 @@ enum {
  */
 unsigned int vc_font_pitch(const struct vc_font *font)
 {
-	return DIV_ROUND_UP(font->width, 8);
+	return font_glyph_pitch(font->width);
 }
 EXPORT_SYMBOL_GPL(vc_font_pitch);
 
@@ -261,7 +260,7 @@ EXPORT_SYMBOL_GPL(vc_font_pitch);
  */
 unsigned int vc_font_size(const struct vc_font *font)
 {
-	return font->height * vc_font_pitch(font) * font->charcount;
+	return font_glyph_size(font->width, font->height) * font->charcount;
 }
 EXPORT_SYMBOL_GPL(vc_font_size);
 

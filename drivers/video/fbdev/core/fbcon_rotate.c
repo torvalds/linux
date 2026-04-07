@@ -33,14 +33,12 @@ int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 	src = par->fontdata = vc->vc_font.data;
 	par->cur_rotate = par->p->con_rotate;
 	len = vc->vc_font.charcount;
-	s_cellsize = ((vc->vc_font.width + 7)/8) *
-		vc->vc_font.height;
+	s_cellsize = font_glyph_size(vc->vc_font.width, vc->vc_font.height);
 	d_cellsize = s_cellsize;
 
 	if (par->rotate == FB_ROTATE_CW ||
 	    par->rotate == FB_ROTATE_CCW)
-		d_cellsize = ((vc->vc_font.height + 7)/8) *
-			vc->vc_font.width;
+		d_cellsize = font_glyph_size(vc->vc_font.height, vc->vc_font.width);
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
