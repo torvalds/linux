@@ -410,6 +410,7 @@ void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
 	struct smbdirect_socket *sc = mr->socket;
 	int ret = 0;
 
+lock_again:
 	mutex_lock(&mr->mutex);
 	if (mr->state == SMBDIRECT_MR_DISABLED)
 		goto put_kref;
@@ -440,8 +441,15 @@ void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
 			smbdirect_socket_schedule_cleanup(sc, ret);
 			goto done;
 		}
+
+		/*
+		 * We still hold the reference to mr
+		 * so we can unlock while waiting.
+		 */
+		mutex_unlock(&mr->mutex);
 		wait_for_completion(&mr->invalidate_done);
 		mr->need_invalidate = false;
+		goto lock_again;
 	} else
 		/*
 		 * For remote invalidation, just set it to SMBDIRECT_MR_INVALIDATED
