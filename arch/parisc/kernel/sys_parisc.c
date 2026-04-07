@@ -50,9 +50,13 @@ static inline unsigned long COLOR_ALIGN(unsigned long addr,
 }
 
 
+#ifdef CONFIG_COMPAT
 #define STACK_SIZE_DEFAULT (USER_WIDE_MODE			\
 			? (1 << 30)	/* 1 GB */		\
 			: (CONFIG_STACK_MAX_DEFAULT_SIZE_MB*1024*1024))
+#else
+#define STACK_SIZE_DEFAULT (1 << 30)
+#endif
 
 unsigned long calc_max_stack_size(unsigned long stack_max)
 {
