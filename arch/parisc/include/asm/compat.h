@@ -130,7 +130,7 @@ typedef compat_ulong_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
 
 static inline int __is_compat_task(struct task_struct *t)
 {
-	return test_tsk_thread_flag(t, TIF_32BIT);
+	return IS_ENABLED(CONFIG_COMPAT) && test_tsk_thread_flag(t, TIF_32BIT);
 }
 
 static inline int is_compat_task(void)
