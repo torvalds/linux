@@ -8975,7 +8975,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 	return len;
 }
 
-#define to_slab_attr(n) container_of(n, struct slab_attribute, attr)
+#define to_slab_attr(n) container_of_const(n, struct slab_attribute, attr)
 #define to_slab(n) container_of(n, struct kmem_cache, kobj)
 
 struct slab_attribute {
@@ -8985,10 +8985,10 @@ struct slab_attribute {
 };
 
 #define SLAB_ATTR_RO(_name) \
-	static struct slab_attribute _name##_attr = __ATTR_RO_MODE(_name, 0400)
+	static const struct slab_attribute _name##_attr = __ATTR_RO_MODE(_name, 0400)
 
 #define SLAB_ATTR(_name) \
-	static struct slab_attribute _name##_attr = __ATTR_RW_MODE(_name, 0600)
+	static const struct slab_attribute _name##_attr = __ATTR_RW_MODE(_name, 0600)
 
 static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
 {
@@ -9382,7 +9382,7 @@ static ssize_t skip_kfence_store(struct kmem_cache *s,
 SLAB_ATTR(skip_kfence);
 #endif
 
-static struct attribute *slab_attrs[] = {
+static const struct attribute *const slab_attrs[] = {
 	&slab_size_attr.attr,
 	&object_size_attr.attr,
 	&objs_per_slab_attr.attr,
@@ -9459,15 +9459,13 @@ static struct attribute *slab_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group slab_attr_group = {
-	.attrs = slab_attrs,
-};
+ATTRIBUTE_GROUPS(slab);
 
 static ssize_t slab_attr_show(struct kobject *kobj,
 				struct attribute *attr,
 				char *buf)
 {
-	struct slab_attribute *attribute;
+	const struct slab_attribute *attribute;
 	struct kmem_cache *s;
 
 	attribute = to_slab_attr(attr);
@@ -9483,7 +9481,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 				struct attribute *attr,
 				const char *buf, size_t len)
 {
-	struct slab_attribute *attribute;
+	const struct slab_attribute *attribute;
 	struct kmem_cache *s;
 
 	attribute = to_slab_attr(attr);
@@ -9508,6 +9506,7 @@ static const struct sysfs_ops slab_sysfs_ops = {
 static const struct kobj_type slab_ktype = {
 	.sysfs_ops = &slab_sysfs_ops,
 	.release = kmem_cache_release,
+	.default_groups = slab_groups,
 };
 
 static struct kset *slab_kset;
@@ -9595,10 +9594,6 @@ static int sysfs_slab_add(struct kmem_cache *s)
 	if (err)
 		goto out;
 
-	err = sysfs_create_group(&s->kobj, &slab_attr_group);
-	if (err)
-		goto out_del_kobj;
-
 	if (!unmergeable) {
 		/* Setup first alias */
 		sysfs_slab_alias(s, s->name);
@@ -9607,9 +9602,6 @@ out:
 	if (!unmergeable)
 		kfree(name);
 	return err;
-out_del_kobj:
-	kobject_del(&s->kobj);
-	goto out;
 }
 
 void sysfs_slab_unlink(struct kmem_cache *s)
