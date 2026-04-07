@@ -69,6 +69,7 @@ enum load_mode {
 
 struct test_subspec {
 	char *name;
+	char *description;
 	bool expect_failure;
 	struct expected_msgs expect_msgs;
 	struct expected_msgs expect_xlated;
@@ -142,9 +143,13 @@ static void free_test_spec(struct test_spec *spec)
 	free_msgs(&spec->priv.stdout);
 
 	free(spec->priv.name);
+	free(spec->priv.description);
 	free(spec->unpriv.name);
+	free(spec->unpriv.description);
 	spec->priv.name = NULL;
+	spec->priv.description = NULL;
 	spec->unpriv.name = NULL;
+	spec->unpriv.description = NULL;
 }
 
 /* Compiles regular expression matching pattern.
@@ -659,33 +664,56 @@ static int parse_test_spec(struct test_loader *tester,
 	if (spec->mode_mask == 0)
 		spec->mode_mask = PRIV;
 
-	if (!description)
-		description = spec->prog_name;
-
 	if (spec->mode_mask & PRIV) {
-		spec->priv.name = strdup(description);
+		spec->priv.name = strdup(spec->prog_name);
 		if (!spec->priv.name) {
 			PRINT_FAIL("failed to allocate memory for priv.name\n");
 			err = -ENOMEM;
 			goto cleanup;
 		}
+
+		if (description) {
+			spec->priv.description = strdup(description);
+			if (!spec->priv.description) {
+				PRINT_FAIL("failed to allocate memory for priv.description\n");
+				err = -ENOMEM;
+				goto cleanup;
+			}
+		}
 	}
 
 	if (spec->mode_mask & UNPRIV) {
-		int descr_len = strlen(description);
+		int name_len = strlen(spec->prog_name);
 		const char *suffix = " @unpriv";
+		int suffix_len = strlen(suffix);
 		char *name;
 
-		name = malloc(descr_len + strlen(suffix) + 1);
+		name = malloc(name_len + suffix_len + 1);
 		if (!name) {
 			PRINT_FAIL("failed to allocate memory for unpriv.name\n");
 			err = -ENOMEM;
 			goto cleanup;
 		}
 
-		strcpy(name, description);
-		strcpy(&name[descr_len], suffix);
+		strcpy(name, spec->prog_name);
+		strcpy(&name[name_len], suffix);
 		spec->unpriv.name = name;
+
+		if (description) {
+			int descr_len = strlen(description);
+			char *descr;
+
+			descr = malloc(descr_len + suffix_len + 1);
+			if (!descr) {
+				PRINT_FAIL("failed to allocate memory for unpriv.description\n");
+				err = -ENOMEM;
+				goto cleanup;
+			}
+
+			strcpy(descr, description);
+			strcpy(&descr[descr_len], suffix);
+			spec->unpriv.description = descr;
+		}
 	}
 
 	if (spec->mode_mask & (PRIV | UNPRIV)) {
@@ -1148,7 +1176,7 @@ void run_subtest(struct test_loader *tester,
 	int links_cnt = 0;
 	bool should_load;
 
-	if (!test__start_subtest(subspec->name))
+	if (!test__start_subtest_with_desc(subspec->name, subspec->description))
 		return;
 
 	if ((get_current_arch() & spec->arch_mask) == 0) {

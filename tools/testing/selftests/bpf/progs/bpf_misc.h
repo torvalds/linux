@@ -103,8 +103,8 @@
  *                   - TEST_DATA_LEN
  * __retval_unpriv   Same, but load program in unprivileged mode.
  *
- * __description     Text to be used instead of a program name for display
- *                   and filtering purposes.
+ * __description     Text to be used for display and as an additional filter
+ *                   alias, while the original program name stays matchable.
  *
  * __log_level       Log level to use for the program, numeric value expected.
  *

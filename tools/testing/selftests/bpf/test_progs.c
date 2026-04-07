@@ -308,16 +308,34 @@ static bool match_subtest(struct test_filter_set *filter,
 	return false;
 }
 
+static bool match_subtest_desc(struct test_filter_set *filter,
+			       const char *test_name,
+			       const char *subtest_name,
+			       const char *subtest_desc)
+{
+	if (match_subtest(filter, test_name, subtest_name))
+		return true;
+
+	if (!subtest_desc || !subtest_desc[0] ||
+	    strcmp(subtest_name, subtest_desc) == 0)
+		return false;
+
+	return match_subtest(filter, test_name, subtest_desc);
+}
+
 static bool should_run_subtest(struct test_selector *sel,
 			       struct test_selector *subtest_sel,
 			       int subtest_num,
 			       const char *test_name,
-			       const char *subtest_name)
+			       const char *subtest_name,
+			       const char *subtest_desc)
 {
-	if (match_subtest(&sel->blacklist, test_name, subtest_name))
+	if (match_subtest_desc(&sel->blacklist, test_name,
+			       subtest_name, subtest_desc))
 		return false;
 
-	if (match_subtest(&sel->whitelist, test_name, subtest_name))
+	if (match_subtest_desc(&sel->whitelist, test_name,
+			       subtest_name, subtest_desc))
 		return true;
 
 	if (!sel->whitelist.cnt && !subtest_sel->num_set)
@@ -544,11 +562,12 @@ void test__end_subtest(void)
 	env.subtest_state = NULL;
 }
 
-bool test__start_subtest(const char *subtest_name)
+bool test__start_subtest_with_desc(const char *subtest_name, const char *subtest_desc)
 {
 	struct prog_test_def *test = env.test;
 	struct test_state *state = env.test_state;
 	struct subtest_state *subtest_state;
+	const char *subtest_display_name;
 	size_t sub_state_size = sizeof(*subtest_state);
 
 	if (env.subtest_state)
@@ -574,7 +593,9 @@ bool test__start_subtest(const char *subtest_name)
 		return false;
 	}
 
-	subtest_state->name = strdup(subtest_name);
+	subtest_display_name = subtest_desc ? subtest_desc : subtest_name;
+
+	subtest_state->name = strdup(subtest_display_name);
 	if (!subtest_state->name) {
 		fprintf(env.stderr_saved,
 			"Subtest #%d: failed to copy subtest name!\n",
@@ -586,20 +607,26 @@ bool test__start_subtest(const char *subtest_name)
 				&env.subtest_selector,
 				state->subtest_num,
 				test->test_name,
-				subtest_name)) {
+				subtest_name,
+				subtest_desc)) {
 		subtest_state->filtered = true;
 		return false;
 	}
 
-	subtest_state->should_tmon = match_subtest(&env.tmon_selector.whitelist,
-						   test->test_name,
-						   subtest_name);
+	subtest_state->should_tmon = match_subtest_desc(&env.tmon_selector.whitelist,
+							test->test_name, subtest_name,
+							subtest_desc);
 
 	env.subtest_state = subtest_state;
 	stdio_hijack_init(&subtest_state->log_buf, &subtest_state->log_cnt);
 	watchdog_start();
 
 	return true;
+}
+
+bool test__start_subtest(const char *subtest_name)
+{
+	return test__start_subtest_with_desc(subtest_name, NULL);
 }
 
 void test__force_log(void)
