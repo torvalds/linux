@@ -1764,13 +1764,17 @@ operations:
             - bus-name
             - dev-name
             - index
-        reply:
+        reply: &resource-dump-reply
           value: 36
           attributes:
             - bus-name
             - dev-name
             - index
             - resource-list
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *resource-dump-reply
 
     -
       name: reload

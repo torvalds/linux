@@ -223,6 +223,31 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int devlink_resource_list_fill(struct sk_buff *skb,
+				      struct devlink *devlink,
+				      struct list_head *resource_list_head,
+				      int *idx)
+{
+	struct devlink_resource *resource;
+	int i = 0;
+	int err;
+
+	list_for_each_entry(resource, resource_list_head, list) {
+		if (i < *idx) {
+			i++;
+			continue;
+		}
+		err = devlink_resource_put(devlink, skb, resource);
+		if (err) {
+			*idx = i;
+			return err;
+		}
+		i++;
+	}
+	*idx = 0;
+	return 0;
+}
+
 static int devlink_resource_fill(struct genl_info *info,
 				 enum devlink_command cmd, int flags)
 {
@@ -300,6 +325,58 @@ int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	return devlink_resource_fill(info, DEVLINK_CMD_RESOURCE_DUMP, 0);
+}
+
+static int
+devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
+			     struct netlink_callback *cb, int flags)
+{
+	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	struct nlattr *resources_attr;
+	int start_idx = state->idx;
+	void *hdr;
+	int err;
+
+	if (list_empty(&devlink->resource_list))
+		return 0;
+
+	err = -EMSGSIZE;
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &devlink_nl_family, flags, DEVLINK_CMD_RESOURCE_DUMP);
+	if (!hdr)
+		return err;
+
+	if (devlink_nl_put_handle(skb, devlink))
+		goto nla_put_failure;
+
+	resources_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_RESOURCE_LIST);
+	if (!resources_attr)
+		goto nla_put_failure;
+
+	err = devlink_resource_list_fill(skb, devlink,
+					 &devlink->resource_list, &state->idx);
+	if (err) {
+		if (state->idx == start_idx)
+			goto resource_list_cancel;
+		nla_nest_end(skb, resources_attr);
+		genlmsg_end(skb, hdr);
+		return err;
+	}
+	nla_nest_end(skb, resources_attr);
+	genlmsg_end(skb, hdr);
+	return 0;
+
+resource_list_cancel:
+	nla_nest_cancel(skb, resources_attr);
+nla_put_failure:
+	genlmsg_cancel(skb, hdr);
+	return err;
+}
+
+int devlink_nl_resource_dump_dumpit(struct sk_buff *skb,
+				    struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb, devlink_nl_resource_dump_one);
 }
 
 int devlink_resources_validate(struct devlink *devlink,
