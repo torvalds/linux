@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *   Copyright (C) 2017, Microsoft Corporation.
- *   Copyright (C) 2018, LG Electronics.
+ *   Copyright (C) 2025 Stefan Metzmacher
  */
 
 #ifndef __FS_SMB_COMMON_SMBDIRECT_SMBDIRECT_H__
