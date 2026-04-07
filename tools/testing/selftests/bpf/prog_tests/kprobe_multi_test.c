@@ -633,6 +633,44 @@ static void test_attach_write_ctx(void)
 }
 #endif
 
+/*
+ * Test kprobe_multi handles shadow symbols (vmlinux + module duplicate).
+ * bpf_fentry_shadow_test exists in both vmlinux and bpf_testmod.
+ * kprobe_multi resolves via ftrace_lookup_symbols() which finds the
+ * vmlinux symbol first and stops, so this should always succeed.
+ */
+static void test_attach_probe_dup_sym(void)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	const char *syms[1] = { "bpf_fentry_shadow_test" };
+	struct kprobe_multi *skel = NULL;
+	struct bpf_link *link1 = NULL, *link2 = NULL;
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi__open_and_load"))
+		goto cleanup;
+
+	skel->bss->pid = getpid();
+	opts.syms = syms;
+	opts.cnt = ARRAY_SIZE(syms);
+
+	link1 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link1, "attach_kprobe_multi_dup_sym"))
+		goto cleanup;
+
+	opts.retprobe = true;
+	link2 = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kretprobe_manual,
+						      NULL, &opts);
+	if (!ASSERT_OK_PTR(link2, "attach_kretprobe_multi_dup_sym"))
+		goto cleanup;
+
+cleanup:
+	bpf_link__destroy(link2);
+	bpf_link__destroy(link1);
+	kprobe_multi__destroy(skel);
+}
+
 void serial_test_kprobe_multi_bench_attach(void)
 {
 	if (test__start_subtest("kernel"))
@@ -676,5 +714,7 @@ void test_kprobe_multi_test(void)
 		test_unique_match();
 	if (test__start_subtest("attach_write_ctx"))
 		test_attach_write_ctx();
+	if (test__start_subtest("dup_sym"))
+		test_attach_probe_dup_sym();
 	RUN_TESTS(kprobe_multi_verifier);
 }
