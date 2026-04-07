@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Sony / PS2 / PS3 / PS4 BD devices.
+ *  HID driver for Sony / PS2 / PS3 / PS4 / PS5 BD devices.
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
@@ -12,9 +12,10 @@
  *  Copyright (c) 2014-2016 Frank Praznik <frank.praznik@gmail.com>
  *  Copyright (c) 2018 Todd Kelner
  *  Copyright (c) 2020-2021 Pascal Giard <pascal.giard@etsmtl.ca>
- *  Copyright (c) 2020 Sanjay Govind <sanjay.govind9@gmail.com>
+ *  Copyright (c) 2020-2026 Sanjay Govind <sanjay.govind9@gmail.com>
  *  Copyright (c) 2021 Daniel Nguyen <daniel.nguyen.1@ens.etsmtl.ca>
  *  Copyright (c) 2026 Rosalie Wanders <rosalie@mailbox.org>
+ *  Copyright (c) 2026 Brenton Simpson <appsforartists@google.com>
  */
 
 /*
@@ -59,12 +60,15 @@
 #define NSG_MR5U_REMOTE_BT        BIT(11)
 #define NSG_MR7U_REMOTE_BT        BIT(12)
 #define SHANWAN_GAMEPAD           BIT(13)
-#define GH_GUITAR_CONTROLLER      BIT(14)
-#define GHL_GUITAR_PS3WIIU        BIT(15)
-#define GHL_GUITAR_PS4            BIT(16)
-#define RB4_GUITAR_PS4_USB        BIT(17)
-#define RB4_GUITAR_PS4_BT         BIT(18)
-#define RB4_GUITAR_PS5            BIT(19)
+#define INSTRUMENT                BIT(14)
+#define GH_GUITAR_TILT            BIT(15)
+#define GHL_GUITAR_PS3WIIU        BIT(16)
+#define GHL_GUITAR_PS4            BIT(17)
+#define RB4_GUITAR_PS4_USB        BIT(18)
+#define RB4_GUITAR_PS4_BT         BIT(19)
+#define RB4_GUITAR_PS5            BIT(20)
+#define RB3_PS3_PRO_INSTRUMENT    BIT(21)
+#define PS3_DJH_TURNTABLE		  BIT(22)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -87,6 +91,10 @@
 #define GHL_GUITAR_POKE_INTERVAL 8 /* In seconds */
 #define GUITAR_TILT_USAGE 44
 
+#define TURNTABLE_EFFECTS_KNOB_USAGE 44
+#define TURNTABLE_PLATTER_BUTTONS_USAGE 45
+#define TURNTABLE_CROSS_FADER_USAGE 46
+
 /* Magic data taken from GHLtarUtility:
  * https://github.com/ghlre/GHLtarUtility/blob/master/PS3Guitar.cs
  * Note: The Wii U and PS3 dongles happen to share the same!
@@ -101,6 +109,13 @@ static const char ghl_ps3wiiu_magic_data[] = {
 static const char ghl_ps4_magic_data[] = {
 	0x30, 0x02, 0x08, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00
 };
+
+/* Rock Band 3 PS3 Pro Instruments require sending a report
+ * once an instrument is connected to its dongle.
+ * We need to retry sending these reports,
+ * but to avoid doing this too often we delay the retries
+ */
+#define RB3_PRO_INSTRUMENT_POKE_RETRY_INTERVAL 8 /* In seconds */
 
 /* PS/3 Motion controller */
 static const u8 motion_rdesc[] = {
@@ -427,20 +442,25 @@ static const unsigned int rb4_absmap[] = {
 	[0x31] = ABS_Y,
 };
 
-static const unsigned int rb4_keymap[] = {
-	[0x1] = BTN_WEST, /* Square */
-	[0x2] = BTN_SOUTH, /* Cross */
-	[0x3] = BTN_EAST, /* Circle */
-	[0x4] = BTN_NORTH, /* Triangle */
-	[0x5] = BTN_TL, /* L1 */
-	[0x6] = BTN_TR, /* R1 */
-	[0x7] = BTN_TL2, /* L2 */
-	[0x8] = BTN_TR2, /* R2 */
-	[0x9] = BTN_SELECT, /* Share */
-	[0xa] = BTN_START, /* Options */
-	[0xb] = BTN_THUMBL, /* L3 */
-	[0xc] = BTN_THUMBR, /* R3 */
-	[0xd] = BTN_MODE, /* PS */
+static const unsigned int ps3_turntable_absmap[] = {
+	[0x32] = ABS_X,
+	[0x35] = ABS_Y,
+};
+
+static const unsigned int instrument_keymap[] = {
+	[0x1] = BTN_WEST,
+	[0x2] = BTN_SOUTH,
+	[0x3] = BTN_EAST,
+	[0x4] = BTN_NORTH,
+	[0x5] = BTN_TL,
+	[0x6] = BTN_TR,
+	[0x7] = BTN_TL2,
+	[0x8] = BTN_TR2,
+	[0x9] = BTN_SELECT,
+	[0xa] = BTN_START,
+	[0xb] = BTN_THUMBL,
+	[0xc] = BTN_THUMBR,
+	[0xd] = BTN_MODE,
 };
 
 static enum power_supply_property sony_battery_props[] = {
@@ -490,6 +510,7 @@ struct motion_output_report_02 {
 #define SIXAXIS_REPORT_0xF2_SIZE 17
 #define SIXAXIS_REPORT_0xF5_SIZE 8
 #define MOTION_REPORT_0x02_SIZE 49
+#define PRO_INSTRUMENT_0x00_SIZE 8
 
 #define SENSOR_SUFFIX " Motion Sensors"
 #define TOUCHPAD_SUFFIX " Touchpad"
@@ -539,6 +560,9 @@ struct sony_sc {
 	/* GH Live */
 	struct urb *ghl_urb;
 	struct timer_list ghl_poke_timer;
+
+	/* Rock Band 3 Pro Instruments */
+	unsigned long rb3_pro_poke_jiffies;
 };
 
 static void sony_set_leds(struct sony_sc *sc);
@@ -610,6 +634,88 @@ static int ghl_init_urb(struct sony_sc *sc, struct usb_device *usbdev,
 	return 0;
 }
 
+
+
+/*
+ * Sending HID_REQ_SET_REPORT enables the full report. Without this
+ * Rock Band 3 Pro instruments only report navigation events
+ */
+static int rb3_pro_instrument_enable_full_report(struct sony_sc *sc)
+{
+	struct hid_device *hdev = sc->hdev;
+	static const u8 report[] = { 0x00, 0xE9, 0x00, 0x89, 0x1B,
+								 0x00, 0x00, 0x00, 0x02, 0x00,
+								 0x00, 0x00, 0x00, 0x00, 0x00,
+								 0x00, 0x00, 0x00, 0x00, 0x00,
+								 0x00, 0x00, 0x80, 0x00, 0x00,
+								 0x00, 0x00, 0x89, 0x00, 0x00,
+								 0x00, 0x00, 0x00, 0xE9, 0x01,
+								 0x00, 0x00, 0x00, 0x00, 0x00,
+								 0x00 };
+	u8 *buf;
+	int ret;
+
+	buf = kmemdup(report, sizeof(report), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(report),
+				  HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+
+	kfree(buf);
+
+	return ret;
+}
+
+static int djh_turntable_mapping(struct hid_device *hdev, struct hid_input *hi,
+			  struct hid_field *field, struct hid_usage *usage,
+			  unsigned long **bit, int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_MSVENDOR) {
+		unsigned int abs = usage->hid & HID_USAGE;
+
+		if (abs == TURNTABLE_CROSS_FADER_USAGE) {
+			hid_map_usage_clear(hi, usage, bit, max, EV_ABS, ABS_RX);
+			return 1;
+		} else if (abs == TURNTABLE_EFFECTS_KNOB_USAGE) {
+			hid_map_usage_clear(hi, usage, bit, max, EV_ABS, ABS_RY);
+			return 1;
+		} else if (abs == TURNTABLE_PLATTER_BUTTONS_USAGE) {
+			hid_map_usage_clear(hi, usage, bit, max, EV_ABS, ABS_RZ);
+			return 1;
+		}
+	} else if ((usage->hid & HID_USAGE_PAGE) == HID_UP_GENDESK) {
+		unsigned int abs = usage->hid & HID_USAGE;
+
+		if (abs >= ARRAY_SIZE(ps3_turntable_absmap))
+			return -1;
+
+		abs = ps3_turntable_absmap[abs];
+
+		hid_map_usage_clear(hi, usage, bit, max, EV_ABS, abs);
+		return 1;
+	}
+	return 0;
+}
+
+static int instrument_mapping(struct hid_device *hdev, struct hid_input *hi,
+			  struct hid_field *field, struct hid_usage *usage,
+			  unsigned long **bit, int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
+		unsigned int key = usage->hid & HID_USAGE;
+
+		if (key >= ARRAY_SIZE(instrument_keymap))
+			return 0;
+
+		key = instrument_keymap[key];
+		hid_map_usage_clear(hi, usage, bit, max, EV_KEY, key);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int gh_guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
 			  struct hid_field *field, struct hid_usage *usage,
 			  unsigned long **bit, int *max)
@@ -629,16 +735,7 @@ static int rb4_guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
 			  struct hid_field *field, struct hid_usage *usage,
 			  unsigned long **bit, int *max)
 {
-	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
-		unsigned int key = usage->hid & HID_USAGE;
-
-		if (key >= ARRAY_SIZE(rb4_keymap))
-			return 0;
-
-		key = rb4_keymap[key];
-		hid_map_usage_clear(hi, usage, bit, max, EV_KEY, key);
-		return 1;
-	} else if ((usage->hid & HID_USAGE_PAGE) == HID_UP_GENDESK) {
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_GENDESK) {
 		unsigned int abs = usage->hid & HID_USAGE;
 
 		/* Let the HID parser deal with the HAT. */
@@ -1052,6 +1149,18 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		return 1;
 	}
 
+	/* Rock Band 3 PS3 Pro instruments set rd[24] to 0xE0 when they're
+	 * sending full reports, and 0x02 when only sending navigation.
+	 */
+	if ((sc->quirks & RB3_PS3_PRO_INSTRUMENT) && rd[24] == 0x02) {
+		/* Only attempt to enable report every 8 seconds */
+		if (time_after(jiffies, sc->rb3_pro_poke_jiffies)) {
+			sc->rb3_pro_poke_jiffies = jiffies +
+				(RB3_PRO_INSTRUMENT_POKE_RETRY_INTERVAL * HZ);
+			rb3_pro_instrument_enable_full_report(sc);
+		}
+	}
+
 	if (sc->defer_initialization) {
 		sc->defer_initialization = 0;
 		sony_schedule_work(sc, SONY_WORKER_STATE);
@@ -1065,6 +1174,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 			unsigned long **bit, int *max)
 {
 	struct sony_sc *sc = hid_get_drvdata(hdev);
+	int ret;
 
 	if (sc->quirks & BUZZ_CONTROLLER) {
 		unsigned int key = usage->hid & HID_USAGE;
@@ -1098,8 +1208,18 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & SIXAXIS_CONTROLLER)
 		return sixaxis_mapping(hdev, hi, field, usage, bit, max);
 
-	if (sc->quirks & GH_GUITAR_CONTROLLER)
+	/* INSTRUMENT quirk is used as a base mapping for instruments */
+	if (sc->quirks & INSTRUMENT) {
+		ret = instrument_mapping(hdev, hi, field, usage, bit, max);
+		if (ret != 0)
+			return ret;
+	}
+
+	if (sc->quirks & GH_GUITAR_TILT)
 		return gh_guitar_mapping(hdev, hi, field, usage, bit, max);
+
+	if (sc->quirks & PS3_DJH_TURNTABLE)
+		return djh_turntable_mapping(hdev, hi, field, usage, bit, max);
 
 	if (sc->quirks & (RB4_GUITAR_PS4_USB | RB4_GUITAR_PS4_BT))
 		return rb4_guitar_mapping(hdev, hi, field, usage, bit, max);
@@ -2060,6 +2180,19 @@ static int sony_input_configured(struct hid_device *hdev,
 		}
 
 		sony_init_output_report(sc, sixaxis_send_output_report);
+	} else if (sc->quirks & RB3_PS3_PRO_INSTRUMENT) {
+		/*
+		 * Rock Band 3 PS3 Pro Instruments also do not handle HID Output
+		 * Reports on the interrupt EP like they should, so we need to force
+		 * HID output reports to use HID_REQ_SET_REPORT on the Control EP.
+		 *
+		 * There is also another issue about HID Output Reports via USB,
+		 * these instruments do not want the report_id as part of the data
+		 * packet, so we have to discard buf[0] when sending the actual
+		 * control message, even for numbered reports.
+		 */
+		hdev->quirks |= HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP;
+		hdev->quirks |= HID_QUIRK_SKIP_OUTPUT_REPORT_ID;
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
 		/*
 		 * The Sony Sixaxis does not handle HID Output Reports on the
@@ -2227,6 +2360,10 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err;
 	}
 
+	if (sc->quirks & RB3_PS3_PRO_INSTRUMENT) {
+		sc->rb3_pro_poke_jiffies = 0;
+	}
+
 	if (sc->quirks & (GHL_GUITAR_PS3WIIU | GHL_GUITAR_PS4)) {
 		if (!hid_is_usb(hdev)) {
 			ret = -EINVAL;
@@ -2364,35 +2501,82 @@ static const struct hid_device_id sony_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SMK, USB_DEVICE_ID_SMK_NSG_MR7U_REMOTE),
 		.driver_data = NSG_MR7U_REMOTE_BT },
 	/* Guitar Hero Live PS3 and Wii U guitar dongles */
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3WIIU_GHLIVE_DONGLE),
-		.driver_data = GHL_GUITAR_PS3WIIU | GH_GUITAR_CONTROLLER },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3WIIU_GHLIVE),
+		.driver_data = GHL_GUITAR_PS3WIIU | GH_GUITAR_TILT | INSTRUMENT },
 	/* Guitar Hero PC Guitar Dongle */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_REDOCTANE, USB_DEVICE_ID_REDOCTANE_GUITAR_DONGLE),
-		.driver_data = GH_GUITAR_CONTROLLER },
-	/* Guitar Hero PS3 World Tour Guitar Dongle */
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_GUITAR_DONGLE),
-		.driver_data = GH_GUITAR_CONTROLLER },
+		.driver_data = GH_GUITAR_TILT | INSTRUMENT },
+	/* Guitar Hero PS3 Guitar Dongle */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_GH_GUITAR),
+		.driver_data = GH_GUITAR_TILT | INSTRUMENT },
+	/* Guitar Hero PS3 Drum Dongle */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_GH_DRUMS),
+		.driver_data = INSTRUMENT },
+	/* DJ Hero PS3 Guitar Dongle */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_DJH_TURNTABLE),
+		.driver_data = PS3_DJH_TURNTABLE | INSTRUMENT },
 	/* Guitar Hero Live PS4 guitar dongles */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_REDOCTANE, USB_DEVICE_ID_REDOCTANE_PS4_GHLIVE_DONGLE),
-		.driver_data = GHL_GUITAR_PS4 | GH_GUITAR_CONTROLLER },
+		.driver_data = GHL_GUITAR_PS4 | GH_GUITAR_TILT | INSTRUMENT },
+	/* Rock Band 1 Wii instruments */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB1_GUITAR),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB1_DRUMS),
+		.driver_data = INSTRUMENT },
+	/* Rock Band 2 Wii instruments */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB2_GUITAR),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB2_DRUMS),
+		.driver_data = INSTRUMENT },
+	/* Rock Band 3 Wii instruments */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_MPA_DRUMS_MODE),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_MUSTANG_GUITAR),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_MPA_MUSTANG_MODE),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_MPA_SQUIER_MODE),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_KEYBOARD),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HARMONIX, USB_DEVICE_ID_HARMONIX_WII_RB3_MPA_KEYBOARD_MODE),
+		.driver_data = INSTRUMENT },
+	/* Rock Band 3 PS3 instruments */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB_GUITAR),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB_DRUMS),
+		.driver_data = INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_MPA_DRUMS_MODE),
+		.driver_data = INSTRUMENT },
+	/* Rock Band 3 PS3 Pro instruments */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_MUSTANG_GUITAR),
+		.driver_data = INSTRUMENT | RB3_PS3_PRO_INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_MPA_MUSTANG_MODE),
+		.driver_data = INSTRUMENT | RB3_PS3_PRO_INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_MPA_SQUIER_MODE),
+		.driver_data = INSTRUMENT | RB3_PS3_PRO_INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_KEYBOARD),
+		.driver_data = INSTRUMENT | RB3_PS3_PRO_INSTRUMENT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY_RHYTHM, USB_DEVICE_ID_SONY_PS3_RB3_MPA_KEYBOARD_MODE),
+		.driver_data = INSTRUMENT | RB3_PS3_PRO_INSTRUMENT },
 	/* Rock Band 4 PS4 guitars */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS4_RIFFMASTER),
-		.driver_data = RB4_GUITAR_PS4_USB },
+		.driver_data = RB4_GUITAR_PS4_USB | INSTRUMENT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CRKD, USB_DEVICE_ID_CRKD_PS4_GIBSON_SG),
-		.driver_data = RB4_GUITAR_PS4_USB },
+		.driver_data = RB4_GUITAR_PS4_USB | INSTRUMENT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CRKD, USB_DEVICE_ID_CRKD_PS4_GIBSON_SG_DONGLE),
-		.driver_data = RB4_GUITAR_PS4_USB },
+		.driver_data = RB4_GUITAR_PS4_USB | INSTRUMENT },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS4_JAGUAR),
-		.driver_data = RB4_GUITAR_PS4_BT },
+		.driver_data = RB4_GUITAR_PS4_BT | INSTRUMENT },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MADCATZ, USB_DEVICE_ID_MADCATZ_PS4_STRATOCASTER),
-		.driver_data = RB4_GUITAR_PS4_BT },
+		.driver_data = RB4_GUITAR_PS4_BT | INSTRUMENT },
 	/* Rock Band 4 PS5 guitars */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS5_RIFFMASTER),
-		.driver_data = RB4_GUITAR_PS5 },
+		.driver_data = RB4_GUITAR_PS5 | INSTRUMENT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CRKD, USB_DEVICE_ID_CRKD_PS5_GIBSON_SG),
-		.driver_data = RB4_GUITAR_PS5 },
+		.driver_data = RB4_GUITAR_PS5 | INSTRUMENT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CRKD, USB_DEVICE_ID_CRKD_PS5_GIBSON_SG_DONGLE),
-		.driver_data = RB4_GUITAR_PS5 },
+		.driver_data = RB4_GUITAR_PS5 | INSTRUMENT },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sony_devices);
@@ -2428,5 +2612,5 @@ static void __exit sony_exit(void)
 module_init(sony_init);
 module_exit(sony_exit);
 
-MODULE_DESCRIPTION("HID driver for Sony / PS2 / PS3 / PS4 BD devices");
+MODULE_DESCRIPTION("HID driver for Sony / PS2 / PS3 / PS4 / PS5 BD devices");
 MODULE_LICENSE("GPL");
