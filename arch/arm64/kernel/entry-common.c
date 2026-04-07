@@ -35,7 +35,7 @@
  * Before this function is called it is not safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  */
-static noinstr irqentry_state_t enter_from_kernel_mode(struct pt_regs *regs)
+static noinstr irqentry_state_t arm64_enter_from_kernel_mode(struct pt_regs *regs)
 {
 	irqentry_state_t state;
 
@@ -51,8 +51,8 @@ static noinstr irqentry_state_t enter_from_kernel_mode(struct pt_regs *regs)
  * After this function returns it is not safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr exit_to_kernel_mode(struct pt_regs *regs,
-					irqentry_state_t state)
+static void noinstr arm64_exit_to_kernel_mode(struct pt_regs *regs,
+					      irqentry_state_t state)
 {
 	mte_check_tfsr_exit();
 	irqentry_exit(regs, state);
@@ -298,11 +298,11 @@ static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 	unsigned long far = read_sysreg(far_el1);
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_mem_abort(far, esr, regs);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
@@ -310,55 +310,55 @@ static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
 	unsigned long far = read_sysreg(far_el1);
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_sp_pc_abort(far, esr, regs);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_undef(struct pt_regs *regs, unsigned long esr)
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_undef(regs, esr);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_bti(struct pt_regs *regs, unsigned long esr)
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_bti(regs, esr);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_gcs(struct pt_regs *regs, unsigned long esr)
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_gcs(regs, esr);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_mops(struct pt_regs *regs, unsigned long esr)
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_mops(regs, esr);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 static void noinstr el1_breakpt(struct pt_regs *regs, unsigned long esr)
@@ -420,11 +420,11 @@ static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_fpac(regs, esr);
 	local_daif_mask();
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 
 asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
@@ -491,13 +491,13 @@ static __always_inline void __el1_irq(struct pt_regs *regs,
 {
 	irqentry_state_t state;
 
-	state = enter_from_kernel_mode(regs);
+	state = arm64_enter_from_kernel_mode(regs);
 
 	irq_enter_rcu();
 	do_interrupt_handler(regs, handler);
 	irq_exit_rcu();
 
-	exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode(regs, state);
 }
 static void noinstr el1_interrupt(struct pt_regs *regs,
 				  void (*handler)(struct pt_regs *))
