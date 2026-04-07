@@ -4343,13 +4343,13 @@ endpoint_tests()
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 		[ ${ipt} = 1 ] && ip netns exec "${ns1}" ${iptables} -D OUTPUT 1
 
-		pm_nl_add_endpoint $ns1 10.0.1.1 id 99 flags signal
+		pm_nl_add_endpoint $ns1 10.0.1.1 id 42 flags signal
 		wait_mpj 4
 		chk_subflow_nr "after re-add ID 0" 3
 		chk_mptcp_info subflows 3 subflows 3
 		chk_mptcp_info add_addr_signal 3 add_addr_accepted 2
 
-		pm_nl_del_endpoint $ns1 99 10.0.1.1
+		pm_nl_del_endpoint $ns1 42 10.0.1.1
 		sleep 0.5
 		chk_subflow_nr "after re-delete ID 0" 2
 		chk_mptcp_info subflows 2 subflows 2

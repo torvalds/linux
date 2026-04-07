@@ -263,7 +263,8 @@ struct mptcp_data_frag {
 	u64 data_seq;
 	u16 data_len;
 	u16 offset;
-	u16 overhead;
+	u8 overhead;
+	u8 eor;			/* currently using 1 bit */
 	u16 already_sent;
 	struct page *page;
 };
