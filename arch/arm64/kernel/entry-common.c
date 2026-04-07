@@ -54,8 +54,11 @@ static noinstr irqentry_state_t arm64_enter_from_kernel_mode(struct pt_regs *reg
 static void noinstr arm64_exit_to_kernel_mode(struct pt_regs *regs,
 					      irqentry_state_t state)
 {
+	local_irq_disable();
+	irqentry_exit_to_kernel_mode_preempt(regs, state);
+	local_daif_mask();
 	mte_check_tfsr_exit();
-	irqentry_exit_to_kernel_mode(regs, state);
+	irqentry_exit_to_kernel_mode_after_preempt(regs, state);
 }
 
 /*
@@ -301,7 +304,6 @@ static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_mem_abort(far, esr, regs);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -313,7 +315,6 @@ static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_sp_pc_abort(far, esr, regs);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -324,7 +325,6 @@ static void noinstr el1_undef(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_undef(regs, esr);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -335,7 +335,6 @@ static void noinstr el1_bti(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_bti(regs, esr);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -346,7 +345,6 @@ static void noinstr el1_gcs(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_gcs(regs, esr);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -357,7 +355,6 @@ static void noinstr el1_mops(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_mops(regs, esr);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
@@ -423,7 +420,6 @@ static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
 	state = arm64_enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_el1_fpac(regs, esr);
-	local_daif_mask();
 	arm64_exit_to_kernel_mode(regs, state);
 }
 
