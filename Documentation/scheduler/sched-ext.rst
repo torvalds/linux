@@ -375,9 +375,9 @@ The following briefly shows how a waking task is scheduled and executed.
      rather than performing them immediately. There can be up to
      ``ops.dispatch_max_batch`` pending tasks.
 
-   * ``scx_bpf_move_to_local()`` moves a task from the specified non-local
+   * ``scx_bpf_dsq_move_to_local()`` moves a task from the specified non-local
      DSQ to the dispatching DSQ. This function cannot be called with any BPF
-     locks held. ``scx_bpf_move_to_local()`` flushes the pending insertions
+     locks held. ``scx_bpf_dsq_move_to_local()`` flushes the pending insertions
      tasks before trying to move from the specified DSQ.
 
 4. After ``ops.dispatch()`` returns, if there are tasks in the local DSQ,
