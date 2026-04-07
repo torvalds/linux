@@ -467,17 +467,18 @@ if [ "${DRIVER_TEST_CONFORMANT}" = "yes" ]; then
 	TARGETS[$remote_netif]="$REMOTE_TYPE:$REMOTE_ARGS"
 else
 	count=0
+	# Prime NETIFS from the command line, but retain if none given.
+	if [[ $# -gt 0 ]]; then
+		unset NETIFS
+		declare -A NETIFS
 
-	while [[ $# -gt 0 ]]; do
-		if [[ "$count" -eq "0" ]]; then
-			unset NETIFS
-			declare -A NETIFS
-		fi
-		count=$((count + 1))
-		NETIFS[p$count]="$1"
-		TARGETS[$1]="local:"
-		shift
-	done
+		while [[ $# -gt 0 ]]; do
+			count=$((count + 1))
+			NETIFS[p$count]="$1"
+			TARGETS[$1]="local:"
+			shift
+		done
+	fi
 fi
 
 ##############################################################################
