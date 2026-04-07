@@ -461,7 +461,6 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	 * Device FDs hold a group file reference, therefore the group release
 	 * is only called when there are no open devices.
 	 */
-	WARN_ON(group->notifier.head);
 	if (group->container)
 		vfio_group_detach_container(group);
 	if (group->iommufd) {
@@ -546,7 +545,6 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	/* put in vfio_group_release() */
 	iommu_group_ref_get(iommu_group);
 	group->type = type;
-	BLOCKING_INIT_NOTIFIER_HEAD(&group->notifier);
 
 	return group;
 }
@@ -725,7 +723,6 @@ void vfio_device_remove_group(struct vfio_device *device)
 	 * properly hold the group reference.
 	 */
 	WARN_ON(!list_empty(&group->device_list));
-	WARN_ON(group->notifier.head);
 
 	/*
 	 * Revoke all users of group->iommu_group. At this point we know there

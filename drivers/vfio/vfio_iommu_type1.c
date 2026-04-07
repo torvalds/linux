@@ -36,7 +36,6 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
 #include <linux/mm_inline.h>
 #include <linux/overflow.h>
 #include "vfio.h"
