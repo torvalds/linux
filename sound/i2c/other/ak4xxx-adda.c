@@ -53,6 +53,31 @@ static void ak4524_reset(struct snd_akm4xxx *ak, int state)
 	}
 }
 
+/* reset procedure for AK4529 */
+static void ak4529_reset(struct snd_akm4xxx *ak, int state)
+{
+	static const unsigned char regs[] = {
+		0x0a, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+		0x06, 0x07, 0x0b, 0x0c, 0x08,
+	};
+	unsigned int i;
+	unsigned char reg;
+
+	if (state) {
+		snd_akm4xxx_write(ak, 0, 0x09,
+				  snd_akm4xxx_get(ak, 0, 0x09) & ~0x01);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		reg = regs[i];
+		snd_akm4xxx_write(ak, 0, reg,
+				  snd_akm4xxx_get(ak, 0, reg));
+	}
+	snd_akm4xxx_write(ak, 0, 0x09,
+			  snd_akm4xxx_get(ak, 0, 0x09) | 0x01);
+}
+
 /* reset procedure for AK4355 and AK4358 */
 static void ak435X_reset(struct snd_akm4xxx *ak, int state)
 {
@@ -99,7 +124,7 @@ void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state)
 		ak4524_reset(ak, state);
 		break;
 	case SND_AK4529:
-		/* FIXME: needed for ak4529? */
+		ak4529_reset(ak, state);
 		break;
 	case SND_AK4355:
 		ak435X_reset(ak, state);
