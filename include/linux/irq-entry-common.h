@@ -438,24 +438,46 @@ static __always_inline irqentry_state_t irqentry_enter_from_kernel_mode(struct p
 }
 
 /**
- * irqentry_exit_to_kernel_mode - Run preempt checks and establish state after
- *				  invoking the interrupt handler
+ * irqentry_exit_to_kernel_mode_preempt - Run preempt checks on return to kernel mode
  * @regs:	Pointer to current's pt_regs
  * @state:	Return value from matching call to irqentry_enter_from_kernel_mode()
  *
- * This is the counterpart of irqentry_enter_from_kernel_mode() and runs the
- * necessary preemption check if possible and required. It returns to the caller
- * with interrupts disabled and the correct state vs. tracing, lockdep and RCU
- * required to return to the interrupted context.
+ * This is to be invoked before irqentry_exit_to_kernel_mode_after_preempt() to
+ * allow kernel preemption on return from interrupt.
  *
- * It is the last action before returning to the low level ASM code which just
- * needs to return.
+ * Must be invoked with interrupts disabled and CPU state which allows kernel
+ * preemption.
+ *
+ * After returning from this function, the caller can modify CPU state before
+ * invoking irqentry_exit_to_kernel_mode_after_preempt(), which is required to
+ * re-establish the tracing, lockdep and RCU state for returning to the
+ * interrupted context.
  */
-static __always_inline void irqentry_exit_to_kernel_mode(struct pt_regs *regs,
-							 irqentry_state_t state)
+static inline void irqentry_exit_to_kernel_mode_preempt(struct pt_regs *regs,
+							irqentry_state_t state)
 {
-	lockdep_assert_irqs_disabled();
+	if (regs_irqs_disabled(regs) || state.exit_rcu)
+		return;
 
+	if (IS_ENABLED(CONFIG_PREEMPTION))
+		irqentry_exit_cond_resched();
+}
+
+/**
+ * irqentry_exit_to_kernel_mode_after_preempt - Establish trace, lockdep and RCU state
+ * @regs:	Pointer to current's pt_regs
+ * @state:	Return value from matching call to irqentry_enter_from_kernel_mode()
+ *
+ * This is to be invoked after irqentry_exit_to_kernel_mode_preempt() and before
+ * actually returning to the interrupted context.
+ *
+ * There are no requirements for the CPU state other than being able to complete
+ * the tracing, lockdep and RCU state transitions. After this function returns
+ * the caller must return directly to the interrupted context.
+ */
+static __always_inline void
+irqentry_exit_to_kernel_mode_after_preempt(struct pt_regs *regs, irqentry_state_t state)
+{
 	if (!regs_irqs_disabled(regs)) {
 		/*
 		 * If RCU was not watching on entry this needs to be done
@@ -474,9 +496,6 @@ static __always_inline void irqentry_exit_to_kernel_mode(struct pt_regs *regs,
 		}
 
 		instrumentation_begin();
-		if (IS_ENABLED(CONFIG_PREEMPTION))
-			irqentry_exit_cond_resched();
-
 		/* Covers both tracing and lockdep */
 		trace_hardirqs_on();
 		instrumentation_end();
@@ -488,6 +507,32 @@ static __always_inline void irqentry_exit_to_kernel_mode(struct pt_regs *regs,
 		if (state.exit_rcu)
 			ct_irq_exit();
 	}
+}
+
+/**
+ * irqentry_exit_to_kernel_mode - Run preempt checks and establish state after
+ *				  invoking the interrupt handler
+ * @regs:	Pointer to current's pt_regs
+ * @state:	Return value from matching call to irqentry_enter_from_kernel_mode()
+ *
+ * This is the counterpart of irqentry_enter_from_kernel_mode() and combines
+ * the calls to irqentry_exit_to_kernel_mode_preempt() and
+ * irqentry_exit_to_kernel_mode_after_preempt().
+ *
+ * The requirement for the CPU state is that it can schedule. After the function
+ * returns the tracing, lockdep and RCU state transitions are completed and the
+ * caller must return directly to the interrupted context.
+ */
+static __always_inline void irqentry_exit_to_kernel_mode(struct pt_regs *regs,
+							 irqentry_state_t state)
+{
+	lockdep_assert_irqs_disabled();
+
+	instrumentation_begin();
+	irqentry_exit_to_kernel_mode_preempt(regs, state);
+	instrumentation_end();
+
+	irqentry_exit_to_kernel_mode_after_preempt(regs, state);
 }
 
 /**
