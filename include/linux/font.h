@@ -111,6 +111,9 @@ void font_glyph_rotate_180(const unsigned char *glyph, unsigned int width, unsig
 			   unsigned char *out);
 void font_glyph_rotate_270(const unsigned char *glyph, unsigned int width, unsigned int height,
 			   unsigned char *out);
+unsigned char *font_data_rotate(font_data_t *fd, unsigned int width, unsigned int height,
+				unsigned int charcount, unsigned int steps,
+				unsigned char *buf, size_t *bufsize);
 
 /*
  * Font description

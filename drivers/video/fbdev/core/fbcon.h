@@ -86,7 +86,7 @@ struct fbcon_par {
 	const u8    *fontdata;
 	u8    *cursor_src;
 	u32    cursor_size;
-	u32    fd_size;
+	size_t fd_size;
 
 	const struct fbcon_bitops *bitops;
 };
