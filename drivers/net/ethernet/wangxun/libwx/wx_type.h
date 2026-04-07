@@ -1354,6 +1354,7 @@ struct wx {
 	bool default_up;
 
 	struct wx_hw_stats stats;
+	spinlock_t hw_stats_lock; /* spinlock for accessing to hw stats */
 	u64 tx_busy;
 	u64 non_eop_descs;
 	u64 restart_queue;

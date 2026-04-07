@@ -130,6 +130,7 @@ static void txgbe_service_task(struct work_struct *work)
 
 	txgbe_module_detection_subtask(wx);
 	txgbe_link_config_subtask(wx);
+	wx_update_stats(wx);
 
 	wx_service_event_complete(wx);
 }
