@@ -15,21 +15,33 @@
 
 #include "font.h"
 
-static inline int pattern_test_bit(u32 x, u32 y, u32 pitch, const char *pat)
+static unsigned int __font_glyph_pos(unsigned int x, unsigned int y, unsigned int bit_pitch,
+				     unsigned int *bit)
 {
-	u32 tmp = (y * pitch) + x, index = tmp / 8,  bit = tmp % 8;
+	unsigned int off = y * bit_pitch + x;
+	unsigned int bit_shift = off % 8;
 
-	pat += index;
-	return (*pat) & (0x80 >> bit);
+	*bit = 0x80 >> bit_shift; /* MSB has position 0, LSB has position 7 */
+
+	return off / 8;
 }
 
-static inline void pattern_set_bit(u32 x, u32 y, u32 pitch, char *pat)
+static bool font_glyph_test_bit(const unsigned char *glyph, unsigned int x, unsigned int y,
+				unsigned int bit_pitch)
 {
-	u32 tmp = (y * pitch) + x, index = tmp / 8, bit = tmp % 8;
+	unsigned int bit;
+	unsigned int i = __font_glyph_pos(x, y, bit_pitch, &bit);
 
-	pat += index;
+	return glyph[i] & bit;
+}
 
-	(*pat) |= 0x80 >> bit;
+static void font_glyph_set_bit(unsigned char *glyph, unsigned int x, unsigned int y,
+			       unsigned int bit_pitch)
+{
+	unsigned int bit;
+	unsigned int i = __font_glyph_pos(x, y, bit_pitch, &bit);
+
+	glyph[i] |= bit;
 }
 
 static inline void rotate_cw(const char *in, char *out, u32 width, u32 height)
@@ -42,9 +54,8 @@ static inline void rotate_cw(const char *in, char *out, u32 width, u32 height)
 
 	for (i = 0; i < h; i++) {
 		for (j = 0; j < w; j++) {
-			if (pattern_test_bit(j, i, width, in))
-				pattern_set_bit(height - 1 - i - shift, j,
-						height, out);
+			if (font_glyph_test_bit(in, j, i, width))
+				font_glyph_set_bit(out, height - 1 - i - shift, j, height);
 		}
 	}
 }
@@ -81,10 +92,9 @@ static inline void rotate_ud(const char *in, char *out, u32 width, u32 height)
 
 	for (i = 0; i < height; i++) {
 		for (j = 0; j < width - shift; j++) {
-			if (pattern_test_bit(j, i, width, in))
-				pattern_set_bit(width - (1 + j + shift),
-						height - (1 + i),
-						width, out);
+			if (font_glyph_test_bit(in, j, i, width))
+				font_glyph_set_bit(out, width - (1 + j + shift),
+						   height - (1 + i), width);
 		}
 	}
 }
@@ -119,9 +129,8 @@ static inline void rotate_ccw(const char *in, char *out, u32 width, u32 height)
 
 	for (i = 0; i < h; i++) {
 		for (j = 0; j < w; j++) {
-			if (pattern_test_bit(j, i, width, in))
-				pattern_set_bit(i, width - 1 - j - shift,
-						height, out);
+			if (font_glyph_test_bit(in, j, i, width))
+				font_glyph_set_bit(out, i, width - 1 - j - shift, height);
 		}
 	}
 }
