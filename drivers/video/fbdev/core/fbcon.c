@@ -446,6 +446,46 @@ static void fbcon_del_cursor_work(struct fb_info *info)
 	cancel_delayed_work_sync(&par->cursor_work);
 }
 
+void fbcon_fill_cursor_mask(struct fbcon_par *par, struct vc_data *vc, unsigned char *mask)
+{
+	static const unsigned int pattern = 0xffffffff;
+	unsigned int pitch = vc_font_pitch(&vc->vc_font);
+	unsigned int cur_height, size;
+
+	switch (CUR_SIZE(vc->vc_cursor_type)) {
+	case CUR_NONE:
+		cur_height = 0;
+		break;
+	case CUR_UNDERLINE:
+		if (vc->vc_font.height < 10)
+			cur_height = 1;
+		else
+			cur_height = 2;
+		break;
+	case CUR_LOWER_THIRD:
+		cur_height = vc->vc_font.height / 3;
+		break;
+	case CUR_LOWER_HALF:
+		cur_height = vc->vc_font.height / 2;
+		break;
+	case CUR_TWO_THIRDS:
+		cur_height = (vc->vc_font.height * 2) / 3;
+		break;
+	case CUR_BLOCK:
+	default:
+		cur_height = vc->vc_font.height;
+		break;
+	}
+
+	size = (vc->vc_font.height - cur_height) * pitch;
+	while (size--)
+		*mask++ = (unsigned char)~pattern;
+
+	size = cur_height * pitch;
+	while (size--)
+		*mask++ = (unsigned char)pattern;
+}
+
 #ifndef MODULE
 static int __init fb_console_setup(char *this_opt)
 {

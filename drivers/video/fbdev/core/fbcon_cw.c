@@ -279,57 +279,26 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	    vc->vc_cursor_type != par->p->cursor_shape ||
 	    par->cursor_state.mask == NULL ||
 	    par->cursor_reset) {
-		char *tmp, *mask = kmalloc_array(w, vc->vc_font.width,
-						 GFP_ATOMIC);
-		int cur_height, size, i = 0;
-		int width = font_glyph_pitch(vc->vc_font.width);
+		unsigned char *tmp, *mask;
 
-		if (!mask)
+		tmp = kmalloc_array(vc->vc_font.height, vc_font_pitch(&vc->vc_font), GFP_ATOMIC);
+		if (!tmp)
 			return;
+		fbcon_fill_cursor_mask(par, vc, tmp);
 
-		tmp = kmalloc_array(width, vc->vc_font.height, GFP_ATOMIC);
-
-		if (!tmp) {
-			kfree(mask);
+		mask = kmalloc_array(vc->vc_font.width, w, GFP_ATOMIC);
+		if (!mask) {
+			kfree(tmp);
 			return;
 		}
+		font_glyph_rotate_90(tmp, vc->vc_font.width, vc->vc_font.height, mask);
+		kfree(tmp);
 
 		kfree(par->cursor_state.mask);
-		par->cursor_state.mask = mask;
+		par->cursor_state.mask = (const char *)mask;
 
 		par->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
-
-		switch (CUR_SIZE(par->p->cursor_shape)) {
-		case CUR_NONE:
-			cur_height = 0;
-			break;
-		case CUR_UNDERLINE:
-			cur_height = (vc->vc_font.height < 10) ? 1 : 2;
-			break;
-		case CUR_LOWER_THIRD:
-			cur_height = vc->vc_font.height/3;
-			break;
-		case CUR_LOWER_HALF:
-			cur_height = vc->vc_font.height >> 1;
-			break;
-		case CUR_TWO_THIRDS:
-			cur_height = (vc->vc_font.height << 1)/3;
-			break;
-		case CUR_BLOCK:
-		default:
-			cur_height = vc->vc_font.height;
-			break;
-		}
-
-		size = (vc->vc_font.height - cur_height) * width;
-		while (size--)
-			tmp[i++] = 0;
-		size = cur_height * width;
-		while (size--)
-			tmp[i++] = 0xff;
-		font_glyph_rotate_90(tmp, vc->vc_font.width, vc->vc_font.height, mask);
-		kfree(tmp);
 	}
 
 	par->cursor_state.enable = enable && !use_sw;
