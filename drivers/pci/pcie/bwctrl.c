@@ -48,11 +48,6 @@ struct pcie_bwctrl_data {
 /* Prevent port removal during Link Speed changes. */
 static DECLARE_RWSEM(pcie_bwctrl_setspeed_rwsem);
 
-static bool pcie_valid_speed(enum pci_bus_speed speed)
-{
-	return (speed >= PCIE_SPEED_2_5GT) && (speed <= PCIE_SPEED_64_0GT);
-}
-
 static u16 pci_bus_speed2lnkctl2(enum pci_bus_speed speed)
 {
 	static const u8 speed_conv[] = {
