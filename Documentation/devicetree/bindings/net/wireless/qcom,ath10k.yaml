@@ -171,6 +171,12 @@ properties:
       Quirk specifying that the firmware expects the 8bit version
       of the host capability QMI request
 
+  qcom,snoc-host-cap-skip-quirk:
+    type: boolean
+    description:
+      Quirk specifying that the firmware wants to skip the host
+      capability QMI request
+
   qcom,xo-cal-data:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -291,6 +297,11 @@ allOf:
 
       required:
         - interrupts
+
+  - not:
+      required:
+        - qcom,snoc-host-cap-8bit-quirk
+        - qcom,snoc-host-cap-skip-quirk
 
 examples:
   # SNoC
