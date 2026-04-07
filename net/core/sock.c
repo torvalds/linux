@@ -2583,6 +2583,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority,
 
 	sk_set_socket(newsk, NULL);
 	sk_tx_queue_clear(newsk);
+	sk_rx_queue_clear(newsk);
 	RCU_INIT_POINTER(newsk->sk_wq, NULL);
 
 	if (newsk->sk_prot->sockets_allocated)
