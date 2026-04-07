@@ -69,6 +69,7 @@ struct symbol_conf symbol_conf = {
 	.event_group		= true,
 	.inline_name		= true,
 	.res_sample		= 0,
+	.addr2line_timeout_ms	= 5 * 1000,
 };
 
 struct map_list_node {
