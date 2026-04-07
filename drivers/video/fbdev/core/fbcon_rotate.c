@@ -18,34 +18,35 @@
 int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 {
 	struct fbcon_par *par = info->fbcon_par;
-	unsigned char *fontbuffer;
+	unsigned char *buf;
 	int ret;
 
-	if (vc->vc_font.data == par->fontdata &&
-	    par->p->con_rotate == par->cur_rotate)
+	if (par->p->fontdata == par->rotated.fontdata && par->rotate == par->rotated.buf_rotate)
 		return 0;
 
-	par->fontdata = vc->vc_font.data;
-	par->cur_rotate = par->p->con_rotate;
+	par->rotated.fontdata = par->p->fontdata;
+	par->rotated.buf_rotate = par->rotate;
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
 
-	fontbuffer = font_data_rotate(par->p->fontdata, vc->vc_font.width,
-				      vc->vc_font.height, vc->vc_font.charcount,
-				      par->rotate, par->fontbuffer, &par->fd_size);
-	if (IS_ERR(fontbuffer)) {
-		ret = PTR_ERR(fontbuffer);
+	buf = font_data_rotate(par->rotated.fontdata, vc->vc_font.width,
+			       vc->vc_font.height, vc->vc_font.charcount,
+			       par->rotated.buf_rotate, par->rotated.buf,
+			       &par->rotated.bufsize);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
 		goto err_kfree;
 	}
 
-	par->fontbuffer = fontbuffer;
+	par->rotated.buf = buf;
 
 	return 0;
 
 err_kfree:
-	kfree(par->fontbuffer);
-	par->fontbuffer = NULL; /* clear here to avoid output */
+	kfree(par->rotated.buf);
+	par->rotated.buf = NULL; /* clear here to avoid output */
+	par->rotated.bufsize = 0;
 
 	return ret;
 }

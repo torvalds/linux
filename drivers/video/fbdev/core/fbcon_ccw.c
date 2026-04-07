@@ -106,7 +106,7 @@ static inline void ccw_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 	u8 *src;
 
 	while (cnt--) {
-		src = par->fontbuffer + (scr_readw(s--) & charmask) * cellsize;
+		src = par->rotated.buf + (scr_readw(s--) & charmask) * cellsize;
 
 		if (attr) {
 			ccw_update_attr(buf, src, attr, vc);
@@ -142,7 +142,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 	u8 *dst, *buf = NULL;
 	u32 vyres = GETVYRES(par->p, info);
 
-	if (!par->fontbuffer)
+	if (!par->rotated.buf)
 		return;
 
 	image.fg_color = fg;
@@ -232,14 +232,14 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	char *src;
 	u32 vyres = GETVYRES(par->p, info);
 
-	if (!par->fontbuffer)
+	if (!par->rotated.buf)
 		return;
 
 	cursor.set = 0;
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
-	src = par->fontbuffer + ((c & charmask) * (w * vc->vc_font.width));
+	src = par->rotated.buf + ((c & charmask) * (w * vc->vc_font.width));
 
 	if (par->cursor_state.image.data != src ||
 	    par->cursor_reset) {

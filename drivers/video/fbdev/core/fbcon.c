@@ -787,7 +787,9 @@ static void fbcon_release(struct fb_info *info)
 		kfree(par->cursor_state.mask);
 		kfree(par->cursor_data);
 		kfree(par->cursor_src);
-		kfree(par->fontbuffer);
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+		kfree(par->rotated.buf);
+#endif
 		kfree(info->fbcon_par);
 		info->fbcon_par = NULL;
 	}
@@ -1040,7 +1042,9 @@ static const char *fbcon_startup(void)
 	par = info->fbcon_par;
 	par->currcon = -1;
 	par->graphics = 1;
-	par->cur_rotate = -1;
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+	par->rotated.buf_rotate = -1;
+#endif
 
 	p->con_rotate = initial_rotation;
 	if (p->con_rotate == -1)

@@ -80,13 +80,17 @@ struct fbcon_par {
 	int    graphics;
 	bool   initialized;
 	int    rotate;
-	int    cur_rotate;
 	char  *cursor_data;
-	u8          *fontbuffer;
-	const u8    *fontdata;
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+	struct {
+		font_data_t *fontdata;  /* source font */
+		u8 *buf;                /* rotated glyphs */
+		size_t bufsize;
+		int buf_rotate;         /* rotation of buf */
+	} rotated;
+#endif
 	u8    *cursor_src;
 	u32    cursor_size;
-	size_t fd_size;
 
 	const struct fbcon_bitops *bitops;
 };
