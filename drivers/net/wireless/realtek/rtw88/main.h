@@ -432,6 +432,11 @@ enum rtw_wow_flags {
 	RTW_WOW_FLAG_MAX,
 };
 
+enum rtw_quirk_dis_caps {
+	QUIRK_DIS_CAP_PCI_ASPM,
+	QUIRK_DIS_CAP_LPS_DEEP,
+};
+
 /* the power index is represented by differences, which cck-1s & ht40-1s are
  * the base values, so for 1s's differences, there are only ht20 & ofdm
  */
@@ -1475,6 +1480,7 @@ struct rtw_coex_stat {
 	bool bt_game_hid_exist;
 	bool bt_hid_handle_cnt;
 	bool bt_mailbox_reply;
+	bool bt_ctr_ok;
 
 	bool wl_under_lps;
 	bool wl_under_ips;

@@ -1475,8 +1475,6 @@ static int rtl8187_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, dev);
 	priv->udev = udev;
 
-	usb_get_dev(udev);
-
 	skb_queue_head_init(&priv->rx_queue);
 
 	BUILD_BUG_ON(sizeof(priv->channels) != sizeof(rtl818x_channels));
@@ -1663,7 +1661,6 @@ static int rtl8187_probe(struct usb_interface *intf,
  err_free_dmabuf:
 	kfree(priv->io_dmabuf);
 	usb_set_intfdata(intf, NULL);
-	usb_put_dev(udev);
  err_free_dev:
 	ieee80211_free_hw(dev);
 	return err;
@@ -1685,7 +1682,6 @@ static void rtl8187_disconnect(struct usb_interface *intf)
 
 	priv = dev->priv;
 	usb_reset_device(priv->udev);
-	usb_put_dev(interface_to_usbdev(intf));
 	kfree(priv->io_dmabuf);
 	ieee80211_free_hw(dev);
 }

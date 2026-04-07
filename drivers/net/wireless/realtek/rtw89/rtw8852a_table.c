@@ -50952,50 +50952,6 @@ const s8 rtw89_8852a_txpwr_lmt_ru_5g[RTW89_RU_NUM][RTW89_NTX_NUM]
 	[2][1][RTW89_UK][46] = 32,
 };
 
-#define DECLARE_DIG_TABLE(name) \
-static const struct rtw89_phy_dig_gain_cfg name##_table = { \
-	.table = name, \
-	.size = ARRAY_SIZE(name) \
-}
-
-static const struct rtw89_reg_def rtw89_8852a_lna_gain_g[] = {
-	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G0_G_MSK},
-	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G1_G_MSK},
-	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G2_G_MSK},
-	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G3_G_MSK},
-	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G4_G_MSK},
-	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G5_G_MSK},
-	{R_PATH0_LNA_ERR5, B_PATH0_LNA_ERR_G6_G_MSK},
-};
-
-DECLARE_DIG_TABLE(rtw89_8852a_lna_gain_g);
-
-static const struct rtw89_reg_def rtw89_8852a_tia_gain_g[] = {
-	{R_PATH0_TIA_ERR_G0, B_PATH0_TIA_ERR_G0_G_MSK},
-	{R_PATH0_TIA_ERR_G1, B_PATH0_TIA_ERR_G1_G_MSK},
-};
-
-DECLARE_DIG_TABLE(rtw89_8852a_tia_gain_g);
-
-static const struct rtw89_reg_def rtw89_8852a_lna_gain_a[] = {
-	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G0_A_MSK},
-	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G1_A_MSK},
-	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G2_A_MSK},
-	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G3_A_MSK},
-	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G4_A_MSK},
-	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G5_A_MSK},
-	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G6_A_MSK},
-};
-
-DECLARE_DIG_TABLE(rtw89_8852a_lna_gain_a);
-
-static const struct rtw89_reg_def rtw89_8852a_tia_gain_a[] = {
-	{R_PATH0_TIA_ERR_G0, B_PATH0_TIA_ERR_G0_A_MSK},
-	{R_PATH0_TIA_ERR_G1, B_PATH0_TIA_ERR_G1_A_MSK},
-};
-
-DECLARE_DIG_TABLE(rtw89_8852a_tia_gain_a);
-
 const struct rtw89_phy_table rtw89_8852a_phy_bb_table = {
 	.regs		= rtw89_8852a_phy_bb_regs,
 	.n_regs		= ARRAY_SIZE(rtw89_8852a_phy_bb_regs),
@@ -51040,13 +50996,6 @@ const struct rtw89_txpwr_track_cfg rtw89_8852a_trk_cfg = {
 	.delta_swingidx_2g_cck_b_p = _txpwr_track_delta_swingidx_2g_cck_b_p,
 	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
 	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
-};
-
-const struct rtw89_phy_dig_gain_table rtw89_8852a_phy_dig_table = {
-	.cfg_lna_g = &rtw89_8852a_lna_gain_g_table,
-	.cfg_tia_g = &rtw89_8852a_tia_gain_g_table,
-	.cfg_lna_a = &rtw89_8852a_lna_gain_a_table,
-	.cfg_tia_a = &rtw89_8852a_tia_gain_a_table
 };
 
 const struct rtw89_rfe_parms rtw89_8852a_dflt_parms = {

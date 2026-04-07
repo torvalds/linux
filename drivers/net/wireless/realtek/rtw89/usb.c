@@ -161,16 +161,24 @@ static u32
 rtw89_usb_ops_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 					    u8 txch)
 {
+	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
+	int inflight;
+
 	if (txch == RTW89_TXCH_CH12)
 		return 1;
 
-	return 42; /* TODO some kind of calculation? */
+	inflight = atomic_read(&rtwusb->tx_inflight[txch]);
+	if (inflight >= RTW89_USB_MAX_TX_URBS_PER_CH)
+		return 0;
+
+	return RTW89_USB_MAX_TX_URBS_PER_CH - inflight;
 }
 
 static void rtw89_usb_write_port_complete(struct urb *urb)
 {
 	struct rtw89_usb_tx_ctrl_block *txcb = urb->context;
 	struct rtw89_dev *rtwdev = txcb->rtwdev;
+	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
 	struct ieee80211_tx_info *info;
 	struct rtw89_txwd_body *txdesc;
 	struct sk_buff *skb;
@@ -228,6 +236,8 @@ static void rtw89_usb_write_port_complete(struct urb *urb)
 		set_bit(RTW89_FLAG_UNPLUGGED, rtwdev->flags);
 		break;
 	}
+
+	atomic_dec(&rtwusb->tx_inflight[txcb->txch]);
 
 	kfree(txcb);
 }
@@ -306,9 +316,13 @@ static void rtw89_usb_ops_tx_kick_off(struct rtw89_dev *rtwdev, u8 txch)
 
 		skb_queue_tail(&txcb->tx_ack_queue, skb);
 
+		atomic_inc(&rtwusb->tx_inflight[txch]);
+
 		ret = rtw89_usb_write_port(rtwdev, txch, skb->data, skb->len,
 					   txcb);
 		if (ret) {
+			atomic_dec(&rtwusb->tx_inflight[txch]);
+
 			if (ret != -ENODEV)
 				rtw89_err(rtwdev, "write port txch %d failed: %d\n",
 					  txch, ret);
@@ -408,11 +422,14 @@ static int rtw89_usb_ops_tx_write(struct rtw89_dev *rtwdev,
 static void rtw89_usb_rx_handler(struct work_struct *work)
 {
 	struct rtw89_usb *rtwusb = container_of(work, struct rtw89_usb, rx_work);
+	const struct rtw89_usb_info *info = rtwusb->info;
 	struct rtw89_dev *rtwdev = rtwusb->rtwdev;
 	struct rtw89_rx_desc_info desc_info;
+	s32 aligned_offset, remaining;
 	struct sk_buff *rx_skb;
 	struct sk_buff *skb;
 	u32 pkt_offset;
+	u8 *pkt_ptr;
 	int limit;
 
 	for (limit = 0; limit < 200; limit++) {
@@ -425,23 +442,38 @@ static void rtw89_usb_rx_handler(struct work_struct *work)
 			goto free_or_reuse;
 		}
 
-		memset(&desc_info, 0, sizeof(desc_info));
-		rtw89_chip_query_rxdesc(rtwdev, &desc_info, rx_skb->data, 0);
+		pkt_ptr = rx_skb->data;
+		remaining = rx_skb->len;
 
-		skb = rtw89_alloc_skb_for_rx(rtwdev, desc_info.pkt_size);
-		if (!skb) {
-			rtw89_debug(rtwdev, RTW89_DBG_HCI,
-				    "failed to allocate RX skb of size %u\n",
-				    desc_info.pkt_size);
-			goto free_or_reuse;
-		}
+		do {
+			memset(&desc_info, 0, sizeof(desc_info));
+			rtw89_chip_query_rxdesc(rtwdev, &desc_info, pkt_ptr, 0);
 
-		pkt_offset = desc_info.offset + desc_info.rxd_len;
+			pkt_offset = desc_info.offset + desc_info.rxd_len;
+			if (remaining < (pkt_offset + desc_info.pkt_size)) {
+				rtw89_debug(rtwdev, RTW89_DBG_HCI,
+					    "Failed to get remaining RX pkt %u > %u\n",
+					    pkt_offset + desc_info.pkt_size, remaining);
+				goto free_or_reuse;
+			}
 
-		skb_put_data(skb, rx_skb->data + pkt_offset,
-			     desc_info.pkt_size);
+			skb = rtw89_alloc_skb_for_rx(rtwdev, desc_info.pkt_size);
+			if (!skb) {
+				rtw89_debug(rtwdev, RTW89_DBG_HCI,
+					    "failed to allocate RX skb of size %u\n",
+					    desc_info.pkt_size);
+				goto free_or_reuse;
+			}
 
-		rtw89_core_rx(rtwdev, &desc_info, skb);
+			skb_put_data(skb, pkt_ptr + pkt_offset, desc_info.pkt_size);
+			rtw89_core_rx(rtwdev, &desc_info, skb);
+
+			/* next frame */
+			pkt_offset += desc_info.pkt_size;
+			aligned_offset = ALIGN(pkt_offset, info->rx_agg_alignment);
+			pkt_ptr += aligned_offset;
+			remaining -= aligned_offset;
+		} while (remaining > 0);
 
 free_or_reuse:
 		if (skb_queue_len(&rtwusb->rx_free_queue) >= RTW89_USB_RX_SKB_NUM)
@@ -666,8 +698,10 @@ static void rtw89_usb_init_tx(struct rtw89_dev *rtwdev)
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(rtwusb->tx_queue); i++)
+	for (i = 0; i < ARRAY_SIZE(rtwusb->tx_queue); i++) {
 		skb_queue_head_init(&rtwusb->tx_queue[i]);
+		atomic_set(&rtwusb->tx_inflight[i], 0);
+	}
 }
 
 static void rtw89_usb_deinit_tx(struct rtw89_dev *rtwdev)
@@ -745,6 +779,44 @@ static int rtw89_usb_ops_mac_pre_deinit(struct rtw89_dev *rtwdev)
 	return 0; /* Nothing to do. */
 }
 
+static void rtw89_usb_rx_agg_cfg_v1(struct rtw89_dev *rtwdev)
+{
+	const u32 rxagg_0 = FIELD_PREP_CONST(B_AX_RXAGG_0_EN, 1) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_NUM_TH, 0) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_TIME_32US_TH, 32) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_BUF_SZ_4K, 5);
+
+	rtw89_write32(rtwdev, R_AX_RXAGG_0, rxagg_0);
+}
+
+static void rtw89_usb_rx_agg_cfg_v2(struct rtw89_dev *rtwdev)
+{
+	const u32 rxagg_0 = FIELD_PREP_CONST(B_AX_RXAGG_0_EN, 1) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_NUM_TH, 255) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_TIME_32US_TH, 32) |
+			    FIELD_PREP_CONST(B_AX_RXAGG_0_BUF_SZ_1K, 20);
+
+	rtw89_write32(rtwdev, R_AX_RXAGG_0_V1, rxagg_0);
+	rtw89_write32(rtwdev, R_AX_RXAGG_1_V1, 0x1F);
+}
+
+static void rtw89_usb_rx_agg_cfg(struct rtw89_dev *rtwdev)
+{
+	switch (rtwdev->chip->chip_id) {
+	case RTL8851B:
+	case RTL8852A:
+	case RTL8852B:
+		rtw89_usb_rx_agg_cfg_v1(rtwdev);
+		break;
+	case RTL8852C:
+		rtw89_usb_rx_agg_cfg_v2(rtwdev);
+		break;
+	default:
+		rtw89_warn(rtwdev, "%s: USB RX agg not support\n", __func__);
+		return;
+	}
+}
+
 static int rtw89_usb_ops_mac_post_init(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
@@ -772,6 +844,8 @@ static int rtw89_usb_ops_mac_post_init(struct rtw89_dev *rtwdev)
 				  B_AX_EP_IDX, ep);
 		rtw89_write8(rtwdev, info->usb_endpoint_2 + 1, NUMP);
 	}
+
+	rtw89_usb_rx_agg_cfg(rtwdev);
 
 	return 0;
 }
@@ -935,7 +1009,7 @@ static int rtw89_usb_intf_init(struct rtw89_dev *rtwdev,
 	if (!rtwusb->vendor_req_buf)
 		return -ENOMEM;
 
-	rtwusb->udev = usb_get_dev(interface_to_usbdev(intf));
+	rtwusb->udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, rtwdev->hw);
 
@@ -949,7 +1023,6 @@ static void rtw89_usb_intf_deinit(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
 
-	usb_put_dev(rtwusb->udev);
 	kfree(rtwusb->vendor_req_buf);
 	usb_set_intfdata(intf, NULL);
 }

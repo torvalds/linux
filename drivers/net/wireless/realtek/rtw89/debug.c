@@ -1129,7 +1129,7 @@ static int rtw89_debug_dump_mac_mem(struct rtw89_dev *rtwdev,
 	pages = len / mem_page_size + 1;
 	start_page = start_addr / mem_page_size;
 	residue = start_addr % mem_page_size;
-	base_addr = mac->mem_base_addrs[sel];
+	base_addr = rtw89_mac_mem_base_addrs(rtwdev, sel);
 	base_addr += start_page * mem_page_size;
 
 	for (pp = 0; pp < pages; pp++) {
@@ -3552,6 +3552,8 @@ static int rtw89_dbg_trigger_l1_error_by_halt_h2c_be(struct rtw89_dev *rtwdev)
 	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		return -EBUSY;
 
+	rtw89_leave_ps_mode(rtwdev);
+
 	rtw89_write32_set(rtwdev, R_BE_FW_TRIGGER_IDCT_ISR,
 			  B_BE_DMAC_FW_TRIG_IDCT | B_BE_DMAC_FW_ERR_IDCT_IMR);
 
@@ -3653,6 +3655,8 @@ static int rtw89_dbg_trigger_l0_error_by_halt_h2c_be(struct rtw89_dev *rtwdev)
 {
 	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		return -EBUSY;
+
+	rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_write32_set(rtwdev, R_BE_CMAC_FW_TRIGGER_IDCT_ISR,
 			  B_BE_CMAC_FW_TRIG_IDCT | B_BE_CMAC_FW_ERR_IDCT_IMR);
@@ -3781,6 +3785,7 @@ static ssize_t rtw89_debug_priv_ser_counters_get(struct rtw89_dev *rtwdev,
 						 struct rtw89_debugfs_priv *debugfs_priv,
 						 char *buf, size_t bufsz)
 {
+	const struct rtw89_ser_count *sw_cnt = &rtwdev->ser.sw_cnt;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_dbg_ser_counters cnt = {};
 	char *p = buf, *end = buf + bufsz;
@@ -3798,6 +3803,11 @@ static ssize_t rtw89_debug_priv_ser_counters_get(struct rtw89_dev *rtwdev,
 		return -EOPNOTSUPP;
 	}
 
+	p += scnprintf(p, end - p, "SER L1 SW Count: %u\n", sw_cnt->l1);
+	p += scnprintf(p, end - p, "SER L2 SW Count: %u\n", sw_cnt->l2);
+
+	/* Some chipsets won't record SER simulation in HW cnt. */
+	p += scnprintf(p, end - p, "---\n");
 	p += scnprintf(p, end - p, "SER L0 Count: %d\n", cnt.l0);
 	p += scnprintf(p, end - p, "SER L1 Count: %d\n", cnt.l1);
 	p += scnprintf(p, end - p, "SER L0 promote event: %d\n", cnt.l0_to_l1);
@@ -4327,35 +4337,6 @@ static ssize_t rtw89_debug_priv_stations_get(struct rtw89_dev *rtwdev,
 	return p - buf;
 }
 
-static void rtw89_debug_disable_dm_cfg_bmap(struct rtw89_dev *rtwdev, u32 new)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 old = hal->disabled_dm_bitmap;
-
-	if (new == old)
-		return;
-
-	hal->disabled_dm_bitmap = new;
-
-	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Disable DM: 0x%x -> 0x%x\n", old, new);
-}
-
-static void rtw89_debug_disable_dm_set_flag(struct rtw89_dev *rtwdev, u8 flag)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 cur = hal->disabled_dm_bitmap;
-
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur | BIT(flag));
-}
-
-static void rtw89_debug_disable_dm_clr_flag(struct rtw89_dev *rtwdev, u8 flag)
-{
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 cur = hal->disabled_dm_bitmap;
-
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, cur & ~BIT(flag));
-}
-
 #define DM_INFO(type) {RTW89_DM_ ## type, #type}
 
 static const struct rtw89_disabled_dm_info {
@@ -4406,7 +4387,7 @@ rtw89_debug_priv_disable_dm_set(struct rtw89_dev *rtwdev,
 	if (ret)
 		return -EINVAL;
 
-	rtw89_debug_disable_dm_cfg_bmap(rtwdev, conf);
+	rtw89_core_dm_disable_cfg(rtwdev, conf);
 
 	return count;
 }
@@ -4469,7 +4450,7 @@ rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
 	if (num != 2)
 		return -EINVAL;
 
-	rtw89_debug_disable_dm_set_flag(rtwdev, RTW89_DM_MLO);
+	rtw89_core_dm_disable_set(rtwdev, RTW89_DM_MLO);
 
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "Set MLO mode to %x\n", mlo_mode);
 
@@ -4479,7 +4460,7 @@ rtw89_debug_priv_mlo_mode_set(struct rtw89_dev *rtwdev,
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_STATE, "Unsupported MLO mode\n");
-		rtw89_debug_disable_dm_clr_flag(rtwdev, RTW89_DM_MLO);
+		rtw89_core_dm_disable_clr(rtwdev, RTW89_DM_MLO);
 
 		return -EOPNOTSUPP;
 	}
@@ -4882,9 +4863,9 @@ rtw89_debug_priv_beacon_info_get(struct rtw89_dev *rtwdev,
 static const struct rtw89_debugfs rtw89_debugfs_templ = {
 	.read_reg = rtw89_debug_priv_select_and_get(read_reg),
 	.write_reg = rtw89_debug_priv_set(write_reg),
-	.read_rf = rtw89_debug_priv_select_and_get(read_rf),
-	.write_rf = rtw89_debug_priv_set(write_rf),
-	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump, RSIZE_8K),
+	.read_rf = rtw89_debug_priv_select_and_get(read_rf, RLOCK),
+	.write_rf = rtw89_debug_priv_set(write_rf, WLOCK),
+	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump, RSIZE_8K, RLOCK),
 	.txpwr_table = rtw89_debug_priv_get(txpwr_table, RSIZE_20K, RLOCK),
 	.mac_reg_dump = rtw89_debug_priv_select_and_get(mac_reg_dump, RSIZE_128K),
 	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump, RSIZE_16K, RLOCK),

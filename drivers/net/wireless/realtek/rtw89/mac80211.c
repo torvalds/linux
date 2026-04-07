@@ -528,6 +528,8 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls)
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_REMOTE_STA_CHANGE);
 
+	rtw89_fw_h2c_init_trx_protect(rtwdev);
+
 	return 0;
 
 unset_link:
@@ -962,6 +964,7 @@ static int rtw89_ops_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			rtw89_err(rtwdev, "failed to add key to sec cam\n");
 			return ret;
 		}
+		rtw89_core_tid_rx_stats_reset(rtwdev);
 		break;
 	case DISABLE_KEY:
 		flush_work(&rtwdev->txq_work);
@@ -1003,6 +1006,8 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		clear_bit(tid, rtwsta->ampdu_map);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, rtwvif, rtwsta);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		rtw89_leave_ps_mode(rtwdev);
+		rtw89_phy_ra_recalc_agg_limit(rtwdev);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		set_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
@@ -1011,11 +1016,14 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		set_bit(tid, rtwsta->ampdu_map);
 		rtw89_leave_ps_mode(rtwdev);
 		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, rtwvif, rtwsta);
+		rtw89_phy_ra_recalc_agg_limit(rtwdev);
 		break;
 	case IEEE80211_AMPDU_RX_START:
+		rtw89_core_tid_rx_stats_ctrl(rtwdev, rtwsta, params, true);
 		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, true, params);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
+		rtw89_core_tid_rx_stats_ctrl(rtwdev, rtwsta, params, false);
 		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, false, params);
 		break;
 	default:
@@ -1584,6 +1592,8 @@ static void __rtw89_ops_clr_vif_links(struct rtw89_dev *rtwdev,
 		if (unlikely(!rtwvif_link))
 			continue;
 
+		rtw89_fw_h2c_trx_protect(rtwdev, rtwvif_link->phy_idx, false);
+
 		__rtw89_ops_remove_iface_link(rtwdev, rtwvif_link);
 
 		rtw89_vif_unset_link(rtwvif, link_id);
@@ -1609,6 +1619,7 @@ static int __rtw89_ops_set_vif_links(struct rtw89_dev *rtwdev,
 				  __func__, link_id);
 			return ret;
 		}
+		rtw89_fw_h2c_trx_protect(rtwdev, rtwvif_link->phy_idx, true);
 	}
 
 	return 0;

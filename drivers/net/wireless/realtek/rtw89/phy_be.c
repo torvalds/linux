@@ -199,7 +199,7 @@ static u32 rtw89_phy0_phy1_offset_be_v1(struct rtw89_dev *rtwdev, u32 addr)
 	    (phy_page >= 0x240 && phy_page <= 0x24f) ||
 	    (phy_page >= 0x260 && phy_page <= 0x26f) ||
 	    (phy_page >= 0x2C0 && phy_page <= 0x2C9) ||
-	    (phy_page >= 0x2E4 && phy_page <= 0x2E8) ||
+	    (phy_page >= 0x2E0 && phy_page <= 0x2E8) ||
 	    phy_page == 0x2EE)
 		ofst = 0x1000;
 	else

@@ -14,7 +14,7 @@
 #define RTW8852BT_FW_FORMAT_MAX 0
 #define RTW8852BT_FW_BASENAME "rtw89/rtw8852bt_fw"
 #define RTW8852BT_MODULE_FIRMWARE \
-	RTW8852BT_FW_BASENAME ".bin"
+	RTW89_GEN_MODULE_FWNAME(RTW8852BT_FW_BASENAME, RTW8852BT_FW_FORMAT_MAX)
 
 static const struct rtw89_hfc_ch_cfg rtw8852bt_hfc_chcfg_pcie[] = {
 	{16, 742, grp_0}, /* ACH 0 */
@@ -757,8 +757,11 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.ops			= &rtw8852bt_chip_ops,
 	.mac_def		= &rtw89_mac_gen_ax,
 	.phy_def		= &rtw89_phy_gen_ax,
-	.fw_basename		= RTW8852BT_FW_BASENAME,
-	.fw_format_max		= RTW8852BT_FW_FORMAT_MAX,
+	.fw_def			= {
+		.fw_basename	= RTW8852BT_FW_BASENAME,
+		.fw_format_max	= RTW8852BT_FW_FORMAT_MAX,
+		.fw_b_aid	= 0,
+	},
 	.try_ce_fw		= true,
 	.bbmcu_nr		= 0,
 	.needed_fw_elms		= RTW89_AX_GEN_DEF_NEEDED_FW_ELEMENTS_NO_6GHZ,
@@ -810,7 +813,7 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.support_sar_by_ant	= true,
 	.ul_tb_waveform_ctrl	= true,
 	.ul_tb_pwr_diff		= false,
-	.rx_freq_frome_ie	= true,
+	.rx_freq_from_ie	= true,
 	.hw_sec_hdr		= false,
 	.hw_mgmt_tx_encrypt     = false,
 	.hw_tkip_crypto		= true,
@@ -850,6 +853,10 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.rf_para_ulink		= rtw89_btc_8852bt_rf_ul,
 	.rf_para_dlink_num	= ARRAY_SIZE(rtw89_btc_8852bt_rf_dl),
 	.rf_para_dlink		= rtw89_btc_8852bt_rf_dl,
+	.rf_para_ulink_v9	= NULL,
+	.rf_para_dlink_v9	= NULL,
+	.rf_para_ulink_num_v9	= 0,
+	.rf_para_dlink_num_v9	= 0,
 	.ps_mode_supported	= BIT(RTW89_PS_MODE_RFOFF) |
 				  BIT(RTW89_PS_MODE_CLK_GATED) |
 				  BIT(RTW89_PS_MODE_PWR_GATED),

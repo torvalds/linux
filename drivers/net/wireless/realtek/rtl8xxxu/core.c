@@ -4697,20 +4697,6 @@ static const struct ieee80211_rate rtl8xxxu_legacy_ratetable[] = {
 	{.bitrate = 540, .hw_value = 0x0b,},
 };
 
-static void rtl8xxxu_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss)
-{
-	if (rate <= DESC_RATE_54M)
-		return;
-
-	if (rate >= DESC_RATE_MCS0 && rate <= DESC_RATE_MCS15) {
-		if (rate < DESC_RATE_MCS8)
-			*nss = 1;
-		else
-			*nss = 2;
-		*mcs = rate - DESC_RATE_MCS0;
-	}
-}
-
 static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
 {
 	struct ieee80211_hw *hw = priv->hw;
@@ -4820,23 +4806,25 @@ static void rtl8xxxu_set_aifs(struct rtl8xxxu_priv *priv, u8 slot_time)
 void rtl8xxxu_update_ra_report(struct rtl8xxxu_ra_report *rarpt,
 			       u8 rate, u8 sgi, u8 bw)
 {
-	u8 mcs, nss;
-
 	rarpt->txrate.flags = 0;
 
 	if (rate <= DESC_RATE_54M) {
 		rarpt->txrate.legacy = rtl8xxxu_legacy_ratetable[rate].bitrate;
-	} else {
-		rtl8xxxu_desc_to_mcsrate(rate, &mcs, &nss);
+	} else if (rate >= DESC_RATE_MCS0 && rate <= DESC_RATE_MCS15) {
 		rarpt->txrate.flags |= RATE_INFO_FLAGS_MCS;
+		if (rate < DESC_RATE_MCS8)
+			rarpt->txrate.nss = 1;
+		else
+			rarpt->txrate.nss = 2;
 
-		rarpt->txrate.mcs = mcs;
-		rarpt->txrate.nss = nss;
+		rarpt->txrate.mcs = rate - DESC_RATE_MCS0;
 
 		if (sgi)
 			rarpt->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 
 		rarpt->txrate.bw = bw;
+	} else {
+		return;
 	}
 
 	rarpt->bit_rate = cfg80211_calculate_bitrate(&rarpt->txrate);
@@ -7698,11 +7686,12 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	int ret;
 	int untested = 1;
 
-	udev = usb_get_dev(interface_to_usbdev(interface));
+	udev = interface_to_usbdev(interface);
 
 	switch (id->idVendor) {
 	case USB_VENDOR_ID_REALTEK:
 		switch(id->idProduct) {
+		case 0x0179:
 		case 0x1724:
 		case 0x8176:
 		case 0x8178:
@@ -7756,10 +7745,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 
 	hw = ieee80211_alloc_hw(sizeof(struct rtl8xxxu_priv), &rtl8xxxu_ops);
-	if (!hw) {
-		ret = -ENOMEM;
-		goto err_put_dev;
-	}
+	if (!hw)
+		return -ENOMEM;
 
 	priv = hw->priv;
 	priv->hw = hw;
@@ -7901,8 +7888,6 @@ err_set_intfdata:
 	mutex_destroy(&priv->h2c_mutex);
 
 	ieee80211_free_hw(hw);
-err_put_dev:
-	usb_put_dev(udev);
 
 	return ret;
 }
@@ -7935,7 +7920,6 @@ static void rtl8xxxu_disconnect(struct usb_interface *interface)
 			 "Device still attached, trying to reset\n");
 		usb_reset_device(priv->udev);
 	}
-	usb_put_dev(priv->udev);
 	ieee80211_free_hw(hw);
 }
 

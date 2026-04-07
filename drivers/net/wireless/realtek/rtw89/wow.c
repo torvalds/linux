@@ -1741,6 +1741,8 @@ static int rtw89_wow_disable(struct rtw89_dev *rtwdev)
 
 	rtw89_wow_leave_ps(rtwdev, false);
 
+	rtw89_core_tid_rx_stats_reset(rtwdev);
+
 	ret = rtw89_wow_fw_stop(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to swap to normal fw\n");
