@@ -1513,6 +1513,7 @@ static void tick_nohz_lowres_handler(struct clock_event_device *dev)
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
 	dev->next_event = KTIME_MAX;
+	dev->next_event_forced = 0;
 
 	if (likely(tick_nohz_handler(&ts->sched_timer) == HRTIMER_RESTART))
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
