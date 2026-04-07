@@ -238,12 +238,10 @@ void orangefs_debugfs_init(int debug_mask)
 static void orangefs_kernel_debug_init(void)
 {
 	static char k_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
-	size_t len = strlen(kernel_debug_string);
+	size_t len =
+		strscpy(k_buffer, kernel_debug_string, sizeof(k_buffer) - 1);
 
-	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
-
-	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		memcpy(k_buffer, kernel_debug_string, len);
+	if (len > 0) {
 		k_buffer[len] = '\n';
 		k_buffer[len + 1] = '\0';
 	} else {
@@ -339,12 +337,10 @@ static int help_show(struct seq_file *m, void *v)
 static void orangefs_client_debug_init(void)
 {
 	static char c_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
-	size_t len = strlen(client_debug_string);
+	size_t len =
+		strscpy(c_buffer, client_debug_string, sizeof(c_buffer) - 1);
 
-	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
-
-	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		memcpy(c_buffer, client_debug_string, len);
+	if (len > 0) {
 		c_buffer[len] = '\n';
 		c_buffer[len + 1] = '\0';
 	} else {
