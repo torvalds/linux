@@ -5,7 +5,8 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="fw_flash_test params_test  \
 	   params_default_test regions_test reload_test \
-	   netns_reload_test resource_test dev_info_test \
+	   netns_reload_test resource_test \
+	   port_resource_doit_test dev_info_test \
 	   empty_reporter_test dummy_reporter_test rate_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
@@ -766,6 +767,32 @@ rate_node_del()
 	local handle=$1
 
 	devlink port function rate del $handle
+}
+
+port_resource_doit_test()
+{
+	RET=0
+
+	local port_handle="${DL_HANDLE}/0"
+	local name
+	local size
+
+	if ! devlink resource help 2>&1 | grep -q "PORT_INDEX"; then
+		echo "SKIP: devlink resource show with port not supported"
+		return
+	fi
+
+	name=$(cmd_jq "devlink resource show $port_handle -j" \
+		      '.[][][].name')
+	[ "$name" == "test_resource" ]
+	check_err $? "wrong port resource name (got $name)"
+
+	size=$(cmd_jq "devlink resource show $port_handle -j" \
+		      '.[][][].size')
+	[ "$size" == "20" ]
+	check_err $? "wrong port resource size (got $size)"
+
+	log_test "port resource doit test"
 }
 
 rate_test()
