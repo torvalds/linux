@@ -1468,6 +1468,36 @@ static void bio_wait_end_io(struct bio *bio)
 }
 
 /**
+ * bio_await - call a function on a bio, and wait until it completes
+ * @bio:	the bio which describes the I/O
+ * @submit:	function called to submit the bio
+ * @priv:	private data passed to @submit
+ *
+ * Wait for the bio as well as any bio chained off it after executing the
+ * passed in callback @submit.  The wait for the bio is set up before calling
+ * @submit to ensure that the completion is captured.  If @submit is %NULL,
+ * submit_bio() is used instead to submit the bio.
+ *
+ * Note: this overrides the bi_private and bi_end_io fields in the bio.
+ */
+void bio_await(struct bio *bio, void *priv,
+	       void (*submit)(struct bio *bio, void *priv))
+{
+	DECLARE_COMPLETION_ONSTACK_MAP(done,
+			bio->bi_bdev->bd_disk->lockdep_map);
+
+	bio->bi_private = &done;
+	bio->bi_end_io = bio_wait_end_io;
+	bio->bi_opf |= REQ_SYNC;
+	if (submit)
+		submit(bio, priv);
+	else
+		submit_bio(bio);
+	blk_wait_io(&done);
+}
+EXPORT_SYMBOL_GPL(bio_await);
+
+/**
  * submit_bio_wait - submit a bio, and wait until it completes
  * @bio: The &struct bio which describes the I/O
  *
@@ -1480,18 +1510,15 @@ static void bio_wait_end_io(struct bio *bio)
  */
 int submit_bio_wait(struct bio *bio)
 {
-	DECLARE_COMPLETION_ONSTACK_MAP(done,
-			bio->bi_bdev->bd_disk->lockdep_map);
-
-	bio->bi_private = &done;
-	bio->bi_end_io = bio_wait_end_io;
-	bio->bi_opf |= REQ_SYNC;
-	submit_bio(bio);
-	blk_wait_io(&done);
-
+	bio_await(bio, NULL, NULL);
 	return blk_status_to_errno(bio->bi_status);
 }
 EXPORT_SYMBOL(submit_bio_wait);
+
+static void bio_endio_cb(struct bio *bio, void *priv)
+{
+	bio_endio(bio);
+}
 
 /**
  * bdev_rw_virt - synchronously read into / write from kernel mapping
@@ -1528,13 +1555,7 @@ EXPORT_SYMBOL_GPL(bdev_rw_virt);
  */
 void bio_await_chain(struct bio *bio)
 {
-	DECLARE_COMPLETION_ONSTACK_MAP(done,
-			bio->bi_bdev->bd_disk->lockdep_map);
-
-	bio->bi_private = &done;
-	bio->bi_end_io = bio_wait_end_io;
-	bio_endio(bio);
-	blk_wait_io(&done);
+	bio_await(bio, NULL, bio_endio_cb);
 	bio_put(bio);
 }
 
