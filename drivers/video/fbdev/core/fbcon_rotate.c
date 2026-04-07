@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fb.h>
+#include <linux/font.h>
 #include <linux/vt_kern.h>
 #include <linux/console.h>
 #include <asm/types.h>
@@ -60,30 +61,25 @@ int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc)
 	}
 
 	dst = par->fontbuffer;
-	memset(dst, 0, par->fd_size);
 
 	switch (par->rotate) {
 	case FB_ROTATE_UD:
 		for (i = len; i--; ) {
-			rotate_ud(src, dst, vc->vc_font.width,
-				  vc->vc_font.height);
-
+			font_glyph_rotate_180(src, vc->vc_font.width, vc->vc_font.height, dst);
 			src += s_cellsize;
 			dst += d_cellsize;
 		}
 		break;
 	case FB_ROTATE_CW:
 		for (i = len; i--; ) {
-			rotate_cw(src, dst, vc->vc_font.width,
-				  vc->vc_font.height);
+			font_glyph_rotate_90(src, vc->vc_font.width, vc->vc_font.height, dst);
 			src += s_cellsize;
 			dst += d_cellsize;
 		}
 		break;
 	case FB_ROTATE_CCW:
 		for (i = len; i--; ) {
-			rotate_ccw(src, dst, vc->vc_font.width,
-				   vc->vc_font.height);
+			font_glyph_rotate_270(src, vc->vc_font.width, vc->vc_font.height, dst);
 			src += s_cellsize;
 			dst += d_cellsize;
 		}

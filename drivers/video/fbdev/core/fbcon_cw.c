@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fb.h>
+#include <linux/font.h>
 #include <linux/vt_kern.h>
 #include <linux/console.h>
 #include <asm/types.h>
@@ -327,8 +328,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 		size = cur_height * width;
 		while (size--)
 			tmp[i++] = 0xff;
-		memset(mask, 0, w * vc->vc_font.width);
-		rotate_cw(tmp, mask, vc->vc_font.width, vc->vc_font.height);
+		font_glyph_rotate_90(tmp, vc->vc_font.width, vc->vc_font.height, mask);
 		kfree(tmp);
 	}
 

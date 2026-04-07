@@ -2,6 +2,7 @@
 # Font handling
 
 font-y := fonts.o
+font-$(CONFIG_FRAMEBUFFER_CONSOLE_ROTATION) += font_rotate.o
 
 # Built-in fonts; sorted by Family-Size in ascending order
 font-$(CONFIG_FONT_6x8)       += font_6x8.o

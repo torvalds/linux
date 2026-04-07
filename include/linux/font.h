@@ -104,6 +104,14 @@ unsigned int font_data_size(font_data_t *fd);
 bool font_data_is_equal(font_data_t *lhs, font_data_t *rhs);
 int font_data_export(font_data_t *fd, struct console_font *font, unsigned int vpitch);
 
+/* font_rotate.c */
+void font_glyph_rotate_90(const unsigned char *glyph, unsigned int width, unsigned int height,
+			  unsigned char *out);
+void font_glyph_rotate_180(const unsigned char *glyph, unsigned int width, unsigned int height,
+			   unsigned char *out);
+void font_glyph_rotate_270(const unsigned char *glyph, unsigned int width, unsigned int height,
+			   unsigned char *out);
+
 /*
  * Font description
  */
