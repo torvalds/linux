@@ -1449,7 +1449,7 @@ static int _do_shadow_pte(struct gmap *sg, gpa_t raddr, union pte *ptep_h, union
 	pgste_set_unlock(ptep_h, pgste);
 	if (rc)
 		return rc;
-	if (!sg->parent)
+	if (sg->invalidated)
 		return -EAGAIN;
 
 	newpte = _pte(f->pfn, 0, !p, 0);
@@ -1479,7 +1479,7 @@ static int _do_shadow_crste(struct gmap *sg, gpa_t raddr, union crste *host, uni
 
 	do {
 		/* _gmap_crstep_xchg_atomic() could have unshadowed this shadow gmap */
-		if (!sg->parent)
+		if (sg->invalidated)
 			return -EAGAIN;
 		oldcrste = READ_ONCE(*host);
 		newcrste = _crste_fc1(f->pfn, oldcrste.h.tt, f->writable, !p);
@@ -1492,7 +1492,7 @@ static int _do_shadow_crste(struct gmap *sg, gpa_t raddr, union crste *host, uni
 		if (!newcrste.h.p && !f->writable)
 			return -EOPNOTSUPP;
 	} while (!_gmap_crstep_xchg_atomic(sg->parent, host, oldcrste, newcrste, f->gfn, false));
-	if (!sg->parent)
+	if (sg->invalidated)
 		return -EAGAIN;
 
 	newcrste = _crste_fc1(f->pfn, oldcrste.h.tt, 0, !p);
@@ -1545,7 +1545,7 @@ static int _gaccess_do_shadow(struct kvm_s390_mmu_cache *mc, struct gmap *sg,
 				       entries[i].pfn, i + 1, entries[i].writable);
 		if (rc)
 			return rc;
-		if (!sg->parent)
+		if (sg->invalidated)
 			return -EAGAIN;
 	}
 
@@ -1601,6 +1601,7 @@ again:
 		scoped_guard(spinlock, &parent->children_lock) {
 			if (READ_ONCE(sg->parent) != parent)
 				return -EAGAIN;
+			sg->invalidated = false;
 			rc = _gaccess_do_shadow(vcpu->arch.mc, sg, saddr, walk);
 		}
 		if (rc == -ENOMEM)
