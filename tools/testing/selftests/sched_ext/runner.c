@@ -164,6 +164,26 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (optind < argc) {
+		fprintf(stderr, "Unexpected argument '%s'. Use -t to filter tests.\n",
+			argv[optind]);
+		return 1;
+	}
+
+	if (filter) {
+		for (i = 0; i < __scx_num_tests; i++) {
+			if (!should_skip_test(&__scx_tests[i], filter))
+				break;
+		}
+		if (i == __scx_num_tests) {
+			fprintf(stderr, "No tests matched filter '%s'\n", filter);
+			fprintf(stderr, "Available tests (use -l to list):\n");
+			for (i = 0; i < __scx_num_tests; i++)
+				fprintf(stderr, "  %s\n", __scx_tests[i].name);
+			return 1;
+		}
+	}
+
 	for (i = 0; i < __scx_num_tests; i++) {
 		enum scx_test_status status;
 		struct scx_test *test = &__scx_tests[i];
