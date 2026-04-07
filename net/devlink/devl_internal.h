@@ -164,6 +164,11 @@ struct devlink_nl_dump_state {
 		struct {
 			u64 dump_ts;
 		};
+		/* DEVLINK_CMD_RESOURCE_DUMP */
+		struct {
+			u32 index;
+			bool index_valid;
+		} port_ctx;
 	};
 };
 

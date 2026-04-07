@@ -328,16 +328,20 @@ int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int
-devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
-			     struct netlink_callback *cb, int flags)
+devlink_resource_dump_fill_one(struct sk_buff *skb, struct devlink *devlink,
+			       struct devlink_port *devlink_port,
+			       struct netlink_callback *cb, int flags, int *idx)
 {
-	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	struct list_head *resource_list;
 	struct nlattr *resources_attr;
-	int start_idx = state->idx;
+	int start_idx = *idx;
 	void *hdr;
 	int err;
 
-	if (list_empty(&devlink->resource_list))
+	resource_list = devlink_port ?
+		&devlink_port->resource_list : &devlink->resource_list;
+
+	if (list_empty(resource_list))
 		return 0;
 
 	err = -EMSGSIZE;
@@ -348,15 +352,17 @@ devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
 
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
+	if (devlink_port &&
+	    nla_put_u32(skb, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
+		goto nla_put_failure;
 
 	resources_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_RESOURCE_LIST);
 	if (!resources_attr)
 		goto nla_put_failure;
 
-	err = devlink_resource_list_fill(skb, devlink,
-					 &devlink->resource_list, &state->idx);
+	err = devlink_resource_list_fill(skb, devlink, resource_list, idx);
 	if (err) {
-		if (state->idx == start_idx)
+		if (*idx == start_idx)
 			goto resource_list_cancel;
 		nla_nest_end(skb, resources_attr);
 		genlmsg_end(skb, hdr);
@@ -371,6 +377,43 @@ resource_list_cancel:
 nla_put_failure:
 	genlmsg_cancel(skb, hdr);
 	return err;
+}
+
+static int
+devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
+			     struct netlink_callback *cb, int flags)
+{
+	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	struct devlink_port *devlink_port;
+	unsigned long port_idx;
+	int err;
+
+	if (!state->port_ctx.index_valid) {
+		err = devlink_resource_dump_fill_one(skb, devlink, NULL,
+						     cb, flags, &state->idx);
+		if (err)
+			return err;
+		state->idx = 0;
+	}
+
+	/* Check in case port was removed between dump callbacks. */
+	if (state->port_ctx.index_valid &&
+	    !xa_load(&devlink->ports, state->port_ctx.index))
+		state->idx = 0;
+	state->port_ctx.index_valid = true;
+	xa_for_each_start(&devlink->ports, port_idx, devlink_port,
+			  state->port_ctx.index) {
+		err = devlink_resource_dump_fill_one(skb, devlink, devlink_port,
+						     cb, flags, &state->idx);
+		if (err) {
+			state->port_ctx.index = port_idx;
+			return err;
+		}
+		state->idx = 0;
+	}
+	state->port_ctx.index_valid = false;
+	state->port_ctx.index = 0;
+	return 0;
 }
 
 int devlink_nl_resource_dump_dumpit(struct sk_buff *skb,

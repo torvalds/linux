@@ -370,6 +370,8 @@ static int devlink_nl_inst_iter_dumpit(struct sk_buff *msg,
 
 		/* restart sub-object walk for the next instance */
 		state->idx = 0;
+		state->port_ctx.index = 0;
+		state->port_ctx.index_valid = false;
 	}
 
 	if (err != -EMSGSIZE)
