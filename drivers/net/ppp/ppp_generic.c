@@ -286,12 +286,12 @@ static struct compressor *find_compressor(int type);
 static void ppp_get_stats(struct ppp *ppp, struct ppp_stats *st);
 static int ppp_create_interface(struct net *net, struct file *file, int *unit);
 static void init_ppp_file(struct ppp_file *pf, int kind);
-static void ppp_destroy_interface(struct ppp *ppp);
+static void ppp_release_interface(struct ppp *ppp);
 static struct ppp *ppp_find_unit(struct ppp_net *pn, int unit);
 static struct channel *ppp_find_channel(struct ppp_net *pn, int unit);
 static int ppp_connect_channel(struct channel *pch, int unit);
 static int ppp_disconnect_channel(struct channel *pch);
-static void ppp_destroy_channel(struct channel *pch);
+static void ppp_release_channel(struct channel *pch);
 static int unit_get(struct idr *p, void *ptr, int min);
 static int unit_set(struct idr *p, void *ptr, int n);
 static void unit_put(struct idr *p, int n);
@@ -407,22 +407,18 @@ static int ppp_release(struct inode *unused, struct file *file)
 
 	if (pf) {
 		file->private_data = NULL;
-		if (pf->kind == INTERFACE) {
+		switch (pf->kind) {
+		case INTERFACE:
 			ppp = PF_TO_PPP(pf);
 			rtnl_lock();
 			if (file == ppp->owner)
 				unregister_netdevice(ppp->dev);
 			rtnl_unlock();
-		}
-		if (refcount_dec_and_test(&pf->refcnt)) {
-			switch (pf->kind) {
-			case INTERFACE:
-				ppp_destroy_interface(PF_TO_PPP(pf));
-				break;
-			case CHANNEL:
-				ppp_destroy_channel(PF_TO_CHANNEL(pf));
-				break;
-			}
+			ppp_release_interface(ppp);
+			break;
+		case CHANNEL:
+			ppp_release_channel(PF_TO_CHANNEL(pf));
+			break;
 		}
 	}
 	return 0;
@@ -675,8 +671,7 @@ err_unset:
 	synchronize_rcu();
 
 	if (pchb)
-		if (refcount_dec_and_test(&pchb->file.refcnt))
-			ppp_destroy_channel(pchb);
+		ppp_release_channel(pchb);
 
 	return -EALREADY;
 }
@@ -708,11 +703,9 @@ static int ppp_unbridge_channels(struct channel *pch)
 	synchronize_rcu();
 
 	if (pchbb == pch)
-		if (refcount_dec_and_test(&pch->file.refcnt))
-			ppp_destroy_channel(pch);
+		ppp_release_channel(pch);
 
-	if (refcount_dec_and_test(&pchb->file.refcnt))
-		ppp_destroy_channel(pchb);
+	ppp_release_channel(pchb);
 
 	return 0;
 }
@@ -786,8 +779,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 			err = ppp_bridge_channels(pch, pchb);
 			/* Drop earlier refcount now bridge establishment is complete */
-			if (refcount_dec_and_test(&pchb->file.refcnt))
-				ppp_destroy_channel(pchb);
+			ppp_release_channel(pchb);
 			break;
 
 		case PPPIOCUNBRIDGECHAN:
@@ -1584,8 +1576,7 @@ static void ppp_dev_priv_destructor(struct net_device *dev)
 	struct ppp *ppp;
 
 	ppp = netdev_priv(dev);
-	if (refcount_dec_and_test(&ppp->file.refcnt))
-		ppp_destroy_interface(ppp);
+	ppp_release_interface(ppp);
 }
 
 static int ppp_fill_forward_path(struct net_device_path_ctx *ctx,
@@ -3022,8 +3013,7 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	pch->file.dead = 1;
 	wake_up_interruptible(&pch->file.rwait);
 
-	if (refcount_dec_and_test(&pch->file.refcnt))
-		ppp_destroy_channel(pch);
+	ppp_release_channel(pch);
 }
 
 /*
@@ -3404,12 +3394,14 @@ init_ppp_file(struct ppp_file *pf, int kind)
 }
 
 /*
- * Free the memory used by a ppp unit.  This is only called once
- * there are no channels connected to the unit and no file structs
- * that reference the unit.
+ * Drop a reference to a ppp unit and free its memory if the refcount reaches
+ * zero.
  */
-static void ppp_destroy_interface(struct ppp *ppp)
+static void ppp_release_interface(struct ppp *ppp)
 {
+	if (!refcount_dec_and_test(&ppp->file.refcnt))
+		return;
+
 	atomic_dec(&ppp_unit_count);
 
 	if (!ppp->file.dead || ppp->n_channels) {
@@ -3561,18 +3553,21 @@ ppp_disconnect_channel(struct channel *pch)
 			wake_up_interruptible(&ppp->file.rwait);
 		ppp_unlock(ppp);
 		synchronize_net();
-		if (refcount_dec_and_test(&ppp->file.refcnt))
-			ppp_destroy_interface(ppp);
+		ppp_release_interface(ppp);
 		err = 0;
 	}
 	return err;
 }
 
 /*
- * Free up the resources used by a ppp channel.
+ * Drop a reference to a ppp channel and free its memory if the refcount reaches
+ * zero.
  */
-static void ppp_destroy_channel(struct channel *pch)
+static void ppp_release_channel(struct channel *pch)
 {
+	if (!refcount_dec_and_test(&pch->file.refcnt))
+		return;
+
 	put_net_track(pch->chan_net, &pch->ns_tracker);
 	pch->chan_net = NULL;
 
