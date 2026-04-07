@@ -727,20 +727,28 @@ unlock:
 
 void fib6_metric_set(struct fib6_info *f6i, int metric, u32 val)
 {
+	struct dst_metrics *m;
+
 	if (!f6i)
 		return;
 
-	if (f6i->fib6_metrics == &dst_default_metrics) {
+	if (READ_ONCE(f6i->fib6_metrics) == &dst_default_metrics) {
+		struct dst_metrics *dflt = (struct dst_metrics *)&dst_default_metrics;
 		struct dst_metrics *p = kzalloc_obj(*p, GFP_ATOMIC);
 
 		if (!p)
 			return;
 
+		p->metrics[metric - 1] = val;
 		refcount_set(&p->refcnt, 1);
-		f6i->fib6_metrics = p;
+		if (cmpxchg(&f6i->fib6_metrics, dflt, p) != dflt)
+			kfree(p);
+		else
+			return;
 	}
 
-	f6i->fib6_metrics->metrics[metric - 1] = val;
+	m = READ_ONCE(f6i->fib6_metrics);
+	WRITE_ONCE(m->metrics[metric - 1], val);
 }
 
 /*

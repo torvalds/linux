@@ -1368,6 +1368,13 @@ int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data)
 	struct airoha_eth *eth = ppe->eth;
 	int err = 0;
 
+	/* Netfilter flowtable can try to offload flower rules while not all
+	 * the net_devices are registered or initialized. Delay offloading
+	 * until all net_devices are registered in the system.
+	 */
+	if (!test_bit(DEV_STATE_REGISTERED, &eth->state))
+		return -EBUSY;
+
 	mutex_lock(&flow_offload_mutex);
 
 	if (!eth->npu)

@@ -50,6 +50,7 @@
 #include "dce/dce_hwseq.h"
 #include "clk_mgr.h"
 #include "dio/virtual/virtual_stream_encoder.h"
+#include "dio/dcn10/dcn10_dio.h"
 #include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
 #include "dcn35/dcn35_dccg.h"
@@ -651,6 +652,19 @@ static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
 
+static struct dcn_dio_registers dio_regs;
+
+#define DIO_MASK_SH_LIST(mask_sh)\
+		HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+
+static const struct dcn_dio_shift dio_shift = {
+		DIO_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn_dio_mask dio_mask = {
+		DIO_MASK_SH_LIST(_MASK)
+};
+
 static const struct resource_caps res_cap_dcn36 = {
 	.num_timing_generator = 4,
 	.num_opp = 4,
@@ -958,6 +972,22 @@ static struct mpc *dcn35_mpc_create(
 			num_rmu);
 
 	return &mpc30->base;
+}
+
+static struct dio *dcn36_dio_create(struct dc_context *ctx)
+{
+	struct dcn10_dio *dio10 = kzalloc_obj(struct dcn10_dio);
+
+	if (!dio10)
+		return NULL;
+
+#undef REG_STRUCT
+#define REG_STRUCT dio_regs
+	DIO_REG_LIST_DCN10();
+
+	dcn10_dio_construct(dio10, ctx, &dio_regs, &dio_shift, &dio_mask);
+
+	return &dio10->base;
 }
 
 static struct hubbub *dcn35_hubbub_create(struct dc_context *ctx)
@@ -1550,6 +1580,11 @@ static void dcn36_resource_destruct(struct dcn36_resource_pool *pool)
 
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
+
+	if (pool->base.dio != NULL) {
+		kfree(TO_DCN10_DIO(pool->base.dio));
+		pool->base.dio = NULL;
+	}
 }
 
 static struct hubp *dcn35_hubp_create(
@@ -2012,6 +2047,14 @@ static bool dcn36_resource_construct(
 	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create hubbub!\n");
+		goto create_fail;
+	}
+
+	/* DIO */
+	pool->base.dio = dcn36_dio_create(ctx);
+	if (pool->base.dio == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dio!\n");
 		goto create_fail;
 	}
 

@@ -71,6 +71,7 @@
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
+#include "dio/dcn10/dcn10_dio.h"
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL		0x210f
@@ -443,6 +444,33 @@ static const struct dcn_hubbub_shift hubbub_shift = {
 static const struct dcn_hubbub_mask hubbub_mask = {
 		HUBBUB_MASK_SH_LIST_DCN10(_MASK)
 };
+
+static const struct dcn_dio_registers dio_regs = {
+		DIO_REG_LIST_DCN10()
+};
+
+#define DIO_MASK_SH_LIST(mask_sh)\
+		HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+
+static const struct dcn_dio_shift dio_shift = {
+		DIO_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn_dio_mask dio_mask = {
+		DIO_MASK_SH_LIST(_MASK)
+};
+
+static struct dio *dcn10_dio_create(struct dc_context *ctx)
+{
+	struct dcn10_dio *dio10 = kzalloc_obj(struct dcn10_dio);
+
+	if (!dio10)
+		return NULL;
+
+	dcn10_dio_construct(dio10, ctx, &dio_regs, &dio_shift, &dio_mask);
+
+	return &dio10->base;
+}
 
 static int map_transmitter_id_to_phy_instance(
 	enum transmitter transmitter)
@@ -917,6 +945,11 @@ static void dcn10_resource_destruct(struct dcn10_resource_pool *pool)
 
 	kfree(pool->base.hubbub);
 	pool->base.hubbub = NULL;
+
+	if (pool->base.dio != NULL) {
+		kfree(TO_DCN10_DIO(pool->base.dio));
+		pool->base.dio = NULL;
+	}
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
@@ -1660,6 +1693,14 @@ static bool dcn10_resource_construct(
 	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create hubbub!\n");
+		goto fail;
+	}
+
+	/* DIO */
+	pool->base.dio = dcn10_dio_create(ctx);
+	if (pool->base.dio == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dio!\n");
 		goto fail;
 	}
 

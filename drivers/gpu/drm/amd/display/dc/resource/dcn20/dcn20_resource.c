@@ -82,6 +82,7 @@
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
+#include "dio/dcn10/dcn10_dio.h"
 #include "vm_helper.h"
 
 #include "link_enc_cfg.h"
@@ -549,6 +550,33 @@ static const struct dcn_hubbub_shift hubbub_shift = {
 static const struct dcn_hubbub_mask hubbub_mask = {
 		HUBBUB_MASK_SH_LIST_DCN20(_MASK)
 };
+
+static const struct dcn_dio_registers dio_regs = {
+		DIO_REG_LIST_DCN10()
+};
+
+#define DIO_MASK_SH_LIST(mask_sh)\
+		HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+
+static const struct dcn_dio_shift dio_shift = {
+		DIO_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn_dio_mask dio_mask = {
+		DIO_MASK_SH_LIST(_MASK)
+};
+
+static struct dio *dcn20_dio_create(struct dc_context *ctx)
+{
+	struct dcn10_dio *dio10 = kzalloc_obj(struct dcn10_dio);
+
+	if (!dio10)
+		return NULL;
+
+	dcn10_dio_construct(dio10, ctx, &dio_regs, &dio_shift, &dio_mask);
+
+	return &dio10->base;
+}
 
 #define vmid_regs(id)\
 [id] = {\
@@ -1105,6 +1133,12 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 		kfree(pool->base.hubbub);
 		pool->base.hubbub = NULL;
 	}
+
+	if (pool->base.dio != NULL) {
+		kfree(TO_DCN10_DIO(pool->base.dio));
+		pool->base.dio = NULL;
+	}
+
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.dpps[i] != NULL)
 			dcn20_dpp_destroy(&pool->base.dpps[i]);
@@ -2706,6 +2740,14 @@ static bool dcn20_resource_construct(
 	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create hubbub!\n");
+		goto create_fail;
+	}
+
+	/* DIO */
+	pool->base.dio = dcn20_dio_create(ctx);
+	if (pool->base.dio == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dio!\n");
 		goto create_fail;
 	}
 
