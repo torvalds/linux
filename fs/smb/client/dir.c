@@ -1014,28 +1014,21 @@ static int cifs_ci_compare(const struct dentry *dentry,
 	return 0;
 }
 
-static int set_hidden_attr(const unsigned int xid,
-			   struct TCP_Server_Info *server,
-			   struct file *file)
+static int set_tmpfile_attr(const unsigned int xid, unsigned int oflags,
+			    struct inode *inode, const char *full_path,
+			    struct TCP_Server_Info *server)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct cifsInodeInfo *cinode = CIFS_I(d_inode(dentry));
-	FILE_BASIC_INFO fi = {
-		.Attributes = cpu_to_le32(cinode->cifsAttrs |
-					  ATTR_HIDDEN),
-	};
-	void *page = alloc_dentry_path();
-	const char *full_path;
-	int rc;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	FILE_BASIC_INFO fi;
 
-	full_path = build_path_from_dentry(dentry, page);
-	if (IS_ERR(full_path))
-		rc = PTR_ERR(full_path);
-	else
-		rc =  server->ops->set_file_info(d_inode(dentry),
-						 full_path, &fi, xid);
-	free_dentry_path(page);
-	return rc;
+	cinode->cifsAttrs |= ATTR_HIDDEN;
+	if (oflags & O_EXCL)
+		cinode->cifsAttrs |= ATTR_TEMPORARY;
+
+	fi = (FILE_BASIC_INFO) {
+		.Attributes = cpu_to_le32(cinode->cifsAttrs),
+	};
+	return server->ops->set_file_info(inode, full_path, &fi, xid);
 }
 
 /*
@@ -1049,6 +1042,8 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dir);
+	char *path __free(kfree) = NULL, *name;
+	unsigned int oflags = file->f_flags;
 	size_t size = CIFS_TMPNAME_LEN + 1;
 	int retries = 0, max_retries = 16;
 	struct TCP_Server_Info *server;
@@ -1059,7 +1054,6 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	struct cifs_tcon *tcon;
 	unsigned int sbflags;
 	struct inode *inode;
-	char *path, *name;
 	unsigned int xid;
 	__u32 oplock;
 	int rc;
@@ -1089,6 +1083,7 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	if (IS_ERR(path)) {
 		cifs_del_pending_open(&open);
 		rc = PTR_ERR(path);
+		path = NULL;
 		goto out;
 	}
 
@@ -1098,9 +1093,8 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 			  CIFS_TMPNAME_PREFIX "%0*x",
 			  CIFS_TMPNAME_COUNTER_LEN,
 			  atomic_inc_return(&cifs_tmpcounter));
-		rc = __cifs_do_create(dir, dentry, path, xid, tlink,
-				      file->f_flags, mode, &oplock,
-				      &fid, NULL, &inode);
+		rc = __cifs_do_create(dir, dentry, path, xid, tlink, oflags,
+				      mode, &oplock, &fid, NULL, &inode);
 		if (!rc) {
 			set_nlink(inode, 0);
 			mark_inode_dirty(inode);
@@ -1110,7 +1104,6 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		}
 	} while (unlikely(rc == -EEXIST) && ++retries < max_retries);
 
-	kfree(path);
 	if (rc) {
 		cifs_del_pending_open(&open);
 		goto out;
@@ -1134,7 +1127,7 @@ int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		goto err_open;
 	}
 
-	rc = set_hidden_attr(xid, server, file);
+	rc = set_tmpfile_attr(xid, oflags, inode, path, server);
 	if (rc)
 		goto out;
 

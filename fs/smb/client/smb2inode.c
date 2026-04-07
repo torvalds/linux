@@ -1237,6 +1237,20 @@ int smb2_rename_path(const unsigned int xid,
 	return rc;
 }
 
+static int clear_tmpfile_attr(const unsigned int xid, struct cifs_tcon *tcon,
+			      struct inode *inode, const char *full_path)
+{
+	struct TCP_Server_Info *server = cifs_pick_channel(tcon->ses);
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	FILE_BASIC_INFO fi;
+
+	cinode->cifsAttrs &= ~(ATTR_TEMPORARY | ATTR_HIDDEN);
+	fi = (FILE_BASIC_INFO) {
+		.Attributes = cpu_to_le32(cinode->cifsAttrs),
+	};
+	return server->ops->set_file_info(inode, full_path, &fi, xid);
+}
+
 int smb2_create_hardlink(const unsigned int xid,
 			 struct cifs_tcon *tcon,
 			 struct dentry *source_dentry,
@@ -1246,24 +1260,14 @@ int smb2_create_hardlink(const unsigned int xid,
 	struct inode *inode = source_dentry ? d_inode(source_dentry) : NULL;
 	__u32 co = file_create_options(source_dentry);
 	struct cifsFileInfo *cfile;
+	int rc;
 
-	if (inode) {
-		struct cifsInodeInfo *cinode = CIFS_I(inode);
-		FILE_BASIC_INFO fi;
-		__le32 attrs;
-		int rc;
-
-		if (!test_bit(CIFS_INO_TMPFILE, &CIFS_I(inode)->flags))
-			goto out;
-
-		attrs = cpu_to_le32(cinode->cifsAttrs & ~ATTR_HIDDEN);
-		fi = (FILE_BASIC_INFO){ .Attributes = attrs, };
-		rc = smb2_set_file_info(inode, from_name, &fi, xid);
+	if (inode && test_bit(CIFS_INO_TMPFILE, &CIFS_I(inode)->flags)) {
+		rc = clear_tmpfile_attr(xid, tcon, inode, from_name);
 		if (rc)
 			return rc;
 	}
 
-out:
 	cifs_get_writable_path(tcon, from_name, inode,
 			       FIND_WITH_DELETE, &cfile);
 	return smb2_set_path_attr(xid, tcon, from_name, to_name,
