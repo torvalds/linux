@@ -7900,8 +7900,8 @@ void __init workqueue_init_early(void)
 {
 	struct wq_pod_type *pt = &wq_pod_types[WQ_AFFN_SYSTEM];
 	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
-	void (*irq_work_fns[2])(struct irq_work *) = { bh_pool_kick_normal,
-						       bh_pool_kick_highpri };
+	void (*irq_work_fns[NR_STD_WORKER_POOLS])(struct irq_work *) =
+		{ bh_pool_kick_normal, bh_pool_kick_highpri };
 	int i, cpu;
 
 	BUILD_BUG_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
