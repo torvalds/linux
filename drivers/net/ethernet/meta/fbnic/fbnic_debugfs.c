@@ -197,7 +197,7 @@ static int fbnic_dbg_bdq_desc_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	for (i = 0; i <= ring->size_mask; i++) {
+	for (i = 0; i < (ring->size_mask + 1) * FBNIC_BD_FRAG_COUNT; i++) {
 		u64 bd = le64_to_cpu(ring->desc[i]);
 
 		seq_printf(s, "%04x %#04llx %#014llx\n", i,

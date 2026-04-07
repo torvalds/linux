@@ -173,10 +173,8 @@ static int rfd77402_wait_for_result(struct rfd77402_data *data)
 	struct i2c_client *client = data->client;
 	int val, ret;
 
-	if (data->irq_en) {
-		reinit_completion(&data->completion);
+	if (data->irq_en)
 		return rfd77402_wait_for_irq(data);
-	}
 
 	/*
 	 * As per RFD77402 datasheet section '3.1.1 Single Measure', the
@@ -203,6 +201,9 @@ static int rfd77402_measure(struct rfd77402_data *data)
 				 RFD77402_STATUS_MCPU_ON);
 	if (ret < 0)
 		return ret;
+
+	if (data->irq_en)
+		reinit_completion(&data->completion);
 
 	ret = i2c_smbus_write_byte_data(client, RFD77402_CMD_R,
 					RFD77402_CMD_SINGLE |

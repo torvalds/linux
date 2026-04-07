@@ -2085,6 +2085,11 @@ static struct pci_device_id driver_denylist_ideapad_z570[] = {
 	{}
 };
 
+static struct pci_device_id driver_denylist_msi_x870e[] = {
+	{ PCI_DEVICE_SUB(0x1022, 0x15e3, 0x1462, 0xee59) }, /* MSI X870E Tomahawk WiFi */
+	{}
+};
+
 /* DMI-based denylist, to be used when:
  *  - PCI subsystem IDs are zero, impossible to distinguish from valid sound cards.
  *  - Different modifications of the same laptop use different GPU models.
@@ -2097,6 +2102,14 @@ static const struct dmi_system_id driver_denylist_dmi[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Ideapad Z570"),
 		},
 		.driver_data = &driver_denylist_ideapad_z570,
+	},
+	{
+		/* PCI device matching alone incorrectly matches some laptops */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Micro-Star International Co., Ltd."),
+			DMI_MATCH(DMI_BOARD_NAME, "MAG X870E TOMAHAWK WIFI (MS-7E59)"),
+		},
+		.driver_data = &driver_denylist_msi_x870e,
 	},
 	{}
 };

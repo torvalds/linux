@@ -1267,17 +1267,20 @@ out:
 
 static void sk_psock_verdict_data_ready(struct sock *sk)
 {
-	struct socket *sock = sk->sk_socket;
-	const struct proto_ops *ops;
+	const struct proto_ops *ops = NULL;
+	struct socket *sock;
 	int copied;
 
 	trace_sk_data_ready(sk);
 
-	if (unlikely(!sock))
-		return;
-	ops = READ_ONCE(sock->ops);
+	rcu_read_lock();
+	sock = READ_ONCE(sk->sk_socket);
+	if (likely(sock))
+		ops = READ_ONCE(sock->ops);
+	rcu_read_unlock();
 	if (!ops || !ops->read_skb)
 		return;
+
 	copied = ops->read_skb(sk, sk_psock_verdict_recv);
 	if (copied >= 0) {
 		struct sk_psock *psock;

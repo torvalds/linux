@@ -233,7 +233,8 @@ static int test_cgcore_populated(const char *root)
 	if (err)
 		goto cleanup;
 
-	if (cg_read_strcmp(cg_test_d, "cgroup.events", "populated 0\n"))
+	if (cg_read_strcmp_wait(cg_test_d, "cgroup.events",
+				   "populated 0\n"))
 		goto cleanup;
 
 	/* Remove cgroup. */

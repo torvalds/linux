@@ -719,10 +719,8 @@ static int ad4062_request_irq(struct iio_dev *indio_dev)
 	}
 	st->gpo_irq[1] = true;
 
-	return devm_request_threaded_irq(dev, ret,
-					 ad4062_irq_handler_drdy,
-					 NULL, IRQF_ONESHOT, indio_dev->name,
-					 indio_dev);
+	return devm_request_irq(dev, ret, ad4062_irq_handler_drdy,
+				IRQF_NO_THREAD, indio_dev->name, indio_dev);
 }
 
 static const struct iio_trigger_ops ad4062_trigger_ops = {
@@ -955,7 +953,7 @@ static int ad4062_write_raw_dispatch(struct ad4062_state *st, int val, int val2,
 	default:
 		return -EINVAL;
 	}
-};
+}
 
 static int ad4062_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int val,
