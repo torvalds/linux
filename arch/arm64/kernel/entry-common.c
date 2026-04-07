@@ -39,7 +39,7 @@ static noinstr irqentry_state_t arm64_enter_from_kernel_mode(struct pt_regs *reg
 {
 	irqentry_state_t state;
 
-	state = irqentry_enter(regs);
+	state = irqentry_enter_from_kernel_mode(regs);
 	mte_check_tfsr_entry();
 	mte_disable_tco_entry(current);
 
@@ -55,7 +55,7 @@ static void noinstr arm64_exit_to_kernel_mode(struct pt_regs *regs,
 					      irqentry_state_t state)
 {
 	mte_check_tfsr_exit();
-	irqentry_exit(regs, state);
+	irqentry_exit_to_kernel_mode(regs, state);
 }
 
 /*
