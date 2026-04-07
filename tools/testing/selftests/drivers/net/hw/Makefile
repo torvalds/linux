@@ -36,6 +36,7 @@ TEST_PROGS = \
 	nic_timestamp.py \
 	nk_netns.py \
 	nk_qlease.py \
+	ntuple.py \
 	pp_alloc_fail.py \
 	rss_api.py \
 	rss_ctx.py \
