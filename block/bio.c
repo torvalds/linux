@@ -1520,6 +1520,20 @@ static void bio_endio_cb(struct bio *bio, void *priv)
 	bio_endio(bio);
 }
 
+/*
+ * Submit @bio synchronously, or call bio_endio on it if the current process
+ * is being killed.
+ */
+int bio_submit_or_kill(struct bio *bio, unsigned int flags)
+{
+	if ((flags & BLKDEV_ZERO_KILLABLE) && fatal_signal_pending(current)) {
+		bio_await(bio, NULL, bio_endio_cb);
+		return -EINTR;
+	}
+
+	return submit_bio_wait(bio);
+}
+
 /**
  * bdev_rw_virt - synchronously read into / write from kernel mapping
  * @bdev:	block device to access
@@ -1549,15 +1563,6 @@ int bdev_rw_virt(struct block_device *bdev, sector_t sector, void *data,
 	return error;
 }
 EXPORT_SYMBOL_GPL(bdev_rw_virt);
-
-/*
- * bio_await_chain - ends @bio and waits for every chained bio to complete
- */
-void bio_await_chain(struct bio *bio)
-{
-	bio_await(bio, NULL, bio_endio_cb);
-	bio_put(bio);
-}
 
 void __bio_advance(struct bio *bio, unsigned bytes)
 {
