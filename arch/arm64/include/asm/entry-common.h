@@ -29,14 +29,19 @@ static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 
 static inline bool arch_irqentry_exit_need_resched(void)
 {
-	/*
-	 * DAIF.DA are cleared at the start of IRQ/FIQ handling, and when GIC
-	 * priority masking is used the GIC irqchip driver will clear DAIF.IF
-	 * using gic_arch_enable_irqs() for normal IRQs. If anything is set in
-	 * DAIF we must have handled an NMI, so skip preemption.
-	 */
-	if (system_uses_irq_prio_masking() && read_sysreg(daif))
-		return false;
+	if (system_uses_irq_prio_masking()) {
+		/*
+		 * DAIF.DA are cleared at the start of IRQ/FIQ handling, and when GIC
+		 * priority masking is used the GIC irqchip driver will clear DAIF.IF
+		 * using gic_arch_enable_irqs() for normal IRQs. If anything is set in
+		 * DAIF we must have handled an NMI, so skip preemption.
+		 */
+		if (read_sysreg(daif))
+			return false;
+	} else {
+		if (read_sysreg(daif) & (PSR_D_BIT | PSR_A_BIT))
+			return false;
+	}
 
 	/*
 	 * Preempting a task from an IRQ means we leave copies of PSTATE
