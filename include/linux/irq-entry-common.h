@@ -394,7 +394,7 @@ typedef struct irqentry_state {
  * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
  * would not be possible.
  *
- * Returns: An opaque object that must be passed to idtentry_exit()
+ * Returns: An opaque object that must be passed to irqentry_exit()
  */
 irqentry_state_t noinstr irqentry_enter(struct pt_regs *regs);
 
