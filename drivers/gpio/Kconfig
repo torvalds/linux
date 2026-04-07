@@ -253,7 +253,7 @@ config GPIO_BY_PINCTRL
 	  create a simple GPIO device based on the pin control interface
 	  without doing anything custom.
 
-	  This driver used to do GPIO over the ARM SCMI protocol.
+	  This driver is used to access GPIOs over the ARM SCMI protocol.
 
 config GPIO_CADENCE
 	tristate "Cadence GPIO support"
