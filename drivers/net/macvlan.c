@@ -386,7 +386,7 @@ static void macvlan_broadcast_enqueue(struct macvlan_port *port,
 	return;
 
 free_nskb:
-	kfree_skb(nskb);
+	kfree_skb_reason(nskb, SKB_DROP_REASON_MACVLAN_BROADCAST_BACKLOG);
 err:
 	dev_core_stats_rx_dropped_inc(skb->dev);
 }

@@ -337,7 +337,7 @@ static int ipvlan_rcv_frame(struct ipvl_addr *addr, struct sk_buff **pskb,
 	 */
 	if (local) {
 		if (unlikely(!(dev->flags & IFF_UP))) {
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_DEV_READY);
 			goto out;
 		}
 
@@ -596,7 +596,7 @@ static void ipvlan_multicast_enqueue(struct ipvl_port *port,
 	} else {
 		spin_unlock(&port->backlog.lock);
 		dev_core_stats_rx_dropped_inc(skb->dev);
-		kfree_skb(skb);
+		kfree_skb_reason(skb, SKB_DROP_REASON_IPVLAN_MULTICAST_BACKLOG);
 	}
 }
 
