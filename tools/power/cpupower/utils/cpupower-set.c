@@ -33,8 +33,6 @@ static void print_wrong_arg_exit(void)
 
 int cmd_set(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	unsigned int cpu;
 	struct utsname uts;
 
