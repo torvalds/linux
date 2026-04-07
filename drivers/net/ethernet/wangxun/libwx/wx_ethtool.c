@@ -211,7 +211,7 @@ void wx_get_pause_stats(struct net_device *netdev,
 
 	hwstats = &wx->stats;
 	stats->tx_pause_frames = hwstats->lxontxc + hwstats->lxofftxc;
-	stats->rx_pause_frames = hwstats->lxonoffrxc;
+	stats->rx_pause_frames = hwstats->lxonrxc + hwstats->lxoffrxc;
 }
 EXPORT_SYMBOL(wx_get_pause_stats);
 
