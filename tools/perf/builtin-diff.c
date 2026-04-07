@@ -1352,7 +1352,7 @@ static int cycles_printf(struct hist_entry *he, struct hist_entry *pair,
 	/*
 	 * Avoid printing the warning "addr2line_init failed for ..."
 	 */
-	symbol_conf.disable_add2line_warn = true;
+	symbol_conf.addr2line_disable_warn = true;
 
 	bi = block_he->block_info;
 
@@ -1986,7 +1986,7 @@ int cmd_diff(int argc, const char **argv)
 
 	if (compute == COMPUTE_STREAM) {
 		symbol_conf.show_branchflag_count = true;
-		symbol_conf.disable_add2line_warn = true;
+		symbol_conf.addr2line_disable_warn = true;
 		callchain_param.mode = CHAIN_FLAT;
 		callchain_param.key = CCKEY_SRCLINE;
 		callchain_param.branch_callstack = 1;

@@ -233,7 +233,7 @@ int libbfd__addr2line(const char *dso_name, u64 addr,
 	}
 
 	if (a2l == NULL) {
-		if (!symbol_conf.disable_add2line_warn)
+		if (!symbol_conf.addr2line_disable_warn)
 			pr_warning("addr2line_init failed for %s\n", dso_name);
 		return 0;
 	}
