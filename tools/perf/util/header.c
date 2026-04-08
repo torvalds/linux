@@ -2795,6 +2795,9 @@ process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 	return 0;
 }
 
+// Some reasonable arbitrary max for the number of command line arguments
+#define MAX_CMDLINE_NR 32768
+
 static int process_cmdline(struct feat_fd *ff, void *data __maybe_unused)
 {
 	struct perf_env *env = &ff->ph->env;
@@ -2802,6 +2805,9 @@ static int process_cmdline(struct feat_fd *ff, void *data __maybe_unused)
 	u32 nr, i, len = 0;
 
 	if (do_read_u32(ff, &nr))
+		return -1;
+
+	if (nr > MAX_CMDLINE_NR)
 		return -1;
 
 	env->nr_cmdline = nr;
