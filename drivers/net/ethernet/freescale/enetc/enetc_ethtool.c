@@ -129,18 +129,35 @@ static const struct {
 static const struct {
 	int reg;
 	char name[ETH_GSTRING_LEN] __nonstring;
-} enetc_pm_counters[] = {
-	{ ENETC_PM_RVLAN(0),	"MAC rx VLAN frames" },
-	{ ENETC_PM_RERR(0),	"MAC rx frame errors" },
-	{ ENETC_PM_RUCA(0),	"MAC rx unicast frames" },
-	{ ENETC_PM_RDRP(0),	"MAC rx dropped packets" },
-	{ ENETC_PM_RPKT(0),	"MAC rx packets" },
-	{ ENETC_PM_TOCT(0),	"MAC tx octets" },
-	{ ENETC_PM_TFCS(0),	"MAC tx fcs errors" },
-	{ ENETC_PM_TVLAN(0),	"MAC tx VLAN frames" },
-	{ ENETC_PM_TUCA(0),	"MAC tx unicast frames" },
-	{ ENETC_PM_TPKT(0),	"MAC tx packets" },
-	{ ENETC_PM_TUND(0),	"MAC tx undersized packets" },
+} enetc_emac_counters[] = {
+	{ ENETC_PM_RVLAN(0),	"eMAC rx VLAN frames" },
+	{ ENETC_PM_RERR(0),	"eMAC rx frame errors" },
+	{ ENETC_PM_RUCA(0),	"eMAC rx unicast frames" },
+	{ ENETC_PM_RDRP(0),	"eMAC rx dropped packets" },
+	{ ENETC_PM_RPKT(0),	"eMAC rx packets" },
+	{ ENETC_PM_TOCT(0),	"eMAC tx octets" },
+	{ ENETC_PM_TFCS(0),	"eMAC tx fcs errors" },
+	{ ENETC_PM_TVLAN(0),	"eMAC tx VLAN frames" },
+	{ ENETC_PM_TUCA(0),	"eMAC tx unicast frames" },
+	{ ENETC_PM_TPKT(0),	"eMAC tx packets" },
+	{ ENETC_PM_TUND(0),	"eMAC tx undersized packets" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc_pmac_counters[] = {
+	{ ENETC_PM_RVLAN(1),	"pMAC rx VLAN frames" },
+	{ ENETC_PM_RERR(1),	"pMAC rx frame errors" },
+	{ ENETC_PM_RUCA(1),	"pMAC rx unicast frames" },
+	{ ENETC_PM_RDRP(1),	"pMAC rx dropped packets" },
+	{ ENETC_PM_RPKT(1),	"pMAC rx packets" },
+	{ ENETC_PM_TOCT(1),	"pMAC tx octets" },
+	{ ENETC_PM_TFCS(1),	"pMAC tx fcs errors" },
+	{ ENETC_PM_TVLAN(1),	"pMAC tx VLAN frames" },
+	{ ENETC_PM_TUCA(1),	"pMAC tx unicast frames" },
+	{ ENETC_PM_TPKT(1),	"pMAC tx packets" },
+	{ ENETC_PM_TUND(1),	"pMAC tx undersized packets" },
 };
 
 static const struct {
@@ -181,6 +198,7 @@ static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
 static int enetc_get_sset_count(struct net_device *ndev, int sset)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_si *si = priv->si;
 	int len;
 
 	if (sset != ETH_SS_STATS)
@@ -190,11 +208,14 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 	      ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
 	      ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings;
 
-	if (!enetc_si_is_pf(priv->si))
+	if (!enetc_si_is_pf(si))
 		return len;
 
 	len += ARRAY_SIZE(enetc_port_counters);
-	len += ARRAY_SIZE(enetc_pm_counters);
+	len += ARRAY_SIZE(enetc_emac_counters);
+
+	if (si->hw_features & ENETC_SI_F_QBU)
+		len += ARRAY_SIZE(enetc_pmac_counters);
 
 	return len;
 }
@@ -202,6 +223,7 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_si *si = priv->si;
 	int i, j;
 
 	switch (stringset) {
@@ -215,14 +237,20 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 			for (j = 0; j < ARRAY_SIZE(rx_ring_stats); j++)
 				ethtool_sprintf(&data, rx_ring_stats[j], i);
 
-		if (!enetc_si_is_pf(priv->si))
+		if (!enetc_si_is_pf(si))
 			break;
 
 		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
 			ethtool_cpy(&data, enetc_port_counters[i].name);
 
-		for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
-			ethtool_cpy(&data, enetc_pm_counters[i].name);
+		for (i = 0; i < ARRAY_SIZE(enetc_emac_counters); i++)
+			ethtool_cpy(&data, enetc_emac_counters[i].name);
+
+		if (!(si->hw_features & ENETC_SI_F_QBU))
+			break;
+
+		for (i = 0; i < ARRAY_SIZE(enetc_pmac_counters); i++)
+			ethtool_cpy(&data, enetc_pmac_counters[i].name);
 
 		break;
 	}
@@ -232,7 +260,8 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
 	int i, o = 0;
 
 	for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++)
@@ -256,14 +285,20 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 		data[o++] = enetc_rd(hw, ENETC_RBDCR(i));
 	}
 
-	if (!enetc_si_is_pf(priv->si))
+	if (!enetc_si_is_pf(si))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
 		data[o++] = enetc_port_rd(hw, enetc_port_counters[i].reg);
 
-	for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
-		data[o++] = enetc_port_rd64(hw, enetc_pm_counters[i].reg);
+	for (i = 0; i < ARRAY_SIZE(enetc_emac_counters); i++)
+		data[o++] = enetc_port_rd64(hw, enetc_emac_counters[i].reg);
+
+	if (!(si->hw_features & ENETC_SI_F_QBU))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_pmac_counters); i++)
+		data[o++] = enetc_port_rd64(hw, enetc_pmac_counters[i].reg);
 }
 
 static void enetc_pause_stats(struct enetc_si *si, int mac,
