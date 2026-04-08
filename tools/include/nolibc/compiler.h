@@ -81,7 +81,11 @@
 #define _NOLIBC_OPTIMIZER_HIDE_VAR(var)	__asm__ ("" : "+r" (var))
 
 #if __nolibc_has_feature(undefined_behavior_sanitizer)
-#  define __nolibc_no_sanitize_undefined __attribute__((no_sanitize("function")))
+#  if defined(__clang__)
+#    define __nolibc_no_sanitize_undefined __attribute__((no_sanitize("function")))
+#  else
+#    define __nolibc_no_sanitize_undefined __attribute__((no_sanitize_undefined))
+#  endif
 #else
 #  define __nolibc_no_sanitize_undefined
 #endif
