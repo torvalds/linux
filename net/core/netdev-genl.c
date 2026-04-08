@@ -395,8 +395,7 @@ netdev_nl_queue_fill_lease(struct sk_buff *rsp, struct net_device *netdev,
 	struct netdev_rx_queue *rxq;
 	struct net *net, *peer_net;
 
-	rxq = __netif_get_rx_queue_lease(&netdev, &q_idx,
-					 NETIF_PHYS_TO_VIRT);
+	rxq = __netif_get_rx_queue_lease(&netdev, &q_idx, NETIF_PHYS_TO_VIRT);
 	if (!rxq || orig_netdev == netdev)
 		return 0;
 
@@ -437,12 +436,44 @@ nla_put_failure:
 }
 
 static int
+__netdev_nl_queue_fill_mp(struct sk_buff *rsp, struct netdev_rx_queue *rxq)
+{
+	struct pp_memory_provider_params *params = &rxq->mp_params;
+
+	if (params->mp_ops &&
+	    params->mp_ops->nl_fill(params->mp_priv, rsp, rxq))
+		return -EMSGSIZE;
+
+#ifdef CONFIG_XDP_SOCKETS
+	if (rxq->pool)
+		if (nla_put_empty_nest(rsp, NETDEV_A_QUEUE_XSK))
+			return -EMSGSIZE;
+#endif
+	return 0;
+}
+
+static int
+netdev_nl_queue_fill_mp(struct sk_buff *rsp, struct net_device *netdev,
+			struct netdev_rx_queue *rxq)
+{
+	struct netdev_rx_queue *hw_rxq;
+	int ret;
+
+	hw_rxq = rxq->lease;
+	if (!hw_rxq || !netif_is_queue_leasee(netdev))
+		return __netdev_nl_queue_fill_mp(rsp, rxq);
+
+	netdev_lock(hw_rxq->dev);
+	ret = __netdev_nl_queue_fill_mp(rsp, hw_rxq);
+	netdev_unlock(hw_rxq->dev);
+	return ret;
+}
+
+static int
 netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 			 u32 q_idx, u32 q_type, const struct genl_info *info)
 {
-	struct pp_memory_provider_params *params;
-	struct net_device *orig_netdev = netdev;
-	struct netdev_rx_queue *rxq, *rxq_lease;
+	struct netdev_rx_queue *rxq;
 	struct netdev_queue *txq;
 	void *hdr;
 
@@ -462,20 +493,8 @@ netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 			goto nla_put_failure;
 		if (netdev_nl_queue_fill_lease(rsp, netdev, q_idx, q_type))
 			goto nla_put_failure;
-
-		rxq_lease = netif_get_rx_queue_lease_locked(&netdev, &q_idx);
-		if (rxq_lease)
-			rxq = rxq_lease;
-		params = &rxq->mp_params;
-		if (params->mp_ops &&
-		    params->mp_ops->nl_fill(params->mp_priv, rsp, rxq))
-			goto nla_put_failure_lease;
-#ifdef CONFIG_XDP_SOCKETS
-		if (rxq->pool)
-			if (nla_put_empty_nest(rsp, NETDEV_A_QUEUE_XSK))
-				goto nla_put_failure_lease;
-#endif
-		netif_put_rx_queue_lease_locked(orig_netdev, netdev);
+		if (netdev_nl_queue_fill_mp(rsp, netdev, rxq))
+			goto nla_put_failure;
 		break;
 	case NETDEV_QUEUE_TYPE_TX:
 		txq = netdev_get_tx_queue(netdev, q_idx);
@@ -493,8 +512,6 @@ netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
 
 	return 0;
 
-nla_put_failure_lease:
-	netif_put_rx_queue_lease_locked(orig_netdev, netdev);
 nla_put_failure:
 	genlmsg_cancel(rsp, hdr);
 	return -EMSGSIZE;

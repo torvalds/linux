@@ -31,6 +31,8 @@
 #include <net/netdev_rx_queue.h>
 #include <net/xdp.h>
 
+#include "../core/dev.h"
+
 #include "xsk_queue.h"
 #include "xdp_umem.h"
 #include "xsk.h"
@@ -117,20 +119,42 @@ struct xsk_buff_pool *xsk_get_pool_from_qid(struct net_device *dev,
 }
 EXPORT_SYMBOL(xsk_get_pool_from_qid);
 
+static void __xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
+{
+	if (queue_id < dev->num_rx_queues)
+		dev->_rx[queue_id].pool = NULL;
+	if (queue_id < dev->num_tx_queues)
+		dev->_tx[queue_id].pool = NULL;
+}
+
 void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 {
-	struct net_device *orig_dev = dev;
-	unsigned int id = queue_id;
+	struct netdev_rx_queue *hw_rxq;
 
-	if (id < dev->real_num_rx_queues)
-		WARN_ON_ONCE(!netif_get_rx_queue_lease_locked(&dev, &id));
+	if (!netif_rxq_is_leased(dev, queue_id))
+		return __xsk_clear_pool_at_qid(dev, queue_id);
+	WARN_ON_ONCE(!netif_is_queue_leasee(dev));
 
-	if (id < dev->num_rx_queues)
-		dev->_rx[id].pool = NULL;
-	if (id < dev->num_tx_queues)
-		dev->_tx[id].pool = NULL;
+	hw_rxq = __netif_get_rx_queue(dev, queue_id)->lease;
 
-	netif_put_rx_queue_lease_locked(orig_dev, dev);
+	netdev_lock(hw_rxq->dev);
+	queue_id = get_netdev_rx_queue_index(hw_rxq);
+	__xsk_clear_pool_at_qid(hw_rxq->dev, queue_id);
+	netdev_unlock(hw_rxq->dev);
+}
+
+static int __xsk_reg_pool_at_qid(struct net_device *dev,
+				 struct xsk_buff_pool *pool, u16 queue_id)
+{
+	if (xsk_get_pool_from_qid(dev, queue_id))
+		return -EBUSY;
+
+	if (queue_id < dev->real_num_rx_queues)
+		dev->_rx[queue_id].pool = pool;
+	if (queue_id < dev->real_num_tx_queues)
+		dev->_tx[queue_id].pool = pool;
+
+	return 0;
 }
 
 /* The buffer pool is stored both in the _rx struct and the _tx struct as we do
@@ -140,29 +164,26 @@ void xsk_clear_pool_at_qid(struct net_device *dev, u16 queue_id)
 int xsk_reg_pool_at_qid(struct net_device *dev, struct xsk_buff_pool *pool,
 			u16 queue_id)
 {
-	struct net_device *orig_dev = dev;
-	unsigned int id = queue_id;
-	int ret = 0;
+	struct netdev_rx_queue *hw_rxq;
+	int ret;
 
-	if (id >= max(dev->real_num_rx_queues,
-		      dev->real_num_tx_queues))
+	if (queue_id >= max(dev->real_num_rx_queues,
+			    dev->real_num_tx_queues))
 		return -EINVAL;
 
-	if (id < dev->real_num_rx_queues) {
-		if (!netif_get_rx_queue_lease_locked(&dev, &id))
-			return -EBUSY;
-		if (xsk_get_pool_from_qid(dev, id)) {
-			ret = -EBUSY;
-			goto out;
-		}
-	}
+	if (queue_id >= dev->real_num_rx_queues ||
+	    !netif_rxq_is_leased(dev, queue_id))
+		return __xsk_reg_pool_at_qid(dev, pool, queue_id);
+	if (!netif_is_queue_leasee(dev))
+		return -EBUSY;
 
-	if (id < dev->real_num_rx_queues)
-		dev->_rx[id].pool = pool;
-	if (id < dev->real_num_tx_queues)
-		dev->_tx[id].pool = pool;
-out:
-	netif_put_rx_queue_lease_locked(orig_dev, dev);
+	hw_rxq = __netif_get_rx_queue(dev, queue_id)->lease;
+
+	netdev_lock(hw_rxq->dev);
+	queue_id = get_netdev_rx_queue_index(hw_rxq);
+	ret = __xsk_reg_pool_at_qid(hw_rxq->dev, pool, queue_id);
+	netdev_unlock(hw_rxq->dev);
+
 	return ret;
 }
 

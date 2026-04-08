@@ -57,6 +57,11 @@ static bool netif_lease_dir_ok(const struct net_device *dev,
 	return false;
 }
 
+bool netif_is_queue_leasee(const struct net_device *dev)
+{
+	return netif_lease_dir_ok(dev, NETIF_VIRT_TO_PHYS);
+}
+
 struct netdev_rx_queue *
 __netif_get_rx_queue_lease(struct net_device **dev, unsigned int *rxq_idx,
 			   enum netif_lease_dir dir)
@@ -72,29 +77,6 @@ __netif_get_rx_queue_lease(struct net_device **dev, unsigned int *rxq_idx,
 		*dev = rxq->dev;
 	}
 	return rxq;
-}
-
-struct netdev_rx_queue *
-netif_get_rx_queue_lease_locked(struct net_device **dev, unsigned int *rxq_idx)
-{
-	struct net_device *orig_dev = *dev;
-	struct netdev_rx_queue *rxq;
-
-	/* Locking order is always from the virtual to the physical device
-	 * see netdev_nl_queue_create_doit().
-	 */
-	netdev_ops_assert_locked(orig_dev);
-	rxq = __netif_get_rx_queue_lease(dev, rxq_idx, NETIF_VIRT_TO_PHYS);
-	if (rxq && orig_dev != *dev)
-		netdev_lock(*dev);
-	return rxq;
-}
-
-void netif_put_rx_queue_lease_locked(struct net_device *orig_dev,
-				     struct net_device *dev)
-{
-	if (orig_dev != dev)
-		netdev_unlock(dev);
 }
 
 /* See also page_pool_is_unreadable() */
@@ -264,7 +246,6 @@ int netif_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 		      const struct pp_memory_provider_params *p,
 		      struct netlink_ext_ack *extack)
 {
-	struct net_device *orig_dev = dev;
 	int ret;
 
 	if (!netdev_need_ops_lock(dev))
@@ -279,19 +260,18 @@ int netif_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 	if (!netif_rxq_is_leased(dev, rxq_idx))
 		return __netif_mp_open_rxq(dev, rxq_idx, p, extack);
 
-	if (!netif_get_rx_queue_lease_locked(&dev, &rxq_idx)) {
+	if (!__netif_get_rx_queue_lease(&dev, &rxq_idx, NETIF_VIRT_TO_PHYS)) {
 		NL_SET_ERR_MSG(extack, "rx queue leased to a virtual netdev");
 		return -EBUSY;
 	}
 	if (!dev->dev.parent) {
 		NL_SET_ERR_MSG(extack, "rx queue belongs to a virtual netdev");
-		ret = -EOPNOTSUPP;
-		goto out;
+		return -EOPNOTSUPP;
 	}
 
+	netdev_lock(dev);
 	ret = __netif_mp_open_rxq(dev, rxq_idx, p, extack);
-out:
-	netif_put_rx_queue_lease_locked(orig_dev, dev);
+	netdev_unlock(dev);
 	return ret;
 }
 
@@ -326,18 +306,18 @@ static void __netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 void netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 			const struct pp_memory_provider_params *old_p)
 {
-	struct net_device *orig_dev = dev;
-
 	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
 		return;
 	if (!netif_rxq_is_leased(dev, ifq_idx))
 		return __netif_mp_close_rxq(dev, ifq_idx, old_p);
 
-	if (WARN_ON_ONCE(!netif_get_rx_queue_lease_locked(&dev, &ifq_idx)))
+	if (!__netif_get_rx_queue_lease(&dev, &ifq_idx, NETIF_VIRT_TO_PHYS)) {
+		WARN_ON_ONCE(1);
 		return;
-
+	}
+	netdev_lock(dev);
 	__netif_mp_close_rxq(dev, ifq_idx, old_p);
-	netif_put_rx_queue_lease_locked(orig_dev, dev);
+	netdev_unlock(dev);
 }
 
 void __netif_mp_uninstall_rxq(struct netdev_rx_queue *rxq,
