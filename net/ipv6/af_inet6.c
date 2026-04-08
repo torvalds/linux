@@ -690,6 +690,7 @@ const struct proto_ops inet6_stream_ops = {
 	.compat_ioctl	   = inet6_compat_ioctl,
 #endif
 	.set_rcvlowat	   = tcp_set_rcvlowat,
+	.set_rcvbuf	   = tcp_set_rcvbuf,
 };
 EXPORT_SYMBOL_GPL(inet6_stream_ops);
 

@@ -1858,6 +1858,11 @@ int tcp_set_rcvlowat(struct sock *sk, int val)
 	return 0;
 }
 
+void tcp_set_rcvbuf(struct sock *sk, int val)
+{
+	tcp_set_window_clamp(sk, tcp_win_from_space(sk, val));
+}
+
 #ifdef CONFIG_MMU
 static const struct vm_operations_struct tcp_vm_ops = {
 };

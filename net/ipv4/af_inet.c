@@ -1091,6 +1091,7 @@ const struct proto_ops inet_stream_ops = {
 	.compat_ioctl	   = inet_compat_ioctl,
 #endif
 	.set_rcvlowat	   = tcp_set_rcvlowat,
+	.set_rcvbuf	   = tcp_set_rcvbuf,
 };
 EXPORT_SYMBOL(inet_stream_ops);
 

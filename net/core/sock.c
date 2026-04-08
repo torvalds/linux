@@ -966,6 +966,8 @@ EXPORT_SYMBOL(sock_set_keepalive);
 
 static void __sock_set_rcvbuf(struct sock *sk, int val)
 {
+	struct socket *sock = sk->sk_socket;
+
 	/* Ensure val * 2 fits into an int, to prevent max_t() from treating it
 	 * as a negative value.
 	 */
@@ -983,6 +985,13 @@ static void __sock_set_rcvbuf(struct sock *sk, int val)
 	 * we actually used in getsockopt is the most desirable behavior.
 	 */
 	WRITE_ONCE(sk->sk_rcvbuf, max_t(int, val * 2, SOCK_MIN_RCVBUF));
+
+	if (sock) {
+		const struct proto_ops *ops = READ_ONCE(sock->ops);
+
+		if (ops->set_rcvbuf)
+			ops->set_rcvbuf(sk, sk->sk_rcvbuf);
+	}
 }
 
 void sock_set_rcvbuf(struct sock *sk, int val)
