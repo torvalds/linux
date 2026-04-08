@@ -2892,9 +2892,10 @@ static int ui_quirks(void)
 
 #define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
 
-const char callchain_help[] = "Display call graph (stack chain/backtrace):\n\n"
-				CALLCHAIN_REPORT_HELP
-				"\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
+static const char callchain_help[] =
+	"Display call graph (stack chain/backtrace):\n\n"
+	CALLCHAIN_REPORT_HELP
+	"\n\t\t\t\tDefault: " CALLCHAIN_DEFAULT_OPT;
 
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)

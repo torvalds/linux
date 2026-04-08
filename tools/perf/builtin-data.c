@@ -28,15 +28,15 @@ static const char *data_usage[] = {
 	NULL
 };
 
-const char *to_json;
-const char *to_ctf;
-struct perf_data_convert_opts opts = {
+static const char *to_json;
+static const char *to_ctf;
+static struct perf_data_convert_opts opts = {
 	.force = false,
 	.all = false,
 	.time_str = NULL,
 };
 
-const struct option data_options[] = {
+static const struct option data_options[] = {
 		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 		OPT_STRING('i', "input", &input_name, "file", "input file name"),
 		OPT_STRING(0, "to-json", &to_json, NULL, "Convert to JSON format"),

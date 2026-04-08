@@ -39,7 +39,7 @@ union off_cpu_data {
 	u64 array[1024 / sizeof(u64)];
 };
 
-u64 off_cpu_raw[MAX_STACKS + 5];
+static u64 off_cpu_raw[MAX_STACKS + 5];
 
 static int off_cpu_config(struct evlist *evlist)
 {

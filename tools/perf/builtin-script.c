@@ -166,7 +166,7 @@ struct perf_script {
 	int			range_num;
 };
 
-struct output_option {
+static struct output_option {
 	const char *str;
 	enum perf_output_field field;
 } all_output_options[] = {

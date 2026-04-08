@@ -16,7 +16,7 @@
 #include "bench.h"
 #include "futex.h"
 
-struct {
+static struct {
 	unsigned int nbreakpoints;
 	unsigned int nparallel;
 	unsigned int nthreads;
@@ -173,7 +173,7 @@ int bench_breakpoint_thread(int argc, const char **argv)
 	return 0;
 }
 
-struct {
+static struct {
 	unsigned int npassive;
 	unsigned int nactive;
 } enable_params = {

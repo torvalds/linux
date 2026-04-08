@@ -166,7 +166,7 @@ static struct global_info	*g = NULL;
 static int parse_cpus_opt(const struct option *opt, const char *arg, int unset);
 static int parse_nodes_opt(const struct option *opt, const char *arg, int unset);
 
-struct params p0;
+static struct params p0;
 
 static const struct option options[] = {
 	OPT_INTEGER('p', "nr_proc"	, &p0.nr_proc,		"number of processes"),

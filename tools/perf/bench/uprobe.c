@@ -58,7 +58,7 @@ static const char * const bench_uprobe_usage[] = {
 		goto cleanup; \
 	}
 
-struct bench_uprobe_bpf *skel;
+static struct bench_uprobe_bpf *skel;
 
 static int bench_uprobe__setup_bpf_skel(enum bench_uprobe bench)
 {

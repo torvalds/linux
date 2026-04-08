@@ -44,11 +44,11 @@ regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	*default_sort_order = "comm,dso,symbol";
-const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
+static const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
 const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked,blocked,local_ins_lat,local_p_stage_cyc";
-const char	default_top_sort_order[] = "dso,symbol";
-const char	default_diff_sort_order[] = "dso,symbol";
-const char	default_tracepoint_sort_order[] = "trace";
+static const char	default_top_sort_order[] = "dso,symbol";
+static const char	default_diff_sort_order[] = "dso,symbol";
+static const char	default_tracepoint_sort_order[] = "trace";
 const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
@@ -173,7 +173,7 @@ static int hist_entry__tgid_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%7d:%-*.*s", tgid, width, width, comm ?: "");
 }
 
-struct sort_entry sort_tgid = {
+static struct sort_entry sort_tgid = {
 	.se_header	= "   Tgid:Command",
 	.se_cmp		= sort__tgid_cmp,
 	.se_snprintf	= hist_entry__tgid_snprintf,
@@ -219,7 +219,7 @@ static int hist_entry__simd_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "[.] %s", name);
 }
 
-struct sort_entry sort_simd = {
+static struct sort_entry sort_simd = {
 	.se_header	= "Simd   ",
 	.se_cmp		= sort__simd_cmp,
 	.se_snprintf	= hist_entry__simd_snprintf,
@@ -605,7 +605,7 @@ hist_entry__symoff_snprintf(struct hist_entry *he, char *bf, size_t size, unsign
 	return repsep_snprintf(bf, size, "[%c] %s+0x%llx", he->level, sym->name, he->ip - sym->start);
 }
 
-struct sort_entry sort_sym_offset = {
+static struct sort_entry sort_sym_offset = {
 	.se_header	= "Symbol Offset",
 	.se_cmp		= sort__symoff_cmp,
 	.se_sort	= sort__symoff_sort,
@@ -716,7 +716,7 @@ static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_from);
 }
 
-struct sort_entry sort_srcline_from = {
+static struct sort_entry sort_srcline_from = {
 	.se_header	= "From Source:Line",
 	.se_cmp		= sort__srcline_from_cmp,
 	.se_collapse	= sort__srcline_from_collapse,
@@ -764,7 +764,7 @@ static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_to);
 }
 
-struct sort_entry sort_srcline_to = {
+static struct sort_entry sort_srcline_to = {
 	.se_header	= "To Source:Line",
 	.se_cmp		= sort__srcline_to_cmp,
 	.se_collapse	= sort__srcline_to_collapse,
@@ -800,7 +800,7 @@ static int hist_entry__sym_ipc_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, tmp);
 }
 
-struct sort_entry sort_sym_ipc = {
+static struct sort_entry sort_sym_ipc = {
 	.se_header	= "IPC   [IPC Coverage]",
 	.se_cmp		= sort__sym_cmp,
 	.se_snprintf	= hist_entry__sym_ipc_snprintf,
@@ -818,7 +818,7 @@ static int hist_entry__sym_ipc_null_snprintf(struct hist_entry *he
 	return repsep_snprintf(bf, size, "%-*s", width, tmp);
 }
 
-struct sort_entry sort_sym_ipc_null = {
+static struct sort_entry sort_sym_ipc_null = {
 	.se_header	= "IPC   [IPC Coverage]",
 	.se_cmp		= sort__sym_cmp,
 	.se_snprintf	= hist_entry__sym_ipc_null_snprintf,
@@ -851,7 +851,7 @@ static int hist_entry__callchain_branch_predicted_snprintf(
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
 }
 
-struct sort_entry sort_callchain_branch_predicted = {
+static struct sort_entry sort_callchain_branch_predicted = {
 	.se_header	= "Predicted",
 	.se_cmp		= sort__callchain_branch_predicted_cmp,
 	.se_snprintf	= hist_entry__callchain_branch_predicted_snprintf,
@@ -881,7 +881,7 @@ static int hist_entry__callchain_branch_abort_snprintf(struct hist_entry *he,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
 }
 
-struct sort_entry sort_callchain_branch_abort = {
+static struct sort_entry sort_callchain_branch_abort = {
 	.se_header	= "Abort",
 	.se_cmp		= sort__callchain_branch_abort_cmp,
 	.se_snprintf	= hist_entry__callchain_branch_abort_snprintf,
@@ -914,7 +914,7 @@ static int hist_entry__callchain_branch_cycles_snprintf(struct hist_entry *he,
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, str);
 }
 
-struct sort_entry sort_callchain_branch_cycles = {
+static struct sort_entry sort_callchain_branch_cycles = {
 	.se_header	= "Cycles",
 	.se_cmp		= sort__callchain_branch_cycles_cmp,
 	.se_snprintf	= hist_entry__callchain_branch_cycles_snprintf,
@@ -981,7 +981,7 @@ static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcfile);
 }
 
-struct sort_entry sort_srcfile = {
+static struct sort_entry sort_srcfile = {
 	.se_header	= "Source File",
 	.se_cmp		= sort__srcfile_cmp,
 	.se_collapse	= sort__srcfile_collapse,
@@ -1033,7 +1033,7 @@ static int hist_entry__cpu_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%*.*d", width, width, he->cpu);
 }
 
-struct sort_entry sort_cpu = {
+static struct sort_entry sort_cpu = {
 	.se_header      = "CPU",
 	.se_cmp	        = sort__cpu_cmp,
 	.se_snprintf    = hist_entry__cpu_snprintf,
@@ -1064,7 +1064,7 @@ static int hist_entry__parallelism_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%*d", width, he->parallelism);
 }
 
-struct sort_entry sort_parallelism = {
+static struct sort_entry sort_parallelism = {
 	.se_header      = "Parallelism",
 	.se_cmp	        = sort__parallelism_cmp,
 	.se_filter	= hist_entry__parallelism_filter,
@@ -1105,7 +1105,7 @@ static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
 			       he->cgroup_id.ino);
 }
 
-struct sort_entry sort_cgroup_id = {
+static struct sort_entry sort_cgroup_id = {
 	.se_header      = "cgroup id (dev/inode)",
 	.se_cmp	        = sort__cgroup_id_cmp,
 	.se_snprintf    = hist_entry__cgroup_id_snprintf,
@@ -1138,7 +1138,7 @@ static int hist_entry__cgroup_snprintf(struct hist_entry *he,
 	return repsep_snprintf(bf, size, "%s", cgrp_name);
 }
 
-struct sort_entry sort_cgroup = {
+static struct sort_entry sort_cgroup = {
 	.se_header      = "Cgroup",
 	.se_cmp	        = sort__cgroup_cmp,
 	.se_snprintf    = hist_entry__cgroup_snprintf,
@@ -1169,7 +1169,7 @@ static int hist_entry__socket_filter(struct hist_entry *he, int type, const void
 	return sk >= 0 && he->socket != sk;
 }
 
-struct sort_entry sort_socket = {
+static struct sort_entry sort_socket = {
 	.se_header      = "Socket",
 	.se_cmp	        = sort__socket_cmp,
 	.se_snprintf    = hist_entry__socket_snprintf,
@@ -1200,7 +1200,7 @@ static int hist_entry__time_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-.*s", width, he_time);
 }
 
-struct sort_entry sort_time = {
+static struct sort_entry sort_time = {
 	.se_header      = "Time",
 	.se_cmp	        = sort__time_cmp,
 	.se_snprintf    = hist_entry__time_snprintf,
@@ -1269,7 +1269,7 @@ static int hist_entry__trace_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-.*s", width, he->trace_output);
 }
 
-struct sort_entry sort_trace = {
+static struct sort_entry sort_trace = {
 	.se_header      = "Trace output",
 	.se_cmp	        = sort__trace_cmp,
 	.se_snprintf    = hist_entry__trace_snprintf,
@@ -1564,7 +1564,7 @@ sort__addr_to_cmp(struct hist_entry *left, struct hist_entry *right)
 	return _sort__addr_cmp(to_l->addr, to_r->addr);
 }
 
-struct sort_entry sort_addr_from = {
+static struct sort_entry sort_addr_from = {
 	.se_header	= "Source Address",
 	.se_cmp		= sort__addr_from_cmp,
 	.se_snprintf	= hist_entry__addr_from_snprintf,
@@ -1572,7 +1572,7 @@ struct sort_entry sort_addr_from = {
 	.se_width_idx	= HISTC_ADDR_FROM,
 };
 
-struct sort_entry sort_addr_to = {
+static struct sort_entry sort_addr_to = {
 	.se_header	= "Target Address",
 	.se_cmp		= sort__addr_to_cmp,
 	.se_snprintf	= hist_entry__addr_to_snprintf,
@@ -1629,7 +1629,7 @@ static int hist_entry__cycles_snprintf(struct hist_entry *he, char *bf,
 			       he->branch_info->flags.cycles);
 }
 
-struct sort_entry sort_cycles = {
+static struct sort_entry sort_cycles = {
 	.se_header	= "Basic Block Cycles",
 	.se_cmp		= sort__cycles_cmp,
 	.se_snprintf	= hist_entry__cycles_snprintf,
@@ -1919,7 +1919,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 	return _hist_entry__sym_snprintf(ms, addr, level, bf, size, width);
 }
 
-struct sort_entry sort_mispredict = {
+static struct sort_entry sort_mispredict = {
 	.se_header	= "Branch Mispredicted",
 	.se_cmp		= sort__mispredict_cmp,
 	.se_snprintf	= hist_entry__mispredict_snprintf,
@@ -1938,7 +1938,7 @@ static int hist_entry__local_weight_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*llu", width, he->weight);
 }
 
-struct sort_entry sort_local_weight = {
+static struct sort_entry sort_local_weight = {
 	.se_header	= "Local Weight",
 	.se_cmp		= sort__weight_cmp,
 	.se_snprintf	= hist_entry__local_weight_snprintf,
@@ -1952,7 +1952,7 @@ static int hist_entry__global_weight_snprintf(struct hist_entry *he, char *bf,
 			       he->weight * he->stat.nr_events);
 }
 
-struct sort_entry sort_global_weight = {
+static struct sort_entry sort_global_weight = {
 	.se_header	= "Weight",
 	.se_cmp		= sort__weight_cmp,
 	.se_snprintf	= hist_entry__global_weight_snprintf,
@@ -1971,7 +1971,7 @@ static int hist_entry__local_ins_lat_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*u", width, he->ins_lat);
 }
 
-struct sort_entry sort_local_ins_lat = {
+static struct sort_entry sort_local_ins_lat = {
 	.se_header	= "Local INSTR Latency",
 	.se_cmp		= sort__ins_lat_cmp,
 	.se_snprintf	= hist_entry__local_ins_lat_snprintf,
@@ -1985,7 +1985,7 @@ static int hist_entry__global_ins_lat_snprintf(struct hist_entry *he, char *bf,
 			       he->ins_lat * he->stat.nr_events);
 }
 
-struct sort_entry sort_global_ins_lat = {
+static struct sort_entry sort_global_ins_lat = {
 	.se_header	= "INSTR Latency",
 	.se_cmp		= sort__ins_lat_cmp,
 	.se_snprintf	= hist_entry__global_ins_lat_snprintf,
@@ -2011,70 +2011,70 @@ static int hist_entry__p_stage_cyc_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*u", width, he->weight3);
 }
 
-struct sort_entry sort_local_p_stage_cyc = {
+static struct sort_entry sort_local_p_stage_cyc = {
 	.se_header      = "Local Pipeline Stage Cycle",
 	.se_cmp         = sort__p_stage_cyc_cmp,
 	.se_snprintf	= hist_entry__p_stage_cyc_snprintf,
 	.se_width_idx	= HISTC_LOCAL_P_STAGE_CYC,
 };
 
-struct sort_entry sort_global_p_stage_cyc = {
+static struct sort_entry sort_global_p_stage_cyc = {
 	.se_header      = "Pipeline Stage Cycle",
 	.se_cmp         = sort__p_stage_cyc_cmp,
 	.se_snprintf    = hist_entry__global_p_stage_cyc_snprintf,
 	.se_width_idx   = HISTC_GLOBAL_P_STAGE_CYC,
 };
 
-struct sort_entry sort_mem_daddr_sym = {
+static struct sort_entry sort_mem_daddr_sym = {
 	.se_header	= "Data Symbol",
 	.se_cmp		= sort__daddr_cmp,
 	.se_snprintf	= hist_entry__daddr_snprintf,
 	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
 };
 
-struct sort_entry sort_mem_iaddr_sym = {
+static struct sort_entry sort_mem_iaddr_sym = {
 	.se_header	= "Code Symbol",
 	.se_cmp		= sort__iaddr_cmp,
 	.se_snprintf	= hist_entry__iaddr_snprintf,
 	.se_width_idx	= HISTC_MEM_IADDR_SYMBOL,
 };
 
-struct sort_entry sort_mem_daddr_dso = {
+static struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
 	.se_snprintf	= hist_entry__dso_daddr_snprintf,
 	.se_width_idx	= HISTC_MEM_DADDR_DSO,
 };
 
-struct sort_entry sort_mem_locked = {
+static struct sort_entry sort_mem_locked = {
 	.se_header	= "Locked",
 	.se_cmp		= sort__locked_cmp,
 	.se_snprintf	= hist_entry__locked_snprintf,
 	.se_width_idx	= HISTC_MEM_LOCKED,
 };
 
-struct sort_entry sort_mem_tlb = {
+static struct sort_entry sort_mem_tlb = {
 	.se_header	= "TLB access",
 	.se_cmp		= sort__tlb_cmp,
 	.se_snprintf	= hist_entry__tlb_snprintf,
 	.se_width_idx	= HISTC_MEM_TLB,
 };
 
-struct sort_entry sort_mem_lvl = {
+static struct sort_entry sort_mem_lvl = {
 	.se_header	= "Memory access",
 	.se_cmp		= sort__lvl_cmp,
 	.se_snprintf	= hist_entry__lvl_snprintf,
 	.se_width_idx	= HISTC_MEM_LVL,
 };
 
-struct sort_entry sort_mem_snoop = {
+static struct sort_entry sort_mem_snoop = {
 	.se_header	= "Snoop",
 	.se_cmp		= sort__snoop_cmp,
 	.se_snprintf	= hist_entry__snoop_snprintf,
 	.se_width_idx	= HISTC_MEM_SNOOP,
 };
 
-struct sort_entry sort_mem_dcacheline = {
+static struct sort_entry sort_mem_dcacheline = {
 	.se_header	= "Data Cacheline",
 	.se_cmp		= sort__dcacheline_cmp,
 	.se_snprintf	= hist_entry__dcacheline_snprintf,
@@ -2109,7 +2109,7 @@ static int hist_entry__blocked_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%.*s", width, out);
 }
 
-struct sort_entry sort_mem_blocked = {
+static struct sort_entry sort_mem_blocked = {
 	.se_header	= "Blocked",
 	.se_cmp		= sort__blocked_cmp,
 	.se_snprintf	= hist_entry__blocked_snprintf,
@@ -2150,7 +2150,7 @@ static int hist_entry__phys_daddr_snprintf(struct hist_entry *he, char *bf,
 	return width;
 }
 
-struct sort_entry sort_mem_phys_daddr = {
+static struct sort_entry sort_mem_phys_daddr = {
 	.se_header	= "Data Physical Address",
 	.se_cmp		= sort__phys_daddr_cmp,
 	.se_snprintf	= hist_entry__phys_daddr_snprintf,
@@ -2179,7 +2179,7 @@ static int hist_entry__data_page_size_snprintf(struct hist_entry *he, char *bf,
 			get_page_size_name(mem_info__daddr(he->mem_info)->data_page_size, str));
 }
 
-struct sort_entry sort_mem_data_page_size = {
+static struct sort_entry sort_mem_data_page_size = {
 	.se_header	= "Data Page Size",
 	.se_cmp		= sort__data_page_size_cmp,
 	.se_snprintf	= hist_entry__data_page_size_snprintf,
@@ -2204,7 +2204,7 @@ static int hist_entry__code_page_size_snprintf(struct hist_entry *he, char *bf,
 			       get_page_size_name(he->code_page_size, str));
 }
 
-struct sort_entry sort_code_page_size = {
+static struct sort_entry sort_code_page_size = {
 	.se_header	= "Code Page Size",
 	.se_cmp		= sort__code_page_size_cmp,
 	.se_snprintf	= hist_entry__code_page_size_snprintf,
@@ -2236,7 +2236,7 @@ static int hist_entry__abort_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
-struct sort_entry sort_abort = {
+static struct sort_entry sort_abort = {
 	.se_header	= "Transaction abort",
 	.se_cmp		= sort__abort_cmp,
 	.se_snprintf	= hist_entry__abort_snprintf,
@@ -2268,7 +2268,7 @@ static int hist_entry__in_tx_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, out);
 }
 
-struct sort_entry sort_in_tx = {
+static struct sort_entry sort_in_tx = {
 	.se_header	= "Branch in transaction",
 	.se_cmp		= sort__in_tx_cmp,
 	.se_snprintf	= hist_entry__in_tx_snprintf,
@@ -2340,7 +2340,7 @@ static int hist_entry__transaction_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-*s", width, buf);
 }
 
-struct sort_entry sort_transaction = {
+static struct sort_entry sort_transaction = {
 	.se_header	= "Transaction                ",
 	.se_cmp		= sort__transaction_cmp,
 	.se_snprintf	= hist_entry__transaction_snprintf,
@@ -2379,7 +2379,7 @@ static int hist_entry__sym_size_snprintf(struct hist_entry *he, char *bf,
 	return _hist_entry__sym_size_snprintf(he->ms.sym, bf, size, width);
 }
 
-struct sort_entry sort_sym_size = {
+static struct sort_entry sort_sym_size = {
 	.se_header	= "Symbol size",
 	.se_cmp		= sort__sym_size_cmp,
 	.se_snprintf	= hist_entry__sym_size_snprintf,
@@ -2418,7 +2418,7 @@ static int hist_entry__dso_size_snprintf(struct hist_entry *he, char *bf,
 	return _hist_entry__dso_size_snprintf(he->ms.map, bf, size, width);
 }
 
-struct sort_entry sort_dso_size = {
+static struct sort_entry sort_dso_size = {
 	.se_header	= "DSO size",
 	.se_cmp		= sort__dso_size_cmp,
 	.se_snprintf	= hist_entry__dso_size_snprintf,
@@ -2455,7 +2455,7 @@ static int hist_entry__addr_snprintf(struct hist_entry *he, char *bf,
 	return repsep_snprintf(bf, size, "%-#*llx", width, ip);
 }
 
-struct sort_entry sort_addr = {
+static struct sort_entry sort_addr = {
 	.se_header	= "Address",
 	.se_cmp		= sort__addr_cmp,
 	.se_snprintf	= hist_entry__addr_snprintf,
@@ -2573,7 +2573,7 @@ static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 			       he->mem_type_off, buf);
 }
 
-struct sort_entry sort_type_offset = {
+static struct sort_entry sort_type_offset = {
 	.se_header	= "Data Type Offset",
 	.se_cmp		= sort__type_cmp,
 	.se_collapse	= sort__typeoff_sort,
@@ -2645,7 +2645,7 @@ static int hist_entry__typecln_snprintf(struct hist_entry *he, char *bf,
 			       he->mem_type_off / cln_size);
 }
 
-struct sort_entry sort_type_cacheline = {
+static struct sort_entry sort_type_cacheline = {
 	.se_header	= "Data Type Cacheline",
 	.se_cmp		= sort__type_cmp,
 	.se_collapse	= sort__typecln_sort,

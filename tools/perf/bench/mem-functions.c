@@ -399,7 +399,7 @@ static void mem_free(struct bench_mem_info *info __maybe_unused,
 	*dst = *src = NULL;
 }
 
-struct function memcpy_functions[] = {
+static struct function memcpy_functions[] = {
 	{ .name		= "default",
 	  .desc		= "Default memcpy() provided by glibc",
 	  .fn.init	= mem_alloc,

@@ -353,7 +353,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu_map_idx
 	return 0;
 }
 
-struct bpf_counter_ops bpf_program_profiler_ops = {
+static struct bpf_counter_ops bpf_program_profiler_ops = {
 	.load       = bpf_program_profiler__load,
 	.enable	    = bpf_program_profiler__enable,
 	.disable    = bpf_program_profiler__disable,
@@ -833,7 +833,7 @@ static int bperf__destroy(struct evsel *evsel)
  * the leader prog.
  */
 
-struct bpf_counter_ops bperf_ops = {
+static struct bpf_counter_ops bperf_ops = {
 	.load       = bperf__load,
 	.enable     = bperf__enable,
 	.disable    = bperf__disable,

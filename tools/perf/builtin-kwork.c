@@ -985,7 +985,7 @@ static int process_irq_handler_exit_event(const struct perf_tool *tool,
 	return 0;
 }
 
-const struct evsel_str_handler irq_tp_handlers[] = {
+static const struct evsel_str_handler irq_tp_handlers[] = {
 	{ "irq:irq_handler_entry", process_irq_handler_entry_event, },
 	{ "irq:irq_handler_exit",  process_irq_handler_exit_event,  },
 };
@@ -1080,7 +1080,7 @@ static int process_softirq_exit_event(const struct perf_tool *tool,
 	return 0;
 }
 
-const struct evsel_str_handler softirq_tp_handlers[] = {
+static const struct evsel_str_handler softirq_tp_handlers[] = {
 	{ "irq:softirq_raise", process_softirq_raise_event, },
 	{ "irq:softirq_entry", process_softirq_entry_event, },
 	{ "irq:softirq_exit",  process_softirq_exit_event,  },
@@ -1211,7 +1211,7 @@ static int process_workqueue_execute_end_event(const struct perf_tool *tool,
 	return 0;
 }
 
-const struct evsel_str_handler workqueue_tp_handlers[] = {
+static const struct evsel_str_handler workqueue_tp_handlers[] = {
 	{ "workqueue:workqueue_activate_work", process_workqueue_activate_work_event, },
 	{ "workqueue:workqueue_execute_start", process_workqueue_execute_start_event, },
 	{ "workqueue:workqueue_execute_end",   process_workqueue_execute_end_event,   },
@@ -1281,7 +1281,7 @@ static int process_sched_switch_event(const struct perf_tool *tool,
 	return 0;
 }
 
-const struct evsel_str_handler sched_tp_handlers[] = {
+static const struct evsel_str_handler sched_tp_handlers[] = {
 	{ "sched:sched_switch",  process_sched_switch_event, },
 };
 
@@ -1561,13 +1561,13 @@ static void print_bad_events(struct perf_kwork *kwork)
 	}
 }
 
-const char *graph_load = "||||||||||||||||||||||||||||||||||||||||||||||||";
-const char *graph_idle = "                                                ";
 static void top_print_per_cpu_load(struct perf_kwork *kwork)
 {
 	int i, load_width;
 	u64 total, load, load_ratio;
 	struct kwork_top_stat *stat = &kwork->top_stat;
+	const char *graph_load = "||||||||||||||||||||||||||||||||||||||||||||||||";
+	const char *graph_idle = "                                                ";
 
 	for (i = 0; i < MAX_NR_CPUS; i++) {
 		total = stat->cpus_runtime[i].total;
