@@ -341,10 +341,13 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
+    global KSFT_RESULT
+    if KSFT_RESULT is not None:
+        raise RuntimeError("ksft_run() can't be called multiple times.")
+
     print("TAP version 13", flush=True)
     print("1.." + str(len(test_cases)), flush=True)
 
-    global KSFT_RESULT
     cnt = 0
     stop = False
     for func, args, name in test_cases:
