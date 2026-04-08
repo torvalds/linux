@@ -124,22 +124,6 @@ static const struct {
 	{ ENETC_SITFRM, "SI tx frames" },
 	{ ENETC_SITUCA, "SI tx u-cast frames" },
 	{ ENETC_SITMCA, "SI tx m-cast frames" },
-	{ ENETC_RBDCR(0), "Rx ring  0 discarded frames" },
-	{ ENETC_RBDCR(1), "Rx ring  1 discarded frames" },
-	{ ENETC_RBDCR(2), "Rx ring  2 discarded frames" },
-	{ ENETC_RBDCR(3), "Rx ring  3 discarded frames" },
-	{ ENETC_RBDCR(4), "Rx ring  4 discarded frames" },
-	{ ENETC_RBDCR(5), "Rx ring  5 discarded frames" },
-	{ ENETC_RBDCR(6), "Rx ring  6 discarded frames" },
-	{ ENETC_RBDCR(7), "Rx ring  7 discarded frames" },
-	{ ENETC_RBDCR(8), "Rx ring  8 discarded frames" },
-	{ ENETC_RBDCR(9), "Rx ring  9 discarded frames" },
-	{ ENETC_RBDCR(10), "Rx ring 10 discarded frames" },
-	{ ENETC_RBDCR(11), "Rx ring 11 discarded frames" },
-	{ ENETC_RBDCR(12), "Rx ring 12 discarded frames" },
-	{ ENETC_RBDCR(13), "Rx ring 13 discarded frames" },
-	{ ENETC_RBDCR(14), "Rx ring 14 discarded frames" },
-	{ ENETC_RBDCR(15), "Rx ring 15 discarded frames" },
 };
 
 static const struct {
@@ -224,6 +208,7 @@ static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d recycle failures",
 	"Rx ring %2d redirects",
 	"Rx ring %2d redirect failures",
+	"Rx ring %2d discarded frames",
 };
 
 static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
@@ -308,6 +293,7 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 		data[o++] = priv->rx_ring[i]->stats.recycle_failures;
 		data[o++] = priv->rx_ring[i]->stats.xdp_redirect;
 		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_failures;
+		data[o++] = enetc_rd(hw, ENETC_RBDCR(i));
 	}
 
 	if (!enetc_si_is_pf(priv->si))
