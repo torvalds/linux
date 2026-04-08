@@ -43,6 +43,28 @@ int zl3073x_out_state_set(struct zl3073x_dev *zldev, u8 index,
 			  const struct zl3073x_out *out);
 
 /**
+ * zl3073x_out_clock_type_get - get output clock type
+ * @out: pointer to out state
+ *
+ * Return: clock type of given output (ZL_OUTPUT_MODE_CLOCK_TYPE_*)
+ */
+static inline u8 zl3073x_out_clock_type_get(const struct zl3073x_out *out)
+{
+	return FIELD_GET(ZL_OUTPUT_MODE_CLOCK_TYPE, out->mode);
+}
+
+/**
+ * zl3073x_out_clock_type_set - set output clock type
+ * @out: pointer to out state
+ * @type: clock type (ZL_OUTPUT_MODE_CLOCK_TYPE_*)
+ */
+static inline void
+zl3073x_out_clock_type_set(struct zl3073x_out *out, u8 type)
+{
+	FIELD_MODIFY(ZL_OUTPUT_MODE_CLOCK_TYPE, &out->mode, type);
+}
+
+/**
  * zl3073x_out_signal_format_get - get output signal format
  * @out: pointer to out state
  *
