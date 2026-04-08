@@ -3717,6 +3717,11 @@ static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused
 		if (do_read_u32(ff, &cpu))
 			return -1;
 
+		if (cpu >= nra) {
+			pr_err("Invalid HEADER_CPU_DOMAIN_INFO: cpu %d >= nr_cpus_avail (%d)\n", cpu, nra);
+			return -1;
+		}
+
 		cd_map[cpu] = zalloc(sizeof(*cd_map[cpu]));
 		if (!cd_map[cpu])
 			return -1;
@@ -3735,6 +3740,12 @@ static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused
 		for (j = 0; j < nr_domains; j++) {
 			if (do_read_u32(ff, &domain))
 				return -1;
+
+			if (domain >= max_sched_domains) {
+				pr_err("Invalid HEADER_CPU_DOMAIN_INFO: domain %d >= max_sched_domains (%d)\n",
+				       domain, max_sched_domains);
+				return -1;
+			}
 
 			d_info = zalloc(sizeof(*d_info));
 			if (!d_info)
