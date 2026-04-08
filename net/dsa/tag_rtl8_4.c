@@ -99,6 +99,7 @@
 #define   RTL8_4_REASON_TRAP		80
 
 #define RTL8_4_LEARN_DIS		BIT(5)
+#define RTL8_4_KEEP			BIT(7)
 
 #define RTL8_4_TX			GENMASK(3, 0)
 #define RTL8_4_RX			GENMASK(10, 0)
@@ -114,8 +115,9 @@ static void rtl8_4_write_tag(struct sk_buff *skb, struct net_device *dev,
 	/* Set Protocol; zero REASON */
 	tag16[1] = htons(FIELD_PREP(RTL8_4_PROTOCOL, RTL8_4_PROTOCOL_RTL8365MB));
 
-	/* Zero EFID_EN, EFID, PRI_EN, PRI, VSEL, VIDX, KEEP; set LEARN_DIS */
-	tag16[2] = htons(FIELD_PREP(RTL8_4_LEARN_DIS, 1));
+	/* Zero EFID_EN, EFID, PRI_EN, PRI, VSEL, VIDX; set KEEP, LEARN_DIS */
+	tag16[2] = htons(FIELD_PREP(RTL8_4_LEARN_DIS, 1) |
+			 FIELD_PREP(RTL8_4_KEEP, 1));
 
 	/* Zero ALLOW; set RX (CPU->switch) forwarding port mask */
 	tag16[3] = htons(FIELD_PREP(RTL8_4_RX, dsa_xmit_port_mask(skb, dev)));
