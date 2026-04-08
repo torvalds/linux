@@ -150,11 +150,11 @@ void store_func_meta(u32 *image, struct codegen_context *ctx,
 	 * func_meta := argument count in first byte + cookie value
 	 */
 	/* Store lower word */
-	EMIT(PPC_RAW_LI32(bpf_to_ppc(TMP_REG), (u32)func_meta));
+	PPC_LI32(bpf_to_ppc(TMP_REG), (u32)func_meta);
 	EMIT(PPC_RAW_STW(bpf_to_ppc(TMP_REG), _R1, func_meta_off));
 
 	/* Store upper word */
-	EMIT(PPC_RAW_LI32(bpf_to_ppc(TMP_REG), (u32)(func_meta >> 32)));
+	PPC_LI32(bpf_to_ppc(TMP_REG), (u32)(func_meta >> 32));
 	EMIT(PPC_RAW_STW(bpf_to_ppc(TMP_REG), _R1, func_meta_off + 4));
 }
 
