@@ -941,7 +941,8 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 /*
  * Given an 'fd' value, return the ctx associated with if. If 'registered' is
  * true, then the registered index is used. Otherwise, the normal fd table.
- * Caller must call fput() on the returned file, unless it's an ERR_PTR.
+ * Caller must call fput() on the returned file if it isn't a registered file,
+ * unless it's an ERR_PTR.
  */
 struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 {
@@ -958,8 +959,6 @@ struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 			return ERR_PTR(-EINVAL);
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
 		file = tctx->registered_rings[fd];
-		if (file)
-			get_file(file);
 	} else {
 		file = fget(fd);
 	}
@@ -1038,6 +1037,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 				ctx->buf_table.nr, ret);
 	mutex_unlock(&ctx->uring_lock);
 
-	fput(file);
+	if (!use_registered_ring)
+		fput(file);
 	return ret;
 }
