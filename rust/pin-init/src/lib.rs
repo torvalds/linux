@@ -172,7 +172,6 @@
 //! # #![feature(extern_types)]
 //! use pin_init::{pin_data, pinned_drop, PinInit, PinnedDrop, pin_init_from_closure};
 //! use core::{
-//!     ptr::addr_of_mut,
 //!     marker::PhantomPinned,
 //!     cell::UnsafeCell,
 //!     pin::Pin,
@@ -211,7 +210,7 @@
 //!         unsafe {
 //!             pin_init_from_closure(move |slot: *mut Self| {
 //!                 // `slot` contains uninit memory, avoid creating a reference.
-//!                 let foo = addr_of_mut!((*slot).foo);
+//!                 let foo = &raw mut (*slot).foo;
 //!                 let foo = UnsafeCell::raw_get(foo).cast::<bindings::foo>();
 //!
 //!                 // Initialize the `foo`
@@ -264,12 +263,10 @@
 //! [`impl Init<T, E>`]: crate::Init
 //! [Rust-for-Linux]: https://rust-for-linux.com/
 
-#![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
+#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
+#![cfg_attr(USE_RUSTC_FEATURES, feature(raw_ref_op))]
 #![cfg_attr(
-    all(
-        any(feature = "alloc", feature = "std"),
-        not(RUSTC_NEW_UNINIT_IS_STABLE)
-    ),
+    all(any(feature = "alloc", feature = "std"), USE_RUSTC_FEATURES),
     feature(new_uninit)
 )]
 #![forbid(missing_docs, unsafe_op_in_unsafe_fn)]
@@ -279,6 +276,8 @@
     all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED),
     feature(unsafe_pinned)
 )]
+#![cfg_attr(all(USE_RUSTC_FEATURES, doc), allow(internal_features))]
+#![cfg_attr(all(USE_RUSTC_FEATURES, doc), feature(rustdoc_internals))]
 
 use core::{
     cell::UnsafeCell,
@@ -755,7 +754,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// ```rust
 /// # use pin_init::*;
-/// # use core::{ptr::addr_of_mut, marker::PhantomPinned};
+/// # use core::marker::PhantomPinned;
 /// #[pin_data]
 /// #[derive(Zeroable)]
 /// struct Buf {
@@ -769,7 +768,7 @@ macro_rules! stack_try_pin_init {
 /// let init = pin_init!(&this in Buf {
 ///     buf: [0; 64],
 ///     // SAFETY: TODO.
-///     ptr: unsafe { addr_of_mut!((*this.as_ptr()).buf).cast() },
+///     ptr: unsafe { (&raw mut (*this.as_ptr()).buf).cast() },
 ///     pin: PhantomPinned,
 /// });
 /// let init = pin_init!(Buf {
@@ -1147,9 +1146,12 @@ pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl Pin
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
     // requirements.
     let res = unsafe { pin_init_from_closure(|ptr: *mut U| init.__pinned_init(ptr.cast::<T>())) };
-    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
-    // cycle when computing the type returned by this function)
-    #[allow(clippy::let_and_return)]
+    // FIXME: this let binding is required to avoid a compiler error (cycle when computing the opaque
+    // type returned by this function) before Rust 1.81. Remove after MSRV bump.
+    #[allow(
+        clippy::let_and_return,
+        reason = "some clippy versions warn about the let binding"
+    )]
     res
 }
 
@@ -1163,9 +1165,12 @@ pub const unsafe fn cast_init<T, U, E>(init: impl Init<T, E>) -> impl Init<U, E>
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
     // requirements.
     let res = unsafe { init_from_closure(|ptr: *mut U| init.__init(ptr.cast::<T>())) };
-    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
-    // cycle when computing the type returned by this function)
-    #[allow(clippy::let_and_return)]
+    // FIXME: this let binding is required to avoid a compiler error (cycle when computing the opaque
+    // type returned by this function) before Rust 1.81. Remove after MSRV bump.
+    #[allow(
+        clippy::let_and_return,
+        reason = "some clippy versions warn about the let binding"
+    )]
     res
 }
 
@@ -1610,13 +1615,6 @@ impl_zeroable! {
     // SAFETY: `T: Zeroable` and `UnsafeCell` is `repr(transparent)`.
     {<T: ?Sized + Zeroable>} UnsafeCell<T>,
 
-    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
-    // <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
-    Option<NonZeroU8>, Option<NonZeroU16>, Option<NonZeroU32>, Option<NonZeroU64>,
-    Option<NonZeroU128>, Option<NonZeroUsize>,
-    Option<NonZeroI8>, Option<NonZeroI16>, Option<NonZeroI32>, Option<NonZeroI64>,
-    Option<NonZeroI128>, Option<NonZeroIsize>,
-
     // SAFETY: `null` pointer is valid.
     //
     // We cannot use `T: ?Sized`, since the VTABLE pointer part of fat pointers is not allowed to be
@@ -1635,8 +1633,14 @@ impl_zeroable! {
 }
 
 macro_rules! impl_tuple_zeroable {
-    ($(,)?) => {};
+    ($first:ident, $(,)?) => {
+        #[cfg_attr(all(USE_RUSTC_FEATURES, doc), doc(fake_variadic))]
+        /// Implemented for tuples up to 10 items long.
+        // SAFETY: All elements are zeroable and padding can be zero.
+        unsafe impl<$first: Zeroable> Zeroable for ($first,) {}
+    };
     ($first:ident, $($t:ident),* $(,)?) => {
+        #[cfg_attr(doc, doc(hidden))]
         // SAFETY: All elements are zeroable and padding can be zero.
         unsafe impl<$first: Zeroable, $($t: Zeroable),*> Zeroable for ($first, $($t),*) {}
         impl_tuple_zeroable!($($t),* ,);
@@ -1651,7 +1655,16 @@ macro_rules! impl_fn_zeroable_option {
         $(impl_fn_zeroable_option!({unsafe extern $abi} $args);)*
     };
     ({$($prefix:tt)*} {$(,)?}) => {};
+    ({$($prefix:tt)*} {$ret:ident, $arg:ident $(,)?}) => {
+        #[cfg_attr(all(USE_RUSTC_FEATURES, doc), doc(fake_variadic))]
+        /// Implemented for function pointers with up to 20 arity.
+        // SAFETY: function pointers are part of the option layout optimization:
+        // <https://doc.rust-lang.org/stable/std/option/index.html#representation>.
+        unsafe impl<$ret, $arg> ZeroableOption for $($prefix)* fn($arg) -> $ret {}
+        impl_fn_zeroable_option!({$($prefix)*} {$arg,});
+    };
     ({$($prefix:tt)*} {$ret:ident, $($rest:ident),* $(,)?}) => {
+        #[cfg_attr(doc, doc(hidden))]
         // SAFETY: function pointers are part of the option layout optimization:
         // <https://doc.rust-lang.org/stable/std/option/index.html#representation>.
         unsafe impl<$ret, $($rest),*> ZeroableOption for $($prefix)* fn($($rest),*) -> $ret {}
@@ -1660,6 +1673,20 @@ macro_rules! impl_fn_zeroable_option {
 }
 
 impl_fn_zeroable_option!(["Rust", "C"] { A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U });
+
+macro_rules! impl_non_zero_int_zeroable_option {
+    ($($int:ty),* $(,)?) => {
+        // SAFETY: Safety comment written in the macro invocation.
+        $(unsafe impl ZeroableOption for $int {})*
+    };
+}
+
+impl_non_zero_int_zeroable_option! {
+    // SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee:
+    // <https://doc.rust-lang.org/stable/std/option/index.html#representation>).
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize,
+}
 
 /// This trait allows creating an instance of `Self` which contains exactly one
 /// [structurally pinned value](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning).
