@@ -281,6 +281,9 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x07, 0x00, /* 7: ROUT muted */
 		0xff, 0xff
 	};
+	static const unsigned char ak5365_defaults[] = {
+		0x01, 0x00, 0x00, 0x2b, 0x7f, 0x7f, 0x28, 0x89,
+	};
 
 	int chip;
 	const unsigned char *ptr, *inits;
@@ -327,10 +330,12 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		ak->total_regs = 0x05;
 		break;
 	case SND_AK5365:
-		/* FIXME: any init sequence? */
 		ak->num_chips = 1;
 		ak->name = "ak5365";
 		ak->total_regs = 0x08;
+		memcpy(ak->images, ak5365_defaults, sizeof(ak5365_defaults));
+		snd_akm4xxx_set_vol(ak, 0, 0x04, 127);
+		snd_akm4xxx_set_vol(ak, 0, 0x05, 127);
 		return;
 	case SND_AK4620:
 		inits = inits_ak4620;
