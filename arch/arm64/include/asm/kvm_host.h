@@ -821,14 +821,7 @@ struct kvm_host_data {
 
 	/* PPI state tracking for GICv5-based guests */
 	struct {
-		/*
-		 * For tracking the PPI pending state, we need both the entry
-		 * state and exit state to correctly detect edges as it is
-		 * possible that an interrupt has been injected in software in
-		 * the interim.
-		 */
-		DECLARE_BITMAP(pendr_entry, VGIC_V5_NR_PRIVATE_IRQS);
-		DECLARE_BITMAP(pendr_exit, VGIC_V5_NR_PRIVATE_IRQS);
+		DECLARE_BITMAP(pendr, VGIC_V5_NR_PRIVATE_IRQS);
 
 		/* The saved state of the regs when leaving the guest */
 		DECLARE_BITMAP(activer_exit, VGIC_V5_NR_PRIVATE_IRQS);

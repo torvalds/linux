@@ -3304,10 +3304,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 				       ID_AA64PFR1_EL1_MPAM_frac |
 				       ID_AA64PFR1_EL1_MTE)),
 	ID_FILTERED(ID_AA64PFR2_EL1, id_aa64pfr2_el1,
-		    ~(ID_AA64PFR2_EL1_FPMR |
-		      ID_AA64PFR2_EL1_MTEFAR |
-		      ID_AA64PFR2_EL1_MTESTOREONLY |
-		      ID_AA64PFR2_EL1_GCIE)),
+		    (ID_AA64PFR2_EL1_FPMR		|
+		     ID_AA64PFR2_EL1_MTEFAR		|
+		     ID_AA64PFR2_EL1_MTESTOREONLY	|
+		     ID_AA64PFR2_EL1_GCIE)),
 	ID_UNALLOCATED(4,3),
 	ID_WRITABLE(ID_AA64ZFR0_EL1, ~ID_AA64ZFR0_EL1_RES0),
 	ID_HIDDEN(ID_AA64SMFR0_EL1),
@@ -5772,6 +5772,12 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 
 	guard(mutex)(&kvm->arch.config_lock);
 
+	if (vcpu_has_nv(vcpu)) {
+		int ret = kvm_init_nv_sysregs(vcpu);
+		if (ret)
+			return ret;
+	}
+
 	if (kvm_vm_has_ran_once(kvm))
 		return 0;
 
@@ -5818,12 +5824,6 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 		 * problem for GICv5-based guests in the future.
 		 */
 		kvm_vgic_finalize_idregs(kvm);
-	}
-
-	if (vcpu_has_nv(vcpu)) {
-		int ret = kvm_init_nv_sysregs(vcpu);
-		if (ret)
-			return ret;
 	}
 
 	return 0;

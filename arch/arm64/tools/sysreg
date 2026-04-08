@@ -4888,11 +4888,11 @@ Field	0	DVI0
 EndSysregFields
 
 Sysreg	ICH_PPI_DVIR0_EL2	3	4	12	10	0
-Fields ICH_PPI_DVIx_EL2
+Fields ICH_PPI_DVIRx_EL2
 EndSysreg
 
 Sysreg	ICH_PPI_DVIR1_EL2	3	4	12	10	1
-Fields ICH_PPI_DVIx_EL2
+Fields ICH_PPI_DVIRx_EL2
 EndSysreg
 
 SysregFields	ICH_PPI_ENABLERx_EL2
