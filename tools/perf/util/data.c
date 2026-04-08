@@ -43,7 +43,7 @@ int perf_data__create_dir(struct perf_data *data, int nr)
 	if (WARN_ON(!data->is_dir))
 		return -EINVAL;
 
-	files = zalloc(nr * sizeof(*files));
+	files = calloc(nr, sizeof(*files));
 	if (!files)
 		return -ENOMEM;
 

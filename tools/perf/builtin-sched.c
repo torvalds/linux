@@ -2405,7 +2405,7 @@ static int init_idle_threads(int ncpu)
 {
 	int i, ret;
 
-	idle_threads = zalloc(ncpu * sizeof(struct thread *));
+	idle_threads = calloc(ncpu, sizeof(struct thread *));
 	if (!idle_threads)
 		return -ENOMEM;
 
@@ -3483,7 +3483,7 @@ static int setup_cpus_switch_event(struct perf_sched *sched)
 	if (!sched->cpu_last_switched)
 		return -1;
 
-	sched->curr_pid = malloc(MAX_CPUS * sizeof(*(sched->curr_pid)));
+	sched->curr_pid = calloc(MAX_CPUS, sizeof(*(sched->curr_pid)));
 	if (!sched->curr_pid) {
 		zfree(&sched->cpu_last_switched);
 		return -1;
@@ -3559,7 +3559,7 @@ static int setup_map_cpus(struct perf_sched *sched)
 	sched->max_cpu.cpu  = sysconf(_SC_NPROCESSORS_CONF);
 
 	if (sched->map.comp) {
-		sched->map.comp_cpus = zalloc(sched->max_cpu.cpu * sizeof(int));
+		sched->map.comp_cpus = calloc(sched->max_cpu.cpu, sizeof(int));
 		if (!sched->map.comp_cpus)
 			return -1;
 	}

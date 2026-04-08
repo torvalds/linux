@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include <linux/string.h>
+#include <linux/zalloc.h>
 #include <subcmd/run-command.h>
 
 #include "annotate.h"

@@ -54,22 +54,13 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 			     struct thread *thread)
 {
 	struct regs_dump *regs = perf_sample__user_regs(sample);
-	u64 *buf;
+	u64 *buf = calloc(PERF_REGS_MAX, sizeof(u64));
 
-	buf = malloc(sizeof(u64) * PERF_REGS_MAX);
 	if (!buf) {
 		pr_debug("failed to allocate sample uregs data\n");
 		return -1;
 	}
 
-#ifdef MEMORY_SANITIZER
-	/*
-	 * Assignments to buf in the assembly function perf_regs_load aren't
-	 * seen by memory sanitizer. Zero the memory to convince memory
-	 * sanitizer the memory is initialized.
-	 */
-	memset(buf, 0, sizeof(u64) * PERF_REGS_MAX);
-#endif
 	perf_regs_load(buf);
 	regs->abi  = PERF_SAMPLE_REGS_ABI;
 	regs->regs = buf;

@@ -1891,7 +1891,7 @@ static int data_init(int argc, const char **argv)
 		return -EINVAL;
 	}
 
-	data__files = zalloc(sizeof(*data__files) * data__files_cnt);
+	data__files = calloc(data__files_cnt, sizeof(*data__files));
 	if (!data__files)
 		return -ENOMEM;
 

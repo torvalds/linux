@@ -7,7 +7,6 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/perf_event.h>
-#include <linux/zalloc.h>
 #include <api/fs/fs.h>
 #include <api/io_dir.h>
 #include <internal/cpumap.h>

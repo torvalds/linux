@@ -155,7 +155,7 @@ static void *c2c_he_zalloc(size_t size)
 	if (!c2c_he->nodeset)
 		goto out_free;
 
-	c2c_he->node_stats = zalloc(c2c.nodes_cnt * sizeof(*c2c_he->node_stats));
+	c2c_he->node_stats = calloc(c2c.nodes_cnt, sizeof(*c2c_he->node_stats));
 	if (!c2c_he->node_stats)
 		goto out_free;
 
@@ -2324,13 +2324,13 @@ static int setup_nodes(struct perf_session *session)
 	if (!n)
 		return -EINVAL;
 
-	nodes = zalloc(sizeof(unsigned long *) * c2c.nodes_cnt);
+	nodes = calloc(c2c.nodes_cnt, sizeof(unsigned long *));
 	if (!nodes)
 		return -ENOMEM;
 
 	c2c.nodes = nodes;
 
-	cpu2node = zalloc(sizeof(int) * c2c.cpus_cnt);
+	cpu2node = calloc(c2c.cpus_cnt, sizeof(int));
 	if (!cpu2node)
 		return -ENOMEM;
 

@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/types.h>
+#include <linux/zalloc.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <unistd.h>

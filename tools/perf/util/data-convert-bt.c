@@ -1379,7 +1379,7 @@ static int setup_streams(struct ctf_writer *cw, struct perf_session *session)
 	 */
 	ncpus = env->nr_cpus_avail ?: MAX_CPUS;
 
-	stream = zalloc(sizeof(*stream) * ncpus);
+	stream = calloc(ncpus, sizeof(*stream));
 	if (!stream) {
 		pr_err("Failed to allocate streams.\n");
 		return -ENOMEM;

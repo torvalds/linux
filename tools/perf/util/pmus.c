@@ -621,7 +621,7 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 	while ((pmu = scan_fn(pmu)) != NULL)
 		len += perf_pmu__num_events(pmu);
 
-	aliases = zalloc(sizeof(struct sevent) * len);
+	aliases = calloc(len, sizeof(struct sevent));
 	if (!aliases) {
 		pr_err("FATAL: not enough memory to print PMU events\n");
 		return;

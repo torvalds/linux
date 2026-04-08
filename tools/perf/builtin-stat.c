@@ -2774,7 +2774,7 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	if (stat_config.walltime_run_table) {
-		stat_config.walltime_run = zalloc(stat_config.run_count * sizeof(stat_config.walltime_run[0]));
+		stat_config.walltime_run = calloc(stat_config.run_count, sizeof(stat_config.walltime_run[0]));
 		if (!stat_config.walltime_run) {
 			pr_err("failed to setup -r option");
 			goto out;

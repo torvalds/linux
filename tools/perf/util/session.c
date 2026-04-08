@@ -2559,7 +2559,7 @@ static int __perf_session__process_dir_events(struct perf_session *session)
 			nr_readers++;
 	}
 
-	rd = zalloc(nr_readers * sizeof(struct reader));
+	rd = calloc(nr_readers, sizeof(struct reader));
 	if (!rd)
 		return -ENOMEM;
 

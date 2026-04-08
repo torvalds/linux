@@ -8,7 +8,6 @@
 
 #include "arch-tests.h"
 #include "linux/perf_event.h"
-#include "linux/zalloc.h"
 #include "tests/tests.h"
 #include "../perf-sys.h"
 #include "pmu.h"
@@ -60,7 +59,7 @@ static int dummy_workload_1(unsigned long count)
 		0xcc, /* int 3 */
 	};
 
-	p = zalloc(2 * page_size);
+	p = calloc(2, page_size);
 	if (!p) {
 		printf("malloc() failed. %m");
 		return 1;

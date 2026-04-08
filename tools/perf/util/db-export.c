@@ -19,7 +19,6 @@
 #include "callchain.h"
 #include "call-path.h"
 #include "db-export.h"
-#include <linux/zalloc.h>
 
 int db_export__init(struct db_export *dbe)
 {

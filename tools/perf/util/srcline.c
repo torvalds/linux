@@ -12,6 +12,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 
 bool srcline_full_filename;
 

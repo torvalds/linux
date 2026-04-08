@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <string.h>
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include <assert.h>
 #include <inttypes.h>
 #include "../annotate-data.h"

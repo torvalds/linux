@@ -2208,7 +2208,7 @@ static int perf_kwork__top(struct perf_kwork *kwork)
 	struct __top_cpus_runtime *cpus_runtime;
 	int ret = 0;
 
-	cpus_runtime = zalloc(sizeof(struct __top_cpus_runtime) * (MAX_NR_CPUS + 1));
+	cpus_runtime = calloc(MAX_NR_CPUS + 1, sizeof(struct __top_cpus_runtime));
 	if (!cpus_runtime)
 		return -1;
 

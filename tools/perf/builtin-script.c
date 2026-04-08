@@ -3823,7 +3823,7 @@ out:
 
 static int have_cmd(int argc, const char **argv)
 {
-	char **__argv = malloc(sizeof(const char *) * argc);
+	char **__argv = calloc(argc, sizeof(const char *));
 
 	if (!__argv) {
 		pr_err("malloc failed\n");
@@ -4312,7 +4312,7 @@ int cmd_script(int argc, const char **argv)
 				}
 			}
 
-			__argv = malloc((argc + 6) * sizeof(const char *));
+			__argv = calloc(argc + 6, sizeof(const char *));
 			if (!__argv) {
 				pr_err("malloc failed\n");
 				err = -ENOMEM;
@@ -4338,7 +4338,7 @@ int cmd_script(int argc, const char **argv)
 		dup2(live_pipe[0], 0);
 		close(live_pipe[1]);
 
-		__argv = malloc((argc + 4) * sizeof(const char *));
+		__argv = calloc(argc + 4, sizeof(const char *));
 		if (!__argv) {
 			pr_err("malloc failed\n");
 			err = -ENOMEM;
@@ -4376,7 +4376,7 @@ script_found:
 			}
 		}
 
-		__argv = malloc((argc + 2) * sizeof(const char *));
+		__argv = calloc(argc + 2, sizeof(const char *));
 		if (!__argv) {
 			pr_err("malloc failed\n");
 			err = -ENOMEM;

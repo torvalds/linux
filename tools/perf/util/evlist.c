@@ -825,9 +825,8 @@ static struct mmap *evlist__alloc_mmap(struct evlist *evlist,
 				       bool overwrite)
 {
 	int i;
-	struct mmap *map;
+	struct mmap *map = calloc(evlist->core.nr_mmaps, sizeof(struct mmap));
 
-	map = zalloc(evlist->core.nr_mmaps * sizeof(struct mmap));
 	if (!map)
 		return NULL;
 

@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
 
 #include "../../util/evlist.h"
 #include "../../util/debug.h"

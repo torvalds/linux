@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include "util/cache.h"
 #include <linux/rbtree.h>
-#include <linux/zalloc.h>
 #include "util/symbol.h"
 
 #include "util/debug.h"
