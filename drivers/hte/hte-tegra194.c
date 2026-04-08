@@ -20,10 +20,11 @@
 
 #define HTE_SUSPEND	0
 
-/* HTE source clock TSC is 31.25MHz */
+/* HTE source clock TSC is 1GHz for T264 and 31.25MHz for others */
 #define HTE_TS_CLK_RATE_HZ	31250000ULL
+#define HTE_TS_CLK_RATE_1G	1000000000ULL
 #define HTE_CLK_RATE_NS		32
-#define HTE_TS_NS_SHIFT	__builtin_ctz(HTE_CLK_RATE_NS)
+#define HTE_CLK_RATE_NS_1G	1
 
 #define NV_AON_SLICE_INVALID	-1
 #define NV_LINES_IN_SLICE	32
@@ -120,6 +121,8 @@ struct tegra_hte_data {
 	u32 slices;
 	u32 map_sz;
 	u32 sec_map_sz;
+	u64 tsc_clkrate_hz;
+	u32 tsc_clkrate_ns;
 	const struct tegra_hte_line_mapped *map;
 	const struct tegra_hte_line_mapped *sec_map;
 };
@@ -317,6 +320,94 @@ static const struct tegra_hte_line_mapped tegra234_aon_gpio_sec_map[] = {
 	[40] = {2, NV_AON_HTE_SLICE2_IRQ_GPIO_23},
 };
 
+static const struct tegra_hte_line_mapped tegra264_aon_gpio_map[] = {
+	/* gpio, slice, bit_index */
+	/* AA port */
+	[0]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_29},
+	[1]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_28},
+	[2]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_27},
+	[3]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_26},
+	[4]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_25},
+	[5]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_24},
+	[6]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_23},
+	[7]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_22},
+	/* BB port */
+	[8]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_21},
+	[9]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_20},
+	/* CC port */
+	[10] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_19},
+	[11] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_18},
+	[12] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_17},
+	[13] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_16},
+	[14] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_15},
+	[15] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_14},
+	[16] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_13},
+	[17] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_12},
+	/* DD port */
+	[18] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_11},
+	[19] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_10},
+	[20] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_9},
+	[21] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_8},
+	[22] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_7},
+	[23] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_6},
+	[24] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_5},
+	[25] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_4},
+	/* EE port */
+	[26] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_3},
+	[27] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_2},
+	[28] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_1},
+	[29] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_0},
+};
+
+static const struct tegra_hte_line_mapped tegra264_aon_gpio_sec_map[] = {
+	/* gpio, slice, bit_index */
+	/* AA port */
+	[0]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_29},
+	[1]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_28},
+	[2]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_27},
+	[3]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_26},
+	[4]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_25},
+	[5]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_24},
+	[6]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_23},
+	[7]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_22},
+	/* BB port */
+	[8]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_21},
+	[9]  = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_20},
+	[10] = {NV_AON_SLICE_INVALID, 0},
+	[11] = {NV_AON_SLICE_INVALID, 0},
+	[12] = {NV_AON_SLICE_INVALID, 0},
+	[13] = {NV_AON_SLICE_INVALID, 0},
+	[14] = {NV_AON_SLICE_INVALID, 0},
+	[15] = {NV_AON_SLICE_INVALID, 0},
+	/* CC port */
+	[16] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_19},
+	[17] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_18},
+	[18] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_17},
+	[19] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_16},
+	[20] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_15},
+	[21] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_14},
+	[22] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_13},
+	[23] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_12},
+	/* DD port */
+	[24] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_11},
+	[25] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_10},
+	[26] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_9},
+	[27] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_8},
+	[28] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_7},
+	[29] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_6},
+	[30] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_5},
+	[31] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_4},
+	/* EE port */
+	[32] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_3},
+	[33] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_2},
+	[34] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_1},
+	[35] = {3, NV_AON_HTE_SLICE2_IRQ_GPIO_0},
+	[36] = {NV_AON_SLICE_INVALID, 0},
+	[37] = {NV_AON_SLICE_INVALID, 0},
+	[38] = {NV_AON_SLICE_INVALID, 0},
+	[39] = {NV_AON_SLICE_INVALID, 0},
+};
+
 static const struct tegra_hte_data t194_aon_hte = {
 	.map_sz = ARRAY_SIZE(tegra194_aon_gpio_map),
 	.map = tegra194_aon_gpio_map,
@@ -324,6 +415,8 @@ static const struct tegra_hte_data t194_aon_hte = {
 	.sec_map = tegra194_aon_gpio_sec_map,
 	.type = HTE_TEGRA_TYPE_GPIO,
 	.slices = 3,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_HZ,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS,
 };
 
 static const struct tegra_hte_data t234_aon_hte = {
@@ -333,6 +426,19 @@ static const struct tegra_hte_data t234_aon_hte = {
 	.sec_map = tegra234_aon_gpio_sec_map,
 	.type = HTE_TEGRA_TYPE_GPIO,
 	.slices = 3,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_HZ,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS,
+};
+
+static const struct tegra_hte_data t264_aon_hte = {
+	.map_sz = ARRAY_SIZE(tegra264_aon_gpio_map),
+	.map = tegra264_aon_gpio_map,
+	.sec_map_sz = ARRAY_SIZE(tegra264_aon_gpio_sec_map),
+	.sec_map = tegra264_aon_gpio_sec_map,
+	.type = HTE_TEGRA_TYPE_GPIO,
+	.slices = 4,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_1G,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS_1G,
 };
 
 static const struct tegra_hte_data t194_lic_hte = {
@@ -340,6 +446,8 @@ static const struct tegra_hte_data t194_lic_hte = {
 	.map = NULL,
 	.type = HTE_TEGRA_TYPE_LIC,
 	.slices = 11,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_HZ,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS,
 };
 
 static const struct tegra_hte_data t234_lic_hte = {
@@ -347,6 +455,17 @@ static const struct tegra_hte_data t234_lic_hte = {
 	.map = NULL,
 	.type = HTE_TEGRA_TYPE_LIC,
 	.slices = 17,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_HZ,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS,
+};
+
+static const struct tegra_hte_data t264_lic_hte = {
+	.map_sz = 0,
+	.map = NULL,
+	.type = HTE_TEGRA_TYPE_LIC,
+	.slices = 10,
+	.tsc_clkrate_hz = HTE_TS_CLK_RATE_1G,
+	.tsc_clkrate_ns = HTE_CLK_RATE_NS_1G,
 };
 
 static inline u32 tegra_hte_readl(struct tegra_hte_soc *hte, u32 reg)
@@ -574,12 +693,12 @@ static int tegra_hte_release(struct hte_chip *chip, struct hte_ts_desc *desc,
 static int tegra_hte_clk_src_info(struct hte_chip *chip,
 				  struct hte_clk_info *ci)
 {
-	(void)chip;
+	struct tegra_hte_soc *hte_dev = chip->data;
 
 	if (!ci)
 		return -EINVAL;
 
-	ci->hz = HTE_TS_CLK_RATE_HZ;
+	ci->hz = hte_dev->prov_data->tsc_clkrate_hz;
 	ci->type = CLOCK_MONOTONIC;
 
 	return 0;
@@ -602,8 +721,10 @@ static void tegra_hte_read_fifo(struct tegra_hte_soc *gs)
 {
 	u32 tsh, tsl, src, pv, cv, acv, slice, bit_index, line_id;
 	u64 tsc;
+	u8 tsc_ns_shift;
 	struct hte_ts_data el;
 
+	tsc_ns_shift = __builtin_ctz(gs->prov_data->tsc_clkrate_ns);
 	while ((tegra_hte_readl(gs, HTE_TESTATUS) >>
 		HTE_TESTATUS_OCCUPANCY_SHIFT) &
 		HTE_TESTATUS_OCCUPANCY_MASK) {
@@ -621,7 +742,7 @@ static void tegra_hte_read_fifo(struct tegra_hte_soc *gs)
 		while (acv) {
 			bit_index = __builtin_ctz(acv);
 			line_id = bit_index + (slice << 5);
-			el.tsc = tsc << HTE_TS_NS_SHIFT;
+			el.tsc = tsc << tsc_ns_shift;
 			el.raw_level = tegra_hte_get_level(gs, line_id);
 			hte_push_ts_ns(gs->chip, line_id, &el);
 			acv &= ~BIT(bit_index);
@@ -656,6 +777,8 @@ static const struct of_device_id tegra_hte_of_match[] = {
 	{ .compatible = "nvidia,tegra194-gte-aon", .data = &t194_aon_hte},
 	{ .compatible = "nvidia,tegra234-gte-lic", .data = &t234_lic_hte},
 	{ .compatible = "nvidia,tegra234-gte-aon", .data = &t234_aon_hte},
+	{ .compatible = "nvidia,tegra264-gte-lic", .data = &t264_lic_hte},
+	{ .compatible = "nvidia,tegra264-gte-aon", .data = &t264_aon_hte},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_hte_of_match);
