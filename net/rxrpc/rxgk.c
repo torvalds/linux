@@ -1224,7 +1224,7 @@ static int rxgk_verify_response(struct rxrpc_connection *conn,
 
 	auth_offset	= offset;
 	auth_len	= ntohl(xauth_len);
-	if (auth_len < len)
+	if (auth_len > len)
 		goto short_packet;
 	if (auth_len & 3)
 		goto inconsistent;
