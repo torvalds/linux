@@ -14,7 +14,7 @@ import re
 import os
 
 # pylint: disable=no-name-in-module,wrong-import-position
-sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
+sys.path.append(pathlib.Path(__file__).resolve().parent.parent.joinpath('pyynl').as_posix())
 # pylint: disable=import-error
 from cli import schema_dir, spec_dir
 from lib import YnlFamily

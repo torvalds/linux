@@ -36,7 +36,10 @@ TEST_GEN_FILES := \
 	rt-route \
 # end of TEST_GEN_FILES
 
-TEST_FILES := ynl_nsim_lib.sh
+TEST_FILES := \
+	ethtool.py \
+	ynl_nsim_lib.sh \
+# end of TEST_FILES
 
 CFLAGS_netdev:=$(CFLAGS_netdev) $(CFLAGS_rt-link)
 CFLAGS_ovs:=$(CFLAGS_ovs_datapath)
