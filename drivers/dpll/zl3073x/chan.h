@@ -66,8 +66,7 @@ static inline u8 zl3073x_chan_ref_get(const struct zl3073x_chan *chan)
  */
 static inline void zl3073x_chan_mode_set(struct zl3073x_chan *chan, u8 mode)
 {
-	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_MODE;
-	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_MODE, mode);
+	FIELD_MODIFY(ZL_DPLL_MODE_REFSEL_MODE, &chan->mode_refsel, mode);
 }
 
 /**
@@ -77,8 +76,7 @@ static inline void zl3073x_chan_mode_set(struct zl3073x_chan *chan, u8 mode)
  */
 static inline void zl3073x_chan_ref_set(struct zl3073x_chan *chan, u8 ref)
 {
-	chan->mode_refsel &= ~ZL_DPLL_MODE_REFSEL_REF;
-	chan->mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+	FIELD_MODIFY(ZL_DPLL_MODE_REFSEL_REF, &chan->mode_refsel, ref);
 }
 
 /**
@@ -110,13 +108,10 @@ zl3073x_chan_ref_prio_set(struct zl3073x_chan *chan, u8 ref, u8 prio)
 {
 	u8 *val = &chan->ref_prio[ref / 2];
 
-	if (!(ref & 1)) {
-		*val &= ~ZL_DPLL_REF_PRIO_REF_P;
-		*val |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_P, prio);
-	} else {
-		*val &= ~ZL_DPLL_REF_PRIO_REF_N;
-		*val |= FIELD_PREP(ZL_DPLL_REF_PRIO_REF_N, prio);
-	}
+	if (!(ref & 1))
+		FIELD_MODIFY(ZL_DPLL_REF_PRIO_REF_P, val, prio);
+	else
+		FIELD_MODIFY(ZL_DPLL_REF_PRIO_REF_N, val, prio);
 }
 
 /**
