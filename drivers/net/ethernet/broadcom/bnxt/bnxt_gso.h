@@ -23,6 +23,12 @@
  */
 #define BNXT_SW_USO_MAX_DESCS	(3 * BNXT_SW_USO_MAX_SEGS + MAX_SKB_FRAGS + 1)
 
+static inline u16 bnxt_inline_avail(struct bnxt_tx_ring_info *txr)
+{
+	return BNXT_SW_USO_MAX_SEGS -
+	       (u16)(txr->tx_inline_prod - READ_ONCE(txr->tx_inline_cons));
+}
+
 netdev_tx_t bnxt_sw_udp_gso_xmit(struct bnxt *bp,
 				 struct bnxt_tx_ring_info *txr,
 				 struct netdev_queue *txq,
