@@ -80,7 +80,7 @@ static const char * const pdm_sync_groups[] = { "gpio19" };
 static const char * const pdm_tx_groups[] = { "gpio20" };
 static const char * const slimbus_clk_groups[] = { "gpio18" };
 
-const struct lpi_pingroup sdm670_lpi_pinctrl_groups[] = {
+static const struct lpi_pingroup sdm670_lpi_pinctrl_groups[] = {
 	LPI_PINGROUP(0, LPI_NO_SLEW, _, _, _, _),
 	LPI_PINGROUP(1, LPI_NO_SLEW, _, _, _, _),
 	LPI_PINGROUP(2, LPI_NO_SLEW, _, _, _, _),
@@ -115,7 +115,7 @@ const struct lpi_pingroup sdm670_lpi_pinctrl_groups[] = {
 	LPI_PINGROUP(31, LPI_NO_SLEW, _, _, _, _),
 };
 
-const struct lpi_function sdm670_lpi_pinctrl_functions[] = {
+static const struct lpi_function sdm670_lpi_pinctrl_functions[] = {
 	LPI_FUNCTION(comp_rx),
 	LPI_FUNCTION(dmic1_clk),
 	LPI_FUNCTION(dmic1_data),
