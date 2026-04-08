@@ -64,6 +64,9 @@
 #define ENETC4_PPAUONTR			0x108
 #define ENETC4_PPAUOFFTR		0x10c
 
+/* Port ingress congestion DRa (a=0,1,2,3) discard count register */
+#define ENETC4_PICDRDCR(a)		((a) * 0x10 + 0x140)
+
 /* Port Station interface promiscuous MAC mode register */
 #define ENETC4_PSIPMMR			0x200
 #define  PSIPMMR_SI_MAC_UP(a)		BIT(a) /* a = SI index */
@@ -72,12 +75,24 @@
 /* Port Station interface promiscuous VLAN mode register */
 #define ENETC4_PSIPVMR			0x204
 
+/* Port broadcast frames dropped due to MAC filtering register */
+#define ENETC4_PBFDSIR			0x208
+
+/* Port frame drop MAC source address pruning register */
+#define ENETC4_PFDMSAPR			0x20c
+
 /* Port RSS key register n. n = 0,1,2,...,9 */
 #define ENETC4_PRSSKR(n)		((n) * 0x4 + 0x250)
 
 /* Port station interface MAC address filtering capability register */
 #define ENETC4_PSIMAFCAPR		0x280
 #define  PSIMAFCAPR_NUM_MAC_AFTE	GENMASK(11, 0)
+
+/* Port unicast frames dropped due to MAC filtering register */
+#define ENETC4_PUFDMFR			0x284
+
+/* Port multicast frames dropped due to MAC filtering register */
+#define ENETC4_PMFDMFR			0x288
 
 /* Port station interface VLAN filtering capability register */
 #define ENETC4_PSIVLANFCAPR		0x2c0
@@ -86,6 +101,15 @@
 /* Port station interface VLAN filtering mode register */
 #define ENETC4_PSIVLANFMR		0x2c4
 #define  PSIVLANFMR_VS			BIT(0)
+
+/* Port unicast frames dropped VLAN filtering register */
+#define ENETC4_PUFDVFR			0x2d0
+
+/* Port multicast frames dropped VLAN filtering register */
+#define ENETC4_PMFDVFR			0x2d4
+
+/* Port broadcast frames dropped VLAN filtering register */
+#define ENETC4_PBFDVFR			0x2d8
 
 /* Port Station interface a primary MAC address registers */
 #define ENETC4_PSIPMAR0(a)		((a) * 0x80 + 0x2000)
@@ -140,6 +164,18 @@
 /* Port status register */
 #define ENETC4_PSR			0x4104
 #define  PSR_RX_BUSY			BIT(1)
+
+/* Port Rx discard count register */
+#define ENETC4_PRXDCR			0x41c0
+
+/* Port Rx discard count read-reset register */
+#define ENETC4_PRXDCRRR			0x41c4
+
+/* Port Rx discard count reason register 0 */
+#define ENETC4_PRXDCRR0			0x41c8
+
+/* Port Rx discard count reason register 1 */
+#define ENETC4_PRXDCRR1			0x41cc
 
 /* Port traffic class a transmit maximum SDU register */
 #define ENETC4_PTCTMSDUR(a)		((a) * 0x20 + 0x4208)
@@ -199,6 +235,9 @@
 /* Port MAC 0/1 Receive Ethernet Octets Counter */
 #define ENETC4_PM_REOCT(mac)		(0x5100 + (mac) * 0x400)
 
+/* Port MAC 0/1 Receive Octets Counter */
+#define ENETC4_PM_ROCT(mac)		(0x5108 + (mac) * 0x400)
+
 /* Port MAC 0/1 Receive Alignment Error Counter Register */
 #define ENETC4_PM_RALN(mac)		(0x5110 + (mac) * 0x400)
 
@@ -211,11 +250,26 @@
 /* Port MAC 0/1 Receive Frame Check Sequence Error Counter */
 #define ENETC4_PM_RFCS(mac)		(0x5128 + (mac) * 0x400)
 
+/* Port MAC 0/1 Receive VLAN Frame Counter */
+#define ENETC4_PM_RVLAN(mac)		(0x5130 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Frame Error Counter */
+#define ENETC4_PM_RERR(mac)		(0x5138 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Unicast Frame Counter */
+#define ENETC4_PM_RUCA(mac)		(0x5140 + (mac) * 0x400)
+
 /* Port MAC 0/1 Receive Multicast Frame Counter */
 #define ENETC4_PM_RMCA(mac)		(0x5148 + (mac) * 0x400)
 
 /* Port MAC 0/1 Receive Broadcast Frame Counter */
 #define ENETC4_PM_RBCA(mac)		(0x5150 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Dropped Packets Counter */
+#define ENETC4_PM_RDRP(mac)		(0x5158 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Packets Counter */
+#define ENETC4_PM_RPKT(mac)		(0x5160 + (mac) * 0x400)
 
 /* Port MAC 0/1 Receive Undersized Packet Counter */
 #define ENETC4_PM_RUND(mac)		(0x5168 + (mac) * 0x400)
@@ -259,20 +313,35 @@
 /* Port MAC 0/1 Transmit Ethernet Octets Counter */
 #define ENETC4_PM_TEOCT(mac)		(0x5200 + (mac) * 0x400)
 
+/* Port MAC 0/1 Transmit Octets Counter */
+#define ENETC4_PM_TOCT(mac)		(0x5208 + (mac) * 0x400)
+
 /* Port MAC 0/1 Transmit Valid Pause Frame Counter */
 #define ENETC4_PM_TXPF(mac)		(0x5218 + (mac) * 0x400)
 
 /* Port MAC 0/1 Transmit Frame Counter */
 #define ENETC4_PM_TFRM(mac)		(0x5220 + (mac) * 0x400)
 
+/* Port MAC 0/1 Transmit Frame Check Sequence Error Counter */
+#define ENETC4_PM_TFCS(mac)		(0x5228 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit VLAN Frame Counter */
+#define ENETC4_PM_TVLAN(mac)		(0x5230 + (mac) * 0x400)
+
 /* Port MAC 0/1 Transmit Frame Error Counter */
 #define ENETC4_PM_TERR(mac)		(0x5238 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Unicast Frame Counter */
+#define ENETC4_PM_TUCA(mac)		(0x5240 + (mac) * 0x400)
 
 /* Port MAC 0/1 Transmit Multicast Frame Counter */
 #define ENETC4_PM_TMCA(mac)		(0x5248 + (mac) * 0x400)
 
 /* Port MAC 0/1 Transmit Broadcast Frame Counter */
 #define ENETC4_PM_TBCA(mac)		(0x5250 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Packets Counter */
+#define ENETC4_PM_TPKT(mac)		(0x5260 + (mac) * 0x400)
 
 /* Port MAC 0/1 Transmit Undersized Packet Counter */
 #define ENETC4_PM_TUND(mac)		(0x5268 + (mac) * 0x400)
@@ -315,6 +384,9 @@
 
 /* Port MAC 0/1 Transmit Excessive Collisions Counter */
 #define ENETC4_PM_TECOL(mac)		(0x52f0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Invalid Octets Counter */
+#define ENETC4_PM_TIOCT(mac)		(0x52f8 + (mac) * 0x400)
 
 /* Port MAC 0 Interface Mode Control Register */
 #define ENETC4_PM_IF_MODE(mac)		(0x5300 + (mac) * 0x400)
