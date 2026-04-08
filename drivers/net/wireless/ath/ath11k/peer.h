@@ -29,7 +29,6 @@ struct ath11k_peer {
 	/* Info used in MMIC verification of
 	 * RX fragments
 	 */
-	struct crypto_shash *tfm_mmic;
 	u8 mcast_keyidx;
 	u8 ucast_keyidx;
 	u16 sec_type;
