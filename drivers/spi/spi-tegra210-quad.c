@@ -1223,7 +1223,7 @@ static int tegra_qspi_combined_seq_xfer(struct tegra_qspi *tqspi,
 					(&tqspi->xfer_completion,
 					QSPI_DMA_TIMEOUT);
 
-			if (WARN_ON_ONCE(ret == 0)) {
+			if (ret == 0) {
 				/*
 				 * Check if hardware completed the transfer
 				 * even though interrupt was lost or delayed.
@@ -1232,6 +1232,7 @@ static int tegra_qspi_combined_seq_xfer(struct tegra_qspi *tqspi,
 				ret = tegra_qspi_handle_timeout(tqspi);
 				if (ret < 0) {
 					/* Real timeout - clean up and fail */
+					WARN_ON_ONCE(1);
 					dev_err(tqspi->dev, "transfer timeout\n");
 
 					/* Abort transfer by resetting pio/dma bit */
@@ -1340,7 +1341,7 @@ static int tegra_qspi_non_combined_seq_xfer(struct tegra_qspi *tqspi,
 
 		ret = wait_for_completion_timeout(&tqspi->xfer_completion,
 						  QSPI_DMA_TIMEOUT);
-		if (WARN_ON(ret == 0)) {
+		if (ret == 0) {
 			/*
 			 * Check if hardware completed the transfer even though
 			 * interrupt was lost or delayed. If so, process the
@@ -1349,6 +1350,7 @@ static int tegra_qspi_non_combined_seq_xfer(struct tegra_qspi *tqspi,
 			ret = tegra_qspi_handle_timeout(tqspi);
 			if (ret < 0) {
 				/* Real timeout - clean up and fail */
+				WARN_ON(1);
 				dev_err(tqspi->dev, "transfer timeout\n");
 
 				if (tqspi->is_curr_dma_xfer)
