@@ -908,6 +908,10 @@ int kvm_riscv_vcpu_aia_imsic_rmw(struct kvm_vcpu *vcpu, unsigned long isel,
 	int r, rc = KVM_INSN_CONTINUE_NEXT_SEPC;
 	struct imsic *imsic = vcpu->arch.aia_context.imsic_state;
 
+	/* If IMSIC vCPU state not initialized then forward to user space */
+	if (!imsic)
+		return KVM_INSN_EXIT_TO_USER_SPACE;
+
 	if (isel == KVM_RISCV_AIA_IMSIC_TOPEI) {
 		/* Read pending and enabled interrupt with highest priority */
 		topei = imsic_mrif_topei(imsic->swfile, imsic->nr_eix,

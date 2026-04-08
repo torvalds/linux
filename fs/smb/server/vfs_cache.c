@@ -87,11 +87,7 @@ static int proc_show_files(struct seq_file *m, void *v)
 
 		rcu_read_lock();
 		opinfo = rcu_dereference(fp->f_opinfo);
-		rcu_read_unlock();
-
-		if (!opinfo) {
-			seq_printf(m, " %-15s", " ");
-		} else {
+		if (opinfo) {
 			const struct ksmbd_const_name *const_names;
 			int count;
 			unsigned int level;
@@ -105,8 +101,12 @@ static int proc_show_files(struct seq_file *m, void *v)
 				count = ARRAY_SIZE(ksmbd_oplock_const_names);
 				level = opinfo->level;
 			}
+			rcu_read_unlock();
 			ksmbd_proc_show_const_name(m, " %-15s",
 						   const_names, count, level);
+		} else {
+			rcu_read_unlock();
+			seq_printf(m, " %-15s", " ");
 		}
 
 		seq_printf(m, " %#010x %#010x %s\n",

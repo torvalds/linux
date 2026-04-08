@@ -715,6 +715,7 @@ static const struct snd_soc_component_driver q6apm_audio_component = {
 	.name		= APM_AUDIO_DRV_NAME,
 	.probe		= q6apm_audio_probe,
 	.remove		= q6apm_audio_remove,
+	.remove_order   = SND_SOC_COMP_ORDER_LAST,
 };
 
 static int apm_probe(gpr_device_t *gdev)

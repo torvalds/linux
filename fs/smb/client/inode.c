@@ -219,13 +219,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr,
 	 */
 	if (is_size_safe_to_change(cifs_i, fattr->cf_eof, from_readdir)) {
 		i_size_write(inode, fattr->cf_eof);
-
-		/*
-		 * i_blocks is not related to (i_size / i_blksize),
-		 * but instead 512 byte (2**9) size is required for
-		 * calculating num blocks.
-		 */
-		inode->i_blocks = (512 - 1 + fattr->cf_bytes) >> 9;
+		inode->i_blocks = CIFS_INO_BLOCKS(fattr->cf_bytes);
 	}
 
 	if (S_ISLNK(fattr->cf_mode) && fattr->cf_symlink_target) {
@@ -2997,7 +2991,7 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 		}
 	}
 
-	cfile = find_readable_file(cifs_i, false);
+	cfile = find_readable_file(cifs_i, FIND_ANY);
 	if (cfile == NULL)
 		return -EINVAL;
 
@@ -3015,6 +3009,11 @@ void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	spin_lock(&inode->i_lock);
 	i_size_write(inode, offset);
+	/*
+	 * Until we can query the server for actual allocation size,
+	 * this is best estimate we have for blocks allocated for a file.
+	 */
+	inode->i_blocks = CIFS_INO_BLOCKS(offset);
 	spin_unlock(&inode->i_lock);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	truncate_pagecache(inode, offset);
@@ -3050,7 +3049,7 @@ int cifs_file_set_size(const unsigned int xid, struct dentry *dentry,
 						size, false);
 		cifs_dbg(FYI, "%s: set_file_size: rc = %d\n", __func__, rc);
 	} else {
-		open_file = find_writable_file(cifsInode, FIND_WR_FSUID_ONLY);
+		open_file = find_writable_file(cifsInode, FIND_FSUID_ONLY);
 		if (open_file) {
 			tcon = tlink_tcon(open_file->tlink);
 			server = tcon->ses->server;
@@ -3087,14 +3086,6 @@ set_size_out:
 	if (rc == 0) {
 		netfs_resize_file(&cifsInode->netfs, size, true);
 		cifs_setsize(inode, size);
-		/*
-		 * i_blocks is not related to (i_size / i_blksize), but instead
-		 * 512 byte (2**9) size is required for calculating num blocks.
-		 * Until we can query the server for actual allocation size,
-		 * this is best estimate we have for blocks allocated for a file
-		 * Number of blocks must be rounded up so size 1 is not 0 blocks
-		 */
-		inode->i_blocks = (512 - 1 + size) >> 9;
 	}
 
 	return rc;
@@ -3219,7 +3210,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 					    open_file->fid.netfid,
 					    open_file->pid);
 	} else {
-		open_file = find_writable_file(cifsInode, FIND_WR_FSUID_ONLY);
+		open_file = find_writable_file(cifsInode, FIND_FSUID_ONLY);
 		if (open_file) {
 			pTcon = tlink_tcon(open_file->tlink);
 			rc = CIFSSMBUnixSetFileInfo(xid, pTcon, args,

@@ -1035,26 +1035,108 @@ static const char *scx_enable_state_str[] = {
 };
 
 /*
- * sched_ext_entity->ops_state
+ * Task Ownership State Machine (sched_ext_entity->ops_state)
  *
- * Used to track the task ownership between the SCX core and the BPF scheduler.
- * State transitions look as follows:
+ * The sched_ext core uses this state machine to track task ownership
+ * between the SCX core and the BPF scheduler. This allows the BPF
+ * scheduler to dispatch tasks without strict ordering requirements, while
+ * the SCX core safely rejects invalid dispatches.
  *
- * NONE -> QUEUEING -> QUEUED -> DISPATCHING
- *   ^              |                 |
- *   |              v                 v
- *   \-------------------------------/
+ * State Transitions
  *
- * QUEUEING and DISPATCHING states can be waited upon. See wait_ops_state() call
- * sites for explanations on the conditions being waited upon and why they are
- * safe. Transitions out of them into NONE or QUEUED must store_release and the
- * waiters should load_acquire.
+ *       .------------> NONE (owned by SCX core)
+ *       |               |           ^
+ *       |       enqueue |           | direct dispatch
+ *       |               v           |
+ *       |           QUEUEING -------'
+ *       |               |
+ *       |       enqueue |
+ *       |     completes |
+ *       |               v
+ *       |            QUEUED (owned by BPF scheduler)
+ *       |               |
+ *       |      dispatch |
+ *       |               |
+ *       |               v
+ *       |          DISPATCHING
+ *       |               |
+ *       |      dispatch |
+ *       |     completes |
+ *       `---------------'
  *
- * Tracking scx_ops_state enables sched_ext core to reliably determine whether
- * any given task can be dispatched by the BPF scheduler at all times and thus
- * relaxes the requirements on the BPF scheduler. This allows the BPF scheduler
- * to try to dispatch any task anytime regardless of its state as the SCX core
- * can safely reject invalid dispatches.
+ * State Descriptions
+ *
+ * - %SCX_OPSS_NONE:
+ *     Task is owned by the SCX core. It's either on a run queue, running,
+ *     or being manipulated by the core scheduler. The BPF scheduler has no
+ *     claim on this task.
+ *
+ * - %SCX_OPSS_QUEUEING:
+ *     Transitional state while transferring a task from the SCX core to
+ *     the BPF scheduler. The task's rq lock is held during this state.
+ *     Since QUEUEING is both entered and exited under the rq lock, dequeue
+ *     can never observe this state (it would be a BUG). When finishing a
+ *     dispatch, if the task is still in %SCX_OPSS_QUEUEING the completion
+ *     path busy-waits for it to leave this state (via wait_ops_state())
+ *     before retrying.
+ *
+ * - %SCX_OPSS_QUEUED:
+ *     Task is owned by the BPF scheduler. It's on a DSQ (dispatch queue)
+ *     and the BPF scheduler is responsible for dispatching it. A QSEQ
+ *     (queue sequence number) is embedded in this state to detect
+ *     dispatch/dequeue races: if a task is dequeued and re-enqueued, the
+ *     QSEQ changes and any in-flight dispatch operations targeting the old
+ *     QSEQ are safely ignored.
+ *
+ * - %SCX_OPSS_DISPATCHING:
+ *     Transitional state while transferring a task from the BPF scheduler
+ *     back to the SCX core. This state indicates the BPF scheduler has
+ *     selected the task for execution. When dequeue needs to take the task
+ *     off a DSQ and it is still in %SCX_OPSS_DISPATCHING, the dequeue path
+ *     busy-waits for it to leave this state (via wait_ops_state()) before
+ *     proceeding. Exits to %SCX_OPSS_NONE when dispatch completes.
+ *
+ * Memory Ordering
+ *
+ * Transitions out of %SCX_OPSS_QUEUEING and %SCX_OPSS_DISPATCHING into
+ * %SCX_OPSS_NONE or %SCX_OPSS_QUEUED must use atomic_long_set_release()
+ * and waiters must use atomic_long_read_acquire(). This ensures proper
+ * synchronization between concurrent operations.
+ *
+ * Cross-CPU Task Migration
+ *
+ * When moving a task in the %SCX_OPSS_DISPATCHING state, we can't simply
+ * grab the target CPU's rq lock because a concurrent dequeue might be
+ * waiting on %SCX_OPSS_DISPATCHING while holding the source rq lock
+ * (deadlock).
+ *
+ * The sched_ext core uses a "lock dancing" protocol coordinated by
+ * p->scx.holding_cpu. When moving a task to a different rq:
+ *
+ *   1. Verify task can be moved (CPU affinity, migration_disabled, etc.)
+ *   2. Set p->scx.holding_cpu to the current CPU
+ *   3. Set task state to %SCX_OPSS_NONE; dequeue waits while DISPATCHING
+ *      is set, so clearing DISPATCHING first prevents the circular wait
+ *      (safe to lock the rq we need)
+ *   4. Unlock the current CPU's rq
+ *   5. Lock src_rq (where the task currently lives)
+ *   6. Verify p->scx.holding_cpu == current CPU, if not, dequeue won the
+ *      race (dequeue clears holding_cpu to -1 when it takes the task), in
+ *      this case migration is aborted
+ *   7. If src_rq == dst_rq: clear holding_cpu and enqueue directly
+ *      into dst_rq's local DSQ (no lock swap needed)
+ *   8. Otherwise: call move_remote_task_to_local_dsq(), which releases
+ *      src_rq, locks dst_rq, and performs the deactivate/activate
+ *      migration cycle (dst_rq is held on return)
+ *   9. Unlock dst_rq and re-lock the current CPU's rq to restore
+ *      the lock state expected by the caller
+ *
+ * If any verification fails, abort the migration.
+ *
+ * This state tracking allows the BPF scheduler to try to dispatch any task
+ * at any time regardless of its state. The SCX core can safely
+ * reject/ignore invalid dispatches, simplifying the BPF scheduler
+ * implementation.
  */
 enum scx_ops_state {
 	SCX_OPSS_NONE,		/* owned by the SCX core */

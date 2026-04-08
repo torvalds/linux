@@ -68,12 +68,12 @@
  * timeout value used in Stratix10 FPGA manager driver.
  * timeout value used in RSU driver
  */
-#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         300
-#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          720
-#define SVC_RSU_REQUEST_TIMEOUT_MS              300
+#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         5000
+#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          5000
+#define SVC_RSU_REQUEST_TIMEOUT_MS              2000
 #define SVC_FCS_REQUEST_TIMEOUT_MS		2000
 #define SVC_COMPLETED_TIMEOUT_MS		30000
-#define SVC_HWMON_REQUEST_TIMEOUT_MS		300
+#define SVC_HWMON_REQUEST_TIMEOUT_MS		2000
 
 struct stratix10_svc_chan;
 

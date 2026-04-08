@@ -38,6 +38,7 @@ static const struct root_name_map root_map[] = {
 	{ BTRFS_BLOCK_GROUP_TREE_OBJECTID,	"BLOCK_GROUP_TREE"	},
 	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
 	{ BTRFS_RAID_STRIPE_TREE_OBJECTID,	"RAID_STRIPE_TREE"	},
+	{ BTRFS_REMAP_TREE_OBJECTID,		"REMAP_TREE"		},
 };
 
 const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
@@ -415,6 +416,9 @@ static void key_type_string(const struct btrfs_key *key, char *buf, int buf_size
 		[BTRFS_UUID_KEY_SUBVOL]			= "UUID_KEY_SUBVOL",
 		[BTRFS_UUID_KEY_RECEIVED_SUBVOL]	= "UUID_KEY_RECEIVED_SUBVOL",
 		[BTRFS_RAID_STRIPE_KEY]			= "RAID_STRIPE",
+		[BTRFS_IDENTITY_REMAP_KEY]		= "IDENTITY_REMAP",
+		[BTRFS_REMAP_KEY]			= "REMAP",
+		[BTRFS_REMAP_BACKREF_KEY]		= "REMAP_BACKREF",
 	};
 
 	if (key->type == 0 && key->objectid == BTRFS_FREE_SPACE_OBJECTID)
@@ -435,6 +439,7 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
 	struct btrfs_dev_extent *dev_extent;
+	struct btrfs_remap_item *remap;
 	struct btrfs_key key;
 
 	if (!l)
@@ -568,6 +573,11 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_RAID_STRIPE_KEY:
 			print_raid_stripe_key(l, btrfs_item_size(l, i),
 				btrfs_item_ptr(l, i, struct btrfs_stripe_extent));
+			break;
+		case BTRFS_REMAP_KEY:
+		case BTRFS_REMAP_BACKREF_KEY:
+			remap = btrfs_item_ptr(l, i, struct btrfs_remap_item);
+			pr_info("\t\taddress %llu\n", btrfs_remap_address(l, remap));
 			break;
 		}
 	}
