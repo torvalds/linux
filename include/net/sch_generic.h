@@ -1170,12 +1170,22 @@ static inline void tcf_kfree_skb_list(struct sk_buff *skb)
 static inline void qdisc_dequeue_drop(struct Qdisc *q, struct sk_buff *skb,
 				      enum skb_drop_reason reason)
 {
+	struct Qdisc *root;
+
 	DEBUG_NET_WARN_ON_ONCE(!(q->flags & TCQ_F_DEQUEUE_DROPS));
 	DEBUG_NET_WARN_ON_ONCE(q->flags & TCQ_F_NOLOCK);
 
-	tcf_set_drop_reason(skb, reason);
-	skb->next = q->to_free;
-	q->to_free = skb;
+	rcu_read_lock();
+	root = qdisc_root_sleeping(q);
+
+	if (root->flags & TCQ_F_DEQUEUE_DROPS) {
+		tcf_set_drop_reason(skb, reason);
+		skb->next = root->to_free;
+		root->to_free = skb;
+	} else {
+		kfree_skb_reason(skb, reason);
+	}
+	rcu_read_unlock();
 }
 
 /* Instead of calling kfree_skb() while root qdisc lock is held,
