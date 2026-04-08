@@ -2493,7 +2493,7 @@ int symbol__config_symfs(const struct option *opt __maybe_unused,
 			 const char *dir, int unset __maybe_unused)
 {
 	char *bf = NULL;
-	char *layout_str;
+	const char *layout_str;
 	char *dir_copy;
 	int ret;
 
