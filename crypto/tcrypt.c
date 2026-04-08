@@ -1557,10 +1557,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("ecb(arc4)"));
 		break;
 
-	case 17:
-		ret = min(ret, tcrypt_test("michael_mic"));
-		break;
-
 	case 18:
 		ret = min(ret, tcrypt_test("crc32c"));
 		break;
