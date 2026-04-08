@@ -50,7 +50,7 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_FILES)
 ../lib/ynl.a:
 	@$(MAKE) -C ../lib
 
- ../generated/protos.a:
+../generated/protos.a:
 	@$(MAKE) -C ../generated
 
 $(TEST_GEN_PROGS) $(TEST_GEN_FILES): %: %.c ../lib/ynl.a ../generated/protos.a
