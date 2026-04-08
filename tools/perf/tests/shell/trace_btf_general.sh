@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf trace BTF general tests
+# perf trace BTF general tests (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 err=0
