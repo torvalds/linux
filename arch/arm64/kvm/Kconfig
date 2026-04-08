@@ -42,32 +42,10 @@ menuconfig KVM
 
 	  If unsure, say N.
 
-config NVHE_EL2_DEBUG
-	bool "Debug mode for non-VHE EL2 object"
-	depends on KVM
-	help
-	  Say Y here to enable the debug mode for the non-VHE KVM EL2 object.
-	  Failure reports will BUG() in the hypervisor. This is intended for
-	  local EL2 hypervisor development.
-
-	  If unsure, say N.
-
-config PROTECTED_NVHE_STACKTRACE
-	bool "Protected KVM hypervisor stacktraces"
-	depends on NVHE_EL2_DEBUG
-	default n
-	help
-	  Say Y here to enable pKVM hypervisor stacktraces on hyp_panic()
-
-	  If using protected nVHE mode, but cannot afford the associated
-	  memory cost (less than 0.75 page per CPU) of pKVM stacktraces,
-	  say N.
-
-	  If unsure, or not using protected nVHE (pKVM), say N.
+if KVM
 
 config PTDUMP_STAGE2_DEBUGFS
 	bool "Present the stage-2 pagetables to debugfs"
-	depends on KVM
 	depends on DEBUG_KERNEL
 	depends on DEBUG_FS
 	depends on ARCH_HAS_PTDUMP
@@ -82,4 +60,48 @@ config PTDUMP_STAGE2_DEBUGFS
 
 	  If in doubt, say N.
 
+config NVHE_EL2_DEBUG
+	bool "Debug mode for non-VHE EL2 object"
+	default n
+	help
+	  Say Y here to enable the debug mode for the non-VHE KVM EL2 object.
+	  Failure reports will BUG() in the hypervisor. This is intended for
+	  local EL2 hypervisor development.
+
+	  If unsure, say N.
+
+if NVHE_EL2_DEBUG
+
+config NVHE_EL2_TRACING
+	bool
+	depends on TRACING && FTRACE
+	select TRACE_REMOTE
+	default y
+
+config PKVM_DISABLE_STAGE2_ON_PANIC
+	bool "Disable the host stage-2 on panic"
+	default n
+	help
+	  Relax the host stage-2 on hypervisor panic to allow the kernel to
+	  unwind and symbolize the hypervisor stacktrace. This however tampers
+	  the system security. This is intended for local EL2 hypervisor
+	  development.
+
+	  If unsure, say N.
+
+config PKVM_STACKTRACE
+	bool "Protected KVM hypervisor stacktraces"
+	depends on PKVM_DISABLE_STAGE2_ON_PANIC
+	default y
+	help
+	  Say Y here to enable pKVM hypervisor stacktraces on hyp_panic()
+
+	  If using protected nVHE mode, but cannot afford the associated
+	  memory cost (less than 0.75 page per CPU) of pKVM stacktraces,
+	  say N.
+
+	  If unsure, or not using protected nVHE (pKVM), say N.
+
+endif # NVHE_EL2_DEBUG
+endif # KVM
 endif # VIRTUALIZATION

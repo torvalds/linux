@@ -128,4 +128,63 @@ obj-$(CONFIG_FPROBE_EVENTS) += trace_fprobe.o
 obj-$(CONFIG_TRACEPOINT_BENCHMARK) += trace_benchmark.o
 obj-$(CONFIG_RV) += rv/
 
+obj-$(CONFIG_TRACE_REMOTE) += trace_remote.o
+obj-$(CONFIG_SIMPLE_RING_BUFFER) += simple_ring_buffer.o
+obj-$(CONFIG_TRACE_REMOTE_TEST) += remote_test.o
+
+#
+# simple_ring_buffer is used by the pKVM hypervisor which does not have access
+# to all kernel symbols. Fail the build if forbidden symbols are found.
+#
+# undefsyms_base generates a set of compiler and tooling-generated symbols that can
+# safely be ignored for simple_ring_buffer.
+#
+filechk_undefsyms_base = \
+	echo '$(pound)include <linux/atomic.h>'; \
+	echo '$(pound)include <linux/string.h>'; \
+	echo '$(pound)include <asm/page.h>'; \
+	echo 'static char page[PAGE_SIZE] __aligned(PAGE_SIZE);'; \
+	echo 'void undefsyms_base(void *p, int n);'; \
+	echo 'void undefsyms_base(void *p, int n) {'; \
+	echo '	char buffer[256] = { 0 };'; \
+	echo '	u32 u = 0;'; \
+	echo '	memset((char * volatile)page, 8, PAGE_SIZE);'; \
+	echo '	memset((char * volatile)buffer, 8, sizeof(buffer));'; \
+	echo '	memcpy((void * volatile)p, buffer, sizeof(buffer));'; \
+	echo '	cmpxchg((u32 * volatile)&u, 0, 8);'; \
+	echo '	WARN_ON(n == 0xdeadbeef);'; \
+	echo '}'
+
+$(obj)/undefsyms_base.c: FORCE
+	$(call filechk,undefsyms_base)
+
+clean-files += undefsyms_base.c
+
+$(obj)/undefsyms_base.o: $(obj)/undefsyms_base.c
+
+targets += undefsyms_base.o
+
+# Ensure KASAN is enabled to avoid logic that may disable FORTIFY_SOURCE when
+# KASAN is not enabled. undefsyms_base.o does not automatically get KASAN flags
+# because it is not linked into vmlinux.
+KASAN_SANITIZE_undefsyms_base.o := y
+
+UNDEFINED_ALLOWLIST = __asan __gcov __kasan __kcsan __hwasan __sancov __sanitizer __tsan __ubsan __x86_indirect_thunk \
+		      __msan simple_ring_buffer \
+		      $(shell $(NM) -u $(obj)/undefsyms_base.o 2>/dev/null | awk '{print $$2}')
+
+quiet_cmd_check_undefined = NM      $<
+      cmd_check_undefined = \
+          undefsyms=$$($(NM) -u $< | grep -v $(addprefix -e , $(UNDEFINED_ALLOWLIST)) || true); \
+          if [ -n "$$undefsyms" ]; then \
+              echo "Unexpected symbols in $<:" >&2; \
+              echo "$$undefsyms" >&2; \
+              false; \
+          fi
+
+$(obj)/%.o.checked: $(obj)/%.o $(obj)/undefsyms_base.o FORCE
+	$(call if_changed,check_undefined)
+
+always-$(CONFIG_SIMPLE_RING_BUFFER) += simple_ring_buffer.o.checked
+
 libftrace-y := ftrace.o
