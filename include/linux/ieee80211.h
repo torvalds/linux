@@ -1921,6 +1921,11 @@ enum ieee80211_radio_measurement_actioncode {
 #define PMK_MAX_LEN			64
 #define SAE_PASSWORD_MAX_LEN		128
 
+#define MICHAEL_MIC_LEN			8
+
+void michael_mic(const u8 *key, struct ieee80211_hdr *hdr,
+		 const u8 *data, size_t data_len, u8 *mic);
+
 /* Public action codes (IEEE Std 802.11-2016, 9.6.8.1, Table 9-307) */
 enum ieee80211_pub_actioncode {
 	WLAN_PUB_ACTION_20_40_BSS_COEX = 0,

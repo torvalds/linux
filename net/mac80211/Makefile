@@ -18,7 +18,6 @@ mac80211-y := \
 	iface.o \
 	link.o \
 	rate.o \
-	michael.o \
 	tkip.o \
 	aes_cmac.o \
 	aes_gmac.o \

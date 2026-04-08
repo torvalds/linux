@@ -18,7 +18,6 @@
 #include <crypto/utils.h>
 
 #include "ieee80211_i.h"
-#include "michael.h"
 #include "tkip.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
