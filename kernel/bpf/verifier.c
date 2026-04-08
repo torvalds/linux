@@ -19225,7 +19225,7 @@ static struct bpf_iarray *jt_from_subprog(struct bpf_verifier_env *env,
 static struct bpf_iarray *
 create_jt(int t, struct bpf_verifier_env *env)
 {
-	static struct bpf_subprog_info *subprog;
+	struct bpf_subprog_info *subprog;
 	int subprog_start, subprog_end;
 	struct bpf_iarray *jt;
 	int i;
@@ -19300,7 +19300,7 @@ static int visit_gotox_insn(int t, struct bpf_verifier_env *env)
  */
 static int visit_abnormal_return_insn(struct bpf_verifier_env *env, int t)
 {
-	static struct bpf_subprog_info *subprog;
+	struct bpf_subprog_info *subprog;
 	struct bpf_iarray *jt;
 
 	if (env->insn_aux_data[t].jt)
