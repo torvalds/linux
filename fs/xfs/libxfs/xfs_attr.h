@@ -55,7 +55,8 @@ struct xfs_attr_list_context {
 	struct xfs_trans	*tp;
 	struct xfs_inode	*dp;		/* inode */
 	struct xfs_attrlist_cursor_kern cursor;	/* position in list */
-	void			*buffer;	/* output buffer */
+	/* output buffer */
+	void			*buffer __counted_by_ptr(bufsize);
 
 	/*
 	 * Abort attribute list iteration if non-zero.  Can be used to pass

@@ -443,8 +443,8 @@ xfs_ioc_attr_list(
 	context.dp = dp;
 	context.resynch = 1;
 	context.attr_filter = xfs_attr_filter(flags);
-	context.buffer = buffer;
 	context.bufsize = round_down(bufsize, sizeof(uint32_t));
+	context.buffer = buffer;
 	context.firstu = context.bufsize;
 	context.put_listent = xfs_ioc_attr_put_listent;
 

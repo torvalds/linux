@@ -86,7 +86,7 @@ cleanup:
 		wait_for_pid(pids[i]);
 
 	if (ret == KSFT_PASS &&
-	    cg_read_strcmp(cgroup, "cgroup.events", "populated 0\n"))
+	    cg_read_strcmp_wait(cgroup, "cgroup.events", "populated 0\n"))
 		ret = KSFT_FAIL;
 
 	if (cgroup)
@@ -190,7 +190,8 @@ cleanup:
 		wait_for_pid(pids[i]);
 
 	if (ret == KSFT_PASS &&
-	    cg_read_strcmp(cgroup[0], "cgroup.events", "populated 0\n"))
+	    cg_read_strcmp_wait(cgroup[0], "cgroup.events",
+				   "populated 0\n"))
 		ret = KSFT_FAIL;
 
 	for (i = 9; i >= 0 && cgroup[i]; i--) {
@@ -251,7 +252,7 @@ cleanup:
 		wait_for_pid(pid);
 
 	if (ret == KSFT_PASS &&
-	    cg_read_strcmp(cgroup, "cgroup.events", "populated 0\n"))
+	    cg_read_strcmp_wait(cgroup, "cgroup.events", "populated 0\n"))
 		ret = KSFT_FAIL;
 
 	if (cgroup)

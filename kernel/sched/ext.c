@@ -1110,15 +1110,6 @@ static void dispatch_enqueue(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 	p->scx.dsq = dsq;
 
 	/*
-	 * scx.ddsp_dsq_id and scx.ddsp_enq_flags are only relevant on the
-	 * direct dispatch path, but we clear them here because the direct
-	 * dispatch verdict may be overridden on the enqueue path during e.g.
-	 * bypass.
-	 */
-	p->scx.ddsp_dsq_id = SCX_DSQ_INVALID;
-	p->scx.ddsp_enq_flags = 0;
-
-	/*
 	 * We're transitioning out of QUEUEING or DISPATCHING. store_release to
 	 * match waiters' load_acquire.
 	 */
@@ -1283,12 +1274,34 @@ static void mark_direct_dispatch(struct scx_sched *sch,
 	p->scx.ddsp_enq_flags = enq_flags;
 }
 
+/*
+ * Clear @p direct dispatch state when leaving the scheduler.
+ *
+ * Direct dispatch state must be cleared in the following cases:
+ *  - direct_dispatch(): cleared on the synchronous enqueue path, deferred
+ *    dispatch keeps the state until consumed
+ *  - process_ddsp_deferred_locals(): cleared after consuming deferred state,
+ *  - do_enqueue_task(): cleared on enqueue fallbacks where the dispatch
+ *    verdict is ignored (local/global/bypass)
+ *  - dequeue_task_scx(): cleared after dispatch_dequeue(), covering deferred
+ *    cancellation and holding_cpu races
+ *  - scx_disable_task(): cleared for queued wakeup tasks, which are excluded by
+ *    the scx_bypass() loop, so that stale state is not reused by a subsequent
+ *    scheduler instance
+ */
+static inline void clear_direct_dispatch(struct task_struct *p)
+{
+	p->scx.ddsp_dsq_id = SCX_DSQ_INVALID;
+	p->scx.ddsp_enq_flags = 0;
+}
+
 static void direct_dispatch(struct scx_sched *sch, struct task_struct *p,
 			    u64 enq_flags)
 {
 	struct rq *rq = task_rq(p);
 	struct scx_dispatch_q *dsq =
 		find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, p);
+	u64 ddsp_enq_flags;
 
 	touch_core_sched_dispatch(rq, p);
 
@@ -1329,8 +1342,10 @@ static void direct_dispatch(struct scx_sched *sch, struct task_struct *p,
 		return;
 	}
 
-	dispatch_enqueue(sch, dsq, p,
-			 p->scx.ddsp_enq_flags | SCX_ENQ_CLEAR_OPSS);
+	ddsp_enq_flags = p->scx.ddsp_enq_flags;
+	clear_direct_dispatch(p);
+
+	dispatch_enqueue(sch, dsq, p, ddsp_enq_flags | SCX_ENQ_CLEAR_OPSS);
 }
 
 static bool scx_rq_online(struct rq *rq)
@@ -1439,6 +1454,7 @@ enqueue:
 	 */
 	touch_core_sched(rq, p);
 	refill_task_slice_dfl(sch, p);
+	clear_direct_dispatch(p);
 	dispatch_enqueue(sch, dsq, p, enq_flags);
 }
 
@@ -1610,6 +1626,7 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int deq_flags
 	sub_nr_running(rq, 1);
 
 	dispatch_dequeue(rq, p);
+	clear_direct_dispatch(p);
 	return true;
 }
 
@@ -2293,13 +2310,15 @@ static void process_ddsp_deferred_locals(struct rq *rq)
 				struct task_struct, scx.dsq_list.node))) {
 		struct scx_sched *sch = scx_root;
 		struct scx_dispatch_q *dsq;
+		u64 dsq_id = p->scx.ddsp_dsq_id;
+		u64 enq_flags = p->scx.ddsp_enq_flags;
 
 		list_del_init(&p->scx.dsq_list.node);
+		clear_direct_dispatch(p);
 
-		dsq = find_dsq_for_dispatch(sch, rq, p->scx.ddsp_dsq_id, p);
+		dsq = find_dsq_for_dispatch(sch, rq, dsq_id, p);
 		if (!WARN_ON_ONCE(dsq->id != SCX_DSQ_LOCAL))
-			dispatch_to_local_dsq(sch, rq, dsq, p,
-					      p->scx.ddsp_enq_flags);
+			dispatch_to_local_dsq(sch, rq, dsq, p, enq_flags);
 	}
 }
 
@@ -2404,7 +2423,7 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 {
 	struct scx_sched *sch = scx_root;
 
-	/* see kick_cpus_irq_workfn() */
+	/* see kick_sync_wait_bal_cb() */
 	smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
 
 	update_curr_scx(rq);
@@ -2447,6 +2466,48 @@ switch_class:
 		switch_class(rq, next);
 }
 
+static void kick_sync_wait_bal_cb(struct rq *rq)
+{
+	struct scx_kick_syncs __rcu *ks = __this_cpu_read(scx_kick_syncs);
+	unsigned long *ksyncs = rcu_dereference_sched(ks)->syncs;
+	bool waited;
+	s32 cpu;
+
+	/*
+	 * Drop rq lock and enable IRQs while waiting. IRQs must be enabled
+	 * — a target CPU may be waiting for us to process an IPI (e.g. TLB
+	 * flush) while we wait for its kick_sync to advance.
+	 *
+	 * Also, keep advancing our own kick_sync so that new kick_sync waits
+	 * targeting us, which can start after we drop the lock, cannot form
+	 * cyclic dependencies.
+	 */
+retry:
+	waited = false;
+	for_each_cpu(cpu, rq->scx.cpus_to_sync) {
+		/*
+		 * smp_load_acquire() pairs with smp_store_release() on
+		 * kick_sync updates on the target CPUs.
+		 */
+		if (cpu == cpu_of(rq) ||
+		    smp_load_acquire(&cpu_rq(cpu)->scx.kick_sync) != ksyncs[cpu]) {
+			cpumask_clear_cpu(cpu, rq->scx.cpus_to_sync);
+			continue;
+		}
+
+		raw_spin_rq_unlock_irq(rq);
+		while (READ_ONCE(cpu_rq(cpu)->scx.kick_sync) == ksyncs[cpu]) {
+			smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
+			cpu_relax();
+		}
+		raw_spin_rq_lock_irq(rq);
+		waited = true;
+	}
+
+	if (waited)
+		goto retry;
+}
+
 static struct task_struct *first_local_task(struct rq *rq)
 {
 	return list_first_entry_or_null(&rq->scx.local_dsq.list,
@@ -2460,7 +2521,7 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	bool keep_prev;
 	struct task_struct *p;
 
-	/* see kick_cpus_irq_workfn() */
+	/* see kick_sync_wait_bal_cb() */
 	smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
 
 	rq_modified_begin(rq, &ext_sched_class);
@@ -2469,6 +2530,17 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	balance_one(rq, prev);
 	rq_repin_lock(rq, rf);
 	maybe_queue_balance_callback(rq);
+
+	/*
+	 * Defer to a balance callback which can drop rq lock and enable
+	 * IRQs. Waiting directly in the pick path would deadlock against
+	 * CPUs sending us IPIs (e.g. TLB flushes) while we wait for them.
+	 */
+	if (unlikely(rq->scx.kick_sync_pending)) {
+		rq->scx.kick_sync_pending = false;
+		queue_balance_callback(rq, &rq->scx.kick_sync_bal_cb,
+				       kick_sync_wait_bal_cb);
+	}
 
 	/*
 	 * If any higher-priority sched class enqueued a runnable task on
@@ -2961,6 +3033,8 @@ static void scx_disable_task(struct task_struct *p)
 
 	lockdep_assert_rq_held(rq);
 	WARN_ON_ONCE(scx_get_task_state(p) != SCX_TASK_ENABLED);
+
+	clear_direct_dispatch(p);
 
 	if (SCX_HAS_OP(sch, disable))
 		SCX_CALL_OP_TASK(sch, SCX_KF_REST, disable, rq, p);
@@ -4713,6 +4787,9 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 		if (!cpumask_empty(rq->scx.cpus_to_wait))
 			dump_line(&ns, "  cpus_to_wait   : %*pb",
 				  cpumask_pr_args(rq->scx.cpus_to_wait));
+		if (!cpumask_empty(rq->scx.cpus_to_sync))
+			dump_line(&ns, "  cpus_to_sync   : %*pb",
+				  cpumask_pr_args(rq->scx.cpus_to_sync));
 
 		used = seq_buf_used(&ns);
 		if (SCX_HAS_OP(sch, dump_cpu)) {
@@ -5610,11 +5687,11 @@ static bool kick_one_cpu(s32 cpu, struct rq *this_rq, unsigned long *ksyncs)
 
 		if (cpumask_test_cpu(cpu, this_scx->cpus_to_wait)) {
 			if (cur_class == &ext_sched_class) {
+				cpumask_set_cpu(cpu, this_scx->cpus_to_sync);
 				ksyncs[cpu] = rq->scx.kick_sync;
 				should_wait = true;
-			} else {
-				cpumask_clear_cpu(cpu, this_scx->cpus_to_wait);
 			}
+			cpumask_clear_cpu(cpu, this_scx->cpus_to_wait);
 		}
 
 		resched_curr(rq);
@@ -5669,27 +5746,15 @@ static void kick_cpus_irq_workfn(struct irq_work *irq_work)
 		cpumask_clear_cpu(cpu, this_scx->cpus_to_kick_if_idle);
 	}
 
-	if (!should_wait)
-		return;
-
-	for_each_cpu(cpu, this_scx->cpus_to_wait) {
-		unsigned long *wait_kick_sync = &cpu_rq(cpu)->scx.kick_sync;
-
-		/*
-		 * Busy-wait until the task running at the time of kicking is no
-		 * longer running. This can be used to implement e.g. core
-		 * scheduling.
-		 *
-		 * smp_cond_load_acquire() pairs with store_releases in
-		 * pick_task_scx() and put_prev_task_scx(). The former breaks
-		 * the wait if SCX's scheduling path is entered even if the same
-		 * task is picked subsequently. The latter is necessary to break
-		 * the wait when $cpu is taken by a higher sched class.
-		 */
-		if (cpu != cpu_of(this_rq))
-			smp_cond_load_acquire(wait_kick_sync, VAL != ksyncs[cpu]);
-
-		cpumask_clear_cpu(cpu, this_scx->cpus_to_wait);
+	/*
+	 * Can't wait in hardirq — kick_sync can't advance, deadlocking if
+	 * CPUs wait for each other. Defer to kick_sync_wait_bal_cb().
+	 */
+	if (should_wait) {
+		raw_spin_rq_lock(this_rq);
+		this_scx->kick_sync_pending = true;
+		resched_curr(this_rq);
+		raw_spin_rq_unlock(this_rq);
 	}
 }
 
@@ -5794,6 +5859,7 @@ void __init init_sched_ext_class(void)
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_kick_if_idle, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_preempt, GFP_KERNEL, n));
 		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_wait, GFP_KERNEL, n));
+		BUG_ON(!zalloc_cpumask_var_node(&rq->scx.cpus_to_sync, GFP_KERNEL, n));
 		rq->scx.deferred_irq_work = IRQ_WORK_INIT_HARD(deferred_irq_workfn);
 		rq->scx.kick_cpus_irq_work = IRQ_WORK_INIT_HARD(kick_cpus_irq_workfn);
 

@@ -2126,6 +2126,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 #endif
 
 	init_waitqueue_head(&cgrp->offline_waitq);
+	init_waitqueue_head(&cgrp->dying_populated_waitq);
 	INIT_WORK(&cgrp->release_agent_work, cgroup1_release_agent);
 }
 
@@ -6224,6 +6225,78 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	return 0;
 };
 
+/**
+ * cgroup_drain_dying - wait for dying tasks to leave before rmdir
+ * @cgrp: the cgroup being removed
+ *
+ * cgroup.procs and cgroup.threads use css_task_iter which filters out
+ * PF_EXITING tasks so that userspace doesn't see tasks that have already been
+ * reaped via waitpid(). However, cgroup_has_tasks() - which tests whether the
+ * cgroup has non-empty css_sets - is only updated when dying tasks pass through
+ * cgroup_task_dead() in finish_task_switch(). This creates a window where
+ * cgroup.procs reads empty but cgroup_has_tasks() is still true, making rmdir
+ * fail with -EBUSY from cgroup_destroy_locked() even though userspace sees no
+ * tasks.
+ *
+ * This function aligns cgroup_has_tasks() with what userspace can observe. If
+ * cgroup_has_tasks() but the task iterator sees nothing (all remaining tasks are
+ * PF_EXITING), we wait for cgroup_task_dead() to finish processing them. As the
+ * window between PF_EXITING and cgroup_task_dead() is short, the wait is brief.
+ *
+ * This function only concerns itself with this cgroup's own dying tasks.
+ * Whether the cgroup has children is cgroup_destroy_locked()'s problem.
+ *
+ * Each cgroup_task_dead() kicks the waitqueue via cset->cgrp_links, and we
+ * retry the full check from scratch.
+ *
+ * Must be called with cgroup_mutex held.
+ */
+static int cgroup_drain_dying(struct cgroup *cgrp)
+	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
+{
+	struct css_task_iter it;
+	struct task_struct *task;
+	DEFINE_WAIT(wait);
+
+	lockdep_assert_held(&cgroup_mutex);
+retry:
+	if (!cgroup_has_tasks(cgrp))
+		return 0;
+
+	/* Same iterator as cgroup.threads - if any task is visible, it's busy */
+	css_task_iter_start(&cgrp->self, 0, &it);
+	task = css_task_iter_next(&it);
+	css_task_iter_end(&it);
+
+	if (task)
+		return -EBUSY;
+
+	/*
+	 * All remaining tasks are PF_EXITING and will pass through
+	 * cgroup_task_dead() shortly. Wait for a kick and retry.
+	 *
+	 * cgroup_has_tasks() can't transition from false to true while we're
+	 * holding cgroup_mutex, but the true to false transition happens
+	 * under css_set_lock (via cgroup_task_dead()). We must retest and
+	 * prepare_to_wait() under css_set_lock. Otherwise, the transition
+	 * can happen between our first test and prepare_to_wait(), and we
+	 * sleep with no one to wake us.
+	 */
+	spin_lock_irq(&css_set_lock);
+	if (!cgroup_has_tasks(cgrp)) {
+		spin_unlock_irq(&css_set_lock);
+		return 0;
+	}
+	prepare_to_wait(&cgrp->dying_populated_waitq, &wait,
+			TASK_UNINTERRUPTIBLE);
+	spin_unlock_irq(&css_set_lock);
+	mutex_unlock(&cgroup_mutex);
+	schedule();
+	finish_wait(&cgrp->dying_populated_waitq, &wait);
+	mutex_lock(&cgroup_mutex);
+	goto retry;
+}
+
 int cgroup_rmdir(struct kernfs_node *kn)
 {
 	struct cgroup *cgrp;
@@ -6233,9 +6306,12 @@ int cgroup_rmdir(struct kernfs_node *kn)
 	if (!cgrp)
 		return 0;
 
-	ret = cgroup_destroy_locked(cgrp);
-	if (!ret)
-		TRACE_CGROUP_PATH(rmdir, cgrp);
+	ret = cgroup_drain_dying(cgrp);
+	if (!ret) {
+		ret = cgroup_destroy_locked(cgrp);
+		if (!ret)
+			TRACE_CGROUP_PATH(rmdir, cgrp);
+	}
 
 	cgroup_kn_unlock(kn);
 	return ret;
@@ -6995,6 +7071,7 @@ void cgroup_task_exit(struct task_struct *tsk)
 
 static void do_cgroup_task_dead(struct task_struct *tsk)
 {
+	struct cgrp_cset_link *link;
 	struct css_set *cset;
 	unsigned long flags;
 
@@ -7007,6 +7084,11 @@ static void do_cgroup_task_dead(struct task_struct *tsk)
 	/* matches the signal->live check in css_task_iter_advance() */
 	if (thread_group_leader(tsk) && atomic_read(&tsk->signal->live))
 		list_add_tail(&tsk->cg_list, &cset->dying_tasks);
+
+	/* kick cgroup_drain_dying() waiters, see cgroup_rmdir() */
+	list_for_each_entry(link, &cset->cgrp_links, cgrp_link)
+		if (waitqueue_active(&link->cgrp->dying_populated_waitq))
+			wake_up(&link->cgrp->dying_populated_waitq);
 
 	if (dl_task(tsk))
 		dec_dl_tasks_cs(tsk);

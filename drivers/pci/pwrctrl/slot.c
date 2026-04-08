@@ -63,7 +63,6 @@ static void devm_slot_pwrctrl_release(void *data)
 {
 	struct slot_pwrctrl *slot = data;
 
-	slot_pwrctrl_power_off(&slot->pwrctrl);
 	regulator_bulk_free(slot->num_supplies, slot->supplies);
 }
 

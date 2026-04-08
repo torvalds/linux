@@ -2,6 +2,10 @@
 #ifndef _ASM_RISCV_RUNTIME_CONST_H
 #define _ASM_RISCV_RUNTIME_CONST_H
 
+#ifdef MODULE
+  #error "Cannot use runtime-const infrastructure from modules"
+#endif
+
 #include <asm/asm.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>

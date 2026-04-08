@@ -470,10 +470,11 @@ err_privd_alloc:
 
 /**
  * idpf_idc_deinit_core_aux_device - de-initialize Auxiliary Device(s)
- * @cdev_info: IDC core device info pointer
+ * @adapter: driver private data structure
  */
-void idpf_idc_deinit_core_aux_device(struct iidc_rdma_core_dev_info *cdev_info)
+void idpf_idc_deinit_core_aux_device(struct idpf_adapter *adapter)
 {
+	struct iidc_rdma_core_dev_info *cdev_info = adapter->cdev_info;
 	struct iidc_rdma_priv_dev_info *privd;
 
 	if (!cdev_info)
@@ -485,6 +486,7 @@ void idpf_idc_deinit_core_aux_device(struct iidc_rdma_core_dev_info *cdev_info)
 	kfree(privd->mapped_mem_regions);
 	kfree(privd);
 	kfree(cdev_info);
+	adapter->cdev_info = NULL;
 }
 
 /**

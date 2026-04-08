@@ -25,33 +25,30 @@
  */
 int usb_offload_get(struct usb_device *udev)
 {
-	int ret;
+	int ret = 0;
 
-	usb_lock_device(udev);
-	if (udev->state == USB_STATE_NOTATTACHED) {
-		usb_unlock_device(udev);
+	if (!usb_get_dev(udev))
 		return -ENODEV;
+
+	if (pm_runtime_get_if_active(&udev->dev) != 1) {
+		ret = -EBUSY;
+		goto err_rpm;
 	}
 
-	if (udev->state == USB_STATE_SUSPENDED ||
-		   udev->offload_at_suspend) {
-		usb_unlock_device(udev);
-		return -EBUSY;
-	}
+	spin_lock(&udev->offload_lock);
 
-	/*
-	 * offload_usage could only be modified when the device is active, since
-	 * it will alter the suspend flow of the device.
-	 */
-	ret = usb_autoresume_device(udev);
-	if (ret < 0) {
-		usb_unlock_device(udev);
-		return ret;
+	if (udev->offload_pm_locked) {
+		ret = -EAGAIN;
+		goto err;
 	}
 
 	udev->offload_usage++;
-	usb_autosuspend_device(udev);
-	usb_unlock_device(udev);
+
+err:
+	spin_unlock(&udev->offload_lock);
+	pm_runtime_put_autosuspend(&udev->dev);
+err_rpm:
+	usb_put_dev(udev);
 
 	return ret;
 }
@@ -69,35 +66,32 @@ EXPORT_SYMBOL_GPL(usb_offload_get);
  */
 int usb_offload_put(struct usb_device *udev)
 {
-	int ret;
+	int ret = 0;
 
-	usb_lock_device(udev);
-	if (udev->state == USB_STATE_NOTATTACHED) {
-		usb_unlock_device(udev);
+	if (!usb_get_dev(udev))
 		return -ENODEV;
+
+	if (pm_runtime_get_if_active(&udev->dev) != 1) {
+		ret = -EBUSY;
+		goto err_rpm;
 	}
 
-	if (udev->state == USB_STATE_SUSPENDED ||
-		   udev->offload_at_suspend) {
-		usb_unlock_device(udev);
-		return -EBUSY;
-	}
+	spin_lock(&udev->offload_lock);
 
-	/*
-	 * offload_usage could only be modified when the device is active, since
-	 * it will alter the suspend flow of the device.
-	 */
-	ret = usb_autoresume_device(udev);
-	if (ret < 0) {
-		usb_unlock_device(udev);
-		return ret;
+	if (udev->offload_pm_locked) {
+		ret = -EAGAIN;
+		goto err;
 	}
 
 	/* Drop the count when it wasn't 0, ignore the operation otherwise. */
 	if (udev->offload_usage)
 		udev->offload_usage--;
-	usb_autosuspend_device(udev);
-	usb_unlock_device(udev);
+
+err:
+	spin_unlock(&udev->offload_lock);
+	pm_runtime_put_autosuspend(&udev->dev);
+err_rpm:
+	usb_put_dev(udev);
 
 	return ret;
 }
@@ -112,25 +106,47 @@ EXPORT_SYMBOL_GPL(usb_offload_put);
  * management.
  *
  * The caller must hold @udev's device lock. In addition, the caller should
- * ensure downstream usb devices are all either suspended or marked as
- * "offload_at_suspend" to ensure the correctness of the return value.
+ * ensure the device itself and the downstream usb devices are all marked as
+ * "offload_pm_locked" to ensure the correctness of the return value.
  *
  * Returns true on any offload activity, false otherwise.
  */
 bool usb_offload_check(struct usb_device *udev) __must_hold(&udev->dev->mutex)
 {
 	struct usb_device *child;
-	bool active;
+	bool active = false;
 	int port1;
+
+	if (udev->offload_usage)
+		return true;
 
 	usb_hub_for_each_child(udev, port1, child) {
 		usb_lock_device(child);
 		active = usb_offload_check(child);
 		usb_unlock_device(child);
+
 		if (active)
-			return true;
+			break;
 	}
 
-	return !!udev->offload_usage;
+	return active;
 }
 EXPORT_SYMBOL_GPL(usb_offload_check);
+
+/**
+ * usb_offload_set_pm_locked - set the PM lock state of a USB device
+ * @udev: the USB device to modify
+ * @locked: the new lock state
+ *
+ * Setting @locked to true prevents offload_usage from being modified. This
+ * ensures that offload activities cannot be started or stopped during critical
+ * power management transitions, maintaining a stable state for the duration
+ * of the transition.
+ */
+void usb_offload_set_pm_locked(struct usb_device *udev, bool locked)
+{
+	spin_lock(&udev->offload_lock);
+	udev->offload_pm_locked = locked;
+	spin_unlock(&udev->offload_lock);
+}
+EXPORT_SYMBOL_GPL(usb_offload_set_pm_locked);

@@ -453,7 +453,7 @@ static int active_cacheline_set_overlap(phys_addr_t cln, int overlap)
 	return overlap;
 }
 
-static void active_cacheline_inc_overlap(phys_addr_t cln)
+static void active_cacheline_inc_overlap(phys_addr_t cln, bool is_cache_clean)
 {
 	int overlap = active_cacheline_read_overlap(cln);
 
@@ -462,7 +462,7 @@ static void active_cacheline_inc_overlap(phys_addr_t cln)
 	/* If we overflowed the overlap counter then we're potentially
 	 * leaking dma-mappings.
 	 */
-	WARN_ONCE(overlap > ACTIVE_CACHELINE_MAX_OVERLAP,
+	WARN_ONCE(!is_cache_clean && overlap > ACTIVE_CACHELINE_MAX_OVERLAP,
 		  pr_fmt("exceeded %d overlapping mappings of cacheline %pa\n"),
 		  ACTIVE_CACHELINE_MAX_OVERLAP, &cln);
 }
@@ -495,7 +495,7 @@ static int active_cacheline_insert(struct dma_debug_entry *entry,
 	if (rc == -EEXIST) {
 		struct dma_debug_entry *existing;
 
-		active_cacheline_inc_overlap(cln);
+		active_cacheline_inc_overlap(cln, entry->is_cache_clean);
 		existing = radix_tree_lookup(&dma_active_cacheline, cln);
 		/* A lookup failure here after we got -EEXIST is unexpected. */
 		WARN_ON(!existing);
@@ -601,7 +601,8 @@ static void add_dma_entry(struct dma_debug_entry *entry, unsigned long attrs)
 	unsigned long flags;
 	int rc;
 
-	entry->is_cache_clean = !!(attrs & DMA_ATTR_CPU_CACHE_CLEAN);
+	entry->is_cache_clean = attrs & (DMA_ATTR_DEBUGGING_IGNORE_CACHELINES |
+					 DMA_ATTR_REQUIRE_COHERENT);
 
 	bucket = get_hash_bucket(entry, &flags);
 	hash_bucket_add(bucket, entry);

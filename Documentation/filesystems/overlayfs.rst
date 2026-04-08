@@ -783,6 +783,56 @@ controlled by the "uuid" mount option, which supports these values:
     mounted with "uuid=on".
 
 
+Durability and copy up
+----------------------
+
+The fsync(2) system call ensures that the data and metadata of a file
+are safely written to the backing storage, which is expected to
+guarantee the existence of the information post system crash.
+
+Without an fsync(2) call, there is no guarantee that the observed
+data after a system crash will be either the old or the new data, but
+in practice, the observed data after crash is often the old or new data
+or a mix of both.
+
+When an overlayfs file is modified for the first time, copy up will
+create a copy of the lower file and its parent directories in the upper
+layer.  Since the Linux filesystem API does not enforce any particular
+ordering on storing changes without explicit fsync(2) calls, in case
+of a system crash, the upper file could end up with no data at all
+(i.e. zeros), which would be an unusual outcome.  To avoid this
+experience, overlayfs calls fsync(2) on the upper file before completing
+data copy up with rename(2) or link(2) to make the copy up "atomic".
+
+By default, overlayfs does not explicitly call fsync(2) on copied up
+directories or on metadata-only copy up, so it provides no guarantee to
+persist the user's modification unless the user calls fsync(2).
+The fsync during copy up only guarantees that if a copy up is observed
+after a crash, the observed data is not zeroes or intermediate values
+from the copy up staging area.
+
+On traditional local filesystems with a single journal (e.g. ext4, xfs),
+fsync on a file also persists the parent directory changes, because they
+are usually modified in the same transaction, so metadata durability during
+data copy up effectively comes for free.  Overlayfs further limits risk by
+disallowing network filesystems as upper layer.
+
+Overlayfs can be tuned to prefer performance or durability when storing
+to the underlying upper layer.  This is controlled by the "fsync" mount
+option, which supports these values:
+
+- "auto": (default)
+    Call fsync(2) on upper file before completion of data copy up.
+    No explicit fsync(2) on directory or metadata-only copy up.
+- "strict":
+    Call fsync(2) on upper file and directories before completion of any
+    copy up.
+- "volatile": [*]
+    Prefer performance over durability (see `Volatile mount`_)
+
+[*] The mount option "volatile" is an alias to "fsync=volatile".
+
+
 Volatile mount
 --------------
 

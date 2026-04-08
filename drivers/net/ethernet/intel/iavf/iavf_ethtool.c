@@ -313,14 +313,13 @@ static int iavf_get_sset_count(struct net_device *netdev, int sset)
 {
 	/* Report the maximum number queues, even if not every queue is
 	 * currently configured. Since allocation of queues is in pairs,
-	 * use netdev->real_num_tx_queues * 2. The real_num_tx_queues is set
-	 * at device creation and never changes.
+	 * use netdev->num_tx_queues * 2. The num_tx_queues is set at
+	 * device creation and never changes.
 	 */
 
 	if (sset == ETH_SS_STATS)
 		return IAVF_STATS_LEN +
-			(IAVF_QUEUE_STATS_LEN * 2 *
-			 netdev->real_num_tx_queues);
+		       (IAVF_QUEUE_STATS_LEN * 2 * netdev->num_tx_queues);
 	else
 		return -EINVAL;
 }
@@ -345,19 +344,19 @@ static void iavf_get_ethtool_stats(struct net_device *netdev,
 	iavf_add_ethtool_stats(&data, adapter, iavf_gstrings_stats);
 
 	rcu_read_lock();
-	/* As num_active_queues describe both tx and rx queues, we can use
-	 * it to iterate over rings' stats.
+	/* Use num_tx_queues to report stats for the maximum number of queues.
+	 * Queues beyond num_active_queues will report zero.
 	 */
-	for (i = 0; i < adapter->num_active_queues; i++) {
-		struct iavf_ring *ring;
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		struct iavf_ring *tx_ring = NULL, *rx_ring = NULL;
 
-		/* Tx rings stats */
-		ring = &adapter->tx_rings[i];
-		iavf_add_queue_stats(&data, ring);
+		if (i < adapter->num_active_queues) {
+			tx_ring = &adapter->tx_rings[i];
+			rx_ring = &adapter->rx_rings[i];
+		}
 
-		/* Rx rings stats */
-		ring = &adapter->rx_rings[i];
-		iavf_add_queue_stats(&data, ring);
+		iavf_add_queue_stats(&data, tx_ring);
+		iavf_add_queue_stats(&data, rx_ring);
 	}
 	rcu_read_unlock();
 }
@@ -376,9 +375,9 @@ static void iavf_get_stat_strings(struct net_device *netdev, u8 *data)
 	iavf_add_stat_strings(&data, iavf_gstrings_stats);
 
 	/* Queues are always allocated in pairs, so we just use
-	 * real_num_tx_queues for both Tx and Rx queues.
+	 * num_tx_queues for both Tx and Rx queues.
 	 */
-	for (i = 0; i < netdev->real_num_tx_queues; i++) {
+	for (i = 0; i < netdev->num_tx_queues; i++) {
 		iavf_add_stat_strings(&data, iavf_gstrings_queue_stats,
 				      "tx", i);
 		iavf_add_stat_strings(&data, iavf_gstrings_queue_stats,
