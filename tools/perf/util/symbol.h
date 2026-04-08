@@ -14,6 +14,7 @@
 #include "path.h"
 #include "symbol_conf.h"
 #include "spark.h"
+#include "util.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 #include <libelf.h>
@@ -97,18 +98,9 @@ struct intlist;
 
 static inline int __symbol__join_symfs(char *bf, size_t size, const char *path)
 {
-	if (symbol_conf.symfs_layout_flat) {
-		char *path_copy = strdup(path);
-		char *base;
-		int ret;
+	if (symbol_conf.symfs_layout_flat)
+		return path__join(bf, size, symbol_conf.symfs, perf_basename(path));
 
-		if (!path_copy)
-			return -ENOMEM;
-		base = basename(path_copy);
-		ret = path__join(bf, size, symbol_conf.symfs, base);
-		free(path_copy);
-		return ret;
-	}
 	return path__join(bf, size, symbol_conf.symfs, path);
 }
 

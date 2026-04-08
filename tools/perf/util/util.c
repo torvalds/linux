@@ -545,3 +545,11 @@ int scandirat(int dirfd, const char *dirp,
 	return err;
 }
 #endif
+
+/* basename version that takes a const input string */
+const char *perf_basename(const char *path)
+{
+	const char *base = strrchr(path, '/');
+
+	return base ? base + 1 : path;
+}

@@ -1016,7 +1016,7 @@ static int setup_config_changes(struct daemon *daemon)
 {
 	char *basen = strdup(daemon->config_real);
 	char *dirn  = strdup(daemon->config_real);
-	char *base, *dir;
+	const char *base, *dir;
 	int fd, wd = -1;
 
 	if (!dirn || !basen)
@@ -1029,7 +1029,7 @@ static int setup_config_changes(struct daemon *daemon)
 	}
 
 	dir = dirname(dirn);
-	base = basename(basen);
+	base = perf_basename(basen);
 	pr_debug("config file: %s, dir: %s\n", base, dir);
 
 	wd = inotify_add_watch(fd, dir, IN_CLOSE_WRITE);

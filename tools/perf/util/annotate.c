@@ -8,7 +8,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <stdlib.h>
 #include "util.h" // hex_width()
 #include "ui/ui.h"
@@ -1245,7 +1244,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	if (opts->full_path)
 		d_filename = filename;
 	else
-		d_filename = basename(filename);
+		d_filename = perf_basename(filename);
 
 	if (evsel__is_group_event(evsel)) {
 		evsel__group_desc(evsel, buf, sizeof(buf));

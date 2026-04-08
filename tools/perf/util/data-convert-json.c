@@ -326,7 +326,7 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 	output_json_format(out, false, 2, "]");
 }
 
-int bt_convert__perf2json(const char *input_name, const char *output_name,
+int bt_convert__perf2json(const char *_input_name, const char *output_name,
 		struct perf_data_convert_opts *opts __maybe_unused)
 {
 	struct perf_session *session;
@@ -342,7 +342,7 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 	};
 	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
-		.path = input_name,
+		.path = _input_name,
 		.force = opts->force,
 	};
 

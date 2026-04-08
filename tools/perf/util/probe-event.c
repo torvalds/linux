@@ -11,7 +11,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <libgen.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -229,7 +228,7 @@ static int convert_exec_to_group(const char *exec, char **result)
 	if (!exec_copy)
 		return -ENOMEM;
 
-	ptr1 = basename(exec_copy);
+	ptr1 = (char *)perf_basename(exec_copy);
 	if (!ptr1) {
 		ret = -EINVAL;
 		goto out;

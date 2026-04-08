@@ -86,6 +86,8 @@ struct perf_debuginfod {
 };
 void perf_debuginfod_setup(struct perf_debuginfod *di);
 
+const char *perf_basename(const char *path);
+
 char *filename_with_chroot(int pid, const char *filename);
 
 int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x,
