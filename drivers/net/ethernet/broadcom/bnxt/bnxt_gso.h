@@ -29,6 +29,15 @@ static inline u16 bnxt_inline_avail(struct bnxt_tx_ring_info *txr)
 	       (u16)(txr->tx_inline_prod - READ_ONCE(txr->tx_inline_cons));
 }
 
+static inline int bnxt_min_tx_desc_cnt(struct bnxt *bp,
+				       netdev_features_t features)
+{
+	if (!(bp->flags & BNXT_FLAG_UDP_GSO_CAP) &&
+	    (features & NETIF_F_GSO_UDP_L4))
+		return BNXT_SW_USO_MAX_DESCS;
+	return BNXT_MIN_TX_DESC_CNT;
+}
+
 netdev_tx_t bnxt_sw_udp_gso_xmit(struct bnxt *bp,
 				 struct bnxt_tx_ring_info *txr,
 				 struct netdev_queue *txq,
