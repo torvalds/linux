@@ -3315,6 +3315,26 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(xdp_bulk_tx);
 
 #ifdef CONFIG_BPF_SYSCALL
 
+void bpf_get_linfo_file_line(struct btf *btf, const struct bpf_line_info *linfo,
+			     const char **filep, const char **linep, int *nump)
+{
+	/* Get base component of the file path. */
+	if (filep) {
+		*filep = btf_name_by_offset(btf, linfo->file_name_off);
+		*filep = kbasename(*filep);
+	}
+
+	/* Obtain the source line, and strip whitespace in prefix. */
+	if (linep) {
+		*linep = btf_name_by_offset(btf, linfo->line_off);
+		while (isspace(**linep))
+			*linep += 1;
+	}
+
+	if (nump)
+		*nump = BPF_LINE_INFO_LINE_NUM(linfo->line_col);
+}
+
 int bpf_prog_get_file_line(struct bpf_prog *prog, unsigned long ip, const char **filep,
 			   const char **linep, int *nump)
 {
@@ -3349,14 +3369,7 @@ int bpf_prog_get_file_line(struct bpf_prog *prog, unsigned long ip, const char *
 	if (idx == -1)
 		return -ENOENT;
 
-	/* Get base component of the file path. */
-	*filep = btf_name_by_offset(btf, linfo[idx].file_name_off);
-	*filep = kbasename(*filep);
-	/* Obtain the source line, and strip whitespace in prefix. */
-	*linep = btf_name_by_offset(btf, linfo[idx].line_off);
-	while (isspace(**linep))
-		*linep += 1;
-	*nump = BPF_LINE_INFO_LINE_NUM(linfo[idx].line_col);
+	bpf_get_linfo_file_line(btf, &linfo[idx], filep, linep, nump);
 	return 0;
 }
 
