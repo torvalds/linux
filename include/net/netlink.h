@@ -2265,6 +2265,25 @@ static inline int nla_nest_end(struct sk_buff *skb, struct nlattr *start)
 }
 
 /**
+ * nla_nest_end_safe - Validate and finalize nesting of attributes
+ * @skb: socket buffer the attributes are stored in
+ * @start: container attribute
+ *
+ * Corrects the container attribute header to include all appended
+ * attributes.
+ *
+ * Returns: the total data length of the skb, or -EMSGSIZE if the
+ * nested attribute length exceeds U16_MAX.
+ */
+static inline int nla_nest_end_safe(struct sk_buff *skb, struct nlattr *start)
+{
+	if (skb_tail_pointer(skb) - (unsigned char *)start > U16_MAX)
+		return -EMSGSIZE;
+
+	return nla_nest_end(skb, start);
+}
+
+/**
  * nla_nest_cancel - Cancel nesting of attributes
  * @skb: socket buffer the message is stored in
  * @start: container attribute
