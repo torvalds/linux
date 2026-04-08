@@ -196,6 +196,126 @@
 #define  PM_SINGLE_STEP_OFFSET_SET(o)	FIELD_PREP(PM_SINGLE_STEP_OFFSET, o)
 #define  PM_SINGLE_STEP_EN		BIT(31)
 
+/* Port MAC 0/1 Receive Ethernet Octets Counter */
+#define ENETC4_PM_REOCT(mac)		(0x5100 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Alignment Error Counter Register */
+#define ENETC4_PM_RALN(mac)		(0x5110 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Valid Pause Frame Counter */
+#define ENETC4_PM_RXPF(mac)		(0x5118 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Frame Counter */
+#define ENETC4_PM_RFRM(mac)		(0x5120 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Frame Check Sequence Error Counter */
+#define ENETC4_PM_RFCS(mac)		(0x5128 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Multicast Frame Counter */
+#define ENETC4_PM_RMCA(mac)		(0x5148 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Broadcast Frame Counter */
+#define ENETC4_PM_RBCA(mac)		(0x5150 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Undersized Packet Counter */
+#define ENETC4_PM_RUND(mac)		(0x5168 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 64-Octet Packet Counter */
+#define ENETC4_PM_R64(mac)		(0x5170 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 65 to 127-Octet Packet Counter */
+#define ENETC4_PM_R127(mac)		(0x5178 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 128 to 255-Octet Packet Counter */
+#define ENETC4_PM_R255(mac)		(0x5180 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 256 to 511-Octet Packet Counter */
+#define ENETC4_PM_R511(mac)		(0x5188 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 512 to 1023-Octet Packet Counter */
+#define ENETC4_PM_R1023(mac)		(0x5190 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 1024 to 1522-Octet Packet Counter */
+#define ENETC4_PM_R1522(mac)		(0x5198 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive 1523 to Max-Octet Packet Counter */
+#define ENETC4_PM_R1523X(mac)		(0x51a0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Oversized Packet Counter */
+#define ENETC4_PM_ROVR(mac)		(0x51a8 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Jabber Packet Counter */
+#define ENETC4_PM_RJBR(mac)		(0x51b0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Fragment Packet Counter */
+#define ENETC4_PM_RFRG(mac)		(0x51b8 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Control Packet Counter */
+#define ENETC4_PM_RCNP(mac)		(0x51c0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Receive Dropped Not Truncated Packets Counter */
+#define ENETC4_PM_RDRNTP(mac)		(0x51c8 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Ethernet Octets Counter */
+#define ENETC4_PM_TEOCT(mac)		(0x5200 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Valid Pause Frame Counter */
+#define ENETC4_PM_TXPF(mac)		(0x5218 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Frame Counter */
+#define ENETC4_PM_TFRM(mac)		(0x5220 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Frame Error Counter */
+#define ENETC4_PM_TERR(mac)		(0x5238 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Multicast Frame Counter */
+#define ENETC4_PM_TMCA(mac)		(0x5248 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Broadcast Frame Counter */
+#define ENETC4_PM_TBCA(mac)		(0x5250 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Undersized Packet Counter */
+#define ENETC4_PM_TUND(mac)		(0x5268 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 64-Octet Packet Counter */
+#define ENETC4_PM_T64(mac)		(0x5270 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 65 to 127-Octet Packet Counter */
+#define ENETC4_PM_T127(mac)		(0x5278 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 128 to 255-Octet Packet Counter */
+#define ENETC4_PM_T255(mac)		(0x5280 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 256 to 511-Octet Packet Counter */
+#define ENETC4_PM_T511(mac)		(0x5288 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 512 to 1023-Octet Packet Counter */
+#define ENETC4_PM_T1023(mac)		(0x5290 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 1024 to 1522-Octet Packet Counter */
+#define ENETC4_PM_T1522(mac)		(0x5298 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit 1523 to TX_MTU-Octet Packet Counter */
+#define ENETC4_PM_T1523X(mac)		(0x52a0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Control Packet Counter */
+#define ENETC4_PM_TCNP(mac)		(0x52c0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Deferred Packet Counter */
+#define ENETC4_PM_TDFR(mac)		(0x52d0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Multiple Collisions Counter */
+#define ENETC4_PM_TMCOL(mac)		(0x52d8 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Single Collision */
+#define ENETC4_PM_TSCOL(mac)		(0x52e0 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Late Collision Counter */
+#define ENETC4_PM_TLCOL(mac)		(0x52e8 + (mac) * 0x400)
+
+/* Port MAC 0/1 Transmit Excessive Collisions Counter */
+#define ENETC4_PM_TECOL(mac)		(0x52f0 + (mac) * 0x400)
+
 /* Port MAC 0 Interface Mode Control Register */
 #define ENETC4_PM_IF_MODE(mac)		(0x5300 + (mac) * 0x400)
 #define  PM_IF_MODE_IFMODE		GENMASK(2, 0)
