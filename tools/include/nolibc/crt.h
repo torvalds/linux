@@ -47,10 +47,7 @@ char *__nolibc_program_invocation_short_name(char *long_name)
 #endif /* NOLIBC_IGNORE_ERRNO */
 
 void _start_c(long *sp);
-__attribute__((weak,used))
-#if __nolibc_has_feature(undefined_behavior_sanitizer)
-	__attribute__((no_sanitize("function")))
-#endif
+__attribute__((weak,used)) __nolibc_no_sanitize_undefined
 void _start_c(long *sp)
 {
 	long argc;
