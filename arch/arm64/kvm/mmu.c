@@ -1013,6 +1013,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 
 out_destroy_pgtable:
 	kvm_stage2_destroy(pgt);
+	mmu->pgt = NULL;
 out_free_pgtable:
 	kfree(pgt);
 	return err;
