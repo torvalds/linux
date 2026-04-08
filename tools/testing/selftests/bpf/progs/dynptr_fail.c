@@ -1993,3 +1993,118 @@ int test_dynptr_reg_type(void *ctx)
 	global_call_bpf_dynptr((const struct bpf_dynptr *)current);
 	return 0;
 }
+
+/* Overwriting a referenced dynptr is allowed if a clone still holds the ref */
+SEC("?raw_tp")
+__success
+int dynptr_overwrite_ref_with_clone(void *ctx)
+{
+	struct bpf_dynptr ptr, clone;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &ptr);
+
+	bpf_dynptr_clone(&ptr, &clone);
+
+	/* Overwrite the original - clone still holds the ref */
+	*(volatile __u8 *)&ptr = 0;
+
+	bpf_ringbuf_discard_dynptr(&clone, 0);
+
+	return 0;
+}
+
+/* Overwriting the last referenced dynptr should still be rejected */
+SEC("?raw_tp")
+__failure __msg("cannot overwrite referenced dynptr")
+int dynptr_overwrite_ref_last_clone(void *ctx)
+{
+	struct bpf_dynptr ptr, clone;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &ptr);
+
+	bpf_dynptr_clone(&ptr, &clone);
+
+	/* Overwrite the original - clone still holds the ref, OK */
+	*(volatile __u8 *)&ptr = 0;
+
+	/* Overwrite the last holder - this should fail */
+	*(volatile __u8 *)&clone = 0;
+
+	return 0;
+}
+
+/* Overwriting a clone should be allowed if the original still holds the ref */
+SEC("?raw_tp")
+__success
+int dynptr_overwrite_clone_with_original(void *ctx)
+{
+	struct bpf_dynptr ptr, clone;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, 64, 0, &ptr);
+
+	bpf_dynptr_clone(&ptr, &clone);
+
+	/* Overwrite the clone - original still holds the ref */
+	*(volatile __u8 *)&clone = 0;
+
+	bpf_ringbuf_discard_dynptr(&ptr, 0);
+
+	return 0;
+}
+
+/* Data slices from the destroyed dynptr should be invalidated */
+SEC("?raw_tp")
+__failure __msg("invalid mem access 'scalar'")
+int dynptr_overwrite_ref_invalidate_slice(void *ctx)
+{
+	struct bpf_dynptr ptr, clone;
+	int *data;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, val, 0, &ptr);
+
+	data = bpf_dynptr_data(&ptr, 0, sizeof(val));
+	if (!data)
+		return 0;
+
+	bpf_dynptr_clone(&ptr, &clone);
+
+	/* Overwrite the original - clone holds the ref */
+	*(volatile __u8 *)&ptr = 0;
+
+	/* data was from the original dynptr, should be invalid now */
+	*data = 123;
+
+	return 0;
+}
+
+/*
+ * Data slices from a dynptr clone should remain valid after
+ * overwriting the original dynptr
+ */
+SEC("?raw_tp")
+__success
+int dynptr_overwrite_ref_clone_slice_valid(void *ctx)
+{
+	struct bpf_dynptr ptr, clone;
+	int *data;
+
+	bpf_ringbuf_reserve_dynptr(&ringbuf, val, 0, &ptr);
+
+	bpf_dynptr_clone(&ptr, &clone);
+
+	data = bpf_dynptr_data(&clone, 0, sizeof(val));
+	if (!data) {
+		bpf_ringbuf_discard_dynptr(&clone, 0);
+		return 0;
+	}
+
+	/* Overwrite the original - clone holds the ref */
+	*(volatile __u8 *)&ptr = 0;
+
+	/* data is from the clone, should still be valid */
+	*data = 123;
+
+	bpf_ringbuf_discard_dynptr(&clone, 0);
+
+	return 0;
+}

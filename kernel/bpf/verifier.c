@@ -936,8 +936,27 @@ static int destroy_if_dynptr_stack_slot(struct bpf_verifier_env *env,
 		spi = spi + 1;
 
 	if (dynptr_type_refcounted(state->stack[spi].spilled_ptr.dynptr.type)) {
-		verbose(env, "cannot overwrite referenced dynptr\n");
-		return -EINVAL;
+		int ref_obj_id = state->stack[spi].spilled_ptr.ref_obj_id;
+		int ref_cnt = 0;
+
+		/*
+		 * A referenced dynptr can be overwritten only if there is at
+		 * least one other dynptr sharing the same ref_obj_id,
+		 * ensuring the reference can still be properly released.
+		 */
+		for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
+			if (state->stack[i].slot_type[0] != STACK_DYNPTR)
+				continue;
+			if (!state->stack[i].spilled_ptr.dynptr.first_slot)
+				continue;
+			if (state->stack[i].spilled_ptr.ref_obj_id == ref_obj_id)
+				ref_cnt++;
+		}
+
+		if (ref_cnt <= 1) {
+			verbose(env, "cannot overwrite referenced dynptr\n");
+			return -EINVAL;
+		}
 	}
 
 	mark_stack_slot_scratched(env, spi);
