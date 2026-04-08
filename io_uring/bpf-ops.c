@@ -181,7 +181,7 @@ static int bpf_io_reg(void *kdata, struct bpf_link *link)
 	struct file *file;
 	int ret = -EBUSY;
 
-	file = io_uring_register_get_file(ops->ring_fd, false);
+	file = io_uring_ctx_get_file(ops->ring_fd, false);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 	ctx = file->private_data;

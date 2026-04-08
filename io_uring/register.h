@@ -4,6 +4,5 @@
 
 int io_eventfd_unregister(struct io_ring_ctx *ctx);
 int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id);
-struct file *io_uring_register_get_file(unsigned int fd, bool registered);
 
 #endif

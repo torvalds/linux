@@ -2543,6 +2543,40 @@ uaccess_end:
 #endif
 }
 
+/*
+ * Given an 'fd' value, return the ctx associated with if. If 'registered' is
+ * true, then the registered index is used. Otherwise, the normal fd table.
+ * Caller must call fput() on the returned file if it isn't a registered file,
+ * unless it's an ERR_PTR.
+ */
+struct file *io_uring_ctx_get_file(unsigned int fd, bool registered)
+{
+	struct file *file;
+
+	if (registered) {
+		/*
+		 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
+		 * need only dereference our task private array to find it.
+		 */
+		struct io_uring_task *tctx = current->io_uring;
+
+		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
+			return ERR_PTR(-EINVAL);
+		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
+		file = tctx->registered_rings[fd];
+	} else {
+		file = fget(fd);
+	}
+
+	if (unlikely(!file))
+		return ERR_PTR(-EBADF);
+	if (io_is_uring_fops(file))
+		return file;
+	fput(file);
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+
 SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		u32, min_complete, u32, flags, const void __user *, argp,
 		size_t, argsz)
@@ -2554,28 +2588,9 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	if (unlikely(flags & ~IORING_ENTER_FLAGS))
 		return -EINVAL;
 
-	/*
-	 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
-	 * need only dereference our task private array to find it.
-	 */
-	if (flags & IORING_ENTER_REGISTERED_RING) {
-		struct io_uring_task *tctx = current->io_uring;
-
-		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
-			return -EINVAL;
-		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
-		file = tctx->registered_rings[fd];
-		if (unlikely(!file))
-			return -EBADF;
-	} else {
-		file = fget(fd);
-		if (unlikely(!file))
-			return -EBADF;
-		ret = -EOPNOTSUPP;
-		if (unlikely(!io_is_uring_fops(file)))
-			goto out;
-	}
-
+	file = io_uring_ctx_get_file(fd, flags & IORING_ENTER_REGISTERED_RING);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 	ctx = file->private_data;
 	ret = -EBADFD;
 	/*
