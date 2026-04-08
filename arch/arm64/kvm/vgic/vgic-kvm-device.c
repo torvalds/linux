@@ -336,6 +336,10 @@ int kvm_register_vgic_device(unsigned long type)
 			break;
 		ret = kvm_vgic_register_its_device();
 		break;
+	case KVM_DEV_TYPE_ARM_VGIC_V5:
+		ret = kvm_register_device_ops(&kvm_arm_vgic_v5_ops,
+					      KVM_DEV_TYPE_ARM_VGIC_V5);
+		break;
 	}
 
 	return ret;
@@ -639,7 +643,7 @@ static int vgic_v3_set_attr(struct kvm_device *dev,
 		if (vgic_initialized(dev->kvm))
 			return -EBUSY;
 
-		if (!irq_is_ppi(val))
+		if (!irq_is_ppi(dev->kvm, val))
 			return -EINVAL;
 
 		dev->kvm->arch.vgic.mi_intid = val;
@@ -714,4 +718,105 @@ struct kvm_device_ops kvm_arm_vgic_v3_ops = {
 	.set_attr = vgic_v3_set_attr,
 	.get_attr = vgic_v3_get_attr,
 	.has_attr = vgic_v3_has_attr,
+};
+
+static int vgic_v5_get_userspace_ppis(struct kvm_device *dev,
+				      struct kvm_device_attr *attr)
+{
+	struct vgic_v5_vm *gicv5_vm = &dev->kvm->arch.vgic.gicv5_vm;
+	u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+	int ret;
+
+	guard(mutex)(&dev->kvm->arch.config_lock);
+
+	/*
+	 * We either support 64 or 128 PPIs. In the former case, we need to
+	 * return 0s for the second 64 bits as we have no storage backing those.
+	 */
+	ret = put_user(bitmap_read(gicv5_vm->userspace_ppis, 0, 64), uaddr);
+	if (ret)
+		return ret;
+	uaddr++;
+
+	if (VGIC_V5_NR_PRIVATE_IRQS == 128)
+		ret = put_user(bitmap_read(gicv5_vm->userspace_ppis, 64, 128), uaddr);
+	else
+		ret = put_user(0, uaddr);
+
+	return ret;
+}
+
+static int vgic_v5_set_attr(struct kvm_device *dev,
+			    struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
+	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
+		return -ENXIO;
+	case KVM_DEV_ARM_VGIC_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			return vgic_set_common_attr(dev, attr);
+		case KVM_DEV_ARM_VGIC_USERSPACE_PPIS:
+		default:
+			return -ENXIO;
+		}
+	default:
+		return -ENXIO;
+	}
+
+}
+
+static int vgic_v5_get_attr(struct kvm_device *dev,
+			    struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
+	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
+		return -ENXIO;
+	case KVM_DEV_ARM_VGIC_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			return vgic_get_common_attr(dev, attr);
+		case KVM_DEV_ARM_VGIC_USERSPACE_PPIS:
+			return vgic_v5_get_userspace_ppis(dev, attr);
+		default:
+			return -ENXIO;
+		}
+	default:
+		return -ENXIO;
+	}
+}
+
+static int vgic_v5_has_attr(struct kvm_device *dev,
+			    struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_ARM_VGIC_GRP_ADDR:
+	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
+	case KVM_DEV_ARM_VGIC_GRP_NR_IRQS:
+		return -ENXIO;
+	case KVM_DEV_ARM_VGIC_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			return 0;
+		case KVM_DEV_ARM_VGIC_USERSPACE_PPIS:
+			return 0;
+		default:
+			return -ENXIO;
+		}
+	default:
+		return -ENXIO;
+	}
+}
+
+struct kvm_device_ops kvm_arm_vgic_v5_ops = {
+	.name = "kvm-arm-vgic-v5",
+	.create = vgic_create,
+	.destroy = vgic_destroy,
+	.set_attr = vgic_v5_set_attr,
+	.get_attr = vgic_v5_get_attr,
+	.has_attr = vgic_v5_has_attr,
 };

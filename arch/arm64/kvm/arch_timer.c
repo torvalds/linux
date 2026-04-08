@@ -56,6 +56,12 @@ static struct irq_ops arch_timer_irq_ops = {
 	.get_input_level = kvm_arch_timer_get_input_level,
 };
 
+static struct irq_ops arch_timer_irq_ops_vgic_v5 = {
+	.get_input_level = kvm_arch_timer_get_input_level,
+	.queue_irq_unlock = vgic_v5_ppi_queue_irq_unlock,
+	.set_direct_injection = vgic_v5_set_ppi_dvi,
+};
+
 static int nr_timers(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu_has_nv(vcpu))
@@ -176,6 +182,10 @@ void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
 		map->emul_vtimer = NULL;
 		map->emul_ptimer = vcpu_ptimer(vcpu);
 	}
+
+	map->direct_vtimer->direct = true;
+	if (map->direct_ptimer)
+		map->direct_ptimer->direct = true;
 
 	trace_kvm_get_timer_map(vcpu->vcpu_id, map);
 }
@@ -396,7 +406,11 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return vcpu_has_wfit_active(vcpu) && wfit_delay_ns(vcpu) == 0;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+
+	return kvm_timer_should_fire(vtimer) || kvm_timer_should_fire(ptimer) ||
+	       (vcpu_has_wfit_active(vcpu) && wfit_delay_ns(vcpu) == 0);
 }
 
 /*
@@ -445,6 +459,10 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				   timer_ctx->irq.level);
 
 	if (userspace_irqchip(vcpu->kvm))
+		return;
+
+	/* Skip injecting on GICv5 for directly injected (DVI'd) timers */
+	if (vgic_is_v5(vcpu->kvm) && timer_ctx->direct)
 		return;
 
 	kvm_vgic_inject_irq(vcpu->kvm, vcpu,
@@ -674,6 +692,7 @@ static void kvm_timer_vcpu_load_gic(struct arch_timer_context *ctx)
 		phys_active = kvm_vgic_map_is_active(vcpu, timer_irq(ctx));
 
 	phys_active |= ctx->irq.level;
+	phys_active |= vgic_is_v5(vcpu->kvm);
 
 	set_timer_irq_phys_active(ctx, phys_active);
 }
@@ -740,13 +759,11 @@ static void kvm_timer_vcpu_load_nested_switch(struct kvm_vcpu *vcpu,
 
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map->direct_vtimer->host_timer_irq,
-					    timer_irq(map->direct_vtimer),
-					    &arch_timer_irq_ops);
+					    timer_irq(map->direct_vtimer));
 		WARN_ON_ONCE(ret);
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map->direct_ptimer->host_timer_irq,
-					    timer_irq(map->direct_ptimer),
-					    &arch_timer_irq_ops);
+					    timer_irq(map->direct_ptimer));
 		WARN_ON_ONCE(ret);
 	}
 }
@@ -864,7 +881,8 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 	get_timer_map(vcpu, &map);
 
 	if (static_branch_likely(&has_gic_active_state)) {
-		if (vcpu_has_nv(vcpu))
+		/* We don't do NV on GICv5, yet */
+		if (vcpu_has_nv(vcpu) && !vgic_is_v5(vcpu->kvm))
 			kvm_timer_vcpu_load_nested_switch(vcpu, &map);
 
 		kvm_timer_vcpu_load_gic(map.direct_vtimer);
@@ -934,6 +952,12 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 
 	if (kvm_vcpu_is_blocking(vcpu))
 		kvm_timer_blocking(vcpu);
+
+	if (vgic_is_v5(vcpu->kvm)) {
+		set_timer_irq_phys_active(map.direct_vtimer, false);
+		if (map.direct_ptimer)
+			set_timer_irq_phys_active(map.direct_ptimer, false);
+	}
 }
 
 void kvm_timer_sync_nested(struct kvm_vcpu *vcpu)
@@ -1097,10 +1121,19 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 		      HRTIMER_MODE_ABS_HARD);
 }
 
+/*
+ * This is always called during kvm_arch_init_vm, but will also be
+ * called from kvm_vgic_create if we have a vGICv5.
+ */
 void kvm_timer_init_vm(struct kvm *kvm)
 {
+	/*
+	 * Set up the default PPIs - note that we adjust them based on
+	 * the model of the GIC as GICv5 uses a different way to
+	 * describing interrupts.
+	 */
 	for (int i = 0; i < NR_KVM_TIMERS; i++)
-		kvm->arch.timer_data.ppi[i] = default_ppi[i];
+		kvm->arch.timer_data.ppi[i] = get_vgic_ppi(kvm, default_ppi[i]);
 }
 
 void kvm_timer_cpu_up(void)
@@ -1269,7 +1302,15 @@ static int timer_irq_set_irqchip_state(struct irq_data *d,
 
 static void timer_irq_eoi(struct irq_data *d)
 {
-	if (!irqd_is_forwarded_to_vcpu(d))
+	/*
+	 * On a GICv5 host, we still need to call EOI on the parent for
+	 * PPIs. The host driver already handles irqs which are forwarded to
+	 * vcpus, and skips the GIC CDDI while still doing the GIC CDEOI. This
+	 * is required to emulate the EOIMode=1 on GICv5 hardware. Failure to
+	 * call EOI unsurprisingly results in *BAD* lock-ups.
+	 */
+	if (!irqd_is_forwarded_to_vcpu(d) ||
+	    kvm_vgic_global_state.type == VGIC_V5)
 		irq_chip_eoi_parent(d);
 }
 
@@ -1333,7 +1374,8 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 	host_vtimer_irq = info->virtual_irq;
 	kvm_irq_fixup_flags(host_vtimer_irq, &host_vtimer_irq_flags);
 
-	if (kvm_vgic_global_state.no_hw_deactivation) {
+	if (kvm_vgic_global_state.no_hw_deactivation ||
+	    kvm_vgic_global_state.type == VGIC_V5) {
 		struct fwnode_handle *fwnode;
 		struct irq_data *data;
 
@@ -1351,7 +1393,8 @@ static int kvm_irq_init(struct arch_timer_kvm_info *info)
 			return -ENOMEM;
 		}
 
-		arch_timer_irq_ops.flags |= VGIC_IRQ_SW_RESAMPLE;
+		if (kvm_vgic_global_state.no_hw_deactivation)
+			arch_timer_irq_ops.flags |= VGIC_IRQ_SW_RESAMPLE;
 		WARN_ON(irq_domain_push_irq(domain, host_vtimer_irq,
 					    (void *)TIMER_VTIMER));
 	}
@@ -1502,10 +1545,13 @@ static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
 			break;
 
 		/*
-		 * We know by construction that we only have PPIs, so
-		 * all values are less than 32.
+		 * We know by construction that we only have PPIs, so all values
+		 * are less than 32 for non-GICv5 VGICs. On GICv5, they are
+		 * architecturally defined to be under 32 too. However, we mask
+		 * off most of the bits as we might be presented with a GICv5
+		 * style PPI where the type is encoded in the top-bits.
 		 */
-		ppis |= BIT(irq);
+		ppis |= BIT(irq & 0x1f);
 	}
 
 	valid = hweight32(ppis) == nr_timers(vcpu);
@@ -1543,6 +1589,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
 	struct timer_map map;
+	struct irq_ops *ops;
 	int ret;
 
 	if (timer->enabled)
@@ -1563,20 +1610,22 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 
 	get_timer_map(vcpu, &map);
 
+	ops = vgic_is_v5(vcpu->kvm) ? &arch_timer_irq_ops_vgic_v5 :
+				      &arch_timer_irq_ops;
+
+	for (int i = 0; i < nr_timers(vcpu); i++)
+		kvm_vgic_set_irq_ops(vcpu, timer_irq(vcpu_get_timer(vcpu, i)), ops);
+
 	ret = kvm_vgic_map_phys_irq(vcpu,
 				    map.direct_vtimer->host_timer_irq,
-				    timer_irq(map.direct_vtimer),
-				    &arch_timer_irq_ops);
+				    timer_irq(map.direct_vtimer));
 	if (ret)
 		return ret;
 
-	if (map.direct_ptimer) {
+	if (map.direct_ptimer)
 		ret = kvm_vgic_map_phys_irq(vcpu,
 					    map.direct_ptimer->host_timer_irq,
-					    timer_irq(map.direct_ptimer),
-					    &arch_timer_irq_ops);
-	}
-
+					    timer_irq(map.direct_ptimer));
 	if (ret)
 		return ret;
 
@@ -1603,15 +1652,14 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	if (get_user(irq, uaddr))
 		return -EFAULT;
 
-	if (!(irq_is_ppi(irq)))
+	if (!(irq_is_ppi(vcpu->kvm, irq)))
 		return -EINVAL;
 
-	mutex_lock(&vcpu->kvm->arch.config_lock);
+	guard(mutex)(&vcpu->kvm->arch.config_lock);
 
 	if (test_bit(KVM_ARCH_FLAG_TIMER_PPIS_IMMUTABLE,
 		     &vcpu->kvm->arch.flags)) {
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	switch (attr->attr) {
@@ -1628,9 +1676,15 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		idx = TIMER_HPTIMER;
 		break;
 	default:
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
+
+	/*
+	 * The PPIs for the Arch Timers are architecturally defined for
+	 * GICv5. Reject anything that changes them from the specified value.
+	 */
+	if (vgic_is_v5(vcpu->kvm) && vcpu->kvm->arch.timer_data.ppi[idx] != irq)
+		return -EINVAL;
 
 	/*
 	 * We cannot validate the IRQ unicity before we run, so take it at
@@ -1639,8 +1693,6 @@ int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 	 */
 	vcpu->kvm->arch.timer_data.ppi[idx] = irq;
 
-out:
-	mutex_unlock(&vcpu->kvm->arch.config_lock);
 	return ret;
 }
 
