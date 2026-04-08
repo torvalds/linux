@@ -19355,8 +19355,11 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 				mark_subprog_might_sleep(env, t);
 			if (bpf_helper_changes_pkt_data(insn->imm))
 				mark_subprog_changes_pkt_data(env, t);
-			if (insn->imm == BPF_FUNC_tail_call)
-				visit_tailcall_insn(env, t);
+			if (insn->imm == BPF_FUNC_tail_call) {
+				ret = visit_tailcall_insn(env, t);
+				if (ret)
+					return ret;
+			}
 		} else if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
 			struct bpf_kfunc_call_arg_meta meta;
 
