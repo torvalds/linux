@@ -36,6 +36,19 @@ properties:
     description: String exposed as the pin board label
     $ref: /schemas/types.yaml#/definitions/string
 
+  ref-sync-sources:
+    description: |
+      List of phandles to input pins that can serve as the sync source
+      in a Reference-Sync pair with this pin acting as the clock source.
+      A Ref-Sync pair consists of a clock reference and a low-frequency
+      sync signal.  The DPLL locks to the clock reference but
+      phase-aligns to the sync reference.
+      Only valid for input pins.  Each referenced pin must be a
+      different input pin on the same device.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
+
   supported-frequencies-hz:
     description: List of supported frequencies for this pin, expressed in Hz.
 
