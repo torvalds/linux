@@ -301,7 +301,8 @@ asmlinkage void __noreturn hyp_panic_bad_stack(void);
 asmlinkage void kvm_unexpected_el2_exception(void);
 struct kvm_cpu_context;
 void handle_trap(struct kvm_cpu_context *host_ctxt);
-asmlinkage void __noreturn __kvm_host_psci_cpu_entry(bool is_cpu_on);
+asmlinkage void __noreturn __kvm_host_psci_cpu_on_entry(void);
+asmlinkage void __noreturn __kvm_host_psci_cpu_resume_entry(void);
 void __noreturn __pkvm_init_finalise(void);
 void kvm_nvhe_prepare_backtrace(unsigned long fp, unsigned long pc);
 void kvm_patch_vector_branch(struct alt_instr *alt,

@@ -1121,11 +1121,9 @@
 	.macro	msr_hcr_el2, reg
 #if IS_ENABLED(CONFIG_AMPERE_ERRATUM_AC04_CPU_23)
 	dsb	nsh
-	msr	hcr_el2, \reg
-	isb
-#else
-	msr	hcr_el2, \reg
 #endif
+	msr	hcr_el2, \reg
+	isb			// Required by AMPERE_ERRATUM_AC04_CPU_23
 	.endm
 #else
 

@@ -125,7 +125,6 @@ SYM_FUNC_START(__hyp_do_panic)
 	mrs	x0, hcr_el2
 	bic	x0, x0, #HCR_VM
 	msr_hcr_el2 x0
-	isb
 	tlbi	vmalls12e1
 	dsb	nsh
 #endif
@@ -291,13 +290,3 @@ SYM_CODE_START(__kvm_hyp_host_forward_smc)
 
 	ret
 SYM_CODE_END(__kvm_hyp_host_forward_smc)
-
-/*
- * kvm_host_psci_cpu_entry is called through br instruction, which requires
- * bti j instruction as compilers (gcc and llvm) doesn't insert bti j for external
- * functions, but bti c instead.
- */
-SYM_CODE_START(kvm_host_psci_cpu_entry)
-       bti j
-       b __kvm_host_psci_cpu_entry
-SYM_CODE_END(kvm_host_psci_cpu_entry)
