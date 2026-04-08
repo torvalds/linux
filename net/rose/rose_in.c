@@ -271,6 +271,13 @@ int rose_process_rx_frame(struct sock *sk, struct sk_buff *skb)
 
 	frametype = rose_decode(skb, &ns, &nr, &q, &d, &m);
 
+	/*
+	 * ROSE_CLEAR_REQUEST carries cause and diagnostic in bytes 3..4.
+	 * Reject a malformed frame that is too short to contain them.
+	 */
+	if (frametype == ROSE_CLEAR_REQUEST && skb->len < 5)
+		return 0;
+
 	switch (rose->state) {
 	case ROSE_STATE_1:
 		queued = rose_state1_machine(sk, skb, frametype);
