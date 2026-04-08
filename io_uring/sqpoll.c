@@ -458,6 +458,7 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 			return -EINVAL;
 	}
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		struct io_uring_task *tctx;
 		struct task_struct *tsk;
 		struct io_sq_data *sqd;
 		bool attached;
@@ -524,8 +525,13 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 		rcu_assign_pointer(sqd->thread, tsk);
 		mutex_unlock(&sqd->lock);
 
+		ret = 0;
 		get_task_struct(tsk);
-		ret = io_uring_alloc_task_context(tsk, ctx);
+		tctx = io_uring_alloc_task_context(tsk, ctx);
+		if (!IS_ERR(tctx))
+			tsk->io_uring = tctx;
+		else
+			ret = PTR_ERR(tctx);
 		wake_up_new_task(tsk);
 		if (ret)
 			goto err;
