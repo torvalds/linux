@@ -127,11 +127,8 @@ int snd_msnd_upload_host(struct snd_msnd *dev, const u8 *bin, int len)
 }
 EXPORT_SYMBOL(snd_msnd_upload_host);
 
-int snd_msnd_enable_irq(struct snd_msnd *dev)
+static int __snd_msnd_enable_irq(struct snd_msnd *dev)
 {
-	if (dev->irq_ref++)
-		return 0;
-
 	dev_dbg(dev->card->dev, LOGNAME ": Enabling IRQ\n");
 
 	guard(spinlock_irqsave)(&dev->lock);
@@ -152,17 +149,9 @@ int snd_msnd_enable_irq(struct snd_msnd *dev)
 
 	return -EIO;
 }
-EXPORT_SYMBOL(snd_msnd_enable_irq);
 
-int snd_msnd_disable_irq(struct snd_msnd *dev)
+static int __snd_msnd_disable_irq(struct snd_msnd *dev)
 {
-	if (--dev->irq_ref > 0)
-		return 0;
-
-	if (dev->irq_ref < 0)
-		dev_dbg(dev->card->dev, LOGNAME ": IRQ ref count is %d\n",
-			dev->irq_ref);
-
 	dev_dbg(dev->card->dev, LOGNAME ": Disabling IRQ\n");
 
 	guard(spinlock_irqsave)(&dev->lock);
@@ -178,7 +167,38 @@ int snd_msnd_disable_irq(struct snd_msnd *dev)
 
 	return -EIO;
 }
+
+int snd_msnd_enable_irq(struct snd_msnd *dev)
+{
+	if (dev->irq_ref++)
+		return 0;
+
+	return __snd_msnd_enable_irq(dev);
+}
+EXPORT_SYMBOL(snd_msnd_enable_irq);
+
+int snd_msnd_disable_irq(struct snd_msnd *dev)
+{
+	if (--dev->irq_ref > 0)
+		return 0;
+
+	if (dev->irq_ref < 0)
+		dev_dbg(dev->card->dev, LOGNAME ": IRQ ref count is %d\n",
+			dev->irq_ref);
+
+	return __snd_msnd_disable_irq(dev);
+}
 EXPORT_SYMBOL(snd_msnd_disable_irq);
+
+int snd_msnd_force_irq(struct snd_msnd *dev, bool enable)
+{
+	if (!dev->irq_ref)
+		return 0;
+
+	return enable ? __snd_msnd_enable_irq(dev) :
+			__snd_msnd_disable_irq(dev);
+}
+EXPORT_SYMBOL(snd_msnd_force_irq);
 
 static inline long get_play_delay_jiffies(struct snd_msnd *chip, long size)
 {
@@ -507,25 +527,27 @@ static int snd_msnd_playback_trigger(struct snd_pcm_substream *substream,
 				     int cmd)
 {
 	struct snd_msnd *chip = snd_pcm_substream_chip(substream);
-	int	result = 0;
 
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
 		dev_dbg(chip->card->dev, "%s(START)\n", __func__);
 		chip->banksPlayed = 0;
 		set_bit(F_WRITING, &chip->flags);
 		snd_msnd_DAPQ(chip, 1);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		dev_dbg(chip->card->dev, "%s(STOP)\n", __func__);
-		/* interrupt diagnostic, comment this out later */
 		clear_bit(F_WRITING, &chip->flags);
 		snd_msnd_send_dsp_cmd(chip, HDEX_PLAY_STOP);
-	} else {
+		break;
+	default:
 		dev_dbg(chip->card->dev, "%s(?????)\n", __func__);
-		result = -EINVAL;
+		return -EINVAL;
 	}
 
 	dev_dbg(chip->card->dev, "%s() ENDE\n", __func__);
-	return result;
+	return 0;
 }
 
 static snd_pcm_uframes_t
@@ -589,17 +611,22 @@ static int snd_msnd_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct snd_msnd *chip = snd_pcm_substream_chip(substream);
 
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
 		chip->last_recbank = -1;
 		set_bit(F_READING, &chip->flags);
 		if (snd_msnd_send_dsp_cmd(chip, HDEX_RECORD_START) == 0)
 			return 0;
 
 		clear_bit(F_READING, &chip->flags);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		clear_bit(F_READING, &chip->flags);
 		snd_msnd_send_dsp_cmd(chip, HDEX_RECORD_STOP);
 		return 0;
+	default:
+		break;
 	}
 	return -EINVAL;
 }
@@ -668,4 +695,3 @@ EXPORT_SYMBOL(snd_msnd_pcm);
 
 MODULE_DESCRIPTION("Common routines for Turtle Beach Multisound drivers");
 MODULE_LICENSE("GPL");
-

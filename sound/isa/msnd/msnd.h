@@ -280,6 +280,7 @@ int snd_msnd_upload_host(struct snd_msnd *chip,
 			     const u8 *bin, int len);
 int snd_msnd_enable_irq(struct snd_msnd *chip);
 int snd_msnd_disable_irq(struct snd_msnd *chip);
+int snd_msnd_force_irq(struct snd_msnd *chip, bool enable);
 void snd_msnd_dsp_halt(struct snd_msnd *chip, struct file *file);
 int snd_msnd_DAPQ(struct snd_msnd *chip, int start);
 int snd_msnd_DARQ(struct snd_msnd *chip, int start);
