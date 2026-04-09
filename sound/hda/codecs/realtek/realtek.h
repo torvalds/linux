@@ -171,7 +171,6 @@ void alc_setup_gpio(struct hda_codec *codec, unsigned int mask);
 void alc_write_gpio_data(struct hda_codec *codec);
 void alc_update_gpio_data(struct hda_codec *codec, unsigned int mask,
 			  bool on);
-void alc_write_gpio(struct hda_codec *codec);
 
 /* common GPIO fixups */
 void alc_fixup_gpio(struct hda_codec *codec, int action, unsigned int mask);
