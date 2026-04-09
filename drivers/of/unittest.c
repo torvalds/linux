@@ -4317,7 +4317,6 @@ static int testdrv_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	size = info->dtbo_end - info->dtbo_begin;
 	ret = of_overlay_fdt_apply(info->dtbo_begin, size, &ovcs_id, dn);
-	of_node_put(dn);
 	if (ret)
 		return ret;
 
