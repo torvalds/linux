@@ -219,7 +219,7 @@ TRACE_EVENT(mptcp_rcvbuf_grow,
 		__be32 *p32;
 
 		__entry->time = time;
-		__entry->rtt_us = msk->rcvq_space.rtt_us >> 3;
+		__entry->rtt_us = mptcp_rtt_us_est(msk) >> 3;
 		__entry->copied = msk->rcvq_space.copied;
 		__entry->inq = mptcp_inq_hint(sk);
 		__entry->space = msk->rcvq_space.space;
