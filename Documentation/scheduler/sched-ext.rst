@@ -408,8 +408,8 @@ for more information.
 Task Lifecycle
 --------------
 
-The following pseudo-code summarizes the entire lifecycle of a task managed
-by a sched_ext scheduler:
+The following pseudo-code presents a rough overview of the entire lifecycle
+of a task managed by a sched_ext scheduler:
 
 .. code-block:: c
 
@@ -423,20 +423,25 @@ by a sched_ext scheduler:
         ops.runnable();         /* Task becomes ready to run */
 
         while (task_is_runnable(task)) {
-            if (task is not in a DSQ && task->scx.slice == 0) {
+            if (task is not in a DSQ || task->scx.slice == 0) {
                 ops.enqueue();  /* Task can be added to a DSQ */
 
                 /* Task property change (i.e., affinity, nice, etc.)? */
                 if (sched_change(task)) {
                     ops.dequeue(); /* Exiting BPF scheduler custody */
+                    ops.quiescent();
+
+                    /* Property change callback, e.g. ops.set_weight() */
+
+                    ops.runnable();
                     continue;
                 }
+
+                /* Any usable CPU becomes available */
+
+                ops.dispatch();     /* Task is moved to a local DSQ */
+                ops.dequeue();      /* Exiting BPF scheduler custody */
             }
-
-            /* Any usable CPU becomes available */
-
-            ops.dispatch();     /* Task is moved to a local DSQ */
-            ops.dequeue();      /* Exiting BPF scheduler custody */
 
             ops.running();      /* Task starts running on its assigned CPU */
 
@@ -455,6 +460,30 @@ by a sched_ext scheduler:
 
     ops.disable();              /* Disable BPF scheduling for the task */
     ops.exit_task();            /* Task is destroyed */
+
+Note that the above pseudo-code does not cover all possible state transitions
+and edge cases, to name a few examples:
+
+* ``ops.dispatch()`` may fail to move the task to a local DSQ due to a racing
+  property change on that task, in which case ``ops.dispatch()`` will be
+  retried.
+
+* The task may be direct-dispatched to a local DSQ from ``ops.enqueue()``,
+  in which case ``ops.dispatch()`` and ``ops.dequeue()`` are skipped and we go
+  straight to ``ops.running()``.
+
+* Property changes may occur at virtually any point during the task's lifecycle,
+  not just when the task is queued and waiting to be dispatched. For example,
+  changing a property of a running task will lead to the callback sequence
+  ``ops.stopping()`` -> ``ops.quiescent()`` -> (property change callback) ->
+  ``ops.runnable()`` -> ``ops.running()``.
+
+* A sched_ext task can be preempted by a task from a higher-priority scheduling
+  class, in which case it will exit the tick-dispatch loop even though it is runnable
+  and has a non-zero slice.
+
+See the "Scheduling Cycle" section for a more detailed description of how
+a freshly woken up task gets on a CPU.
 
 Where to Look
 =============
