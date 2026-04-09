@@ -62,6 +62,7 @@ int configure_ifobj(struct ifobject *tx, struct ifobject *rx)
 
 static void test_xsk(const struct test_spec *test_to_run, enum test_mode mode)
 {
+	u32 max_frags, umem_tailroom, cache_line_size;
 	struct ifobject *ifobj_tx, *ifobj_rx;
 	struct test_spec test;
 	int ret;
@@ -83,6 +84,24 @@ static void test_xsk(const struct test_spec *test_to_run, enum test_mode mode)
 		ifobj_tx->set_ring.default_tx = ifobj_tx->ring.tx_pending;
 		ifobj_tx->set_ring.default_rx = ifobj_tx->ring.rx_pending;
 	}
+
+	cache_line_size = read_procfs_val(SMP_CACHE_BYTES_PATH);
+	if (!cache_line_size)
+		cache_line_size = 64;
+
+	max_frags = read_procfs_val(MAX_SKB_FRAGS_PATH);
+	if (!max_frags)
+		max_frags = 17;
+
+	ifobj_tx->max_skb_frags = max_frags;
+	ifobj_rx->max_skb_frags = max_frags;
+
+	/* 48 bytes is a part of skb_shared_info w/o frags array;
+	 * 16 bytes is sizeof(skb_frag_t)
+	 */
+	umem_tailroom = ALIGN(48 + (max_frags * 16), cache_line_size);
+	ifobj_tx->umem_tailroom = umem_tailroom;
+	ifobj_rx->umem_tailroom = umem_tailroom;
 
 	if (!ASSERT_OK(init_iface(ifobj_rx, worker_testapp_validate_rx), "init RX"))
 		goto delete_rx;

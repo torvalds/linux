@@ -6,6 +6,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/delay.h>
 #include <linux/dev_printk.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -333,6 +334,13 @@ static int motorcomm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_warn(&pdev->dev, "failed to disable L1 state: %d\n", ret);
 
 	motorcomm_reset(priv);
+
+	/*
+	 * After system reset, the eFuse controller needs time to load
+	 * its internal data. Without this delay, eFuse reads return
+	 * all zeros, causing MAC address detection to fail.
+	 */
+	usleep_range(2000, 5000);
 
 	ret = motorcomm_efuse_read_mac(&pdev->dev, priv, res.mac);
 	if (ret == -ENOENT) {
