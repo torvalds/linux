@@ -1680,8 +1680,7 @@ static inline bool tcp_checksum_complete(struct sk_buff *skb)
 		__skb_checksum_complete(skb);
 }
 
-bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb,
-		     enum skb_drop_reason *reason);
+enum skb_drop_reason tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
 
 static inline int tcp_filter(struct sock *sk, struct sk_buff *skb,
 			     enum skb_drop_reason *reason)

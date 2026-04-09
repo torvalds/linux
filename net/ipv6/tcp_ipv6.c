@@ -1877,7 +1877,8 @@ process:
 	if (!sock_owned_by_user(sk)) {
 		ret = tcp_v6_do_rcv(sk, skb);
 	} else {
-		if (tcp_add_backlog(sk, skb, &drop_reason))
+		drop_reason = tcp_add_backlog(sk, skb);
+		if (drop_reason)
 			goto discard_and_relse;
 	}
 	bh_unlock_sock(sk);
