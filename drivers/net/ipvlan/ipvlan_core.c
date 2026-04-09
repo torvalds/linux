@@ -744,34 +744,32 @@ out:
 static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 						 struct ipvl_port *port)
 {
-	struct sk_buff *skb = *pskb;
+	struct sk_buff *nskb, *skb = *pskb;
 	struct ethhdr *eth = eth_hdr(skb);
-	rx_handler_result_t ret = RX_HANDLER_PASS;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
 
-	if (is_multicast_ether_addr(eth->h_dest)) {
-		if (ipvlan_external_frame(skb, port)) {
-			struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
+	/* Perform like l3 mode for non-multicast packet */
+	if (likely(!is_multicast_ether_addr(eth->h_dest)))
+		return ipvlan_handle_mode_l3(pskb, port);
 
-			/* External frames are queued for device local
-			 * distribution, but a copy is given to master
-			 * straight away to avoid sending duplicates later
-			 * when work-queue processes this frame. This is
-			 * achieved by returning RX_HANDLER_PASS.
-			 */
-			if (nskb) {
-				ipvlan_skb_crossing_ns(nskb, NULL);
-				ipvlan_multicast_enqueue(port, nskb, false);
-			}
-		}
-	} else {
-		/* Perform like l3 mode for non-multicast packet */
-		ret = ipvlan_handle_mode_l3(pskb, port);
+	/* External frames are queued for device local
+	 * distribution, but a copy is given to master
+	 * straight away to avoid sending duplicates later
+	 * when work-queue processes this frame.
+	 * This is achieved by returning RX_HANDLER_PASS.
+	 */
+	if (!ipvlan_external_frame(skb, port))
+		return RX_HANDLER_PASS;
+
+	nskb = skb_clone(skb, GFP_ATOMIC);
+	if (nskb) {
+		ipvlan_skb_crossing_ns(nskb, NULL);
+		ipvlan_multicast_enqueue(port, nskb, false);
 	}
 
-	return ret;
+	return RX_HANDLER_PASS;
 }
 
 rx_handler_result_t ipvlan_handle_frame(struct sk_buff **pskb)
