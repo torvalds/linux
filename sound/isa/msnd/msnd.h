@@ -253,6 +253,8 @@ struct snd_msnd {
 	spinlock_t mixer_lock;
 	int nresets;
 	unsigned recsrc;
+	u8 pm_recsrc;
+	bool pm_mpu_input;
 #define LEVEL_ENTRIES 32
 	int left_levels[LEVEL_ENTRIES];
 	int right_levels[LEVEL_ENTRIES];
