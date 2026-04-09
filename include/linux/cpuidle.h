@@ -188,6 +188,7 @@ extern void cpuidle_driver_state_disabled(struct cpuidle_driver *drv, int idx,
 extern void cpuidle_unregister_driver(struct cpuidle_driver *drv);
 extern int cpuidle_register_device(struct cpuidle_device *dev);
 extern void cpuidle_unregister_device(struct cpuidle_device *dev);
+extern void cpuidle_unregister_device_no_lock(struct cpuidle_device *dev);
 extern int cpuidle_register(struct cpuidle_driver *drv,
 			    const struct cpumask *const coupled_cpus);
 extern void cpuidle_unregister(struct cpuidle_driver *drv);
@@ -226,6 +227,7 @@ static inline void cpuidle_unregister_driver(struct cpuidle_driver *drv) { }
 static inline int cpuidle_register_device(struct cpuidle_device *dev)
 {return -ENODEV; }
 static inline void cpuidle_unregister_device(struct cpuidle_device *dev) { }
+static inline void cpuidle_unregister_device_no_lock(struct cpuidle_device *dev) {}
 static inline int cpuidle_register(struct cpuidle_driver *drv,
 				   const struct cpumask *const coupled_cpus)
 {return -ENODEV; }

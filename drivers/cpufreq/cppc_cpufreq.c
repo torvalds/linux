@@ -50,7 +50,8 @@ struct cppc_freq_invariance {
 static DEFINE_PER_CPU(struct cppc_freq_invariance, cppc_freq_inv);
 static struct kthread_worker *kworker_fie;
 
-static int cppc_perf_from_fbctrs(struct cppc_perf_fb_ctrs *fb_ctrs_t0,
+static int cppc_perf_from_fbctrs(u64 reference_perf,
+				 struct cppc_perf_fb_ctrs *fb_ctrs_t0,
 				 struct cppc_perf_fb_ctrs *fb_ctrs_t1);
 
 /**
@@ -70,7 +71,7 @@ static void __cppc_scale_freq_tick(struct cppc_freq_invariance *cppc_fi)
 	struct cppc_perf_fb_ctrs fb_ctrs = {0};
 	struct cppc_cpudata *cpu_data;
 	unsigned long local_freq_scale;
-	u64 perf;
+	u64 perf, ref_perf;
 
 	cpu_data = cppc_fi->cpu_data;
 
@@ -79,7 +80,9 @@ static void __cppc_scale_freq_tick(struct cppc_freq_invariance *cppc_fi)
 		return;
 	}
 
-	perf = cppc_perf_from_fbctrs(&cppc_fi->prev_perf_fb_ctrs, &fb_ctrs);
+	ref_perf = cpu_data->perf_caps.reference_perf;
+	perf = cppc_perf_from_fbctrs(ref_perf,
+				     &cppc_fi->prev_perf_fb_ctrs, &fb_ctrs);
 	if (!perf)
 		return;
 
@@ -287,6 +290,21 @@ static inline void cppc_freq_invariance_exit(void)
 }
 #endif /* CONFIG_ACPI_CPPC_CPUFREQ_FIE */
 
+static void cppc_cpufreq_update_perf_limits(struct cppc_cpudata *cpu_data,
+					    struct cpufreq_policy *policy)
+{
+	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
+	u32 min_perf, max_perf;
+
+	min_perf = cppc_khz_to_perf(caps, policy->min);
+	max_perf = cppc_khz_to_perf(caps, policy->max);
+
+	cpu_data->perf_ctrls.min_perf =
+		clamp_t(u32, min_perf, caps->lowest_perf, caps->highest_perf);
+	cpu_data->perf_ctrls.max_perf =
+		clamp_t(u32, max_perf, caps->lowest_perf, caps->highest_perf);
+}
+
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 				   unsigned int target_freq,
 				   unsigned int relation)
@@ -298,6 +316,8 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	cpu_data->perf_ctrls.desired_perf =
 			cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
+	cppc_cpufreq_update_perf_limits(cpu_data, policy);
+
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
@@ -322,8 +342,9 @@ static unsigned int cppc_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	desired_perf = cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
 	cpu_data->perf_ctrls.desired_perf = desired_perf;
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	cppc_cpufreq_update_perf_limits(cpu_data, policy);
 
+	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
 	if (ret) {
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
 			 cpu, ret);
@@ -594,6 +615,12 @@ static struct cppc_cpudata *cppc_cpufreq_get_cpu_data(unsigned int cpu)
 		goto free_mask;
 	}
 
+	ret = cppc_get_perf(cpu, &cpu_data->perf_ctrls);
+	if (ret) {
+		pr_debug("Err reading CPU%d perf ctrls: ret:%d\n", cpu, ret);
+		goto free_mask;
+	}
+
 	return cpu_data;
 
 free_mask:
@@ -723,13 +750,11 @@ static inline u64 get_delta(u64 t1, u64 t0)
 	return (u32)t1 - (u32)t0;
 }
 
-static int cppc_perf_from_fbctrs(struct cppc_perf_fb_ctrs *fb_ctrs_t0,
+static int cppc_perf_from_fbctrs(u64 reference_perf,
+				 struct cppc_perf_fb_ctrs *fb_ctrs_t0,
 				 struct cppc_perf_fb_ctrs *fb_ctrs_t1)
 {
 	u64 delta_reference, delta_delivered;
-	u64 reference_perf;
-
-	reference_perf = fb_ctrs_t0->reference_perf;
 
 	delta_reference = get_delta(fb_ctrs_t1->reference,
 				    fb_ctrs_t0->reference);
@@ -766,7 +791,7 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	struct cppc_perf_fb_ctrs fb_ctrs_t0 = {0}, fb_ctrs_t1 = {0};
 	struct cppc_cpudata *cpu_data;
-	u64 delivered_perf;
+	u64 delivered_perf, reference_perf;
 	int ret;
 
 	if (!policy)
@@ -783,7 +808,9 @@ static unsigned int cppc_cpufreq_get_rate(unsigned int cpu)
 			return 0;
 	}
 
-	delivered_perf = cppc_perf_from_fbctrs(&fb_ctrs_t0, &fb_ctrs_t1);
+	reference_perf = cpu_data->perf_caps.reference_perf;
+	delivered_perf = cppc_perf_from_fbctrs(reference_perf,
+					       &fb_ctrs_t0, &fb_ctrs_t1);
 	if (!delivered_perf)
 		goto out_invalid_counters;
 
@@ -849,6 +876,7 @@ static ssize_t show_auto_select(struct cpufreq_policy *policy, char *buf)
 static ssize_t store_auto_select(struct cpufreq_policy *policy,
 				 const char *buf, size_t count)
 {
+	struct cppc_cpudata *cpu_data = policy->driver_data;
 	bool val;
 	int ret;
 
@@ -859,6 +887,29 @@ static ssize_t store_auto_select(struct cpufreq_policy *policy,
 	ret = cppc_set_auto_sel(policy->cpu, val);
 	if (ret)
 		return ret;
+
+	cpu_data->perf_ctrls.auto_sel = val;
+
+	if (val) {
+		u32 old_min_perf = cpu_data->perf_ctrls.min_perf;
+		u32 old_max_perf = cpu_data->perf_ctrls.max_perf;
+
+		/*
+		 * When enabling autonomous selection, program MIN_PERF and
+		 * MAX_PERF from current policy limits so that the platform
+		 * uses the correct performance bounds immediately.
+		 */
+		cppc_cpufreq_update_perf_limits(cpu_data, policy);
+
+		ret = cppc_set_perf(policy->cpu, &cpu_data->perf_ctrls);
+		if (ret) {
+			cpu_data->perf_ctrls.min_perf = old_min_perf;
+			cpu_data->perf_ctrls.max_perf = old_max_perf;
+			cppc_set_auto_sel(policy->cpu, false);
+			cpu_data->perf_ctrls.auto_sel = false;
+			return ret;
+		}
+	}
 
 	return count;
 }
@@ -910,19 +961,48 @@ static ssize_t store_##_name(struct cpufreq_policy *policy,		\
 CPPC_CPUFREQ_ATTR_RW_U64(auto_act_window, cppc_get_auto_act_window,
 			 cppc_set_auto_act_window)
 
-CPPC_CPUFREQ_ATTR_RW_U64(energy_performance_preference_val,
-			 cppc_get_epp_perf, cppc_set_epp)
+static ssize_t
+show_energy_performance_preference_val(struct cpufreq_policy *policy, char *buf)
+{
+	return cppc_cpufreq_sysfs_show_u64(policy->cpu, cppc_get_epp_perf, buf);
+}
+
+static ssize_t
+store_energy_performance_preference_val(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	struct cppc_cpudata *cpu_data = policy->driver_data;
+	u64 val;
+	int ret;
+
+	ret = kstrtou64(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = cppc_set_epp(policy->cpu, val);
+	if (ret)
+		return ret;
+
+	cpu_data->perf_ctrls.energy_perf = val;
+
+	return count;
+}
+
+CPPC_CPUFREQ_ATTR_RW_U64(perf_limited, cppc_get_perf_limited,
+			 cppc_set_perf_limited)
 
 cpufreq_freq_attr_ro(freqdomain_cpus);
 cpufreq_freq_attr_rw(auto_select);
 cpufreq_freq_attr_rw(auto_act_window);
 cpufreq_freq_attr_rw(energy_performance_preference_val);
+cpufreq_freq_attr_rw(perf_limited);
 
 static struct freq_attr *cppc_cpufreq_attr[] = {
 	&freqdomain_cpus,
 	&auto_select,
 	&auto_act_window,
 	&energy_performance_preference_val,
+	&perf_limited,
 	NULL,
 };
 

@@ -819,18 +819,12 @@ static void acpi_processor_setup_cstates(struct acpi_processor *pr)
 	drv->state_count = count;
 }
 
-static inline void acpi_processor_cstate_first_run_checks(void)
+static inline void acpi_processor_update_max_cstate(void)
 {
-	static int first_run;
-
-	if (first_run)
-		return;
 	dmi_check_system(processor_power_dmi_table);
 	max_cstate = acpi_processor_cstate_check(max_cstate);
 	if (max_cstate < ACPI_C_STATES_MAX)
 		pr_notice("processor limited to max C-state %d\n", max_cstate);
-
-	first_run++;
 
 	if (nocst)
 		return;
@@ -840,7 +834,7 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 #else
 
 static inline int disabled_by_idle_boot_param(void) { return 0; }
-static inline void acpi_processor_cstate_first_run_checks(void) { }
+static inline void acpi_processor_update_max_cstate(void) { }
 static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 {
 	return -ENODEV;
@@ -1016,9 +1010,7 @@ static bool combine_lpi_states(struct acpi_lpi_state *local,
 	result->arch_flags = parent->arch_flags;
 	result->index = parent->index;
 
-	strscpy(result->desc, local->desc, ACPI_CX_DESC_LEN);
-	strlcat(result->desc, "+", ACPI_CX_DESC_LEN);
-	strlcat(result->desc, parent->desc, ACPI_CX_DESC_LEN);
+	scnprintf(result->desc, ACPI_CX_DESC_LEN, "%s+%s", local->desc, parent->desc);
 	return true;
 }
 
@@ -1068,6 +1060,8 @@ static unsigned int flatten_lpi_states(struct acpi_processor *pr,
 				stash_composite_state(curr_level, flpi);
 				flat_state_cnt++;
 				flpi++;
+				if (flat_state_cnt >= ACPI_PROCESSOR_MAX_POWER)
+					break;
 			}
 		}
 	}
@@ -1273,16 +1267,15 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 
 int acpi_processor_hotplug(struct acpi_processor *pr)
 {
+	struct cpuidle_device *dev = per_cpu(acpi_cpuidle_device, pr->id);
 	int ret = 0;
-	struct cpuidle_device *dev;
 
 	if (disabled_by_idle_boot_param())
 		return 0;
 
-	if (!pr->flags.power_setup_done)
+	if (!pr->flags.power_setup_done || !dev)
 		return -ENODEV;
 
-	dev = per_cpu(acpi_cpuidle_device, pr->id);
 	cpuidle_pause_and_lock();
 	cpuidle_disable_device(dev);
 	ret = acpi_processor_get_power_info(pr);
@@ -1314,37 +1307,42 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 	 */
 
 	if (pr->id == 0 && cpuidle_get_driver() == &acpi_idle_driver) {
-
 		/* Protect against cpu-hotplug */
 		cpus_read_lock();
+
+		/* Unregister cpuidle device of all CPUs */
 		cpuidle_pause_and_lock();
-
-		/* Disable all cpuidle devices */
-		for_each_online_cpu(cpu) {
-			_pr = per_cpu(processors, cpu);
-			if (!_pr || !_pr->flags.power_setup_done)
-				continue;
+		for_each_possible_cpu(cpu) {
 			dev = per_cpu(acpi_cpuidle_device, cpu);
-			cpuidle_disable_device(dev);
-		}
-
-		/* Populate Updated C-state information */
-		acpi_processor_get_power_info(pr);
-		acpi_processor_setup_cpuidle_states(pr);
-
-		/* Enable all cpuidle devices */
-		for_each_online_cpu(cpu) {
 			_pr = per_cpu(processors, cpu);
-			if (!_pr || !_pr->flags.power_setup_done)
+			if (!_pr || !_pr->flags.power || !dev)
 				continue;
-			acpi_processor_get_power_info(_pr);
-			if (_pr->flags.power) {
-				dev = per_cpu(acpi_cpuidle_device, cpu);
-				acpi_processor_setup_cpuidle_dev(_pr, dev);
-				cpuidle_enable_device(dev);
-			}
+
+			cpuidle_unregister_device_no_lock(dev);
+			kfree(dev);
+			_pr->flags.power = 0;
 		}
 		cpuidle_resume_and_unlock();
+
+		/*
+		 * Unregister ACPI idle driver, reinitialize ACPI idle states
+		 * and register ACPI idle driver again.
+		 */
+		acpi_processor_unregister_idle_driver();
+		acpi_processor_register_idle_driver();
+
+		/*
+		 * Reinitialize power information of all CPUs and re-register
+		 * all cpuidle devices. Now idle states is ok to use, can enable
+		 * cpuidle of each CPU safely one by one.
+		 */
+		for_each_possible_cpu(cpu) {
+			_pr = per_cpu(processors, cpu);
+			if (!_pr)
+				continue;
+			acpi_processor_power_init(_pr);
+		}
+
 		cpus_read_unlock();
 	}
 
@@ -1357,6 +1355,8 @@ void acpi_processor_register_idle_driver(void)
 	int ret = -ENODEV;
 	int cpu;
 
+	acpi_processor_update_max_cstate();
+
 	/*
 	 * ACPI idle driver is used by all possible CPUs.
 	 * Use the processor power info of one in them to set up idle states.
@@ -1368,7 +1368,6 @@ void acpi_processor_register_idle_driver(void)
 		if (!pr)
 			continue;
 
-		acpi_processor_cstate_first_run_checks();
 		ret = acpi_processor_get_power_info(pr);
 		if (!ret) {
 			pr->flags.power_setup_done = 1;
@@ -1384,6 +1383,7 @@ void acpi_processor_register_idle_driver(void)
 
 	ret = cpuidle_register_driver(&acpi_idle_driver);
 	if (ret) {
+		pr->flags.power_setup_done = 0;
 		pr_debug("register %s failed.\n", acpi_idle_driver.name);
 		return;
 	}
@@ -1392,7 +1392,16 @@ void acpi_processor_register_idle_driver(void)
 
 void acpi_processor_unregister_idle_driver(void)
 {
+	struct acpi_processor *pr;
+	int cpu;
+
 	cpuidle_unregister_driver(&acpi_idle_driver);
+	for_each_possible_cpu(cpu) {
+		pr = per_cpu(processors, cpu);
+		if (!pr)
+			continue;
+		pr->flags.power_setup_done = 0;
+	}
 }
 
 void acpi_processor_power_init(struct acpi_processor *pr)
@@ -1408,8 +1417,6 @@ void acpi_processor_power_init(struct acpi_processor *pr)
 
 	if (disabled_by_idle_boot_param())
 		return;
-
-	acpi_processor_cstate_first_run_checks();
 
 	if (!acpi_processor_get_power_info(pr))
 		pr->flags.power_setup_done = 1;
@@ -1431,6 +1438,7 @@ void acpi_processor_power_init(struct acpi_processor *pr)
 	 */
 	if (cpuidle_register_device(dev)) {
 		per_cpu(acpi_cpuidle_device, pr->id) = NULL;
+		pr->flags.power_setup_done = 0;
 		kfree(dev);
 	}
 }
