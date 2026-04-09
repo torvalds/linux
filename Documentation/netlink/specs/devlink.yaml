@@ -159,6 +159,14 @@ definitions:
         name: entry
   -
     type: enum
+    name: resource-scope
+    entries:
+      -
+        name: dev
+      -
+        name: port
+  -
+    type: enum
     name: reload-action
     entries:
       -
@@ -873,6 +881,16 @@ attribute-sets:
         doc: Unique devlink instance index.
         checks:
           max: u32-max
+      -
+        name: resource-scope-mask
+        type: u32
+        enum: resource-scope
+        enum-as-flags: true
+        doc: |
+          Bitmask selecting which resource classes to include in a
+          resource-dump response. Bit 0 (dev) selects device-level
+          resources; bit 1 (port) selects port-level resources.
+          When absent all classes are returned.
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -1757,20 +1775,30 @@ operations:
       attribute-set: devlink
       dont-validate: [strict]
       do:
-        pre: devlink-nl-pre-doit
+        pre: devlink-nl-pre-doit-port-optional
         post: devlink-nl-post-doit
         request:
           attributes:
             - bus-name
             - dev-name
             - index
-        reply:
+            - port-index
+        reply: &resource-dump-reply
           value: 36
           attributes:
             - bus-name
             - dev-name
             - index
+            - port-index
             - resource-list
+      dump:
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - index
+            - resource-scope-mask
+        reply: *resource-dump-reply
 
     -
       name: reload

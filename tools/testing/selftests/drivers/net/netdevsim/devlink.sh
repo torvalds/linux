@@ -5,7 +5,8 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="fw_flash_test params_test  \
 	   params_default_test regions_test reload_test \
-	   netns_reload_test resource_test dev_info_test \
+	   netns_reload_test resource_test resource_dump_test \
+	   port_resource_doit_test dev_info_test \
 	   empty_reporter_test dummy_reporter_test rate_test"
 NUM_NETIFS=0
 source $lib_dir/lib.sh
@@ -482,6 +483,56 @@ resource_test()
 	log_test "resource test"
 }
 
+resource_dump_test()
+{
+	RET=0
+
+	local port_jq
+	local dev_jq
+	local dl_jq
+	local count
+
+	dl_jq="with_entries(select(.key | startswith(\"$DL_HANDLE\")))"
+	port_jq="[.[] | $dl_jq | keys |"
+	port_jq+=" map(select(test(\"/.+/\"))) | length] | add"
+	dev_jq="[.[] | $dl_jq | keys |"
+	dev_jq+=" map(select(test(\"/.+/\")|not)) | length] | add"
+
+	if ! devlink resource help 2>&1 | grep -q "scope"; then
+		echo "SKIP: devlink resource show not supported"
+		return
+	fi
+
+	devlink resource show > /dev/null 2>&1
+	check_err $? "Failed to dump all resources"
+
+	count=$(cmd_jq "devlink resource show -j" "$port_jq")
+	[ "$count" -gt "0" ]
+	check_err $? "missing port resources in resource dump"
+
+	count=$(cmd_jq "devlink resource show -j" "$dev_jq")
+	[ "$count" -gt "0" ]
+	check_err $? "missing device resources in resource dump"
+
+	count=$(cmd_jq "devlink resource show scope dev -j" "$dev_jq")
+	[ "$count" -gt "0" ]
+	check_err $? "dev scope missing device resources"
+
+	count=$(cmd_jq "devlink resource show scope dev -j" "$port_jq")
+	[ "$count" -eq "0" ]
+	check_err $? "dev scope returned port resources"
+
+	count=$(cmd_jq "devlink resource show scope port -j" "$port_jq")
+	[ "$count" -gt "0" ]
+	check_err $? "port scope missing port resources"
+
+	count=$(cmd_jq "devlink resource show scope port -j" "$dev_jq")
+	[ "$count" -eq "0" ]
+	check_err $? "port scope returned device resources"
+
+	log_test "resource dump test"
+}
+
 info_get()
 {
 	local name=$1
@@ -766,6 +817,32 @@ rate_node_del()
 	local handle=$1
 
 	devlink port function rate del $handle
+}
+
+port_resource_doit_test()
+{
+	RET=0
+
+	local port_handle="${DL_HANDLE}/0"
+	local name
+	local size
+
+	if ! devlink resource help 2>&1 | grep -q "PORT_INDEX"; then
+		echo "SKIP: devlink resource show with port not supported"
+		return
+	fi
+
+	name=$(cmd_jq "devlink resource show $port_handle -j" \
+		      '.[][][].name')
+	[ "$name" == "test_resource" ]
+	check_err $? "wrong port resource name (got $name)"
+
+	size=$(cmd_jq "devlink resource show $port_handle -j" \
+		      '.[][][].size')
+	[ "$size" == "20" ]
+	check_err $? "wrong port resource size (got $size)"
+
+	log_test "port resource doit test"
 }
 
 rate_test()

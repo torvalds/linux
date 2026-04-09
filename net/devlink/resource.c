@@ -36,15 +36,16 @@ struct devlink_resource {
 };
 
 static struct devlink_resource *
-devlink_resource_find(struct devlink *devlink,
-		      struct devlink_resource *resource, u64 resource_id)
+__devlink_resource_find(struct list_head *resource_list_head,
+			struct devlink_resource *resource,
+			u64 resource_id)
 {
 	struct list_head *resource_list;
 
 	if (resource)
 		resource_list = &resource->resource_list;
 	else
-		resource_list = &devlink->resource_list;
+		resource_list = resource_list_head;
 
 	list_for_each_entry(resource, resource_list, list) {
 		struct devlink_resource *child_resource;
@@ -52,12 +53,21 @@ devlink_resource_find(struct devlink *devlink,
 		if (resource->id == resource_id)
 			return resource;
 
-		child_resource = devlink_resource_find(devlink, resource,
-						       resource_id);
+		child_resource = __devlink_resource_find(resource_list_head,
+							 resource,
+							 resource_id);
 		if (child_resource)
 			return child_resource;
 	}
 	return NULL;
+}
+
+static struct devlink_resource *
+devlink_resource_find(struct devlink *devlink,
+		      struct devlink_resource *resource, u64 resource_id)
+{
+	return __devlink_resource_find(&devlink->resource_list,
+				       resource, resource_id);
 }
 
 static void
@@ -213,11 +223,38 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int devlink_resource_list_fill(struct sk_buff *skb,
+				      struct devlink *devlink,
+				      struct list_head *resource_list_head,
+				      int *idx)
+{
+	struct devlink_resource *resource;
+	int i = 0;
+	int err;
+
+	list_for_each_entry(resource, resource_list_head, list) {
+		if (i < *idx) {
+			i++;
+			continue;
+		}
+		err = devlink_resource_put(devlink, skb, resource);
+		if (err) {
+			*idx = i;
+			return err;
+		}
+		i++;
+	}
+	*idx = 0;
+	return 0;
+}
+
 static int devlink_resource_fill(struct genl_info *info,
 				 enum devlink_command cmd, int flags)
 {
+	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_resource *resource;
+	struct list_head *resource_list;
 	struct nlattr *resources_attr;
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
@@ -226,7 +263,9 @@ static int devlink_resource_fill(struct genl_info *info,
 	int i;
 	int err;
 
-	resource = list_first_entry(&devlink->resource_list,
+	resource_list = devlink_port ?
+		&devlink_port->resource_list : &devlink->resource_list;
+	resource = list_first_entry(resource_list,
 				    struct devlink_resource, list);
 start_again:
 	err = devlink_nl_msg_reply_and_new(&skb, info);
@@ -242,6 +281,9 @@ start_again:
 
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
+	if (devlink_port &&
+	    nla_put_u32(skb, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
+		goto nla_put_failure;
 
 	resources_attr = nla_nest_start_noflag(skb,
 					       DEVLINK_ATTR_RESOURCE_LIST);
@@ -250,7 +292,7 @@ start_again:
 
 	incomplete = false;
 	i = 0;
-	list_for_each_entry_from(resource, &devlink->resource_list, list) {
+	list_for_each_entry_from(resource, resource_list, list) {
 		err = devlink_resource_put(devlink, skb, resource);
 		if (err) {
 			if (!i)
@@ -284,12 +326,131 @@ err_resource_put:
 
 int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 {
+	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
+	struct list_head *resource_list;
 
-	if (list_empty(&devlink->resource_list))
+	if (info->attrs[DEVLINK_ATTR_PORT_INDEX] && !devlink_port)
+		return -ENODEV;
+
+	resource_list = devlink_port ?
+		&devlink_port->resource_list : &devlink->resource_list;
+	if (list_empty(resource_list))
 		return -EOPNOTSUPP;
 
 	return devlink_resource_fill(info, DEVLINK_CMD_RESOURCE_DUMP, 0);
+}
+
+static int
+devlink_resource_dump_fill_one(struct sk_buff *skb, struct devlink *devlink,
+			       struct devlink_port *devlink_port,
+			       struct netlink_callback *cb, int flags, int *idx)
+{
+	struct list_head *resource_list;
+	struct nlattr *resources_attr;
+	int start_idx = *idx;
+	void *hdr;
+	int err;
+
+	resource_list = devlink_port ?
+		&devlink_port->resource_list : &devlink->resource_list;
+
+	if (list_empty(resource_list))
+		return 0;
+
+	err = -EMSGSIZE;
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &devlink_nl_family, flags, DEVLINK_CMD_RESOURCE_DUMP);
+	if (!hdr)
+		return err;
+
+	if (devlink_nl_put_handle(skb, devlink))
+		goto nla_put_failure;
+	if (devlink_port &&
+	    nla_put_u32(skb, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
+		goto nla_put_failure;
+
+	resources_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_RESOURCE_LIST);
+	if (!resources_attr)
+		goto nla_put_failure;
+
+	err = devlink_resource_list_fill(skb, devlink, resource_list, idx);
+	if (err) {
+		if (*idx == start_idx)
+			goto resource_list_cancel;
+		nla_nest_end(skb, resources_attr);
+		genlmsg_end(skb, hdr);
+		return err;
+	}
+	nla_nest_end(skb, resources_attr);
+	genlmsg_end(skb, hdr);
+	return 0;
+
+resource_list_cancel:
+	nla_nest_cancel(skb, resources_attr);
+nla_put_failure:
+	genlmsg_cancel(skb, hdr);
+	return err;
+}
+
+static int
+devlink_nl_resource_dump_one(struct sk_buff *skb, struct devlink *devlink,
+			     struct netlink_callback *cb, int flags)
+{
+	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct genl_info *info = genl_info_dump(cb);
+	struct devlink_port *devlink_port;
+	struct nlattr *scope_attr = NULL;
+	unsigned long port_idx;
+	u32 scope = 0;
+	int err;
+
+	if (info->attrs && info->attrs[DEVLINK_ATTR_RESOURCE_SCOPE_MASK]) {
+		scope_attr = info->attrs[DEVLINK_ATTR_RESOURCE_SCOPE_MASK];
+		scope = nla_get_u32(scope_attr);
+		if (!scope) {
+			NL_SET_ERR_MSG_ATTR(info->extack, scope_attr,
+					    "empty resource scope selection");
+			return -EINVAL;
+		}
+	}
+
+	if (!state->port_ctx.index_valid &&
+	    (!scope || (scope & DEVLINK_RESOURCE_SCOPE_DEV))) {
+		err = devlink_resource_dump_fill_one(skb, devlink, NULL,
+						     cb, flags, &state->idx);
+		if (err)
+			return err;
+		state->idx = 0;
+	}
+
+	if (scope && !(scope & DEVLINK_RESOURCE_SCOPE_PORT))
+		goto out;
+	/* Check in case port was removed between dump callbacks. */
+	if (state->port_ctx.index_valid &&
+	    !xa_load(&devlink->ports, state->port_ctx.index))
+		state->idx = 0;
+	state->port_ctx.index_valid = true;
+	xa_for_each_start(&devlink->ports, port_idx, devlink_port,
+			  state->port_ctx.index) {
+		err = devlink_resource_dump_fill_one(skb, devlink, devlink_port,
+						     cb, flags, &state->idx);
+		if (err) {
+			state->port_ctx.index = port_idx;
+			return err;
+		}
+		state->idx = 0;
+	}
+out:
+	state->port_ctx.index_valid = false;
+	state->port_ctx.index = 0;
+	return 0;
+}
+
+int devlink_nl_resource_dump_dumpit(struct sk_buff *skb,
+				    struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb, devlink_nl_resource_dump_one);
 }
 
 int devlink_resources_validate(struct devlink *devlink,
@@ -314,26 +475,12 @@ int devlink_resources_validate(struct devlink *devlink,
 	return err;
 }
 
-/**
- * devl_resource_register - devlink resource register
- *
- * @devlink: devlink
- * @resource_name: resource's name
- * @resource_size: resource's size
- * @resource_id: resource's id
- * @parent_resource_id: resource's parent id
- * @size_params: size parameters
- *
- * Generic resources should reuse the same names across drivers.
- * Please see the generic resources list at:
- * Documentation/networking/devlink/devlink-resource.rst
- */
-int devl_resource_register(struct devlink *devlink,
-			   const char *resource_name,
-			   u64 resource_size,
-			   u64 resource_id,
-			   u64 parent_resource_id,
-			   const struct devlink_resource_size_params *size_params)
+static int
+__devl_resource_register(struct devlink *devlink,
+			 struct list_head *resource_list_head,
+			 const char *resource_name, u64 resource_size,
+			 u64 resource_id, u64 parent_resource_id,
+			 const struct devlink_resource_size_params *params)
 {
 	struct devlink_resource *resource;
 	struct list_head *resource_list;
@@ -343,7 +490,8 @@ int devl_resource_register(struct devlink *devlink,
 
 	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;
 
-	resource = devlink_resource_find(devlink, NULL, resource_id);
+	resource = __devlink_resource_find(resource_list_head, NULL,
+					   resource_id);
 	if (resource)
 		return -EEXIST;
 
@@ -352,12 +500,13 @@ int devl_resource_register(struct devlink *devlink,
 		return -ENOMEM;
 
 	if (top_hierarchy) {
-		resource_list = &devlink->resource_list;
+		resource_list = resource_list_head;
 	} else {
 		struct devlink_resource *parent_resource;
 
-		parent_resource = devlink_resource_find(devlink, NULL,
-							parent_resource_id);
+		parent_resource = __devlink_resource_find(resource_list_head,
+							  NULL,
+							  parent_resource_id);
 		if (parent_resource) {
 			resource_list = &parent_resource->resource_list;
 			resource->parent = parent_resource;
@@ -372,23 +521,64 @@ int devl_resource_register(struct devlink *devlink,
 	resource->size_new = resource_size;
 	resource->id = resource_id;
 	resource->size_valid = true;
-	memcpy(&resource->size_params, size_params,
-	       sizeof(resource->size_params));
+	memcpy(&resource->size_params, params, sizeof(resource->size_params));
 	INIT_LIST_HEAD(&resource->resource_list);
 	list_add_tail(&resource->list, resource_list);
 
 	return 0;
 }
+
+/**
+ * devl_resource_register - devlink resource register
+ *
+ * @devlink: devlink
+ * @resource_name: resource's name
+ * @resource_size: resource's size
+ * @resource_id: resource's id
+ * @parent_resource_id: resource's parent id
+ * @params: size parameters
+ *
+ * Generic resources should reuse the same names across drivers.
+ * Please see the generic resources list at:
+ * Documentation/networking/devlink/devlink-resource.rst
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int devl_resource_register(struct devlink *devlink, const char *resource_name,
+			   u64 resource_size, u64 resource_id,
+			   u64 parent_resource_id,
+			   const struct devlink_resource_size_params *params)
+{
+	return __devl_resource_register(devlink, &devlink->resource_list,
+					resource_name, resource_size,
+					resource_id, parent_resource_id,
+					params);
+}
 EXPORT_SYMBOL_GPL(devl_resource_register);
 
-static void devlink_resource_unregister(struct devlink *devlink,
-					struct devlink_resource *resource)
+static void devlink_resource_unregister(struct devlink_resource *resource)
 {
 	struct devlink_resource *tmp, *child_resource;
 
 	list_for_each_entry_safe(child_resource, tmp, &resource->resource_list,
 				 list) {
-		devlink_resource_unregister(devlink, child_resource);
+		devlink_resource_unregister(child_resource);
+		list_del(&child_resource->list);
+		kfree(child_resource);
+	}
+}
+
+static void
+__devl_resources_unregister(struct devlink *devlink,
+			    struct list_head *resource_list_head)
+{
+	struct devlink_resource *tmp, *child_resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	list_for_each_entry_safe(child_resource, tmp, resource_list_head,
+				 list) {
+		devlink_resource_unregister(child_resource);
 		list_del(&child_resource->list);
 		kfree(child_resource);
 	}
@@ -401,16 +591,7 @@ static void devlink_resource_unregister(struct devlink *devlink,
  */
 void devl_resources_unregister(struct devlink *devlink)
 {
-	struct devlink_resource *tmp, *child_resource;
-
-	lockdep_assert_held(&devlink->lock);
-
-	list_for_each_entry_safe(child_resource, tmp, &devlink->resource_list,
-				 list) {
-		devlink_resource_unregister(devlink, child_resource);
-		list_del(&child_resource->list);
-		kfree(child_resource);
-	}
+	__devl_resources_unregister(devlink, &devlink->resource_list);
 }
 EXPORT_SYMBOL_GPL(devl_resources_unregister);
 
@@ -502,3 +683,46 @@ void devl_resource_occ_get_unregister(struct devlink *devlink,
 	resource->occ_get_priv = NULL;
 }
 EXPORT_SYMBOL_GPL(devl_resource_occ_get_unregister);
+
+/**
+ * devl_port_resource_register - devlink port resource register
+ *
+ * @devlink_port: devlink port
+ * @resource_name: resource's name
+ * @resource_size: resource's size
+ * @resource_id: resource's id
+ * @parent_resource_id: resource's parent id
+ * @params: size parameters
+ *
+ * Generic resources should reuse the same names across drivers.
+ * Please see the generic resources list at:
+ * Documentation/networking/devlink/devlink-resource.rst
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int
+devl_port_resource_register(struct devlink_port *devlink_port,
+			    const char *resource_name,
+			    u64 resource_size, u64 resource_id,
+			    u64 parent_resource_id,
+			    const struct devlink_resource_size_params *params)
+{
+	return __devl_resource_register(devlink_port->devlink,
+					&devlink_port->resource_list,
+					resource_name, resource_size,
+					resource_id, parent_resource_id,
+					params);
+}
+EXPORT_SYMBOL_GPL(devl_port_resource_register);
+
+/**
+ * devl_port_resources_unregister - unregister all devlink port resources
+ *
+ * @devlink_port: devlink port
+ */
+void devl_port_resources_unregister(struct devlink_port *devlink_port)
+{
+	__devl_resources_unregister(devlink_port->devlink,
+				    &devlink_port->resource_list);
+}
+EXPORT_SYMBOL_GPL(devl_port_resources_unregister);
