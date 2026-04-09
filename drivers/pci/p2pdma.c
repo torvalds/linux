@@ -548,6 +548,8 @@ static const struct pci_p2pdma_whitelist_entry {
 	{PCI_VENDOR_ID_INTEL,	0x2033, 0},
 	{PCI_VENDOR_ID_INTEL,	0x2020, 0},
 	{PCI_VENDOR_ID_INTEL,	0x09a2, 0},
+	/* Google SoCs. */
+	{PCI_VENDOR_ID_GOOGLE,	PCI_ANY_ID, 0},
 	{}
 };
 
