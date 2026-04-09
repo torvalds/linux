@@ -1133,8 +1133,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
-static bool is_endpoint_present(struct sdw_slave *sdw_device,
-				struct asoc_sdw_codec_info *dai_info, int dai_type)
+static bool is_endpoint_present(struct sdw_slave *sdw_device, int dai_type)
 {
 	int i;
 
@@ -1145,7 +1144,7 @@ static bool is_endpoint_present(struct sdw_slave *sdw_device,
 	}
 
 	for (i = 0; i < sdw_device->sdca_data.num_functions; i++) {
-		if (dai_type == dai_info->dais[i].dai_type)
+		if (dai_type == asoc_sdw_get_dai_type(sdw_device->sdca_data.function[i].type))
 			return true;
 	}
 	dev_dbg(&sdw_device->dev, "Endpoint DAI type %d not found\n", dai_type);
@@ -1199,11 +1198,10 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 		}
 		for (j = 0; j < codec_info_list[i].dai_num; j++) {
 			/* Check if the endpoint is present by the SDCA DisCo table */
-			if (!is_endpoint_present(sdw_device, &codec_info_list[i],
-						 codec_info_list[i].dais[j].dai_type))
+			if (!is_endpoint_present(sdw_device, codec_info_list[i].dais[j].dai_type))
 				continue;
 
-			endpoints[ep_index].num = ep_index;
+			endpoints[ep_index].num = j;
 			if (codec_info_list[i].dais[j].dai_type == SOC_SDW_DAI_TYPE_AMP) {
 				/* Assume all amp are aggregated */
 				endpoints[ep_index].aggregated = 1;

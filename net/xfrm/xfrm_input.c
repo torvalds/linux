@@ -75,7 +75,10 @@ int xfrm_input_unregister_afinfo(const struct xfrm_input_afinfo *afinfo)
 
 	spin_lock_bh(&xfrm_input_afinfo_lock);
 	if (likely(xfrm_input_afinfo[afinfo->is_ipip][afinfo->family])) {
-		if (unlikely(xfrm_input_afinfo[afinfo->is_ipip][afinfo->family] != afinfo))
+		const struct xfrm_input_afinfo *cur;
+
+		cur = rcu_access_pointer(xfrm_input_afinfo[afinfo->is_ipip][afinfo->family]);
+		if (unlikely(cur != afinfo))
 			err = -EINVAL;
 		else
 			RCU_INIT_POINTER(xfrm_input_afinfo[afinfo->is_ipip][afinfo->family], NULL);

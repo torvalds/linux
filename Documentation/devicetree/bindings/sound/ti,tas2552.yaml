@@ -12,8 +12,8 @@ maintainers:
   - Baojun Xu <baojun.xu@ti.com>
 
 description: >
-  The TAS2552 can receive its reference clock via MCLK, BCLK, IVCLKIN pin or 
-  use the internal 1.8MHz. This CLKIN is used by the PLL. In addition to PLL, 
+  The TAS2552 can receive its reference clock via MCLK, BCLK, IVCLKIN pin or
+  use the internal 1.8MHz. This CLKIN is used by the PLL. In addition to PLL,
   the PDM reference clock is also selectable: PLL, IVCLKIN, BCLK or MCLK.
 
   For system integration the dt-bindings/sound/tas2552.h header file provides
@@ -34,6 +34,9 @@ properties:
     maxItems: 1
     description: gpio pin to enable/disable the device
 
+  '#sound-dai-cells':
+    const: 0
+
 required:
   - compatible
   - reg
@@ -41,7 +44,10 @@ required:
   - iovdd-supply
   - avdd-supply
 
-additionalProperties: false
+allOf:
+  - $ref: dai-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -54,6 +60,7 @@ examples:
         audio-codec@41 {
             compatible = "ti,tas2552";
             reg = <0x41>;
+            #sound-dai-cells = <0>;
             vbat-supply = <&reg_vbat>;
             iovdd-supply = <&reg_iovdd>;
             avdd-supply = <&reg_avdd>;

@@ -608,14 +608,29 @@ int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 	if (rdma_rw_io_needs_mr(qp->device, port_num, dir, sg_cnt)) {
 		ret = rdma_rw_init_mr_wrs(ctx, qp, port_num, sg, sg_cnt,
 				sg_offset, remote_addr, rkey, dir);
-	} else if (sg_cnt > 1) {
-		ret = rdma_rw_init_map_wrs(ctx, qp, sg, sg_cnt, sg_offset,
-				remote_addr, rkey, dir);
-	} else {
-		ret = rdma_rw_init_single_wr(ctx, qp, sg, sg_offset,
-				remote_addr, rkey, dir);
+		/*
+		 * If MR init succeeded or failed for a reason other
+		 * than pool exhaustion, that result is final.
+		 *
+		 * Pool exhaustion (-EAGAIN) from the max_sgl_rd
+		 * optimization is recoverable: fall back to
+		 * direct SGE posting. iWARP and force_mr require
+		 * MRs unconditionally, so -EAGAIN is terminal.
+		 */
+		if (ret != -EAGAIN ||
+		    rdma_protocol_iwarp(qp->device, port_num) ||
+		    unlikely(rdma_rw_force_mr))
+			goto out;
 	}
 
+	if (sg_cnt > 1)
+		ret = rdma_rw_init_map_wrs(ctx, qp, sg, sg_cnt, sg_offset,
+				remote_addr, rkey, dir);
+	else
+		ret = rdma_rw_init_single_wr(ctx, qp, sg, sg_offset,
+				remote_addr, rkey, dir);
+
+out:
 	if (ret < 0)
 		goto out_unmap_sg;
 	return ret;
@@ -686,14 +701,16 @@ int rdma_rw_ctx_init_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		return ret;
 
 	/*
-	 * IOVA mapping not available. Check if MR registration provides
-	 * better performance than multiple SGE entries.
+	 * IOVA not available; fall back to the map_wrs path, which maps
+	 * each bvec as a direct SGE. This is always correct: the MR path
+	 * is a throughput optimization, not a correctness requirement.
+	 * (iWARP, which does require MRs, is handled by the check above.)
+	 *
+	 * The rdma_rw_io_needs_mr() gate is not used here because nr_bvec
+	 * is a raw page count that overstates DMA entry demand -- the bvec
+	 * caller has no post-DMA-coalescing segment count, and feeding the
+	 * inflated count into the MR path exhausts the pool on RDMA READs.
 	 */
-	if (rdma_rw_io_needs_mr(dev, port_num, dir, nr_bvec))
-		return rdma_rw_init_mr_wrs_bvec(ctx, qp, port_num, bvecs,
-						nr_bvec, &iter, remote_addr,
-						rkey, dir);
-
 	return rdma_rw_init_map_wrs_bvec(ctx, qp, bvecs, nr_bvec, &iter,
 			remote_addr, rkey, dir);
 }

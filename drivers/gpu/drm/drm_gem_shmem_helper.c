@@ -550,27 +550,27 @@ int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_dumb_create);
 
-static bool drm_gem_shmem_try_map_pmd(struct vm_fault *vmf, unsigned long addr,
-				      struct page *page)
+static vm_fault_t try_insert_pfn(struct vm_fault *vmf, unsigned int order,
+				 unsigned long pfn)
 {
+	if (!order) {
+		return vmf_insert_pfn(vmf->vma, vmf->address, pfn);
 #ifdef CONFIG_ARCH_SUPPORTS_PMD_PFNMAP
-	unsigned long pfn = page_to_pfn(page);
-	unsigned long paddr = pfn << PAGE_SHIFT;
-	bool aligned = (addr & ~PMD_MASK) == (paddr & ~PMD_MASK);
+	} else if (order == PMD_ORDER) {
+		unsigned long paddr = pfn << PAGE_SHIFT;
+		bool aligned = (vmf->address & ~PMD_MASK) == (paddr & ~PMD_MASK);
 
-	if (aligned &&
-	    pmd_none(*vmf->pmd) &&
-	    folio_test_pmd_mappable(page_folio(page))) {
-		pfn &= PMD_MASK >> PAGE_SHIFT;
-		if (vmf_insert_pfn_pmd(vmf, pfn, false) == VM_FAULT_NOPAGE)
-			return true;
-	}
+		if (aligned &&
+		    folio_test_pmd_mappable(page_folio(pfn_to_page(pfn)))) {
+			pfn &= PMD_MASK >> PAGE_SHIFT;
+			return vmf_insert_pfn_pmd(vmf, pfn, false);
+		}
 #endif
-
-	return false;
+	}
+	return VM_FAULT_FALLBACK;
 }
 
-static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
+static vm_fault_t drm_gem_shmem_any_fault(struct vm_fault *vmf, unsigned int order)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
@@ -580,6 +580,9 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 	struct page **pages = shmem->pages;
 	pgoff_t page_offset;
 	unsigned long pfn;
+
+	if (order && order != PMD_ORDER)
+		return VM_FAULT_FALLBACK;
 
 	/* Offset to faulty address in the VMA. */
 	page_offset = vmf->pgoff - vma->vm_pgoff;
@@ -593,18 +596,18 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 		goto out;
 	}
 
-	if (drm_gem_shmem_try_map_pmd(vmf, vmf->address, pages[page_offset])) {
-		ret = VM_FAULT_NOPAGE;
-		goto out;
-	}
-
 	pfn = page_to_pfn(pages[page_offset]);
-	ret = vmf_insert_pfn(vma, vmf->address, pfn);
+	ret = try_insert_pfn(vmf, order, pfn);
 
  out:
 	dma_resv_unlock(shmem->base.resv);
 
 	return ret;
+}
+
+static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
+{
+	return drm_gem_shmem_any_fault(vmf, 0);
 }
 
 static void drm_gem_shmem_vm_open(struct vm_area_struct *vma)
@@ -643,6 +646,9 @@ static void drm_gem_shmem_vm_close(struct vm_area_struct *vma)
 
 const struct vm_operations_struct drm_gem_shmem_vm_ops = {
 	.fault = drm_gem_shmem_fault,
+#ifdef CONFIG_ARCH_SUPPORTS_PMD_PFNMAP
+	.huge_fault = drm_gem_shmem_any_fault,
+#endif
 	.open = drm_gem_shmem_vm_open,
 	.close = drm_gem_shmem_vm_close,
 };
