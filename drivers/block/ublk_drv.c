@@ -5238,23 +5238,29 @@ exit:
 }
 
 /*
- * Drain inflight I/O and quiesce the queue. Freeze drains all inflight
- * requests, quiesce_nowait marks the queue so no new requests dispatch,
- * then unfreeze allows new submissions (which won't dispatch due to
- * quiesce). This keeps freeze and ub->mutex non-nested.
- */
-static void ublk_quiesce_and_release(struct gendisk *disk)
+ * Lock for maple tree modification: acquire ub->mutex, then freeze queue
+ * if device is started. If device is not yet started, only mutex is
+ * needed since no I/O path can access the tree.
+ *
+ * This ordering (mutex -> freeze) is safe because ublk_stop_dev_unlocked()
+ * already holds ub->mutex when calling del_gendisk() which freezes the queue.
+*/
+static unsigned int ublk_lock_buf_tree(struct ublk_device *ub)
 {
-	unsigned int memflags;
+	unsigned int memflags = 0;
 
-	memflags = blk_mq_freeze_queue(disk->queue);
-	blk_mq_quiesce_queue_nowait(disk->queue);
-	blk_mq_unfreeze_queue(disk->queue, memflags);
+	mutex_lock(&ub->mutex);
+	if (ub->ub_disk)
+		memflags = blk_mq_freeze_queue(ub->ub_disk->queue);
+
+	return memflags;
 }
 
-static void ublk_unquiesce_and_resume(struct gendisk *disk)
+static void ublk_unlock_buf_tree(struct ublk_device *ub, unsigned int memflags)
 {
-	blk_mq_unquiesce_queue(disk->queue);
+	if (ub->ub_disk)
+		blk_mq_unfreeze_queue(ub->ub_disk->queue, memflags);
+	mutex_unlock(&ub->mutex);
 }
 
 /* Erase coalesced PFN ranges from the maple tree matching buf_index */
@@ -5327,7 +5333,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	unsigned long addr, size, nr_pages;
 	struct page **pages = NULL;
 	unsigned int gup_flags;
-	struct gendisk *disk;
+	unsigned int memflags;
 	long pinned;
 	int index;
 	int ret;
@@ -5354,16 +5360,10 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	    !PAGE_ALIGNED(size) || !PAGE_ALIGNED(addr))
 		return -EINVAL;
 
-	disk = ublk_get_disk(ub);
-	if (!disk)
-		return -ENODEV;
-
-	/* Pin pages before quiescing (may sleep) */
+	/* Pin pages before any locks (may sleep) */
 	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
-	if (!pages) {
-		ret = -ENOMEM;
-		goto put_disk;
-	}
+	if (!pages)
+		return -ENOMEM;
 
 	gup_flags = FOLL_LONGTERM;
 	if (!(buf_reg.flags & UBLK_SHMEM_BUF_READ_ONLY))
@@ -5379,14 +5379,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 		goto err_unpin;
 	}
 
-	/*
-	 * Drain inflight I/O and quiesce the queue so no new requests
-	 * are dispatched while we modify the maple tree. Keep freeze
-	 * and mutex non-nested to avoid lock dependency.
-	 */
-	ublk_quiesce_and_release(disk);
-
-	mutex_lock(&ub->mutex);
+	memflags = ublk_lock_buf_tree(ub);
 
 	index = ida_alloc_max(&ub->buf_ida, USHRT_MAX, GFP_KERNEL);
 	if (index < 0) {
@@ -5400,22 +5393,16 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 		goto err_unlock;
 	}
 
-	mutex_unlock(&ub->mutex);
-
+	ublk_unlock_buf_tree(ub, memflags);
 	kvfree(pages);
-	ublk_unquiesce_and_resume(disk);
-	ublk_put_disk(disk);
 	return index;
 
 err_unlock:
-	mutex_unlock(&ub->mutex);
-	ublk_unquiesce_and_resume(disk);
+	ublk_unlock_buf_tree(ub, memflags);
 err_unpin:
 	unpin_user_pages(pages, pinned);
 err_free_pages:
 	kvfree(pages);
-put_disk:
-	ublk_put_disk(disk);
 	return ret;
 }
 
@@ -5459,7 +5446,7 @@ static int ublk_ctrl_unreg_buf(struct ublk_device *ub,
 			       struct ublksrv_ctrl_cmd *header)
 {
 	int index = (int)header->data[0];
-	struct gendisk *disk;
+	unsigned int memflags;
 	int ret;
 
 	if (!ublk_dev_support_shmem_zc(ub))
@@ -5468,23 +5455,13 @@ static int ublk_ctrl_unreg_buf(struct ublk_device *ub,
 	if (index < 0 || index > USHRT_MAX)
 		return -EINVAL;
 
-	disk = ublk_get_disk(ub);
-	if (!disk)
-		return -ENODEV;
-
-	/* Drain inflight I/O before modifying the maple tree */
-	ublk_quiesce_and_release(disk);
-
-	mutex_lock(&ub->mutex);
+	memflags = ublk_lock_buf_tree(ub);
 
 	ret = __ublk_ctrl_unreg_buf(ub, index);
 	if (!ret)
 		ida_free(&ub->buf_ida, index);
 
-	mutex_unlock(&ub->mutex);
-
-	ublk_unquiesce_and_resume(disk);
-	ublk_put_disk(disk);
+	ublk_unlock_buf_tree(ub, memflags);
 	return ret;
 }
 
