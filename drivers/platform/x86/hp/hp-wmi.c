@@ -58,8 +58,6 @@ enum hp_ec_offsets {
 #define HP_POWER_LIMIT_DEFAULT	 0x00
 #define HP_POWER_LIMIT_NO_CHANGE 0xFF
 
-#define ACPI_AC_CLASS "ac_adapter"
-
 #define zero_if_sup(tmp) (zero_insize_support?0:sizeof(tmp)) // use when zero insize is required
 
 enum hp_thermal_profile_omen_v0 {
