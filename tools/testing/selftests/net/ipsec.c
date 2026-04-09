@@ -62,8 +62,6 @@
 #define VETH_FMT	"ktst-%d"
 #define VETH_LEN	12
 
-#define XFRM_ALGO_NR_KEYS 29
-
 static int nsfd_parent	= -1;
 static int nsfd_childa	= -1;
 static int nsfd_childb	= -1;
@@ -96,7 +94,6 @@ struct xfrm_key_entry xfrm_key_entries[] = {
 	{"cbc(cast5)", 128},
 	{"cbc(serpent)", 128},
 	{"hmac(sha1)", 160},
-	{"hmac(rmd160)", 160},
 	{"cbc(des3_ede)", 192},
 	{"hmac(sha256)", 256},
 	{"cbc(aes)", 256},
@@ -813,7 +810,7 @@ static int xfrm_fill_key(char *name, char *buf,
 {
 	int i;
 
-	for (i = 0; i < XFRM_ALGO_NR_KEYS; i++) {
+	for (i = 0; i < ARRAY_SIZE(xfrm_key_entries); i++) {
 		if (strncmp(name, xfrm_key_entries[i].algo_name, ALGO_LEN) == 0)
 			*key_len = xfrm_key_entries[i].key_len;
 	}
@@ -2061,8 +2058,7 @@ static int write_desc(int proto, int test_desc_fd,
 int proto_list[] = { IPPROTO_AH, IPPROTO_COMP, IPPROTO_ESP };
 char *ah_list[] = {
 	"digest_null", "hmac(md5)", "hmac(sha1)", "hmac(sha256)",
-	"hmac(sha384)", "hmac(sha512)", "hmac(rmd160)",
-	"xcbc(aes)", "cmac(aes)"
+	"hmac(sha384)", "hmac(sha512)", "xcbc(aes)", "cmac(aes)"
 };
 char *comp_list[] = {
 	"deflate",
