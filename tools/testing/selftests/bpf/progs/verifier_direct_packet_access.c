@@ -859,4 +859,65 @@ l0_%=:	r0 = 1;					\
 	: __clobber_all);
 }
 
+SEC("tc")
+__description("direct packet access: pkt_range cleared after sub with known scalar")
+__failure __msg("invalid access to packet")
+__naked void pkt_range_clear_after_sub(void)
+{
+	asm volatile ("					\
+	r9 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r8 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r9 += 256;					\
+	if r9 >= r8 goto l0_%=;				\
+	r0 = 0;						\
+	exit;						\
+l0_%=:	/* r9 has AT_PKT_END (pkt + 256 >= pkt_end) */	\
+	r9 -= 256;					\
+	/*						\
+	 * AT_PKT_END must not survive the arithmetic.	\
+	 * is_pkt_ptr_branch_taken must validate both	\
+	 * branches when visiting the next condition.	\
+	 */						\
+	if r9 < r8 goto l1_%=;				\
+	r0 = 0;						\
+	exit;						\
+l1_%=:	r0 = *(u8*)(r9 + 0);				\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("direct packet access: pkt_range cleared after add with known scalar")
+__failure __msg("invalid access to packet")
+__naked void pkt_range_clear_after_add(void)
+{
+	asm volatile ("					\
+	r9 = *(u32*)(r1 + %[__sk_buff_data]);		\
+	r8 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
+	r9 += 256;					\
+	if r9 >= r8 goto l0_%=;				\
+	r0 = 0;						\
+	exit;						\
+l0_%=:	/* r9 has AT_PKT_END (pkt + 256 >= pkt_end) */	\
+	r9 += -256;					\
+	/*						\
+	 * Same as sub, but goes through BPF_ADD path.	\
+	 * AT_PKT_END must not survive the arithmetic.	\
+	 */						\
+	if r9 < r8 goto l1_%=;				\
+	r0 = 0;						\
+	exit;						\
+l1_%=:	r0 = *(u8*)(r9 + 0);				\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
