@@ -16,11 +16,14 @@
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
+#include <linux/seccomp.h>
+#include <asm/syscall.h>
 
 #include <linux/uaccess.h>
 #include <asm/fpu.h>
 
 #include "proto.h"
+#include <linux/uio.h>
 
 #define DEBUG	DBG_MEM
 #undef DEBUG
@@ -312,6 +315,54 @@ long arch_ptrace(struct task_struct *child, long request,
 		DBG(DBG_MEM, ("poke $%lu<-%#lx\n", addr, data));
 		ret = put_reg(child, addr, data);
 		break;
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET: {
+		struct iovec __user *uiov = (struct iovec __user *)data;
+		struct iovec iov;
+		struct pt_regs *regs;
+		size_t len;
+
+		/* Only support NT_PRSTATUS (general registers) for now. */
+		if (addr != NT_PRSTATUS) {
+			ret = -EIO;
+			break;
+		}
+
+		if (copy_from_user(&iov, uiov, sizeof(iov))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		regs = task_pt_regs(child);
+		len = min_t(size_t, iov.iov_len, sizeof(*regs));
+
+		if (request == PTRACE_GETREGSET) {
+			if (copy_to_user(iov.iov_base, regs, len)) {
+				ret = -EFAULT;
+				break;
+			}
+		} else {
+		/*
+		 * Allow writing back regs. This is needed by the TRACE_syscall
+		 * tests (they change PC/syscall nr/retval).
+		 */
+			if (copy_from_user(regs, iov.iov_base, len)) {
+				ret = -EFAULT;
+				break;
+			}
+		}
+
+		/* Per API, update iov_len with amount transferred. */
+		iov.iov_len = len;
+		if (copy_to_user(uiov, &iov, sizeof(iov))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = 0;
+		break;
+	}
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
@@ -321,14 +372,36 @@ long arch_ptrace(struct task_struct *child, long request,
 
 asmlinkage unsigned long syscall_trace_enter(void)
 {
-	unsigned long ret = 0;
 	struct pt_regs *regs = current_pt_regs();
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    ptrace_report_syscall_entry(current_pt_regs()))
-		ret = -1UL;
-	audit_syscall_entry(regs->r0, regs->r16, regs->r17, regs->r18, regs->r19);
-	return ret ?: current_pt_regs()->r0;
+		ptrace_report_syscall_entry(regs)) {
+		syscall_set_nr(current, regs, -1);
+		if (regs->r19 == 0 && regs->r0 == (unsigned long)-1)
+			syscall_set_return_value(current, regs, -ENOSYS, 0);
+		return -1UL;
+	}
+
+	/*
+	 * Do the secure computing after ptrace; failures should be fast.
+	 * If this fails, seccomp may already have set up the return value
+	 * (e.g. SECCOMP_RET_ERRNO / TRACE).
+	 */
+	if (secure_computing() == -1) {
+		if (regs->r19 == 0 && regs->r0 == (unsigned long)-1)
+			syscall_set_return_value(current, regs, -ENOSYS, 0);
+		syscall_set_nr(current, regs, -1);
+		return -1UL;
+	}
+
+#ifdef CONFIG_AUDITSYSCALL
+	audit_syscall_entry(syscall_get_nr(current, regs),
+		regs->r16, regs->r17, regs->r18, regs->r19);
+#endif
+	return syscall_get_nr(current, regs);
 }
+
+
 
 asmlinkage void
 syscall_trace_leave(void)
