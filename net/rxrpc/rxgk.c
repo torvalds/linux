@@ -1085,6 +1085,9 @@ static int rxgk_do_verify_authenticator(struct rxrpc_connection *conn,
 
 	_enter("");
 
+	if ((end - p) * sizeof(__be32) < 24)
+		return rxrpc_abort_conn(conn, skb, RXGK_NOTAUTH, -EPROTO,
+					rxgk_abort_resp_short_auth);
 	if (memcmp(p, conn->rxgk.nonce, 20) != 0)
 		return rxrpc_abort_conn(conn, skb, RXGK_NOTAUTH, -EPROTO,
 					rxgk_abort_resp_bad_nonce);
@@ -1098,7 +1101,7 @@ static int rxgk_do_verify_authenticator(struct rxrpc_connection *conn,
 	p += xdr_round_up(app_len) / sizeof(__be32);
 	if (end - p < 4)
 		return rxrpc_abort_conn(conn, skb, RXGK_NOTAUTH, -EPROTO,
-					rxgk_abort_resp_short_applen);
+					rxgk_abort_resp_short_auth);
 
 	level	= ntohl(*p++);
 	epoch	= ntohl(*p++);
@@ -1164,7 +1167,8 @@ static int rxgk_verify_authenticator(struct rxrpc_connection *conn,
 	}
 
 	p = auth;
-	ret = rxgk_do_verify_authenticator(conn, krb5, skb, p, p + auth_len);
+	ret = rxgk_do_verify_authenticator(conn, krb5, skb, p,
+					   p + auth_len / sizeof(*p));
 error:
 	kfree(auth);
 	return ret;
@@ -1208,7 +1212,8 @@ static int rxgk_verify_response(struct rxrpc_connection *conn,
 
 	token_offset	= offset;
 	token_len	= ntohl(rhdr.token_len);
-	if (xdr_round_up(token_len) + sizeof(__be32) > len)
+	if (token_len > len ||
+	    xdr_round_up(token_len) + sizeof(__be32) > len)
 		goto short_packet;
 
 	trace_rxrpc_rx_response(conn, sp->hdr.serial, 0, sp->hdr.cksum, token_len);
@@ -1223,7 +1228,7 @@ static int rxgk_verify_response(struct rxrpc_connection *conn,
 
 	auth_offset	= offset;
 	auth_len	= ntohl(xauth_len);
-	if (auth_len < len)
+	if (auth_len > len)
 		goto short_packet;
 	if (auth_len & 3)
 		goto inconsistent;
@@ -1268,16 +1273,18 @@ static int rxgk_verify_response(struct rxrpc_connection *conn,
 	if (ret < 0) {
 		rxrpc_abort_conn(conn, skb, RXGK_SEALEDINCON, ret,
 				 rxgk_abort_resp_auth_dec);
-		goto out;
+		goto out_gk;
 	}
 
 	ret = rxgk_verify_authenticator(conn, krb5, skb, auth_offset, auth_len);
 	if (ret < 0)
-		goto out;
+		goto out_gk;
 
 	conn->key = key;
 	key = NULL;
 	ret = 0;
+out_gk:
+	rxgk_put(gk);
 out:
 	key_put(key);
 	_leave(" = %d", ret);
