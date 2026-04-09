@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/dma-direct.h>
 #include <linux/dma-map-ops.h>
+#include <linux/generic_pt/iommu.h>
 #include <linux/gfp.h>
 #include <linux/huge_mm.h>
 #include <linux/iommu.h>
@@ -648,6 +649,15 @@ static void iommu_dma_init_options(struct iommu_dma_options *options,
 	}
 }
 
+static bool iommu_domain_supports_fq(struct device *dev,
+				     struct iommu_domain *domain)
+{
+	/* iommupt always supports DMA-FQ */
+	if (iommupt_from_domain(domain))
+		return true;
+	return device_iommu_capable(dev, IOMMU_CAP_DEFERRED_FLUSH);
+}
+
 /**
  * iommu_dma_init_domain - Initialise a DMA mapping domain
  * @domain: IOMMU domain previously prepared by iommu_get_dma_cookie()
@@ -706,7 +716,8 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, struct device *dev
 
 	/* If the FQ fails we can simply fall back to strict mode */
 	if (domain->type == IOMMU_DOMAIN_DMA_FQ &&
-	    (!device_iommu_capable(dev, IOMMU_CAP_DEFERRED_FLUSH) || iommu_dma_init_fq(domain)))
+	    (!iommu_domain_supports_fq(dev, domain) ||
+	     iommu_dma_init_fq(domain)))
 		domain->type = IOMMU_DOMAIN_DMA;
 
 	return iova_reserve_iommu_regions(dev, domain);

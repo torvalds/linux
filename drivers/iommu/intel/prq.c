@@ -81,8 +81,8 @@ void intel_iommu_drain_pasid_prq(struct device *dev, u32 pasid)
 	 */
 prq_retry:
 	reinit_completion(&iommu->prq_complete);
-	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
-	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	while (head != tail) {
 		struct page_req_dsc *req;
 
@@ -113,7 +113,7 @@ prq_retry:
 		qi_desc_dev_iotlb(sid, info->pfsid, info->ats_qdep, 0,
 				  MAX_AGAW_PFN_WIDTH, &desc[2]);
 	} else {
-		qi_desc_piotlb(did, pasid, 0, -1, 0, &desc[1]);
+		qi_desc_piotlb_all(did, pasid, &desc[1]);
 		qi_desc_dev_iotlb_pasid(sid, info->pfsid, pasid, info->ats_qdep,
 					0, MAX_AGAW_PFN_WIDTH, &desc[2]);
 	}
@@ -208,8 +208,8 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	 */
 	writel(DMA_PRS_PPR, iommu->reg + DMAR_PRS_REG);
 
-	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
-	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
 	handled = (head != tail);
 	while (head != tail) {
 		req = &iommu->prq[head / sizeof(*req)];
@@ -259,7 +259,7 @@ prq_advance:
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
 	}
 
-	dmar_writeq(iommu->reg + DMAR_PQH_REG, tail);
+	writeq(tail, iommu->reg + DMAR_PQH_REG);
 
 	/*
 	 * Clear the page request overflow bit and wake up all threads that
@@ -268,8 +268,8 @@ prq_advance:
 	if (readl(iommu->reg + DMAR_PRS_REG) & DMA_PRS_PRO) {
 		pr_info_ratelimited("IOMMU: %s: PRQ overflow detected\n",
 				    iommu->name);
-		head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
-		tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+		head = readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+		tail = readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
 		if (head == tail) {
 			iopf_queue_discard_partial(iommu->iopf_queue);
 			writel(DMA_PRS_PRO, iommu->reg + DMAR_PRS_REG);
@@ -325,9 +325,9 @@ int intel_iommu_enable_prq(struct intel_iommu *iommu)
 		       iommu->name);
 		goto free_iopfq;
 	}
-	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
-	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
-	dmar_writeq(iommu->reg + DMAR_PQA_REG, virt_to_phys(iommu->prq) | PRQ_ORDER);
+	writeq(0ULL, iommu->reg + DMAR_PQH_REG);
+	writeq(0ULL, iommu->reg + DMAR_PQT_REG);
+	writeq(virt_to_phys(iommu->prq) | PRQ_ORDER, iommu->reg + DMAR_PQA_REG);
 
 	init_completion(&iommu->prq_complete);
 
@@ -348,9 +348,9 @@ free_prq:
 
 int intel_iommu_finish_prq(struct intel_iommu *iommu)
 {
-	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
-	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
-	dmar_writeq(iommu->reg + DMAR_PQA_REG, 0ULL);
+	writeq(0ULL, iommu->reg + DMAR_PQH_REG);
+	writeq(0ULL, iommu->reg + DMAR_PQT_REG);
+	writeq(0ULL, iommu->reg + DMAR_PQA_REG);
 
 	if (iommu->pr_irq) {
 		free_irq(iommu->pr_irq, iommu);

@@ -569,6 +569,28 @@ static inline unsigned int pt_compute_best_pgsize(pt_vaddr_t pgsz_bitmap,
 	return pgsz_lg2;
 }
 
+/*
+ * Return the number of pgsize_lg2 leaf entries that can be mapped for
+ * va to oa. This accounts for any requirement to reduce or increase the page
+ * size across the VA range.
+ */
+static inline pt_vaddr_t pt_pgsz_count(pt_vaddr_t pgsz_bitmap, pt_vaddr_t va,
+				       pt_vaddr_t last_va, pt_oaddr_t oa,
+				       unsigned int pgsize_lg2)
+{
+	pt_vaddr_t len = last_va - va + 1;
+	pt_vaddr_t next_pgsizes = log2_set_mod(pgsz_bitmap, 0, pgsize_lg2 + 1);
+
+	if (next_pgsizes) {
+		unsigned int next_pgsize_lg2 = vaffs(next_pgsizes);
+
+		if (log2_mod(va ^ oa, next_pgsize_lg2) == 0)
+			len = min(len, log2_set_mod_max(va, next_pgsize_lg2) -
+					       va + 1);
+	}
+	return log2_div(len, pgsize_lg2);
+}
+
 #define _PT_MAKE_CALL_LEVEL(fn)                                          \
 	static __always_inline int fn(struct pt_range *range, void *arg, \
 				      unsigned int level,                \

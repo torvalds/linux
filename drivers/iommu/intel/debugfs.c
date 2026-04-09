@@ -133,13 +133,13 @@ static int iommu_regset_show(struct seq_file *m, void *unused)
 		 */
 		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 		for (i = 0 ; i < ARRAY_SIZE(iommu_regs_32); i++) {
-			value = dmar_readl(iommu->reg + iommu_regs_32[i].offset);
+			value = readl(iommu->reg + iommu_regs_32[i].offset);
 			seq_printf(m, "%-16s\t0x%02x\t\t0x%016llx\n",
 				   iommu_regs_32[i].regs, iommu_regs_32[i].offset,
 				   value);
 		}
 		for (i = 0 ; i < ARRAY_SIZE(iommu_regs_64); i++) {
-			value = dmar_readq(iommu->reg + iommu_regs_64[i].offset);
+			value = readq(iommu->reg + iommu_regs_64[i].offset);
 			seq_printf(m, "%-16s\t0x%02x\t\t0x%016llx\n",
 				   iommu_regs_64[i].regs, iommu_regs_64[i].offset,
 				   value);
@@ -247,7 +247,7 @@ static void ctx_tbl_walk(struct seq_file *m, struct intel_iommu *iommu, u16 bus)
 		tbl_wlk.ctx_entry = context;
 		m->private = &tbl_wlk;
 
-		if (dmar_readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT) {
+		if (readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT) {
 			pasid_dir_ptr = context->lo & VTD_PAGE_MASK;
 			pasid_dir_size = get_pasid_dir_size(context);
 			pasid_dir_walk(m, pasid_dir_ptr, pasid_dir_size);
@@ -285,7 +285,7 @@ static int dmar_translation_struct_show(struct seq_file *m, void *unused)
 
 	rcu_read_lock();
 	for_each_active_iommu(iommu, drhd) {
-		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
+		sts = readl(iommu->reg + DMAR_GSTS_REG);
 		if (!(sts & DMA_GSTS_TES)) {
 			seq_printf(m, "DMA Remapping is not enabled on %s\n",
 				   iommu->name);
@@ -364,13 +364,13 @@ static int domain_translation_struct_show(struct seq_file *m,
 		if (seg != iommu->segment)
 			continue;
 
-		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
+		sts = readl(iommu->reg + DMAR_GSTS_REG);
 		if (!(sts & DMA_GSTS_TES)) {
 			seq_printf(m, "DMA Remapping is not enabled on %s\n",
 				   iommu->name);
 			continue;
 		}
-		if (dmar_readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT)
+		if (readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT)
 			scalable = true;
 		else
 			scalable = false;
@@ -538,8 +538,8 @@ static int invalidation_queue_show(struct seq_file *m, void *unused)
 		raw_spin_lock_irqsave(&qi->q_lock, flags);
 		seq_printf(m, " Base: 0x%llx\tHead: %lld\tTail: %lld\n",
 			   (u64)virt_to_phys(qi->desc),
-			   dmar_readq(iommu->reg + DMAR_IQH_REG) >> shift,
-			   dmar_readq(iommu->reg + DMAR_IQT_REG) >> shift);
+			   readq(iommu->reg + DMAR_IQH_REG) >> shift,
+			   readq(iommu->reg + DMAR_IQT_REG) >> shift);
 		invalidation_queue_entry_show(m, iommu);
 		raw_spin_unlock_irqrestore(&qi->q_lock, flags);
 		seq_putc(m, '\n');
@@ -620,7 +620,7 @@ static int ir_translation_struct_show(struct seq_file *m, void *unused)
 		seq_printf(m, "Remapped Interrupt supported on IOMMU: %s\n",
 			   iommu->name);
 
-		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
+		sts = readl(iommu->reg + DMAR_GSTS_REG);
 		if (iommu->ir_table && (sts & DMA_GSTS_IRES)) {
 			irta = virt_to_phys(iommu->ir_table->base);
 			seq_printf(m, " IR table address:%llx\n", irta);
