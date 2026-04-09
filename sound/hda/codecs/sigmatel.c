@@ -311,12 +311,12 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 
 	snd_hda_codec_write(codec, fg, 0,
 			    AC_VERB_SET_GPIO_MASK, gpiomask);
-	snd_hda_codec_read(codec, fg, 0,
+	snd_hda_codec_write_sync(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DIRECTION, gpiodir); /* sync */
 
 	msleep(1);
 
-	snd_hda_codec_read(codec, fg, 0,
+	snd_hda_codec_write_sync(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
