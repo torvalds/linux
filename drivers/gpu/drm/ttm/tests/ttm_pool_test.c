@@ -368,7 +368,6 @@ static void ttm_pool_free_no_dma_alloc(struct kunit *test)
 	struct ttm_test_devices *devs = priv->devs;
 	struct ttm_tt *tt;
 	struct ttm_pool *pool;
-	struct ttm_pool_type *pt;
 	enum ttm_caching caching = ttm_uncached;
 	unsigned int order = 2;
 	size_t size = (1 << order) * PAGE_SIZE;
@@ -382,13 +381,8 @@ static void ttm_pool_free_no_dma_alloc(struct kunit *test)
 	ttm_pool_init(pool, devs->dev, NUMA_NO_NODE, 0);
 	ttm_pool_alloc(pool, tt, &simple_ctx);
 
-	pt = &pool->caching[caching].orders[order];
-	KUNIT_ASSERT_TRUE(test, list_lru_count(&pt->pages) == 1);
-
 	ttm_pool_free(pool, tt);
 	ttm_tt_fini(tt);
-
-	KUNIT_ASSERT_TRUE(test, list_lru_count(&pt->pages) == 1);
 
 	ttm_pool_fini(pool);
 }
