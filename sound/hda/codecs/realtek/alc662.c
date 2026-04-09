@@ -258,19 +258,11 @@ static void alc_fixup_headset_mode_alc668(struct hda_codec *codec,
 static void alc662_fixup_csl_amp(struct hda_codec *codec,
 				 const struct hda_fixup *fix, int action)
 {
-	struct alc_spec *spec = codec->spec;
-
-	switch (action) {
-	case HDA_FIXUP_ACT_PRE_PROBE:
-		spec->gpio_mask |= 0x03;
-		spec->gpio_dir |= 0x03;
-		break;
-	case HDA_FIXUP_ACT_INIT:
+	if (action == HDA_FIXUP_ACT_INIT) {
 		/* need to toggle GPIO to enable the amp */
-		alc_update_gpio_data(codec, 0x03, true);
+		snd_hda_codec_set_gpio(codec, 0x03, 0x03, 0x03, 0);
 		msleep(100);
-		alc_update_gpio_data(codec, 0x03, false);
-		break;
+		snd_hda_codec_set_gpio(codec, 0x03, 0x03, 0x00, 0);
 	}
 }
 
