@@ -269,7 +269,8 @@ static __init int x86_svm_init(void)
 		.emergency_disable_virtualization_cpu = x86_svm_emergency_disable_virtualization_cpu,
 	};
 
-	if (!cpu_feature_enabled(X86_FEATURE_SVM))
+	if (!cpu_feature_enabled(X86_FEATURE_SVM) ||
+	    cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT))
 		return -EOPNOTSUPP;
 
 	memcpy(&virt_ops, &svm_ops, sizeof(virt_ops));
