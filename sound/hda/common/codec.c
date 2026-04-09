@@ -4053,6 +4053,35 @@ void snd_hda_bus_reset_codecs(struct hda_bus *bus)
 }
 
 /**
+ * snd_hda_codec_set_gpio - Set up GPIO bits for AFG
+ * @codec: the HDA codec
+ * @mask: GPIO bitmask
+ * @dir: GPIO direction bits
+ * @data: GPIO data bits
+ * @delay: the delay in msec before writing GPIO data bits
+ */
+void snd_hda_codec_set_gpio(struct hda_codec *codec, unsigned int mask,
+			    unsigned int dir, unsigned int data,
+			    unsigned int delay)
+{
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_GPIO_MASK, mask);
+	if (delay) {
+		snd_hda_codec_write_sync(codec, codec->core.afg, 0,
+					 AC_VERB_SET_GPIO_DIRECTION, dir);
+		msleep(delay);
+		snd_hda_codec_write_sync(codec, codec->core.afg, 0,
+					 AC_VERB_SET_GPIO_DATA, data);
+	} else {
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+				    AC_VERB_SET_GPIO_DIRECTION, dir);
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+				    AC_VERB_SET_GPIO_DATA, data);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hda_codec_set_gpio);
+
+/**
  * snd_print_pcm_bits - Print the supported PCM fmt bits to the string buffer
  * @pcm: PCM caps bits
  * @buf: the string buffer to write
