@@ -146,3 +146,29 @@ did_interface_receive()
 		false
 	fi
 }
+
+# Return true if the given interface in the given namespace does NOT receive
+# traffic over a 1 second period.
+# Arguments:
+#   interface - The name of the interface.
+#   ip_address - The destination IP address.
+#   namespace - The name of the namespace that the interface is in.
+check_no_traffic()
+{
+	local interface="$1"
+	local ip_address="$2"
+	local namespace="$3"
+	local rc
+
+	save_tcpdump_outputs "${namespace}" "${interface}"
+	did_interface_receive "${interface}" "${ip_address}"
+	rc=$?
+
+	clear_tcpdump_outputs "${interface}"
+
+	if [[ "${rc}" -eq 0 ]]; then
+		return 1
+	else
+		return 0
+	fi
+}
