@@ -46,6 +46,7 @@
 #include "dml/dcn30/dcn30_fpu.h"
 
 #include "dcn10/dcn10_resource.h"
+#include "dio/dcn10/dcn10_dio.h"
 
 #include "link_service.h"
 
@@ -252,6 +253,33 @@ static const struct dcn20_vmid_shift vmid_shifts = {
 static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
+
+static const struct dcn_dio_registers dio_regs = {
+		DIO_REG_LIST_DCN10()
+};
+
+#define DIO_MASK_SH_LIST(mask_sh)\
+		HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+
+static const struct dcn_dio_shift dio_shift = {
+		DIO_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dcn_dio_mask dio_mask = {
+		DIO_MASK_SH_LIST(_MASK)
+};
+
+static struct dio *dcn302_dio_create(struct dc_context *ctx)
+{
+	struct dcn10_dio *dio10 = kzalloc_obj(struct dcn10_dio);
+
+	if (!dio10)
+		return NULL;
+
+	dcn10_dio_construct(dio10, ctx, &dio_regs, &dio_shift, &dio_mask);
+
+	return &dio10->base;
+}
 
 static struct hubbub *dcn302_hubbub_create(struct dc_context *ctx)
 {
@@ -1022,6 +1050,11 @@ static void dcn302_resource_destruct(struct resource_pool *pool)
 		pool->hubbub = NULL;
 	}
 
+	if (pool->dio != NULL) {
+		kfree(TO_DCN10_DIO(pool->dio));
+		pool->dio = NULL;
+	}
+
 	for (i = 0; i < pool->pipe_count; i++) {
 		if (pool->dpps[i] != NULL) {
 			kfree(TO_DCN20_DPP(pool->dpps[i]));
@@ -1369,6 +1402,14 @@ static bool dcn302_resource_construct(
 	if (pool->hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create hubbub!\n");
+		goto create_fail;
+	}
+
+	/* DIO */
+	pool->dio = dcn302_dio_create(ctx);
+	if (pool->dio == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dio!\n");
 		goto create_fail;
 	}
 

@@ -150,7 +150,7 @@ static void aplic_pm_remove(void *data)
 	struct device *dev = priv->dev;
 
 	list_del(&priv->head);
-	if (dev->pm_domain)
+	if (dev->pm_domain && dev->of_node)
 		dev_pm_genpd_remove_notifier(dev);
 }
 
@@ -165,7 +165,7 @@ static int aplic_pm_add(struct device *dev, struct aplic_priv *priv)
 
 	priv->saved_hw_regs.srcs = srcs;
 	list_add(&priv->head, &aplics);
-	if (dev->pm_domain) {
+	if (dev->pm_domain && dev->of_node) {
 		priv->genpd_nb.notifier_call = aplic_pm_notifier;
 		ret = dev_pm_genpd_add_notifier(dev, &priv->genpd_nb);
 		if (ret)

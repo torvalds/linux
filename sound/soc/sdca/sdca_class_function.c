@@ -198,6 +198,14 @@ static int class_function_component_probe(struct snd_soc_component *component)
 	return sdca_irq_populate(drv->function, component, core->irq_info);
 }
 
+static void class_function_component_remove(struct snd_soc_component *component)
+{
+	struct class_function_drv *drv = snd_soc_component_get_drvdata(component);
+	struct sdca_class_drv *core = drv->core;
+
+	sdca_irq_cleanup(component->dev, drv->function, core->irq_info);
+}
+
 static int class_function_set_jack(struct snd_soc_component *component,
 				   struct snd_soc_jack *jack, void *d)
 {
@@ -209,6 +217,7 @@ static int class_function_set_jack(struct snd_soc_component *component,
 
 static const struct snd_soc_component_driver class_function_component_drv = {
 	.probe			= class_function_component_probe,
+	.remove			= class_function_component_remove,
 	.endianness		= 1,
 };
 
@@ -402,6 +411,13 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	return 0;
 }
 
+static void class_function_remove(struct auxiliary_device *auxdev)
+{
+	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
+
+	sdca_irq_cleanup(drv->dev, drv->function, drv->core->irq_info);
+}
+
 static int class_function_runtime_suspend(struct device *dev)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
@@ -550,6 +566,7 @@ static struct auxiliary_driver class_function_drv = {
 	},
 
 	.probe		= class_function_probe,
+	.remove		= class_function_remove,
 	.id_table	= class_function_id_table
 };
 module_auxiliary_driver(class_function_drv);

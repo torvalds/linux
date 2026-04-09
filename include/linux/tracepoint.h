@@ -122,6 +122,22 @@ static inline bool tracepoint_is_faultable(struct tracepoint *tp)
 {
 	return tp->ext && tp->ext->faultable;
 }
+/*
+ * Run RCU callback with the appropriate grace period wait for non-faultable
+ * tracepoints, e.g., those used in atomic context.
+ */
+static inline void call_tracepoint_unregister_atomic(struct rcu_head *rcu, rcu_callback_t func)
+{
+	call_srcu(&tracepoint_srcu, rcu, func);
+}
+/*
+ * Run RCU callback with the appropriate grace period wait for faultable
+ * tracepoints, e.g., those used in syscall context.
+ */
+static inline void call_tracepoint_unregister_syscall(struct rcu_head *rcu, rcu_callback_t func)
+{
+	call_rcu_tasks_trace(rcu, func);
+}
 #else
 static inline void tracepoint_synchronize_unregister(void)
 { }
@@ -129,6 +145,10 @@ static inline bool tracepoint_is_faultable(struct tracepoint *tp)
 {
 	return false;
 }
+static inline void call_tracepoint_unregister_atomic(struct rcu_head *rcu, rcu_callback_t func)
+{  }
+static inline void call_tracepoint_unregister_syscall(struct rcu_head *rcu, rcu_callback_t func)
+{  }
 #endif
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
