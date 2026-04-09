@@ -46,6 +46,10 @@ enum nft_registers {
 };
 #define NFT_REG_MAX	(__NFT_REG_MAX - 1)
 
+#ifdef __KERNEL__
+#define NFT_REG32_MAX	NFT_REG32_15
+#endif
+
 #define NFT_REG_SIZE	16
 #define NFT_REG32_SIZE	4
 #define NFT_REG32_COUNT	(NFT_REG32_15 - NFT_REG32_00 + 1)
@@ -884,7 +888,7 @@ enum nft_exthdr_flags {
  * @NFT_EXTHDR_OP_TCPOPT: match against tcp options
  * @NFT_EXTHDR_OP_IPV4: match against ipv4 options
  * @NFT_EXTHDR_OP_SCTP: match against sctp chunks
- * @NFT_EXTHDR_OP_DCCP: match against dccp otions
+ * @NFT_EXTHDR_OP_DCCP: match against dccp options
  */
 enum nft_exthdr_op {
 	NFT_EXTHDR_OP_IPV6,

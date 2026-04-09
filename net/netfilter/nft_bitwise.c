@@ -125,9 +125,9 @@ void nft_bitwise_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {
-	[NFTA_BITWISE_SREG]	= { .type = NLA_U32 },
-	[NFTA_BITWISE_SREG2]	= { .type = NLA_U32 },
-	[NFTA_BITWISE_DREG]	= { .type = NLA_U32 },
+	[NFTA_BITWISE_SREG]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
+	[NFTA_BITWISE_SREG2]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
+	[NFTA_BITWISE_DREG]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_BITWISE_LEN]	= { .type = NLA_U32 },
 	[NFTA_BITWISE_MASK]	= { .type = NLA_NESTED },
 	[NFTA_BITWISE_XOR]	= { .type = NLA_NESTED },

@@ -12,9 +12,9 @@ struct nft_osf {
 };
 
 static const struct nla_policy nft_osf_policy[NFTA_OSF_MAX + 1] = {
-	[NFTA_OSF_DREG]		= { .type = NLA_U32 },
+	[NFTA_OSF_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_OSF_TTL]		= { .type = NLA_U8 },
-	[NFTA_OSF_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_OSF_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_OSF_F_VERSION),
 };
 
 static void nft_osf_eval(const struct nft_expr *expr, struct nft_regs *regs,

@@ -163,7 +163,7 @@ out_put_sk:
 
 static const struct nla_policy nft_socket_policy[NFTA_SOCKET_MAX + 1] = {
 	[NFTA_SOCKET_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
-	[NFTA_SOCKET_DREG]		= { .type = NLA_U32 },
+	[NFTA_SOCKET_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_SOCKET_LEVEL]		= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 

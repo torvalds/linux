@@ -17,8 +17,8 @@ struct nft_synproxy {
 
 static const struct nla_policy nft_synproxy_policy[NFTA_SYNPROXY_MAX + 1] = {
 	[NFTA_SYNPROXY_MSS]		= { .type = NLA_U16 },
-	[NFTA_SYNPROXY_WSCALE]		= { .type = NLA_U8 },
-	[NFTA_SYNPROXY_FLAGS]		= { .type = NLA_U32 },
+	[NFTA_SYNPROXY_WSCALE]		= NLA_POLICY_MAX(NLA_U8, TCP_MAX_WSCALE),
+	[NFTA_SYNPROXY_FLAGS]		= NLA_POLICY_MASK(NLA_BE32, NF_SYNPROXY_OPT_MASK),
 };
 
 static void nft_synproxy_tcp_options(struct synproxy_options *opts,

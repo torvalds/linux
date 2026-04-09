@@ -46,7 +46,7 @@ static inline void nft_quota_do_eval(struct nft_quota *priv,
 
 static const struct nla_policy nft_quota_policy[NFTA_QUOTA_MAX + 1] = {
 	[NFTA_QUOTA_BYTES]	= { .type = NLA_U64 },
-	[NFTA_QUOTA_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_QUOTA_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_QUOTA_F_INV),
 	[NFTA_QUOTA_CONSUMED]	= { .type = NLA_U64 },
 };
 

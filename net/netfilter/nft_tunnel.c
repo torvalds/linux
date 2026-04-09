@@ -67,8 +67,8 @@ static void nft_tunnel_get_eval(const struct nft_expr *expr,
 
 static const struct nla_policy nft_tunnel_policy[NFTA_TUNNEL_MAX + 1] = {
 	[NFTA_TUNNEL_KEY]	= NLA_POLICY_MAX(NLA_BE32, 255),
-	[NFTA_TUNNEL_DREG]	= { .type = NLA_U32 },
-	[NFTA_TUNNEL_MODE]	= NLA_POLICY_MAX(NLA_BE32, 255),
+	[NFTA_TUNNEL_DREG]	= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
+	[NFTA_TUNNEL_MODE]	= NLA_POLICY_MAX(NLA_BE32, NFT_TUNNEL_MODE_MAX),
 };
 
 static int nft_tunnel_get_init(const struct nft_ctx *ctx,
@@ -408,7 +408,7 @@ static const struct nla_policy nft_tunnel_key_policy[NFTA_TUNNEL_KEY_MAX + 1] = 
 	[NFTA_TUNNEL_KEY_IP]	= { .type = NLA_NESTED, },
 	[NFTA_TUNNEL_KEY_IP6]	= { .type = NLA_NESTED, },
 	[NFTA_TUNNEL_KEY_ID]	= { .type = NLA_U32, },
-	[NFTA_TUNNEL_KEY_FLAGS]	= { .type = NLA_U32, },
+	[NFTA_TUNNEL_KEY_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_TUNNEL_F_MASK),
 	[NFTA_TUNNEL_KEY_TOS]	= { .type = NLA_U8, },
 	[NFTA_TUNNEL_KEY_TTL]	= { .type = NLA_U8, },
 	[NFTA_TUNNEL_KEY_SPORT]	= { .type = NLA_U16, },

@@ -195,7 +195,7 @@ static void target_compat_from_user(struct xt_target *t, void *in, void *out)
 
 static const struct nla_policy nft_rule_compat_policy[NFTA_RULE_COMPAT_MAX + 1] = {
 	[NFTA_RULE_COMPAT_PROTO]	= { .type = NLA_U32 },
-	[NFTA_RULE_COMPAT_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_RULE_COMPAT_FLAGS]	= NLA_POLICY_MASK(NLA_BE32, NFT_RULE_COMPAT_F_MASK),
 };
 
 static int nft_parse_compat(const struct nlattr *attr, u16 *proto, bool *inv)

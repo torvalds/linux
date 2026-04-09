@@ -43,7 +43,7 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
-	[NFTA_NG_DREG]		= { .type = NLA_U32 },
+	[NFTA_NG_DREG]		= NLA_POLICY_MAX(NLA_BE32, NFT_REG32_MAX),
 	[NFTA_NG_MODULUS]	= { .type = NLA_U32 },
 	[NFTA_NG_TYPE]		= { .type = NLA_U32 },
 	[NFTA_NG_OFFSET]	= { .type = NLA_U32 },

@@ -19,8 +19,11 @@ struct tftphdr {
 #define TFTP_OPCODE_ACK		4
 #define TFTP_OPCODE_ERROR	5
 
-extern unsigned int (__rcu *nf_nat_tftp_hook)(struct sk_buff *skb,
-				        enum ip_conntrack_info ctinfo,
-				        struct nf_conntrack_expect *exp);
+typedef unsigned int
+nf_nat_tftp_hook_fn(struct sk_buff *skb,
+		    enum ip_conntrack_info ctinfo,
+		    struct nf_conntrack_expect *exp);
+
+extern nf_nat_tftp_hook_fn __rcu *nf_nat_tftp_hook;
 
 #endif /* _NF_CONNTRACK_TFTP_H */
