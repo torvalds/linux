@@ -173,7 +173,7 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 	 * the system.
 	 */
 	if (unlikely(!rpool)) {
-		pr_warn("Invalid device %p or rdma cgroup %p\n", cg, device);
+		pr_warn("Invalid device %p or rdma cgroup %p\n", device, cg);
 		return;
 	}
 
