@@ -189,6 +189,7 @@ struct handlers {
 	handler_fn exception_handlers[VECTOR_NUM];
 };
 
+void loongarch_vcpu_setup(struct kvm_vcpu *vcpu);
 void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector, handler_fn handler);
 

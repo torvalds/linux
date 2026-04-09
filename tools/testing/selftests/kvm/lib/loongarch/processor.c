@@ -5,6 +5,7 @@
 
 #include <asm/kvm.h>
 #include "kvm_util.h"
+#include "pmu.h"
 #include "processor.h"
 #include "ucall_common.h"
 
@@ -275,9 +276,10 @@ static void loongarch_set_csr(struct kvm_vcpu *vcpu, uint64_t id, uint64_t val)
 	__vcpu_set_reg(vcpu, csrid, val);
 }
 
-static void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
+void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	int width;
+	unsigned int cfg;
 	unsigned long val;
 	struct kvm_vm *vm = vcpu->vm;
 
@@ -289,6 +291,9 @@ static void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 	default:
 		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
+
+	cfg = read_cpucfg(LOONGARCH_CPUCFG6);
+	loongarch_set_cpucfg(vcpu, LOONGARCH_CPUCFG6, cfg);
 
 	/* kernel mode and page enable mode */
 	val = PLV_KERN | CSR_CRMD_PG;
