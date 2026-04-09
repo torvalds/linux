@@ -7,6 +7,7 @@
 #include <linux/errno.h>
 #include <asm/kvm_csr.h>
 #include <asm/kvm_vcpu.h>
+#include <asm/kvm_dmsintc.h>
 
 static unsigned int priority_to_irq[EXCCODE_INT_NUM] = {
 	[INT_TI]	= CPU_TIMER,
@@ -33,6 +34,7 @@ static int kvm_irq_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 		irq = priority_to_irq[priority];
 
 	if (kvm_guest_has_msgint(&vcpu->arch) && (priority == INT_AVEC)) {
+		dmsintc_inject_irq(vcpu);
 		set_gcsr_estat(irq);
 		return 1;
 	}

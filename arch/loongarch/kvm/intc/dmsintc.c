@@ -4,8 +4,82 @@
  */
 
 #include <linux/kvm_host.h>
+#include <asm/kvm_csr.h>
 #include <asm/kvm_dmsintc.h>
 #include <asm/kvm_vcpu.h>
+
+void dmsintc_inject_irq(struct kvm_vcpu *vcpu)
+{
+	unsigned int i;
+	unsigned long vector[4], old;
+	struct dmsintc_state *ds = &vcpu->arch.dmsintc_state;
+
+	if (!ds)
+		return;
+
+	for (i = 0; i < 4; i++) {
+		old = atomic64_read(&(ds->vector_map[i]));
+		if (old)
+			vector[i] = atomic64_xchg(&(ds->vector_map[i]), 0);
+	}
+
+	if (vector[0]) {
+		old = kvm_read_hw_gcsr(LOONGARCH_CSR_ISR0);
+		kvm_write_hw_gcsr(LOONGARCH_CSR_ISR0, vector[0] | old);
+	}
+
+	if (vector[1]) {
+		old = kvm_read_hw_gcsr(LOONGARCH_CSR_ISR1);
+		kvm_write_hw_gcsr(LOONGARCH_CSR_ISR1, vector[1] | old);
+	}
+
+	if (vector[2]) {
+		old = kvm_read_hw_gcsr(LOONGARCH_CSR_ISR2);
+		kvm_write_hw_gcsr(LOONGARCH_CSR_ISR2, vector[2] | old);
+	}
+
+	if (vector[3]) {
+		old = kvm_read_hw_gcsr(LOONGARCH_CSR_ISR3);
+		kvm_write_hw_gcsr(LOONGARCH_CSR_ISR3, vector[3] | old);
+	}
+}
+
+int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm,
+				struct kvm_vcpu *vcpu, u32 vector, int level)
+{
+	struct kvm_interrupt vcpu_irq;
+	struct dmsintc_state *ds = &vcpu->arch.dmsintc_state;
+
+	if (!level)
+		return 0;
+	if (!vcpu || vector >= 256)
+		return -EINVAL;
+	if (!ds)
+		return -ENODEV;
+
+	vcpu_irq.irq = INT_AVEC;
+	set_bit(vector, (unsigned long *)&ds->vector_map);
+	kvm_vcpu_ioctl_interrupt(vcpu, &vcpu_irq);
+	kvm_vcpu_kick(vcpu);
+
+	return 0;
+}
+
+int dmsintc_set_irq(struct kvm *kvm, u64 addr, int data, int level)
+{
+	unsigned int irq, cpu;
+	struct kvm_vcpu *vcpu;
+
+	irq = (addr >> AVEC_IRQ_SHIFT) & AVEC_IRQ_MASK;
+	cpu = (addr >> AVEC_CPU_SHIFT) & kvm->arch.dmsintc->cpu_mask;
+	if (cpu >= KVM_MAX_VCPUS)
+		return -EINVAL;
+	vcpu = kvm_get_vcpu_by_cpuid(kvm, cpu);
+	if (!vcpu)
+		return -EINVAL;
+
+	return dmsintc_deliver_msi_to_vcpu(kvm, vcpu, irq, level);
+}
 
 static int kvm_dmsintc_ctrl_access(struct kvm_device *dev,
 				   struct kvm_device_attr *attr, bool is_write)

@@ -20,5 +20,8 @@ struct dmsintc_state {
 };
 
 int kvm_loongarch_register_dmsintc_device(void);
+void dmsintc_inject_irq(struct kvm_vcpu *vcpu);
+int dmsintc_set_irq(struct kvm *kvm, u64 addr, int data, int level);
+int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 vector, int level);
 
 #endif
