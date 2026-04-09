@@ -544,11 +544,12 @@ EXPORT_SYMBOL(sock_queue_rcv_skb_reason);
 int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 		     const int nested, unsigned int trim_cap, bool refcounted)
 {
-	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	enum skb_drop_reason reason;
 	int rc = NET_RX_SUCCESS;
 	int err;
 
-	if (sk_filter_trim_cap(sk, skb, trim_cap, &reason))
+	reason = sk_filter_trim_cap(sk, skb, trim_cap);
+	if (reason)
 		goto discard_and_relse;
 
 	skb->dev = NULL;

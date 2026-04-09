@@ -1687,10 +1687,8 @@ static inline enum skb_drop_reason
 tcp_filter(struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = (const struct tcphdr *)skb->data;
-	enum skb_drop_reason reason;
 
-	sk_filter_trim_cap(sk, skb, __tcp_hdrlen(th), &reason);
-	return reason;
+	return sk_filter_trim_cap(sk, skb, __tcp_hdrlen(th));
 }
 
 void tcp_set_state(struct sock *sk, int state);
