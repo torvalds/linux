@@ -1296,11 +1296,9 @@ void ice_ptp_link_change(struct ice_pf *pf, bool linkup)
 	if (pf->hw.reset_ongoing)
 		return;
 
-	if (hw->mac_type == ICE_MAC_GENERIC_3K_E825) {
+	if (hw->mac_type == ICE_MAC_GENERIC_3K_E825 &&
+	    test_bit(ICE_FLAG_DPLL, pf->flags)) {
 		int pin, err;
-
-		if (!test_bit(ICE_FLAG_DPLL, pf->flags))
-			return;
 
 		mutex_lock(&pf->dplls.lock);
 		for (pin = 0; pin < ICE_SYNCE_CLK_NUM; pin++) {
@@ -1314,15 +1312,19 @@ void ice_ptp_link_change(struct ice_pf *pf, bool linkup)
 								port_num,
 								&active,
 								clk_pin);
-			if (WARN_ON_ONCE(err)) {
-				mutex_unlock(&pf->dplls.lock);
-				return;
+			if (err) {
+				dev_err_once(ice_pf_to_dev(pf),
+					     "Failed to read SyncE bypass mux for pin %d, err %d\n",
+					     pin, err);
+				break;
 			}
 
 			err = ice_tspll_cfg_synce_ethdiv_e825c(hw, clk_pin);
-			if (active && WARN_ON_ONCE(err)) {
-				mutex_unlock(&pf->dplls.lock);
-				return;
+			if (active && err) {
+				dev_err_once(ice_pf_to_dev(pf),
+					     "Failed to configure SyncE ETH divider for pin %d, err %d\n",
+					     pin, err);
+				break;
 			}
 		}
 		mutex_unlock(&pf->dplls.lock);
@@ -3080,7 +3082,13 @@ static int ice_ptp_setup_pf(struct ice_pf *pf)
 	struct ice_ptp *ctrl_ptp = ice_get_ctrl_ptp(pf);
 	struct ice_ptp *ptp = &pf->ptp;
 
-	if (WARN_ON(!ctrl_ptp) || pf->hw.mac_type == ICE_MAC_UNKNOWN)
+	if (!ctrl_ptp) {
+		dev_info(ice_pf_to_dev(pf),
+			 "PTP unavailable: no controlling PF\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (pf->hw.mac_type == ICE_MAC_UNKNOWN)
 		return -ENODEV;
 
 	INIT_LIST_HEAD(&ptp->port.list_node);
