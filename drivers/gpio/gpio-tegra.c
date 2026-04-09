@@ -698,7 +698,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	tgi = devm_kzalloc(&pdev->dev, sizeof(*tgi), GFP_KERNEL);
 	if (!tgi)
-		return -ENODEV;
+		return -ENOMEM;
 
 	tgi->soc = of_device_get_match_data(&pdev->dev);
 	tgi->dev = &pdev->dev;
