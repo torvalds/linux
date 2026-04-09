@@ -128,6 +128,17 @@
 #define  CSR_TLBREHI_PS_SHIFT		0
 #define  CSR_TLBREHI_PS			(0x3fUL << CSR_TLBREHI_PS_SHIFT)
 
+#define read_cpucfg(reg)			\
+({						\
+	register unsigned long __v;		\
+	__asm__ __volatile__(			\
+		"cpucfg %0, %1\n\t"		\
+		: "=r" (__v)			\
+		: "r" (reg)			\
+		: "memory");			\
+	 __v;					\
+})
+
 #define csr_read(csr)				\
 ({						\
 	register unsigned long __v;		\
