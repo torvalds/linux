@@ -1951,11 +1951,11 @@ static void vsock_update_buffer_size(struct vsock_sock *vsk,
 				     const struct vsock_transport *transport,
 				     u64 val)
 {
-	if (val > vsk->buffer_max_size)
-		val = vsk->buffer_max_size;
-
 	if (val < vsk->buffer_min_size)
 		val = vsk->buffer_min_size;
+
+	if (val > vsk->buffer_max_size)
+		val = vsk->buffer_max_size;
 
 	if (val != vsk->buffer_size &&
 	    transport && transport->notify_buffer_size)
