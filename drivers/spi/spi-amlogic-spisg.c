@@ -800,7 +800,7 @@ static int aml_spisg_probe(struct platform_device *pdev)
 		goto out_clk;
 	}
 
-	ret = devm_spi_register_controller(dev, ctlr);
+	ret = spi_register_controller(ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi controller registration failed\n");
 		goto out_clk;
@@ -822,6 +822,8 @@ out_clk:
 static void aml_spisg_remove(struct platform_device *pdev)
 {
 	struct spisg_device *spisg = platform_get_drvdata(pdev);
+
+	spi_unregister_controller(spisg->controller);
 
 	if (!pm_runtime_suspended(&pdev->dev)) {
 		pinctrl_pm_select_sleep_state(&spisg->pdev->dev);
