@@ -21,25 +21,6 @@
 #include <linux/cacheinfo.h>
 #include <acpi/processor.h>
 
-/*
- * The acpi_pptt_cache_v1 in actbl2.h, which is imported from acpica,
- * only contains the cache_id field rather than all the fields of the
- * Cache Type Structure. Use this alternative structure until it is
- * resolved in acpica.
- */
-struct acpi_pptt_cache_v1_full {
-	struct acpi_subtable_header header;
-	u16 reserved;
-	u32 flags;
-	u32 next_level_of_cache;
-	u32 size;
-	u32 number_of_sets;
-	u8 associativity;
-	u8 attributes;
-	u16 line_size;
-	u32 cache_id;
-} __packed;
-
 static struct acpi_subtable_header *fetch_pptt_subtable(struct acpi_table_header *table_hdr,
 							u32 pptt_ref)
 {
@@ -75,16 +56,16 @@ static struct acpi_pptt_cache *fetch_pptt_cache(struct acpi_table_header *table_
 	return (struct acpi_pptt_cache *)fetch_pptt_subtable(table_hdr, pptt_ref);
 }
 
-static struct acpi_pptt_cache_v1_full *upgrade_pptt_cache(struct acpi_pptt_cache *cache)
+static struct acpi_pptt_cache_v1 *upgrade_pptt_cache(struct acpi_pptt_cache *cache)
 {
-	if (cache->header.length < sizeof(struct acpi_pptt_cache_v1_full))
+	if (cache->header.length < sizeof(struct acpi_pptt_cache_v1))
 		return NULL;
 
 	/* No use for v1 if the only additional field is invalid */
 	if (!(cache->flags & ACPI_PPTT_CACHE_ID_VALID))
 		return NULL;
 
-	return (struct acpi_pptt_cache_v1_full *)cache;
+	return (struct acpi_pptt_cache_v1 *)cache;
 }
 
 static struct acpi_subtable_header *acpi_get_pptt_resource(struct acpi_table_header *table_hdr,
@@ -397,7 +378,7 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
 				    struct acpi_pptt_processor *cpu_node)
 {
-	struct acpi_pptt_cache_v1_full *found_cache_v1;
+	struct acpi_pptt_cache_v1 *found_cache_v1;
 
 	this_leaf->fw_token = cpu_node;
 	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
@@ -1000,7 +981,7 @@ int find_acpi_cache_level_from_id(u32 cache_id)
 
 			empty = true;
 			for (int i = 0; i < ARRAY_SIZE(cache_type); i++) {
-				struct acpi_pptt_cache_v1_full *cache_v1;
+				struct acpi_pptt_cache_v1 *cache_v1;
 
 				cache = acpi_find_cache_node(table, acpi_cpu_id, cache_type[i],
 							     level, &cpu_node);
@@ -1067,7 +1048,7 @@ int acpi_pptt_get_cpumask_from_cache_id(u32 cache_id, cpumask_t *cpus)
 
 			empty = true;
 			for (int i = 0; i < ARRAY_SIZE(cache_type); i++) {
-				struct acpi_pptt_cache_v1_full *cache_v1;
+				struct acpi_pptt_cache_v1 *cache_v1;
 
 				cache = acpi_find_cache_node(table, acpi_cpu_id, cache_type[i],
 							     level, &cpu_node);
