@@ -99,15 +99,6 @@ void alc_setup_gpio(struct hda_codec *codec, unsigned int mask)
 }
 EXPORT_SYMBOL_NS_GPL(alc_setup_gpio, "SND_HDA_CODEC_REALTEK");
 
-void alc_write_gpio_data(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
-			    spec->gpio_data);
-}
-EXPORT_SYMBOL_NS_GPL(alc_write_gpio_data, "SND_HDA_CODEC_REALTEK");
-
 void alc_update_gpio_data(struct hda_codec *codec, unsigned int mask,
 			  bool on)
 {
@@ -119,7 +110,8 @@ void alc_update_gpio_data(struct hda_codec *codec, unsigned int mask,
 	else
 		spec->gpio_data &= ~mask;
 	if (oldval != spec->gpio_data)
-		alc_write_gpio_data(codec);
+		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+				    spec->gpio_data);
 }
 EXPORT_SYMBOL_NS_GPL(alc_update_gpio_data, "SND_HDA_CODEC_REALTEK");
 
