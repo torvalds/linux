@@ -125,10 +125,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"PNP0401"},		/* ECP Printer Port */
 	/* apple-gmux */
 	{"APP000B"},
-	/* rtc_cmos */
-	{"PNP0b00"},
-	{"PNP0b01"},
-	{"PNP0b02"},
 	/* c6xdigio */
 	{"PNP0400"},		/* Standard LPT Printer Port */
 	{"PNP0401"},		/* ECP Printer Port */
@@ -355,25 +351,9 @@ static struct acpi_scan_handler acpi_pnp_handler = {
 	.attach = acpi_pnp_attach,
 };
 
-/*
- * For CMOS RTC devices, the PNP ACPI scan handler does not work, because
- * there is a CMOS RTC ACPI scan handler installed already, so we need to
- * check those devices and enumerate them to the PNP bus directly.
- */
-static int is_cmos_rtc_device(struct acpi_device *adev)
-{
-	static const struct acpi_device_id ids[] = {
-		{ "PNP0B00" },
-		{ "PNP0B01" },
-		{ "PNP0B02" },
-		{""},
-	};
-	return !acpi_match_device_ids(adev, ids);
-}
-
 bool acpi_is_pnp_device(struct acpi_device *adev)
 {
-	return adev->handler == &acpi_pnp_handler || is_cmos_rtc_device(adev);
+	return adev->handler == &acpi_pnp_handler;
 }
 EXPORT_SYMBOL_GPL(acpi_is_pnp_device);
 
