@@ -5287,7 +5287,7 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 	unsigned long i;
 	int ret;
 
-	for (i = 0; i < nr_pages; ) {
+	for (i = 0; i < nr_pages; i++) {
 		unsigned long pfn = page_to_pfn(pages[i]);
 		unsigned long start = i;
 		struct ublk_buf_range *range;
@@ -5296,7 +5296,6 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 		while (i + 1 < nr_pages &&
 		       page_to_pfn(pages[i + 1]) == pfn + (i - start) + 1)
 			i++;
-		i++;	/* past the last page in this run */
 
 		range = kzalloc(sizeof(*range), GFP_KERNEL);
 		if (!range) {
@@ -5308,7 +5307,7 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 		range->base_offset = start << PAGE_SHIFT;
 
 		ret = mtree_insert_range(&ub->buf_tree, pfn,
-					 pfn + (i - start) - 1,
+					 pfn + (i - start),
 					 range, GFP_KERNEL);
 		if (ret) {
 			kfree(range);
