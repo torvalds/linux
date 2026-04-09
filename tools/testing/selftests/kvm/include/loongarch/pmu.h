@@ -29,6 +29,7 @@
 #define  CSR_PERFCTRL_PLV1			BIT(17)
 #define  CSR_PERFCTRL_PLV2			BIT(18)
 #define  CSR_PERFCTRL_PLV3			BIT(19)
+#define  CSR_PERFCTRL_PMIE			BIT(20)
 #define PMU_ENVENT_ENABLED	(CSR_PERFCTRL_PLV0 | CSR_PERFCTRL_PLV1 | CSR_PERFCTRL_PLV2 | CSR_PERFCTRL_PLV3)
 
 /* Hardware event codes (from LoongArch perf_event.c */
@@ -41,5 +42,25 @@
 #define EXPECTED_INSTR_MIN                      (NUM_LOOPS + 10)  /* Loop + overhead */
 #define EXPECTED_CYCLES_MIN                     NUM_LOOPS       /* At least 1 cycle per iteration */
 #define UPPER_BOUND				(10 * NUM_LOOPS)
+
+#define PMU_OVERFLOW				(1ULL << 63)
+
+static inline void pmu_irq_enable(void)
+{
+	unsigned long val;
+
+	val = csr_read(LOONGARCH_CSR_ECFG);
+	val |= ECFGF_PMU;
+	csr_write(val, LOONGARCH_CSR_ECFG);
+}
+
+static inline void pmu_irq_disable(void)
+{
+	unsigned long val;
+
+	val = csr_read(LOONGARCH_CSR_ECFG);
+	val &= ~ECFGF_PMU;
+	csr_write(val, LOONGARCH_CSR_ECFG);
+}
 
 #endif

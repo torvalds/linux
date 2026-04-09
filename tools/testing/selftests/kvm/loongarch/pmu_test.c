@@ -10,6 +10,8 @@
 #include "pmu.h"
 #include "loongarch/processor.h"
 
+static int pmu_irq_count;
+
 /* Check PMU support */
 static bool has_pmu_support(void)
 {
@@ -99,9 +101,40 @@ static void guest_pmu_base_test(void)
 	GUEST_ASSERT(cnt[3] > 0 && cnt[3] < UPPER_BOUND);
 }
 
+static void guest_irq_handler(struct ex_regs *regs)
+{
+	unsigned int intid;
+
+	pmu_irq_disable();
+	intid = !!(regs->estat & BIT(INT_PMI));
+	GUEST_ASSERT_EQ(intid, 1);
+	GUEST_PRINTF("Get PMU interrupt\n");
+	WRITE_ONCE(pmu_irq_count, pmu_irq_count + 1);
+}
+
+static void guest_pmu_interrupt_test(void)
+{
+	uint64_t cnt;
+
+	csr_write(PMU_OVERFLOW - 1, LOONGARCH_CSR_PERFCNTR0);
+	csr_write(PMU_ENVENT_ENABLED | CSR_PERFCTRL_PMIE | LOONGARCH_PMU_EVENT_CYCLES, LOONGARCH_CSR_PERFCTRL0);
+
+	cpu_relax();
+
+	GUEST_ASSERT_EQ(pmu_irq_count, 1);
+	cnt = csr_read(LOONGARCH_CSR_PERFCNTR0);
+	GUEST_PRINTF("csr_perfcntr0 is %lx\n", cnt);
+	GUEST_PRINTF("PMU interrupt test success\n");
+
+}
+
 static void guest_code(void)
 {
 	guest_pmu_base_test();
+
+	pmu_irq_enable();
+	local_irq_enable();
+	guest_pmu_interrupt_test();
 
 	GUEST_DONE();
 }
@@ -128,8 +161,11 @@ int main(int argc, char *argv[])
 	vm = vm_create(VM_MODE_P47V47_16K);
 	vcpu = vm_vcpu_add(vm, 0, guest_code);
 
+	pmu_irq_count = 0;
 	vm_init_descriptor_tables(vm);
 	loongarch_vcpu_setup(vcpu);
+	vm_install_exception_handler(vm, EXCCODE_INT, guest_irq_handler);
+	sync_global_to_guest(vm, pmu_irq_count);
 
 	attr.group = KVM_LOONGARCH_VM_FEAT_CTRL,
 	attr.attr = KVM_LOONGARCH_VM_FEAT_PMU,
