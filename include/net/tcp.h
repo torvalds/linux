@@ -1683,12 +1683,14 @@ static inline bool tcp_checksum_complete(struct sk_buff *skb)
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb,
 		     enum skb_drop_reason *reason);
 
-static inline int tcp_filter(struct sock *sk, struct sk_buff *skb,
-			     enum skb_drop_reason *reason)
+static inline enum skb_drop_reason
+tcp_filter(struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = (const struct tcphdr *)skb->data;
+	enum skb_drop_reason reason;
 
-	return sk_filter_trim_cap(sk, skb, __tcp_hdrlen(th), reason);
+	sk_filter_trim_cap(sk, skb, __tcp_hdrlen(th), &reason);
+	return reason;
 }
 
 void tcp_set_state(struct sock *sk, int state);
