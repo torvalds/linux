@@ -492,8 +492,8 @@ The ``UBLK_F_SHMEM_ZC`` feature provides an alternative zero-copy path
 that works by sharing physical memory pages between the client application
 and the ublk server. Unlike the io_uring fixed buffer approach above,
 shared memory zero copy does not require io_uring buffer registration
-per I/O — instead, it relies on the kernel matching page frame numbers
-(PFNs) at I/O time. This allows the ublk server to access the shared
+per I/O — instead, it relies on the kernel matching physical pages
+at I/O time. This allows the ublk server to access the shared
 buffer directly, which is unlikely for the io_uring fixed buffer
 approach.
 
@@ -507,8 +507,7 @@ tells the server where the data already lives.
 
 ``UBLK_F_SHMEM_ZC`` can be thought of as a supplement for optimized client
 applications — when the client is willing to allocate I/O buffers from
-shared memory, the entire data path becomes zero-copy without any per-I/O
-overhead.
+shared memory, the entire data path becomes zero-copy.
 
 Use Cases
 ~~~~~~~~~
@@ -584,6 +583,9 @@ Limitations
   the page cache, which allocates its own pages. These kernel-allocated
   pages will never match the registered shared buffer. Only ``O_DIRECT``
   puts the client's buffer pages directly into the block I/O.
+- **Contiguous data only**: each I/O request's data must be contiguous
+  within a single registered buffer. Scatter/gather I/O that spans
+  multiple non-adjacent registered buffers cannot use the zero-copy path.
 
 Control Commands
 ~~~~~~~~~~~~~~~~
