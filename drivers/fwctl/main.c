@@ -415,7 +415,7 @@ static void __exit fwctl_exit(void)
 	unregister_chrdev_region(fwctl_dev, FWCTL_MAX_DEVICES);
 }
 
-module_init(fwctl_init);
+subsys_initcall(fwctl_init);
 module_exit(fwctl_exit);
 MODULE_DESCRIPTION("fwctl device firmware access framework");
 MODULE_LICENSE("GPL");
