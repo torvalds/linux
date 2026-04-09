@@ -555,7 +555,7 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_cleanup - Free all the individual IRQs for an SDCA Function
- * @sdev: Device pointer against which the sdca_interrupt_info was allocated.
+ * @dev: Device pointer against which the sdca_interrupt_info was allocated.
  * @function: Pointer to the SDCA Function.
  * @info: Pointer to the SDCA interrupt info for this device.
  *
