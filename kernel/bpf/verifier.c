@@ -15448,10 +15448,17 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_add(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->raw = ptr_reg->raw;
-		if (!known && reg_is_pkt_pointer(ptr_reg)) {
-			dst_reg->id = ++env->id_gen;
-			/* something was added to pkt_ptr, set range to zero */
-			memset(&dst_reg->raw, 0, sizeof(dst_reg->raw));
+		if (reg_is_pkt_pointer(ptr_reg)) {
+			if (!known)
+				dst_reg->id = ++env->id_gen;
+			/*
+			 * Clear range for unknown addends since we can't know
+			 * where the pkt pointer ended up. Also clear AT_PKT_END /
+			 * BEYOND_PKT_END from prior comparison as any pointer
+			 * arithmetic invalidates them.
+			 */
+			if (!known || dst_reg->range < 0)
+				memset(&dst_reg->raw, 0, sizeof(dst_reg->raw));
 		}
 		break;
 	case BPF_SUB:
@@ -15490,10 +15497,17 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_sub(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->raw = ptr_reg->raw;
-		if (!known && reg_is_pkt_pointer(ptr_reg)) {
-			dst_reg->id = ++env->id_gen;
-			/* something was added to pkt_ptr, set range to zero */
-			if (smin_val < 0)
+		if (reg_is_pkt_pointer(ptr_reg)) {
+			if (!known)
+				dst_reg->id = ++env->id_gen;
+			/*
+			 * Clear range if the subtrahend may be negative since
+			 * pkt pointer could move past its bounds. A positive
+			 * subtrahend moves it backwards keeping positive range
+			 * intact. Also clear AT_PKT_END / BEYOND_PKT_END from
+			 * prior comparison as arithmetic invalidates them.
+			 */
+			if ((!known && smin_val < 0) || dst_reg->range < 0)
 				memset(&dst_reg->raw, 0, sizeof(dst_reg->raw));
 		}
 		break;
