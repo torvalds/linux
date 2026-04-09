@@ -304,7 +304,6 @@ struct ublk_buf {
 
 /* Maple tree value: maps a PFN range to buffer location */
 struct ublk_buf_range {
-	unsigned long base_pfn;
 	unsigned short buf_index;
 	unsigned short flags;
 	unsigned int base_offset;	/* byte offset within buffer */
@@ -5306,7 +5305,6 @@ static int __ublk_ctrl_reg_buf(struct ublk_device *ub,
 		}
 		range->buf_index = index;
 		range->flags = flags;
-		range->base_pfn = pfn;
 		range->base_offset = start << PAGE_SHIFT;
 
 		ret = mtree_insert_range(&ub->buf_tree, pfn,
@@ -5451,8 +5449,8 @@ static void __ublk_ctrl_unreg_buf(struct ublk_device *ub,
 		if (range->buf_index != buf_index)
 			continue;
 
-		base = range->base_pfn;
-		nr = mas.last - mas.index + 1;
+		base = mas.index;
+		nr = mas.last - base + 1;
 		mas_erase(&mas);
 
 		for (off = 0; off < nr; ) {
@@ -5531,15 +5529,22 @@ static bool ublk_try_buf_match(struct ublk_device *ub,
 
 	rq_for_each_bvec(bv, rq, iter) {
 		unsigned long pfn = page_to_pfn(bv.bv_page);
+		unsigned long end_pfn = pfn +
+			((bv.bv_offset + bv.bv_len - 1) >> PAGE_SHIFT);
 		struct ublk_buf_range *range;
 		unsigned long off;
+		MA_STATE(mas, &ub->buf_tree, pfn, pfn);
 
-		range = mtree_load(&ub->buf_tree, pfn);
+		range = mas_walk(&mas);
 		if (!range)
 			return false;
 
+		/* verify all pages in this bvec fall within the range */
+		if (end_pfn > mas.last)
+			return false;
+
 		off = range->base_offset +
-			(pfn - range->base_pfn) * PAGE_SIZE + bv.bv_offset;
+			(pfn - mas.index) * PAGE_SIZE + bv.bv_offset;
 
 		if (first) {
 			/* Read-only buffer can't serve READ (kernel writes) */
