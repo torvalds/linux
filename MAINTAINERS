@@ -6717,7 +6717,7 @@ F:	include/linux/platform_data/cpuidle-exynos.h
 CPUIDLE DRIVER - ARM PSCI
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 M:	Sudeep Holla <sudeep.holla@kernel.org>
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
@@ -6725,7 +6725,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/linux-pm.git
 F:	drivers/cpuidle/cpuidle-psci.c
 
 CPUIDLE DRIVER - ARM PSCI PM DOMAIN
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
@@ -6734,7 +6734,7 @@ F:	drivers/cpuidle/cpuidle-psci-domain.c
 F:	drivers/cpuidle/cpuidle-psci.h
 
 CPUIDLE DRIVER - DT IDLE PM DOMAIN
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/linux-pm.git
@@ -10730,7 +10730,7 @@ F:	Documentation/devicetree/bindings/i2c/i2c-demux-pinctrl.yaml
 F:	drivers/i2c/muxes/i2c-demux-pinctrl.c
 
 GENERIC PM DOMAINS
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/power/power?domain*
@@ -18090,7 +18090,7 @@ F:	drivers/mmc/host/mmc_spi.c
 F:	include/linux/spi/mmc_spi.h
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/mmc.git
@@ -24696,7 +24696,7 @@ F:	drivers/media/i2c/imx415.c
 SONY MEMORYSTICK SUBSYSTEM
 M:	Maxim Levitsky <maximlevitsky@gmail.com>
 M:	Alex Dubov <oakad@yahoo.com>
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ulfh/mmc.git
@@ -27615,7 +27615,7 @@ F:	Documentation/fb/uvesafb.rst
 F:	drivers/video/fbdev/uvesafb.*
 
 Ux500 CLOCK DRIVERS
-M:	Ulf Hansson <ulf.hansson@linaro.org>
+M:	Ulf Hansson <ulfh@kernel.org>
 L:	linux-clk@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
