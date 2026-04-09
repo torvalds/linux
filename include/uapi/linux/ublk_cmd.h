@@ -89,8 +89,9 @@
 /* Parameter buffer for UBLK_U_CMD_REG_BUF, pointed to by ctrl_cmd.addr */
 struct ublk_shmem_buf_reg {
 	__u64	addr;	/* userspace virtual address of shared memory */
-	__u32	len;	/* buffer size in bytes (page-aligned, max 4GB) */
+	__u64	len;	/* buffer size in bytes, page-aligned, default max 4GB */
 	__u32	flags;
+	__u32	reserved;
 };
 
 /* Pin pages without FOLL_WRITE; usable with write-sealed memfd */

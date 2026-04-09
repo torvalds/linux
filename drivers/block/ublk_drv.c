@@ -63,6 +63,9 @@
 #define UBLK_CMD_REG_BUF	_IOC_NR(UBLK_U_CMD_REG_BUF)
 #define UBLK_CMD_UNREG_BUF	_IOC_NR(UBLK_U_CMD_UNREG_BUF)
 
+/* Default max shmem buffer size: 4GB (may be increased in future) */
+#define UBLK_SHMEM_BUF_SIZE_MAX	(1ULL << 32)
+
 #define UBLK_IO_REGISTER_IO_BUF		_IOC_NR(UBLK_U_IO_REGISTER_IO_BUF)
 #define UBLK_IO_UNREGISTER_IO_BUF	_IOC_NR(UBLK_U_IO_UNREGISTER_IO_BUF)
 
@@ -5351,11 +5354,15 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	if (buf_reg.flags & ~UBLK_SHMEM_BUF_READ_ONLY)
 		return -EINVAL;
 
+	if (buf_reg.reserved)
+		return -EINVAL;
+
 	addr = buf_reg.addr;
 	size = buf_reg.len;
 	nr_pages = size >> PAGE_SHIFT;
 
-	if (!size || !PAGE_ALIGNED(size) || !PAGE_ALIGNED(addr))
+	if (!size || size > UBLK_SHMEM_BUF_SIZE_MAX ||
+	    !PAGE_ALIGNED(size) || !PAGE_ALIGNED(addr))
 		return -EINVAL;
 
 	disk = ublk_get_disk(ub);
