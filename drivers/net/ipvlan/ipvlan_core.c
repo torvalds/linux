@@ -763,10 +763,16 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 	if (!ipvlan_external_frame(skb, port))
 		return RX_HANDLER_PASS;
 
-	nskb = skb_clone(skb, GFP_ATOMIC);
+	if (skb_queue_len_lockless(&port->backlog) >= IPVLAN_QBACKLOG_LIMIT)
+		nskb = NULL;
+	else
+		nskb = skb_clone(skb, GFP_ATOMIC);
+
 	if (nskb) {
 		ipvlan_skb_crossing_ns(nskb, NULL);
 		ipvlan_multicast_enqueue(port, nskb, false);
+	} else {
+		dev_core_stats_rx_dropped_inc(skb->dev);
 	}
 
 	return RX_HANDLER_PASS;
