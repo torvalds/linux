@@ -530,7 +530,7 @@ static bool cpu_supports_p2pdma(void)
 
 static const struct pci_p2pdma_whitelist_entry {
 	unsigned short vendor;
-	unsigned short device;
+	int device;
 	enum {
 		REQ_SAME_HOST_BRIDGE	= 1 << 0,
 	} flags;
@@ -601,8 +601,12 @@ static bool __host_bridge_whitelist(struct pci_host_bridge *host,
 	device = root->device;
 
 	for (entry = pci_p2pdma_whitelist; entry->vendor; entry++) {
-		if (vendor != entry->vendor || device != entry->device)
+		if (vendor != entry->vendor)
 			continue;
+
+		if (entry->device != PCI_ANY_ID && device != entry->device)
+			continue;
+
 		if (entry->flags & REQ_SAME_HOST_BRIDGE && !same_host_bridge)
 			return false;
 
