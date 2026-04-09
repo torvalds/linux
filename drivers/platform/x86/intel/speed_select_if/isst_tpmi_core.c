@@ -36,7 +36,7 @@
 
 /* Supported SST hardware version by this driver */
 #define ISST_MAJOR_VERSION	0
-#define ISST_MINOR_VERSION	2
+#define ISST_MINOR_VERSION	3
 
 /*
  * Used to indicate if value read from MMIO needs to get multiplied
@@ -1460,6 +1460,8 @@ static int isst_if_get_turbo_freq_info(void __user *argp)
 					    j * SST_TF_RATIO_0_WIDTH, SST_TF_RATIO_0_WIDTH,
 					    SST_MUL_FACTOR_FREQ)
 	}
+
+	memset(turbo_freq.bucket_core_counts, 0, sizeof(turbo_freq.bucket_core_counts));
 
 	if (feature_rev >= 2) {
 		bool has_tf_info_8 = false;
