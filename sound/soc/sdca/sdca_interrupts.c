@@ -630,13 +630,12 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA");
 static void irq_enable_flags(struct sdca_function_data *function,
 			     struct sdca_interrupt_info *info, bool early)
 {
-	struct sdca_interrupt *interrupt;
 	int i;
 
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
-		interrupt = &info->irqs[i];
+		struct sdca_interrupt *interrupt = &info->irqs[i];
 
-		if (!interrupt || interrupt->function != function)
+		if (!interrupt->irq || interrupt->function != function)
 			continue;
 
 		switch (SDCA_CTL_TYPE(interrupt->entity->type,
@@ -689,13 +688,12 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_enable, "SND_SOC_SDCA");
 void sdca_irq_disable(struct sdca_function_data *function,
 		      struct sdca_interrupt_info *info)
 {
-	struct sdca_interrupt *interrupt;
 	int i;
 
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
-		interrupt = &info->irqs[i];
+		struct sdca_interrupt *interrupt = &info->irqs[i];
 
-		if (!interrupt || interrupt->function != function)
+		if (!interrupt->irq || interrupt->function != function)
 			continue;
 
 		disable_irq(interrupt->irq);
