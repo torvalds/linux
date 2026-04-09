@@ -526,8 +526,8 @@ sock_queue_rcv_skb_reason(struct sock *sk, struct sk_buff *skb)
 	enum skb_drop_reason drop_reason;
 	int err;
 
-	err = sk_filter_reason(sk, skb, &drop_reason);
-	if (err)
+	drop_reason = sk_filter_reason(sk, skb);
+	if (drop_reason)
 		return drop_reason;
 
 	err = __sock_queue_rcv_skb(sk, skb);

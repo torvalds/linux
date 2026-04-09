@@ -1102,10 +1102,13 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 	return sk_filter_trim_cap(sk, skb, 1, &ignore_reason);
 }
 
-static inline int sk_filter_reason(struct sock *sk, struct sk_buff *skb,
-				   enum skb_drop_reason *reason)
+static inline enum skb_drop_reason
+sk_filter_reason(struct sock *sk, struct sk_buff *skb)
 {
-	return sk_filter_trim_cap(sk, skb, 1, reason);
+	enum skb_drop_reason drop_reason;
+
+	sk_filter_trim_cap(sk, skb, 1, &drop_reason);
+	return drop_reason;
 }
 
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err);
