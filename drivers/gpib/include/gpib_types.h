@@ -364,6 +364,14 @@ struct gpib_descriptor {
 	unsigned int pad;	/* primary gpib address */
 	int sad;	/* secondary gpib address (negative means disabled) */
 	atomic_t io_in_progress;
+	/*
+	 * Kernel-only reference count to prevent descriptor from being
+	 * freed while IO handlers hold a pointer to it.  Incremented
+	 * before each IO operation, decremented when done.  Unlike
+	 * io_in_progress, this cannot be modified from userspace via
+	 * general_ibstatus().
+	 */
+	atomic_t descriptor_busy;
 	unsigned is_board : 1;
 	unsigned autopoll_enabled : 1;
 };

@@ -191,6 +191,7 @@ SECTIONS
 			LOCK_TEXT
 			KPROBES_TEXT
 			HYPERVISOR_TEXT
+			STATIC_CALL_TEXT
 			*(.gnu.warning)
 	}
 

@@ -735,6 +735,7 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_dp_link_peer *peer;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(params->sta);
+	struct ath12k_dp_rx_tid *rx_tid;
 	struct ath12k_link_sta *arsta;
 	int vdev_id;
 	bool active;
@@ -770,7 +771,8 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 		return 0;
 	}
 
-	ret = ath12k_dp_arch_peer_rx_tid_reo_update(dp, peer, peer->dp_peer->rx_tid,
+	rx_tid = &peer->dp_peer->rx_tid[params->tid];
+	ret = ath12k_dp_arch_peer_rx_tid_reo_update(dp, peer, rx_tid,
 						    1, 0, false);
 	spin_unlock_bh(&dp->dp_lock);
 	if (ret) {

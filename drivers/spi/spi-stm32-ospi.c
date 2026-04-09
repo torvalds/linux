@@ -928,7 +928,7 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	dma_cfg.dst_addr = ospi->regs_phys_base + OSPI_DR;
 	ret = stm32_ospi_dma_setup(ospi, &dma_cfg);
 	if (ret)
-		return ret;
+		goto err_dma_free;
 
 	mutex_init(&ospi->lock);
 
@@ -965,19 +965,22 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	if (ret) {
 		/* Disable ospi */
 		writel_relaxed(0, ospi->regs_base + OSPI_CR);
-		goto err_pm_resume;
+		goto err_reset_control;
 	}
 
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
 
+err_reset_control:
+	reset_control_release(ospi->rstc);
 err_pm_resume:
 	pm_runtime_put_sync_suspend(ospi->dev);
 
 err_pm_enable:
 	pm_runtime_force_suspend(ospi->dev);
 	mutex_destroy(&ospi->lock);
+err_dma_free:
 	if (ospi->dma_chtx)
 		dma_release_channel(ospi->dma_chtx);
 	if (ospi->dma_chrx)
@@ -989,11 +992,8 @@ err_pm_enable:
 static void stm32_ospi_remove(struct platform_device *pdev)
 {
 	struct stm32_ospi *ospi = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = pm_runtime_resume_and_get(ospi->dev);
-	if (ret < 0)
-		return;
+	pm_runtime_resume_and_get(ospi->dev);
 
 	spi_unregister_controller(ospi->ctrl);
 	/* Disable ospi */

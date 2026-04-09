@@ -249,10 +249,10 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 	    topo_dev->node_props.gfx_target_version < 90000)
 		/* metadata_queue_size not supported on GFX7/GFX8 */
 		expected_queue_size =
-			properties->queue_size / 2;
+			PAGE_ALIGN(properties->queue_size / 2);
 	else
 		expected_queue_size =
-			properties->queue_size + properties->metadata_queue_size;
+			PAGE_ALIGN(properties->queue_size + properties->metadata_queue_size);
 
 	vm = drm_priv_to_vm(pdd->drm_priv);
 	err = amdgpu_bo_reserve(vm->root.bo, false);
@@ -492,10 +492,11 @@ void kfd_queue_ctx_save_restore_size(struct kfd_topology_device *dev)
 	cu_num = props->simd_count / props->simd_per_cu / NUM_XCC(dev->gpu->xcc_mask);
 	wave_num = get_num_waves(props, gfxv, cu_num);
 
-	wg_data_size = ALIGN(cu_num * WG_CONTEXT_DATA_SIZE_PER_CU(gfxv, props), PAGE_SIZE);
+	wg_data_size = ALIGN(cu_num * WG_CONTEXT_DATA_SIZE_PER_CU(gfxv, props),
+				AMDGPU_GPU_PAGE_SIZE);
 	ctl_stack_size = wave_num * CNTL_STACK_BYTES_PER_WAVE(gfxv) + 8;
 	ctl_stack_size = ALIGN(SIZEOF_HSA_USER_CONTEXT_SAVE_AREA_HEADER + ctl_stack_size,
-			       PAGE_SIZE);
+			       AMDGPU_GPU_PAGE_SIZE);
 
 	if ((gfxv / 10000 * 10000) == 100000) {
 		/* HW design limits control stack size to 0x7000.
@@ -507,7 +508,7 @@ void kfd_queue_ctx_save_restore_size(struct kfd_topology_device *dev)
 
 	props->ctl_stack_size = ctl_stack_size;
 	props->debug_memory_size = ALIGN(wave_num * DEBUGGER_BYTES_PER_WAVE, DEBUGGER_BYTES_ALIGN);
-	props->cwsr_size = ctl_stack_size + wg_data_size;
+	props->cwsr_size = ALIGN(ctl_stack_size + wg_data_size, PAGE_SIZE);
 
 	if (gfxv == 80002)	/* GFX_VERSION_TONGA */
 		props->eop_buffer_size = 0x8000;

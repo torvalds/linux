@@ -178,9 +178,17 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		return -EBUSY;
 
 	ret = io_parse_restrictions(arg, nr_args, &ctx->restrictions);
-	/* Reset all restrictions if an error happened */
+	/*
+	 * Reset all restrictions if an error happened, but retain any COW'ed
+	 * settings.
+	 */
 	if (ret < 0) {
+		struct io_bpf_filters *bpf = ctx->restrictions.bpf_filters;
+		bool cowed = ctx->restrictions.bpf_filters_cow;
+
 		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
+		ctx->restrictions.bpf_filters = bpf;
+		ctx->restrictions.bpf_filters_cow = cowed;
 		return ret;
 	}
 	if (ctx->restrictions.op_registered)

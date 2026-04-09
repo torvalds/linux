@@ -609,6 +609,9 @@ struct cgroup {
 	/* used to wait for offlining of csses */
 	wait_queue_head_t offline_waitq;
 
+	/* used by cgroup_rmdir() to wait for dying tasks to leave */
+	wait_queue_head_t dying_populated_waitq;
+
 	/* used to schedule release agent */
 	struct work_struct release_agent_work;
 

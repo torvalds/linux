@@ -538,6 +538,8 @@ static void rmi_f54_work(struct work_struct *work)
 	int error;
 	int i;
 
+	mutex_lock(&f54->data_mutex);
+
 	report_size = rmi_f54_get_report_size(f54);
 	if (report_size == 0) {
 		dev_err(&fn->dev, "Bad report size, report type=%d\n",
@@ -545,8 +547,6 @@ static void rmi_f54_work(struct work_struct *work)
 		error = -EINVAL;
 		goto error;     /* retry won't help */
 	}
-
-	mutex_lock(&f54->data_mutex);
 
 	/*
 	 * Need to check if command has completed.
