@@ -538,7 +538,7 @@ static int bcmbca_hsspi_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "couldn't register sysfs group\n");
 
 	/* register and we are done */
-	ret = devm_spi_register_controller(dev, host);
+	ret = spi_register_controller(host);
 	if (ret)
 		goto out_sysgroup_disable;
 
@@ -555,6 +555,8 @@ static void bcmbca_hsspi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
 	struct bcmbca_hsspi *bs = spi_controller_get_devdata(host);
+
+	spi_unregister_controller(host);
 
 	/* reset the hardware and block queue progress */
 	__raw_writel(0, bs->regs + HSSPI_INT_MASK_REG);
