@@ -3308,6 +3308,18 @@ static int process_mem_topology(struct feat_fd *ff,
 	if (do_read_u64(ff, &nr))
 		return -1;
 
+	if (nr > MAX_NUMA_NODES) {
+		pr_err("Invalid HEADER_MEM_TOPOLOGY: nr_nodes (%llu) > %u\n",
+		       (unsigned long long)nr, MAX_NUMA_NODES);
+		return -1;
+	}
+
+	if (ff->size < 3 * sizeof(u64) + nr * 2 * sizeof(u64)) {
+		pr_err("Invalid HEADER_MEM_TOPOLOGY: section too small (%zu) for %llu nodes\n",
+		       ff->size, (unsigned long long)nr);
+		return -1;
+	}
+
 	nodes = calloc(nr, sizeof(*nodes));
 	if (!nodes)
 		return -1;
