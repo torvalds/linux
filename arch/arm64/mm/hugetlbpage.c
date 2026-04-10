@@ -181,7 +181,7 @@ static pte_t get_clear_contig_flush(struct mm_struct *mm,
 	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 	unsigned long end = addr + (pgsize * ncontig);
 
-	__flush_hugetlb_tlb_range(&vma, addr, end, pgsize, true);
+	__flush_hugetlb_tlb_range(&vma, addr, end, pgsize, TLBF_NOWALKCACHE);
 	return orig_pte;
 }
 
@@ -209,7 +209,7 @@ static void clear_flush(struct mm_struct *mm,
 	if (mm == &init_mm)
 		flush_tlb_kernel_range(saddr, addr);
 	else
-		__flush_hugetlb_tlb_range(&vma, saddr, addr, pgsize, true);
+		__flush_hugetlb_tlb_range(&vma, saddr, addr, pgsize, TLBF_NOWALKCACHE);
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -427,11 +427,11 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 	pte_t orig_pte;
 
 	VM_WARN_ON(!pte_present(pte));
+	ncontig = num_contig_ptes(huge_page_size(hstate_vma(vma)), &pgsize);
 
 	if (!pte_cont(pte))
-		return __ptep_set_access_flags(vma, addr, ptep, pte, dirty);
-
-	ncontig = num_contig_ptes(huge_page_size(hstate_vma(vma)), &pgsize);
+		return __ptep_set_access_flags_anysz(vma, addr, ptep, pte,
+						     dirty, pgsize);
 
 	if (!__cont_access_flags_changed(ptep, pte, ncontig))
 		return 0;

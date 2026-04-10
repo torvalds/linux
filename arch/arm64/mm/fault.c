@@ -204,12 +204,13 @@ static void show_pte(unsigned long addr)
  *
  * Returns whether or not the PTE actually changed.
  */
-int __ptep_set_access_flags(struct vm_area_struct *vma,
-			    unsigned long address, pte_t *ptep,
-			    pte_t entry, int dirty)
+int __ptep_set_access_flags_anysz(struct vm_area_struct *vma,
+				  unsigned long address, pte_t *ptep,
+				  pte_t entry, int dirty, unsigned long pgsize)
 {
 	pteval_t old_pteval, pteval;
 	pte_t pte = __ptep_get(ptep);
+	int level;
 
 	if (pte_same(pte, entry))
 		return 0;
@@ -238,8 +239,27 @@ int __ptep_set_access_flags(struct vm_area_struct *vma,
 	 * may still cause page faults and be invalidated via
 	 * flush_tlb_fix_spurious_fault().
 	 */
-	if (dirty)
-		local_flush_tlb_page(vma, address);
+	if (dirty) {
+		switch (pgsize) {
+		case PAGE_SIZE:
+			level = 3;
+			break;
+		case PMD_SIZE:
+			level = 2;
+			break;
+#ifndef __PAGETABLE_PMD_FOLDED
+		case PUD_SIZE:
+			level = 1;
+			break;
+#endif
+		default:
+			level = TLBI_TTL_UNKNOWN;
+			WARN_ON(1);
+		}
+
+		__flush_tlb_range(vma, address, address + pgsize, pgsize, level,
+				  TLBF_NOWALKCACHE | TLBF_NOBROADCAST);
+	}
 	return 1;
 }
 

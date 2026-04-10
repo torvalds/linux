@@ -252,12 +252,18 @@ static inline void mte_check_tfsr_entry(void)
 	if (!kasan_hw_tags_enabled())
 		return;
 
+	if (!system_uses_mte_async_or_asymm_mode())
+		return;
+
 	mte_check_tfsr_el1();
 }
 
 static inline void mte_check_tfsr_exit(void)
 {
 	if (!kasan_hw_tags_enabled())
+		return;
+
+	if (!system_uses_mte_async_or_asymm_mode())
 		return;
 
 	/*

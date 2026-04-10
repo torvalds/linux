@@ -97,24 +97,69 @@ static inline unsigned long get_trans_granule(void)
 
 #define TLBI_TTL_UNKNOWN	INT_MAX
 
-#define __tlbi_level(op, addr, level) do {				\
-	u64 arg = addr;							\
-									\
-	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) &&	\
-	    level >= 0 && level <= 3) {					\
-		u64 ttl = level & 3;					\
-		ttl |= get_trans_granule() << 2;			\
-		arg &= ~TLBI_TTL_MASK;					\
-		arg |= FIELD_PREP(TLBI_TTL_MASK, ttl);			\
-	}								\
-									\
-	__tlbi(op, arg);						\
-} while(0)
+typedef void (*tlbi_op)(u64 arg);
 
-#define __tlbi_user_level(op, arg, level) do {				\
-	if (arm64_kernel_unmapped_at_el0())				\
-		__tlbi_level(op, (arg | USER_ASID_FLAG), level);	\
-} while (0)
+static __always_inline void vae1is(u64 arg)
+{
+	__tlbi(vae1is, arg);
+	__tlbi_user(vae1is, arg);
+}
+
+static __always_inline void vae2is(u64 arg)
+{
+	__tlbi(vae2is, arg);
+}
+
+static __always_inline void vale1(u64 arg)
+{
+	__tlbi(vale1, arg);
+	__tlbi_user(vale1, arg);
+}
+
+static __always_inline void vale1is(u64 arg)
+{
+	__tlbi(vale1is, arg);
+	__tlbi_user(vale1is, arg);
+}
+
+static __always_inline void vale2is(u64 arg)
+{
+	__tlbi(vale2is, arg);
+}
+
+static __always_inline void vaale1is(u64 arg)
+{
+	__tlbi(vaale1is, arg);
+}
+
+static __always_inline void ipas2e1(u64 arg)
+{
+	__tlbi(ipas2e1, arg);
+}
+
+static __always_inline void ipas2e1is(u64 arg)
+{
+	__tlbi(ipas2e1is, arg);
+}
+
+static __always_inline void __tlbi_level_asid(tlbi_op op, u64 addr, u32 level,
+					      u16 asid)
+{
+	u64 arg = __TLBI_VADDR(addr, asid);
+
+	if (alternative_has_cap_unlikely(ARM64_HAS_ARMv8_4_TTL) && level <= 3) {
+		u64 ttl = level | (get_trans_granule() << 2);
+
+		FIELD_MODIFY(TLBI_TTL_MASK, &arg, ttl);
+	}
+
+	op(arg);
+}
+
+static inline void __tlbi_level(tlbi_op op, u64 addr, u32 level)
+{
+	__tlbi_level_asid(op, addr, level, 0);
+}
 
 /*
  * This macro creates a properly formatted VA operand for the TLB RANGE. The
@@ -141,19 +186,6 @@ static inline unsigned long get_trans_granule(void)
 #define TLBIR_TTL_MASK		GENMASK_ULL(38, 37)
 #define TLBIR_BADDR_MASK	GENMASK_ULL(36,  0)
 
-#define __TLBI_VADDR_RANGE(baddr, asid, scale, num, ttl)		\
-	({								\
-		unsigned long __ta = 0;					\
-		unsigned long __ttl = (ttl >= 1 && ttl <= 3) ? ttl : 0;	\
-		__ta |= FIELD_PREP(TLBIR_BADDR_MASK, baddr);		\
-		__ta |= FIELD_PREP(TLBIR_TTL_MASK, __ttl);		\
-		__ta |= FIELD_PREP(TLBIR_NUM_MASK, num);		\
-		__ta |= FIELD_PREP(TLBIR_SCALE_MASK, scale);		\
-		__ta |= FIELD_PREP(TLBIR_TG_MASK, get_trans_granule());	\
-		__ta |= FIELD_PREP(TLBIR_ASID_MASK, asid);		\
-		__ta;							\
-	})
-
 /* These macros are used by the TLBI RANGE feature. */
 #define __TLBI_RANGE_PAGES(num, scale)	\
 	((unsigned long)((num) + 1) << (5 * (scale) + 1))
@@ -167,11 +199,7 @@ static inline unsigned long get_trans_granule(void)
  * range.
  */
 #define __TLBI_RANGE_NUM(pages, scale)					\
-	({								\
-		int __pages = min((pages),				\
-				  __TLBI_RANGE_PAGES(31, (scale)));	\
-		(__pages >> (5 * (scale) + 1)) - 1;			\
-	})
+	(((pages) >> (5 * (scale) + 1)) - 1)
 
 #define __repeat_tlbi_sync(op, arg...)						\
 do {										\
@@ -241,10 +269,7 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *		unmapping pages from vmalloc/io space.
  *
  *	flush_tlb_page(vma, addr)
- *		Invalidate a single user mapping for address 'addr' in the
- *		address space corresponding to 'vma->mm'.  Note that this
- *		operation only invalidates a single, last-level page-table
- *		entry and therefore does not affect any walk-caches.
+ *		Equivalent to __flush_tlb_page(..., flags=TLBF_NONE)
  *
  *
  *	Next, we have some undocumented invalidation routines that you probably
@@ -258,30 +283,28 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *		CPUs, ensuring that any walk-cache entries associated with the
  *		translation are also invalidated.
  *
- *	__flush_tlb_range(vma, start, end, stride, last_level, tlb_level)
+ *	__flush_tlb_range(vma, start, end, stride, tlb_level, flags)
  *		Invalidate the virtual-address range '[start, end)' on all
  *		CPUs for the user address space corresponding to 'vma->mm'.
  *		The invalidation operations are issued at a granularity
- *		determined by 'stride' and only affect any walk-cache entries
- *		if 'last_level' is equal to false. tlb_level is the level at
+ *		determined by 'stride'. tlb_level is the level at
  *		which the invalidation must take place. If the level is wrong,
  *		no invalidation may take place. In the case where the level
  *		cannot be easily determined, the value TLBI_TTL_UNKNOWN will
- *		perform a non-hinted invalidation.
+ *		perform a non-hinted invalidation. flags may be TLBF_NONE (0) or
+ *		any combination of TLBF_NOWALKCACHE (elide eviction of walk
+ *		cache entries), TLBF_NONOTIFY (don't call mmu notifiers),
+ *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
+ *		(only perform the invalidation for the local cpu).
  *
- *	local_flush_tlb_page(vma, addr)
- *		Local variant of flush_tlb_page().  Stale TLB entries may
- *		remain in remote CPUs.
- *
- *	local_flush_tlb_page_nonotify(vma, addr)
- *		Same as local_flush_tlb_page() except MMU notifier will not be
- *		called.
- *
- *	local_flush_tlb_contpte(vma, addr)
- *		Invalidate the virtual-address range
- *		'[addr, addr+CONT_PTE_SIZE)' mapped with contpte on local CPU
- *		for the user address space corresponding to 'vma->mm'.  Stale
- *		TLB entries may remain in remote CPUs.
+ *	__flush_tlb_page(vma, addr, flags)
+ *		Invalidate a single user mapping for address 'addr' in the
+ *		address space corresponding to 'vma->mm'.  Note that this
+ *		operation only invalidates a single level 3 page-table entry
+ *		and therefore does not affect any walk-caches. flags may contain
+ *		any combination of TLBF_NONOTIFY (don't call mmu notifiers),
+ *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
+ *		(only perform the invalidation for the local cpu).
  *
  *	Finally, take a look at asm/tlb.h to see how tlb_flush() is implemented
  *	on top of these routines, since that is our interface to the mmu_gather
@@ -315,59 +338,6 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
 }
 
-static inline void __local_flush_tlb_page_nonotify_nosync(struct mm_struct *mm,
-							  unsigned long uaddr)
-{
-	unsigned long addr;
-
-	dsb(nshst);
-	addr = __TLBI_VADDR(uaddr, ASID(mm));
-	__tlbi(vale1, addr);
-	__tlbi_user(vale1, addr);
-}
-
-static inline void local_flush_tlb_page_nonotify(struct vm_area_struct *vma,
-						 unsigned long uaddr)
-{
-	__local_flush_tlb_page_nonotify_nosync(vma->vm_mm, uaddr);
-	dsb(nsh);
-}
-
-static inline void local_flush_tlb_page(struct vm_area_struct *vma,
-					unsigned long uaddr)
-{
-	__local_flush_tlb_page_nonotify_nosync(vma->vm_mm, uaddr);
-	mmu_notifier_arch_invalidate_secondary_tlbs(vma->vm_mm, uaddr & PAGE_MASK,
-						(uaddr & PAGE_MASK) + PAGE_SIZE);
-	dsb(nsh);
-}
-
-static inline void __flush_tlb_page_nosync(struct mm_struct *mm,
-					   unsigned long uaddr)
-{
-	unsigned long addr;
-
-	dsb(ishst);
-	addr = __TLBI_VADDR(uaddr, ASID(mm));
-	__tlbi(vale1is, addr);
-	__tlbi_user(vale1is, addr);
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, uaddr & PAGE_MASK,
-						(uaddr & PAGE_MASK) + PAGE_SIZE);
-}
-
-static inline void flush_tlb_page_nosync(struct vm_area_struct *vma,
-					 unsigned long uaddr)
-{
-	return __flush_tlb_page_nosync(vma->vm_mm, uaddr);
-}
-
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long uaddr)
-{
-	flush_tlb_page_nosync(vma, uaddr);
-	__tlbi_sync_s1ish();
-}
-
 static inline bool arch_tlbbatch_should_defer(struct mm_struct *mm)
 {
 	return true;
@@ -397,14 +367,13 @@ static inline void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 /*
  * __flush_tlb_range_op - Perform TLBI operation upon a range
  *
- * @op:	TLBI instruction that operates on a range (has 'r' prefix)
+ * @lop:	TLBI level operation to perform
+ * @rop:	TLBI range operation to perform
  * @start:	The start address of the range
  * @pages:	Range as the number of pages from 'start'
  * @stride:	Flush granularity
  * @asid:	The ASID of the task (0 for IPA instructions)
- * @tlb_level:	Translation Table level hint, if known
- * @tlbi_user:	If 'true', call an additional __tlbi_user()
- *              (typically for user ASIDs). 'flase' for IPA instructions
+ * @level:	Translation Table level hint, if known
  * @lpa2:	If 'true', the lpa2 scheme is used as set out below
  *
  * When the CPU does not support TLB range operations, flush the TLB
@@ -427,116 +396,181 @@ static inline void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
  *    operations can only span an even number of pages. We save this for last to
  *    ensure 64KB start alignment is maintained for the LPA2 case.
  */
-#define __flush_tlb_range_op(op, start, pages, stride,			\
-				asid, tlb_level, tlbi_user, lpa2)	\
-do {									\
-	typeof(start) __flush_start = start;				\
-	typeof(pages) __flush_pages = pages;				\
-	int num = 0;							\
-	int scale = 3;							\
-	int shift = lpa2 ? 16 : PAGE_SHIFT;				\
-	unsigned long addr;						\
-									\
-	while (__flush_pages > 0) {					\
-		if (!system_supports_tlb_range() ||			\
-		    __flush_pages == 1 ||				\
-		    (lpa2 && __flush_start != ALIGN(__flush_start, SZ_64K))) {	\
-			addr = __TLBI_VADDR(__flush_start, asid);	\
-			__tlbi_level(op, addr, tlb_level);		\
-			if (tlbi_user)					\
-				__tlbi_user_level(op, addr, tlb_level);	\
-			__flush_start += stride;			\
-			__flush_pages -= stride >> PAGE_SHIFT;		\
-			continue;					\
-		}							\
-									\
-		num = __TLBI_RANGE_NUM(__flush_pages, scale);		\
-		if (num >= 0) {						\
-			addr = __TLBI_VADDR_RANGE(__flush_start >> shift, asid, \
-						scale, num, tlb_level);	\
-			__tlbi(r##op, addr);				\
-			if (tlbi_user)					\
-				__tlbi_user(r##op, addr);		\
-			__flush_start += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT; \
-			__flush_pages -= __TLBI_RANGE_PAGES(num, scale);\
-		}							\
-		scale--;						\
-	}								\
-} while (0)
-
-#define __flush_s2_tlb_range_op(op, start, pages, stride, tlb_level) \
-	__flush_tlb_range_op(op, start, pages, stride, 0, tlb_level, false, kvm_lpa2_is_enabled());
-
-static inline bool __flush_tlb_range_limit_excess(unsigned long start,
-		unsigned long end, unsigned long pages, unsigned long stride)
+static __always_inline void rvae1is(u64 arg)
 {
-	/*
-	 * When the system does not support TLB range based flush
-	 * operation, (MAX_DVM_OPS - 1) pages can be handled. But
-	 * with TLB range based operation, MAX_TLBI_RANGE_PAGES
-	 * pages can be handled.
-	 */
-	if ((!system_supports_tlb_range() &&
-	     (end - start) >= (MAX_DVM_OPS * stride)) ||
-	    pages > MAX_TLBI_RANGE_PAGES)
-		return true;
-
-	return false;
+	__tlbi(rvae1is, arg);
+	__tlbi_user(rvae1is, arg);
 }
 
-static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
-				     unsigned long start, unsigned long end,
-				     unsigned long stride, bool last_level,
-				     int tlb_level)
+static __always_inline void rvale1(u64 arg)
 {
+	__tlbi(rvale1, arg);
+	__tlbi_user(rvale1, arg);
+}
+
+static __always_inline void rvale1is(u64 arg)
+{
+	__tlbi(rvale1is, arg);
+	__tlbi_user(rvale1is, arg);
+}
+
+static __always_inline void rvaale1is(u64 arg)
+{
+	__tlbi(rvaale1is, arg);
+}
+
+static __always_inline void ripas2e1is(u64 arg)
+{
+	__tlbi(ripas2e1is, arg);
+}
+
+static __always_inline void __tlbi_range(tlbi_op op, u64 addr,
+					 u16 asid, int scale, int num,
+					 u32 level, bool lpa2)
+{
+	u64 arg = 0;
+
+	arg |= FIELD_PREP(TLBIR_BADDR_MASK, addr >> (lpa2 ? 16 : PAGE_SHIFT));
+	arg |= FIELD_PREP(TLBIR_TTL_MASK, level > 3 ? 0 : level);
+	arg |= FIELD_PREP(TLBIR_NUM_MASK, num);
+	arg |= FIELD_PREP(TLBIR_SCALE_MASK, scale);
+	arg |= FIELD_PREP(TLBIR_TG_MASK, get_trans_granule());
+	arg |= FIELD_PREP(TLBIR_ASID_MASK, asid);
+
+	op(arg);
+}
+
+static __always_inline void __flush_tlb_range_op(tlbi_op lop, tlbi_op rop,
+						 u64 start, size_t pages,
+						 u64 stride, u16 asid,
+						 u32 level, bool lpa2)
+{
+	u64 addr = start, end = start + pages * PAGE_SIZE;
+	int scale = 3;
+
+	while (addr != end) {
+		int num;
+
+		pages = (end - addr) >> PAGE_SHIFT;
+
+		if (!system_supports_tlb_range() || pages == 1)
+			goto invalidate_one;
+
+		if (lpa2 && !IS_ALIGNED(addr, SZ_64K))
+			goto invalidate_one;
+
+		num = __TLBI_RANGE_NUM(pages, scale);
+		if (num >= 0) {
+			__tlbi_range(rop, addr, asid, scale, num, level, lpa2);
+			addr += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT;
+		}
+
+		scale--;
+		continue;
+invalidate_one:
+		__tlbi_level_asid(lop, addr, level, asid);
+		addr += stride;
+	}
+}
+
+#define __flush_s1_tlb_range_op(op, start, pages, stride, asid, tlb_level) \
+	__flush_tlb_range_op(op, r##op, start, pages, stride, asid, tlb_level, lpa2_is_enabled())
+
+#define __flush_s2_tlb_range_op(op, start, pages, stride, tlb_level) \
+	__flush_tlb_range_op(op, r##op, start, pages, stride, 0, tlb_level, kvm_lpa2_is_enabled())
+
+static inline bool __flush_tlb_range_limit_excess(unsigned long pages,
+						  unsigned long stride)
+{
+	/*
+	 * Assume that the worst case number of DVM ops required to flush a
+	 * given range on a system that supports tlb-range is 20 (4 scales, 1
+	 * final page, 15 for alignment on LPA2 systems), which is much smaller
+	 * than MAX_DVM_OPS.
+	 */
+	if (system_supports_tlb_range())
+		return pages > MAX_TLBI_RANGE_PAGES;
+
+	return pages >= (MAX_DVM_OPS * stride) >> PAGE_SHIFT;
+}
+
+typedef unsigned __bitwise tlbf_t;
+
+/* No special behaviour. */
+#define TLBF_NONE		((__force tlbf_t)0)
+
+/* Invalidate tlb entries only, leaving the page table walk cache intact. */
+#define TLBF_NOWALKCACHE	((__force tlbf_t)BIT(0))
+
+/* Skip the trailing dsb after issuing tlbi. */
+#define TLBF_NOSYNC		((__force tlbf_t)BIT(1))
+
+/* Suppress tlb notifier callbacks for this flush operation. */
+#define TLBF_NONOTIFY		((__force tlbf_t)BIT(2))
+
+/* Perform the tlbi locally without broadcasting to other CPUs. */
+#define TLBF_NOBROADCAST	((__force tlbf_t)BIT(3))
+
+static __always_inline void __do_flush_tlb_range(struct vm_area_struct *vma,
+					unsigned long start, unsigned long end,
+					unsigned long stride, int tlb_level,
+					tlbf_t flags)
+{
+	struct mm_struct *mm = vma->vm_mm;
 	unsigned long asid, pages;
 
-	start = round_down(start, stride);
-	end = round_up(end, stride);
 	pages = (end - start) >> PAGE_SHIFT;
 
-	if (__flush_tlb_range_limit_excess(start, end, pages, stride)) {
+	if (__flush_tlb_range_limit_excess(pages, stride)) {
 		flush_tlb_mm(mm);
 		return;
 	}
 
-	dsb(ishst);
+	if (!(flags & TLBF_NOBROADCAST))
+		dsb(ishst);
+	else
+		dsb(nshst);
+
 	asid = ASID(mm);
 
-	if (last_level)
-		__flush_tlb_range_op(vale1is, start, pages, stride, asid,
-				     tlb_level, true, lpa2_is_enabled());
-	else
-		__flush_tlb_range_op(vae1is, start, pages, stride, asid,
-				     tlb_level, true, lpa2_is_enabled());
+	switch (flags & (TLBF_NOWALKCACHE | TLBF_NOBROADCAST)) {
+	case TLBF_NONE:
+		__flush_s1_tlb_range_op(vae1is, start, pages, stride,
+					asid, tlb_level);
+		break;
+	case TLBF_NOWALKCACHE:
+		__flush_s1_tlb_range_op(vale1is, start, pages, stride,
+					asid, tlb_level);
+		break;
+	case TLBF_NOBROADCAST:
+		/* Combination unused */
+		BUG();
+		break;
+	case TLBF_NOWALKCACHE | TLBF_NOBROADCAST:
+		__flush_s1_tlb_range_op(vale1, start, pages, stride,
+					asid, tlb_level);
+		break;
+	}
 
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+	if (!(flags & TLBF_NONOTIFY))
+		mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+
+	if (!(flags & TLBF_NOSYNC)) {
+		if (!(flags & TLBF_NOBROADCAST))
+			__tlbi_sync_s1ish();
+		else
+			dsb(nsh);
+	}
 }
 
 static inline void __flush_tlb_range(struct vm_area_struct *vma,
 				     unsigned long start, unsigned long end,
-				     unsigned long stride, bool last_level,
-				     int tlb_level)
+				     unsigned long stride, int tlb_level,
+				     tlbf_t flags)
 {
-	__flush_tlb_range_nosync(vma->vm_mm, start, end, stride,
-				 last_level, tlb_level);
-	__tlbi_sync_s1ish();
-}
-
-static inline void local_flush_tlb_contpte(struct vm_area_struct *vma,
-					   unsigned long addr)
-{
-	unsigned long asid;
-
-	addr = round_down(addr, CONT_PTE_SIZE);
-
-	dsb(nshst);
-	asid = ASID(vma->vm_mm);
-	__flush_tlb_range_op(vale1, addr, CONT_PTES, PAGE_SIZE, asid,
-			     3, true, lpa2_is_enabled());
-	mmu_notifier_arch_invalidate_secondary_tlbs(vma->vm_mm, addr,
-						    addr + CONT_PTE_SIZE);
-	dsb(nsh);
+	start = round_down(start, stride);
+	end = round_up(end, stride);
+	__do_flush_tlb_range(vma, start, end, stride, tlb_level, flags);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
@@ -548,7 +582,23 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	 * Set the tlb_level to TLBI_TTL_UNKNOWN because we can not get enough
 	 * information here.
 	 */
-	__flush_tlb_range(vma, start, end, PAGE_SIZE, false, TLBI_TTL_UNKNOWN);
+	__flush_tlb_range(vma, start, end, PAGE_SIZE, TLBI_TTL_UNKNOWN, TLBF_NONE);
+}
+
+static inline void __flush_tlb_page(struct vm_area_struct *vma,
+				    unsigned long uaddr, tlbf_t flags)
+{
+	unsigned long start = round_down(uaddr, PAGE_SIZE);
+	unsigned long end = start + PAGE_SIZE;
+
+	__do_flush_tlb_range(vma, start, end, PAGE_SIZE, 3,
+			     TLBF_NOWALKCACHE | flags);
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long uaddr)
+{
+	__flush_tlb_page(vma, uaddr, TLBF_NONE);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
@@ -560,14 +610,14 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 	end = round_up(end, stride);
 	pages = (end - start) >> PAGE_SHIFT;
 
-	if (__flush_tlb_range_limit_excess(start, end, pages, stride)) {
+	if (__flush_tlb_range_limit_excess(pages, stride)) {
 		flush_tlb_all();
 		return;
 	}
 
 	dsb(ishst);
-	__flush_tlb_range_op(vaale1is, start, pages, stride, 0,
-			     TLBI_TTL_UNKNOWN, false, lpa2_is_enabled());
+	__flush_s1_tlb_range_op(vaale1is, start, pages, stride, 0,
+				TLBI_TTL_UNKNOWN);
 	__tlbi_sync_s1ish();
 	isb();
 }
@@ -589,7 +639,10 @@ static inline void __flush_tlb_kernel_pgtable(unsigned long kaddr)
 static inline void arch_tlbbatch_add_pending(struct arch_tlbflush_unmap_batch *batch,
 		struct mm_struct *mm, unsigned long start, unsigned long end)
 {
-	__flush_tlb_range_nosync(mm, start, end, PAGE_SIZE, true, 3);
+	struct vm_area_struct vma = { .vm_mm = mm, .vm_flags = 0 };
+
+	__flush_tlb_range(&vma, start, end, PAGE_SIZE, 3,
+			  TLBF_NOWALKCACHE | TLBF_NOSYNC);
 }
 
 static inline bool __pte_flags_need_flush(ptdesc_t oldval, ptdesc_t newval)
@@ -618,6 +671,8 @@ static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
 }
 #define huge_pmd_needs_flush huge_pmd_needs_flush
 
+#undef __tlbi_user
+#undef __TLBI_VADDR
 #endif
 
 #endif

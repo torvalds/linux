@@ -1496,6 +1496,7 @@ UnsignedEnum	27:24	B16B16
 	0b0000	NI
 	0b0001	IMP
 	0b0010	BFSCALE
+	0b0011	B16MM
 EndEnum
 UnsignedEnum	23:20	BF16
 	0b0000	NI
@@ -1522,6 +1523,7 @@ UnsignedEnum	3:0	SVEver
 	0b0001	SVE2
 	0b0010	SVE2p1
 	0b0011	SVE2p2
+	0b0100	SVE2p3
 EndEnum
 EndSysreg
 
@@ -1530,7 +1532,11 @@ UnsignedEnum	63	FA64
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	62:61
+Res0	62
+UnsignedEnum	61	LUT6
+	0b0	NI
+	0b1	IMP
+EndEnum
 UnsignedEnum	60	LUTv2
 	0b0	NI
 	0b1	IMP
@@ -1540,6 +1546,7 @@ UnsignedEnum	59:56	SMEver
 	0b0001	SME2
 	0b0010	SME2p1
 	0b0011	SME2p2
+	0b0100	SME2p3
 EndEnum
 UnsignedEnum	55:52	I16I64
 	0b0000	NI
@@ -1654,7 +1661,13 @@ UnsignedEnum	26	F8MM4
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	25:2
+Res0	25:16
+UnsignedEnum	15	F16MM2
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	14:8
+Raz	7:2
 UnsignedEnum	1	F8E4M3
 	0b0	NI
 	0b1	IMP
@@ -1835,6 +1848,8 @@ EndEnum
 UnsignedEnum	51:48	FHM
 	0b0000	NI
 	0b0001	IMP
+	0b0010	F16F32DOT
+	0b0011	F16F32MM
 EndEnum
 UnsignedEnum	47:44	DP
 	0b0000	NI
@@ -1976,6 +1991,7 @@ EndEnum
 UnsignedEnum	59:56	LUT
 	0b0000	NI
 	0b0001	IMP
+	0b0010	LUT6
 EndEnum
 UnsignedEnum	55:52	CSSC
 	0b0000	NI
@@ -3655,11 +3671,15 @@ Field	3:0	BS
 EndSysreg
 
 Sysreg	SMIDR_EL1	3	1	0	0	6
-Res0	63:32
+Res0	63:60
+Field	59:56	NSMC
+Field	55:52	HIP
+Field	51:32	AFFINITY2
 Field	31:24	IMPLEMENTER
 Field	23:16	REVISION
 Field	15	SMPS
-Res0	14:12
+Field	14:13	SH
+Res0	12
 Field	11:0	AFFINITY
 EndSysreg
 
@@ -5170,6 +5190,14 @@ Field	47:40	PMG_D
 Field	39:32	PMG_I
 Field	31:16	PARTID_D
 Field	15:0	PARTID_I
+EndSysreg
+
+Sysreg	MPAMSM_EL1	3	0	10	5	3
+Res0	63:48
+Field	47:40	PMG_D
+Res0	39:32
+Field	31:16	PARTID_D
+Res0	15:0
 EndSysreg
 
 Sysreg	ISR_EL1	3	0	12	1	0
