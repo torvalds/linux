@@ -480,44 +480,6 @@ static void __snd_interwave_restore_regs(struct snd_gus_card *gus)
 	snd_gf1_write8(gus, SNDRV_GF1_GB_EMULATION_IRQ, 0x00);
 }
 
-static void snd_interwave_restore_regs(struct snd_gus_card *gus)
-{
-	scoped_guard(spinlock_irqsave, &gus->reg_lock)
-		__snd_interwave_restore_regs(gus);
-}
-
-static void snd_interwave_restore_memory(struct snd_gus_card *gus)
-{
-	unsigned short mem_cfg;
-	unsigned int lmct = 0;
-	int i, lmc_cfg;
-
-	if (!gus->gf1.memory)
-		return;
-
-	for (i = 0; i < 4; i++)
-		lmct |= (gus->gf1.mem_alloc.banks_16[i].size >> 18) << (i * 8);
-
-	lmc_cfg = snd_interwave_find_memory_config(lmct);
-	if (lmc_cfg < 0) {
-		if (!gus->gf1.enh_mode) {
-			lmc_cfg = 2;
-		} else {
-			dev_warn(gus->card->dev,
-				 "cannot restore InterWave memory layout 0x%08x\n",
-				 lmct);
-			return;
-		}
-	}
-
-	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
-		mem_cfg = snd_gf1_look16(gus, SNDRV_GF1_GW_MEMORY_CONFIG);
-		mem_cfg = (mem_cfg & 0xfff0) | lmc_cfg;
-		mem_cfg = (mem_cfg & 0xff1f) | (4 << 5);
-		snd_gf1_write16(gus, SNDRV_GF1_GW_MEMORY_CONFIG, mem_cfg);
-	}
-}
-
 static void snd_interwave_init(int dev, struct snd_gus_card *gus)
 {
 	/* Probe-time setup also clears the timer control register. */
@@ -888,6 +850,44 @@ static int snd_interwave_isa_probe(struct device *pdev,
 }
 
 #ifdef CONFIG_PM
+static void snd_interwave_restore_regs(struct snd_gus_card *gus)
+{
+	scoped_guard(spinlock_irqsave, &gus->reg_lock)
+		__snd_interwave_restore_regs(gus);
+}
+
+static void snd_interwave_restore_memory(struct snd_gus_card *gus)
+{
+	unsigned short mem_cfg;
+	unsigned int lmct = 0;
+	int i, lmc_cfg;
+
+	if (!gus->gf1.memory)
+		return;
+
+	for (i = 0; i < 4; i++)
+		lmct |= (gus->gf1.mem_alloc.banks_16[i].size >> 18) << (i * 8);
+
+	lmc_cfg = snd_interwave_find_memory_config(lmct);
+	if (lmc_cfg < 0) {
+		if (!gus->gf1.enh_mode) {
+			lmc_cfg = 2;
+		} else {
+			dev_warn(gus->card->dev,
+				 "cannot restore InterWave memory layout 0x%08x\n",
+				 lmct);
+			return;
+		}
+	}
+
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		mem_cfg = snd_gf1_look16(gus, SNDRV_GF1_GW_MEMORY_CONFIG);
+		mem_cfg = (mem_cfg & 0xfff0) | lmc_cfg;
+		mem_cfg = (mem_cfg & 0xff1f) | (4 << 5);
+		snd_gf1_write16(gus, SNDRV_GF1_GW_MEMORY_CONFIG, mem_cfg);
+	}
+}
+
 static int snd_interwave_card_suspend(struct snd_card *card)
 {
 	struct snd_interwave *iwcard = card->private_data;
