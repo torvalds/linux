@@ -74,3 +74,4 @@ static struct kunit_suite maperror_suite = {
 kunit_test_suite(maperror_suite);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit tests of SMB1 maperror");
