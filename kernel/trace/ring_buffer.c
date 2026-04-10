@@ -2238,9 +2238,9 @@ static struct ring_buffer_desc *ring_buffer_desc(struct trace_buffer_desc *trace
 	return NULL;
 }
 
-static void *ring_buffer_desc_page(struct ring_buffer_desc *desc, int page_id)
+static void *ring_buffer_desc_page(struct ring_buffer_desc *desc, unsigned int page_id)
 {
-	return page_id > desc->nr_page_va ? NULL : (void *)desc->page_va[page_id];
+	return page_id >= desc->nr_page_va ? NULL : (void *)desc->page_va[page_id];
 }
 
 static int __rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
