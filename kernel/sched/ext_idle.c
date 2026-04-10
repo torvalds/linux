@@ -1482,6 +1482,10 @@ static const struct btf_kfunc_id_set scx_kfunc_set_idle = {
  * contexts where @p's pi_lock state is unknown. Keep them out of
  * BPF_PROG_TYPE_TRACING by registering them in their own set which is exposed
  * only to STRUCT_OPS and SYSCALL programs.
+ *
+ * These kfuncs are also members of scx_kfunc_ids_unlocked (see ext.c) because
+ * they're callable from unlocked contexts in addition to ops.select_cpu() and
+ * ops.enqueue().
  */
 BTF_KFUNCS_START(scx_kfunc_ids_select_cpu)
 BTF_ID_FLAGS(func, __scx_bpf_select_cpu_and, KF_IMPLICIT_ARGS | KF_RCU)
