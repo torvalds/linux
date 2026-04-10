@@ -188,6 +188,11 @@ nouveau_ttm_init_vram(struct nouveau_drm *drm)
 
 		man->func = &nouveau_vram_manager;
 
+		man->cg = drmm_cgroup_register_region(drm->dev, "vram",
+						      drm->gem.vram_available);
+		if (IS_ERR(man->cg))
+			return PTR_ERR(man->cg);
+
 		ttm_resource_manager_init(man, &drm->ttm.bdev,
 					  drm->gem.vram_available >> PAGE_SHIFT);
 		ttm_set_driver_manager(&drm->ttm.bdev, TTM_PL_VRAM, man);
