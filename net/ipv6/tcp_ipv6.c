@@ -105,7 +105,7 @@ static void inet6_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 	}
 }
 
-static union tcp_seq_and_ts_off
+INDIRECT_CALLABLE_SCOPE union tcp_seq_and_ts_off
 tcp_v6_init_seq_and_ts_off(const struct net *net, const struct sk_buff *skb)
 {
 	return secure_tcpv6_seq_and_ts_off(net,

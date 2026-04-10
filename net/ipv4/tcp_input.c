@@ -7658,7 +7658,10 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		goto drop_and_free;
 
 	if (tmp_opt.tstamp_ok || (!want_cookie && !isn))
-		st = af_ops->init_seq_and_ts_off(net, skb);
+		st = INDIRECT_CALL_INET(af_ops->init_seq_and_ts_off,
+					tcp_v6_init_seq_and_ts_off,
+					tcp_v4_init_seq_and_ts_off,
+					net, skb);
 
 	if (tmp_opt.tstamp_ok) {
 		tcp_rsk(req)->req_usec_ts = dst_tcp_usec_ts(dst);

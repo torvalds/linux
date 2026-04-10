@@ -105,7 +105,7 @@ static DEFINE_PER_CPU(struct sock_bh_locked, ipv4_tcp_sk) = {
 
 static DEFINE_MUTEX(tcp_exit_batch_mutex);
 
-static union tcp_seq_and_ts_off
+INDIRECT_CALLABLE_SCOPE union tcp_seq_and_ts_off
 tcp_v4_init_seq_and_ts_off(const struct net *net, const struct sk_buff *skb)
 {
 	return secure_tcp_seq_and_ts_off(net,
