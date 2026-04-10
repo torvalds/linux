@@ -1233,6 +1233,38 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
 }
 
 /*
+ * Additional checks for the proper resolution
+ *
+ * Some devices report smaller resolutions than actually reacting.
+ * They don't return errors but simply clip to the lower aligned value.
+ */
+static void check_volume_control_res(struct usb_mixer_elem_info *cval,
+				     int channel, int saved)
+{
+	int last_valid_res = cval->res;
+	int test, check;
+
+	for (;;) {
+		test = saved;
+		if (test < cval->max)
+			test += cval->res;
+		else
+			test -= cval->res;
+
+		if (test < cval->min || test > cval->max ||
+		    snd_usb_set_cur_mix_value(cval, channel, 0, test) ||
+		    get_cur_mix_raw(cval, channel, &check)) {
+			cval->res = last_valid_res;
+			break;
+		}
+		if (test == check)
+			break;
+
+		cval->res *= 2;
+	}
+}
+
+/*
  * retrieve the minimum and maximum values for the specified control
  */
 static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
@@ -1287,37 +1319,18 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 		if (cval->res == 0)
 			cval->res = 1;
 
-		/* Additional checks for the proper resolution
-		 *
-		 * Some devices report smaller resolutions than actually
-		 * reacting.  They don't return errors but simply clip
-		 * to the lower aligned value.
-		 */
 		if (cval->min + cval->res < cval->max) {
-			int last_valid_res = cval->res;
-			int saved, test, check;
+			int saved;
+
 			if (get_cur_mix_raw(cval, minchn, &saved) < 0)
-				goto no_res_check;
-			for (;;) {
-				test = saved;
-				if (test < cval->max)
-					test += cval->res;
-				else
-					test -= cval->res;
-				if (test < cval->min || test > cval->max ||
-				    snd_usb_set_cur_mix_value(cval, minchn, 0, test) ||
-				    get_cur_mix_raw(cval, minchn, &check)) {
-					cval->res = last_valid_res;
-					break;
-				}
-				if (test == check)
-					break;
-				cval->res *= 2;
-			}
+				goto no_checks;
+
+			check_volume_control_res(cval, minchn, saved);
+
 			snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
 		}
 
-no_res_check:
+no_checks:
 		cval->initialized = 1;
 	}
 
