@@ -9,12 +9,14 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/auxiliary_bus.h>
+#include <linux/bits.h>
 #include <linux/intel_rapl.h>
 #include <linux/intel_tpmi.h>
 #include <linux/intel_vsec.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #define TPMI_RAPL_MAJOR_VERSION 0
 #define TPMI_RAPL_MINOR_VERSION 1
@@ -59,6 +61,58 @@ static LIST_HEAD(tpmi_rapl_packages);
 static DEFINE_MUTEX(tpmi_rapl_lock);
 
 static struct powercap_control_type *tpmi_control_type;
+
+/* bitmasks for RAPL TPMI, used by primitive access functions */
+#define TPMI_POWER_LIMIT_MASK			GENMASK_ULL(17, 0)
+#define TPMI_POWER_LIMIT_ENABLE			BIT_ULL(62)
+#define TPMI_POWER_HIGH_LOCK			BIT_ULL(63)
+#define TPMI_TIME_WINDOW_MASK			GENMASK_ULL(24, 18)
+#define TPMI_INFO_SPEC_MASK			GENMASK_ULL(17, 0)
+#define TPMI_INFO_MIN_MASK			GENMASK_ULL(35, 18)
+#define TPMI_INFO_MAX_MASK			GENMASK_ULL(53, 36)
+#define TPMI_INFO_MAX_TIME_WIN_MASK		GENMASK_ULL(60, 54)
+#define TPMI_ENERGY_STATUS_MASK			GENMASK(31, 0)
+#define TPMI_PERF_STATUS_THROTTLE_TIME_MASK	GENMASK(31, 0)
+
+/* RAPL primitives for TPMI I/F */
+static struct rapl_primitive_info rpi_tpmi[NR_RAPL_PRIMITIVES] = {
+	/* name, mask, shift, msr index, unit divisor */
+	[POWER_LIMIT1]		= PRIMITIVE_INFO_INIT(POWER_LIMIT1, TPMI_POWER_LIMIT_MASK, 0,
+						      RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
+	[POWER_LIMIT2]		= PRIMITIVE_INFO_INIT(POWER_LIMIT2, TPMI_POWER_LIMIT_MASK, 0,
+						      RAPL_DOMAIN_REG_PL2, POWER_UNIT, 0),
+	[POWER_LIMIT4]		= PRIMITIVE_INFO_INIT(POWER_LIMIT4, TPMI_POWER_LIMIT_MASK, 0,
+						      RAPL_DOMAIN_REG_PL4, POWER_UNIT, 0),
+	[ENERGY_COUNTER]	= PRIMITIVE_INFO_INIT(ENERGY_COUNTER, TPMI_ENERGY_STATUS_MASK, 0,
+						      RAPL_DOMAIN_REG_STATUS, ENERGY_UNIT, 0),
+	[PL1_LOCK]		= PRIMITIVE_INFO_INIT(PL1_LOCK, TPMI_POWER_HIGH_LOCK, 63,
+						      RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
+	[PL2_LOCK]		= PRIMITIVE_INFO_INIT(PL2_LOCK, TPMI_POWER_HIGH_LOCK, 63,
+						      RAPL_DOMAIN_REG_PL2, ARBITRARY_UNIT, 0),
+	[PL4_LOCK]		= PRIMITIVE_INFO_INIT(PL4_LOCK, TPMI_POWER_HIGH_LOCK, 63,
+						      RAPL_DOMAIN_REG_PL4, ARBITRARY_UNIT, 0),
+	[PL1_ENABLE]		= PRIMITIVE_INFO_INIT(PL1_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
+						      RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
+	[PL2_ENABLE]		= PRIMITIVE_INFO_INIT(PL2_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
+						      RAPL_DOMAIN_REG_PL2, ARBITRARY_UNIT, 0),
+	[PL4_ENABLE]		= PRIMITIVE_INFO_INIT(PL4_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
+						      RAPL_DOMAIN_REG_PL4, ARBITRARY_UNIT, 0),
+	[TIME_WINDOW1]		= PRIMITIVE_INFO_INIT(TIME_WINDOW1, TPMI_TIME_WINDOW_MASK, 18,
+						      RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
+	[TIME_WINDOW2]		= PRIMITIVE_INFO_INIT(TIME_WINDOW2, TPMI_TIME_WINDOW_MASK, 18,
+						      RAPL_DOMAIN_REG_PL2, TIME_UNIT, 0),
+	[THERMAL_SPEC_POWER]	= PRIMITIVE_INFO_INIT(THERMAL_SPEC_POWER, TPMI_INFO_SPEC_MASK, 0,
+						      RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
+	[MAX_POWER]		= PRIMITIVE_INFO_INIT(MAX_POWER, TPMI_INFO_MAX_MASK, 36,
+						      RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
+	[MIN_POWER]		= PRIMITIVE_INFO_INIT(MIN_POWER, TPMI_INFO_MIN_MASK, 18,
+						      RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
+	[MAX_TIME_WINDOW]	= PRIMITIVE_INFO_INIT(MAX_TIME_WINDOW, TPMI_INFO_MAX_TIME_WIN_MASK,
+						      54, RAPL_DOMAIN_REG_INFO, TIME_UNIT, 0),
+	[THROTTLED_TIME]	= PRIMITIVE_INFO_INIT(THROTTLED_TIME,
+						      TPMI_PERF_STATUS_THROTTLE_TIME_MASK,
+						      0, RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
+};
 
 static int tpmi_rapl_read_raw(int id, struct reg_action *ra, bool atomic)
 {
@@ -250,6 +304,50 @@ static int parse_one_domain(struct tpmi_rapl_package *trp, u32 offset)
 	return 0;
 }
 
+/* TPMI Unit register has different layout */
+#define TPMI_ENERGY_UNIT_SCALE		1000
+#define TPMI_POWER_UNIT_OFFSET		0x00
+#define TPMI_POWER_UNIT_MASK		GENMASK(3, 0)
+#define TPMI_ENERGY_UNIT_OFFSET		0x06
+#define TPMI_ENERGY_UNIT_MASK		GENMASK_ULL(10, 6)
+#define TPMI_TIME_UNIT_OFFSET		0x0C
+#define TPMI_TIME_UNIT_MASK		GENMASK_ULL(15, 12)
+
+static int rapl_check_unit_tpmi(struct rapl_domain *rd)
+{
+	struct reg_action ra;
+	u32 value;
+
+	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
+	ra.mask = ~0;
+	if (tpmi_rapl_read_raw(rd->rp->id, &ra, false)) {
+		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
+			ra.reg.val, rd->rp->name, rd->name);
+		return -ENODEV;
+	}
+
+	value = (ra.value & TPMI_ENERGY_UNIT_MASK) >> TPMI_ENERGY_UNIT_OFFSET;
+	rd->energy_unit = (TPMI_ENERGY_UNIT_SCALE * MICROJOULE_PER_JOULE) >> value;
+
+	value = (ra.value & TPMI_POWER_UNIT_MASK) >> TPMI_POWER_UNIT_OFFSET;
+	rd->power_unit = MICROWATT_PER_WATT >> value;
+
+	value = (ra.value & TPMI_TIME_UNIT_MASK) >> TPMI_TIME_UNIT_OFFSET;
+	rd->time_unit = USEC_PER_SEC >> value;
+
+	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
+		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
+
+	return 0;
+}
+
+static const struct rapl_defaults defaults_tpmi = {
+	.check_unit = rapl_check_unit_tpmi,
+	/* Reuse existing logic, ignore the PL_CLAMP failures and enable all Power Limits */
+	.set_floor_freq = rapl_default_set_floor_freq,
+	.compute_time_window = rapl_default_compute_time_window,
+};
+
 static int intel_rapl_tpmi_probe(struct auxiliary_device *auxdev,
 				 const struct auxiliary_device_id *id)
 {
@@ -297,6 +395,8 @@ static int intel_rapl_tpmi_probe(struct auxiliary_device *auxdev,
 	trp->priv.read_raw = tpmi_rapl_read_raw;
 	trp->priv.write_raw = tpmi_rapl_write_raw;
 	trp->priv.control_type = tpmi_control_type;
+	trp->priv.defaults = &defaults_tpmi;
+	trp->priv.rpi = rpi_tpmi;
 
 	/* RAPL TPMI I/F is per physical package */
 	trp->rp = rapl_find_package_domain(info->package_id, &trp->priv, false);
@@ -348,6 +448,7 @@ static struct auxiliary_driver intel_rapl_tpmi_driver = {
 
 module_auxiliary_driver(intel_rapl_tpmi_driver)
 
+MODULE_IMPORT_NS("INTEL_RAPL");
 MODULE_IMPORT_NS("INTEL_TPMI");
 
 MODULE_DESCRIPTION("Intel RAPL TPMI Driver");
