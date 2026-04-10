@@ -2861,12 +2861,23 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 	int cpu_nr = env->nr_cpus_avail;
 	u64 size = 0;
 
+	if (cpu_nr == 0) {
+		pr_err("Invalid HEADER_CPU_TOPOLOGY: missing HEADER_NRCPUS\n");
+		return -1;
+	}
+
 	env->cpu = calloc(cpu_nr, sizeof(*env->cpu));
 	if (!env->cpu)
 		return -1;
 
 	if (do_read_u32(ff, &nr))
 		goto free_cpu;
+
+	if (nr > (u32)cpu_nr) {
+		pr_err("Invalid HEADER_CPU_TOPOLOGY: nr_sibling_cores (%u) > nr_cpus_avail (%d)\n",
+		       nr, cpu_nr);
+		goto free_cpu;
+	}
 
 	env->nr_sibling_cores = nr;
 	size += sizeof(u32);
@@ -2887,7 +2898,13 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 	env->sibling_cores = strbuf_detach(&sb, NULL);
 
 	if (do_read_u32(ff, &nr))
-		return -1;
+		goto free_cpu;
+
+	if (nr > (u32)cpu_nr) {
+		pr_err("Invalid HEADER_CPU_TOPOLOGY: nr_sibling_threads (%u) > nr_cpus_avail (%d)\n",
+		       nr, cpu_nr);
+		goto free_cpu;
+	}
 
 	env->nr_sibling_threads = nr;
 	size += sizeof(u32);
@@ -2936,7 +2953,13 @@ static int process_cpu_topology(struct feat_fd *ff, void *data __maybe_unused)
 		return 0;
 
 	if (do_read_u32(ff, &nr))
-		return -1;
+		goto free_cpu;
+
+	if (nr > (u32)cpu_nr) {
+		pr_err("Invalid HEADER_CPU_TOPOLOGY: nr_sibling_dies (%u) > nr_cpus_avail (%d)\n",
+		       nr, cpu_nr);
+		goto free_cpu;
+	}
 
 	env->nr_sibling_dies = nr;
 	size += sizeof(u32);
