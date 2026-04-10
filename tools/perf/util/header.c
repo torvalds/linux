@@ -63,6 +63,8 @@
 #include <event-parse.h>
 #endif
 
+#define MAX_BPF_DATA_LEN	(256 * 1024 * 1024)
+#define MAX_BPF_PROGS		131072
 #define MAX_CACHE_ENTRIES	32768
 #define MAX_GROUP_DESC		32768
 #define MAX_NUMA_NODES		4096
@@ -3525,6 +3527,18 @@ static int process_bpf_prog_info(struct feat_fd *ff __maybe_unused, void *data _
 	if (do_read_u32(ff, &count))
 		return -1;
 
+	if (count > MAX_BPF_PROGS) {
+		pr_err("Invalid HEADER_BPF_PROG_INFO: count (%u) > %u\n",
+		       count, MAX_BPF_PROGS);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + count * (2 * sizeof(u32) + sizeof(u64))) {
+		pr_err("Invalid HEADER_BPF_PROG_INFO: section too small (%zu) for %u entries\n",
+		       ff->size, count);
+		return -1;
+	}
+
 	down_write(&env->bpf_progs.lock);
 
 	for (i = 0; i < count; ++i) {
@@ -3539,6 +3553,12 @@ static int process_bpf_prog_info(struct feat_fd *ff __maybe_unused, void *data _
 
 		if (info_len > sizeof(struct bpf_prog_info)) {
 			pr_warning("detected invalid bpf_prog_info\n");
+			goto out;
+		}
+
+		if (data_len > MAX_BPF_DATA_LEN) {
+			pr_warning("Invalid HEADER_BPF_PROG_INFO: data_len (%u) too large\n",
+				   data_len);
 			goto out;
 		}
 
