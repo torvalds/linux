@@ -231,7 +231,7 @@ static inline struct pppox_sock *get_item(struct pppoe_net *pn, __be16 sid,
 	struct pppox_sock *po;
 
 	po = __get_item(pn, sid, addr, ifindex);
-	if (po && !refcount_inc_not_zero(&sk_pppox(po)->sk_refcnt))
+	if (po && !refcount_inc_not_zero(&po->sk.sk_refcnt))
 		po = NULL;
 
 	return po;
@@ -273,7 +273,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			if (!po)
 				break;
 
-			sk = sk_pppox(po);
+			sk = &po->sk;
 
 			/* We always grab the socket lock, followed by the
 			 * hash_lock, in that order.  Since we should hold the
@@ -413,7 +413,7 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!po)
 		goto drop;
 
-	return __sk_receive_skb(sk_pppox(po), skb, 0, 1, false);
+	return __sk_receive_skb(&po->sk, skb, 0, 1, false);
 
 drop:
 	kfree_skb(skb);
@@ -425,7 +425,7 @@ static void pppoe_unbind_sock_work(struct work_struct *work)
 {
 	struct pppox_sock *po = container_of(work, struct pppox_sock,
 					     proto.pppoe.padt_work);
-	struct sock *sk = sk_pppox(po);
+	struct sock *sk = &po->sk;
 
 	lock_sock(sk);
 	if (po->pppoe_dev) {
@@ -469,7 +469,7 @@ static int pppoe_disc_rcv(struct sk_buff *skb, struct net_device *dev,
 	po = get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (po)
 		if (!schedule_work(&po->proto.pppoe.padt_work))
-			sock_put(sk_pppox(po));
+			sock_put(&po->sk);
 
 abort:
 	kfree_skb(skb);

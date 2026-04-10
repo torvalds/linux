@@ -57,11 +57,6 @@ static inline struct pppox_sock *pppox_sk(struct sock *sk)
 	return (struct pppox_sock *)sk;
 }
 
-static inline struct sock *sk_pppox(struct pppox_sock *po)
-{
-	return (struct sock *)po;
-}
-
 struct module;
 
 struct pppox_proto {
