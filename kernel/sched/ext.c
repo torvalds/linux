@@ -502,10 +502,13 @@ do {										\
  * held by try_to_wake_up() with rq tracking via scx_rq.in_select_cpu. So if
  * kf_tasks[] is set, @p's scheduler-protected fields are stable.
  *
- * These macros only work for non-nesting ops since kf_tasks[] is not stacked.
+ * kf_tasks[] can not stack, so task-based SCX ops must not nest. The
+ * WARN_ON_ONCE() in each macro catches a re-entry of any of the three variants
+ * while a previous one is still in progress.
  */
 #define SCX_CALL_OP_TASK(sch, op, rq, task, args...)				\
 do {										\
+	WARN_ON_ONCE(current->scx.kf_tasks[0]);					\
 	current->scx.kf_tasks[0] = task;					\
 	SCX_CALL_OP((sch), op, rq, task, ##args);				\
 	current->scx.kf_tasks[0] = NULL;					\
@@ -514,6 +517,7 @@ do {										\
 #define SCX_CALL_OP_TASK_RET(sch, op, rq, task, args...)			\
 ({										\
 	__typeof__((sch)->ops.op(task, ##args)) __ret;				\
+	WARN_ON_ONCE(current->scx.kf_tasks[0]);					\
 	current->scx.kf_tasks[0] = task;					\
 	__ret = SCX_CALL_OP_RET((sch), op, rq, task, ##args);			\
 	current->scx.kf_tasks[0] = NULL;					\
@@ -523,6 +527,7 @@ do {										\
 #define SCX_CALL_OP_2TASKS_RET(sch, op, rq, task0, task1, args...)		\
 ({										\
 	__typeof__((sch)->ops.op(task0, task1, ##args)) __ret;			\
+	WARN_ON_ONCE(current->scx.kf_tasks[0]);					\
 	current->scx.kf_tasks[0] = task0;					\
 	current->scx.kf_tasks[1] = task1;					\
 	__ret = SCX_CALL_OP_RET((sch), op, rq, task0, task1, ##args);		\
