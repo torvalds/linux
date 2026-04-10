@@ -1122,6 +1122,14 @@ netdev_get_by_index_lock_ops_compat(struct net *net, int ifindex)
 }
 
 struct net_device *
+netdev_put_lock(struct net_device *dev, struct net *net,
+		netdevice_tracker *tracker)
+{
+	netdev_tracker_free(dev, tracker);
+	return __netdev_put_lock(dev, net);
+}
+
+struct net_device *
 netdev_xa_find_lock(struct net *net, struct net_device *dev,
 		    unsigned long *index)
 {
@@ -12342,10 +12350,8 @@ static void dev_memory_provider_uninstall(struct net_device *dev)
 
 	for (i = 0; i < dev->real_num_rx_queues; i++) {
 		struct netdev_rx_queue *rxq = &dev->_rx[i];
-		struct pp_memory_provider_params *p = &rxq->mp_params;
 
-		if (p->mp_ops && p->mp_ops->uninstall)
-			p->mp_ops->uninstall(rxq->mp_params.mp_priv, rxq);
+		__netif_mp_uninstall_rxq(rxq, &rxq->mp_params);
 	}
 }
 
@@ -12376,6 +12382,12 @@ static void netif_close_many_and_unlock_cond(struct list_head *close_head)
 	if (lockdep_depth(current) > limit)
 		netif_close_many_and_unlock(close_head);
 #endif
+}
+
+bool unregister_netdevice_queued(const struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return !list_empty(&dev->unreg_list);
 }
 
 void unregister_netdevice_many_notify(struct list_head *head,

@@ -552,8 +552,11 @@ static void io_close_queue(struct io_zcrx_ifq *ifq)
 	}
 
 	if (netdev) {
-		if (ifq->if_rxq != -1)
-			net_mp_close_rxq(netdev, ifq->if_rxq, &p);
+		if (ifq->if_rxq != -1) {
+			netdev_lock(netdev);
+			netif_mp_close_rxq(netdev, ifq->if_rxq, &p);
+			netdev_unlock(netdev);
+		}
 		netdev_put(netdev, &netdev_tracker);
 	}
 	ifq->if_rxq = -1;
@@ -826,7 +829,8 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	}
 	netdev_hold(ifq->netdev, &ifq->netdev_tracker, GFP_KERNEL);
 
-	ifq->dev = netdev_queue_get_dma_dev(ifq->netdev, reg.if_rxq);
+	ifq->dev = netdev_queue_get_dma_dev(ifq->netdev, reg.if_rxq,
+					    NETDEV_QUEUE_TYPE_RX);
 	if (!ifq->dev) {
 		ret = -EOPNOTSUPP;
 		goto netdev_put_unlock;
@@ -841,7 +845,7 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 		mp_param.rx_page_size = 1U << ifq->niov_shift;
 	mp_param.mp_ops = &io_uring_pp_zc_ops;
 	mp_param.mp_priv = ifq;
-	ret = __net_mp_open_rxq(ifq->netdev, reg.if_rxq, &mp_param, NULL);
+	ret = netif_mp_open_rxq(ifq->netdev, reg.if_rxq, &mp_param, NULL);
 	if (ret)
 		goto netdev_put_unlock;
 	netdev_unlock(ifq->netdev);

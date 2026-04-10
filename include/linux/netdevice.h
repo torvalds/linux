@@ -2561,7 +2561,14 @@ struct net_device {
 	 * Also protects some fields in:
 	 *	struct napi_struct, struct netdev_queue, struct netdev_rx_queue
 	 *
-	 * Ordering: take after rtnl_lock.
+	 * Ordering:
+	 *
+	 * - take after rtnl_lock
+	 *
+	 * - for the case of netdev queue leasing, the netdev-scope lock is
+	 *   taken for both the virtual and the physical device; to prevent
+	 *   deadlocks, the virtual device's lock must always be acquired
+	 *   before the physical device's (see netdev_nl_queue_create_doit)
 	 */
 	struct mutex		lock;
 
@@ -3413,6 +3420,8 @@ static inline int dev_direct_xmit(struct sk_buff *skb, u16 queue_id)
 int register_netdevice(struct net_device *dev);
 void unregister_netdevice_queue(struct net_device *dev, struct list_head *head);
 void unregister_netdevice_many(struct list_head *head);
+bool unregister_netdevice_queued(const struct net_device *dev);
+
 static inline void unregister_netdevice(struct net_device *dev)
 {
 	unregister_netdevice_queue(dev, NULL);

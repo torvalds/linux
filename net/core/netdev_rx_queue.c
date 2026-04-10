@@ -10,14 +10,108 @@
 #include "dev.h"
 #include "page_pool_priv.h"
 
-/* See also page_pool_is_unreadable() */
-bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx)
+void netdev_rx_queue_lease(struct netdev_rx_queue *rxq_dst,
+			   struct netdev_rx_queue *rxq_src)
 {
-	struct netdev_rx_queue *rxq = __netif_get_rx_queue(dev, idx);
+	netdev_assert_locked(rxq_src->dev);
+	netdev_assert_locked(rxq_dst->dev);
 
-	return !!rxq->mp_params.mp_ops;
+	netdev_hold(rxq_src->dev, &rxq_src->lease_tracker, GFP_KERNEL);
+
+	WRITE_ONCE(rxq_src->lease, rxq_dst);
+	WRITE_ONCE(rxq_dst->lease, rxq_src);
+}
+
+void netdev_rx_queue_unlease(struct netdev_rx_queue *rxq_dst,
+			     struct netdev_rx_queue *rxq_src)
+{
+	netdev_assert_locked(rxq_dst->dev);
+	netdev_assert_locked(rxq_src->dev);
+
+	netif_rxq_cleanup_unlease(rxq_src, rxq_dst);
+
+	WRITE_ONCE(rxq_src->lease, NULL);
+	WRITE_ONCE(rxq_dst->lease, NULL);
+
+	netdev_put(rxq_src->dev, &rxq_src->lease_tracker);
+}
+
+bool netif_rxq_is_leased(struct net_device *dev, unsigned int rxq_idx)
+{
+	if (rxq_idx < dev->real_num_rx_queues)
+		return READ_ONCE(__netif_get_rx_queue(dev, rxq_idx)->lease);
+	return false;
+}
+
+/* Virtual devices eligible for leasing have no dev->dev.parent, while
+ * physical devices always have one. Use this to enforce the correct
+ * lease traversal direction.
+ */
+static bool netif_lease_dir_ok(const struct net_device *dev,
+			       enum netif_lease_dir dir)
+{
+	if (dir == NETIF_VIRT_TO_PHYS && !dev->dev.parent)
+		return true;
+	if (dir == NETIF_PHYS_TO_VIRT && dev->dev.parent)
+		return true;
+	return false;
+}
+
+struct netdev_rx_queue *
+__netif_get_rx_queue_lease(struct net_device **dev, unsigned int *rxq_idx,
+			   enum netif_lease_dir dir)
+{
+	struct net_device *orig_dev = *dev;
+	struct netdev_rx_queue *rxq = __netif_get_rx_queue(orig_dev, *rxq_idx);
+
+	if (rxq->lease) {
+		if (!netif_lease_dir_ok(orig_dev, dir))
+			return NULL;
+		rxq = rxq->lease;
+		*rxq_idx = get_netdev_rx_queue_index(rxq);
+		*dev = rxq->dev;
+	}
+	return rxq;
+}
+
+struct netdev_rx_queue *
+netif_get_rx_queue_lease_locked(struct net_device **dev, unsigned int *rxq_idx)
+{
+	struct net_device *orig_dev = *dev;
+	struct netdev_rx_queue *rxq;
+
+	/* Locking order is always from the virtual to the physical device
+	 * see netdev_nl_queue_create_doit().
+	 */
+	netdev_ops_assert_locked(orig_dev);
+	rxq = __netif_get_rx_queue_lease(dev, rxq_idx, NETIF_VIRT_TO_PHYS);
+	if (rxq && orig_dev != *dev)
+		netdev_lock(*dev);
+	return rxq;
+}
+
+void netif_put_rx_queue_lease_locked(struct net_device *orig_dev,
+				     struct net_device *dev)
+{
+	if (orig_dev != dev)
+		netdev_unlock(dev);
+}
+
+/* See also page_pool_is_unreadable() */
+bool netif_rxq_has_unreadable_mp(struct net_device *dev, unsigned int rxq_idx)
+{
+	if (rxq_idx < dev->real_num_rx_queues)
+		return __netif_get_rx_queue(dev, rxq_idx)->mp_params.mp_ops;
+	return false;
 }
 EXPORT_SYMBOL(netif_rxq_has_unreadable_mp);
+
+bool netif_rxq_has_mp(struct net_device *dev, unsigned int rxq_idx)
+{
+	if (rxq_idx < dev->real_num_rx_queues)
+		return __netif_get_rx_queue(dev, rxq_idx)->mp_params.mp_priv;
+	return false;
+}
 
 static int netdev_rx_queue_reconfig(struct net_device *dev,
 				    unsigned int rxq_idx,
@@ -108,9 +202,9 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 }
 EXPORT_SYMBOL_NS_GPL(netdev_rx_queue_restart, "NETDEV_INTERNAL");
 
-int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
-		      const struct pp_memory_provider_params *p,
-		      struct netlink_ext_ack *extack)
+static int __netif_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
+			       const struct pp_memory_provider_params *p,
+			       struct netlink_ext_ack *extack)
 {
 	const struct netdev_queue_mgmt_ops *qops = dev->queue_mgmt_ops;
 	struct netdev_queue_config qcfg[2];
@@ -119,12 +213,6 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 
 	if (!qops)
 		return -EOPNOTSUPP;
-
-	if (rxq_idx >= dev->real_num_rx_queues) {
-		NL_SET_ERR_MSG(extack, "rx queue index out of range");
-		return -ERANGE;
-	}
-	rxq_idx = array_index_nospec(rxq_idx, dev->real_num_rx_queues);
 
 	if (dev->cfg->hds_config != ETHTOOL_TCP_DATA_SPLIT_ENABLED) {
 		NL_SET_ERR_MSG(extack, "tcp-data-split is disabled");
@@ -172,26 +260,47 @@ err_clear_mp:
 	return ret;
 }
 
-int net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
-		    struct pp_memory_provider_params *p)
+int netif_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
+		      const struct pp_memory_provider_params *p,
+		      struct netlink_ext_ack *extack)
 {
+	struct net_device *orig_dev = dev;
 	int ret;
 
-	netdev_lock(dev);
-	ret = __net_mp_open_rxq(dev, rxq_idx, p, NULL);
-	netdev_unlock(dev);
+	if (!netdev_need_ops_lock(dev))
+		return -EOPNOTSUPP;
+
+	if (rxq_idx >= dev->real_num_rx_queues) {
+		NL_SET_ERR_MSG(extack, "rx queue index out of range");
+		return -ERANGE;
+	}
+	rxq_idx = array_index_nospec(rxq_idx, dev->real_num_rx_queues);
+
+	if (!netif_rxq_is_leased(dev, rxq_idx))
+		return __netif_mp_open_rxq(dev, rxq_idx, p, extack);
+
+	if (!netif_get_rx_queue_lease_locked(&dev, &rxq_idx)) {
+		NL_SET_ERR_MSG(extack, "rx queue leased to a virtual netdev");
+		return -EBUSY;
+	}
+	if (!dev->dev.parent) {
+		NL_SET_ERR_MSG(extack, "rx queue belongs to a virtual netdev");
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	ret = __netif_mp_open_rxq(dev, rxq_idx, p, extack);
+out:
+	netif_put_rx_queue_lease_locked(orig_dev, dev);
 	return ret;
 }
 
-void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
-			const struct pp_memory_provider_params *old_p)
+static void __netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
+				 const struct pp_memory_provider_params *old_p)
 {
 	struct netdev_queue_config qcfg[2];
 	struct netdev_rx_queue *rxq;
 	int err;
-
-	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
-		return;
 
 	rxq = __netif_get_rx_queue(dev, ifq_idx);
 
@@ -214,10 +323,47 @@ void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 	WARN_ON(err && err != -ENETDOWN);
 }
 
-void net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
-		      struct pp_memory_provider_params *old_p)
+void netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
+			const struct pp_memory_provider_params *old_p)
 {
-	netdev_lock(dev);
-	__net_mp_close_rxq(dev, ifq_idx, old_p);
-	netdev_unlock(dev);
+	struct net_device *orig_dev = dev;
+
+	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
+		return;
+	if (!netif_rxq_is_leased(dev, ifq_idx))
+		return __netif_mp_close_rxq(dev, ifq_idx, old_p);
+
+	if (WARN_ON_ONCE(!netif_get_rx_queue_lease_locked(&dev, &ifq_idx)))
+		return;
+
+	__netif_mp_close_rxq(dev, ifq_idx, old_p);
+	netif_put_rx_queue_lease_locked(orig_dev, dev);
+}
+
+void __netif_mp_uninstall_rxq(struct netdev_rx_queue *rxq,
+			      const struct pp_memory_provider_params *p)
+{
+	if (p->mp_ops && p->mp_ops->uninstall)
+		p->mp_ops->uninstall(p->mp_priv, rxq);
+}
+
+/* Clean up memory provider state when a queue lease is torn down. If
+ * a memory provider was installed on the physical queue via the lease,
+ * close it now. The memory provider is a property of the queue itself,
+ * and it was _guaranteed_ to be installed on the physical queue via
+ * the lease redirection. The extra __netif_mp_close_rxq is needed
+ * since the physical queue can outlive the virtual queue in the lease
+ * case, so it needs to be reconfigured to clear the memory provider.
+ */
+void netif_rxq_cleanup_unlease(struct netdev_rx_queue *phys_rxq,
+			       struct netdev_rx_queue *virt_rxq)
+{
+	struct pp_memory_provider_params *p = &phys_rxq->mp_params;
+	unsigned int ifq_idx = get_netdev_rx_queue_index(phys_rxq);
+
+	if (!p->mp_ops)
+		return;
+
+	__netif_mp_uninstall_rxq(virt_rxq, p);
+	__netif_mp_close_rxq(phys_rxq->dev, ifq_idx, p);
 }

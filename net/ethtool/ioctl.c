@@ -27,12 +27,12 @@
 #include <linux/net.h>
 #include <linux/pm_runtime.h>
 #include <linux/utsname.h>
+#include <linux/ethtool_netlink.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
-#include <net/xdp_sock_drv.h>
 #include <net/flow_offload.h>
 #include <net/netdev_lock.h>
-#include <linux/ethtool_netlink.h>
+#include <net/netdev_queues.h>
 
 #include "common.h"
 
@@ -2250,7 +2250,6 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels, curr = { .cmd = ETHTOOL_GCHANNELS };
-	u16 from_channel, to_channel;
 	unsigned int i;
 	int ret;
 
@@ -2284,13 +2283,17 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 	if (ret)
 		return ret;
 
-	/* Disabling channels, query zero-copy AF_XDP sockets */
-	from_channel = channels.combined_count +
-		min(channels.rx_count, channels.tx_count);
-	to_channel = curr.combined_count + max(curr.rx_count, curr.tx_count);
-	for (i = from_channel; i < to_channel; i++)
-		if (xsk_get_pool_from_qid(dev, i))
+	/* Disabling channels, query busy queues (AF_XDP, queue leasing) */
+	for (i = channels.combined_count + channels.rx_count;
+	     i < curr.combined_count + curr.rx_count; i++) {
+		if (netdev_queue_busy(dev, i, NETDEV_QUEUE_TYPE_RX, NULL))
 			return -EINVAL;
+	}
+	for (i = channels.combined_count + channels.tx_count;
+	     i < curr.combined_count + curr.tx_count; i++) {
+		if (netdev_queue_busy(dev, i, NETDEV_QUEUE_TYPE_TX, NULL))
+			return -EINVAL;
+	}
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
 	if (!ret)
