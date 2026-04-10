@@ -256,11 +256,6 @@ static inline spis_t spis_and(spis_t a, spis_t b)
 	return (spis_t){{ a.v[0] & b.v[0], a.v[1] & b.v[1] }};
 }
 
-static inline spis_t spis_xor(spis_t a, spis_t b)
-{
-	return (spis_t){{ a.v[0] ^ b.v[0], a.v[1] ^ b.v[1] }};
-}
-
 static inline spis_t spis_not(spis_t s)
 {
 	return (spis_t){{ ~s.v[0], ~s.v[1] }};

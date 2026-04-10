@@ -6,6 +6,7 @@
 #include <linux/hashtable.h>
 #include <linux/jhash.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
 
 #define verbose(env, fmt, args...) bpf_verifier_log_write(env, fmt, ##args)
 
@@ -197,64 +198,6 @@ static int mark_stack_write(struct func_instance *instance, u32 frame, u32 insn_
 	return 0;
 }
 
-static char *fmt_instance(struct bpf_verifier_env *env, struct func_instance *instance)
-{
-	snprintf(env->tmp_str_buf, sizeof(env->tmp_str_buf),
-		 "(d%d,cs%d)", instance->depth, instance->callsite);
-	return env->tmp_str_buf;
-}
-
-/*
- * When both halves of an 8-byte SPI are set, print as "-8","-16",...
- * When only one half is set, print as "-4h","-8h",...
- */
-static void bpf_fmt_spis_mask(char *buf, ssize_t buf_sz, spis_t spis)
-{
-	bool first = true;
-	int spi, n;
-
-	buf[0] = '\0';
-
-	for (spi = 0; spi < STACK_SLOTS / 2 && buf_sz > 0; spi++) {
-		bool lo = spis_test_bit(spis, spi * 2);
-		bool hi = spis_test_bit(spis, spi * 2 + 1);
-
-		if (!lo && !hi)
-			continue;
-		n = snprintf(buf, buf_sz, "%s%d%s",
-			     first ? "" : ",",
-			     -(spi + 1) * BPF_REG_SIZE + (lo && !hi ? BPF_HALF_REG_SIZE : 0),
-			     lo && hi ? "" : "h");
-		first = false;
-		buf += n;
-		buf_sz -= n;
-	}
-}
-
-static void log_mask_change(struct bpf_verifier_env *env, struct func_instance *instance,
-			    char *pfx, u32 frame, u32 insn_idx,
-			    spis_t old, spis_t new)
-{
-	spis_t changed_bits, new_ones, new_zeros;
-
-	changed_bits = spis_xor(old, new);
-	new_ones = spis_and(new, changed_bits);
-	new_zeros = spis_and(spis_not(new), changed_bits);
-
-	if (spis_is_zero(changed_bits))
-		return;
-	bpf_log(&env->log, "%s frame %d insn %d ", fmt_instance(env, instance), frame, insn_idx);
-	if (!spis_is_zero(new_ones)) {
-		bpf_fmt_spis_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_ones);
-		bpf_log(&env->log, "+%s %s ", pfx, env->tmp_str_buf);
-	}
-	if (!spis_is_zero(new_zeros)) {
-		bpf_fmt_spis_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_zeros);
-		bpf_log(&env->log, "-%s %s", pfx, env->tmp_str_buf);
-	}
-	bpf_log(&env->log, "\n");
-}
-
 int bpf_jmp_offset(struct bpf_insn *insn)
 {
 	u8 code = insn->code;
@@ -330,7 +273,6 @@ __diag_pop();
 static inline bool update_insn(struct bpf_verifier_env *env,
 			       struct func_instance *instance, u32 frame, u32 insn_idx)
 {
-	struct bpf_insn_aux_data *aux = env->insn_aux_data;
 	spis_t new_before, new_after;
 	struct per_frame_masks *insn, *succ_insn;
 	struct bpf_iarray *succ;
@@ -357,13 +299,6 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 	new_before = spis_or(spis_and(new_after, spis_not(insn->must_write)),
 			     insn->may_read);
 	changed |= !spis_equal(new_before, insn->live_before);
-	if (unlikely(env->log.level & BPF_LOG_LEVEL2) &&
-	    (!spis_is_zero(insn->may_read) || !spis_is_zero(insn->must_write) ||
-	     insn_idx == instance->subprog_start ||
-	     aux[insn_idx].prune_point)) {
-		log_mask_change(env, instance, "live",
-				frame, insn_idx, insn->live_before, new_before);
-	}
 	insn->live_before = new_before;
 	return changed;
 }
@@ -393,10 +328,6 @@ static void update_instance(struct bpf_verifier_env *env, struct func_instance *
 				changed |= update_insn(env, instance, frame, insn_postorder[i]);
 		}
 	} while (changed);
-
-	if (env->log.level & BPF_LOG_LEVEL2)
-		bpf_log(&env->log, "%s live stack update done in %d iterations\n",
-			fmt_instance(env, instance), cnt);
 }
 
 static bool is_live_before(struct func_instance *instance, u32 insn_idx, u32 frameno, u32 half_spi)
@@ -474,6 +405,166 @@ bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 half_sp
 	}
 
 	return false;
+}
+
+static char *fmt_subprog(struct bpf_verifier_env *env, int subprog)
+{
+	const char *name = env->subprog_info[subprog].name;
+
+	snprintf(env->tmp_str_buf, sizeof(env->tmp_str_buf),
+		 "subprog#%d%s%s", subprog, name ? " " : "", name ? name : "");
+	return env->tmp_str_buf;
+}
+
+static char *fmt_instance(struct bpf_verifier_env *env, struct func_instance *instance)
+{
+	snprintf(env->tmp_str_buf, sizeof(env->tmp_str_buf),
+		 "(d%d,cs%d)", instance->depth, instance->callsite);
+	return env->tmp_str_buf;
+}
+
+static int spi_off(int spi)
+{
+	return -(spi + 1) * BPF_REG_SIZE;
+}
+
+/*
+ * When both halves of an 8-byte SPI are set, print as "-8","-16",...
+ * When only one half is set, print as "-4h","-8h",...
+ * Runs of 3+ consecutive fully-set SPIs are collapsed: "fp0-8..-24"
+ */
+static char *fmt_spis_mask(struct bpf_verifier_env *env, int frame, bool first, spis_t spis)
+{
+	int buf_sz = sizeof(env->tmp_str_buf);
+	char *buf = env->tmp_str_buf;
+	int spi, n, run_start;
+
+	buf[0] = '\0';
+
+	for (spi = 0; spi < STACK_SLOTS / 2 && buf_sz > 0; spi++) {
+		bool lo = spis_test_bit(spis, spi * 2);
+		bool hi = spis_test_bit(spis, spi * 2 + 1);
+		const char *space = first ? "" : " ";
+
+		if (!lo && !hi)
+			continue;
+
+		if (!lo || !hi) {
+			/* half-spi */
+			n = scnprintf(buf, buf_sz, "%sfp%d%d%s",
+				      space, frame, spi_off(spi) + (lo ? STACK_SLOT_SZ : 0), "h");
+		} else if (spi + 2 < STACK_SLOTS / 2 &&
+			   spis_test_bit(spis, spi * 2 + 2) &&
+			   spis_test_bit(spis, spi * 2 + 3) &&
+			   spis_test_bit(spis, spi * 2 + 4) &&
+			   spis_test_bit(spis, spi * 2 + 5)) {
+			/* 3+ consecutive full spis */
+			run_start = spi;
+			while (spi + 1 < STACK_SLOTS / 2 &&
+			       spis_test_bit(spis, (spi + 1) * 2) &&
+			       spis_test_bit(spis, (spi + 1) * 2 + 1))
+				spi++;
+			n = scnprintf(buf, buf_sz, "%sfp%d%d..%d",
+				      space, frame, spi_off(run_start), spi_off(spi));
+		} else {
+			/* just a full spi */
+			n = scnprintf(buf, buf_sz, "%sfp%d%d", space, frame, spi_off(spi));
+		}
+		first = false;
+		buf += n;
+		buf_sz -= n;
+	}
+	return env->tmp_str_buf;
+}
+
+static void print_instance(struct bpf_verifier_env *env, struct func_instance *instance)
+{
+	int start = env->subprog_info[instance->subprog].start;
+	struct bpf_insn *insns = env->prog->insnsi;
+	struct per_frame_masks *masks;
+	int len = instance->insn_cnt;
+	int insn_idx, frame, i;
+	bool has_use, has_def;
+	u64 pos, insn_pos;
+
+	if (!(env->log.level & BPF_LOG_LEVEL2))
+		return;
+
+	verbose(env, "stack use/def %s ", fmt_subprog(env, instance->subprog));
+	verbose(env, "%s:\n", fmt_instance(env, instance));
+	for (i = 0; i < len; i++) {
+		insn_idx = start + i;
+		has_use = false;
+		has_def = false;
+		pos = env->log.end_pos;
+		verbose(env, "%3d: ", insn_idx);
+		bpf_verbose_insn(env, &insns[insn_idx]);
+		bpf_vlog_reset(&env->log, env->log.end_pos - 1); /* remove \n */
+		insn_pos = env->log.end_pos;
+		verbose(env, "%*c;", bpf_vlog_alignment(insn_pos - pos), ' ');
+		pos = env->log.end_pos;
+		verbose(env, " use: ");
+		for (frame = instance->depth; frame >= 0; --frame) {
+			masks = get_frame_masks(instance, frame, insn_idx);
+			if (!masks || spis_is_zero(masks->may_read))
+				continue;
+			verbose(env, "%s", fmt_spis_mask(env, frame, !has_use, masks->may_read));
+			has_use = true;
+		}
+		if (!has_use)
+			bpf_vlog_reset(&env->log, pos);
+		pos = env->log.end_pos;
+		verbose(env, " def: ");
+		for (frame = instance->depth; frame >= 0; --frame) {
+			masks = get_frame_masks(instance, frame, insn_idx);
+			if (!masks || spis_is_zero(masks->must_write))
+				continue;
+			verbose(env, "%s", fmt_spis_mask(env, frame, !has_def, masks->must_write));
+			has_def = true;
+		}
+		if (!has_def)
+			bpf_vlog_reset(&env->log, has_use ? pos : insn_pos);
+		verbose(env, "\n");
+		if (bpf_is_ldimm64(&insns[insn_idx]))
+			i++;
+	}
+}
+
+static int cmp_instances(const void *pa, const void *pb)
+{
+	struct func_instance *a = *(struct func_instance **)pa;
+	struct func_instance *b = *(struct func_instance **)pb;
+	int dcallsite = (int)a->callsite - b->callsite;
+	int ddepth = (int)a->depth - b->depth;
+
+	if (dcallsite)
+		return dcallsite;
+	if (ddepth)
+		return ddepth;
+	return 0;
+}
+
+/* print use/def slots for all instances ordered by callsite first, then by depth */
+static int print_instances(struct bpf_verifier_env *env)
+{
+	struct func_instance *instance, **sorted_instances;
+	struct bpf_liveness *liveness = env->liveness;
+	int i, bkt, cnt;
+
+	cnt = 0;
+	hash_for_each(liveness->func_instances, bkt, instance, hl_node)
+		cnt++;
+	sorted_instances = kvmalloc_objs(*sorted_instances, cnt, GFP_KERNEL_ACCOUNT);
+	if (!sorted_instances)
+		return -ENOMEM;
+	cnt = 0;
+	hash_for_each(liveness->func_instances, bkt, instance, hl_node)
+		sorted_instances[cnt++] = instance;
+	sort(sorted_instances, cnt, sizeof(*sorted_instances), cmp_instances, NULL);
+	for (i = 0; i < cnt; i++)
+		print_instance(env, sorted_instances[i]);
+	kvfree(sorted_instances);
+	return 0;
 }
 
 /*
@@ -1363,12 +1454,7 @@ static void print_subprog_arg_access(struct bpf_verifier_env *env,
 	if (!(env->log.level & BPF_LOG_LEVEL2))
 		return;
 
-	verbose(env, "subprog#%d %s:\n", subprog,
-		env->prog->aux->func_info
-		? btf_name_by_offset(env->prog->aux->btf,
-				     btf_type_by_id(env->prog->aux->btf,
-						    env->prog->aux->func_info[subprog].type_id)->name_off)
-		: "");
+	verbose(env, "%s:\n", fmt_subprog(env, subprog));
 	for (i = 0; i < len; i++) {
 		int idx = start + i;
 		bool has_extra = false;
@@ -1855,6 +1941,9 @@ int bpf_compute_subprog_arg_access(struct bpf_verifier_env *env)
 		if (err)
 			goto out;
 	}
+
+	if (env->log.level & BPF_LOG_LEVEL2)
+		err = print_instances(env);
 
 out:
 	for (k = 0; k < insn_cnt; k++)
