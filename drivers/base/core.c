@@ -2570,15 +2570,14 @@ static void device_release(struct kobject *kobj)
 	kfree(p);
 }
 
-static const void *device_namespace(const struct kobject *kobj)
+static const struct ns_common *device_namespace(const struct kobject *kobj)
 {
 	const struct device *dev = kobj_to_dev(kobj);
-	const void *ns = NULL;
 
 	if (dev->class && dev->class->namespace)
-		ns = dev->class->namespace(dev);
+		return dev->class->namespace(dev);
 
-	return ns;
+	return NULL;
 }
 
 static void device_get_ownership(const struct kobject *kobj, kuid_t *uid, kgid_t *gid)

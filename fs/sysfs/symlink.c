@@ -121,7 +121,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_link_nowarn);
 void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 			const char *name)
 {
-	const void *ns = NULL;
+	const struct ns_common *ns = NULL;
 
 	/*
 	 * We don't own @target and it may be removed at any time.
@@ -164,10 +164,11 @@ EXPORT_SYMBOL_GPL(sysfs_remove_link);
  *	A helper function for the common rename symlink idiom.
  */
 int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
-			 const char *old, const char *new, const void *new_ns)
+			 const char *old, const char *new,
+			 const struct ns_common *new_ns)
 {
 	struct kernfs_node *parent, *kn = NULL;
-	const void *old_ns = NULL;
+	const struct ns_common *old_ns = NULL;
 	int result;
 
 	if (!kobj)

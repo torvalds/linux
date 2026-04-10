@@ -127,7 +127,7 @@ static const struct kobj_type class_ktype = {
 };
 
 int class_create_file_ns(const struct class *cls, const struct class_attribute *attr,
-			 const void *ns)
+			 const struct ns_common *ns)
 {
 	struct subsys_private *sp = class_to_subsys(cls);
 	int error;
@@ -143,7 +143,7 @@ int class_create_file_ns(const struct class *cls, const struct class_attribute *
 EXPORT_SYMBOL_GPL(class_create_file_ns);
 
 void class_remove_file_ns(const struct class *cls, const struct class_attribute *attr,
-			  const void *ns)
+			  const struct ns_common *ns)
 {
 	struct subsys_private *sp = class_to_subsys(cls);
 

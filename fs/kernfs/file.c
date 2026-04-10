@@ -1045,7 +1045,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 umode_t mode, kuid_t uid, kgid_t gid,
 					 loff_t size,
 					 const struct kernfs_ops *ops,
-					 void *priv, const void *ns,
+					 void *priv, const struct ns_common *ns,
 					 struct lock_class_key *key)
 {
 	struct kernfs_node *kn;

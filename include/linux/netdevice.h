@@ -5339,9 +5339,9 @@ static inline netdev_tx_t netdev_start_xmit(struct sk_buff *skb, struct net_devi
 }
 
 int netdev_class_create_file_ns(const struct class_attribute *class_attr,
-				const void *ns);
+				const struct ns_common *ns);
 void netdev_class_remove_file_ns(const struct class_attribute *class_attr,
-				 const void *ns);
+				 const struct ns_common *ns);
 
 extern const struct kobj_ns_type_operations net_ns_type_operations;
 

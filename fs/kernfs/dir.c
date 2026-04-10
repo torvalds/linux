@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/security.h>
 #include <linux/hash.h>
+#include <linux/ns_common.h>
 
 #include "kernfs-internal.h"
 
@@ -306,6 +307,18 @@ struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
 	return parent;
 }
 
+/*
+ * kernfs_ns_id - return the namespace id for a given namespace
+ * @ns: namespace tag (may be NULL)
+ *
+ * Use the 64-bit namespace id instead of raw pointers for hashing
+ * and comparison to avoid leaking kernel addresses to userspace.
+ */
+static u64 kernfs_ns_id(const struct ns_common *ns)
+{
+	return ns ? ns->ns_id : 0;
+}
+
 /**
  *	kernfs_name_hash - calculate hash of @ns + @name
  *	@name: Null terminated string to hash
@@ -313,9 +326,10 @@ struct kernfs_node *kernfs_get_parent(struct kernfs_node *kn)
  *
  *	Return: 31-bit hash of ns + name (so it fits in an off_t)
  */
-static unsigned int kernfs_name_hash(const char *name, const void *ns)
+static unsigned int kernfs_name_hash(const char *name,
+				     const struct ns_common *ns)
 {
-	unsigned long hash = init_name_hash(ns);
+	unsigned long hash = init_name_hash(kernfs_ns_id(ns));
 	unsigned int len = strlen(name);
 	while (len--)
 		hash = partial_name_hash(*name++, hash);
@@ -330,15 +344,18 @@ static unsigned int kernfs_name_hash(const char *name, const void *ns)
 }
 
 static int kernfs_name_compare(unsigned int hash, const char *name,
-			       const void *ns, const struct kernfs_node *kn)
+			       const struct ns_common *ns, const struct kernfs_node *kn)
 {
+	u64 ns_id = kernfs_ns_id(ns);
+	u64 kn_ns_id = kernfs_ns_id(kn->ns);
+
 	if (hash < kn->hash)
 		return -1;
 	if (hash > kn->hash)
 		return 1;
-	if (ns < kn->ns)
+	if (ns_id < kn_ns_id)
 		return -1;
-	if (ns > kn->ns)
+	if (ns_id > kn_ns_id)
 		return 1;
 	return strcmp(name, kernfs_rcu_name(kn));
 }
@@ -856,7 +873,7 @@ out_unlock:
  */
 static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 					  const unsigned char *name,
-					  const void *ns)
+					  const struct ns_common *ns)
 {
 	struct rb_node *node = parent->dir.children.rb_node;
 	bool has_ns = kernfs_ns_enabled(parent);
@@ -889,7 +906,7 @@ static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 
 static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
 					  const unsigned char *path,
-					  const void *ns)
+					  const struct ns_common *ns)
 {
 	ssize_t len;
 	char *p, *name;
@@ -930,7 +947,8 @@ static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
  * Return: pointer to the found kernfs_node on success, %NULL on failure.
  */
 struct kernfs_node *kernfs_find_and_get_ns(struct kernfs_node *parent,
-					   const char *name, const void *ns)
+					   const char *name,
+					   const struct ns_common *ns)
 {
 	struct kernfs_node *kn;
 	struct kernfs_root *root = kernfs_root(parent);
@@ -956,7 +974,8 @@ EXPORT_SYMBOL_GPL(kernfs_find_and_get_ns);
  * Return: pointer to the found kernfs_node on success, %NULL on failure.
  */
 struct kernfs_node *kernfs_walk_and_get_ns(struct kernfs_node *parent,
-					   const char *path, const void *ns)
+					   const char *path,
+					   const struct ns_common *ns)
 {
 	struct kernfs_node *kn;
 	struct kernfs_root *root = kernfs_root(parent);
@@ -1079,7 +1098,8 @@ struct kernfs_node *kernfs_root_to_node(struct kernfs_root *root)
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 					 const char *name, umode_t mode,
 					 kuid_t uid, kgid_t gid,
-					 void *priv, const void *ns)
+					 void *priv,
+					 const struct ns_common *ns)
 {
 	struct kernfs_node *kn;
 	int rc;
@@ -1199,7 +1219,7 @@ static int kernfs_dop_revalidate(struct inode *dir, const struct qstr *name,
 
 	/* The kernfs node has been moved to a different namespace */
 	if (parent && kernfs_ns_enabled(parent) &&
-	    kernfs_info(dentry->d_sb)->ns != kn->ns)
+	    kernfs_ns_id(kernfs_info(dentry->d_sb)->ns) != kernfs_ns_id(kn->ns))
 		goto out_bad;
 
 	up_read(&root->kernfs_rwsem);
@@ -1221,7 +1241,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	struct kernfs_node *kn;
 	struct kernfs_root *root;
 	struct inode *inode = NULL;
-	const void *ns = NULL;
+	const struct ns_common *ns = NULL;
 
 	root = kernfs_root(parent);
 	down_read(&root->kernfs_rwsem);
@@ -1702,7 +1722,7 @@ bool kernfs_remove_self(struct kernfs_node *kn)
  * Return: %0 on success, -ENOENT if such entry doesn't exist.
  */
 int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
-			     const void *ns)
+			     const struct ns_common *ns)
 {
 	struct kernfs_node *kn;
 	struct kernfs_root *root;
@@ -1741,7 +1761,7 @@ int kernfs_remove_by_name_ns(struct kernfs_node *parent, const char *name,
  * Return: %0 on success, -errno on failure.
  */
 int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
-		     const char *new_name, const void *new_ns)
+		     const char *new_name, const struct ns_common *new_ns)
 {
 	struct kernfs_node *old_parent;
 	struct kernfs_root *root;
@@ -1771,7 +1791,8 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	old_name = kernfs_rcu_name(kn);
 	if (!new_name)
 		new_name = old_name;
-	if ((old_parent == new_parent) && (kn->ns == new_ns) &&
+	if ((old_parent == new_parent) &&
+	    (kernfs_ns_id(kn->ns) == kernfs_ns_id(new_ns)) &&
 	    (strcmp(old_name, new_name) == 0))
 		goto out;	/* nothing to rename */
 
@@ -1832,7 +1853,7 @@ static int kernfs_dir_fop_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct kernfs_node *kernfs_dir_pos(const void *ns,
+static struct kernfs_node *kernfs_dir_pos(const struct ns_common *ns,
 	struct kernfs_node *parent, loff_t hash, struct kernfs_node *pos)
 {
 	if (pos) {
@@ -1845,6 +1866,7 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 	}
 	if (!pos && (hash > 1) && (hash < INT_MAX)) {
 		struct rb_node *node = parent->dir.children.rb_node;
+		u64 ns_id = kernfs_ns_id(ns);
 		while (node) {
 			pos = rb_to_kn(node);
 
@@ -1852,12 +1874,17 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 				node = node->rb_left;
 			else if (hash > pos->hash)
 				node = node->rb_right;
+			else if (ns_id < kernfs_ns_id(pos->ns))
+				node = node->rb_left;
+			else if (ns_id > kernfs_ns_id(pos->ns))
+				node = node->rb_right;
 			else
 				break;
 		}
 	}
 	/* Skip over entries which are dying/dead or in the wrong namespace */
-	while (pos && (!kernfs_active(pos) || pos->ns != ns)) {
+	while (pos && (!kernfs_active(pos) ||
+		       kernfs_ns_id(pos->ns) != kernfs_ns_id(ns))) {
 		struct rb_node *node = rb_next(&pos->rb);
 		if (!node)
 			pos = NULL;
@@ -1867,7 +1894,7 @@ static struct kernfs_node *kernfs_dir_pos(const void *ns,
 	return pos;
 }
 
-static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
+static struct kernfs_node *kernfs_dir_next_pos(const struct ns_common *ns,
 	struct kernfs_node *parent, ino_t ino, struct kernfs_node *pos)
 {
 	pos = kernfs_dir_pos(ns, parent, ino, pos);
@@ -1878,7 +1905,8 @@ static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
 				pos = NULL;
 			else
 				pos = rb_to_kn(node);
-		} while (pos && (!kernfs_active(pos) || pos->ns != ns));
+		} while (pos && (!kernfs_active(pos) ||
+			kernfs_ns_id(pos->ns) != kernfs_ns_id(ns)));
 	}
 	return pos;
 }
@@ -1889,7 +1917,7 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 	struct kernfs_node *parent = kernfs_dentry_node(dentry);
 	struct kernfs_node *pos = file->private_data;
 	struct kernfs_root *root;
-	const void *ns = NULL;
+	const struct ns_common *ns = NULL;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;

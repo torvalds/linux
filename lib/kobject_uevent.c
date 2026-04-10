@@ -238,7 +238,7 @@ static int kobj_usermode_filter(struct kobject *kobj)
 
 	ops = kobj_ns_ops(kobj);
 	if (ops) {
-		const void *init_ns, *ns;
+		const struct ns_common *init_ns, *ns;
 
 		ns = kobj->ktype->namespace(kobj);
 		init_ns = ops->initial_ns();
@@ -388,7 +388,7 @@ static int kobject_uevent_net_broadcast(struct kobject *kobj,
 
 #ifdef CONFIG_NET
 	const struct kobj_ns_type_operations *ops;
-	const struct net *net = NULL;
+	const struct ns_common *ns = NULL;
 
 	ops = kobj_ns_ops(kobj);
 	if (!ops && kobj->kset) {
@@ -404,14 +404,17 @@ static int kobject_uevent_net_broadcast(struct kobject *kobj,
 	 */
 	if (ops && ops->netlink_ns && kobj->ktype->namespace)
 		if (ops->type == KOBJ_NS_TYPE_NET)
-			net = kobj->ktype->namespace(kobj);
+			ns = kobj->ktype->namespace(kobj);
 
-	if (!net)
+	if (!ns)
 		ret = uevent_net_broadcast_untagged(env, action_string,
 						    devpath);
-	else
+	else {
+		const struct net *net = container_of(ns, struct net, ns);
+
 		ret = uevent_net_broadcast_tagged(net->uevent_sock->sk, env,
 						  action_string, devpath);
+	}
 #endif
 
 	return ret;

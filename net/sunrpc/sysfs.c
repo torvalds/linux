@@ -6,6 +6,7 @@
 #include <linux/kobject.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/xprtsock.h>
+#include <net/net_namespace.h>
 
 #include "sysfs.h"
 
@@ -553,20 +554,22 @@ static void rpc_sysfs_xprt_release(struct kobject *kobj)
 	kfree(xprt);
 }
 
-static const void *rpc_sysfs_client_namespace(const struct kobject *kobj)
+static const struct ns_common *rpc_sysfs_client_namespace(const struct kobject *kobj)
 {
-	return container_of(kobj, struct rpc_sysfs_client, kobject)->net;
+	return to_ns_common(container_of(kobj, struct rpc_sysfs_client,
+					 kobject)->net);
 }
 
-static const void *rpc_sysfs_xprt_switch_namespace(const struct kobject *kobj)
+static const struct ns_common *rpc_sysfs_xprt_switch_namespace(const struct kobject *kobj)
 {
-	return container_of(kobj, struct rpc_sysfs_xprt_switch, kobject)->net;
+	return to_ns_common(container_of(kobj, struct rpc_sysfs_xprt_switch,
+					 kobject)->net);
 }
 
-static const void *rpc_sysfs_xprt_namespace(const struct kobject *kobj)
+static const struct ns_common *rpc_sysfs_xprt_namespace(const struct kobject *kobj)
 {
-	return container_of(kobj, struct rpc_sysfs_xprt,
-			    kobject)->xprt->xprt_net;
+	return to_ns_common(container_of(kobj, struct rpc_sysfs_xprt,
+					 kobject)->xprt->xprt_net);
 }
 
 static struct kobj_attribute rpc_sysfs_clnt_version = __ATTR(rpc_version,

@@ -55,7 +55,7 @@ static const struct fs_context_operations sysfs_fs_context_ops = {
 static int sysfs_init_fs_context(struct fs_context *fc)
 {
 	struct kernfs_fs_context *kfc;
-	struct net *netns;
+	struct ns_common *ns;
 
 	if (!(fc->sb_flags & SB_KERNMOUNT)) {
 		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
@@ -66,12 +66,14 @@ static int sysfs_init_fs_context(struct fs_context *fc)
 	if (!kfc)
 		return -ENOMEM;
 
-	kfc->ns_tag = netns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
+	kfc->ns_tag = ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
 	kfc->root = sysfs_root;
 	kfc->magic = SYSFS_MAGIC;
 	fc->fs_private = kfc;
 	fc->ops = &sysfs_fs_context_ops;
-	if (netns) {
+	if (ns) {
+		struct net *netns = to_net_ns(ns);
+
 		put_user_ns(fc->user_ns);
 		fc->user_ns = get_user_ns(netns->user_ns);
 	}
@@ -81,7 +83,7 @@ static int sysfs_init_fs_context(struct fs_context *fc)
 
 static void sysfs_kill_sb(struct super_block *sb)
 {
-	void *ns = (void *)kernfs_super_ns(sb);
+	struct ns_common *ns = (struct ns_common *)kernfs_super_ns(sb);
 
 	kernfs_kill_sb(sb);
 	kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);

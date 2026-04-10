@@ -97,7 +97,7 @@ struct kernfs_super_info {
 	 * instance.  If multiple tags become necessary, make the following
 	 * an array and compare kernfs_node tag against every entry.
 	 */
-	const void		*ns;
+	const struct ns_common	*ns;
 
 	/* anchored at kernfs_root->supers, protected by kernfs_rwsem */
 	struct list_head	node;
