@@ -93,10 +93,10 @@ struct callchain {
 };
 
 struct per_frame_masks {
-	u64 may_read;		/* stack slots that may be read by this instruction */
-	u64 must_write;		/* stack slots written by this instruction */
-	u64 must_write_acc;	/* stack slots written by this instruction and its successors */
-	u64 live_before;	/* stack slots that may be read by this insn and its successors */
+	spis_t may_read;	/* stack slots that may be read by this instruction */
+	spis_t must_write;	/* stack slots written by this instruction */
+	spis_t must_write_acc;	/* stack slots written by this instruction and its successors */
+	spis_t live_before;	/* stack slots that may be read by this insn and its successors */
 };
 
 /*
@@ -131,7 +131,7 @@ struct bpf_liveness {
 	 * Below fields are used to accumulate stack write marks for instruction at
 	 * @write_insn_idx before submitting the marks to @cur_instance.
 	 */
-	u64 write_masks_acc[MAX_CALL_FRAMES];
+	spis_t write_masks_acc[MAX_CALL_FRAMES];
 	u32 write_insn_idx;
 };
 
@@ -299,23 +299,24 @@ static int ensure_cur_instance(struct bpf_verifier_env *env)
 
 /* Accumulate may_read masks for @frame at @insn_idx */
 static int mark_stack_read(struct bpf_verifier_env *env,
-			   struct func_instance *instance, u32 frame, u32 insn_idx, u64 mask)
+			   struct func_instance *instance, u32 frame, u32 insn_idx, spis_t mask)
 {
 	struct per_frame_masks *masks;
-	u64 new_may_read;
+	spis_t new_may_read;
 
 	masks = alloc_frame_masks(env, instance, frame, insn_idx);
 	if (IS_ERR(masks))
 		return PTR_ERR(masks);
-	new_may_read = masks->may_read | mask;
-	if (new_may_read != masks->may_read &&
-	    ((new_may_read | masks->live_before) != masks->live_before))
+	new_may_read = spis_or(masks->may_read, mask);
+	if (!spis_equal(new_may_read, masks->may_read) &&
+	    !spis_equal(spis_or(new_may_read, masks->live_before),
+				masks->live_before))
 		instance->updated = true;
-	masks->may_read |= mask;
+	masks->may_read = spis_or(masks->may_read, mask);
 	return 0;
 }
 
-int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frame, u32 insn_idx, u64 mask)
+int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frame, u32 insn_idx, spis_t mask)
 {
 	int err;
 
@@ -332,7 +333,7 @@ static void reset_stack_write_marks(struct bpf_verifier_env *env,
 
 	liveness->write_insn_idx = insn_idx;
 	for (i = 0; i <= instance->callchain.curframe; i++)
-		liveness->write_masks_acc[i] = 0;
+		liveness->write_masks_acc[i] = SPIS_ZERO;
 }
 
 int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx)
@@ -348,18 +349,18 @@ int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx)
 	return 0;
 }
 
-void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frame, u64 mask)
+void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frame, spis_t mask)
 {
-	env->liveness->write_masks_acc[frame] |= mask;
+	env->liveness->write_masks_acc[frame] = spis_or(env->liveness->write_masks_acc[frame], mask);
 }
 
 static int commit_stack_write_marks(struct bpf_verifier_env *env,
 				    struct func_instance *instance)
 {
 	struct bpf_liveness *liveness = env->liveness;
-	u32 idx, frame, curframe, old_must_write;
+	u32 idx, frame, curframe;
 	struct per_frame_masks *masks;
-	u64 mask;
+	spis_t mask, old_must_write, dropped;
 
 	if (!instance)
 		return 0;
@@ -369,7 +370,7 @@ static int commit_stack_write_marks(struct bpf_verifier_env *env,
 	for (frame = 0; frame <= curframe; frame++) {
 		mask = liveness->write_masks_acc[frame];
 		/* avoid allocating frames for zero masks */
-		if (mask == 0 && !instance->must_write_set[idx])
+		if (spis_is_zero(mask) && !instance->must_write_set[idx])
 			continue;
 		masks = alloc_frame_masks(env, instance, frame, liveness->write_insn_idx);
 		if (IS_ERR(masks))
@@ -380,12 +381,14 @@ static int commit_stack_write_marks(struct bpf_verifier_env *env,
 		 * to @mask. Otherwise take intersection with the previous value.
 		 */
 		if (instance->must_write_set[idx])
-			mask &= old_must_write;
-		if (old_must_write != mask) {
+			mask = spis_and(mask, old_must_write);
+		if (!spis_equal(old_must_write, mask)) {
 			masks->must_write = mask;
 			instance->updated = true;
 		}
-		if (old_must_write & ~mask)
+		/* dropped = old_must_write & ~mask */
+		dropped = spis_and(old_must_write, spis_not(mask));
+		if (!spis_is_zero(dropped))
 			instance->must_write_dropped = true;
 	}
 	instance->must_write_set[idx] = true;
@@ -415,22 +418,52 @@ static char *fmt_callchain(struct bpf_verifier_env *env, struct callchain *callc
 	return env->tmp_str_buf;
 }
 
-static void log_mask_change(struct bpf_verifier_env *env, struct callchain *callchain,
-			    char *pfx, u32 frame, u32 insn_idx, u64 old, u64 new)
+/*
+ * When both halves of an 8-byte SPI are set, print as "-8","-16",...
+ * When only one half is set, print as "-4h","-8h",...
+ */
+static void bpf_fmt_spis_mask(char *buf, ssize_t buf_sz, spis_t spis)
 {
-	u64 changed_bits = old ^ new;
-	u64 new_ones = new & changed_bits;
-	u64 new_zeros = ~new & changed_bits;
+	bool first = true;
+	int spi, n;
 
-	if (!changed_bits)
+	buf[0] = '\0';
+
+	for (spi = 0; spi < STACK_SLOTS / 2 && buf_sz > 0; spi++) {
+		bool lo = spis_test_bit(spis, spi * 2);
+		bool hi = spis_test_bit(spis, spi * 2 + 1);
+
+		if (!lo && !hi)
+			continue;
+		n = snprintf(buf, buf_sz, "%s%d%s",
+			     first ? "" : ",",
+			     -(spi + 1) * BPF_REG_SIZE + (lo && !hi ? BPF_HALF_REG_SIZE : 0),
+			     lo && hi ? "" : "h");
+		first = false;
+		buf += n;
+		buf_sz -= n;
+	}
+}
+
+static void log_mask_change(struct bpf_verifier_env *env, struct callchain *callchain,
+			    char *pfx, u32 frame, u32 insn_idx,
+			    spis_t old, spis_t new)
+{
+	spis_t changed_bits, new_ones, new_zeros;
+
+	changed_bits = spis_xor(old, new);
+	new_ones = spis_and(new, changed_bits);
+	new_zeros = spis_and(spis_not(new), changed_bits);
+
+	if (spis_is_zero(changed_bits))
 		return;
 	bpf_log(&env->log, "%s frame %d insn %d ", fmt_callchain(env, callchain), frame, insn_idx);
-	if (new_ones) {
-		bpf_fmt_stack_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_ones);
+	if (!spis_is_zero(new_ones)) {
+		bpf_fmt_spis_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_ones);
 		bpf_log(&env->log, "+%s %s ", pfx, env->tmp_str_buf);
 	}
-	if (new_zeros) {
-		bpf_fmt_stack_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_zeros);
+	if (!spis_is_zero(new_zeros)) {
+		bpf_fmt_spis_mask(env->tmp_str_buf, sizeof(env->tmp_str_buf), new_zeros);
 		bpf_log(&env->log, "-%s %s", pfx, env->tmp_str_buf);
 	}
 	bpf_log(&env->log, "\n");
@@ -562,7 +595,7 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 			       struct func_instance *instance, u32 frame, u32 insn_idx)
 {
 	struct bpf_insn_aux_data *aux = env->insn_aux_data;
-	u64 new_before, new_after, must_write_acc;
+	spis_t new_before, new_after, must_write_acc;
 	struct per_frame_masks *insn, *succ_insn;
 	struct bpf_iarray *succ;
 	u32 s;
@@ -574,28 +607,30 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 
 	changed = false;
 	insn = get_frame_masks(instance, frame, insn_idx);
-	new_before = 0;
-	new_after = 0;
+	new_before = SPIS_ZERO;
+	new_after = SPIS_ZERO;
 	/*
 	 * New "must_write_acc" is an intersection of all "must_write_acc"
 	 * of successors plus all "must_write" slots of instruction itself.
 	 */
-	must_write_acc = U64_MAX;
+	must_write_acc = SPIS_ALL;
 	for (s = 0; s < succ->cnt; ++s) {
 		succ_insn = get_frame_masks(instance, frame, succ->items[s]);
-		new_after |= succ_insn->live_before;
-		must_write_acc &= succ_insn->must_write_acc;
+		new_after = spis_or(new_after, succ_insn->live_before);
+		must_write_acc = spis_and(must_write_acc, succ_insn->must_write_acc);
 	}
-	must_write_acc |= insn->must_write;
+	must_write_acc = spis_or(must_write_acc, insn->must_write);
 	/*
 	 * New "live_before" is a union of all "live_before" of successors
 	 * minus slots written by instruction plus slots read by instruction.
+	 * new_before = (new_after & ~insn->must_write) | insn->may_read
 	 */
-	new_before = (new_after & ~insn->must_write) | insn->may_read;
-	changed |= new_before != insn->live_before;
-	changed |= must_write_acc != insn->must_write_acc;
+	new_before = spis_or(spis_and(new_after, spis_not(insn->must_write)),
+			     insn->may_read);
+	changed |= !spis_equal(new_before, insn->live_before);
+	changed |= !spis_equal(must_write_acc, insn->must_write_acc);
 	if (unlikely(env->log.level & BPF_LOG_LEVEL2) &&
-	    (insn->may_read || insn->must_write ||
+	    (!spis_is_zero(insn->may_read) || !spis_is_zero(insn->must_write) ||
 	     insn_idx == callchain_subprog_start(&instance->callchain) ||
 	     aux[insn_idx].prune_point)) {
 		log_mask_change(env, &instance->callchain, "live",
@@ -631,7 +666,7 @@ static int update_instance(struct bpf_verifier_env *env, struct func_instance *i
 
 			for (i = 0; i < instance->insn_cnt; i++) {
 				insn = get_frame_masks(instance, frame, this_subprog_start + i);
-				insn->must_write_acc = 0;
+				insn->must_write_acc = SPIS_ZERO;
 			}
 		}
 	}
@@ -702,7 +737,8 @@ static bool is_live_before(struct func_instance *instance, u32 insn_idx, u32 fra
 	struct per_frame_masks *masks;
 
 	masks = get_frame_masks(instance, frameno, insn_idx);
-	return masks && (masks->live_before & BIT(spi));
+	return masks && (spis_test_bit(masks->live_before, spi * 2) ||
+			 spis_test_bit(masks->live_before, spi * 2 + 1));
 }
 
 int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st)

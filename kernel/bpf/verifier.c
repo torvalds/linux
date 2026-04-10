@@ -830,7 +830,8 @@ static int mark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_
 		state->stack[spi - 1].spilled_ptr.ref_obj_id = id;
 	}
 
-	bpf_mark_stack_write(env, state->frameno, BIT(spi - 1) | BIT(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi - 1));
 
 	return 0;
 }
@@ -847,7 +848,8 @@ static void invalidate_dynptr(struct bpf_verifier_env *env, struct bpf_func_stat
 	__mark_reg_not_init(env, &state->stack[spi].spilled_ptr);
 	__mark_reg_not_init(env, &state->stack[spi - 1].spilled_ptr);
 
-	bpf_mark_stack_write(env, state->frameno, BIT(spi - 1) | BIT(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi - 1));
 }
 
 static int unmark_stack_slots_dynptr(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
@@ -984,7 +986,8 @@ static int destroy_if_dynptr_stack_slot(struct bpf_verifier_env *env,
 	__mark_reg_not_init(env, &state->stack[spi].spilled_ptr);
 	__mark_reg_not_init(env, &state->stack[spi - 1].spilled_ptr);
 
-	bpf_mark_stack_write(env, state->frameno, BIT(spi - 1) | BIT(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi));
+	bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi - 1));
 
 	return 0;
 }
@@ -1111,7 +1114,7 @@ static int mark_stack_slots_iter(struct bpf_verifier_env *env,
 		for (j = 0; j < BPF_REG_SIZE; j++)
 			slot->slot_type[j] = STACK_ITER;
 
-		bpf_mark_stack_write(env, state->frameno, BIT(spi - i));
+		bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi - i));
 		mark_stack_slot_scratched(env, spi - i);
 	}
 
@@ -1140,7 +1143,7 @@ static int unmark_stack_slots_iter(struct bpf_verifier_env *env,
 		for (j = 0; j < BPF_REG_SIZE; j++)
 			slot->slot_type[j] = STACK_INVALID;
 
-		bpf_mark_stack_write(env, state->frameno, BIT(spi - i));
+		bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi - i));
 		mark_stack_slot_scratched(env, spi - i);
 	}
 
@@ -1230,7 +1233,7 @@ static int mark_stack_slot_irq_flag(struct bpf_verifier_env *env,
 	slot = &state->stack[spi];
 	st = &slot->spilled_ptr;
 
-	bpf_mark_stack_write(env, reg->frameno, BIT(spi));
+	bpf_mark_stack_write(env, reg->frameno, spis_single_slot(spi));
 	__mark_reg_known_zero(st);
 	st->type = PTR_TO_STACK; /* we don't have dedicated reg type */
 	st->ref_obj_id = id;
@@ -1286,7 +1289,7 @@ static int unmark_stack_slot_irq_flag(struct bpf_verifier_env *env, struct bpf_r
 
 	__mark_reg_not_init(env, st);
 
-	bpf_mark_stack_write(env, reg->frameno, BIT(spi));
+	bpf_mark_stack_write(env, reg->frameno, spis_single_slot(spi));
 
 	for (i = 0; i < BPF_REG_SIZE; i++)
 		slot->slot_type[i] = STACK_INVALID;
@@ -3867,7 +3870,8 @@ static int mark_stack_slot_obj_read(struct bpf_verifier_env *env, struct bpf_reg
 	int err, i;
 
 	for (i = 0; i < nr_slots; i++) {
-		err = bpf_mark_stack_read(env, reg->frameno, env->insn_idx, BIT(spi - i));
+		err = bpf_mark_stack_read(env, reg->frameno, env->insn_idx,
+					  spis_single_slot(spi - i));
 		if (err)
 			return err;
 		mark_stack_slot_scratched(env, spi - i);
@@ -5422,17 +5426,15 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 	if (err)
 		return err;
 
-	if (!(off % BPF_REG_SIZE) && size == BPF_REG_SIZE) {
-		/* only mark the slot as written if all 8 bytes were written
-		 * otherwise read propagation may incorrectly stop too soon
-		 * when stack slots are partially written.
-		 * This heuristic means that read propagation will be
-		 * conservative, since it will add reg_live_read marks
-		 * to stack slots all the way to first state when programs
-		 * writes+reads less than 8 bytes
-		 */
-		bpf_mark_stack_write(env, state->frameno, BIT(spi));
-	}
+	if (!(off % BPF_REG_SIZE) && size == BPF_REG_SIZE)
+		/* 8-byte aligned, 8-byte write */
+		bpf_mark_stack_write(env, state->frameno, spis_single_slot(spi));
+	else if (!(off % BPF_REG_SIZE) && size == BPF_HALF_REG_SIZE)
+		/* 8-byte aligned, 4-byte write */
+		bpf_mark_stack_write(env, state->frameno, spis_one_bit(spi * 2 + 1));
+	else if (!(off % BPF_HALF_REG_SIZE) && size == BPF_HALF_REG_SIZE)
+		/* 4-byte aligned, 4-byte write */
+		bpf_mark_stack_write(env, state->frameno, spis_one_bit(spi * 2));
 
 	check_fastcall_stack_contract(env, state, insn_idx, off);
 	mark_stack_slot_scratched(env, spi);
@@ -5690,6 +5692,7 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 	struct bpf_reg_state *reg;
 	u8 *stype, type;
 	int insn_flags = insn_stack_access_flags(reg_state->frameno, spi);
+	spis_t mask;
 	int err;
 
 	stype = reg_state->stack[spi].slot_type;
@@ -5697,7 +5700,16 @@ static int check_stack_read_fixed_off(struct bpf_verifier_env *env,
 
 	mark_stack_slot_scratched(env, spi);
 	check_fastcall_stack_contract(env, state, env->insn_idx, off);
-	err = bpf_mark_stack_read(env, reg_state->frameno, env->insn_idx, BIT(spi));
+	if (!(off % BPF_REG_SIZE) && size == BPF_HALF_REG_SIZE)
+		/* 8-byte aligned, 4-byte read */
+		mask = spis_one_bit(spi * 2 + 1);
+	else if (!(off % BPF_HALF_REG_SIZE) && size == BPF_HALF_REG_SIZE)
+		/* 4-byte aligned, 4-byte read */
+		mask = spis_one_bit(spi * 2);
+	else
+		mask = spis_single_slot(spi);
+
+	err = bpf_mark_stack_read(env, reg_state->frameno, env->insn_idx, mask);
 	if (err)
 		return err;
 
@@ -8532,7 +8544,8 @@ mark:
 		/* reading any byte out of 8-byte 'spill_slot' will cause
 		 * the whole slot to be marked as 'read'
 		 */
-		err = bpf_mark_stack_read(env, reg->frameno, env->insn_idx, BIT(spi));
+		err = bpf_mark_stack_read(env, reg->frameno, env->insn_idx,
+					  spis_single_slot(spi));
 		if (err)
 			return err;
 		/* We do not call bpf_mark_stack_write(), as we can not
