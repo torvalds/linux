@@ -13,6 +13,4 @@ static inline unsigned long random_get_entropy(void)
 }
 #define random_get_entropy random_get_entropy
 
-#define ARCH_HAS_READ_CURRENT_TIMER
-
 #endif /* _ASM_X86_TIMEX_H */

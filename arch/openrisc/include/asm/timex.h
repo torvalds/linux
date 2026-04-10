@@ -25,6 +25,4 @@ static inline cycles_t get_cycles(void)
 }
 #define get_cycles get_cycles
 
-#define ARCH_HAS_READ_CURRENT_TIMER
-
 #endif
