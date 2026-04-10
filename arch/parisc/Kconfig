@@ -130,6 +130,9 @@ config GENERIC_BUG
 config GENERIC_BUG_RELATIVE_POINTERS
 	bool
 
+config GENERIC_CSUM
+	def_bool y
+
 config GENERIC_HWEIGHT
 	bool
 	default y
