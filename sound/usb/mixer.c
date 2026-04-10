@@ -1233,6 +1233,41 @@ static void init_cur_mix_raw(struct usb_mixer_elem_info *cval, int ch, int idx)
 }
 
 /*
+ * Additional checks for sticky mixers
+ *
+ * Some devices' volume control mixers are sticky, which accept SET_CUR but
+ * do absolutely nothing.
+ *
+ * Prevent sticky mixers from being registered, otherwise they confuses
+ * userspace and results in ineffective volume control.
+ */
+static int check_sticky_volume_control(struct usb_mixer_elem_info *cval,
+				       int channel, int saved)
+{
+	int sticky_test_values[] = { cval->min, cval->max };
+	int test, check, i;
+
+	for (i = 0; i < ARRAY_SIZE(sticky_test_values); i++) {
+		test = sticky_test_values[i];
+		if (test == saved)
+			continue;
+
+		/* Assume non-sticky on failure. */
+		if (snd_usb_set_cur_mix_value(cval, channel, 0, test) ||
+		    get_cur_mix_raw(cval, channel, &check) ||
+		    check != saved) /* SET_CUR effective, non-sticky. */
+			return 0;
+	}
+
+	usb_audio_err(cval->head.mixer->chip,
+		      "%d:%d: sticky mixer values (%d/%d/%d => %d), disabling\n",
+		      cval->head.id, mixer_ctrl_intf(cval->head.mixer),
+		      cval->min, cval->max, cval->res, saved);
+
+	return -ENODEV;
+}
+
+/*
  * Additional checks for the proper resolution
  *
  * Some devices report smaller resolutions than actually reacting.
@@ -1270,7 +1305,7 @@ static void check_volume_control_res(struct usb_mixer_elem_info *cval,
 static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 				   int default_min, struct snd_kcontrol *kctl)
 {
-	int i, idx;
+	int i, idx, ret;
 
 	/* for failsafe */
 	cval->min = default_min;
@@ -1319,13 +1354,20 @@ static int get_min_max_with_quirks(struct usb_mixer_elem_info *cval,
 		if (cval->res == 0)
 			cval->res = 1;
 
-		if (cval->min + cval->res < cval->max) {
+		if (cval->min < cval->max) {
 			int saved;
 
 			if (get_cur_mix_raw(cval, minchn, &saved) < 0)
 				goto no_checks;
 
-			check_volume_control_res(cval, minchn, saved);
+			ret = check_sticky_volume_control(cval, minchn, saved);
+			if (ret < 0) {
+				snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
+				return ret;
+			}
+
+			if (cval->min + cval->res < cval->max)
+				check_volume_control_res(cval, minchn, saved);
 
 			snd_usb_set_cur_mix_value(cval, minchn, 0, saved);
 		}
