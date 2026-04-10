@@ -473,11 +473,6 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 	}
 
 	if (m.headtype == Z_EROFS_LCLUSTER_TYPE_PLAIN) {
-		if (map->m_llen > map->m_plen) {
-			DBG_BUGON(1);
-			err = -EFSCORRUPTED;
-			goto unmap_out;
-		}
 		if (vi->z_advise & Z_EROFS_ADVISE_INTERLACED_PCLUSTER)
 			map->m_algorithmformat = Z_EROFS_COMPRESSION_INTERLACED;
 		else
@@ -720,10 +715,21 @@ static int z_erofs_map_sanity_check(struct inode *inode,
 			  map->m_algorithmformat, map->m_la, EROFS_I(inode)->nid);
 		return -EOPNOTSUPP;
 	}
-	if (unlikely(map->m_algorithmformat < Z_EROFS_COMPRESSION_MAX &&
-		     !(sbi->available_compr_algs & (1 << map->m_algorithmformat)))) {
-		erofs_err(inode->i_sb, "inconsistent algorithmtype %u for nid %llu",
-			  map->m_algorithmformat, EROFS_I(inode)->nid);
+
+	if (map->m_algorithmformat < Z_EROFS_COMPRESSION_MAX) {
+		if (sbi->available_compr_algs ^ BIT(map->m_algorithmformat)) {
+			erofs_err(inode->i_sb, "inconsistent algorithmtype %u for nid %llu",
+				  map->m_algorithmformat, EROFS_I(inode)->nid);
+			return -EFSCORRUPTED;
+		}
+		if (EROFS_MAP_FULL(map->m_flags) && map->m_llen < map->m_plen) {
+			erofs_err(inode->i_sb, "too much compressed data @ la %llu of nid %llu",
+				  map->m_la, EROFS_I(inode)->nid);
+			return -EFSCORRUPTED;
+		}
+	} else if (map->m_llen > map->m_plen) {
+		erofs_err(inode->i_sb, "not enough plain data on disk @ la %llu of nid %llu",
+			  map->m_la, EROFS_I(inode)->nid);
 		return -EFSCORRUPTED;
 	}
 	if (unlikely(map->m_plen > Z_EROFS_PCLUSTER_MAX_SIZE ||
