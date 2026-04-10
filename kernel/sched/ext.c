@@ -3308,10 +3308,12 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 		WARN_ON_ONCE(*ddsp_taskp);
 		*ddsp_taskp = p;
 
+		this_rq()->scx.in_select_cpu = true;
 		cpu = SCX_CALL_OP_TASK_RET(sch,
 					   SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU,
 					   select_cpu, NULL, p, prev_cpu,
 					   wake_flags);
+		this_rq()->scx.in_select_cpu = false;
 		p->scx.selected_cpu = cpu;
 		*ddsp_taskp = NULL;
 		if (ops_cpu_valid(sch, cpu, "from ops.select_cpu()"))
@@ -8144,7 +8146,7 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	bool in_balance;
 	unsigned long flags;
 
-	if (!scx_kf_allowed_if_unlocked() &&
+	if ((scx_locked_rq() || this_rq()->scx.in_select_cpu) &&
 	    !scx_kf_allowed(sch, SCX_KF_DISPATCH))
 		return false;
 

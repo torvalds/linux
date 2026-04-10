@@ -913,8 +913,8 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
 				 s32 prev_cpu, u64 wake_flags,
 				 const struct cpumask *allowed, u64 flags)
 {
-	struct rq *rq;
-	struct rq_flags rf;
+	unsigned long irq_flags;
+	bool we_locked = false;
 	s32 cpu;
 
 	if (!ops_cpu_valid(sch, prev_cpu, NULL))
@@ -924,27 +924,22 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
 		return -EBUSY;
 
 	/*
-	 * If called from an unlocked context, acquire the task's rq lock,
-	 * so that we can safely access p->cpus_ptr and p->nr_cpus_allowed.
+	 * Accessing p->cpus_ptr / p->nr_cpus_allowed needs either @p's rq
+	 * lock or @p's pi_lock. Three cases:
 	 *
-	 * Otherwise, allow to use this kfunc only from ops.select_cpu()
-	 * and ops.select_enqueue().
+	 *  - inside ops.select_cpu(): try_to_wake_up() holds @p's pi_lock.
+	 *  - other rq-locked SCX op: scx_locked_rq() points at the held rq.
+	 *  - truly unlocked (UNLOCKED ops, SYSCALL, non-SCX struct_ops):
+	 *    nothing held, take pi_lock ourselves.
 	 */
-	if (scx_kf_allowed_if_unlocked()) {
-		rq = task_rq_lock(p, &rf);
-	} else {
-		if (!scx_kf_allowed(sch, SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
-			return -EPERM;
-		rq = scx_locked_rq();
-	}
-
-	/*
-	 * Validate locking correctness to access p->cpus_ptr and
-	 * p->nr_cpus_allowed: if we're holding an rq lock, we're safe;
-	 * otherwise, assert that p->pi_lock is held.
-	 */
-	if (!rq)
+	if (this_rq()->scx.in_select_cpu) {
 		lockdep_assert_held(&p->pi_lock);
+	} else if (!scx_locked_rq()) {
+		raw_spin_lock_irqsave(&p->pi_lock, irq_flags);
+		we_locked = true;
+	} else if (!scx_kf_allowed(sch, SCX_KF_ENQUEUE)) {
+		return -EPERM;
+	}
 
 	/*
 	 * This may also be called from ops.enqueue(), so we need to handle
@@ -963,8 +958,8 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
 					 allowed ?: p->cpus_ptr, flags);
 	}
 
-	if (scx_kf_allowed_if_unlocked())
-		task_rq_unlock(rq, p, &rf);
+	if (we_locked)
+		raw_spin_unlock_irqrestore(&p->pi_lock, irq_flags);
 
 	return cpu;
 }
