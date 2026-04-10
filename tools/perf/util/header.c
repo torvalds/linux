@@ -2795,8 +2795,11 @@ process_event_desc(struct feat_fd *ff, void *data __maybe_unused)
 	return 0;
 }
 
-// Some reasonable arbitrary max for the number of command line arguments
-#define MAX_CMDLINE_NR 32768
+/*
+ * Some arbitrary max for the number of command line arguments,
+ * Wildcards can expand and end up with tons of command line args.
+ */
+#define MAX_CMDLINE_NR 1048576
 
 static int process_cmdline(struct feat_fd *ff, void *data __maybe_unused)
 {
