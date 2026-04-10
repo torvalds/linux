@@ -1272,6 +1272,7 @@ F:	drivers/hid/amd-sfh-hid/
 
 AMD SPI DRIVER
 M:	Raju Rangoju <Raju.Rangoju@amd.com>
+M:	Krishnamoorthi M <krishnamoorthi.m@amd.com>
 L:	linux-spi@vger.kernel.org
 S:	Supported
 F:	drivers/spi/spi-amd-pci.c
