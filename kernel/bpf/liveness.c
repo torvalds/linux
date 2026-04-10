@@ -259,8 +259,7 @@ static struct per_frame_masks *get_frame_masks(struct func_instance *instance,
 	return &instance->frames[frame][relative_idx(instance, insn_idx)];
 }
 
-static struct per_frame_masks *alloc_frame_masks(struct bpf_verifier_env *env,
-						 struct func_instance *instance,
+static struct per_frame_masks *alloc_frame_masks(struct func_instance *instance,
 						 u32 frame, u32 insn_idx)
 {
 	struct per_frame_masks *arr;
@@ -298,13 +297,12 @@ static int ensure_cur_instance(struct bpf_verifier_env *env)
 }
 
 /* Accumulate may_read masks for @frame at @insn_idx */
-static int mark_stack_read(struct bpf_verifier_env *env,
-			   struct func_instance *instance, u32 frame, u32 insn_idx, spis_t mask)
+static int mark_stack_read(struct func_instance *instance, u32 frame, u32 insn_idx, spis_t mask)
 {
 	struct per_frame_masks *masks;
 	spis_t new_may_read;
 
-	masks = alloc_frame_masks(env, instance, frame, insn_idx);
+	masks = alloc_frame_masks(instance, frame, insn_idx);
 	if (IS_ERR(masks))
 		return PTR_ERR(masks);
 	new_may_read = spis_or(masks->may_read, mask);
@@ -321,17 +319,15 @@ int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frame, u32 insn_idx, s
 	int err;
 
 	err = ensure_cur_instance(env);
-	err = err ?: mark_stack_read(env, env->liveness->cur_instance, frame, insn_idx, mask);
+	err = err ?: mark_stack_read(env->liveness->cur_instance, frame, insn_idx, mask);
 	return err;
 }
 
-static void reset_stack_write_marks(struct bpf_verifier_env *env,
-				    struct func_instance *instance, u32 insn_idx)
+static void reset_stack_write_marks(struct bpf_verifier_env *env, struct func_instance *instance)
 {
 	struct bpf_liveness *liveness = env->liveness;
 	int i;
 
-	liveness->write_insn_idx = insn_idx;
 	for (i = 0; i <= instance->callchain.curframe; i++)
 		liveness->write_masks_acc[i] = SPIS_ZERO;
 }
@@ -345,7 +341,8 @@ int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx)
 	if (err)
 		return err;
 
-	reset_stack_write_marks(env, liveness->cur_instance, insn_idx);
+	liveness->write_insn_idx = insn_idx;
+	reset_stack_write_marks(env, liveness->cur_instance);
 	return 0;
 }
 
@@ -355,7 +352,8 @@ void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frame, spis_t mask)
 }
 
 static int commit_stack_write_marks(struct bpf_verifier_env *env,
-				    struct func_instance *instance)
+				    struct func_instance *instance,
+				    u32 insn_idx)
 {
 	struct bpf_liveness *liveness = env->liveness;
 	u32 idx, frame, curframe;
@@ -366,13 +364,13 @@ static int commit_stack_write_marks(struct bpf_verifier_env *env,
 		return 0;
 
 	curframe = instance->callchain.curframe;
-	idx = relative_idx(instance, liveness->write_insn_idx);
+	idx = relative_idx(instance, insn_idx);
 	for (frame = 0; frame <= curframe; frame++) {
 		mask = liveness->write_masks_acc[frame];
 		/* avoid allocating frames for zero masks */
 		if (spis_is_zero(mask) && !instance->must_write_set[idx])
 			continue;
-		masks = alloc_frame_masks(env, instance, frame, liveness->write_insn_idx);
+		masks = alloc_frame_masks(instance, frame, insn_idx);
 		if (IS_ERR(masks))
 			return PTR_ERR(masks);
 		old_must_write = masks->must_write;
@@ -402,7 +400,7 @@ static int commit_stack_write_marks(struct bpf_verifier_env *env,
  */
 int bpf_commit_stack_write_marks(struct bpf_verifier_env *env)
 {
-	return commit_stack_write_marks(env, env->liveness->cur_instance);
+	return commit_stack_write_marks(env, env->liveness->cur_instance, env->liveness->write_insn_idx);
 }
 
 static char *fmt_callchain(struct bpf_verifier_env *env, struct callchain *callchain)
@@ -576,18 +574,17 @@ static int propagate_to_outer_instance(struct bpf_verifier_env *env,
 	if (IS_ERR(outer_instance))
 		return PTR_ERR(outer_instance);
 	callsite = callchain->callsites[callchain->curframe - 1];
-
-	reset_stack_write_marks(env, outer_instance, callsite);
+	reset_stack_write_marks(env, outer_instance);
 	for (frame = 0; frame < callchain->curframe; frame++) {
 		insn = get_frame_masks(instance, frame, this_subprog_start);
 		if (!insn)
 			continue;
 		bpf_mark_stack_write(env, frame, insn->must_write_acc);
-		err = mark_stack_read(env, outer_instance, frame, callsite, insn->live_before);
+		err = mark_stack_read(outer_instance, frame, callsite, insn->live_before);
 		if (err)
 			return err;
 	}
-	commit_stack_write_marks(env, outer_instance);
+	commit_stack_write_marks(env, outer_instance, callsite);
 	return 0;
 }
 
@@ -654,6 +651,9 @@ static int update_instance(struct bpf_verifier_env *env, struct func_instance *i
 	bool changed;
 	int err;
 
+	if (!instance->updated)
+		return 0;
+
 	this_subprog_start = callchain_subprog_start(callchain);
 	/*
 	 * If must_write marks were updated must_write_acc needs to be reset
@@ -699,6 +699,8 @@ static int update_instance(struct bpf_verifier_env *env, struct func_instance *i
 			return err;
 	}
 
+	instance->updated = false;
+	instance->must_write_dropped = false;
 	return 0;
 }
 
@@ -721,13 +723,9 @@ int bpf_update_live_stack(struct bpf_verifier_env *env)
 		if (IS_ERR(instance))
 			return PTR_ERR(instance);
 
-		if (instance->updated) {
-			err = update_instance(env, instance);
-			if (err)
-				return err;
-			instance->updated = false;
-			instance->must_write_dropped = false;
-		}
+		err = update_instance(env, instance);
+		if (err)
+			return err;
 	}
 	return 0;
 }
