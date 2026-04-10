@@ -744,6 +744,11 @@ enum in6_addr_gen_mode {
  * @IFLA_BR_FDB_MAX_LEARNED
  *   Set the number of max dynamically learned FDB entries for the current
  *   bridge.
+ *
+ * @IFLA_BR_STP_MODE
+ *   Set the STP mode for the bridge, which controls how the bridge
+ *   selects between userspace and kernel STP. The valid values are
+ *   documented below in the ``BR_STP_MODE_*`` constants.
  */
 enum {
 	IFLA_BR_UNSPEC,
@@ -796,10 +801,44 @@ enum {
 	IFLA_BR_MCAST_QUERIER_STATE,
 	IFLA_BR_FDB_N_LEARNED,
 	IFLA_BR_FDB_MAX_LEARNED,
+	IFLA_BR_STP_MODE,
 	__IFLA_BR_MAX,
 };
 
 #define IFLA_BR_MAX	(__IFLA_BR_MAX - 1)
+
+/**
+ * DOC: Bridge STP mode values
+ *
+ * @BR_STP_MODE_AUTO
+ *   Default. The kernel invokes the ``/sbin/bridge-stp`` helper to hand
+ *   the bridge to a userspace STP daemon (e.g. mstpd). Only attempted in
+ *   the initial network namespace; in other namespaces this falls back to
+ *   kernel STP.
+ *
+ * @BR_STP_MODE_USER
+ *   Directly enable userspace STP (``BR_USER_STP``) without invoking the
+ *   ``/sbin/bridge-stp`` helper. Works in any network namespace.
+ *   Userspace is responsible for ensuring an STP daemon manages the
+ *   bridge.
+ *
+ * @BR_STP_MODE_KERNEL
+ *   Directly enable kernel STP (``BR_KERNEL_STP``) without invoking the
+ *   helper.
+ *
+ * The mode controls how the bridge selects between userspace and kernel
+ * STP when STP is enabled via ``IFLA_BR_STP_STATE``. It can only be
+ * changed while STP is disabled (``IFLA_BR_STP_STATE`` == 0), returns
+ * ``-EBUSY`` otherwise. The default value is ``BR_STP_MODE_AUTO``.
+ */
+enum br_stp_mode {
+	BR_STP_MODE_AUTO,
+	BR_STP_MODE_USER,
+	BR_STP_MODE_KERNEL,
+	__BR_STP_MODE_MAX
+};
+
+#define BR_STP_MODE_MAX (__BR_STP_MODE_MAX - 1)
 
 struct ifla_bridge_id {
 	__u8	prio[2];
