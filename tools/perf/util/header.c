@@ -66,6 +66,7 @@
 #define MAX_CACHE_ENTRIES	32768
 #define MAX_GROUP_DESC		32768
 #define MAX_NUMA_NODES		4096
+#define MAX_PMU_CAPS		512
 #define MAX_PMU_MAPPINGS	4096
 #define MAX_SCHED_DOMAINS	64
 
@@ -3677,6 +3678,12 @@ static int __process_pmu_caps(struct feat_fd *ff, int *nr_caps,
 	if (!nr_pmu_caps)
 		return 0;
 
+	if (nr_pmu_caps > MAX_PMU_CAPS) {
+		pr_err("Invalid pmu caps: nr_pmu_caps (%u) > %u\n",
+		       nr_pmu_caps, MAX_PMU_CAPS);
+		return -1;
+	}
+
 	*caps = calloc(nr_pmu_caps, sizeof(char *));
 	if (!*caps)
 		return -1;
@@ -3752,6 +3759,18 @@ static int process_pmu_caps(struct feat_fd *ff, void *data __maybe_unused)
 	if (!nr_pmu) {
 		pr_debug("pmu capabilities not available\n");
 		return 0;
+	}
+
+	if (nr_pmu > MAX_PMU_MAPPINGS) {
+		pr_err("Invalid HEADER_PMU_CAPS: nr_pmu (%u) > %u\n",
+		       nr_pmu, MAX_PMU_MAPPINGS);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + nr_pmu * sizeof(u32)) {
+		pr_err("Invalid HEADER_PMU_CAPS: section too small (%zu) for %u PMUs\n",
+		       ff->size, nr_pmu);
+		return -1;
 	}
 
 	pmu_caps = calloc(nr_pmu, sizeof(*pmu_caps));
