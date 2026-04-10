@@ -279,19 +279,6 @@ static inline void spis_or_range(spis_t *mask, u32 lo, u32 hi)
 		mask->v[w / 64] |= BIT_ULL(w % 64);
 }
 
-static inline spis_t spis_one_bit(u32 slot)
-{
-	if (slot < 64)
-		return (spis_t){{ BIT_ULL(slot), 0 }};
-	else
-		return (spis_t){{ 0, BIT_ULL(slot - 64) }};
-}
-
-static inline spis_t spis_single_slot(u32 spi)
-{
-	return spis_or(spis_one_bit(spi * 2), spis_one_bit(spi * 2 + 1));
-}
-
 #define BPF_REGMASK_ARGS ((1 << BPF_REG_1) | (1 << BPF_REG_2) | \
 			  (1 << BPF_REG_3) | (1 << BPF_REG_4) | \
 			  (1 << BPF_REG_5))
@@ -1219,13 +1206,7 @@ int bpf_compute_subprog_arg_access(struct bpf_verifier_env *env);
 
 int bpf_stack_liveness_init(struct bpf_verifier_env *env);
 void bpf_stack_liveness_free(struct bpf_verifier_env *env);
-int bpf_update_live_stack(struct bpf_verifier_env *env);
-int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frameno, u32 insn_idx, spis_t mask);
-void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frameno, spis_t mask);
-int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx);
-int bpf_commit_stack_write_marks(struct bpf_verifier_env *env);
 int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
 bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
-void bpf_reset_live_stack_callchain(struct bpf_verifier_env *env);
 
 #endif /* _LINUX_BPF_VERIFIER_H */
