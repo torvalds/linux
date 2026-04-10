@@ -647,4 +647,67 @@ l_exit_%=:							\
 	: __clobber_all);
 }
 
+/*
+ * Test that regsafe() verifies base_id consistency for BPF_ADD_CONST
+ * linked scalars during state pruning.
+ *
+ * The false branch (explored first) links R3 to R2 via ADD_CONST.
+ * The true branch (runtime path) links R3 to R4 (unrelated base_id).
+ * At the merge point, pruning must fail because the linkage topology
+ * differs.
+ */
+SEC("socket")
+__description("linked scalars: add_const base_id must be consistent for pruning")
+__failure __msg("invalid variable-offset")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void add_const_base_id_pruning(void)
+{
+	asm volatile ("						\
+	r1 = 0;							\
+	*(u64*)(r10 - 16) = r1;					\
+	call %[bpf_get_prandom_u32];				\
+	r6 = r0;						\
+	r6 &= 1;						\
+	if r6 >= 1 goto l_true_%=;				\
+								\
+	/* False branch (explored first, old state) */		\
+	call %[bpf_get_prandom_u32];				\
+	r2 = r0;						\
+	r2 &= 0xff;		/* R2 = scalar(id=A) [0,255] */	\
+	r3 = r2;		/* R3 linked to R2 (id=A) */	\
+	r3 += 10;		/* R3 id=A|ADD_CONST, delta=10 */\
+	r6 = 0;							\
+	goto l_merge_%=;					\
+								\
+l_true_%=:							\
+	/* True branch (runtime path, cur state) */		\
+	call %[bpf_get_prandom_u32];				\
+	r2 = r0;						\
+	r2 &= 0xff;		/* R2 = scalar [0,255], id=0 */	\
+	r4 = r0;						\
+	r4 &= 0xff;		/* R4 = scalar [0,255], id=0 */	\
+	r3 = r4;		/* R3 linked to R4 (new id=C) */\
+	r3 += 10;		/* R3 id=C|ADD_CONST, delta=10 */\
+	r6 = 0;							\
+								\
+l_merge_%=:							\
+	/* At merge, old R3 linked to R2, cur R3 linked to R4. */\
+	/* Pruning must fail: base_ids A vs C inconsistent. */	\
+	if r2 >= 6 goto l_exit_%=;				\
+	/* sync_linked_regs: R2<6 => R3<16 in old state. */	\
+	/* Without fix: R3 in [10,15] from incorrect pruning. */\
+	/* With fix: R3 in [10,265], not synced from R2. */	\
+	r3 -= 10;		/* [0,5] vs [0,255] */		\
+	r9 = r10;						\
+	r9 += -16;						\
+	r9 += r3;		/* fp-16+[0,5] vs fp-16+[0,255] */\
+	*(u8*)(r9 + 0) = r6;	/* within 16B vs past fp */	\
+l_exit_%=:							\
+	r0 = 0;							\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
