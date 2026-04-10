@@ -419,7 +419,7 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 
 	if ((flags & EROFS_GET_BLOCKS_FINDTAIL) && ztailpacking)
 		vi->z_fragmentoff = m.nextpackoff;
-	map->m_flags = EROFS_MAP_MAPPED | EROFS_MAP_ENCODED;
+	map->m_flags = EROFS_MAP_MAPPED | EROFS_MAP_PARTIAL_MAPPED;
 	end = (m.lcn + 1ULL) << lclusterbits;
 
 	if (m.type != Z_EROFS_LCLUSTER_TYPE_NONHEAD && endoff >= m.clusterofs) {
@@ -435,7 +435,7 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 	} else {
 		if (m.type != Z_EROFS_LCLUSTER_TYPE_NONHEAD) {
 			end = (m.lcn << lclusterbits) | m.clusterofs;
-			map->m_flags |= EROFS_MAP_FULL_MAPPED;
+			map->m_flags &= ~EROFS_MAP_PARTIAL_MAPPED;
 			m.delta[0] = 1;
 		}
 		/* get the corresponding first chunk */
@@ -496,7 +496,7 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 	      map->m_llen >= i_blocksize(inode))) {
 		err = z_erofs_get_extent_decompressedlen(&m);
 		if (!err)
-			map->m_flags |= EROFS_MAP_FULL_MAPPED;
+			map->m_flags &= ~EROFS_MAP_PARTIAL_MAPPED;
 	}
 
 unmap_out:
@@ -594,8 +594,7 @@ static int z_erofs_map_blocks_ext(struct inode *inode,
 			if (recsz > offsetof(struct z_erofs_extent, pstart_lo))
 				vi->z_fragmentoff |= map->m_pa << 32;
 		} else if (map->m_plen & Z_EROFS_EXTENT_PLEN_MASK) {
-			map->m_flags |= EROFS_MAP_MAPPED |
-				EROFS_MAP_FULL_MAPPED | EROFS_MAP_ENCODED;
+			map->m_flags |= EROFS_MAP_MAPPED;
 			fmt = map->m_plen >> Z_EROFS_EXTENT_PLEN_FMT_BIT;
 			if (map->m_plen & Z_EROFS_EXTENT_PLEN_PARTIAL)
 				map->m_flags |= EROFS_MAP_PARTIAL_REF;
@@ -714,7 +713,7 @@ static int z_erofs_map_sanity_check(struct inode *inode,
 	struct erofs_sb_info *sbi = EROFS_I_SB(inode);
 	u64 pend;
 
-	if (!(map->m_flags & EROFS_MAP_ENCODED))
+	if (!(map->m_flags & EROFS_MAP_MAPPED))
 		return 0;
 	if (unlikely(map->m_algorithmformat >= Z_EROFS_COMPRESSION_RUNTIME_MAX)) {
 		erofs_err(inode->i_sb, "unknown algorithm %d @ pos %llu for nid %llu, please upgrade kernel",
@@ -781,10 +780,12 @@ static int z_erofs_iomap_begin_report(struct inode *inode, loff_t offset,
 	iomap->bdev = inode->i_sb->s_bdev;
 	iomap->offset = map.m_la;
 	iomap->length = map.m_llen;
-	if (map.m_flags & EROFS_MAP_MAPPED) {
+	if (map.m_flags & EROFS_MAP_FRAGMENT) {
 		iomap->type = IOMAP_MAPPED;
-		iomap->addr = map.m_flags & __EROFS_MAP_FRAGMENT ?
-			      IOMAP_NULL_ADDR : map.m_pa;
+		iomap->addr = IOMAP_NULL_ADDR;
+	} else if (map.m_flags & EROFS_MAP_MAPPED) {
+		iomap->type = IOMAP_MAPPED;
+		iomap->addr = map.m_pa;
 	} else {
 		iomap->type = IOMAP_HOLE;
 		iomap->addr = IOMAP_NULL_ADDR;

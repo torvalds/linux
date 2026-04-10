@@ -360,20 +360,19 @@ static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,
 			readahead_gfp_mask(as) & ~__GFP_RECLAIM);
 }
 
-/* Has a disk mapping */
-#define EROFS_MAP_MAPPED	0x0001
+/* Allocated on disk at @m_pa (e.g. NOT a fragment extent) */
+#define EROFS_MAP_MAPPED		0x0001
 /* Located in metadata (could be copied from bd_inode) */
-#define EROFS_MAP_META		0x0002
-/* The extent is encoded */
-#define EROFS_MAP_ENCODED	0x0004
-/* The length of extent is full */
-#define EROFS_MAP_FULL_MAPPED	0x0008
+#define EROFS_MAP_META			0x0002
+/* @m_llen may be truncated by the runtime compared to the on-disk record */
+#define EROFS_MAP_PARTIAL_MAPPED	0x0004
+/* The on-disk @m_llen may cover only part of the encoded data */
+#define EROFS_MAP_PARTIAL_REF		0x0008
 /* Located in the special packed inode */
-#define __EROFS_MAP_FRAGMENT	0x0010
-/* The extent refers to partial decompressed data */
-#define EROFS_MAP_PARTIAL_REF	0x0020
-
-#define EROFS_MAP_FRAGMENT	(EROFS_MAP_MAPPED | __EROFS_MAP_FRAGMENT)
+#define EROFS_MAP_FRAGMENT		0x0010
+/* The encoded on-disk data will be fully handled (decompressed) */
+#define EROFS_MAP_FULL(f)	(!((f) & (EROFS_MAP_PARTIAL_MAPPED | \
+					  EROFS_MAP_PARTIAL_REF)))
 
 struct erofs_map_blocks {
 	struct erofs_buf buf;
