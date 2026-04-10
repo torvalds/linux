@@ -63,6 +63,7 @@
 #include <event-parse.h>
 #endif
 
+#define MAX_CACHE_ENTRIES	32768
 #define MAX_GROUP_DESC		32768
 #define MAX_NUMA_NODES		4096
 #define MAX_PMU_MAPPINGS	4096
@@ -3242,6 +3243,18 @@ static int process_cache(struct feat_fd *ff, void *data __maybe_unused)
 
 	if (do_read_u32(ff, &cnt))
 		return -1;
+
+	if (cnt > MAX_CACHE_ENTRIES) {
+		pr_err("Invalid HEADER_CACHE: cnt (%u) > %u\n",
+		       cnt, MAX_CACHE_ENTRIES);
+		return -1;
+	}
+
+	if (ff->size < 2 * sizeof(u32) + cnt * 7 * sizeof(u32)) {
+		pr_err("Invalid HEADER_CACHE: section too small (%zu) for %u entries\n",
+		       ff->size, cnt);
+		return -1;
+	}
 
 	caches = calloc(cnt, sizeof(*caches));
 	if (!caches)
