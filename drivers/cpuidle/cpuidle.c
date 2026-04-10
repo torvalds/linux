@@ -679,16 +679,16 @@ int cpuidle_register_device(struct cpuidle_device *dev)
 	if (!dev)
 		return -EINVAL;
 
-	mutex_lock(&cpuidle_lock);
+	guard(mutex)(&cpuidle_lock);
 
 	if (dev->registered)
-		goto out_unlock;
+		return ret;
 
 	__cpuidle_device_init(dev);
 
 	ret = __cpuidle_register_device(dev);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	ret = cpuidle_add_sysfs(dev);
 	if (ret)
@@ -700,16 +700,14 @@ int cpuidle_register_device(struct cpuidle_device *dev)
 
 	cpuidle_install_idle_handler();
 
-out_unlock:
-	mutex_unlock(&cpuidle_lock);
-
 	return ret;
 
 out_sysfs:
 	cpuidle_remove_sysfs(dev);
 out_unregister:
 	__cpuidle_unregister_device(dev);
-	goto out_unlock;
+
+	return ret;
 }
 
 EXPORT_SYMBOL_GPL(cpuidle_register_device);
