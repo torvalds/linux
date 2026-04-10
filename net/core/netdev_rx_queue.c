@@ -275,14 +275,14 @@ int netif_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 	return ret;
 }
 
-static void __netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
+static void __netif_mp_close_rxq(struct net_device *dev, unsigned int rxq_idx,
 				 const struct pp_memory_provider_params *old_p)
 {
 	struct netdev_queue_config qcfg[2];
 	struct netdev_rx_queue *rxq;
 	int err;
 
-	rxq = __netif_get_rx_queue(dev, ifq_idx);
+	rxq = __netif_get_rx_queue(dev, rxq_idx);
 
 	/* Callers holding a netdev ref may get here after we already
 	 * went thru shutdown via dev_memory_provider_uninstall().
@@ -295,28 +295,28 @@ static void __netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 			 rxq->mp_params.mp_priv != old_p->mp_priv))
 		return;
 
-	netdev_queue_config(dev, ifq_idx, &qcfg[0]);
+	netdev_queue_config(dev, rxq_idx, &qcfg[0]);
 	memset(&rxq->mp_params, 0, sizeof(rxq->mp_params));
-	netdev_queue_config(dev, ifq_idx, &qcfg[1]);
+	netdev_queue_config(dev, rxq_idx, &qcfg[1]);
 
-	err = netdev_rx_queue_reconfig(dev, ifq_idx, &qcfg[0], &qcfg[1]);
+	err = netdev_rx_queue_reconfig(dev, rxq_idx, &qcfg[0], &qcfg[1]);
 	WARN_ON(err && err != -ENETDOWN);
 }
 
-void netif_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
+void netif_mp_close_rxq(struct net_device *dev, unsigned int rxq_idx,
 			const struct pp_memory_provider_params *old_p)
 {
-	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
+	if (WARN_ON_ONCE(rxq_idx >= dev->real_num_rx_queues))
 		return;
-	if (!netif_rxq_is_leased(dev, ifq_idx))
-		return __netif_mp_close_rxq(dev, ifq_idx, old_p);
+	if (!netif_rxq_is_leased(dev, rxq_idx))
+		return __netif_mp_close_rxq(dev, rxq_idx, old_p);
 
-	if (!__netif_get_rx_queue_lease(&dev, &ifq_idx, NETIF_VIRT_TO_PHYS)) {
+	if (!__netif_get_rx_queue_lease(&dev, &rxq_idx, NETIF_VIRT_TO_PHYS)) {
 		WARN_ON_ONCE(1);
 		return;
 	}
 	netdev_lock(dev);
-	__netif_mp_close_rxq(dev, ifq_idx, old_p);
+	__netif_mp_close_rxq(dev, rxq_idx, old_p);
 	netdev_unlock(dev);
 }
 
@@ -339,11 +339,11 @@ void netif_rxq_cleanup_unlease(struct netdev_rx_queue *phys_rxq,
 			       struct netdev_rx_queue *virt_rxq)
 {
 	struct pp_memory_provider_params *p = &phys_rxq->mp_params;
-	unsigned int ifq_idx = get_netdev_rx_queue_index(phys_rxq);
+	unsigned int rxq_idx = get_netdev_rx_queue_index(phys_rxq);
 
 	if (!p->mp_ops)
 		return;
 
 	__netif_mp_uninstall_rxq(virt_rxq, p);
-	__netif_mp_close_rxq(phys_rxq->dev, ifq_idx, p);
+	__netif_mp_close_rxq(phys_rxq->dev, rxq_idx, p);
 }
