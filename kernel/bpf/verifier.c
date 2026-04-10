@@ -1804,7 +1804,6 @@ static int copy_verifier_state(struct bpf_verifier_state *dst_state,
 		return err;
 	dst_state->speculative = src->speculative;
 	dst_state->in_sleepable = src->in_sleepable;
-	dst_state->cleaned = src->cleaned;
 	dst_state->curframe = src->curframe;
 	dst_state->branches = src->branches;
 	dst_state->parent = src->parent;
@@ -20254,8 +20253,6 @@ static int clean_verifier_state(struct bpf_verifier_env *env,
 {
 	int i, err;
 
-	if (env->cur_state != st)
-		st->cleaned = true;
 	err = bpf_live_stack_query_init(env, st);
 	if (err)
 		return err;
@@ -20267,37 +20264,6 @@ static int clean_verifier_state(struct bpf_verifier_env *env,
 	}
 	return 0;
 }
-
-/* the parentage chains form a tree.
- * the verifier states are added to state lists at given insn and
- * pushed into state stack for future exploration.
- * when the verifier reaches bpf_exit insn some of the verifier states
- * stored in the state lists have their final liveness state already,
- * but a lot of states will get revised from liveness point of view when
- * the verifier explores other branches.
- * Example:
- * 1: *(u64)(r10 - 8) = 1
- * 2: if r1 == 100 goto pc+1
- * 3: *(u64)(r10 - 8) = 2
- * 4: r0 = *(u64)(r10 - 8)
- * 5: exit
- * when the verifier reaches exit insn the stack slot -8 in the state list of
- * insn 2 is not yet marked alive. Then the verifier pops the other_branch
- * of insn 2 and goes exploring further. After the insn 4 read, liveness
- * analysis would propagate read mark for -8 at insn 2.
- *
- * Since the verifier pushes the branch states as it sees them while exploring
- * the program the condition of walking the branch instruction for the second
- * time means that all states below this branch were already explored and
- * their final liveness marks are already propagated.
- * Hence when the verifier completes the search of state list in is_state_visited()
- * we can call this clean_live_states() function to clear dead the registers and stack
- * slots to simplify state merging.
- *
- * Important note here that walking the same branch instruction in the callee
- * doesn't meant that the states are DONE. The verifier has to compare
- * the callsites
- */
 
 /* Find id in idset and increment its count, or add new entry */
 static void idset_cnt_inc(struct bpf_idset *idset, u32 id)
@@ -20360,33 +20326,6 @@ static void clear_singular_ids(struct bpf_verifier_env *env,
 		if (idset_cnt_get(idset, reg->id & ~BPF_ADD_CONST) == 1)
 			clear_scalar_id(reg);
 	}));
-}
-
-static int clean_live_states(struct bpf_verifier_env *env, int insn,
-			      struct bpf_verifier_state *cur)
-{
-	struct bpf_verifier_state_list *sl;
-	struct list_head *pos, *head;
-	int err;
-
-	head = explored_state(env, insn);
-	list_for_each(pos, head) {
-		sl = container_of(pos, struct bpf_verifier_state_list, node);
-		if (sl->state.branches)
-			continue;
-		if (sl->state.insn_idx != insn ||
-		    !same_callsites(&sl->state, cur))
-			continue;
-		if (sl->state.cleaned)
-			/* all regs in this state in all frames were already marked */
-			continue;
-		if (incomplete_read_marks(env, &sl->state))
-			continue;
-		err = clean_verifier_state(env, &sl->state);
-		if (err)
-			return err;
-	}
-	return 0;
 }
 
 static bool regs_exact(const struct bpf_reg_state *rold,
@@ -21089,7 +21028,8 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	    env->insn_processed - env->prev_insn_processed >= 8)
 		add_new_state = true;
 
-	err = clean_live_states(env, insn_idx, cur);
+	/* keep cleaning the current state as registers/stack become dead */
+	err = clean_verifier_state(env, cur);
 	if (err)
 		return err;
 

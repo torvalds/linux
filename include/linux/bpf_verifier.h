@@ -492,7 +492,6 @@ struct bpf_verifier_state {
 
 	bool speculative;
 	bool in_sleepable;
-	bool cleaned;
 
 	/* first and last insn idx of this verifier state */
 	u32 first_insn_idx;
