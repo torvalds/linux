@@ -221,6 +221,12 @@ static void ivpu_job_timeout_work(struct work_struct *work)
 
 abort:
 	atomic_set(&vdev->job_timeout_counter, 0);
+
+	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_OS) {
+		ivpu_pm_trigger_recovery(vdev, "Job timeout");
+		return;
+	}
+
 	ivpu_jsm_state_dump(vdev);
 	ivpu_dev_coredump(vdev);
 	queue_work(system_percpu_wq, &vdev->context_abort_work);

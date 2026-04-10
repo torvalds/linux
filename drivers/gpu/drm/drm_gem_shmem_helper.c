@@ -554,6 +554,21 @@ int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_dumb_create);
 
+static void drm_gem_shmem_record_mkwrite(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct drm_gem_object *obj = vma->vm_private_data;
+	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+	loff_t num_pages = obj->size >> PAGE_SHIFT;
+	pgoff_t page_offset = vmf->pgoff - vma->vm_pgoff; /* page offset within VMA */
+
+	if (drm_WARN_ON(obj->dev, !shmem->pages || page_offset >= num_pages))
+		return;
+
+	file_update_time(vma->vm_file);
+	folio_mark_dirty(page_folio(shmem->pages[page_offset]));
+}
+
 static vm_fault_t try_insert_pfn(struct vm_fault *vmf, unsigned int order,
 				 unsigned long pfn)
 {
@@ -566,8 +581,23 @@ static vm_fault_t try_insert_pfn(struct vm_fault *vmf, unsigned int order,
 
 		if (aligned &&
 		    folio_test_pmd_mappable(page_folio(pfn_to_page(pfn)))) {
+			vm_fault_t ret;
+
 			pfn &= PMD_MASK >> PAGE_SHIFT;
-			return vmf_insert_pfn_pmd(vmf, pfn, false);
+
+			/* Unlike PTEs which are automatically upgraded to
+			 * writeable entries, the PMD upgrades go through
+			 * .huge_fault(). Make sure we pass the "write" info
+			 * along in that case.
+			 * This also means we have to record the write fault
+			 * here, instead of in .pfn_mkwrite().
+			 */
+			ret = vmf_insert_pfn_pmd(vmf, pfn,
+						 vmf->flags & FAULT_FLAG_WRITE);
+			if (ret == VM_FAULT_NOPAGE && (vmf->flags & FAULT_FLAG_WRITE))
+				drm_gem_shmem_record_mkwrite(vmf);
+
+			return ret;
 		}
 #endif
 	}
@@ -655,19 +685,7 @@ static void drm_gem_shmem_vm_close(struct vm_area_struct *vma)
 
 static vm_fault_t drm_gem_shmem_pfn_mkwrite(struct vm_fault *vmf)
 {
-	struct vm_area_struct *vma = vmf->vma;
-	struct drm_gem_object *obj = vma->vm_private_data;
-	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
-	loff_t num_pages = obj->size >> PAGE_SHIFT;
-	pgoff_t page_offset = vmf->pgoff - vma->vm_pgoff; /* page offset within VMA */
-
-	if (drm_WARN_ON(obj->dev, !shmem->pages || page_offset >= num_pages))
-		return VM_FAULT_SIGBUS;
-
-	file_update_time(vma->vm_file);
-
-	folio_mark_dirty(page_folio(shmem->pages[page_offset]));
-
+	drm_gem_shmem_record_mkwrite(vmf);
 	return 0;
 }
 
