@@ -419,9 +419,9 @@ enum tb_path_port {
  * @activated: Is the path active
  * @clear_fc: Clear all flow control from the path config space entries
  *	      when deactivating this path
- * @hops: Path hops
  * @path_length: How many hops the path uses
  * @alloc_hopid: Does this path consume port HopID
+ * @hops: Path hops
  *
  * A path consists of a number of hops (see &struct tb_path_hop). To
  * establish a PCIe tunnel two paths have to be created between the two
@@ -440,9 +440,10 @@ struct tb_path {
 	bool drop_packages;
 	bool activated;
 	bool clear_fc;
-	struct tb_path_hop *hops;
 	int path_length;
 	bool alloc_hopid;
+
+	struct tb_path_hop hops[] __counted_by(path_length);
 };
 
 /* HopIDs 0-7 are reserved by the Thunderbolt protocol */

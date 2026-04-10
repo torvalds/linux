@@ -26310,7 +26310,7 @@ F:	drivers/media/i2c/thp7312.c
 F:	include/uapi/linux/thp7312.h
 
 THUNDERBOLT DMA TRAFFIC TEST DRIVER
-M:	Isaac Hazan <isaac.hazan@intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/thunderbolt/dma_test.c
