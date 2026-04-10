@@ -6,6 +6,7 @@
  * Copyright (c) 2025 Tejun Heo <tj@kernel.org>
  */
 #define SCX_OP_IDX(op)		(offsetof(struct sched_ext_ops, op) / sizeof(void (*)(void)))
+#define SCX_MOFF_IDX(moff)	((moff) / sizeof(void (*)(void)))
 
 enum scx_consts {
 	SCX_DSP_DFL_MAX_BATCH		= 32,
@@ -1362,6 +1363,8 @@ enum scx_ops_state {
 
 extern struct scx_sched __rcu *scx_root;
 DECLARE_PER_CPU(struct rq *, scx_locked_rq_state);
+
+int scx_kfunc_context_filter(const struct bpf_prog *prog, u32 kfunc_id);
 
 /*
  * Return the rq currently locked from an scx callback, or NULL if no rq is

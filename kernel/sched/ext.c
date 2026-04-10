@@ -8133,6 +8133,7 @@ BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
 static const struct btf_kfunc_id_set scx_kfunc_set_enqueue_dispatch = {
 	.owner			= THIS_MODULE,
 	.set			= &scx_kfunc_ids_enqueue_dispatch,
+	.filter			= scx_kfunc_context_filter,
 };
 
 static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
@@ -8511,6 +8512,7 @@ BTF_KFUNCS_END(scx_kfunc_ids_dispatch)
 static const struct btf_kfunc_id_set scx_kfunc_set_dispatch = {
 	.owner			= THIS_MODULE,
 	.set			= &scx_kfunc_ids_dispatch,
+	.filter			= scx_kfunc_context_filter,
 };
 
 __bpf_kfunc_start_defs();
@@ -8551,6 +8553,7 @@ BTF_KFUNCS_END(scx_kfunc_ids_cpu_release)
 static const struct btf_kfunc_id_set scx_kfunc_set_cpu_release = {
 	.owner			= THIS_MODULE,
 	.set			= &scx_kfunc_ids_cpu_release,
+	.filter			= scx_kfunc_context_filter,
 };
 
 __bpf_kfunc_start_defs();
@@ -8628,6 +8631,7 @@ BTF_KFUNCS_END(scx_kfunc_ids_unlocked)
 static const struct btf_kfunc_id_set scx_kfunc_set_unlocked = {
 	.owner			= THIS_MODULE,
 	.set			= &scx_kfunc_ids_unlocked,
+	.filter			= scx_kfunc_context_filter,
 };
 
 __bpf_kfunc_start_defs();
@@ -9603,6 +9607,115 @@ static const struct btf_kfunc_id_set scx_kfunc_set_any = {
 	.set			= &scx_kfunc_ids_any,
 };
 
+/*
+ * Per-op kfunc allow flags. Each bit corresponds to a context-sensitive kfunc
+ * group; an op may permit zero or more groups, with the union expressed in
+ * scx_kf_allow_flags[]. The verifier-time filter (scx_kfunc_context_filter())
+ * consults this table to decide whether a context-sensitive kfunc is callable
+ * from a given SCX op.
+ */
+enum scx_kf_allow_flags {
+	SCX_KF_ALLOW_UNLOCKED		= 1 << 0,
+	SCX_KF_ALLOW_CPU_RELEASE	= 1 << 1,
+	SCX_KF_ALLOW_DISPATCH		= 1 << 2,
+	SCX_KF_ALLOW_ENQUEUE		= 1 << 3,
+	SCX_KF_ALLOW_SELECT_CPU		= 1 << 4,
+};
+
+/*
+ * Map each SCX op to the union of kfunc groups it permits, indexed by
+ * SCX_OP_IDX(op). Ops not listed only permit kfuncs that are not
+ * context-sensitive.
+ */
+static const u32 scx_kf_allow_flags[] = {
+	[SCX_OP_IDX(select_cpu)]	= SCX_KF_ALLOW_SELECT_CPU | SCX_KF_ALLOW_ENQUEUE,
+	[SCX_OP_IDX(enqueue)]		= SCX_KF_ALLOW_SELECT_CPU | SCX_KF_ALLOW_ENQUEUE,
+	[SCX_OP_IDX(dispatch)]		= SCX_KF_ALLOW_ENQUEUE | SCX_KF_ALLOW_DISPATCH,
+	[SCX_OP_IDX(cpu_release)]	= SCX_KF_ALLOW_CPU_RELEASE,
+	[SCX_OP_IDX(init_task)]		= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(dump)]		= SCX_KF_ALLOW_UNLOCKED,
+#ifdef CONFIG_EXT_GROUP_SCHED
+	[SCX_OP_IDX(cgroup_init)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_exit)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_prep_move)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_cancel_move)] = SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_set_weight)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_set_bandwidth)] = SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cgroup_set_idle)]	= SCX_KF_ALLOW_UNLOCKED,
+#endif	/* CONFIG_EXT_GROUP_SCHED */
+	[SCX_OP_IDX(sub_attach)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(sub_detach)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cpu_online)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(cpu_offline)]	= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(init)]		= SCX_KF_ALLOW_UNLOCKED,
+	[SCX_OP_IDX(exit)]		= SCX_KF_ALLOW_UNLOCKED,
+};
+
+/*
+ * Verifier-time filter for context-sensitive SCX kfuncs. Registered via the
+ * .filter field on each per-group btf_kfunc_id_set. The BPF core invokes this
+ * for every kfunc call in the registered hook (BPF_PROG_TYPE_STRUCT_OPS or
+ * BPF_PROG_TYPE_SYSCALL), regardless of which set originally introduced the
+ * kfunc - so the filter must short-circuit on kfuncs it doesn't govern (e.g.
+ * scx_kfunc_ids_any) by falling through to "allow" when none of the
+ * context-sensitive sets contain the kfunc.
+ */
+int scx_kfunc_context_filter(const struct bpf_prog *prog, u32 kfunc_id)
+{
+	bool in_unlocked = btf_id_set8_contains(&scx_kfunc_ids_unlocked, kfunc_id);
+	bool in_select_cpu = btf_id_set8_contains(&scx_kfunc_ids_select_cpu, kfunc_id);
+	bool in_enqueue = btf_id_set8_contains(&scx_kfunc_ids_enqueue_dispatch, kfunc_id);
+	bool in_dispatch = btf_id_set8_contains(&scx_kfunc_ids_dispatch, kfunc_id);
+	bool in_cpu_release = btf_id_set8_contains(&scx_kfunc_ids_cpu_release, kfunc_id);
+	u32 moff, flags;
+
+	/* Not a context-sensitive kfunc (e.g. from scx_kfunc_ids_any) - allow. */
+	if (!(in_unlocked || in_select_cpu || in_enqueue || in_dispatch || in_cpu_release))
+		return 0;
+
+	/* SYSCALL progs (e.g. BPF test_run()) may call unlocked and select_cpu kfuncs. */
+	if (prog->type == BPF_PROG_TYPE_SYSCALL)
+		return (in_unlocked || in_select_cpu) ? 0 : -EACCES;
+
+	if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)
+		return -EACCES;
+
+	/*
+	 * add_subprog_and_kfunc() collects all kfunc calls, including dead code
+	 * guarded by bpf_ksym_exists(), before check_attach_btf_id() sets
+	 * prog->aux->st_ops. Allow all kfuncs when st_ops is not yet set;
+	 * do_check_main() re-runs the filter with st_ops set and enforces the
+	 * actual restrictions.
+	 */
+	if (!prog->aux->st_ops)
+		return 0;
+
+	/*
+	 * Non-SCX struct_ops: only unlocked kfuncs are safe. The other
+	 * context-sensitive kfuncs assume the rq lock is held by the SCX
+	 * dispatch path, which doesn't apply to other struct_ops users.
+	 */
+	if (prog->aux->st_ops != &bpf_sched_ext_ops)
+		return in_unlocked ? 0 : -EACCES;
+
+	/* SCX struct_ops: check the per-op allow list. */
+	moff = prog->aux->attach_st_ops_member_off;
+	flags = scx_kf_allow_flags[SCX_MOFF_IDX(moff)];
+
+	if ((flags & SCX_KF_ALLOW_UNLOCKED) && in_unlocked)
+		return 0;
+	if ((flags & SCX_KF_ALLOW_CPU_RELEASE) && in_cpu_release)
+		return 0;
+	if ((flags & SCX_KF_ALLOW_DISPATCH) && in_dispatch)
+		return 0;
+	if ((flags & SCX_KF_ALLOW_ENQUEUE) && in_enqueue)
+		return 0;
+	if ((flags & SCX_KF_ALLOW_SELECT_CPU) && in_select_cpu)
+		return 0;
+
+	return -EACCES;
+}
+
 static int __init scx_init(void)
 {
 	int ret;
@@ -9612,11 +9725,12 @@ static int __init scx_init(void)
 	 * register_btf_kfunc_id_set() needs most of the system to be up.
 	 *
 	 * Some kfuncs are context-sensitive and can only be called from
-	 * specific SCX ops. They are grouped into BTF sets accordingly.
-	 * Unfortunately, BPF currently doesn't have a way of enforcing such
-	 * restrictions. Eventually, the verifier should be able to enforce
-	 * them. For now, register them the same and make each kfunc explicitly
-	 * check using scx_kf_allowed().
+	 * specific SCX ops. They are grouped into per-context BTF sets, each
+	 * registered with scx_kfunc_context_filter as its .filter callback. The
+	 * BPF core dedups identical filter pointers per hook
+	 * (btf_populate_kfunc_set()), so the filter is invoked exactly once per
+	 * kfunc lookup; it consults scx_kf_allow_flags[] to enforce per-op
+	 * restrictions at verify time.
 	 */
 	if ((ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS,
 					     &scx_kfunc_set_enqueue_dispatch)) ||
