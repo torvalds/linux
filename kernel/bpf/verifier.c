@@ -26414,6 +26414,11 @@ static int compute_live_registers(struct bpf_verifier_env *env)
 	for (i = 0; i < insn_cnt; ++i)
 		compute_insn_live_regs(env, &insns[i], &state[i]);
 
+	/* Forward pass: resolve stack access through FP-derived pointers */
+	err = bpf_compute_subprog_arg_access(env);
+	if (err)
+		goto out;
+
 	changed = true;
 	while (changed) {
 		changed = false;
