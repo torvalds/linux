@@ -29,6 +29,7 @@ static const struct acpi_device_id usbio_i2c_acpi_hids[] = {
 	{ "INTC10B6" }, /* LNL */
 	{ "INTC10D2" }, /* MTL-CVF */
 	{ "INTC10E3" }, /* PTL */
+	{ "INTC1118" }, /* NVL */
 	{ }
 };
 
