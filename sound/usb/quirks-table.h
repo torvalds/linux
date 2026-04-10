@@ -2652,6 +2652,54 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+{
+	/*
+	 * The AudioBox USB advertises S24_3LE as the only supported format
+	 * for both playback and capture. It does not support S16_LE despite
+	 * being a USB full-speed device.
+	 */
+	USB_DEVICE(0x194f, 0x0301),
+	QUIRK_DRIVER_INFO {
+		.vendor_name = "PreSonus",
+		.product_name = "AudioBox USB",
+		QUIRK_DATA_COMPOSITE {
+			{ QUIRK_DATA_IGNORE(0) },
+			{
+				QUIRK_DATA_AUDIOFORMAT(2) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 2,
+					.iface = 2,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x01,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000,
+					.rate_min = 44100,
+					.rate_max = 48000,
+				}
+			},
+			{
+				QUIRK_DATA_AUDIOFORMAT(3) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 2,
+					.iface = 3,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x82,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000,
+					.rate_min = 44100,
+					.rate_max = 48000,
+				}
+			},
+			QUIRK_COMPOSITE_END
+		}
+	}
+},
 #endif /* disabled */
 
 {
