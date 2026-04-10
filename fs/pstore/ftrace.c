@@ -18,10 +18,34 @@
 #include <linux/cache.h>
 #include <linux/slab.h>
 #include <asm/barrier.h>
+#include <asm/setup.h>
 #include "internal.h"
 
 /* This doesn't need to be atomic: speed is chosen over correctness here. */
 static u64 pstore_ftrace_stamp;
+
+static inline unsigned long adjust_ip(unsigned long ip)
+{
+#if defined(CONFIG_RANDOMIZE_BASE) && !defined(PSTORE_CPU_IN_IP) && IS_BUILTIN(CONFIG_PSTORE)
+	if (core_kernel_text(ip))
+		return ip - kaslr_offset();
+
+	__clear_bit(BITS_PER_LONG - 1, &ip);
+#endif
+	return ip;
+}
+
+inline unsigned long decode_ip(unsigned long ip)
+{
+#if defined(CONFIG_RANDOMIZE_BASE) && !defined(PSTORE_CPU_IN_IP) && IS_BUILTIN(CONFIG_PSTORE)
+	if (test_bit(BITS_PER_LONG - 1, &ip))
+		return ip + kaslr_offset();
+
+	__set_bit(BITS_PER_LONG - 1, &ip);
+
+#endif
+	return ip;
+}
 
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
@@ -47,8 +71,8 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 
 	local_irq_save(flags);
 
-	rec.ip = ip;
-	rec.parent_ip = parent_ip;
+	rec.ip = adjust_ip(ip);
+	rec.parent_ip = adjust_ip(parent_ip);
 	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
 	psinfo->write(&record);
