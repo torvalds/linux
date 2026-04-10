@@ -732,6 +732,335 @@ struct mxl862xx_cfg {
 } __packed;
 
 /**
+ * enum mxl862xx_extended_vlan_filter_type - Extended VLAN filter tag type
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL: Normal tagged
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_FILTER: No filter (wildcard)
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT: Default entry
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG: Untagged
+ */
+enum mxl862xx_extended_vlan_filter_type {
+	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL = 0,
+	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_FILTER = 1,
+	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT = 2,
+	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_filter_tpid - Extended VLAN filter TPID
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TPID_NO_FILTER: No TPID filter
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TPID_8021Q: 802.1Q TPID
+ * @MXL862XX_EXTENDEDVLAN_FILTER_TPID_VTETYPE: VLAN type extension
+ */
+enum mxl862xx_extended_vlan_filter_tpid {
+	MXL862XX_EXTENDEDVLAN_FILTER_TPID_NO_FILTER = 0,
+	MXL862XX_EXTENDEDVLAN_FILTER_TPID_8021Q = 1,
+	MXL862XX_EXTENDEDVLAN_FILTER_TPID_VTETYPE = 2,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_filter_dei - Extended VLAN filter DEI
+ * @MXL862XX_EXTENDEDVLAN_FILTER_DEI_NO_FILTER: No DEI filter
+ * @MXL862XX_EXTENDEDVLAN_FILTER_DEI_0: DEI = 0
+ * @MXL862XX_EXTENDEDVLAN_FILTER_DEI_1: DEI = 1
+ */
+enum mxl862xx_extended_vlan_filter_dei {
+	MXL862XX_EXTENDEDVLAN_FILTER_DEI_NO_FILTER = 0,
+	MXL862XX_EXTENDEDVLAN_FILTER_DEI_0 = 1,
+	MXL862XX_EXTENDEDVLAN_FILTER_DEI_1 = 2,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_treatment_remove_tag - Tag removal action
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG: Do not remove tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG: Remove one tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_2_TAG: Remove two tags
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM: Discard frame
+ */
+enum mxl862xx_extended_vlan_treatment_remove_tag {
+	MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG = 0,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG = 1,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_2_TAG = 2,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_treatment_priority - Treatment priority mode
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_PRIORITY_VAL: Use explicit value
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_PRIORITY: Copy from inner tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_PRIORITY: Copy from outer tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_DSCP: Derive from DSCP
+ */
+enum mxl862xx_extended_vlan_treatment_priority {
+	MXL862XX_EXTENDEDVLAN_TREATMENT_PRIORITY_VAL = 0,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_PRIORITY = 1,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_PRIORITY = 2,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_DSCP = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_treatment_vid - Treatment VID mode
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_VID_VAL: Use explicit VID value
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_VID: Copy from inner tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_VID: Copy from outer tag
+ */
+enum mxl862xx_extended_vlan_treatment_vid {
+	MXL862XX_EXTENDEDVLAN_TREATMENT_VID_VAL = 0,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_VID = 1,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_VID = 2,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_treatment_tpid - Treatment TPID mode
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_TPID: Copy from inner tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_TPID: Copy from outer tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_VTETYPE: Use VLAN type extension
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_8021Q: Use 802.1Q TPID
+ */
+enum mxl862xx_extended_vlan_treatment_tpid {
+	MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_TPID = 0,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_TPID = 1,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_VTETYPE = 2,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_8021Q = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_treatment_dei - Treatment DEI mode
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_DEI: Copy from inner tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_DEI: Copy from outer tag
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_DEI_0: Set DEI to 0
+ * @MXL862XX_EXTENDEDVLAN_TREATMENT_DEI_1: Set DEI to 1
+ */
+enum mxl862xx_extended_vlan_treatment_dei {
+	MXL862XX_EXTENDEDVLAN_TREATMENT_INNER_DEI = 0,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_OUTER_DEI = 1,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_DEI_0 = 2,
+	MXL862XX_EXTENDEDVLAN_TREATMENT_DEI_1 = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_4_tpid_mode - 4-TPID mode selector
+ * @MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_1: VLAN TPID type 1
+ * @MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_2: VLAN TPID type 2
+ * @MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_3: VLAN TPID type 3
+ * @MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_4: VLAN TPID type 4
+ */
+enum mxl862xx_extended_vlan_4_tpid_mode {
+	MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_1 = 0,
+	MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_2 = 1,
+	MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_3 = 2,
+	MXL862XX_EXTENDEDVLAN_TPID_VTETYPE_4 = 3,
+};
+
+/**
+ * enum mxl862xx_extended_vlan_filter_ethertype - Filter EtherType match
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_NO_FILTER: No filter
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_IPOE: IPoE
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_PPPOE: PPPoE
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_ARP: ARP
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_IPV6IPOE: IPv6 IPoE
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_EAPOL: EAPOL
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_DHCPV4: DHCPv4
+ * @MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_DHCPV6: DHCPv6
+ */
+enum mxl862xx_extended_vlan_filter_ethertype {
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_NO_FILTER = 0,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_IPOE = 1,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_PPPOE = 2,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_ARP = 3,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_IPV6IPOE = 4,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_EAPOL = 5,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_DHCPV4 = 6,
+	MXL862XX_EXTENDEDVLAN_FILTER_ETHERTYPE_DHCPV6 = 7,
+};
+
+/**
+ * struct mxl862xx_extendedvlan_filter_vlan - Per-tag filter in Extended VLAN
+ * @type: Tag presence/type match (see &enum mxl862xx_extended_vlan_filter_type)
+ * @priority_enable: Enable PCP value matching
+ * @priority_val: PCP value to match
+ * @vid_enable: Enable VID matching
+ * @vid_val: VID value to match
+ * @tpid: TPID match mode (see &enum mxl862xx_extended_vlan_filter_tpid)
+ * @dei: DEI match mode (see &enum mxl862xx_extended_vlan_filter_dei)
+ */
+struct mxl862xx_extendedvlan_filter_vlan {
+	__le32 type;
+	u8 priority_enable;
+	__le32 priority_val;
+	u8 vid_enable;
+	__le32 vid_val;
+	__le32 tpid;
+	__le32 dei;
+} __packed;
+
+/**
+ * struct mxl862xx_extendedvlan_filter - Extended VLAN filter configuration
+ * @original_packet_filter_mode: If true, filter on original (pre-treatment)
+ *                               packet
+ * @filter_4_tpid_mode: 4-TPID mode (see &enum mxl862xx_extended_vlan_4_tpid_mode)
+ * @outer_vlan: Outer VLAN tag filter
+ * @inner_vlan: Inner VLAN tag filter
+ * @ether_type: EtherType filter (see
+ *              &enum mxl862xx_extended_vlan_filter_ethertype)
+ */
+struct mxl862xx_extendedvlan_filter {
+	u8 original_packet_filter_mode;
+	__le32 filter_4_tpid_mode;
+	struct mxl862xx_extendedvlan_filter_vlan outer_vlan;
+	struct mxl862xx_extendedvlan_filter_vlan inner_vlan;
+	__le32 ether_type;
+} __packed;
+
+/**
+ * struct mxl862xx_extendedvlan_treatment_vlan - Per-tag treatment in
+ *                                               Extended VLAN
+ * @priority_mode: Priority assignment mode
+ *                 (see &enum mxl862xx_extended_vlan_treatment_priority)
+ * @priority_val: Priority value (when mode is VAL)
+ * @vid_mode: VID assignment mode
+ *            (see &enum mxl862xx_extended_vlan_treatment_vid)
+ * @vid_val: VID value (when mode is VAL)
+ * @tpid: TPID assignment mode
+ *        (see &enum mxl862xx_extended_vlan_treatment_tpid)
+ * @dei: DEI assignment mode
+ *       (see &enum mxl862xx_extended_vlan_treatment_dei)
+ */
+struct mxl862xx_extendedvlan_treatment_vlan {
+	__le32 priority_mode;
+	__le32 priority_val;
+	__le32 vid_mode;
+	__le32 vid_val;
+	__le32 tpid;
+	__le32 dei;
+} __packed;
+
+/**
+ * struct mxl862xx_extendedvlan_treatment - Extended VLAN treatment
+ * @remove_tag: Tag removal action
+ *              (see &enum mxl862xx_extended_vlan_treatment_remove_tag)
+ * @treatment_4_tpid_mode: 4-TPID treatment mode
+ * @add_outer_vlan: Add outer VLAN tag
+ * @outer_vlan: Outer VLAN tag treatment parameters
+ * @add_inner_vlan: Add inner VLAN tag
+ * @inner_vlan: Inner VLAN tag treatment parameters
+ * @reassign_bridge_port: Reassign to different bridge port
+ * @new_bridge_port_id: New bridge port ID
+ * @new_dscp_enable: Enable new DSCP assignment
+ * @new_dscp: New DSCP value
+ * @new_traffic_class_enable: Enable new traffic class assignment
+ * @new_traffic_class: New traffic class value
+ * @new_meter_enable: Enable new metering
+ * @s_new_traffic_meter_id: New traffic meter ID
+ * @dscp2pcp_map: DSCP to PCP mapping table (64 entries)
+ * @loopback_enable: Enable loopback
+ * @da_sa_swap_enable: Enable DA/SA swap
+ * @mirror_enable: Enable mirroring
+ */
+struct mxl862xx_extendedvlan_treatment {
+	__le32 remove_tag;
+	__le32 treatment_4_tpid_mode;
+	u8 add_outer_vlan;
+	struct mxl862xx_extendedvlan_treatment_vlan outer_vlan;
+	u8 add_inner_vlan;
+	struct mxl862xx_extendedvlan_treatment_vlan inner_vlan;
+	u8 reassign_bridge_port;
+	__le16 new_bridge_port_id;
+	u8 new_dscp_enable;
+	__le16 new_dscp;
+	u8 new_traffic_class_enable;
+	u8 new_traffic_class;
+	u8 new_meter_enable;
+	__le16 s_new_traffic_meter_id;
+	u8 dscp2pcp_map[64];
+	u8 loopback_enable;
+	u8 da_sa_swap_enable;
+	u8 mirror_enable;
+} __packed;
+
+/**
+ * struct mxl862xx_extendedvlan_alloc - Extended VLAN block allocation
+ * @number_of_entries: Number of entries to allocate (input) / allocated
+ *                     (output)
+ * @extended_vlan_block_id: Block ID assigned by firmware (output on alloc,
+ *                          input on free)
+ *
+ * Used with %MXL862XX_EXTENDEDVLAN_ALLOC and %MXL862XX_EXTENDEDVLAN_FREE.
+ */
+struct mxl862xx_extendedvlan_alloc {
+	__le16 number_of_entries;
+	__le16 extended_vlan_block_id;
+} __packed;
+
+/**
+ * struct mxl862xx_extendedvlan_config - Extended VLAN entry configuration
+ * @extended_vlan_block_id: Block ID from allocation
+ * @entry_index: Entry index within the block
+ * @filter: Filter (match) configuration
+ * @treatment: Treatment (action) configuration
+ *
+ * Used with %MXL862XX_EXTENDEDVLAN_SET and %MXL862XX_EXTENDEDVLAN_GET.
+ */
+struct mxl862xx_extendedvlan_config {
+	__le16 extended_vlan_block_id;
+	__le16 entry_index;
+	struct mxl862xx_extendedvlan_filter filter;
+	struct mxl862xx_extendedvlan_treatment treatment;
+} __packed;
+
+/**
+ * enum mxl862xx_vlan_filter_tci_mask - VLAN Filter TCI mask
+ * @MXL862XX_VLAN_FILTER_TCI_MASK_VID: TCI mask for VLAN ID
+ * @MXL862XX_VLAN_FILTER_TCI_MASK_PCP: TCI mask for VLAN PCP
+ * @MXL862XX_VLAN_FILTER_TCI_MASK_TCI: TCI mask for VLAN TCI
+ */
+enum mxl862xx_vlan_filter_tci_mask {
+	MXL862XX_VLAN_FILTER_TCI_MASK_VID = 0,
+	MXL862XX_VLAN_FILTER_TCI_MASK_PCP = 1,
+	MXL862XX_VLAN_FILTER_TCI_MASK_TCI = 2,
+};
+
+/**
+ * struct mxl862xx_vlanfilter_alloc - VLAN Filter block allocation
+ * @number_of_entries: Number of entries to allocate (input) / allocated
+ *                     (output)
+ * @vlan_filter_block_id: Block ID assigned by firmware (output on alloc,
+ *                        input on free)
+ * @discard_untagged: Discard untagged packets
+ * @discard_unmatched_tagged: Discard tagged packets that do not match any
+ *                            entry in the block
+ * @use_default_port_vid: Use default port VLAN ID for filtering
+ *
+ * Used with %MXL862XX_VLANFILTER_ALLOC and %MXL862XX_VLANFILTER_FREE.
+ */
+struct mxl862xx_vlanfilter_alloc {
+	__le16 number_of_entries;
+	__le16 vlan_filter_block_id;
+	u8 discard_untagged;
+	u8 discard_unmatched_tagged;
+	u8 use_default_port_vid;
+} __packed;
+
+/**
+ * struct mxl862xx_vlanfilter_config - VLAN Filter entry configuration
+ * @vlan_filter_block_id: Block ID from allocation
+ * @entry_index: Entry index within the block
+ * @vlan_filter_mask: TCI field(s) to match (see
+ *                    &enum mxl862xx_vlan_filter_tci_mask)
+ * @val: TCI value(s) to match (VID, PCP, or full TCI depending on mask)
+ * @discard_matched: When true, discard frames matching this entry;
+ *                   when false, allow them
+ *
+ * Used with %MXL862XX_VLANFILTER_SET and %MXL862XX_VLANFILTER_GET.
+ */
+struct mxl862xx_vlanfilter_config {
+	__le16 vlan_filter_block_id;
+	__le16 entry_index;
+	__le32 vlan_filter_mask; /* enum mxl862xx_vlan_filter_tci_mask */
+	__le32 val;
+	u8 discard_matched;
+} __packed;
+
+/**
  * enum mxl862xx_ss_sp_tag_mask - Special tag valid field indicator bits
  * @MXL862XX_SS_SP_TAG_MASK_RX: valid RX special tag mode
  * @MXL862XX_SS_SP_TAG_MASK_TX: valid TX special tag mode

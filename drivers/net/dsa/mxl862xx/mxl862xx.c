@@ -50,6 +50,85 @@ static const int mxl862xx_flood_meters[] = {
 	MXL862XX_BRIDGE_PORT_EGRESS_METER_BROADCAST,
 };
 
+enum mxl862xx_evlan_action {
+	EVLAN_ACCEPT,			/* pass-through, no tag removal */
+	EVLAN_STRIP_IF_UNTAGGED,	/* remove 1 tag if entry's untagged flag set */
+	EVLAN_PVID_OR_DISCARD,		/* insert PVID tag or discard if no PVID */
+	EVLAN_STRIP1_AND_PVID_OR_DISCARD,/* strip 1 tag + insert PVID, or discard */
+};
+
+struct mxl862xx_evlan_rule_desc {
+	u8 outer_type;		/* enum mxl862xx_extended_vlan_filter_type */
+	u8 inner_type;		/* enum mxl862xx_extended_vlan_filter_type */
+	u8 outer_tpid;		/* enum mxl862xx_extended_vlan_filter_tpid */
+	u8 inner_tpid;		/* enum mxl862xx_extended_vlan_filter_tpid */
+	bool match_vid;		/* true: match on VID from the vid parameter */
+	u8 action;		/* enum mxl862xx_evlan_action */
+};
+
+/* Shorthand constants for readability */
+#define FT_NORMAL	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NORMAL
+#define FT_NO_FILTER	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_FILTER
+#define FT_DEFAULT	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT
+#define FT_NO_TAG	MXL862XX_EXTENDEDVLAN_FILTER_TYPE_NO_TAG
+#define TP_NONE		MXL862XX_EXTENDEDVLAN_FILTER_TPID_NO_FILTER
+#define TP_8021Q	MXL862XX_EXTENDEDVLAN_FILTER_TPID_8021Q
+
+/*
+ * VLAN-aware ingress: 7 final catchall rules.
+ *
+ * VLAN Filter handles VID membership for tagged frames, so the
+ * Extended VLAN ingress block only needs to handle:
+ * - Priority-tagged (VID=0): strip + insert PVID
+ * - Untagged: insert PVID or discard
+ * - Standard 802.1Q VID>0: pass through (VF handles membership)
+ * - Non-8021Q TPID (0x88A8 etc.): treat as untagged
+ *
+ * Rule ordering is critical: the EVLAN engine scans entries in
+ * ascending index order and stops at the first match.
+ *
+ * The 802.1Q ACCEPT rules (indices 3--4) must appear BEFORE the
+ * NO_FILTER catchalls (indices 5--6). NO_FILTER matches any tag
+ * regardless of TPID, so without the ACCEPT guard, it would also
+ * catch standard 802.1Q VID>0 frames and corrupt them. With the
+ * guard, 802.1Q VID>0 frames match the ACCEPT rules first and
+ * pass through untouched; only non-8021Q TPID frames pass through
+ * to the NO_FILTER catchalls.
+ */
+static const struct mxl862xx_evlan_rule_desc ingress_aware_final[] = {
+	/* 802.1p / priority-tagged (VID 0): strip + PVID */
+	{ FT_NORMAL,    FT_NORMAL, TP_8021Q, TP_8021Q, true,  EVLAN_STRIP1_AND_PVID_OR_DISCARD },
+	{ FT_NORMAL,    FT_NO_TAG, TP_8021Q, TP_NONE,  true,  EVLAN_STRIP1_AND_PVID_OR_DISCARD },
+	/* Untagged: PVID insertion or discard */
+	{ FT_NO_TAG,    FT_NO_TAG, TP_NONE,  TP_NONE,  false, EVLAN_PVID_OR_DISCARD },
+	/* 802.1Q VID>0: accept - VF handles membership.
+	 * match_vid=false means any VID; VID=0 is already caught above.
+	 */
+	{ FT_NORMAL,    FT_NORMAL, TP_8021Q, TP_8021Q, false, EVLAN_ACCEPT },
+	{ FT_NORMAL,    FT_NO_TAG, TP_8021Q, TP_NONE,  false, EVLAN_ACCEPT },
+	/* Non-8021Q TPID (0x88A8 etc.): treat as untagged - strip + PVID */
+	{ FT_NO_FILTER, FT_NO_FILTER, TP_NONE, TP_NONE, false, EVLAN_STRIP1_AND_PVID_OR_DISCARD },
+	{ FT_NO_FILTER, FT_NO_TAG,    TP_NONE, TP_NONE, false, EVLAN_STRIP1_AND_PVID_OR_DISCARD },
+};
+
+/*
+ * VID-specific accept rules (VLAN-aware, standard tag, 2 per VID).
+ * Outer tag carries the VLAN; inner may or may not be present.
+ */
+static const struct mxl862xx_evlan_rule_desc vid_accept_standard[] = {
+	{ FT_NORMAL, FT_NORMAL, TP_8021Q, TP_8021Q, true, EVLAN_STRIP_IF_UNTAGGED },
+	{ FT_NORMAL, FT_NO_TAG, TP_8021Q, TP_NONE,  true, EVLAN_STRIP_IF_UNTAGGED },
+};
+
+/*
+ * Egress tag-stripping rules for VLAN-unaware mode (2 per untagged VID).
+ * The HW sees the MxL tag as outer; the real VLAN tag, if any, is inner.
+ */
+static const struct mxl862xx_evlan_rule_desc vid_accept_egress_unaware[] = {
+	{ FT_NO_FILTER, FT_NORMAL, TP_NONE, TP_8021Q, true,  EVLAN_STRIP_IF_UNTAGGED },
+	{ FT_NO_FILTER, FT_NO_TAG, TP_NONE, TP_NONE,  false, EVLAN_STRIP_IF_UNTAGGED },
+};
+
 static enum dsa_tag_protocol mxl862xx_get_tag_protocol(struct dsa_switch *ds,
 						       int port,
 						       enum dsa_tag_protocol m)
@@ -275,10 +354,11 @@ static int mxl862xx_set_bridge_port(struct dsa_switch *ds, int port)
 	struct mxl862xx_port *p = &priv->ports[port];
 	struct dsa_port *member_dp;
 	u16 bridge_id;
+	u16 vf_scan;
 	bool enable;
 	int i, idx;
 
-	if (!p->setup_done)
+	if (dsa_port_is_unused(dp))
 		return 0;
 
 	if (dsa_port_is_cpu(dp)) {
@@ -312,8 +392,68 @@ static int mxl862xx_set_bridge_port(struct dsa_switch *ds, int port)
 	br_port_cfg.mask = cpu_to_le32(MXL862XX_BRIDGE_PORT_CONFIG_MASK_BRIDGE_ID |
 				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_BRIDGE_PORT_MAP |
 				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_MC_SRC_MAC_LEARNING |
-				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_EGRESS_SUB_METER);
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_EGRESS_SUB_METER |
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_INGRESS_VLAN |
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_EGRESS_VLAN |
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_INGRESS_VLAN_FILTER |
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_EGRESS_VLAN_FILTER1 |
+				       MXL862XX_BRIDGE_PORT_CONFIG_MASK_VLAN_BASED_MAC_LEARNING);
 	br_port_cfg.src_mac_learning_disable = !p->learning;
+
+	/* Extended VLAN block assignments.
+	 * Ingress: block_size is sent as-is (all entries are finals).
+	 * Egress: n_active narrows the scan window to only the
+	 * entries actually written by evlan_program_egress.
+	 */
+	br_port_cfg.ingress_extended_vlan_enable = p->ingress_evlan.in_use;
+	br_port_cfg.ingress_extended_vlan_block_id =
+		cpu_to_le16(p->ingress_evlan.block_id);
+	br_port_cfg.ingress_extended_vlan_block_size =
+		cpu_to_le16(p->ingress_evlan.block_size);
+	br_port_cfg.egress_extended_vlan_enable = p->egress_evlan.in_use;
+	br_port_cfg.egress_extended_vlan_block_id =
+		cpu_to_le16(p->egress_evlan.block_id);
+	br_port_cfg.egress_extended_vlan_block_size =
+		cpu_to_le16(p->egress_evlan.n_active);
+
+	/* VLAN Filter block assignments (per-port).
+	 * The block_size sent to the firmware narrows the HW scan
+	 * window to [block_id, block_id + active_count), relying on
+	 * discard_unmatched_tagged for frames outside that range.
+	 * When active_count=0, send 1 to scan only the DISCARD
+	 * sentinel at index 0 (block_size=0 would disable narrowing
+	 * and scan the entire allocated block).
+	 *
+	 * The bridge check ensures VF is disabled when the port
+	 * leaves the bridge, without needing to prematurely clear
+	 * vlan_filtering (which the DSA framework handles later via
+	 * port_vlan_filtering).
+	 */
+	if (p->vf.allocated && p->vlan_filtering &&
+	    dsa_port_bridge_dev_get(dp)) {
+		vf_scan = max_t(u16, p->vf.active_count, 1);
+		br_port_cfg.ingress_vlan_filter_enable = 1;
+		br_port_cfg.ingress_vlan_filter_block_id =
+			cpu_to_le16(p->vf.block_id);
+		br_port_cfg.ingress_vlan_filter_block_size =
+			cpu_to_le16(vf_scan);
+
+		br_port_cfg.egress_vlan_filter1enable = 1;
+		br_port_cfg.egress_vlan_filter1block_id =
+			cpu_to_le16(p->vf.block_id);
+		br_port_cfg.egress_vlan_filter1block_size =
+			cpu_to_le16(vf_scan);
+	} else {
+		br_port_cfg.ingress_vlan_filter_enable = 0;
+		br_port_cfg.egress_vlan_filter1enable = 0;
+	}
+
+	/* IVL when VLAN-aware: include VID in FDB lookup keys so that
+	 * learned entries are per-VID. In VLAN-unaware mode, SVL is
+	 * used (VID excluded from key).
+	 */
+	br_port_cfg.vlan_src_mac_vid_enable = p->vlan_filtering;
+	br_port_cfg.vlan_dst_mac_vid_enable = p->vlan_filtering;
 
 	for (i = 0; i < ARRAY_SIZE(mxl862xx_flood_meters); i++) {
 		idx = mxl862xx_flood_meters[i];
@@ -341,6 +481,72 @@ static int mxl862xx_sync_bridge_members(struct dsa_switch *ds,
 	}
 
 	return ret;
+}
+
+static int mxl862xx_evlan_block_alloc(struct mxl862xx_priv *priv,
+				      struct mxl862xx_evlan_block *blk)
+{
+	struct mxl862xx_extendedvlan_alloc param = {};
+	int ret;
+
+	param.number_of_entries = cpu_to_le16(blk->block_size);
+
+	ret = MXL862XX_API_READ(priv, MXL862XX_EXTENDEDVLAN_ALLOC, param);
+	if (ret)
+		return ret;
+
+	blk->block_id = le16_to_cpu(param.extended_vlan_block_id);
+	blk->allocated = true;
+
+	return 0;
+}
+
+static int mxl862xx_vf_block_alloc(struct mxl862xx_priv *priv,
+				   u16 size, u16 *block_id)
+{
+	struct mxl862xx_vlanfilter_alloc param = {};
+	int ret;
+
+	param.number_of_entries = cpu_to_le16(size);
+	param.discard_untagged = 0;
+	param.discard_unmatched_tagged = 1;
+
+	ret = MXL862XX_API_READ(priv, MXL862XX_VLANFILTER_ALLOC, param);
+	if (ret)
+		return ret;
+
+	*block_id = le16_to_cpu(param.vlan_filter_block_id);
+	return 0;
+}
+
+static int mxl862xx_vf_entry_discard(struct mxl862xx_priv *priv,
+				     u16 block_id, u16 index)
+{
+	struct mxl862xx_vlanfilter_config cfg = {};
+
+	cfg.vlan_filter_block_id = cpu_to_le16(block_id);
+	cfg.entry_index = cpu_to_le16(index);
+	cfg.vlan_filter_mask = cpu_to_le32(MXL862XX_VLAN_FILTER_TCI_MASK_VID);
+	cfg.val = cpu_to_le32(0);
+	cfg.discard_matched = 1;
+
+	return MXL862XX_API_WRITE(priv, MXL862XX_VLANFILTER_SET, cfg);
+}
+
+static int mxl862xx_vf_alloc(struct mxl862xx_priv *priv,
+			     struct mxl862xx_vf_block *vf)
+{
+	int ret;
+
+	ret = mxl862xx_vf_block_alloc(priv, vf->block_size, &vf->block_id);
+	if (ret)
+		return ret;
+
+	vf->allocated = true;
+	vf->active_count = 0;
+
+	/* Sentinel: block VID-0 when scan window covers only index 0 */
+	return mxl862xx_vf_entry_discard(priv, vf->block_id, 0);
 }
 
 static int mxl862xx_allocate_bridge(struct mxl862xx_priv *priv)
@@ -378,6 +584,9 @@ static void mxl862xx_free_bridge(struct dsa_switch *ds,
 static int mxl862xx_setup(struct dsa_switch *ds)
 {
 	struct mxl862xx_priv *priv = ds->priv;
+	int n_user_ports = 0, max_vlans;
+	int ingress_finals, vid_rules;
+	struct dsa_port *dp;
 	int ret;
 
 	ret = mxl862xx_reset(priv);
@@ -387,6 +596,50 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	ret = mxl862xx_wait_ready(ds);
 	if (ret)
 		return ret;
+
+	/* Calculate Extended VLAN block sizes.
+	 * With VLAN Filter handling VID membership checks:
+	 *   Ingress: only final catchall rules (PVID insertion, 802.1Q
+	 *            accept, non-8021Q TPID handling, discard).
+	 *            Block sized to exactly fit the finals -- no per-VID
+	 *            ingress EVLAN rules are needed. (7 entries.)
+	 *   Egress:  2 rules per VID that needs tag stripping (untagged VIDs).
+	 *            No egress final catchalls -- VLAN Filter does the discard.
+	 *   CPU:     EVLAN is left disabled on CPU ports -- frames pass
+	 *            through without EVLAN processing.
+	 *
+	 * Total EVLAN budget:
+	 *   n_user_ports * (ingress + egress) <= 1024.
+	 * Ingress blocks are small (7 entries), so almost all capacity
+	 * goes to egress VID rules.
+	 */
+	dsa_switch_for_each_user_port(dp, ds)
+		n_user_ports++;
+
+	if (n_user_ports) {
+		ingress_finals = ARRAY_SIZE(ingress_aware_final);
+		vid_rules = ARRAY_SIZE(vid_accept_standard);
+
+		/* Ingress block: fixed at finals count (7 entries) */
+		priv->evlan_ingress_size = ingress_finals;
+
+		/* Egress block: remaining budget divided equally among
+		 * user ports. Each untagged VID needs vid_rules (2)
+		 * EVLAN entries for tag stripping. Tagged-only VIDs
+		 * need no EVLAN rules at all.
+		 */
+		max_vlans = (MXL862XX_TOTAL_EVLAN_ENTRIES -
+			     n_user_ports * ingress_finals) /
+			    (n_user_ports * vid_rules);
+		priv->evlan_egress_size = vid_rules * max_vlans;
+
+		/* VLAN Filter block: one per user port. The 1024-entry
+		 * table is divided equally among user ports. Each port
+		 * gets its own VF block for per-port VID membership --
+		 * discard_unmatched_tagged handles the rest.
+		 */
+		priv->vf_block_size = MXL862XX_TOTAL_VF_ENTRIES / n_user_ports;
+	}
 
 	ret = mxl862xx_setup_drop_meter(ds);
 	if (ret)
@@ -469,12 +722,509 @@ static int mxl862xx_configure_sp_tag_proto(struct dsa_switch *ds, int port,
 	return MXL862XX_API_WRITE(ds->priv, MXL862XX_SS_SPTAG_SET, tag);
 }
 
+static int mxl862xx_evlan_write_rule(struct mxl862xx_priv *priv,
+				     u16 block_id, u16 entry_index,
+				     const struct mxl862xx_evlan_rule_desc *desc,
+				     u16 vid, bool untagged, u16 pvid)
+{
+	struct mxl862xx_extendedvlan_config cfg = {};
+	struct mxl862xx_extendedvlan_filter_vlan *fv;
+
+	cfg.extended_vlan_block_id = cpu_to_le16(block_id);
+	cfg.entry_index = cpu_to_le16(entry_index);
+
+	/* Populate filter */
+	cfg.filter.outer_vlan.type = cpu_to_le32(desc->outer_type);
+	cfg.filter.inner_vlan.type = cpu_to_le32(desc->inner_type);
+	cfg.filter.outer_vlan.tpid = cpu_to_le32(desc->outer_tpid);
+	cfg.filter.inner_vlan.tpid = cpu_to_le32(desc->inner_tpid);
+
+	if (desc->match_vid) {
+		/* For egress unaware: outer=NO_FILTER, match on inner tag */
+		if (desc->outer_type == FT_NO_FILTER)
+			fv = &cfg.filter.inner_vlan;
+		else
+			fv = &cfg.filter.outer_vlan;
+
+		fv->vid_enable = 1;
+		fv->vid_val = cpu_to_le32(vid);
+	}
+
+	/* Populate treatment based on action */
+	switch (desc->action) {
+	case EVLAN_ACCEPT:
+		cfg.treatment.remove_tag =
+			cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG);
+		break;
+
+	case EVLAN_STRIP_IF_UNTAGGED:
+		cfg.treatment.remove_tag = cpu_to_le32(untagged ?
+			MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG :
+			MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG);
+		break;
+
+	case EVLAN_PVID_OR_DISCARD:
+		if (pvid) {
+			cfg.treatment.remove_tag =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_NOT_REMOVE_TAG);
+			cfg.treatment.add_outer_vlan = 1;
+			cfg.treatment.outer_vlan.vid_mode =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_VID_VAL);
+			cfg.treatment.outer_vlan.vid_val = cpu_to_le32(pvid);
+			cfg.treatment.outer_vlan.tpid =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_8021Q);
+		} else {
+			cfg.treatment.remove_tag =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM);
+		}
+		break;
+
+	case EVLAN_STRIP1_AND_PVID_OR_DISCARD:
+		if (pvid) {
+			cfg.treatment.remove_tag =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_REMOVE_1_TAG);
+			cfg.treatment.add_outer_vlan = 1;
+			cfg.treatment.outer_vlan.vid_mode =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_VID_VAL);
+			cfg.treatment.outer_vlan.vid_val = cpu_to_le32(pvid);
+			cfg.treatment.outer_vlan.tpid =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_8021Q);
+		} else {
+			cfg.treatment.remove_tag =
+				cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM);
+		}
+		break;
+	}
+
+	return MXL862XX_API_WRITE(priv, MXL862XX_EXTENDEDVLAN_SET, cfg);
+}
+
+static int mxl862xx_evlan_deactivate_entry(struct mxl862xx_priv *priv,
+					   u16 block_id, u16 entry_index)
+{
+	struct mxl862xx_extendedvlan_config cfg = {};
+
+	cfg.extended_vlan_block_id = cpu_to_le16(block_id);
+	cfg.entry_index = cpu_to_le16(entry_index);
+
+	/* Use an unreachable filter (DEFAULT+DEFAULT) with DISCARD treatment.
+	 * A zeroed entry would have NORMAL+NORMAL filter which matches
+	 * real double-tagged traffic and passes it through.
+	 */
+	cfg.filter.outer_vlan.type =
+		cpu_to_le32(MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT);
+	cfg.filter.inner_vlan.type =
+		cpu_to_le32(MXL862XX_EXTENDEDVLAN_FILTER_TYPE_DEFAULT);
+	cfg.treatment.remove_tag =
+		cpu_to_le32(MXL862XX_EXTENDEDVLAN_TREATMENT_DISCARD_UPSTREAM);
+
+	return MXL862XX_API_WRITE(priv, MXL862XX_EXTENDEDVLAN_SET, cfg);
+}
+
+static int mxl862xx_evlan_write_final_rules(struct mxl862xx_priv *priv,
+					    struct mxl862xx_evlan_block *blk,
+					    const struct mxl862xx_evlan_rule_desc *rules,
+					    int n_rules, u16 pvid)
+{
+	u16 start_idx = blk->block_size - n_rules;
+	int i, ret;
+
+	for (i = 0; i < n_rules; i++) {
+		ret = mxl862xx_evlan_write_rule(priv, blk->block_id,
+						start_idx + i, &rules[i],
+						0, false, pvid);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int mxl862xx_vf_entry_set(struct mxl862xx_priv *priv,
+				 u16 block_id, u16 index, u16 vid)
+{
+	struct mxl862xx_vlanfilter_config cfg = {};
+
+	cfg.vlan_filter_block_id = cpu_to_le16(block_id);
+	cfg.entry_index = cpu_to_le16(index);
+	cfg.vlan_filter_mask = cpu_to_le32(MXL862XX_VLAN_FILTER_TCI_MASK_VID);
+	cfg.val = cpu_to_le32(vid);
+	cfg.discard_matched = 0;
+
+	return MXL862XX_API_WRITE(priv, MXL862XX_VLANFILTER_SET, cfg);
+}
+
+static struct mxl862xx_vf_vid *mxl862xx_vf_find_vid(struct mxl862xx_vf_block *vf,
+						    u16 vid)
+{
+	struct mxl862xx_vf_vid *ve;
+
+	list_for_each_entry(ve, &vf->vids, list)
+		if (ve->vid == vid)
+			return ve;
+
+	return NULL;
+}
+
+static int mxl862xx_vf_add_vid(struct mxl862xx_priv *priv,
+			       struct mxl862xx_vf_block *vf,
+			       u16 vid, bool untagged)
+{
+	struct mxl862xx_vf_vid *ve;
+	int ret;
+
+	ve = mxl862xx_vf_find_vid(vf, vid);
+	if (ve) {
+		ve->untagged = untagged;
+		return 0;
+	}
+
+	if (vf->active_count >= vf->block_size)
+		return -ENOSPC;
+
+	ve = kzalloc_obj(*ve);
+	if (!ve)
+		return -ENOMEM;
+
+	ve->vid = vid;
+	ve->index = vf->active_count;
+	ve->untagged = untagged;
+
+	ret = mxl862xx_vf_entry_set(priv, vf->block_id, ve->index, vid);
+	if (ret) {
+		kfree(ve);
+		return ret;
+	}
+
+	list_add_tail(&ve->list, &vf->vids);
+	vf->active_count++;
+
+	return 0;
+}
+
+static int mxl862xx_vf_del_vid(struct mxl862xx_priv *priv,
+			       struct mxl862xx_vf_block *vf, u16 vid)
+{
+	struct mxl862xx_vf_vid *ve, *last_ve;
+	u16 gap, last;
+	int ret;
+
+	ve = mxl862xx_vf_find_vid(vf, vid);
+	if (!ve)
+		return 0;
+
+	if (!vf->allocated) {
+		/* Software-only state -- just remove the tracking entry */
+		list_del(&ve->list);
+		kfree(ve);
+		vf->active_count--;
+		return 0;
+	}
+
+	gap = ve->index;
+	last = vf->active_count - 1;
+
+	if (vf->active_count == 1) {
+		/* Last VID -- restore DISCARD sentinel at index 0 */
+		ret = mxl862xx_vf_entry_discard(priv, vf->block_id, 0);
+		if (ret)
+			return ret;
+	} else if (gap < last) {
+		/* Swap: move the last ALLOW entry into the gap */
+		list_for_each_entry(last_ve, &vf->vids, list)
+			if (last_ve->index == last)
+				break;
+
+		if (WARN_ON(list_entry_is_head(last_ve, &vf->vids, list)))
+			return -EINVAL;
+
+		ret = mxl862xx_vf_entry_set(priv, vf->block_id,
+					    gap, last_ve->vid);
+		if (ret)
+			return ret;
+
+		last_ve->index = gap;
+	}
+
+	list_del(&ve->list);
+	kfree(ve);
+	vf->active_count--;
+
+	return 0;
+}
+
+static int mxl862xx_evlan_program_ingress(struct mxl862xx_priv *priv, int port)
+{
+	struct mxl862xx_port *p = &priv->ports[port];
+	struct mxl862xx_evlan_block *blk = &p->ingress_evlan;
+
+	if (!p->vlan_filtering)
+		return 0;
+
+	blk->in_use = true;
+	blk->n_active = blk->block_size;
+
+	return mxl862xx_evlan_write_final_rules(priv, blk,
+						ingress_aware_final,
+						ARRAY_SIZE(ingress_aware_final),
+						p->pvid);
+}
+
+static int mxl862xx_evlan_program_egress(struct mxl862xx_priv *priv, int port)
+{
+	struct mxl862xx_port *p = &priv->ports[port];
+	struct mxl862xx_evlan_block *blk = &p->egress_evlan;
+	const struct mxl862xx_evlan_rule_desc *vid_rules;
+	struct mxl862xx_vf_vid *vfv;
+	u16 old_active = blk->n_active;
+	u16 idx = 0, i;
+	int n_vid, ret;
+
+	if (p->vlan_filtering) {
+		vid_rules = vid_accept_standard;
+		n_vid = ARRAY_SIZE(vid_accept_standard);
+	} else {
+		vid_rules = vid_accept_egress_unaware;
+		n_vid = ARRAY_SIZE(vid_accept_egress_unaware);
+	}
+
+	list_for_each_entry(vfv, &p->vf.vids, list) {
+		if (!vfv->untagged)
+			continue;
+
+		if (idx + n_vid > blk->block_size)
+			return -ENOSPC;
+
+		ret = mxl862xx_evlan_write_rule(priv, blk->block_id,
+						idx++, &vid_rules[0],
+						vfv->vid, vfv->untagged,
+						p->pvid);
+		if (ret)
+			return ret;
+
+		if (n_vid > 1) {
+			ret = mxl862xx_evlan_write_rule(priv, blk->block_id,
+							idx++, &vid_rules[1],
+							vfv->vid,
+							vfv->untagged,
+							p->pvid);
+			if (ret)
+				return ret;
+		}
+	}
+
+	/* Deactivate stale entries that are no longer needed.
+	 * This closes the brief window between writing the new rules
+	 * and set_bridge_port narrowing the scan window.
+	 */
+	for (i = idx; i < old_active; i++) {
+		ret = mxl862xx_evlan_deactivate_entry(priv,
+						      blk->block_id,
+						      i);
+		if (ret)
+			return ret;
+	}
+
+	blk->n_active = idx;
+	blk->in_use = idx > 0;
+
+	return 0;
+}
+
+static int mxl862xx_port_vlan_filtering(struct dsa_switch *ds, int port,
+					bool vlan_filtering,
+					struct netlink_ext_ack *extack)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port *p = &priv->ports[port];
+	bool old_vlan_filtering = p->vlan_filtering;
+	bool old_in_use = p->ingress_evlan.in_use;
+	bool changed = (p->vlan_filtering != vlan_filtering);
+	int ret;
+
+	p->vlan_filtering = vlan_filtering;
+
+	if (changed) {
+		/* When leaving VLAN-aware mode, release the ingress HW
+		 * block. The firmware passes frames through unchanged
+		 * when no ingress EVLAN block is assigned, so the block
+		 * is unnecessary in unaware mode.
+		 */
+		if (!vlan_filtering)
+			p->ingress_evlan.in_use = false;
+
+		ret = mxl862xx_evlan_program_ingress(priv, port);
+		if (ret)
+			goto err_restore;
+
+		ret = mxl862xx_evlan_program_egress(priv, port);
+		if (ret)
+			goto err_restore;
+	}
+
+	return mxl862xx_set_bridge_port(ds, port);
+
+	/* No HW rollback -- restoring SW state is sufficient for a correct retry. */
+err_restore:
+	p->vlan_filtering = old_vlan_filtering;
+	p->ingress_evlan.in_use = old_in_use;
+	return ret;
+}
+
+static int mxl862xx_port_vlan_add(struct dsa_switch *ds, int port,
+				  const struct switchdev_obj_port_vlan *vlan,
+				  struct netlink_ext_ack *extack)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port *p = &priv->ports[port];
+	bool untagged = !!(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+	u16 vid = vlan->vid;
+	u16 old_pvid = p->pvid;
+	bool pvid_changed = false;
+	int ret;
+
+	/* CPU port is VLAN-transparent: the SP tag handles port
+	 * identification and the host-side DSA tagger manages VLAN
+	 * delivery. Egress EVLAN catchalls are set up once in
+	 * setup_cpu_bridge; no per-VID VF/EVLAN programming needed.
+	 */
+	if (dsa_is_cpu_port(ds, port))
+		return 0;
+
+	/* Update PVID tracking */
+	if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
+		if (p->pvid != vid) {
+			p->pvid = vid;
+			pvid_changed = true;
+		}
+	} else if (p->pvid == vid) {
+		p->pvid = 0;
+		pvid_changed = true;
+	}
+
+	/* Add/update VID in this port's VLAN Filter block.
+	 * VF must be updated before programming egress EVLAN because
+	 * evlan_program_egress walks the VF VID list.
+	 */
+	ret = mxl862xx_vf_add_vid(priv, &p->vf, vid, untagged);
+	if (ret)
+		goto err_pvid;
+
+	/* Reprogram ingress finals if PVID changed */
+	if (pvid_changed) {
+		ret = mxl862xx_evlan_program_ingress(priv, port);
+		if (ret)
+			goto err_rollback;
+	}
+
+	/* Reprogram egress tag-stripping rules (walks VF VID list) */
+	ret = mxl862xx_evlan_program_egress(priv, port);
+	if (ret)
+		goto err_rollback;
+
+	/* Apply VLAN block IDs and MAC learning flags to bridge port */
+	ret = mxl862xx_set_bridge_port(ds, port);
+	if (ret)
+		goto err_rollback;
+
+	return 0;
+
+err_rollback:
+	/* Best-effort: undo VF add and restore consistent hardware state.
+	 * A retry of port_vlan_add will converge since vf_add_vid is
+	 * idempotent.
+	 */
+	p->pvid = old_pvid;
+	mxl862xx_vf_del_vid(priv, &p->vf, vid);
+	mxl862xx_evlan_program_ingress(priv, port);
+	mxl862xx_evlan_program_egress(priv, port);
+	mxl862xx_set_bridge_port(ds, port);
+	return ret;
+err_pvid:
+	p->pvid = old_pvid;
+	return ret;
+}
+
+static int mxl862xx_port_vlan_del(struct dsa_switch *ds, int port,
+				  const struct switchdev_obj_port_vlan *vlan)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port *p = &priv->ports[port];
+	struct mxl862xx_vf_vid *ve;
+	bool pvid_changed = false;
+	u16 vid = vlan->vid;
+	bool old_untagged;
+	u16 old_pvid;
+	int ret;
+
+	if (dsa_is_cpu_port(ds, port))
+		return 0;
+
+	ve = mxl862xx_vf_find_vid(&p->vf, vid);
+	if (!ve)
+		return 0;
+	old_untagged = ve->untagged;
+	old_pvid = p->pvid;
+
+	/* Clear PVID if we're deleting it */
+	if (p->pvid == vid) {
+		p->pvid = 0;
+		pvid_changed = true;
+	}
+
+	/* Remove VID from this port's VLAN Filter block.
+	 * Must happen before egress reprogram so the VID is no
+	 * longer in the list that evlan_program_egress walks.
+	 */
+	ret = mxl862xx_vf_del_vid(priv, &p->vf, vid);
+	if (ret)
+		goto err_pvid;
+
+	/* Reprogram egress tag-stripping rules (VID is now gone) */
+	ret = mxl862xx_evlan_program_egress(priv, port);
+	if (ret)
+		goto err_rollback;
+
+	/* If PVID changed, reprogram ingress finals */
+	if (pvid_changed) {
+		ret = mxl862xx_evlan_program_ingress(priv, port);
+		if (ret)
+			goto err_rollback;
+	}
+
+	ret = mxl862xx_set_bridge_port(ds, port);
+	if (ret)
+		goto err_rollback;
+
+	return 0;
+
+err_rollback:
+	/* Best-effort: re-add the VID and restore consistent hardware
+	 * state. A retry of port_vlan_del will converge.
+	 */
+	p->pvid = old_pvid;
+	mxl862xx_vf_add_vid(priv, &p->vf, vid, old_untagged);
+	mxl862xx_evlan_program_egress(priv, port);
+	mxl862xx_evlan_program_ingress(priv, port);
+	mxl862xx_set_bridge_port(ds, port);
+	return ret;
+err_pvid:
+	p->pvid = old_pvid;
+	return ret;
+}
+
 static int mxl862xx_setup_cpu_bridge(struct dsa_switch *ds, int port)
 {
 	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port *p = &priv->ports[port];
 
-	priv->ports[port].fid = MXL862XX_DEFAULT_BRIDGE;
-	priv->ports[port].learning = true;
+	p->fid = MXL862XX_DEFAULT_BRIDGE;
+	p->learning = true;
+
+	/* EVLAN is left disabled on CPU ports -- frames pass through
+	 * without EVLAN processing. Only the portmap and bridge
+	 * assignment need to be configured.
+	 */
 
 	return mxl862xx_set_bridge_port(ds, port);
 }
@@ -510,6 +1260,8 @@ static int mxl862xx_port_bridge_join(struct dsa_switch *ds, int port,
 static void mxl862xx_port_bridge_leave(struct dsa_switch *ds, int port,
 				       const struct dsa_bridge bridge)
 {
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port *p = &priv->ports[port];
 	int err;
 
 	err = mxl862xx_sync_bridge_members(ds, &bridge);
@@ -521,6 +1273,10 @@ static void mxl862xx_port_bridge_leave(struct dsa_switch *ds, int port,
 	/* Revert leaving port, omitted by the sync above, to its
 	 * single-port bridge
 	 */
+	p->pvid = 0;
+	p->ingress_evlan.in_use = false;
+	p->egress_evlan.in_use = false;
+
 	err = mxl862xx_set_bridge_port(ds, port);
 	if (err)
 		dev_err(ds->dev,
@@ -544,9 +1300,13 @@ static int mxl862xx_port_setup(struct dsa_switch *ds, int port)
 
 	mxl862xx_port_fast_age(ds, port);
 
-	if (dsa_port_is_unused(dp) ||
-	    dsa_port_is_dsa(dp))
+	if (dsa_port_is_unused(dp))
 		return 0;
+
+	if (dsa_port_is_dsa(dp)) {
+		dev_err(ds->dev, "port %d: DSA links not supported\n", port);
+		return -EOPNOTSUPP;
+	}
 
 	ret = mxl862xx_configure_sp_tag_proto(ds, port, is_cpu_port);
 	if (ret)
@@ -581,6 +1341,22 @@ static int mxl862xx_port_setup(struct dsa_switch *ds, int port)
 	if (ret)
 		return ret;
 
+	priv->ports[port].ingress_evlan.block_size = priv->evlan_ingress_size;
+	ret = mxl862xx_evlan_block_alloc(priv, &priv->ports[port].ingress_evlan);
+	if (ret)
+		return ret;
+
+	priv->ports[port].egress_evlan.block_size = priv->evlan_egress_size;
+	ret = mxl862xx_evlan_block_alloc(priv, &priv->ports[port].egress_evlan);
+	if (ret)
+		return ret;
+
+	priv->ports[port].vf.block_size = priv->vf_block_size;
+	INIT_LIST_HEAD(&priv->ports[port].vf.vids);
+	ret = mxl862xx_vf_alloc(priv, &priv->ports[port].vf);
+	if (ret)
+		return ret;
+
 	priv->ports[port].setup_done = true;
 
 	return 0;
@@ -591,7 +1367,7 @@ static void mxl862xx_port_teardown(struct dsa_switch *ds, int port)
 	struct mxl862xx_priv *priv = ds->priv;
 	struct dsa_port *dp = dsa_to_port(ds, port);
 
-	if (dsa_port_is_unused(dp) || dsa_port_is_dsa(dp))
+	if (dsa_port_is_unused(dp))
 		return;
 
 	/* Prevent deferred host_flood_work from acting on stale state.
@@ -979,6 +1755,9 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.port_fdb_dump = mxl862xx_port_fdb_dump,
 	.port_mdb_add = mxl862xx_port_mdb_add,
 	.port_mdb_del = mxl862xx_port_mdb_del,
+	.port_vlan_filtering = mxl862xx_port_vlan_filtering,
+	.port_vlan_add = mxl862xx_port_vlan_add,
+	.port_vlan_del = mxl862xx_port_vlan_del,
 };
 
 static void mxl862xx_phylink_mac_config(struct phylink_config *config,
