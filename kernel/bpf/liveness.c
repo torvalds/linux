@@ -732,13 +732,12 @@ int bpf_update_live_stack(struct bpf_verifier_env *env)
 	return 0;
 }
 
-static bool is_live_before(struct func_instance *instance, u32 insn_idx, u32 frameno, u32 spi)
+static bool is_live_before(struct func_instance *instance, u32 insn_idx, u32 frameno, u32 half_spi)
 {
 	struct per_frame_masks *masks;
 
 	masks = get_frame_masks(instance, frameno, insn_idx);
-	return masks && (spis_test_bit(masks->live_before, spi * 2) ||
-			 spis_test_bit(masks->live_before, spi * 2 + 1));
+	return masks && spis_test_bit(masks->live_before, half_spi);
 }
 
 int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st)
@@ -759,7 +758,7 @@ int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_
 	return 0;
 }
 
-bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi)
+bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 half_spi)
 {
 	/*
 	 * Slot is alive if it is read before q->st->insn_idx in current func instance,
@@ -773,15 +772,16 @@ bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi)
 	bool alive;
 
 	curframe_instance = q->instances[q->curframe];
-	if (is_live_before(curframe_instance, q->insn_idx, frameno, spi))
+	alive = is_live_before(curframe_instance, q->insn_idx, frameno, half_spi);
+	if (alive)
 		return true;
 
 	for (i = frameno; i < q->curframe; i++) {
 		callsite = curframe_instance->callchain.callsites[i];
 		instance = q->instances[i];
 		alive = bpf_calls_callback(env, callsite)
-			? is_live_before(instance, callsite, frameno, spi)
-			: is_live_before(instance, callsite + 1, frameno, spi);
+			? is_live_before(instance, callsite, frameno, half_spi)
+			: is_live_before(instance, callsite + 1, frameno, half_spi);
 		if (alive)
 			return true;
 	}

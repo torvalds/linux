@@ -20174,11 +20174,10 @@ static bool check_scalar_ids(u32 old_id, u32 cur_id, struct bpf_idmap *idmap)
 	return check_ids(old_id, cur_id, idmap);
 }
 
-static void clean_func_state(struct bpf_verifier_env *env,
-			     struct bpf_func_state *st,
-			     u32 ip)
+static void __clean_func_state(struct bpf_verifier_env *env,
+			       struct bpf_func_state *st,
+			       u16 live_regs, int frame)
 {
-	u16 live_regs = env->insn_aux_data[ip].live_regs_before;
 	int i, j;
 
 	for (i = 0; i < BPF_REG_FP; i++) {
@@ -20190,26 +20189,83 @@ static void clean_func_state(struct bpf_verifier_env *env,
 			__mark_reg_not_init(env, &st->regs[i]);
 	}
 
+	/*
+	 * Clean dead 4-byte halves within each SPI independently.
+	 * half_spi 2*i   → lower half: slot_type[0..3] (closer to FP)
+	 * half_spi 2*i+1 → upper half: slot_type[4..7] (farther from FP)
+	 */
 	for (i = 0; i < st->allocated_stack / BPF_REG_SIZE; i++) {
-		if (!bpf_stack_slot_alive(env, st->frameno, i)) {
-			__mark_reg_not_init(env, &st->stack[i].spilled_ptr);
-			for (j = 0; j < BPF_REG_SIZE; j++)
+		bool lo_live = bpf_stack_slot_alive(env, frame, i * 2);
+		bool hi_live = bpf_stack_slot_alive(env, frame, i * 2 + 1);
+
+		if (!hi_live || !lo_live) {
+			int start = !lo_live ? 0 : BPF_REG_SIZE / 2;
+			int end = !hi_live ? BPF_REG_SIZE : BPF_REG_SIZE / 2;
+			u8 stype = st->stack[i].slot_type[7];
+
+			/*
+			 * Don't clear special slots.
+			 * destroy_if_dynptr_stack_slot() needs STACK_DYNPTR to
+			 * detect overwrites and invalidate associated data slices.
+			 * is_iter_reg_valid_uninit() and is_irq_flag_reg_valid_uninit()
+			 * check for their respective slot types to detect double-create.
+			 */
+			if (stype == STACK_DYNPTR || stype == STACK_ITER ||
+			    stype == STACK_IRQ_FLAG)
+				continue;
+
+			/*
+			 * Only destroy spilled_ptr when hi half is dead.
+			 * If hi half is still live with STACK_SPILL, the
+			 * spilled_ptr metadata is needed for correct state
+			 * comparison in stacksafe().
+			 * is_spilled_reg() is using slot_type[7], but
+			 * is_spilled_scalar_after() check either slot_type[0] or [4]
+			 */
+			if (!hi_live) {
+				struct bpf_reg_state *spill = &st->stack[i].spilled_ptr;
+
+				if (lo_live && stype == STACK_SPILL) {
+					u8 val = STACK_MISC;
+
+					/*
+					 * 8 byte spill of scalar 0 where half slot is dead
+					 * should become STACK_ZERO in lo 4 bytes.
+					 */
+					if (register_is_null(spill))
+						val = STACK_ZERO;
+					for (j = 0; j < 4; j++) {
+						u8 *t = &st->stack[i].slot_type[j];
+
+						if (*t == STACK_SPILL)
+							*t = val;
+					}
+				}
+				__mark_reg_not_init(env, spill);
+			}
+			for (j = start; j < end; j++)
 				st->stack[i].slot_type[j] = STACK_INVALID;
 		}
 	}
 }
 
-static void clean_verifier_state(struct bpf_verifier_env *env,
+static int clean_verifier_state(struct bpf_verifier_env *env,
 				 struct bpf_verifier_state *st)
 {
-	int i, ip;
+	int i, err;
 
-	bpf_live_stack_query_init(env, st);
-	st->cleaned = true;
+	if (env->cur_state != st)
+		st->cleaned = true;
+	err = bpf_live_stack_query_init(env, st);
+	if (err)
+		return err;
 	for (i = 0; i <= st->curframe; i++) {
-		ip = frame_insn_idx(st, i);
-		clean_func_state(env, st->frame[i], ip);
+		u32 ip = frame_insn_idx(st, i);
+		u16 live_regs = env->insn_aux_data[ip].live_regs_before;
+
+		__clean_func_state(env, st->frame[i], live_regs, i);
 	}
+	return 0;
 }
 
 /* the parentage chains form a tree.
@@ -20306,11 +20362,12 @@ static void clear_singular_ids(struct bpf_verifier_env *env,
 	}));
 }
 
-static void clean_live_states(struct bpf_verifier_env *env, int insn,
+static int clean_live_states(struct bpf_verifier_env *env, int insn,
 			      struct bpf_verifier_state *cur)
 {
 	struct bpf_verifier_state_list *sl;
 	struct list_head *pos, *head;
+	int err;
 
 	head = explored_state(env, insn);
 	list_for_each(pos, head) {
@@ -20325,8 +20382,11 @@ static void clean_live_states(struct bpf_verifier_env *env, int insn,
 			continue;
 		if (incomplete_read_marks(env, &sl->state))
 			continue;
-		clean_verifier_state(env, &sl->state);
+		err = clean_verifier_state(env, &sl->state);
+		if (err)
+			return err;
 	}
+	return 0;
 }
 
 static bool regs_exact(const struct bpf_reg_state *rold,
@@ -21029,7 +21089,9 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	    env->insn_processed - env->prev_insn_processed >= 8)
 		add_new_state = true;
 
-	clean_live_states(env, insn_idx, cur);
+	err = clean_live_states(env, insn_idx, cur);
+	if (err)
+		return err;
 
 	loop = false;
 	head = explored_state(env, insn_idx);
