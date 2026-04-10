@@ -494,7 +494,7 @@ do {										\
  * SCX_CALL_OP_TASK*() invokes an SCX op that takes one or two task arguments
  * and records them in current->scx.kf_tasks[] for the duration of the call. A
  * kfunc invoked from inside such an op can then use
- * scx_kf_allowed_on_arg_tasks() to verify that its task argument is one of
+ * scx_kf_arg_task_ok() to verify that its task argument is one of
  * those subject tasks.
  *
  * Every SCX_CALL_OP_TASK*() call site invokes its op with @p's rq lock held -
@@ -532,7 +532,7 @@ do {										\
 })
 
 /* see SCX_CALL_OP_TASK() */
-static __always_inline bool scx_kf_allowed_on_arg_tasks(struct scx_sched *sch,
+static __always_inline bool scx_kf_arg_task_ok(struct scx_sched *sch,
 							struct task_struct *p)
 {
 	if (unlikely((p != current->scx.kf_tasks[0] &&
@@ -9424,7 +9424,7 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p,
 	if (unlikely(!sch))
 		goto out;
 
-	if (!scx_kf_allowed_on_arg_tasks(sch, p))
+	if (!scx_kf_arg_task_ok(sch, p))
 		goto out;
 
 	cgrp = tg_cgrp(tg);
