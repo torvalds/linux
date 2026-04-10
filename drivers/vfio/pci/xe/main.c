@@ -454,39 +454,46 @@ static const struct vfio_migration_ops xe_vfio_pci_migration_ops = {
 static void xe_vfio_pci_migration_init(struct xe_vfio_pci_core_device *xe_vdev)
 {
 	struct vfio_device *core_vdev = &xe_vdev->core_device.vdev;
-	struct pci_dev *pdev = to_pci_dev(core_vdev->dev);
-	struct xe_device *xe = xe_sriov_vfio_get_pf(pdev);
 
-	if (!xe)
+	if (!xe_sriov_vfio_migration_supported(xe_vdev->xe))
 		return;
-	if (!xe_sriov_vfio_migration_supported(xe))
-		return;
-
-	mutex_init(&xe_vdev->state_mutex);
-	spin_lock_init(&xe_vdev->reset_lock);
-
-	/* PF internal control uses vfid index starting from 1 */
-	xe_vdev->vfid = pci_iov_vf_id(pdev) + 1;
-	xe_vdev->xe = xe;
 
 	core_vdev->migration_flags = VFIO_MIGRATION_STOP_COPY | VFIO_MIGRATION_P2P;
 	core_vdev->mig_ops = &xe_vfio_pci_migration_ops;
 }
 
-static void xe_vfio_pci_migration_fini(struct xe_vfio_pci_core_device *xe_vdev)
+static int xe_vfio_pci_vf_init(struct xe_vfio_pci_core_device *xe_vdev)
 {
-	if (!xe_vdev->vfid)
-		return;
+	struct vfio_device *core_vdev = &xe_vdev->core_device.vdev;
+	struct pci_dev *pdev = to_pci_dev(core_vdev->dev);
+	struct xe_device *xe = xe_sriov_vfio_get_pf(pdev);
 
-	mutex_destroy(&xe_vdev->state_mutex);
+	if (!pdev->is_virtfn)
+		return 0;
+	if (!xe)
+		return -ENODEV;
+	xe_vdev->xe = xe;
+
+	/* PF internal control uses vfid index starting from 1 */
+	xe_vdev->vfid = pci_iov_vf_id(pdev) + 1;
+
+	xe_vfio_pci_migration_init(xe_vdev);
+
+	return 0;
 }
 
 static int xe_vfio_pci_init_dev(struct vfio_device *core_vdev)
 {
 	struct xe_vfio_pci_core_device *xe_vdev =
 		container_of(core_vdev, struct xe_vfio_pci_core_device, core_device.vdev);
+	int ret;
 
-	xe_vfio_pci_migration_init(xe_vdev);
+	mutex_init(&xe_vdev->state_mutex);
+	spin_lock_init(&xe_vdev->reset_lock);
+
+	ret = xe_vfio_pci_vf_init(xe_vdev);
+	if (ret)
+		return ret;
 
 	return vfio_pci_core_init_dev(core_vdev);
 }
@@ -496,7 +503,7 @@ static void xe_vfio_pci_release_dev(struct vfio_device *core_vdev)
 	struct xe_vfio_pci_core_device *xe_vdev =
 		container_of(core_vdev, struct xe_vfio_pci_core_device, core_device.vdev);
 
-	xe_vfio_pci_migration_fini(xe_vdev);
+	mutex_destroy(&xe_vdev->state_mutex);
 }
 
 static const struct vfio_device_ops xe_vfio_pci_ops = {
