@@ -154,7 +154,7 @@ Smatch和Coccinelle的强项
 Coccinelle可能是最容易写检查的。它在预处理器之前工作，所以用Coccinelle
 检查宏中的错误更容易。Coccinelle还能为你创建补丁，这是其他工具无法做到的。
 
-例如，用Coccinelle你可以从 ``kmalloc_array(x, size, GFP_KERNEL)``
+例如，用Coccinelle你可以从 ``kmalloc(x * size, GFP_KERNEL)``
 到 ``kmalloc_array(x, size, GFP_KERNEL)`` 进行大规模转换，这真的很
 有用。如果你只是创建一个Smatch警告，并试图把转换的工作推给维护者，他们会很
 恼火。你将不得不为每个警告争论是否真的可以溢出。
