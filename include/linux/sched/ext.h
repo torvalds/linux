@@ -147,33 +147,6 @@ enum scx_ent_dsq_flags {
 	SCX_TASK_DSQ_ON_PRIQ	= 1 << 0, /* task is queued on the priority queue of a dsq */
 };
 
-/*
- * Mask bits for scx_entity.kf_mask. Not all kfuncs can be called from
- * everywhere and the following bits track which kfunc sets are currently
- * allowed for %current. This simple per-task tracking works because SCX ops
- * nest in a limited way. BPF will likely implement a way to allow and disallow
- * kfuncs depending on the calling context which will replace this manual
- * mechanism. See scx_kf_allow().
- */
-enum scx_kf_mask {
-	SCX_KF_UNLOCKED		= 0,	  /* sleepable and not rq locked */
-	/* ENQUEUE and DISPATCH may be nested inside CPU_RELEASE */
-	SCX_KF_CPU_RELEASE	= 1 << 0, /* ops.cpu_release() */
-	/*
-	 * ops.dispatch() may release rq lock temporarily and thus ENQUEUE and
-	 * SELECT_CPU may be nested inside. ops.dequeue (in REST) may also be
-	 * nested inside DISPATCH.
-	 */
-	SCX_KF_DISPATCH		= 1 << 1, /* ops.dispatch() */
-	SCX_KF_ENQUEUE		= 1 << 2, /* ops.enqueue() and ops.select_cpu() */
-	SCX_KF_SELECT_CPU	= 1 << 3, /* ops.select_cpu() */
-	SCX_KF_REST		= 1 << 4, /* other rq-locked operations */
-
-	__SCX_KF_RQ_LOCKED	= SCX_KF_CPU_RELEASE | SCX_KF_DISPATCH |
-				  SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
-	__SCX_KF_TERMINAL	= SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU | SCX_KF_REST,
-};
-
 enum scx_dsq_lnode_flags {
 	SCX_DSQ_LNODE_ITER_CURSOR = 1 << 0,
 
@@ -221,7 +194,6 @@ struct sched_ext_entity {
 	s32			sticky_cpu;
 	s32			holding_cpu;
 	s32			selected_cpu;
-	u32			kf_mask;	/* see scx_kf_mask above */
 	struct task_struct	*kf_tasks[2];	/* see SCX_CALL_OP_TASK() */
 
 	struct list_head	runnable_node;	/* rq->scx.runnable_list */

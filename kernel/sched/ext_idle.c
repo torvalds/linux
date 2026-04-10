@@ -789,7 +789,7 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 	 */
 	if (SCX_HAS_OP(sch, update_idle) && do_notify &&
 	    !scx_bypassing(sch, cpu_of(rq)))
-		SCX_CALL_OP(sch, SCX_KF_REST, update_idle, rq, cpu_of(rq), idle);
+		SCX_CALL_OP(sch, update_idle, rq, cpu_of(rq), idle);
 }
 
 static void reset_idle_masks(struct sched_ext_ops *ops)
@@ -937,8 +937,6 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
 	} else if (!scx_locked_rq()) {
 		raw_spin_lock_irqsave(&p->pi_lock, irq_flags);
 		we_locked = true;
-	} else if (!scx_kf_allowed(sch, SCX_KF_ENQUEUE)) {
-		return -EPERM;
 	}
 
 	/*
