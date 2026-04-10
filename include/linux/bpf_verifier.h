@@ -220,6 +220,7 @@ enum bpf_stack_slot_type {
 	STACK_DYNPTR,
 	STACK_ITER,
 	STACK_IRQ_FLAG,
+	STACK_POISON,
 };
 
 #define BPF_REG_SIZE 8	/* size of eBPF register in bytes */

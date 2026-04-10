@@ -780,6 +780,8 @@ __naked void stack_load_preserves_const_precision_subreg(void)
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
+		"r2 = *(u64 *)(r10 -8);" /* keep slots alive */
+		"r2 = *(u64 *)(r10 -16);"
 		"r0 = 0;"
 		"exit;"
 	:
