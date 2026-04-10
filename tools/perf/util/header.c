@@ -3731,6 +3731,12 @@ static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused
 		if (do_read_u32(ff, &nr_domains))
 			return -1;
 
+		if (nr_domains > max_sched_domains) {
+			pr_err("Invalid HEADER_CPU_DOMAIN_INFO: nr_domains %u > max_sched_domains (%u)\n",
+			       nr_domains, max_sched_domains);
+			return -1;
+		}
+
 		cd_map[cpu]->nr_domains = nr_domains;
 
 		cd_map[cpu]->domains = calloc(max_sched_domains, sizeof(*d_info));
