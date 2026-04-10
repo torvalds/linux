@@ -77,6 +77,15 @@ config SENSORS_ADP1050_REGULATOR
 	  µModule regulators that can provide microprocessor power from 54V
 	  power distribution architecture.
 
+config SENSORS_APS_379
+	tristate "Sony APS-379 Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for Sony
+	  APS-379 Power Supplies.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called aps-379.
+
 config SENSORS_BEL_PFE
 	tristate "Bel PFE Compatible Power Supplies"
 	help

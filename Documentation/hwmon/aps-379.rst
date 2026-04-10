@@ -1,0 +1,57 @@
+Kernel driver aps-379
+=====================
+
+Supported chips:
+
+  * Sony APS-379
+
+    Prefix: 'aps-379'
+
+    Addresses scanned: -
+
+ Authors:
+        - Chris Packham
+
+Description
+-----------
+
+This driver implements support for the PMBus monitor on the Sony APS-379
+modular power supply. The APS-379 deviates from the PMBus standard for the
+READ_VOUT command by using the linear11 format instead of linear16.
+
+The known supported PMBus commands are:
+
+=== ============================= ========= ======= =====
+Cmd Function                      Protocol  Scaling Bytes
+=== ============================= ========= ======= =====
+01  On / Off Command (OPERATION)  Byte R/W  --      1
+10  WRITE_PROTECT                 Byte R/W  --      1
+3B  FAN_COMMAND_1                 Word R/W  --      2
+46  Current Limit (in percent)    Word R/W  2^0     2
+47  Current Limit Fault Response  Byte R/W  --      1
+79  Alarm Data Bits (STATUS_WORD) Word Rd   --      2
+8B  Output Voltage (READ_VOUT)    Word Rd   2^-4    2
+8C  Output Current (READ_IOUT)    Word Rd   2^-2    2
+8D  Power Supply Ambient Temp     Word Rd   2^0     2
+90  READ_FAN_SPEED_1              Word Rd   2^6     2
+91  READ_FAN_SPEED_2              Word Rd   2^6     2
+96  Output Wattage (READ_POUT)    Word Rd   2^1     2
+97  Input Wattage (READ_PIN)      Word Rd   2^1     2
+9A  Unit Model Number (MFR_MODEL) Block R/W --      10
+9B  Unit Revision Number          Block R/W --      10
+9E  Unit Serial Number            Block R/W --      8
+99  Unit Manufacturer ID (MFR_ID) Block R/W --      8
+D0  Unit Run Time Information     Block Rd  --      4
+D5  Firmware Version              Rd cust   --      8
+B0  User Data 1 (USER_DATA_00)    Block R/W --      4
+B1  User Data 2 (USER_DATA_01)    Block R/W --      4
+B2  User Data 3 (USER_DATA_02)    Block R/W --      4
+B3  User Data 4 (USER_DATA_03)    Block R/W --      4
+B4  User Data 5 (USER_DATA_04)    Block R/W --      4
+B5  User Data 6 (USER_DATA_05)    Block R/W --      4
+B6  User Data 7 (USER_DATA_06)    Block R/W --      4
+B7  User Data 8 (USER_DATA_07)    Block R/W --      4
+F0  Calibration command           Byte R/W  --      1
+F1  Calibration data              Word Wr   2^9     2
+F2  Unlock Calibration            Byte Wr   --      1
+=== ============================= ========= ======= =====
