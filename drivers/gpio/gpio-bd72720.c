@@ -256,6 +256,8 @@ static int gpo_bd72720_probe(struct platform_device *pdev)
 	g->dev = dev;
 	g->chip.parent = parent;
 	g->regmap = dev_get_regmap(parent, NULL);
+	if (!g->regmap)
+		return -ENODEV;
 
 	return devm_gpiochip_add_data(dev, &g->chip, g);
 }
