@@ -3622,6 +3622,17 @@ static int process_bpf_btf(struct feat_fd *ff  __maybe_unused, void *data __mayb
 	if (do_read_u32(ff, &count))
 		return -1;
 
+	if (count > MAX_BPF_PROGS) {
+		pr_err("bpf btf count %u too large (max %u)\n", count, MAX_BPF_PROGS);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + count * 2 * sizeof(u32)) {
+		pr_err("Invalid HEADER_BPF_BTF: section too small (%zu) for %u entries\n",
+		       ff->size, count);
+		return -1;
+	}
+
 	down_write(&env->bpf_progs.lock);
 
 	for (i = 0; i < count; ++i) {
@@ -3631,6 +3642,12 @@ static int process_bpf_btf(struct feat_fd *ff  __maybe_unused, void *data __mayb
 			goto out;
 		if (do_read_u32(ff, &data_size))
 			goto out;
+
+		if (data_size > MAX_BPF_DATA_LEN) {
+			pr_err("bpf btf data size %u too large (max %u)\n",
+			       data_size, MAX_BPF_DATA_LEN);
+			goto out;
+		}
 
 		node = malloc(sizeof(struct btf_node) + data_size);
 		if (!node)
