@@ -19797,6 +19797,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			goto err_free;
 		}
 
+		env->subprog_info[i].name = btf_name_by_offset(btf, type->name_off);
 		bpfptr_add(&urecord, urec_size);
 	}
 

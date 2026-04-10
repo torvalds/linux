@@ -664,7 +664,7 @@ enum priv_stack_mode {
 };
 
 struct bpf_subprog_info {
-	/* 'start' has to be the first field otherwise find_subprog() won't work */
+	const char *name; /* name extracted from BTF */
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u32 postorder_start; /* The idx to the env->cfg.insn_postorder */
