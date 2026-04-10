@@ -137,11 +137,11 @@ static int scsi_bsg_uring_cmd(struct request_queue *q, struct io_uring_cmd *iouc
 		return PTR_ERR(req);
 
 	scmd = blk_mq_rq_to_pdu(req);
-	scmd->cmd_len = cmd->request_len;
-	if (scmd->cmd_len > sizeof(scmd->cmnd)) {
+	if (cmd->request_len > sizeof(scmd->cmnd)) {
 		ret = -EINVAL;
 		goto out_free_req;
 	}
+	scmd->cmd_len = cmd->request_len;
 	scmd->allowed = SG_DEFAULT_RETRIES;
 
 	if (copy_from_user(scmd->cmnd, uptr64(cmd->request), cmd->request_len)) {
