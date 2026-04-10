@@ -64,6 +64,7 @@
 #endif
 
 #define MAX_NUMA_NODES		4096
+#define MAX_PMU_MAPPINGS	4096
 #define MAX_SCHED_DOMAINS	64
 
 /*
@@ -3067,6 +3068,18 @@ static int process_pmu_mappings(struct feat_fd *ff, void *data __maybe_unused)
 	if (!pmu_num) {
 		pr_debug("pmu mappings not available\n");
 		return 0;
+	}
+
+	if (pmu_num > MAX_PMU_MAPPINGS) {
+		pr_err("Invalid HEADER_PMU_MAPPINGS: pmu_num (%u) > %u\n",
+		       pmu_num, MAX_PMU_MAPPINGS);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + pmu_num * 2 * sizeof(u32)) {
+		pr_err("Invalid HEADER_PMU_MAPPINGS: section too small (%zu) for %u PMUs\n",
+		       ff->size, pmu_num);
+		return -1;
 	}
 
 	env->nr_pmu_mappings = pmu_num;
