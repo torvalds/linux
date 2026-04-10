@@ -52,9 +52,9 @@ void cifs_sb_deactive(struct super_block *sb);
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
 struct inode *cifs_root_iget(struct super_block *sb);
-int cifs_create(struct mnt_idmap *idmap, struct inode *inode,
+int cifs_create(struct mnt_idmap *idmap, struct inode *dir,
 		struct dentry *direntry, umode_t mode, bool excl);
-int cifs_atomic_open(struct inode *inode, struct dentry *direntry,
+int cifs_atomic_open(struct inode *dir, struct dentry *direntry,
 		     struct file *file, unsigned int oflags, umode_t mode);
 int cifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 		 struct file *file, umode_t mode);
