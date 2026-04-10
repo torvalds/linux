@@ -5330,7 +5330,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 {
 	void __user *argp = (void __user *)(unsigned long)header->addr;
 	struct ublk_shmem_buf_reg buf_reg;
-	unsigned long addr, size, nr_pages;
+	unsigned long nr_pages;
 	struct page **pages = NULL;
 	unsigned int gup_flags;
 	unsigned int memflags;
@@ -5352,13 +5352,11 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	if (buf_reg.reserved)
 		return -EINVAL;
 
-	addr = buf_reg.addr;
-	size = buf_reg.len;
-	nr_pages = size >> PAGE_SHIFT;
-
-	if (!size || size > UBLK_SHMEM_BUF_SIZE_MAX ||
-	    !PAGE_ALIGNED(size) || !PAGE_ALIGNED(addr))
+	if (!buf_reg.len || buf_reg.len > UBLK_SHMEM_BUF_SIZE_MAX ||
+	    !PAGE_ALIGNED(buf_reg.len) || !PAGE_ALIGNED(buf_reg.addr))
 		return -EINVAL;
+
+	nr_pages = buf_reg.len >> PAGE_SHIFT;
 
 	/* Pin pages before any locks (may sleep) */
 	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
@@ -5369,7 +5367,7 @@ static int ublk_ctrl_reg_buf(struct ublk_device *ub,
 	if (!(buf_reg.flags & UBLK_SHMEM_BUF_READ_ONLY))
 		gup_flags |= FOLL_WRITE;
 
-	pinned = pin_user_pages_fast(addr, nr_pages, gup_flags, pages);
+	pinned = pin_user_pages_fast(buf_reg.addr, nr_pages, gup_flags, pages);
 	if (pinned < 0) {
 		ret = pinned;
 		goto err_free_pages;
