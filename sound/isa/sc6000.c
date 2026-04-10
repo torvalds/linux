@@ -103,6 +103,7 @@ MODULE_PARM_DESC(joystick, "Enable gameport.");
 struct snd_sc6000 {
 	char __iomem *vport;
 	char __iomem *vmss_port;
+	struct snd_wss *chip;
 	u8 mss_config;
 	u8 config;
 	u8 hw_cfg[2];
@@ -646,6 +647,7 @@ static int __snd_sc6000_probe(struct device *devptr, unsigned int dev)
 			     WSS_HW_DETECT, 0, &chip);
 	if (err < 0)
 		return err;
+	sc6000->chip = chip;
 
 	err = snd_wss_pcm(chip, 0);
 	if (err < 0) {
@@ -702,10 +704,47 @@ static int snd_sc6000_probe(struct device *devptr, unsigned int dev)
 	return snd_card_free_on_error(devptr, __snd_sc6000_probe(devptr, dev));
 }
 
+#ifdef CONFIG_PM
+static int snd_sc6000_suspend(struct device *devptr, unsigned int dev,
+			      pm_message_t state)
+{
+	struct snd_card *card = dev_get_drvdata(devptr);
+	struct snd_sc6000 *sc6000 = card->private_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	sc6000->chip->suspend(sc6000->chip);
+	return 0;
+}
+
+static int snd_sc6000_resume(struct device *devptr, unsigned int dev)
+{
+	struct snd_card *card = dev_get_drvdata(devptr);
+	struct snd_sc6000 *sc6000 = card->private_data;
+	int err;
+
+	err = sc6000_dsp_reset(sc6000->vport);
+	if (err < 0) {
+		dev_err(devptr, "sc6000_dsp_reset: failed!\n");
+		return err;
+	}
+
+	err = sc6000_program_board(devptr, sc6000);
+	if (err < 0)
+		return err;
+
+	sc6000->chip->resume(sc6000->chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
 static struct isa_driver snd_sc6000_driver = {
 	.match		= snd_sc6000_match,
 	.probe		= snd_sc6000_probe,
-	/* FIXME: suspend/resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_sc6000_suspend,
+	.resume		= snd_sc6000_resume,
+#endif
 	.driver		= {
 		.name	= DRV_NAME,
 	},
