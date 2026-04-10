@@ -1214,7 +1214,8 @@ static int netkit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_NETKIT_MODE, nk->mode))
 		return -EMSGSIZE;
-	if (nla_put_u32(skb, IFLA_NETKIT_SCRUB, nk->scrub))
+	if (nk->pair == NETKIT_DEVICE_PAIR &&
+	    nla_put_u32(skb, IFLA_NETKIT_SCRUB, nk->scrub))
 		return -EMSGSIZE;
 	if (nla_put_u16(skb, IFLA_NETKIT_HEADROOM, dev->needed_headroom))
 		return -EMSGSIZE;
