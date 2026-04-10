@@ -63,6 +63,7 @@
 #include <event-parse.h>
 #endif
 
+#define MAX_NUMA_NODES		4096
 #define MAX_SCHED_DOMAINS	64
 
 /*
@@ -3004,6 +3005,18 @@ static int process_numa_topology(struct feat_fd *ff, void *data __maybe_unused)
 	/* nr nodes */
 	if (do_read_u32(ff, &nr))
 		return -1;
+
+	if (nr > MAX_NUMA_NODES) {
+		pr_err("Invalid HEADER_NUMA_TOPOLOGY: nr_nodes (%u) > %u\n",
+		       nr, MAX_NUMA_NODES);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + nr * (sizeof(u32) + 2 * sizeof(u64))) {
+		pr_err("Invalid HEADER_NUMA_TOPOLOGY: section too small (%zu) for %u nodes\n",
+		       ff->size, nr);
+		return -1;
+	}
 
 	nodes = calloc(nr, sizeof(*nodes));
 	if (!nodes)
