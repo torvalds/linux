@@ -74,7 +74,7 @@ config OMAP_32K_TIMER
 	  currently only available for OMAP16XX, 24XX, 34XX, OMAP4/5 and DRA7XX.
 
 	  On OMAP2PLUS this value is only used for CONFIG_HZ and
-	  CLOCK_TICK_RATE compile time calculation.
+	  timer frequency compile time calculation.
 	  The actual timer selection is done in the board file
 	  through the (DT_)MACHINE_START structure.
 

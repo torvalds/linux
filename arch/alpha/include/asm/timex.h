@@ -7,10 +7,6 @@
 #ifndef _ASMALPHA_TIMEX_H
 #define _ASMALPHA_TIMEX_H
 
-/* With only one or two oddballs, we use the RTC as the ticker, selecting
-   the 32.768kHz reference clock, which nicely divides down to our HZ.  */
-#define CLOCK_TICK_RATE	32768
-
 /*
  * Standard way to access the cycle counter.
  * Currently only used on SMP for scheduling.

@@ -4,6 +4,6 @@
 #if defined(__sparc__) && defined(__arch64__)
 #include <asm/timex_64.h>
 #else
-#include <asm/timex_32.h>
+#include <asm-generic/timex.h>
 #endif
 #endif
