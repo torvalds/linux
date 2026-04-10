@@ -1060,16 +1060,18 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
  * This helper is intended for locking net_device after it has been looked up
  * using a lockless lookup helper. Lock prevents the instance from going away.
  */
-struct net_device *__netdev_put_lock(struct net_device *dev, struct net *net)
+struct net_device *
+netdev_put_lock(struct net_device *dev, struct net *net,
+		netdevice_tracker *tracker)
 {
 	netdev_lock(dev);
 	if (dev->reg_state > NETREG_REGISTERED ||
 	    dev->moving_ns || !net_eq(dev_net(dev), net)) {
 		netdev_unlock(dev);
-		dev_put(dev);
+		netdev_put(dev, tracker);
 		return NULL;
 	}
-	dev_put(dev);
+	netdev_put(dev, tracker);
 	return dev;
 }
 
@@ -1119,14 +1121,6 @@ netdev_get_by_index_lock_ops_compat(struct net *net, int ifindex)
 		return NULL;
 
 	return __netdev_put_lock_ops_compat(dev, net);
-}
-
-struct net_device *
-netdev_put_lock(struct net_device *dev, struct net *net,
-		netdevice_tracker *tracker)
-{
-	netdev_tracker_free(dev, tracker);
-	return __netdev_put_lock(dev, net);
 }
 
 struct net_device *

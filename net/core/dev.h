@@ -31,9 +31,15 @@ struct napi_struct *
 netdev_napi_by_id_lock(struct net *net, unsigned int napi_id);
 struct net_device *dev_get_by_napi_id(unsigned int napi_id);
 
-struct net_device *__netdev_put_lock(struct net_device *dev, struct net *net);
 struct net_device *netdev_put_lock(struct net_device *dev, struct net *net,
 				   netdevice_tracker *tracker);
+
+static inline struct net_device *
+__netdev_put_lock(struct net_device *dev, struct net *net)
+{
+	return netdev_put_lock(dev, net, NULL);
+}
+
 struct net_device *
 netdev_xa_find_lock(struct net *net, struct net_device *dev,
 		    unsigned long *index);
