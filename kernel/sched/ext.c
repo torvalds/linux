@@ -540,15 +540,18 @@ do {										\
 })
 
 /*
- * Some kfuncs are allowed only on the tasks that are subjects of the
- * in-progress scx_ops operation for, e.g., locking guarantees. To enforce such
- * restrictions, the following SCX_CALL_OP_*() variants should be used when
- * invoking scx_ops operations that take task arguments. These can only be used
- * for non-nesting operations due to the way the tasks are tracked.
+ * SCX_CALL_OP_TASK*() invokes an SCX op that takes one or two task arguments
+ * and records them in current->scx.kf_tasks[] for the duration of the call. A
+ * kfunc invoked from inside such an op can then use
+ * scx_kf_allowed_on_arg_tasks() to verify that its task argument is one of
+ * those subject tasks.
  *
- * kfuncs which can only operate on such tasks can in turn use
- * scx_kf_allowed_on_arg_tasks() to test whether the invocation is allowed on
- * the specific task.
+ * Every SCX_CALL_OP_TASK*() call site invokes its op with @p's rq lock held -
+ * either via the @rq argument here, or (for ops.select_cpu()) via @p's pi_lock
+ * held by try_to_wake_up() with rq tracking via scx_rq.in_select_cpu. So if
+ * kf_tasks[] is set, @p's scheduler-protected fields are stable.
+ *
+ * These macros only work for non-nesting ops since kf_tasks[] is not stacked.
  */
 #define SCX_CALL_OP_TASK(sch, mask, op, rq, task, args...)			\
 do {										\
@@ -613,12 +616,8 @@ static __always_inline bool scx_kf_allowed(struct scx_sched *sch, u32 mask)
 
 /* see SCX_CALL_OP_TASK() */
 static __always_inline bool scx_kf_allowed_on_arg_tasks(struct scx_sched *sch,
-							u32 mask,
 							struct task_struct *p)
 {
-	if (!scx_kf_allowed(sch, mask))
-		return false;
-
 	if (unlikely((p != current->scx.kf_tasks[0] &&
 		      p != current->scx.kf_tasks[1]))) {
 		scx_error(sch, "called on a task not being operated on");
@@ -9535,9 +9534,8 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
  * @p->sched_task_group->css.cgroup represents the cgroup @p is associated with
  * from the scheduler's POV. SCX operations should use this function to
  * determine @p's current cgroup as, unlike following @p->cgroups,
- * @p->sched_task_group is protected by @p's rq lock and thus atomic w.r.t. all
- * rq-locked operations. Can be called on the parameter tasks of rq-locked
- * operations. The restriction guarantees that @p's rq is locked by the caller.
+ * @p->sched_task_group is stable for the duration of the SCX op. See
+ * SCX_CALL_OP_TASK() for details.
  */
 __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p,
 					       const struct bpf_prog_aux *aux)
@@ -9552,7 +9550,7 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p,
 	if (unlikely(!sch))
 		goto out;
 
-	if (!scx_kf_allowed_on_arg_tasks(sch, __SCX_KF_RQ_LOCKED, p))
+	if (!scx_kf_allowed_on_arg_tasks(sch, p))
 		goto out;
 
 	cgrp = tg_cgrp(tg);
