@@ -63,6 +63,7 @@
 #include <event-parse.h>
 #endif
 
+#define MAX_GROUP_DESC		32768
 #define MAX_NUMA_NODES		4096
 #define MAX_PMU_MAPPINGS	4096
 #define MAX_SCHED_DOMAINS	64
@@ -3132,11 +3133,24 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 	if (do_read_u32(ff, &nr_groups))
 		return -1;
 
-	env->nr_groups = nr_groups;
 	if (!nr_groups) {
 		pr_debug("group desc not available\n");
 		return 0;
 	}
+
+	if (nr_groups > MAX_GROUP_DESC) {
+		pr_err("Invalid HEADER_GROUP_DESC: nr_groups (%u) > %u\n",
+		       nr_groups, MAX_GROUP_DESC);
+		return -1;
+	}
+
+	if (ff->size < sizeof(u32) + nr_groups * 3 * sizeof(u32)) {
+		pr_err("Invalid HEADER_GROUP_DESC: section too small (%zu) for %u groups\n",
+		       ff->size, nr_groups);
+		return -1;
+	}
+
+	env->nr_groups = nr_groups;
 
 	desc = calloc(nr_groups, sizeof(*desc));
 	if (!desc)
