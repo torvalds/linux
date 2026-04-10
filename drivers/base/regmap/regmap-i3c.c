@@ -46,6 +46,16 @@ static const struct regmap_bus regmap_i3c = {
 	.read = regmap_i3c_read,
 };
 
+struct regmap *__regmap_init_i3c(struct i3c_device *i3c,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name)
+{
+	return __regmap_init(&i3c->dev, &regmap_i3c, &i3c->dev, config,
+				  lock_key, lock_name);
+}
+EXPORT_SYMBOL_GPL(__regmap_init_i3c);
+
 struct regmap *__devm_regmap_init_i3c(struct i3c_device *i3c,
 				      const struct regmap_config *config,
 				      struct lock_class_key *lock_key,

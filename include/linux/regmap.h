@@ -693,6 +693,10 @@ struct regmap *__regmap_init_sdw_mbq(struct device *dev, struct sdw_slave *sdw,
 				     const struct regmap_sdw_mbq_cfg *mbq_config,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name);
+struct regmap *__regmap_init_i3c(struct i3c_device *i3c,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
 struct regmap *__regmap_init_spi_avmm(struct spi_device *spi,
 				      const struct regmap_config *config,
 				      struct lock_class_key *lock_key,
@@ -998,6 +1002,19 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
 #define regmap_init_sdw_mbq_cfg(dev, sdw, config, mbq_config)		\
 	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,	\
 				dev, sdw, config, mbq_config)
+
+/**
+ * regmap_init_i3c() - Initialise register map
+ *
+ * @i3c: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+#define regmap_init_i3c(i3c, config)					\
+	__regmap_lockdep_wrapper(__regmap_init_i3c, #config,		\
+				i3c, config)
 
 /**
  * regmap_init_spi_avmm() - Initialize register map for Intel SPI Slave
