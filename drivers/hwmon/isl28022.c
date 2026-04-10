@@ -9,6 +9,7 @@
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -185,8 +186,8 @@ static int isl28022_read_power(struct device *dev, u32 attr, long *val)
 				  ISL28022_REG_POWER, &regval);
 		if (err < 0)
 			return err;
-		*val = ((51200000L * ((long)data->gain)) /
-			(long)data->shunt) * (long)regval;
+		*val = min(div_u64(51200000ULL * data->gain * regval,
+				   data->shunt), LONG_MAX);
 		break;
 	default:
 		return -EOPNOTSUPP;
