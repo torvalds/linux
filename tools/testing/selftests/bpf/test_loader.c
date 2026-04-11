@@ -11,8 +11,12 @@
 #include "cap_helpers.h"
 #include "jit_disasm_helpers.h"
 
-#define str_has_pfx(str, pfx) \
-	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
+static inline const char *str_has_pfx(const char *str, const char *pfx)
+{
+	size_t len = strlen(pfx);
+
+	return strncmp(str, pfx, len) == 0 ? str + len : NULL;
+}
 
 #define TEST_LOADER_LOG_BUF_SZ 2097152
 
@@ -166,21 +170,21 @@ static void free_test_spec(struct test_spec *spec)
 static int compile_regex(const char *pattern, regex_t *regex)
 {
 	char err_buf[256], buf[256] = {}, *ptr, *buf_end;
-	const char *original_pattern = pattern;
+	const char *original_pattern = pattern, *next;
 	bool in_regex = false;
 	int err;
 
 	buf_end = buf + sizeof(buf);
 	ptr = buf;
 	while (*pattern && ptr < buf_end - 2) {
-		if (!in_regex && str_has_pfx(pattern, "{{")) {
+		if (!in_regex && (next = str_has_pfx(pattern, "{{"))) {
 			in_regex = true;
-			pattern += 2;
+			pattern = next;
 			continue;
 		}
-		if (in_regex && str_has_pfx(pattern, "}}")) {
+		if (in_regex && (next = str_has_pfx(pattern, "}}"))) {
 			in_regex = false;
-			pattern += 2;
+			pattern = next;
 			continue;
 		}
 		if (in_regex) {
@@ -457,8 +461,8 @@ static int parse_test_spec(struct test_loader *tester,
 			continue;
 
 		s = btf__str_by_offset(btf, t->name_off);
-		if (str_has_pfx(s, TEST_TAG_DESCRIPTION_PFX)) {
-			description = s + sizeof(TEST_TAG_DESCRIPTION_PFX) - 1;
+		if ((val = str_has_pfx(s, TEST_TAG_DESCRIPTION_PFX))) {
+			description = val;
 		} else if (strcmp(s, TEST_TAG_EXPECT_FAILURE) == 0) {
 			spec->priv.expect_failure = true;
 			spec->mode_mask |= PRIV;
@@ -535,29 +539,24 @@ static int parse_test_spec(struct test_loader *tester,
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX)) {
-			val = s + sizeof(TEST_TAG_RETVAL_PFX) - 1;
+		} else if ((val = str_has_pfx(s, TEST_TAG_RETVAL_PFX))) {
 			err = parse_retval(val, &spec->priv.retval, "__retval");
 			if (err)
 				goto cleanup;
 			spec->priv.execute = true;
 			spec->mode_mask |= PRIV;
-		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX_UNPRIV)) {
-			val = s + sizeof(TEST_TAG_RETVAL_PFX_UNPRIV) - 1;
+		} else if ((val = str_has_pfx(s, TEST_TAG_RETVAL_PFX_UNPRIV))) {
 			err = parse_retval(val, &spec->unpriv.retval, "__retval_unpriv");
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
 			spec->unpriv.execute = true;
 			has_unpriv_retval = true;
-		} else if (str_has_pfx(s, TEST_TAG_LOG_LEVEL_PFX)) {
-			val = s + sizeof(TEST_TAG_LOG_LEVEL_PFX) - 1;
+		} else if ((val = str_has_pfx(s, TEST_TAG_LOG_LEVEL_PFX))) {
 			err = parse_int(val, &spec->log_level, "test log level");
 			if (err)
 				goto cleanup;
-		} else if (str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX)) {
-			val = s + sizeof(TEST_TAG_PROG_FLAGS_PFX) - 1;
-
+		} else if ((val = str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX))) {
 			clear = val[0] == '!';
 			if (clear)
 				val++;
@@ -582,8 +581,7 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				update_flags(&spec->prog_flags, flags, clear);
 			}
-		} else if (str_has_pfx(s, TEST_TAG_ARCH)) {
-			val = s + sizeof(TEST_TAG_ARCH) - 1;
+		} else if ((val = str_has_pfx(s, TEST_TAG_ARCH))) {
 			if (strcmp(val, "X86_64") == 0) {
 				arch = ARCH_X86_64;
 			} else if (strcmp(val, "ARM64") == 0) {
@@ -601,16 +599,14 @@ static int parse_test_spec(struct test_loader *tester,
 			collect_jit = get_current_arch() == arch;
 			unpriv_jit_on_next_line = true;
 			jit_on_next_line = true;
-		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
-			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
-		} else if (str_has_pfx(s, TEST_TAG_CAPS_UNPRIV)) {
-			val = s + sizeof(TEST_TAG_CAPS_UNPRIV) - 1;
+		} else if ((val = str_has_pfx(s, TEST_BTF_PATH))) {
+			spec->btf_custom_path = val;
+		} else if ((val = str_has_pfx(s, TEST_TAG_CAPS_UNPRIV))) {
 			err = parse_caps(val, &spec->unpriv.caps, "test caps");
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_LOAD_MODE_PFX)) {
-			val = s + sizeof(TEST_TAG_LOAD_MODE_PFX) - 1;
+		} else if ((val = str_has_pfx(s, TEST_TAG_LOAD_MODE_PFX))) {
 			if (strcmp(val, "jited") == 0) {
 				load_mask = JITED;
 			} else if (strcmp(val, "no_jited") == 0) {
@@ -640,12 +636,11 @@ static int parse_test_spec(struct test_loader *tester,
 					      &spec->unpriv.stdout);
 			if (err)
 				goto cleanup;
-		} else if (str_has_pfx(s, TEST_TAG_LINEAR_SIZE)) {
+		} else if ((val = str_has_pfx(s, TEST_TAG_LINEAR_SIZE))) {
 			switch (bpf_program__type(prog)) {
 			case BPF_PROG_TYPE_SCHED_ACT:
 			case BPF_PROG_TYPE_SCHED_CLS:
 			case BPF_PROG_TYPE_CGROUP_SKB:
-				val = s + sizeof(TEST_TAG_LINEAR_SIZE) - 1;
 				err = parse_int(val, &spec->linear_sz, "test linear size");
 				if (err)
 					goto cleanup;
