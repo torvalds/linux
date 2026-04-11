@@ -16782,23 +16782,6 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	int err;
 
 	if (opcode == BPF_END || opcode == BPF_NEG) {
-		if (opcode == BPF_NEG) {
-			if (BPF_SRC(insn->code) != BPF_K ||
-			    insn->src_reg != BPF_REG_0 ||
-			    insn->off != 0 || insn->imm != 0) {
-				verbose(env, "BPF_NEG uses reserved fields\n");
-				return -EINVAL;
-			}
-		} else {
-			if (insn->src_reg != BPF_REG_0 || insn->off != 0 ||
-			    (insn->imm != 16 && insn->imm != 32 && insn->imm != 64) ||
-			    (BPF_CLASS(insn->code) == BPF_ALU64 &&
-			     BPF_SRC(insn->code) != BPF_TO_LE)) {
-				verbose(env, "BPF_END uses reserved fields\n");
-				return -EINVAL;
-			}
-		}
-
 		/* check src operand */
 		err = check_reg_arg(env, insn->dst_reg, SRC_OP);
 		if (err)
@@ -16811,8 +16794,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		}
 
 		/* check dest operand */
-		if ((opcode == BPF_NEG || opcode == BPF_END) &&
-		    regs[insn->dst_reg].type == SCALAR_VALUE) {
+		if (regs[insn->dst_reg].type == SCALAR_VALUE) {
 			err = check_reg_arg(env, insn->dst_reg, DST_OP_NO_MARK);
 			err = err ?: adjust_scalar_min_max_vals(env, insn,
 							 &regs[insn->dst_reg],
@@ -16826,25 +16808,9 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	} else if (opcode == BPF_MOV) {
 
 		if (BPF_SRC(insn->code) == BPF_X) {
-			if (BPF_CLASS(insn->code) == BPF_ALU) {
-				if ((insn->off != 0 && insn->off != 8 && insn->off != 16) ||
-				    insn->imm) {
-					verbose(env, "BPF_MOV uses reserved fields\n");
-					return -EINVAL;
-				}
-			} else if (insn->off == BPF_ADDR_SPACE_CAST) {
-				if (insn->imm != 1 && insn->imm != 1u << 16) {
-					verbose(env, "addr_space_cast insn can only convert between address space 1 and 0\n");
-					return -EINVAL;
-				}
+			if (insn->off == BPF_ADDR_SPACE_CAST) {
 				if (!env->prog->aux->arena) {
 					verbose(env, "addr_space_cast insn can only be used in a program that has an associated arena\n");
-					return -EINVAL;
-				}
-			} else {
-				if ((insn->off != 0 && insn->off != 8 && insn->off != 16 &&
-				     insn->off != 32) || insn->imm) {
-					verbose(env, "BPF_MOV uses reserved fields\n");
 					return -EINVAL;
 				}
 			}
@@ -16853,11 +16819,6 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			err = check_reg_arg(env, insn->src_reg, SRC_OP);
 			if (err)
 				return err;
-		} else {
-			if (insn->src_reg != BPF_REG_0 || insn->off != 0) {
-				verbose(env, "BPF_MOV uses reserved fields\n");
-				return -EINVAL;
-			}
 		}
 
 		/* check dest operand, mark as required later */
@@ -16963,28 +16924,13 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			}
 		}
 
-	} else if (opcode > BPF_END) {
-		verbose(env, "invalid BPF_ALU opcode %x\n", opcode);
-		return -EINVAL;
-
 	} else {	/* all other ALU ops: and, sub, xor, add, ... */
 
 		if (BPF_SRC(insn->code) == BPF_X) {
-			if (insn->imm != 0 || (insn->off != 0 && insn->off != 1) ||
-			    (insn->off == 1 && opcode != BPF_MOD && opcode != BPF_DIV)) {
-				verbose(env, "BPF_ALU uses reserved fields\n");
-				return -EINVAL;
-			}
 			/* check src1 operand */
 			err = check_reg_arg(env, insn->src_reg, SRC_OP);
 			if (err)
 				return err;
-		} else {
-			if (insn->src_reg != BPF_REG_0 || (insn->off != 0 && insn->off != 1) ||
-			    (insn->off == 1 && opcode != BPF_MOD && opcode != BPF_DIV)) {
-				verbose(env, "BPF_ALU uses reserved fields\n");
-				return -EINVAL;
-			}
 		}
 
 		/* check src2 operand */
@@ -17921,12 +17867,6 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		struct bpf_verifier_state *cur_st = env->cur_state, *queued_st, *prev_st;
 		int idx = *insn_idx;
 
-		if (insn->code != (BPF_JMP | BPF_JCOND) ||
-		    insn->src_reg != BPF_MAY_GOTO ||
-		    insn->dst_reg || insn->imm) {
-			verbose(env, "invalid may_goto imm %d\n", insn->imm);
-			return -EINVAL;
-		}
 		prev_st = find_prev_entry(env, cur_st->parent, idx);
 
 		/* branch out 'fallthrough' insn as a new state to explore */
@@ -17948,11 +17888,6 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 
 	dst_reg = &regs[insn->dst_reg];
 	if (BPF_SRC(insn->code) == BPF_X) {
-		if (insn->imm != 0) {
-			verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
-			return -EINVAL;
-		}
-
 		/* check src1 operand */
 		err = check_reg_arg(env, insn->src_reg, SRC_OP);
 		if (err)
@@ -17971,10 +17906,6 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		if (dst_reg->type == PTR_TO_STACK)
 			insn_flags |= INSN_F_DST_REG_STACK;
 	} else {
-		if (insn->src_reg != BPF_REG_0) {
-			verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
-			return -EINVAL;
-		}
 		src_reg = &env->fake_reg[0];
 		memset(src_reg, 0, sizeof(*src_reg));
 		src_reg->type = SCALAR_VALUE;
@@ -18162,10 +18093,6 @@ static int check_ld_imm(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		verbose(env, "invalid BPF_LD_IMM insn\n");
 		return -EINVAL;
 	}
-	if (insn->off != 0) {
-		verbose(env, "BPF_LD_IMM64 uses reserved fields\n");
-		return -EINVAL;
-	}
 
 	err = check_reg_arg(env, insn->dst_reg, DST_OP);
 	if (err)
@@ -18291,13 +18218,6 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	if (!env->ops->gen_ld_abs) {
 		verifier_bug(env, "gen_ld_abs is null");
 		return -EFAULT;
-	}
-
-	if (insn->dst_reg != BPF_REG_0 || insn->off != 0 ||
-	    BPF_SIZE(insn->code) == BPF_DW ||
-	    (mode == BPF_ABS && insn->src_reg != BPF_REG_0)) {
-		verbose(env, "BPF_LD_[ABS|IND] uses reserved fields\n");
-		return -EINVAL;
 	}
 
 	/* check whether implicit source operand (register R6) is readable */
@@ -21614,13 +21534,9 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 		err = check_alu_op(env, insn);
 		if (err)
 			return err;
-
 	} else if (class == BPF_LDX) {
 		bool is_ldsx = BPF_MODE(insn->code) == BPF_MEMSX;
 
-		/* Check for reserved fields is already done in
-		 * resolve_pseudo_ldimm64().
-		 */
 		err = check_load_mem(env, insn, false, is_ldsx, true, "ldx");
 		if (err)
 			return err;
@@ -21633,22 +21549,12 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 			return 0;
 		}
 
-		if (BPF_MODE(insn->code) != BPF_MEM || insn->imm != 0) {
-			verbose(env, "BPF_STX uses reserved fields\n");
-			return -EINVAL;
-		}
-
 		err = check_store_reg(env, insn, false);
 		if (err)
 			return err;
 	} else if (class == BPF_ST) {
 		enum bpf_reg_type dst_reg_type;
 
-		if (BPF_MODE(insn->code) != BPF_MEM ||
-		    insn->src_reg != BPF_REG_0) {
-			verbose(env, "BPF_ST uses reserved fields\n");
-			return -EINVAL;
-		}
 		/* check src operand */
 		err = check_reg_arg(env, insn->dst_reg, SRC_OP);
 		if (err)
@@ -21671,17 +21577,6 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 
 		env->jmps_processed++;
 		if (opcode == BPF_CALL) {
-			if (BPF_SRC(insn->code) != BPF_K ||
-			    (insn->src_reg != BPF_PSEUDO_KFUNC_CALL &&
-			     insn->off != 0) ||
-			    (insn->src_reg != BPF_REG_0 &&
-			     insn->src_reg != BPF_PSEUDO_CALL &&
-			     insn->src_reg != BPF_PSEUDO_KFUNC_CALL) ||
-			    insn->dst_reg != BPF_REG_0 || class == BPF_JMP32) {
-				verbose(env, "BPF_CALL uses reserved fields\n");
-				return -EINVAL;
-			}
-
 			if (env->cur_state->active_locks) {
 				if ((insn->src_reg == BPF_REG_0 &&
 				     insn->imm != BPF_FUNC_spin_unlock &&
@@ -21707,23 +21602,8 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 
 			mark_reg_scratched(env, BPF_REG_0);
 		} else if (opcode == BPF_JA) {
-			if (BPF_SRC(insn->code) == BPF_X) {
-				if (insn->src_reg != BPF_REG_0 ||
-				    insn->imm != 0 || insn->off != 0) {
-					verbose(env, "BPF_JA|BPF_X uses reserved fields\n");
-					return -EINVAL;
-				}
+			if (BPF_SRC(insn->code) == BPF_X)
 				return check_indirect_jump(env, insn);
-			}
-
-			if (BPF_SRC(insn->code) != BPF_K ||
-			    insn->src_reg != BPF_REG_0 ||
-			    insn->dst_reg != BPF_REG_0 ||
-			    (class == BPF_JMP && insn->imm != 0) ||
-			    (class == BPF_JMP32 && insn->off != 0)) {
-				verbose(env, "BPF_JA uses reserved fields\n");
-				return -EINVAL;
-			}
 
 			if (class == BPF_JMP)
 				env->insn_idx += insn->off + 1;
@@ -21731,14 +21611,6 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 				env->insn_idx += insn->imm + 1;
 			return 0;
 		} else if (opcode == BPF_EXIT) {
-			if (BPF_SRC(insn->code) != BPF_K ||
-			    insn->imm != 0 ||
-			    insn->src_reg != BPF_REG_0 ||
-			    insn->dst_reg != BPF_REG_0 ||
-			    class == BPF_JMP32) {
-				verbose(env, "BPF_EXIT uses reserved fields\n");
-				return -EINVAL;
-			}
 			return process_bpf_exit_full(env, do_print_state, false);
 		} else {
 			err = check_cond_jmp_op(env, insn, &env->insn_idx);
@@ -21760,13 +21632,7 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 
 			env->insn_idx++;
 			sanitize_mark_insn_seen(env);
-		} else {
-			verbose(env, "invalid BPF_LD mode\n");
-			return -EINVAL;
 		}
-	} else {
-		verbose(env, "unknown insn class %d\n", class);
-		return -EINVAL;
 	}
 
 	env->insn_idx++;
@@ -22332,14 +22198,199 @@ static int add_used_map(struct bpf_verifier_env *env, int fd)
 	return __add_used_map(env, map);
 }
 
-/* find and rewrite pseudo imm in ld_imm64 instructions:
+static int check_alu_fields(struct bpf_verifier_env *env, struct bpf_insn *insn)
+{
+	u8 class = BPF_CLASS(insn->code);
+	u8 opcode = BPF_OP(insn->code);
+
+	switch (opcode) {
+	case BPF_NEG:
+		if (BPF_SRC(insn->code) != BPF_K || insn->src_reg != BPF_REG_0 ||
+		    insn->off != 0 || insn->imm != 0) {
+			verbose(env, "BPF_NEG uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_END:
+		if (insn->src_reg != BPF_REG_0 || insn->off != 0 ||
+		    (insn->imm != 16 && insn->imm != 32 && insn->imm != 64) ||
+		    (class == BPF_ALU64 && BPF_SRC(insn->code) != BPF_TO_LE)) {
+			verbose(env, "BPF_END uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_MOV:
+		if (BPF_SRC(insn->code) == BPF_X) {
+			if (class == BPF_ALU) {
+				if ((insn->off != 0 && insn->off != 8 && insn->off != 16) ||
+				    insn->imm) {
+					verbose(env, "BPF_MOV uses reserved fields\n");
+					return -EINVAL;
+				}
+			} else if (insn->off == BPF_ADDR_SPACE_CAST) {
+				if (insn->imm != 1 && insn->imm != 1u << 16) {
+					verbose(env, "addr_space_cast insn can only convert between address space 1 and 0\n");
+					return -EINVAL;
+				}
+			} else if ((insn->off != 0 && insn->off != 8 &&
+				    insn->off != 16 && insn->off != 32) || insn->imm) {
+				verbose(env, "BPF_MOV uses reserved fields\n");
+				return -EINVAL;
+			}
+		} else if (insn->src_reg != BPF_REG_0 || insn->off != 0) {
+			verbose(env, "BPF_MOV uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_ADD:
+	case BPF_SUB:
+	case BPF_AND:
+	case BPF_OR:
+	case BPF_XOR:
+	case BPF_LSH:
+	case BPF_RSH:
+	case BPF_ARSH:
+	case BPF_MUL:
+	case BPF_DIV:
+	case BPF_MOD:
+		if (BPF_SRC(insn->code) == BPF_X) {
+			if (insn->imm != 0 || (insn->off != 0 && insn->off != 1) ||
+			    (insn->off == 1 && opcode != BPF_MOD && opcode != BPF_DIV)) {
+				verbose(env, "BPF_ALU uses reserved fields\n");
+				return -EINVAL;
+			}
+		} else if (insn->src_reg != BPF_REG_0 ||
+			   (insn->off != 0 && insn->off != 1) ||
+			   (insn->off == 1 && opcode != BPF_MOD && opcode != BPF_DIV)) {
+			verbose(env, "BPF_ALU uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	default:
+		verbose(env, "invalid BPF_ALU opcode %x\n", opcode);
+		return -EINVAL;
+	}
+}
+
+static int check_jmp_fields(struct bpf_verifier_env *env, struct bpf_insn *insn)
+{
+	u8 class = BPF_CLASS(insn->code);
+	u8 opcode = BPF_OP(insn->code);
+
+	switch (opcode) {
+	case BPF_CALL:
+		if (BPF_SRC(insn->code) != BPF_K ||
+		    (insn->src_reg != BPF_PSEUDO_KFUNC_CALL && insn->off != 0) ||
+		    (insn->src_reg != BPF_REG_0 && insn->src_reg != BPF_PSEUDO_CALL &&
+		     insn->src_reg != BPF_PSEUDO_KFUNC_CALL) ||
+		    insn->dst_reg != BPF_REG_0 || class == BPF_JMP32) {
+			verbose(env, "BPF_CALL uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_JA:
+		if (BPF_SRC(insn->code) == BPF_X) {
+			if (insn->src_reg != BPF_REG_0 || insn->imm != 0 || insn->off != 0) {
+				verbose(env, "BPF_JA|BPF_X uses reserved fields\n");
+				return -EINVAL;
+			}
+		} else if (insn->src_reg != BPF_REG_0 || insn->dst_reg != BPF_REG_0 ||
+			   (class == BPF_JMP && insn->imm != 0) ||
+			   (class == BPF_JMP32 && insn->off != 0)) {
+			verbose(env, "BPF_JA uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_EXIT:
+		if (BPF_SRC(insn->code) != BPF_K || insn->imm != 0 ||
+		    insn->src_reg != BPF_REG_0 || insn->dst_reg != BPF_REG_0 ||
+		    class == BPF_JMP32) {
+			verbose(env, "BPF_EXIT uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_JCOND:
+		if (insn->code != (BPF_JMP | BPF_JCOND) || insn->src_reg != BPF_MAY_GOTO ||
+		    insn->dst_reg || insn->imm) {
+			verbose(env, "invalid may_goto imm %d\n", insn->imm);
+			return -EINVAL;
+		}
+		return 0;
+	default:
+		if (BPF_SRC(insn->code) == BPF_X) {
+			if (insn->imm != 0) {
+				verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
+				return -EINVAL;
+			}
+		} else if (insn->src_reg != BPF_REG_0) {
+			verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	}
+}
+
+static int check_insn_fields(struct bpf_verifier_env *env, struct bpf_insn *insn)
+{
+	switch (BPF_CLASS(insn->code)) {
+	case BPF_ALU:
+	case BPF_ALU64:
+		return check_alu_fields(env, insn);
+	case BPF_LDX:
+		if ((BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) ||
+		    insn->imm != 0) {
+			verbose(env, "BPF_LDX uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_STX:
+		if (BPF_MODE(insn->code) == BPF_ATOMIC)
+			return 0;
+		if (BPF_MODE(insn->code) != BPF_MEM || insn->imm != 0) {
+			verbose(env, "BPF_STX uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_ST:
+		if (BPF_MODE(insn->code) != BPF_MEM || insn->src_reg != BPF_REG_0) {
+			verbose(env, "BPF_ST uses reserved fields\n");
+			return -EINVAL;
+		}
+		return 0;
+	case BPF_JMP:
+	case BPF_JMP32:
+		return check_jmp_fields(env, insn);
+	case BPF_LD: {
+		u8 mode = BPF_MODE(insn->code);
+
+		if (mode == BPF_ABS || mode == BPF_IND) {
+			if (insn->dst_reg != BPF_REG_0 || insn->off != 0 ||
+			    BPF_SIZE(insn->code) == BPF_DW ||
+			    (mode == BPF_ABS && insn->src_reg != BPF_REG_0)) {
+				verbose(env, "BPF_LD_[ABS|IND] uses reserved fields\n");
+				return -EINVAL;
+			}
+		} else if (mode != BPF_IMM) {
+			verbose(env, "invalid BPF_LD mode\n");
+			return -EINVAL;
+		}
+		return 0;
+	}
+	default:
+		verbose(env, "unknown insn class %d\n", BPF_CLASS(insn->code));
+		return -EINVAL;
+	}
+}
+
+/*
+ * Check that insns are sane and rewrite pseudo imm in ld_imm64 instructions:
  *
  * 1. if it accesses map FD, replace it with actual map pointer.
  * 2. if it accesses btf_id of a VAR, replace it with pointer to the var.
  *
  * NOTE: btf_vmlinux is required for converting pseudo btf_id.
  */
-static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
+static int check_and_resolve_insns(struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insn = env->prog->insnsi;
 	int insn_cnt = env->prog->len;
@@ -22358,13 +22409,6 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 			verbose(env, "R%d is invalid\n", insn->src_reg);
 			return -EINVAL;
 		}
-		if (BPF_CLASS(insn->code) == BPF_LDX &&
-		    ((BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) ||
-		    insn->imm != 0)) {
-			verbose(env, "BPF_LDX uses reserved fields\n");
-			return -EINVAL;
-		}
-
 		if (insn[0].code == (BPF_LD | BPF_IMM | BPF_DW)) {
 			struct bpf_insn_aux_data *aux;
 			struct bpf_map *map;
@@ -22376,6 +22420,11 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 			    insn[1].dst_reg != 0 || insn[1].src_reg != 0 ||
 			    insn[1].off != 0) {
 				verbose(env, "invalid bpf_ld_imm64 insn\n");
+				return -EINVAL;
+			}
+
+			if (insn[0].off != 0) {
+				verbose(env, "BPF_LD_IMM64 uses reserved fields\n");
 				return -EINVAL;
 			}
 
@@ -22475,6 +22524,10 @@ next_insn:
 			verbose(env, "unknown opcode %02x\n", insn->code);
 			return -EINVAL;
 		}
+
+		err = check_insn_fields(env, insn);
+		if (err)
+			return err;
 	}
 
 	/* now all pseudo BPF_LD_IMM64 instructions load valid
@@ -26658,7 +26711,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = resolve_pseudo_ldimm64(env);
+	ret = check_and_resolve_insns(env);
 	if (ret < 0)
 		goto skip_full_check;
 
