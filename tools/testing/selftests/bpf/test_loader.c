@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2022 Meta Platforms, Inc. and affiliates. */
 #include <linux/capability.h>
+#include <linux/err.h>
 #include <stdlib.h>
 #include <test_progs.h>
 #include <bpf/btf.h>
@@ -20,34 +21,34 @@ static inline const char *str_has_pfx(const char *str, const char *pfx)
 
 #define TEST_LOADER_LOG_BUF_SZ 2097152
 
-#define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
-#define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
-#define TEST_TAG_EXPECT_MSG_PFX "comment:test_expect_msg="
-#define TEST_TAG_EXPECT_NOT_MSG_PFX "comment:test_expect_not_msg="
-#define TEST_TAG_EXPECT_XLATED_PFX "comment:test_expect_xlated="
-#define TEST_TAG_EXPECT_FAILURE_UNPRIV "comment:test_expect_failure_unpriv"
-#define TEST_TAG_EXPECT_SUCCESS_UNPRIV "comment:test_expect_success_unpriv"
-#define TEST_TAG_EXPECT_MSG_PFX_UNPRIV "comment:test_expect_msg_unpriv="
-#define TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV "comment:test_expect_not_msg_unpriv="
-#define TEST_TAG_EXPECT_XLATED_PFX_UNPRIV "comment:test_expect_xlated_unpriv="
-#define TEST_TAG_LOG_LEVEL_PFX "comment:test_log_level="
-#define TEST_TAG_PROG_FLAGS_PFX "comment:test_prog_flags="
-#define TEST_TAG_DESCRIPTION_PFX "comment:test_description="
-#define TEST_TAG_RETVAL_PFX "comment:test_retval="
-#define TEST_TAG_RETVAL_PFX_UNPRIV "comment:test_retval_unpriv="
-#define TEST_TAG_AUXILIARY "comment:test_auxiliary"
-#define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
-#define TEST_BTF_PATH "comment:test_btf_path="
-#define TEST_TAG_ARCH "comment:test_arch="
-#define TEST_TAG_JITED_PFX "comment:test_jited="
-#define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
-#define TEST_TAG_CAPS_UNPRIV "comment:test_caps_unpriv="
-#define TEST_TAG_LOAD_MODE_PFX "comment:load_mode="
-#define TEST_TAG_EXPECT_STDERR_PFX "comment:test_expect_stderr="
-#define TEST_TAG_EXPECT_STDERR_PFX_UNPRIV "comment:test_expect_stderr_unpriv="
-#define TEST_TAG_EXPECT_STDOUT_PFX "comment:test_expect_stdout="
-#define TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV "comment:test_expect_stdout_unpriv="
-#define TEST_TAG_LINEAR_SIZE "comment:test_linear_size="
+#define TEST_TAG_EXPECT_FAILURE "test_expect_failure"
+#define TEST_TAG_EXPECT_SUCCESS "test_expect_success"
+#define TEST_TAG_EXPECT_MSG_PFX "test_expect_msg="
+#define TEST_TAG_EXPECT_NOT_MSG_PFX "test_expect_not_msg="
+#define TEST_TAG_EXPECT_XLATED_PFX "test_expect_xlated="
+#define TEST_TAG_EXPECT_FAILURE_UNPRIV "test_expect_failure_unpriv"
+#define TEST_TAG_EXPECT_SUCCESS_UNPRIV "test_expect_success_unpriv"
+#define TEST_TAG_EXPECT_MSG_PFX_UNPRIV "test_expect_msg_unpriv="
+#define TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV "test_expect_not_msg_unpriv="
+#define TEST_TAG_EXPECT_XLATED_PFX_UNPRIV "test_expect_xlated_unpriv="
+#define TEST_TAG_LOG_LEVEL_PFX "test_log_level="
+#define TEST_TAG_PROG_FLAGS_PFX "test_prog_flags="
+#define TEST_TAG_DESCRIPTION_PFX "test_description="
+#define TEST_TAG_RETVAL_PFX "test_retval="
+#define TEST_TAG_RETVAL_PFX_UNPRIV "test_retval_unpriv="
+#define TEST_TAG_AUXILIARY "test_auxiliary"
+#define TEST_TAG_AUXILIARY_UNPRIV "test_auxiliary_unpriv"
+#define TEST_BTF_PATH "test_btf_path="
+#define TEST_TAG_ARCH "test_arch="
+#define TEST_TAG_JITED_PFX "test_jited="
+#define TEST_TAG_JITED_PFX_UNPRIV "test_jited_unpriv="
+#define TEST_TAG_CAPS_UNPRIV "test_caps_unpriv="
+#define TEST_TAG_LOAD_MODE_PFX "load_mode="
+#define TEST_TAG_EXPECT_STDERR_PFX "test_expect_stderr="
+#define TEST_TAG_EXPECT_STDERR_PFX_UNPRIV "test_expect_stderr_unpriv="
+#define TEST_TAG_EXPECT_STDOUT_PFX "test_expect_stdout="
+#define TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV "test_expect_stdout_unpriv="
+#define TEST_TAG_LINEAR_SIZE "test_linear_size="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xbadcafe
@@ -352,33 +353,49 @@ static void update_flags(int *flags, int flag, bool clear)
 		*flags |= flag;
 }
 
-/* Matches a string of form '<pfx>[^=]=.*' and returns it's suffix.
- * Used to parse btf_decl_tag values.
- * Such values require unique prefix because compiler does not add
- * same __attribute__((btf_decl_tag(...))) twice.
- * Test suite uses two-component tags for such cases:
- *
- *   <pfx> __COUNTER__ '='
- *
- * For example, two consecutive __msg tags '__msg("foo") __msg("foo")'
- * would be encoded as:
- *
- *   [18] DECL_TAG 'comment:test_expect_msg=0=foo' type_id=15 component_idx=-1
- *   [19] DECL_TAG 'comment:test_expect_msg=1=foo' type_id=15 component_idx=-1
- *
- * And the purpose of this function is to extract 'foo' from the above.
- */
-static const char *skip_dynamic_pfx(const char *s, const char *pfx)
+static const char *skip_decl_tag_pfx(const char *s)
 {
-	const char *msg;
+	int n = 0;
 
-	if (strncmp(s, pfx, strlen(pfx)) != 0)
+	if (sscanf(s, "comment:%*d:%n", &n) < 0 || !n)
 		return NULL;
-	msg = s + strlen(pfx);
-	msg = strchr(msg, '=');
-	if (!msg)
-		return NULL;
-	return msg + 1;
+	return s + n;
+}
+
+static int compare_decl_tags(const void *a, const void *b)
+{
+	return strverscmp(*(const char **)a, *(const char **)b);
+}
+
+/*
+ * Compilers don't guarantee order in which BTF attributes would be generated,
+ * while order is important for test tags like __msg.
+ * Each test tag has the following prefix: "comment:" __COUNTER__,
+ * when sorted using strverscmp this gives same order as in the original C code.
+ */
+static const char **collect_decl_tags(struct btf *btf, int id, int *cnt)
+{
+	const char **tmp, **tags = NULL;
+	const struct btf_type *t;
+	int i;
+
+	*cnt = 0;
+	for (i = 1; i < btf__type_cnt(btf); i++) {
+		t = btf__type_by_id(btf, i);
+		if (!btf_is_decl_tag(t) || t->type != id || btf_decl_tag(t)->component_idx != -1)
+			continue;
+		tmp = realloc(tags, (*cnt + 1) * sizeof(*tags));
+		if (!tmp) {
+			free(tags);
+			return ERR_PTR(-ENOMEM);
+		}
+		tags = tmp;
+		tags[(*cnt)++] = btf__str_by_offset(btf, t->name_off);
+	}
+
+	if (*cnt)
+		qsort(tags, *cnt, sizeof(*tags), compare_decl_tags);
+	return tags;
 }
 
 enum arch {
@@ -424,7 +441,9 @@ static int parse_test_spec(struct test_loader *tester,
 	bool stdout_on_next_line = true;
 	bool unpriv_stdout_on_next_line = true;
 	bool collect_jit = false;
-	int func_id, i, err = 0;
+	const char **tags = NULL;
+	int func_id, i, nr_tags;
+	int err = 0;
 	u32 arch_mask = 0;
 	u32 load_mask = 0;
 	struct btf *btf;
@@ -447,20 +466,18 @@ static int parse_test_spec(struct test_loader *tester,
 		return -EINVAL;
 	}
 
-	for (i = 1; i < btf__type_cnt(btf); i++) {
+	tags = collect_decl_tags(btf, func_id, &nr_tags);
+	if (IS_ERR(tags))
+		return PTR_ERR(tags);
+
+	for (i = 0; i < nr_tags; i++) {
 		const char *s, *val, *msg;
-		const struct btf_type *t;
 		bool clear;
 		int flags;
 
-		t = btf__type_by_id(btf, i);
-		if (!btf_is_decl_tag(t))
+		s = skip_decl_tag_pfx(tags[i]);
+		if (!s)
 			continue;
-
-		if (t->type != func_id || btf_decl_tag(t)->component_idx != -1)
-			continue;
-
-		s = btf__str_by_offset(btf, t->name_off);
 		if ((val = str_has_pfx(s, TEST_TAG_DESCRIPTION_PFX))) {
 			description = val;
 		} else if (strcmp(s, TEST_TAG_EXPECT_FAILURE) == 0) {
@@ -483,27 +500,27 @@ static int parse_test_spec(struct test_loader *tester,
 		} else if (strcmp(s, TEST_TAG_AUXILIARY_UNPRIV) == 0) {
 			spec->auxiliary = true;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_MSG_PFX))) {
 			err = push_msg(msg, false, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX))) {
 			err = push_msg(msg, true, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV))) {
 			err = push_msg(msg, false, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV))) {
 			err = push_msg(msg, true, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_JITED_PFX))) {
 			if (arch_mask == 0) {
 				PRINT_FAIL("__jited used before __arch_*");
 				goto cleanup;
@@ -515,7 +532,7 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				spec->mode_mask |= PRIV;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_JITED_PFX_UNPRIV))) {
 			if (arch_mask == 0) {
 				PRINT_FAIL("__unpriv_jited used before __arch_*");
 				goto cleanup;
@@ -527,13 +544,13 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				spec->mode_mask |= UNPRIV;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
 			err = push_disasm_msg(msg, &xlated_on_next_line,
 					      &spec->priv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
 			err = push_disasm_msg(msg, &unpriv_xlated_on_next_line,
 					      &spec->unpriv.expect_xlated);
 			if (err)
@@ -616,22 +633,22 @@ static int parse_test_spec(struct test_loader *tester,
 				err = -EINVAL;
 				goto cleanup;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDERR_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_STDERR_PFX))) {
 			err = push_disasm_msg(msg, &stderr_on_next_line,
 					      &spec->priv.stderr);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDERR_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_STDERR_PFX_UNPRIV))) {
 			err = push_disasm_msg(msg, &unpriv_stderr_on_next_line,
 					      &spec->unpriv.stderr);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX))) {
 			err = push_disasm_msg(msg, &stdout_on_next_line,
 					      &spec->priv.stdout);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV))) {
 			err = push_disasm_msg(msg, &unpriv_stdout_on_next_line,
 					      &spec->unpriv.stdout);
 			if (err)
@@ -734,9 +751,11 @@ static int parse_test_spec(struct test_loader *tester,
 
 	spec->valid = true;
 
+	free(tags);
 	return 0;
 
 cleanup:
+	free(tags);
 	free_test_spec(spec);
 	return err;
 }
