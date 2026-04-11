@@ -14541,6 +14541,8 @@ static int check_special_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_ca
 }
 
 static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name);
+static int process_bpf_exit_full(struct bpf_verifier_env *env,
+				 bool *do_print_state, bool exception_exit);
 
 static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			    int *insn_idx_p)
@@ -14920,6 +14922,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 	if (meta.func_id == special_kfunc_list[KF_bpf_session_cookie])
 		env->prog->call_session_cookie = true;
+
+	if (is_bpf_throw_kfunc(insn))
+		return process_bpf_exit_full(env, NULL, true);
 
 	return 0;
 }
@@ -21371,7 +21376,8 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 }
 
 enum {
-	PROCESS_BPF_EXIT = 1
+	PROCESS_BPF_EXIT = 1,
+	INSN_IDX_UPDATED = 2,
 };
 
 static int process_bpf_exit_full(struct bpf_verifier_env *env,
@@ -21411,7 +21417,7 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 		if (err)
 			return err;
 		*do_print_state = true;
-		return 0;
+		return INSN_IDX_UPDATED;
 	}
 
 	/*
@@ -21521,7 +21527,7 @@ static int check_indirect_jump(struct bpf_verifier_env *env, struct bpf_insn *in
 			return PTR_ERR(other_branch);
 	}
 	env->insn_idx = env->gotox_tmp_buf->items[n-1];
-	return 0;
+	return INSN_IDX_UPDATED;
 }
 
 static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
@@ -21530,49 +21536,40 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 	struct bpf_insn *insn = &env->prog->insnsi[env->insn_idx];
 	u8 class = BPF_CLASS(insn->code);
 
-	if (class == BPF_ALU || class == BPF_ALU64) {
-		err = check_alu_op(env, insn);
-		if (err)
-			return err;
-	} else if (class == BPF_LDX) {
-		bool is_ldsx = BPF_MODE(insn->code) == BPF_MEMSX;
+	switch (class) {
+	case BPF_ALU:
+	case BPF_ALU64:
+		return check_alu_op(env, insn);
 
-		err = check_load_mem(env, insn, false, is_ldsx, true, "ldx");
-		if (err)
-			return err;
-	} else if (class == BPF_STX) {
-		if (BPF_MODE(insn->code) == BPF_ATOMIC) {
-			err = check_atomic(env, insn);
-			if (err)
-				return err;
-			env->insn_idx++;
-			return 0;
-		}
+	case BPF_LDX:
+		return check_load_mem(env, insn, false,
+				      BPF_MODE(insn->code) == BPF_MEMSX,
+				      true, "ldx");
 
-		err = check_store_reg(env, insn, false);
-		if (err)
-			return err;
-	} else if (class == BPF_ST) {
+	case BPF_STX:
+		if (BPF_MODE(insn->code) == BPF_ATOMIC)
+			return check_atomic(env, insn);
+		return check_store_reg(env, insn, false);
+
+	case BPF_ST: {
 		enum bpf_reg_type dst_reg_type;
 
-		/* check src operand */
 		err = check_reg_arg(env, insn->dst_reg, SRC_OP);
 		if (err)
 			return err;
 
 		dst_reg_type = cur_regs(env)[insn->dst_reg].type;
 
-		/* check that memory (dst_reg + off) is writeable */
 		err = check_mem_access(env, env->insn_idx, insn->dst_reg,
 				       insn->off, BPF_SIZE(insn->code),
 				       BPF_WRITE, -1, false, false);
 		if (err)
 			return err;
 
-		err = save_aux_ptr_type(env, dst_reg_type, false);
-		if (err)
-			return err;
-	} else if (class == BPF_JMP || class == BPF_JMP32) {
+		return save_aux_ptr_type(env, dst_reg_type, false);
+	}
+	case BPF_JMP:
+	case BPF_JMP32: {
 		u8 opcode = BPF_OP(insn->code);
 
 		env->jmps_processed++;
@@ -21588,19 +21585,12 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 					return -EINVAL;
 				}
 			}
-			if (insn->src_reg == BPF_PSEUDO_CALL) {
-				err = check_func_call(env, insn, &env->insn_idx);
-			} else if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
-				err = check_kfunc_call(env, insn, &env->insn_idx);
-				if (!err && is_bpf_throw_kfunc(insn))
-					return process_bpf_exit_full(env, do_print_state, true);
-			} else {
-				err = check_helper_call(env, insn, &env->insn_idx);
-			}
-			if (err)
-				return err;
-
 			mark_reg_scratched(env, BPF_REG_0);
+			if (insn->src_reg == BPF_PSEUDO_CALL)
+				return check_func_call(env, insn, &env->insn_idx);
+			if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL)
+				return check_kfunc_call(env, insn, &env->insn_idx);
+			return check_helper_call(env, insn, &env->insn_idx);
 		} else if (opcode == BPF_JA) {
 			if (BPF_SRC(insn->code) == BPF_X)
 				return check_indirect_jump(env, insn);
@@ -21609,23 +21599,19 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 				env->insn_idx += insn->off + 1;
 			else
 				env->insn_idx += insn->imm + 1;
-			return 0;
+			return INSN_IDX_UPDATED;
 		} else if (opcode == BPF_EXIT) {
 			return process_bpf_exit_full(env, do_print_state, false);
-		} else {
-			err = check_cond_jmp_op(env, insn, &env->insn_idx);
-			if (err)
-				return err;
 		}
-	} else if (class == BPF_LD) {
+		return check_cond_jmp_op(env, insn, &env->insn_idx);
+	}
+	case BPF_LD: {
 		u8 mode = BPF_MODE(insn->code);
 
-		if (mode == BPF_ABS || mode == BPF_IND) {
-			err = check_ld_abs(env, insn);
-			if (err)
-				return err;
+		if (mode == BPF_ABS || mode == BPF_IND)
+			return check_ld_abs(env, insn);
 
-		} else if (mode == BPF_IMM) {
+		if (mode == BPF_IMM) {
 			err = check_ld_imm(env, insn);
 			if (err)
 				return err;
@@ -21633,10 +21619,11 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 			env->insn_idx++;
 			sanitize_mark_insn_seen(env);
 		}
+		return 0;
 	}
-
-	env->insn_idx++;
-	return 0;
+	}
+	/* all class values are handled above. silence compiler warning */
+	return -EFAULT;
 }
 
 static int do_check(struct bpf_verifier_env *env)
@@ -21780,8 +21767,10 @@ static int do_check(struct bpf_verifier_env *env)
 			return err;
 		} else if (err == PROCESS_BPF_EXIT) {
 			goto process_bpf_exit;
+		} else if (err == INSN_IDX_UPDATED) {
+		} else if (err == 0) {
+			env->insn_idx++;
 		}
-		WARN_ON_ONCE(err);
 
 		if (state->speculative && insn_aux->nospec_result) {
 			/* If we are on a path that performed a jump-op, this
