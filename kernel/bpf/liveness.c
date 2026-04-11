@@ -306,7 +306,7 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 /* Fixed-point computation of @live_before marks */
 static void update_instance(struct bpf_verifier_env *env, struct func_instance *instance)
 {
-	u32 i, frame, po_start, po_end, cnt;
+	u32 i, frame, po_start, po_end;
 	int *insn_postorder = env->cfg.insn_postorder;
 	struct bpf_subprog_info *subprog;
 	bool changed;
@@ -315,10 +315,8 @@ static void update_instance(struct bpf_verifier_env *env, struct func_instance *
 	subprog = &env->subprog_info[instance->subprog];
 	po_start = subprog->postorder_start;
 	po_end = (subprog + 1)->postorder_start;
-	cnt = 0;
 	/* repeat until fixed point is reached */
 	do {
-		cnt++;
 		changed = false;
 		for (frame = 0; frame <= instance->depth; frame++) {
 			if (!instance->frames[frame])
