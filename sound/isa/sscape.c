@@ -144,6 +144,7 @@ struct soundscape {
 
 	unsigned char midi_vol;
 	bool joystick;
+	bool midi_enabled;
 	struct device *dev;
 };
 
@@ -1107,6 +1108,7 @@ static int create_sscape(struct snd_card *card)
 			}
 
 			sscape->midi_vol = 0;
+			sscape->midi_enabled = true;
 			err = sscape_restore_midi_state(sscape);
 			if (err < 0)
 				dev_warn(card->dev,
@@ -1117,6 +1119,77 @@ static int create_sscape(struct snd_card *card)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+/*
+ * Reload the MIDI firmware and restore the saved MIDI state for
+ * boards whose MPU-401 side was enabled during probe.
+ */
+static int sscape_resume_midi(struct snd_card *card)
+{
+	struct soundscape *sscape = get_card_soundscape(card);
+	int err, version;
+
+	if (!sscape->midi_enabled)
+		return 0;
+
+	version = sscape_upload_bootblock(card);
+	if (version < 0)
+		return version;
+
+	err = sscape_upload_microcode(card, version);
+	if (err < 0)
+		return err;
+
+	outb(0, sscape->io_base);
+
+	return sscape_restore_midi_state(sscape);
+}
+
+/*
+ * Save the WSS codec state before the SoundScape is suspended.
+ */
+static int snd_sscape_suspend_card(struct snd_card *card)
+{
+	struct soundscape *sscape = get_card_soundscape(card);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	sscape->chip->suspend(sscape->chip);
+	return 0;
+}
+
+/*
+ * Restore the board-specific state before resuming the WSS codec.
+ */
+static int snd_sscape_resume_card(struct snd_card *card)
+{
+	struct soundscape *sscape = get_card_soundscape(card);
+	int err;
+
+	err = sscape_configure_board(sscape);
+	if (err < 0)
+		return err;
+
+	err = sscape_resume_midi(card);
+	if (err < 0)
+		dev_warn(card->dev, "sscape: MIDI restore failed: %d\n", err);
+
+	sscape->chip->resume(sscape->chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_sscape_suspend(struct device *dev, unsigned int n,
+			      pm_message_t state)
+{
+	return snd_sscape_suspend_card(dev_get_drvdata(dev));
+}
+
+static int snd_sscape_resume(struct device *dev, unsigned int n)
+{
+	return snd_sscape_resume_card(dev_get_drvdata(dev));
+}
+#endif
 
 
 static int snd_sscape_match(struct device *pdev, unsigned int i)
@@ -1174,6 +1247,10 @@ static int snd_sscape_probe(struct device *pdev, unsigned int dev)
 static struct isa_driver snd_sscape_driver = {
 	.match		= snd_sscape_match,
 	.probe		= snd_sscape_probe,
+#ifdef CONFIG_PM
+	.suspend	= snd_sscape_suspend,
+	.resume		= snd_sscape_resume,
+#endif
 	.driver		= {
 		.name	= DEV_NAME
 	},
@@ -1271,11 +1348,27 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int sscape_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	return snd_sscape_suspend_card(pnp_get_card_drvdata(pcard));
+}
+
+static int sscape_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_sscape_resume_card(pnp_get_card_drvdata(pcard));
+}
+#endif
+
 static struct pnp_card_driver sscape_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DO_NOT_CHANGE,
 	.name = "sscape",
 	.id_table = sscape_pnpids,
 	.probe = sscape_pnp_detect,
+#ifdef CONFIG_PM
+	.suspend = sscape_pnp_suspend,
+	.resume = sscape_pnp_resume,
+#endif
 };
 
 #endif /* CONFIG_PNP */
