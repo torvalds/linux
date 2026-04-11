@@ -785,7 +785,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 	},
 };
 
-#define BD72720_BUCK10_DESC_INDEX 10
+#define BD72720_BUCK10_DESC_INDEX 9
 #define BD72720_NUM_BUCK_VOLTS 0x100
 #define BD72720_NUM_LDO_VOLTS 0x100
 #define BD72720_NUM_LDO12346_VOLTS 0x80
