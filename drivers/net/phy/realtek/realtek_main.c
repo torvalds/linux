@@ -1012,7 +1012,7 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
-	val = phy_read_paged(phydev, 0xd04, RTL8211F_LEDCR);
+	val = phy_read_paged(phydev, RTL8211F_LEDCR_PAGE, RTL8211F_LEDCR);
 	if (val < 0)
 		return val;
 
@@ -1074,7 +1074,8 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	reg <<= RTL8211F_LEDCR_SHIFT * index;
 	reg |= RTL8211F_LEDCR_MODE;	 /* Mode B */
 
-	return phy_modify_paged(phydev, 0xd04, RTL8211F_LEDCR, mask, reg);
+	return phy_modify_paged(phydev, RTL8211F_LEDCR_PAGE, RTL8211F_LEDCR,
+				mask, reg);
 }
 
 static int rtl8211e_led_hw_control_get(struct phy_device *phydev, u8 index,
