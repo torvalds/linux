@@ -39,7 +39,7 @@ void set_active_shstk(struct task_struct *task, unsigned long shstk_addr);
 bool is_shstk_enabled(struct task_struct *task);
 bool is_shstk_locked(struct task_struct *task);
 bool is_shstk_allocated(struct task_struct *task);
-void set_shstk_lock(struct task_struct *task);
+void set_shstk_lock(struct task_struct *task, bool lock);
 void set_shstk_status(struct task_struct *task, bool enable);
 unsigned long get_active_shstk(struct task_struct *task);
 int restore_user_shstk(struct task_struct *tsk, unsigned long shstk_ptr);
@@ -47,7 +47,7 @@ int save_user_shstk(struct task_struct *tsk, unsigned long *saved_shstk_ptr);
 bool is_indir_lp_enabled(struct task_struct *task);
 bool is_indir_lp_locked(struct task_struct *task);
 void set_indir_lp_status(struct task_struct *task, bool enable);
-void set_indir_lp_lock(struct task_struct *task);
+void set_indir_lp_lock(struct task_struct *task, bool lock);
 
 #define PR_SHADOW_STACK_SUPPORTED_STATUS_MASK (PR_SHADOW_STACK_ENABLE)
 
@@ -69,7 +69,7 @@ void set_indir_lp_lock(struct task_struct *task);
 
 #define is_shstk_allocated(task) false
 
-#define set_shstk_lock(task) do {} while (0)
+#define set_shstk_lock(task, lock) do {} while (0)
 
 #define set_shstk_status(task, enable) do {} while (0)
 
@@ -79,7 +79,7 @@ void set_indir_lp_lock(struct task_struct *task);
 
 #define set_indir_lp_status(task, enable) do {} while (0)
 
-#define set_indir_lp_lock(task) do {} while (0)
+#define set_indir_lp_lock(task, lock) do {} while (0)
 
 #define restore_user_shstk(tsk, shstk_ptr) -EINVAL
 

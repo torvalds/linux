@@ -94,9 +94,9 @@ bool cfi_ptrace_test(void)
 		}
 
 		switch (ptrace_test_num) {
-#define CFI_ENABLE_MASK (PTRACE_CFI_LP_EN_STATE |	\
-			 PTRACE_CFI_SS_EN_STATE |	\
-			 PTRACE_CFI_SS_PTR_STATE)
+#define CFI_ENABLE_MASK (PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE |	\
+			 PTRACE_CFI_SHADOW_STACK_EN_STATE |		\
+			 PTRACE_CFI_SHADOW_STACK_PTR_STATE)
 		case 0:
 			if ((cfi_reg.cfi_status.cfi_state & CFI_ENABLE_MASK) != CFI_ENABLE_MASK)
 				ksft_exit_fail_msg("%s: ptrace_getregset failed, %llu\n", __func__,
@@ -106,7 +106,8 @@ bool cfi_ptrace_test(void)
 						   __func__);
 			break;
 		case 1:
-			if (!(cfi_reg.cfi_status.cfi_state & PTRACE_CFI_ELP_STATE))
+			if (!(cfi_reg.cfi_status.cfi_state &
+			      PTRACE_CFI_BRANCH_EXPECTED_LANDING_PAD_STATE))
 				ksft_exit_fail_msg("%s: elp must have been set\n", __func__);
 			/* clear elp state. not interested in anything else */
 			cfi_reg.cfi_status.cfi_state = 0;
@@ -145,11 +146,11 @@ int main(int argc, char *argv[])
 	 * pads for user mode except lighting up a bit in senvcfg via a prctl.
 	 * Enable landing pad support throughout the execution of the test binary.
 	 */
-	ret = my_syscall5(__NR_prctl, PR_GET_INDIR_BR_LP_STATUS, &lpad_status, 0, 0, 0);
+	ret = my_syscall5(__NR_prctl, PR_GET_CFI, PR_CFI_BRANCH_LANDING_PADS, &lpad_status, 0, 0);
 	if (ret)
 		ksft_exit_fail_msg("Get landing pad status failed with %d\n", ret);
 
-	if (!(lpad_status & PR_INDIR_BR_LP_ENABLE))
+	if (!(lpad_status & PR_CFI_ENABLE))
 		ksft_exit_fail_msg("Landing pad is not enabled, should be enabled via glibc\n");
 
 	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &ss_status, 0, 0, 0);

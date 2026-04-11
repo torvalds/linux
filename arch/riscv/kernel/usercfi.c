@@ -74,9 +74,9 @@ void set_shstk_status(struct task_struct *task, bool enable)
 	csr_write(CSR_ENVCFG, task->thread.envcfg);
 }
 
-void set_shstk_lock(struct task_struct *task)
+void set_shstk_lock(struct task_struct *task, bool lock)
 {
-	task->thread_info.user_cfi_state.ubcfi_locked = 1;
+	task->thread_info.user_cfi_state.ubcfi_locked = lock;
 }
 
 bool is_indir_lp_enabled(struct task_struct *task)
@@ -104,9 +104,9 @@ void set_indir_lp_status(struct task_struct *task, bool enable)
 	csr_write(CSR_ENVCFG, task->thread.envcfg);
 }
 
-void set_indir_lp_lock(struct task_struct *task)
+void set_indir_lp_lock(struct task_struct *task, bool lock)
 {
-	task->thread_info.user_cfi_state.ufcfi_locked = 1;
+	task->thread_info.user_cfi_state.ufcfi_locked = lock;
 }
 /*
  * If size is 0, then to be compatible with regular stack we want it to be as big as
@@ -452,28 +452,27 @@ int arch_lock_shadow_stack_status(struct task_struct *task,
 	    !is_shstk_enabled(task) || arg != 0)
 		return -EINVAL;
 
-	set_shstk_lock(task);
+	set_shstk_lock(task, true);
 
 	return 0;
 }
 
-int arch_get_indir_br_lp_status(struct task_struct *t, unsigned long __user *status)
+int arch_prctl_get_branch_landing_pad_state(struct task_struct *t,
+					    unsigned long __user *state)
 {
 	unsigned long fcfi_status = 0;
 
 	if (!is_user_lpad_enabled())
 		return -EINVAL;
 
-	/* indirect branch tracking is enabled on the task or not */
-	fcfi_status |= (is_indir_lp_enabled(t) ? PR_INDIR_BR_LP_ENABLE : 0);
+	fcfi_status = (is_indir_lp_enabled(t) ? PR_CFI_ENABLE : PR_CFI_DISABLE);
+	fcfi_status |= (is_indir_lp_locked(t) ? PR_CFI_LOCK : 0);
 
-	return copy_to_user(status, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
+	return copy_to_user(state, &fcfi_status, sizeof(fcfi_status)) ? -EFAULT : 0;
 }
 
-int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status)
+int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long state)
 {
-	bool enable_indir_lp = false;
-
 	if (!is_user_lpad_enabled())
 		return -EINVAL;
 
@@ -481,28 +480,28 @@ int arch_set_indir_br_lp_status(struct task_struct *t, unsigned long status)
 	if (is_indir_lp_locked(t))
 		return -EINVAL;
 
-	/* Reject unknown flags */
-	if (status & ~PR_INDIR_BR_LP_ENABLE)
+	if (!(state & (PR_CFI_ENABLE | PR_CFI_DISABLE)))
 		return -EINVAL;
 
-	enable_indir_lp = (status & PR_INDIR_BR_LP_ENABLE);
-	set_indir_lp_status(t, enable_indir_lp);
+	if (state & PR_CFI_ENABLE && state & PR_CFI_DISABLE)
+		return -EINVAL;
+
+	set_indir_lp_status(t, !!(state & PR_CFI_ENABLE));
 
 	return 0;
 }
 
-int arch_lock_indir_br_lp_status(struct task_struct *task,
-				 unsigned long arg)
+int arch_prctl_lock_branch_landing_pad_state(struct task_struct *task)
 {
 	/*
 	 * If indirect branch tracking is not supported or not enabled on task,
 	 * nothing to lock here
 	 */
 	if (!is_user_lpad_enabled() ||
-	    !is_indir_lp_enabled(task) || arg != 0)
+	    !is_indir_lp_enabled(task))
 		return -EINVAL;
 
-	set_indir_lp_lock(task);
+	set_indir_lp_lock(task, true);
 
 	return 0;
 }

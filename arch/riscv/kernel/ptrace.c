@@ -303,18 +303,18 @@ static int riscv_cfi_get(struct task_struct *target,
 	regs = task_pt_regs(target);
 
 	if (is_indir_lp_enabled(target)) {
-		user_cfi.cfi_status.cfi_state |= PTRACE_CFI_LP_EN_STATE;
+		user_cfi.cfi_status.cfi_state |= PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE;
 		user_cfi.cfi_status.cfi_state |= is_indir_lp_locked(target) ?
-						 PTRACE_CFI_LP_LOCK_STATE : 0;
+						 PTRACE_CFI_BRANCH_LANDING_PAD_LOCK_STATE : 0;
 		user_cfi.cfi_status.cfi_state |= (regs->status & SR_ELP) ?
-						PTRACE_CFI_ELP_STATE : 0;
+						PTRACE_CFI_BRANCH_EXPECTED_LANDING_PAD_STATE : 0;
 	}
 
 	if (is_shstk_enabled(target)) {
-		user_cfi.cfi_status.cfi_state |= (PTRACE_CFI_SS_EN_STATE |
-						  PTRACE_CFI_SS_PTR_STATE);
+		user_cfi.cfi_status.cfi_state |= (PTRACE_CFI_SHADOW_STACK_EN_STATE |
+						  PTRACE_CFI_SHADOW_STACK_PTR_STATE);
 		user_cfi.cfi_status.cfi_state |= is_shstk_locked(target) ?
-						 PTRACE_CFI_SS_LOCK_STATE : 0;
+						 PTRACE_CFI_SHADOW_STACK_LOCK_STATE : 0;
 		user_cfi.shstk_ptr = get_active_shstk(target);
 	}
 
@@ -349,15 +349,15 @@ static int riscv_cfi_set(struct task_struct *target,
 	 * rsvd field should be set to zero so that if those fields are needed in future
 	 */
 	if ((user_cfi.cfi_status.cfi_state &
-	     (PTRACE_CFI_LP_EN_STATE | PTRACE_CFI_LP_LOCK_STATE |
-	      PTRACE_CFI_SS_EN_STATE | PTRACE_CFI_SS_LOCK_STATE)) ||
-	     (user_cfi.cfi_status.cfi_state & PRACE_CFI_STATE_INVALID_MASK))
+	     (PTRACE_CFI_BRANCH_LANDING_PAD_EN_STATE | PTRACE_CFI_BRANCH_LANDING_PAD_LOCK_STATE |
+	      PTRACE_CFI_SHADOW_STACK_EN_STATE | PTRACE_CFI_SHADOW_STACK_LOCK_STATE)) ||
+	     (user_cfi.cfi_status.cfi_state & PTRACE_CFI_STATE_INVALID_MASK))
 		return -EINVAL;
 
 	/* If lpad is enabled on target and ptrace requests to set / clear elp, do that */
 	if (is_indir_lp_enabled(target)) {
 		if (user_cfi.cfi_status.cfi_state &
-		    PTRACE_CFI_ELP_STATE) /* set elp state */
+		    PTRACE_CFI_BRANCH_EXPECTED_LANDING_PAD_STATE) /* set elp state */
 			regs->status |= SR_ELP;
 		else
 			regs->status &= ~SR_ELP; /* clear elp state */
@@ -365,7 +365,7 @@ static int riscv_cfi_set(struct task_struct *target,
 
 	/* If shadow stack enabled on target, set new shadow stack pointer */
 	if (is_shstk_enabled(target) &&
-	    (user_cfi.cfi_status.cfi_state & PTRACE_CFI_SS_PTR_STATE))
+	    (user_cfi.cfi_status.cfi_state & PTRACE_CFI_SHADOW_STACK_PTR_STATE))
 		set_active_shstk(target, user_cfi.shstk_ptr);
 
 	return 0;
