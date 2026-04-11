@@ -15,10 +15,16 @@ description:
 
 properties:
   compatible:
-    items:
-      - const: microchip,mpfs-mss-top-sysreg
-      - const: syscon
-      - const: simple-mfd
+    oneOf:
+      - items:
+          - const: microchip,mpfs-mss-top-sysreg
+          - const: syscon
+          - const: simple-mfd
+      - items:
+          - const: microchip,pic64gx-mss-top-sysreg
+          - const: microchip,mpfs-mss-top-sysreg
+          - const: syscon
+          - const: simple-mfd
 
   reg:
     maxItems: 1
@@ -37,6 +43,10 @@ properties:
       See include/dt-bindings/clock/microchip,mpfs-clock.h for the full list
       of PolarFire clock/reset IDs.
     const: 1
+
+  interrupt-controller@54:
+    type: object
+    $ref: /schemas/soc/microchip/microchip,mpfs-irqmux.yaml
 
   pinctrl@200:
     type: object
