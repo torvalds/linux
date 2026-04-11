@@ -246,7 +246,6 @@
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-name = "vdd10_lcd";
-			regulator-suspend-mem-disabled;
 		};
 
 		vcc18_lcd: LDO_REG8 {
@@ -255,7 +254,6 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-name = "vcc18_lcd";
-			regulator-suspend-mem-disabled;
 		};
 	};
 };

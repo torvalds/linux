@@ -262,7 +262,7 @@
 		interrupts = <RK_PB7 IRQ_TYPE_EDGE_RISING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gsensor_int>;
-		rotation-matrix = "1", "0", "0",
+		mount-matrix = "1", "0", "0",
 				  "0", "-1", "0",
 				  "0", "0", "1";
 		vdd-supply = <&vcc_io>;

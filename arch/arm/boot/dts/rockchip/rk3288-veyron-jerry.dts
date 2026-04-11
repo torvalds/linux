@@ -488,7 +488,7 @@
 		interrupts = <RK_PA3 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0x2c>;
 		hid-descr-addr = <0x0020>;
-		vcc-supply = <&vcc33_io>;
+		vdd-supply = <&vcc33_io>;
 		wakeup-source;
 	};
 };
