@@ -101,11 +101,6 @@ static void setup(void)
 		}
 	}
 
-	if (!bpf_program__attach(skel->progs.kmalloc)) {
-		fprintf(stderr, "Error attaching bpf program\n");
-		exit(1);
-	}
-
 	threads = calloc(env.producer_cnt, sizeof(*threads));
 
 	if (!threads) {
@@ -140,7 +135,6 @@ static void setup(void)
 static void measure(struct bench_res *res)
 {
 	res->hits = atomic_swap(&skel->bss->create_cnts, 0);
-	res->drops = atomic_swap(&skel->bss->kmalloc_cnts, 0);
 }
 
 static void *sk_producer(void *input)
@@ -203,28 +197,25 @@ static void *producer(void *input)
 
 static void report_progress(int iter, struct bench_res *res, long delta_ns)
 {
-	double creates_per_sec, kmallocs_per_create;
+	double creates_per_sec;
 
 	creates_per_sec = res->hits / 1000.0 / (delta_ns / 1000000000.0);
-	kmallocs_per_create = (double)res->drops / res->hits;
 
 	printf("Iter %3d (%7.3lfus): ",
 	       iter, (delta_ns - 1000000000) / 1000.0);
-	printf("creates %8.3lfk/s (%7.3lfk/prod), ",
+	printf("creates %8.3lfk/s (%7.3lfk/prod)\n",
 	       creates_per_sec, creates_per_sec / env.producer_cnt);
-	printf("%3.2lf kmallocs/create\n", kmallocs_per_create);
 }
 
 static void report_final(struct bench_res res[], int res_cnt)
 {
 	double creates_mean = 0.0, creates_stddev = 0.0;
-	long total_creates = 0, total_kmallocs = 0;
+	long total_creates = 0;
 	int i;
 
 	for (i = 0; i < res_cnt; i++) {
 		creates_mean += res[i].hits / 1000.0 / (0.0 + res_cnt);
 		total_creates += res[i].hits;
-		total_kmallocs += res[i].drops;
 	}
 
 	if (res_cnt > 1)  {
@@ -234,9 +225,9 @@ static void report_final(struct bench_res res[], int res_cnt)
 				       (res_cnt - 1.0);
 		creates_stddev = sqrt(creates_stddev);
 	}
-	printf("Summary: creates %8.3lf \u00B1 %5.3lfk/s (%7.3lfk/prod), ",
-	       creates_mean, creates_stddev, creates_mean / env.producer_cnt);
-	printf("%4.2lf kmallocs/create\n", (double)total_kmallocs / total_creates);
+	printf("Summary: creates %8.3lf \u00B1 %5.3lfk/s (%7.3lfk/prod), %ld total\n",
+	       creates_mean, creates_stddev, creates_mean / env.producer_cnt,
+	       total_creates);
 	if (create_owner_errs || skel->bss->create_errs)
 		printf("%s() errors %ld create_errs %ld\n",
 		       storage_type == BPF_MAP_TYPE_SK_STORAGE ?
