@@ -127,7 +127,7 @@ static int rt5660_hw_params(struct snd_pcm_substream *substream,
 				  params_rate(params) * 50,
 				  params_rate(params) * 512);
 	if (ret < 0)
-		dev_err(codec_dai->dev, "can't set codec pll: %d\n", ret);
+		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
 
 	return ret;
 }

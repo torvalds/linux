@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <vdso/gettime.h>
 
-#include "../../../../lib/vdso/gettimeofday.c"
+#include "lib/vdso/gettimeofday.c"
 
 int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 {

@@ -61,6 +61,8 @@ extern int cg_read(const char *cgroup, const char *control,
 		   char *buf, size_t len);
 extern int cg_read_strcmp(const char *cgroup, const char *control,
 			  const char *expected);
+extern int cg_read_strcmp_wait(const char *cgroup, const char *control,
+				   const char *expected);
 extern int cg_read_strstr(const char *cgroup, const char *control,
 			  const char *needle);
 extern long cg_read_long(const char *cgroup, const char *control);

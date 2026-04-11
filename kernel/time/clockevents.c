@@ -172,6 +172,7 @@ void clockevents_shutdown(struct clock_event_device *dev)
 {
 	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
 	dev->next_event = KTIME_MAX;
+	dev->next_event_forced = 0;
 }
 
 /**
@@ -336,7 +337,6 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires, b
 {
 	int64_t delta;
 	u64 cycles;
-	int rc;
 
 	if (WARN_ON_ONCE(expires < 0))
 		return -ETIME;
@@ -358,16 +358,27 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires, b
 		return 0;
 
 	delta = ktime_to_ns(ktime_sub(expires, ktime_get()));
-	if (delta <= 0)
-		return force ? clockevents_program_min_delta(dev) : -ETIME;
 
-	delta = min(delta, (int64_t) dev->max_delta_ns);
-	delta = max(delta, (int64_t) dev->min_delta_ns);
+	/* Required for tick_periodic() during early boot */
+	if (delta <= 0 && !force)
+		return -ETIME;
 
-	cycles = ((u64)delta * dev->mult) >> dev->shift;
-	rc = dev->set_next_event((unsigned long) cycles, dev);
+	if (delta > (int64_t)dev->min_delta_ns) {
+		delta = min(delta, (int64_t) dev->max_delta_ns);
+		cycles = ((u64)delta * dev->mult) >> dev->shift;
+		if (!dev->set_next_event((unsigned long) cycles, dev))
+			return 0;
+	}
 
-	return (rc && force) ? clockevents_program_min_delta(dev) : rc;
+	if (dev->next_event_forced)
+		return 0;
+
+	if (dev->set_next_event(dev->min_delta_ticks, dev)) {
+		if (!force || clockevents_program_min_delta(dev))
+			return -ETIME;
+	}
+	dev->next_event_forced = 1;
+	return 0;
 }
 
 /*

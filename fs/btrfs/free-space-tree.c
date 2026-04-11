@@ -1073,6 +1073,14 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
+	extent_root = btrfs_extent_root(trans->fs_info, block_group->start);
+	if (unlikely(!extent_root)) {
+		btrfs_err(trans->fs_info,
+			  "missing extent root for block group at offset %llu",
+			  block_group->start);
+		return -EUCLEAN;
+	}
+
 	mutex_lock(&block_group->free_space_lock);
 
 	/*
@@ -1086,7 +1094,6 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_EXTENT_ITEM_KEY;
 	key.offset = 0;
 
-	extent_root = btrfs_extent_root(trans->fs_info, key.objectid);
 	ret = btrfs_search_slot_for_read(extent_root, &key, path, 1, 0);
 	if (ret < 0)
 		goto out_locked;

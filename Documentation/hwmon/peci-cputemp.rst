@@ -51,8 +51,9 @@ temp1_max		Provides thermal control temperature of the CPU package
 temp1_crit		Provides shutdown temperature of the CPU package which
 			is also known as the maximum processor junction
 			temperature, Tjmax or Tprochot.
-temp1_crit_hyst		Provides the hysteresis value from Tcontrol to Tjmax of
-			the CPU package.
+temp1_crit_hyst		Provides the hysteresis temperature of the CPU
+			package. Returns Tcontrol, the temperature at which
+			the critical condition clears.
 
 temp2_label		"DTS"
 temp2_input		Provides current temperature of the CPU package scaled
@@ -62,8 +63,9 @@ temp2_max		Provides thermal control temperature of the CPU package
 temp2_crit		Provides shutdown temperature of the CPU package which
 			is also known as the maximum processor junction
 			temperature, Tjmax or Tprochot.
-temp2_crit_hyst		Provides the hysteresis value from Tcontrol to Tjmax of
-			the CPU package.
+temp2_crit_hyst		Provides the hysteresis temperature of the CPU
+			package. Returns Tcontrol, the temperature at which
+			the critical condition clears.
 
 temp3_label		"Tcontrol"
 temp3_input		Provides current Tcontrol temperature of the CPU

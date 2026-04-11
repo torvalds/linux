@@ -73,6 +73,7 @@ enum clock_event_state {
  *			level handler of the event source
  * @set_next_event:	set next event function using a clocksource delta
  * @set_next_ktime:	set next event function using a direct ktime value
+ * @set_next_coupled:	set next event function for clocksource coupled mode
  * @next_event:		local storage for the next event in oneshot mode
  * @max_delta_ns:	maximum delta value in ns
  * @min_delta_ns:	minimum delta value in ns
@@ -80,6 +81,8 @@ enum clock_event_state {
  * @shift:		nanoseconds to cycles divisor (power of two)
  * @state_use_accessors:current state of the device, assigned by the core code
  * @features:		features
+ * @cs_id:		Clocksource ID to denote the clocksource for coupled mode
+ * @next_event_forced:	True if the last programming was a forced event
  * @retries:		number of forced programming retries
  * @set_state_periodic:	switch state to periodic
  * @set_state_oneshot:	switch state to oneshot
@@ -110,6 +113,7 @@ struct clock_event_device {
 	enum clock_event_state	state_use_accessors;
 	unsigned int		features;
 	enum clocksource_ids	cs_id;
+	unsigned int		next_event_forced;
 	unsigned long		retries;
 
 	int			(*set_state_periodic)(struct clock_event_device *);

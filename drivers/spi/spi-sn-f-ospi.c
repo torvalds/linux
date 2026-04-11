@@ -612,7 +612,7 @@ static int f_ospi_probe(struct platform_device *pdev)
 	u32 num_cs = OSPI_NUM_CS;
 	int ret;
 
-	ctlr = spi_alloc_host(dev, sizeof(*ospi));
+	ctlr = devm_spi_alloc_host(dev, sizeof(*ospi));
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -635,43 +635,22 @@ static int f_ospi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ospi);
 
 	ospi->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ospi->base)) {
-		ret = PTR_ERR(ospi->base);
-		goto err_put_ctlr;
-	}
+	if (IS_ERR(ospi->base))
+		return PTR_ERR(ospi->base);
 
 	ospi->clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(ospi->clk)) {
-		ret = PTR_ERR(ospi->clk);
-		goto err_put_ctlr;
-	}
+	if (IS_ERR(ospi->clk))
+		return PTR_ERR(ospi->clk);
 
-	mutex_init(&ospi->mlock);
+	ret = devm_mutex_init(dev, &ospi->mlock);
+	if (ret)
+		return ret;
 
 	ret = f_ospi_init(ospi);
 	if (ret)
-		goto err_destroy_mutex;
+		return ret;
 
-	ret = devm_spi_register_controller(dev, ctlr);
-	if (ret)
-		goto err_destroy_mutex;
-
-	return 0;
-
-err_destroy_mutex:
-	mutex_destroy(&ospi->mlock);
-
-err_put_ctlr:
-	spi_controller_put(ctlr);
-
-	return ret;
-}
-
-static void f_ospi_remove(struct platform_device *pdev)
-{
-	struct f_ospi *ospi = platform_get_drvdata(pdev);
-
-	mutex_destroy(&ospi->mlock);
+	return devm_spi_register_controller(dev, ctlr);
 }
 
 static const struct of_device_id f_ospi_dt_ids[] = {
@@ -686,7 +665,6 @@ static struct platform_driver f_ospi_driver = {
 		.of_match_table = f_ospi_dt_ids,
 	},
 	.probe = f_ospi_probe,
-	.remove = f_ospi_remove,
 };
 module_platform_driver(f_ospi_driver);
 

@@ -127,6 +127,7 @@ int quicki2c_hid_probe(struct quicki2c_device *qcdev)
 	hid->product = le16_to_cpu(qcdev->dev_desc.product_id);
 	snprintf(hid->name, sizeof(hid->name), "%s %04X:%04X", "quicki2c-hid",
 		 hid->vendor, hid->product);
+	strscpy(hid->phys, dev_name(qcdev->dev), sizeof(hid->phys));
 
 	ret = hid_add_device(hid);
 	if (ret) {

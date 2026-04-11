@@ -33,6 +33,7 @@ properties:
           - const: rockchip,rk3066-spdif
       - items:
           - enum:
+              - rockchip,rk3576-spdif
               - rockchip,rk3588-spdif
           - const: rockchip,rk3568-spdif
 

@@ -123,6 +123,21 @@ int cg_read_strcmp(const char *cgroup, const char *control,
 	return ret;
 }
 
+int cg_read_strcmp_wait(const char *cgroup, const char *control,
+			    const char *expected)
+{
+	int i, ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = cg_read_strcmp(cgroup, control, expected);
+		if (!ret)
+			return ret;
+		usleep(10000);
+	}
+
+	return ret;
+}
+
 int cg_read_strstr(const char *cgroup, const char *control, const char *needle)
 {
 	char buf[PAGE_SIZE];

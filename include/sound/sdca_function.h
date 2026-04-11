@@ -27,11 +27,6 @@ struct sdca_function_desc;
 #define SDCA_MAX_ENTITY_COUNT 128
 
 /*
- * Sanity check on number of initialization writes, can be expanded if needed.
- */
-#define SDCA_MAX_INIT_COUNT 2048
-
-/*
  * The Cluster IDs are 16-bit, so a maximum of 65535 Clusters per
  * function can be represented, however limit this to a slightly
  * more reasonable value. Can be expanded if needed.

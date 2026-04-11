@@ -1111,5 +1111,30 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY root handle 1:"
         ]
+    },
+    {
+        "id": "a3d7",
+        "name": "HFSC with large m1 - no divide-by-zero on class reactivation",
+        "category": [
+            "qdisc",
+            "hfsc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc replace dev $DUMMY root handle 1: hfsc default 1",
+            "$TC class replace dev $DUMMY parent 1: classid 1:1 hfsc rt m1 32gbit d 1ms m2 0bit ls m1 32gbit d 1ms m2 0bit",
+            "ping -I$DUMMY -f -c1 -s64 -W1 10.10.10.1 || true",
+            "sleep 1"
+        ],
+        "cmdUnderTest": "ping -I$DUMMY -f -c1 -s64 -W1 10.10.10.1 || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc hfsc 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
     }
 ]

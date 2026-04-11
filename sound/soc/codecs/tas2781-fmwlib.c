@@ -2550,6 +2550,9 @@ static void tasdev_load_calibrated_data(struct tasdevice_priv *priv, int i)
 	int k = i * (cali_data->cali_dat_sz_per_dev + 1);
 	int rc;
 
+	if (!data || !cali_data->total_sz)
+		return;
+
 	if (data[k] != i) {
 		dev_err(priv->dev, "%s: no cal-data for dev %d from usr-spc\n",
 			__func__, i);
