@@ -22,9 +22,9 @@ event_pattern='probe_libc:inet_pton(_[[:digit:]]+)?'
 
 add_libc_inet_pton_event() {
 
-	event_name=$(perf probe -f -x $libc -a inet_pton 2>&1 | tail -n +2 | head -n -5 | \
+	event_name=$(perf probe -f -x $libc -a inet_pton 2>&1 | \
 			awk -v ep="$event_pattern" -v l="$libc" '$0 ~ ep && $0 ~ \
-			("\\(on inet_pton in " l "\\)") {print $1}')
+			("\\(on inet_pton in " l "\\)") {print $1}' | head -n 1)
 
 	if [ $? -ne 0 ] || [ -z "$event_name" ] ; then
 		printf "FAIL: could not add event\n"
@@ -40,12 +40,12 @@ trace_libc_inet_pton_backtrace() {
 	echo ".*inet_pton\+0x[[:xdigit:]]+[[:space:]]\($libc|inlined\)$" >> $expected
 	case "$(uname -m)" in
 	s390x)
-		eventattr='call-graph=dwarf,max-stack=4'
+		eventattr='call-graph=dwarf,max-stack=8'
 		echo "((__GI_)?getaddrinfo|text_to_binary_address)\+0x[[:xdigit:]]+[[:space:]]\($libc|inlined\)$" >> $expected
 		echo "(gaih_inet|main)\+0x[[:xdigit:]]+[[:space:]]\(inlined|.*/bin/ping.*\)$" >> $expected
 		;;
 	*)
-		eventattr='max-stack=4'
+		eventattr='call-graph=dwarf,max-stack=8'
 		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
 		;;
 	esac
