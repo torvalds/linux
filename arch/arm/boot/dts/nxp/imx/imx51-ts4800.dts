@@ -141,7 +141,7 @@
 	pinctrl-0 = <&pinctrl_weim>;
 	status = "okay";
 
-	fpga@0 {
+	fpga-bus@0,0 {
 		compatible = "simple-bus";
 		fsl,weim-cs-timing = <0x0061008F 0x00000002 0x1c022000
 				      0x00000000 0x1c092480 0x00000000>;

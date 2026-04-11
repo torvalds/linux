@@ -27,13 +27,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_gpio>;
 
-		user1 {
+		led-user1 {
 			label = "sd0-led";
 			gpios = <&gpio2 26 0>;
 			linux,default-trigger = "mmc0";
 		};
 
-		user2 {
+		led-user2 {
 			label = "sd1-led";
 			gpios = <&gpio2 24 0>;
 			linux,default-trigger = "mmc2";

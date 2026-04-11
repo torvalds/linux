@@ -108,7 +108,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pin_gpio3_5>;
 
-		user {
+		led-user {
 			label = "Heartbeat";
 			gpios = <&gpio3 5 0>;
 			linux,default-trigger = "heartbeat";

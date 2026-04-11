@@ -12,12 +12,12 @@
 	compatible = "i2se,duckbill-2-485", "i2se,duckbill-2", "fsl,imx28";
 
 	leds {
-		rs485-red {
+		led-rs485-red {
 			label = "duckbill:red:rs485";
 			gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 		};
 
-		rs485-green {
+		led-rs485-green {
 			label = "duckbill:green:rs485";
 			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 		};

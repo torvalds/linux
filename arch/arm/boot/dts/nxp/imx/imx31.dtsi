@@ -333,7 +333,7 @@
 			};
 		};
 
-		emi@b8000000 { /* External Memory Interface */
+		emi-bus@b8000000 { /* External Memory Interface */
 			compatible = "simple-bus";
 			reg = <0xb8000000 0x5000>;
 			ranges;

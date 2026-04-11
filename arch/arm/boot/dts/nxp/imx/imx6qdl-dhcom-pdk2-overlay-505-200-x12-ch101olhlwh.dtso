@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2021-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx6qdl-dhcom-overlay-panel-dpi-ch101olhlwh.dtsi"
+
+&{/} {
+	gpio-keys {
+		/* BUTTON1 GPIO-B conflicts with touchscreen reset */
+		button-1 {
+			/* Use status as /delete-node/ does not work in DTOs */
+			status = "disabled";
+		};
+	};
+
+	led {
+		/* LED7 GPIO-H conflicts with touchscreen IRQ */
+		led-7 {
+			/* Use status as /delete-node/ does not work in DTOs */
+			status = "disabled";
+		};
+	};
+};

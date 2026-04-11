@@ -13,17 +13,17 @@
 	compatible = "i2se,duckbill-2-enocean", "i2se,duckbill-2", "fsl,imx28";
 
 	leds {
-		enocean-blue {
+		led-enocean-blue {
 			label = "duckbill:blue:enocean";
 			gpios = <&gpio3 24 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-red {
+		led-enocean-red {
 			label = "duckbill:red:enocean";
 			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 		};
 
-		enocean-green {
+		led-enocean-green {
 			label = "duckbill:green:enocean";
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
 		};

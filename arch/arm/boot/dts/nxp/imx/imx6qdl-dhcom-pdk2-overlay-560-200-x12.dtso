@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2021-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx6qdl-dhcom-overlay-panel-dpi.dtsi"
+
+&display_bl {
+	pwms = <&pwm1 0 50000 PWM_POLARITY_INVERTED>;
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dhcom_e>;
+		/* Touchscreen IRQ GPIO-E conflicts with LED5 GPIO */
+		interrupt-parent = <&gpio4>;
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>; /* GPIO E */
+	};
+};
+
+&ipu1_dpi0_out {
+	remote-endpoint = <&panel_in>;
+};
+
+&panel {
+	compatible = "edt,etm0700g0edh6";
+};
+
+&panel_in {
+	remote-endpoint = <&ipu1_dpi0_out>;
+};

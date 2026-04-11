@@ -30,13 +30,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
 
-		status-red {
+		led-status-red {
 			label = "duckbill:red:status";
 			gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
 
-		status-green {
+		led-status-green {
 			label = "duckbill:green:status";
 			gpios = <&gpio3 5 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";

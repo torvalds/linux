@@ -49,7 +49,7 @@
 
 	clocks {
 		clk_osc26m: osc26m {
-			compatible = "fsl,imx-osc26m", "fixed-clock";
+			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
 		};
@@ -289,7 +289,7 @@
 				status = "disabled";
 			};
 
-			iomuxc: iomuxc@10015000 {
+			iomuxc: pinmux@10015000 {
 				compatible = "fsl,imx27-iomuxc";
 				reg = <0x10015000 0x600>;
 				#address-cells = <1>;
