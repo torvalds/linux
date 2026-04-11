@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+/dts-v1/;
+/plugin/;
+
+/*
+ * USB0 Peripheral Mode Overlay
+ *
+ * This overlay switches USB0 from host mode to peripheral mode
+ * by configuring the USB controller node.
+ *
+ * Hardware requirement:
+ * The DIP switch SW1 must be toggled to reconnect the USB0 HS
+ * differential pair to the Micro-USB connector instead of the
+ * on-board USB 3.0 hub.
+ *
+ * Without toggling SW1, there is no electrical path to the
+ * Micro-USB connector and device mode will not function.
+ */
+
+&usb_1 {
+	dr_mode = "peripheral";
+
+	status = "okay";
+};

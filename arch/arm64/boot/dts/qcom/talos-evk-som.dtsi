@@ -1,24 +1,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
-#include <dt-bindings/gpio/gpio.h>
 #include "talos.dtsi"
 #include "pm8150.dtsi"
 / {
-	model = "Qualcomm Technologies, Inc. QCS615 Ride (IQ-615 Beta EVK)";
-	compatible = "qcom,qcs615-ride", "qcom,qcs615", "qcom,sm6150";
-	chassis-type = "embedded";
-
 	aliases {
+		i2c1 = &i2c1;
+		i2c5 = &i2c5;
 		mmc0 = &sdhc_1;
-		mmc1 = &sdhc_2;
 		serial0 = &uart0;
 		serial1 = &uart7;
+		spi6 = &spi6;
 	};
 
 	chosen {
@@ -26,9 +23,15 @@
 	};
 
 	clocks {
+		can_osc: can-oscillator {
+			compatible = "fixed-clock";
+			clock-frequency = <20000000>;
+			#clock-cells = <0>;
+		};
+
 		sleep_clk: sleep-clk {
 			compatible = "fixed-clock";
-			clock-frequency = <32000>;
+			clock-frequency = <32764>;
 			#clock-cells = <0>;
 		};
 
@@ -36,32 +39,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <38400000>;
 			#clock-cells = <0>;
-		};
-	};
-
-	dp0-connector {
-		compatible = "dp-connector";
-		label = "DP0";
-		type = "mini";
-
-		hpd-gpios = <&io_expander 8 GPIO_ACTIVE_HIGH>;
-
-		port {
-			dp0_connector_in: endpoint {
-				remote-endpoint = <&mdss_dp0_out>;
-			};
-		};
-	};
-
-	dp-dsi0-connector {
-		compatible = "dp-connector";
-		label = "DSI0";
-		type = "mini";
-
-		port {
-			dp_dsi0_connector_in: endpoint {
-				remote-endpoint = <&dsi2dp_bridge_out>;
-			};
 		};
 	};
 
@@ -91,36 +68,22 @@
 		regulator-always-on;
 	};
 
-	vreg_1p0: regulator-vreg-1p0 {
+	vreg_v3p3_can: regulator-v3p3-can {
 		compatible = "regulator-fixed";
-		regulator-name = "VREG_1P0";
-
-		regulator-always-on;
+		regulator-name = "vreg-v3p3-can";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-		regulator-min-microvolt = <1000000>;
-		regulator-max-microvolt = <1000000>;
-
-		vin-supply = <&vreg_1p8>;
+		regulator-always-on;
 	};
 
-	vreg_1p8: regulator-vreg-1p8 {
+	vreg_v5p0_can: regulator-v5p0-can {
 		compatible = "regulator-fixed";
-		regulator-name = "VREG_1P8";
-
-		regulator-always-on;
+		regulator-name = "vreg-v5p0-can";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	vreg_3p0: regulator-vreg-3p0 {
-		compatible = "regulator-fixed";
-		regulator-name = "VREG_3P0";
-
 		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3000000>;
-		regulator-max-microvolt = <3000000>;
 	};
 
 	wcn6855-pmu {
@@ -130,7 +93,7 @@
 		pinctrl-names = "default";
 
 		bt-enable-gpios = <&tlmm 85 GPIO_ACTIVE_HIGH>;
-		wlan-enable-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+		wlan-enable-gpios = <&tlmm 84 GPIO_ACTIVE_HIGH>;
 
 		vddio-supply = <&vreg_conn_pa>;
 		vddaon-supply = <&vreg_s5a>;
@@ -346,72 +309,28 @@
 	};
 };
 
-&gpu {
+&gpi_dma0 {
 	status = "okay";
 };
 
-&gpu_zap_shader {
-	firmware-name = "qcom/qcs615/a612_zap.mbn";
+&gpi_dma1 {
+	status = "okay";
 };
 
-&i2c2 {
+&i2c5 {
 	clock-frequency = <400000>;
 	status = "okay";
 
-	io_expander: pinctrl@3e {
-		compatible = "semtech,sx1509q";
-		reg = <0x3e>;
-		interrupts-extended = <&tlmm 58 IRQ_TYPE_EDGE_FALLING>;
-		gpio-controller;
-		#gpio-cells = <2>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-		semtech,probe-reset;
+	eeprom@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+		pagesize = <16>;
 	};
 
-	i2c-mux@77 {
-		compatible = "nxp,pca9542";
-		reg = <0x77>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		i2c@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			bridge@58 {
-				compatible = "analogix,anx7625";
-				reg = <0x58>;
-				interrupts-extended = <&io_expander 0 IRQ_TYPE_EDGE_FALLING>;
-				enable-gpios = <&tlmm 4 GPIO_ACTIVE_HIGH>;
-				reset-gpios = <&tlmm 5 GPIO_ACTIVE_HIGH>;
-				vdd10-supply = <&vreg_1p0>;
-				vdd18-supply = <&vreg_1p8>;
-				vdd33-supply = <&vreg_3p0>;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						dsi2dp_bridge_in: endpoint {
-							remote-endpoint = <&mdss_dsi0_out>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						dsi2dp_bridge_out: endpoint {
-							remote-endpoint = <&dp_dsi0_connector_in>;
-						};
-					};
-				};
-			};
-		};
+	eeprom@5f {
+		compatible = "atmel,24mac602";
+		reg = <0x5f>;
+		pagesize = <16>;
 	};
 };
 
@@ -433,18 +352,13 @@
 	status = "okay";
 };
 
-&mdss_dsi0_out {
-	remote-endpoint = <&dsi2dp_bridge_in>;
-	data-lanes = <0 1 2 3>;
-};
-
 &mdss_dsi0_phy {
 	vcca-supply = <&vreg_l5a>;
 	status = "okay";
 };
 
 &pcie {
-	perst-gpios = <&tlmm 101 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 100 GPIO_ACTIVE_HIGH>;
 
 	pinctrl-0 = <&pcie_default_state>;
@@ -488,16 +402,6 @@
 	};
 };
 
-&pon_pwrkey {
-	status = "okay";
-};
-
-&pon_resin {
-	linux,code = <KEY_VOLUMEDOWN>;
-
-	status = "okay";
-};
-
 &qupv3_id_0 {
 	status = "okay";
 };
@@ -516,46 +420,6 @@
 	firmware-name = "qcom/qcs615/cdsp.mbn";
 
 	status = "okay";
-};
-
-&tlmm {
-	bt_en_state: bt-en-state {
-		pins = "gpio85";
-		function = "gpio";
-		bias-pull-down;
-		output-low;
-	};
-
-	pcie_default_state: pcie-default-state {
-		clkreq-pins {
-			pins = "gpio90";
-			function = "pcie_clk_req";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-
-		perst-pins {
-			pins = "gpio101";
-			function = "gpio";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
-
-		wake-pins {
-			pins = "gpio100";
-			function = "gpio";
-			drive-strength = <2>;
-			bias-pull-up;
-		};
-	};
-
-	wlan_en_state: wlan-en-state {
-		pins = "gpio98";
-		function = "gpio";
-		bias-pull-down;
-		drive-strength = <16>;
-		output-low;
-	};
 };
 
 &sdhc_1 {
@@ -578,18 +442,71 @@
 	status = "okay";
 };
 
-&sdhc_2 {
-	pinctrl-0 = <&sdc2_state_on>;
-	pinctrl-1 = <&sdc2_state_off>;
-	pinctrl-names = "default", "sleep";
-
-	bus-width = <4>;
-	cd-gpios = <&tlmm 99 GPIO_ACTIVE_LOW>;
-
-	vmmc-supply = <&vreg_l10a>;
-	vqmmc-supply = <&vreg_s4a>;
-
+&spi6 {
 	status = "okay";
+
+	can@0 {
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		clocks = <&can_osc>;
+		interrupts-extended = <&tlmm 87 IRQ_TYPE_LEVEL_LOW>;
+		spi-max-frequency = <10000000>;
+		vdd-supply = <&vreg_v3p3_can>;
+		xceiver-supply = <&vreg_v5p0_can>;
+	};
+};
+
+&tlmm {
+	bt_en_state: bt-en-state {
+		pins = "gpio85";
+		function = "gpio";
+		bias-pull-down;
+	};
+
+	cam1_reset_default: cam1-reset-default-state {
+		pins = "gpio29";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pcie_default_state: pcie-default-state {
+		clkreq-pins {
+			pins = "gpio90";
+			function = "pcie_clk_req";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-pins {
+			pins = "gpio89";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		wake-pins {
+			pins = "gpio100";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	wifi_reg_en_pins_state: wifi-reg-en-pins-state {
+		pins = "gpio91";
+		function = "gpio";
+		drive-strength = <8>;
+		output-high;
+		bias-pull-up;
+	};
+
+	wlan_en_state: wlan-en-state {
+		pins = "gpio84";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
+	};
 };
 
 &uart0 {
@@ -614,7 +531,49 @@
 	};
 };
 
+/*
+ * USB0 routing and EDL mode:
+ *
+ * The USB0 controller’s HS differential pair is switched (manually)
+ * between the Micro-USB port for EDL/ADB and the on-board USB 3.0 hub.
+ *
+ * During EDL (Emergency Download) mode, the HS lines are explicitly
+ * routed to the Micro-USB port to allow the SoC to enter device mode
+ * for flashing.
+ *
+ * After EDL the switch is normally toggled so the HS lines stay
+ * connected to the hub’s Type-A downstream ports, leaving no electrical
+ * path to the Micro-USB connector — therefore USB0 runs host-only in
+ * normal runtime and device mode must not be advertised.
+ *
+ * USB0 is configured host-only in the base device tree; a separate
+ * device-tree overlay enables the Micro-USB peripheral configuration for
+ * ADB. For ADB to work during normal runtime the DIP switch SW1 must be
+ * manually toggled to the off position (reconnecting the HS pair to the
+ * Micro-USB port).
+ */
+
+&usb_1 {
+	dr_mode = "host";
+
+	status = "okay";
+};
+
 &usb_1_hsphy {
+	vdd-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l12a>;
+	vdda-phy-dpdm-supply = <&vreg_l13a>;
+
+	status = "okay";
+};
+
+&usb_2 {
+	dr_mode = "host";
+
+	status = "okay";
+};
+
+&usb_2_hsphy {
 	vdd-supply = <&vreg_l5a>;
 	vdda-pll-supply = <&vreg_l12a>;
 	vdda-phy-dpdm-supply = <&vreg_l13a>;
@@ -630,28 +589,8 @@
 };
 
 &usb_qmpphy_2 {
-	vdda-phy-supply = <&vreg_l5a>;
-	vdda-pll-supply = <&vreg_l12a>;
-
-	status = "okay";
-};
-
-&usb_1 {
-	dr_mode = "peripheral";
-
-	status = "okay";
-};
-
-&usb_2_hsphy {
-	vdd-supply = <&vreg_l5a>;
-	vdda-pll-supply = <&vreg_l12a>;
-	vdda-phy-dpdm-supply = <&vreg_l13a>;
-
-	status = "okay";
-};
-
-&usb_2 {
-	dr_mode = "host";
+	vdda-phy-supply = <&vreg_l11a>;
+	vdda-pll-supply = <&vreg_l5a>;
 
 	status = "okay";
 };
