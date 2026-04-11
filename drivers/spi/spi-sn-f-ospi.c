@@ -625,7 +625,7 @@ static int f_ospi_probe(struct platform_device *pdev)
 	of_property_read_u32(dev->of_node, "num-cs", &num_cs);
 	if (num_cs > OSPI_NUM_CS) {
 		dev_err(dev, "num-cs too large: %d\n", num_cs);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 	ctlr->num_chipselect = num_cs;
 
