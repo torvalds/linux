@@ -6,7 +6,7 @@
 
  * Copyright (C) 2007 Alain Degreffe (eczema@ecze.com)
  *
- * Original code taken from iuutool (Copyright (C) 2006 Juan Carlos BorrÃ¡s)
+ * Original code taken from iuutool (Copyright (C) 2006 Juan Carlos Borrás)
  *
  *  And tested with help of WB Electronics
  */
