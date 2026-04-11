@@ -192,6 +192,7 @@ fn param_ops_path(param_type: &str) -> Path {
         "u64" => parse_quote!(::kernel::module_param::PARAM_OPS_U64),
         "isize" => parse_quote!(::kernel::module_param::PARAM_OPS_ISIZE),
         "usize" => parse_quote!(::kernel::module_param::PARAM_OPS_USIZE),
+        "bool" => parse_quote!(::kernel::module_param::PARAM_OPS_BOOL),
         t => panic!("Unsupported parameter type {}", t),
     }
 }

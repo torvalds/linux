@@ -15,6 +15,10 @@ module! {
             default: 1,
             description: "This parameter has a default of 1",
         },
+        test_bool_parameter: bool {
+            default: false,
+            description: "This boolean parameter defaults to false",
+        },
     },
 }
 
@@ -29,6 +33,10 @@ impl kernel::Module for RustMinimal {
         pr_info!(
             "test_parameter: {}\n",
             module_parameters::test_parameter.value()
+        );
+        pr_info!(
+            "test_bool_parameter: {}\n",
+            module_parameters::test_bool_parameter.value()
         );
 
         let mut numbers = KVec::new();
