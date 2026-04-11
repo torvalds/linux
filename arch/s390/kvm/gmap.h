@@ -60,6 +60,7 @@ enum gmap_flags {
 struct gmap {
 	unsigned long flags;
 	unsigned char edat_level;
+	bool invalidated;
 	struct kvm *kvm;
 	union asce asce;
 	struct list_head list;
