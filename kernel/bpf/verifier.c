@@ -589,14 +589,6 @@ static bool is_may_goto_insn_at(struct bpf_verifier_env *env, int insn_idx)
 	return bpf_is_may_goto_insn(&env->prog->insnsi[insn_idx]);
 }
 
-static bool is_storage_get_function(enum bpf_func_id func_id)
-{
-	return func_id == BPF_FUNC_sk_storage_get ||
-	       func_id == BPF_FUNC_inode_storage_get ||
-	       func_id == BPF_FUNC_task_storage_get ||
-	       func_id == BPF_FUNC_cgrp_storage_get;
-}
-
 static bool helper_multiple_ref_obj_use(enum bpf_func_id func_id,
 					const struct bpf_map *map)
 {
@@ -24426,24 +24418,6 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			delta    += cnt - 1;
 			env->prog = prog = new_prog;
 			insn      = new_prog->insnsi + i + delta;
-			goto patch_call_imm;
-		}
-
-		if (is_storage_get_function(insn->imm)) {
-			if (env->insn_aux_data[i + delta].non_sleepable)
-				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__force __s32)GFP_ATOMIC);
-			else
-				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__force __s32)GFP_KERNEL);
-			insn_buf[1] = *insn;
-			cnt = 2;
-
-			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
-			if (!new_prog)
-				return -ENOMEM;
-
-			delta += cnt - 1;
-			env->prog = prog = new_prog;
-			insn = new_prog->insnsi + i + delta;
 			goto patch_call_imm;
 		}
 
