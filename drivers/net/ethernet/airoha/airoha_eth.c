@@ -458,9 +458,8 @@ static int airoha_fe_init(struct airoha_eth *eth)
 		      FIELD_PREP(PSE_IQ_RES2_P5_MASK, 0x40) |
 		      FIELD_PREP(PSE_IQ_RES2_P4_MASK, 0x34));
 
-	/* enable FE copy engine for MC/KA/DPI */
-	airoha_fe_wr(eth, REG_FE_PCE_CFG,
-		     PCE_DPI_EN_MASK | PCE_KA_EN_MASK | PCE_MC_EN_MASK);
+	/* enable FE copy engine for KA/DPI */
+	airoha_fe_wr(eth, REG_FE_PCE_CFG, PCE_DPI_EN_MASK | PCE_KA_EN_MASK);
 	/* set vip queue selection to ring 1 */
 	airoha_fe_rmw(eth, REG_CDM_FWD_CFG(1), CDM_VIP_QSEL_MASK,
 		      FIELD_PREP(CDM_VIP_QSEL_MASK, 0x4));
