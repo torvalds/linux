@@ -369,12 +369,12 @@ struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
 	if (!mci->layers)
 		goto error;
 
+	mci->dev.release = mci_release;
+	device_initialize(&mci->dev);
+
 	mci->pvt_info = kzalloc(sz_pvt, GFP_KERNEL);
 	if (!mci->pvt_info)
 		goto error;
-
-	mci->dev.release = mci_release;
-	device_initialize(&mci->dev);
 
 	/* setup index and various internal pointers */
 	mci->mc_idx = mc_num;
