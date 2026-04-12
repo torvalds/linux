@@ -48,7 +48,7 @@ static void mxl862xx_crc_err_work_fn(struct work_struct *work)
 		dev_close(dp->conduit);
 	rtnl_unlock();
 
-	clear_bit(0, &priv->crc_err);
+	clear_bit(MXL862XX_FLAG_CRC_ERR, &priv->flags);
 }
 
 /* Firmware CRC error codes (outside normal Zephyr errno range). */
@@ -247,7 +247,7 @@ static int mxl862xx_issue_cmd(struct mxl862xx_priv *priv, u16 cmd, u16 len)
 
 	ret = mxl862xx_crc6_verify(ctrl_enc, len_enc, &fw_result);
 	if (ret) {
-		if (!test_and_set_bit(0, &priv->crc_err))
+		if (!test_and_set_bit(MXL862XX_FLAG_CRC_ERR, &priv->flags))
 			schedule_work(&priv->crc_err_work);
 		return -EIO;
 	}
@@ -314,7 +314,7 @@ static int mxl862xx_send_cmd(struct mxl862xx_priv *priv, u16 cmd, u16 size,
 	if (ret < 0) {
 		if ((ret == MXL862XX_FW_CRC6_ERR ||
 		     ret == MXL862XX_FW_CRC16_ERR) &&
-		    !test_and_set_bit(0, &priv->crc_err))
+		    !test_and_set_bit(MXL862XX_FLAG_CRC_ERR, &priv->flags))
 			schedule_work(&priv->crc_err_work);
 		if (!quiet)
 			dev_err(&priv->mdiodev->dev,
@@ -458,7 +458,7 @@ int mxl862xx_api_wrap(struct mxl862xx_priv *priv, u16 cmd, void *_data,
 	}
 
 	if (crc16(0xffff, (const u8 *)data, size) != crc) {
-		if (!test_and_set_bit(0, &priv->crc_err))
+		if (!test_and_set_bit(MXL862XX_FLAG_CRC_ERR, &priv->flags))
 			schedule_work(&priv->crc_err_work);
 		ret = -EIO;
 		goto out;
