@@ -1205,4 +1205,82 @@ void bpf_stack_liveness_free(struct bpf_verifier_env *env);
 int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
 bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
 
+#define BPF_MAP_KEY_POISON	(1ULL << 63)
+#define BPF_MAP_KEY_SEEN	(1ULL << 62)
+
+static inline bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
+{
+	return aux->map_ptr_state.poison;
+}
+
+static inline bool bpf_map_ptr_unpriv(const struct bpf_insn_aux_data *aux)
+{
+	return aux->map_ptr_state.unpriv;
+}
+
+static inline bool bpf_map_key_poisoned(const struct bpf_insn_aux_data *aux)
+{
+	return aux->map_key_state & BPF_MAP_KEY_POISON;
+}
+
+static inline bool bpf_map_key_unseen(const struct bpf_insn_aux_data *aux)
+{
+	return !(aux->map_key_state & BPF_MAP_KEY_SEEN);
+}
+
+static inline u64 bpf_map_key_immediate(const struct bpf_insn_aux_data *aux)
+{
+	return aux->map_key_state & ~(BPF_MAP_KEY_SEEN | BPF_MAP_KEY_POISON);
+}
+
+#define MAX_PACKET_OFF 0xffff
+
+enum bpf_reg_arg_type {
+	SRC_OP,		/* register is used as source operand */
+	DST_OP,		/* register is used as destination operand */
+	DST_OP_NO_MARK	/* same as above, check only, don't mark */
+};
+
+#define MAX_KFUNC_DESCS 256
+
+struct bpf_kfunc_desc {
+	struct btf_func_model func_model;
+	u32 func_id;
+	s32 imm;
+	u16 offset;
+	unsigned long addr;
+};
+
+struct bpf_kfunc_desc_tab {
+	/* Sorted by func_id (BTF ID) and offset (fd_array offset) during
+	 * verification. JITs do lookups by bpf_insn, where func_id may not be
+	 * available, therefore at the end of verification do_misc_fixups()
+	 * sorts this by imm and offset.
+	 */
+	struct bpf_kfunc_desc descs[MAX_KFUNC_DESCS];
+	u32 nr_descs;
+};
+
+/* Functions exported from verifier.c, used by fixups.c */
+bool bpf_is_reg64(struct bpf_insn *insn, u32 regno, struct bpf_reg_state *reg, enum bpf_reg_arg_type t);
+void bpf_clear_insn_aux_data(struct bpf_verifier_env *env, int start, int len);
+void bpf_mark_subprog_exc_cb(struct bpf_verifier_env *env, int subprog);
+bool bpf_allow_tail_call_in_subprogs(struct bpf_verifier_env *env);
+bool bpf_verifier_inlines_helper_call(struct bpf_verifier_env *env, s32 imm);
+int bpf_add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, u16 offset);
+int bpf_fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
+			 struct bpf_insn *insn_buf, int insn_idx, int *cnt);
+
+/* Functions in fixups.c, called from bpf_check() */
+int bpf_remove_fastcall_spills_fills(struct bpf_verifier_env *env);
+int bpf_optimize_bpf_loop(struct bpf_verifier_env *env);
+void bpf_opt_hard_wire_dead_code_branches(struct bpf_verifier_env *env);
+int bpf_opt_remove_dead_code(struct bpf_verifier_env *env);
+int bpf_opt_remove_nops(struct bpf_verifier_env *env);
+int bpf_opt_subreg_zext_lo32_rnd_hi32(struct bpf_verifier_env *env, const union bpf_attr *attr);
+int bpf_convert_ctx_accesses(struct bpf_verifier_env *env);
+int bpf_jit_subprogs(struct bpf_verifier_env *env);
+int bpf_fixup_call_args(struct bpf_verifier_env *env);
+int bpf_do_misc_fixups(struct bpf_verifier_env *env);
+
 #endif /* _LINUX_BPF_VERIFIER_H */
