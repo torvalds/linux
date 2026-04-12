@@ -279,6 +279,8 @@ static inline void spis_or_range(spis_t *mask, u32 lo, u32 hi)
 			  (1 << BPF_REG_3) | (1 << BPF_REG_4) | \
 			  (1 << BPF_REG_5))
 
+#define BPF_MAIN_FUNC (-1)
+
 #define BPF_DYNPTR_SIZE		sizeof(struct bpf_dynptr_kern)
 #define BPF_DYNPTR_NR_SLOTS		(BPF_DYNPTR_SIZE / BPF_REG_SIZE)
 
@@ -1079,6 +1081,7 @@ void bpf_free_verifier_state(struct bpf_verifier_state *state, bool free_self);
 void bpf_free_backedges(struct bpf_scc_visit *visit);
 int bpf_push_jmp_history(struct bpf_verifier_env *env, struct bpf_verifier_state *cur,
 			 int insn_flags, u64 linked_regs);
+void bpf_bt_sync_linked_regs(struct backtrack_state *bt, struct bpf_jmp_history_entry *hist);
 void bpf_mark_reg_not_init(const struct bpf_verifier_env *env,
 			   struct bpf_reg_state *reg);
 void bpf_mark_reg_unknown_imprecise(struct bpf_reg_state *reg);
@@ -1120,6 +1123,11 @@ static inline bool bpf_is_spilled_reg(const struct bpf_stack_state *stack)
 	return stack->slot_type[BPF_REG_SIZE - 1] == STACK_SPILL;
 }
 
+static inline bool bpf_is_spilled_scalar_reg(const struct bpf_stack_state *stack)
+{
+	return bpf_is_spilled_reg(stack) && stack->spilled_ptr.type == SCALAR_VALUE;
+}
+
 static inline bool bpf_register_is_null(struct bpf_reg_state *reg)
 {
 	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
@@ -1133,6 +1141,16 @@ static inline void bpf_bt_set_frame_reg(struct backtrack_state *bt, u32 frame, u
 static inline void bpf_bt_set_frame_slot(struct backtrack_state *bt, u32 frame, u32 slot)
 {
 	bt->stack_masks[frame] |= 1ull << slot;
+}
+
+static inline bool bt_is_frame_reg_set(struct backtrack_state *bt, u32 frame, u32 reg)
+{
+	return bt->reg_masks[frame] & (1 << reg);
+}
+
+static inline bool bt_is_frame_slot_set(struct backtrack_state *bt, u32 frame, u32 slot)
+{
+	return bt->stack_masks[frame] & (1ull << slot);
 }
 
 bool bpf_map_is_rdonly(const struct bpf_map *map);
