@@ -443,7 +443,8 @@ static int strset_fill_set(struct sk_buff *skb,
 			if (strset_fill_string(skb, set_info, i) < 0)
 				goto nla_put_failure;
 		}
-		nla_nest_end(skb, strings_attr);
+		if (nla_nest_end_safe(skb, strings_attr) < 0)
+			goto nla_put_failure;
 	}
 
 	nla_nest_end(skb, stringset_attr);

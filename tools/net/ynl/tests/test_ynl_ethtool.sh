@@ -8,7 +8,7 @@ KSELFTEST_KTAP_HELPERS="$(dirname "$(realpath "$0")")/../../../testing/selftests
 source "$KSELFTEST_KTAP_HELPERS"
 
 # Default ynl-ethtool path for direct execution, can be overridden by make install
-ynl_ethtool="../pyynl/ethtool.py"
+ynl_ethtool="./ethtool.py"
 
 readonly NSIM_ID="1337"
 readonly NSIM_DEV_NAME="nsim${NSIM_ID}"

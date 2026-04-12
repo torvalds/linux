@@ -14,7 +14,7 @@ import re
 import os
 
 # pylint: disable=no-name-in-module,wrong-import-position
-sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
+sys.path.append(pathlib.Path(__file__).resolve().parent.parent.joinpath('pyynl').as_posix())
 # pylint: disable=import-error
 from cli import schema_dir, spec_dir
 from lib import YnlFamily
@@ -84,9 +84,9 @@ def print_speed(name, value):
     speed = [ k for k, v in value.items() if v and speed_re.match(k) ]
     print(f'{name}: {" ".join(speed)}')
 
-def doit(ynl, args, op_name):
+def do_set(ynl, args, op_name):
     """
-    Prepare request header, parse arguments and doit.
+    Prepare request header, parse arguments and do a set operation.
     """
     req = {
         'header': {
@@ -97,26 +97,24 @@ def doit(ynl, args, op_name):
     args_to_req(ynl, op_name, args.args, req)
     ynl.do(op_name, req)
 
-def dumpit(ynl, args, op_name, extra=None):
+def do_get(ynl, args, op_name, extra=None):
     """
-    Prepare request header, parse arguments and dumpit (filtering out the
-    devices we're not interested in).
+    Prepare request header and get info for a specific device using doit.
     """
     extra = extra or {}
-    reply = ynl.dump(op_name, { 'header': {} } | extra)
+    req = {'header': {'dev-name': args.device}}
+    req['header'].update(extra.pop('header', {}))
+    req.update(extra)
+
+    reply = ynl.do(op_name, req)
     if not reply:
         return {}
 
-    for msg in reply:
-        if msg['header']['dev-name'] == args.device:
-            if args.json:
-                pprint.PrettyPrinter().pprint(msg)
-                sys.exit(0)
-            msg.pop('header', None)
-            return msg
-
-    print(f"Not supported for device {args.device}")
-    sys.exit(1)
+    if args.json:
+        pprint.PrettyPrinter().pprint(reply)
+        sys.exit(0)
+    reply.pop('header', None)
+    return reply
 
 def bits_to_dict(attr):
     """
@@ -168,12 +166,19 @@ def main():
     parser.add_argument('device', metavar='device', type=str)
     parser.add_argument('args', metavar='args', type=str, nargs='*')
 
+    dbg_group = parser.add_argument_group('Debug options')
+    dbg_group.add_argument('--dbg-small-recv', default=0, const=4000,
+                           action='store', nargs='?', type=int, metavar='INT',
+                           help="Length of buffers used for recv()")
+
     args = parser.parse_args()
 
     spec = os.path.join(spec_dir(), 'ethtool.yaml')
     schema = os.path.join(schema_dir(), 'genetlink-legacy.yaml')
 
-    ynl = YnlFamily(spec, schema)
+    ynl = YnlFamily(spec, schema, recv_size=args.dbg_small_recv)
+    if args.dbg_small_recv:
+        ynl.set_recv_dbg(True)
 
     if args.set_priv_flags:
         # TODO: parse the bitmask
@@ -181,15 +186,15 @@ def main():
         return
 
     if args.set_eee:
-        doit(ynl, args, 'eee-set')
+        do_set(ynl, args, 'eee-set')
         return
 
     if args.set_pause:
-        doit(ynl, args, 'pause-set')
+        do_set(ynl, args, 'pause-set')
         return
 
     if args.set_coalesce:
-        doit(ynl, args, 'coalesce-set')
+        do_set(ynl, args, 'coalesce-set')
         return
 
     if args.set_features:
@@ -198,20 +203,20 @@ def main():
         return
 
     if args.set_channels:
-        doit(ynl, args, 'channels-set')
+        do_set(ynl, args, 'channels-set')
         return
 
     if args.set_ring:
-        doit(ynl, args, 'rings-set')
+        do_set(ynl, args, 'rings-set')
         return
 
     if args.show_priv_flags:
-        flags = bits_to_dict(dumpit(ynl, args, 'privflags-get')['flags'])
+        flags = bits_to_dict(do_get(ynl, args, 'privflags-get')['flags'])
         print_field(flags)
         return
 
     if args.show_eee:
-        eee = dumpit(ynl, args, 'eee-get')
+        eee = do_get(ynl, args, 'eee-get')
         ours = bits_to_dict(eee['modes-ours'])
         peer = bits_to_dict(eee['modes-peer'])
 
@@ -232,18 +237,18 @@ def main():
         return
 
     if args.show_pause:
-        print_field(dumpit(ynl, args, 'pause-get'),
+        print_field(do_get(ynl, args, 'pause-get'),
                 ('autoneg', 'Autonegotiate', 'bool'),
                 ('rx', 'RX', 'bool'),
                 ('tx', 'TX', 'bool'))
         return
 
     if args.show_coalesce:
-        print_field(dumpit(ynl, args, 'coalesce-get'))
+        print_field(do_get(ynl, args, 'coalesce-get'))
         return
 
     if args.show_features:
-        reply = dumpit(ynl, args, 'features-get')
+        reply = do_get(ynl, args, 'features-get')
         available = bits_to_dict(reply['hw'])
         requested = bits_to_dict(reply['wanted']).keys()
         active = bits_to_dict(reply['active']).keys()
@@ -270,7 +275,7 @@ def main():
         return
 
     if args.show_channels:
-        reply = dumpit(ynl, args, 'channels-get')
+        reply = do_get(ynl, args, 'channels-get')
         print(f'Channel parameters for {args.device}:')
 
         print('Pre-set maximums:')
@@ -290,7 +295,7 @@ def main():
         return
 
     if args.show_ring:
-        reply = dumpit(ynl, args, 'channels-get')
+        reply = do_get(ynl, args, 'channels-get')
 
         print(f'Ring parameters for {args.device}:')
 
@@ -319,7 +324,7 @@ def main():
         print('NIC statistics:')
 
         # TODO: pass id?
-        strset = dumpit(ynl, args, 'strset-get')
+        strset = do_get(ynl, args, 'strset-get')
         pprint.PrettyPrinter().pprint(strset)
 
         req = {
@@ -338,7 +343,7 @@ def main():
           },
         }
 
-        rsp = dumpit(ynl, args, 'stats-get', req)
+        rsp = do_get(ynl, args, 'stats-get', req)
         pprint.PrettyPrinter().pprint(rsp)
         return
 
@@ -349,7 +354,7 @@ def main():
           },
         }
 
-        tsinfo = dumpit(ynl, args, 'tsinfo-get', req)
+        tsinfo = do_get(ynl, args, 'tsinfo-get', req)
 
         print(f'Time stamping parameters for {args.device}:')
 
@@ -377,7 +382,7 @@ def main():
         return
 
     print(f'Settings for {args.device}:')
-    linkmodes = dumpit(ynl, args, 'linkmodes-get')
+    linkmodes = do_get(ynl, args, 'linkmodes-get')
     ours = bits_to_dict(linkmodes['ours'])
 
     supported_ports = ('TP',  'AUI', 'BNC', 'MII', 'FIBRE', 'Backplane')
@@ -425,7 +430,7 @@ def main():
             5: 'Directly Attached Copper',
             0xef: 'None',
     }
-    linkinfo = dumpit(ynl, args, 'linkinfo-get')
+    linkinfo = do_get(ynl, args, 'linkinfo-get')
     print(f'Port: {ports.get(linkinfo["port"], "Other")}')
 
     print_field(linkinfo, ('phyaddr', 'PHYAD'))
@@ -447,11 +452,11 @@ def main():
         mdix = mdix_ctrl.get(linkinfo['tp-mdix'], 'Unknown (auto)')
     print(f'MDI-X: {mdix}')
 
-    debug = dumpit(ynl, args, 'debug-get')
+    debug = do_get(ynl, args, 'debug-get')
     msgmask = bits_to_dict(debug.get("msgmask", [])).keys()
     print(f'Current message level: {" ".join(msgmask)}')
 
-    linkstate = dumpit(ynl, args, 'linkstate-get')
+    linkstate = do_get(ynl, args, 'linkstate-get')
     detected_states = {
             0: 'no',
             1: 'yes',
