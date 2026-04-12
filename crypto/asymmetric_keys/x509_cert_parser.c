@@ -609,9 +609,9 @@ int x509_process_extension(void *context, size_t hdrlen,
 		 *   0x04 is where keyCertSign lands in this bit string
 		 *   0x80 is where digitalSignature lands in this bit string
 		 */
-		if (v[0] != ASN1_BTS)
-			return -EBADMSG;
 		if (vlen < 4)
+			return -EBADMSG;
+		if (v[0] != ASN1_BTS)
 			return -EBADMSG;
 		if (v[2] >= 8)
 			return -EBADMSG;
@@ -645,9 +645,9 @@ int x509_process_extension(void *context, size_t hdrlen,
 		 *	(Expect 0xFF if the CA is TRUE)
 		 * vlen should match the entire extension size
 		 */
-		if (v[0] != (ASN1_CONS_BIT | ASN1_SEQ))
-			return -EBADMSG;
 		if (vlen < 2)
+			return -EBADMSG;
+		if (v[0] != (ASN1_CONS_BIT | ASN1_SEQ))
 			return -EBADMSG;
 		if (v[1] != vlen - 2)
 			return -EBADMSG;
