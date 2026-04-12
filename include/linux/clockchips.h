@@ -80,6 +80,7 @@ enum clock_event_state {
  * @shift:		nanoseconds to cycles divisor (power of two)
  * @state_use_accessors:current state of the device, assigned by the core code
  * @features:		features
+ * @next_event_forced:	True if the last programming was a forced event
  * @retries:		number of forced programming retries
  * @set_state_periodic:	switch state to periodic
  * @set_state_oneshot:	switch state to oneshot
@@ -108,6 +109,7 @@ struct clock_event_device {
 	u32			shift;
 	enum clock_event_state	state_use_accessors;
 	unsigned int		features;
+	unsigned int		next_event_forced;
 	unsigned long		retries;
 
 	int			(*set_state_periodic)(struct clock_event_device *);

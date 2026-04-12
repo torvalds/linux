@@ -110,6 +110,7 @@ void tick_handle_periodic(struct clock_event_device *dev)
 	int cpu = smp_processor_id();
 	ktime_t next = dev->next_event;
 
+	dev->next_event_forced = 0;
 	tick_periodic(cpu);
 
 	/*

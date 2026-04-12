@@ -1888,6 +1888,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	BUG_ON(!cpu_base->hres_active);
 	cpu_base->nr_events++;
 	dev->next_event = KTIME_MAX;
+	dev->next_event_forced = 0;
 
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 	entry_time = now = hrtimer_update_base(cpu_base);

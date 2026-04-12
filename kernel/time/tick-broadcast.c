@@ -76,8 +76,10 @@ const struct clock_event_device *tick_get_wakeup_device(int cpu)
  */
 static void tick_broadcast_start_periodic(struct clock_event_device *bc)
 {
-	if (bc)
+	if (bc) {
+		bc->next_event_forced = 0;
 		tick_setup_periodic(bc, 1);
+	}
 }
 
 /*
@@ -403,6 +405,7 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
+	tick_broadcast_device.evtdev->next_event_forced = 0;
 
 	/* Handle spurious interrupts gracefully */
 	if (clockevent_state_shutdown(tick_broadcast_device.evtdev)) {
@@ -696,6 +699,7 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 
 	raw_spin_lock(&tick_broadcast_lock);
 	dev->next_event = KTIME_MAX;
+	tick_broadcast_device.evtdev->next_event_forced = 0;
 	next_event = KTIME_MAX;
 	cpumask_clear(tmpmask);
 	now = ktime_get();
@@ -1063,6 +1067,7 @@ static void tick_broadcast_setup_oneshot(struct clock_event_device *bc,
 
 
 	bc->event_handler = tick_handle_oneshot_broadcast;
+	bc->next_event_forced = 0;
 	bc->next_event = KTIME_MAX;
 
 	/*
@@ -1175,6 +1180,7 @@ void hotplug_cpu__broadcast_tick_pull(int deadcpu)
 		}
 
 		/* This moves the broadcast assignment to this CPU: */
+		bc->next_event_forced = 0;
 		clockevents_program_event(bc, bc->next_event, 1);
 	}
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
