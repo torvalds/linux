@@ -226,6 +226,8 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
 			rtw89_leave_lps_vif(rtwdev, rtwvif_link);
+
+	rtw89_fw_h2c_init_trx_protect(rtwdev);
 }
 
 void rtw89_enter_ips(struct rtw89_dev *rtwdev)

@@ -154,6 +154,10 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	if (!ht_cap_ie || !own_cap_ptr->ht_supported)
 		goto apply;
 
+	/* NDI station are using the capabilities from the NMI station */
+	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_NAN_DATA))
+		return 0;
+
 	ht_cap.ht_supported = true;
 
 	own_cap = *own_cap_ptr;
@@ -254,10 +258,17 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 	link_conf = rcu_dereference(sdata->vif.link_conf[link_sta->link_id]);
-	if (WARN_ON(!link_conf))
+	if (WARN_ON(!link_conf)) {
 		width = NL80211_CHAN_WIDTH_20_NOHT;
-	else
+	} else if (sdata->vif.type == NL80211_IFTYPE_NAN ||
+		   sdata->vif.type == NL80211_IFTYPE_NAN_DATA) {
+		/* In NAN, link_sta->bandwidth is invalid since NAN operates on
+		 * multiple channels. Just take the maximum.
+		 */
+		width = NL80211_CHAN_WIDTH_320;
+	} else {
 		width = link_conf->chanreq.oper.width;
+	}
 
 	switch (width) {
 	default:
@@ -285,7 +296,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
 	if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_NAN ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_NAN_DATA) {
 		enum ieee80211_smps_mode smps_mode;
 
 		switch ((ht_cap.cap & IEEE80211_HT_CAP_SM_PS)

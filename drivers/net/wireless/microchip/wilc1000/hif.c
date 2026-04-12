@@ -1123,7 +1123,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		wid_list[0].size = sizeof(char);
 		wid_list[0].val = (s8 *)&cipher_mode;
 
-		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+		key_buf = kzalloc_flex(*key_buf, key, t_key_len);
 		if (!key_buf)
 			return -ENOMEM;
 
@@ -1151,7 +1151,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		struct wid wid;
 		struct wilc_sta_wpa_ptk *key_buf;
 
-		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+		key_buf = kzalloc_flex(*key_buf, key, t_key_len);
 		if (!key_buf)
 			return -ENOMEM;
 
@@ -1186,7 +1186,7 @@ int wilc_add_igtk(struct wilc_vif *vif, const u8 *igtk, u8 igtk_key_len,
 	struct wid wid;
 	struct wilc_wpa_igtk *key_buf;
 
-	key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+	key_buf = kzalloc_flex(*key_buf, key, t_key_len);
 	if (!key_buf)
 		return -ENOMEM;
 
@@ -1217,7 +1217,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	struct wilc_gtk_key *gtk_key;
 	int t_key_len = gtk_key_len + WILC_RX_MIC_KEY_LEN + WILC_TX_MIC_KEY_LEN;
 
-	gtk_key = kzalloc(sizeof(*gtk_key) + t_key_len, GFP_KERNEL);
+	gtk_key = kzalloc_flex(*gtk_key, key, t_key_len);
 	if (!gtk_key)
 		return -ENOMEM;
 

@@ -987,16 +987,33 @@ struct ieee80211_if_mntr {
  *
  * @conf: current NAN configuration
  * @started: true iff NAN is started
- * @func_lock: lock for @func_inst_ids
- * @function_inst_ids: a bitmap of available instance_id's
+ * @de: Discovery Engine state (only valid if !WIPHY_NAN_FLAGS_USERSPACE_DE)
+ * @de.func_lock: lock for @de.function_inst_ids
+ * @de.function_inst_ids: a bitmap of available instance_id's
+ * @removed_channels: bitmap of channels that should be removed from the NAN
+ *	schedule once the deferred schedule update is completed.
  */
 struct ieee80211_if_nan {
 	struct cfg80211_nan_conf conf;
 	bool started;
 
-	/* protects function_inst_ids */
-	spinlock_t func_lock;
-	struct idr function_inst_ids;
+	struct {
+		/* protects function_inst_ids */
+		spinlock_t func_lock;
+		struct idr function_inst_ids;
+	} de;
+
+	DECLARE_BITMAP(removed_channels, IEEE80211_NAN_MAX_CHANNELS);
+};
+
+/**
+ * struct ieee80211_if_nan_data - NAN data path state
+ *
+ * @nmi: pointer to the NAN management interface sdata. Used for data path,
+ *	hence RCU.
+ */
+struct ieee80211_if_nan_data {
+	struct ieee80211_sub_if_data __rcu *nmi;
 };
 
 struct ieee80211_link_data_managed {
@@ -1197,6 +1214,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_ocb ocb;
 		struct ieee80211_if_mntr mntr;
 		struct ieee80211_if_nan nan;
+		struct ieee80211_if_nan_data nan_data;
 	} u;
 
 	struct ieee80211_link_data deflink;
@@ -1922,10 +1940,6 @@ ieee80211_vif_get_num_mcast_if(struct ieee80211_sub_if_data *sdata)
 	return -1;
 }
 
-u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
-				     struct ieee80211_rx_status *status,
-				     unsigned int mpdu_len,
-				     unsigned int mpdu_offset);
 int ieee80211_hw_config(struct ieee80211_local *local, int radio_idx,
 			u32 changed);
 int ieee80211_hw_conf_chan(struct ieee80211_local *local);
@@ -2024,6 +2038,14 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 			      u64 *changed);
 int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata,
 			      u64 *changed);
+
+/* NAN code */
+int ieee80211_nan_set_local_sched(struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_nan_local_sched *sched);
+int ieee80211_nan_set_peer_sched(struct ieee80211_sub_if_data *sdata,
+				 struct cfg80211_nan_peer_sched *sched);
+void ieee80211_nan_free_peer_sched(struct ieee80211_nan_peer_sched *sched);
+void ieee80211_nan_update_ndi_carrier(struct ieee80211_sub_if_data *ndi_sdata);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct wiphy *wiphy, struct wiphy_work *work);
@@ -2813,7 +2835,17 @@ int ieee80211_max_num_channels(struct ieee80211_local *local, int radio_idx);
 u32 ieee80211_get_radio_mask(struct wiphy *wiphy, struct net_device *dev);
 void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx);
-
+struct ieee80211_chanctx *
+ieee80211_find_or_create_chanctx(struct ieee80211_sub_if_data *sdata,
+				 const struct ieee80211_chan_req *chanreq,
+				 enum ieee80211_chanctx_mode mode,
+				 bool assign_on_failure,
+				 bool *reused_ctx);
+void ieee80211_free_chanctx(struct ieee80211_local *local,
+			    struct ieee80211_chanctx *ctx,
+			    bool skip_idle_recalc);
+int ieee80211_chanctx_num_assigned(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *ctx);
 /* TDLS */
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, int link_id,

@@ -16,6 +16,8 @@ struct ieee80211_chanctx_user_iter {
 	struct ieee80211_chan_req *chanreq;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_link_data *link;
+	struct ieee80211_nan_channel *nan_channel;
+	int nan_channel_next_idx;
 	enum nl80211_iftype iftype;
 	bool reserved, radar_required, done;
 	enum {
@@ -31,20 +33,38 @@ enum ieee80211_chanctx_iter_type {
 	CHANCTX_ITER_ASSIGNED,
 };
 
-static void ieee80211_chanctx_user_iter_next(struct ieee80211_local *local,
-					     struct ieee80211_chanctx *ctx,
-					     struct ieee80211_chanctx_user_iter *iter,
-					     enum ieee80211_chanctx_iter_type type,
-					     bool start)
+static bool
+ieee80211_chanctx_user_iter_next_nan_channel(struct ieee80211_chanctx *ctx,
+					     struct ieee80211_chanctx_user_iter *iter)
 {
-	lockdep_assert_wiphy(local->hw.wiphy);
+	/* Start from the next index after current position */
+	for (int i = iter->nan_channel_next_idx;
+	     i < ARRAY_SIZE(iter->sdata->vif.cfg.nan_sched.channels); i++) {
+		struct ieee80211_nan_channel *nan_channel =
+			&iter->sdata->vif.cfg.nan_sched.channels[i];
 
-	if (start) {
-		memset(iter, 0, sizeof(*iter));
-		goto next_interface;
+		if (!nan_channel->chanreq.oper.chan)
+			continue;
+
+		if (nan_channel->chanctx_conf != &ctx->conf)
+			continue;
+
+		iter->nan_channel = nan_channel;
+		iter->nan_channel_next_idx = i + 1;
+		iter->chanreq = &nan_channel->chanreq;
+		iter->link = NULL;
+		iter->reserved = false;
+		iter->radar_required = false;
+		return true;
 	}
+	return false;
+}
 
-next_link:
+static bool
+ieee80211_chanctx_user_iter_next_link(struct ieee80211_chanctx *ctx,
+				      struct ieee80211_chanctx_user_iter *iter,
+				      enum ieee80211_chanctx_iter_type type)
+{
 	for (int link_id = iter->link ? iter->link->link_id : 0;
 	     link_id < ARRAY_SIZE(iter->sdata->link);
 	     link_id++) {
@@ -64,7 +84,7 @@ next_link:
 				iter->reserved = false;
 				iter->radar_required = link->radar_required;
 				iter->chanreq = &link->conf->chanreq;
-				return;
+				return true;
 			}
 			fallthrough;
 		case CHANCTX_ITER_POS_RESERVED:
@@ -77,7 +97,7 @@ next_link:
 					link->reserved_radar_required;
 
 				iter->chanreq = &link->reserved;
-				return;
+				return true;
 			}
 			fallthrough;
 		case CHANCTX_ITER_POS_DONE:
@@ -85,6 +105,33 @@ next_link:
 			continue;
 		}
 	}
+	return false;
+}
+
+static void
+ieee80211_chanctx_user_iter_next(struct ieee80211_local *local,
+				 struct ieee80211_chanctx *ctx,
+				 struct ieee80211_chanctx_user_iter *iter,
+				 enum ieee80211_chanctx_iter_type type,
+				 bool start)
+{
+	bool found;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (start) {
+		memset(iter, 0, sizeof(*iter));
+		goto next_interface;
+	}
+
+next_user:
+	if (iter->iftype == NL80211_IFTYPE_NAN)
+		found = ieee80211_chanctx_user_iter_next_nan_channel(ctx, iter);
+	else
+		found = ieee80211_chanctx_user_iter_next_link(ctx, iter, type);
+
+	if (found)
+		return;
 
 next_interface:
 	/* next (or first) interface */
@@ -97,10 +144,18 @@ next_interface:
 		if (iter->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;
 
+		/* NAN channels don't reserve channel context */
+		if (iter->sdata->vif.type == NL80211_IFTYPE_NAN &&
+		    type == CHANCTX_ITER_RESERVED)
+			continue;
+
+		iter->nan_channel = NULL;
 		iter->link = NULL;
-		iter->per_link = CHANCTX_ITER_POS_ASSIGNED;
 		iter->iftype = iter->sdata->vif.type;
-		goto next_link;
+		iter->chanreq = NULL;
+		iter->per_link = CHANCTX_ITER_POS_ASSIGNED;
+		iter->nan_channel_next_idx = 0;
+		goto next_user;
 	}
 
 	iter->done = true;
@@ -133,8 +188,8 @@ next_interface:
 					      CHANCTX_ITER_ALL,		\
 					      false))
 
-static int ieee80211_chanctx_num_assigned(struct ieee80211_local *local,
-					  struct ieee80211_chanctx *ctx)
+int ieee80211_chanctx_num_assigned(struct ieee80211_local *local,
+				   struct ieee80211_chanctx *ctx)
 {
 	struct ieee80211_chanctx_user_iter iter;
 	int num = 0;
@@ -321,7 +376,7 @@ ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	for_each_chanctx_user_assigned(local, ctx, &iter) {
-		if (iter.link->reserved_chanctx)
+		if (iter.link && iter.link->reserved_chanctx)
 			continue;
 
 		comp_def = ieee80211_chanreq_compatible(iter.chanreq,
@@ -480,7 +535,6 @@ ieee80211_get_width_of_link(struct ieee80211_link_data *link)
 	case NL80211_IFTYPE_AP_VLAN:
 		return ieee80211_get_max_required_bw(link);
 	case NL80211_IFTYPE_P2P_DEVICE:
-	case NL80211_IFTYPE_NAN:
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		WARN_ON_ONCE(!ieee80211_hw_check(&local->hw,
@@ -495,6 +549,7 @@ ieee80211_get_width_of_link(struct ieee80211_link_data *link)
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_NAN:
 	case NL80211_IFTYPE_NAN_DATA:
 		WARN_ON_ONCE(1);
 		break;
@@ -502,6 +557,18 @@ ieee80211_get_width_of_link(struct ieee80211_link_data *link)
 
 	/* Take the lowest possible, so it won't change the max width */
 	return NL80211_CHAN_WIDTH_20_NOHT;
+}
+
+static enum nl80211_chan_width
+ieee80211_get_width_of_chanctx_user(struct ieee80211_chanctx_user_iter *iter)
+{
+	if (iter->link)
+		return ieee80211_get_width_of_link(iter->link);
+
+	if (WARN_ON_ONCE(!iter->nan_channel || iter->reserved))
+		return NL80211_CHAN_WIDTH_20_NOHT;
+
+	return iter->nan_channel->chanreq.oper.width;
 }
 
 static enum nl80211_chan_width
@@ -521,7 +588,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 	/* When this is true we only care about the reserving links */
 	if (check_reserved) {
 		for_each_chanctx_user_reserved(local, ctx, &iter) {
-			width = ieee80211_get_width_of_link(iter.link);
+			width = ieee80211_get_width_of_chanctx_user(&iter);
 			max_bw = max(max_bw, width);
 		}
 		goto check_monitor;
@@ -529,7 +596,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 
 	/* Consider all assigned links */
 	for_each_chanctx_user_assigned(local, ctx, &iter) {
-		width = ieee80211_get_width_of_link(iter.link);
+		width = ieee80211_get_width_of_chanctx_user(&iter);
 		max_bw = max(max_bw, width);
 	}
 
@@ -943,7 +1010,10 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		kfree(ctx);
 		return ERR_PTR(err);
 	}
-	/* We ignored a driver error, see _ieee80211_set_active_links */
+	/*
+	 * We ignored a driver error, see _ieee80211_set_active_links and/or
+	 * ieee80211_nan_set_local_sched
+	 */
 	WARN_ON_ONCE(err && !local->in_reconfig);
 
 	list_add_rcu(&ctx->list, &local->chanctx_list);
@@ -964,9 +1034,9 @@ static void ieee80211_del_chanctx(struct ieee80211_local *local,
 	ieee80211_remove_wbrf(local, &ctx->conf.def);
 }
 
-static void ieee80211_free_chanctx(struct ieee80211_local *local,
-				   struct ieee80211_chanctx *ctx,
-				   bool skip_idle_recalc)
+void ieee80211_free_chanctx(struct ieee80211_local *local,
+			    struct ieee80211_chanctx *ctx,
+			    bool skip_idle_recalc)
 {
 	lockdep_assert_wiphy(local->hw.wiphy);
 
@@ -1161,6 +1231,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_OCB:
+		case NL80211_IFTYPE_NAN:
 			break;
 		default:
 			continue;
@@ -1170,6 +1241,15 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 			rx_chains_dynamic = rx_chains_static = local->rx_chains;
 			break;
 		}
+
+		if (iter.nan_channel) {
+			rx_chains_dynamic = rx_chains_static =
+				iter.nan_channel->needed_rx_chains;
+			break;
+		}
+
+		if (!iter.link)
+			continue;
 
 		switch (iter.link->smps_mode) {
 		default:
@@ -1240,6 +1320,10 @@ __ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		struct ieee80211_bss_conf *vlan_conf;
+
+		if (vlan->vif.valid_links &&
+		    !(vlan->vif.valid_links & BIT(link_id)))
+			continue;
 
 		vlan_conf = wiphy_dereference(local->hw.wiphy,
 					      vlan->vif.link_conf[link_id]);
@@ -1483,6 +1567,10 @@ ieee80211_link_update_chanreq(struct ieee80211_link_data *link,
 
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		struct ieee80211_bss_conf *vlan_conf;
+
+		if (vlan->vif.valid_links &&
+		    !(vlan->vif.valid_links & BIT(link_id)))
+			continue;
 
 		vlan_conf = wiphy_dereference(sdata->local->hw.wiphy,
 					      vlan->vif.link_conf[link_id]);
@@ -1779,7 +1867,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 		for_each_chanctx_user_assigned(local, ctx->replace_ctx, &iter) {
 			n_assigned++;
-			if (iter.link->reserved_chanctx) {
+			if (iter.link && iter.link->reserved_chanctx) {
 				n_reserved++;
 				if (iter.link->reserved_ready)
 					n_ready++;
@@ -2035,7 +2123,7 @@ void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
 		ieee80211_vif_use_reserved_switch(local);
 }
 
-static struct ieee80211_chanctx *
+struct ieee80211_chanctx *
 ieee80211_find_or_create_chanctx(struct ieee80211_sub_if_data *sdata,
 				 const struct ieee80211_chan_req *chanreq,
 				 enum ieee80211_chanctx_mode mode,

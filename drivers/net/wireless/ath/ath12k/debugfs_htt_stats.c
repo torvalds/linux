@@ -5722,6 +5722,75 @@ ath12k_htt_print_tx_hwq_stats_cmn_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_chan_switch_stats_tlv(const void *tag_buf, u16 tag_len,
+				       struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_chan_switch_stats_tlv *sbuf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 switch_freq, switch_profile;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+	u8 i;
+
+	if (tag_len < sizeof(*sbuf))
+		return;
+
+	i = min(le32_to_cpu(sbuf->switch_count), ATH12K_HTT_CHAN_SWITCH_STATS_BUF_LEN);
+	if (!i)
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "Channel Change Timings:\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "|%-20s|%-21s|%-7s|%-12s|%-12s|%-15s|",
+			 "PRIMARY CHANNEL FREQ", "BANDWIDTH CENTER FREQ", "PHYMODE",
+			 "TX_CHAINMASK", "RX_CHAINMASK", "SWITCH TIME(us)");
+	len += scnprintf(buf + len, buf_len - len,
+			 "%-7s|%-11s|%-7s|%-8s|%-7s|%-10s|\n",
+			 "INI(us)", "TPC+CTL(us)", "CAL(us)", "MISC(us)", "CTL(us)",
+			 "SW PROFILE");
+
+	/*
+	 * sbuf->switch_count has the number of successful channel changes. The firmware
+	 * sends the record of channel change in such a way that sbuf->chan_stats[0] will
+	 * point to the channel change that occurred first and the recent channel change
+	 * records will be stored in sbuf->chan_stats[9]. As and when new channel change
+	 * occurs, sbuf->chan_stats[0] will be replaced by records from the next index,
+	 * sbuf->chan_stats[1]. While printing the records, reverse chronological order
+	 * is followed, i.e., the most recent channel change records are printed first
+	 * and the oldest one, last.
+	 */
+	while (i--) {
+		switch_freq = le32_to_cpu(sbuf->chan_stats[i].chan_switch_freq);
+		switch_profile = le32_to_cpu(sbuf->chan_stats[i].chan_switch_profile);
+
+		len += scnprintf(buf + len, buf_len - len,
+				 "|%20u|%21u|%7u|%12u|%12u|%15u|",
+				 u32_get_bits(switch_freq,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_BW_MHZ),
+				 u32_get_bits(switch_freq,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_BAND_FREQ),
+				 u32_get_bits(switch_profile,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_PHY_MODE),
+				 u32_get_bits(switch_profile,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_TX_CHAINMASK),
+				 u32_get_bits(switch_profile,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_RX_CHAINMASK),
+				 le32_to_cpu(sbuf->chan_stats[i].chan_switch_time));
+		len += scnprintf(buf + len, buf_len - len,
+				 "%7u|%11u|%7u|%8u|%7u|%10u|\n",
+				 le32_to_cpu(sbuf->chan_stats[i].ini_module_time),
+				 le32_to_cpu(sbuf->chan_stats[i].tpc_module_time),
+				 le32_to_cpu(sbuf->chan_stats[i].cal_module_time),
+				 le32_to_cpu(sbuf->chan_stats[i].misc_module_time),
+				 le32_to_cpu(sbuf->chan_stats[i].ctl_module_time),
+				 u32_get_bits(switch_profile,
+					      ATH12K_HTT_STATS_CHAN_SWITCH_SW_PROFILE));
+	}
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -6023,6 +6092,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_TX_HWQ_CMN_TAG:
 		ath12k_htt_print_tx_hwq_stats_cmn_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_CHAN_SWITCH_STATS_TAG:
+		ath12k_htt_print_chan_switch_stats_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;

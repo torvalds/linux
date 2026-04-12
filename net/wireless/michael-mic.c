@@ -5,10 +5,13 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/export.h>
 #include <linux/ieee80211.h>
 #include <linux/unaligned.h>
 
-#include "michael.h"
+struct michael_mic_ctx {
+	u32 l, r;
+};
 
 static void michael_block(struct michael_mic_ctx *mctx, u32 val)
 {
@@ -81,3 +84,4 @@ void michael_mic(const u8 *key, struct ieee80211_hdr *hdr,
 	put_unaligned_le32(mctx.l, mic);
 	put_unaligned_le32(mctx.r, mic + 4);
 }
+EXPORT_SYMBOL_GPL(michael_mic);

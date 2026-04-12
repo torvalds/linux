@@ -998,7 +998,12 @@ static const struct coex_table_para table_sant_8821a[] = {
 	{0x66556655, 0x66556655},
 	{0x66556aaa, 0x6a5a6aaa}, /* case-30 */
 	{0xffffffff, 0x5aaa5aaa},
-	{0x56555555, 0x5a5a5aaa}
+	{0x56555555, 0x5a5a5aaa},
+	{0xdaffdaff, 0xdaffdaff},
+	{0xddffddff, 0xddffddff},
+	{0xe5555555, 0xe5555555}, /* case-35 */
+	{0xea5a5a5a, 0xea5a5a5a},
+	{0xea6a6a6a, 0xea6a6a6a},
 };
 
 /* Non-Shared-Antenna Coex Table */
