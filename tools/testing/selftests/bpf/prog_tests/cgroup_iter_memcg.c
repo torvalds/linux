@@ -107,10 +107,10 @@ static void test_shmem(struct bpf_link *link, struct memcg_query *memcg_query)
 
 	/*
 	 * Increase memcg shmem usage by creating and writing
-	 * to a shmem object.
+	 * to a memfd backed by shmem/tmpfs.
 	 */
-	fd = shm_open("/tmp_shmem", O_CREAT | O_RDWR, 0644);
-	if (!ASSERT_OK_FD(fd, "shm_open"))
+	fd = memfd_create("tmp_shmem", 0);
+	if (!ASSERT_OK_FD(fd, "memfd_create"))
 		return;
 
 	if (!ASSERT_OK(fallocate(fd, 0, 0, len), "fallocate"))
@@ -123,7 +123,6 @@ static void test_shmem(struct bpf_link *link, struct memcg_query *memcg_query)
 
 cleanup:
 	close(fd);
-	shm_unlink("/tmp_shmem");
 }
 
 static void test_pgfault(struct bpf_link *link, struct memcg_query *memcg_query)
