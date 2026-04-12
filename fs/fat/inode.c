@@ -1479,8 +1479,9 @@ static int fat_read_static_bpb(struct super_block *sb,
 	int error = -EINVAL;
 	unsigned i;
 
-	/* 16-bit DOS 1.x reliably wrote bootstrap short-jmp code */
-	if (b->ignored[0] != 0xeb || b->ignored[2] != 0x90) {
+	/* 16-bit DOS 1.x reliably wrote bootstrap short-jmp or near-jmp code */
+	if ((b->ignored[0] != 0xeb || b->ignored[2] != 0x90) &&
+	    (b->ignored[0] != 0xe9)) {
 		if (!silent)
 			fat_msg(sb, KERN_ERR,
 				"%s; no bootstrapping code", notdos1x);
