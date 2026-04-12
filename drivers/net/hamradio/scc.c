@@ -1909,6 +1909,8 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 			if (!capable(CAP_SYS_RAWIO)) return -EPERM;
 			if (!arg || copy_from_user(&memcfg, arg, sizeof(memcfg)))
 				return -EINVAL;
+			if (memcfg.bufsize < 16)
+				return -EINVAL;
 			scc->stat.bufsize   = memcfg.bufsize;
 			return 0;
 		
