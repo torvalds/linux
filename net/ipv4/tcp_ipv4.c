@@ -2160,7 +2160,8 @@ lookup:
 		}
 		refcounted = true;
 		nsk = NULL;
-		if (!tcp_filter(sk, skb, &drop_reason)) {
+		drop_reason = tcp_filter(sk, skb);
+		if (!drop_reason) {
 			th = (const struct tcphdr *)skb->data;
 			iph = ip_hdr(skb);
 			tcp_v4_fill_cb(skb, iph, th);
@@ -2221,7 +2222,8 @@ process:
 
 	nf_reset_ct(skb);
 
-	if (tcp_filter(sk, skb, &drop_reason))
+	drop_reason = tcp_filter(sk, skb);
+	if (drop_reason)
 		goto discard_and_relse;
 
 	th = (const struct tcphdr *)skb->data;

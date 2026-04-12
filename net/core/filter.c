@@ -121,20 +121,20 @@ EXPORT_SYMBOL_GPL(copy_bpf_fprog_from_user);
  *	@sk: sock associated with &sk_buff
  *	@skb: buffer to filter
  *	@cap: limit on how short the eBPF program may trim the packet
- *	@reason: record drop reason on errors (negative return value)
  *
  * Run the eBPF program and then cut skb->data to correct size returned by
  * the program. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
  * wrapper to bpf_prog_run. It returns 0 if the packet should
- * be accepted or -EPERM if the packet should be tossed.
+ * be accepted or a drop_reason if the packet should be tossed.
  *
  */
-int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb,
-		       unsigned int cap, enum skb_drop_reason *reason)
+enum skb_drop_reason
+sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap)
 {
-	int err;
+	enum skb_drop_reason drop_reason;
 	struct sk_filter *filter;
+	int err;
 
 	/*
 	 * If the skb was allocated from pfmemalloc reserves, only
@@ -143,21 +143,17 @@ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb,
 	 */
 	if (skb_pfmemalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC)) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_PFMEMALLOCDROP);
-		*reason = SKB_DROP_REASON_PFMEMALLOC;
-		return -ENOMEM;
+		return SKB_DROP_REASON_PFMEMALLOC;
 	}
 	err = BPF_CGROUP_RUN_PROG_INET_INGRESS(sk, skb);
-	if (err) {
-		*reason = SKB_DROP_REASON_SOCKET_FILTER;
-		return err;
-	}
+	if (err)
+		return SKB_DROP_REASON_SOCKET_FILTER;
 
 	err = security_sock_rcv_skb(sk, skb);
-	if (err) {
-		*reason = SKB_DROP_REASON_SECURITY_HOOK;
-		return err;
-	}
+	if (err)
+		return SKB_DROP_REASON_SECURITY_HOOK;
 
+	drop_reason = 0;
 	rcu_read_lock();
 	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
@@ -169,11 +165,11 @@ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb,
 		skb->sk = save_sk;
 		err = pkt_len ? pskb_trim(skb, max(cap, pkt_len)) : -EPERM;
 		if (err)
-			*reason = SKB_DROP_REASON_SOCKET_FILTER;
+			drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
 	}
 	rcu_read_unlock();
 
-	return err;
+	return drop_reason;
 }
 EXPORT_SYMBOL(sk_filter_trim_cap);
 
