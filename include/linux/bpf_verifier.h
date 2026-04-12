@@ -1204,6 +1204,7 @@ int bpf_stack_liveness_init(struct bpf_verifier_env *env);
 void bpf_stack_liveness_free(struct bpf_verifier_env *env);
 int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
 bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
+int bpf_compute_live_registers(struct bpf_verifier_env *env);
 
 #define BPF_MAP_KEY_POISON	(1ULL << 63)
 #define BPF_MAP_KEY_SEEN	(1ULL << 62)
@@ -1234,6 +1235,7 @@ static inline u64 bpf_map_key_immediate(const struct bpf_insn_aux_data *aux)
 }
 
 #define MAX_PACKET_OFF 0xffff
+#define CALLER_SAVED_REGS 6
 
 enum bpf_reg_arg_type {
 	SRC_OP,		/* register is used as source operand */
