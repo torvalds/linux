@@ -1068,6 +1068,73 @@ void bpf_free_kfunc_btf_tab(struct bpf_kfunc_btf_tab *tab);
 
 int mark_chain_precision(struct bpf_verifier_env *env, int regno);
 
+int bpf_is_state_visited(struct bpf_verifier_env *env, int insn_idx);
+int bpf_update_branch_counts(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
+
+void bpf_clear_jmp_history(struct bpf_verifier_state *state);
+int bpf_copy_verifier_state(struct bpf_verifier_state *dst_state,
+			    const struct bpf_verifier_state *src);
+struct list_head *bpf_explored_state(struct bpf_verifier_env *env, int idx);
+void bpf_free_verifier_state(struct bpf_verifier_state *state, bool free_self);
+void bpf_free_backedges(struct bpf_scc_visit *visit);
+int bpf_push_jmp_history(struct bpf_verifier_env *env, struct bpf_verifier_state *cur,
+			 int insn_flags, u64 linked_regs);
+void bpf_mark_reg_not_init(const struct bpf_verifier_env *env,
+			   struct bpf_reg_state *reg);
+void bpf_mark_reg_unknown_imprecise(struct bpf_reg_state *reg);
+void bpf_mark_all_scalars_precise(struct bpf_verifier_env *env,
+				  struct bpf_verifier_state *st);
+void bpf_clear_singular_ids(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
+int bpf_mark_chain_precision(struct bpf_verifier_env *env,
+			     struct bpf_verifier_state *starting_state,
+			     int regno, bool *changed);
+
+static inline int bpf_get_spi(s32 off)
+{
+	return (-off - 1) / BPF_REG_SIZE;
+}
+
+static inline struct bpf_func_state *bpf_func(struct bpf_verifier_env *env,
+					      const struct bpf_reg_state *reg)
+{
+	struct bpf_verifier_state *cur = env->cur_state;
+
+	return cur->frame[reg->frameno];
+}
+
+/* Return IP for a given frame in a call stack */
+static inline u32 bpf_frame_insn_idx(struct bpf_verifier_state *st, u32 frame)
+{
+	return frame == st->curframe
+	       ? st->insn_idx
+	       : st->frame[frame + 1]->callsite;
+}
+
+static inline bool bpf_is_jmp_point(struct bpf_verifier_env *env, int insn_idx)
+{
+	return env->insn_aux_data[insn_idx].jmp_point;
+}
+
+static inline bool bpf_is_spilled_reg(const struct bpf_stack_state *stack)
+{
+	return stack->slot_type[BPF_REG_SIZE - 1] == STACK_SPILL;
+}
+
+static inline bool bpf_register_is_null(struct bpf_reg_state *reg)
+{
+	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
+}
+
+static inline void bpf_bt_set_frame_reg(struct backtrack_state *bt, u32 frame, u32 reg)
+{
+	bt->reg_masks[frame] |= 1 << reg;
+}
+
+static inline void bpf_bt_set_frame_slot(struct backtrack_state *bt, u32 frame, u32 slot)
+{
+	bt->stack_masks[frame] |= 1ull << slot;
+}
+
 bool bpf_map_is_rdonly(const struct bpf_map *map);
 int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
 			bool is_ldsx);
