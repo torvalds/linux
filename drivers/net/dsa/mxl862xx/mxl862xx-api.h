@@ -1224,4 +1224,146 @@ struct mxl862xx_sys_fw_image_version {
 	__le32 iv_build_num;
 } __packed;
 
+/**
+ * enum mxl862xx_port_type - Port Type
+ * @MXL862XX_LOGICAL_PORT: Logical Port
+ * @MXL862XX_PHYSICAL_PORT: Physical Port
+ * @MXL862XX_CTP_PORT: Connectivity Termination Port (CTP)
+ * @MXL862XX_BRIDGE_PORT: Bridge Port
+ */
+enum mxl862xx_port_type {
+	MXL862XX_LOGICAL_PORT = 0,
+	MXL862XX_PHYSICAL_PORT,
+	MXL862XX_CTP_PORT,
+	MXL862XX_BRIDGE_PORT,
+};
+
+/**
+ * enum mxl862xx_rmon_port_type - RMON counter table type
+ * @MXL862XX_RMON_CTP_PORT_RX: CTP RX counters
+ * @MXL862XX_RMON_CTP_PORT_TX: CTP TX counters
+ * @MXL862XX_RMON_BRIDGE_PORT_RX: Bridge port RX counters
+ * @MXL862XX_RMON_BRIDGE_PORT_TX: Bridge port TX counters
+ * @MXL862XX_RMON_CTP_PORT_PCE_BYPASS: CTP PCE bypass counters
+ * @MXL862XX_RMON_TFLOW_RX: TFLOW RX counters
+ * @MXL862XX_RMON_TFLOW_TX: TFLOW TX counters
+ * @MXL862XX_RMON_QMAP: QMAP counters
+ * @MXL862XX_RMON_METER: Meter counters
+ * @MXL862XX_RMON_PMAC: PMAC counters
+ */
+enum mxl862xx_rmon_port_type {
+	MXL862XX_RMON_CTP_PORT_RX = 0,
+	MXL862XX_RMON_CTP_PORT_TX,
+	MXL862XX_RMON_BRIDGE_PORT_RX,
+	MXL862XX_RMON_BRIDGE_PORT_TX,
+	MXL862XX_RMON_CTP_PORT_PCE_BYPASS,
+	MXL862XX_RMON_TFLOW_RX,
+	MXL862XX_RMON_TFLOW_TX,
+	MXL862XX_RMON_QMAP = 0x0e,
+	MXL862XX_RMON_METER = 0x19,
+	MXL862XX_RMON_PMAC = 0x1c,
+};
+
+/**
+ * struct mxl862xx_rmon_port_cnt - RMON counters for a port
+ * @port_type: Port type for counter retrieval (see &enum mxl862xx_port_type)
+ * @port_id: Ethernet port number (zero-based)
+ * @sub_if_id_group: Sub-interface ID group
+ * @pce_bypass: Separate CTP Tx counters when PCE is bypassed
+ * @rx_extended_vlan_discard_pkts: Discarded at extended VLAN operation
+ * @mtu_exceed_discard_pkts: Discarded due to MTU exceeded
+ * @tx_under_size_good_pkts: Tx undersize (<64) packet count
+ * @tx_oversize_good_pkts: Tx oversize (>1518) packet count
+ * @rx_good_pkts: Received good packet count
+ * @rx_unicast_pkts: Received unicast packet count
+ * @rx_broadcast_pkts: Received broadcast packet count
+ * @rx_multicast_pkts: Received multicast packet count
+ * @rx_fcserror_pkts: Received FCS error packet count
+ * @rx_under_size_good_pkts: Received undersize good packet count
+ * @rx_oversize_good_pkts: Received oversize good packet count
+ * @rx_under_size_error_pkts: Received undersize error packet count
+ * @rx_good_pause_pkts: Received good pause packet count
+ * @rx_oversize_error_pkts: Received oversize error packet count
+ * @rx_align_error_pkts: Received alignment error packet count
+ * @rx_filtered_pkts: Filtered packet count
+ * @rx64byte_pkts: Received 64-byte packet count
+ * @rx127byte_pkts: Received 65-127 byte packet count
+ * @rx255byte_pkts: Received 128-255 byte packet count
+ * @rx511byte_pkts: Received 256-511 byte packet count
+ * @rx1023byte_pkts: Received 512-1023 byte packet count
+ * @rx_max_byte_pkts: Received 1024-max byte packet count
+ * @tx_good_pkts: Transmitted good packet count
+ * @tx_unicast_pkts: Transmitted unicast packet count
+ * @tx_broadcast_pkts: Transmitted broadcast packet count
+ * @tx_multicast_pkts: Transmitted multicast packet count
+ * @tx_single_coll_count: Transmit single collision count
+ * @tx_mult_coll_count: Transmit multiple collision count
+ * @tx_late_coll_count: Transmit late collision count
+ * @tx_excess_coll_count: Transmit excessive collision count
+ * @tx_coll_count: Transmit collision count
+ * @tx_pause_count: Transmit pause packet count
+ * @tx64byte_pkts: Transmitted 64-byte packet count
+ * @tx127byte_pkts: Transmitted 65-127 byte packet count
+ * @tx255byte_pkts: Transmitted 128-255 byte packet count
+ * @tx511byte_pkts: Transmitted 256-511 byte packet count
+ * @tx1023byte_pkts: Transmitted 512-1023 byte packet count
+ * @tx_max_byte_pkts: Transmitted 1024-max byte packet count
+ * @tx_dropped_pkts: Transmit dropped packet count
+ * @tx_acm_dropped_pkts: Transmit ACM dropped packet count
+ * @rx_dropped_pkts: Received dropped packet count
+ * @rx_good_bytes: Received good byte count (64-bit)
+ * @rx_bad_bytes: Received bad byte count (64-bit)
+ * @tx_good_bytes: Transmitted good byte count (64-bit)
+ */
+struct mxl862xx_rmon_port_cnt {
+	__le32 port_type; /* enum mxl862xx_port_type */
+	__le16 port_id;
+	__le16 sub_if_id_group;
+	u8 pce_bypass;
+	__le32 rx_extended_vlan_discard_pkts;
+	__le32 mtu_exceed_discard_pkts;
+	__le32 tx_under_size_good_pkts;
+	__le32 tx_oversize_good_pkts;
+	__le32 rx_good_pkts;
+	__le32 rx_unicast_pkts;
+	__le32 rx_broadcast_pkts;
+	__le32 rx_multicast_pkts;
+	__le32 rx_fcserror_pkts;
+	__le32 rx_under_size_good_pkts;
+	__le32 rx_oversize_good_pkts;
+	__le32 rx_under_size_error_pkts;
+	__le32 rx_good_pause_pkts;
+	__le32 rx_oversize_error_pkts;
+	__le32 rx_align_error_pkts;
+	__le32 rx_filtered_pkts;
+	__le32 rx64byte_pkts;
+	__le32 rx127byte_pkts;
+	__le32 rx255byte_pkts;
+	__le32 rx511byte_pkts;
+	__le32 rx1023byte_pkts;
+	__le32 rx_max_byte_pkts;
+	__le32 tx_good_pkts;
+	__le32 tx_unicast_pkts;
+	__le32 tx_broadcast_pkts;
+	__le32 tx_multicast_pkts;
+	__le32 tx_single_coll_count;
+	__le32 tx_mult_coll_count;
+	__le32 tx_late_coll_count;
+	__le32 tx_excess_coll_count;
+	__le32 tx_coll_count;
+	__le32 tx_pause_count;
+	__le32 tx64byte_pkts;
+	__le32 tx127byte_pkts;
+	__le32 tx255byte_pkts;
+	__le32 tx511byte_pkts;
+	__le32 tx1023byte_pkts;
+	__le32 tx_max_byte_pkts;
+	__le32 tx_dropped_pkts;
+	__le32 tx_acm_dropped_pkts;
+	__le32 rx_dropped_pkts;
+	__le64 rx_good_bytes;
+	__le64 rx_bad_bytes;
+	__le64 tx_good_bytes;
+} __packed;
+
 #endif /* __MXL862XX_API_H */
