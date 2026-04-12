@@ -124,79 +124,40 @@ static const struct {
 	{ ENETC_SITFRM, "SI tx frames" },
 	{ ENETC_SITUCA, "SI tx u-cast frames" },
 	{ ENETC_SITMCA, "SI tx m-cast frames" },
-	{ ENETC_RBDCR(0), "Rx ring  0 discarded frames" },
-	{ ENETC_RBDCR(1), "Rx ring  1 discarded frames" },
-	{ ENETC_RBDCR(2), "Rx ring  2 discarded frames" },
-	{ ENETC_RBDCR(3), "Rx ring  3 discarded frames" },
-	{ ENETC_RBDCR(4), "Rx ring  4 discarded frames" },
-	{ ENETC_RBDCR(5), "Rx ring  5 discarded frames" },
-	{ ENETC_RBDCR(6), "Rx ring  6 discarded frames" },
-	{ ENETC_RBDCR(7), "Rx ring  7 discarded frames" },
-	{ ENETC_RBDCR(8), "Rx ring  8 discarded frames" },
-	{ ENETC_RBDCR(9), "Rx ring  9 discarded frames" },
-	{ ENETC_RBDCR(10), "Rx ring 10 discarded frames" },
-	{ ENETC_RBDCR(11), "Rx ring 11 discarded frames" },
-	{ ENETC_RBDCR(12), "Rx ring 12 discarded frames" },
-	{ ENETC_RBDCR(13), "Rx ring 13 discarded frames" },
-	{ ENETC_RBDCR(14), "Rx ring 14 discarded frames" },
-	{ ENETC_RBDCR(15), "Rx ring 15 discarded frames" },
 };
 
 static const struct {
 	int reg;
 	char name[ETH_GSTRING_LEN] __nonstring;
-} enetc_pm_counters[] = {
-	{ ENETC_PM_REOCT(0),	"MAC rx ethernet octets" },
-	{ ENETC_PM_RALN(0),	"MAC rx alignment errors" },
-	{ ENETC_PM_RXPF(0),	"MAC rx valid pause frames" },
-	{ ENETC_PM_RFRM(0),	"MAC rx valid frames" },
-	{ ENETC_PM_RFCS(0),	"MAC rx fcs errors" },
-	{ ENETC_PM_RVLAN(0),	"MAC rx VLAN frames" },
-	{ ENETC_PM_RERR(0),	"MAC rx frame errors" },
-	{ ENETC_PM_RUCA(0),	"MAC rx unicast frames" },
-	{ ENETC_PM_RMCA(0),	"MAC rx multicast frames" },
-	{ ENETC_PM_RBCA(0),	"MAC rx broadcast frames" },
-	{ ENETC_PM_RDRP(0),	"MAC rx dropped packets" },
-	{ ENETC_PM_RPKT(0),	"MAC rx packets" },
-	{ ENETC_PM_RUND(0),	"MAC rx undersized packets" },
-	{ ENETC_PM_R64(0),	"MAC rx 64 byte packets" },
-	{ ENETC_PM_R127(0),	"MAC rx 65-127 byte packets" },
-	{ ENETC_PM_R255(0),	"MAC rx 128-255 byte packets" },
-	{ ENETC_PM_R511(0),	"MAC rx 256-511 byte packets" },
-	{ ENETC_PM_R1023(0),	"MAC rx 512-1023 byte packets" },
-	{ ENETC_PM_R1522(0),	"MAC rx 1024-1522 byte packets" },
-	{ ENETC_PM_R1523X(0),	"MAC rx 1523 to max-octet packets" },
-	{ ENETC_PM_ROVR(0),	"MAC rx oversized packets" },
-	{ ENETC_PM_RJBR(0),	"MAC rx jabber packets" },
-	{ ENETC_PM_RFRG(0),	"MAC rx fragment packets" },
-	{ ENETC_PM_RCNP(0),	"MAC rx control packets" },
-	{ ENETC_PM_RDRNTP(0),	"MAC rx fifo drop" },
-	{ ENETC_PM_TEOCT(0),	"MAC tx ethernet octets" },
-	{ ENETC_PM_TOCT(0),	"MAC tx octets" },
-	{ ENETC_PM_TCRSE(0),	"MAC tx carrier sense errors" },
-	{ ENETC_PM_TXPF(0),	"MAC tx valid pause frames" },
-	{ ENETC_PM_TFRM(0),	"MAC tx frames" },
-	{ ENETC_PM_TFCS(0),	"MAC tx fcs errors" },
-	{ ENETC_PM_TVLAN(0),	"MAC tx VLAN frames" },
-	{ ENETC_PM_TERR(0),	"MAC tx frame errors" },
-	{ ENETC_PM_TUCA(0),	"MAC tx unicast frames" },
-	{ ENETC_PM_TMCA(0),	"MAC tx multicast frames" },
-	{ ENETC_PM_TBCA(0),	"MAC tx broadcast frames" },
-	{ ENETC_PM_TPKT(0),	"MAC tx packets" },
-	{ ENETC_PM_TUND(0),	"MAC tx undersized packets" },
-	{ ENETC_PM_T64(0),	"MAC tx 64 byte packets" },
-	{ ENETC_PM_T127(0),	"MAC tx 65-127 byte packets" },
-	{ ENETC_PM_T255(0),	"MAC tx 128-255 byte packets" },
-	{ ENETC_PM_T511(0),	"MAC tx 256-511 byte packets" },
-	{ ENETC_PM_T1023(0),	"MAC tx 512-1023 byte packets" },
-	{ ENETC_PM_T1522(0),	"MAC tx 1024-1522 byte packets" },
-	{ ENETC_PM_T1523X(0),	"MAC tx 1523 to max-octet packets" },
-	{ ENETC_PM_TCNP(0),	"MAC tx control packets" },
-	{ ENETC_PM_TDFR(0),	"MAC tx deferred packets" },
-	{ ENETC_PM_TMCOL(0),	"MAC tx multiple collisions" },
-	{ ENETC_PM_TSCOL(0),	"MAC tx single collisions" },
-	{ ENETC_PM_TLCOL(0),	"MAC tx late collisions" },
-	{ ENETC_PM_TECOL(0),	"MAC tx excessive collisions" },
+} enetc_emac_counters[] = {
+	{ ENETC_PM_RVLAN(0),	"eMAC rx VLAN frames" },
+	{ ENETC_PM_RERR(0),	"eMAC rx frame errors" },
+	{ ENETC_PM_RUCA(0),	"eMAC rx unicast frames" },
+	{ ENETC_PM_RDRP(0),	"eMAC rx dropped packets" },
+	{ ENETC_PM_RPKT(0),	"eMAC rx packets" },
+	{ ENETC_PM_TOCT(0),	"eMAC tx octets" },
+	{ ENETC_PM_TFCS(0),	"eMAC tx fcs errors" },
+	{ ENETC_PM_TVLAN(0),	"eMAC tx VLAN frames" },
+	{ ENETC_PM_TUCA(0),	"eMAC tx unicast frames" },
+	{ ENETC_PM_TPKT(0),	"eMAC tx packets" },
+	{ ENETC_PM_TUND(0),	"eMAC tx undersized packets" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc_pmac_counters[] = {
+	{ ENETC_PM_RVLAN(1),	"pMAC rx VLAN frames" },
+	{ ENETC_PM_RERR(1),	"pMAC rx frame errors" },
+	{ ENETC_PM_RUCA(1),	"pMAC rx unicast frames" },
+	{ ENETC_PM_RDRP(1),	"pMAC rx dropped packets" },
+	{ ENETC_PM_RPKT(1),	"pMAC rx packets" },
+	{ ENETC_PM_TOCT(1),	"pMAC tx octets" },
+	{ ENETC_PM_TFCS(1),	"pMAC tx fcs errors" },
+	{ ENETC_PM_TVLAN(1),	"pMAC tx VLAN frames" },
+	{ ENETC_PM_TUCA(1),	"pMAC tx unicast frames" },
+	{ ENETC_PM_TPKT(1),	"pMAC tx packets" },
+	{ ENETC_PM_TUND(1),	"pMAC tx undersized packets" },
 };
 
 static const struct {
@@ -216,6 +177,65 @@ static const struct {
 	{ ENETC_PICDR(3),	"ICM DR3 discarded frames" },
 };
 
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc4_emac_counters[] = {
+	{ ENETC4_PM_ROCT(0),	"eMAC rx octets" },
+	{ ENETC4_PM_RVLAN(0),	"eMAC rx VLAN frames" },
+	{ ENETC4_PM_RERR(0),	"eMAC rx frame errors" },
+	{ ENETC4_PM_RUCA(0),	"eMAC rx unicast frames" },
+	{ ENETC4_PM_RDRP(0),	"eMAC rx dropped packets" },
+	{ ENETC4_PM_RPKT(0),	"eMAC rx packets" },
+	{ ENETC4_PM_TOCT(0),	"eMAC tx octets" },
+	{ ENETC4_PM_TVLAN(0),	"eMAC tx VLAN frames" },
+	{ ENETC4_PM_TFCS(0),	"eMAC tx fcs errors" },
+	{ ENETC4_PM_TUCA(0),	"eMAC tx unicast frames" },
+	{ ENETC4_PM_TPKT(0),	"eMAC tx packets" },
+	{ ENETC4_PM_TUND(0),	"eMAC tx undersized packets" },
+	{ ENETC4_PM_TIOCT(0),	"eMAC tx invalid octets" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc4_pmac_counters[] = {
+	{ ENETC4_PM_ROCT(1),	"pMAC rx octets" },
+	{ ENETC4_PM_RVLAN(1),	"pMAC rx VLAN frames" },
+	{ ENETC4_PM_RERR(1),	"pMAC rx frame errors" },
+	{ ENETC4_PM_RUCA(1),	"pMAC rx unicast frames" },
+	{ ENETC4_PM_RDRP(1),	"pMAC rx dropped packets" },
+	{ ENETC4_PM_RPKT(1),	"pMAC rx packets" },
+	{ ENETC4_PM_TOCT(1),	"pMAC tx octets" },
+	{ ENETC4_PM_TVLAN(1),	"pMAC tx VLAN frames" },
+	{ ENETC4_PM_TFCS(1),	"pMAC tx fcs errors" },
+	{ ENETC4_PM_TUCA(1),	"pMAC tx unicast frames" },
+	{ ENETC4_PM_TPKT(1),	"pMAC tx packets" },
+	{ ENETC4_PM_TUND(1),	"pMAC tx undersized packets" },
+	{ ENETC4_PM_TIOCT(1),	"pMAC tx invalid octets" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc4_port_counters[] = {
+	{ ENETC4_PICDRDCR(0),	"ICM DR0 discarded frames" },
+	{ ENETC4_PICDRDCR(1),	"ICM DR1 discarded frames" },
+	{ ENETC4_PICDRDCR(2),	"ICM DR2 discarded frames" },
+	{ ENETC4_PICDRDCR(3),	"ICM DR3 discarded frames" },
+	{ ENETC4_PUFDMFR,	"MAC filter discarded unicast" },
+	{ ENETC4_PMFDMFR,	"MAC filter discarded multicast" },
+	{ ENETC4_PBFDSIR,	"MAC filter discarded broadcast" },
+	{ ENETC4_PFDMSAPR,	"MAC SA pruning discarded frames" },
+	{ ENETC4_PUFDVFR,	"VLAN filter discarded unicast" },
+	{ ENETC4_PMFDVFR,	"VLAN filter discarded multicast" },
+	{ ENETC4_PBFDVFR,	"VLAN filter discarded broadcast" },
+	{ ENETC4_PRXDCR,	"MAC rx discarded frames" },
+	{ ENETC4_PRXDCRRR,	"MAC rx discard read-reset" },
+	{ ENETC4_PRXDCRR0,	"MAC rx discard reason 0" },
+	{ ENETC4_PRXDCRR1,	"MAC rx discard reason 1" },
+};
+
 static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d frames",
 	"Rx ring %2d alloc errors",
@@ -224,6 +244,7 @@ static const char rx_ring_stats[][ETH_GSTRING_LEN] = {
 	"Rx ring %2d recycle failures",
 	"Rx ring %2d redirects",
 	"Rx ring %2d redirect failures",
+	"Rx ring %2d discarded frames",
 };
 
 static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
@@ -236,6 +257,7 @@ static const char tx_ring_stats[][ETH_GSTRING_LEN] = {
 static int enetc_get_sset_count(struct net_device *ndev, int sset)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_si *si = priv->si;
 	int len;
 
 	if (sset != ETH_SS_STATS)
@@ -245,18 +267,69 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 	      ARRAY_SIZE(tx_ring_stats) * priv->num_tx_rings +
 	      ARRAY_SIZE(rx_ring_stats) * priv->num_rx_rings;
 
-	if (!enetc_si_is_pf(priv->si))
+	if (!enetc_si_is_pf(si))
 		return len;
 
-	len += ARRAY_SIZE(enetc_port_counters);
-	len += ARRAY_SIZE(enetc_pm_counters);
+	if (is_enetc_rev1(si)) {
+		len += ARRAY_SIZE(enetc_port_counters);
+		len += ARRAY_SIZE(enetc_emac_counters);
+		if (si->hw_features & ENETC_SI_F_QBU)
+			len += ARRAY_SIZE(enetc_pmac_counters);
+	} else {
+		len += ARRAY_SIZE(enetc4_port_counters);
+
+		if (enetc_is_pseudo_mac(si))
+			return len;
+
+		len += ARRAY_SIZE(enetc4_emac_counters);
+		if (si->hw_features & ENETC_SI_F_QBU)
+			len += ARRAY_SIZE(enetc4_pmac_counters);
+	}
 
 	return len;
+}
+
+static void enetc_get_pf_strings(struct enetc_si *si, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
+		ethtool_cpy(&data, enetc_port_counters[i].name);
+
+	for (i = 0; i < ARRAY_SIZE(enetc_emac_counters); i++)
+		ethtool_cpy(&data, enetc_emac_counters[i].name);
+
+	if (!(si->hw_features & ENETC_SI_F_QBU))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_pmac_counters); i++)
+		ethtool_cpy(&data, enetc_pmac_counters[i].name);
+}
+
+static void enetc4_get_pf_strings(struct enetc_si *si, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_port_counters); i++)
+		ethtool_cpy(&data, enetc4_port_counters[i].name);
+
+	if (enetc_is_pseudo_mac(si))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_emac_counters); i++)
+		ethtool_cpy(&data, enetc4_emac_counters[i].name);
+
+	if (!(si->hw_features & ENETC_SI_F_QBU))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_pmac_counters); i++)
+		ethtool_cpy(&data, enetc4_pmac_counters[i].name);
 }
 
 static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct enetc_si *si = priv->si;
 	int i, j;
 
 	switch (stringset) {
@@ -270,24 +343,63 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 			for (j = 0; j < ARRAY_SIZE(rx_ring_stats); j++)
 				ethtool_sprintf(&data, rx_ring_stats[j], i);
 
-		if (!enetc_si_is_pf(priv->si))
+		if (!enetc_si_is_pf(si))
 			break;
 
-		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
-			ethtool_cpy(&data, enetc_port_counters[i].name);
-
-		for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
-			ethtool_cpy(&data, enetc_pm_counters[i].name);
+		if (is_enetc_rev1(si))
+			enetc_get_pf_strings(si, data);
+		else
+			enetc4_get_pf_strings(si, data);
 
 		break;
 	}
+}
+
+static void enetc_pf_get_ethtool_stats(struct enetc_si *si, int *o, u64 *data)
+{
+	struct enetc_hw *hw = &si->hw;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
+		data[(*o)++] = enetc_port_rd(hw, enetc_port_counters[i].reg);
+
+	for (i = 0; i < ARRAY_SIZE(enetc_emac_counters); i++)
+		data[(*o)++] = enetc_port_rd64(hw, enetc_emac_counters[i].reg);
+
+	if (!(si->hw_features & ENETC_SI_F_QBU))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_pmac_counters); i++)
+		data[(*o)++] = enetc_port_rd64(hw, enetc_pmac_counters[i].reg);
+}
+
+static void enetc4_pf_get_ethtool_stats(struct enetc_si *si, int *o, u64 *data)
+{
+	struct enetc_hw *hw = &si->hw;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_port_counters); i++)
+		data[(*o)++] = enetc_port_rd(hw, enetc4_port_counters[i].reg);
+
+	if (enetc_is_pseudo_mac(si))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_emac_counters); i++)
+		data[(*o)++] = enetc_port_rd64(hw, enetc4_emac_counters[i].reg);
+
+	if (!(si->hw_features & ENETC_SI_F_QBU))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(enetc4_pmac_counters); i++)
+		data[(*o)++] = enetc_port_rd64(hw, enetc4_pmac_counters[i].reg);
 }
 
 static void enetc_get_ethtool_stats(struct net_device *ndev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
+	struct enetc_hw *hw = &si->hw;
 	int i, o = 0;
 
 	for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++)
@@ -308,39 +420,50 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 		data[o++] = priv->rx_ring[i]->stats.recycle_failures;
 		data[o++] = priv->rx_ring[i]->stats.xdp_redirect;
 		data[o++] = priv->rx_ring[i]->stats.xdp_redirect_failures;
+		data[o++] = enetc_rd(hw, ENETC_RBDCR(i));
 	}
 
-	if (!enetc_si_is_pf(priv->si))
+	if (!enetc_si_is_pf(si))
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
-		data[o++] = enetc_port_rd(hw, enetc_port_counters[i].reg);
-
-	for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
-		data[o++] = enetc_port_rd64(hw, enetc_pm_counters[i].reg);
+	if (is_enetc_rev1(si))
+		enetc_pf_get_ethtool_stats(si, &o, data);
+	else
+		enetc4_pf_get_ethtool_stats(si, &o, data);
 }
 
-static void enetc_pause_stats(struct enetc_hw *hw, int mac,
+static void enetc_pause_stats(struct enetc_si *si, int mac,
 			      struct ethtool_pause_stats *pause_stats)
 {
-	pause_stats->tx_pause_frames = enetc_port_rd64(hw, ENETC_PM_TXPF(mac));
-	pause_stats->rx_pause_frames = enetc_port_rd64(hw, ENETC_PM_RXPF(mac));
+	struct enetc_hw *hw = &si->hw;
+
+	switch (si->pdev->revision) {
+	case ENETC_REV1:
+		pause_stats->tx_pause_frames = enetc_port_rd64(hw, ENETC_PM_TXPF(mac));
+		pause_stats->rx_pause_frames = enetc_port_rd64(hw, ENETC_PM_RXPF(mac));
+		break;
+	case ENETC_REV4:
+		pause_stats->tx_pause_frames = enetc_port_rd64(hw, ENETC4_PM_TXPF(mac));
+		pause_stats->rx_pause_frames = enetc_port_rd64(hw, ENETC4_PM_RXPF(mac));
+		break;
+	default:
+		break;
+	}
 }
 
 static void enetc_get_pause_stats(struct net_device *ndev,
 				  struct ethtool_pause_stats *pause_stats)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_si *si = priv->si;
 
 	switch (pause_stats->src) {
 	case ETHTOOL_MAC_STATS_SRC_EMAC:
-		enetc_pause_stats(hw, 0, pause_stats);
+		enetc_pause_stats(si, 0, pause_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_PMAC:
 		if (si->hw_features & ENETC_SI_F_QBU)
-			enetc_pause_stats(hw, 1, pause_stats);
+			enetc_pause_stats(si, 1, pause_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
 		ethtool_aggregate_pause_stats(ndev, pause_stats);
@@ -371,11 +494,45 @@ static void enetc_mac_stats(struct enetc_hw *hw, int mac,
 	s->BroadcastFramesReceivedOK = enetc_port_rd64(hw, ENETC_PM_RBCA(mac));
 }
 
-static void enetc_ctrl_stats(struct enetc_hw *hw, int mac,
+static void enetc4_mac_stats(struct enetc_hw *hw, int mac,
+			     struct ethtool_eth_mac_stats *s)
+{
+	s->FramesTransmittedOK = enetc_port_rd64(hw, ENETC4_PM_TFRM(mac));
+	s->SingleCollisionFrames = enetc_port_rd64(hw, ENETC4_PM_TSCOL(mac));
+	s->MultipleCollisionFrames = enetc_port_rd64(hw, ENETC4_PM_TMCOL(mac));
+	s->FramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RFRM(mac));
+	s->FrameCheckSequenceErrors = enetc_port_rd64(hw, ENETC4_PM_RFCS(mac));
+	s->AlignmentErrors = enetc_port_rd64(hw, ENETC4_PM_RALN(mac));
+	s->OctetsTransmittedOK = enetc_port_rd64(hw, ENETC4_PM_TEOCT(mac));
+	s->FramesWithDeferredXmissions = enetc_port_rd64(hw, ENETC4_PM_TDFR(mac));
+	s->LateCollisions = enetc_port_rd64(hw, ENETC4_PM_TLCOL(mac));
+	s->FramesAbortedDueToXSColls = enetc_port_rd64(hw, ENETC4_PM_TECOL(mac));
+	s->FramesLostDueToIntMACXmitError = enetc_port_rd64(hw, ENETC4_PM_TERR(mac));
+	s->OctetsReceivedOK = enetc_port_rd64(hw, ENETC4_PM_REOCT(mac));
+	s->FramesLostDueToIntMACRcvError = enetc_port_rd64(hw, ENETC4_PM_RDRNTP(mac));
+	s->MulticastFramesXmittedOK = enetc_port_rd64(hw, ENETC4_PM_TMCA(mac));
+	s->BroadcastFramesXmittedOK = enetc_port_rd64(hw, ENETC4_PM_TBCA(mac));
+	s->MulticastFramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RMCA(mac));
+	s->BroadcastFramesReceivedOK = enetc_port_rd64(hw, ENETC4_PM_RBCA(mac));
+}
+
+static void enetc_ctrl_stats(struct enetc_si *si, int mac,
 			     struct ethtool_eth_ctrl_stats *s)
 {
-	s->MACControlFramesTransmitted = enetc_port_rd64(hw, ENETC_PM_TCNP(mac));
-	s->MACControlFramesReceived = enetc_port_rd64(hw, ENETC_PM_RCNP(mac));
+	struct enetc_hw *hw = &si->hw;
+
+	switch (si->pdev->revision) {
+	case ENETC_REV1:
+		s->MACControlFramesTransmitted = enetc_port_rd64(hw, ENETC_PM_TCNP(mac));
+		s->MACControlFramesReceived = enetc_port_rd64(hw, ENETC_PM_RCNP(mac));
+		break;
+	case ENETC_REV4:
+		s->MACControlFramesTransmitted = enetc_port_rd64(hw, ENETC4_PM_TCNP(mac));
+		s->MACControlFramesReceived = enetc_port_rd64(hw, ENETC4_PM_RCNP(mac));
+		break;
+	default:
+		break;
+	}
 }
 
 static const struct ethtool_rmon_hist_range enetc_rmon_ranges[] = {
@@ -414,20 +571,61 @@ static void enetc_rmon_stats(struct enetc_hw *hw, int mac,
 	s->hist_tx[6] = enetc_port_rd64(hw, ENETC_PM_T1523X(mac));
 }
 
+static void enetc4_rmon_stats(struct enetc_hw *hw, int mac,
+			      struct ethtool_rmon_stats *s)
+{
+	s->undersize_pkts = enetc_port_rd64(hw, ENETC4_PM_RUND(mac));
+	s->oversize_pkts = enetc_port_rd64(hw, ENETC4_PM_ROVR(mac));
+	s->fragments = enetc_port_rd64(hw, ENETC4_PM_RFRG(mac));
+	s->jabbers = enetc_port_rd64(hw, ENETC4_PM_RJBR(mac));
+
+	s->hist[0] = enetc_port_rd64(hw, ENETC4_PM_R64(mac));
+	s->hist[1] = enetc_port_rd64(hw, ENETC4_PM_R127(mac));
+	s->hist[2] = enetc_port_rd64(hw, ENETC4_PM_R255(mac));
+	s->hist[3] = enetc_port_rd64(hw, ENETC4_PM_R511(mac));
+	s->hist[4] = enetc_port_rd64(hw, ENETC4_PM_R1023(mac));
+	s->hist[5] = enetc_port_rd64(hw, ENETC4_PM_R1522(mac));
+	s->hist[6] = enetc_port_rd64(hw, ENETC4_PM_R1523X(mac));
+
+	s->hist_tx[0] = enetc_port_rd64(hw, ENETC4_PM_T64(mac));
+	s->hist_tx[1] = enetc_port_rd64(hw, ENETC4_PM_T127(mac));
+	s->hist_tx[2] = enetc_port_rd64(hw, ENETC4_PM_T255(mac));
+	s->hist_tx[3] = enetc_port_rd64(hw, ENETC4_PM_T511(mac));
+	s->hist_tx[4] = enetc_port_rd64(hw, ENETC4_PM_T1023(mac));
+	s->hist_tx[5] = enetc_port_rd64(hw, ENETC4_PM_T1522(mac));
+	s->hist_tx[6] = enetc_port_rd64(hw, ENETC4_PM_T1523X(mac));
+}
+
+static void enetc_get_mac_stats(struct enetc_si *si, int mac,
+				struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct enetc_hw *hw = &si->hw;
+
+	switch (si->pdev->revision) {
+	case ENETC_REV1:
+		enetc_mac_stats(hw, mac, mac_stats);
+		break;
+	case ENETC_REV4:
+		enetc4_mac_stats(hw, mac, mac_stats);
+		break;
+	default:
+		break;
+	}
+}
+
 static void enetc_get_eth_mac_stats(struct net_device *ndev,
 				    struct ethtool_eth_mac_stats *mac_stats)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_si *si = priv->si;
 
 	switch (mac_stats->src) {
 	case ETHTOOL_MAC_STATS_SRC_EMAC:
-		enetc_mac_stats(hw, 0, mac_stats);
+		enetc_get_mac_stats(si, 0, mac_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_PMAC:
 		if (si->hw_features & ENETC_SI_F_QBU)
-			enetc_mac_stats(hw, 1, mac_stats);
+			enetc_get_mac_stats(si, 1, mac_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
 		ethtool_aggregate_mac_stats(ndev, mac_stats);
@@ -481,19 +679,35 @@ static void enetc_get_eth_ctrl_stats(struct net_device *ndev,
 				     struct ethtool_eth_ctrl_stats *ctrl_stats)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_si *si = priv->si;
 
 	switch (ctrl_stats->src) {
 	case ETHTOOL_MAC_STATS_SRC_EMAC:
-		enetc_ctrl_stats(hw, 0, ctrl_stats);
+		enetc_ctrl_stats(si, 0, ctrl_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_PMAC:
 		if (si->hw_features & ENETC_SI_F_QBU)
-			enetc_ctrl_stats(hw, 1, ctrl_stats);
+			enetc_ctrl_stats(si, 1, ctrl_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
 		ethtool_aggregate_ctrl_stats(ndev, ctrl_stats);
+		break;
+	}
+}
+
+static void enetc_get_mac_rmon_stats(struct enetc_si *si, int mac,
+				     struct ethtool_rmon_stats *rmon_stats)
+{
+	struct enetc_hw *hw = &si->hw;
+
+	switch (si->pdev->revision) {
+	case ENETC_REV1:
+		enetc_rmon_stats(hw, mac, rmon_stats);
+		break;
+	case ENETC_REV4:
+		enetc4_rmon_stats(hw, mac, rmon_stats);
+		break;
+	default:
 		break;
 	}
 }
@@ -503,18 +717,17 @@ static void enetc_get_rmon_stats(struct net_device *ndev,
 				 const struct ethtool_rmon_hist_range **ranges)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
 	struct enetc_si *si = priv->si;
 
 	*ranges = enetc_rmon_ranges;
 
 	switch (rmon_stats->src) {
 	case ETHTOOL_MAC_STATS_SRC_EMAC:
-		enetc_rmon_stats(hw, 0, rmon_stats);
+		enetc_get_mac_rmon_stats(si, 0, rmon_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_PMAC:
 		if (si->hw_features & ENETC_SI_F_QBU)
-			enetc_rmon_stats(hw, 1, rmon_stats);
+			enetc_get_mac_rmon_stats(si, 1, rmon_stats);
 		break;
 	case ETHTOOL_MAC_STATS_SRC_AGGREGATE:
 		ethtool_aggregate_rmon_stats(ndev, rmon_stats);
@@ -1356,6 +1569,9 @@ const struct ethtool_ops enetc4_ppm_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
+	.get_sset_count = enetc_get_sset_count,
+	.get_strings = enetc_get_strings,
+	.get_ethtool_stats = enetc_get_ethtool_stats,
 	.get_eth_mac_stats = enetc_ppm_get_eth_mac_stats,
 	.get_rx_ring_count = enetc_get_rx_ring_count,
 	.get_rxfh_key_size = enetc_get_rxfh_key_size,
@@ -1398,6 +1614,13 @@ const struct ethtool_ops enetc4_pf_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
+	.get_sset_count = enetc_get_sset_count,
+	.get_strings = enetc_get_strings,
+	.get_ethtool_stats = enetc_get_ethtool_stats,
+	.get_pause_stats = enetc_get_pause_stats,
+	.get_rmon_stats = enetc_get_rmon_stats,
+	.get_eth_ctrl_stats = enetc_get_eth_ctrl_stats,
+	.get_eth_mac_stats = enetc_get_eth_mac_stats,
 	.get_ringparam = enetc_get_ringparam,
 	.get_coalesce = enetc_get_coalesce,
 	.set_coalesce = enetc_set_coalesce,
