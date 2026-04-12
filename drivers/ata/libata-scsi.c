@@ -1695,12 +1695,12 @@ void ata_scsi_requeue_deferred_qc(struct ata_port *ap)
 	/*
 	 * If we have a deferred qc when a reset occurs or NCQ commands fail,
 	 * do not try to be smart about what to do with this deferred command
-	 * and simply retry it by completing it with DID_SOFT_ERROR.
+	 * and simply requeue it by completing it with DID_REQUEUE.
 	 */
 	if (qc) {
 		ap->deferred_qc = NULL;
 		cancel_work(&ap->deferred_qc_work);
-		ata_scsi_qc_done(qc, true, DID_SOFT_ERROR << 16);
+		ata_scsi_qc_done(qc, true, DID_REQUEUE << 16);
 	}
 }
 
