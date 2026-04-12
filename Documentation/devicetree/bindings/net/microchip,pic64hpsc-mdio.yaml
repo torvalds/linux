@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/microchip,pic64hpsc-mdio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC64-HPSC/HX MDIO controller
+
+maintainers:
+  - Charles Perry <charles.perry@microchip.com>
+
+description:
+  This is the MDIO bus controller present in Microchip PIC64-HPSC/HX SoCs. It
+  supports C22 and C45 register access and is named "MDIO Initiator" in the
+  documentation.
+
+allOf:
+  - $ref: mdio.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: microchip,pic64hpsc-mdio
+      - items:
+          - const: microchip,pic64hx-mdio
+          - const: microchip,pic64hpsc-mdio
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency:
+    default: 2500000
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mdio@4000c21e000 {
+            compatible = "microchip,pic64hpsc-mdio";
+            reg = <0x400 0x0c21e000 0x0 0x1000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            clocks = <&svc_clk>;
+            interrupt-parent = <&saplic0>;
+            interrupts = <168 IRQ_TYPE_LEVEL_HIGH>;
+
+            ethernet-phy@0 {
+                reg = <0>;
+            };
+        };
+    };
