@@ -3117,6 +3117,8 @@ static int mana_init_port(struct net_device *ndev)
 	eth_hw_addr_set(ndev, apc->mac_addr);
 	sprintf(vport, "vport%d", port_idx);
 	apc->mana_port_debugfs = debugfs_create_dir(vport, gc->mana_pci_debugfs);
+	debugfs_create_u32("current_speed", 0400, apc->mana_port_debugfs,
+			   &apc->speed);
 	return 0;
 
 reset_apc:
@@ -3392,8 +3394,6 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	}
 
 	netif_carrier_on(ndev);
-
-	debugfs_create_u32("current_speed", 0400, apc->mana_port_debugfs, &apc->speed);
 
 	return 0;
 
