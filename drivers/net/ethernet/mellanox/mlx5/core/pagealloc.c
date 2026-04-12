@@ -77,7 +77,8 @@ static u32 get_function(u16 func_id, bool ec_function)
 static u16 func_id_to_type(struct mlx5_core_dev *dev, u16 func_id, bool ec_function)
 {
 	if (!func_id)
-		return mlx5_core_is_ecpf(dev) && !ec_function ? MLX5_HOST_PF : MLX5_PF;
+		return mlx5_core_is_ecpf(dev) && !ec_function ?
+			MLX5_HOST_PF : MLX5_SELF;
 
 	if (func_id <= max(mlx5_core_max_vfs(dev), mlx5_core_max_ec_vfs(dev))) {
 		if (ec_function)
