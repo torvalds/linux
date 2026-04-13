@@ -74,20 +74,20 @@ void __io_uring_free(struct task_struct *tsk)
 	}
 }
 
-__cold int io_uring_alloc_task_context(struct task_struct *task,
-				       struct io_ring_ctx *ctx)
+__cold struct io_uring_task *io_uring_alloc_task_context(struct task_struct *task,
+							struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx;
 	int ret;
 
 	tctx = kzalloc_obj(*tctx);
 	if (unlikely(!tctx))
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = percpu_counter_init(&tctx->inflight, 0, GFP_KERNEL);
 	if (unlikely(ret)) {
 		kfree(tctx);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	tctx->io_wq = io_init_wq_offload(ctx, task);
@@ -95,7 +95,7 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 		ret = PTR_ERR(tctx->io_wq);
 		percpu_counter_destroy(&tctx->inflight);
 		kfree(tctx);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	tctx->task = task;
@@ -103,31 +103,56 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	init_waitqueue_head(&tctx->wait);
 	atomic_set(&tctx->in_cancel, 0);
 	atomic_set(&tctx->inflight_tracked, 0);
-	task->io_uring = tctx;
 	init_llist_head(&tctx->task_list);
 	init_task_work(&tctx->task_work, tctx_task_work);
+	return tctx;
+}
+
+static int io_tctx_install_node(struct io_ring_ctx *ctx,
+				struct io_uring_task *tctx)
+{
+	struct io_tctx_node *node;
+	int ret;
+
+	if (xa_load(&tctx->xa, (unsigned long)ctx))
+		return 0;
+
+	node = kmalloc_obj(*node);
+	if (!node)
+		return -ENOMEM;
+	node->ctx = ctx;
+	node->task = current;
+
+	ret = xa_err(xa_store(&tctx->xa, (unsigned long)ctx,
+				node, GFP_KERNEL));
+	if (ret) {
+		kfree(node);
+		return ret;
+	}
+
+	mutex_lock(&ctx->tctx_lock);
+	list_add(&node->ctx_node, &ctx->tctx_list);
+	mutex_unlock(&ctx->tctx_lock);
 	return 0;
 }
 
 int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
-	struct io_tctx_node *node;
 	int ret;
 
 	if (unlikely(!tctx)) {
-		ret = io_uring_alloc_task_context(current, ctx);
-		if (unlikely(ret))
-			return ret;
+		tctx = io_uring_alloc_task_context(current, ctx);
+		if (IS_ERR(tctx))
+			return PTR_ERR(tctx);
 
-		tctx = current->io_uring;
-		if (ctx->iowq_limits_set) {
+		if (ctx->int_flags & IO_RING_F_IOWQ_LIMITS_SET) {
 			unsigned int limits[2] = { ctx->iowq_limits[0],
 						   ctx->iowq_limits[1], };
 
 			ret = io_wq_max_workers(tctx->io_wq, limits);
 			if (ret)
-				return ret;
+				goto err_free;
 		}
 	}
 
@@ -138,25 +163,19 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 	 */
 	if (tctx->io_wq)
 		io_wq_set_exit_on_idle(tctx->io_wq, false);
-	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
-		node = kmalloc_obj(*node);
-		if (!node)
-			return -ENOMEM;
-		node->ctx = ctx;
-		node->task = current;
 
-		ret = xa_err(xa_store(&tctx->xa, (unsigned long)ctx,
-					node, GFP_KERNEL));
-		if (ret) {
-			kfree(node);
-			return ret;
-		}
-
-		mutex_lock(&ctx->tctx_lock);
-		list_add(&node->ctx_node, &ctx->tctx_list);
-		mutex_unlock(&ctx->tctx_lock);
+	ret = io_tctx_install_node(ctx, tctx);
+	if (!ret) {
+		current->io_uring = tctx;
+		return 0;
 	}
-	return 0;
+	if (!current->io_uring) {
+err_free:
+		io_wq_put_and_exit(tctx->io_wq);
+		percpu_counter_destroy(&tctx->inflight);
+		kfree(tctx);
+	}
+	return ret;
 }
 
 int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)

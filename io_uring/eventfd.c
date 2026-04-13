@@ -148,7 +148,7 @@ int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 	spin_unlock(&ctx->completion_lock);
 
 	ev_fd->eventfd_async = eventfd_async;
-	ctx->has_evfd = true;
+	ctx->int_flags |= IO_RING_F_HAS_EVFD;
 	refcount_set(&ev_fd->refs, 1);
 	atomic_set(&ev_fd->ops, 0);
 	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
@@ -162,7 +162,7 @@ int io_eventfd_unregister(struct io_ring_ctx *ctx)
 	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
 					lockdep_is_held(&ctx->uring_lock));
 	if (ev_fd) {
-		ctx->has_evfd = false;
+		ctx->int_flags &= ~IO_RING_F_HAS_EVFD;
 		rcu_assign_pointer(ctx->io_ev_fd, NULL);
 		io_eventfd_put(ev_fd);
 		return 0;

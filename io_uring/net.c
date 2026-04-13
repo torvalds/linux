@@ -375,10 +375,13 @@ static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kmsg->msg.msg_namelen = addr_len;
 	}
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
-		if (sr->flags & IORING_SEND_VECTORIZED)
-			return -EINVAL;
-		req->flags |= REQ_F_IMPORT_BUFFER;
-		return 0;
+		if (!(sr->flags & IORING_SEND_VECTORIZED)) {
+			req->flags |= REQ_F_IMPORT_BUFFER;
+			return 0;
+		}
+
+		kmsg->msg.msg_iter.nr_segs = sr->len;
+		return io_prep_reg_iovec(req, &kmsg->vec, sr->buf, sr->len);
 	}
 	if (req->flags & REQ_F_BUFFER_SELECT)
 		return 0;
@@ -396,6 +399,7 @@ static int io_sendmsg_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	struct user_msghdr msg;
 	int ret;
 
+	sr->flags |= IORING_SEND_VECTORIZED;
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	ret = io_msg_copy_hdr(req, kmsg, &msg, ITER_SOURCE, NULL);
 	if (unlikely(ret))
@@ -1333,11 +1337,12 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_async_msghdr *iomsg;
 	struct io_kiocb *notif;
+	u64 user_data;
 	int ret;
 
 	zc->done_io = 0;
 
-	if (unlikely(READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3)))
+	if (unlikely(READ_ONCE(sqe->__pad2[0])))
 		return -EINVAL;
 	/* we don't support IOSQE_CQE_SKIP_SUCCESS just yet */
 	if (req->flags & REQ_F_CQE_SKIP)
@@ -1346,7 +1351,11 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	notif = zc->notif = io_alloc_notif(ctx);
 	if (!notif)
 		return -ENOMEM;
-	notif->cqe.user_data = req->cqe.user_data;
+	user_data = READ_ONCE(sqe->addr3);
+	if (!user_data)
+		user_data = req->cqe.user_data;
+
+	notif->cqe.user_data = user_data;
 	notif->cqe.res = 0;
 	notif->cqe.flags = IORING_CQE_F_NOTIF;
 	req->flags |= REQ_F_NEED_CLEANUP | REQ_F_POLL_NO_LAZY;
@@ -1370,7 +1379,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (zc->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
 
-	if (io_is_compat(req->ctx))
+	if (io_is_compat(ctx))
 		zc->msg_flags |= MSG_CMSG_COMPAT;
 
 	iomsg = io_msg_alloc_async(req);
@@ -1445,22 +1454,39 @@ static int io_sg_from_iter(struct sk_buff *skb,
 	return ret;
 }
 
-static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
+static int io_send_zc_import(struct io_kiocb *req,
+			     struct io_async_msghdr *kmsg,
+			     unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg = req->async_data;
+	struct io_kiocb *notif = sr->notif;
+	int ret;
 
 	WARN_ON_ONCE(!(sr->flags & IORING_RECVSEND_FIXED_BUF));
 
-	sr->notif->buf_index = req->buf_index;
-	return io_import_reg_buf(sr->notif, &kmsg->msg.msg_iter,
-				(u64)(uintptr_t)sr->buf, sr->len,
-				ITER_SOURCE, issue_flags);
+	notif->buf_index = req->buf_index;
+
+	if (!(sr->flags & IORING_SEND_VECTORIZED)) {
+		ret = io_import_reg_buf(notif, &kmsg->msg.msg_iter,
+					(u64)(uintptr_t)sr->buf, sr->len,
+					ITER_SOURCE, issue_flags);
+	} else {
+		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
+
+		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter,
+					notif, &kmsg->vec, uvec_segs,
+					issue_flags);
+	}
+
+	if (unlikely(ret))
+		return ret;
+	req->flags &= ~REQ_F_IMPORT_BUFFER;
+	return 0;
 }
 
-int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
+int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
 	unsigned msg_flags;
@@ -1471,106 +1497,38 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 		return -ENOTSOCK;
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		return -EOPNOTSUPP;
-
-	if (!(req->flags & REQ_F_POLLED) &&
-	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
-		return -EAGAIN;
-
-	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		req->flags &= ~REQ_F_IMPORT_BUFFER;
-		ret = io_send_zc_import(req, issue_flags);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	msg_flags = zc->msg_flags;
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		msg_flags |= MSG_DONTWAIT;
-	if (msg_flags & MSG_WAITALL)
-		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
-	msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
-
-	kmsg->msg.msg_flags = msg_flags;
-	kmsg->msg.msg_ubuf = &io_notif_to_data(zc->notif)->uarg;
-	ret = sock_sendmsg(sock, &kmsg->msg);
-
-	if (unlikely(ret < min_ret)) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return -EAGAIN;
-
-		if (ret > 0 && io_net_retry(sock, kmsg->msg.msg_flags)) {
-			zc->done_io += ret;
-			return -EAGAIN;
-		}
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
-		req_set_fail(req);
-	}
-
-	if (ret >= 0)
-		ret += zc->done_io;
-	else if (zc->done_io)
-		ret = zc->done_io;
-
-	/*
-	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
-	 * flushing notif to io_send_zc_cleanup()
-	 */
-	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		io_notif_flush(zc->notif);
-		zc->notif = NULL;
-		io_req_msg_cleanup(req, 0);
-	}
-	io_req_set_res(req, ret, IORING_CQE_F_MORE);
-	return IOU_COMPLETE;
-}
-
-int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg = req->async_data;
-	struct socket *sock;
-	unsigned flags;
-	int ret, min_ret = 0;
-
-	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
-		int ret;
-
-		sr->notif->buf_index = req->buf_index;
-		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter,
-					sr->notif, &kmsg->vec, uvec_segs,
-					issue_flags);
-		if (unlikely(ret))
-			return ret;
-		req->flags &= ~REQ_F_IMPORT_BUFFER;
-	}
-
-	sock = sock_from_file(req->file);
-	if (unlikely(!sock))
-		return -ENOTSOCK;
-	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
-		return -EOPNOTSUPP;
-
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return -EAGAIN;
 
-	flags = sr->msg_flags;
+	if (req->flags & REQ_F_IMPORT_BUFFER) {
+		ret = io_send_zc_import(req, kmsg, issue_flags);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	msg_flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
-		flags |= MSG_DONTWAIT;
-	if (flags & MSG_WAITALL)
+		msg_flags |= MSG_DONTWAIT;
+	if (msg_flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
-	kmsg->msg.msg_control_user = sr->msg_control;
 	kmsg->msg.msg_ubuf = &io_notif_to_data(sr->notif)->uarg;
-	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
+
+	if (req->opcode == IORING_OP_SEND_ZC) {
+		msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
+		kmsg->msg.msg_flags = msg_flags;
+		ret = sock_sendmsg(sock, &kmsg->msg);
+	} else {
+		kmsg->msg.msg_control_user = sr->msg_control;
+		ret = __sys_sendmsg_sock(sock, &kmsg->msg, msg_flags);
+	}
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return -EAGAIN;
 
-		if (ret > 0 && io_net_retry(sock, flags)) {
+		if (ret > 0 && io_net_retry(sock, sr->msg_flags)) {
 			sr->done_io += ret;
 			return -EAGAIN;
 		}

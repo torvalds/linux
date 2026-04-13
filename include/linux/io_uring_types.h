@@ -8,6 +8,9 @@
 #include <linux/llist.h>
 #include <uapi/linux/io_uring.h>
 
+struct iou_loop_params;
+struct io_uring_bpf_ops;
+
 enum {
 	/*
 	 * A hint to not wake right away but delay until there are enough of
@@ -40,6 +43,8 @@ enum io_uring_cmd_flags {
 	IO_URING_F_CANCEL		= (1 << 11),
 	IO_URING_F_COMPAT		= (1 << 12),
 };
+
+struct iou_loop_params;
 
 struct io_wq_work_node {
 	struct io_wq_work_node *next;
@@ -268,24 +273,30 @@ struct io_alloc_cache {
 	unsigned int		init_clear;
 };
 
+enum {
+	IO_RING_F_DRAIN_NEXT		= BIT(0),
+	IO_RING_F_OP_RESTRICTED		= BIT(1),
+	IO_RING_F_REG_RESTRICTED	= BIT(2),
+	IO_RING_F_OFF_TIMEOUT_USED	= BIT(3),
+	IO_RING_F_DRAIN_ACTIVE		= BIT(4),
+	IO_RING_F_HAS_EVFD		= BIT(5),
+	/* all CQEs should be posted only by the submitter task */
+	IO_RING_F_TASK_COMPLETE		= BIT(6),
+	IO_RING_F_LOCKLESS_CQ		= BIT(7),
+	IO_RING_F_SYSCALL_IOPOLL	= BIT(8),
+	IO_RING_F_POLL_ACTIVATED	= BIT(9),
+	IO_RING_F_DRAIN_DISABLED	= BIT(10),
+	IO_RING_F_COMPAT		= BIT(11),
+	IO_RING_F_IOWQ_LIMITS_SET	= BIT(12),
+};
+
 struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
+		/* ring setup flags */
 		unsigned int		flags;
-		unsigned int		drain_next: 1;
-		unsigned int		op_restricted: 1;
-		unsigned int		reg_restricted: 1;
-		unsigned int		off_timeout_used: 1;
-		unsigned int		drain_active: 1;
-		unsigned int		has_evfd: 1;
-		/* all CQEs should be posted only by the submitter task */
-		unsigned int		task_complete: 1;
-		unsigned int		lockless_cq: 1;
-		unsigned int		syscall_iopoll: 1;
-		unsigned int		poll_activated: 1;
-		unsigned int		drain_disabled: 1;
-		unsigned int		compat: 1;
-		unsigned int		iowq_limits_set : 1;
+		/* internal state flags IO_RING_F_* flags , mostly read-only */
+		unsigned int		int_flags;
 
 		struct task_struct	*submitter_task;
 		struct io_rings		*rings;
@@ -354,6 +365,9 @@ struct io_ring_ctx {
 		struct io_alloc_cache	netmsg_cache;
 		struct io_alloc_cache	rw_cache;
 		struct io_alloc_cache	cmd_cache;
+
+		int (*loop_step)(struct io_ring_ctx *ctx,
+				 struct iou_loop_params *);
 
 		/*
 		 * Any cancelable uring_cmd is added to this list in
@@ -477,6 +491,8 @@ struct io_ring_ctx {
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
 
+	struct io_uring_bpf_ops		*bpf_ops;
+
 	/*
 	 * Protection for resize vs mmap races - both the mmap and resize
 	 * side will need to grab this lock, to prevent either side from
@@ -545,6 +561,7 @@ enum {
 	REQ_F_HAS_METADATA_BIT,
 	REQ_F_IMPORT_BUFFER_BIT,
 	REQ_F_SQE_COPIED_BIT,
+	REQ_F_IOPOLL_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -638,6 +655,8 @@ enum {
 	REQ_F_IMPORT_BUFFER	= IO_REQ_FLAG(REQ_F_IMPORT_BUFFER_BIT),
 	/* ->sqe_copy() has been called, if necessary */
 	REQ_F_SQE_COPIED	= IO_REQ_FLAG(REQ_F_SQE_COPIED_BIT),
+	/* request must be iopolled to completion (set in ->issue()) */
+	REQ_F_IOPOLL		= IO_REQ_FLAG(REQ_F_IOPOLL_BIT),
 };
 
 struct io_tw_req {
