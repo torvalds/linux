@@ -173,11 +173,13 @@ static int sky1_pcie_probe(struct platform_device *pdev)
 	cdns_pcie->ops = &sky1_pcie_ops;
 	cdns_pcie->reg_base = pcie->reg_base;
 	cdns_pcie->msg_res = pcie->msg_res;
-	cdns_pcie->is_rc = 1;
+	cdns_pcie->is_rc = true;
 
 	reg_off = devm_kzalloc(dev, sizeof(*reg_off), GFP_KERNEL);
-	if (!reg_off)
+	if (!reg_off) {
+		pci_ecam_free(pcie->cfg);
 		return -ENOMEM;
+	}
 
 	reg_off->ip_reg_bank_offset = SKY1_IP_REG_BANK;
 	reg_off->ip_cfg_ctrl_reg_offset = SKY1_IP_CFG_CTRL_REG_BANK;
