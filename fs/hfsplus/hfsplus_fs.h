@@ -238,6 +238,13 @@ static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 	return container_of(inode, struct hfsplus_inode_info, vfs_inode);
 }
 
+#define HFSPLUS_CAT_TREE_I(sb) \
+	HFSPLUS_SB(sb)->cat_tree->inode
+#define HFSPLUS_EXT_TREE_I(sb) \
+	HFSPLUS_SB(sb)->ext_tree->inode
+#define HFSPLUS_ATTR_TREE_I(sb) \
+	HFSPLUS_SB(sb)->attr_tree->inode
+
 /*
  * Mark an inode dirty, and also mark the btree in which the
  * specific type of metadata is stored.
@@ -499,7 +506,8 @@ int hfsplus_uni2asc_xattr_str(struct super_block *sb,
 			      const struct hfsplus_attr_unistr *ustr,
 			      char *astr, int *len_p);
 int hfsplus_asc2uni(struct super_block *sb, struct hfsplus_unistr *ustr,
-		    int max_unistr_len, const char *astr, int len);
+		    int max_unistr_len, const char *astr, int len,
+		    int name_type);
 int hfsplus_hash_dentry(const struct dentry *dentry, struct qstr *str);
 int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 			   const char *str, const struct qstr *name);
@@ -508,6 +516,15 @@ int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
 		       void **data, blk_opf_t opf);
 int hfsplus_read_wrapper(struct super_block *sb);
+
+static inline u32 hfsplus_cat_thread_size(const struct hfsplus_cat_thread *thread)
+{
+	return offsetof(struct hfsplus_cat_thread, nodeName) +
+	       offsetof(struct hfsplus_unistr, unicode) +
+	       be16_to_cpu(thread->nodeName.length) * sizeof(hfsplus_unichr);
+}
+
+int hfsplus_brec_read_cat(struct hfs_find_data *fd, hfsplus_cat_entry *entry);
 
 /*
  * time helpers: convert between 1904-base and 1970-base timestamps
@@ -555,7 +572,12 @@ hfsplus_btree_lock_class(struct hfs_btree *tree)
 static inline
 bool is_bnode_offset_valid(struct hfs_bnode *node, u32 off)
 {
-	bool is_valid = off < node->tree->node_size;
+	bool is_valid;
+
+	if (!node || !node->tree)
+		return false;
+
+	is_valid = off < node->tree->node_size;
 
 	if (!is_valid) {
 		pr_err("requested invalid offset: "

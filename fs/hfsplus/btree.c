@@ -129,12 +129,148 @@ u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 node_size,
 	return clump_size;
 }
 
+/* Context for iterating b-tree map pages
+ * @page_idx: The index of the page within the b-node's page array
+ * @off: The byte offset within the mapped page
+ * @len: The remaining length of the map record
+ */
+struct hfs_bmap_ctx {
+	unsigned int page_idx;
+	unsigned int off;
+	u16 len;
+};
+
+/*
+ * Finds the specific page containing the requested byte offset within the map
+ * record. Automatically handles the difference between header and map nodes.
+ * Returns the struct page pointer, or an ERR_PTR on failure.
+ * Note: The caller is responsible for mapping/unmapping the returned page.
+ */
+static struct page *hfs_bmap_get_map_page(struct hfs_bnode *node,
+					  struct hfs_bmap_ctx *ctx,
+					  u32 byte_offset)
+{
+	u16 rec_idx, off16;
+	unsigned int page_off;
+
+	if (node->this == HFSPLUS_TREE_HEAD) {
+		if (node->type != HFS_NODE_HEADER) {
+			pr_err("hfsplus: invalid btree header node\n");
+			return ERR_PTR(-EIO);
+		}
+		rec_idx = HFSPLUS_BTREE_HDR_MAP_REC_INDEX;
+	} else {
+		if (node->type != HFS_NODE_MAP) {
+			pr_err("hfsplus: invalid btree map node\n");
+			return ERR_PTR(-EIO);
+		}
+		rec_idx = HFSPLUS_BTREE_MAP_NODE_REC_INDEX;
+	}
+
+	ctx->len = hfs_brec_lenoff(node, rec_idx, &off16);
+	if (!ctx->len)
+		return ERR_PTR(-ENOENT);
+
+	if (!is_bnode_offset_valid(node, off16))
+		return ERR_PTR(-EIO);
+
+	ctx->len = check_and_correct_requested_length(node, off16, ctx->len);
+
+	if (byte_offset >= ctx->len)
+		return ERR_PTR(-EINVAL);
+
+	page_off = (u32)off16 + node->page_offset + byte_offset;
+	ctx->page_idx = page_off >> PAGE_SHIFT;
+	ctx->off = page_off & ~PAGE_MASK;
+
+	return node->page[ctx->page_idx];
+}
+
+/**
+ * hfs_bmap_test_bit - test a bit in the b-tree map
+ * @node: the b-tree node containing the map record
+ * @node_bit_idx: the relative bit index within the node's map record
+ *
+ * Returns true if set, false if clear or on failure.
+ */
+static bool hfs_bmap_test_bit(struct hfs_bnode *node, u32 node_bit_idx)
+{
+	struct hfs_bmap_ctx ctx;
+	struct page *page;
+	u8 *bmap, byte, mask;
+
+	page = hfs_bmap_get_map_page(node, &ctx, node_bit_idx / BITS_PER_BYTE);
+	if (IS_ERR(page))
+		return false;
+
+	bmap = kmap_local_page(page);
+	byte = bmap[ctx.off];
+	kunmap_local(bmap);
+
+	mask = 1 << (7 - (node_bit_idx % BITS_PER_BYTE));
+	return (byte & mask) != 0;
+}
+
+
+/**
+ * hfs_bmap_clear_bit - clear a bit in the b-tree map
+ * @node: the b-tree node containing the map record
+ * @node_bit_idx: the relative bit index within the node's map record
+ *
+ * Returns 0 on success, -EINVAL if already clear, or negative error code.
+ */
+static int hfs_bmap_clear_bit(struct hfs_bnode *node, u32 node_bit_idx)
+{
+	struct hfs_bmap_ctx ctx;
+	struct page *page;
+	u8 *bmap, mask;
+
+	page = hfs_bmap_get_map_page(node, &ctx, node_bit_idx / BITS_PER_BYTE);
+	if (IS_ERR(page))
+		return PTR_ERR(page);
+
+	bmap = kmap_local_page(page);
+
+	mask = 1 << (7 - (node_bit_idx % BITS_PER_BYTE));
+
+	if (!(bmap[ctx.off] & mask)) {
+		kunmap_local(bmap);
+		return -EINVAL;
+	}
+
+	bmap[ctx.off] &= ~mask;
+	set_page_dirty(page);
+	kunmap_local(bmap);
+
+	return 0;
+}
+
+#define HFS_EXTENT_TREE_NAME  "Extents Overflow File"
+#define HFS_CATALOG_TREE_NAME "Catalog File"
+#define HFS_ATTR_TREE_NAME    "Attributes File"
+#define HFS_UNKNOWN_TREE_NAME "Unknown B-tree"
+
+static const char *hfs_btree_name(u32 cnid)
+{
+	switch (cnid) {
+	case HFSPLUS_EXT_CNID:
+		return HFS_EXTENT_TREE_NAME;
+	case HFSPLUS_CAT_CNID:
+		return HFS_CATALOG_TREE_NAME;
+	case HFSPLUS_ATTR_CNID:
+		return HFS_ATTR_TREE_NAME;
+	default:
+		return HFS_UNKNOWN_TREE_NAME;
+	}
+}
+
 /* Get a reference to a B*Tree and do some initial checks */
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 {
 	struct hfs_btree *tree;
 	struct hfs_btree_header_rec *head;
 	struct address_space *mapping;
+	struct hfs_bnode *node;
 	struct inode *inode;
 	struct page *page;
 	unsigned int size;
@@ -242,6 +378,20 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 
 	kunmap_local(head);
 	put_page(page);
+
+	node = hfs_bnode_find(tree, HFSPLUS_TREE_HEAD);
+	if (IS_ERR(node))
+		goto free_inode;
+
+	if (!hfs_bmap_test_bit(node, 0)) {
+		pr_warn("(%s): %s (cnid 0x%x) map record invalid or bitmap corruption detected, forcing read-only.\n",
+				sb->s_id, hfs_btree_name(id), id);
+		pr_warn("Run fsck.hfsplus to repair.\n");
+		sb->s_flags |= SB_RDONLY;
+	}
+
+	hfs_bnode_put(node);
+
 	return tree;
 
  fail_page:
@@ -351,6 +501,8 @@ int hfs_bmap_reserve(struct hfs_btree *tree, u32 rsvd_nodes)
 	u32 count;
 	int res;
 
+	lockdep_assert_held(&tree->tree_lock);
+
 	if (rsvd_nodes <= 0)
 		return 0;
 
@@ -374,13 +526,13 @@ int hfs_bmap_reserve(struct hfs_btree *tree, u32 rsvd_nodes)
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 {
 	struct hfs_bnode *node, *next_node;
-	struct page **pagep;
+	struct hfs_bmap_ctx ctx;
+	struct page *page;
 	u32 nidx, idx;
-	unsigned off;
-	u16 off16;
-	u16 len;
 	u8 *data, byte, m;
 	int i, res;
+
+	lockdep_assert_held(&tree->tree_lock);
 
 	res = hfs_bmap_reserve(tree, 1);
 	if (res)
@@ -390,32 +542,29 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 	node = hfs_bnode_find(tree, nidx);
 	if (IS_ERR(node))
 		return node;
-	len = hfs_brec_lenoff(node, 2, &off16);
-	off = off16;
 
-	if (!is_bnode_offset_valid(node, off)) {
+	page = hfs_bmap_get_map_page(node, &ctx, 0);
+	if (IS_ERR(page)) {
+		res = PTR_ERR(page);
 		hfs_bnode_put(node);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(res);
 	}
-	len = check_and_correct_requested_length(node, off, len);
 
-	off += node->page_offset;
-	pagep = node->page + (off >> PAGE_SHIFT);
-	data = kmap_local_page(*pagep);
-	off &= ~PAGE_MASK;
+	data = kmap_local_page(page);
 	idx = 0;
 
 	for (;;) {
-		while (len) {
-			byte = data[off];
+		while (ctx.len) {
+			byte = data[ctx.off];
 			if (byte != 0xff) {
 				for (m = 0x80, i = 0; i < 8; m >>= 1, i++) {
 					if (!(byte & m)) {
 						idx += i;
-						data[off] |= m;
-						set_page_dirty(*pagep);
+						data[ctx.off] |= m;
+						set_page_dirty(page);
 						kunmap_local(data);
 						tree->free_nodes--;
+						hfs_btree_write(tree);
 						mark_inode_dirty(tree->inode);
 						hfs_bnode_put(node);
 						return hfs_bnode_create(tree,
@@ -423,19 +572,21 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 					}
 				}
 			}
-			if (++off >= PAGE_SIZE) {
+			if (++ctx.off >= PAGE_SIZE) {
 				kunmap_local(data);
-				data = kmap_local_page(*++pagep);
-				off = 0;
+				page = node->page[++ctx.page_idx];
+				data = kmap_local_page(page);
+				ctx.off = 0;
 			}
 			idx += 8;
-			len--;
+			ctx.len--;
 		}
 		kunmap_local(data);
 		nidx = node->next;
 		if (!nidx) {
 			hfs_dbg("create new bmap node\n");
 			next_node = hfs_bmap_new_bmap(node, idx);
+			hfs_btree_write(tree);
 		} else
 			next_node = hfs_bnode_find(tree, nidx);
 		hfs_bnode_put(node);
@@ -443,26 +594,27 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 			return next_node;
 		node = next_node;
 
-		len = hfs_brec_lenoff(node, 0, &off16);
-		off = off16;
-		off += node->page_offset;
-		pagep = node->page + (off >> PAGE_SHIFT);
-		data = kmap_local_page(*pagep);
-		off &= ~PAGE_MASK;
+		page = hfs_bmap_get_map_page(node, &ctx, 0);
+		if (IS_ERR(page)) {
+			res = PTR_ERR(page);
+			hfs_bnode_put(node);
+			return ERR_PTR(res);
+		}
+		data = kmap_local_page(page);
 	}
 }
 
 void hfs_bmap_free(struct hfs_bnode *node)
 {
 	struct hfs_btree *tree;
-	struct page *page;
 	u16 off, len;
 	u32 nidx;
-	u8 *data, byte, m;
+	int res;
 
 	hfs_dbg("node %u\n", node->this);
 	BUG_ON(!node->this);
 	tree = node->tree;
+	lockdep_assert_held(&tree->tree_lock);
 	nidx = node->this;
 	node = hfs_bnode_find(tree, 0);
 	if (IS_ERR(node))
@@ -495,24 +647,19 @@ void hfs_bmap_free(struct hfs_bnode *node)
 		}
 		len = hfs_brec_lenoff(node, 0, &off);
 	}
-	off += node->page_offset + nidx / 8;
-	page = node->page[off >> PAGE_SHIFT];
-	data = kmap_local_page(page);
-	off &= ~PAGE_MASK;
-	m = 1 << (~nidx & 7);
-	byte = data[off];
-	if (!(byte & m)) {
-		pr_crit("trying to free free bnode "
-				"%u(%d)\n",
-			node->this, node->type);
-		kunmap_local(data);
-		hfs_bnode_put(node);
-		return;
+
+	res = hfs_bmap_clear_bit(node, nidx);
+	if (res == -EINVAL) {
+		pr_crit("trying to free the freed bnode %u(%d)\n",
+			nidx, node->type);
+	} else if (res) {
+		pr_crit("fail to free bnode %u(%d)\n",
+			nidx, node->type);
+	} else {
+		tree->free_nodes++;
+		hfs_btree_write(tree);
+		mark_inode_dirty(tree->inode);
 	}
-	data[off] = byte & ~m;
-	set_page_dirty(page);
-	kunmap_local(data);
+
 	hfs_bnode_put(node);
-	tree->free_nodes++;
-	mark_inode_dirty(tree->inode);
 }
