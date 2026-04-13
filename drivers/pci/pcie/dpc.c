@@ -256,6 +256,7 @@ static int dpc_get_aer_uncorrect_severity(struct pci_dev *dev,
 
 	info->dev[0] = dev;
 	info->error_dev_num = 1;
+	info->ratelimit_print[0] = 1;
 
 	return 1;
 }
@@ -372,11 +373,13 @@ static irqreturn_t dpc_handler(int irq, void *context)
 		return IRQ_HANDLED;
 	}
 
+	pci_dev_get(pdev);
 	dpc_process_error(pdev);
 
 	/* We configure DPC so it only triggers on ERR_FATAL */
 	pcie_do_recovery(pdev, pci_channel_io_frozen, dpc_reset_link);
 
+	pci_dev_put(pdev);
 	return IRQ_HANDLED;
 }
 
