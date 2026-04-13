@@ -91,7 +91,8 @@ struct gmap *gmap_new(struct kvm *kvm, gfn_t limit);
 struct gmap *gmap_new_child(struct gmap *parent, gfn_t limit);
 void gmap_remove_child(struct gmap *child);
 void gmap_dispose(struct gmap *gmap);
-int gmap_link(struct kvm_s390_mmu_cache *mc, struct gmap *gmap, struct guest_fault *fault);
+int gmap_link(struct kvm_s390_mmu_cache *mc, struct gmap *gmap, struct guest_fault *fault,
+	      struct kvm_memory_slot *slot);
 void gmap_sync_dirty_log(struct gmap *gmap, gfn_t start, gfn_t end);
 int gmap_set_limit(struct gmap *gmap, gfn_t limit);
 int gmap_ucas_translate(struct kvm_s390_mmu_cache *mc, struct gmap *gmap, gpa_t *gaddr);

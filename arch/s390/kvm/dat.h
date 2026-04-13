@@ -104,6 +104,11 @@ union pte {
 	} tok;
 };
 
+#define _SEGMENT_FR_MASK	(_SEGMENT_MASK >> PAGE_SHIFT)
+#define _REGION3_FR_MASK	(_REGION3_MASK >> PAGE_SHIFT)
+#define _PAGES_PER_SEGMENT	_PAGE_ENTRIES
+#define _PAGES_PER_REGION3	(_PAGES_PER_SEGMENT * _CRST_ENTRIES)
+
 /* Soft dirty, needed as macro for atomic operations on ptes */
 #define _PAGE_SD 0x002
 

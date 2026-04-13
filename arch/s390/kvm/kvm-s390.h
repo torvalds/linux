@@ -122,7 +122,9 @@ static inline int kvm_is_ucontrol(struct kvm *kvm)
 #endif
 }
 
-#define GUEST_PREFIX_SHIFT 13
+#define GUEST_PREFIX_SHIFT 12
+#define GUEST_PREFIX_MASK_ZARCH 0x7fffe
+#define GUEST_PREFIX_MASK_ESA   0x7ffff
 static inline u32 kvm_s390_get_prefix(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.sie_block->prefix << GUEST_PREFIX_SHIFT;
@@ -133,6 +135,7 @@ static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 	VCPU_EVENT(vcpu, 3, "set prefix of cpu %03u to 0x%x", vcpu->vcpu_id,
 		   prefix);
 	vcpu->arch.sie_block->prefix = prefix >> GUEST_PREFIX_SHIFT;
+	vcpu->arch.sie_block->prefix &= GUEST_PREFIX_MASK_ZARCH;
 	kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 	kvm_make_request(KVM_REQ_REFRESH_GUEST_PREFIX, vcpu);
 }
