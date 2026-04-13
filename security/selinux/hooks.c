@@ -1436,7 +1436,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 	struct dentry *dentry;
 	int rc = 0;
 
-	if (isec->initialized == LABEL_INITIALIZED)
+	/* check below is racy, but we will recheck with lock held */
+	if (data_race(isec->initialized == LABEL_INITIALIZED))
 		return 0;
 
 	spin_lock(&isec->lock);
