@@ -8,11 +8,6 @@
 
 struct request;
 
-/*
- * Maximum contiguous integrity buffer allocation.
- */
-#define BLK_INTEGRITY_MAX_SIZE		SZ_2M
-
 enum blk_integrity_flags {
 	BLK_INTEGRITY_NOVERIFY		= 1 << 0,
 	BLK_INTEGRITY_NOGENERATE	= 1 << 1,
@@ -179,5 +174,28 @@ static inline struct bio_vec rq_integrity_vec(struct request *rq)
 	return (struct bio_vec){ };
 }
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
+
+enum bio_integrity_action {
+	BI_ACT_BUFFER		= (1u << 0),	/* allocate buffer */
+	BI_ACT_CHECK		= (1u << 1),	/* generate / verify PI */
+	BI_ACT_ZERO		= (1u << 2),	/* zero buffer */
+};
+
+/**
+ * bio_integrity_action - return the integrity action needed for a bio
+ * @bio:	bio to operate on
+ *
+ * Returns the mask of integrity actions (BI_ACT_*) that need to be performed
+ * for @bio.
+ */
+unsigned int __bio_integrity_action(struct bio *bio);
+static inline unsigned int bio_integrity_action(struct bio *bio)
+{
+	if (!blk_get_integrity(bio->bi_bdev->bd_disk))
+		return 0;
+	if (bio_integrity(bio))
+		return 0;
+	return __bio_integrity_action(bio);
+}
 
 #endif /* _LINUX_BLK_INTEGRITY_H */

@@ -143,11 +143,14 @@ xfs_bmbt_to_iomap(
 	}
 	iomap->offset = XFS_FSB_TO_B(mp, imap->br_startoff);
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);
-	if (mapping_flags & IOMAP_DAX)
-		iomap->dax_dev = target->bt_daxdev;
-	else
-		iomap->bdev = target->bt_bdev;
 	iomap->flags = iomap_flags;
+	if (mapping_flags & IOMAP_DAX) {
+		iomap->dax_dev = target->bt_daxdev;
+	} else {
+		iomap->bdev = target->bt_bdev;
+		if (bdev_has_integrity_csum(iomap->bdev))
+			iomap->flags |= IOMAP_F_INTEGRITY;
+	}
 
 	/*
 	 * If the inode is dirty for datasync purposes, let iomap know so it
