@@ -30,6 +30,44 @@
 #define MXL862XX_API_READ_QUIET(dev, cmd, data) \
 	mxl862xx_api_wrap(dev, cmd, &(data), sizeof((data)), true, true)
 
+/* Polling interval for RMON counter accumulation. At 2.5 Gbps with
+ * minimum-size (64-byte) frames, a 32-bit packet counter wraps in ~880s.
+ * 2s gives a comfortable margin.
+ */
+#define MXL862XX_STATS_POLL_INTERVAL	(2 * HZ)
+
+struct mxl862xx_mib_desc {
+	unsigned int size;
+	unsigned int offset;
+	const char *name;
+};
+
+#define MIB_DESC(_size, _name, _element)					\
+{									\
+	.size = _size,							\
+	.name = _name,							\
+	.offset = offsetof(struct mxl862xx_rmon_port_cnt, _element)	\
+}
+
+/* Hardware-specific counters not covered by any standardized stats callback. */
+static const struct mxl862xx_mib_desc mxl862xx_mib[] = {
+	MIB_DESC(1, "TxAcmDroppedPkts", tx_acm_dropped_pkts),
+	MIB_DESC(1, "RxFilteredPkts", rx_filtered_pkts),
+	MIB_DESC(1, "RxExtendedVlanDiscardPkts", rx_extended_vlan_discard_pkts),
+	MIB_DESC(1, "MtuExceedDiscardPkts", mtu_exceed_discard_pkts),
+	MIB_DESC(2, "RxBadBytes", rx_bad_bytes),
+};
+
+static const struct ethtool_rmon_hist_range mxl862xx_rmon_ranges[] = {
+	{ 0, 64 },
+	{ 65, 127 },
+	{ 128, 255 },
+	{ 256, 511 },
+	{ 512, 1023 },
+	{ 1024, 10240 },
+	{}
+};
+
 #define MXL862XX_SDMA_PCTRLP(p)		(0xbc0 + ((p) * 0x6))
 #define MXL862XX_SDMA_PCTRL_EN		BIT(0)
 
@@ -644,6 +682,9 @@ static int mxl862xx_setup(struct dsa_switch *ds)
 	ret = mxl862xx_setup_drop_meter(ds);
 	if (ret)
 		return ret;
+
+	schedule_delayed_work(&priv->stats_work,
+			      MXL862XX_STATS_POLL_INTERVAL);
 
 	return mxl862xx_setup_mdio(ds);
 }
@@ -1734,6 +1775,293 @@ static int mxl862xx_port_bridge_flags(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static void mxl862xx_get_strings(struct dsa_switch *ds, int port,
+				 u32 stringset, u8 *data)
+{
+	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(mxl862xx_mib); i++)
+		ethtool_puts(&data, mxl862xx_mib[i].name);
+}
+
+static int mxl862xx_get_sset_count(struct dsa_switch *ds, int port, int sset)
+{
+	if (sset != ETH_SS_STATS)
+		return 0;
+
+	return ARRAY_SIZE(mxl862xx_mib);
+}
+
+static int mxl862xx_read_rmon(struct dsa_switch *ds, int port,
+			      struct mxl862xx_rmon_port_cnt *cnt)
+{
+	memset(cnt, 0, sizeof(*cnt));
+	cnt->port_type = cpu_to_le32(MXL862XX_CTP_PORT);
+	cnt->port_id = cpu_to_le16(port);
+
+	return MXL862XX_API_READ(ds->priv, MXL862XX_RMON_PORT_GET, *cnt);
+}
+
+static void mxl862xx_get_ethtool_stats(struct dsa_switch *ds, int port,
+				       u64 *data)
+{
+	const struct mxl862xx_mib_desc *mib;
+	struct mxl862xx_rmon_port_cnt cnt;
+	int ret, i;
+	void *field;
+
+	ret = mxl862xx_read_rmon(ds, port, &cnt);
+	if (ret) {
+		dev_err(ds->dev, "failed to read RMON stats on port %d\n", port);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mxl862xx_mib); i++) {
+		mib = &mxl862xx_mib[i];
+		field = (u8 *)&cnt + mib->offset;
+
+		if (mib->size == 1)
+			*data++ = le32_to_cpu(*(__le32 *)field);
+		else
+			*data++ = le64_to_cpu(*(__le64 *)field);
+	}
+}
+
+static void mxl862xx_get_eth_mac_stats(struct dsa_switch *ds, int port,
+				       struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct mxl862xx_rmon_port_cnt cnt;
+
+	if (mxl862xx_read_rmon(ds, port, &cnt))
+		return;
+
+	mac_stats->FramesTransmittedOK = le32_to_cpu(cnt.tx_good_pkts);
+	mac_stats->SingleCollisionFrames = le32_to_cpu(cnt.tx_single_coll_count);
+	mac_stats->MultipleCollisionFrames = le32_to_cpu(cnt.tx_mult_coll_count);
+	mac_stats->FramesReceivedOK = le32_to_cpu(cnt.rx_good_pkts);
+	mac_stats->FrameCheckSequenceErrors = le32_to_cpu(cnt.rx_fcserror_pkts);
+	mac_stats->AlignmentErrors = le32_to_cpu(cnt.rx_align_error_pkts);
+	mac_stats->OctetsTransmittedOK = le64_to_cpu(cnt.tx_good_bytes);
+	mac_stats->LateCollisions = le32_to_cpu(cnt.tx_late_coll_count);
+	mac_stats->FramesAbortedDueToXSColls = le32_to_cpu(cnt.tx_excess_coll_count);
+	mac_stats->OctetsReceivedOK = le64_to_cpu(cnt.rx_good_bytes);
+	mac_stats->MulticastFramesXmittedOK = le32_to_cpu(cnt.tx_multicast_pkts);
+	mac_stats->BroadcastFramesXmittedOK = le32_to_cpu(cnt.tx_broadcast_pkts);
+	mac_stats->MulticastFramesReceivedOK = le32_to_cpu(cnt.rx_multicast_pkts);
+	mac_stats->BroadcastFramesReceivedOK = le32_to_cpu(cnt.rx_broadcast_pkts);
+	mac_stats->FrameTooLongErrors = le32_to_cpu(cnt.rx_oversize_error_pkts);
+}
+
+static void mxl862xx_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
+					struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct mxl862xx_rmon_port_cnt cnt;
+
+	if (mxl862xx_read_rmon(ds, port, &cnt))
+		return;
+
+	ctrl_stats->MACControlFramesTransmitted = le32_to_cpu(cnt.tx_pause_count);
+	ctrl_stats->MACControlFramesReceived = le32_to_cpu(cnt.rx_good_pause_pkts);
+}
+
+static void mxl862xx_get_pause_stats(struct dsa_switch *ds, int port,
+				     struct ethtool_pause_stats *pause_stats)
+{
+	struct mxl862xx_rmon_port_cnt cnt;
+
+	if (mxl862xx_read_rmon(ds, port, &cnt))
+		return;
+
+	pause_stats->tx_pause_frames = le32_to_cpu(cnt.tx_pause_count);
+	pause_stats->rx_pause_frames = le32_to_cpu(cnt.rx_good_pause_pkts);
+}
+
+static void mxl862xx_get_rmon_stats(struct dsa_switch *ds, int port,
+				    struct ethtool_rmon_stats *rmon_stats,
+				    const struct ethtool_rmon_hist_range **ranges)
+{
+	struct mxl862xx_rmon_port_cnt cnt;
+
+	if (mxl862xx_read_rmon(ds, port, &cnt))
+		return;
+
+	rmon_stats->undersize_pkts = le32_to_cpu(cnt.rx_under_size_good_pkts);
+	rmon_stats->oversize_pkts = le32_to_cpu(cnt.rx_oversize_good_pkts);
+	rmon_stats->fragments = le32_to_cpu(cnt.rx_under_size_error_pkts);
+	rmon_stats->jabbers = le32_to_cpu(cnt.rx_oversize_error_pkts);
+
+	rmon_stats->hist[0] = le32_to_cpu(cnt.rx64byte_pkts);
+	rmon_stats->hist[1] = le32_to_cpu(cnt.rx127byte_pkts);
+	rmon_stats->hist[2] = le32_to_cpu(cnt.rx255byte_pkts);
+	rmon_stats->hist[3] = le32_to_cpu(cnt.rx511byte_pkts);
+	rmon_stats->hist[4] = le32_to_cpu(cnt.rx1023byte_pkts);
+	rmon_stats->hist[5] = le32_to_cpu(cnt.rx_max_byte_pkts);
+
+	rmon_stats->hist_tx[0] = le32_to_cpu(cnt.tx64byte_pkts);
+	rmon_stats->hist_tx[1] = le32_to_cpu(cnt.tx127byte_pkts);
+	rmon_stats->hist_tx[2] = le32_to_cpu(cnt.tx255byte_pkts);
+	rmon_stats->hist_tx[3] = le32_to_cpu(cnt.tx511byte_pkts);
+	rmon_stats->hist_tx[4] = le32_to_cpu(cnt.tx1023byte_pkts);
+	rmon_stats->hist_tx[5] = le32_to_cpu(cnt.tx_max_byte_pkts);
+
+	*ranges = mxl862xx_rmon_ranges;
+}
+
+/* Compute the delta between two 32-bit free-running counter snapshots,
+ * handling a single wrap-around correctly via unsigned subtraction.
+ */
+static u64 mxl862xx_delta32(u32 cur, u32 prev)
+{
+	return (u32)(cur - prev);
+}
+
+/**
+ * mxl862xx_stats_poll - Read RMON counters and accumulate into 64-bit stats
+ * @ds: DSA switch
+ * @port: port index
+ *
+ * The firmware RMON counters are free-running 32-bit values (64-bit for
+ * byte counters). This function reads the hardware via MDIO (may sleep),
+ * computes deltas from the previous snapshot, and accumulates them into
+ * 64-bit per-port stats under a spinlock.
+ *
+ * Called only from the stats polling workqueue -- serialized by the
+ * single-threaded delayed_work, so no MDIO locking is needed here.
+ */
+static void mxl862xx_stats_poll(struct dsa_switch *ds, int port)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port_stats *s = &priv->ports[port].stats;
+	u32 rx_fcserr, rx_under, rx_over, rx_align, tx_drop;
+	u32 rx_drop, rx_evlan, mtu_exc, tx_acm;
+	struct mxl862xx_rmon_port_cnt cnt;
+	u64 rx_bytes, tx_bytes;
+	u32 rx_mcast, tx_coll;
+	u32 rx_pkts, tx_pkts;
+
+	/* MDIO read -- may sleep, done outside the spinlock. */
+	if (mxl862xx_read_rmon(ds, port, &cnt))
+		return;
+
+	rx_pkts   = le32_to_cpu(cnt.rx_good_pkts);
+	tx_pkts   = le32_to_cpu(cnt.tx_good_pkts);
+	rx_bytes  = le64_to_cpu(cnt.rx_good_bytes);
+	tx_bytes  = le64_to_cpu(cnt.tx_good_bytes);
+	rx_fcserr = le32_to_cpu(cnt.rx_fcserror_pkts);
+	rx_under  = le32_to_cpu(cnt.rx_under_size_error_pkts);
+	rx_over   = le32_to_cpu(cnt.rx_oversize_error_pkts);
+	rx_align  = le32_to_cpu(cnt.rx_align_error_pkts);
+	tx_drop   = le32_to_cpu(cnt.tx_dropped_pkts);
+	rx_drop   = le32_to_cpu(cnt.rx_dropped_pkts);
+	rx_evlan  = le32_to_cpu(cnt.rx_extended_vlan_discard_pkts);
+	mtu_exc   = le32_to_cpu(cnt.mtu_exceed_discard_pkts);
+	tx_acm    = le32_to_cpu(cnt.tx_acm_dropped_pkts);
+	rx_mcast  = le32_to_cpu(cnt.rx_multicast_pkts);
+	tx_coll   = le32_to_cpu(cnt.tx_coll_count);
+
+	/* Accumulate deltas under spinlock -- .get_stats64 reads these. */
+	spin_lock_bh(&priv->ports[port].stats_lock);
+
+	s->rx_packets += mxl862xx_delta32(rx_pkts, s->prev_rx_good_pkts);
+	s->tx_packets += mxl862xx_delta32(tx_pkts, s->prev_tx_good_pkts);
+	s->rx_bytes   += rx_bytes - s->prev_rx_good_bytes;
+	s->tx_bytes   += tx_bytes - s->prev_tx_good_bytes;
+
+	s->rx_errors +=
+		mxl862xx_delta32(rx_fcserr, s->prev_rx_fcserror_pkts) +
+		mxl862xx_delta32(rx_under, s->prev_rx_under_size_error_pkts) +
+		mxl862xx_delta32(rx_over, s->prev_rx_oversize_error_pkts) +
+		mxl862xx_delta32(rx_align, s->prev_rx_align_error_pkts);
+	s->tx_errors +=
+		mxl862xx_delta32(tx_drop, s->prev_tx_dropped_pkts);
+
+	s->rx_dropped +=
+		mxl862xx_delta32(rx_drop, s->prev_rx_dropped_pkts) +
+		mxl862xx_delta32(rx_evlan, s->prev_rx_evlan_discard_pkts) +
+		mxl862xx_delta32(mtu_exc, s->prev_mtu_exceed_discard_pkts);
+	s->tx_dropped +=
+		mxl862xx_delta32(tx_drop, s->prev_tx_dropped_pkts) +
+		mxl862xx_delta32(tx_acm, s->prev_tx_acm_dropped_pkts);
+
+	s->multicast  += mxl862xx_delta32(rx_mcast, s->prev_rx_multicast_pkts);
+	s->collisions += mxl862xx_delta32(tx_coll, s->prev_tx_coll_count);
+
+	s->rx_length_errors +=
+		mxl862xx_delta32(rx_under, s->prev_rx_under_size_error_pkts) +
+		mxl862xx_delta32(rx_over, s->prev_rx_oversize_error_pkts);
+	s->rx_crc_errors +=
+		mxl862xx_delta32(rx_fcserr, s->prev_rx_fcserror_pkts);
+	s->rx_frame_errors +=
+		mxl862xx_delta32(rx_align, s->prev_rx_align_error_pkts);
+
+	s->prev_rx_good_pkts             = rx_pkts;
+	s->prev_tx_good_pkts             = tx_pkts;
+	s->prev_rx_good_bytes            = rx_bytes;
+	s->prev_tx_good_bytes            = tx_bytes;
+	s->prev_rx_fcserror_pkts         = rx_fcserr;
+	s->prev_rx_under_size_error_pkts = rx_under;
+	s->prev_rx_oversize_error_pkts   = rx_over;
+	s->prev_rx_align_error_pkts      = rx_align;
+	s->prev_tx_dropped_pkts          = tx_drop;
+	s->prev_rx_dropped_pkts          = rx_drop;
+	s->prev_rx_evlan_discard_pkts    = rx_evlan;
+	s->prev_mtu_exceed_discard_pkts  = mtu_exc;
+	s->prev_tx_acm_dropped_pkts      = tx_acm;
+	s->prev_rx_multicast_pkts        = rx_mcast;
+	s->prev_tx_coll_count            = tx_coll;
+
+	spin_unlock_bh(&priv->ports[port].stats_lock);
+}
+
+static void mxl862xx_stats_work_fn(struct work_struct *work)
+{
+	struct mxl862xx_priv *priv =
+		container_of(work, struct mxl862xx_priv, stats_work.work);
+	struct dsa_switch *ds = priv->ds;
+	struct dsa_port *dp;
+
+	dsa_switch_for_each_available_port(dp, ds)
+		mxl862xx_stats_poll(ds, dp->index);
+
+	if (!test_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags))
+		schedule_delayed_work(&priv->stats_work,
+				      MXL862XX_STATS_POLL_INTERVAL);
+}
+
+static void mxl862xx_get_stats64(struct dsa_switch *ds, int port,
+				 struct rtnl_link_stats64 *s)
+{
+	struct mxl862xx_priv *priv = ds->priv;
+	struct mxl862xx_port_stats *ps = &priv->ports[port].stats;
+
+	spin_lock_bh(&priv->ports[port].stats_lock);
+
+	s->rx_packets = ps->rx_packets;
+	s->tx_packets = ps->tx_packets;
+	s->rx_bytes = ps->rx_bytes;
+	s->tx_bytes = ps->tx_bytes;
+	s->rx_errors = ps->rx_errors;
+	s->tx_errors = ps->tx_errors;
+	s->rx_dropped = ps->rx_dropped;
+	s->tx_dropped = ps->tx_dropped;
+	s->multicast = ps->multicast;
+	s->collisions = ps->collisions;
+	s->rx_length_errors = ps->rx_length_errors;
+	s->rx_crc_errors = ps->rx_crc_errors;
+	s->rx_frame_errors = ps->rx_frame_errors;
+
+	spin_unlock_bh(&priv->ports[port].stats_lock);
+
+	/* Trigger a fresh poll so the next read sees up-to-date counters.
+	 * No-op if the work is already pending, running, or teardown started.
+	 */
+	if (!test_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags))
+		schedule_delayed_work(&priv->stats_work, 0);
+}
+
 static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.get_tag_protocol = mxl862xx_get_tag_protocol,
 	.setup = mxl862xx_setup,
@@ -1758,6 +2086,14 @@ static const struct dsa_switch_ops mxl862xx_switch_ops = {
 	.port_vlan_filtering = mxl862xx_port_vlan_filtering,
 	.port_vlan_add = mxl862xx_port_vlan_add,
 	.port_vlan_del = mxl862xx_port_vlan_del,
+	.get_strings = mxl862xx_get_strings,
+	.get_sset_count = mxl862xx_get_sset_count,
+	.get_ethtool_stats = mxl862xx_get_ethtool_stats,
+	.get_eth_mac_stats = mxl862xx_get_eth_mac_stats,
+	.get_eth_ctrl_stats = mxl862xx_get_eth_ctrl_stats,
+	.get_pause_stats = mxl862xx_get_pause_stats,
+	.get_rmon_stats = mxl862xx_get_rmon_stats,
+	.get_stats64 = mxl862xx_get_stats64,
 };
 
 static void mxl862xx_phylink_mac_config(struct phylink_config *config,
@@ -1819,16 +2155,22 @@ static int mxl862xx_probe(struct mdio_device *mdiodev)
 		priv->ports[i].priv = priv;
 		INIT_WORK(&priv->ports[i].host_flood_work,
 			  mxl862xx_host_flood_work_fn);
+		spin_lock_init(&priv->ports[i].stats_lock);
 	}
+
+	INIT_DELAYED_WORK(&priv->stats_work, mxl862xx_stats_work_fn);
 
 	dev_set_drvdata(dev, ds);
 
 	err = dsa_register_switch(ds);
 	if (err) {
+		set_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags);
+		cancel_delayed_work_sync(&priv->stats_work);
 		mxl862xx_host_shutdown(priv);
 		for (i = 0; i < MXL862XX_MAX_PORTS; i++)
 			cancel_work_sync(&priv->ports[i].host_flood_work);
 	}
+
 	return err;
 }
 
@@ -1842,6 +2184,9 @@ static void mxl862xx_remove(struct mdio_device *mdiodev)
 		return;
 
 	priv = ds->priv;
+
+	set_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags);
+	cancel_delayed_work_sync(&priv->stats_work);
 
 	dsa_unregister_switch(ds);
 
@@ -1868,6 +2213,9 @@ static void mxl862xx_shutdown(struct mdio_device *mdiodev)
 	priv = ds->priv;
 
 	dsa_switch_shutdown(ds);
+
+	set_bit(MXL862XX_FLAG_WORK_STOPPED, &priv->flags);
+	cancel_delayed_work_sync(&priv->stats_work);
 
 	mxl862xx_host_shutdown(priv);
 
