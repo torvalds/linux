@@ -31,7 +31,6 @@ if PCI
 
 config PCI_DOMAINS
 	bool
-	depends on PCI
 
 config PCI_DOMAINS_GENERIC
 	bool
@@ -255,7 +254,7 @@ config PCI_DYNAMIC_OF_NODES
 choice
 	prompt "PCI Express hierarchy optimization setting"
 	default PCIE_BUS_DEFAULT
-	depends on PCI && EXPERT
+	depends on EXPERT
 	help
 	  MPS (Max Payload Size) and MRRS (Max Read Request Size) are PCIe
 	  device parameters that affect performance and the ability to
@@ -272,20 +271,17 @@ choice
 
 config PCIE_BUS_TUNE_OFF
 	bool "Tune Off"
-	depends on PCI
 	help
 	  Use the BIOS defaults; don't touch MPS at all.  This is the same
 	  as booting with 'pci=pcie_bus_tune_off'.
 
 config PCIE_BUS_DEFAULT
 	bool "Default"
-	depends on PCI
 	help
 	  Default choice; ensure that the MPS matches upstream bridge.
 
 config PCIE_BUS_SAFE
 	bool "Safe"
-	depends on PCI
 	help
 	  Use largest MPS that boot-time devices support.  If you have a
 	  closed system with no possibility of adding new devices, this
@@ -294,7 +290,6 @@ config PCIE_BUS_SAFE
 
 config PCIE_BUS_PERFORMANCE
 	bool "Performance"
-	depends on PCI
 	help
 	  Use MPS and MRRS for best performance.  Ensure that a given
 	  device's MPS is no larger than its parent MPS, which allows us to
@@ -303,7 +298,6 @@ config PCIE_BUS_PERFORMANCE
 
 config PCIE_BUS_PEER2PEER
 	bool "Peer2peer"
-	depends on PCI
 	help
 	  Set MPS = 128 for all devices.  MPS configuration effected by the
 	  other options could cause the MPS on one root port to be
@@ -317,7 +311,7 @@ endchoice
 config VGA_ARB
 	bool "VGA Arbitration" if EXPERT
 	default y
-	depends on (PCI && !S390)
+	depends on !S390
 	select SCREEN_INFO if X86
 	help
 	  Some "legacy" VGA devices implemented on PCI typically have the same
@@ -340,4 +334,4 @@ source "drivers/pci/endpoint/Kconfig"
 source "drivers/pci/switch/Kconfig"
 source "drivers/pci/pwrctrl/Kconfig"
 
-endif
+endif # PCI
