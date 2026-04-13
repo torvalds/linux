@@ -126,7 +126,7 @@ mnt_drop_write_and_out:
 }
 EXPORT_SYMBOL_GPL(vfs_truncate);
 
-int do_sys_truncate(const char __user *pathname, loff_t length)
+int ksys_truncate(const char __user *pathname, loff_t length)
 {
 	unsigned int lookup_flags = LOOKUP_FOLLOW;
 	struct path path;
@@ -151,33 +151,31 @@ retry:
 
 SYSCALL_DEFINE2(truncate, const char __user *, path, long, length)
 {
-	return do_sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path, compat_off_t, length)
 {
-	return do_sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 #endif
 
-int do_ftruncate(struct file *file, loff_t length, int small)
+int do_ftruncate(struct file *file, loff_t length, unsigned int flags)
 {
-	struct inode *inode;
-	struct dentry *dentry;
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
 	int error;
 
-	/* explicitly opened as large or we are on 64-bit box */
-	if (file->f_flags & O_LARGEFILE)
-		small = 0;
-
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
 	if (!S_ISREG(inode->i_mode) || !(file->f_mode & FMODE_WRITE))
 		return -EINVAL;
 
-	/* Cannot ftruncate over 2^31 bytes without large file support */
-	if (small && length > MAX_NON_LFS)
+	/*
+	 * Cannot ftruncate over 2^31 bytes without large file support, either
+	 * through opening with O_LARGEFILE or by using ftruncate64().
+	 */
+	if (length > MAX_NON_LFS &&
+	    !(file->f_flags & O_LARGEFILE) && !(flags & FTRUNCATE_LFS))
 		return -EINVAL;
 
 	/* Check IS_APPEND on real upper inode */
@@ -197,7 +195,7 @@ int do_ftruncate(struct file *file, loff_t length, int small)
 				   ATTR_MTIME | ATTR_CTIME, file);
 }
 
-int do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+int ksys_ftruncate(unsigned int fd, loff_t length, unsigned int flags)
 {
 	if (length < 0)
 		return -EINVAL;
@@ -205,18 +203,18 @@ int do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	if (fd_empty(f))
 		return -EBADF;
 
-	return do_ftruncate(fd_file(f), length, small);
+	return do_ftruncate(fd_file(f), length, flags);
 }
 
 SYSCALL_DEFINE2(ftruncate, unsigned int, fd, off_t, length)
 {
-	return do_sys_ftruncate(fd, length, 1);
+	return ksys_ftruncate(fd, length, 0);
 }
 
 #ifdef CONFIG_COMPAT
 COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_off_t, length)
 {
-	return do_sys_ftruncate(fd, length, 1);
+	return ksys_ftruncate(fd, length, 0);
 }
 #endif
 
@@ -224,12 +222,12 @@ COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_off_t, length)
 #if BITS_PER_LONG == 32
 SYSCALL_DEFINE2(truncate64, const char __user *, path, loff_t, length)
 {
-	return do_sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 
 SYSCALL_DEFINE2(ftruncate64, unsigned int, fd, loff_t, length)
 {
-	return do_sys_ftruncate(fd, length, 0);
+	return ksys_ftruncate(fd, length, FTRUNCATE_LFS);
 }
 #endif /* BITS_PER_LONG == 32 */
 
@@ -245,7 +243,7 @@ COMPAT_SYSCALL_DEFINE3(truncate64, const char __user *, pathname,
 COMPAT_SYSCALL_DEFINE3(ftruncate64, unsigned int, fd,
 		       compat_arg_u64_dual(length))
 {
-	return ksys_ftruncate(fd, compat_arg_u64_glue(length));
+	return ksys_ftruncate(fd, compat_arg_u64_glue(length), FTRUNCATE_LFS);
 }
 #endif
 

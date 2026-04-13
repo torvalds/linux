@@ -60,7 +60,7 @@ SYSCALL_DEFINE4(32_truncate64, const char __user *, path,
 SYSCALL_DEFINE4(32_ftruncate64, unsigned long, fd, unsigned long, __dummy,
 	unsigned long, a2, unsigned long, a3)
 {
-	return ksys_ftruncate(fd, merge_64(a2, a3));
+	return ksys_ftruncate(fd, merge_64(a2, a3), FTRUNCATE_LFS);
 }
 
 SYSCALL_DEFINE5(32_llseek, unsigned int, fd, unsigned int, offset_high,

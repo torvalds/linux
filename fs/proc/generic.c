@@ -115,8 +115,8 @@ static bool pde_subdir_insert(struct proc_dir_entry *dir,
 	return true;
 }
 
-static int proc_notify_change(struct mnt_idmap *idmap,
-			      struct dentry *dentry, struct iattr *iattr)
+static int proc_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+		struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct proc_dir_entry *de = PDE(inode);
@@ -151,7 +151,7 @@ static int proc_getattr(struct mnt_idmap *idmap,
 }
 
 static const struct inode_operations proc_file_inode_operations = {
-	.setattr	= proc_notify_change,
+	.setattr	= proc_setattr,
 };
 
 /*
@@ -364,7 +364,7 @@ const struct dentry_operations proc_net_dentry_ops = {
 static const struct inode_operations proc_dir_inode_operations = {
 	.lookup		= proc_lookup,
 	.getattr	= proc_getattr,
-	.setattr	= proc_notify_change,
+	.setattr	= proc_setattr,
 };
 
 static void pde_set_flags(struct proc_dir_entry *pde)

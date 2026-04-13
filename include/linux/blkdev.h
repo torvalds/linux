@@ -38,6 +38,7 @@ struct blk_flush_queue;
 struct kiocb;
 struct pr_ops;
 struct rq_qos;
+struct hd_geometry;
 struct blk_report_zones_args;
 struct blk_queue_stats;
 struct blk_stat_callback;

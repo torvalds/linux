@@ -13,7 +13,7 @@
 #include <linux/namei.h>
 #include "internal.h"
 
-const struct constant_table bool_names[] = {
+static const struct constant_table bool_names[] = {
 	{ "0",		false },
 	{ "1",		true },
 	{ "false",	false },
@@ -22,7 +22,6 @@ const struct constant_table bool_names[] = {
 	{ "yes",	true },
 	{ },
 };
-EXPORT_SYMBOL(bool_names);
 
 static const struct constant_table *
 __lookup_constant(const struct constant_table *tbl, const char *name)
@@ -278,15 +277,6 @@ int fs_param_is_string(struct p_log *log, const struct fs_parameter_spec *p,
 }
 EXPORT_SYMBOL(fs_param_is_string);
 
-int fs_param_is_blob(struct p_log *log, const struct fs_parameter_spec *p,
-		     struct fs_parameter *param, struct fs_parse_result *result)
-{
-	if (param->type != fs_value_is_blob)
-		return fs_param_bad_value(log, param);
-	return 0;
-}
-EXPORT_SYMBOL(fs_param_is_blob);
-
 int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
 		  struct fs_parameter *param, struct fs_parse_result *result)
 {
@@ -370,13 +360,6 @@ int fs_param_is_blockdev(struct p_log *log, const struct fs_parameter_spec *p,
 	return 0;
 }
 EXPORT_SYMBOL(fs_param_is_blockdev);
-
-int fs_param_is_path(struct p_log *log, const struct fs_parameter_spec *p,
-		     struct fs_parameter *param, struct fs_parse_result *result)
-{
-	return 0;
-}
-EXPORT_SYMBOL(fs_param_is_path);
 
 #ifdef CONFIG_VALIDATE_FS_PARSER
 /**

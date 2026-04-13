@@ -61,7 +61,8 @@ SYSCALL_DEFINE3(ia32_truncate64, const char __user *, filename,
 SYSCALL_DEFINE3(ia32_ftruncate64, unsigned int, fd,
 		unsigned long, offset_low, unsigned long, offset_high)
 {
-	return ksys_ftruncate(fd, ((loff_t) offset_high << 32) | offset_low);
+	return ksys_ftruncate(fd, ((loff_t) offset_high << 32) | offset_low,
+			FTRUNCATE_LFS);
 }
 
 /* warning: next two assume little endian */

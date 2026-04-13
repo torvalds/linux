@@ -299,8 +299,7 @@ out:
  * later.
  */
 int
-adfs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
-		   struct iattr *attr)
+adfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
@@ -355,8 +354,7 @@ out:
 
 /*
  * write an existing inode back to the directory, and therefore the disk.
- * The adfs-specific inode data has already been updated by
- * adfs_notify_change()
+ * The adfs-specific inode data has already been updated by * adfs_setattr().
  */
 int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {

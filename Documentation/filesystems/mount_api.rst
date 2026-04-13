@@ -647,9 +647,7 @@ The members are as follows:
 	fs_param_is_u64		64-bit unsigned int	result->uint_64
 	fs_param_is_enum	Enum value name 	result->uint_32
 	fs_param_is_string	Arbitrary string	param->string
-	fs_param_is_blob	Binary blob		param->blob
 	fs_param_is_blockdev	Blockdev path		* Needs lookup
-	fs_param_is_path	Path			* Needs lookup
 	fs_param_is_fd		File descriptor		result->int_32
 	fs_param_is_uid		User ID (u32)           result->uid
 	fs_param_is_gid		Group ID (u32)          result->gid
@@ -681,9 +679,7 @@ The members are as follows:
 	fsparam_u64()		fs_param_is_u64
 	fsparam_enum()		fs_param_is_enum
 	fsparam_string()	fs_param_is_string
-	fsparam_blob()		fs_param_is_blob
 	fsparam_bdev()		fs_param_is_blockdev
-	fsparam_path()		fs_param_is_path
 	fsparam_fd()		fs_param_is_fd
 	fsparam_uid()		fs_param_is_uid
 	fsparam_gid()		fs_param_is_gid

@@ -622,23 +622,6 @@ static int hfs_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/*
- * hfs_notify_change()
- *
- * Based very closely on fs/msdos/inode.c by Werner Almesberger
- *
- * This is the notify_change() field in the super_operations structure
- * for HFS file systems.  The purpose is to take that changes made to
- * an inode and apply then in a filesystem-dependent manner.  In this
- * case the process has a few of tasks to do:
- *  1) prevent changes to the i_uid and i_gid fields.
- *  2) map file permissions to the closest allowable permissions
- *  3) Since multiple Linux files can share the same on-disk inode under
- *     HFS (for instance the data and resource forks of a file) a change
- *     to permissions must be applied to all other in-core inodes which
- *     correspond to the same HFS file.
- */
-
 int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		      struct iattr *attr)
 {
@@ -646,8 +629,7 @@ int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	struct hfs_sb_info *hsb = HFS_SB(inode->i_sb);
 	int error;
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry,
-				attr); /* basic permission checks */
+	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -663,6 +645,7 @@ int hfs_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return hsb->s_quiet ? 0 : error;
 	}
 
+	/* map file permissions to the closest allowable permissions in HFS */
 	if (attr->ia_valid & ATTR_MODE) {
 		/* Only the 'w' bits can ever change and only all together. */
 		if (attr->ia_mode & S_IWUSR)

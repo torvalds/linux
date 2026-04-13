@@ -41,7 +41,7 @@ int io_ftruncate(struct io_kiocb *req, unsigned int issue_flags)
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_ftruncate(req->file, ft->len, 1);
+	ret = do_ftruncate(req->file, ft->len, 0);
 
 	io_req_set_res(req, ret, 0);
 	return IOU_COMPLETE;

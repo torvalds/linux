@@ -213,13 +213,12 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
-		   struct iattr *attr)
+affs_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	pr_debug("notify_change(%llu,0x%x)\n", inode->i_ino, attr->ia_valid);
+	pr_debug("setattr(%llu,0x%x)\n", inode->i_ino, attr->ia_valid);
 
 	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (error)

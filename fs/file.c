@@ -200,7 +200,7 @@ static struct fdtable *alloc_fdtable(unsigned int slots_wanted)
 	/*
 	 * Check if the allocation size would exceed INT_MAX. kvmalloc_array()
 	 * and kvmalloc() will warn if the allocation size is greater than
-	 * INT_MAX, as filp_cachep objects are not __GFP_NOWARN.
+	 * INT_MAX, as filp_cache objects are not __GFP_NOWARN.
 	 *
 	 * This can happen when sysctl_nr_open is set to a very high value and
 	 * a process tries to use a file descriptor near that limit. For example,

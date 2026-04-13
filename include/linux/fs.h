@@ -55,8 +55,6 @@ struct bdi_writeback;
 struct bio;
 struct io_comp_batch;
 struct fiemap_extent_info;
-struct hd_geometry;
-struct iovec;
 struct kiocb;
 struct kobject;
 struct pipe_inode_info;
@@ -1920,7 +1918,6 @@ struct dir_context {
  */
 #define COPY_FILE_SPLICE		(1 << 0)
 
-struct iov_iter;
 struct io_uring_cmd;
 struct offset_ctx;
 

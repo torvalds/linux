@@ -2140,7 +2140,7 @@ static __always_inline const char *step_into(struct nameidata *nd, int flags,
 		if (unlikely(!inode))
 			return ERR_PTR(-ENOENT);
 		nd->path.dentry = dentry;
-		/* nd->path.mnt is retained on purpose */
+		/* nd->path.mnt remains unchanged as no mount point was crossed */
 		nd->inode = inode;
 		nd->seq = nd->next_seq;
 		return NULL;

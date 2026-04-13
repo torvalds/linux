@@ -244,7 +244,7 @@ static int acct_on(const char __user *name)
 	if (!S_ISREG(file_inode(file)->i_mode))
 		return -EACCES;
 
-	/* Exclude kernel kernel internal filesystems. */
+	/* Exclude kernel internal filesystems. */
 	if (file_inode(file)->i_sb->s_flags & (SB_NOUSER | SB_KERNMOUNT))
 		return -EINVAL;
 
