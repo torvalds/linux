@@ -61,6 +61,17 @@ config PCI_MESON
 	  and therefore the driver re-uses the DesignWare core functions to
 	  implement the driver.
 
+config PCIE_ANDES_QILAI
+	tristate "Andes QiLai PCIe controller"
+	depends on ARCH_ANDES || COMPILE_TEST
+	depends on PCI_MSI
+	select PCIE_DW_HOST
+	help
+	  Say Y here to enable PCIe controller support on Andes QiLai SoCs,
+	  which operate in Root Complex mode. The Andes QiLai SoC PCIe
+	  controller is based on DesignWare IP and therefore the driver
+	  re-uses the DesignWare core functions to implement the driver.
+
 config PCIE_ARTPEC6
 	bool
 
