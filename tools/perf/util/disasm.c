@@ -452,7 +452,7 @@ int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
 			 ops->target.offset);
 }
 
-static void jump__delete(struct ins_operands *ops __maybe_unused)
+void jump__delete(struct ins_operands *ops __maybe_unused)
 {
 	/*
 	 * The ops->jump.raw_comment and ops->jump.raw_func_start belong to the

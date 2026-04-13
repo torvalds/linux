@@ -161,6 +161,8 @@ int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
 int mov__scnprintf(const struct ins *ins, char *bf, size_t size,
 		   struct ins_operands *ops, int max_ins_name);
 
+void jump__delete(struct ins_operands *ops);
+
 int symbol__disassemble(struct symbol *sym, struct annotate_args *args);
 
 char *expand_tabs(char *line, char **storage, size_t *storage_len);
