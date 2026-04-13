@@ -1244,7 +1244,7 @@ static inline int putu16_iotlb(const struct vringh *vrh,
 
 	/* Atomic write is needed for putu16 */
 	ret = iotlb_translate(vrh, (u64)(uintptr_t)p, sizeof(*p),
-			      NULL, &ivec, VHOST_MAP_RO);
+			      NULL, &ivec, VHOST_MAP_WO);
 	if (ret < 0)
 		return ret;
 
