@@ -208,12 +208,9 @@ static inline void exit_tasks_rcu_finish(void) { }
 /**
  * rcu_trace_implies_rcu_gp - does an RCU Tasks Trace grace period imply an RCU grace period?
  *
- * As an accident of implementation, an RCU Tasks Trace grace period also
- * acts as an RCU grace period.  However, this could change at any time.
- * Code relying on this accident must call this function to verify that
- * this accident is still happening.
- *
- * You have been warned!
+ * Now that RCU Tasks Trace is implemented in terms of SRCU-fast, a
+ * call to synchronize_rcu_tasks_trace() is guaranteed to imply at least
+ * one call to synchronize_rcu().
  */
 static inline bool rcu_trace_implies_rcu_gp(void) { return true; }
 

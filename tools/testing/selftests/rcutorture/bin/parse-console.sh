@@ -113,7 +113,6 @@ then
 		then
 			print_warning $title `cat $T.seq`
 		fi
-		exit 2
 	fi
 fi | tee -a $file.diags
 

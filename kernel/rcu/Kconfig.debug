@@ -228,4 +228,15 @@ config RCU_DYNTICKS_TORTURE
 
 	  This has no value for production and is only for testing.
 
+config TRIVIAL_PREEMPT_RCU
+	bool "Textbook trivial preemptible RCU in rcutorture"
+	depends on RCU_EXPERT && RCU_TORTURE_TEST
+	default n
+	help
+	  This option enables a textbook preemptible RCU that is
+	  implemented in rcutorture.  Its sole purpose is to validate
+	  code used in books, papers, and presentations.
+
+	  This has no value for production and is only for testing.
+
 endmenu # "RCU Debugging"

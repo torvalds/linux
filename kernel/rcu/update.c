@@ -538,6 +538,28 @@ long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool do
 EXPORT_SYMBOL_GPL(torture_sched_setaffinity);
 #endif
 
+#if IS_ENABLED(CONFIG_TRIVIAL_PREEMPT_RCU)
+// Trivial and stupid grace-period wait.  Defined here so that lockdep
+// kernels can find tasklist_lock.
+void synchronize_rcu_trivial_preempt(void)
+{
+	struct task_struct *g;
+	struct task_struct *t;
+
+	smp_mb(); // Order prior accesses before grace-period start.
+	rcu_read_lock(); // Protect task list.
+	for_each_process_thread(g, t) {
+		if (t == current)
+			continue;  // Don't deadlock on ourselves!
+		// Order later rcu_read_lock() on other tasks after QS.
+		while (smp_load_acquire(&t->rcu_trivial_preempt_nesting))
+			continue;
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu_trivial_preempt);
+#endif // #if IS_ENABLED(CONFIG_TRIVIAL_PREEMPT_RCU)
+
 int rcu_cpu_stall_notifiers __read_mostly; // !0 = provide stall notifiers (rarely useful)
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_notifiers);
 
