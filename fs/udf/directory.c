@@ -430,9 +430,10 @@ void udf_fiiter_write_fi(struct udf_fileident_iter *iter, uint8_t *impuse)
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		mark_inode_dirty(iter->dir);
 	} else {
-		mark_buffer_dirty_inode(iter->bh[0], iter->dir);
+		mmb_mark_buffer_dirty(iter->bh[0], &iinfo->i_metadata_bhs);
 		if (iter->bh[1])
-			mark_buffer_dirty_inode(iter->bh[1], iter->dir);
+			mmb_mark_buffer_dirty(iter->bh[1],
+					      &iinfo->i_metadata_bhs);
 	}
 	inode_inc_iversion(iter->dir);
 }

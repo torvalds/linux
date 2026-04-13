@@ -334,7 +334,7 @@ const struct file_operations omfs_file_operations = {
 	.read_iter = generic_file_read_iter,
 	.write_iter = generic_file_write_iter,
 	.mmap_prepare = generic_file_mmap_prepare,
-	.fsync = generic_file_fsync,
+	.fsync = simple_fsync,
 	.splice_read = filemap_splice_read,
 };
 
