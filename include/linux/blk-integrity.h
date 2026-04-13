@@ -14,6 +14,7 @@ enum blk_integrity_flags {
 	BLK_INTEGRITY_DEVICE_CAPABLE	= 1 << 2,
 	BLK_INTEGRITY_REF_TAG		= 1 << 3,
 	BLK_INTEGRITY_STACKED		= 1 << 4,
+	BLK_SPLIT_INTERVAL_CAPABLE	= 1 << 5,
 };
 
 const char *blk_integrity_profile_name(struct blk_integrity *bi);

@@ -2,6 +2,9 @@
 #ifndef _UAPIBSG_H
 #define _UAPIBSG_H
 
+#ifdef __KERNEL__
+#include <linux/build_bug.h>
+#endif /* __KERNEL__ */
 #include <linux/types.h>
 
 #define BSG_PROTOCOL_SCSI		0
@@ -63,5 +66,77 @@ struct sg_io_v4 {
 	__u32 padding;
 };
 
+struct bsg_uring_cmd {
+	__u64 request;		/* [i], [*i] command descriptor address */
+	__u32 request_len;	/* [i] command descriptor length in bytes */
+	__u32 protocol;		/* [i] protocol type (BSG_PROTOCOL_*) */
+	__u32 subprotocol;	/* [i] subprotocol type (BSG_SUB_PROTOCOL_*) */
+	__u32 max_response_len;	/* [i] response buffer size in bytes */
+
+	__u64 response;		/* [i], [*o] response data address */
+	__u64 dout_xferp;	/* [i], [*i] */
+	__u32 dout_xfer_len;	/* [i] bytes to be transferred to device */
+	__u32 dout_iovec_count;	/* [i] 0 -> "flat" dout transfer else
+				 * dout_xferp points to array of iovec
+				 */
+	__u64 din_xferp;	/* [i], [*o] */
+	__u32 din_xfer_len;	/* [i] bytes to be transferred from device */
+	__u32 din_iovec_count;	/* [i] 0 -> "flat" din transfer */
+
+	__u32 timeout_ms;	/* [i] timeout in milliseconds */
+	__u8  reserved[12];	/* reserved for future extension */
+};
+
+#ifdef __KERNEL__
+/* Must match IORING_OP_URING_CMD payload size (e.g. SQE128). */
+static_assert(sizeof(struct bsg_uring_cmd) == 80);
+#endif /* __KERNEL__ */
+
+
+/*
+ * SCSI BSG io_uring completion (res2, 64-bit)
+ *
+ * When using BSG_PROTOCOL_SCSI + BSG_SUB_PROTOCOL_SCSI_CMD with
+ * IORING_OP_URING_CMD, the completion queue entry (CQE) contains:
+ *   - result: errno (0 on success)
+ *   - res2: packed SCSI status
+ *
+ * res2 bit layout:
+ *   [0..7]   device_status  (SCSI status byte, e.g. CHECK_CONDITION)
+ *   [8..15]  driver_status  (e.g. DRIVER_SENSE when sense data is valid)
+ *   [16..23] host_status    (e.g. DID_OK, DID_TIME_OUT)
+ *   [24..31] sense_len_wr   (bytes of sense data written to response buffer)
+ *   [32..63] resid_len      (residual transfer length)
+ */
+static inline __u8 bsg_scsi_res2_device_status(__u64 res2)
+{
+	return res2 & 0xff;
+}
+static inline __u8 bsg_scsi_res2_driver_status(__u64 res2)
+{
+	return res2 >> 8;
+}
+static inline __u8 bsg_scsi_res2_host_status(__u64 res2)
+{
+	return res2 >> 16;
+}
+static inline __u8 bsg_scsi_res2_sense_len(__u64 res2)
+{
+	return res2 >> 24;
+}
+static inline __u32 bsg_scsi_res2_resid_len(__u64 res2)
+{
+	return res2 >> 32;
+}
+static inline __u64 bsg_scsi_res2_build(__u8 device_status, __u8 driver_status,
+					__u8 host_status, __u8 sense_len_wr,
+					__u32 resid_len)
+{
+	return ((__u64)(__u32)(resid_len) << 32) |
+		((__u64)sense_len_wr << 24) |
+		((__u64)host_status << 16) |
+		((__u64)driver_status << 8) |
+		(__u64)device_status;
+}
 
 #endif /* _UAPIBSG_H */

@@ -74,6 +74,19 @@ struct opal_lr_act {
 	__u8 align[2]; /* Align to 8 byte boundary */
 };
 
+struct opal_lr_react {
+	struct opal_key key;
+	struct opal_key new_admin_key; /* Set new Admin1 PIN if key_len is > 0 */
+	__u8 num_lrs; /*
+		       * Configure selected ranges (from lr[]) in SUM.
+		       * If num_lrs > 0 the 'entire_table' must be 0
+		       */
+	__u8 lr[OPAL_MAX_LRS];
+	__u8 range_policy; /* Set RangeStartRangeLengthPolicy parameter */
+	__u8 entire_table; /* Set all locking objects in SUM */
+	__u8 align[4]; /* Align to 8 byte boundary */
+};
+
 struct opal_session_info {
 	__u32 sum;
 	__u32 who;
@@ -96,6 +109,18 @@ struct opal_lr_status {
 	__u32 WLE; /* Write Lock Enabled */
 	__u32 l_state;
 	__u8  align[4];
+};
+
+struct opal_sum_ranges {
+	/*
+	 * Initiate Admin1 session if key_len > 0,
+	 * use Anybody session otherwise.
+	 */
+	struct opal_key key;
+	__u8 num_lrs;
+	__u8 lr[OPAL_MAX_LRS];
+	__u8 range_policy;
+	__u8 align[5]; /* Align to 8 byte boundary */
 };
 
 struct opal_lock_unlock {
@@ -216,5 +241,10 @@ struct opal_revert_lsp {
 #define IOC_OPAL_DISCOVERY          _IOW('p', 239, struct opal_discovery)
 #define IOC_OPAL_REVERT_LSP         _IOW('p', 240, struct opal_revert_lsp)
 #define IOC_OPAL_SET_SID_PW         _IOW('p', 241, struct opal_new_pw)
+#define IOC_OPAL_REACTIVATE_LSP     _IOW('p', 242, struct opal_lr_react)
+#define IOC_OPAL_LR_SET_START_LEN   _IOW('p', 243, struct opal_user_lr_setup)
+#define IOC_OPAL_ENABLE_DISABLE_LR  _IOW('p', 244, struct opal_user_lr_setup)
+#define IOC_OPAL_GET_SUM_STATUS     _IOW('p', 245, struct opal_sum_ranges)
+#define IOC_OPAL_STACK_RESET        _IO('p', 246)
 
 #endif /* _UAPI_SED_OPAL_H */

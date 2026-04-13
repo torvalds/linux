@@ -19,6 +19,7 @@
 enum {
 	TCG_SECP_00 = 0,
 	TCG_SECP_01,
+	TCG_SECP_02,
 };
 
 /*
@@ -125,6 +126,7 @@ enum opal_uid {
 	OPAL_LOCKING_INFO_TABLE,
 	OPAL_ENTERPRISE_LOCKING_INFO_TABLE,
 	OPAL_DATASTORE,
+	OPAL_LOCKING_TABLE,
 	/* C_PIN_TABLE object ID's */
 	OPAL_C_PIN_MSID,
 	OPAL_C_PIN_SID,
@@ -154,6 +156,7 @@ enum opal_method {
 	OPAL_AUTHENTICATE,
 	OPAL_RANDOM,
 	OPAL_ERASE,
+	OPAL_REACTIVATE,
 };
 
 enum opal_token {
@@ -224,6 +227,8 @@ enum opal_lockingstate {
 
 enum opal_parameter {
 	OPAL_SUM_SET_LIST = 0x060000,
+	OPAL_SUM_RANGE_POLICY = 0x060001,
+	OPAL_SUM_ADMIN1_PIN = 0x060002,
 };
 
 enum opal_revertlsp {
@@ -267,6 +272,25 @@ struct opal_header {
 	struct opal_compacket cp;
 	struct opal_packet pkt;
 	struct opal_data_subpacket subpkt;
+};
+
+/*
+ * TCG_Storage_Architecture_Core_Spec_v2.01_r1.00
+ * Section: 3.3.4.7.5 STACK_RESET
+ */
+#define OPAL_STACK_RESET 0x0002
+
+struct opal_stack_reset {
+	u8 extendedComID[4];
+	__be32 request_code;
+};
+
+struct opal_stack_reset_response {
+	u8 extendedComID[4];
+	__be32 request_code;
+	u8 reserved0[2];
+	__be16 data_length;
+	__be32 response;
 };
 
 #define FC_TPER       0x0001

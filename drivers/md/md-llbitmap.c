@@ -208,6 +208,20 @@ enum llbitmap_state {
 	BitNeedSync,
 	/* data is synchronizing */
 	BitSyncing,
+	/*
+	 * Proactive sync requested for unwritten region (raid456 only).
+	 * Triggered via sysfs when user wants to pre-build XOR parity
+	 * for regions that have never been written.
+	 */
+	BitNeedSyncUnwritten,
+	/* Proactive sync in progress for unwritten region */
+	BitSyncingUnwritten,
+	/*
+	 * XOR parity has been pre-built for a region that has never had
+	 * user data written. When user writes to this region, it transitions
+	 * to BitDirty.
+	 */
+	BitCleanUnwritten,
 	BitStateCount,
 	BitNone = 0xff,
 };
@@ -232,6 +246,12 @@ enum llbitmap_action {
 	 * BitNeedSync.
 	 */
 	BitmapActionStale,
+	/*
+	 * Proactive sync trigger for raid456 - builds XOR parity for
+	 * Unwritten regions without requiring user data write first.
+	 */
+	BitmapActionProactiveSync,
+	BitmapActionClearUnwritten,
 	BitmapActionCount,
 	/* Init state is BitUnwritten */
 	BitmapActionInit,
@@ -304,6 +324,8 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 		[BitmapActionDaemon]		= BitNone,
 		[BitmapActionDiscard]		= BitNone,
 		[BitmapActionStale]		= BitNone,
+		[BitmapActionProactiveSync]	= BitNeedSyncUnwritten,
+		[BitmapActionClearUnwritten]	= BitNone,
 	},
 	[BitClean] = {
 		[BitmapActionStartwrite]	= BitDirty,
@@ -314,6 +336,8 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 		[BitmapActionDaemon]		= BitNone,
 		[BitmapActionDiscard]		= BitUnwritten,
 		[BitmapActionStale]		= BitNeedSync,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitNone,
 	},
 	[BitDirty] = {
 		[BitmapActionStartwrite]	= BitNone,
@@ -324,6 +348,8 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 		[BitmapActionDaemon]		= BitClean,
 		[BitmapActionDiscard]		= BitUnwritten,
 		[BitmapActionStale]		= BitNeedSync,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitNone,
 	},
 	[BitNeedSync] = {
 		[BitmapActionStartwrite]	= BitNone,
@@ -334,6 +360,8 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 		[BitmapActionDaemon]		= BitNone,
 		[BitmapActionDiscard]		= BitUnwritten,
 		[BitmapActionStale]		= BitNone,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitNone,
 	},
 	[BitSyncing] = {
 		[BitmapActionStartwrite]	= BitNone,
@@ -344,6 +372,44 @@ static char state_machine[BitStateCount][BitmapActionCount] = {
 		[BitmapActionDaemon]		= BitNone,
 		[BitmapActionDiscard]		= BitUnwritten,
 		[BitmapActionStale]		= BitNeedSync,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitNone,
+	},
+	[BitNeedSyncUnwritten] = {
+		[BitmapActionStartwrite]	= BitNeedSync,
+		[BitmapActionStartsync]		= BitSyncingUnwritten,
+		[BitmapActionEndsync]		= BitNone,
+		[BitmapActionAbortsync]		= BitUnwritten,
+		[BitmapActionReload]		= BitUnwritten,
+		[BitmapActionDaemon]		= BitNone,
+		[BitmapActionDiscard]		= BitUnwritten,
+		[BitmapActionStale]		= BitUnwritten,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitUnwritten,
+	},
+	[BitSyncingUnwritten] = {
+		[BitmapActionStartwrite]	= BitSyncing,
+		[BitmapActionStartsync]		= BitSyncingUnwritten,
+		[BitmapActionEndsync]		= BitCleanUnwritten,
+		[BitmapActionAbortsync]		= BitUnwritten,
+		[BitmapActionReload]		= BitUnwritten,
+		[BitmapActionDaemon]		= BitNone,
+		[BitmapActionDiscard]		= BitUnwritten,
+		[BitmapActionStale]		= BitUnwritten,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitUnwritten,
+	},
+	[BitCleanUnwritten] = {
+		[BitmapActionStartwrite]	= BitDirty,
+		[BitmapActionStartsync]		= BitNone,
+		[BitmapActionEndsync]		= BitNone,
+		[BitmapActionAbortsync]		= BitNone,
+		[BitmapActionReload]		= BitNone,
+		[BitmapActionDaemon]		= BitNone,
+		[BitmapActionDiscard]		= BitUnwritten,
+		[BitmapActionStale]		= BitUnwritten,
+		[BitmapActionProactiveSync]	= BitNone,
+		[BitmapActionClearUnwritten]	= BitUnwritten,
 	},
 };
 
@@ -376,6 +442,7 @@ static void llbitmap_infect_dirty_bits(struct llbitmap *llbitmap,
 			pctl->state[pos] = level_456 ? BitNeedSync : BitDirty;
 			break;
 		case BitClean:
+		case BitCleanUnwritten:
 			pctl->state[pos] = BitDirty;
 			break;
 		}
@@ -383,7 +450,7 @@ static void llbitmap_infect_dirty_bits(struct llbitmap *llbitmap,
 }
 
 static void llbitmap_set_page_dirty(struct llbitmap *llbitmap, int idx,
-				    int offset)
+				    int offset, bool infect)
 {
 	struct llbitmap_page_ctl *pctl = llbitmap->pctl[idx];
 	unsigned int io_size = llbitmap->io_size;
@@ -398,7 +465,7 @@ static void llbitmap_set_page_dirty(struct llbitmap *llbitmap, int idx,
 	 * resync all the dirty bits, hence skip infect new dirty bits to
 	 * prevent resync unnecessary data.
 	 */
-	if (llbitmap->mddev->degraded) {
+	if (llbitmap->mddev->degraded || !infect) {
 		set_bit(block, pctl->dirty);
 		return;
 	}
@@ -438,7 +505,9 @@ static void llbitmap_write(struct llbitmap *llbitmap, enum llbitmap_state state,
 
 	llbitmap->pctl[idx]->state[bit] = state;
 	if (state == BitDirty || state == BitNeedSync)
-		llbitmap_set_page_dirty(llbitmap, idx, bit);
+		llbitmap_set_page_dirty(llbitmap, idx, bit, true);
+	else if (state == BitNeedSyncUnwritten)
+		llbitmap_set_page_dirty(llbitmap, idx, bit, false);
 }
 
 static struct page *llbitmap_read_page(struct llbitmap *llbitmap, int idx)
@@ -459,7 +528,8 @@ static struct page *llbitmap_read_page(struct llbitmap *llbitmap, int idx)
 	rdev_for_each(rdev, mddev) {
 		sector_t sector;
 
-		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags) ||
+		    !test_bit(In_sync, &rdev->flags))
 			continue;
 
 		sector = mddev->bitmap_info.offset +
@@ -584,13 +654,73 @@ static int llbitmap_cache_pages(struct llbitmap *llbitmap)
 	return 0;
 }
 
+/*
+ * Check if all underlying disks support write_zeroes with unmap.
+ */
+static bool llbitmap_all_disks_support_wzeroes_unmap(struct llbitmap *llbitmap)
+{
+	struct mddev *mddev = llbitmap->mddev;
+	struct md_rdev *rdev;
+
+	rdev_for_each(rdev, mddev) {
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		if (bdev_write_zeroes_unmap_sectors(rdev->bdev) == 0)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Issue write_zeroes to all underlying disks to zero their data regions.
+ * This ensures parity consistency for RAID-456 (0 XOR 0 = 0).
+ * Returns true if all disks were successfully zeroed.
+ */
+static bool llbitmap_zero_all_disks(struct llbitmap *llbitmap)
+{
+	struct mddev *mddev = llbitmap->mddev;
+	struct md_rdev *rdev;
+	sector_t dev_sectors = mddev->dev_sectors;
+	int ret;
+
+	rdev_for_each(rdev, mddev) {
+		if (rdev->raid_disk < 0 || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		ret = blkdev_issue_zeroout(rdev->bdev,
+					   rdev->data_offset,
+					   dev_sectors,
+					   GFP_KERNEL, 0);
+		if (ret) {
+			pr_warn("md/llbitmap: failed to zero disk %pg: %d\n",
+				rdev->bdev, ret);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void llbitmap_init_state(struct llbitmap *llbitmap)
 {
+	struct mddev *mddev = llbitmap->mddev;
 	enum llbitmap_state state = BitUnwritten;
 	unsigned long i;
 
-	if (test_and_clear_bit(BITMAP_CLEAN, &llbitmap->flags))
+	if (test_and_clear_bit(BITMAP_CLEAN, &llbitmap->flags)) {
 		state = BitClean;
+	} else if (raid_is_456(mddev) &&
+		   llbitmap_all_disks_support_wzeroes_unmap(llbitmap)) {
+		/*
+		 * All disks support write_zeroes with unmap. Zero all disks
+		 * to ensure parity consistency, then set BitCleanUnwritten
+		 * to skip initial sync.
+		 */
+		if (llbitmap_zero_all_disks(llbitmap))
+			state = BitCleanUnwritten;
+	}
 
 	for (i = 0; i < llbitmap->chunks; i++)
 		llbitmap_write(llbitmap, state, i);
@@ -626,11 +756,10 @@ static enum llbitmap_state llbitmap_state_machine(struct llbitmap *llbitmap,
 			goto write_bitmap;
 		}
 
-		if (c == BitNeedSync)
+		if (c == BitNeedSync || c == BitNeedSyncUnwritten)
 			need_resync = !mddev->degraded;
 
 		state = state_machine[c][action];
-
 write_bitmap:
 		if (unlikely(mddev->degraded)) {
 			/* For degraded array, mark new data as need sync. */
@@ -657,8 +786,7 @@ write_bitmap:
 		}
 
 		llbitmap_write(llbitmap, state, start);
-
-		if (state == BitNeedSync)
+		if (state == BitNeedSync || state == BitNeedSyncUnwritten)
 			need_resync = !mddev->degraded;
 		else if (state == BitDirty &&
 			 !timer_pending(&llbitmap->pending_timer))
@@ -1069,12 +1197,12 @@ static void llbitmap_start_write(struct mddev *mddev, sector_t offset,
 	int page_start = (start + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 	int page_end = (end + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 
-	llbitmap_state_machine(llbitmap, start, end, BitmapActionStartwrite);
-
 	while (page_start <= page_end) {
 		llbitmap_raise_barrier(llbitmap, page_start);
 		page_start++;
 	}
+
+	llbitmap_state_machine(llbitmap, start, end, BitmapActionStartwrite);
 }
 
 static void llbitmap_end_write(struct mddev *mddev, sector_t offset,
@@ -1101,12 +1229,12 @@ static void llbitmap_start_discard(struct mddev *mddev, sector_t offset,
 	int page_start = (start + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 	int page_end = (end + BITMAP_DATA_OFFSET) >> PAGE_SHIFT;
 
-	llbitmap_state_machine(llbitmap, start, end, BitmapActionDiscard);
-
 	while (page_start <= page_end) {
 		llbitmap_raise_barrier(llbitmap, page_start);
 		page_start++;
 	}
+
+	llbitmap_state_machine(llbitmap, start, end, BitmapActionDiscard);
 }
 
 static void llbitmap_end_discard(struct mddev *mddev, sector_t offset,
@@ -1228,7 +1356,7 @@ static bool llbitmap_blocks_synced(struct mddev *mddev, sector_t offset)
 	unsigned long p = offset >> llbitmap->chunkshift;
 	enum llbitmap_state c = llbitmap_read(llbitmap, p);
 
-	return c == BitClean || c == BitDirty;
+	return c == BitClean || c == BitDirty || c == BitCleanUnwritten;
 }
 
 static sector_t llbitmap_skip_sync_blocks(struct mddev *mddev, sector_t offset)
@@ -1240,6 +1368,10 @@ static sector_t llbitmap_skip_sync_blocks(struct mddev *mddev, sector_t offset)
 
 	/* always skip unwritten blocks */
 	if (c == BitUnwritten)
+		return blocks;
+
+	/* Skip CleanUnwritten - no user data, will be reset after recovery */
+	if (c == BitCleanUnwritten)
 		return blocks;
 
 	/* For degraded array, don't skip */
@@ -1260,14 +1392,25 @@ static bool llbitmap_start_sync(struct mddev *mddev, sector_t offset,
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
 	unsigned long p = offset >> llbitmap->chunkshift;
+	enum llbitmap_state state;
+
+	/*
+	 * Before recovery starts, convert CleanUnwritten to Unwritten.
+	 * This ensures the new disk won't have stale parity data.
+	 */
+	if (offset == 0 && test_bit(MD_RECOVERY_RECOVER, &mddev->recovery) &&
+	    !test_bit(MD_RECOVERY_LAZY_RECOVER, &mddev->recovery))
+		llbitmap_state_machine(llbitmap, 0, llbitmap->chunks - 1,
+				       BitmapActionClearUnwritten);
+
 
 	/*
 	 * Handle one bit at a time, this is much simpler. And it doesn't matter
 	 * if md_do_sync() loop more times.
 	 */
 	*blocks = llbitmap->chunksize - (offset & (llbitmap->chunksize - 1));
-	return llbitmap_state_machine(llbitmap, p, p,
-				      BitmapActionStartsync) == BitSyncing;
+	state = llbitmap_state_machine(llbitmap, p, p, BitmapActionStartsync);
+	return state == BitSyncing || state == BitSyncingUnwritten;
 }
 
 /* Something is wrong, sync_thread stop at @offset */
@@ -1473,9 +1616,15 @@ static ssize_t bits_show(struct mddev *mddev, char *page)
 	}
 
 	mutex_unlock(&mddev->bitmap_info.mutex);
-	return sprintf(page, "unwritten %d\nclean %d\ndirty %d\nneed sync %d\nsyncing %d\n",
+	return sprintf(page,
+		       "unwritten %d\nclean %d\ndirty %d\n"
+		       "need sync %d\nsyncing %d\n"
+		       "need sync unwritten %d\nsyncing unwritten %d\n"
+		       "clean unwritten %d\n",
 		       bits[BitUnwritten], bits[BitClean], bits[BitDirty],
-		       bits[BitNeedSync], bits[BitSyncing]);
+		       bits[BitNeedSync], bits[BitSyncing],
+		       bits[BitNeedSyncUnwritten], bits[BitSyncingUnwritten],
+		       bits[BitCleanUnwritten]);
 }
 
 static struct md_sysfs_entry llbitmap_bits = __ATTR_RO(bits);
@@ -1548,11 +1697,39 @@ barrier_idle_store(struct mddev *mddev, const char *buf, size_t len)
 
 static struct md_sysfs_entry llbitmap_barrier_idle = __ATTR_RW(barrier_idle);
 
+static ssize_t
+proactive_sync_store(struct mddev *mddev, const char *buf, size_t len)
+{
+	struct llbitmap *llbitmap;
+
+	/* Only for RAID-456 */
+	if (!raid_is_456(mddev))
+		return -EINVAL;
+
+	mutex_lock(&mddev->bitmap_info.mutex);
+	llbitmap = mddev->bitmap;
+	if (!llbitmap || !llbitmap->pctl) {
+		mutex_unlock(&mddev->bitmap_info.mutex);
+		return -ENODEV;
+	}
+
+	/* Trigger proactive sync on all Unwritten regions */
+	llbitmap_state_machine(llbitmap, 0, llbitmap->chunks - 1,
+			       BitmapActionProactiveSync);
+
+	mutex_unlock(&mddev->bitmap_info.mutex);
+	return len;
+}
+
+static struct md_sysfs_entry llbitmap_proactive_sync =
+	__ATTR(proactive_sync, 0200, NULL, proactive_sync_store);
+
 static struct attribute *md_llbitmap_attrs[] = {
 	&llbitmap_bits.attr,
 	&llbitmap_metadata.attr,
 	&llbitmap_daemon_sleep.attr,
 	&llbitmap_barrier_idle.attr,
+	&llbitmap_proactive_sync.attr,
 	NULL
 };
 

@@ -73,7 +73,7 @@ static int mbt_mb_init(struct super_block *sb)
 	ext4_fsblk_t block;
 	int ret;
 
-	/* needed by ext4_mb_init->bdev_nonrot(sb->s_bdev) */
+	/* needed by ext4_mb_init->bdev_rot(sb->s_bdev) */
 	sb->s_bdev = kzalloc_obj(*sb->s_bdev);
 	if (sb->s_bdev == NULL)
 		return -ENOMEM;

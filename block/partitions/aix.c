@@ -173,24 +173,22 @@ int aix_partition(struct parsed_partitions *state)
 	if (d) {
 		struct lvm_rec *p = (struct lvm_rec *)d;
 		u16 lvm_version = be16_to_cpu(p->version);
-		char tmp[64];
 
 		if (lvm_version == 1) {
 			int pp_size_log2 = be16_to_cpu(p->pp_size);
 
 			pp_bytes_size = 1 << pp_size_log2;
 			pp_blocks_size = pp_bytes_size / 512;
-			snprintf(tmp, sizeof(tmp),
-				" AIX LVM header version %u found\n",
-				lvm_version);
+			seq_buf_printf(&state->pp_buf,
+				       " AIX LVM header version %u found\n",
+				       lvm_version);
 			vgda_len = be32_to_cpu(p->vgda_len);
 			vgda_sector = be32_to_cpu(p->vgda_psn[0]);
 		} else {
-			snprintf(tmp, sizeof(tmp),
-				" unsupported AIX LVM version %d found\n",
-				lvm_version);
+			seq_buf_printf(&state->pp_buf,
+				       " unsupported AIX LVM version %d found\n",
+				       lvm_version);
 		}
-		strlcat(state->pp_buf, tmp, PAGE_SIZE);
 		put_dev_sector(sect);
 	}
 	if (vgda_sector && (d = read_part_sector(state, vgda_sector, &sect))) {
@@ -251,14 +249,11 @@ int aix_partition(struct parsed_partitions *state)
 				continue;
 			}
 			if (lp_ix == lvip[lv_ix].pps_per_lv) {
-				char tmp[70];
-
 				put_partition(state, lv_ix + 1,
 				  (i + 1 - lp_ix) * pp_blocks_size + psn_part1,
 				  lvip[lv_ix].pps_per_lv * pp_blocks_size);
-				snprintf(tmp, sizeof(tmp), " <%s>\n",
-					 n[lv_ix].name);
-				strlcat(state->pp_buf, tmp, PAGE_SIZE);
+				seq_buf_printf(&state->pp_buf, " <%s>\n",
+					       n[lv_ix].name);
 				lvip[lv_ix].lv_is_contiguous = 1;
 				ret = 1;
 				next_lp_ix = 1;

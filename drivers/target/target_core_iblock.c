@@ -148,7 +148,7 @@ static int iblock_configure_device(struct se_device *dev)
 	else
 		dev->dev_attrib.max_write_same_len = 0xFFFF;
 
-	if (bdev_nonrot(bd))
+	if (!bdev_rot(bd))
 		dev->dev_attrib.is_nonrot = 1;
 
 	target_configure_write_atomic_from_bdev(&dev->dev_attrib, bd);

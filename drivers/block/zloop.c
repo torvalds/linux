@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
+#include <linux/xattr.h>
 
 /*
  * Options for adding (and removing) a device.
@@ -34,6 +35,8 @@ enum {
 	ZLOOP_OPT_BUFFERED_IO		= (1 << 8),
 	ZLOOP_OPT_ZONE_APPEND		= (1 << 9),
 	ZLOOP_OPT_ORDERED_ZONE_APPEND	= (1 << 10),
+	ZLOOP_OPT_DISCARD_WRITE_CACHE	= (1 << 11),
+	ZLOOP_OPT_MAX_OPEN_ZONES	= (1 << 12),
 };
 
 static const match_table_t zloop_opt_tokens = {
@@ -48,6 +51,8 @@ static const match_table_t zloop_opt_tokens = {
 	{ ZLOOP_OPT_BUFFERED_IO,	"buffered_io"		},
 	{ ZLOOP_OPT_ZONE_APPEND,	"zone_append=%u"	},
 	{ ZLOOP_OPT_ORDERED_ZONE_APPEND, "ordered_zone_append"	},
+	{ ZLOOP_OPT_DISCARD_WRITE_CACHE, "discard_write_cache" },
+	{ ZLOOP_OPT_MAX_OPEN_ZONES,	"max_open_zones=%u"	},
 	{ ZLOOP_OPT_ERR,		NULL			}
 };
 
@@ -56,6 +61,7 @@ static const match_table_t zloop_opt_tokens = {
 #define ZLOOP_DEF_ZONE_SIZE		((256ULL * SZ_1M) >> SECTOR_SHIFT)
 #define ZLOOP_DEF_NR_ZONES		64
 #define ZLOOP_DEF_NR_CONV_ZONES		8
+#define ZLOOP_DEF_MAX_OPEN_ZONES	0
 #define ZLOOP_DEF_BASE_DIR		"/var/local/zloop"
 #define ZLOOP_DEF_NR_QUEUES		1
 #define ZLOOP_DEF_QUEUE_DEPTH		128
@@ -73,12 +79,14 @@ struct zloop_options {
 	sector_t		zone_size;
 	sector_t		zone_capacity;
 	unsigned int		nr_conv_zones;
+	unsigned int		max_open_zones;
 	char			*base_dir;
 	unsigned int		nr_queues;
 	unsigned int		queue_depth;
 	bool			buffered_io;
 	bool			zone_append;
 	bool			ordered_zone_append;
+	bool			discard_write_cache;
 };
 
 /*
@@ -95,7 +103,12 @@ enum zloop_zone_flags {
 	ZLOOP_ZONE_SEQ_ERROR,
 };
 
+/*
+ * Zone descriptor.
+ * Locking order: z.lock -> z.wp_lock -> zlo.open_zones_lock
+ */
 struct zloop_zone {
+	struct list_head	open_zone_entry;
 	struct file		*file;
 
 	unsigned long		flags;
@@ -119,6 +132,7 @@ struct zloop_device {
 	bool			buffered_io;
 	bool			zone_append;
 	bool			ordered_zone_append;
+	bool			discard_write_cache;
 
 	const char		*base_dir;
 	struct file		*data_dir;
@@ -128,7 +142,12 @@ struct zloop_device {
 	sector_t		zone_capacity;
 	unsigned int		nr_zones;
 	unsigned int		nr_conv_zones;
+	unsigned int		max_open_zones;
 	unsigned int		block_size;
+
+	spinlock_t		open_zones_lock;
+	struct list_head	open_zones_lru_list;
+	unsigned int		nr_open_zones;
 
 	struct zloop_zone	zones[] __counted_by(nr_zones);
 };
@@ -151,6 +170,122 @@ static unsigned int rq_zone_no(struct request *rq)
 	struct zloop_device *zlo = rq->q->queuedata;
 
 	return blk_rq_pos(rq) >> zlo->zone_shift;
+}
+
+/*
+ * Open an already open zone. This is mostly a no-op, except for the imp open ->
+ * exp open condition change that may happen. We also move a zone at the tail of
+ * the list of open zones so that if we need to
+ * implicitly close one open zone, we can do so in LRU order.
+ */
+static inline void zloop_lru_rotate_open_zone(struct zloop_device *zlo,
+					      struct zloop_zone *zone)
+{
+	if (zlo->max_open_zones) {
+		spin_lock(&zlo->open_zones_lock);
+		list_move_tail(&zone->open_zone_entry,
+			       &zlo->open_zones_lru_list);
+		spin_unlock(&zlo->open_zones_lock);
+	}
+}
+
+static inline void zloop_lru_remove_open_zone(struct zloop_device *zlo,
+					      struct zloop_zone *zone)
+{
+	if (zone->cond == BLK_ZONE_COND_IMP_OPEN ||
+	    zone->cond == BLK_ZONE_COND_EXP_OPEN) {
+		spin_lock(&zlo->open_zones_lock);
+		list_del_init(&zone->open_zone_entry);
+		zlo->nr_open_zones--;
+		spin_unlock(&zlo->open_zones_lock);
+	}
+}
+
+static inline bool zloop_can_open_zone(struct zloop_device *zlo)
+{
+	return !zlo->max_open_zones || zlo->nr_open_zones < zlo->max_open_zones;
+}
+
+/*
+ * If we have reached the maximum open zones limit, attempt to close an
+ * implicitly open zone (if we have any) so that we can implicitly open another
+ * zone without exceeding the maximum number of open zones.
+ */
+static bool zloop_close_imp_open_zone(struct zloop_device *zlo)
+{
+	struct zloop_zone *zone;
+
+	lockdep_assert_held(&zlo->open_zones_lock);
+
+	if (zloop_can_open_zone(zlo))
+		return true;
+
+	list_for_each_entry(zone, &zlo->open_zones_lru_list, open_zone_entry) {
+		if (zone->cond == BLK_ZONE_COND_IMP_OPEN) {
+			zone->cond = BLK_ZONE_COND_CLOSED;
+			list_del_init(&zone->open_zone_entry);
+			zlo->nr_open_zones--;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool zloop_open_closed_or_empty_zone(struct zloop_device *zlo,
+					    struct zloop_zone *zone,
+					    bool explicit)
+{
+	spin_lock(&zlo->open_zones_lock);
+
+	if (explicit) {
+		/*
+		 * Explicit open: we cannot allow this if we have reached the
+		 * maximum open zones limit.
+		 */
+		if (!zloop_can_open_zone(zlo))
+			goto fail;
+		zone->cond = BLK_ZONE_COND_EXP_OPEN;
+	} else {
+		/*
+		 * Implicit open case: if we have reached the maximum open zones
+		 * limit, try to close an implicitly open zone first.
+		 */
+		if (!zloop_close_imp_open_zone(zlo))
+			goto fail;
+		zone->cond = BLK_ZONE_COND_IMP_OPEN;
+	}
+
+	zlo->nr_open_zones++;
+	list_add_tail(&zone->open_zone_entry,
+		      &zlo->open_zones_lru_list);
+
+	spin_unlock(&zlo->open_zones_lock);
+
+	return true;
+
+fail:
+	spin_unlock(&zlo->open_zones_lock);
+
+	return false;
+}
+
+static bool zloop_do_open_zone(struct zloop_device *zlo,
+			       struct zloop_zone *zone, bool explicit)
+{
+	switch (zone->cond) {
+	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_EXP_OPEN:
+		if (explicit)
+			zone->cond = BLK_ZONE_COND_EXP_OPEN;
+		zloop_lru_rotate_open_zone(zlo, zone);
+		return true;
+	case BLK_ZONE_COND_EMPTY:
+	case BLK_ZONE_COND_CLOSED:
+		return zloop_open_closed_or_empty_zone(zlo, zone, explicit);
+	default:
+		return false;
+	}
 }
 
 static int zloop_update_seq_zone(struct zloop_device *zlo, unsigned int zone_no)
@@ -186,13 +321,17 @@ static int zloop_update_seq_zone(struct zloop_device *zlo, unsigned int zone_no)
 
 	spin_lock_irqsave(&zone->wp_lock, flags);
 	if (!file_sectors) {
+		zloop_lru_remove_open_zone(zlo, zone);
 		zone->cond = BLK_ZONE_COND_EMPTY;
 		zone->wp = zone->start;
 	} else if (file_sectors == zlo->zone_capacity) {
+		zloop_lru_remove_open_zone(zlo, zone);
 		zone->cond = BLK_ZONE_COND_FULL;
 		zone->wp = ULLONG_MAX;
 	} else {
-		zone->cond = BLK_ZONE_COND_CLOSED;
+		if (zone->cond != BLK_ZONE_COND_IMP_OPEN &&
+		    zone->cond != BLK_ZONE_COND_EXP_OPEN)
+			zone->cond = BLK_ZONE_COND_CLOSED;
 		zone->wp = zone->start + file_sectors;
 	}
 	spin_unlock_irqrestore(&zone->wp_lock, flags);
@@ -216,19 +355,8 @@ static int zloop_open_zone(struct zloop_device *zlo, unsigned int zone_no)
 			goto unlock;
 	}
 
-	switch (zone->cond) {
-	case BLK_ZONE_COND_EXP_OPEN:
-		break;
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_CLOSED:
-	case BLK_ZONE_COND_IMP_OPEN:
-		zone->cond = BLK_ZONE_COND_EXP_OPEN;
-		break;
-	case BLK_ZONE_COND_FULL:
-	default:
+	if (!zloop_do_open_zone(zlo, zone, true))
 		ret = -EIO;
-		break;
-	}
 
 unlock:
 	mutex_unlock(&zone->lock);
@@ -259,6 +387,7 @@ static int zloop_close_zone(struct zloop_device *zlo, unsigned int zone_no)
 	case BLK_ZONE_COND_IMP_OPEN:
 	case BLK_ZONE_COND_EXP_OPEN:
 		spin_lock_irqsave(&zone->wp_lock, flags);
+		zloop_lru_remove_open_zone(zlo, zone);
 		if (zone->wp == zone->start)
 			zone->cond = BLK_ZONE_COND_EMPTY;
 		else
@@ -300,6 +429,7 @@ static int zloop_reset_zone(struct zloop_device *zlo, unsigned int zone_no)
 	}
 
 	spin_lock_irqsave(&zone->wp_lock, flags);
+	zloop_lru_remove_open_zone(zlo, zone);
 	zone->cond = BLK_ZONE_COND_EMPTY;
 	zone->wp = zone->start;
 	clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
@@ -347,6 +477,7 @@ static int zloop_finish_zone(struct zloop_device *zlo, unsigned int zone_no)
 	}
 
 	spin_lock_irqsave(&zone->wp_lock, flags);
+	zloop_lru_remove_open_zone(zlo, zone);
 	zone->cond = BLK_ZONE_COND_FULL;
 	zone->wp = ULLONG_MAX;
 	clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
@@ -378,125 +509,22 @@ static void zloop_rw_complete(struct kiocb *iocb, long ret)
 	zloop_put_cmd(cmd);
 }
 
-static void zloop_rw(struct zloop_cmd *cmd)
+static int zloop_do_rw(struct zloop_cmd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	int rw = req_op(rq) == REQ_OP_READ ? ITER_DEST : ITER_SOURCE;
+	unsigned int nr_bvec = blk_rq_nr_bvec(rq);
 	struct zloop_device *zlo = rq->q->queuedata;
-	unsigned int zone_no = rq_zone_no(rq);
-	sector_t sector = blk_rq_pos(rq);
-	sector_t nr_sectors = blk_rq_sectors(rq);
-	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
-	bool is_write = req_op(rq) == REQ_OP_WRITE || is_append;
-	int rw = is_write ? ITER_SOURCE : ITER_DEST;
+	struct zloop_zone *zone = &zlo->zones[rq_zone_no(rq)];
 	struct req_iterator rq_iter;
-	struct zloop_zone *zone;
 	struct iov_iter iter;
-	struct bio_vec tmp;
-	unsigned long flags;
-	sector_t zone_end;
-	unsigned int nr_bvec;
-	int ret;
-
-	atomic_set(&cmd->ref, 2);
-	cmd->sector = sector;
-	cmd->nr_sectors = nr_sectors;
-	cmd->ret = 0;
-
-	if (WARN_ON_ONCE(is_append && !zlo->zone_append)) {
-		ret = -EIO;
-		goto out;
-	}
-
-	/* We should never get an I/O beyond the device capacity. */
-	if (WARN_ON_ONCE(zone_no >= zlo->nr_zones)) {
-		ret = -EIO;
-		goto out;
-	}
-	zone = &zlo->zones[zone_no];
-	zone_end = zone->start + zlo->zone_capacity;
-
-	/*
-	 * The block layer should never send requests that are not fully
-	 * contained within the zone.
-	 */
-	if (WARN_ON_ONCE(sector + nr_sectors > zone->start + zlo->zone_size)) {
-		ret = -EIO;
-		goto out;
-	}
-
-	if (test_and_clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags)) {
-		mutex_lock(&zone->lock);
-		ret = zloop_update_seq_zone(zlo, zone_no);
-		mutex_unlock(&zone->lock);
-		if (ret)
-			goto out;
-	}
-
-	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write) {
-		mutex_lock(&zone->lock);
-
-		spin_lock_irqsave(&zone->wp_lock, flags);
-
-		/*
-		 * Zone append operations always go at the current write
-		 * pointer, but regular write operations must already be
-		 * aligned to the write pointer when submitted.
-		 */
-		if (is_append) {
-			/*
-			 * If ordered zone append is in use, we already checked
-			 * and set the target sector in zloop_queue_rq().
-			 */
-			if (!zlo->ordered_zone_append) {
-				if (zone->cond == BLK_ZONE_COND_FULL ||
-				    zone->wp + nr_sectors > zone_end) {
-					spin_unlock_irqrestore(&zone->wp_lock,
-							       flags);
-					ret = -EIO;
-					goto unlock;
-				}
-				sector = zone->wp;
-			}
-			cmd->sector = sector;
-		} else if (sector != zone->wp) {
-			spin_unlock_irqrestore(&zone->wp_lock, flags);
-			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
-			       zone_no, sector, zone->wp);
-			ret = -EIO;
-			goto unlock;
-		}
-
-		/* Implicitly open the target zone. */
-		if (zone->cond == BLK_ZONE_COND_CLOSED ||
-		    zone->cond == BLK_ZONE_COND_EMPTY)
-			zone->cond = BLK_ZONE_COND_IMP_OPEN;
-
-		/*
-		 * Advance the write pointer, unless ordered zone append is in
-		 * use. If the write fails, the write pointer position will be
-		 * corrected when the next I/O starts execution.
-		 */
-		if (!is_append || !zlo->ordered_zone_append) {
-			zone->wp += nr_sectors;
-			if (zone->wp == zone_end) {
-				zone->cond = BLK_ZONE_COND_FULL;
-				zone->wp = ULLONG_MAX;
-			}
-		}
-
-		spin_unlock_irqrestore(&zone->wp_lock, flags);
-	}
-
-	nr_bvec = blk_rq_nr_bvec(rq);
 
 	if (rq->bio != rq->biotail) {
-		struct bio_vec *bvec;
+		struct bio_vec tmp, *bvec;
 
 		cmd->bvec = kmalloc_objs(*cmd->bvec, nr_bvec, GFP_NOIO);
-		if (!cmd->bvec) {
-			ret = -EIO;
-			goto unlock;
-		}
+		if (!cmd->bvec)
+			return -EIO;
 
 		/*
 		 * The bios of the request may be started from the middle of
@@ -522,7 +550,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 		iter.iov_offset = rq->bio->bi_iter.bi_bvec_done;
 	}
 
-	cmd->iocb.ki_pos = (sector - zone->start) << SECTOR_SHIFT;
+	cmd->iocb.ki_pos = (cmd->sector - zone->start) << SECTOR_SHIFT;
 	cmd->iocb.ki_filp = zone->file;
 	cmd->iocb.ki_complete = zloop_rw_complete;
 	if (!zlo->buffered_io)
@@ -530,16 +558,164 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	cmd->iocb.ki_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, 0);
 
 	if (rw == ITER_SOURCE)
-		ret = zone->file->f_op->write_iter(&cmd->iocb, &iter);
-	else
-		ret = zone->file->f_op->read_iter(&cmd->iocb, &iter);
-unlock:
-	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write)
+		return zone->file->f_op->write_iter(&cmd->iocb, &iter);
+	return zone->file->f_op->read_iter(&cmd->iocb, &iter);
+}
+
+static int zloop_seq_write_prep(struct zloop_cmd *cmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct zloop_device *zlo = rq->q->queuedata;
+	unsigned int zone_no = rq_zone_no(rq);
+	sector_t nr_sectors = blk_rq_sectors(rq);
+	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
+	struct zloop_zone *zone = &zlo->zones[zone_no];
+	sector_t zone_end = zone->start + zlo->zone_capacity;
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&zone->wp_lock, flags);
+
+	/*
+	 * Zone append operations always go at the current write pointer, but
+	 * regular write operations must already be aligned to the write pointer
+	 * when submitted.
+	 */
+	if (is_append) {
+		/*
+		 * If ordered zone append is in use, we already checked and set
+		 * the target sector in zloop_queue_rq().
+		 */
+		if (!zlo->ordered_zone_append) {
+			if (zone->cond == BLK_ZONE_COND_FULL ||
+			    zone->wp + nr_sectors > zone_end) {
+				ret = -EIO;
+				goto out_unlock;
+			}
+			cmd->sector = zone->wp;
+		}
+	} else {
+		if (cmd->sector != zone->wp) {
+			pr_err("Zone %u: unaligned write: sect %llu, wp %llu\n",
+			       zone_no, cmd->sector, zone->wp);
+			ret = -EIO;
+			goto out_unlock;
+		}
+	}
+
+	/* Implicitly open the target zone. */
+	if (!zloop_do_open_zone(zlo, zone, false)) {
+		ret = -EIO;
+		goto out_unlock;
+	}
+
+	/*
+	 * Advance the write pointer, unless ordered zone append is in use. If
+	 * the write fails, the write pointer position will be corrected when
+	 * the next I/O starts execution.
+	 */
+	if (!is_append || !zlo->ordered_zone_append) {
+		zone->wp += nr_sectors;
+		if (zone->wp == zone_end) {
+			zloop_lru_remove_open_zone(zlo, zone);
+			zone->cond = BLK_ZONE_COND_FULL;
+			zone->wp = ULLONG_MAX;
+		}
+	}
+out_unlock:
+	spin_unlock_irqrestore(&zone->wp_lock, flags);
+	return ret;
+}
+
+static void zloop_rw(struct zloop_cmd *cmd)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct zloop_device *zlo = rq->q->queuedata;
+	unsigned int zone_no = rq_zone_no(rq);
+	sector_t nr_sectors = blk_rq_sectors(rq);
+	bool is_append = req_op(rq) == REQ_OP_ZONE_APPEND;
+	bool is_write = req_op(rq) == REQ_OP_WRITE || is_append;
+	struct zloop_zone *zone;
+	int ret = -EIO;
+
+	atomic_set(&cmd->ref, 2);
+	cmd->sector = blk_rq_pos(rq);
+	cmd->nr_sectors = nr_sectors;
+	cmd->ret = 0;
+
+	if (WARN_ON_ONCE(is_append && !zlo->zone_append))
+		goto out;
+
+	/* We should never get an I/O beyond the device capacity. */
+	if (WARN_ON_ONCE(zone_no >= zlo->nr_zones))
+		goto out;
+
+	zone = &zlo->zones[zone_no];
+
+	/*
+	 * The block layer should never send requests that are not fully
+	 * contained within the zone.
+	 */
+	if (WARN_ON_ONCE(cmd->sector + nr_sectors >
+			 zone->start + zlo->zone_size))
+		goto out;
+
+	if (test_and_clear_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags)) {
+		mutex_lock(&zone->lock);
+		ret = zloop_update_seq_zone(zlo, zone_no);
 		mutex_unlock(&zone->lock);
+		if (ret)
+			goto out;
+	}
+
+	if (!test_bit(ZLOOP_ZONE_CONV, &zone->flags) && is_write) {
+		mutex_lock(&zone->lock);
+		ret = zloop_seq_write_prep(cmd);
+		if (!ret)
+			ret = zloop_do_rw(cmd);
+		mutex_unlock(&zone->lock);
+	} else {
+		ret = zloop_do_rw(cmd);
+	}
 out:
 	if (ret != -EIOCBQUEUED)
 		zloop_rw_complete(&cmd->iocb, ret);
 	zloop_put_cmd(cmd);
+}
+
+static inline bool zloop_zone_is_active(struct zloop_zone *zone)
+{
+	switch (zone->cond) {
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int zloop_record_safe_wps(struct zloop_device *zlo)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < zlo->nr_zones; i++) {
+		struct zloop_zone *zone = &zlo->zones[i];
+		struct file *file = zone->file;
+
+		if (!zloop_zone_is_active(zone))
+			continue;
+		ret = vfs_setxattr(file_mnt_idmap(file), file_dentry(file),
+				"user.zloop.wp", &zone->wp, sizeof(zone->wp), 0);
+		if (ret) {
+			pr_err("%pg: failed to record write pointer (%d)\n",
+				zlo->disk->part0, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -549,6 +725,12 @@ static int zloop_flush(struct zloop_device *zlo)
 {
 	struct super_block *sb = file_inode(zlo->data_dir)->i_sb;
 	int ret;
+
+	if (zlo->discard_write_cache) {
+		ret = zloop_record_safe_wps(zlo);
+		if (ret)
+			return ret;
+	}
 
 	down_read(&sb->s_umount);
 	ret = sync_filesystem(sb);
@@ -692,6 +874,7 @@ static bool zloop_set_zone_append_sector(struct request *rq)
 	rq->__sector = zone->wp;
 	zone->wp += blk_rq_sectors(rq);
 	if (zone->wp >= zone_end) {
+		zloop_lru_remove_open_zone(zlo, zone);
 		zone->cond = BLK_ZONE_COND_FULL;
 		zone->wp = ULLONG_MAX;
 	}
@@ -889,6 +1072,7 @@ static int zloop_init_zone(struct zloop_device *zlo, struct zloop_options *opts,
 	int ret;
 
 	mutex_init(&zone->lock);
+	INIT_LIST_HEAD(&zone->open_zone_entry);
 	spin_lock_init(&zone->wp_lock);
 	zone->start = (sector_t)zone_no << zlo->zone_shift;
 
@@ -1009,12 +1193,20 @@ static int zloop_ctl_add(struct zloop_options *opts)
 		goto out;
 	}
 
+	if (opts->max_open_zones > nr_zones - opts->nr_conv_zones) {
+		pr_err("Invalid maximum number of open zones %u\n",
+		       opts->max_open_zones);
+		goto out;
+	}
+
 	zlo = kvzalloc_flex(*zlo, zones, nr_zones);
 	if (!zlo) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	WRITE_ONCE(zlo->state, Zlo_creating);
+	spin_lock_init(&zlo->open_zones_lock);
+	INIT_LIST_HEAD(&zlo->open_zones_lru_list);
 
 	ret = mutex_lock_killable(&zloop_ctl_mutex);
 	if (ret)
@@ -1042,10 +1234,12 @@ static int zloop_ctl_add(struct zloop_options *opts)
 		zlo->zone_capacity = zlo->zone_size;
 	zlo->nr_zones = nr_zones;
 	zlo->nr_conv_zones = opts->nr_conv_zones;
+	zlo->max_open_zones = opts->max_open_zones;
 	zlo->buffered_io = opts->buffered_io;
 	zlo->zone_append = opts->zone_append;
 	if (zlo->zone_append)
 		zlo->ordered_zone_append = opts->ordered_zone_append;
+	zlo->discard_write_cache = opts->discard_write_cache;
 
 	zlo->workqueue = alloc_workqueue("zloop%d", WQ_UNBOUND | WQ_FREEZABLE,
 				opts->nr_queues * opts->queue_depth, zlo->id);
@@ -1088,6 +1282,7 @@ static int zloop_ctl_add(struct zloop_options *opts)
 	lim.logical_block_size = zlo->block_size;
 	if (zlo->zone_append)
 		lim.max_hw_zone_append_sectors = lim.max_hw_sectors;
+	lim.max_open_zones = zlo->max_open_zones;
 
 	zlo->tag_set.ops = &zloop_mq_ops;
 	zlo->tag_set.nr_hw_queues = opts->nr_queues;
@@ -1168,6 +1363,49 @@ out:
 	return ret;
 }
 
+static void zloop_truncate(struct file *file, loff_t pos)
+{
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
+	struct dentry *dentry = file_dentry(file);
+	struct iattr newattrs;
+
+	newattrs.ia_size = pos;
+	newattrs.ia_valid = ATTR_SIZE;
+
+	inode_lock(dentry->d_inode);
+	notify_change(idmap, dentry, &newattrs, NULL);
+	inode_unlock(dentry->d_inode);
+}
+
+static void zloop_forget_cache(struct zloop_device *zlo)
+{
+	unsigned int i;
+	int ret;
+
+	pr_info("%pg: discarding volatile write cache\n", zlo->disk->part0);
+
+	for (i = 0; i < zlo->nr_zones; i++) {
+		struct zloop_zone *zone = &zlo->zones[i];
+		struct file *file = zone->file;
+		sector_t old_wp;
+
+		if (!zloop_zone_is_active(zone))
+			continue;
+
+		ret = vfs_getxattr(file_mnt_idmap(file), file_dentry(file),
+				"user.zloop.wp", &old_wp, sizeof(old_wp));
+		if (ret == -ENODATA) {
+			old_wp = 0;
+		} else if (ret != sizeof(old_wp)) {
+			pr_err("%pg: failed to retrieve write pointer (%d)\n",
+				zlo->disk->part0, ret);
+			continue;
+		}
+		if (old_wp < zone->wp)
+			zloop_truncate(file, old_wp);
+	}
+}
+
 static int zloop_ctl_remove(struct zloop_options *opts)
 {
 	struct zloop_device *zlo;
@@ -1202,6 +1440,10 @@ static int zloop_ctl_remove(struct zloop_options *opts)
 		return ret;
 
 	del_gendisk(zlo->disk);
+
+	if (zlo->discard_write_cache)
+		zloop_forget_cache(zlo);
+
 	put_disk(zlo->disk);
 
 	pr_info("Removed device %d\n", opts->id);
@@ -1224,6 +1466,7 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 	opts->capacity = ZLOOP_DEF_ZONE_SIZE * ZLOOP_DEF_NR_ZONES;
 	opts->zone_size = ZLOOP_DEF_ZONE_SIZE;
 	opts->nr_conv_zones = ZLOOP_DEF_NR_CONV_ZONES;
+	opts->max_open_zones = ZLOOP_DEF_MAX_OPEN_ZONES;
 	opts->nr_queues = ZLOOP_DEF_NR_QUEUES;
 	opts->queue_depth = ZLOOP_DEF_QUEUE_DEPTH;
 	opts->buffered_io = ZLOOP_DEF_BUFFERED_IO;
@@ -1302,6 +1545,13 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 			}
 			opts->nr_conv_zones = token;
 			break;
+		case ZLOOP_OPT_MAX_OPEN_ZONES:
+			if (match_uint(args, &token)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			opts->max_open_zones = token;
+			break;
 		case ZLOOP_OPT_BASE_DIR:
 			p = match_strdup(args);
 			if (!p) {
@@ -1352,6 +1602,9 @@ static int zloop_parse_options(struct zloop_options *opts, const char *buf)
 			break;
 		case ZLOOP_OPT_ORDERED_ZONE_APPEND:
 			opts->ordered_zone_append = true;
+			break;
+		case ZLOOP_OPT_DISCARD_WRITE_CACHE:
+			opts->discard_write_cache = true;
 			break;
 		case ZLOOP_OPT_ERR:
 		default:

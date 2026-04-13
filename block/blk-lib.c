@@ -155,13 +155,7 @@ static int blkdev_issue_write_zeroes(struct block_device *bdev, sector_t sector,
 	__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp, &bio,
 			flags, limit);
 	if (bio) {
-		if ((flags & BLKDEV_ZERO_KILLABLE) &&
-		    fatal_signal_pending(current)) {
-			bio_await_chain(bio);
-			blk_finish_plug(&plug);
-			return -EINTR;
-		}
-		ret = submit_bio_wait(bio);
+		ret = bio_submit_or_kill(bio, flags);
 		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
@@ -236,13 +230,7 @@ static int blkdev_issue_zero_pages(struct block_device *bdev, sector_t sector,
 	blk_start_plug(&plug);
 	__blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp, &bio, flags);
 	if (bio) {
-		if ((flags & BLKDEV_ZERO_KILLABLE) &&
-		    fatal_signal_pending(current)) {
-			bio_await_chain(bio);
-			blk_finish_plug(&plug);
-			return -EINTR;
-		}
-		ret = submit_bio_wait(bio);
+		ret = bio_submit_or_kill(bio, flags);
 		bio_put(bio);
 	}
 	blk_finish_plug(&plug);

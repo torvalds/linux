@@ -149,7 +149,8 @@ static int __ ## s_name ## _from_attrs(struct s_name *s,		\
 	if (!tla)							\
 		return -ENOMSG;						\
 	DPRINT_TLA(#s_name, "<=-", #tag_name);				\
-	err = drbd_nla_parse_nested(ntb, maxtype, tla, s_name ## _nl_policy);	\
+	err = nla_parse_nested_deprecated(ntb, maxtype, tla,			\
+					  s_name ## _nl_policy, NULL);	\
 	if (err)							\
 		return err;						\
 									\
@@ -292,6 +293,10 @@ static struct genl_family ZZZ_genl_family __ro_after_init = {
 #endif
 	.maxattr = ARRAY_SIZE(CONCATENATE(GENL_MAGIC_FAMILY, _tla_nl_policy))-1,
 	.policy	= CONCATENATE(GENL_MAGIC_FAMILY, _tla_nl_policy),
+#ifdef GENL_MAGIC_FAMILY_PRE_DOIT
+	.pre_doit = GENL_MAGIC_FAMILY_PRE_DOIT,
+	.post_doit = GENL_MAGIC_FAMILY_POST_DOIT,
+#endif
 	.ops = ZZZ_genl_ops,
 	.n_ops = ARRAY_SIZE(ZZZ_genl_ops),
 	.mcgrps = ZZZ_genl_mcgrps,

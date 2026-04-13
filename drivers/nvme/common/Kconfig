@@ -7,9 +7,15 @@ config NVME_KEYRING
 config NVME_AUTH
 	tristate
 	select CRYPTO
-	select CRYPTO_HMAC
-	select CRYPTO_SHA256
-	select CRYPTO_SHA512
 	select CRYPTO_DH
 	select CRYPTO_DH_RFC7919_GROUPS
-	select CRYPTO_HKDF
+	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_SHA512
+
+config NVME_AUTH_KUNIT_TEST
+	tristate "KUnit tests for NVMe authentication" if !KUNIT_ALL_TESTS
+	depends on KUNIT && NVME_AUTH
+	default KUNIT_ALL_TESTS
+	help
+	  Enable KUnit tests for some of the common code for NVMe over Fabrics
+	  In-Band Authentication.

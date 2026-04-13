@@ -485,6 +485,125 @@ Limitations
   in case that too many ublk devices are handled by this single io_ring_ctx
   and each one has very large queue depth
 
+Shared Memory Zero Copy (UBLK_F_SHMEM_ZC)
+------------------------------------------
+
+The ``UBLK_F_SHMEM_ZC`` feature provides an alternative zero-copy path
+that works by sharing physical memory pages between the client application
+and the ublk server. Unlike the io_uring fixed buffer approach above,
+shared memory zero copy does not require io_uring buffer registration
+per I/O — instead, it relies on the kernel matching physical pages
+at I/O time. This allows the ublk server to access the shared
+buffer directly, which is unlikely for the io_uring fixed buffer
+approach.
+
+Motivation
+~~~~~~~~~~
+
+Shared memory zero copy takes a different approach: if the client
+application and the ublk server both map the same physical memory, there is
+nothing to copy. The kernel detects the shared pages automatically and
+tells the server where the data already lives.
+
+``UBLK_F_SHMEM_ZC`` can be thought of as a supplement for optimized client
+applications — when the client is willing to allocate I/O buffers from
+shared memory, the entire data path becomes zero-copy.
+
+Use Cases
+~~~~~~~~~
+
+This feature is useful when the client application can be configured to
+use a specific shared memory region for its I/O buffers:
+
+- **Custom storage clients** that allocate I/O buffers from shared memory
+  (memfd, hugetlbfs) and issue direct I/O to the ublk device
+- **Database engines** that use pre-allocated buffer pools with O_DIRECT
+
+How It Works
+~~~~~~~~~~~~
+
+1. The ublk server and client both ``mmap()`` the same file (memfd or
+   hugetlbfs) with ``MAP_SHARED``. This gives both processes access to the
+   same physical pages.
+
+2. The ublk server registers its mapping with the kernel::
+
+     struct ublk_shmem_buf_reg buf = { .addr = mmap_va, .len = size };
+     ublk_ctrl_cmd(UBLK_U_CMD_REG_BUF, .addr = &buf);
+
+   The kernel pins the pages and builds a PFN lookup tree.
+
+3. When the client issues direct I/O (``O_DIRECT``) to ``/dev/ublkb*``,
+   the kernel checks whether the I/O buffer pages match any registered
+   pages by comparing PFNs.
+
+4. On a match, the kernel sets ``UBLK_IO_F_SHMEM_ZC`` in the I/O
+   descriptor and encodes the buffer index and offset in ``addr``::
+
+     if (iod->op_flags & UBLK_IO_F_SHMEM_ZC) {
+         /* Data is already in our shared mapping — zero copy */
+         index  = ublk_shmem_zc_index(iod->addr);
+         offset = ublk_shmem_zc_offset(iod->addr);
+         buf = shmem_table[index].mmap_base + offset;
+     }
+
+5. If pages do not match (e.g., the client used a non-shared buffer),
+   the I/O falls back to the normal copy path silently.
+
+The shared memory can be set up via two methods:
+
+- **Socket-based**: the client sends a memfd to the ublk server via
+  ``SCM_RIGHTS`` on a unix socket. The server mmaps and registers it.
+- **Hugetlbfs-based**: both processes ``mmap(MAP_SHARED)`` the same
+  hugetlbfs file. No IPC needed — same file gives same physical pages.
+
+Advantages
+~~~~~~~~~~
+
+- **Simple**: no per-I/O buffer registration or unregistration commands.
+  Once the shared buffer is registered, all matching I/O is zero-copy
+  automatically.
+- **Direct buffer access**: the ublk server can read and write the shared
+  buffer directly via its own mmap, without going through io_uring fixed
+  buffer operations. This is more friendly for server implementations.
+- **Fast**: PFN matching is a single maple tree lookup per bvec. No
+  io_uring command round-trips for buffer management.
+- **Compatible**: non-matching I/O silently falls back to the copy path.
+  The device works normally for any client, with zero-copy as an
+  optimization when shared memory is available.
+
+Limitations
+~~~~~~~~~~~
+
+- **Requires client cooperation**: the client must allocate its I/O
+  buffers from the shared memory region. This requires a custom or
+  configured client — standard applications using their own buffers
+  will not benefit.
+- **Direct I/O only**: buffered I/O (without ``O_DIRECT``) goes through
+  the page cache, which allocates its own pages. These kernel-allocated
+  pages will never match the registered shared buffer. Only ``O_DIRECT``
+  puts the client's buffer pages directly into the block I/O.
+- **Contiguous data only**: each I/O request's data must be contiguous
+  within a single registered buffer. Scatter/gather I/O that spans
+  multiple non-adjacent registered buffers cannot use the zero-copy path.
+
+Control Commands
+~~~~~~~~~~~~~~~~
+
+- ``UBLK_U_CMD_REG_BUF``
+
+  Register a shared memory buffer. ``ctrl_cmd.addr`` points to a
+  ``struct ublk_shmem_buf_reg`` containing the buffer virtual address and size.
+  Returns the assigned buffer index (>= 0) on success. The kernel pins
+  pages and builds the PFN lookup tree. Queue freeze is handled
+  internally.
+
+- ``UBLK_U_CMD_UNREG_BUF``
+
+  Unregister a previously registered buffer. ``ctrl_cmd.data[0]`` is the
+  buffer index. Unpins pages and removes PFN entries from the lookup
+  tree.
+
 References
 ==========
 

@@ -17,7 +17,6 @@
 #include <linux/nvme-auth.h>
 #endif
 #include <linux/nvme-keyring.h>
-#include <crypto/hash.h>
 #include <crypto/kpp.h>
 #include <linux/nospec.h>
 
@@ -2181,8 +2180,6 @@ static ssize_t nvmet_host_dhchap_hash_store(struct config_item *item,
 	hmac_id = nvme_auth_hmac_id(page);
 	if (hmac_id == NVME_AUTH_HASH_INVALID)
 		return -EINVAL;
-	if (!crypto_has_shash(nvme_auth_hmac_name(hmac_id), 0, 0))
-		return -ENOTSUPP;
 	host->dhchap_hash_id = hmac_id;
 	return count;
 }

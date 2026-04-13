@@ -13,6 +13,7 @@
 #include <linux/minmax.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 #include <linux/wait.h>
 #include <linux/bio.h>
 #include <linux/gfp.h>
@@ -201,10 +202,14 @@ struct gendisk {
 	u8 __rcu		*zones_cond;
 	unsigned int		zone_wplugs_hash_bits;
 	atomic_t		nr_zone_wplugs;
-	spinlock_t		zone_wplugs_lock;
+	spinlock_t		zone_wplugs_hash_lock;
 	struct mempool		*zone_wplugs_pool;
 	struct hlist_head	*zone_wplugs_hash;
 	struct workqueue_struct *zone_wplugs_wq;
+	spinlock_t		zone_wplugs_list_lock;
+	struct list_head	zone_wplugs_list;
+	struct task_struct	*zone_wplugs_worker;
+	struct completion	zone_wplugs_worker_bio_done;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 #if IS_ENABLED(CONFIG_CDROM)
@@ -503,7 +508,7 @@ struct request_queue {
 
 	/* hw dispatch queues */
 	unsigned int		nr_hw_queues;
-	struct blk_mq_hw_ctx * __rcu *queue_hw_ctx;
+	struct blk_mq_hw_ctx * __rcu *queue_hw_ctx __counted_by_ptr(nr_hw_queues);
 
 	struct percpu_ref	q_usage_counter;
 	struct lock_class_key	io_lock_cls_key;
@@ -669,6 +674,7 @@ enum {
 	QUEUE_FLAG_NO_ELV_SWITCH,	/* can't switch elevator any more */
 	QUEUE_FLAG_QOS_ENABLED,		/* qos is enabled */
 	QUEUE_FLAG_BIO_ISSUE_TIME,	/* record bio->issue_time_ns */
+	QUEUE_FLAG_ZONED_QD1_WRITES,	/* Limit zoned devices writes to QD=1 */
 	QUEUE_FLAG_MAX
 };
 
@@ -708,6 +714,8 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 	test_bit(QUEUE_FLAG_DISABLE_WBT_DEF, &(q)->queue_flags)
 #define blk_queue_no_elv_switch(q)	\
 	test_bit(QUEUE_FLAG_NO_ELV_SWITCH, &(q)->queue_flags)
+#define blk_queue_zoned_qd1_writes(q)	\
+	test_bit(QUEUE_FLAG_ZONED_QD1_WRITES, &(q)->queue_flags)
 
 extern void blk_set_pm_only(struct request_queue *q);
 extern void blk_clear_pm_only(struct request_queue *q);
@@ -1466,11 +1474,6 @@ bdev_write_zeroes_unmap_sectors(struct block_device *bdev)
 static inline bool bdev_rot(struct block_device *bdev)
 {
 	return blk_queue_rot(bdev_get_queue(bdev));
-}
-
-static inline bool bdev_nonrot(struct block_device *bdev)
-{
-	return !bdev_rot(bdev);
 }
 
 static inline bool bdev_synchronous(struct block_device *bdev)

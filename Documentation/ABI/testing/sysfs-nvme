@@ -1,0 +1,13 @@
+What:		/sys/devices/virtual/nvme-fabrics/ctl/.../tls_configured_key
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Linux NVMe mailing list <linux-nvme@lists.infradead.org>
+Description:
+		The file is avaliable when using a secure concatanation
+		connection to a NVMe target. Reading the file will return
+		the serial of the currently negotiated key.
+
+		Writing 0 to the file will trigger a PSK reauthentication
+		(REPLACETLSPSK) with the target. After a reauthentication
+		the value returned by tls_configured_key will be the new
+		serial.

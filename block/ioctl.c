@@ -153,13 +153,7 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 	nr_sects = len >> SECTOR_SHIFT;
 
 	blk_start_plug(&plug);
-	while (1) {
-		if (fatal_signal_pending(current)) {
-			if (prev)
-				bio_await_chain(prev);
-			err = -EINTR;
-			goto out_unplug;
-		}
+	while (!fatal_signal_pending(current)) {
 		bio = blk_alloc_discard_bio(bdev, &sector, &nr_sects,
 				GFP_KERNEL);
 		if (!bio)
@@ -167,12 +161,11 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 		prev = bio_chain_and_submit(prev, bio);
 	}
 	if (prev) {
-		err = submit_bio_wait(prev);
+		err = bio_submit_or_kill(prev, BLKDEV_ZERO_KILLABLE);
 		if (err == -EOPNOTSUPP)
 			err = 0;
 		bio_put(prev);
 	}
-out_unplug:
 	blk_finish_plug(&plug);
 fail:
 	filemap_invalidate_unlock(bdev->bd_mapping);

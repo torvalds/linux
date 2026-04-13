@@ -62,7 +62,7 @@ The options available for the add command can be listed by reading the
 /dev/zloop-control device::
 
 	$ cat /dev/zloop-control
-        add id=%d,capacity_mb=%u,zone_size_mb=%u,zone_capacity_mb=%u,conv_zones=%u,base_dir=%s,nr_queues=%u,queue_depth=%u,buffered_io
+        add id=%d,capacity_mb=%u,zone_size_mb=%u,zone_capacity_mb=%u,conv_zones=%u,max_open_zones=%u,base_dir=%s,nr_queues=%u,queue_depth=%u,buffered_io,zone_append=%u,ordered_zone_append,discard_write_cache
         remove id=%d
 
 In more details, the options that can be used with the "add" command are as
@@ -80,6 +80,9 @@ zone_capacity_mb      Device zone capacity (must always be equal to or lower
 conv_zones            Total number of conventioanl zones starting from
                       sector 0
                       Default: 8
+max_open_zones        Maximum number of open sequential write required zones
+                      (0 for no limit).
+                      Default: 0
 base_dir              Path to the base directory where to create the directory
                       containing the zone files of the device.
                       Default=/var/local/zloop.
@@ -104,6 +107,11 @@ ordered_zone_append   Enable zloop mitigation of zone append reordering.
                       (extents), as when enabled, this can significantly reduce
                       the number of data extents needed to for a file data
                       mapping.
+discard_write_cache   Discard all data that was not explicitly persisted using a
+                      flush operation when the device is removed by truncating
+                      each zone file to the size recorded during the last flush
+                      operation. This simulates power fail events where
+                      uncommitted data is lost.
 ===================   =========================================================
 
 3) Deleting a Zoned Device

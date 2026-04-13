@@ -670,7 +670,6 @@ xfs_zone_gc_start_chunk(
 	struct xfs_inode	*ip;
 	struct bio		*bio;
 	xfs_daddr_t		daddr;
-	unsigned int		len;
 	bool			is_seq;
 
 	if (xfs_is_shutdown(mp))
@@ -685,15 +684,16 @@ xfs_zone_gc_start_chunk(
 		return false;
 	}
 
-	len = XFS_FSB_TO_B(mp, irec.rm_blockcount);
-	bio = bio_alloc_bioset(bdev,
-			min(howmany(len, XFS_GC_BUF_SIZE) + 1, XFS_GC_NR_BUFS),
-			REQ_OP_READ, GFP_NOFS, &data->bio_set);
-
+	/*
+	 * Scratch allocation can wrap around to the same buffer again,
+	 * provision an extra bvec for that case.
+	 */
+	bio = bio_alloc_bioset(bdev, XFS_GC_NR_BUFS + 1, REQ_OP_READ, GFP_NOFS,
+			&data->bio_set);
 	chunk = container_of(bio, struct xfs_gc_bio, bio);
 	chunk->ip = ip;
 	chunk->offset = XFS_FSB_TO_B(mp, irec.rm_offset);
-	chunk->len = len;
+	chunk->len = XFS_FSB_TO_B(mp, irec.rm_blockcount);
 	chunk->old_startblock =
 		xfs_rgbno_to_rtb(iter->victim_rtg, irec.rm_startblock);
 	chunk->new_daddr = daddr;
@@ -707,8 +707,9 @@ xfs_zone_gc_start_chunk(
 	bio->bi_iter.bi_sector = xfs_rtb_to_daddr(mp, chunk->old_startblock);
 	bio->bi_end_io = xfs_zone_gc_end_io;
 	xfs_zone_gc_add_data(chunk);
-	data->scratch_head = (data->scratch_head + len) % data->scratch_size;
-	data->scratch_available -= len;
+	data->scratch_head =
+		(data->scratch_head + chunk->len) % data->scratch_size;
+	data->scratch_available -= chunk->len;
 
 	XFS_STATS_INC(mp, xs_gc_read_calls);
 
@@ -899,9 +900,10 @@ out:
 
 static void
 xfs_submit_zone_reset_bio(
-	struct xfs_rtgroup	*rtg,
-	struct bio		*bio)
+	struct bio		*bio,
+	void			*priv)
 {
+	struct xfs_rtgroup	*rtg = priv;
 	struct xfs_mount	*mp = rtg_mount(rtg);
 
 	trace_xfs_zone_reset(rtg);
@@ -933,26 +935,16 @@ xfs_submit_zone_reset_bio(
 	submit_bio(bio);
 }
 
-static void xfs_bio_wait_endio(struct bio *bio)
-{
-	complete(bio->bi_private);
-}
-
 int
 xfs_zone_gc_reset_sync(
 	struct xfs_rtgroup	*rtg)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
 	struct bio		bio;
 	int			error;
 
 	bio_init(&bio, rtg_mount(rtg)->m_rtdev_targp->bt_bdev, NULL, 0,
 			REQ_OP_ZONE_RESET | REQ_SYNC);
-	bio.bi_private = &done;
-	bio.bi_end_io = xfs_bio_wait_endio;
-	xfs_submit_zone_reset_bio(rtg, &bio);
-	wait_for_completion_io(&done);
-
+	bio_await(&bio, rtg, xfs_submit_zone_reset_bio);
 	error = blk_status_to_errno(bio.bi_status);
 	bio_uninit(&bio);
 	return error;
@@ -989,7 +981,7 @@ xfs_zone_gc_reset_zones(
 		chunk->data = data;
 		WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 		list_add_tail(&chunk->entry, &data->resetting);
-		xfs_submit_zone_reset_bio(rtg, bio);
+		xfs_submit_zone_reset_bio(bio, rtg);
 	} while (next);
 }
 
