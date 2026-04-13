@@ -74,11 +74,10 @@ static int exfat_allocate_bitmap(struct super_block *sb,
 		struct exfat_dentry *ep)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct blk_plug plug;
 	long long map_size;
 	unsigned int i, j, need_map_size;
-	sector_t sector;
-	unsigned int max_ra_count;
+	sector_t sector, end, ra;
+	blkcnt_t ra_cnt = 0;
 
 	sbi->map_clu = le32_to_cpu(ep->dentry.bitmap.start_clu);
 	map_size = le64_to_cpu(ep->dentry.bitmap.size);
@@ -100,17 +99,12 @@ static int exfat_allocate_bitmap(struct super_block *sb,
 	if (!sbi->vol_amap)
 		return -ENOMEM;
 
-	sector = exfat_cluster_to_sector(sbi, sbi->map_clu);
-	max_ra_count = min(sb->s_bdi->ra_pages, sb->s_bdi->io_pages) <<
-		(PAGE_SHIFT - sb->s_blocksize_bits);
+	sector = ra = exfat_cluster_to_sector(sbi, sbi->map_clu);
+	end = sector + sbi->map_sectors - 1;
+
 	for (i = 0; i < sbi->map_sectors; i++) {
 		/* Trigger the next readahead in advance. */
-		if (max_ra_count && 0 == (i % max_ra_count)) {
-			blk_start_plug(&plug);
-			for (j = i; j < min(max_ra_count, sbi->map_sectors - i) + i; j++)
-				sb_breadahead(sb, sector + j);
-			blk_finish_plug(&plug);
-		}
+		exfat_blk_readahead(sb, sector + i, &ra, &ra_cnt, end);
 
 		sbi->vol_amap[i] = sb_bread(sb, sector + i);
 		if (!sbi->vol_amap[i])

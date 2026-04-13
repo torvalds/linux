@@ -11,11 +11,11 @@
 #include "exfat_raw.h"
 #include "exfat_fs.h"
 
-static int exfat_mirror_bh(struct super_block *sb, sector_t sec,
-		struct buffer_head *bh)
+static int exfat_mirror_bh(struct super_block *sb, struct buffer_head *bh)
 {
 	struct buffer_head *c_bh;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	sector_t sec = bh->b_blocknr;
 	sector_t sec2;
 	int err = 0;
 
@@ -25,22 +25,30 @@ static int exfat_mirror_bh(struct super_block *sb, sector_t sec,
 		if (!c_bh)
 			return -ENOMEM;
 		memcpy(c_bh->b_data, bh->b_data, sb->s_blocksize);
-		set_buffer_uptodate(c_bh);
-		mark_buffer_dirty(c_bh);
-		if (sb->s_flags & SB_SYNCHRONOUS)
-			err = sync_dirty_buffer(c_bh);
+		err = exfat_update_bh(c_bh, sb->s_flags & SB_SYNCHRONOUS);
 		brelse(c_bh);
 	}
 
 	return err;
 }
 
+static int exfat_end_bh(struct super_block *sb, struct buffer_head *bh)
+{
+	int err;
+
+	err = exfat_update_bh(bh, sb->s_flags & SB_SYNCHRONOUS);
+	if (!err)
+		err = exfat_mirror_bh(sb, bh);
+	brelse(bh);
+	return err;
+}
+
 static int __exfat_ent_get(struct super_block *sb, unsigned int loc,
-		unsigned int *content, struct buffer_head **last)
+		unsigned int *content, struct buffer_head **cache)
 {
 	unsigned int off;
 	sector_t sec;
-	struct buffer_head *bh = last ? *last : NULL;
+	struct buffer_head *bh = *cache;
 
 	sec = FAT_ENT_OFFSET_SECTOR(sb, loc);
 	off = FAT_ENT_OFFSET_BYTE_IN_SECTOR(sb, loc);
@@ -48,8 +56,7 @@ static int __exfat_ent_get(struct super_block *sb, unsigned int loc,
 	if (!bh || bh->b_blocknr != sec || !buffer_uptodate(bh)) {
 		brelse(bh);
 		bh = sb_bread(sb, sec);
-		if (last)
-			*last = bh;
+		*cache = bh;
 		if (unlikely(!bh))
 			return -EIO;
 	}
@@ -60,39 +67,48 @@ static int __exfat_ent_get(struct super_block *sb, unsigned int loc,
 	if (*content > EXFAT_BAD_CLUSTER)
 		*content = EXFAT_EOF_CLUSTER;
 
-	if (!last)
-		brelse(bh);
+	return 0;
+}
+
+static int __exfat_ent_set(struct super_block *sb, unsigned int loc,
+		unsigned int content, struct buffer_head **cache)
+{
+	sector_t sec;
+	__le32 *fat_entry;
+	struct buffer_head *bh = cache ? *cache : NULL;
+	unsigned int off;
+
+	sec = FAT_ENT_OFFSET_SECTOR(sb, loc);
+	off = FAT_ENT_OFFSET_BYTE_IN_SECTOR(sb, loc);
+
+	if (!bh || bh->b_blocknr != sec || !buffer_uptodate(bh)) {
+		if (bh)
+			exfat_end_bh(sb, bh);
+		bh = sb_bread(sb, sec);
+		if (cache)
+			*cache = bh;
+		if (unlikely(!bh))
+			return -EIO;
+	}
+
+	fat_entry = (__le32 *)&(bh->b_data[off]);
+	*fat_entry = cpu_to_le32(content);
+	if (!cache)
+		exfat_end_bh(sb, bh);
 	return 0;
 }
 
 int exfat_ent_set(struct super_block *sb, unsigned int loc,
 		unsigned int content)
 {
-	unsigned int off;
-	sector_t sec;
-	__le32 *fat_entry;
-	struct buffer_head *bh;
-
-	sec = FAT_ENT_OFFSET_SECTOR(sb, loc);
-	off = FAT_ENT_OFFSET_BYTE_IN_SECTOR(sb, loc);
-
-	bh = sb_bread(sb, sec);
-	if (!bh)
-		return -EIO;
-
-	fat_entry = (__le32 *)&(bh->b_data[off]);
-	*fat_entry = cpu_to_le32(content);
-	exfat_update_bh(bh, sb->s_flags & SB_SYNCHRONOUS);
-	exfat_mirror_bh(sb, sec, bh);
-	brelse(bh);
-	return 0;
+	return __exfat_ent_set(sb, loc, content, NULL);
 }
 
 /*
  * Caller must release the buffer_head if no error return.
  */
 int exfat_ent_get(struct super_block *sb, unsigned int loc,
-		unsigned int *content, struct buffer_head **last)
+		unsigned int *content, struct buffer_head **cache)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
@@ -103,7 +119,7 @@ int exfat_ent_get(struct super_block *sb, unsigned int loc,
 		goto err;
 	}
 
-	if (unlikely(__exfat_ent_get(sb, loc, content, last))) {
+	if (unlikely(__exfat_ent_get(sb, loc, content, cache))) {
 		exfat_fs_error_ratelimit(sb,
 			"failed to access to FAT (entry 0x%08x)",
 			loc);
@@ -132,31 +148,69 @@ int exfat_ent_get(struct super_block *sb, unsigned int loc,
 	}
 
 	return 0;
-err:
-	if (last) {
-		brelse(*last);
 
-		/* Avoid double release */
-		*last = NULL;
-	}
+err:
+	/* Avoid double release */
+	brelse(*cache);
+	*cache = NULL;
 	return -EIO;
+}
+
+int exfat_blk_readahead(struct super_block *sb, sector_t sec,
+		sector_t *ra, blkcnt_t *ra_cnt, sector_t end)
+{
+	struct blk_plug plug;
+
+	if (sec < *ra)
+		return 0;
+
+	*ra += *ra_cnt;
+
+	/* No blocks left (or only the last block), skip readahead. */
+	if (*ra >= end)
+		return 0;
+
+	*ra_cnt = min(end - *ra + 1, EXFAT_BLK_RA_SIZE(sb));
+	if (*ra_cnt == 0) {
+		/* Move 'ra' to the end to disable readahead. */
+		*ra = end;
+		return 0;
+	}
+
+	blk_start_plug(&plug);
+	for (unsigned int i = 0; i < *ra_cnt; i++)
+		sb_breadahead(sb, *ra + i);
+	blk_finish_plug(&plug);
+	return 0;
 }
 
 int exfat_chain_cont_cluster(struct super_block *sb, unsigned int chain,
 		unsigned int len)
 {
+	struct buffer_head *bh = NULL;
+	sector_t sec, end, ra;
+	blkcnt_t ra_cnt = 0;
+
 	if (!len)
 		return 0;
 
+	ra = FAT_ENT_OFFSET_SECTOR(sb, chain);
+	end = FAT_ENT_OFFSET_SECTOR(sb, chain + len - 1);
+
 	while (len > 1) {
-		if (exfat_ent_set(sb, chain, chain + 1))
+		sec = FAT_ENT_OFFSET_SECTOR(sb, chain);
+		exfat_blk_readahead(sb, sec, &ra, &ra_cnt, end);
+
+		if (__exfat_ent_set(sb, chain, chain + 1, &bh))
 			return -EIO;
 		chain++;
 		len--;
 	}
 
-	if (exfat_ent_set(sb, chain, EXFAT_EOF_CLUSTER))
+	if (__exfat_ent_set(sb, chain, EXFAT_EOF_CLUSTER, &bh))
 		return -EIO;
+
+	exfat_end_bh(sb, bh);
 	return 0;
 }
 
