@@ -326,16 +326,6 @@ config MOUSE_LOGIBM
 	  To compile this driver as a module, choose M here: the
 	  module will be called logibm.
 
-config MOUSE_PC110PAD
-	tristate "IBM PC110 touchpad"
-	depends on ISA
-	help
-	  Say Y if you have the IBM PC-110 micro-notebook and want its
-	  touchpad supported.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pc110pad.
-
 config MOUSE_AMIGA
 	tristate "Amiga mouse"
 	depends on AMIGA
