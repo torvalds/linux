@@ -65,6 +65,7 @@ TEST_PROGS := \
 	netdevice.sh \
 	netns-name.sh \
 	netns-sysctl.sh \
+	nk_qlease.py \
 	nl_netdev.py \
 	nl_nlctrl.py \
 	pmtu.sh \
