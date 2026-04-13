@@ -247,4 +247,81 @@ TEST(tsync_interrupt)
 	EXPECT_EQ(0, close(ruleset_fd));
 }
 
+/* clang-format off */
+FIXTURE(tsync_without_ruleset) {};
+/* clang-format on */
+
+FIXTURE_VARIANT(tsync_without_ruleset)
+{
+	const __u32 flags;
+	const int expected_errno;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(tsync_without_ruleset, tsync_only) {
+	/* clang-format on */
+	.flags = LANDLOCK_RESTRICT_SELF_TSYNC,
+	.expected_errno = EBADF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(tsync_without_ruleset, subdomains_off_same_exec_off) {
+	/* clang-format on */
+	.flags = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+		 LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF |
+		 LANDLOCK_RESTRICT_SELF_TSYNC,
+	.expected_errno = EBADF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(tsync_without_ruleset, subdomains_off_new_exec_on) {
+	/* clang-format on */
+	.flags = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+		 LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
+		 LANDLOCK_RESTRICT_SELF_TSYNC,
+	.expected_errno = EBADF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(tsync_without_ruleset, all_flags) {
+	/* clang-format on */
+	.flags = LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF |
+		 LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
+		 LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+		 LANDLOCK_RESTRICT_SELF_TSYNC,
+	.expected_errno = EBADF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(tsync_without_ruleset, subdomains_off) {
+	/* clang-format on */
+	.flags = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+		 LANDLOCK_RESTRICT_SELF_TSYNC,
+	.expected_errno = 0,
+};
+
+FIXTURE_SETUP(tsync_without_ruleset)
+{
+	disable_caps(_metadata);
+}
+
+FIXTURE_TEARDOWN(tsync_without_ruleset)
+{
+}
+
+TEST_F(tsync_without_ruleset, check)
+{
+	int ret;
+
+	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+
+	ret = landlock_restrict_self(-1, variant->flags);
+	if (variant->expected_errno) {
+		EXPECT_EQ(-1, ret);
+		EXPECT_EQ(variant->expected_errno, errno);
+	} else {
+		EXPECT_EQ(0, ret);
+	}
+}
+
 TEST_HARNESS_MAIN

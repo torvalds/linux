@@ -27,6 +27,7 @@
 #include <linux/lsm_hooks.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/net.h>
 #include <linux/path.h>
 #include <linux/pid.h>
 #include <linux/rcupdate.h>
@@ -36,6 +37,7 @@
 #include <linux/types.h>
 #include <linux/wait_bit.h>
 #include <linux/workqueue.h>
+#include <net/af_unix.h>
 #include <uapi/linux/fiemap.h>
 #include <uapi/linux/landlock.h>
 
@@ -119,8 +121,8 @@ static const struct landlock_object_underops landlock_fs_underops = {
  * Any new IOCTL commands that are implemented in fs/ioctl.c's do_vfs_ioctl()
  * should be considered for inclusion here.
  *
- * Returns: true if the IOCTL @cmd can not be restricted with Landlock for
- * device files.
+ * Return: True if the IOCTL @cmd can not be restricted with Landlock for
+ * device files, false otherwise.
  */
 static __attribute_const__ bool is_masked_device_ioctl(const unsigned int cmd)
 {
@@ -314,7 +316,8 @@ retry:
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
 	LANDLOCK_ACCESS_FS_TRUNCATE | \
-	LANDLOCK_ACCESS_FS_IOCTL_DEV)
+	LANDLOCK_ACCESS_FS_IOCTL_DEV | \
+	LANDLOCK_ACCESS_FS_RESOLVE_UNIX)
 /* clang-format on */
 
 /*
@@ -428,10 +431,10 @@ static bool may_refer(const struct layer_access_masks *const src_parent,
  * Check that a destination file hierarchy has more restrictions than a source
  * file hierarchy.  This is only used for link and rename actions.
  *
- * Returns: true if child1 may be moved from parent1 to parent2 without
- * increasing its access rights.  If child2 is set, an additional condition is
+ * Return: True if child1 may be moved from parent1 to parent2 without
+ * increasing its access rights (if child2 is set, an additional condition is
  * that child2 may be used from parent2 to parent1 without increasing its access
- * rights.
+ * rights), false otherwise.
  */
 static bool no_more_access(const struct layer_access_masks *const parent1,
 			   const struct layer_access_masks *const child1,
@@ -564,7 +567,7 @@ static void test_no_more_access(struct kunit *const test)
 
 static bool is_layer_masks_allowed(const struct layer_access_masks *masks)
 {
-	return !memchr_inv(&masks->access, 0, sizeof(masks->access));
+	return mem_is_zero(&masks->access, sizeof(masks->access));
 }
 
 /*
@@ -734,9 +737,7 @@ static void test_is_eacces_with_write(struct kunit *const test)
  * checks that the collected accesses and the remaining ones are enough to
  * allow the request.
  *
- * Returns:
- * - true if the access request is granted;
- * - false otherwise.
+ * Return: True if the access request is granted, false otherwise.
  */
 static bool
 is_access_to_paths_allowed(const struct landlock_ruleset *const domain,
@@ -1022,9 +1023,8 @@ static access_mask_t maybe_remove(const struct dentry *const dentry)
  * only handles walking on the same mount point and only checks one set of
  * accesses.
  *
- * Returns:
- * - true if all the domain access rights are allowed for @dir;
- * - false if the walk reached @mnt_root.
+ * Return: True if all the domain access rights are allowed for @dir, false if
+ * the walk reached @mnt_root.
  */
 static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
 				    const struct dentry *const mnt_root,
@@ -1120,10 +1120,9 @@ static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
  * ephemeral matrices take some space on the stack, which limits the number of
  * layers to a deemed reasonable number: 16.
  *
- * Returns:
- * - 0 if access is allowed;
- * - -EXDEV if @old_dentry would inherit new access rights from @new_dir;
- * - -EACCES if file removal or creation is denied.
+ * Return: 0 if access is allowed, -EXDEV if @old_dentry would inherit new
+ * access rights from @new_dir, or -EACCES if file removal or creation is
+ * denied.
  */
 static int current_check_refer_path(struct dentry *const old_dentry,
 				    const struct path *const new_dir,
@@ -1561,6 +1560,133 @@ static int hook_path_truncate(const struct path *const path)
 	return current_check_access_path(path, LANDLOCK_ACCESS_FS_TRUNCATE);
 }
 
+/**
+ * unmask_scoped_access - Remove access right bits in @masks in all layers
+ *                        where @client and @server have the same domain
+ *
+ * This does the same as domain_is_scoped(), but unmasks bits in @masks.
+ * It can not return early as domain_is_scoped() does.
+ *
+ * A scoped access for a given access right bit is allowed iff, for all layer
+ * depths where the access bit is set, the client and server domain are the
+ * same.  This function clears the access rights @access in @masks at all layer
+ * depths where the client and server domain are the same, so that, when they
+ * are all cleared, the access is allowed.
+ *
+ * @client: Client domain
+ * @server: Server domain
+ * @masks: Layer access masks to unmask
+ * @access: Access bits that control scoping
+ */
+static void unmask_scoped_access(const struct landlock_ruleset *const client,
+				 const struct landlock_ruleset *const server,
+				 struct layer_access_masks *const masks,
+				 const access_mask_t access)
+{
+	int client_layer, server_layer;
+	const struct landlock_hierarchy *client_walker, *server_walker;
+
+	/* This should not happen. */
+	if (WARN_ON_ONCE(!client))
+		return;
+
+	/* Server has no Landlock domain; nothing to clear. */
+	if (!server)
+		return;
+
+	/*
+	 * client_layer must be able to represent all numbers from
+	 * LANDLOCK_MAX_NUM_LAYERS - 1 to -1 for the loop below to terminate.
+	 * (It must be large enough, and it must be signed.)
+	 */
+	BUILD_BUG_ON(!is_signed_type(typeof(client_layer)));
+	BUILD_BUG_ON(LANDLOCK_MAX_NUM_LAYERS - 1 >
+		     type_max(typeof(client_layer)));
+
+	client_layer = client->num_layers - 1;
+	client_walker = client->hierarchy;
+	server_layer = server->num_layers - 1;
+	server_walker = server->hierarchy;
+
+	/*
+	 * Clears the access bits at all layers where the client domain is the
+	 * same as the server domain.  We start the walk at min(client_layer,
+	 * server_layer).  The layer bits until there can not be cleared because
+	 * either the client or the server domain is missing.
+	 */
+	for (; client_layer > server_layer; client_layer--)
+		client_walker = client_walker->parent;
+
+	for (; server_layer > client_layer; server_layer--)
+		server_walker = server_walker->parent;
+
+	for (; client_layer >= 0; client_layer--) {
+		if (masks->access[client_layer] & access &&
+		    client_walker == server_walker)
+			masks->access[client_layer] &= ~access;
+
+		client_walker = client_walker->parent;
+		server_walker = server_walker->parent;
+	}
+}
+
+static int hook_unix_find(const struct path *const path, struct sock *other,
+			  int flags)
+{
+	const struct landlock_ruleset *dom_other;
+	const struct landlock_cred_security *subject;
+	struct layer_access_masks layer_masks;
+	struct landlock_request request = {};
+	static const struct access_masks fs_resolve_unix = {
+		.fs = LANDLOCK_ACCESS_FS_RESOLVE_UNIX,
+	};
+
+	/* Lookup for the purpose of saving coredumps is OK. */
+	if (unlikely(flags & SOCK_COREDUMP))
+		return 0;
+
+	subject = landlock_get_applicable_subject(current_cred(),
+						  fs_resolve_unix, NULL);
+
+	if (!subject)
+		return 0;
+
+	/*
+	 * Ignoring return value: that the domains apply was already checked in
+	 * landlock_get_applicable_subject() above.
+	 */
+	landlock_init_layer_masks(subject->domain, fs_resolve_unix.fs,
+				  &layer_masks, LANDLOCK_KEY_INODE);
+
+	/* Checks the layers in which we are connecting within the same domain. */
+	unix_state_lock(other);
+	if (unlikely(sock_flag(other, SOCK_DEAD) || !other->sk_socket ||
+		     !other->sk_socket->file)) {
+		unix_state_unlock(other);
+		/*
+		 * We rely on the caller to catch the (non-reversible) SOCK_DEAD
+		 * condition and retry the lookup.  If we returned an error
+		 * here, the lookup would not get retried.
+		 */
+		return 0;
+	}
+	dom_other = landlock_cred(other->sk_socket->file->f_cred)->domain;
+
+	/* Access to the same (or a lower) domain is always allowed. */
+	unmask_scoped_access(subject->domain, dom_other, &layer_masks,
+			     fs_resolve_unix.fs);
+	unix_state_unlock(other);
+
+	/* Checks the connections to allow-listed paths. */
+	if (is_access_to_paths_allowed(subject->domain, path,
+				       fs_resolve_unix.fs, &layer_masks,
+				       &request, NULL, 0, NULL, NULL, NULL))
+		return 0;
+
+	landlock_log_denial(subject, &request);
+	return -EACCES;
+}
+
 /* File hooks */
 
 /**
@@ -1568,7 +1694,7 @@ static int hook_path_truncate(const struct path *const path)
  *
  * @file: File being opened.
  *
- * Returns the access rights that are required for opening the given file,
+ * Return: The access rights that are required for opening the given file,
  * depending on the file type and open mode.
  */
 static access_mask_t
@@ -1838,6 +1964,7 @@ static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(path_unlink, hook_path_unlink),
 	LSM_HOOK_INIT(path_rmdir, hook_path_rmdir),
 	LSM_HOOK_INIT(path_truncate, hook_path_truncate),
+	LSM_HOOK_INIT(unix_find, hook_unix_find),
 
 	LSM_HOOK_INIT(file_alloc_security, hook_file_alloc_security),
 	LSM_HOOK_INIT(file_open, hook_file_open),

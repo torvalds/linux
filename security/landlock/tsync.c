@@ -85,12 +85,14 @@ static void restrict_one_thread(struct tsync_shared_context *ctx)
 		/*
 		 * Switch out old_cred with new_cred, if possible.
 		 *
-		 * In the common case, where all threads initially point to the same
-		 * struct cred, this optimization avoids creating separate redundant
-		 * credentials objects for each, which would all have the same contents.
+		 * In the common case, where all threads initially point to the
+		 * same struct cred, this optimization avoids creating separate
+		 * redundant credentials objects for each, which would all have
+		 * the same contents.
 		 *
-		 * Note: We are intentionally dropping the const qualifier here, because
-		 * it is required by commit_creds() and abort_creds().
+		 * Note: We are intentionally dropping the const qualifier
+		 * here, because it is required by commit_creds() and
+		 * abort_creds().
 		 */
 		cred = (struct cred *)get_cred(ctx->new_cred);
 	} else {
@@ -101,8 +103,8 @@ static void restrict_one_thread(struct tsync_shared_context *ctx)
 			atomic_set(&ctx->preparation_error, -ENOMEM);
 
 			/*
-			 * Even on error, we need to adhere to the protocol and coordinate
-			 * with concurrently running invocations.
+			 * Even on error, we need to adhere to the protocol and
+			 * coordinate with concurrently running invocations.
 			 */
 			if (atomic_dec_return(&ctx->num_preparing) == 0)
 				complete_all(&ctx->all_prepared);
@@ -135,9 +137,9 @@ static void restrict_one_thread(struct tsync_shared_context *ctx)
 	}
 
 	/*
-	 * Make sure that all sibling tasks fulfill the no_new_privs prerequisite.
-	 * (This is in line with Seccomp's SECCOMP_FILTER_FLAG_TSYNC logic in
-	 * kernel/seccomp.c)
+	 * Make sure that all sibling tasks fulfill the no_new_privs
+	 * prerequisite.  (This is in line with Seccomp's
+	 * SECCOMP_FILTER_FLAG_TSYNC logic in kernel/seccomp.c)
 	 */
 	if (ctx->set_no_new_privs)
 		task_set_no_new_privs(current);
@@ -183,10 +185,8 @@ struct tsync_works {
  * capacity.  This can legitimately happen if new threads get started after we
  * grew the capacity.
  *
- * Returns:
- *   A pointer to the preallocated context struct, with task filled in.
- *
- *   NULL, if we ran out of preallocated context structs.
+ * Return: A pointer to the preallocated context struct with task filled in, or
+ * NULL if preallocated context structs ran out.
  */
 static struct tsync_work *tsync_works_provide(struct tsync_works *s,
 					      struct task_struct *task)
@@ -223,16 +223,17 @@ static void tsync_works_trim(struct tsync_works *s)
 	ctx = s->works[s->size - 1];
 
 	/*
-	 * For consistency, remove the task from ctx so that it does not look like
-	 * we handed it a task_work.
+	 * For consistency, remove the task from ctx so that it does not look
+	 * like we handed it a task_work.
 	 */
 	put_task_struct(ctx->task);
 	*ctx = (typeof(*ctx)){};
 
 	/*
-	 * Cancel the tsync_works_provide() change to recycle the reserved memory
-	 * for the next thread, if any.  This also ensures that cancel_tsync_works()
-	 * and tsync_works_release() do not see any NULL task pointers.
+	 * Cancel the tsync_works_provide() change to recycle the reserved
+	 * memory for the next thread, if any.  This also ensures that
+	 * cancel_tsync_works() and tsync_works_release() do not see any NULL
+	 * task pointers.
 	 */
 	s->size--;
 }
@@ -243,11 +244,8 @@ static void tsync_works_trim(struct tsync_works *s)
  * On a successful return, the subsequent n calls to tsync_works_provide() are
  * guaranteed to succeed.  (size + n <= capacity)
  *
- * Returns:
- *   -ENOMEM if the (re)allocation fails
-
- *   0       if the allocation succeeds, partially succeeds, or no reallocation
- *           was needed
+ * Return: 0 if sufficient space for n more elements could be provided, -ENOMEM
+ * on allocation errors, -EOVERFLOW in case of integer overflow.
  */
 static int tsync_works_grow_by(struct tsync_works *s, size_t n, gfp_t flags)
 {
@@ -363,8 +361,8 @@ static size_t count_additional_threads(const struct tsync_works *works)
  * For each added task_work, atomically increments shared_ctx->num_preparing and
  * shared_ctx->num_unfinished.
  *
- * Returns:
- *     true, if at least one eligible sibling thread was found
+ * Return: True if at least one eligible sibling thread was found, false
+ * otherwise.
  */
 static bool schedule_task_work(struct tsync_works *works,
 			       struct tsync_shared_context *shared_ctx)
@@ -393,17 +391,17 @@ static bool schedule_task_work(struct tsync_works *works,
 			continue;
 
 		/*
-		 * We found a sibling thread that is not doing its task_work yet, and
-		 * which might spawn new threads before our task work runs, so we need
-		 * at least one more round in the outer loop.
+		 * We found a sibling thread that is not doing its task_work
+		 * yet, and which might spawn new threads before our task work
+		 * runs, so we need at least one more round in the outer loop.
 		 */
 		found_more_threads = true;
 
 		ctx = tsync_works_provide(works, thread);
 		if (!ctx) {
 			/*
-			 * We ran out of preallocated contexts -- we need to try again with
-			 * this thread at a later time!
+			 * We ran out of preallocated contexts -- we need to
+			 * try again with this thread at a later time!
 			 * found_more_threads is already true at this point.
 			 */
 			break;
@@ -418,10 +416,10 @@ static bool schedule_task_work(struct tsync_works *works,
 		err = task_work_add(thread, &ctx->work, TWA_SIGNAL);
 		if (unlikely(err)) {
 			/*
-			 * task_work_add() only fails if the task is about to exit.  We
-			 * checked that earlier, but it can happen as a race.  Resume
-			 * without setting an error, as the task is probably gone in the
-			 * next loop iteration.
+			 * task_work_add() only fails if the task is about to
+			 * exit.  We checked that earlier, but it can happen as
+			 * a race.  Resume without setting an error, as the
+			 * task is probably gone in the next loop iteration.
 			 */
 			tsync_works_trim(works);
 
@@ -512,24 +510,25 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 	 *    After this barrier is reached, it's safe to read
 	 *    shared_ctx.preparation_error.
 	 *
-	 * 4) reads shared_ctx.preparation_error and then either does commit_creds()
-	 *    or abort_creds().
+	 * 4) reads shared_ctx.preparation_error and then either does
+	 *    commit_creds() or abort_creds().
 	 *
 	 * 5) signals that it's done altogether (barrier synchronization
 	 *    "all_finished")
 	 *
-	 * Unlike seccomp, which modifies sibling tasks directly, we do not need to
-	 * acquire the cred_guard_mutex and sighand->siglock:
+	 * Unlike seccomp, which modifies sibling tasks directly, we do not
+	 * need to acquire the cred_guard_mutex and sighand->siglock:
 	 *
-	 * - As in our case, all threads are themselves exchanging their own struct
-	 *   cred through the credentials API, no locks are needed for that.
+	 * - As in our case, all threads are themselves exchanging their own
+	 *   struct cred through the credentials API, no locks are needed for
+	 *   that.
 	 * - Our for_each_thread() loops are protected by RCU.
-	 * - We do not acquire a lock to keep the list of sibling threads stable
-	 *   between our for_each_thread loops.  If the list of available sibling
-	 *   threads changes between these for_each_thread loops, we make up for
-	 *   that by continuing to look for threads until they are all discovered
-	 *   and have entered their task_work, where they are unable to spawn new
-	 *   threads.
+	 * - We do not acquire a lock to keep the list of sibling threads
+	 *   stable between our for_each_thread loops.  If the list of
+	 *   available sibling threads changes between these for_each_thread
+	 *   loops, we make up for that by continuing to look for threads until
+	 *   they are all discovered and have entered their task_work, where
+	 *   they are unable to spawn new threads.
 	 */
 	do {
 		/* In RCU read-lock, count the threads we need. */
@@ -546,31 +545,36 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 		}
 
 		/*
-		 * The "all_prepared" barrier is used locally to the loop body, this use
-		 * of for_each_thread().  We can reset it on each loop iteration because
-		 * all previous loop iterations are done with it already.
+		 * The "all_prepared" barrier is used locally to the loop body,
+		 * this use of for_each_thread().  We can reset it on each loop
+		 * iteration because all previous loop iterations are done with
+		 * it already.
 		 *
-		 * num_preparing is initialized to 1 so that the counter can not go to 0
-		 * and mark the completion as done before all task works are registered.
-		 * We decrement it at the end of the loop body.
+		 * num_preparing is initialized to 1 so that the counter can
+		 * not go to 0 and mark the completion as done before all task
+		 * works are registered.  We decrement it at the end of the
+		 * loop body.
 		 */
 		atomic_set(&shared_ctx.num_preparing, 1);
 		reinit_completion(&shared_ctx.all_prepared);
 
 		/*
-		 * In RCU read-lock, schedule task work on newly discovered sibling
-		 * tasks.
+		 * In RCU read-lock, schedule task work on newly discovered
+		 * sibling tasks.
 		 */
 		found_more_threads = schedule_task_work(&works, &shared_ctx);
 
 		/*
-		 * Decrement num_preparing for current, to undo that we initialized it
-		 * to 1 a few lines above.
+		 * Decrement num_preparing for current, to undo that we
+		 * initialized it to 1 a few lines above.
 		 */
 		if (atomic_dec_return(&shared_ctx.num_preparing) > 0) {
 			if (wait_for_completion_interruptible(
 				    &shared_ctx.all_prepared)) {
-				/* In case of interruption, we need to retry the system call. */
+				/*
+				 * In case of interruption, we need to retry
+				 * the system call.
+				 */
 				atomic_set(&shared_ctx.preparation_error,
 					   -ERESTARTNOINTR);
 
@@ -603,8 +607,8 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 	complete_all(&shared_ctx.ready_to_commit);
 
 	/*
-	 * Decrement num_unfinished for current, to undo that we initialized it to 1
-	 * at the beginning.
+	 * Decrement num_unfinished for current, to undo that we initialized it
+	 * to 1 at the beginning.
 	 */
 	if (atomic_dec_return(&shared_ctx.num_unfinished) > 0)
 		wait_for_completion(&shared_ctx.all_finished);

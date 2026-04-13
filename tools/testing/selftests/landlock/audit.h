@@ -249,9 +249,9 @@ static __maybe_unused char *regex_escape(const char *const src, char *dst,
 static int audit_match_record(int audit_fd, const __u16 type,
 			      const char *const pattern, __u64 *domain_id)
 {
-	struct audit_message msg;
+	struct audit_message msg, last_mismatch = {};
 	int ret, err = 0;
-	bool matches_record = !type;
+	int num_type_match = 0;
 	regmatch_t matches[2];
 	regex_t regex;
 
@@ -259,21 +259,35 @@ static int audit_match_record(int audit_fd, const __u16 type,
 	if (ret)
 		return -EINVAL;
 
-	do {
+	/*
+	 * Reads records until one matches both the expected type and the
+	 * pattern.  Type-matching records with non-matching content are
+	 * silently consumed, which handles stale domain deallocation records
+	 * from a previous test emitted asynchronously by kworker threads.
+	 */
+	while (true) {
 		memset(&msg, 0, sizeof(msg));
 		err = audit_recv(audit_fd, &msg);
-		if (err)
+		if (err) {
+			if (num_type_match) {
+				printf("DATA: %s\n", last_mismatch.data);
+				printf("ERROR: %d record(s) matched type %u"
+				       " but not pattern: %s\n",
+				       num_type_match, type, pattern);
+			}
 			goto out;
+		}
 
-		if (msg.header.nlmsg_type == type)
-			matches_record = true;
-	} while (!matches_record);
+		if (type && msg.header.nlmsg_type != type)
+			continue;
 
-	ret = regexec(&regex, msg.data, ARRAY_SIZE(matches), matches, 0);
-	if (ret) {
-		printf("DATA: %s\n", msg.data);
-		printf("ERROR: no match for pattern: %s\n", pattern);
-		err = -ENOENT;
+		ret = regexec(&regex, msg.data, ARRAY_SIZE(matches), matches,
+			      0);
+		if (!ret)
+			break;
+
+		num_type_match++;
+		last_mismatch = msg;
 	}
 
 	if (domain_id) {
@@ -309,28 +323,56 @@ static int __maybe_unused matches_log_domain_allocated(int audit_fd, pid_t pid,
 
 	log_match_len =
 		snprintf(log_match, sizeof(log_match), log_template, pid);
-	if (log_match_len > sizeof(log_match))
+	if (log_match_len >= sizeof(log_match))
 		return -E2BIG;
 
 	return audit_match_record(audit_fd, AUDIT_LANDLOCK_DOMAIN, log_match,
 				  domain_id);
 }
 
-static int __maybe_unused matches_log_domain_deallocated(
-	int audit_fd, unsigned int num_denials, __u64 *domain_id)
+/*
+ * Matches a domain deallocation record.  When expected_domain_id is non-zero,
+ * the pattern includes the specific domain ID so that stale deallocation
+ * records from a previous test (with a different domain ID) are skipped by
+ * audit_match_record(), and the socket timeout is temporarily increased to
+ * audit_tv_dom_drop to wait for the asynchronous kworker deallocation.
+ */
+static int __maybe_unused
+matches_log_domain_deallocated(int audit_fd, unsigned int num_denials,
+			       __u64 expected_domain_id, __u64 *domain_id)
 {
 	static const char log_template[] = REGEX_LANDLOCK_PREFIX
 		" status=deallocated denials=%u$";
-	char log_match[sizeof(log_template) + 10];
-	int log_match_len;
+	static const char log_template_with_id[] =
+		"^audit([0-9.:]\\+): domain=\\(%llx\\)"
+		" status=deallocated denials=%u$";
+	char log_match[sizeof(log_template_with_id) + 32];
+	int log_match_len, err;
 
-	log_match_len = snprintf(log_match, sizeof(log_match), log_template,
-				 num_denials);
-	if (log_match_len > sizeof(log_match))
+	if (expected_domain_id)
+		log_match_len = snprintf(log_match, sizeof(log_match),
+					 log_template_with_id,
+					 (unsigned long long)expected_domain_id,
+					 num_denials);
+	else
+		log_match_len = snprintf(log_match, sizeof(log_match),
+					 log_template, num_denials);
+
+	if (log_match_len >= sizeof(log_match))
 		return -E2BIG;
 
-	return audit_match_record(audit_fd, AUDIT_LANDLOCK_DOMAIN, log_match,
-				  domain_id);
+	if (expected_domain_id)
+		setsockopt(audit_fd, SOL_SOCKET, SO_RCVTIMEO,
+			   &audit_tv_dom_drop, sizeof(audit_tv_dom_drop));
+
+	err = audit_match_record(audit_fd, AUDIT_LANDLOCK_DOMAIN, log_match,
+				 domain_id);
+
+	if (expected_domain_id)
+		setsockopt(audit_fd, SOL_SOCKET, SO_RCVTIMEO, &audit_tv_default,
+			   sizeof(audit_tv_default));
+
+	return err;
 }
 
 struct audit_records {
@@ -338,6 +380,15 @@ struct audit_records {
 	size_t domain;
 };
 
+/*
+ * WARNING: Do not assert records.domain == 0 without a preceding
+ * audit_match_record() call.  Domain deallocation records are emitted
+ * asynchronously from kworker threads and can arrive after the drain in
+ * audit_init(), corrupting the domain count.  A preceding audit_match_record()
+ * call consumes stale records while scanning, making the assertion safe in
+ * practice because stale deallocation records arrive before the expected access
+ * records.
+ */
 static int audit_count_records(int audit_fd, struct audit_records *records)
 {
 	struct audit_message msg;
@@ -379,19 +430,35 @@ static int audit_init(void)
 
 	err = audit_set_status(fd, AUDIT_STATUS_ENABLED, 1);
 	if (err)
-		return err;
+		goto err_close;
 
 	err = audit_set_status(fd, AUDIT_STATUS_PID, getpid());
 	if (err)
-		return err;
+		goto err_close;
 
 	/* Sets a timeout for negative tests. */
 	err = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &audit_tv_default,
 			 sizeof(audit_tv_default));
-	if (err)
-		return -errno;
+	if (err) {
+		err = -errno;
+		goto err_close;
+	}
+
+	/*
+	 * Drains stale audit records that accumulated in the kernel backlog
+	 * while no audit daemon socket was open.  This happens when non-audit
+	 * Landlock tests generate records while audit_enabled is non-zero (e.g.
+	 * from boot configuration), or when domain deallocation records arrive
+	 * asynchronously after a previous test's socket was closed.
+	 */
+	while (audit_recv(fd, NULL) == 0)
+		;
 
 	return fd;
+
+err_close:
+	close(fd);
+	return err;
 }
 
 static int audit_init_filter_exe(struct audit_filter *filter, const char *path)
@@ -441,8 +508,10 @@ static int audit_cleanup(int audit_fd, struct audit_filter *filter)
 
 		filter = &new_filter;
 		err = audit_init_filter_exe(filter, NULL);
-		if (err)
+		if (err) {
+			close(audit_fd);
 			return err;
+		}
 	}
 
 	/* Filters might not be in place. */
@@ -468,11 +537,15 @@ static int audit_init_with_exe_filter(struct audit_filter *filter)
 
 	err = audit_init_filter_exe(filter, NULL);
 	if (err)
-		return err;
+		goto err_close;
 
 	err = audit_filter_exe(fd, filter, AUDIT_ADD_RULE);
 	if (err)
-		return err;
+		goto err_close;
 
 	return fd;
+
+err_close:
+	close(fd);
+	return err;
 }
