@@ -160,7 +160,6 @@ actually does the initialization in the correct way. Here are the things to look
 ```rust
 use pin_init::{pin_data, pinned_drop, PinInit, PinnedDrop, pin_init_from_closure};
 use core::{
-    ptr::addr_of_mut,
     marker::PhantomPinned,
     cell::UnsafeCell,
     pin::Pin,
@@ -199,7 +198,7 @@ impl RawFoo {
         unsafe {
             pin_init_from_closure(move |slot: *mut Self| {
                 // `slot` contains uninit memory, avoid creating a reference.
-                let foo = addr_of_mut!((*slot).foo);
+                let foo = &raw mut (*slot).foo;
                 let foo = UnsafeCell::raw_get(foo).cast::<bindings::foo>();
 
                 // Initialize the `foo`

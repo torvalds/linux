@@ -6,16 +6,15 @@
 
 use crate::{
     bindings,
-    ffi::{c_int, c_long, c_uint},
     mm::MmWithUser,
     pid_namespace::PidNamespace,
+    prelude::*,
     sync::aref::ARef,
     types::{NotThreadSafe, Opaque},
 };
 use core::{
-    cmp::{Eq, PartialEq},
     ops::Deref,
-    ptr,
+    ptr, //
 };
 
 /// A sentinel value used for infinite timeouts.
@@ -419,7 +418,7 @@ pub fn might_sleep() {
         let file = kernel::file_from_location(loc);
 
         // SAFETY: `file.as_ptr()` is valid for reading and guaranteed to be nul-terminated.
-        unsafe { crate::bindings::__might_sleep(file.as_ptr().cast(), loc.line() as i32) }
+        unsafe { crate::bindings::__might_sleep(file.as_char_ptr(), loc.line() as i32) }
     }
 
     // SAFETY: Always safe to call.

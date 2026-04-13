@@ -23166,6 +23166,7 @@ C:	zulip://rust-for-linux.zulipchat.com
 P:	https://rust-for-linux.com/contributing
 T:	git https://github.com/Rust-for-Linux/linux.git rust-next
 F:	.clippy.toml
+F:	.rustfmt.toml
 F:	Documentation/rust/
 F:	include/trace/events/rust_sample.h
 F:	rust/

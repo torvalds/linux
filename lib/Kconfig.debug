@@ -3577,6 +3577,23 @@ config RUST_KERNEL_DOCTESTS
 
 	  If unsure, say N.
 
+config RUST_INLINE_HELPERS
+	bool "Inline C helpers into Rust code (EXPERIMENTAL)"
+	depends on RUST && RUSTC_CLANG_LLVM_COMPATIBLE
+	depends on EXPERT
+	depends on ARM64 || X86_64
+	depends on !UML
+	help
+	  Inlines C helpers into Rust code using Link Time Optimization.
+
+	  If this option is enabled, C helper functions declared in
+	  rust/helpers/ are inlined into Rust code, which is helpful for
+	  performance of Rust code. This requires a matching LLVM version for
+	  Clang and rustc.
+
+	  If you are sure that you're using Clang and rustc with matching LLVM
+	  versions, say Y. Otherwise say N.
+
 endmenu # "Rust"
 
 endmenu # Kernel hacking

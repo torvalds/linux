@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-msrv = "1.78.0"
+msrv = "1.85.0"
 
 check-private-items = true
 
@@ -9,3 +9,13 @@ disallowed-macros = [
     # it here, see: https://github.com/rust-lang/rust-clippy/issues/11303.
     { path = "kernel::dbg", reason = "the `dbg!` macro is intended as a debugging tool", allow-invalid = true },
 ]
+
+[[disallowed-methods]]
+path = "core::ffi::CStr::as_ptr"
+replacement = "kernel::prelude::CStrExt::as_char_ptr"
+reason = "kernel's `char` is always unsigned, use `as_char_ptr` instead"
+
+[[disallowed-methods]]
+path = "core::ffi::CStr::from_ptr"
+replacement = "kernel::prelude::CStrExt::from_char_ptr"
+reason = "kernel's `char` is always unsigned, use `from_char_ptr` instead"

@@ -172,6 +172,7 @@ pub struct StoreError<T> {
 }
 
 impl<T> From<StoreError<T>> for Error {
+    #[inline]
     fn from(value: StoreError<T>) -> Self {
         value.error
     }

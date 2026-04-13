@@ -52,12 +52,7 @@ impl<'a> ModInfoBuilder<'a> {
     fn emit_base(&mut self, field: &str, content: &str, builtin: bool, param: bool) {
         let string = if builtin {
             // Built-in modules prefix their modinfo strings by `module.`.
-            format!(
-                "{module}.{field}={content}\0",
-                module = self.module,
-                field = field,
-                content = content
-            )
+            format!("{module}.{field}={content}\0", module = self.module)
         } else {
             // Loadable modules' modinfo strings go as-is.
             format!("{field}={content}\0")
@@ -109,7 +104,7 @@ impl<'a> ModInfoBuilder<'a> {
     }
 
     fn emit_param(&mut self, field: &str, param: &str, content: &str) {
-        let content = format!("{param}:{content}", param = param, content = content);
+        let content = format!("{param}:{content}");
         self.emit_internal(field, &content, true);
     }
 

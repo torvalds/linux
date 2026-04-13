@@ -13,6 +13,7 @@
 .*
 *.a
 *.asn1.[ch]
+*.bc
 *.bin
 *.bz2
 *.c.[012]*.*
@@ -184,3 +185,6 @@ sphinx_*/
 
 # Rust analyzer configuration
 /rust-project.json
+
+# bc language scripts (not LLVM bitcode)
+!kernel/time/timeconst.bc

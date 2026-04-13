@@ -189,6 +189,7 @@ macro_rules! b_str {
 //
 // - error[E0379]: functions in trait impls cannot be declared const
 #[inline]
+#[expect(clippy::disallowed_methods, reason = "internal implementation")]
 pub const fn as_char_ptr_in_const_context(c_str: &CStr) -> *const c_char {
     c_str.as_ptr().cast()
 }
@@ -319,6 +320,7 @@ unsafe fn to_bytes_mut(s: &mut CStr) -> &mut [u8] {
 
 impl CStrExt for CStr {
     #[inline]
+    #[expect(clippy::disallowed_methods, reason = "internal implementation")]
     unsafe fn from_char_ptr<'a>(ptr: *const c_char) -> &'a Self {
         // SAFETY: The safety preconditions are the same as for `CStr::from_ptr`.
         unsafe { CStr::from_ptr(ptr.cast()) }
@@ -334,6 +336,7 @@ impl CStrExt for CStr {
     }
 
     #[inline]
+    #[expect(clippy::disallowed_methods, reason = "internal implementation")]
     fn as_char_ptr(&self) -> *const c_char {
         self.as_ptr().cast()
     }
@@ -376,19 +379,32 @@ impl AsRef<BStr> for CStr {
     }
 }
 
-/// Creates a new [`CStr`] from a string literal.
+/// Creates a new [`CStr`] at compile time.
 ///
-/// The string literal should not contain any `NUL` bytes.
+/// Rust supports C string literals since Rust 1.77, and they should be used instead of this macro
+/// where possible. This macro exists to allow static *non-literal* C strings to be created at
+/// compile time. This is most often used in other macros.
+///
+/// # Panics
+///
+/// This macro panics if the operand contains an interior `NUL` byte.
 ///
 /// # Examples
 ///
 /// ```
 /// # use kernel::c_str;
 /// # use kernel::str::CStr;
-/// const MY_CSTR: &CStr = c_str!("My awesome CStr!");
+/// // This is allowed, but `c"literal"` should be preferred for literals.
+/// const BAD: &CStr = c_str!("literal");
+///
+/// // `c_str!` is still needed for static non-literal C strings.
+/// const GOOD: &CStr = c_str!(concat!(file!(), ":", line!(), ": My CStr!"));
 /// ```
 #[macro_export]
 macro_rules! c_str {
+    // NB: We could write `($str:lit) => compile_error!("use a C string literal instead");` here but
+    // that would trigger when the literal is at the top of several macro expansions. That would be
+    // too limiting to macro authors.
     ($str:expr) => {{
         const S: &str = concat!($str, "\0");
         const C: &$crate::str::CStr = match $crate::str::CStr::from_bytes_with_nul(S.as_bytes()) {
@@ -828,7 +844,10 @@ impl CString {
         f.write_str("\0")?;
 
         // SAFETY: The number of bytes that can be written to `f` is bounded by `size`, which is
-        // `buf`'s capacity. The contents of the buffer have been initialised by writes to `f`.
+        // `buf`'s capacity. The `Formatter` is created with `size` as its limit, and the `?`
+        // operators on `write_fmt` and `write_str` above ensure that if writing exceeds this
+        // limit, an error is returned early. The contents of the buffer have been initialised
+        // by writes to `f`.
         unsafe { buf.inc_len(f.bytes_written()) };
 
         // Check that there are no `NUL` bytes before the end.

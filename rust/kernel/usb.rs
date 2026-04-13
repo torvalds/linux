@@ -18,10 +18,8 @@ use crate::{
         to_result, //
     },
     prelude::*,
-    types::{
-        AlwaysRefCounted,
-        Opaque, //
-    },
+    sync::aref::AlwaysRefCounted,
+    types::Opaque,
     ThisModule, //
 };
 use core::{
