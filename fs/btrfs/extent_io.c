@@ -14,6 +14,7 @@
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
 #include <linux/fsverity.h>
+#include <linux/lockdep.h>
 #include "extent_io.h"
 #include "extent-io-tree.h"
 #include "extent_map.h"
@@ -520,7 +521,7 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 	struct bio *bio = &bbio->bio;
 	int error = blk_status_to_errno(bio->bi_status);
 	struct folio_iter fi;
-	const u32 sectorsize = fs_info->sectorsize;
+	u32 bio_size = 0;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_folio_all(fi, bio) {
@@ -528,23 +529,16 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 		u64 start = folio_pos(folio) + fi.offset;
 		u32 len = fi.length;
 
-		/* Our read/write should always be sector aligned. */
-		if (!IS_ALIGNED(fi.offset, sectorsize))
-			btrfs_err(fs_info,
-		"partial page write in btrfs with offset %zu and length %zu",
-				  fi.offset, fi.length);
-		else if (!IS_ALIGNED(fi.length, sectorsize))
-			btrfs_info(fs_info,
-		"incomplete page write with offset %zu and length %zu",
-				   fi.offset, fi.length);
-
-		btrfs_finish_ordered_extent(bbio->ordered, folio, start, len,
-					    !error);
-		if (error)
-			mapping_set_error(folio->mapping, error);
+		bio_size += len;
+		ASSERT(btrfs_folio_test_ordered(fs_info, folio, start, len));
+		btrfs_folio_clear_ordered(fs_info, folio, start, len);
 		btrfs_folio_clear_writeback(fs_info, folio, start, len);
 	}
 
+	if (error)
+		mapping_set_error(bbio->inode->vfs_inode.i_mapping, error);
+
+	btrfs_finish_ordered_extent(bbio->ordered, bbio->file_offset, bio_size, !error);
 	bio_put(bio);
 }
 
@@ -1587,7 +1581,8 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			u64 start = page_start + (start_bit << fs_info->sectorsize_bits);
 			u32 len = (end_bit - start_bit) << fs_info->sectorsize_bits;
 
-			btrfs_mark_ordered_io_finished(inode, folio, start, len, false);
+			btrfs_folio_clear_ordered(fs_info, folio, start, len);
+			btrfs_mark_ordered_io_finished(inode, start, len, false);
 		}
 		return ret;
 	}
@@ -1663,6 +1658,7 @@ static int submit_one_sector(struct btrfs_inode *inode,
 		 * ordered extent.
 		 */
 		btrfs_folio_clear_dirty(fs_info, folio, filepos, sectorsize);
+		btrfs_folio_clear_ordered(fs_info, folio, filepos, sectorsize);
 		btrfs_folio_set_writeback(fs_info, folio, filepos, sectorsize);
 		btrfs_folio_clear_writeback(fs_info, folio, filepos, sectorsize);
 
@@ -1670,8 +1666,8 @@ static int submit_one_sector(struct btrfs_inode *inode,
 		 * Since there is no bio submitted to finish the ordered
 		 * extent, we have to manually finish this sector.
 		 */
-		btrfs_mark_ordered_io_finished(inode, folio, filepos,
-					       fs_info->sectorsize, false);
+		btrfs_mark_ordered_io_finished(inode, filepos, fs_info->sectorsize,
+					       false);
 		return PTR_ERR(em);
 	}
 
@@ -1783,8 +1779,8 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 			spin_unlock(&inode->ordered_tree_lock);
 			btrfs_put_ordered_extent(ordered);
 
-			btrfs_mark_ordered_io_finished(inode, folio, cur,
-						       fs_info->sectorsize, true);
+			btrfs_folio_clear_ordered(fs_info, folio, cur, fs_info->sectorsize);
+			btrfs_mark_ordered_io_finished(inode, cur, fs_info->sectorsize, true);
 			/*
 			 * This range is beyond i_size, thus we don't need to
 			 * bother writing back.
@@ -1949,7 +1945,9 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 	 * of time.
 	 */
 	spin_lock(&eb->refs_lock);
-	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
+	if ((wbc->sync_mode == WB_SYNC_ALL ||
+	     atomic_read(&eb->writeback_inhibitors) == 0) &&
+	    test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->nodesize_bits);
 		unsigned long flags;
 
@@ -2396,39 +2394,13 @@ retry:
 		index = 0;
 		goto retry;
 	}
+
 	/*
-	 * If something went wrong, don't allow any metadata write bio to be
-	 * submitted.
-	 *
-	 * This would prevent use-after-free if we had dirty pages not
-	 * cleaned up, which can still happen by fuzzed images.
-	 *
-	 * - Bad extent tree
-	 *   Allowing existing tree block to be allocated for other trees.
-	 *
-	 * - Log tree operations
-	 *   Exiting tree blocks get allocated to log tree, bumps its
-	 *   generation, then get cleaned in tree re-balance.
-	 *   Such tree block will not be written back, since it's clean,
-	 *   thus no WRITTEN flag set.
-	 *   And after log writes back, this tree block is not traced by
-	 *   any dirty extent_io_tree.
-	 *
-	 * - Offending tree block gets re-dirtied from its original owner
-	 *   Since it has bumped generation, no WRITTEN flag, it can be
-	 *   reused without COWing. This tree block will not be traced
-	 *   by btrfs_transaction::dirty_pages.
-	 *
-	 *   Now such dirty tree block will not be cleaned by any dirty
-	 *   extent io tree. Thus we don't want to submit such wild eb
-	 *   if the fs already has error.
-	 *
-	 * We can get ret > 0 from submit_extent_folio() indicating how many ebs
-	 * were submitted. Reset it to 0 to avoid false alerts for the caller.
+	 * Only btrfs_check_meta_write_pointer() can update @ret,
+	 * and it only returns 0 or errors.
 	 */
-	if (ret > 0)
-		ret = 0;
-	if (!ret && BTRFS_FS_ERROR(fs_info))
+	ASSERT(ret <= 0);
+	if (unlikely(!ret && BTRFS_FS_ERROR(fs_info)))
 		ret = -EROFS;
 
 	if (ctx.zoned_bg)
@@ -2659,8 +2631,7 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 		if (IS_ERR(folio)) {
 			cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
 			cur_len = cur_end + 1 - cur;
-			btrfs_mark_ordered_io_finished(BTRFS_I(inode), NULL,
-						       cur, cur_len, false);
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), cur, cur_len, false);
 			mapping_set_error(mapping, PTR_ERR(folio));
 			cur = cur_end;
 			continue;
@@ -3011,6 +2982,64 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
+/*
+ * Inhibit writeback on buffer during transaction.
+ *
+ * @trans:  transaction handle that will own the inhibitor
+ * @eb:      extent buffer to inhibit writeback on
+ *
+ * Attempt to track this extent buffer in the transaction's inhibited set.  If
+ * memory allocation fails, the buffer is simply not tracked. It may be written
+ * back and need re-COW, which is the original behavior.  This is acceptable
+ * since inhibiting writeback is an optimization.
+ */
+void btrfs_inhibit_eb_writeback(struct btrfs_trans_handle *trans, struct extent_buffer *eb)
+{
+	unsigned long index = eb->start >> trans->fs_info->nodesize_bits;
+	void *old;
+
+	lockdep_assert_held(&eb->lock);
+	/* Check if already inhibited by this handle. */
+	old = xa_load(&trans->writeback_inhibited_ebs, index);
+	if (old == eb)
+		return;
+
+	/* Take reference for the xarray entry. */
+	refcount_inc(&eb->refs);
+
+	old = xa_store(&trans->writeback_inhibited_ebs, index, eb, GFP_NOFS);
+	if (xa_is_err(old)) {
+		/* Allocation failed, just skip inhibiting this buffer. */
+		free_extent_buffer(eb);
+		return;
+	}
+
+	/* Handle replacement of different eb at same index. */
+	if (old && old != eb) {
+		struct extent_buffer *old_eb = old;
+
+		atomic_dec(&old_eb->writeback_inhibitors);
+		free_extent_buffer(old_eb);
+	}
+
+	atomic_inc(&eb->writeback_inhibitors);
+}
+
+/*
+ * Uninhibit writeback on all extent buffers.
+ */
+void btrfs_uninhibit_all_eb_writeback(struct btrfs_trans_handle *trans)
+{
+	struct extent_buffer *eb;
+	unsigned long index;
+
+	xa_for_each(&trans->writeback_inhibited_ebs, index, eb) {
+		atomic_dec(&eb->writeback_inhibitors);
+		free_extent_buffer(eb);
+	}
+	xa_destroy(&trans->writeback_inhibited_ebs);
+}
+
 static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 						   u64 start)
 {
@@ -3021,6 +3050,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info
 	eb->len = fs_info->nodesize;
 	eb->fs_info = fs_info;
 	init_rwsem(&eb->lock);
+	atomic_set(&eb->writeback_inhibitors, 0);
 
 	btrfs_leak_debug_add_eb(eb);
 
@@ -3871,8 +3901,17 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
 
-	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
+	if (extent_buffer_uptodate(eb)) {
+		int ret;
+
+		ret = btrfs_buffer_uptodate(eb, 0, check);
+		if (unlikely(ret <= 0)) {
+			if (ret == 0)
+				ret = -EIO;
+			return ret;
+		}
 		return 0;
+	}
 
 	/*
 	 * We could have had EXTENT_BUFFER_UPTODATE cleared by the write
@@ -3892,8 +3931,16 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	 * started and finished reading the same eb.  In this case, UPTODATE
 	 * will now be set, and we shouldn't read it in again.
 	 */
-	if (unlikely(test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))) {
+	if (unlikely(extent_buffer_uptodate(eb))) {
+		int ret;
+
 		clear_extent_buffer_reading(eb);
+		ret = btrfs_buffer_uptodate(eb, 0, check);
+		if (unlikely(ret <= 0)) {
+			if (ret == 0)
+				ret = -EIO;
+			return ret;
+		}
 		return 0;
 	}
 
@@ -3929,7 +3976,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 		return ret;
 
 	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_READING, TASK_UNINTERRUPTIBLE);
-	if (unlikely(!test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags)))
+	if (unlikely(!extent_buffer_uptodate(eb)))
 		return -EIO;
 	return 0;
 }
@@ -3971,7 +4018,7 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	size_t cur;
 	size_t offset;
 	char *dst = (char *)dstv;
-	unsigned long i = get_eb_folio_index(eb, start);
+	unsigned long i;
 
 	if (check_eb_range(eb, start, len)) {
 		/*
@@ -3988,7 +4035,7 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	}
 
 	offset = get_eb_offset_in_folio(eb, start);
-
+	i = get_eb_folio_index(eb, start);
 	while (len > 0) {
 		char *kaddr;
 
@@ -4011,11 +4058,11 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 	size_t cur;
 	size_t offset;
 	char __user *dst = (char __user *)dstv;
-	unsigned long i = get_eb_folio_index(eb, start);
+	unsigned long i;
 	int ret = 0;
 
-	WARN_ON(start > eb->len);
-	WARN_ON(start + len > eb->start + eb->len);
+	if (check_eb_range(eb, start, len))
+		return -EINVAL;
 
 	if (eb->addr) {
 		if (copy_to_user_nofault(dstv, eb->addr + start, len))
@@ -4024,7 +4071,7 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 	}
 
 	offset = get_eb_offset_in_folio(eb, start);
-
+	i = get_eb_folio_index(eb, start);
 	while (len > 0) {
 		char *kaddr;
 
@@ -4052,7 +4099,7 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 	size_t offset;
 	char *kaddr;
 	char *ptr = (char *)ptrv;
-	unsigned long i = get_eb_folio_index(eb, start);
+	unsigned long i;
 	int ret = 0;
 
 	if (check_eb_range(eb, start, len))
@@ -4062,7 +4109,7 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 		return memcmp(ptrv, eb->addr + start, len);
 
 	offset = get_eb_offset_in_folio(eb, start);
-
+	i = get_eb_folio_index(eb, start);
 	while (len > 0) {
 		cur = min(len, unit_size - offset);
 		kaddr = folio_address(eb->folios[i]);
@@ -4122,7 +4169,7 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 	size_t offset;
 	char *kaddr;
 	const char *src = (const char *)srcv;
-	unsigned long i = get_eb_folio_index(eb, start);
+	unsigned long i;
 	/* For unmapped (dummy) ebs, no need to check their uptodate status. */
 	const bool check_uptodate = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
@@ -4138,7 +4185,7 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 	}
 
 	offset = get_eb_offset_in_folio(eb, start);
-
+	i = get_eb_folio_index(eb, start);
 	while (len > 0) {
 		if (check_uptodate)
 			assert_eb_folio_uptodate(eb, i);
@@ -4224,7 +4271,7 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 	size_t cur;
 	size_t offset;
 	char *kaddr;
-	unsigned long i = get_eb_folio_index(dst, dst_offset);
+	unsigned long i;
 
 	if (check_eb_range(dst, dst_offset, len) ||
 	    check_eb_range(src, src_offset, len))
@@ -4234,6 +4281,7 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 
 	offset = get_eb_offset_in_folio(dst, dst_offset);
 
+	i = get_eb_folio_index(dst, dst_offset);
 	while (len > 0) {
 		assert_eb_folio_uptodate(dst, i);
 
@@ -4606,7 +4654,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 	if (IS_ERR(eb))
 		return;
 
-	if (btrfs_buffer_uptodate(eb, gen, true)) {
+	if (btrfs_buffer_uptodate(eb, gen, NULL)) {
 		free_extent_buffer(eb);
 		return;
 	}

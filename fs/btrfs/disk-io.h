@@ -58,7 +58,7 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info);
 int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 			 const struct btrfs_super_block *sb, int mirror_num);
 int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount);
-int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors);
+int write_all_supers(struct btrfs_trans_handle *trans);
 int btrfs_commit_super(struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 					const struct btrfs_key *key);
@@ -76,7 +76,7 @@ struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 int btrfs_global_root_insert(struct btrfs_root *root);
 void btrfs_global_root_delete(struct btrfs_root *root);
 struct btrfs_root *btrfs_global_root(struct btrfs_fs_info *fs_info,
-				     struct btrfs_key *key);
+				     const struct btrfs_key *key);
 struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 
@@ -107,7 +107,8 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 void btrfs_put_root(struct btrfs_root *root);
 void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
 			     struct extent_buffer *buf);
-int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid, bool atomic);
+int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
+			  const struct btrfs_tree_parent_check *check);
 int btrfs_read_extent_buffer(struct extent_buffer *buf,
 			     const struct btrfs_tree_parent_check *check);
 

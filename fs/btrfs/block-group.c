@@ -728,7 +728,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	u64 total_found = 0;
-	u64 last = 0;
+	u64 last = block_group->start;
 	u32 nritems;
 	int ret;
 	bool wakeup = true;
@@ -737,7 +737,6 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	if (!path)
 		return -ENOMEM;
 
-	last = max_t(u64, block_group->start, BTRFS_SUPER_INFO_OFFSET);
 	extent_root = btrfs_extent_root(fs_info, last);
 	if (unlikely(!extent_root)) {
 		btrfs_err(fs_info,
@@ -1613,6 +1612,24 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
+
+		if (btrfs_is_zoned(fs_info) && btrfs_is_block_group_used(block_group) &&
+		    block_group->zone_unusable >= div_u64(block_group->length, 2)) {
+			/*
+			 * If the block group has data left, but at least half
+			 * of the block group is zone_unusable, mark it as
+			 * reclaimable before continuing with the next block group.
+			 */
+
+			spin_unlock(&block_group->lock);
+			spin_unlock(&space_info->lock);
+			up_write(&space_info->groups_sem);
+
+			btrfs_mark_bg_to_reclaim(block_group);
+
+			goto next;
+		}
+
 		if (btrfs_is_block_group_used(block_group) ||
 		    (block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) ||
 		    list_is_singular(&block_group->list) ||
@@ -1679,7 +1696,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_unlock(&space_info->lock);
 
 		/* We don't want to force the issue, only flip if it's ok. */
-		ret = inc_block_group_ro(block_group, 0);
+		ret = inc_block_group_ro(block_group, false);
 		up_write(&space_info->groups_sem);
 		if (ret < 0) {
 			ret = 0;
@@ -1892,13 +1909,145 @@ static bool should_reclaim_block_group(const struct btrfs_block_group *bg, u64 b
 	return true;
 }
 
-void btrfs_reclaim_bgs_work(struct work_struct *work)
+static int btrfs_reclaim_block_group(struct btrfs_block_group *bg, int *reclaimed)
 {
-	struct btrfs_fs_info *fs_info =
-		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	struct btrfs_space_info *space_info = bg->space_info;
+	u64 used;
+	u64 reserved;
+	u64 old_total;
+	int ret = 0;
+
+	/* Don't race with allocators so take the groups_sem */
+	down_write(&space_info->groups_sem);
+
+	spin_lock(&space_info->lock);
+	spin_lock(&bg->lock);
+	if (bg->reserved || bg->pinned || bg->ro) {
+		/*
+		 * We want to bail if we made new allocations or have
+		 * outstanding allocations in this block group.  We do
+		 * the ro check in case balance is currently acting on
+		 * this block group.
+		 */
+		spin_unlock(&bg->lock);
+		spin_unlock(&space_info->lock);
+		up_write(&space_info->groups_sem);
+		return 0;
+	}
+
+	if (bg->used == 0) {
+		/*
+		 * It is possible that we trigger relocation on a block
+		 * group as its extents are deleted and it first goes
+		 * below the threshold, then shortly after goes empty.
+		 *
+		 * In this case, relocating it does delete it, but has
+		 * some overhead in relocation specific metadata, looking
+		 * for the non-existent extents and running some extra
+		 * transactions, which we can avoid by using one of the
+		 * other mechanisms for dealing with empty block groups.
+		 */
+		if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
+			btrfs_mark_bg_unused(bg);
+		spin_unlock(&bg->lock);
+		spin_unlock(&space_info->lock);
+		up_write(&space_info->groups_sem);
+		return 0;
+	}
+
+	/*
+	 * The block group might no longer meet the reclaim condition by
+	 * the time we get around to reclaiming it, so to avoid
+	 * reclaiming overly full block_groups, skip reclaiming them.
+	 *
+	 * Since the decision making process also depends on the amount
+	 * being freed, pass in a fake giant value to skip that extra
+	 * check, which is more meaningful when adding to the list in
+	 * the first place.
+	 */
+	if (!should_reclaim_block_group(bg, bg->length)) {
+		spin_unlock(&bg->lock);
+		spin_unlock(&space_info->lock);
+		up_write(&space_info->groups_sem);
+		return 0;
+	}
+
+	spin_unlock(&bg->lock);
+	old_total = space_info->total_bytes;
+	spin_unlock(&space_info->lock);
+
+	/*
+	 * Get out fast, in case we're read-only or unmounting the
+	 * filesystem. It is OK to drop block groups from the list even
+	 * for the read-only case. As we did take the super write lock,
+	 * "mount -o remount,ro" won't happen and read-only filesystem
+	 * means it is forced read-only due to a fatal error. So, it
+	 * never gets back to read-write to let us reclaim again.
+	 */
+	if (btrfs_need_cleaner_sleep(fs_info)) {
+		up_write(&space_info->groups_sem);
+		return 0;
+	}
+
+	ret = inc_block_group_ro(bg, false);
+	up_write(&space_info->groups_sem);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * The amount of bytes reclaimed corresponds to the sum of the
+	 * "used" and "reserved" counters. We have set the block group
+	 * to RO above, which prevents reservations from happening but
+	 * we may have existing reservations for which allocation has
+	 * not yet been done - btrfs_update_block_group() was not yet
+	 * called, which is where we will transfer a reserved extent's
+	 * size from the "reserved" counter to the "used" counter - this
+	 * happens when running delayed references. When we relocate the
+	 * chunk below, relocation first flushes delalloc, waits for
+	 * ordered extent completion (which is where we create delayed
+	 * references for data extents) and commits the current
+	 * transaction (which runs delayed references), and only after
+	 * it does the actual work to move extents out of the block
+	 * group. So the reported amount of reclaimed bytes is
+	 * effectively the sum of the 'used' and 'reserved' counters.
+	 */
+	spin_lock(&bg->lock);
+	used = bg->used;
+	reserved = bg->reserved;
+	spin_unlock(&bg->lock);
+
+	trace_btrfs_reclaim_block_group(bg);
+	ret = btrfs_relocate_chunk(fs_info, bg->start, false);
+	if (ret) {
+		btrfs_dec_block_group_ro(bg);
+		btrfs_err(fs_info, "error relocating chunk %llu",
+			  bg->start);
+		used = 0;
+		reserved = 0;
+		spin_lock(&space_info->lock);
+		space_info->reclaim_errors++;
+		spin_unlock(&space_info->lock);
+	}
+	spin_lock(&space_info->lock);
+	space_info->reclaim_count++;
+	space_info->reclaim_bytes += used;
+	space_info->reclaim_bytes += reserved;
+	if (space_info->total_bytes < old_total)
+		btrfs_set_periodic_reclaim_ready(space_info, true);
+	spin_unlock(&space_info->lock);
+	if (!ret)
+		(*reclaimed)++;
+
+	return ret;
+}
+
+void btrfs_reclaim_block_groups(struct btrfs_fs_info *fs_info, unsigned int limit)
+{
 	struct btrfs_block_group *bg;
 	struct btrfs_space_info *space_info;
 	LIST_HEAD(retry_list);
+	int reclaimed = 0;
 
 	if (!btrfs_should_reclaim(fs_info))
 		return;
@@ -1925,10 +2074,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	 */
 	list_sort(NULL, &fs_info->reclaim_bgs, reclaim_bgs_cmp);
 	while (!list_empty(&fs_info->reclaim_bgs)) {
-		u64 used;
-		u64 reserved;
-		u64 old_total;
-		int ret = 0;
+		int ret;
 
 		bg = list_first_entry(&fs_info->reclaim_bgs,
 				      struct btrfs_block_group,
@@ -1937,126 +2083,8 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 
 		space_info = bg->space_info;
 		spin_unlock(&fs_info->unused_bgs_lock);
+		ret = btrfs_reclaim_block_group(bg, &reclaimed);
 
-		/* Don't race with allocators so take the groups_sem */
-		down_write(&space_info->groups_sem);
-
-		spin_lock(&space_info->lock);
-		spin_lock(&bg->lock);
-		if (bg->reserved || bg->pinned || bg->ro) {
-			/*
-			 * We want to bail if we made new allocations or have
-			 * outstanding allocations in this block group.  We do
-			 * the ro check in case balance is currently acting on
-			 * this block group.
-			 */
-			spin_unlock(&bg->lock);
-			spin_unlock(&space_info->lock);
-			up_write(&space_info->groups_sem);
-			goto next;
-		}
-		if (bg->used == 0) {
-			/*
-			 * It is possible that we trigger relocation on a block
-			 * group as its extents are deleted and it first goes
-			 * below the threshold, then shortly after goes empty.
-			 *
-			 * In this case, relocating it does delete it, but has
-			 * some overhead in relocation specific metadata, looking
-			 * for the non-existent extents and running some extra
-			 * transactions, which we can avoid by using one of the
-			 * other mechanisms for dealing with empty block groups.
-			 */
-			if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
-				btrfs_mark_bg_unused(bg);
-			spin_unlock(&bg->lock);
-			spin_unlock(&space_info->lock);
-			up_write(&space_info->groups_sem);
-			goto next;
-
-		}
-		/*
-		 * The block group might no longer meet the reclaim condition by
-		 * the time we get around to reclaiming it, so to avoid
-		 * reclaiming overly full block_groups, skip reclaiming them.
-		 *
-		 * Since the decision making process also depends on the amount
-		 * being freed, pass in a fake giant value to skip that extra
-		 * check, which is more meaningful when adding to the list in
-		 * the first place.
-		 */
-		if (!should_reclaim_block_group(bg, bg->length)) {
-			spin_unlock(&bg->lock);
-			spin_unlock(&space_info->lock);
-			up_write(&space_info->groups_sem);
-			goto next;
-		}
-
-		spin_unlock(&bg->lock);
-		old_total = space_info->total_bytes;
-		spin_unlock(&space_info->lock);
-
-		/*
-		 * Get out fast, in case we're read-only or unmounting the
-		 * filesystem. It is OK to drop block groups from the list even
-		 * for the read-only case. As we did take the super write lock,
-		 * "mount -o remount,ro" won't happen and read-only filesystem
-		 * means it is forced read-only due to a fatal error. So, it
-		 * never gets back to read-write to let us reclaim again.
-		 */
-		if (btrfs_need_cleaner_sleep(fs_info)) {
-			up_write(&space_info->groups_sem);
-			goto next;
-		}
-
-		ret = inc_block_group_ro(bg, 0);
-		up_write(&space_info->groups_sem);
-		if (ret < 0)
-			goto next;
-
-		/*
-		 * The amount of bytes reclaimed corresponds to the sum of the
-		 * "used" and "reserved" counters. We have set the block group
-		 * to RO above, which prevents reservations from happening but
-		 * we may have existing reservations for which allocation has
-		 * not yet been done - btrfs_update_block_group() was not yet
-		 * called, which is where we will transfer a reserved extent's
-		 * size from the "reserved" counter to the "used" counter - this
-		 * happens when running delayed references. When we relocate the
-		 * chunk below, relocation first flushes delalloc, waits for
-		 * ordered extent completion (which is where we create delayed
-		 * references for data extents) and commits the current
-		 * transaction (which runs delayed references), and only after
-		 * it does the actual work to move extents out of the block
-		 * group. So the reported amount of reclaimed bytes is
-		 * effectively the sum of the 'used' and 'reserved' counters.
-		 */
-		spin_lock(&bg->lock);
-		used = bg->used;
-		reserved = bg->reserved;
-		spin_unlock(&bg->lock);
-
-		trace_btrfs_reclaim_block_group(bg);
-		ret = btrfs_relocate_chunk(fs_info, bg->start, false);
-		if (ret) {
-			btrfs_dec_block_group_ro(bg);
-			btrfs_err(fs_info, "error relocating chunk %llu",
-				  bg->start);
-			used = 0;
-			reserved = 0;
-			spin_lock(&space_info->lock);
-			space_info->reclaim_errors++;
-			spin_unlock(&space_info->lock);
-		}
-		spin_lock(&space_info->lock);
-		space_info->reclaim_count++;
-		space_info->reclaim_bytes += used;
-		space_info->reclaim_bytes += reserved;
-		if (space_info->total_bytes < old_total)
-			btrfs_set_periodic_reclaim_ready(space_info, true);
-		spin_unlock(&space_info->lock);
-
-next:
 		if (ret && !READ_ONCE(space_info->periodic_reclaim))
 			btrfs_link_bg_list(bg, &retry_list);
 		btrfs_put_block_group(bg);
@@ -2074,6 +2102,8 @@ next:
 		if (!mutex_trylock(&fs_info->reclaim_bgs_lock))
 			goto end;
 		spin_lock(&fs_info->unused_bgs_lock);
+		if (reclaimed >= limit)
+			break;
 	}
 	spin_unlock(&fs_info->unused_bgs_lock);
 	mutex_unlock(&fs_info->reclaim_bgs_lock);
@@ -2082,6 +2112,14 @@ end:
 	list_splice_tail(&retry_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	btrfs_exclop_finish(fs_info);
+}
+
+void btrfs_reclaim_bgs_work(struct work_struct *work)
+{
+	struct btrfs_fs_info *fs_info =
+		container_of(work, struct btrfs_fs_info, reclaim_bgs_work);
+
+	btrfs_reclaim_block_groups(fs_info, -1);
 }
 
 void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
@@ -2222,7 +2260,7 @@ int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 		io_stripe_size = btrfs_stripe_nr_to_offset(nr_data_stripes(map));
 
-	buf = kcalloc(map->num_stripes, sizeof(u64), GFP_NOFS);
+	buf = kzalloc_objs(u64, map->num_stripes, GFP_NOFS);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out;
@@ -2538,7 +2576,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 				btrfs_mark_bg_unused(cache);
 		}
 	} else {
-		inc_block_group_ro(cache, 1);
+		inc_block_group_ro(cache, true);
 	}
 
 	return 0;
@@ -2694,11 +2732,11 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		list_for_each_entry(cache,
 				&space_info->block_groups[BTRFS_RAID_RAID0],
 				list)
-			inc_block_group_ro(cache, 1);
+			inc_block_group_ro(cache, true);
 		list_for_each_entry(cache,
 				&space_info->block_groups[BTRFS_RAID_SINGLE],
 				list)
-			inc_block_group_ro(cache, 1);
+			inc_block_group_ro(cache, true);
 	}
 
 	btrfs_init_global_block_rsv(info);
@@ -3087,7 +3125,7 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 	 */
 	if (sb_rdonly(fs_info->sb)) {
 		mutex_lock(&fs_info->ro_block_group_mutex);
-		ret = inc_block_group_ro(cache, 0);
+		ret = inc_block_group_ro(cache, false);
 		mutex_unlock(&fs_info->ro_block_group_mutex);
 		return ret;
 	}
@@ -3138,7 +3176,7 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 		}
 	}
 
-	ret = inc_block_group_ro(cache, 0);
+	ret = inc_block_group_ro(cache, false);
 	if (!ret)
 		goto out;
 	if (ret == -ETXTBSY)
@@ -3165,7 +3203,7 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 	if (ret < 0)
 		goto out;
 
-	ret = inc_block_group_ro(cache, 0);
+	ret = inc_block_group_ro(cache, false);
 	if (ret == -ETXTBSY)
 		goto unlock_out;
 out:
@@ -3305,9 +3343,9 @@ fail:
 
 }
 
-static int cache_save_setup(struct btrfs_block_group *block_group,
-			    struct btrfs_trans_handle *trans,
-			    struct btrfs_path *path)
+static void cache_save_setup(struct btrfs_block_group *block_group,
+			     struct btrfs_trans_handle *trans,
+			     struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct inode *inode = NULL;
@@ -3319,7 +3357,7 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 	int ret = 0;
 
 	if (!btrfs_test_opt(fs_info, SPACE_CACHE))
-		return 0;
+		return;
 
 	/*
 	 * If this block group is smaller than 100 megs don't bother caching the
@@ -3329,11 +3367,11 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
-		return 0;
+		return;
 	}
 
 	if (TRANS_ABORTED(trans))
-		return 0;
+		return;
 again:
 	inode = lookup_free_space_inode(block_group, path);
 	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
@@ -3343,7 +3381,13 @@ again:
 	}
 
 	if (IS_ERR(inode)) {
-		BUG_ON(retries);
+		if (retries) {
+			ret = PTR_ERR(inode);
+			btrfs_err(fs_info,
+				  "failed to lookup free space inode after creation for block group %llu: %d",
+				  block_group->start, ret);
+			goto out_free;
+		}
 		retries++;
 
 		if (block_group->ro)
@@ -3414,10 +3458,8 @@ again:
 	 * We hit an ENOSPC when setting up the cache in this transaction, just
 	 * skip doing the setup, we've already cleared the cache so we're safe.
 	 */
-	if (test_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags)) {
-		ret = -ENOSPC;
+	if (test_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags))
 		goto out_put;
-	}
 
 	/*
 	 * Try to preallocate enough space based on how big the block group is.
@@ -3465,7 +3507,6 @@ out:
 	spin_unlock(&block_group->lock);
 
 	extent_changeset_free(data_reserved);
-	return ret;
 }
 
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans)

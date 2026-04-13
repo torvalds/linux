@@ -36,6 +36,9 @@ struct btrfs_ordered_extent;
 #define BTRFS_MAX_COMPRESSED_PAGES	(BTRFS_MAX_COMPRESSED / PAGE_SIZE)
 static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
 
+/* The max size for a single worker to compress. */
+#define BTRFS_COMPRESSION_CHUNK_SIZE	(SZ_512K)
+
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
@@ -47,9 +50,6 @@ struct compressed_bio {
 
 	/* Number of bytes in the inode we're working on */
 	unsigned int len;
-
-	/* Number of bytes on disk */
-	unsigned int compressed_len;
 
 	/* The compression algorithm for this bio */
 	u8 compress_type;
@@ -98,7 +98,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret);
 
-struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info);
+struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info, gfp_t gfp);
 void btrfs_free_compr_folio(struct folio *folio);
 
 struct workspace_manager {

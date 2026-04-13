@@ -112,8 +112,6 @@ config BTRFS_EXPERIMENTAL
 
 	  - large folio and block size (> page size) support
 
-	  - shutdown ioctl and auto-degradation support
-
 	  - asynchronous checksum generation for data writes
 
 	  - remap-tree - logical address remapping tree

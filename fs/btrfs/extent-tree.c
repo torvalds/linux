@@ -4013,9 +4013,8 @@ static int do_allocation_clustered(struct btrfs_block_group *block_group,
  * Lock nesting
  * ============
  *
- * space_info::lock
- *   block_group::lock
- *     fs_info::treelog_bg_lock
+ * block_group::lock
+ *   fs_info::treelog_bg_lock
  */
 
 /*
@@ -4028,7 +4027,6 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 			       struct btrfs_block_group **bg_ret)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	struct btrfs_space_info *space_info = block_group->space_info;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	u64 start = block_group->start;
 	u64 num_bytes = ffe_ctl->num_bytes;
@@ -4089,7 +4087,6 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 		 */
 	}
 
-	spin_lock(&space_info->lock);
 	spin_lock(&block_group->lock);
 	spin_lock(&fs_info->treelog_bg_lock);
 	spin_lock(&fs_info->relocation_bg_lock);
@@ -4191,7 +4188,6 @@ out:
 	spin_unlock(&fs_info->relocation_bg_lock);
 	spin_unlock(&fs_info->treelog_bg_lock);
 	spin_unlock(&block_group->lock);
-	spin_unlock(&space_info->lock);
 	return ret;
 }
 
@@ -4353,71 +4349,72 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 		return 1;
 
 	/* See the comments for btrfs_loop_type for an explanation of the phases. */
-	if (ffe_ctl->loop < LOOP_NO_EMPTY_SIZE) {
-		ffe_ctl->index = 0;
-		/*
-		 * We want to skip the LOOP_CACHING_WAIT step if we don't have
-		 * any uncached bgs and we've already done a full search
-		 * through.
-		 */
-		if (ffe_ctl->loop == LOOP_CACHING_NOWAIT &&
-		    (!ffe_ctl->orig_have_caching_bg && full_search))
-			ffe_ctl->loop++;
+	if (ffe_ctl->loop == LOOP_NO_EMPTY_SIZE)
+		return -ENOSPC;
+
+	ffe_ctl->index = 0;
+	/*
+	 * We want to skip the LOOP_CACHING_WAIT step if we don't have any
+	 * uncached bgs and we've already done a full search through.
+	 */
+	if (ffe_ctl->loop == LOOP_CACHING_NOWAIT &&
+	    (!ffe_ctl->orig_have_caching_bg && full_search))
 		ffe_ctl->loop++;
+	ffe_ctl->loop++;
 
-		if (ffe_ctl->loop == LOOP_ALLOC_CHUNK) {
-			struct btrfs_trans_handle *trans;
-			int exist = 0;
+	if (ffe_ctl->loop == LOOP_ALLOC_CHUNK) {
+		struct btrfs_trans_handle *trans;
+		bool have_trans = false;
 
-			/* Check if allocation policy allows to create a new chunk */
-			ret = can_allocate_chunk(fs_info, ffe_ctl);
-			if (ret)
-				return ret;
+		/* Check if allocation policy allows to create a new chunk. */
+		ret = can_allocate_chunk(fs_info, ffe_ctl);
+		if (ret)
+			return ret;
 
-			trans = current->journal_info;
-			if (trans)
-				exist = 1;
-			else
-				trans = btrfs_join_transaction(root);
+		trans = current->journal_info;
+		if (trans)
+			have_trans = true;
+		else
+			trans = btrfs_join_transaction(root);
 
-			if (IS_ERR(trans))
-				return PTR_ERR(trans);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 
-			ret = btrfs_chunk_alloc(trans, space_info, ffe_ctl->flags,
-						CHUNK_ALLOC_FORCE_FOR_EXTENT);
+		ret = btrfs_chunk_alloc(trans, space_info, ffe_ctl->flags,
+					CHUNK_ALLOC_FORCE_FOR_EXTENT);
 
-			/* Do not bail out on ENOSPC since we can do more. */
-			if (ret == -ENOSPC) {
-				ret = 0;
-				ffe_ctl->loop++;
-			}
-			else if (ret < 0)
-				btrfs_abort_transaction(trans, ret);
-			else
-				ret = 0;
-			if (!exist)
-				btrfs_end_transaction(trans);
-			if (ret)
-				return ret;
+		/* Do not bail out on ENOSPC since we can do more. */
+		if (ret == -ENOSPC) {
+			ret = 0;
+			ffe_ctl->loop++;
+		} else if (ret < 0) {
+			btrfs_abort_transaction(trans, ret);
+		} else {
+			ret = 0;
 		}
 
-		if (ffe_ctl->loop == LOOP_NO_EMPTY_SIZE) {
-			if (ffe_ctl->policy != BTRFS_EXTENT_ALLOC_CLUSTERED)
-				return -ENOSPC;
+		if (!have_trans)
+			btrfs_end_transaction(trans);
 
-			/*
-			 * Don't loop again if we already have no empty_size and
-			 * no empty_cluster.
-			 */
-			if (ffe_ctl->empty_size == 0 &&
-			    ffe_ctl->empty_cluster == 0)
-				return -ENOSPC;
-			ffe_ctl->empty_size = 0;
-			ffe_ctl->empty_cluster = 0;
-		}
-		return 1;
+		if (ret)
+			return ret;
 	}
-	return -ENOSPC;
+
+	if (ffe_ctl->loop == LOOP_NO_EMPTY_SIZE) {
+		if (ffe_ctl->policy != BTRFS_EXTENT_ALLOC_CLUSTERED)
+			return -ENOSPC;
+
+		/*
+		 * Don't loop again if we already have no empty_size and
+		 * no empty_cluster.
+		 */
+		if (ffe_ctl->empty_size == 0 && ffe_ctl->empty_cluster == 0)
+			return -ENOSPC;
+		ffe_ctl->empty_size = 0;
+		ffe_ctl->empty_cluster = 0;
+	}
+
+	return 1;
 }
 
 static int prepare_allocation_clustered(struct btrfs_fs_info *fs_info,
@@ -5784,7 +5781,7 @@ static int check_next_block_uptodate(struct btrfs_trans_handle *trans,
 
 	generation = btrfs_node_ptr_generation(path->nodes[level], path->slots[level]);
 
-	if (btrfs_buffer_uptodate(next, generation, false))
+	if (btrfs_buffer_uptodate(next, generation, NULL))
 		return 0;
 
 	check.level = level - 1;

@@ -180,7 +180,7 @@ static unsigned long btrfs_compr_pool_scan(struct shrinker *sh, struct shrink_co
 /*
  * Common wrappers for page allocation from compression wrappers
  */
-struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info)
+struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info, gfp_t gfp)
 {
 	struct folio *folio = NULL;
 
@@ -200,7 +200,7 @@ struct folio *btrfs_alloc_compr_folio(struct btrfs_fs_info *fs_info)
 		return folio;
 
 alloc:
-	return folio_alloc(GFP_NOFS, fs_info->block_min_order);
+	return folio_alloc(gfp, fs_info->block_min_order);
 }
 
 void btrfs_free_compr_folio(struct folio *folio)
@@ -292,7 +292,7 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	struct folio_iter fi;
 
-	btrfs_finish_ordered_extent(cb->bbio.ordered, NULL, cb->start, cb->len,
+	btrfs_finish_ordered_extent(cb->bbio.ordered, cb->start, cb->len,
 				    cb->bbio.bio.bi_status == BLK_STS_OK);
 
 	if (cb->writeback)
@@ -330,7 +330,6 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 	cb->start = ordered->file_offset;
 	cb->len = ordered->num_bytes;
 	ASSERT(cb->bbio.bio.bi_iter.bi_size == ordered->disk_num_bytes);
-	cb->compressed_len = ordered->disk_num_bytes;
 	cb->bbio.bio.bi_iter.bi_sector = ordered->disk_bytenr >> SECTOR_SHIFT;
 	cb->bbio.ordered = ordered;
 
@@ -369,7 +368,8 @@ struct compressed_bio *btrfs_alloc_compressed_write(struct btrfs_inode *inode,
 static noinline int add_ra_bio_pages(struct inode *inode,
 				     u64 compressed_end,
 				     struct compressed_bio *cb,
-				     int *memstall, unsigned long *pflags)
+				     int *memstall, unsigned long *pflags,
+				     bool direct_reclaim)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	pgoff_t end_index;
@@ -377,6 +377,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	u64 cur = cb->orig_bbio->file_offset + orig_bio->bi_iter.bi_size;
 	u64 isize = i_size_read(inode);
 	int ret;
+	gfp_t constraint_gfp, cache_gfp;
 	struct folio *folio;
 	struct extent_map *em;
 	struct address_space *mapping = inode->i_mapping;
@@ -405,6 +406,19 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		return 0;
 
 	end_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+
+	/*
+	 * Avoid direct reclaim when the caller does not allow it.  Since
+	 * add_ra_bio_pages() is always speculative, suppress allocation warnings
+	 * in either case.
+	 */
+	if (!direct_reclaim) {
+		constraint_gfp = ~(__GFP_FS | __GFP_DIRECT_RECLAIM) | __GFP_NOWARN;
+		cache_gfp = (GFP_NOFS & ~__GFP_DIRECT_RECLAIM) | __GFP_NOWARN;
+	} else {
+		constraint_gfp = (~__GFP_FS) | __GFP_NOWARN;
+		cache_gfp = GFP_NOFS | __GFP_NOWARN;
+	}
 
 	while (cur < compressed_end) {
 		pgoff_t page_end;
@@ -435,12 +449,12 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			continue;
 		}
 
-		folio = filemap_alloc_folio(mapping_gfp_constraint(mapping, ~__GFP_FS),
+		folio = filemap_alloc_folio(mapping_gfp_constraint(mapping, constraint_gfp),
 					    0, NULL);
 		if (!folio)
 			break;
 
-		if (filemap_add_folio(mapping, folio, pg_index, GFP_NOFS)) {
+		if (filemap_add_folio(mapping, folio, pg_index, cache_gfp)) {
 			/* There is already a page, skip to page end */
 			cur += folio_size(folio);
 			folio_put(folio);
@@ -533,12 +547,24 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	unsigned int compressed_len;
 	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	u64 file_offset = bbio->file_offset;
+	gfp_t gfp;
 	u64 em_len;
 	u64 em_start;
 	struct extent_map *em;
 	unsigned long pflags;
 	int memstall = 0;
 	int ret;
+
+	/*
+	 * If this is a readahead bio, prevent direct reclaim. This is done to
+	 * avoid stalling on speculative allocations when memory pressure is
+	 * high. The demand fault will retry with GFP_NOFS and enter direct
+	 * reclaim if needed.
+	 */
+	if (bbio->bio.bi_opf & REQ_RAHEAD)
+		gfp = (GFP_NOFS & ~__GFP_DIRECT_RECLAIM) | __GFP_NOWARN;
+	else
+		gfp = GFP_NOFS;
 
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
@@ -560,7 +586,6 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	em_start = em->start;
 
 	cb->len = bbio->bio.bi_iter.bi_size;
-	cb->compressed_len = compressed_len;
 	cb->compress_type = btrfs_extent_map_compression(em);
 	cb->orig_bbio = bbio;
 	cb->bbio.csum_search_commit_root = bbio->csum_search_commit_root;
@@ -571,7 +596,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		struct folio *folio;
 		u32 cur_len = min(compressed_len - i * min_folio_size, min_folio_size);
 
-		folio = btrfs_alloc_compr_folio(fs_info);
+		folio = btrfs_alloc_compr_folio(fs_info, gfp);
 		if (!folio) {
 			ret = -ENOMEM;
 			goto out_free_bio;
@@ -587,7 +612,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	ASSERT(cb->bbio.bio.bi_iter.bi_size == compressed_len);
 
 	add_ra_bio_pages(&inode->vfs_inode, em_start + em_len, cb, &memstall,
-			 &pflags);
+			 &pflags, !(bbio->bio.bi_opf & REQ_RAHEAD));
 
 	cb->len = bbio->bio.bi_iter.bi_size;
 	cb->bbio.bio.bi_iter.bi_sector = bbio->bio.bi_iter.bi_sector;

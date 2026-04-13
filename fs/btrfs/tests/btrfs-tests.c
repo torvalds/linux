@@ -303,6 +303,9 @@ int btrfs_run_sanity_tests(void)
 		}
 	}
 	ret = btrfs_test_extent_map();
+	if (ret)
+		goto out;
+	ret = btrfs_test_zoned();
 
 out:
 	btrfs_destroy_test_fs();

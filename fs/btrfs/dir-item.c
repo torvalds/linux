@@ -253,9 +253,7 @@ int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir_ino,
 		/* Nothing found, we're safe */
 		if (ret == -ENOENT)
 			return 0;
-
-		if (ret < 0)
-			return ret;
+		return ret;
 	}
 
 	/* we found an item, look for our name in the item */

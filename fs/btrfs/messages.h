@@ -144,11 +144,11 @@ do {										\
 	verify_assert_printk_format("check the format string" args);		\
 	if (!likely(cond)) {							\
 		if (("" __FIRST_ARG(args) [0]) == 0) {				\
-			pr_err("assertion failed: %s :: %ld, in %s:%d\n",	\
-				#cond, (long)(cond), __FILE__, __LINE__);	\
+			pr_err("assertion failed: %s, in %s:%d\n",		\
+				#cond, __FILE__, __LINE__);			\
 		} else {							\
-			pr_err("assertion failed: %s :: %ld, in %s:%d (" __FIRST_ARG(args) ")\n", \
-				#cond, (long)(cond), __FILE__, __LINE__ __REST_ARGS(args)); \
+			pr_err("assertion failed: %s, in %s:%d (" __FIRST_ARG(args) ")\n", \
+				#cond, __FILE__, __LINE__ __REST_ARGS(args));	\
 		}								\
 		BUG();								\
 	}									\

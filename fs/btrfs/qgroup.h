@@ -392,46 +392,10 @@ int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len, u64
 int btrfs_qgroup_free_data(struct btrfs_inode *inode,
 			   struct extent_changeset *reserved, u64 start,
 			   u64 len, u64 *freed);
-int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-			      enum btrfs_qgroup_rsv_type type, bool enforce);
-int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-				enum btrfs_qgroup_rsv_type type, bool enforce,
-				bool noflush);
-/* Reserve metadata space for pertrans and prealloc type */
-static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
-				int num_bytes, bool enforce)
-{
-	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-					   BTRFS_QGROUP_RSV_META_PERTRANS,
-					   enforce, false);
-}
-static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
-						     int num_bytes, bool enforce,
-						     bool noflush)
-{
-	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-					   BTRFS_QGROUP_RSV_META_PREALLOC,
-					   enforce, noflush);
-}
-
-void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
-			     enum btrfs_qgroup_rsv_type type);
-
-/* Free per-transaction meta reservation for error handling */
-static inline void btrfs_qgroup_free_meta_pertrans(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PERTRANS);
-}
-
+int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root, int num_bytes,
+				       bool enforce, bool noflush);
 /* Pre-allocated meta reservation can be freed at need */
-static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PREALLOC);
-}
+void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root, int num_bytes);
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);

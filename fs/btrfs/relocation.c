@@ -2440,10 +2440,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 	eb = read_tree_block(fs_info, block->bytenr, &check);
 	if (IS_ERR(eb))
 		return PTR_ERR(eb);
-	if (unlikely(!extent_buffer_uptodate(eb))) {
-		free_extent_buffer(eb);
-		return -EIO;
-	}
+
 	if (block->level == 0)
 		btrfs_item_key_to_cpu(eb, &block->key, 0);
 	else
@@ -3645,12 +3642,7 @@ restart:
 	btrfs_block_rsv_release(fs_info, rc->block_rsv, (u64)-1, NULL);
 
 	/* get rid of pinned extents */
-	trans = btrfs_join_transaction(rc->extent_root);
-	if (IS_ERR(trans)) {
-		err = PTR_ERR(trans);
-		goto out_free;
-	}
-	ret = btrfs_commit_transaction(trans);
+	ret = btrfs_commit_current_transaction(rc->extent_root);
 	if (ret && !err)
 		err = ret;
 out_free:

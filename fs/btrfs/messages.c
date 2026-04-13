@@ -37,7 +37,7 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
 	memcpy(curr, STATE_STRING_PREFACE, sizeof(STATE_STRING_PREFACE));
 	curr += sizeof(STATE_STRING_PREFACE) - 1;
 
-	if (BTRFS_FS_ERROR(info)) {
+	if (unlikely(BTRFS_FS_ERROR(info))) {
 		*curr++ = 'E';
 		states_printed = true;
 	}

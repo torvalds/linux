@@ -7201,7 +7201,7 @@ static int changed_cb(struct btrfs_path *left_path,
 	sctx->right_path = right_path;
 	sctx->cmp_key = key;
 
-	ret = finish_inode_if_needed(sctx, 0);
+	ret = finish_inode_if_needed(sctx, false);
 	if (ret < 0)
 		return ret;
 
@@ -7328,7 +7328,7 @@ static int full_send_tree(struct send_ctx *sctx)
 	}
 
 out_finish:
-	return finish_inode_if_needed(sctx, 1);
+	return finish_inode_if_needed(sctx, true);
 }
 
 static int replace_node_with_clone(struct btrfs_path *path, int level)
@@ -7879,7 +7879,7 @@ static int send_subvol(struct send_ctx *sctx)
 		ret = btrfs_compare_trees(sctx->send_root, sctx->parent_root, sctx);
 		if (ret < 0)
 			goto out;
-		ret = finish_inode_if_needed(sctx, 1);
+		ret = finish_inode_if_needed(sctx, true);
 		if (ret < 0)
 			goto out;
 	} else {

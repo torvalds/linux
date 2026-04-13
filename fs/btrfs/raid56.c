@@ -1653,12 +1653,7 @@ static int get_bio_sector_nr(struct btrfs_raid_bio *rbio, struct bio *bio)
 static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
 	int total_sector_nr = get_bio_sector_nr(rbio, bio);
-	u32 bio_size = 0;
-	struct bio_vec *bvec;
-	int i;
-
-	bio_for_each_bvec_all(bvec, bio, i)
-		bio_size += bvec->bv_len;
+	const u32 bio_size = bio_get_size(bio);
 
 	/*
 	 * Since we can have multiple bios touching the error_bitmap, we cannot
@@ -1666,7 +1661,7 @@ static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bi
 	 *
 	 * Instead use set_bit() for each bit, as set_bit() itself is atomic.
 	 */
-	for (i = total_sector_nr; i < total_sector_nr +
+	for (int i = total_sector_nr; i < total_sector_nr +
 	     (bio_size >> rbio->bioc->fs_info->sectorsize_bits); i++)
 		set_bit(i, rbio->error_bitmap);
 }
@@ -2110,8 +2105,8 @@ static int recover_sectors(struct btrfs_raid_bio *rbio)
 	 * @unmap_array stores copy of pointers that does not get reordered
 	 * during reconstruction so that kunmap_local works.
 	 */
-	pointers = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
-	unmap_array = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
+	pointers = kzalloc_objs(void *, rbio->real_stripes, GFP_NOFS);
+	unmap_array = kzalloc_objs(void *, rbio->real_stripes, GFP_NOFS);
 	if (!pointers || !unmap_array) {
 		ret = -ENOMEM;
 		goto out;
@@ -2844,8 +2839,8 @@ static int recover_scrub_rbio(struct btrfs_raid_bio *rbio)
 	 * @unmap_array stores copy of pointers that does not get reordered
 	 * during reconstruction so that kunmap_local works.
 	 */
-	pointers = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
-	unmap_array = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
+	pointers = kzalloc_objs(void *, rbio->real_stripes, GFP_NOFS);
+	unmap_array = kzalloc_objs(void *, rbio->real_stripes, GFP_NOFS);
 	if (!pointers || !unmap_array) {
 		ret = -ENOMEM;
 		goto out;

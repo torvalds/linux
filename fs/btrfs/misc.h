@@ -28,7 +28,8 @@
 	name = (1U << __ ## name ## _BIT),              \
 	__ ## name ## _SEQ = __ ## name ## _BIT
 
-static inline phys_addr_t bio_iter_phys(struct bio *bio, struct bvec_iter *iter)
+static inline phys_addr_t bio_iter_phys(const struct bio *bio,
+					const struct bvec_iter *iter)
 {
 	struct bio_vec bv = bio_iter_iovec(bio, *iter);
 
@@ -52,15 +53,22 @@ static inline phys_addr_t bio_iter_phys(struct bio *bio, struct bvec_iter *iter)
 	     (paddr = bio_iter_phys((bio), (iter)), 1);			\
 	     bio_advance_iter_single((bio), (iter), (blocksize)))
 
-/* Initialize a bvec_iter to the size of the specified bio. */
-static inline struct bvec_iter init_bvec_iter_for_bio(struct bio *bio)
+/* Can only be called on a non-cloned bio. */
+static inline u32 bio_get_size(struct bio *bio)
 {
 	struct bio_vec *bvec;
-	u32 bio_size = 0;
+	u32 ret = 0;
 	int i;
 
 	bio_for_each_bvec_all(bvec, bio, i)
-		bio_size += bvec->bv_len;
+		ret += bvec->bv_len;
+	return ret;
+}
+
+/* Initialize a bvec_iter to the size of the specified bio. */
+static inline struct bvec_iter init_bvec_iter_for_bio(struct bio *bio)
+{
+	const u32 bio_size = bio_get_size(bio);
 
 	return (struct bvec_iter) {
 		.bi_sector = 0,

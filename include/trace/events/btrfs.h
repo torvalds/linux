@@ -1113,6 +1113,30 @@ TRACE_EVENT(btrfs_cow_block,
 		  __entry->cow_level)
 );
 
+TRACE_EVENT(btrfs_search_slot_restart,
+
+	TP_PROTO(const struct btrfs_root *root, int level,
+		 const char *reason),
+
+	TP_ARGS(root, level, reason),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	root_objectid		)
+		__field(	int,	level			)
+		__string(	reason,	reason			)
+	),
+
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->root_objectid	= btrfs_root_id(root);
+		__entry->level		= level;
+		__assign_str(reason);
+	),
+
+	TP_printk_btrfs("root=%llu(%s) level=%d reason=%s",
+		  show_root_type(__entry->root_objectid),
+		  __entry->level, __get_str(reason))
+);
+
 TRACE_EVENT(btrfs_space_reservation,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info, const char *type, u64 val,

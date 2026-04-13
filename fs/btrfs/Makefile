@@ -45,3 +45,7 @@ btrfs-$(CONFIG_BTRFS_FS_RUN_SANITY_TESTS) += tests/free-space-tests.o \
 	tests/free-space-tree-tests.o tests/extent-map-tests.o \
 	tests/raid-stripe-tree-tests.o tests/delayed-refs-tests.o \
 	tests/chunk-allocation-tests.o
+
+ifeq ($(CONFIG_BLK_DEV_ZONED),y)
+btrfs-$(CONFIG_BTRFS_FS_RUN_SANITY_TESTS) += tests/zoned-tests.o
+endif

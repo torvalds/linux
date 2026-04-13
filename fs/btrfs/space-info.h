@@ -21,7 +21,24 @@ struct btrfs_block_group;
  * The higher the level, the more methods we try to reclaim space.
  */
 enum btrfs_reserve_flush_enum {
-	/* If we are in the transaction, we can't flush anything.*/
+	/*
+	 * Used when we can't flush or don't need:
+	 *
+	 * 1) We are holding a transaction handle open, so we can't flush as
+	 *    that could deadlock.
+	 *
+	 * 2) For a nowait write we don't want to block when reserving delalloc.
+	 *
+	 * 3) Joining a transaction or attaching a transaction, we don't want
+	 *    to wait and we don't need to reserve anything (any needed space
+	 *    was reserved before in a dedicated block reserve, or we rely on
+	 *    the global block reserve, see btrfs_init_root_block_rsv()).
+	 *
+	 * 4) Starting a transaction when we don't need to reserve space, as
+	 *    we don't need it because we previously reserved in a dedicated
+	 *    block reserve or rely on the global block reserve, like the above
+	 *    case.
+	 */
 	BTRFS_RESERVE_NO_FLUSH,
 
 	/*
@@ -96,6 +113,7 @@ enum btrfs_flush_state {
 	RUN_DELAYED_IPUTS	= 10,
 	COMMIT_TRANS		= 11,
 	RESET_ZONES		= 12,
+	RECLAIM_ZONES		= 13,
 };
 
 enum btrfs_space_info_sub_group {
@@ -274,7 +292,7 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 				struct btrfs_block_group *block_group);
 void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
 					u64 chunk_size);
-struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
+struct btrfs_space_info *btrfs_find_space_info(const struct btrfs_fs_info *info,
 					       u64 flags);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 void btrfs_dump_space_info(struct btrfs_space_info *info, u64 bytes,
