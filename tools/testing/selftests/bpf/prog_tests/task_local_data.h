@@ -99,14 +99,20 @@ struct tld_meta_u {
 	struct tld_metadata metadata[];
 };
 
+/*
+ * The unused field ensures map_val.start > 0. On the BPF side, __tld_fetch_key()
+ * calculates off by summing map_val.start and tld_key_t.off and treats off == 0
+ * as key not cached.
+ */
 struct tld_data_u {
-	__u64 start; /* offset of tld_data_u->data in a page */
+	__u64 unused;
 	char data[] __attribute__((aligned(8)));
 };
 
 struct tld_map_value {
 	void *data;
 	struct tld_meta_u *meta;
+	__u16 start; /* offset of tld_data_u->data in a page */
 };
 
 struct tld_meta_u * _Atomic tld_meta_p __attribute__((weak));
@@ -182,7 +188,7 @@ static int __tld_init_data_p(int map_fd)
 	 * is a page in BTF.
 	 */
 	map_val.data = (void *)(TLD_PAGE_MASK & (intptr_t)data);
-	data->start = (~TLD_PAGE_MASK & (intptr_t)data) + sizeof(struct tld_data_u);
+	map_val.start = (~TLD_PAGE_MASK & (intptr_t)data) + sizeof(struct tld_data_u);
 	map_val.meta = tld_meta_p;
 
 	err = bpf_map_update_elem(map_fd, &tid_fd, &map_val, 0);
