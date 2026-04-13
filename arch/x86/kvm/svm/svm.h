@@ -422,9 +422,19 @@ static __always_inline bool is_sev_snp_guest(struct kvm_vcpu *vcpu)
 	return ____sev_snp_guest(vcpu->kvm);
 }
 #else
-#define is_sev_guest(vcpu) false
-#define is_sev_es_guest(vcpu) false
-#define is_sev_snp_guest(vcpu) false
+static __always_inline bool is_sev_guest(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static __always_inline bool is_sev_es_guest(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+
+static __always_inline bool is_sev_snp_guest(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
 #endif
 
 static inline bool ghcb_gpa_is_registered(struct vcpu_svm *svm, u64 val)
