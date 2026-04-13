@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/nsproxy.h>
+#include <linux/ns/ns_common_types.h>
 #include <linux/init_task.h>
 #include <linux/mnt_namespace.h>
 #include <linux/utsname.h>
@@ -170,9 +171,7 @@ int copy_namespaces(u64 flags, struct task_struct *tsk)
 	struct user_namespace *user_ns = task_cred_xxx(tsk, user_ns);
 	struct nsproxy *new_ns;
 
-	if (likely(!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
-			      CLONE_NEWPID | CLONE_NEWNET |
-			      CLONE_NEWCGROUP | CLONE_NEWTIME)))) {
+	if (likely(!(flags & (CLONE_NS_ALL & ~CLONE_NEWUSER)))) {
 		if ((flags & CLONE_VM) ||
 		    likely(old_ns->time_ns_for_children == old_ns->time_ns)) {
 			get_nsproxy(old_ns);
@@ -214,9 +213,7 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	struct user_namespace *user_ns;
 	int err = 0;
 
-	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
-			       CLONE_NEWNET | CLONE_NEWPID | CLONE_NEWCGROUP |
-			       CLONE_NEWTIME)))
+	if (!(unshare_flags & (CLONE_NS_ALL & ~CLONE_NEWUSER)))
 		return 0;
 
 	user_ns = new_cred ? new_cred->user_ns : current_user_ns();
@@ -292,9 +289,7 @@ int exec_task_namespaces(void)
 
 static int check_setns_flags(unsigned long flags)
 {
-	if (!flags || (flags & ~(CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
-				 CLONE_NEWNET | CLONE_NEWTIME | CLONE_NEWUSER |
-				 CLONE_NEWPID | CLONE_NEWCGROUP)))
+	if (!flags || (flags & ~CLONE_NS_ALL))
 		return -EINVAL;
 
 #ifndef CONFIG_USER_NS
