@@ -27,6 +27,7 @@
 #include <asm/cpu.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/virt.h>
 
 #include <linux/ctype.h>
 #include <linux/mc146818rtc.h>
@@ -532,51 +533,6 @@ static inline void kb_wait(void)
 static inline void nmi_shootdown_cpus_on_restart(void);
 
 #if IS_ENABLED(CONFIG_KVM_X86)
-/* RCU-protected callback to disable virtualization prior to reboot. */
-static cpu_emergency_virt_cb __rcu *cpu_emergency_virt_callback;
-
-void cpu_emergency_register_virt_callback(cpu_emergency_virt_cb *callback)
-{
-	if (WARN_ON_ONCE(rcu_access_pointer(cpu_emergency_virt_callback)))
-		return;
-
-	rcu_assign_pointer(cpu_emergency_virt_callback, callback);
-}
-EXPORT_SYMBOL_FOR_KVM(cpu_emergency_register_virt_callback);
-
-void cpu_emergency_unregister_virt_callback(cpu_emergency_virt_cb *callback)
-{
-	if (WARN_ON_ONCE(rcu_access_pointer(cpu_emergency_virt_callback) != callback))
-		return;
-
-	rcu_assign_pointer(cpu_emergency_virt_callback, NULL);
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_FOR_KVM(cpu_emergency_unregister_virt_callback);
-
-/*
- * Disable virtualization, i.e. VMX or SVM, to ensure INIT is recognized during
- * reboot.  VMX blocks INIT if the CPU is post-VMXON, and SVM blocks INIT if
- * GIF=0, i.e. if the crash occurred between CLGI and STGI.
- */
-void cpu_emergency_disable_virtualization(void)
-{
-	cpu_emergency_virt_cb *callback;
-
-	/*
-	 * IRQs must be disabled as KVM enables virtualization in hardware via
-	 * function call IPIs, i.e. IRQs need to be disabled to guarantee
-	 * virtualization stays disabled.
-	 */
-	lockdep_assert_irqs_disabled();
-
-	rcu_read_lock();
-	callback = rcu_dereference(cpu_emergency_virt_callback);
-	if (callback)
-		callback();
-	rcu_read_unlock();
-}
-
 static void emergency_reboot_disable_virtualization(void)
 {
 	local_irq_disable();
@@ -588,16 +544,11 @@ static void emergency_reboot_disable_virtualization(void)
 	 * We can't take any locks and we may be on an inconsistent state, so
 	 * use NMIs as IPIs to tell the other CPUs to disable VMX/SVM and halt.
 	 *
-	 * Do the NMI shootdown even if virtualization is off on _this_ CPU, as
-	 * other CPUs may have virtualization enabled.
+	 * Safely force _this_ CPU out of VMX/SVM operation, and if necessary,
+	 * blast NMIs to force other CPUs out of VMX/SVM as well.k
 	 */
-	if (rcu_access_pointer(cpu_emergency_virt_callback)) {
-		/* Safely force _this_ CPU out of VMX/SVM operation. */
-		cpu_emergency_disable_virtualization();
-
-		/* Disable VMX/SVM and halt on other CPUs. */
+	if (!x86_virt_emergency_disable_virtualization_cpu())
 		nmi_shootdown_cpus_on_restart();
-	}
 }
 #else
 static void emergency_reboot_disable_virtualization(void) { }
@@ -875,10 +826,10 @@ static int crash_nmi_callback(unsigned int val, struct pt_regs *regs)
 		shootdown_callback(cpu, regs);
 
 	/*
-	 * Prepare the CPU for reboot _after_ invoking the callback so that the
-	 * callback can safely use virtualization instructions, e.g. VMCLEAR.
+	 * Disable virtualization, as both VMX and SVM can block INIT and thus
+	 * prevent AP bringup, e.g. in a kdump kernel or in firmware.
 	 */
-	cpu_emergency_disable_virtualization();
+	x86_virt_emergency_disable_virtualization_cpu();
 
 	atomic_dec(&waiting_for_crash_ipi);
 

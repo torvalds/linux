@@ -29,10 +29,15 @@ static __init int vt_hardware_setup(void)
 	if (ret)
 		return ret;
 
-	if (enable_tdx)
-		tdx_hardware_setup();
+	return enable_tdx ? tdx_hardware_setup() : 0;
+}
 
-	return 0;
+static void vt_hardware_unsetup(void)
+{
+	if (enable_tdx)
+		tdx_hardware_unsetup();
+
+	vmx_hardware_unsetup();
 }
 
 static int vt_vm_init(struct kvm *kvm)
@@ -869,7 +874,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 
 	.check_processor_compatibility = vmx_check_processor_compat,
 
-	.hardware_unsetup = vmx_hardware_unsetup,
+	.hardware_unsetup = vt_op(hardware_unsetup),
 
 	.enable_virtualization_cpu = vmx_enable_virtualization_cpu,
 	.disable_virtualization_cpu = vt_op(disable_virtualization_cpu),
@@ -1029,7 +1034,6 @@ struct kvm_x86_init_ops vt_init_ops __initdata = {
 static void __exit vt_exit(void)
 {
 	kvm_exit();
-	tdx_cleanup();
 	vmx_exit();
 }
 module_exit(vt_exit);
@@ -1042,11 +1046,6 @@ static int __init vt_init(void)
 	r = vmx_init();
 	if (r)
 		return r;
-
-	/* tdx_init() has been taken */
-	r = tdx_bringup();
-	if (r)
-		goto err_tdx_bringup;
 
 	/*
 	 * TDX and VMX have different vCPU structures.  Calculate the
@@ -1074,8 +1073,6 @@ static int __init vt_init(void)
 	return 0;
 
 err_kvm_init:
-	tdx_cleanup();
-err_tdx_bringup:
 	vmx_exit();
 	return r;
 }
