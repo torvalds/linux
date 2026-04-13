@@ -1750,12 +1750,17 @@ tcpdump_start()
 	sleep 1
 }
 
-tcpdump_stop()
+tcpdump_stop_nosleep()
 {
 	local if_name=$1
 	local pid=${cappid[$if_name]}
 
 	$ns_cmd kill "$pid" && wait "$pid"
+}
+
+tcpdump_stop()
+{
+	tcpdump_stop_nosleep "$1"
 	sleep 1
 }
 
@@ -1770,7 +1775,7 @@ tcpdump_show()
 {
 	local if_name=$1
 
-	tcpdump -e -n -r ${capfile[$if_name]} 2>&1
+	tcpdump -e -nn -r ${capfile[$if_name]} 2>&1
 }
 
 # return 0 if the packet wasn't seen on host2_if or 1 if it was
