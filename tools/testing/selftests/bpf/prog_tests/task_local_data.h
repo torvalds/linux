@@ -241,7 +241,8 @@ retry:
 		 * TLD_DYN_DATA_SIZE is allocated for tld_create_key()
 		 */
 		if (dyn_data) {
-			if (off + TLD_ROUND_UP(size, 8) > tld_meta_p->size)
+			if (off + TLD_ROUND_UP(size, 8) > tld_meta_p->size ||
+			    tld_meta_p->size > TLD_PAGE_SIZE - sizeof(struct tld_data_u))
 				return (tld_key_t){-E2BIG};
 		} else {
 			if (off + TLD_ROUND_UP(size, 8) > TLD_PAGE_SIZE - sizeof(struct tld_data_u))

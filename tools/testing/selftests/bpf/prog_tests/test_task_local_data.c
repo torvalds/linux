@@ -3,8 +3,14 @@
 #include <bpf/btf.h>
 #include <test_progs.h>
 
+/*
+ * Only a page is pinned to kernel, so the maximum amount of dynamic data
+ * allowed is page_size - sizeof(struct tld_data_u) - static TLD fields.
+ */
+#define TLD_DYN_DATA_SIZE_MAX (getpagesize() - sizeof(struct tld_data_u) - 8)
+
 #define TLD_FREE_DATA_ON_THREAD_EXIT
-#define TLD_DYN_DATA_SIZE (getpagesize() - 8)
+#define TLD_DYN_DATA_SIZE TLD_DYN_DATA_SIZE_MAX
 #include "task_local_data.h"
 
 struct test_tld_struct {
@@ -147,11 +153,13 @@ static void test_task_local_data_basic(void)
 
 	/*
 	 * Shouldn't be able to store data exceed a page. Create a TLD just big
-	 * enough to exceed a page. TLDs already created are int value0, int
-	 * value1, and struct test_tld_struct value2.
+	 * enough to exceed a page. Data already contains struct tld_data_u,
+	 * value0 and value1 of int type, and value 2 of struct test_tld_struct.
 	 */
-	key = tld_create_key("value_not_exist",
-			     TLD_PAGE_SIZE - 2 * sizeof(int) - sizeof(struct test_tld_struct) + 1);
+	key = tld_create_key("value_not_exist", TLD_PAGE_SIZE + 1 -
+						sizeof(struct tld_data_u) -
+						TLD_ROUND_UP(sizeof(int), 8) * 2 -
+						TLD_ROUND_UP(sizeof(struct test_tld_struct), 8));
 	ASSERT_EQ(tld_key_err_or_zero(key), -E2BIG, "tld_create_key");
 
 	key = tld_create_key("value2", sizeof(struct test_tld_struct));
