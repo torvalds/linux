@@ -840,16 +840,16 @@ static int __pv_send_ipi(unsigned long *ipi_bitmap, struct kvm_apic_map *map,
 {
 	int i, count = 0;
 	struct kvm_vcpu *vcpu;
+	size_t map_index;
 
 	if (min > map->max_apic_id)
 		return 0;
 
-	min = array_index_nospec(min, map->max_apic_id + 1);
-
 	for_each_set_bit(i, ipi_bitmap,
-		min((u32)BITS_PER_LONG, (map->max_apic_id - min + 1))) {
-		if (map->phys_map[min + i]) {
-			vcpu = map->phys_map[min + i]->vcpu;
+			 min((u32)BITS_PER_LONG, (map->max_apic_id - min + 1))) {
+		map_index = array_index_nospec(min + i, map->max_apic_id + 1);
+		if (map->phys_map[map_index]) {
+			vcpu = map->phys_map[map_index]->vcpu;
 			count += kvm_apic_set_irq(vcpu, irq, NULL);
 		}
 	}
@@ -2656,6 +2656,9 @@ static u64 kvm_x2apic_icr_read(struct kvm_lapic *apic)
 void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (KVM_BUG_ON(!lapic_in_kernel(vcpu), vcpu->kvm))
+		return;
 
 	/*
 	 * ICR is a single 64-bit register when x2APIC is enabled, all others
