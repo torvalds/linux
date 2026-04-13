@@ -42,7 +42,7 @@ int audit_classify_syscall(int abi, unsigned syscall)
 	if (audit_is_compat(abi))
 		return audit_classify_compat_syscall(abi, syscall);
 
-	switch(syscall) {
+	switch (syscall) {
 #ifdef __NR_open
 	case __NR_open:
 		return AUDITSC_OPEN;
