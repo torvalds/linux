@@ -35,6 +35,19 @@ enum {
 	DSM_SET_RESET_METHOD = 3,
 };
 
+/* Hybrid ECDSA + LMS */
+#define BTINTEL_RSA_HEADER_VER		0x00010000
+#define BTINTEL_ECDSA_HEADER_VER	0x00020000
+#define BTINTEL_HYBRID_HEADER_VER	0x00069700
+#define BTINTEL_ECDSA_OFFSET		128
+#define BTINTEL_CSS_HEADER_SIZE		128
+#define BTINTEL_ECDSA_PUB_KEY_SIZE	96
+#define BTINTEL_ECDSA_SIG_SIZE		96
+#define BTINTEL_LMS_OFFSET		320
+#define BTINTEL_LMS_PUB_KEY_SIZE	52
+#define BTINTEL_LMS_SIG_SIZE		1744
+#define BTINTEL_CMD_BUFFER_OFFSET	2116
+
 #define BTINTEL_BT_DOMAIN		0x12
 #define BTINTEL_SAR_LEGACY		0
 #define BTINTEL_SAR_INC_PWR		1
@@ -489,6 +502,8 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 	case 0x1d:	/* BlazarU (BzrU) */
 	case 0x1e:	/* BlazarI (Bzr) */
 	case 0x1f:      /* Scorpious Peak */
+	case 0x20:	/* Scorpious Peak2 */
+	case 0x21:	/* Scorpious Peak2 F */
 	case 0x22:	/* BlazarIW (BzrIW) */
 		break;
 	default:
@@ -510,8 +525,8 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 			return -EINVAL;
 		}
 
-		/* Secure boot engine type should be either 1 (ECDSA) or 0 (RSA) */
-		if (version->sbe_type > 0x01) {
+		/* Secure boot engine type can be 0 (RSA), 1 (ECDSA), 2 (LMS), 3 (ECDSA + LMS) */
+		if (version->sbe_type > 0x03) {
 			bt_dev_err(hdev, "Unsupported Intel secure boot engine type (0x%x)",
 				   version->sbe_type);
 			return -EINVAL;
@@ -1030,6 +1045,48 @@ static int btintel_sfi_ecdsa_header_secure_send(struct hci_dev *hdev,
 	return 0;
 }
 
+static int btintel_sfi_hybrid_header_secure_send(struct hci_dev *hdev,
+						 const struct firmware *fw)
+{
+	int err;
+
+	err = btintel_secure_send(hdev, 0x00, BTINTEL_CSS_HEADER_SIZE, fw->data);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware CSS header (%d)", err);
+		return err;
+	}
+
+	err = btintel_secure_send(hdev, 0x03, BTINTEL_ECDSA_PUB_KEY_SIZE,
+				  fw->data + BTINTEL_ECDSA_OFFSET);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware ECDSA pkey (%d)", err);
+		return err;
+	}
+
+	err = btintel_secure_send(hdev, 0x02, BTINTEL_ECDSA_SIG_SIZE,
+				  fw->data + BTINTEL_ECDSA_OFFSET + BTINTEL_ECDSA_PUB_KEY_SIZE);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware ECDSA signature (%d)", err);
+		return err;
+	}
+
+	err = btintel_secure_send(hdev, 0x05, BTINTEL_LMS_PUB_KEY_SIZE,
+				  fw->data + BTINTEL_LMS_OFFSET);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware LMS pkey (%d)", err);
+		return err;
+	}
+
+	err = btintel_secure_send(hdev, 0x04, BTINTEL_LMS_SIG_SIZE,
+				  fw->data + BTINTEL_LMS_OFFSET + BTINTEL_LMS_PUB_KEY_SIZE);
+	if (err < 0) {
+		bt_dev_err(hdev, "Failed to send firmware LMS signature (%d)", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static int btintel_download_firmware_payload(struct hci_dev *hdev,
 					     const struct firmware *fw,
 					     size_t offset)
@@ -1203,11 +1260,12 @@ static int btintel_download_fw_tlv(struct hci_dev *hdev,
 	 * Command Buffer.
 	 *
 	 * CSS Header byte positions 0x08 to 0x0B represent the CSS Header
-	 * version: RSA(0x00010000) , ECDSA (0x00020000)
+	 * version: RSA(0x00010000) , ECDSA (0x00020000) , HYBRID (0x00069700)
 	 */
 	css_header_ver = get_unaligned_le32(fw->data + CSS_HEADER_OFFSET);
-	if (css_header_ver != 0x00010000) {
-		bt_dev_err(hdev, "Invalid CSS Header version");
+	if (css_header_ver != BTINTEL_RSA_HEADER_VER &&
+	    css_header_ver != BTINTEL_HYBRID_HEADER_VER) {
+		bt_dev_err(hdev, "Invalid CSS Header version: 0x%8.8x", css_header_ver);
 		return -EINVAL;
 	}
 
@@ -1225,15 +1283,15 @@ static int btintel_download_fw_tlv(struct hci_dev *hdev,
 		err = btintel_download_firmware_payload(hdev, fw, RSA_HEADER_LEN);
 		if (err)
 			return err;
-	} else if (hw_variant >= 0x17) {
+	} else if (hw_variant >= 0x17 && css_header_ver == BTINTEL_RSA_HEADER_VER) {
 		/* Check if CSS header for ECDSA follows the RSA header */
 		if (fw->data[ECDSA_OFFSET] != 0x06)
 			return -EINVAL;
 
 		/* Check if the CSS Header version is ECDSA(0x00020000) */
 		css_header_ver = get_unaligned_le32(fw->data + ECDSA_OFFSET + CSS_HEADER_OFFSET);
-		if (css_header_ver != 0x00020000) {
-			bt_dev_err(hdev, "Invalid CSS Header version");
+		if (css_header_ver != BTINTEL_ECDSA_HEADER_VER) {
+			bt_dev_err(hdev, "Invalid CSS Header version: 0x%8.8x", css_header_ver);
 			return -EINVAL;
 		}
 
@@ -1256,6 +1314,14 @@ static int btintel_download_fw_tlv(struct hci_dev *hdev,
 			if (err)
 				return err;
 		}
+	} else if (hw_variant >= 0x20 && css_header_ver == BTINTEL_HYBRID_HEADER_VER) {
+		err = btintel_sfi_hybrid_header_secure_send(hdev, fw);
+		if (err)
+			return err;
+
+		err = btintel_download_firmware_payload(hdev, fw, BTINTEL_CMD_BUFFER_OFFSET);
+		if (err)
+			return err;
 	}
 	return 0;
 }
@@ -2754,35 +2820,40 @@ static int btintel_set_dsbr(struct hci_dev *hdev, struct intel_version_tlv *ver)
 
 	struct btintel_dsbr_cmd cmd;
 	struct sk_buff *skb;
-	u32 dsbr, cnvi;
-	u8 status;
+	u32 dsbr;
+	u8 status, hw_variant;
 	int err;
 
-	cnvi = ver->cnvi_top & 0xfff;
+	hw_variant = INTEL_HW_VARIANT(ver->cnvi_bt);
 	/* DSBR command needs to be sent for,
 	 * 1. BlazarI or BlazarIW + B0 step product in IML image.
 	 * 2. Gale Peak2 or BlazarU in OP image.
 	 * 3. Scorpious Peak in IML image.
+	 * 4. Scorpious Peak2 onwards + PCIe transport in IML image.
 	 */
 
-	switch (cnvi) {
-	case BTINTEL_CNVI_BLAZARI:
-	case BTINTEL_CNVI_BLAZARIW:
+	switch (hw_variant) {
+	case BTINTEL_HWID_BZRI:
+	case BTINTEL_HWID_BZRIW:
 		if (ver->img_type == BTINTEL_IMG_IML &&
 		    INTEL_CNVX_TOP_STEP(ver->cnvi_top) == 0x01)
 			break;
 		return 0;
-	case BTINTEL_CNVI_GAP:
-	case BTINTEL_CNVI_BLAZARU:
+	case BTINTEL_HWID_GAP:
+	case BTINTEL_HWID_BZRU:
 		if (ver->img_type == BTINTEL_IMG_OP &&
 		    hdev->bus == HCI_USB)
 			break;
 		return 0;
-	case BTINTEL_CNVI_SCP:
+	case BTINTEL_HWID_SCP:
 		if (ver->img_type == BTINTEL_IMG_IML)
 			break;
 		return 0;
 	default:
+		/* Scorpius Peak2 onwards */
+		if (hw_variant >= BTINTEL_HWID_SCP2 && hdev->bus == HCI_PCI
+		    && ver->img_type == BTINTEL_IMG_IML)
+			break;
 		return 0;
 	}
 
@@ -3259,6 +3330,8 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x1d:
 	case 0x1e:
 	case 0x1f:
+	case 0x20:
+	case 0x21:
 	case 0x22:
 		hci_set_msft_opcode(hdev, 0xFC1E);
 		break;
@@ -3600,6 +3673,8 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	case 0x1d:
 	case 0x1e:
 	case 0x1f:
+	case 0x20:
+	case 0x21:
 	case 0x22:
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);

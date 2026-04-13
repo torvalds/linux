@@ -236,8 +236,7 @@ struct qca_serdev {
 
 static int qca_regulator_enable(struct qca_serdev *qcadev);
 static void qca_regulator_disable(struct qca_serdev *qcadev);
-static void qca_power_shutdown(struct hci_uart *hu);
-static int qca_power_off(struct hci_dev *hdev);
+static void qca_power_off(struct hci_uart *hu);
 static void qca_controller_memdump(struct work_struct *work);
 static void qca_dmp_hdr(struct hci_dev *hdev, struct sk_buff *skb);
 
@@ -723,6 +722,10 @@ static int qca_close(struct hci_uart *hu)
 
 	BT_DBG("hu %p qca close", hu);
 
+	/* BT core skips qca_hci_shutdown() which calls qca_power_off() on rmmod */
+	if (!test_bit(QCA_BT_OFF, &qca->flags))
+		qca_power_off(hu);
+
 	serial_clock_vote(HCI_IBS_VOTE_STATS_UPDATE, hu);
 
 	skb_queue_purge(&qca->tx_wait_q);
@@ -1105,7 +1108,7 @@ static void qca_controller_memdump(struct work_struct *work)
 				qca->qca_memdump = NULL;
 				qca->memdump_state = QCA_MEMDUMP_COLLECTED;
 				cancel_delayed_work(&qca->ctrl_memdump_timeout);
-				clear_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
+				clear_and_wake_up_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
 				clear_bit(QCA_IBS_DISABLED, &qca->flags);
 				mutex_unlock(&qca->hci_memdump_lock);
 				return;
@@ -1183,7 +1186,7 @@ static void qca_controller_memdump(struct work_struct *work)
 			kfree(qca->qca_memdump);
 			qca->qca_memdump = NULL;
 			qca->memdump_state = QCA_MEMDUMP_COLLECTED;
-			clear_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
+			clear_and_wake_up_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
 		}
 
 		mutex_unlock(&qca->hci_memdump_lock);
@@ -1850,6 +1853,7 @@ static int qca_power_on(struct hci_dev *hdev)
 		return 0;
 
 	switch (soc_type) {
+	case QCA_QCA6390:
 	case QCA_WCN3950:
 	case QCA_WCN3988:
 	case QCA_WCN3990:
@@ -1858,7 +1862,6 @@ static int qca_power_on(struct hci_dev *hdev)
 	case QCA_WCN6750:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
-	case QCA_QCA6390:
 		ret = qca_regulator_init(hu);
 		break;
 
@@ -2047,7 +2050,7 @@ retry:
 
 out:
 	if (ret) {
-		qca_power_shutdown(hu);
+		qca_power_off(hu);
 
 		if (retries < MAX_INIT_RETRIES) {
 			bt_dev_warn(hdev, "Retry BT power ON:%d", retries);
@@ -2094,6 +2097,18 @@ static const struct hci_uart_proto qca_proto = {
 	.recv		= qca_recv,
 	.enqueue	= qca_enqueue,
 	.dequeue	= qca_dequeue,
+};
+
+static const struct qca_device_data qca_soc_data_qca2066 __maybe_unused = {
+	.soc_type = QCA_QCA2066,
+	.num_vregs = 0,
+	.capabilities = QCA_CAP_WIDEBAND_SPEECH | QCA_CAP_VALID_LE_STATES |
+			QCA_CAP_HFP_HW_OFFLOAD,
+};
+
+static const struct qca_device_data qca_soc_data_qca6390 __maybe_unused = {
+	.soc_type = QCA_QCA6390,
+	.num_vregs = 0,
 };
 
 static const struct qca_device_data qca_soc_data_wcn3950 __maybe_unused = {
@@ -2152,18 +2167,6 @@ static const struct qca_device_data qca_soc_data_wcn3998 __maybe_unused = {
 	.num_vregs = 4,
 };
 
-static const struct qca_device_data qca_soc_data_qca2066 __maybe_unused = {
-	.soc_type = QCA_QCA2066,
-	.num_vregs = 0,
-	.capabilities = QCA_CAP_WIDEBAND_SPEECH | QCA_CAP_VALID_LE_STATES |
-			QCA_CAP_HFP_HW_OFFLOAD,
-};
-
-static const struct qca_device_data qca_soc_data_qca6390 __maybe_unused = {
-	.soc_type = QCA_QCA6390,
-	.num_vregs = 0,
-};
-
 static const struct qca_device_data qca_soc_data_wcn6750 __maybe_unused = {
 	.soc_type = QCA_WCN6750,
 	.vregs = (struct qca_vreg []) {
@@ -2211,7 +2214,7 @@ static const struct qca_device_data qca_soc_data_wcn7850 __maybe_unused = {
 			QCA_CAP_HFP_HW_OFFLOAD,
 };
 
-static void qca_power_shutdown(struct hci_uart *hu)
+static void qca_power_off(struct hci_uart *hu)
 {
 	struct qca_serdev *qcadev;
 	struct qca_data *qca = hu->priv;
@@ -2238,6 +2241,18 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 	power = qcadev->bt_power;
 
+	switch (soc_type) {
+	case QCA_WCN3988:
+	case QCA_WCN3990:
+	case QCA_WCN3991:
+	case QCA_WCN3998:
+		host_set_baudrate(hu, 2400);
+		qca_send_power_pulse(hu, false);
+		break;
+	default:
+		break;
+	}
+
 	if (power && power->pwrseq) {
 		pwrseq_power_off(power->pwrseq);
 		set_bit(QCA_BT_OFF, &qca->flags);
@@ -2249,8 +2264,6 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	case QCA_WCN3990:
 	case QCA_WCN3991:
 	case QCA_WCN3998:
-		host_set_baudrate(hu, 2400);
-		qca_send_power_pulse(hu, false);
 		qca_regulator_disable(qcadev);
 		break;
 
@@ -2261,7 +2274,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 		qca_regulator_disable(qcadev);
 		if (qcadev->sw_ctrl) {
 			sw_ctrl_state = gpiod_get_value_cansleep(qcadev->sw_ctrl);
-			bt_dev_dbg(hu->hdev, "SW_CTRL is %d", sw_ctrl_state);
+			BT_DBG("SW_CTRL is %d", sw_ctrl_state);
 		}
 		break;
 
@@ -2272,7 +2285,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	set_bit(QCA_BT_OFF, &qca->flags);
 }
 
-static int qca_power_off(struct hci_dev *hdev)
+static int qca_hci_shutdown(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct qca_data *qca = hu->priv;
@@ -2291,7 +2304,7 @@ static int qca_power_off(struct hci_dev *hdev)
 		usleep_range(8000, 10000);
 	}
 
-	qca_power_shutdown(hu);
+	qca_power_off(hu);
 	return 0;
 }
 
@@ -2402,6 +2415,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		qcadev->btsoc_type = QCA_ROME;
 
 	switch (qcadev->btsoc_type) {
+	case QCA_QCA6390:
 	case QCA_WCN3950:
 	case QCA_WCN3988:
 	case QCA_WCN3990:
@@ -2410,7 +2424,6 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	case QCA_WCN6750:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
-	case QCA_QCA6390:
 		qcadev->bt_power = devm_kzalloc(&serdev->dev,
 						sizeof(struct qca_power),
 						GFP_KERNEL);
@@ -2422,9 +2435,14 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 	}
 
 	switch (qcadev->btsoc_type) {
+	case QCA_WCN3950:
+	case QCA_WCN3988:
+	case QCA_WCN3990:
+	case QCA_WCN3991:
+	case QCA_WCN3998:
+	case QCA_WCN6750:
 	case QCA_WCN6855:
 	case QCA_WCN7850:
-	case QCA_WCN6750:
 		if (!device_property_present(&serdev->dev, "enable-gpios")) {
 			/*
 			 * Backward compatibility with old DT sources. If the
@@ -2446,12 +2464,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			else
 				break;
 		}
-		fallthrough;
-	case QCA_WCN3950:
-	case QCA_WCN3988:
-	case QCA_WCN3990:
-	case QCA_WCN3991:
-	case QCA_WCN3998:
+
 		qcadev->bt_power->dev = &serdev->dev;
 		err = qca_init_regulators(qcadev->bt_power, data->vregs,
 					  data->num_vregs);
@@ -2471,7 +2484,8 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 
 		if (!qcadev->bt_en &&
 		    (data->soc_type == QCA_WCN6750 ||
-		     data->soc_type == QCA_WCN6855))
+		     data->soc_type == QCA_WCN6855 ||
+		     data->soc_type == QCA_WCN7850))
 			power_ctrl_enabled = false;
 
 		qcadev->sw_ctrl = devm_gpiod_get_optional(&serdev->dev, "swctrl",
@@ -2530,7 +2544,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 
 	if (power_ctrl_enabled) {
 		hci_set_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_SETUP);
-		hdev->shutdown = qca_power_off;
+		hdev->shutdown = qca_hci_shutdown;
 	}
 
 	if (data) {
@@ -2565,7 +2579,7 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 	case QCA_WCN6855:
 	case QCA_WCN7850:
 		if (power->vregs_on)
-			qca_power_shutdown(&qcadev->serdev_hu);
+			qca_power_off(&qcadev->serdev_hu);
 		break;
 	default:
 		break;
