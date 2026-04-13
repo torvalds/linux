@@ -1,0 +1,88 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Test trace remote read with an offline CPU
+# requires: remotes/test
+
+. $TEST_DIR/remotes/functions
+
+hotunplug_one_cpu()
+{
+	[ "$(get_cpu_ids | wc -l)" -ge 2 ] || return 1
+
+	for cpu in $(get_cpu_ids); do
+		echo 0 > /sys/devices/system/cpu/cpu$cpu/online || return 1
+		break
+	done
+
+	echo $cpu
+}
+
+# Check non-consuming and consuming read
+check_read()
+{
+    for i in $(seq 1 8); do
+        echo $i > write_event
+    done
+
+    check_trace 1 8 trace
+
+    output=$(dump_trace_pipe)
+    check_trace 1 8 $output
+    rm $output
+}
+
+test_hotplug()
+{
+    echo 0 > trace
+    assert_loaded
+
+    #
+    # Test a trace buffer containing an offline CPU
+    #
+
+    cpu=$(hotunplug_one_cpu) || exit_unsupported
+    trap "echo 1 > /sys/devices/system/cpu/cpu$cpu/online" EXIT
+
+    check_read
+
+    #
+    # Test a trace buffer with a missing CPU
+    #
+
+    reload_remote
+
+    check_read
+
+    #
+    # Test a trace buffer with a CPU added later
+    #
+
+    echo 1 > /sys/devices/system/cpu/cpu$cpu/online
+    trap "" EXIT
+    assert_loaded
+
+    check_read
+
+    # Test if the ring-buffer for the newly added CPU is both writable and
+    # readable
+    for i in $(seq 1 8); do
+        taskset -c $cpu echo $i > write_event
+    done
+
+    cd per_cpu/cpu$cpu/
+
+    check_trace 1 8 trace
+
+    output=$(dump_trace_pipe)
+    check_trace 1 8 $output
+    rm $output
+
+    cd -
+}
+
+if [ -z "$SOURCE_REMOTE_TEST" ]; then
+    set -e
+
+    setup_remote_test
+    test_hotplug
+fi
