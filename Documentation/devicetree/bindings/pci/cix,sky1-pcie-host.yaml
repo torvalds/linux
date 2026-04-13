@@ -38,6 +38,9 @@ properties:
   ranges:
     maxItems: 3
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - ranges
