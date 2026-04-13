@@ -471,6 +471,46 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			__sync_fetch_and_add(&nr_dispatched, 1);
 
 			scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, 0);
+
+			/*
+			 * scx_qmap uses a global BPF queue that any CPU's
+			 * dispatch can pop from. If this CPU popped a task that
+			 * can't run here, it gets stranded on SHARED_DSQ after
+			 * consume_dispatch_q() skips it. Kick the task's home
+			 * CPU so it drains SHARED_DSQ.
+			 *
+			 * There's a race between the pop and the flush of the
+			 * buffered dsq_insert:
+			 *
+			 *  CPU 0 (dispatching)      CPU 1 (home, idle)
+			 *  ~~~~~~~~~~~~~~~~~~~      ~~~~~~~~~~~~~~~~~~~
+			 *  pop from BPF queue
+			 *  dsq_insert(buffered)
+			 *                           balance:
+			 *                             SHARED_DSQ empty
+			 *                             BPF queue empty
+			 *                             -> goes idle
+			 *  flush -> on SHARED
+			 *  kick CPU 1
+			 *                           wakes, drains task
+			 *
+			 * The kick prevents indefinite stalls but a per-CPU
+			 * kthread like ksoftirqd can be briefly stranded when
+			 * its home CPU enters idle with softirq pending,
+			 * triggering:
+			 *
+			 *  "NOHZ tick-stop error: local softirq work is pending, handler #N!!!"
+			 *
+			 * from report_idle_softirq(). The kick lands shortly
+			 * after and the home CPU drains the task. This could be
+			 * avoided by e.g. dispatching pinned tasks to local or
+			 * global DSQs, but the current code is left as-is to
+			 * document this class of issue -- other schedulers
+			 * seeing similar warnings can use this as a reference.
+			 */
+			if (!bpf_cpumask_test_cpu(cpu, p->cpus_ptr))
+				scx_bpf_kick_cpu(scx_bpf_task_cpu(p), 0);
+
 			bpf_task_release(p);
 
 			batch--;
