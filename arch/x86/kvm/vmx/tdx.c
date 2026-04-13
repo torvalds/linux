@@ -1467,17 +1467,11 @@ static int tdx_emulate_mmio(struct kvm_vcpu *vcpu)
 
 	/* Request the device emulation to userspace device model. */
 	vcpu->mmio_is_write = write;
-	if (!write)
+
+	__kvm_prepare_emulated_mmio_exit(vcpu, gpa, size, &val, write);
+
+	if (!write) {
 		vcpu->arch.complete_userspace_io = tdx_complete_mmio_read;
-
-	vcpu->run->mmio.phys_addr = gpa;
-	vcpu->run->mmio.len = size;
-	vcpu->run->mmio.is_write = write;
-	vcpu->run->exit_reason = KVM_EXIT_MMIO;
-
-	if (write) {
-		memcpy(vcpu->run->mmio.data, &val, size);
-	} else {
 		vcpu->mmio_fragments[0].gpa = gpa;
 		vcpu->mmio_fragments[0].len = size;
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, size, gpa, NULL);
