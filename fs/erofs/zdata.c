@@ -520,7 +520,7 @@ static bool z_erofs_should_alloc_cache(struct z_erofs_frontend *fe)
 	if (cachestrategy <= EROFS_ZIP_CACHE_DISABLED)
 		return false;
 
-	if (!(fe->map.m_flags & EROFS_MAP_FULL_MAPPED))
+	if (fe->map.m_flags & EROFS_MAP_PARTIAL_MAPPED)
 		return true;
 
 	if (cachestrategy >= EROFS_ZIP_CACHE_READAROUND &&
@@ -605,8 +605,7 @@ static int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
 			if (!folio_trylock(folio))
 				return -EBUSY;
 
-			if (!erofs_folio_is_managed(sbi, folio))
-				continue;
+			DBG_BUGON(!erofs_folio_is_managed(sbi, folio));
 			pcl->compressed_bvecs[i].page = NULL;
 			folio_detach_private(folio);
 			folio_unlock(folio);
@@ -1034,10 +1033,7 @@ static int z_erofs_scan_folio(struct z_erofs_frontend *f,
 		/* bump split parts first to avoid several separate cases */
 		++split;
 
-		if (!(map->m_flags & EROFS_MAP_MAPPED)) {
-			folio_zero_segment(folio, cur, end);
-			tight = false;
-		} else if (map->m_flags & __EROFS_MAP_FRAGMENT) {
+		if (map->m_flags & EROFS_MAP_FRAGMENT) {
 			erofs_off_t fpos = offset + cur - map->m_la;
 
 			err = z_erofs_read_fragment(inode->i_sb, folio, cur,
@@ -1045,6 +1041,9 @@ static int z_erofs_scan_folio(struct z_erofs_frontend *f,
 					EROFS_I(inode)->z_fragmentoff + fpos);
 			if (err)
 				break;
+			tight = false;
+		} else if (!(map->m_flags & EROFS_MAP_MAPPED)) {
+			folio_zero_segment(folio, cur, end);
 			tight = false;
 		} else {
 			if (!f->pcl) {
@@ -1081,14 +1080,13 @@ static int z_erofs_scan_folio(struct z_erofs_frontend *f,
 				f->pcl->length = offset + end - map->m_la;
 				f->pcl->pageofs_out = map->m_la & ~PAGE_MASK;
 			}
-			if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
-			    !(map->m_flags & EROFS_MAP_PARTIAL_REF) &&
+			if (EROFS_MAP_FULL(map->m_flags) &&
 			    f->pcl->length == map->m_llen)
 				f->pcl->partial = false;
 		}
 		/* shorten the remaining extent to update progress */
 		map->m_llen = offset + cur - map->m_la;
-		map->m_flags &= ~EROFS_MAP_FULL_MAPPED;
+		map->m_flags |= EROFS_MAP_PARTIAL_MAPPED;
 		if (cur <= pgs) {
 			split = cur < pgs;
 			tight = (bs == PAGE_SIZE);
@@ -1842,7 +1840,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_frontend *f,
 		map->m_la = end;
 		err = z_erofs_map_blocks_iter(inode, map,
 					      EROFS_GET_BLOCKS_READMORE);
-		if (err || !(map->m_flags & EROFS_MAP_ENCODED))
+		if (err || !(map->m_flags & EROFS_MAP_MAPPED))
 			return;
 
 		/* expand ra for the trailing edge if readahead */
@@ -1854,7 +1852,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_frontend *f,
 		end = round_up(end, PAGE_SIZE);
 	} else {
 		end = round_up(map->m_la, PAGE_SIZE);
-		if (!(map->m_flags & EROFS_MAP_ENCODED) || !map->m_llen)
+		if (!(map->m_flags & EROFS_MAP_MAPPED) || !map->m_llen)
 			return;
 	}
 
