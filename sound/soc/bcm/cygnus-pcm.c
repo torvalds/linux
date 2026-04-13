@@ -713,7 +713,7 @@ static const struct snd_soc_component_driver cygnus_soc_platform = {
 	.prepare	= cygnus_pcm_prepare,
 	.trigger	= cygnus_pcm_trigger,
 	.pointer	= cygnus_pcm_pointer,
-	.pcm_construct	= cygnus_dma_new,
+	.pcm_new	= cygnus_dma_new,
 };
 
 int cygnus_soc_platform_register(struct device *dev,

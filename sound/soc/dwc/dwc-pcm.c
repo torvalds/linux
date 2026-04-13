@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ALSA SoC Synopsys PIO PCM for I2S driver
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2016 Synopsys
  * Jose Abreu <joabreu@synopsys.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/io.h>
@@ -256,7 +253,7 @@ static const struct snd_soc_component_driver dw_pcm_component = {
 	.hw_params	= dw_pcm_hw_params,
 	.trigger	= dw_pcm_trigger,
 	.pointer	= dw_pcm_pointer,
-	.pcm_construct	= dw_pcm_new,
+	.pcm_new	= dw_pcm_new,
 };
 
 int dw_pcm_register(struct platform_device *pdev)

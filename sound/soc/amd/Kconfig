@@ -122,16 +122,6 @@ config SND_AMD_ACP_CONFIG
 
 source "sound/soc/amd/acp/Kconfig"
 
-config SND_SOC_AMD_RPL_ACP6x
-        tristate "AMD Audio Coprocessor-v6.2 RPL support"
-        depends on X86 && PCI
-        help
-          This option enables Audio Coprocessor i.e. ACP v6.2 support on
-          AMD RPL platform. By enabling this flag build will be
-          triggered for ACP PCI driver.
-          Say m if you have such a device.
-          If unsure select "N".
-
 config SND_SOC_AMD_ACP63_TOPLEVEL
 	tristate "support for AMD platforms with ACP version >= 6.3"
 	default SND_AMD_ACP_CONFIG

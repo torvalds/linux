@@ -641,20 +641,18 @@ static int tegra210_mixer_platform_probe(struct platform_device *pdev)
 
 	mixer->regmap = devm_regmap_init_mmio(dev, regs,
 					      &tegra210_mixer_regmap_config);
-	if (IS_ERR(mixer->regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(mixer->regmap);
-	}
+	if (IS_ERR(mixer->regmap))
+		return dev_err_probe(dev, PTR_ERR(mixer->regmap),
+				     "regmap init failed\n");
 
 	regcache_cache_only(mixer->regmap, true);
 
 	err = devm_snd_soc_register_component(dev, &tegra210_mixer_cmpnt,
 					      tegra210_mixer_dais,
 					      ARRAY_SIZE(tegra210_mixer_dais));
-	if (err) {
-		dev_err(dev, "can't register MIXER component, err: %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "can't register MIXER component\n");
 
 	pm_runtime_enable(dev);
 

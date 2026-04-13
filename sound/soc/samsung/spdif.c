@@ -407,19 +407,10 @@ static int spdif_probe(struct platform_device *pdev)
 	if (ret)
 		goto err1;
 
-	/* Request S/PDIF Register's memory region */
-	if (!request_mem_region(mem_res->start,
-				resource_size(mem_res), "samsung-spdif")) {
-		dev_err(&pdev->dev, "Unable to request register region\n");
-		ret = -EBUSY;
+	spdif->regs = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(spdif->regs)) {
+		ret = PTR_ERR(spdif->regs);
 		goto err2;
-	}
-
-	spdif->regs = ioremap(mem_res->start, 0x100);
-	if (spdif->regs == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap registers\n");
-		ret = -ENXIO;
-		goto err3;
 	}
 
 	spdif_stereo_out.addr_width = 2;
@@ -435,7 +426,7 @@ static int spdif_probe(struct platform_device *pdev)
 						 NULL, NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
-		goto err4;
+		goto err2;
 	}
 
 	dev_set_drvdata(&pdev->dev, spdif);
@@ -444,14 +435,10 @@ static int spdif_probe(struct platform_device *pdev)
 			&samsung_spdif_component, &samsung_spdif_dai, 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "fail to register dai\n");
-		goto err4;
+		goto err2;
 	}
 
 	return 0;
-err4:
-	iounmap(spdif->regs);
-err3:
-	release_mem_region(mem_res->start, resource_size(mem_res));
 err2:
 	clk_disable_unprepare(spdif->sclk);
 err1:
@@ -463,12 +450,6 @@ err0:
 static void spdif_remove(struct platform_device *pdev)
 {
 	struct samsung_spdif_info *spdif = &spdif_info;
-	struct resource *mem_res;
-
-	iounmap(spdif->regs);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem_res->start, resource_size(mem_res));
 
 	clk_disable_unprepare(spdif->sclk);
 	clk_disable_unprepare(spdif->pclk);

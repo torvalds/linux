@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Apple"
 
 config SND_SOC_APPLE_MCA

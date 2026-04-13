@@ -117,11 +117,6 @@ struct arizona_pdata {
 	/** Check for line output with HPDET method */
 	bool hpdet_acc_id_line;
 
-#ifdef CONFIG_GPIOLIB_LEGACY
-	/** GPIO used for mic isolation with HPDET */
-	int hpdet_id_gpio;
-#endif
-
 	/** Channel to use for headphone detection */
 	unsigned int hpdet_channel;
 
@@ -130,11 +125,6 @@ struct arizona_pdata {
 
 	/** Extra debounce timeout used during initial mic detection (ms) */
 	unsigned int micd_detect_debounce;
-
-#ifdef CONFIG_GPIOLIB_LEGACY
-	/** GPIO for mic detection polarity */
-	int micd_pol_gpio;
-#endif
 
 	/** Mic detect ramp rate */
 	unsigned int micd_bias_start_time;

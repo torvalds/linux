@@ -98,6 +98,7 @@ struct cs42l43 {
 	bool sdw_pll_active;
 	bool attached;
 	bool hw_lock;
+	long variant_id;
 };
 
 #endif /* CS42L43_CORE_EXT_H */

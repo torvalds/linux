@@ -377,8 +377,14 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 		return dev_err_probe(dev, PTR_ERR(drv->regmap),
 				     "failed to create regmap");
 
-	if (desc->type == SDCA_FUNCTION_TYPE_UAJ)
+	switch (desc->type) {
+	case SDCA_FUNCTION_TYPE_UAJ:
+	case SDCA_FUNCTION_TYPE_RJ:
 		cmp_drv->set_jack = class_function_set_jack;
+		break;
+	default:
+		break;
+	}
 
 	ret = sdca_asoc_populate_component(dev, drv->function, cmp_drv,
 					   &dais, &num_dais,
@@ -554,6 +560,10 @@ static const struct auxiliary_device_id class_function_id_table[] = {
 	{
 		.name = "snd_soc_sdca." SDCA_FUNCTION_TYPE_HID_NAME,
 		.driver_data = SDCA_FUNCTION_TYPE_HID,
+	},
+	{
+		.name = "snd_soc_sdca." SDCA_FUNCTION_TYPE_RJ_NAME,
+		.driver_data = SDCA_FUNCTION_TYPE_RJ,
 	},
 	{},
 };

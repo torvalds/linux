@@ -386,7 +386,7 @@ static const struct snd_soc_component_driver bcm63xx_soc_platform = {
 	.prepare = bcm63xx_pcm_prepare,
 	.trigger = bcm63xx_pcm_trigger,
 	.pointer = bcm63xx_pcm_pointer,
-	.pcm_construct = bcm63xx_soc_pcm_new,
+	.pcm_new = bcm63xx_soc_pcm_new,
 };
 
 int bcm63xx_soc_platform_probe(struct platform_device *pdev,

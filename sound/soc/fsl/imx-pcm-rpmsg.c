@@ -624,7 +624,7 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 
 static const struct snd_soc_component_driver imx_rpmsg_soc_component = {
 	.name		= IMX_PCM_DRV_NAME,
-	.pcm_construct	= imx_rpmsg_pcm_new,
+	.pcm_new	= imx_rpmsg_pcm_new,
 	.open		= imx_rpmsg_pcm_open,
 	.close		= imx_rpmsg_pcm_close,
 	.hw_params	= imx_rpmsg_pcm_hw_params,

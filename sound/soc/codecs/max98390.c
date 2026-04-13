@@ -1015,10 +1015,8 @@ static int max98390_i2c_probe(struct i2c_client *i2c)
 	struct i2c_adapter *adapter = i2c->adapter;
 	struct gpio_desc *reset_gpio;
 
-	ret = i2c_check_functionality(adapter,
-		I2C_FUNC_SMBUS_BYTE
-		| I2C_FUNC_SMBUS_BYTE_DATA);
-	if (!ret) {
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE |
+					      I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&i2c->dev, "I2C check functionality failed\n");
 		return -ENXIO;
 	}

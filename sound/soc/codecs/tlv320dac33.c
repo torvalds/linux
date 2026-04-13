@@ -91,7 +91,6 @@ struct tlv320dac33_priv {
 	int mode1_latency;		/* latency caused by the i2c writes in
 					 * us */
 	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
-	u8 *reg_cache;
 	unsigned int burst_rate;	/* Interface speed in Burst modes */
 
 	int keep_bclk;			/* Keep the BCLK continuously running
@@ -108,6 +107,8 @@ struct tlv320dac33_priv {
 
 	enum dac33_state state;
 	struct i2c_client *i2c;
+
+	u8 reg_cache[];
 };
 
 static const u8 dac33_reg[DAC33_CACHEREGNUM] = {
@@ -1477,15 +1478,12 @@ static int dac33_i2c_probe(struct i2c_client *client)
 	struct tlv320dac33_priv *dac33;
 	int ret, i;
 
-	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
+	dac33 = devm_kzalloc(&client->dev, struct_size(dac33, reg_cache, ARRAY_SIZE(dac33_reg)),
 			     GFP_KERNEL);
 	if (dac33 == NULL)
 		return -ENOMEM;
 
-	dac33->reg_cache = devm_kmemdup_array(&client->dev, dac33_reg, ARRAY_SIZE(dac33_reg),
-					      sizeof(dac33_reg[0]), GFP_KERNEL);
-	if (!dac33->reg_cache)
-		return -ENOMEM;
+	memcpy(dac33->reg_cache, dac33_reg, ARRAY_SIZE(dac33_reg));
 
 	dac33->i2c = client;
 	mutex_init(&dac33->mutex);

@@ -23,10 +23,8 @@
 #include "hda_dsp_common.h"
 #include "../../codecs/rt5660.h"
 
-#define DUAL_CHANNEL 2
 #define HDMI_LINK_START 3
 #define HDMI_LINE_END 6
-#define NAME_SIZE	32
 #define IDISP_CODEC_MASK	0x4
 
 struct sof_card_private {

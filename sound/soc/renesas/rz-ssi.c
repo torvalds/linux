@@ -1117,7 +1117,7 @@ static const struct snd_soc_component_driver rz_ssi_soc_component = {
 	.name			= "rz-ssi",
 	.open			= rz_ssi_pcm_open,
 	.pointer		= rz_ssi_pcm_pointer,
-	.pcm_construct		= rz_ssi_pcm_new,
+	.pcm_new		= rz_ssi_pcm_new,
 	.legacy_dai_naming	= 1,
 };
 

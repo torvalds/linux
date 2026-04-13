@@ -229,6 +229,16 @@ config SND_SOC_TEGRA_WM8903
 	  boards using the WM8093 codec. Currently, the supported boards are
 	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
 
+config SND_SOC_TEGRA_WM8962
+	tristate "SoC Audio support for Tegra boards using a WM8962 codec"
+	depends on I2C && INPUT && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_WM8962
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8962 codec. Currently, the supported boards are
+	  Microsoft Surface RT.
+
 config SND_SOC_TEGRA_WM9712
 	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
 	depends on GPIOLIB
@@ -293,6 +303,15 @@ config SND_SOC_TEGRA_SGTL5000
 	  Say Y or M here if you want to add support for SoC audio on Tegra
 	  boards using the SGTL5000 codec, such as Apalis T30, Apalis TK1 or
 	  Colibri T30.
+
+config SND_SOC_TEGRA_CPCAP
+	tristate "SoC Audio support for Tegra boards using a CPCAP codec"
+	depends on I2C && GPIOLIB && MFD_CPCAP
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_CPCAP
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the CPCAP codec, such as Motorola Atrix 4G or Droid X2.
 
 endif
 

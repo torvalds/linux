@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/rockchip,rockchip-audio-max98090.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip audio complex with MAX98090 codec
+
+maintainers:
+  - Fabio Estevam <festevam@gmail.com>
+
+properties:
+  compatible:
+    const: rockchip,rockchip-audio-max98090
+
+  rockchip,model:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: The user-visible name of this sound complex.
+
+  rockchip,i2s-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the Rockchip I2S controller.
+
+  rockchip,audio-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the MAX98090 audio codec.
+
+  rockchip,headset-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the external chip for jack detection.
+
+  rockchip,hdmi-codec:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the HDMI device for HDMI codec.
+
+required:
+  - compatible
+  - rockchip,model
+  - rockchip,i2s-controller
+
+allOf:
+  - if:
+      required:
+        - rockchip,audio-codec
+    then:
+      required:
+        - rockchip,headset-codec
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "rockchip,rockchip-audio-max98090";
+        rockchip,model = "ROCKCHIP-I2S";
+        rockchip,i2s-controller = <&i2s>;
+        rockchip,audio-codec = <&max98090>;
+        rockchip,headset-codec = <&headsetcodec>;
+    };

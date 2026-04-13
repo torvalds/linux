@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/pci_ids.h>
-#include <linux/platform_device.h>
 #include <linux/random.h>
 #include <sound/cs-amp-lib.h>
 

@@ -47,6 +47,7 @@ static int cs42l43_i2c_probe(struct i2c_client *i2c)
 	cs42l43->irq = i2c->irq;
 	/* A device on an I2C is always attached by definition. */
 	cs42l43->attached = true;
+	cs42l43->variant_id = (long)device_get_match_data(cs42l43->dev);
 
 	cs42l43->regmap = devm_regmap_init_i2c(i2c, &cs42l43_i2c_regmap);
 	if (IS_ERR(cs42l43->regmap))
@@ -58,7 +59,8 @@ static int cs42l43_i2c_probe(struct i2c_client *i2c)
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id cs42l43_of_match[] = {
-	{ .compatible = "cirrus,cs42l43", },
+	{ .compatible = "cirrus,cs42l43", .data = (void *)CS42L43_DEVID_VAL },
+	{ .compatible = "cirrus,cs42l43b", .data = (void *)CS42L43B_DEVID_VAL },
 	{}
 };
 MODULE_DEVICE_TABLE(of, cs42l43_of_match);
@@ -66,7 +68,8 @@ MODULE_DEVICE_TABLE(of, cs42l43_of_match);
 
 #if IS_ENABLED(CONFIG_ACPI)
 static const struct acpi_device_id cs42l43_acpi_match[] = {
-	{ "CSC4243", 0 },
+	{ "CSC4243", CS42L43_DEVID_VAL },
+	{ "CSC2A3B", CS42L43B_DEVID_VAL },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, cs42l43_acpi_match);

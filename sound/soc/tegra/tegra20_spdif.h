@@ -171,7 +171,7 @@
 
 /*
  * RX channel block data receive status:
- * 0=entire block not recieved yet.
+ * 0=entire block not received yet.
  * 1=received entire block of channel status,
  */
 #define TEGRA20_SPDIF_STATUS_IS_C				(1 << 21)

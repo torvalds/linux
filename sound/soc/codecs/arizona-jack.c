@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
@@ -459,11 +458,6 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 			       bool *mic)
 {
 	struct arizona *arizona = info->arizona;
-#ifdef CONFIG_GPIOLIB_LEGACY
-	int id_gpio = arizona->pdata.hpdet_id_gpio;
-#else
-	int id_gpio = 0;
-#endif
 
 	if (!arizona->pdata.hpdet_acc_id)
 		return 0;
@@ -474,9 +468,8 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 	 */
 	info->hpdet_res[info->num_hpdet_res++] = *reading;
 
-#ifdef CONFIG_GPIOLIB_LEGACY
 	/* Only check the mic directly if we didn't already ID it */
-	if (id_gpio && info->num_hpdet_res == 1) {
+	if (info->hpdet_id_gpio && info->num_hpdet_res == 1) {
 		dev_dbg(arizona->dev, "Measuring mic\n");
 
 		regmap_update_bits(arizona->regmap,
@@ -486,13 +479,12 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 				   ARIZONA_ACCDET_MODE_HPR |
 				   info->micd_modes[0].src);
 
-		gpio_set_value_cansleep(id_gpio, 1);
+		gpiod_set_value_cansleep(info->hpdet_id_gpio, 1);
 
 		regmap_update_bits(arizona->regmap, ARIZONA_HEADPHONE_DETECT_1,
 				   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
 		return -EAGAIN;
 	}
-#endif
 
 	/* OK, got both.  Now, compare... */
 	dev_dbg(arizona->dev, "HPDET measured %d %d\n",
@@ -514,7 +506,7 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 	/*
 	 * If we measure the mic as high impedance
 	 */
-	if (!id_gpio || info->hpdet_res[1] > 50) {
+	if (!info->hpdet_id_gpio || info->hpdet_res[1] > 50) {
 		dev_dbg(arizona->dev, "Detected mic\n");
 		*mic = true;
 		info->detecting = true;
@@ -533,9 +525,6 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 {
 	struct arizona_priv *info = data;
 	struct arizona *arizona = info->arizona;
-#ifdef CONFIG_GPIOLIB_LEGACY
-	int id_gpio = arizona->pdata.hpdet_id_gpio;
-#endif
 	int ret, reading, state, report;
 	bool mic = false;
 
@@ -591,10 +580,8 @@ done:
 
 	arizona_extcon_hp_clamp(info, false);
 
-#ifdef CONFIG_GPIOLIB_LEGACY
-	if (id_gpio)
-		gpio_set_value_cansleep(id_gpio, 0);
-#endif
+	if (info->hpdet_id_gpio)
+		gpiod_set_value_cansleep(info->hpdet_id_gpio, 0);
 
 	/* If we have a mic then reenable MICDET */
 	if (state && (mic || info->mic))
@@ -1325,58 +1312,33 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 		regmap_update_bits(arizona->regmap, ARIZONA_GP_SWITCH_1,
 				ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
 
-#ifdef CONFIG_GPIOLIB_LEGACY
-	if (pdata->micd_pol_gpio > 0) {
-		if (info->micd_modes[0].gpio)
-			mode = GPIOF_OUT_INIT_HIGH;
-		else
-			mode = GPIOF_OUT_INIT_LOW;
+	if (info->micd_modes[0].gpio)
+		mode = GPIOD_OUT_HIGH;
+	else
+		mode = GPIOD_OUT_LOW;
 
-		ret = devm_gpio_request_one(dev, pdata->micd_pol_gpio,
-					    mode, "MICD polarity");
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
-				pdata->micd_pol_gpio, ret);
-			return ret;
-		}
-
-		info->micd_pol_gpio = gpio_to_desc(pdata->micd_pol_gpio);
-	} else
-#endif
-	{
-		if (info->micd_modes[0].gpio)
-			mode = GPIOD_OUT_HIGH;
-		else
-			mode = GPIOD_OUT_LOW;
-
-		/* We can't use devm here because we need to do the get
-		 * against the MFD device, as that is where the of_node
-		 * will reside, but if we devm against that the GPIO
-		 * will not be freed if the extcon driver is unloaded.
-		 */
-		info->micd_pol_gpio = gpiod_get_optional(arizona->dev,
-							 "wlf,micd-pol",
-							 mode);
-		if (IS_ERR(info->micd_pol_gpio)) {
-			ret = PTR_ERR(info->micd_pol_gpio);
-			dev_err_probe(arizona->dev, ret, "getting microphone polarity GPIO\n");
-			return ret;
-		}
+	/* We can't use devm here because we need to do the get
+	 * against the MFD device, as that is where the of_node
+	 * will reside, but if we devm against that the GPIO
+	 * will not be freed if the extcon driver is unloaded.
+	 */
+	info->micd_pol_gpio = gpiod_get_optional(arizona->dev,
+						 "wlf,micd-pol",
+						 mode);
+	if (IS_ERR(info->micd_pol_gpio)) {
+		ret = PTR_ERR(info->micd_pol_gpio);
+		dev_err_probe(arizona->dev, ret, "getting microphone polarity GPIO\n");
+		return ret;
 	}
 
-#ifdef CONFIG_GPIOLIB_LEGACY
-	if (arizona->pdata.hpdet_id_gpio > 0) {
-		ret = devm_gpio_request_one(dev, arizona->pdata.hpdet_id_gpio,
-					    GPIOF_OUT_INIT_LOW,
-					    "HPDET");
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to request GPIO%d: %d\n",
-				arizona->pdata.hpdet_id_gpio, ret);
-			gpiod_put(info->micd_pol_gpio);
-			return ret;
-		}
+	info->hpdet_id_gpio = gpiod_get_optional(arizona->dev,
+						 "wlf,hpdet-id-gpio",
+						 mode);
+	if (IS_ERR(info->hpdet_id_gpio)) {
+		ret = PTR_ERR(info->hpdet_id_gpio);
+		dev_err_probe(arizona->dev, ret, "getting headphone detect ID GPIO\n");
+		return ret;
 	}
-#endif
 
 	return 0;
 }
@@ -1385,6 +1347,7 @@ EXPORT_SYMBOL_GPL(arizona_jack_codec_dev_probe);
 int arizona_jack_codec_dev_remove(struct arizona_priv *info)
 {
 	gpiod_put(info->micd_pol_gpio);
+	gpiod_put(info->hpdet_id_gpio);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(arizona_jack_codec_dev_remove);

@@ -119,7 +119,17 @@ static irqreturn_t function_status_handler(int irq, void *data)
 	for_each_set_bit(mask, &status, BITS_PER_BYTE) {
 		switch (BIT(mask)) {
 		case SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION:
-			//FIXME: Add init writes
+/*
+ * FIXME: Should this do init writes?
+ *
+ * Currently init writes/cache sync are done from the suspend/resume
+ * infrastructure. It is unclear in what situations one would receive this
+ * IRQ outside of that flow. Presumably it would be something like the chip
+ * crashing. In that case however doing the init writes and a cache sync might
+ * not be sufficient, for example if the failure was during audio playback
+ * there could be ordering constraints on the register writes to restore the
+ * state that are not handled by a simple cache sync.
+ */
 			break;
 		case SDCA_CTL_ENTITY_0_FUNCTION_FAULT:
 			dev_err(dev, "function fault\n");
@@ -555,7 +565,7 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_cleanup - Free all the individual IRQs for an SDCA Function
- * @sdev: Device pointer against which the sdca_interrupt_info was allocated.
+ * @dev: Device pointer against which the sdca_interrupt_info was allocated.
  * @function: Pointer to the SDCA Function.
  * @info: Pointer to the SDCA interrupt info for this device.
  *
@@ -630,13 +640,12 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA");
 static void irq_enable_flags(struct sdca_function_data *function,
 			     struct sdca_interrupt_info *info, bool early)
 {
-	struct sdca_interrupt *interrupt;
 	int i;
 
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
-		interrupt = &info->irqs[i];
+		struct sdca_interrupt *interrupt = &info->irqs[i];
 
-		if (!interrupt || interrupt->function != function)
+		if (!interrupt->irq || interrupt->function != function)
 			continue;
 
 		switch (SDCA_CTL_TYPE(interrupt->entity->type,
@@ -689,13 +698,12 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_enable, "SND_SOC_SDCA");
 void sdca_irq_disable(struct sdca_function_data *function,
 		      struct sdca_interrupt_info *info)
 {
-	struct sdca_interrupt *interrupt;
 	int i;
 
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
-		interrupt = &info->irqs[i];
+		struct sdca_interrupt *interrupt = &info->irqs[i];
 
-		if (!interrupt || interrupt->function != function)
+		if (!interrupt->irq || interrupt->function != function)
 			continue;
 
 		disable_irq(interrupt->irq);

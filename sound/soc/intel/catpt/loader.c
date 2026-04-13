@@ -90,6 +90,7 @@ int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	struct catpt_stream_runtime *stream;
 
+	/* Lockless as no streams can be added or removed during D3 -> D0 transition. */
 	list_for_each_entry(stream, &cdev->stream_list, node) {
 		u32 off, size;
 		int ret;
@@ -180,6 +181,7 @@ catpt_restore_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	struct catpt_stream_runtime *stream;
 
+	/* Lockless as no streams can be added or removed during D3 -> D0 transition. */
 	list_for_each_entry(stream, &cdev->stream_list, node) {
 		u32 off, size;
 		int ret;

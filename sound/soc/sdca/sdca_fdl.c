@@ -46,11 +46,6 @@ int sdca_reset_function(struct device *dev, struct sdca_function_data *function,
 	if (ret) // Allowed for function reset to not be implemented
 		return 0;
 
-	if (!function->reset_max_delay) {
-		dev_err(dev, "No reset delay specified in DisCo\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * Poll up to 16 times but no more than once per ms, these are just
 	 * arbitrarily selected values, so may be fine tuned in future.

@@ -121,29 +121,28 @@ static const struct i2c_device_id tasdevice_id[] = {
 	{ "tas5830", TAS5830 },
 	{}
 };
-MODULE_DEVICE_TABLE(i2c, tasdevice_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id tasdevice_of_match[] = {
-	{ .compatible = "ti,tas2020" },
-	{ .compatible = "ti,tas2118" },
-	{ .compatible = "ti,tas2120" },
-	{ .compatible = "ti,tas2320" },
-	{ .compatible = "ti,tas2563" },
-	{ .compatible = "ti,tas2568" },
-	{ .compatible = "ti,tas2570" },
-	{ .compatible = "ti,tas2572" },
-	{ .compatible = "ti,tas2574" },
-	{ .compatible = "ti,tas2781" },
-	{ .compatible = "ti,tas5802" },
-	{ .compatible = "ti,tas5806m" },
-	{ .compatible = "ti,tas5806md" },
-	{ .compatible = "ti,tas5815" },
-	{ .compatible = "ti,tas5822" },
-	{ .compatible = "ti,tas5825" },
-	{ .compatible = "ti,tas5827" },
-	{ .compatible = "ti,tas5828" },
-	{ .compatible = "ti,tas5830" },
+	{ .compatible = "ti,tas2020", .data = &tasdevice_id[TAS2020] },
+	{ .compatible = "ti,tas2118", .data = &tasdevice_id[TAS2118] },
+	{ .compatible = "ti,tas2120", .data = &tasdevice_id[TAS2120] },
+	{ .compatible = "ti,tas2320", .data = &tasdevice_id[TAS2320] },
+	{ .compatible = "ti,tas2563", .data = &tasdevice_id[TAS2563] },
+	{ .compatible = "ti,tas2568", .data = &tasdevice_id[TAS2568] },
+	{ .compatible = "ti,tas2570", .data = &tasdevice_id[TAS2570] },
+	{ .compatible = "ti,tas2572", .data = &tasdevice_id[TAS2572] },
+	{ .compatible = "ti,tas2574", .data = &tasdevice_id[TAS2574] },
+	{ .compatible = "ti,tas2781", .data = &tasdevice_id[TAS2781] },
+	{ .compatible = "ti,tas5802", .data = &tasdevice_id[TAS5802] },
+	{ .compatible = "ti,tas5806m", .data = &tasdevice_id[TAS5806M] },
+	{ .compatible = "ti,tas5806md", .data = &tasdevice_id[TAS5806MD] },
+	{ .compatible = "ti,tas5815", .data = &tasdevice_id[TAS5815] },
+	{ .compatible = "ti,tas5822", .data = &tasdevice_id[TAS5822] },
+	{ .compatible = "ti,tas5825", .data = &tasdevice_id[TAS5825] },
+	{ .compatible = "ti,tas5827", .data = &tasdevice_id[TAS5827] },
+	{ .compatible = "ti,tas5828", .data = &tasdevice_id[TAS5828] },
+	{ .compatible = "ti,tas5830", .data = &tasdevice_id[TAS5830] },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tasdevice_of_match);
@@ -2023,15 +2022,12 @@ static void tasdevice_parse_dt(struct tasdevice_priv *tas_priv)
 	if (IS_ERR(tas_priv->reset))
 		dev_err(tas_priv->dev, "%s Can't get reset GPIO\n",
 			__func__);
-
-	strscpy(tas_priv->dev_name, tasdevice_id[tas_priv->chip_id].name,
-		sizeof(tas_priv->dev_name));
 }
 
 static int tasdevice_i2c_probe(struct i2c_client *i2c)
 {
-	const struct acpi_device_id *acpi_id;
 	struct tasdevice_priv *tas_priv;
+	struct i2c_device_id *id_data;
 	int ret;
 
 	tas_priv = tasdevice_kzalloc(i2c);
@@ -2041,19 +2037,22 @@ static int tasdevice_i2c_probe(struct i2c_client *i2c)
 	dev_set_drvdata(&i2c->dev, tas_priv);
 
 	if (ACPI_HANDLE(&i2c->dev)) {
-		acpi_id = acpi_match_device(i2c->dev.driver->acpi_match_table,
-				&i2c->dev);
-		if (!acpi_id) {
-			dev_err(&i2c->dev, "No driver data\n");
-			ret = -EINVAL;
-			goto err;
-		}
-		tas_priv->chip_id = acpi_id->driver_data;
+		id_data = (struct i2c_device_id *)
+			acpi_device_get_match_data(&i2c->dev);
 		tas_priv->isacpi = true;
 	} else {
-		tas_priv->chip_id = (uintptr_t)i2c_get_match_data(i2c);
+		id_data = (struct i2c_device_id *)i2c_get_match_data(i2c);
 		tas_priv->isacpi = false;
 	}
+
+	if (!id_data) {
+		dev_err(&i2c->dev, "No driver data\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	tas_priv->chip_id = (uintptr_t)id_data->driver_data;
+	strscpy(tas_priv->dev_name, id_data->name, sizeof(tas_priv->dev_name));
 
 	tasdevice_parse_dt(tas_priv);
 
@@ -2086,25 +2085,25 @@ static void tasdevice_i2c_remove(struct i2c_client *client)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id tasdevice_acpi_match[] = {
-	{ "TXNW2020", TAS2020 },
-	{ "TXNW2118", TAS2118 },
-	{ "TXNW2120", TAS2120 },
-	{ "TXNW2320", TAS2320 },
-	{ "TXNW2563", TAS2563 },
-	{ "TXNW2568", TAS2568 },
-	{ "TXNW2570", TAS2570 },
-	{ "TXNW2572", TAS2572 },
-	{ "TXNW2574", TAS2574 },
-	{ "TXNW2781", TAS2781 },
-	{ "TXNW5802", TAS5802 },
-	{ "TXNW806M", TAS5806M },
-	{ "TXNW806D", TAS5806MD },
-	{ "TXNW5815", TAS5815 },
-	{ "TXNW5822", TAS5822 },
-	{ "TXNW5825", TAS5825 },
-	{ "TXNW5827", TAS5827 },
-	{ "TXNW5828", TAS5828 },
-	{ "TXNW5830", TAS5830 },
+	{ "TXNW2020", (kernel_ulong_t)&tasdevice_id[TAS2020] },
+	{ "TXNW2118", (kernel_ulong_t)&tasdevice_id[TAS2118] },
+	{ "TXNW2120", (kernel_ulong_t)&tasdevice_id[TAS2120] },
+	{ "TXNW2320", (kernel_ulong_t)&tasdevice_id[TAS2320] },
+	{ "TXNW2563", (kernel_ulong_t)&tasdevice_id[TAS2563] },
+	{ "TXNW2568", (kernel_ulong_t)&tasdevice_id[TAS2568] },
+	{ "TXNW2570", (kernel_ulong_t)&tasdevice_id[TAS2570] },
+	{ "TXNW2572", (kernel_ulong_t)&tasdevice_id[TAS2572] },
+	{ "TXNW2574", (kernel_ulong_t)&tasdevice_id[TAS2574] },
+	{ "TXNW2781", (kernel_ulong_t)&tasdevice_id[TAS2781] },
+	{ "TXNW5802", (kernel_ulong_t)&tasdevice_id[TAS5802] },
+	{ "TXNW806M", (kernel_ulong_t)&tasdevice_id[TAS5806M] },
+	{ "TXNW806D", (kernel_ulong_t)&tasdevice_id[TAS5806MD] },
+	{ "TXNW5815", (kernel_ulong_t)&tasdevice_id[TAS5815] },
+	{ "TXNW5822", (kernel_ulong_t)&tasdevice_id[TAS5822] },
+	{ "TXNW5825", (kernel_ulong_t)&tasdevice_id[TAS5825] },
+	{ "TXNW5827", (kernel_ulong_t)&tasdevice_id[TAS5827] },
+	{ "TXNW5828", (kernel_ulong_t)&tasdevice_id[TAS5828] },
+	{ "TXNW5830", (kernel_ulong_t)&tasdevice_id[TAS5830] },
 	{},
 };
 
@@ -2121,7 +2120,6 @@ static struct i2c_driver tasdevice_i2c_driver = {
 	},
 	.probe	= tasdevice_i2c_probe,
 	.remove = tasdevice_i2c_remove,
-	.id_table = tasdevice_id,
 };
 
 module_i2c_driver(tasdevice_i2c_driver);

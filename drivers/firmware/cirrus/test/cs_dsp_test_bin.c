@@ -7,6 +7,7 @@
 
 #include <kunit/device.h>
 #include <kunit/resource.h>
+#include <kunit/static_stub.h>
 #include <kunit/test.h>
 #include <linux/build_bug.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
@@ -2155,6 +2156,15 @@ static void bin_patch_name_and_info(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, reg_val, payload_data);
 }
 
+static bool cs_dsp_bin_test_can_emit_message_hook(void)
+{
+#if defined(DEBUG)
+	return true;
+#else
+	return false;
+#endif
+}
+
 static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp,
 					int wmdr_ver)
 {
@@ -2239,14 +2249,10 @@ static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp,
 	 * The large number of test cases will cause an unusually large amount
 	 * of dev_info() messages from cs_dsp, so suppress these.
 	 */
-	cs_dsp_suppress_info_messages = true;
+	kunit_activate_static_stub(test, cs_dsp_can_emit_message,
+				   cs_dsp_bin_test_can_emit_message_hook);
 
 	return 0;
-}
-
-static void cs_dsp_bin_test_exit(struct kunit *test)
-{
-	cs_dsp_suppress_info_messages = false;
 }
 
 static int cs_dsp_bin_test_halo_init_common(struct kunit *test, int wmdr_ver)
@@ -2833,28 +2839,29 @@ static struct kunit_case cs_dsp_bin_test_cases_adsp2[] = {
 static struct kunit_suite cs_dsp_bin_test_halo = {
 	.name = "cs_dsp_bin_halo",
 	.init = cs_dsp_bin_test_halo_init,
-	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_halo,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_bin_test_halo_wmdr3 = {
 	.name = "cs_dsp_bin_halo_wmdr_v3",
 	.init = cs_dsp_bin_test_halo_wmdr3_init,
 	.test_cases = cs_dsp_bin_test_cases_halo_wmdr3,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_bin_test_adsp2_32bit = {
 	.name = "cs_dsp_bin_adsp2_32bit",
 	.init = cs_dsp_bin_test_adsp2_32bit_init,
-	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_adsp2,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 static struct kunit_suite cs_dsp_bin_test_adsp2_16bit = {
 	.name = "cs_dsp_bin_adsp2_16bit",
 	.init = cs_dsp_bin_test_adsp2_16bit_init,
-	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_adsp2,
+	.attr.speed = KUNIT_SPEED_SLOW,
 };
 
 kunit_test_suites(&cs_dsp_bin_test_halo,

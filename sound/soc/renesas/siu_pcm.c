@@ -483,7 +483,6 @@ siu_pcm_pointer_dma(struct snd_soc_component *component,
 static int siu_pcm_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
 {
-	/* card->dev == socdev->dev, see snd_soc_new_pcms() */
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
 	struct siu_info *info = siu_i2s_data;
@@ -546,8 +545,8 @@ const struct snd_soc_component_driver siu_component = {
 	.prepare		= siu_pcm_prepare,
 	.trigger		= siu_pcm_trigger,
 	.pointer		= siu_pcm_pointer_dma,
-	.pcm_construct		= siu_pcm_new,
-	.pcm_destruct		= siu_pcm_free,
+	.pcm_new		= siu_pcm_new,
+	.pcm_free		= siu_pcm_free,
 	.legacy_dai_naming	= 1,
 };
 EXPORT_SYMBOL_GPL(siu_component);
