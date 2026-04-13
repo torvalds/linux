@@ -435,6 +435,8 @@ out:
  *
  * Verify that when using simple socket-based coredump (@ pattern),
  * the coredump_signal field is correctly exposed as SIGSEGV.
+ * Also check that the coredump_code field is correctly exposed
+ * as SEGV_MAPERR.
  */
 TEST_F(coredump, socket_coredump_signal_sigsegv)
 {
@@ -509,6 +511,18 @@ TEST_F(coredump, socket_coredump_signal_sigsegv)
 			goto out;
 		}
 
+		/* Verify coredump_code is available and correct */
+		if (!(info.mask & PIDFD_INFO_COREDUMP_CODE)) {
+			fprintf(stderr, "socket_coredump_signal_sigsegv: PIDFD_INFO_COREDUMP_CODE not set in mask\n");
+			goto out;
+		}
+
+		if (info.coredump_code != SEGV_MAPERR) {
+			fprintf(stderr, "socket_coredump_signal_sigsegv: coredump_code=%d, expected SEGV_MAPERR=%d\n",
+				info.coredump_code, SEGV_MAPERR);
+			goto out;
+		}
+
 		fd_core_file = open_coredump_tmpfile(self->fd_tmpfs_detached);
 		if (fd_core_file < 0) {
 			fprintf(stderr, "socket_coredump_signal_sigsegv: open_coredump_tmpfile failed: %m\n");
@@ -572,6 +586,8 @@ out:
 	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP));
 	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP_SIGNAL));
 	ASSERT_EQ(info.coredump_signal, SIGSEGV);
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP_CODE));
+	ASSERT_EQ(info.coredump_code, SEGV_MAPERR);
 
 	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
 }
@@ -581,6 +597,8 @@ out:
  *
  * Verify that when using simple socket-based coredump (@ pattern),
  * the coredump_signal field is correctly exposed as SIGABRT.
+ * Also check that the coredump_code field is correctly exposed
+ * as SI_TKILL.
  */
 TEST_F(coredump, socket_coredump_signal_sigabrt)
 {
@@ -655,6 +673,18 @@ TEST_F(coredump, socket_coredump_signal_sigabrt)
 			goto out;
 		}
 
+		/* Verify coredump_code is available and correct */
+		if (!(info.mask & PIDFD_INFO_COREDUMP_CODE)) {
+			fprintf(stderr, "socket_coredump_signal_sigabrt: PIDFD_INFO_COREDUMP_CODE not set in mask\n");
+			goto out;
+		}
+
+		if (info.coredump_code != SI_TKILL) {
+			fprintf(stderr, "socket_coredump_signal_sigabrt: coredump_code=%d, expected SI_TKILL=%d\n",
+				info.coredump_code, SI_TKILL);
+			goto out;
+		}
+
 		fd_core_file = open_coredump_tmpfile(self->fd_tmpfs_detached);
 		if (fd_core_file < 0) {
 			fprintf(stderr, "socket_coredump_signal_sigabrt: open_coredump_tmpfile failed: %m\n");
@@ -718,6 +748,8 @@ out:
 	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP));
 	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP_SIGNAL));
 	ASSERT_EQ(info.coredump_signal, SIGABRT);
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_COREDUMP_CODE));
+	ASSERT_EQ(info.coredump_code, SI_TKILL);
 
 	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
 }

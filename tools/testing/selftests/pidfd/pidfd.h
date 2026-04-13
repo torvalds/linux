@@ -156,6 +156,10 @@
 #define PIDFD_INFO_COREDUMP_SIGNAL	(1UL << 6)
 #endif
 
+#ifndef PIDFD_INFO_COREDUMP_CODE
+#define PIDFD_INFO_COREDUMP_CODE	(1UL << 7)
+#endif
+
 #ifndef PIDFD_COREDUMPED
 #define PIDFD_COREDUMPED	(1U << 0) /* Did crash and... */
 #endif
@@ -194,6 +198,7 @@ struct pidfd_info {
 	struct {
 		__u32 coredump_mask;
 		__u32 coredump_signal;
+		__u32 coredump_code;
 	};
 	__u64 supported_mask;
 };

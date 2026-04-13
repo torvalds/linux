@@ -56,7 +56,7 @@ void crashing_child(void)
 		pthread_create(&thread, NULL, do_nothing, NULL);
 
 	/* crash on purpose */
-	__builtin_trap();
+	i = *(volatile int *)NULL;
 }
 
 int create_detached_tmpfs(void)
@@ -148,8 +148,8 @@ bool get_pidfd_info(int fd_peer_pidfd, struct pidfd_info *info)
 		fprintf(stderr, "get_pidfd_info: ioctl(PIDFD_GET_INFO) failed: %m\n");
 		return false;
 	}
-	fprintf(stderr, "get_pidfd_info: mask=0x%llx, coredump_mask=0x%x, coredump_signal=%d\n",
-		(unsigned long long)info->mask, info->coredump_mask, info->coredump_signal);
+	fprintf(stderr, "get_pidfd_info: mask=0x%llx, coredump_mask=0x%x, coredump_signal=%d, coredump_code=%d\n",
+		(unsigned long long)info->mask, info->coredump_mask, info->coredump_signal, info->coredump_code);
 	return true;
 }
 

@@ -13,6 +13,7 @@
 #ifdef __KERNEL__
 #include <linux/sched.h>
 #define PIDFD_STALE CLONE_PIDFD
+#define PIDFD_AUTOKILL O_TRUNC
 #endif
 
 /* Flags for pidfd_send_signal(). */
@@ -28,10 +29,12 @@
 #define PIDFD_INFO_COREDUMP		(1UL << 4) /* Only returned if requested. */
 #define PIDFD_INFO_SUPPORTED_MASK	(1UL << 5) /* Want/got supported mask flags */
 #define PIDFD_INFO_COREDUMP_SIGNAL	(1UL << 6) /* Always returned if PIDFD_INFO_COREDUMP is requested. */
+#define PIDFD_INFO_COREDUMP_CODE	(1UL << 7) /* Always returned if PIDFD_INFO_COREDUMP is requested. */
 
 #define PIDFD_INFO_SIZE_VER0		64 /* sizeof first published struct */
 #define PIDFD_INFO_SIZE_VER1		72 /* sizeof second published struct */
 #define PIDFD_INFO_SIZE_VER2		80 /* sizeof third published struct */
+#define PIDFD_INFO_SIZE_VER3		88 /* sizeof fourth published struct */
 
 /*
  * Values for @coredump_mask in pidfd_info.
@@ -98,6 +101,8 @@ struct pidfd_info {
 	struct /* coredump info */ {
 		__u32 coredump_mask;
 		__u32 coredump_signal;
+		__u32 coredump_code;
+		__u32 coredump_pad; /* align supported_mask to 8 bytes */
 	};
 	__u64 supported_mask;	/* Mask flags that this kernel supports */
 };
