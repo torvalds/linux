@@ -214,7 +214,7 @@ static void ext4_es_print_tree(struct inode *inode)
 	struct ext4_es_tree *tree;
 	struct rb_node *node;
 
-	printk(KERN_DEBUG "status extents for inode %lu:", inode->i_ino);
+	printk(KERN_DEBUG "status extents for inode %llu:", inode->i_ino);
 	tree = &EXT4_I(inode)->i_es_tree;
 	node = rb_first(&tree->root);
 	while (node) {
@@ -703,7 +703,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		if (!ext4_es_is_written(es) && !ext4_es_is_unwritten(es)) {
 			if (in_range(es->es_lblk, ee_block, ee_len)) {
 				pr_warn("ES insert assertion failed for "
-					"inode: %lu we can find an extent "
+					"inode: %llu we can find an extent "
 					"at block [%d/%d/%llu/%c], but we "
 					"want to add a delayed/hole extent "
 					"[%d/%d/%llu/%x]\n",
@@ -721,7 +721,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		 */
 		if (es->es_lblk < ee_block ||
 		    ext4_es_pblock(es) != ee_start + es->es_lblk - ee_block) {
-			pr_warn("ES insert assertion failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %llu "
 				"ex_status [%d/%d/%llu/%c] != "
 				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
 				ee_block, ee_len, ee_start,
@@ -731,7 +731,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		}
 
 		if (ee_status ^ es_status) {
-			pr_warn("ES insert assertion failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %llu "
 				"ex_status [%d/%d/%llu/%c] != "
 				"es_status [%d/%d/%llu/%c]\n", inode->i_ino,
 				ee_block, ee_len, ee_start,
@@ -744,7 +744,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 		 * that we don't want to add an written/unwritten extent.
 		 */
 		if (!ext4_es_is_delayed(es) && !ext4_es_is_hole(es)) {
-			pr_warn("ES insert assertion failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %llu "
 				"can't find an extent at block %d but we want "
 				"to add a written/unwritten extent "
 				"[%d/%d/%llu/%x]\n", inode->i_ino,
@@ -779,7 +779,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 			 * We want to add a delayed/hole extent but this
 			 * block has been allocated.
 			 */
-			pr_warn("ES insert assertion failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %llu "
 				"We can find blocks but we want to add a "
 				"delayed/hole extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
@@ -788,13 +788,13 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 		} else if (ext4_es_is_written(es)) {
 			if (retval != es->es_len) {
 				pr_warn("ES insert assertion failed for "
-					"inode: %lu retval %d != es_len %d\n",
+					"inode: %llu retval %d != es_len %d\n",
 					inode->i_ino, retval, es->es_len);
 				return;
 			}
 			if (map.m_pblk != ext4_es_pblock(es)) {
 				pr_warn("ES insert assertion failed for "
-					"inode: %lu m_pblk %llu != "
+					"inode: %llu m_pblk %llu != "
 					"es_pblk %llu\n",
 					inode->i_ino, map.m_pblk,
 					ext4_es_pblock(es));
@@ -809,7 +809,7 @@ static void ext4_es_insert_extent_ind_check(struct inode *inode,
 		}
 	} else if (retval == 0) {
 		if (ext4_es_is_written(es)) {
-			pr_warn("ES insert assertion failed for inode: %lu "
+			pr_warn("ES insert assertion failed for inode: %llu "
 				"We can't find the block but we want to add "
 				"a written extent [%d/%d/%llu/%x]\n",
 				inode->i_ino, es->es_lblk, es->es_len,
@@ -919,7 +919,7 @@ void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
 
-	es_debug("add [%u/%u) %llu %x %d to extent status tree of inode %lu\n",
+	es_debug("add [%u/%u) %llu %x %d to extent status tree of inode %llu\n",
 		 lblk, len, pblk, status, delalloc_reserve_used, inode->i_ino);
 
 	if (!len)
@@ -1631,7 +1631,7 @@ void ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
 
-	es_debug("remove [%u/%u) from extent status tree of inode %lu\n",
+	es_debug("remove [%u/%u) from extent status tree of inode %llu\n",
 		 lblk, len, inode->i_ino);
 
 	if (!len)
@@ -1821,7 +1821,7 @@ int ext4_seq_es_shrinker_info_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  %lu shrunk objects\n", es_stats->es_stats_shrunk);
 	if (inode_cnt)
 		seq_printf(seq,
-		    "maximum:\n  %lu inode (%u objects, %u reclaimable)\n"
+		    "maximum:\n  %llu inode (%u objects, %u reclaimable)\n"
 		    "  %llu us max scan time\n",
 		    max->vfs_inode.i_ino, max->i_es_all_nr, max->i_es_shk_nr,
 		    div_u64(es_stats->es_stats_max_scan_time, 1000));
@@ -1998,7 +1998,7 @@ static void ext4_print_pending_tree(struct inode *inode)
 	struct rb_node *node;
 	struct pending_reservation *pr;
 
-	printk(KERN_DEBUG "pending reservations for inode %lu:", inode->i_ino);
+	printk(KERN_DEBUG "pending reservations for inode %llu:", inode->i_ino);
 	tree = &EXT4_I(inode)->i_pending_tree;
 	node = rb_first(&tree->root);
 	while (node) {
@@ -2214,7 +2214,7 @@ void ext4_es_insert_delayed_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
 
-	es_debug("add [%u/%u) delayed to extent status tree of inode %lu\n",
+	es_debug("add [%u/%u) delayed to extent status tree of inode %llu\n",
 		 lblk, len, inode->i_ino);
 	if (!len)
 		return;

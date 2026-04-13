@@ -180,7 +180,7 @@ static int ext4_end_io_end(ext4_io_end_t *io_end)
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 
-	ext4_debug("ext4_end_io_nolock: io_end 0x%p from inode %lu,list->next 0x%p,"
+	ext4_debug("ext4_end_io_nolock: io_end 0x%p from inode %llu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 		   io_end, inode->i_ino, io_end->list.next, io_end->list.prev);
 
@@ -204,7 +204,7 @@ static int ext4_end_io_end(ext4_io_end_t *io_end)
 		ext4_msg(sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
 			 "extents -- potential data loss!  "
-			 "(inode %lu, error %d)", inode->i_ino, ret);
+			 "(inode %llu, error %d)", inode->i_ino, ret);
 	}
 
 	ext4_clear_io_unwritten_flag(io_end);
@@ -221,7 +221,7 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 	if (list_empty(head))
 		return;
 
-	ext4_debug("Dump inode %lu completed io list\n", inode->i_ino);
+	ext4_debug("Dump inode %llu completed io list\n", inode->i_ino);
 	list_for_each_entry(io_end, head, list) {
 		cur = &io_end->list;
 		before = cur->prev;
@@ -229,7 +229,7 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 		after = cur->next;
 		io_end1 = container_of(after, ext4_io_end_t, list);
 
-		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
+		ext4_debug("io 0x%p from inode %llu,prev 0x%p,next 0x%p\n",
 			    io_end, inode->i_ino, io_end0, io_end1);
 	}
 #endif
@@ -366,7 +366,7 @@ static void ext4_end_bio(struct bio *bio)
 	if (bio->bi_status) {
 		struct inode *inode = io_end->inode;
 
-		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
+		ext4_warning(inode->i_sb, "I/O error %d writing to inode %llu "
 			     "starting block %llu)",
 			     bio->bi_status, inode->i_ino,
 			     (unsigned long long)

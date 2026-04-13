@@ -92,7 +92,7 @@ static int xsk_diag_put_stats(const struct xdp_sock *xs, struct sk_buff *nlskb)
 static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 			 struct xdp_diag_req *req,
 			 struct user_namespace *user_ns,
-			 u32 portid, u32 seq, u32 flags, int sk_ino)
+			 u32 portid, u32 seq, u32 flags, u64 sk_ino)
 {
 	struct xdp_sock *xs = xdp_sk(sk);
 	struct xdp_diag_msg *msg;

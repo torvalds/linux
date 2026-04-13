@@ -13,7 +13,7 @@ DECLARE_EVENT_CLASS(ext2_dio_class,
 	TP_ARGS(iocb, iter, ret),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(u64,	ino)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(size_t,	count)
@@ -31,7 +31,7 @@ DECLARE_EVENT_CLASS(ext2_dio_class,
 		__entry->aio = !is_sync_kiocb(iocb);
 		__entry->ret = ret;
 	),
-	TP_printk("dev %d:%d ino 0x%lx isize 0x%llx pos 0x%llx len %zu flags %s aio %d ret %zd",
+	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx pos 0x%llx len %zu flags %s aio %d ret %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->isize,
@@ -57,7 +57,7 @@ TRACE_EVENT(ext2_dio_write_endio,
 	TP_ARGS(iocb, size, ret),
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(ino_t,	ino)
+		__field(u64,	ino)
 		__field(loff_t, isize)
 		__field(loff_t, pos)
 		__field(ssize_t, size)
@@ -75,7 +75,7 @@ TRACE_EVENT(ext2_dio_write_endio,
 		__entry->aio = !is_sync_kiocb(iocb);
 		__entry->ret = ret;
 	),
-	TP_printk("dev %d:%d ino 0x%lx isize 0x%llx pos 0x%llx len %zd flags %s aio %d ret %d",
+	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx pos 0x%llx len %zd flags %s aio %d ret %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->isize,

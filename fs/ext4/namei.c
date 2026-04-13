@@ -144,7 +144,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 		bh = ext4_bread(NULL, inode, block, 0);
 	if (IS_ERR(bh)) {
 		__ext4_warning(inode->i_sb, func, line,
-			       "inode #%lu: lblock %lu: comm %s: "
+			       "inode #%llu: lblock %lu: comm %s: "
 			       "error %ld reading directory block",
 			       inode->i_ino, (unsigned long)block,
 			       current->comm, PTR_ERR(bh));
@@ -841,7 +841,7 @@ dx_probe(struct ext4_filename *fname, struct inode *dir,
 	indirect = root->info.indirect_levels;
 	if (indirect >= ext4_dir_htree_level(dir->i_sb)) {
 		ext4_warning(dir->i_sb,
-			     "Directory (ino: %lu) htree depth %#06x exceed"
+			     "Directory (ino: %llu) htree depth %#06x exceed"
 			     "supported value", dir->i_ino,
 			     ext4_dir_htree_level(dir->i_sb));
 		if (ext4_dir_htree_level(dir->i_sb) < EXT4_HTREE_LEVEL) {
@@ -1793,7 +1793,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 		    (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode)) &&
 		    !fscrypt_has_permitted_context(dir, inode)) {
 			ext4_warning(inode->i_sb,
-				     "Inconsistent encryption contexts: %lu/%lu",
+				     "Inconsistent encryption contexts: %llu/%llu",
 				     dir->i_ino, inode->i_ino);
 			iput(inode);
 			return ERR_PTR(-EPERM);
@@ -2227,7 +2227,7 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	blocksize =  dir->i_sb->s_blocksize;
-	dxtrace(printk(KERN_DEBUG "Creating index: inode %lu\n", dir->i_ino));
+	dxtrace(printk(KERN_DEBUG "Creating index: inode %llu\n", dir->i_ino));
 	BUFFER_TRACE(bh, "get_write_access");
 	retval = ext4_journal_get_write_access(handle, dir->i_sb, bh,
 					       EXT4_JTR_NONE);
@@ -2523,7 +2523,7 @@ again:
 			restart = 1;
 		}
 		if (add_level && levels == ext4_dir_htree_level(sb)) {
-			ext4_warning(sb, "Directory (ino: %lu) index full, "
+			ext4_warning(sb, "Directory (ino: %llu) index full, "
 					 "reach max htree level :%d",
 					 dir->i_ino, levels);
 			if (ext4_dir_htree_level(sb) < EXT4_HTREE_LEVEL) {

@@ -64,7 +64,7 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 		 * clearing of an abandoned b-tree node is missing somewhere).
 		 */
 		nilfs_error(inode->i_sb,
-			    "state inconsistency probably due to duplicate use of b-tree node block address %llu (ino=%lu)",
+			    "state inconsistency probably due to duplicate use of b-tree node block address %llu (ino=%llu)",
 			    (unsigned long long)blocknr, inode->i_ino);
 		goto failed;
 	}

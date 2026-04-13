@@ -535,7 +535,7 @@ static int call_filldir(struct file *file, struct dir_context *ctx,
 	struct super_block *sb = inode->i_sb;
 
 	if (!fname) {
-		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%lu: comm %s: "
+		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%llu: comm %s: "
 			 "called with null fname?!?", __func__, __LINE__,
 			 inode->i_ino, current->comm);
 		return 0;

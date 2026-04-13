@@ -18,7 +18,7 @@ TRACE_EVENT(page_cache_ra_unbounded,
 	TP_ARGS(inode, index, nr_to_read, lookahead_size),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
 		__field(dev_t, s_dev)
 		__field(pgoff_t, index)
 		__field(unsigned long, nr_to_read)
@@ -34,7 +34,7 @@ TRACE_EVENT(page_cache_ra_unbounded,
 	),
 
 	TP_printk(
-		"dev=%d:%d ino=%lx index=%lu nr_to_read=%lu lookahead_size=%lu",
+		"dev=%d:%d ino=%llx index=%lu nr_to_read=%lu lookahead_size=%lu",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev), __entry->i_ino,
 		__entry->index, __entry->nr_to_read, __entry->lookahead_size
 	)
@@ -46,7 +46,7 @@ TRACE_EVENT(page_cache_ra_order,
 	TP_ARGS(inode, index, ra),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
 		__field(dev_t, s_dev)
 		__field(pgoff_t, index)
 		__field(unsigned int, order)
@@ -66,7 +66,7 @@ TRACE_EVENT(page_cache_ra_order,
 	),
 
 	TP_printk(
-		"dev=%d:%d ino=%lx index=%lu order=%u size=%u async_size=%u ra_pages=%u",
+		"dev=%d:%d ino=%llx index=%lu order=%u size=%u async_size=%u ra_pages=%u",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev), __entry->i_ino,
 		__entry->index, __entry->order, __entry->size,
 		__entry->async_size, __entry->ra_pages
@@ -80,16 +80,16 @@ DECLARE_EVENT_CLASS(page_cache_ra_op,
 	TP_ARGS(inode, index, ra, req_count),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
-		__field(dev_t, s_dev)
+		__field(u64, i_ino)
+		__field(loff_t, prev_pos)
 		__field(pgoff_t, index)
+		__field(unsigned long, req_count)
+		__field(dev_t, s_dev)
 		__field(unsigned int, order)
 		__field(unsigned int, size)
 		__field(unsigned int, async_size)
 		__field(unsigned int, ra_pages)
 		__field(unsigned int, mmap_miss)
-		__field(loff_t, prev_pos)
-		__field(unsigned long, req_count)
 	),
 
 	TP_fast_assign(
@@ -106,7 +106,7 @@ DECLARE_EVENT_CLASS(page_cache_ra_op,
 	),
 
 	TP_printk(
-		"dev=%d:%d ino=%lx index=%lu req_count=%lu order=%u size=%u async_size=%u ra_pages=%u mmap_miss=%u prev_pos=%lld",
+		"dev=%d:%d ino=%llx index=%lu req_count=%lu order=%u size=%u async_size=%u ra_pages=%u mmap_miss=%u prev_pos=%lld",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev), __entry->i_ino,
 		__entry->index, __entry->req_count, __entry->order,
 		__entry->size, __entry->async_size, __entry->ra_pages,

@@ -1261,7 +1261,7 @@ out_noread:
 
 out_toomany:
 	printk(KERN_INFO "%s: More than 100 file sections ?!?, aborting...\n"
-		"isofs_read_level3_size: inode=%lu\n",
+		"isofs_read_level3_size: inode=%llu\n",
 		__func__, inode->i_ino);
 	goto out;
 }
@@ -1380,7 +1380,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 	/* I have no idea what file_unit_size is used for, so
 	   we will flag it for now */
 	if (de->file_unit_size[0] != 0) {
-		printk(KERN_DEBUG "ISOFS: File unit size != 0 for ISO file (%ld).\n",
+		printk(KERN_DEBUG "ISOFS: File unit size != 0 for ISO file (%llu).\n",
 			inode->i_ino);
 	}
 
@@ -1389,7 +1389,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 #ifdef DEBUG
 	if((de->flags[-high_sierra] & ~2)!= 0){
 		printk(KERN_DEBUG "ISOFS: Unusual flag settings for ISO file "
-				"(%ld %x).\n",
+				"(%llu %x).\n",
 			inode->i_ino, de->flags[-high_sierra]);
 	}
 #endif
@@ -1450,7 +1450,7 @@ static int isofs_read_inode(struct inode *inode, int relocated)
 		/* XXX - parse_rock_ridge_inode() had already set i_rdev. */
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	} else {
-		printk(KERN_DEBUG "ISOFS: Invalid file type 0%04o for inode %lu.\n",
+		printk(KERN_DEBUG "ISOFS: Invalid file type 0%04o for inode %llu.\n",
 			inode->i_mode, inode->i_ino);
 		ret = -EIO;
 		goto fail;

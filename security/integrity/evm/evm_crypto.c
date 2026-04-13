@@ -144,6 +144,12 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 			  char type, char *digest)
 {
 	struct h_misc {
+		/*
+		 * Although inode->i_ino is now u64, this field remains
+		 * unsigned long to allow existing HMAC and signatures from
+		 * 32-bit hosts to continue working when i_ino hasn't changed
+		 * and fits in a u32.
+		 */
 		unsigned long ino;
 		__u32 generation;
 		uid_t uid;

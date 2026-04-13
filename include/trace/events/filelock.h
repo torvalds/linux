@@ -42,10 +42,10 @@ TRACE_EVENT(locks_get_lock_context,
 	TP_ARGS(inode, type, ctx),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
+		__field(struct file_lock_context *, ctx)
 		__field(dev_t, s_dev)
 		__field(unsigned char, type)
-		__field(struct file_lock_context *, ctx)
 	),
 
 	TP_fast_assign(
@@ -55,7 +55,7 @@ TRACE_EVENT(locks_get_lock_context,
 		__entry->ctx = ctx;
 	),
 
-	TP_printk("dev=0x%x:0x%x ino=0x%lx type=%s ctx=%p",
+	TP_printk("dev=0x%x:0x%x ino=0x%llx type=%s ctx=%p",
 		  MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		  __entry->i_ino, show_fl_type(__entry->type), __entry->ctx)
 );
@@ -66,16 +66,16 @@ DECLARE_EVENT_CLASS(filelock_lock,
 	TP_ARGS(inode, fl, ret),
 
 	TP_STRUCT__entry(
+		__field(u64, i_ino)
+		__field(loff_t, fl_start)
+		__field(loff_t, fl_end)
 		__field(struct file_lock *, fl)
-		__field(unsigned long, i_ino)
-		__field(dev_t, s_dev)
 		__field(struct file_lock_core *, blocker)
 		__field(fl_owner_t, owner)
+		__field(dev_t, s_dev)
 		__field(unsigned int, pid)
 		__field(unsigned int, flags)
 		__field(unsigned char, type)
-		__field(loff_t, fl_start)
-		__field(loff_t, fl_end)
 		__field(int, ret)
 	),
 
@@ -93,7 +93,7 @@ DECLARE_EVENT_CLASS(filelock_lock,
 		__entry->ret = ret;
 	),
 
-	TP_printk("fl=%p dev=0x%x:0x%x ino=0x%lx fl_blocker=%p fl_owner=%p fl_pid=%u fl_flags=%s fl_type=%s fl_start=%lld fl_end=%lld ret=%d",
+	TP_printk("fl=%p dev=0x%x:0x%x ino=0x%llx fl_blocker=%p fl_owner=%p fl_pid=%u fl_flags=%s fl_type=%s fl_start=%lld fl_end=%lld ret=%d",
 		__entry->fl, MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		__entry->i_ino, __entry->blocker, __entry->owner,
 		__entry->pid, show_fl_flags(__entry->flags),
@@ -123,15 +123,15 @@ DECLARE_EVENT_CLASS(filelock_lease,
 	TP_ARGS(inode, fl),
 
 	TP_STRUCT__entry(
+		__field(u64, i_ino)
 		__field(struct file_lease *, fl)
-		__field(unsigned long, i_ino)
-		__field(dev_t, s_dev)
 		__field(struct file_lock_core *, blocker)
 		__field(fl_owner_t, owner)
-		__field(unsigned int, flags)
-		__field(unsigned char, type)
 		__field(unsigned long, break_time)
 		__field(unsigned long, downgrade_time)
+		__field(dev_t, s_dev)
+		__field(unsigned int, flags)
+		__field(unsigned char, type)
 	),
 
 	TP_fast_assign(
@@ -146,7 +146,7 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__entry->downgrade_time = fl ? fl->fl_downgrade_time : 0;
 	),
 
-	TP_printk("fl=%p dev=0x%x:0x%x ino=0x%lx fl_blocker=%p fl_owner=%p fl_flags=%s fl_type=%s fl_break_time=%lu fl_downgrade_time=%lu",
+	TP_printk("fl=%p dev=0x%x:0x%x ino=0x%llx fl_blocker=%p fl_owner=%p fl_flags=%s fl_type=%s fl_break_time=%lu fl_downgrade_time=%lu",
 		__entry->fl, MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		__entry->i_ino, __entry->blocker, __entry->owner,
 		show_fl_flags(__entry->flags),
@@ -175,12 +175,12 @@ TRACE_EVENT(generic_add_lease,
 	TP_ARGS(inode, fl),
 
 	TP_STRUCT__entry(
-		__field(unsigned long, i_ino)
+		__field(u64, i_ino)
+		__field(fl_owner_t, owner)
+		__field(dev_t, s_dev)
 		__field(int, wcount)
 		__field(int, rcount)
 		__field(int, icount)
-		__field(dev_t, s_dev)
-		__field(fl_owner_t, owner)
 		__field(unsigned int, flags)
 		__field(unsigned char, type)
 	),
@@ -196,7 +196,7 @@ TRACE_EVENT(generic_add_lease,
 		__entry->type = fl->c.flc_type;
 	),
 
-	TP_printk("dev=0x%x:0x%x ino=0x%lx wcount=%d rcount=%d icount=%d fl_owner=%p fl_flags=%s fl_type=%s",
+	TP_printk("dev=0x%x:0x%x ino=0x%llx wcount=%d rcount=%d icount=%d fl_owner=%p fl_flags=%s fl_type=%s",
 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
 		__entry->i_ino, __entry->wcount, __entry->rcount,
 		__entry->icount, __entry->owner,

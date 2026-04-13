@@ -33,7 +33,7 @@ static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
 
 	if (err == -EINVAL) {
 		__nilfs_error(inode->i_sb, fname,
-			      "broken bmap (inode number=%lu)", inode->i_ino);
+			      "broken bmap (inode number=%llu)", inode->i_ino);
 		err = -EIO;
 	}
 	return err;
@@ -450,17 +450,24 @@ __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *bmap, __u64 key)
 		return NILFS_BMAP_INVALID_PTR;
 }
 
-#define NILFS_BMAP_GROUP_DIV	8
+#define NILFS_BMAP_GROUP_DIV	8	/* must be power of 2 */
+
 __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *bmap)
 {
 	struct inode *dat = nilfs_bmap_get_dat(bmap);
 	unsigned long entries_per_group = nilfs_palloc_entries_per_group(dat);
-	unsigned long group = bmap->b_inode->i_ino / entries_per_group;
+	unsigned long group;
+	u32 index;
+
+	BUILD_BUG_ON_NOT_POWER_OF_2(NILFS_BMAP_GROUP_DIV);
+
+	group = div_u64(bmap->b_inode->i_ino, entries_per_group);
+	index = bmap->b_inode->i_ino & (NILFS_BMAP_GROUP_DIV - 1);
 
 	return group * entries_per_group +
-		(bmap->b_inode->i_ino % NILFS_BMAP_GROUP_DIV) *
-		(entries_per_group / NILFS_BMAP_GROUP_DIV);
+	       index * (entries_per_group / NILFS_BMAP_GROUP_DIV);
 }
+
 
 static struct lock_class_key nilfs_bmap_dat_lock_key;
 static struct lock_class_key nilfs_bmap_mdt_lock_key;
