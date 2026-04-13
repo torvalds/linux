@@ -574,7 +574,7 @@ static int print_instances(struct bpf_verifier_env *env)
  *
  *   precise {frame=N, off=V}      -- known absolute frame index and byte offset
  *        |
- *   offset-imprecise {frame=N, off=OFF_IMPRECISE}
+ *   offset-imprecise {frame=N, cnt=0}
  *        |                        -- known frame identity, unknown offset
  *   fully-imprecise {frame=ARG_IMPRECISE, mask=bitmask}
  *                                 -- unknown frame identity; .mask is a
@@ -607,8 +607,6 @@ enum arg_track_state {
 	ARG_IMPRECISE	= -3,	/* lost identity; .mask is arg bitmask */
 };
 
-#define OFF_IMPRECISE	S16_MIN	/* arg identity known but offset unknown */
-
 /* Track callee stack slots fp-8 through fp-512 (64 slots of 8 bytes each) */
 #define MAX_ARG_SPILL_SLOTS 64
 
@@ -620,28 +618,6 @@ static bool arg_is_visited(const struct arg_track *at)
 static bool arg_is_fp(const struct arg_track *at)
 {
 	return at->frame >= 0 || at->frame == ARG_IMPRECISE;
-}
-
-/*
- * Clear all tracked callee stack slots overlapping the byte range
- * [off, off+sz-1] where off is a negative FP-relative offset.
- */
-static void clear_overlapping_stack_slots(struct arg_track *at_stack, s16 off, u32 sz)
-{
-	struct arg_track none = { .frame = ARG_NONE };
-
-	if (off == OFF_IMPRECISE) {
-		for (int i = 0; i < MAX_ARG_SPILL_SLOTS; i++)
-			at_stack[i] = none;
-		return;
-	}
-	for (int i = 0; i < MAX_ARG_SPILL_SLOTS; i++) {
-		int slot_start = -((i + 1) * 8);
-		int slot_end = slot_start + 8;
-
-		if (slot_start < off + (int)sz && slot_end > off)
-			at_stack[i] = none;
-	}
 }
 
 static void verbose_arg_track(struct bpf_verifier_env *env, struct arg_track *at)
@@ -863,16 +839,13 @@ static void arg_track_alu64(struct arg_track *dst, const struct arg_track *src)
 	*dst = arg_join_imprecise(*dst, *src);
 }
 
-static s16 arg_add(s16 off, s64 delta)
+static bool arg_add(s16 off, s64 delta, s16 *out)
 {
-	s64 res;
+	s16 d = delta;
 
-	if (off == OFF_IMPRECISE)
-		return OFF_IMPRECISE;
-	res = (s64)off + delta;
-	if (res < S16_MIN + 1 || res > S16_MAX)
-		return OFF_IMPRECISE;
-	return res;
+	if (d != delta)
+		return true;
+	return check_add_overflow(off, d, out);
 }
 
 static void arg_padd(struct arg_track *at, s64 delta)
@@ -882,9 +855,9 @@ static void arg_padd(struct arg_track *at, s64 delta)
 	if (at->off_cnt == 0)
 		return;
 	for (i = 0; i < at->off_cnt; i++) {
-		s16 new_off = arg_add(at->off[i], delta);
+		s16 new_off;
 
-		if (new_off == OFF_IMPRECISE) {
+		if (arg_add(at->off[i], delta, &new_off)) {
 			at->off_cnt = 0;
 			return;
 		}
@@ -899,8 +872,6 @@ static void arg_padd(struct arg_track *at, s64 delta)
  */
 static int fp_off_to_slot(s16 off)
 {
-	if (off == OFF_IMPRECISE)
-		return -1;
 	if (off >= 0 || off < -(int)(MAX_ARG_SPILL_SLOTS * 8))
 		return -1;
 	if (off % 8)
@@ -930,9 +901,11 @@ static struct arg_track fill_from_stack(struct bpf_insn *insn,
 		return imp;
 
 	for (i = 0; i < cnt; i++) {
-		s16 fp_off = arg_add(at_out[reg].off[i], insn->off);
-		int slot = fp_off_to_slot(fp_off);
+		s16 fp_off, slot;
 
+		if (arg_add(at_out[reg].off[i], insn->off, &fp_off))
+			return imp;
+		slot = fp_off_to_slot(fp_off);
 		if (slot < 0)
 			return imp;
 		result = __arg_track_join(result, at_stack_out[slot]);
@@ -968,15 +941,44 @@ static void spill_to_stack(struct bpf_insn *insn, struct arg_track *at_out,
 		return;
 	}
 	for (i = 0; i < cnt; i++) {
-		s16 fp_off = arg_add(at_out[reg].off[i], insn->off);
-		int slot = fp_off_to_slot(fp_off);
+		s16 fp_off;
+		int slot;
 
+		if (arg_add(at_out[reg].off[i], insn->off, &fp_off))
+			continue;
+		slot = fp_off_to_slot(fp_off);
 		if (slot < 0)
 			continue;
 		if (cnt == 1)
 			at_stack_out[slot] = new_val;
 		else
 			at_stack_out[slot] = __arg_track_join(at_stack_out[slot], new_val);
+	}
+}
+
+/*
+ * Clear all tracked callee stack slots overlapping the byte range
+ * [off, off+sz-1] where off is a negative FP-relative offset.
+ */
+static void clear_overlapping_stack_slots(struct arg_track *at_stack, s16 off, u32 sz, int cnt)
+{
+	struct arg_track none = { .frame = ARG_NONE };
+
+	if (cnt == 0) {
+		for (int i = 0; i < MAX_ARG_SPILL_SLOTS; i++)
+			at_stack[i] = __arg_track_join(at_stack[i], none);
+		return;
+	}
+	for (int i = 0; i < MAX_ARG_SPILL_SLOTS; i++) {
+		int slot_start = -((i + 1) * 8);
+		int slot_end = slot_start + 8;
+
+		if (slot_start < off + (int)sz && slot_end > off) {
+			if (cnt == 1)
+				at_stack[i] = none;
+			else
+				at_stack[i] = __arg_track_join(at_stack[i], none);
+		}
 	}
 }
 
@@ -990,18 +992,22 @@ static void clear_stack_for_all_offs(struct bpf_insn *insn,
 	int cnt, i;
 
 	if (reg == BPF_REG_FP) {
-		clear_overlapping_stack_slots(at_stack_out, insn->off, sz);
+		clear_overlapping_stack_slots(at_stack_out, insn->off, sz, 1);
 		return;
 	}
 	cnt = at_out[reg].off_cnt;
 	if (cnt == 0) {
-		clear_overlapping_stack_slots(at_stack_out, OFF_IMPRECISE, sz);
+		clear_overlapping_stack_slots(at_stack_out, 0, sz, cnt);
 		return;
 	}
 	for (i = 0; i < cnt; i++) {
-		s16 fp_off = arg_add(at_out[reg].off[i], insn->off);
+		s16 fp_off;
 
-		clear_overlapping_stack_slots(at_stack_out, fp_off, sz);
+		if (arg_add(at_out[reg].off[i], insn->off, &fp_off)) {
+			clear_overlapping_stack_slots(at_stack_out, 0, sz, 0);
+			break;
+		}
+		clear_overlapping_stack_slots(at_stack_out, fp_off, sz, cnt);
 	}
 }
 
@@ -1040,6 +1046,12 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 	}
 	if (printed)
 		verbose(env, "\n");
+}
+
+static bool can_be_local_fp(int depth, int regno, struct arg_track *at)
+{
+	return regno == BPF_REG_FP || at->frame == depth ||
+	       (at->frame == ARG_IMPRECISE && (at->mask & BIT(depth)));
 }
 
 /*
@@ -1111,8 +1123,7 @@ static void arg_track_xfer(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			at_out[r] = none;
 	} else if (class == BPF_LDX) {
 		u32 sz = bpf_size_to_bytes(BPF_SIZE(insn->code));
-		bool src_is_local_fp = insn->src_reg == BPF_REG_FP || src->frame == depth ||
-				       (src->frame == ARG_IMPRECISE && (src->mask & BIT(depth)));
+		bool src_is_local_fp = can_be_local_fp(depth, insn->src_reg, src);
 
 		/*
 		 * Reload from callee stack: if src is current-frame FP-derived
@@ -1147,7 +1158,7 @@ static void arg_track_xfer(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		bool dst_is_local_fp;
 
 		/* Track spills to current-frame FP-derived callee stack */
-		dst_is_local_fp = insn->dst_reg == BPF_REG_FP || dst->frame == depth;
+		dst_is_local_fp = can_be_local_fp(depth, insn->dst_reg, dst);
 		if (dst_is_local_fp && BPF_MODE(insn->code) == BPF_MEM)
 			spill_to_stack(insn, at_out, insn->dst_reg,
 				       at_stack_out, src, sz);
@@ -1166,7 +1177,7 @@ static void arg_track_xfer(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		}
 	} else if (class == BPF_ST && BPF_MODE(insn->code) == BPF_MEM) {
 		u32 sz = bpf_size_to_bytes(BPF_SIZE(insn->code));
-		bool dst_is_local_fp = insn->dst_reg == BPF_REG_FP || dst->frame == depth;
+		bool dst_is_local_fp = can_be_local_fp(depth, insn->dst_reg, dst);
 
 		/* BPF_ST to FP-derived dst: clear overlapping stack slots */
 		if (dst_is_local_fp)
@@ -1316,8 +1327,7 @@ static int record_load_store_access(struct bpf_verifier_env *env,
 		resolved.off_cnt = ptr->off_cnt;
 		resolved.frame = ptr->frame;
 		for (oi = 0; oi < ptr->off_cnt; oi++) {
-			resolved.off[oi] = arg_add(ptr->off[oi], insn->off);
-			if (resolved.off[oi] == OFF_IMPRECISE) {
+			if (arg_add(ptr->off[oi], insn->off, &resolved.off[oi])) {
 				resolved.off_cnt = 0;
 				break;
 			}
