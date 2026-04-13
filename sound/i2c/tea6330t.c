@@ -51,6 +51,7 @@ int snd_tea6330t_detect(struct snd_i2c_bus *bus, int equalizer)
 	snd_i2c_unlock(bus);
 	return res;
 }
+EXPORT_SYMBOL(snd_tea6330t_detect);
 
 #if 0
 static void snd_tea6330t_set(struct tea6330t *tea,
@@ -355,6 +356,42 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
       	snd_i2c_device_free(device);
       	return err;
 }
-
-EXPORT_SYMBOL(snd_tea6330t_detect);
 EXPORT_SYMBOL(snd_tea6330t_update_mixer);
+
+int snd_tea6330t_restore_mixer(struct snd_i2c_bus *bus)
+{
+	struct snd_i2c_device *device;
+	struct tea6330t *tea;
+	unsigned char bytes[7];
+	unsigned int idx;
+	int err;
+
+	if (!bus)
+		return -EINVAL;
+
+	snd_i2c_lock(bus);
+	list_for_each_entry(device, &bus->devices, list) {
+		if (device->addr != TEA6330T_ADDR)
+			continue;
+
+		tea = device->private_data;
+		if (!tea) {
+			err = -EINVAL;
+			goto unlock;
+		}
+
+		bytes[0] = TEA6330T_SADDR_VOLUME_LEFT;
+		for (idx = 0; idx < 6; idx++)
+			bytes[idx + 1] = tea->regs[idx];
+		err = snd_i2c_sendbytes(device, bytes, 7);
+		err = err < 0 ? err : 0;
+		goto unlock;
+	}
+
+	err = -ENODEV;
+
+unlock:
+	snd_i2c_unlock(bus);
+	return err;
+}
+EXPORT_SYMBOL(snd_tea6330t_restore_mixer);

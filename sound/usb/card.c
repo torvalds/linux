@@ -631,9 +631,9 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 	}
 
 	/* retrieve the device string as shortname */
-	if (!dev->descriptor.iProduct ||
-	    usb_string(dev, dev->descriptor.iProduct,
-		       card->shortname, sizeof(card->shortname)) <= 0) {
+	if (dev->product && *dev->product) {
+		strscpy(card->shortname, dev->product);
+	} else {
 		/* no name available from anywhere, so use ID */
 		scnprintf(card->shortname, sizeof(card->shortname),
 			  "USB Device %#04x:%#04x",
@@ -668,15 +668,11 @@ static void usb_audio_make_longname(struct usb_device *dev,
 	else if (quirk && quirk->vendor_name)
 		s = quirk->vendor_name;
 	*card->longname = 0;
-	if (s && *s) {
-		strscpy(card->longname, s, sizeof(card->longname));
-	} else {
-		/* retrieve the vendor and device strings as longname */
-		if (dev->descriptor.iManufacturer)
-			usb_string(dev, dev->descriptor.iManufacturer,
-				   card->longname, sizeof(card->longname));
-		/* we don't really care if there isn't any vendor string */
-	}
+	if (s && *s)
+		strscpy(card->longname, s);
+	else if (dev->manufacturer && *dev->manufacturer)
+		strscpy(card->longname, dev->manufacturer);
+
 	if (*card->longname) {
 		strim(card->longname);
 		if (*card->longname)
@@ -870,19 +866,25 @@ static void find_last_interface(struct snd_usb_audio *chip)
 
 /* look for the corresponding quirk */
 static const struct snd_usb_audio_quirk *
-get_alias_quirk(struct usb_device *dev, unsigned int id)
+get_alias_quirk(struct usb_interface *intf, unsigned int id)
 {
 	const struct usb_device_id *p;
+	struct usb_device_id match_id;
 
 	for (p = usb_audio_ids; p->match_flags; p++) {
-		/* FIXME: this checks only vendor:product pair in the list */
-		if ((p->match_flags & USB_DEVICE_ID_MATCH_DEVICE) ==
-		    USB_DEVICE_ID_MATCH_DEVICE &&
-		    p->idVendor == USB_ID_VENDOR(id) &&
-		    p->idProduct == USB_ID_PRODUCT(id))
-			return (const struct snd_usb_audio_quirk *)p->driver_info;
-	}
+		if ((p->match_flags & USB_DEVICE_ID_MATCH_DEVICE) !=
+		     USB_DEVICE_ID_MATCH_DEVICE)
+			continue;
+		if (p->idVendor != USB_ID_VENDOR(id) ||
+		    p->idProduct != USB_ID_PRODUCT(id))
+			continue;
 
+		match_id = *p;
+		match_id.match_flags &= ~USB_DEVICE_ID_MATCH_DEVICE;
+		if (!match_id.match_flags || usb_match_one_id(intf, &match_id))
+			return (const struct snd_usb_audio_quirk *)
+				p->driver_info;
+	}
 	return NULL;
 }
 
@@ -931,7 +933,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 		    le16_to_cpu(dev->descriptor.idProduct));
 	if (get_alias_id(dev, &id))
-		quirk = get_alias_quirk(dev, id);
+		quirk = get_alias_quirk(intf, id);
 	if (quirk && quirk->ifnum >= 0 && ifnum != quirk->ifnum)
 		return -ENXIO;
 	if (quirk && quirk->ifnum == QUIRK_NODEV_INTERFACE)

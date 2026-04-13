@@ -38,6 +38,8 @@ struct ad198x_spec {
 
 	unsigned int beep_amp;	/* beep amp value, set via set_beep_amp() */
 	int num_smux_conns;
+
+	unsigned int gpio_data;
 };
 
 
@@ -934,9 +936,9 @@ static void ad1884_vmaster_hp_gpio_hook(void *private_data, int enabled)
 
 	if (spec->eapd_nid)
 		ad_vmaster_eapd_hook(private_data, enabled);
-	snd_hda_codec_write_cache(codec, 0x01, 0,
-				   AC_VERB_SET_GPIO_DATA,
-				   enabled ? 0x00 : 0x02);
+	spec->gpio_data = enabled ? 0x00 : 0x02;
+	snd_hda_codec_write(codec, 0x01, 0,
+			    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 }
 
 static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
@@ -948,18 +950,16 @@ static void ad1884_fixup_hp_eapd(struct hda_codec *codec,
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		spec->gen.vmaster_mute.hook = ad1884_vmaster_hp_gpio_hook;
 		spec->gen.own_eapd_ctl = 1;
-		snd_hda_codec_write_cache(codec, 0x01, 0,
-					  AC_VERB_SET_GPIO_MASK, 0x02);
-		snd_hda_codec_write_cache(codec, 0x01, 0,
-					  AC_VERB_SET_GPIO_DIRECTION, 0x02);
-		snd_hda_codec_write_cache(codec, 0x01, 0,
-					  AC_VERB_SET_GPIO_DATA, 0x02);
+		spec->gpio_data = 0x02;
 		break;
 	case HDA_FIXUP_ACT_PROBE:
 		if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
 			spec->eapd_nid = spec->gen.autocfg.line_out_pins[0];
 		else
 			spec->eapd_nid = spec->gen.autocfg.speaker_pins[0];
+		break;
+	case HDA_FIXUP_ACT_INIT:
+		snd_hda_codec_set_gpio(codec, 0x02, 0x02, spec->gpio_data, 0);
 		break;
 	}
 }

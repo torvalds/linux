@@ -145,6 +145,7 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	error = snd_gusclassic_create(card, dev, n, &gus);
 	if (error < 0)
 		return error;
+	card->private_data = gus;
 
 	error = snd_gusclassic_detect(gus);
 	if (error < 0)
@@ -193,11 +194,29 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int snd_gusclassic_suspend(struct device *dev, unsigned int n,
+				  pm_message_t state)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+
+	return snd_gus_suspend(card->private_data);
+}
+
+static int snd_gusclassic_resume(struct device *dev, unsigned int n)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+
+	return snd_gus_resume(card->private_data);
+}
+#endif
+
 static struct isa_driver snd_gusclassic_driver = {
 	.match		= snd_gusclassic_match,
 	.probe		= snd_gusclassic_probe,
-#if 0	/* FIXME */
+#ifdef CONFIG_PM
 	.suspend	= snd_gusclassic_suspend,
+	.resume		= snd_gusclassic_resume,
 #endif
 	.driver		= {
 		.name	= DEV_NAME

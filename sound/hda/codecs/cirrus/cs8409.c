@@ -268,7 +268,7 @@ static int cs8409_i2c_bulk_read(struct sub_codec *scodec, struct cs8409_i2c_para
 	return 0;
 
 error:
-	codec_err(codec, "I2C Bulk Write Failed 0x%02x\n", scodec->addr);
+	codec_err(codec, "I2C Bulk Read Failed 0x%02x\n", scodec->addr);
 	return -EIO;
 }
 
@@ -1042,14 +1042,9 @@ static void cs8409_cs42l42_hw_init(struct hda_codec *codec)
 	struct cs8409_spec *spec = codec->spec;
 	struct sub_codec *cs42l42 = spec->scodecs[CS8409_CODEC0];
 
-	if (spec->gpio_mask) {
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_MASK,
-			spec->gpio_mask);
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DIRECTION,
-			spec->gpio_dir);
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA,
-			spec->gpio_data);
-	}
+	if (spec->gpio_mask)
+		snd_hda_codec_set_gpio(codec, spec->gpio_mask, spec->gpio_dir,
+				       spec->gpio_data, 0);
 
 	for (; seq->nid; seq++)
 		cs8409_vendor_coef_set(codec, seq->cir, seq->coeff);
@@ -1442,14 +1437,9 @@ static void dolphin_hw_init(struct hda_codec *codec)
 	struct sub_codec *cs42l42;
 	int i;
 
-	if (spec->gpio_mask) {
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_MASK,
-				    spec->gpio_mask);
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DIRECTION,
-				    spec->gpio_dir);
-		snd_hda_codec_write(codec, CS8409_PIN_AFG, 0, AC_VERB_SET_GPIO_DATA,
-				    spec->gpio_data);
-	}
+	if (spec->gpio_mask)
+		snd_hda_codec_set_gpio(codec, spec->gpio_mask, spec->gpio_dir,
+				       spec->gpio_data, 0);
 
 	for (; seq->nid; seq++)
 		cs8409_vendor_coef_set(codec, seq->cir, seq->coeff);

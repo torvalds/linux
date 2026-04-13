@@ -102,6 +102,7 @@ struct snd_timer_instance {
 	unsigned int slave_id;
 	struct list_head open_list;
 	struct list_head active_list;
+	struct list_head master_list;
 	struct list_head ack_list;
 	struct list_head slave_list_head;
 	struct list_head slave_active_head;

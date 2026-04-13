@@ -221,6 +221,7 @@ struct hda_multi_out {
 	unsigned int spdif_rates;
 	unsigned int spdif_maxbps;
 	u64 spdif_formats;
+	struct snd_kcontrol *share_spdif_kctl; /* cached shared SPDIF switch */
 };
 
 int snd_hda_create_spdif_share_sw(struct hda_codec *codec,
