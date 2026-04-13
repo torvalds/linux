@@ -95,6 +95,16 @@ config PCIE_ARTPEC6_EP
 	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
 	  endpoint mode. This uses the DesignWare core.
 
+config PCIE_ESWIN
+	tristate "ESWIN PCIe controller"
+	depends on ARCH_ESWIN || COMPILE_TEST
+	depends on PCI_MSI
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support for the ESWIN SoCs.
+	  The PCIe controller in ESWIN SoCs is based on DesignWare hardware, and
+	  works only in host mode.
+
 config PCI_IMX6
 	bool
 
