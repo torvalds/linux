@@ -27,14 +27,18 @@
  * which might be mirrored at 0x0100-0x03ff..
  */
 resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-	resource_size_t size, resource_size_t align)
+				       const struct resource *empty_res,
+				       resource_size_t size,
+				       resource_size_t align)
 {
+	struct pci_dev *dev = data;
 	resource_size_t start = res->start;
 
 	if ((res->flags & IORESOURCE_IO) && (start & 0x300))
 		start = (start + 0x3ff) & ~0x3ff;
 
-	start = (start + align - 1) & ~(align - 1);
+	if (res->flags & IORESOURCE_MEM)
+		return pci_align_resource(dev, res, empty_res, size, align);
 
 	return start;
 }

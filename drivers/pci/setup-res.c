@@ -245,16 +245,54 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 }
 
 /*
+ * For mem bridge windows, try to relocate tail remainder space to space
+ * before res->start if there's enough free space there. This enables
+ * tighter packing for resources.
+ */
+resource_size_t pci_align_resource(struct pci_dev *dev,
+				   const struct resource *res,
+				   const struct resource *empty_res,
+				   resource_size_t size,
+				   resource_size_t align)
+{
+	resource_size_t remainder, start_addr;
+
+	if (!(res->flags & IORESOURCE_MEM))
+		return res->start;
+
+	if (IS_ALIGNED(size, align))
+		return res->start;
+
+	remainder = size - ALIGN_DOWN(size, align);
+	/* Don't mess with size that doesn't align with window size granularity */
+	if (!IS_ALIGNED(remainder, pci_min_window_alignment(dev->bus, res->flags)))
+		return res->start;
+	/* Try to place remainder that doesn't fill align before */
+	if (res->start < remainder)
+		return res->start;
+	start_addr = res->start - remainder;
+	if (empty_res->start > start_addr)
+		return res->start;
+
+	pci_dbg(dev, "%pR: moving candidate start address below align to %llx\n",
+		res, (unsigned long long)start_addr);
+	return start_addr;
+}
+
+/*
  * We don't have to worry about legacy ISA devices, so nothing to do here.
  * This is marked as __weak because multiple architectures define it; it should
  * eventually go away.
  */
 resource_size_t __weak pcibios_align_resource(void *data,
 					      const struct resource *res,
+					      const struct resource *empty_res,
 					      resource_size_t size,
 					      resource_size_t align)
 {
-       return res->start;
+	struct pci_dev *dev = data;
+
+	return pci_align_resource(dev, res, empty_res, size, align);
 }
 
 static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
