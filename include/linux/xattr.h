@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/rhashtable-types.h>
 #include <linux/user_namespace.h>
 #include <uapi/linux/xattr.h>
 
@@ -106,31 +107,65 @@ static inline const char *xattr_prefix(const struct xattr_handler *handler)
 }
 
 struct simple_xattrs {
-	struct rb_root rb_root;
-	rwlock_t lock;
+	struct rhashtable ht;
 };
 
 struct simple_xattr {
-	struct rb_node rb_node;
+	struct rhash_head hash_node;
+	struct rcu_head rcu;
 	char *name;
 	size_t size;
 	char value[] __counted_by(size);
 };
 
-void simple_xattrs_init(struct simple_xattrs *xattrs);
+#define SIMPLE_XATTR_MAX_NR		128
+#define SIMPLE_XATTR_MAX_SIZE		(128 << 10)
+
+struct simple_xattr_limits {
+	atomic_t	nr_xattrs;	/* current user.* xattr count */
+	atomic_t	xattr_size;	/* current total user.* value bytes */
+};
+
+static inline void simple_xattr_limits_init(struct simple_xattr_limits *limits)
+{
+	atomic_set(&limits->nr_xattrs, 0);
+	atomic_set(&limits->xattr_size, 0);
+}
+
+int simple_xattrs_init(struct simple_xattrs *xattrs);
+struct simple_xattrs *simple_xattrs_alloc(void);
+struct simple_xattrs *simple_xattrs_lazy_alloc(struct simple_xattrs **xattrsp,
+					       const void *value, int flags);
 void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space);
 size_t simple_xattr_space(const char *name, size_t size);
 struct simple_xattr *simple_xattr_alloc(const void *value, size_t size);
 void simple_xattr_free(struct simple_xattr *xattr);
+void simple_xattr_free_rcu(struct simple_xattr *xattr);
 int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
 struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      const char *name, const void *value,
 				      size_t size, int flags);
+int simple_xattr_set_limited(struct simple_xattrs *xattrs,
+			     struct simple_xattr_limits *limits,
+			     const char *name, const void *value,
+			     size_t size, int flags);
 ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size);
-void simple_xattr_add(struct simple_xattrs *xattrs,
-		      struct simple_xattr *new_xattr);
+int simple_xattr_add(struct simple_xattrs *xattrs,
+		     struct simple_xattr *new_xattr);
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name);
+
+DEFINE_CLASS(simple_xattr,
+	     struct simple_xattr *,
+	     if (!IS_ERR_OR_NULL(_T)) simple_xattr_free(_T),
+	     simple_xattr_alloc(value, size),
+	     const void *value, size_t size)
+
+DEFINE_CLASS(simple_xattrs,
+            struct simple_xattrs *,
+            if (!IS_ERR_OR_NULL(_T)) { simple_xattrs_free(_T, NULL); kfree(_T); },
+            simple_xattrs_alloc(),
+            void)
 
 #endif	/* _LINUX_XATTR_H */
