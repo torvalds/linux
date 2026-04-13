@@ -8266,6 +8266,7 @@ static void __init llc_populate_cpu_shard_id(const struct cpumask *pod_cpus,
 	const struct cpumask *sibling_cpus;
 	/* Count the number of cores in the current shard_id */
 	int cores_in_shard = 0;
+	unsigned int leader;
 	/* This is a cursor for the shards. Go from zero to nr_shards - 1*/
 	int shard_id = 0;
 	int c;
@@ -8286,7 +8287,17 @@ static void __init llc_populate_cpu_shard_id(const struct cpumask *pod_cpus,
 			 * The siblings' shard MUST be the same as the leader.
 			 * never split threads in the same core.
 			 */
-			cpu_shard_id[c] = cpu_shard_id[cpumask_first(sibling_cpus)];
+			leader = cpumask_first(sibling_cpus);
+
+			/*
+			 * This check silences a Warray-bounds warning on UP
+			 * configs where NR_CPUS=1 makes cpu_shard_id[]
+			 * a single-element array, and the compiler can't
+			 * prove the index is always 0.
+			 */
+			if (WARN_ON_ONCE(leader >= nr_cpu_ids))
+				continue;
+			cpu_shard_id[c] = cpu_shard_id[leader];
 		}
 	}
 
