@@ -102,7 +102,7 @@ enum cifs_param {
 	Opt_forcegid,
 	Opt_noblocksend,
 	Opt_noautotune,
-	Opt_nolease,
+	Opt_lease,
 	Opt_nosparse,
 	Opt_hard,
 	Opt_soft,

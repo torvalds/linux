@@ -9,7 +9,6 @@ config CIFS
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
 	select CRYPTO_GCM
-	select CRYPTO_ECB
 	select CRYPTO_AES
 	select CRYPTO_LIB_ARC4
 	select CRYPTO_LIB_MD5
@@ -217,4 +216,15 @@ config CIFS_COMPRESSION
 	  Say Y here if you want SMB traffic to be compressed.
 	  If unsure, say N.
 
+config SMB1_KUNIT_TESTS
+	tristate "KUnit tests for SMB1"
+	depends on SMB_KUNIT_TESTS && CIFS_ALLOW_INSECURE_LEGACY
+	default SMB_KUNIT_TESTS
+	help
+	  This builds the SMB1-specific KUnit tests.
+
+	  These tests are only enabled when legacy insecure SMB1 support
+	  (CIFS_ALLOW_INSECURE_LEGACY) is enabled.
+
+	  If unsure, say N.
 endif

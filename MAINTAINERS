@@ -24401,6 +24401,20 @@ T:	git https://github.com/cschaufler/smack-next.git
 F:	Documentation/admin-guide/LSM/Smack.rst
 F:	security/smack/
 
+SMBDIRECT (RDMA Stream Transport with Read/Write-Offload, MS-SMBD)
+M:	Steve French <smfrench@gmail.com>
+M:	Steve French <sfrench@samba.org>
+M:	Namjae Jeon <linkinjeon@kernel.org>
+M:	Namjae Jeon <linkinjeon@samba.org>
+R:	Stefan Metzmacher <metze@samba.org>
+R:	Tom Talpey <tom@talpey.com>
+L:	linux-cifs@vger.kernel.org
+L:	samba-technical@lists.samba.org (moderated for non-subscribers)
+S:	Maintained
+F:	fs/smb/client/smbdirect.*
+F:	fs/smb/common/smbdirect/
+F:	fs/smb/server/transport_rdma.*
+
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes

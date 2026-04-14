@@ -1,1 +1,4 @@
+smb1_mapping_table.c
+smb1_err_dos_map.c
+smb1_err_srv_map.c
 smb2_mapping_table.c

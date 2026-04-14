@@ -141,7 +141,8 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 int __cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,
 			     unsigned int find_flags, unsigned int open_flags,
 			     struct cifsFileInfo **ret_file);
-int cifs_get_writable_path(struct cifs_tcon *tcon, const char *name, int flags,
+int cifs_get_writable_path(struct cifs_tcon *tcon, const char *name,
+			   struct inode *inode, int flags,
 			   struct cifsFileInfo **ret_file);
 struct cifsFileInfo *__find_readable_file(struct cifsInodeInfo *cifs_inode,
 					  unsigned int find_flags,

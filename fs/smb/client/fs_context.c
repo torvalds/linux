@@ -80,7 +80,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag_no("forcegid", Opt_forcegid),
 	fsparam_flag("noblocksend", Opt_noblocksend),
 	fsparam_flag("noautotune", Opt_noautotune),
-	fsparam_flag("nolease", Opt_nolease),
+	fsparam_flag_no("lease", Opt_lease),
 	fsparam_flag_no("hard", Opt_hard),
 	fsparam_flag_no("soft", Opt_soft),
 	fsparam_flag_no("perm", Opt_perm),
@@ -662,13 +662,17 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 
 	/* make sure we have a valid UNC double delimiter prefix */
 	len = strspn(devname, delims);
-	if (len != 2)
+	if (len != 2) {
+		cifs_dbg(VFS, "UNC: path must begin with // or \\\\\n");
 		return -EINVAL;
+	}
 
 	/* find delimiter between host and sharename */
 	pos = strpbrk(devname + 2, delims);
-	if (!pos)
+	if (!pos) {
+		cifs_dbg(VFS, "UNC: missing delimiter between hostname and share name\n");
 		return -EINVAL;
+	}
 
 	/* record the server hostname */
 	kfree(ctx->server_hostname);
@@ -681,8 +685,10 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 
 	/* now go until next delimiter or end of string */
 	len = strcspn(pos, delims);
-	if (!len)
+	if (!len) {
+		cifs_dbg(VFS, "UNC: missing share name\n");
 		return -EINVAL;
+	}
 
 	/* move "pos" up to delimiter or NULL */
 	pos += len;
@@ -1334,8 +1340,8 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_noautotune:
 		ctx->noautotune = 1;
 		break;
-	case Opt_nolease:
-		ctx->no_lease = 1;
+	case Opt_lease:
+		ctx->no_lease = result.negated;
 		break;
 	case Opt_nosparse:
 		ctx->no_sparse = 1;

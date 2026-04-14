@@ -7,7 +7,7 @@ obj-$(CONFIG_CIFS) += cifs.o
 
 cifs-y := trace.o cifsfs.o cifs_debug.o connect.o dir.o file.o \
 	  inode.o link.o misc.o netmisc.o smbencrypt.o transport.o \
-	  cached_dir.o cifs_unicode.o nterr.o cifsencrypt.o \
+	  cached_dir.o cifs_unicode.o cifsencrypt.o \
 	  readdir.o ioctl.o sess.o export.o unc.o winucase.o \
 	  smb2ops.o smb2maperror.o smb2transport.o \
 	  smb2misc.o smb2pdu.o smb2inode.o smb2file.o cifsacl.o fs_context.o \
@@ -44,6 +44,26 @@ cifs-$(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) += \
 
 cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o compress/lz77.o
 
+ifneq ($(CONFIG_CIFS_ALLOW_INSECURE_LEGACY),)
+#
+# Build the SMB1 error mapping tables from nterr.h and smberr.h
+#
+smb1-gen-y := smb1_mapping_table.c \
+	      smb1_err_dos_map.c \
+	      smb1_err_srv_map.c
+
+$(obj)/smb1_mapping_table.c: $(src)/nterr.h $(src)/gen_smb1_mapping FORCE
+	$(call if_changed,gen_smb1_mapping)
+
+$(obj)/smb1_err_%.c: $(src)/smberr.h $(src)/gen_smb1_mapping FORCE
+	$(call if_changed,gen_smb1_mapping)
+
+$(obj)/smb1maperror.o: $(addprefix $(obj)/, $(smb1-gen-y))
+
+quiet_cmd_gen_smb1_mapping = GEN     $@
+      cmd_gen_smb1_mapping = perl $(src)/gen_smb1_mapping $< $@
+endif
+
 #
 # Build the SMB2 error mapping table from smb2status.h
 #
@@ -56,7 +76,8 @@ $(obj)/smb2maperror.o: $(obj)/smb2_mapping_table.c
 quiet_cmd_gen_smb2_mapping = GEN     $@
       cmd_gen_smb2_mapping = perl $(src)/gen_smb2_mapping $< $@
 
+obj-$(CONFIG_SMB1_KUNIT_TESTS) += smb1maperror_test.o
 obj-$(CONFIG_SMB_KUNIT_TESTS) += smb2maperror_test.o
 
 # Let Kbuild handle tracking and cleaning
-targets += smb2_mapping_table.c
+targets += smb2_mapping_table.c $(smb1-gen-y)

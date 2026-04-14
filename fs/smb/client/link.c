@@ -503,6 +503,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	if (d_really_is_positive(old_file)) {
 		cifsInode = CIFS_I(d_inode(old_file));
 		if (rc == 0) {
+			clear_bit(CIFS_INO_TMPFILE, &cifsInode->flags);
 			spin_lock(&d_inode(old_file)->i_lock);
 			inc_nlink(d_inode(old_file));
 			spin_unlock(&d_inode(old_file)->i_lock);
