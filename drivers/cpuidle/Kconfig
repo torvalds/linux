@@ -81,7 +81,7 @@ config HALTPOLL_CPUIDLE
 	 before halting in the guest (more efficient than polling in the
 	 host via halt_poll_ns for some scenarios).
 
-endif
+endif # CPU_IDLE
 
 config ARCH_NEEDS_CPU_IDLE_COUPLED
 	def_bool n

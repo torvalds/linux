@@ -139,8 +139,6 @@ static inline void cpuidle_exit(int fail)
 
 int cmd_idle_info(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	int ret = 0, cont = 1, output_param = 0, verbose = 1;
 	unsigned int cpu = 0;
 

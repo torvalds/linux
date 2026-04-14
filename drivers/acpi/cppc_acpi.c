@@ -2145,7 +2145,7 @@ static void cppc_find_dmi_mhz(const struct dmi_header *dm, void *private)
 }
 
 /* Look up the max frequency in DMI */
-static u64 cppc_get_dmi_max_khz(void)
+u64 cppc_get_dmi_max_khz(void)
 {
 	u16 mhz = 0;
 
@@ -2159,6 +2159,7 @@ static u64 cppc_get_dmi_max_khz(void)
 
 	return KHZ_PER_MHZ * mhz;
 }
+EXPORT_SYMBOL_GPL(cppc_get_dmi_max_khz);
 
 /*
  * If CPPC lowest_freq and nominal_freq registers are exposed then we can

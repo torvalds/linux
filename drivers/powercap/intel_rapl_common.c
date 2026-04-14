@@ -24,89 +24,34 @@
 #include <linux/suspend.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/iosf_mbi.h>
 #include <asm/msr.h>
 
-/* bitmasks for RAPL MSRs, used by primitive access functions */
-#define ENERGY_STATUS_MASK      0xffffffff
+#define ENERGY_STATUS_MASK		GENMASK(31, 0)
 
-#define POWER_LIMIT1_MASK       0x7FFF
-#define POWER_LIMIT1_ENABLE     BIT(15)
-#define POWER_LIMIT1_CLAMP      BIT(16)
+#define POWER_UNIT_OFFSET		0x00
+#define POWER_UNIT_MASK			GENMASK(3, 0)
 
-#define POWER_LIMIT2_MASK       (0x7FFFULL<<32)
-#define POWER_LIMIT2_ENABLE     BIT_ULL(47)
-#define POWER_LIMIT2_CLAMP      BIT_ULL(48)
-#define POWER_HIGH_LOCK         BIT_ULL(63)
-#define POWER_LOW_LOCK          BIT(31)
+#define ENERGY_UNIT_OFFSET		0x08
+#define ENERGY_UNIT_MASK		GENMASK(12, 8)
 
-#define POWER_LIMIT4_MASK		0x1FFF
-
-#define TIME_WINDOW1_MASK       (0x7FULL<<17)
-#define TIME_WINDOW2_MASK       (0x7FULL<<49)
-
-#define POWER_UNIT_OFFSET	0
-#define POWER_UNIT_MASK		0x0F
-
-#define ENERGY_UNIT_OFFSET	0x08
-#define ENERGY_UNIT_MASK	0x1F00
-
-#define TIME_UNIT_OFFSET	0x10
-#define TIME_UNIT_MASK		0xF0000
-
-#define POWER_INFO_MAX_MASK     (0x7fffULL<<32)
-#define POWER_INFO_MIN_MASK     (0x7fffULL<<16)
-#define POWER_INFO_MAX_TIME_WIN_MASK     (0x3fULL<<48)
-#define POWER_INFO_THERMAL_SPEC_MASK     0x7fff
-
-#define PERF_STATUS_THROTTLE_TIME_MASK 0xffffffff
-#define PP_POLICY_MASK         0x1F
-
-/*
- * SPR has different layout for Psys Domain PowerLimit registers.
- * There are 17 bits of PL1 and PL2 instead of 15 bits.
- * The Enable bits and TimeWindow bits are also shifted as a result.
- */
-#define PSYS_POWER_LIMIT1_MASK       0x1FFFF
-#define PSYS_POWER_LIMIT1_ENABLE     BIT(17)
-
-#define PSYS_POWER_LIMIT2_MASK       (0x1FFFFULL<<32)
-#define PSYS_POWER_LIMIT2_ENABLE     BIT_ULL(49)
-
-#define PSYS_TIME_WINDOW1_MASK       (0x7FULL<<19)
-#define PSYS_TIME_WINDOW2_MASK       (0x7FULL<<51)
-
-/* bitmasks for RAPL TPMI, used by primitive access functions */
-#define TPMI_POWER_LIMIT_MASK	0x3FFFF
-#define TPMI_POWER_LIMIT_ENABLE	BIT_ULL(62)
-#define TPMI_TIME_WINDOW_MASK	(0x7FULL<<18)
-#define TPMI_INFO_SPEC_MASK	0x3FFFF
-#define TPMI_INFO_MIN_MASK	(0x3FFFFULL << 18)
-#define TPMI_INFO_MAX_MASK	(0x3FFFFULL << 36)
-#define TPMI_INFO_MAX_TIME_WIN_MASK	(0x7FULL << 54)
+#define TIME_UNIT_OFFSET		0x10
+#define TIME_UNIT_MASK			GENMASK(19, 16)
 
 /* Non HW constants */
-#define RAPL_PRIMITIVE_DERIVED       BIT(1)	/* not from raw data */
-#define RAPL_PRIMITIVE_DUMMY         BIT(2)
+#define RAPL_PRIMITIVE_DUMMY		BIT(2)
 
-#define TIME_WINDOW_MAX_MSEC 40000
-#define TIME_WINDOW_MIN_MSEC 250
-#define ENERGY_UNIT_SCALE    1000	/* scale from driver unit to powercap unit */
-enum unit_type {
-	ARBITRARY_UNIT,		/* no translation */
-	POWER_UNIT,
-	ENERGY_UNIT,
-	TIME_UNIT,
-};
+#define ENERGY_UNIT_SCALE		1000	/* scale from driver unit to powercap unit */
 
 /* per domain data, some are optional */
-#define NR_RAW_PRIMITIVES (NR_RAPL_PRIMITIVES - 2)
+#define NR_RAW_PRIMITIVES		(NR_RAPL_PRIMITIVES - 2)
 
-#define	DOMAIN_STATE_INACTIVE           BIT(0)
-#define	DOMAIN_STATE_POWER_LIMIT_SET    BIT(1)
+#define PACKAGE_PLN_INT_SAVED		BIT(0)
+
+#define RAPL_EVENT_MASK			GENMASK(7, 0)
 
 static const char *pl_names[NR_POWER_LIMITS] = {
 	[POWER_LIMIT1] = "long_term",
@@ -204,51 +149,10 @@ static int get_pl_prim(struct rapl_domain *rd, int pl, enum pl_prims prim)
 #define power_zone_to_rapl_domain(_zone) \
 	container_of(_zone, struct rapl_domain, power_zone)
 
-struct rapl_defaults {
-	u8 floor_freq_reg_addr;
-	int (*check_unit)(struct rapl_domain *rd);
-	void (*set_floor_freq)(struct rapl_domain *rd, bool mode);
-	u64 (*compute_time_window)(struct rapl_domain *rd, u64 val,
-				    bool to_raw);
-	unsigned int dram_domain_energy_unit;
-	unsigned int psys_domain_energy_unit;
-	bool spr_psys_bits;
-};
-static struct rapl_defaults *defaults_msr;
-static const struct rapl_defaults defaults_tpmi;
-
-static struct rapl_defaults *get_defaults(struct rapl_package *rp)
+static const struct rapl_defaults *get_defaults(struct rapl_package *rp)
 {
 	return rp->priv->defaults;
 }
-
-/* Sideband MBI registers */
-#define IOSF_CPU_POWER_BUDGET_CTL_BYT (0x2)
-#define IOSF_CPU_POWER_BUDGET_CTL_TNG (0xdf)
-
-#define PACKAGE_PLN_INT_SAVED   BIT(0)
-#define MAX_PRIM_NAME (32)
-
-/* per domain data. used to describe individual knobs such that access function
- * can be consolidated into one instead of many inline functions.
- */
-struct rapl_primitive_info {
-	const char *name;
-	u64 mask;
-	int shift;
-	enum rapl_domain_reg_id id;
-	enum unit_type unit;
-	u32 flag;
-};
-
-#define PRIMITIVE_INFO_INIT(p, m, s, i, u, f) {	\
-		.name = #p,			\
-		.mask = m,			\
-		.shift = s,			\
-		.id = i,			\
-		.unit = u,			\
-		.flag = f			\
-	}
 
 static void rapl_init_domains(struct rapl_package *rp);
 static int rapl_read_data_raw(struct rapl_domain *rd,
@@ -341,7 +245,7 @@ static int find_nr_power_limit(struct rapl_domain *rd)
 static int set_domain_enable(struct powercap_zone *power_zone, bool mode)
 {
 	struct rapl_domain *rd = power_zone_to_rapl_domain(power_zone);
-	struct rapl_defaults *defaults = get_defaults(rd->rp);
+	const struct rapl_defaults *defaults = get_defaults(rd->rp);
 	u64 val;
 	int ret;
 
@@ -630,7 +534,7 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 			   u64 value, int to_raw)
 {
 	u64 units = 1;
-	struct rapl_defaults *defaults = get_defaults(rd->rp);
+	const struct rapl_defaults *defaults = get_defaults(rd->rp);
 	u64 scale = 1;
 
 	switch (type) {
@@ -656,104 +560,6 @@ static u64 rapl_unit_xlate(struct rapl_domain *rd, enum unit_type type,
 	return div64_u64(value, scale);
 }
 
-/* RAPL primitives for MSR and MMIO I/F */
-static struct rapl_primitive_info rpi_msr[NR_RAPL_PRIMITIVES] = {
-	/* name, mask, shift, msr index, unit divisor */
-	[POWER_LIMIT1] = PRIMITIVE_INFO_INIT(POWER_LIMIT1, POWER_LIMIT1_MASK, 0,
-			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	[POWER_LIMIT2] = PRIMITIVE_INFO_INIT(POWER_LIMIT2, POWER_LIMIT2_MASK, 32,
-			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	[POWER_LIMIT4] = PRIMITIVE_INFO_INIT(POWER_LIMIT4, POWER_LIMIT4_MASK, 0,
-				RAPL_DOMAIN_REG_PL4, POWER_UNIT, 0),
-	[ENERGY_COUNTER] = PRIMITIVE_INFO_INIT(ENERGY_COUNTER, ENERGY_STATUS_MASK, 0,
-			    RAPL_DOMAIN_REG_STATUS, ENERGY_UNIT, 0),
-	[FW_LOCK] = PRIMITIVE_INFO_INIT(FW_LOCK, POWER_LOW_LOCK, 31,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[FW_HIGH_LOCK] = PRIMITIVE_INFO_INIT(FW_LOCK, POWER_HIGH_LOCK, 63,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL1_ENABLE] = PRIMITIVE_INFO_INIT(PL1_ENABLE, POWER_LIMIT1_ENABLE, 15,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL1_CLAMP] = PRIMITIVE_INFO_INIT(PL1_CLAMP, POWER_LIMIT1_CLAMP, 16,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL2_ENABLE] = PRIMITIVE_INFO_INIT(PL2_ENABLE, POWER_LIMIT2_ENABLE, 47,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL2_CLAMP] = PRIMITIVE_INFO_INIT(PL2_CLAMP, POWER_LIMIT2_CLAMP, 48,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[TIME_WINDOW1] = PRIMITIVE_INFO_INIT(TIME_WINDOW1, TIME_WINDOW1_MASK, 17,
-			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	[TIME_WINDOW2] = PRIMITIVE_INFO_INIT(TIME_WINDOW2, TIME_WINDOW2_MASK, 49,
-			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	[THERMAL_SPEC_POWER] = PRIMITIVE_INFO_INIT(THERMAL_SPEC_POWER, POWER_INFO_THERMAL_SPEC_MASK,
-			    0, RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MAX_POWER] = PRIMITIVE_INFO_INIT(MAX_POWER, POWER_INFO_MAX_MASK, 32,
-			    RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MIN_POWER] = PRIMITIVE_INFO_INIT(MIN_POWER, POWER_INFO_MIN_MASK, 16,
-			    RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MAX_TIME_WINDOW] = PRIMITIVE_INFO_INIT(MAX_TIME_WINDOW, POWER_INFO_MAX_TIME_WIN_MASK, 48,
-			    RAPL_DOMAIN_REG_INFO, TIME_UNIT, 0),
-	[THROTTLED_TIME] = PRIMITIVE_INFO_INIT(THROTTLED_TIME, PERF_STATUS_THROTTLE_TIME_MASK, 0,
-			    RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
-	[PRIORITY_LEVEL] = PRIMITIVE_INFO_INIT(PRIORITY_LEVEL, PP_POLICY_MASK, 0,
-			    RAPL_DOMAIN_REG_POLICY, ARBITRARY_UNIT, 0),
-	[PSYS_POWER_LIMIT1] = PRIMITIVE_INFO_INIT(PSYS_POWER_LIMIT1, PSYS_POWER_LIMIT1_MASK, 0,
-			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	[PSYS_POWER_LIMIT2] = PRIMITIVE_INFO_INIT(PSYS_POWER_LIMIT2, PSYS_POWER_LIMIT2_MASK, 32,
-			    RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	[PSYS_PL1_ENABLE] = PRIMITIVE_INFO_INIT(PSYS_PL1_ENABLE, PSYS_POWER_LIMIT1_ENABLE, 17,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PSYS_PL2_ENABLE] = PRIMITIVE_INFO_INIT(PSYS_PL2_ENABLE, PSYS_POWER_LIMIT2_ENABLE, 49,
-			    RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PSYS_TIME_WINDOW1] = PRIMITIVE_INFO_INIT(PSYS_TIME_WINDOW1, PSYS_TIME_WINDOW1_MASK, 19,
-			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	[PSYS_TIME_WINDOW2] = PRIMITIVE_INFO_INIT(PSYS_TIME_WINDOW2, PSYS_TIME_WINDOW2_MASK, 51,
-			    RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	/* non-hardware */
-	[AVERAGE_POWER] = PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0, POWER_UNIT,
-			    RAPL_PRIMITIVE_DERIVED),
-};
-
-/* RAPL primitives for TPMI I/F */
-static struct rapl_primitive_info rpi_tpmi[NR_RAPL_PRIMITIVES] = {
-	/* name, mask, shift, msr index, unit divisor */
-	[POWER_LIMIT1] = PRIMITIVE_INFO_INIT(POWER_LIMIT1, TPMI_POWER_LIMIT_MASK, 0,
-		RAPL_DOMAIN_REG_LIMIT, POWER_UNIT, 0),
-	[POWER_LIMIT2] = PRIMITIVE_INFO_INIT(POWER_LIMIT2, TPMI_POWER_LIMIT_MASK, 0,
-		RAPL_DOMAIN_REG_PL2, POWER_UNIT, 0),
-	[POWER_LIMIT4] = PRIMITIVE_INFO_INIT(POWER_LIMIT4, TPMI_POWER_LIMIT_MASK, 0,
-		RAPL_DOMAIN_REG_PL4, POWER_UNIT, 0),
-	[ENERGY_COUNTER] = PRIMITIVE_INFO_INIT(ENERGY_COUNTER, ENERGY_STATUS_MASK, 0,
-		RAPL_DOMAIN_REG_STATUS, ENERGY_UNIT, 0),
-	[PL1_LOCK] = PRIMITIVE_INFO_INIT(PL1_LOCK, POWER_HIGH_LOCK, 63,
-		RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL2_LOCK] = PRIMITIVE_INFO_INIT(PL2_LOCK, POWER_HIGH_LOCK, 63,
-		RAPL_DOMAIN_REG_PL2, ARBITRARY_UNIT, 0),
-	[PL4_LOCK] = PRIMITIVE_INFO_INIT(PL4_LOCK, POWER_HIGH_LOCK, 63,
-		RAPL_DOMAIN_REG_PL4, ARBITRARY_UNIT, 0),
-	[PL1_ENABLE] = PRIMITIVE_INFO_INIT(PL1_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
-		RAPL_DOMAIN_REG_LIMIT, ARBITRARY_UNIT, 0),
-	[PL2_ENABLE] = PRIMITIVE_INFO_INIT(PL2_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
-		RAPL_DOMAIN_REG_PL2, ARBITRARY_UNIT, 0),
-	[PL4_ENABLE] = PRIMITIVE_INFO_INIT(PL4_ENABLE, TPMI_POWER_LIMIT_ENABLE, 62,
-		RAPL_DOMAIN_REG_PL4, ARBITRARY_UNIT, 0),
-	[TIME_WINDOW1] = PRIMITIVE_INFO_INIT(TIME_WINDOW1, TPMI_TIME_WINDOW_MASK, 18,
-		RAPL_DOMAIN_REG_LIMIT, TIME_UNIT, 0),
-	[TIME_WINDOW2] = PRIMITIVE_INFO_INIT(TIME_WINDOW2, TPMI_TIME_WINDOW_MASK, 18,
-		RAPL_DOMAIN_REG_PL2, TIME_UNIT, 0),
-	[THERMAL_SPEC_POWER] = PRIMITIVE_INFO_INIT(THERMAL_SPEC_POWER, TPMI_INFO_SPEC_MASK, 0,
-		RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MAX_POWER] = PRIMITIVE_INFO_INIT(MAX_POWER, TPMI_INFO_MAX_MASK, 36,
-		RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MIN_POWER] = PRIMITIVE_INFO_INIT(MIN_POWER, TPMI_INFO_MIN_MASK, 18,
-		RAPL_DOMAIN_REG_INFO, POWER_UNIT, 0),
-	[MAX_TIME_WINDOW] = PRIMITIVE_INFO_INIT(MAX_TIME_WINDOW, TPMI_INFO_MAX_TIME_WIN_MASK, 54,
-		RAPL_DOMAIN_REG_INFO, TIME_UNIT, 0),
-	[THROTTLED_TIME] = PRIMITIVE_INFO_INIT(THROTTLED_TIME, PERF_STATUS_THROTTLE_TIME_MASK, 0,
-		RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
-	/* non-hardware */
-	[AVERAGE_POWER] = PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0,
-		POWER_UNIT, RAPL_PRIMITIVE_DERIVED),
-};
-
 static struct rapl_primitive_info *get_rpi(struct rapl_package *rp, int prim)
 {
 	struct rapl_primitive_info *rpi = rp->priv->rpi;
@@ -766,21 +572,6 @@ static struct rapl_primitive_info *get_rpi(struct rapl_package *rp, int prim)
 
 static int rapl_config(struct rapl_package *rp)
 {
-	switch (rp->priv->type) {
-	/* MMIO I/F shares the same register layout as MSR registers */
-	case RAPL_IF_MMIO:
-	case RAPL_IF_MSR:
-		rp->priv->defaults = (void *)defaults_msr;
-		rp->priv->rpi = (void *)rpi_msr;
-		break;
-	case RAPL_IF_TPMI:
-		rp->priv->defaults = (void *)&defaults_tpmi;
-		rp->priv->rpi = (void *)rpi_tpmi;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	/* defaults_msr can be NULL on unsupported platforms */
 	if (!rp->priv->defaults || !rp->priv->rpi)
 		return -ENODEV;
@@ -791,7 +582,7 @@ static int rapl_config(struct rapl_package *rp)
 static enum rapl_primitives
 prim_fixups(struct rapl_domain *rd, enum rapl_primitives prim)
 {
-	struct rapl_defaults *defaults = get_defaults(rd->rp);
+	const struct rapl_defaults *defaults = get_defaults(rd->rp);
 
 	if (!defaults->spr_psys_bits)
 		return prim;
@@ -845,12 +636,6 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 	ra.reg = rd->regs[rpi->id];
 	if (!ra.reg.val)
 		return -EINVAL;
-
-	/* non-hardware data are collected by the polling thread */
-	if (rpi->flag & RAPL_PRIMITIVE_DERIVED) {
-		*data = rd->rdd.primitives[prim];
-		return 0;
-	}
 
 	ra.mask = rpi->mask;
 
@@ -936,7 +721,7 @@ static int rapl_write_pl_data(struct rapl_domain *rd, int pl,
  * power unit : microWatts  : Represented in milliWatts by default
  * time unit  : microseconds: Represented in seconds by default
  */
-static int rapl_check_unit_core(struct rapl_domain *rd)
+int rapl_default_check_unit(struct rapl_domain *rd)
 {
 	struct reg_action ra;
 	u32 value;
@@ -950,47 +735,20 @@ static int rapl_check_unit_core(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
+	rd->energy_unit = (ENERGY_UNIT_SCALE * MICROJOULE_PER_JOULE) >> value;
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 / (1 << value);
+	rd->power_unit = MICROWATT_PER_WATT >> value;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
+	rd->time_unit = USEC_PER_SEC >> value;
 
 	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
 
 	return 0;
 }
-
-static int rapl_check_unit_atom(struct rapl_domain *rd)
-{
-	struct reg_action ra;
-	u32 value;
-
-	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
-	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra, false)) {
-		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
-			ra.reg.val, rd->rp->name, rd->name);
-		return -ENODEV;
-	}
-
-	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1 << value;
-
-	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = (1 << value) * 1000;
-
-	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
-
-	pr_debug("Atom %s:%s energy=%dpJ, time=%dus, power=%duW\n",
-		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
-
-	return 0;
-}
+EXPORT_SYMBOL_NS_GPL(rapl_default_check_unit, "INTEL_RAPL");
 
 static void power_limit_irq_save_cpu(void *info)
 {
@@ -1056,7 +814,7 @@ static void package_power_limit_irq_restore(struct rapl_package *rp)
 	wrmsr_safe(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
 }
 
-static void set_floor_freq_default(struct rapl_domain *rd, bool mode)
+void rapl_default_set_floor_freq(struct rapl_domain *rd, bool mode)
 {
 	int i;
 
@@ -1070,33 +828,9 @@ static void set_floor_freq_default(struct rapl_domain *rd, bool mode)
 		rapl_write_pl_data(rd, i, PL_CLAMP, mode);
 	}
 }
+EXPORT_SYMBOL_NS_GPL(rapl_default_set_floor_freq, "INTEL_RAPL");
 
-static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
-{
-	static u32 power_ctrl_orig_val;
-	struct rapl_defaults *defaults = get_defaults(rd->rp);
-	u32 mdata;
-
-	if (!defaults->floor_freq_reg_addr) {
-		pr_err("Invalid floor frequency config register\n");
-		return;
-	}
-
-	if (!power_ctrl_orig_val)
-		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_CR_READ,
-			      defaults->floor_freq_reg_addr,
-			      &power_ctrl_orig_val);
-	mdata = power_ctrl_orig_val;
-	if (enable) {
-		mdata &= ~(0x7f << 8);
-		mdata |= 1 << 8;
-	}
-	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_CR_WRITE,
-		       defaults->floor_freq_reg_addr, mdata);
-}
-
-static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
-					 bool to_raw)
+u64 rapl_default_compute_time_window(struct rapl_domain *rd, u64 value, bool to_raw)
 {
 	u64 f, y;		/* fraction and exp. used for time unit */
 
@@ -1107,7 +841,7 @@ static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 	if (!to_raw) {
 		f = (value & 0x60) >> 5;
 		y = value & 0x1f;
-		value = (1 << y) * (4 + f) * rd->time_unit / 4;
+		value = (1ULL << y) * (4 + f) * rd->time_unit / 4;
 	} else {
 		if (value < rd->time_unit)
 			return 0;
@@ -1122,199 +856,12 @@ static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 		if (y > 0x1f)
 			return 0x7f;
 
-		f = div64_u64(4 * (value - (1ULL << y)), 1ULL << y);
+		f = div64_u64(4 * (value - BIT_ULL(y)), BIT_ULL(y));
 		value = (y & 0x1f) | ((f & 0x3) << 5);
 	}
 	return value;
 }
-
-static u64 rapl_compute_time_window_atom(struct rapl_domain *rd, u64 value,
-					 bool to_raw)
-{
-	/*
-	 * Atom time unit encoding is straight forward val * time_unit,
-	 * where time_unit is default to 1 sec. Never 0.
-	 */
-	if (!to_raw)
-		return (value) ? value * rd->time_unit : rd->time_unit;
-
-	value = div64_u64(value, rd->time_unit);
-
-	return value;
-}
-
-/* TPMI Unit register has different layout */
-#define TPMI_POWER_UNIT_OFFSET	POWER_UNIT_OFFSET
-#define TPMI_POWER_UNIT_MASK	POWER_UNIT_MASK
-#define TPMI_ENERGY_UNIT_OFFSET	0x06
-#define TPMI_ENERGY_UNIT_MASK	0x7C0
-#define TPMI_TIME_UNIT_OFFSET	0x0C
-#define TPMI_TIME_UNIT_MASK	0xF000
-
-static int rapl_check_unit_tpmi(struct rapl_domain *rd)
-{
-	struct reg_action ra;
-	u32 value;
-
-	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
-	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra, false)) {
-		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
-			ra.reg.val, rd->rp->name, rd->name);
-		return -ENODEV;
-	}
-
-	value = (ra.value & TPMI_ENERGY_UNIT_MASK) >> TPMI_ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
-
-	value = (ra.value & TPMI_POWER_UNIT_MASK) >> TPMI_POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 / (1 << value);
-
-	value = (ra.value & TPMI_TIME_UNIT_MASK) >> TPMI_TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
-
-	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
-		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
-
-	return 0;
-}
-
-static const struct rapl_defaults defaults_tpmi = {
-	.check_unit = rapl_check_unit_tpmi,
-	/* Reuse existing logic, ignore the PL_CLAMP failures and enable all Power Limits */
-	.set_floor_freq = set_floor_freq_default,
-	.compute_time_window = rapl_compute_time_window_core,
-};
-
-static const struct rapl_defaults rapl_defaults_core = {
-	.floor_freq_reg_addr = 0,
-	.check_unit = rapl_check_unit_core,
-	.set_floor_freq = set_floor_freq_default,
-	.compute_time_window = rapl_compute_time_window_core,
-};
-
-static const struct rapl_defaults rapl_defaults_hsw_server = {
-	.check_unit = rapl_check_unit_core,
-	.set_floor_freq = set_floor_freq_default,
-	.compute_time_window = rapl_compute_time_window_core,
-	.dram_domain_energy_unit = 15300,
-};
-
-static const struct rapl_defaults rapl_defaults_spr_server = {
-	.check_unit = rapl_check_unit_core,
-	.set_floor_freq = set_floor_freq_default,
-	.compute_time_window = rapl_compute_time_window_core,
-	.psys_domain_energy_unit = 1000000000,
-	.spr_psys_bits = true,
-};
-
-static const struct rapl_defaults rapl_defaults_byt = {
-	.floor_freq_reg_addr = IOSF_CPU_POWER_BUDGET_CTL_BYT,
-	.check_unit = rapl_check_unit_atom,
-	.set_floor_freq = set_floor_freq_atom,
-	.compute_time_window = rapl_compute_time_window_atom,
-};
-
-static const struct rapl_defaults rapl_defaults_tng = {
-	.floor_freq_reg_addr = IOSF_CPU_POWER_BUDGET_CTL_TNG,
-	.check_unit = rapl_check_unit_atom,
-	.set_floor_freq = set_floor_freq_atom,
-	.compute_time_window = rapl_compute_time_window_atom,
-};
-
-static const struct rapl_defaults rapl_defaults_ann = {
-	.floor_freq_reg_addr = 0,
-	.check_unit = rapl_check_unit_atom,
-	.set_floor_freq = NULL,
-	.compute_time_window = rapl_compute_time_window_atom,
-};
-
-static const struct rapl_defaults rapl_defaults_cht = {
-	.floor_freq_reg_addr = 0,
-	.check_unit = rapl_check_unit_atom,
-	.set_floor_freq = NULL,
-	.compute_time_window = rapl_compute_time_window_atom,
-};
-
-static const struct rapl_defaults rapl_defaults_amd = {
-	.check_unit = rapl_check_unit_core,
-};
-
-static const struct x86_cpu_id rapl_ids[] __initconst = {
-	X86_MATCH_VFM(INTEL_SANDYBRIDGE,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_SANDYBRIDGE_X,	&rapl_defaults_core),
-
-	X86_MATCH_VFM(INTEL_IVYBRIDGE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_IVYBRIDGE_X,	&rapl_defaults_core),
-
-	X86_MATCH_VFM(INTEL_HASWELL,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_HASWELL_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_HASWELL_G,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_HASWELL_X,		&rapl_defaults_hsw_server),
-
-	X86_MATCH_VFM(INTEL_BROADWELL,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_BROADWELL_G,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_BROADWELL_D,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_BROADWELL_X,	&rapl_defaults_hsw_server),
-
-	X86_MATCH_VFM(INTEL_SKYLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_SKYLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_SKYLAKE_X,		&rapl_defaults_hsw_server),
-	X86_MATCH_VFM(INTEL_KABYLAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_KABYLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ICELAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ICELAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ICELAKE_X,		&rapl_defaults_hsw_server),
-	X86_MATCH_VFM(INTEL_ICELAKE_D,		&rapl_defaults_hsw_server),
-	X86_MATCH_VFM(INTEL_COMETLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_COMETLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_TIGERLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ROCKETLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ALDERLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,        &rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_BARTLETTLAKE,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_METEORLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	&rapl_defaults_spr_server),
-	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,	&rapl_defaults_spr_server),
-	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_WILDCATLAKE_L,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_NOVALAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_NOVALAKE_L,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_H,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ARROWLAKE,		&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ARROWLAKE_U,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_LAKEFIELD,		&rapl_defaults_core),
-
-	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT,	&rapl_defaults_byt),
-	X86_MATCH_VFM(INTEL_ATOM_AIRMONT,	&rapl_defaults_cht),
-	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID, &rapl_defaults_tng),
-	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID2,&rapl_defaults_ann),
-	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_PLUS,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_D,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT_D,	&rapl_defaults_core),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	&rapl_defaults_core),
-
-	X86_MATCH_VFM(INTEL_XEON_PHI_KNL,	&rapl_defaults_hsw_server),
-	X86_MATCH_VFM(INTEL_XEON_PHI_KNM,	&rapl_defaults_hsw_server),
-
-	X86_MATCH_VENDOR_FAM(AMD, 0x17, &rapl_defaults_amd),
-	X86_MATCH_VENDOR_FAM(AMD, 0x19, &rapl_defaults_amd),
-	X86_MATCH_VENDOR_FAM(AMD, 0x1A, &rapl_defaults_amd),
-	X86_MATCH_VENDOR_FAM(HYGON, 0x18, &rapl_defaults_amd),
-	{}
-};
-MODULE_DEVICE_TABLE(x86cpu, rapl_ids);
+EXPORT_SYMBOL_NS_GPL(rapl_default_compute_time_window, "INTEL_RAPL");
 
 /* Read once for all raw primitive data for domains */
 static void rapl_update_domain_data(struct rapl_package *rp)
@@ -1443,7 +990,7 @@ static int rapl_check_domain(int domain, struct rapl_package *rp)
  */
 static int rapl_get_domain_unit(struct rapl_domain *rd)
 {
-	struct rapl_defaults *defaults = get_defaults(rd->rp);
+	const struct rapl_defaults *defaults = get_defaults(rd->rp);
 	int ret;
 
 	if (!rd->regs[RAPL_DOMAIN_REG_UNIT].val) {
@@ -1777,7 +1324,6 @@ enum perf_rapl_events {
 	PERF_RAPL_PSYS,		/* psys */
 	PERF_RAPL_MAX
 };
-#define RAPL_EVENT_MASK GENMASK(7, 0)
 
 static const int event_to_domain[PERF_RAPL_MAX] = {
 	[PERF_RAPL_PP0]		= RAPL_DOMAIN_PP0,
@@ -2083,7 +1629,7 @@ int rapl_package_add_pmu_locked(struct rapl_package *rp)
 
 	return rapl_pmu_update(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_add_pmu_locked);
+EXPORT_SYMBOL_NS_GPL(rapl_package_add_pmu_locked, "INTEL_RAPL");
 
 int rapl_package_add_pmu(struct rapl_package *rp)
 {
@@ -2091,7 +1637,7 @@ int rapl_package_add_pmu(struct rapl_package *rp)
 
 	return rapl_package_add_pmu_locked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_add_pmu);
+EXPORT_SYMBOL_NS_GPL(rapl_package_add_pmu, "INTEL_RAPL");
 
 void rapl_package_remove_pmu_locked(struct rapl_package *rp)
 {
@@ -2109,7 +1655,7 @@ void rapl_package_remove_pmu_locked(struct rapl_package *rp)
 	perf_pmu_unregister(&rapl_pmu.pmu);
 	memset(&rapl_pmu, 0, sizeof(struct rapl_pmu));
 }
-EXPORT_SYMBOL_GPL(rapl_package_remove_pmu_locked);
+EXPORT_SYMBOL_NS_GPL(rapl_package_remove_pmu_locked, "INTEL_RAPL");
 
 void rapl_package_remove_pmu(struct rapl_package *rp)
 {
@@ -2117,7 +1663,7 @@ void rapl_package_remove_pmu(struct rapl_package *rp)
 
 	rapl_package_remove_pmu_locked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_remove_pmu);
+EXPORT_SYMBOL_NS_GPL(rapl_package_remove_pmu, "INTEL_RAPL");
 #endif
 
 /* called from CPU hotplug notifier, hotplug lock held */
@@ -2150,14 +1696,14 @@ void rapl_remove_package_cpuslocked(struct rapl_package *rp)
 	list_del(&rp->plist);
 	kfree(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_remove_package_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_remove_package_cpuslocked, "INTEL_RAPL");
 
 void rapl_remove_package(struct rapl_package *rp)
 {
 	guard(cpus_read_lock)();
 	rapl_remove_package_cpuslocked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_remove_package);
+EXPORT_SYMBOL_NS_GPL(rapl_remove_package, "INTEL_RAPL");
 
 /*
  * RAPL Package energy counter scope:
@@ -2200,14 +1746,14 @@ struct rapl_package *rapl_find_package_domain_cpuslocked(int id, struct rapl_if_
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(rapl_find_package_domain_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_find_package_domain_cpuslocked, "INTEL_RAPL");
 
 struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
 	guard(cpus_read_lock)();
 	return rapl_find_package_domain_cpuslocked(id, priv, id_is_cpu);
 }
-EXPORT_SYMBOL_GPL(rapl_find_package_domain);
+EXPORT_SYMBOL_NS_GPL(rapl_find_package_domain, "INTEL_RAPL");
 
 /* called from CPU hotplug notifier, hotplug lock held */
 struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *priv, bool id_is_cpu)
@@ -2261,14 +1807,14 @@ err_free_package:
 	kfree(rp);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(rapl_add_package_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_add_package_cpuslocked, "INTEL_RAPL");
 
 struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
 	guard(cpus_read_lock)();
 	return rapl_add_package_cpuslocked(id, priv, id_is_cpu);
 }
-EXPORT_SYMBOL_GPL(rapl_add_package);
+EXPORT_SYMBOL_NS_GPL(rapl_add_package, "INTEL_RAPL");
 
 static void power_limit_state_save(void)
 {
@@ -2328,40 +1874,13 @@ static struct notifier_block rapl_pm_notifier = {
 	.notifier_call = rapl_pm_callback,
 };
 
-static struct platform_device *rapl_msr_platdev;
-
 static int __init rapl_init(void)
 {
-	const struct x86_cpu_id *id;
-	int ret;
-
-	id = x86_match_cpu(rapl_ids);
-	if (id) {
-		defaults_msr = (struct rapl_defaults *)id->driver_data;
-
-		rapl_msr_platdev = platform_device_alloc("intel_rapl_msr", 0);
-		if (!rapl_msr_platdev)
-			return -ENOMEM;
-
-		ret = platform_device_add(rapl_msr_platdev);
-		if (ret) {
-			platform_device_put(rapl_msr_platdev);
-			return ret;
-		}
-	}
-
-	ret = register_pm_notifier(&rapl_pm_notifier);
-	if (ret && rapl_msr_platdev) {
-		platform_device_del(rapl_msr_platdev);
-		platform_device_put(rapl_msr_platdev);
-	}
-
-	return ret;
+	return register_pm_notifier(&rapl_pm_notifier);
 }
 
 static void __exit rapl_exit(void)
 {
-	platform_device_unregister(rapl_msr_platdev);
 	unregister_pm_notifier(&rapl_pm_notifier);
 }
 

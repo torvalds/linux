@@ -195,8 +195,6 @@ static int do_one_cpu(unsigned int cpu, struct cpufreq_policy *new_pol,
 
 int cmd_freq_set(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	int ret = 0, cont = 1;
 	int double_parm = 0, related = 0, policychange = 0;
 	unsigned long freq = 0;

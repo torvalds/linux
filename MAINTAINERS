@@ -1234,9 +1234,9 @@ F:	drivers/gpu/drm/amd/pm/
 
 AMD PSTATE DRIVER
 M:	Huang Rui <ray.huang@amd.com>
-M:	Gautham R. Shenoy <gautham.shenoy@amd.com>
 M:	Mario Limonciello <mario.limonciello@amd.com>
 R:	Perry Yuan <perry.yuan@amd.com>
+R:	K Prateek Nayak <kprateek.nayak@amd.com>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/admin-guide/pm/amd-pstate.rst
@@ -6618,6 +6618,17 @@ M:	Bence Csókás <bence98@sch.bme.hu>
 S:	Maintained
 F:	drivers/i2c/busses/i2c-cp2615.c
 
+CPU FREQUENCY DRIVERS - CPPC CPUFREQ
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+R:	Jie Zhan <zhanjie9@hisilicon.com>
+R:	Lifeng Zheng <zhenglifeng1@huawei.com>
+R:	Pierre Gondois <pierre.gondois@arm.com>
+R:	Sumit Gupta <sumitg@nvidia.com>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	drivers/cpufreq/cppc_cpufreq.c
+
 CPU FREQUENCY DRIVERS - VEXPRESS SPC ARM BIG LITTLE
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 M:	Sudeep Holla <sudeep.holla@kernel.org>
@@ -6625,6 +6636,12 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
 F:	drivers/cpufreq/vexpress-spc-cpufreq.c
+
+CPU FREQUENCY DRIVERS - VIRTUAL MACHINE CPUFREQ
+M:	Saravana Kannan <saravanak@kernel.org>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	drivers/cpufreq/virtual-cpufreq.c
 
 CPU FREQUENCY SCALING FRAMEWORK
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
@@ -6644,12 +6661,6 @@ F:	include/linux/sched/cpufreq.h
 F:	kernel/sched/cpufreq*.c
 F:	rust/kernel/cpufreq.rs
 F:	tools/testing/selftests/cpufreq/
-
-CPU FREQUENCY DRIVERS - VIRTUAL MACHINE CPUFREQ
-M:	Saravana Kannan <saravanak@kernel.org>
-L:	linux-pm@vger.kernel.org
-S:	Maintained
-F:	drivers/cpufreq/virtual-cpufreq.c
 
 CPU HOTPLUG
 M:	Thomas Gleixner <tglx@kernel.org>
