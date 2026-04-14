@@ -343,44 +343,60 @@ extern void apei_mce_report_mem_error(int corrected,
  */
 #ifdef CONFIG_X86_MCE_AMD
 
-/* These may be used by multiple smca_hwid_mcatypes */
+/*
+ * These may be used by multiple smca_hwid_mcatypes.
+ *
+ * Keep in alphanumeric order, numerals before letters.
+ * Exception: Keep "V2, etc." with their originals.
+ */
 enum smca_bank_types {
-	SMCA_LS = 0,	/* Load Store */
-	SMCA_LS_V2,
-	SMCA_IF,	/* Instruction Fetch */
-	SMCA_L2_CACHE,	/* L2 Cache */
+	SMCA_CS,	/* Coherent Station */
+	SMCA_CS_V2,
+	SMCA_DACC_BE,	/* Data Acceleration Back-end */
+	SMCA_DACC_FE,	/* Data Acceleration Front-end */
 	SMCA_DE,	/* Decoder Unit */
-	SMCA_RESERVED,	/* Reserved */
+	SMCA_EDDR5CMN,	/* eDDR5 CMN */
 	SMCA_EX,	/* Execution Unit */
 	SMCA_FP,	/* Floating Point */
+	SMCA_GMI_PCS,	/* GMI PCS Unit */
+	SMCA_GMI_PHY,	/* GMI PHY Unit */
+	SMCA_IF,	/* Instruction Fetch */
+	SMCA_L2_CACHE,	/* L2 Cache */
 	SMCA_L3_CACHE,	/* L3 Cache */
-	SMCA_CS,	/* Coherent Slave */
-	SMCA_CS_V2,
-	SMCA_PIE,	/* Power, Interrupts, etc. */
-	SMCA_UMC,	/* Unified Memory Controller */
-	SMCA_UMC_V2,
+	SMCA_LS,	/* Load Store */
+	SMCA_LS_V2,
 	SMCA_MA_LLC,	/* Memory Attached Last Level Cache */
-	SMCA_PB,	/* Parameter Block */
-	SMCA_PSP,	/* Platform Security Processor */
-	SMCA_PSP_V2,
-	SMCA_SMU,	/* System Management Unit */
-	SMCA_SMU_V2,
 	SMCA_MP5,	/* Microprocessor 5 Unit */
+	SMCA_MPART,	/* AMD Root of Trust Microprocessor */
+	SMCA_MPASP,	/* AMD Secure Processor */
+	SMCA_MPASP_V2,
+	SMCA_MPDACC,	/* MP for Data Acceleration */
 	SMCA_MPDMA,	/* MPDMA Unit */
+	SMCA_MPM,	/* Microprocessor Manageability Core */
+	SMCA_MPRAS,	/* MP for RAS */
+	SMCA_NBIF,	/* NBIF Unit */
 	SMCA_NBIO,	/* Northbridge IO Unit */
+	SMCA_PB,	/* Parameter Block */
 	SMCA_PCIE,	/* PCI Express Unit */
 	SMCA_PCIE_V2,
-	SMCA_XGMI_PCS,	/* xGMI PCS Unit */
-	SMCA_NBIF,	/* NBIF Unit */
-	SMCA_SHUB,	/* System HUB Unit */
+	SMCA_PCIE_PL,	/* PCIe Link */
+	SMCA_PIE,	/* Power, Interrupts, etc. */
+	SMCA_PSP,	/* Platform Security Processor */
+	SMCA_PSP_V2,
+	SMCA_RESERVED,	/* Reserved */
 	SMCA_SATA,	/* SATA Unit */
+	SMCA_SHUB,	/* System HUB Unit */
+	SMCA_SMU,	/* System Management Unit */
+	SMCA_SMU_V2,
+	SMCA_SSBDCI,	/* Die to Die Interconnect */
+	SMCA_UMC,	/* Unified Memory Controller */
+	SMCA_UMC_V2,
 	SMCA_USB,	/* USB Unit */
-	SMCA_USR_DP,	/* Ultra Short Reach Data Plane Controller */
 	SMCA_USR_CP,	/* Ultra Short Reach Control Plane Controller */
-	SMCA_GMI_PCS,	/* GMI PCS Unit */
-	SMCA_XGMI_PHY,	/* xGMI PHY Unit */
+	SMCA_USR_DP,	/* Ultra Short Reach Data Plane Controller */
 	SMCA_WAFL_PHY,	/* WAFL PHY Unit */
-	SMCA_GMI_PHY,	/* GMI PHY Unit */
+	SMCA_XGMI_PCS,	/* xGMI PCS Unit */
+	SMCA_XGMI_PHY,	/* xGMI PHY Unit */
 	N_SMCA_BANK_TYPES
 };
 

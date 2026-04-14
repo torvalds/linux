@@ -95,39 +95,49 @@ static DEFINE_PER_CPU_READ_MOSTLY(struct smca_bank[MAX_NR_BANKS], smca_banks);
 static DEFINE_PER_CPU_READ_MOSTLY(u8[N_SMCA_BANK_TYPES], smca_bank_counts);
 
 static const char * const smca_names[] = {
-	[SMCA_LS ... SMCA_LS_V2]	= "load_store",
-	[SMCA_IF]			= "insn_fetch",
-	[SMCA_L2_CACHE]			= "l2_cache",
+	[SMCA_CS ... SMCA_CS_V2]	= "coherent_station",
+	[SMCA_DACC_BE]			= "dacc_be",
+	[SMCA_DACC_FE]			= "dacc_fe",
 	[SMCA_DE]			= "decode_unit",
-	[SMCA_RESERVED]			= "reserved",
+	[SMCA_EDDR5CMN]			= "eddr5_cmn",
 	[SMCA_EX]			= "execution_unit",
 	[SMCA_FP]			= "floating_point",
+	[SMCA_GMI_PCS]			= "gmi_pcs",
+	[SMCA_GMI_PHY]			= "gmi_phy",
+	[SMCA_IF]			= "insn_fetch",
+	[SMCA_L2_CACHE]			= "l2_cache",
 	[SMCA_L3_CACHE]			= "l3_cache",
-	[SMCA_CS ... SMCA_CS_V2]	= "coherent_slave",
+	[SMCA_LS ... SMCA_LS_V2]	= "load_store",
+	[SMCA_MA_LLC]			= "ma_llc",
+	[SMCA_MP5]			= "mp5",
+	[SMCA_MPART]			= "mpart",
+	[SMCA_MPASP ... SMCA_MPASP_V2]	= "mpasp",
+	[SMCA_MPDACC]			= "mpdacc",
+	[SMCA_MPDMA]			= "mpdma",
+	[SMCA_MPM]			= "mpm",
+	[SMCA_MPRAS]			= "mpras",
+	[SMCA_NBIF]			= "nbif",
+	[SMCA_NBIO]			= "nbio",
+	[SMCA_PB]			= "param_block",
+	[SMCA_PCIE ... SMCA_PCIE_V2]	= "pcie",
+	[SMCA_PCIE_PL]			= "pcie_pl",
 	[SMCA_PIE]			= "pie",
+	[SMCA_PSP ... SMCA_PSP_V2]	= "psp",
+	[SMCA_RESERVED]			= "reserved",
+	[SMCA_SATA]			= "sata",
+	[SMCA_SHUB]			= "shub",
+	[SMCA_SMU ... SMCA_SMU_V2]	= "smu",
+	[SMCA_SSBDCI]			= "ssbdci",
 
 	/* UMC v2 is separate because both of them can exist in a single system. */
 	[SMCA_UMC]			= "umc",
 	[SMCA_UMC_V2]			= "umc_v2",
-	[SMCA_MA_LLC]			= "ma_llc",
-	[SMCA_PB]			= "param_block",
-	[SMCA_PSP ... SMCA_PSP_V2]	= "psp",
-	[SMCA_SMU ... SMCA_SMU_V2]	= "smu",
-	[SMCA_MP5]			= "mp5",
-	[SMCA_MPDMA]			= "mpdma",
-	[SMCA_NBIO]			= "nbio",
-	[SMCA_PCIE ... SMCA_PCIE_V2]	= "pcie",
-	[SMCA_XGMI_PCS]			= "xgmi_pcs",
-	[SMCA_NBIF]			= "nbif",
-	[SMCA_SHUB]			= "shub",
-	[SMCA_SATA]			= "sata",
 	[SMCA_USB]			= "usb",
-	[SMCA_USR_DP]			= "usr_dp",
 	[SMCA_USR_CP]			= "usr_cp",
-	[SMCA_GMI_PCS]			= "gmi_pcs",
-	[SMCA_XGMI_PHY]			= "xgmi_phy",
+	[SMCA_USR_DP]			= "usr_dp",
 	[SMCA_WAFL_PHY]			= "wafl_phy",
-	[SMCA_GMI_PHY]			= "gmi_phy",
+	[SMCA_XGMI_PCS]			= "xgmi_pcs",
+	[SMCA_XGMI_PHY]			= "xgmi_phy",
 };
 
 static const char *smca_get_name(enum smca_bank_types t)
@@ -153,68 +163,60 @@ enum smca_bank_types smca_get_bank_type(unsigned int cpu, unsigned int bank)
 }
 EXPORT_SYMBOL_GPL(smca_get_bank_type);
 
+/*
+ * Format:
+ * { bank_type, hwid_mcatype }
+ *
+ * alphanumerically sorted by bank type.
+ */
 static const struct smca_hwid smca_hwid_mcatypes[] = {
-	/* { bank_type, hwid_mcatype } */
-
-	/* Reserved type */
-	{ SMCA_RESERVED, HWID_MCATYPE(0x00, 0x0)	},
-
-	/* ZN Core (HWID=0xB0) MCA types */
-	{ SMCA_LS,	 HWID_MCATYPE(0xB0, 0x0)	},
-	{ SMCA_LS_V2,	 HWID_MCATYPE(0xB0, 0x10)	},
-	{ SMCA_IF,	 HWID_MCATYPE(0xB0, 0x1)	},
-	{ SMCA_L2_CACHE, HWID_MCATYPE(0xB0, 0x2)	},
+	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0)	},
+	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2)	},
+	{ SMCA_DACC_BE,	 HWID_MCATYPE(0x164, 0x0)	},
+	{ SMCA_DACC_FE,	 HWID_MCATYPE(0x157, 0x0)	},
 	{ SMCA_DE,	 HWID_MCATYPE(0xB0, 0x3)	},
-	/* HWID 0xB0 MCATYPE 0x4 is Reserved */
+	{ SMCA_EDDR5CMN, HWID_MCATYPE(0x1E0, 0x0)	},
 	{ SMCA_EX,	 HWID_MCATYPE(0xB0, 0x5)	},
 	{ SMCA_FP,	 HWID_MCATYPE(0xB0, 0x6)	},
+	{ SMCA_GMI_PCS,  HWID_MCATYPE(0x241, 0x0)	},
+	{ SMCA_GMI_PHY,	 HWID_MCATYPE(0x269, 0x0)	},
+	{ SMCA_IF,	 HWID_MCATYPE(0xB0, 0x1)	},
+	{ SMCA_L2_CACHE, HWID_MCATYPE(0xB0, 0x2)	},
 	{ SMCA_L3_CACHE, HWID_MCATYPE(0xB0, 0x7)	},
-
-	/* Data Fabric MCA types */
-	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0)	},
-	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1)	},
-	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2)	},
+	{ SMCA_LS,	 HWID_MCATYPE(0xB0, 0x0)	},
+	{ SMCA_LS_V2,	 HWID_MCATYPE(0xB0, 0x10)	},
 	{ SMCA_MA_LLC,	 HWID_MCATYPE(0x2E, 0x4)	},
-
-	/* Unified Memory Controller MCA type */
-	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0)	},
-	{ SMCA_UMC_V2,	 HWID_MCATYPE(0x96, 0x1)	},
-
-	/* Parameter Block MCA type */
-	{ SMCA_PB,	 HWID_MCATYPE(0x05, 0x0)	},
-
-	/* Platform Security Processor MCA type */
-	{ SMCA_PSP,	 HWID_MCATYPE(0xFF, 0x0)	},
-	{ SMCA_PSP_V2,	 HWID_MCATYPE(0xFF, 0x1)	},
-
-	/* System Management Unit MCA type */
-	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0)	},
-	{ SMCA_SMU_V2,	 HWID_MCATYPE(0x01, 0x1)	},
-
-	/* Microprocessor 5 Unit MCA type */
 	{ SMCA_MP5,	 HWID_MCATYPE(0x01, 0x2)	},
-
-	/* MPDMA MCA type */
+	{ SMCA_MPART,	 HWID_MCATYPE(0xFF, 0x2)	},
+	{ SMCA_MPASP,	 HWID_MCATYPE(0xFD, 0x0)	},
+	{ SMCA_MPASP_V2, HWID_MCATYPE(0xFD, 0x1)	},
+	{ SMCA_MPDACC,	 HWID_MCATYPE(0xBE, 0x0)	},
 	{ SMCA_MPDMA,	 HWID_MCATYPE(0x01, 0x3)	},
-
-	/* Northbridge IO Unit MCA type */
+	{ SMCA_MPM,	 HWID_MCATYPE(0xF9, 0x0)	},
+	{ SMCA_MPRAS,	 HWID_MCATYPE(0x12, 0x0)	},
+	{ SMCA_NBIF,	 HWID_MCATYPE(0x6C, 0x0)	},
 	{ SMCA_NBIO,	 HWID_MCATYPE(0x18, 0x0)	},
-
-	/* PCI Express Unit MCA type */
+	{ SMCA_PB,	 HWID_MCATYPE(0x05, 0x0)	},
 	{ SMCA_PCIE,	 HWID_MCATYPE(0x46, 0x0)	},
 	{ SMCA_PCIE_V2,	 HWID_MCATYPE(0x46, 0x1)	},
-
-	{ SMCA_XGMI_PCS, HWID_MCATYPE(0x50, 0x0)	},
-	{ SMCA_NBIF,	 HWID_MCATYPE(0x6C, 0x0)	},
-	{ SMCA_SHUB,	 HWID_MCATYPE(0x80, 0x0)	},
+	{ SMCA_PCIE_PL,	 HWID_MCATYPE(0x1E1, 0x0)	},
+	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1)	},
+	{ SMCA_PSP,	 HWID_MCATYPE(0xFF, 0x0)	},
+	{ SMCA_PSP_V2,	 HWID_MCATYPE(0xFF, 0x1)	},
+	{ SMCA_RESERVED, HWID_MCATYPE(0x00, 0x0)	},
 	{ SMCA_SATA,	 HWID_MCATYPE(0xA8, 0x0)	},
+	{ SMCA_SHUB,	 HWID_MCATYPE(0x80, 0x0)	},
+	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0)	},
+	{ SMCA_SMU_V2,	 HWID_MCATYPE(0x01, 0x1)	},
+	{ SMCA_SSBDCI,	 HWID_MCATYPE(0x5C, 0x0)	},
+	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0)	},
+	{ SMCA_UMC_V2,	 HWID_MCATYPE(0x96, 0x1)	},
 	{ SMCA_USB,	 HWID_MCATYPE(0xAA, 0x0)	},
-	{ SMCA_USR_DP,	 HWID_MCATYPE(0x170, 0x0)	},
 	{ SMCA_USR_CP,	 HWID_MCATYPE(0x180, 0x0)	},
-	{ SMCA_GMI_PCS,  HWID_MCATYPE(0x241, 0x0)	},
-	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
+	{ SMCA_USR_DP,	 HWID_MCATYPE(0x170, 0x0)	},
 	{ SMCA_WAFL_PHY, HWID_MCATYPE(0x267, 0x0)	},
-	{ SMCA_GMI_PHY,	 HWID_MCATYPE(0x269, 0x0)	},
+	{ SMCA_XGMI_PCS, HWID_MCATYPE(0x50, 0x0)	},
+	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
 };
 
 /*
