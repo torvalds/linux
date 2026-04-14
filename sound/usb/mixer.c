@@ -2687,6 +2687,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid,
 				cval->max = control_spec[0];
 				cval->res = 1;
 				cval->initialized = 1;
+				err = 0;
 				break;
 			}
 
