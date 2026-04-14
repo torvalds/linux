@@ -521,7 +521,7 @@ static void mce_threshold_block_init(struct threshold_block *b, int offset)
 static int setup_APIC_mce_threshold(int reserved, int new)
 {
 	if (reserved < 0 && !setup_APIC_eilvt(new, THRESHOLD_APIC_VECTOR,
-					      APIC_EILVT_MSG_FIX, 0))
+					      APIC_DELIVERY_MODE_FIXED, 0))
 		return new;
 
 	return reserved;
@@ -712,11 +712,11 @@ static void smca_enable_interrupt_vectors(void)
 		return;
 
 	offset = (mca_intr_cfg & SMCA_THR_LVT_OFF) >> 12;
-	if (!setup_APIC_eilvt(offset, THRESHOLD_APIC_VECTOR, APIC_EILVT_MSG_FIX, 0))
+	if (!setup_APIC_eilvt(offset, THRESHOLD_APIC_VECTOR, APIC_DELIVERY_MODE_FIXED, 0))
 		data->thr_intr_en = 1;
 
 	offset = (mca_intr_cfg & MASK_DEF_LVTOFF) >> 4;
-	if (!setup_APIC_eilvt(offset, DEFERRED_ERROR_VECTOR, APIC_EILVT_MSG_FIX, 0))
+	if (!setup_APIC_eilvt(offset, DEFERRED_ERROR_VECTOR, APIC_DELIVERY_MODE_FIXED, 0))
 		data->dfr_intr_en = 1;
 }
 

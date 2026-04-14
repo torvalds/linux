@@ -15,6 +15,8 @@ struct pv_info {
 #ifdef CONFIG_PARAVIRT_XXL
 	u16 extra_user_64bit_cs;  /* __USER_CS if none */
 #endif
+	bool io_delay;
+
 	const char *name;
 };
 
@@ -25,6 +27,10 @@ unsigned long paravirt_ret0(void);
 u64 _paravirt_ident_64(u64);
 #endif
 #define paravirt_nop	((void *)nop_func)
+
+#ifdef CONFIG_PARAVIRT
+#define call_io_delay() pv_info.io_delay
+#endif
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void paravirt_set_cap(void);

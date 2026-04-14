@@ -267,16 +267,16 @@ static inline void os_xrstor_supervisor(struct fpstate *fpstate)
  */
 static inline u64 xfeatures_need_sigframe_write(void)
 {
-	u64 xfeaures_to_write;
+	u64 xfeatures_to_write;
 
 	/* In-use features must be written: */
-	xfeaures_to_write = xfeatures_in_use();
+	xfeatures_to_write = xfeatures_in_use();
 
 	/* Also write all non-optimizable sigframe features: */
-	xfeaures_to_write |= XFEATURE_MASK_USER_SUPPORTED &
+	xfeatures_to_write |= XFEATURE_MASK_USER_SUPPORTED &
 			     ~XFEATURE_MASK_SIGFRAME_INITOPT;
 
-	return xfeaures_to_write;
+	return xfeatures_to_write;
 }
 
 /*

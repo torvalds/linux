@@ -96,11 +96,11 @@ static __always_inline void halt(void)
 	native_halt();
 }
 #endif /* __ASSEMBLER__ */
+#else
+#include <asm/paravirt.h>
 #endif /* CONFIG_PARAVIRT */
 
-#ifdef CONFIG_PARAVIRT_XXL
-#include <asm/paravirt.h>
-#else
+#ifndef CONFIG_PARAVIRT_XXL
 #ifndef __ASSEMBLER__
 #include <linux/types.h>
 

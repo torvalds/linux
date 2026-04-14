@@ -138,15 +138,8 @@
 #define APIC_SEOI	0x420
 #define APIC_IER	0x480
 #define APIC_EILVTn(n)	(0x500 + 0x10 * n)
-#define		APIC_EILVT_NR_AMD_K8	1	/* # of extended interrupts */
 #define		APIC_EILVT_NR_AMD_10H	4
 #define		APIC_EILVT_NR_MAX	APIC_EILVT_NR_AMD_10H
-#define		APIC_EILVT_LVTOFF(x)	(((x) >> 4) & 0xF)
-#define		APIC_EILVT_MSG_FIX	0x0
-#define		APIC_EILVT_MSG_SMI	0x2
-#define		APIC_EILVT_MSG_NMI	0x4
-#define		APIC_EILVT_MSG_EXT	0x7
-#define		APIC_EILVT_MASKED	(1 << 16)
 
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
 #define APIC_BASE_MSR		0x800

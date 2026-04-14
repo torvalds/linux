@@ -19,17 +19,6 @@
 #include <linux/cpumask.h>
 #include <asm/frame.h>
 
-/* The paravirtualized I/O functions */
-static inline void slow_down_io(void)
-{
-	PVOP_VCALL0(pv_ops, cpu.io_delay);
-#ifdef REALLY_SLOW_IO
-	PVOP_VCALL0(pv_ops, cpu.io_delay);
-	PVOP_VCALL0(pv_ops, cpu.io_delay);
-	PVOP_VCALL0(pv_ops, cpu.io_delay);
-#endif
-}
-
 void native_flush_tlb_local(void);
 void native_flush_tlb_global(void);
 void native_flush_tlb_one_user(unsigned long addr);

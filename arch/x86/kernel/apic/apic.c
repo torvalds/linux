@@ -332,7 +332,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
  * Since the offsets must be consistent for all cores, we keep track
  * of the LVT offsets in software and reserve the offset for the same
  * vector also to be used on other cores. An offset is freed by
- * setting the entry to APIC_EILVT_MASKED.
+ * setting the entry to APIC_LVT_MASKED.
  *
  * If the BIOS is right, there should be no conflicts. Otherwise a
  * "[Firmware Bug]: ..." error message is generated. However, if
@@ -344,9 +344,9 @@ static atomic_t eilvt_offsets[APIC_EILVT_NR_MAX];
 
 static inline int eilvt_entry_is_changeable(unsigned int old, unsigned int new)
 {
-	return (old & APIC_EILVT_MASKED)
-		|| (new == APIC_EILVT_MASKED)
-		|| ((new & ~APIC_EILVT_MASKED) == old);
+	return (old & APIC_LVT_MASKED)
+		|| (new == APIC_LVT_MASKED)
+		|| ((new & ~APIC_LVT_MASKED) == old);
 }
 
 static unsigned int reserve_eilvt_offset(int offset, unsigned int new)
@@ -358,13 +358,13 @@ static unsigned int reserve_eilvt_offset(int offset, unsigned int new)
 
 	rsvd = atomic_read(&eilvt_offsets[offset]);
 	do {
-		vector = rsvd & ~APIC_EILVT_MASKED;	/* 0: unassigned */
+		vector = rsvd & ~APIC_LVT_MASKED;	/* 0: unassigned */
 		if (vector && !eilvt_entry_is_changeable(vector, new))
 			/* may not change if vectors are different */
 			return rsvd;
 	} while (!atomic_try_cmpxchg(&eilvt_offsets[offset], &rsvd, new));
 
-	rsvd = new & ~APIC_EILVT_MASKED;
+	rsvd = new & ~APIC_LVT_MASKED;
 	if (rsvd && rsvd != vector)
 		pr_info("LVT offset %d assigned for vector 0x%02x\n",
 			offset, rsvd);
