@@ -190,6 +190,14 @@ Kernel parameters
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
+	acpi.poweroff_on_fatal=	[ACPI]
+			{0 | 1}
+			Causes the system to poweroff when the ACPI bytecode signals
+			a fatal error. The default value of this setting is 1.
+			Overriding this value should only be done for diagnosing
+			ACPI firmware problems, as the system might behave erratically
+			after having encountered a fatal ACPI error.
+
 	acpi_enforce_resources=	[ACPI]
 			{ strict | lax | no }
 			Check for resource conflicts between native drivers

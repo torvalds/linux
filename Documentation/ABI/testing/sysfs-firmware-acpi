@@ -41,6 +41,12 @@ Description:
 				platform runtime firmware S3 resume, just prior to
 				handoff to the OS waking vector. In nanoseconds.
 
+		FBPT: The raw binary contents of the Firmware Basic Boot
+			Performance Table (FBPT) subtable.
+
+		S3PT: The raw binary contents of the S3 Performance Table
+			(S3PT) subtable.
+
 What:		/sys/firmware/acpi/bgrt/
 Date:		January 2012
 Contact:	Matthew Garrett <mjg@redhat.com>

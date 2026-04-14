@@ -42,6 +42,11 @@
 #define CPPC_EPP_PERFORMANCE_PREF		0x00
 #define CPPC_EPP_ENERGY_EFFICIENCY_PREF		0xFF
 
+#define CPPC_PERF_LIMITED_DESIRED_EXCURSION	BIT(0)
+#define CPPC_PERF_LIMITED_MINIMUM_EXCURSION	BIT(1)
+#define CPPC_PERF_LIMITED_MASK		(CPPC_PERF_LIMITED_DESIRED_EXCURSION | \
+					 CPPC_PERF_LIMITED_MINIMUM_EXCURSION)
+
 /* Each register has the folowing format. */
 struct cpc_reg {
 	u8 descriptor;
@@ -116,6 +121,7 @@ struct cppc_perf_caps {
 	u32 guaranteed_perf;
 	u32 highest_perf;
 	u32 nominal_perf;
+	u32 reference_perf;
 	u32 lowest_perf;
 	u32 lowest_nonlinear_perf;
 	u32 lowest_freq;
@@ -133,7 +139,6 @@ struct cppc_perf_ctrls {
 struct cppc_perf_fb_ctrs {
 	u64 reference;
 	u64 delivered;
-	u64 reference_perf;
 	u64 wraparound_time;
 };
 
@@ -151,6 +156,7 @@ extern int cppc_get_desired_perf(int cpunum, u64 *desired_perf);
 extern int cppc_get_nominal_perf(int cpunum, u64 *nominal_perf);
 extern int cppc_get_highest_perf(int cpunum, u64 *highest_perf);
 extern int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs);
+extern int cppc_get_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_set_enable(int cpu, bool enable);
 extern int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps);
@@ -173,6 +179,8 @@ extern int cppc_get_auto_act_window(int cpu, u64 *auto_act_window);
 extern int cppc_set_auto_act_window(int cpu, u64 auto_act_window);
 extern int cppc_get_auto_sel(int cpu, bool *enable);
 extern int cppc_set_auto_sel(int cpu, bool enable);
+extern int cppc_get_perf_limited(int cpu, u64 *perf_limited);
+extern int cppc_set_perf_limited(int cpu, u64 bits_to_clear);
 extern int amd_get_highest_perf(unsigned int cpu, u32 *highest_perf);
 extern int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator);
 extern int amd_detect_prefcore(bool *detected);
@@ -190,6 +198,10 @@ static inline int cppc_get_highest_perf(int cpunum, u64 *highest_perf)
 	return -EOPNOTSUPP;
 }
 static inline int cppc_get_perf_ctrs(int cpu, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
+{
+	return -EOPNOTSUPP;
+}
+static inline int cppc_get_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 {
 	return -EOPNOTSUPP;
 }
@@ -262,6 +274,14 @@ static inline int cppc_get_auto_sel(int cpu, bool *enable)
 	return -EOPNOTSUPP;
 }
 static inline int cppc_set_auto_sel(int cpu, bool enable)
+{
+	return -EOPNOTSUPP;
+}
+static inline int cppc_get_perf_limited(int cpu, u64 *perf_limited)
+{
+	return -EOPNOTSUPP;
+}
+static inline int cppc_set_perf_limited(int cpu, u64 bits_to_clear)
 {
 	return -EOPNOTSUPP;
 }

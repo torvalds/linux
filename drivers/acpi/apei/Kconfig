@@ -74,6 +74,20 @@ config ACPI_APEI_EINJ_CXL
 
 	  If unsure say 'n'
 
+config ACPI_APEI_GHES_NVIDIA
+	tristate "NVIDIA GHES vendor record handler"
+	depends on ACPI_APEI_GHES
+	help
+	  Support for decoding NVIDIA-specific CPER sections delivered via
+	  the APEI GHES vendor record notifier chain. Registers a handler
+	  for the NVIDIA section GUID and logs error signatures, severity,
+	  socket, and diagnostic register address-value pairs.
+
+	  Enable on NVIDIA server platforms (e.g. DGX, HGX) that expose
+	  ACPI device NVDA2012 in their firmware tables.
+
+	  If unsure, say N.
+
 config ACPI_APEI_ERST_DEBUG
 	tristate "APEI Error Record Serialization Table (ERST) Debug Support"
 	depends on ACPI_APEI

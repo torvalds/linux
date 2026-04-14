@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 #include <xen/xen.h>
 #include <xen/interface/version.h>
 #include <xen/xen-ops.h>
@@ -107,8 +108,9 @@ static void acpi_pad_notify(acpi_handle handle, u32 event,
 	}
 }
 
-static int acpi_pad_add(struct acpi_device *device)
+static int acpi_pad_probe(struct platform_device *pdev)
 {
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	acpi_status status;
 
 	strcpy(acpi_device_name(device), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
@@ -122,13 +124,13 @@ static int acpi_pad_add(struct acpi_device *device)
 	return 0;
 }
 
-static void acpi_pad_remove(struct acpi_device *device)
+static void acpi_pad_remove(struct platform_device *pdev)
 {
 	mutex_lock(&xen_cpu_lock);
 	xen_acpi_pad_idle_cpus(0);
 	mutex_unlock(&xen_cpu_lock);
 
-	acpi_remove_notify_handler(device->handle,
+	acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev),
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify);
 }
 
@@ -137,13 +139,12 @@ static const struct acpi_device_id pad_device_ids[] = {
 	{"", 0},
 };
 
-static struct acpi_driver acpi_pad_driver = {
-	.name = "processor_aggregator",
-	.class = ACPI_PROCESSOR_AGGREGATOR_CLASS,
-	.ids = pad_device_ids,
-	.ops = {
-		.add = acpi_pad_add,
-		.remove = acpi_pad_remove,
+static struct platform_driver acpi_pad_driver = {
+	.probe = acpi_pad_probe,
+	.remove = acpi_pad_remove,
+	.driver = {
+		.name = "acpi_processor_aggregator",
+		.acpi_match_table = pad_device_ids,
 	},
 };
 
@@ -157,6 +158,6 @@ static int __init xen_acpi_pad_init(void)
 	if (!xen_running_on_version_or_later(4, 2))
 		return -ENODEV;
 
-	return acpi_bus_register_driver(&acpi_pad_driver);
+	return platform_driver_register(&acpi_pad_driver);
 }
 subsys_initcall(xen_acpi_pad_init);

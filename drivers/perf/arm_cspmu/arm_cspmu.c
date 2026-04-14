@@ -1107,15 +1107,17 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 {
 	struct acpi_apmt_node *apmt_node;
 	int affinity_flag;
+	u32 cpu_uid;
 	int cpu;
+	int ret;
 
 	apmt_node = arm_cspmu_apmt_node(cspmu->dev);
 	affinity_flag = apmt_node->flags & ACPI_APMT_FLAGS_AFFINITY;
 
 	if (affinity_flag == ACPI_APMT_FLAGS_AFFINITY_PROC) {
 		for_each_possible_cpu(cpu) {
-			if (apmt_node->proc_affinity ==
-			    get_acpi_id_for_cpu(cpu)) {
+			ret = acpi_get_cpu_uid(cpu, &cpu_uid);
+			if (ret == 0 && apmt_node->proc_affinity == cpu_uid) {
 				cpumask_set_cpu(cpu, &cspmu->associated_cpus);
 				break;
 			}
