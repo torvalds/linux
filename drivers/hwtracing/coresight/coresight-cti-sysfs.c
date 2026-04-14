@@ -606,14 +606,11 @@ static ssize_t chan_gate_enable_show(struct device *dev,
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
 	unsigned long ctigate_bitmask = cfg->ctigate;
-	int size = 0;
 
 	if (cfg->ctigate == 0)
-		size = sprintf(buf, "\n");
-	else
-		size = bitmap_print_to_pagebuf(true, buf, &ctigate_bitmask,
-					       cfg->nr_ctm_channels);
-	return size;
+		return sprintf(buf, "\n");
+
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_ctm_channels, &ctigate_bitmask);
 }
 static DEVICE_ATTR_RW(chan_gate_enable);
 
@@ -710,12 +707,13 @@ static ssize_t trigout_filtered_show(struct device *dev,
 {
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *cfg = &drvdata->config;
-	int size = 0, nr_trig_max = cfg->nr_trig_max;
+	int nr_trig_max = cfg->nr_trig_max;
 	unsigned long mask = cfg->trig_out_filter;
 
-	if (mask)
-		size = bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
-	return size;
+	if (mask == 0)
+		return 0;
+
+	return sysfs_emit(buf, "%*pbl\n", nr_trig_max, &mask);
 }
 static DEVICE_ATTR_RO(trigout_filtered);
 
@@ -834,7 +832,7 @@ static ssize_t print_chan_list(struct device *dev,
 {
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cti_config *config = &drvdata->config;
-	int size, i;
+	int i;
 	unsigned long inuse_bits = 0, chan_mask;
 
 	/* scan regs to get bitmap of channels in use. */
@@ -852,11 +850,9 @@ static ssize_t print_chan_list(struct device *dev,
 	/* list of channels, or 'none' */
 	chan_mask = GENMASK(config->nr_ctm_channels - 1, 0);
 	if (inuse_bits & chan_mask)
-		size = bitmap_print_to_pagebuf(true, buf, &inuse_bits,
-					       config->nr_ctm_channels);
-	else
-		size = sprintf(buf, "\n");
-	return size;
+		return sysfs_emit(buf, "%*pbl\n", config->nr_ctm_channels, &inuse_bits);
+
+	return sprintf(buf, "\n");
 }
 
 static ssize_t chan_inuse_show(struct device *dev,
@@ -928,7 +924,7 @@ static ssize_t trigin_sig_show(struct device *dev,
 	struct cti_config *cfg = &drvdata->config;
 	unsigned long mask = con->con_in->used_mask;
 
-	return bitmap_print_to_pagebuf(true, buf, &mask, cfg->nr_trig_max);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
 }
 
 static ssize_t trigout_sig_show(struct device *dev,
@@ -942,7 +938,7 @@ static ssize_t trigout_sig_show(struct device *dev,
 	struct cti_config *cfg = &drvdata->config;
 	unsigned long mask = con->con_out->used_mask;
 
-	return bitmap_print_to_pagebuf(true, buf, &mask, cfg->nr_trig_max);
+	return sysfs_emit(buf, "%*pbl\n", cfg->nr_trig_max, &mask);
 }
 
 /* convert a sig type id to a name */

@@ -30,18 +30,20 @@ static DECLARE_BITMAP(bitmap, BITMAP_LEN) __initdata;
 static DECLARE_BITMAP(bitmap2, BITMAP_LEN) __initdata;
 
 /*
- * This is Schlemiel the Painter's algorithm. It should be called after
- * all other tests for the same bitmap because it sets all bits of bitmap to 1.
+ * This is Schlemiel the Painter's algorithm.
  */
-static int __init test_find_first_bit(void *bitmap, unsigned long len)
+static int __init test_find_first_bit(const void *bitmap, unsigned long len)
 {
+	static DECLARE_BITMAP(cp, BITMAP_LEN) __initdata;
 	unsigned long i, cnt;
 	ktime_t time;
 
+	bitmap_copy(cp, bitmap, BITMAP_LEN);
+
 	time = ktime_get();
 	for (cnt = i = 0; i < len; cnt++) {
-		i = find_first_bit(bitmap, len);
-		__clear_bit(i, bitmap);
+		i = find_first_bit(cp, len);
+		__clear_bit(i, cp);
 	}
 	time = ktime_get() - time;
 	pr_err("find_first_bit:     %18llu ns, %6ld iterations\n", time, cnt);
@@ -49,7 +51,8 @@ static int __init test_find_first_bit(void *bitmap, unsigned long len)
 	return 0;
 }
 
-static int __init test_find_first_and_bit(void *bitmap, const void *bitmap2, unsigned long len)
+static int __init test_find_first_and_bit(const void *bitmap, const void *bitmap2,
+		unsigned long len)
 {
 	static DECLARE_BITMAP(cp, BITMAP_LEN) __initdata;
 	unsigned long i, cnt;

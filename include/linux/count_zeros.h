@@ -18,7 +18,7 @@
  *
  * If the MSB of @x is set, the result is 0.
  * If only the LSB of @x is set, then the result is BITS_PER_LONG-1.
- * If @x is 0 then the result is COUNT_LEADING_ZEROS_0.
+ * If @x is 0 then the result is BITS_PER_LONG.
  */
 static inline int count_leading_zeros(unsigned long x)
 {
@@ -28,8 +28,6 @@ static inline int count_leading_zeros(unsigned long x)
 		return BITS_PER_LONG - fls64(x);
 }
 
-#define COUNT_LEADING_ZEROS_0 BITS_PER_LONG
-
 /**
  * count_trailing_zeros - Count the number of zeros from the LSB forwards
  * @x: The value
@@ -38,16 +36,11 @@ static inline int count_leading_zeros(unsigned long x)
  *
  * If the LSB of @x is set, the result is 0.
  * If only the MSB of @x is set, then the result is BITS_PER_LONG-1.
- * If @x is 0 then the result is COUNT_TRAILING_ZEROS_0.
+ * If @x is 0 then the result is BITS_PER_LONG.
  */
 static inline int count_trailing_zeros(unsigned long x)
 {
-#define COUNT_TRAILING_ZEROS_0 (-1)
-
-	if (sizeof(x) == 4)
-		return ffs(x);
-	else
-		return (x != 0) ? __ffs(x) : COUNT_TRAILING_ZEROS_0;
+	return x ? __ffs(x) : BITS_PER_LONG;
 }
 
 #endif /* _LINUX_BITOPS_COUNT_ZEROS_H_ */

@@ -667,17 +667,9 @@ static void xive_spapr_sync_source(u32 hw_irq)
 static int xive_spapr_debug_show(struct seq_file *m, void *private)
 {
 	struct xive_irq_bitmap *xibm;
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 
-	if (!buf)
-		return -ENOMEM;
-
-	list_for_each_entry(xibm, &xive_irq_bitmaps, list) {
-		memset(buf, 0, PAGE_SIZE);
-		bitmap_print_to_pagebuf(true, buf, xibm->bitmap, xibm->count);
-		seq_printf(m, "bitmap #%d: %s", xibm->count, buf);
-	}
-	kfree(buf);
+	list_for_each_entry(xibm, &xive_irq_bitmaps, list)
+		seq_printf(m, "bitmap #%d: %*pbl\n", xibm->count, xibm->count, xibm->bitmap);
 
 	return 0;
 }
