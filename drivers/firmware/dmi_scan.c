@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
+
+#define pr_fmt(fmt) "DMI: " fmt
+
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -44,7 +47,7 @@ static struct dmi_memdev_info {
 static int dmi_memdev_nr;
 static int dmi_memdev_populated_nr __initdata;
 
-static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
+const char *dmi_string_nosave(const struct dmi_header *dm, u8 s)
 {
 	const u8 *bp = ((u8 *) dm) + dm->length;
 	const u8 *nsp;
@@ -63,6 +66,7 @@ static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 
 	return dmi_empty_string;
 }
+EXPORT_SYMBOL_GPL(dmi_string_nosave);
 
 static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
 {
@@ -484,14 +488,14 @@ static void __init dmi_memdev_walk(void)
 static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
-	case 0:		/* BIOS Information */
+	case DMI_ENTRY_BIOS:
 		dmi_save_ident(dm, DMI_BIOS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BIOS_VERSION, 5);
 		dmi_save_ident(dm, DMI_BIOS_DATE, 8);
 		dmi_save_release(dm, DMI_BIOS_RELEASE, 21);
 		dmi_save_release(dm, DMI_EC_FIRMWARE_RELEASE, 23);
 		break;
-	case 1:		/* System Information */
+	case DMI_ENTRY_SYSTEM:
 		dmi_save_ident(dm, DMI_SYS_VENDOR, 4);
 		dmi_save_ident(dm, DMI_PRODUCT_NAME, 5);
 		dmi_save_ident(dm, DMI_PRODUCT_VERSION, 6);
@@ -500,33 +504,33 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 		dmi_save_ident(dm, DMI_PRODUCT_SKU, 25);
 		dmi_save_ident(dm, DMI_PRODUCT_FAMILY, 26);
 		break;
-	case 2:		/* Base Board Information */
+	case DMI_ENTRY_BASEBOARD:
 		dmi_save_ident(dm, DMI_BOARD_VENDOR, 4);
 		dmi_save_ident(dm, DMI_BOARD_NAME, 5);
 		dmi_save_ident(dm, DMI_BOARD_VERSION, 6);
 		dmi_save_ident(dm, DMI_BOARD_SERIAL, 7);
 		dmi_save_ident(dm, DMI_BOARD_ASSET_TAG, 8);
 		break;
-	case 3:		/* Chassis Information */
+	case DMI_ENTRY_CHASSIS:
 		dmi_save_ident(dm, DMI_CHASSIS_VENDOR, 4);
 		dmi_save_type(dm, DMI_CHASSIS_TYPE, 5);
 		dmi_save_ident(dm, DMI_CHASSIS_VERSION, 6);
 		dmi_save_ident(dm, DMI_CHASSIS_SERIAL, 7);
 		dmi_save_ident(dm, DMI_CHASSIS_ASSET_TAG, 8);
 		break;
-	case 9:		/* System Slots */
+	case DMI_ENTRY_SYSTEM_SLOT:
 		dmi_save_system_slot(dm);
 		break;
-	case 10:	/* Onboard Devices Information */
+	case DMI_ENTRY_ONBOARD_DEVICE:
 		dmi_save_devices(dm);
 		break;
-	case 11:	/* OEM Strings */
+	case DMI_ENTRY_OEMSTRINGS:
 		dmi_save_oem_strings_devices(dm);
 		break;
-	case 38:	/* IPMI Device Information */
+	case DMI_ENTRY_IPMI_DEV:
 		dmi_save_ipmi_device(dm);
 		break;
-	case 41:	/* Onboard Devices Extended Information */
+	case DMI_ENTRY_ONBOARD_DEV_EXT:
 		dmi_save_extended_devices(dm);
 	}
 }
@@ -634,7 +638,7 @@ static int __init dmi_present(const u8 *buf)
 					dmi_ver >> 16, (dmi_ver >> 8) & 0xFF);
 			}
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
-			pr_info("DMI: %s\n", dmi_ids_string);
+			pr_info("%s\n", dmi_ids_string);
 			return 0;
 		}
 	}
@@ -663,7 +667,7 @@ static int __init dmi_smbios3_present(const u8 *buf)
 				dmi_ver >> 16, (dmi_ver >> 8) & 0xFF,
 				dmi_ver & 0xFF);
 			dmi_format_ids(dmi_ids_string, sizeof(dmi_ids_string));
-			pr_info("DMI: %s\n", dmi_ids_string);
+			pr_info("%s\n", dmi_ids_string);
 			return 0;
 		}
 	}
@@ -758,7 +762,7 @@ static void __init dmi_scan_machine(void)
 		dmi_early_unmap(p, 0x10000);
 	}
  error:
-	pr_info("DMI not present or invalid.\n");
+	pr_info("not present or invalid.\n");
 }
 
 static __ro_after_init BIN_ATTR_SIMPLE_ADMIN_RO(smbios_entry_point);
@@ -810,7 +814,7 @@ static int __init dmi_init(void)
 	kobject_del(tables_kobj);
 	kobject_put(tables_kobj);
  err:
-	pr_err("dmi: Firmware registration failed.\n");
+	pr_err("Firmware registration failed.\n");
 
 	return ret;
 }
@@ -831,7 +835,7 @@ void __init dmi_setup(void)
 		return;
 
 	dmi_memdev_walk();
-	pr_info("DMI: Memory slots populated: %d/%d\n",
+	pr_info("Memory slots populated: %d/%d\n",
 		dmi_memdev_populated_nr, dmi_memdev_nr);
 	dump_stack_set_arch_desc("%s", dmi_ids_string);
 }

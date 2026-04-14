@@ -60,6 +60,7 @@ enum dmi_entry_type {
 	DMI_ENTRY_OOB_REMOTE_ACCESS,
 	DMI_ENTRY_BIS_ENTRY,
 	DMI_ENTRY_SYSTEM_BOOT,
+	DMI_ENTRY_64_MEM_ERROR,
 	DMI_ENTRY_MGMT_DEV,
 	DMI_ENTRY_MGMT_DEV_COMPONENT,
 	DMI_ENTRY_MGMT_DEV_THRES,
@@ -69,6 +70,10 @@ enum dmi_entry_type {
 	DMI_ENTRY_ADDITIONAL,
 	DMI_ENTRY_ONBOARD_DEV_EXT,
 	DMI_ENTRY_MGMT_CONTROLLER_HOST,
+	DMI_ENTRY_TPM_DEVICE,
+	DMI_ENTRY_PROCESSOR_ADDITIONAL,
+	DMI_ENTRY_FIRMWARE_INVENTORY,
+	DMI_ENTRY_STRING_PROPERTY,
 	DMI_ENTRY_INACTIVE = 126,
 	DMI_ENTRY_END_OF_TABLE = 127,
 };
@@ -85,6 +90,21 @@ struct dmi_device {
 	const char *name;
 	void *device_data;	/* Type specific data */
 };
+
+#define DMI_A_INFO_ENT_MIN_SIZE 0x6
+struct dmi_a_info_entry {
+	u8 length;
+	u16 handle;
+	u8 offset;
+	u8 str_num;
+	u8 value[];
+} __packed;
+
+#define DMI_A_INFO_MIN_SIZE	0xB
+struct dmi_a_info {
+	struct dmi_header header;
+	u8 count;
+} __packed;
 
 #ifdef CONFIG_DMI
 
@@ -115,6 +135,7 @@ extern void dmi_memdev_name(u16 handle, const char **bank, const char **device);
 extern u64 dmi_memdev_size(u16 handle);
 extern u8 dmi_memdev_type(u16 handle);
 extern u16 dmi_memdev_handle(int slot);
+const char *dmi_string_nosave(const struct dmi_header *dm, u8 s);
 
 #else
 
@@ -148,6 +169,8 @@ static inline u8 dmi_memdev_type(u16 handle) { return 0x0; }
 static inline u16 dmi_memdev_handle(int slot) { return 0xffff; }
 static inline const struct dmi_system_id *
 	dmi_first_match(const struct dmi_system_id *list) { return NULL; }
+static inline const char *
+	dmi_string_nosave(const struct dmi_header *dm, u8 s) { return ""; }
 
 #endif
 
