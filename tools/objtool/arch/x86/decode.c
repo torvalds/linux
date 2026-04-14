@@ -875,14 +875,20 @@ int arch_decode_hint_reg(u8 sp_reg, int *base)
 	case ORC_REG_UNDEFINED:
 		*base = CFI_UNDEFINED;
 		break;
+	case ORC_REG_AX:
+		*base = CFI_AX;
+		break;
+	case ORC_REG_DX:
+		*base = CFI_DX;
+		break;
 	case ORC_REG_SP:
 		*base = CFI_SP;
 		break;
 	case ORC_REG_BP:
 		*base = CFI_BP;
 		break;
-	case ORC_REG_SP_INDIRECT:
-		*base = CFI_SP_INDIRECT;
+	case ORC_REG_DI:
+		*base = CFI_DI;
 		break;
 	case ORC_REG_R10:
 		*base = CFI_R10;
@@ -890,11 +896,11 @@ int arch_decode_hint_reg(u8 sp_reg, int *base)
 	case ORC_REG_R13:
 		*base = CFI_R13;
 		break;
-	case ORC_REG_DI:
-		*base = CFI_DI;
+	case ORC_REG_SP_INDIRECT:
+		*base = CFI_SP_INDIRECT;
 		break;
-	case ORC_REG_DX:
-		*base = CFI_DX;
+	case ORC_REG_BP_INDIRECT:
+		*base = CFI_BP_INDIRECT;
 		break;
 	default:
 		return -1;

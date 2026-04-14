@@ -546,17 +546,23 @@ bool unwind_next_frame(struct unwind_state *state)
 		indirect = true;
 		break;
 
-	case ORC_REG_R10:
-		if (!get_reg(state, offsetof(struct pt_regs, r10), &sp)) {
-			orc_warn_current("missing R10 value at %pB\n",
+	/*
+	 * Any of the below registers may temporarily hold the stack pointer,
+	 * typically during a DRAP stack realignment sequence or some other
+	 * stack swizzle.
+	 */
+
+	case ORC_REG_AX:
+		if (!get_reg(state, offsetof(struct pt_regs, ax), &sp)) {
+			orc_warn_current("missing AX value at %pB\n",
 					 (void *)state->ip);
 			goto err;
 		}
 		break;
 
-	case ORC_REG_R13:
-		if (!get_reg(state, offsetof(struct pt_regs, r13), &sp)) {
-			orc_warn_current("missing R13 value at %pB\n",
+	case ORC_REG_DX:
+		if (!get_reg(state, offsetof(struct pt_regs, dx), &sp)) {
+			orc_warn_current("missing DX value at %pB\n",
 					 (void *)state->ip);
 			goto err;
 		}
@@ -570,9 +576,17 @@ bool unwind_next_frame(struct unwind_state *state)
 		}
 		break;
 
-	case ORC_REG_DX:
-		if (!get_reg(state, offsetof(struct pt_regs, dx), &sp)) {
-			orc_warn_current("missing DX value at %pB\n",
+	case ORC_REG_R10:
+		if (!get_reg(state, offsetof(struct pt_regs, r10), &sp)) {
+			orc_warn_current("missing R10 value at %pB\n",
+					 (void *)state->ip);
+			goto err;
+		}
+		break;
+
+	case ORC_REG_R13:
+		if (!get_reg(state, offsetof(struct pt_regs, r13), &sp)) {
+			orc_warn_current("missing R13 value at %pB\n",
 					 (void *)state->ip);
 			goto err;
 		}

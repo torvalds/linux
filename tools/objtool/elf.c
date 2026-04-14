@@ -25,9 +25,16 @@
 #include <objtool/elf.h>
 #include <objtool/warn.h>
 
+static ssize_t demangled_name_len(const char *name);
+
 static inline u32 str_hash(const char *str)
 {
 	return jhash(str, strlen(str), 0);
+}
+
+static inline u32 str_hash_demangled(const char *str)
+{
+	return jhash(str, demangled_name_len(str), 0);
 }
 
 #define __elf_table(name)	(elf->name##_hash)
@@ -293,7 +300,7 @@ static struct symbol *find_local_symbol_by_file_and_name(const struct elf *elf,
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(name)) {
+	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash_demangled(name)) {
 		if (sym->bind == STB_LOCAL && sym->file == file &&
 		    !strcmp(sym->name, name)) {
 			return sym;
@@ -307,12 +314,25 @@ struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *nam
 {
 	struct symbol *sym;
 
-	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(name)) {
+	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash_demangled(name)) {
 		if (!strcmp(sym->name, name) && !is_local_sym(sym))
 			return sym;
 	}
 
 	return NULL;
+}
+
+void iterate_global_symbol_by_demangled_name(const struct elf *elf,
+					     const char *demangled_name,
+					     void (*process)(struct symbol *sym, void *data),
+					     void *data)
+{
+	struct symbol *sym;
+
+	elf_hash_for_each_possible(symbol_name, sym, name_hash, str_hash(demangled_name)) {
+		if (!strcmp(sym->demangled_name, demangled_name) && !is_local_sym(sym))
+			process(sym, data);
+	}
 }
 
 struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
@@ -440,32 +460,65 @@ static int read_sections(struct elf *elf)
 	return 0;
 }
 
+/*
+ * Returns desired length of the demangled name.
+ * If name doesn't need demangling, return strlen(name).
+ */
+static ssize_t demangled_name_len(const char *name)
+{
+	ssize_t idx;
+	const char *p;
+
+	p = strstr(name, ".llvm.");
+	if (p)
+		return p - name;
+
+	if (!strstarts(name, "__UNIQUE_ID_") && !strchr(name, '.'))
+		return strlen(name);
+
+	for (idx = strlen(name) - 1; idx >= 0; idx--) {
+		char c = name[idx];
+
+		if (!isdigit(c) && c != '.' && c != '_')
+			break;
+	}
+	if (idx <= 0)
+		return strlen(name);
+	return idx + 1;
+}
+
+/*
+ * Remove number suffix of a symbol.
+ *
+ * Specifically, remove trailing numbers for "__UNIQUE_ID_" symbols and
+ * symbols with '.'.
+ *
+ * With CONFIG_LTO_CLANG_THIN, it is possible to have nested __UNIQUE_ID_,
+ * such as
+ *
+ *   __UNIQUE_ID_addressable___UNIQUE_ID_pci_invalid_bar_694_695
+ *
+ * to remove both trailing numbers, also remove trailing '_'.
+ *
+ * For symbols with llvm suffix, i.e., foo.llvm.<hash>, remove the
+ * .llvm.<hash> part.
+ */
 static const char *demangle_name(struct symbol *sym)
 {
 	char *str;
-
-	if (!is_local_sym(sym))
-		return sym->name;
+	ssize_t len;
 
 	if (!is_func_sym(sym) && !is_object_sym(sym))
 		return sym->name;
 
-	if (!strstarts(sym->name, "__UNIQUE_ID_") && !strchr(sym->name, '.'))
+	len = demangled_name_len(sym->name);
+	if (len == strlen(sym->name))
 		return sym->name;
 
-	str = strdup(sym->name);
+	str = strndup(sym->name, len);
 	if (!str) {
 		ERROR_GLIBC("strdup");
 		return NULL;
-	}
-
-	for (int i = strlen(str) - 1; i >= 0; i--) {
-		char c = str[i];
-
-		if (!isdigit(c) && c != '.') {
-			str[i + 1] = '\0';
-			break;
-		}
 	}
 
 	return str;
@@ -503,9 +556,13 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 		entry = &sym->sec->symbol_list;
 	list_add(&sym->list, entry);
 
+	sym->demangled_name = demangle_name(sym);
+	if (!sym->demangled_name)
+		return -1;
+
 	list_add_tail(&sym->global_list, &elf->symbols);
 	elf_hash_add(symbol, &sym->hash, sym->idx);
-	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->name));
+	elf_hash_add(symbol_name, &sym->name_hash, str_hash(sym->demangled_name));
 
 	if (is_func_sym(sym) &&
 	    (strstarts(sym->name, "__pfx_") ||
@@ -528,10 +585,6 @@ static int elf_add_symbol(struct elf *elf, struct symbol *sym)
 	}
 
 	sym->pfunc = sym->cfunc = sym;
-
-	sym->demangled_name = demangle_name(sym);
-	if (!sym->demangled_name)
-		return -1;
 
 	return 0;
 }
@@ -613,7 +666,7 @@ static int read_symbols(struct elf *elf)
 		if (elf_add_symbol(elf, sym))
 			return -1;
 
-		if (sym->type == STT_FILE)
+		if (is_file_sym(sym))
 			file = sym;
 		else if (sym->bind == STB_LOCAL)
 			sym->file = file;
@@ -1318,7 +1371,7 @@ unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char 
 		return -1;
 	}
 
-	offset = ALIGN(strtab->sh.sh_size, strtab->sh.sh_addralign);
+	offset = ALIGN(sec_size(strtab), strtab->sh.sh_addralign);
 
 	if (!elf_add_data(elf, strtab, str, strlen(str) + 1))
 		return -1;
@@ -1360,7 +1413,7 @@ void *elf_add_data(struct elf *elf, struct section *sec, const void *data, size_
 	sec->data->d_size = size;
 	sec->data->d_align = sec->sh.sh_addralign;
 
-	offset = ALIGN(sec->sh.sh_size, sec->sh.sh_addralign);
+	offset = ALIGN(sec_size(sec), sec->sh.sh_addralign);
 	sec->sh.sh_size = offset + size;
 
 	mark_sec_changed(elf, sec, true);

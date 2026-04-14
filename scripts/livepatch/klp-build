@@ -52,20 +52,37 @@ PATCH_TMP_DIR="$TMP_DIR/tmp"
 
 KLP_DIFF_LOG="$DIFF_DIR/diff.log"
 
+# Terminal output colors
+read -r COLOR_RESET COLOR_BOLD COLOR_ERROR COLOR_WARN <<< ""
+if [[ -t 1 && -t 2 ]]; then
+	COLOR_RESET="\033[0m"
+	COLOR_BOLD="\033[1m"
+	COLOR_ERROR="\033[0;31m"
+	COLOR_WARN="\033[0;33m"
+fi
+
 grep0() {
+	# shellcheck disable=SC2317
 	command grep "$@" || true
 }
 
+# Because pipefail is enabled, the grep0 helper should be used instead of
+# grep, otherwise a failed match can propagate to an error.
+grep() {
+	echo "error: $SCRIPT: use grep0 or 'command grep' instead of bare grep" >&2
+	exit 1
+}
+
 status() {
-	echo "$*"
+	echo -e "${COLOR_BOLD}$*${COLOR_RESET}"
 }
 
 warn() {
-	echo "error: $SCRIPT: $*" >&2
+	echo -e "${COLOR_WARN}warning${COLOR_RESET}: $SCRIPT: $*" >&2
 }
 
 die() {
-	warn "$@"
+	echo -e "${COLOR_ERROR}error${COLOR_RESET}: $SCRIPT: $*" >&2
 	exit 1
 }
 
@@ -95,14 +112,14 @@ restore_files() {
 
 cleanup() {
 	set +o nounset
-	revert_patches "--recount"
+	revert_patches
 	restore_files
 	[[ "$KEEP_TMP" -eq 0 ]] && rm -rf "$TMP_DIR"
 	return 0
 }
 
 trap_err() {
-	warn "line ${BASH_LINENO[0]}: '$BASH_COMMAND'"
+	die "line ${BASH_LINENO[0]}: '$BASH_COMMAND'"
 }
 
 trap cleanup  EXIT INT TERM HUP
@@ -212,7 +229,7 @@ process_args() {
 		esac
 	done
 
-	if [[ $# -eq 0 ]]; then
+	if [[ $# -eq 0 ]] && (( SHORT_CIRCUIT <= 2 )); then
 		usage
 		exit 1
 	fi
@@ -282,7 +299,7 @@ set_module_name() {
 }
 
 # Hardcode the value printed by the localversion script to prevent patch
-# application from appending it with '+' due to a dirty git working tree.
+# application from appending it with '+' due to a dirty working tree.
 set_kernelversion() {
 	local file="$SRC/scripts/setlocalversion"
 	local kernelrelease
@@ -295,28 +312,31 @@ set_kernelversion() {
 	sed -i "2i echo $kernelrelease; exit 0" scripts/setlocalversion
 }
 
-get_patch_files() {
+get_patch_input_files() {
 	local patch="$1"
 
-	grep0 -E '^(--- |\+\+\+ )' "$patch"			\
+	grep0 -E '^--- ' "$patch"				\
+		| grep0 -v -e '/dev/null' -e '1969-12-31' -e '1970-01-01' \
 		| gawk '{print $2}'				\
 		| sed 's|^[^/]*/||'				\
 		| sort -u
 }
 
-# Make sure git re-stats the changed files
-git_refresh() {
+get_patch_output_files() {
 	local patch="$1"
-	local files=()
 
-	[[ ! -e "$SRC/.git" ]] && return
+	grep0 -E '^\+\+\+ ' "$patch"				\
+		| grep0 -v -e '/dev/null' -e '1969-12-31' -e '1970-01-01' \
+		| gawk '{print $2}'				\
+		| sed 's|^[^/]*/||'				\
+		| sort -u
+}
 
-	get_patch_files "$patch" | mapfile -t files
+get_patch_files() {
+	local patch="$1"
 
-	(
-		cd "$SRC"
-		git update-index -q --refresh -- "${files[@]}"
-	)
+	{ get_patch_input_files "$patch"; get_patch_output_files "$patch"; } \
+		| sort -u
 }
 
 check_unsupported_patches() {
@@ -330,7 +350,7 @@ check_unsupported_patches() {
 		for file in "${files[@]}"; do
 			case "$file" in
 				lib/*|*.S)
-					die "unsupported patch to $file"
+					die "${patch}: unsupported patch to $file"
 					;;
 			esac
 		done
@@ -341,34 +361,30 @@ apply_patch() {
 	local patch="$1"
 	shift
 	local extra_args=("$@")
+	local drift_regex="with fuzz|offset [0-9]+ line"
+	local output
+	local status
 
 	[[ ! -f "$patch" ]] && die "$patch doesn't exist"
+	status=0
+	output=$(patch -d "$SRC" -p1 --dry-run --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" < "$patch" 2>&1) || status=$?
+	if [[ "$status" -ne 0 ]]; then
+		echo "$output" >&2
+		die "$patch did not apply"
+	elif [[ "$output" =~ $drift_regex ]]; then
+		echo "$output" >&2
+		warn "${patch} applied with fuzz"
+	fi
 
-	(
-		cd "$SRC"
-
-		# The sed strips the version signature from 'git format-patch',
-		# otherwise 'git apply --recount' warns.
-		sed -n '/^-- /q;p' "$patch" |
-			git apply "${extra_args[@]}"
-	)
-
+	patch -d "$SRC" -p1 --no-backup-if-mismatch -r /dev/null "${extra_args[@]}" --silent < "$patch"
 	APPLIED_PATCHES+=("$patch")
 }
 
 revert_patch() {
 	local patch="$1"
-	shift
-	local extra_args=("$@")
 	local tmp=()
 
-	(
-		cd "$SRC"
-
-		sed -n '/^-- /q;p' "$patch" |
-			git apply --reverse "${extra_args[@]}"
-	)
-	git_refresh "$patch"
+	patch -d "$SRC" -p1 -R --silent --no-backup-if-mismatch -r /dev/null < "$patch"
 
 	for p in "${APPLIED_PATCHES[@]}"; do
 		[[ "$p" == "$patch" ]] && continue
@@ -379,19 +395,19 @@ revert_patch() {
 }
 
 apply_patches() {
+	local extra_args=("$@")
 	local patch
 
 	for patch in "${PATCHES[@]}"; do
-		apply_patch "$patch"
+		apply_patch "$patch" "${extra_args[@]}"
 	done
 }
 
 revert_patches() {
-	local extra_args=("$@")
 	local patches=("${APPLIED_PATCHES[@]}")
 
 	for (( i=${#patches[@]}-1 ; i>=0 ; i-- )) ; do
-		revert_patch "${patches[$i]}" "${extra_args[@]}"
+		revert_patch "${patches[$i]}"
 	done
 
 	APPLIED_PATCHES=()
@@ -415,6 +431,7 @@ do_init() {
 	APPLIED_PATCHES=()
 
 	[[ -x "$FIX_PATCH_LINES" ]] || die "can't find fix-patch-lines"
+	command -v recountdiff &>/dev/null || die "recountdiff not found (install patchutils)"
 
 	validate_config
 	set_module_name
@@ -425,25 +442,27 @@ do_init() {
 refresh_patch() {
 	local patch="$1"
 	local tmpdir="$PATCH_TMP_DIR"
-	local files=()
+	local input_files=()
+	local output_files=()
 
 	rm -rf "$tmpdir"
 	mkdir -p "$tmpdir/a"
 	mkdir -p "$tmpdir/b"
 
 	# Get all source files affected by the patch
-	get_patch_files "$patch" | mapfile -t files
+	get_patch_input_files "$patch" | mapfile -t input_files
+	get_patch_output_files "$patch" | mapfile -t output_files
 
 	# Copy orig source files to 'a'
-	( cd "$SRC" && echo "${files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
+	( cd "$SRC" && echo "${input_files[@]}" | xargs cp --parents --target-directory="$tmpdir/a" )
 
 	# Copy patched source files to 'b'
-	apply_patch "$patch" --recount
-	( cd "$SRC" && echo "${files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
-	revert_patch "$patch" --recount
+	apply_patch "$patch" "--silent"
+	( cd "$SRC" && echo "${output_files[@]}" | xargs cp --parents --target-directory="$tmpdir/b" )
+	revert_patch "$patch"
 
 	# Diff 'a' and 'b' to make a clean patch
-	( cd "$tmpdir" && git diff --no-index --no-prefix a b > "$patch" ) || true
+	( cd "$tmpdir" && diff -Nupr a b > "$patch" ) || true
 }
 
 # Copy the patches to a temporary directory, fix their lines so as not to
@@ -466,8 +485,7 @@ fix_patches() {
 
 		cp -f "$old_patch" "$tmp_patch"
 		refresh_patch "$tmp_patch"
-		"$FIX_PATCH_LINES" "$tmp_patch" > "$new_patch"
-		refresh_patch "$new_patch"
+		"$FIX_PATCH_LINES" "$tmp_patch" | recountdiff > "$new_patch"
 
 		PATCHES[i]="$new_patch"
 
@@ -491,6 +509,7 @@ clean_kernel() {
 }
 
 build_kernel() {
+	local build="$1"
 	local log="$TMP_DIR/build.log"
 	local objtool_args=()
 	local cmd=()
@@ -528,7 +547,7 @@ build_kernel() {
 		"${cmd[@]}"							\
 			1> >(tee -a "$log")					\
 			2> >(tee -a "$log" | grep0 -v "modpost.*undefined!" >&2)
-	)
+	) || die "$build kernel build failed"
 }
 
 find_objects() {
@@ -555,7 +574,6 @@ copy_orig_objects() {
 	for _file in "${files[@]}"; do
 		local rel_file="${_file/.ko/.o}"
 		local file="$OBJ/$rel_file"
-		local file_dir="$(dirname "$file")"
 		local orig_file="$ORIG_DIR/$rel_file"
 		local orig_dir="$(dirname "$orig_file")"
 
@@ -796,12 +814,15 @@ build_patch_module() {
 process_args "$@"
 do_init
 
-if (( SHORT_CIRCUIT <= 1 )); then
+if (( SHORT_CIRCUIT <= 2 )); then
 	status "Validating patch(es)"
 	validate_patches
+fi
+
+if (( SHORT_CIRCUIT <= 1 )); then
 	status "Building original kernel"
 	clean_kernel
-	build_kernel
+	build_kernel "original"
 	status "Copying original object files"
 	copy_orig_objects
 fi
@@ -809,9 +830,9 @@ fi
 if (( SHORT_CIRCUIT <= 2 )); then
 	status "Fixing patch(es)"
 	fix_patches
-	apply_patches
+	apply_patches "--silent"
 	status "Building patched kernel"
-	build_kernel
+	build_kernel "patched"
 	revert_patches
 	status "Copying patched object files"
 	copy_patched_objects

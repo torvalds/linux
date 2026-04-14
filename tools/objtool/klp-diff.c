@@ -272,7 +272,7 @@ static bool is_uncorrelated_static_local(struct symbol *sym)
  */
 static bool is_clang_tmp_label(struct symbol *sym)
 {
-	return sym->type == STT_NOTYPE &&
+	return is_notype_sym(sym) &&
 	       is_text_sec(sym->sec) &&
 	       strstarts(sym->name, ".Ltmp") &&
 	       isdigit(sym->name[5]);
@@ -354,6 +354,46 @@ static bool dont_correlate(struct symbol *sym)
 	       is_special_section(sym->sec) ||
 	       is_special_section_aux(sym->sec) ||
 	       strstarts(sym->name, "__initcall__");
+}
+
+struct process_demangled_name_data {
+	struct symbol *ret;
+	int count;
+};
+
+static void process_demangled_name(struct symbol *sym, void *d)
+{
+	struct process_demangled_name_data *data = d;
+
+	if (sym->twin)
+		return;
+
+	data->count++;
+	data->ret = sym;
+}
+
+/*
+ * When there is no full name match, try match demangled_name. This would
+ * match original foo.llvm.123 to patched foo.llvm.456.
+ *
+ * Note that, in very rare cases, it is possible to have multiple
+ * foo.llvm.<hash> in the same kernel. When this happens, report error and
+ * fail the diff.
+ */
+static int find_global_symbol_by_demangled_name(struct elf *elf, struct symbol *sym,
+						struct symbol **out_sym)
+{
+	struct process_demangled_name_data data = {};
+
+	iterate_global_symbol_by_demangled_name(elf, sym->demangled_name,
+						process_demangled_name,
+						&data);
+	if (data.count > 1) {
+		ERROR("Multiple (%d) correlation candidates for %s", data.count, sym->name);
+		return -1;
+	}
+	*out_sym = data.ret;
+	return 0;
 }
 
 /*
@@ -454,10 +494,57 @@ static int correlate_symbols(struct elfs *e)
 			continue;
 
 		sym2 = find_global_symbol_by_name(e->patched, sym1->name);
-
-		if (sym2 && !sym2->twin && !strcmp(sym1->name, sym2->name)) {
+		if (sym2 && !sym2->twin) {
 			sym1->twin = sym2;
 			sym2->twin = sym1;
+		}
+	}
+
+	/*
+	 * Correlate globals with demangled_name.
+	 * A separate loop is needed because we want to finish all the
+	 * full name correlations first.
+	 */
+	for_each_sym(e->orig, sym1) {
+		if (sym1->bind == STB_LOCAL || sym1->twin)
+			continue;
+
+		if (find_global_symbol_by_demangled_name(e->patched, sym1, &sym2))
+			return -1;
+
+		if (sym2 && !sym2->twin) {
+			sym1->twin = sym2;
+			sym2->twin = sym1;
+		}
+	}
+
+	/* Correlate original locals with patched globals */
+	for_each_sym(e->orig, sym1) {
+		if (sym1->twin || dont_correlate(sym1) || !is_local_sym(sym1))
+			continue;
+
+		sym2 = find_global_symbol_by_name(e->patched, sym1->name);
+		if (!sym2 && find_global_symbol_by_demangled_name(e->patched, sym1, &sym2))
+			return -1;
+
+		if (sym2 && !sym2->twin) {
+			sym1->twin = sym2;
+			sym2->twin = sym1;
+		}
+	}
+
+	/* Correlate original globals with patched locals */
+	for_each_sym(e->patched, sym2) {
+		if (sym2->twin || dont_correlate(sym2) || !is_local_sym(sym2))
+			continue;
+
+		sym1 = find_global_symbol_by_name(e->orig, sym2->name);
+		if (!sym1 && find_global_symbol_by_demangled_name(e->orig, sym2, &sym1))
+			return -1;
+
+		if (sym1 && !sym1->twin) {
+			sym2->twin = sym1;
+			sym1->twin = sym2;
 		}
 	}
 
@@ -481,7 +568,7 @@ static unsigned long find_sympos(struct elf *elf, struct symbol *sym)
 	if (sym->bind != STB_LOCAL)
 		return 0;
 
-	if (vmlinux && sym->type == STT_FUNC) {
+	if (vmlinux && is_func_sym(sym)) {
 		/*
 		 * HACK: Unfortunately, symbol ordering can differ between
 		 * vmlinux.o and vmlinux due to the linker script emitting
@@ -1047,8 +1134,8 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 		   sec->name, offset, patched_sym->name,				\
 		   addend >= 0 ? "+" : "-", labs(addend),				\
 		   sym_type(patched_sym),						\
-		   patched_sym->type == STT_SECTION ? "" : " ",				\
-		   patched_sym->type == STT_SECTION ? "" : sym_bind(patched_sym),	\
+		   is_sec_sym(patched_sym) ? "" : " ",					\
+		   is_sec_sym(patched_sym) ? "" : sym_bind(patched_sym),		\
 		   is_undef_sym(patched_sym) ? " UNDEF" : "",				\
 		   export ? " EXPORTED" : "",						\
 		   klp ? " KLP" : "")
