@@ -145,7 +145,7 @@ void __init arm64_rsi_init(void)
 		return;
 	if (!rsi_version_matches())
 		return;
-	if (WARN_ON(rsi_get_realm_config(&config)))
+	if (WARN_ON(rsi_get_realm_config(lm_alias(&config))))
 		return;
 	prot_ns_shared = __phys_to_pte_val(BIT(config.ipa_bits - 1));
 

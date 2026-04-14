@@ -29,7 +29,15 @@
 
 #include "mpam_internal.h"
 
-DEFINE_STATIC_KEY_FALSE(mpam_enabled); /* This moves to arch code */
+/* Values for the T241 errata workaround */
+#define T241_CHIPS_MAX			4
+#define T241_CHIP_NSLICES		12
+#define T241_SPARE_REG0_OFF		0x1b0000
+#define T241_SPARE_REG1_OFF		0x1c0000
+#define T241_CHIP_ID(phys)		FIELD_GET(GENMASK_ULL(44, 43), phys)
+#define T241_SHADOW_REG_OFF(sidx, pid)	(0x360048 + (sidx) * 0x10000 + (pid) * 8)
+#define SMCCC_SOC_ID_T241		0x036b0241
+static void __iomem *t241_scratch_regs[T241_CHIPS_MAX];
 
 /*
  * mpam_list_lock protects the SRCU lists when writing. Once the
@@ -74,6 +82,14 @@ static DECLARE_WORK(mpam_broken_work, &mpam_disable);
 
 /* When mpam is disabled, the printed reason to aid debugging */
 static char *mpam_disable_reason;
+
+/*
+ * Whether resctrl has been setup. Used by cpuhp in preference to
+ * mpam_is_enabled(). The disable call after an error interrupt makes
+ * mpam_is_enabled() false before the cpuhp callbacks are made.
+ * Reads/writes should hold mpam_cpuhp_state_lock, (or be cpuhp callbacks).
+ */
+static bool mpam_resctrl_enabled;
 
 /*
  * An MSC is a physical container for controls and monitors, each identified by
@@ -624,6 +640,86 @@ static struct mpam_msc_ris *mpam_get_or_create_ris(struct mpam_msc *msc,
 	return ERR_PTR(-ENOENT);
 }
 
+static int mpam_enable_quirk_nvidia_t241_1(struct mpam_msc *msc,
+					   const struct mpam_quirk *quirk)
+{
+	s32 soc_id = arm_smccc_get_soc_id_version();
+	struct resource *r;
+	phys_addr_t phys;
+
+	/*
+	 * A mapping to a device other than the MSC is needed, check
+	 * SOC_ID is  NVIDIA T241 chip (036b:0241)
+	 */
+	if (soc_id < 0 || soc_id != SMCCC_SOC_ID_T241)
+		return -EINVAL;
+
+	r = platform_get_resource(msc->pdev, IORESOURCE_MEM, 0);
+	if (!r)
+		return -EINVAL;
+
+	/* Find the internal registers base addr from the CHIP ID */
+	msc->t241_id = T241_CHIP_ID(r->start);
+	phys = FIELD_PREP(GENMASK_ULL(45, 44), msc->t241_id) | 0x19000000ULL;
+
+	t241_scratch_regs[msc->t241_id] = ioremap(phys, SZ_8M);
+	if (WARN_ON_ONCE(!t241_scratch_regs[msc->t241_id]))
+		return -EINVAL;
+
+	pr_info_once("Enabled workaround for NVIDIA T241 erratum T241-MPAM-1\n");
+
+	return 0;
+}
+
+static const struct mpam_quirk mpam_quirks[] = {
+	{
+		/* NVIDIA t241 erratum T241-MPAM-1 */
+		.init       = mpam_enable_quirk_nvidia_t241_1,
+		.iidr       = MPAM_IIDR_NVIDIA_T241,
+		.iidr_mask  = MPAM_IIDR_MATCH_ONE,
+		.workaround = T241_SCRUB_SHADOW_REGS,
+	},
+	{
+		/* NVIDIA t241 erratum T241-MPAM-4 */
+		.iidr       = MPAM_IIDR_NVIDIA_T241,
+		.iidr_mask  = MPAM_IIDR_MATCH_ONE,
+		.workaround = T241_FORCE_MBW_MIN_TO_ONE,
+	},
+	{
+		/* NVIDIA t241 erratum T241-MPAM-6 */
+		.iidr       = MPAM_IIDR_NVIDIA_T241,
+		.iidr_mask  = MPAM_IIDR_MATCH_ONE,
+		.workaround = T241_MBW_COUNTER_SCALE_64,
+	},
+	{
+	/* ARM CMN-650 CSU erratum 3642720 */
+	.iidr       = MPAM_IIDR_ARM_CMN_650,
+	.iidr_mask  = MPAM_IIDR_MATCH_ONE,
+	.workaround = IGNORE_CSU_NRDY,
+	},
+	{ NULL } /* Sentinel */
+};
+
+static void mpam_enable_quirks(struct mpam_msc *msc)
+{
+	const struct mpam_quirk *quirk;
+
+	for (quirk = &mpam_quirks[0]; quirk->iidr_mask; quirk++) {
+		int err = 0;
+
+		if (quirk->iidr != (msc->iidr & quirk->iidr_mask))
+			continue;
+
+		if (quirk->init)
+			err = quirk->init(msc, quirk);
+
+		if (err)
+			continue;
+
+		mpam_set_quirk(quirk->workaround, msc);
+	}
+}
+
 /*
  * IHI009A.a has this nugget: "If a monitor does not support automatic behaviour
  * of NRDY, software can use this bit for any purpose" - so hardware might not
@@ -715,6 +811,13 @@ static void mpam_ris_hw_probe(struct mpam_msc_ris *ris)
 			mpam_set_feature(mpam_feat_mbw_part, props);
 
 		props->bwa_wd = FIELD_GET(MPAMF_MBW_IDR_BWA_WD, mbw_features);
+
+		/*
+		 * The BWA_WD field can represent 0-63, but the control fields it
+		 * describes have a maximum of 16 bits.
+		 */
+		props->bwa_wd = min(props->bwa_wd, 16);
+
 		if (props->bwa_wd && FIELD_GET(MPAMF_MBW_IDR_HAS_MAX, mbw_features))
 			mpam_set_feature(mpam_feat_mbw_max, props);
 
@@ -851,7 +954,10 @@ static int mpam_msc_hw_probe(struct mpam_msc *msc)
 	/* Grab an IDR value to find out how many RIS there are */
 	mutex_lock(&msc->part_sel_lock);
 	idr = mpam_msc_read_idr(msc);
+	msc->iidr = mpam_read_partsel_reg(msc, IIDR);
 	mutex_unlock(&msc->part_sel_lock);
+
+	mpam_enable_quirks(msc);
 
 	msc->ris_max = FIELD_GET(MPAMF_IDR_RIS_MAX, idr);
 
@@ -903,6 +1009,7 @@ struct mon_read {
 	enum mpam_device_features	type;
 	u64				*val;
 	int				err;
+	bool				waited_timeout;
 };
 
 static bool mpam_ris_has_mbwu_long_counter(struct mpam_msc_ris *ris)
@@ -1052,7 +1159,7 @@ static void write_msmon_ctl_flt_vals(struct mon_read *m, u32 ctl_val,
 	}
 }
 
-static u64 mpam_msmon_overflow_val(enum mpam_device_features type)
+static u64 __mpam_msmon_overflow_val(enum mpam_device_features type)
 {
 	/* TODO: implement scaling counters */
 	switch (type) {
@@ -1065,6 +1172,18 @@ static u64 mpam_msmon_overflow_val(enum mpam_device_features type)
 	default:
 		return 0;
 	}
+}
+
+static u64 mpam_msmon_overflow_val(enum mpam_device_features type,
+				   struct mpam_msc *msc)
+{
+	u64 overflow_val = __mpam_msmon_overflow_val(type);
+
+	if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc) &&
+	    type != mpam_feat_msmon_mbwu_63counter)
+		overflow_val *= 64;
+
+	return overflow_val;
 }
 
 static void __ris_msmon_read(void *arg)
@@ -1137,6 +1256,10 @@ static void __ris_msmon_read(void *arg)
 		if (mpam_has_feature(mpam_feat_msmon_csu_hw_nrdy, rprops))
 			nrdy = now & MSMON___NRDY;
 		now = FIELD_GET(MSMON___VALUE, now);
+
+		if (mpam_has_quirk(IGNORE_CSU_NRDY, msc) && m->waited_timeout)
+			nrdy = false;
+
 		break;
 	case mpam_feat_msmon_mbwu_31counter:
 	case mpam_feat_msmon_mbwu_44counter:
@@ -1157,13 +1280,17 @@ static void __ris_msmon_read(void *arg)
 			now = FIELD_GET(MSMON___VALUE, now);
 		}
 
+		if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc) &&
+		    m->type != mpam_feat_msmon_mbwu_63counter)
+			now *= 64;
+
 		if (nrdy)
 			break;
 
 		mbwu_state = &ris->mbwu_state[ctx->mon];
 
 		if (overflow)
-			mbwu_state->correction += mpam_msmon_overflow_val(m->type);
+			mbwu_state->correction += mpam_msmon_overflow_val(m->type, msc);
 
 		/*
 		 * Include bandwidth consumed before the last hardware reset and
@@ -1270,6 +1397,7 @@ int mpam_msmon_read(struct mpam_component *comp, struct mon_cfg *ctx,
 			.ctx = ctx,
 			.type = type,
 			.val = val,
+			.waited_timeout = true,
 		};
 		*val = 0;
 
@@ -1338,6 +1466,75 @@ static void mpam_reset_msc_bitmap(struct mpam_msc *msc, u16 reg, u16 wd)
 	__mpam_write_reg(msc, reg, bm);
 }
 
+static void mpam_apply_t241_erratum(struct mpam_msc_ris *ris, u16 partid)
+{
+	int sidx, i, lcount = 1000;
+	void __iomem *regs;
+	u64 val0, val;
+
+	regs = t241_scratch_regs[ris->vmsc->msc->t241_id];
+
+	for (i = 0; i < lcount; i++) {
+		/* Read the shadow register at index 0 */
+		val0 = readq_relaxed(regs + T241_SHADOW_REG_OFF(0, partid));
+
+		/* Check if all the shadow registers have the same value */
+		for (sidx = 1; sidx < T241_CHIP_NSLICES; sidx++) {
+			val = readq_relaxed(regs +
+					    T241_SHADOW_REG_OFF(sidx, partid));
+			if (val != val0)
+				break;
+		}
+		if (sidx == T241_CHIP_NSLICES)
+			break;
+	}
+
+	if (i == lcount)
+		pr_warn_once("t241: inconsistent values in shadow regs");
+
+	/* Write a value zero to spare registers to take effect of MBW conf */
+	writeq_relaxed(0, regs + T241_SPARE_REG0_OFF);
+	writeq_relaxed(0, regs + T241_SPARE_REG1_OFF);
+}
+
+static void mpam_quirk_post_config_change(struct mpam_msc_ris *ris, u16 partid,
+					  struct mpam_config *cfg)
+{
+	if (mpam_has_quirk(T241_SCRUB_SHADOW_REGS, ris->vmsc->msc))
+		mpam_apply_t241_erratum(ris, partid);
+}
+
+static u16 mpam_wa_t241_force_mbw_min_to_one(struct mpam_props *props)
+{
+	u16 max_hw_value, min_hw_granule, res0_bits;
+
+	res0_bits = 16 - props->bwa_wd;
+	max_hw_value = ((1 << props->bwa_wd) - 1) << res0_bits;
+	min_hw_granule = ~max_hw_value;
+
+	return min_hw_granule + 1;
+}
+
+static u16 mpam_wa_t241_calc_min_from_max(struct mpam_props *props,
+					  struct mpam_config *cfg)
+{
+	u16 val = 0;
+	u16 max;
+	u16 delta = ((5 * MPAMCFG_MBW_MAX_MAX) / 100) - 1;
+
+	if (mpam_has_feature(mpam_feat_mbw_max, cfg)) {
+		max = cfg->mbw_max;
+	} else {
+		/* Resetting. Hence, use the ris specific default. */
+		max = GENMASK(15, 16 - props->bwa_wd);
+	}
+
+	if (max > delta)
+		val = max - delta;
+
+	return val;
+}
+
 /* Called via IPI. Call while holding an SRCU reference */
 static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 				      struct mpam_config *cfg)
@@ -1364,36 +1561,41 @@ static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 		__mpam_intpart_sel(ris->ris_idx, partid, msc);
 	}
 
-	if (mpam_has_feature(mpam_feat_cpor_part, rprops) &&
-	    mpam_has_feature(mpam_feat_cpor_part, cfg)) {
-		if (cfg->reset_cpbm)
-			mpam_reset_msc_bitmap(msc, MPAMCFG_CPBM, rprops->cpbm_wd);
-		else
+	if (mpam_has_feature(mpam_feat_cpor_part, rprops)) {
+		if (mpam_has_feature(mpam_feat_cpor_part, cfg))
 			mpam_write_partsel_reg(msc, CPBM, cfg->cpbm);
+		else
+			mpam_reset_msc_bitmap(msc, MPAMCFG_CPBM, rprops->cpbm_wd);
 	}
 
-	if (mpam_has_feature(mpam_feat_mbw_part, rprops) &&
-	    mpam_has_feature(mpam_feat_mbw_part, cfg)) {
-		if (cfg->reset_mbw_pbm)
+	if (mpam_has_feature(mpam_feat_mbw_part, rprops)) {
+		if (mpam_has_feature(mpam_feat_mbw_part, cfg))
 			mpam_reset_msc_bitmap(msc, MPAMCFG_MBW_PBM, rprops->mbw_pbm_bits);
 		else
 			mpam_write_partsel_reg(msc, MBW_PBM, cfg->mbw_pbm);
 	}
 
-	if (mpam_has_feature(mpam_feat_mbw_min, rprops) &&
-	    mpam_has_feature(mpam_feat_mbw_min, cfg))
-		mpam_write_partsel_reg(msc, MBW_MIN, 0);
+	if (mpam_has_feature(mpam_feat_mbw_min, rprops)) {
+		u16 val = 0;
 
-	if (mpam_has_feature(mpam_feat_mbw_max, rprops) &&
-	    mpam_has_feature(mpam_feat_mbw_max, cfg)) {
-		if (cfg->reset_mbw_max)
-			mpam_write_partsel_reg(msc, MBW_MAX, MPAMCFG_MBW_MAX_MAX);
-		else
-			mpam_write_partsel_reg(msc, MBW_MAX, cfg->mbw_max);
+		if (mpam_has_quirk(T241_FORCE_MBW_MIN_TO_ONE, msc)) {
+			u16 min = mpam_wa_t241_force_mbw_min_to_one(rprops);
+
+			val = mpam_wa_t241_calc_min_from_max(rprops, cfg);
+			val = max(val, min);
+		}
+
+		mpam_write_partsel_reg(msc, MBW_MIN, val);
 	}
 
-	if (mpam_has_feature(mpam_feat_mbw_prop, rprops) &&
-	    mpam_has_feature(mpam_feat_mbw_prop, cfg))
+	if (mpam_has_feature(mpam_feat_mbw_max, rprops)) {
+		if (mpam_has_feature(mpam_feat_mbw_max, cfg))
+			mpam_write_partsel_reg(msc, MBW_MAX, cfg->mbw_max);
+		else
+			mpam_write_partsel_reg(msc, MBW_MAX, MPAMCFG_MBW_MAX_MAX);
+	}
+
+	if (mpam_has_feature(mpam_feat_mbw_prop, rprops))
 		mpam_write_partsel_reg(msc, MBW_PROP, 0);
 
 	if (mpam_has_feature(mpam_feat_cmax_cmax, rprops))
@@ -1420,6 +1622,8 @@ static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 
 		mpam_write_partsel_reg(msc, PRI, pri_val);
 	}
+
+	mpam_quirk_post_config_change(ris, partid, cfg);
 
 	mutex_unlock(&msc->part_sel_lock);
 }
@@ -1493,16 +1697,6 @@ static int mpam_save_mbwu_state(void *arg)
 	return 0;
 }
 
-static void mpam_init_reset_cfg(struct mpam_config *reset_cfg)
-{
-	*reset_cfg = (struct mpam_config) {
-		.reset_cpbm = true,
-		.reset_mbw_pbm = true,
-		.reset_mbw_max = true,
-	};
-	bitmap_fill(reset_cfg->features, MPAM_FEATURE_LAST);
-}
-
 /*
  * Called via smp_call_on_cpu() to prevent migration, while still being
  * pre-emptible. Caller must hold mpam_srcu.
@@ -1510,13 +1704,11 @@ static void mpam_init_reset_cfg(struct mpam_config *reset_cfg)
 static int mpam_reset_ris(void *arg)
 {
 	u16 partid, partid_max;
-	struct mpam_config reset_cfg;
+	struct mpam_config reset_cfg = {};
 	struct mpam_msc_ris *ris = arg;
 
 	if (ris->in_reset_state)
 		return 0;
-
-	mpam_init_reset_cfg(&reset_cfg);
 
 	spin_lock(&partid_max_lock);
 	partid_max = mpam_partid_max;
@@ -1632,6 +1824,9 @@ static int mpam_cpu_online(unsigned int cpu)
 			mpam_reprogram_msc(msc);
 	}
 
+	if (mpam_resctrl_enabled)
+		return mpam_resctrl_online_cpu(cpu);
+
 	return 0;
 }
 
@@ -1674,6 +1869,9 @@ static int mpam_discovery_cpu_online(unsigned int cpu)
 static int mpam_cpu_offline(unsigned int cpu)
 {
 	struct mpam_msc *msc;
+
+	if (mpam_resctrl_enabled)
+		mpam_resctrl_offline_cpu(cpu);
 
 	guard(srcu)(&mpam_srcu);
 	list_for_each_entry_srcu(msc, &mpam_all_msc, all_msc_list,
@@ -1971,6 +2169,7 @@ static bool mpam_has_cmax_wd_feature(struct mpam_props *props)
  * resulting safe value must be compatible with both. When merging values in
  * the tree, all the aliasing resources must be handled first.
  * On mismatch, parent is modified.
+ * Quirks on an MSC will apply to all MSC in that class.
  */
 static void __props_mismatch(struct mpam_props *parent,
 			     struct mpam_props *child, bool alias)
@@ -2090,6 +2289,7 @@ static void __props_mismatch(struct mpam_props *parent,
  * nobble the class feature, as we can't configure all the resources.
  * e.g. The L3 cache is composed of two resources with 13 and 17 portion
  * bitmaps respectively.
+ * Quirks on an MSC will apply to all MSC in that class.
  */
 static void
 __class_props_mismatch(struct mpam_class *class, struct mpam_vmsc *vmsc)
@@ -2102,6 +2302,9 @@ __class_props_mismatch(struct mpam_class *class, struct mpam_vmsc *vmsc)
 
 	dev_dbg(dev, "Merging features for class:0x%lx &= vmsc:0x%lx\n",
 		(long)cprops->features, (long)vprops->features);
+
+	/* Merge quirks */
+	class->quirks |= vmsc->msc->quirks;
 
 	/* Take the safe value for any common features */
 	__props_mismatch(cprops, vprops, false);
@@ -2167,6 +2370,9 @@ static void mpam_enable_merge_class_features(struct mpam_component *comp)
 
 	list_for_each_entry(vmsc, &comp->vmsc, comp_list)
 		__class_props_mismatch(class, vmsc);
+
+	if (mpam_has_quirk(T241_FORCE_MBW_MIN_TO_ONE, class))
+		mpam_clear_feature(mpam_feat_mbw_min, &class->props);
 }
 
 /*
@@ -2520,6 +2726,12 @@ static void mpam_enable_once(void)
 	mutex_unlock(&mpam_list_lock);
 	cpus_read_unlock();
 
+	if (!err) {
+		err = mpam_resctrl_setup();
+		if (err)
+			pr_err("Failed to initialise resctrl: %d\n", err);
+	}
+
 	if (err) {
 		mpam_disable_reason = "Failed to enable.";
 		schedule_work(&mpam_broken_work);
@@ -2527,6 +2739,7 @@ static void mpam_enable_once(void)
 	}
 
 	static_branch_enable(&mpam_enabled);
+	mpam_resctrl_enabled = true;
 	mpam_register_cpuhp_callbacks(mpam_cpu_online, mpam_cpu_offline,
 				      "mpam:online");
 
@@ -2559,7 +2772,7 @@ static void mpam_reset_component_locked(struct mpam_component *comp)
 	}
 }
 
-static void mpam_reset_class_locked(struct mpam_class *class)
+void mpam_reset_class_locked(struct mpam_class *class)
 {
 	struct mpam_component *comp;
 
@@ -2586,24 +2799,39 @@ static void mpam_reset_class(struct mpam_class *class)
 void mpam_disable(struct work_struct *ignored)
 {
 	int idx;
+	bool do_resctrl_exit;
 	struct mpam_class *class;
 	struct mpam_msc *msc, *tmp;
+
+	if (mpam_is_enabled())
+		static_branch_disable(&mpam_enabled);
 
 	mutex_lock(&mpam_cpuhp_state_lock);
 	if (mpam_cpuhp_state) {
 		cpuhp_remove_state(mpam_cpuhp_state);
 		mpam_cpuhp_state = 0;
 	}
+
+	/*
+	 * Removing the cpuhp state called mpam_cpu_offline() and told resctrl
+	 * all the CPUs are offline.
+	 */
+	do_resctrl_exit = mpam_resctrl_enabled;
+	mpam_resctrl_enabled = false;
 	mutex_unlock(&mpam_cpuhp_state_lock);
 
-	static_branch_disable(&mpam_enabled);
+	if (do_resctrl_exit)
+		mpam_resctrl_exit();
 
 	mpam_unregister_irqs();
 
 	idx = srcu_read_lock(&mpam_srcu);
 	list_for_each_entry_srcu(class, &mpam_classes, classes_list,
-				 srcu_read_lock_held(&mpam_srcu))
+				 srcu_read_lock_held(&mpam_srcu)) {
 		mpam_reset_class(class);
+		if (do_resctrl_exit)
+			mpam_resctrl_teardown_class(class);
+	}
 	srcu_read_unlock(&mpam_srcu, idx);
 
 	mutex_lock(&mpam_list_lock);
@@ -2694,6 +2922,7 @@ int mpam_apply_config(struct mpam_component *comp, u16 partid,
 					 srcu_read_lock_held(&mpam_srcu)) {
 			arg.ris = ris;
 			mpam_touch_msc(msc, __write_config, &arg);
+			ris->in_reset_state = false;
 		}
 		mutex_unlock(&msc->cfg_lock);
 	}

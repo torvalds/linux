@@ -225,7 +225,8 @@ static void contpte_convert(struct mm_struct *mm, unsigned long addr,
 	 */
 
 	if (!system_supports_bbml2_noabort())
-		__flush_tlb_range(&vma, start_addr, addr, PAGE_SIZE, true, 3);
+		__flush_tlb_range(&vma, start_addr, addr, PAGE_SIZE, 3,
+				  TLBF_NOWALKCACHE);
 
 	__set_ptes(mm, start_addr, start_ptep, pte, CONT_PTES);
 }
@@ -551,8 +552,8 @@ int contpte_clear_flush_young_ptes(struct vm_area_struct *vma,
 		 * See comment in __ptep_clear_flush_young(); same rationale for
 		 * eliding the trailing DSB applies here.
 		 */
-		__flush_tlb_range_nosync(vma->vm_mm, addr, end,
-					 PAGE_SIZE, true, 3);
+		__flush_tlb_range(vma, addr, end, PAGE_SIZE, 3,
+				  TLBF_NOWALKCACHE | TLBF_NOSYNC);
 	}
 
 	return young;
@@ -685,7 +686,10 @@ int contpte_ptep_set_access_flags(struct vm_area_struct *vma,
 			__ptep_set_access_flags(vma, addr, ptep, entry, 0);
 
 		if (dirty)
-			local_flush_tlb_contpte(vma, start_addr);
+			__flush_tlb_range(vma, start_addr,
+					  start_addr + CONT_PTE_SIZE,
+					  PAGE_SIZE, 3,
+					  TLBF_NOWALKCACHE | TLBF_NOBROADCAST);
 	} else {
 		__contpte_try_unfold(vma->vm_mm, addr, ptep, orig_pte);
 		__ptep_set_access_flags(vma, addr, ptep, entry, dirty);

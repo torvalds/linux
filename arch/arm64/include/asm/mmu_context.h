@@ -210,7 +210,8 @@ static inline void update_saved_ttbr0(struct task_struct *tsk,
 	if (mm == &init_mm)
 		ttbr = phys_to_ttbr(__pa_symbol(reserved_pg_dir));
 	else
-		ttbr = phys_to_ttbr(virt_to_phys(mm->pgd)) | ASID(mm) << 48;
+		ttbr = phys_to_ttbr(virt_to_phys(mm->pgd)) |
+		       FIELD_PREP(TTBRx_EL1_ASID_MASK, ASID(mm));
 
 	WRITE_ONCE(task_thread_info(tsk)->ttbr0, ttbr);
 }

@@ -25,6 +25,8 @@
  */
 #define PTE_PRESENT_INVALID	(PTE_NG)		 /* only when !PTE_VALID */
 
+#define PTE_PRESENT_VALID_KERNEL (PTE_VALID | PTE_MAYBE_NG)
+
 #ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
 #define PTE_UFFD_WP		(_AT(pteval_t, 1) << 58) /* uffd-wp tracking */
 #define PTE_SWP_UFFD_WP		(_AT(pteval_t, 1) << 3)	 /* only for swp ptes */
