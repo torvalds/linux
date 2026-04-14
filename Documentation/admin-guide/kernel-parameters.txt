@@ -1765,8 +1765,8 @@ Kernel parameters
 	fred=		[X86-64]
 			Enable/disable Flexible Return and Event Delivery.
 			Format: { on | off }
-			on: enable FRED when it's present.
-			off: disable FRED, the default setting.
+			on: enable FRED when it's present, the default setting.
+			off: disable FRED.
 
 	ftrace=[tracer]
 			[FTRACE] will set and start the specified tracer
