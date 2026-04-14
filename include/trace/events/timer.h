@@ -218,12 +218,13 @@ TRACE_EVENT(hrtimer_setup,
  * hrtimer_start - called when the hrtimer is started
  * @hrtimer:	pointer to struct hrtimer
  * @mode:	the hrtimers mode
+ * @was_armed:	Was armed when hrtimer_start*() was invoked
  */
 TRACE_EVENT(hrtimer_start,
 
-	TP_PROTO(struct hrtimer *hrtimer, enum hrtimer_mode mode),
+	TP_PROTO(struct hrtimer *hrtimer, enum hrtimer_mode mode, bool was_armed),
 
-	TP_ARGS(hrtimer, mode),
+	TP_ARGS(hrtimer, mode, was_armed),
 
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer		)
@@ -231,6 +232,7 @@ TRACE_EVENT(hrtimer_start,
 		__field( s64,		expires		)
 		__field( s64,		softexpires	)
 		__field( enum hrtimer_mode,	mode	)
+		__field( bool,		was_armed	)
 	),
 
 	TP_fast_assign(
@@ -239,26 +241,26 @@ TRACE_EVENT(hrtimer_start,
 		__entry->expires	= hrtimer_get_expires(hrtimer);
 		__entry->softexpires	= hrtimer_get_softexpires(hrtimer);
 		__entry->mode		= mode;
+		__entry->was_armed	= was_armed;
 	),
 
 	TP_printk("hrtimer=%p function=%ps expires=%llu softexpires=%llu "
-		  "mode=%s", __entry->hrtimer, __entry->function,
+		  "mode=%s was_armed=%d", __entry->hrtimer, __entry->function,
 		  (unsigned long long) __entry->expires,
 		  (unsigned long long) __entry->softexpires,
-		  decode_hrtimer_mode(__entry->mode))
+		  decode_hrtimer_mode(__entry->mode), __entry->was_armed)
 );
 
 /**
  * hrtimer_expire_entry - called immediately before the hrtimer callback
  * @hrtimer:	pointer to struct hrtimer
- * @now:	pointer to variable which contains current time of the
- *		timers base.
+ * @now:	variable which contains current time of the timers base.
  *
  * Allows to determine the timer latency.
  */
 TRACE_EVENT(hrtimer_expire_entry,
 
-	TP_PROTO(struct hrtimer *hrtimer, ktime_t *now),
+	TP_PROTO(struct hrtimer *hrtimer, ktime_t now),
 
 	TP_ARGS(hrtimer, now),
 
@@ -270,7 +272,7 @@ TRACE_EVENT(hrtimer_expire_entry,
 
 	TP_fast_assign(
 		__entry->hrtimer	= hrtimer;
-		__entry->now		= *now;
+		__entry->now		= now;
 		__entry->function	= ACCESS_PRIVATE(hrtimer, function);
 	),
 
@@ -319,6 +321,30 @@ DEFINE_EVENT(hrtimer_class, hrtimer_cancel,
 	TP_PROTO(struct hrtimer *hrtimer),
 
 	TP_ARGS(hrtimer)
+);
+
+/**
+ * hrtimer_rearm - Invoked when the clockevent device is rearmed
+ * @next_event:	The next expiry time (CLOCK_MONOTONIC)
+ */
+TRACE_EVENT(hrtimer_rearm,
+
+	TP_PROTO(ktime_t next_event, bool deferred),
+
+	TP_ARGS(next_event, deferred),
+
+	TP_STRUCT__entry(
+		__field( s64,		next_event	)
+		__field( bool,		deferred	)
+	),
+
+	TP_fast_assign(
+		__entry->next_event	= next_event;
+		__entry->deferred	= deferred;
+	),
+
+	TP_printk("next_event=%llu deferred=%d",
+		  (unsigned long long) __entry->next_event, __entry->deferred)
 );
 
 /**

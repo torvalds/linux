@@ -174,7 +174,6 @@ sys_enter_openat_print(struct syscall_trace_enter *trace, struct syscall_metadat
 			{ O_NOFOLLOW, "O_NOFOLLOW" },
 			{ O_NOATIME, "O_NOATIME" },
 			{ O_CLOEXEC, "O_CLOEXEC" },
-			{ -1, NULL }
 		};
 
 	trace_seq_printf(s, "%s(", entry->name);
@@ -205,7 +204,7 @@ sys_enter_openat_print(struct syscall_trace_enter *trace, struct syscall_metadat
 				trace_seq_puts(s, "O_RDONLY|");
 			}
 
-			trace_print_flags_seq(s, "|", bits, __flags);
+			trace_print_flags_seq(s, "|", bits, __flags, ARRAY_SIZE(__flags));
 			/*
 			 * trace_print_flags_seq() adds a '\0' to the
 			 * buffer, but this needs to append more to the seq.

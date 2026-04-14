@@ -50,7 +50,7 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 		local_irq_enable_exit_to_user(ti_work);
 
 		if (ti_work & (_TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY)) {
-			if (!rseq_grant_slice_extension(ti_work & TIF_SLICE_EXT_DENY))
+			if (!rseq_grant_slice_extension(ti_work, TIF_SLICE_EXT_DENY))
 				schedule();
 		}
 
@@ -225,6 +225,7 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		 */
 		if (state.exit_rcu) {
 			instrumentation_begin();
+			hrtimer_rearm_deferred();
 			/* Tell the tracer that IRET will enable interrupts */
 			trace_hardirqs_on_prepare();
 			lockdep_hardirqs_on_prepare();
@@ -238,6 +239,7 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		if (IS_ENABLED(CONFIG_PREEMPTION))
 			irqentry_exit_cond_resched();
 
+		hrtimer_rearm_deferred();
 		/* Covers both tracing and lockdep */
 		trace_hardirqs_on();
 		instrumentation_end();

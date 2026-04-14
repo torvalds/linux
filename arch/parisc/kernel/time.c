@@ -210,11 +210,8 @@ static struct clocksource clocksource_cr16 = {
 	.read			= read_cr16,
 	.mask			= CLOCKSOURCE_MASK(BITS_PER_LONG),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
-					CLOCK_SOURCE_VALID_FOR_HRES |
-					CLOCK_SOURCE_MUST_VERIFY |
-					CLOCK_SOURCE_VERIFY_PERCPU,
+				  CLOCK_SOURCE_VALID_FOR_HRES,
 };
-
 
 /*
  * timer interrupt and sched_clock() initialization

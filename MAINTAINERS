@@ -26669,6 +26669,7 @@ F:	include/linux/timekeeping.h
 F:	include/linux/timex.h
 F:	include/uapi/linux/time.h
 F:	include/uapi/linux/timex.h
+F:	kernel/time/.kunitconfig
 F:	kernel/time/alarmtimer.c
 F:	kernel/time/clocksource*
 F:	kernel/time/ntp*

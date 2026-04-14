@@ -3,6 +3,7 @@
 #define __LINUX_IRQENTRYCOMMON_H
 
 #include <linux/context_tracking.h>
+#include <linux/hrtimer_rearm.h>
 #include <linux/kmsan.h>
 #include <linux/rseq_entry.h>
 #include <linux/static_call_types.h>
@@ -32,6 +33,14 @@
 	 _TIF_NEED_RESCHED | _TIF_NEED_RESCHED_LAZY |			\
 	 _TIF_PATCH_PENDING | _TIF_NOTIFY_SIGNAL | _TIF_RSEQ |		\
 	 ARCH_EXIT_TO_USER_MODE_WORK)
+
+#ifdef CONFIG_HRTIMER_REARM_DEFERRED
+# define EXIT_TO_USER_MODE_WORK_SYSCALL	(EXIT_TO_USER_MODE_WORK)
+# define EXIT_TO_USER_MODE_WORK_IRQ	(EXIT_TO_USER_MODE_WORK | _TIF_HRTIMER_REARM)
+#else
+# define EXIT_TO_USER_MODE_WORK_SYSCALL	(EXIT_TO_USER_MODE_WORK)
+# define EXIT_TO_USER_MODE_WORK_IRQ	(EXIT_TO_USER_MODE_WORK)
+#endif
 
 /**
  * arch_enter_from_user_mode - Architecture specific sanity check for user mode regs
@@ -203,6 +212,7 @@ unsigned long exit_to_user_mode_loop(struct pt_regs *regs, unsigned long ti_work
 /**
  * __exit_to_user_mode_prepare - call exit_to_user_mode_loop() if required
  * @regs:	Pointer to pt_regs on entry stack
+ * @work_mask:	Which TIF bits need to be evaluated
  *
  * 1) check that interrupts are disabled
  * 2) call tick_nohz_user_enter_prepare()
@@ -212,7 +222,8 @@ unsigned long exit_to_user_mode_loop(struct pt_regs *regs, unsigned long ti_work
  *
  * Don't invoke directly, use the syscall/irqentry_ prefixed variants below
  */
-static __always_inline void __exit_to_user_mode_prepare(struct pt_regs *regs)
+static __always_inline void __exit_to_user_mode_prepare(struct pt_regs *regs,
+							const unsigned long work_mask)
 {
 	unsigned long ti_work;
 
@@ -222,8 +233,10 @@ static __always_inline void __exit_to_user_mode_prepare(struct pt_regs *regs)
 	tick_nohz_user_enter_prepare();
 
 	ti_work = read_thread_flags();
-	if (unlikely(ti_work & EXIT_TO_USER_MODE_WORK))
-		ti_work = exit_to_user_mode_loop(regs, ti_work);
+	if (unlikely(ti_work & work_mask)) {
+		if (!hrtimer_rearm_deferred_user_irq(&ti_work, work_mask))
+			ti_work = exit_to_user_mode_loop(regs, ti_work);
+	}
 
 	arch_exit_to_user_mode_prepare(regs, ti_work);
 }
@@ -239,7 +252,7 @@ static __always_inline void __exit_to_user_mode_validate(void)
 /* Temporary workaround to keep ARM64 alive */
 static __always_inline void exit_to_user_mode_prepare_legacy(struct pt_regs *regs)
 {
-	__exit_to_user_mode_prepare(regs);
+	__exit_to_user_mode_prepare(regs, EXIT_TO_USER_MODE_WORK);
 	rseq_exit_to_user_mode_legacy();
 	__exit_to_user_mode_validate();
 }
@@ -253,7 +266,7 @@ static __always_inline void exit_to_user_mode_prepare_legacy(struct pt_regs *reg
  */
 static __always_inline void syscall_exit_to_user_mode_prepare(struct pt_regs *regs)
 {
-	__exit_to_user_mode_prepare(regs);
+	__exit_to_user_mode_prepare(regs, EXIT_TO_USER_MODE_WORK_SYSCALL);
 	rseq_syscall_exit_to_user_mode();
 	__exit_to_user_mode_validate();
 }
@@ -267,7 +280,7 @@ static __always_inline void syscall_exit_to_user_mode_prepare(struct pt_regs *re
  */
 static __always_inline void irqentry_exit_to_user_mode_prepare(struct pt_regs *regs)
 {
-	__exit_to_user_mode_prepare(regs);
+	__exit_to_user_mode_prepare(regs, EXIT_TO_USER_MODE_WORK_IRQ);
 	rseq_irqentry_exit_to_user_mode();
 	__exit_to_user_mode_validate();
 }

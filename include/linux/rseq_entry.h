@@ -40,6 +40,7 @@ DECLARE_PER_CPU(struct rseq_stats, rseq_stats);
 #endif /* !CONFIG_RSEQ_STATS */
 
 #ifdef CONFIG_RSEQ
+#include <linux/hrtimer_rearm.h>
 #include <linux/jump_label.h>
 #include <linux/rseq.h>
 #include <linux/sched/signal.h>
@@ -110,7 +111,7 @@ static __always_inline void rseq_slice_clear_grant(struct task_struct *t)
 	t->rseq.slice.state.granted = false;
 }
 
-static __always_inline bool rseq_grant_slice_extension(bool work_pending)
+static __always_inline bool __rseq_grant_slice_extension(bool work_pending)
 {
 	struct task_struct *curr = current;
 	struct rseq_slice_ctrl usr_ctrl;
@@ -215,11 +216,20 @@ efault:
 	return false;
 }
 
+static __always_inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask)
+{
+	if (unlikely(__rseq_grant_slice_extension(ti_work & mask))) {
+		hrtimer_rearm_deferred_tif(ti_work);
+		return true;
+	}
+	return false;
+}
+
 #else /* CONFIG_RSEQ_SLICE_EXTENSION */
 static __always_inline bool rseq_slice_extension_enabled(void) { return false; }
 static __always_inline bool rseq_arm_slice_extension_timer(void) { return false; }
 static __always_inline void rseq_slice_clear_grant(struct task_struct *t) { }
-static __always_inline bool rseq_grant_slice_extension(bool work_pending) { return false; }
+static __always_inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask) { return false; }
 #endif /* !CONFIG_RSEQ_SLICE_EXTENSION */
 
 bool rseq_debug_update_user_cs(struct task_struct *t, struct pt_regs *regs, unsigned long csaddr);
@@ -778,7 +788,7 @@ static inline void rseq_syscall_exit_to_user_mode(void) { }
 static inline void rseq_irqentry_exit_to_user_mode(void) { }
 static inline void rseq_exit_to_user_mode_legacy(void) { }
 static inline void rseq_debug_syscall_return(struct pt_regs *regs) { }
-static inline bool rseq_grant_slice_extension(bool work_pending) { return false; }
+static inline bool rseq_grant_slice_extension(unsigned long ti_work, unsigned long mask) { return false; }
 #endif /* !CONFIG_RSEQ */
 
 #endif /* _LINUX_RSEQ_ENTRY_H */

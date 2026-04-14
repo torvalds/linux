@@ -82,3 +82,17 @@ struct timerqueue_node *timerqueue_iterate_next(struct timerqueue_node *node)
 	return container_of(next, struct timerqueue_node, node);
 }
 EXPORT_SYMBOL_GPL(timerqueue_iterate_next);
+
+#define __node_2_tq_linked(_n) \
+	container_of(rb_entry((_n), struct rb_node_linked, node), struct timerqueue_linked_node, node)
+
+static __always_inline bool __tq_linked_less(struct rb_node *a, const struct rb_node *b)
+{
+	return __node_2_tq_linked(a)->expires < __node_2_tq_linked(b)->expires;
+}
+
+bool timerqueue_linked_add(struct timerqueue_linked_head *head, struct timerqueue_linked_node *node)
+{
+	return rb_add_linked(&node->node, &head->rb_root, __tq_linked_less);
+}
+EXPORT_SYMBOL_GPL(timerqueue_linked_add);

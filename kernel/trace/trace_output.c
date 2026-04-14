@@ -69,14 +69,15 @@ enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
 const char *
 trace_print_flags_seq(struct trace_seq *p, const char *delim,
 		      unsigned long flags,
-		      const struct trace_print_flags *flag_array)
+		      const struct trace_print_flags *flag_array,
+		      size_t flag_array_size)
 {
 	unsigned long mask;
 	const char *str;
 	const char *ret = trace_seq_buffer_ptr(p);
 	int i, first = 1;
 
-	for (i = 0;  flag_array[i].name && flags; i++) {
+	for (i = 0; i < flag_array_size && flags; i++) {
 
 		mask = flag_array[i].mask;
 		if ((flags & mask) != mask)
@@ -106,12 +107,13 @@ EXPORT_SYMBOL(trace_print_flags_seq);
 
 const char *
 trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
-			const struct trace_print_flags *symbol_array)
+			const struct trace_print_flags *symbol_array,
+			size_t symbol_array_size)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	for (i = 0;  symbol_array[i].name; i++) {
+	for (i = 0; i < symbol_array_size; i++) {
 
 		if (val != symbol_array[i].mask)
 			continue;
@@ -133,14 +135,15 @@ EXPORT_SYMBOL(trace_print_symbols_seq);
 const char *
 trace_print_flags_seq_u64(struct trace_seq *p, const char *delim,
 		      unsigned long long flags,
-		      const struct trace_print_flags_u64 *flag_array)
+		      const struct trace_print_flags_u64 *flag_array,
+		      size_t flag_array_size)
 {
 	unsigned long long mask;
 	const char *str;
 	const char *ret = trace_seq_buffer_ptr(p);
 	int i, first = 1;
 
-	for (i = 0;  flag_array[i].name && flags; i++) {
+	for (i = 0; i < flag_array_size && flags; i++) {
 
 		mask = flag_array[i].mask;
 		if ((flags & mask) != mask)
@@ -170,12 +173,13 @@ EXPORT_SYMBOL(trace_print_flags_seq_u64);
 
 const char *
 trace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
-			 const struct trace_print_flags_u64 *symbol_array)
+			    const struct trace_print_flags_u64 *symbol_array,
+			    size_t symbol_array_size)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
 
-	for (i = 0;  symbol_array[i].name; i++) {
+	for (i = 0; i < symbol_array_size; i++) {
 
 		if (val != symbol_array[i].mask)
 			continue;

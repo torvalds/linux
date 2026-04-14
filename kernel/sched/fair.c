@@ -5600,7 +5600,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * validating it and just reschedule.
 	 */
 	if (queued) {
-		resched_curr_lazy(rq_of(cfs_rq));
+		resched_curr(rq_of(cfs_rq));
 		return;
 	}
 #endif
@@ -6805,33 +6805,50 @@ static inline void sched_fair_update_stop_tick(struct rq *rq, struct task_struct
 static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
+	unsigned long scale = 1024;
+	unsigned long util = 0;
+	u64 vdelta;
+	u64 delta;
 
 	WARN_ON_ONCE(task_rq(p) != rq);
 
-	if (rq->cfs.h_nr_queued > 1) {
-		u64 ran = se->sum_exec_runtime - se->prev_sum_exec_runtime;
-		u64 slice = se->slice;
-		s64 delta = slice - ran;
+	if (rq->cfs.h_nr_queued <= 1)
+		return;
 
-		if (delta < 0) {
-			if (task_current_donor(rq, p))
-				resched_curr(rq);
-			return;
-		}
-		hrtick_start(rq, delta);
+	/*
+	 * Compute time until virtual deadline
+	 */
+	vdelta = se->deadline - se->vruntime;
+	if ((s64)vdelta < 0) {
+		if (task_current_donor(rq, p))
+			resched_curr(rq);
+		return;
 	}
+	delta = (se->load.weight * vdelta) / NICE_0_LOAD;
+
+	/*
+	 * Correct for instantaneous load of other classes.
+	 */
+	util += cpu_util_irq(rq);
+	if (util && util < 1024) {
+		scale *= 1024;
+		scale /= (1024 - util);
+	}
+
+	hrtick_start(rq, (scale * delta) / 1024);
 }
 
 /*
- * called from enqueue/dequeue and updates the hrtick when the
- * current task is from our class and nr_running is low enough
- * to matter.
+ * Called on enqueue to start the hrtick when h_nr_queued becomes more than 1.
  */
 static void hrtick_update(struct rq *rq)
 {
 	struct task_struct *donor = rq->donor;
 
 	if (!hrtick_enabled_fair(rq) || donor->sched_class != &fair_sched_class)
+		return;
+
+	if (hrtick_active(rq))
 		return;
 
 	hrtick_start_fair(rq, donor);
@@ -7156,9 +7173,6 @@ static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
 		WARN_ON_ONCE(!task_sleep);
 		WARN_ON_ONCE(p->on_rq != 1);
 
-		/* Fix-up what dequeue_task_fair() skipped */
-		hrtick_update(rq);
-
 		/*
 		 * Fix-up what block_task() skipped.
 		 *
@@ -7192,8 +7206,6 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	/*
 	 * Must not reference @p after dequeue_entities(DEQUEUE_DELAYED).
 	 */
-
-	hrtick_update(rq);
 	return true;
 }
 
@@ -13435,11 +13447,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		entity_tick(cfs_rq, se, queued);
 	}
 
-	if (queued) {
-		if (!need_resched())
-			hrtick_start_fair(rq, curr);
+	if (queued)
 		return;
-	}
 
 	if (static_branch_unlikely(&sched_numa_balancing))
 		task_tick_numa(rq, curr);

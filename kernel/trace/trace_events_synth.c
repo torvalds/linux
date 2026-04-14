@@ -395,7 +395,7 @@ static enum print_line_t print_synth_event(struct trace_iterator *iter,
 			n_u64++;
 		} else {
 			struct trace_print_flags __flags[] = {
-			    __def_gfpflag_names, {-1, NULL} };
+			    __def_gfpflag_names };
 			char *space = (i == se->n_fields - 1 ? "" : " ");
 
 			print_synth_event_num_val(s, print_fmt,
@@ -408,7 +408,7 @@ static enum print_line_t print_synth_event(struct trace_iterator *iter,
 				trace_seq_puts(s, " (");
 				trace_print_flags_seq(s, "|",
 						      entry->fields[n_u64].as_u64,
-						      __flags);
+						      __flags, ARRAY_SIZE(__flags));
 				trace_seq_putc(s, ')');
 			}
 			n_u64++;
