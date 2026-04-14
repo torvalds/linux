@@ -560,6 +560,72 @@ xfs_zoned_write_space_reserve(
 			flags, ac);
 }
 
+/*
+ * We need to lock the test/set EOF update as we can be racing with
+ * other IO completions here to update the EOF. Failing to serialise
+ * here can result in EOF moving backwards and Bad Things Happen when
+ * that occurs.
+ *
+ * As IO completion only ever extends EOF, we can do an unlocked check
+ * here to avoid taking the spinlock. If we land within the current EOF,
+ * then we do not need to do an extending update at all, and we don't
+ * need to take the lock to check this. If we race with an update moving
+ * EOF, then we'll either still be beyond EOF and need to take the lock,
+ * or we'll be within EOF and we don't need to take it at all.
+ */
+static int
+xfs_dio_endio_set_isize(
+	struct inode		*inode,
+	loff_t			offset,
+	ssize_t			size)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	if (offset + size <= i_size_read(inode))
+		return 0;
+
+	spin_lock(&ip->i_flags_lock);
+	if (offset + size <= i_size_read(inode)) {
+		spin_unlock(&ip->i_flags_lock);
+		return 0;
+	}
+
+	i_size_write(inode, offset + size);
+	spin_unlock(&ip->i_flags_lock);
+
+	return xfs_setfilesize(ip, offset, size);
+}
+
+static int
+xfs_zoned_dio_write_end_io(
+	struct kiocb		*iocb,
+	ssize_t			size,
+	int			error,
+	unsigned		flags)
+{
+	struct inode		*inode = file_inode(iocb->ki_filp);
+	struct xfs_inode	*ip = XFS_I(inode);
+	unsigned int		nofs_flag;
+
+	ASSERT(!(flags & (IOMAP_DIO_UNWRITTEN | IOMAP_DIO_COW)));
+
+	trace_xfs_end_io_direct_write(ip, iocb->ki_pos, size);
+
+	if (xfs_is_shutdown(ip->i_mount))
+		return -EIO;
+
+	if (error || !size)
+		return error;
+
+	XFS_STATS_ADD(ip->i_mount, xs_write_bytes, size);
+
+	nofs_flag = memalloc_nofs_save();
+	error = xfs_dio_endio_set_isize(inode, iocb->ki_pos, size);
+	memalloc_nofs_restore(nofs_flag);
+
+	return error;
+}
+
 static int
 xfs_dio_write_end_io(
 	struct kiocb		*iocb,
@@ -572,8 +638,7 @@ xfs_dio_write_end_io(
 	loff_t			offset = iocb->ki_pos;
 	unsigned int		nofs_flag;
 
-	ASSERT(!xfs_is_zoned_inode(ip) ||
-	       !(flags & (IOMAP_DIO_UNWRITTEN | IOMAP_DIO_COW)));
+	ASSERT(!xfs_is_zoned_inode(ip));
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
@@ -623,30 +688,8 @@ xfs_dio_write_end_io(
 	 * with the on-disk inode size being outside the in-core inode size. We
 	 * have no other method of updating EOF for AIO, so always do it here
 	 * if necessary.
-	 *
-	 * We need to lock the test/set EOF update as we can be racing with
-	 * other IO completions here to update the EOF. Failing to serialise
-	 * here can result in EOF moving backwards and Bad Things Happen when
-	 * that occurs.
-	 *
-	 * As IO completion only ever extends EOF, we can do an unlocked check
-	 * here to avoid taking the spinlock. If we land within the current EOF,
-	 * then we do not need to do an extending update at all, and we don't
-	 * need to take the lock to check this. If we race with an update moving
-	 * EOF, then we'll either still be beyond EOF and need to take the lock,
-	 * or we'll be within EOF and we don't need to take it at all.
 	 */
-	if (offset + size <= i_size_read(inode))
-		goto out;
-
-	spin_lock(&ip->i_flags_lock);
-	if (offset + size > i_size_read(inode)) {
-		i_size_write(inode, offset + size);
-		spin_unlock(&ip->i_flags_lock);
-		error = xfs_setfilesize(ip, offset, size);
-	} else {
-		spin_unlock(&ip->i_flags_lock);
-	}
+	error = xfs_dio_endio_set_isize(inode, offset, size);
 
 out:
 	memalloc_nofs_restore(nofs_flag);
@@ -688,7 +731,7 @@ xfs_dio_zoned_submit_io(
 static const struct iomap_dio_ops xfs_dio_zoned_write_ops = {
 	.bio_set	= &iomap_ioend_bioset,
 	.submit_io	= xfs_dio_zoned_submit_io,
-	.end_io		= xfs_dio_write_end_io,
+	.end_io		= xfs_zoned_dio_write_end_io,
 };
 
 /*
@@ -1262,6 +1305,23 @@ xfs_falloc_insert_range(
 	/* Offset should be less than i_size */
 	if (offset >= isize)
 		return -EINVAL;
+
+	/*
+	 * Let writeback clean up EOF folio state before we bump i_size. The
+	 * insert flushes before it starts shifting and under certain
+	 * circumstances we can write back blocks that should technically be
+	 * considered post-eof (and thus should not be submitted for writeback).
+	 *
+	 * For example, a large, dirty folio that spans EOF and is backed by
+	 * post-eof COW fork preallocation can cause block remap into the data
+	 * fork. This shifts back out beyond EOF, but creates an expectedly
+	 * written post-eof block. The insert is going to flush, unmap and
+	 * cancel prealloc across this whole range, so flush EOF now before we
+	 * bump i_size to provide consistent behavior.
+	 */
+	error = filemap_write_and_wait_range(inode->i_mapping, isize, isize);
+	if (error)
+		return error;
 
 	error = xfs_falloc_setsize(file, isize + len);
 	if (error)

@@ -14,6 +14,7 @@
 #include <linux/dax.h>
 #include <linux/uio.h>
 #include <linux/list_lru.h>
+#include <linux/lockref.h>
 
 extern struct kmem_cache *xfs_buf_cache;
 
@@ -69,18 +70,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_TRYLOCK,		"TRYLOCK" }
 
 /*
- * Internal state flags.
- */
-#define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
-
-struct xfs_buf_cache {
-	struct rhashtable	bc_hash;
-};
-
-int xfs_buf_cache_init(struct xfs_buf_cache *bch);
-void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
-
-/*
  * The xfs_buftarg contains 2 notions of "sector size" -
  *
  * 1) The metadata sector size, which is the minimum unit and
@@ -117,8 +106,7 @@ struct xfs_buftarg {
 	unsigned int		bt_awu_min;
 	unsigned int		bt_awu_max;
 
-	/* built-in cache, if we're not using the perag one */
-	struct xfs_buf_cache	bt_cache[];
+	struct rhashtable	bt_hash;
 };
 
 struct xfs_buf_map {
@@ -159,7 +147,7 @@ struct xfs_buf {
 
 	xfs_daddr_t		b_rhash_key;	/* buffer cache index */
 	int			b_length;	/* size of buffer in BBs */
-	unsigned int		b_hold;		/* reference count */
+	struct lockref		b_lockref;	/* refcount + lock */
 	atomic_t		b_lru_ref;	/* lru reclaim ref count */
 	xfs_buf_flags_t		b_flags;	/* status flags */
 	struct semaphore	b_sema;		/* semaphore for lockables */
@@ -169,8 +157,6 @@ struct xfs_buf {
 	 * bt_lru_lock and not by b_sema
 	 */
 	struct list_head	b_lru;		/* lru list */
-	spinlock_t		b_lock;		/* internal state lock */
-	unsigned int		b_state;	/* internal state flags */
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
 	struct xfs_perag	*b_pag;

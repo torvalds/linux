@@ -387,7 +387,7 @@ xfs_extent_free_diff_items(
 	struct xfs_extent_free_item	*ra = xefi_entry(a);
 	struct xfs_extent_free_item	*rb = xefi_entry(b);
 
-	return ra->xefi_group->xg_gno - rb->xefi_group->xg_gno;
+	return cmp_int(ra->xefi_group->xg_gno, rb->xefi_group->xg_gno);
 }
 
 /* Log a free extent to the intent item. */

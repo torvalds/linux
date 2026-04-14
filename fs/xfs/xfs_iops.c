@@ -901,20 +901,18 @@ out_dqrele:
 
 /*
  * Truncate file.  Must have write permission and not be a directory.
- *
- * Caution: The caller of this function is responsible for calling
- * setattr_prepare() or otherwise verifying the change is fine.
  */
-STATIC int
-xfs_setattr_size(
+int
+xfs_vn_setattr_size(
 	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
-	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
+	struct inode		*inode = d_inode(dentry);
+	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	struct inode		*inode = VFS_I(ip);
-	xfs_off_t		oldsize, newsize;
+	xfs_off_t		oldsize = inode->i_size;
+	xfs_off_t		newsize = iattr->ia_size;
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags = 0;
@@ -927,8 +925,11 @@ xfs_setattr_size(
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
 		ATTR_MTIME_SET|ATTR_TIMES_SET)) == 0);
 
-	oldsize = inode->i_size;
-	newsize = iattr->ia_size;
+	trace_xfs_setattr(ip);
+
+	error = xfs_vn_change_ok(idmap, dentry, iattr);
+	if (error)
+		return error;
 
 	/*
 	 * Short circuit the truncate case for zero length files.
@@ -1109,7 +1110,6 @@ xfs_setattr_size(
 		xfs_inode_clear_eofblocks_tag(ip);
 	}
 
-	ASSERT(!(iattr->ia_valid & (ATTR_UID | ATTR_GID)));
 	setattr_copy(idmap, inode, iattr);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
@@ -1127,23 +1127,6 @@ out_unlock:
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	goto out_unlock;
-}
-
-int
-xfs_vn_setattr_size(
-	struct mnt_idmap	*idmap,
-	struct dentry		*dentry,
-	struct iattr		*iattr)
-{
-	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
-	int error;
-
-	trace_xfs_setattr(ip);
-
-	error = xfs_vn_change_ok(idmap, dentry, iattr);
-	if (error)
-		return error;
-	return xfs_setattr_size(idmap, dentry, ip, iattr);
 }
 
 STATIC int

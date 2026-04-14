@@ -550,6 +550,10 @@ For zoned file systems, the following attributes are exposed in:
 	is limited by the capabilities of the backing zoned device, file system
 	size and the max_open_zones mount option.
 
+  nr_open_zones			(Min:  0  Default:  Varies  Max:  UINTMAX)
+	This read-only attribute exposes the current number of open zones
+	used by the file system.
+
   zonegc_low_space		(Min:  0  Default:  0  Max:  100)
 	Define a percentage for how much of the unused space that GC should keep
 	available for writing. A high value will reclaim more of the space

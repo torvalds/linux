@@ -110,10 +110,7 @@ xfs_perag_uninit(
 	struct xfs_group	*xg)
 {
 #ifdef __KERNEL__
-	struct xfs_perag	*pag = to_perag(xg);
-
-	cancel_delayed_work_sync(&pag->pag_blockgc_work);
-	xfs_buf_cache_destroy(&pag->pag_bcache);
+	cancel_delayed_work_sync(&to_perag(xg)->pag_blockgc_work);
 #endif
 }
 
@@ -235,10 +232,6 @@ xfs_perag_alloc(
 	INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 #endif /* __KERNEL__ */
 
-	error = xfs_buf_cache_init(&pag->pag_bcache);
-	if (error)
-		goto out_free_perag;
-
 	/*
 	 * Pre-calculated geometry
 	 */
@@ -250,12 +243,10 @@ xfs_perag_alloc(
 
 	error = xfs_group_insert(mp, pag_group(pag), index, XG_TYPE_AG);
 	if (error)
-		goto out_buf_cache_destroy;
+		goto out_free_perag;
 
 	return 0;
 
-out_buf_cache_destroy:
-	xfs_buf_cache_destroy(&pag->pag_bcache);
 out_free_perag:
 	kfree(pag);
 	return error;

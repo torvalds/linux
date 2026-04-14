@@ -85,8 +85,6 @@ struct xfs_perag {
 	int		pag_ici_reclaimable;	/* reclaimable inodes */
 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 
-	struct xfs_buf_cache	pag_bcache;
-
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
 #endif /* __KERNEL__ */

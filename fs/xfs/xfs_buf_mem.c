@@ -58,7 +58,7 @@ xmbuf_alloc(
 	struct xfs_buftarg	*btp;
 	int			error;
 
-	btp = kzalloc_flex(*btp, bt_cache, 1);
+	btp = kzalloc_obj(*btp);
 	if (!btp)
 		return -ENOMEM;
 
@@ -81,10 +81,6 @@ xmbuf_alloc(
 	/* ensure all writes are below EOF to avoid pagecache zeroing */
 	i_size_write(inode, inode->i_sb->s_maxbytes);
 
-	error = xfs_buf_cache_init(btp->bt_cache);
-	if (error)
-		goto out_file;
-
 	/* Initialize buffer target */
 	btp->bt_mount = mp;
 	btp->bt_dev = (dev_t)-1U;
@@ -95,15 +91,13 @@ xmbuf_alloc(
 
 	error = xfs_init_buftarg(btp, XMBUF_BLOCKSIZE, descr);
 	if (error)
-		goto out_bcache;
+		goto out_file;
 
 	trace_xmbuf_create(btp);
 
 	*btpp = btp;
 	return 0;
 
-out_bcache:
-	xfs_buf_cache_destroy(btp->bt_cache);
 out_file:
 	fput(file);
 out_free_btp:
@@ -122,7 +116,6 @@ xmbuf_free(
 	trace_xmbuf_free(btp);
 
 	xfs_destroy_buftarg(btp);
-	xfs_buf_cache_destroy(btp->bt_cache);
 	fput(btp->bt_file);
 	kfree(btp);
 }

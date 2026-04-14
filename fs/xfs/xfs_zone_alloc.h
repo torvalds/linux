@@ -51,6 +51,7 @@ int xfs_mount_zones(struct xfs_mount *mp);
 void xfs_unmount_zones(struct xfs_mount *mp);
 void xfs_zone_gc_start(struct xfs_mount *mp);
 void xfs_zone_gc_stop(struct xfs_mount *mp);
+void xfs_zone_gc_wakeup(struct xfs_mount *mp);
 #else
 static inline int xfs_mount_zones(struct xfs_mount *mp)
 {
@@ -63,6 +64,9 @@ static inline void xfs_zone_gc_start(struct xfs_mount *mp)
 {
 }
 static inline void xfs_zone_gc_stop(struct xfs_mount *mp)
+{
+}
+static inline void xfs_zone_gc_wakeup(struct xfs_mount *mp)
 {
 }
 #endif /* CONFIG_XFS_RT */
