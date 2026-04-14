@@ -18,10 +18,34 @@
 #include <linux/cache.h>
 #include <linux/slab.h>
 #include <asm/barrier.h>
+#include <asm/setup.h>
 #include "internal.h"
 
 /* This doesn't need to be atomic: speed is chosen over correctness here. */
 static u64 pstore_ftrace_stamp;
+
+static inline unsigned long adjust_ip(unsigned long ip)
+{
+#if defined(CONFIG_RANDOMIZE_BASE) && !defined(PSTORE_CPU_IN_IP) && IS_BUILTIN(CONFIG_PSTORE)
+	if (core_kernel_text(ip))
+		return ip - kaslr_offset();
+
+	__clear_bit(BITS_PER_LONG - 1, &ip);
+#endif
+	return ip;
+}
+
+inline unsigned long decode_ip(unsigned long ip)
+{
+#if defined(CONFIG_RANDOMIZE_BASE) && !defined(PSTORE_CPU_IN_IP) && IS_BUILTIN(CONFIG_PSTORE)
+	if (test_bit(BITS_PER_LONG - 1, &ip))
+		return ip + kaslr_offset();
+
+	__set_bit(BITS_PER_LONG - 1, &ip);
+
+#endif
+	return ip;
+}
 
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
@@ -47,8 +71,8 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 
 	local_irq_save(flags);
 
-	rec.ip = ip;
-	rec.parent_ip = parent_ip;
+	rec.ip = adjust_ip(ip);
+	rec.parent_ip = adjust_ip(parent_ip);
 	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
 	psinfo->write(&record);
@@ -62,13 +86,16 @@ static struct ftrace_ops pstore_ftrace_ops __read_mostly = {
 };
 
 static DEFINE_MUTEX(pstore_ftrace_lock);
-static bool pstore_ftrace_enabled;
+static bool record_ftrace;
+module_param(record_ftrace, bool, 0400);
+MODULE_PARM_DESC(record_ftrace,
+		 "enable ftrace recording immediately (default: off)");
 
 static int pstore_set_ftrace_enabled(bool on)
 {
 	ssize_t ret;
 
-	if (on == pstore_ftrace_enabled)
+	if (on == record_ftrace)
 		return 0;
 
 	if (on) {
@@ -82,7 +109,7 @@ static int pstore_set_ftrace_enabled(bool on)
 		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
 		       __func__, on ? "" : "un", ret);
 	} else {
-		pstore_ftrace_enabled = on;
+		record_ftrace = on;
 	}
 
 	return ret;
@@ -111,7 +138,7 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 static ssize_t pstore_ftrace_knob_read(struct file *f, char __user *buf,
 				       size_t count, loff_t *ppos)
 {
-	char val[] = { '0' + pstore_ftrace_enabled, '\n' };
+	char val[] = { '0' + record_ftrace, '\n' };
 
 	return simple_read_from_buffer(buf, count, ppos, val, sizeof(val));
 }
@@ -123,11 +150,6 @@ static const struct file_operations pstore_knob_fops = {
 };
 
 static struct dentry *pstore_ftrace_dir;
-
-static bool record_ftrace;
-module_param(record_ftrace, bool, 0400);
-MODULE_PARM_DESC(record_ftrace,
-		 "enable ftrace recording immediately (default: off)");
 
 void pstore_register_ftrace(void)
 {
@@ -145,9 +167,9 @@ void pstore_register_ftrace(void)
 void pstore_unregister_ftrace(void)
 {
 	mutex_lock(&pstore_ftrace_lock);
-	if (pstore_ftrace_enabled) {
+	if (record_ftrace) {
 		unregister_ftrace_function(&pstore_ftrace_ops);
-		pstore_ftrace_enabled = false;
+		record_ftrace = false;
 	}
 	mutex_unlock(&pstore_ftrace_lock);
 

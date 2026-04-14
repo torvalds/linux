@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/memblock.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -487,6 +486,10 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 		va = ioremap(start, size);
 	else
 		va = ioremap_wc(start, size);
+
+	/* We must release the mem region if ioremap fails. */
+	if (!va)
+		release_mem_region(start, size);
 
 	/*
 	 * Since request_mem_region() and ioremap() are byte-granularity

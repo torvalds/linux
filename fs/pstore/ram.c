@@ -71,7 +71,7 @@ MODULE_PARM_DESC(max_reason,
 
 static int ramoops_ecc;
 module_param_named(ecc, ramoops_ecc, int, 0400);
-MODULE_PARM_DESC(ramoops_ecc,
+MODULE_PARM_DESC(ecc,
 		"if non-zero, the option enables ECC support and specifies "
 		"ECC buffer size in bytes (1 is a special value, means 16 "
 		"bytes ECC)");
