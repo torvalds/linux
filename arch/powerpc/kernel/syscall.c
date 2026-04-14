@@ -20,8 +20,6 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 
 	kuap_lock();
 
-	add_random_kstack_offset();
-
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
 
@@ -29,6 +27,8 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 
 	CT_WARN_ON(ct_state() == CT_STATE_KERNEL);
 	user_exit_irqoff();
+
+	add_random_kstack_offset();
 
 	BUG_ON(regs_is_unrecoverable(regs));
 	BUG_ON(!user_mode(regs));
@@ -172,18 +172,6 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 			regs->gpr[6], regs->gpr[7], regs->gpr[8]);
 	}
 #endif
-
-	/*
-	 * Ultimately, this value will get limited by KSTACK_OFFSET_MAX(),
-	 * so the maximum stack offset is 1k bytes (10 bits).
-	 *
-	 * The actual entropy will be further reduced by the compiler when
-	 * applying stack alignment constraints: the powerpc architecture
-	 * may have two kinds of stack alignment (16-bytes and 8-bytes).
-	 *
-	 * So the resulting 6 or 7 bits of entropy is seen in SP[9:4] or SP[9:3].
-	 */
-	choose_random_kstack_offset(mftb());
 
 	return ret;
 }
