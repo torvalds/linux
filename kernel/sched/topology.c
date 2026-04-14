@@ -4,6 +4,7 @@
  */
 
 #include <linux/sched/isolation.h>
+#include <linux/sched/clock.h>
 #include <linux/bsearch.h>
 #include "sched.h"
 
@@ -272,7 +273,7 @@ void rebuild_sched_domains_energy(void)
 static int sched_energy_aware_handler(const struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret, state;
+	int ret;
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -288,8 +289,7 @@ static int sched_energy_aware_handler(const struct ctl_table *table, int write,
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (!ret && write) {
-		state = static_branch_unlikely(&sched_energy_present);
-		if (state != sysctl_sched_energy_aware)
+		if (sysctl_sched_energy_aware != sched_energy_enabled())
 			rebuild_sched_domains_energy();
 	}
 
@@ -387,11 +387,11 @@ static void destroy_perf_domain_rcu(struct rcu_head *rp)
 
 static void sched_energy_set(bool has_eas)
 {
-	if (!has_eas && static_branch_unlikely(&sched_energy_present)) {
+	if (!has_eas && sched_energy_enabled()) {
 		if (sched_debug())
 			pr_info("%s: stopping EAS\n", __func__);
 		static_branch_disable_cpuslocked(&sched_energy_present);
-	} else if (has_eas && !static_branch_unlikely(&sched_energy_present)) {
+	} else if (has_eas && !sched_energy_enabled()) {
 		if (sched_debug())
 			pr_info("%s: starting EAS\n", __func__);
 		static_branch_enable_cpuslocked(&sched_energy_present);
@@ -684,6 +684,9 @@ static void update_top_cache_domain(int cpu)
 	if (sd) {
 		id = cpumask_first(sched_domain_span(sd));
 		size = cpumask_weight(sched_domain_span(sd));
+
+		/* If sd_llc exists, sd_llc_shared should exist too. */
+		WARN_ON_ONCE(!sd->shared);
 		sds = sd->shared;
 	}
 
@@ -731,6 +734,13 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 
 		if (sd_parent_degenerate(tmp, parent)) {
 			tmp->parent = parent->parent;
+
+			/* Pick reference to parent->shared. */
+			if (parent->shared) {
+				WARN_ON_ONCE(tmp->shared);
+				tmp->shared = parent->shared;
+				parent->shared = NULL;
+			}
 
 			if (parent->parent) {
 				parent->parent->child = tmp;
@@ -781,6 +791,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 }
 
 struct s_data {
+	struct sched_domain_shared * __percpu *sds;
 	struct sched_domain * __percpu *sd;
 	struct root_domain	*rd;
 };
@@ -788,6 +799,7 @@ struct s_data {
 enum s_alloc {
 	sa_rootdomain,
 	sa_sd,
+	sa_sd_shared,
 	sa_sd_storage,
 	sa_none,
 };
@@ -1534,6 +1546,9 @@ static void set_domain_attribute(struct sched_domain *sd,
 static void __sdt_free(const struct cpumask *cpu_map);
 static int __sdt_alloc(const struct cpumask *cpu_map);
 
+static void __sds_free(struct s_data *d, const struct cpumask *cpu_map);
+static int __sds_alloc(struct s_data *d, const struct cpumask *cpu_map);
+
 static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 				 const struct cpumask *cpu_map)
 {
@@ -1544,6 +1559,9 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 		fallthrough;
 	case sa_sd:
 		free_percpu(d->sd);
+		fallthrough;
+	case sa_sd_shared:
+		__sds_free(d, cpu_map);
 		fallthrough;
 	case sa_sd_storage:
 		__sdt_free(cpu_map);
@@ -1560,9 +1578,11 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
 
 	if (__sdt_alloc(cpu_map))
 		return sa_sd_storage;
+	if (__sds_alloc(d, cpu_map))
+		return sa_sd_shared;
 	d->sd = alloc_percpu(struct sched_domain *);
 	if (!d->sd)
-		return sa_sd_storage;
+		return sa_sd_shared;
 	d->rd = alloc_rootdomain();
 	if (!d->rd)
 		return sa_sd;
@@ -1575,21 +1595,25 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
  * sched_group structure so that the subsequent __free_domain_allocs()
  * will not free the data we're using.
  */
-static void claim_allocations(int cpu, struct sched_domain *sd)
+static void claim_allocations(int cpu, struct s_data *d)
 {
-	struct sd_data *sdd = sd->private;
+	struct sched_domain *sd;
 
-	WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
-	*per_cpu_ptr(sdd->sd, cpu) = NULL;
+	if (atomic_read(&(*per_cpu_ptr(d->sds, cpu))->ref))
+		*per_cpu_ptr(d->sds, cpu) = NULL;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sds, cpu))->ref))
-		*per_cpu_ptr(sdd->sds, cpu) = NULL;
+	for (sd = *per_cpu_ptr(d->sd, cpu); sd; sd = sd->parent) {
+		struct sd_data *sdd = sd->private;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sg, cpu))->ref))
-		*per_cpu_ptr(sdd->sg, cpu) = NULL;
+		WARN_ON_ONCE(*per_cpu_ptr(sdd->sd, cpu) != sd);
+		*per_cpu_ptr(sdd->sd, cpu) = NULL;
 
-	if (atomic_read(&(*per_cpu_ptr(sdd->sgc, cpu))->ref))
-		*per_cpu_ptr(sdd->sgc, cpu) = NULL;
+		if (atomic_read(&(*per_cpu_ptr(sdd->sg, cpu))->ref))
+			*per_cpu_ptr(sdd->sg, cpu) = NULL;
+
+		if (atomic_read(&(*per_cpu_ptr(sdd->sgc, cpu))->ref))
+			*per_cpu_ptr(sdd->sgc, cpu) = NULL;
+	}
 }
 
 #ifdef CONFIG_NUMA
@@ -1642,14 +1666,19 @@ sd_init(struct sched_domain_topology_level *tl,
 	struct sched_domain *sd = *per_cpu_ptr(sdd->sd, cpu);
 	int sd_id, sd_weight, sd_flags = 0;
 	struct cpumask *sd_span;
+	u64 now = sched_clock();
 
-	sd_weight = cpumask_weight(tl->mask(tl, cpu));
+	sd_span = sched_domain_span(sd);
+	cpumask_and(sd_span, cpu_map, tl->mask(tl, cpu));
+	sd_weight = cpumask_weight(sd_span);
+	sd_id = cpumask_first(sd_span);
 
 	if (tl->sd_flags)
 		sd_flags = (*tl->sd_flags)();
 	if (WARN_ONCE(sd_flags & ~TOPOLOGY_SD_FLAGS,
-			"wrong sd_flags in topology description\n"))
+		      "wrong sd_flags in topology description\n"))
 		sd_flags &= TOPOLOGY_SD_FLAGS;
+	sd_flags |= asym_cpu_capacity_classify(sd_span, cpu_map);
 
 	*sd = (struct sched_domain){
 		.min_interval		= sd_weight,
@@ -1679,18 +1708,13 @@ sd_init(struct sched_domain_topology_level *tl,
 		.newidle_call		= 512,
 		.newidle_success	= 256,
 		.newidle_ratio		= 512,
+		.newidle_stamp		= now,
 
 		.max_newidle_lb_cost	= 0,
 		.last_decay_max_lb_cost	= jiffies,
 		.child			= child,
 		.name			= tl->name,
 	};
-
-	sd_span = sched_domain_span(sd);
-	cpumask_and(sd_span, cpu_map, tl->mask(tl, cpu));
-	sd_id = cpumask_first(sd_span);
-
-	sd->flags |= asym_cpu_capacity_classify(sd_span, cpu_map);
 
 	WARN_ONCE((sd->flags & (SD_SHARE_CPUCAPACITY | SD_ASYM_CPUCAPACITY)) ==
 		  (SD_SHARE_CPUCAPACITY | SD_ASYM_CPUCAPACITY),
@@ -1725,16 +1749,6 @@ sd_init(struct sched_domain_topology_level *tl,
 #endif /* CONFIG_NUMA */
 	} else {
 		sd->cache_nice_tries = 1;
-	}
-
-	/*
-	 * For all levels sharing cache; connect a sched_domain_shared
-	 * instance.
-	 */
-	if (sd->flags & SD_SHARE_LLC) {
-		sd->shared = *per_cpu_ptr(sdd->sds, sd_id);
-		atomic_inc(&sd->shared->ref);
-		atomic_set(&sd->shared->nr_busy_cpus, sd_weight);
 	}
 
 	sd->private = sdd;
@@ -2372,10 +2386,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 		if (!sdd->sd)
 			return -ENOMEM;
 
-		sdd->sds = alloc_percpu(struct sched_domain_shared *);
-		if (!sdd->sds)
-			return -ENOMEM;
-
 		sdd->sg = alloc_percpu(struct sched_group *);
 		if (!sdd->sg)
 			return -ENOMEM;
@@ -2386,7 +2396,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 
 		for_each_cpu(j, cpu_map) {
 			struct sched_domain *sd;
-			struct sched_domain_shared *sds;
 			struct sched_group *sg;
 			struct sched_group_capacity *sgc;
 
@@ -2396,13 +2405,6 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 				return -ENOMEM;
 
 			*per_cpu_ptr(sdd->sd, j) = sd;
-
-			sds = kzalloc_node(sizeof(struct sched_domain_shared),
-					GFP_KERNEL, cpu_to_node(j));
-			if (!sds)
-				return -ENOMEM;
-
-			*per_cpu_ptr(sdd->sds, j) = sds;
 
 			sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
 					GFP_KERNEL, cpu_to_node(j));
@@ -2445,8 +2447,6 @@ static void __sdt_free(const struct cpumask *cpu_map)
 				kfree(*per_cpu_ptr(sdd->sd, j));
 			}
 
-			if (sdd->sds)
-				kfree(*per_cpu_ptr(sdd->sds, j));
 			if (sdd->sg)
 				kfree(*per_cpu_ptr(sdd->sg, j));
 			if (sdd->sgc)
@@ -2454,13 +2454,47 @@ static void __sdt_free(const struct cpumask *cpu_map)
 		}
 		free_percpu(sdd->sd);
 		sdd->sd = NULL;
-		free_percpu(sdd->sds);
-		sdd->sds = NULL;
 		free_percpu(sdd->sg);
 		sdd->sg = NULL;
 		free_percpu(sdd->sgc);
 		sdd->sgc = NULL;
 	}
+}
+
+static int __sds_alloc(struct s_data *d, const struct cpumask *cpu_map)
+{
+	int j;
+
+	d->sds = alloc_percpu(struct sched_domain_shared *);
+	if (!d->sds)
+		return -ENOMEM;
+
+	for_each_cpu(j, cpu_map) {
+		struct sched_domain_shared *sds;
+
+		sds = kzalloc_node(sizeof(struct sched_domain_shared),
+				GFP_KERNEL, cpu_to_node(j));
+		if (!sds)
+			return -ENOMEM;
+
+		*per_cpu_ptr(d->sds, j) = sds;
+	}
+
+	return 0;
+}
+
+static void __sds_free(struct s_data *d, const struct cpumask *cpu_map)
+{
+	int j;
+
+	if (!d->sds)
+		return;
+
+	for_each_cpu(j, cpu_map)
+		kfree(*per_cpu_ptr(d->sds, j));
+
+	free_percpu(d->sds);
+	d->sds = NULL;
 }
 
 static struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
@@ -2549,6 +2583,74 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 }
 
 /*
+ * Calculate an allowed NUMA imbalance such that LLCs do not get
+ * imbalanced.
+ */
+static void adjust_numa_imbalance(struct sched_domain *sd_llc)
+{
+	struct sched_domain *parent;
+	unsigned int imb_span = 1;
+	unsigned int imb = 0;
+	unsigned int nr_llcs;
+
+	WARN_ON(!(sd_llc->flags & SD_SHARE_LLC));
+	WARN_ON(!sd_llc->parent);
+
+	/*
+	 * For a single LLC per node, allow an
+	 * imbalance up to 12.5% of the node. This is
+	 * arbitrary cutoff based two factors -- SMT and
+	 * memory channels. For SMT-2, the intent is to
+	 * avoid premature sharing of HT resources but
+	 * SMT-4 or SMT-8 *may* benefit from a different
+	 * cutoff. For memory channels, this is a very
+	 * rough estimate of how many channels may be
+	 * active and is based on recent CPUs with
+	 * many cores.
+	 *
+	 * For multiple LLCs, allow an imbalance
+	 * until multiple tasks would share an LLC
+	 * on one node while LLCs on another node
+	 * remain idle. This assumes that there are
+	 * enough logical CPUs per LLC to avoid SMT
+	 * factors and that there is a correlation
+	 * between LLCs and memory channels.
+	 */
+	nr_llcs = sd_llc->parent->span_weight / sd_llc->span_weight;
+	if (nr_llcs == 1)
+		imb = sd_llc->parent->span_weight >> 3;
+	else
+		imb = nr_llcs;
+
+	imb = max(1U, imb);
+	sd_llc->parent->imb_numa_nr = imb;
+
+	/*
+	 * Set span based on the first NUMA domain.
+	 *
+	 * NUMA systems always add a NODE domain before
+	 * iterating the NUMA domains. Since this is before
+	 * degeneration, start from sd_llc's parent's
+	 * parent which is the lowest an SD_NUMA domain can
+	 * be relative to sd_llc.
+	 */
+	parent = sd_llc->parent->parent;
+	while (parent && !(parent->flags & SD_NUMA))
+		parent = parent->parent;
+
+	imb_span = parent ? parent->span_weight : sd_llc->parent->span_weight;
+
+	/* Update the upper remainder of the topology */
+	parent = sd_llc->parent;
+	while (parent) {
+		int factor = max(1U, (parent->span_weight / imb_span));
+
+		parent->imb_numa_nr = imb * factor;
+		parent = parent->parent;
+	}
+}
+
+/*
  * Build sched domains for a given set of CPUs and attach the sched domains
  * to the individual CPUs
  */
@@ -2605,61 +2707,28 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		}
 	}
 
-	/*
-	 * Calculate an allowed NUMA imbalance such that LLCs do not get
-	 * imbalanced.
-	 */
 	for_each_cpu(i, cpu_map) {
-		unsigned int imb = 0;
-		unsigned int imb_span = 1;
+		sd = *per_cpu_ptr(d.sd, i);
+		if (!sd)
+			continue;
 
-		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent) {
-			struct sched_domain *child = sd->child;
+		/* First, find the topmost SD_SHARE_LLC domain */
+		while (sd->parent && (sd->parent->flags & SD_SHARE_LLC))
+			sd = sd->parent;
 
-			if (!(sd->flags & SD_SHARE_LLC) && child &&
-			    (child->flags & SD_SHARE_LLC)) {
-				struct sched_domain __rcu *top_p;
-				unsigned int nr_llcs;
+		if (sd->flags & SD_SHARE_LLC) {
+			int sd_id = cpumask_first(sched_domain_span(sd));
 
-				/*
-				 * For a single LLC per node, allow an
-				 * imbalance up to 12.5% of the node. This is
-				 * arbitrary cutoff based two factors -- SMT and
-				 * memory channels. For SMT-2, the intent is to
-				 * avoid premature sharing of HT resources but
-				 * SMT-4 or SMT-8 *may* benefit from a different
-				 * cutoff. For memory channels, this is a very
-				 * rough estimate of how many channels may be
-				 * active and is based on recent CPUs with
-				 * many cores.
-				 *
-				 * For multiple LLCs, allow an imbalance
-				 * until multiple tasks would share an LLC
-				 * on one node while LLCs on another node
-				 * remain idle. This assumes that there are
-				 * enough logical CPUs per LLC to avoid SMT
-				 * factors and that there is a correlation
-				 * between LLCs and memory channels.
-				 */
-				nr_llcs = sd->span_weight / child->span_weight;
-				if (nr_llcs == 1)
-					imb = sd->span_weight >> 3;
-				else
-					imb = nr_llcs;
-				imb = max(1U, imb);
-				sd->imb_numa_nr = imb;
+			sd->shared = *per_cpu_ptr(d.sds, sd_id);
+			atomic_set(&sd->shared->nr_busy_cpus, sd->span_weight);
+			atomic_inc(&sd->shared->ref);
 
-				/* Set span based on the first NUMA domain. */
-				top_p = sd->parent;
-				while (top_p && !(top_p->flags & SD_NUMA)) {
-					top_p = top_p->parent;
-				}
-				imb_span = top_p ? top_p->span_weight : sd->span_weight;
-			} else {
-				int factor = max(1U, (sd->span_weight / imb_span));
-
-				sd->imb_numa_nr = imb * factor;
-			}
+			/*
+			 * In presence of higher domains, adjust the
+			 * NUMA imbalance stats for the hierarchy.
+			 */
+			if (IS_ENABLED(CONFIG_NUMA) && sd->parent)
+				adjust_numa_imbalance(sd);
 		}
 	}
 
@@ -2668,10 +2737,10 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		if (!cpumask_test_cpu(i, cpu_map))
 			continue;
 
-		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent) {
-			claim_allocations(i, sd);
+		claim_allocations(i, &d);
+
+		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent)
 			init_sched_groups_capacity(i, sd);
-		}
 	}
 
 	/* Attach the domains */

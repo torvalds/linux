@@ -2837,7 +2837,7 @@ static void scx_watchdog_workfn(struct work_struct *work)
 
 		cond_resched();
 	}
-	queue_delayed_work(system_unbound_wq, to_delayed_work(work),
+	queue_delayed_work(system_dfl_wq, to_delayed_work(work),
 			   READ_ONCE(scx_watchdog_timeout) / 2);
 }
 
@@ -5164,7 +5164,7 @@ static void scx_enable_workfn(struct kthread_work *work)
 
 	WRITE_ONCE(scx_watchdog_timeout, timeout);
 	WRITE_ONCE(scx_watchdog_timestamp, jiffies);
-	queue_delayed_work(system_unbound_wq, &scx_watchdog_work,
+	queue_delayed_work(system_dfl_wq, &scx_watchdog_work,
 			   READ_ONCE(scx_watchdog_timeout) / 2);
 
 	/*
