@@ -186,6 +186,7 @@ static __always_inline void rwbase_read_unlock(struct rwbase_rt *rwb,
 
 static inline void __rwbase_write_unlock(struct rwbase_rt *rwb, int bias,
 					 unsigned long flags)
+	__releases(&rwb->rtmutex.wait_lock)
 {
 	struct rt_mutex_base *rtm = &rwb->rtmutex;
 

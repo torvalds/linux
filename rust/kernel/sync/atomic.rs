@@ -51,6 +51,10 @@ use ordering::OrderingType;
 #[repr(transparent)]
 pub struct Atomic<T: AtomicType>(AtomicRepr<T::Repr>);
 
+// SAFETY: `Atomic<T>` is safe to transfer between execution contexts because of the safety
+// requirement of `AtomicType`.
+unsafe impl<T: AtomicType> Send for Atomic<T> {}
+
 // SAFETY: `Atomic<T>` is safe to share among execution contexts because all accesses are atomic.
 unsafe impl<T: AtomicType> Sync for Atomic<T> {}
 
@@ -68,6 +72,11 @@ unsafe impl<T: AtomicType> Sync for Atomic<T> {}
 ///
 /// - [`Self`] must have the same size and alignment as [`Self::Repr`].
 /// - [`Self`] must be [round-trip transmutable] to  [`Self::Repr`].
+/// - [`Self`] must be safe to transfer between execution contexts, if it's [`Send`], this is
+///   automatically satisfied. The exception is pointer types that are even though marked as
+///   `!Send` (e.g. raw pointers and [`NonNull<T>`]) but requiring `unsafe` to do anything
+///   meaningful on them. This is because transferring pointer values between execution contexts is
+///   safe as long as the actual `unsafe` dereferencing is justified.
 ///
 /// Note that this is more relaxed than requiring the bi-directional transmutability (i.e.
 /// [`transmute()`] is always sound between `U` and `T`) because of the support for atomic
@@ -108,7 +117,8 @@ unsafe impl<T: AtomicType> Sync for Atomic<T> {}
 /// [`transmute()`]: core::mem::transmute
 /// [round-trip transmutable]: AtomicType#round-trip-transmutability
 /// [Examples]: AtomicType#examples
-pub unsafe trait AtomicType: Sized + Send + Copy {
+/// [`NonNull<T>`]: core::ptr::NonNull
+pub unsafe trait AtomicType: Sized + Copy {
     /// The backing atomic implementation type.
     type Repr: AtomicImpl;
 }
@@ -204,10 +214,7 @@ impl<T: AtomicType> Atomic<T> {
     /// // no data race.
     /// unsafe { Atomic::from_ptr(foo_a_ptr) }.store(2, Release);
     /// ```
-    pub unsafe fn from_ptr<'a>(ptr: *mut T) -> &'a Self
-    where
-        T: Sync,
-    {
+    pub unsafe fn from_ptr<'a>(ptr: *mut T) -> &'a Self {
         // CAST: `T` and `Atomic<T>` have the same size, alignment and bit validity.
         // SAFETY: Per function safety requirement, `ptr` is a valid pointer and the object will
         // live long enough. It's safe to return a `&Atomic<T>` because function safety requirement
@@ -235,6 +242,17 @@ impl<T: AtomicType> Atomic<T> {
     /// Returns a mutable reference to the underlying atomic `T`.
     ///
     /// This is safe because the mutable reference of the atomic `T` guarantees exclusive access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::atomic::{Atomic, Relaxed};
+    ///
+    /// let mut atomic_val = Atomic::new(0u32);
+    /// let val_mut = atomic_val.get_mut();
+    /// *val_mut = 101;
+    /// assert_eq!(101, atomic_val.load(Relaxed));
+    /// ```
     pub fn get_mut(&mut self) -> &mut T {
         // CAST: `T` and `T::Repr` has the same size and alignment per the safety requirement of
         // `AtomicType`, and per the type invariants `self.0` is a valid `T`, therefore the casting
@@ -527,16 +545,14 @@ where
     /// use kernel::sync::atomic::{Atomic, Acquire, Full, Relaxed};
     ///
     /// let x = Atomic::new(42);
-    ///
     /// assert_eq!(42, x.load(Relaxed));
-    ///
-    /// assert_eq!(54, { x.fetch_add(12, Acquire); x.load(Relaxed) });
+    /// assert_eq!(42, x.fetch_add(12, Acquire));
+    /// assert_eq!(54, x.load(Relaxed));
     ///
     /// let x = Atomic::new(42);
-    ///
     /// assert_eq!(42, x.load(Relaxed));
-    ///
-    /// assert_eq!(54, { x.fetch_add(12, Full); x.load(Relaxed) } );
+    /// assert_eq!(42, x.fetch_add(12, Full));
+    /// assert_eq!(54, x.load(Relaxed));
     /// ```
     #[inline(always)]
     pub fn fetch_add<Rhs, Ordering: ordering::Ordering>(&self, v: Rhs, _: Ordering) -> T
@@ -559,4 +575,276 @@ where
         // SAFETY: `ret` comes from reading `self.0`, which is a valid `T` per type invariants.
         unsafe { from_repr(ret) }
     }
+
+    /// Atomic fetch and subtract.
+    ///
+    /// Atomically updates `*self` to `(*self).wrapping_sub(v)`, and returns the value of `*self`
+    /// before the update.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::atomic::{Atomic, Acquire, Full, Relaxed};
+    ///
+    /// let x = Atomic::new(42);
+    /// assert_eq!(42, x.load(Relaxed));
+    /// assert_eq!(42, x.fetch_sub(12, Acquire));
+    /// assert_eq!(30, x.load(Relaxed));
+    ///
+    /// let x = Atomic::new(42);
+    /// assert_eq!(42, x.load(Relaxed));
+    /// assert_eq!(42, x.fetch_sub(12, Full));
+    /// assert_eq!(30, x.load(Relaxed));
+    /// ```
+    #[inline(always)]
+    pub fn fetch_sub<Rhs, Ordering: ordering::Ordering>(&self, v: Rhs, _: Ordering) -> T
+    where
+        // Types that support addition also support subtraction.
+        T: AtomicAdd<Rhs>,
+    {
+        let v = T::rhs_into_delta(v);
+
+        // INVARIANT: `self.0` is a valid `T` after `atomic_fetch_sub*()` due to safety requirement
+        // of `AtomicAdd`.
+        let ret = {
+            match Ordering::TYPE {
+                OrderingType::Full => T::Repr::atomic_fetch_sub(&self.0, v),
+                OrderingType::Acquire => T::Repr::atomic_fetch_sub_acquire(&self.0, v),
+                OrderingType::Release => T::Repr::atomic_fetch_sub_release(&self.0, v),
+                OrderingType::Relaxed => T::Repr::atomic_fetch_sub_relaxed(&self.0, v),
+            }
+        };
+
+        // SAFETY: `ret` comes from reading `self.0`, which is a valid `T` per type invariants.
+        unsafe { from_repr(ret) }
+    }
+}
+
+#[cfg(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Flag {
+    bool_field: bool,
+}
+
+/// # Invariants
+///
+/// `padding` must be all zeroes.
+#[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+#[repr(C, align(4))]
+#[derive(Clone, Copy)]
+struct Flag {
+    #[cfg(target_endian = "big")]
+    padding: [u8; 3],
+    bool_field: bool,
+    #[cfg(target_endian = "little")]
+    padding: [u8; 3],
+}
+
+impl Flag {
+    #[inline(always)]
+    const fn new(b: bool) -> Self {
+        // INVARIANT: `padding` is all zeroes.
+        Self {
+            bool_field: b,
+            #[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+            padding: [0; 3],
+        }
+    }
+}
+
+// SAFETY: `Flag` and `Repr` have the same size and alignment, and `Flag` is round-trip
+// transmutable to the selected representation (`i8` or `i32`).
+unsafe impl AtomicType for Flag {
+    #[cfg(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64))]
+    type Repr = i8;
+    #[cfg(not(any(CONFIG_X86_64, CONFIG_UML, CONFIG_ARM, CONFIG_ARM64)))]
+    type Repr = i32;
+}
+
+/// An atomic flag type intended to be backed by performance-optimal integer type.
+///
+/// The backing integer type is an implementation detail; it may vary by architecture and change
+/// in the future.
+///
+/// [`AtomicFlag`] is generally preferable to [`Atomic<bool>`] when you need read-modify-write
+/// (RMW) operations (e.g. [`Atomic::xchg()`]/[`Atomic::cmpxchg()`]) or when [`Atomic<bool>`] does
+/// not save memory due to padding. On some architectures that do not support byte-sized atomic
+/// RMW operations, RMW operations on [`Atomic<bool>`] are slower.
+///
+/// If you only use [`Atomic::load()`]/[`Atomic::store()`], [`Atomic<bool>`] is fine.
+///
+/// # Examples
+///
+/// ```
+/// use kernel::sync::atomic::{AtomicFlag, Relaxed};
+///
+/// let flag = AtomicFlag::new(false);
+/// assert_eq!(false, flag.load(Relaxed));
+/// flag.store(true, Relaxed);
+/// assert_eq!(true, flag.load(Relaxed));
+/// ```
+pub struct AtomicFlag(Atomic<Flag>);
+
+impl AtomicFlag {
+    /// Creates a new atomic flag.
+    #[inline(always)]
+    pub const fn new(b: bool) -> Self {
+        Self(Atomic::new(Flag::new(b)))
+    }
+
+    /// Returns a mutable reference to the underlying flag as a [`bool`].
+    ///
+    /// This is safe because the mutable reference of the atomic flag guarantees exclusive access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::atomic::{AtomicFlag, Relaxed};
+    ///
+    /// let mut atomic_flag = AtomicFlag::new(false);
+    /// assert_eq!(false, atomic_flag.load(Relaxed));
+    /// *atomic_flag.get_mut() = true;
+    /// assert_eq!(true, atomic_flag.load(Relaxed));
+    /// ```
+    #[inline(always)]
+    pub fn get_mut(&mut self) -> &mut bool {
+        &mut self.0.get_mut().bool_field
+    }
+
+    /// Loads the value from the atomic flag.
+    #[inline(always)]
+    pub fn load<Ordering: ordering::AcquireOrRelaxed>(&self, o: Ordering) -> bool {
+        self.0.load(o).bool_field
+    }
+
+    /// Stores a value to the atomic flag.
+    #[inline(always)]
+    pub fn store<Ordering: ordering::ReleaseOrRelaxed>(&self, v: bool, o: Ordering) {
+        self.0.store(Flag::new(v), o);
+    }
+
+    /// Stores a value to the atomic flag and returns the previous value.
+    #[inline(always)]
+    pub fn xchg<Ordering: ordering::Ordering>(&self, new: bool, o: Ordering) -> bool {
+        self.0.xchg(Flag::new(new), o).bool_field
+    }
+
+    /// Store a value to the atomic flag if the current value is equal to `old`.
+    #[inline(always)]
+    pub fn cmpxchg<Ordering: ordering::Ordering>(
+        &self,
+        old: bool,
+        new: bool,
+        o: Ordering,
+    ) -> Result<bool, bool> {
+        match self.0.cmpxchg(Flag::new(old), Flag::new(new), o) {
+            Ok(_) => Ok(old),
+            Err(f) => Err(f.bool_field),
+        }
+    }
+}
+
+/// Atomic load over raw pointers.
+///
+/// This function provides a short-cut of `Atomic::from_ptr().load(..)`, and can be used to work
+/// with C side on synchronizations:
+///
+/// - `atomic_load(.., Relaxed)` maps to `READ_ONCE()` when used for inter-thread communication.
+/// - `atomic_load(.., Acquire)` maps to `smp_load_acquire()`.
+///
+/// # Safety
+///
+/// - `ptr` is a valid pointer to `T` and aligned to `align_of::<T>()`.
+/// - If there is a concurrent store from kernel (C or Rust), it has to be atomic.
+#[doc(alias("READ_ONCE", "smp_load_acquire"))]
+#[inline(always)]
+pub unsafe fn atomic_load<T: AtomicType, Ordering: ordering::AcquireOrRelaxed>(
+    ptr: *mut T,
+    o: Ordering,
+) -> T
+where
+    T::Repr: AtomicBasicOps,
+{
+    // SAFETY: Per the function safety requirement, `ptr` is valid and aligned to
+    // `align_of::<T>()`, and all concurrent stores from kernel are atomic, hence no data race per
+    // LKMM.
+    unsafe { Atomic::from_ptr(ptr) }.load(o)
+}
+
+/// Atomic store over raw pointers.
+///
+/// This function provides a short-cut of `Atomic::from_ptr().load(..)`, and can be used to work
+/// with C side on synchronizations:
+///
+/// - `atomic_store(.., Relaxed)` maps to `WRITE_ONCE()` when used for inter-thread communication.
+/// - `atomic_load(.., Release)` maps to `smp_store_release()`.
+///
+/// # Safety
+///
+/// - `ptr` is a valid pointer to `T` and aligned to `align_of::<T>()`.
+/// - If there is a concurrent access from kernel (C or Rust), it has to be atomic.
+#[doc(alias("WRITE_ONCE", "smp_store_release"))]
+#[inline(always)]
+pub unsafe fn atomic_store<T: AtomicType, Ordering: ordering::ReleaseOrRelaxed>(
+    ptr: *mut T,
+    v: T,
+    o: Ordering,
+) where
+    T::Repr: AtomicBasicOps,
+{
+    // SAFETY: Per the function safety requirement, `ptr` is valid and aligned to
+    // `align_of::<T>()`, and all concurrent accesses from kernel are atomic, hence no data race
+    // per LKMM.
+    unsafe { Atomic::from_ptr(ptr) }.store(v, o);
+}
+
+/// Atomic exchange over raw pointers.
+///
+/// This function provides a short-cut of `Atomic::from_ptr().xchg(..)`, and can be used to work
+/// with C side on synchronizations.
+///
+/// # Safety
+///
+/// - `ptr` is a valid pointer to `T` and aligned to `align_of::<T>()`.
+/// - If there is a concurrent access from kernel (C or Rust), it has to be atomic.
+#[inline(always)]
+pub unsafe fn xchg<T: AtomicType, Ordering: ordering::Ordering>(
+    ptr: *mut T,
+    new: T,
+    o: Ordering,
+) -> T
+where
+    T::Repr: AtomicExchangeOps,
+{
+    // SAFETY: Per the function safety requirement, `ptr` is valid and aligned to
+    // `align_of::<T>()`, and all concurrent accesses from kernel are atomic, hence no data race
+    // per LKMM.
+    unsafe { Atomic::from_ptr(ptr) }.xchg(new, o)
+}
+
+/// Atomic compare and exchange over raw pointers.
+///
+/// This function provides a short-cut of `Atomic::from_ptr().cmpxchg(..)`, and can be used to work
+/// with C side on synchronizations.
+///
+/// # Safety
+///
+/// - `ptr` is a valid pointer to `T` and aligned to `align_of::<T>()`.
+/// - If there is a concurrent access from kernel (C or Rust), it has to be atomic.
+#[doc(alias("try_cmpxchg"))]
+#[inline(always)]
+pub unsafe fn cmpxchg<T: AtomicType, Ordering: ordering::Ordering>(
+    ptr: *mut T,
+    old: T,
+    new: T,
+    o: Ordering,
+) -> Result<T, T>
+where
+    T::Repr: AtomicExchangeOps,
+{
+    // SAFETY: Per the function safety requirement, `ptr` is valid and aligned to
+    // `align_of::<T>()`, and all concurrent accesses from kernel are atomic, hence no data race
+    // per LKMM.
+    unsafe { Atomic::from_ptr(ptr) }.cmpxchg(old, new, o)
 }

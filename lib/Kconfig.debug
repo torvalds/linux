@@ -1618,14 +1618,22 @@ config LOCKDEP_STACK_TRACE_BITS
 	int "Size for MAX_STACK_TRACE_ENTRIES (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 26
+	default 21 if KASAN
 	default 19
 	help
 	  Try increasing this value if you hit "BUG: MAX_STACK_TRACE_ENTRIES too low!" message.
+
+	  KASAN significantly increases stack trace consumption because its
+	  slab tracking interacts with lockdep's dependency validation under
+	  PREEMPT_FULL, creating a feedback loop.  The higher default when
+	  KASAN is enabled costs ~12MB extra, which is negligible compared to
+	  KASAN's own shadow memory overhead.
 
 config LOCKDEP_STACK_TRACE_HASH_BITS
 	int "Size for STACK_TRACE_HASH_SIZE (as Nth power of 2)"
 	depends on LOCKDEP && !LOCKDEP_SMALL
 	range 10 26
+	default 16 if KASAN
 	default 14
 	help
 	  Try increasing this value if you need large STACK_TRACE_HASH_SIZE.

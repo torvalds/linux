@@ -15,7 +15,7 @@
 struct semaphore {
 	raw_spinlock_t		lock;
 	unsigned int		count;
-	struct list_head	wait_list;
+	struct semaphore_waiter *first_waiter;
 
 #ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
 	unsigned long		last_holder;
@@ -33,7 +33,7 @@ struct semaphore {
 {									\
 	.lock		= __RAW_SPIN_LOCK_UNLOCKED((name).lock),	\
 	.count		= n,						\
-	.wait_list	= LIST_HEAD_INIT((name).wait_list)		\
+	.first_waiter	= NULL						\
 	__LAST_HOLDER_SEMAPHORE_INITIALIZER				\
 }
 

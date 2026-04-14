@@ -57,7 +57,7 @@ context_lock_struct(rw_semaphore) {
 	struct optimistic_spin_queue osq; /* spinner MCS lock */
 #endif
 	raw_spinlock_t wait_lock;
-	struct list_head wait_list;
+	struct rwsem_waiter *first_waiter __guarded_by(&wait_lock);
 #ifdef CONFIG_DEBUG_RWSEMS
 	void *magic;
 #endif
@@ -106,7 +106,7 @@ static inline void rwsem_assert_held_write_nolockdep(const struct rw_semaphore *
 	  .owner = ATOMIC_LONG_INIT(0),				\
 	  __RWSEM_OPT_INIT(name)				\
 	  .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(name.wait_lock),\
-	  .wait_list = LIST_HEAD_INIT((name).wait_list),	\
+	  .first_waiter = NULL,					\
 	  __RWSEM_DEBUG_INIT(name)				\
 	  __RWSEM_DEP_MAP_INIT(name) }
 
@@ -129,9 +129,9 @@ do {								\
  * rwsem to see if somebody from an incompatible type is wanting access to the
  * lock.
  */
-static inline int rwsem_is_contended(struct rw_semaphore *sem)
+static inline bool rwsem_is_contended(struct rw_semaphore *sem)
 {
-	return !list_empty(&sem->wait_list);
+	return data_race(sem->first_waiter != NULL);
 }
 
 #if defined(CONFIG_DEBUG_RWSEMS) || defined(CONFIG_DETECT_HUNG_TASK_BLOCKER)

@@ -286,14 +286,17 @@ static __always_inline _type class_##_name##_constructor(_init_args)	\
 	__no_context_analysis						\
 { _type t = _init; return t; }
 
-#define EXTEND_CLASS(_name, ext, _init, _init_args...)			\
-typedef lock_##_name##_t lock_##_name##ext##_t;			\
+#define EXTEND_CLASS_COND(_name, ext, _cond, _init, _init_args...)	\
+typedef lock_##_name##_t lock_##_name##ext##_t;				\
 typedef class_##_name##_t class_##_name##ext##_t;			\
-static __always_inline void class_##_name##ext##_destructor(class_##_name##_t *p) \
-{ class_##_name##_destructor(p); }					\
+static __always_inline void class_##_name##ext##_destructor(class_##_name##_t *_T) \
+{ if (_cond) return; class_##_name##_destructor(_T); }			\
 static __always_inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
 	__no_context_analysis \
 { class_##_name##_t t = _init; return t; }
+
+#define EXTEND_CLASS(_name, ext, _init, _init_args...)			\
+	EXTEND_CLASS_COND(_name, ext, 0, _init, _init_args)
 
 #define CLASS(_name, var)						\
 	class_##_name##_t var __cleanup(class_##_name##_destructor) =	\
@@ -394,12 +397,12 @@ static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
 	__DEFINE_GUARD_LOCK_PTR(_name, _T)
 
 #define DEFINE_GUARD(_name, _type, _lock, _unlock) \
-	DEFINE_CLASS(_name, _type, if (!__GUARD_IS_ERR(_T)) { _unlock; }, ({ _lock; _T; }), _type _T); \
+	DEFINE_CLASS(_name, _type, if (_T) { _unlock; }, ({ _lock; _T; }), _type _T); \
 	DEFINE_CLASS_IS_GUARD(_name)
 
 #define DEFINE_GUARD_COND_4(_name, _ext, _lock, _cond) \
 	__DEFINE_CLASS_IS_CONDITIONAL(_name##_ext, true); \
-	EXTEND_CLASS(_name, _ext, \
+	EXTEND_CLASS_COND(_name, _ext, __GUARD_IS_ERR(*_T), \
 		     ({ void *_t = _T; int _RET = (_lock); if (_T && !(_cond)) _t = ERR_PTR(_RET); _t; }), \
 		     class_##_name##_t _T) \
 	static __always_inline void * class_##_name##_ext##_lock_ptr(class_##_name##_t *_T) \
@@ -488,7 +491,7 @@ typedef struct {							\
 static __always_inline void class_##_name##_destructor(class_##_name##_t *_T) \
 	__no_context_analysis						\
 {									\
-	if (!__GUARD_IS_ERR(_T->lock)) { _unlock; }			\
+	if (_T->lock) { _unlock; }					\
 }									\
 									\
 __DEFINE_GUARD_LOCK_PTR(_name, &_T->lock)
@@ -565,7 +568,7 @@ __DEFINE_LOCK_GUARD_0(_name, _lock)
 
 #define DEFINE_LOCK_GUARD_1_COND_4(_name, _ext, _lock, _cond)		\
 	__DEFINE_CLASS_IS_CONDITIONAL(_name##_ext, true);		\
-	EXTEND_CLASS(_name, _ext,					\
+	EXTEND_CLASS_COND(_name, _ext, __GUARD_IS_ERR(_T->lock),	\
 		     ({ class_##_name##_t _t = { .lock = l }, *_T = &_t;\
 		        int _RET = (_lock);                             \
 		        if (_T->lock && !(_cond)) _T->lock = ERR_PTR(_RET);\

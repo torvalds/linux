@@ -529,15 +529,6 @@ void __init jump_label_init(void)
 	struct static_key *key = NULL;
 	struct jump_entry *iter;
 
-	/*
-	 * Since we are initializing the static_key.enabled field with
-	 * with the 'raw' int values (to avoid pulling in atomic.h) in
-	 * jump_label.h, let's make sure that is safe. There are only two
-	 * cases to check since we initialize to 0 or 1.
-	 */
-	BUILD_BUG_ON((int)ATOMIC_INIT(0) != 0);
-	BUILD_BUG_ON((int)ATOMIC_INIT(1) != 1);
-
 	if (static_key_initialized)
 		return;
 

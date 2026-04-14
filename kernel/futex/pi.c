@@ -389,6 +389,7 @@ static void __attach_to_pi_owner(struct task_struct *p, union futex_key *key,
 	 * Initialize the pi_mutex in locked state and make @p
 	 * the owner of it:
 	 */
+	__assume_ctx_lock(&pi_state->pi_mutex.wait_lock);
 	rt_mutex_init_proxy_locked(&pi_state->pi_mutex, p);
 
 	/* Store the key for possible exit cleanups: */
@@ -614,6 +615,8 @@ int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 static int wake_futex_pi(u32 __user *uaddr, u32 uval,
 			 struct futex_pi_state *pi_state,
 			 struct rt_mutex_waiter *top_waiter)
+	__must_hold(&pi_state->pi_mutex.wait_lock)
+	__releases(&pi_state->pi_mutex.wait_lock)
 {
 	struct task_struct *new_owner;
 	bool postunlock = false;
@@ -670,6 +673,8 @@ out_unlock:
 
 static int __fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 				  struct task_struct *argowner)
+	__must_hold(&q->pi_state->pi_mutex.wait_lock)
+	__must_hold(q->lock_ptr)
 {
 	struct futex_pi_state *pi_state = q->pi_state;
 	struct task_struct *oldowner, *newowner;
@@ -967,6 +972,7 @@ retry_private:
 				 * - EAGAIN: The user space value changed.
 				 */
 				futex_q_unlock(hb);
+				__release(q.lock_ptr);
 				/*
 				 * Handle the case where the owner is in the middle of
 				 * exiting. Wait for the exit to complete otherwise
@@ -1091,6 +1097,7 @@ no_block:
 		if (res)
 			ret = (res < 0) ? res : 0;
 
+		__release(&hb->lock);
 		futex_unqueue_pi(&q);
 		spin_unlock(q.lock_ptr);
 		if (q.drop_hb_ref) {
@@ -1102,10 +1109,12 @@ no_block:
 
 out_unlock_put_key:
 		futex_q_unlock(hb);
+		__release(q.lock_ptr);
 		goto out;
 
 uaddr_faulted:
 		futex_q_unlock(hb);
+		__release(q.lock_ptr);
 
 		ret = fault_in_user_writeable(uaddr);
 		if (ret)

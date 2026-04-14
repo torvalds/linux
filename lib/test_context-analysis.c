@@ -596,3 +596,14 @@ static void __used test_ww_mutex_lock_ctx(struct test_ww_mutex_data *d)
 
 	ww_mutex_destroy(&d->mtx);
 }
+
+static DEFINE_PER_CPU(raw_spinlock_t, test_per_cpu_lock);
+
+static void __used test_per_cpu(int cpu)
+{
+	raw_spin_lock(&per_cpu(test_per_cpu_lock, cpu));
+	raw_spin_unlock(&per_cpu(test_per_cpu_lock, cpu));
+
+	raw_spin_lock(per_cpu_ptr(&test_per_cpu_lock, cpu));
+	raw_spin_unlock(per_cpu_ptr(&test_per_cpu_lock, cpu));
+}

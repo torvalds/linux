@@ -4,6 +4,7 @@
 
 use crate::static_assert;
 use core::mem::{align_of, size_of};
+use ffi::c_void;
 
 // Ensure size and alignment requirements are checked.
 static_assert!(size_of::<bool>() == size_of::<i8>());
@@ -26,6 +27,26 @@ unsafe impl super::AtomicType for i8 {
 // itself.
 unsafe impl super::AtomicType for i16 {
     type Repr = i16;
+}
+
+// SAFETY:
+//
+// - `*mut T` has the same size and alignment with `*const c_void`, and is round-trip
+//   transmutable to `*const c_void`.
+// - `*mut T` is safe to transfer between execution contexts. See the safety requirement of
+//   [`AtomicType`].
+unsafe impl<T: Sized> super::AtomicType for *mut T {
+    type Repr = *const c_void;
+}
+
+// SAFETY:
+//
+// - `*const T` has the same size and alignment with `*const c_void`, and is round-trip
+//   transmutable to `*const c_void`.
+// - `*const T` is safe to transfer between execution contexts. See the safety requirement of
+//   [`AtomicType`].
+unsafe impl<T: Sized> super::AtomicType for *const T {
+    type Repr = *const c_void;
 }
 
 // SAFETY: `i32` has the same size and alignment with itself, and is round-trip transmutable to
@@ -157,6 +178,14 @@ mod tests {
 
             assert_eq!(v, x.load(Relaxed));
         });
+
+        for_each_type!(42 in [i8, i16, i32, i64, u32, u64, isize, usize] |v| {
+            let x = Atomic::new(v);
+            let ptr = x.as_ptr();
+
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            assert_eq!(v, unsafe { atomic_load(ptr, Relaxed) });
+        });
     }
 
     #[test]
@@ -166,6 +195,17 @@ mod tests {
 
             x.store(v, Release);
             assert_eq!(v, x.load(Acquire));
+        });
+
+        for_each_type!(42 in [i8, i16, i32, i64, u32, u64, isize, usize] |v| {
+            let x = Atomic::new(0);
+            let ptr = x.as_ptr();
+
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            unsafe { atomic_store(ptr, v, Release) };
+
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            assert_eq!(v, unsafe { atomic_load(ptr, Acquire) });
         });
     }
 
@@ -178,6 +218,18 @@ mod tests {
             let new = v + 1;
 
             assert_eq!(old, x.xchg(new, Full));
+            assert_eq!(new, x.load(Relaxed));
+        });
+
+        for_each_type!(42 in [i8, i16, i32, i64, u32, u64, isize, usize] |v| {
+            let x = Atomic::new(v);
+            let ptr = x.as_ptr();
+
+            let old = v;
+            let new = v + 1;
+
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            assert_eq!(old, unsafe { xchg(ptr, new, Full) });
             assert_eq!(new, x.load(Relaxed));
         });
     }
@@ -193,6 +245,21 @@ mod tests {
             assert_eq!(Err(old), x.cmpxchg(new, new, Full));
             assert_eq!(old, x.load(Relaxed));
             assert_eq!(Ok(old), x.cmpxchg(old, new, Relaxed));
+            assert_eq!(new, x.load(Relaxed));
+        });
+
+        for_each_type!(42 in [i8, i16, i32, i64, u32, u64, isize, usize] |v| {
+            let x = Atomic::new(v);
+            let ptr = x.as_ptr();
+
+            let old = v;
+            let new = v + 1;
+
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            assert_eq!(Err(old), unsafe { cmpxchg(ptr, new, new, Full) });
+            assert_eq!(old, x.load(Relaxed));
+            // SAFETY: `ptr` is a valid pointer and no concurrent access.
+            assert_eq!(Ok(old), unsafe { cmpxchg(ptr, old, new, Relaxed) });
             assert_eq!(new, x.load(Relaxed));
         });
     }
@@ -225,5 +292,47 @@ mod tests {
         assert_eq!(Err(false), x.cmpxchg(true, true, Relaxed));
         assert_eq!(false, x.load(Relaxed));
         assert_eq!(Ok(false), x.cmpxchg(false, true, Full));
+    }
+
+    #[test]
+    fn atomic_ptr_tests() {
+        let mut v = 42;
+        let mut u = 43;
+        let x = Atomic::new(&raw mut v);
+
+        assert_eq!(x.load(Acquire), &raw mut v);
+        assert_eq!(x.cmpxchg(&raw mut u, &raw mut u, Relaxed), Err(&raw mut v));
+        assert_eq!(x.cmpxchg(&raw mut v, &raw mut u, Relaxed), Ok(&raw mut v));
+        assert_eq!(x.load(Relaxed), &raw mut u);
+
+        let x = Atomic::new(&raw const v);
+
+        assert_eq!(x.load(Acquire), &raw const v);
+        assert_eq!(
+            x.cmpxchg(&raw const u, &raw const u, Relaxed),
+            Err(&raw const v)
+        );
+        assert_eq!(
+            x.cmpxchg(&raw const v, &raw const u, Relaxed),
+            Ok(&raw const v)
+        );
+        assert_eq!(x.load(Relaxed), &raw const u);
+    }
+
+    #[test]
+    fn atomic_flag_tests() {
+        let mut flag = AtomicFlag::new(false);
+
+        assert_eq!(false, flag.load(Relaxed));
+
+        *flag.get_mut() = true;
+        assert_eq!(true, flag.load(Relaxed));
+
+        assert_eq!(true, flag.xchg(false, Relaxed));
+        assert_eq!(false, flag.load(Relaxed));
+
+        *flag.get_mut() = true;
+        assert_eq!(Ok(true), flag.cmpxchg(true, false, Full));
+        assert_eq!(false, flag.load(Relaxed));
     }
 }
