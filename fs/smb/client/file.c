@@ -1712,7 +1712,7 @@ cifs_lock_add(struct cifsFileInfo *cfile, struct cifsLockInfo *lock)
  */
 static int
 cifs_lock_add_if(struct cifsFileInfo *cfile, struct cifsLockInfo *lock,
-		 bool wait)
+		 bool wait, unsigned int xid)
 {
 	struct cifsLockInfo *conf_lock;
 	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
@@ -1727,7 +1727,13 @@ try_again:
 					lock->type, lock->flags, &conf_lock,
 					CIFS_LOCK_OP);
 	if (!exist && cinode->can_cache_brlcks) {
+		struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+
 		list_add_tail(&lock->llist, &cfile->llist->locks);
+		trace_smb3_lock_cached(xid, cfile->fid.persistent_fid,
+				       tcon->tid, tcon->ses->Suid,
+				       lock->offset, lock->length,
+				       lock->type, 1, 0);
 		up_write(&cinode->lock_sem);
 		return rc;
 	}
@@ -2342,7 +2348,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		if (!lock)
 			return -ENOMEM;
 
-		rc = cifs_lock_add_if(cfile, lock, wait_flag);
+		rc = cifs_lock_add_if(cfile, lock, wait_flag, xid);
 		if (rc < 0) {
 			kfree(lock);
 			return rc;

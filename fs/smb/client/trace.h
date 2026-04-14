@@ -670,8 +670,64 @@ DEFINE_EVENT(smb3_fd_err_class, smb3_##name,    \
 	TP_ARGS(xid, fid, tid, sesid, rc))
 
 DEFINE_SMB3_FD_ERR_EVENT(flush_err);
-DEFINE_SMB3_FD_ERR_EVENT(lock_err);
 DEFINE_SMB3_FD_ERR_EVENT(close_err);
+
+DECLARE_EVENT_CLASS(smb3_lock_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	offset,
+		__u64	len,
+		__u32	flags,
+		__u32	num_lock,
+		int	rc),
+	TP_ARGS(xid, fid, tid, sesid, offset, len, flags, num_lock, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+		__field(__u64, len)
+		__field(__u32, flags)
+		__field(__u32, num_lock)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+		__entry->len = len;
+		__entry->flags = flags;
+		__entry->num_lock = num_lock;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%llx flags=0x%x num_lock=%u rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->offset, __entry->len, __entry->flags, __entry->num_lock,
+		__entry->rc)
+)
+
+#define DEFINE_SMB3_LOCK_EVENT(name)          \
+DEFINE_EVENT(smb3_lock_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	offset,			\
+		__u64	len,			\
+		__u32	flags,			\
+		__u32	num_lock,		\
+		int	rc),			\
+	TP_ARGS(xid, fid, tid, sesid, offset, len, flags, num_lock, rc))
+
+DEFINE_SMB3_LOCK_EVENT(lock_enter);
+DEFINE_SMB3_LOCK_EVENT(lock_done);
+DEFINE_SMB3_LOCK_EVENT(lock_err);
+DEFINE_SMB3_LOCK_EVENT(lock_cached);
 
 /*
  * For handle based query/set info calls
