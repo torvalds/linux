@@ -623,7 +623,7 @@ bool __init wg_allowedips_selftest(void)
 	test_boolean(!remove(6, b, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef, 128));
 	test(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef);
 	/* invalid CIDR should have no effect and return -EINVAL */
-	test_boolean(remove(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef, 129)  == -EINVAL);
+	test_boolean(remove(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef, 129) == -EINVAL);
 	test(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef);
 	remove(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef, 128);
 	test_negative(6, a, 0x24446801, 0x40e40800, 0xdeaebeef, 0xdefbeef);
