@@ -198,11 +198,11 @@ bool sev_es_check_ghcb_fault(unsigned long address)
 #endif
 
 /*
- * SNP_FEATURES_PRESENT is the mask of SNP features that are implemented
+ * SNP_FEATURES_IMPL is the mask of SNP features that are implemented
  * by the guest kernel. As and when a new feature is implemented in the
  * guest kernel, a corresponding bit should be added to the mask.
  */
-#define SNP_FEATURES_PRESENT	(MSR_AMD64_SNP_DEBUG_SWAP |	\
+#define SNP_FEATURES_IMPL	(MSR_AMD64_SNP_DEBUG_SWAP |	\
 				 MSR_AMD64_SNP_SECURE_TSC |	\
 				 SNP_FEATURE_SECURE_AVIC)
 
@@ -211,7 +211,7 @@ u64 snp_get_unsupported_features(u64 status)
 	if (!(status & MSR_AMD64_SEV_SNP_ENABLED))
 		return 0;
 
-	return status & SNP_FEATURES_IMPL_REQ & ~SNP_FEATURES_PRESENT;
+	return status & SNP_FEATURES_IMPL_REQ & ~SNP_FEATURES_IMPL;
 }
 
 void snp_check_features(void)

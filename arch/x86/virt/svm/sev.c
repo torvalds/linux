@@ -117,6 +117,8 @@ static u64 rmp_segment_mask;
 
 static u64 rmp_cfg;
 
+static void *rmp_bookkeeping __ro_after_init;
+
 /* Mask to apply to a PFN to get the first PFN of a 2MB page */
 #define PFN_PMD_MASK	GENMASK_ULL(63, PMD_SHIFT - PAGE_SHIFT)
 
@@ -130,33 +132,23 @@ static unsigned long snp_nr_leaked_pages;
 #undef pr_fmt
 #define pr_fmt(fmt)	"SEV-SNP: " fmt
 
-static int __mfd_enable(unsigned int cpu)
+static void mfd_reconfigure(void *arg)
+{
+	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		return;
+
+	if (arg)
+		msr_set_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
+	else
+		msr_clear_bit(MSR_AMD64_SYSCFG, MSR_AMD64_SYSCFG_MFDM_BIT);
+}
+
+static void snp_enable(void *arg)
 {
 	u64 val;
 
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
-		return 0;
-
-	rdmsrq(MSR_AMD64_SYSCFG, val);
-
-	val |= MSR_AMD64_SYSCFG_MFDM;
-
-	wrmsrq(MSR_AMD64_SYSCFG, val);
-
-	return 0;
-}
-
-static __init void mfd_enable(void *arg)
-{
-	__mfd_enable(smp_processor_id());
-}
-
-static int __snp_enable(unsigned int cpu)
-{
-	u64 val;
-
-	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
-		return 0;
+		return;
 
 	rdmsrq(MSR_AMD64_SYSCFG, val);
 
@@ -164,13 +156,6 @@ static int __snp_enable(unsigned int cpu)
 	val |= MSR_AMD64_SYSCFG_SNP_VMPL_EN;
 
 	wrmsrq(MSR_AMD64_SYSCFG, val);
-
-	return 0;
-}
-
-static __init void snp_enable(void *arg)
-{
-	__snp_enable(smp_processor_id());
 }
 
 static void __init __snp_fixup_e820_tables(u64 pa)
@@ -260,21 +245,30 @@ void __init snp_fixup_e820_tables(void)
 	}
 }
 
-static bool __init clear_rmptable_bookkeeping(void)
+static void clear_rmp(void)
 {
-	void *bk;
+	unsigned int i;
+	u64 val;
 
-	bk = memremap(probed_rmp_base, RMPTABLE_CPU_BOOKKEEPING_SZ, MEMREMAP_WB);
-	if (!bk) {
-		pr_err("Failed to map RMP bookkeeping area\n");
-		return false;
+	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		return;
+
+	/* Clearing the RMP while SNP is enabled will cause an exception */
+	rdmsrq(MSR_AMD64_SYSCFG, val);
+	if (WARN_ON_ONCE(val & MSR_AMD64_SYSCFG_SNP_EN))
+		return;
+
+	memset(rmp_bookkeeping, 0, RMPTABLE_CPU_BOOKKEEPING_SZ);
+
+	for (i = 0; i < rst_max_index; i++) {
+		struct rmp_segment_desc *desc;
+
+		desc = rmp_segment_table[i];
+		if (!desc)
+			continue;
+
+		memset(desc->rmp_entry, 0, desc->size);
 	}
-
-	memset(bk, 0, RMPTABLE_CPU_BOOKKEEPING_SZ);
-
-	memunmap(bk);
-
-	return true;
 }
 
 static bool __init alloc_rmp_segment_desc(u64 segment_pa, u64 segment_size, u64 pa)
@@ -494,11 +488,71 @@ e_free:
 static bool __init setup_rmptable(void)
 {
 	if (rmp_cfg & MSR_AMD64_SEG_RMP_ENABLED) {
-		return setup_segmented_rmptable();
+		if (!setup_segmented_rmptable())
+			return false;
 	} else {
-		return setup_contiguous_rmptable();
+		if (!setup_contiguous_rmptable())
+			return false;
 	}
+
+	rmp_bookkeeping = memremap(probed_rmp_base, RMPTABLE_CPU_BOOKKEEPING_SZ, MEMREMAP_WB);
+	if (!rmp_bookkeeping) {
+		pr_err("Failed to map RMP bookkeeping area\n");
+		free_rmp_segment_table();
+
+		return false;
+	}
+
+	return true;
 }
+
+static void clear_hsave_pa(void *arg)
+{
+	wrmsrq(MSR_VM_HSAVE_PA, 0);
+}
+
+void snp_prepare(void)
+{
+	u64 val;
+
+	/*
+	 * Check if SEV-SNP is already enabled, this can happen in case of
+	 * kexec boot.
+	 */
+	rdmsrq(MSR_AMD64_SYSCFG, val);
+	if (val & MSR_AMD64_SYSCFG_SNP_EN)
+		return;
+
+	clear_rmp();
+
+	cpus_read_lock();
+
+	/*
+	 * MtrrFixDramModEn is not shared between threads on a core,
+	 * therefore it must be set on all CPUs prior to enabling SNP.
+	 */
+	on_each_cpu(mfd_reconfigure, (void *)1, 1);
+	on_each_cpu(snp_enable, NULL, 1);
+
+	/* SNP_INIT requires MSR_VM_HSAVE_PA to be cleared on all CPUs. */
+	on_each_cpu(clear_hsave_pa, NULL, 1);
+
+	cpus_read_unlock();
+}
+EXPORT_SYMBOL_FOR_MODULES(snp_prepare, "ccp");
+
+void snp_shutdown(void)
+{
+	u64 syscfg;
+
+	rdmsrq(MSR_AMD64_SYSCFG, syscfg);
+	if (syscfg & MSR_AMD64_SYSCFG_SNP_EN)
+		return;
+
+	clear_rmp();
+	on_each_cpu(mfd_reconfigure, NULL, 1);
+}
+EXPORT_SYMBOL_FOR_MODULES(snp_shutdown, "ccp");
 
 /*
  * Do the necessary preparations which are verified by the firmware as
@@ -507,9 +561,6 @@ static bool __init setup_rmptable(void)
  */
 int __init snp_rmptable_init(void)
 {
-	unsigned int i;
-	u64 val;
-
 	if (WARN_ON_ONCE(!cc_platform_has(CC_ATTR_HOST_SEV_SNP)))
 		return -ENOSYS;
 
@@ -518,42 +569,6 @@ int __init snp_rmptable_init(void)
 
 	if (!setup_rmptable())
 		return -ENOSYS;
-
-	/*
-	 * Check if SEV-SNP is already enabled, this can happen in case of
-	 * kexec boot.
-	 */
-	rdmsrq(MSR_AMD64_SYSCFG, val);
-	if (val & MSR_AMD64_SYSCFG_SNP_EN)
-		goto skip_enable;
-
-	/* Zero out the RMP bookkeeping area */
-	if (!clear_rmptable_bookkeeping()) {
-		free_rmp_segment_table();
-		return -ENOSYS;
-	}
-
-	/* Zero out the RMP entries */
-	for (i = 0; i < rst_max_index; i++) {
-		struct rmp_segment_desc *desc;
-
-		desc = rmp_segment_table[i];
-		if (!desc)
-			continue;
-
-		memset(desc->rmp_entry, 0, desc->size);
-	}
-
-	/* Flush the caches to ensure that data is written before SNP is enabled. */
-	wbinvd_on_all_cpus();
-
-	/* MtrrFixDramModEn must be enabled on all the CPUs prior to enabling SNP. */
-	on_each_cpu(mfd_enable, NULL, 1);
-
-	on_each_cpu(snp_enable, NULL, 1);
-
-skip_enable:
-	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/rmptable_init:online", __snp_enable, NULL);
 
 	/*
 	 * Setting crash_kexec_post_notifiers to 'true' to ensure that SNP panic
