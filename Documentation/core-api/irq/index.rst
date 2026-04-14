@@ -9,3 +9,4 @@ IRQs
    irq-affinity
    irq-domain
    irqflags-tracing
+   managed_irq

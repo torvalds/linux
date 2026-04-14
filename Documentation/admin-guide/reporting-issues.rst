@@ -48,6 +48,16 @@ Once the report is out, answer any questions that come up and help where you
 can. That includes keeping the ball rolling by occasionally retesting with newer
 releases and sending a status update afterwards.
 
+..
+   Note: If you see this note, you are reading the text's source file. You
+   might want to switch to a rendered version: It makes it a lot easier to
+   read and navigate this document -- especially when you want to look something
+   up in the reference section, then jump back to where you left off.
+..
+   Find the latest rendered version of this text here:
+   https://docs.kernel.org/admin-guide/reporting-issues.html
+
+
 Step-by-step guide how to report issues to the kernel maintainers
 =================================================================
 
@@ -231,45 +241,54 @@ kernels regularly rebased on those. If that is the case, follow these steps:
 The reference section below explains each of these steps in more detail.
 
 
+Conclusion of the step-by-step guide
+------------------------------------
+
+Did you run into trouble following the step-by-step guide not cleared up by the
+reference section below? Did you spot errors? Or do you have ideas on how to
+improve the guide?
+
+If any of that applies, please let the developers know by sending a short note
+or a patch to Thorsten Leemhuis <linux@leemhuis.info> while ideally CCing the
+public Linux docs mailing list <linux-doc@vger.kernel.org>. Such feedback is
+vital to improve this text further, which is in everybody's interest, as it will
+enable more people to master the task described here.
+
+
 Reference section: Reporting issues to the kernel maintainers
 =============================================================
 
-The detailed guides above outline all the major steps in brief fashion, which
-should be enough for most people. But sometimes there are situations where even
-experienced users might wonder how to actually do one of those steps. That's
-what this section is for, as it will provide a lot more details on each of the
-above steps. Consider this as reference documentation: it's possible to read it
-from top to bottom. But it's mainly meant to skim over and a place to look up
-details how to actually perform those steps.
+The step-by-step guide above outlines all the major steps in brief fashion,
+which usually covers everything required. But even experienced users will
+sometimes wonder how to actually realize some of those steps or why they are
+needed; there are also corner cases the guide ignores for readability. That is
+what the entries in this reference section are for, which provide additional
+information for each of the steps in the guide.
 
-A few words of general advice before digging into the details:
+A few words of general advice:
 
- * The Linux kernel developers are well aware this process is complicated and
-   demands more than other FLOSS projects. We'd love to make it simpler. But
-   that would require work in various places as well as some infrastructure,
-   which would need constant maintenance; nobody has stepped up to do that
-   work, so that's just how things are for now.
+* The Linux developers are well aware that reporting bugs to them is more
+  complicated and demanding than in other FLOSS projects. Some of it is because
+  the kernel is different, among others due to its mail-driven development
+  process and because it consists mostly of drivers. Some of it is because
+  improving things would require work in several technical areas and people
+  triaging bugs –– and nobody has stepped up to do or fund that work.
 
- * A warranty or support contract with some vendor doesn't entitle you to
-   request fixes from developers in the upstream Linux kernel community: such
-   contracts are completely outside the scope of the Linux kernel, its
-   development community, and this document. That's why you can't demand
-   anything such a contract guarantees in this context, not even if the
-   developer handling the issue works for the vendor in question. If you want
-   to claim your rights, use the vendor's support channel instead. When doing
-   so, you might want to mention you'd like to see the issue fixed in the
-   upstream Linux kernel; motivate them by saying it's the only way to ensure
-   the fix in the end will get incorporated in all Linux distributions.
+* A warranty or support contract with some vendor doesn't entitle you to
+  request fixes from the upstream Linux developers: Such contracts are
+  completely outside the scope of the upstream Linux kernel, its development
+  community, and this document -- even if those handling the issue work for the
+  vendor who issued the contract. If you want to claim your rights, use the
+  vendor's support channel.
 
- * If you never reported an issue to a FLOSS project before you should consider
-   reading `How to Report Bugs Effectively
-   <https://www.chiark.greenend.org.uk/~sgtatham/bugs.html>`_, `How To Ask
-   Questions The Smart Way
-   <http://www.catb.org/esr/faqs/smart-questions.html>`_, and `How to ask good
-   questions <https://jvns.ca/blog/good-questions/>`_.
+* If you never reported an issue to a FLOSS project before, consider skimming
+  guides like `How to ask good questions
+  <https://jvns.ca/blog/good-questions/>`_, `How To Ask Questions The Smart Way
+  <http://www.catb.org/esr/faqs/smart-questions.html>`_, and `How to Report
+  Bugs Effectively <https://www.chiark.greenend.org.uk/~sgtatham/bugs.html>`_,.
 
-With that off the table, find below the details on how to properly report
-issues to the Linux kernel developers.
+With that off the table, find below details for the steps from the detailed
+guide on reporting issues to the Linux kernel developers.
 
 
 Make sure you're using the upstream Linux kernel
@@ -1674,72 +1693,59 @@ for the subsystem where the issue seems to have its roots; CC the mailing list
 for the subsystem as well as the stable mailing list (stable@vger.kernel.org).
 
 
-Why some issues won't get any reaction or remain unfixed after being reported
-=============================================================================
+Appendix: Why it is somewhat hard to report kernel bugs
+=======================================================
 
-When reporting a problem to the Linux developers, be aware only 'issues of high
-priority' (regressions, security issues, severe problems) are definitely going
-to get resolved. The maintainers or if all else fails Linus Torvalds himself
-will make sure of that. They and the other kernel developers will fix a lot of
-other issues as well. But be aware that sometimes they can't or won't help; and
-sometimes there isn't even anyone to send a report to.
+The Linux kernel developers are well aware that reporting bugs to them is harder
+than in other Free/Libre Open Source Projects. Many reasons for that lie in the
+nature of kernels, Linux' development model, and how the world uses the kernel:
 
-This is best explained with kernel developers that contribute to the Linux
-kernel in their spare time. Quite a few of the drivers in the kernel were
-written by such programmers, often because they simply wanted to make their
-hardware usable on their favorite operating system.
+* *Most kernels of Linux distributions are totally unsuitable for reporting bugs
+  upstream.* The reference section above already explained this in detail:
+  outdated codebases as well as modifications and add-ons lead to kernel bugs
+  that were fixed upstream a long time ago or never happened there in the first
+  place. Developers of other Open Source software face these problems as well,
+  but the situation is a lot worse when it comes to the kernel, as the changes
+  and their impact are much more severe -- which is why many kernel developers
+  expect reports with kernels built from fresh and nearly unmodified sources.
 
-These programmers most of the time will happily fix problems other people
-report. But nobody can force them to do, as they are contributing voluntarily.
+* *Bugs often only occur in a special environment.* That is because Linux is
+  mostly drivers and can be used in a multitude of ways. Developers often do not
+  have a matching setup at hand -- and therefore frequently must rely on bug
+  reporters for isolating a problems's cause and testing proposed fixes.
 
-Then there are situations where such developers really want to fix an issue,
-but can't: sometimes they lack hardware programming documentation to do so.
-This often happens when the publicly available docs are superficial or the
-driver was written with the help of reverse engineering.
+* *The kernel has hundreds of maintainers, but all-rounders are very rare.* That
+  again is and effect caused by the multitude of features and drivers, due to
+  which many kernel developers know little about lower or higher layers related
+  to their code and even less about other areas.
 
-Sooner or later spare time developers will also stop caring for the driver.
-Maybe their test hardware broke, got replaced by something more fancy, or is so
-old that it's something you don't find much outside of computer museums
-anymore. Sometimes developer stops caring for their code and Linux at all, as
-something different in their life became way more important. In some cases
-nobody is willing to take over the job as maintainer – and nobody can be forced
-to, as contributing to the Linux kernel is done on a voluntary basis. Abandoned
-drivers nevertheless remain in the kernel: they are still useful for people and
-removing would be a regression.
+* *It is hard finding where to report issues to, among others, due to the lack
+  of a central bug tracker.* This is something even some kernel developers
+  dislike, but that's the situation everyone has to deal with currently.
 
-The situation is not that different with developers that are paid for their
-work on the Linux kernel. Those contribute most changes these days. But their
-employers sooner or later also stop caring for their code or make its
-programmer focus on other things. Hardware vendors for example earn their money
-mainly by selling new hardware; quite a few of them hence are not investing
-much time and energy in maintaining a Linux kernel driver for something they
-stopped selling years ago. Enterprise Linux distributors often care for a
-longer time period, but in new versions often leave support for old and rare
-hardware aside to limit the scope. Often spare time contributors take over once
-a company orphans some code, but as mentioned above: sooner or later they will
-leave the code behind, too.
+* *Stable and longterm kernels are primarily maintained by a dedicated 'stable
+  team', which only handles regressions introduced within stable and longterm
+  series.* When someone reports a bug, say, using Linux 6.1.2, the team will,
+  therefore, always ask if mainline is affected: if the bug already happened
+  in 6.1 or occurs with latest mainline (say, 6.2-rc3), they in everybody's
+  interest shove it to the regular developers, as those know the code best.
 
-Priorities are another reason why some issues are not fixed, as maintainers
-quite often are forced to set those, as time to work on Linux is limited.
-That's true for spare time or the time employers grant their developers to
-spend on maintenance work on the upstream kernel. Sometimes maintainers also
-get overwhelmed with reports, even if a driver is working nearly perfectly. To
-not get completely stuck, the programmer thus might have no other choice than
-to prioritize issue reports and reject some of them.
+* *Linux developers are free to focus on latest mainline.* Some, thus, react
+  coldly to reports about bugs in, say, Linux 6.0 when 6.1 is already out;
+  even the latter might not be enough once 6.2-rc1 is out. Some will also not
+  be very welcoming to reports with 6.1.5 or 6.1.6, as the problem might be a
+  series-specific regression the stable team (see above) caused and must fix.
 
-But don't worry too much about all of this, a lot of drivers have active
-maintainers who are quite interested in fixing as many issues as possible.
+* *Sometimes there is nobody to help.* Sometimes this is due to the lack of
+  hardware documentation -- for example, when a driver was built using reverse
+  engineering or was taken over by spare-time developers when the hardware
+  manufacturer left it behind. Other times there is nobody to even report bugs
+  to: when maintainers move on without a replacement, their code often remains
+  in the kernel as long as it's useful.
 
-
-Closing words
-=============
-
-Compared with other Free/Libre & Open Source Software it's hard to report
-issues to the Linux kernel developers: the length and complexity of this
-document and the implications between the lines illustrate that. But that's how
-it is for now. The main author of this text hopes documenting the state of the
-art will lay some groundwork to improve the situation over time.
-
+Some of these aspects could be improved to facilitate bug reporting -- many
+Linux kernel developers are well aware of this and would be glad if a few
+individuals or an entity would make this their mission.
 
 ..
    end-of-content

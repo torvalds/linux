@@ -287,7 +287,7 @@ level.
 Check presence of other Intel(R) SST features
 ---------------------------------------------
 
-Each of the performance profiles also specifies weather there is support of
+Each of the performance profiles also specifies whether there is support of
 other two Intel(R) SST features (Intel(R) Speed Select Technology - Base Frequency
 (Intel(R) SST-BF) and Intel(R) Speed Select Technology - Turbo Frequency (Intel
 SST-TF)).

@@ -7,7 +7,7 @@
 
 BEGIN {
 	usage = "If some fields are empty or look unusual you may have an old version.\n"
-	usage = usage "Compare to the current minimal requirements in Documentation/Changes.\n"
+	usage = usage "Compare to the current minimal requirements in Documentation/process/changes.rst\n"
 	print usage
 
 	system("uname -a")
@@ -17,37 +17,58 @@ BEGIN {
 	libc = "libc[.]so[.][0-9]+$"
 	libcpp = "(libg|stdc)[+]+[.]so([.][0-9]+)+$"
 
+	printversion("bash", version("bash --version"))
+	printversion("bc", version("bc --version"))
+	printversion("bindgen", version("bindgen --version"))
+	printversion("binutils", version("ld -v"))
+	printversion("bison", version("bison --version"))
+	printversion("btrfs-progs", version("btrfs --version"))
+	printversion("Clang", version("clang --version"))
+	printversion("Console-tools", version("loadkeys -V"))
+	printversion("Dynamic linker (ldd)", version("ldd --version"))
+	printversion("e2fsprogs", version("e2fsck -V"))
+	printversion("flex", version("flex --version"))
+	printversion("gdb", version("gdb -version"))
+	printversion("GNU awk", version("gawk --version"))
 	printversion("GNU C", version("gcc -dumpversion"))
-	printversion("GNU Make", version("make --version"))
-	printversion("Binutils", version("ld -v"))
-	printversion("Util-linux", version("mount --version"))
-	printversion("Mount", version("mount --version"))
-	printversion("Module-init-tools", version("depmod -V"))
-	printversion("E2fsprogs", version("tune2fs"))
-	printversion("Jfsutils", version("fsck.jfs -V"))
-	printversion("Xfsprogs", version("xfs_db -V"))
-	printversion("Pcmciautils", version("pccardctl -V"))
-	printversion("Pcmcia-cs", version("cardmgr -V"))
-	printversion("Quota-tools", version("quota -V"))
-	printversion("PPP", version("pppd --version"))
+	printversion("GNU make", version("make --version"))
+	printversion("GNU tar", version("tar --version"))
+	printversion("GRUB2", version("grub2-install --version"))
+	printversion("GRUB", version("grub-install --version"))
+	printversion("gtags", version("gtags --version"))
+	printversion("iptables", version("iptables -V"))
 	printversion("Isdn4k-utils", version("isdnctrl"))
-	printversion("Nfs-utils", version("showmount --version"))
-	printversion("Bison", version("bison --version"))
-	printversion("Flex", version("flex --version"))
+	printversion("jfsutils", version("fsck.jfs -V"))
+	printversion("Kbd", version("loadkeys -V"))
+	printversion("kmod", version("kmod -V"))
 
 	while ("ldconfig -p 2>/dev/null" | getline > 0)
 		if ($NF ~ libc || $NF ~ libcpp)
 			if (!seen[ver = version("readlink " $NF)]++)
 				printversion("Linux C" ($NF ~ libcpp? "++" : "") " Library", ver)
 
-	printversion("Dynamic linker (ldd)", version("ldd --version"))
-	printversion("Procps", version("ps --version"))
+	printversion("mcelog", version("mcelog --version"))
+	printversion("mkimage", version("mkimage --version"))
+	printversion("Module-init-tools", version("depmod -V"))
+	printversion("Mount", version("mount --version"))
 	printversion("Net-tools", version("ifconfig --version"))
-	printversion("Kbd", version("loadkeys -V"))
-	printversion("Console-tools", version("loadkeys -V"))
+	printversion("nfs-utils", version("showmount --version"))
+	printversion("openssl", version("openssl version"))
+	printversion("pahole", version("pahole --version"))
+	printversion("Pcmcia-cs", version("cardmgr -V"))
+	printversion("pcmciautils", version("pccardctl -V"))
+	printversion("PPP", version("pppd --version"))
+	printversion("procps", version("ps --version"))
+	printversion("Python", version("python3 -V"))
+	printversion("quota-tools", version("quota -V"))
+	printversion("Rust", version("rustc --version"))
 	printversion("Sh-utils", version("expr --v"))
-	printversion("Udev", version("udevadm --version"))
+	printversion("Sphinx", version("sphinx-build --version"))
+	printversion("squashfs-tools", version("mksquashfs -version"))
+	printversion("udev", version("udevadm --version"))
+	printversion("util-linux", version("mount --version"))
 	printversion("Wireless-tools", version("iwconfig --version"))
+	printversion("xfsprogs", version("xfs_db -V"))
 
 	while ("sort /proc/modules" | getline > 0) {
 		mods = mods sep $1

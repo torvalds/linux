@@ -336,7 +336,8 @@ https://sparse.wiki.kernel.org/index.php/Main_Page si su distribución no lo
 empaqueta); luego, puede ejecutarse en el código agregando "C=1" a su
 comando make.
 
-La herramienta "Coccinelle" (http://coccinelle.lip6.fr/) puede encontrar
+La herramienta "Coccinelle" (https://coccinelle.gitlabpages.inria.fr/website/)
+puede encontrar
 una amplia variedad de posibles problemas de codificación; también puede
 proponer correcciones para esos problemas. Bastantes "parches semánticos"
 para el kernel se han empaquetado en el directorio scripts/coccinelle;

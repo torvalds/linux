@@ -432,7 +432,7 @@ The same goes for added ``return``, ``break``, and ``continue``
 statements.
 
 Error handling is typically located at the bottom of the function, so it
-may not be part of the conflict even though could have been changed by
+may not be part of the conflict even though it could have been changed by
 other patches.
 
 A good way to ensure that you review the error paths is to always use

@@ -1,7 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _maintainer_handbooks_main:
-
 Subsystem and maintainer tree specific development process notes
 ================================================================
 

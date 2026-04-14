@@ -69,7 +69,8 @@ So in this histogram, there's a separate bucket for each pid, and each
 bucket contains a value for that bucket, counting the number of times
 sched_waking was called for that pid.
 
-Each histogram is represented by a hist_data struct.
+Each histogram is represented by a hist_data struct
+(struct hist_trigger_data).
 
 To keep track of each key and value field in the histogram, hist_data
 keeps an array of these fields named fields[].  The fields[] array is
@@ -82,7 +83,7 @@ value or not, which the above histogram does not.
 
 Each struct hist_field contains a pointer to the ftrace_event_field
 from the event's trace_event_file along with various bits related to
-that such as the size, offset, type, and a hist_field_fn_t function,
+that such as the size, offset, type, and a hist field function,
 which is used to grab the field's data from the ftrace event buffer
 (in most cases - some hist_fields such as hitcount don't directly map
 to an event field in the trace buffer - in these cases the function
@@ -241,9 +242,14 @@ it, event_hist_trigger() is called.  event_hist_trigger() first deals
 with the key: for each subkey in the key (in the above example, there
 is just one subkey corresponding to pid), the hist_field that
 represents that subkey is retrieved from hist_data.fields[] and the
-hist_field_fn_t fn() associated with that field, along with the
+hist field function associated with that field, along with the
 field's size and offset, is used to grab that subkey's data from the
 current trace record.
+
+Note, the hist field function use to be a function pointer in the
+hist_field stucture. Due to spectre mitigation, it was converted into
+a fn_num and hist_fn_call() is used to call the associated hist field
+function that corresponds to the fn_num of the hist_field structure.
 
 Once the complete key has been retrieved, it's used to look that key
 up in the tracing_map.  If there's no tracing_map_elt associated with
@@ -251,18 +257,18 @@ that key, an empty one is claimed and inserted in the map for the new
 key.  In either case, the tracing_map_elt associated with that key is
 returned.
 
-Once a tracing_map_elt available, hist_trigger_elt_update() is called.
+Once a tracing_map_elt is available, hist_trigger_elt_update() is called.
 As the name implies, this updates the element, which basically means
 updating the element's fields.  There's a tracing_map_field associated
 with each key and value in the histogram, and each of these correspond
 to the key and value hist_fields created when the histogram was
 created.  hist_trigger_elt_update() goes through each value hist_field
-and, as for the keys, uses the hist_field's fn() and size and offset
+and, as for the keys, uses the hist_field's function and size and offset
 to grab the field's value from the current trace record.  Once it has
 that value, it simply adds that value to that field's
 continually-updated tracing_map_field.sum member.  Some hist_field
-fn()s, such as for the hitcount, don't actually grab anything from the
-trace record (the hitcount fn() just increments the counter sum by 1),
+functions, such as for the hitcount, don't actually grab anything from the
+trace record (the hitcount function just increments the counter sum by 1),
 but the idea is the same.
 
 Once all the values have been updated, hist_trigger_elt_update() is

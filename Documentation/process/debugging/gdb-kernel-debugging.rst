@@ -173,3 +173,12 @@ this is just a snapshot of the initial version::
 
 Detailed help can be obtained via "help <command-name>" for commands and "help
 function <function-name>" for convenience functions.
+
+Debugging GDB scripts
+---------------------
+
+GDB does not enable a full Python backtrace which can make debugging GDB
+scripts more difficult than necessary. The following will allow for printing a
+full backtrace of the python environment::
+
+ (gdb) set python print-stack full

@@ -2630,15 +2630,11 @@ Kernel parameters
 			Intel machines). This can be used to prevent the usage
 			of an available hardware IOMMU.
 
-			[X86]
 		pt
-			[X86]
 		nopt
-			[PPC/POWERNV]
-		nobypass
+		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
-		[X86]
 		AMD Gart HW IOMMU-specific options:
 
 		<size>
@@ -6761,7 +6757,7 @@ Kernel parameters
 			Default is 'on'.
 
 	initramfs_options= [KNL]
-                        Specify mount options for for the initramfs mount.
+			Specify mount options for the initramfs mount.
 
 	rootfstype=	[KNL] Set root filesystem type
 

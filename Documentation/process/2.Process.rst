@@ -291,7 +291,7 @@ Use of the MMOTM tree is likely to be a frustrating experience, though;
 there is a definite chance that it will not even compile.
 
 The primary tree for next-cycle patch merging is linux-next, maintained by
-Stephen Rothwell.  The linux-next tree is, by design, a snapshot of what
+Mark Brown.  The linux-next tree is, by design, a snapshot of what
 the mainline is expected to look like after the next merge window closes.
 Linux-next trees are announced on the linux-kernel and linux-next mailing
 lists when they are assembled; they can be downloaded from:

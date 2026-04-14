@@ -163,8 +163,8 @@ The transport layer is a bi-directional protocol, which defines:
 - A flow control mechanism to avoid buffer overflows
 
 This protocol resembles bus messages described in the following document:
-http://www.intel.com/content/dam/www/public/us/en/documents/technical-\
-specifications/dcmi-hi-1-0-spec.pdf "Chapter 7: Bus Message Layer"
+http://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/dcmi-hi-1-0-spec.pdf
+"Chapter 7: Bus Message Layer".
 
 Connection and Flow Control Mechanism
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

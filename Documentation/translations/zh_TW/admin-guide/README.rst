@@ -33,7 +33,7 @@ Linux內核6.x版本 <http://kernel.org/>
 
   雖然Linux最初是爲32位的x86 PC機（386或更高版本）開發的，但今天它也能運行在
   （至少）Compaq Alpha AXP、Sun SPARC與UltraSPARC、Motorola 68000、PowerPC、
-  PowerPC64、ARM、Hitachi SuperH、Cell、IBM S/390、MIPS、HP PA-RISC、Intel 
+  PowerPC64、ARM、Hitachi SuperH、Cell、IBM S/390、MIPS、HP PA-RISC、Intel
   IA-64、DEC VAX、AMD x86-64 Xtensa和ARC架構上。
 
   Linux很容易移植到大多數通用的32位或64位體系架構，只要它們有一個分頁內存管理

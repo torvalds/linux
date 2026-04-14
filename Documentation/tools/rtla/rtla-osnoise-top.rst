@@ -54,7 +54,7 @@ SEE ALSO
 
 **rtla-osnoise**\(1), **rtla-osnoise-hist**\(1)
 
-Osnoise tracer documentation: <https://www.kernel.org/doc/html/latest/trace/osnoise-tracer.html>
+`Osnoise tracer <https://docs.kernel.org/trace/osnoise-tracer.html>`__
 
 AUTHOR
 ======

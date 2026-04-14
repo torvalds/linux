@@ -8,14 +8,14 @@
 """
 Interacts with the POSIX jobserver during the Kernel build time.
 
-A "normal" jobserver task, like the one initiated by a make subrocess would do:
+A "normal" jobserver task, like the one initiated by a make subprocess would do:
 
     - open read/write file descriptors to communicate with the job server;
     - ask for one slot by calling::
 
         claim = os.read(reader, 1)
 
-    - when the job finshes, call::
+    - when the job finishes, call::
 
         os.write(writer, b"+")  # os.write(writer, claim)
 

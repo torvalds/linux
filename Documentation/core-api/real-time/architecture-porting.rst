@@ -74,7 +74,7 @@ Exception handlers
   Enabling interrupts is especially important on PREEMPT_RT, where certain
   locks, such as spinlock_t, become sleepable. For example, handling an
   invalid opcode may result in sending a SIGILL signal to the user task. A
-  debug excpetion will send a SIGTRAP signal.
+  debug exception will send a SIGTRAP signal.
   In both cases, if the exception occurred in user space, it is safe to enable
   interrupts early. Sending a signal requires both interrupts and kernel
   preemption to be enabled.

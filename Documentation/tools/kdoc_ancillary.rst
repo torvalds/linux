@@ -21,6 +21,15 @@ Regular expression class handler
    :undoc-members:
 
 
+C tokenizer
+===========
+
+.. automodule:: lib.python.kdoc.c_lex
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+
 Chinese, Japanese and Korean variable fonts handler
 ===================================================
 
@@ -41,6 +50,14 @@ Python version ancillary methods
 ================================
 
 .. automodule:: lib.python.kdoc.python_version
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Write output on YAML file
+=========================
+
+.. automodule:: lib.python.kdoc.kdoc_yaml_file
    :members:
    :show-inheritance:
    :undoc-members:

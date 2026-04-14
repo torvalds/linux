@@ -329,7 +329,8 @@ Sparse deve essere installato separatamente (se il vostra distribuzione non
 lo prevede, potete trovarlo su https://sparse.wiki.kernel.org/index.php/Main_Page);
 può essere attivato sul codice aggiungendo "C=1" al comando make.
 
-Lo strumento "Coccinelle" (http://coccinelle.lip6.fr/) è in grado di trovare
+Lo strumento "Coccinelle" (https://coccinelle.gitlabpages.inria.fr/website/)
+è in grado di trovare
 una vasta varietà di potenziali problemi di codifica; e può inoltre proporre
 soluzioni per risolverli.  Un buon numero di "patch semantiche" per il kernel
 sono state preparate nella cartella scripts/coccinelle; utilizzando

@@ -23,7 +23,7 @@ easier.
 
 Some subsystems and maintainer trees have additional information about
 their workflow and expectations, see
-:ref:`Documentation/process/maintainer-handbooks.rst <maintainer_handbooks_main>`.
+Documentation/process/maintainer-handbooks.rst.
 
 Obtain a current source tree
 ----------------------------
@@ -633,6 +633,16 @@ and Suggested-by: did the reporting or suggestion in public. Note,
 bugzilla.kernel.org is a public place in this sense, but email addresses
 used there are private; so do not expose them in tags, unless the person
 used them in earlier contributions.
+
+Using Assisted-by:
+------------------
+
+If you used any sort of advanced coding tool in the creation of your patch,
+you need to acknowledge that use by adding an Assisted-by tag.  Failure to
+do so may impede the acceptance of your work.  Please see
+Documentation/process/coding-assistants.rst for details regarding the
+acknowledgment of coding assistants.
+
 
 .. _the_canonical_patch_format:
 

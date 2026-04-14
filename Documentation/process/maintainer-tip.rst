@@ -352,7 +352,7 @@ following tag ordering scheme:
      Changelog text starts here....
 
    so the authorship is preserved. The 'From:' line has to be followed
-   by a empty newline. If that 'From:' line is missing, then the patch
+   by an empty newline. If that 'From:' line is missing, then the patch
    would be attributed to the person who sent (transported, handled) it.
    The 'From:' line is automatically removed when the patch is applied
    and does not show up in the final git changelog. It merely affects

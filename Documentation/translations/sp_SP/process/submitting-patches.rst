@@ -30,7 +30,7 @@ más sencilla.
 
 Algunos subsistemas y árboles de mantenimiento cuentan con información
 adicional sobre su flujo de trabajo y expectativas, consulte
-:ref:`Documentation/process/maintainer-handbooks.rst <maintainer_handbooks_main>`.
+Documentation/process/maintainer-handbooks.rst.
 
 Obtenga el código fuente actual
 --------------------------------

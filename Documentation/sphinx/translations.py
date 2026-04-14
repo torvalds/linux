@@ -25,6 +25,7 @@ all_languages = {
     'it_IT': 'Italian',
     'ja_JP': 'Japanese',
     'ko_KR': 'Korean',
+    'pt_BR': 'Portuguese (Brazilian)',
     'sp_SP': 'Spanish',
 }
 

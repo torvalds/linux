@@ -14,7 +14,8 @@ class KdocItem:
     then pass into the output modules.
     """
 
-    def __init__(self, name, fname, type, start_line, **other_stuff):
+    def __init__(self, name, fname, type, start_line,
+                 **other_stuff):
         self.name = name
         self.fname = fname
         self.type = type
@@ -22,15 +23,34 @@ class KdocItem:
         self.sections = {}
         self.sections_start_lines = {}
         self.parameterlist = []
-        self.parameterdesc_start_lines = []
+        self.parameterdesc_start_lines = {}
         self.parameterdescs = {}
         self.parametertypes = {}
+
+        self.warnings = []
+
         #
         # Just save everything else into our own dict so that the output
         # side can grab it directly as before.  As we move things into more
         # structured data, this will, hopefully, fade away.
         #
-        self.other_stuff = other_stuff
+        known_keys = {
+            'declaration_start_line',
+            'sections',
+            'sections_start_lines',
+            'parameterlist',
+            'parameterdesc_start_lines',
+            'parameterdescs',
+            'parametertypes',
+            'warnings',
+        }
+
+        self.other_stuff = {}
+        for k, v in other_stuff.items():
+            if k in known_keys:
+                setattr(self, k, v)           # real attribute
+            else:
+                self.other_stuff[k] = v
 
     def get(self, key, default = None):
         """
@@ -41,6 +61,23 @@ class KdocItem:
     def __getitem__(self, key):
         return self.get(key)
 
+    def __repr__(self):
+        return f"KdocItem({self.name}, {self.fname}, {self.type}, {self.declaration_start_line})"
+
+    @classmethod
+    def from_dict(cls, d):
+        """Create a KdocItem from a plain dict."""
+
+        cp = d.copy()
+        name        = cp.pop('name', None)
+        fname       = cp.pop('fname', None)
+        type        = cp.pop('type', None)
+        start_line  = cp.pop('start_line', 1)
+        other_stuff = cp.pop('other_stuff', {})
+
+        # Everything that’s left goes straight to __init__
+        return cls(name, fname, type, start_line, **cp, **other_stuff)
+
     #
     # Tracking of section and parameter information.
     #
@@ -49,7 +86,7 @@ class KdocItem:
         Set sections and start lines.
         """
         self.sections = sections
-        self.section_start_lines = start_lines
+        self.sections_start_lines = start_lines
 
     def set_params(self, names, descs, types, starts):
         """

@@ -11,3 +11,5 @@ Python libraries
    feat
    kdoc
    kabi
+
+   unittest

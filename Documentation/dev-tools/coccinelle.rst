@@ -29,12 +29,13 @@ of many distributions, e.g. :
  - Ubuntu
  - OpenSUSE
  - Arch Linux
+ - Gentoo
  - NetBSD
  - FreeBSD
 
 Some distribution packages are obsolete and it is recommended
 to use the latest version released from the Coccinelle homepage at
-http://coccinelle.lip6.fr/
+https://coccinelle.gitlabpages.inria.fr/website
 
 Or from Github at:
 
@@ -60,7 +61,7 @@ Supplemental documentation
 
 For supplemental documentation refer to the wiki:
 
-https://bottest.wiki.kernel.org/coccicheck
+https://bottest.wiki.kernel.org/coccicheck.html
 
 The wiki documentation always refers to the linux-next version of the script.
 

@@ -84,13 +84,25 @@ be registered with the interconnect provider core.
 
 .. kernel-doc:: include/linux/interconnect-provider.h
 
+.. kernel-doc:: drivers/interconnect/core.c
+   :functions: icc_provider_init icc_provider_register icc_provider_deregister
+               icc_node_create icc_node_create_dyn icc_node_destroy
+               icc_node_add icc_node_del icc_nodes_remove icc_node_set_name
+               icc_link_create icc_link_nodes
+
 Interconnect consumers
 ----------------------
 
 Interconnect consumers are the clients which use the interconnect APIs to
 get paths between endpoints and set their bandwidth/latency/QoS requirements
-for these interconnect paths.  These interfaces are not currently
-documented.
+for these interconnect paths.
+
+.. kernel-doc:: drivers/interconnect/core.c
+   :functions: devm_of_icc_get of_icc_get_by_index of_icc_get icc_get
+               icc_put icc_enable icc_disable icc_set_bw icc_set_tag
+               icc_get_name
+
+.. kernel-doc:: drivers/interconnect/bulk.c
 
 Interconnect debugfs interfaces
 -------------------------------

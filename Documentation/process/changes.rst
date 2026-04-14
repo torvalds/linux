@@ -19,50 +19,52 @@ Current Minimal Requirements
 
 Upgrade to at **least** these software revisions before thinking you've
 encountered a bug!  If you're unsure what version you're currently
-running, the suggested command should tell you.
+running, the suggested command should tell you. For a list of the programs
+on your system including their version execute ./scripts/ver_linux
 
 Again, keep in mind that this list assumes you are already functionally
 running a Linux kernel.  Also, not all tools are necessary on all
 systems; obviously, if you don't have any PC Card hardware, for example,
-you probably needn't concern yourself with pcmciautils.
+you probably do not need to concern yourself with pcmciautils.
 
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
-GNU C                  8.1              gcc --version
-Clang/LLVM (optional)  15.0.0           clang --version
-Rust (optional)        1.85.0           rustc --version
-bindgen (optional)     0.71.1           bindgen --version
-GNU make               4.0              make --version
 bash                   4.2              bash --version
-binutils               2.30             ld -v
-flex                   2.5.35           flex --version
-bison                  2.0              bison --version
-pahole                 1.22             pahole --version
-util-linux             2.10o            mount --version
-kmod                   13               depmod -V
-e2fsprogs              1.41.4           e2fsck -V
-jfsutils               1.1.3            fsck.jfs -V
-xfsprogs               2.6.0            xfs_db -V
-squashfs-tools         4.0              mksquashfs -version
-btrfs-progs            0.18             btrfs --version
-pcmciautils            004              pccardctl -V
-quota-tools            3.09             quota -V
-PPP                    2.4.0            pppd --version
-nfs-utils              1.0.5            showmount --version
-procps                 3.2.0            ps --version
-udev                   081              udevd --version
-grub                   0.93             grub --version || grub-install --version
-mcelog                 0.6              mcelog --version
-iptables               1.4.2            iptables -V
-openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
-Sphinx\ [#f1]_         3.4.3            sphinx-build --version
+bindgen (optional)     0.71.1           bindgen --version
+binutils               2.30             ld -v
+bison                  2.0              bison --version
+btrfs-progs            0.18             btrfs --version
+Clang/LLVM (optional)  15.0.0           clang --version
+e2fsprogs              1.41.4           e2fsck -V
+flex                   2.5.35           flex --version
+gdb                    7.2              gdb --version
+GNU awk (optional)     5.1.0            gawk --version
+GNU C                  8.1              gcc --version
+GNU make               4.0              make --version
 GNU tar                1.28             tar --version
+GRUB                   0.93             grub --version || grub-install --version
 gtags (optional)       6.6.5            gtags --version
+iptables               1.4.2            iptables -V
+jfsutils               1.1.3            fsck.jfs -V
+kmod                   13               kmod -V
+mcelog                 0.6              mcelog --version
 mkimage (optional)     2017.01          mkimage --version
+nfs-utils              1.0.5            showmount --version
+openssl & libcrypto    1.0.0            openssl version
+pahole                 1.22             pahole --version
+pcmciautils            004              pccardctl -V
+PPP                    2.4.0            pppd --version
+procps                 3.2.0            ps --version
 Python                 3.9.x            python3 --version
-GNU AWK (optional)     5.1.0            gawk --version
+quota-tools            3.09             quota -V
+Rust (optional)        1.85.0           rustc --version
+Sphinx\ [#f1]_         3.4.3            sphinx-build --version
+squashfs-tools         4.0              mksquashfs -version
+udev                   081              udevadm --version
+util-linux             2.10o            mount --version
+xfsprogs               2.6.0            xfs_db -V
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
@@ -391,7 +393,7 @@ Kernel documentation
 Sphinx
 ------
 
-Please see :ref:`sphinx_install` in :ref:`Documentation/doc-guide/sphinx.rst <sphinxdoc>`
+Please see :ref:`sphinx_install` in Documentation/doc-guide/sphinx.rst
 for details about Sphinx requirements.
 
 rustdoc

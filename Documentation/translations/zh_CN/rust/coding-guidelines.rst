@@ -37,6 +37,73 @@
 像内核其他部分的 ``clang-format`` 一样， ``rustfmt`` 在单个文件上工作，并且不需要
 内核配置。有时，它甚至可以与破碎的代码一起工作。
 
+导入
+~~~~
+
+``rustfmt`` 默认会以一种在合并和变基时容易产生冲突的方式格式化导入，因为在某些情况下
+它会将多个条目合并到同一行。例如：
+
+.. code-block:: rust
+
+	// Do not use this style.
+	use crate::{
+	    example1,
+	    example2::{example3, example4, example5},
+	    example6, example7,
+	    example8::example9,
+	};
+
+相反，内核使用如下所示的垂直布局：
+
+.. code-block:: rust
+
+	use crate::{
+	    example1,
+	    example2::{
+	        example3,
+	        example4,
+	        example5, //
+	    },
+	    example6,
+	    example7,
+	    example8::example9, //
+	};
+
+也就是说，每个条目占一行，只要列表中有多个条目就使用花括号。
+
+末尾的空注释可以保留这种格式。不仅如此， ``rustfmt`` 在添加空注释后实际上会将导入重
+新格式化为垂直布局。也就是说，可以通过对如下输入运行 ``rustfmt`` 来轻松地将原始示例
+重新格式化为预期的风格：
+
+.. code-block:: rust
+
+	// Do not use this style.
+	use crate::{
+	    example1,
+	    example2::{example3, example4, example5, //
+	    },
+	    example6, example7,
+	    example8::example9, //
+	};
+
+末尾的空注释适用于嵌套导入（如上所示）以及单条目导入——这有助于最小化补丁系列中的差
+异：
+
+.. code-block:: rust
+
+	use crate::{
+	    example1, //
+	};
+
+末尾的空注释可以放在花括号内的任何一行中，但建议放在最后一个条目上，因为这让人联想到其
+他格式化工具中的末尾逗号。有时在补丁系列中由于列表的变更，避免多次移动注释可能更简单。
+
+在某些情况下可能需要例外处理，即以上都不是硬性规则。也有一些代码尚未迁移到这种风格，但
+请不要引入其他风格的代码。
+
+最终目标是让 ``rustfmt`` 在稳定版本中自动支持这种格式化风格（或类似的风格），而无需
+末尾的空注释。因此，在某个时候，目标是移除这些注释。
+
 
 注释
 ----
@@ -76,6 +143,16 @@
 	pub fn f(x: i32) -> Foo {
 	    // ...
 	}
+
+这适用于公共和私有项目。这增加了与公共项目的一致性，允许在更改可见性时减少涉及的更改，
+并允许我们将来也为私有项目生成文档。换句话说，如果为私有项目编写了文档，那么仍然应该使
+用 ``///`` 。例如：
+
+.. code-block:: rust
+
+	/// My private function.
+	// TODO: ...
+	fn f() {}
 
 一种特殊的注释是 ``// SAFETY:`` 注释。这些注释必须出现在每个 ``unsafe`` 块之前，它们
 解释了为什么该块内的代码是正确/健全的，即为什么它在任何情况下都不会触发未定义行为，例如:
@@ -131,27 +208,27 @@ https://commonmark.org/help/
 
 这个例子展示了一些 ``rustdoc`` 的特性和内核中遵循的一些惯例:
 
-  - 第一段必须是一个简单的句子，简要地描述被记录的项目的作用。进一步的解释必须放在额
-    外的段落中。
+- 第一段必须是一个简单的句子，简要地描述被记录的项目的作用。进一步的解释必须放在额
+  外的段落中。
 
-  - 不安全的函数必须在 ``# Safety`` 部分记录其安全前提条件。
+- 不安全的函数必须在 ``# Safety`` 部分记录其安全前提条件。
 
-  - 虽然这里没有显示，但如果一个函数可能会恐慌，那么必须在 ``# Panics`` 部分描述发
-    生这种情况的条件。
+- 虽然这里没有显示，但如果一个函数可能会恐慌，那么必须在 ``# Panics`` 部分描述发
+  生这种情况的条件。
 
-    请注意，恐慌应该是非常少见的，只有在有充分理由的情况下才会使用。几乎在所有的情况下，
-    都应该使用一个可失败的方法，通常是返回一个 ``Result``。
+  请注意，恐慌应该是非常少见的，只有在有充分理由的情况下才会使用。几乎在所有的情况下，
+  都应该使用一个可失败的方法，通常是返回一个 ``Result``。
 
-  - 如果提供使用实例对读者有帮助的话，必须写在一个叫做``# Examples``的部分。
+- 如果提供使用实例对读者有帮助的话，必须写在一个叫做``# Examples``的部分。
 
-  - Rust项目（函数、类型、常量……）必须有适当的链接(``rustdoc`` 会自动创建一个
-    链接)。
+- Rust项目（函数、类型、常量……）必须有适当的链接(``rustdoc`` 会自动创建一个
+  链接)。
 
-  - 任何 ``unsafe`` 的代码块都必须在前面加上一个 ``// SAFETY:`` 的注释，描述里面
-    的代码为什么是正确的。
+- 任何 ``unsafe`` 的代码块都必须在前面加上一个 ``// SAFETY:`` 的注释，描述里面
+  的代码为什么是正确的。
 
-    虽然有时原因可能看起来微不足道，但写这些注释不仅是记录已经考虑到的问题的好方法，
-    最重要的是，它提供了一种知道没有额外隐含约束的方法。
+  虽然有时原因可能看起来微不足道，但写这些注释不仅是记录已经考虑到的问题的好方法，
+  最重要的是，它提供了一种知道没有额外隐含约束的方法。
 
 要了解更多关于如何编写Rust和拓展功能的文档，请看看 ``rustdoc`` 这本书，网址是:
 
@@ -168,6 +245,22 @@ https://commonmark.org/help/
 .. code-block:: rust
 
        /// [`struct mutex`]: srctree/include/linux/mutex.h
+
+
+C FFI 类型
+----------
+
+Rust 内核代码使用类型别名（如 ``c_int``）来引用 C 类型（如 ``int``），这些别名可
+以直接从 ``kernel`` 预导入（prelude）中获取。请不要使用 ``core::ffi`` 中的别
+名——它们可能无法映射到正确的类型。
+
+这些别名通常应该直接通过其标识符引用，即作为单段路径。例如：
+
+.. code-block:: rust
+
+	fn f(p: *const c_char) -> c_int {
+	    // ...
+	}
 
 
 命名
@@ -202,3 +295,144 @@ Rust内核代码遵循通常的Rust命名空间:
 
 也就是说， ``GPIO_LINE_DIRECTION_IN`` 的等价物将被称为 ``gpio::LineDirection::In`` 。
 特别是，它不应该被命名为 ``gpio::gpio_line_direction::GPIO_LINE_DIRECTION_IN`` 。
+
+
+代码检查提示（Lints）
+---------------------
+
+在 Rust 中，可以在局部 ``allow`` 特定的警告（诊断信息、代码检查提示（lint）），
+使编译器忽略给定函数、模块、代码块等中给定警告的实例。
+
+这类似于 C 中的 ``#pragma GCC diagnostic push`` + ``ignored`` + ``pop``
+[#]_：
+
+.. code-block:: c
+
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wunused-function"
+	static void f(void) {}
+	#pragma GCC diagnostic pop
+
+.. [#] 在这个特定情况下，可以使用内核的 ``__{always,maybe}_unused`` 属性
+       （C23 的 ``[[maybe_unused]]``）；然而，此示例旨在反映下文讨论的 Rust 中
+       的等效代码检查提示。
+
+但要简洁得多：
+
+.. code-block:: rust
+
+	#[allow(dead_code)]
+	fn f() {}
+
+凭借这一点，可以更方便地默认启用更多诊断（即在 ``W=`` 级别之外）。特别是那些可能有
+一些误报但在其他方面非常有用的诊断，保持启用可以捕获潜在的错误。
+
+在此基础上，Rust 提供了 ``expect`` 属性，更进一步。如果警告没有产生，它会让编译器
+发出警告。例如，以下代码将确保当 ``f()`` 在某处被调用时，我们必须移除该属性：
+
+.. code-block:: rust
+
+	#[expect(dead_code)]
+	fn f() {}
+
+如果我们不这样做，编译器会发出警告::
+
+	warning: this lint expectation is unfulfilled
+	 --> x.rs:3:10
+	  |
+	3 | #[expect(dead_code)]
+	  |          ^^^^^^^^^
+	  |
+	  = note: `#[warn(unfulfilled_lint_expectations)]` on by default
+
+这意味着 ``expect`` 不会在不需要时被遗忘，这可能发生在以下几种情况中：
+
+- 开发过程中添加的临时属性。
+
+- 编译器、Clippy 或自定义工具中代码检查提示的改进可能消除误报。
+
+- 当代码检查提示不再需要时，因为预期它会在某个时候被移除，例如上面的
+  ``dead_code`` 示例。
+
+这也增加了剩余 ``allow`` 的可见性，并减少了误用的可能性。
+
+因此，优先使用 ``expect`` 而不是 ``allow``，除非：
+
+- 条件编译在某些情况下触发警告，在其他情况下不触发。
+
+  如果与总的相比，只有少数情况触发（或不触发）警告，那么可以考虑使用条件
+  ``expect``（即 ``cfg_attr(..., expect(...))``）。否则，使用 ``allow`` 可
+  能更简单。
+
+- 在宏内部，不同的调用可能会创建在某些情况下触发警告而在其他情况下不触发的展开代码。
+
+- 当代码可能在某些架构上触发警告但在其他架构上不触发时，例如到 C FFI 类型的 ``as``
+  转换。
+
+作为一个更详细的示例，考虑以下程序：
+
+.. code-block:: rust
+
+	fn g() {}
+
+	fn main() {
+	    #[cfg(CONFIG_X)]
+	    g();
+	}
+
+这里，如果 ``CONFIG_X`` 未设置，函数 ``g()`` 是死代码。我们可以在这里使用
+``expect`` 吗？
+
+.. code-block:: rust
+
+	#[expect(dead_code)]
+	fn g() {}
+
+	fn main() {
+	    #[cfg(CONFIG_X)]
+	    g();
+	}
+
+如果 ``CONFIG_X`` 被设置，这将产生代码检查提示，因为在该配置中它不是死代码。因
+此，在这种情况下，我们不能直接使用 ``expect``。
+
+一个简单的可能性是使用 ``allow``：
+
+.. code-block:: rust
+
+	#[allow(dead_code)]
+	fn g() {}
+
+	fn main() {
+	    #[cfg(CONFIG_X)]
+	    g();
+	}
+
+另一种方法是使用条件 ``expect``：
+
+.. code-block:: rust
+
+	#[cfg_attr(not(CONFIG_X), expect(dead_code))]
+	fn g() {}
+
+	fn main() {
+	    #[cfg(CONFIG_X)]
+	    g();
+	}
+
+这将确保如果有人在某处引入了对 ``g()`` 的另一个调用（例如无条件的），那么将会被发现
+它不再是死代码。然而， ``cfg_attr`` 比简单的 ``allow`` 更复杂。
+
+因此，当涉及多个配置或者代码检查提示可能由于非局部更改（如 ``dead_code``）而触发
+时，使用条件 ``expect`` 可能不值得。
+
+有关 Rust 中诊断的更多信息，请参阅：
+
+	https://doc.rust-lang.org/stable/reference/attributes/diagnostics.html
+
+错误处理
+--------
+
+有关 Rust for Linux 特定错误处理的背景和指南，请参阅：
+
+	https://rust.docs.kernel.org/kernel/error/type.Result.html#error-codes-in-c-and-rust

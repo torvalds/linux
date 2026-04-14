@@ -67,8 +67,8 @@ This documentation is about:
 =============== ===============================================================
 abi/		execution domains & personalities
 <$ARCH>		tuning controls for various CPU architecture (e.g. csky, s390)
-crypto/		<undocumented>
-debug/		<undocumented>
+crypto/		cryptographic subsystem
+debug/		debugging features
 dev/		device specific information (e.g. dev/cdrom/info)
 fs/		specific filesystems
 		filehandle, inode, dentry and quota tuning
@@ -84,7 +84,7 @@ sunrpc/		SUN Remote Procedure Call (NFS)
 user/		Per user namespace limits
 vm/		memory management tuning
 		buffer and cache management
-xen/		<undocumented>
+xen/		Xen hypervisor controls
 =============== ===============================================================
 
 These are the subdirs I have on my system or have been discovered by
@@ -96,9 +96,12 @@ it :-)
    :maxdepth: 1
 
    abi
+   crypto
+   debug
    fs
    kernel
    net
    sunrpc
    user
    vm
+   xen

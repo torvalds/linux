@@ -27,7 +27,7 @@ position within the virtual file - that position is, likely as not, in the
 middle of a line of output. The kernel has traditionally had a number of
 implementations that got this wrong.
 
-The 2.6 kernel contains a set of functions (implemented by Alexander Viro)
+The kernel now contains a set of functions (implemented by Alexander Viro)
 which are designed to make it easy for virtual file creators to get it
 right.
 

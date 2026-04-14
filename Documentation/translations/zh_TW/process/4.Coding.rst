@@ -219,7 +219,7 @@ Documentation/fault-injection/fault-injection.rst。
 可以在 https://sparse.wiki.kernel.org/index.php/Main_page 找到）,
 然後可以通過在make命令中添加“C=1”在代碼上運行它。
 
-“Coccinelle”工具 :ref:`http://coccinelle.lip6.fr/ <devtools_coccinelle>`
+“Coccinelle”工具 :ref:`https://coccinelle.gitlabpages.inria.fr/website/ <devtools_coccinelle>`
 能夠發現各種潛在的編碼問題；它還可以爲這些問題提出修復方案。在
 scripts/coccinelle目錄下已經打包了相當多的內核“語義補丁”；運行
 “make coccicheck”將運行這些語義補丁並報告發現的任何問題。有關詳細信息，請參閱
