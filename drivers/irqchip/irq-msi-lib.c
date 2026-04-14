@@ -48,6 +48,9 @@ bool msi_lib_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 		return false;
 	}
 
+	if (WARN_ON_ONCE(!chip->irq_write_msi_msg))
+		return false;
+
 	required_flags = pops->required_flags;
 
 	/* Is the target domain bus token supported? */
