@@ -11,27 +11,21 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/auxv.h>
 #include <sys/syscall.h>
-#include <dlfcn.h>
 #include <string.h>
 #include <errno.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <limits.h>
 
+#include "parse_vdso.h"
 #include "vdso_config.h"
 #include "vdso_call.h"
 #include "kselftest.h"
 
+static const char *version;
 static const char **name;
-
-#ifndef SYS_getcpu
-# ifdef __x86_64__
-#  define SYS_getcpu 309
-# else
-#  define SYS_getcpu 318
-# endif
-#endif
 
 #ifndef __NR_clock_gettime64
 #define __NR_clock_gettime64	403
@@ -60,6 +54,10 @@ vgettime64_t vdso_clock_gettime64;
 typedef long (*vgtod_t)(struct timeval *tv, struct timezone *tz);
 
 vgtod_t vdso_gettimeofday;
+
+typedef time_t (*vtime_t)(__kernel_time_t *tloc);
+
+vtime_t vdso_time;
 
 typedef long (*getcpu_t)(unsigned *, unsigned *, void *);
 
@@ -110,41 +108,38 @@ static void *vsyscall_getcpu(void)
 
 static void fill_function_pointers(void)
 {
-	void *vdso = dlopen("linux-vdso.so.1",
-			    RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
-	if (!vdso)
-		vdso = dlopen("linux-gate.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
-	if (!vdso)
-		vdso = dlopen("linux-vdso32.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
-	if (!vdso)
-		vdso = dlopen("linux-vdso64.so.1",
-			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
-	if (!vdso) {
+	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
+
+	if (!sysinfo_ehdr) {
 		printf("[WARN]\tfailed to find vDSO\n");
 		return;
 	}
 
-	vdso_getcpu = (getcpu_t)dlsym(vdso, name[4]);
+	vdso_init_from_sysinfo_ehdr(sysinfo_ehdr);
+
+	vdso_getcpu = (getcpu_t)vdso_sym(version, name[4]);
 	if (!vdso_getcpu)
 		printf("Warning: failed to find getcpu in vDSO\n");
 
 	vgetcpu = (getcpu_t) vsyscall_getcpu();
 
-	vdso_clock_gettime = (vgettime_t)dlsym(vdso, name[1]);
+	vdso_clock_gettime = (vgettime_t)vdso_sym(version, name[1]);
 	if (!vdso_clock_gettime)
 		printf("Warning: failed to find clock_gettime in vDSO\n");
 
 #if defined(VDSO_32BIT)
-	vdso_clock_gettime64 = (vgettime64_t)dlsym(vdso, name[5]);
+	vdso_clock_gettime64 = (vgettime64_t)vdso_sym(version, name[5]);
 	if (!vdso_clock_gettime64)
 		printf("Warning: failed to find clock_gettime64 in vDSO\n");
 #endif
 
-	vdso_gettimeofday = (vgtod_t)dlsym(vdso, name[0]);
+	vdso_gettimeofday = (vgtod_t)vdso_sym(version, name[0]);
 	if (!vdso_gettimeofday)
 		printf("Warning: failed to find gettimeofday in vDSO\n");
+
+	vdso_time = (vtime_t)vdso_sym(version, name[2]);
+	if (!vdso_time)
+		printf("Warning: failed to find time in vDSO\n");
 
 }
 
@@ -167,6 +162,16 @@ static inline int sys_clock_gettime64(clockid_t id, struct __kernel_timespec *ts
 static inline int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	return syscall(__NR_gettimeofday, tv, tz);
+}
+
+static inline __kernel_old_time_t sys_time(__kernel_old_time_t *tloc)
+{
+#ifdef __NR_time
+	return syscall(__NR_time, tloc);
+#else
+	errno = ENOSYS;
+	return -1;
+#endif
 }
 
 static void test_getcpu(void)
@@ -412,10 +417,10 @@ static void test_gettimeofday(void)
 		return;
 	}
 
-	printf("\t%llu.%06ld %llu.%06ld %llu.%06ld\n",
-	       (unsigned long long)start.tv_sec, start.tv_usec,
-	       (unsigned long long)vdso.tv_sec, vdso.tv_usec,
-	       (unsigned long long)end.tv_sec, end.tv_usec);
+	printf("\t%llu.%06lld %llu.%06lld %llu.%06lld\n",
+	       (unsigned long long)start.tv_sec, (long long)start.tv_usec,
+	       (unsigned long long)vdso.tv_sec, (long long)vdso.tv_usec,
+	       (unsigned long long)end.tv_sec, (long long)end.tv_usec);
 
 	if (!tv_leq(&start, &vdso) || !tv_leq(&vdso, &end)) {
 		printf("[FAIL]\tTimes are out of sequence\n");
@@ -435,8 +440,56 @@ static void test_gettimeofday(void)
 	VDSO_CALL(vdso_gettimeofday, 2, &vdso, NULL);
 }
 
+static void test_time(void)
+{
+	__kernel_old_time_t start, end, vdso_ret, vdso_param;
+
+	if (!vdso_time)
+		return;
+
+	printf("[RUN]\tTesting time...\n");
+
+	if (sys_time(&start) < 0) {
+		if (errno == -ENOSYS) {
+			printf("[SKIP]\tNo time() support\n");
+		} else {
+			printf("[FAIL]\tsys_time failed (%d)\n", errno);
+			nerrs++;
+		}
+		return;
+	}
+
+	vdso_ret = VDSO_CALL(vdso_time, 1, &vdso_param);
+	end = sys_time(NULL);
+
+	if (vdso_ret < 0 || end < 0) {
+		printf("[FAIL]\tvDSO returned %d, syscall errno=%d\n",
+		       (int)vdso_ret, errno);
+		nerrs++;
+		return;
+	}
+
+	printf("\t%lld %lld %lld\n",
+	       (long long)start,
+	       (long long)vdso_ret,
+	       (long long)end);
+
+	if (vdso_ret != vdso_param) {
+		printf("[FAIL]\tinconsistent return values: %lld %lld\n",
+		       (long long)vdso_ret, (long long)vdso_param);
+		nerrs++;
+		return;
+	}
+
+	if (!(start <= vdso_ret) || !(vdso_ret <= end)) {
+		printf("[FAIL]\tTimes are out of sequence\n");
+		nerrs++;
+	}
+}
+
 int main(int argc, char **argv)
 {
+	version = versions[VDSO_VERSION];
 	name = (const char **)&names[VDSO_NAMES];
 
 	fill_function_pointers();
@@ -444,6 +497,7 @@ int main(int argc, char **argv)
 	test_clock_gettime();
 	test_clock_gettime64();
 	test_gettimeofday();
+	test_time();
 
 	/*
 	 * Test getcpu() last so that, if something goes wrong setting affinity,

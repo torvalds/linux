@@ -8,6 +8,7 @@
 #include <linux/ns_common.h>
 #include <linux/err.h>
 #include <linux/time64.h>
+#include <linux/cleanup.h>
 
 struct user_namespace;
 extern struct user_namespace init_user_ns;
@@ -25,7 +26,9 @@ struct time_namespace {
 	struct ucounts		*ucounts;
 	struct ns_common	ns;
 	struct timens_offsets	offsets;
+#ifdef CONFIG_TIME_NS_VDSO
 	struct page		*vvar_page;
+#endif
 	/* If set prevents changing offsets after any task joined namespace. */
 	bool			frozen_offsets;
 } __randomize_layout;
@@ -38,9 +41,6 @@ static inline struct time_namespace *to_time_ns(struct ns_common *ns)
 	return container_of(ns, struct time_namespace, ns);
 }
 void __init time_ns_init(void);
-extern int vdso_join_timens(struct task_struct *task,
-			    struct time_namespace *ns);
-extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
 
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)
 {
@@ -53,7 +53,6 @@ struct time_namespace *copy_time_ns(u64 flags,
 				    struct time_namespace *old_ns);
 void free_time_ns(struct time_namespace *ns);
 void timens_on_fork(struct nsproxy *nsproxy, struct task_struct *tsk);
-struct page *find_timens_vvar_page(struct vm_area_struct *vma);
 
 static inline void put_time_ns(struct time_namespace *ns)
 {
@@ -117,17 +116,6 @@ static inline void __init time_ns_init(void)
 {
 }
 
-static inline int vdso_join_timens(struct task_struct *task,
-				   struct time_namespace *ns)
-{
-	return 0;
-}
-
-static inline void timens_commit(struct task_struct *tsk,
-				 struct time_namespace *ns)
-{
-}
-
 static inline struct time_namespace *get_time_ns(struct time_namespace *ns)
 {
 	return NULL;
@@ -154,11 +142,6 @@ static inline void timens_on_fork(struct nsproxy *nsproxy,
 	return;
 }
 
-static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
-{
-	return NULL;
-}
-
 static inline void timens_add_monotonic(struct timespec64 *ts) { }
 static inline void timens_add_boottime(struct timespec64 *ts) { }
 
@@ -174,5 +157,21 @@ static inline ktime_t timens_ktime_to_host(clockid_t clockid, ktime_t tim)
 	return tim;
 }
 #endif
+
+#ifdef CONFIG_TIME_NS_VDSO
+extern void timens_commit(struct task_struct *tsk, struct time_namespace *ns);
+struct page *find_timens_vvar_page(struct vm_area_struct *vma);
+#else /* !CONFIG_TIME_NS_VDSO */
+static inline void timens_commit(struct task_struct *tsk, struct time_namespace *ns)
+{
+}
+
+static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+#endif /* CONFIG_TIME_NS_VDSO */
+
+DEFINE_FREE(time_ns, struct time_namespace *, if (_T) put_time_ns(_T))
 
 #endif /* _LINUX_TIMENS_H */

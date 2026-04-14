@@ -3,8 +3,25 @@
  * Generic userspace implementations of gettimeofday() and similar.
  */
 #include <vdso/auxclock.h>
+#include <vdso/clocksource.h>
 #include <vdso/datapage.h>
 #include <vdso/helpers.h>
+#include <vdso/ktime.h>
+#include <vdso/limits.h>
+#include <vdso/math64.h>
+#include <vdso/time32.h>
+#include <vdso/time64.h>
+
+/*
+ * The generic vDSO implementation requires that gettimeofday.h
+ * provides:
+ * - __arch_get_hw_counter(): to get the hw counter based on the
+ *   clock_mode.
+ * - gettimeofday_fallback(): fallback for gettimeofday.
+ * - clock_gettime_fallback(): fallback for clock_gettime.
+ * - clock_getres_fallback(): fallback for clock_getres.
+ */
+#include <asm/vdso/gettimeofday.h>
 
 /* Bring in default accessors */
 #include <vdso/vsyscall.h>
@@ -135,7 +152,7 @@ bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *
 
 		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	/* Add the namespace offset */
 	sec += offs->sec;
@@ -158,28 +175,12 @@ bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 		return false;
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCKMODE_TIMENS. Time namespace enabled tasks have a
-		 * special VVAR page installed which has vc->seq set to 1 and
-		 * vc->clock_mode set to VDSO_CLOCKMODE_TIMENS. For non time
-		 * namespace affected tasks this does not affect performance
-		 * because if vc->seq is odd, i.e. a concurrent update is in
-		 * progress the extra check for vc->clock_mode is just a few
-		 * extra instructions while spin waiting for vc->seq to become
-		 * even again.
-		 */
-		while (unlikely((seq = READ_ONCE(vc->seq)) & 1)) {
-			if (IS_ENABLED(CONFIG_TIME_NS) &&
-			    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
-				return do_hres_timens(vd, vc, clk, ts);
-			cpu_relax();
-		}
-		smp_rmb();
+		if (vdso_read_begin_timens(vc, &seq))
+			return do_hres_timens(vd, vc, clk, ts);
 
 		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	vdso_set_timespec(ts, sec, ns);
 
@@ -204,7 +205,7 @@ bool do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock
 		seq = vdso_read_begin(vc);
 		sec = vdso_ts->sec;
 		nsec = vdso_ts->nsec;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	/* Add the namespace offset */
 	sec += offs->sec;
@@ -223,21 +224,12 @@ bool do_coarse(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 	u32 seq;
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
-		 */
-		while ((seq = READ_ONCE(vc->seq)) & 1) {
-			if (IS_ENABLED(CONFIG_TIME_NS) &&
-			    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
-				return do_coarse_timens(vd, vc, clk, ts);
-			cpu_relax();
-		}
-		smp_rmb();
+		if (vdso_read_begin_timens(vc, &seq))
+			return do_coarse_timens(vd, vc, clk, ts);
 
 		ts->tv_sec = vdso_ts->sec;
 		ts->tv_nsec = vdso_ts->nsec;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	return true;
 }
@@ -256,20 +248,12 @@ bool do_aux(const struct vdso_time_data *vd, clockid_t clock, struct __kernel_ti
 	vc = &vd->aux_clock_data[idx];
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
-		 */
-		while ((seq = READ_ONCE(vc->seq)) & 1) {
-			if (IS_ENABLED(CONFIG_TIME_NS) && vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
-				vd = __arch_get_vdso_u_timens_data(vd);
-				vc = &vd->aux_clock_data[idx];
-				/* Re-read from the real time data page */
-				continue;
-			}
-			cpu_relax();
+		if (vdso_read_begin_timens(vc, &seq)) {
+			vd = __arch_get_vdso_u_timens_data(vd);
+			vc = &vd->aux_clock_data[idx];
+			/* Re-read from the real time data page */
+			continue;
 		}
-		smp_rmb();
 
 		/* Auxclock disabled? */
 		if (vc->clock_mode == VDSO_CLOCKMODE_NONE)
@@ -277,7 +261,7 @@ bool do_aux(const struct vdso_time_data *vd, clockid_t clock, struct __kernel_ti
 
 		if (!vdso_get_timestamp(vd, vc, VDSO_BASE_AUX, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	vdso_set_timespec(ts, sec, ns);
 
@@ -313,7 +297,7 @@ __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 	return do_hres(vd, vc, clock, ts);
 }
 
-static __maybe_unused int
+static int
 __cvdso_clock_gettime_data(const struct vdso_time_data *vd, clockid_t clock,
 			   struct __kernel_timespec *ts)
 {
@@ -333,7 +317,7 @@ __cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
 }
 
 #ifdef BUILD_VDSO32
-static __maybe_unused int
+static int
 __cvdso_clock_gettime32_data(const struct vdso_time_data *vd, clockid_t clock,
 			     struct old_timespec32 *res)
 {
@@ -359,7 +343,7 @@ __cvdso_clock_gettime32(clockid_t clock, struct old_timespec32 *res)
 }
 #endif /* BUILD_VDSO32 */
 
-static __maybe_unused int
+static int
 __cvdso_gettimeofday_data(const struct vdso_time_data *vd,
 			  struct __kernel_old_timeval *tv, struct timezone *tz)
 {
@@ -376,8 +360,7 @@ __cvdso_gettimeofday_data(const struct vdso_time_data *vd,
 	}
 
 	if (unlikely(tz != NULL)) {
-		if (IS_ENABLED(CONFIG_TIME_NS) &&
-		    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
+		if (vdso_is_timens_clock(vc))
 			vd = __arch_get_vdso_u_timens_data(vd);
 
 		tz->tz_minuteswest = vd[CS_HRES_COARSE].tz_minuteswest;
@@ -394,14 +377,13 @@ __cvdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 }
 
 #ifdef VDSO_HAS_TIME
-static __maybe_unused __kernel_old_time_t
+static __kernel_old_time_t
 __cvdso_time_data(const struct vdso_time_data *vd, __kernel_old_time_t *time)
 {
 	const struct vdso_clock *vc = vd->clock_data;
 	__kernel_old_time_t t;
 
-	if (IS_ENABLED(CONFIG_TIME_NS) &&
-	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
+	if (vdso_is_timens_clock(vc)) {
 		vd = __arch_get_vdso_u_timens_data(vd);
 		vc = vd->clock_data;
 	}
@@ -432,8 +414,7 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 	if (!vdso_clockid_valid(clock))
 		return false;
 
-	if (IS_ENABLED(CONFIG_TIME_NS) &&
-	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
+	if (vdso_is_timens_clock(vc))
 		vd = __arch_get_vdso_u_timens_data(vd);
 
 	/*
@@ -464,7 +445,7 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 	return true;
 }
 
-static __maybe_unused
+static
 int __cvdso_clock_getres_data(const struct vdso_time_data *vd, clockid_t clock,
 			      struct __kernel_timespec *res)
 {
@@ -484,7 +465,7 @@ int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
 }
 
 #ifdef BUILD_VDSO32
-static __maybe_unused int
+static int
 __cvdso_clock_getres_time32_data(const struct vdso_time_data *vd, clockid_t clock,
 				 struct old_timespec32 *res)
 {

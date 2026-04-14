@@ -1400,11 +1400,13 @@ config UTS_NS
 
 config TIME_NS
 	bool "TIME namespace"
-	depends on GENERIC_GETTIMEOFDAY
 	default y
 	help
 	  In this namespace boottime and monotonic clocks can be set.
 	  The time will keep going with the same pace.
+
+config TIME_NS_VDSO
+	def_bool TIME_NS && GENERIC_GETTIMEOFDAY
 
 config IPC_NS
 	bool "IPC namespace"
