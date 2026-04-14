@@ -11,6 +11,7 @@
 #include <linux/irqchip.h>
 #include <linux/kernel_stat.h>
 #include <linux/proc_fs.h>
+#include <linux/minmax.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -97,6 +98,11 @@ int __init arch_probe_nr_irqs(void)
 		irq_set_nr_irqs(64 + NR_VECTORS * (nr_cpu_ids + nr_io_pics));
 
 	return NR_IRQS_LEGACY;
+}
+
+unsigned int arch_dynirq_lower_bound(unsigned int from)
+{
+	return MAX(from, NR_IRQS_LEGACY);
 }
 
 void __init init_IRQ(void)
