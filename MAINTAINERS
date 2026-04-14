@@ -6282,6 +6282,7 @@ M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	Documentation/devicetree/bindings/timer/
 F:	drivers/clocksource/
@@ -6667,6 +6668,7 @@ M:	Thomas Gleixner <tglx@kernel.org>
 M:	Peter Zijlstra <peterz@infradead.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/core
 F:	include/linux/cpu.h
 F:	include/linux/cpuhotplug.h
@@ -7095,6 +7097,7 @@ DEBUGOBJECTS:
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/debugobjects
 F:	include/linux/debugobjects.h
 F:	lib/debugobjects.c
@@ -10540,6 +10543,7 @@ R:	Davidlohr Bueso <dave@stgolabs.net>
 R:	André Almeida <andrealmeid@igalia.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
 F:	Documentation/locking/*futex*
 F:	include/asm-generic/futex.h
@@ -10681,6 +10685,7 @@ M:	Peter Zijlstra <peterz@infradead.org>
 M:	Andy Lutomirski <luto@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/entry
 F:	include/linux/entry-common.h
 F:	include/linux/entry-virt.h
@@ -13523,6 +13528,7 @@ F:	sound/soc/codecs/sma*
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Thomas Gleixner <tglx@kernel.org>
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	Documentation/core-api/irq/irq-domain.rst
 F:	include/linux/irqdomain.h
@@ -13534,6 +13540,7 @@ IRQ SUBSYSTEM
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	include/linux/group_cpus.h
 F:	include/linux/irq.h
@@ -13547,6 +13554,7 @@ IRQCHIP DRIVERS
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	Documentation/devicetree/bindings/interrupt-controller/
 F:	drivers/irqchip/
@@ -14916,6 +14924,7 @@ M:	Boqun Feng <boqun@kernel.org> (LOCKDEP & RUST)
 R:	Waiman Long <longman@redhat.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
 F:	Documentation/locking/
 F:	arch/*/include/asm/spinlock*.h
@@ -19248,6 +19257,7 @@ OBJTOOL
 M:	Josh Poimboeuf <jpoimboe@kernel.org>
 M:	Peter Zijlstra <peterz@infradead.org>
 S:	Supported
+P:	Documentation/process/maintainer-tip.rst
 F:	include/linux/objtool*.h
 F:	tools/objtool/
 
@@ -20716,6 +20726,7 @@ L:	linux-perf-users@vger.kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 W:	https://perf.wiki.kernel.org/
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git perf/core
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/perf/perf-tools.git perf-tools
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/perf/perf-tools-next.git perf-tools-next
@@ -21033,6 +21044,7 @@ M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	fs/timerfd.c
 F:	include/linux/time_namespace.h
@@ -23713,6 +23725,7 @@ R:	Valentin Schneider <vschneid@redhat.com> (TOPOLOGY)
 R:	K Prateek Nayak <kprateek.nayak@amd.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
 F:	include/linux/preempt.h
 F:	include/linux/sched.h
@@ -28613,6 +28626,7 @@ M:	x86@kernel.org
 R:	"H. Peter Anvin" <hpa@zytor.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+P:	Documentation/process/maintainer-tip.rst
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core
 F:	Documentation/arch/x86/
 F:	Documentation/devicetree/bindings/x86/

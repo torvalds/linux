@@ -773,12 +773,15 @@ static void __machine_emergency_restart(int emergency)
 	machine_ops.emergency_restart();
 }
 
-static void native_machine_restart(char *__unused)
+static void native_machine_restart(char *command)
 {
 	pr_notice("machine restart\n");
 
 	if (!reboot_force)
 		machine_shutdown();
+
+	do_kernel_restart(command);
+
 	__machine_emergency_restart(0);
 }
 
