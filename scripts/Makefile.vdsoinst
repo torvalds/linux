@@ -19,9 +19,10 @@ __default: $$(dest)
 $$(dest): $(1) FORCE
 	$$(call cmd,install)
 
-# Some architectures create .build-id symlinks
-ifneq ($(filter arm s390 sparc x86, $(SRCARCH)),)
-link := $(install-dir)/.build-id/$$(shell $(READELF) -n $(1) | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p').debug
+build-id-file := $$(shell $(READELF) -n $(1) 2>/dev/null | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p')
+
+ifneq ($$(build-id-file),)
+link := $(install-dir)/.build-id/$$(build-id-file).debug
 
 __default: $$(link)
 $$(link): $$(dest) FORCE

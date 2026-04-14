@@ -33,9 +33,10 @@ Options:
     -v             Verbose operation (print more information about each header being checked).
 
 Environmental args:
-    ABIDIFF  Custom path to abidiff binary
-    CC       C compiler (default is "gcc")
-    ARCH     Target architecture for the UAPI check (default is host arch)
+    ABIDIFF        Custom path to abidiff binary
+    CROSS_COMPILE  Toolchain prefix for compiler
+    CC             C compiler (default is "\${CROSS_COMPILE}gcc")
+    ARCH           Target architecture for the UAPI check (default is host arch)
 
 Exit codes:
     $SUCCESS) Success
@@ -178,8 +179,11 @@ do_compile() {
 	local -r inc_dir="$1"
 	local -r header="$2"
 	local -r out="$3"
-	printf "int main(void) { return 0; }\n" | \
-		"$CC" -c \
+	printf "int f(void) { return 0; }\n" | \
+		"$CC" \
+		  -shared \
+		  -nostdlib \
+		  -fPIC \
 		  -o "$out" \
 		  -x c \
 		  -O0 \
@@ -187,6 +191,7 @@ do_compile() {
 		  -fno-eliminate-unused-debug-types \
 		  -g \
 		  "-I${inc_dir}" \
+		  "-Iusr/dummy-include" \
 		  -include "$header" \
 		  -
 }
@@ -195,7 +200,7 @@ do_compile() {
 run_make_headers_install() {
 	local -r ref="$1"
 	local -r install_dir="$(get_header_tree "$ref")"
-	make -j "$MAX_THREADS" ARCH="$ARCH" INSTALL_HDR_PATH="$install_dir" \
+	make -j "$MAX_THREADS" CROSS_COMPILE="${CROSS_COMPILE}" ARCH="$ARCH" INSTALL_HDR_PATH="$install_dir" \
 		headers_install > /dev/null
 }
 
@@ -404,7 +409,7 @@ min_version_is_satisfied() {
 # Make sure we have the tools we need and the arguments make sense
 check_deps() {
 	ABIDIFF="${ABIDIFF:-abidiff}"
-	CC="${CC:-gcc}"
+	CC="${CC:-${CROSS_COMPILE}gcc}"
 	ARCH="${ARCH:-$(uname -m)}"
 	if [ "$ARCH" = "x86_64" ]; then
 		ARCH="x86"

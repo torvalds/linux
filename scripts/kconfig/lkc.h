@@ -51,7 +51,8 @@ static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
 }
 
 /* util.c */
-const char *file_lookup(const char *name);
+const char *file_lookup(const char *name,
+			const char *parent_name, int parent_lineno);
 
 /* lexer.l */
 int yylex(void);

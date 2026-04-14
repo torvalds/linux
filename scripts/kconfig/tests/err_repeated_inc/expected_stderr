@@ -1,0 +1,2 @@
+Kconfig.inc1:4: error: Repeated inclusion of Kconfig.inc3
+Kconfig.inc2:3: note: Location of first inclusion of Kconfig.inc3
