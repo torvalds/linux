@@ -302,19 +302,17 @@ extern const char xen_early_idt_handler_array[NUM_EXCEPTION_VECTORS][XEN_EARLY_I
  * failure to fully clear the cached descriptor is only observable for
  * FS and GS.
  */
-#define __loadsegment_simple(seg, value)				\
-do {									\
-	unsigned short __val = (value);					\
-									\
-	asm volatile("						\n"	\
-		     "1:	movl %k0,%%" #seg "		\n"	\
+#define LOAD_SEGMENT(seg)						\
+static inline void __loadsegment_##seg(u16 value)			\
+{									\
+	asm volatile("1:	movl %k0,%%" #seg "\n"			\
 		     _ASM_EXTABLE_TYPE_REG(1b, 1b, EX_TYPE_ZERO_REG, %k0)\
-		     : "+r" (__val) : : "memory");			\
-} while (0)
+		     : "+r" (value) : : "memory");			\
+}
 
-#define __loadsegment_ss(value) __loadsegment_simple(ss, (value))
-#define __loadsegment_ds(value) __loadsegment_simple(ds, (value))
-#define __loadsegment_es(value) __loadsegment_simple(es, (value))
+LOAD_SEGMENT(ss)
+LOAD_SEGMENT(ds)
+LOAD_SEGMENT(es)
 
 #ifdef CONFIG_X86_32
 
@@ -322,33 +320,48 @@ do {									\
  * On 32-bit systems, the hidden parts of FS and GS are unobservable if
  * the selector is NULL, so there's no funny business here.
  */
-#define __loadsegment_fs(value) __loadsegment_simple(fs, (value))
-#define __loadsegment_gs(value) __loadsegment_simple(gs, (value))
+LOAD_SEGMENT(fs)
+LOAD_SEGMENT(gs)
 
 #else
 
-static inline void __loadsegment_fs(unsigned short value)
+static inline void __loadsegment_fs(u16 value)
 {
-	asm volatile("						\n"
-		     "1:	movw %0, %%fs			\n"
-		     "2:					\n"
-
+	asm volatile("1:	movw %0, %%fs\n"
+		     "2:\n"
 		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_CLEAR_FS)
-
-		     : : "rm" (value) : "memory");
+		     : : ASM_INPUT_RM (value) : "memory");
 }
 
 /* __loadsegment_gs is intentionally undefined.  Use load_gs_index instead. */
 
 #endif
 
-#define loadsegment(seg, value) __loadsegment_ ## seg (value)
+#undef LOAD_SEGMENT
+
+#define loadsegment(seg, val) __loadsegment_##seg(val)
 
 /*
  * Save a segment register away:
  */
-#define savesegment(seg, value)				\
-	asm("movl %%" #seg ",%k0" : "=r" (value) : : "memory")
+#define SAVE_SEGMENT(seg)				\
+static inline unsigned long __savesegment_##seg(void)	\
+{							\
+	unsigned long v;				\
+	asm volatile("movl %%" #seg ",%k0" : "=r" (v));	\
+	return v;					\
+}
+
+SAVE_SEGMENT(cs)
+SAVE_SEGMENT(ss)
+SAVE_SEGMENT(ds)
+SAVE_SEGMENT(es)
+SAVE_SEGMENT(fs)
+SAVE_SEGMENT(gs)
+
+#undef SAVE_SEGMENT
+
+#define savesegment(seg, var) ((var) = __savesegment_##seg())
 
 #endif /* !__ASSEMBLER__ */
 #endif /* __KERNEL__ */

@@ -104,10 +104,10 @@ void __show_regs(struct pt_regs *regs, enum show_regs_mode mode,
 		return;
 	}
 
-	asm("movl %%ds,%0" : "=r" (ds));
-	asm("movl %%es,%0" : "=r" (es));
-	asm("movl %%fs,%0" : "=r" (fsindex));
-	asm("movl %%gs,%0" : "=r" (gsindex));
+	savesegment(ds, ds);
+	savesegment(es, es);
+	savesegment(fs, fsindex);
+	savesegment(gs, gsindex);
 
 	rdmsrq(MSR_FS_BASE, fs);
 	rdmsrq(MSR_GS_BASE, gs);
