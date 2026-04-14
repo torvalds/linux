@@ -191,13 +191,18 @@ fail:
 	return -1;
 }
 
-static void bonding_cleanup(struct skeletons *skeletons)
+static void link_cleanup(struct skeletons *skeletons)
 {
-	restore_root_netns();
 	while (skeletons->nlinks) {
 		skeletons->nlinks--;
 		bpf_link__destroy(skeletons->links[skeletons->nlinks]);
 	}
+}
+
+static void bonding_cleanup(struct skeletons *skeletons)
+{
+	restore_root_netns();
+	link_cleanup(skeletons);
 	ASSERT_OK(system("ip link delete bond1"), "delete bond1");
 	ASSERT_OK(system("ip link delete veth1_1"), "delete veth1_1");
 	ASSERT_OK(system("ip link delete veth1_2"), "delete veth1_2");
@@ -493,6 +498,90 @@ out:
 	system("ip link del bond_nest2");
 }
 
+/*
+ * Test that XDP redirect via xdp_master_redirect() does not crash when
+ * the bond master device is not up. When bond is in round-robin mode but
+ * never opened, rr_tx_counter is NULL.
+ */
+static void test_xdp_bonding_redirect_no_up(struct skeletons *skeletons)
+{
+	struct nstoken *nstoken = NULL;
+	int xdp_pass_fd;
+	int veth1_ifindex;
+	int err;
+	char pkt[ETH_HLEN + 1];
+	struct xdp_md ctx_in = {};
+
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
+			    .data_in = &pkt,
+			    .data_size_in = sizeof(pkt),
+			    .ctx_in = &ctx_in,
+			    .ctx_size_in = sizeof(ctx_in),
+			    .flags = BPF_F_TEST_XDP_LIVE_FRAMES,
+			    .repeat = 1,
+			    .batch_size = 1,
+		);
+
+	/* We can't use bonding_setup() because bond will be active */
+	SYS(out, "ip netns add ns_rr_no_up");
+	nstoken = open_netns("ns_rr_no_up");
+	if (!ASSERT_OK_PTR(nstoken, "open ns_rr_no_up"))
+		goto out;
+
+	/* bond0: active-backup, UP with slave veth0.
+	 * Attaching native XDP to bond0 enables bpf_master_redirect_enabled_key
+	 * globally.
+	 */
+	SYS(out, "ip link add bond0 type bond mode active-backup");
+	SYS(out, "ip link add veth0 type veth peer name veth0p");
+	SYS(out, "ip link set veth0 master bond0");
+	SYS(out, "ip link set bond0 up");
+	SYS(out, "ip link set veth0p up");
+
+	/* bond1: round-robin, never UP -> rr_tx_counter stays NULL */
+	SYS(out, "ip link add bond1 type bond mode balance-rr");
+	SYS(out, "ip link add veth1 type veth peer name veth1p");
+	SYS(out, "ip link set veth1 master bond1");
+
+	veth1_ifindex = if_nametoindex("veth1");
+	if (!ASSERT_GT(veth1_ifindex, 0, "veth1_ifindex"))
+		goto out;
+
+	/* Attach native XDP to bond0 -> enables global redirect key */
+	if (xdp_attach(skeletons, skeletons->xdp_tx->progs.xdp_tx, "bond0"))
+		goto out;
+
+	/* Attach generic XDP (XDP_TX) to veth1.
+	 * When packets arrive at veth1 via netif_receive_skb, do_xdp_generic()
+	 * runs this program. XDP_TX + bond slave triggers xdp_master_redirect().
+	 */
+	err = bpf_xdp_attach(veth1_ifindex,
+			     bpf_program__fd(skeletons->xdp_tx->progs.xdp_tx),
+			     XDP_FLAGS_SKB_MODE, NULL);
+	if (!ASSERT_OK(err, "attach generic XDP to veth1"))
+		goto out;
+
+	/* Run BPF_PROG_TEST_RUN with XDP_PASS live frames on veth1.
+	 * XDP_PASS frames become SKBs with skb->dev = veth1, entering
+	 * netif_receive_skb -> do_xdp_generic -> xdp_master_redirect.
+	 * Without the fix, bond_rr_gen_slave_id() dereferences NULL
+	 * rr_tx_counter and crashes.
+	 */
+	xdp_pass_fd = bpf_program__fd(skeletons->xdp_dummy->progs.xdp_dummy_prog);
+
+	memset(pkt, 0, sizeof(pkt));
+	ctx_in.data_end = sizeof(pkt);
+	ctx_in.ingress_ifindex = veth1_ifindex;
+
+	err = bpf_prog_test_run_opts(xdp_pass_fd, &opts);
+	ASSERT_OK(err, "xdp_pass test_run should not crash");
+
+out:
+	link_cleanup(skeletons);
+	close_netns(nstoken);
+	SYS_NOFAIL("ip netns del ns_rr_no_up");
+}
+
 static void test_xdp_bonding_features(struct skeletons *skeletons)
 {
 	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
@@ -737,6 +826,9 @@ void serial_test_xdp_bonding(void)
 
 	if (test__start_subtest("xdp_bonding_redirect_multi"))
 		test_xdp_bonding_redirect_multi(&skeletons);
+
+	if (test__start_subtest("xdp_bonding_redirect_no_up"))
+		test_xdp_bonding_redirect_no_up(&skeletons);
 
 out:
 	xdp_dummy__destroy(skeletons.xdp_dummy);
