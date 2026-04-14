@@ -1321,8 +1321,9 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__u32	tid,
 		__u64	sesid,
 		int	create_options,
-		int	desired_access),
-	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access),
+		int	desired_access,
+		__u8	oplock),
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access, oplock),
 	TP_STRUCT__entry(
 		__field(unsigned int, xid)
 		__field(__u64, fid)
@@ -1330,6 +1331,7 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__field(__u64, sesid)
 		__field(int, create_options)
 		__field(int, desired_access)
+		__field(__u8, oplock)
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
@@ -1338,10 +1340,11 @@ DECLARE_EVENT_CLASS(smb3_open_done_class,
 		__entry->sesid = sesid;
 		__entry->create_options = create_options;
 		__entry->desired_access = desired_access;
+		__entry->oplock = oplock;
 	),
-	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx cr_opts=0x%x des_access=0x%x",
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx cr_opts=0x%x des_access=0x%x oplock=0x%x",
 		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
-		__entry->create_options, __entry->desired_access)
+		__entry->create_options, __entry->desired_access, __entry->oplock)
 )
 
 #define DEFINE_SMB3_OPEN_DONE_EVENT(name)        \
@@ -1351,8 +1354,9 @@ DEFINE_EVENT(smb3_open_done_class, smb3_##name,  \
 		__u32	tid,			\
 		__u64	sesid,			\
 		int	create_options,		\
-		int	desired_access),	\
-	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access))
+		int	desired_access,		\
+		__u8	oplock),		\
+	TP_ARGS(xid, fid, tid, sesid, create_options, desired_access, oplock))
 
 DEFINE_SMB3_OPEN_DONE_EVENT(open_done);
 DEFINE_SMB3_OPEN_DONE_EVENT(posix_mkdir_done);
