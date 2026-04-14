@@ -258,6 +258,15 @@ class NetDrvEpEnv(NetDrvEnvBase):
         if nsim_test is False and self._ns is not None:
             raise KsftXfailEx("Test does not work on netdevsim")
 
+    def get_local_nsim_dev(self):
+        """Returns the local netdevsim device or None.
+           Using this method is discouraged, as it makes tests nsim-specific.
+           Standard interfaces available on all HW should ideally be used.
+           This method is intended for the few cases where nsim-specific
+           assertions need to be verified which cannot be verified otherwise.
+        """
+        return self._ns
+
     def _require_cmd(self, comm, key, host=None):
         cached = self._required_cmd.get(comm, {})
         if cached.get(key) is None:

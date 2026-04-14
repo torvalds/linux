@@ -3592,6 +3592,16 @@ E: wsalamon@tislabs.com
 E: wsalamon@nai.com
 D: portions of the Linux Security Module (LSM) framework and security modules
 
+N: Salil Mehta
+E: salil.mehta@opnsrc.net
+D: Co-authored Huawei/HiSilicon Kunpeng 920 SoC HNS3 PF and VF 100G
+D: Ethernet driver
+D: Co-authored Huawei/HiSilicon Kunpeng 916 SoC HNS 10G Ethernet
+D: driver enhancements
+D: Maintained Huawei/HiSilicon HNS and HNS3 10G/100G Ethernet drivers
+D: for Kunpeng 916 family, 920 family of SoCs
+S: Cambridge, Cambridgeshire, United Kingdom
+
 N: Robert Sanders
 E: gt8134b@prism.gatech.edu
 D: Dosemu
