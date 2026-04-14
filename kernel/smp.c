@@ -215,7 +215,7 @@ static atomic_t n_csd_lock_stuck;
 /**
  * csd_lock_is_stuck - Has a CSD-lock acquisition been stuck too long?
  *
- * Returns @true if a CSD-lock acquisition is stuck and has been stuck
+ * Returns: @true if a CSD-lock acquisition is stuck and has been stuck
  * long enough for a "non-responsive CSD lock" message to be printed.
  */
 bool csd_lock_is_stuck(void)
@@ -376,6 +376,20 @@ static __always_inline void csd_unlock(call_single_data_t *csd)
 }
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);
+
+#ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
+static call_single_data_t *get_single_csd_data(int cpu)
+{
+	if (static_branch_unlikely(&csdlock_debug_enabled))
+		return per_cpu_ptr(&csd_data, cpu);
+	return this_cpu_ptr(&csd_data);
+}
+#else
+static call_single_data_t *get_single_csd_data(int cpu)
+{
+	return this_cpu_ptr(&csd_data);
+}
+#endif
 
 void __smp_call_single_queue(int cpu, struct llist_node *node)
 {
@@ -625,13 +639,14 @@ void flush_smp_call_function_queue(void)
 	local_irq_restore(flags);
 }
 
-/*
+/**
  * smp_call_function_single - Run a function on a specific CPU
+ * @cpu: Specific target CPU for this function.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait until function has completed on other CPUs.
  *
- * Returns 0 on success, else a negative status code.
+ * Returns: %0 on success, else a negative status code.
  */
 int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 			     int wait)
@@ -670,14 +685,14 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 
 	csd = &csd_stack;
 	if (!wait) {
-		csd = this_cpu_ptr(&csd_data);
+		csd = get_single_csd_data(cpu);
 		csd_lock(csd);
 	}
 
 	csd->func = func;
 	csd->info = info;
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
-	csd->node.src = smp_processor_id();
+	csd->node.src = this_cpu;
 	csd->node.dst = cpu;
 #endif
 
@@ -738,18 +753,18 @@ out:
 }
 EXPORT_SYMBOL_GPL(smp_call_function_single_async);
 
-/*
+/**
  * smp_call_function_any - Run a function on any of the given cpus
  * @mask: The mask of cpus it can run on.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait until function has completed.
  *
- * Returns 0 on success, else a negative status code (if no cpus were online).
- *
  * Selection preference:
  *	1) current cpu if in @mask
  *	2) nearest cpu in @mask, based on NUMA topology
+ *
+ * Returns: %0 on success, else a negative status code (if no cpus were online).
  */
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait)
@@ -832,7 +847,7 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 			csd->func = func;
 			csd->info = info;
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
-			csd->node.src = smp_processor_id();
+			csd->node.src = this_cpu;
 			csd->node.dst = cpu;
 #endif
 			trace_csd_queue_cpu(cpu, _RET_IP_, func, csd);
@@ -880,7 +895,7 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 }
 
 /**
- * smp_call_function_many(): Run a function on a set of CPUs.
+ * smp_call_function_many() - Run a function on a set of CPUs.
  * @mask: The set of cpus to run on (only runs on online subset).
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
@@ -902,13 +917,11 @@ void smp_call_function_many(const struct cpumask *mask,
 EXPORT_SYMBOL(smp_call_function_many);
 
 /**
- * smp_call_function(): Run a function on all other CPUs.
+ * smp_call_function() - Run a function on all other CPUs.
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed
  *        on other CPUs.
- *
- * Returns 0.
  *
  * If @wait is true, then returns once @func has returned; otherwise
  * it returns just before the target cpu calls @func.
@@ -1009,8 +1022,8 @@ void __init smp_init(void)
 	smp_cpus_done(setup_max_cpus);
 }
 
-/*
- * on_each_cpu_cond(): Call a function on each processor for which
+/**
+ * on_each_cpu_cond_mask() - Call a function on each processor for which
  * the supplied function cond_func returns true, optionally waiting
  * for all the required CPUs to finish. This may include the local
  * processor.
@@ -1024,6 +1037,7 @@ void __init smp_init(void)
  * @info:	An arbitrary pointer to pass to both functions.
  * @wait:	If true, wait (atomically) until function has
  *		completed on other CPUs.
+ * @mask:	The set of cpus to run on (only runs on online subset).
  *
  * Preemption is disabled to protect against CPUs going offline but not online.
  * CPUs going online during the call will not be seen or sent an IPI.
@@ -1095,7 +1109,7 @@ EXPORT_SYMBOL_GPL(wake_up_all_idle_cpus);
  * scheduled, for any of the CPUs in the @mask. It does not guarantee
  * correctness as it only provides a racy snapshot.
  *
- * Returns true if there is a pending IPI scheduled and false otherwise.
+ * Returns: true if there is a pending IPI scheduled and false otherwise.
  */
 bool cpus_peek_for_pending_ipi(const struct cpumask *mask)
 {
@@ -1145,6 +1159,18 @@ static void smp_call_on_cpu_callback(struct work_struct *work)
 	complete(&sscs->done);
 }
 
+/**
+ * smp_call_on_cpu() - Call a function on a specific CPU and wait
+ *	for it to return.
+ * @cpu: The CPU to run on.
+ * @func: The function to run
+ * @par: An arbitrary pointer parameter for @func.
+ * @phys: If @true, force to run on physical @cpu. See
+ *	&struct smp_call_on_cpu_struct for more info.
+ *
+ * Returns: %-ENXIO if the @cpu is invalid; otherwise the return value
+ *	from @func.
+ */
 int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
 {
 	struct smp_call_on_cpu_struct sscs = {
@@ -1159,7 +1185,7 @@ int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par, bool phys)
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;
 
-	queue_work_on(cpu, system_wq, &sscs.work);
+	queue_work_on(cpu, system_percpu_wq, &sscs.work);
 	wait_for_completion(&sscs.done);
 	destroy_work_on_stack(&sscs.work);
 
