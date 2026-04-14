@@ -1163,12 +1163,9 @@ struct task_struct {
 	/*
 	 * executable name, excluding path.
 	 *
-	 * - normally initialized begin_new_exec()
-	 * - set it with set_task_comm()
-	 *   - strscpy_pad() to ensure it is always NUL-terminated and
-	 *     zero-padded
-	 *   - task_lock() to ensure the operation is atomic and the name is
-	 *     fully updated.
+	 * - normally initialized by begin_new_exec()
+	 * - set it with set_task_comm() to ensure it is always
+	 *   NUL-terminated and zero-padded
 	 */
 	char				comm[TASK_COMM_LEN];
 

@@ -1074,7 +1074,7 @@ static int unshare_sighand(struct task_struct *me)
  */
 void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 {
-	size_t len = min(strlen(buf), sizeof(tsk->comm) - 1);
+	size_t len = strnlen(buf, sizeof(tsk->comm) - 1);
 
 	trace_task_rename(tsk, buf);
 	memcpy(tsk->comm, buf, len);
