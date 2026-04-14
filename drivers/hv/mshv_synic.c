@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/random.h>
 #include <linux/cpuhotplug.h>
 #include <linux/reboot.h>
 #include <asm/mshyperv.h>
@@ -445,8 +444,6 @@ void mshv_isr(void)
 		mb();
 		if (msg->header.message_flags.msg_pending)
 			hv_set_non_nested_msr(HV_MSR_EOM, 0);
-
-		add_interrupt_randomness(mshv_sint_vector);
 	} else {
 		pr_warn_once("%s: unknown message type 0x%x\n", __func__,
 			     msg->header.message_type);
