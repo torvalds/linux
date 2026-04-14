@@ -163,7 +163,7 @@ struct edac_device_ctl_info {
 	 * If attributes are desired, then set to array of attributes
 	 * If no attributes are desired, leave NULL
 	 */
-	struct edac_dev_sysfs_attribute *sysfs_attributes;
+	const struct edac_dev_sysfs_attribute *sysfs_attributes;
 
 	/* pointer to main 'edac' subsys in sysfs */
 	const struct bus_type *edac_subsys;

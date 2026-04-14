@@ -68,7 +68,7 @@ static ssize_t instance_npe_count_show(struct edac_pci_ctl_info *pci,
 }
 
 #define to_instance(k) container_of(k, struct edac_pci_ctl_info, kobj)
-#define to_instance_attr(a) container_of(a, struct instance_attribute, attr)
+#define to_instance_attr(a) container_of_const(a, struct instance_attribute, attr)
 
 /* DEVICE instance kobject release() function */
 static void edac_pci_instance_release(struct kobject *kobj)
@@ -98,7 +98,7 @@ static ssize_t edac_pci_instance_show(struct kobject *kobj,
 				struct attribute *attr, char *buffer)
 {
 	struct edac_pci_ctl_info *pci = to_instance(kobj);
-	struct instance_attribute *instance_attr = to_instance_attr(attr);
+	const struct instance_attribute *instance_attr = to_instance_attr(attr);
 
 	if (instance_attr->show)
 		return instance_attr->show(pci, buffer);
@@ -111,7 +111,7 @@ static ssize_t edac_pci_instance_store(struct kobject *kobj,
 				const char *buffer, size_t count)
 {
 	struct edac_pci_ctl_info *pci = to_instance(kobj);
-	struct instance_attribute *instance_attr = to_instance_attr(attr);
+	const struct instance_attribute *instance_attr = to_instance_attr(attr);
 
 	if (instance_attr->store)
 		return instance_attr->store(pci, buffer, count);
@@ -125,7 +125,7 @@ static const struct sysfs_ops pci_instance_ops = {
 };
 
 #define INSTANCE_ATTR(_name, _mode, _show, _store)	\
-static struct instance_attribute attr_instance_##_name = {	\
+static const struct instance_attribute attr_instance_##_name = {	\
 	.attr	= {.name = __stringify(_name), .mode = _mode },	\
 	.show	= _show,					\
 	.store	= _store,					\
@@ -135,7 +135,7 @@ INSTANCE_ATTR(pe_count, S_IRUGO, instance_pe_count_show, NULL);
 INSTANCE_ATTR(npe_count, S_IRUGO, instance_npe_count_show, NULL);
 
 /* pci instance attributes */
-static struct attribute *pci_instance_attrs[] = {
+static const struct attribute *const pci_instance_attrs[] = {
 	&attr_instance_pe_count.attr,
 	&attr_instance_npe_count.attr,
 	NULL
