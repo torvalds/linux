@@ -4901,6 +4901,9 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/netkit.c
 F:	include/net/netkit.h
+F:	tools/testing/selftests/bpf/prog_tests/tc_netkit.c
+F:	tools/testing/selftests/drivers/net/hw/nk_qlease.py
+F:	tools/testing/selftests/net/nk_qlease.py
 
 BPF [NETWORKING] (struct_ops, reuseport)
 M:	Martin KaFai Lau <martin.lau@linux.dev>
