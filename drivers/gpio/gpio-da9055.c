@@ -55,7 +55,7 @@ static int da9055_gpio_get(struct gpio_chip *gc, unsigned offset)
 			return ret;
 	}
 
-	return ret & (1 << offset);
+	return !!(ret & (1 << offset));
 
 }
 

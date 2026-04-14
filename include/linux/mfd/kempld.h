@@ -37,6 +37,7 @@
 #define KEMPLD_SPEC_GET_MINOR(x)	(x & 0x0f)
 #define KEMPLD_SPEC_GET_MAJOR(x)	((x >> 4) & 0x0f)
 #define KEMPLD_IRQ_GPIO			0x35
+#define KEMPLD_IRQ_GPIO_MASK		0x0f
 #define KEMPLD_IRQ_I2C			0x36
 #define KEMPLD_CFG			0x37
 #define KEMPLD_CFG_GPIO_I2C_MUX		(1 << 0)

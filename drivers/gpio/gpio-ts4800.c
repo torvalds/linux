@@ -11,7 +11,6 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
-#define DEFAULT_PIN_NUMBER      16
 #define INPUT_REG_OFFSET        0x00
 #define OUTPUT_REG_OFFSET       0x02
 #define DIRECTION_REG_OFFSET    0x04
@@ -23,7 +22,6 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	struct gpio_generic_chip *chip;
 	void __iomem *base_addr;
 	int retval;
-	u32 ngpios;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -32,12 +30,6 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
-
-	retval = device_property_read_u32(dev, "ngpios", &ngpios);
-	if (retval == -EINVAL)
-		ngpios = DEFAULT_PIN_NUMBER;
-	else if (retval)
-		return retval;
 
 	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
@@ -51,8 +43,6 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 	if (retval)
 		return dev_err_probe(dev, retval,
 				     "failed to initialize the generic GPIO chip\n");
-
-	chip->gc.ngpio = ngpios;
 
 	return devm_gpiochip_add_data(dev, &chip->gc, NULL);
 }

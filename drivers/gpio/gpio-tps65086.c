@@ -50,7 +50,7 @@ static int tps65086_gpio_get(struct gpio_chip *chip, unsigned offset)
 	if (ret < 0)
 		return ret;
 
-	return val & BIT(4 + offset);
+	return !!(val & BIT(4 + offset));
 }
 
 static int tps65086_gpio_set(struct gpio_chip *chip, unsigned int offset,

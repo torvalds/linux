@@ -288,7 +288,7 @@ static int vprbrd_gpiob_get(struct gpio_chip *chip,
 
 	/* if io is set to output, just return the saved value */
 	if (gpio->gpiob_out & (1 << offset))
-		return gpio->gpiob_val & (1 << offset);
+		return !!(gpio->gpiob_val & (1 << offset));
 
 	mutex_lock(&vb->lock);
 

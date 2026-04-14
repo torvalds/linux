@@ -983,10 +983,10 @@ void gpiod_unexport(struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
-int gpiochip_sysfs_register(struct gpio_device *gdev)
+int gpiochip_sysfs_register(struct gpio_chip *gc)
 {
+	struct gpio_device *gdev = gc->gpiodev;
 	struct gpiodev_data *data;
-	struct gpio_chip *chip;
 	struct device *parent;
 	int err;
 
@@ -999,18 +999,12 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	if (!class_is_registered(&gpio_class))
 		return 0;
 
-	guard(srcu)(&gdev->srcu);
-
-	chip = srcu_dereference(gdev->chip, &gdev->srcu);
-	if (!chip)
-		return -ENODEV;
-
 	/*
 	 * For sysfs backward compatibility we need to preserve this
 	 * preferred parenting to the gpio_chip parent field, if set.
 	 */
-	if (chip->parent)
-		parent = chip->parent;
+	if (gc->parent)
+		parent = gc->parent;
 	else
 		parent = &gdev->dev;
 
@@ -1029,7 +1023,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 						    MKDEV(0, 0), data,
 						    gpiochip_groups,
 						    GPIOCHIP_NAME "%d",
-						    chip->base);
+						    gc->base);
 	if (IS_ERR(data->cdev_base)) {
 		err = PTR_ERR(data->cdev_base);
 		kfree(data);
@@ -1053,11 +1047,11 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	return 0;
 }
 
-void gpiochip_sysfs_unregister(struct gpio_device *gdev)
+void gpiochip_sysfs_unregister(struct gpio_chip *gc)
 {
+	struct gpio_device *gdev = gc->gpiodev;
 	struct gpiodev_data *data;
 	struct gpio_desc *desc;
-	struct gpio_chip *chip;
 
 	guard(mutex)(&sysfs_lock);
 
@@ -1065,13 +1059,8 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 	if (!data)
 		return;
 
-	guard(srcu)(&gdev->srcu);
-	chip = srcu_dereference(gdev->chip, &gdev->srcu);
-	if (!chip)
-		return;
-
 	/* unregister gpiod class devices owned by sysfs */
-	for_each_gpio_desc_with_flag(chip, desc, GPIOD_FLAG_SYSFS) {
+	for_each_gpio_desc_with_flag(gc, desc, GPIOD_FLAG_SYSFS) {
 		gpiod_unexport_unlocked(desc);
 		gpiod_free(desc);
 	}
@@ -1090,10 +1079,9 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
  */
 static int gpiofind_sysfs_register(struct gpio_chip *gc, const void *data)
 {
-	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	ret = gpiochip_sysfs_register(gdev);
+	ret = gpiochip_sysfs_register(gc);
 	if (ret)
 		gpiochip_err(gc, "failed to register the sysfs entry: %d\n", ret);
 
