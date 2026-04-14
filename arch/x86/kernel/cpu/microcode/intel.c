@@ -120,19 +120,44 @@ static inline unsigned int exttable_size(struct extended_sigtable *et)
 	return et->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE;
 }
 
+
+/*
+ * Use CPUID to generate a "vfm" value. Useful before cpuinfo_x86
+ * structures are populated.
+ */
+static u32 intel_cpuid_vfm(void)
+{
+	u32 eax   = cpuid_eax(1);
+	u32 fam   = x86_family(eax);
+	u32 model = x86_model(eax);
+
+	return IFM(fam, model);
+}
+
+u32 intel_get_platform_id(void)
+{
+	unsigned int val[2];
+
+	/*
+	 * This can be called early. Use CPUID directly instead of
+	 * relying on cpuinfo_x86 which may not be fully initialized.
+	 * The PII does not have MSR_IA32_PLATFORM_ID. Everything
+	 * before _it_ has no microcode (for Linux at least).
+	 */
+	if (intel_cpuid_vfm() <= INTEL_PENTIUM_II_KLAMATH)
+		return 0;
+
+	/* get processor flags from MSR 0x17 */
+	native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
+
+	return (val[1] >> 18) & 7;
+}
+
 void intel_collect_cpu_info(struct cpu_signature *sig)
 {
 	sig->sig = cpuid_eax(1);
-	sig->pf = 0;
 	sig->rev = intel_get_microcode_revision();
-
-	if (IFM(x86_family(sig->sig), x86_model(sig->sig)) >= INTEL_PENTIUM_III_DESCHUTES) {
-		unsigned int val[2];
-
-		/* get processor flags from MSR 0x17 */
-		native_rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
-		sig->pf = 1 << ((val[1] >> 18) & 7);
-	}
+	sig->pf  = 1 << intel_get_platform_id();
 }
 EXPORT_SYMBOL_GPL(intel_collect_cpu_info);
 
@@ -142,8 +167,15 @@ static inline bool cpu_signatures_match(struct cpu_signature *s1, unsigned int s
 	if (s1->sig != sig2)
 		return false;
 
-	/* Processor flags are either both 0 or they intersect. */
-	return ((!s1->pf && !pf2) || (s1->pf & pf2));
+	/*
+	 * Consider an empty mask to match everything. This
+	 * should only occur for one CPU model, the PII.
+	 */
+	if (!pf2)
+		return true;
+
+	/* Is the CPU's platform ID in the signature mask? */
+	return s1->pf & pf2;
 }
 
 bool intel_find_matching_signature(void *mc, struct cpu_signature *sig)

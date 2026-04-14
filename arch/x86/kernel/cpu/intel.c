@@ -205,6 +205,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 	if (c->x86 >= 6 && !cpu_has(c, X86_FEATURE_IA64))
 		c->microcode = intel_get_microcode_revision();
+	c->intel_platform_id = intel_get_platform_id();
 
 	/* Now if any of them are set, check the blacklist and clear the lot */
 	if ((cpu_has(c, X86_FEATURE_SPEC_CTRL) ||

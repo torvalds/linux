@@ -76,6 +76,9 @@ const struct x86_cpu_id *x86_match_cpu(const struct x86_cpu_id *match)
 		if (m->steppings != X86_STEPPING_ANY &&
 		    !(BIT(c->x86_stepping) & m->steppings))
 			continue;
+		if (m->platform_mask != X86_PLATFORM_ANY &&
+		    !(BIT(c->intel_platform_id) & m->platform_mask))
+			continue;
 		if (m->feature != X86_FEATURE_ANY && !cpu_has(c, m->feature))
 			continue;
 		if (!x86_match_vendor_cpu_type(c, m))
