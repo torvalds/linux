@@ -48,7 +48,7 @@ config CRC_T10DIF_ARCH
 	bool
 	depends on CRC_T10DIF && CRC_OPTIMIZATIONS
 	default y if ARM && KERNEL_MODE_NEON
-	default y if ARM64 && KERNEL_MODE_NEON
+	default y if ARM64
 	default y if PPC64 && ALTIVEC
 	default y if RISCV && RISCV_ISA_ZBC
 	default y if X86
@@ -82,6 +82,7 @@ config CRC64
 config CRC64_ARCH
 	bool
 	depends on CRC64 && CRC_OPTIMIZATIONS
+	default y if ARM64
 	default y if RISCV && RISCV_ISA_ZBC && 64BIT
 	default y if X86_64
 
@@ -99,18 +100,27 @@ config CRC_OPTIMIZATIONS
 
 config CRC_KUNIT_TEST
 	tristate "KUnit tests for CRC functions" if !KUNIT_ALL_TESTS
-	depends on KUNIT
+	depends on KUNIT && (CRC7 || CRC16 || CRC_T10DIF || CRC32 || CRC64)
 	default KUNIT_ALL_TESTS
+	help
+	  Unit tests for the CRC library functions.
+
+	  This is intended to help people writing architecture-specific
+	  optimized versions.  If unsure, say N.
+
+config CRC_ENABLE_ALL_FOR_KUNIT
+	tristate "Enable all CRC functions for KUnit test"
+	depends on KUNIT
 	select CRC7
 	select CRC16
 	select CRC_T10DIF
 	select CRC32
 	select CRC64
 	help
-	  Unit tests for the CRC library functions.
+	  Enable all CRC functions that have test code in CRC_KUNIT_TEST.
 
-	  This is intended to help people writing architecture-specific
-	  optimized versions.  If unsure, say N.
+	  Enable this only if you'd like the CRC KUnit test suite to test all
+	  the CRC variants, even ones that wouldn't otherwise need to be built.
 
 config CRC_BENCHMARK
 	bool "Benchmark for the CRC functions"
