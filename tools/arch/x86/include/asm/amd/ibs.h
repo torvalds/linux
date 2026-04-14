@@ -77,7 +77,7 @@ union ibs_op_data {
 	__u64 val;
 	struct {
 		__u64	comp_to_ret_ctr:16,	/* 0-15: op completion to retire count */
-			tag_to_ret_ctr:16,	/* 15-31: op tag to retire count */
+			tag_to_ret_ctr:16,	/* 16-31: op tag to retire count */
 			reserved1:2,		/* 32-33: reserved */
 			op_return:1,		/* 34: return op */
 			op_brn_taken:1,		/* 35: taken branch op */
