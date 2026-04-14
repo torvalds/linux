@@ -6,7 +6,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 	.irp		b, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
@@ -70,11 +69,11 @@
 	.endm
 
 	/*
-	 * void sm3_ce_transform(struct sm3_state *sst, u8 const *src,
-	 *                       int blocks)
+	 * void sm3_ce_transform(struct sm3_block_state *state,
+	 *			 const u8 *data, size_t nblocks)
 	 */
 	.text
-SYM_TYPED_FUNC_START(sm3_ce_transform)
+SYM_FUNC_START(sm3_ce_transform)
 	/* load state */
 	ld1		{v8.4s-v9.4s}, [x0]
 	rev64		v8.4s, v8.4s
@@ -87,15 +86,15 @@ SYM_TYPED_FUNC_START(sm3_ce_transform)
 
 	/* load input */
 0:	ld1		{v0.16b-v3.16b}, [x1], #64
-	sub		w2, w2, #1
+	sub		x2, x2, #1
 
 	mov		v15.16b, v8.16b
 	mov		v16.16b, v9.16b
 
-CPU_LE(	rev32		v0.16b, v0.16b		)
-CPU_LE(	rev32		v1.16b, v1.16b		)
-CPU_LE(	rev32		v2.16b, v2.16b		)
-CPU_LE(	rev32		v3.16b, v3.16b		)
+	rev32		v0.16b, v0.16b
+	rev32		v1.16b, v1.16b
+	rev32		v2.16b, v2.16b
+	rev32		v3.16b, v3.16b
 
 	ext		v11.16b, v13.16b, v13.16b, #4
 
@@ -123,7 +122,7 @@ CPU_LE(	rev32		v3.16b, v3.16b		)
 	eor		v9.16b, v9.16b, v16.16b
 
 	/* handled all input blocks? */
-	cbnz		w2, 0b
+	cbnz		x2, 0b
 
 	/* save state */
 	rev64		v8.4s, v8.4s

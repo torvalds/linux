@@ -12279,10 +12279,10 @@ F:	arch/powerpc/crypto/aes_cbc.c
 F:	arch/powerpc/crypto/aes_ctr.c
 F:	arch/powerpc/crypto/aes_xts.c
 F:	arch/powerpc/crypto/aesp8-ppc.*
-F:	arch/powerpc/crypto/ghash.c
-F:	arch/powerpc/crypto/ghashp8-ppc.pl
 F:	arch/powerpc/crypto/ppc-xlate.pl
 F:	arch/powerpc/crypto/vmx.c
+F:	lib/crypto/powerpc/gf128hash.h
+F:	lib/crypto/powerpc/ghashp8-ppc.pl
 
 IBM ServeRAID RAID DRIVER
 S:	Orphan

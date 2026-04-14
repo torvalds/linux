@@ -1,34 +1,41 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * POLYVAL library functions
+ * GF(2^128) polynomial hashing: GHASH and POLYVAL
  *
  * Copyright 2025 Google LLC
  */
 
-#include <crypto/polyval.h>
+#include <crypto/gf128hash.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
 
 /*
- * POLYVAL is an almost-XOR-universal hash function.  Similar to GHASH, POLYVAL
- * interprets the message as the coefficients of a polynomial in GF(2^128) and
- * evaluates that polynomial at a secret point.  POLYVAL has a simple
- * mathematical relationship with GHASH, but it uses a better field convention
- * which makes it easier and faster to implement.
+ * GHASH and POLYVAL are almost-XOR-universal hash functions.  They interpret
+ * the message as the coefficients of a polynomial in the finite field GF(2^128)
+ * and evaluate that polynomial at a secret point.
  *
- * POLYVAL is not a cryptographic hash function, and it should be used only by
- * algorithms that are specifically designed to use it.
+ * Neither GHASH nor POLYVAL is a cryptographic hash function.  They should be
+ * used only by algorithms that are specifically designed to use them.
  *
- * POLYVAL is specified by "AES-GCM-SIV: Nonce Misuse-Resistant Authenticated
- * Encryption" (https://datatracker.ietf.org/doc/html/rfc8452)
+ * GHASH is the older variant, defined as part of GCM in NIST SP 800-38D
+ * (https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-38d.pdf).
+ * GHASH is hard to implement directly, due to its backwards mapping between
+ * bits and polynomial coefficients.  GHASH implementations typically pre and
+ * post-process the inputs and outputs (mainly by byte-swapping) to convert the
+ * GHASH computation into an equivalent computation over a different,
+ * easier-to-use representation of GF(2^128).
  *
- * POLYVAL is also used by HCTR2.  See "Length-preserving encryption with HCTR2"
- * (https://eprint.iacr.org/2021/1441.pdf).
+ * POLYVAL is a newer GF(2^128) polynomial hash, originally defined as part of
+ * AES-GCM-SIV (https://datatracker.ietf.org/doc/html/rfc8452) and also used by
+ * HCTR2 (https://eprint.iacr.org/2021/1441.pdf).  It uses that easier-to-use
+ * field representation directly, eliminating the data conversion steps.
  *
- * This file provides a library API for POLYVAL.  This API can delegate to
- * either a generic implementation or an architecture-optimized implementation.
+ * This file provides library APIs for GHASH and POLYVAL.  These APIs can
+ * delegate to either a generic implementation or an architecture-optimized
+ * implementation.  Due to the mathematical relationship between GHASH and
+ * POLYVAL, in some cases code for one is reused with the other.
  *
  * For the generic implementation, we don't use the traditional table approach
  * to GF(2^128) multiplication.  That approach is not constant-time and requires
@@ -205,6 +212,19 @@ polyval_mul_generic(struct polyval_elem *a, const struct polyval_elem *b)
 	a->hi = cpu_to_le64(c3);
 }
 
+static void __maybe_unused ghash_blocks_generic(struct polyval_elem *acc,
+						const struct polyval_elem *key,
+						const u8 *data, size_t nblocks)
+{
+	do {
+		acc->lo ^=
+			cpu_to_le64(get_unaligned_be64((__be64 *)(data + 8)));
+		acc->hi ^= cpu_to_le64(get_unaligned_be64((__be64 *)data));
+		polyval_mul_generic(acc, key);
+		data += GHASH_BLOCK_SIZE;
+	} while (--nblocks);
+}
+
 static void __maybe_unused
 polyval_blocks_generic(struct polyval_elem *acc, const struct polyval_elem *key,
 		       const u8 *data, size_t nblocks)
@@ -217,16 +237,118 @@ polyval_blocks_generic(struct polyval_elem *acc, const struct polyval_elem *key,
 	} while (--nblocks);
 }
 
-/* Include the arch-optimized implementation of POLYVAL, if one is available. */
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
-#include "polyval.h" /* $(SRCARCH)/polyval.h */
+/* Convert the key from GHASH format to POLYVAL format. */
+static void __maybe_unused ghash_key_to_polyval(const u8 in[GHASH_BLOCK_SIZE],
+						struct polyval_elem *out)
+{
+	u64 hi = get_unaligned_be64(&in[0]);
+	u64 lo = get_unaligned_be64(&in[8]);
+	u64 mask = (s64)hi >> 63;
+
+	hi = (hi << 1) ^ (lo >> 63) ^ (mask & ((u64)0xc2 << 56));
+	lo = (lo << 1) ^ (mask & 1);
+	out->lo = cpu_to_le64(lo);
+	out->hi = cpu_to_le64(hi);
+}
+
+/* Convert the accumulator from POLYVAL format to GHASH format. */
+static void polyval_acc_to_ghash(const struct polyval_elem *in,
+				 u8 out[GHASH_BLOCK_SIZE])
+{
+	put_unaligned_be64(le64_to_cpu(in->hi), &out[0]);
+	put_unaligned_be64(le64_to_cpu(in->lo), &out[8]);
+}
+
+/* Convert the accumulator from GHASH format to POLYVAL format. */
+static void __maybe_unused ghash_acc_to_polyval(const u8 in[GHASH_BLOCK_SIZE],
+						struct polyval_elem *out)
+{
+	out->lo = cpu_to_le64(get_unaligned_be64(&in[8]));
+	out->hi = cpu_to_le64(get_unaligned_be64(&in[0]));
+}
+
+#ifdef CONFIG_CRYPTO_LIB_GF128HASH_ARCH
+#include "gf128hash.h" /* $(SRCARCH)/gf128hash.h */
+#endif
+
+void ghash_preparekey(struct ghash_key *key, const u8 raw_key[GHASH_BLOCK_SIZE])
+{
+#ifdef ghash_preparekey_arch
+	ghash_preparekey_arch(key, raw_key);
+#else
+	ghash_key_to_polyval(raw_key, &key->h);
+#endif
+}
+EXPORT_SYMBOL_GPL(ghash_preparekey);
+
+static void ghash_mul(struct ghash_ctx *ctx)
+{
+#ifdef ghash_mul_arch
+	ghash_mul_arch(&ctx->acc, ctx->key);
+#elif defined(ghash_blocks_arch)
+	static const u8 zeroes[GHASH_BLOCK_SIZE];
+
+	ghash_blocks_arch(&ctx->acc, ctx->key, zeroes, 1);
+#else
+	polyval_mul_generic(&ctx->acc, &ctx->key->h);
+#endif
+}
+
+/* nblocks is always >= 1. */
+static void ghash_blocks(struct ghash_ctx *ctx, const u8 *data, size_t nblocks)
+{
+#ifdef ghash_blocks_arch
+	ghash_blocks_arch(&ctx->acc, ctx->key, data, nblocks);
+#else
+	ghash_blocks_generic(&ctx->acc, &ctx->key->h, data, nblocks);
+#endif
+}
+
+void ghash_update(struct ghash_ctx *ctx, const u8 *data, size_t len)
+{
+	if (unlikely(ctx->partial)) {
+		size_t n = min(len, GHASH_BLOCK_SIZE - ctx->partial);
+
+		len -= n;
+		while (n--)
+			ctx->acc.bytes[GHASH_BLOCK_SIZE - 1 - ctx->partial++] ^=
+				*data++;
+		if (ctx->partial < GHASH_BLOCK_SIZE)
+			return;
+		ghash_mul(ctx);
+	}
+	if (len >= GHASH_BLOCK_SIZE) {
+		size_t nblocks = len / GHASH_BLOCK_SIZE;
+
+		ghash_blocks(ctx, data, nblocks);
+		data += len & ~(GHASH_BLOCK_SIZE - 1);
+		len &= GHASH_BLOCK_SIZE - 1;
+	}
+	for (size_t i = 0; i < len; i++)
+		ctx->acc.bytes[GHASH_BLOCK_SIZE - 1 - i] ^= data[i];
+	ctx->partial = len;
+}
+EXPORT_SYMBOL_GPL(ghash_update);
+
+void ghash_final(struct ghash_ctx *ctx, u8 out[GHASH_BLOCK_SIZE])
+{
+	if (unlikely(ctx->partial))
+		ghash_mul(ctx);
+	polyval_acc_to_ghash(&ctx->acc, out);
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(ghash_final);
+
 void polyval_preparekey(struct polyval_key *key,
 			const u8 raw_key[POLYVAL_BLOCK_SIZE])
 {
+#ifdef polyval_preparekey_arch
 	polyval_preparekey_arch(key, raw_key);
+#else
+	memcpy(key->h.bytes, raw_key, POLYVAL_BLOCK_SIZE);
+#endif
 }
 EXPORT_SYMBOL_GPL(polyval_preparekey);
-#endif /* Else, polyval_preparekey() is an inline function. */
 
 /*
  * polyval_mul_generic() and polyval_blocks_generic() take the key as a
@@ -238,17 +360,22 @@ EXPORT_SYMBOL_GPL(polyval_preparekey);
 
 static void polyval_mul(struct polyval_ctx *ctx)
 {
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef polyval_mul_arch
 	polyval_mul_arch(&ctx->acc, ctx->key);
+#elif defined(polyval_blocks_arch)
+	static const u8 zeroes[POLYVAL_BLOCK_SIZE];
+
+	polyval_blocks_arch(&ctx->acc, ctx->key, zeroes, 1);
 #else
 	polyval_mul_generic(&ctx->acc, &ctx->key->h);
 #endif
 }
 
+/* nblocks is always >= 1. */
 static void polyval_blocks(struct polyval_ctx *ctx,
 			   const u8 *data, size_t nblocks)
 {
-#ifdef CONFIG_CRYPTO_LIB_POLYVAL_ARCH
+#ifdef polyval_blocks_arch
 	polyval_blocks_arch(&ctx->acc, ctx->key, data, nblocks);
 #else
 	polyval_blocks_generic(&ctx->acc, &ctx->key->h, data, nblocks);
@@ -289,19 +416,19 @@ void polyval_final(struct polyval_ctx *ctx, u8 out[POLYVAL_BLOCK_SIZE])
 }
 EXPORT_SYMBOL_GPL(polyval_final);
 
-#ifdef polyval_mod_init_arch
-static int __init polyval_mod_init(void)
+#ifdef gf128hash_mod_init_arch
+static int __init gf128hash_mod_init(void)
 {
-	polyval_mod_init_arch();
+	gf128hash_mod_init_arch();
 	return 0;
 }
-subsys_initcall(polyval_mod_init);
+subsys_initcall(gf128hash_mod_init);
 
-static void __exit polyval_mod_exit(void)
+static void __exit gf128hash_mod_exit(void)
 {
 }
-module_exit(polyval_mod_exit);
+module_exit(gf128hash_mod_exit);
 #endif
 
-MODULE_DESCRIPTION("POLYVAL almost-XOR-universal hash function");
+MODULE_DESCRIPTION("GF(2^128) polynomial hashing: GHASH and POLYVAL");
 MODULE_LICENSE("GPL");

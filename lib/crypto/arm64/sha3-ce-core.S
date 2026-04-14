@@ -37,8 +37,8 @@
 	.endm
 
 	/*
-	 * size_t sha3_ce_transform(struct sha3_state *state, const u8 *data,
-	 *			    size_t nblocks, size_t block_size)
+	 * void sha3_ce_transform(struct sha3_state *state, const u8 *data,
+	 *			  size_t nblocks, size_t block_size)
 	 *
 	 * block_size is assumed to be one of 72 (SHA3-512), 104 (SHA3-384), 136
 	 * (SHA3-256 and SHAKE256), 144 (SHA3-224), or 168 (SHAKE128).
@@ -185,18 +185,16 @@ SYM_FUNC_START(sha3_ce_transform)
 	eor	 v0.16b,  v0.16b, v31.16b
 
 	cbnz	w8, 3b
-	cond_yield 4f, x8, x9
 	cbnz	x2, 0b
 
 	/* save state */
-4:	st1	{ v0.1d- v3.1d}, [x0], #32
+	st1	{ v0.1d- v3.1d}, [x0], #32
 	st1	{ v4.1d- v7.1d}, [x0], #32
 	st1	{ v8.1d-v11.1d}, [x0], #32
 	st1	{v12.1d-v15.1d}, [x0], #32
 	st1	{v16.1d-v19.1d}, [x0], #32
 	st1	{v20.1d-v23.1d}, [x0], #32
 	st1	{v24.1d}, [x0]
-	mov	x0, x2
 	ret
 SYM_FUNC_END(sha3_ce_transform)
 

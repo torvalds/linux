@@ -3058,6 +3058,8 @@ config HW_BREAKPOINT_KUNIT_TEST
 
 	  If unsure, say N.
 
+source "lib/crypto/tests/Kconfig"
+
 config SIPHASH_KUNIT_TEST
 	tristate "Perform selftest on siphash functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT

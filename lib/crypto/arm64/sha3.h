@@ -12,22 +12,15 @@
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha3);
 
-asmlinkage size_t sha3_ce_transform(struct sha3_state *state, const u8 *data,
-				    size_t nblocks, size_t block_size);
+asmlinkage void sha3_ce_transform(struct sha3_state *state, const u8 *data,
+				  size_t nblocks, size_t block_size);
 
 static void sha3_absorb_blocks(struct sha3_state *state, const u8 *data,
 			       size_t nblocks, size_t block_size)
 {
 	if (static_branch_likely(&have_sha3) && likely(may_use_simd())) {
-		do {
-			size_t rem;
-
-			scoped_ksimd()
-				rem = sha3_ce_transform(state, data, nblocks,
-							block_size);
-			data += (nblocks - rem) * block_size;
-			nblocks = rem;
-		} while (nblocks);
+		scoped_ksimd()
+			sha3_ce_transform(state, data, nblocks, block_size);
 	} else {
 		sha3_absorb_blocks_generic(state, data, nblocks, block_size);
 	}

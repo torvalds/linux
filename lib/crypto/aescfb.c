@@ -6,28 +6,9 @@
  */
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 #include <linux/export.h>
 #include <linux/module.h>
-#include <asm/irqflags.h>
-
-static void aescfb_encrypt_block(const struct aes_enckey *key, void *dst,
-				 const void *src)
-{
-	unsigned long flags;
-
-	/*
-	 * In AES-CFB, the AES encryption operates on known 'plaintext' (the IV
-	 * and ciphertext), making it susceptible to timing attacks on the
-	 * encryption key. The AES library already mitigates this risk to some
-	 * extent by pulling the entire S-box into the caches before doing any
-	 * substitutions, but this strategy is more effective when running with
-	 * interrupts disabled.
-	 */
-	local_irq_save(flags);
-	aes_encrypt(key, dst, src);
-	local_irq_restore(flags);
-}
 
 /**
  * aescfb_encrypt - Perform AES-CFB encryption on a block of data
@@ -45,7 +26,7 @@ void aescfb_encrypt(const struct aes_enckey *key, u8 *dst, const u8 *src,
 	const u8 *v = iv;
 
 	while (len > 0) {
-		aescfb_encrypt_block(key, ks, v);
+		aes_encrypt(key, ks, v);
 		crypto_xor_cpy(dst, src, ks, min(len, AES_BLOCK_SIZE));
 		v = dst;
 
@@ -72,7 +53,7 @@ void aescfb_decrypt(const struct aes_enckey *key, u8 *dst, const u8 *src,
 {
 	u8 ks[2][AES_BLOCK_SIZE];
 
-	aescfb_encrypt_block(key, ks[0], iv);
+	aes_encrypt(key, ks[0], iv);
 
 	for (int i = 0; len > 0; i ^= 1) {
 		if (len > AES_BLOCK_SIZE)
@@ -81,7 +62,7 @@ void aescfb_decrypt(const struct aes_enckey *key, u8 *dst, const u8 *src,
 			 * performing the XOR, as that may update in place and
 			 * overwrite the ciphertext.
 			 */
-			aescfb_encrypt_block(key, ks[!i], src);
+			aes_encrypt(key, ks[!i], src);
 
 		crypto_xor_cpy(dst, src, ks[i], min(len, AES_BLOCK_SIZE));
 

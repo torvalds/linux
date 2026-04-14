@@ -31,6 +31,27 @@ DEFINE_X86_SHA256_FN(sha256_blocks_avx, sha256_transform_avx);
 DEFINE_X86_SHA256_FN(sha256_blocks_avx2, sha256_transform_rorx);
 DEFINE_X86_SHA256_FN(sha256_blocks_ni, sha256_ni_transform);
 
+#define PHE_ALIGNMENT 16
+static void sha256_blocks_phe(struct sha256_block_state *state,
+			      const u8 *data, size_t nblocks)
+{
+	/*
+	 * On Zhaoxin processors, XSHA256 requires the %rdi register
+	 * in 64-bit mode (or %edi in 32-bit mode) to point to
+	 * a 32-byte, 16-byte-aligned buffer.
+	 */
+	u8 buf[32 + PHE_ALIGNMENT - 1];
+	u8 *dst = PTR_ALIGN(&buf[0], PHE_ALIGNMENT);
+	size_t padding = -1;
+
+	memcpy(dst, state, SHA256_DIGEST_SIZE);
+	asm volatile(".byte 0xf3,0x0f,0xa6,0xd0" /* REP XSHA256 */
+		     : "+a"(padding), "+c"(nblocks), "+S"(data)
+		     : "D"(dst)
+		     : "memory");
+	memcpy(state, dst, SHA256_DIGEST_SIZE);
+}
+
 static void sha256_blocks(struct sha256_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
@@ -79,6 +100,10 @@ static void sha256_mod_init_arch(void)
 	if (boot_cpu_has(X86_FEATURE_SHA_NI)) {
 		static_call_update(sha256_blocks_x86, sha256_blocks_ni);
 		static_branch_enable(&have_sha_ni);
+	} else if (IS_ENABLED(CONFIG_CPU_SUP_ZHAOXIN) &&
+		   boot_cpu_has(X86_FEATURE_PHE_EN) &&
+		   boot_cpu_data.x86 >= 0x07) {
+		static_call_update(sha256_blocks_x86, sha256_blocks_phe);
 	} else if (cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM,
 				     NULL) &&
 		   boot_cpu_has(X86_FEATURE_AVX)) {

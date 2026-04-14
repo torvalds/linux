@@ -5,12 +5,6 @@
 # Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
 #
 
-obj-$(CONFIG_CRYPTO_SM3_NEON) += sm3-neon.o
-sm3-neon-y := sm3-neon-glue.o sm3-neon-core.o
-
-obj-$(CONFIG_CRYPTO_SM3_ARM64_CE) += sm3-ce.o
-sm3-ce-y := sm3-ce-glue.o sm3-ce-core.o
-
 obj-$(CONFIG_CRYPTO_SM4_ARM64_CE) += sm4-ce-cipher.o
 sm4-ce-cipher-y := sm4-ce-cipher-glue.o sm4-ce-cipher-core.o
 
@@ -33,10 +27,10 @@ obj-$(CONFIG_CRYPTO_AES_ARM64_CE_CCM) += aes-ce-ccm.o
 aes-ce-ccm-y := aes-ce-ccm-glue.o aes-ce-ccm-core.o
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_CE_BLK) += aes-ce-blk.o
-aes-ce-blk-y := aes-glue-ce.o aes-ce.o
+aes-ce-blk-y := aes-glue-ce.o
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_NEON_BLK) += aes-neon-blk.o
-aes-neon-blk-y := aes-glue-neon.o aes-neon.o
+aes-neon-blk-y := aes-glue-neon.o
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_BS) += aes-neon-bs.o
 aes-neon-bs-y := aes-neonbs-core.o aes-neonbs-glue.o

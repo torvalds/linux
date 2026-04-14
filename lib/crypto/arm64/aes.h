@@ -11,6 +11,7 @@
 #include <linux/unaligned.h>
 #include <linux/cpufeature.h>
 
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_aes);
 
 struct aes_block {
@@ -28,6 +29,9 @@ asmlinkage void __aes_ce_decrypt(const u32 inv_rk[], u8 out[AES_BLOCK_SIZE],
 asmlinkage u32 __aes_ce_sub(u32 l);
 asmlinkage void __aes_ce_invert(struct aes_block *out,
 				const struct aes_block *in);
+asmlinkage void neon_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+				    size_t blocks, u8 dg[], int enc_before,
+				    int enc_after);
 
 /*
  * Expand an AES key using the crypto extensions if supported and usable or
@@ -48,8 +52,7 @@ static void aes_expandkey_arm64(u32 rndkeys[], u32 *inv_rndkeys,
 	struct aes_block *key_enc, *key_dec;
 	int i, j;
 
-	if (!IS_ENABLED(CONFIG_KERNEL_MODE_NEON) ||
-	    !static_branch_likely(&have_aes) || unlikely(!may_use_simd())) {
+	if (!static_branch_likely(&have_aes) || unlikely(!may_use_simd())) {
 		aes_expandkey_generic(rndkeys, inv_rndkeys, in_key, key_len);
 		return;
 	}
@@ -126,12 +129,40 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 }
 EXPORT_SYMBOL(ce_aes_expandkey);
 
+EXPORT_SYMBOL_NS_GPL(neon_aes_ecb_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_ecb_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_cts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_cts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_ctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_essiv_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_essiv_cbc_decrypt, "CRYPTO_INTERNAL");
+
+EXPORT_SYMBOL_NS_GPL(ce_aes_ecb_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_ecb_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_cts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_cts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_ctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_essiv_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_essiv_cbc_decrypt, "CRYPTO_INTERNAL");
+#if IS_MODULE(CONFIG_CRYPTO_AES_ARM64_CE_CCM)
+EXPORT_SYMBOL_NS_GPL(ce_aes_mac_update, "CRYPTO_INTERNAL");
+#endif
+
 static void aes_encrypt_arch(const struct aes_enckey *key,
 			     u8 out[AES_BLOCK_SIZE],
 			     const u8 in[AES_BLOCK_SIZE])
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_aes) && likely(may_use_simd())) {
+	if (static_branch_likely(&have_aes) && likely(may_use_simd())) {
 		scoped_ksimd()
 			__aes_ce_encrypt(key->k.rndkeys, out, in, key->nrounds);
 	} else {
@@ -143,8 +174,7 @@ static void aes_decrypt_arch(const struct aes_key *key,
 			     u8 out[AES_BLOCK_SIZE],
 			     const u8 in[AES_BLOCK_SIZE])
 {
-	if (IS_ENABLED(CONFIG_KERNEL_MODE_NEON) &&
-	    static_branch_likely(&have_aes) && likely(may_use_simd())) {
+	if (static_branch_likely(&have_aes) && likely(may_use_simd())) {
 		scoped_ksimd()
 			__aes_ce_decrypt(key->inv_k.inv_rndkeys, out, in,
 					 key->nrounds);
@@ -154,11 +184,36 @@ static void aes_decrypt_arch(const struct aes_key *key,
 	}
 }
 
-#ifdef CONFIG_KERNEL_MODE_NEON
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC_MACS)
+#define aes_cbcmac_blocks_arch aes_cbcmac_blocks_arch
+static bool aes_cbcmac_blocks_arch(u8 h[AES_BLOCK_SIZE],
+				   const struct aes_enckey *key, const u8 *data,
+				   size_t nblocks, bool enc_before,
+				   bool enc_after)
+{
+	if (static_branch_likely(&have_neon) && likely(may_use_simd())) {
+		scoped_ksimd() {
+			if (static_branch_likely(&have_aes))
+				ce_aes_mac_update(data, key->k.rndkeys,
+						  key->nrounds, nblocks, h,
+						  enc_before, enc_after);
+			else
+				neon_aes_mac_update(data, key->k.rndkeys,
+						    key->nrounds, nblocks, h,
+						    enc_before, enc_after);
+		}
+		return true;
+	}
+	return false;
+}
+#endif /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */
+
 #define aes_mod_init_arch aes_mod_init_arch
 static void aes_mod_init_arch(void)
 {
-	if (cpu_have_named_feature(AES))
-		static_branch_enable(&have_aes);
+	if (cpu_have_named_feature(ASIMD)) {
+		static_branch_enable(&have_neon);
+		if (cpu_have_named_feature(AES))
+			static_branch_enable(&have_aes);
+	}
 }
-#endif /* CONFIG_KERNEL_MODE_NEON */

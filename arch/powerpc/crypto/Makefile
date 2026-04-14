@@ -11,7 +11,7 @@ obj-$(CONFIG_CRYPTO_DEV_VMX_ENCRYPT) += vmx-crypto.o
 
 aes-ppc-spe-y := aes-spe-glue.o
 aes-gcm-p10-crypto-y := aes-gcm-p10-glue.o aes-gcm-p10.o ghashp10-ppc.o aesp10-ppc.o
-vmx-crypto-objs := vmx.o ghashp8-ppc.o aes_cbc.o aes_ctr.o aes_xts.o ghash.o
+vmx-crypto-objs := vmx.o aes_cbc.o aes_ctr.o aes_xts.o
 
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
 override flavour := linux-ppc64le
@@ -26,14 +26,10 @@ endif
 quiet_cmd_perl = PERL    $@
       cmd_perl = $(PERL) $< $(flavour) > $@
 
-targets += aesp10-ppc.S ghashp10-ppc.S ghashp8-ppc.S
+targets += aesp10-ppc.S ghashp10-ppc.S
 
 $(obj)/aesp10-ppc.S $(obj)/ghashp10-ppc.S: $(obj)/%.S: $(src)/%.pl FORCE
 	$(call if_changed,perl)
 
-$(obj)/ghashp8-ppc.S: $(obj)/%.S: $(src)/%.pl FORCE
-	$(call if_changed,perl)
-
 OBJECT_FILES_NON_STANDARD_aesp10-ppc.o := y
 OBJECT_FILES_NON_STANDARD_ghashp10-ppc.o := y
-OBJECT_FILES_NON_STANDARD_ghashp8-ppc.o := y

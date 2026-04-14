@@ -93,11 +93,11 @@
 	.endm
 
 	/*
-	 * size_t __sha512_ce_transform(struct sha512_block_state *state,
-	 *				const u8 *data, size_t nblocks);
+	 * void sha512_ce_transform(struct sha512_block_state *state,
+	 *			    const u8 *data, size_t nblocks);
 	 */
 	.text
-SYM_FUNC_START(__sha512_ce_transform)
+SYM_FUNC_START(sha512_ce_transform)
 	/* load state */
 	ld1		{v8.2d-v11.2d}, [x0]
 
@@ -110,14 +110,14 @@ SYM_FUNC_START(__sha512_ce_transform)
 	ld1		{v16.2d-v19.2d}, [x1], #64
 	sub		x2, x2, #1
 
-CPU_LE(	rev64		v12.16b, v12.16b	)
-CPU_LE(	rev64		v13.16b, v13.16b	)
-CPU_LE(	rev64		v14.16b, v14.16b	)
-CPU_LE(	rev64		v15.16b, v15.16b	)
-CPU_LE(	rev64		v16.16b, v16.16b	)
-CPU_LE(	rev64		v17.16b, v17.16b	)
-CPU_LE(	rev64		v18.16b, v18.16b	)
-CPU_LE(	rev64		v19.16b, v19.16b	)
+	rev64		v12.16b, v12.16b
+	rev64		v13.16b, v13.16b
+	rev64		v14.16b, v14.16b
+	rev64		v15.16b, v15.16b
+	rev64		v16.16b, v16.16b
+	rev64		v17.16b, v17.16b
+	rev64		v18.16b, v18.16b
+	rev64		v19.16b, v19.16b
 
 	mov		x4, x3				// rc pointer
 
@@ -186,12 +186,10 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 	add		v10.2d, v10.2d, v2.2d
 	add		v11.2d, v11.2d, v3.2d
 
-	cond_yield	3f, x4, x5
 	/* handled all input blocks? */
 	cbnz		x2, 0b
 
 	/* store new state */
-3:	st1		{v8.2d-v11.2d}, [x0]
-	mov		x0, x2
+	st1		{v8.2d-v11.2d}, [x0]
 	ret
-SYM_FUNC_END(__sha512_ce_transform)
+SYM_FUNC_END(sha512_ce_transform)

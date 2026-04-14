@@ -356,20 +356,6 @@ bool chacha20poly1305_decrypt_sg_inplace(struct scatterlist *src, size_t src_len
 }
 EXPORT_SYMBOL(chacha20poly1305_decrypt_sg_inplace);
 
-static int __init chacha20poly1305_init(void)
-{
-	if (IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) &&
-	    WARN_ON(!chacha20poly1305_selftest()))
-		return -ENODEV;
-	return 0;
-}
-
-static void __exit chacha20poly1305_exit(void)
-{
-}
-
-module_init(chacha20poly1305_init);
-module_exit(chacha20poly1305_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChaCha20Poly1305 AEAD construction");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");

@@ -127,27 +127,9 @@
 	(i & 0x02 ? 0x0384 : 0) ^ (i & 0x01 ? 0x01c2 : 0) \
 )
 
-static const u16 gf128mul_table_le[256] = gf128mul_dat(xda_le);
 static const u16 gf128mul_table_be[256] = gf128mul_dat(xda_be);
 
-/*
- * The following functions multiply a field element by x^8 in
- * the polynomial field representation.  They use 64-bit word operations
- * to gain speed but compensate for machine endianness and hence work
- * correctly on both styles of machine.
- */
-
-static void gf128mul_x8_lle(be128 *x)
-{
-	u64 a = be64_to_cpu(x->a);
-	u64 b = be64_to_cpu(x->b);
-	u64 _tt = gf128mul_table_le[b & 0xff];
-
-	x->b = cpu_to_be64((b >> 8) | (a << 56));
-	x->a = cpu_to_be64((a >> 8) ^ (_tt << 48));
-}
-
-/* time invariant version of gf128mul_x8_lle */
+/* A table-less implementation of multiplying by x^8 */
 static void gf128mul_x8_lle_ti(be128 *x)
 {
 	u64 a = be64_to_cpu(x->a);
@@ -304,59 +286,6 @@ void gf128mul_64k_bbe(be128 *a, const struct gf128mul_64k *t)
 	*a = *r;
 }
 EXPORT_SYMBOL(gf128mul_64k_bbe);
-
-/*      This version uses 4k bytes of table space.
-    A 16 byte buffer has to be multiplied by a 16 byte key
-    value in GF(2^128).  If we consider a GF(2^128) value in a
-    single byte, we can construct a table of the 256 16 byte
-    values that result from the 256 values of this byte.
-    This requires 4096 bytes. If we take the highest byte in
-    the buffer and use this table to get the result, we then
-    have to multiply by x^120 to get the final value. For the
-    next highest byte the result has to be multiplied by x^112
-    and so on. But we can do this by accumulating the result
-    in an accumulator starting with the result for the top
-    byte.  We repeatedly multiply the accumulator value by
-    x^8 and then add in (i.e. xor) the 16 bytes of the next
-    lower byte in the buffer, stopping when we reach the
-    lowest byte. This requires a 4096 byte table.
-*/
-struct gf128mul_4k *gf128mul_init_4k_lle(const be128 *g)
-{
-	struct gf128mul_4k *t;
-	int j, k;
-
-	t = kzalloc_obj(*t);
-	if (!t)
-		goto out;
-
-	t->t[128] = *g;
-	for (j = 64; j > 0; j >>= 1)
-		gf128mul_x_lle(&t->t[j], &t->t[j+j]);
-
-	for (j = 2; j < 256; j += j)
-		for (k = 1; k < j; ++k)
-			be128_xor(&t->t[j + k], &t->t[j], &t->t[k]);
-
-out:
-	return t;
-}
-EXPORT_SYMBOL(gf128mul_init_4k_lle);
-
-void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t)
-{
-	u8 *ap = (u8 *)a;
-	be128 r[1];
-	int i = 15;
-
-	*r = t->t[ap[15]];
-	while (i--) {
-		gf128mul_x8_lle(r);
-		be128_xor(r, r, &t->t[ap[i]]);
-	}
-	*a = *r;
-}
-EXPORT_SYMBOL(gf128mul_4k_lle);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Functions for multiplying elements of GF(2^128)");

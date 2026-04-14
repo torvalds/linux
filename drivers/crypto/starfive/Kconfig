@@ -10,7 +10,7 @@ config CRYPTO_DEV_JH7110
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
-	select CRYPTO_SM3_GENERIC
+	select CRYPTO_SM3
 	select CRYPTO_RSA
 	select CRYPTO_AES
 	select CRYPTO_CCM

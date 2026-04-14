@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * linux/arch/arm64/crypto/aes-neon.S - AES cipher for ARMv8 NEON
+ * AES cipher for ARMv8 NEON
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  */

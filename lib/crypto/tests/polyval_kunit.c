@@ -2,7 +2,7 @@
 /*
  * Copyright 2025 Google LLC
  */
-#include <crypto/polyval.h>
+#include <crypto/gf128hash.h>
 #include "polyval-testvecs.h"
 
 /*

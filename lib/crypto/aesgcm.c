@@ -5,30 +5,10 @@
  * Copyright 2022 Google LLC
  */
 
-#include <crypto/algapi.h>
 #include <crypto/gcm.h>
-#include <crypto/ghash.h>
+#include <crypto/utils.h>
 #include <linux/export.h>
 #include <linux/module.h>
-#include <asm/irqflags.h>
-
-static void aesgcm_encrypt_block(const struct aes_enckey *key, void *dst,
-				 const void *src)
-{
-	unsigned long flags;
-
-	/*
-	 * In AES-GCM, both the GHASH key derivation and the CTR mode
-	 * encryption operate on known plaintext, making them susceptible to
-	 * timing attacks on the encryption key. The AES library already
-	 * mitigates this risk to some extent by pulling the entire S-box into
-	 * the caches before doing any substitutions, but this strategy is more
-	 * effective when running with interrupts disabled.
-	 */
-	local_irq_save(flags);
-	aes_encrypt(key, dst, src);
-	local_irq_restore(flags);
-}
 
 /**
  * aesgcm_expandkey - Expands the AES and GHASH keys for the AES-GCM key
@@ -45,7 +25,7 @@ static void aesgcm_encrypt_block(const struct aes_enckey *key, void *dst,
 int aesgcm_expandkey(struct aesgcm_ctx *ctx, const u8 *key,
 		     unsigned int keysize, unsigned int authsize)
 {
-	u8 kin[AES_BLOCK_SIZE] = {};
+	u8 h[AES_BLOCK_SIZE] = {};
 	int ret;
 
 	ret = crypto_gcm_check_authsize(authsize) ?:
@@ -54,23 +34,12 @@ int aesgcm_expandkey(struct aesgcm_ctx *ctx, const u8 *key,
 		return ret;
 
 	ctx->authsize = authsize;
-	aesgcm_encrypt_block(&ctx->aes_key, &ctx->ghash_key, kin);
-
+	aes_encrypt(&ctx->aes_key, h, h);
+	ghash_preparekey(&ctx->ghash_key, h);
+	memzero_explicit(h, sizeof(h));
 	return 0;
 }
 EXPORT_SYMBOL(aesgcm_expandkey);
-
-static void aesgcm_ghash(be128 *ghash, const be128 *key, const void *src,
-			 int len)
-{
-	while (len > 0) {
-		crypto_xor((u8 *)ghash, src, min(len, GHASH_BLOCK_SIZE));
-		gf128mul_lle(ghash, key);
-
-		src += GHASH_BLOCK_SIZE;
-		len -= GHASH_BLOCK_SIZE;
-	}
-}
 
 /**
  * aesgcm_mac - Generates the authentication tag using AES-GCM algorithm.
@@ -88,20 +57,33 @@ static void aesgcm_ghash(be128 *ghash, const be128 *key, const void *src,
 static void aesgcm_mac(const struct aesgcm_ctx *ctx, const u8 *src, int src_len,
 		       const u8 *assoc, int assoc_len, __be32 *ctr, u8 *authtag)
 {
-	be128 tail = { cpu_to_be64(assoc_len * 8), cpu_to_be64(src_len * 8) };
-	u8 buf[AES_BLOCK_SIZE];
-	be128 ghash = {};
+	static const u8 zeroes[GHASH_BLOCK_SIZE];
+	__be64 tail[2] = {
+		cpu_to_be64((u64)assoc_len * 8),
+		cpu_to_be64((u64)src_len * 8),
+	};
+	struct ghash_ctx ghash;
+	u8 ghash_out[AES_BLOCK_SIZE];
+	u8 enc_ctr[AES_BLOCK_SIZE];
 
-	aesgcm_ghash(&ghash, &ctx->ghash_key, assoc, assoc_len);
-	aesgcm_ghash(&ghash, &ctx->ghash_key, src, src_len);
-	aesgcm_ghash(&ghash, &ctx->ghash_key, &tail, sizeof(tail));
+	ghash_init(&ghash, &ctx->ghash_key);
+
+	ghash_update(&ghash, assoc, assoc_len);
+	ghash_update(&ghash, zeroes, -assoc_len & (GHASH_BLOCK_SIZE - 1));
+
+	ghash_update(&ghash, src, src_len);
+	ghash_update(&ghash, zeroes, -src_len & (GHASH_BLOCK_SIZE - 1));
+
+	ghash_update(&ghash, (const u8 *)&tail, sizeof(tail));
+
+	ghash_final(&ghash, ghash_out);
 
 	ctr[3] = cpu_to_be32(1);
-	aesgcm_encrypt_block(&ctx->aes_key, buf, ctr);
-	crypto_xor_cpy(authtag, buf, (u8 *)&ghash, ctx->authsize);
+	aes_encrypt(&ctx->aes_key, enc_ctr, (const u8 *)ctr);
+	crypto_xor_cpy(authtag, ghash_out, enc_ctr, ctx->authsize);
 
-	memzero_explicit(&ghash, sizeof(ghash));
-	memzero_explicit(buf, sizeof(buf));
+	memzero_explicit(ghash_out, sizeof(ghash_out));
+	memzero_explicit(enc_ctr, sizeof(enc_ctr));
 }
 
 static void aesgcm_crypt(const struct aesgcm_ctx *ctx, u8 *dst, const u8 *src,
@@ -119,7 +101,7 @@ static void aesgcm_crypt(const struct aesgcm_ctx *ctx, u8 *dst, const u8 *src,
 		 * len', this cannot happen, so no explicit test is necessary.
 		 */
 		ctr[3] = cpu_to_be32(n++);
-		aesgcm_encrypt_block(&ctx->aes_key, buf, ctr);
+		aes_encrypt(&ctx->aes_key, buf, (const u8 *)ctr);
 		crypto_xor_cpy(dst, src, buf, min(len, AES_BLOCK_SIZE));
 
 		dst += AES_BLOCK_SIZE;

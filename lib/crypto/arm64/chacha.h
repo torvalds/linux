@@ -36,9 +36,9 @@ asmlinkage void hchacha_block_neon(const struct chacha_state *state,
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_neon);
 
 static void chacha_doneon(struct chacha_state *state, u8 *dst, const u8 *src,
-			  int bytes, int nrounds)
+			  unsigned int bytes, int nrounds)
 {
-	while (bytes > 0) {
+	while (bytes) {
 		int l = min(bytes, CHACHA_BLOCK_SIZE * 5);
 
 		if (l <= CHACHA_BLOCK_SIZE) {
@@ -76,16 +76,8 @@ static void chacha_crypt_arch(struct chacha_state *state, u8 *dst,
 	    !crypto_simd_usable())
 		return chacha_crypt_generic(state, dst, src, bytes, nrounds);
 
-	do {
-		unsigned int todo = min_t(unsigned int, bytes, SZ_4K);
-
-		scoped_ksimd()
-			chacha_doneon(state, dst, src, todo, nrounds);
-
-		bytes -= todo;
-		src += todo;
-		dst += todo;
-	} while (bytes);
+	scoped_ksimd()
+		chacha_doneon(state, dst, src, bytes, nrounds);
 }
 
 #define chacha_mod_init_arch chacha_mod_init_arch

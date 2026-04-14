@@ -8,6 +8,10 @@ quiet_cmd_perlasm = PERLASM $@
 quiet_cmd_perlasm_with_args = PERLASM $@
       cmd_perlasm_with_args = $(PERL) $(<) void $(@)
 
+ppc64-perlasm-flavour-y := linux-ppc64
+ppc64-perlasm-flavour-$(CONFIG_PPC64_ELF_ABI_V2) := linux-ppc64-elfv2
+ppc64-perlasm-flavour-$(CONFIG_CPU_LITTLE_ENDIAN) := linux-ppc64le
+
 obj-$(CONFIG_KUNIT)				+= tests/
 
 obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
@@ -23,11 +27,10 @@ ifeq ($(CONFIG_CRYPTO_LIB_AES_ARCH),y)
 CFLAGS_aes.o += -I$(src)/$(SRCARCH)
 
 libaes-$(CONFIG_ARM) += arm/aes-cipher-core.o
-
-ifeq ($(CONFIG_ARM64),y)
-libaes-y += arm64/aes-cipher-core.o
-libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o
-endif
+libaes-$(CONFIG_ARM64) += arm64/aes-cipher-core.o \
+			  arm64/aes-ce-core.o \
+			  arm64/aes-ce.o \
+			  arm64/aes-neon.o
 
 ifeq ($(CONFIG_PPC),y)
 ifeq ($(CONFIG_SPE),y)
@@ -37,11 +40,8 @@ libaes-y += powerpc/aes-spe-core.o \
 	    powerpc/aes-tab-4k.o
 else
 libaes-y += powerpc/aesp8-ppc.o
-aes-perlasm-flavour-y := linux-ppc64
-aes-perlasm-flavour-$(CONFIG_PPC64_ELF_ABI_V2) := linux-ppc64-elfv2
-aes-perlasm-flavour-$(CONFIG_CPU_LITTLE_ENDIAN) := linux-ppc64le
 quiet_cmd_perlasm_aes = PERLASM $@
-      cmd_perlasm_aes = $(PERL) $< $(aes-perlasm-flavour-y) $@
+      cmd_perlasm_aes = $(PERL) $< $(ppc64-perlasm-flavour-y) $@
 # Use if_changed instead of cmd, in case the flavour changed.
 $(obj)/powerpc/aesp8-ppc.S: $(src)/powerpc/aesp8-ppc.pl FORCE
 	$(call if_changed,perlasm_aes)
@@ -125,7 +125,6 @@ endif # CONFIG_CRYPTO_LIB_CHACHA_ARCH
 
 obj-$(CONFIG_CRYPTO_LIB_CHACHA20POLY1305)	+= libchacha20poly1305.o
 libchacha20poly1305-y				+= chacha20poly1305.o
-libchacha20poly1305-$(CONFIG_CRYPTO_SELFTESTS)	+= chacha20poly1305-selftest.o
 
 ################################################################################
 
@@ -158,12 +157,39 @@ libdes-y					:= des.o
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_GF128HASH) += libgf128hash.o
+libgf128hash-y := gf128hash.o
+ifeq ($(CONFIG_CRYPTO_LIB_GF128HASH_ARCH),y)
+CFLAGS_gf128hash.o += -I$(src)/$(SRCARCH)
+libgf128hash-$(CONFIG_ARM) += arm/ghash-neon-core.o
+libgf128hash-$(CONFIG_ARM64) += arm64/ghash-neon-core.o \
+				arm64/polyval-ce-core.o
+
+ifeq ($(CONFIG_PPC),y)
+libgf128hash-y += powerpc/ghashp8-ppc.o
+quiet_cmd_perlasm_ghash = PERLASM $@
+      cmd_perlasm_ghash = $(PERL) $< $(ppc64-perlasm-flavour-y) $@
+$(obj)/powerpc/ghashp8-ppc.S: $(src)/powerpc/ghashp8-ppc.pl FORCE
+	$(call if_changed,perlasm_ghash)
+targets += powerpc/ghashp8-ppc.S
+OBJECT_FILES_NON_STANDARD_powerpc/ghashp8-ppc.o := y
+endif
+
+libgf128hash-$(CONFIG_RISCV) += riscv/ghash-riscv64-zvkg.o
+libgf128hash-$(CONFIG_X86) += x86/ghash-pclmul.o \
+			      x86/polyval-pclmul-avx.o
+endif # CONFIG_CRYPTO_LIB_GF128HASH_ARCH
+
+# clean-files must be defined unconditionally
+clean-files += powerpc/ghashp8-ppc.S
+
+################################################################################
+
 obj-$(CONFIG_CRYPTO_LIB_MD5) += libmd5.o
 libmd5-y := md5.o
 ifeq ($(CONFIG_CRYPTO_LIB_MD5_ARCH),y)
 CFLAGS_md5.o += -I$(src)/$(SRCARCH)
 libmd5-$(CONFIG_PPC) += powerpc/md5-asm.o
-libmd5-$(CONFIG_SPARC) += sparc/md5_asm.o
 endif # CONFIG_CRYPTO_LIB_MD5_ARCH
 
 ################################################################################
@@ -255,16 +281,6 @@ clean-files += arm/poly1305-core.S \
 
 ################################################################################
 
-obj-$(CONFIG_CRYPTO_LIB_POLYVAL) += libpolyval.o
-libpolyval-y := polyval.o
-ifeq ($(CONFIG_CRYPTO_LIB_POLYVAL_ARCH),y)
-CFLAGS_polyval.o += -I$(src)/$(SRCARCH)
-libpolyval-$(CONFIG_ARM64) += arm64/polyval-ce-core.o
-libpolyval-$(CONFIG_X86) += x86/polyval-pclmul-avx.o
-endif
-
-################################################################################
-
 obj-$(CONFIG_CRYPTO_LIB_SHA1) += libsha1.o
 libsha1-y := sha1.o
 ifeq ($(CONFIG_CRYPTO_LIB_SHA1_ARCH),y)
@@ -300,10 +316,9 @@ AFLAGS_arm/sha256-core.o += $(aflags-thumb2-y)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
-libsha256-y += arm64/sha256-core.o
+libsha256-y += arm64/sha256-ce.o arm64/sha256-core.o
 $(obj)/arm64/sha256-core.S: $(src)/arm64/sha2-armv8.pl
 	$(call cmd,perlasm_with_args)
-libsha256-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha256-ce.o
 endif
 
 libsha256-$(CONFIG_PPC) += powerpc/sha256-spe-asm.o
@@ -330,10 +345,9 @@ AFLAGS_arm/sha512-core.o += $(aflags-thumb2-y)
 endif
 
 ifeq ($(CONFIG_ARM64),y)
-libsha512-y += arm64/sha512-core.o
+libsha512-y += arm64/sha512-ce-core.o arm64/sha512-core.o
 $(obj)/arm64/sha512-core.S: $(src)/arm64/sha2-armv8.pl
 	$(call cmd,perlasm_with_args)
-libsha512-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha512-ce-core.o
 endif
 
 libsha512-$(CONFIG_RISCV) += riscv/sha512-riscv64-zvknhb-zvkb.o
@@ -355,12 +369,21 @@ endif # CONFIG_CRYPTO_LIB_SHA3_ARCH
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_SM3) += libsm3.o
+libsm3-y := sm3.o
+ifeq ($(CONFIG_CRYPTO_LIB_SM3_ARCH),y)
+CFLAGS_sm3.o += -I$(src)/$(SRCARCH)
+libsm3-$(CONFIG_ARM64) += arm64/sm3-ce-core.o \
+			  arm64/sm3-neon-core.o
+libsm3-$(CONFIG_RISCV) += riscv/sm3-riscv64-zvksh-zvkb.o
+libsm3-$(CONFIG_X86) += x86/sm3-avx-asm_64.o
+endif # CONFIG_CRYPTO_LIB_SM3_ARCH
+
+################################################################################
+
 obj-$(CONFIG_MPILIB) += mpi/
 
 obj-$(CONFIG_CRYPTO_SELFTESTS_FULL)		+= simd.o
-
-obj-$(CONFIG_CRYPTO_LIB_SM3)			+= libsm3.o
-libsm3-y					:= sm3.o
 
 # clean-files must be defined unconditionally
 clean-files += arm/sha256-core.S arm/sha512-core.S

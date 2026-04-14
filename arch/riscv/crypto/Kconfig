@@ -17,30 +17,6 @@ config CRYPTO_AES_RISCV64
 	  - Zvkb vector crypto extension (CTR)
 	  - Zvkg vector crypto extension (XTS)
 
-config CRYPTO_GHASH_RISCV64
-	tristate "Hash functions: GHASH"
-	depends on 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
-		   RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
-	select CRYPTO_GCM
-	help
-	  GCM GHASH function (NIST SP 800-38D)
-
-	  Architecture: riscv64 using:
-	  - Zvkg vector crypto extension
-
-config CRYPTO_SM3_RISCV64
-	tristate "Hash functions: SM3 (ShangMi 3)"
-	depends on 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
-		   RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
-	select CRYPTO_HASH
-	select CRYPTO_LIB_SM3
-	help
-	  SM3 (ShangMi 3) secure hash function (OSCCA GM/T 0004-2012)
-
-	  Architecture: riscv64 using:
-	  - Zvksh vector crypto extension
-	  - Zvkb vector crypto extension
-
 config CRYPTO_SM4_RISCV64
 	tristate "Ciphers: SM4 (ShangMi 4)"
 	depends on 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \

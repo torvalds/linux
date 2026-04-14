@@ -16,9 +16,9 @@
  * (https://eprint.iacr.org/2021/1441.pdf)
  */
 
+#include <crypto/gf128hash.h>
 #include <crypto/internal/cipher.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/polyval.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
 

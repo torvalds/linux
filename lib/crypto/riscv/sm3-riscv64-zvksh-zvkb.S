@@ -40,33 +40,85 @@
 // The generated code of this file depends on the following RISC-V extensions:
 // - RV64I
 // - RISC-V Vector ('V') with VLEN >= 128
-// - RISC-V Vector GCM/GMAC extension ('Zvkg')
+// - RISC-V Vector SM3 Secure Hash extension ('Zvksh')
+// - RISC-V Vector Cryptography Bit-manipulation extension ('Zvkb')
 
 #include <linux/linkage.h>
 
 .text
-.option arch, +zvkg
+.option arch, +zvksh, +zvkb
 
-#define ACCUMULATOR	a0
-#define KEY		a1
-#define DATA		a2
-#define LEN		a3
+#define STATEP		a0
+#define DATA		a1
+#define NUM_BLOCKS	a2
 
-// void ghash_zvkg(be128 *accumulator, const be128 *key, const u8 *data,
-//		   size_t len);
-//
-// |len| must be nonzero and a multiple of 16 (GHASH_BLOCK_SIZE).
-SYM_FUNC_START(ghash_zvkg)
-	vsetivli	zero, 4, e32, m1, ta, ma
-	vle32.v		v1, (ACCUMULATOR)
-	vle32.v		v2, (KEY)
+#define STATE		v0	// LMUL=2
+#define PREV_STATE	v2	// LMUL=2
+#define W0		v4	// LMUL=2
+#define W1		v6	// LMUL=2
+#define VTMP		v8	// LMUL=2
+
+.macro	sm3_8rounds	i, w0, w1
+	// Do 4 rounds using W_{0+i}..W_{7+i}.
+	vsm3c.vi	STATE, \w0, \i + 0
+	vslidedown.vi	VTMP, \w0, 2
+	vsm3c.vi	STATE, VTMP, \i + 1
+
+	// Compute W_{4+i}..W_{11+i}.
+	vslidedown.vi	VTMP, \w0, 4
+	vslideup.vi	VTMP, \w1, 4
+
+	// Do 4 rounds using W_{4+i}..W_{11+i}.
+	vsm3c.vi	STATE, VTMP, \i + 2
+	vslidedown.vi	VTMP, VTMP, 2
+	vsm3c.vi	STATE, VTMP, \i + 3
+
+.if \i < 28
+	// Compute W_{16+i}..W_{23+i}.
+	vsm3me.vv	\w0, \w1, \w0
+.endif
+	// For the next 8 rounds, w0 and w1 are swapped.
+.endm
+
+// void sm3_transform_zvksh_zvkb(struct sm3_block_state *state,
+//				 const u8 *data, size_t nblocks);
+SYM_FUNC_START(sm3_transform_zvksh_zvkb)
+
+	// Load the state and endian-swap each 32-bit word.
+	vsetivli	zero, 8, e32, m2, ta, ma
+	vle32.v		STATE, (STATEP)
+	vrev8.v		STATE, STATE
+
 .Lnext_block:
-	vle32.v		v3, (DATA)
-	vghsh.vv	v1, v2, v3
-	addi		DATA, DATA, 16
-	addi		LEN, LEN, -16
-	bnez		LEN, .Lnext_block
+	addi		NUM_BLOCKS, NUM_BLOCKS, -1
 
-	vse32.v		v1, (ACCUMULATOR)
+	// Save the previous state, as it's needed later.
+	vmv.v.v		PREV_STATE, STATE
+
+	// Load the next 512-bit message block into W0-W1.
+	vle32.v		W0, (DATA)
+	addi		DATA, DATA, 32
+	vle32.v		W1, (DATA)
+	addi		DATA, DATA, 32
+
+	// Do the 64 rounds of SM3.
+	sm3_8rounds	0, W0, W1
+	sm3_8rounds	4, W1, W0
+	sm3_8rounds	8, W0, W1
+	sm3_8rounds	12, W1, W0
+	sm3_8rounds	16, W0, W1
+	sm3_8rounds	20, W1, W0
+	sm3_8rounds	24, W0, W1
+	sm3_8rounds	28, W1, W0
+
+	// XOR in the previous state.
+	vxor.vv		STATE, STATE, PREV_STATE
+
+	// Repeat if more blocks remain.
+	bnez		NUM_BLOCKS, .Lnext_block
+
+	// Store the new state and return.
+	vrev8.v		STATE, STATE
+	vse32.v		STATE, (STATEP)
 	ret
-SYM_FUNC_END(ghash_zvkg)
+SYM_FUNC_END(sm3_transform_zvksh_zvkb)
