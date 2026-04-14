@@ -729,6 +729,41 @@ DEFINE_SMB3_LOCK_EVENT(lock_done);
 DEFINE_SMB3_LOCK_EVENT(lock_err);
 DEFINE_SMB3_LOCK_EVENT(lock_cached);
 
+TRACE_EVENT(smb3_lock_conflict,
+	TP_PROTO(__u64 fid,
+		__u64 req_offset,
+		__u64 req_len,
+		__u8 req_type,
+		__u64 conf_offset,
+		__u64 conf_len,
+		__u16 conf_type,
+		__u32 conf_pid),
+	TP_ARGS(fid, req_offset, req_len, req_type, conf_offset, conf_len, conf_type, conf_pid),
+	TP_STRUCT__entry(
+		__field(__u64, fid)
+		__field(__u64, req_offset)
+		__field(__u64, req_len)
+		__field(__u8, req_type)
+		__field(__u64, conf_offset)
+		__field(__u64, conf_len)
+		__field(__u16, conf_type)
+		__field(__u32, conf_pid)
+	),
+	TP_fast_assign(
+		__entry->fid = fid;
+		__entry->req_offset = req_offset;
+		__entry->req_len = req_len;
+		__entry->req_type = req_type;
+		__entry->conf_offset = conf_offset;
+		__entry->conf_len = conf_len;
+		__entry->conf_type = conf_type;
+		__entry->conf_pid = conf_pid;
+	),
+	TP_printk("fid=0x%llx req=[0x%llx:0x%llx] type=0x%x conflicts with [0x%llx:0x%llx] type=0x%x pid=%u",
+		__entry->fid, __entry->req_offset, __entry->req_len, __entry->req_type,
+		__entry->conf_offset, __entry->conf_len, __entry->conf_type, __entry->conf_pid)
+);
+
 /*
  * For handle based query/set info calls
  */
