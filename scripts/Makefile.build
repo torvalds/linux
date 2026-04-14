@@ -311,12 +311,13 @@ $(obj)/%.lst: $(obj)/%.c FORCE
 # The features in this list are the ones allowed for non-`rust/` code.
 #
 #   - Stable since Rust 1.87.0: `feature(asm_goto)`.
+#   - Stable since Rust 1.89.0: `feature(generic_arg_infer)`.
 #   - Expected to become stable: `feature(arbitrary_self_types)`.
 #   - To be determined: `feature(used_with_arg)`.
 #
 # Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
 # the unstable features in use.
-rust_allowed_features := arbitrary_self_types,asm_goto,used_with_arg
+rust_allowed_features := arbitrary_self_types,asm_goto,generic_arg_infer,used_with_arg
 
 # `--out-dir` is required to avoid temporaries being created by `rustc` in the
 # current working directory, which may be not accessible in the out-of-tree

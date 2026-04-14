@@ -7807,8 +7807,10 @@ F:	include/linux/debugfs.h
 F:	include/linux/device.h
 F:	include/linux/fwnode.h
 F:	include/linux/kobj*
+F:	include/linux/ksysfs.h
 F:	include/linux/property.h
 F:	include/linux/sysfs.h
+F:	kernel/ksysfs.c
 F:	lib/kobj*
 F:	rust/kernel/debugfs.rs
 F:	rust/kernel/debugfs/

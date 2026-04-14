@@ -113,22 +113,58 @@ extern int platform_get_irq_byname_optional(struct platform_device *dev,
 					    const char *name);
 extern int platform_add_devices(struct platform_device **, int);
 
+/**
+ * struct platform_device_info - set of parameters for creating a platform device
+ * @parent: parent device for the new platform device.
+ * @fwnode: firmware node associated with the device.
+ * @of_node_reused: indicates that device tree node associated with the device
+ *	is shared with another device, typically its ancestor. Setting this to
+ *	%true prevents the device from being matched via the OF match table,
+ *	and stops the device core from automatically binding pinctrl
+ *	configuration to avoid disrupting the other device.
+ * @name: name of the device.
+ * @id: instance ID of the device. Use %PLATFORM_DEVID_NONE if there is only
+ *	one instance of the device, or %PLATFORM_DEVID_AUTO to let the
+ *	kernel automatically assign a unique instance ID.
+ * @res: set of resources to attach to the device.
+ * @num_res: number of entries in @res.
+ * @data: device-specific data for this platform device.
+ * @size_data: size of device-specific data.
+ * @dma_mask: DMA mask for the device.
+ * @swnode: a secondary software node to be attached to the device. The node
+ *	will be automatically registered and its lifetime tied to the platform
+ *	device if it is not registered yet.
+ * @properties: a set of software properties for the device. If provided,
+ *	a managed software node will be automatically created and
+ *	assigned to the device. The properties array must be terminated
+ *	with a sentinel entry. Specifying both @properties and @swnode is not
+ *	allowed.
+ *
+ * This structure is used to hold information needed to create and register
+ * a platform device using platform_device_register_full().
+ *
+ * platform_device_register_full() makes deep copies of @name, @res, @data and
+ * @properties, so the caller does not need to keep them after registration.
+ * If the registration is performed during initialization, these can be marked
+ * as __initconst.
+ */
 struct platform_device_info {
-		struct device *parent;
-		struct fwnode_handle *fwnode;
-		bool of_node_reused;
+	struct device *parent;
+	struct fwnode_handle *fwnode;
+	bool of_node_reused;
 
-		const char *name;
-		int id;
+	const char *name;
+	int id;
 
-		const struct resource *res;
-		unsigned int num_res;
+	const struct resource *res;
+	unsigned int num_res;
 
-		const void *data;
-		size_t size_data;
-		u64 dma_mask;
+	const void *data;
+	size_t size_data;
+	u64 dma_mask;
 
-		const struct property_entry *properties;
+	const struct software_node *swnode;
+	const struct property_entry *properties;
 };
 extern struct platform_device *platform_device_register_full(
 		const struct platform_device_info *pdevinfo);

@@ -445,15 +445,15 @@ void sysfs_delete_link(struct kobject *dir, struct kobject *targ,
 int __must_check sysfs_create_group(struct kobject *kobj,
 				    const struct attribute_group *grp);
 int __must_check sysfs_create_groups(struct kobject *kobj,
-				     const struct attribute_group **groups);
+				     const struct attribute_group *const *groups);
 int __must_check sysfs_update_groups(struct kobject *kobj,
-				     const struct attribute_group **groups);
+				     const struct attribute_group *const *groups);
 int sysfs_update_group(struct kobject *kobj,
 		       const struct attribute_group *grp);
 void sysfs_remove_group(struct kobject *kobj,
 			const struct attribute_group *grp);
 void sysfs_remove_groups(struct kobject *kobj,
-			 const struct attribute_group **groups);
+			 const struct attribute_group *const *groups);
 int sysfs_add_file_to_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 void sysfs_remove_file_from_group(struct kobject *kobj,
@@ -486,7 +486,7 @@ int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t kgid);
 int sysfs_link_change_owner(struct kobject *kobj, struct kobject *targ,
 			    const char *name, kuid_t kuid, kgid_t kgid);
 int sysfs_groups_change_owner(struct kobject *kobj,
-			      const struct attribute_group **groups,
+			      const struct attribute_group *const *groups,
 			      kuid_t kuid, kgid_t kgid);
 int sysfs_group_change_owner(struct kobject *kobj,
 			     const struct attribute_group *groups, kuid_t kuid,
@@ -629,13 +629,13 @@ static inline int sysfs_create_group(struct kobject *kobj,
 }
 
 static inline int sysfs_create_groups(struct kobject *kobj,
-				      const struct attribute_group **groups)
+				      const struct attribute_group *const *groups)
 {
 	return 0;
 }
 
 static inline int sysfs_update_groups(struct kobject *kobj,
-				      const struct attribute_group **groups)
+				      const struct attribute_group *const *groups)
 {
 	return 0;
 }
@@ -652,7 +652,7 @@ static inline void sysfs_remove_group(struct kobject *kobj,
 }
 
 static inline void sysfs_remove_groups(struct kobject *kobj,
-				       const struct attribute_group **groups)
+				       const struct attribute_group *const *groups)
 {
 }
 
@@ -733,7 +733,7 @@ static inline int sysfs_change_owner(struct kobject *kobj, kuid_t kuid, kgid_t k
 }
 
 static inline int sysfs_groups_change_owner(struct kobject *kobj,
-			  const struct attribute_group **groups,
+			  const struct attribute_group *const *groups,
 			  kuid_t kuid, kgid_t kgid)
 {
 	return 0;

@@ -426,6 +426,9 @@ static inline bool of_machine_is_compatible(const char *compat)
 	return of_machine_compatible_match(compats);
 }
 
+int of_machine_read_compatible(const char **compatible, unsigned int index);
+int of_machine_read_model(const char **model);
+
 extern int of_add_property(struct device_node *np, struct property *prop);
 extern int of_remove_property(struct device_node *np, struct property *prop);
 extern int of_update_property(struct device_node *np, struct property *newprop);
@@ -849,6 +852,17 @@ static inline int of_alias_get_highest_id(const char *stem)
 static inline int of_machine_is_compatible(const char *compat)
 {
 	return 0;
+}
+
+static inline int of_machine_read_compatible(const char **compatible,
+					     unsigned int index)
+{
+	return -ENOSYS;
+}
+
+static inline int of_machine_read_model(const char **model)
+{
+	return -ENOSYS;
 }
 
 static inline int of_add_property(struct device_node *np, struct property *prop)

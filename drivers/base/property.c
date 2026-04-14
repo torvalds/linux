@@ -38,6 +38,8 @@ EXPORT_SYMBOL_GPL(__dev_fwnode_const);
  * @propname: Name of the property
  *
  * Check if property @propname is present in the device firmware description.
+ * This function is the unambiguous way to check that given property is present
+ * in the device firmware description.
  *
  * Return: true if property @propname is present. Otherwise, returns false.
  */
@@ -51,6 +53,10 @@ EXPORT_SYMBOL_GPL(device_property_present);
  * fwnode_property_present - check if a property of a firmware node is present
  * @fwnode: Firmware node whose property to check
  * @propname: Name of the property
+ *
+ * Check if property @propname is present in the firmware node description.
+ * This function is the unambiguous way to check that given property is present
+ * in the firmware node description.
  *
  * Return: true if property @propname is present. Otherwise, returns false.
  */
@@ -75,9 +81,9 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
  * @dev: Device whose property is being checked
  * @propname: Name of the property
  *
- * Return if property @propname is true or false in the device firmware description.
+ * Use device_property_present() to check for the property presence.
  *
- * Return: true if property @propname is present. Otherwise, returns false.
+ * Return: if property @propname is true or false in the device firmware description.
  */
 bool device_property_read_bool(const struct device *dev, const char *propname)
 {
@@ -90,7 +96,9 @@ EXPORT_SYMBOL_GPL(device_property_read_bool);
  * @fwnode: Firmware node whose property to check
  * @propname: Name of the property
  *
- * Return if property @propname is true or false in the firmware description.
+ * Use fwnode_property_present() to check for the property presence.
+ *
+ * Return: if property @propname is true or false in the firmware node description.
  */
 bool fwnode_property_read_bool(const struct fwnode_handle *fwnode,
 			     const char *propname)

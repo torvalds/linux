@@ -50,8 +50,8 @@ struct fwnode_handle;
 struct class {
 	const char		*name;
 
-	const struct attribute_group	**class_groups;
-	const struct attribute_group	**dev_groups;
+	const struct attribute_group	*const *class_groups;
+	const struct attribute_group	*const *dev_groups;
 
 	int (*dev_uevent)(const struct device *dev, struct kobj_uevent_env *env);
 	char *(*devnode)(const struct device *dev, umode_t *mode);
