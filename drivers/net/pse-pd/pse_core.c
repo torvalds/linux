@@ -234,7 +234,7 @@ out:
 }
 
 /**
- * pse_control_find_net_by_id - Find net attached to the pse control id
+ * pse_control_find_by_id - Find pse_control from an id
  * @pcdev: a pointer to the PSE
  * @id: index of the PSE control
  *
