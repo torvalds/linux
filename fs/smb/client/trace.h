@@ -1361,6 +1361,57 @@ DEFINE_EVENT(smb3_open_done_class, smb3_##name,  \
 DEFINE_SMB3_OPEN_DONE_EVENT(open_done);
 DEFINE_SMB3_OPEN_DONE_EVENT(posix_mkdir_done);
 
+TRACE_EVENT(smb3_open_cached,
+	TP_PROTO(unsigned int xid,
+		__u32 tid,
+		__u64 sesid,
+		__u64 fid,
+		unsigned int oflags,
+		unsigned int cflags),
+	TP_ARGS(xid, tid, sesid, fid, oflags, cflags),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, fid)
+		__field(unsigned int, oflags)
+		__field(unsigned int, cflags)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->fid = fid;
+		__entry->oflags = oflags;
+		__entry->cflags = cflags;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx oflags=0x%x cflags=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->oflags, __entry->cflags)
+);
+
+TRACE_EVENT(smb3_close_cached,
+	TP_PROTO(__u32 tid,
+		__u64 sesid,
+		__u64 fid,
+		unsigned long delay_jiffies),
+	TP_ARGS(tid, sesid, fid, delay_jiffies),
+	TP_STRUCT__entry(
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, fid)
+		__field(unsigned long, delay_jiffies)
+	),
+	TP_fast_assign(
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->fid = fid;
+		__entry->delay_jiffies = delay_jiffies;
+	),
+	TP_printk("sid=0x%llx tid=0x%x fid=0x%llx delay_jiffies=%lu",
+		__entry->sesid, __entry->tid, __entry->fid, __entry->delay_jiffies)
+);
+
 
 DECLARE_EVENT_CLASS(smb3_lease_done_class,
 	TP_PROTO(__u32	lease_state,
