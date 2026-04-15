@@ -978,7 +978,7 @@ static int rpmpd_send_corner(struct rpmpd *pd, int state, unsigned int corner)
 
 	return qcom_rpm_smd_write(rpmpd_smd_rpm, state, pd->res_type, pd->res_id,
 				  &req, sizeof(req));
-};
+}
 
 static void to_active_sleep(struct rpmpd *pd, unsigned int corner,
 			    unsigned int *active, unsigned int *sleep)

@@ -867,6 +867,16 @@ static const struct scp_domain_data scp_domain_data_mt7622[] = {
 		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_WB,
 		.caps = MTK_SCPD_ACTIVE_WAKEUP | MTK_SCPD_FWAIT_SRAM,
 	},
+	[MT7622_POWER_DOMAIN_AUDIO] = {
+		.name = "audsys",
+		.sta_mask = PWR_STATUS_AUDIO,
+		.ctl_offs = SPM_AUDIO_PWR_CON,
+		.sram_pdn_bits = GENMASK(11, 8),
+		.sram_pdn_ack_bits = GENMASK(15, 12),
+		.clk_id = {CLK_NONE},
+		.bus_prot_mask = MT7622_TOP_AXI_PROT_EN_HIF1,
+		.caps = MTK_SCPD_ACTIVE_WAKEUP,
+	},
 };
 
 /*

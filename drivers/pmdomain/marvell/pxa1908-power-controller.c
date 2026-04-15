@@ -24,12 +24,15 @@
 #define APMU_DEBUG		0x88
 #define DSI_PHY_DVM_MASK	BIT(31)
 
+#define APMU_AUDIO_CLK		0x80
+#define AUDIO_ULCX_ENABLE	0x0d
+
 #define POWER_ON_LATENCY_US	300
 #define POWER_OFF_LATENCY_US	20
 #define POWER_POLL_TIMEOUT_US	(25 * USEC_PER_MSEC)
 #define POWER_POLL_SLEEP_US	6
 
-#define NR_DOMAINS	5
+#define NR_DOMAINS	6
 
 #define to_pxa1908_pd(_genpd) container_of(_genpd, struct pxa1908_pd, genpd)
 
@@ -59,9 +62,14 @@ static inline bool pxa1908_pd_is_on(struct pxa1908_pd *pd)
 {
 	struct pxa1908_pd_ctrl *ctrl = pd->ctrl;
 
-	return pd->data.id != PXA1908_POWER_DOMAIN_DSI
-		? regmap_test_bits(ctrl->base, APMU_PWR_STATUS_REG, pd->data.pwr_state)
-		: regmap_test_bits(ctrl->base, APMU_DEBUG, DSI_PHY_DVM_MASK);
+	switch (pd->data.id) {
+	case PXA1908_POWER_DOMAIN_AUDIO:
+		return regmap_test_bits(ctrl->base, APMU_AUDIO_CLK, AUDIO_ULCX_ENABLE);
+	case PXA1908_POWER_DOMAIN_DSI:
+		return regmap_test_bits(ctrl->base, APMU_DEBUG, DSI_PHY_DVM_MASK);
+	default:
+		return regmap_test_bits(ctrl->base, APMU_PWR_STATUS_REG, pd->data.pwr_state);
+	}
 }
 
 static int pxa1908_pd_power_on(struct generic_pm_domain *genpd)
@@ -123,6 +131,22 @@ static inline int pxa1908_dsi_power_off(struct generic_pm_domain *genpd)
 	return regmap_clear_bits(ctrl->base, APMU_DEBUG, DSI_PHY_DVM_MASK);
 }
 
+static inline int pxa1908_audio_power_on(struct generic_pm_domain *genpd)
+{
+	struct pxa1908_pd *pd = to_pxa1908_pd(genpd);
+	struct pxa1908_pd_ctrl *ctrl = pd->ctrl;
+
+	return regmap_set_bits(ctrl->base, APMU_AUDIO_CLK, AUDIO_ULCX_ENABLE);
+}
+
+static inline int pxa1908_audio_power_off(struct generic_pm_domain *genpd)
+{
+	struct pxa1908_pd *pd = to_pxa1908_pd(genpd);
+	struct pxa1908_pd_ctrl *ctrl = pd->ctrl;
+
+	return regmap_clear_bits(ctrl->base, APMU_AUDIO_CLK, AUDIO_ULCX_ENABLE);
+}
+
 #define DOMAIN(_id, _name, ctrl, mode, state) \
 	[_id] = { \
 		.data = { \
@@ -157,6 +181,13 @@ static struct pxa1908_pd domains[NR_DOMAINS] = {
 		.data = {
 			/* See above. */
 			.keep_on = true,
+		},
+	},
+	[PXA1908_POWER_DOMAIN_AUDIO] = {
+		.genpd = {
+			.name = "audio",
+			.power_on = pxa1908_audio_power_on,
+			.power_off = pxa1908_audio_power_off,
 		},
 	},
 };

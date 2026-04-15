@@ -215,10 +215,10 @@ static int bcm2835_power_power_on(struct bcm2835_power_domain *pd, u32 pm_reg)
 {
 	struct bcm2835_power *power = pd->power;
 	struct device *dev = power->dev;
-	u64 start;
 	int ret;
 	int inrush;
 	bool powok;
+	u32 val;
 
 	/* We don't run this on BCM2711 */
 	if (power->rpivid_asb)
@@ -239,12 +239,8 @@ static int bcm2835_power_power_on(struct bcm2835_power_domain *pd, u32 pm_reg)
 			 (inrush << PM_INRUSH_SHIFT) |
 			 PM_POWUP);
 
-		start = ktime_get_ns();
-		while (!(powok = !!(PM_READ(pm_reg) & PM_POWOK))) {
-			cpu_relax();
-			if (ktime_get_ns() - start >= 3000)
-				break;
-		}
+		powok = !readl_poll_timeout_atomic(power->base + pm_reg,
+						   val, val & PM_POWOK, 0, 3);
 	}
 	if (!powok) {
 		dev_err(dev, "Timeout waiting for %s power OK\n",
@@ -258,15 +254,12 @@ static int bcm2835_power_power_on(struct bcm2835_power_domain *pd, u32 pm_reg)
 
 	/* Repair memory */
 	PM_WRITE(pm_reg, PM_READ(pm_reg) | PM_MEMREP);
-	start = ktime_get_ns();
-	while (!(PM_READ(pm_reg) & PM_MRDONE)) {
-		cpu_relax();
-		if (ktime_get_ns() - start >= 1000) {
-			dev_err(dev, "Timeout waiting for %s memory repair\n",
-				pd->base.name);
-			ret = -ETIMEDOUT;
-			goto err_disable_ispow;
-		}
+	if (readl_poll_timeout_atomic(power->base + pm_reg, val,
+				      val & PM_MRDONE, 0, 1)) {
+		dev_err(dev, "Timeout waiting for %s memory repair\n",
+			pd->base.name);
+		ret = -ETIMEDOUT;
+		goto err_disable_ispow;
 	}
 
 	/* Disable functional isolation */
