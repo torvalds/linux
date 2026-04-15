@@ -24495,6 +24495,7 @@ F:	Documentation/admin-guide/mm/slab.rst
 F:	Documentation/mm/slab.rst
 F:	include/linux/mempool.h
 F:	include/linux/slab.h
+F:	lib/tests/slub_kunit.c
 F:	mm/failslab.c
 F:	mm/mempool.c
 F:	mm/slab.h

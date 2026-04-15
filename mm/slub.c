@@ -59,7 +59,7 @@
  *   0.  cpu_hotplug_lock
  *   1.  slab_mutex (Global Mutex)
  *   2a. kmem_cache->cpu_sheaves->lock (Local trylock)
- *   2b. node->barn->lock (Spinlock)
+ *   2b. barn->lock (Spinlock)
  *   2c. node->list_lock (Spinlock)
  *   3.  slab_lock(slab) (Only on some arches)
  *   4.  object_map_lock (Only for debugging)
@@ -136,7 +136,7 @@
  *   or spare sheaf can handle the allocation or free, there is no other
  *   overhead.
  *
- *   node->barn->lock (spinlock)
+ *   barn->lock (spinlock)
  *
  *   This lock protects the operations on per-NUMA-node barn. It can quickly
  *   serve an empty or full sheaf if available, and avoid more expensive refill
@@ -436,26 +436,24 @@ struct kmem_cache_node {
 	atomic_long_t total_objects;
 	struct list_head full;
 #endif
-	struct node_barn *barn;
 };
 
 static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 {
-	return s->node[node];
+	return s->per_node[node].node;
+}
+
+static inline struct node_barn *get_barn_node(struct kmem_cache *s, int node)
+{
+	return s->per_node[node].barn;
 }
 
 /*
- * Get the barn of the current cpu's closest memory node. It may not exist on
- * systems with memoryless nodes but without CONFIG_HAVE_MEMORYLESS_NODES
+ * Get the barn of the current cpu's NUMA node. It may be a memoryless node.
  */
 static inline struct node_barn *get_barn(struct kmem_cache *s)
 {
-	struct kmem_cache_node *n = get_node(s, numa_mem_id());
-
-	if (!n)
-		return NULL;
-
-	return n->barn;
+	return get_barn_node(s, numa_node_id());
 }
 
 /*
@@ -473,6 +471,12 @@ static inline struct node_barn *get_barn(struct kmem_cache *s)
  * Protected by slab_mutex.
  */
 static nodemask_t slab_nodes;
+
+/*
+ * Similar to slab_nodes but for where we have node_barn allocated.
+ * Corresponds to N_ONLINE nodes.
+ */
+static nodemask_t slab_barn_nodes;
 
 /*
  * Workqueue used for flushing cpu and kfree_rcu sheaves.
@@ -2822,24 +2826,6 @@ static int refill_sheaf(struct kmem_cache *s, struct slab_sheaf *sheaf,
 	return 0;
 }
 
-static void sheaf_flush_unused(struct kmem_cache *s, struct slab_sheaf *sheaf);
-
-static struct slab_sheaf *alloc_full_sheaf(struct kmem_cache *s, gfp_t gfp)
-{
-	struct slab_sheaf *sheaf = alloc_empty_sheaf(s, gfp);
-
-	if (!sheaf)
-		return NULL;
-
-	if (refill_sheaf(s, sheaf, gfp | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
-		sheaf_flush_unused(s, sheaf);
-		free_empty_sheaf(s, sheaf);
-		return NULL;
-	}
-
-	return sheaf;
-}
-
 /*
  * Maximum number of objects freed during a single flush of main pcs sheaf.
  * Translates directly to an on-stack array size.
@@ -4082,6 +4068,51 @@ void flush_all_rcu_sheaves(void)
 	rcu_barrier();
 }
 
+static int slub_cpu_setup(unsigned int cpu)
+{
+	int nid = cpu_to_node(cpu);
+	struct kmem_cache *s;
+	int ret = 0;
+
+	/*
+	 * we never clear a nid so it's safe to do a quick check before taking
+	 * the mutex, and then recheck to handle parallel cpu hotplug safely
+	 */
+	if (node_isset(nid, slab_barn_nodes))
+		return 0;
+
+	mutex_lock(&slab_mutex);
+
+	if (node_isset(nid, slab_barn_nodes))
+		goto out;
+
+	list_for_each_entry(s, &slab_caches, list) {
+		struct node_barn *barn;
+
+		/*
+		 * barn might already exist if a previous callback failed midway
+		 */
+		if (!cache_has_sheaves(s) || get_barn_node(s, nid))
+			continue;
+
+		barn = kmalloc_node(sizeof(*barn), GFP_KERNEL, nid);
+
+		if (!barn) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		barn_init(barn);
+		s->per_node[nid].barn = barn;
+	}
+	node_set(nid, slab_barn_nodes);
+
+out:
+	mutex_unlock(&slab_mutex);
+
+	return ret;
+}
+
 /*
  * Use the cpu notifier to insure that the cpu slabs are flushed when
  * necessary.
@@ -4611,34 +4642,35 @@ __pcs_replace_empty_main(struct kmem_cache *s, struct slub_percpu_sheaves *pcs, 
 	if (!allow_spin)
 		return NULL;
 
-	if (empty) {
-		if (!refill_sheaf(s, empty, gfp | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
-			full = empty;
-		} else {
-			/*
-			 * we must be very low on memory so don't bother
-			 * with the barn
-			 */
-			sheaf_flush_unused(s, empty);
-			free_empty_sheaf(s, empty);
-		}
-	} else {
-		full = alloc_full_sheaf(s, gfp);
+	if (!empty) {
+		empty = alloc_empty_sheaf(s, gfp);
+		if (!empty)
+			return NULL;
 	}
 
-	if (!full)
+	if (refill_sheaf(s, empty, gfp | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
+		/*
+		 * we must be very low on memory so don't bother
+		 * with the barn
+		 */
+		sheaf_flush_unused(s, empty);
+		free_empty_sheaf(s, empty);
+
 		return NULL;
+	}
+
+	full = empty;
+	empty = NULL;
 
 	if (!local_trylock(&s->cpu_sheaves->lock))
 		goto barn_put;
 	pcs = this_cpu_ptr(s->cpu_sheaves);
 
 	/*
-	 * If we are returning empty sheaf, we either got it from the
-	 * barn or had to allocate one. If we are returning a full
-	 * sheaf, it's due to racing or being migrated to a different
-	 * cpu. Breaching the barn's sheaf limits should be thus rare
-	 * enough so just ignore them to simplify the recovery.
+	 * If we put any empty or full sheaf to the barn below, it's due to
+	 * racing or being migrated to a different cpu. Breaching the barn's
+	 * sheaf limits should be thus rare enough so just ignore them to
+	 * simplify the recovery.
 	 */
 
 	if (pcs->main->size == 0) {
@@ -5088,12 +5120,15 @@ void kmem_cache_return_sheaf(struct kmem_cache *s, gfp_t gfp,
 }
 
 /*
- * refill a sheaf previously returned by kmem_cache_prefill_sheaf to at least
- * the given size
+ * Refill a sheaf previously returned by kmem_cache_prefill_sheaf to at least
+ * the given size.
  *
- * the sheaf might be replaced by a new one when requesting more than
- * s->sheaf_capacity objects if such replacement is necessary, but the refill
- * fails (returning -ENOMEM), the existing sheaf is left intact
+ * Return: 0 on success. The sheaf will contain at least @size objects.
+ * The sheaf might have been replaced with a new one if more than
+ * sheaf->capacity objects are requested.
+ *
+ * Return: -ENOMEM on failure. Some objects might have been added to the sheaf
+ * but the sheaf will not be replaced.
  *
  * In practice we always refill to full sheaf's capacity.
  */
@@ -5788,7 +5823,6 @@ bool free_to_pcs(struct kmem_cache *s, void *object, bool allow_spin)
 
 static void rcu_free_sheaf(struct rcu_head *head)
 {
-	struct kmem_cache_node *n;
 	struct slab_sheaf *sheaf;
 	struct node_barn *barn = NULL;
 	struct kmem_cache *s;
@@ -5811,11 +5845,9 @@ static void rcu_free_sheaf(struct rcu_head *head)
 	if (__rcu_free_sheaf_prepare(s, sheaf))
 		goto flush;
 
-	n = get_node(s, sheaf->node);
-	if (!n)
+	barn = get_barn_node(s, sheaf->node);
+	if (!barn)
 		goto flush;
-
-	barn = n->barn;
 
 	/* due to slab_free_hook() */
 	if (unlikely(sheaf->size == 0))
@@ -5938,7 +5970,7 @@ do_free:
 		rcu_sheaf = NULL;
 	} else {
 		pcs->rcu_free = NULL;
-		rcu_sheaf->node = numa_mem_id();
+		rcu_sheaf->node = numa_node_id();
 	}
 
 	/*
@@ -5960,6 +5992,57 @@ fail:
 	return false;
 }
 
+static __always_inline bool can_free_to_pcs(struct slab *slab)
+{
+	int slab_node;
+	int numa_node;
+
+	if (!IS_ENABLED(CONFIG_NUMA))
+		goto check_pfmemalloc;
+
+	slab_node = slab_nid(slab);
+
+#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+	/*
+	 * numa_mem_id() points to the closest node with memory so only allow
+	 * objects from that node to the percpu sheaves
+	 */
+	numa_node = numa_mem_id();
+
+	if (likely(slab_node == numa_node))
+		goto check_pfmemalloc;
+#else
+
+	/*
+	 * numa_mem_id() is only a wrapper to numa_node_id() which is where this
+	 * cpu belongs to, but it might be a memoryless node anyway. We don't
+	 * know what the closest node is.
+	 */
+	numa_node = numa_node_id();
+
+	/* freed object is from this cpu's node, proceed */
+	if (likely(slab_node == numa_node))
+		goto check_pfmemalloc;
+
+	/*
+	 * Freed object isn't from this cpu's node, but that node is memoryless
+	 * or only has ZONE_MOVABLE memory, which slab cannot allocate from.
+	 * Proceed as it's better to cache remote objects than falling back to
+	 * the slowpath for everything. The allocation side can never obtain
+	 * a local object anyway, if none exist. We don't have numa_mem_id() to
+	 * point to the closest node as we would on a proper memoryless node
+	 * setup.
+	 */
+	if (unlikely(!node_state(numa_node, N_NORMAL_MEMORY)))
+		goto check_pfmemalloc;
+#endif
+
+	return false;
+
+check_pfmemalloc:
+	return likely(!slab_test_pfmemalloc(slab));
+}
+
 /*
  * Bulk free objects to the percpu sheaves.
  * Unlike free_to_pcs() this includes the calls to all necessary hooks
@@ -5974,7 +6057,6 @@ static void free_to_pcs_bulk(struct kmem_cache *s, size_t size, void **p)
 	struct node_barn *barn;
 	void *remote_objects[PCS_BATCH_MAX];
 	unsigned int remote_nr = 0;
-	int node = numa_mem_id();
 
 next_remote_batch:
 	while (i < size) {
@@ -5988,8 +6070,7 @@ next_remote_batch:
 			continue;
 		}
 
-		if (unlikely((IS_ENABLED(CONFIG_NUMA) && slab_nid(slab) != node)
-			     || slab_test_pfmemalloc(slab))) {
+		if (unlikely(!can_free_to_pcs(slab))) {
 			remote_objects[remote_nr] = p[i];
 			p[i] = p[--size];
 			if (++remote_nr >= PCS_BATCH_MAX)
@@ -6165,11 +6246,8 @@ void slab_free(struct kmem_cache *s, struct slab *slab, void *object,
 	if (unlikely(!slab_free_hook(s, object, slab_want_init_on_free(s), false)))
 		return;
 
-	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id())
-	    && likely(!slab_test_pfmemalloc(slab))) {
-		if (likely(free_to_pcs(s, object, true)))
-			return;
-	}
+	if (likely(can_free_to_pcs(slab)) && likely(free_to_pcs(s, object, true)))
+		return;
 
 	__slab_free(s, slab, object, object, 1, addr);
 	stat(s, FREE_SLOWPATH);
@@ -6540,10 +6618,8 @@ void kfree_nolock(const void *object)
 	 */
 	kasan_slab_free(s, x, false, false, /* skip quarantine */true);
 
-	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id())) {
-		if (likely(free_to_pcs(s, x, false)))
-			return;
-	}
+	if (likely(can_free_to_pcs(slab)) && likely(free_to_pcs(s, x, false)))
+		return;
 
 	/*
 	 * __slab_free() can locklessly cmpxchg16 into a slab, but then it might
@@ -7427,7 +7503,7 @@ static inline int calculate_order(unsigned int size)
 }
 
 static void
-init_kmem_cache_node(struct kmem_cache_node *n, struct node_barn *barn)
+init_kmem_cache_node(struct kmem_cache_node *n)
 {
 	n->nr_partial = 0;
 	spin_lock_init(&n->list_lock);
@@ -7437,9 +7513,6 @@ init_kmem_cache_node(struct kmem_cache_node *n, struct node_barn *barn)
 	atomic_long_set(&n->total_objects, 0);
 	INIT_LIST_HEAD(&n->full);
 #endif
-	n->barn = barn;
-	if (barn)
-		barn_init(barn);
 }
 
 #ifdef CONFIG_SLUB_STATS
@@ -7534,8 +7607,8 @@ static void early_kmem_cache_node_alloc(int node)
 	n = kasan_slab_alloc(kmem_cache_node, n, GFP_KERNEL, false);
 	slab->freelist = get_freepointer(kmem_cache_node, n);
 	slab->inuse = 1;
-	kmem_cache_node->node[node] = n;
-	init_kmem_cache_node(n, NULL);
+	kmem_cache_node->per_node[node].node = n;
+	init_kmem_cache_node(n);
 	inc_slabs_node(kmem_cache_node, node, slab->objects);
 
 	/*
@@ -7550,15 +7623,20 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
 	int node;
 	struct kmem_cache_node *n;
 
-	for_each_kmem_cache_node(s, node, n) {
-		if (n->barn) {
-			WARN_ON(n->barn->nr_full);
-			WARN_ON(n->barn->nr_empty);
-			kfree(n->barn);
-			n->barn = NULL;
-		}
+	for_each_node(node) {
+		struct node_barn *barn = get_barn_node(s, node);
 
-		s->node[node] = NULL;
+		if (!barn)
+			continue;
+
+		WARN_ON(barn->nr_full);
+		WARN_ON(barn->nr_empty);
+		kfree(barn);
+		s->per_node[node].barn = NULL;
+	}
+
+	for_each_kmem_cache_node(s, node, n) {
+		s->per_node[node].node = NULL;
 		kmem_cache_free(kmem_cache_node, n);
 	}
 }
@@ -7579,31 +7657,36 @@ static int init_kmem_cache_nodes(struct kmem_cache *s)
 
 	for_each_node_mask(node, slab_nodes) {
 		struct kmem_cache_node *n;
-		struct node_barn *barn = NULL;
 
 		if (slab_state == DOWN) {
 			early_kmem_cache_node_alloc(node);
 			continue;
 		}
 
-		if (cache_has_sheaves(s)) {
-			barn = kmalloc_node(sizeof(*barn), GFP_KERNEL, node);
-
-			if (!barn)
-				return 0;
-		}
-
 		n = kmem_cache_alloc_node(kmem_cache_node,
 						GFP_KERNEL, node);
-		if (!n) {
-			kfree(barn);
+		if (!n)
 			return 0;
-		}
 
-		init_kmem_cache_node(n, barn);
-
-		s->node[node] = n;
+		init_kmem_cache_node(n);
+		s->per_node[node].node = n;
 	}
+
+	if (slab_state == DOWN || !cache_has_sheaves(s))
+		return 1;
+
+	for_each_node_mask(node, slab_barn_nodes) {
+		struct node_barn *barn;
+
+		barn = kmalloc_node(sizeof(*barn), GFP_KERNEL, node);
+
+		if (!barn)
+			return 0;
+
+		barn_init(barn);
+		s->per_node[node].barn = barn;
+	}
+
 	return 1;
 }
 
@@ -7892,10 +7975,15 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 	if (cache_has_sheaves(s))
 		rcu_barrier();
 
+	for_each_node(node) {
+		struct node_barn *barn = get_barn_node(s, node);
+
+		if (barn)
+			barn_shrink(s, barn);
+	}
+
 	/* Attempt to free all objects */
 	for_each_kmem_cache_node(s, node, n) {
-		if (n->barn)
-			barn_shrink(s, n->barn);
 		free_partial(s, n);
 		if (n->nr_partial || node_nr_slabs(n))
 			return 1;
@@ -8105,13 +8193,17 @@ static int __kmem_cache_do_shrink(struct kmem_cache *s)
 	unsigned long flags;
 	int ret = 0;
 
+	for_each_node(node) {
+		struct node_barn *barn = get_barn_node(s, node);
+
+		if (barn)
+			barn_shrink(s, barn);
+	}
+
 	for_each_kmem_cache_node(s, node, n) {
 		INIT_LIST_HEAD(&discard);
 		for (i = 0; i < SHRINK_PROMOTE_MAX; i++)
 			INIT_LIST_HEAD(promote + i);
-
-		if (n->barn)
-			barn_shrink(s, n->barn);
 
 		spin_lock_irqsave(&n->list_lock, flags);
 
@@ -8201,7 +8293,8 @@ static int slab_mem_going_online_callback(int nid)
 		if (get_node(s, nid))
 			continue;
 
-		if (cache_has_sheaves(s)) {
+		if (cache_has_sheaves(s) && !get_barn_node(s, nid)) {
+
 			barn = kmalloc_node(sizeof(*barn), GFP_KERNEL, nid);
 
 			if (!barn) {
@@ -8222,15 +8315,20 @@ static int slab_mem_going_online_callback(int nid)
 			goto out;
 		}
 
-		init_kmem_cache_node(n, barn);
+		init_kmem_cache_node(n);
+		s->per_node[nid].node = n;
 
-		s->node[nid] = n;
+		if (barn) {
+			barn_init(barn);
+			s->per_node[nid].barn = barn;
+		}
 	}
 	/*
 	 * Any cache created after this point will also have kmem_cache_node
-	 * initialized for the new node.
+	 * and barn initialized for the new node.
 	 */
 	node_set(nid, slab_nodes);
+	node_set(nid, slab_barn_nodes);
 out:
 	mutex_unlock(&slab_mutex);
 	return ret;
@@ -8309,7 +8407,7 @@ static void __init bootstrap_cache_sheaves(struct kmem_cache *s)
 	if (!capacity)
 		return;
 
-	for_each_node_mask(node, slab_nodes) {
+	for_each_node_mask(node, slab_barn_nodes) {
 		struct node_barn *barn;
 
 		barn = kmalloc_node(sizeof(*barn), GFP_KERNEL, node);
@@ -8320,7 +8418,7 @@ static void __init bootstrap_cache_sheaves(struct kmem_cache *s)
 		}
 
 		barn_init(barn);
-		get_node(s, node)->barn = barn;
+		s->per_node[node].barn = barn;
 	}
 
 	for_each_possible_cpu(cpu) {
@@ -8381,6 +8479,9 @@ void __init kmem_cache_init(void)
 	for_each_node_state(node, N_MEMORY)
 		node_set(node, slab_nodes);
 
+	for_each_online_node(node)
+		node_set(node, slab_barn_nodes);
+
 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
 			sizeof(struct kmem_cache_node),
 			SLAB_HWCACHE_ALIGN | SLAB_NO_OBJ_EXT, 0, 0);
@@ -8391,8 +8492,8 @@ void __init kmem_cache_init(void)
 	slab_state = PARTIAL;
 
 	create_boot_cache(kmem_cache, "kmem_cache",
-			offsetof(struct kmem_cache, node) +
-				nr_node_ids * sizeof(struct kmem_cache_node *),
+			offsetof(struct kmem_cache, per_node) +
+				nr_node_ids * sizeof(struct kmem_cache_per_node_ptrs),
 			SLAB_HWCACHE_ALIGN | SLAB_NO_OBJ_EXT, 0, 0);
 
 	kmem_cache = bootstrap(&boot_kmem_cache);
@@ -8407,7 +8508,7 @@ void __init kmem_cache_init(void)
 	/* Setup random freelists for each cache */
 	init_freelist_randomization();
 
-	cpuhp_setup_state_nocalls(CPUHP_SLUB_DEAD, "slub:dead", NULL,
+	cpuhp_setup_state_nocalls(CPUHP_SLUB_DEAD, "slub:dead", slub_cpu_setup,
 				  slub_cpu_dead);
 
 	pr_info("SLUB: HWalign=%d, Order=%u-%u, MinObjects=%u, CPUs=%u, Nodes=%u\n",
@@ -8874,7 +8975,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 	return len;
 }
 
-#define to_slab_attr(n) container_of(n, struct slab_attribute, attr)
+#define to_slab_attr(n) container_of_const(n, struct slab_attribute, attr)
 #define to_slab(n) container_of(n, struct kmem_cache, kobj)
 
 struct slab_attribute {
@@ -8884,10 +8985,10 @@ struct slab_attribute {
 };
 
 #define SLAB_ATTR_RO(_name) \
-	static struct slab_attribute _name##_attr = __ATTR_RO_MODE(_name, 0400)
+	static const struct slab_attribute _name##_attr = __ATTR_RO_MODE(_name, 0400)
 
 #define SLAB_ATTR(_name) \
-	static struct slab_attribute _name##_attr = __ATTR_RW_MODE(_name, 0600)
+	static const struct slab_attribute _name##_attr = __ATTR_RW_MODE(_name, 0600)
 
 static ssize_t slab_size_show(struct kmem_cache *s, char *buf)
 {
@@ -9281,7 +9382,7 @@ static ssize_t skip_kfence_store(struct kmem_cache *s,
 SLAB_ATTR(skip_kfence);
 #endif
 
-static struct attribute *slab_attrs[] = {
+static const struct attribute *const slab_attrs[] = {
 	&slab_size_attr.attr,
 	&object_size_attr.attr,
 	&objs_per_slab_attr.attr,
@@ -9358,15 +9459,13 @@ static struct attribute *slab_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group slab_attr_group = {
-	.attrs = slab_attrs,
-};
+ATTRIBUTE_GROUPS(slab);
 
 static ssize_t slab_attr_show(struct kobject *kobj,
 				struct attribute *attr,
 				char *buf)
 {
-	struct slab_attribute *attribute;
+	const struct slab_attribute *attribute;
 	struct kmem_cache *s;
 
 	attribute = to_slab_attr(attr);
@@ -9382,7 +9481,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 				struct attribute *attr,
 				const char *buf, size_t len)
 {
-	struct slab_attribute *attribute;
+	const struct slab_attribute *attribute;
 	struct kmem_cache *s;
 
 	attribute = to_slab_attr(attr);
@@ -9407,6 +9506,7 @@ static const struct sysfs_ops slab_sysfs_ops = {
 static const struct kobj_type slab_ktype = {
 	.sysfs_ops = &slab_sysfs_ops,
 	.release = kmem_cache_release,
+	.default_groups = slab_groups,
 };
 
 static struct kset *slab_kset;
@@ -9494,10 +9594,6 @@ static int sysfs_slab_add(struct kmem_cache *s)
 	if (err)
 		goto out;
 
-	err = sysfs_create_group(&s->kobj, &slab_attr_group);
-	if (err)
-		goto out_del_kobj;
-
 	if (!unmergeable) {
 		/* Setup first alias */
 		sysfs_slab_alias(s, s->name);
@@ -9506,9 +9602,6 @@ out:
 	if (!unmergeable)
 		kfree(name);
 	return err;
-out_del_kobj:
-	kobject_del(&s->kobj);
-	goto out;
 }
 
 void sysfs_slab_unlink(struct kmem_cache *s)
