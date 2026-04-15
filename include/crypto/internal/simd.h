@@ -10,25 +10,6 @@
 #include <linux/percpu.h>
 #include <linux/types.h>
 
-/* skcipher support */
-
-struct simd_skcipher_alg;
-struct skcipher_alg;
-
-struct simd_skcipher_alg *simd_skcipher_create_compat(struct skcipher_alg *ialg,
-						      const char *algname,
-						      const char *drvname,
-						      const char *basename);
-void simd_skcipher_free(struct simd_skcipher_alg *alg);
-
-int simd_register_skciphers_compat(struct skcipher_alg *algs, int count,
-				   struct simd_skcipher_alg **simd_algs);
-
-void simd_unregister_skciphers(struct skcipher_alg *algs, int count,
-			       struct simd_skcipher_alg **simd_algs);
-
-/* AEAD support */
-
 struct simd_aead_alg;
 struct aead_alg;
 

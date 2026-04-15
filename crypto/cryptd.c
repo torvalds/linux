@@ -646,7 +646,8 @@ static int cryptd_hash_import(struct ahash_request *req, const void *in)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct shash_desc *desc = cryptd_shash_desc(req);
+	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
+	struct shash_desc *desc = &rctx->desc;
 
 	desc->tfm = ctx->child;
 
@@ -951,115 +952,6 @@ static struct crypto_template cryptd_tmpl = {
 	.create = cryptd_create,
 	.module = THIS_MODULE,
 };
-
-struct cryptd_skcipher *cryptd_alloc_skcipher(const char *alg_name,
-					      u32 type, u32 mask)
-{
-	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
-	struct cryptd_skcipher_ctx *ctx;
-	struct crypto_skcipher *tfm;
-
-	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
-		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
-		return ERR_PTR(-EINVAL);
-
-	tfm = crypto_alloc_skcipher(cryptd_alg_name, type, mask);
-	if (IS_ERR(tfm))
-		return ERR_CAST(tfm);
-
-	if (tfm->base.__crt_alg->cra_module != THIS_MODULE) {
-		crypto_free_skcipher(tfm);
-		return ERR_PTR(-EINVAL);
-	}
-
-	ctx = crypto_skcipher_ctx(tfm);
-	refcount_set(&ctx->refcnt, 1);
-
-	return container_of(tfm, struct cryptd_skcipher, base);
-}
-EXPORT_SYMBOL_GPL(cryptd_alloc_skcipher);
-
-struct crypto_skcipher *cryptd_skcipher_child(struct cryptd_skcipher *tfm)
-{
-	struct cryptd_skcipher_ctx *ctx = crypto_skcipher_ctx(&tfm->base);
-
-	return ctx->child;
-}
-EXPORT_SYMBOL_GPL(cryptd_skcipher_child);
-
-bool cryptd_skcipher_queued(struct cryptd_skcipher *tfm)
-{
-	struct cryptd_skcipher_ctx *ctx = crypto_skcipher_ctx(&tfm->base);
-
-	return refcount_read(&ctx->refcnt) - 1;
-}
-EXPORT_SYMBOL_GPL(cryptd_skcipher_queued);
-
-void cryptd_free_skcipher(struct cryptd_skcipher *tfm)
-{
-	struct cryptd_skcipher_ctx *ctx = crypto_skcipher_ctx(&tfm->base);
-
-	if (refcount_dec_and_test(&ctx->refcnt))
-		crypto_free_skcipher(&tfm->base);
-}
-EXPORT_SYMBOL_GPL(cryptd_free_skcipher);
-
-struct cryptd_ahash *cryptd_alloc_ahash(const char *alg_name,
-					u32 type, u32 mask)
-{
-	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
-	struct cryptd_hash_ctx *ctx;
-	struct crypto_ahash *tfm;
-
-	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
-		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
-		return ERR_PTR(-EINVAL);
-	tfm = crypto_alloc_ahash(cryptd_alg_name, type, mask);
-	if (IS_ERR(tfm))
-		return ERR_CAST(tfm);
-	if (tfm->base.__crt_alg->cra_module != THIS_MODULE) {
-		crypto_free_ahash(tfm);
-		return ERR_PTR(-EINVAL);
-	}
-
-	ctx = crypto_ahash_ctx(tfm);
-	refcount_set(&ctx->refcnt, 1);
-
-	return __cryptd_ahash_cast(tfm);
-}
-EXPORT_SYMBOL_GPL(cryptd_alloc_ahash);
-
-struct crypto_shash *cryptd_ahash_child(struct cryptd_ahash *tfm)
-{
-	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(&tfm->base);
-
-	return ctx->child;
-}
-EXPORT_SYMBOL_GPL(cryptd_ahash_child);
-
-struct shash_desc *cryptd_shash_desc(struct ahash_request *req)
-{
-	struct cryptd_hash_request_ctx *rctx = ahash_request_ctx(req);
-	return &rctx->desc;
-}
-EXPORT_SYMBOL_GPL(cryptd_shash_desc);
-
-bool cryptd_ahash_queued(struct cryptd_ahash *tfm)
-{
-	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(&tfm->base);
-
-	return refcount_read(&ctx->refcnt) - 1;
-}
-EXPORT_SYMBOL_GPL(cryptd_ahash_queued);
-
-void cryptd_free_ahash(struct cryptd_ahash *tfm)
-{
-	struct cryptd_hash_ctx *ctx = crypto_ahash_ctx(&tfm->base);
-
-	if (refcount_dec_and_test(&ctx->refcnt))
-		crypto_free_ahash(&tfm->base);
-}
-EXPORT_SYMBOL_GPL(cryptd_free_ahash);
 
 struct cryptd_aead *cryptd_alloc_aead(const char *alg_name,
 						  u32 type, u32 mask)

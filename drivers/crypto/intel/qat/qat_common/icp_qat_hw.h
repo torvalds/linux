@@ -94,7 +94,8 @@ enum icp_qat_capabilities_mask {
 	ICP_ACCEL_CAPABILITIES_AUTHENTICATION = BIT(3),
 	ICP_ACCEL_CAPABILITIES_RESERVED_1 = BIT(4),
 	ICP_ACCEL_CAPABILITIES_COMPRESSION = BIT(5),
-	/* Bits 6-7 are currently reserved */
+	/* Bit 6 is currently reserved */
+	ICP_ACCEL_CAPABILITIES_5G = BIT(7),
 	ICP_ACCEL_CAPABILITIES_ZUC = BIT(8),
 	ICP_ACCEL_CAPABILITIES_SHA3 = BIT(9),
 	/* Bits 10-11 are currently reserved */
@@ -335,7 +336,8 @@ enum icp_qat_hw_compression_delayed_match {
 enum icp_qat_hw_compression_algo {
 	ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE = 0,
 	ICP_QAT_HW_COMPRESSION_ALGO_LZS = 1,
-	ICP_QAT_HW_COMPRESSION_ALGO_DELIMITER = 2
+	ICP_QAT_HW_COMPRESSION_ALGO_ZSTD = 2,
+	ICP_QAT_HW_COMPRESSION_ALGO_DELIMITER
 };
 
 enum icp_qat_hw_compression_depth {

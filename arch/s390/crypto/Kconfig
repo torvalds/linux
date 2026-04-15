@@ -21,22 +21,6 @@ config CRYPTO_AES_S390
 	  key sizes and XTS mode is hardware accelerated for 256 and
 	  512 bit keys.
 
-config CRYPTO_DES_S390
-	tristate "Ciphers: DES and Triple DES EDE, modes: ECB, CBC, CTR"
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	select CRYPTO_LIB_DES
-	help
-	  Block ciphers: DES (FIPS 46-2) cipher algorithm
-	  Block ciphers: Triple DES EDE (FIPS 46-3) cipher algorithm
-	  Length-preserving ciphers: DES with ECB, CBC, and CTR modes
-	  Length-preserving ciphers: Triple DES EDED with ECB, CBC, and CTR modes
-
-	  Architecture: s390
-
-	  As of z990 the ECB and CBC mode are hardware accelerated.
-	  As of z196 the CTR mode is hardware accelerated.
-
 config CRYPTO_HMAC_S390
 	tristate "Keyed-hash message authentication code: HMAC"
 	select CRYPTO_HASH

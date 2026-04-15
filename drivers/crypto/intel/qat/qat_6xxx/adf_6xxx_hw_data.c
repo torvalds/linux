@@ -33,6 +33,8 @@
 #define ADF_AE_GROUP_1		GENMASK(7, 4)
 #define ADF_AE_GROUP_2		BIT(8)
 
+#define ASB_MULTIPLIER		9
+
 struct adf_ring_config {
 	u32 ring_mask;
 	enum adf_cfg_service_type ring_type;
@@ -82,15 +84,26 @@ static const unsigned long thrd_mask_dcpr[ADF_6XXX_MAX_ACCELENGINES] = {
 	0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x00
 };
 
+static const unsigned long thrd_mask_wcy[ADF_6XXX_MAX_ACCELENGINES] = {
+	0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x7F, 0x00
+};
+
 static const char *const adf_6xxx_fw_objs[] = {
 	[ADF_FW_CY_OBJ] = ADF_6XXX_CY_OBJ,
 	[ADF_FW_DC_OBJ] = ADF_6XXX_DC_OBJ,
 	[ADF_FW_ADMIN_OBJ] = ADF_6XXX_ADMIN_OBJ,
+	[ADF_FW_WCY_OBJ] = ADF_6XXX_WCY_OBJ,
 };
 
 static const struct adf_fw_config adf_default_fw_config[] = {
 	{ ADF_AE_GROUP_1, ADF_FW_DC_OBJ },
 	{ ADF_AE_GROUP_0, ADF_FW_CY_OBJ },
+	{ ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ },
+};
+
+static const struct adf_fw_config adf_wcy_fw_config[] = {
+	{ ADF_AE_GROUP_1, ADF_FW_WCY_OBJ },
+	{ ADF_AE_GROUP_0, ADF_FW_WCY_OBJ },
 	{ ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ },
 };
 
@@ -116,6 +129,12 @@ static bool services_supported(unsigned long mask)
 	default:
 		return false;
 	}
+}
+
+static bool wcy_services_supported(unsigned long mask)
+{
+	/* The wireless SKU supports only the symmetric crypto service */
+	return mask == BIT(SVC_SYM);
 }
 
 static int get_service(unsigned long *mask)
@@ -155,8 +174,12 @@ static enum adf_cfg_service_type get_ring_type(unsigned int service)
 	}
 }
 
-static const unsigned long *get_thrd_mask(unsigned int service)
+static const unsigned long *get_thrd_mask(struct adf_accel_dev *accel_dev,
+					  unsigned int service)
 {
+	if (adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)))
+		return (service == SVC_SYM) ? thrd_mask_wcy : NULL;
+
 	switch (service) {
 	case SVC_SYM:
 		return thrd_mask_sym;
@@ -194,7 +217,7 @@ static int get_rp_config(struct adf_accel_dev *accel_dev, struct adf_ring_config
 			return service;
 
 		rp_config[i].ring_type = get_ring_type(service);
-		rp_config[i].thrd_mask = get_thrd_mask(service);
+		rp_config[i].thrd_mask = get_thrd_mask(accel_dev, service);
 
 		/*
 		 * If there is only one service enabled, use all ring pairs for
@@ -386,6 +409,8 @@ static void set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTCNVL_OFFSET, ADF_SSMWDTCNVH_OFFSET, val);
 	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTUCSL_OFFSET, ADF_SSMWDTUCSH_OFFSET, val);
 	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTDCPRL_OFFSET, ADF_SSMWDTDCPRH_OFFSET, val);
+	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTWCPL_OFFSET, ADF_SSMWDTWCPH_OFFSET, val);
+	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTWATL_OFFSET, ADF_SSMWDTWATH_OFFSET, val);
 
 	/* Enable watchdog timer for pke */
 	ADF_CSR_WR64_LO_HI(addr, ADF_SSMWDTPKEL_OFFSET, ADF_SSMWDTPKEH_OFFSET, val_pke);
@@ -439,6 +464,21 @@ static int reset_ring_pair(void __iomem *csr, u32 bank_number)
 	return 0;
 }
 
+static bool adf_anti_rb_enabled(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+
+	return !!(hw_data->fuses[0] & ADF_GEN6_ANTI_RB_FUSE_BIT);
+}
+
+static void adf_gen6_init_anti_rb(struct adf_anti_rb_hw_data *anti_rb_data)
+{
+	anti_rb_data->anti_rb_enabled = adf_anti_rb_enabled;
+	anti_rb_data->svncheck_offset = ADF_GEN6_SVNCHECK_CSR_MSG;
+	anti_rb_data->svncheck_retry = 0;
+	anti_rb_data->sysfs_added = false;
+}
+
 static int ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -471,6 +511,9 @@ static int build_comp_block(void *ctx, enum adf_dc_algo algo)
 	case QAT_DEFLATE:
 		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DYNAMIC;
 	break;
+	case QAT_ZSTD:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_ZSTD_COMPRESS;
+	break;
 	default:
 		return -EINVAL;
 	}
@@ -480,6 +523,13 @@ static int build_comp_block(void *ctx, enum adf_dc_algo algo)
 	lower_val = ICP_QAT_FW_COMP_51_BUILD_CONFIG_LOWER(hw_comp_lower_csr);
 	cd_pars->u.sl.comp_slice_cfg_word[0] = lower_val;
 	cd_pars->u.sl.comp_slice_cfg_word[1] = 0;
+
+	/*
+	 * Store Auto Select Best (ASB) multiplier in the request template.
+	 * This will be used in the data path to set the actual threshold
+	 * value based on the input data size.
+	 */
+	req_tmpl->u3.asb_threshold.asb_value = ASB_MULTIPLIER;
 
 	return 0;
 }
@@ -494,12 +544,16 @@ static int build_decomp_block(void *ctx, enum adf_dc_algo algo)
 	case QAT_DEFLATE:
 		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DECOMPRESS;
 	break;
+	case QAT_ZSTD:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_ZSTD_DECOMPRESS;
+	break;
 	default:
 		return -EINVAL;
 	}
 
 	cd_pars->u.sl.comp_slice_cfg_word[0] = 0;
 	cd_pars->u.sl.comp_slice_cfg_word[1] = 0;
+	req_tmpl->u3.asb_threshold.asb_value = 0;
 
 	return 0;
 }
@@ -631,6 +685,12 @@ static int adf_gen6_set_vc(struct adf_accel_dev *accel_dev)
 	return set_vc_config(accel_dev);
 }
 
+static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev)
+{
+	return adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)) ? adf_wcy_fw_config :
+							 adf_default_fw_config;
+}
+
 static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
 	unsigned long fuses = self->fuses[ADF_FUSECTL4];
@@ -653,6 +713,38 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 	return mask;
 }
 
+static u32 get_accel_cap_wcy(struct adf_accel_dev *accel_dev)
+{
+	u32 capabilities_sym;
+	u32 fuse;
+
+	fuse = GET_HW_DATA(accel_dev)->fuses[ADF_FUSECTL1];
+
+	capabilities_sym = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_CIPHER |
+			   ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
+			   ICP_ACCEL_CAPABILITIES_WIRELESS_CRYPTO_EXT |
+			   ICP_ACCEL_CAPABILITIES_5G |
+			   ICP_ACCEL_CAPABILITIES_ZUC |
+			   ICP_ACCEL_CAPABILITIES_ZUC_256 |
+			   ICP_ACCEL_CAPABILITIES_EXT_ALGCHAIN;
+
+	if (fuse & ICP_ACCEL_GEN6_MASK_EIA3_SLICE) {
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_ZUC;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_ZUC_256;
+	}
+	if (fuse & ICP_ACCEL_GEN6_MASK_ZUC_256_SLICE)
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_ZUC_256;
+
+	if (fuse & ICP_ACCEL_GEN6_MASK_5G_SLICE)
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_5G;
+
+	if (adf_get_service_enabled(accel_dev) == SVC_SYM)
+		return capabilities_sym;
+
+	return 0;
+}
+
 static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	u32 capabilities_sym, capabilities_asym;
@@ -660,6 +752,9 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 	unsigned long mask;
 	u32 caps = 0;
 	u32 fusectl1;
+
+	if (adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)))
+		return get_accel_cap_wcy(accel_dev);
 
 	fusectl1 = GET_HW_DATA(accel_dev)->fuses[ADF_FUSECTL1];
 
@@ -733,15 +828,19 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 
 static u32 uof_get_num_objs(struct adf_accel_dev *accel_dev)
 {
-	return ARRAY_SIZE(adf_default_fw_config);
+	return adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)) ?
+		       ARRAY_SIZE(adf_wcy_fw_config) :
+		       ARRAY_SIZE(adf_default_fw_config);
 }
 
 static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	int num_fw_objs = ARRAY_SIZE(adf_6xxx_fw_objs);
+	const struct adf_fw_config *fw_config;
 	int id;
 
-	id = adf_default_fw_config[obj_num].obj;
+	fw_config = get_fw_config(accel_dev);
+	id = fw_config[obj_num].obj;
 	if (id >= num_fw_objs)
 		return NULL;
 
@@ -755,15 +854,22 @@ static const char *uof_get_name_6xxx(struct adf_accel_dev *accel_dev, u32 obj_nu
 
 static int uof_get_obj_type(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
+	const struct adf_fw_config *fw_config;
+
 	if (obj_num >= uof_get_num_objs(accel_dev))
 		return -EINVAL;
 
-	return adf_default_fw_config[obj_num].obj;
+	fw_config = get_fw_config(accel_dev);
+
+	return fw_config[obj_num].obj;
 }
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	return adf_default_fw_config[obj_num].ae_mask;
+	const struct adf_fw_config *fw_config;
+
+	fw_config = get_fw_config(accel_dev);
+	return fw_config[obj_num].ae_mask;
 }
 
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
@@ -873,6 +979,14 @@ static void adf_gen6_init_rl_data(struct adf_rl_hw_data *rl_data)
 	init_num_svc_aes(rl_data);
 }
 
+static void adf_gen6_init_services_supported(struct adf_hw_device_data *hw_data)
+{
+	if (adf_6xxx_is_wcy(hw_data))
+		hw_data->services_supported = wcy_services_supported;
+	else
+		hw_data->services_supported = services_supported;
+}
+
 void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &adf_6xxx_class;
@@ -929,11 +1043,12 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->stop_timer = adf_timer_stop;
 	hw_data->init_device = adf_init_device;
 	hw_data->enable_pm = enable_pm;
-	hw_data->services_supported = services_supported;
 	hw_data->num_rps = ADF_GEN6_ETR_MAX_BANKS;
 	hw_data->clock_frequency = ADF_6XXX_AE_FREQ;
 	hw_data->get_svc_slice_cnt = adf_gen6_get_svc_slice_cnt;
+	hw_data->accel_capabilities_ext_mask = ADF_ACCEL_CAPABILITIES_EXT_ZSTD;
 
+	adf_gen6_init_services_supported(hw_data);
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen6_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen6_init_dc_ops(&hw_data->dc_ops);
@@ -941,6 +1056,7 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	adf_gen6_init_ras_ops(&hw_data->ras_ops);
 	adf_gen6_init_tl_data(&hw_data->tl_data);
 	adf_gen6_init_rl_data(&hw_data->rl_data);
+	adf_gen6_init_anti_rb(&hw_data->anti_rb_data);
 }
 
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data)

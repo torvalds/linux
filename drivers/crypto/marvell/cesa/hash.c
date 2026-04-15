@@ -847,8 +847,7 @@ static int mv_cesa_ahash_export(struct ahash_request *req, void *hash,
 
 	*len = creq->len;
 	memcpy(hash, creq->state, digsize);
-	memset(cache, 0, blocksize);
-	memcpy(cache, creq->cache, creq->cache_ptr);
+	memcpy_and_pad(cache, blocksize, creq->cache, creq->cache_ptr, 0);
 
 	return 0;
 }

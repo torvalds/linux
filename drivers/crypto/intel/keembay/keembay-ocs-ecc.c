@@ -230,12 +230,7 @@ static int kmb_ecc_point_mult(struct ocs_ecc_dev *ecc_dev,
 	int rc = 0;
 
 	/* Generate random nbytes for Simple and Differential SCA protection. */
-	rc = crypto_get_default_rng();
-	if (rc)
-		return rc;
-
-	rc = crypto_rng_get_bytes(crypto_default_rng, sca, nbytes);
-	crypto_put_default_rng();
+	rc = crypto_stdrng_get_bytes(sca, nbytes);
 	if (rc)
 		return rc;
 
@@ -509,14 +504,10 @@ static int kmb_ecc_gen_privkey(const struct ecc_curve *curve, u64 *privkey)
 	 * The maximum security strength identified by NIST SP800-57pt1r4 for
 	 * ECC is 256 (N >= 512).
 	 *
-	 * This condition is met by the default RNG because it selects a favored
-	 * DRBG with a security strength of 256.
+	 * This condition is met by stdrng because it selects a favored DRBG
+	 * with a security strength of 256.
 	 */
-	if (crypto_get_default_rng())
-		return -EFAULT;
-
-	rc = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
-	crypto_put_default_rng();
+	rc = crypto_stdrng_get_bytes(priv, nbytes);
 	if (rc)
 		goto cleanup;
 

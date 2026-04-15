@@ -2909,7 +2909,6 @@ F:	include/linux/soc/ixp4xx/qmgr.h
 
 ARM/INTEL KEEMBAY ARCHITECTURE
 M:	Paul J. Murphy <paul.j.murphy@intel.com>
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/intel,keembay.yaml
 F:	arch/arm64/boot/dts/intel/keembay-evm.dts
@@ -6837,12 +6836,6 @@ M:	Wang Jinchao <wangjinchao@xfusion.com>
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	tools/crypto/tcrypt/tcrypt_speed_compare.py
-
-CRYPTOGRAPHIC RANDOM NUMBER GENERATOR
-M:	Neil Horman <nhorman@tuxdriver.com>
-L:	linux-crypto@vger.kernel.org
-S:	Maintained
-F:	crypto/rng.c
 
 CS3308 MEDIA DRIVER
 M:	Hans Verkuil <hverkuil@kernel.org>
@@ -12956,7 +12949,6 @@ F:	drivers/dma/ioat*
 INTEL IAA CRYPTO DRIVER
 M:	Kristen Accardi <kristen.c.accardi@intel.com>
 M:	Vinicius Costa Gomes <vinicius.gomes@intel.com>
-M:	Kanchana P Sridhar <kanchana.p.sridhar@intel.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	Documentation/driver-api/crypto/iaa/iaa-crypto.rst
@@ -13064,8 +13056,7 @@ F:	Documentation/devicetree/bindings/display/intel,keembay-display.yaml
 F:	drivers/gpu/drm/kmb/
 
 INTEL KEEM BAY OCS AES/SM4 CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
-S:	Maintained
+S:	Orphan
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-aes.yaml
 F:	drivers/crypto/intel/keembay/Kconfig
 F:	drivers/crypto/intel/keembay/Makefile
@@ -13074,7 +13065,6 @@ F:	drivers/crypto/intel/keembay/ocs-aes.c
 F:	drivers/crypto/intel/keembay/ocs-aes.h
 
 INTEL KEEM BAY OCS ECC CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 M:	Prabhjot Khurana <prabhjot.khurana@intel.com>
 M:	Mark Gross <mgross@linux.intel.com>
 S:	Maintained
@@ -13084,7 +13074,6 @@ F:	drivers/crypto/intel/keembay/Makefile
 F:	drivers/crypto/intel/keembay/keembay-ocs-ecc.c
 
 INTEL KEEM BAY OCS HCU CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 M:	Declan Murphy <declan.murphy@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-hcu.yaml
@@ -17295,6 +17284,12 @@ S:	Supported
 F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/spi/spi-at91-usart.c
 
+MICROCHIP ATSHA204A DRIVER
+M:	Thorsten Blum <thorsten.blum@linux.dev>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	drivers/crypto/atmel-sha204a.c
+
 MICROCHIP AUDIO ASOC DRIVERS
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
 M:	Andrei Simion <andrei.simion@microchip.com>
@@ -17314,9 +17309,10 @@ F:	Documentation/devicetree/bindings/media/microchip,csi2dc.yaml
 F:	drivers/media/platform/microchip/microchip-csi2dc.c
 
 MICROCHIP ECC DRIVER
+M:	Thorsten Blum <thorsten.blum@linux.dev>
 L:	linux-crypto@vger.kernel.org
-S:	Orphan
-F:	drivers/crypto/atmel-ecc.*
+S:	Maintained
+F:	drivers/crypto/atmel-ecc.c
 
 MICROCHIP EIC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>

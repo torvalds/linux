@@ -240,9 +240,10 @@ static inline const char *crypto_acomp_driver_name(struct crypto_acomp *tfm)
 }
 
 /**
- * acomp_request_alloc() -- allocates asynchronous (de)compression request
+ * acomp_request_alloc_extra() -- allocates asynchronous (de)compression request
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ * @extra:	amount of extra memory
  * @gfp:	gfp to pass to kzalloc (defaults to GFP_KERNEL)
  *
  * Return:	allocated handle in case of success or NULL in case of an error
@@ -318,7 +319,7 @@ static inline void acomp_request_free(struct acomp_req *req)
  *
  * @req:	request that the callback will be set for
  * @flgs:	specify for instance if the operation may backlog
- * @cmlp:	callback which will be called
+ * @cmpl:	callback which will be called
  * @data:	private data used by the caller
  */
 static inline void acomp_request_set_callback(struct acomp_req *req,

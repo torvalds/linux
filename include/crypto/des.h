@@ -34,9 +34,9 @@ void des3_ede_decrypt(const struct des3_ede_ctx *dctx, u8 *dst, const u8 *src);
  * des_expand_key - Expand a DES input key into a key schedule
  * @ctx: the key schedule
  * @key: buffer containing the input key
- * @len: size of the buffer contents
+ * @keylen: size of the buffer contents
  *
- * Returns 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
+ * Returns: 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
  * the key is accepted but has been found to be weak.
  */
 int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen);
@@ -45,9 +45,9 @@ int des_expand_key(struct des_ctx *ctx, const u8 *key, unsigned int keylen);
  * des3_ede_expand_key - Expand a triple DES input key into a key schedule
  * @ctx: the key schedule
  * @key: buffer containing the input key
- * @len: size of the buffer contents
+ * @keylen: size of the buffer contents
  *
- * Returns 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
+ * Returns: 0 on success, -EINVAL if the input key is rejected and -ENOKEY if
  * the key is accepted but has been found to be weak. Note that weak keys will
  * be rejected (and -EINVAL will be returned) when running in FIPS mode.
  */

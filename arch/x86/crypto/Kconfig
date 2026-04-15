@@ -99,20 +99,6 @@ config CRYPTO_CAST6_AVX_X86_64
 
 	  Processes eight blocks in parallel.
 
-config CRYPTO_DES3_EDE_X86_64
-	tristate "Ciphers: Triple DES EDE with modes: ECB, CBC"
-	depends on 64BIT
-	select CRYPTO_SKCIPHER
-	select CRYPTO_LIB_DES
-	imply CRYPTO_CTR
-	help
-	  Block cipher: Triple DES EDE (FIPS 46-3) cipher algorithm
-	  Length-preserving ciphers: Triple DES EDE with ECB and CBC modes
-
-	  Architecture: x86_64
-
-	  Processes one or three blocks in parallel.
-
 config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Ciphers: Serpent with modes: ECB, CBC (SSE2)"
 	depends on 64BIT

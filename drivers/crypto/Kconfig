@@ -301,6 +301,7 @@ config CRYPTO_DEV_PPC4XX
 	select CRYPTO_CCM
 	select CRYPTO_CTR
 	select CRYPTO_GCM
+	select CRYPTO_RNG
 	select CRYPTO_SKCIPHER
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
@@ -490,7 +491,7 @@ config CRYPTO_DEV_ATMEL_ECC
 	select CRYPTO_ECDH
 	select CRC16
 	help
-	  Microhip / Atmel ECC hw accelerator.
+	  Microchip / Atmel ECC hw accelerator.
 	  Select this if you want to use the Microchip / Atmel module for
 	  ECDH algorithm.
 
@@ -504,7 +505,7 @@ config CRYPTO_DEV_ATMEL_SHA204A
 	select HW_RANDOM
 	select CRC16
 	help
-	  Microhip / Atmel SHA accelerator and RNG.
+	  Microchip / Atmel SHA accelerator and RNG.
 	  Select this if you want to use the Microchip / Atmel SHA204A
 	  module as a random number generator. (Other functions of the
 	  chip are currently not exposed by this driver)
@@ -666,14 +667,6 @@ config CRYPTO_DEV_QCOM_RNG
 
 	  To compile this driver as a module, choose M here. The
 	  module will be called qcom-rng. If unsure, say N.
-
-#config CRYPTO_DEV_VMX
-#	bool "Support for VMX cryptographic acceleration instructions"
-#	depends on PPC64 && VSX
-#	help
-#	  Support for VMX cryptographic acceleration instructions.
-#
-#source "drivers/crypto/vmx/Kconfig"
 
 config CRYPTO_DEV_IMGTEC_HASH
 	tristate "Imagination Technologies hardware hash accelerator"

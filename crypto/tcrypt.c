@@ -911,8 +911,14 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 			break;
 		}
 
-		if (klen)
-			crypto_ahash_setkey(tfm, tvmem[0], klen);
+		if (klen) {
+			ret = crypto_ahash_setkey(tfm, tvmem[0], klen);
+			if (ret) {
+				pr_err("setkey() failed flags=%x: %d\n",
+				       crypto_ahash_get_flags(tfm), ret);
+				break;
+			}
+		}
 
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
@@ -2795,6 +2801,11 @@ static int __init tcrypt_mod_init(void)
 			goto err_free_tv;
 	}
 
+	if (!num_mb) {
+		pr_warn("num_mb must be at least 1; forcing to 1\n");
+		num_mb = 1;
+	}
+
 	err = do_test(alg, type, mask, mode, num_mb);
 
 	if (err) {
@@ -2804,7 +2815,7 @@ static int __init tcrypt_mod_init(void)
 		pr_debug("all tests passed\n");
 	}
 
-	/* We intentionaly return -EAGAIN to prevent keeping the module,
+	/* We intentionally return -EAGAIN to prevent keeping the module,
 	 * unless we're running in fips mode. It does all its work from
 	 * init() and doesn't offer any runtime functionality, but in
 	 * the fips case, checking for a successful load is helpful.

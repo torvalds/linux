@@ -6,8 +6,10 @@
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/delay.h>
 #include "adf_accel_devices.h"
 #include "adf_admin.h"
+#include "adf_anti_rb.h"
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
 #include "adf_heartbeat.h"
@@ -19,6 +21,7 @@
 #define ADF_ADMIN_POLL_DELAY_US 20
 #define ADF_ADMIN_POLL_TIMEOUT_US (5 * USEC_PER_SEC)
 #define ADF_ONE_AE 1
+#define ADF_ADMIN_RETRY_MAX 60
 
 static const u8 const_tab[1024] __aligned(1024) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -534,6 +537,73 @@ int adf_send_admin_tl_stop(struct adf_accel_dev *accel_dev)
 	req.cmd_id = ICP_QAT_FW_TL_STOP;
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
+static int adf_send_admin_retry(struct adf_accel_dev *accel_dev, u8 cmd_id,
+				struct icp_qat_fw_init_admin_resp *resp,
+				unsigned int sleep_ms)
+{
+	u32 admin_ae_mask = GET_HW_DATA(accel_dev)->admin_ae_mask;
+	struct icp_qat_fw_init_admin_req req = { };
+	unsigned int retries = ADF_ADMIN_RETRY_MAX;
+	int ret;
+
+	req.cmd_id = cmd_id;
+
+	do {
+		ret = adf_send_admin(accel_dev, &req, resp, admin_ae_mask);
+		if (!ret)
+			return 0;
+
+		if (resp->status != ICP_QAT_FW_INIT_RESP_STATUS_RETRY)
+			return ret;
+
+		msleep(sleep_ms);
+	} while (--retries);
+
+	return -ETIMEDOUT;
+}
+
+static int adf_send_admin_svn(struct adf_accel_dev *accel_dev, u8 cmd_id,
+			      struct icp_qat_fw_init_admin_resp *resp)
+{
+	return adf_send_admin_retry(accel_dev, cmd_id, resp, ADF_SVN_RETRY_MS);
+}
+
+int adf_send_admin_arb_query(struct adf_accel_dev *accel_dev, int cmd, u8 *svn)
+{
+	struct icp_qat_fw_init_admin_resp resp = { };
+	int ret;
+
+	ret = adf_send_admin_svn(accel_dev, ICP_QAT_FW_SVN_READ, &resp);
+	if (ret)
+		return ret;
+
+	switch (cmd) {
+	case ARB_ENFORCED_MIN_SVN:
+		*svn = resp.enforced_min_svn;
+		break;
+	case ARB_PERMANENT_MIN_SVN:
+		*svn = resp.permanent_min_svn;
+		break;
+	case ARB_ACTIVE_SVN:
+		*svn = resp.active_svn;
+		break;
+	default:
+		*svn = 0;
+		dev_err(&GET_DEV(accel_dev),
+			"Unknown secure version number request\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+int adf_send_admin_arb_commit(struct adf_accel_dev *accel_dev)
+{
+	struct icp_qat_fw_init_admin_resp resp = { };
+
+	return adf_send_admin_svn(accel_dev, ICP_QAT_FW_SVN_COMMIT, &resp);
 }
 
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)

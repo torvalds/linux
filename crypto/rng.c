@@ -24,8 +24,7 @@
 #include "internal.h"
 
 static DEFINE_MUTEX(crypto_default_rng_lock);
-struct crypto_rng *crypto_default_rng;
-EXPORT_SYMBOL_GPL(crypto_default_rng);
+static struct crypto_rng *crypto_default_rng;
 static int crypto_default_rng_refcnt;
 
 int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
@@ -106,7 +105,7 @@ struct crypto_rng *crypto_alloc_rng(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_rng);
 
-int crypto_get_default_rng(void)
+static int crypto_get_default_rng(void)
 {
 	struct crypto_rng *rng;
 	int err;
@@ -135,15 +134,27 @@ unlock:
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(crypto_get_default_rng);
 
-void crypto_put_default_rng(void)
+static void crypto_put_default_rng(void)
 {
 	mutex_lock(&crypto_default_rng_lock);
 	crypto_default_rng_refcnt--;
 	mutex_unlock(&crypto_default_rng_lock);
 }
-EXPORT_SYMBOL_GPL(crypto_put_default_rng);
+
+int __crypto_stdrng_get_bytes(void *buf, unsigned int len)
+{
+	int err;
+
+	err = crypto_get_default_rng();
+	if (err)
+		return err;
+
+	err = crypto_rng_get_bytes(crypto_default_rng, buf, len);
+	crypto_put_default_rng();
+	return err;
+}
+EXPORT_SYMBOL_GPL(__crypto_stdrng_get_bytes);
 
 #if defined(CONFIG_CRYPTO_RNG) || defined(CONFIG_CRYPTO_RNG_MODULE)
 int crypto_del_default_rng(void)

@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/string.h>
 #include <linux/crypto.h>
 #include <crypto/internal/aead.h>
 #include <crypto/algapi.h>
@@ -223,9 +224,8 @@ static int ccp_register_aes_aead(struct list_head *head,
 	/* Copy the defaults and override as necessary */
 	alg = &ccp_aead->alg;
 	*alg = *def->alg_defaults;
-	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
-	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 def->driver_name);
+	strscpy(alg->base.cra_name, def->name);
+	strscpy(alg->base.cra_driver_name, def->driver_name);
 	alg->base.cra_blocksize = def->blocksize;
 
 	ret = crypto_register_aead(alg);

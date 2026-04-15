@@ -72,8 +72,8 @@ static inline void ecc_swap_digits(const void *in, u64 *out, unsigned int ndigit
 /**
  * ecc_digits_from_bytes() - Create ndigits-sized digits array from byte array
  * @in:       Input byte array
- * @nbytes    Size of input byte array
- * @out       Output digits array
+ * @nbytes:   Size of input byte array
+ * @out:      Output digits array
  * @ndigits:  Number of digits to create from byte array
  *
  * The first byte in the input byte array is expected to hold the most
@@ -90,7 +90,7 @@ void ecc_digits_from_bytes(const u8 *in, unsigned int nbytes,
  * @private_key:	private key to be used for the given curve
  * @private_key_len:	private key length
  *
- * Returns 0 if the key is acceptable, a negative value otherwise
+ * Returns: 0 if the key is acceptable, a negative value otherwise
  */
 int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
 		     const u64 *private_key, unsigned int private_key_len);
@@ -104,7 +104,7 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
  * @ndigits:		curve number of digits
  * @private_key:	buffer for storing the generated private key
  *
- * Returns 0 if the private key was generated successfully, a negative value
+ * Returns: 0 if the private key was generated successfully, a negative value
  * if an error occurred.
  */
 int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits,
@@ -118,7 +118,7 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits,
  * @private_key:	pregenerated private key for the given curve
  * @public_key:		buffer for storing the generated public key
  *
- * Returns 0 if the public key was generated successfully, a negative value
+ * Returns: 0 if the public key was generated successfully, a negative value
  * if an error occurred.
  */
 int ecc_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
@@ -136,7 +136,7 @@ int ecc_make_pub_key(const unsigned int curve_id, unsigned int ndigits,
  * Note: It is recommended that you hash the result of crypto_ecdh_shared_secret
  * before using it for symmetric encryption or HMAC.
  *
- * Returns 0 if the shared secret was generated successfully, a negative value
+ * Returns: 0 if the shared secret was generated successfully, a negative value
  * if an error occurred.
  */
 int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
@@ -179,6 +179,8 @@ int ecc_is_pubkey_valid_full(const struct ecc_curve *curve,
  *
  * @vli:		vli to check.
  * @ndigits:		length of the @vli
+ *
+ * Returns: %true if vli == 0, %false otherwise.
  */
 bool vli_is_zero(const u64 *vli, unsigned int ndigits);
 
@@ -189,7 +191,7 @@ bool vli_is_zero(const u64 *vli, unsigned int ndigits);
  * @right:		vli
  * @ndigits:		length of both vlis
  *
- * Returns sign of @left - @right, i.e. -1 if @left < @right,
+ * Returns: sign of @left - @right, i.e. -1 if @left < @right,
  * 0 if @left == @right, 1 if @left > @right.
  */
 int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
@@ -199,7 +201,7 @@ int vli_cmp(const u64 *left, const u64 *right, unsigned int ndigits);
  *
  * @result:		where to write result
  * @left:		vli
- * @right		vli
+ * @right:		vli
  * @ndigits:		length of all vlis
  *
  * Note: can modify in-place.
@@ -263,7 +265,7 @@ void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 unsigned int vli_num_bits(const u64 *vli, unsigned int ndigits);
 
 /**
- * ecc_aloc_point() - Allocate ECC point.
+ * ecc_alloc_point() - Allocate ECC point.
  *
  * @ndigits:		Length of vlis in u64 qwords.
  *
@@ -281,7 +283,7 @@ void ecc_free_point(struct ecc_point *p);
 /**
  * ecc_point_is_zero() - Check if point is zero.
  *
- * @p:			Point to check for zero.
+ * @point:		Point to check for zero.
  *
  * Return: true if point is the point at infinity, false otherwise.
  */

@@ -12,6 +12,7 @@
 #include <linux/pci_ids.h>
 #include <linux/wordpart.h>
 #include "adf_accel_devices.h"
+#include "adf_anti_rb.h"
 #include "adf_common_drv.h"
 #include "icp_qat_uclo.h"
 #include "icp_qat_hal.h"
@@ -1230,10 +1231,11 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_auth_fw(struct icp_qat_fw_loader_handle *handle,
 			    struct icp_qat_fw_auth_desc *desc)
 {
-	u32 fcu_sts, retry = 0;
+	unsigned int retries = FW_AUTH_MAX_RETRY;
 	u32 fcu_ctl_csr, fcu_sts_csr;
 	u32 fcu_dram_hi_csr, fcu_dram_lo_csr;
 	u64 bus_addr;
+	u32 fcu_sts;
 
 	bus_addr = ADD_ADDR(desc->css_hdr_high, desc->css_hdr_low)
 			   - sizeof(struct icp_qat_auth_chunk);
@@ -1248,17 +1250,32 @@ static int qat_uclo_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	SET_CAP_CSR(handle, fcu_ctl_csr, FCU_CTRL_CMD_AUTH);
 
 	do {
+		int arb_ret;
+
 		msleep(FW_AUTH_WAIT_PERIOD);
 		fcu_sts = GET_CAP_CSR(handle, fcu_sts_csr);
+
+		arb_ret = adf_anti_rb_check(handle->pci_dev);
+		if (arb_ret == -EAGAIN) {
+			if ((fcu_sts & FCU_AUTH_STS_MASK) == FCU_STS_VERI_FAIL) {
+				SET_CAP_CSR(handle, fcu_ctl_csr, FCU_CTRL_CMD_AUTH);
+				continue;
+			}
+		} else if (arb_ret) {
+			goto auth_fail;
+		}
+
 		if ((fcu_sts & FCU_AUTH_STS_MASK) == FCU_STS_VERI_FAIL)
 			goto auth_fail;
+
 		if (((fcu_sts >> FCU_STS_AUTHFWLD_POS) & 0x1))
 			if ((fcu_sts & FCU_AUTH_STS_MASK) == FCU_STS_VERI_DONE)
 				return 0;
-	} while (retry++ < FW_AUTH_MAX_RETRY);
+	} while (--retries);
+
 auth_fail:
-	pr_err("authentication error (FCU_STATUS = 0x%x),retry = %d\n",
-	       fcu_sts & FCU_AUTH_STS_MASK, retry);
+	pr_err("authentication error (FCU_STATUS = 0x%x)\n", fcu_sts & FCU_AUTH_STS_MASK);
+
 	return -EINVAL;
 }
 

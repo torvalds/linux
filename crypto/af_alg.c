@@ -324,14 +324,12 @@ static int alg_setkey_by_key_serial(struct alg_sock *ask, sockptr_t optval,
 		return PTR_ERR(ret);
 	}
 
-	key_data = sock_kmalloc(&ask->sk, key_datalen, GFP_KERNEL);
+	key_data = sock_kmemdup(&ask->sk, ret, key_datalen, GFP_KERNEL);
 	if (!key_data) {
 		up_read(&key->sem);
 		key_put(key);
 		return -ENOMEM;
 	}
-
-	memcpy(key_data, ret, key_datalen);
 
 	up_read(&key->sem);
 	key_put(key);

@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/qat/qat_mig_dev.h>
 #include <linux/wordpart.h>
+#include "adf_anti_rb.h"
 #include "adf_cfg_common.h"
 #include "adf_dc.h"
 #include "adf_rl.h"
@@ -56,6 +57,11 @@ enum adf_accel_capabilities {
 	ADF_ACCEL_CAPABILITIES_COMPRESSION = 32,
 	ADF_ACCEL_CAPABILITIES_LZS_COMPRESSION = 64,
 	ADF_ACCEL_CAPABILITIES_RANDOM_NUMBER = 128
+};
+
+enum adf_accel_capabilities_ext {
+	ADF_ACCEL_CAPABILITIES_EXT_ZSTD_LZ4S = BIT(0),
+	ADF_ACCEL_CAPABILITIES_EXT_ZSTD = BIT(1),
 };
 
 enum adf_fuses {
@@ -328,12 +334,14 @@ struct adf_hw_device_data {
 	struct adf_dev_err_mask dev_err_mask;
 	struct adf_rl_hw_data rl_data;
 	struct adf_tl_hw_data tl_data;
+	struct adf_anti_rb_hw_data anti_rb_data;
 	struct qat_migdev_ops vfmig_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses[ADF_MAX_FUSES];
 	u32 straps;
 	u32 accel_capabilities_mask;
+	u32 accel_capabilities_ext_mask;
 	u32 extended_dc_capabilities;
 	u16 fw_capabilities;
 	u32 clock_frequency;

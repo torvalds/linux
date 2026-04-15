@@ -53,6 +53,12 @@
 #define ADF_GEN6_ADMINMSGLR_OFFSET	0x500578
 #define ADF_GEN6_MAILBOX_BASE_OFFSET	0x600970
 
+/* Anti-rollback */
+#define ADF_GEN6_SVNCHECK_CSR_MSG	0x640004
+
+/* Fuse bits */
+#define ADF_GEN6_ANTI_RB_FUSE_BIT	BIT(24)
+
 /*
  * Watchdog timers
  * Timeout is in cycles. Clock speed may vary across products but this
@@ -64,10 +70,14 @@
 #define ADF_SSMWDTATHH_OFFSET		0x520C
 #define ADF_SSMWDTCNVL_OFFSET		0x5408
 #define ADF_SSMWDTCNVH_OFFSET		0x540C
+#define ADF_SSMWDTWCPL_OFFSET		0x5608
+#define ADF_SSMWDTWCPH_OFFSET		0x560C
 #define ADF_SSMWDTUCSL_OFFSET		0x5808
 #define ADF_SSMWDTUCSH_OFFSET		0x580C
 #define ADF_SSMWDTDCPRL_OFFSET		0x5A08
 #define ADF_SSMWDTDCPRH_OFFSET		0x5A0C
+#define ADF_SSMWDTWATL_OFFSET		0x5C08
+#define ADF_SSMWDTWATH_OFFSET		0x5C0C
 #define ADF_SSMWDTPKEL_OFFSET		0x5E08
 #define ADF_SSMWDTPKEH_OFFSET		0x5E0C
 
@@ -139,6 +149,7 @@
 #define ADF_6XXX_CY_OBJ		"qat_6xxx_cy.bin"
 #define ADF_6XXX_DC_OBJ		"qat_6xxx_dc.bin"
 #define ADF_6XXX_ADMIN_OBJ	"qat_6xxx_admin.bin"
+#define ADF_6XXX_WCY_OBJ	"qat_6xxx_wcy.bin"
 
 /* RL constants */
 #define ADF_6XXX_RL_PCIE_SCALE_FACTOR_DIV	100
@@ -159,8 +170,17 @@ enum icp_qat_gen6_slice_mask {
 	ICP_ACCEL_GEN6_MASK_PKE_SLICE = BIT(2),
 	ICP_ACCEL_GEN6_MASK_CPR_SLICE = BIT(3),
 	ICP_ACCEL_GEN6_MASK_DCPRZ_SLICE = BIT(4),
+	ICP_ACCEL_GEN6_MASK_EIA3_SLICE = BIT(5),
 	ICP_ACCEL_GEN6_MASK_WCP_WAT_SLICE = BIT(6),
+	ICP_ACCEL_GEN6_MASK_ZUC_256_SLICE = BIT(7),
+	ICP_ACCEL_GEN6_MASK_5G_SLICE = BIT(8),
 };
+
+/* Return true if the device is a wireless crypto (WCY) SKU */
+static inline bool adf_6xxx_is_wcy(struct adf_hw_device_data *hw_data)
+{
+	return !(hw_data->fuses[ADF_FUSECTL1] & ICP_ACCEL_GEN6_MASK_WCP_WAT_SLICE);
+}
 
 void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data);

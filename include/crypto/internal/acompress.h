@@ -42,6 +42,7 @@
  *
  * @base:	Common crypto API algorithm data structure
  * @calg:	Cmonn algorithm data structure shared with scomp
+ * @COMP_ALG_COMMON: see struct comp_alg_common
  */
 struct acomp_alg {
 	int (*compress)(struct acomp_req *req);

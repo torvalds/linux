@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config CRYPTO_DEV_QAT
 	tristate
+	select CRYPTO_ACOMP
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_SKCIPHER
@@ -11,6 +12,7 @@ config CRYPTO_DEV_QAT
 	select CRYPTO_LIB_SHA1
 	select CRYPTO_LIB_SHA256
 	select CRYPTO_LIB_SHA512
+	select CRYPTO_ZSTD
 	select FW_LOADER
 	select CRC8
 

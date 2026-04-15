@@ -280,17 +280,17 @@ static u32 qce_encr_cfg(unsigned long flags, u32 aes_key_size)
 #ifdef CONFIG_CRYPTO_DEV_QCE_SKCIPHER
 static void qce_xts_swapiv(__be32 *dst, const u8 *src, unsigned int ivsize)
 {
-	u8 swap[QCE_AES_IV_LENGTH];
-	u32 i, j;
+	u8 swap[QCE_AES_IV_LENGTH] = {0};
+	unsigned int i, offset;
 
 	if (ivsize > QCE_AES_IV_LENGTH)
 		return;
 
-	memset(swap, 0, QCE_AES_IV_LENGTH);
+	offset = QCE_AES_IV_LENGTH - ivsize;
 
-	for (i = (QCE_AES_IV_LENGTH - ivsize), j = ivsize - 1;
-	     i < QCE_AES_IV_LENGTH; i++, j--)
-		swap[i] = src[j];
+	/* Reverse and right-align IV bytes. */
+	for (i = 0; i < ivsize; i++)
+		swap[offset + i] = src[ivsize - 1 - i];
 
 	qce_cpu_to_be32p_array(dst, swap, QCE_AES_IV_LENGTH);
 }

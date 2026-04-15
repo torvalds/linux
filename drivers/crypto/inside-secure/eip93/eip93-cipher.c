@@ -3,7 +3,7 @@
  * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@icloud.com>
- * Christian Marangi <ansuelsmth@gmail.com
+ * Christian Marangi <ansuelsmth@gmail.com>
  */
 
 #include <crypto/aes.h>
@@ -320,7 +320,7 @@ struct eip93_alg_template eip93_alg_ecb_des = {
 		.ivsize	= 0,
 		.base = {
 			.cra_name = "ecb(des)",
-			.cra_driver_name = "ebc(des-eip93)",
+			.cra_driver_name = "ecb(des-eip93)",
 			.cra_priority = EIP93_CRA_PRIORITY,
 			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,

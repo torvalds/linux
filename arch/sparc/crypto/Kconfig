@@ -2,20 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (sparc64)"
 
-config CRYPTO_DES_SPARC64
-	tristate "Ciphers: DES and Triple DES EDE, modes: ECB/CBC"
-	depends on SPARC64
-	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_DES
-	select CRYPTO_SKCIPHER
-	help
-	  Block cipher: DES (FIPS 46-2) cipher algorithm
-	  Block cipher: Triple DES EDE (FIPS 46-3) cipher algorithm
-	  Length-preserving ciphers: DES with ECB and CBC modes
-	  Length-preserving ciphers: Tripe DES EDE with ECB and CBC modes
-
-	  Architecture: sparc64
-
 config CRYPTO_AES_SPARC64
 	tristate "Ciphers: AES, modes: ECB, CBC, CTR"
 	depends on SPARC64

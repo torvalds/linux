@@ -122,6 +122,8 @@
 #define HZIP_LIT_LEN_EN_OFFSET		0x301204
 #define HZIP_LIT_LEN_EN_EN		BIT(4)
 
+#define HZIP_MAX_CHANNEL_NUM		3
+
 enum {
 	HZIP_HIGH_COMP_RATE,
 	HZIP_HIGH_COMP_PERF,
@@ -357,6 +359,12 @@ static struct dfx_diff_registers hzip_diff_regs[] = {
 		.reg_offset = HZIP_CORE_DFX_DECOMP_5,
 		.reg_len = HZIP_CORE_REGS_DFX_LEN,
 	},
+};
+
+static const char *zip_channel_name[HZIP_MAX_CHANNEL_NUM] = {
+	"COMPRESS",
+	"DECOMPRESS",
+	"DAE"
 };
 
 static int hzip_diff_regs_show(struct seq_file *s, void *unused)
@@ -1400,6 +1408,16 @@ static int zip_pre_store_cap_reg(struct hisi_qm *qm)
 	return 0;
 }
 
+static void zip_set_channels(struct hisi_qm *qm)
+{
+	struct qm_channel *channel_data = &qm->channel_data;
+	int i;
+
+	channel_data->channel_num = HZIP_MAX_CHANNEL_NUM;
+	for (i = 0; i < HZIP_MAX_CHANNEL_NUM; i++)
+		channel_data->channel_name[i] = zip_channel_name[i];
+}
+
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
 	u64 alg_msk;
@@ -1438,6 +1456,7 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return ret;
 	}
 
+	zip_set_channels(qm);
 	/* Fetch and save the value of capability registers */
 	ret = zip_pre_store_cap_reg(qm);
 	if (ret) {

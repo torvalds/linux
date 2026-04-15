@@ -16,6 +16,7 @@
 
 #include "adf_gen6_shared.h"
 #include "adf_6xxx_hw_data.h"
+#include "adf_heartbeat.h"
 
 static int bar_map[] = {
 	0,	/* SRAM */
@@ -51,6 +52,35 @@ static void adf_cleanup_hw_data(void *accel_dev)
 static void adf_devmgr_remove(void *accel_dev)
 {
 	adf_devmgr_rm_dev(accel_dev, NULL);
+}
+
+static int adf_gen6_cfg_dev_init(struct adf_accel_dev *accel_dev)
+{
+	const char *config;
+	int ret;
+
+	/*
+	 * Wireless SKU - symmetric crypto service only
+	 * Non-wireless SKU - crypto service for even devices and compression for odd devices
+	 */
+	if (adf_6xxx_is_wcy(GET_HW_DATA(accel_dev)))
+		config = ADF_CFG_SYM;
+	else
+		config = accel_dev->accel_id % 2 ? ADF_CFG_DC : ADF_CFG_CY;
+
+	ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
+	if (ret)
+		return ret;
+
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
+					  ADF_SERVICES_ENABLED, config,
+					  ADF_STR);
+	if (ret)
+		return ret;
+
+	adf_heartbeat_save_cfg_param(accel_dev, ADF_CFG_HB_TIMER_MIN_MS);
+
+	return 0;
 }
 
 static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -90,9 +120,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_dword(pdev, ADF_GEN6_FUSECTL4_OFFSET, &hw_data->fuses[ADF_FUSECTL4]);
 	pci_read_config_dword(pdev, ADF_GEN6_FUSECTL0_OFFSET, &hw_data->fuses[ADF_FUSECTL0]);
 	pci_read_config_dword(pdev, ADF_GEN6_FUSECTL1_OFFSET, &hw_data->fuses[ADF_FUSECTL1]);
-
-	if (!(hw_data->fuses[ADF_FUSECTL1] & ICP_ACCEL_GEN6_MASK_WCP_WAT_SLICE))
-		return dev_err_probe(dev, -EFAULT, "Wireless mode is not supported.\n");
 
 	/* Enable PCI device */
 	ret = pcim_enable_device(pdev);
@@ -182,8 +209,10 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	ret = adf_dev_up(accel_dev, true);
-	if (ret)
+	if (ret) {
+		adf_dev_down(accel_dev);
 		return ret;
+	}
 
 	ret = devm_add_action_or_reset(dev, adf_device_down, accel_dev);
 	if (ret)

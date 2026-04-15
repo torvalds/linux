@@ -111,12 +111,12 @@ void qat_algs_unregister(void);
 int qat_asym_algs_register(void);
 void qat_asym_algs_unregister(void);
 
-struct qat_compression_instance *qat_compression_get_instance_node(int node);
+struct qat_compression_instance *qat_compression_get_instance_node(int node, int alg);
 void qat_compression_put_instance(struct qat_compression_instance *inst);
 int qat_compression_register(void);
 int qat_compression_unregister(void);
-int qat_comp_algs_register(void);
-void qat_comp_algs_unregister(void);
+int qat_comp_algs_register(u32 caps);
+void qat_comp_algs_unregister(u32 caps);
 void qat_comp_alg_callback(void *resp);
 
 int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);

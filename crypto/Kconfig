@@ -25,7 +25,7 @@ menu "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on CRYPTO_DRBG && CRYPTO_SELFTESTS
+	depends on CRYPTO_DRBG=y && CRYPTO_SELFTESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
 	  This option enables the fips boot option which is
@@ -109,10 +109,6 @@ config CRYPTO_RNG2
 	tristate
 	select CRYPTO_ALGAPI2
 
-config CRYPTO_RNG_DEFAULT
-	tristate
-	select CRYPTO_DRBG_MENU
-
 config CRYPTO_AKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
@@ -151,19 +147,20 @@ config CRYPTO_MANAGER
 
 config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
-	select CRYPTO_ACOMP2
-	select CRYPTO_AEAD2
-	select CRYPTO_AKCIPHER2
-	select CRYPTO_SIG2
-	select CRYPTO_HASH2
-	select CRYPTO_KPP2
-	select CRYPTO_RNG2
-	select CRYPTO_SKCIPHER2
+	select CRYPTO_ACOMP2 if CRYPTO_SELFTESTS
+	select CRYPTO_AEAD2 if CRYPTO_SELFTESTS
+	select CRYPTO_AKCIPHER2 if CRYPTO_SELFTESTS
+	select CRYPTO_SIG2 if CRYPTO_SELFTESTS
+	select CRYPTO_HASH2 if CRYPTO_SELFTESTS
+	select CRYPTO_KPP2 if CRYPTO_SELFTESTS
+	select CRYPTO_RNG2 if CRYPTO_SELFTESTS
+	select CRYPTO_SKCIPHER2 if CRYPTO_SELFTESTS
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
 	depends on NET
 	select CRYPTO_MANAGER
+	select CRYPTO_RNG
 	help
 	  Userspace configuration for cryptographic instantiations such as
 	  cbc(aes).
@@ -218,6 +215,7 @@ config CRYPTO_PCRYPT
 
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
+	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
@@ -251,7 +249,10 @@ config CRYPTO_KRB5ENC
 config CRYPTO_BENCHMARK
 	tristate "Crypto benchmarking module"
 	depends on m || EXPERT
+	select CRYPTO_AEAD
+	select CRYPTO_HASH
 	select CRYPTO_MANAGER
+	select CRYPTO_SKCIPHER
 	help
 	  Quick & dirty crypto benchmarking module.
 
@@ -261,10 +262,16 @@ config CRYPTO_BENCHMARK
 
 config CRYPTO_SIMD
 	tristate
+	select CRYPTO_AEAD
 	select CRYPTO_CRYPTD
 
 config CRYPTO_ENGINE
 	tristate
+	select CRYPTO_AEAD
+	select CRYPTO_AKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_KPP
+	select CRYPTO_SKCIPHER
 
 endmenu
 
@@ -290,7 +297,6 @@ config CRYPTO_DH
 config CRYPTO_DH_RFC7919_GROUPS
 	bool "RFC 7919 FFDHE groups"
 	depends on CRYPTO_DH
-	select CRYPTO_RNG_DEFAULT
 	help
 	  FFDHE (Finite-Field-based Diffie-Hellman Ephemeral) groups
 	  defined in RFC7919.
@@ -302,7 +308,6 @@ config CRYPTO_DH_RFC7919_GROUPS
 
 config CRYPTO_ECC
 	tristate
-	select CRYPTO_RNG_DEFAULT
 
 config CRYPTO_ECDH
 	tristate "ECDH (Elliptic Curve Diffie-Hellman)"
@@ -800,7 +805,6 @@ config CRYPTO_GENIV
 	tristate
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
-	select CRYPTO_RNG_DEFAULT
 
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
