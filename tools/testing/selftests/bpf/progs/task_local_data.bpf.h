@@ -86,13 +86,14 @@ struct tld_meta_u {
 };
 
 struct tld_data_u {
-	__u64 start; /* offset of tld_data_u->data in a page */
+	__u64 unused;
 	char data[__PAGE_SIZE - sizeof(__u64)] __attribute__((aligned(8)));
 };
 
 struct tld_map_value {
 	struct tld_data_u __uptr *data;
 	struct tld_meta_u __uptr *meta;
+	__u16 start; /* offset of tld_data_u->data in a page */
 };
 
 typedef struct tld_uptr_dummy {
@@ -176,7 +177,7 @@ static int __tld_fetch_key(struct tld_object *tld_obj, const char *name, int i_s
 	if (!tld_obj->data_map || !tld_obj->data_map->data || !tld_obj->data_map->meta)
 		return 0;
 
-	start = tld_obj->data_map->data->start;
+	start = tld_obj->data_map->start;
 	cnt = tld_obj->data_map->meta->cnt;
 	metadata = tld_obj->data_map->meta->metadata;
 
