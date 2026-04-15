@@ -58,7 +58,7 @@ static void test_aux(const char *main_prog_name,
 	 * this particular combination can be enabled.
 	 */
 	if (!strcmp("might_sleep", replacement) && err) {
-		ASSERT_HAS_SUBSTR(log, "helper call might sleep in a non-sleepable prog", "error log");
+		ASSERT_HAS_SUBSTR(log, "sleepable helper bpf_copy_from_user#", "error log");
 		ASSERT_EQ(err, -EINVAL, "err");
 		test__skip();
 		goto out;

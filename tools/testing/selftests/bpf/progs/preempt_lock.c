@@ -177,7 +177,7 @@ global_subprog_calling_sleepable_global(int i)
 }
 
 SEC("?syscall")
-__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+__failure __msg("sleepable global function")
 int preempt_global_sleepable_helper_subprog(struct __sk_buff *ctx)
 {
 	preempt_disable();
@@ -188,7 +188,7 @@ int preempt_global_sleepable_helper_subprog(struct __sk_buff *ctx)
 }
 
 SEC("?syscall")
-__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+__failure __msg("sleepable global function")
 int preempt_global_sleepable_kfunc_subprog(struct __sk_buff *ctx)
 {
 	preempt_disable();
@@ -199,7 +199,7 @@ int preempt_global_sleepable_kfunc_subprog(struct __sk_buff *ctx)
 }
 
 SEC("?syscall")
-__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+__failure __msg("sleepable global function")
 int preempt_global_sleepable_subprog_indirect(struct __sk_buff *ctx)
 {
 	preempt_disable();

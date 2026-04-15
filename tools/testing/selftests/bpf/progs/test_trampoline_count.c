@@ -3,20 +3,20 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-SEC("fentry/bpf_modify_return_test")
-int BPF_PROG(fentry_test, int a, int *b)
+SEC("fentry/bpf_testmod_trampoline_count_test")
+int BPF_PROG(fentry_test)
 {
 	return 0;
 }
 
-SEC("fmod_ret/bpf_modify_return_test")
-int BPF_PROG(fmod_ret_test, int a, int *b, int ret)
+SEC("fmod_ret/bpf_testmod_trampoline_count_test")
+int BPF_PROG(fmod_ret_test, int ret)
 {
 	return 0;
 }
 
-SEC("fexit/bpf_modify_return_test")
-int BPF_PROG(fexit_test, int a, int *b, int ret)
+SEC("fexit/bpf_testmod_trampoline_count_test")
+int BPF_PROG(fexit_test, int ret)
 {
 	return 0;
 }

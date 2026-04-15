@@ -19,4 +19,23 @@ int kprobe_multi_write_ctx(struct pt_regs *ctx)
 	ctx->ax = 0;
 	return 0;
 }
+
+SEC("?kprobe")
+int kprobe_dummy(struct pt_regs *regs)
+{
+	return 0;
+}
+
+SEC("?freplace")
+int freplace_kprobe(struct pt_regs *regs)
+{
+	regs->di = 0;
+	return 0;
+}
+
+SEC("?fentry/bpf_fentry_test1")
+int BPF_PROG(fentry)
+{
+	return 0;
+}
 #endif

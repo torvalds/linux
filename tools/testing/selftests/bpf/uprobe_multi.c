@@ -100,6 +100,9 @@ int __attribute__((weak)) trigger_uprobe(bool build_id_resident)
 	int page_sz = sysconf(_SC_PAGESIZE);
 	void *addr;
 
+	unsigned char vec[1];
+	int poll = 0;
+
 	/* page-align build ID start */
 	addr = (void *)((uintptr_t)&build_id_start & ~(page_sz - 1));
 
@@ -108,9 +111,19 @@ int __attribute__((weak)) trigger_uprobe(bool build_id_resident)
 	 * do MADV_POPULATE_READ, and then MADV_PAGEOUT, if necessary
 	 */
 	madvise(addr, page_sz, MADV_POPULATE_READ);
-	if (!build_id_resident)
-		madvise(addr, page_sz, MADV_PAGEOUT);
-
+	if (!build_id_resident) {
+		do {
+			madvise(addr, page_sz, MADV_PAGEOUT);
+			/* check if page has been evicted */
+			mincore(addr, page_sz, vec);
+			if (!(vec[0] & 1))
+				break;
+			/* if page is still resident re-attempt MADV_POPULATE_READ/MADV_PAGEOUT */
+			madvise(addr, page_sz, MADV_POPULATE_READ);
+			poll++;
+			usleep(100);
+		} while (poll < 500);
+	}
 	(void)uprobe();
 
 	return 0;

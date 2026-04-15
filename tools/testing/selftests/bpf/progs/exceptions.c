@@ -109,6 +109,20 @@ int exception_tail_call(struct __sk_buff *ctx) {
 	return ret + 8;
 }
 
+__weak
+void throw_11(void)
+{
+	bpf_throw(11);
+}
+
+SEC("tc")
+int exception_throw_from_void_global(struct __sk_buff *ctx)
+{
+	throw_11();
+
+	return 0;
+}
+
 __noinline int exception_ext_global(struct __sk_buff *ctx)
 {
 	volatile int ret = 0;

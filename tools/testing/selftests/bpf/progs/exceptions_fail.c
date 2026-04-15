@@ -34,9 +34,13 @@ struct {
 private(A) struct bpf_spin_lock lock;
 private(A) struct bpf_rb_root rbtree __contains(foo, node);
 
-__noinline void *exception_cb_bad_ret_type(u64 cookie)
+__noinline void *exception_cb_bad_ret_type1(u64 cookie)
 {
 	return NULL;
+}
+
+__noinline void exception_cb_bad_ret_type2(u64 cookie)
+{
 }
 
 __noinline int exception_cb_bad_arg_0(void)
@@ -55,8 +59,8 @@ __noinline int exception_cb_ok_arg_small(int a)
 }
 
 SEC("?tc")
-__exception_cb(exception_cb_bad_ret_type)
-__failure __msg("Global function exception_cb_bad_ret_type() doesn't return scalar.")
+__exception_cb(exception_cb_bad_ret_type1)
+__failure __msg("Global function exception_cb_bad_ret_type1() return value not void or scalar.")
 int reject_exception_cb_type_1(struct __sk_buff *ctx)
 {
 	bpf_throw(0);
@@ -85,6 +89,15 @@ SEC("?tc")
 __exception_cb(exception_cb_ok_arg_small)
 __success
 int reject_exception_cb_type_4(struct __sk_buff *ctx)
+{
+	bpf_throw(0);
+	return 0;
+}
+
+SEC("?tc")
+__exception_cb(exception_cb_bad_ret_type2)
+__failure __msg("exception cb cannot return void")
+int reject_exception_cb_type_5(struct __sk_buff *ctx)
 {
 	bpf_throw(0);
 	return 0;
@@ -350,6 +363,21 @@ int reject_exception_throw_cb_diff(struct __sk_buff *ctx)
 		bpf_loop(5, loop_cb1, NULL, 0);
 	else
 		bpf_loop(5, loop_cb2, NULL, 0);
+	return 0;
+}
+
+__weak
+void foo(void)
+{
+	bpf_throw(1);
+}
+
+SEC("?fentry/bpf_check")
+__failure __msg("At program exit the register R1 has smin=1 smax=1 should")
+int reject_out_of_range_global_throw(struct __sk_buff *skb)
+{
+	foo();
+
 	return 0;
 }
 

@@ -8,156 +8,11 @@
 
 #define __contains(name, node) __attribute__((btf_decl_tag("contains:" #name ":" #node)))
 
-/* Description
- *	Allocates an object of the type represented by 'local_type_id' in
- *	program BTF. User may use the bpf_core_type_id_local macro to pass the
- *	type ID of a struct in program BTF.
- *
- *	The 'local_type_id' parameter must be a known constant.
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
- *	program to set it.
- * Returns
- *	A pointer to an object of the type corresponding to the passed in
- *	'local_type_id', or NULL on failure.
- */
-extern void *bpf_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
+/* Convenience macro to wrap over bpf_obj_new */
+#define bpf_obj_new(type) ((type *)bpf_obj_new(bpf_core_type_id_local(type)))
 
-/* Convenience macro to wrap over bpf_obj_new_impl */
-#define bpf_obj_new(type) ((type *)bpf_obj_new_impl(bpf_core_type_id_local(type), NULL))
-
-/* Description
- *	Free an allocated object. All fields of the object that require
- *	destruction will be destructed before the storage is freed.
- *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
- *	program to set it.
- * Returns
- *	Void.
- */
-extern void bpf_obj_drop_impl(void *kptr, void *meta) __ksym;
-
-/* Convenience macro to wrap over bpf_obj_drop_impl */
-#define bpf_obj_drop(kptr) bpf_obj_drop_impl(kptr, NULL)
-
-/* Description
- *	Increment the refcount on a refcounted local kptr, turning the
- *	non-owning reference input into an owning reference in the process.
- *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
- *	program to set it.
- * Returns
- *	An owning reference to the object pointed to by 'kptr'
- */
-extern void *bpf_refcount_acquire_impl(void *kptr, void *meta) __ksym;
-
-/* Convenience macro to wrap over bpf_refcount_acquire_impl */
-#define bpf_refcount_acquire(kptr) bpf_refcount_acquire_impl(kptr, NULL)
-
-/* Description
- *	Add a new entry to the beginning of the BPF linked list.
- *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
- *	for BPF programs to set them
- * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a list
- */
-extern int bpf_list_push_front_impl(struct bpf_list_head *head,
-				    struct bpf_list_node *node,
-				    void *meta, __u64 off) __ksym;
-
-/* Convenience macro to wrap over bpf_list_push_front_impl */
-#define bpf_list_push_front(head, node) bpf_list_push_front_impl(head, node, NULL, 0)
-
-/* Description
- *	Add a new entry to the end of the BPF linked list.
- *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
- *	for BPF programs to set them
- * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a list
- */
-extern int bpf_list_push_back_impl(struct bpf_list_head *head,
-				   struct bpf_list_node *node,
-				   void *meta, __u64 off) __ksym;
-
-/* Convenience macro to wrap over bpf_list_push_back_impl */
-#define bpf_list_push_back(head, node) bpf_list_push_back_impl(head, node, NULL, 0)
-
-/* Description
- *	Remove the entry at the beginning of the BPF linked list.
- * Returns
- *	Pointer to bpf_list_node of deleted entry, or NULL if list is empty.
- */
-extern struct bpf_list_node *bpf_list_pop_front(struct bpf_list_head *head) __ksym;
-
-/* Description
- *	Remove the entry at the end of the BPF linked list.
- * Returns
- *	Pointer to bpf_list_node of deleted entry, or NULL if list is empty.
- */
-extern struct bpf_list_node *bpf_list_pop_back(struct bpf_list_head *head) __ksym;
-
-/* Description
- *	Remove 'node' from rbtree with root 'root'
- * Returns
- * 	Pointer to the removed node, or NULL if 'root' didn't contain 'node'
- */
-extern struct bpf_rb_node *bpf_rbtree_remove(struct bpf_rb_root *root,
-					     struct bpf_rb_node *node) __ksym;
-
-/* Description
- *	Add 'node' to rbtree with root 'root' using comparator 'less'
- *
- *	The 'meta' and 'off' parameters are rewritten by the verifier, no need
- *	for BPF programs to set them
- * Returns
- *	0 if the node was successfully added
- *	-EINVAL if the node wasn't added because it's already in a tree
- */
-extern int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
-			       bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
-			       void *meta, __u64 off) __ksym;
-
-/* Convenience macro to wrap over bpf_rbtree_add_impl */
-#define bpf_rbtree_add(head, node, less) bpf_rbtree_add_impl(head, node, less, NULL, 0)
-
-/* Description
- *	Return the first (leftmost) node in input tree
- * Returns
- *	Pointer to the node, which is _not_ removed from the tree. If the tree
- *	contains no nodes, returns NULL.
- */
-extern struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root) __ksym;
-
-/* Description
- *	Allocates a percpu object of the type represented by 'local_type_id' in
- *	program BTF. User may use the bpf_core_type_id_local macro to pass the
- *	type ID of a struct in program BTF.
- *
- *	The 'local_type_id' parameter must be a known constant.
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
- *	program to set it.
- * Returns
- *	A pointer to a percpu object of the type corresponding to the passed in
- *	'local_type_id', or NULL on failure.
- */
-extern void *bpf_percpu_obj_new_impl(__u64 local_type_id, void *meta) __ksym;
-
-/* Convenience macro to wrap over bpf_percpu_obj_new_impl */
-#define bpf_percpu_obj_new(type) ((type __percpu_kptr *)bpf_percpu_obj_new_impl(bpf_core_type_id_local(type), NULL))
-
-/* Description
- *	Free an allocated percpu object. All fields of the object that require
- *	destruction will be destructed before the storage is freed.
- *
- *	The 'meta' parameter is rewritten by the verifier, no need for BPF
- *	program to set it.
- * Returns
- *	Void.
- */
-extern void bpf_percpu_obj_drop_impl(void *kptr, void *meta) __ksym;
+/* Convenience macro to wrap over bpf_percpu_obj_new */
+#define bpf_percpu_obj_new(type) ((type __percpu_kptr *)bpf_percpu_obj_new(bpf_core_type_id_local(type)))
 
 struct bpf_iter_task_vma;
 
@@ -166,9 +21,6 @@ extern int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 				 __u64 addr) __ksym;
 extern struct vm_area_struct *bpf_iter_task_vma_next(struct bpf_iter_task_vma *it) __ksym;
 extern void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it) __ksym;
-
-/* Convenience macro to wrap over bpf_obj_drop_impl */
-#define bpf_percpu_obj_drop(kptr) bpf_percpu_obj_drop_impl(kptr, NULL)
 
 /* Description
  *	Throw a BPF exception from the program, immediately terminating its
@@ -627,6 +479,10 @@ struct task_struct___preempt_rt {
 	int softirq_disable_cnt;
 } __attribute__((preserve_access_index));
 
+#ifdef bpf_target_s390
+extern struct lowcore *bpf_get_lowcore(void) __weak __ksym;
+#endif
+
 static inline int get_preempt_count(void)
 {
 #if defined(bpf_target_x86)
@@ -645,6 +501,10 @@ static inline int get_preempt_count(void)
 			bpf_this_cpu_ptr(&pcpu_hot))->preempt_count;
 #elif defined(bpf_target_arm64)
 	return bpf_get_current_task_btf()->thread_info.preempt.count;
+#elif defined(bpf_target_powerpc)
+	return bpf_get_current_task_btf()->thread_info.preempt_count;
+#elif defined(bpf_target_s390)
+	return bpf_get_lowcore()->preempt_count;
 #endif
 	return 0;
 }
@@ -653,6 +513,8 @@ static inline int get_preempt_count(void)
  *	Report whether it is in interrupt context. Only works on the following archs:
  *	* x86
  *	* arm64
+ *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_interrupt(void)
 {
@@ -672,6 +534,8 @@ static inline int bpf_in_interrupt(void)
  *	Report whether it is in NMI context. Only works on the following archs:
  *	* x86
  *	* arm64
+ *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_nmi(void)
 {
@@ -682,6 +546,8 @@ static inline int bpf_in_nmi(void)
  *	Report whether it is in hard IRQ context. Only works on the following archs:
  *	* x86
  *	* arm64
+ *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_hardirq(void)
 {
@@ -692,6 +558,8 @@ static inline int bpf_in_hardirq(void)
  *	Report whether it is in softirq context. Only works on the following archs:
  *	* x86
  *	* arm64
+ *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_serving_softirq(void)
 {
@@ -710,6 +578,8 @@ static inline int bpf_in_serving_softirq(void)
  *	Report whether it is in task context. Only works on the following archs:
  *	* x86
  *	* arm64
+ *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_task(void)
 {

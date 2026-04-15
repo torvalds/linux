@@ -501,7 +501,7 @@ _bpftool()
                                 cgroup/post_bind4 cgroup/post_bind6 \
                                 cgroup/sysctl cgroup/getsockopt \
                                 cgroup/setsockopt cgroup/sock_release struct_ops \
-                                fentry fexit freplace sk_lookup'
+                                fentry fexit fsession freplace sk_lookup'
                             COMPREPLY=( $( compgen -W "$BPFTOOL_PROG_LOAD_TYPES" -- "$cur" ) )
                             return 0
                             ;;
@@ -961,8 +961,12 @@ _bpftool()
                         *)
                             # emit extra options
                             case ${words[3]} in
-                                id|file)
+                                id)
                                     COMPREPLY=( $( compgen -W "root_id" -- "$cur" ) )
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                file)
+                                    COMPREPLY=( $( compgen -W "root_id file" -- "$cur" ) )
                                     _bpftool_once_attr 'format'
                                     ;;
                                 map|prog)

@@ -217,7 +217,7 @@ BTF_SET8_END(name)
 
 #else
 
-#define BTF_ID_LIST(name) static u32 __maybe_unused name[64];
+#define BTF_ID_LIST(name) static u32 __maybe_unused name[128];
 #define BTF_ID(prefix, name)
 #define BTF_ID_FLAGS(prefix, name, ...)
 #define BTF_ID_UNUSED

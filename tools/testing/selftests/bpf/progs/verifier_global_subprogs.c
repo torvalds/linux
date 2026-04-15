@@ -134,7 +134,6 @@ __noinline __weak int subprog_user_anon_mem(user_struct_t *t)
 
 SEC("?tracepoint")
 __failure __log_level(2)
-__msg("invalid bpf_context access")
 __msg("Caller passes invalid args into func#1 ('subprog_user_anon_mem')")
 int anon_user_mem_invalid(void *ctx)
 {
@@ -358,6 +357,100 @@ int arg_tag_ctx_syscall(void *ctx)
 	return tracing_subprog_void(ctx) + tracing_subprog_u64(ctx) + tp_whatever(ctx);
 }
 
+__weak int syscall_array_bpf_for(void *ctx __arg_ctx)
+{
+	int *arr = ctx;
+	int i;
+
+	bpf_for(i, 0, 100)
+		arr[i] *= i;
+
+	return 0;
+}
+
+SEC("?syscall")
+__success __log_level(2)
+int arg_tag_ctx_syscall_bpf_for(void *ctx)
+{
+	return syscall_array_bpf_for(ctx);
+}
+
+SEC("syscall")
+__auxiliary
+int syscall_tailcall_target(void *ctx)
+{
+	return syscall_array_bpf_for(ctx);
+}
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(__u32));
+	__array(values, int (void *));
+} syscall_prog_array SEC(".maps") = {
+	.values = {
+		[0] = (void *)&syscall_tailcall_target,
+	},
+};
+
+SEC("?syscall")
+__success __log_level(2)
+int arg_tag_ctx_syscall_tailcall(void *ctx)
+{
+	bpf_tail_call(ctx, &syscall_prog_array, 0);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __log_level(2)
+__msg("dereference of modified ctx ptr R1 off=8 disallowed")
+int arg_tag_ctx_syscall_tailcall_fixed_off_bad(void *ctx)
+{
+	char *p = ctx;
+
+	p += 8;
+	bpf_tail_call(p, &syscall_prog_array, 0);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __log_level(2)
+__msg("variable ctx access var_off=(0x0; 0x4) disallowed")
+int arg_tag_ctx_syscall_tailcall_var_off_bad(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 4;
+	p += off;
+	bpf_tail_call(p, &syscall_prog_array, 0);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __log_level(2)
+__msg("dereference of modified ctx ptr R1 off=8 disallowed")
+int arg_tag_ctx_syscall_fixed_off_bad(void *ctx)
+{
+	char *p = ctx;
+
+	p += 8;
+	return subprog_ctx_tag(p);
+}
+
+SEC("?syscall")
+__failure __log_level(2)
+__msg("variable ctx access var_off=(0x0; 0x4) disallowed")
+int arg_tag_ctx_syscall_var_off_bad(void *ctx)
+{
+	__u64 off = bpf_get_prandom_u32();
+	char *p = ctx;
+
+	off &= 4;
+	p += off;
+	return subprog_ctx_tag(p);
+}
+
 __weak int subprog_dynptr(struct bpf_dynptr *dptr)
 {
 	long *d, t, buf[1] = {};
@@ -386,6 +479,25 @@ int arg_tag_dynptr(struct xdp_md *ctx)
 	bpf_dynptr_from_xdp(ctx, 0, &dptr);
 
 	return subprog_dynptr(&dptr);
+}
+
+__weak
+void foo(void)
+{
+}
+
+SEC("?tc")
+__failure __msg("R0 !read_ok")
+int return_from_void_global(struct __sk_buff *skb)
+{
+	foo();
+
+	asm volatile(
+		"r1 = r0;"
+		:::
+	);
+
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

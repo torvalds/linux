@@ -360,7 +360,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("helper access to packet: test15, cls helper fail sub")
-__failure __msg("invalid access to packet")
+__failure __msg("R1 min value is negative")
 __naked void test15_cls_helper_fail_sub(void)
 {
 	asm volatile ("					\

@@ -1272,7 +1272,7 @@ static void bpf_async_cb_rcu_tasks_trace_free(struct rcu_head *rcu)
 		return;
 	}
 
-	/* rcu_trace_implies_rcu_gp() is true and will remain so */
+	/* RCU Tasks Trace grace period implies RCU grace period. */
 	bpf_async_cb_rcu_free(rcu);
 }
 
@@ -2302,9 +2302,20 @@ void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
 
 __bpf_kfunc_start_defs();
 
-__bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
+/**
+ * bpf_obj_new() - allocate an object described by program BTF
+ * @local_type_id__k: type ID in program BTF
+ * @meta: verifier-supplied struct metadata
+ *
+ * Allocate an object of the type identified by @local_type_id__k and
+ * initialize its special fields. BPF programs can use
+ * bpf_core_type_id_local() to provide @local_type_id__k. The verifier
+ * rewrites @meta; BPF programs do not set it.
+ *
+ * Return: Pointer to the allocated object, or %NULL on failure.
+ */
+__bpf_kfunc void *bpf_obj_new(u64 local_type_id__k, struct btf_struct_meta *meta)
 {
-	struct btf_struct_meta *meta = meta__ign;
 	u64 size = local_type_id__k;
 	void *p;
 
@@ -2313,15 +2324,37 @@ __bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 		return NULL;
 	if (meta)
 		bpf_obj_init(meta->record, p);
+
 	return p;
+}
+
+__bpf_kfunc void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
+{
+	return bpf_obj_new(local_type_id__k, meta__ign);
+}
+
+/**
+ * bpf_percpu_obj_new() - allocate a percpu object described by program BTF
+ * @local_type_id__k: type ID in program BTF
+ * @meta: verifier-supplied struct metadata
+ *
+ * Allocate a percpu object of the type identified by @local_type_id__k. BPF
+ * programs can use bpf_core_type_id_local() to provide @local_type_id__k.
+ * The verifier rewrites @meta; BPF programs do not set it.
+ *
+ * Return: Pointer to the allocated percpu object, or %NULL on failure.
+ */
+__bpf_kfunc void *bpf_percpu_obj_new(u64 local_type_id__k, struct btf_struct_meta *meta)
+{
+	u64 size = local_type_id__k;
+
+	/* The verifier has ensured that meta must be NULL */
+	return bpf_mem_alloc(&bpf_global_percpu_ma, size);
 }
 
 __bpf_kfunc void *bpf_percpu_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 {
-	u64 size = local_type_id__k;
-
-	/* The verifier has ensured that meta__ign must be NULL */
-	return bpf_mem_alloc(&bpf_global_percpu_ma, size);
+	return bpf_percpu_obj_new(local_type_id__k, meta__ign);
 }
 
 /* Must be called under migrate_disable(), as required by bpf_mem_free */
@@ -2347,23 +2380,56 @@ void __bpf_obj_drop_impl(void *p, const struct btf_record *rec, bool percpu)
 	bpf_mem_free_rcu(ma, p);
 }
 
-__bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
+/**
+ * bpf_obj_drop() - drop a previously allocated object
+ * @p__alloc: object to free
+ * @meta: verifier-supplied struct metadata
+ *
+ * Destroy special fields in @p__alloc as needed and free the object. The
+ * verifier rewrites @meta; BPF programs do not set it.
+ */
+__bpf_kfunc void bpf_obj_drop(void *p__alloc, struct btf_struct_meta *meta)
 {
-	struct btf_struct_meta *meta = meta__ign;
 	void *p = p__alloc;
 
 	__bpf_obj_drop_impl(p, meta ? meta->record : NULL, false);
 }
 
-__bpf_kfunc void bpf_percpu_obj_drop_impl(void *p__alloc, void *meta__ign)
+__bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
 {
-	/* The verifier has ensured that meta__ign must be NULL */
+	return bpf_obj_drop(p__alloc, meta__ign);
+}
+
+/**
+ * bpf_percpu_obj_drop() - drop a previously allocated percpu object
+ * @p__alloc: percpu object to free
+ * @meta: verifier-supplied struct metadata
+ *
+ * Free @p__alloc. The verifier rewrites @meta; BPF programs do not set it.
+ */
+__bpf_kfunc void bpf_percpu_obj_drop(void *p__alloc, struct btf_struct_meta *meta)
+{
+	/* The verifier has ensured that meta must be NULL */
 	bpf_mem_free_rcu(&bpf_global_percpu_ma, p__alloc);
 }
 
-__bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta__ign)
+__bpf_kfunc void bpf_percpu_obj_drop_impl(void *p__alloc, void *meta__ign)
 {
-	struct btf_struct_meta *meta = meta__ign;
+	bpf_percpu_obj_drop(p__alloc, meta__ign);
+}
+
+/**
+ * bpf_refcount_acquire() - turn a local kptr into an owning reference
+ * @p__refcounted_kptr: non-owning local kptr
+ * @meta: verifier-supplied struct metadata
+ *
+ * Increment the refcount for @p__refcounted_kptr. The verifier rewrites
+ * @meta; BPF programs do not set it.
+ *
+ * Return: Owning reference to @p__refcounted_kptr, or %NULL on failure.
+ */
+__bpf_kfunc void *bpf_refcount_acquire(void *p__refcounted_kptr, struct btf_struct_meta *meta)
+{
 	struct bpf_refcount *ref;
 
 	/* Could just cast directly to refcount_t *, but need some code using
@@ -2377,6 +2443,11 @@ __bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta
 	 * in verifier.c
 	 */
 	return (void *)p__refcounted_kptr;
+}
+
+__bpf_kfunc void *bpf_refcount_acquire_impl(void *p__refcounted_kptr, void *meta__ign)
+{
+	return bpf_refcount_acquire(p__refcounted_kptr, meta__ign);
 }
 
 static int __bpf_list_add(struct bpf_list_node_kern *node,
@@ -2406,24 +2477,62 @@ static int __bpf_list_add(struct bpf_list_node_kern *node,
 	return 0;
 }
 
+/**
+ * bpf_list_push_front() - add a node to the front of a BPF linked list
+ * @head: list head
+ * @node: node to insert
+ * @meta: verifier-supplied struct metadata
+ * @off: verifier-supplied offset of @node within the containing object
+ *
+ * Insert @node at the front of @head. The verifier rewrites @meta and @off;
+ * BPF programs do not set them.
+ *
+ * Return: 0 on success, or %-EINVAL if @node is already linked.
+ */
+__bpf_kfunc int bpf_list_push_front(struct bpf_list_head *head,
+				    struct bpf_list_node *node,
+				    struct btf_struct_meta *meta,
+				    u64 off)
+{
+	struct bpf_list_node_kern *n = (void *)node;
+
+	return __bpf_list_add(n, head, false, meta ? meta->record : NULL, off);
+}
+
 __bpf_kfunc int bpf_list_push_front_impl(struct bpf_list_head *head,
 					 struct bpf_list_node *node,
 					 void *meta__ign, u64 off)
 {
-	struct bpf_list_node_kern *n = (void *)node;
-	struct btf_struct_meta *meta = meta__ign;
+	return bpf_list_push_front(head, node, meta__ign, off);
+}
 
-	return __bpf_list_add(n, head, false, meta ? meta->record : NULL, off);
+/**
+ * bpf_list_push_back() - add a node to the back of a BPF linked list
+ * @head: list head
+ * @node: node to insert
+ * @meta: verifier-supplied struct metadata
+ * @off: verifier-supplied offset of @node within the containing object
+ *
+ * Insert @node at the back of @head. The verifier rewrites @meta and @off;
+ * BPF programs do not set them.
+ *
+ * Return: 0 on success, or %-EINVAL if @node is already linked.
+ */
+__bpf_kfunc int bpf_list_push_back(struct bpf_list_head *head,
+				   struct bpf_list_node *node,
+				   struct btf_struct_meta *meta,
+				   u64 off)
+{
+	struct bpf_list_node_kern *n = (void *)node;
+
+	return __bpf_list_add(n, head, true, meta ? meta->record : NULL, off);
 }
 
 __bpf_kfunc int bpf_list_push_back_impl(struct bpf_list_head *head,
 					struct bpf_list_node *node,
 					void *meta__ign, u64 off)
 {
-	struct bpf_list_node_kern *n = (void *)node;
-	struct btf_struct_meta *meta = meta__ign;
-
-	return __bpf_list_add(n, head, true, meta ? meta->record : NULL, off);
+	return bpf_list_push_back(head, node, meta__ign, off);
 }
 
 static struct bpf_list_node *__bpf_list_del(struct bpf_list_head *head, bool tail)
@@ -2535,14 +2644,35 @@ static int __bpf_rbtree_add(struct bpf_rb_root *root,
 	return 0;
 }
 
+/**
+ * bpf_rbtree_add() - add a node to a BPF rbtree
+ * @root: tree root
+ * @node: node to insert
+ * @less: comparator used to order nodes
+ * @meta: verifier-supplied struct metadata
+ * @off: verifier-supplied offset of @node within the containing object
+ *
+ * Insert @node into @root using @less. The verifier rewrites @meta and @off;
+ * BPF programs do not set them.
+ *
+ * Return: 0 on success, or %-EINVAL if @node is already linked in a tree.
+ */
+__bpf_kfunc int bpf_rbtree_add(struct bpf_rb_root *root,
+			       struct bpf_rb_node *node,
+			       bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
+			       struct btf_struct_meta *meta,
+			       u64 off)
+{
+	struct bpf_rb_node_kern *n = (void *)node;
+
+	return __bpf_rbtree_add(root, n, (void *)less, meta ? meta->record : NULL, off);
+}
+
 __bpf_kfunc int bpf_rbtree_add_impl(struct bpf_rb_root *root, struct bpf_rb_node *node,
 				    bool (less)(struct bpf_rb_node *a, const struct bpf_rb_node *b),
 				    void *meta__ign, u64 off)
 {
-	struct btf_struct_meta *meta = meta__ign;
-	struct bpf_rb_node_kern *n = (void *)node;
-
-	return __bpf_rbtree_add(root, n, (void *)less, meta ? meta->record : NULL, off);
+	return bpf_rbtree_add(root, node, less, meta__ign, off);
 }
 
 __bpf_kfunc struct bpf_rb_node *bpf_rbtree_first(struct bpf_rb_root *root)
@@ -4165,17 +4295,25 @@ static bool bpf_task_work_ctx_tryget(struct bpf_task_work_ctx *ctx)
 	return refcount_inc_not_zero(&ctx->refcnt);
 }
 
+static void bpf_task_work_destroy(struct irq_work *irq_work)
+{
+	struct bpf_task_work_ctx *ctx = container_of(irq_work, struct bpf_task_work_ctx, irq_work);
+
+	bpf_task_work_ctx_reset(ctx);
+	kfree_rcu(ctx, rcu);
+}
+
 static void bpf_task_work_ctx_put(struct bpf_task_work_ctx *ctx)
 {
 	if (!refcount_dec_and_test(&ctx->refcnt))
 		return;
 
-	bpf_task_work_ctx_reset(ctx);
-
-	/* bpf_mem_free expects migration to be disabled */
-	migrate_disable();
-	bpf_mem_free(&bpf_global_ma, ctx);
-	migrate_enable();
+	if (irqs_disabled()) {
+		ctx->irq_work = IRQ_WORK_INIT(bpf_task_work_destroy);
+		irq_work_queue(&ctx->irq_work);
+	} else {
+		bpf_task_work_destroy(&ctx->irq_work);
+	}
 }
 
 static void bpf_task_work_cancel(struct bpf_task_work_ctx *ctx)
@@ -4229,7 +4367,7 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 	enum bpf_task_work_state state;
 	int err;
 
-	guard(rcu_tasks_trace)();
+	guard(rcu)();
 
 	if (cmpxchg(&ctx->state, BPF_TW_PENDING, BPF_TW_SCHEDULING) != BPF_TW_PENDING) {
 		bpf_task_work_ctx_put(ctx);
@@ -4251,9 +4389,9 @@ static void bpf_task_work_irq(struct irq_work *irq_work)
 	/*
 	 * It's technically possible for just scheduled task_work callback to
 	 * complete running by now, going SCHEDULING -> RUNNING and then
-	 * dropping its ctx refcount. Instead of capturing extra ref just to
-	 * protected below ctx->state access, we rely on RCU protection to
-	 * perform below SCHEDULING -> SCHEDULED attempt.
+	 * dropping its ctx refcount. Instead of capturing an extra ref just
+	 * to protect below ctx->state access, we rely on rcu_read_lock
+	 * above to prevent kfree_rcu from freeing ctx before we return.
 	 */
 	state = cmpxchg(&ctx->state, BPF_TW_SCHEDULING, BPF_TW_SCHEDULED);
 	if (state == BPF_TW_FREED)
@@ -4270,7 +4408,7 @@ static struct bpf_task_work_ctx *bpf_task_work_fetch_ctx(struct bpf_task_work *t
 	if (ctx)
 		return ctx;
 
-	ctx = bpf_mem_alloc(&bpf_global_ma, sizeof(struct bpf_task_work_ctx));
+	ctx = bpf_map_kmalloc_nolock(map, sizeof(*ctx), 0, NUMA_NO_NODE);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -4284,7 +4422,7 @@ static struct bpf_task_work_ctx *bpf_task_work_fetch_ctx(struct bpf_task_work *t
 		 * tw->ctx is set by concurrent BPF program, release allocated
 		 * memory and try to reuse already set context.
 		 */
-		bpf_mem_free(&bpf_global_ma, ctx);
+		kfree_nolock(ctx);
 		return old_ctx;
 	}
 
@@ -4296,13 +4434,23 @@ static struct bpf_task_work_ctx *bpf_task_work_acquire_ctx(struct bpf_task_work 
 {
 	struct bpf_task_work_ctx *ctx;
 
-	ctx = bpf_task_work_fetch_ctx(tw, map);
-	if (IS_ERR(ctx))
-		return ctx;
+	/*
+	 * Sleepable BPF programs hold rcu_read_lock_trace but not
+	 * regular rcu_read_lock. Since kfree_rcu waits for regular
+	 * RCU GP, the ctx can be freed while we're between reading
+	 * the pointer and incrementing the refcount. Take regular
+	 * rcu_read_lock to prevent kfree_rcu from freeing the ctx
+	 * before we can tryget it.
+	 */
+	scoped_guard(rcu) {
+		ctx = bpf_task_work_fetch_ctx(tw, map);
+		if (IS_ERR(ctx))
+			return ctx;
 
-	/* try to get ref for task_work callback to hold */
-	if (!bpf_task_work_ctx_tryget(ctx))
-		return ERR_PTR(-EBUSY);
+		/* try to get ref for task_work callback to hold */
+		if (!bpf_task_work_ctx_tryget(ctx))
+			return ERR_PTR(-EBUSY);
+	}
 
 	if (cmpxchg(&ctx->state, BPF_TW_STANDBY, BPF_TW_PENDING) != BPF_TW_STANDBY) {
 		/* lost acquiring race or map_release_uref() stole it from us, put ref and bail */
@@ -4417,7 +4565,7 @@ static int make_file_dynptr(struct file *file, u32 flags, bool may_sleep,
 		return -EINVAL;
 	}
 
-	state = bpf_mem_alloc(&bpf_global_ma, sizeof(struct bpf_dynptr_file_impl));
+	state = kmalloc_nolock(sizeof(*state), 0, NUMA_NO_NODE);
 	if (!state) {
 		bpf_dynptr_set_null(ptr);
 		return -ENOMEM;
@@ -4449,7 +4597,7 @@ __bpf_kfunc int bpf_dynptr_file_discard(struct bpf_dynptr *dynptr)
 		return 0;
 
 	freader_cleanup(&df->freader);
-	bpf_mem_free(&bpf_global_ma, df);
+	kfree_nolock(df);
 	bpf_dynptr_set_null(ptr);
 	return 0;
 }
@@ -4536,12 +4684,19 @@ BTF_KFUNCS_START(generic_btf_ids)
 #ifdef CONFIG_CRASH_DUMP
 BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
 #endif
+BTF_ID_FLAGS(func, bpf_obj_new, KF_ACQUIRE | KF_RET_NULL | KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_percpu_obj_new, KF_ACQUIRE | KF_RET_NULL | KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_percpu_obj_new_impl, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_obj_drop, KF_RELEASE | KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_obj_drop_impl, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_percpu_obj_drop, KF_RELEASE | KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_percpu_obj_drop_impl, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_refcount_acquire, KF_ACQUIRE | KF_RET_NULL | KF_RCU | KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_refcount_acquire_impl, KF_ACQUIRE | KF_RET_NULL | KF_RCU)
+BTF_ID_FLAGS(func, bpf_list_push_front, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_list_push_front_impl)
+BTF_ID_FLAGS(func, bpf_list_push_back, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_list_push_back_impl)
 BTF_ID_FLAGS(func, bpf_list_pop_front, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_list_pop_back, KF_ACQUIRE | KF_RET_NULL)
@@ -4550,6 +4705,7 @@ BTF_ID_FLAGS(func, bpf_list_back, KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_RCU | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_task_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_rbtree_remove, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_rbtree_add, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_rbtree_add_impl)
 BTF_ID_FLAGS(func, bpf_rbtree_first, KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_rbtree_root, KF_RET_NULL)
@@ -4577,6 +4733,9 @@ BTF_ID_FLAGS(func, bpf_key_put, KF_RELEASE)
 #ifdef CONFIG_SYSTEM_DATA_VERIFICATION
 BTF_ID_FLAGS(func, bpf_verify_pkcs7_signature, KF_SLEEPABLE)
 #endif
+#endif
+#ifdef CONFIG_S390
+BTF_ID_FLAGS(func, bpf_get_lowcore)
 #endif
 BTF_KFUNCS_END(generic_btf_ids)
 

@@ -497,10 +497,121 @@ cleanup:
 	btf__free(btf2);
 }
 
+static void test_btf_add_btf_split()
+{
+	struct btf *base = NULL, *split1 = NULL, *split2 = NULL;
+	struct btf *combined = NULL;
+	int id, err;
+
+	/* Create a base BTF with an INT and a PTR to it */
+	base = btf__new_empty();
+	if (!ASSERT_OK_PTR(base, "base"))
+		return;
+
+	id = btf__add_int(base, "int", 4, BTF_INT_SIGNED);
+	ASSERT_EQ(id, 1, "base_int_id");
+	id = btf__add_ptr(base, 1);
+	ASSERT_EQ(id, 2, "base_ptr_id");
+
+	/* base has 2 types, type IDs 1..2 */
+	ASSERT_EQ(btf__type_cnt(base), 3, "base_type_cnt");
+
+	/* Create split1 on base: a STRUCT referencing base's int (ID 1) */
+	split1 = btf__new_empty_split(base);
+	if (!ASSERT_OK_PTR(split1, "split1"))
+		goto cleanup;
+
+	id = btf__add_struct(split1, "s1", 4);
+	/* split types start at base_type_cnt = 3 */
+	ASSERT_EQ(id, 3, "split1_struct_id");
+	btf__add_field(split1, "x", 1, 0, 0); /* refers to base int */
+
+	id = btf__add_ptr(split1, 3);
+	ASSERT_EQ(id, 4, "split1_ptr_id"); /* ptr to the struct (split self-ref) */
+
+	/* Add a typedef "int_alias" -> base int in split1, which will be
+	 * duplicated in split2 to test that btf__dedup() merges them.
+	 */
+	id = btf__add_typedef(split1, "int_alias", 1);
+	ASSERT_EQ(id, 5, "split1_typedef_id");
+
+	/* Create split2 on base: a TYPEDEF referencing base's ptr (ID 2) */
+	split2 = btf__new_empty_split(base);
+	if (!ASSERT_OK_PTR(split2, "split2"))
+		goto cleanup;
+
+	id = btf__add_typedef(split2, "int_ptr", 2); /* refers to base ptr */
+	ASSERT_EQ(id, 3, "split2_typedef_id");
+
+	id = btf__add_struct(split2, "s2", 8);
+	ASSERT_EQ(id, 4, "split2_struct_id");
+	btf__add_field(split2, "p", 3, 0, 0); /* refers to split2's own typedef */
+
+	/* Same "int_alias" typedef as split1 - should be deduped away */
+	id = btf__add_typedef(split2, "int_alias", 1);
+	ASSERT_EQ(id, 5, "split2_dup_typedef_id");
+
+	/* Create combined split BTF on same base and merge both */
+	combined = btf__new_empty_split(base);
+	if (!ASSERT_OK_PTR(combined, "combined"))
+		goto cleanup;
+
+	/* Merge split1: its types (3,4,5) should land at IDs 3,4,5 */
+	id = btf__add_btf(combined, split1);
+	if (!ASSERT_GE(id, 0, "add_split1"))
+		goto cleanup;
+	ASSERT_EQ(id, 3, "split1_first_id");
+
+	/* Merge split2: its types (3,4,5) should be remapped to 6,7,8 */
+	id = btf__add_btf(combined, split2);
+	if (!ASSERT_GE(id, 0, "add_split2"))
+		goto cleanup;
+	ASSERT_EQ(id, 6, "split2_first_id");
+
+	/* Before dedup: base (2) + split1 (3) + split2 (3) = 8 types + void */
+	ASSERT_EQ(btf__type_cnt(combined), 9, "pre_dedup_type_cnt");
+
+	VALIDATE_RAW_BTF(
+		combined,
+		/* base types (IDs 1-2) */
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1",
+
+		/* split1 types (IDs 3-5): base refs unchanged */
+		"[3] STRUCT 's1' size=4 vlen=1\n"
+		"\t'x' type_id=1 bits_offset=0",      /* refers to base int=1 */
+		"[4] PTR '(anon)' type_id=3",          /* refers to split1's struct=3 */
+		"[5] TYPEDEF 'int_alias' type_id=1",   /* refers to base int=1 */
+
+		/* split2 types (IDs 6-8): remapped from 3,4,5 to 6,7,8 */
+		"[6] TYPEDEF 'int_ptr' type_id=2",     /* base ptr=2, unchanged */
+		"[7] STRUCT 's2' size=8 vlen=1\n"
+		"\t'p' type_id=6 bits_offset=0",       /* split2 typedef: 3->6 */
+		"[8] TYPEDEF 'int_alias' type_id=1");   /* dup of [5] */
+
+	/* Dedup to mirror the bpftool merge flow; should remove the
+	 * duplicate "int_alias" typedef.
+	 */
+	err = btf__dedup(combined, NULL);
+	if (!ASSERT_OK(err, "dedup"))
+		goto cleanup;
+
+	/* After dedup: one int_alias removed, so 7 types + void */
+	ASSERT_EQ(btf__type_cnt(combined), 8, "dedup_type_cnt");
+
+cleanup:
+	btf__free(combined);
+	btf__free(split2);
+	btf__free(split1);
+	btf__free(base);
+}
+
 void test_btf_write()
 {
 	if (test__start_subtest("btf_add"))
 		test_btf_add();
 	if (test__start_subtest("btf_add_btf"))
 		test_btf_add_btf();
+	if (test__start_subtest("btf_add_btf_split"))
+		test_btf_add_btf_split();
 }

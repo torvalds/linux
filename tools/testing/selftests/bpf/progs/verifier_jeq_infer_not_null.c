@@ -210,4 +210,58 @@ l0_%=:	/* return 0; */					\
 	: __clobber_all);
 }
 
+/* Verified that we can detect the pointer as non_null when comparing with
+ * register with value 0. JEQ test case.
+ */
+SEC("xdp")
+__success __log_level(2)
+/* to make sure the branch is not falsely predicted*/
+__msg("r0 = *(u32 *)(r0 +0)")
+__msg("from 7 to 9")
+__naked void jeq_reg_reg_null_check(void)
+{
+        asm volatile ("                                 \
+        *(u32*)(r10 - 8) = 0;                           \
+        r1 = %[map_xskmap] ll;                          \
+        r2 = r10;                                       \
+        r2 += -8;                                       \
+        call %[bpf_map_lookup_elem];                    \
+        r1 = 0;                                         \
+        if r0 == r1 goto 1f;                            \
+        r0 = *(u32*)(r0 +0);                            \
+1:      r0 = 0;                                         \
+        exit;                                           \
+"       :
+        : __imm(bpf_map_lookup_elem),
+          __imm_addr(map_xskmap)
+        : __clobber_all);
+}
+
+/* Same as above but for JNE.
+ */
+SEC("xdp")
+__success __log_level(2)
+/* to make sure the branch is not falsely predicted*/
+__msg("r0 = *(u32 *)(r0 +0)")
+__msg("from 7 to 9")
+__naked void jne_reg_reg_null_check(void)
+{
+        asm volatile ("                                 \
+        *(u32*)(r10 - 8) = 0;                           \
+        r1 = %[map_xskmap] ll;                          \
+        r2 = r10;                                       \
+        r2 += -8;                                       \
+        call %[bpf_map_lookup_elem];                    \
+        r1 = 0;                                         \
+        if r0 != r1 goto 1f;                            \
+        goto 2f;                                        \
+1:      r0 = *(u32*)(r0 +0);                            \
+2:      r0 = 0;                                         \
+        exit;                                           \
+"       :
+        : __imm(bpf_map_lookup_elem),
+          __imm_addr(map_xskmap)
+        : __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";

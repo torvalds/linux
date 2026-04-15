@@ -206,15 +206,6 @@ static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU_GENERIC */
 
 /**
- * rcu_trace_implies_rcu_gp - does an RCU Tasks Trace grace period imply an RCU grace period?
- *
- * Now that RCU Tasks Trace is implemented in terms of SRCU-fast, a
- * call to synchronize_rcu_tasks_trace() is guaranteed to imply at least
- * one call to synchronize_rcu().
- */
-static inline bool rcu_trace_implies_rcu_gp(void) { return true; }
-
-/**
  * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
  * This macro resembles cond_resched(), except that it is defined to

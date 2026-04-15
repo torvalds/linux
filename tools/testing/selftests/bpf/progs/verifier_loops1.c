@@ -138,8 +138,7 @@ l0_%=:	exit;						\
 SEC("tracepoint")
 __description("bounded recursion")
 __failure
-/* verifier limitation in detecting max stack depth */
-__msg("the call stack of 8 frames is too deep !")
+__msg("recursive call from")
 __naked void bounded_recursion(void)
 {
 	asm volatile ("					\

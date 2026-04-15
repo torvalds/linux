@@ -181,6 +181,7 @@ struct msg {
 extern struct test_env env;
 
 void test__force_log(void);
+bool test__start_subtest_with_desc(const char *name, const char *description);
 bool test__start_subtest(const char *name);
 void test__end_subtest(void);
 void test__skip(void);

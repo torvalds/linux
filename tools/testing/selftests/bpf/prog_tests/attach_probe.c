@@ -123,6 +123,140 @@ cleanup:
 	test_attach_probe_manual__destroy(skel);
 }
 
+/* manual attach address-based kprobe/kretprobe testings */
+static void test_attach_kprobe_by_addr(enum probe_attach_mode attach_mode)
+{
+	LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	struct test_attach_probe_manual *skel;
+	unsigned long func_addr;
+
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
+		return;
+
+	func_addr = ksym_get_addr(SYS_NANOSLEEP_KPROBE_NAME);
+	if (!ASSERT_NEQ(func_addr, 0UL, "func_addr"))
+		return;
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_kprobe_manual_open_and_load"))
+		return;
+
+	kprobe_opts.attach_mode = attach_mode;
+	kprobe_opts.retprobe = false;
+	kprobe_opts.offset = func_addr;
+	skel->links.handle_kprobe =
+		bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						NULL, &kprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.handle_kprobe, "attach_kprobe_by_addr"))
+		goto cleanup;
+
+	kprobe_opts.retprobe = true;
+	skel->links.handle_kretprobe =
+		bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+						NULL, &kprobe_opts);
+	if (!ASSERT_OK_PTR(skel->links.handle_kretprobe, "attach_kretprobe_by_addr"))
+		goto cleanup;
+
+	/* trigger & validate kprobe && kretprobe */
+	usleep(1);
+
+	ASSERT_EQ(skel->bss->kprobe_res, 1, "check_kprobe_res");
+	ASSERT_EQ(skel->bss->kretprobe_res, 2, "check_kretprobe_res");
+
+cleanup:
+	test_attach_probe_manual__destroy(skel);
+}
+
+/* reject legacy address-based kprobe attach */
+static void test_attach_kprobe_legacy_by_addr_reject(void)
+{
+	LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	struct test_attach_probe_manual *skel;
+	unsigned long func_addr;
+
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
+		return;
+
+	func_addr = ksym_get_addr(SYS_NANOSLEEP_KPROBE_NAME);
+	if (!ASSERT_NEQ(func_addr, 0UL, "func_addr"))
+		return;
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_kprobe_manual_open_and_load"))
+		return;
+
+	kprobe_opts.attach_mode = PROBE_ATTACH_MODE_LEGACY;
+	kprobe_opts.offset = func_addr;
+	skel->links.handle_kprobe =
+		bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						NULL, &kprobe_opts);
+	ASSERT_ERR_PTR(skel->links.handle_kprobe, "attach_kprobe_legacy_by_addr");
+	ASSERT_EQ(libbpf_get_error(skel->links.handle_kprobe),
+		  -EOPNOTSUPP, "attach_kprobe_legacy_by_addr_err");
+
+	test_attach_probe_manual__destroy(skel);
+}
+
+/*
+ * bpf_fentry_shadow_test exists in both vmlinux (net/bpf/test_run.c) and
+ * bpf_testmod (bpf_testmod.c). When bpf_testmod is loaded the symbol is
+ * duplicated. Test that kprobe attachment handles this correctly:
+ * - Unqualified name ("bpf_fentry_shadow_test") attaches to vmlinux.
+ * - MOD:SYM name ("bpf_testmod:bpf_fentry_shadow_test") attaches to module.
+ *
+ * Note: bpf_fentry_shadow_test is not invoked via test_run, so we only
+ * verify that attach and detach succeed without triggering the probe.
+ */
+static void test_attach_probe_dup_sym(enum probe_attach_mode attach_mode)
+{
+	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	struct bpf_link *kprobe_link, *kretprobe_link;
+	struct test_attach_probe_manual *skel;
+
+	skel = test_attach_probe_manual__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel_dup_sym_open_and_load"))
+		return;
+
+	kprobe_opts.attach_mode = attach_mode;
+
+	/* Unqualified: should attach to vmlinux symbol */
+	kprobe_opts.retprobe = false;
+	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						      "bpf_fentry_shadow_test",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe_vmlinux"))
+		goto cleanup;
+	bpf_link__destroy(kprobe_link);
+
+	kprobe_opts.retprobe = true;
+	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+							 "bpf_fentry_shadow_test",
+							 &kprobe_opts);
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe_vmlinux"))
+		goto cleanup;
+	bpf_link__destroy(kretprobe_link);
+
+	/* MOD:SYM qualified: should attach to module symbol */
+	kprobe_opts.retprobe = false;
+	kprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kprobe,
+						      "bpf_testmod:bpf_fentry_shadow_test",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(kprobe_link, "attach_kprobe_module"))
+		goto cleanup;
+	bpf_link__destroy(kprobe_link);
+
+	kprobe_opts.retprobe = true;
+	kretprobe_link = bpf_program__attach_kprobe_opts(skel->progs.handle_kretprobe,
+							 "bpf_testmod:bpf_fentry_shadow_test",
+							 &kprobe_opts);
+	if (!ASSERT_OK_PTR(kretprobe_link, "attach_kretprobe_module"))
+		goto cleanup;
+	bpf_link__destroy(kretprobe_link);
+
+cleanup:
+	test_attach_probe_manual__destroy(skel);
+}
+
 /* attach uprobe/uretprobe long event name testings */
 static void test_attach_uprobe_long_event_name(void)
 {
@@ -220,8 +354,70 @@ static void test_attach_kprobe_write_ctx(void)
 
 	kprobe_write_ctx__destroy(skel);
 }
+
+static void test_freplace_kprobe_write_ctx(void)
+{
+	struct bpf_program *prog_kprobe, *prog_ext, *prog_fentry;
+	struct kprobe_write_ctx *skel_kprobe, *skel_ext = NULL;
+	struct bpf_link *link_kprobe = NULL, *link_ext = NULL;
+	int err, prog_fd;
+	LIBBPF_OPTS(bpf_kprobe_opts, kprobe_opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+
+	skel_kprobe = kprobe_write_ctx__open();
+	if (!ASSERT_OK_PTR(skel_kprobe, "kprobe_write_ctx__open kprobe"))
+		return;
+
+	prog_kprobe = skel_kprobe->progs.kprobe_dummy;
+	bpf_program__set_autoload(prog_kprobe, true);
+
+	prog_fentry = skel_kprobe->progs.fentry;
+	bpf_program__set_autoload(prog_fentry, true);
+
+	err = kprobe_write_ctx__load(skel_kprobe);
+	if (!ASSERT_OK(err, "kprobe_write_ctx__load kprobe"))
+		goto out;
+
+	skel_ext = kprobe_write_ctx__open();
+	if (!ASSERT_OK_PTR(skel_ext, "kprobe_write_ctx__open ext"))
+		goto out;
+
+	prog_ext = skel_ext->progs.freplace_kprobe;
+	bpf_program__set_autoload(prog_ext, true);
+
+	prog_fd = bpf_program__fd(skel_kprobe->progs.kprobe_write_ctx);
+	bpf_program__set_attach_target(prog_ext, prog_fd, "kprobe_write_ctx");
+
+	err = kprobe_write_ctx__load(skel_ext);
+	if (!ASSERT_OK(err, "kprobe_write_ctx__load ext"))
+		goto out;
+
+	prog_fd = bpf_program__fd(prog_kprobe);
+	link_ext = bpf_program__attach_freplace(prog_ext, prog_fd, "kprobe_dummy");
+	ASSERT_ERR_PTR(link_ext, "bpf_program__attach_freplace link");
+	ASSERT_EQ(libbpf_get_error(link_ext), -EINVAL, "bpf_program__attach_freplace error");
+
+	link_kprobe = bpf_program__attach_kprobe_opts(prog_kprobe, "bpf_fentry_test1",
+						      &kprobe_opts);
+	if (!ASSERT_OK_PTR(link_kprobe, "bpf_program__attach_kprobe_opts"))
+		goto out;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(prog_fentry), &topts);
+	ASSERT_OK(err, "bpf_prog_test_run_opts");
+
+out:
+	bpf_link__destroy(link_ext);
+	bpf_link__destroy(link_kprobe);
+	kprobe_write_ctx__destroy(skel_ext);
+	kprobe_write_ctx__destroy(skel_kprobe);
+}
 #else
 static void test_attach_kprobe_write_ctx(void)
+{
+	test__skip();
+}
+
+static void test_freplace_kprobe_write_ctx(void)
 {
 	test__skip();
 }
@@ -416,6 +612,21 @@ void test_attach_probe(void)
 		test_attach_probe_manual(PROBE_ATTACH_MODE_PERF);
 	if (test__start_subtest("manual-link"))
 		test_attach_probe_manual(PROBE_ATTACH_MODE_LINK);
+	if (test__start_subtest("kprobe-perf-by-addr"))
+		test_attach_kprobe_by_addr(PROBE_ATTACH_MODE_PERF);
+	if (test__start_subtest("kprobe-link-by-addr"))
+		test_attach_kprobe_by_addr(PROBE_ATTACH_MODE_LINK);
+	if (test__start_subtest("kprobe-legacy-by-addr-reject"))
+		test_attach_kprobe_legacy_by_addr_reject();
+
+	if (test__start_subtest("dup-sym-default"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_DEFAULT);
+	if (test__start_subtest("dup-sym-legacy"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_LEGACY);
+	if (test__start_subtest("dup-sym-perf"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_PERF);
+	if (test__start_subtest("dup-sym-link"))
+		test_attach_probe_dup_sym(PROBE_ATTACH_MODE_LINK);
 
 	if (test__start_subtest("auto"))
 		test_attach_probe_auto(skel);
@@ -434,6 +645,8 @@ void test_attach_probe(void)
 		test_attach_kprobe_long_event_name();
 	if (test__start_subtest("kprobe-write-ctx"))
 		test_attach_kprobe_write_ctx();
+	if (test__start_subtest("freplace-kprobe-write-ctx"))
+		test_freplace_kprobe_write_ctx();
 
 cleanup:
 	test_attach_probe__destroy(skel);

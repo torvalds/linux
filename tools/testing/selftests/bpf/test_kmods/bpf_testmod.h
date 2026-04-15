@@ -39,6 +39,9 @@ struct bpf_testmod_ops {
 	int (*unsupported_ops)(void);
 	/* Used to test ref_acquired arguments. */
 	int (*test_refcounted)(int dummy, struct task_struct *task);
+	/* Used to test checking of __ref arguments when it not the first argument. */
+	int (*test_refcounted_multi)(int dummy, struct task_struct *task,
+				     struct task_struct *task2);
 	/* Used to test returning referenced kptr. */
 	struct task_struct *(*test_return_ref_kptr)(int dummy, struct task_struct *task,
 						    struct cgroup *cgrp);

@@ -346,7 +346,7 @@ l2_%=:	r0 = 1;						\
 SEC("socket")
 __description("map access: value_ptr -= known scalar from different maps")
 __success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__msg_unpriv("R0 min value is negative")
 __retval(1)
 __naked void known_scalar_from_different_maps(void)
 {
@@ -683,9 +683,7 @@ l0_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar, lower oob arith, test 1")
-__failure __msg("R0 min value is outside of the allowed memory range")
-__failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__failure __msg("R0 min value is negative")
 __naked void lower_oob_arith_test_1(void)
 {
 	asm volatile ("					\
@@ -840,7 +838,7 @@ l0_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 3")
-__failure __msg("invalid access to map value")
+__failure __msg("R0 min value is negative")
 __failure_unpriv
 __naked void value_ptr_known_scalar_3(void)
 {
@@ -1207,7 +1205,7 @@ l0_%=:	r0 = 1;						\
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar")
-__failure __msg("R0 min value is outside of the allowed memory range")
+__failure __msg("R0 min value is negative")
 __failure_unpriv
 __naked void access_value_ptr_known_scalar(void)
 {

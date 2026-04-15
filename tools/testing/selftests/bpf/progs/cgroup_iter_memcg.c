@@ -26,12 +26,18 @@ int cgroup_memcg_query(struct bpf_iter__cgroup *ctx)
 
 	bpf_mem_cgroup_flush_stats(memcg);
 
-	memcg_query.nr_anon_mapped = bpf_mem_cgroup_page_state(memcg, NR_ANON_MAPPED);
-	memcg_query.nr_shmem = bpf_mem_cgroup_page_state(memcg, NR_SHMEM);
-	memcg_query.nr_file_pages = bpf_mem_cgroup_page_state(memcg, NR_FILE_PAGES);
-	memcg_query.nr_file_mapped = bpf_mem_cgroup_page_state(memcg, NR_FILE_MAPPED);
-	memcg_query.memcg_kmem = bpf_mem_cgroup_page_state(memcg, MEMCG_KMEM);
-	memcg_query.pgfault = bpf_mem_cgroup_vm_events(memcg, PGFAULT);
+	memcg_query.nr_anon_mapped = bpf_mem_cgroup_page_state(
+		memcg,
+		bpf_core_enum_value(enum node_stat_item, NR_ANON_MAPPED));
+	memcg_query.nr_shmem = bpf_mem_cgroup_page_state(
+		memcg, bpf_core_enum_value(enum node_stat_item, NR_SHMEM));
+	memcg_query.nr_file_pages = bpf_mem_cgroup_page_state(
+		memcg, bpf_core_enum_value(enum node_stat_item, NR_FILE_PAGES));
+	memcg_query.nr_file_mapped = bpf_mem_cgroup_page_state(
+		memcg,
+		bpf_core_enum_value(enum node_stat_item, NR_FILE_MAPPED));
+	memcg_query.pgfault = bpf_mem_cgroup_vm_events(
+		memcg, bpf_core_enum_value(enum vm_event_item, PGFAULT));
 
 	bpf_put_mem_cgroup(memcg);
 

@@ -500,6 +500,39 @@ static struct range range_refine(enum num_t x_t, struct range x, enum num_t y_t,
 	    (s64)x.a >= S32_MIN && (s64)x.b <= S32_MAX)
 		return range_intersection(x_t, x, y_cast);
 
+	if (y_t == U32 && x_t == U64) {
+		u64 xmin_swap, xmax_swap, xmin_lower32, xmax_lower32;
+
+		xmin_lower32 = x.a & 0xffffffff;
+		xmax_lower32 = x.b & 0xffffffff;
+		if (xmin_lower32 < y.a || xmin_lower32 > y.b) {
+			/* The 32 lower bits of the umin64 are outside the u32
+			 * range. Let's update umin64 to match the u32 range.
+			 * We want to *increase* the umin64 to the *minimum*
+			 * value that matches the u32 range.
+			 */
+			xmin_swap = swap_low32(x.a, y.a);
+			/* We should always only increase the minimum, so if
+			 * the new value is lower than before, we need to
+			 * increase the 32 upper bits by 1.
+			 */
+			if (xmin_swap < x.a)
+				xmin_swap += 0x100000000;
+			if (xmin_swap == x.b)
+				return range(x_t, x.b, x.b);
+		} else if (xmax_lower32 < y.a || xmax_lower32 > y.b) {
+			/* Same for the umax64, but we want to *decrease*
+			 * umax64 to the *maximum* value that matches the u32
+			 * range.
+			 */
+			xmax_swap = swap_low32(x.b, y.b);
+			if (xmax_swap > x.b)
+				xmax_swap -= 0x100000000;
+			if (xmax_swap == x.a)
+				return range(x_t, x.a, x.a);
+		}
+	}
+
 	/* the case when new range knowledge, *y*, is a 32-bit subregister
 	 * range, while previous range knowledge, *x*, is a full register
 	 * 64-bit range, needs special treatment to take into account upper 32
@@ -1217,7 +1250,23 @@ static int parse_range_cmp_log(const char *log_buf, struct case_spec spec,
 			spec.compare_subregs ? "w0" : "r0",
 			spec.compare_subregs ? "w" : "r", specs[i].reg_idx);
 
-		q = strstr(p, buf);
+		/*
+		 * In the verifier log look for lines:
+		 *   18: (bf) r0 = r6       ; R0=... R6=...
+		 * Different verifier passes may print
+		 *   18: (bf) r0 = r6
+		 * as well, but never followed by ';'.
+		 */
+		q = p;
+		while ((q = strstr(q, buf)) != NULL) {
+			const char *s = q + strlen(buf);
+
+			while (*s == ' ' || *s == '\t')
+				s++;
+			if (*s == ';')
+				break;
+			q = s;
+		}
 		if (!q) {
 			*specs[i].state = (struct reg_state){.valid = false};
 			continue;
@@ -2129,6 +2178,8 @@ static struct subtest_case crafted_cases[] = {
 	{U64, S64, {0x7fffffff00000001ULL, 0xffffffff00000000ULL}, {0, 0}},
 	{U64, S64, {0, 0xffffffffULL}, {1, 1}},
 	{U64, S64, {0, 0xffffffffULL}, {0x7fffffff, 0x7fffffff}},
+	{U64, S32, {0xfffffffe00000001, 0xffffffff00000000}, {S64_MIN, S64_MIN}},
+	{U64, U32, {0xfffffffe00000000, U64_MAX - 1}, {U64_MAX, U64_MAX}},
 
 	{U64, U32, {0, 0x100000000}, {0, 0}},
 	{U64, U32, {0xfffffffe, 0x300000000}, {0x80000000, 0x80000000}},

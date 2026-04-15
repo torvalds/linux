@@ -9,8 +9,6 @@ struct memcg_query {
 	unsigned long nr_shmem;
 	unsigned long nr_file_pages;
 	unsigned long nr_file_mapped;
-	/* some memcg_stat_item */
-	unsigned long memcg_kmem;
 	/* some vm_event_item */
 	unsigned long pgfault;
 };

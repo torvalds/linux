@@ -421,6 +421,36 @@ int use_nonstatic_global_other_sec(void *ctx)
 	return __nonstatic_global(in_user);
 }
 
+SEC("syscall")
+int load_with_nonzero_offset(struct simple_ctx *ctx)
+{
+	void *jj[] = { &&l1, &&l2, &&l3 };
+
+	/*
+	 * This makes LLVM to generate a load from the jj map with an offset:
+	 *      r1 = 0x0 ll
+	 *      r1 = *(u64 *)(r1 + 0x10)
+	 *      gotox r1
+	 */
+	if (ctx->x == 2)
+		goto *jj[ctx->x];
+
+	ret_user = 1;
+	return 1;
+
+l1:
+	/* never reached, but leave it here to outsmart LLVM */
+	ret_user = 0;
+	return 0;
+l2:
+	/* never reached, but leave it here to outsmart LLVM */
+	ret_user = 3;
+	return 3;
+l3:
+	ret_user = 5;
+	return 5;
+}
+
 #else /* __BPF_FEATURE_GOTOX */
 
 #define SKIP_TEST(TEST_NAME)				\
@@ -442,6 +472,7 @@ SKIP_TEST(use_static_global_other_sec);
 SKIP_TEST(use_nonstatic_global1);
 SKIP_TEST(use_nonstatic_global2);
 SKIP_TEST(use_nonstatic_global_other_sec);
+SKIP_TEST(load_with_nonzero_offset);
 
 #endif /* __BPF_FEATURE_GOTOX */
 

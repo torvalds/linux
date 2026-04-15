@@ -69,7 +69,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' > pkt_end, bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_end_bad_access_1_1(void)
 {
@@ -131,7 +131,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' > pkt_end, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_1(void)
 {
@@ -173,7 +173,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end > pkt_data', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_2(void)
 {
@@ -279,7 +279,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' < pkt_end, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_3(void)
 {
@@ -384,7 +384,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end < pkt_data', bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_1_1(void)
 {
@@ -446,7 +446,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end < pkt_data', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_4(void)
 {
@@ -487,7 +487,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' >= pkt_end, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_5(void)
 {
@@ -590,7 +590,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end >= pkt_data', bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_1_2(void)
 {
@@ -654,7 +654,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end >= pkt_data', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_6(void)
 {
@@ -697,7 +697,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' <= pkt_end, bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_end_bad_access_1_2(void)
 {
@@ -761,7 +761,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data' <= pkt_end, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_7(void)
 {
@@ -803,7 +803,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_end <= pkt_data', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_8(void)
 {
@@ -905,7 +905,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' > pkt_data, bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_1_3(void)
 {
@@ -926,7 +926,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' > pkt_data, bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_2_5(void)
 {
@@ -967,7 +967,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' > pkt_data, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_9(void)
 {
@@ -1009,7 +1009,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data > pkt_meta', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_10(void)
 {
@@ -1031,7 +1031,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data > pkt_meta', bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_2_1(void)
 {
@@ -1115,7 +1115,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' < pkt_data, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_11(void)
 {
@@ -1137,7 +1137,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' < pkt_data, bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_2_6(void)
 {
@@ -1220,7 +1220,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data < pkt_meta', bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_1_1(void)
 {
@@ -1241,7 +1241,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data < pkt_meta', bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_2_2(void)
 {
@@ -1282,7 +1282,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data < pkt_meta', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_12(void)
 {
@@ -1323,7 +1323,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' >= pkt_data, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_13(void)
 {
@@ -1344,7 +1344,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' >= pkt_data, bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_2_7(void)
 {
@@ -1426,7 +1426,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data >= pkt_meta', bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_1_2(void)
 {
@@ -1448,7 +1448,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data >= pkt_meta', bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_2_3(void)
 {
@@ -1490,7 +1490,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data >= pkt_meta', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_14(void)
 {
@@ -1533,7 +1533,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' <= pkt_data, bad access 1")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_1_4(void)
 {
@@ -1555,7 +1555,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' <= pkt_data, bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_data_bad_access_2_8(void)
 {
@@ -1597,7 +1597,7 @@ l1_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_meta' <= pkt_data, corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_15(void)
 {
@@ -1639,7 +1639,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data <= pkt_meta', corner case -1, bad access")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void corner_case_1_bad_access_16(void)
 {
@@ -1660,7 +1660,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("XDP pkt read, pkt_data <= pkt_meta', bad access 2")
-__failure __msg("R1 offset is outside of the packet")
+__failure __msg("R1 {{min|max}} value is outside of the allowed memory range")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void pkt_meta_bad_access_2_4(void)
 {

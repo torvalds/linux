@@ -1731,7 +1731,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* We only have to reload LM0 if the key is not at start of stack */
 	lm_off = nfp_prog->stack_frame_depth;
-	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
+	lm_off += meta->arg2.reg.var_off.value;
 	load_lm_ptr = meta->arg2.var_off || lm_off;
 
 	/* Set LM0 to start of key */
@@ -2874,8 +2874,7 @@ mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	}
 
 	if (meta->ptr.type == PTR_TO_STACK)
-		return mem_ldx_stack(nfp_prog, meta, size,
-				     meta->ptr.off + meta->ptr.var_off.value);
+		return mem_ldx_stack(nfp_prog, meta, size, meta->ptr.var_off.value);
 
 	if (meta->ptr.type == PTR_TO_MAP_VALUE)
 		return mem_ldx_emem(nfp_prog, meta, size);
@@ -2985,8 +2984,7 @@ mem_stx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		return mem_stx_data(nfp_prog, meta, size);
 
 	if (meta->ptr.type == PTR_TO_STACK)
-		return mem_stx_stack(nfp_prog, meta, size,
-				     meta->ptr.off + meta->ptr.var_off.value);
+		return mem_stx_stack(nfp_prog, meta, size, meta->ptr.var_off.value);
 
 	return -EOPNOTSUPP;
 }
@@ -4153,9 +4151,9 @@ cross_mem_access(struct bpf_insn *ld, struct nfp_insn_meta *head_ld_meta,
 	/* Canonicalize the offsets. Turn all of them against the original
 	 * base register.
 	 */
-	head_ld_off = head_ld_meta->insn.off + head_ld_meta->ptr.off;
-	head_st_off = head_st_meta->insn.off + head_st_meta->ptr.off;
-	ld_off = ld->off + head_ld_meta->ptr.off;
+	head_ld_off = head_ld_meta->insn.off + head_ld_meta->ptr.var_off.value;
+	head_st_off = head_st_meta->insn.off + head_st_meta->ptr.var_off.value;
+	ld_off = ld->off + head_ld_meta->ptr.var_off.value;
 
 	/* Ascending order cross. */
 	if (ld_off > head_ld_off &&
@@ -4326,7 +4324,7 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 		 * support this.
 		 */
 		if (meta->ptr.id == range_ptr_id &&
-		    meta->ptr.off == range_ptr_off) {
+		    meta->ptr.var_off.value == range_ptr_off) {
 			s16 new_start = range_start;
 			s16 end, off = insn->off;
 			s16 new_end = range_end;
@@ -4361,7 +4359,7 @@ start_new:
 		range_node = meta;
 		range_node->pkt_cache.do_init = true;
 		range_ptr_id = range_node->ptr.id;
-		range_ptr_off = range_node->ptr.off;
+		range_ptr_off = range_node->ptr.var_off.value;
 		range_start = insn->off;
 		range_end = insn->off + BPF_LDST_BYTES(insn);
 	}

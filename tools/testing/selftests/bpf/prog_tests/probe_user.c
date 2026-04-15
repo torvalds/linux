@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-/* TODO: corrupts other tests uses connect() */
-void serial_test_probe_user(void)
+void test_probe_user(void)
 {
 	static const char *const prog_names[] = {
 		"handle_sys_connect",
@@ -20,6 +19,11 @@ void serial_test_probe_user(void)
 	struct bpf_program *kprobe_progs[prog_count];
 	struct bpf_object *obj;
 	static const int zero = 0;
+	struct test_pro_bss {
+		struct sockaddr_in old;
+		__u32 test_pid;
+	};
+	struct test_pro_bss results = {};
 	size_t i;
 
 	obj = bpf_object__open_file(obj_file, &opts);
@@ -31,6 +35,23 @@ void serial_test_probe_user(void)
 			bpf_object__find_program_by_name(obj, prog_names[i]);
 		if (CHECK(!kprobe_progs[i], "find_probe",
 			  "prog '%s' not found\n", prog_names[i]))
+			goto cleanup;
+	}
+
+	{
+		struct bpf_map *bss_map;
+		struct test_pro_bss bss_init = {};
+
+		bss_init.test_pid = getpid();
+		bss_map = bpf_object__find_map_by_name(obj, "test_pro.bss");
+		if (!ASSERT_OK_PTR(bss_map, "find_bss_map"))
+			goto cleanup;
+		if (!ASSERT_EQ(bpf_map__value_size(bss_map), sizeof(bss_init),
+			       "bss_size"))
+			goto cleanup;
+		err = bpf_map__set_initial_value(bss_map, &bss_init,
+						 sizeof(bss_init));
+		if (!ASSERT_OK(err, "set_bss_init"))
 			goto cleanup;
 	}
 
@@ -62,10 +83,12 @@ void serial_test_probe_user(void)
 	connect(sock_fd, &curr, sizeof(curr));
 	close(sock_fd);
 
-	err = bpf_map_lookup_elem(results_map_fd, &zero, &tmp);
+	err = bpf_map_lookup_elem(results_map_fd, &zero, &results);
 	if (CHECK(err, "get_kprobe_res",
 		  "failed to get kprobe res: %d\n", err))
 		goto cleanup;
+
+	memcpy(&tmp, &results.old, sizeof(tmp));
 
 	in = (struct sockaddr_in *)&tmp;
 	if (CHECK(memcmp(&tmp, &orig, sizeof(orig)), "check_kprobe_res",

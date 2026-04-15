@@ -477,4 +477,134 @@ int arena_kfuncs_under_bpf_lock(void *ctx)
 
 	return 0;
 }
+
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
+
+/*
+ * Test that scalar += PTR_TO_ARENA correctly upgrades the
+ * destination register to a PTR_TO_ARENA.
+ */
+SEC("syscall")
+__success __retval(0)
+int scalar_add_arena_ptr(void *ctx)
+{
+	int __arena *scalar, *arena_ptr;
+
+	volatile char __arena *base = arena_base(&arena);
+
+	asm volatile (
+		"%[arena_ptr] = 8192;"
+		"%[arena_ptr] = addr_space_cast(%[arena_ptr], 0x0, 0x1);"
+		"%[scalar] = 12;"
+		"%[scalar] += %[arena_ptr];"
+		: [scalar] "=r"(scalar),
+		  [arena_ptr] "=&r"(arena_ptr)
+		: "r"(base)
+		:
+	);
+	return 0;
+}
+
+/*
+ * Tests that PTR_TO_ARENA + PTR_TO_ARENA is allowed.
+ */
+SEC("syscall")
+__success __retval(0)
+int arena_ptr_add_arena_ptr(void *ctx)
+{
+	int __arena *arena_ptr2, *arena_ptr1;
+
+	/* Needed for the verifier to link the arena to the subprog. */
+	volatile char __arena *base = arena_base(&arena);
+
+	asm volatile (
+		"%[arena_ptr1] = 8192;"
+		"%[arena_ptr1] = addr_space_cast(%[arena_ptr1], 0x0, 0x1);"
+		"%[arena_ptr2] = 4096;"
+		"%[arena_ptr2] = addr_space_cast(%[arena_ptr2], 0x0, 0x1);"
+		"%[arena_ptr2] += %[arena_ptr1];"
+		: [arena_ptr2] "=r"(arena_ptr2),
+		  [arena_ptr1] "=&r"(arena_ptr1)
+		: "r"(base)
+		:
+	);
+	return 0;
+}
+
+SEC("syscall")
+__success __retval(0)
+int scalar_xor_arena_ptr(void *ctx)
+{
+	int __arena *scalar, *arena_ptr;
+
+	volatile char __arena *base = arena_base(&arena);
+
+	asm volatile (
+		"%[arena_ptr] = 8192;"
+		"%[arena_ptr] = addr_space_cast(%[arena_ptr], 0x0, 0x1);"
+		"%[scalar] = 12;"
+		"%[scalar] ^= %[arena_ptr];"
+		: [scalar] "=r"(scalar),
+		  [arena_ptr] "=&r"(arena_ptr)
+		: "r"(base)
+		:
+	);
+	return 0;
+}
+
+/*
+ * Tests that PTR_TO_ARENA and non-arena pointers can be added.
+ */
+SEC("syscall")
+__success __retval(0)
+int arena_ptr_add_to_non_arena_ptr(void *ctx)
+{
+	register int __arena *arena_ptr asm("r3");
+	register void *dst asm("r4");
+
+	volatile char __arena *base = arena_base(&arena);
+
+	asm volatile (
+		"%[arena_ptr] = 8192;"
+		"%[arena_ptr] = addr_space_cast(%[arena_ptr], 0x0, 0x1);"
+		"%[dst] = %[ctx];"
+		"%[dst] += %[arena_ptr];"
+		: [arena_ptr] "=&r"(arena_ptr),
+		  [dst] "=&r"(dst)
+		: [ctx] "r"(ctx), "r"(base)
+		:
+	);
+
+	(void)ctx;
+
+	return 0;
+}
+
+SEC("syscall")
+__success __retval(0)
+int non_arena_ptr_add_to_arena_ptr(void *ctx)
+{
+	register int __arena *arena_ptr asm("r3");
+	register void *src asm("r4");
+
+	volatile char __arena *base = arena_base(&arena);
+
+	asm volatile (
+		"%[arena_ptr] = 8192;"
+		"%[arena_ptr] = addr_space_cast(%[arena_ptr], 0x0, 0x1);"
+		"%[src] = %[ctx];"
+		"%[arena_ptr] += %[src];"
+		: [arena_ptr] "=&r"(arena_ptr),
+		  [src] "=&r"(src)
+		: [ctx] "r"(ctx), "r"(base)
+		:
+	);
+
+	(void)ctx;
+
+	return 0;
+}
+
+#endif
+
 char _license[] SEC("license") = "GPL";

@@ -568,6 +568,53 @@ static int probe_ldimm64_full_range_off(int token_fd)
 	return 1;
 }
 
+#ifdef __x86_64__
+
+#ifndef __NR_uprobe
+#define __NR_uprobe 336
+#endif
+
+static int probe_uprobe_syscall(int token_fd)
+{
+	/*
+	 * If kernel supports uprobe() syscall, it will return -ENXIO when called
+	 * from the outside of a kernel-generated uprobe trampoline.
+	 */
+	return syscall(__NR_uprobe) < 0 && errno == ENXIO;
+}
+#else
+static int probe_uprobe_syscall(int token_fd)
+{
+	return 0;
+}
+#endif
+
+static int probe_kern_btf_layout(int token_fd)
+{
+	static const char strs[] = "\0int";
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(1, BTF_INT_SIGNED, 0, 32, 4),
+	};
+	struct btf_layout layout[] = {
+		{ 0,			0,	0 },
+		{ sizeof(__u32),	0,	0 },
+	};
+	struct btf_header hdr = {
+		.magic = BTF_MAGIC,
+		.version = BTF_VERSION,
+		.hdr_len = sizeof(struct btf_header),
+		.type_len = sizeof(types),
+		.str_off = sizeof(types) + sizeof(layout),
+		.str_len = sizeof(strs),
+		.layout_off = sizeof(types),
+		.layout_len = sizeof(layout),
+	};
+
+	return probe_fd(libbpf__load_raw_btf_hdr(&hdr, (char *)types, strs,
+						 (char *)layout, token_fd));
+}
+
 typedef int (*feature_probe_fn)(int /* token_fd */);
 
 static struct kern_feature_cache feature_cache;
@@ -645,6 +692,12 @@ static struct kern_feature_desc {
 	},
 	[FEAT_LDIMM64_FULL_RANGE_OFF] = {
 		"full range LDIMM64 support", probe_ldimm64_full_range_off,
+	},
+	[FEAT_UPROBE_SYSCALL] = {
+		"kernel supports uprobe syscall", probe_uprobe_syscall,
+	},
+	[FEAT_BTF_LAYOUT] = {
+		"kernel supports BTF layout", probe_kern_btf_layout,
 	},
 };
 

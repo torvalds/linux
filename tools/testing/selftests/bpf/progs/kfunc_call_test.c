@@ -2,7 +2,105 @@
 /* Copyright (c) 2021 Facebook */
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
+#include "bpf_misc.h"
 #include "../test_kmods/bpf_testmod_kfunc.h"
+
+SEC("tc")
+int kfunc_call_test5(struct __sk_buff *skb)
+{
+	struct bpf_sock *sk = skb->sk;
+	int ret;
+	u32 val32;
+	u16 val16;
+	u8 val8;
+
+	if (!sk)
+		return -1;
+
+	sk = bpf_sk_fullsock(sk);
+	if (!sk)
+		return -1;
+
+	/*
+	 * Test with constant values to verify zero-extension.
+	 * ISA-dependent BPF asm:
+	 *   With ALU32:    w1 = 0xFF; w2 = 0xFFFF; w3 = 0xFFFFffff
+	 *   Without ALU32: r1 = 0xFF; r2 = 0xFFFF; r3 = 0xFFFFffff
+	 * Both zero-extend to 64-bit before the kfunc call.
+	 */
+	ret = bpf_kfunc_call_test5(0xFF, 0xFFFF, 0xFFFFffffULL);
+	if (ret)
+		return ret;
+
+	val32 = bpf_get_prandom_u32();
+	val16 = val32 & 0xFFFF;
+	val8 = val32 & 0xFF;
+	ret = bpf_kfunc_call_test5(val8, val16, val32);
+	if (ret)
+		return ret;
+
+	/*
+	 * Test multiplication with different operand sizes:
+	 *
+	 * val8 * 0xFF:
+	 *   - Both operands promote to int (32-bit signed)
+	 *   - Result: 32-bit multiplication, truncated to u8, then zero-extended
+	 *
+	 * val16 * 0xFFFF:
+	 *   - Both operands promote to int (32-bit signed)
+	 *   - Result: 32-bit multiplication, truncated to u16, then zero-extended
+	 *
+	 * val32 * 0xFFFFffffULL:
+	 *   - val32 (u32) promotes to unsigned long long (due to ULL suffix)
+	 *   - Result: 64-bit unsigned multiplication, truncated to u32, then zero-extended
+	 */
+	ret = bpf_kfunc_call_test5(val8 * 0xFF, val16 * 0xFFFF, val32 * 0xFFFFffffULL);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * Assembly version testing the multiplication edge case explicitly.
+ * This ensures consistent testing across different ISA versions.
+ */
+SEC("tc")
+__naked int kfunc_call_test5_asm(void)
+{
+	asm volatile (
+		/* Get a random u32 value */
+		"call %[bpf_get_prandom_u32];"
+		"r6 = r0;"              /* Save val32 in r6 */
+
+		/* Prepare first argument: val8 * 0xFF */
+		"r1 = r6;"
+		"r1 &= 0xFF;"           /* val8 = val32 & 0xFF */
+		"r7 = 0xFF;"
+		"r1 *= r7;"             /* 64-bit mult: r1 = r1 * r7 */
+
+		/* Prepare second argument: val16 * 0xFFFF */
+		"r2 = r6;"
+		"r2 &= 0xFFFF;"         /* val16 = val32 & 0xFFFF */
+		"r7 = 0xFFFF;"
+		"r2 *= r7;"             /* 64-bit mult: r2 = r2 * r7 */
+
+		/* Prepare third argument: val32 * 0xFFFFffff */
+		"r3 = r6;"              /* val32 */
+		"r7 = 0xFFFFffff;"
+		"r3 *= r7;"             /* 64-bit mult: r3 = r3 * r7 */
+
+		/* Call kfunc with multiplication results */
+		"call bpf_kfunc_call_test5;"
+
+		/* Check return value */
+		"if r0 != 0 goto exit_%=;"
+		"r0 = 0;"
+		"exit_%=: exit;"
+		:
+		: __imm(bpf_get_prandom_u32)
+		: __clobber_all);
+}
 
 SEC("tc")
 int kfunc_call_test4(struct __sk_buff *skb)

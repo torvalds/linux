@@ -131,7 +131,7 @@ DEFINE_INVALID_SIZE_PROG(u16, __failure __msg("Invalid read of 2 bytes from insn
 DEFINE_INVALID_SIZE_PROG(u8,  __failure __msg("Invalid read of 1 bytes from insn_array"))
 
 SEC("socket")
-__failure __msg("misaligned value access off 0+1+0 size 8")
+__failure __msg("misaligned value access off 1+0 size 8")
 __naked void jump_table_misaligned_access(void)
 {
 	asm volatile ("						\
@@ -187,7 +187,7 @@ jt0_%=:								\
 }
 
 SEC("socket")
-__failure __msg("invalid access to map value, value_size=16 off=-24 size=8")
+__failure __msg("R0 min value is negative")
 __naked void jump_table_invalid_mem_acceess_neg(void)
 {
 	asm volatile ("						\

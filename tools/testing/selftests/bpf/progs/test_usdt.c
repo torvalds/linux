@@ -138,4 +138,16 @@ int usdt_sib(struct pt_regs *ctx)
 	return 0;
 }
 
+#ifdef __TARGET_ARCH_x86
+int executed;
+unsigned long expected_ip;
+
+SEC("usdt")
+int usdt_executed(struct pt_regs *ctx)
+{
+	if (expected_ip == ctx->ip)
+		executed++;
+	return 0;
+}
+#endif
 char _license[] SEC("license") = "GPL";

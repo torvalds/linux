@@ -2,6 +2,7 @@
 #include <test_progs.h>
 #include "get_func_ip_test.skel.h"
 #include "get_func_ip_uprobe_test.skel.h"
+#include "get_func_ip_fsession_test.skel.h"
 
 static noinline void uprobe_trigger(void)
 {
@@ -46,8 +47,6 @@ static void test_function_entry(void)
 	ASSERT_EQ(skel->bss->test5_result, 1, "test5_result");
 	ASSERT_EQ(skel->bss->test7_result, 1, "test7_result");
 	ASSERT_EQ(skel->bss->test8_result, 1, "test8_result");
-	ASSERT_EQ(skel->bss->test9_entry_result, 1, "test9_entry_result");
-	ASSERT_EQ(skel->bss->test9_exit_result, 1, "test9_exit_result");
 
 cleanup:
 	get_func_ip_test__destroy(skel);
@@ -138,4 +137,29 @@ void test_get_func_ip_test(void)
 {
 	test_function_entry();
 	test_function_body();
+}
+
+void test_get_func_ip_fsession_test(void)
+{
+	struct get_func_ip_fsession_test *skel = NULL;
+	int err;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+
+	skel = get_func_ip_fsession_test__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "get_func_ip_fsession_test__open_and_load"))
+		return;
+
+	err = get_func_ip_fsession_test__attach(skel);
+	if (!ASSERT_OK(err, "get_func_ip_fsession_test__attach"))
+		goto cleanup;
+
+	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test1), &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(skel->bss->test1_entry_result, 1, "test1_entry_result");
+	ASSERT_EQ(skel->bss->test1_exit_result, 1, "test1_exit_result");
+
+cleanup:
+	get_func_ip_fsession_test__destroy(skel);
 }

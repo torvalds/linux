@@ -202,7 +202,7 @@ l0_%=:	/* exit */					\
 
 SEC("tc")
 __description("bounds check based on reg_off + var_off + insn_off. test1")
-__failure __msg("value_size=8 off=1073741825")
+__failure __msg("map_value pointer offset 1073741822 is not allowed")
 __naked void var_off_insn_off_test1(void)
 {
 	asm volatile ("					\
@@ -1066,7 +1066,6 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP_JSLT for crossing 64-bit signed boundary")
 __success __retval(0)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void crossing_64_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1148,7 +1147,6 @@ l0_%=:	r0 = 0;						\
 SEC("xdp")
 __description("bound check with JMP32_JSLT for crossing 32-bit signed boundary")
 __success __retval(0)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void crossing_32_bit_signed_boundary_2(void)
 {
 	asm volatile ("					\
@@ -1536,7 +1534,7 @@ __naked void sub32_partial_overflow(void)
 SEC("socket")
 __description("dead branch on jset, does not result in invariants violation error")
 __success __log_level(2)
-__retval(0) __flag(BPF_F_TEST_REG_INVARIANTS)
+__retval(0)
 __naked void jset_range_analysis(void)
 {
 	asm volatile ("			\
@@ -1572,7 +1570,7 @@ l0_%=:	r0 = 0;				\
  */
 SEC("socket")
 __description("bounds deduction cross sign boundary, negative overlap")
-__success __log_level(2) __flag(BPF_F_TEST_REG_INVARIANTS)
+__success __log_level(2)
 __msg("7: (1f) r0 -= r6 {{.*}} R0=scalar(smin=smin32=-655,smax=smax32=-146,umin=0xfffffffffffffd71,umax=0xffffffffffffff6e,umin32=0xfffffd71,umax32=0xffffff6e,var_off=(0xfffffffffffffc00; 0x3ff))")
 __retval(0)
 __naked void bounds_deduct_negative_overlap(void)
@@ -1616,7 +1614,7 @@ l0_%=:	r0 = 0;				\
  */
 SEC("socket")
 __description("bounds deduction cross sign boundary, positive overlap")
-__success __log_level(2) __flag(BPF_F_TEST_REG_INVARIANTS)
+__success __log_level(2)
 __msg("3: (2d) if r0 > r1 {{.*}} R0=scalar(smin=smin32=0,smax=umax=smax32=umax32=127,var_off=(0x0; 0x7f))")
 __retval(0)
 __naked void bounds_deduct_positive_overlap(void)
@@ -1649,7 +1647,7 @@ l0_%=:	r0 = 0;				\
  */
 SEC("socket")
 __description("bounds deduction cross sign boundary, two overlaps")
-__failure __flag(BPF_F_TEST_REG_INVARIANTS)
+__failure
 __msg("3: (2d) if r0 > r1 {{.*}} R0=scalar(smin=smin32=-128,smax=smax32=127,umax=0xffffffffffffff80)")
 __msg("frame pointer is read only")
 __naked void bounds_deduct_two_overlaps(void)
@@ -1713,7 +1711,7 @@ SEC("socket")
 __description("conditional jump on same register, branch taken")
 __not_msg("20: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__retval(0) __flag(BPF_F_TEST_REG_INVARIANTS)
+__retval(0)
 __naked void condition_jump_on_same_register(void *ctx)
 {
 	asm volatile("			\
@@ -1748,7 +1746,7 @@ SEC("socket")
 __description("jset on same register, constant value branch taken")
 __not_msg("7: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__retval(0) __flag(BPF_F_TEST_REG_INVARIANTS)
+__retval(0)
 __naked void jset_on_same_register_1(void *ctx)
 {
 	asm volatile("			\
@@ -1770,7 +1768,7 @@ SEC("socket")
 __description("jset on same register, scalar value branch taken")
 __not_msg("12: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__retval(0) __flag(BPF_F_TEST_REG_INVARIANTS)
+__retval(0)
 __naked void jset_on_same_register_2(void *ctx)
 {
 	asm volatile("			\
@@ -1800,7 +1798,6 @@ __description("jset on same register, scalar value unknown branch 1")
 __msg("3: (b7) r0 = 0 {{.*}} R0=0")
 __msg("5: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void jset_on_same_register_3(void *ctx)
 {
 	asm volatile("			\
@@ -1822,7 +1819,6 @@ __description("jset on same register, scalar value unknown branch 2")
 __msg("4: (b7) r0 = 0 {{.*}} R0=0")
 __msg("6: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void jset_on_same_register_4(void *ctx)
 {
 	asm volatile("			\
@@ -1845,7 +1841,6 @@ __description("jset on same register, scalar value unknown branch 3")
 __msg("4: (b7) r0 = 0 {{.*}} R0=0")
 __msg("6: (b7) r0 = 1 {{.*}} R0=1")
 __success __log_level(2)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void jset_on_same_register_5(void *ctx)
 {
 	asm volatile("			\
@@ -1877,7 +1872,6 @@ SEC("socket")
 __description("bounds refinement with single-value tnum on umax")
 __msg("3: (15) if r0 == 0xe0 {{.*}} R0=240")
 __success __log_level(2)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void bounds_refinement_tnum_umax(void *ctx)
 {
 	asm volatile("			\
@@ -1907,7 +1901,6 @@ SEC("socket")
 __description("bounds refinement with single-value tnum on umin")
 __msg("3: (15) if r0 == 0xf0 {{.*}} R0=224")
 __success __log_level(2)
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void bounds_refinement_tnum_umin(void *ctx)
 {
 	asm volatile("			\
@@ -2002,7 +1995,6 @@ __naked void bounds_refinement_multiple_overlaps(void *ctx)
 
 SEC("socket")
 __success
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void signed_unsigned_intersection32_case1(void *ctx)
 {
 	asm volatile("									\
@@ -2020,7 +2012,6 @@ __naked void signed_unsigned_intersection32_case1(void *ctx)
 
 SEC("socket")
 __success
-__flag(BPF_F_TEST_REG_INVARIANTS)
 __naked void signed_unsigned_intersection32_case2(void *ctx)
 {
 	asm volatile("									\
@@ -2032,6 +2023,40 @@ __naked void signed_unsigned_intersection32_case2(void *ctx)
 	if w0 <= 5 goto 1f;		/* range can be narrowed to  [0..5] */		\
 	r10 = 0;			/* thus predicting the jump */			\
 1:	exit;										\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/*
+ * After instruction 3, the u64 and s64 ranges look as follows:
+ * 0  umin=2                             umax=0xff..ff00..03   U64_MAX
+ * |  [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]      |
+ * |----------------------------|------------------------------|
+ * |xx]                           [xxxxxxxxxxxxxxxxxxxxxxxxxxxx|
+ * 0  smax=2                      smin=0x800..02               -1
+ *
+ * The two ranges can't be refined because they overlap in two places. Once we
+ * add an upper-bound to u64 at instruction 4, the refinement can happen. This
+ * test validates that this refinement does happen and is not overwritten by
+ * the less-precise 32bits ranges.
+ */
+SEC("socket")
+__description("bounds refinement: 64bits ranges not overwritten by 32bits ranges")
+__msg("3: (65) if r0 s> 0x2 {{.*}} R0=scalar(smin=0x8000000000000002,smax=2,umin=smin32=umin32=2,umax=0xffffffff00000003,smax32=umax32=3")
+__msg("4: (25) if r0 > 0x13 {{.*}} R0=2")
+__success __log_level(2)
+__naked void refinement_32bounds_not_overwriting_64bounds(void *ctx)
+{
+	asm volatile("			\
+	call %[bpf_get_prandom_u32];	\
+	if w0 < 2 goto +5;		\
+	if w0 > 3 goto +4;		\
+	if r0 s> 2 goto +3;		\
+	if r0 > 19 goto +2;		\
+	if r0 == 2 goto +1;		\
+	r10 = 0;			\
+	exit;				\
 "	:
 	: __imm(bpf_get_prandom_u32)
 	: __clobber_all);
@@ -2128,6 +2153,34 @@ l0_%=:	r0 = 0;						\
 "	:
 	: __imm(bpf_map_lookup_elem),
 	  __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
+/*
+ * Last jump can be detected as always taken because the intersection of R5 and
+ * R7 32bit tnums produces a constant that isn't within R7's s32 bounds.
+ */
+SEC("socket")
+__description("dead branch: tnums give impossible constant if equal")
+__success
+__naked void tnums_equal_impossible_constant(void *ctx)
+{
+	asm volatile("						\
+	call %[bpf_get_prandom_u32];				\
+	r5 = r0;						\
+	/* Set r5's var_off32 to (0; 0xfffffffc) */		\
+	r5 &= 0xfffffffffffffffc;				\
+	r7 = r0;						\
+	/* Set r7's var_off32 to (0x0; 0x1) */			\
+	r7 &= 0x1;						\
+	/* Now, s32=[-43; -42], var_off32=(0xffffffd4; 0x3) */	\
+	r7 += -43;						\
+	/* On fallthrough, var_off32=-44, not in s32 */		\
+	if w5 != w7 goto +1;					\
+	r10 = 0;						\
+	exit;							\
+"	:
+	: __imm(bpf_get_prandom_u32)
 	: __clobber_all);
 }
 

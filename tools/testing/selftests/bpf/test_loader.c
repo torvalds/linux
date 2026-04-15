@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2022 Meta Platforms, Inc. and affiliates. */
 #include <linux/capability.h>
+#include <linux/err.h>
 #include <stdlib.h>
 #include <test_progs.h>
 #include <bpf/btf.h>
@@ -11,39 +12,15 @@
 #include "cap_helpers.h"
 #include "jit_disasm_helpers.h"
 
-#define str_has_pfx(str, pfx) \
-	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
+static inline const char *str_has_pfx(const char *str, const char *pfx)
+{
+	size_t len = strlen(pfx);
+
+	return strncmp(str, pfx, len) == 0 ? str + len : NULL;
+}
 
 #define TEST_LOADER_LOG_BUF_SZ 2097152
 
-#define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
-#define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
-#define TEST_TAG_EXPECT_MSG_PFX "comment:test_expect_msg="
-#define TEST_TAG_EXPECT_NOT_MSG_PFX "comment:test_expect_not_msg="
-#define TEST_TAG_EXPECT_XLATED_PFX "comment:test_expect_xlated="
-#define TEST_TAG_EXPECT_FAILURE_UNPRIV "comment:test_expect_failure_unpriv"
-#define TEST_TAG_EXPECT_SUCCESS_UNPRIV "comment:test_expect_success_unpriv"
-#define TEST_TAG_EXPECT_MSG_PFX_UNPRIV "comment:test_expect_msg_unpriv="
-#define TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV "comment:test_expect_not_msg_unpriv="
-#define TEST_TAG_EXPECT_XLATED_PFX_UNPRIV "comment:test_expect_xlated_unpriv="
-#define TEST_TAG_LOG_LEVEL_PFX "comment:test_log_level="
-#define TEST_TAG_PROG_FLAGS_PFX "comment:test_prog_flags="
-#define TEST_TAG_DESCRIPTION_PFX "comment:test_description="
-#define TEST_TAG_RETVAL_PFX "comment:test_retval="
-#define TEST_TAG_RETVAL_PFX_UNPRIV "comment:test_retval_unpriv="
-#define TEST_TAG_AUXILIARY "comment:test_auxiliary"
-#define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
-#define TEST_BTF_PATH "comment:test_btf_path="
-#define TEST_TAG_ARCH "comment:test_arch="
-#define TEST_TAG_JITED_PFX "comment:test_jited="
-#define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
-#define TEST_TAG_CAPS_UNPRIV "comment:test_caps_unpriv="
-#define TEST_TAG_LOAD_MODE_PFX "comment:load_mode="
-#define TEST_TAG_EXPECT_STDERR_PFX "comment:test_expect_stderr="
-#define TEST_TAG_EXPECT_STDERR_PFX_UNPRIV "comment:test_expect_stderr_unpriv="
-#define TEST_TAG_EXPECT_STDOUT_PFX "comment:test_expect_stdout="
-#define TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV "comment:test_expect_stdout_unpriv="
-#define TEST_TAG_LINEAR_SIZE "comment:test_linear_size="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xbadcafe
@@ -69,6 +46,7 @@ enum load_mode {
 
 struct test_subspec {
 	char *name;
+	char *description;
 	bool expect_failure;
 	struct expected_msgs expect_msgs;
 	struct expected_msgs expect_xlated;
@@ -142,9 +120,13 @@ static void free_test_spec(struct test_spec *spec)
 	free_msgs(&spec->priv.stdout);
 
 	free(spec->priv.name);
+	free(spec->priv.description);
 	free(spec->unpriv.name);
+	free(spec->unpriv.description);
 	spec->priv.name = NULL;
+	spec->priv.description = NULL;
 	spec->unpriv.name = NULL;
+	spec->unpriv.description = NULL;
 }
 
 /* Compiles regular expression matching pattern.
@@ -161,21 +143,21 @@ static void free_test_spec(struct test_spec *spec)
 static int compile_regex(const char *pattern, regex_t *regex)
 {
 	char err_buf[256], buf[256] = {}, *ptr, *buf_end;
-	const char *original_pattern = pattern;
+	const char *original_pattern = pattern, *next;
 	bool in_regex = false;
 	int err;
 
 	buf_end = buf + sizeof(buf);
 	ptr = buf;
 	while (*pattern && ptr < buf_end - 2) {
-		if (!in_regex && str_has_pfx(pattern, "{{")) {
+		if (!in_regex && (next = str_has_pfx(pattern, "{{"))) {
 			in_regex = true;
-			pattern += 2;
+			pattern = next;
 			continue;
 		}
-		if (in_regex && str_has_pfx(pattern, "}}")) {
+		if (in_regex && (next = str_has_pfx(pattern, "}}"))) {
 			in_regex = false;
-			pattern += 2;
+			pattern = next;
 			continue;
 		}
 		if (in_regex) {
@@ -343,33 +325,49 @@ static void update_flags(int *flags, int flag, bool clear)
 		*flags |= flag;
 }
 
-/* Matches a string of form '<pfx>[^=]=.*' and returns it's suffix.
- * Used to parse btf_decl_tag values.
- * Such values require unique prefix because compiler does not add
- * same __attribute__((btf_decl_tag(...))) twice.
- * Test suite uses two-component tags for such cases:
- *
- *   <pfx> __COUNTER__ '='
- *
- * For example, two consecutive __msg tags '__msg("foo") __msg("foo")'
- * would be encoded as:
- *
- *   [18] DECL_TAG 'comment:test_expect_msg=0=foo' type_id=15 component_idx=-1
- *   [19] DECL_TAG 'comment:test_expect_msg=1=foo' type_id=15 component_idx=-1
- *
- * And the purpose of this function is to extract 'foo' from the above.
- */
-static const char *skip_dynamic_pfx(const char *s, const char *pfx)
+static const char *skip_decl_tag_pfx(const char *s)
 {
-	const char *msg;
+	int n = 0;
 
-	if (strncmp(s, pfx, strlen(pfx)) != 0)
+	if (sscanf(s, "comment:%*d:%n", &n) < 0 || !n)
 		return NULL;
-	msg = s + strlen(pfx);
-	msg = strchr(msg, '=');
-	if (!msg)
-		return NULL;
-	return msg + 1;
+	return s + n;
+}
+
+static int compare_decl_tags(const void *a, const void *b)
+{
+	return strverscmp(*(const char **)a, *(const char **)b);
+}
+
+/*
+ * Compilers don't guarantee order in which BTF attributes would be generated,
+ * while order is important for test tags like __msg.
+ * Each test tag has the following prefix: "comment:" __COUNTER__,
+ * when sorted using strverscmp this gives same order as in the original C code.
+ */
+static const char **collect_decl_tags(struct btf *btf, int id, int *cnt)
+{
+	const char **tmp, **tags = NULL;
+	const struct btf_type *t;
+	int i;
+
+	*cnt = 0;
+	for (i = 1; i < btf__type_cnt(btf); i++) {
+		t = btf__type_by_id(btf, i);
+		if (!btf_is_decl_tag(t) || t->type != id || btf_decl_tag(t)->component_idx != -1)
+			continue;
+		tmp = realloc(tags, (*cnt + 1) * sizeof(*tags));
+		if (!tmp) {
+			free(tags);
+			return ERR_PTR(-ENOMEM);
+		}
+		tags = tmp;
+		tags[(*cnt)++] = btf__str_by_offset(btf, t->name_off);
+	}
+
+	if (*cnt)
+		qsort(tags, *cnt, sizeof(*tags), compare_decl_tags);
+	return tags;
 }
 
 enum arch {
@@ -415,7 +413,9 @@ static int parse_test_spec(struct test_loader *tester,
 	bool stdout_on_next_line = true;
 	bool unpriv_stdout_on_next_line = true;
 	bool collect_jit = false;
-	int func_id, i, err = 0;
+	const char **tags = NULL;
+	int func_id, i, nr_tags;
+	int err = 0;
 	u32 arch_mask = 0;
 	u32 load_mask = 0;
 	struct btf *btf;
@@ -438,63 +438,61 @@ static int parse_test_spec(struct test_loader *tester,
 		return -EINVAL;
 	}
 
-	for (i = 1; i < btf__type_cnt(btf); i++) {
+	tags = collect_decl_tags(btf, func_id, &nr_tags);
+	if (IS_ERR(tags))
+		return PTR_ERR(tags);
+
+	for (i = 0; i < nr_tags; i++) {
 		const char *s, *val, *msg;
-		const struct btf_type *t;
 		bool clear;
 		int flags;
 
-		t = btf__type_by_id(btf, i);
-		if (!btf_is_decl_tag(t))
+		s = skip_decl_tag_pfx(tags[i]);
+		if (!s)
 			continue;
-
-		if (t->type != func_id || btf_decl_tag(t)->component_idx != -1)
-			continue;
-
-		s = btf__str_by_offset(btf, t->name_off);
-		if (str_has_pfx(s, TEST_TAG_DESCRIPTION_PFX)) {
-			description = s + sizeof(TEST_TAG_DESCRIPTION_PFX) - 1;
-		} else if (strcmp(s, TEST_TAG_EXPECT_FAILURE) == 0) {
+		if ((val = str_has_pfx(s, "test_description="))) {
+			description = val;
+		} else if (strcmp(s, "test_expect_failure") == 0) {
 			spec->priv.expect_failure = true;
 			spec->mode_mask |= PRIV;
-		} else if (strcmp(s, TEST_TAG_EXPECT_SUCCESS) == 0) {
+		} else if (strcmp(s, "test_expect_success") == 0) {
 			spec->priv.expect_failure = false;
 			spec->mode_mask |= PRIV;
-		} else if (strcmp(s, TEST_TAG_EXPECT_FAILURE_UNPRIV) == 0) {
+		} else if (strcmp(s, "test_expect_failure_unpriv") == 0) {
 			spec->unpriv.expect_failure = true;
 			spec->mode_mask |= UNPRIV;
 			has_unpriv_result = true;
-		} else if (strcmp(s, TEST_TAG_EXPECT_SUCCESS_UNPRIV) == 0) {
+		} else if (strcmp(s, "test_expect_success_unpriv") == 0) {
 			spec->unpriv.expect_failure = false;
 			spec->mode_mask |= UNPRIV;
 			has_unpriv_result = true;
-		} else if (strcmp(s, TEST_TAG_AUXILIARY) == 0) {
+		} else if (strcmp(s, "test_auxiliary") == 0) {
 			spec->auxiliary = true;
 			spec->mode_mask |= PRIV;
-		} else if (strcmp(s, TEST_TAG_AUXILIARY_UNPRIV) == 0) {
+		} else if (strcmp(s, "test_auxiliary_unpriv") == 0) {
 			spec->auxiliary = true;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_msg="))) {
 			err = push_msg(msg, false, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_not_msg="))) {
 			err = push_msg(msg, true, &spec->priv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_MSG_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_msg_unpriv="))) {
 			err = push_msg(msg, false, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_NOT_MSG_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_not_msg_unpriv="))) {
 			err = push_msg(msg, true, &spec->unpriv.expect_msgs);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_jited="))) {
 			if (arch_mask == 0) {
 				PRINT_FAIL("__jited used before __arch_*");
 				goto cleanup;
@@ -506,7 +504,7 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				spec->mode_mask |= PRIV;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_JITED_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_jited_unpriv="))) {
 			if (arch_mask == 0) {
 				PRINT_FAIL("__unpriv_jited used before __arch_*");
 				goto cleanup;
@@ -518,41 +516,36 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				spec->mode_mask |= UNPRIV;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_xlated="))) {
 			err = push_disasm_msg(msg, &xlated_on_next_line,
 					      &spec->priv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= PRIV;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_XLATED_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_xlated_unpriv="))) {
 			err = push_disasm_msg(msg, &unpriv_xlated_on_next_line,
 					      &spec->unpriv.expect_xlated);
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX)) {
-			val = s + sizeof(TEST_TAG_RETVAL_PFX) - 1;
+		} else if ((val = str_has_pfx(s, "test_retval="))) {
 			err = parse_retval(val, &spec->priv.retval, "__retval");
 			if (err)
 				goto cleanup;
 			spec->priv.execute = true;
 			spec->mode_mask |= PRIV;
-		} else if (str_has_pfx(s, TEST_TAG_RETVAL_PFX_UNPRIV)) {
-			val = s + sizeof(TEST_TAG_RETVAL_PFX_UNPRIV) - 1;
+		} else if ((val = str_has_pfx(s, "test_retval_unpriv="))) {
 			err = parse_retval(val, &spec->unpriv.retval, "__retval_unpriv");
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
 			spec->unpriv.execute = true;
 			has_unpriv_retval = true;
-		} else if (str_has_pfx(s, TEST_TAG_LOG_LEVEL_PFX)) {
-			val = s + sizeof(TEST_TAG_LOG_LEVEL_PFX) - 1;
+		} else if ((val = str_has_pfx(s, "test_log_level="))) {
 			err = parse_int(val, &spec->log_level, "test log level");
 			if (err)
 				goto cleanup;
-		} else if (str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX)) {
-			val = s + sizeof(TEST_TAG_PROG_FLAGS_PFX) - 1;
-
+		} else if ((val = str_has_pfx(s, "test_prog_flags="))) {
 			clear = val[0] == '!';
 			if (clear)
 				val++;
@@ -577,8 +570,7 @@ static int parse_test_spec(struct test_loader *tester,
 					goto cleanup;
 				update_flags(&spec->prog_flags, flags, clear);
 			}
-		} else if (str_has_pfx(s, TEST_TAG_ARCH)) {
-			val = s + sizeof(TEST_TAG_ARCH) - 1;
+		} else if ((val = str_has_pfx(s, "test_arch="))) {
 			if (strcmp(val, "X86_64") == 0) {
 				arch = ARCH_X86_64;
 			} else if (strcmp(val, "ARM64") == 0) {
@@ -596,16 +588,14 @@ static int parse_test_spec(struct test_loader *tester,
 			collect_jit = get_current_arch() == arch;
 			unpriv_jit_on_next_line = true;
 			jit_on_next_line = true;
-		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
-			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
-		} else if (str_has_pfx(s, TEST_TAG_CAPS_UNPRIV)) {
-			val = s + sizeof(TEST_TAG_CAPS_UNPRIV) - 1;
+		} else if ((val = str_has_pfx(s, "test_btf_path="))) {
+			spec->btf_custom_path = val;
+		} else if ((val = str_has_pfx(s, "test_caps_unpriv="))) {
 			err = parse_caps(val, &spec->unpriv.caps, "test caps");
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
-		} else if (str_has_pfx(s, TEST_TAG_LOAD_MODE_PFX)) {
-			val = s + sizeof(TEST_TAG_LOAD_MODE_PFX) - 1;
+		} else if ((val = str_has_pfx(s, "load_mode="))) {
 			if (strcmp(val, "jited") == 0) {
 				load_mask = JITED;
 			} else if (strcmp(val, "no_jited") == 0) {
@@ -615,32 +605,31 @@ static int parse_test_spec(struct test_loader *tester,
 				err = -EINVAL;
 				goto cleanup;
 			}
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDERR_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_stderr="))) {
 			err = push_disasm_msg(msg, &stderr_on_next_line,
 					      &spec->priv.stderr);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDERR_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_stderr_unpriv="))) {
 			err = push_disasm_msg(msg, &unpriv_stderr_on_next_line,
 					      &spec->unpriv.stderr);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_stdout="))) {
 			err = push_disasm_msg(msg, &stdout_on_next_line,
 					      &spec->priv.stdout);
 			if (err)
 				goto cleanup;
-		} else if ((msg = skip_dynamic_pfx(s, TEST_TAG_EXPECT_STDOUT_PFX_UNPRIV))) {
+		} else if ((msg = str_has_pfx(s, "test_expect_stdout_unpriv="))) {
 			err = push_disasm_msg(msg, &unpriv_stdout_on_next_line,
 					      &spec->unpriv.stdout);
 			if (err)
 				goto cleanup;
-		} else if (str_has_pfx(s, TEST_TAG_LINEAR_SIZE)) {
+		} else if ((val = str_has_pfx(s, "test_linear_size="))) {
 			switch (bpf_program__type(prog)) {
 			case BPF_PROG_TYPE_SCHED_ACT:
 			case BPF_PROG_TYPE_SCHED_CLS:
 			case BPF_PROG_TYPE_CGROUP_SKB:
-				val = s + sizeof(TEST_TAG_LINEAR_SIZE) - 1;
 				err = parse_int(val, &spec->linear_sz, "test linear size");
 				if (err)
 					goto cleanup;
@@ -659,33 +648,56 @@ static int parse_test_spec(struct test_loader *tester,
 	if (spec->mode_mask == 0)
 		spec->mode_mask = PRIV;
 
-	if (!description)
-		description = spec->prog_name;
-
 	if (spec->mode_mask & PRIV) {
-		spec->priv.name = strdup(description);
+		spec->priv.name = strdup(spec->prog_name);
 		if (!spec->priv.name) {
 			PRINT_FAIL("failed to allocate memory for priv.name\n");
 			err = -ENOMEM;
 			goto cleanup;
 		}
+
+		if (description) {
+			spec->priv.description = strdup(description);
+			if (!spec->priv.description) {
+				PRINT_FAIL("failed to allocate memory for priv.description\n");
+				err = -ENOMEM;
+				goto cleanup;
+			}
+		}
 	}
 
 	if (spec->mode_mask & UNPRIV) {
-		int descr_len = strlen(description);
+		int name_len = strlen(spec->prog_name);
 		const char *suffix = " @unpriv";
+		int suffix_len = strlen(suffix);
 		char *name;
 
-		name = malloc(descr_len + strlen(suffix) + 1);
+		name = malloc(name_len + suffix_len + 1);
 		if (!name) {
 			PRINT_FAIL("failed to allocate memory for unpriv.name\n");
 			err = -ENOMEM;
 			goto cleanup;
 		}
 
-		strcpy(name, description);
-		strcpy(&name[descr_len], suffix);
+		strcpy(name, spec->prog_name);
+		strcpy(&name[name_len], suffix);
 		spec->unpriv.name = name;
+
+		if (description) {
+			int descr_len = strlen(description);
+			char *descr;
+
+			descr = malloc(descr_len + suffix_len + 1);
+			if (!descr) {
+				PRINT_FAIL("failed to allocate memory for unpriv.description\n");
+				err = -ENOMEM;
+				goto cleanup;
+			}
+
+			strcpy(descr, description);
+			strcpy(&descr[descr_len], suffix);
+			spec->unpriv.description = descr;
+		}
 	}
 
 	if (spec->mode_mask & (PRIV | UNPRIV)) {
@@ -711,9 +723,11 @@ static int parse_test_spec(struct test_loader *tester,
 
 	spec->valid = true;
 
+	free(tags);
 	return 0;
 
 cleanup:
+	free(tags);
 	free_test_spec(spec);
 	return err;
 }
@@ -1148,7 +1162,7 @@ void run_subtest(struct test_loader *tester,
 	int links_cnt = 0;
 	bool should_load;
 
-	if (!test__start_subtest(subspec->name))
+	if (!test__start_subtest_with_desc(subspec->name, subspec->description))
 		return;
 
 	if ((get_current_arch() & spec->arch_mask) == 0) {

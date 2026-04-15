@@ -1651,7 +1651,7 @@ int clean_live_states(const void *ctx)
 
 SEC("?raw_tp")
 __flag(BPF_F_TEST_STATE_FREQ)
-__failure __msg("misaligned stack access off 0+-31+0 size 8")
+__failure __msg("misaligned stack access off -31+0 size 8")
 __naked int absent_mark_in_the_middle_state(void)
 {
 	/* This is equivalent to C program below.
@@ -1726,7 +1726,7 @@ static int noop(void)
 
 SEC("?raw_tp")
 __flag(BPF_F_TEST_STATE_FREQ)
-__failure __msg("misaligned stack access off 0+-31+0 size 8")
+__failure __msg("misaligned stack access off -31+0 size 8")
 __naked int absent_mark_in_the_middle_state2(void)
 {
 	/* This is equivalent to C program below.
@@ -1802,7 +1802,7 @@ __naked int absent_mark_in_the_middle_state2(void)
 
 SEC("?raw_tp")
 __flag(BPF_F_TEST_STATE_FREQ)
-__failure __msg("misaligned stack access off 0+-31+0 size 8")
+__failure __msg("misaligned stack access off -31+0 size 8")
 __naked int absent_mark_in_the_middle_state3(void)
 {
 	/*

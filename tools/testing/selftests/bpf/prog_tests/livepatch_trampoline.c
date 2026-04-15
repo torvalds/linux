@@ -5,6 +5,8 @@
 #include "testing_helpers.h"
 #include "livepatch_trampoline.skel.h"
 
+#define LIVEPATCH_ENABLED_PATH "/sys/kernel/livepatch/livepatch_sample/enabled"
+
 static int load_livepatch(void)
 {
 	char path[4096];
@@ -19,7 +21,8 @@ static int load_livepatch(void)
 static void unload_livepatch(void)
 {
 	/* Disable the livepatch before unloading the module */
-	system("echo 0 > /sys/kernel/livepatch/livepatch_sample/enabled");
+	if (!access(LIVEPATCH_ENABLED_PATH, F_OK))
+		system("echo 0 > " LIVEPATCH_ENABLED_PATH);
 
 	unload_module("livepatch_sample", env_verbosity > VERBOSE_NONE);
 }
@@ -81,9 +84,22 @@ out:
 void test_livepatch_trampoline(void)
 {
 	int retry_cnt = 0;
+	int err;
+
+	/* Skip if kernel was built without CONFIG_LIVEPATCH */
+	if (access("/sys/kernel/livepatch", F_OK)) {
+		test__skip();
+		return;
+	}
 
 retry:
-	if (load_livepatch()) {
+	err = load_livepatch();
+	if (err) {
+		if (err == -ENOENT) {
+			test__skip();
+			return;
+		}
+
 		if (retry_cnt) {
 			ASSERT_OK(1, "load_livepatch");
 			goto out;

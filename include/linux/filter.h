@@ -21,7 +21,6 @@
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 #include <linux/sockptr.h>
-#include <crypto/sha1.h>
 #include <linux/u64_stats_sync.h>
 
 #include <net/sch_generic.h>

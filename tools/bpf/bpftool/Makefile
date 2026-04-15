@@ -97,6 +97,15 @@ RM ?= rm -f
 
 FEATURE_USER = .bpftool
 
+# Skip optional dependencies: LLVM (JIT disasm), libbfd (fallback
+# disasm), libcrypto (program signing).
+SKIP_LLVM ?=
+SKIP_LIBBFD ?=
+SKIP_CRYPTO ?=
+ifneq ($(SKIP_CRYPTO),1)
+  CRYPTO_LIBS := -lcrypto
+endif
+
 FEATURE_TESTS := clang-bpf-co-re
 FEATURE_TESTS += llvm
 FEATURE_TESTS += libcap
@@ -130,8 +139,8 @@ include $(FEATURES_DUMP)
 endif
 endif
 
-LIBS = $(LIBBPF) -lelf -lcrypto -lz
-LIBS_BOOTSTRAP = $(LIBBPF_BOOTSTRAP) -lelf -lcrypto -lz
+LIBS = $(LIBBPF) -lelf $(CRYPTO_LIBS) -lz
+LIBS_BOOTSTRAP = $(LIBBPF_BOOTSTRAP) -lelf $(CRYPTO_LIBS) -lz
 
 ifeq ($(feature-libelf-zstd),1)
 LIBS += -lzstd
@@ -150,7 +159,12 @@ all: $(OUTPUT)bpftool
 SRCS := $(wildcard *.c)
 
 ifeq ($(feature-llvm),1)
-  # If LLVM is available, use it for JIT disassembly
+ifneq ($(SKIP_LLVM),1)
+HAS_LLVM := 1
+endif
+endif
+
+ifeq ($(HAS_LLVM),1)
   CFLAGS  += -DHAVE_LLVM_SUPPORT
   LLVM_CONFIG_LIB_COMPONENTS := mcdisassembler all-targets
   # llvm-config always adds -D_GNU_SOURCE, however, it may already be in CFLAGS
@@ -165,6 +179,7 @@ ifeq ($(feature-llvm),1)
   endif
   LDFLAGS += $(shell $(LLVM_CONFIG) --ldflags)
 else
+  ifneq ($(SKIP_LIBBFD),1)
   # Fall back on libbfd
   ifeq ($(feature-libbfd),1)
     LIBS += -lbfd -ldl -lopcodes
@@ -186,15 +201,22 @@ else
       CFLAGS += -DDISASM_INIT_STYLED
     endif
   endif
+  endif # SKIP_LIBBFD
 endif
 ifeq ($(filter -DHAVE_LLVM_SUPPORT -DHAVE_LIBBFD_SUPPORT,$(CFLAGS)),)
   # No support for JIT disassembly
   SRCS := $(filter-out jit_disasm.c,$(SRCS))
 endif
 
+ifeq ($(SKIP_CRYPTO),1)
+  CFLAGS += -DBPFTOOL_WITHOUT_CRYPTO
+  HOST_CFLAGS += -DBPFTOOL_WITHOUT_CRYPTO
+  SRCS := $(filter-out sign.c,$(SRCS))
+endif
+
 BPFTOOL_BOOTSTRAP := $(BOOTSTRAP_OUTPUT)bpftool
 
-BOOTSTRAP_OBJS = $(addprefix $(BOOTSTRAP_OUTPUT),main.o common.o json_writer.o gen.o btf.o sign.o)
+BOOTSTRAP_OBJS = $(addprefix $(BOOTSTRAP_OUTPUT),main.o common.o json_writer.o gen.o btf.o $(if $(CRYPTO_LIBS),sign.o))
 $(BOOTSTRAP_OBJS): $(LIBBPF_BOOTSTRAP)
 
 OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o

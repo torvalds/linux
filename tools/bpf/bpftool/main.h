@@ -293,6 +293,20 @@ struct kernel_config_option {
 int read_kernel_config(const struct kernel_config_option *requested_options,
 		       size_t num_options, char **out_values,
 		       const char *define_prefix);
+#ifndef BPFTOOL_WITHOUT_CRYPTO
 int bpftool_prog_sign(struct bpf_load_and_run_opts *opts);
 __u32 register_session_key(const char *key_der_path);
+#else
+static inline int bpftool_prog_sign(struct bpf_load_and_run_opts *opts)
+{
+	p_err("bpftool was built without signing support");
+	return -ENOTSUP;
+}
+
+static inline __u32 register_session_key(const char *key_der_path)
+{
+	p_err("bpftool was built without signing support");
+	return -1;
+}
+#endif
 #endif

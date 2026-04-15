@@ -36,7 +36,7 @@ l0_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("UDIV32, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("w1 /= w2 {{.*}}; R1=0 R2=0")
+__msg("w1 /= w2 {{.*}}; R1=0")
 __naked void udiv32_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -81,7 +81,7 @@ l0_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("UDIV64, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("r1 /= r2 {{.*}}; R1=0 R2=0")
+__msg("r1 /= r2 {{.*}}; R1=0")
 __naked void udiv64_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -242,7 +242,7 @@ l1_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("SDIV32, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("w1 s/= w2 {{.*}}; R1=0 R2=0")
+__msg("w1 s/= w2 {{.*}}; R1=0")
 __naked void sdiv32_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -275,6 +275,7 @@ __naked void sdiv32_overflow_1(void)
 	w2 += 10;					\
 	if w1 s> w2 goto l0_%=;				\
 	w1 s/= -1;					\
+	r2 = r1;					\
 l0_%=:	r0 = 0;						\
 	exit;						\
 "	:
@@ -443,7 +444,7 @@ l1_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("SDIV64, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("r1 s/= r2 {{.*}}; R1=0 R2=0")
+__msg("r1 s/= r2 {{.*}}; R1=0")
 __naked void sdiv64_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -476,6 +477,7 @@ __naked void sdiv64_overflow_1(void)
 	r2 += 10;					\
 	if r1 s> r2 goto l0_%=;				\
 	r1 s/= -1;					\
+	r2 = r1;					\
 l0_%=:	r0 = 0;						\
 	exit;						\
 "	:
@@ -553,7 +555,7 @@ l0_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("UMOD32, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("w1 %= w2 {{.*}}; R1=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=9,var_off=(0x1; 0x8)) R2=0")
+__msg("w1 %= w2 {{.*}}; R1=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=9,var_off=(0x1; 0x8))")
 __naked void umod32_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -624,7 +626,7 @@ l0_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("UMOD64, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("r1 %= r2 {{.*}}; R1=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=9,var_off=(0x1; 0x8)) R2=0")
+__msg("r1 %= r2 {{.*}}; R1=scalar(smin=umin=smin32=umin32=1,smax=umax=smax32=umax32=9,var_off=(0x1; 0x8))")
 __naked void umod64_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -833,7 +835,7 @@ l1_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("SMOD32, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("w1 s%= w2 {{.*}}; R1=scalar(smin=0,smax=umax=0xffffffff,smin32=-8,smax32=10,var_off=(0x0; 0xffffffff)) R2=0")
+__msg("w1 s%= w2 {{.*}}; R1=scalar(smin=0,smax=umax=0xffffffff,smin32=-8,smax32=10,var_off=(0x0; 0xffffffff))")
 __naked void smod32_zero_divisor(void)
 {
 	asm volatile ("					\
@@ -1084,7 +1086,7 @@ l1_%=:	r0 = *(u64 *)(r1 + 0);				\
 SEC("socket")
 __description("SMOD64, zero divisor")
 __success __retval(0) __log_level(2)
-__msg("r1 s%= r2 {{.*}}; R1=scalar(smin=smin32=-8,smax=smax32=10) R2=0")
+__msg("r1 s%= r2 {{.*}}; R1=scalar(smin=smin32=-8,smax=smax32=10)")
 __naked void smod64_zero_divisor(void)
 {
 	asm volatile ("					\

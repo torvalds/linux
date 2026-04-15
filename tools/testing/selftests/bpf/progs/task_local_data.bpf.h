@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #ifndef __TASK_LOCAL_DATA_BPF_H
 #define __TASK_LOCAL_DATA_BPF_H
 
@@ -87,7 +87,7 @@ struct tld_meta_u {
 
 struct tld_data_u {
 	__u64 start; /* offset of tld_data_u->data in a page */
-	char data[__PAGE_SIZE - sizeof(__u64)];
+	char data[__PAGE_SIZE - sizeof(__u64)] __attribute__((aligned(8)));
 };
 
 struct tld_map_value {

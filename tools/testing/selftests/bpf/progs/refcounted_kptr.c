@@ -500,7 +500,7 @@ long rbtree_wrong_owner_remove_fail_a2(void *ctx)
 	return 0;
 }
 
-SEC("?fentry.s/bpf_testmod_test_read")
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 __success
 int BPF_PROG(rbtree_sleepable_rcu,
 	     struct file *file, struct kobject *kobj,
@@ -534,7 +534,7 @@ err_out:
 	return 0;
 }
 
-SEC("?fentry.s/bpf_testmod_test_read")
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 __success
 int BPF_PROG(rbtree_sleepable_rcu_no_explicit_rcu_lock,
 	     struct file *file, struct kobject *kobj,

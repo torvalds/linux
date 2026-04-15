@@ -567,6 +567,23 @@ noinline void bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
 {
 }
 
+noinline void bpf_fentry_test_ppvoid(void **pp)
+{
+}
+
+noinline void bpf_fentry_test_pppvoid(void ***ppp)
+{
+}
+
+noinline void bpf_fentry_test_ppfile(struct file **ppf)
+{
+}
+
+noinline struct file **bpf_fexit_test_ret_ppfile(void)
+{
+	return (struct file **)NULL;
+}
+
 __bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
@@ -1120,19 +1137,23 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		sk->sk_family = AF_INET;
-		if (sizeof(struct iphdr) <= skb_headlen(skb)) {
-			sk->sk_rcv_saddr = ip_hdr(skb)->saddr;
-			sk->sk_daddr = ip_hdr(skb)->daddr;
+		if (skb_headlen(skb) < sizeof(struct iphdr)) {
+			ret = -EINVAL;
+			goto out;
 		}
+		sk->sk_family = AF_INET;
+		sk->sk_rcv_saddr = ip_hdr(skb)->saddr;
+		sk->sk_daddr = ip_hdr(skb)->daddr;
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
-		sk->sk_family = AF_INET6;
-		if (sizeof(struct ipv6hdr) <= skb_headlen(skb)) {
-			sk->sk_v6_rcv_saddr = ipv6_hdr(skb)->saddr;
-			sk->sk_v6_daddr = ipv6_hdr(skb)->daddr;
+		if (skb_headlen(skb) < sizeof(struct ipv6hdr)) {
+			ret = -EINVAL;
+			goto out;
 		}
+		sk->sk_family = AF_INET6;
+		sk->sk_v6_rcv_saddr = ipv6_hdr(skb)->saddr;
+		sk->sk_v6_daddr = ipv6_hdr(skb)->daddr;
 		break;
 #endif
 	default:
@@ -1154,6 +1175,18 @@ int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 		skb->csum = skb_checksum(skb, off, len, 0);
 		skb->ip_summed = CHECKSUM_COMPLETE;
+	}
+
+	if (prog->type == BPF_PROG_TYPE_LWT_XMIT) {
+		if (!ipv6_mod_enabled()) {
+			pr_warn_once("Please test this program with IPv6 enabled kernel\n");
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+#if IS_ENABLED(CONFIG_IPV6)
+		dst_hold(&net->ipv6.ip6_null_entry->dst);
+		skb_dst_set(skb, &net->ipv6.ip6_null_entry->dst);
+#endif
 	}
 
 	ret = bpf_test_run(prog, skb, repeat, &retval, &duration, false);

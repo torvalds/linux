@@ -4815,13 +4815,10 @@ M:	Alexei Starovoitov <ast@kernel.org>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Andrii Nakryiko <andrii@kernel.org>
 R:	Martin KaFai Lau <martin.lau@linux.dev>
-R:	Eduard Zingerman <eddyz87@gmail.com>
+M:	Eduard Zingerman <eddyz87@gmail.com>
+M:	Kumar Kartikeya Dwivedi <memxor@gmail.com>
 R:	Song Liu <song@kernel.org>
 R:	Yonghong Song <yonghong.song@linux.dev>
-R:	John Fastabend <john.fastabend@gmail.com>
-R:	KP Singh <kpsingh@kernel.org>
-R:	Stanislav Fomichev <sdf@fomichev.me>
-R:	Hao Luo <haoluo@google.com>
 R:	Jiri Olsa <jolsa@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Supported

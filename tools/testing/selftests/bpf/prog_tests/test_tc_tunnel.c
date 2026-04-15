@@ -168,7 +168,7 @@ static int check_server_rx_data(struct subtest_cfg *cfg,
 
 static struct connection *connect_client_to_server(struct subtest_cfg *cfg)
 {
-	struct network_helper_opts opts = {.timeout_ms = 500};
+	struct network_helper_opts opts = {.timeout_ms = 1000};
 	int family = cfg->ipproto == 6 ? AF_INET6 : AF_INET;
 	struct connection *conn = NULL;
 	int client_fd, server_fd;
@@ -206,18 +206,13 @@ static void disconnect_client_from_server(struct subtest_cfg *cfg,
 	free(conn);
 }
 
-static int send_and_test_data(struct subtest_cfg *cfg, bool must_succeed)
+static int send_and_test_data(struct subtest_cfg *cfg)
 {
 	struct connection *conn;
 	int err, res = -1;
 
 	conn = connect_client_to_server(cfg);
-	if (!must_succeed && !ASSERT_ERR_PTR(conn, "connection that must fail"))
-		goto end;
-	else if (!must_succeed)
-		return 0;
-
-	if (!ASSERT_OK_PTR(conn, "connection that must succeed"))
+	if (!ASSERT_OK_PTR(conn, "connect to server"))
 		return -1;
 
 	err = send(conn->client_fd, tx_buffer, DEFAULT_TEST_DATA_SIZE, 0);
@@ -391,7 +386,7 @@ static void run_test(struct subtest_cfg *cfg)
 		goto fail;
 
 	/* Basic communication must work */
-	if (!ASSERT_OK(send_and_test_data(cfg, true), "connect without any encap"))
+	if (!ASSERT_OK(send_and_test_data(cfg), "connect without any encap"))
 		goto fail;
 
 	/* Attach encapsulation program to client */
@@ -403,7 +398,7 @@ static void run_test(struct subtest_cfg *cfg)
 		if (!ASSERT_OK(configure_kernel_decapsulation(cfg),
 					"configure kernel decapsulation"))
 			goto fail;
-		if (!ASSERT_OK(send_and_test_data(cfg, true),
+		if (!ASSERT_OK(send_and_test_data(cfg),
 			       "connect with encap prog and kern decap"))
 			goto fail;
 	}
@@ -411,7 +406,7 @@ static void run_test(struct subtest_cfg *cfg)
 	/* Replace kernel decapsulation with BPF decapsulation, test must pass */
 	if (!ASSERT_OK(configure_ebpf_decapsulation(cfg), "configure ebpf decapsulation"))
 		goto fail;
-	ASSERT_OK(send_and_test_data(cfg, true), "connect with encap and decap progs");
+	ASSERT_OK(send_and_test_data(cfg), "connect with encap and decap progs");
 
 fail:
 	close_netns(nstoken);

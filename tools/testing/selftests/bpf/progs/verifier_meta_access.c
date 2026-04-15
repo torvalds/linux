@@ -27,7 +27,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("xdp")
 __description("meta access, test2")
-__failure __msg("invalid access to packet, off=-8")
+__failure __msg("R0 min value is negative")
 __naked void meta_access_test2(void)
 {
 	asm volatile ("					\
