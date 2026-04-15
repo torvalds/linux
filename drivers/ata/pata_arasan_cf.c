@@ -380,7 +380,7 @@ static inline int wait4buf(struct arasan_cf_dev *acdev)
 	if (!wait_for_completion_timeout(&acdev->cf_completion, TIMEOUT)) {
 		u32 rw = acdev->qc->tf.flags & ATA_TFLAG_WRITE;
 
-		dev_err(acdev->host->dev, "%s TimeOut", rw ? "write" : "read");
+		dev_err(acdev->host->dev, "%s TimeOut\n", rw ? "write" : "read");
 		return -ETIMEDOUT;
 	}
 
@@ -474,7 +474,7 @@ static int sg_xfer(struct arasan_cf_dev *acdev, struct scatterlist *sg)
 			dma_len = min(xfer_cnt, FIFO_SIZE);
 			ret = dma_xfer(acdev, src, dest, dma_len);
 			if (ret) {
-				dev_err(acdev->host->dev, "dma failed");
+				dev_err(acdev->host->dev, "dma failed\n");
 				goto fail;
 			}
 

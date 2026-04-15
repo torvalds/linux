@@ -13,12 +13,10 @@
 #include <linux/kernel.h>
 #include <linux/libata.h>
 #include <linux/log2.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
-#include <linux/regmap.h>
 
 #include "ahci.h"
 
@@ -92,20 +90,6 @@
 #define AHCI_DWC_PORT_PHYCR		0x74
 #define AHCI_DWC_PORT_PHYSR		0x78
 
-/* Baikal-T1 AHCI SATA specific registers */
-#define AHCI_BT1_HOST_PHYCR		AHCI_DWC_HOST_GPCR
-#define AHCI_BT1_HOST_MPLM_MASK		GENMASK(29, 23)
-#define AHCI_BT1_HOST_LOSDT_MASK	GENMASK(22, 20)
-#define AHCI_BT1_HOST_CRR		BIT(19)
-#define AHCI_BT1_HOST_CRW		BIT(18)
-#define AHCI_BT1_HOST_CRCD		BIT(17)
-#define AHCI_BT1_HOST_CRCA		BIT(16)
-#define AHCI_BT1_HOST_CRDI_MASK		GENMASK(15, 0)
-
-#define AHCI_BT1_HOST_PHYSR		AHCI_DWC_HOST_GPSR
-#define AHCI_BT1_HOST_CRA		BIT(16)
-#define AHCI_BT1_HOST_CRDO_MASK		GENMASK(15, 0)
-
 struct ahci_dwc_plat_data {
 	unsigned int pflags;
 	unsigned int hflags;
@@ -121,39 +105,6 @@ struct ahci_dwc_host_priv {
 	u32 timv;
 	u32 dmacr[AHCI_MAX_PORTS];
 };
-
-static int ahci_bt1_init(struct ahci_host_priv *hpriv)
-{
-	struct ahci_dwc_host_priv *dpriv = hpriv->plat_data;
-	int ret;
-
-	/* APB, application and reference clocks are required */
-	if (!ahci_platform_find_clk(hpriv, "pclk") ||
-	    !ahci_platform_find_clk(hpriv, "aclk") ||
-	    !ahci_platform_find_clk(hpriv, "ref")) {
-		dev_err(&dpriv->pdev->dev, "No system clocks specified\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Fully reset the SATA AXI and ref clocks domain to ensure the state
-	 * machine is working from scratch especially if the reference clocks
-	 * source has been changed.
-	 */
-	ret = ahci_platform_assert_rsts(hpriv);
-	if (ret) {
-		dev_err(&dpriv->pdev->dev, "Couldn't assert the resets\n");
-		return ret;
-	}
-
-	ret = ahci_platform_deassert_rsts(hpriv);
-	if (ret) {
-		dev_err(&dpriv->pdev->dev, "Couldn't de-assert the resets\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static struct ahci_host_priv *ahci_dwc_get_resources(struct platform_device *pdev)
 {
@@ -457,15 +408,9 @@ static struct ahci_dwc_plat_data ahci_dwc_plat = {
 	.pflags = AHCI_PLATFORM_GET_RESETS,
 };
 
-static struct ahci_dwc_plat_data ahci_bt1_plat = {
-	.pflags = AHCI_PLATFORM_GET_RESETS | AHCI_PLATFORM_RST_TRIGGER,
-	.init = ahci_bt1_init,
-};
-
 static const struct of_device_id ahci_dwc_of_match[] = {
 	{ .compatible = "snps,dwc-ahci", &ahci_dwc_plat },
 	{ .compatible = "snps,spear-ahci", &ahci_dwc_plat },
-	{ .compatible = "baikal,bt1-ahci", &ahci_bt1_plat },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ahci_dwc_of_match);

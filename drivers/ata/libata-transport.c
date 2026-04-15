@@ -37,33 +37,10 @@
 #include "libata.h"
 #include "libata-transport.h"
 
-#define ATA_PORT_ATTRS		3
-#define ATA_LINK_ATTRS		3
-#define ATA_DEV_ATTRS		9
-
-struct scsi_transport_template;
-struct scsi_transport_template *ata_scsi_transport_template;
-
-struct ata_internal {
-	struct scsi_transport_template t;
-
-	struct device_attribute private_port_attrs[ATA_PORT_ATTRS];
-	struct device_attribute private_link_attrs[ATA_LINK_ATTRS];
-	struct device_attribute private_dev_attrs[ATA_DEV_ATTRS];
-
-	struct transport_container link_attr_cont;
-	struct transport_container dev_attr_cont;
-
-	/*
-	 * The array of null terminated pointers to attributes
-	 * needed by scsi_sysfs.c
-	 */
-	struct device_attribute *link_attrs[ATA_LINK_ATTRS + 1];
-	struct device_attribute *port_attrs[ATA_PORT_ATTRS + 1];
-	struct device_attribute *dev_attrs[ATA_DEV_ATTRS + 1];
-};
-#define to_ata_internal(tmpl)	container_of(tmpl, struct ata_internal, t)
-
+static int ata_tlink_match(struct attribute_container *cont,
+			   struct device *dev);
+static int ata_tdev_match(struct attribute_container *cont,
+			  struct device *dev);
 
 #define tdev_to_device(d)					\
 	container_of((d), struct ata_device, tdev)
@@ -79,13 +56,6 @@ struct ata_internal {
 	container_of((d), struct ata_port, tdev)
 #define transport_class_to_port(dev)				\
 	tdev_to_port((dev)->parent)
-
-/*
- * Hack to allow attributes of the same name in different objects.
- */
-#define ATA_DEVICE_ATTR(_prefix,_name,_mode,_show,_store) \
-	struct device_attribute device_attr_##_prefix##_##_name = \
-	__ATTR(_name,_mode,_show,_store)
 
 #define ata_bitfield_name_match(title, table)			\
 static ssize_t							\
@@ -214,6 +184,17 @@ ata_port_simple_attr(stats.idle_irq, idle_irq, "%ld\n", unsigned long);
 /* We want the port_no sysfs attibute to start at 1 (ap->port_no starts at 0) */
 ata_port_simple_attr(port_no + 1, port_no, "%u\n", unsigned int);
 
+static const struct attribute *const ata_port_attr_attrs[] = {
+	&dev_attr_nr_pmp_links.attr,
+	&dev_attr_idle_irq.attr,
+	&dev_attr_port_no.attr,
+	NULL
+};
+
+static const struct attribute_group ata_port_attr_group = {
+	.attrs_const = ata_port_attr_attrs,
+};
+
 static DECLARE_TRANSPORT_CLASS(ata_port_class,
 			       "ata_port", NULL, NULL, NULL);
 
@@ -240,7 +221,7 @@ static int ata_tport_match(struct attribute_container *cont,
 {
 	if (!ata_is_port(dev))
 		return 0;
-	return &ata_scsi_transport_template->host_attrs.ac == cont;
+	return &ata_scsi_transportt.host_attrs.ac == cont;
 }
 
 /**
@@ -496,6 +477,23 @@ show_ata_dev_trim(struct device *dev,
 
 static DEVICE_ATTR(trim, S_IRUGO, show_ata_dev_trim, NULL);
 
+static const struct attribute *const ata_device_attr_attrs[] = {
+	&dev_attr_class.attr,
+	&dev_attr_pio_mode.attr,
+	&dev_attr_dma_mode.attr,
+	&dev_attr_xfer_mode.attr,
+	&dev_attr_spdn_cnt.attr,
+	&dev_attr_ering.attr,
+	&dev_attr_id.attr,
+	&dev_attr_gscr.attr,
+	&dev_attr_trim.attr,
+	NULL
+};
+
+static const struct attribute_group ata_device_attr_group = {
+	.attrs_const = ata_device_attr_attrs,
+};
+
 static DECLARE_TRANSPORT_CLASS(ata_dev_class,
 			       "ata_device", NULL, NULL, NULL);
 
@@ -513,16 +511,6 @@ static void ata_tdev_release(struct device *dev)
 static bool ata_is_ata_dev(const struct device *dev)
 {
 	return dev->release == ata_tdev_release;
-}
-
-static int ata_tdev_match(struct attribute_container *cont,
-			  struct device *dev)
-{
-	struct ata_internal *i = to_ata_internal(ata_scsi_transport_template);
-
-	if (!ata_is_ata_dev(dev))
-		return 0;
-	return &i->dev_attr_cont.ac == cont;
 }
 
 /**
@@ -626,6 +614,17 @@ ata_link_linkspeed_attr(hw_sata_spd_limit, fls);
 ata_link_linkspeed_attr(sata_spd_limit, fls);
 ata_link_linkspeed_attr(sata_spd, noop);
 
+static const struct attribute *const ata_link_attr_attrs[] = {
+	&dev_attr_hw_sata_spd_limit.attr,
+	&dev_attr_sata_spd_limit.attr,
+	&dev_attr_sata_spd.attr,
+	NULL
+};
+
+static const struct attribute_group ata_link_attr_group = {
+	.attrs_const = ata_link_attr_attrs,
+};
+
 static DECLARE_TRANSPORT_CLASS(ata_link_class,
 		"ata_link", NULL, NULL, NULL);
 
@@ -643,16 +642,6 @@ static void ata_tlink_release(struct device *dev)
 static bool ata_is_link(const struct device *dev)
 {
 	return dev->release == ata_tlink_release;
-}
-
-static int ata_tlink_match(struct attribute_container *cont,
-			    struct device *dev)
-{
-	struct ata_internal *i = to_ata_internal(ata_scsi_transport_template);
-
-	if (!ata_is_link(dev))
-		return 0;
-	return &i->link_attr_cont.ac == cont;
 }
 
 /**
@@ -730,100 +719,48 @@ int ata_tlink_add(struct ata_link *link)
 	return error;
 }
 
+struct scsi_transport_template ata_scsi_transportt = {
+	.eh_strategy_handler	= ata_scsi_error,
+	.user_scan		= ata_scsi_user_scan,
+
+	.host_attrs.ac.class	= &ata_port_class.class,
+	.host_attrs.ac.grp	= &ata_port_attr_group,
+	.host_attrs.ac.match	= ata_tport_match,
+};
+
+static struct transport_container ata_link_attr_cont = {
+	.ac.class	= &ata_link_class.class,
+	.ac.grp		= &ata_link_attr_group,
+	.ac.match	= ata_tlink_match,
+};
+
+static struct transport_container ata_dev_attr_cont = {
+	.ac.class	= &ata_dev_class.class,
+	.ac.grp		= &ata_device_attr_group,
+	.ac.match	= ata_tdev_match,
+};
+
+static int ata_tlink_match(struct attribute_container *cont,
+			   struct device *dev)
+{
+	if (!ata_is_link(dev))
+		return 0;
+
+	return &ata_link_attr_cont.ac == cont;
+}
+
+static int ata_tdev_match(struct attribute_container *cont,
+			  struct device *dev)
+{
+	if (!ata_is_ata_dev(dev))
+		return 0;
+
+	return &ata_dev_attr_cont.ac == cont;
+}
+
 /*
  * Setup / Teardown code
  */
-
-#define SETUP_TEMPLATE(attrb, field, perm, test)			\
-	i->private_##attrb[count] = dev_attr_##field;			\
-	i->private_##attrb[count].attr.mode = perm;			\
-	i->attrb[count] = &i->private_##attrb[count];			\
-	if (test)							\
-		count++
-
-#define SETUP_LINK_ATTRIBUTE(field)					\
-	SETUP_TEMPLATE(link_attrs, field, S_IRUGO, 1)
-
-#define SETUP_PORT_ATTRIBUTE(field)					\
-	SETUP_TEMPLATE(port_attrs, field, S_IRUGO, 1)
-
-#define SETUP_DEV_ATTRIBUTE(field)					\
-	SETUP_TEMPLATE(dev_attrs, field, S_IRUGO, 1)
-
-/**
- * ata_attach_transport  --  instantiate ATA transport template
- */
-struct scsi_transport_template *ata_attach_transport(void)
-{
-	struct ata_internal *i;
-	int count;
-
-	i = kzalloc_obj(struct ata_internal);
-	if (!i)
-		return NULL;
-
-	i->t.eh_strategy_handler	= ata_scsi_error;
-	i->t.user_scan			= ata_scsi_user_scan;
-
-	i->t.host_attrs.ac.attrs = &i->port_attrs[0];
-	i->t.host_attrs.ac.class = &ata_port_class.class;
-	i->t.host_attrs.ac.match = ata_tport_match;
-	transport_container_register(&i->t.host_attrs);
-
-	i->link_attr_cont.ac.class = &ata_link_class.class;
-	i->link_attr_cont.ac.attrs = &i->link_attrs[0];
-	i->link_attr_cont.ac.match = ata_tlink_match;
-	transport_container_register(&i->link_attr_cont);
-
-	i->dev_attr_cont.ac.class = &ata_dev_class.class;
-	i->dev_attr_cont.ac.attrs = &i->dev_attrs[0];
-	i->dev_attr_cont.ac.match = ata_tdev_match;
-	transport_container_register(&i->dev_attr_cont);
-
-	count = 0;
-	SETUP_PORT_ATTRIBUTE(nr_pmp_links);
-	SETUP_PORT_ATTRIBUTE(idle_irq);
-	SETUP_PORT_ATTRIBUTE(port_no);
-	BUG_ON(count > ATA_PORT_ATTRS);
-	i->port_attrs[count] = NULL;
-
-	count = 0;
-	SETUP_LINK_ATTRIBUTE(hw_sata_spd_limit);
-	SETUP_LINK_ATTRIBUTE(sata_spd_limit);
-	SETUP_LINK_ATTRIBUTE(sata_spd);
-	BUG_ON(count > ATA_LINK_ATTRS);
-	i->link_attrs[count] = NULL;
-
-	count = 0;
-	SETUP_DEV_ATTRIBUTE(class);
-	SETUP_DEV_ATTRIBUTE(pio_mode);
-	SETUP_DEV_ATTRIBUTE(dma_mode);
-	SETUP_DEV_ATTRIBUTE(xfer_mode);
-	SETUP_DEV_ATTRIBUTE(spdn_cnt);
-	SETUP_DEV_ATTRIBUTE(ering);
-	SETUP_DEV_ATTRIBUTE(id);
-	SETUP_DEV_ATTRIBUTE(gscr);
-	SETUP_DEV_ATTRIBUTE(trim);
-	BUG_ON(count > ATA_DEV_ATTRS);
-	i->dev_attrs[count] = NULL;
-
-	return &i->t;
-}
-
-/**
- * ata_release_transport  --  release ATA transport template instance
- * @t:		transport template instance
- */
-void ata_release_transport(struct scsi_transport_template *t)
-{
-	struct ata_internal *i = to_ata_internal(t);
-
-	transport_container_unregister(&i->t.host_attrs);
-	transport_container_unregister(&i->link_attr_cont);
-	transport_container_unregister(&i->dev_attr_cont);
-
-	kfree(i);
-}
 
 __init int libata_transport_init(void)
 {
@@ -838,6 +775,11 @@ __init int libata_transport_init(void)
 	error = transport_class_register(&ata_dev_class);
 	if (error)
 		goto out_unregister_port;
+
+	transport_container_register(&ata_scsi_transportt.host_attrs);
+	transport_container_register(&ata_link_attr_cont);
+	transport_container_register(&ata_dev_attr_cont);
+
 	return 0;
 
  out_unregister_port:
@@ -851,6 +793,10 @@ __init int libata_transport_init(void)
 
 void __exit libata_transport_exit(void)
 {
+	transport_container_unregister(&ata_scsi_transportt.host_attrs);
+	transport_container_unregister(&ata_link_attr_cont);
+	transport_container_unregister(&ata_dev_attr_cont);
+
 	transport_class_unregister(&ata_link_class);
 	transport_class_unregister(&ata_port_class);
 	transport_class_unregister(&ata_dev_class);

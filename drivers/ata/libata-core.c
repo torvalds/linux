@@ -5151,8 +5151,13 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_link *link = qc->dev->link;
 	u8 prot = qc->tf.protocol;
 
-	/* Make sure only one non-NCQ command is outstanding. */
-	WARN_ON_ONCE(ata_tag_valid(link->active_tag));
+	/*
+	 * Make sure we have a valid tag and that only one non-NCQ command is
+	 * outstanding.
+	 */
+	if (WARN_ON_ONCE(!ata_tag_valid(qc->tag)) ||
+	    WARN_ON_ONCE(ata_tag_valid(link->active_tag)))
+		goto sys_err;
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
@@ -6773,23 +6778,14 @@ static int __init ata_init(void)
 	}
 
 	libata_transport_init();
-	ata_scsi_transport_template = ata_attach_transport();
-	if (!ata_scsi_transport_template) {
-		ata_sff_exit();
-		rc = -ENOMEM;
-		goto err_out;
-	}
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
-	return 0;
 
-err_out:
-	return rc;
+	return 0;
 }
 
 static void __exit ata_exit(void)
 {
-	ata_release_transport(ata_scsi_transport_template);
 	libata_transport_exit();
 	ata_sff_exit();
 	ata_free_force_param();
