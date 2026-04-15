@@ -145,13 +145,13 @@ check_requires() { # Check required files and tracers
 	p=${i%:program}
         r=${i%:README}
         t=${i%:tracer}
-	if [ $p != $i ]; then
-	    if ! which $p ; then
+	if [ "$p" != "$i" ]; then
+	    if ! which "$p" ; then
                 echo "Required program $p is not found."
                 exit_unresolved
 	    fi
-        elif [ $t != $i ]; then
-            if ! grep -wq $t available_tracers ; then
+        elif [ "$t" != "$i" ]; then
+            if ! grep -wq "$t" available_tracers ; then
                 echo "Required tracer $t is not configured."
                 exit_unsupported
             fi
@@ -162,15 +162,19 @@ check_requires() { # Check required files and tracers
 	    else
 		test=$TRACING_DIR
 	    fi
-            if ! grep -Fq "$r" $test/README ; then
+            if ! grep -Fq "$r" "$test"/README ; then
                 echo "Required feature pattern \"$r\" is not in README."
                 exit_unsupported
             fi
-        elif [ ! -e $i ]; then
+        elif [ ! -e "$i" ]; then
             echo "Required feature interface $i doesn't exist."
             exit_unsupported
         fi
     done
+}
+
+check_awk_strtonum() { # strtonum is GNU awk extension
+    awk 'BEGIN{strtonum("0x1")}'
 }
 
 LOCALHOST=127.0.0.1

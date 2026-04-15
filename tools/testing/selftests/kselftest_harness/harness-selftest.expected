@@ -1,6 +1,6 @@
 TAP version 13
-1..9
-# Starting 9 tests from 4 test cases.
+1..19
+# Starting 19 tests from 4 test cases.
 #  RUN           global.standalone_pass ...
 # harness-selftest.c:19:standalone_pass:before
 # harness-selftest.c:23:standalone_pass:after
@@ -24,6 +24,39 @@ ok 3 global.signal_pass
 # signal_fail: Test terminated by assertion
 #          FAIL  global.signal_fail
 not ok 4 global.signal_fail
+#  RUN           global.exit_pass ...
+#            OK  global.exit_pass
+ok 5 global.exit_pass
+#  RUN           global.exit_xpass ...
+#            OK  global.exit_xpass
+ok 6 global.exit_xpass # XPASS unknown
+#  RUN           global.exit_fail ...
+# exit_fail: Test failed
+#          FAIL  global.exit_fail
+not ok 7 global.exit_fail
+#  RUN           global.exit_xfail ...
+#            OK  global.exit_xfail
+ok 8 global.exit_xfail # XFAIL unknown
+#  RUN           global.exit_skip ...
+#            OK  global.exit_skip
+ok 9 global.exit_skip # SKIP unknown
+#  RUN           global.test_result_pass ...
+#            OK  global.test_result_pass
+ok 10 global.test_result_pass
+#  RUN           global.test_result_xpass ...
+#            OK  global.test_result_xpass
+ok 11 global.test_result_xpass
+#  RUN           global.test_result_fail ...
+not ok 1 # Illegal usage of low-level ksft APIs in harness test
+# test_result_fail: Test failed
+#          FAIL  global.test_result_fail
+not ok 12 global.test_result_fail
+#  RUN           global.test_result_xfail ...
+#            OK  global.test_result_xfail
+ok 13 global.test_result_xfail
+#  RUN           global.test_result_skip ...
+#            OK  global.test_result_skip
+ok 14 global.test_result_skip
 #  RUN           fixture.pass ...
 # harness-selftest.c:53:pass:setup
 # harness-selftest.c:62:pass:before
@@ -32,7 +65,7 @@ not ok 4 global.signal_fail
 # harness-selftest.c:66:pass:after
 # harness-selftest.c:58:pass:teardown same-process=1
 #            OK  fixture.pass
-ok 5 fixture.pass
+ok 15 fixture.pass
 #  RUN           fixture.fail ...
 # harness-selftest.c:53:fail:setup
 # harness-selftest.c:70:fail:before
@@ -40,25 +73,26 @@ ok 5 fixture.pass
 # harness-selftest.c:58:fail:teardown same-process=1
 # fail: Test terminated by assertion
 #          FAIL  fixture.fail
-not ok 6 fixture.fail
+not ok 16 fixture.fail
 #  RUN           fixture.timeout ...
 # harness-selftest.c:53:timeout:setup
 # harness-selftest.c:77:timeout:before
 # timeout: Test terminated by timeout
 #          FAIL  fixture.timeout
-not ok 7 fixture.timeout
+not ok 17 fixture.timeout
 #  RUN           fixture_parent.pass ...
 # harness-selftest.c:87:pass:setup
 # harness-selftest.c:96:pass:before
 # harness-selftest.c:98:pass:after
 # harness-selftest.c:92:pass:teardown same-process=0
 #            OK  fixture_parent.pass
-ok 8 fixture_parent.pass
+ok 18 fixture_parent.pass
 #  RUN           fixture_setup_failure.pass ...
 # harness-selftest.c:106:pass:setup
 # harness-selftest.c:108:pass:Expected 0 (0) == 1 (1)
 # pass: Test terminated by assertion
 #          FAIL  fixture_setup_failure.pass
-not ok 9 fixture_setup_failure.pass
-# FAILED: 4 / 9 tests passed.
-# Totals: pass:4 fail:5 xfail:0 xpass:0 skip:0 error:0
+not ok 19 fixture_setup_failure.pass
+# FAILED: 12 / 19 tests passed.
+# 1 skipped test(s) detected. Consider enabling relevant config options to improve coverage.
+# Totals: pass:9 fail:7 xfail:1 xpass:1 skip:1 error:0

@@ -399,6 +399,7 @@ static inline __noreturn void ksft_exit_fail(void)
 #define ksft_finished()			\
 	ksft_exit(ksft_plan ==		\
 		  ksft_cnt.ksft_pass +	\
+		  ksft_cnt.ksft_xpass +	\
 		  ksft_cnt.ksft_xfail +	\
 		  ksft_cnt.ksft_xskip)
 
@@ -473,6 +474,17 @@ static inline int ksft_min_kernel_version(unsigned int min_major,
 		ksft_exit_fail_msg("Can't parse kernel version\n");
 
 	return major > min_major || (major == min_major && minor >= min_minor);
+}
+
+static inline void ksft_reset_state(void)
+{
+	ksft_cnt.ksft_pass = 0;
+	ksft_cnt.ksft_fail = 0;
+	ksft_cnt.ksft_xfail = 0;
+	ksft_cnt.ksft_xpass = 0;
+	ksft_cnt.ksft_xskip = 0;
+	ksft_cnt.ksft_error = 0;
+	ksft_plan = 0;
 }
 
 #endif /* __KSELFTEST_H */

@@ -1225,7 +1225,16 @@ static void __run_test(struct __fixture_metadata *f,
 		t->exit_code = KSFT_FAIL;
 	} else if (child == 0) {
 		setpgrp();
+
+		/* Reset state inherited from the harness */
+		ksft_reset_state();
+
 		t->fn(t, variant);
+
+		if (__test_passed(t) && (ksft_get_fail_cnt() || ksft_get_error_cnt())) {
+			ksft_print_msg("Illegal usage of low-level ksft APIs in harness test\n");
+			t->exit_code = KSFT_FAIL;
+		}
 		_exit(t->exit_code);
 	} else {
 		t->pid = child;

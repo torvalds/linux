@@ -4,12 +4,7 @@
 # Run installed kselftest tests.
 #
 
-# Fallback to readlink if realpath is not available
-if which realpath > /dev/null; then
-        BASE_DIR=$(realpath $(dirname $0))
-else
-        BASE_DIR=$(readlink -f $(dirname $0))
-fi
+BASE_DIR=$(cd "$(dirname "$0")" && pwd -P)
 
 cd $BASE_DIR
 TESTS="$BASE_DIR"/kselftest-list.txt
@@ -21,14 +16,13 @@ else
 fi
 
 . ./kselftest/runner.sh
-ROOT=$PWD
 
 usage()
 {
 	cat <<EOF
 Usage: $0 [OPTIONS]
   -s | --summary		Print summary with detailed log in output.log (conflict with -p)
-  -p | --per-test-log		Print test log in /tmp with each test name (conflict with -s)
+  -p | --per-test-log [DIR]	Print test log in /tmp or DIR with each test name (conflict with -s)
   -t | --test COLLECTION:TEST	Run TEST from COLLECTION
   -S | --skip COLLECTION:TEST	Skip TEST from COLLECTION
   -c | --collection COLLECTION	Run all tests from COLLECTION
@@ -56,7 +50,33 @@ while true; do
 			shift ;;
 		-p | --per-test-log)
 			per_test_logging=1
-			shift ;;
+			if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+				per_test_log_dir="$2"
+				if [ -e "$per_test_log_dir" ] && [ ! -d "$per_test_log_dir" ]; then
+					echo "Per-test log path is not a dir:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				if [ ! -d "$per_test_log_dir" ] && \
+				   ! mkdir -p "$per_test_log_dir"; then
+					echo "Could not create log dir:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				per_test_log_dir=$(cd "$per_test_log_dir" && pwd -P)
+				if [ -z "$per_test_log_dir" ]; then
+					echo "Could not resolve per-test log directory" >&2
+					exit 1
+				fi
+				if [ ! -w "$per_test_log_dir" ]; then
+					echo "Per-test log dir is not writable:" \
+					     "$per_test_log_dir" >&2
+					exit 1
+				fi
+				shift 2
+			else
+				shift
+			fi ;;
 		-t | --test)
 			TESTS="$TESTS $2"
 			shift 2 ;;
@@ -121,18 +141,23 @@ if [ -n "$SKIP" ]; then
 	done
 fi
 
-kselftest_failures_file="$(mktemp --tmpdir kselftest-failures-XXXXXX)"
-export kselftest_failures_file
-
+curdir=$(pwd)
+total=$(echo "$available" | wc -w)
 collections=$(echo "$available" | cut -d: -f1 | sort | uniq)
+
+ktap_print_header
+ktap_set_plan "$total"
+
 for collection in $collections ; do
 	[ -w /dev/kmsg ] && echo "kselftest: Running tests in $collection" >> /dev/kmsg
 	tests=$(echo "$available" | grep "^$collection:" | cut -d: -f2)
-	($dryrun cd "$collection" && $dryrun run_many $tests)
+	$dryrun cd "$collection" && $dryrun run_many $tests
+	$dryrun cd "$curdir"
 done
 
-failures="$(cat "$kselftest_failures_file")"
-rm "$kselftest_failures_file"
-if "$ERROR_ON_FAIL" && [ "$failures" ]; then
-	exit 1
+ktap_print_totals
+if "$ERROR_ON_FAIL" && [ "$KTAP_CNT_FAIL" -ne 0 ]; then
+	exit "$KSFT_FAIL"
+else
+	exit "$KSFT_PASS"
 fi
