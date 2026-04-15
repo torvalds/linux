@@ -10,8 +10,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef LIBNUMA_VER_SUFFICIENT
 #include <numa.h>
 #include <numaif.h>
+#endif
 
 #include <linux/futex.h>
 #include <sys/mman.h>
@@ -206,7 +208,7 @@ TEST(futex_numa_mpol)
 	}
 	ksft_test_result_pass("futex2 MPOL hints test passed\n");
 #else
-	ksft_test_result_skip("futex2 MPOL hints test requires libnuma 2.0.16+\n");
+	ksft_test_result_skip("futex2 MPOL hints test requires libnuma 2.0.18+\n");
 #endif
 	munmap(futex_ptr, mem_size * 2);
 }
